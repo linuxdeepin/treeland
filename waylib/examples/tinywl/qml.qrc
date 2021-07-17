@@ -1,0 +1,7 @@
+<RCC>
+    <qresource prefix="/">
+        <file>Window.qml</file>
+        <file>Output.qml</file>
+        <file>SurfaceDelegate.qml</file>
+    </qresource>
+</RCC>

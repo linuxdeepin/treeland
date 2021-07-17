@@ -1,0 +1,26 @@
+Source: waylib
+Section: libdevel
+Priority: optional
+Maintainer: zkyd <zkyd@zjide.org>
+Build-Depends: debhelper (>= 9),
+ pkg-config,
+ qtbase5-private-dev (>= 5.15.0),
+ qtbase5-dev-tools (>= 5.15.0),
+ qtdeclarative5-private-dev (>= 5.15.0),
+ libpixman-1-dev
+Standards-Version: 3.9.8
+
+Package: libwaylib
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Multi-Arch: same
+Description:  A wrapper for wlroots based on Qt
+ .
+ This package contains the shared libraries.
+
+Package: libwaylib-dev
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}, libwaylib( =${binary:Version})
+Description: A devel package for libwaylib
+ .
+ This package contains the header files and static libraries of waylib
