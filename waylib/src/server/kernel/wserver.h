@@ -131,7 +131,7 @@ public:
 
 Q_SIGNALS:
     void started();
-    // TODO: 移除，由 WBackend 直接 attach 到 WSeat
+    // TODO: remove it, use the WBackend direct attach to WSeat
     void inputAdded(WBackend *backend, WInputDevice *input);
     void inputRemoved(WBackend *backend, WInputDevice *input);
 

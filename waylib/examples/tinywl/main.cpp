@@ -71,7 +71,7 @@ public:
 
     QQuickItem *createSurfaceItem(WSurface *surface) override {
         if (!surface->attributes().testFlag(WSurface::Attribute::Immovable)) {
-            // 初始化 surface 的位置
+            // init the position for the surface
             if (auto output = surface->attachedOutput()) {
                 QRectF surface_geometry(surface->position(), surface->size());
                 const QRectF output_geometry(output->position(), output->effectiveSize());
@@ -135,7 +135,7 @@ int main(int argc, char *argv[]) {
         Q_ASSERT(ok);
     }
 
-    // wlr_egl 只有颜色缓冲区
+    // Because the wlr_egl only have the color buffer
     qputenv("QSG_NO_DEPTH_BUFFER", "1");
     qputenv("QSG_NO_STENCIL_BUFFER", "1");
 

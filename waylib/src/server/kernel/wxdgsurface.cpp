@@ -139,7 +139,7 @@ WXdgSurfaceHandle *WXdgSurface::handle() const
 WSurfaceHandle *WXdgSurface::inputTargetAt(qreal scale, QPointF &globalPos) const
 {
     W_DC(WXdgSurface);
-    // 找到一个可以接收事件的 wlr_surface
+    // find a wlr_suface object who can receive the events
     const QPointF &pos = positionFromGlobal(fromEffectivePos(scale, globalPos));
     auto sur = wlr_xdg_surface_surface_at(d->handle, pos.x(), pos.y(),
                                           &globalPos.rx(), &globalPos.ry());

@@ -129,7 +129,8 @@ void WSignalConnector::disconnect(wl_signal *signal)
     }
 }
 
-// 此模式下不会移除wl_list, 用于在销毁对应的 wlr 对象之前调用
+// In this function will not remove the wl_list, use in the destroy
+// the corresponding wlr object before.
 void WSignalConnector::invalidate()
 {
     auto tmpList = listenerList;

@@ -271,9 +271,9 @@ public:
                     doRender();
             });
         }
-        // TODO: 在某些情况下（已发现的是在 QtWayland Platform下），Qt 的主线程可能会出现异常阻塞
-        // 问题，如果通过主线程请求绘制的时间超过5毫秒，则直接调用doRender，且抛弃主线程的绘制请求，防止
-        // 界面渲染卡顿
+        // TODO: In the QtWayland platform, maybe the Qt main thread will to blocked, so, if the main thread
+        // blocked duration greater than 5s that direct call the "doRender" to force render, and ignore the main
+        // thread render request on later. Avoid the UI blocked!
         requestRenderTimeout->start(5);
         dropRequestRenderEvent = RequestRenderState::Started;
         QCoreApplication::postEvent(ensureEventObject(),
@@ -353,7 +353,7 @@ public:
 
                 output->backend->server()->threadUtil()->run(output->q_func(),
                                                              output, &WOutputPrivate::doRender);
-                // 等待执行 QQuickRendererControl::sync 完成
+                // wait for the QQuickRendererControl::sync finished
                 output->renderSyncCond.wait(&output->renderSyncMutex);
             } else if (e->type() == WInputEvent::type()) {
                 output->processInputEvent(static_cast<WInputEvent*>(e));
@@ -366,7 +366,8 @@ public:
 
         WOutputPrivate *output;
     };
-    // 用于在窗口所在线程处理任务
+    // If you want the some events can process in the window thread, then you can post the
+    // event to the 'inWindowThread' object
     QScopedPointer<EventObject> inWindowThread;
 #endif
     // in attached window thread
@@ -786,10 +787,21 @@ void WOutputPrivate::init()
     }
 
     q->attachedWindow()->setScreen(ensureScreen());
-    // 延迟到事件循环中调用 maybeRender，避免 QQuickItemPrivate::addToDirtyList()
-    // 的 Q_ASSERT(prevDirtyItem) 断言失败（QQuickWindowPrivate::dirtyItem 会触发
-    // QQuickRenderControl::sceneChanged 信号，如果此时立即重绘制，将可能导致
-    // QQuickItemPrivate::prevDirtyItem 被再次置空）
+    /* Ensure call the "requestRender" on later via Qt::QueuedConnection, if not will crash
+    at "Q_ASSERT(prevDirtyItem)" in the QQuickItem, because the QQuickRenderControl::render
+    will trigger the QQuickWindow::sceneChanged signal that trigger the
+    QQuickRenderControl::sceneChanged, this is a endless loop calls.
+
+    Functions call list:
+    0. WOutput::requestRender
+    1. QQuickRenderControl::render
+    2. QQuickWindowPrivate::renderSceneGraph
+    3. QQuickItemPrivate::addToDirtyList
+    4. QQuickWindowPrivate::dirtyItem
+    5. QQuickWindow::maybeUpdate
+    6. QQuickRenderControlPrivate::maybeUpdate
+    7. QQuickRenderControl::sceneChanged
+    */
     QObject::connect(rc, &QQuickRenderControl::renderRequested,
                      q, &WOutput::requestRender, Qt::QueuedConnection);
     QObject::connect(rc, &QQuickRenderControl::sceneChanged,
@@ -804,11 +816,13 @@ void WOutputPrivate::connect()
 {
     sc.connect(&handle->events.frame,
                this, &WOutputPrivate::on_frame);
-    // 在连接 frame 信号之前，wlr_output 就有可能已经发过了此信号
-    // 所在在此处假设 renderable 为 true
+    // In call the connect for 'frame' signal before, maybe the wlr_output object is already
+    // emit the signal, so we should suppose the renderable is true in order that ensure can
+    // render on the next time
     renderable = true;
 
-    // 在 X11/Wayalnd 模式下，当output的窗口大小改变时触发此信号
+    // On the X11/Wayalnd mode，when the window size of 'output' is changed then will trigger
+    // the 'mode' signal
     sc.connect(&handle->events.mode,
                this, &WOutputPrivate::on_mode);
     sc.connect(&handle->events.destroy,
@@ -876,7 +890,7 @@ void WOutputPrivate::doSetCursor(const QCursor &cur)
 {
     ensureCursor() = cur;
 
-    // TODO: 应当找到是哪个 QQuickItem 请求的设置光标
+    // TODO: should to find which related QQuickItem for the cursor
     Q_FOREACH(auto wlr_cursor, cursorList) {
         wlr_cursor->setCursor(ensureCursor());
     }
@@ -895,7 +909,7 @@ QScreen *WOutputPrivate::ensureScreen()
     if (!screen) {
         screen = new QScreen(new OutputScreen(this));
         screen->setObjectName("_d_dwoutput_screen");
-        // 确保和显示的窗口在同一个线程
+        // Ensure the screen and the view window is in the same thread
         screen->moveToThread(attached_window->thread());
         screen->QObject::setParent(attached_window);
         Q_ASSERT(screen->parent() == attached_window);
@@ -911,10 +925,10 @@ QWindow *WOutputPrivate::ensureRenderWindow()
     auto renderWindow = qvariant_cast<QWindow*>(attached_window->property("_d_dwoutput_render_window"));
     if (!renderWindow) {
         renderWindow = new QWindow();
-        // 此窗口不应该被 QGuiApplication 接管
+        // Don't should manager the renderWindow in QGuiApplication
         QGuiApplicationPrivate::window_list.removeOne(renderWindow);
         renderWindow->setObjectName("_d_dwoutput_render_window");
-        // 确保和显示的窗口在同一个线程
+        // Ensure the renderWindow and the view window is in the same thread
         renderWindow->moveToThread(attached_window->thread());
         Q_ASSERT(renderWindow->thread() == attached_window->thread());
         bool connected = QObject::connect(attached_window, &QObject::destroyed,
@@ -1016,7 +1030,7 @@ bool WOutputPrivate::doRender()
         if (Q_UNLIKELY(dirtyFlags & WLR_OUTPUT_STATE_SCALE)) {
             Q_EMIT q->scaleChanged();
             auto screen = ensureScreen();
-            // 同时窗口缩放比例变化
+            // Notify for the window device pixel ratio to changed
             QWindowSystemInterface::handleScreenLogicalDotsPerInchChange(screen,
                                                                          screen->logicalDotsPerInchX(),
                                                                          screen->logicalDotsPerInchY());
@@ -1074,7 +1088,6 @@ void WOutput::attach(WQuickRenderControl *control)
     auto wd = QQuickWindowPrivate::get(window);
     Q_ASSERT(!wd->platformWindow);
 
-    // 确保和 attachedWindow 在同一个线程
     d->ensureRenderWindow();
     d->ensureScreen();
 
@@ -1092,7 +1105,7 @@ void WOutput::detach()
     W_D(WOutput);
 
     if (d->rc) {
-        // 调用 rc->invalidate() 时会触发 sceneChanged
+        // Call the "rc->invalidate()" will trigger the "sceneChanged" signal
         d->rc->disconnect(this);
 
         auto w = attachedWindow();

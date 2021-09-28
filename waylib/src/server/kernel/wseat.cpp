@@ -87,18 +87,19 @@ public:
         Q_UNUSED(device)
         qreal scale = cursor->mappedOutput()->scale();
         auto pos = cursor->position();
-        // 根据 client 的 input 事件接收区域获取一个有效的 wlr_surface
+        // Get a valid wlr_surface object by the input region of the client
         auto target_surface = hoverSurface->nativeInputTargetAt<wlr_surface>(scale, pos);
         if (Q_UNLIKELY(!target_surface)) {
-            // 因为 doNotifyMotion 会在 WQuickItem 之前接收事件，因此当鼠标从窗口边缘移出
-            // 窗口事件范围时，此处已经无法获取一个非空 target surface，随后当事件传递给
-            // WQuickItem 的所在窗口时才会触发 notifyLeaveSurface
+            // Because the doNotifyMotion will received the event on before the WQuickItem, so
+            // when the mouse move form the window edges to outside of the event area of the
+            // window, that can't get a valid target surface object at here. Follow, only when
+            // the event spread to the WQuickItem's window can trigger the notifyLeaveSurface.
             return;
         }
 
         if (Q_LIKELY(handle()->pointer_state.focused_surface == target_surface)) {
             wlr_seat_pointer_notify_motion(handle(), timestamp, pos.x(), pos.y());
-        } else { // 此时应当触发 enter 通知
+        } else { // Should to notify the enter event on there
             wlr_seat_pointer_notify_enter(handle(), target_surface, pos.x(), pos.y());
         }
     }
@@ -136,15 +137,16 @@ public:
         qreal scale = data->cursor->mappedOutput()->scale();
         auto pos = data->cursor->position();
         auto target_surface = surface->nativeInputTargetAt<wlr_surface>(scale, pos);
-        // 当存在 hoverSurface 时，说明事件接收区域已经经过了 WQuickItem 的筛选，此处
-        // 不应该存在空的 target_surface
+        // When the hoverSuface is exists, indicate the event receive areas is filtered
+        // by the WQuickItem, so the target_suface should always is not nullptr.
         Q_ASSERT(target_surface);
         wlr_seat_pointer_notify_enter(handle(), target_surface, pos.x(), pos.y());
     }
     inline void doClearFocus(WInputEvent::DataPointer data) {
         hoverSurface = nullptr;
         wlr_seat_pointer_notify_clear_focus(handle());
-        // 光标从 client 的 surface 移走时应该恢复为 Qt 窗口的光标
+        // Should do restore to the Qt window's cursor when the cursor from 
+        // the surface of client move out.
         data->cursor->reset();
     }
 
@@ -379,7 +381,8 @@ void WSeat::detachInputDevice(WInputDevice *device)
 void WSeat::notifyEnterSurface(WSurface *surface, WInputEvent *event)
 {
     W_D(WSeat);
-    // 异步调用，event 可能会被销毁，此处传递 event 的 data
+    // Do async call that the event maybe to destroyed later, so should
+    // use the data of event instead of the event self.
     d->server->threadUtil()->run(surface, d, &WSeatPrivate::doEnter,
                                  surface, event->data);
 }
@@ -389,7 +392,8 @@ void WSeat::notifyLeaveSurface(WSurface *surface, WInputEvent *event)
     Q_UNUSED(event)
     W_D(WSeat);
     Q_ASSERT(d->hoverSurface == surface);
-    // 异步调用，event 可能会被销毁，此处传递 event 的 data
+    // Do async call that the event maybe to destroyed later, so should
+    // use the data of event instead of the event self.
     d->server->threadUtil()->run(d->server, d, &WSeatPrivate::doClearFocus, event->data);
 }
 
@@ -418,7 +422,8 @@ void WSeat::notifyMotion(WCursor *cursor, WInputDevice *device,
 
     if (Q_LIKELY(d->shouldNotifyPointerEvent(cursor))) {
         d->doNotifyMotion(cursor, device, timestamp);
-        // 继续传递，以便 QQuickWindow 正确处理 QQuickItem 的 enter 和 leave 事件
+        // Continue to spread the event, in order to the QQuickWindow do handle
+        // the enter and leave events.
     }
 
     auto output = cursor->mappedOutput();
@@ -574,8 +579,8 @@ void WSeat::destroy(WServer *)
 
     d->deviceList.clear();
 
-    // 销毁时不需要执行 DCursor::detachInputDevice
-    // 因此放到 deviceList clear 之后 detachCursor
+    // Need not call the DCursor::detachInputDevice on destroy WSeat, so do
+    // call the detachCursor at clear the deviceList after.
     if (d->cursor)
         detachCursor(d->cursor);
 

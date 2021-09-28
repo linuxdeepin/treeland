@@ -79,7 +79,8 @@ void WSurfaceLayoutPrivate::updateSurfaceOutput(WSurface *surface)
         }
     }
 
-    // 无论何时，窗口必须依附一个屏幕，所以当未找到新的屏幕对象时不应该更新 surface 的 output
+    // Whenever, the window must attch to a screen, so shouldn't update the output of
+    // the surface when not found a new screen object.
     if (new_output) {
         q->setOutput(surface, new_output);
     }

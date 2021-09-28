@@ -202,8 +202,8 @@ void WSurfaceItem::hoverEnterEvent(QHoverEvent *event)
 {
     Q_D(WSurfaceItem);
 
-    // 非顶层窗口不需要拦截输入事件，其事件会由parent surface
-    // 作为入口在 WSet 中分发
+    // The Non-Toplevel windows not need intercept the input events, it's events is distribute
+    // via WSet in it's parent surface.
     if (d->surface->parentSurface()) {
         return QQuickItem::hoverEnterEvent(event);
     }
@@ -250,14 +250,14 @@ void WSurfaceItem::releaseResources()
             QObject *m_object;
         };
 
-        // 延迟到下次渲染之后再清理材质
+        // Delay clean the textures on the next render after.
         window()->scheduleRenderJob(new WSurfaceCleanupJob(d->textureProvider),
                                     QQuickWindow::AfterRenderingStage);
         d->textureProvider = nullptr;
     }
 
     d->surface = nullptr;
-    // 强制更新内容，防止绘制无效的材质
+    // Force to update the contents, avoid to render the invalid textures
     d->dirty(QQuickItemPrivate::Content);
     QQuickItem::releaseResources();
 }

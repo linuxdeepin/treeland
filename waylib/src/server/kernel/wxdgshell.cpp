@@ -99,7 +99,7 @@ void WXdgShellPrivate::on_surface_destroy(void *data)
     layout->remove(surface);
     surface->deleteLater();
 
-    // 清理信号连接
+    // clear the signal connection
     sc.invalidate(&wlr_surface->events.destroy);
     sc.invalidate(&wlr_surface->events.map);
     sc.invalidate(&wlr_surface->events.unmap);

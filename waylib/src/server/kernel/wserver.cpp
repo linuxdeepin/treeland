@@ -78,7 +78,7 @@ public:
     WServerPrivate(WServer *qq)
         : WObjectPrivate(qq)
     {
-        // 标记为未初始化
+        // Mark to uninitialized
         initialized.lock();
     }
     ~WServerPrivate()
@@ -135,7 +135,7 @@ void WServerPrivate::init()
     QObject::connect(dispatcher, &QAbstractEventDispatcher::aboutToBlock,
                      thread.get(), &ServerThread::processWaylandEvents);
 
-    // 表明初始化成功
+    // Mark to initialized
     initialized.unlock();
 
     QMetaObject::invokeMethod(q, &WServer::started, Qt::QueuedConnection);
