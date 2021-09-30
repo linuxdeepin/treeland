@@ -25,9 +25,7 @@
 #include <QDebug>
 
 extern "C" {
-#define static
 #include <wlr/types/wlr_xdg_shell.h>
-#undef static
 }
 
 WAYLIB_SERVER_BEGIN_NAMESPACE

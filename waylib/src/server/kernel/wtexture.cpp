@@ -22,11 +22,11 @@
 #include "utils/wtools.h"
 
 extern "C" {
-#define static
 #include <wlr/render/wlr_texture.h>
+#define static
 #include <wlr/render/gles2.h>
-#include <wlr/render/pixman.h>
 #undef static
+#include <wlr/render/pixman.h>
 }
 
 #include <private/qsgplaintexture_p.h>

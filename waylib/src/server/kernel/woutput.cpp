@@ -30,15 +30,15 @@
 #include "utils/wtools.h"
 
 extern "C" {
-#define static
 #include <wlr/types/wlr_output.h>
 #include <wlr/types/wlr_output_layout.h>
 #include <wlr/backend.h>
 #include <wlr/interfaces/wlr_output.h>
 #include <wlr/render/egl.h>
+#define static
 #include <wlr/render/gles2.h>
-#include <wlr/render/pixman.h>
 #undef static
+#include <wlr/render/pixman.h>
 }
 
 #include <QSurface>

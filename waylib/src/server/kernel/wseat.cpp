@@ -33,12 +33,10 @@
 #include <private/qxkbcommon_p.h>
 
 extern "C" {
-#define static
 #include <wlr/types/wlr_seat.h>
 #include <wlr/types/wlr_data_device.h>
 #include <wlr/types/wlr_cursor.h>
 #include <wlr/types/wlr_xdg_shell.h>
-#undef static
 }
 
 WAYLIB_SERVER_BEGIN_NAMESPACE

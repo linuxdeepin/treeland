@@ -38,9 +38,10 @@
 #include <private/qthread_p.h>
 
 extern "C" {
-#define static
 #include <wlr/backend.h>
+#define static
 #include <wlr/render/wlr_renderer.h>
+#undef static
 #include <wlr/types/wlr_compositor.h>
 #include <wlr/types/wlr_data_device.h>
 #include <wlr/types/wlr_output_layout.h>
@@ -48,7 +49,6 @@ extern "C" {
 #include <wlr/types/wlr_cursor.h>
 #include <wlr/types/wlr_xcursor_manager.h>
 #include <wlr/util/log.h>
-#undef static
 }
 
 WAYLIB_SERVER_BEGIN_NAMESPACE

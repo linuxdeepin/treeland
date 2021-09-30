@@ -24,10 +24,8 @@
 #include <QDebug>
 
 extern "C" {
-#define static
 #include <wlr/types/wlr_input_device.h>
 #include <wlr/types/wlr_keyboard.h>
-#undef static
 }
 
 WAYLIB_SERVER_BEGIN_NAMESPACE

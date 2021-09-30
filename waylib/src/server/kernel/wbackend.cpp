@@ -28,10 +28,10 @@
 #include <QDebug>
 
 extern "C" {
-#define static
 #include <wlr/backend.h>
 #include <wlr/types/wlr_output.h>
 #include <wlr/types/wlr_input_device.h>
+#define static
 #include <wlr/types/wlr_compositor.h>
 #include <wlr/render/wlr_renderer.h>
 #undef static

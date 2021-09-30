@@ -22,9 +22,7 @@
 
 
 extern "C" {
-#define static
 #include <wlr/types/wlr_xcursor_manager.h>
-#undef static
 }
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
