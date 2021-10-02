@@ -14,5 +14,8 @@ set(CMAKE_AUTOUIC ON)
 # Use Qt5
 set(QT_VERSION_MAJOR 5)
 
+# For Unix/Linux
+include(GNUInstallDirs)
+
 add_subdirectory(src)
 add_subdirectory(examples)

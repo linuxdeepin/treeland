@@ -144,3 +144,9 @@ install(TARGETS ${TARGET}
         COMPONENT Development
         DESTINATION include/${TARGET}
 )
+
+include(${PROJECT_SOURCE_DIR}/cmake/Helpers.cmake)
+add_cmake_module(WaylibServer ${TARGET} ${CMAKE_INSTALL_FULL_INCLUDEDIR}/${TARGET})
+add_pkgconfig_module(${TARGET} ${TARGET} ${CMAKE_INSTALL_FULL_INCLUDEDIR}/${TARGET}
+    "wlroots Qt${QT_VERSION_MAJOR}Gui Qt${QT_VERSION_MAJOR}Quick"
+)
