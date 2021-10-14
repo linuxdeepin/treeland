@@ -11,3 +11,6 @@ override_dh_auto_configure:
 
 #override_dh_auto_test:
 #	echo "skip auto test"
+
+override_dh_shlibdeps:
+	dh_shlibdeps --dpkg-shlibdeps-params=--ignore-missing-info

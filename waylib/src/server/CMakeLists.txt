@@ -140,6 +140,7 @@ target_include_directories(${TARGET}
 
 install(TARGETS ${TARGET}
     LIBRARY
+        DESTINATION ${CMAKE_INSTALL_LIBDIR}
     PUBLIC_HEADER
         COMPONENT Development
         DESTINATION include/${TARGET}
