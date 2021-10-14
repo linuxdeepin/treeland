@@ -249,7 +249,7 @@ public:
         if (context)
             context->doneCurrent();
         else
-            handle->impl->rollback_render(handle);
+            wlr_output_rollback(handle);
     }
 
     bool doRender();
@@ -417,7 +417,7 @@ public:
     }
     void doneCurrent() override {
         if (auto *output = OutputSurface::getOutput(m_context->surface()->surfaceHandle())) {
-            output->handle->impl->rollback_render(output->handle);
+            wlr_output_rollback(output->handle);
         }
     }
 
@@ -784,6 +784,7 @@ void WOutputPrivate::init()
         }
 
         rc->initialize(context);
+        context->doneCurrent();
     }
 
     q->attachedWindow()->setScreen(ensureScreen());

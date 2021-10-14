@@ -29,6 +29,7 @@
 
 extern "C" {
 #include <wlr/types/wlr_output_layout.h>
+#include <wlr/util/box.h>
 }
 
 WAYLIB_SERVER_BEGIN_NAMESPACE

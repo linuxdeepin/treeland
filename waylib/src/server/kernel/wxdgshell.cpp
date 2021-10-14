@@ -169,7 +169,7 @@ void WXdgShellPrivate::on_request_resize(void *data)
 void WXdgShellPrivate::on_request_maximize(void *data)
 {
     auto surface = static_cast<wlr_xdg_surface*>(data);
-    if (surface->toplevel->client_pending.maximized) {
+    if (surface->toplevel->pending.maximized) {
         layout->requestMaximize(WXdgSurface::fromHandle<wlr_xdg_surface>(surface));
     } else {
         layout->requestUnmaximize(WXdgSurface::fromHandle<wlr_xdg_surface>(surface));
