@@ -13,7 +13,7 @@ Item {
     Image {
         id: background
         sourceSize: Qt.size(root.width, root.height)
-        source: "file:///usr/share/backgrounds/example.jpg"
+        source: "file:///usr/share/backgrounds/default_background.jpg"
         fillMode: Image.PreserveAspectCrop
         asynchronous: true
     }
