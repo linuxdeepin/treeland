@@ -100,6 +100,7 @@ public:
     QVector<WServerInterface*> interfaceList;
 
     wl_display *display = nullptr;
+    const char *socket = nullptr;
     wl_event_loop *loop = nullptr;
 };
 
@@ -118,8 +119,7 @@ void WServerPrivate::init()
         i->create(q);
     }
 
-    const char *socket = wl_display_add_socket_auto(display);
-
+    socket = wl_display_add_socket_auto(display);
     if (!socket) {
         qFatal("Create socket failed");
     }
@@ -328,6 +328,14 @@ bool WServer::isRunning() const
 {
     W_DC(WServer);
     return tryLock(&const_cast<WServerPrivate*>(d)->initialized, 0);
+}
+
+const char *WServer::displayName() const
+{
+    if (!isRunning())
+        return nullptr;
+    W_DC(WServer);
+    return d->socket;
 }
 
 WThreadUtil *WServer::threadUtil() const

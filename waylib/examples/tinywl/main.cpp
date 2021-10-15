@@ -140,7 +140,7 @@ int main(int argc, char *argv[]) {
     qputenv("QSG_NO_STENCIL_BUFFER", "1");
 
     qputenv("QT_QPA_PLATFORM", "wayland");
-    qputenv("WAYLAND_DISPLAY", "wayland-1");
+    qputenv("WAYLAND_DISPLAY", server->displayName());
 
 //    QQuickStyle::setStyle("Material");
 

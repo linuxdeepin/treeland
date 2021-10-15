@@ -126,6 +126,7 @@ public:
     bool waitForStarted(int timeout = -1);
     bool waitForStoped(int timeout = -1);
     bool isRunning() const;
+    const char *displayName() const;
 
     WThreadUtil *threadUtil() const;
 
