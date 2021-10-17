@@ -149,6 +149,7 @@ int main(int argc, char *argv[]) {
     QGuiApplication::setAttribute(Qt::AA_UseHighDpiPixmaps);
 //    QGuiApplication::setAttribute(Qt::AA_UseOpenGLES);
     QGuiApplication::setHighDpiScaleFactorRoundingPolicy(Qt::HighDpiScaleFactorRoundingPolicy::PassThrough);
+    QGuiApplication::setQuitOnLastWindowClosed(false);
     QGuiApplication app(argc, argv);
 
     QObject::connect(&app, &QCoreApplication::aboutToQuit,

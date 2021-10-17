@@ -186,12 +186,12 @@ QSGNode *WSurfaceItem::updatePaintNode(QSGNode *oldNode, QQuickItem::UpdatePaint
     const QRectF textureGeometry(QPointF(0, 0), d->surface->bufferSize());
     node->setSourceRect(textureGeometry);
 
-    qreal scale = window()->effectiveDevicePixelRatio();
-    qreal scale_surface = d->scaleFromSurface();
+    const qreal scale = window()->effectiveDevicePixelRatio();
+    const qreal scale_surface = d->scaleFromSurface();
     const QRectF targetGeometry(d->surface->toEffectivePos(scale, d->surface->textureOffset()),
                                 textureGeometry.size() / d->surface->scale() / scale_surface);
     node->setRect(targetGeometry);
-    node->setFiltering(qFuzzyCompare(scale, d->scaleFromSurface()) ? QSGTexture::None : QSGTexture::Linear);
+    node->setFiltering(QSGTexture::Linear);
 
     d->surface->notifyFrameDone();
 
