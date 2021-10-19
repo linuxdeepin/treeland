@@ -1,5 +1,6 @@
 import QtQuick.Controls 2.5
 import QtQuick 2.0
+import Qt.labs.platform 1.0
 
 ApplicationWindow {
     id: window
@@ -28,7 +29,7 @@ ApplicationWindow {
 
             SequentialAnimation on rotation {
                 id: ani
-                running: true
+                running: false
                 PauseAnimation { duration: 1500 }
                 NumberAnimation { from: 0; to: 360; duration: 5000; easing.type: Easing.InOutCubic }
                 loops: Animation.Infinite
@@ -59,12 +60,27 @@ ApplicationWindow {
         font.pointSize: 20
     }
 
+    Menu {
+        id: menu
+
+        MenuItem {
+            text: "Test 1"
+        }
+
+        Menu {
+            title: "Sub Menu"
+            MenuItem {
+                text: "Test 2"
+            }
+        }
+    }
+
     Button {
-        text: "Resize"
+        id: menuButton
+        text: "Menu"
         anchors.centerIn: parent
         onClicked: {
-            window.width += 50;
-            window.height += 50;
+            menu.open(menuButton)
         }
     }
 }

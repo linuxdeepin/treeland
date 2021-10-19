@@ -246,13 +246,14 @@ QVector<WOutput *> WSurface::currentOutputs() const
 WOutput *WSurface::attachedOutput() const
 {
     W_DC(WSurface);
-    return d->attachedOutput.data();
+    const auto parent = parentSurface();
+    return parent ? parent->attachedOutput() : d->attachedOutput.data();
 }
 
 QPointF WSurface::position() const
 {
     W_DC(WSurface);
-    return d->layout ? d->layout->position(const_cast<WSurface*>(this)) : QPointF();
+    return d->layout ? d->layout->position(this) : QPointF();
 }
 
 QPointF WSurface::effectivePosition() const

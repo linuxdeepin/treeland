@@ -49,7 +49,7 @@ public:
 
     WOutputLayout *outputLayout = nullptr;
     QVector<WSurface*> surfaceList;
-    QHash<WSurface*, SurfaceData> surfaceDataMap;
+    QHash<const WSurface*, SurfaceData> surfaceDataMap;
 };
 
 WAYLIB_SERVER_END_NAMESPACE

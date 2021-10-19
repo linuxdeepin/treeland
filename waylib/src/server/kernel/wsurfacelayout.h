@@ -60,7 +60,7 @@ public:
     virtual void requestMaximize(WSurface *surface);
     virtual void requestUnmaximize(WSurface *surface);
 
-    virtual QPointF position(WSurface *surface) const;
+    virtual QPointF position(const WSurface *surface) const;
     virtual bool setPosition(WSurface *surface, const QPointF &pos);
     virtual WOutput *output(WSurface *surface) const;
     virtual bool setOutput(WSurface *surface, WOutput *output);

@@ -174,7 +174,7 @@ void WSurfaceLayout::requestUnmaximize(WSurface *surface)
     Q_UNUSED(surface)
 }
 
-QPointF WSurfaceLayout::position(WSurface *surface) const
+QPointF WSurfaceLayout::position(const WSurface *surface) const
 {
     W_DC(WSurfaceLayout);
     const auto &data = d->surfaceDataMap.value(surface);

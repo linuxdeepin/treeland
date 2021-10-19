@@ -42,6 +42,7 @@
 #include <QQuickRenderControl>
 #include <QQmlApplicationEngine>
 #include <QQuickStyle>
+#include <QApplication>
 
 WAYLIB_SERVER_USE_NAMESPACE
 
@@ -150,7 +151,7 @@ int main(int argc, char *argv[]) {
 //    QGuiApplication::setAttribute(Qt::AA_UseOpenGLES);
     QGuiApplication::setHighDpiScaleFactorRoundingPolicy(Qt::HighDpiScaleFactorRoundingPolicy::PassThrough);
     QGuiApplication::setQuitOnLastWindowClosed(false);
-    QGuiApplication app(argc, argv);
+    QApplication app(argc, argv);
 
     QObject::connect(&app, &QCoreApplication::aboutToQuit,
                      server.get(), &WServer::stop, Qt::DirectConnection);
