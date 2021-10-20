@@ -30,6 +30,7 @@
 #include "woutputlayout.h"
 #include "wsurfacelayout.h"
 #include "wthreadutils.h"
+#include "wseat.h"
 
 #include <QQuickView>
 #include <QQmlEngine>
@@ -135,6 +136,7 @@ public:
     QHash<QQuickItem*, WSurface*> item2SurfaceMap;
 
     QScopedPointer<ItemChangeListener> itemChangeListener;
+    QPointer<WSurface> activateSurface;
 };
 
 void WSurfaceManagerPrivate::init()
@@ -242,7 +244,7 @@ void WSurfaceManagerPrivate::updateSurfaceItemPosition(WSurface *surface)
     auto item = surface2ItemMap.value(surface);
     if (!item)
         return;
-    item->setPosition(item->parentItem()->mapFromGlobal(surface->effectivePosition()));
+    item->setPosition(surface->effectivePosition());
 }
 
 void WSurfaceManagerPrivate::updateSurfaceItemSize(WSurface *surface)
@@ -291,6 +293,18 @@ void WSurfaceManager::remove(WSurface *surface)
 
     if (d->initialized)
         unmap(surface);
+}
+
+void WSurfaceManager::setActivateSurface(WSurface *surface)
+{
+    W_D(WSurfaceManager);
+    if (surface == d->activateSurface)
+        return;
+    if (d->activateSurface)
+        d->activateSurface->notifyEndState(WSurface::State::Activate);
+    d->activateSurface = surface;
+    if (surface)
+        surface->notifyBeginState(WSurface::State::Activate);
 }
 
 void WSurfaceManager::map(WSurface *surface)
@@ -359,6 +373,14 @@ void WSurfaceManager::requestUnmaximize(WSurface *surface)
     surface->resize(surface->property("_d_normal_size").toSize());
     setPosition(surface, surface->property("_d_normal_pos").toPointF());
     surface->notifyEndState(WSurface::State::Maximize);
+}
+
+void WSurfaceManager::requestActivate(WSurface *surface, WSeat *seat)
+{
+    if (surface->testAttribute(WSurface::Attribute::DoesNotAcceptFocus))
+        return;
+    seat->setKeyboardFocusTarget(surface);
+    setActivateSurface(surface);
 }
 
 bool WSurfaceManager::event(QEvent *event)

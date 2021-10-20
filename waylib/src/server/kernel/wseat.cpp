@@ -28,6 +28,7 @@
 
 #include <QQuickWindow>
 #include <QCoreApplication>
+#include <QQuickItem>
 #include <QDebug>
 
 #include <private/qxkbcommon_p.h>
@@ -74,7 +75,8 @@ public:
             return false;
         auto output = cursor->mappedOutput();
         if (Q_LIKELY(output)) {
-            if (Q_UNLIKELY(output->attachedWindow()->mouseGrabberItem()))
+            auto item = output->attachedWindow()->mouseGrabberItem();
+            if (Q_UNLIKELY(item && item->keepMouseGrab()))
                 return false;
         }
         return true;
@@ -108,11 +110,6 @@ public:
         Q_UNUSED(device);
         wlr_seat_pointer_notify_button(handle(), timestamp, button,
                                        static_cast<wlr_button_state>(state));
-
-        if (state == WInputDevice::ButtonState::Pressed
-                && Qt::LeftButton == WCursor::fromNativeButton(button)) {
-            wlr_seat_keyboard_enter(handle(), handle()->pointer_state.focused_surface, nullptr, 0, nullptr);
-        }
     }
     static inline wlr_axis_orientation fromQtHorizontal(Qt::Orientation o) {
         return o == Qt::Horizontal ? WLR_AXIS_ORIENTATION_HORIZONTAL
@@ -146,6 +143,13 @@ public:
         // Should do restore to the Qt window's cursor when the cursor from 
         // the surface of client move out.
         data->cursor->reset();
+    }
+    inline void doSetKeyboardFocus(wlr_surface *surface) {
+        if (surface) {
+            wlr_seat_keyboard_enter(handle(), surface, nullptr, 0, nullptr);
+        } else {
+            wlr_seat_keyboard_clear_focus(handle());
+        }
     }
 
     // for keyboard event
@@ -401,6 +405,24 @@ WSurface *WSeat::hoverSurface() const
     return d->hoverSurface;
 }
 
+void WSeat::setKeyboardFocusTarget(WSurfaceHandle *nativeSurface)
+{
+    W_D(WSeat);
+    d->server->threadUtil()->run(d->server, d, &WSeatPrivate::doSetKeyboardFocus,
+                                 reinterpret_cast<wlr_surface*>(nativeSurface));
+}
+
+void WSeat::setKeyboardFocusTarget(WSurface *surface)
+{
+    W_D(WSeat);
+
+    if (surface) {
+        setKeyboardFocusTarget(surface->handle());
+    } else {
+        setKeyboardFocusTarget(static_cast<WSurfaceHandle*>(nullptr));
+    }
+}
+
 void WSeat::notifyMotion(WCursor *cursor, WInputDevice *device,
                           uint32_t timestamp)
 {
@@ -448,7 +470,7 @@ void WSeat::notifyButton(WCursor *cursor, WInputDevice *device, uint32_t button,
 
     const QPointF &global = cursor->position();
     const auto et = state == WInputDevice::ButtonState::Pressed ? QEvent::MouseButtonPress
-                                                                 : QEvent::MouseButtonRelease;
+                                                                : QEvent::MouseButtonRelease;
 
     if (Q_UNLIKELY(d->eventGrabber)) {
         QMouseEvent e(et, global, cursor->button(),
@@ -461,7 +483,7 @@ void WSeat::notifyButton(WCursor *cursor, WInputDevice *device, uint32_t button,
     }
 
     if (Q_LIKELY(d->shouldNotifyPointerEvent(cursor))) {
-        return d->doNotifyButton(cursor, device, button, state, timestamp);
+        d->doNotifyButton(cursor, device, button, state, timestamp);
     }
 
     auto output = cursor->mappedOutput();
@@ -496,7 +518,7 @@ void WSeat::notifyFrame(WCursor *cursor)
 {
     W_D(WSeat);
     if (Q_LIKELY(d->shouldNotifyPointerEvent(cursor))) {
-        return d->doNotifyFrame(cursor);
+        d->doNotifyFrame(cursor);
     }
 }
 

@@ -86,9 +86,9 @@ WSurface::Type *WSurface::type() const
     return nullptr;
 }
 
-WSurface::Attributes WSurface::attributes() const
+bool WSurface::testAttribute(WSurface::Attribute attr) const
 {
-    return Attributes();
+    return false;
 }
 
 WSurface::WSurface(WSurfacePrivate &dd, QObject *parent)

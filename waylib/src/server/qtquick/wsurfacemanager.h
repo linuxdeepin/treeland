@@ -71,6 +71,9 @@ public:
     void add(WSurface *surface) override;
     void remove(WSurface *surface) override;
 
+public Q_SLOTS:
+    void setActivateSurface(WSurface *surface);
+
 protected Q_SLOTS:
     bool setOutput(WSurface *surface, WOutput *output) override;
 
@@ -80,6 +83,7 @@ protected Q_SLOTS:
 
     void requestMaximize(WSurface *surface) override;
     void requestUnmaximize(WSurface *surface) override;
+    void requestActivate(WSurface *surface, WSeat *seat) override;
 
 protected:
     bool event(QEvent *event) override;

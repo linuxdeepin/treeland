@@ -97,6 +97,7 @@ WSurfaceItem::WSurfaceItem(QQuickItem *parent)
     setFlag(QQuickItem::ItemHasContents);
     setFlag(QQuickItem::ItemClipsChildrenToShape);
     setAcceptHoverEvents(true);
+    setAcceptedMouseButtons(Qt::LeftButton);
 }
 
 bool WSurfaceItem::isTextureProvider() const
@@ -202,12 +203,6 @@ void WSurfaceItem::hoverEnterEvent(QHoverEvent *event)
 {
     Q_D(WSurfaceItem);
 
-    // The Non-Toplevel windows not need intercept the input events, it's events is distribute
-    // via WSet in it's parent surface.
-    if (d->surface->parentSurface()) {
-        return QQuickItem::hoverEnterEvent(event);
-    }
-
     auto we = d->output()->currentInputEvent();
     if (Q_UNLIKELY(!we))
         return;
@@ -233,6 +228,22 @@ void WSurfaceItem::hoverLeaveEvent(QHoverEvent *event)
 
     event->accept();
     seat->notifyLeaveSurface(d->surface, we);
+}
+
+void WSurfaceItem::mousePressEvent(QMouseEvent *event)
+{
+    event->accept();
+}
+
+void WSurfaceItem::mouseReleaseEvent(QMouseEvent *event)
+{
+    Q_D(WSurfaceItem);
+
+    auto we = d->output()->currentInputEvent();
+    if (we)
+        Q_EMIT mouseRelease(we->data->seat);
+
+    QQuickItem::mouseReleaseEvent(event);
 }
 
 void WSurfaceItem::releaseResources()

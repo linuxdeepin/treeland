@@ -174,6 +174,12 @@ void WSurfaceLayout::requestUnmaximize(WSurface *surface)
     Q_UNUSED(surface)
 }
 
+void WSurfaceLayout::requestActivate(WSurface *surface, WSeat *seat)
+{
+    Q_UNUSED(surface)
+    Q_UNUSED(seat)
+}
+
 QPointF WSurfaceLayout::position(const WSurface *surface) const
 {
     W_DC(WSurfaceLayout);

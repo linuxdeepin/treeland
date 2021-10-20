@@ -35,6 +35,7 @@
 
 #include <QQuickItem>
 #include <QQmlComponent>
+#include <QQmlContext>
 #include <QTimer>
 #include <QThread>
 #include <QQuickView>
@@ -46,8 +47,6 @@
 
 WAYLIB_SERVER_USE_NAMESPACE
 
-Q_DECLARE_METATYPE(WOutput*);
-
 class SurfaceManager : public WSurfaceManager
 {
 public:
@@ -58,8 +57,7 @@ public:
     }
 
     QQuickWindow *createWindow(QQuickRenderControl *rc, WOutput *output) override {
-        if (!engine)
-            engine = new QQmlEngine(this);
+        ensureEngine();
         qmlRegisterUncreatableType<WOutput>("org.zjide.waylib", 1, 0, "Output", "Don't crate");
         auto view = new QQuickView(QUrl(), rc);
         view->setResizeMode(QQuickView::SizeRootObjectToView);
@@ -71,10 +69,10 @@ public:
     }
 
     QQuickItem *createSurfaceItem(WSurface *surface) override {
-        if (!surface->attributes().testFlag(WSurface::Attribute::Immovable)) {
+        if (!surface->testAttribute(WSurface::Attribute::Immovable)) {
             // init the position for the surface
             if (auto output = surface->attachedOutput()) {
-                QRectF surface_geometry(surface->position(), surface->size());
+                QRectF surface_geometry(QPointF(0, 0), surface->size());
                 const QRectF output_geometry(output->position(), output->effectiveSize());
                 surface_geometry.moveCenter(output_geometry.center());
                 setPosition(surface, surface_geometry.topLeft());
@@ -82,15 +80,24 @@ public:
         }
 
         if (!surfaceDelegate) {
-            if (!engine)
-                engine = new QQmlEngine(this);
+            ensureEngine();
             qmlRegisterType<WSurfaceItem>("org.zjide.waylib", 1, 0, "SurfaceItem");
             surfaceDelegate = new QQmlComponent(engine, this);
             surfaceDelegate->loadUrl(QUrl("qrc:/SurfaceDelegate.qml"));
         }
 
-        const QVariantMap properies {{"surface", QVariant::fromValue(surface)}};
-        return qobject_cast<QQuickItem*>(surfaceDelegate->createWithInitialProperties(properies));
+        const QVariantMap properies {
+            {"surface", QVariant::fromValue(surface)}
+        };
+        auto item = qobject_cast<QQuickItem*>(surfaceDelegate->createWithInitialProperties(properies));
+        auto surfaceItem = item->findChild<WSurfaceItem*>();
+        Q_ASSERT(surfaceItem);
+        qRegisterMetaType<Qt::ApplicationState>();
+        // Active the window on clicked
+        connect(surfaceItem, &WSurfaceItem::mouseRelease, this, [surfaceItem, this] (WSeat *seat) {
+            requestActivate(surfaceItem->surface(), seat);
+        });
+        return item;
     }
 
     QQuickItem *layerItem(QQuickWindow *window, Layer layer) const override {
@@ -102,6 +109,13 @@ public:
     }
 
 private:
+    void ensureEngine() {
+        if (!engine) {
+            engine = new QQmlEngine(this);
+            engine->rootContext()->setContextProperty("manager", this);
+        }
+    }
+
     QQmlEngine *engine = nullptr;
     QQmlComponent *surfaceDelegate = nullptr;
 };

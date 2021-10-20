@@ -40,7 +40,7 @@ public:
     static Type *popupType();
     static Type *noneType();
     Type *type() const override;
-    Attributes attributes() const override;
+    bool testAttribute(Attribute attr) const override;
 
     WXdgSurfaceHandle *handle() const;
     WSurfaceHandle *inputTargetAt(qreal scale, QPointF &globalPos) const override;
@@ -60,10 +60,12 @@ public:
     WSurface *parentSurface() const override;
 
     bool resizeing() const;
+    QPointF position() const override;
 
 public Q_SLOTS:
     void setResizeing(bool resizeing);
     void setMaximize(bool on);
+    void setActivate(bool on);
     void resize(const QSize &size) override;
 
 protected:

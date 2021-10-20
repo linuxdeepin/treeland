@@ -120,12 +120,17 @@ WSurface::Type *WXdgSurface::type() const
     return noneType();
 }
 
-WSurface::Attributes WXdgSurface::attributes() const
+bool WXdgSurface::testAttribute(WSurface::Attribute attr) const
 {
     W_DC(WXdgSurface);
-    return d->handle->role == WLR_XDG_SURFACE_ROLE_POPUP
-            ? Attribute::Immovable
-            : WSurface::Attributes();
+
+    if (attr == Attribute::Immovable) {
+        return d->handle->role == WLR_XDG_SURFACE_ROLE_POPUP;
+    } else if (attr == Attribute::DoesNotAcceptFocus) {
+        return d->handle->role == WLR_XDG_SURFACE_ROLE_NONE;
+    }
+
+    return WSurface::testAttribute(attr);
 }
 
 WXdgSurfaceHandle *WXdgSurface::handle() const
@@ -175,6 +180,18 @@ bool WXdgSurface::resizeing() const
     return d->handle->toplevel->current.resizing;
 }
 
+QPointF WXdgSurface::position() const
+{
+    W_DC(WXdgSurface);
+    if (d->handle->role == WLR_XDG_SURFACE_ROLE_POPUP) {
+        double sx = 0, sy = 0;
+        wlr_xdg_popup_get_position(d->handle->popup, &sx, &sy);
+        return QPointF(sx, sy);
+    }
+
+    return WSurface::position();
+}
+
 WSurface *WXdgSurface::parentSurface() const
 {
     W_DC(WXdgSurface);
@@ -193,13 +210,25 @@ WSurface *WXdgSurface::parentSurface() const
 void WXdgSurface::setResizeing(bool resizeing)
 {
     W_D(WXdgSurface);
+    if (d->handle->role != WLR_XDG_SURFACE_ROLE_TOPLEVEL)
+        return;
     wlr_xdg_toplevel_set_resizing(d->handle, resizeing);
 }
 
 void WXdgSurface::setMaximize(bool on)
 {
     W_D(WXdgSurface);
+    if (d->handle->role != WLR_XDG_SURFACE_ROLE_TOPLEVEL)
+        return;
     wlr_xdg_toplevel_set_maximized(d->handle, on);
+}
+
+void WXdgSurface::setActivate(bool on)
+{
+    W_D(WXdgSurface);
+    if (d->handle->role != WLR_XDG_SURFACE_ROLE_TOPLEVEL)
+        return;
+    wlr_xdg_toplevel_set_activated(d->handle, on);
 }
 
 void WXdgSurface::notifyChanged(ChangeType type)
@@ -213,6 +242,8 @@ void WXdgSurface::notifyBeginState(State state)
         setResizeing(true);
     } else if (state == State::Maximize) {
         setMaximize(true);
+    } else if (state == State::Activate) {
+        setActivate(true);
     }
 
     WSurface::notifyBeginState(state);
@@ -224,6 +255,8 @@ void WXdgSurface::notifyEndState(State state)
         setResizeing(false);
     } else if (state == State::Maximize) {
         setMaximize(false);
+    } else if (state == State::Activate) {
+        setActivate(false);
     }
 
     WSurface::notifyEndState(state);

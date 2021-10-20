@@ -69,6 +69,7 @@ private:
 };
 
 class WSurface;
+class WSurfaceHandle;
 class WSeatPrivate;
 class WSeat : public WServerInterface, public WObject
 {
@@ -92,6 +93,9 @@ public:
     void notifyEnterSurface(WSurface *surface, WInputEvent *event);
     void notifyLeaveSurface(WSurface *surface, WInputEvent *event);
     WSurface *hoverSurface() const;
+
+    void setKeyboardFocusTarget(WSurfaceHandle *nativeSurface);
+    void setKeyboardFocusTarget(WSurface *surface);
 
     // pointer
     void notifyMotion(WCursor *cursor, WInputDevice *device,
@@ -120,3 +124,4 @@ protected:
 };
 
 WAYLIB_SERVER_END_NAMESPACE
+Q_DECLARE_METATYPE(WAYLIB_SERVER_NAMESPACE::WSeat*)

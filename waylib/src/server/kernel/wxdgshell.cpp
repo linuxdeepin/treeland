@@ -115,12 +115,6 @@ void WXdgShellPrivate::on_map(void *data)
     wlr_xdg_surface *wlr_surface = reinterpret_cast<struct wlr_xdg_surface*>(data);
     auto surface = WXdgSurface::fromHandle<wlr_xdg_surface>(wlr_surface);
     layout->map(surface);
-
-    if (wlr_surface->role == WLR_XDG_SURFACE_ROLE_POPUP) {
-        double sx = 0, sy = 0;
-        wlr_xdg_popup_get_position(wlr_surface->popup, &sx, &sy);
-        layout->setPosition(surface, surface->positionToGlobal(QPointF(sx, sy)));
-    }
 }
 
 void WXdgShellPrivate::on_unmap(void *data)

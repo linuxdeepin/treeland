@@ -59,11 +59,14 @@ public:
 
 Q_SIGNALS:
     void surfaceChanged(WSurface *surface);
+    void mouseRelease(WSeat *seat);
 
 protected:
     QSGNode *updatePaintNode(QSGNode *, UpdatePaintNodeData *) override;
     void hoverEnterEvent(QHoverEvent *event) override;
     void hoverLeaveEvent(QHoverEvent *event) override;
+    void mousePressEvent(QMouseEvent *event) override;
+    void mouseReleaseEvent(QMouseEvent *event) override;
 
     void releaseResources() override;
 

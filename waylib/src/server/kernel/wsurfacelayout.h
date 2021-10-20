@@ -59,6 +59,7 @@ public:
     virtual void requestResize(WSurface *surface, WSeat *seat, Qt::Edges edge, quint32 serial);
     virtual void requestMaximize(WSurface *surface);
     virtual void requestUnmaximize(WSurface *surface);
+    virtual void requestActivate(WSurface *surface, WSeat *seat);
 
     virtual QPointF position(const WSurface *surface) const;
     virtual bool setPosition(WSurface *surface, const QPointF &pos);

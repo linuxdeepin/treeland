@@ -62,17 +62,19 @@ public:
     enum class State {
         Move,
         Resize,
-        Maximize
+        Maximize,
+        Activate
     };
     enum class Attribute {
-        Immovable = 1 << 0
+        Immovable = 1 << 0,
+        DoesNotAcceptFocus = 1 << 1
     };
     Q_DECLARE_FLAGS(Attributes, Attribute)
     Q_FLAG(Attribute)
 
     struct Type {};
     virtual Type *type() const;
-    virtual Attributes attributes() const;
+    virtual bool testAttribute(Attribute attr) const;
 
     WSurfaceHandle *handle() const;
     virtual WSurfaceHandle *inputTargetAt(qreal scale, QPointF &globalPos) const;
@@ -117,8 +119,6 @@ public:
 
     QPointF positionToGlobal(const QPointF &localPos) const;
     QPointF positionFromGlobal(const QPointF &globalPos) const;
-    QPointF effectivePositionToGlobal(const QPointF &localPos) const;
-    QPointF effectivePositionFromGlobal(const QPointF &globalPos) const;
 
     WTextureHandle *texture() const;
     QPoint textureOffset() const;
@@ -130,7 +130,7 @@ public:
     QVector<WOutput*> currentOutputs() const;
     WOutput *attachedOutput() const;
 
-    QPointF position() const;
+    virtual QPointF position() const;
     QPointF effectivePosition() const;
     WSurfaceLayout *layout() const;
     void setLayout(WSurfaceLayout *layout);
