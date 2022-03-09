@@ -235,7 +235,11 @@ public:
     }
 
     inline wlr_renderer *renderer() const {
-        return wlr_backend_get_renderer(handle->backend);
+        return reinterpret_cast<wlr_renderer*>(backend->renderer());
+    }
+
+    inline wlr_allocator *allocator() const {
+        return reinterpret_cast<wlr_allocator*>(backend->allocator());
     }
 
     inline bool makeCurrent() {
@@ -760,6 +764,8 @@ void WOutputPrivate::init()
 
     updateProjection();
     rc->window = ensureRenderWindow();
+
+    wlr_output_init_render(this->handle, allocator(), renderer());
 
     if (wlr_renderer_is_pixman(renderer())) {
         rc->initialize(nullptr);

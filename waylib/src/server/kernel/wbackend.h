@@ -28,6 +28,7 @@ WAYLIB_SERVER_BEGIN_NAMESPACE
 class WOutput;
 class WOutputLayout;
 class WRendererHandle;
+class WAllocatorHandle;
 class WBackendPrivate;
 class WBackend : public WServerInterface, public WObject
 {
@@ -37,6 +38,7 @@ public:
     WBackend(WOutputLayout *layout);
 
     WRendererHandle *renderer() const;
+    WAllocatorHandle *allocator() const;
     template<typename DNativeInterface>
     DNativeInterface *rendererNativeInterface() const {
         return reinterpret_cast<DNativeInterface*>(renderer());

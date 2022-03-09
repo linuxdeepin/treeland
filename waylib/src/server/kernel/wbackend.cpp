@@ -34,6 +34,7 @@ extern "C" {
 #define static
 #include <wlr/types/wlr_compositor.h>
 #include <wlr/render/wlr_renderer.h>
+#include <wlr/render/allocator.h>
 #undef static
 }
 
@@ -66,6 +67,8 @@ public:
 
     WServer *server = nullptr;
     WOutputLayout *layout = nullptr;
+    wlr_renderer *renderer = nullptr;
+    wlr_allocator *allocator = nullptr;
 
     QVector<WOutput*> outputList;
     QVector<WInputDevice*> inputList;
@@ -164,8 +167,13 @@ WBackend::WBackend(WOutputLayout *layout)
 WRendererHandle *WBackend::renderer() const
 {
     W_DC(WBackend);
-    Q_ASSERT(d->handle());
-    return reinterpret_cast<WRendererHandle*>(wlr_backend_get_renderer(d->handle()));
+    return reinterpret_cast<WRendererHandle*>(d->renderer);
+}
+
+WAllocatorHandle *WBackend::allocator() const
+{
+    W_DC(WBackend);
+    return reinterpret_cast<WAllocatorHandle*>(d->allocator);
 }
 
 QVector<WOutput*> WBackend::outputList() const
@@ -194,11 +202,12 @@ void WBackend::create(WServer *server)
         m_handle = wlr_backend_autocreate(server->nativeInterface<wl_display>());
     }
 
-    auto renderer = wlr_backend_get_renderer(d->handle());
-    wlr_renderer_init_wl_display(renderer, server->nativeInterface<wl_display>());
+    d->renderer = wlr_renderer_autocreate(nativeInterface<wlr_backend>());
+    d->allocator = wlr_allocator_autocreate(d->handle(), d->renderer);
+    wlr_renderer_init_wl_display(d->renderer, server->nativeInterface<wl_display>());
 
     // free follow display
-    wlr_compositor_create(server->nativeInterface<wl_display>(), renderer);
+    wlr_compositor_create(server->nativeInterface<wl_display>(), d->renderer);
 
     d->server = server;
     d->connect();
@@ -216,6 +225,8 @@ void WBackend::destroy(WServer *server)
     qDeleteAll(d->outputList);
     d->inputList.clear();
     d->outputList.clear();
+    d->renderer = nullptr;
+    d->allocator = nullptr;
     m_handle = nullptr;
 }
 
