@@ -90,6 +90,7 @@ public:
 void WBackendPrivate::on_new_output(void *data)
 {
     wlr_output *wlr_output = reinterpret_cast<struct wlr_output*>(data);
+    wlr_output_init_render(wlr_output, allocator, renderer);
 
     /* Some backends don't have modes. DRM+KMS does, and we need to set a mode
      * before we can use the output. The mode is a tuple of (width, height,

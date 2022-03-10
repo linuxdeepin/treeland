@@ -765,8 +765,6 @@ void WOutputPrivate::init()
     updateProjection();
     rc->window = ensureRenderWindow();
 
-    wlr_output_init_render(this->handle, allocator(), renderer());
-
     if (wlr_renderer_is_pixman(renderer())) {
         rc->initialize(nullptr);
     } else {
