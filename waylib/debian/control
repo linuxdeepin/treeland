@@ -8,7 +8,9 @@ Build-Depends: debhelper (>= 9),
  qtbase5-dev-tools (>= 5.15.0),
  qtdeclarative5-private-dev (>= 5.15.0),
  libwlroots-dev (>= 0.15.1),
- qtquickcontrols2-5-dev (>= 5.15.0)
+ qtquickcontrols2-5-dev (>= 5.15.0),
+ libpixman-1-dev,
+ wayland-protocols
 Standards-Version: 3.9.8
 
 Package: libwaylib
