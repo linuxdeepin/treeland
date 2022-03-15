@@ -294,8 +294,6 @@ public:
     }
 
     inline void maybeRenderCursor() {
-        if (handle->hardware_cursor)
-            return;
         contentIsDirty = true;
         maybeRender();
     }
