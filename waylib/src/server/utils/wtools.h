@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2021 zkyd
+ * Copyright (C) 2021 ~ 2022 zkyd
  *
  * Author:     zkyd <zkyd@zjide.org>
  *
@@ -23,6 +23,8 @@
 
 #include <wglobal.h>
 #include <QImage>
+#include <QRegion>
+#include <QRect>
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
@@ -30,6 +32,10 @@ class WTools
 {
 public:
     static QImage fromPixmanImage(void *image, void *data = nullptr);
+    static QRegion fromPixmanRegion(void *region);
+    static void toPixmanRegion(const QRegion &region, void *pixmanRegion);
+    static QRect fromWLRBox(void *box);
+    static void toWLRBox(const QRect &rect, void *box);
 };
 
 WAYLIB_SERVER_END_NAMESPACE

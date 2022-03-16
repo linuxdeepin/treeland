@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2021 zkyd
+ * Copyright (C) 2021 ~ 2022 zkyd
  *
  * Author:     zkyd <zkyd@zjide.org>
  *
@@ -23,6 +23,7 @@
 #include <qcolorspace.h>
 #include <QDebug>
 
+#include <wlr/util/box.h>
 #include <pixman.h>
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
@@ -109,6 +110,41 @@ QImage WTools::fromPixmanImage(void *image, void *data)
         qimage.setColorSpace(QColorSpace::SRgb);
 
     return qimage;
+}
+
+QRegion WTools::fromPixmanRegion(void *region)
+{
+    Q_ASSERT(sizeof(QRect) == sizeof(pixman_box32));
+    auto typedRegion = reinterpret_cast<pixman_region32_t*>(region);
+    int rectCount = 0;
+    auto rects = pixman_region32_rectangles(typedRegion, &rectCount);
+    QRegion qregion;
+    qregion.setRects(reinterpret_cast<QRect*>(rects), rectCount);
+    return qregion;
+}
+
+void WTools::toPixmanRegion(const QRegion &region, void *pixmanRegion)
+{
+    Q_ASSERT(sizeof(QRect) == sizeof(pixman_box32));
+    auto typedRegion = reinterpret_cast<pixman_region32_t*>(pixmanRegion);
+    auto rects = reinterpret_cast<const pixman_box32_t*>(region.begin());
+    bool ok = pixman_region32_init_rects(typedRegion, rects, region.rectCount());
+    Q_ASSERT(ok);
+}
+
+QRect WTools::fromWLRBox(void *box)
+{
+    auto wlrBox = reinterpret_cast<wlr_box*>(box);
+    return QRect(wlrBox->x, wlrBox->y, wlrBox->width, wlrBox->height);
+}
+
+void WTools::toWLRBox(const QRect &rect, void *box)
+{
+    auto wlrBox = reinterpret_cast<wlr_box*>(box);
+    wlrBox->x = rect.x();
+    wlrBox->y = rect.y();
+    wlrBox->width = rect.width();
+    wlrBox->height = rect.height();
 }
 
 WAYLIB_SERVER_END_NAMESPACE

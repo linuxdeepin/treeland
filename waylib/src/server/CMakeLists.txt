@@ -40,6 +40,13 @@ set(KERNEL_SOURCES
     kernel/wxdgsurface.cpp
 )
 
+option(WAYLIB_DISABLE_OUTPUT_DAMAGE "Don't use the damage manager for outputs" OFF)
+if (${WAYLIB_DISABLE_OUTPUT_DAMAGE} STREQUAL "ON")
+    add_definitions(-DWAYLIB_DISABLE_OUTPUT_DAMAGE)
+else()
+    list(APPEND KERNEL_SOURCES kernel/woutputdamage.cpp)
+endif()
+
 set(QTQUICK_SOURCES
     qtquick/wsurfaceitem.cpp
     qtquick/wsurfacemanager.cpp

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2021 zkyd
+ * Copyright (C) 2021 ~ 2022 zkyd
  *
  * Author:     zkyd <zkyd@zjide.org>
  *
@@ -22,6 +22,9 @@
 #include "woutput.h"
 #include "wbackend.h"
 #include "woutputlayout.h"
+#ifndef WAYLIB_DISABLE_OUTPUT_DAMAGE
+#include "woutputdamage.h"
+#endif
 #include "wsignalconnector.h"
 #include "wcursor.h"
 #include "wseat.h"
@@ -32,6 +35,7 @@
 extern "C" {
 #include <wlr/types/wlr_output.h>
 #include <wlr/types/wlr_output_layout.h>
+#include <wlr/types/wlr_output_damage.h>
 #include <wlr/backend.h>
 #include <wlr/interfaces/wlr_output.h>
 #include <wlr/render/egl.h>
@@ -39,6 +43,7 @@ extern "C" {
 #include <wlr/render/gles2.h>
 #undef static
 #include <wlr/render/pixman.h>
+#include <wlr/util/region.h>
 }
 
 #include <QSurface>
@@ -60,8 +65,6 @@ extern "C" {
 #include <QPixelFormat>
 #include <QDebug>
 #include <QCursor>
-#include <QMutexLocker>
-#include <QTimer>
 
 #include <qpa/qplatformscreen.h>
 #include <qpa/qplatformcursor.h>
@@ -159,6 +162,16 @@ private:
     const WOutputPrivate *output;
 };
 
+struct QScopedPointerPixmanRegion32Deleter {
+    static inline void cleanup(pixman_region32_t *pointer) {
+        if (pointer)
+            pixman_region32_fini(pointer);
+        delete pointer;
+    }
+};
+
+typedef QScopedPointer<pixman_region32_t, QScopedPointerPixmanRegion32Deleter> pixman_region32_scoped_pointer;
+
 class Q_DECL_HIDDEN WOutputPrivate : public WObjectPrivate
 {
 public:
@@ -176,7 +189,12 @@ public:
     }
 
     // begin slot function
+#ifndef WAYLIB_DISABLE_OUTPUT_DAMAGE
+    void on_damage_frame(void *);
+#else
     void on_frame(void *);
+    void on_damage(void *);
+#endif
     void on_mode(void*);
     // end slot function
 
@@ -190,11 +208,7 @@ public:
     inline QScreen *ensureScreen();
     inline QWindow *ensureRenderWindow();
     inline QCursor &ensureCursor();
-#ifdef D_WM_THREAD_RENDER
-    inline QObject *ensureEventObject();
 
-    // in attached window thread
-#endif
     inline void processInputEvent(WInputEvent *event) {
         currentInputEvent = event;
         auto system_event = static_cast<QEvent*>(event->data->nativeEvent);
@@ -242,60 +256,77 @@ public:
         return reinterpret_cast<wlr_allocator*>(backend->allocator());
     }
 
+    inline bool needsAttachBuffer() const {
+        return !attachedBuffer;
+    }
+
+#ifndef WAYLIB_DISABLE_OUTPUT_DAMAGE
+    inline bool attachRender(pixman_region32_t *damage) {
+        if (!needsAttachBuffer())
+            return true;
+
+        bool needs_frame;
+        if (!wlr_output_damage_attach_render(this->damage->nativeInterface<wlr_output_damage>(),
+                &needs_frame, damage)) {
+            return false;
+        }
+
+        if (!needs_frame) {
+            wlr_output_rollback(handle);
+            return false;
+        }
+
+        attachedBuffer = true;
+        return true;
+    }
+
+    inline bool attachRender() {
+        pixman_region32_scoped_pointer damage(new pixman_region32_t);
+        pixman_region32_init(damage.data());
+        return attachRender(damage.data());
+    }
+#else
+    inline bool attachRender() {
+        if (!needsAttachBuffer())
+            return true;
+
+        if (!wlr_output_attach_render(handle, nullptr))
+            return false;
+
+        attachedBuffer = true;
+        return true;
+    }
+#endif
+
+    inline void detachRender() {
+        attachedBuffer = false;
+        wlr_output_rollback(handle);
+    }
+
     inline bool makeCurrent() {
         if (context)
             return context->makeCurrent(surface);
 
-        return wlr_output_attach_render(handle, nullptr);
+        return attachRender();
     }
 
     inline void doneCurrent() {
-        if (context)
+        if (context) {
             context->doneCurrent();
-        else
-            wlr_output_rollback(handle);
+        } else {
+            detachRender();
+        }
     }
 
     bool doRender();
 
-    inline void maybeRender() {
-        if (Q_UNLIKELY(!renderable || !contentIsDirty))
-            return;
-
-        renderable = false;
-        contentIsDirty = false;
-
-#ifdef D_WM_THREAD_RENDER
-        if (!requestRenderTimeout) {
-            requestRenderTimeout = new QTimer();
-            requestRenderTimeout->setSingleShot(true);
-            QObject::connect(requestRenderTimeout, &QTimer::timeout, q_func(), [this] {
-                if (Q_LIKELY(dropRequestRenderEvent.testAndSetAcquire(RequestRenderState::Started,
-                                                                      RequestRenderState::Timeouted)))
-                    doRender();
-            });
-        }
-        // TODO: In the QtWayland platform, maybe the Qt main thread will to blocked, so, if the main thread
-        // blocked duration greater than 5s that direct call the "doRender" to force render, and ignore the main
-        // thread render request on later. Avoid the UI blocked!
-        requestRenderTimeout->start(5);
-        dropRequestRenderEvent = RequestRenderState::Started;
-        QCoreApplication::postEvent(ensureEventObject(),
-                                    new QEvent(requestRenderEvent),
-                                    Qt::HighEventPriority);
-#else
-        doRender();
-#endif
-    }
-
     inline void render() {
+#ifndef WAYLIB_DISABLE_OUTPUT_DAMAGE
+        damage->addWhole();
+#else
         contentIsDirty = true;
-        maybeRender();
-    }
-
-    inline void maybeRenderCursor() {
-        contentIsDirty = true;
-        maybeRender();
+#endif
+        doRender();
     }
 
     inline void rotate(WOutput::Transform t) {
@@ -316,6 +347,9 @@ public:
     OutputGLContext *context = nullptr;
     OutputSurface *surface = nullptr;
     WOutputLayout *layout = nullptr;
+#ifndef WAYLIB_DISABLE_OUTPUT_DAMAGE
+    WOutputDamage *damage = nullptr;
+#endif
     QVector<WCursor*> cursorList;
     QScopedPointer<QCursor> cursor;
 
@@ -324,54 +358,11 @@ public:
     pixman_image_t *currentBuffer = nullptr;
 
     bool renderable = false;
+#ifdef WAYLIB_DISABLE_OUTPUT_DAMAGE
     bool contentIsDirty = false;
-#ifdef D_WM_THREAD_RENDER
-    QMutex renderSyncMutex;
-    QWaitCondition renderSyncCond;
-    static QEvent::Type requestRenderEvent;
-    QTimer *requestRenderTimeout = nullptr;
-    enum RequestRenderState {
-        Started = 0,
-        Finished = 1,
-        Timeouted = 2
-    };
-    QAtomicInteger<int> dropRequestRenderEvent;
-
-    // for event data
-    class Q_DECL_HIDDEN EventObject : public QObject {
-    public:
-        EventObject(WOutputPrivate *output)
-            : output(output) {}
-
-        bool event(QEvent *e) override {
-            if (e->type() == requestRenderEvent) {
-                if (Q_UNLIKELY(!output->dropRequestRenderEvent.testAndSetAcquire(RequestRenderState::Started,
-                                                                                 RequestRenderState::Finished))) {
-                    return true;
-                }
-                output->q_func()->attachedWindow()->d_func()->polishItems();
-                Q_EMIT output->q_func()->attachedWindow()->afterAnimating();
-                QMutexLocker lock(&output->renderSyncMutex);
-
-                output->backend->server()->threadUtil()->run(output->q_func(),
-                                                             output, &WOutputPrivate::doRender);
-                // wait for the QQuickRendererControl::sync finished
-                output->renderSyncCond.wait(&output->renderSyncMutex);
-            } else if (e->type() == WInputEvent::type()) {
-                output->processInputEvent(static_cast<WInputEvent*>(e));
-            } else {
-                return QObject::event(e);
-            }
-
-            return true;
-        }
-
-        WOutputPrivate *output;
-    };
-    // If you want the some events can process in the window thread, then you can post the
-    // event to the 'inWindowThread' object
-    QScopedPointer<EventObject> inWindowThread;
 #endif
+    bool attachedBuffer = false;
+
     // in attached window thread
     WInputEvent *currentInputEvent = nullptr;
 
@@ -380,10 +371,6 @@ public:
 
     WSignalConnector sc;
 };
-
-#ifdef D_WM_THREAD_RENDER
-QEvent::Type WOutputPrivate::requestRenderEvent = static_cast<QEvent::Type>(QEvent::registerEventType());
-#endif
 
 class Q_DECL_HIDDEN OutputGLPlatform : public QPlatformOpenGLContext {
 public:
@@ -412,14 +399,14 @@ public:
 
     bool makeCurrent(QPlatformSurface *surface) override {
         if (auto *output = OutputSurface::getOutput(surface)) {
-            return wlr_output_attach_render(output->handle, nullptr);
+            return output->attachRender();
         }
 
         return false;
     }
     void doneCurrent() override {
         if (auto *output = OutputSurface::getOutput(m_context->surface()->surfaceHandle())) {
-            wlr_output_rollback(output->handle);
+            output->detachRender();
         }
     }
 
@@ -740,11 +727,25 @@ bool OutputRenderStage::render()
     return true;
 }
 
+#ifndef WAYLIB_DISABLE_OUTPUT_DAMAGE
+void WOutputPrivate::on_damage_frame(void *)
+{
+    renderable = true;
+    doRender();
+}
+#else
 void WOutputPrivate::on_frame(void *)
 {
     renderable = true;
-    maybeRender();
+    doRender();
 }
+
+void WOutputPrivate::on_damage(void *)
+{
+    contentIsDirty = true;
+    doRender();
+}
+#endif
 
 void WOutputPrivate::on_mode(void *)
 {
@@ -758,6 +759,11 @@ void WOutputPrivate::on_mode(void *)
 void WOutputPrivate::init()
 {
     W_Q(WOutput);
+
+#ifndef WAYLIB_DISABLE_OUTPUT_DAMAGE
+    damage = new WOutputDamage(q);
+#endif
+
     connect();
 
     updateProjection();
@@ -805,6 +811,7 @@ void WOutputPrivate::init()
     6. QQuickRenderControlPrivate::maybeUpdate
     7. QQuickRenderControl::sceneChanged
     */
+    // TODO: Get damage regions from the Qt, and use WOutputDamage::add instead of WOutput::requestRender.
     QObject::connect(rc, &QQuickRenderControl::renderRequested,
                      q, &WOutput::requestRender, Qt::QueuedConnection);
     QObject::connect(rc, &QQuickRenderControl::sceneChanged,
@@ -817,8 +824,15 @@ void WOutputPrivate::init()
 
 void WOutputPrivate::connect()
 {
+#ifndef WAYLIB_DISABLE_OUTPUT_DAMAGE
+    sc.connect(&damage->nativeInterface<wlr_output_damage>()->events.frame,
+               this, &WOutputPrivate::on_damage_frame);
+#else
     sc.connect(&handle->events.frame,
                this, &WOutputPrivate::on_frame);
+    sc.connect(&handle->events.damage,
+               this, &WOutputPrivate::on_damage);
+#endif
     // In call the connect for 'frame' signal before, maybe the wlr_output object is already
     // emit the signal, so we should suppose the renderable is true in order that ensure can
     // render on the next time
@@ -954,43 +968,39 @@ QCursor &WOutputPrivate::ensureCursor()
     return *cursor.get();
 }
 
-#ifdef D_WM_THREAD_RENDER
-QObject *WOutputPrivate::ensureEventObject()
-{
-    if (Q_UNLIKELY(!inWindowThread)) {
-        W_Q(WOutput);
-        auto window = q->attachedWindow();
-        Q_ASSERT(window);
-        inWindowThread.reset(new EventObject(this));
-        inWindowThread->moveToThread(window->thread());
-        Q_ASSERT(inWindowThread->thread() == window->thread());
-    }
-
-    return inWindowThread.get();
-}
-#endif
-
 bool WOutputPrivate::doRender()
 {
-#ifdef D_WM_THREAD_RENDER
-    requestRenderTimeout->stop();
-    if (Q_UNLIKELY(!makeCurrent())) {
-        renderSyncCond.wakeOne();
+    if (!renderable) {
         return false;
     }
-    renderSyncMutex.lock();
+
+#ifndef WAYLIB_DISABLE_OUTPUT_DAMAGE
+    pixman_region32_scoped_pointer damage(new pixman_region32_t);
+    pixman_region32_init(damage.data());
+    if (!attachRender(damage.data()))
+        return false;
 #else
+    if (!contentIsDirty) {
+        return false;
+    }
+#endif
+
     if (Q_UNLIKELY(!makeCurrent()))
         return false;
-    rc->polishItems();
+
+#ifndef WAYLIB_DISABLE_OUTPUT_DAMAGE
+    if (pixman_region32_not_empty(damage.data()))
+#else
+    contentIsDirty = false;
 #endif
-    rc->sync();
-#ifdef D_WM_THREAD_RENDER
-    renderSyncCond.wakeOne();
-    renderSyncMutex.unlock();
-#endif
-    maybeUpdatePaintDevice();
-    rc->render();
+    {
+        rc->polishItems();
+        rc->sync();
+
+        maybeUpdatePaintDevice();
+        // TODO: use scissor with the damage regions for render.
+        rc->render();
+    }
 
     if (!handle->hardware_cursor) {
         auto renderer = this->renderer();
@@ -1008,8 +1018,24 @@ bool WOutputPrivate::doRender()
     if (context)
         context->functions()->glFlush();
 
+#ifndef WAYLIB_DISABLE_OUTPUT_DAMAGE
+    const QSize size = transformedSize();
+    enum wl_output_transform transform =
+        wlr_output_transform_invert(handle->transform);
+
+    pixman_region32_scoped_pointer frame_damage(new pixman_region32_t);
+    pixman_region32_init(frame_damage.data());
+    wlr_region_transform(frame_damage.data(), &this->damage->nativeInterface<wlr_output_damage>()->current,
+                         transform, size.width(), size.height());
+    wlr_output_set_damage(handle, frame_damage.data());
+    pixman_region32_fini(frame_damage.data());
+#endif
+
     auto dirtyFlags = handle->pending.committed;
     bool ret = wlr_output_commit(handle);
+    doneCurrent();
+
+    renderable = false;
 
     if (Q_LIKELY(ret)) {
         W_Q(WOutput);
@@ -1115,18 +1141,10 @@ void WOutput::detach()
         w->destroy();
         w->setScreen(nullptr);
 
-#ifdef D_WM_THREAD_RENDER
-        DThreadUtil::runInThread(thread(), this, [d]
-#endif
-        {
-            d->makeCurrent();
-            d->rc->invalidate();
-            d->rc = nullptr;
-            d->doneCurrent();
-        }
-#ifdef D_WM_THREAD_RENDER
-        );
-#endif
+        d->makeCurrent();
+        d->rc->invalidate();
+        d->rc = nullptr;
+        d->doneCurrent();
     }
 
     if (d->surface) {
@@ -1170,21 +1188,7 @@ WOutput *WOutput::fromWindow(const QWindow *window)
 void WOutput::requestRender()
 {
     W_D(WOutput);
-#ifdef D_WM_THREAD_RENDER
-    d->backend->server()->threadUtil()->run(this, d, &WOutputPrivate::render);
-#else
     d->render();
-#endif
-}
-
-void WOutput::requestRenderCursor()
-{
-    W_D(WOutput);
-#ifdef D_WM_THREAD_RENDER
-    d->backend->server()->threadUtil()->run(this, d, &WOutputPrivate::maybeRenderCursor);
-#else
-    d->maybeRenderCursor();
-#endif
 }
 
 void WOutput::rotate(Transform t)

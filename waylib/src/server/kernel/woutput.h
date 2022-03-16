@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2021 zkyd
+ * Copyright (C) 2021 ~ 2022 zkyd
  *
  * Author:     zkyd <zkyd@zjide.org>
  *
@@ -112,7 +112,6 @@ public:
 
 public Q_SLOTS:
     void requestRender();
-    void requestRenderCursor();
 
 Q_SIGNALS:
     void positionChanged(const QPoint &pos);

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2021 zkyd
+ * Copyright (C) 2021 ~ 2022 zkyd
  *
  * Author:     zkyd <zkyd@zjide.org>
  *
@@ -149,9 +149,11 @@ void WCursorPrivate::on_frame(void *)
         seat->notifyFrame(q_func());
     }
 
+#ifdef WAYLIB_DISABLE_OUTPUT_DAMAGE
     if (Q_LIKELY(lastOutput)) {
-        lastOutput->requestRenderCursor();
+        lastOutput->requestRender();
     }
+#endif
 }
 
 void WCursorPrivate::connect()
