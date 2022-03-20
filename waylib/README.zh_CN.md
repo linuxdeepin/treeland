@@ -32,25 +32,52 @@ waylib 是一个 Wayland 合成器开发库，基于 [wlroots](https://gitlab.fr
 
 步骤二：安装依赖
 
-* pkg-config
-* qtbase5
-* qtbase5-private
-* qtbase5-dev-tools
-* qtdeclarative5
-* qtdeclarative5-private
-* libpixman
+Debian
+````
+# apt install pkg-config qtbase5-private-dev qtbase5-dev-tools qtdeclarative5-private-dev qtquickcontrols2-5-dev wayland-protocols libpixman-1-dev
+````
+
+Archlinux
+
+````
+# pacman -Syu --noconfirm qt cmake pkgconfig wlroots pixman wayland-protocols ninja
+````
 
 步骤三：运行以下命令
 
 ```bash
-mkdir build && cd build
-qmake ..
-make
+cmake -B build
+cmake --build build
 ```
 
 ## 贡献指南
 
-待补充
+此项目默认您已经拥有`Qt`和`wlroots`库的使用经验，为了能更好的融合Qt和wlroots，waylib在接口风格上遵守Qt的相关规范，在底层的设计理念上遵守wlroots的模块化设计，上层与wlroots无直接关联的部分则遵守Qt的封装+分层的设计。
+
+在遵守waylib的设计理念和以下几类要求的前提下，您可以自由地向此项目提交任意的代码贡献。
+
+### 编码风格
+
+* 在修改已有代码时，需遵守当前的代码风格
+* 新增代码：与wlroots密切相关的部分遵守wlroots的代码风格，如使用WSignalConnector链接wl_signal，相应的槽函数使用“下划线命名法”；其它部分遵守Qt的代码风格（https://wiki.qt.io/Qt_Coding_Style 此链接仅为参考，实际请以Qt源码为准）
+* 代码风格没有绝对的对与错，请顾全大局，而勿拘于小结
+
+### 代码质量
+
+* 代码以简单明了、容易理解为优先
+* 无论是改动或新增代码，均需要在关键节点增加注释
+* 安全性 > 兼容性 > 可扩展性 >= 性能
+
+### 提交规范
+
+* 提交步骤：
+    1. 首先需要登录您的Github帐号，fork此项目
+    2. 在本地使用`git clone`拉取fork之后的项目
+    3. 将新的提交使用`git push`推送到您的项目中
+    4. 在Github上使用Pull Requese功能提交您的代码到上游项目、
+* commit信息规范：与Qt项目保持一致，统一使用英文。一定要准确描述出这个提交“做了什么”、“为什么要这样做”
+* 一个commit只做一件事情，代码量改动越小的commit越容易被接受。对于较大的代码改动，尽量拆分为多个代码提交（满足git commit的原则为前提）
+* 在提交代码之前请自行进行测试和代码Review，在确认代码无误后再提交PR
 
 ## 未来计划
 
