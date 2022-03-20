@@ -21,12 +21,12 @@ jobs:
           pacman -Syu --noconfirm
       - name: Install dep
         run: |
-          pacman -Syu --noconfirm qt cmake pkgconfig wlroots pixman wayland-protocols
+          pacman -Syu --noconfirm qt cmake pkgconfig wlroots pixman wayland-protocols clazy
           pacman -Syu --noconfirm clang ninja
       - name: Configure CMake
         run: |
           mkdir -p ${{github.workspace}}/build
-          cmake -B ${{github.workspace}}/build -G Ninja
+          cmake -B ${{github.workspace}}/build -G Ninja -DCMAKE_CXX_COMPILER=clazy
       - name: Build
         # Build your program with the given configuration
         run: cmake --build ${{github.workspace}}/build
