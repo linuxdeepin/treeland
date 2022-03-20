@@ -2,7 +2,7 @@
 
 ## 简介
 
-waylib 是一个 Wayland 合成器开发库，基于 [wlroots](https://github.com/swaywm/wlroots) 开发，提供 Qt 风格的开发接口。其设计目标是与 QtQuick 深度结合，利用 QtQuick 的 Scene Graphics 模型，以简化窗口管理的复杂度。在 waylib 中，每个 Output 即是一个 QQuickWindow，每个 Surface 是一个 QQuickItem，可将其与 QtQuick 的图形组件混合使用，并且支持 QRHI，只需要一份代码即可兼容 OpenGL 和 Vulkan。
+waylib 是一个 Wayland 合成器开发库，基于 [wlroots](https://gitlab.freedesktop.org/wlroots/wlroots) 开发，提供 Qt 风格的开发接口。其设计目标是与 QtQuick 深度结合，利用 QtQuick 的 Scene Graphics 模型，以简化窗口管理的复杂度。在 waylib 中，每个 Output 即是一个 QQuickWindow，每个 Surface 是一个 QQuickItem，可将其与 QtQuick 的图形组件混合使用，并且支持 QRHI，只需要一份代码即可兼容 OpenGL 和 Vulkan。
 
 使用 waylib 可以简单并高效的创建一个 Wayland 合成器，其在 wlroots 之上，提供了：
 
@@ -27,7 +27,7 @@ waylib 是一个 Wayland 合成器开发库，基于 [wlroots](https://github.co
 
 ## 构建
 
-步骤一：编译安装 [wlroots](https://github.com/swaywm/wlroots#building)
+步骤一：编译安装 [wlroots](https://gitlab.freedesktop.org/wlroots/wlroots#building)
 
 
 步骤二：安装依赖
