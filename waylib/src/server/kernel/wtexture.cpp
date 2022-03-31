@@ -30,6 +30,7 @@ extern "C" {
 }
 
 #include <private/qsgplaintexture_p.h>
+#include <private/qrhi_p.h>
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
@@ -39,11 +40,19 @@ public:
 
     void init(wlr_texture *handle);
     void updateTexture() {
+        if (!window)
+            return;
+
         wlr_gles2_texture_attribs attribs;
         wlr_gles2_texture_get_attribs(handle, &attribs);
 
-        auto texture = static_cast<QSGPlainTexture*>(this->texture.data());
+#if QT_VERSION_MAJOR < 6
         texture->setTextureId(attribs.tex);
+#else
+        texture->setTextureFromNativeTexture(QQuickWindowPrivate::get(window)->rhi,
+                                             attribs.tex, 0, QSize(handle->width, handle->height),
+                                             {}, {});
+#endif
         texture->setHasAlphaChannel(attribs.has_alpha);
         texture->setTextureSize(QSize(handle->width, handle->height));
     }
@@ -60,6 +69,8 @@ public:
 
     QScopedPointer<QSGPlainTexture> texture;
     void(WTexturePrivate::*onWlrTextureChanged)();
+
+    QQuickWindow *window = nullptr;
 };
 
 WTexturePrivate::WTexturePrivate(WTexture *qq, wlr_texture *handle)
@@ -115,7 +126,6 @@ void WTexture::setHandle(WTextureHandle *handle)
     }
 
     d->handle = new_handle;
-    (d->*(d->onWlrTextureChanged))();
 }
 
 WTexture::Type WTexture::type() const
@@ -130,10 +140,15 @@ QSize WTexture::size() const
     return QSize(d->handle->width, d->handle->height);
 }
 
-QSGTexture *WTexture::toSGTexture() const
+QSGTexture *WTexture::getSGTexture(QQuickWindow *window)
 {
-    W_DC(WTexture);
+    W_D(WTexture);
 
+    const auto oldWindow = d->window;
+    d->window = window;
+    if (Q_UNLIKELY(!d->texture || window != oldWindow)) {
+        (d->*(d->onWlrTextureChanged))();
+    }
     return d->texture.get();
 }
 

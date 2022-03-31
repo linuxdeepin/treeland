@@ -11,8 +11,13 @@ set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 set(CMAKE_AUTOUIC ON)
 
-# Use Qt5
-set(QT_VERSION_MAJOR 5)
+option(USE_QT5 "Use the Qt5 library" ON)
+
+if (${USE_QT5} STREQUAL "ON")
+    set(QT_VERSION_MAJOR 5)
+else()
+    set(QT_VERSION_MAJOR 6)
+endif()
 
 # For Unix/Linux
 include(GNUInstallDirs)

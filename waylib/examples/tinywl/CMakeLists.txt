@@ -1,7 +1,11 @@
-find_package(Qt5 COMPONENTS Widgets Quick QuickControls2 REQUIRED)
+find_package(Qt${QT_VERSION_MAJOR} COMPONENTS Widgets Quick QuickControls2 REQUIRED)
 
 set(SOURCES main.cpp)
-qt5_add_resources(SOURCES qml.qrc)
+if(QT_VERSION_MAJOR EQUAL 5)
+    qt5_add_resources(SOURCES qml.qrc)
+else()
+    qt_add_resources(SOURCES qml.qrc)
+endif()
 
 add_executable(tinywl
     ${SOURCES}
@@ -9,8 +13,8 @@ add_executable(tinywl
 
 target_link_libraries(tinywl
     PRIVATE
-    Qt5::Widgets
-    Qt5::Quick
-    Qt5::QuickControls2
+    Qt${QT_VERSION_MAJOR}::Widgets
+    Qt${QT_VERSION_MAJOR}::Quick
+    Qt${QT_VERSION_MAJOR}::QuickControls2
     waylibserver
 )

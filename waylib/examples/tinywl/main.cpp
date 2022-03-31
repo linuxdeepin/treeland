@@ -122,7 +122,7 @@ private:
 
 int main(int argc, char *argv[]) {
 //    qputenv("WLR_RENDERER", "pixman");
-//    QQuickWindow::setSceneGraphBackend(QSGRendererInterface::Software);
+//    QQuickWindow::setGraphicsApi(QSGRendererInterface::Software);
 
     QScopedPointer<WServer> server(new WServer());
     WOutputLayout *layout = new WOutputLayout;
@@ -150,14 +150,17 @@ int main(int argc, char *argv[]) {
         Q_ASSERT(ok);
     }
 
+#if QT_VERSION_MAJOR < 6
     // Because the wlr_egl only have the color buffer
     qputenv("QSG_NO_DEPTH_BUFFER", "1");
     qputenv("QSG_NO_STENCIL_BUFFER", "1");
+#else
+    QQuickStyle::setStyle("Material");
+#endif
 
     qputenv("QT_QPA_PLATFORM", "wayland");
     qputenv("WAYLAND_DISPLAY", server->displayName());
 
-//    QQuickStyle::setStyle("Material");
 
     QGuiApplication::setAttribute(Qt::AA_EnableHighDpiScaling);
 //    QGuiApplication::setAttribute(Qt::AA_ShareOpenGLContexts);

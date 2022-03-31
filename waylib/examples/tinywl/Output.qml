@@ -13,7 +13,7 @@ Item {
     Image {
         id: background
         sourceSize: Qt.size(root.width, root.height)
-        source: "file:///usr/share/backgrounds/default_background.jpg"
+        source: "file:///usr/share/backgrounds/deepin/desktop.jpg"
         fillMode: Image.PreserveAspectCrop
         asynchronous: true
     }

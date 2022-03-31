@@ -59,6 +59,7 @@ extern "C" {
 #include <private/qquickwindow_p.h>
 #undef private
 #include <QOpenGLFunctions>
+#include <QOffscreenSurface>
 #include <QCoreApplication>
 #include <QThread>
 #include <QQuickWindow>
@@ -70,6 +71,9 @@ extern "C" {
 #include <qpa/qplatformcursor.h>
 #include <qpa/qwindowsysteminterface_p.h>
 #include <private/qsgrenderer_p.h>
+#if QT_VERSION_MAJOR >= 6
+#include <private/qsgrhisupport_p.h>
+#endif
 #include <private/qquickwindow_p.h>
 #include <private/qrhi_p.h>
 #include <private/qeglconvenience_p.h>
@@ -146,6 +150,7 @@ private:
     SurfaceType type;
 };
 
+#if QT_VERSION_MAJOR < 6
 class Q_DECL_HIDDEN OutputRenderStage : public QQuickCustomRenderStage
 {
 public:
@@ -161,6 +166,7 @@ private:
     QQuickWindowPrivate *window;
     const WOutputPrivate *output;
 };
+#endif
 
 struct QScopedPointerPixmanRegion32Deleter {
     static inline void cleanup(pixman_region32_t *pointer) {
@@ -199,9 +205,12 @@ public:
     // end slot function
 
     void init();
+#if QT_VERSION_MAJOR >= 6
+    bool initRCWithRhi();
+#endif
     void connect();
     void updateProjection();
-    void maybeUpdatePaintDevice();
+    void maybeUpdateRenderTarget();
     void doSetCursor(const QCursor &cur);
     void setCursor(const QCursor &cur);
 
@@ -526,9 +535,11 @@ public:
     qreal devicePixelRatio() const override {
         return output->handle->scale;
     }
+#if QT_VERSION_MAJOR < 6
     qreal pixelDensity()  const override {
         return 1.0;
     }
+#endif
 
     qreal refreshRate() const override {
         if (!output->handle->current_mode)
@@ -556,9 +567,6 @@ public:
         }
 
         return Qt::PrimaryOrientation;
-    }
-    void setOrientationUpdateMask(Qt::ScreenOrientations) override {
-
     }
 
     QWindow *topLevelAt(const QPoint &) const override {
@@ -695,6 +703,7 @@ QSize OutputSurface::size() const
     return output->size();
 }
 
+#if QT_VERSION_MAJOR < 6
 bool OutputRenderStage::render()
 {
     auto q = window->q_func();
@@ -726,6 +735,7 @@ bool OutputRenderStage::render()
         window->context->renderNextFrame(window->renderer, fboId);
     return true;
 }
+#endif
 
 #ifndef WAYLIB_DISABLE_OUTPUT_DAMAGE
 void WOutputPrivate::on_damage_frame(void *)
@@ -770,7 +780,9 @@ void WOutputPrivate::init()
     rc->window = ensureRenderWindow();
 
     if (wlr_renderer_is_pixman(renderer())) {
+#if QT_VERSION_MAJOR < 6
         rc->initialize(nullptr);
+#endif
     } else {
         format.setRenderableType(QSurfaceFormat::OpenGLES);
         auto egl = wlr_gles2_renderer_get_egl(renderer());
@@ -787,12 +799,17 @@ void WOutputPrivate::init()
             context->create();
         }
 
+#if QT_VERSION_MAJOR < 6
         if (!context->makeCurrent(surface)) {
             qFatal("WOutput create failed");
         }
 
         rc->initialize(context);
         context->doneCurrent();
+#else
+        bool initOK = initRCWithRhi();
+        Q_ASSERT(initOK);
+#endif
     }
 
     q->attachedWindow()->setScreen(ensureScreen());
@@ -821,6 +838,58 @@ void WOutputPrivate::init()
     doSetCursor(ensureCursor());
     render();
 }
+
+#if QT_VERSION_MAJOR >= 6
+bool WOutputPrivate::initRCWithRhi()
+{
+    QQuickRenderControlPrivate *rcd = QQuickRenderControlPrivate::get(rc);
+    Q_ASSERT(!rcd->rhi);
+
+    QSGRhiSupport *rhiSupport = QSGRhiSupport::instance();
+
+    // sanity check for Vulkan
+#if QT_CONFIG(vulkan)
+    if (rhiSupport->rhiBackend() == QRhi::Vulkan && !rc->window->vulkanInstance()) {
+        qWarning("WOutput::initRhi: No QVulkanInstance set for QQuickWindow, cannot initialize");
+        return false;
+    }
+#endif
+
+    rcd->window->setGraphicsDevice(QQuickGraphicsDevice::fromOpenGLContext(context));
+
+    // See https://codereview.qt-project.org/c/qt/qtbase/+/404163, the QRhi isn't depend QOffscreenSurface,
+    // So we can use the QSurface simulate the QOffscreenSurface.
+    auto os = static_cast<QOffscreenSurface*>(static_cast<QSurface*>(surface));
+#if QT_VERSION >= QT_VERSION_CHECK(6, 3, 0)
+    QSGRhiSupport::RhiCreateResult result = rhiSupport->createRhi(rcd->window, os);
+    if (!result.rhi) {
+        qWarning("WOutput::initRhi: Failed to initialize QRhi");
+        return false;
+    }
+
+    rcd->rhi = result.rhi;
+    // Ensure the QQuickRenderControl don't reinit the RHI
+    rcd->ownRhi = true;
+    if (!rc->initialize())
+        return false;
+    rcd->ownRhi = result.own;
+    Q_ASSERT(rcd->rhi == result.rhi);
+#else
+    auto rhi = rhiSupport->createRhi(rcd->window, os);
+    if (!rhi) {
+        qWarning("WOutput::initRhi: Failed to initialize QRhi");
+        return false;
+    }
+
+    rcd->rhi = rhi;
+    if (!rc->initialize())
+        return false;
+    Q_ASSERT(rcd->rhi == rhi);
+#endif
+
+    return true;
+}
+#endif
 
 void WOutputPrivate::connect()
 {
@@ -880,27 +949,44 @@ void WOutputPrivate::updateProjection()
     }
 }
 
-void WOutputPrivate::maybeUpdatePaintDevice()
+void WOutputPrivate::maybeUpdateRenderTarget()
 {
-    if (!wlr_renderer_is_pixman(renderer()))
-        return;
+    if (wlr_renderer_is_pixman(renderer())) {
+        pixman_image_t *image = wlr_pixman_renderer_get_current_image(renderer());
+        void *data = pixman_image_get_data(image);
 
-    pixman_image_t *image = wlr_pixman_renderer_get_current_image(renderer());
-    void *data = pixman_image_get_data(image);
+        if (Q_LIKELY(paintDevice.constBits() == data))
+            return;
 
-    if (Q_LIKELY(paintDevice.constBits() == data))
-        return;
+        paintDevice = WTools::fromPixmanImage(image, data);
+        Q_ASSERT(!paintDevice.isNull());
+        paintDevice.setDevicePixelRatio(handle->pending.scale);
 
-    W_QC(WOutput);
-    auto quick_window = q->attachedWindow();
-    auto wd = QQuickWindowPrivate::get(quick_window);
-    auto qt_renderer = dynamic_cast<QSGSoftwareRenderer*>(wd->renderer);
-    Q_ASSERT(qt_renderer);
-
-    paintDevice = WTools::fromPixmanImage(image, data);
-    Q_ASSERT(!paintDevice.isNull());
-    paintDevice.setDevicePixelRatio(handle->pending.scale);
-    qt_renderer->setCurrentPaintDevice(&paintDevice);
+#if QT_VERSION < QT_VERSION_CHECK(6, 4, 0)
+        W_QC(WOutput);
+        auto quick_window = q->attachedWindow();
+        auto wd = QQuickWindowPrivate::get(quick_window);
+        auto qt_renderer = dynamic_cast<QSGSoftwareRenderer*>(wd->renderer);
+        Q_ASSERT(qt_renderer);
+        qt_renderer->setCurrentPaintDevice(&paintDevice);
+#else
+        auto rt = QQuickRenderTarget::fromPaintDevice(&paintDevice);
+        rc->QQuickRenderControl::window()->setRenderTarget(rt);
+#endif
+    } else if (context) {
+#if QT_VERSION_MAJOR >= 6
+        GLint rbo = 0;
+        glGetFramebufferAttachmentParameteriv(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
+                                              GL_FRAMEBUFFER_ATTACHMENT_OBJECT_NAME, &rbo);
+        Q_ASSERT(rbo != 0);
+        auto rt = QQuickRenderTarget::fromOpenGLRenderBuffer(rbo, size());
+#if QT_VERSION < QT_VERSION_CHECK(6, 4, 0)
+#error "The version of Qt library cannot be lower than 6.4.0"
+#endif
+        rt.setMirrorVertically(true);
+        rc->QQuickRenderControl::window()->setRenderTarget(rt);
+#endif
+    }
 }
 
 void WOutputPrivate::doSetCursor(const QCursor &cur)
@@ -995,11 +1081,18 @@ bool WOutputPrivate::doRender()
 #endif
     {
         rc->polishItems();
+
+#if QT_VERSION_MAJOR >= 6
+        rc->beginFrame();
+#endif
         rc->sync();
 
-        maybeUpdatePaintDevice();
+        maybeUpdateRenderTarget();
         // TODO: use scissor with the damage regions for render.
         rc->render();
+#if QT_VERSION_MAJOR >= 6
+        rc->endFrame();
+#endif
     }
 
     if (!handle->hardware_cursor) {
@@ -1120,7 +1213,9 @@ void WOutput::attach(WQuickRenderControl *control)
     d->ensureRenderWindow();
     d->ensureScreen();
 
+#if QT_VERSION_MAJOR < 6
     wd->customRenderStage = new OutputRenderStage(wd, d);
+#endif
 #ifdef D_WM_MAIN_THREAD_QTQUICK
     d->server->threadUtils()->run(this, d, &WOutputPrivate::init);
 #else

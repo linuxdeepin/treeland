@@ -27,6 +27,7 @@
 
 QT_BEGIN_NAMESPACE
 class QSGTexture;
+class QQuickWindow;
 QT_END_NAMESPACE
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
@@ -57,7 +58,7 @@ public:
     Type type() const;
 
     QSize size() const;
-    QSGTexture *toSGTexture() const;
+    QSGTexture *getSGTexture(QQuickWindow *window);
 };
 
 WAYLIB_SERVER_END_NAMESPACE

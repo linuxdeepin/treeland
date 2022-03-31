@@ -34,13 +34,13 @@ Step 2: Install dependencies
 
 Debian
 ````
-# apt install pkg-config qtbase5-private-dev qtbase5-dev-tools qtdeclarative5-private-dev qtquickcontrols2-5-dev wayland-protocols libpixman-1-dev
+# apt install pkg-config qt6-base-private-dev qt6-base-dev-tools qt6-declarative-private-dev wayland-protocols libpixman-1-dev
 ````
 
 Archlinux
 
 ````
-# pacman -Syu --noconfirm qt cmake pkgconfig wlroots pixman wayland-protocols ninja
+# pacman -Syu --noconfirm qt6-base qt6-declarative cmake pkgconfig wlroots pixman wayland-protocols ninja
 ````
 
 Step 3: Execute the following commands

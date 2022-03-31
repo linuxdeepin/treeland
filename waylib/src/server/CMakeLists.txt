@@ -5,10 +5,17 @@ find_package(Qt${QT_VERSION_MAJOR}
     Core
     Gui
     Quick
-    EglSupport
-    InputSupport
     REQUIRED
 )
+
+if(QT_VERSION_MAJOR EQUAL 5)
+    find_package(Qt5
+        COMPONENTS
+        EglSupport
+        InputSupport
+        REQUIRED
+    )
+endif()
 
 find_package(PkgConfig)
 pkg_search_module(WLROOTS REQUIRED wlroots>=0.15)
@@ -118,13 +125,21 @@ set_target_properties(${TARGET}
         PUBLIC_HEADER "${HEADERS}"
 )
 
-target_link_libraries(${TARGET}
-    PRIVATE
+set(QT_LIBRAIES
     Qt${QT_VERSION_MAJOR}::Core
     Qt${QT_VERSION_MAJOR}::Gui
-    Qt${QT_VERSION_MAJOR}::Quick
-    Qt${QT_VERSION_MAJOR}::EglSupport
-    Qt${QT_VERSION_MAJOR}::InputSupport
+    Qt${QT_VERSION_MAJOR}::Quick)
+
+if(QT_VERSION_MAJOR EQUAL 5)
+    list(APPEND QT_LIBRAIES
+        Qt5::EglSupport
+        Qt5::InputSupport
+    )
+endif()
+
+target_link_libraries(${TARGET}
+    PRIVATE
+    ${QT_LIBRAIES}
     ${WLROOTS_LIBRARIES}
 )
 

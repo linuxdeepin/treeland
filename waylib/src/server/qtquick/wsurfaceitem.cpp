@@ -38,10 +38,7 @@ WAYLIB_SERVER_BEGIN_NAMESPACE
 class WSGTextureProvider : public QSGTextureProvider
 {
 public:
-    WSGTextureProvider(WSurfaceItemPrivate *item)
-        : item(item) {
-        dwtexture.reset(new WTexture(nullptr));
-    }
+    WSGTextureProvider(WSurfaceItemPrivate *item);
 
 public:
     QSGTexture *texture() const override;
@@ -79,9 +76,15 @@ public:
     WSGTextureProvider *textureProvider = nullptr;
 };
 
+WSGTextureProvider::WSGTextureProvider(WSurfaceItemPrivate *item)
+    : item(item)
+{
+    dwtexture.reset(new WTexture(nullptr));
+}
+
 QSGTexture *WSGTextureProvider::texture() const
 {
-    return dwtexture->toSGTexture();
+    return dwtexture->getSGTexture(item->window);
 }
 
 void WSGTextureProvider::updateTexture()
