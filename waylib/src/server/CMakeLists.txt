@@ -20,6 +20,17 @@ endif()
 find_package(PkgConfig)
 pkg_search_module(WLROOTS REQUIRED wlroots>=0.15)
 pkg_search_module(PIXMAN REQUIRED pixman-1)
+pkg_get_variable(WLR_HAVE_VULKAN WLROOTS have_vulkan_renderer)
+
+if(WLR_HAVE_VULKAN EQUAL "true")
+    add_definitions(-DWLR_HAVE_VULKAN)
+endif()
+
+setup_package_version_variables(WLROOTS)
+add_definitions(-DWLR_VERSION_STRING="${WLROOTS_VERSION}"
+                -DWLR_VERSION_MAJOR=${WLROOTS_VERSION_MAJOR}
+                -DWLR_VERSION_MINOR=${WLROOTS_VERSION_MINOR}
+                -DWLR_VERSION_PATCH=${WLROOTS_VERSION_PATCH})
 
 include(${PROJECT_SOURCE_DIR}/cmake/WaylandScannerHelpers.cmake)
 ws_generate(server stable/xdg-shell/xdg-shell.xml xdg-shell-protocol)
@@ -172,5 +183,5 @@ install(TARGETS ${TARGET}
 include(${PROJECT_SOURCE_DIR}/cmake/Helpers.cmake)
 add_cmake_module(WaylibServer ${TARGET} ${CMAKE_INSTALL_FULL_INCLUDEDIR}/${TARGET})
 add_pkgconfig_module(${TARGET} ${TARGET} ${CMAKE_INSTALL_FULL_INCLUDEDIR}/${TARGET}
-    "wlroots Qt${QT_VERSION_MAJOR}Gui Qt${QT_VERSION_MAJOR}Quick"
+    "wlroots >= 0.15, Qt${QT_VERSION_MAJOR}Gui, Qt${QT_VERSION_MAJOR}Quick"
 )

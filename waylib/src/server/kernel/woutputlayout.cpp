@@ -141,7 +141,13 @@ WOutput *WOutputLayout::at(const QPointF &pos) const
     W_DC(WOutputLayout);
     Q_FOREACH(auto output, d->outputList) {
         auto woutput = output->nativeInterface<wlr_output>();
+#if WLR_VERSION_MINOR > 15
+        wlr_box box;
+        wlr_output_layout_get_box(d->handle, woutput, &box);
+        wlr_box *geometry = &box;
+#else
         auto geometry = wlr_output_layout_get_box(d->handle, woutput);
+#endif
         if (wlr_box_contains_point(geometry, pos.x(), pos.y()))
             return output;
     }

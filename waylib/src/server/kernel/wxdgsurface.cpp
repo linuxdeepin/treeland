@@ -42,6 +42,16 @@ public:
     void init();
     void connect();
 
+#if WLR_VERSION_MINOR > 15
+    inline wlr_xdg_toplevel *getHandle() const {
+        return handle->toplevel;
+    }
+#else
+    inline wlr_xdg_surface *getHandle() const {
+        return handle;
+    }
+#endif
+
     W_DECLARE_PUBLIC(WXdgSurface)
 
     wlr_xdg_surface *handle;
@@ -171,7 +181,7 @@ void WXdgSurface::resize(const QSize &size)
     if (d->handle->role != WLR_XDG_SURFACE_ROLE_TOPLEVEL)
         return;
 
-    wlr_xdg_toplevel_set_size(d->handle, size.width(), size.height());
+    wlr_xdg_toplevel_set_size(d->getHandle(), size.width(), size.height());
 }
 
 bool WXdgSurface::resizeing() const
@@ -198,7 +208,11 @@ WSurface *WXdgSurface::parentSurface() const
 
     wlr_xdg_surface *parent = nullptr;
     if (d->handle->role == WLR_XDG_SURFACE_ROLE_TOPLEVEL) {
+#if WLR_VERSION_MINOR > 15
+        parent = d->handle->toplevel->parent ? d->handle->toplevel->parent->base : nullptr;
+#else
         parent = d->handle->toplevel->parent;
+#endif
     } else if (d->handle->role == WLR_XDG_SURFACE_ROLE_POPUP) {
         parent = wlr_xdg_surface_from_wlr_surface(d->handle->popup->parent);
     }
@@ -212,7 +226,7 @@ void WXdgSurface::setResizeing(bool resizeing)
     W_D(WXdgSurface);
     if (d->handle->role != WLR_XDG_SURFACE_ROLE_TOPLEVEL)
         return;
-    wlr_xdg_toplevel_set_resizing(d->handle, resizeing);
+    wlr_xdg_toplevel_set_resizing(d->getHandle(), resizeing);
 }
 
 void WXdgSurface::setMaximize(bool on)
@@ -220,7 +234,7 @@ void WXdgSurface::setMaximize(bool on)
     W_D(WXdgSurface);
     if (d->handle->role != WLR_XDG_SURFACE_ROLE_TOPLEVEL)
         return;
-    wlr_xdg_toplevel_set_maximized(d->handle, on);
+    wlr_xdg_toplevel_set_maximized(d->getHandle(), on);
 }
 
 void WXdgSurface::setActivate(bool on)
@@ -228,7 +242,7 @@ void WXdgSurface::setActivate(bool on)
     W_D(WXdgSurface);
     if (d->handle->role != WLR_XDG_SURFACE_ROLE_TOPLEVEL)
         return;
-    wlr_xdg_toplevel_set_activated(d->handle, on);
+    wlr_xdg_toplevel_set_activated(d->getHandle(), on);
 }
 
 void WXdgSurface::notifyChanged(ChangeType type)

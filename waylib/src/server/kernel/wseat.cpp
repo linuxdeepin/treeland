@@ -157,17 +157,26 @@ public:
     inline void doNotifyKey(WInputDevice *device, uint32_t keycode,
                             WInputDevice::KeyState state, uint32_t timestamp) {
         auto handle = device->nativeInterface<wlr_input_device>();
+#if WLR_VERSION_MINOR > 15
+        wlr_seat_set_keyboard(this->handle(), handle->keyboard);
+#else
         wlr_seat_set_keyboard(this->handle(), handle);
+#endif
         /* Send modifiers to the client. */
         wlr_seat_keyboard_notify_key(this->handle(), timestamp,
                                      keycode, static_cast<uint32_t>(state));
     }
     inline void doNotifyModifiers(WInputDevice *device) {
         auto handle = device->nativeInterface<wlr_input_device>();
+        auto keyboard = handle->keyboard;
+#if WLR_VERSION_MINOR > 15
+        wlr_seat_set_keyboard(this->handle(), keyboard);
+#else
         wlr_seat_set_keyboard(this->handle(), handle);
+#endif
         /* Send modifiers to the client. */
         wlr_seat_keyboard_notify_modifiers(this->handle(),
-                                           &handle->keyboard->modifiers);
+                                           &keyboard->modifiers);
     }
 
     // begin slot function
@@ -229,7 +238,11 @@ void WSeatPrivate::on_request_set_selection(void *data)
 
 void WSeatPrivate::on_keyboard_key(void *signalData, void *data)
 {
+#if WLR_VERSION_MINOR > 15
+    auto event = static_cast<wlr_keyboard_key_event*>(signalData);
+#else
     auto event = static_cast<wlr_event_keyboard_key*>(signalData);
+#endif
     auto device = static_cast<WInputDevice*>(data);
 
     q_func()->notifyKey(device, event->keycode,

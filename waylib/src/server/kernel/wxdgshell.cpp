@@ -46,8 +46,8 @@ public:
     void on_new_xdg_surface(void *data);
     void on_surface_destroy(void *data);
 
-    void on_map(void *data);
-    void on_unmap(void *data);
+    void on_map(void *data, void *surfaceHandle);
+    void on_unmap(void *data, void *surfaceHandle);
     // toplevel
     void on_request_move(void *data);
     void on_request_resize(void *data);
@@ -71,9 +71,9 @@ void WXdgShellPrivate::on_new_xdg_surface(void *data)
     sc.connect(&wlr_surface->events.destroy, this, &WXdgShellPrivate::on_surface_destroy);
 
     sc.connect(&wlr_surface->events.map,
-               this, &WXdgShellPrivate::on_map);
+               this, &WXdgShellPrivate::on_map, wlr_surface);
     sc.connect(&wlr_surface->events.unmap,
-               this, &WXdgShellPrivate::on_unmap);
+               this, &WXdgShellPrivate::on_unmap, wlr_surface);
 
     if (wlr_surface->role == WLR_XDG_SURFACE_ROLE_TOPLEVEL) {
         auto toplevel = wlr_surface->toplevel;
@@ -110,23 +110,31 @@ void WXdgShellPrivate::on_surface_destroy(void *data)
     }
 }
 
-void WXdgShellPrivate::on_map(void *data)
+void WXdgShellPrivate::on_map(void *data, void *surfaceHandle)
 {
-    wlr_xdg_surface *wlr_surface = reinterpret_cast<struct wlr_xdg_surface*>(data);
+    Q_ASSERT(surfaceHandle);
+    // on the wlroots>0.16.0, the data is nullptr.
+    wlr_xdg_surface *wlr_surface = reinterpret_cast<struct wlr_xdg_surface*>(data ? data : surfaceHandle);
     auto surface = WXdgSurface::fromHandle<wlr_xdg_surface>(wlr_surface);
     layout->map(surface);
 }
 
-void WXdgShellPrivate::on_unmap(void *data)
+void WXdgShellPrivate::on_unmap(void *data, void *surfaceHandle)
 {
-    wlr_xdg_surface *wlr_surface = reinterpret_cast<struct wlr_xdg_surface*>(data);
+    Q_ASSERT(surfaceHandle);
+    // on the wlroots>0.16.0, the data is nullptr.
+    wlr_xdg_surface *wlr_surface = reinterpret_cast<struct wlr_xdg_surface*>(data ? data : surfaceHandle);
     layout->unmap(WXdgSurface::fromHandle<wlr_xdg_surface>(wlr_surface));
 }
 
 void WXdgShellPrivate::on_request_move(void *data)
 {
     auto event = reinterpret_cast<wlr_xdg_toplevel_move_event*>(data);
+#if WLR_VERSION_MINOR > 15
+    auto surface = WXdgSurface::fromHandle<wlr_xdg_surface>(event->toplevel->base);
+#else
     auto surface = WXdgSurface::fromHandle<wlr_xdg_surface>(event->surface);
+#endif
     layout->requestMove(surface, WSeat::fromHandle<wlr_seat>(event->seat->seat), event->serial);
 }
 
@@ -156,7 +164,11 @@ void WXdgShellPrivate::on_request_resize(void *data)
 {
     auto event = reinterpret_cast<wlr_xdg_toplevel_resize_event*>(data);
     auto seat = WSeat::fromHandle<wlr_seat>(event->seat->seat);
+#if WLR_VERSION_MINOR > 15
+    auto surface = WXdgSurface::fromHandle<wlr_xdg_surface>(event->toplevel->base);
+#else
     auto surface = WXdgSurface::fromHandle<wlr_xdg_surface>(event->surface);
+#endif
     layout->requestResize(surface, seat, toQtEdge(event->edges), event->serial);
 }
 

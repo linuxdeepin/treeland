@@ -96,24 +96,40 @@ public:
 
 void WCursorPrivate::on_motion(void *data)
 {
+#if WLR_VERSION_MINOR > 15
+    auto *event = reinterpret_cast<wlr_pointer_motion_event*>(data);
+    auto device = &event->pointer->base;
+#else
     auto *event = reinterpret_cast<wlr_event_pointer_motion*>(data);
-
-    wlr_cursor_move(handle, event->device,
+    auto device = event->device;
+#endif
+    wlr_cursor_move(handle, device,
                     event->delta_x, event->delta_y);
-    processCursorMotion(event->device, event->time_msec);
+    processCursorMotion(device, event->time_msec);
 }
 
 void WCursorPrivate::on_motion_absolute(void *data)
 {
+#if WLR_VERSION_MINOR > 15
+    auto event = reinterpret_cast<wlr_pointer_motion_absolute_event*>(data);
+    auto device = &event->pointer->base;
+#else
     auto event = reinterpret_cast<wlr_event_pointer_motion_absolute*>(data);
-
-    wlr_cursor_warp_absolute(handle, event->device, event->x, event->y);
-    processCursorMotion(event->device, event->time_msec);
+    auto device = event->device;
+#endif
+    wlr_cursor_warp_absolute(handle, device, event->x, event->y);
+    processCursorMotion(device, event->time_msec);
 }
 
 void WCursorPrivate::on_button(void *data)
 {
+#if WLR_VERSION_MINOR > 15
+    auto event = reinterpret_cast<wlr_pointer_button_event*>(data);
+    auto device = &event->pointer->base;
+#else
     auto event = reinterpret_cast<wlr_event_pointer_button*>(data);
+    auto device = event->device;
+#endif
     button = WCursor::fromNativeButton(event->button);
 
     if (event->state == WLR_BUTTON_RELEASED) {
@@ -124,7 +140,7 @@ void WCursorPrivate::on_button(void *data)
     }
 
     if (Q_LIKELY(seat)) {
-        seat->notifyButton(q_func(), WInputDevice::fromHandle<wlr_input_device>(event->device),
+        seat->notifyButton(q_func(), WInputDevice::fromHandle<wlr_input_device>(device),
                            event->button, static_cast<WInputDevice::ButtonState>(event->state),
                            event->time_msec);
     }
@@ -132,10 +148,16 @@ void WCursorPrivate::on_button(void *data)
 
 void WCursorPrivate::on_axis(void *data)
 {
+#if WLR_VERSION_MINOR > 15
+    auto event = reinterpret_cast<wlr_pointer_axis_event*>(data);
+    auto device = &event->pointer->base;
+#else
     auto event = reinterpret_cast<wlr_event_pointer_axis*>(data);
+    auto device = event->device;
+#endif
 
     if (Q_LIKELY(seat)) {
-        seat->notifyAxis(q_func(), WInputDevice::fromHandle<wlr_input_device>(event->device),
+        seat->notifyAxis(q_func(), WInputDevice::fromHandle<wlr_input_device>(device),
                          static_cast<WInputDevice::AxisSource>(event->source),
                          event->orientation == WLR_AXIS_ORIENTATION_HORIZONTAL
                          ? Qt::Horizontal : Qt::Vertical, event->delta, event->delta_discrete,
