@@ -786,8 +786,13 @@ void WOutputPrivate::init()
     } else {
         format.setRenderableType(QSurfaceFormat::OpenGLES);
         auto egl = wlr_gles2_renderer_get_egl(renderer());
-        auto eglConfig = q_configFromGLFormat(egl->display, format, false, EGL_WINDOW_BIT);
-        format = q_glFormatFromConfig(egl->display, eglConfig, format);
+#if WLR_VERSION_MINOR > 15
+        auto display = wlr_egl_get_display(egl);
+#else
+        auto display = egl->display;
+#endif
+        auto eglConfig = q_configFromGLFormat(display, format, false, EGL_WINDOW_BIT);
+        format = q_glFormatFromConfig(display, eglConfig, format);
 
         if (!surface) {
             surface = new OutputSurface(this, QSurface::OpenGLSurface);

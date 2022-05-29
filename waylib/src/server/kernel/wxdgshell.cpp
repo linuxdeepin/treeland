@@ -193,7 +193,11 @@ void WXdgShell::create(WServer *server)
     W_D(WXdgShell);
     d->server = server;
     // free follow display
+#if WLR_VERSION_MINOR > 15
+    auto xdg_shell = wlr_xdg_shell_create(server->nativeInterface<wl_display>(), 2);
+#else
     auto xdg_shell = wlr_xdg_shell_create(server->nativeInterface<wl_display>());
+#endif
     d->sc.connect(&xdg_shell->events.new_surface, d, &WXdgShellPrivate::on_new_xdg_surface);
 }
 
