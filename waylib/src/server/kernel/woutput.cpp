@@ -43,6 +43,9 @@ extern "C" {
 #include <wlr/render/gles2.h>
 #undef static
 #include <wlr/render/pixman.h>
+#ifdef ENABLE_VULKAN_RENDER
+#include <wlr/render/vulkan.h>
+#endif
 #include <wlr/util/region.h>
 }
 
@@ -79,6 +82,10 @@ extern "C" {
 #include <private/qeglconvenience_p.h>
 #include <private/qsgsoftwarerenderer_p.h>
 #include <private/qguiapplication_p.h>
+#ifdef ENABLE_VULKAN_RENDER
+#include <private/qvulkaninstance_p.h>
+#include <private/qbasicvulkanplatforminstance_p.h>
+#endif
 
 #include <EGL/egl.h>
 #include <drm_fourcc.h>
@@ -366,6 +373,10 @@ public:
     QImage paintDevice;
     pixman_image_t *currentBuffer = nullptr;
 
+#ifdef ENABLE_VULKAN_RENDER
+    QScopedPointer<QVulkanInstance> vkInstance;
+#endif
+
     bool renderable = false;
 #ifdef WAYLIB_DISABLE_OUTPUT_DAMAGE
     bool contentIsDirty = false;
@@ -430,6 +441,25 @@ public:
 private:
     QOpenGLContext *m_context = nullptr;
 };
+
+#ifdef ENABLE_VULKAN_RENDER
+class Q_DECL_HIDDEN WLRVulkanInstance : public QBasicPlatformVulkanInstance
+{
+public:
+    WLRVulkanInstance(QVulkanInstance *instance)
+        : m_instance(instance)
+    {
+        loadVulkanLibrary(QStringLiteral("vulkan"), 1);
+    }
+
+    void createOrAdoptInstance() override {
+        initInstance(m_instance, {});
+    }
+
+private:
+    QVulkanInstance *m_instance;
+};
+#endif
 
 class Q_DECL_HIDDEN WLRCursor : public QPlatformCursor
 {
@@ -783,7 +813,14 @@ void WOutputPrivate::init()
 #if QT_VERSION_MAJOR < 6
         rc->initialize(nullptr);
 #endif
-    } else {
+    }
+#ifdef ENABLE_VULKAN_RENDER
+    else if (wlr_renderer_is_vk(renderer())) {
+        bool initOK = initRCWithRhi();
+        Q_ASSERT(initOK);
+    }
+#endif
+    else if (wlr_renderer_is_gles2(renderer())) {
         format.setRenderableType(QSurfaceFormat::OpenGLES);
         auto egl = wlr_gles2_renderer_get_egl(renderer());
 #if WLR_VERSION_MINOR > 15
@@ -815,6 +852,8 @@ void WOutputPrivate::init()
         bool initOK = initRCWithRhi();
         Q_ASSERT(initOK);
 #endif
+    } else {
+        qFatal("Not supported renderer");
     }
 
     q->attachedWindow()->setScreen(ensureScreen());
@@ -845,6 +884,15 @@ void WOutputPrivate::init()
 }
 
 #if QT_VERSION_MAJOR >= 6
+inline static QByteArrayList fromCStyleList(size_t count, const char **list) {
+    QByteArrayList al;
+    al.reserve(count);
+    for (size_t i = 0; i < count; ++i) {
+        al.append(list[i]);
+    }
+    return al;
+}
+
 bool WOutputPrivate::initRCWithRhi()
 {
     QQuickRenderControlPrivate *rcd = QQuickRenderControlPrivate::get(rc);
@@ -853,14 +901,31 @@ bool WOutputPrivate::initRCWithRhi()
     QSGRhiSupport *rhiSupport = QSGRhiSupport::instance();
 
     // sanity check for Vulkan
-#if QT_CONFIG(vulkan)
-    if (rhiSupport->rhiBackend() == QRhi::Vulkan && !rc->window->vulkanInstance()) {
-        qWarning("WOutput::initRhi: No QVulkanInstance set for QQuickWindow, cannot initialize");
-        return false;
-    }
-#endif
+#ifdef ENABLE_VULKAN_RENDER
+    if (rhiSupport->rhiBackend() == QRhi::Vulkan) {
+        wlr_vk_renderer_attribs vkRendererAttribs;
+        wlr_vk_renderer_get_attribs(renderer(), &vkRendererAttribs);
 
-    rcd->window->setGraphicsDevice(QQuickGraphicsDevice::fromOpenGLContext(context));
+        vkInstance.reset(new QVulkanInstance());
+        auto vid = QVulkanInstancePrivate::get(vkInstance.data());
+        vid->platformInst.reset(new WLRVulkanInstance(vkInstance.data()));
+        vkInstance->create();
+        vkInstance->setVkInstance(vkRendererAttribs.instance);
+        vkInstance->setExtensions(fromCStyleList(vkRendererAttribs.extension_count, vkRendererAttribs.extensions));
+        vkInstance->setLayers(fromCStyleList(vkRendererAttribs.layer_count, vkRendererAttribs.layers));
+        vkInstance->setApiVersion({1, 1, 0});
+        rcd->window->setVulkanInstance(vkInstance.data());
+
+        auto gd = QQuickGraphicsDevice::fromDeviceObjects(vkRendererAttribs.phdev, vkRendererAttribs.dev,
+                                                          vkRendererAttribs.queue_family);
+        rcd->window->setGraphicsDevice(gd);
+    } else
+#endif
+    if (rhiSupport->rhiBackend() == QRhi::OpenGLES2) {
+        rcd->window->setGraphicsDevice(QQuickGraphicsDevice::fromOpenGLContext(context));
+    } else {
+        qFatal("Not supported RHI backend: %s", qPrintable(rhiSupport->rhiBackendName()));
+    }
 
     // See https://codereview.qt-project.org/c/qt/qtbase/+/404163, the QRhi isn't depend QOffscreenSurface,
     // So we can use the QSurface simulate the QOffscreenSurface.
@@ -978,7 +1043,16 @@ void WOutputPrivate::maybeUpdateRenderTarget()
         auto rt = QQuickRenderTarget::fromPaintDevice(&paintDevice);
         rc->QQuickRenderControl::window()->setRenderTarget(rt);
 #endif
-    } else if (context) {
+    }
+#ifdef ENABLE_VULKAN_RENDER
+    else if (vkInstance) {
+        wlr_vk_image_attribs attribs;
+        wlr_vk_renderer_get_current_image_attribs(renderer(), &attribs);
+        auto rt = QQuickRenderTarget::fromVulkanImage(attribs.image, attribs.layout, attribs.format, size());
+        rc->QQuickRenderControl::window()->setRenderTarget(rt);
+    }
+#endif
+    else if (context) {
 #if QT_VERSION_MAJOR >= 6
         GLint rbo = 0;
         glGetFramebufferAttachmentParameteriv(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,

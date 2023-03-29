@@ -27,6 +27,9 @@ extern "C" {
 #include <wlr/render/gles2.h>
 #undef static
 #include <wlr/render/pixman.h>
+#ifdef ENABLE_VULKAN_RENDER
+#include <wlr/render/vulkan.h>
+#endif
 }
 
 #include <private/qsgplaintexture_p.h>
@@ -39,7 +42,7 @@ public:
     WTexturePrivate(WTexture *qq, wlr_texture *handle);
 
     void init(wlr_texture *handle);
-    void updateTexture() {
+    void updateGLTexture() {
         if (!window)
             return;
 
@@ -50,12 +53,30 @@ public:
         texture->setTextureId(attribs.tex);
 #else
         texture->setTextureFromNativeTexture(QQuickWindowPrivate::get(window)->rhi,
-                                             attribs.tex, 0, QSize(handle->width, handle->height),
+                                             attribs.tex, 0, 0, QSize(handle->width, handle->height),
                                              {}, {});
 #endif
         texture->setHasAlphaChannel(attribs.has_alpha);
         texture->setTextureSize(QSize(handle->width, handle->height));
     }
+
+#ifdef ENABLE_VULKAN_RENDER
+    void updateVKTexture() {
+        if (!window)
+            return;
+
+        wlr_vk_image_attribs attribs;
+        wlr_vk_texture_get_image_attribs(handle, &attribs);
+
+        texture->setTextureFromNativeTexture(QQuickWindowPrivate::get(window)->rhi,
+                                             reinterpret_cast<quintptr>(attribs.image),
+                                             attribs.layout, attribs.format,
+                                             QSize(handle->width, handle->height),
+                                             {}, {});
+        texture->setHasAlphaChannel(attribs.has_alpha);
+        texture->setTextureSize(QSize(handle->width, handle->height));
+    }
+#endif
 
     void updateImage() {
         auto image = wlr_pixman_texture_get_image(handle);
@@ -88,12 +109,19 @@ void WTexturePrivate::init(wlr_texture *handle)
     texture.reset(gpuTexture);
 
     if (wlr_texture_is_gles2(handle)) {
-        type = WTexture::Type::Texture;
-        onWlrTextureChanged = &WTexturePrivate::updateTexture;
+        type = WTexture::Type::GLTexture;
+        onWlrTextureChanged = &WTexturePrivate::updateGLTexture;
     } else if (wlr_texture_is_pixman(handle)) {
         type = WTexture::Type::Image;
         onWlrTextureChanged = &WTexturePrivate::updateImage;
-    } else {
+    }
+#ifdef ENABLE_VULKAN_RENDER
+    else if (wlr_texture_is_vk(handle)) {
+        type = WTexture::Type::VKTexture;
+        onWlrTextureChanged = &WTexturePrivate::updateVKTexture;
+    }
+#endif
+    else {
         type = WTexture::Type::Unknow;
     }
 }
@@ -147,7 +175,8 @@ QSGTexture *WTexture::getSGTexture(QQuickWindow *window)
     const auto oldWindow = d->window;
     d->window = window;
     if (Q_UNLIKELY(!d->texture || window != oldWindow)) {
-        (d->*(d->onWlrTextureChanged))();
+        if (Q_LIKELY(d->onWlrTextureChanged))
+            (d->*(d->onWlrTextureChanged))();
     }
     return d->texture.get();
 }

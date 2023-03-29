@@ -121,8 +121,7 @@ private:
 };
 
 int main(int argc, char *argv[]) {
-//    qputenv("WLR_RENDERER", "pixman");
-//    QQuickWindow::setGraphicsApi(QSGRendererInterface::Software);
+    QQuickWindow::setGraphicsApi(QSGRendererInterface::Vulkan);
 
     QScopedPointer<WServer> server(new WServer());
     WOutputLayout *layout = new WOutputLayout;

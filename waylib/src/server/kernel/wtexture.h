@@ -42,7 +42,8 @@ public:
     enum class Type {
         Unknow,
         Image,
-        Texture
+        GLTexture,
+        VKTexture
     };
 
     explicit WTexture(WTextureHandle *handle);
