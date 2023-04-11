@@ -27,6 +27,9 @@
 #include "wthreadutils.h"
 #include "wseat.h"
 
+#include <qwdisplay.h>
+#include <qwdatadevice.h>
+
 #include <QVector>
 #include <QThread>
 #include <QEvent>
@@ -51,6 +54,7 @@ extern "C" {
 #include <wlr/util/log.h>
 }
 
+QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
 class WServerPrivate;
@@ -99,7 +103,7 @@ public:
 
     QVector<WServerInterface*> interfaceList;
 
-    wl_display *display = nullptr;
+    QWDisplay *display = nullptr;
     const char *socket = nullptr;
     wl_event_loop *loop = nullptr;
 };
@@ -108,10 +112,10 @@ void WServerPrivate::init()
 {
     Q_ASSERT(!display);
 
-    display = wl_display_create();
+    display = new QWDisplay(q_func());
 
     // free follow display
-    wlr_data_device_manager_create(display);
+    Q_UNUSED(QWDataDeviceManager::create(display));
 
     W_Q(WServer);
 
@@ -119,12 +123,12 @@ void WServerPrivate::init()
         i->create(q);
     }
 
-    socket = wl_display_add_socket_auto(display);
+    socket = display->addSocketAuto();
     if (!socket) {
         qFatal("Create socket failed");
     }
 
-    loop = wl_display_get_event_loop(display);
+    loop = wl_display_get_event_loop(display->handle());
     int fd = wl_event_loop_get_fd(loop);
 
     sockNot.reset(new QSocketNotifier(fd, QSocketNotifier::Read));
@@ -158,7 +162,8 @@ void WServerPrivate::stop()
     thread->eventDispatcher()->disconnect(thread.get());
 
     if (display) {
-        wl_display_destroy(display);
+        display->deleteLater();
+        display = nullptr;
     }
 
     // delete children in server thread
@@ -181,7 +186,7 @@ void ServerThread::processWaylandEvents()
     int ret = wl_event_loop_dispatch(server->loop, 0);
     if (ret)
         fprintf(stderr, "wl_event_loop_dispatch error: %d\n", ret);
-    wl_display_flush_clients(server->display);
+    wl_display_flush_clients(server->display->handle());
 }
 
 WServer::WServer()

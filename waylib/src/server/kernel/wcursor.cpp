@@ -26,11 +26,17 @@
 #include "woutput.h"
 #include "wsignalconnector.h"
 
+#include <qwcursor.h>
+#include <qwoutput.h>
+#include <qwxcursormanager.h>
+
 #include <QCursor>
 #include <QPixmap>
 #include <QQuickWindow>
 #include <QCoreApplication>
 #include <QDebug>
+#include <qwinputdevice.h>
+#include <qwpointer.h>
 
 extern "C" {
 #include <wlr/types/wlr_cursor.h>
@@ -38,6 +44,7 @@ extern "C" {
 #include <wlr/types/wlr_pointer.h>
 }
 
+QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
 class WCursorPrivate : public WObjectPrivate
@@ -45,41 +52,40 @@ class WCursorPrivate : public WObjectPrivate
 public:
     WCursorPrivate(WCursor *qq)
         : WObjectPrivate(qq)
-        , handle(wlr_cursor_create())
+        , handle(new QWCursor())
     {
-        handle->data = qq;
+        handle->handle()->data = qq;
 
         connect();
     }
 
     ~WCursorPrivate() {
-        handle->data = nullptr;
+        handle->handle()->data = nullptr;
         if (seat)
             seat->detachCursor(q_func());
 
-        sc.invalidate();
-        wlr_cursor_destroy(handle);
+        delete handle;
     }
 
-    inline WOutput *outputAt(double x, double y) const
+    inline WOutput *outputAt(const QPointF &pos) const
     {
-        return outputLayout ? outputLayout->at(QPointF(x, y)) : nullptr;
+        return outputLayout ? outputLayout->at(pos) : nullptr;
     }
 
     // begin slot function
-    void on_motion(void *data);
-    void on_motion_absolute(void *data);
-    void on_button(void *data);
-    void on_axis(void *data);
-    void on_frame(void *data);
+    void on_motion(wlr_pointer_motion_event *event);
+    void on_motion_absolute(wlr_pointer_motion_absolute_event *event);
+    void on_button(wlr_pointer_button_event *event);
+    void on_axis(wlr_pointer_axis_event *event);
+    void on_frame();
     // end slot function
 
     void connect();
-    void processCursorMotion(wlr_input_device *device, uint32_t time);
+    void processCursorMotion(QWPointer *device, uint32_t time);
 
     W_DECLARE_PUBLIC(WCursor)
 
-    wlr_cursor *handle;
+    QWCursor *handle;
     WXCursorManager *xcursor_manager = nullptr;
     WSeat *seat = nullptr;
     WOutputLayout *outputLayout = nullptr;
@@ -90,46 +96,25 @@ public:
     Qt::MouseButtons state = Qt::NoButton;
     Qt::MouseButton button = Qt::NoButton;
     QPointF lastPressedPosition;
-
-    WSignalConnector sc;
 };
 
-void WCursorPrivate::on_motion(void *data)
+void WCursorPrivate::on_motion(wlr_pointer_motion_event *event)
 {
-#if WLR_VERSION_MINOR > 15
-    auto *event = reinterpret_cast<wlr_pointer_motion_event*>(data);
-    auto device = &event->pointer->base;
-#else
-    auto *event = reinterpret_cast<wlr_event_pointer_motion*>(data);
-    auto device = event->device;
-#endif
-    wlr_cursor_move(handle, device,
-                    event->delta_x, event->delta_y);
+    auto device = QWPointer::from(event->pointer);
+    handle->move(device, QPointF(event->delta_x, event->delta_y));
     processCursorMotion(device, event->time_msec);
 }
 
-void WCursorPrivate::on_motion_absolute(void *data)
+void WCursorPrivate::on_motion_absolute(wlr_pointer_motion_absolute_event *event)
 {
-#if WLR_VERSION_MINOR > 15
-    auto event = reinterpret_cast<wlr_pointer_motion_absolute_event*>(data);
-    auto device = &event->pointer->base;
-#else
-    auto event = reinterpret_cast<wlr_event_pointer_motion_absolute*>(data);
-    auto device = event->device;
-#endif
-    wlr_cursor_warp_absolute(handle, device, event->x, event->y);
+    auto device = QWPointer::from(event->pointer);
+    handle->warpAbsolute(device, QPointF(event->x, event->y));
     processCursorMotion(device, event->time_msec);
 }
 
-void WCursorPrivate::on_button(void *data)
+void WCursorPrivate::on_button(wlr_pointer_button_event *event)
 {
-#if WLR_VERSION_MINOR > 15
-    auto event = reinterpret_cast<wlr_pointer_button_event*>(data);
-    auto device = &event->pointer->base;
-#else
-    auto event = reinterpret_cast<wlr_event_pointer_button*>(data);
-    auto device = event->device;
-#endif
+    auto device = QWPointer::from(event->pointer);
     button = WCursor::fromNativeButton(event->button);
 
     if (event->state == WLR_BUTTON_RELEASED) {
@@ -140,24 +125,18 @@ void WCursorPrivate::on_button(void *data)
     }
 
     if (Q_LIKELY(seat)) {
-        seat->notifyButton(q_func(), WInputDevice::fromHandle<wlr_input_device>(device),
+        seat->notifyButton(q_func(), WInputDevice::fromHandle<QWInputDevice>(device),
                            event->button, static_cast<WInputDevice::ButtonState>(event->state),
                            event->time_msec);
     }
 }
 
-void WCursorPrivate::on_axis(void *data)
+void WCursorPrivate::on_axis(wlr_pointer_axis_event *event)
 {
-#if WLR_VERSION_MINOR > 15
-    auto event = reinterpret_cast<wlr_pointer_axis_event*>(data);
-    auto device = &event->pointer->base;
-#else
-    auto event = reinterpret_cast<wlr_event_pointer_axis*>(data);
-    auto device = event->device;
-#endif
+    auto device = QWPointer::from(event->pointer);
 
     if (Q_LIKELY(seat)) {
-        seat->notifyAxis(q_func(), WInputDevice::fromHandle<wlr_input_device>(device),
+        seat->notifyAxis(q_func(), WInputDevice::fromHandle<QWInputDevice>(device),
                          static_cast<WInputDevice::AxisSource>(event->source),
                          event->orientation == WLR_AXIS_ORIENTATION_HORIZONTAL
                          ? Qt::Horizontal : Qt::Vertical, event->delta, event->delta_discrete,
@@ -165,7 +144,7 @@ void WCursorPrivate::on_axis(void *data)
     }
 }
 
-void WCursorPrivate::on_frame(void *)
+void WCursorPrivate::on_frame()
 {
     if (Q_LIKELY(seat)) {
         seat->notifyFrame(q_func());
@@ -180,26 +159,31 @@ void WCursorPrivate::on_frame(void *)
 
 void WCursorPrivate::connect()
 {
-    sc.connect(&handle->events.motion,
-               this, &WCursorPrivate::on_motion);
-    sc.connect(&handle->events.motion_absolute,
-               this, &WCursorPrivate::on_motion_absolute);
-    sc.connect(&handle->events.button,
-               this, &WCursorPrivate::on_button);
-    sc.connect(&handle->events.axis,
-               this, &WCursorPrivate::on_axis);
-    sc.connect(&handle->events.frame,
-               this, &WCursorPrivate::on_frame);
+    QObject::connect(handle, &QWCursor::motion, [this] (wlr_pointer_motion_event *event) {
+        on_motion(event);
+    });
+    QObject::connect(handle, &QWCursor::motionAbsolute, [this] (wlr_pointer_motion_absolute_event *event) {
+        on_motion_absolute(event);
+    });
+    QObject::connect(handle, &QWCursor::button, [this] (wlr_pointer_button_event *event) {
+        on_button(event);
+    });
+    QObject::connect(handle, &QWCursor::axis, [this] (wlr_pointer_axis_event *event) {
+        on_axis(event);
+    });
+    QObject::connect(handle, &QWCursor::frame, [this] () {
+        on_frame();
+    });
 }
 
-void WCursorPrivate::processCursorMotion(wlr_input_device *device, uint32_t time)
+void WCursorPrivate::processCursorMotion(QWPointer *device, uint32_t time)
 {
     W_Q(WCursor);
-    auto output = outputAt(handle->x, handle->y);
+    auto output = outputAt(handle->position());
     q->mapToOutput(output);
 
     if (Q_LIKELY(seat))
-        seat->notifyMotion(q, WInputDevice::fromHandle<wlr_input_device>(device), time);
+        seat->notifyMotion(q, WInputDevice::fromHandle<QWInputDevice>(device), time);
 }
 
 WCursor::WCursor()
@@ -216,7 +200,7 @@ WCursorHandle *WCursor::handle() const
 
 WCursor *WCursor::fromHandle(const WCursorHandle *handle)
 {
-    auto wlr_handle = reinterpret_cast<const wlr_cursor*>(handle);
+    auto wlr_handle = reinterpret_cast<const QWCursor*>(handle)->handle();
     return reinterpret_cast<WCursor*>(wlr_handle->data);
 }
 
@@ -291,8 +275,7 @@ void WCursor::setType(const char *name)
         bool ok = d->xcursor_manager->load(d->lastOutput->scale());
         Q_ASSERT(ok);
     }
-    wlr_xcursor_manager_set_cursor_image(d->xcursor_manager->nativeInterface<wlr_xcursor_manager>(),
-                                         name, d->handle);
+    d->xcursor_manager->nativeInterface<QWXCursorManager>()->setCursor(name, d->handle);
 }
 
 static inline const char *qcursorToType(const QCursor &cursor) {
@@ -359,9 +342,7 @@ void WCursor::setCursor(const QCursor &cursor)
             return;
 
         W_D(WCursor);
-        wlr_cursor_set_image(d->handle, img.bits(), img.bytesPerLine(),
-                             img.width(), img.height(), cursor.hotSpot().x(),
-                             cursor.hotSpot().y(), d->lastOutput ? d->lastOutput->scale() : 1);
+        d->handle->setImage(img, cursor.hotSpot());
     }
 }
 
@@ -380,11 +361,11 @@ bool WCursor::attachInputDevice(WInputDevice *device)
 
     W_D(WCursor);
     Q_ASSERT(!d->deviceList.contains(device));
-    wlr_cursor_attach_input_device(d->handle, device->nativeInterface<wlr_input_device>());
+    d->handle->attachInputDevice(device->nativeInterface<QWInputDevice>());
 
     if (d->lastOutput && d->lastOutput->isValid()) {
-        wlr_cursor_map_input_to_output(d->handle, device->nativeInterface<wlr_input_device>(),
-                                       d->lastOutput->nativeInterface<wlr_output>());
+        d->handle->mapInputToOutput(device->nativeInterface<QWInputDevice>(),
+                                    d->lastOutput->nativeInterface<QWOutput>()->handle());
     }
 
     d->deviceList << device;
@@ -398,8 +379,8 @@ void WCursor::detachInputDevice(WInputDevice *device)
     if (!d->deviceList.removeOne(device))
         return;
 
-    wlr_cursor_detach_input_device(d->handle, device->nativeInterface<wlr_input_device>());
-    wlr_cursor_map_input_to_output(d->handle, device->nativeInterface<wlr_input_device>(), nullptr);
+    d->handle->detachInputDevice(device->nativeInterface<QWInputDevice>());
+    d->handle->mapInputToOutput(device->nativeInterface<QWInputDevice>(), nullptr);
 }
 
 void WCursor::setOutputLayout(WOutputLayout *layout)
@@ -413,7 +394,7 @@ void WCursor::setOutputLayout(WOutputLayout *layout)
         d->outputLayout->removeCursor(this);
 
     d->outputLayout = layout;
-    wlr_cursor_attach_output_layout(d->handle, layout ? layout->nativeInterface<wlr_output_layout>() : nullptr);
+    d->handle->attachOutputLayout(layout->nativeInterface<QWOutputLayout>());
 
     if (layout)
         layout->addCursor(this);
@@ -438,12 +419,12 @@ void WCursor::mapToOutput(WOutput *output)
         output->cursorEnter(this);
     }
 
-    auto output_handle = output ? output->nativeInterface<wlr_output>() : nullptr;
-    wlr_cursor_map_to_output(d->handle, output_handle);
+    auto output_handle = output ? output->nativeInterface<QWOutput>()->handle() : nullptr;
+    d->handle->mapToOutput(output_handle);
 
     Q_FOREACH(auto device, d->deviceList) {
-        auto device_handle = device->nativeInterface<wlr_input_device>();
-        wlr_cursor_map_input_to_output(d->handle, device_handle, output_handle);
+        auto device_handle = device->nativeInterface<QWInputDevice>();
+        d->handle->mapInputToOutput(device_handle, output_handle);
     }
 }
 
@@ -456,13 +437,13 @@ WOutput *WCursor::mappedOutput() const
 void WCursor::setPosition(const QPointF &pos)
 {
     W_D(WCursor);
-    wlr_cursor_move(d->handle, nullptr, pos.x(), pos.y());
+    d->handle->move(nullptr, pos);
 }
 
 QPointF WCursor::position() const
 {
     W_DC(WCursor);
-    return QPointF(d->handle->x, d->handle->y);
+    return d->handle->position();
 }
 
 QPointF WCursor::lastPressedPosition() const

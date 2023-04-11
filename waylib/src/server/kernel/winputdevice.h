@@ -67,27 +67,6 @@ public:
     };
     Q_ENUM(AxisSource)
 
-    struct DeviceHandle;
-    struct Device {};
-    struct Keyboard : public Device {
-
-    };
-    struct Pointer : public Device {
-
-    };
-    struct Touch : public Device {
-
-    };
-    struct Tablet : public Device {
-
-    };
-    struct TabletPad : public Device {
-
-    };
-    struct Switch : public Device {
-
-    };
-
     WInputDevice(WInputDeviceHandle *handle);
 
     WInputDeviceHandle *handle() const;
@@ -102,18 +81,6 @@ public:
     }
 
     Type type() const;
-    Device *device() const;
-    template<typename T>
-    T *device() const {
-        return static_cast<T*>(device());
-    }
-
-    DeviceHandle *deviceHandle() const;
-    template<typename DNativeInterface>
-    DNativeInterface *deviceNativeInterface() const {
-        return reinterpret_cast<DNativeInterface*>(deviceHandle());
-    }
-
     void setSeat(WSeat *seat);
     WSeat *seat() const;
 };

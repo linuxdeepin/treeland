@@ -32,6 +32,10 @@
 #include "wthreadutils.h"
 #include "utils/wtools.h"
 
+#include <qwoutput.h>
+#include <qwoutputlayout.h>
+#include <qwrenderer.h>
+
 extern "C" {
 #include <wlr/types/wlr_output.h>
 #include <wlr/types/wlr_output_layout.h>
@@ -90,6 +94,7 @@ extern "C" {
 #include <EGL/egl.h>
 #include <drm_fourcc.h>
 
+QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
 class Q_DECL_HIDDEN OutputGLContext : public QOpenGLContext {
@@ -190,13 +195,13 @@ class Q_DECL_HIDDEN WOutputPrivate : public WObjectPrivate
 public:
     WOutputPrivate(WOutput *qq, void *handle)
         : WObjectPrivate(qq)
-        , handle(reinterpret_cast<wlr_output*>(handle))
+        , handle(reinterpret_cast<QWOutput*>(handle))
     {
-        this->handle->data = qq;
+        this->handle->handle()->data = qq;
     }
 
     ~WOutputPrivate() {
-        handle->data = nullptr;
+        handle->handle()->data = nullptr;
         if (layout)
             layout->remove(q_func());
     }
@@ -243,33 +248,29 @@ public:
 
     inline QSize size() const {
         Q_ASSERT(handle);
-        return QSize(handle->width, handle->height);
+        return QSize(handle->handle()->width, handle->handle()->height);
     }
 
     inline QSize transformedSize() const {
         Q_ASSERT(handle);
-        QSize size;
-        wlr_output_transformed_resolution(handle, &size.rwidth(), &size.rheight());
-        return size;
+        return handle->transformedResolution();
     }
 
     inline QSize effectiveSize() const {
         Q_ASSERT(handle);
-        QSize size;
-        wlr_output_effective_resolution(handle, &size.rwidth(), &size.rheight());
-        return size;
+        return handle->effectiveResolution();
     }
 
     inline WOutput::Transform orientation() const {
-        return static_cast<WOutput::Transform>(handle->transform);
+        return static_cast<WOutput::Transform>(handle->handle()->transform);
     }
 
-    inline wlr_renderer *renderer() const {
-        return reinterpret_cast<wlr_renderer*>(backend->renderer());
+    inline QWRenderer *renderer() const {
+        return backend->rendererNativeInterface<QWRenderer>();
     }
 
-    inline wlr_allocator *allocator() const {
-        return reinterpret_cast<wlr_allocator*>(backend->allocator());
+    inline QWAllocator *allocator() const {
+        return reinterpret_cast<QWAllocator*>(backend->allocator());
     }
 
     inline bool needsAttachBuffer() const {
@@ -288,7 +289,7 @@ public:
         }
 
         if (!needs_frame) {
-            wlr_output_rollback(handle);
+            handle->rollback();
             return false;
         }
 
@@ -306,7 +307,7 @@ public:
         if (!needsAttachBuffer())
             return true;
 
-        if (!wlr_output_attach_render(handle, nullptr))
+        if (!handle->attachRender(nullptr))
             return false;
 
         attachedBuffer = true;
@@ -316,7 +317,7 @@ public:
 
     inline void detachRender() {
         attachedBuffer = false;
-        wlr_output_rollback(handle);
+        handle->rollback();
     }
 
     inline bool makeCurrent() {
@@ -346,17 +347,17 @@ public:
     }
 
     inline void rotate(WOutput::Transform t) {
-        wlr_output_set_transform(handle, static_cast<wl_output_transform>(t));
+        handle->setTransform(t);
         updateProjection();
     }
     inline void setScale(float scale) {
-        wlr_output_set_scale(handle, scale);
+        handle->setScale(scale);
         updateProjection();
     }
 
     W_DECLARE_PUBLIC(WOutput)
 
-    wlr_output *handle = nullptr;
+    QWOutput *handle = nullptr;
 
     WBackend *backend = nullptr;
     WQuickRenderControl *rc = nullptr;
@@ -403,15 +404,15 @@ public:
 
     void swapBuffers(QPlatformSurface *surface) override {
         if (auto *output = OutputSurface::getOutput(surface)) {
-            wlr_output_commit(output->handle);
+            output->handle->commit();
         }
     }
     GLuint defaultFramebufferObject(QPlatformSurface *surface) const override {
         if (auto *output = OutputSurface::getOutput(surface)) {
-            if (!wlr_renderer_is_gles2(output->renderer()))
+            if (!wlr_renderer_is_gles2(output->renderer()->handle()))
                 return 0;
 
-            return wlr_gles2_renderer_get_current_fbo(output->renderer());
+            return wlr_gles2_renderer_get_current_fbo(output->renderer()->handle());
         }
 
         return 0;
@@ -518,7 +519,7 @@ public:
         return QImage::toPixelFormat(format()).bitsPerPixel();
     }
     QImage::Format format() const override {
-        auto f = wlr_output_preferred_read_format(output->handle);
+        auto f = output->handle->preferredReadFormat();
         switch (f) {
         case DRM_FORMAT_C8:
             return QImage::Format_Indexed8;
@@ -558,12 +559,12 @@ public:
     }
 
     QSizeF physicalSize() const override {
-        return QSizeF(output->handle->phys_width, output->handle->phys_height);
+        return QSizeF(output->handle->handle()->phys_width, output->handle->handle()->phys_height);
     }
 //    QDpi logicalDpi() const;
 //    QDpi logicalBaseDpi() const;
     qreal devicePixelRatio() const override {
-        return output->handle->scale;
+        return output->handle->handle()->scale;
     }
 #if QT_VERSION_MAJOR < 6
     qreal pixelDensity()  const override {
@@ -572,18 +573,18 @@ public:
 #endif
 
     qreal refreshRate() const override {
-        if (!output->handle->current_mode)
+        if (!output->handle->handle()->current_mode)
             return 60;
-        return output->handle->current_mode->refresh;
+        return output->handle->handle()->current_mode->refresh;
     }
 
     Qt::ScreenOrientation nativeOrientation() const override {
-        return output->handle->phys_width > output->handle->phys_height ?
+        return output->handle->handle()->phys_width > output->handle->handle()->phys_height ?
                     Qt::LandscapeOrientation : Qt::PortraitOrientation;
     }
     Qt::ScreenOrientation orientation() const override {
         bool isPortrait = nativeOrientation() == Qt::PortraitOrientation;
-        switch (output->handle->transform) {
+        switch (output->handle->handle()->transform) {
         case WL_OUTPUT_TRANSFORM_NORMAL:
             return isPortrait ? Qt::PortraitOrientation : Qt::LandscapeOrientation;;
         case WL_OUTPUT_TRANSFORM_90:
@@ -606,17 +607,17 @@ public:
 //    virtual QList<QPlatformScreen *> virtualSiblings() const;
 
     QString name() const override {
-        return QString::fromUtf8(output->handle->name);
+        return QString::fromUtf8(output->handle->handle()->name);
     }
 
     QString manufacturer() const override {
-        return QString::fromUtf8(output->handle->make);
+        return QString::fromUtf8(output->handle->handle()->make);
     }
     QString model() const override {
-        return QString::fromUtf8(output->handle->model);
+        return QString::fromUtf8(output->handle->handle()->model);
     }
     QString serialNumber() const override {
-        return QString::fromUtf8(output->handle->serial);
+        return QString::fromUtf8(output->handle->handle()->serial);
     }
 
     QPlatformCursor *cursor() const override {
@@ -626,7 +627,7 @@ public:
         return m_cursor.get();
     }
     SubpixelAntialiasingType subpixelAntialiasingTypeHint() const override {
-        switch (output->handle->subpixel) {
+        switch (output->handle->handle()->subpixel) {
         case WL_OUTPUT_SUBPIXEL_HORIZONTAL_RGB:
             return Subpixel_RGB;
         case WL_OUTPUT_SUBPIXEL_HORIZONTAL_BGR:
@@ -643,7 +644,7 @@ public:
     }
 
     PowerState powerState() const override {
-        return output->handle->enabled ? PowerStateOn : PowerStateOff;
+        return output->handle->handle()->enabled ? PowerStateOn : PowerStateOff;
     }
     void setPowerState(PowerState) override {
 
@@ -652,7 +653,7 @@ public:
     QVector<Mode> modes() const override {
         QVector<Mode> modes;
         struct wlr_output_mode *mode;
-        wl_list_for_each(mode, &output->handle->modes, link) {
+        wl_list_for_each(mode, &output->handle->handle()->modes, link) {
             modes << Mode {QSize(mode->width, mode->height), static_cast<qreal>(mode->refresh)};
         }
 
@@ -661,9 +662,9 @@ public:
 
     int currentMode() const override {
         int index = 0;
-        struct wlr_output_mode *current = output->handle->current_mode;
+        struct wlr_output_mode *current = output->handle->handle()->current_mode;
         struct wlr_output_mode *mode;
-        wl_list_for_each(mode, &output->handle->modes, link) {
+        wl_list_for_each(mode, &output->handle->handle()->modes, link) {
             if (current == mode)
                 return index;
             ++index;
@@ -675,7 +676,7 @@ public:
     int preferredMode() const override {
         int index = 0;
         struct wlr_output_mode *mode;
-        wl_list_for_each(mode, &output->handle->modes, link) {
+        wl_list_for_each(mode, &output->handle->handle()->modes, link) {
             if (mode->preferred)
                 return index;
             ++index;
@@ -701,7 +702,7 @@ public:
     }
 
     qreal devicePixelRatio() const override {
-        return output->handle->scale;
+        return output->handle->handle()->scale;
     }
 
 private:
@@ -774,13 +775,13 @@ void WOutputPrivate::on_damage_frame(void *)
     doRender();
 }
 #else
-void WOutputPrivate::on_frame(void *)
+void WOutputPrivate::on_frame()
 {
     renderable = true;
     doRender();
 }
 
-void WOutputPrivate::on_damage(void *)
+void WOutputPrivate::on_damage()
 {
     contentIsDirty = true;
     doRender();
@@ -809,20 +810,20 @@ void WOutputPrivate::init()
     updateProjection();
     rc->window = ensureRenderWindow();
 
-    if (wlr_renderer_is_pixman(renderer())) {
+    if (wlr_renderer_is_pixman(renderer()->handle())) {
 #if QT_VERSION_MAJOR < 6
         rc->initialize(nullptr);
 #endif
     }
 #ifdef ENABLE_VULKAN_RENDER
-    else if (wlr_renderer_is_vk(renderer())) {
+    else if (wlr_renderer_is_vk(renderer()->handle())) {
         bool initOK = initRCWithRhi();
         Q_ASSERT(initOK);
     }
 #endif
-    else if (wlr_renderer_is_gles2(renderer())) {
+    else if (wlr_renderer_is_gles2(renderer()->handle())) {
         format.setRenderableType(QSurfaceFormat::OpenGLES);
-        auto egl = wlr_gles2_renderer_get_egl(renderer());
+        auto egl = wlr_gles2_renderer_get_egl(renderer()->handle());
 #if WLR_VERSION_MINOR > 15
         auto display = wlr_egl_get_display(egl);
 #else
@@ -969,10 +970,12 @@ void WOutputPrivate::connect()
     sc.connect(&damage->nativeInterface<wlr_output_damage>()->events.frame,
                this, &WOutputPrivate::on_damage_frame);
 #else
-    sc.connect(&handle->events.frame,
-               this, &WOutputPrivate::on_frame);
-    sc.connect(&handle->events.damage,
-               this, &WOutputPrivate::on_damage);
+    QObject::connect(handle, &QWOutput::frame, q_func(), [this] {
+        on_frame();
+    });
+    QObject::connect(handle, &QWOutput::damage, q_func(), [this] {
+        on_damage();
+    });
 #endif
     // In call the connect for 'frame' signal before, maybe the wlr_output object is already
     // emit the signal, so we should suppose the renderable is true in order that ensure can
@@ -981,25 +984,25 @@ void WOutputPrivate::connect()
 
     // On the X11/Wayalnd mode，when the window size of 'output' is changed then will trigger
     // the 'mode' signal
-    sc.connect(&handle->events.mode,
-               this, &WOutputPrivate::on_mode);
-    sc.connect(&handle->events.destroy,
+//    sc.connect(&handle->events.mode,
+//               this, &WOutputPrivate::on_mode);
+    sc.connect(&damage->nativeInterface<wlr_output_damage>()->events.destroy,
                &sc, &WSignalConnector::invalidate);
 }
 
 void WOutputPrivate::updateProjection()
 {
     projection = QMatrix4x4();
-    projection.rotate(-90 * handle->pending.transform, 0, 0, 1);
+    projection.rotate(-90 * handle->handle()->pending.transform, 0, 0, 1);
 
-    QSizeF size = handle->pending.transform % 2 ? QSize(handle->height, handle->width)
+    QSizeF size = handle->handle()->pending.transform % 2 ? QSize(handle->handle()->height, handle->handle()->width)
                                                        : this->size();
 
-    if (handle->pending.scale > 0) {
-        size /= handle->pending.scale;
+    if (handle->handle()->pending.scale > 0) {
+        size /= handle->handle()->pending.scale;
 
         if (!paintDevice.isNull())
-            paintDevice.setDevicePixelRatio(handle->pending.scale);
+            paintDevice.setDevicePixelRatio(handle->handle()->pending.scale);
     }
 
     QRectF rect(QPointF(0, 0), size);
@@ -1023,8 +1026,8 @@ void WOutputPrivate::updateProjection()
 
 void WOutputPrivate::maybeUpdateRenderTarget()
 {
-    if (wlr_renderer_is_pixman(renderer())) {
-        pixman_image_t *image = wlr_pixman_renderer_get_current_image(renderer());
+    if (wlr_renderer_is_pixman(renderer()->handle())) {
+        pixman_image_t *image = wlr_pixman_renderer_get_current_image(renderer()->handle());
         void *data = pixman_image_get_data(image);
 
         if (Q_LIKELY(paintDevice.constBits() == data))
@@ -1032,7 +1035,7 @@ void WOutputPrivate::maybeUpdateRenderTarget()
 
         paintDevice = WTools::fromPixmanImage(image, data);
         Q_ASSERT(!paintDevice.isNull());
-        paintDevice.setDevicePixelRatio(handle->pending.scale);
+        paintDevice.setDevicePixelRatio(handle->handle()->pending.scale);
 
 #if QT_VERSION < QT_VERSION_CHECK(6, 4, 0)
         W_QC(WOutput);
@@ -1049,7 +1052,7 @@ void WOutputPrivate::maybeUpdateRenderTarget()
 #ifdef ENABLE_VULKAN_RENDER
     else if (vkInstance) {
         wlr_vk_image_attribs attribs;
-        wlr_vk_renderer_get_current_image_attribs(renderer(), &attribs);
+        wlr_vk_renderer_get_current_image_attribs(renderer()->handle(), &attribs);
         auto rt = QQuickRenderTarget::fromVulkanImage(attribs.image, attribs.layout, attribs.format, size());
         rc->QQuickRenderControl::window()->setRenderTarget(rt);
     }
@@ -1176,17 +1179,16 @@ bool WOutputPrivate::doRender()
 #endif
     }
 
-    if (!handle->hardware_cursor) {
-        auto renderer = this->renderer();
-        wlr_renderer_begin(renderer, handle->width, handle->height);
+    if (!handle->handle()->hardware_cursor) {
+        renderer()->begin(handle->handle()->width, handle->handle()->height);
         /* Hardware cursors are rendered by the GPU on a separate plane, and can be
          * moved around without re-rendering what's beneath them - which is more
          * efficient. However, not all hardware supports hardware cursors. For this
          * reason, wlroots provides a software fallback, which we ask it to render
          * here. wlr_cursor handles configuring hardware vs software cursors for you,
          * and this function is a no-op when hardware cursors are in use. */
-        wlr_output_render_software_cursors(handle, nullptr);
-        wlr_renderer_end(renderer);
+        handle->renderSoftwareCursors(nullptr);
+        renderer()->end();
     }
 
     if (context)
@@ -1195,18 +1197,18 @@ bool WOutputPrivate::doRender()
 #ifndef WAYLIB_DISABLE_OUTPUT_DAMAGE
     const QSize size = transformedSize();
     enum wl_output_transform transform =
-        wlr_output_transform_invert(handle->transform);
+        wlr_output_transform_invert(handle->handle()->transform);
 
     pixman_region32_scoped_pointer frame_damage(new pixman_region32_t);
     pixman_region32_init(frame_damage.data());
     wlr_region_transform(frame_damage.data(), &this->damage->nativeInterface<wlr_output_damage>()->current,
                          transform, size.width(), size.height());
-    wlr_output_set_damage(handle, frame_damage.data());
+    handle->setDamage(frame_damage.data());
     pixman_region32_fini(frame_damage.data());
 #endif
 
-    auto dirtyFlags = handle->pending.committed;
-    bool ret = wlr_output_commit(handle);
+    auto dirtyFlags = handle->handle()->pending.committed;
+    bool ret = handle->commit();
     doneCurrent();
 
     renderable = false;
@@ -1347,7 +1349,7 @@ WOutputHandle *WOutput::handle() const
 
 WOutput *WOutput::fromHandle(const WOutputHandle *handle)
 {
-    auto wlr_handle = reinterpret_cast<const wlr_output*>(handle);
+    auto wlr_handle = reinterpret_cast<const QWOutput*>(handle)->handle();
     return reinterpret_cast<WOutput*>(wlr_handle->data);
 }
 
@@ -1390,8 +1392,7 @@ QPoint WOutput::position() const
     if (Q_UNLIKELY(!d->layout))
         return p;
 
-    auto l_output = wlr_output_layout_get(d->layout->nativeInterface<wlr_output_layout>(),
-                                          d->handle);
+    auto l_output = d->layout->nativeInterface<QWOutputLayout>()->get(d->handle->handle());
 
     if (Q_UNLIKELY(!l_output))
         return p;
@@ -1431,7 +1432,7 @@ float WOutput::scale() const
 {
     W_DC(WOutput);
 
-    return d->handle->scale;
+    return d->handle->handle()->scale;
 }
 
 QQuickWindow *WOutput::attachedWindow() const

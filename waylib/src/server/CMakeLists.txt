@@ -8,6 +8,8 @@ find_package(Qt${QT_VERSION_MAJOR}
     REQUIRED
 )
 
+find_package(QWlroots)
+
 if(QT_VERSION_MAJOR EQUAL 5)
     find_package(Qt5
         COMPONENTS
@@ -18,22 +20,7 @@ if(QT_VERSION_MAJOR EQUAL 5)
 endif()
 
 find_package(PkgConfig)
-pkg_search_module(WLROOTS REQUIRED wlroots>=0.15)
 pkg_search_module(PIXMAN REQUIRED pixman-1)
-pkg_get_variable(WLR_HAVE_VULKAN wlroots have_vulkan_renderer)
-
-setup_package_version_variables(WLROOTS)
-add_definitions(-DWLR_VERSION_STRING="${WLROOTS_VERSION}"
-                -DWLR_VERSION_MAJOR=${WLROOTS_VERSION_MAJOR}
-                -DWLR_VERSION_MINOR=${WLROOTS_VERSION_MINOR}
-                -DWLR_VERSION_PATCH=${WLROOTS_VERSION_PATCH})
-
-if(WLR_HAVE_VULKAN STREQUAL "true" AND WLROOTS_VERSION_MINOR GREATER_EQUAL 16
-    AND Qt${QT_VERSION_MAJOR}Core_VERSION_MAJOR GREATER_EQUAL 6
-    AND Qt${QT_VERSION_MAJOR}Core_VERSION_MINOR GREATER_EQUAL 4
-    AND QT_FEATURE_vulkan)
-    add_definitions(-DENABLE_VULKAN_RENDER)
-endif()
 
 include(${PROJECT_SOURCE_DIR}/cmake/WaylandScannerHelpers.cmake)
 ws_generate(server stable/xdg-shell/xdg-shell.xml xdg-shell-protocol)
@@ -152,6 +139,11 @@ if(QT_VERSION_MAJOR EQUAL 5)
 endif()
 
 target_link_libraries(${TARGET}
+    PUBLIC
+    QWlroots::QWlroots
+)
+
+target_link_libraries(${TARGET}
     PRIVATE
     ${QT_LIBRAIES}
     ${WLROOTS_LIBRARIES}
@@ -186,5 +178,5 @@ install(TARGETS ${TARGET}
 include(${PROJECT_SOURCE_DIR}/cmake/Helpers.cmake)
 add_cmake_module(WaylibServer ${TARGET} ${CMAKE_INSTALL_FULL_INCLUDEDIR}/${TARGET})
 add_pkgconfig_module(${TARGET} ${TARGET} ${CMAKE_INSTALL_FULL_INCLUDEDIR}/${TARGET}
-    "wlroots >= 0.15, Qt${QT_VERSION_MAJOR}Gui, Qt${QT_VERSION_MAJOR}Quick"
+    "qwlroots, Qt${QT_VERSION_MAJOR}Gui, Qt${QT_VERSION_MAJOR}Quick"
 )

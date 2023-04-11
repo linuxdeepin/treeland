@@ -23,15 +23,17 @@
 #include "woutput.h"
 #include "wsignalconnector.h"
 
+#include <qwoutputlayout.h>
+#include <qwoutput.h>
 
 #include <QPoint>
 #include <QDebug>
 
 extern "C" {
 #include <wlr/types/wlr_output_layout.h>
-#include <wlr/util/box.h>
 }
 
+QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
 class WOutputLayoutPrivate : public WObjectPrivate
@@ -39,7 +41,7 @@ class WOutputLayoutPrivate : public WObjectPrivate
 public:
     WOutputLayoutPrivate(WOutputLayout *qq)
         : WObjectPrivate(qq)
-        , handle(wlr_output_layout_create())
+        , handle(new QWOutputLayout(qq))
     {
         connect();
     }
@@ -49,8 +51,7 @@ public:
             i->setLayout(nullptr);
         }
 
-        sc.invalidate();
-        wlr_output_layout_destroy(handle);
+        delete handle;
     }
 
     // begin slot function
@@ -61,23 +62,20 @@ public:
 
     W_DECLARE_PUBLIC(WOutputLayout)
 
-    wlr_output_layout *handle;
+    QWOutputLayout *handle;
     QVector<WOutput*> outputList;
     QVector<WCursor*> cursorList;
-    WSignalConnector sc;
 };
-
-void WOutputLayoutPrivate::on_change(void *)
-{
-    Q_FOREACH(auto output, outputList) {
-        Q_EMIT output->positionChanged(output->position());
-    }
-}
 
 void WOutputLayoutPrivate::connect()
 {
-    sc.connect(&handle->events.change, this,
-               &WOutputLayoutPrivate::on_change);
+    QObject::connect(handle, &QWOutputLayout::change, q_func(), [this] {
+        Q_FOREACH(auto output, outputList) {
+            if (!output->nativeInterface<QWOutput>()->handle()) // During destroy application
+                continue;
+            Q_EMIT output->positionChanged(output->position());
+        }
+    });
 }
 
 WOutputLayout::WOutputLayout(QObject *parent)
@@ -96,7 +94,7 @@ WOutputLayoutHandle *WOutputLayout::handle() const
 void WOutputLayout::add(WOutput *output)
 {
     W_D(WOutputLayout);
-    wlr_output_layout_add_auto(d->handle, output->nativeInterface<wlr_output>());
+    d->handle->addAuto(output->nativeInterface<QWOutput>()->handle());
     output->setLayout(this);
     d->outputList << output;
     Q_EMIT outputAdded(output);
@@ -105,8 +103,7 @@ void WOutputLayout::add(WOutput *output)
 void WOutputLayout::add(WOutput *output, const QPoint &pos)
 {
     W_D(WOutputLayout);
-    wlr_output_layout_add(d->handle, output->nativeInterface<wlr_output>(),
-                          pos.x(), pos.y());
+    d->handle->add(output->nativeInterface<QWOutput>()->handle(), pos);
     output->setLayout(this);
     Q_ASSERT(!d->outputList.contains(output));
     d->outputList << output;
@@ -116,14 +113,13 @@ void WOutputLayout::add(WOutput *output, const QPoint &pos)
 void WOutputLayout::move(WOutput *output, const QPoint &pos)
 {
     W_D(WOutputLayout);
-    wlr_output_layout_move(d->handle, output->nativeInterface<wlr_output>(),
-                           pos.x(), pos.y());
+    d->handle->move(output->nativeInterface<QWOutput>()->handle(), pos);
 }
 
 void WOutputLayout::remove(WOutput *output)
 {
     W_D(WOutputLayout);
-    wlr_output_layout_remove(d->handle, output->nativeInterface<wlr_output>());
+    d->handle->remove(output->nativeInterface<QWOutput>()->handle());
     output->setLayout(nullptr);
     Q_ASSERT(d->outputList.contains(output));
     d->outputList.removeOne(output);
@@ -139,20 +135,7 @@ QVector<WOutput *> WOutputLayout::outputList() const
 WOutput *WOutputLayout::at(const QPointF &pos) const
 {
     W_DC(WOutputLayout);
-    Q_FOREACH(auto output, d->outputList) {
-        auto woutput = output->nativeInterface<wlr_output>();
-#if WLR_VERSION_MINOR > 15
-        wlr_box box;
-        wlr_output_layout_get_box(d->handle, woutput, &box);
-        wlr_box *geometry = &box;
-#else
-        auto geometry = wlr_output_layout_get_box(d->handle, woutput);
-#endif
-        if (wlr_box_contains_point(geometry, pos.x(), pos.y()))
-            return output;
-    }
-
-    return nullptr;
+    return WOutput::fromHandle<QWOutput>(QWOutput::from(d->handle->outputAt(pos)));
 }
 
 void WOutputLayout::addCursor(WCursor *cursor)

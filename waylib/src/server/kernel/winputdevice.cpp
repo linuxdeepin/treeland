@@ -21,6 +21,8 @@
 #include "winputdevice.h"
 #include "wseat.h"
 
+#include <qwinputdevice.h>
+
 #include <QDebug>
 
 extern "C" {
@@ -28,6 +30,7 @@ extern "C" {
 #include <wlr/types/wlr_keyboard.h>
 }
 
+QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
 class WInputDevicePrivate : public WObjectPrivate
@@ -35,20 +38,19 @@ class WInputDevicePrivate : public WObjectPrivate
 public:
     WInputDevicePrivate(WInputDevice *qq, void *handle)
         : WObjectPrivate(qq)
-        , handle(reinterpret_cast<wlr_input_device*>(handle))
+        , handle(reinterpret_cast<QWInputDevice*>(handle))
     {
-        this->handle->data = qq;
+        this->handle->handle()->data = qq;
     }
     ~WInputDevicePrivate() {
-        handle->data = nullptr;
+        handle->handle()->data = nullptr;
         if (seat)
             seat->detachInputDevice(q_func());
     }
 
     W_DECLARE_PUBLIC(WInputDevice);
 
-    wlr_input_device *handle = nullptr;
-    WInputDevice::Device *device = nullptr;
+    QWInputDevice *handle = nullptr;
     WSeat *seat = nullptr;
 };
 
@@ -66,7 +68,7 @@ WInputDeviceHandle *WInputDevice::handle() const
 
 WInputDevice *WInputDevice::fromHandle(const WInputDeviceHandle *handle)
 {
-    auto wlr_device = reinterpret_cast<const wlr_input_device*>(handle);
+    auto wlr_device = reinterpret_cast<const QWInputDevice*>(handle)->handle();
     return reinterpret_cast<WInputDevice*>(wlr_device->data);
 }
 
@@ -74,7 +76,7 @@ WInputDevice::Type WInputDevice::type() const
 {
     W_DC(WInputDevice);
 
-    switch (d->handle->type) {
+    switch (d->handle->handle()->type) {
     case WLR_INPUT_DEVICE_KEYBOARD: return Type::Keyboard;
     case WLR_INPUT_DEVICE_POINTER: return Type::Pointer;
     case WLR_INPUT_DEVICE_TOUCH: return Type::Touch;
@@ -84,20 +86,8 @@ WInputDevice::Type WInputDevice::type() const
     }
 
     // TODO: use qCWarning
-    qWarning("Unknow input device type %i\n", d->handle->type);
+    qWarning("Unknow input device type %i\n", d->handle->handle()->type);
     return Type::Unknow;
-}
-
-WInputDevice::Device *WInputDevice::device() const
-{
-    W_DC(WInputDevice);
-    return d->device;
-}
-
-WInputDevice::DeviceHandle *WInputDevice::deviceHandle() const
-{
-    W_DC(WInputDevice);
-    return reinterpret_cast<WInputDevice::DeviceHandle*>(d->handle->_device);
 }
 
 void WInputDevice::setSeat(WSeat *seat)

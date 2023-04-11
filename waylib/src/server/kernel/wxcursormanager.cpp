@@ -20,11 +20,13 @@
  */
 #include "wxcursormanager.h"
 
+#include <qwxcursormanager.h>
 
 extern "C" {
 #include <wlr/types/wlr_xcursor_manager.h>
 }
 
+QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
 class WXCursorManagerPrivate : public WObjectPrivate
@@ -32,18 +34,18 @@ class WXCursorManagerPrivate : public WObjectPrivate
 public:
     WXCursorManagerPrivate(WXCursorManager *qq, const char *name, uint32_t size)
         : WObjectPrivate(qq)
-        , handle(wlr_xcursor_manager_create(name, size))
+        , handle(QWXCursorManager::create(name, size))
     {
 
     }
 
     ~WXCursorManagerPrivate() {
-        wlr_xcursor_manager_destroy(handle);
+        handle->destroy();
     }
 
     W_DECLARE_PUBLIC(WXCursorManager)
 
-    wlr_xcursor_manager *handle;
+    QWXCursorManager *handle;
 };
 
 WXCursorManager::WXCursorManager(uint32_t size, const char *name)
@@ -62,7 +64,7 @@ WXCursorManagerHandle *WXCursorManager::handle() const
 bool WXCursorManager::load(float scale)
 {
     W_D(WXCursorManager);
-    return wlr_xcursor_manager_load(d->handle, scale);
+    return d->handle->load(scale);
 }
 
 WAYLIB_SERVER_END_NAMESPACE

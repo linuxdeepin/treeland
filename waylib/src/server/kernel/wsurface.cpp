@@ -25,6 +25,8 @@
 #include "woutput.h"
 #include "wsurfacelayout.h"
 
+#include <qwoutput.h>
+
 #include <QDebug>
 
 extern "C" {
@@ -32,6 +34,7 @@ extern "C" {
 #include <wlr/util/edges.h>
 }
 
+QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
 WSurfacePrivate::WSurfacePrivate(WSurface *qq)
@@ -96,6 +99,14 @@ WSurface::WSurface(WSurfacePrivate &dd, QObject *parent)
     , WObject(dd)
 {
 
+}
+
+void WSurface::setHandle(WSurfaceHandle *handle)
+{
+    W_D(WSurface);
+    d->handle = reinterpret_cast<wlr_surface*>(handle);
+    d->handle->data = this;
+    d->connect();
 }
 
 WSurfaceHandle *WSurface::handle() const
@@ -196,7 +207,7 @@ WTextureHandle *WSurface::texture() const
 QPoint WSurface::textureOffset() const
 {
     W_DC(WSurface);
-    return QPoint(d->handle->sx, d->handle->sy);
+    return QPoint(0, 0);
 }
 
 void WSurface::notifyFrameDone()
@@ -213,7 +224,7 @@ void WSurface::enterOutput(WOutput *output)
 {
     W_D(WSurface);
     Q_ASSERT(!d->outputs.contains(output));
-    wlr_surface_send_enter(d->handle, output->nativeInterface<wlr_output>());
+    wlr_surface_send_enter(d->handle, output->nativeInterface<QWOutput>()->handle());
 
     connect(output, &WOutput::destroyed, this, [d]{
         d->updateOutputs();
@@ -227,7 +238,7 @@ void WSurface::leaveOutput(WOutput *output)
 {
     W_D(WSurface);
     Q_ASSERT(d->outputs.contains(output));
-    wlr_surface_send_leave(d->handle, output->nativeInterface<wlr_output>());
+    wlr_surface_send_leave(d->handle, output->nativeInterface<QWOutput>()->handle());
 
     connect(output, &WOutput::destroyed, this, [d]{
         d->updateOutputs();
@@ -310,14 +321,6 @@ void WSurface::notifyBeginState(State)
 void WSurface::notifyEndState(State)
 {
 
-}
-
-void WSurface::setHandle(WSurfaceHandle *handle)
-{
-    W_D(WSurface);
-    d->handle = reinterpret_cast<wlr_surface*>(handle);
-    d->handle->data = this;
-    d->connect();
 }
 
 WAYLIB_SERVER_END_NAMESPACE

@@ -22,6 +22,7 @@
 #pragma once
 
 #include <wglobal.h>
+#include <qwglobal.h>
 
 #include <QObject>
 

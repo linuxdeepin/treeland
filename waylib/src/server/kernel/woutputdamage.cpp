@@ -23,11 +23,14 @@
 #include "wsignalconnector.h"
 #include "wtools.h"
 
+#include <qwoutput.h>
+
 extern "C" {
 #include <wlr/types/wlr_output_damage.h>
 #include <wlr/util/box.h>
 }
 
+QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
 class Q_DECL_HIDDEN WOutputDamagePrivate : public WObjectPrivate
@@ -35,7 +38,7 @@ class Q_DECL_HIDDEN WOutputDamagePrivate : public WObjectPrivate
 public:
     WOutputDamagePrivate(WOutputDamage *qq)
         : WObjectPrivate(qq) {
-        handle = wlr_output_damage_create(output()->nativeInterface<wlr_output>());
+        handle = wlr_output_damage_create(output()->nativeInterface<QWOutput>()->handle());
     }
 
     inline WOutput *output() {

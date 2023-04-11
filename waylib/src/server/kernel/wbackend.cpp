@@ -25,6 +25,14 @@
 #include "winputdevice.h"
 #include "wsignalconnector.h"
 
+#include <qwbackend.h>
+#include <qwdisplay.h>
+#include <qwrenderer.h>
+#include <qwallocator.h>
+#include <qwcompositor.h>
+#include <qwoutput.h>
+#include <qwinputdevice.h>
+
 #include <QDebug>
 
 extern "C" {
@@ -51,6 +59,7 @@ extern "C" {
 #include <unistd.h>
 #endif
 
+QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
 class WBackendPrivate : public WObjectPrivate
@@ -63,13 +72,13 @@ public:
 
     }
 
-    inline wlr_backend *handle() const {
-        return q_func()->nativeInterface<wlr_backend>();
+    inline QWBackend *handle() const {
+        return q_func()->nativeInterface<QWBackend>();
     }
 
     // begin slot function
-    void on_new_output(void *data);
-    void on_new_input(void *data);
+    void on_new_output(QWOutput *output);
+    void on_new_input(QWInputDevice *device);
     void on_input_destroy(void *data);
     void on_output_destroy(void *data);
     // end slot function
@@ -80,8 +89,8 @@ public:
 
     WServer *server = nullptr;
     WOutputLayout *layout = nullptr;
-    wlr_renderer *renderer = nullptr;
-    wlr_allocator *allocator = nullptr;
+    QWRenderer *renderer = nullptr;
+    QWAllocator *allocator = nullptr;
 
     QVector<WOutput*> outputList;
     QVector<WInputDevice*> inputList;
@@ -96,43 +105,43 @@ public:
         wl_listener modifiers;
         wl_listener key;
     };
-
-    WSignalConnector sc;
 };
 
-void WBackendPrivate::on_new_output(void *data)
+void WBackendPrivate::on_new_output(QWOutput *output)
 {
-    wlr_output *wlr_output = reinterpret_cast<struct wlr_output*>(data);
-    wlr_output_init_render(wlr_output, allocator, renderer);
+    output->initRender(allocator, renderer);
 
     /* Some backends don't have modes. DRM+KMS does, and we need to set a mode
      * before we can use the output. The mode is a tuple of (width, height,
      * refresh rate), and each monitor supports only a specific set of modes. We
      * just pick the monitor's preferred mode, a more sophisticated compositor
      * would let the user configure it. */
-    if (!wl_list_empty(&wlr_output->modes)) {
-        struct wlr_output_mode *mode = wlr_output_preferred_mode(wlr_output);
-        wlr_output_set_mode(wlr_output, mode);
-        wlr_output_enable(wlr_output, true);
-        bool ok = wlr_output_commit(wlr_output);
+    if (!wl_list_empty(&output->handle()->modes)) {
+        struct wlr_output_mode *mode = output->preferredMode();
+        output->setMode(mode);
+        output->enable(true);
+        bool ok = output->commit();
         Q_ASSERT(ok);
     }
 
-    auto handle = reinterpret_cast<WOutputHandle*>(wlr_output);
-    auto output = new WOutput(handle, q_func());
+    auto handle = reinterpret_cast<WOutputHandle*>(output);
+    auto woutput = new WOutput(handle, q_func());
 
-    outputList << output;
-    sc.connect(&wlr_output->events.destroy, this, &WBackendPrivate::on_output_destroy);
+    outputList << woutput;
+    QObject::connect(output, &QObject::destroyed, server, [this] (QObject *data) {
+        on_output_destroy(data);
+    });
 
-    layout->add(output);
+    layout->add(woutput);
 }
 
-void WBackendPrivate::on_new_input(void *data)
+void WBackendPrivate::on_new_input(QWInputDevice *device)
 {
-    auto device = reinterpret_cast<wlr_input_device*>(data);
     auto input_device = new WInputDevice(reinterpret_cast<WInputDeviceHandle*>(device));
     inputList << input_device;
-    sc.connect(&device->events.destroy, this, &WBackendPrivate::on_input_destroy);
+    QObject::connect(device, &QObject::destroyed, server, [this] (QObject *data) {
+        on_input_destroy(data);
+    });
 
     Q_EMIT server->inputAdded(q_func(), input_device);
 }
@@ -164,12 +173,12 @@ void WBackendPrivate::on_output_destroy(void *data)
 
 void WBackendPrivate::connect()
 {
-    sc.connect(&handle()->events.new_output,
-               this, &WBackendPrivate::on_new_output);
-    sc.connect(&handle()->events.new_input,
-               this, &WBackendPrivate::on_new_input);
-    sc.connect(&handle()->events.destroy,
-               &sc, &WSignalConnector::invalidate);
+    QObject::connect(handle(), &QWBackend::newOutput, server, [this] (QWOutput *output) {
+        on_new_output(output);
+    });
+    QObject::connect(handle(), &QWBackend::newInput, server, [this] (QWInputDevice *device) {
+        on_new_input(device);
+    });
 }
 
 WBackend::WBackend(WOutputLayout *layout)
@@ -262,12 +271,12 @@ void WBackend::create(WServer *server)
     W_D(WBackend);
 
     if (!m_handle) {
-        m_handle = wlr_backend_autocreate(server->nativeInterface<wl_display>());
+        m_handle = QWBackend::autoCreate(server->nativeInterface<QWDisplay>());
     }
 
-    auto backend = nativeInterface<wlr_backend>();
+    auto backend = nativeInterface<QWBackend>();
 #if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
-    int drm_fd = wlr_backend_get_drm_fd(backend);
+    int drm_fd = wlr_backend_get_drm_fd(backend->handle());
 
     auto backend_get_buffer_caps = [] (struct wlr_backend *backend) -> uint32_t {
         if (!backend->impl->get_buffer_caps) {
@@ -277,29 +286,35 @@ void WBackend::create(WServer *server)
         return backend->impl->get_buffer_caps(backend);
     };
 
-    uint32_t backend_caps = backend_get_buffer_caps(backend);
+    uint32_t backend_caps = backend_get_buffer_caps(backend->handle());
     int render_drm_fd = -1;
     if (drm_fd < 0 && (backend_caps & WLR_BUFFER_CAP_DMABUF) != 0) {
         render_drm_fd = open_drm_render_node();
         drm_fd = render_drm_fd;
     }
 
+    wlr_renderer *renderer_handle = nullptr;
+
     switch (QQuickWindow::graphicsApi()) {
     case QSGRendererInterface::OpenGL:
-        d->renderer = wlr_gles2_renderer_create_with_drm_fd(drm_fd);
+        renderer_handle = wlr_gles2_renderer_create_with_drm_fd(drm_fd);
         break;
 #ifdef ENABLE_VULKAN_RENDER
     case QSGRendererInterface::Vulkan: {
-        d->renderer = wlr_vk_renderer_create_with_drm_fd(drm_fd);
+        renderer_handle = wlr_vk_renderer_create_with_drm_fd(drm_fd);
         break;
     }
 #endif
     case QSGRendererInterface::Software:
-        d->renderer = wlr_pixman_renderer_create();
+        renderer_handle = wlr_pixman_renderer_create();
         break;
     default:
         qFatal("Not supported graphics api: %s", qPrintable(QQuickWindow::sceneGraphBackend()));
         break;
+    }
+
+    if (renderer_handle) {
+        d->renderer = QWRenderer::from(renderer_handle);
     }
 
     if (render_drm_fd >= 0) {
@@ -307,18 +322,23 @@ void WBackend::create(WServer *server)
     }
 
 #else
-    d->renderer = wlr_renderer_autocreate(backend);
+    d->renderer = QWRenderer::autoCreate(backend);
 #endif
-    d->allocator = wlr_allocator_autocreate(d->handle(), d->renderer);
-    wlr_renderer_init_wl_display(d->renderer, server->nativeInterface<wl_display>());
+
+    if (!d->renderer) {
+        qFatal("Failed to create renderer");
+    }
+
+    d->allocator = QWAllocator::autoCreate(backend, d->renderer);
+    d->renderer->initWlDisplay(server->nativeInterface<QWDisplay>());
 
     // free follow display
-    wlr_compositor_create(server->nativeInterface<wl_display>(), d->renderer);
+    Q_UNUSED(QWCompositor::create(server->nativeInterface<QWDisplay>(), d->renderer));
 
     d->server = server;
     d->connect();
 
-    if (!wlr_backend_start(d->handle())) {
+    if (!backend->start()) {
         qFatal("Start wlr backend falied");
     }
 }

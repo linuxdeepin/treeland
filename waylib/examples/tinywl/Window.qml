@@ -29,7 +29,7 @@ ApplicationWindow {
 
             SequentialAnimation on rotation {
                 id: ani
-                running: false
+                running: true
                 PauseAnimation { duration: 1500 }
                 NumberAnimation { from: 0; to: 360; duration: 5000; easing.type: Easing.InOutCubic }
                 loops: Animation.Infinite

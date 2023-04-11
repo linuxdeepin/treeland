@@ -22,12 +22,15 @@
 #include "private/wsurface_p.h"
 #include "wsurfacelayout.h"
 
+#include <qwxdgshell.h>
+
 #include <QDebug>
 
 extern "C" {
 #include <wlr/types/wlr_xdg_shell.h>
 }
 
+QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
 class Q_DECL_HIDDEN WXdgSurfacePrivate : public WSurfacePrivate {
@@ -35,60 +38,53 @@ public:
     WXdgSurfacePrivate(WXdgSurface *qq, void *handle);
 
     // begin slot function
-    void on_configure(void *data);
-    void on_ack_configure(void *data);
+    void on_configure(wlr_xdg_surface_configure *event);
+    void on_ack_configure(wlr_xdg_surface_configure *event);
     // end slot function
 
     void init();
     void connect();
 
-#if WLR_VERSION_MINOR > 15
-    inline wlr_xdg_toplevel *getHandle() const {
-        return handle->toplevel;
-    }
-#else
-    inline wlr_xdg_surface *getHandle() const {
-        return handle;
-    }
-#endif
-
     W_DECLARE_PUBLIC(WXdgSurface)
 
-    wlr_xdg_surface *handle;
+    QWXdgSurface *handle;
 };
 
 WXdgSurfacePrivate::WXdgSurfacePrivate(WXdgSurface *qq, void *hh)
     : WSurfacePrivate(qq)
-    , handle(reinterpret_cast<wlr_xdg_surface*>(hh))
+    , handle(reinterpret_cast<QWXdgSurface*>(hh))
 {
-
 }
 
-void WXdgSurfacePrivate::on_configure(void *data)
+void WXdgSurfacePrivate::on_configure(wlr_xdg_surface_configure *event)
 {
+    Q_UNUSED(event)
 //    auto config = reinterpret_cast<wlr_xdg_surface_configure*>(data);
 }
 
-void WXdgSurfacePrivate::on_ack_configure(void *data)
+void WXdgSurfacePrivate::on_ack_configure(wlr_xdg_surface_configure *event)
 {
+    Q_UNUSED(event)
 //    auto config = reinterpret_cast<wlr_xdg_surface_configure*>(data);
 }
 
 void WXdgSurfacePrivate::init()
 {
     W_Q(WXdgSurface);
-    handle->data = q;
-    q->setHandle(reinterpret_cast<WSurfaceHandle*>(handle->surface));
+    handle->handle()->data = q;
+    q->setHandle(reinterpret_cast<WSurfaceHandle*>(handle->handle()->surface));
 
     connect();
 }
 
 void WXdgSurfacePrivate::connect()
 {
-    sc.connect(&handle->events.configure,
-               this, &WXdgSurfacePrivate::on_configure);
-    sc.connect(&handle->events.ack_configure,
-               this, &WXdgSurfacePrivate::on_ack_configure);
+    QObject::connect(handle, &QWXdgSurface::configure, q_func(), [this] (wlr_xdg_surface_configure *event) {
+        on_configure(event);
+    });
+    QObject::connect(handle, &QWXdgSurface::ackConfigure, q_func(), [this] (wlr_xdg_surface_configure *event) {
+        on_ack_configure(event);
+    });
 }
 
 WXdgSurface::WXdgSurface(WXdgSurfaceHandle *handle, QObject *parent)
@@ -122,9 +118,9 @@ WSurface::Type *WXdgSurface::noneType()
 WSurface::Type *WXdgSurface::type() const
 {
     W_DC(WXdgSurface);
-    if (d->handle->role == WLR_XDG_SURFACE_ROLE_TOPLEVEL)
+    if (d->handle->handle()->role == WLR_XDG_SURFACE_ROLE_TOPLEVEL)
         return toplevelType();
-    else if (d->handle->role == WLR_XDG_SURFACE_ROLE_POPUP)
+    else if (d->handle->handle()->role == WLR_XDG_SURFACE_ROLE_POPUP)
         return popupType();
 
     return noneType();
@@ -135,9 +131,9 @@ bool WXdgSurface::testAttribute(WSurface::Attribute attr) const
     W_DC(WXdgSurface);
 
     if (attr == Attribute::Immovable) {
-        return d->handle->role == WLR_XDG_SURFACE_ROLE_POPUP;
+        return d->handle->handle()->role == WLR_XDG_SURFACE_ROLE_POPUP;
     } else if (attr == Attribute::DoesNotAcceptFocus) {
-        return d->handle->role == WLR_XDG_SURFACE_ROLE_NONE;
+        return d->handle->handle()->role == WLR_XDG_SURFACE_ROLE_NONE;
     }
 
     return WSurface::testAttribute(attr);
@@ -154,15 +150,14 @@ WSurfaceHandle *WXdgSurface::inputTargetAt(qreal scale, QPointF &globalPos) cons
     W_DC(WXdgSurface);
     // find a wlr_suface object who can receive the events
     const QPointF &pos = positionFromGlobal(fromEffectivePos(scale, globalPos));
-    auto sur = wlr_xdg_surface_surface_at(d->handle, pos.x(), pos.y(),
-                                          &globalPos.rx(), &globalPos.ry());
+    auto sur = d->handle->surfaceAt(pos, &globalPos);
 
     return reinterpret_cast<WSurfaceHandle*>(sur);
 }
 
 WXdgSurface *WXdgSurface::fromHandle(WXdgSurfaceHandle *handle)
 {
-    auto *data = reinterpret_cast<wlr_xdg_surface*>(handle)->data;
+    auto *data = reinterpret_cast<QWXdgSurface*>(handle)->handle()->data;
     return reinterpret_cast<WXdgSurface*>(data);
 }
 
@@ -170,33 +165,29 @@ bool WXdgSurface::inputRegionContains(qreal scale, const QPointF &globalPos) con
 {
     W_DC(WXdgSurface);
     const QPointF &pos = positionFromGlobal(fromEffectivePos(scale, globalPos));
-    return wlr_xdg_surface_surface_at(d->handle, pos.x(), pos.y(),
-                                      nullptr, nullptr);
+    return d->handle->surfaceAt(pos, nullptr);
 }
 
 void WXdgSurface::resize(const QSize &size)
 {
     W_D(WXdgSurface);
 
-    if (d->handle->role != WLR_XDG_SURFACE_ROLE_TOPLEVEL)
-        return;
-
-    wlr_xdg_toplevel_set_size(d->getHandle(), size.width(), size.height());
+    if (auto toplevel = d->handle->topToplevel()) {
+        toplevel->setSize(size);
+    }
 }
 
 bool WXdgSurface::resizeing() const
 {
     W_DC(WXdgSurface);
-    return d->handle->toplevel->current.resizing;
+    return d->handle->handle()->toplevel->current.resizing;
 }
 
 QPointF WXdgSurface::position() const
 {
     W_DC(WXdgSurface);
-    if (d->handle->role == WLR_XDG_SURFACE_ROLE_POPUP) {
-        double sx = 0, sy = 0;
-        wlr_xdg_popup_get_position(d->handle->popup, &sx, &sy);
-        return QPointF(sx, sy);
+    if (auto popup = d->handle->toPopup()) {
+        return popup->getPosition();
     }
 
     return WSurface::position();
@@ -206,43 +197,43 @@ WSurface *WXdgSurface::parentSurface() const
 {
     W_DC(WXdgSurface);
 
-    wlr_xdg_surface *parent = nullptr;
-    if (d->handle->role == WLR_XDG_SURFACE_ROLE_TOPLEVEL) {
-#if WLR_VERSION_MINOR > 15
-        parent = d->handle->toplevel->parent ? d->handle->toplevel->parent->base : nullptr;
-#else
-        parent = d->handle->toplevel->parent;
-#endif
-    } else if (d->handle->role == WLR_XDG_SURFACE_ROLE_POPUP) {
-        parent = wlr_xdg_surface_from_wlr_surface(d->handle->popup->parent);
+    if (auto toplevel = d->handle->topToplevel()) {
+        auto parent = toplevel->handle()->parent;
+        if (!parent)
+            return nullptr;
+        return fromHandle<QWXdgSurface>(QWXdgToplevel::from(parent));
+    } else if (auto popup = d->handle->toPopup()) {
+        auto parent = popup->handle()->parent;
+        if (!parent)
+            return nullptr;
+        return fromHandle<QWXdgSurface>(QWXdgSurface::from(parent));
     }
 
-    Q_ASSERT(!parent || parent->data != d->handle->data);
-    return parent ? fromHandle(parent) : nullptr;
+    return nullptr;
 }
 
 void WXdgSurface::setResizeing(bool resizeing)
 {
     W_D(WXdgSurface);
-    if (d->handle->role != WLR_XDG_SURFACE_ROLE_TOPLEVEL)
-        return;
-    wlr_xdg_toplevel_set_resizing(d->getHandle(), resizeing);
+    if (auto toplevel = d->handle->topToplevel()) {
+        toplevel->setResizing(resizeing);
+    }
 }
 
 void WXdgSurface::setMaximize(bool on)
 {
     W_D(WXdgSurface);
-    if (d->handle->role != WLR_XDG_SURFACE_ROLE_TOPLEVEL)
-        return;
-    wlr_xdg_toplevel_set_maximized(d->getHandle(), on);
+    if (auto toplevel = d->handle->topToplevel()) {
+        toplevel->setMaximized(on);
+    }
 }
 
 void WXdgSurface::setActivate(bool on)
 {
     W_D(WXdgSurface);
-    if (d->handle->role != WLR_XDG_SURFACE_ROLE_TOPLEVEL)
-        return;
-    wlr_xdg_toplevel_set_activated(d->getHandle(), on);
+    if (auto toplevel = d->handle->topToplevel()) {
+        toplevel->setActivated(on);
+    }
 }
 
 void WXdgSurface::notifyChanged(ChangeType type)

@@ -121,7 +121,7 @@ private:
 };
 
 int main(int argc, char *argv[]) {
-    QQuickWindow::setGraphicsApi(QSGRendererInterface::Vulkan);
+//    QQuickWindow::setGraphicsApi(QSGRendererInterface::Vulkan);
 
     QScopedPointer<WServer> server(new WServer());
     WOutputLayout *layout = new WOutputLayout;

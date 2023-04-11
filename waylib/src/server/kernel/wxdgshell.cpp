@@ -24,12 +24,15 @@
 #include "wsurfacelayout.h"
 #include "wseat.h"
 
+#include <qwseat.h>
+#include <qwxdgshell.h>
 
 extern "C" {
 #include <wlr/types/wlr_xdg_shell.h>
 #include <wlr/util/edges.h>
 }
 
+QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
 class WXdgShellPrivate : public WObjectPrivate
@@ -43,99 +46,84 @@ public:
     }
 
     // begin slot function
-    void on_new_xdg_surface(void *data);
-    void on_surface_destroy(void *data);
+    void on_new_xdg_surface(wlr_xdg_surface *wlr_surface);
+    void on_surface_destroy(QObject *data);
 
-    void on_map(void *data, void *surfaceHandle);
-    void on_unmap(void *data, void *surfaceHandle);
+    void on_map(QWXdgSurface *xdgSurface);
+    void on_unmap(QWXdgSurface *xdgSurface);
     // toplevel
-    void on_request_move(void *data);
-    void on_request_resize(void *data);
-    void on_request_maximize(void *data);
+    void on_request_move(wlr_xdg_toplevel_move_event *event);
+    void on_request_resize(wlr_xdg_toplevel_resize_event *event);
+    void on_request_maximize(QWXdgSurface *surface, bool maximize);
     // end slot function
 
     W_DECLARE_PUBLIC(WXdgShell)
 
     WServer *server = nullptr;
     WSurfaceLayout *layout = nullptr;
-    WSignalConnector sc;
 };
 
-void WXdgShellPrivate::on_new_xdg_surface(void *data)
+void WXdgShellPrivate::on_new_xdg_surface(wlr_xdg_surface *wlr_surface)
 {
-    wlr_xdg_surface *wlr_surface = reinterpret_cast<struct wlr_xdg_surface*>(data);
-    auto surface = new WXdgSurface(reinterpret_cast<WXdgSurfaceHandle*>(wlr_surface));
+    // TODO: QWXdgSurface::from(wlr_surface)
+    QWXdgSurface *xdgSurface = QWXdgSurface::from(wlr_surface->surface);
+    auto surface = new WXdgSurface(reinterpret_cast<WXdgSurfaceHandle*>(xdgSurface));
     surface->moveToThread(server->thread());
     surface->setParent(server);
     Q_ASSERT(surface->parent() == server);
-    sc.connect(&wlr_surface->events.destroy, this, &WXdgShellPrivate::on_surface_destroy);
+    QObject::connect(xdgSurface, &QWXdgSurface::destroyed, server, [this] (QObject *data) {
+        on_surface_destroy(data);
+    });
 
-    sc.connect(&wlr_surface->events.map,
-               this, &WXdgShellPrivate::on_map, wlr_surface);
-    sc.connect(&wlr_surface->events.unmap,
-               this, &WXdgShellPrivate::on_unmap, wlr_surface);
+    QObject::connect(xdgSurface, &QWXdgSurface::map, server, [this, xdgSurface] {
+        on_map(xdgSurface);
+    });
+    QObject::connect(xdgSurface, &QWXdgSurface::unmap, server, [this, xdgSurface] {
+        on_unmap(xdgSurface);
+    });
 
-    if (wlr_surface->role == WLR_XDG_SURFACE_ROLE_TOPLEVEL) {
-        auto toplevel = wlr_surface->toplevel;
-        sc.connect(&toplevel->events.request_move,
-                   this, &WXdgShellPrivate::on_request_move);
-        sc.connect(&toplevel->events.request_resize,
-                   this, &WXdgShellPrivate::on_request_resize);
-        sc.connect(&toplevel->events.request_maximize,
-                   this, &WXdgShellPrivate::on_request_maximize);
+    if (auto toplevel = xdgSurface->topToplevel()) {
+        QObject::connect(toplevel, &QWXdgToplevel::requestMove, server, [this] (wlr_xdg_toplevel_move_event *event) {
+            on_request_move(event);
+        });
+        QObject::connect(toplevel, &QWXdgToplevel::requestResize, server, [this] (wlr_xdg_toplevel_resize_event *event) {
+            on_request_resize(event);
+        });
+        QObject::connect(toplevel, &QWXdgToplevel::requestMaximize, server, [this, xdgSurface] (bool maximize) {
+            on_request_maximize(xdgSurface, maximize);
+        });
     }
 
     layout->add(surface);
 }
 
-void WXdgShellPrivate::on_surface_destroy(void *data)
+void WXdgShellPrivate::on_surface_destroy(QObject *data)
 {
-    wlr_xdg_surface *wlr_surface = reinterpret_cast<struct wlr_xdg_surface*>(data);
+    QWXdgSurface *wlr_surface = qobject_cast<QWXdgSurface*>(data);
     auto surface = WXdgSurface::fromHandle(wlr_surface);
     Q_ASSERT(surface);
 
     layout->remove(surface);
     surface->deleteLater();
-
-    // clear the signal connection
-    sc.invalidate(&wlr_surface->events.destroy);
-    sc.invalidate(&wlr_surface->events.map);
-    sc.invalidate(&wlr_surface->events.unmap);
-
-    if (wlr_surface->role == WLR_XDG_SURFACE_ROLE_TOPLEVEL) {
-        auto toplevel = wlr_surface->toplevel;
-        sc.invalidate(&toplevel->events.request_move);
-        sc.invalidate(&toplevel->events.request_resize);
-        sc.invalidate(&toplevel->events.request_maximize);
-    }
 }
 
-void WXdgShellPrivate::on_map(void *data, void *surfaceHandle)
+void WXdgShellPrivate::on_map(QWXdgSurface *xdgSurface)
 {
-    Q_ASSERT(surfaceHandle);
-    // on the wlroots>0.16.0, the data is nullptr.
-    wlr_xdg_surface *wlr_surface = reinterpret_cast<struct wlr_xdg_surface*>(data ? data : surfaceHandle);
-    auto surface = WXdgSurface::fromHandle<wlr_xdg_surface>(wlr_surface);
+    Q_ASSERT(xdgSurface);
+    auto surface = WXdgSurface::fromHandle<QWXdgSurface>(xdgSurface);
     layout->map(surface);
 }
 
-void WXdgShellPrivate::on_unmap(void *data, void *surfaceHandle)
+void WXdgShellPrivate::on_unmap(QWXdgSurface *xdgSurface)
 {
-    Q_ASSERT(surfaceHandle);
-    // on the wlroots>0.16.0, the data is nullptr.
-    wlr_xdg_surface *wlr_surface = reinterpret_cast<struct wlr_xdg_surface*>(data ? data : surfaceHandle);
-    layout->unmap(WXdgSurface::fromHandle<wlr_xdg_surface>(wlr_surface));
+    Q_ASSERT(xdgSurface);
+    layout->unmap(WXdgSurface::fromHandle<QWXdgSurface>(xdgSurface));
 }
 
-void WXdgShellPrivate::on_request_move(void *data)
+void WXdgShellPrivate::on_request_move(wlr_xdg_toplevel_move_event *event)
 {
-    auto event = reinterpret_cast<wlr_xdg_toplevel_move_event*>(data);
-#if WLR_VERSION_MINOR > 15
-    auto surface = WXdgSurface::fromHandle<wlr_xdg_surface>(event->toplevel->base);
-#else
-    auto surface = WXdgSurface::fromHandle<wlr_xdg_surface>(event->surface);
-#endif
-    layout->requestMove(surface, WSeat::fromHandle<wlr_seat>(event->seat->seat), event->serial);
+    auto surface = WXdgSurface::fromHandle<QWXdgSurface>(QWXdgToplevel::from(event->toplevel));
+    layout->requestMove(surface, WSeat::fromHandle<QWSeat>(QWSeat::from(event->seat->seat)), event->serial);
 }
 
 inline static Qt::Edges toQtEdge(uint32_t edges) {
@@ -160,25 +148,19 @@ inline static Qt::Edges toQtEdge(uint32_t edges) {
     return qedges;
 }
 
-void WXdgShellPrivate::on_request_resize(void *data)
+void WXdgShellPrivate::on_request_resize(wlr_xdg_toplevel_resize_event *event)
 {
-    auto event = reinterpret_cast<wlr_xdg_toplevel_resize_event*>(data);
-    auto seat = WSeat::fromHandle<wlr_seat>(event->seat->seat);
-#if WLR_VERSION_MINOR > 15
-    auto surface = WXdgSurface::fromHandle<wlr_xdg_surface>(event->toplevel->base);
-#else
-    auto surface = WXdgSurface::fromHandle<wlr_xdg_surface>(event->surface);
-#endif
+    auto seat = WSeat::fromHandle<QWSeat>(QWSeat::from(event->seat->seat));
+    auto surface = WXdgSurface::fromHandle<QWXdgSurface>(QWXdgToplevel::from(event->toplevel));
     layout->requestResize(surface, seat, toQtEdge(event->edges), event->serial);
 }
 
-void WXdgShellPrivate::on_request_maximize(void *data)
+void WXdgShellPrivate::on_request_maximize(QWXdgSurface *surface, bool maximize)
 {
-    auto surface = static_cast<wlr_xdg_surface*>(data);
-    if (surface->toplevel->pending.maximized) {
-        layout->requestMaximize(WXdgSurface::fromHandle<wlr_xdg_surface>(surface));
+    if (maximize) {
+        layout->requestMaximize(WXdgSurface::fromHandle<QWXdgSurface>(surface));
     } else {
-        layout->requestUnmaximize(WXdgSurface::fromHandle<wlr_xdg_surface>(surface));
+        layout->requestUnmaximize(WXdgSurface::fromHandle<QWXdgSurface>(surface));
     }
 }
 
@@ -193,12 +175,11 @@ void WXdgShell::create(WServer *server)
     W_D(WXdgShell);
     d->server = server;
     // free follow display
-#if WLR_VERSION_MINOR > 15
-    auto xdg_shell = wlr_xdg_shell_create(server->nativeInterface<wl_display>(), 2);
-#else
-    auto xdg_shell = wlr_xdg_shell_create(server->nativeInterface<wl_display>());
-#endif
-    d->sc.connect(&xdg_shell->events.new_surface, d, &WXdgShellPrivate::on_new_xdg_surface);
+
+    auto xdg_shell = QWXdgShell::create(server->nativeInterface<QWDisplay>(), 2);
+    QObject::connect(xdg_shell, &QWXdgShell::newSurface, server, [this] (wlr_xdg_surface *surface) {
+        d_func()->on_new_xdg_surface(surface);
+    });
 }
 
 void WXdgShell::destroy(WServer *server)
