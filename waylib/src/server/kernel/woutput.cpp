@@ -903,21 +903,23 @@ bool WOutputPrivate::initRCWithRhi()
     // sanity check for Vulkan
 #ifdef ENABLE_VULKAN_RENDER
     if (rhiSupport->rhiBackend() == QRhi::Vulkan) {
-        wlr_vk_renderer_attribs vkRendererAttribs;
-        wlr_vk_renderer_get_attribs(renderer(), &vkRendererAttribs);
-
         vkInstance.reset(new QVulkanInstance());
         auto vid = QVulkanInstancePrivate::get(vkInstance.data());
         vid->platformInst.reset(new WLRVulkanInstance(vkInstance.data()));
         vkInstance->create();
-        vkInstance->setVkInstance(vkRendererAttribs.instance);
-        vkInstance->setExtensions(fromCStyleList(vkRendererAttribs.extension_count, vkRendererAttribs.extensions));
-        vkInstance->setLayers(fromCStyleList(vkRendererAttribs.layer_count, vkRendererAttribs.layers));
+
+        auto instance = wlr_vk_renderer_get_instance(renderer()->handle());
+        auto phdev = wlr_vk_renderer_get_physical_device(renderer()->handle());
+        auto dev = wlr_vk_renderer_get_device(renderer()->handle());
+        auto queue_family = wlr_vk_renderer_get_queue_family(renderer()->handle());
+
+        vkInstance->setVkInstance(instance);
+//        vkInstance->setExtensions(fromCStyleList(vkRendererAttribs.extension_count, vkRendererAttribs.extensions));
+//        vkInstance->setLayers(fromCStyleList(vkRendererAttribs.layer_count, vkRendererAttribs.layers));
         vkInstance->setApiVersion({1, 1, 0});
         rcd->window->setVulkanInstance(vkInstance.data());
 
-        auto gd = QQuickGraphicsDevice::fromDeviceObjects(vkRendererAttribs.phdev, vkRendererAttribs.dev,
-                                                          vkRendererAttribs.queue_family);
+        auto gd = QQuickGraphicsDevice::fromDeviceObjects(phdev, dev, queue_family);
         rcd->window->setGraphicsDevice(gd);
     } else
 #endif

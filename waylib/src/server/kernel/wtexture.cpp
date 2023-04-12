@@ -73,7 +73,7 @@ public:
                                              attribs.layout, attribs.format,
                                              QSize(handle->width, handle->height),
                                              {}, {});
-        texture->setHasAlphaChannel(attribs.has_alpha);
+        texture->setHasAlphaChannel(wlr_vk_texture_has_alpha(handle->handle()));
         texture->setTextureSize(QSize(handle->width, handle->height));
     }
 #endif
