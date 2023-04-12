@@ -138,10 +138,17 @@ if(QT_VERSION_MAJOR EQUAL 5)
     )
 endif()
 
-target_link_libraries(${TARGET}
-    PUBLIC
-    QWlroots::QWlroots
-)
+if(WITH_SUBMODULE_QWLROOTS)
+    target_link_libraries(${TARGET}
+        PUBLIC
+        qwlroots
+    )
+else()
+    target_link_libraries(${TARGET}
+        PUBLIC
+        QWlroots::QWlroots
+    )
+endif()
 
 target_link_libraries(${TARGET}
     PRIVATE

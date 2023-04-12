@@ -7,11 +7,11 @@ else()
     qt_add_resources(SOURCES qml.qrc)
 endif()
 
-add_executable(tinywl
+add_executable(tinywl-qtquick
     ${SOURCES}
 )
 
-target_link_libraries(tinywl
+target_link_libraries(tinywl-qtquick
     PRIVATE
     Qt${QT_VERSION_MAJOR}::Widgets
     Qt${QT_VERSION_MAJOR}::Quick

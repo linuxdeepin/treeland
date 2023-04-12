@@ -14,19 +14,21 @@ jobs:
     runs-on: ubuntu-latest
     container: archlinux:latest
     steps:
-      - uses: actions/checkout@v2
       - name: Run in container
         run: |
           pacman-key --init
           pacman -Syu --noconfirm
       - name: Install dep
         run: |
-          pacman -Syu --noconfirm qt cmake pkgconfig wlroots pixman wayland-protocols clazy
+          pacman -Syu --noconfirm qt cmake pkgconfig wlroots pixman wayland-protocols clazy git
           pacman -Syu --noconfirm clang ninja
+      - uses: actions/checkout@v3
+        with:
+          submodules: true
       - name: Configure CMake
         run: |
           mkdir -p ${{github.workspace}}/build
-          cmake -B ${{github.workspace}}/build -G Ninja -DCMAKE_CXX_COMPILER=clazy
+          cmake -B ${{github.workspace}}/build -G Ninja -DCMAKE_CXX_COMPILER=clazy -DWITH_SUBMODULE_QWLROOTS=ON
       - name: Build
         # Build your program with the given configuration
         run: cmake --build ${{github.workspace}}/build

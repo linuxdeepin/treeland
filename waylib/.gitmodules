@@ -1,0 +1,3 @@
+[submodule "qwlroots"]
+	path = qwlroots
+	url = https://github.com/vioken/qwlroots.git
