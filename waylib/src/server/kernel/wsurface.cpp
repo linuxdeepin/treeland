@@ -57,13 +57,17 @@ void WSurfacePrivate::on_commit(void *)
         Q_EMIT q->sizeChanged();
         Q_EMIT q->effectiveSizeChanged();
     }
+}
 
-    Q_EMIT q->textureChanged();
+void WSurfacePrivate::on_client_commit(void *)
+{
+    Q_EMIT q_func()->textureChanged();
 }
 
 void WSurfacePrivate::connect()
 {
     sc.connect(&handle->events.commit, this, &WSurfacePrivate::on_commit);
+    sc.connect(&handle->events.client_commit, this, &WSurfacePrivate::on_client_commit);
     sc.connect(&handle->events.destroy, &sc, &WSignalConnector::invalidate);
 }
 

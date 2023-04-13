@@ -37,6 +37,7 @@ public:
 
     // begin slot function
     void on_commit(void *);
+    void on_client_commit(void *);
     // end slot function
 
     void connect();

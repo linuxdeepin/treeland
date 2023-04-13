@@ -273,14 +273,16 @@ public:
         return reinterpret_cast<QWAllocator*>(backend->allocator());
     }
 
-    inline bool needsAttachBuffer() const {
-        return !attachedBuffer;
+    inline bool bufferIsAttached() const {
+        return attachedBuffer;
     }
 
 #ifndef WAYLIB_DISABLE_OUTPUT_DAMAGE
-    inline bool attachRender(pixman_region32_t *damage) {
-        if (!needsAttachBuffer())
-            return true;
+    inline bool attachRender(pixman_region32_t *damage, bool *needsFrame = nullptr) {
+        if (bufferIsAttached()) {
+            // Don't reuse the state, needs ensuse the damage data is valid
+            handle->rollback();
+        }
 
         bool needs_frame;
         if (!wlr_output_damage_attach_render(this->damage->nativeInterface<wlr_output_damage>(),
@@ -288,23 +290,16 @@ public:
             return false;
         }
 
-        if (!needs_frame) {
-            handle->rollback();
-            return false;
-        }
+        if (needsFrame)
+            *needsFrame = needs_frame;
 
         attachedBuffer = true;
         return true;
     }
+#endif
 
     inline bool attachRender() {
-        pixman_region32_scoped_pointer damage(new pixman_region32_t);
-        pixman_region32_init(damage.data());
-        return attachRender(damage.data());
-    }
-#else
-    inline bool attachRender() {
-        if (!needsAttachBuffer())
+        if (bufferIsAttached())
             return true;
 
         if (!handle->attachRender(nullptr))
@@ -313,7 +308,6 @@ public:
         attachedBuffer = true;
         return true;
     }
-#endif
 
     inline void detachRender() {
         attachedBuffer = false;
@@ -1367,6 +1361,8 @@ WOutput *WOutput::fromWindow(const QWindow *window)
 void WOutput::requestRender()
 {
     W_D(WOutput);
+    if (!d->handle)
+        return;
     d->render();
 }
 
