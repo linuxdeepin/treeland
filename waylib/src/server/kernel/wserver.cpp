@@ -194,7 +194,7 @@ WServer::WServer()
     , WObject(*new WServerPrivate(this))
 {
 #ifdef QT_DEBUG
-//    wlr_log_init(WLR_DEBUG, NULL);
+    wlr_log_init(WLR_DEBUG, NULL);
 #else
     wlr_log_init(WLR_INFO, NULL);
 #endif

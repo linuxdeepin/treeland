@@ -159,7 +159,7 @@ int main(int argc, char *argv[]) {
 
     qputenv("QT_QPA_PLATFORM", "wayland");
     qputenv("WAYLAND_DISPLAY", server->displayName());
-
+    qInfo() << "WAYLAND_DISPLAY:" << server->displayName();
 
     QGuiApplication::setAttribute(Qt::AA_EnableHighDpiScaling);
 //    QGuiApplication::setAttribute(Qt::AA_ShareOpenGLContexts);
