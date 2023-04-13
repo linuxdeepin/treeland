@@ -210,8 +210,8 @@ public:
 #ifndef WAYLIB_DISABLE_OUTPUT_DAMAGE
     void on_damage_frame(void *);
 #else
-    void on_frame(void *);
-    void on_damage(void *);
+    void on_frame();
+    void on_damage();
 #endif
     void on_mode(void*);
     // end slot function
@@ -830,7 +830,8 @@ void WOutputPrivate::init()
         auto display = egl->display;
 #endif
         auto eglConfig = q_configFromGLFormat(display, format, false, EGL_WINDOW_BIT);
-        format = q_glFormatFromConfig(display, eglConfig, format);
+        if (!eglConfig)
+            format = q_glFormatFromConfig(display, eglConfig, format);
 
         if (!surface) {
             surface = new OutputSurface(this, QSurface::OpenGLSurface);
@@ -969,6 +970,8 @@ void WOutputPrivate::connect()
 #ifndef WAYLIB_DISABLE_OUTPUT_DAMAGE
     sc.connect(&damage->nativeInterface<wlr_output_damage>()->events.frame,
                this, &WOutputPrivate::on_damage_frame);
+    sc.connect(&damage->nativeInterface<wlr_output_damage>()->events.destroy,
+               &sc, &WSignalConnector::invalidate);
 #else
     QObject::connect(handle, &QWOutput::frame, q_func(), [this] {
         on_frame();
@@ -986,8 +989,6 @@ void WOutputPrivate::connect()
     // the 'mode' signal
 //    sc.connect(&handle->events.mode,
 //               this, &WOutputPrivate::on_mode);
-    sc.connect(&damage->nativeInterface<wlr_output_damage>()->events.destroy,
-               &sc, &WSignalConnector::invalidate);
 }
 
 void WOutputPrivate::updateProjection()
