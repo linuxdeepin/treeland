@@ -130,6 +130,7 @@ public:
     const char *displayName() const;
 
     WThreadUtil *threadUtil() const;
+    QObject *slotOwner() const;
 
 Q_SIGNALS:
     void started();

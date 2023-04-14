@@ -241,10 +241,10 @@ void WSeatPrivate::connect()
     QObject::connect(handle(), &QWSeat::destroyed, server, [this] {
         on_destroy();
     });
-    QObject::connect(handle(), &QWSeat::requestSetCursor, server, [this] (wlr_seat_pointer_request_set_cursor_event *event) {
+    QObject::connect(handle(), &QWSeat::requestSetCursor, server->slotOwner(), [this] (wlr_seat_pointer_request_set_cursor_event *event) {
         on_request_set_cursor(event);
     });
-    QObject::connect(handle(), &QWSeat::requestSetSelection, server, [this] (wlr_seat_request_set_selection_event *event) {
+    QObject::connect(handle(), &QWSeat::requestSetSelection, server->slotOwner(), [this] (wlr_seat_request_set_selection_event *event) {
         on_request_set_selection(event);
     });
 }
@@ -286,10 +286,10 @@ void WSeatPrivate::attachInputDevice(WInputDevice *device)
         xkb_context_unref(context);
         keyboard->setRepeatInfo(25, 600);
 
-        QObject::connect(keyboard, &QWKeyboard::key, server, [this, device] (wlr_keyboard_key_event *event) {
+        QObject::connect(keyboard, &QWKeyboard::key, server->slotOwner(), [this, device] (wlr_keyboard_key_event *event) {
             on_keyboard_key(event, device);
         });
-        QObject::connect(keyboard, &QWKeyboard::modifiers, server, [this, device] () {
+        QObject::connect(keyboard, &QWKeyboard::modifiers, server->slotOwner(), [this, device] () {
             on_keyboard_modifiers(device);
         });
     }

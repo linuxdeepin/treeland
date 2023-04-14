@@ -99,6 +99,7 @@ public:
     QScopedPointer<ServerThread> thread;
     QScopedPointer<QSocketNotifier> sockNot;
     QScopedPointer<WThreadUtil> threadUtil;
+    QScopedPointer<QObject> slotOwner;
     QMutex initialized;
 
     QVector<WServerInterface*> interfaceList;
@@ -112,6 +113,7 @@ void WServerPrivate::init()
 {
     Q_ASSERT(!display);
 
+    slotOwner.reset(new QObject());
     display = new QWDisplay(q_func());
 
     // free follow display
@@ -148,6 +150,9 @@ void WServerPrivate::init()
 void WServerPrivate::stop()
 {
     W_Q(WServer);
+
+    slotOwner.reset();
+
     auto i = interfaceList.crbegin();
     for (; i != interfaceList.crend(); ++i) {
         if ((*i)->isValid()) {
@@ -168,6 +173,7 @@ void WServerPrivate::stop()
 
     // delete children in server thread
     QObjectPrivate::get(q)->deleteChildren();
+    thread->quit();
 }
 
 bool ServerThread::event(QEvent *e)
@@ -214,10 +220,7 @@ void WServer::stop()
     Q_ASSERT(d->thread->isRunning());
     Q_ASSERT(QThread::currentThread() != d->thread.data());
 
-//    DThreadUtil::runInThread(d->thread.get(), this,
-//                             d, &WServerPrivate::stop);
-
-    d->thread->quit();
+    d->threadUtil->run(this, d, &WServerPrivate::stop);
     if (!d->thread->wait()) {
         d->thread->terminate();
     }
@@ -356,6 +359,12 @@ bool WServer::event(QEvent *e)
 
     e->ignore();
     return true;
+}
+
+QObject *WServer::slotOwner() const
+{
+    W_DC(WServer);
+    return d->slotOwner.get();
 }
 
 WAYLIB_SERVER_END_NAMESPACE

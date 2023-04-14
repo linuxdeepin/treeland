@@ -99,9 +99,12 @@ WAYLIB_SERVER_BEGIN_NAMESPACE
 
 class Q_DECL_HIDDEN OutputGLContext : public QOpenGLContext {
 public:
-    OutputGLContext(WOutputPrivate *output)
-        : output(output) {}
+    OutputGLContext(WOutputPrivate *output, QObject *parent = nullptr)
+        : QOpenGLContext(parent)
+        , output(output)
+    {}
     bool create();
+    void destroy();
 
 private:
     WOutputPrivate *output;
@@ -723,6 +726,18 @@ bool OutputGLContext::create()
     return isValid();
 }
 
+void OutputGLContext::destroy()
+{
+    output = nullptr;
+
+    auto d = static_cast<QOpenGLContextPrivate*>(d_ptr.data());
+    if (d->platformGLContext)
+        emit aboutToBeDestroyed();
+
+    delete d->platformGLContext;
+    d->platformGLContext = nullptr;
+}
+
 QSize OutputSurface::size() const
 {
     return output->size();
@@ -833,7 +848,7 @@ void WOutputPrivate::init()
         }
 
         if (!context) {
-            context = new OutputGLContext(this);
+            context = new OutputGLContext(this, rc);
             context->create();
         }
 
@@ -1114,7 +1129,9 @@ QWindow *WOutputPrivate::ensureRenderWindow()
         renderWindow->moveToThread(attached_window->thread());
         Q_ASSERT(renderWindow->thread() == attached_window->thread());
         bool connected = QObject::connect(attached_window, &QObject::destroyed,
-                                          renderWindow, &QObject::deleteLater);
+                                          renderWindow, [renderWindow] {
+            delete renderWindow;
+        });
         Q_ASSERT(connected);
         attached_window->setProperty("_d_dwoutput_render_window", QVariant::fromValue(renderWindow));
         auto wd = QWindowPrivate::get(renderWindow);
@@ -1326,7 +1343,7 @@ void WOutput::detach()
     }
 
     if (d->context) {
-        delete d->context;
+        d->context->destroy();
         d->context = nullptr;
     }
 

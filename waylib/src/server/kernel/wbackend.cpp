@@ -80,7 +80,7 @@ public:
     void on_new_output(QWOutput *output);
     void on_new_input(QWInputDevice *device);
     void on_input_destroy(void *data);
-    void on_output_destroy(void *data);
+    void on_output_destroy(QWOutput *output);
     // end slot function
 
     void connect();
@@ -128,8 +128,8 @@ void WBackendPrivate::on_new_output(QWOutput *output)
     auto woutput = new WOutput(handle, q_func());
 
     outputList << woutput;
-    QObject::connect(output, &QObject::destroyed, server, [this] (QObject *data) {
-        on_output_destroy(data);
+    QObject::connect(output, &QObject::destroyed, server, [this] (QObject *output) {
+        on_output_destroy(static_cast<QWOutput*>(output));
     });
 
     layout->add(woutput);
@@ -140,7 +140,7 @@ void WBackendPrivate::on_new_input(QWInputDevice *device)
     auto input_device = new WInputDevice(reinterpret_cast<WInputDeviceHandle*>(device));
     inputList << input_device;
     QObject::connect(device, &QObject::destroyed, server, [this] (QObject *data) {
-        on_input_destroy(data);
+        on_input_destroy(static_cast<QWInputDevice*>(data));
     });
 
     Q_EMIT server->inputAdded(q_func(), input_device);
@@ -158,10 +158,10 @@ void WBackendPrivate::on_input_destroy(void *data)
     }
 }
 
-void WBackendPrivate::on_output_destroy(void *data)
+void WBackendPrivate::on_output_destroy(QWOutput *output)
 {
     for (int i = 0; i < outputList.count(); ++i) {
-        if (outputList.at(i)->handle() == data) {
+        if (outputList.at(i)->handle() == static_cast<void*>(output)) {
             auto device = outputList.takeAt(i);
             layout->remove(device);
             device->detach();
@@ -173,10 +173,10 @@ void WBackendPrivate::on_output_destroy(void *data)
 
 void WBackendPrivate::connect()
 {
-    QObject::connect(handle(), &QWBackend::newOutput, server, [this] (QWOutput *output) {
+    QObject::connect(handle(), &QWBackend::newOutput, server->slotOwner(), [this] (QWOutput *output) {
         on_new_output(output);
     });
-    QObject::connect(handle(), &QWBackend::newInput, server, [this] (QWInputDevice *device) {
+    QObject::connect(handle(), &QWBackend::newInput, server->slotOwner(), [this] (QWInputDevice *device) {
         on_new_input(device);
     });
 }
@@ -347,6 +347,11 @@ void WBackend::destroy(WServer *server)
 {
     Q_UNUSED(server)
     W_D(WBackend);
+
+    for (auto output : d->outputList) {
+        d->layout->remove(output);
+    }
+
     qDeleteAll(d->inputList);
     qDeleteAll(d->outputList);
     d->inputList.clear();

@@ -71,8 +71,6 @@ void WOutputLayoutPrivate::connect()
 {
     QObject::connect(handle, &QWOutputLayout::change, q_func(), [this] {
         Q_FOREACH(auto output, outputList) {
-            if (!output->nativeInterface<QWOutput>()->handle()) // During destroy application
-                continue;
             Q_EMIT output->positionChanged(output->position());
         }
     });
@@ -119,7 +117,8 @@ void WOutputLayout::move(WOutput *output, const QPoint &pos)
 void WOutputLayout::remove(WOutput *output)
 {
     W_D(WOutputLayout);
-    d->handle->remove(output->nativeInterface<QWOutput>()->handle());
+    if (auto handle = output->nativeInterface<QWOutput>()->handle())
+        d->handle->remove(handle);
     output->setLayout(nullptr);
     Q_ASSERT(d->outputList.contains(output));
     d->outputList.removeOne(output);
