@@ -354,7 +354,7 @@ public:
 
     W_DECLARE_PUBLIC(WOutput)
 
-    QWOutput *handle = nullptr;
+    QPointer<QWOutput> handle;
 
     WBackend *backend = nullptr;
     WQuickRenderControl *rc = nullptr;
@@ -1356,7 +1356,7 @@ void WOutput::detach()
 WOutputHandle *WOutput::handle() const
 {
     W_DC(WOutput);
-    return reinterpret_cast<WOutputHandle*>(d->handle);
+    return reinterpret_cast<WOutputHandle*>(d->handle.data());
 }
 
 WOutput *WOutput::fromHandle(const WOutputHandle *handle)

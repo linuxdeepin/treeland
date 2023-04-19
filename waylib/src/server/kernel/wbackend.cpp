@@ -128,8 +128,8 @@ void WBackendPrivate::on_new_output(QWOutput *output)
     auto woutput = new WOutput(handle, q_func());
 
     outputList << woutput;
-    QObject::connect(output, &QObject::destroyed, server, [this] (QObject *output) {
-        on_output_destroy(static_cast<QWOutput*>(output));
+    QObject::connect(output, &QWOutput::beforeDestroy, server, [this] (QWOutput *output) {
+        on_output_destroy(output);
     });
 
     layout->add(woutput);
