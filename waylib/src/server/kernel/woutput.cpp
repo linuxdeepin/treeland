@@ -39,7 +39,9 @@
 extern "C" {
 #include <wlr/types/wlr_output.h>
 #include <wlr/types/wlr_output_layout.h>
+#ifndef WAYLIB_DISABLE_OUTPUT_DAMAGE
 #include <wlr/types/wlr_output_damage.h>
+#endif
 #include <wlr/backend.h>
 #include <wlr/interfaces/wlr_output.h>
 #include <wlr/render/egl.h>

@@ -48,8 +48,10 @@ set(KERNEL_SOURCES
     kernel/wxdgsurface.cpp
 )
 
-option(WAYLIB_DISABLE_OUTPUT_DAMAGE "Don't use the damage manager for outputs" OFF)
-if (${WAYLIB_DISABLE_OUTPUT_DAMAGE} STREQUAL "ON")
+# TODO: Using wlr_damage_ring instead of wlr_output_damage
+option(WAYLIB_DISABLE_OUTPUT_DAMAGE "Don't use the damage manager for outputs" ON)
+
+if (WAYLIB_DISABLE_OUTPUT_DAMAGE)
     add_definitions(-DWAYLIB_DISABLE_OUTPUT_DAMAGE)
 else()
     list(APPEND KERNEL_SOURCES kernel/woutputdamage.cpp)
@@ -144,6 +146,7 @@ if(WITH_SUBMODULE_QWLROOTS)
         qwlroots
     )
 else()
+    find_package(QWlroots)
     target_link_libraries(${TARGET}
         PUBLIC
         QWlroots::QWlroots
