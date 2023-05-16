@@ -29,13 +29,16 @@
 
 QT_BEGIN_NAMESPACE
 class QQuickWindow;
+class QQuickRenderControl;
 class QScreen;
 class QWindow;
 QT_END_NAMESPACE
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
-class WQuickRenderControl;
+class QWlrootsScreen;
+class QWlrootsIntegration;
+
 class WInputEvent;
 class WCursor;
 class WOutputLayout;
@@ -70,7 +73,7 @@ public:
     WBackend *backend() const;
     bool isValid() const;
 
-    void attach(WQuickRenderControl *control);
+    void attach(QQuickRenderControl *control);
     void detach();
 
     WOutputHandle *handle() const;
@@ -122,6 +125,10 @@ Q_SIGNALS:
     void scaleChanged();
 
 private:
+    friend class QWlrootsIntegration;
+    void setScreen(QWlrootsScreen *screen);
+    QWlrootsScreen *screen() const;
+
     friend class WServer;
     friend class WServerPrivate;
 };

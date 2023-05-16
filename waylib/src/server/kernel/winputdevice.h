@@ -24,6 +24,10 @@
 #include <wglobal.h>
 #include <QObject>
 
+QT_BEGIN_NAMESPACE
+class QInputDevice;
+QT_END_NAMESPACE
+
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
 class WSeat;
@@ -83,6 +87,11 @@ public:
     Type type() const;
     void setSeat(WSeat *seat);
     WSeat *seat() const;
+
+private:
+    friend class QWlrootsIntegration;
+    void setQtDevice(QInputDevice *device);
+    QInputDevice *qtDevice() const;
 };
 
 WAYLIB_SERVER_END_NAMESPACE

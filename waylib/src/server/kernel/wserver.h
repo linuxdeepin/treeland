@@ -45,8 +45,13 @@ public:
         return reinterpret_cast<DNativeInterface*>(handle());
     }
 
+    inline WServer *server() const {
+        return m_server;
+    }
+
 protected:
     void *m_handle = nullptr;
+    WServer *m_server = nullptr;
 
     virtual void create(WServer *server) = 0;
     virtual void destroy(WServer *server) = 0;
@@ -120,12 +125,15 @@ public:
     }
 
     static WServer *fromThread(const QThread *thread);
+    static WServer *from(WServerInterface *interface);
 
     void start();
     void stop();
+    static void initializeQPA(bool master, const QStringList &parameters = {});
+    void initializeProxyQPA(int &argc, char **argv, const QStringList &proxyPlatformPlugins = {}, const QStringList &parameters = {});
 
-    bool waitForStarted(int timeout = -1);
-    bool waitForStoped(int timeout = -1);
+    bool waitForStarted(int timeout);
+    bool waitForStoped(int timeout);
     bool isRunning() const;
     const char *displayName() const;
 
@@ -139,6 +147,7 @@ Q_SIGNALS:
     void inputRemoved(WBackend *backend, WInputDevice *input);
 
 protected:
+    void _started();
     bool event(QEvent *e) override;
 };
 

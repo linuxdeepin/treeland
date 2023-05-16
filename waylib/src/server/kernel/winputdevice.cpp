@@ -51,6 +51,7 @@ public:
     W_DECLARE_PUBLIC(WInputDevice);
 
     QWInputDevice *handle = nullptr;
+    QInputDevice *qtDevice = nullptr;
     WSeat *seat = nullptr;
 };
 
@@ -100,6 +101,18 @@ WSeat *WInputDevice::seat() const
 {
     W_DC(WInputDevice);
     return d->seat;
+}
+
+void WInputDevice::setQtDevice(QInputDevice *device)
+{
+    W_D(WInputDevice);
+    d->qtDevice = device;
+}
+
+QInputDevice *WInputDevice::qtDevice() const
+{
+    W_DC(WInputDevice);
+    return d->qtDevice;
 }
 
 WAYLIB_SERVER_END_NAMESPACE

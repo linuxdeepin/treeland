@@ -55,8 +55,6 @@ public:
         , handle(new QWCursor())
     {
         handle->handle()->data = qq;
-
-        connect();
     }
 
     ~WCursorPrivate() {
@@ -159,19 +157,22 @@ void WCursorPrivate::on_frame()
 
 void WCursorPrivate::connect()
 {
-    QObject::connect(handle, &QWCursor::motion, [this] (wlr_pointer_motion_event *event) {
+    Q_ASSERT(seat);
+    auto slotOwner = WServer::from(seat)->slotOwner();
+
+    QObject::connect(handle, &QWCursor::motion, slotOwner, [this] (wlr_pointer_motion_event *event) {
         on_motion(event);
     });
-    QObject::connect(handle, &QWCursor::motionAbsolute, [this] (wlr_pointer_motion_absolute_event *event) {
+    QObject::connect(handle, &QWCursor::motionAbsolute, slotOwner, [this] (wlr_pointer_motion_absolute_event *event) {
         on_motion_absolute(event);
     });
-    QObject::connect(handle, &QWCursor::button, [this] (wlr_pointer_button_event *event) {
+    QObject::connect(handle, &QWCursor::button, slotOwner, [this] (wlr_pointer_button_event *event) {
         on_button(event);
     });
-    QObject::connect(handle, &QWCursor::axis, [this] (wlr_pointer_axis_event *event) {
+    QObject::connect(handle, &QWCursor::axis, slotOwner, [this] (wlr_pointer_axis_event *event) {
         on_axis(event);
     });
-    QObject::connect(handle, &QWCursor::frame, [this] () {
+    QObject::connect(handle, &QWCursor::frame, slotOwner, [this] () {
         on_frame();
     });
 }
@@ -247,7 +248,16 @@ Qt::MouseButton WCursor::button() const
 void WCursor::setSeat(WSeat *seat)
 {
     W_D(WCursor);
+
+    if (d->seat) {
+        // reconnect signals
+        d->handle->disconnect(WServer::from(d->seat)->slotOwner());
+    }
     d->seat = seat;
+
+    if (d->seat) {
+        d->connect();
+    }
 }
 
 WSeat *WCursor::seat() const

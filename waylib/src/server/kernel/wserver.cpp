@@ -26,6 +26,7 @@
 #include "wsurface.h"
 #include "wthreadutils.h"
 #include "wseat.h"
+#include "platformplugin/qwlrootsintegration.h"
 
 #include <qwdisplay.h>
 #include <qwdatadevice.h>
@@ -39,6 +40,10 @@
 #include <QMutex>
 #include <QDebug>
 #include <private/qthread_p.h>
+#include <private/qguiapplication_p.h>
+#include <qpa/qplatformthemefactory_p.h>
+#include <qpa/qplatformintegrationfactory_p.h>
+#include <qpa/qplatformtheme.h>
 
 extern "C" {
 #include <wlr/backend.h>
@@ -63,7 +68,10 @@ class ServerThread : public QDaemonThread
     Q_OBJECT
 public:
     ServerThread(WServerPrivate *s)
-        : server(s) {}
+        : server(s) {
+        setObjectName(QT_STRINGIFY(WAYLIB_SERVER_NAMESPACE));
+        Q_ASSERT(!objectName().isEmpty());
+    }
 
     bool event(QEvent *e) override;
     Q_SLOT void processWaylandEvents();
@@ -72,6 +80,7 @@ private:
     WServerPrivate *server;
     static QEvent::Type callFunctionEventType;
     friend class WServer;
+    friend class WServerPrivate;
 };
 QEvent::Type ServerThread::callFunctionEventType
     = static_cast<QEvent::Type>(QEvent::registerEventType());
@@ -94,6 +103,7 @@ public:
 
     void init();
     void stop();
+    bool startThread();
 
     W_DECLARE_PUBLIC(WServer)
     QScopedPointer<ServerThread> thread;
@@ -141,10 +151,10 @@ void WServerPrivate::init()
     QObject::connect(dispatcher, &QAbstractEventDispatcher::aboutToBlock,
                      thread.get(), &ServerThread::processWaylandEvents);
 
+    QMetaObject::invokeMethod(q, &WServer::_started, Qt::QueuedConnection);
+
     // Mark to initialized
     initialized.unlock();
-
-    QMetaObject::invokeMethod(q, &WServer::started, Qt::QueuedConnection);
 }
 
 void WServerPrivate::stop()
@@ -176,6 +186,24 @@ void WServerPrivate::stop()
     thread->quit();
 }
 
+// In main thread
+bool WServerPrivate::startThread()
+{
+    if (thread && thread->isRunning())
+        return false;
+
+    if (!thread) {
+        thread.reset(new ServerThread(this));
+        thread->moveToThread(thread.get());
+        threadUtil.reset(new WThreadUtil(thread.get(), ServerThread::callFunctionEventType));
+        q_func()->moveToThread(thread.get());
+        Q_ASSERT(q_func()->thread() == thread.get());
+    }
+
+    thread->start(QThread::HighestPriority);
+    return true;
+}
+
 bool ServerThread::event(QEvent *e)
 {
     if (e->type() == callFunctionEventType) {
@@ -184,7 +212,7 @@ bool ServerThread::event(QEvent *e)
             ev->function();
         return true;
     }
-    return ServerThread::event(e);
+    return QDaemonThread::event(e);
 }
 
 void ServerThread::processWaylandEvents()
@@ -232,6 +260,9 @@ void WServer::attach(WServerInterface *interface)
     Q_ASSERT(!d->interfaceList.contains(interface));
     d->interfaceList << interface;
 
+    Q_ASSERT(interface->m_server == nullptr);
+    interface->m_server = this;
+
     if (isRunning()) {
         d->threadUtil->run(this, interface, &WServerInterface::create, this);
     }
@@ -242,6 +273,9 @@ bool WServer::detach(WServerInterface *interface)
     W_D(WServer);
     if (!d->interfaceList.contains(interface))
         return false;
+
+    Q_ASSERT(interface->m_server == this);
+    interface->m_server = nullptr;
 
     if (!isRunning())
         return false;
@@ -286,24 +320,87 @@ WServer *WServer::fromThread(const QThread *thread)
     return nullptr;
 }
 
+WServer *WServer::from(WServerInterface *interface)
+{
+    return interface->m_server;
+}
+
+static bool initializeQtPlatform(bool isMaster, const QStringList &parameters, std::function<void()> onInitialized)
+{
+    Q_ASSERT(QGuiApplication::instance() == nullptr);
+    if (QGuiApplicationPrivate::platform_integration)
+        return false;
+
+    QGuiApplicationPrivate::platform_integration = new QWlrootsIntegration(isMaster, parameters, onInitialized);
+
+    // for platform theme
+    QStringList themeNames = QWlrootsIntegration::instance()->themeNames();
+
+    if (!QGuiApplicationPrivate::platform_theme) {
+        for (const QString &themeName : qAsConst(themeNames)) {
+            QGuiApplicationPrivate::platform_theme = QPlatformThemeFactory::create(themeName);
+            if (QGuiApplicationPrivate::platform_theme) {
+                break;
+            }
+        }
+    }
+
+    if (!QGuiApplicationPrivate::platform_theme) {
+        for (const QString &themeName : qAsConst(themeNames)) {
+            QGuiApplicationPrivate::platform_theme = QWlrootsIntegration::instance()->createPlatformTheme(themeName);
+            if (QGuiApplicationPrivate::platform_theme) {
+                break;
+            }
+        }
+    }
+
+    // fallback
+    if (!QGuiApplicationPrivate::platform_theme) {
+        QGuiApplicationPrivate::platform_theme = new QPlatformTheme;
+    }
+
+    return true;
+}
+
 void WServer::start()
 {
     W_D(WServer);
 
-    if (d->thread && d->thread->isRunning())
+    if (!d->startThread())
         return;
 
-    if (!d->thread) {
-        d->thread.reset(new ServerThread(d));
-        d->thread->moveToThread(d->thread.get());
-        d->threadUtil.reset(new WThreadUtil(d->thread.get(),
-                                             ServerThread::callFunctionEventType));
-        moveToThread(d->thread.get());
-        Q_ASSERT(thread() == d->thread.get());
-    }
-
-    d->thread->start(QThread::HighestPriority);
     d->threadUtil->run(this, d, &WServerPrivate::init);
+}
+
+void WServer::initializeQPA(bool master, const QStringList &parameters)
+{
+    if (!initializeQtPlatform(master, parameters, nullptr)) {
+        qFatal("Can't initialize Qt platform plugin.");
+        return;
+    }
+}
+
+void WServer::initializeProxyQPA(int &argc, char **argv, const QStringList &proxyPlatformPlugins, const QStringList &parameters)
+{
+    Q_ASSERT(!proxyPlatformPlugins.isEmpty());
+
+    W_DC(WServer);
+    Q_ASSERT(d->socket);
+    qputenv("WAYLAND_DISPLAY", d->socket);
+    QPlatformIntegration *proxy = nullptr;
+    for (const QString &name : proxyPlatformPlugins) {
+        if (name.isEmpty())
+            continue;
+        proxy = QPlatformIntegrationFactory::create(name, parameters, argc, argv);
+        if (proxy)
+            break;
+    }
+    if (!proxy) {
+        qFatal() << "Can't create the proxy platform plugin:" << proxyPlatformPlugins;
+    }
+    proxy->initialize();
+    QWlrootsIntegration::instance()->setProxy(proxy);
+    qunsetenv("WAYLAND_DISPLAY");
 }
 
 static inline bool tryLock(QMutex *mutex, int timeout)
@@ -365,6 +462,13 @@ QObject *WServer::slotOwner() const
 {
     W_DC(WServer);
     return d->slotOwner.get();
+}
+
+void WServer::_started()
+{
+    W_DC(WServer);
+
+    Q_EMIT started();
 }
 
 WAYLIB_SERVER_END_NAMESPACE

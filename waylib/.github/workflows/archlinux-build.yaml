@@ -20,7 +20,7 @@ jobs:
           pacman -Syu --noconfirm
       - name: Install dep
         run: |
-          pacman -Syu --noconfirm qt cmake pkgconfig wlroots pixman wayland-protocols clazy git
+          pacman -Syu --noconfirm qt6-base qt6-declarative cmake pkgconfig wlroots pixman wayland-protocols clazy git
           pacman -Syu --noconfirm clang ninja
       - uses: actions/checkout@v3
         with:

@@ -11,14 +11,7 @@ set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 set(CMAKE_AUTOUIC ON)
 
-option(USE_QT5 "Use the Qt5 library" ON)
 option(WITH_SUBMODULE_QWLROOTS "Use the QWlroots from git submodule" OFF)
-
-if (${USE_QT5} STREQUAL "ON")
-    set(QT_VERSION_MAJOR 5)
-else()
-    set(QT_VERSION_MAJOR 6)
-endif()
 
 if(WITH_SUBMODULE_QWLROOTS)
     add_subdirectory(qwlroots)

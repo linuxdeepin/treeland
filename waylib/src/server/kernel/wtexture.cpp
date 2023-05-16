@@ -52,9 +52,6 @@ public:
         wlr_gles2_texture_attribs attribs;
         wlr_gles2_texture_get_attribs(handle->handle(), &attribs);
 
-#if QT_VERSION_MAJOR < 6
-        texture->setTextureId(attribs.tex);
-#else
         #define GL_TEXTURE_EXTERNAL_OES           0x8D65
         QQuickWindowPrivate::TextureFromNativeTextureFlags flags = attribs.target == GL_TEXTURE_EXTERNAL_OES
                                                                        ? QQuickWindowPrivate::NativeTextureIsExternalOES
@@ -62,7 +59,7 @@ public:
         texture->setTextureFromNativeTexture(QQuickWindowPrivate::get(window)->rhi,
                                              attribs.tex, 0, 0, QSize(handle->handle()->width, handle->handle()->height),
                                              {}, flags);
-#endif
+
         texture->setHasAlphaChannel(attribs.has_alpha);
         texture->setTextureSize(QSize(handle->handle()->width, handle->handle()->height));
         texture->setOwnsTexture(false);

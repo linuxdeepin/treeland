@@ -31,6 +31,8 @@
 #include "wsurfacelayout.h"
 #include "wthreadutils.h"
 #include "wseat.h"
+#include "platformplugin/qwlrootsintegration.h"
+#include "platformplugin/qwlrootscreen.h"
 
 #include <QQuickView>
 #include <QQmlEngine>
@@ -39,6 +41,7 @@
 
 #include <private/qquickitem_p.h>
 #include <private/qquickanchors_p.h>
+#include <private/qguiapplication_p.h>
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
@@ -159,36 +162,29 @@ void WSurfaceManagerPrivate::init()
 
 void WSurfaceManagerPrivate::initOutput(WOutput *output)
 {
-    outputLayout->add(output);
-
     if (initialized) {
-#ifdef D_WM_MAIN_THREAD_QTQUICK
-        QCoreApplication::postEvent(q_func(), new InitEvent(output));
-#else
         doInitOutput(output);
-#endif
     }
 }
 
 void WSurfaceManagerPrivate::initSurface(WSurface *surface)
 {
     if (initialized) {
-#ifdef D_WM_MAIN_THREAD_QTQUICK
-        QCoreApplication::postEvent(q_func(), new InitEvent(surface));
-#else
         doInitSurface(surface);
-#endif
     }
 }
 
 void WSurfaceManagerPrivate::doInitOutput(WOutput *output)
 {
     W_Q(WSurfaceManager);
-    WQuickRenderControl *rc = new WQuickRenderControl();
+    QQuickRenderControl *rc = new QQuickRenderControl();
     auto window = q->createWindow(rc, output);
+    QGuiApplicationPrivate::window_list.removeOne(window);
+    window->setObjectName(QT_STRINGIFY(WAYLIB_SERVER_NAMESPACE));
+    window->setScreen(QWlrootsIntegration::instance()->getScreenFrom(output)->screen());
+    window->create();
     Q_ASSERT(window);
     output2WindowMap[output] = window;
-    rc->setParent(window);
     output->attach(rc);
 
     window->setGeometry(QRect(output->position(), output->effectiveSize()));
@@ -271,12 +267,7 @@ void WSurfaceManager::initialize()
 {
     W_D(WSurfaceManager);
     Q_ASSERT(!d->initialized);
-
-#ifdef D_WM_MAIN_THREAD_QTQUICK
-    d->init();
-#else
     d->server->threadUtil()->run(this, d, &WSurfaceManagerPrivate::init);
-#endif
 }
 
 void WSurfaceManager::add(WSurface *surface)

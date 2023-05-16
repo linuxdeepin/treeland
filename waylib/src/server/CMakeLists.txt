@@ -1,23 +1,12 @@
 set(TARGET waylibserver)
 
-find_package(Qt${QT_VERSION_MAJOR}
+find_package(Qt6
     COMPONENTS
     Core
     Gui
     Quick
     REQUIRED
 )
-
-find_package(QWlroots)
-
-if(QT_VERSION_MAJOR EQUAL 5)
-    find_package(Qt5
-        COMPONENTS
-        EglSupport
-        InputSupport
-        REQUIRED
-    )
-endif()
 
 find_package(PkgConfig)
 pkg_search_module(PIXMAN REQUIRED pixman-1)
@@ -65,6 +54,13 @@ set(QTQUICK_SOURCES
 set(UTILS_SOURCES
     utils/wsignalconnector.cpp
     utils/wtools.cpp
+)
+
+set(QPA_SOURCES
+    platformplugin/qwlrootsintegration.cpp
+    platformplugin/qwlrootscreen.cpp
+    platformplugin/qwlrootswindow.cpp
+    platformplugin/qwlrootscursor.cpp
 )
 
 set(HEADERS
@@ -119,6 +115,7 @@ add_library(${TARGET}
     ${KERNEL_SOURCES}
     ${QTQUICK_SOURCES}
     ${UTILS_SOURCES}
+    ${QPA_SOURCES}
 )
 
 set_target_properties(${TARGET}
@@ -129,16 +126,10 @@ set_target_properties(${TARGET}
 )
 
 set(QT_LIBRAIES
-    Qt${QT_VERSION_MAJOR}::Core
-    Qt${QT_VERSION_MAJOR}::Gui
-    Qt${QT_VERSION_MAJOR}::Quick)
-
-if(QT_VERSION_MAJOR EQUAL 5)
-    list(APPEND QT_LIBRAIES
-        Qt5::EglSupport
-        Qt5::InputSupport
-    )
-endif()
+    Qt6::Core
+    Qt6::Gui
+    Qt6::Quick
+)
 
 if(WITH_SUBMODULE_QWLROOTS)
     target_link_libraries(${TARGET}
@@ -163,10 +154,10 @@ set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
 target_include_directories(${TARGET}
     PRIVATE
-    ${Qt${QT_VERSION_MAJOR}Gui_PRIVATE_INCLUDE_DIRS}
-    ${Qt${QT_VERSION_MAJOR}Quick_PRIVATE_INCLUDE_DIRS}
-    ${Qt${QT_VERSION_MAJOR}EglSupport_PRIVATE_INCLUDE_DIRS}
-    ${Qt${QT_VERSION_MAJOR}InputSupport_PRIVATE_INCLUDE_DIRS}
+    ${Qt6Gui_PRIVATE_INCLUDE_DIRS}
+    ${Qt6Quick_PRIVATE_INCLUDE_DIRS}
+    ${Qt6EglSupport_PRIVATE_INCLUDE_DIRS}
+    ${Qt6InputSupport_PRIVATE_INCLUDE_DIRS}
     ${WLROOTS_INCLUDE_DIRS}
 )
 
@@ -188,5 +179,5 @@ install(TARGETS ${TARGET}
 include(${PROJECT_SOURCE_DIR}/cmake/Helpers.cmake)
 add_cmake_module(WaylibServer ${TARGET} ${CMAKE_INSTALL_FULL_INCLUDEDIR}/${TARGET})
 add_pkgconfig_module(${TARGET} ${TARGET} ${CMAKE_INSTALL_FULL_INCLUDEDIR}/${TARGET}
-    "qwlroots, Qt${QT_VERSION_MAJOR}Gui, Qt${QT_VERSION_MAJOR}Quick"
+    "qwlroots, Qt6Gui, Qt6Quick"
 )

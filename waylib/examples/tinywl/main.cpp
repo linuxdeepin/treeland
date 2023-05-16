@@ -20,6 +20,7 @@
  */
 
 #include <WServer>
+#include <WThreadUtils>
 #include <WOutput>
 #include <WBackend>
 #include <WXCursorManager>
@@ -123,57 +124,51 @@ private:
 int main(int argc, char *argv[]) {
 //    QQuickWindow::setGraphicsApi(QSGRendererInterface::Vulkan);
 
+    WServer::initializeQPA(false);
     QScopedPointer<WServer> server(new WServer());
+
     WOutputLayout *layout = new WOutputLayout;
     SurfaceManager *manager = new SurfaceManager(server.get(), layout);
 
     server->attach<WBackend>(layout);
-    auto seat = server->attach<WSeat>();
     server->attach<WXdgShell>(manager);
+
+    QQuickStyle::setStyle("Material");
+
+    QGuiApplication::setAttribute(Qt::AA_EnableHighDpiScaling);
+    QGuiApplication::setAttribute(Qt::AA_ShareOpenGLContexts, false);
+    QGuiApplication::setAttribute(Qt::AA_UseHighDpiPixmaps);
+    QGuiApplication::setAttribute(Qt::AA_UseOpenGLES);
+    QGuiApplication::setHighDpiScaleFactorRoundingPolicy(Qt::HighDpiScaleFactorRoundingPolicy::PassThrough);
+    QGuiApplication::setQuitOnLastWindowClosed(false);
+    QApplication app(argc, argv);
 
     WXCursorManager xcursor_manager;
     WCursor cursor;
+
+    auto seat = server->attach<WSeat>();
 
     cursor.setManager(&xcursor_manager);
     cursor.setOutputLayout(layout);
     seat->attachCursor(&cursor);
 
+    // TODO: attach to WBackend
     QObject::connect(server.get(), &WServer::inputAdded,
                      [&] (WBackend*, WInputDevice *device) {
         seat->attachInputDevice(device);
     });
 
     server->start();
-    {
-        bool ok = server->waitForStarted();
-        Q_ASSERT(ok);
+    if (!server->waitForStarted(1000)) {
+        qFatal() << "Failed on start wayland server";
     }
-
-#if QT_VERSION_MAJOR < 6
-    // Because the wlr_egl only have the color buffer
-    qputenv("QSG_NO_DEPTH_BUFFER", "1");
-    qputenv("QSG_NO_STENCIL_BUFFER", "1");
-#else
-    QQuickStyle::setStyle("Material");
-#endif
-
-    qputenv("QT_QPA_PLATFORM", "wayland");
-    qputenv("WAYLAND_DISPLAY", server->displayName());
-    qInfo() << "WAYLAND_DISPLAY:" << server->displayName();
-
-    QGuiApplication::setAttribute(Qt::AA_EnableHighDpiScaling);
-//    QGuiApplication::setAttribute(Qt::AA_ShareOpenGLContexts);
-    QGuiApplication::setAttribute(Qt::AA_UseHighDpiPixmaps);
-//    QGuiApplication::setAttribute(Qt::AA_UseOpenGLES);
-    QGuiApplication::setHighDpiScaleFactorRoundingPolicy(Qt::HighDpiScaleFactorRoundingPolicy::PassThrough);
-    QGuiApplication::setQuitOnLastWindowClosed(false);
-    QApplication app(argc, argv);
+    server->initializeProxyQPA(argc, argv, {"wayland"});
 
     QObject::connect(&app, &QCoreApplication::aboutToQuit,
                      server.get(), &WServer::stop, Qt::DirectConnection);
 
-    QQmlApplicationEngine engine;
-    engine.load(QUrl("qrc:/Window.qml"));
+    QQmlApplicationEngine *engine = new QQmlApplicationEngine;
+    engine->load(QUrl("qrc:/Window.qml"));
 
     manager->initialize();
 

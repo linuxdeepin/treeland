@@ -24,6 +24,8 @@
 #include "wserver.h"
 #include "winputdevice.h"
 #include "wsignalconnector.h"
+#include "platformplugin/qwlrootsintegration.h"
+#include "platformplugin/qwlrootscreen.h"
 
 #include <qwbackend.h>
 #include <qwdisplay.h>
@@ -52,12 +54,10 @@ extern "C" {
 #endif
 }
 
-#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
 #include <QQuickWindow>
 #include <xf86drm.h>
 #include <fcntl.h>
 #include <unistd.h>
-#endif
 
 QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
@@ -87,7 +87,6 @@ public:
 
     W_DECLARE_PUBLIC(WBackend)
 
-    WServer *server = nullptr;
     WOutputLayout *layout = nullptr;
     QWRenderer *renderer = nullptr;
     QWAllocator *allocator = nullptr;
@@ -128,7 +127,9 @@ void WBackendPrivate::on_new_output(QWOutput *output)
     auto woutput = new WOutput(handle, q_func());
 
     outputList << woutput;
-    QObject::connect(output, &QWOutput::beforeDestroy, server, [this] (QWOutput *output) {
+    QWlrootsIntegration::instance()->addScreen(woutput);
+
+    QObject::connect(output, &QWOutput::beforeDestroy, q_func()->server(), [this] (QWOutput *output) {
         on_output_destroy(output);
     });
 
@@ -139,11 +140,11 @@ void WBackendPrivate::on_new_input(QWInputDevice *device)
 {
     auto input_device = new WInputDevice(reinterpret_cast<WInputDeviceHandle*>(device));
     inputList << input_device;
-    QObject::connect(device, &QObject::destroyed, server, [this] (QObject *data) {
+    QObject::connect(device, &QObject::destroyed, q_func()->server(), [this] (QObject *data) {
         on_input_destroy(static_cast<QWInputDevice*>(data));
     });
 
-    Q_EMIT server->inputAdded(q_func(), input_device);
+    Q_EMIT q_func()->server()->inputAdded(q_func(), input_device);
 }
 
 void WBackendPrivate::on_input_destroy(void *data)
@@ -151,7 +152,7 @@ void WBackendPrivate::on_input_destroy(void *data)
     for (int i = 0; i < outputList.count(); ++i) {
         if (outputList.at(i)->handle() == data) {
             auto device = inputList.takeAt(i);
-            Q_EMIT server->inputRemoved(q_func(), device);
+            Q_EMIT q_func()->server()->inputRemoved(q_func(), device);
             delete device;
             return;
         }
@@ -163,6 +164,7 @@ void WBackendPrivate::on_output_destroy(QWOutput *output)
     for (int i = 0; i < outputList.count(); ++i) {
         if (outputList.at(i)->handle() == static_cast<void*>(output)) {
             auto device = outputList.takeAt(i);
+            QWlrootsIntegration::instance()->removeScreen(device);
             layout->remove(device);
             device->detach();
             delete device;
@@ -173,10 +175,10 @@ void WBackendPrivate::on_output_destroy(QWOutput *output)
 
 void WBackendPrivate::connect()
 {
-    QObject::connect(handle(), &QWBackend::newOutput, server->slotOwner(), [this] (QWOutput *output) {
+    QObject::connect(handle(), &QWBackend::newOutput, q_func()->server()->slotOwner(), [this] (QWOutput *output) {
         on_new_output(output);
     });
-    QObject::connect(handle(), &QWBackend::newInput, server->slotOwner(), [this] (QWInputDevice *device) {
+    QObject::connect(handle(), &QWBackend::newInput, q_func()->server()->slotOwner(), [this] (QWInputDevice *device) {
         on_new_input(device);
     });
 }
@@ -211,13 +213,6 @@ QVector<WInputDevice *> WBackend::inputDeviceList() const
     return d->inputList;
 }
 
-WServer *WBackend::server() const
-{
-    W_DC(WBackend);
-    return d->server;
-}
-
-#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
 // Copy from "wlr_renderer.c" of wlroots
 static int open_drm_render_node(void) {
 	uint32_t flags = 0;
@@ -264,7 +259,6 @@ out:
 
 	return fd;
 }
-#endif
 
 void WBackend::create(WServer *server)
 {
@@ -272,10 +266,10 @@ void WBackend::create(WServer *server)
 
     if (!m_handle) {
         m_handle = QWBackend::autoCreate(server->nativeInterface<QWDisplay>());
+        Q_ASSERT(m_handle);
     }
 
     auto backend = nativeInterface<QWBackend>();
-#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
     int drm_fd = wlr_backend_get_drm_fd(backend->handle());
 
     auto backend_get_buffer_caps = [] (struct wlr_backend *backend) -> uint32_t {
@@ -294,8 +288,11 @@ void WBackend::create(WServer *server)
     }
 
     wlr_renderer *renderer_handle = nullptr;
+    auto api = QQuickWindow::graphicsApi();
+    if (QQuickWindow::sceneGraphBackend() == QStringLiteral("software"))
+        api = QSGRendererInterface::Software;
 
-    switch (QQuickWindow::graphicsApi()) {
+    switch (api) {
     case QSGRendererInterface::OpenGL:
         renderer_handle = wlr_gles2_renderer_create_with_drm_fd(drm_fd);
         break;
@@ -321,10 +318,6 @@ void WBackend::create(WServer *server)
         close(render_drm_fd);
     }
 
-#else
-    d->renderer = QWRenderer::autoCreate(backend);
-#endif
-
     if (!d->renderer) {
         qFatal("Failed to create renderer");
     }
@@ -335,7 +328,6 @@ void WBackend::create(WServer *server)
     // free follow display
     Q_UNUSED(QWCompositor::create(server->nativeInterface<QWDisplay>(), d->renderer));
 
-    d->server = server;
     d->connect();
 
     if (!backend->start()) {

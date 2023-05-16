@@ -89,14 +89,14 @@ public:
     }
     template <typename Fun, typename... Args>
     Q_ALWAYS_INLINE /*auto*/
-    typename std::enable_if<std::is_function<typename std::remove_pointer<Fun>::type>::value, void>::type
+    typename std::enable_if<std::is_invocable<typename std::remove_pointer<Fun>::type>::value, void>::type
     run(QObject *target, Fun fun, Args&&... args) /*-> decltype(fun(args...))*/
     {
         return _TMP<decltype(fun(args...))>::run(this, target, std::bind(fun, std::forward<Args>(args)...));
     }
     template <typename Fun, typename... Args>
     Q_ALWAYS_INLINE /*auto*/
-    typename std::enable_if<std::is_function<typename std::remove_pointer<Fun>::type>::value, void>::type
+    typename std::enable_if<std::is_invocable<typename std::remove_pointer<Fun>::type>::value, void>::type
     run(Fun fun, Args&&... args) /*-> decltype(fun(args...))*/
     {
         return run(static_cast<QObject*>(nullptr), fun, std::forward<Args>(args)...);

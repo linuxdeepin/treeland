@@ -25,13 +25,14 @@
 #include "woutput.h"
 #include "wsurface.h"
 #include "wthreadutils.h"
+#include "platformplugin/qwlrootsintegration.h"
 
 #include <qwseat.h>
 #include <qwkeyboard.h>
 #include <qwcursor.h>
 
 #include <QQuickWindow>
-#include <QCoreApplication>
+#include <QGuiApplication>
 #include <QQuickItem>
 #include <QDebug>
 
@@ -193,7 +194,6 @@ public:
     WCursor* cursor = nullptr;
     QVector<WInputDevice*> deviceList;
     QPointer<WSurface> hoverSurface;
-    WServer *server = nullptr;
     QPointer<QObject> eventGrabber;
 
     // for event data
@@ -238,13 +238,13 @@ void WSeatPrivate::on_keyboard_modifiers(WInputDevice *device)
 
 void WSeatPrivate::connect()
 {
-    QObject::connect(handle(), &QWSeat::destroyed, server, [this] {
+    QObject::connect(handle(), &QWSeat::destroyed, q_func()->server(), [this] {
         on_destroy();
     });
-    QObject::connect(handle(), &QWSeat::requestSetCursor, server->slotOwner(), [this] (wlr_seat_pointer_request_set_cursor_event *event) {
+    QObject::connect(handle(), &QWSeat::requestSetCursor, q_func()->server()->slotOwner(), [this] (wlr_seat_pointer_request_set_cursor_event *event) {
         on_request_set_cursor(event);
     });
-    QObject::connect(handle(), &QWSeat::requestSetSelection, server->slotOwner(), [this] (wlr_seat_request_set_selection_event *event) {
+    QObject::connect(handle(), &QWSeat::requestSetSelection, q_func()->server()->slotOwner(), [this] (wlr_seat_request_set_selection_event *event) {
         on_request_set_selection(event);
     });
 }
@@ -270,6 +270,7 @@ void WSeatPrivate::attachInputDevice(WInputDevice *device)
 {
     W_Q(WSeat);
     device->setSeat(q);
+    QWlrootsIntegration::instance()->addInputDevice(device);
 
     if (device->type() == WInputDevice::Type::Keyboard) {
         auto keyboard = qobject_cast<QWKeyboard*>(device->nativeInterface<QWInputDevice>());
@@ -286,10 +287,10 @@ void WSeatPrivate::attachInputDevice(WInputDevice *device)
         xkb_context_unref(context);
         keyboard->setRepeatInfo(25, 600);
 
-        QObject::connect(keyboard, &QWKeyboard::key, server->slotOwner(), [this, device] (wlr_keyboard_key_event *event) {
+        QObject::connect(keyboard, &QWKeyboard::key, q_func()->server()->slotOwner(), [this, device] (wlr_keyboard_key_event *event) {
             on_keyboard_key(event, device);
         });
-        QObject::connect(keyboard, &QWKeyboard::modifiers, server->slotOwner(), [this, device] () {
+        QObject::connect(keyboard, &QWKeyboard::modifiers, q_func()->server()->slotOwner(), [this, device] () {
             on_keyboard_modifiers(device);
         });
     }
@@ -374,6 +375,8 @@ void WSeat::detachInputDevice(WInputDevice *device)
     if (d->cursor && device->type() == WInputDevice::Type::Pointer) {
         d->cursor->detachInputDevice(device);
     }
+
+    QWlrootsIntegration::instance()->removeInputDevice(device);
 }
 
 void WSeat::notifyEnterSurface(WSurface *surface, WInputEvent *event)
@@ -381,7 +384,7 @@ void WSeat::notifyEnterSurface(WSurface *surface, WInputEvent *event)
     W_D(WSeat);
     // Do async call that the event maybe to destroyed later, so should
     // use the data of event instead of the event self.
-    d->server->threadUtil()->run(surface, d, &WSeatPrivate::doEnter,
+    server()->threadUtil()->run(surface, d, &WSeatPrivate::doEnter,
                                  surface, event->data);
 }
 
@@ -392,7 +395,7 @@ void WSeat::notifyLeaveSurface(WSurface *surface, WInputEvent *event)
     Q_ASSERT(d->hoverSurface == surface);
     // Do async call that the event maybe to destroyed later, so should
     // use the data of event instead of the event self.
-    d->server->threadUtil()->run(d->server, d, &WSeatPrivate::doClearFocus, event->data);
+    server()->threadUtil()->run(server(), d, &WSeatPrivate::doClearFocus, event->data);
 }
 
 WSurface *WSeat::hoverSurface() const
@@ -404,7 +407,7 @@ WSurface *WSeat::hoverSurface() const
 void WSeat::setKeyboardFocusTarget(WSurfaceHandle *nativeSurface)
 {
     W_D(WSeat);
-    d->server->threadUtil()->run(d->server, d, &WSeatPrivate::doSetKeyboardFocus,
+    server()->threadUtil()->run(server(), d, &WSeatPrivate::doSetKeyboardFocus,
                                  reinterpret_cast<wlr_surface*>(nativeSurface));
 }
 
@@ -460,7 +463,7 @@ void WSeat::notifyMotion(WCursor *cursor, WInputDevice *device,
 }
 
 void WSeat::notifyButton(WCursor *cursor, WInputDevice *device, uint32_t button,
-                          WInputDevice::ButtonState state, uint32_t timestamp)
+                         WInputDevice::ButtonState state, uint32_t timestamp)
 {
     W_D(WSeat);
 
@@ -492,9 +495,10 @@ void WSeat::notifyButton(WCursor *cursor, WInputDevice *device, uint32_t button,
         return;
 
     const QPointF &local = global - QPointF(w->position());
-
+    auto qwDevice = static_cast<QPointingDevice*>(QWlrootsIntegration::instance()->getInputDeviceFrom(device));
+    Q_ASSERT(qwDevice);
     auto e = new QMouseEvent(et, local, local, global, cursor->button(),
-                             cursor->state(), d->keyModifiers);
+                             cursor->state(), d->keyModifiers, qwDevice);
     e->setTimestamp(timestamp);
     d->postEvent(cursor->mappedOutput(), e, WInputEvent::PointerButton, device, cursor);
 }
@@ -530,6 +534,7 @@ void WSeat::notifyKey(WInputDevice *device, uint32_t keycode,
     xkb_keysym_t sym = xkb_state_key_get_one_sym(keyboard->handle()->xkb_state, code);
     int qtkey = QXkbCommon::keysymToQtKey(sym, d->keyModifiers, keyboard->handle()->xkb_state, code);
     const QString &text = QXkbCommon::lookupString(keyboard->handle()->xkb_state, code);
+
     QKeyEvent e(et, qtkey, d->keyModifiers, keycode, code, keyboard->getModifiers(), text);
     WInputEvent::DataPointer data(new WInputEvent::Data);
     data->seat = this;
@@ -537,7 +542,7 @@ void WSeat::notifyKey(WInputDevice *device, uint32_t keycode,
     data->nativeEvent = &e;
     data->eventType = WInputEvent::KeyboardKey;
     WInputEvent we(data);
-    QCoreApplication::sendEvent(d->server, &we);
+    QCoreApplication::sendEvent(server(), &we);
 
     if (!we.isAccepted())
         d->doNotifyKey(device, keycode, state, timestamp);
@@ -571,7 +576,6 @@ void WSeat::create(WServer *server)
     W_D(WSeat);
     // destroy follow display
     m_handle = QWSeat::create(server->nativeInterface<QWDisplay>(), d->name.constData());
-    d->server = server;
     d->handle()->handle()->data = this;
     d->connect();
 
@@ -604,8 +608,6 @@ void WSeat::destroy(WServer *)
         d->handle()->handle()->data = nullptr;
         m_handle = nullptr;
     }
-
-    d->server = nullptr;
 }
 
 WAYLIB_SERVER_END_NAMESPACE

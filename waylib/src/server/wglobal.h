@@ -55,7 +55,7 @@
 #define W_QC(Class) Q_Q(const Class)
 #define W_PRIVATE_SLOT(Func) Q_PRIVATE_SLOT(d_func(), Func)
 
-#if defined(WLR_HAVE_VULKAN_RENDERER) && QT_CONFIG(vulkan) && QT_VERSION >= QT_VERSION_CHECK(6, 4, 0) && WLR_VERSION_MINOR >= 16
+#if defined(WLR_HAVE_VULKAN_RENDERER) && QT_CONFIG(vulkan) && WLR_VERSION_MINOR > 16
 #define ENABLE_VULKAN_RENDER
 #endif
 

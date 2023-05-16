@@ -61,12 +61,12 @@ public:
 
     W_DECLARE_PUBLIC(WXdgShell)
 
-    WServer *server = nullptr;
     QPointer<WSurfaceLayout> layout;
 };
 
 void WXdgShellPrivate::on_new_xdg_surface(wlr_xdg_surface *wlr_surface)
 {
+    auto server = q_func()->server();
     // TODO: QWXdgSurface::from(wlr_surface)
     QWXdgSurface *xdgSurface = QWXdgSurface::from(wlr_surface->surface);
     auto surface = new WXdgSurface(reinterpret_cast<WXdgSurfaceHandle*>(xdgSurface));
@@ -176,7 +176,6 @@ WXdgShell::WXdgShell(WSurfaceLayout *layout)
 void WXdgShell::create(WServer *server)
 {
     W_D(WXdgShell);
-    d->server = server;
     // free follow display
 
     auto xdg_shell = QWXdgShell::create(server->nativeInterface<QWDisplay>(), 2);
@@ -187,8 +186,7 @@ void WXdgShell::create(WServer *server)
 
 void WXdgShell::destroy(WServer *server)
 {
-    W_D(WXdgShell);
-    d->server = server;
+    Q_UNUSED(server);
 }
 
 WAYLIB_SERVER_END_NAMESPACE

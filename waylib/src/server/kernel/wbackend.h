@@ -47,8 +47,6 @@ public:
     QVector<WOutput*> outputList() const;
     QVector<WInputDevice*> inputDeviceList() const;
 
-    WServer *server() const;
-
 protected:
     void create(WServer *server) override;
     void destroy(WServer *server) override;

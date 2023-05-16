@@ -31,6 +31,7 @@
 #include "wquickrendercontrol.h"
 #include "wthreadutils.h"
 #include "utils/wtools.h"
+#include "platformplugin/qwlrootscreen.h"
 
 #include <qwoutput.h>
 #include <qwoutputlayout.h>
@@ -80,9 +81,7 @@ extern "C" {
 #include <qpa/qplatformcursor.h>
 #include <qpa/qwindowsysteminterface_p.h>
 #include <private/qsgrenderer_p.h>
-#if QT_VERSION_MAJOR >= 6
 #include <private/qsgrhisupport_p.h>
-#endif
 #include <private/qquickwindow_p.h>
 #include <private/qrhi_p.h>
 #include <private/qeglconvenience_p.h>
@@ -98,92 +97,6 @@ extern "C" {
 
 QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
-
-class Q_DECL_HIDDEN OutputGLContext : public QOpenGLContext {
-public:
-    OutputGLContext(WOutputPrivate *output, QObject *parent = nullptr)
-        : QOpenGLContext(parent)
-        , output(output)
-    {}
-    bool create();
-    void destroy();
-
-private:
-    WOutputPrivate *output;
-    friend class OutputGLPlatform;
-};
-
-class Q_DECL_HIDDEN OutputSurface : public QSurface
-{
-public:
-    class Platform : public QPlatformSurface
-    {
-    public:
-        Platform(OutputSurface *surface)
-            : QPlatformSurface(surface) {
-
-        }
-
-        QSurfaceFormat format() const override;
-        QPlatformScreen *screen() const override {
-            return nullptr;
-        }
-    };
-
-    OutputSurface(WOutputPrivate *output, SurfaceType type)
-        : QSurface(Offscreen)
-        , output(output)
-        , type(type)
-    {
-
-    }
-
-    static inline WOutputPrivate *getOutput(const QPlatformSurface *surface) {
-        return static_cast<const OutputSurface*>(surface->surface())->output;
-    }
-
-    void create() {
-        handle.reset(new Platform(this));
-    }
-
-    QSurfaceFormat format() const override {
-        return surfaceHandle()->format();
-    }
-    QPlatformSurface *surfaceHandle() const override {
-        return handle.get();
-    }
-
-    SurfaceType surfaceType() const override {
-        return type;
-    }
-
-    QSize size() const override;
-
-private:
-    friend class OutputGLPlatform;
-
-    QScopedPointer<Platform> handle;
-    WOutputPrivate *output;
-    SurfaceType type;
-};
-
-#if QT_VERSION_MAJOR < 6
-class Q_DECL_HIDDEN OutputRenderStage : public QQuickCustomRenderStage
-{
-public:
-    OutputRenderStage(QQuickWindowPrivate *w, const WOutputPrivate *output)
-        : window(w), output(output) {}
-
-    bool render() override;
-    bool swap() override {
-        return false;
-    }
-
-private:
-    QQuickWindowPrivate *window;
-    const WOutputPrivate *output;
-};
-#endif
 
 struct QScopedPointerPixmanRegion32Deleter {
     static inline void cleanup(pixman_region32_t *pointer) {
@@ -222,17 +135,13 @@ public:
     // end slot function
 
     void init();
-#if QT_VERSION_MAJOR >= 6
     bool initRCWithRhi();
-#endif
     void connect();
     void updateProjection();
     void maybeUpdateRenderTarget();
     void doSetCursor(const QCursor &cur);
     void setCursor(const QCursor &cur);
 
-    inline QScreen *ensureScreen();
-    inline QWindow *ensureRenderWindow();
     inline QCursor &ensureCursor();
 
     inline void processInputEvent(WInputEvent *event) {
@@ -245,7 +154,7 @@ public:
 
     inline void emitSizeChanged() {
         W_Q(WOutput);
-        auto screen = ensureScreen();
+        auto screen = rc->window()->screen();
         const QRect geo(q->position(), q->size());
         QWindowSystemInterface::handleScreenGeometryChange(screen, geo, geo);
         Q_EMIT q->sizeChanged();
@@ -320,10 +229,13 @@ public:
     }
 
     inline bool makeCurrent() {
-        if (context)
-            return context->makeCurrent(surface);
-
-        return attachRender();
+        if (context) {
+            if (QOpenGLContext::currentContext() == context)
+                return true;
+            return context->makeCurrent(rc->window());
+        } else {
+            return attachRender();
+        }
     }
 
     inline void doneCurrent() {
@@ -357,11 +269,11 @@ public:
     W_DECLARE_PUBLIC(WOutput)
 
     QPointer<QWOutput> handle;
+    QWlrootsScreen *screen = nullptr;
 
     WBackend *backend = nullptr;
-    WQuickRenderControl *rc = nullptr;
-    OutputGLContext *context = nullptr;
-    OutputSurface *surface = nullptr;
+    QQuickRenderControl *rc = nullptr;
+    QOpenGLContext *context = nullptr;
     WOutputLayout *layout = nullptr;
 #ifndef WAYLIB_DISABLE_OUTPUT_DAMAGE
     WOutputDamage *damage = nullptr;
@@ -387,397 +299,9 @@ public:
     WInputEvent *currentInputEvent = nullptr;
 
     QMatrix4x4 projection;
-    QSurfaceFormat format;
 
     WSignalConnector sc;
 };
-
-class Q_DECL_HIDDEN OutputGLPlatform : public QPlatformOpenGLContext {
-public:
-    void initialize() override {
-
-    }
-    QSurfaceFormat format() const override {
-        return static_cast<OutputGLContext*>(m_context)->output->format;
-    }
-
-    void swapBuffers(QPlatformSurface *surface) override {
-        if (auto *output = OutputSurface::getOutput(surface)) {
-            output->handle->commit();
-        }
-    }
-    GLuint defaultFramebufferObject(QPlatformSurface *surface) const override {
-        if (auto *output = OutputSurface::getOutput(surface)) {
-            if (!wlr_renderer_is_gles2(output->renderer()->handle()))
-                return 0;
-
-            return wlr_gles2_renderer_get_current_fbo(output->renderer()->handle());
-        }
-
-        return 0;
-    }
-
-    bool makeCurrent(QPlatformSurface *surface) override {
-        if (auto *output = OutputSurface::getOutput(surface)) {
-            return output->attachRender();
-        }
-
-        return false;
-    }
-    void doneCurrent() override {
-        if (auto *output = OutputSurface::getOutput(m_context->surface()->surfaceHandle())) {
-            output->detachRender();
-        }
-    }
-
-    QFunctionPointer getProcAddress(const char *procName) override {
-        return eglGetProcAddress(procName);
-    }
-
-    void setContext(QOpenGLContext *context) {
-        m_context = context;
-    }
-
-private:
-    QOpenGLContext *m_context = nullptr;
-};
-
-#ifdef ENABLE_VULKAN_RENDER
-class Q_DECL_HIDDEN WLRVulkanInstance : public QBasicPlatformVulkanInstance
-{
-public:
-    WLRVulkanInstance(QVulkanInstance *instance)
-        : m_instance(instance)
-    {
-        loadVulkanLibrary(QStringLiteral("vulkan"), 1);
-    }
-
-    void createOrAdoptInstance() override {
-        initInstance(m_instance, {});
-    }
-
-private:
-    QVulkanInstance *m_instance;
-};
-#endif
-
-class Q_DECL_HIDDEN WLRCursor : public QPlatformCursor
-{
-public:
-    WLRCursor(WOutputPrivate *output)
-        : output(output) {}
-
-    ~WLRCursor() {
-
-    }
-    // input methods
-//    void pointerEvent(const QMouseEvent & event) { Q_UNUSED(event); }
-#ifndef QT_NO_CURSOR
-    void changeCursor(QCursor *windowCursor, QWindow * ) override {
-        if (windowCursor)
-            output->setCursor(*windowCursor);
-        else
-            output->setCursor(WCursor::defaultCursor()); // default type
-    }
-    void setOverrideCursor(const QCursor &cursor) override {
-        output->setCursor(cursor);
-    }
-    void clearOverrideCursor() override {
-
-    }
-#endif // QT_NO_CURSOR
-    QPoint pos() const override {
-        return QPoint();
-    }
-    void setPos(const QPoint &) override {
-    }
-    QSize size() const override {
-        return QSize();
-    }
-
-private:
-    WOutputPrivate *output;
-};
-
-class Q_DECL_HIDDEN OutputScreen : public QPlatformScreen
-{
-public:
-    OutputScreen(WOutputPrivate *output)
-        : output(output) {}
-
-//    virtual bool isPlaceholder() const { return false; }
-
-//    virtual QPixmap grabWindow(WId window, int x, int y, int width, int height) const;
-
-    QRect geometry() const override {
-        return QRect(output->q_func()->position(), output->size());
-    }
-//    virtual QRect availableGeometry() const {return geometry();}
-
-    int depth() const override {
-        return QImage::toPixelFormat(format()).bitsPerPixel();
-    }
-    QImage::Format format() const override {
-        auto f = output->handle->preferredReadFormat();
-        switch (f) {
-        case DRM_FORMAT_C8:
-            return QImage::Format_Indexed8;
-        case DRM_FORMAT_XRGB4444:
-            return QImage::Format_RGB444;
-        case DRM_FORMAT_ARGB4444:
-            return QImage::Format_ARGB4444_Premultiplied;
-        case DRM_FORMAT_XRGB1555:
-            return QImage::Format_RGB555;
-        case DRM_FORMAT_ARGB1555:
-            return QImage::Format_ARGB8555_Premultiplied;
-        case DRM_FORMAT_RGB565:
-            return QImage::Format_RGB16;
-        case DRM_FORMAT_RGB888:
-            return QImage::Format_RGB888;
-        case DRM_FORMAT_BGR888:
-            return QImage::Format_BGR888;
-        case DRM_FORMAT_XRGB8888:
-            return QImage::Format_RGB32;
-        case DRM_FORMAT_RGBX8888:
-            return QImage::Format_RGBX8888;
-        case DRM_FORMAT_ARGB8888:
-            return QImage::Format_ARGB32_Premultiplied;
-        case DRM_FORMAT_RGBA8888:
-            return QImage::Format_RGBA8888;
-        case DRM_FORMAT_XRGB2101010:
-            return QImage::Format_RGB30;
-        case DRM_FORMAT_BGRX1010102:
-            return QImage::Format_BGR30;
-        case DRM_FORMAT_ARGB2101010:
-            return QImage::Format_A2RGB30_Premultiplied;
-        case DRM_FORMAT_BGRA1010102:
-            return QImage::Format_A2BGR30_Premultiplied;
-        default:
-            return QImage::Format_Invalid;
-        }
-    }
-
-    QSizeF physicalSize() const override {
-        return QSizeF(output->handle->handle()->phys_width, output->handle->handle()->phys_height);
-    }
-//    QDpi logicalDpi() const;
-//    QDpi logicalBaseDpi() const;
-    qreal devicePixelRatio() const override {
-        return output->handle->handle()->scale;
-    }
-#if QT_VERSION_MAJOR < 6
-    qreal pixelDensity()  const override {
-        return 1.0;
-    }
-#endif
-
-    qreal refreshRate() const override {
-        if (!output->handle->handle()->current_mode)
-            return 60;
-        return output->handle->handle()->current_mode->refresh;
-    }
-
-    Qt::ScreenOrientation nativeOrientation() const override {
-        return output->handle->handle()->phys_width > output->handle->handle()->phys_height ?
-                    Qt::LandscapeOrientation : Qt::PortraitOrientation;
-    }
-    Qt::ScreenOrientation orientation() const override {
-        bool isPortrait = nativeOrientation() == Qt::PortraitOrientation;
-        switch (output->handle->handle()->transform) {
-        case WL_OUTPUT_TRANSFORM_NORMAL:
-            return isPortrait ? Qt::PortraitOrientation : Qt::LandscapeOrientation;;
-        case WL_OUTPUT_TRANSFORM_90:
-            return isPortrait ? Qt::InvertedLandscapeOrientation : Qt::PortraitOrientation;
-        case WL_OUTPUT_TRANSFORM_180:
-            return isPortrait ? Qt::InvertedPortraitOrientation : Qt::InvertedLandscapeOrientation;
-        case WL_OUTPUT_TRANSFORM_270:
-            return isPortrait ? Qt::LandscapeOrientation : Qt::InvertedPortraitOrientation;
-        default:
-            break;
-        }
-
-        return Qt::PrimaryOrientation;
-    }
-
-    QWindow *topLevelAt(const QPoint &) const override {
-        return output->q_func()->attachedWindow();
-    }
-
-//    virtual QList<QPlatformScreen *> virtualSiblings() const;
-
-    QString name() const override {
-        return QString::fromUtf8(output->handle->handle()->name);
-    }
-
-    QString manufacturer() const override {
-        return QString::fromUtf8(output->handle->handle()->make);
-    }
-    QString model() const override {
-        return QString::fromUtf8(output->handle->handle()->model);
-    }
-    QString serialNumber() const override {
-        return QString::fromUtf8(output->handle->handle()->serial);
-    }
-
-    QPlatformCursor *cursor() const override {
-        if (!m_cursor)
-            const_cast<OutputScreen*>(this)->m_cursor.reset(new WLRCursor(output));
-
-        return m_cursor.get();
-    }
-    SubpixelAntialiasingType subpixelAntialiasingTypeHint() const override {
-        switch (output->handle->handle()->subpixel) {
-        case WL_OUTPUT_SUBPIXEL_HORIZONTAL_RGB:
-            return Subpixel_RGB;
-        case WL_OUTPUT_SUBPIXEL_HORIZONTAL_BGR:
-            return Subpixel_BGR;
-        case WL_OUTPUT_SUBPIXEL_VERTICAL_RGB:
-            return Subpixel_VRGB;
-        case WL_OUTPUT_SUBPIXEL_VERTICAL_BGR:
-            return Subpixel_VBGR;
-        default:
-            break;
-        }
-
-        return Subpixel_None;
-    }
-
-    PowerState powerState() const override {
-        return output->handle->handle()->enabled ? PowerStateOn : PowerStateOff;
-    }
-    void setPowerState(PowerState) override {
-
-    }
-
-    QVector<Mode> modes() const override {
-        QVector<Mode> modes;
-        struct wlr_output_mode *mode;
-        wl_list_for_each(mode, &output->handle->handle()->modes, link) {
-            modes << Mode {QSize(mode->width, mode->height), static_cast<qreal>(mode->refresh)};
-        }
-
-        return modes;
-    }
-
-    int currentMode() const override {
-        int index = 0;
-        struct wlr_output_mode *current = output->handle->handle()->current_mode;
-        struct wlr_output_mode *mode;
-        wl_list_for_each(mode, &output->handle->handle()->modes, link) {
-            if (current == mode)
-                return index;
-            ++index;
-        }
-
-        return 0;
-    }
-
-    int preferredMode() const override {
-        int index = 0;
-        struct wlr_output_mode *mode;
-        wl_list_for_each(mode, &output->handle->handle()->modes, link) {
-            if (mode->preferred)
-                return index;
-            ++index;
-        }
-
-        return 0;
-    }
-
-private:
-    WOutputPrivate *output;
-    QScopedPointer<WLRCursor> m_cursor;
-    friend class WOutput;
-};
-
-class Q_DECL_HIDDEN OutputWindow : public QPlatformWindow
-{
-public:
-    OutputWindow(QWindow *w, WOutputPrivate *output)
-        : QPlatformWindow(w)
-        , output(output)
-    {
-
-    }
-
-    qreal devicePixelRatio() const override {
-        return output->handle->handle()->scale;
-    }
-
-private:
-    WOutputPrivate *output;
-    friend class WOutput;
-};
-
-QSurfaceFormat OutputSurface::Platform::format() const
-{
-    return static_cast<OutputSurface*>(surface())->output->format;
-}
-
-bool OutputGLContext::create()
-{
-    auto d = static_cast<QOpenGLContextPrivate*>(d_ptr.data());
-    auto p = new OutputGLPlatform();
-    d->platformGLContext = p;
-    p->setContext(this);
-    d->platformGLContext->initialize();
-    if (!d->platformGLContext->isSharing())
-        d->shareContext = nullptr;
-    d->shareGroup = d->shareContext ? d->shareContext->shareGroup() : new QOpenGLContextGroup;
-    d->shareGroup->d_func()->addContext(this);
-    return isValid();
-}
-
-void OutputGLContext::destroy()
-{
-    output = nullptr;
-
-    auto d = static_cast<QOpenGLContextPrivate*>(d_ptr.data());
-    if (d->platformGLContext)
-        emit aboutToBeDestroyed();
-
-    delete d->platformGLContext;
-    d->platformGLContext = nullptr;
-}
-
-QSize OutputSurface::size() const
-{
-    return output->size();
-}
-
-#if QT_VERSION_MAJOR < 6
-bool OutputRenderStage::render()
-{
-    auto q = window->q_func();
-    const int fboId = window->renderTargetId;
-    const qreal devicePixelRatio = q->effectiveDevicePixelRatio();
-    if (Q_UNLIKELY(fboId)) {
-        QRect rect(QPoint(0, 0), window->renderTargetSize);
-        window->renderer->setDeviceRect(rect);
-        window->renderer->setViewportRect(rect);
-        if (QQuickRenderControl::renderWindowFor(q)) {
-            auto size = q->size();
-            window->renderer->setProjectionMatrixToRect(QRect(QPoint(0, 0), size));
-            window->renderer->setDevicePixelRatio(devicePixelRatio);
-        } else {
-            window->renderer->setProjectionMatrixToRect(QRect(QPoint(0, 0), rect.size()));
-            window->renderer->setDevicePixelRatio(1);
-        }
-    } else {
-        auto size = output->size();
-        window->renderer->setDeviceRect(size);
-        window->renderer->setViewportRect(size);
-        window->renderer->setProjectionMatrix(output->projection);
-        window->renderer->setDevicePixelRatio(devicePixelRatio);
-    }
-
-    if (Q_UNLIKELY(window->rhi))
-        window->context->renderNextRhiFrame(window->renderer);
-    else
-        window->context->renderNextFrame(window->renderer, fboId);
-    return true;
-}
-#endif
 
 #ifndef WAYLIB_DISABLE_OUTPUT_DAMAGE
 void WOutputPrivate::on_damage_frame(void *)
@@ -819,57 +343,20 @@ void WOutputPrivate::init()
     connect();
 
     updateProjection();
-    rc->window = ensureRenderWindow();
 
-    if (wlr_renderer_is_pixman(renderer()->handle())) {
-#if QT_VERSION_MAJOR < 6
-        rc->initialize(nullptr);
-#endif
-    }
 #ifdef ENABLE_VULKAN_RENDER
-    else if (wlr_renderer_is_vk(renderer()->handle())) {
+    if (wlr_renderer_is_vk(renderer()->handle())) {
         bool initOK = initRCWithRhi();
         Q_ASSERT(initOK);
-    }
+    } else
 #endif
-    else if (wlr_renderer_is_gles2(renderer()->handle())) {
-        format.setRenderableType(QSurfaceFormat::OpenGLES);
-        auto egl = wlr_gles2_renderer_get_egl(renderer()->handle());
-#if WLR_VERSION_MINOR > 15
-        auto display = wlr_egl_get_display(egl);
-#else
-        auto display = egl->display;
-#endif
-        auto eglConfig = q_configFromGLFormat(display, format, false, EGL_WINDOW_BIT);
-        if (!eglConfig)
-            format = q_glFormatFromConfig(display, eglConfig, format);
-
-        if (!surface) {
-            surface = new OutputSurface(this, QSurface::OpenGLSurface);
-            surface->create();
-        }
-
-        if (!context) {
-            context = new OutputGLContext(this, rc);
-            context->create();
-        }
-
-#if QT_VERSION_MAJOR < 6
-        if (!context->makeCurrent(surface)) {
-            qFatal("WOutput create failed");
-        }
-
-        rc->initialize(context);
-        context->doneCurrent();
-#else
+    if (wlr_renderer_is_gles2(renderer()->handle())) {
         bool initOK = initRCWithRhi();
         Q_ASSERT(initOK);
-#endif
     } else {
         qFatal("Not supported renderer");
     }
 
-    q->attachedWindow()->setScreen(ensureScreen());
     /* Ensure call the "requestRender" on later via Qt::QueuedConnection, if not will crash
     at "Q_ASSERT(prevDirtyItem)" in the QQuickItem, because the QQuickRenderControl::render
     will trigger the QQuickWindow::sceneChanged signal that trigger the
@@ -896,7 +383,6 @@ void WOutputPrivate::init()
     render();
 }
 
-#if QT_VERSION_MAJOR >= 6
 inline static QByteArrayList fromCStyleList(size_t count, const char **list) {
     QByteArrayList al;
     al.reserve(count);
@@ -909,27 +395,25 @@ inline static QByteArrayList fromCStyleList(size_t count, const char **list) {
 bool WOutputPrivate::initRCWithRhi()
 {
     QQuickRenderControlPrivate *rcd = QQuickRenderControlPrivate::get(rc);
-    Q_ASSERT(!rcd->rhi);
-
     QSGRhiSupport *rhiSupport = QSGRhiSupport::instance();
 
     // sanity check for Vulkan
 #ifdef ENABLE_VULKAN_RENDER
     if (rhiSupport->rhiBackend() == QRhi::Vulkan) {
         vkInstance.reset(new QVulkanInstance());
-        auto vid = QVulkanInstancePrivate::get(vkInstance.data());
-        vid->platformInst.reset(new WLRVulkanInstance(vkInstance.data()));
-        vkInstance->create();
 
-        auto instance = wlr_vk_renderer_get_instance(renderer()->handle());
         auto phdev = wlr_vk_renderer_get_physical_device(renderer()->handle());
         auto dev = wlr_vk_renderer_get_device(renderer()->handle());
         auto queue_family = wlr_vk_renderer_get_queue_family(renderer()->handle());
 
+#if QT_VERSION > QT_VERSION_CHECK(6, 6, 0)
+        auto instance = wlr_vk_renderer_get_instance(renderer()->handle());
         vkInstance->setVkInstance(instance);
+#endif
 //        vkInstance->setExtensions(fromCStyleList(vkRendererAttribs.extension_count, vkRendererAttribs.extensions));
 //        vkInstance->setLayers(fromCStyleList(vkRendererAttribs.layer_count, vkRendererAttribs.layers));
         vkInstance->setApiVersion({1, 1, 0});
+        vkInstance->create();
         rcd->window->setVulkanInstance(vkInstance.data());
 
         auto gd = QQuickGraphicsDevice::fromDeviceObjects(phdev, dev, queue_family);
@@ -937,16 +421,19 @@ bool WOutputPrivate::initRCWithRhi()
     } else
 #endif
     if (rhiSupport->rhiBackend() == QRhi::OpenGLES2) {
+        context = new QOpenGLContext(rc);
+        context->setObjectName(QT_STRINGIFY(WAYLIB_SERVER_NAMESPACE));
+        context->setScreen(rc->window()->screen());
+        bool ok = context->create();
+        if (!ok)
+            return false;
+
         rcd->window->setGraphicsDevice(QQuickGraphicsDevice::fromOpenGLContext(context));
     } else {
         qFatal("Not supported RHI backend: %s", qPrintable(rhiSupport->rhiBackendName()));
     }
 
-    // See https://codereview.qt-project.org/c/qt/qtbase/+/404163, the QRhi isn't depend QOffscreenSurface,
-    // So we can use the QSurface simulate the QOffscreenSurface.
-    auto os = static_cast<QOffscreenSurface*>(static_cast<QSurface*>(surface));
-#if QT_VERSION >= QT_VERSION_CHECK(6, 3, 0)
-    QSGRhiSupport::RhiCreateResult result = rhiSupport->createRhi(rcd->window, os);
+    QSGRhiSupport::RhiCreateResult result = rhiSupport->createRhi(rcd->window, rcd->window);
     if (!result.rhi) {
         qWarning("WOutput::initRhi: Failed to initialize QRhi");
         return false;
@@ -959,22 +446,9 @@ bool WOutputPrivate::initRCWithRhi()
         return false;
     rcd->ownRhi = result.own;
     Q_ASSERT(rcd->rhi == result.rhi);
-#else
-    auto rhi = rhiSupport->createRhi(rcd->window, os);
-    if (!rhi) {
-        qWarning("WOutput::initRhi: Failed to initialize QRhi");
-        return false;
-    }
-
-    rcd->rhi = rhi;
-    if (!rc->initialize())
-        return false;
-    Q_ASSERT(rcd->rhi == rhi);
-#endif
 
     return true;
 }
-#endif
 
 void WOutputPrivate::connect()
 {
@@ -1049,17 +523,8 @@ void WOutputPrivate::maybeUpdateRenderTarget()
         Q_ASSERT(!paintDevice.isNull());
         paintDevice.setDevicePixelRatio(handle->handle()->pending.scale);
 
-#if QT_VERSION < QT_VERSION_CHECK(6, 4, 0)
-        W_QC(WOutput);
-        auto quick_window = q->attachedWindow();
-        auto wd = QQuickWindowPrivate::get(quick_window);
-        auto qt_renderer = dynamic_cast<QSGSoftwareRenderer*>(wd->renderer);
-        Q_ASSERT(qt_renderer);
-        qt_renderer->setCurrentPaintDevice(&paintDevice);
-#else
         auto rt = QQuickRenderTarget::fromPaintDevice(&paintDevice);
         rc->QQuickRenderControl::window()->setRenderTarget(rt);
-#endif
     }
 #ifdef ENABLE_VULKAN_RENDER
     else if (vkInstance) {
@@ -1070,18 +535,15 @@ void WOutputPrivate::maybeUpdateRenderTarget()
     }
 #endif
     else if (context) {
-#if QT_VERSION_MAJOR >= 6
         GLint rbo = 0;
         glGetFramebufferAttachmentParameteriv(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
                                               GL_FRAMEBUFFER_ATTACHMENT_OBJECT_NAME, &rbo);
-        Q_ASSERT(rbo != 0);
-        auto rt = QQuickRenderTarget::fromOpenGLRenderBuffer(rbo, size());
-#if QT_VERSION < QT_VERSION_CHECK(6, 4, 0)
-#error "The version of Qt library cannot be lower than 6.4.0"
-#endif
-        rt.setMirrorVertically(true);
-        rc->QQuickRenderControl::window()->setRenderTarget(rt);
-#endif
+
+        if (rbo) {
+            auto rt = QQuickRenderTarget::fromOpenGLRenderBuffer(rbo, size());
+            rt.setMirrorVertically(true);
+            rc->QQuickRenderControl::window()->setRenderTarget(rt);
+        }
     }
 }
 
@@ -1098,50 +560,6 @@ void WOutputPrivate::doSetCursor(const QCursor &cur)
 void WOutputPrivate::setCursor(const QCursor &cur)
 {
     backend->server()->threadUtil()->run(this, &WOutputPrivate::doSetCursor, cur);
-}
-
-QScreen *WOutputPrivate::ensureScreen()
-{
-    W_Q(WOutput);
-    auto attached_window = q->attachedWindow();
-    auto screen = attached_window->findChild<QScreen*>("_d_dwoutput_screen");
-    if (!screen) {
-        screen = new QScreen(new OutputScreen(this));
-        screen->setObjectName("_d_dwoutput_screen");
-        // Ensure the screen and the view window is in the same thread
-        screen->moveToThread(attached_window->thread());
-        screen->QObject::setParent(attached_window);
-        Q_ASSERT(screen->parent() == attached_window);
-    }
-
-    return screen;
-}
-
-QWindow *WOutputPrivate::ensureRenderWindow()
-{
-    W_Q(WOutput);
-    auto attached_window = q->attachedWindow();
-    auto renderWindow = qvariant_cast<QWindow*>(attached_window->property("_d_dwoutput_render_window"));
-    if (!renderWindow) {
-        renderWindow = new QWindow();
-        // Don't should manager the renderWindow in QGuiApplication
-        QGuiApplicationPrivate::window_list.removeOne(renderWindow);
-        renderWindow->setObjectName("_d_dwoutput_render_window");
-        // Ensure the renderWindow and the view window is in the same thread
-        renderWindow->moveToThread(attached_window->thread());
-        Q_ASSERT(renderWindow->thread() == attached_window->thread());
-        bool connected = QObject::connect(attached_window, &QObject::destroyed,
-                                          renderWindow, [renderWindow] {
-            delete renderWindow;
-        });
-        Q_ASSERT(connected);
-        attached_window->setProperty("_d_dwoutput_render_window", QVariant::fromValue(renderWindow));
-        auto wd = QWindowPrivate::get(renderWindow);
-        wd->platformWindow = new OutputWindow(renderWindow, this);
-        wd->connectToScreen(ensureScreen());
-    }
-
-    return renderWindow;
 }
 
 QCursor &WOutputPrivate::ensureCursor()
@@ -1178,19 +596,16 @@ bool WOutputPrivate::doRender()
     contentIsDirty = false;
 #endif
     {
+        // TODO: In Qt GUI thread
         rc->polishItems();
 
-#if QT_VERSION_MAJOR >= 6
         rc->beginFrame();
-#endif
         rc->sync();
 
         maybeUpdateRenderTarget();
         // TODO: use scissor with the damage regions for render.
         rc->render();
-#if QT_VERSION_MAJOR >= 6
         rc->endFrame();
-#endif
     }
 
     if (!handle->handle()->hardware_cursor) {
@@ -1204,9 +619,6 @@ bool WOutputPrivate::doRender()
         handle->renderSoftwareCursors(nullptr);
         renderer()->end();
     }
-
-    if (context)
-        context->functions()->glFlush();
 
 #ifndef WAYLIB_DISABLE_OUTPUT_DAMAGE
     const QSize size = transformedSize();
@@ -1235,7 +647,7 @@ bool WOutputPrivate::doRender()
         }
 
         if (Q_UNLIKELY(dirtyFlags & WLR_OUTPUT_STATE_TRANSFORM)) {
-            auto screen = ensureScreen();
+            auto screen = rc->window()->screen();
             QWindowSystemInterface::handleScreenOrientationChange(screen,
                                                                   screen->handle()->orientation());
             Q_EMIT q->orientationChanged();
@@ -1248,7 +660,7 @@ bool WOutputPrivate::doRender()
 
         if (Q_UNLIKELY(dirtyFlags & WLR_OUTPUT_STATE_SCALE)) {
             Q_EMIT q->scaleChanged();
-            auto screen = ensureScreen();
+            auto screen = rc->window()->screen();
             // Notify for the window device pixel ratio to changed
             QWindowSystemInterface::handleScreenLogicalDotsPerInchChange(screen,
                                                                          screen->logicalDotsPerInchX(),
@@ -1291,34 +703,13 @@ bool WOutput::isValid() const
     return d->rc;
 }
 
-void WOutput::attach(WQuickRenderControl *control)
+void WOutput::attach(QQuickRenderControl *control)
 {
     W_D(WOutput);
 
-    auto thread = this->thread();
     d->rc = control;
-    d->rc->prepareThread(thread);
-
-    auto window = attachedWindow();
-    Q_ASSERT(window);
-#ifdef D_WM_MAIN_THREAD_QTQUICK
-    Q_ASSERT(!d->inWindowThread);
-#endif
-    auto wd = QQuickWindowPrivate::get(window);
-    Q_ASSERT(!wd->platformWindow);
-
-    d->ensureRenderWindow();
-    d->ensureScreen();
-
-#if QT_VERSION_MAJOR < 6
-    wd->customRenderStage = new OutputRenderStage(wd, d);
-#endif
-#ifdef D_WM_MAIN_THREAD_QTQUICK
-    d->server->threadUtils()->run(this, d, &WOutputPrivate::init);
-#else
-    Q_ASSERT(thread == QThread::currentThread());
+    d->rc->prepareThread(backend()->server()->thread());
     d->init();
-#endif
 }
 
 void WOutput::detach()
@@ -1333,25 +724,11 @@ void WOutput::detach()
         w->destroy();
         w->setScreen(nullptr);
 
-        d->makeCurrent();
         d->rc->invalidate();
+        delete d->rc;
         d->rc = nullptr;
-        d->doneCurrent();
     }
 
-    if (d->surface) {
-        delete d->surface;
-        d->surface = nullptr;
-    }
-
-    if (d->context) {
-        d->context->destroy();
-        d->context = nullptr;
-    }
-
-#ifdef D_WM_MAIN_THREAD_QTQUICK
-    d->inWindowThread.reset();
-#endif
     d->currentBuffer = nullptr;
 }
 
@@ -1369,12 +746,12 @@ WOutput *WOutput::fromHandle(const WOutputHandle *handle)
 
 WOutput *WOutput::fromScreen(const QScreen *screen)
 {
-    return static_cast<OutputScreen*>(screen->handle())->output->q_func();
+    return fromHandle(static_cast<QWlrootsScreen*>(screen->handle())->output());
 }
 
 WOutput *WOutput::fromWindow(const QWindow *window)
 {
-    return static_cast<OutputWindow*>(window->handle())->output->q_func();
+    return fromScreen(window->screen());
 }
 
 void WOutput::requestRender()
@@ -1383,6 +760,18 @@ void WOutput::requestRender()
     if (!d->handle)
         return;
     d->render();
+}
+
+void WOutput::setScreen(QWlrootsScreen *screen)
+{
+    W_D(WOutput);
+    d->screen = screen;
+}
+
+QWlrootsScreen *WOutput::screen() const
+{
+    W_DC(WOutput);
+    return d->screen;
 }
 
 void WOutput::rotate(Transform t)
@@ -1457,7 +846,7 @@ QQuickWindow *WOutput::attachedWindow() const
 
     if (Q_UNLIKELY(!d->rc))
         return nullptr;
-    return d->rc->d_func()->window;
+    return d->rc->window();
 }
 
 void WOutput::setLayout(WOutputLayout *layout)
@@ -1503,20 +892,9 @@ QVector<WCursor *> WOutput::cursorList() const
 void WOutput::postInputEvent(WInputEvent *event)
 {
     W_D(WOutput);
-#ifdef D_WM_MAIN_THREAD_QTQUICK
-    auto object = d->ensureEventObject();
 
-    if (Q_UNLIKELY(QThread::currentThread() == object->thread())) {
-        d->processInputEvent(event);
-        delete event;
-        return;
-    }
-
-    QCoreApplication::postEvent(object, event);
-#else
     d->processInputEvent(event);
     delete event;
-#endif
 }
 
 WInputEvent *WOutput::currentInputEvent() const
