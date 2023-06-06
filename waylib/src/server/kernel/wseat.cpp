@@ -1,30 +1,12 @@
-/*
- * Copyright (C) 2021 zkyd
- *
- * Author:     zkyd <zkyd@zjide.org>
- *
- * Maintainer: zkyd <zkyd@zjide.org>
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Lesser General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU Lesser General Public License
- * along with this program. If not, see <http://www.gnu.org/licenses/>.
- */
+// Copyright (C) 2023 JiDe Zhang <zhangjide@deepin.org>.
+// SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
+
 #include "wseat.h"
 #include "wcursor.h"
 #include "winputdevice.h"
 #include "wsignalconnector.h"
 #include "woutput.h"
 #include "wsurface.h"
-#include "wthreadutils.h"
 #include "platformplugin/qwlrootsintegration.h"
 
 #include <qwseat.h>
@@ -48,7 +30,7 @@ extern "C" {
 QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
-QEvent::Type WInputEvent::m_type = static_cast<QEvent::Type>(QEvent::registerEventType());
+//QEvent::Type WInputEvent::m_type = static_cast<QEvent::Type>(QEvent::registerEventType());
 
 class WSeatPrivate : public WObjectPrivate
 {
@@ -64,24 +46,12 @@ public:
         return q_func()->nativeInterface<QWSeat>();
     }
 
-    inline void postEvent(WOutput *output, void *nativeEvent, WInputEvent::Type type,
-                          WInputDevice *device, WCursor *cursor = nullptr) const {
-        WInputEvent::DataPointer data(new WInputEvent::Data);
-        data->seat = const_cast<WSeat*>(q_func());
-        data->device = device;
-        data->nativeEvent = nativeEvent;
-        data->cursor = cursor;
-        data->eventType = type;
-        WInputEvent *we = new WInputEvent(data);
-        output->postInputEvent(we);
-    }
-
     inline bool shouldNotifyPointerEvent(WCursor *cursor) {
         if (!hoverSurface)
             return false;
-        auto output = cursor->mappedOutput();
-        if (Q_LIKELY(output)) {
-            auto item = output->attachedWindow()->mouseGrabberItem();
+        auto w = cursor->eventWindow();
+        if (Q_LIKELY(w)) {
+            auto item = w->mouseGrabberItem();
             if (Q_UNLIKELY(item && item->keepMouseGrab()))
                 return false;
         }
@@ -91,10 +61,9 @@ public:
     inline void doNotifyMotion(const WCursor *cursor, WInputDevice *device,
                                uint32_t timestamp) {
         Q_UNUSED(device)
-        qreal scale = cursor->mappedOutput()->scale();
-        auto pos = cursor->position();
+        auto pos = hoverSurface->mapFromGlobal(cursor->position());
         // Get a valid wlr_surface object by the input region of the client
-        auto target_surface = hoverSurface->nativeInputTargetAt<wlr_surface>(scale, pos);
+        auto target_surface = hoverSurface->nativeInputTargetAt<wlr_surface>(pos);
         if (Q_UNLIKELY(!target_surface)) {
             // Because the doNotifyMotion will received the event on before the WQuickItem, so
             // when the mouse move form the window edges to outside of the event area of the
@@ -133,22 +102,18 @@ public:
         Q_UNUSED(cursor);
         wlr_seat_pointer_notify_frame(handle()->handle());
     }
-    inline void doEnter(WSurface *surface, WInputEvent::DataPointer data) {
+    inline void doEnter(WSurface *surface) {
         hoverSurface = surface;
-        qreal scale = data->cursor->mappedOutput()->scale();
-        auto pos = data->cursor->position();
-        auto target_surface = surface->nativeInputTargetAt<wlr_surface>(scale, pos);
+        auto pos = surface->mapFromGlobal(cursor->position());
+        auto target_surface = surface->nativeInputTargetAt<wlr_surface>(pos);
         // When the hoverSuface is exists, indicate the event receive areas is filtered
         // by the WQuickItem, so the target_suface should always is not nullptr.
         Q_ASSERT(target_surface);
         wlr_seat_pointer_notify_enter(handle()->handle(), target_surface, pos.x(), pos.y());
     }
-    inline void doClearFocus(WInputEvent::DataPointer data) {
+    inline void doClearFocus() {
         hoverSurface = nullptr;
         wlr_seat_pointer_notify_clear_focus(handle()->handle());
-        // Should do restore to the Qt window's cursor when the cursor from 
-        // the surface of client move out.
-        data->cursor->reset();
     }
     inline void doSetKeyboardFocus(wlr_surface *surface) {
         if (surface) {
@@ -308,14 +273,26 @@ WSeat *WSeat::fromHandle(const void *handle)
     return reinterpret_cast<WSeat*>(wlr_handle->data);
 }
 
-void WSeat::attachCursor(WCursor *cursor)
+void WSeat::setCursor(WCursor *cursor)
 {
     W_D(WSeat);
-    Q_ASSERT(!cursor->seat());
-    Q_ASSERT(d->cursor == cursor || !d->cursor);
+
+    if (d->cursor == cursor)
+        return;
+
+    Q_ASSERT(!cursor || !cursor->seat());
+
+    if (d->cursor) {
+        Q_FOREACH(auto i, d->deviceList) {
+            d->cursor->detachInputDevice(i);
+        }
+
+        d->cursor->setSeat(nullptr);
+    }
+
     d->cursor = cursor;
 
-    if (isValid()) {
+    if (isValid() && cursor) {
         cursor->setSeat(this);
 
         Q_FOREACH(auto i, d->deviceList) {
@@ -324,19 +301,7 @@ void WSeat::attachCursor(WCursor *cursor)
     }
 }
 
-void WSeat::detachCursor(WCursor *cursor)
-{
-    W_D(WSeat);
-    Q_ASSERT(d->cursor == cursor);
-    cursor->setSeat(nullptr);
-    d->cursor = nullptr;
-
-    Q_FOREACH(auto i, d->deviceList) {
-        cursor->detachInputDevice(i);
-    }
-}
-
-WCursor *WSeat::attachedCursor() const
+WCursor *WSeat::cursor() const
 {
     W_DC(WSeat);
     return d->cursor;
@@ -379,23 +344,17 @@ void WSeat::detachInputDevice(WInputDevice *device)
     QWlrootsIntegration::instance()->removeInputDevice(device);
 }
 
-void WSeat::notifyEnterSurface(WSurface *surface, WInputEvent *event)
+void WSeat::notifyEnterSurface(WSurface *surface)
 {
     W_D(WSeat);
-    // Do async call that the event maybe to destroyed later, so should
-    // use the data of event instead of the event self.
-    server()->threadUtil()->run(surface, d, &WSeatPrivate::doEnter,
-                                 surface, event->data);
+    d->doEnter(surface);
 }
 
-void WSeat::notifyLeaveSurface(WSurface *surface, WInputEvent *event)
+void WSeat::notifyLeaveSurface(WSurface *surface)
 {
-    Q_UNUSED(event)
     W_D(WSeat);
     Q_ASSERT(d->hoverSurface == surface);
-    // Do async call that the event maybe to destroyed later, so should
-    // use the data of event instead of the event self.
-    server()->threadUtil()->run(server(), d, &WSeatPrivate::doClearFocus, event->data);
+    d->doClearFocus();
 }
 
 WSurface *WSeat::hoverSurface() const
@@ -407,8 +366,7 @@ WSurface *WSeat::hoverSurface() const
 void WSeat::setKeyboardFocusTarget(WSurfaceHandle *nativeSurface)
 {
     W_D(WSeat);
-    server()->threadUtil()->run(server(), d, &WSeatPrivate::doSetKeyboardFocus,
-                                 reinterpret_cast<wlr_surface*>(nativeSurface));
+    d->doSetKeyboardFocus(reinterpret_cast<wlr_surface*>(nativeSurface));
 }
 
 void WSeat::setKeyboardFocusTarget(WSurface *surface)
@@ -423,7 +381,7 @@ void WSeat::setKeyboardFocusTarget(WSurface *surface)
 }
 
 void WSeat::notifyMotion(WCursor *cursor, WInputDevice *device,
-                          uint32_t timestamp)
+                         uint32_t timestamp)
 {
     W_D(WSeat);
 
@@ -431,7 +389,7 @@ void WSeat::notifyMotion(WCursor *cursor, WInputDevice *device,
 
     if (Q_UNLIKELY(d->eventGrabber)) {
         QMouseEvent e(QEvent::MouseMove, global, cursor->button(),
-                      cursor->state(), d->keyModifiers);
+                      cursor->state(), d->keyModifiers, device->qtDevice<QPointingDevice>());
         e.setTimestamp(timestamp);
         QCoreApplication::sendEvent(d->eventGrabber.data(), &e);
 
@@ -445,21 +403,16 @@ void WSeat::notifyMotion(WCursor *cursor, WInputDevice *device,
         // the enter and leave events.
     }
 
-    auto output = cursor->mappedOutput();
-    if (Q_UNLIKELY(!output))
-        return;
-
-    QWindow *w = output->attachedWindow();
-
+    QWindow *w = cursor->eventWindow();
     if (Q_UNLIKELY(!w))
         return;
 
     const QPointF &local = global - QPointF(w->position());
-
     auto e = new QMouseEvent(QEvent::MouseMove, local, local, global,
-                             cursor->button(), cursor->state(), d->keyModifiers);
+                             cursor->button(), cursor->state(), d->keyModifiers,
+                             device->qtDevice<QPointingDevice>());
     e->setTimestamp(timestamp);
-    d->postEvent(cursor->mappedOutput(), e, WInputEvent::PointerMotion, device, cursor);
+    QCoreApplication::sendEvent(w, e);
 }
 
 void WSeat::notifyButton(WCursor *cursor, WInputDevice *device, uint32_t button,
@@ -473,7 +426,7 @@ void WSeat::notifyButton(WCursor *cursor, WInputDevice *device, uint32_t button,
 
     if (Q_UNLIKELY(d->eventGrabber)) {
         QMouseEvent e(et, global, cursor->button(),
-                      cursor->state(), d->keyModifiers);
+                      cursor->state(), d->keyModifiers, device->qtDevice<QPointingDevice>());
         e.setTimestamp(timestamp);
         QCoreApplication::sendEvent(d->eventGrabber.data(), &e);
 
@@ -485,22 +438,17 @@ void WSeat::notifyButton(WCursor *cursor, WInputDevice *device, uint32_t button,
         d->doNotifyButton(cursor, device, button, state, timestamp);
     }
 
-    auto output = cursor->mappedOutput();
-    if (Q_UNLIKELY(!output))
-        return;
-
-    QWindow *w = output->attachedWindow();
-
+    QWindow *w = cursor->eventWindow();
     if (Q_UNLIKELY(!w))
         return;
 
     const QPointF &local = global - QPointF(w->position());
-    auto qwDevice = static_cast<QPointingDevice*>(QWlrootsIntegration::instance()->getInputDeviceFrom(device));
+    auto qwDevice = static_cast<QPointingDevice*>(device->qtDevice());
     Q_ASSERT(qwDevice);
     auto e = new QMouseEvent(et, local, local, global, cursor->button(),
                              cursor->state(), d->keyModifiers, qwDevice);
     e->setTimestamp(timestamp);
-    d->postEvent(cursor->mappedOutput(), e, WInputEvent::PointerButton, device, cursor);
+    QCoreApplication::sendEvent(w, e);
 }
 
 void WSeat::notifyAxis(WCursor *cursor, WInputDevice *device,
@@ -535,17 +483,18 @@ void WSeat::notifyKey(WInputDevice *device, uint32_t keycode,
     int qtkey = QXkbCommon::keysymToQtKey(sym, d->keyModifiers, keyboard->handle()->xkb_state, code);
     const QString &text = QXkbCommon::lookupString(keyboard->handle()->xkb_state, code);
 
-    QKeyEvent e(et, qtkey, d->keyModifiers, keycode, code, keyboard->getModifiers(), text);
-    WInputEvent::DataPointer data(new WInputEvent::Data);
-    data->seat = this;
-    data->device = device;
-    data->nativeEvent = &e;
-    data->eventType = WInputEvent::KeyboardKey;
-    WInputEvent we(data);
-    QCoreApplication::sendEvent(server(), &we);
+    // TODO: Use the focus window
+    auto w = d->cursor->eventWindow();
+    if (w) {
+        QKeyEvent e(et, qtkey, d->keyModifiers, keycode, code, keyboard->getModifiers(),
+                    text, false, 1, device->qtDevice());
+        QCoreApplication::sendEvent(w, &e);
 
-    if (!we.isAccepted())
+        if (!e.isAccepted())
+            d->doNotifyKey(device, keycode, state, timestamp);
+    } else {
         d->doNotifyKey(device, keycode, state, timestamp);
+    }
 }
 
 void WSeat::notifyModifiers(WInputDevice *device)
@@ -579,11 +528,11 @@ void WSeat::create(WServer *server)
     d->handle()->handle()->data = this;
     d->connect();
 
-    if (d->cursor)
-        attachCursor(d->cursor);
-
     Q_FOREACH(auto i, d->deviceList) {
         d->attachInputDevice(i);
+
+        if (d->cursor)
+            d->cursor->attachInputDevice(i);
     }
 
     d->updateCapabilities();
@@ -602,7 +551,7 @@ void WSeat::destroy(WServer *)
     // Need not call the DCursor::detachInputDevice on destroy WSeat, so do
     // call the detachCursor at clear the deviceList after.
     if (d->cursor)
-        detachCursor(d->cursor);
+        setCursor(nullptr);
 
     if (m_handle) {
         d->handle()->handle()->data = nullptr;

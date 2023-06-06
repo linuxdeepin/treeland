@@ -7,7 +7,6 @@
 
 #include <qwglobal.h>
 
-#include <QThread>
 #include <QPointer>
 #include <qpa/qplatformintegration.h>
 #include <qpa/qplatformvulkaninstance.h>
@@ -112,6 +111,8 @@ public:
 #endif
 
 private:
+    friend class QWlrootsScreen;
+
     mutable std::unique_ptr<QPlatformFontDatabase> m_fontDb;
     std::unique_ptr<QPlatformServices> m_services;
     std::unique_ptr<QPlatformPlaceholderScreen> m_placeholderScreen;
@@ -121,9 +122,6 @@ private:
 private:
     inline bool isMaster() const {
         return m_master;
-    }
-    inline static bool isMasterThread() {
-        return QThread::currentThread()->objectName() == QStringLiteral(QT_STRINGIFY(WAYLIB_SERVER_NAMESPACE));
     }
 
     static QWlrootsIntegration *m_instance;

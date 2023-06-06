@@ -2,9 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "qwlrootscreen.h"
+#include "qwlrootscursor.h"
+#include "qwlrootsintegration.h"
 #include "woutput.h"
+#include "woutputlayout.h"
 
 #include <qwoutput.h>
+
+#include <qpa/qwindowsysteminterface.h>
+#include <qpa/qwindowsysteminterface_p.h>
+#include <private/qguiapplication_p.h>
+#include <private/qhighdpiscaling_p.h>
 
 extern "C" {
 #include <wlr/types/wlr_output.h>
@@ -17,7 +25,7 @@ WAYLIB_SERVER_BEGIN_NAMESPACE
 QWlrootsScreen::QWlrootsScreen(WOutput *output)
     : m_output(output)
 {
-    init();
+
 }
 
 WOutput *QWlrootsScreen::output() const
@@ -27,16 +35,25 @@ WOutput *QWlrootsScreen::output() const
 
 QRect QWlrootsScreen::geometry() const
 {
-    return QRect(m_output->position(), m_output->effectiveSize());
+    return QRect(m_output->position(), m_output->transformedSize());
+}
+
+void QWlrootsScreen::move(const QPoint &pos)
+{
+    auto layout = m_output->layout();
+    if (layout)
+        layout->move(m_output, pos);
 }
 
 int QWlrootsScreen::depth() const
 {
-    return QImage::toPixelFormat(m_format).bitsPerPixel();
+    return QImage::toPixelFormat(format()).bitsPerPixel();
 }
 
 QImage::Format QWlrootsScreen::format() const
 {
+    if (m_format == QImage::Format_Invalid)
+        m_format = getFormat();
     return m_format;
 }
 
@@ -47,7 +64,7 @@ QSizeF QWlrootsScreen::physicalSize() const
 
 qreal QWlrootsScreen::devicePixelRatio() const
 {
-    return handle()->scale;
+    return 1.0;
 }
 
 qreal QWlrootsScreen::refreshRate() const
@@ -55,6 +72,19 @@ qreal QWlrootsScreen::refreshRate() const
     if (!handle()->current_mode)
         return 60;
     return handle()->current_mode->refresh;
+}
+
+QDpi QWlrootsScreen::logicalBaseDpi() const
+{
+    return QDpi(96, 96);
+}
+
+QDpi QWlrootsScreen::logicalDpi() const
+{
+    auto dpi = logicalBaseDpi();
+    const qreal scale = handle()->scale;
+
+    return QDpi(dpi.first * scale, dpi.second * scale);
 }
 
 Qt::ScreenOrientation QWlrootsScreen::nativeOrientation() const
@@ -87,6 +117,17 @@ QWindow *QWlrootsScreen::topLevelAt(const QPoint &) const
     return nullptr;
 }
 
+QList<QPlatformScreen *> QWlrootsScreen::virtualSiblings() const
+{
+    QList<QPlatformScreen*> siblings;
+    for (auto s : QWlrootsIntegration::instance()->m_screens) {
+        if (s != this)
+            siblings.append(s);
+    }
+
+    return siblings;
+}
+
 QString QWlrootsScreen::name() const
 {
     return QString::fromUtf8(handle()->name);
@@ -109,7 +150,9 @@ QString QWlrootsScreen::serialNumber() const
 
 QPlatformCursor *QWlrootsScreen::cursor() const
 {
-    return nullptr;
+    if (!m_cursor)
+        m_cursor.reset(new QWlrootsCursor());
+    return m_cursor.get();
 }
 
 QPlatformScreen::SubpixelAntialiasingType QWlrootsScreen::subpixelAntialiasingTypeHint() const
@@ -178,9 +221,22 @@ int QWlrootsScreen::preferredMode() const
     return 0;
 }
 
-void QWlrootsScreen::init()
+void QWlrootsScreen::initialize()
 {
-    m_format = getFormat();
+    auto updateGeometry = [this] {
+        const QRect newGeo = geometry();
+        QWindowSystemInterface::handleScreenGeometryChange(screen(), newGeo, newGeo);
+    };
+
+    QObject::connect(m_output.get(), &WOutput::transformedSizeChanged, screen(), updateGeometry);
+
+    auto updateDpi = [this] {
+        const auto dpi = logicalDpi();
+        QWindowSystemInterface::handleScreenLogicalDotsPerInchChange(screen(), dpi.first, dpi.second);
+    };
+
+    QObject::connect(m_output.get(), &WOutput::scaleChanged, screen(), updateDpi);
+    updateDpi();
 }
 
 QImage::Format QWlrootsScreen::getFormat() const

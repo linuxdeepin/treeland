@@ -1,33 +1,38 @@
 // Copyright (C) 2023 JiDe Zhang <zccrs@live.com>.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
+#define private public
+#include <QScreen>
+#undef private
+
 #include "qwlrootsintegration.h"
 #include "qwlrootscreen.h"
 #include "qwlrootswindow.h"
 #include "woutput.h"
 #include "winputdevice.h"
-
-#define private public
-#include <QScreen>
-#undef private
+#include "types.h"
 
 #include <qwoutput.h>
 #include <qwrenderer.h>
 #include <qwinputdevice.h>
 #include <qwdisplay.h>
-#include <QThread>
+
+#include <QOffscreenSurface>
 #include <QGuiApplication>
 
 #include <private/qgenericunixfontdatabase_p.h>
 #include <private/qgenericunixservices_p.h>
 #include <private/qgenericunixeventdispatcher_p.h>
+#include <private/qhighdpiscaling_p.h>
 #if QT_CONFIG(vulkan)
 #include <private/qvulkaninstance_p.h>
 #include <private/qbasicvulkanplatforminstance_p.h>
+#include <private/qguiapplication_p.h>
 #endif
 #include <private/qinputdevice_p.h>
 #include <qpa/qplatformsurface.h>
 #include <qpa/qwindowsysteminterface.h>
+#include <qpa/qplatformoffscreensurface.h>
 
 #ifndef QT_NO_OPENGL
 #include <qpa/qplatformopenglcontext.h>
@@ -52,6 +57,21 @@ WAYLIB_SERVER_BEGIN_NAMESPACE
 
 #define CALL_PROXY2(FunName, fallbackValue, ...) m_proxyIntegration ? m_proxyIntegration->FunName(__VA_ARGS__) : fallbackValue
 #define CALL_PROXY(FunName, ...) CALL_PROXY2(FunName, QPlatformIntegration::FunName(__VA_ARGS__), __VA_ARGS__)
+
+class OffscreenSurface : public QPlatformOffscreenSurface
+{
+public:
+    OffscreenSurface(QOffscreenSurface *surface)
+        : QPlatformOffscreenSurface(surface) {}
+
+    bool isValid() const override {
+        return true;
+    }
+
+    QPlatformScreen *screen() const override {
+        return nullptr;
+    }
+};
 
 QWlrootsIntegration *QWlrootsIntegration::m_instance = nullptr;
 QWlrootsIntegration::QWlrootsIntegration(bool master, const QStringList &parameters, std::function<void ()> onInitialized)
@@ -90,15 +110,16 @@ QWlrootsScreen *QWlrootsIntegration::addScreen(WOutput *output)
     m_screens << new QWlrootsScreen(output);
 
     if (isMaster()) {
-        QWindowSystemInterface::handleScreenAdded(m_screens.last(), output);
+        QWindowSystemInterface::handleScreenAdded(m_screens.last());
 
         if (m_placeholderScreen) {
             QWindowSystemInterface::handleScreenRemoved(m_placeholderScreen.release());
         }
     } else {
-        Q_UNUSED(new QScreen(m_screens.last()));
+        Q_UNUSED(new QScreen(m_screens.last()))
     }
 
+    m_screens.last()->initialize();
     output->setScreen(m_screens.last());
 
     return m_screens.last();
@@ -221,7 +242,7 @@ void QWlrootsIntegration::destroy()
 
 bool QWlrootsIntegration::hasCapability(Capability cap) const
 {
-    if (!isMasterThread()) {
+    if (m_proxyIntegration) {
         return CALL_PROXY(hasCapability, cap);
     }
 
@@ -265,19 +286,16 @@ QPlatformFontDatabase *QWlrootsIntegration::fontDatabase() const
 QPlatformWindow *QWlrootsIntegration::createPlatformWindow(QWindow *window) const
 {
     if (window->objectName() == QStringLiteral(QT_STRINGIFY(WAYLIB_SERVER_NAMESPACE))) {
-        Q_ASSERT(window->screen() && dynamic_cast<QWlrootsScreen*>(window->screen()->handle()));
+        Q_ASSERT(window->screen() && (window->screen()->handle() == m_placeholderScreen.get()
+                                      || dynamic_cast<QWlrootsScreen*>(window->screen()->handle())));
         return new QWlrootsOutputWindow(window);
     }
-
-    if (isMasterThread())
-        return nullptr;
 
     return CALL_PROXY2(createPlatformWindow, nullptr, window);
 }
 
 QPlatformBackingStore *QWlrootsIntegration::createPlatformBackingStore(QWindow *window) const
 {
-    Q_ASSERT(!isMasterThread());
     return CALL_PROXY2(createPlatformBackingStore, nullptr, window);
 }
 
@@ -293,42 +311,22 @@ public:
         : m_context(context)
     {}
 
-    inline QWlrootsScreen *screen() const {
-        if (!m_context->screen())
-            return nullptr;
-        auto s = dynamic_cast<QWlrootsScreen*>(m_context->screen()->handle());
-        Q_ASSERT(s);
-        return s;
-    }
-    inline QWOutput *output() const {
-        auto ws = screen();
-        return ws ? ws->output()->nativeInterface<QWOutput>() : nullptr;
-    }
-    inline QWRenderer *renderer() const {
-        auto output = this->output();
-        return output ? QWRenderer::from(output->handle()->renderer) : nullptr;
-    }
-
     void initialize() override {
+        m_format.setBlueBufferSize(8);
+        m_format.setRedBufferSize(8);
+        m_format.setGreenBufferSize(8);
+        m_format.setDepthBufferSize(8);
+        m_format.setStencilBufferSize(8);
         m_format.setRenderableType(QSurfaceFormat::OpenGLES);
 
-        auto renderer = this->renderer();
-        if (!renderer)
-            return;
-
-        if (!wlr_renderer_is_gles2(renderer->handle()))
-            return;
-
-        auto egl = wlr_gles2_renderer_get_egl(renderer->handle());
-#if WLR_VERSION_MINOR > 15
-        auto display = wlr_egl_get_display(egl);
-#else
-        auto display = egl->display;
-#endif
-        auto eglConfig = q_configFromGLFormat(display, m_format, false, EGL_WINDOW_BIT);
-        if (!eglConfig)
-            m_format = q_glFormatFromConfig(display, eglConfig, m_format);
-        Q_ASSERT(m_format.renderableType() == QSurfaceFormat::OpenGLES);
+        if (auto c = dynamic_cast<QW::OpenGLContext*>(m_context)) {
+            auto eglConfig = q_configFromGLFormat(c->eglDisplay(), m_format, false, EGL_WINDOW_BIT);
+            if (eglConfig)
+                m_format = q_glFormatFromConfig(c->eglDisplay(), eglConfig, m_format);
+            Q_ASSERT(m_format.renderableType() == QSurfaceFormat::OpenGLES);
+        } else {
+            qWarning() << "The QSurfaceFormat is not initialize";
+        }
     }
 
     QSurfaceFormat format() const override {
@@ -349,17 +347,26 @@ public:
 
     bool makeCurrent(QPlatformSurface *surface) override {
         if (QWOutput *output = outputFrom(surface)) {
-            if (!wlr_renderer_is_gles2(output->handle()->renderer))
+            if (!output->handle()->renderer)
                 return false;
 
+            Q_ASSERT(wlr_renderer_is_gles2(output->handle()->renderer));
+            m_currentOutput = output;
             return output->attachRender(nullptr);
+        }
+
+        if (auto c = dynamic_cast<QW::OpenGLContext*>(m_context)) {
+            return eglMakeCurrent(c->eglDisplay(), EGL_NO_SURFACE, EGL_NO_SURFACE, c->eglContext());
         }
 
         return false;
     }
     void doneCurrent() override {
-        if (QWOutput *output = this->output()) {
-            return output->rollback();
+        if (m_currentOutput) {
+            m_currentOutput->rollback();
+            m_currentOutput = nullptr;
+        } else if (auto c = dynamic_cast<QW::OpenGLContext*>(m_context)) {
+            eglMakeCurrent(c->eglDisplay(), EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
         }
     }
 
@@ -369,6 +376,7 @@ public:
 
 private:
     QOpenGLContext *m_context = nullptr;
+    QWOutput *m_currentOutput = nullptr;
     QSurfaceFormat m_format;
 };
 
@@ -376,9 +384,6 @@ QPlatformOpenGLContext *QWlrootsIntegration::createPlatformOpenGLContext(QOpenGL
 {
     if (context->objectName() == QStringLiteral(QT_STRINGIFY(WAYLIB_SERVER_NAMESPACE)))
         return new OpenGLContext(context);
-
-    if (isMasterThread())
-        return nullptr;
 
     return CALL_PROXY(createPlatformOpenGLContext, context);
 }
@@ -396,44 +401,32 @@ QAbstractEventDispatcher *QWlrootsIntegration::createEventDispatcher() const
 
 QPlatformNativeInterface *QWlrootsIntegration::nativeInterface() const
 {
-    if (isMasterThread())
-        return nullptr;
-
     return CALL_PROXY(nativeInterface);
 }
 
 QPlatformPixmap *QWlrootsIntegration::createPlatformPixmap(QPlatformPixmap::PixelType type) const
 {
-    if (isMasterThread())
-        return QPlatformIntegration::createPlatformPixmap(type);
-
     return CALL_PROXY(createPlatformPixmap, type);
 }
 
 QPlatformWindow *QWlrootsIntegration::createForeignWindow(QWindow *window, WId id) const
 {
-    Q_ASSERT(!isMasterThread());
     return CALL_PROXY(createForeignWindow, window, id);
 }
 
 QPlatformSharedGraphicsCache *QWlrootsIntegration::createPlatformSharedGraphicsCache(const char *cacheId) const
 {
-    Q_ASSERT(!isMasterThread());
     return CALL_PROXY(createPlatformSharedGraphicsCache, cacheId);
 }
 
 QPaintEngine *QWlrootsIntegration::createImagePaintEngine(QPaintDevice *paintDevice) const
 {
-    if (isMasterThread())
-        return QPlatformIntegration::createImagePaintEngine(paintDevice);
-
     return CALL_PROXY(createImagePaintEngine, paintDevice);
 }
 
 #ifndef QT_NO_CLIPBOARD
 QPlatformClipboard *QWlrootsIntegration::clipboard() const
 {
-    Q_ASSERT(!isMasterThread());
     return CALL_PROXY(clipboard);
 }
 #endif
@@ -441,15 +434,12 @@ QPlatformClipboard *QWlrootsIntegration::clipboard() const
 #if QT_CONFIG(draganddrop)
 QPlatformDrag *QWlrootsIntegration::drag() const
 {
-    Q_ASSERT(!isMasterThread());
     return CALL_PROXY(drag);
 }
 #endif
 
 QPlatformInputContext *QWlrootsIntegration::inputContext() const
 {
-    if (isMasterThread())
-        return nullptr;
     return CALL_PROXY(inputContext);
 }
 
@@ -475,77 +465,66 @@ QVariant QWlrootsIntegration::styleHint(StyleHint hint) const
 
 Qt::WindowState QWlrootsIntegration::defaultWindowState(Qt::WindowFlags flags) const
 {
-    if (isMasterThread())
-        return Qt::WindowFullScreen;
-
     return CALL_PROXY(defaultWindowState, flags);
 }
 
 Qt::KeyboardModifiers QWlrootsIntegration::queryKeyboardModifiers() const
 {
-    Q_ASSERT(!isMasterThread());
     return CALL_PROXY(queryKeyboardModifiers);
 }
 
 QList<int> QWlrootsIntegration::possibleKeys(const QKeyEvent *event) const
 {
-    Q_ASSERT(!isMasterThread());
     return CALL_PROXY(possibleKeys, event);
 }
 
 QStringList QWlrootsIntegration::themeNames() const
 {
-    Q_ASSERT(!isMasterThread());
     return CALL_PROXY(themeNames);
 }
 
 QPlatformTheme *QWlrootsIntegration::createPlatformTheme(const QString &name) const
 {
-    Q_ASSERT(!isMasterThread());
     return CALL_PROXY(createPlatformTheme, name);
 }
 
 QPlatformOffscreenSurface *QWlrootsIntegration::createPlatformOffscreenSurface(QOffscreenSurface *surface) const
 {
-    Q_ASSERT(!isMasterThread());
+    if (surface->objectName() == QStringLiteral(QT_STRINGIFY(WAYLIB_SERVER_NAMESPACE)))
+        return new OffscreenSurface(surface);
+
     return CALL_PROXY(createPlatformOffscreenSurface, surface);
 }
 
 #ifndef QT_NO_SESSIONMANAGER
 QPlatformSessionManager *QWlrootsIntegration::createPlatformSessionManager(const QString &id, const QString &key) const
 {
-    Q_ASSERT(!isMasterThread());
     return CALL_PROXY(createPlatformSessionManager, id, key);
 }
 #endif
 
 void QWlrootsIntegration::sync()
 {
-    Q_ASSERT(!isMasterThread());
     CALL_PROXY(sync);
 }
 
 void QWlrootsIntegration::setApplicationIcon(const QIcon &icon) const
 {
-    Q_ASSERT(!isMasterThread());
     CALL_PROXY(setApplicationIcon, icon);
 }
 
 void QWlrootsIntegration::setApplicationBadge(qint64 number)
 {
-    Q_ASSERT(!isMasterThread());
     CALL_PROXY(setApplicationBadge, number);
 }
 
 void QWlrootsIntegration::beep() const
 {
-    Q_ASSERT(!isMasterThread());
     CALL_PROXY(beep);
 }
 
 void QWlrootsIntegration::quit() const
 {
-    Q_ASSERT(!isMasterThread());
     CALL_PROXY(quit);
 }
 
@@ -569,10 +548,7 @@ private:
 
 QPlatformVulkanInstance *QWlrootsIntegration::createPlatformVulkanInstance(QVulkanInstance *instance) const
 {
-    if (isMasterThread())
-        return new VulkanInstance(instance);
-
-    return m_proxyIntegration ? m_proxyIntegration->createPlatformVulkanInstance(instance) : nullptr;
+    return m_proxyIntegration ? m_proxyIntegration->createPlatformVulkanInstance(instance) : new VulkanInstance(instance);
 }
 #endif
 

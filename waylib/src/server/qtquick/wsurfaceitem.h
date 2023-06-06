@@ -1,23 +1,5 @@
-/*
- * Copyright (C) 2021 zkyd
- *
- * Author:     zkyd <zkyd@zjide.org>
- *
- * Maintainer: zkyd <zkyd@zjide.org>
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Lesser General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU Lesser General Public License
- * along with this program. If not, see <http://www.gnu.org/licenses/>.
- */
+// Copyright (C) 2023 JiDe Zhang <zhangjide@deepin.org>.
+// SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #pragma once
 
@@ -30,19 +12,19 @@ QT_BEGIN_NAMESPACE
 class QSGTexture;
 QT_END_NAMESPACE
 
-Q_DECLARE_METATYPE(WAYLIB_SERVER_NAMESPACE::WSurface*)
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
 class WCursor;
 class WOutput;
-class WSurface;
+class WQuickSurface;
 class WTextureHandle;
 class WSurfaceItemPrivate;
 class WAYLIB_SERVER_EXPORT WSurfaceItem : public QQuickItem
 {
     Q_OBJECT
     Q_DECLARE_PRIVATE(WSurfaceItem)
-    Q_PROPERTY(WSurface* surface READ surface WRITE setSurface NOTIFY surfaceChanged)
+    Q_PROPERTY(WSurface* surface READ surface WRITE setSurface NOTIFY surfaceChanged REQUIRED)
+    QML_NAMED_ELEMENT(SurfaceItem)
 
 public:
     explicit WSurfaceItem(QQuickItem *parent = nullptr);
@@ -52,14 +34,11 @@ public:
 
     bool contains(const QPointF &localPos) const override;
 
-    void setSurface(WSurface *surface);
     WSurface *surface() const;
-
-    WOutput *output() const;
+    void setSurface(WSurface *newSurface);
 
 Q_SIGNALS:
-    void surfaceChanged(WSurface *surface);
-    void mouseRelease(WSeat *seat);
+    void surfaceChanged();
 
 protected:
     QSGNode *updatePaintNode(QSGNode *, UpdatePaintNodeData *) override;
@@ -69,9 +48,13 @@ protected:
     void mouseReleaseEvent(QMouseEvent *event) override;
 
     void releaseResources() override;
+    void componentComplete() override;
+    void geometryChange(const QRectF &newGeometry, const QRectF &oldGeometry) override;
 
 private Q_SLOTS:
     void invalidateSceneGraph();
 };
 
 WAYLIB_SERVER_END_NAMESPACE
+
+Q_DECLARE_METATYPE(WAYLIB_SERVER_NAMESPACE::WSurfaceItem*)

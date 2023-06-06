@@ -1,29 +1,12 @@
-/*
- * Copyright (C) 2021 zkyd
- *
- * Author:     zkyd <zkyd@zjide.org>
- *
- * Maintainer: zkyd <zkyd@zjide.org>
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Lesser General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU Lesser General Public License
- * along with this program. If not, see <http://www.gnu.org/licenses/>.
- */
+// Copyright (C) 2023 JiDe Zhang <zhangjide@deepin.org>.
+// SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
+
 #include "wsurface.h"
 #include "wtexture.h"
 #include "wseat.h"
 #include "private/wsurface_p.h"
 #include "woutput.h"
-#include "wsurfacelayout.h"
+#include "wsurfacehandler.h"
 
 #include <qwoutput.h>
 
@@ -37,8 +20,9 @@ extern "C" {
 QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
-WSurfacePrivate::WSurfacePrivate(WSurface *qq)
+WSurfacePrivate::WSurfacePrivate(WSurface *qq, WServer *server)
     : WObjectPrivate(qq)
+    , server(server)
 {
 
 }
@@ -54,8 +38,18 @@ void WSurfacePrivate::on_commit(void *)
 
     if (Q_UNLIKELY(handle->current.width != handle->previous.width
                    || handle->current.height != handle->previous.height)) {
-        Q_EMIT q->sizeChanged();
-        Q_EMIT q->effectiveSizeChanged();
+        Q_EMIT q->sizeChanged(QSize(handle->previous.width, handle->previous.height),
+                              QSize(handle->current.width, handle->current.height));
+    }
+
+    if (Q_UNLIKELY(handle->current.buffer_width != handle->previous.buffer_width
+                   || handle->current.buffer_height != handle->previous.buffer_height)) {
+        Q_EMIT q->bufferSizeChanged(QSize(handle->previous.buffer_width, handle->previous.buffer_height),
+                                    QSize(handle->current.buffer_width, handle->current.buffer_height));
+    }
+
+    if (Q_UNLIKELY(handle->current.scale != handle->previous.scale)) {
+        Q_EMIT q->bufferScaleChanged(handle->previous.scale, handle->current.scale);
     }
 }
 
@@ -73,17 +67,18 @@ void WSurfacePrivate::connect()
 
 void WSurfacePrivate::updateOutputs()
 {
+    std::any oldOutputs = outputs;
     outputs.clear();
     wlr_surface_output *output;
     wl_list_for_each(output, &handle->current_outputs, link) {
         outputs << WOutput::fromHandle<wlr_output>(output->output);
     }
     W_Q(WSurface);
-    q->notifyChanged(WSurface::ChangeType::Outputs);
+    q->notifyChanged(WSurface::ChangeType::Outputs, oldOutputs, outputs);
 }
 
-WSurface::WSurface(QObject *parent)
-    : WSurface(*new WSurfacePrivate(this), parent)
+WSurface::WSurface(WServer *server, QObject *parent)
+    : WSurface(*new WSurfacePrivate(this, server), parent)
 {
 
 }
@@ -119,9 +114,8 @@ WSurfaceHandle *WSurface::handle() const
     return reinterpret_cast<WSurfaceHandle*>(d->handle);
 }
 
-WSurfaceHandle *WSurface::inputTargetAt(qreal scale, QPointF &globalPos) const
+WSurfaceHandle *WSurface::inputTargetAt(QPointF &globalPos) const
 {
-    Q_UNUSED(scale)
     Q_UNUSED(globalPos)
     return nullptr;
 }
@@ -132,16 +126,16 @@ WSurface *WSurface::fromHandle(WSurfaceHandle *handle)
     return reinterpret_cast<WSurface*>(data);
 }
 
-bool WSurface::inputRegionContains(qreal scale, const QPointF &globalPos) const
+bool WSurface::inputRegionContains(const QPointF &localPos) const
 {
-    Q_UNUSED(scale)
-    Q_UNUSED(globalPos)
+    Q_UNUSED(localPos)
     return false;
 }
 
 WServer *WSurface::server() const
 {
-    return WServer::fromThread(thread());
+    W_DC(WSurface);
+    return d->server;
 }
 
 WSurface *WSurface::parentSurface() const
@@ -153,11 +147,6 @@ QSize WSurface::size() const
 {
     W_DC(WSurface);
     return QSize(d->handle->current.width, d->handle->current.height);
-}
-
-QSizeF WSurface::effectiveSize() const
-{
-    return toEffectiveSize(attachedOutput()->scale(), size());
 }
 
 QSize WSurface::bufferSize() const
@@ -173,7 +162,7 @@ WLR::Transform WSurface::orientation() const
     return static_cast<WLR::Transform>(d->handle->current.transform);
 }
 
-int WSurface::scale() const
+int WSurface::bufferScale() const
 {
     W_DC(WSurface);
     return d->handle->current.scale;
@@ -184,22 +173,16 @@ void WSurface::resize(const QSize &newSize)
     Q_UNUSED(newSize)
 }
 
-QPointF WSurface::positionToGlobal(const QPointF &localPos) const
+QPointF WSurface::mapToGlobal(const QPointF &localPos) const
 {
-    QPointF pos = localPos;
-    auto *parent = parentSurface();
-
-    while (parent) {
-        pos += parent->position();
-        parent = parent->parentSurface();
-    }
-
-    return pos;
+    W_DC(WSurface);
+    return d->handler ? d->handler->mapToGlobal(localPos) : localPos;
 }
 
-QPointF WSurface::positionFromGlobal(const QPointF &globalPos) const
+QPointF WSurface::mapFromGlobal(const QPointF &globalPos) const
 {
-    return globalPos - positionToGlobal(position());
+    W_DC(WSurface);
+    return d->handler ? d->handler->mapFromGlobal(globalPos) : globalPos;
 }
 
 WTextureHandle *WSurface::texture() const
@@ -230,12 +213,11 @@ void WSurface::enterOutput(WOutput *output)
     Q_ASSERT(!d->outputs.contains(output));
     wlr_surface_send_enter(d->handle, output->nativeInterface<QWOutput>()->handle());
 
-    connect(output, &WOutput::destroyed, this, [d]{
+    connect(output, &WOutput::destroyed, this, [d] {
         d->updateOutputs();
     });
 
     d->updateOutputs();
-    notifyChanged(ChangeType::Outputs);
 }
 
 void WSurface::leaveOutput(WOutput *output)
@@ -244,77 +226,46 @@ void WSurface::leaveOutput(WOutput *output)
     Q_ASSERT(d->outputs.contains(output));
     wlr_surface_send_leave(d->handle, output->nativeInterface<QWOutput>()->handle());
 
-    connect(output, &WOutput::destroyed, this, [d]{
+    connect(output, &WOutput::destroyed, this, [d] {
         d->updateOutputs();
     });
 
     d->updateOutputs();
-    notifyChanged(ChangeType::Outputs);
 }
 
-QVector<WOutput *> WSurface::currentOutputs() const
+QVector<WOutput *> WSurface::outputs() const
 {
     W_DC(WSurface);
     return d->outputs;
 }
 
-WOutput *WSurface::attachedOutput() const
-{
-    W_DC(WSurface);
-    const auto parent = parentSurface();
-    return parent ? parent->attachedOutput() : d->attachedOutput.data();
-}
-
 QPointF WSurface::position() const
 {
     W_DC(WSurface);
-    return d->layout ? d->layout->position(this) : QPointF();
+    return d->handler ? d->handler->position() : QPointF();
 }
 
-QPointF WSurface::effectivePosition() const
-{
-    return toEffectivePos(attachedOutput()->scale(), position());
-}
-
-WSurfaceLayout *WSurface::layout() const
+WSurfaceHandler *WSurface::handler() const
 {
     W_DC(WSurface);
-    return d->layout;
+    return d->handler;
 }
 
-void WSurface::setLayout(WSurfaceLayout *layout)
+void WSurface::setHandler(WSurfaceHandler *handler)
 {
     W_D(WSurface);
-    if (d->layout == layout)
+    if (d->handler == handler)
         return;
-    d->layout = layout;
-    notifyChanged(ChangeType::Layout);
+    std::any old = d->handler;
+    d->handler = handler;
+    notifyChanged(ChangeType::Handler, old, handler);
 }
 
-void WSurface::notifyChanged(ChangeType type)
+void WSurface::notifyChanged(ChangeType type, std::any oldValue, std::any newValue)
 {
-    if (type == ChangeType::Position) {
-        Q_EMIT positionChanged();
-        Q_EMIT effectivePositionChanged();
-    } else if (type == ChangeType::AttachedOutput) {
-        W_D(WSurface);
-        if (d->attachedOutput) {
-            disconnect(d->attachedOutput.data(), &WOutput::scaleChanged,
-                       this, &WSurface::effectivePositionChanged);
-            disconnect(d->attachedOutput.data(), &WOutput::scaleChanged,
-                       this, &WSurface::effectiveSizeChanged);
-        }
-
-        d->attachedOutput = d->layout->output(this);
-
-        connect(d->attachedOutput.data(), &WOutput::scaleChanged,
-                this, &WSurface::effectivePositionChanged);
-        connect(d->attachedOutput.data(), &WOutput::scaleChanged,
-                this, &WSurface::effectiveSizeChanged);
-
-        Q_EMIT effectivePositionChanged();
-        Q_EMIT effectiveSizeChanged();
-    }
+    Q_UNUSED(type)
+    Q_UNUSED(oldValue)
+    Q_UNUSED(newValue)
 }
 
 void WSurface::notifyBeginState(State)

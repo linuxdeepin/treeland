@@ -1,31 +1,14 @@
-/*
- * Copyright (C) 2021 zkyd
- *
- * Author:     zkyd <zkyd@zjide.org>
- *
- * Maintainer: zkyd <zkyd@zjide.org>
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Lesser General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU Lesser General Public License
- * along with this program. If not, see <http://www.gnu.org/licenses/>.
- */
+// Copyright (C) 2023 JiDe Zhang <zhangjide@deepin.org>.
+// SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
+
 #define private public
 #include <QCoreApplication>
+#include <private/qhighdpiscaling_p.h>
 #undef private
 
 #include "wserver.h"
+#include "private/wserver_p.h"
 #include "wsurface.h"
-#include "wthreadutils.h"
-#include "wseat.h"
 #include "platformplugin/qwlrootsintegration.h"
 
 #include <qwdisplay.h>
@@ -39,6 +22,7 @@
 #include <QSocketNotifier>
 #include <QMutex>
 #include <QDebug>
+#include <QProcess>
 #include <private/qthread_p.h>
 #include <private/qguiapplication_p.h>
 #include <qpa/qplatformthemefactory_p.h>
@@ -62,62 +46,17 @@ extern "C" {
 QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
-class WServerPrivate;
-class ServerThread : public QDaemonThread
+WServerPrivate::WServerPrivate(WServer *qq)
+    : WObjectPrivate(qq)
 {
-    Q_OBJECT
-public:
-    ServerThread(WServerPrivate *s)
-        : server(s) {
-        setObjectName(QT_STRINGIFY(WAYLIB_SERVER_NAMESPACE));
-        Q_ASSERT(!objectName().isEmpty());
-    }
 
-    bool event(QEvent *e) override;
-    Q_SLOT void processWaylandEvents();
+}
 
-private:
-    WServerPrivate *server;
-    static QEvent::Type callFunctionEventType;
-    friend class WServer;
-    friend class WServerPrivate;
-};
-QEvent::Type ServerThread::callFunctionEventType
-    = static_cast<QEvent::Type>(QEvent::registerEventType());
-
-class WServerPrivate : public WObjectPrivate
+WServerPrivate::~WServerPrivate()
 {
-public:
-    WServerPrivate(WServer *qq)
-        : WObjectPrivate(qq)
-    {
-        // Mark to uninitialized
-        initialized.lock();
-    }
-    ~WServerPrivate()
-    {
-        Q_ASSERT_X(!thread || !thread->isRunning(), "WServer",
-                   "Must stop the server before destroy it.");
-        qDeleteAll(interfaceList);
-    }
-
-    void init();
-    void stop();
-    bool startThread();
-
-    W_DECLARE_PUBLIC(WServer)
-    QScopedPointer<ServerThread> thread;
-    QScopedPointer<QSocketNotifier> sockNot;
-    QScopedPointer<WThreadUtil> threadUtil;
-    QScopedPointer<QObject> slotOwner;
-    QMutex initialized;
-
-    QVector<WServerInterface*> interfaceList;
-
-    QWDisplay *display = nullptr;
-    const char *socket = nullptr;
-    wl_event_loop *loop = nullptr;
-};
+    if (display)
+        stop();
+}
 
 void WServerPrivate::init()
 {
@@ -131,7 +70,7 @@ void WServerPrivate::init()
 
     W_Q(WServer);
 
-    for (auto i : qAsConst(interfaceList)) {
+    for (auto i : std::as_const(interfaceList)) {
         i->create(q);
     }
 
@@ -143,18 +82,20 @@ void WServerPrivate::init()
     loop = wl_display_get_event_loop(display->handle());
     int fd = wl_event_loop_get_fd(loop);
 
+    auto processWaylandEvents = [this] {
+        int ret = wl_event_loop_dispatch(loop, 0);
+        if (ret)
+            fprintf(stderr, "wl_event_loop_dispatch error: %d\n", ret);
+        wl_display_flush_clients(display->handle());
+    };
+
     sockNot.reset(new QSocketNotifier(fd, QSocketNotifier::Read));
-    QObject::connect(sockNot.get(), &QSocketNotifier::activated,
-                     thread.get(), &ServerThread::processWaylandEvents);
+    QObject::connect(sockNot.get(), &QSocketNotifier::activated, q, processWaylandEvents);
 
-    QAbstractEventDispatcher *dispatcher = thread->eventDispatcher();
-    QObject::connect(dispatcher, &QAbstractEventDispatcher::aboutToBlock,
-                     thread.get(), &ServerThread::processWaylandEvents);
+    QAbstractEventDispatcher *dispatcher = QThread::currentThread()->eventDispatcher();
+    QObject::connect(dispatcher, &QAbstractEventDispatcher::aboutToBlock, q, processWaylandEvents);
 
-    QMetaObject::invokeMethod(q, &WServer::_started, Qt::QueuedConnection);
-
-    // Mark to initialized
-    initialized.unlock();
+    Q_EMIT q->started();
 }
 
 void WServerPrivate::stop()
@@ -174,58 +115,23 @@ void WServerPrivate::stop()
 
     interfaceList.clear();
     sockNot.reset();
-    thread->eventDispatcher()->disconnect(thread.get());
+    QThread::currentThread()->eventDispatcher()->disconnect(q);
 
     if (display) {
         display->deleteLater();
         display = nullptr;
     }
-
-    // delete children in server thread
-    QObjectPrivate::get(q)->deleteChildren();
-    thread->quit();
 }
 
-// In main thread
-bool WServerPrivate::startThread()
+WServer::WServer(QObject *parent)
+    : WServer(*new WServerPrivate(this), parent)
 {
-    if (thread && thread->isRunning())
-        return false;
 
-    if (!thread) {
-        thread.reset(new ServerThread(this));
-        thread->moveToThread(thread.get());
-        threadUtil.reset(new WThreadUtil(thread.get(), ServerThread::callFunctionEventType));
-        q_func()->moveToThread(thread.get());
-        Q_ASSERT(q_func()->thread() == thread.get());
-    }
-
-    thread->start(QThread::HighestPriority);
-    return true;
 }
 
-bool ServerThread::event(QEvent *e)
-{
-    if (e->type() == callFunctionEventType) {
-        auto ev = static_cast<WThreadUtil::CallEvent*>(e);
-        if (Q_LIKELY(ev->target))
-            ev->function();
-        return true;
-    }
-    return QDaemonThread::event(e);
-}
-
-void ServerThread::processWaylandEvents()
-{
-    int ret = wl_event_loop_dispatch(server->loop, 0);
-    if (ret)
-        fprintf(stderr, "wl_event_loop_dispatch error: %d\n", ret);
-    wl_display_flush_clients(server->display->handle());
-}
-
-WServer::WServer()
-    : QObject()
-    , WObject(*new WServerPrivate(this))
+WServer::WServer(WServerPrivate &dd, QObject *parent)
+    : QObject(parent)
+    , WObject(dd)
 {
 #ifdef QT_DEBUG
     wlr_log_init(WLR_DEBUG, NULL);
@@ -244,14 +150,8 @@ void WServer::stop()
 {
     W_D(WServer);
 
-    Q_ASSERT(d->thread && d->display);
-    Q_ASSERT(d->thread->isRunning());
-    Q_ASSERT(QThread::currentThread() != d->thread.data());
-
-    d->threadUtil->run(this, d, &WServerPrivate::stop);
-    if (!d->thread->wait()) {
-        d->thread->terminate();
-    }
+    Q_ASSERT(d->display);
+    d->stop();
 }
 
 void WServer::attach(WServerInterface *interface)
@@ -264,14 +164,15 @@ void WServer::attach(WServerInterface *interface)
     interface->m_server = this;
 
     if (isRunning()) {
-        d->threadUtil->run(this, interface, &WServerInterface::create, this);
+        interface->create(this);
     }
 }
 
 bool WServer::detach(WServerInterface *interface)
 {
     W_D(WServer);
-    if (!d->interfaceList.contains(interface))
+    bool ok = d->interfaceList.removeOne(interface);
+    if (!ok)
         return false;
 
     Q_ASSERT(interface->m_server == this);
@@ -280,7 +181,7 @@ bool WServer::detach(WServerInterface *interface)
     if (!isRunning())
         return false;
 
-    d->threadUtil->run(this, interface, &WServerInterface::destroy, this);
+    interface->destroy(this);
     return true;
 }
 
@@ -311,15 +212,6 @@ WServerInterface *WServer::findInterface(void *handle) const
     return nullptr;
 }
 
-WServer *WServer::fromThread(const QThread *thread)
-{
-    if (auto st = qobject_cast<const ServerThread*>(thread)) {
-        return st->server->q_func();
-    }
-
-    return nullptr;
-}
-
 WServer *WServer::from(WServerInterface *interface)
 {
     return interface->m_server;
@@ -331,13 +223,15 @@ static bool initializeQtPlatform(bool isMaster, const QStringList &parameters, s
     if (QGuiApplicationPrivate::platform_integration)
         return false;
 
+    QHighDpiScaling::initHighDpiScaling();
+    QHighDpiScaling::m_globalScalingActive = true; // force enable hidpi
     QGuiApplicationPrivate::platform_integration = new QWlrootsIntegration(isMaster, parameters, onInitialized);
 
     // for platform theme
     QStringList themeNames = QWlrootsIntegration::instance()->themeNames();
 
     if (!QGuiApplicationPrivate::platform_theme) {
-        for (const QString &themeName : qAsConst(themeNames)) {
+        for (const QString &themeName : std::as_const(themeNames)) {
             QGuiApplicationPrivate::platform_theme = QPlatformThemeFactory::create(themeName);
             if (QGuiApplicationPrivate::platform_theme) {
                 break;
@@ -346,7 +240,7 @@ static bool initializeQtPlatform(bool isMaster, const QStringList &parameters, s
     }
 
     if (!QGuiApplicationPrivate::platform_theme) {
-        for (const QString &themeName : qAsConst(themeNames)) {
+        for (const QString &themeName : std::as_const(themeNames)) {
             QGuiApplicationPrivate::platform_theme = QWlrootsIntegration::instance()->createPlatformTheme(themeName);
             if (QGuiApplicationPrivate::platform_theme) {
                 break;
@@ -366,10 +260,7 @@ void WServer::start()
 {
     W_D(WServer);
 
-    if (!d->startThread())
-        return;
-
-    d->threadUtil->run(this, d, &WServerPrivate::init);
+    d->init();
 }
 
 void WServer::initializeQPA(bool master, const QStringList &parameters)
@@ -403,36 +294,23 @@ void WServer::initializeProxyQPA(int &argc, char **argv, const QStringList &prox
     qunsetenv("WAYLAND_DISPLAY");
 }
 
-static inline bool tryLock(QMutex *mutex, int timeout)
+void WServer::startProcess(QProcess &process) const
 {
-    bool ok = mutex->tryLock(timeout);
-    if (ok)
-        mutex->unlock();
-    return ok;
-}
+    W_DC(WServer);
+    Q_ASSERT(d->socket);
+    qputenv("WAYLAND_DISPLAY", d->socket);
 
-bool WServer::waitForStarted(int timeout)
-{
-    if (isRunning())
-        return true;
+    QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
+    env.insert("WAYLAND_DISPLAY", d->socket);
 
-    W_D(WServer);
-    return tryLock(&d->initialized, timeout);
-}
-
-bool WServer::waitForStoped(int timeout)
-{
-    if (!isRunning())
-        return true;
-
-    W_D(WServer);
-    return d->thread->wait(timeout);
+    process.setProcessEnvironment(env);
+    process.start();
 }
 
 bool WServer::isRunning() const
 {
     W_DC(WServer);
-    return tryLock(&const_cast<WServerPrivate*>(d)->initialized, 0);
+    return d->display;
 }
 
 const char *WServer::displayName() const
@@ -443,34 +321,10 @@ const char *WServer::displayName() const
     return d->socket;
 }
 
-WThreadUtil *WServer::threadUtil() const
-{
-    W_DC(WServer);
-    return d->threadUtil.get();
-}
-
-bool WServer::event(QEvent *e)
-{
-    if (e->type() != WInputEvent::type())
-        return QObject::event(e);
-
-    e->ignore();
-    return true;
-}
-
 QObject *WServer::slotOwner() const
 {
     W_DC(WServer);
     return d->slotOwner.get();
 }
 
-void WServer::_started()
-{
-    W_DC(WServer);
-
-    Q_EMIT started();
-}
-
 WAYLIB_SERVER_END_NAMESPACE
-
-#include "wserver.moc"

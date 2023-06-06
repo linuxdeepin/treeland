@@ -25,16 +25,17 @@ set(KERNEL_SOURCES
     kernel/wcursor.cpp
     kernel/winputdevice.cpp
     kernel/woutput.cpp
-    kernel/woutputlayout.cpp
     kernel/wseat.cpp
     kernel/wserver.cpp
     kernel/wsurface.cpp
-    kernel/wsurfacelayout.cpp
+    kernel/wsurfacehandler.cpp
     kernel/wtexture.cpp
     kernel/wtypes.cpp
     kernel/wxcursormanager.cpp
     kernel/wxdgshell.cpp
     kernel/wxdgsurface.cpp
+    kernel/woutputlayout.cpp
+    kernel/wxcursorimage.cpp
 )
 
 # TODO: Using wlr_damage_ring instead of wlr_output_damage
@@ -48,12 +49,24 @@ endif()
 
 set(QTQUICK_SOURCES
     qtquick/wsurfaceitem.cpp
-    qtquick/wsurfacemanager.cpp
+    qtquick/woutputhelper.cpp
+    qtquick/wquickwaylandserver.cpp
+    qtquick/woutputrenderwindow.cpp
+    qtquick/woutputviewport.cpp
+    qtquick/woutputlayoutitem.cpp
+    qtquick/wquickoutputlayout.cpp
+    qtquick/wquickcursor.cpp
+
+    qtquick/private/wquickxdgshell.cpp
+    qtquick/private/wquickbackend.cpp
+    qtquick/private/wquickseat.cpp
+    qtquick/private/wwaylandcompositor.cpp
 )
 
 set(UTILS_SOURCES
     utils/wsignalconnector.cpp
     utils/wtools.cpp
+    utils/wthreadutils.cpp
 )
 
 set(QPA_SOURCES
@@ -70,37 +83,40 @@ set(HEADERS
     kernel/wcursor.h
     kernel/winputdevice.h
     kernel/woutput.h
-    kernel/woutputlayout.h
     kernel/wseat.h
     kernel/wserver.h
     kernel/wsurface.h
-    kernel/wsurfacelayout.h
+    kernel/wsurfacehandler.h
     kernel/wtexture.h
     kernel/wtypes.h
     kernel/wxcursormanager.h
     kernel/wxdgshell.h
     kernel/wxdgsurface.h
+    kernel/woutputlayout.h
+    kernel/wxcursorimage.h
     kernel/WOutput
     kernel/WServer
     kernel/WServerInterface
     kernel/WBackend
     kernel/WCursor
     kernel/WInputDevice
-    kernel/WOutputLayout
     kernel/WSeat
     kernel/WInputEvent
     kernel/WTexture
     kernel/WXCursorManager
     kernel/WXdgShell
     kernel/WXdgSurface
-    kernel/WSurfaceLayout
+    kernel/wsurfacehandler
 
-    qtquick/wquickrendercontrol.h
     qtquick/wsurfaceitem.h
-    qtquick/wsurfacemanager.h
-    qtquick/WQuickRenderControl
     qtquick/WSurfaceItem
-    qtquick/WSurfaceManager
+    qtquick/woutputhelper.h
+    qtquick/woutputlayoutitem.h
+    qtquick/wquickoutputlayout.h
+    qtquick/wquickwaylandserver.h
+    qtquick/woutputrenderwindow.h
+    qtquick/woutputviewport.h
+    qtquick/wquickcursor.h
 
     utils/wsignalconnector.h
     utils/wtools.h
@@ -116,6 +132,11 @@ add_library(${TARGET}
     ${QTQUICK_SOURCES}
     ${UTILS_SOURCES}
     ${QPA_SOURCES}
+)
+
+qt_add_qml_module(${TARGET}
+    URI Waylib.Server
+    VERSION "${PROJECT_VERSION}"
 )
 
 set_target_properties(${TARGET}
@@ -165,6 +186,7 @@ target_include_directories(${TARGET}
     PUBLIC
     kernel
     qtquick
+    qtquick/private
     utils
 )
 

@@ -1,176 +1,219 @@
-/*
- * Copyright (C) 2021 zkyd
- *
- * Author:     zkyd <zkyd@zjide.org>
- *
- * Maintainer: zkyd <zkyd@zjide.org>
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Lesser General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU Lesser General Public License
- * along with this program. If not, see <http://www.gnu.org/licenses/>.
- */
+// Copyright (C) 2023 JiDe Zhang <zhangjide@deepin.org>.
+// SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include <WServer>
-#include <WThreadUtils>
-#include <WOutput>
-#include <WBackend>
-#include <WXCursorManager>
-#include <WCursor>
-#include <WSeat>
-#include <WOutputLayout>
-#include <WInputDevice>
-#include <WXdgShell>
-#include <WSurfaceManager>
-#include <WSurfaceLayout>
 #include <WSurface>
-#include <WSurfaceItem>
+#include <WSeat>
+#include <WCursor>
 
-#include <QQuickItem>
-#include <QQmlComponent>
-#include <QQmlContext>
-#include <QTimer>
-#include <QThread>
-#include <QQuickView>
 #include <QGuiApplication>
-#include <QQuickRenderControl>
 #include <QQmlApplicationEngine>
 #include <QQuickStyle>
-#include <QApplication>
+#include <QProcess>
+#include <QTemporaryFile>
+#include <QMouseEvent>
+#include <QQuickItem>
 
+#include <wquickbackend_p.h>
+#include <qwbackend.h>
+
+QW_USE_NAMESPACE
 WAYLIB_SERVER_USE_NAMESPACE
 
-class SurfaceManager : public WSurfaceManager
-{
+class MoveResizeHelper : public QObject {
+    Q_OBJECT
+    Q_PROPERTY(WSeat* seat READ seat WRITE setSeat NOTIFY seatChanged)
+
 public:
-    SurfaceManager(WServer *server, WOutputLayout *layout)
-        : WSurfaceManager(server, layout, server)
+    explicit MoveResizeHelper(QObject *parent = nullptr)
+        : QObject(parent)
     {
 
     }
 
-    QQuickWindow *createWindow(QQuickRenderControl *rc, WOutput *output) override {
-        ensureEngine();
-        qmlRegisterUncreatableType<WOutput>("org.zjide.waylib", 1, 0, "Output", "Don't crate");
-        auto view = new QQuickView(QUrl(), rc);
-        view->setResizeMode(QQuickView::SizeRootObjectToView);
-        view->setInitialProperties({{"output", QVariant::fromValue(output)}});
-        view->setSource(QUrl("qrc:/Output.qml"));
-        connect(view->engine(), &QQmlEngine::exit, qApp, &QGuiApplication::exit);
-        connect(view->engine(), &QQmlEngine::quit, qApp, &QGuiApplication::quit);
-        return view;
+    Q_SLOT void startMove(WSurface *surface, QQuickItem *surfaceItem, int serial);
+    Q_SLOT void startResize(WSurface *surface, QQuickItem *surfaceItem, Qt::Edges edge, int serial);
+
+    inline void stop() {
+        m_surfaceItem = nullptr;
+        m_seat->setEventGrabber(nullptr);
+        surface->notifyEndState(type);
+        surface = nullptr;
     }
 
-    QQuickItem *createSurfaceItem(WSurface *surface) override {
-        if (!surface->testAttribute(WSurface::Attribute::Immovable)) {
-            // init the position for the surface
-            if (auto output = surface->attachedOutput()) {
-                QRectF surface_geometry(QPointF(0, 0), surface->size());
-                const QRectF output_geometry(output->position(), output->effectiveSize());
-                surface_geometry.moveCenter(output_geometry.center());
-                setPosition(surface, surface_geometry.topLeft());
-            }
-        }
+    bool event(QEvent *event) override;
 
-        if (!surfaceDelegate) {
-            ensureEngine();
-            qmlRegisterType<WSurfaceItem>("org.zjide.waylib", 1, 0, "SurfaceItem");
-            surfaceDelegate = new QQmlComponent(engine, this);
-            surfaceDelegate->loadUrl(QUrl("qrc:/SurfaceDelegate.qml"));
-        }
+    WSeat *seat() const;
+    void setSeat(WSeat *newSeat);
 
-        const QVariantMap properies {
-            {"surface", QVariant::fromValue(surface)}
-        };
-        auto item = qobject_cast<QQuickItem*>(surfaceDelegate->createWithInitialProperties(properies));
-        auto surfaceItem = item->findChild<WSurfaceItem*>();
-        Q_ASSERT(surfaceItem);
-        qRegisterMetaType<Qt::ApplicationState>();
-        // Active the window on clicked
-        connect(surfaceItem, &WSurfaceItem::mouseRelease, this, [surfaceItem, this] (WSeat *seat) {
-            requestActivate(surfaceItem->surface(), seat);
-        });
-        return item;
-    }
+    QQuickItem *surfaceItem() const;
+    void setSurfaceItem(QQuickItem *newSurfaceItem);
 
-    QQuickItem *layerItem(QQuickWindow *window, Layer layer) const override {
-        if (layer == Layer::Window) {
-            return window->contentItem()->findChild<QQuickItem*>("WindowLayer");
-        }
-
-        return WSurfaceManager::layerItem(window, layer);
-    }
+signals:
+    void seatChanged();
+    void surfaceItemChanged();
 
 private:
-    void ensureEngine() {
-        if (!engine) {
-            engine = new QQmlEngine(this);
-            engine->rootContext()->setContextProperty("manager", this);
-        }
+    WSurface::State type;
+    WSurface *surface;
+    QPointF surfacePosOfStartMoveResize;
+    QSizeF surfaceSizeOfstartMoveResize;
+    Qt::Edges resizeEdgets;
+
+    WSeat *m_seat = nullptr;
+    QQuickItem *m_surfaceItem = nullptr;
+};
+
+QQuickItem *MoveResizeHelper::surfaceItem() const
+{
+    return m_surfaceItem;
+}
+
+void MoveResizeHelper::setSurfaceItem(QQuickItem *newSurfaceItem)
+{
+    if (m_surfaceItem == newSurfaceItem)
+        return;
+    m_surfaceItem = newSurfaceItem;
+    emit surfaceItemChanged();
+}
+
+WSeat *MoveResizeHelper::seat() const
+{
+    return m_seat;
+}
+
+void MoveResizeHelper::setSeat(WSeat *newSeat)
+{
+    if (m_seat == newSeat)
+        return;
+    m_seat = newSeat;
+    emit seatChanged();
+}
+
+void MoveResizeHelper::startMove(WSurface *surface, QQuickItem *surfaceItem, int serial)
+{
+    Q_UNUSED(serial)
+    if (!m_seat->cursor()
+            || m_seat->cursor()->state() != Qt::LeftButton) {
+        stop();
+        return;
     }
 
-    QQmlEngine *engine = nullptr;
-    QQmlComponent *surfaceDelegate = nullptr;
-};
+    type = WSurface::State::Move;
+    this->surface = surface;
+    m_surfaceItem = surfaceItem;
+    surfacePosOfStartMoveResize = surface->position();
+
+    surface->notifyBeginState(type);
+    m_seat->setEventGrabber(this);
+}
+
+void MoveResizeHelper::startResize(WSurface *surface, QQuickItem *surfaceItem, Qt::Edges edge, int serial)
+{
+    Q_UNUSED(serial)
+    if (!m_seat->cursor()
+            || m_seat->cursor()->state() != Qt::LeftButton) {
+        stop();
+        return;
+    }
+
+    type = WSurface::State::Resize;
+    this->surface = surface;
+    m_surfaceItem = surfaceItem;
+    surfacePosOfStartMoveResize = surface->position();
+    surfaceSizeOfstartMoveResize = surface->size();
+    resizeEdgets = edge;
+
+    surface->notifyBeginState(type);
+    m_seat->setEventGrabber(this);
+}
+
+bool MoveResizeHelper::event(QEvent *event)
+{
+    if (Q_LIKELY(event->type() == QEvent::MouseMove)) {
+        auto cursor = m_seat->cursor();
+        Q_ASSERT(cursor);
+        QMouseEvent *ev = static_cast<QMouseEvent*>(event);
+
+        if (type == WSurface::State::Move) {
+            auto increment_pos = ev->globalPos() - cursor->lastPressedPosition();
+            auto new_pos = surfacePosOfStartMoveResize + increment_pos;
+            m_surfaceItem->setPosition(new_pos);
+        } else if (type == WSurface::State::Resize) {
+            auto increment_pos = ev->globalPos() - cursor->lastPressedPosition();
+            QRectF geo(surfacePosOfStartMoveResize, surfaceSizeOfstartMoveResize);
+
+            if (resizeEdgets & Qt::LeftEdge)
+                geo.setLeft(geo.left() + increment_pos.x());
+            if (resizeEdgets & Qt::TopEdge)
+                geo.setTop(geo.top() + increment_pos.y());
+
+            if (resizeEdgets & Qt::RightEdge)
+                geo.setRight(geo.right() + increment_pos.x());
+            if (resizeEdgets & Qt::BottomEdge)
+                geo.setBottom(geo.bottom() + increment_pos.y());
+
+            m_surfaceItem->setPosition(geo.topLeft());
+        } else {
+            Q_ASSERT_X(false, __FUNCTION__, "Not support surface state request");
+        }
+    } else if (event->type() == QEvent::MouseButtonRelease) {
+        stop();
+    } else {
+        event->ignore();
+        return false;
+    }
+
+    return true;
+}
 
 int main(int argc, char *argv[]) {
 //    QQuickWindow::setGraphicsApi(QSGRendererInterface::Vulkan);
 
-    WServer::initializeQPA(false);
-    QScopedPointer<WServer> server(new WServer());
-
-    WOutputLayout *layout = new WOutputLayout;
-    SurfaceManager *manager = new SurfaceManager(server.get(), layout);
-
-    server->attach<WBackend>(layout);
-    server->attach<WXdgShell>(manager);
-
+    WServer::initializeQPA();
     QQuickStyle::setStyle("Material");
 
     QGuiApplication::setAttribute(Qt::AA_EnableHighDpiScaling);
-    QGuiApplication::setAttribute(Qt::AA_ShareOpenGLContexts, false);
     QGuiApplication::setAttribute(Qt::AA_UseHighDpiPixmaps);
     QGuiApplication::setAttribute(Qt::AA_UseOpenGLES);
     QGuiApplication::setHighDpiScaleFactorRoundingPolicy(Qt::HighDpiScaleFactorRoundingPolicy::PassThrough);
     QGuiApplication::setQuitOnLastWindowClosed(false);
-    QApplication app(argc, argv);
+    QGuiApplication app(argc, argv);
 
-    WXCursorManager xcursor_manager;
-    WCursor cursor;
+    qmlRegisterModule("Tinywl", 1, 0);
+    qmlRegisterType<MoveResizeHelper>("Tinywl", 1, 0, "MoveResizeHelper");
 
-    auto seat = server->attach<WSeat>();
+    QQmlApplicationEngine waylandEngine;
+    waylandEngine.load(QUrl("qrc:/Main.qml"));
+    WServer *server = waylandEngine.rootObjects().first()->findChild<WServer*>();
+    Q_ASSERT(server);
 
-    cursor.setManager(&xcursor_manager);
-    cursor.setOutputLayout(layout);
-    seat->attachCursor(&cursor);
+    auto backend = server->findChild<WQuickBackend*>();
+    Q_ASSERT(backend);
 
-    // TODO: attach to WBackend
-    QObject::connect(server.get(), &WServer::inputAdded,
-                     [&] (WBackend*, WInputDevice *device) {
-        seat->attachInputDevice(device);
-    });
+    // multi output
+//    qobject_cast<QWMultiBackend*>(backend->backend())->forEachBackend([] (wlr_backend *backend, void *) {
+//        if (auto x11 = QWX11Backend::from(backend))
+//            x11->createOutput();
+//    }, nullptr);
 
-    server->start();
-    if (!server->waitForStarted(1000)) {
-        qFatal() << "Failed on start wayland server";
+    QTemporaryFile tmpQmlFile;
+    tmpQmlFile.setAutoRemove(true);
+    QProcess waylandClientDemo;
+
+    if (tmpQmlFile.open()) {
+        QFile qmlFile(":/ClientWindow.qml");
+        if (qmlFile.open(QIODevice::ReadOnly)) {
+            tmpQmlFile.write(qmlFile.readAll());
+        }
+        tmpQmlFile.close();
+
+        waylandClientDemo.setProgram("qml");
+        waylandClientDemo.setArguments({tmpQmlFile.fileName(), "-platform", "wayland"});
+        server->startProcess(waylandClientDemo);
     }
-    server->initializeProxyQPA(argc, argv, {"wayland"});
-
-    QObject::connect(&app, &QCoreApplication::aboutToQuit,
-                     server.get(), &WServer::stop, Qt::DirectConnection);
-
-    QQmlApplicationEngine *engine = new QQmlApplicationEngine;
-    engine->load(QUrl("qrc:/Window.qml"));
-
-    manager->initialize();
 
     return app.exec();
 }
+
+#include "main.moc"

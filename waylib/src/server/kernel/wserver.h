@@ -1,30 +1,18 @@
-/*
- * Copyright (C) 2021 zkyd
- *
- * Author:     zkyd <zkyd@zjide.org>
- *
- * Maintainer: zkyd <zkyd@zjide.org>
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Lesser General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU Lesser General Public License
- * along with this program. If not, see <http://www.gnu.org/licenses/>.
- */
+// Copyright (C) 2023 JiDe Zhang <zhangjide@deepin.org>.
+// SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #pragma once
 
 #include <wglobal.h>
 #include <qwglobal.h>
 
+#include <QDeadlineTimer>
+#include <QFuture>
 #include <QObject>
+
+QT_BEGIN_NAMESPACE
+class QProcess;
+QT_END_NAMESPACE
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
@@ -59,10 +47,9 @@ protected:
     friend class WServerPrivate;
 };
 
-class WThreadUtil;
 class WInputDevice;
 class WOutput;
-class WOutputHandle;
+class WOutputViewport;
 class WDisplayHandle;
 class WBackend;
 class WBackendHandle;
@@ -74,7 +61,7 @@ class WServer : public QObject, public WObject
     friend class WShellInterface;
 
 public:
-    explicit WServer();
+    explicit WServer(QObject *parent = nullptr);
 
     WDisplayHandle *handle() const;
     template<typename WDisplayNativeInterface>
@@ -124,31 +111,24 @@ public:
         return nullptr;
     }
 
-    static WServer *fromThread(const QThread *thread);
     static WServer *from(WServerInterface *interface);
 
     void start();
     void stop();
-    static void initializeQPA(bool master, const QStringList &parameters = {});
+    static void initializeQPA(bool master = true, const QStringList &parameters = {});
     void initializeProxyQPA(int &argc, char **argv, const QStringList &proxyPlatformPlugins = {}, const QStringList &parameters = {});
+    void startProcess(QProcess &process) const;
 
-    bool waitForStarted(int timeout);
-    bool waitForStoped(int timeout);
     bool isRunning() const;
     const char *displayName() const;
 
-    WThreadUtil *threadUtil() const;
     QObject *slotOwner() const;
 
 Q_SIGNALS:
     void started();
-    // TODO: remove it, use the WBackend direct attach to WSeat
-    void inputAdded(WBackend *backend, WInputDevice *input);
-    void inputRemoved(WBackend *backend, WInputDevice *input);
 
 protected:
-    void _started();
-    bool event(QEvent *e) override;
+    WServer(WServerPrivate &dd, QObject *parent = nullptr);
 };
 
 WAYLIB_SERVER_END_NAMESPACE

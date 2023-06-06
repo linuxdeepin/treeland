@@ -1,42 +1,30 @@
-/*
- * Copyright (C) 2021 ~ 2022 zkyd
- *
- * Author:     zkyd <zkyd@zjide.org>
- *
- * Maintainer: zkyd <zkyd@zjide.org>
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Lesser General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU Lesser General Public License
- * along with this program. If not, see <http://www.gnu.org/licenses/>.
- */
+// Copyright (C) 2023 JiDe Zhang <zhangjide@deepin.org>.
+// SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
+
 #include "wcursor.h"
+#include "private/wcursor_p.h"
 #include "winputdevice.h"
-#include "woutputlayout.h"
 #include "wxcursormanager.h"
+#include "wxcursorimage.h"
 #include "wseat.h"
 #include "woutput.h"
-#include "wsignalconnector.h"
+#include "woutputlayout.h"
+#include "platformplugin/qwlrootsintegration.h"
+#include "platformplugin/qwlrootscursor.h"
 
 #include <qwcursor.h>
 #include <qwoutput.h>
 #include <qwxcursormanager.h>
+#include <qwoutputlayout.h>
+#include <qwinputdevice.h>
+#include <qwpointer.h>
+#include <qwsignalconnector.h>
 
 #include <QCursor>
 #include <QPixmap>
-#include <QQuickWindow>
 #include <QCoreApplication>
+#include <QQuickWindow>
 #include <QDebug>
-#include <qwinputdevice.h>
-#include <qwpointer.h>
 
 extern "C" {
 #include <wlr/types/wlr_cursor.h>
@@ -47,66 +35,144 @@ extern "C" {
 QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
-class WCursorPrivate : public WObjectPrivate
+WCursorPrivate::WCursorPrivate(WCursor *qq)
+    : WObjectPrivate(qq)
+    , handle(new QWCursor())
 {
-public:
-    WCursorPrivate(WCursor *qq)
-        : WObjectPrivate(qq)
-        , handle(new QWCursor())
-    {
-        handle->handle()->data = qq;
+    handle->handle()->data = qq;
+}
+
+WCursorPrivate::~WCursorPrivate()
+{
+    handle->handle()->data = nullptr;
+    if (seat)
+        seat->setCursor(nullptr);
+
+    if (outputLayout) {
+        for (auto o : outputLayout->outputs())
+            o->removeCursor(q_func());
     }
 
-    ~WCursorPrivate() {
-        handle->handle()->data = nullptr;
-        if (seat)
-            seat->detachCursor(q_func());
+    clearCursorImages();
 
-        delete handle;
+    delete handle;
+}
+
+void WCursorPrivate::setType(const char *name)
+{
+    W_Q(WCursor);
+
+    if (!xcursor_manager)
+        return;
+
+    if (outputLayout) {
+        for (auto o : outputLayout->outputs()) {
+            xcursor_manager->load(o->scale());
+            wlr_xcursor *xcursor = xcursor_manager->getXCursor(name, o->scale());
+            cursorImages.append(new WXCursorImage(xcursor, o->scale()));
+            // TODO: Support animation
+            WXCursorImage *image = cursorImages.last();
+            handle->setImage(image->image(), image->hotspot());
+        }
+    }
+}
+
+static inline const char *qcursorToType(const QCursor &cursor) {
+    switch ((int)cursor.shape()) {
+    case Qt::ArrowCursor:
+        return "left_ptr";
+    case Qt::UpArrowCursor:
+        return "up_arrow";
+    case Qt::CrossCursor:
+        return "cross";
+    case Qt::WaitCursor:
+        return "wait";
+    case Qt::IBeamCursor:
+        return "ibeam";
+    case Qt::SizeAllCursor:
+        return "size_all";
+    case Qt::BlankCursor:
+        return "blank";
+    case Qt::PointingHandCursor:
+        return "pointing_hand";
+    case Qt::SizeBDiagCursor:
+        return "size_bdiag";
+    case Qt::SizeFDiagCursor:
+        return "size_fdiag";
+    case Qt::SizeVerCursor:
+        return "size_ver";
+    case Qt::SplitVCursor:
+        return "split_v";
+    case Qt::SizeHorCursor:
+        return "size_hor";
+    case Qt::SplitHCursor:
+        return "split_h";
+    case Qt::WhatsThisCursor:
+        return "whats_this";
+    case Qt::ForbiddenCursor:
+        return "forbidden";
+    case Qt::BusyCursor:
+        return "left_ptr_watch";
+    case Qt::OpenHandCursor:
+        return "openhand";
+    case Qt::ClosedHandCursor:
+        return "closedhand";
+    case Qt::DragCopyCursor:
+        return "dnd-copy";
+    case Qt::DragMoveCursor:
+        return "dnd-move";
+    case Qt::DragLinkCursor:
+        return "dnd-link";
+    default:
+        break;
     }
 
-    inline WOutput *outputAt(const QPointF &pos) const
-    {
-        return outputLayout ? outputLayout->at(pos) : nullptr;
+    return nullptr;
+}
+
+void WCursorPrivate::updateCursorImage()
+{
+    clearCursorImages();
+
+    if (auto type_name = qcursorToType(cursor)) {
+        setType(type_name);
+    } else {
+        const QImage &img = cursor.pixmap().toImage();
+        if (img.isNull())
+            return;
+
+        if (outputLayout) {
+            for (auto o : outputLayout->outputs()) {
+                QImage tmp = img;
+                if (!qFuzzyCompare(img.devicePixelRatio(), o->scale())) {
+                    tmp = tmp.scaledToWidth(img.width() * o->scale() / img.devicePixelRatio(), Qt::SmoothTransformation);
+                    tmp.setDevicePixelRatio(o->scale());
+                }
+
+                cursorImages.append(new WXCursorImage(tmp, cursor.hotSpot() * o->scale() / img.devicePixelRatio()));
+                WXCursorImage *image = cursorImages.last();
+                handle->setImage(image->image(), image->hotspot());
+            }
+        } else {
+            cursorImages.append(new WXCursorImage(img, cursor.hotSpot()));
+            handle->setImage(img, cursor.hotSpot());
+        }
     }
 
-    // begin slot function
-    void on_motion(wlr_pointer_motion_event *event);
-    void on_motion_absolute(wlr_pointer_motion_absolute_event *event);
-    void on_button(wlr_pointer_button_event *event);
-    void on_axis(wlr_pointer_axis_event *event);
-    void on_frame();
-    // end slot function
-
-    void connect();
-    void processCursorMotion(QWPointer *device, uint32_t time);
-
-    W_DECLARE_PUBLIC(WCursor)
-
-    QWCursor *handle;
-    WXCursorManager *xcursor_manager = nullptr;
-    WSeat *seat = nullptr;
-    WOutputLayout *outputLayout = nullptr;
-    WOutput *lastOutput = nullptr;
-    QVector<WInputDevice*> deviceList;
-
-    // for event data
-    Qt::MouseButtons state = Qt::NoButton;
-    Qt::MouseButton button = Qt::NoButton;
-    QPointF lastPressedPosition;
-};
+    Q_EMIT q_func()->cursorImageMaybeChanged();
+}
 
 void WCursorPrivate::on_motion(wlr_pointer_motion_event *event)
 {
     auto device = QWPointer::from(event->pointer);
-    handle->move(device, QPointF(event->delta_x, event->delta_y));
+    q_func()->move(device, QPointF(event->delta_x, event->delta_y));
     processCursorMotion(device, event->time_msec);
 }
 
 void WCursorPrivate::on_motion_absolute(wlr_pointer_motion_absolute_event *event)
 {
     auto device = QWPointer::from(event->pointer);
-    handle->warpAbsolute(device, QPointF(event->x, event->y));
+    q_func()->setScalePosition(device, QPointF(event->x, event->y));
     processCursorMotion(device, event->time_msec);
 }
 
@@ -147,12 +213,6 @@ void WCursorPrivate::on_frame()
     if (Q_LIKELY(seat)) {
         seat->notifyFrame(q_func());
     }
-
-#ifdef WAYLIB_DISABLE_OUTPUT_DAMAGE
-    if (Q_LIKELY(lastOutput)) {
-        lastOutput->requestRender();
-    }
-#endif
 }
 
 void WCursorPrivate::connect()
@@ -180,15 +240,46 @@ void WCursorPrivate::connect()
 void WCursorPrivate::processCursorMotion(QWPointer *device, uint32_t time)
 {
     W_Q(WCursor);
-    auto output = outputAt(handle->position());
-    q->mapToOutput(output);
 
     if (Q_LIKELY(seat))
         seat->notifyMotion(q, WInputDevice::fromHandle<QWInputDevice>(device), time);
 }
 
-WCursor::WCursor()
-    : WObject(*new  WCursorPrivate(this))
+void WCursorPrivate::clearCursorImages()
+{
+    qDeleteAll(cursorImages);
+    cursorImages.clear();
+}
+
+WCursor::WCursor(WCursorPrivate &dd, QObject *parent)
+    : QObject(parent)
+    , WObject(dd)
+{
+
+}
+
+void WCursor::move(QWInputDevice *device, const QPointF &delta)
+{
+    d_func()->handle->move(device, delta);
+}
+
+void WCursor::setPosition(QWInputDevice *device, const QPointF &pos)
+{
+    d_func()->handle->warpClosest(device, pos);
+}
+
+bool WCursor::setPositionWithChecker(QWInputDevice *device, const QPointF &pos)
+{
+    return d_func()->handle->warp(device, pos);
+}
+
+void WCursor::setScalePosition(QWInputDevice *device, const QPointF &ratio)
+{
+    d_func()->handle->warpAbsolute(device, ratio);
+}
+
+WCursor::WCursor(QObject *parent)
+    : WCursor(*new WCursorPrivate(this), parent)
 {
 
 }
@@ -266,99 +357,61 @@ WSeat *WCursor::seat() const
     return d->seat;
 }
 
+QQuickWindow *WCursor::eventWindow() const
+{
+    W_DC(WCursor);
+    return d->eventWindow.get();
+}
+
+void WCursor::setEventWindow(QQuickWindow *window)
+{
+    W_D(WCursor);
+    d->eventWindow = window;
+}
+
 Qt::CursorShape WCursor::defaultCursor()
 {
     return Qt::ArrowCursor;
 }
 
-void WCursor::setManager(WXCursorManager *manager)
+void WCursor::setXCursorManager(QWXCursorManager *manager)
 {
     W_D(WCursor);
+
+    if (d->xcursor_manager == manager)
+        return;
+
     d->xcursor_manager = manager;
-}
-
-void WCursor::setType(const char *name)
-{
-    W_D(WCursor);
-    Q_ASSERT(d->xcursor_manager);
-    if (d->lastOutput) {
-        bool ok = d->xcursor_manager->load(d->lastOutput->scale());
-        Q_ASSERT(ok);
-    }
-    d->xcursor_manager->nativeInterface<QWXCursorManager>()->setCursor(name, d->handle);
-}
-
-static inline const char *qcursorToType(const QCursor &cursor) {
-    switch ((int)cursor.shape()) {
-    case Qt::ArrowCursor:
-        return "left_ptr";
-    case Qt::UpArrowCursor:
-        return "up_arrow";
-    case Qt::CrossCursor:
-        return "cross";
-    case Qt::WaitCursor:
-        return "wait";
-    case Qt::IBeamCursor:
-        return "ibeam";
-    case Qt::SizeAllCursor:
-        return "size_all";
-    case Qt::BlankCursor:
-        return "blank";
-    case Qt::PointingHandCursor:
-        return "pointing_hand";
-    case Qt::SizeBDiagCursor:
-        return "size_bdiag";
-    case Qt::SizeFDiagCursor:
-        return "size_fdiag";
-    case Qt::SizeVerCursor:
-        return "size_ver";
-    case Qt::SplitVCursor:
-        return "split_v";
-    case Qt::SizeHorCursor:
-        return "size_hor";
-    case Qt::SplitHCursor:
-        return "split_h";
-    case Qt::WhatsThisCursor:
-        return "whats_this";
-    case Qt::ForbiddenCursor:
-        return "forbidden";
-    case Qt::BusyCursor:
-        return "left_ptr_watch";
-    case Qt::OpenHandCursor:
-        return "openhand";
-    case Qt::ClosedHandCursor:
-        return "closedhand";
-    case Qt::DragCopyCursor:
-        return "dnd-copy";
-    case Qt::DragMoveCursor:
-        return "dnd-move";
-    case Qt::DragLinkCursor:
-        return "dnd-link";
-    default:
-        break;
-    }
-
-    return nullptr;
+    d->updateCursorImage();
 }
 
 void WCursor::setCursor(const QCursor &cursor)
 {
-    if (auto type_name = qcursorToType(cursor)) {
-        setType(type_name);
-    } else {
-        const QImage &img = cursor.pixmap().toImage();
+    W_D(WCursor);
 
-        if (img.isNull())
-            return;
-
-        W_D(WCursor);
-        d->handle->setImage(img, cursor.hotSpot());
-    }
+    d->cursor = cursor;
+    d->updateCursorImage();
 }
 
-void WCursor::reset()
+WXCursorImage *WCursor::getCursorImage(float scale) const
 {
-    setCursor(mappedOutput()->cursor());
+    W_DC(WCursor);
+
+    if (d->cursorImages.isEmpty())
+        return nullptr;
+
+    WXCursorImage *maxScaleImage = nullptr;
+
+    for (auto i : d->cursorImages) {
+        if (i->scale() < scale) {
+            if (!maxScaleImage || maxScaleImage->scale() < i->scale())
+                maxScaleImage = i;
+        } else {
+            return i;
+        }
+    }
+
+    return maxScaleImage;
 }
 
 bool WCursor::attachInputDevice(WInputDevice *device)
@@ -372,12 +425,6 @@ bool WCursor::attachInputDevice(WInputDevice *device)
     W_D(WCursor);
     Q_ASSERT(!d->deviceList.contains(device));
     d->handle->attachInputDevice(device->nativeInterface<QWInputDevice>());
-
-    if (d->lastOutput && d->lastOutput->isValid()) {
-        d->handle->mapInputToOutput(device->nativeInterface<QWInputDevice>(),
-                                    d->lastOutput->nativeInterface<QWOutput>()->handle());
-    }
-
     d->deviceList << device;
     return true;
 }
@@ -393,61 +440,51 @@ void WCursor::detachInputDevice(WInputDevice *device)
     d->handle->mapInputToOutput(device->nativeInterface<QWInputDevice>(), nullptr);
 }
 
-void WCursor::setOutputLayout(WOutputLayout *layout)
+void WCursor::setLayout(WOutputLayout *layout)
 {
     W_D(WCursor);
 
     if (d->outputLayout == layout)
         return;
 
-    if (d->outputLayout)
-        d->outputLayout->removeCursor(this);
+    if (d->outputLayout) {
+        for (auto o : d->outputLayout->outputs())
+            disconnect(o, SIGNAL(scaleChanged()), this, SLOT(updateCursorImage()));
+    }
 
     d->outputLayout = layout;
-    d->handle->attachOutputLayout(layout->nativeInterface<QWOutputLayout>());
+    d->handle->attachOutputLayout(d->outputLayout);
 
-    if (layout)
-        layout->addCursor(this);
+    if (d->outputLayout) {
+        for (auto o : d->outputLayout->outputs()) {
+            connect(o, SIGNAL(scaleChanged()), this, SLOT(updateCursorImage()));
+            o->addCursor(this);
+        }
+    }
+
+    connect(d->outputLayout, &WOutputLayout::outputAdded, this, [this, d] (WOutput *o) {
+        connect(o, SIGNAL(scaleChanged()), this, SLOT(updateCursorImage()));
+        o->addCursor(this);
+        d->updateCursorImage();
+    });
+
+    d->updateCursorImage();
 }
 
-void WCursor::mapToOutput(WOutput *output)
-{
-    W_D(WCursor);
-
-    bool output_changed = d->lastOutput != output;
-
-    if (Q_UNLIKELY(!output_changed))
-        return;
-
-    if (d->lastOutput) {
-        d->lastOutput->cursorLeave(this);
-    }
-
-    d->lastOutput = output;
-
-    if (output) {
-        output->cursorEnter(this);
-    }
-
-    auto output_handle = output ? output->nativeInterface<QWOutput>()->handle() : nullptr;
-    d->handle->mapToOutput(output_handle);
-
-    Q_FOREACH(auto device, d->deviceList) {
-        auto device_handle = device->nativeInterface<QWInputDevice>();
-        d->handle->mapInputToOutput(device_handle, output_handle);
-    }
-}
-
-WOutput *WCursor::mappedOutput() const
+WOutputLayout *WCursor::layout() const
 {
     W_DC(WCursor);
-    return d->lastOutput;
+    return d->outputLayout;
 }
 
 void WCursor::setPosition(const QPointF &pos)
 {
-    W_D(WCursor);
-    d->handle->move(nullptr, pos);
+    setPosition(nullptr, pos);
+}
+
+bool WCursor::setPositionWithChecker(const QPointF &pos)
+{
+    setPositionWithChecker(nullptr, pos);
 }
 
 QPointF WCursor::position() const
@@ -463,3 +500,5 @@ QPointF WCursor::lastPressedPosition() const
 }
 
 WAYLIB_SERVER_END_NAMESPACE
+
+#include "moc_wcursor.cpp"

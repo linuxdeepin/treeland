@@ -4,6 +4,7 @@
 #pragma once
 
 #include "wglobal.h"
+#include "qwlrootscursor.h"
 
 #include <qwglobal.h>
 
@@ -26,6 +27,7 @@ public:
     WOutput *output() const;
 
     QRect geometry() const override;
+    void move(const QPoint &pos);
 
     int depth() const override;
     QImage::Format format() const override;
@@ -33,11 +35,14 @@ public:
 
     qreal devicePixelRatio() const override;
     qreal refreshRate() const override;
+    QDpi logicalBaseDpi() const override;
+    QDpi logicalDpi() const override;
 
     Qt::ScreenOrientation nativeOrientation() const override;
     Qt::ScreenOrientation orientation() const override;
 
     QWindow *topLevelAt(const QPoint &) const override;
+    QList<QPlatformScreen *> virtualSiblings() const override;
 
     QString name() const override;
     QString manufacturer() const override;
@@ -55,12 +60,15 @@ public:
     int preferredMode() const override;
 
 private:
-    void init();
+    friend class QWlrootsIntegration;
+
+    void initialize();
     QImage::Format getFormat() const;
     inline wlr_output *handle() const;
 
-    QImage::Format m_format;
+    mutable QImage::Format m_format;
     QPointer<WOutput> m_output;
+    mutable std::unique_ptr<QWlrootsCursor> m_cursor;
 };
 
 WAYLIB_SERVER_END_NAMESPACE

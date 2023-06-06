@@ -1,47 +1,39 @@
-/*
- * Copyright (C) 2021 zkyd
- *
- * Author:     zkyd <zkyd@zjide.org>
- *
- * Maintainer: zkyd <zkyd@zjide.org>
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Lesser General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU Lesser General Public License
- * along with this program. If not, see <http://www.gnu.org/licenses/>.
- */
+// Copyright (C) 2023 JiDe Zhang <zhangjide@deepin.org>.
+// SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #pragma once
 
 #include <wglobal.h>
+#include <woutputlayout.h>
+
+#include <qwglobal.h>
 #include <QPointF>
 
 QT_BEGIN_NAMESPACE
 class QCursor;
+class QQuickWindow;
 QT_END_NAMESPACE
+
+QW_BEGIN_NAMESPACE
+class QWXCursorManager;
+class QWInputDevice;
+QW_END_NAMESPACE
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
 class WSeat;
 class WInputDevice;
-class WOutput;
-class WOutputLayout;
 class WXCursorManager;
+class WXCursorImage;
 class WCursorHandle;
 class WCursorPrivate;
-class WCursor : public WObject
+class WCursor : public QObject, public WObject
 {
+    Q_OBJECT
     W_DECLARE_PRIVATE(WCursor)
+
 public:
-    WCursor();
+    explicit WCursor(QObject *parent = nullptr);
 
     WCursorHandle *handle() const;
     template<typename DNativeInterface>
@@ -58,26 +50,43 @@ public:
     Qt::MouseButtons state() const;
     Qt::MouseButton button() const;
 
-    void setSeat(WSeat *seat);
     WSeat *seat() const;
+    QQuickWindow *eventWindow() const;
+    void setEventWindow(QQuickWindow *window);
 
     static Qt::CursorShape defaultCursor();
 
-    void setManager(WXCursorManager *manager);
-    void setType(const char *name);
+    void setXCursorManager(QW_NAMESPACE::QWXCursorManager *manager);
     void setCursor(const QCursor &cursor);
-    void reset();
+    WXCursorImage *getCursorImage(float scale) const;
 
-    bool attachInputDevice(WInputDevice *device);
-    void detachInputDevice(WInputDevice *device);
-    void setOutputLayout(WOutputLayout *layout);
-
-    void mapToOutput(WOutput *output);
-    WOutput *mappedOutput() const;
+    void setLayout(WOutputLayout *layout);
+    WOutputLayout *layout() const;
 
     void setPosition(const QPointF &pos);
+    bool setPositionWithChecker(const QPointF &pos);
+
     QPointF position() const;
     QPointF lastPressedPosition() const;
+
+Q_SIGNALS:
+    void cursorImageMaybeChanged();
+
+protected:
+    WCursor(WCursorPrivate &dd, QObject *parent = nullptr);
+
+    virtual void move(QW_NAMESPACE::QWInputDevice *device, const QPointF &delta);
+    virtual void setPosition(QW_NAMESPACE::QWInputDevice *device, const QPointF &pos);
+    virtual bool setPositionWithChecker(QW_NAMESPACE::QWInputDevice *device, const QPointF &pos);
+    virtual void setScalePosition(QW_NAMESPACE::QWInputDevice *device, const QPointF &ratio);
+
+private:
+    friend class WSeat;
+    void setSeat(WSeat *seat);
+    bool attachInputDevice(WInputDevice *device);
+    void detachInputDevice(WInputDevice *device);
+
+    W_PRIVATE_SLOT(void updateCursorImage())
 };
 
 WAYLIB_SERVER_END_NAMESPACE

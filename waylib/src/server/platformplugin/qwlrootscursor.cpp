@@ -6,41 +6,63 @@
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
-QWlrootsCursor::QWlrootsCursor(WCursor *cursor)
+QWlrootsCursor::QWlrootsCursor()
     : QPlatformCursor()
-    , m_cursor(cursor)
 {
-
+    windowCursor = WCursor::defaultCursor();
 }
 
 #ifndef QT_NO_CURSOR
 void QWlrootsCursor::changeCursor(QCursor *windowCursor, QWindow *)
 {
-    if (windowCursor)
-        m_cursor->setCursor(*windowCursor);
-    else
-        m_cursor->setCursor(WCursor::defaultCursor()); // default type
+    this->windowCursor = windowCursor ? *windowCursor : WCursor::defaultCursor();
+    if (!activeCursor)
+        return;
+
+    activeCursor->setCursor(this->windowCursor);
 }
 
 void QWlrootsCursor::setOverrideCursor(const QCursor &cursor)
 {
-    m_cursor->setCursor(cursor);
+    if (activeCursor)
+        activeCursor->setCursor(cursor);
 }
 
 void QWlrootsCursor::clearOverrideCursor()
 {
-    m_cursor->reset(); // default type
+    if (activeCursor)
+        activeCursor->setCursor(windowCursor); // default type
 }
 #endif
 
 QPoint QWlrootsCursor::pos() const
 {
-    return m_cursor->position().toPoint();
+    return activeCursor ? activeCursor->position().toPoint() : QPoint();
 }
 
 void QWlrootsCursor::setPos(const QPoint &pos)
 {
-    return m_cursor->setPosition(pos);
+    if (activeCursor)
+        activeCursor->setPosition(pos);
+}
+
+void QWlrootsCursor::addCursor(WCursor *cursor)
+{
+    cursors.append(cursor);
+    if (!activeCursor)
+        activeCursor = cursor;
+}
+
+void QWlrootsCursor::removeCursor(WCursor *cursor)
+{
+    bool ok = cursors.removeOne(cursor);
+    Q_ASSERT(ok);
+
+    if (cursor == activeCursor) {
+        activeCursor = nullptr;
+        if (!cursors.isEmpty())
+            activeCursor = cursors.first();
+    }
 }
 
 WAYLIB_SERVER_END_NAMESPACE

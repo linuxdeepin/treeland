@@ -1,23 +1,5 @@
-/*
- * Copyright (C) 2021 zkyd
- *
- * Author:     zkyd <zkyd@zjide.org>
- *
- * Maintainer: zkyd <zkyd@zjide.org>
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Lesser General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU Lesser General Public License
- * along with this program. If not, see <http://www.gnu.org/licenses/>.
- */
+// Copyright (C) 2023 JiDe Zhang <zhangjide@deepin.org>.
+// SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #pragma once
 
@@ -33,7 +15,7 @@ class WAYLIB_SERVER_EXPORT WXdgSurface : public WSurface
     W_DECLARE_PRIVATE(WXdgSurface)
 
 public:
-    explicit WXdgSurface(WXdgSurfaceHandle *handle, QObject *parent = nullptr);
+    explicit WXdgSurface(WXdgSurfaceHandle *handle, WServer *server, QObject *parent = nullptr);
     ~WXdgSurface();
 
     static Type *toplevelType();
@@ -43,7 +25,7 @@ public:
     bool testAttribute(Attribute attr) const override;
 
     WXdgSurfaceHandle *handle() const;
-    WSurfaceHandle *inputTargetAt(qreal scale, QPointF &globalPos) const override;
+    WSurfaceHandle *inputTargetAt(QPointF &localPos) const override;
 
     template<typename DNativeInterface>
     inline DNativeInterface *nativeInterface() const {
@@ -56,7 +38,7 @@ public:
         return fromHandle(reinterpret_cast<WXdgSurfaceHandle*>(handle));
     }
 
-    bool inputRegionContains(qreal scale, const QPointF &globalPos) const override;
+    bool inputRegionContains(const QPointF &localPos) const override;
     WSurface *parentSurface() const override;
 
     bool resizeing() const;
@@ -69,7 +51,7 @@ public Q_SLOTS:
     void resize(const QSize &size) override;
 
 protected:
-    void notifyChanged(ChangeType type) override;
+    void notifyChanged(ChangeType type, std::any oldValue, std::any newValue) override;
     void notifyBeginState(State state) override;
     void notifyEndState(State state) override;
 };

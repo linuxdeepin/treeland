@@ -1,23 +1,5 @@
-/*
- * Copyright (C) 2021 zkyd
- *
- * Author:     zkyd <zkyd@zjide.org>
- *
- * Maintainer: zkyd <zkyd@zjide.org>
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Lesser General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU Lesser General Public License
- * along with this program. If not, see <http://www.gnu.org/licenses/>.
- */
+// Copyright (C) 2023 JiDe Zhang <zhangjide@deepin.org>.
+// SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #pragma once
 
@@ -26,6 +8,11 @@
 
 #include <QObject>
 #include <QRect>
+#include <QQmlEngine>
+
+#include <any>
+
+Q_MOC_INCLUDE(<wseat.h>)
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
@@ -33,31 +20,29 @@ class WServer;
 class WSeat;
 class WTextureHandle;
 class WOutput;
-class WSurfaceLayout;
+class WSurfaceHandler;
+struct SurfaceData;
 class WSurfaceHandle;
 class WSurfacePrivate;
 class WAYLIB_SERVER_EXPORT WSurface : public QObject, public WObject
 {
-    friend class WSurfaceLayout;
-    friend class WSurfaceLayoutPrivate;
+    friend class WSurfaceHandler;
 
     Q_OBJECT
     W_DECLARE_PRIVATE(WSurface)
-    Q_PROPERTY(QPointF effectivePosition READ effectivePosition NOTIFY effectivePositionChanged)
-    Q_PROPERTY(QPointF position READ position NOTIFY positionChanged)
-    Q_PROPERTY(QSizeF effectiveSize READ effectiveSize NOTIFY effectiveSizeChanged)
     Q_PROPERTY(QSize size READ size NOTIFY sizeChanged)
-    Q_PROPERTY(QSize bufferSize READ bufferSize)
+    Q_PROPERTY(QSize bufferSize READ bufferSize NOTIFY bufferSizeChanged)
+    Q_PROPERTY(int bufferScale READ bufferScale NOTIFY bufferScaleChanged)
     Q_PROPERTY(WSurface *parentSurface READ parentSurface)
+    QML_NAMED_ELEMENT(WaylandSurface)
+    QML_UNCREATABLE("Using in C++")
 
 public:
-    explicit WSurface(QObject *parent = nullptr);
+    explicit WSurface(WServer *server, QObject *parent = nullptr);
 
     enum class ChangeType {
-        Layout,
-        Position,
+        Handler,
         Outputs,
-        AttachedOutput
     };
     enum class State {
         Move,
@@ -77,15 +62,15 @@ public:
     virtual bool testAttribute(Attribute attr) const;
 
     WSurfaceHandle *handle() const;
-    virtual WSurfaceHandle *inputTargetAt(qreal scale, QPointF &globalPos) const;
+    virtual WSurfaceHandle *inputTargetAt(QPointF &globalPos) const;
 
     template<typename DNativeInterface>
     inline DNativeInterface *nativeInterface() const {
         return reinterpret_cast<DNativeInterface*>(handle());
     }
     template<typename DNativeInterface>
-    inline DNativeInterface *nativeInputTargetAt(qreal scale, QPointF &spos) const {
-        return reinterpret_cast<DNativeInterface*>(inputTargetAt(scale, spos));
+    inline DNativeInterface *nativeInputTargetAt(QPointF &spos) const {
+        return reinterpret_cast<DNativeInterface*>(inputTargetAt(spos));
     }
 
     static WSurface *fromHandle(WSurfaceHandle *handle);
@@ -94,31 +79,21 @@ public:
         return fromHandle(reinterpret_cast<WSurfaceHandle*>(handle));
     }
 
-    virtual bool inputRegionContains(qreal scale, const QPointF &globalPos) const;
+    virtual bool inputRegionContains(const QPointF &localPos) const;
 
     WServer *server() const;
     virtual WSurface *parentSurface() const;
 
     // for current state
     QSize size() const;
-    QSizeF effectiveSize() const;
     QSize bufferSize() const;
     WLR::Transform orientation() const;
-    int scale() const;
+    int bufferScale() const;
 
     virtual void resize(const QSize &newSize);
 
-    inline QSizeF toEffectiveSize(qreal scale, const QSizeF &size) const
-    { return this->scale() < scale ? size / scale : size; }
-    inline QSizeF fromEffectiveSize(qreal scale, const QSizeF &size) const
-    { return this->scale() < scale ? size * scale : size; }
-    inline QPointF toEffectivePos(qreal scale, const QPointF &localPos) const
-    { return this->scale() < scale ? localPos / scale : localPos; }
-    inline QPointF fromEffectivePos(qreal scale, const QPointF &localPos) const
-    { return this->scale() < scale ? localPos * scale : localPos; }
-
-    QPointF positionToGlobal(const QPointF &localPos) const;
-    QPointF positionFromGlobal(const QPointF &globalPos) const;
+    QPointF mapToGlobal(const QPointF &localPos) const;
+    QPointF mapFromGlobal(const QPointF &globalPos) const;
 
     WTextureHandle *texture() const;
     QPoint textureOffset() const;
@@ -127,24 +102,29 @@ public:
 
     void enterOutput(WOutput *output);
     void leaveOutput(WOutput *output);
-    QVector<WOutput*> currentOutputs() const;
-    WOutput *attachedOutput() const;
+    QVector<WOutput*> outputs() const;
 
     virtual QPointF position() const;
-    QPointF effectivePosition() const;
-    WSurfaceLayout *layout() const;
-    void setLayout(WSurfaceLayout *layout);
+    WSurfaceHandler *handler() const;
+    void setHandler(WSurfaceHandler *handler);
 
-    virtual void notifyChanged(ChangeType);
+    virtual void notifyChanged(ChangeType, std::any oldValue, std::any newValue);
     virtual void notifyBeginState(State);
     virtual void notifyEndState(State);
 
 Q_SIGNALS:
+    void requestMap();
+    void requestUnmap();
+    void requestMove(WSeat *seat, quint32 serial);
+    void requestResize(WSeat *seat, Qt::Edges edge, quint32 serial);
+    void requestMaximize();
+    void requestUnmaximize();
+    void requestActivate(WSeat *seat);
+
     void textureChanged();
-    void positionChanged();
-    void effectivePositionChanged();
-    void sizeChanged();
-    void effectiveSizeChanged();
+    void sizeChanged(QSize oldSize, QSize newSize);
+    void bufferSizeChanged(QSize oldSize, QSize newSize);
+    void bufferScaleChanged(int oldScale, int newScale);
 
 protected:
     WSurface(WSurfacePrivate &dd, QObject *parent);

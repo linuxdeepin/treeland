@@ -5,7 +5,6 @@
 #include "qwlrootscreen.h"
 #include "qwlrootsintegration.h"
 
-#include <QThread>
 #include <QCoreApplication>
 
 #include <qpa/qwindowsysteminterface.h>
@@ -22,40 +21,36 @@ QWlrootsOutputWindow::QWlrootsOutputWindow(QWindow *window)
 
 void QWlrootsOutputWindow::initialize()
 {
+    auto onGeometryChanged = [this] {
+        const QRect newGeo = geometry();
+        QWindowSystemInterface::handleGeometryChange(window(), newGeo);
+    };
 
+    QObject::connect(window(), &QWindow::screenChanged,  window(),[this, onGeometryChanged] (QScreen *newScreen) {
+        if (onScreenGeometryConnection)
+            QObject::disconnect(onScreenGeometryConnection);
+        onScreenGeometryConnection = QObject::connect(newScreen, &QScreen::geometryChanged, window(), onGeometryChanged);
+    });
+
+    onScreenGeometryConnection = QObject::connect(screen()->screen(), &QScreen::geometryChanged, window(), onGeometryChanged);
+    QMetaObject::invokeMethod(window(), onGeometryChanged, Qt::QueuedConnection);
 }
 
 QPlatformScreen *QWlrootsOutputWindow::screen() const
 {
-    auto screen = dynamic_cast<QWlrootsScreen*>(QPlatformWindow::screen());
-    if (!screen) {
-        auto instance = QWlrootsIntegration::instance();
-        Q_ASSERT(instance);
-        if (!instance->screens().isEmpty())
-            return instance->screens().first();
-    }
-
-    return screen;
+    return QPlatformWindow::screen();
 }
 
 void QWlrootsOutputWindow::setGeometry(const QRect &rect)
 {
-    if (m_geometry == rect)
-        return;
-
-    m_geometry = rect;
-
-    if (QThread::currentThread() == qApp->thread()) {
-        QWindowSystemInterface::handleGeometryChange(window(), rect);
-    } else {
-        QWindowSystemInterfacePrivate::GeometryChangeEvent event(window(), rect);
-        QGuiApplicationPrivate::processWindowSystemEvent(&event);
-    }
+    auto screen = dynamic_cast<QWlrootsScreen*>(this->screen());
+    Q_ASSERT(screen);
+    screen->move(rect.topLeft());
 }
 
 QRect QWlrootsOutputWindow::geometry() const
 {
-    return m_geometry;
+    return screen()->geometry();
 }
 
 WId QWlrootsOutputWindow::winId() const

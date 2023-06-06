@@ -24,7 +24,7 @@ public:
     qreal devicePixelRatio() const override;
 
 private:
-    QRect m_geometry;
+    QMetaObject::Connection onScreenGeometryConnection;
 };
 
 WAYLIB_SERVER_END_NAMESPACE

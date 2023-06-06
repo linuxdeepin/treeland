@@ -1,23 +1,5 @@
-/*
- * Copyright (C) 2021 zkyd
- *
- * Author:     zkyd <zkyd@zjide.org>
- *
- * Maintainer: zkyd <zkyd@zjide.org>
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Lesser General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU Lesser General Public License
- * along with this program. If not, see <http://www.gnu.org/licenses/>.
- */
+// Copyright (C) 2023 JiDe Zhang <zhangjide@deepin.org>.
+// SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #pragma once
 
@@ -26,85 +8,171 @@
 #include <QCoreApplication>
 #include <QPointer>
 #include <QThread>
+#include <QFuture>
+#include <QEvent>
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
-class WThreadUtil {
+class WAYLIB_SERVER_EXPORT WThreadUtil final
+{
 public:
-    WThreadUtil(QObject *eventObject, QEvent::Type eventType)
-        : eventObject(eventObject)
-        , eventType(eventType)
-    {
+    explicit WThreadUtil(QThread *thread);
+    ~WThreadUtil();
 
+    static const WThreadUtil &gui();
+
+    QThread *thread() const noexcept;
+
+    template <typename Func, typename... Args>
+    inline auto run(const QObject *context, typename QtPrivate::FunctionPointer<Func>::Object *obj, Func fun, Args&&... args) const
+    {
+        return call(context, fun, *obj, std::forward<Args>(args)...);
+    }
+    template <typename Func, typename... Args>
+    inline auto run(typename QtPrivate::FunctionPointer<Func>::Object *obj, Func fun, Args&&... args) const
+    {
+        if constexpr (std::is_base_of<QObject, typename QtPrivate::FunctionPointer<Func>::Object>::value) {
+            return call(obj, fun, *obj, std::forward<Args>(args)...);
+        } else {
+            return call(static_cast<QObject*>(nullptr), fun, *obj, std::forward<Args>(args)...);
+        }
+    }
+    template <typename Func, typename... Args>
+    inline QFuture<std::invoke_result_t<std::decay_t<Func>, Args...>>
+    run(const QObject *context, Func fun, Args&&... args) const
+    {
+        return call(context, fun, std::forward<Args>(args)...);
+    }
+    template <typename Func, typename... Args>
+    inline QFuture<std::invoke_result_t<std::decay_t<Func>, Args...>>
+    run(Func fun, Args&&... args) const
+    {
+        return call(static_cast<QObject*>(nullptr), fun, std::forward<Args>(args)...);
+    }
+    template <typename... T> inline auto exec(T&&... args) const
+    {
+        auto future = run(std::forward<T>(args)...);
+        if (!thread()->isRunning()) {
+            qWarning() << "The target thread is not running, maybe lead to deadlock.";
+        }
+        future.waitForFinished();
+
+        if constexpr (std::is_same_v<decltype(future), QFuture<void>>) {
+            return;
+        } else {
+            return future.result();
+        }
     }
 
-    typedef std::function<void()> FunctionType;
-    class CallEvent : public QEvent {
+private:
+    class AbstractCallEvent : public QEvent {
     public:
-        CallEvent(QEvent::Type type)
-            : QEvent(type) {}
-
-        FunctionType function;
-        QPointer<QObject> target;
+        AbstractCallEvent(QEvent::Type type) : QEvent(type) {}
+        virtual void call() = 0;
     };
 
-    template <typename ReturnType>
-    class _TMP
-    {
+    template <typename Func, typename... Args>
+    class Q_DECL_HIDDEN CallEvent : public AbstractCallEvent {
+        typedef QtPrivate::FunctionPointer<std::decay_t<Func>> FunInfo;
+        typedef std::invoke_result_t<std::decay_t<Func>, Args...> ReturnType;
+
     public:
-        Q_ALWAYS_INLINE static void run(WThreadUtil *self, QObject *target, std::function<void()> fun)
+        CallEvent(QEvent::Type type, Func &&fun, Args&&... args)
+            : AbstractCallEvent(type)
+            , function(fun)
+            , arguments(std::forward<Args>(args)...)
         {
-            if (Q_UNLIKELY(QThread::currentThread() == self->eventObject->thread())) {
-                fun();
+
+        }
+
+        QEvent *clone() const override {
+            return nullptr;
+        }
+
+        void call() override {
+            if (promise.isCanceled()) {
                 return;
             }
 
-            CallEvent *event = new CallEvent(self->eventType);
-            event->target = target;
-            event->function = fun;
-            QCoreApplication::postEvent(self->eventObject, event);
+            if (contextChecker == context) {
+                promise.start();
+#ifndef QT_NO_EXCEPTIONS
+                try {
+#endif
+                    if constexpr (std::is_void<ReturnType>::value) {
+                        std::apply(function, arguments);
+                    } else {
+                        promise.addResult(std::apply(function, arguments));
+                    }
+#ifndef QT_NO_EXCEPTIONS
+                } catch (...) {
+                    promise.setException(std::current_exception());
+                }
+#endif
+                promise.finish();
+            } else {
+                promise.start();
+                promise.setException(std::make_exception_ptr(
+                    std::runtime_error("The context object is destroyed.")));
+                promise.finish();
+            }
         }
 
-        template <typename T>
-        Q_ALWAYS_INLINE static typename std::enable_if<!std::is_base_of<QObject, T>::value, void>::type
-        run(WThreadUtil *self, T *, std::function<void()> fun)
-        {
-            return run(self, static_cast<QObject*>(nullptr), fun);
-        }
+        Func function;
+        const std::tuple<Args...> arguments;
+        QPromise<ReturnType> promise;
+
+        const QObject *context;
+        QPointer<const QObject> contextChecker;
     };
 
-    template <typename Fun, typename... Args>
-//    inline typename QtPrivate::FunctionPointer<Fun>::ReturnType
-    Q_ALWAYS_INLINE
-    void run(QObject *target, typename QtPrivate::FunctionPointer<Fun>::Object *obj, Fun fun, Args&&... args)
-    {
-        return _TMP<typename QtPrivate::FunctionPointer<Fun>::ReturnType>::run(this, target, std::bind(fun, obj, std::forward<Args>(args)...));
-    }
-    template <typename Fun, typename... Args>
-//    inline typename QtPrivate::FunctionPointer<Fun>::ReturnType
-    Q_ALWAYS_INLINE
-    void run(typename QtPrivate::FunctionPointer<Fun>::Object *obj, Fun fun, Args&&... args)
-    {
-        return _TMP<typename QtPrivate::FunctionPointer<Fun>::ReturnType>::run(this, obj, std::bind(fun, obj, std::forward<Args>(args)...));
-    }
-    template <typename Fun, typename... Args>
-    Q_ALWAYS_INLINE /*auto*/
-    typename std::enable_if<std::is_invocable<typename std::remove_pointer<Fun>::type>::value, void>::type
-    run(QObject *target, Fun fun, Args&&... args) /*-> decltype(fun(args...))*/
-    {
-        return _TMP<decltype(fun(args...))>::run(this, target, std::bind(fun, std::forward<Args>(args)...));
-    }
-    template <typename Fun, typename... Args>
-    Q_ALWAYS_INLINE /*auto*/
-    typename std::enable_if<std::is_invocable<typename std::remove_pointer<Fun>::type>::value, void>::type
-    run(Fun fun, Args&&... args) /*-> decltype(fun(args...))*/
-    {
-        return run(static_cast<QObject*>(nullptr), fun, std::forward<Args>(args)...);
+    template <typename Func, typename... Args>
+    auto call(const QObject *context, Func fun, Args&&... args) const {
+        typedef QtPrivate::FunctionPointer<std::decay_t<Func>> FunInfo;
+        typedef std::invoke_result_t<std::decay_t<Func>, Args...> ReturnType;
+
+        if constexpr (FunInfo::IsPointerToMemberFunction) {
+            static_assert(std::is_same_v<std::decay_t<typename QtPrivate::List<Args...>::Car>, typename FunInfo::Object>,
+                          "The obj and function are not compatible.");
+            static_assert(QtPrivate::CheckCompatibleArguments<typename QtPrivate::List<Args...>::Cdr, typename FunInfo::Arguments>::value,
+                          "The args and function are not compatible.");
+        } else if constexpr (FunInfo::ArgumentCount != -1) {
+            static_assert(QtPrivate::CheckCompatibleArguments<QtPrivate::List<Args...>, typename FunInfo::Arguments>::value,
+                          "The args and function are not compatible.");
+        } else {
+            using Prototype = ReturnType(*)(Args...);
+            QtPrivate::AssertCompatibleFunctions<Prototype, Func>();
+        }
+
+        QPromise<ReturnType> promise;
+        auto future = promise.future();
+
+        if (Q_UNLIKELY(QThread::currentThread() == m_thread)) {
+            promise.start();
+            if constexpr (std::is_void<ReturnType>::value) {
+                std::invoke(fun, std::forward<Args>(args)...);
+            } else {
+                promise.addResult(std::invoke(fun, std::forward<Args>(args)...));
+            }
+            promise.finish();
+        } else {
+            auto event = new CallEvent<Func, Args...>(eventType, std::move(fun), std::forward<Args>(args)...);
+            event->promise = std::move(promise);
+            event->context = context;
+            event->contextChecker = context;
+
+            QCoreApplication::postEvent(ensureThreadContextObject(), event);
+        }
+
+        return future;
     }
 
-protected:
-    QObject *eventObject;
-    QEvent::Type eventType;
+    QObject *ensureThreadContextObject() const;
+
+    friend class Caller;
+    static QEvent::Type eventType;
+    QThread *m_thread;
+    mutable QAtomicPointer<QObject> threadContext;
 };
 
 WAYLIB_SERVER_END_NAMESPACE

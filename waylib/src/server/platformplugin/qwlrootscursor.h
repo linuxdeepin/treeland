@@ -7,6 +7,7 @@
 
 #include <qwglobal.h>
 
+#include <QCursor>
 #include <qpa/qplatformcursor.h>
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
@@ -15,7 +16,7 @@ class WCursor;
 class Q_DECL_HIDDEN QWlrootsCursor : public QPlatformCursor
 {
 public:
-    explicit QWlrootsCursor(WCursor *cursor);
+    explicit QWlrootsCursor();
 
 #ifndef QT_NO_CURSOR
     void changeCursor(QCursor *windowCursor, QWindow *window) override;
@@ -25,8 +26,15 @@ public:
     QPoint pos() const override;
     void setPos(const QPoint &pos) override;
 
+    void addCursor(WCursor *cursor);
+    void removeCursor(WCursor *cursor);
+
 private:
-    WCursor *m_cursor;
+    friend class WOutput;
+
+    QList<WCursor*> cursors;
+    WCursor *activeCursor = nullptr;
+    QCursor windowCursor;
 };
 
 WAYLIB_SERVER_END_NAMESPACE

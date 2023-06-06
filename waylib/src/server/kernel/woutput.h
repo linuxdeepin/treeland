@@ -1,50 +1,36 @@
-/*
- * Copyright (C) 2021 ~ 2022 zkyd
- *
- * Author:     zkyd <zkyd@zjide.org>
- *
- * Maintainer: zkyd <zkyd@zjide.org>
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Lesser General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU Lesser General Public License
- * along with this program. If not, see <http://www.gnu.org/licenses/>.
- */
+// Copyright (C) 2023 JiDe Zhang <zhangjide@deepin.org>.
+// SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #pragma once
 
 #include <wglobal.h>
 #include <wtypes.h>
+#include <qwglobal.h>
 
 #include <QObject>
 #include <QSize>
+#include <QPoint>
+#include <QQmlEngine>
 
 QT_BEGIN_NAMESPACE
-class QQuickWindow;
-class QQuickRenderControl;
 class QScreen;
-class QWindow;
+class QQuickWindow;
 QT_END_NAMESPACE
+
+QW_BEGIN_NAMESPACE
+class QWRenderer;
+QW_END_NAMESPACE
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
 class QWlrootsScreen;
 class QWlrootsIntegration;
 
-class WInputEvent;
-class WCursor;
 class WOutputLayout;
+class WCursor;
 class WBackend;
 class WServer;
-class WOutputHandle;
+class WOutputViewport;
 class WOutputPrivate;
 class WAYLIB_SERVER_EXPORT WOutput : public QObject, public WObject
 {
@@ -53,6 +39,9 @@ class WAYLIB_SERVER_EXPORT WOutput : public QObject, public WObject
     Q_PROPERTY(QSize size READ effectiveSize NOTIFY effectiveSizeChanged)
     Q_PROPERTY(Transform orientation READ orientation WRITE rotate NOTIFY orientationChanged)
     Q_PROPERTY(float scale READ scale WRITE setScale NOTIFY scaleChanged)
+    Q_PROPERTY(bool forceSoftwareCursor READ forceSoftwareCursor WRITE setForceSoftwareCursor NOTIFY forceSoftwareCursorChanged)
+    QML_NAMED_ELEMENT(WaylandOutput)
+    QML_UNCREATABLE("Can't create in qml")
 
 public:
     enum Transform {
@@ -67,27 +56,24 @@ public:
     };
     Q_ENUM(Transform)
 
-    explicit WOutput(WOutputHandle *handle, WBackend *backend);
+    explicit WOutput(WOutputViewport *handle, WBackend *backend);
     ~WOutput();
 
     WBackend *backend() const;
-    bool isValid() const;
+    WServer *server() const;
+    QW_NAMESPACE::QWRenderer *renderer() const;
 
-    void attach(QQuickRenderControl *control);
-    void detach();
-
-    WOutputHandle *handle() const;
+    WOutputViewport *handle() const;
     template<typename DNativeInterface>
     DNativeInterface *nativeInterface() const {
         return reinterpret_cast<DNativeInterface*>(handle());
     }
-    static WOutput *fromHandle(const WOutputHandle *handle);
+    static WOutput *fromHandle(const WOutputViewport *handle);
     template<typename DNativeInterface>
     static inline WOutput *fromHandle(const DNativeInterface *handle) {
-        return fromHandle(reinterpret_cast<const WOutputHandle*>(handle));
+        return fromHandle(reinterpret_cast<const WOutputViewport*>(handle));
     }
     static WOutput *fromScreen(const QScreen *screen);
-    static WOutput *fromWindow(const QWindow *window);
 
     void rotate(Transform t);
     void setScale(float scale);
@@ -99,30 +85,27 @@ public:
     Transform orientation() const;
     float scale() const;
 
+    void attach(QQuickWindow *window);
     QQuickWindow *attachedWindow() const;
 
     void setLayout(WOutputLayout *layout);
     WOutputLayout *layout() const;
 
-    void cursorEnter(WCursor *cursor);
-    void cursorLeave(WCursor *cursor);
-    QVector<WCursor*> cursorList() const;
+    void addCursor(WCursor *cursor);
+    void removeCursor(WCursor *cursor);
+    QList<WCursor*> cursorList() const;
 
-    void postInputEvent(WInputEvent *event);
-    WInputEvent *currentInputEvent() const;
-
-    QCursor cursor() const;
-
-public Q_SLOTS:
-    void requestRender();
+    bool forceSoftwareCursor() const;
+    void setForceSoftwareCursor(bool on);
 
 Q_SIGNALS:
     void positionChanged(const QPoint &pos);
     void sizeChanged();
-    void transformedSizeChanged(const QSize &size);
-    void effectiveSizeChanged(const QSize &size);
+    void transformedSizeChanged();
+    void effectiveSizeChanged();
     void orientationChanged();
     void scaleChanged();
+    void forceSoftwareCursorChanged();
 
 private:
     friend class QWlrootsIntegration;

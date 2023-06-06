@@ -1,30 +1,9 @@
-/*
- * Copyright (C) 2021 zkyd
- *
- * Author:     zkyd <zkyd@zjide.org>
- *
- * Maintainer: zkyd <zkyd@zjide.org>
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Lesser General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU Lesser General Public License
- * along with this program. If not, see <http://www.gnu.org/licenses/>.
- */
-#include "wxdgshell.h"
-#include "wsignalconnector.h"
-#include "wxdgsurface.h"
-#include "wsurfacelayout.h"
-#include "wseat.h"
+// Copyright (C) 2023 JiDe Zhang <zhangjide@deepin.org>.
+// SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
-#include <qwseat.h>
+#include "wxdgshell.h"
+#include "wxdgsurface.h"
+
 #include <qwxdgshell.h>
 
 #include <QPointer>
@@ -40,9 +19,8 @@ WAYLIB_SERVER_BEGIN_NAMESPACE
 class WXdgShellPrivate : public WObjectPrivate
 {
 public:
-    WXdgShellPrivate(WXdgShell *qq, WSurfaceLayout *layout)
+    WXdgShellPrivate(WXdgShell *qq)
         : WObjectPrivate(qq)
-        , layout(layout)
     {
 
     }
@@ -50,18 +28,11 @@ public:
     // begin slot function
     void on_new_xdg_surface(wlr_xdg_surface *wlr_surface);
     void on_surface_destroy(QObject *data);
-
-    void on_map(QWXdgSurface *xdgSurface);
-    void on_unmap(QWXdgSurface *xdgSurface);
-    // toplevel
-    void on_request_move(wlr_xdg_toplevel_move_event *event);
-    void on_request_resize(wlr_xdg_toplevel_resize_event *event);
-    void on_request_maximize(QWXdgSurface *surface, bool maximize);
     // end slot function
 
     W_DECLARE_PUBLIC(WXdgShell)
 
-    QPointer<WSurfaceLayout> layout;
+    QVector<WSurface*> surfaceList;
 };
 
 void WXdgShellPrivate::on_new_xdg_surface(wlr_xdg_surface *wlr_surface)
@@ -69,34 +40,15 @@ void WXdgShellPrivate::on_new_xdg_surface(wlr_xdg_surface *wlr_surface)
     auto server = q_func()->server();
     // TODO: QWXdgSurface::from(wlr_surface)
     QWXdgSurface *xdgSurface = QWXdgSurface::from(wlr_surface->surface);
-    auto surface = new WXdgSurface(reinterpret_cast<WXdgSurfaceHandle*>(xdgSurface));
-    surface->moveToThread(server->thread());
+    auto surface = new WXdgSurface(reinterpret_cast<WXdgSurfaceHandle*>(xdgSurface), server);
     surface->setParent(server);
     Q_ASSERT(surface->parent() == server);
-    QObject::connect(xdgSurface, &QObject::destroyed, server->slotOwner(), [this] (QObject *data) {
+    QObject::connect(xdgSurface, &QWXdgSurface::beforeDestroy, server->slotOwner(), [this] (QObject *data) {
         on_surface_destroy(static_cast<QWXdgSurface*>(data));
     });
 
-    QObject::connect(xdgSurface, &QWXdgSurface::map, server->slotOwner(), [this, xdgSurface] {
-        on_map(xdgSurface);
-    });
-    QObject::connect(xdgSurface, &QWXdgSurface::unmap, server->slotOwner(), [this, xdgSurface] {
-        on_unmap(xdgSurface);
-    });
-
-    if (auto toplevel = xdgSurface->topToplevel()) {
-        QObject::connect(toplevel, &QWXdgToplevel::requestMove, server->slotOwner(), [this] (wlr_xdg_toplevel_move_event *event) {
-            on_request_move(event);
-        });
-        QObject::connect(toplevel, &QWXdgToplevel::requestResize, server->slotOwner(), [this] (wlr_xdg_toplevel_resize_event *event) {
-            on_request_resize(event);
-        });
-        QObject::connect(toplevel, &QWXdgToplevel::requestMaximize, server->slotOwner(), [this, xdgSurface] (bool maximize) {
-            on_request_maximize(xdgSurface, maximize);
-        });
-    }
-
-    layout->add(surface);
+    surfaceList.append(surface);
+    q_func()->surfaceAdded(surface);
 }
 
 void WXdgShellPrivate::on_surface_destroy(QObject *data)
@@ -104,71 +56,24 @@ void WXdgShellPrivate::on_surface_destroy(QObject *data)
     QWXdgSurface *wlr_surface = qobject_cast<QWXdgSurface*>(data);
     auto surface = WXdgSurface::fromHandle(wlr_surface);
     Q_ASSERT(surface);
-
-    if (layout)
-        layout->remove(surface);
+    bool ok = surfaceList.removeOne(surface);
+    Q_ASSERT(ok);
+    q_func()->surfaceRemoved(surface);
     surface->deleteLater();
 }
 
-void WXdgShellPrivate::on_map(QWXdgSurface *xdgSurface)
+WXdgShell::WXdgShell()
+    : WObject(*new WXdgShellPrivate(this))
 {
-    Q_ASSERT(xdgSurface);
-    auto surface = WXdgSurface::fromHandle<QWXdgSurface>(xdgSurface);
-    layout->map(surface);
+
 }
 
-void WXdgShellPrivate::on_unmap(QWXdgSurface *xdgSurface)
+void WXdgShell::surfaceAdded(WXdgSurface *)
 {
-    Q_ASSERT(xdgSurface);
-    layout->unmap(WXdgSurface::fromHandle<QWXdgSurface>(xdgSurface));
+
 }
 
-void WXdgShellPrivate::on_request_move(wlr_xdg_toplevel_move_event *event)
-{
-    auto surface = WXdgSurface::fromHandle<QWXdgSurface>(QWXdgToplevel::from(event->toplevel));
-    layout->requestMove(surface, WSeat::fromHandle<QWSeat>(QWSeat::from(event->seat->seat)), event->serial);
-}
-
-inline static Qt::Edges toQtEdge(uint32_t edges) {
-    Qt::Edges qedges = Qt::Edges();
-
-    if (edges & WLR_EDGE_TOP) {
-        qedges |= Qt::TopEdge;
-    }
-
-    if (edges & WLR_EDGE_BOTTOM) {
-        qedges |= Qt::BottomEdge;
-    }
-
-    if (edges & WLR_EDGE_LEFT) {
-        qedges |= Qt::LeftEdge;
-    }
-
-    if (edges & WLR_EDGE_RIGHT) {
-        qedges |= Qt::RightEdge;
-    }
-
-    return qedges;
-}
-
-void WXdgShellPrivate::on_request_resize(wlr_xdg_toplevel_resize_event *event)
-{
-    auto seat = WSeat::fromHandle<QWSeat>(QWSeat::from(event->seat->seat));
-    auto surface = WXdgSurface::fromHandle<QWXdgSurface>(QWXdgToplevel::from(event->toplevel));
-    layout->requestResize(surface, seat, toQtEdge(event->edges), event->serial);
-}
-
-void WXdgShellPrivate::on_request_maximize(QWXdgSurface *surface, bool maximize)
-{
-    if (maximize) {
-        layout->requestMaximize(WXdgSurface::fromHandle<QWXdgSurface>(surface));
-    } else {
-        layout->requestUnmaximize(WXdgSurface::fromHandle<QWXdgSurface>(surface));
-    }
-}
-
-WXdgShell::WXdgShell(WSurfaceLayout *layout)
-    : WObject(*new WXdgShellPrivate(this, layout))
+void WXdgShell::surfaceRemoved(WXdgSurface *)
 {
 
 }
