@@ -212,7 +212,7 @@ WSurface *WXdgSurface::parentSurface() const
         auto parent = popup->handle()->parent;
         if (!parent)
             return nullptr;
-        return fromHandle<QWSurface>(QWSurface::from(parent));
+        return fromHandle<QWXdgSurface>(QWXdgSurface::from(QWSurface::from(parent)));
     }
 
     return nullptr;

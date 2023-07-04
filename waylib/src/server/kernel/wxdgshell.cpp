@@ -42,11 +42,11 @@ void WXdgShellPrivate::on_new_xdg_surface(wlr_xdg_surface *wlr_surface)
 {
     auto server = q_func()->server();
     // TODO: QWXdgSurface::from(wlr_surface)
-    QWSurface *xdgSurface = QWSurface::from(wlr_surface->surface);
+    QWXdgSurface *xdgSurface = QWXdgSurface::from(QWSurface::from(wlr_surface->surface));
     auto surface = new WXdgSurface(reinterpret_cast<WXdgSurfaceHandle*>(xdgSurface), server);
     surface->setParent(server);
     Q_ASSERT(surface->parent() == server);
-    QObject::connect(xdgSurface, &QWSurface::beforeDestroy, server->slotOwner(), [this] (QObject *data) {
+    QObject::connect(xdgSurface, &QWXdgSurface::beforeDestroy, server->slotOwner(), [this] (QObject *data) {
         on_surface_destroy(static_cast<QWXdgSurface*>(data));
     });
 

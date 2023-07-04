@@ -20,7 +20,7 @@ jobs:
           pacman -Syu --noconfirm
       - name: Install dep
         run: |
-          pacman -Syu --noconfirm qt6-base qt6-declarative cmake pkgconfig wlroots pixman wayland-protocols clazy git
+          pacman -Syu --noconfirm qt6-base qt6-declarative cmake pkgconfig wlroots pixman wayland-protocols git
           pacman -Syu --noconfirm clang ninja
       - uses: actions/checkout@v3
         with:
@@ -28,7 +28,7 @@ jobs:
       - name: Configure CMake
         run: |
           mkdir -p ${{github.workspace}}/build
-          cmake -B ${{github.workspace}}/build -G Ninja -DCMAKE_CXX_COMPILER=clazy -DWITH_SUBMODULE_QWLROOTS=ON
+          cmake -B ${{github.workspace}}/build -G Ninja -DWITH_SUBMODULE_QWLROOTS=ON
       - name: Build
         # Build your program with the given configuration
         run: cmake --build ${{github.workspace}}/build
