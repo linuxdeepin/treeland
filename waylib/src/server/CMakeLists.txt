@@ -10,6 +10,7 @@ find_package(Qt6
 
 find_package(PkgConfig)
 pkg_search_module(PIXMAN REQUIRED pixman-1)
+pkg_search_module(LIBDRM REQUIRED IMPORTED_TARGET libdrm)
 
 include(${PROJECT_SOURCE_DIR}/cmake/WaylandScannerHelpers.cmake)
 ws_generate(server stable/xdg-shell/xdg-shell.xml xdg-shell-protocol)
@@ -106,7 +107,6 @@ set(HEADERS
     kernel/WXCursorManager
     kernel/WXdgShell
     kernel/WXdgSurface
-    kernel/wsurfacehandler
 
     qtquick/wsurfaceitem.h
     qtquick/WSurfaceItem
@@ -169,6 +169,7 @@ target_link_libraries(${TARGET}
     PRIVATE
     ${QT_LIBRAIES}
     ${WLROOTS_LIBRARIES}
+    PkgConfig::LIBDRM
 )
 
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
