@@ -12,7 +12,6 @@
 
 extern "C" {
 #include <wlr/types/wlr_xdg_shell.h>
-#include <wlr/util/edges.h>
 }
 
 QW_USE_NAMESPACE
@@ -27,11 +26,6 @@ public:
     void on_ack_configure(wlr_xdg_surface_configure *event);
     void on_map();
     void on_unmap();
-
-    // toplevel
-    void on_request_move(wlr_xdg_toplevel_move_event *event);
-    void on_request_resize(wlr_xdg_toplevel_resize_event *event);
-    void on_request_maximize(bool maximize);
     // end slot function
 
     void init();
@@ -70,52 +64,6 @@ void WXdgSurfacePrivate::on_unmap()
     Q_EMIT q_func()->requestUnmap();
 }
 
-void WXdgSurfacePrivate::on_request_move(wlr_xdg_toplevel_move_event *event)
-{
-    auto surface = WXdgSurface::fromHandle<QWXdgSurface>(QWXdgToplevel::from(event->toplevel));
-    Q_ASSERT(surface == q_func());
-    Q_EMIT q_func()->requestMove(WSeat::fromHandle<QWSeat>(QWSeat::from(event->seat->seat)), event->serial);
-}
-
-inline static Qt::Edges toQtEdge(uint32_t edges) {
-    Qt::Edges qedges = Qt::Edges();
-
-    if (edges & WLR_EDGE_TOP) {
-        qedges |= Qt::TopEdge;
-    }
-
-    if (edges & WLR_EDGE_BOTTOM) {
-        qedges |= Qt::BottomEdge;
-    }
-
-    if (edges & WLR_EDGE_LEFT) {
-        qedges |= Qt::LeftEdge;
-    }
-
-    if (edges & WLR_EDGE_RIGHT) {
-        qedges |= Qt::RightEdge;
-    }
-
-    return qedges;
-}
-
-void WXdgSurfacePrivate::on_request_resize(wlr_xdg_toplevel_resize_event *event)
-{
-    auto seat = WSeat::fromHandle<QWSeat>(QWSeat::from(event->seat->seat));
-    auto surface = WXdgSurface::fromHandle<QWXdgSurface>(QWXdgToplevel::from(event->toplevel));
-    Q_ASSERT(surface == q_func());
-    Q_EMIT q_func()->requestResize(seat, toQtEdge(event->edges), event->serial);
-}
-
-void WXdgSurfacePrivate::on_request_maximize(bool maximize)
-{
-    if (maximize) {
-        q_func()->requestMaximize();
-    } else {
-        q_func()->requestUnmaximize();
-    }
-}
-
 void WXdgSurfacePrivate::init()
 {
     W_Q(WXdgSurface);
@@ -140,18 +88,6 @@ void WXdgSurfacePrivate::connect()
     QObject::connect(handle, &QWXdgSurface::unmap, q_func(), [this] {
         on_unmap();
     });
-
-    if (auto toplevel = handle->topToplevel()) {
-        QObject::connect(toplevel, &QWXdgToplevel::requestMove, q_func(), [this] (wlr_xdg_toplevel_move_event *event) {
-            on_request_move(event);
-        });
-        QObject::connect(toplevel, &QWXdgToplevel::requestResize, q_func(), [this] (wlr_xdg_toplevel_resize_event *event) {
-            on_request_resize(event);
-        });
-        QObject::connect(toplevel, &QWXdgToplevel::requestMaximize, q_func(), [this] (bool maximize) {
-            on_request_maximize(maximize);
-        });
-    }
 }
 
 WXdgSurface::WXdgSurface(WXdgSurfaceHandle *handle, WServer *server, QObject *parent)

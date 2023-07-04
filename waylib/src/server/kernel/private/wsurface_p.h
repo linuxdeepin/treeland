@@ -32,6 +32,7 @@ public:
     WServer *server = nullptr;
     QVector<WOutput*> outputs;
     WSurfaceHandler *handler = nullptr;
+    QObject *shell = nullptr;
 
     WSignalConnector sc;
 };

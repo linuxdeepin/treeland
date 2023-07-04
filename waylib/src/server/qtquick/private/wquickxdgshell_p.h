@@ -6,6 +6,8 @@
 #include <wglobal.h>
 #include <wquickwaylandserver.h>
 
+Q_MOC_INCLUDE(<wseat.h>)
+
 #include <QQmlEngine>
 
 QT_BEGIN_NAMESPACE
@@ -14,6 +16,7 @@ QT_END_NAMESPACE
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
+class WSeat;
 class WQuickSurface;
 class WXdgSurface;
 class WQuickXdgShellPrivate;
@@ -30,8 +33,15 @@ Q_SIGNALS:
     void surfaceAdded(WXdgSurface *surface);
     void surfaceRemoved(WXdgSurface *surface);
 
-    void surfaceRequestMap(WXdgSurface *surface);
-    void surfaceRequestUnmap(WXdgSurface *surface);
+    void requestMap(WXdgSurface *surface);
+    void requestUnmap(WXdgSurface *surface);
+
+    void requestMove(WXdgSurface *surface, WSeat *seat, quint32 serial);
+    void requestResize(WXdgSurface *surface, WSeat *seat, Qt::Edges edge, quint32 serial);
+    void requestMaximize(WXdgSurface *surface);
+    void requestFullscreen(WXdgSurface *surface);
+    void requestToNormalState(WXdgSurface *surface);
+    void requestShowWindowMenu(WXdgSurface *surface, WSeat *seat, QPoint pos, quint32 serial);
 
 private:
     void create() override;

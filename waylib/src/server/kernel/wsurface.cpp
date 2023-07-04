@@ -278,4 +278,19 @@ void WSurface::notifyEndState(State)
 
 }
 
+QObject *WSurface::shell() const
+{
+    W_DC(WSurface);
+    return d->shell;
+}
+
+void WSurface::setShell(QObject *shell)
+{
+    W_D(WSurface);
+    if (d->shell == shell)
+        return;
+    d->shell = shell;
+    Q_EMIT shellChanged();
+}
+
 WAYLIB_SERVER_END_NAMESPACE

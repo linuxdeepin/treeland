@@ -8,8 +8,17 @@
 #include "wxdgsurface.h"
 #include "wsurface.h"
 
+#include <qwxdgshell.h>
+#include <qwseat.h>
+
 #include <QCoreApplication>
 
+extern "C" {
+#include <wlr/types/wlr_xdg_shell.h>
+#include <wlr/util/edges.h>
+}
+
+QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
 class XdgShell : public WXdgShell
@@ -38,14 +47,68 @@ public:
     XdgShell *xdgShell = nullptr;
 };
 
+inline static Qt::Edges toQtEdge(uint32_t edges) {
+    Qt::Edges qedges = Qt::Edges();
+
+    if (edges & WLR_EDGE_TOP) {
+        qedges |= Qt::TopEdge;
+    }
+
+    if (edges & WLR_EDGE_BOTTOM) {
+        qedges |= Qt::BottomEdge;
+    }
+
+    if (edges & WLR_EDGE_LEFT) {
+        qedges |= Qt::LeftEdge;
+    }
+
+    if (edges & WLR_EDGE_RIGHT) {
+        qedges |= Qt::RightEdge;
+    }
+
+    return qedges;
+}
+
 void XdgShell::surfaceAdded(WXdgSurface *surface)
 {
     QObject::connect(surface, &WSurface::requestMap, qq, [this, surface] {
-        Q_EMIT qq->surfaceRequestMap(surface);
+        Q_EMIT qq->requestMap(surface);
     });
     QObject::connect(surface, &WSurface::requestUnmap, qq, [this, surface] {
-        Q_EMIT qq->surfaceRequestUnmap(surface);
+        Q_EMIT qq->requestUnmap(surface);
     });
+
+    if (auto toplevel = surface->nativeInterface<QWXdgSurface>()->topToplevel()) {
+        QObject::connect(toplevel, &QWXdgToplevel::requestMove, qq, [this] (wlr_xdg_toplevel_move_event *event) {
+            auto surface = WXdgSurface::fromHandle<QWXdgSurface>(QWXdgToplevel::from(event->toplevel));
+            auto seat = WSeat::fromHandle<QWSeat>(QWSeat::from(event->seat->seat));
+            Q_EMIT qq->requestMove(surface, seat, event->serial);
+        });
+        QObject::connect(toplevel, &QWXdgToplevel::requestResize, qq, [this] (wlr_xdg_toplevel_resize_event *event) {
+            auto surface = WXdgSurface::fromHandle<QWXdgSurface>(QWXdgToplevel::from(event->toplevel));
+            auto seat = WSeat::fromHandle<QWSeat>(QWSeat::from(event->seat->seat));
+            Q_EMIT qq->requestResize(surface, seat, toQtEdge(event->edges), event->serial);
+        });
+        QObject::connect(toplevel, &QWXdgToplevel::requestMaximize, qq, [this, surface] (bool maximize) {
+            if (maximize) {
+                Q_EMIT qq->requestMaximize(surface);
+            } else {
+                Q_EMIT qq->requestToNormalState(surface);
+            }
+        });
+        QObject::connect(toplevel, &QWXdgToplevel::requestFullscreen, qq, [this, surface] (bool fullscreen) {
+            if (fullscreen) {
+                Q_EMIT qq->requestFullscreen(surface);
+            } else {
+                Q_EMIT qq->requestToNormalState(surface);
+            }
+        });
+        QObject::connect(toplevel, &QWXdgToplevel::requestShowWindowMenu, qq, [this] (wlr_xdg_toplevel_show_window_menu_event *event) {
+            auto surface = WXdgSurface::fromHandle<QWXdgSurface>(QWXdgToplevel::from(event->toplevel));
+            auto seat = WSeat::fromHandle<QWSeat>(QWSeat::from(event->seat->seat));
+            Q_EMIT qq->requestShowWindowMenu(surface, seat, QPoint(event->x, event->y), event->serial);
+        });
+    }
 
     Q_EMIT qq->surfaceAdded(surface);
 }

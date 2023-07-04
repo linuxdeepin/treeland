@@ -31,8 +31,8 @@ public:
 
     }
 
-    Q_SLOT void startMove(WSurface *surface, QQuickItem *surfaceItem, int serial);
-    Q_SLOT void startResize(WSurface *surface, QQuickItem *surfaceItem, Qt::Edges edge, int serial);
+    Q_SLOT void startMove(WSurface *surface, int serial);
+    Q_SLOT void startResize(WSurface *surface, Qt::Edges edge, int serial);
 
     inline void stop() {
         m_surfaceItem = nullptr;
@@ -90,7 +90,7 @@ void MoveResizeHelper::setSeat(WSeat *newSeat)
     emit seatChanged();
 }
 
-void MoveResizeHelper::startMove(WSurface *surface, QQuickItem *surfaceItem, int serial)
+void MoveResizeHelper::startMove(WSurface *surface, int serial)
 {
     Q_UNUSED(serial)
     if (!m_seat->cursor()
@@ -99,16 +99,19 @@ void MoveResizeHelper::startMove(WSurface *surface, QQuickItem *surfaceItem, int
         return;
     }
 
+    m_surfaceItem = qobject_cast<QQuickItem*>(surface->shell());
+    if (!m_surfaceItem)
+        return;
+
     type = WSurface::State::Move;
     this->surface = surface;
-    m_surfaceItem = surfaceItem;
     surfacePosOfStartMoveResize = surface->position();
 
     surface->notifyBeginState(type);
     m_seat->setEventGrabber(this);
 }
 
-void MoveResizeHelper::startResize(WSurface *surface, QQuickItem *surfaceItem, Qt::Edges edge, int serial)
+void MoveResizeHelper::startResize(WSurface *surface, Qt::Edges edge, int serial)
 {
     Q_UNUSED(serial)
     if (!m_seat->cursor()
@@ -117,9 +120,12 @@ void MoveResizeHelper::startResize(WSurface *surface, QQuickItem *surfaceItem, Q
         return;
     }
 
+    m_surfaceItem = qobject_cast<QQuickItem*>(surface->shell());
+    if (!m_surfaceItem)
+        return;
+
     type = WSurface::State::Resize;
     this->surface = surface;
-    m_surfaceItem = surfaceItem;
     surfacePosOfStartMoveResize = surface->position();
     surfaceSizeOfstartMoveResize = surface->size();
     resizeEdgets = edge;

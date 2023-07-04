@@ -12,12 +12,9 @@
 
 #include <any>
 
-Q_MOC_INCLUDE(<wseat.h>)
-
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
 class WServer;
-class WSeat;
 class WTextureHandle;
 class WOutput;
 class WSurfaceHandler;
@@ -34,6 +31,7 @@ class WAYLIB_SERVER_EXPORT WSurface : public QObject, public WObject
     Q_PROPERTY(QSize bufferSize READ bufferSize NOTIFY bufferSizeChanged)
     Q_PROPERTY(int bufferScale READ bufferScale NOTIFY bufferScaleChanged)
     Q_PROPERTY(WSurface *parentSurface READ parentSurface)
+    Q_PROPERTY(QObject* shell READ shell WRITE setShell NOTIFY shellChanged)
     QML_NAMED_ELEMENT(WaylandSurface)
     QML_UNCREATABLE("Using in C++")
 
@@ -112,19 +110,18 @@ public:
     virtual void notifyBeginState(State);
     virtual void notifyEndState(State);
 
+    QObject *shell() const;
+    void setShell(QObject *shell);
+
 Q_SIGNALS:
     void requestMap();
     void requestUnmap();
-    void requestMove(WSeat *seat, quint32 serial);
-    void requestResize(WSeat *seat, Qt::Edges edge, quint32 serial);
-    void requestMaximize();
-    void requestUnmaximize();
-    void requestActivate(WSeat *seat);
 
     void textureChanged();
     void sizeChanged(QSize oldSize, QSize newSize);
     void bufferSizeChanged(QSize oldSize, QSize newSize);
     void bufferScaleChanged(int oldScale, int newScale);
+    void shellChanged();
 
 protected:
     WSurface(WSurfacePrivate &dd, QObject *parent);

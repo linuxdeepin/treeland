@@ -40,8 +40,13 @@ Item {
         XdgShell {
             id: shell
 
-            onSurfaceRequestMap: function(surface) {
+            onRequestMap: function(surface) {
                 renderWindow.surfaceModel.append({waylandSurface: surface})
+            }
+
+            onRequestMove: function(surface, seat, serial) {
+                if (seat === moveResizeHelper.seat)
+                    moveResizeHelper.startMove(surface, serial)
             }
         }
 
@@ -116,16 +121,9 @@ Item {
 
                             surface: waylandSurface
 
-                            Connections {
-                                target: surfaceItem.waylandSurface
-
-                                function onRequestMove(seat, serial) {
-                                    if (seat === moveResizeHelper.seat)
-                                        moveResizeHelper.startMove(surfaceItem.waylandSurface, surfaceItem, serial)
-                                }
-                            }
-
                             Component.onCompleted: {
+                                waylandSurface.shell = surfaceItem
+
                                 x = (parent.width - width) / 2
                                 y = (parent.height - height) / 2
                             }
