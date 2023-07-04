@@ -24,3 +24,11 @@ Makefile
 
 # cmake
 CMakeLists.txt.user
+
+# nix
+.direnv/
+result
+
+# clangd
+.cache/
+
