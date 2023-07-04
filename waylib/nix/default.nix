@@ -25,7 +25,7 @@ stdenv.mkDerivation rec {
     exclude = [
       ".git"
       "debian"
-      "LICENSE"
+      "LICENSES"
       "README.md"
       "README.zh_CN.md"
       (nix-filter.matchExt "nix")
