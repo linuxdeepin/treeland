@@ -12,7 +12,9 @@
 #include <QRect>
 
 extern "C" {
+#define static
 #include <wlr/types/wlr_cursor.h>
+#undef static
 }
 
 QW_USE_NAMESPACE
@@ -55,7 +57,7 @@ void WQuickSeatPrivate::updateCursorMap()
         QPoint maxPos(0, 0);
 
         for (auto o : outputs) {
-            QRect rect = o->layout()->getBox(o->nativeInterface<QWOutput>()->handle());
+            QRect rect = o->layout()->getBox(o->nativeInterface<QWOutput>());
 
             if (rect.x() < minPos.x())
                 minPos.rx() = rect.x();
@@ -71,7 +73,7 @@ void WQuickSeatPrivate::updateCursorMap()
         cursor->mapToRegion(QRect(minPos, maxPos));
         cursor->mapToOutput(nullptr);
     } else if (outputs.size() == 1) {
-        cursor->mapToOutput(outputs.first()->nativeInterface<QWOutput>()->handle());
+        cursor->mapToOutput(outputs.first()->nativeInterface<QWOutput>());
         resetCursorRegion();
     } else {
         cursor->mapToOutput(nullptr);

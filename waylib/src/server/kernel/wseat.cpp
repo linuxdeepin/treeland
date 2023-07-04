@@ -12,6 +12,7 @@
 #include <qwseat.h>
 #include <qwkeyboard.h>
 #include <qwcursor.h>
+#include <qwcompositor.h>
 
 #include <QQuickWindow>
 #include <QGuiApplication>
@@ -23,7 +24,9 @@
 extern "C" {
 #include <wlr/types/wlr_seat.h>
 #include <wlr/types/wlr_data_device.h>
+#define static
 #include <wlr/types/wlr_cursor.h>
+#undef static
 #include <wlr/types/wlr_xdg_shell.h>
 }
 
@@ -180,7 +183,7 @@ void WSeatPrivate::on_request_set_cursor(wlr_seat_pointer_request_set_cursor_eve
          * provided surface as the cursor image. It will set the hardware cursor
          * on the output that it's currently on and continue to do so as the
          * cursor moves between outputs. */
-        cursor->nativeInterface<QWCursor>()->setSurface(event->surface, QPoint(event->hotspot_x, event->hotspot_y));
+        cursor->nativeInterface<QWCursor>()->setSurface(QWSurface::from(event->surface), QPoint(event->hotspot_x, event->hotspot_y));
     }
 }
 

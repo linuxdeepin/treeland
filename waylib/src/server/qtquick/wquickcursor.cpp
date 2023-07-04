@@ -20,9 +20,8 @@ class WQuickCursorPrivate : public WCursorPrivate
 {
 public:
     WQuickCursorPrivate(WQuickCursor *qq);
-    ~WQuickCursorPrivate()
-    {
-        xcursor_manager->destroy();
+    ~WQuickCursorPrivate() {
+        delete xcursor_manager;
     }
 
     inline static WQuickCursorPrivate *get(WQuickCursor *qq) {
@@ -201,8 +200,7 @@ void WQuickCursorPrivate::onCursorPositionChanged()
 
 void WQuickCursorPrivate::updateXCursorManager()
 {
-    if (xcursor_manager)
-        xcursor_manager->destroy();
+    if (xcursor_manager) delete xcursor_manager;
     auto xm = QWXCursorManager::create(qPrintable(xcursorThemeName), getCursorSize());
     q_func()->setXCursorManager(xm);
 }

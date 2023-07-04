@@ -21,7 +21,7 @@ public:
 #ifndef QT_NO_CURSOR
     void changeCursor(QCursor *windowCursor, QWindow *window) override;
     void setOverrideCursor(const QCursor &) override;
-    void clearOverrideCursor();
+    void clearOverrideCursor() override;
 #endif // QT_NO_CURSOR
     QPoint pos() const override;
     void setPos(const QPoint &pos) override;

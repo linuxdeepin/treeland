@@ -59,7 +59,7 @@ public:
     QPlatformWindow *createPlatformWindow(QWindow *window) const override;
     QPlatformBackingStore *createPlatformBackingStore(QWindow *window) const override;
 #ifndef QT_NO_OPENGL
-    QPlatformOpenGLContext *createPlatformOpenGLContext(QOpenGLContext *context) const;
+    QPlatformOpenGLContext *createPlatformOpenGLContext(QOpenGLContext *context) const override;
     QOpenGLContext::OpenGLModuleType openGLModuleType() override;
 #endif
     QAbstractEventDispatcher *createEventDispatcher() const override;
@@ -107,7 +107,7 @@ public:
     void quit() const override;
 
 #if QT_CONFIG(vulkan)
-    QPlatformVulkanInstance *createPlatformVulkanInstance(QVulkanInstance *instance) const;
+    QPlatformVulkanInstance *createPlatformVulkanInstance(QVulkanInstance *instance) const override;
 #endif
 
 private:

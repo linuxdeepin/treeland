@@ -6,7 +6,9 @@
 #include <qwxcursormanager.h>
 
 extern "C" {
+#define static
 #include <wlr/types/wlr_xcursor_manager.h>
+#undef static
 }
 
 QW_USE_NAMESPACE
@@ -23,7 +25,7 @@ public:
     }
 
     ~WXCursorManagerPrivate() {
-        handle->destroy();
+        delete handle;
     }
 
     W_DECLARE_PUBLIC(WXCursorManager)

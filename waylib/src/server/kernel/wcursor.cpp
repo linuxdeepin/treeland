@@ -27,7 +27,9 @@
 #include <QDebug>
 
 extern "C" {
+#define static
 #include <wlr/types/wlr_cursor.h>
+#undef static
 #include <wlr/types/wlr_xcursor_manager.h>
 #include <wlr/types/wlr_pointer.h>
 }
@@ -144,7 +146,7 @@ void WCursorPrivate::updateCursorImage()
         if (outputLayout) {
             for (auto o : outputLayout->outputs()) {
                 QImage tmp = img;
-                if (!qFuzzyCompare(img.devicePixelRatio(), o->scale())) {
+                if (!qFuzzyCompare(img.devicePixelRatio(), static_cast<qreal>(o->scale()))) {
                     tmp = tmp.scaledToWidth(img.width() * o->scale() / img.devicePixelRatio(), Qt::SmoothTransformation);
                     tmp.setDevicePixelRatio(o->scale());
                 }
@@ -484,7 +486,7 @@ void WCursor::setPosition(const QPointF &pos)
 
 bool WCursor::setPositionWithChecker(const QPointF &pos)
 {
-    setPositionWithChecker(nullptr, pos);
+    return setPositionWithChecker(nullptr, pos);
 }
 
 QPointF WCursor::position() const

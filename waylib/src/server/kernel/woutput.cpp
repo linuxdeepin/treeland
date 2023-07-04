@@ -12,7 +12,9 @@
 #include <qwrenderer.h>
 
 extern "C" {
+#define static
 #include <wlr/types/wlr_output.h>
+#undef static
 #include <wlr/types/wlr_output_layout.h>
 }
 
@@ -167,7 +169,7 @@ QPoint WOutput::position() const
     if (Q_UNLIKELY(!d->layout))
         return p;
 
-    auto l_output = d->layout->get(d->handle->handle());
+    auto l_output = d->layout->get(d->handle);
 
     if (Q_UNLIKELY(!l_output))
         return p;

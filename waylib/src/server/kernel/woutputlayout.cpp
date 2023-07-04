@@ -41,7 +41,7 @@ void WOutputLayout::add(WOutput *output, const QPoint &pos)
     Q_ASSERT(!d->outputs.contains(output));
     d->outputs.append(output);
 
-    QWOutputLayout::add(output->nativeInterface<QWOutput>()->handle(), pos);
+    QWOutputLayout::add(output->nativeInterface<QWOutput>(), pos);
     output->setLayout(this);
 
     Q_EMIT outputAdded(output);
@@ -51,7 +51,7 @@ void WOutputLayout::move(WOutput *output, const QPoint &pos)
 {
     W_D(WOutputLayout);
     Q_ASSERT(d->outputs.contains(output));
-    QWOutputLayout::move(output->nativeInterface<QWOutput>()->handle(), pos);
+    QWOutputLayout::move(output->nativeInterface<QWOutput>(), pos);
 }
 
 void WOutputLayout::remove(WOutput *output)
@@ -60,7 +60,7 @@ void WOutputLayout::remove(WOutput *output)
     Q_ASSERT(d->outputs.contains(output));
     d->outputs.removeOne(output);
 
-    QWOutputLayout::remove(output->nativeInterface<QWOutput>()->handle());
+    QWOutputLayout::remove(output->nativeInterface<QWOutput>());
     output->setLayout(nullptr);
 
     Q_EMIT outputRemoved(output);

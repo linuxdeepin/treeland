@@ -17,7 +17,9 @@
 
 extern "C" {
 #include <wlr/backend.h>
+#define static
 #include <wlr/types/wlr_output.h>
+#undef static
 #include <wlr/types/wlr_input_device.h>
 }
 

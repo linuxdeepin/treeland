@@ -7,11 +7,15 @@
 
 #include <qwxdgshell.h>
 #include <qwseat.h>
+#include <qwcompositor.h>
 
 #include <QDebug>
 
 extern "C" {
+#define static
 #include <wlr/types/wlr_xdg_shell.h>
+#undef static
+#include <wlr/util/edges.h>
 }
 
 QW_USE_NAMESPACE
@@ -82,10 +86,10 @@ void WXdgSurfacePrivate::connect()
         on_ack_configure(event);
     });
 
-    QObject::connect(handle, &QWXdgSurface::map, q_func(), [this] {
+    QObject::connect(handle->surface(), &QWSurface::map, q_func(), [this] {
         on_map();
     });
-    QObject::connect(handle, &QWXdgSurface::unmap, q_func(), [this] {
+    QObject::connect(handle->surface(), &QWSurface::unmap, q_func(), [this] {
         on_unmap();
     });
 }
@@ -208,7 +212,7 @@ WSurface *WXdgSurface::parentSurface() const
         auto parent = popup->handle()->parent;
         if (!parent)
             return nullptr;
-        return fromHandle<QWXdgSurface>(QWXdgSurface::from(parent));
+        return fromHandle<QWSurface>(QWSurface::from(parent));
     }
 
     return nullptr;

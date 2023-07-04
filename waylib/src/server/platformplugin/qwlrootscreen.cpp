@@ -15,7 +15,9 @@
 #include <private/qhighdpiscaling_p.h>
 
 extern "C" {
+#define static
 #include <wlr/types/wlr_output.h>
+#undef static
 }
 
 #include <drm_fourcc.h>
