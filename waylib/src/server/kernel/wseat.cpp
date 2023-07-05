@@ -66,7 +66,7 @@ public:
         Q_UNUSED(device)
         auto pos = hoverSurface->mapFromGlobal(cursor->position());
         // Get a valid wlr_surface object by the input region of the client
-        auto target_surface = hoverSurface->nativeInputTargetAt<wlr_surface>(pos);
+        auto target_surface = hoverSurface->nativeInputTargetAt<QWSurface>(pos)->handle();
         if (Q_UNLIKELY(!target_surface)) {
             // Because the doNotifyMotion will received the event on before the WQuickItem, so
             // when the mouse move form the window edges to outside of the event area of the
@@ -108,7 +108,7 @@ public:
     inline void doEnter(WSurface *surface) {
         hoverSurface = surface;
         auto pos = surface->mapFromGlobal(cursor->position());
-        auto target_surface = surface->nativeInputTargetAt<wlr_surface>(pos);
+        auto target_surface = surface->nativeInputTargetAt<QWSurface>(pos)->handle();
         // When the hoverSuface is exists, indicate the event receive areas is filtered
         // by the WQuickItem, so the target_suface should always is not nullptr.
         Q_ASSERT(target_surface);
@@ -369,7 +369,7 @@ WSurface *WSeat::hoverSurface() const
 void WSeat::setKeyboardFocusTarget(WSurfaceHandle *nativeSurface)
 {
     W_D(WSeat);
-    d->doSetKeyboardFocus(reinterpret_cast<wlr_surface*>(nativeSurface));
+    d->doSetKeyboardFocus(reinterpret_cast<QWSurface*>(nativeSurface)->handle());
 }
 
 void WSeat::setKeyboardFocusTarget(WSurface *surface)
