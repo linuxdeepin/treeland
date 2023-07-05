@@ -8,6 +8,7 @@
 #include <qwrenderer.h>
 #include <qwallocator.h>
 #include <qwcompositor.h>
+#include <qwsubcompositor.h>
 
 QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
@@ -76,6 +77,7 @@ void WWaylandCompositor::create()
 
     // free follow display
     Q_UNUSED(QWCompositor::create(display, d->renderer));
+    Q_UNUSED(QWSubcompositor::create(display));
 
     WQuickWaylandServerInterface::create();
 }
