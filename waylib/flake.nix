@@ -36,7 +36,10 @@
               packages.default
             ];
 
-            shellHook = ''
+            shellHook = let
+              makeQtpluginPath = pkgs.lib.makeSearchPathOutput "out" pkgs.qt6.qtbase.qtPluginPrefix;
+              makeQmlpluginPath = pkgs.lib.makeSearchPathOutput "out" pkgs.qt6.qtbase.qtQmlPrefix;
+            in ''
               echo "welcome to waylib"
               echo "wlroots: $(pkg-config --modversion wlroots)"
               echo "wayland-server: $(pkg-config --modversion wayland-server)"
@@ -45,6 +48,9 @@
               export EGL_LOG_LEVEL=debug
               export LIBGL_DEBUG=verbose
               export WAYLAND_DEBUG=1
+              export QT_PLUGIN_PATH=${makeQtpluginPath (with pkgs.qt6; [ qtbase qtdeclarative qtquick3d ])}
+              export QML2_IMPORT_PATH=${makeQmlpluginPath (with pkgs.qt6; [ qtdeclarative qtquick3d ])}
+
             '';
           };
         }
