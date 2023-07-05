@@ -14,3 +14,5 @@ target_link_libraries(tinywl-qtquick
     Qt6::QuickControls2
     waylibserver
 )
+
+install(TARGETS tinywl-qtquick DESTINATION ${CMAKE_INSTALL_BINDIR})

@@ -13,6 +13,7 @@
 , wayland-protocols
 , pixman
 , libdrm
+, buildTinywl ? true
 }:
 
 stdenv.mkDerivation rec {
@@ -47,6 +48,10 @@ stdenv.mkDerivation rec {
     wayland-protocols
     pixman
     libdrm
+  ];
+
+  cmakeFlags = [
+    "-DBUILD_TINYWL=${if buildTinywl then "ON" else "OFF"}"
   ];
 
   strictDeps = true;

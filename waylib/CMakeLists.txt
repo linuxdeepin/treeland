@@ -13,6 +13,7 @@ set(CMAKE_AUTORCC ON)
 set(CMAKE_AUTOUIC ON)
 
 option(WITH_SUBMODULE_QWLROOTS "Use the QWlroots from git submodule" OFF)
+option(BUILD_TINYWL "A minimum viable product Wayland compositor based on waylib" ON)
 
 if(WITH_SUBMODULE_QWLROOTS)
     add_subdirectory(qwlroots)
