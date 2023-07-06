@@ -19,6 +19,8 @@ QT_END_NAMESPACE
 
 QW_BEGIN_NAMESPACE
 class QWRenderer;
+class QWSwapchain;
+class QWAllocator;
 QW_END_NAMESPACE
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
@@ -62,6 +64,8 @@ public:
     WBackend *backend() const;
     WServer *server() const;
     QW_NAMESPACE::QWRenderer *renderer() const;
+    QW_NAMESPACE::QWSwapchain *swapchain() const;
+    QW_NAMESPACE::QWAllocator *allocator() const;
 
     WOutputViewport *handle() const;
     template<typename DNativeInterface>
@@ -100,7 +104,7 @@ public:
 
 Q_SIGNALS:
     void positionChanged(const QPoint &pos);
-    void sizeChanged();
+    void modeChanged();
     void transformedSizeChanged();
     void effectiveSizeChanged();
     void orientationChanged();

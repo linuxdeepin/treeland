@@ -104,32 +104,6 @@ Item {
                         anchors.fill: parent
                     }
 
-                    Repeater {
-                        id: re
-                        anchors.fill: parent
-                        clip: false
-
-                        model: ListModel {
-                            Component.onCompleted: {
-                                renderWindow.surfaceModel = this
-                            }
-                        }
-
-                        SurfaceItem {
-                            id: surfaceItem
-                            required property WaylandSurface waylandSurface
-
-                            surface: waylandSurface
-
-                            Component.onCompleted: {
-                                waylandSurface.shell = surfaceItem
-
-                                x = (parent.width - width) / 2
-                                y = (parent.height - height) / 2
-                            }
-                        }
-                    }
-
                     Column {
                         anchors {
                             bottom: parent.bottom
@@ -181,6 +155,30 @@ Item {
                             }
                         }
                     }
+                }
+            }
+        }
+
+        Repeater {
+            anchors.fill: parent
+            clip: false
+
+            model: ListModel {
+                Component.onCompleted: {
+                    if (!renderWindow.surfaceModel)
+                        renderWindow.surfaceModel = this
+                }
+            }
+
+            SurfaceItem {
+                id: surfaceItem
+                required property WaylandSurface waylandSurface
+                property bool positionInitialized: false
+
+                surface: waylandSurface
+
+                Component.onCompleted: {
+                    waylandSurface.shell = surfaceItem
                 }
             }
         }

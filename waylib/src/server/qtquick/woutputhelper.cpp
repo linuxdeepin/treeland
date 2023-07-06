@@ -10,6 +10,12 @@
 #include <qwbackend.h>
 #include <qwoutput.h>
 #include <qwrenderer.h>
+#include <qwswapchain.h>
+#include <qwbuffer.h>
+#include <qwtexture.h>
+#include <platformplugin/qwlrootswindow.h>
+#include <platformplugin/qwlrootsintegration.h>
+#include <platformplugin/qwlrootscreen.h>
 
 #include <QWindow>
 #include <QQuickWindow>
@@ -53,6 +59,7 @@ public:
         , outputWindow(new QW::Window)
     {
         outputWindow->QObject::setParent(qq);
+        outputWindow->setScreen(QWlrootsIntegration::instance()->getScreenFrom(output)->screen());
         outputWindow->create();
 
 #ifndef WAYLIB_DISABLE_OUTPUT_DAMAGE
@@ -71,16 +78,14 @@ public:
         QObject::connect(qwoutput(), &QWOutput::damage, qq, [this] {
             on_damage();
         });
+        QObject::connect(output, &WOutput::modeChanged, qq, [this] {
+            resetRenderBuffer();
+        });
 #endif
-    // In call the connect for 'frame' signal before, maybe the wlr_output object is already \
-    // emit the signal, so we should suppose the renderable is true in order that ensure can \
-    // render on the next time
+        // In call the connect for 'frame' signal before, maybe the wlr_output object is already \
+        // emit the signal, so we should suppose the renderable is true in order that ensure can \
+        // render on the next time
         renderable = true;
-
-        // On the X11/Wayalnd mode，when the window size of 'output' is changed then will trigger
-        // the 'mode' signal
-        //    sc.connect(&qwoutput()->events.mode,
-        //               this, &WOutputWindowPrivate::on_mode);
     }
 
     inline QWOutput *qwoutput() const {
@@ -89,6 +94,14 @@ public:
 
     inline QWRenderer *renderer() const {
         return output->renderer();
+    }
+
+    inline QWSwapchain *swapchain() const {
+        return output->swapchain();
+    }
+
+    inline QWlrootsOutputWindow *qpaWindow() const {
+        return static_cast<QWlrootsOutputWindow*>(outputWindow->handle());
     }
 
     void setRenderable(bool newValue);
@@ -100,11 +113,7 @@ public:
     void on_frame();
     void on_damage();
 #endif
-    void on_mode(void*);
-
-    inline bool bufferIsAttached() const {
-        return attachedBuffer;
-    }
+    void resetRenderBuffer();
 
 #ifndef WAYLIB_DISABLE_OUTPUT_DAMAGE
     inline bool attachRender(pixman_region32_t *damage, bool *needsFrame = nullptr) {
@@ -127,27 +136,16 @@ public:
     }
 #endif
 
-    inline bool attachRender() {
-        if (bufferIsAttached())
-            return true;
-
-        if (!qwoutput()->attachRender(nullptr))
-            return false;
-
-        attachedBuffer = true;
-        return true;
-    }
-
-    inline void detachRender() {
-        attachedBuffer = false;
-        qwoutput()->rollback();
-    }
+    QWBuffer *ensureRenderBuffer();
 
     inline bool makeCurrent(QOpenGLContext *context) {
+        if (!ensureRenderBuffer())
+            return false;
+
         if (context) {
             return context->makeCurrent(outputWindow);
         } else {
-            return attachRender();
+            return qpaWindow()->attachRenderer();
         }
     }
 
@@ -155,7 +153,7 @@ public:
         if (context) {
             context->doneCurrent();
         } else {
-            detachRender();
+            qpaWindow()->detachRenderer();
         }
     }
 
@@ -169,7 +167,6 @@ public:
 
     W_DECLARE_PUBLIC(WOutputHelper)
     WOutput *output;
-    QQuickRenderTarget renderTarget;
     QWindow *outputWindow;
 
 #ifndef WAYLIB_DISABLE_OUTPUT_DAMAGE
@@ -177,22 +174,15 @@ public:
 #endif
     // for software renderer
     QImage paintDevice;
-    pixman_image_t *currentBuffer = nullptr;
+    std::unique_ptr<QWTexture> renderTexture;
+    QQuickRenderTarget renderTarget;
 
     bool renderable = false;
 #ifdef WAYLIB_DISABLE_OUTPUT_DAMAGE
     bool contentIsDirty = false;
 #endif
-    bool attachedBuffer = false;
 };
 
-#ifndef WAYLIB_DISABLE_OUTPUT_DAMAGE
-void WOutputHelperPrivate::on_damage_frame(void *)
-{
-    renderable = true;
-    Q_EMIT q_func()->requestRender();
-}
-#else
 void WOutputHelperPrivate::setRenderable(bool newValue)
 {
     if (renderable == newValue)
@@ -209,6 +199,13 @@ void WOutputHelperPrivate::setContentIsDirty(bool newValue)
     Q_EMIT q_func()->contentIsDirtyChanged();
 }
 
+#ifndef WAYLIB_DISABLE_OUTPUT_DAMAGE
+void WOutputHelperPrivate::on_damage_frame(void *)
+{
+    renderable = true;
+    Q_EMIT q_func()->requestRender();
+}
+#else
 void WOutputHelperPrivate::on_frame()
 {
     setRenderable(true);
@@ -221,6 +218,29 @@ void WOutputHelperPrivate::on_damage()
     Q_EMIT q_func()->requestRender();
 }
 #endif
+
+void WOutputHelperPrivate::resetRenderBuffer()
+{
+    renderTexture.reset();
+    renderTarget = {};
+    qpaWindow()->setBuffer(nullptr);
+}
+
+QWBuffer *WOutputHelperPrivate::ensureRenderBuffer()
+{
+    if (auto buffer = qpaWindow()->buffer())
+        return buffer;
+
+    bool ok = wlr_output_configure_primary_swapchain(qwoutput()->handle(),
+                                                     &qwoutput()->handle()->pending,
+                                                     &qwoutput()->handle()->swapchain);
+    if (!ok)
+        return nullptr;
+    QWBuffer *newBuffer = swapchain()->acquire(nullptr);
+    qpaWindow()->setBuffer(newBuffer);
+
+    return newBuffer;
+}
 
 WOutputHelper::WOutputHelper(WOutput *output, QObject *parent)
     : QObject(parent)
@@ -248,38 +268,38 @@ QQuickRenderTarget WOutputHelper::makeRenderTarget()
     if (!d->renderTarget.isNull())
         return d->renderTarget;
 
+    QWBuffer *buffer = d->ensureRenderBuffer();
+    if (!buffer)
+        return {};
+
+    d->renderTexture.reset(QWTexture::fromBuffer(d->renderer(), buffer));
+
     if (wlr_renderer_is_pixman(d->renderer()->handle())) {
-        pixman_image_t *image = wlr_pixman_renderer_get_current_image(d->renderer()->handle());
+        pixman_image_t *image = wlr_pixman_texture_get_image(d->renderTexture->handle());
         void *data = pixman_image_get_data(image);
-
-        if (Q_LIKELY(d->paintDevice.constBits() == data))
-            return d->renderTarget;
-
-        d->paintDevice = WTools::fromPixmanImage(image, data);
+        if (Q_UNLIKELY(d->paintDevice.constBits() != data))
+            d->paintDevice = WTools::fromPixmanImage(image, data);
         Q_ASSERT(!d->paintDevice.isNull());
         d->paintDevice.setDevicePixelRatio(d->qwoutput()->handle()->pending.scale);
-        d->renderTarget = QQuickRenderTarget::fromPaintDevice(&d->paintDevice);
+        return QQuickRenderTarget::fromPaintDevice(&d->paintDevice);
     }
 #ifdef ENABLE_VULKAN_RENDER
     else if (wlr_renderer_is_vk(d->renderer()->handle())) {
         wlr_vk_image_attribs attribs;
-        wlr_vk_renderer_get_current_image_attribs(d->renderer()->handle(), &attribs);
-        d->renderTarget = QQuickRenderTarget::fromVulkanImage(attribs.image, attribs.layout, attribs.format, d->output->size());
+        wlr_vk_texture_get_image_attribs(d->renderTexture->handle(), &attribs);
+        return QQuickRenderTarget::fromVulkanImage(attribs.image, attribs.layout, attribs.format, d->output->size());
     }
 #endif
     else if (wlr_renderer_is_gles2(d->renderer()->handle())) {
-        GLint rbo = 0;
-        glGetFramebufferAttachmentParameteriv(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
-                                              GL_FRAMEBUFFER_ATTACHMENT_OBJECT_NAME, &rbo);
+        wlr_gles2_texture_attribs attribs;
+        wlr_gles2_texture_get_attribs(d->renderTexture->handle(), &attribs);
 
-        if (rbo) {
-            auto rt = QQuickRenderTarget::fromOpenGLRenderBuffer(rbo, d->output->size());
-            rt.setMirrorVertically(true);
-            d->renderTarget = rt;
-        }
+        auto rt = QQuickRenderTarget::fromOpenGLTexture(attribs.tex, d->output->size());
+        rt.setMirrorVertically(true);
+        return rt;
     }
 
-    return d->renderTarget;
+    return {};
 }
 
 // Copy from "wlr_renderer.c" of wlroots

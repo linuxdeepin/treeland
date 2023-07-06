@@ -300,13 +300,23 @@ QPlatformBackingStore *QWlrootsIntegration::createPlatformBackingStore(QWindow *
     return CALL_PROXY2(createPlatformBackingStore, nullptr, window);
 }
 
-static inline QWOutput *outputFrom(QPlatformSurface *surface) {
-    auto ws = dynamic_cast<QWlrootsScreen*>(surface->screen());
-    return ws ? ws->output()->nativeInterface<QWOutput>() : nullptr;
+static inline WOutput *outputFrom(QWlrootsOutputWindow *surface) {
+    auto ws = surface->qwScreen();
+    return ws ? ws->output() : nullptr;
+}
+
+static inline WOutput *outputFrom(QPlatformSurface *surface) {
+    auto w = dynamic_cast<QWlrootsOutputWindow*>(surface);
+    return w ? outputFrom(w) : nullptr;
+}
+
+static inline QWOutput *qoutputFrom(QPlatformSurface *surface) {
+    auto o = outputFrom(surface);
+    return o ? o->nativeInterface<QWOutput>() : nullptr;
 }
 
 #ifndef QT_NO_OPENGL
-class OpenGLContext : public QPlatformOpenGLContext {
+class Q_DECL_HIDDEN OpenGLContext : public QPlatformOpenGLContext {
 public:
     explicit OpenGLContext(QOpenGLContext *context)
         : m_context(context)
@@ -335,11 +345,11 @@ public:
     }
 
     void swapBuffers(QPlatformSurface *surface) override {
-        if (QWOutput *output = outputFrom(surface))
+        if (QWOutput *output = qoutputFrom(surface))
             output->commit();
     }
     GLuint defaultFramebufferObject(QPlatformSurface *surface) const override {
-        if (QWOutput *output = outputFrom(surface)) {
+        if (QWOutput *output = qoutputFrom(surface)) {
             return wlr_gles2_renderer_get_current_fbo(output->handle()->renderer);
         }
 
@@ -347,13 +357,10 @@ public:
     }
 
     bool makeCurrent(QPlatformSurface *surface) override {
-        if (QWOutput *output = outputFrom(surface)) {
-            if (!output->handle()->renderer)
-                return false;
-
-            Q_ASSERT(wlr_renderer_is_gles2(output->handle()->renderer));
-            m_currentOutput = output;
-            return output->attachRender(nullptr);
+        auto window = dynamic_cast<QWlrootsOutputWindow*>(surface);
+        if (window && window->attachRenderer()) {
+            m_currentSurface = window;
+            return true;
         }
 
         if (auto c = dynamic_cast<QW::OpenGLContext*>(m_context)) {
@@ -363,9 +370,9 @@ public:
         return false;
     }
     void doneCurrent() override {
-        if (m_currentOutput) {
-            m_currentOutput->rollback();
-            m_currentOutput = nullptr;
+        if (m_currentSurface) {
+            m_currentSurface->detachRenderer();
+            m_currentSurface = nullptr;
         } else if (auto c = dynamic_cast<QW::OpenGLContext*>(m_context)) {
             eglMakeCurrent(c->eglDisplay(), EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
         }
@@ -377,7 +384,7 @@ public:
 
 private:
     QOpenGLContext *m_context = nullptr;
-    QWOutput *m_currentOutput = nullptr;
+    QWlrootsOutputWindow *m_currentSurface = nullptr;
     QSurfaceFormat m_format;
 };
 

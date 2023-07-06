@@ -4,18 +4,27 @@
 #pragma once
 
 #include "wglobal.h"
+#include <qwglobal.h>
 
+#include <QPointer>
 #include <qpa/qplatformwindow.h>
+
+QW_BEGIN_NAMESPACE
+class QWBuffer;
+QW_END_NAMESPACE
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
+class QWlrootsScreen;
 class Q_DECL_HIDDEN QWlrootsOutputWindow : public QPlatformWindow
 {
 public:
     QWlrootsOutputWindow(QWindow *window);
+    ~QWlrootsOutputWindow();
 
     void initialize() override;
 
+    QWlrootsScreen *qwScreen() const;
     QPlatformScreen *screen() const override;
     void setGeometry(const QRect &rect) override;
     QRect geometry() const override;
@@ -23,7 +32,15 @@ public:
     WId winId() const override;
     qreal devicePixelRatio() const override;
 
+    void setBuffer(QW_NAMESPACE::QWBuffer *buffer);
+    QW_NAMESPACE::QWBuffer *buffer() const;
+
+    bool attachRenderer();
+    void detachRenderer();
+
 private:
+    QPointer<QW_NAMESPACE::QWBuffer> renderBuffer;
+    bool bufferAttached = false;
     QMetaObject::Connection onScreenGeometryConnection;
 };
 

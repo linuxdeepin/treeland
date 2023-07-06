@@ -10,6 +10,8 @@
 #include <qwoutput.h>
 #include <qwoutputlayout.h>
 #include <qwrenderer.h>
+#include <qwswapchain.h>
+#include <qwallocator.h>
 
 extern "C" {
 #define static
@@ -43,7 +45,7 @@ public:
             }
 
             if (event->committed & WLR_OUTPUT_STATE_MODE) {
-                Q_EMIT qq->sizeChanged();
+                Q_EMIT qq->modeChanged();
                 Q_EMIT qq->effectiveSizeChanged();
             }
 
@@ -109,6 +111,18 @@ QWRenderer *WOutput::renderer() const
 {
     W_DC(WOutput);
     return QWRenderer::from(d->handle->handle()->renderer);
+}
+
+QWSwapchain *WOutput::swapchain() const
+{
+    W_DC(WOutput);
+    return QWSwapchain::from(d->handle->handle()->swapchain);
+}
+
+QWAllocator *WOutput::allocator() const
+{
+    W_DC(WOutput);
+    return QWAllocator::from(d->handle->handle()->allocator);
 }
 
 WOutputViewport *WOutput::handle() const

@@ -71,6 +71,81 @@ struct Q_DECL_HIDDEN QScopedPointerPixmanRegion32Deleter {
 
 typedef QScopedPointer<pixman_region32_t, QScopedPointerPixmanRegion32Deleter> pixman_region32_scoped_pointer;
 
+// Copy from qquickrendertarget.cpp
+static bool createRhiRenderTarget(const QRhiColorAttachment &colorAttachment,
+                                  const QSize &pixelSize,
+                                  int sampleCount,
+                                  QRhi *rhi,
+                                  QQuickWindowRenderTarget &dst)
+{
+    std::unique_ptr<QRhiRenderBuffer> depthStencil(rhi->newRenderBuffer(QRhiRenderBuffer::DepthStencil, pixelSize, sampleCount));
+    if (!depthStencil->create()) {
+        qWarning("Failed to build depth-stencil buffer for QQuickRenderTarget");
+        return false;
+    }
+
+    QRhiTextureRenderTargetDescription rtDesc(colorAttachment);
+    rtDesc.setDepthStencilBuffer(depthStencil.get());
+    std::unique_ptr<QRhiTextureRenderTarget> rt(rhi->newTextureRenderTarget(rtDesc));
+    std::unique_ptr<QRhiRenderPassDescriptor> rp(rt->newCompatibleRenderPassDescriptor());
+    rt->setRenderPassDescriptor(rp.get());
+
+    if (!rt->create()) {
+        qWarning("Failed to build texture render target for QQuickRenderTarget");
+        return false;
+    }
+
+    dst.renderTarget = rt.release();
+    dst.rpDesc = rp.release();
+    dst.depthStencil = depthStencil.release();
+    dst.owns = true; // ownership of the native resource itself is not transferred but the QRhi objects are on us now
+
+    return true;
+}
+
+bool createRhiRenderTarget(QRhi *rhi, const QQuickRenderTarget &source, QQuickWindowRenderTarget &dst)
+{
+    auto rtd = QQuickRenderTargetPrivate::get(&source);
+
+    switch (rtd->type) {
+    case QQuickRenderTargetPrivate::Type::NativeTexture: {
+        const auto format = rtd->u.nativeTexture.rhiFormat == QRhiTexture::UnknownFormat ? QRhiTexture::RGBA8
+                                                                                         : QRhiTexture::Format(rtd->u.nativeTexture.rhiFormat);
+        const auto flags = QRhiTexture::RenderTarget | QRhiTexture::Flags(rtd->u.nativeTexture.rhiFlags);
+        std::unique_ptr<QRhiTexture> texture(rhi->newTexture(format, rtd->pixelSize, rtd->sampleCount, flags));
+#if QT_VERSION < QT_VERSION_CHECK(6, 6, 0)
+        if (!texture->createFrom({ rtd->u.nativeTexture.object, rtd->u.nativeTexture.layout }))
+#else
+        if (!texture->createFrom({ rtd->u.nativeTexture.object, rtd->u.nativeTexture.layoutOrState }))
+#endif
+            return false;
+        QRhiColorAttachment att(texture.get());
+        if (!createRhiRenderTarget(att, rtd->pixelSize, rtd->sampleCount, rhi, dst))
+            return false;
+        dst.texture = texture.release();
+        return true;
+    }
+    case QQuickRenderTargetPrivate::Type::NativeRenderbuffer: {
+        std::unique_ptr<QRhiRenderBuffer> renderbuffer(rhi->newRenderBuffer(QRhiRenderBuffer::Color, rtd->pixelSize, rtd->sampleCount));
+        if (!renderbuffer->createFrom({ rtd->u.nativeRenderbufferObject })) {
+            qWarning("Failed to build wrapper renderbuffer for QQuickRenderTarget");
+            return false;
+        }
+        QRhiColorAttachment att(renderbuffer.get());
+        if (!createRhiRenderTarget(att, rtd->pixelSize, rtd->sampleCount, rhi, dst))
+            return false;
+        dst.renderBuffer = renderbuffer.release();
+        return true;
+    }
+
+    default:
+        break;
+    }
+
+    return false;
+}
+// Copy end
+
 class OutputHelper : public WOutputHelper, public QQuickItemChangeListener
 {
 public:
@@ -80,11 +155,16 @@ public:
     {
         QQuickItemPrivate::get(output)->addItemChangeListener(this, QQuickItemPrivate::Geometry);
         connect(this, &OutputHelper::requestRender, parent, &WOutputRenderWindow::render);
+        connect(output->output(), &WOutput::modeChanged, this, [this] {
+            renderTarget = {};
+        });
     }
     ~OutputHelper()
     {
         if (m_output)
             QQuickItemPrivate::get(m_output)->removeItemChangeListener(this, QQuickItemPrivate::Geometry);
+
+        resetWindowRenderTarget();
     }
 
     inline QWOutput *qwoutput() const {
@@ -99,10 +179,33 @@ public:
         return m_output.get();
     }
 
+    inline void resetWindowRenderTarget() {
+        if (windowRenderTarget.owns) {
+            delete windowRenderTarget.renderTarget;
+            delete windowRenderTarget.rpDesc;
+            delete windowRenderTarget.texture;
+            delete windowRenderTarget.renderBuffer;
+            delete windowRenderTarget.depthStencil;
+            delete windowRenderTarget.paintDevice;
+        }
+
+        windowRenderTarget.renderTarget = nullptr;
+        windowRenderTarget.rpDesc = nullptr;
+        windowRenderTarget.texture = nullptr;
+        windowRenderTarget.renderBuffer = nullptr;
+        windowRenderTarget.depthStencil = nullptr;
+        windowRenderTarget.paintDevice = nullptr;
+        windowRenderTarget.owns = false;
+    }
+
+    QQuickRenderTarget ensureRenderTarget();
+
     void itemGeometryChanged(QQuickItem *, QQuickGeometryChange, const QRectF & /* oldGeometry */) override;
 
 private:
     QPointer<WOutputViewport> m_output;
+    QQuickRenderTarget renderTarget;
+    QQuickWindowRenderTarget windowRenderTarget;
 };
 
 class RenderControl : public QQuickRenderControl
@@ -137,6 +240,10 @@ public:
         return static_cast<RenderControl*>(q_func()->renderControl());
     }
 
+    inline bool isInitialized() const {
+        return contentTranslate;
+    }
+
     void init();
     void init(OutputHelper *helper);
     bool initRCWithRhi();
@@ -145,7 +252,7 @@ public:
     void doRender();
 
     inline void render() {
-        if (!contentTranslate)
+        if (!isInitialized())
             return; // Not initialized
 
         for (auto output : outputs)
@@ -172,6 +279,27 @@ public:
     QScopedPointer<QVulkanInstance> vkInstance;
 #endif
 };
+
+QQuickRenderTarget OutputHelper::ensureRenderTarget()
+{
+    if (!renderTarget.isNull())
+        return renderTarget;
+
+    resetWindowRenderTarget();
+    auto tmp = makeRenderTarget();
+#if QT_VERSION < QT_VERSION_CHECK(6, 6, 0)
+    auto rhi = QQuickRenderControlPrivate::get(renderWindow()->renderControl())->rhi;
+#else
+    auto rhi = renderWindow()->renderControl()->rhi();
+#endif
+    bool ok = createRhiRenderTarget(rhi, tmp, windowRenderTarget);
+    Q_ASSERT(ok);
+    renderTarget = QQuickRenderTarget::fromRhiRenderTarget(windowRenderTarget.renderTarget);
+    renderTarget.setDevicePixelRatio(tmp.devicePixelRatio());
+    renderTarget.setMirrorVertically(tmp.mirrorVertically());
+
+    return renderTarget;
+}
 
 void OutputHelper::itemGeometryChanged(QQuickItem *, QQuickGeometryChange, const QRectF &)
 {
@@ -344,8 +472,10 @@ void WOutputRenderWindowPrivate::doRender()
             continue;
         }
 #endif
-        if (needPolishItems)
+        if (needPolishItems) {
             rc()->polishItems();
+            needPolishItems = false;
+        }
 
         if (Q_UNLIKELY(!helper->makeCurrent(glContext)))
             continue;
@@ -357,7 +487,7 @@ void WOutputRenderWindowPrivate::doRender()
             // TODO: Don't change render window when rendering
             rc()->m_renderWindow = helper->outputWindow();
             // TODO: cache render target
-            q_func()->setRenderTarget(helper->makeRenderTarget());
+            q_func()->setRenderTarget(helper->ensureRenderTarget());
             contentTranslate->setX(-helper->output()->x());
             contentTranslate->setY(-helper->output()->y());
 
@@ -383,9 +513,8 @@ void WOutputRenderWindowPrivate::doRender()
         pixman_region32_fini(frame_damage.data());
 #endif
 
-        //    auto dirtyFlags = qwoutput()->handle()->pending.committed;
-        helper->resetState();
-        helper->qwoutput()->commit();
+        if (helper->qwoutput()->commit())
+            helper->resetState();
         helper->doneCurrent(glContext);
     }
 }
@@ -460,7 +589,7 @@ void WOutputRenderWindow::attachOutput(WOutputViewport *output)
     d->outputs << new OutputHelper(output, this);
     d->updateWindowSize();
 
-    if (!d->renderer)
+    if (!d->isInitialized())
         return;
 
     d->init(d->outputs.last());
