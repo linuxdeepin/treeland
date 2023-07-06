@@ -25,6 +25,11 @@ class Q_DECL_HIDDEN WXdgSurfacePrivate : public WSurfacePrivate {
 public:
     WXdgSurfacePrivate(WXdgSurface *qq, void *handle, WServer *server);
 
+    inline wlr_xdg_surface *nativeHandle() const {
+        Q_ASSERT(handle);
+        return handle->handle();
+    };
+
     // begin slot function
     void on_configure(wlr_xdg_surface_configure *event);
     void on_ack_configure(wlr_xdg_surface_configure *event);
@@ -125,9 +130,9 @@ WSurface::Type *WXdgSurface::noneType()
 WSurface::Type *WXdgSurface::type() const
 {
     W_DC(WXdgSurface);
-    if (d->handle->handle()->role == WLR_XDG_SURFACE_ROLE_TOPLEVEL)
+    if (d->nativeHandle()->role == WLR_XDG_SURFACE_ROLE_TOPLEVEL)
         return toplevelType();
-    else if (d->handle->handle()->role == WLR_XDG_SURFACE_ROLE_POPUP)
+    else if (d->nativeHandle()->role == WLR_XDG_SURFACE_ROLE_POPUP)
         return popupType();
 
     return noneType();
@@ -138,9 +143,9 @@ bool WXdgSurface::testAttribute(WSurface::Attribute attr) const
     W_DC(WXdgSurface);
 
     if (attr == Attribute::Immovable) {
-        return d->handle->handle()->role == WLR_XDG_SURFACE_ROLE_POPUP;
+        return d->nativeHandle()->role == WLR_XDG_SURFACE_ROLE_POPUP;
     } else if (attr == Attribute::DoesNotAcceptFocus) {
-        return d->handle->handle()->role == WLR_XDG_SURFACE_ROLE_NONE;
+        return d->nativeHandle()->role == WLR_XDG_SURFACE_ROLE_NONE;
     }
 
     return WSurface::testAttribute(attr);
@@ -185,7 +190,7 @@ void WXdgSurface::resize(const QSize &size)
 bool WXdgSurface::resizeing() const
 {
     W_DC(WXdgSurface);
-    return d->handle->handle()->toplevel->current.resizing;
+    return d->nativeHandle()->toplevel->current.resizing;
 }
 
 QPointF WXdgSurface::position() const

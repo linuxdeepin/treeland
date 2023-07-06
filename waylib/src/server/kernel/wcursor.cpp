@@ -68,6 +68,13 @@ WCursorPrivate::~WCursorPrivate()
     delete handle;
 }
 
+wlr_cursor *WCursorPrivate::nativeHandle() const
+{
+    Q_ASSERT(handle);
+    return handle->handle();
+}
+
+
 void WCursorPrivate::setType(const char *name)
 {
     W_Q(WCursor);

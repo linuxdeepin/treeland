@@ -17,7 +17,7 @@ struct wlr_pointer_motion_event;
 struct wlr_pointer_motion_absolute_event;
 struct wlr_pointer_button_event;
 struct wlr_pointer_axis_event;
-struct wlr_xcursor;
+struct wlr_cursor;
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
@@ -26,6 +26,8 @@ class WCursorPrivate : public WObjectPrivate
 public:
     WCursorPrivate(WCursor *qq);
     ~WCursorPrivate();
+
+    inline wlr_cursor *nativeHandle() const;
 
     void setType(const char *name);
     void updateCursorImage();
