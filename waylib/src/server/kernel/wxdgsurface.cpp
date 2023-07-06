@@ -71,8 +71,8 @@ void WXdgSurfacePrivate::on_unmap()
 void WXdgSurfacePrivate::init()
 {
     W_Q(WXdgSurface);
-    handle->handle()->data = q;
-    q->setHandle(reinterpret_cast<WSurfaceHandle*>(handle->handle()->surface));
+    handle->setData(this, q);
+    q->setHandle(reinterpret_cast<WSurfaceHandle*>(handle->surface()));
 
     connect();
 }
@@ -164,8 +164,7 @@ WSurfaceHandle *WXdgSurface::inputTargetAt(QPointF &localPos) const
 
 WXdgSurface *WXdgSurface::fromHandle(WXdgSurfaceHandle *handle)
 {
-    auto *data = reinterpret_cast<QWXdgSurface*>(handle)->handle()->data;
-    return reinterpret_cast<WXdgSurface*>(data);
+    return reinterpret_cast<QWXdgSurface*>(handle)->getData<WXdgSurface>();
 }
 
 bool WXdgSurface::inputRegionContains(const QPointF &localPos) const

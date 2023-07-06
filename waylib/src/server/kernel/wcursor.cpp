@@ -41,12 +41,12 @@ WCursorPrivate::WCursorPrivate(WCursor *qq)
     : WObjectPrivate(qq)
     , handle(new QWCursor())
 {
-    handle->handle()->data = qq;
+    handle->setData(this, qq);
 }
 
 WCursorPrivate::~WCursorPrivate()
 {
-    handle->handle()->data = nullptr;
+    handle->setData(this, nullptr);
     if (seat)
         seat->setCursor(nullptr);
 
@@ -294,8 +294,7 @@ WCursorHandle *WCursor::handle() const
 
 WCursor *WCursor::fromHandle(const WCursorHandle *handle)
 {
-    auto wlr_handle = reinterpret_cast<const QWCursor*>(handle)->handle();
-    return reinterpret_cast<WCursor*>(wlr_handle->data);
+    return reinterpret_cast<const QWCursor*>(handle)->getData<WCursor>();
 }
 
 Qt::MouseButton WCursor::fromNativeButton(uint32_t code)

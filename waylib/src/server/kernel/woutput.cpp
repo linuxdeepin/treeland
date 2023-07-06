@@ -33,7 +33,7 @@ public:
         : WObjectPrivate(qq)
         , handle(reinterpret_cast<QWOutput*>(handle))
     {
-        this->handle->handle()->data = qq;
+        this->handle->setData(this, qq);
 
         QObject::connect(this->handle.get(), qOverload<wlr_output_event_commit*>(&QWOutput::commit),
                          qq, [qq] (wlr_output_event_commit *event) {
@@ -56,7 +56,7 @@ public:
     }
 
     ~WOutputPrivate() {
-        handle->handle()->data = nullptr;
+        handle->setData(this, nullptr);
         if (layout)
             layout->remove(q_func());
     }
@@ -119,8 +119,7 @@ WOutputViewport *WOutput::handle() const
 
 WOutput *WOutput::fromHandle(const WOutputViewport *handle)
 {
-    auto wlr_handle = reinterpret_cast<const QWOutput*>(handle)->handle();
-    return reinterpret_cast<WOutput*>(wlr_handle->data);
+    return reinterpret_cast<const QWOutput*>(handle)->getData<WOutput>();
 }
 
 WOutput *WOutput::fromScreen(const QScreen *screen)

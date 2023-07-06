@@ -5,11 +5,13 @@
 
 #include "wsurface.h"
 #include "wsignalconnector.h"
-#include "wsurfacehandler_p.h"
 
+#include <qwglobal.h>
 #include <QPointer>
 
-struct wlr_surface;
+QW_BEGIN_NAMESPACE
+class QWSurface;
+QW_END_NAMESPACE
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
@@ -28,7 +30,7 @@ public:
 
     W_DECLARE_PUBLIC(WSurface)
 
-    wlr_surface *handle = nullptr;
+    QW_NAMESPACE::QWSurface *handle = nullptr;
     WServer *server = nullptr;
     QVector<WOutput*> outputs;
     WSurfaceHandler *handler = nullptr;

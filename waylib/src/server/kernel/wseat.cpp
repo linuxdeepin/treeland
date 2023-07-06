@@ -272,8 +272,7 @@ WSeat::WSeat(const QByteArray &name)
 
 WSeat *WSeat::fromHandle(const void *handle)
 {
-    auto wlr_handle = reinterpret_cast<const QWSeat*>(handle)->handle();
-    return reinterpret_cast<WSeat*>(wlr_handle->data);
+    return reinterpret_cast<const QWSeat*>(handle)->getData<WSeat>();
 }
 
 void WSeat::setCursor(WCursor *cursor)
@@ -528,7 +527,7 @@ void WSeat::create(WServer *server)
     W_D(WSeat);
     // destroy follow display
     m_handle = QWSeat::create(server->nativeInterface<QWDisplay>(), d->name.constData());
-    d->handle()->handle()->data = this;
+    d->handle()->setData(this, this);
     d->connect();
 
     Q_FOREACH(auto i, d->deviceList) {
@@ -557,7 +556,7 @@ void WSeat::destroy(WServer *)
         setCursor(nullptr);
 
     if (m_handle) {
-        d->handle()->handle()->data = nullptr;
+        d->handle()->setData(this, nullptr);
         m_handle = nullptr;
     }
 }

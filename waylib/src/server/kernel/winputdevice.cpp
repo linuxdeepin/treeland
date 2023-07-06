@@ -24,10 +24,10 @@ public:
         : WObjectPrivate(qq)
         , handle(reinterpret_cast<QWInputDevice*>(handle))
     {
-        this->handle->handle()->data = qq;
+        this->handle->setData(this, qq);
     }
     ~WInputDevicePrivate() {
-        handle->handle()->data = nullptr;
+        handle->setData(this, nullptr);
         if (seat)
             seat->detachInputDevice(q_func());
     }
@@ -53,8 +53,7 @@ WInputDeviceHandle *WInputDevice::handle() const
 
 WInputDevice *WInputDevice::fromHandle(const WInputDeviceHandle *handle)
 {
-    auto wlr_device = reinterpret_cast<const QWInputDevice*>(handle)->handle();
-    return reinterpret_cast<WInputDevice*>(wlr_device->data);
+    return reinterpret_cast<const QWInputDevice*>(handle)->getData<WInputDevice>();
 }
 
 WInputDevice *WInputDevice::from(const QInputDevice *device)
