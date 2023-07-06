@@ -179,8 +179,6 @@ int main(int argc, char *argv[]) {
     WServer::initializeQPA();
     QQuickStyle::setStyle("Material");
 
-    QGuiApplication::setAttribute(Qt::AA_EnableHighDpiScaling);
-    QGuiApplication::setAttribute(Qt::AA_UseHighDpiPixmaps);
     QGuiApplication::setAttribute(Qt::AA_UseOpenGLES);
     QGuiApplication::setHighDpiScaleFactorRoundingPolicy(Qt::HighDpiScaleFactorRoundingPolicy::PassThrough);
     QGuiApplication::setQuitOnLastWindowClosed(false);
