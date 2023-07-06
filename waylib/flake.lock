@@ -35,15 +35,18 @@
     },
     "nixpkgs": {
       "locked": {
-        "lastModified": 1687681650,
-        "narHash": "sha256-M2If+gRcfpmaJy/XbfSsRzLlPpoU4nr0NHnKKl50fd8=",
-        "path": "/nix/store/pc89i62sxfxrimyy7rhn61gz0bd6699w-source",
-        "rev": "1c9db9710cb23d60570ad4d7ab829c2d34403de3",
-        "type": "path"
+        "lastModified": 1688500189,
+        "narHash": "sha256-djYYiY4lzJOlXOnTHytH6BUugrxHDZjuGxTSrU4gt4M=",
+        "owner": "NixOS",
+        "repo": "nixpkgs",
+        "rev": "78419edadf0fabbe5618643bd850b2f2198ed060",
+        "type": "github"
       },
       "original": {
-        "id": "nixpkgs",
-        "type": "indirect"
+        "owner": "NixOS",
+        "ref": "nixos-unstable",
+        "repo": "nixpkgs",
+        "type": "github"
       }
     },
     "qwlroots": {
@@ -60,11 +63,11 @@
         "wlroots-unstable": "wlroots-unstable"
       },
       "locked": {
-        "lastModified": 1688527796,
-        "narHash": "sha256-OEeyhCFNayvGWQiXTYYABX0CFzpz3O5fZvB5NYxoE4g=",
+        "lastModified": 1688612577,
+        "narHash": "sha256-lZvQHWNahvWw4i7wPYdYUcI/3jplE7gH8ULQAog26NU=",
         "owner": "vioken",
         "repo": "qwlroots",
-        "rev": "f05ca0119ec42c70fb69cb895ec058a03f18545d",
+        "rev": "ee1796eff3de0a0b757109ed2dc84bf0d22d3982",
         "type": "github"
       },
       "original": {

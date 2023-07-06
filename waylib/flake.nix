@@ -2,7 +2,7 @@
   description = "A basic flake to help develop waylib";
 
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     flake-utils.url = "github:numtide/flake-utils";
     nix-filter.url = "github:numtide/nix-filter";
     qwlroots = {
@@ -21,7 +21,7 @@
 
           waylib = pkgs.qt6.callPackage ./nix {
             nix-filter = nix-filter.lib;
-            qwlroots = qwlroots.packages.${system}.default;
+            qwlroots = qwlroots.packages.${system}.qwlroots-qt6-wlroots-git;
           };
         in
         rec {
