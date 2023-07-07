@@ -16,12 +16,22 @@ jobs:
     steps:
       - name: Run in container
         run: |
+          sed -i /etc/pacman.d/mirrorlist -e "1iServer = https://mirrors.tuna.tsinghua.edu.cn/archlinux/\$repo/os/\$arch"
+          cat /etc/pacman.d/mirrorlist
           pacman-key --init
-          pacman -Syu --noconfirm
+          pacman --noconfirm --noprogressbar -Syu
       - name: Install dep
         run: |
-          pacman -Syu --noconfirm qt6-base qt6-declarative cmake pkgconfig wlroots pixman wayland-protocols git
+          pacman -Syu --noconfirm qt6-base qt6-declarative cmake pkgconfig pixman wayland-protocols git
           pacman -Syu --noconfirm clang ninja
+          pacman -Syu --noconfirm fakeroot meson sudo
+      - name: Set up user
+        run: |
+          useradd -m githubuser
+          echo -e "root ALL=(ALL:ALL) ALL\ngithubuser ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers
+      - name: Install wlroots from the AUR
+        run: |
+          su githubuser -c "cd ~ && git clone https://aur.archlinux.org/wlroots-git.git && cd ./wlroots-git && makepkg -si --skippgpcheck --noconfirm"
       - uses: actions/checkout@v3
         with:
           submodules: true
