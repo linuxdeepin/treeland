@@ -68,6 +68,7 @@ set(UTILS_SOURCES
     utils/wsignalconnector.cpp
     utils/wtools.cpp
     utils/wthreadutils.cpp
+    utils/wimagebuffer.cpp
 )
 
 set(QPA_SOURCES
@@ -123,6 +124,7 @@ set(HEADERS
     utils/wthreadutils.h
     utils/WSignalConnector
     utils/WThreadUtils
+    utils/wimagebuffer.h
 )
 
 add_library(${TARGET}

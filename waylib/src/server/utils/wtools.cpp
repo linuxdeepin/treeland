@@ -20,8 +20,7 @@ inline QImage::Format toQImageFormat(pixman_format_code_t format, bool &sRGB) {
     case PIXMAN_x8r8g8b8:
         return QImage::Format_RGB32;
 //        case PIXMAN_a8b8g8r8:
-    case PIXMAN_x8b8g8r8:
-        return QImage::Format_BGR888;
+//        case PIXMAN_x8b8g8r8:
 //        case PIXMAN_b8g8r8a8:
 //        case PIXMAN_b8g8r8x8:
     case PIXMAN_r8g8b8a8:
