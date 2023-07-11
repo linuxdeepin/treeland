@@ -13,6 +13,7 @@
 , wayland-protocols
 , pixman
 , libdrm
+, deepin
 , buildTinywl ? true
 }:
 
@@ -32,6 +33,11 @@ stdenv.mkDerivation rec {
       (nix-filter.matchExt "nix")
     ];
   };
+
+  postPatch = lib.optionalString buildTinywl ''
+    substituteInPlace examples/tinywl/Main.qml \
+      --replace "/usr/share/backgrounds/deepin/desktop.jpg" "${deepin.deepin-wallpapers}/share/backgrounds/default_background.jpg"
+  '';
 
   nativeBuildInputs = [
     cmake
