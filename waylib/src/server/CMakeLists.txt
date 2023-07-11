@@ -123,12 +123,18 @@ set(HEADERS
     utils/wimagebuffer.h
 )
 
+set(PRIVATE_HEADERS
+    platformplugin/types.h
+)
+
 add_library(${TARGET}
     SHARED
     ${KERNEL_SOURCES}
     ${QTQUICK_SOURCES}
     ${UTILS_SOURCES}
     ${QPA_SOURCES}
+    ${HEADERS}
+    ${PRIVATE_HEADERS}
 )
 
 qt_add_qml_module(${TARGET}
@@ -141,6 +147,7 @@ set_target_properties(${TARGET}
         VERSION ${CMAKE_PROJECT_VERSION}
         SOVERSION ${PROJECT_VERSION_MAJOR}
         PUBLIC_HEADER "${HEADERS}"
+        PRIVATE_HEADER "${PRIVATE_HEADERS}"
 )
 
 set(QT_LIBRAIES

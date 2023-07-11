@@ -44,4 +44,19 @@ private:
     QMetaObject::Connection onScreenGeometryConnection;
 };
 
+class Q_DECL_HIDDEN QWlrootsRenderWindow : public QPlatformWindow
+{
+public:
+    QWlrootsRenderWindow(QWindow *window);
+
+    void initialize() override;
+
+    WId winId() const override;
+    qreal devicePixelRatio() const override;
+    void setDevicePixelRatio(qreal dpr);
+
+private:
+    qreal dpr = 1.0;
+};
+
 WAYLIB_SERVER_END_NAMESPACE

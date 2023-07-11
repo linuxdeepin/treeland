@@ -50,6 +50,7 @@ public:
 
 Q_SIGNALS:
     void requestRender();
+    void damaged();
     void renderableChanged();
     void contentIsDirtyChanged();
 };

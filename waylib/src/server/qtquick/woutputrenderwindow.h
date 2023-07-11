@@ -53,6 +53,8 @@ public:
 
 public Q_SLOTS:
     void render();
+    void scheduleRender();
+    void update();
 
 Q_SIGNALS:
     void outputLayoutChanged();
@@ -60,6 +62,8 @@ Q_SIGNALS:
 private:
     void classBegin() override;
     void componentComplete() override;
+
+    bool event(QEvent *event) override;
 };
 
 WAYLIB_SERVER_END_NAMESPACE

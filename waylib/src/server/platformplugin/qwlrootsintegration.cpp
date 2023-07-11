@@ -287,10 +287,12 @@ QPlatformFontDatabase *QWlrootsIntegration::fontDatabase() const
 
 QPlatformWindow *QWlrootsIntegration::createPlatformWindow(QWindow *window) const
 {
-    if (window->objectName() == QStringLiteral(QT_STRINGIFY(WAYLIB_SERVER_NAMESPACE))) {
+    if (QW::Window::check(window)) {
         Q_ASSERT(window->screen() && (window->screen()->handle() == m_placeholderScreen.get()
                                       || dynamic_cast<QWlrootsScreen*>(window->screen()->handle())));
         return new QWlrootsOutputWindow(window);
+    } else if (QW::RenderWindow::check(window)) {
+        return new QWlrootsRenderWindow(window);
     }
 
     return CALL_PROXY2(createPlatformWindow, nullptr, window);
@@ -331,7 +333,7 @@ public:
         m_format.setStencilBufferSize(8);
         m_format.setRenderableType(QSurfaceFormat::OpenGLES);
 
-        if (auto c = dynamic_cast<QW::OpenGLContext*>(m_context)) {
+        if (auto c = qobject_cast<QW::OpenGLContext*>(m_context)) {
             auto eglConfig = q_configFromGLFormat(c->eglDisplay(), m_format, false, EGL_WINDOW_BIT);
             if (eglConfig)
                 m_format = q_glFormatFromConfig(c->eglDisplay(), eglConfig, m_format);
@@ -364,7 +366,7 @@ public:
             return true;
         }
 
-        if (auto c = dynamic_cast<QW::OpenGLContext*>(m_context)) {
+        if (auto c = qobject_cast<QW::OpenGLContext*>(m_context)) {
             return eglMakeCurrent(c->eglDisplay(), EGL_NO_SURFACE, EGL_NO_SURFACE, c->eglContext());
         }
 
@@ -374,7 +376,7 @@ public:
         if (m_currentSurface) {
             m_currentSurface->detachRenderer();
             m_currentSurface = nullptr;
-        } else if (auto c = dynamic_cast<QW::OpenGLContext*>(m_context)) {
+        } else if (auto c = qobject_cast<QW::OpenGLContext*>(m_context)) {
             eglMakeCurrent(c->eglDisplay(), EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
         }
     }
@@ -391,7 +393,7 @@ private:
 
 QPlatformOpenGLContext *QWlrootsIntegration::createPlatformOpenGLContext(QOpenGLContext *context) const
 {
-    if (context->objectName() == QStringLiteral(QT_STRINGIFY(WAYLIB_SERVER_NAMESPACE)))
+    if (QW::OpenGLContext::check(context))
         return new OpenGLContext(context);
 
     return CALL_PROXY(createPlatformOpenGLContext, context);
@@ -499,7 +501,7 @@ QPlatformTheme *QWlrootsIntegration::createPlatformTheme(const QString &name) co
 
 QPlatformOffscreenSurface *QWlrootsIntegration::createPlatformOffscreenSurface(QOffscreenSurface *surface) const
 {
-    if (surface->objectName() == QStringLiteral(QT_STRINGIFY(WAYLIB_SERVER_NAMESPACE)))
+    if (QW::OffscreenSurface::check(surface))
         return new OffscreenSurface(surface);
 
     return CALL_PROXY(createPlatformOffscreenSurface, surface);

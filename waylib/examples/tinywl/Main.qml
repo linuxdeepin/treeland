@@ -97,7 +97,7 @@ Item {
 
                     Image {
                         id: background
-                        sourceSize: Qt.size(parent.width, parent.height)
+                        sourceSize: Qt.size(parent.width * waylandOutput.scale, parent.height * waylandOutput.scale)
                         source: "file:///usr/share/backgrounds/deepin/desktop.jpg"
                         fillMode: Image.PreserveAspectCrop
                         asynchronous: true

@@ -17,6 +17,7 @@
 
 #include "platformplugin/qwlrootsintegration.h"
 #include "platformplugin/qwlrootscreen.h"
+#include "platformplugin/qwlrootswindow.h"
 #include "platformplugin/types.h"
 
 #include <qwoutput.h>
@@ -153,11 +154,7 @@ public:
         : WOutputHelper(output->output(), parent)
         , m_output(output)
     {
-        QQuickItemPrivate::get(output)->addItemChangeListener(this, QQuickItemPrivate::Geometry);
-        connect(this, &OutputHelper::requestRender, parent, &WOutputRenderWindow::render);
-        connect(output->output(), &WOutput::modeChanged, this, [this] {
-            renderTarget = {};
-        });
+
     }
     ~OutputHelper()
     {
@@ -165,6 +162,16 @@ public:
             QQuickItemPrivate::get(m_output)->removeItemChangeListener(this, QQuickItemPrivate::Geometry);
 
         resetWindowRenderTarget();
+    }
+
+    inline void init() {
+        QQuickItemPrivate::get(output())->addItemChangeListener(this, QQuickItemPrivate::Geometry);
+        connect(this, &OutputHelper::requestRender, renderWindow(), &WOutputRenderWindow::render);
+        connect(this, &OutputHelper::damaged, renderWindow(), &WOutputRenderWindow::scheduleRender);
+        connect(output()->output(), &WOutput::modeChanged, this, [this] {
+            renderTarget = {};
+        });
+        connect(output()->output(), &WOutput::scaleChanged, this, &OutputHelper::updateSceneDPR);
     }
 
     inline QWOutput *qwoutput() const {
@@ -201,6 +208,7 @@ public:
     QQuickRenderTarget ensureRenderTarget();
 
     void itemGeometryChanged(QQuickItem *, QQuickGeometryChange, const QRectF & /* oldGeometry */) override;
+    void updateSceneDPR();
 
 private:
     QPointer<WOutputViewport> m_output;
@@ -220,20 +228,98 @@ public:
     QWindow *m_renderWindow = nullptr;
 };
 
+class RenderContextProxy : public QSGRenderContext
+{
+public:
+    RenderContextProxy(QSGRenderContext *target)
+        : QSGRenderContext(target->sceneGraphContext())
+        , target(target) {}
+
+    bool isValid() const override {
+        return target->isValid();
+    }
+
+    void initialize(const InitParams *params) override {
+        return target->initialize(params);
+    }
+    void invalidate() override {
+        target->invalidate();
+    }
+
+    void prepareSync(qreal devicePixelRatio,
+                     QRhiCommandBuffer *cb,
+                     const QQuickGraphicsConfiguration &config) override {
+        target->prepareSync(devicePixelRatio, cb, config);
+    }
+
+    void beginNextFrame(QSGRenderer *renderer, const QSGRenderTarget &renderTarget,
+                        RenderPassCallback mainPassRecordingStart,
+                        RenderPassCallback mainPassRecordingEnd,
+                        void *callbackUserData) override {
+        target->beginNextFrame(renderer, renderTarget, mainPassRecordingStart, mainPassRecordingEnd, callbackUserData);
+    }
+    void renderNextFrame(QSGRenderer *renderer) override {
+        renderer->setDevicePixelRatio(dpr);
+        renderer->setDeviceRect(deviceRect);
+        renderer->setViewportRect(viewportRect);
+        renderer->setProjectionMatrixToRect(projectionMatrixToRect, matrixFlags);
+
+        target->renderNextFrame(renderer);
+    }
+    void endNextFrame(QSGRenderer *renderer) override {
+        target->endNextFrame(renderer);
+    }
+
+    void endSync() override {
+        target->endSync();
+    }
+
+    void preprocess() override {
+        target->preprocess();
+    }
+    void invalidateGlyphCaches() override {
+        target->invalidateGlyphCaches();
+    }
+    QSGDistanceFieldGlyphCache *distanceFieldGlyphCache(const QRawFont &font, int renderTypeQuality) override {
+        return target->distanceFieldGlyphCache(font, renderTypeQuality);
+    }
+
+    QSGTexture *createTexture(const QImage &image, uint flags = CreateTexture_Alpha) const override {
+        return target->createTexture(image, flags);
+    }
+    QSGRenderer *createRenderer(QSGRendererInterface::RenderMode renderMode = QSGRendererInterface::RenderMode2D) override {
+        return target->createRenderer(renderMode);
+    }
+    QSGTexture *compressedTextureForFactory(const QSGCompressedTextureFactory *tf) const override {
+        return target->compressedTextureForFactory(tf);
+    }
+
+    int maxTextureSize() const override {
+        return target->maxTextureSize();
+    }
+
+    QRhi *rhi() const override {
+        return target->rhi();
+    }
+
+    QSGRenderContext *target;
+    qreal dpr;
+    QRect deviceRect;
+    QRect viewportRect;
+    QRectF projectionMatrixToRect;
+    QSGAbstractRenderer::MatrixTransformFlags matrixFlags;
+};
+
+static QEvent::Type doRenderEventType = static_cast<QEvent::Type>(QEvent::registerEventType());
 class WOutputRenderWindowPrivate : public QQuickWindowPrivate
 {
 public:
     WOutputRenderWindowPrivate(WOutputRenderWindow *)
         : QQuickWindowPrivate() {
-
     }
 
     static inline WOutputRenderWindowPrivate *get(WOutputRenderWindow *qq) {
         return qq->d_func();
-    }
-
-    void setVisible(bool) override {
-        qFatal("Don't visible the window");
     }
 
     inline RenderControl *rc() const {
@@ -241,23 +327,25 @@ public:
     }
 
     inline bool isInitialized() const {
-        return contentTranslate;
+        return renderContextProxy.get();
+    }
+
+    inline void setSceneDevicePixelRatio(qreal ratio) {
+        static_cast<QWlrootsRenderWindow*>(platformWindow)->setDevicePixelRatio(ratio);
     }
 
     void init();
     void init(OutputHelper *helper);
     bool initRCWithRhi();
     void updateWindowSize();
+    void updateSceneDPR();
 
     void doRender();
-
-    inline void render() {
+    inline void scheduleDoRender() {
         if (!isInitialized())
             return; // Not initialized
 
-        for (auto output : outputs)
-            output->update();
-        doRender();
+        QCoreApplication::postEvent(q_func(), new QEvent(doRenderEventType));
     }
 
     void insertOutputToOrderList(WOutputViewport *output);
@@ -271,9 +359,7 @@ public:
     QList<WOutputViewport*> xOrderOutputs;
     QList<WOutputViewport*> yOrderOutputs;
 
-    QQuickTranslate *contentTranslate = nullptr;
-    QQuickScale *contentScale = nullptr;
-
+    std::unique_ptr<RenderContextProxy> renderContextProxy;
     QOpenGLContext *glContext = nullptr;
 #ifdef ENABLE_VULKAN_RENDER
     QScopedPointer<QVulkanInstance> vkInstance;
@@ -310,23 +396,35 @@ void OutputHelper::itemGeometryChanged(QQuickItem *, QQuickGeometryChange, const
     QMetaObject::invokeMethod(renderWindow(), &WOutputRenderWindow::outputLayoutChanged, Qt::QueuedConnection);
 }
 
+void OutputHelper::updateSceneDPR()
+{
+    WOutputRenderWindowPrivate::get(renderWindow())->updateSceneDPR();
+}
+
 void WOutputRenderWindowPrivate::init()
 {
     Q_ASSERT(compositor);
     Q_Q(WOutputRenderWindow);
 
-    Q_ASSERT(!contentTranslate);
-    contentTranslate = new QQuickTranslate(contentItem);
-    contentTranslate->appendToItem(contentItem);
-    contentScale = new QQuickScale(contentItem);
-    contentScale->appendToItem(contentItem);
-
     initRCWithRhi();
+    Q_ASSERT(context);
+    renderContextProxy.reset(new RenderContextProxy(context));
+    q->create();
+    rc()->m_renderWindow = q;
+
+    // Configure the QSGRenderer at QSGRenderContext::renderNextFrame
+    QObject::connect(q, &WOutputRenderWindow::beforeRendering, q, [this] {
+        context = renderContextProxy.get();
+    }, Qt::DirectConnection);
+    QObject::connect(q, &WOutputRenderWindow::afterRendering, q, [this] {
+        context = renderContextProxy->target;
+    }, Qt::DirectConnection);
 
     for (auto output : outputs)
         init(output);
     Q_ASSERT(xOrderOutputs.count() == outputs.count());
     Q_ASSERT(yOrderOutputs.count() == outputs.count());
+    updateSceneDPR();
 
     /* Ensure call the "requestRender" on later via Qt::QueuedConnection, if not will crash
     at "Q_ASSERT(prevDirtyItem)" in the QQuickItem, because the QQuickRenderControl::render
@@ -343,11 +441,11 @@ void WOutputRenderWindowPrivate::init()
     6. QQuickRenderControlPrivate::maybeUpdate
     7. QQuickRenderControl::sceneChanged
     */
-    // TODO: Get damage regions from the Qt, and use WOutputDamage::add instead of WOutput::requestRender.
+    // TODO: Get damage regions from the Qt, and use WOutputDamage::add instead of WOutput::update.
     QObject::connect(rc(), &QQuickRenderControl::renderRequested,
-                     q, &WOutputRenderWindow::render, Qt::QueuedConnection);
+                     q, &WOutputRenderWindow::update);
     QObject::connect(rc(), &QQuickRenderControl::sceneChanged,
-                     q, &WOutputRenderWindow::render, Qt::QueuedConnection);
+                     q, &WOutputRenderWindow::update);
 
     Q_EMIT q->outputLayoutChanged();
 }
@@ -360,7 +458,9 @@ void WOutputRenderWindowPrivate::init(OutputHelper *helper)
     if (layout)
         layout->add(helper->output());
 
-    QMetaObject::invokeMethod(q_func(), &WOutputRenderWindow::render, Qt::QueuedConnection);
+    W_Q(WOutputRenderWindow);
+    QMetaObject::invokeMethod(q, &WOutputRenderWindow::scheduleRender, Qt::QueuedConnection);
+    helper->init();
 }
 
 inline static QByteArrayList fromCStyleList(size_t count, const char **list) {
@@ -453,6 +553,21 @@ void WOutputRenderWindowPrivate::updateWindowSize()
     q_func()->resize(qRound(maxPos.x()), qRound(maxPos.y()));
 }
 
+void WOutputRenderWindowPrivate::updateSceneDPR()
+{
+    if (outputs.isEmpty())
+        return;
+
+    qreal maxDPR = 0.0;
+
+    for (auto o : outputs) {
+        if (o->output()->output()->scale() > maxDPR)
+            maxDPR = o->output()->output()->scale();
+    }
+
+    setSceneDevicePixelRatio(maxDPR);
+}
+
 void WOutputRenderWindowPrivate::doRender()
 {
     bool needPolishItems = true;
@@ -460,22 +575,20 @@ void WOutputRenderWindowPrivate::doRender()
         if (!helper->renderable() || !helper->output()->isVisible())
             continue;
 
+        if (needPolishItems) {
+            rc()->polishItems();
+            needPolishItems = false;
+        }
+
 #ifndef WAYLIB_DISABLE_OUTPUT_DAMAGE
         pixman_region32_scoped_pointer damage(new pixman_region32_t);
         pixman_region32_init(damage.data());
         if (!helper->attachRender(damage.data()))
             continue;
 #else
-        if (!helper->contentIsDirty()) {
-            helper->resetState();
-            helper->qwoutput()->commit();
+        if (!helper->contentIsDirty())
             continue;
-        }
 #endif
-        if (needPolishItems) {
-            rc()->polishItems();
-            needPolishItems = false;
-        }
 
         if (Q_UNLIKELY(!helper->makeCurrent(glContext)))
             continue;
@@ -484,12 +597,24 @@ void WOutputRenderWindowPrivate::doRender()
         if (pixman_region32_not_empty(damage.data()))
 #endif
         {
-            // TODO: Don't change render window when rendering
-            rc()->m_renderWindow = helper->outputWindow();
-            // TODO: cache render target
             q_func()->setRenderTarget(helper->ensureRenderTarget());
-            contentTranslate->setX(-helper->output()->x());
-            contentTranslate->setY(-helper->output()->y());
+
+            QSGAbstractRenderer::MatrixTransformFlags matrixFlags;
+            bool flipY = rhi ? !rhi->isYUpInNDC() : false;
+            if (!customRenderTarget.isNull() && customRenderTarget.mirrorVertically())
+                flipY = !flipY;
+            if (flipY)
+                matrixFlags |= QSGAbstractRenderer::MatrixTransformFlipY;
+
+            const qreal devicePixelRatio = helper->output()->output()->scale();
+            Q_ASSERT(devicePixelRatio <= q_func()->devicePixelRatio());
+            const QSize pixelSize = helper->output()->output()->transformedSize();
+
+            renderContextProxy->dpr = devicePixelRatio;
+            renderContextProxy->deviceRect = QRect(QPoint(0, 0), pixelSize);
+            renderContextProxy->viewportRect = QRect(QPoint(0, 0), pixelSize);
+            renderContextProxy->projectionMatrixToRect = helper->output()->mapRectToScene(QRectF(QPointF(0, 0), pixelSize / devicePixelRatio));
+            renderContextProxy->matrixFlags = matrixFlags;
 
             // TODO: new render thread
             rc()->beginFrame();
@@ -561,6 +686,8 @@ void WOutputRenderWindowPrivate::insertOutputToOrderList(WOutputViewport *output
 WOutputRenderWindow::WOutputRenderWindow(QObject *parent)
     : QQuickWindow(*new WOutputRenderWindowPrivate(this), new RenderControl())
 {
+    setObjectName(QW::RenderWindow::id());
+
     if (parent)
         QObject::setParent(parent);
 }
@@ -592,10 +719,11 @@ void WOutputRenderWindow::attachOutput(WOutputViewport *output)
     if (!d->isInitialized())
         return;
 
+    d->updateSceneDPR();
     d->init(d->outputs.last());
     Q_ASSERT(d->xOrderOutputs.count() == d->outputs.count());
     Q_ASSERT(d->yOrderOutputs.count() == d->outputs.count());
-    d->doRender();
+    d->scheduleDoRender();
 
     Q_EMIT outputLayoutChanged();
 }
@@ -621,6 +749,7 @@ void WOutputRenderWindow::detachOutput(WOutputViewport *output)
     Q_ASSERT(d->yOrderOutputs.size() == d->outputs.size());
 
     d->updateWindowSize();
+    d->updateSceneDPR();
 
     if (d->layout) {
         d->layout->remove(output);
@@ -740,7 +869,21 @@ void WOutputRenderWindow::setLayout(WQuickOutputLayout *layout)
 void WOutputRenderWindow::render()
 {
     Q_D(WOutputRenderWindow);
-    d->render();
+    d->doRender();
+}
+
+void WOutputRenderWindow::scheduleRender()
+{
+    Q_D(WOutputRenderWindow);
+    d->scheduleDoRender();
+}
+
+void WOutputRenderWindow::update()
+{
+    Q_D(WOutputRenderWindow);
+    for (auto o : d->outputs)
+        o->update(); // make contents to dirty
+    d->scheduleDoRender();
 }
 
 void WOutputRenderWindow::classBegin()
@@ -758,4 +901,16 @@ void WOutputRenderWindow::componentComplete()
         d->init();
 }
 
+bool WOutputRenderWindow::event(QEvent *event)
+{
+    if (event->type() == doRenderEventType) {
+        d_func()->doRender();
+        return true;
+    }
+
+    return QQuickWindow::event(event);
+}
+
 WAYLIB_SERVER_END_NAMESPACE
+
+#include "moc_woutputrenderwindow.cpp"

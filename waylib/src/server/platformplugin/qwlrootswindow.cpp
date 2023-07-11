@@ -135,4 +135,40 @@ void QWlrootsOutputWindow::detachRenderer()
     bufferAttached = false;
 }
 
+QWlrootsRenderWindow::QWlrootsRenderWindow(QWindow *window)
+    : QPlatformWindow(window)
+{
+
+}
+
+void QWlrootsRenderWindow::initialize()
+{
+
+}
+
+WId QWlrootsRenderWindow::winId() const
+{
+    return reinterpret_cast<WId>(const_cast<QWlrootsRenderWindow*>(this));
+}
+
+qreal QWlrootsRenderWindow::devicePixelRatio() const
+{
+    return dpr;
+}
+
+void QWlrootsRenderWindow::setDevicePixelRatio(qreal dpr)
+{
+    if (qFuzzyCompare(this->dpr, dpr))
+        return;
+
+    this->dpr = dpr;
+
+#if QT_VERSION < QT_VERSION_CHECK(6, 6, 0)
+    QEvent event(QEvent::ScreenChangeInternal);
+    QCoreApplication::sendEvent(window(), &event);
+#else
+    QWindowSystemInterface::handleWindowDevicePixelRatioChanged<QWindowSystemInterface::SynchronousDelivery>(window());
+#endif
+}
+
 WAYLIB_SERVER_END_NAMESPACE

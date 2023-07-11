@@ -161,7 +161,7 @@ public:
 #ifndef WAYLIB_DISABLE_OUTPUT_DAMAGE
         damage->addWhole();
 #else
-        contentIsDirty = true;
+        setContentIsDirty(true);
 #endif
     }
 
@@ -215,7 +215,7 @@ void WOutputHelperPrivate::on_frame()
 void WOutputHelperPrivate::on_damage()
 {
     setContentIsDirty(true);
-    Q_EMIT q_func()->requestRender();
+    Q_EMIT q_func()->damaged();
 }
 #endif
 
@@ -430,8 +430,8 @@ void WOutputHelper::doneCurrent(QOpenGLContext *context)
 void WOutputHelper::resetState()
 {
     W_D(WOutputHelper);
-    d->contentIsDirty = false;
-    d->renderable = false;
+    d->setContentIsDirty(false);
+    d->setRenderable(false);
 }
 
 void WOutputHelper::update()

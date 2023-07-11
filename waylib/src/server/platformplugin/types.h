@@ -14,36 +14,79 @@
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
 namespace QW {
-class WAYLIB_SERVER_EXPORT Window : public QWindow
+class Window : public QWindow
 {
 public:
+    static constexpr QAnyStringView id() {
+        return "QWOutputWindow";
+    }
+
+    static bool check(QObject *obj) {
+        return obj->objectName() == id();
+    }
+
     explicit Window(QWindow *parent = nullptr)
         : QWindow(parent)
     {
-        setObjectName(QT_STRINGIFY(WAYLIB_SERVER_NAMESPACE));
+        setObjectName(id());
     }
 };
 
-class WAYLIB_SERVER_EXPORT OffscreenSurface : public QOffscreenSurface
+class RenderWindow : public QWindow
 {
 public:
+    static constexpr QAnyStringView id() {
+        return "QWRenderWindow";
+    }
+
+    static bool check(QObject *obj) {
+        return obj->objectName() == id();
+    }
+
+    explicit RenderWindow(QWindow *parent = nullptr)
+        : QWindow(parent)
+    {
+        setObjectName(id());
+    }
+};
+
+class OffscreenSurface : public QOffscreenSurface
+{
+public:
+    static constexpr QAnyStringView id() {
+        return "QWOffscreenSurface";
+    }
+
+    static bool check(QObject *obj) {
+        return obj->objectName() == id();
+    }
+
     explicit OffscreenSurface(QScreen *screen = nullptr, QObject *parent = nullptr)
         : QOffscreenSurface(screen, parent)
     {
-        setObjectName(QT_STRINGIFY(WAYLIB_SERVER_NAMESPACE));
+        setObjectName(id());
     }
 };
 
 #ifndef QT_NO_OPENGL
-class WAYLIB_SERVER_EXPORT OpenGLContext : public QOpenGLContext
+class OpenGLContext : public QOpenGLContext
 {
+    Q_OBJECT
 public:
+    static constexpr QAnyStringView id() {
+        return "QWOpenGLContext";
+    }
+
+    static bool check(QObject *obj) {
+        return obj->objectName() == id();
+    }
+
     explicit OpenGLContext(EGLDisplay egl, EGLContext context, QObject *parent = nullptr)
         : QOpenGLContext(parent)
         , m_eglDisplay(egl)
         , m_eglContext(context)
     {
-        setObjectName(QT_STRINGIFY(WAYLIB_SERVER_NAMESPACE));
+        setObjectName(id());
     }
 
     inline EGLDisplay eglDisplay() const {
