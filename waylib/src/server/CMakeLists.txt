@@ -17,10 +17,6 @@ ws_generate(server stable/xdg-shell/xdg-shell.xml xdg-shell-protocol)
 
 add_definitions(-DWLR_USE_UNSTABLE -DLIBWAYLIB_SERVER_LIBRARY)
 
-set(GLOBAL_SOURCES
-    wglobal.cpp
-)
-
 set(KERNEL_SOURCES
     kernel/wbackend.cpp
     kernel/wcursor.cpp
@@ -37,6 +33,7 @@ set(KERNEL_SOURCES
     kernel/wxdgsurface.cpp
     kernel/woutputlayout.cpp
     kernel/wxcursorimage.cpp
+    kernel/wglobal.cpp
 )
 
 # TODO: Using wlr_damage_ring instead of wlr_output_damage
@@ -79,8 +76,7 @@ set(QPA_SOURCES
 )
 
 set(HEADERS
-    wglobal.h
-
+    kernel/wglobal.h
     kernel/wbackend.h
     kernel/wcursor.h
     kernel/winputdevice.h
@@ -129,7 +125,6 @@ set(HEADERS
 
 add_library(${TARGET}
     SHARED
-    ${GLOBAL_SOURCES}
     ${KERNEL_SOURCES}
     ${QTQUICK_SOURCES}
     ${UTILS_SOURCES}
