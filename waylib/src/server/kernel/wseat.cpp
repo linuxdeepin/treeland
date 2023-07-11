@@ -183,7 +183,7 @@ void WSeatPrivate::on_request_set_cursor(wlr_seat_pointer_request_set_cursor_eve
          * provided surface as the cursor image. It will set the hardware cursor
          * on the output that it's currently on and continue to do so as the
          * cursor moves between outputs. */
-        cursor->nativeInterface<QWCursor>()->setSurface(QWSurface::from(event->surface), QPoint(event->hotspot_x, event->hotspot_y));
+        cursor->handle()->setSurface(QWSurface::from(event->surface), QPoint(event->hotspot_x, event->hotspot_y));
     }
 }
 

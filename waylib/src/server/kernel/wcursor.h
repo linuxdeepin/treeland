@@ -17,6 +17,7 @@ QT_END_NAMESPACE
 QW_BEGIN_NAMESPACE
 class QWXCursorManager;
 class QWInputDevice;
+class QWCursor;
 QW_END_NAMESPACE
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
@@ -25,7 +26,6 @@ class WSeat;
 class WInputDevice;
 class WXCursorManager;
 class WXCursorImage;
-class WCursorHandle;
 class WCursorPrivate;
 class WCursor : public QObject, public WObject
 {
@@ -35,16 +35,9 @@ class WCursor : public QObject, public WObject
 public:
     explicit WCursor(QObject *parent = nullptr);
 
-    WCursorHandle *handle() const;
-    template<typename DNativeInterface>
-    DNativeInterface *nativeInterface() const {
-        return reinterpret_cast<DNativeInterface*>(handle());
-    }
-    static WCursor *fromHandle(const WCursorHandle *handle);
-    template<typename DNativeInterface>
-    static inline WCursor *fromHandle(const DNativeInterface *handle) {
-        return fromHandle(reinterpret_cast<const WCursorHandle*>(handle));
-    }
+    QWLRoots::QWCursor *handle() const;
+
+    static WCursor *fromHandle(const QWLRoots::QWCursor *handle);
 
     static Qt::MouseButton fromNativeButton(uint32_t code);
     Qt::MouseButtons state() const;

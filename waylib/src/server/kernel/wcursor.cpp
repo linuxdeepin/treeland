@@ -304,15 +304,15 @@ WCursor::WCursor(QObject *parent)
 
 }
 
-WCursorHandle *WCursor::handle() const
+QWCursor *WCursor::handle() const
 {
     W_DC(WCursor);
-    return reinterpret_cast<WCursorHandle*>(d->handle);
+    return d->handle;
 }
 
-WCursor *WCursor::fromHandle(const WCursorHandle *handle)
+WCursor *WCursor::fromHandle(const QWCursor *handle)
 {
-    return reinterpret_cast<const QWCursor*>(handle)->getData<WCursor>();
+    return handle->getData<WCursor>();
 }
 
 Qt::MouseButton WCursor::fromNativeButton(uint32_t code)

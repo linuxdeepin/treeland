@@ -30,7 +30,7 @@ public:
     }
 
     inline QWCursor *qwcursor() const {
-        return cursor->nativeInterface<QWCursor>();
+        return cursor->handle();
     }
     inline void resetCursorRegion() {
         // TODO fix qwlroots: using nullptr to wlr_cursor_map_to_region if the QRect is Null
