@@ -44,9 +44,10 @@ extern "C" {
 #include <wlr/render/egl.h>
 #define static
 #include <wlr/render/gles2.h>
+#undef static
 }
 
-#endif
+#endif // QT_NO_OPENGL
 
 extern "C" {
 #include <wlr/types/wlr_output.h>
