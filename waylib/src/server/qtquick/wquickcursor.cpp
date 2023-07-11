@@ -201,7 +201,8 @@ void WQuickCursorPrivate::onCursorPositionChanged()
 void WQuickCursorPrivate::updateXCursorManager()
 {
     if (xcursor_manager) delete xcursor_manager;
-    auto xm = QWXCursorManager::create(qPrintable(xcursorThemeName), getCursorSize());
+    const char *cursor_theme = xcursorThemeName.isEmpty() ? nullptr : qPrintable(xcursorThemeName);
+    auto xm = QWXCursorManager::create(cursor_theme, getCursorSize());
     q_func()->setXCursorManager(xm);
 }
 
@@ -292,7 +293,7 @@ void WQuickCursor::setThemeName(const QString &name)
     if (d->xcursorThemeName == name)
         return;
     d->xcursorThemeName = name;
-    QMetaObject::invokeMethod(this, SLOT(updateXCursorManager()), Qt::QueuedConnection);
+    QMetaObject::invokeMethod(this, "updateXCursorManager", Qt::QueuedConnection);
 }
 
 QSize WQuickCursor::size() const
@@ -308,7 +309,7 @@ void WQuickCursor::setSize(const QSize &size)
     if (d->cursorSize == size)
         return;
     d->cursorSize = size;
-    QMetaObject::invokeMethod(this, SLOT(updateXCursorManager()), Qt::QueuedConnection);
+    QMetaObject::invokeMethod(this, "updateXCursorManager", Qt::QueuedConnection);
 }
 
 void WQuickCursor::move(QW_NAMESPACE::QWInputDevice *device, const QPointF &delta)
