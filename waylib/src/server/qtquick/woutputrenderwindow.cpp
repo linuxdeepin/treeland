@@ -424,6 +424,7 @@ void WOutputRenderWindowPrivate::init()
         init(output);
     Q_ASSERT(xOrderOutputs.count() == outputs.count());
     Q_ASSERT(yOrderOutputs.count() == outputs.count());
+    updateWindowSize();
     updateSceneDPR();
 
     /* Ensure call the "requestRender" on later via Qt::QueuedConnection, if not will crash
@@ -714,11 +715,11 @@ void WOutputRenderWindow::attachOutput(WOutputViewport *output)
     Q_ASSERT(output->output());
 
     d->outputs << new OutputHelper(output, this);
-    d->updateWindowSize();
 
     if (!d->isInitialized())
         return;
 
+    d->updateWindowSize();
     d->updateSceneDPR();
     d->init(d->outputs.last());
     Q_ASSERT(d->xOrderOutputs.count() == d->outputs.count());
