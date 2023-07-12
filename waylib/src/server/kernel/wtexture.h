@@ -4,6 +4,7 @@
 #pragma once
 
 #include <wglobal.h>
+#include <qwglobal.h>
 
 #include <QSize>
 
@@ -12,9 +13,12 @@ class QSGTexture;
 class QQuickWindow;
 QT_END_NAMESPACE
 
+QW_BEGIN_NAMESPACE
+class QWTexture;
+QW_END_NAMESPACE
+
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
-class WTextureHandle;
 class WTexturePrivate;
 class WTexture : public WObject
 {
@@ -28,15 +32,10 @@ public:
         VKTexture
     };
 
-    explicit WTexture(WTextureHandle *handle);
+    explicit WTexture(QWLRoots::QWTexture *handle);
 
-    WTextureHandle *handle() const;
-    void setHandle(WTextureHandle *handle);
-
-    template<typename DNativeInterface>
-    DNativeInterface *nativeInterface() const {
-        return reinterpret_cast<DNativeInterface*>(handle());
-    }
+    QWLRoots::QWTexture *handle() const;
+    void setHandle(QWLRoots::QWTexture *handle);
 
     Type type() const;
 

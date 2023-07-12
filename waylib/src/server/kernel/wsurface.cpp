@@ -12,6 +12,7 @@
 #include <qwoutput.h>
 #include <qwcompositor.h>
 #include <QDebug>
+#include <qwtexture.h>
 
 extern "C" {
 #define static
@@ -187,10 +188,13 @@ QPointF WSurface::mapFromGlobal(const QPointF &globalPos) const
     return d->handler ? d->handler->mapFromGlobal(globalPos) : globalPos;
 }
 
-WTextureHandle *WSurface::texture() const
+QWTexture *WSurface::texture() const
 {
     W_DC(WSurface);
-    return reinterpret_cast<WTextureHandle*>(wlr_surface_get_texture(d->handle->handle()));
+    auto *textureHandle = wlr_surface_get_texture(d->handle->handle());
+    if (!textureHandle)
+        return nullptr;
+    return QWTexture::from(textureHandle);
 }
 
 QPoint WSurface::textureOffset() const

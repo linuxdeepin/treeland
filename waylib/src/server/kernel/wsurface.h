@@ -5,6 +5,7 @@
 
 #include <wglobal.h>
 #include <wtypes.h>
+#include <qwglobal.h>
 
 #include <QObject>
 #include <QRect>
@@ -12,10 +13,12 @@
 
 #include <any>
 
+QW_BEGIN_NAMESPACE
+class QWTexture;
+QW_END_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
 class WServer;
-class WTextureHandle;
 class WOutput;
 class WSurfaceHandler;
 struct SurfaceData;
@@ -93,7 +96,7 @@ public:
     QPointF mapToGlobal(const QPointF &localPos) const;
     QPointF mapFromGlobal(const QPointF &globalPos) const;
 
-    WTextureHandle *texture() const;
+    QWLRoots::QWTexture *texture() const;
     QPoint textureOffset() const;
 
     void notifyFrameDone();

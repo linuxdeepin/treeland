@@ -115,19 +115,19 @@ void WTexturePrivate::init(QWTexture *handle)
     }
 }
 
-WTexture::WTexture(WTextureHandle *handle)
-    : WObject(*new WTexturePrivate(this, reinterpret_cast<QWTexture*>(handle)))
+WTexture::WTexture(QWTexture *handle)
+    : WObject(*new WTexturePrivate(this, handle))
 {
 
 }
 
-WTextureHandle *WTexture::handle() const
+QWTexture *WTexture::handle() const
 {
     W_DC(WTexture);
-    return reinterpret_cast<WTextureHandle*>(d->handle);
+    return d->handle;
 }
 
-void WTexture::setHandle(WTextureHandle *handle)
+void WTexture::setHandle(QWTexture *handle)
 {
     W_D(WTexture);
 

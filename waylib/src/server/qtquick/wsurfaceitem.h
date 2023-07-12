@@ -17,7 +17,6 @@ WAYLIB_SERVER_BEGIN_NAMESPACE
 class WCursor;
 class WOutput;
 class WQuickSurface;
-class WTextureHandle;
 class WSurfaceItemPrivate;
 class WAYLIB_SERVER_EXPORT WSurfaceItem : public QQuickItem
 {
