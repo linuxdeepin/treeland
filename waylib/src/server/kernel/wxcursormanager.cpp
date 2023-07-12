@@ -39,11 +39,11 @@ WXCursorManager::WXCursorManager(uint32_t size, const char *name)
 
 }
 
-WXCursorManagerHandle *WXCursorManager::handle() const
+QWXCursorManager *WXCursorManager::handle() const
 {
     W_DC(WXCursorManager);
 
-    return reinterpret_cast<WXCursorManagerHandle*>(d->handle);
+    return d->handle;
 }
 
 bool WXCursorManager::load(float scale)

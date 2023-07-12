@@ -4,10 +4,14 @@
 #pragma once
 
 #include <wglobal.h>
+#include <qwglobal.h>
+
+QW_BEGIN_NAMESPACE
+class QWXCursorManager;
+QW_END_NAMESPACE
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
-class WXCursorManagerHandle;
 class WXCursorManagerPrivate;
 class WXCursorManager : public WObject
 {
@@ -15,11 +19,7 @@ class WXCursorManager : public WObject
 public:
     WXCursorManager(uint32_t size = 24, const char *name = nullptr);
 
-    WXCursorManagerHandle *handle() const;
-    template<typename DNativeInterface>
-    DNativeInterface *nativeInterface() const {
-        return reinterpret_cast<DNativeInterface*>(handle());
-    }
+    QWLRoots::QWXCursorManager *handle() const;
 
     bool load(float scale);
 };
