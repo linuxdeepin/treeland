@@ -37,8 +37,6 @@ private:
     using WOutputLayout::add;
     using WOutputLayout::remove;
     using WOutputLayout::move;
-
-    W_PRIVATE_SLOT(void onOutputLayoutChanged())
 };
 
 WAYLIB_SERVER_END_NAMESPACE

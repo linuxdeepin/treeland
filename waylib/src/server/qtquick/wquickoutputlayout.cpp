@@ -25,22 +25,10 @@ public:
 
     }
 
-    void onOutputLayoutChanged();
-
     W_DECLARE_PUBLIC(WQuickOutputLayout)
 
     QList<WOutputViewport*> outputs;
 };
-
-void WQuickOutputLayoutPrivate::onOutputLayoutChanged()
-{
-    auto renderWindow = qobject_cast<WOutputRenderWindow*>(q_func()->QObject::sender());
-
-    for (auto o : outputs) {
-        if (o->window() == renderWindow)
-            q_func()->move(o->output(), o->mapToGlobal(QPointF(0, 0)).toPoint());
-    }
-}
 
 WQuickOutputLayout::WQuickOutputLayout(QObject *parent)
     : WOutputLayout(*new WQuickOutputLayoutPrivate(this), parent)
@@ -59,25 +47,14 @@ void WQuickOutputLayout::add(WOutputViewport *output)
     W_D(WQuickOutputLayout);
     Q_ASSERT(!d->outputs.contains(output));
     d->outputs.append(output);
-    add(output->output(), output->mapToGlobal(QPointF(0, 0)).toPoint());
+    add(output->output(), output->globalPosition().toPoint());
 
     auto updateOutput = [d, output, this] {
         Q_ASSERT(d->outputs.contains(output));
-        move(output->output(), output->mapToGlobal(QPointF(0, 0)).toPoint());
+        move(output->output(), output->globalPosition().toPoint());
     };
 
-    connect(output->window(), &QQuickWindow::xChanged, this, updateOutput);
-    connect(output->window(), &QQuickWindow::yChanged, this, updateOutput);
-
-    auto renderWindow = qobject_cast<WOutputRenderWindow*>(output->window());
-    if (renderWindow) {
-        connect(renderWindow, SIGNAL(outputLayoutChanged()),
-                this, SLOT(onOutputLayoutChanged()), Qt::UniqueConnection);
-    } else {
-        connect(output, &WOutputViewport::xChanged, this, updateOutput, Qt::QueuedConnection);
-        connect(output, &WOutputViewport::yChanged, this, updateOutput, Qt::QueuedConnection);
-    }
-
+    connect(output, &WOutputViewport::maybeGlobalPositionChanged, this, updateOutput, Qt::QueuedConnection);
     output->output()->setLayout(this);
 
     Q_EMIT outputsChanged();

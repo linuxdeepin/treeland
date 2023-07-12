@@ -262,7 +262,8 @@ public:
         renderer->setDevicePixelRatio(dpr);
         renderer->setDeviceRect(deviceRect);
         renderer->setViewportRect(viewportRect);
-        renderer->setProjectionMatrixToRect(projectionMatrixToRect, matrixFlags);
+        renderer->setProjectionMatrix(projectionMatrix);
+        renderer->setProjectionMatrixWithNativeNDC(projectionMatrixWithNativeNDC);
 
         target->renderNextFrame(renderer);
     }
@@ -306,8 +307,8 @@ public:
     qreal dpr;
     QRect deviceRect;
     QRect viewportRect;
-    QRectF projectionMatrixToRect;
-    QSGAbstractRenderer::MatrixTransformFlags matrixFlags;
+    QMatrix4x4 projectionMatrix;
+    QMatrix4x4 projectionMatrixWithNativeNDC;
 };
 
 static QEvent::Type doRenderEventType = static_cast<QEvent::Type>(QEvent::registerEventType());
@@ -600,22 +601,39 @@ void WOutputRenderWindowPrivate::doRender()
         {
             q_func()->setRenderTarget(helper->ensureRenderTarget());
 
-            QSGAbstractRenderer::MatrixTransformFlags matrixFlags;
             bool flipY = rhi ? !rhi->isYUpInNDC() : false;
             if (!customRenderTarget.isNull() && customRenderTarget.mirrorVertically())
                 flipY = !flipY;
-            if (flipY)
-                matrixFlags |= QSGAbstractRenderer::MatrixTransformFlipY;
 
-            const qreal devicePixelRatio = helper->output()->output()->scale();
-            Q_ASSERT(devicePixelRatio <= q_func()->devicePixelRatio());
+            Q_ASSERT(helper->output()->output()->scale() <= q_func()->devicePixelRatio());
+            const qreal devicePixelRatio = helper->output()->devicePixelRatio();
             const QSize pixelSize = helper->output()->output()->transformedSize();
 
             renderContextProxy->dpr = devicePixelRatio;
             renderContextProxy->deviceRect = QRect(QPoint(0, 0), pixelSize);
             renderContextProxy->viewportRect = QRect(QPoint(0, 0), pixelSize);
-            renderContextProxy->projectionMatrixToRect = helper->output()->mapRectToScene(QRectF(QPointF(0, 0), pixelSize / devicePixelRatio));
-            renderContextProxy->matrixFlags = matrixFlags;
+
+            QRectF rect(QPointF(0, 0), helper->output()->size());
+            QMatrix4x4 matrix;
+            matrix.ortho(rect.x(),
+                         rect.x() + rect.width(),
+                         flipY ? rect.y() : rect.y() + rect.height(),
+                         flipY ? rect.y() + rect.height() : rect.y(),
+                         1,
+                         -1);
+            auto t = QQuickItemPrivate::get(helper->output())->itemToWindowTransform().inverted();
+            renderContextProxy->projectionMatrix = matrix * t;
+
+            if (flipY) {
+                matrix.setToIdentity();
+                matrix.ortho(rect.x(),
+                             rect.x() + rect.width(),
+                             rect.y() + rect.height(),
+                             rect.y(),
+                             1,
+                             -1);
+            }
+            renderContextProxy->projectionMatrixWithNativeNDC = matrix;
 
             // TODO: new render thread
             rc()->beginFrame();

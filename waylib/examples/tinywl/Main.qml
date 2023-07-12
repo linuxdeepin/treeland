@@ -88,12 +88,18 @@ Item {
                     id: outputModel
                 }
 
-                OutputViewport {
-                    id: outputWindow
-
+                Item {
                     required property WaylandOutput waylandOutput
 
-                    output: waylandOutput
+                    implicitWidth: outputWindow.implicitWidth
+                    implicitHeight: outputWindow.implicitHeight
+
+                    OutputViewport {
+                        id: outputWindow
+
+                        output: waylandOutput
+                        devicePixelRatio: waylandOutput.scale
+                    }
 
                     Image {
                         id: background
