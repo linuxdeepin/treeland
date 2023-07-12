@@ -243,7 +243,7 @@ void QWlrootsScreen::initialize()
 
 QImage::Format QWlrootsScreen::getFormat() const
 {
-    auto f = m_output->nativeInterface<QWOutput>()->preferredReadFormat();
+    auto f = m_output->handle()->preferredReadFormat();
 
     switch (f) {
     case DRM_FORMAT_C8:
@@ -285,7 +285,7 @@ QImage::Format QWlrootsScreen::getFormat() const
 
 wlr_output *QWlrootsScreen::handle() const
 {
-    return m_output->nativeInterface<QWOutput>()->handle();
+    return m_output->handle()->handle();
 }
 
 WAYLIB_SERVER_END_NAMESPACE

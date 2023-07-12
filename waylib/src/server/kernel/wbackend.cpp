@@ -67,8 +67,7 @@ public:
 
 void WBackendPrivate::on_new_output(QWOutput *output)
 {
-    auto handle = reinterpret_cast<WOutputViewport*>(output);
-    auto woutput = new WOutput(handle, q_func());
+    auto woutput = new WOutput(output, q_func());
 
     outputList << woutput;
     QWlrootsIntegration::instance()->addScreen(woutput);

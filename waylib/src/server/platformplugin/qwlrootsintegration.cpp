@@ -315,7 +315,7 @@ static inline WOutput *outputFrom(QPlatformSurface *surface) {
 
 static inline QWOutput *qoutputFrom(QPlatformSurface *surface) {
     auto o = outputFrom(surface);
-    return o ? o->nativeInterface<QWOutput>() : nullptr;
+    return o ? o->handle() : nullptr;
 }
 
 #ifndef QT_NO_OPENGL

@@ -34,7 +34,7 @@ public:
     void initForOutput() {
         W_Q(WOutputViewport);
 
-        auto qwoutput = output->nativeInterface<QWOutput>();
+        auto qwoutput = output->handle();
         auto mode = qwoutput->preferredMode();
         if (mode)
             qwoutput->setMode(mode);
@@ -69,7 +69,7 @@ public:
     void setVisible(bool visible) override {
         QQuickItemPrivate::setVisible(visible);
         if (output)
-            output->nativeInterface<QWOutput>()->enable(visible);
+            output->handle()->enable(visible);
     }
 
     bool transformChanged(QQuickItem *transformedItem) override {

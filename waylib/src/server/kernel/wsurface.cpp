@@ -75,7 +75,7 @@ void WSurfacePrivate::updateOutputs()
     outputs.clear();
     wlr_surface_output *output;
     wl_list_for_each(output, &handle->handle()->current_outputs, link) {
-        outputs << WOutput::fromHandle<wlr_output>(output->output);
+        outputs << WOutput::fromHandle(QWOutput::from(output->output));
     }
     W_Q(WSurface);
     q->notifyChanged(WSurface::ChangeType::Outputs, oldOutputs, outputs);
@@ -217,7 +217,7 @@ void WSurface::enterOutput(WOutput *output)
 {
     W_D(WSurface);
     Q_ASSERT(!d->outputs.contains(output));
-    wlr_surface_send_enter(d->handle->handle(), output->nativeInterface<QWOutput>()->handle());
+    wlr_surface_send_enter(d->handle->handle(), output->handle()->handle());
 
     connect(output, &WOutput::destroyed, this, [d] {
         d->updateOutputs();
@@ -230,7 +230,7 @@ void WSurface::leaveOutput(WOutput *output)
 {
     W_D(WSurface);
     Q_ASSERT(d->outputs.contains(output));
-    wlr_surface_send_leave(d->handle->handle(), output->nativeInterface<QWOutput>()->handle());
+    wlr_surface_send_leave(d->handle->handle(), output->handle()->handle());
 
     connect(output, &WOutput::destroyed, this, [d] {
         d->updateOutputs();

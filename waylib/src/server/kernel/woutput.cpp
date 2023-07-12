@@ -31,9 +31,9 @@ WAYLIB_SERVER_BEGIN_NAMESPACE
 class Q_DECL_HIDDEN WOutputPrivate : public WObjectPrivate
 {
 public:
-    WOutputPrivate(WOutput *qq, void *handle)
+    WOutputPrivate(WOutput *qq, QWOutput *handle)
         : WObjectPrivate(qq)
-        , handle(reinterpret_cast<QWOutput*>(handle))
+        , handle(handle)
     {
         this->handle->setData(this, qq);
 
@@ -83,7 +83,7 @@ public:
     WOutputLayout *layout = nullptr;
 };
 
-WOutput::WOutput(WOutputViewport *handle, WBackend *backend)
+WOutput::WOutput(QWOutput *handle, WBackend *backend)
     : QObject()
     , WObject(*new WOutputPrivate(this, handle))
 {
@@ -125,20 +125,20 @@ QWAllocator *WOutput::allocator() const
     return QWAllocator::from(d->handle->handle()->allocator);
 }
 
-WOutputViewport *WOutput::handle() const
+QWOutput *WOutput::handle() const
 {
     W_DC(WOutput);
-    return reinterpret_cast<WOutputViewport*>(d->handle.data());
+    return d->handle.data();
 }
 
-WOutput *WOutput::fromHandle(const WOutputViewport *handle)
+WOutput *WOutput::fromHandle(const QWOutput *handle)
 {
-    return reinterpret_cast<const QWOutput*>(handle)->getData<WOutput>();
+    return handle->getData<WOutput>();
 }
 
 WOutput *WOutput::fromScreen(const QScreen *screen)
 {
-    return fromHandle(static_cast<QWlrootsScreen*>(screen->handle())->output());
+    return static_cast<QWlrootsScreen*>(screen->handle())->output();
 }
 
 void WOutput::setScreen(QWlrootsScreen *screen)

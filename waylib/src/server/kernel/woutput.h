@@ -21,6 +21,7 @@ QW_BEGIN_NAMESPACE
 class QWRenderer;
 class QWSwapchain;
 class QWAllocator;
+class QWOutput;
 QW_END_NAMESPACE
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
@@ -32,7 +33,6 @@ class WOutputLayout;
 class WCursor;
 class WBackend;
 class WServer;
-class WOutputViewport;
 class WOutputPrivate;
 class WAYLIB_SERVER_EXPORT WOutput : public QObject, public WObject
 {
@@ -58,7 +58,7 @@ public:
     };
     Q_ENUM(Transform)
 
-    explicit WOutput(WOutputViewport *handle, WBackend *backend);
+    explicit WOutput(QWLRoots::QWOutput *handle, WBackend *backend);
     ~WOutput();
 
     WBackend *backend() const;
@@ -67,16 +67,9 @@ public:
     QW_NAMESPACE::QWSwapchain *swapchain() const;
     QW_NAMESPACE::QWAllocator *allocator() const;
 
-    WOutputViewport *handle() const;
-    template<typename DNativeInterface>
-    DNativeInterface *nativeInterface() const {
-        return reinterpret_cast<DNativeInterface*>(handle());
-    }
-    static WOutput *fromHandle(const WOutputViewport *handle);
-    template<typename DNativeInterface>
-    static inline WOutput *fromHandle(const DNativeInterface *handle) {
-        return fromHandle(reinterpret_cast<const WOutputViewport*>(handle));
-    }
+    QWLRoots::QWOutput *handle() const;
+    static WOutput *fromHandle(const QWLRoots::QWOutput *handle);
+
     static WOutput *fromScreen(const QScreen *screen);
 
     void rotate(Transform t);

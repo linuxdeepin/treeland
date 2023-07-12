@@ -57,7 +57,7 @@ void WQuickSeatPrivate::updateCursorMap()
         QPoint maxPos(0, 0);
 
         for (auto o : outputs) {
-            QRect rect = o->layout()->getBox(o->nativeInterface<QWOutput>());
+            QRect rect = o->layout()->getBox(o->handle());
 
             if (rect.x() < minPos.x())
                 minPos.rx() = rect.x();
@@ -73,7 +73,7 @@ void WQuickSeatPrivate::updateCursorMap()
         cursor->mapToRegion(QRect(minPos, maxPos));
         cursor->mapToOutput(nullptr);
     } else if (outputs.size() == 1) {
-        cursor->mapToOutput(outputs.first()->nativeInterface<QWOutput>());
+        cursor->mapToOutput(outputs.first()->handle());
         resetCursorRegion();
     } else {
         cursor->mapToOutput(nullptr);

@@ -118,7 +118,7 @@ bool QWlrootsOutputWindow::attachRenderer()
         return false;
     }
 
-    auto qwOutput = qwScreen()->output()->nativeInterface<QWOutput>();
+    auto qwOutput = qwScreen()->output()->handle();
     qwOutput->attachBuffer(renderBuffer);
     bufferAttached = true;
 
@@ -129,7 +129,7 @@ void QWlrootsOutputWindow::detachRenderer()
 {
     Q_ASSERT(renderBuffer && bufferAttached);
     QWRenderer *renderer = qwScreen()->output()->renderer();
-    auto qwOutput = qwScreen()->output()->nativeInterface<QWOutput>();
+    auto *qwOutput = qwScreen()->output()->handle();
     renderer->end();
     qwOutput->rollback();
     bufferAttached = false;

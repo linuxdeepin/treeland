@@ -89,7 +89,7 @@ public:
     }
 
     inline QWOutput *qwoutput() const {
-        return output->nativeInterface<QWOutput>();
+        return output->handle();
     }
 
     inline QWRenderer *renderer() const {

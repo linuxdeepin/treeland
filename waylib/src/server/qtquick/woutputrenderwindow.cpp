@@ -172,7 +172,7 @@ public:
     }
 
     inline QWOutput *qwoutput() const {
-        return output()->output()->nativeInterface<QWOutput>();
+        return output()->output()->handle();
     }
 
     inline WOutputRenderWindow *renderWindow() const {
