@@ -47,9 +47,6 @@ extern "C" {
 #include <wlr/render/wlr_renderer.h>
 #include <wlr/render/gles2.h>
 #undef static
-#ifndef WAYLIB_DISABLE_OUTPUT_DAMAGE
-#include <wlr/types/wlr_output_damage.h>
-#endif
 #include <wlr/render/pixman.h>
 #include <wlr/render/egl.h>
 #include <wlr/render/pixman.h>
