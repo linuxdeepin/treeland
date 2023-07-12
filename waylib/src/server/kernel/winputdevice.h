@@ -57,11 +57,11 @@ public:
     };
     Q_ENUM(AxisSource)
 
-    WInputDevice(QWLRoots::QWInputDevice *handle);
+    WInputDevice(QW_NAMESPACE::QWInputDevice *handle);
 
-    QWLRoots::QWInputDevice *handle() const;
+    QW_NAMESPACE::QWInputDevice *handle() const;
 
-    static WInputDevice *fromHandle(const QWLRoots::QWInputDevice *handle);
+    static WInputDevice *fromHandle(const QW_NAMESPACE::QWInputDevice *handle);
 
     template<class QInputDevice>
     inline QInputDevice *qtDevice() const {

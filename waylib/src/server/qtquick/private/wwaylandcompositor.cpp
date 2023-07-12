@@ -49,7 +49,7 @@ void WWaylandCompositor::setBackend(WQuickBackend *newBackend)
     d->backend = newBackend;
 }
 
-QWLRoots::QWRenderer *WWaylandCompositor::renderer() const
+QW_NAMESPACE::QWRenderer *WWaylandCompositor::renderer() const
 {
     W_DC(WWaylandCompositor);
     return d->renderer;

@@ -19,7 +19,7 @@ class WXCursorManager : public WObject
 public:
     WXCursorManager(uint32_t size = 24, const char *name = nullptr);
 
-    QWLRoots::QWXCursorManager *handle() const;
+    QW_NAMESPACE::QWXCursorManager *handle() const;
 
     bool load(float scale);
 };

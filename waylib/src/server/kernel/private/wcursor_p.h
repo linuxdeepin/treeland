@@ -27,7 +27,7 @@ public:
     WCursorPrivate(WCursor *qq);
     ~WCursorPrivate();
 
-    inline wlr_cursor *nativeHandle() const;
+    wlr_cursor *nativeHandle() const;
 
     void setType(const char *name);
     void updateCursorImage();

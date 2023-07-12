@@ -58,7 +58,7 @@ public:
     };
     Q_ENUM(Transform)
 
-    explicit WOutput(QWLRoots::QWOutput *handle, WBackend *backend);
+    explicit WOutput(QW_NAMESPACE::QWOutput *handle, WBackend *backend);
     ~WOutput();
 
     WBackend *backend() const;
@@ -67,8 +67,8 @@ public:
     QW_NAMESPACE::QWSwapchain *swapchain() const;
     QW_NAMESPACE::QWAllocator *allocator() const;
 
-    QWLRoots::QWOutput *handle() const;
-    static WOutput *fromHandle(const QWLRoots::QWOutput *handle);
+    QW_NAMESPACE::QWOutput *handle() const;
+    static WOutput *fromHandle(const QW_NAMESPACE::QWOutput *handle);
 
     static WOutput *fromScreen(const QScreen *screen);
 

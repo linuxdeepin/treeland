@@ -11,8 +11,8 @@
 
 #include <qwoutput.h>
 #include <qwcompositor.h>
-#include <QDebug>
 #include <qwtexture.h>
+#include <QDebug>
 
 extern "C" {
 #define static

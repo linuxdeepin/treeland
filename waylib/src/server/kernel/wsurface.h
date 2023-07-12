@@ -96,7 +96,7 @@ public:
     QPointF mapToGlobal(const QPointF &localPos) const;
     QPointF mapFromGlobal(const QPointF &globalPos) const;
 
-    QWLRoots::QWTexture *texture() const;
+    QW_NAMESPACE::QWTexture *texture() const;
     QPoint textureOffset() const;
 
     void notifyFrameDone();

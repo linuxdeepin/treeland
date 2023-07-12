@@ -35,9 +35,9 @@ class WCursor : public QObject, public WObject
 public:
     explicit WCursor(QObject *parent = nullptr);
 
-    QWLRoots::QWCursor *handle() const;
+    QW_NAMESPACE::QWCursor *handle() const;
 
-    static WCursor *fromHandle(const QWLRoots::QWCursor *handle);
+    static WCursor *fromHandle(const QW_NAMESPACE::QWCursor *handle);
 
     static Qt::MouseButton fromNativeButton(uint32_t code);
     Qt::MouseButtons state() const;

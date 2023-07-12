@@ -13,7 +13,7 @@ extern "C" {
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
-class WImageBufferImpl : public QWLRoots::QWBufferInterface
+class WImageBufferImpl : public QW_NAMESPACE::QWBufferInterface
 {
 public:
     WImageBufferImpl(const QImage &bufferImage);

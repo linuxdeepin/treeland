@@ -32,10 +32,10 @@ public:
         VKTexture
     };
 
-    explicit WTexture(QWLRoots::QWTexture *handle);
+    explicit WTexture(QW_NAMESPACE::QWTexture *handle);
 
-    QWLRoots::QWTexture *handle() const;
-    void setHandle(QWLRoots::QWTexture *handle);
+    QW_NAMESPACE::QWTexture *handle() const;
+    void setHandle(QW_NAMESPACE::QWTexture *handle);
 
     Type type() const;
 
