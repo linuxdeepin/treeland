@@ -130,14 +130,12 @@ public:
     inline bool doNotifyServer();
     inline void doNotifyKey(WInputDevice *device, uint32_t keycode,
                             WInputDevice::KeyState state, uint32_t timestamp) {
-        auto handle = device->nativeInterface<QWInputDevice>();
-        this->handle()->setKeyboard(qobject_cast<QWKeyboard*>(handle));
+        this->handle()->setKeyboard(qobject_cast<QWKeyboard*>(device->handle()));
         /* Send modifiers to the client. */
         this->handle()->keyboardNotifyKey(timestamp, keycode, static_cast<uint32_t>(state));
     }
     inline void doNotifyModifiers(WInputDevice *device) {
-        auto handle = device->nativeInterface<QWInputDevice>();
-        auto keyboard = qobject_cast<QWKeyboard*>(handle);
+        auto keyboard = qobject_cast<QWKeyboard*>(device->handle());
         this->handle()->setKeyboard(keyboard);
         /* Send modifiers to the client. */
         this->handle()->keyboardNotifyModifiers(&keyboard->handle()->modifiers);
@@ -241,7 +239,7 @@ void WSeatPrivate::attachInputDevice(WInputDevice *device)
     QWlrootsIntegration::instance()->addInputDevice(device);
 
     if (device->type() == WInputDevice::Type::Keyboard) {
-        auto keyboard = qobject_cast<QWKeyboard*>(device->nativeInterface<QWInputDevice>());
+        auto keyboard = qobject_cast<QWKeyboard*>(device->handle());
 
         /* We need to prepare an XKB keymap and assign it to the keyboard. This
          * assumes the defaults (e.g. layout = "us"). */
@@ -477,8 +475,7 @@ void WSeat::notifyKey(WInputDevice *device, uint32_t keycode,
 {
     W_D(WSeat);
 
-    auto handle = device->nativeInterface<QWInputDevice>();
-    auto keyboard = qobject_cast<QWKeyboard*>(handle);
+    auto keyboard = qobject_cast<QWKeyboard*>(device->handle());
     auto code = keycode + 8; // map to wl_keyboard::keymap_format::keymap_format_xkb_v1
     auto et = state == WInputDevice::KeyState::Pressed ? QEvent::KeyPress : QEvent::KeyRelease;
     xkb_keysym_t sym = xkb_state_key_get_one_sym(keyboard->handle()->xkb_state, code);
@@ -501,8 +498,7 @@ void WSeat::notifyKey(WInputDevice *device, uint32_t keycode,
 
 void WSeat::notifyModifiers(WInputDevice *device)
 {
-    auto handle = device->nativeInterface<QWInputDevice>();
-    auto keyboard = qobject_cast<QWKeyboard*>(handle);
+    auto keyboard = qobject_cast<QWKeyboard*>(device->handle());
 
     W_D(WSeat);
     d->keyModifiers = QXkbCommon::modifiers(keyboard->handle()->xkb_state);

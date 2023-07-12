@@ -82,7 +82,7 @@ void WBackendPrivate::on_new_output(QWOutput *output)
 
 void WBackendPrivate::on_new_input(QWInputDevice *device)
 {
-    auto input_device = new WInputDevice(reinterpret_cast<WInputDeviceHandle*>(device));
+    auto input_device = new WInputDevice(device);
     inputList << input_device;
     QObject::connect(device, &QObject::destroyed, q_func()->server(), [this] (QObject *data) {
         on_input_destroy(static_cast<QWInputDevice*>(data));

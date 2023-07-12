@@ -5,6 +5,11 @@
 
 #include <wglobal.h>
 #include <QObject>
+#include <qwglobal.h>
+
+QW_BEGIN_NAMESPACE
+class QWInputDevice;
+QW_END_NAMESPACE
 
 QT_BEGIN_NAMESPACE
 class QInputDevice;
@@ -13,7 +18,6 @@ QT_END_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
 class WSeat;
-class WInputDeviceHandle;
 class WInputDevicePrivate;
 class WInputDevice : public WObject
 {
@@ -53,18 +57,11 @@ public:
     };
     Q_ENUM(AxisSource)
 
-    WInputDevice(WInputDeviceHandle *handle);
+    WInputDevice(QWLRoots::QWInputDevice *handle);
 
-    WInputDeviceHandle *handle() const;
-    template<typename DNativeInterface>
-    DNativeInterface *nativeInterface() const {
-        return reinterpret_cast<DNativeInterface*>(handle());
-    }
-    static WInputDevice *fromHandle(const WInputDeviceHandle *handle);
-    template<typename DNativeInterface>
-    static inline WInputDevice *fromHandle(const DNativeInterface *handle) {
-        return fromHandle(reinterpret_cast<const WInputDeviceHandle*>(handle));
-    }
+    QWLRoots::QWInputDevice *handle() const;
+
+    static WInputDevice *fromHandle(const QWLRoots::QWInputDevice *handle);
 
     template<class QInputDevice>
     inline QInputDevice *qtDevice() const {

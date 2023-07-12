@@ -39,21 +39,21 @@ public:
     WSeat *seat = nullptr;
 };
 
-WInputDevice::WInputDevice(WInputDeviceHandle *handle)
+WInputDevice::WInputDevice(QWInputDevice *handle)
     : WObject(*new WInputDevicePrivate(this, handle))
 {
 
 }
 
-WInputDeviceHandle *WInputDevice::handle() const
+QWInputDevice *WInputDevice::handle() const
 {
     W_DC(WInputDevice);
-    return reinterpret_cast<WInputDeviceHandle*>(d->handle);
+    return reinterpret_cast<QWInputDevice*>(d->handle);
 }
 
-WInputDevice *WInputDevice::fromHandle(const WInputDeviceHandle *handle)
+WInputDevice *WInputDevice::fromHandle(const QWInputDevice *handle)
 {
-    return reinterpret_cast<const QWInputDevice*>(handle)->getData<WInputDevice>();
+    return handle->getData<WInputDevice>();
 }
 
 WInputDevice *WInputDevice::from(const QInputDevice *device)

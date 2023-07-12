@@ -209,7 +209,7 @@ void WCursorPrivate::on_button(wlr_pointer_button_event *event)
     }
 
     if (Q_LIKELY(seat)) {
-        seat->notifyButton(q_func(), WInputDevice::fromHandle<QWInputDevice>(device),
+        seat->notifyButton(q_func(), WInputDevice::fromHandle(device),
                            event->button, static_cast<WInputDevice::ButtonState>(event->state),
                            event->time_msec);
     }
@@ -220,7 +220,7 @@ void WCursorPrivate::on_axis(wlr_pointer_axis_event *event)
     auto device = QWPointer::from(event->pointer);
 
     if (Q_LIKELY(seat)) {
-        seat->notifyAxis(q_func(), WInputDevice::fromHandle<QWInputDevice>(device),
+        seat->notifyAxis(q_func(), WInputDevice::fromHandle(device),
                          static_cast<WInputDevice::AxisSource>(event->source),
                          event->orientation == WLR_AXIS_ORIENTATION_HORIZONTAL
                          ? Qt::Horizontal : Qt::Vertical, event->delta, event->delta_discrete,
@@ -262,7 +262,7 @@ void WCursorPrivate::processCursorMotion(QWPointer *device, uint32_t time)
     W_Q(WCursor);
 
     if (Q_LIKELY(seat))
-        seat->notifyMotion(q, WInputDevice::fromHandle<QWInputDevice>(device), time);
+        seat->notifyMotion(q, WInputDevice::fromHandle(device), time);
 }
 
 void WCursorPrivate::clearCursorImages()
@@ -443,7 +443,7 @@ bool WCursor::attachInputDevice(WInputDevice *device)
 
     W_D(WCursor);
     Q_ASSERT(!d->deviceList.contains(device));
-    d->handle->attachInputDevice(device->nativeInterface<QWInputDevice>());
+    d->handle->attachInputDevice(device->handle());
     d->deviceList << device;
     return true;
 }
@@ -455,8 +455,8 @@ void WCursor::detachInputDevice(WInputDevice *device)
     if (!d->deviceList.removeOne(device))
         return;
 
-    d->handle->detachInputDevice(device->nativeInterface<QWInputDevice>());
-    d->handle->mapInputToOutput(device->nativeInterface<QWInputDevice>(), nullptr);
+    d->handle->detachInputDevice(device->handle());
+    d->handle->mapInputToOutput(device->handle(), nullptr);
 }
 
 void WCursor::setLayout(WOutputLayout *layout)
