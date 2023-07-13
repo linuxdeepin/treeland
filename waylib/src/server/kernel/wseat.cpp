@@ -387,7 +387,7 @@ void WSeat::notifyMotion(WCursor *cursor, WInputDevice *device,
     const QPointF &global = cursor->position();
 
     if (Q_UNLIKELY(d->eventGrabber)) {
-        QMouseEvent e(QEvent::MouseMove, global, cursor->button(),
+        QMouseEvent e(QEvent::MouseMove, QPointF(), global, cursor->button(),
                       cursor->state(), d->keyModifiers, device->qtDevice<QPointingDevice>());
         e.setTimestamp(timestamp);
         QCoreApplication::sendEvent(d->eventGrabber.data(), &e);
@@ -424,7 +424,7 @@ void WSeat::notifyButton(WCursor *cursor, WInputDevice *device, uint32_t button,
                                                                 : QEvent::MouseButtonRelease;
 
     if (Q_UNLIKELY(d->eventGrabber)) {
-        QMouseEvent e(et, global, cursor->button(),
+        QMouseEvent e(et, QPointF(), global, cursor->button(),
                       cursor->state(), d->keyModifiers, device->qtDevice<QPointingDevice>());
         e.setTimestamp(timestamp);
         QCoreApplication::sendEvent(d->eventGrabber.data(), &e);

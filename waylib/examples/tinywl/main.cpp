@@ -142,11 +142,11 @@ bool MoveResizeHelper::event(QEvent *event)
         QMouseEvent *ev = static_cast<QMouseEvent*>(event);
 
         if (type == WSurface::State::Move) {
-            auto increment_pos = ev->globalPos() - cursor->lastPressedPosition();
-            auto new_pos = surfacePosOfStartMoveResize + increment_pos;
+            auto increment_pos = ev->globalPosition() - cursor->lastPressedPosition();
+            auto new_pos = surfacePosOfStartMoveResize + m_surfaceItem->parentItem()->mapFromGlobal(increment_pos);
             m_surfaceItem->setPosition(new_pos);
         } else if (type == WSurface::State::Resize) {
-            auto increment_pos = ev->globalPos() - cursor->lastPressedPosition();
+            auto increment_pos = m_surfaceItem->parentItem()->mapFromGlobal(ev->globalPosition() - cursor->lastPressedPosition());
             QRectF geo(surfacePosOfStartMoveResize, surfaceSizeOfstartMoveResize);
 
             if (resizeEdgets & Qt::LeftEdge)
