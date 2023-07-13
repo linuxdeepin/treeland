@@ -36,7 +36,7 @@ WSurfacePrivate::~WSurfacePrivate()
 
 }
 
-void WSurfacePrivate::on_commit(void *)
+void WSurfacePrivate::on_commit()
 {
     W_Q(WSurface);
 
@@ -57,16 +57,15 @@ void WSurfacePrivate::on_commit(void *)
     }
 }
 
-void WSurfacePrivate::on_client_commit(void *)
+void WSurfacePrivate::on_client_commit()
 {
     Q_EMIT q_func()->textureChanged();
 }
 
 void WSurfacePrivate::connect()
 {
-    sc.connect(&handle->handle()->events.commit, this, &WSurfacePrivate::on_commit);
-    sc.connect(&handle->handle()->events.client_commit, this, &WSurfacePrivate::on_client_commit);
-    sc.connect(&handle->handle()->events.destroy, &sc, &WSignalConnector::invalidate);
+    QObject::connect(handle, &QWSurface::commit, this, &WSurfacePrivate::on_commit);
+    QObject::connect(handle, &QWSurface::client_commit, this, &WSurfacePrivate::on_client_commit);
 }
 
 void WSurfacePrivate::updateOutputs()

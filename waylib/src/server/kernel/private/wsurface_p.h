@@ -4,9 +4,9 @@
 #pragma once
 
 #include "wsurface.h"
-#include "wsignalconnector.h"
 
 #include <qwglobal.h>
+#include <QObject>
 #include <QPointer>
 
 QW_BEGIN_NAMESPACE
@@ -15,14 +15,15 @@ QW_END_NAMESPACE
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
-class WSurfacePrivate : public WObjectPrivate {
+class WSurfacePrivate : public QObject, public WObjectPrivate {
+    Q_OBJECT
 public:
     WSurfacePrivate(WSurface *qq, WServer *server);
     ~WSurfacePrivate();
 
     // begin slot function
-    void on_commit(void *);
-    void on_client_commit(void *);
+    void on_commit();
+    void on_client_commit();
     // end slot function
 
     void connect();
@@ -35,8 +36,6 @@ public:
     QVector<WOutput*> outputs;
     WSurfaceHandler *handler = nullptr;
     QObject *shell = nullptr;
-
-    WSignalConnector sc;
 };
 
 WAYLIB_SERVER_END_NAMESPACE

@@ -36,14 +36,7 @@ set(KERNEL_SOURCES
     kernel/wglobal.cpp
 )
 
-# TODO: Using wlr_damage_ring instead of wlr_output_damage
-option(WAYLIB_DISABLE_OUTPUT_DAMAGE "Don't use the damage manager for outputs" ON)
-
-if (WAYLIB_DISABLE_OUTPUT_DAMAGE)
-    add_definitions(-DWAYLIB_DISABLE_OUTPUT_DAMAGE)
-else()
-    list(APPEND KERNEL_SOURCES kernel/woutputdamage.cpp)
-endif()
+# TODO: Using wlr_damage_ring
 
 set(QTQUICK_SOURCES
     qtquick/wsurfaceitem.cpp
@@ -62,7 +55,6 @@ set(QTQUICK_SOURCES
 )
 
 set(UTILS_SOURCES
-    utils/wsignalconnector.cpp
     utils/wtools.cpp
     utils/wthreadutils.cpp
     utils/wimagebuffer.cpp
@@ -115,16 +107,15 @@ set(HEADERS
     qtquick/woutputviewport.h
     qtquick/wquickcursor.h
 
-    utils/wsignalconnector.h
     utils/wtools.h
     utils/wthreadutils.h
-    utils/WSignalConnector
     utils/WThreadUtils
     utils/wimagebuffer.h
 )
 
 set(PRIVATE_HEADERS
     platformplugin/types.h
+    kernel/private/wsurface_p.h
 )
 
 add_library(${TARGET}

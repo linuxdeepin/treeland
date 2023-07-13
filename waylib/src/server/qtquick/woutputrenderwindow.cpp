@@ -3,9 +3,6 @@
 
 #include "woutputrenderwindow.h"
 #include "woutput.h"
-#ifndef WAYLIB_DISABLE_OUTPUT_DAMAGE
-#include "woutputdamage.h"
-#endif
 #include "woutputhelper.h"
 #include "wserver.h"
 #include "wbackend.h"
@@ -579,22 +576,12 @@ void WOutputRenderWindowPrivate::doRender()
             needPolishItems = false;
         }
 
-#ifndef WAYLIB_DISABLE_OUTPUT_DAMAGE
-        pixman_region32_scoped_pointer damage(new pixman_region32_t);
-        pixman_region32_init(damage.data());
-        if (!helper->attachRender(damage.data()))
-            continue;
-#else
         if (!helper->contentIsDirty())
             continue;
-#endif
 
         if (Q_UNLIKELY(!helper->makeCurrent(glContext)))
             continue;
 
-#ifndef WAYLIB_DISABLE_OUTPUT_DAMAGE
-        if (pixman_region32_not_empty(damage.data()))
-#endif
         {
             q_func()->setRenderTarget(helper->ensureRenderTarget());
 
@@ -640,19 +627,6 @@ void WOutputRenderWindowPrivate::doRender()
             rc()->render();
             rc()->endFrame();
         }
-
-#ifndef WAYLIB_DISABLE_OUTPUT_DAMAGE
-        const QSize size = transformedSize();
-        enum wl_output_transform transform =
-            wlr_output_transform_invert(qwoutput()->handle()->transform);
-
-        pixman_region32_scoped_pointer frame_damage(new pixman_region32_t);
-        pixman_region32_init(frame_damage.data());
-        wlr_region_transform(frame_damage.data(), &this->damage->nativeInterface<wlr_output_damage>()->current,
-                             transform, size.width(), size.height());
-        qwoutput()->setDamage(frame_damage.data());
-        pixman_region32_fini(frame_damage.data());
-#endif
 
         if (helper->qwoutput()->commit())
             helper->resetState();

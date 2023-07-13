@@ -28,9 +28,6 @@ extern "C" {
 #include <wlr/render/wlr_renderer.h>
 #include <wlr/render/gles2.h>
 #undef static
-#ifndef WAYLIB_DISABLE_OUTPUT_DAMAGE
-#include <wlr/types/wlr_output_damage.h>
-#endif
 #include <wlr/render/pixman.h>
 #include <wlr/render/egl.h>
 #include <wlr/render/pixman.h>
@@ -62,16 +59,6 @@ public:
         outputWindow->setScreen(QWlrootsIntegration::instance()->getScreenFrom(output)->screen());
         outputWindow->create();
 
-#ifndef WAYLIB_DISABLE_OUTPUT_DAMAGE
-        damage = new WOutputDamage(q);
-#endif
-
-#ifndef WAYLIB_DISABLE_OUTPUT_DAMAGE
-        sc.connect(&damage->nativeInterface<wlr_output_damage>()->events.frame,
-                   this, &WOutputWindowPrivate::on_damage_frame);
-        sc.connect(&damage->nativeInterface<wlr_output_damage>()->events.destroy,
-                   &sc, &WSignalConnector::invalidate);
-#else
         QObject::connect(qwoutput(), &QWOutput::frame, qq, [this] {
             on_frame();
         });
@@ -81,7 +68,7 @@ public:
         QObject::connect(output, &WOutput::modeChanged, qq, [this] {
             resetRenderBuffer();
         });
-#endif
+
         // In call the connect for 'frame' signal before, maybe the wlr_output object is already \
         // emit the signal, so we should suppose the renderable is true in order that ensure can \
         // render on the next time
@@ -107,34 +94,10 @@ public:
     void setRenderable(bool newValue);
     void setContentIsDirty(bool newValue);
 
-#ifndef WAYLIB_DISABLE_OUTPUT_DAMAGE
-    void on_damage_frame(void *);
-#else
     void on_frame();
     void on_damage();
-#endif
     void resetRenderBuffer();
 
-#ifndef WAYLIB_DISABLE_OUTPUT_DAMAGE
-    inline bool attachRender(pixman_region32_t *damage, bool *needsFrame = nullptr) {
-        if (bufferIsAttached()) {
-            // Don't reuse the state, needs ensuse the damage data is valid
-            qwoutput()->rollback();
-        }
-
-        bool needs_frame;
-        if (!wlr_output_damage_attach_render(this->damage->nativeInterface<wlr_output_damage>(),
-                                             &needs_frame, damage)) {
-            return false;
-        }
-
-        if (needsFrame)
-            *needsFrame = needs_frame;
-
-        attachedBuffer = true;
-        return true;
-    }
-#endif
 
     QWBuffer *ensureRenderBuffer();
 
@@ -158,29 +121,20 @@ public:
     }
 
     inline void update() {
-#ifndef WAYLIB_DISABLE_OUTPUT_DAMAGE
-        damage->addWhole();
-#else
         setContentIsDirty(true);
-#endif
     }
 
     W_DECLARE_PUBLIC(WOutputHelper)
     WOutput *output;
     QWindow *outputWindow;
 
-#ifndef WAYLIB_DISABLE_OUTPUT_DAMAGE
-    WOutputDamage *damage = nullptr;
-#endif
     // for software renderer
     QImage paintDevice;
     std::unique_ptr<QWTexture> renderTexture;
     QQuickRenderTarget renderTarget;
 
     bool renderable = false;
-#ifdef WAYLIB_DISABLE_OUTPUT_DAMAGE
     bool contentIsDirty = false;
-#endif
 };
 
 void WOutputHelperPrivate::setRenderable(bool newValue)
@@ -199,13 +153,6 @@ void WOutputHelperPrivate::setContentIsDirty(bool newValue)
     Q_EMIT q_func()->contentIsDirtyChanged();
 }
 
-#ifndef WAYLIB_DISABLE_OUTPUT_DAMAGE
-void WOutputHelperPrivate::on_damage_frame(void *)
-{
-    renderable = true;
-    Q_EMIT q_func()->requestRender();
-}
-#else
 void WOutputHelperPrivate::on_frame()
 {
     setRenderable(true);
@@ -217,7 +164,6 @@ void WOutputHelperPrivate::on_damage()
     setContentIsDirty(true);
     Q_EMIT q_func()->damaged();
 }
-#endif
 
 void WOutputHelperPrivate::resetRenderBuffer()
 {

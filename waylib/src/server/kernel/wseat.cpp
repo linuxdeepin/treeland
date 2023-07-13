@@ -4,7 +4,6 @@
 #include "wseat.h"
 #include "wcursor.h"
 #include "winputdevice.h"
-#include "wsignalconnector.h"
 #include "woutput.h"
 #include "wsurface.h"
 #include "platformplugin/qwlrootsintegration.h"
