@@ -561,6 +561,8 @@ void WOutputRenderWindowPrivate::doRender()
                          1,
                          -1);
             auto viewportMatrix = QQuickItemPrivate::get(helper->output())->itemNode()->matrix().inverted();
+            QMatrix4x4 parentMatrix = QQuickItemPrivate::get(helper->output()->parentItem())->itemToWindowTransform().inverted();
+            viewportMatrix *= parentMatrix;
             renderContextProxy->projectionMatrix = matrix * viewportMatrix;
 
             if (flipY) {
