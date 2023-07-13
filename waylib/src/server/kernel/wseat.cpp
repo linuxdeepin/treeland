@@ -48,6 +48,11 @@ public:
         return q_func()->nativeInterface<QWSeat>();
     }
 
+    inline wlr_seat *nativeHandle() const {
+        Q_ASSERT(handle());
+        return handle()->handle();
+    };
+
     inline bool shouldNotifyPointerEvent(WCursor *cursor) {
         if (!hoverSurface)
             return false;
@@ -65,7 +70,7 @@ public:
         Q_UNUSED(device)
         auto pos = hoverSurface->mapFromGlobal(cursor->position());
         // Get a valid wlr_surface object by the input region of the client
-        auto target_surface = hoverSurface->nativeInputTargetAt<QWSurface>(pos)->handle();
+        auto target_surface = hoverSurface->inputTargetAt(pos)->handle();
         if (Q_UNLIKELY(!target_surface)) {
             // Because the doNotifyMotion will received the event on before the WQuickItem, so
             // when the mouse move form the window edges to outside of the event area of the
@@ -74,10 +79,10 @@ public:
             return;
         }
 
-        if (Q_LIKELY(handle()->handle()->pointer_state.focused_surface == target_surface)) {
-            wlr_seat_pointer_notify_motion(handle()->handle(), timestamp, pos.x(), pos.y());
+        if (Q_LIKELY(nativeHandle()->pointer_state.focused_surface == target_surface)) {
+            handle()->pointerNotifyMotion(timestamp, pos.x(), pos.y());
         } else { // Should to notify the enter event on there
-            wlr_seat_pointer_notify_enter(handle()->handle(), target_surface, pos.x(), pos.y());
+            handle()->pointerNotifyEnter(QWSurface::from(target_surface), pos.x(), pos.y());
         }
     }
     inline void doNotifyButton(const WCursor *cursor, WInputDevice *device,
@@ -85,8 +90,7 @@ public:
                                uint32_t timestamp) {
         Q_UNUSED(cursor);
         Q_UNUSED(device);
-        wlr_seat_pointer_notify_button(handle()->handle(), timestamp, button,
-                                       static_cast<wlr_button_state>(state));
+        handle()->pointerNotifyButton(timestamp, button, static_cast<wlr_button_state>(state));
     }
     static inline wlr_axis_orientation fromQtHorizontal(Qt::Orientation o) {
         return o == Qt::Horizontal ? WLR_AXIS_ORIENTATION_HORIZONTAL
@@ -97,31 +101,31 @@ public:
                              double delta, int32_t delta_discrete, uint32_t timestamp) {
         Q_UNUSED(cursor)
         Q_UNUSED(device)
-        wlr_seat_pointer_notify_axis(handle()->handle(), timestamp, fromQtHorizontal(orientation), delta,
+        handle()->pointerNotifyAxis(timestamp, fromQtHorizontal(orientation), delta,
                                      delta_discrete, static_cast<wlr_axis_source>(source));
     }
     inline void doNotifyFrame(const WCursor *cursor) {
         Q_UNUSED(cursor);
-        wlr_seat_pointer_notify_frame(handle()->handle());
+        handle()->pointerNotifyFrame();
     }
     inline void doEnter(WSurface *surface) {
         hoverSurface = surface;
         auto pos = surface->mapFromGlobal(cursor->position());
-        auto target_surface = surface->nativeInputTargetAt<QWSurface>(pos)->handle();
+        auto target_surface = surface->inputTargetAt(pos)->handle();
         // When the hoverSuface is exists, indicate the event receive areas is filtered
         // by the WQuickItem, so the target_suface should always is not nullptr.
         Q_ASSERT(target_surface);
-        wlr_seat_pointer_notify_enter(handle()->handle(), target_surface, pos.x(), pos.y());
+        handle()->pointerNotifyEnter(QWSurface::from(target_surface), pos.x(), pos.y());
     }
     inline void doClearFocus() {
         hoverSurface = nullptr;
-        wlr_seat_pointer_notify_clear_focus(handle()->handle());
+        handle()->pointerNotifyClearFocus();
     }
-    inline void doSetKeyboardFocus(wlr_surface *surface) {
+    inline void doSetKeyboardFocus(QWSurface *surface) {
         if (surface) {
-            wlr_seat_keyboard_enter(handle()->handle(), surface, nullptr, 0, nullptr);
+            handle()->keyboardEnter(surface, nullptr, 0, nullptr);
         } else {
-            wlr_seat_keyboard_clear_focus(handle()->handle());
+            handle()->keyboardClearFocus();
         }
     }
 
@@ -267,9 +271,9 @@ WSeat::WSeat(const QByteArray &name)
 
 }
 
-WSeat *WSeat::fromHandle(const void *handle)
+WSeat *WSeat::fromHandle(const QWSeat *handle)
 {
-    return reinterpret_cast<const QWSeat*>(handle)->getData<WSeat>();
+    return handle->getData<WSeat>();
 }
 
 void WSeat::setCursor(WCursor *cursor)
@@ -362,21 +366,17 @@ WSurface *WSeat::hoverSurface() const
     return d->hoverSurface;
 }
 
-void WSeat::setKeyboardFocusTarget(WSurfaceHandle *nativeSurface)
+void WSeat::setKeyboardFocusTarget(QWSurface *nativeSurface)
 {
     W_D(WSeat);
-    d->doSetKeyboardFocus(reinterpret_cast<QWSurface*>(nativeSurface)->handle());
+    d->doSetKeyboardFocus(nativeSurface);
 }
 
 void WSeat::setKeyboardFocusTarget(WSurface *surface)
 {
     W_D(WSeat);
 
-    if (surface) {
-        setKeyboardFocusTarget(surface->handle());
-    } else {
-        setKeyboardFocusTarget(static_cast<WSurfaceHandle*>(nullptr));
-    }
+    setKeyboardFocusTarget(surface ? surface->handle() : nullptr);
 }
 
 void WSeat::notifyMotion(WCursor *cursor, WInputDevice *device,
@@ -521,7 +521,7 @@ void WSeat::create(WServer *server)
 {
     W_D(WSeat);
     // destroy follow display
-    m_handle = QWSeat::create(server->nativeInterface<QWDisplay>(), d->name.constData());
+    m_handle = QWSeat::create(server->handle(), d->name.constData());
     d->handle()->setData(this, this);
     d->connect();
 

@@ -23,7 +23,7 @@ WAYLIB_SERVER_BEGIN_NAMESPACE
 
 class Q_DECL_HIDDEN WXdgSurfacePrivate : public WSurfacePrivate {
 public:
-    WXdgSurfacePrivate(WXdgSurface *qq, void *handle, WServer *server);
+    WXdgSurfacePrivate(WXdgSurface *qq, QWXdgSurface *handle, WServer *server);
 
     inline wlr_xdg_surface *nativeHandle() const {
         Q_ASSERT(handle);
@@ -45,9 +45,9 @@ public:
     QWXdgSurface *handle;
 };
 
-WXdgSurfacePrivate::WXdgSurfacePrivate(WXdgSurface *qq, void *hh, WServer *server)
+WXdgSurfacePrivate::WXdgSurfacePrivate(WXdgSurface *qq, QWXdgSurface *hh, WServer *server)
     : WSurfacePrivate(qq, server)
-    , handle(reinterpret_cast<QWXdgSurface*>(hh))
+    , handle(hh)
 {
 }
 
@@ -77,7 +77,7 @@ void WXdgSurfacePrivate::init()
 {
     W_Q(WXdgSurface);
     handle->setData(this, q);
-    q->setHandle(reinterpret_cast<WSurfaceHandle*>(handle->surface()));
+    q->setHandle(handle->surface());
 
     connect();
 }
@@ -99,7 +99,7 @@ void WXdgSurfacePrivate::connect()
     });
 }
 
-WXdgSurface::WXdgSurface(WXdgSurfaceHandle *handle, WServer *server, QObject *parent)
+WXdgSurface::WXdgSurface(QWXdgSurface *handle, WServer *server, QObject *parent)
     : WSurface(*new WXdgSurfacePrivate(this, handle, server), parent)
 {
     d_func()->init();
@@ -151,25 +151,25 @@ bool WXdgSurface::testAttribute(WSurface::Attribute attr) const
     return WSurface::testAttribute(attr);
 }
 
-WXdgSurfaceHandle *WXdgSurface::handle() const
+QWXdgSurface *WXdgSurface::handle() const
 {
     W_DC(WXdgSurface);
-    return reinterpret_cast<WXdgSurfaceHandle*>(d->handle);
+    return d->handle;
 }
 
-WSurfaceHandle *WXdgSurface::inputTargetAt(QPointF &localPos) const
+QWSurface *WXdgSurface::inputTargetAt(QPointF &localPos) const
 {
     W_DC(WXdgSurface);
     // find a wlr_suface object who can receive the events
     const QPointF pos = localPos;
     auto sur = d->handle->surfaceAt(pos, &localPos);
 
-    return reinterpret_cast<WSurfaceHandle*>(sur);
+    return sur;
 }
 
-WXdgSurface *WXdgSurface::fromHandle(WXdgSurfaceHandle *handle)
+WXdgSurface *WXdgSurface::fromHandle(QWXdgSurface *handle)
 {
-    return reinterpret_cast<QWXdgSurface*>(handle)->getData<WXdgSurface>();
+    return handle->getData<WXdgSurface>();
 }
 
 bool WXdgSurface::inputRegionContains(const QPointF &localPos) const
@@ -211,12 +211,12 @@ WSurface *WXdgSurface::parentSurface() const
         auto parent = toplevel->handle()->parent;
         if (!parent)
             return nullptr;
-        return fromHandle<QWXdgSurface>(QWXdgToplevel::from(parent));
+        return fromHandle(QWXdgToplevel::from(parent));
     } else if (auto popup = d->handle->toPopup()) {
         auto parent = popup->handle()->parent;
         if (!parent)
             return nullptr;
-        return fromHandle<QWXdgSurface>(QWXdgSurface::from(QWSurface::from(parent)));
+        return fromHandle(QWXdgSurface::from(QWSurface::from(parent)));
     }
 
     return nullptr;

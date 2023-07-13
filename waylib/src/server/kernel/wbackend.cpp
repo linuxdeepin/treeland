@@ -39,6 +39,11 @@ public:
         return q_func()->nativeInterface<QWBackend>();
     }
 
+    inline wlr_backend *nativeHandle() const {
+        Q_ASSERT(handle());
+        return handle()->handle();
+    }
+
     // begin slot function
     void on_new_output(QWOutput *output);
     void on_new_input(QWInputDevice *device);
@@ -168,7 +173,7 @@ void WBackend::create(WServer *server)
     W_D(WBackend);
 
     if (!m_handle) {
-        m_handle = QWBackend::autoCreate(server->nativeInterface<QWDisplay>());
+        m_handle = QWBackend::autoCreate(server->handle());
         Q_ASSERT(m_handle);
     }
 

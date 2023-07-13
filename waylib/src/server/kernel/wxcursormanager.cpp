@@ -28,6 +28,11 @@ public:
         delete handle;
     }
 
+    inline wlr_xcursor_manager *nativeHandle() const {
+        Q_ASSERT(handle);
+        return handle->handle();
+    }
+
     W_DECLARE_PUBLIC(WXCursorManager)
 
     QWXCursorManager *handle;

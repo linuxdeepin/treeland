@@ -9,17 +9,20 @@
 #include <QObject>
 #include <QPointer>
 
+struct wlr_surface;
+
 QW_BEGIN_NAMESPACE
 class QWSurface;
 QW_END_NAMESPACE
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
-class WSurfacePrivate : public QObject, public WObjectPrivate {
-    Q_OBJECT
+class WSurfacePrivate : public WObjectPrivate {
 public:
     WSurfacePrivate(WSurface *qq, WServer *server);
     ~WSurfacePrivate();
+
+    wlr_surface *nativeHandle() const;
 
     // begin slot function
     void on_commit();

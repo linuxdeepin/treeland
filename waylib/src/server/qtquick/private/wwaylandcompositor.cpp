@@ -72,7 +72,7 @@ void WWaylandCompositor::create()
     }
 
     d->allocator = QWAllocator::autoCreate(d->backend->backend(), d->renderer);
-    auto display = server()->nativeInterface<QWDisplay>();
+    auto display = server()->handle();
     d->renderer->initWlDisplay(display);
 
     // free follow display

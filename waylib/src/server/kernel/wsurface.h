@@ -15,14 +15,14 @@
 
 QW_BEGIN_NAMESPACE
 class QWTexture;
+class QWSurface;
 QW_END_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
 class WServer;
 class WOutput;
-class WSurfaceHandler;
 struct SurfaceData;
-class WSurfaceHandle;
+class WSurfaceHandler;
 class WSurfacePrivate;
 class WAYLIB_SERVER_EXPORT WSurface : public QObject, public WObject
 {
@@ -62,23 +62,10 @@ public:
     virtual Type *type() const;
     virtual bool testAttribute(Attribute attr) const;
 
-    WSurfaceHandle *handle() const;
-    virtual WSurfaceHandle *inputTargetAt(QPointF &globalPos) const;
+    QW_NAMESPACE::QWSurface *handle() const;
+    virtual QW_NAMESPACE::QWSurface *inputTargetAt(QPointF &globalPos) const;
 
-    template<typename DNativeInterface>
-    inline DNativeInterface *nativeInterface() const {
-        return reinterpret_cast<DNativeInterface*>(handle());
-    }
-    template<typename DNativeInterface>
-    inline DNativeInterface *nativeInputTargetAt(QPointF &spos) const {
-        return reinterpret_cast<DNativeInterface*>(inputTargetAt(spos));
-    }
-
-    static WSurface *fromHandle(WSurfaceHandle *handle);
-    template<typename DNativeInterface>
-    inline static WSurface *fromHandle(DNativeInterface *handle) {
-        return fromHandle(reinterpret_cast<WSurfaceHandle*>(handle));
-    }
+    static WSurface *fromHandle(QW_NAMESPACE::QWSurface *handle);
 
     virtual bool inputRegionContains(const QPointF &localPos) const;
 
@@ -129,7 +116,7 @@ Q_SIGNALS:
 protected:
     WSurface(WSurfacePrivate &dd, QObject *parent);
 
-    void setHandle(WSurfaceHandle *handle);
+    void setHandle(QW_NAMESPACE::QWSurface *handle);
 };
 
 WAYLIB_SERVER_END_NAMESPACE

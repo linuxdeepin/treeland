@@ -14,6 +14,10 @@ QT_BEGIN_NAMESPACE
 class QProcess;
 QT_END_NAMESPACE
 
+QW_BEGIN_NAMESPACE
+class QWDisplay;
+QW_END_NAMESPACE
+
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
 class WServer;
@@ -50,9 +54,7 @@ protected:
 class WInputDevice;
 class WOutput;
 class WOutputViewport;
-class WDisplayHandle;
 class WBackend;
-class WBackendHandle;
 class WServerPrivate;
 class WServer : public QObject, public WObject
 {
@@ -63,11 +65,7 @@ class WServer : public QObject, public WObject
 public:
     explicit WServer(QObject *parent = nullptr);
 
-    WDisplayHandle *handle() const;
-    template<typename WDisplayNativeInterface>
-    WDisplayNativeInterface *nativeInterface() const {
-        return reinterpret_cast<WDisplayNativeInterface*>(handle());
-    }
+    QW_NAMESPACE::QWDisplay *handle() const;
 
     void attach(WServerInterface *interface);
     template<typename Interface, typename... Args>

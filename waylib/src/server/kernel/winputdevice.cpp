@@ -32,6 +32,11 @@ public:
             seat->detachInputDevice(q_func());
     }
 
+    inline wlr_input_device *nativeHandle() const {
+        Q_ASSERT(handle);
+        return handle->handle();
+    }
+
     W_DECLARE_PUBLIC(WInputDevice);
 
     QWInputDevice *handle = nullptr;

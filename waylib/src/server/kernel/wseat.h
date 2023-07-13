@@ -9,6 +9,11 @@
 #include <QEvent>
 #include <QSharedData>
 
+QW_BEGIN_NAMESPACE
+class QWSeat;
+class QWSurface;
+QW_END_NAMESPACE
+
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
 class WCursor;
@@ -51,7 +56,6 @@ class WCursor;
 //};
 
 class WSurface;
-class WSurfaceHandle;
 class WSeatPrivate;
 class WSeat : public WServerInterface, public WObject
 {
@@ -59,11 +63,7 @@ class WSeat : public WServerInterface, public WObject
 public:
     WSeat(const QByteArray &name = QByteArrayLiteral("seat0"));
 
-    static WSeat *fromHandle(const void *handle);
-    template<typename DNativeInterface>
-    static inline WSeat *fromHandle(const DNativeInterface *handle) {
-        return fromHandle(reinterpret_cast<const void*>(handle));
-    }
+    static WSeat *fromHandle(const QW_NAMESPACE::QWSeat *handle);
 
     void setCursor(WCursor *cursor);
     WCursor *cursor() const;
@@ -75,7 +75,7 @@ public:
     void notifyLeaveSurface(WSurface *surface);
     WSurface *hoverSurface() const;
 
-    void setKeyboardFocusTarget(WSurfaceHandle *nativeSurface);
+    void setKeyboardFocusTarget(QW_NAMESPACE::QWSurface *nativeSurface);
     void setKeyboardFocusTarget(WSurface *surface);
 
     // pointer

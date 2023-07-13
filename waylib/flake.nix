@@ -34,6 +34,7 @@
 
             inputsFrom = [
               packages.default
+              qwlroots.packages.${system}.qwlroots-qt6-wlroots-git
             ];
 
             shellHook = let

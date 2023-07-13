@@ -27,24 +27,29 @@ class Q_DECL_HIDDEN WTexturePrivate : public WObjectPrivate {
 public:
     WTexturePrivate(WTexture *qq, QWTexture *handle);
 
+    inline wlr_texture *nativeHandle() const {
+        Q_ASSERT(handle);
+        return handle->handle();
+    }
+
     void init(QWTexture *handle);
     void updateGLTexture() {
         if (!window)
             return;
 
         wlr_gles2_texture_attribs attribs;
-        wlr_gles2_texture_get_attribs(handle->handle(), &attribs);
+        wlr_gles2_texture_get_attribs(nativeHandle(), &attribs);
 
         #define GL_TEXTURE_EXTERNAL_OES           0x8D65
         QQuickWindowPrivate::TextureFromNativeTextureFlags flags = attribs.target == GL_TEXTURE_EXTERNAL_OES
                                                                        ? QQuickWindowPrivate::NativeTextureIsExternalOES
                                                                        : QQuickWindowPrivate::TextureFromNativeTextureFlags {};
         texture->setTextureFromNativeTexture(QQuickWindowPrivate::get(window)->rhi,
-                                             attribs.tex, 0, 0, QSize(handle->handle()->width, handle->handle()->height),
+                                             attribs.tex, 0, 0, QSize(nativeHandle()->width, nativeHandle()->height),
                                              {}, flags);
 
         texture->setHasAlphaChannel(attribs.has_alpha);
-        texture->setTextureSize(QSize(handle->handle()->width, handle->handle()->height));
+        texture->setTextureSize(QSize(nativeHandle()->width, nativeHandle()->height));
         texture->setOwnsTexture(false);
     }
 
@@ -54,20 +59,20 @@ public:
             return;
 
         wlr_vk_image_attribs attribs;
-        wlr_vk_texture_get_image_attribs(handle->handle(), &attribs);
+        wlr_vk_texture_get_image_attribs(nativeHandle(), &attribs);
 
         texture->setTextureFromNativeTexture(QQuickWindowPrivate::get(window)->rhi,
                                              reinterpret_cast<quintptr>(attribs.image),
                                              attribs.layout, attribs.format,
-                                             QSize(handle->handle()->width, handle->handle()->height),
+                                             QSize(nativeHandle()->width, nativeHandle()->height),
                                              {}, {});
-        texture->setHasAlphaChannel(wlr_vk_texture_has_alpha(handle->handle()));
-        texture->setTextureSize(QSize(handle->handle()->width, handle->handle()->height));
+        texture->setHasAlphaChannel(wlr_vk_texture_has_alpha(nativeHandle()));
+        texture->setTextureSize(QSize(nativeHandle()->width, nativeHandle()->height));
     }
 #endif
 
     void updateImage() {
-        auto image = wlr_pixman_texture_get_image(handle->handle());
+        auto image = wlr_pixman_texture_get_image(nativeHandle());
         texture->setImage(WTools::fromPixmanImage(image));
     }
 
@@ -157,7 +162,7 @@ WTexture::Type WTexture::type() const
 QSize WTexture::size() const
 {
     W_DC(WTexture);
-    return QSize(d->handle->handle()->width, d->handle->handle()->height);
+    return QSize(d->nativeHandle()->width, d->nativeHandle()->height);
 }
 
 QSGTexture *WTexture::getSGTexture(QQuickWindow *window)

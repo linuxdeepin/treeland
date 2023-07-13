@@ -141,10 +141,10 @@ WServer::WServer(WServerPrivate &dd, QObject *parent)
 #endif
 }
 
-WDisplayHandle *WServer::handle() const
+QWDisplay *WServer::handle() const
 {
     W_DC(WServer);
-    return reinterpret_cast<WDisplayHandle*>(d->display);
+    return d->display;
 }
 
 void WServer::stop()

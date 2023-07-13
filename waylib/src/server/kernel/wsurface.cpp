@@ -36,24 +36,29 @@ WSurfacePrivate::~WSurfacePrivate()
 
 }
 
+wlr_surface *WSurfacePrivate::nativeHandle() const {
+    Q_ASSERT(handle);
+    return handle->handle();
+}
+
 void WSurfacePrivate::on_commit()
 {
     W_Q(WSurface);
 
-    if (Q_UNLIKELY(handle->handle()->current.width != handle->handle()->previous.width
-                   || handle->handle()->current.height != handle->handle()->previous.height)) {
-        Q_EMIT q->sizeChanged(QSize(handle->handle()->previous.width, handle->handle()->previous.height),
-                              QSize(handle->handle()->current.width, handle->handle()->current.height));
+    if (Q_UNLIKELY(nativeHandle()->current.width != nativeHandle()->previous.width
+                   || nativeHandle()->current.height != nativeHandle()->previous.height)) {
+        Q_EMIT q->sizeChanged(QSize(nativeHandle()->previous.width, nativeHandle()->previous.height),
+                              QSize(nativeHandle()->current.width, nativeHandle()->current.height));
     }
 
-    if (Q_UNLIKELY(handle->handle()->current.buffer_width != handle->handle()->previous.buffer_width
-                   || handle->handle()->current.buffer_height != handle->handle()->previous.buffer_height)) {
-        Q_EMIT q->bufferSizeChanged(QSize(handle->handle()->previous.buffer_width, handle->handle()->previous.buffer_height),
-                                    QSize(handle->handle()->current.buffer_width, handle->handle()->current.buffer_height));
+    if (Q_UNLIKELY(nativeHandle()->current.buffer_width != nativeHandle()->previous.buffer_width
+                   || nativeHandle()->current.buffer_height != nativeHandle()->previous.buffer_height)) {
+        Q_EMIT q->bufferSizeChanged(QSize(nativeHandle()->previous.buffer_width, nativeHandle()->previous.buffer_height),
+                                    QSize(nativeHandle()->current.buffer_width, nativeHandle()->current.buffer_height));
     }
 
-    if (Q_UNLIKELY(handle->handle()->current.scale != handle->handle()->previous.scale)) {
-        Q_EMIT q->bufferScaleChanged(handle->handle()->previous.scale, handle->handle()->current.scale);
+    if (Q_UNLIKELY(nativeHandle()->current.scale != nativeHandle()->previous.scale)) {
+        Q_EMIT q->bufferScaleChanged(nativeHandle()->previous.scale, nativeHandle()->current.scale);
     }
 }
 
@@ -64,8 +69,12 @@ void WSurfacePrivate::on_client_commit()
 
 void WSurfacePrivate::connect()
 {
-    QObject::connect(handle, &QWSurface::commit, this, &WSurfacePrivate::on_commit);
-    QObject::connect(handle, &QWSurface::client_commit, this, &WSurfacePrivate::on_client_commit);
+    QObject::connect(handle, &QWSurface::commit, q_func(), [this] {
+        on_commit();
+    });
+    QObject::connect(handle, &QWSurface::client_commit, q_func(), [this] {
+        on_client_commit();
+    });
 }
 
 void WSurfacePrivate::updateOutputs()
@@ -73,7 +82,7 @@ void WSurfacePrivate::updateOutputs()
     std::any oldOutputs = outputs;
     outputs.clear();
     wlr_surface_output *output;
-    wl_list_for_each(output, &handle->handle()->current_outputs, link) {
+    wl_list_for_each(output, &nativeHandle()->current_outputs, link) {
         outputs << WOutput::fromHandle(QWOutput::from(output->output));
     }
     W_Q(WSurface);
@@ -103,29 +112,29 @@ WSurface::WSurface(WSurfacePrivate &dd, QObject *parent)
 
 }
 
-void WSurface::setHandle(WSurfaceHandle *handle)
+void WSurface::setHandle(QWSurface *handle)
 {
     W_D(WSurface);
-    d->handle = reinterpret_cast<QW_NAMESPACE::QWSurface*>(handle);
+    d->handle = handle;
     d->handle->setData(this, this);
     d->connect();
 }
 
-WSurfaceHandle *WSurface::handle() const
+QWSurface *WSurface::handle() const
 {
     W_DC(WSurface);
-    return reinterpret_cast<WSurfaceHandle*>(d->handle);
+    return d->handle;
 }
 
-WSurfaceHandle *WSurface::inputTargetAt(QPointF &globalPos) const
+QWSurface *WSurface::inputTargetAt(QPointF &globalPos) const
 {
     Q_UNUSED(globalPos)
     return nullptr;
 }
 
-WSurface *WSurface::fromHandle(WSurfaceHandle *handle)
+WSurface *WSurface::fromHandle(QWSurface *handle)
 {
-    return reinterpret_cast<QWSurface*>(handle)->getData<WSurface>();
+    return handle->getData<WSurface>();
 }
 
 bool WSurface::inputRegionContains(const QPointF &localPos) const
@@ -148,26 +157,26 @@ WSurface *WSurface::parentSurface() const
 QSize WSurface::size() const
 {
     W_DC(WSurface);
-    return QSize(d->handle->handle()->current.width, d->handle->handle()->current.height);
+    return QSize(d->nativeHandle()->current.width, d->nativeHandle()->current.height);
 }
 
 QSize WSurface::bufferSize() const
 {
     W_DC(WSurface);
-    return QSize(d->handle->handle()->current.buffer_width,
-                 d->handle->handle()->current.buffer_height);
+    return QSize(d->nativeHandle()->current.buffer_width,
+                 d->nativeHandle()->current.buffer_height);
 }
 
 WLR::Transform WSurface::orientation() const
 {
     W_DC(WSurface);
-    return static_cast<WLR::Transform>(d->handle->handle()->current.transform);
+    return static_cast<WLR::Transform>(d->nativeHandle()->current.transform);
 }
 
 int WSurface::bufferScale() const
 {
     W_DC(WSurface);
-    return d->handle->handle()->current.scale;
+    return d->nativeHandle()->current.scale;
 }
 
 void WSurface::resize(const QSize &newSize)
@@ -190,7 +199,7 @@ QPointF WSurface::mapFromGlobal(const QPointF &globalPos) const
 QWTexture *WSurface::texture() const
 {
     W_DC(WSurface);
-    auto *textureHandle = wlr_surface_get_texture(d->handle->handle());
+    auto *textureHandle = wlr_surface_get_texture(d->nativeHandle());
     if (!textureHandle)
         return nullptr;
     return QWTexture::from(textureHandle);
@@ -209,14 +218,14 @@ void WSurface::notifyFrameDone()
     * prepare another one now if it likes. */
     struct timespec now;
     clock_gettime(CLOCK_MONOTONIC, &now);
-    wlr_surface_send_frame_done(d->handle->handle(), &now);
+    wlr_surface_send_frame_done(d->nativeHandle(), &now);
 }
 
 void WSurface::enterOutput(WOutput *output)
 {
     W_D(WSurface);
     Q_ASSERT(!d->outputs.contains(output));
-    wlr_surface_send_enter(d->handle->handle(), output->handle()->handle());
+    wlr_surface_send_enter(d->nativeHandle(), output->handle()->handle());
 
     connect(output, &WOutput::destroyed, this, [d] {
         d->updateOutputs();
@@ -229,7 +238,7 @@ void WSurface::leaveOutput(WOutput *output)
 {
     W_D(WSurface);
     Q_ASSERT(d->outputs.contains(output));
-    wlr_surface_send_leave(d->handle->handle(), output->handle()->handle());
+    wlr_surface_send_leave(d->nativeHandle(), output->handle()->handle());
 
     connect(output, &WOutput::destroyed, this, [d] {
         d->updateOutputs();

@@ -43,7 +43,7 @@ void WXdgShellPrivate::on_new_xdg_surface(wlr_xdg_surface *wlr_surface)
     auto server = q_func()->server();
     // TODO: QWXdgSurface::from(wlr_surface)
     QWXdgSurface *xdgSurface = QWXdgSurface::from(QWSurface::from(wlr_surface->surface));
-    auto surface = new WXdgSurface(reinterpret_cast<WXdgSurfaceHandle*>(xdgSurface), server);
+    auto surface = new WXdgSurface(xdgSurface, server);
     surface->setParent(server);
     Q_ASSERT(surface->parent() == server);
     QObject::connect(xdgSurface, &QWXdgSurface::beforeDestroy, server->slotOwner(), [this] (QObject *data) {
@@ -86,7 +86,7 @@ void WXdgShell::create(WServer *server)
     W_D(WXdgShell);
     // free follow display
 
-    auto xdg_shell = QWXdgShell::create(server->nativeInterface<QWDisplay>(), 2);
+    auto xdg_shell = QWXdgShell::create(server->handle(), 2);
     QObject::connect(xdg_shell, &QWXdgShell::newSurface, server->slotOwner(), [this] (wlr_xdg_surface *surface) {
         d_func()->on_new_xdg_surface(surface);
     });

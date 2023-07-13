@@ -10,8 +10,6 @@
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
 class WOutput;
-class WRendererHandle;
-class WAllocatorHandle;
 class WBackendPrivate;
 class WBackend : public WServerInterface, public WObject
 {

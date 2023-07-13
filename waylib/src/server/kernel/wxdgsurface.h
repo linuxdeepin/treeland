@@ -4,10 +4,15 @@
 #pragma once
 
 #include <WSurface>
+#include <qwglobal.h>
+
+QW_BEGIN_NAMESPACE
+class QWSurface;
+class QWXdgSurface;
+QW_END_NAMESPACE
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
-class WXdgSurfaceHandle;
 class WXdgSurfacePrivate;
 class WAYLIB_SERVER_EXPORT WXdgSurface : public WSurface
 {
@@ -15,7 +20,7 @@ class WAYLIB_SERVER_EXPORT WXdgSurface : public WSurface
     W_DECLARE_PRIVATE(WXdgSurface)
 
 public:
-    explicit WXdgSurface(WXdgSurfaceHandle *handle, WServer *server, QObject *parent = nullptr);
+    explicit WXdgSurface(QW_NAMESPACE::QWXdgSurface *handle, WServer *server, QObject *parent = nullptr);
     ~WXdgSurface();
 
     static Type *toplevelType();
@@ -24,19 +29,10 @@ public:
     Type *type() const override;
     bool testAttribute(Attribute attr) const override;
 
-    WXdgSurfaceHandle *handle() const;
-    WSurfaceHandle *inputTargetAt(QPointF &localPos) const override;
+    QW_NAMESPACE::QWXdgSurface *handle() const;
+    QW_NAMESPACE::QWSurface *inputTargetAt(QPointF &localPos) const override;
 
-    template<typename DNativeInterface>
-    inline DNativeInterface *nativeInterface() const {
-        return reinterpret_cast<DNativeInterface*>(handle());
-    }
-
-    static WXdgSurface *fromHandle(WXdgSurfaceHandle *handle);
-    template<typename DNativeInterface>
-    inline static WXdgSurface *fromHandle(DNativeInterface *handle) {
-        return fromHandle(reinterpret_cast<WXdgSurfaceHandle*>(handle));
-    }
+    static WXdgSurface *fromHandle(QW_NAMESPACE::QWXdgSurface *handle);
 
     bool inputRegionContains(const QPointF &localPos) const override;
     WSurface *parentSurface() const override;

@@ -80,15 +80,15 @@ void XdgShell::surfaceAdded(WXdgSurface *surface)
         Q_EMIT qq->requestUnmap(surface);
     });
 
-    if (auto toplevel = surface->nativeInterface<QWXdgSurface>()->topToplevel()) {
+    if (auto toplevel = surface->handle()->topToplevel()) {
         QObject::connect(toplevel, &QWXdgToplevel::requestMove, qq, [this] (wlr_xdg_toplevel_move_event *event) {
-            auto surface = WXdgSurface::fromHandle<QWXdgSurface>(QWXdgToplevel::from(event->toplevel));
-            auto seat = WSeat::fromHandle<QWSeat>(QWSeat::from(event->seat->seat));
+            auto surface = WXdgSurface::fromHandle(QWXdgToplevel::from(event->toplevel));
+            auto seat = WSeat::fromHandle(QWSeat::from(event->seat->seat));
             Q_EMIT qq->requestMove(surface, seat, event->serial);
         });
         QObject::connect(toplevel, &QWXdgToplevel::requestResize, qq, [this] (wlr_xdg_toplevel_resize_event *event) {
-            auto surface = WXdgSurface::fromHandle<QWXdgSurface>(QWXdgToplevel::from(event->toplevel));
-            auto seat = WSeat::fromHandle<QWSeat>(QWSeat::from(event->seat->seat));
+            auto surface = WXdgSurface::fromHandle(QWXdgToplevel::from(event->toplevel));
+            auto seat = WSeat::fromHandle(QWSeat::from(event->seat->seat));
             Q_EMIT qq->requestResize(surface, seat, toQtEdge(event->edges), event->serial);
         });
         QObject::connect(toplevel, &QWXdgToplevel::requestMaximize, qq, [this, surface] (bool maximize) {
@@ -106,8 +106,8 @@ void XdgShell::surfaceAdded(WXdgSurface *surface)
             }
         });
         QObject::connect(toplevel, &QWXdgToplevel::requestShowWindowMenu, qq, [this] (wlr_xdg_toplevel_show_window_menu_event *event) {
-            auto surface = WXdgSurface::fromHandle<QWXdgSurface>(QWXdgToplevel::from(event->toplevel));
-            auto seat = WSeat::fromHandle<QWSeat>(QWSeat::from(event->seat->seat));
+            auto surface = WXdgSurface::fromHandle(QWXdgToplevel::from(event->toplevel));
+            auto seat = WSeat::fromHandle(QWSeat::from(event->seat->seat));
             Q_EMIT qq->requestShowWindowMenu(surface, seat, QPoint(event->x, event->y), event->serial);
         });
     }

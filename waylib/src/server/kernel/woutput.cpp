@@ -63,13 +63,18 @@ public:
             layout->remove(q_func());
     }
 
+    inline wlr_output *nativeHandle() const {
+        Q_ASSERT(handle);
+        return handle->handle();
+    };
+
     inline QSize size() const {
         Q_ASSERT(handle);
-        return QSize(handle->handle()->width, handle->handle()->height);
+        return QSize(nativeHandle()->width, nativeHandle()->height);
     }
 
     inline WOutput::Transform orientation() const {
-        return static_cast<WOutput::Transform>(handle->handle()->transform);
+        return static_cast<WOutput::Transform>(nativeHandle()->transform);
     }
 
     W_DECLARE_PUBLIC(WOutput)
@@ -110,19 +115,19 @@ WServer *WOutput::server() const
 QWRenderer *WOutput::renderer() const
 {
     W_DC(WOutput);
-    return QWRenderer::from(d->handle->handle()->renderer);
+    return QWRenderer::from(d->nativeHandle()->renderer);
 }
 
 QWSwapchain *WOutput::swapchain() const
 {
     W_DC(WOutput);
-    return QWSwapchain::from(d->handle->handle()->swapchain);
+    return QWSwapchain::from(d->nativeHandle()->swapchain);
 }
 
 QWAllocator *WOutput::allocator() const
 {
     W_DC(WOutput);
-    return QWAllocator::from(d->handle->handle()->allocator);
+    return QWAllocator::from(d->nativeHandle()->allocator);
 }
 
 QWOutput *WOutput::handle() const
@@ -222,7 +227,7 @@ float WOutput::scale() const
 {
     W_DC(WOutput);
 
-    return d->handle->handle()->scale;
+    return d->nativeHandle()->scale;
 }
 
 void WOutput::attach(QQuickWindow *window)
