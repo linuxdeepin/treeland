@@ -6,6 +6,7 @@
 #include "woutput.h"
 
 #include <qwoutput.h>
+#include <QRect>
 
 QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
@@ -64,6 +65,21 @@ void WOutputLayout::remove(WOutput *output)
     output->setLayout(nullptr);
 
     Q_EMIT outputRemoved(output);
+}
+
+QList<WOutput *> WOutputLayout::getIntersectedOutputs(const QRect &geometry) const
+{
+    Q_D(const WOutputLayout);
+
+    QList<WOutput*> outputs;
+
+    for (auto o : d->outputs) {
+        const QRect og = getBox(o->handle());
+        if (og.intersects(geometry))
+            outputs << o;
+    }
+
+    return outputs;
 }
 
 WAYLIB_SERVER_END_NAMESPACE

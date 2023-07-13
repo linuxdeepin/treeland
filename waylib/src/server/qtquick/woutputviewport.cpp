@@ -41,9 +41,9 @@ public:
         qwoutput->enable(q->isVisible());
         qwoutput->commit();
 
-        outputWindow()->attachOutput(q);
+        outputWindow()->attach(q);
 
-        QObject::connect(output, &WOutput::transformedSizeChanged, q, [this] {
+        QObject::connect(output, &WOutput::modeChanged, q, [this] {
             updateImplicitSize();
         });
 
@@ -51,10 +51,10 @@ public:
     }
 
     qreal getImplicitWidth() const override {
-        return output->transformedSize().width() / devicePixelRatio;
+        return output->size().width() / devicePixelRatio;
     }
     qreal getImplicitHeight() const override {
-        return output->transformedSize().height() / devicePixelRatio;
+        return output->size().height() / devicePixelRatio;
     }
 
     void updateImplicitSize() {
@@ -72,30 +72,23 @@ public:
             output->handle()->enable(visible);
     }
 
-    bool transformChanged(QQuickItem *transformedItem) override {
-        Q_EMIT q_func()->maybeGlobalPositionChanged();
-        return QQuickItemPrivate::transformChanged(transformedItem);
-    }
-
     W_DECLARE_PUBLIC(WOutputViewport)
     WOutput *output = nullptr;
     WQuickSeat *seat = nullptr;
     qreal devicePixelRatio = 1.0;
-    QMetaObject::Connection windowXChangeConnection;
-    QMetaObject::Connection windowYChangeConnection;
 };
 
 WOutputViewport::WOutputViewport(QQuickItem *parent)
     : QQuickItem(*new WOutputViewportPrivate(), parent)
 {
-    setFlag(ItemObservesViewport);
+
 }
 
 WOutputViewport::~WOutputViewport()
 {
     W_D(WOutputViewport);
     if (d->componentComplete && d->output && d->window)
-        d->outputWindow()->detachOutput(this);
+        d->outputWindow()->detach(this);
 }
 
 WOutput *WOutputViewport::output() const
@@ -112,6 +105,7 @@ void WOutputViewport::setOutput(WOutput *newOutput)
 
     if (d->componentComplete) {
         if (newOutput) {
+            d->output = newOutput;
             d->initForOutput();
             if (d->seat)
                 d->seat->addOutput(d->output);
@@ -165,13 +159,6 @@ void WOutputViewport::setDevicePixelRatio(qreal newDevicePixelRatio)
     Q_EMIT devicePixelRatioChanged();
 }
 
-const QPointF WOutputViewport::globalPosition() const
-{
-    if (!parentItem())
-        return position();
-    return parentItem()->mapToGlobal(position());
-}
-
 void WOutputViewport::classBegin()
 {
     W_D(WOutputViewport);
@@ -189,13 +176,6 @@ void WOutputViewport::componentComplete()
             d->seat->addOutput(d->output);
     }
 
-    if (d->window) {
-        d->windowXChangeConnection = connect(d->window, &QQuickWindow::xChanged,
-                                             this, &WOutputViewport::maybeGlobalPositionChanged);
-        d->windowYChangeConnection = connect(d->window, &QQuickWindow::yChanged,
-                                             this, &WOutputViewport::maybeGlobalPositionChanged);
-    }
-
     QQuickItem::componentComplete();
 }
 
@@ -205,39 +185,6 @@ void WOutputViewport::releaseResources()
     if (d->seat)
         d->seat->removeOutput(d_func()->output);
     QQuickItem::releaseResources();
-}
-
-void WOutputViewport::itemChange(ItemChange change, const ItemChangeData &data)
-{
-    if (change == ItemChange::ItemParentHasChanged) {
-        Q_EMIT maybeGlobalPositionChanged();
-    } else if (change == ItemChange::ItemSceneChange) {
-        Q_D(WOutputViewport);
-
-        if (d->windowXChangeConnection)
-            disconnect(d->windowXChangeConnection);
-        if (d->windowYChangeConnection)
-            disconnect(d->windowYChangeConnection);
-
-        if (data.window) {
-            d->windowXChangeConnection = connect(data.window, &QQuickWindow::xChanged,
-                                                 this, &WOutputViewport::maybeGlobalPositionChanged);
-            d->windowYChangeConnection = connect(data.window, &QQuickWindow::yChanged,
-                                                 this, &WOutputViewport::maybeGlobalPositionChanged);
-        }
-
-        Q_EMIT maybeGlobalPositionChanged();
-    }
-
-    QQuickItem::itemChange(change, data);
-}
-
-void WOutputViewport::geometryChange(const QRectF &newGeometry, const QRectF &oldGeometry)
-{
-    if (newGeometry.topLeft() != oldGeometry.topLeft())
-        Q_EMIT maybeGlobalPositionChanged();
-
-    QQuickItem::geometryChange(newGeometry, oldGeometry);
 }
 
 WAYLIB_SERVER_END_NAMESPACE

@@ -16,14 +16,12 @@ WAYLIB_SERVER_BEGIN_NAMESPACE
 
 class WWaylandCompositor;
 class WOutputViewport;
-class WQuickOutputLayout;
 class WOutputRenderWindowPrivate;
 class WAYLIB_SERVER_EXPORT WOutputRenderWindow : public QQuickWindow, public QQmlParserStatus
 {
     Q_OBJECT
     Q_DECLARE_PRIVATE(WOutputRenderWindow)
     Q_PROPERTY(WWaylandCompositor *compositor READ compositor WRITE setCompositor REQUIRED)
-    Q_PROPERTY(WQuickOutputLayout* layout READ layout WRITE setLayout REQUIRED)
     QML_NAMED_ELEMENT(OutputRenderWindow)
     Q_INTERFACES(QQmlParserStatus)
 
@@ -40,24 +38,16 @@ public:
 
     QQuickRenderControl *renderControl() const;
 
-    void attachOutput(WOutputViewport *output);
-    void detachOutput(WOutputViewport *output);
-    QList<WOutputViewport*> getIntersectedOutputs(const QRectF &geometry) const;
-    QPointF mapToNonScaleGlobal(const QPointF &pos) const;
+    void attach(WOutputViewport *output);
+    void detach(WOutputViewport *output);
 
     WWaylandCompositor *compositor() const;
     void setCompositor(WWaylandCompositor *newRenderer);
-
-    WQuickOutputLayout *layout() const;
-    void setLayout(WQuickOutputLayout *layout);
 
 public Q_SLOTS:
     void render();
     void scheduleRender();
     void update();
-
-Q_SIGNALS:
-    void outputLayoutChanged();
 
 private:
     void classBegin() override;

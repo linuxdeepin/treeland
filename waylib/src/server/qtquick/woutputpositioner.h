@@ -3,45 +3,49 @@
 
 #pragma once
 
-#include <wglobal.h>
+#include <wquickobserver.h>
 
 #include <QQuickItem>
+
+Q_MOC_INCLUDE(<wquickoutputlayout.h>)
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
 class WOutput;
-class WQuickSeat;
-class WOutputViewportPrivate;
-class WAYLIB_SERVER_EXPORT WOutputViewport : public QQuickItem
+class WQuickOutputLayout;
+class WOutputPositionerPrivate;
+class WAYLIB_SERVER_EXPORT WOutputPositioner : public WQuickObserver, public WObject
 {
     Q_OBJECT
-    Q_DECLARE_PRIVATE(WOutputViewport)
+    W_DECLARE_PRIVATE(WOutputPositioner)
     Q_PROPERTY(WOutput* output READ output WRITE setOutput REQUIRED)
-    Q_PROPERTY(WQuickSeat* seat READ seat WRITE setSeat NOTIFY seatChanged)
+    Q_PROPERTY(WQuickOutputLayout* layout READ layout WRITE setLayout NOTIFY layoutChanged)
     Q_PROPERTY(qreal devicePixelRatio READ devicePixelRatio WRITE setDevicePixelRatio NOTIFY devicePixelRatioChanged)
-    QML_NAMED_ELEMENT(OutputViewport)
+    QML_NAMED_ELEMENT(OutputPositioner)
 
 public:
-    explicit WOutputViewport(QQuickItem *parent = nullptr);
-    ~WOutputViewport();
+    explicit WOutputPositioner(QQuickItem *parent = nullptr);
+    ~WOutputPositioner();
 
     WOutput *output() const;
     void setOutput(WOutput *newOutput);
 
-    WQuickSeat *seat() const;
-    void setSeat(WQuickSeat *newSeat);
+    WQuickOutputLayout *layout() const;
+    void setLayout(WQuickOutputLayout *layout);
 
     qreal devicePixelRatio() const;
     void setDevicePixelRatio(qreal newDevicePixelRatio);
 
 Q_SIGNALS:
-    void seatChanged();
+    void layoutChanged();
     void devicePixelRatioChanged();
 
 private:
-    void classBegin() override;
     void componentComplete() override;
     void releaseResources() override;
+
+    qreal getImplicitWidth() const override;
+    qreal getImplicitHeight() const override;
 };
 
 WAYLIB_SERVER_END_NAMESPACE

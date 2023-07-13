@@ -8,30 +8,31 @@
 #include <QObject>
 #include <QQmlEngine>
 
-Q_MOC_INCLUDE("woutputviewport.h")
+Q_MOC_INCLUDE("woutputpositioner.h")
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
-class WOutputViewport;
+class WOutputPositioner;
 class WQuickOutputLayoutPrivate;
 class WAYLIB_SERVER_EXPORT WQuickOutputLayout : public WOutputLayout
 {
     Q_OBJECT
     W_DECLARE_PRIVATE(WQuickOutputLayout)
     QML_NAMED_ELEMENT(OutputLayout)
-    Q_PROPERTY(QList<WAYLIB_SERVER_NAMESPACE::WOutputViewport*> outputs READ outputs NOTIFY outputsChanged)
+    Q_PROPERTY(QList<WOutputPositioner*> outputs READ outputs NOTIFY outputsChanged)
 
 public:
     explicit WQuickOutputLayout(QObject *parent = nullptr);
 
-    QList<WOutputViewport*> outputs() const;
+    QList<WOutputPositioner*> outputs() const;
 
 public Q_SLOTS:
-    void add(WAYLIB_SERVER_NAMESPACE::WOutputViewport *output);
-    void remove(WAYLIB_SERVER_NAMESPACE::WOutputViewport *output);
+    void add(WOutputPositioner *output);
+    void remove(WOutputPositioner *output);
 
 Q_SIGNALS:
     void outputsChanged();
+    void maybeLayoutChanged();
 
 private:
     using WOutputLayout::add;

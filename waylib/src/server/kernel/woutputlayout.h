@@ -24,6 +24,8 @@ public:
     void move(WOutput *output, const QPoint &pos);
     void remove(WOutput *output);
 
+    QList<WOutput*> getIntersectedOutputs(const QRect &geometry) const;
+
 Q_SIGNALS:
     void outputAdded(WOutput *output);
     void outputRemoved(WOutput *output);

@@ -21,7 +21,7 @@ Item {
                 if (outputModel.count > 0)
                     output.scale = 2
 
-                outputModel.append({waylandOutput: output})
+                outputModel.append({waylandOutput: output, outputLayout: layout})
             }
             onOutputRemoved: function(output) {
 
@@ -80,30 +80,74 @@ Item {
         property ListModel surfaceModel
 
         compositor: compositor
-        layout: layout
+        width: outputRowLayout.implicitWidth + outputRowLayout.x
+        height: outputRowLayout.implicitHeight + outputRowLayout.y
 
         Row {
+            id: outputRowLayout
+
             Repeater {
                 model: ListModel {
                     id: outputModel
                 }
 
-                Item {
+                OutputPositioner {
                     required property WaylandOutput waylandOutput
+                    required property OutputLayout outputLayout
 
-                    implicitWidth: outputWindow.implicitWidth
-                    implicitHeight: outputWindow.implicitHeight
+                    output: waylandOutput
+                    devicePixelRatio: waylandOutput.scale
+                    layout: outputLayout
 
                     OutputViewport {
-                        id: outputWindow
+                        id: outputViewport
 
                         output: waylandOutput
-                        devicePixelRatio: waylandOutput.scale
+                        devicePixelRatio: parent.devicePixelRatio
+                        anchors.centerIn: parent
+
+                        RotationAnimation {
+                            id: rotationAnimator
+
+                            target: outputViewport
+                            duration: 200
+                            alwaysRunToEnd: true
+                        }
+
+                        Timer {
+                            id: setTransform
+
+                            property var scheduleTransform
+                            onTriggered: waylandOutput.orientation = scheduleTransform
+                            interval: rotationAnimator.duration / 2
+                        }
+
+                        function rotationOutput(orientation) {
+                            setTransform.scheduleTransform = orientation
+                            setTransform.start()
+
+                            switch(orientation) {
+                            case WaylandOutput.R90:
+                                rotationAnimator.to = -90
+                                break
+                            case WaylandOutput.R180:
+                                rotationAnimator.to = 180
+                                break
+                            case WaylandOutput.R270:
+                                rotationAnimator.to = 90
+                                break
+                            default:
+                                rotationAnimator.to = 0
+                                break
+                            }
+
+                            rotationAnimator.from = rotation
+                            rotationAnimator.start()
+                        }
                     }
 
                     Image {
                         id: background
-                        sourceSize: Qt.size(parent.width * waylandOutput.scale, parent.height * waylandOutput.scale)
                         source: "file:///usr/share/backgrounds/deepin/desktop.jpg"
                         fillMode: Image.PreserveAspectCrop
                         asynchronous: true
@@ -122,35 +166,35 @@ Item {
                         Button {
                             text: "1X"
                             onClicked: {
-                                outputWindow.output.scale = 1
+                                waylandOutput.scale = 1
                             }
                         }
 
                         Button {
                             text: "1.5X"
                             onClicked: {
-                                outputWindow.output.scale = 1.5
+                                waylandOutput.scale = 1.5
                             }
                         }
 
                         Button {
                             text: "Normal"
                             onClicked: {
-                                outputWindow.output.orientation = Output.Normal
+                                outputViewport.rotationOutput(WaylandOutput.Normal)
                             }
                         }
 
                         Button {
                             text: "R90"
                             onClicked: {
-                                outputWindow.output.orientation = Output.R90
+                                outputViewport.rotationOutput(WaylandOutput.R90)
                             }
                         }
 
                         Button {
                             text: "R270"
                             onClicked: {
-                                outputWindow.output.orientation = Output.R270
+                                outputViewport.rotationOutput(WaylandOutput.R270)
                             }
                         }
 

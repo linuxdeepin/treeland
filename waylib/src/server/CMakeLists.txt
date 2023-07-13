@@ -44,9 +44,11 @@ set(QTQUICK_SOURCES
     qtquick/wquickwaylandserver.cpp
     qtquick/woutputrenderwindow.cpp
     qtquick/woutputviewport.cpp
+    qtquick/woutputpositioner.cpp
     qtquick/woutputlayoutitem.cpp
     qtquick/wquickoutputlayout.cpp
     qtquick/wquickcursor.cpp
+    qtquick/wquickobserver.cpp
 
     qtquick/private/wquickxdgshell.cpp
     qtquick/private/wquickbackend.cpp
@@ -105,7 +107,9 @@ set(HEADERS
     qtquick/wquickwaylandserver.h
     qtquick/woutputrenderwindow.h
     qtquick/woutputviewport.h
+    qtquick/woutputpositioner.h
     qtquick/wquickcursor.h
+    qtquick/wquickobserver.h
 
     utils/wtools.h
     utils/wthreadutils.h

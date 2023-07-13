@@ -6,10 +6,8 @@
 #include "woutputhelper.h"
 #include "wserver.h"
 #include "wbackend.h"
-#include "woutputlayout.h"
 #include "woutputviewport.h"
 #include "wquickbackend_p.h"
-#include "wquickoutputlayout.h"
 #include "wwaylandcompositor_p.h"
 
 #include "platformplugin/qwlrootsintegration.h"
@@ -18,7 +16,6 @@
 #include "platformplugin/types.h"
 
 #include <qwoutput.h>
-#include <qwoutputlayout.h>
 #include <qwrenderer.h>
 #include <qwbackend.h>
 #include <qwallocator.h>
@@ -33,7 +30,6 @@
 #include <private/qrhi_p.h>
 #include <private/qsgrhisupport_p.h>
 #include <private/qquicktranslate_p.h>
-#include <private/qquickitemchangelistener_p.h>
 #include <private/qquickitem_p.h>
 #include <private/qquickanimatorcontroller_p.h>
 #include <private/qsgabstractrenderer_p.h>
@@ -141,7 +137,7 @@ bool createRhiRenderTarget(QRhi *rhi, const QQuickRenderTarget &source, QQuickWi
 }
 // Copy end
 
-class OutputHelper : public WOutputHelper, public QQuickItemChangeListener
+class OutputHelper : public WOutputHelper
 {
 public:
     OutputHelper(WOutputViewport *output, WOutputRenderWindow *parent)
@@ -152,14 +148,10 @@ public:
     }
     ~OutputHelper()
     {
-        if (m_output)
-            QQuickItemPrivate::get(m_output)->removeItemChangeListener(this, QQuickItemPrivate::Geometry);
-
         resetWindowRenderTarget();
     }
 
     inline void init() {
-        QQuickItemPrivate::get(output())->addItemChangeListener(this, QQuickItemPrivate::Geometry);
         connect(this, &OutputHelper::requestRender, renderWindow(), &WOutputRenderWindow::render);
         connect(this, &OutputHelper::damaged, renderWindow(), &WOutputRenderWindow::scheduleRender);
         connect(output()->output(), &WOutput::modeChanged, this, [this] {
@@ -200,8 +192,6 @@ public:
     }
 
     QQuickRenderTarget ensureRenderTarget();
-
-    void itemGeometryChanged(QQuickItem *, QQuickGeometryChange, const QRectF & /* oldGeometry */) override;
     void updateSceneDPR();
 
 private:
@@ -332,7 +322,6 @@ public:
     void init();
     void init(OutputHelper *helper);
     bool initRCWithRhi();
-    void updateWindowSize();
     void updateSceneDPR();
 
     void doRender();
@@ -343,16 +332,11 @@ public:
         QCoreApplication::postEvent(q_func(), new QEvent(doRenderEventType));
     }
 
-    void insertOutputToOrderList(WOutputViewport *output);
-
     Q_DECLARE_PUBLIC(WOutputRenderWindow)
 
     WWaylandCompositor *compositor = nullptr;
 
-    WQuickOutputLayout *layout = nullptr;
     QList<OutputHelper*> outputs;
-    QList<WOutputViewport*> xOrderOutputs;
-    QList<WOutputViewport*> yOrderOutputs;
 
     std::unique_ptr<RenderContextProxy> renderContextProxy;
     QOpenGLContext *glContext = nullptr;
@@ -382,15 +366,6 @@ QQuickRenderTarget OutputHelper::ensureRenderTarget()
     return renderTarget;
 }
 
-void OutputHelper::itemGeometryChanged(QQuickItem *, QQuickGeometryChange, const QRectF &)
-{
-    auto rwd = WOutputRenderWindowPrivate::get(renderWindow());
-    rwd->insertOutputToOrderList(m_output);
-    rwd->updateWindowSize();
-
-    QMetaObject::invokeMethod(renderWindow(), &WOutputRenderWindow::outputLayoutChanged, Qt::QueuedConnection);
-}
-
 void OutputHelper::updateSceneDPR()
 {
     WOutputRenderWindowPrivate::get(renderWindow())->updateSceneDPR();
@@ -417,9 +392,6 @@ void WOutputRenderWindowPrivate::init()
 
     for (auto output : outputs)
         init(output);
-    Q_ASSERT(xOrderOutputs.count() == outputs.count());
-    Q_ASSERT(yOrderOutputs.count() == outputs.count());
-    updateWindowSize();
     updateSceneDPR();
 
     /* Ensure call the "requestRender" on later via Qt::QueuedConnection, if not will crash
@@ -442,17 +414,12 @@ void WOutputRenderWindowPrivate::init()
                      q, &WOutputRenderWindow::update);
     QObject::connect(rc(), &QQuickRenderControl::sceneChanged,
                      q, &WOutputRenderWindow::update);
-
-    Q_EMIT q->outputLayoutChanged();
 }
 
 void WOutputRenderWindowPrivate::init(OutputHelper *helper)
 {
     auto qwoutput = helper->qwoutput();
     qwoutput->initRender(compositor->allocator(), compositor->renderer());
-    insertOutputToOrderList(helper->output());
-    if (layout)
-        layout->add(helper->output());
 
     W_Q(WOutputRenderWindow);
     QMetaObject::invokeMethod(q, &WOutputRenderWindow::scheduleRender, Qt::QueuedConnection);
@@ -534,21 +501,6 @@ bool WOutputRenderWindowPrivate::initRCWithRhi()
     return true;
 }
 
-void WOutputRenderWindowPrivate::updateWindowSize()
-{
-    QPointF maxPos;
-
-    for (auto o : outputs) {
-        const QRectF og(o->output()->position(), o->output()->size());
-        if (og.right() > maxPos.x())
-            maxPos.rx() = og.right();
-        if (og.bottom() > maxPos.y())
-            maxPos.ry() = og.bottom();
-    }
-
-    q_func()->resize(qRound(maxPos.x()), qRound(maxPos.y()));
-}
-
 void WOutputRenderWindowPrivate::updateSceneDPR()
 {
     if (outputs.isEmpty())
@@ -584,6 +536,9 @@ void WOutputRenderWindowPrivate::doRender()
 
         {
             q_func()->setRenderTarget(helper->ensureRenderTarget());
+            // TODO: new render thread
+            rc()->beginFrame();
+            rc()->sync();
 
             bool flipY = rhi ? !rhi->isYUpInNDC() : false;
             if (!customRenderTarget.isNull() && customRenderTarget.mirrorVertically())
@@ -591,7 +546,7 @@ void WOutputRenderWindowPrivate::doRender()
 
             Q_ASSERT(helper->output()->output()->scale() <= q_func()->devicePixelRatio());
             const qreal devicePixelRatio = helper->output()->devicePixelRatio();
-            const QSize pixelSize = helper->output()->output()->transformedSize();
+            const QSize pixelSize = helper->output()->output()->size();
 
             renderContextProxy->dpr = devicePixelRatio;
             renderContextProxy->deviceRect = QRect(QPoint(0, 0), pixelSize);
@@ -605,8 +560,8 @@ void WOutputRenderWindowPrivate::doRender()
                          flipY ? rect.y() + rect.height() : rect.y(),
                          1,
                          -1);
-            auto t = QQuickItemPrivate::get(helper->output())->itemToWindowTransform().inverted();
-            renderContextProxy->projectionMatrix = matrix * t;
+            auto viewportMatrix = QQuickItemPrivate::get(helper->output())->itemNode()->matrix().inverted();
+            renderContextProxy->projectionMatrix = matrix * viewportMatrix;
 
             if (flipY) {
                 matrix.setToIdentity();
@@ -617,11 +572,7 @@ void WOutputRenderWindowPrivate::doRender()
                              1,
                              -1);
             }
-            renderContextProxy->projectionMatrixWithNativeNDC = matrix;
-
-            // TODO: new render thread
-            rc()->beginFrame();
-            rc()->sync();
+            renderContextProxy->projectionMatrixWithNativeNDC = matrix * viewportMatrix;
 
             // TODO: use scissor with the damage regions for render.
             rc()->render();
@@ -632,44 +583,6 @@ void WOutputRenderWindowPrivate::doRender()
             helper->resetState();
         helper->doneCurrent(glContext);
     }
-}
-
-void WOutputRenderWindowPrivate::insertOutputToOrderList(WOutputViewport *output)
-{
-    bool xFinished = false;
-    bool yFinished = false;
-
-    for (int i = 0, j = 0; i < xOrderOutputs.count() || j < yOrderOutputs.count(); ++i, ++j) {
-        if (i < xOrderOutputs.count()) {
-            auto o = xOrderOutputs.at(i);
-            if (o == output) {
-                xOrderOutputs.removeAt(i);
-                --i;
-            } else if (output->x() < o->x()) {
-                xOrderOutputs.insert(i, output);
-                ++i;
-                xFinished = true;
-            }
-        }
-
-        if (j < yOrderOutputs.count()) {
-            auto o = yOrderOutputs.at(j);
-            if (o == output) {
-                yOrderOutputs.removeAt(j);
-                --j;
-            } else if (output->y() < o->y()) {
-                xOrderOutputs.insert(j, output);
-                ++j;
-                yFinished = true;
-            }
-        }
-    }
-
-    if (!xFinished)
-        xOrderOutputs.append(output);
-
-    if (!yFinished)
-        yOrderOutputs.append(output);
 }
 
 // TODO: Support QWindow::setCursor
@@ -693,7 +606,7 @@ QQuickRenderControl *WOutputRenderWindow::renderControl() const
     return wd->renderControl;
 }
 
-void WOutputRenderWindow::attachOutput(WOutputViewport *output)
+void WOutputRenderWindow::attach(WOutputViewport *output)
 {
     Q_D(WOutputRenderWindow);
 
@@ -708,17 +621,12 @@ void WOutputRenderWindow::attachOutput(WOutputViewport *output)
     if (!d->isInitialized())
         return;
 
-    d->updateWindowSize();
     d->updateSceneDPR();
     d->init(d->outputs.last());
-    Q_ASSERT(d->xOrderOutputs.count() == d->outputs.count());
-    Q_ASSERT(d->yOrderOutputs.count() == d->outputs.count());
     d->scheduleDoRender();
-
-    Q_EMIT outputLayoutChanged();
 }
 
-void WOutputRenderWindow::detachOutput(WOutputViewport *output)
+void WOutputRenderWindow::detach(WOutputViewport *output)
 {
     Q_D(WOutputRenderWindow);
 
@@ -733,82 +641,7 @@ void WOutputRenderWindow::detachOutput(WOutputViewport *output)
     Q_ASSERT(helper);
     helper->deleteLater();
 
-    d->xOrderOutputs.removeOne(output);
-    d->yOrderOutputs.removeOne(output);
-    Q_ASSERT(d->xOrderOutputs.size() == d->outputs.size());
-    Q_ASSERT(d->yOrderOutputs.size() == d->outputs.size());
-
-    d->updateWindowSize();
     d->updateSceneDPR();
-
-    if (d->layout) {
-        d->layout->remove(output);
-        Q_EMIT outputLayoutChanged();
-    }
-}
-
-QList<WOutputViewport*> WOutputRenderWindow::getIntersectedOutputs(const QRectF &geometry) const
-{
-    Q_D(const WOutputRenderWindow);
-
-    QList<WOutputViewport*> outputs;
-
-    for (auto helper : d->outputs) {
-        auto o = helper->output();
-        const QRectF og(o->position(), o->size());
-        if (og.intersects(geometry))
-            outputs << o;
-    }
-
-    return outputs;
-}
-
-QPointF WOutputRenderWindow::mapToNonScaleGlobal(const QPointF &pos) const
-{
-    Q_D(const WOutputRenderWindow);
-
-    Q_ASSERT(d->outputs.size() == d->xOrderOutputs.size() && d->outputs.size() == d->yOrderOutputs.size());
-    // ###: ensure the window position is global
-    const QPointF windowPos = position();
-
-    if (pos.isNull())
-        return windowPos;
-
-    QPointF globalPos;
-    QPointF tmp;
-
-    for (int i = 0; i < d->outputs.size(); ++i) {
-        if (tmp.x() < pos.x()) {
-            auto o = d->xOrderOutputs.at(i);
-
-            if (tmp.x() < o->x()) {
-                globalPos.rx() += (o->x() - tmp.x());
-                tmp.rx() = o->x();
-            } else if (tmp.x() < o->x() + o->width()) {
-                const qreal increment = qMin(pos.x(), o->x() + o->width()) - tmp.x();
-                Q_ASSERT(increment > 0);
-                globalPos.rx() += increment * o->scale();
-                tmp.rx() = o->x() + o->width();
-            }
-        }
-
-
-        if (tmp.y() < pos.y()) {
-            auto o = d->yOrderOutputs.at(i);
-
-            if (tmp.y() < o->y()) {
-                globalPos.ry() += (o->y() - tmp.y());
-                tmp.ry() = o->y();
-            } else if (tmp.y() < o->y() + o->height()) {
-                const qreal increment = qMin(pos.y(), o->y() + o->height()) - tmp.y();
-                Q_ASSERT(increment > 0);
-                globalPos.ry() += increment * o->scale();
-                tmp.ry() = o->y() + o->height();
-            }
-        }
-    }
-
-    return globalPos + windowPos;
 }
 
 WWaylandCompositor *WOutputRenderWindow::compositor() const
@@ -831,29 +664,6 @@ void WOutputRenderWindow::setCompositor(WWaylandCompositor *newCompositor)
                 d->init();
         });
     }
-}
-
-WQuickOutputLayout *WOutputRenderWindow::layout() const
-{
-    Q_D(const WOutputRenderWindow);
-    return d->layout;
-}
-
-void WOutputRenderWindow::setLayout(WQuickOutputLayout *layout)
-{
-    Q_D(WOutputRenderWindow);
-    Q_ASSERT(!d->layout);
-
-//    if (d->layout) {
-//        for (auto o : d->outputs)
-//            d->layout->remove(o->output());
-//    }
-
-    d->layout = layout;
-//    Q_EMIT layoutChanged();
-
-    for (auto o : d->outputs)
-        d->layout->add(o->output());
 }
 
 void WOutputRenderWindow::render()

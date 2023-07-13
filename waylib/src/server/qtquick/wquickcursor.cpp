@@ -5,7 +5,7 @@
 #include "private/wcursor_p.h"
 #include "woutputrenderwindow.h"
 #include "wquickoutputlayout.h"
-#include "woutputviewport.h"
+#include "woutputpositioner.h"
 #include "wxcursorimage.h"
 
 #include <qwxcursormanager.h>

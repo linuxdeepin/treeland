@@ -3,8 +3,7 @@
 
 #include "wquickoutputlayout.h"
 #include "private/woutputlayout_p.h"
-#include "woutputviewport.h"
-#include "woutputrenderwindow.h"
+#include "woutputpositioner.h"
 #include "woutput.h"
 #include "woutputlayout.h"
 
@@ -27,7 +26,7 @@ public:
 
     W_DECLARE_PUBLIC(WQuickOutputLayout)
 
-    QList<WOutputViewport*> outputs;
+    QList<WOutputPositioner*> outputs;
 };
 
 WQuickOutputLayout::WQuickOutputLayout(QObject *parent)
@@ -36,13 +35,13 @@ WQuickOutputLayout::WQuickOutputLayout(QObject *parent)
 
 }
 
-QList<WOutputViewport*> WQuickOutputLayout::outputs() const
+QList<WOutputPositioner*> WQuickOutputLayout::outputs() const
 {
     W_DC(WQuickOutputLayout);
     return d->outputs;
 }
 
-void WQuickOutputLayout::add(WOutputViewport *output)
+void WQuickOutputLayout::add(WOutputPositioner *output)
 {
     W_D(WQuickOutputLayout);
     Q_ASSERT(!d->outputs.contains(output));
@@ -52,27 +51,32 @@ void WQuickOutputLayout::add(WOutputViewport *output)
     auto updateOutput = [d, output, this] {
         Q_ASSERT(d->outputs.contains(output));
         move(output->output(), output->globalPosition().toPoint());
+        Q_EMIT maybeLayoutChanged();
     };
 
-    connect(output, &WOutputViewport::maybeGlobalPositionChanged, this, updateOutput, Qt::QueuedConnection);
+    connect(output, &WOutputPositioner::maybeGlobalPositionChanged, this, updateOutput, Qt::QueuedConnection);
+    connect(output, &WOutputPositioner::transformChanged, this, &WQuickOutputLayout::maybeLayoutChanged);
     output->output()->setLayout(this);
 
     Q_EMIT outputsChanged();
+    Q_EMIT maybeLayoutChanged();
 }
 
-void WQuickOutputLayout::remove(WOutputViewport *output)
+void WQuickOutputLayout::remove(WOutputPositioner *output)
 {
     W_D(WQuickOutputLayout);
-    Q_ASSERT(d->outputs.contains(output));
-    d->outputs.removeOne(output);
-    remove(output->output());
 
-    disconnect(output->window(), nullptr, this, nullptr);
-    disconnect(output, nullptr, this, nullptr);
+    if (!d->outputs.removeOne(output))
+        return;
+    output->disconnect(this);
 
-    output->output()->setLayout(nullptr);
+    if (auto o = output->output()) {
+        remove(o);
+        o->setLayout(nullptr);
+    }
 
     Q_EMIT outputsChanged();
+    Q_EMIT maybeLayoutChanged();
 }
 
 WAYLIB_SERVER_END_NAMESPACE

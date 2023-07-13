@@ -3,12 +3,13 @@
 
 #pragma once
 
-#include <wglobal.h>
+#include <wquickobserver.h>
 #include <qwglobal.h>
 
 #include <QQuickItem>
 
-Q_MOC_INCLUDE("woutputviewport.h")
+Q_MOC_INCLUDE("woutput.h")
+Q_MOC_INCLUDE(<wquickoutputlayout.h>)
 
 QW_BEGIN_NAMESPACE
 class QWOutputLayout;
@@ -16,27 +17,34 @@ QW_END_NAMESPACE
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
-class WOutputViewport;
+class WOutput;
+class WQuickOutputLayout;
 class WOutputLayoutItemPrivate;
-class WAYLIB_SERVER_EXPORT WOutputLayoutItem : public QQuickItem, public WObject
+class WAYLIB_SERVER_EXPORT WOutputLayoutItem : public WQuickObserver, public WObject
 {
     W_DECLARE_PRIVATE(WOutputLayoutItem)
     Q_OBJECT
     QML_NAMED_ELEMENT(OutputLayoutItem)
-    Q_PROPERTY(QList<WOutputViewport*> outputs READ outputs NOTIFY outputsChanged)
+    Q_PROPERTY(WQuickOutputLayout* layout READ layout WRITE setLayout NOTIFY layoutChanged)
+    Q_PROPERTY(QList<WOutput*> outputs READ outputs NOTIFY outputsChanged)
 
 public:
     explicit WOutputLayoutItem(QQuickItem *parent = nullptr);
 
-    QList<WOutputViewport*> outputs() const;
+    QList<WOutput*> outputs() const;
+
+    WQuickOutputLayout *layout() const;
+    void setLayout(WQuickOutputLayout *newLayout);
 
 Q_SIGNALS:
     void outputsChanged();
-    void enterOutput(WOutputViewport *output);
-    void leaveOutput(WOutputViewport *output);
+    void enterOutput(WOutput *output);
+    void leaveOutput(WOutput *output);
+
+    void layoutChanged();
 
 private:
-    void geometryChange(const QRectF &newGeometry, const QRectF &oldGeometry) override;
+    W_PRIVATE_SLOT(void updateOutputs())
 };
 
 WAYLIB_SERVER_END_NAMESPACE
