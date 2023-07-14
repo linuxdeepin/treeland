@@ -96,21 +96,21 @@ WTexturePrivate::WTexturePrivate(WTexture *qq, QWTexture *handle)
         init(handle);
 }
 
-void WTexturePrivate::init(QWTexture *handle)
+void WTexturePrivate::init(QWTexture *new_handle)
 {
     auto gpuTexture = new QSGPlainTexture();
     gpuTexture->setOwnsTexture(false);
     texture.reset(gpuTexture);
 
-    if (wlr_texture_is_gles2(handle->handle())) {
+    if (wlr_texture_is_gles2(new_handle->handle())) {
         type = WTexture::Type::GLTexture;
         onWlrTextureChanged = &WTexturePrivate::updateGLTexture;
-    } else if (wlr_texture_is_pixman(handle->handle())) {
+    } else if (wlr_texture_is_pixman(new_handle->handle())) {
         type = WTexture::Type::Image;
         onWlrTextureChanged = &WTexturePrivate::updateImage;
     }
 #ifdef ENABLE_VULKAN_RENDER
-    else if (wlr_texture_is_vk(handle->handle())) {
+    else if (wlr_texture_is_vk(new_handle->handle())) {
         type = WTexture::Type::VKTexture;
         onWlrTextureChanged = &WTexturePrivate::updateVKTexture;
     }
