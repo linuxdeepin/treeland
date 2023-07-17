@@ -16,6 +16,7 @@
 QW_BEGIN_NAMESPACE
 class QWTexture;
 class QWSurface;
+class QWBuffer;
 QW_END_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
@@ -30,11 +31,13 @@ class WAYLIB_SERVER_EXPORT WSurface : public QObject, public WObject
 
     Q_OBJECT
     W_DECLARE_PRIVATE(WSurface)
+    Q_PROPERTY(bool mapped READ mapped NOTIFY mappedChanged)
     Q_PROPERTY(QSize size READ size NOTIFY sizeChanged)
     Q_PROPERTY(QSize bufferSize READ bufferSize NOTIFY bufferSizeChanged)
     Q_PROPERTY(int bufferScale READ bufferScale NOTIFY bufferScaleChanged)
-    Q_PROPERTY(WSurface *parentSurface READ parentSurface)
+    Q_PROPERTY(WSurface *parentSurface READ parentSurface CONSTANT)
     Q_PROPERTY(QObject* shell READ shell WRITE setShell NOTIFY shellChanged)
+    Q_PROPERTY(WOutput* primaryOutput READ primaryOutput NOTIFY primaryOutputChanged)
     QML_NAMED_ELEMENT(WaylandSurface)
     QML_UNCREATABLE("Using in C++")
 
@@ -73,6 +76,7 @@ public:
     virtual WSurface *parentSurface() const;
 
     // for current state
+    bool mapped() const;
     QSize size() const;
     QSize bufferSize() const;
     WLR::Transform orientation() const;
@@ -84,13 +88,15 @@ public:
     QPointF mapFromGlobal(const QPointF &globalPos) const;
 
     QW_NAMESPACE::QWTexture *texture() const;
+    QW_NAMESPACE::QWBuffer *buffer() const;
     QPoint textureOffset() const;
 
     void notifyFrameDone();
 
-    void enterOutput(WOutput *output);
-    void leaveOutput(WOutput *output);
-    QVector<WOutput*> outputs() const;
+    Q_SLOT void enterOutput(WOutput *output);
+    Q_SLOT void leaveOutput(WOutput *output);
+    Q_SLOT QVector<WOutput*> outputs() const;
+    WOutput *primaryOutput() const;
 
     virtual QPointF position() const;
     WSurfaceHandler *handler() const;
@@ -104,9 +110,9 @@ public:
     void setShell(QObject *shell);
 
 Q_SIGNALS:
-    void requestMap();
-    void requestUnmap();
+    void primaryOutputChanged();
 
+    void mappedChanged();
     void textureChanged();
     void sizeChanged(QSize oldSize, QSize newSize);
     void bufferSizeChanged(QSize oldSize, QSize newSize);

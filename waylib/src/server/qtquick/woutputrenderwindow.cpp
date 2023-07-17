@@ -470,6 +470,8 @@ void WOutputRenderWindowPrivate::doRender()
         if (helper->qwoutput()->commit())
             helper->resetState();
         helper->doneCurrent(glContext);
+
+        Q_EMIT helper->output()->frameDone();
     }
 }
 

@@ -40,8 +40,14 @@ Item {
         XdgShell {
             id: shell
 
-            onRequestMap: function(surface) {
-                renderWindow.surfaceModel.append({waylandSurface: surface})
+            onSurfaceAdded: function(surface) {
+                renderWindow.surfaceModel.append({waylandSurface: surface, outputLayout: layout})
+            }
+            onSurfaceRemoved: function(surface) {
+                for (var i = 0; i < renderWindow.surfaceModel.count; ++i) {
+                    if (renderWindow.surfaceModel.get(i).waylandSurface === surface)
+                        renderWindow.surfaceModel.remove(i)
+                }
             }
 
             onRequestMove: function(surface, seat, serial) {
@@ -205,6 +211,21 @@ Item {
                             }
                         }
                     }
+
+                    Text {
+                        anchors.centerIn: parent
+                        text: "Qt Quick in a texture"
+                        font.pointSize: 40
+                        color: "white"
+
+                        SequentialAnimation on rotation {
+                            id: ani
+                            running: true
+                            PauseAnimation { duration: 1500 }
+                            NumberAnimation { from: 0; to: 360; duration: 5000; easing.type: Easing.InOutCubic }
+                            loops: Animation.Infinite
+                        }
+                    }
                 }
             }
         }
@@ -220,15 +241,30 @@ Item {
                 }
             }
 
-            SurfaceItem {
-                id: surfaceItem
+            OutputLayoutItem {
                 required property WaylandSurface waylandSurface
-                property bool positionInitialized: false
+                required property OutputLayout outputLayout
 
-                surface: waylandSurface
+                visible: waylandSurface.mapped
+                layout: outputLayout
+                width: surfaceItem.width
+                height: surfaceItem.height
+
+                SurfaceItem {
+                    id: surfaceItem
+
+                    surface: waylandSurface
+                }
+
+                onEnterOutput: function(output) {
+                    waylandSurface.enterOutput(output);
+                }
+                onLeaveOutput: function(output) {
+                    waylandSurface.leaveOutput(output);
+                }
 
                 Component.onCompleted: {
-                    waylandSurface.shell = surfaceItem
+                    waylandSurface.shell = this
                 }
             }
         }

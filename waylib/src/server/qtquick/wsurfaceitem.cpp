@@ -7,15 +7,16 @@
 #include "wtexture.h"
 #include "wseat.h"
 #include "wcursor.h"
+#include "woutput.h"
+#include "woutputviewport.h"
+
+#include <qwcompositor.h>
 
 #include <QQuickWindow>
 #include <QSGSimpleTextureNode>
 #include <private/qquickitem_p.h>
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
-
-#define STATE_MOVE QStringLiteral("move")
-#define STATE_RESIZE QStringLiteral("resize")
 
 class WSGTextureProvider : public QSGTextureProvider
 {
@@ -98,6 +99,7 @@ public:
 
     Q_DECLARE_PUBLIC(WSurfaceItem)
     QPointer<WSurface> surface;
+    QMetaObject::Connection frameDoneConnection;
     std::unique_ptr<SurfaceHandler> surfaceHandler;
     WSGTextureProvider *textureProvider = nullptr;
 };
@@ -117,7 +119,7 @@ void WSGTextureProvider::updateTexture()
 {
     dwtexture->setHandle(item->surface->texture());
     Q_EMIT textureChanged();
-    QMetaObject::invokeMethod(item->q_func(), &QQuickItem::update, Qt::QueuedConnection);
+    item->q_func()->update();
 }
 
 WSurfaceItem::WSurfaceItem(QQuickItem *parent)
@@ -175,11 +177,6 @@ QSGNode *WSurfaceItem::updatePaintNode(QSGNode *oldNode, QQuickItem::UpdatePaint
 
     if (!d->surface || width() <= 0 || height() <= 0) {
         delete oldNode;
-
-        if (d->surface) {
-            d->surface->notifyFrameDone();
-        }
-
         return nullptr;
     }
 
@@ -196,14 +193,11 @@ QSGNode *WSurfaceItem::updatePaintNode(QSGNode *oldNode, QQuickItem::UpdatePaint
         node->markDirty(QSGNode::DirtyMaterial);
     }
 
-    const QRectF textureGeometry(QPointF(0, 0), d->surface->bufferSize());
+    const QRectF textureGeometry = d->surface->handle()->getBufferSourceBox();
     node->setSourceRect(textureGeometry);
     const QRectF targetGeometry(d->surface->textureOffset(), size());
     node->setRect(targetGeometry);
     node->setFiltering(QSGTexture::Linear);
-
-    // TODO: Move to WOutputRenderWindowPrivate::doRender
-    d->surface->notifyFrameDone();
 
     return node;
 }
@@ -292,11 +286,6 @@ void WSurfaceItem::geometryChange(const QRectF &newGeometry, const QRectF &oldGe
 {
     Q_D(WSurfaceItem);
 
-    if (d->surface && d->componentComplete
-        && newGeometry.size() != oldGeometry.size()) {
-        d->surface->resize(newGeometry.size().toSize());
-    }
-
     QQuickItem::geometryChange(newGeometry, oldGeometry);
 }
 
@@ -324,12 +313,19 @@ void WSurfaceItemPrivate::initForSurface()
     QObject::connect(surface, &WSurface::sizeChanged, q, [this] {
         updateImplicitSize();
     });
+    QObject::connect(surface, &WSurface::primaryOutputChanged, q, [this] {
+        if (frameDoneConnection)
+            QObject::disconnect(frameDoneConnection);
+        if (auto output = surface->primaryOutput()) {
+            auto viewport = WOutputViewport::get(output);
+            if (!viewport)
+                return;
+            frameDoneConnection = QObject::connect(viewport, &WOutputViewport::frameDone,
+                                                   surface, &WSurface::notifyFrameDone);
+        }
+    });
 
-    if (widthValid() && heightValid()) {
-        surface->resize(q->size().toSize());
-    } else {
-        updateImplicitSize();
-    }
+    updateImplicitSize();
 }
 
 WAYLIB_SERVER_END_NAMESPACE

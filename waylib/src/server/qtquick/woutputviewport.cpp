@@ -91,6 +91,13 @@ WOutputViewport::~WOutputViewport()
         d->outputWindow()->detach(this);
 }
 
+#define DATA_OF_WOUPTUT "_WOutputViewport"
+
+WOutputViewport *WOutputViewport::get(WOutput *output)
+{
+    return qvariant_cast<WOutputViewport*>(output->property(DATA_OF_WOUPTUT));
+}
+
 WOutput *WOutputViewport::output() const
 {
     W_D(const WOutputViewport);
@@ -102,6 +109,7 @@ void WOutputViewport::setOutput(WOutput *newOutput)
     W_D(WOutputViewport);
 
     Q_ASSERT(!d->output || !newOutput);
+    newOutput->setProperty(DATA_OF_WOUPTUT, QVariant::fromValue(this));
 
     if (d->componentComplete) {
         if (newOutput) {

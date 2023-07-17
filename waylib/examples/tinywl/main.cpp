@@ -55,13 +55,13 @@ signals:
 
 private:
     WSurface::State type;
-    WSurface *surface;
+    QPointer<WSurface> surface;
     QPointF surfacePosOfStartMoveResize;
     QSizeF surfaceSizeOfstartMoveResize;
     Qt::Edges resizeEdgets;
 
     WSeat *m_seat = nullptr;
-    QQuickItem *m_surfaceItem = nullptr;
+    QPointer<QQuickItem> m_surfaceItem;
 };
 
 QQuickItem *MoveResizeHelper::surfaceItem() const
@@ -136,6 +136,14 @@ void MoveResizeHelper::startResize(WSurface *surface, Qt::Edges edge, int serial
 
 bool MoveResizeHelper::event(QEvent *event)
 {
+    if (!m_surfaceItem) {
+        if (m_seat) {
+            m_seat->setEventGrabber(nullptr);
+            m_seat = nullptr;
+        }
+        return QObject::event(event);
+    }
+
     if (Q_LIKELY(event->type() == QEvent::MouseMove)) {
         auto cursor = m_seat->cursor();
         Q_ASSERT(cursor);

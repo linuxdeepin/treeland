@@ -12,6 +12,7 @@
 #include <qwoutput.h>
 #include <qwcompositor.h>
 #include <qwtexture.h>
+#include <qwbuffer.h>
 #include <QDebug>
 
 extern "C" {
@@ -33,7 +34,11 @@ WSurfacePrivate::WSurfacePrivate(WSurface *qq, WServer *server)
 
 WSurfacePrivate::~WSurfacePrivate()
 {
+    if (texture)
+        delete texture;
 
+    if (buffer)
+        buffer->unlock();
 }
 
 wlr_surface *WSurfacePrivate::nativeHandle() const {
@@ -44,6 +49,9 @@ wlr_surface *WSurfacePrivate::nativeHandle() const {
 void WSurfacePrivate::on_commit()
 {
     W_Q(WSurface);
+
+    if (nativeHandle()->current.committed & WLR_SURFACE_STATE_BUFFER)
+        updateBuffer();
 
     if (Q_UNLIKELY(nativeHandle()->current.width != nativeHandle()->previous.width
                    || nativeHandle()->current.height != nativeHandle()->previous.height)) {
@@ -62,19 +70,13 @@ void WSurfacePrivate::on_commit()
     }
 }
 
-void WSurfacePrivate::on_client_commit()
-{
-    Q_EMIT q_func()->textureChanged();
-}
-
 void WSurfacePrivate::connect()
 {
     QObject::connect(handle, &QWSurface::commit, q_func(), [this] {
         on_commit();
     });
-    QObject::connect(handle, &QWSurface::client_commit, q_func(), [this] {
-        on_client_commit();
-    });
+    QObject::connect(handle, &QWSurface::map, q_func(), &WSurface::mappedChanged);
+    QObject::connect(handle, &QWSurface::unmap, q_func(), &WSurface::mappedChanged);
 }
 
 void WSurfacePrivate::updateOutputs()
@@ -87,6 +89,50 @@ void WSurfacePrivate::updateOutputs()
     }
     W_Q(WSurface);
     q->notifyChanged(WSurface::ChangeType::Outputs, oldOutputs, outputs);
+}
+
+void WSurfacePrivate::setPrimaryOutput(WOutput *output)
+{
+    W_Q(WSurface);
+
+    primaryOutput = output;
+    Q_EMIT q->primaryOutputChanged();
+}
+
+void WSurfacePrivate::setBuffer(QWBuffer *newBuffer)
+{
+    if (texture)
+        delete texture;
+
+    if (buffer) {
+        if (auto clientBuffer = QWClientBuffer::get(buffer)) {
+            Q_ASSERT(clientBuffer->handle()->n_ignore_locks > 0);
+            clientBuffer->handle()->n_ignore_locks--;
+        }
+        buffer->unlock();
+    }
+
+    if (newBuffer) {
+        if (auto clientBuffer = QWClientBuffer::get(newBuffer)) {
+            clientBuffer->handle()->n_ignore_locks++;
+        }
+
+        newBuffer->lock();
+        buffer = newBuffer;
+    } else {
+        buffer = nullptr;
+    }
+
+    Q_EMIT q_func()->textureChanged();
+}
+
+void WSurfacePrivate::updateBuffer()
+{
+    QWBuffer *buffer = nullptr;
+    if (handle->handle()->buffer)
+        buffer = QWBuffer::from(&handle->handle()->buffer->base);
+
+    setBuffer(buffer);
 }
 
 WSurface::WSurface(WServer *server, QObject *parent)
@@ -118,6 +164,7 @@ void WSurface::setHandle(QWSurface *handle)
     d->handle = handle;
     d->handle->setData(this, this);
     d->connect();
+    d->updateBuffer();
 }
 
 QWSurface *WSurface::handle() const
@@ -152,6 +199,12 @@ WServer *WSurface::server() const
 WSurface *WSurface::parentSurface() const
 {
     return nullptr;
+}
+
+bool WSurface::mapped() const
+{
+    W_DC(WSurface);
+    return d->nativeHandle()->mapped;
 }
 
 QSize WSurface::size() const
@@ -199,10 +252,28 @@ QPointF WSurface::mapFromGlobal(const QPointF &globalPos) const
 QWTexture *WSurface::texture() const
 {
     W_DC(WSurface);
-    auto *textureHandle = wlr_surface_get_texture(d->nativeHandle());
-    if (!textureHandle)
+    auto textureHandle = d->handle->getTexture();
+    if (textureHandle)
+        return textureHandle;
+
+    if (d->texture)
+        return d->texture;
+
+    if (!d->primaryOutput)
         return nullptr;
-    return QWTexture::from(textureHandle);
+
+    auto renderer = d->primaryOutput->renderer();
+    if (!renderer)
+        return nullptr;
+
+    d->texture = QWTexture::fromBuffer(renderer, d->buffer);
+    return d->texture;
+}
+
+QWBuffer *WSurface::buffer() const
+{
+    W_DC(WSurface);
+    return d->buffer;
 }
 
 QPoint WSurface::textureOffset() const
@@ -232,6 +303,11 @@ void WSurface::enterOutput(WOutput *output)
     });
 
     d->updateOutputs();
+
+    if (!d->primaryOutput) {
+        d->primaryOutput = output;
+        Q_EMIT primaryOutputChanged();
+    }
 }
 
 void WSurface::leaveOutput(WOutput *output)
@@ -245,12 +321,23 @@ void WSurface::leaveOutput(WOutput *output)
     });
 
     d->updateOutputs();
+
+    if (d->primaryOutput == output) {
+        d->primaryOutput = d->outputs.isEmpty() ? nullptr : d->outputs.last();
+        Q_EMIT primaryOutputChanged();
+    }
 }
 
 QVector<WOutput *> WSurface::outputs() const
 {
     W_DC(WSurface);
     return d->outputs;
+}
+
+WOutput *WSurface::primaryOutput() const
+{
+    W_DC(WSurface);
+    return d->primaryOutput;
 }
 
 QPointF WSurface::position() const

@@ -33,8 +33,6 @@ public:
     // begin slot function
     void on_configure(wlr_xdg_surface_configure *event);
     void on_ack_configure(wlr_xdg_surface_configure *event);
-    void on_map();
-    void on_unmap();
     // end slot function
 
     void init();
@@ -63,16 +61,6 @@ void WXdgSurfacePrivate::on_ack_configure(wlr_xdg_surface_configure *event)
 //    auto config = reinterpret_cast<wlr_xdg_surface_configure*>(data);
 }
 
-void WXdgSurfacePrivate::on_map()
-{
-    Q_EMIT q_func()->requestMap();
-}
-
-void WXdgSurfacePrivate::on_unmap()
-{
-    Q_EMIT q_func()->requestUnmap();
-}
-
 void WXdgSurfacePrivate::init()
 {
     W_Q(WXdgSurface);
@@ -89,13 +77,6 @@ void WXdgSurfacePrivate::connect()
     });
     QObject::connect(handle, &QWXdgSurface::ackConfigure, q_func(), [this] (wlr_xdg_surface_configure *event) {
         on_ack_configure(event);
-    });
-
-    QObject::connect(handle->surface(), &QWSurface::map, q_func(), [this] {
-        on_map();
-    });
-    QObject::connect(handle->surface(), &QWSurface::unmap, q_func(), [this] {
-        on_unmap();
     });
 }
 

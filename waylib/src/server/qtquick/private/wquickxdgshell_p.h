@@ -33,9 +33,6 @@ Q_SIGNALS:
     void surfaceAdded(WXdgSurface *surface);
     void surfaceRemoved(WXdgSurface *surface);
 
-    void requestMap(WXdgSurface *surface);
-    void requestUnmap(WXdgSurface *surface);
-
     void requestMove(WXdgSurface *surface, WSeat *seat, quint32 serial);
     void requestResize(WXdgSurface *surface, WSeat *seat, Qt::Edges edge, quint32 serial);
     void requestMaximize(WXdgSurface *surface);

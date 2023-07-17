@@ -31,12 +31,20 @@ public:
 
     void connect();
     void updateOutputs();
+    void setPrimaryOutput(WOutput *output);
+    void setBuffer(QW_NAMESPACE::QWBuffer *newBuffer);
+    void updateBuffer();
 
     W_DECLARE_PUBLIC(WSurface)
 
     QW_NAMESPACE::QWSurface *handle = nullptr;
+    QW_NAMESPACE::QWBuffer *buffer = nullptr;
+    mutable QW_NAMESPACE::QWTexture *texture = nullptr;
     WServer *server = nullptr;
     QVector<WOutput*> outputs;
+    WOutput *primaryOutput = nullptr;
+    QMetaObject::Connection frameDoneConnection;
+
     WSurfaceHandler *handler = nullptr;
     QObject *shell = nullptr;
 };

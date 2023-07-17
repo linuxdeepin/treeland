@@ -73,13 +73,6 @@ inline static Qt::Edges toQtEdge(uint32_t edges) {
 
 void XdgShell::surfaceAdded(WXdgSurface *surface)
 {
-    QObject::connect(surface, &WSurface::requestMap, qq, [this, surface] {
-        Q_EMIT qq->requestMap(surface);
-    });
-    QObject::connect(surface, &WSurface::requestUnmap, qq, [this, surface] {
-        Q_EMIT qq->requestUnmap(surface);
-    });
-
     if (auto toplevel = surface->handle()->topToplevel()) {
         QObject::connect(toplevel, &QWXdgToplevel::requestMove, qq, [this] (wlr_xdg_toplevel_move_event *event) {
             auto surface = WXdgSurface::fromHandle(QWXdgToplevel::from(event->toplevel));

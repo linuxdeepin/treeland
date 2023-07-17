@@ -26,7 +26,7 @@ class WAYLIB_SERVER_EXPORT WOutputLayoutItem : public WQuickObserver, public WOb
     Q_OBJECT
     QML_NAMED_ELEMENT(OutputLayoutItem)
     Q_PROPERTY(WQuickOutputLayout* layout READ layout WRITE setLayout NOTIFY layoutChanged)
-    Q_PROPERTY(QList<WOutput*> outputs READ outputs NOTIFY outputsChanged)
+    Q_PROPERTY(QList<WOutput*> outputs READ outputs RESET resetOutput NOTIFY outputsChanged)
 
 public:
     explicit WOutputLayoutItem(QQuickItem *parent = nullptr);
@@ -35,6 +35,7 @@ public:
 
     WQuickOutputLayout *layout() const;
     void setLayout(WQuickOutputLayout *newLayout);
+    void resetOutput();
 
 Q_SIGNALS:
     void outputsChanged();
@@ -44,6 +45,8 @@ Q_SIGNALS:
     void layoutChanged();
 
 private:
+    void componentComplete() override;
+
     W_PRIVATE_SLOT(void updateOutputs())
 };
 

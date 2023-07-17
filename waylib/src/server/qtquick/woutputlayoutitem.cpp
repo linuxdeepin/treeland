@@ -76,13 +76,28 @@ void WOutputLayoutItem::setLayout(WQuickOutputLayout *newLayout)
     if (d->layout)
         connect(d->layout, SIGNAL(maybeLayoutChanged()), this, SLOT(updateOutputs()));
 
+    if (isComponentComplete())
+        d->updateOutputs();
+
     Q_EMIT layoutChanged();
+}
+
+void WOutputLayoutItem::resetOutput()
+{
+    setLayout(nullptr);
 }
 
 QList<WOutput*> WOutputLayoutItem::outputs() const
 {
     W_DC(WOutputLayoutItem);
     return d->outputs;
+}
+
+void WOutputLayoutItem::componentComplete()
+{
+    WQuickObserver::componentComplete();
+
+    d_func()->updateOutputs();
 }
 
 WAYLIB_SERVER_END_NAMESPACE

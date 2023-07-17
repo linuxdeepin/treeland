@@ -25,6 +25,8 @@ public:
     explicit WOutputViewport(QQuickItem *parent = nullptr);
     ~WOutputViewport();
 
+    static WOutputViewport *get(WOutput *output);
+
     WOutput *output() const;
     void setOutput(WOutput *newOutput);
 
@@ -37,6 +39,7 @@ public:
 Q_SIGNALS:
     void seatChanged();
     void devicePixelRatioChanged();
+    void frameDone();
 
 private:
     void classBegin() override;
