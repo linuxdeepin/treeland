@@ -2,7 +2,7 @@
 
 ## Introduction
 
-waylib is a Wayland compositor development library, based on [wlroots](https://gitlab.freedesktop.org/wlroots/wlroots), provides a Qt-style development interface. It is designed to be deeply integrated with QtQuick, taking advantage of QtQuick's Scene Graphics model to simplify the complexity of window management. In waylib, each Output is a QQuickWindow and each Surface is a QQuickItem, allowing it to be mixed with QtQuick's graphics components and supporting QRHI for OpenGL and Vulkan compatibility in a single piece of code.
+waylib is a Wayland compositor development library, based on [qwlroots](https://github.com/vioken/qwlroots), provides a Qt-style development interface. It is designed to be deeply integrated with QtQuick, taking advantage of QtQuick's Scene Graphics model to simplify the complexity of window management. In waylib, it is possible to attach one or multiple Wayland Outputs to a QQuickWindow, and a corresponding Wayland Surface can be attached to a QQuickItem, allowing it to be mixed with QtQuick's graphics components and supporting QRHI for OpenGL and Vulkan compatibility in a single piece of code.
 
 Creating a Wayland compositor using waylib can be simple and efficient, which, on top of wlroots, provides:
 
@@ -10,7 +10,6 @@ Creating a Wayland compositor using waylib can be simple and efficient, which, o
 * Qt event model support
 * Session management system (under development)
 * Client/window group policies (under development)
-* Window motion system (under development)
 * Window management abstraction (under development)
 
 Based on the above features, compositor developers need only focus on the business requirements of window management and can develop window compositors as if they were implementing a regular application.
@@ -27,12 +26,21 @@ Based on the above features, compositor developers need only focus on the busine
 
 ## Building
 
-Step 1: Compile and install [wlroots](https://gitlab.freedesktop.org/wlroots/wlroots#building)
+Step 1: Compiling and Installing wlroots and qwlroots
 
+waylib requires the development version (0.17) of wlroots, which needs to be [compiled and installed manually](https://gitlab.freedesktop.org/wlroots/wlroots#building). Arch Linux users can install [wlroots-git](https://aur.archlinux.org/packages/wlroots-git) from AUR.
 
-Step 2: Install dependencies
+For qwlroots, it is currently recommended to use the version provided as a submodule. However, you can also [compile and install](https://github.com/vioken/qwlroots) it by yourself. 
+
+If using the submodule version, please note the following two points:
+
+1. Initialize the submodules when you clone the source code: `git clone git@github.com:vioken/waylib.git --recursive`
+2. Before the final compilation, add the cmake parameter "-DWITH_SUBMODULE_QWLROOTS=ON" to enable the building of the submodule.
+
+Step 2: Installing other dependencies
 
 Debian
+
 ````
 # apt install pkg-config qt6-base-private-dev qt6-base-dev-tools qt6-declarative-private-dev wayland-protocols libpixman-1-dev
 ````
@@ -40,13 +48,19 @@ Debian
 Archlinux
 
 ````
-# pacman -Syu --noconfirm qt6-base qt6-declarative cmake pkgconfig wlroots pixman wayland-protocols ninja
+# pacman -Syu --noconfirm qt6-base qt6-declarative cmake pkgconfig pixman wayland-protocols ninja
 ````
+
+NixOS:
+
+It is recommended to manage dependencies using [nix-direnv](https://github.com/nix-community/nix-direnv), or you can use the command `nix develop` to enter the build environment.
+
+You can also packaging by using the command "nix build -v -L".
 
 Step 3: Execute the following commands
 
 ```bash
-cmake -B build
+cmake -B build -DWITH_SUBMODULE_QWLROOTS=ON
 cmake --build build
 ```
 
@@ -59,7 +73,7 @@ You are free to contribute as much code as you want to this project, provided th
 ### Code Style
 
 * When modifying existing code, the current code style should be respected.
-* New code: the part that is closely related to wlroots should follow the code style of wlroots, such as when using `WSignalConnector` to link `wl_signal`, underscore naming convention should be used for the corresponding slot function; other parts should follow the code style of Qt (https://wiki.qt.io/Qt_Coding_Style this link is for reference only. The actual Qt source code shall prevail)
+* New code: the part that is closely related to wlroots should follow the code style of wlroots, underscore naming convention should be used for the corresponding slot function; other parts should follow the code style of Qt (https://wiki.qt.io/Qt_Coding_Style this link is for reference only. The actual Qt source code shall prevail)
 * There is no absolute right or wrong code style, please consider the big picture, and do not rigidly stick to the small details
 
 ### Code Architecture Guidelines

@@ -2,7 +2,7 @@
 
 ## 简介
 
-waylib 是一个 Wayland 合成器开发库，基于 [wlroots](https://gitlab.freedesktop.org/wlroots/wlroots) 开发，提供 Qt 风格的开发接口。其设计目标是与 QtQuick 深度结合，利用 QtQuick 的 Scene Graphics 模型，以简化窗口管理的复杂度。在 waylib 中，每个 Output 即是一个 QQuickWindow，每个 Surface 是一个 QQuickItem，可将其与 QtQuick 的图形组件混合使用，并且支持 QRHI，只需要一份代码即可兼容 OpenGL 和 Vulkan。
+waylib 是一个 Wayland 合成器开发库，基于 [qwlroots](https://github.com/vioken/qwlroots) 开发，提供 Qt 风格的开发接口。其设计目标是与 QtQuick 深度结合，利用 QtQuick 的 Scene Graphics 模型，以简化窗口管理的复杂度。在 waylib 中，一个 QQuickWindow 上可以被附加一个或多个 Wayland Output，一个 QQuickItem 上会附加一个对应的 Wanyland Surface，可将其与 QtQuick 的图形组件混合使用，并且支持 QRHI，只需要一份代码即可兼容 OpenGL 和 Vulkan。
 
 使用 waylib 可以简单并高效的创建一个 Wayland 合成器，其在 wlroots 之上，提供了：
 
@@ -10,7 +10,6 @@ waylib 是一个 Wayland 合成器开发库，基于 [wlroots](https://gitlab.fr
 * 支持 Qt 事件模型
 * 会话管理系统（开发中）
 * 客户端/窗口组策略（开发中）
-* 窗口动效系统（开发中）
 * 窗口管理抽象（开发中）
 
 基于以上功能，合成器开发者只需聚焦于窗口管理的业务需求，可以像实现一个普通的应用程序那样开发窗口合成器。
@@ -27,12 +26,20 @@ waylib 是一个 Wayland 合成器开发库，基于 [wlroots](https://gitlab.fr
 
 ## 构建
 
-步骤一：编译安装 [wlroots](https://gitlab.freedesktop.org/wlroots/wlroots#building)
+步骤一：编译安装 wlroots 和 qwlroots
 
+waylib 需要安装开发版本（0.17）的 wlroots, 需要[自行编译安装](https://gitlab.freedesktop.org/wlroots/wlroots#building)， Archlinux 用户可以安装 aur 提供的 [wlroots-git](https://aur.archlinux.org/packages/wlroots-git)。
 
-步骤二：安装依赖
+qwlroot 目前推荐使用 submodule 提供的版本，当然也可以[自行编译安装](https://github.com/vioken/qwlroots)。
+如果使用 submodule 的版本，注意以下 2 点：
+
+1. 下载源码时初始化子模块 `git clone git@github.com:vioken/waylib.git --recursive`
+2. 编译时使用添加一个 cmake 参数 "-DWITH_SUBMODULE_QWLROOTS=ON" 启用 submodule 的构建。
+
+步骤二：安装其他依赖
 
 Debian
+
 ````
 # apt install pkg-config qt6-base-private-dev qt6-base-dev-tools qt6-declarative-private-dev wayland-protocols libpixman-1-dev
 ````
@@ -40,26 +47,32 @@ Debian
 Archlinux
 
 ````
-# pacman -Syu --noconfirm qt6-base qt6-declarative cmake pkgconfig wlroots pixman wayland-protocols ninja
+# pacman -Syu --noconfirm qt6-base qt6-declarative cmake pkgconfig pixman wayland-protocols ninja
 ````
+
+NixOS
+
+推荐使用 [nix-direnv](https://github.com/nix-community/nix-direnv) 管理依赖，也可以使用 `nix develop` 命令进入构建环境。
+
+使用 `nix build -v -L` 可以完成打包构建。
 
 步骤三：运行以下命令
 
 ```bash
-cmake -B build
+cmake -B build -DWITH_SUBMODULE_QWLROOTS=ON
 cmake --build build
 ```
 
 ## 贡献指南
 
-此项目默认您已经拥有`Qt`和`wlroots`库的使用经验，为了能更好的融合Qt和wlroots，waylib在接口风格上遵守Qt的相关规范，在底层的设计理念上遵守wlroots的模块化设计，上层与wlroots无直接关联的部分则遵守Qt的封装+分层的设计。
+此项目默认您已经拥有 `Qt` 和 `wlroots` 库的使用经验，为了能更好的融合 Qt 和 wlroots，waylib 在接口风格上遵守Qt的相关规范，在底层的设计理念上遵守 wlroots 的模块化设计，上层与 wlroots 无直接关联的部分则遵守Qt的封装+分层的设计。
 
-在遵守waylib的设计理念和以下几类要求的前提下，您可以自由地向此项目提交任意的代码贡献。
+在遵守 waylib 的设计理念和以下几类要求的前提下，您可以自由地向此项目提交任意的代码贡献。
 
 ### 编码风格
 
 * 在修改已有代码时，需遵守当前的代码风格
-* 新增代码：与wlroots密切相关的部分遵守wlroots的代码风格，如使用WSignalConnector链接wl_signal，相应的槽函数使用“下划线命名法”；其它部分遵守Qt的代码风格（https://wiki.qt.io/Qt_Coding_Style 此链接仅为参考，实际请以Qt源码为准）
+* 新增代码：与 wlroots 密切相关的部分遵守 wlroots 的代码风格；其它部分遵守Qt的代码风格（https://wiki.qt.io/Qt_Coding_Style 此链接仅为参考，实际请以Qt源码为准）
 * 代码风格没有绝对的对与错，请顾全大局，而勿拘于小结
 
 ### 代码质量
