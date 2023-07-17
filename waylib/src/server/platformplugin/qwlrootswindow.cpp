@@ -87,10 +87,7 @@ qreal QWlrootsOutputWindow::devicePixelRatio() const
 
 void QWlrootsOutputWindow::setBuffer(QWBuffer *buffer)
 {
-    Q_ASSERT(!bufferAttached);
-    if (renderBuffer)
-        renderBuffer->unlock();
-
+    Q_ASSERT(buffer == renderBuffer || !bufferAttached);
     renderBuffer = buffer;
 }
 
@@ -112,11 +109,8 @@ bool QWlrootsOutputWindow::attachRenderer()
 
     QWRenderer *renderer = qwScreen()->output()->renderer();
     bool ok = wlr_renderer_begin_with_buffer(renderer->handle(), renderBuffer->handle());
-    if (!ok) {
-        // Drop the error buffer
-        renderBuffer->unlock();
+    if (!ok)
         return false;
-    }
 
     auto qwOutput = qwScreen()->output()->handle();
     qwOutput->attachBuffer(renderBuffer);
@@ -132,6 +126,7 @@ void QWlrootsOutputWindow::detachRenderer()
     auto *qwOutput = qwScreen()->output()->handle();
     renderer->end();
     qwOutput->rollback();
+    renderBuffer->unlock();
     bufferAttached = false;
 }
 

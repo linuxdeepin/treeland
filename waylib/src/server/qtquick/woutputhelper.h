@@ -12,11 +12,13 @@
 QT_BEGIN_NAMESPACE
 class QOpenGLContext;
 class QWindow;
+class QQuickRenderControl;
 QT_END_NAMESPACE
 
 QW_BEGIN_NAMESPACE
 class QWRenderer;
 class QWBackend;
+class QWBuffer;
 QW_END_NAMESPACE
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
@@ -36,14 +38,14 @@ public:
     WOutput *output() const;
     QWindow *outputWindow() const;
 
-    QQuickRenderTarget makeRenderTarget();
+    std::pair<QW_NAMESPACE::QWBuffer*, QQuickRenderTarget> acquireRenderTarget(QQuickRenderControl *rc, int *bufferAge = nullptr);
     static QW_NAMESPACE::QWRenderer *createRenderer(QW_NAMESPACE::QWBackend *backend);
 
     bool renderable() const;
     bool contentIsDirty() const;
 
-    bool makeCurrent(QOpenGLContext *context);
-    void doneCurrent(QOpenGLContext *context);
+    bool makeCurrent(QW_NAMESPACE::QWBuffer *buffer, QOpenGLContext *context = nullptr);
+    void doneCurrent(QOpenGLContext *context = nullptr);
 
     void resetState();
     void update();
@@ -53,6 +55,9 @@ Q_SIGNALS:
     void damaged();
     void renderableChanged();
     void contentIsDirtyChanged();
+
+private:
+    W_PRIVATE_SLOT(void onBufferDestroy(QWBuffer*))
 };
 
 WAYLIB_SERVER_END_NAMESPACE

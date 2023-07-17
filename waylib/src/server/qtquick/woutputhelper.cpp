@@ -22,6 +22,9 @@
 #ifndef QT_NO_OPENGL
 #include <QOpenGLContext>
 #endif
+#include <private/qquickrendercontrol_p.h>
+#include <private/qquickwindow_p.h>
+#include <private/qrhi_p.h>
 
 extern "C" {
 #define static
@@ -46,6 +49,41 @@ extern "C" {
 
 QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
+
+struct BufferData {
+    BufferData() {
+
+    }
+
+    ~BufferData() {
+        resetWindowRenderTarget();
+    }
+
+    QWBuffer *buffer = nullptr;
+    // for software renderer
+    QImage paintDevice;
+    QQuickRenderTarget rhiRenderTarget;
+    QQuickWindowRenderTarget windowRenderTarget;
+
+    inline void resetWindowRenderTarget() {
+        if (windowRenderTarget.owns) {
+            delete windowRenderTarget.renderTarget;
+            delete windowRenderTarget.rpDesc;
+            delete windowRenderTarget.texture;
+            delete windowRenderTarget.renderBuffer;
+            delete windowRenderTarget.depthStencil;
+            delete windowRenderTarget.paintDevice;
+        }
+
+        windowRenderTarget.renderTarget = nullptr;
+        windowRenderTarget.rpDesc = nullptr;
+        windowRenderTarget.texture = nullptr;
+        windowRenderTarget.renderBuffer = nullptr;
+        windowRenderTarget.depthStencil = nullptr;
+        windowRenderTarget.paintDevice = nullptr;
+        windowRenderTarget.owns = false;
+    }
+};
 
 class WOutputHelperPrivate : public WObjectPrivate
 {
@@ -74,6 +112,9 @@ public:
         // render on the next time
         renderable = true;
     }
+    ~WOutputHelperPrivate() {
+        qDeleteAll(buffers);
+    }
 
     inline QWOutput *qwoutput() const {
         return output->handle();
@@ -96,26 +137,37 @@ public:
 
     void on_frame();
     void on_damage();
+
     void resetRenderBuffer();
+    QWBuffer *acquireBuffer(int *bufferAge);
+    void onBufferDestroy(QWBuffer *buffer);
+    static bool ensureRhiRenderTarget(QQuickRenderControl *rc, BufferData *data);
 
-
-    QWBuffer *ensureRenderBuffer();
-
-    inline bool makeCurrent(QOpenGLContext *context) {
-        if (!ensureRenderBuffer())
-            return false;
-
+    inline bool makeCurrent(QWBuffer *buffer, QOpenGLContext *context) {
+        qpaWindow()->setBuffer(buffer);
+        bool ok = false;
+#ifndef QT_NO_OPENGL
         if (context) {
-            return context->makeCurrent(outputWindow);
-        } else {
-            return qpaWindow()->attachRenderer();
+            ok = context->makeCurrent(outputWindow);
+        } else
+#endif
+        {
+            ok = qpaWindow()->attachRenderer();
         }
+
+        if (!ok)
+            buffer->unlock();
+
+        return ok;
     }
 
     inline void doneCurrent(QOpenGLContext *context) {
+#ifndef QT_NO_OPENGL
         if (context) {
             context->doneCurrent();
-        } else {
+        } else
+#endif
+        {
             qpaWindow()->detachRenderer();
         }
     }
@@ -128,10 +180,7 @@ public:
     WOutput *output;
     QWindow *outputWindow;
 
-    // for software renderer
-    QImage paintDevice;
-    std::unique_ptr<QWTexture> renderTexture;
-    QQuickRenderTarget renderTarget;
+    QList<BufferData*> buffers;
 
     bool renderable = false;
     bool contentIsDirty = false;
@@ -167,25 +216,125 @@ void WOutputHelperPrivate::on_damage()
 
 void WOutputHelperPrivate::resetRenderBuffer()
 {
-    renderTexture.reset();
-    renderTarget = {};
     qpaWindow()->setBuffer(nullptr);
+    qDeleteAll(buffers);
+    buffers.clear();
 }
 
-QWBuffer *WOutputHelperPrivate::ensureRenderBuffer()
+QWBuffer *WOutputHelperPrivate::acquireBuffer(int *bufferAge)
 {
-    if (auto buffer = qpaWindow()->buffer())
-        return buffer;
-
     bool ok = wlr_output_configure_primary_swapchain(qwoutput()->handle(),
                                                      &qwoutput()->handle()->pending,
                                                      &qwoutput()->handle()->swapchain);
     if (!ok)
         return nullptr;
-    QWBuffer *newBuffer = swapchain()->acquire(nullptr);
-    qpaWindow()->setBuffer(newBuffer);
-
+    QWBuffer *newBuffer = swapchain()->acquire(bufferAge);
     return newBuffer;
+}
+
+void WOutputHelperPrivate::onBufferDestroy(QWBuffer *buffer)
+{
+    for (int i = 0; i < buffers.count(); ++i) {
+        auto data = buffers[i];
+        if (data->buffer == buffer) {
+            buffers.removeAt(i);
+            break;
+        }
+    }
+}
+
+// Copy from qquickrendertarget.cpp
+static bool createRhiRenderTarget(const QRhiColorAttachment &colorAttachment,
+                                  const QSize &pixelSize,
+                                  int sampleCount,
+                                  QRhi *rhi,
+                                  QQuickWindowRenderTarget &dst)
+{
+    std::unique_ptr<QRhiRenderBuffer> depthStencil(rhi->newRenderBuffer(QRhiRenderBuffer::DepthStencil, pixelSize, sampleCount));
+    if (!depthStencil->create()) {
+        qWarning("Failed to build depth-stencil buffer for QQuickRenderTarget");
+        return false;
+    }
+
+    QRhiTextureRenderTargetDescription rtDesc(colorAttachment);
+    rtDesc.setDepthStencilBuffer(depthStencil.get());
+    std::unique_ptr<QRhiTextureRenderTarget> rt(rhi->newTextureRenderTarget(rtDesc));
+    std::unique_ptr<QRhiRenderPassDescriptor> rp(rt->newCompatibleRenderPassDescriptor());
+    rt->setRenderPassDescriptor(rp.get());
+
+    if (!rt->create()) {
+        qWarning("Failed to build texture render target for QQuickRenderTarget");
+        return false;
+    }
+
+    dst.renderTarget = rt.release();
+    dst.rpDesc = rp.release();
+    dst.depthStencil = depthStencil.release();
+    dst.owns = true; // ownership of the native resource itself is not transferred but the QRhi objects are on us now
+
+    return true;
+}
+
+bool createRhiRenderTarget(QRhi *rhi, const QQuickRenderTarget &source, QQuickWindowRenderTarget &dst)
+{
+    auto rtd = QQuickRenderTargetPrivate::get(&source);
+
+    switch (rtd->type) {
+    case QQuickRenderTargetPrivate::Type::NativeTexture: {
+        const auto format = rtd->u.nativeTexture.rhiFormat == QRhiTexture::UnknownFormat ? QRhiTexture::RGBA8
+                                                                                         : QRhiTexture::Format(rtd->u.nativeTexture.rhiFormat);
+        const auto flags = QRhiTexture::RenderTarget | QRhiTexture::Flags(rtd->u.nativeTexture.rhiFlags);
+        std::unique_ptr<QRhiTexture> texture(rhi->newTexture(format, rtd->pixelSize, rtd->sampleCount, flags));
+#if QT_VERSION < QT_VERSION_CHECK(6, 6, 0)
+        if (!texture->createFrom({ rtd->u.nativeTexture.object, rtd->u.nativeTexture.layout }))
+#else
+        if (!texture->createFrom({ rtd->u.nativeTexture.object, rtd->u.nativeTexture.layoutOrState }))
+#endif
+            return false;
+        QRhiColorAttachment att(texture.get());
+        if (!createRhiRenderTarget(att, rtd->pixelSize, rtd->sampleCount, rhi, dst))
+            return false;
+        dst.texture = texture.release();
+        return true;
+    }
+    case QQuickRenderTargetPrivate::Type::NativeRenderbuffer: {
+        std::unique_ptr<QRhiRenderBuffer> renderbuffer(rhi->newRenderBuffer(QRhiRenderBuffer::Color, rtd->pixelSize, rtd->sampleCount));
+        if (!renderbuffer->createFrom({ rtd->u.nativeRenderbufferObject })) {
+            qWarning("Failed to build wrapper renderbuffer for QQuickRenderTarget");
+            return false;
+        }
+        QRhiColorAttachment att(renderbuffer.get());
+        if (!createRhiRenderTarget(att, rtd->pixelSize, rtd->sampleCount, rhi, dst))
+            return false;
+        dst.renderBuffer = renderbuffer.release();
+        return true;
+    }
+
+    default:
+        break;
+    }
+
+    return false;
+}
+// Copy end
+
+bool WOutputHelperPrivate::ensureRhiRenderTarget(QQuickRenderControl *rc, BufferData *data)
+{
+    data->resetWindowRenderTarget();
+#if QT_VERSION < QT_VERSION_CHECK(6, 6, 0)
+    auto rhi = QQuickRenderControlPrivate::get(rc)->rhi;
+#else
+    auto rhi = rc->rhi();
+#endif
+    auto tmp = data->rhiRenderTarget;
+    bool ok = createRhiRenderTarget(rhi, tmp, data->windowRenderTarget);
+    if (!ok)
+        return false;
+    data->rhiRenderTarget = QQuickRenderTarget::fromRhiRenderTarget(data->windowRenderTarget.renderTarget);
+    data->rhiRenderTarget.setDevicePixelRatio(tmp.devicePixelRatio());
+    data->rhiRenderTarget.setMirrorVertically(tmp.mirrorVertically());
+
+    return true;
 }
 
 WOutputHelper::WOutputHelper(WOutput *output, QObject *parent)
@@ -207,45 +356,70 @@ QWindow *WOutputHelper::outputWindow() const
     return d->outputWindow;
 }
 
-QQuickRenderTarget WOutputHelper::makeRenderTarget()
+std::pair<QWBuffer*, QQuickRenderTarget> WOutputHelper::acquireRenderTarget(QQuickRenderControl *rc, int *bufferAge)
 {
     W_D(WOutputHelper);
 
-    if (!d->renderTarget.isNull())
-        return d->renderTarget;
-
-    QWBuffer *buffer = d->ensureRenderBuffer();
+    QWBuffer *buffer = d->acquireBuffer(bufferAge);
     if (!buffer)
         return {};
 
-    d->renderTexture.reset(QWTexture::fromBuffer(d->renderer(), buffer));
+    for (int i = 0; i < d->buffers.count(); ++i) {
+        auto data = d->buffers[i];
+        if (data->buffer == buffer)
+            return {buffer, data->rhiRenderTarget};
+    }
+
+    std::unique_ptr<BufferData> bufferData(new BufferData);
+
+    bufferData->buffer = buffer;
+    auto texture = QWTexture::fromBuffer(d->renderer(), buffer);
+
+    QQuickRenderTarget rt;
 
     if (wlr_renderer_is_pixman(d->renderer()->handle())) {
-        pixman_image_t *image = wlr_pixman_texture_get_image(d->renderTexture->handle());
+        pixman_image_t *image = wlr_pixman_texture_get_image(texture->handle());
         void *data = pixman_image_get_data(image);
-        if (Q_UNLIKELY(d->paintDevice.constBits() != data))
-            d->paintDevice = WTools::fromPixmanImage(image, data);
-        Q_ASSERT(!d->paintDevice.isNull());
-        d->paintDevice.setDevicePixelRatio(d->qwoutput()->handle()->pending.scale);
-        return QQuickRenderTarget::fromPaintDevice(&d->paintDevice);
+        if (bufferData->paintDevice.constBits() != data)
+            bufferData->paintDevice = WTools::fromPixmanImage(image, data);
+        Q_ASSERT(!bufferData->paintDevice.isNull());
+        bufferData->paintDevice.setDevicePixelRatio(d->qwoutput()->handle()->pending.scale);
+        rt = QQuickRenderTarget::fromPaintDevice(&bufferData->paintDevice);
     }
 #ifdef ENABLE_VULKAN_RENDER
     else if (wlr_renderer_is_vk(d->renderer()->handle())) {
         wlr_vk_image_attribs attribs;
-        wlr_vk_texture_get_image_attribs(d->renderTexture->handle(), &attribs);
-        return QQuickRenderTarget::fromVulkanImage(attribs.image, attribs.layout, attribs.format, d->output->size());
+        wlr_vk_texture_get_image_attribs(texture->handle(), &attribs);
+        rt = QQuickRenderTarget::fromVulkanImage(attribs.image, attribs.layout, attribs.format, d->output->size());
     }
 #endif
     else if (wlr_renderer_is_gles2(d->renderer()->handle())) {
         wlr_gles2_texture_attribs attribs;
-        wlr_gles2_texture_get_attribs(d->renderTexture->handle(), &attribs);
+        wlr_gles2_texture_get_attribs(texture->handle(), &attribs);
 
-        auto rt = QQuickRenderTarget::fromOpenGLTexture(attribs.tex, d->output->size());
+        rt = QQuickRenderTarget::fromOpenGLTexture(attribs.tex, d->output->size());
         rt.setMirrorVertically(true);
-        return rt;
     }
 
-    return {};
+    delete texture;
+
+    if (!rt.isNull()) {
+        bufferData->rhiRenderTarget = rt;
+        if (!d->ensureRhiRenderTarget(rc, bufferData.get()))
+            bufferData->rhiRenderTarget = {};
+    }
+
+    if (bufferData->rhiRenderTarget.isNull()) {
+        buffer->unlock();
+        return {};
+    }
+
+    connect(buffer, SIGNAL(beforeDestroy(QWBuffer*)),
+            this, SLOT(onBufferDestroy(QWBuffer*)), Qt::UniqueConnection);
+
+    d->buffers.append(bufferData.release());
+
+    return {buffer, d->buffers.last()->rhiRenderTarget};
 }
 
 // Copy from "wlr_renderer.c" of wlroots
@@ -361,10 +535,10 @@ bool WOutputHelper::contentIsDirty() const
     return d->contentIsDirty;
 }
 
-bool WOutputHelper::makeCurrent(QOpenGLContext *context)
+bool WOutputHelper::makeCurrent(QWBuffer *buffer, QOpenGLContext *context)
 {
     W_D(WOutputHelper);
-    return d->makeCurrent(context);
+    return d->makeCurrent(buffer, context);
 }
 
 void WOutputHelper::doneCurrent(QOpenGLContext *context)
@@ -387,3 +561,5 @@ void WOutputHelper::update()
 }
 
 WAYLIB_SERVER_END_NAMESPACE
+
+#include "moc_woutputhelper.cpp"
