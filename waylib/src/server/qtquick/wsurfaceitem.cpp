@@ -50,7 +50,8 @@ private:
 
 QPointF SurfaceHandler::position() const
 {
-    return item->position();
+    auto parent = item->parentItem();
+    return parent ? parent->mapToGlobal(item->position()) : item->position();
 }
 
 QPointF SurfaceHandler::mapFromGlobal(const QPointF &pos)
