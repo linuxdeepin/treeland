@@ -50,7 +50,6 @@ public:
 
         texture->setHasAlphaChannel(attribs.has_alpha);
         texture->setTextureSize(QSize(nativeHandle()->width, nativeHandle()->height));
-        texture->setOwnsTexture(false);
     }
 
 #ifdef ENABLE_VULKAN_RENDER
@@ -99,7 +98,7 @@ WTexturePrivate::WTexturePrivate(WTexture *qq, QWTexture *handle)
 void WTexturePrivate::init(QWTexture *new_handle)
 {
     auto gpuTexture = new QSGPlainTexture();
-    gpuTexture->setOwnsTexture(false);
+    gpuTexture->setOwnsTexture(true);
     texture.reset(gpuTexture);
 
     if (wlr_texture_is_gles2(new_handle->handle())) {

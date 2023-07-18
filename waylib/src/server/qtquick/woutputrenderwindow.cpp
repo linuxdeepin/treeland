@@ -487,7 +487,8 @@ WOutputRenderWindow::WOutputRenderWindow(QObject *parent)
 
 WOutputRenderWindow::~WOutputRenderWindow()
 {
-    delete renderControl();
+    renderControl()->invalidate();
+    renderControl()->deleteLater();
 }
 
 QQuickRenderControl *WOutputRenderWindow::renderControl() const
