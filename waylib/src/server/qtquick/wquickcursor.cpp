@@ -177,7 +177,7 @@ void WQuickCursorPrivate::onRenderWindowAdded(WOutputRenderWindow *window)
 
     QQmlEngine::setObjectOwnership(item, QQmlEngine::CppOwnership);
     cursorItems.append(item);
-    item->setZ(qreal(WOutputRenderWindow::Layer::Cursor));
+    item->setZ(qreal(WOutputLayout::Layer::Cursor));
     item->setParentItem(window->contentItem());
     item->setPosition(item->parentItem()->mapFromGlobal(q->position()));
 }

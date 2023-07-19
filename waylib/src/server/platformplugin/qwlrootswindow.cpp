@@ -33,6 +33,11 @@ QWlrootsOutputWindow::QWlrootsOutputWindow(QWindow *window)
 
 QWlrootsOutputWindow::~QWlrootsOutputWindow()
 {
+    if (onScreenChangedConnection)
+        QObject::disconnect(onScreenChangedConnection);
+    if (onScreenGeometryConnection)
+        QObject::disconnect(onScreenGeometryConnection);
+
     setBuffer(nullptr);
 }
 
@@ -43,7 +48,7 @@ void QWlrootsOutputWindow::initialize()
         QWindowSystemInterface::handleGeometryChange(window(), newGeo);
     };
 
-    QObject::connect(window(), &QWindow::screenChanged,  window(),[this, onGeometryChanged] (QScreen *newScreen) {
+    onScreenChangedConnection = QObject::connect(window(), &QWindow::screenChanged,  window(), [this, onGeometryChanged] (QScreen *newScreen) {
         if (onScreenGeometryConnection)
             QObject::disconnect(onScreenGeometryConnection);
         onScreenGeometryConnection = QObject::connect(newScreen, &QScreen::geometryChanged, window(), onGeometryChanged);

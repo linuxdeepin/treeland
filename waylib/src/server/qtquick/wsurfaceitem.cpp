@@ -128,7 +128,7 @@ WSurfaceItem::WSurfaceItem(QQuickItem *parent)
 {
     setFlag(QQuickItem::ItemHasContents);
     setAcceptHoverEvents(true);
-    setAcceptedMouseButtons(Qt::LeftButton);
+    setAcceptedMouseButtons(Qt::AllButtons);
 }
 
 bool WSurfaceItem::isTextureProvider() const
@@ -203,46 +203,23 @@ QSGNode *WSurfaceItem::updatePaintNode(QSGNode *oldNode, QQuickItem::UpdatePaint
     return node;
 }
 
-void WSurfaceItem::hoverEnterEvent(QHoverEvent *event)
+bool WSurfaceItem::event(QEvent *event)
 {
-    Q_D(WSurfaceItem);
-
-    auto inputDevice = WInputDevice::from(event->device());
-    if (Q_UNLIKELY(!inputDevice))
-        return;
-
-    event->accept();
-    inputDevice->seat()->notifyEnterSurface(d->surface);
-}
-
-void WSurfaceItem::hoverLeaveEvent(QHoverEvent *event)
-{
-    Q_D(WSurfaceItem);
-
-    auto inputDevice = WInputDevice::from(event->device());
-    if (Q_UNLIKELY(!inputDevice))
-        return;
-
-    auto seat = inputDevice->seat();
-
-    if (seat->hoverSurface() != d->surface) {
-        return QQuickItem::hoverLeaveEvent(event);
+    switch(event->type()) {
+    case QEvent::HoverEnter: Q_FALLTHROUGH();
+    case QEvent::HoverLeave: Q_FALLTHROUGH();
+    case QEvent::MouseButtonPress: Q_FALLTHROUGH();
+    case QEvent::MouseButtonRelease: Q_FALLTHROUGH();
+    case QEvent::MouseMove: Q_FALLTHROUGH();
+    case QEvent::HoverMove: Q_FALLTHROUGH();
+    case QEvent::KeyPress: Q_FALLTHROUGH();
+    case QEvent::KeyRelease: {
+        auto e = static_cast<QInputEvent*>(event);
+        return WSeat::sendEvent(d_func()->surface.get(), e);
+    }
     }
 
-    event->accept();
-    seat->notifyLeaveSurface(d->surface);
-}
-
-void WSurfaceItem::mousePressEvent(QMouseEvent *event)
-{
-    event->accept();
-}
-
-void WSurfaceItem::mouseReleaseEvent(QMouseEvent *event)
-{
-    Q_D(WSurfaceItem);
-
-    QQuickItem::mouseReleaseEvent(event);
+    return QQuickItem::event(event);
 }
 
 void WSurfaceItem::releaseResources()

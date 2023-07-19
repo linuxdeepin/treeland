@@ -40,21 +40,25 @@ public:
 
 void Backend::outputAdded(WOutput *output)
 {
+    WBackend::outputAdded(output);
     Q_EMIT qq->outputAdded(output);
 }
 
 void Backend::outputRemoved(WOutput *output)
 {
+    WBackend::outputRemoved(output);
     Q_EMIT qq->outputRemoved(output);
 }
 
 void Backend::inputAdded(WInputDevice *input)
 {
+    WBackend::inputAdded(input);
     Q_EMIT qq->inputAdded(input);
 }
 
 void Backend::inputRemoved(WInputDevice *input)
 {
+    WBackend::inputRemoved(input);
     Q_EMIT qq->inputRemoved(input);
 }
 

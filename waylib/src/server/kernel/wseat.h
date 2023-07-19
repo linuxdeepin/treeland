@@ -14,48 +14,33 @@ class QWSeat;
 class QWSurface;
 QW_END_NAMESPACE
 
+QT_BEGIN_NAMESPACE
+class QInputEvent;
+class QWindow;
+QT_END_NAMESPACE
+
+typedef uint wlr_axis_source_t;
+typedef uint wlr_button_state_t;
+
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
-class WCursor;
-//class WInputEvent : public QEvent
-//{
-//public:
-//    enum Type {
-//        PointerMotion,
-//        PointerButton,
-//        PointerAxis,
-//        KeyboardKey,
-//        KeyboardModifiers
-//    };
-
-//    struct Data : public QSharedData {
-//        WSeat *seat = nullptr;
-//        WInputDevice *device = nullptr;
-//        void *nativeEvent = nullptr;
-//        WCursor *cursor = nullptr;
-//        Type eventType;
-//    };
-
-//    using DataPointer = QExplicitlySharedDataPointer<Data>;
-//    DataPointer data;
-
-//    WInputEvent(DataPointer d)
-//        : QEvent(m_type)
-//        , data(d)
-//    {
-//    }
-//    ~WInputEvent() {
-//    }
-
-//    inline static QEvent::Type type() {
-//        return m_type;
-//    }
-
-//private:
-//    static QEvent::Type m_type;
-//};
-
 class WSurface;
+class WSeat;
+class WSeatEventFilter : public QObject
+{
+    friend class WSeat;
+    friend class WSeatPrivate;
+    Q_OBJECT
+public:
+    explicit WSeatEventFilter(QObject *parent = nullptr);
+
+protected:
+    virtual bool eventFilter(WSeat *seat, WSurface *watched, QInputEvent *event);
+    virtual bool eventFilter(WSeat *seat, QWindow *watched, QInputEvent *event);
+    virtual bool ignoredEventFilter(WSeat *seat, QWindow *watched, QInputEvent *event);
+};
+
+class WCursor;
 class WSeatPrivate;
 class WSeat : public WServerInterface, public WObject
 {
@@ -64,6 +49,7 @@ public:
     WSeat(const QByteArray &name = QByteArrayLiteral("seat0"));
 
     static WSeat *fromHandle(const QW_NAMESPACE::QWSeat *handle);
+    QW_NAMESPACE::QWSeat *handle() const;
 
     void setCursor(WCursor *cursor);
     WCursor *cursor() const;
@@ -71,37 +57,39 @@ public:
     void attachInputDevice(WInputDevice *device);
     void detachInputDevice(WInputDevice *device);
 
-    void notifyEnterSurface(WSurface *surface);
-    void notifyLeaveSurface(WSurface *surface);
-    WSurface *hoverSurface() const;
+    static bool sendEvent(WSurface *target, QInputEvent *event);
+
+    WSeatEventFilter *eventFilter() const;
+    void setEventFilter(WSeatEventFilter *filter);
+
+    WSurface *pointerEventGrabber() const;
+    void setPointerEventGrabber(WSurface *surface);
+
+    WSurface *pointerFocusSurface() const;
 
     void setKeyboardFocusTarget(QW_NAMESPACE::QWSurface *nativeSurface);
     void setKeyboardFocusTarget(WSurface *surface);
-
-    // pointer
-    void notifyMotion(WCursor *cursor, WInputDevice *device,
-                      uint32_t timestamp);
-    void notifyButton(WCursor *cursor, WInputDevice *device,
-                      uint32_t button, WInputDevice::ButtonState state,
-                      uint32_t timestamp);
-    void notifyAxis(WCursor *cursor, WInputDevice *device,
-                    WInputDevice::AxisSource source, Qt::Orientation orientation,
-                    double delta, int32_t delta_discrete, uint32_t timestamp);
-    void notifyFrame(WCursor *cursor);
-
-    // keyboard
-    void notifyKey(WInputDevice *device, uint32_t keycode,
-                   WInputDevice::KeyState state, uint32_t timestamp);
-    void notifyModifiers(WInputDevice *device);
-
-    QObject *eventGrabber() const;
-    void setEventGrabber(QObject *grabber);
+    WSurface *keyboardFocusSurface() const;
+    void setKeyboardFocusTarget(QWindow *window);
+    QWindow *focusWindow() const;
 
 protected:
+    friend class WOutputPrivate;
+    friend class WCursor;
+    friend class WCursorPrivate;
+
     void create(WServer *server) override;
     void destroy(WServer *server) override;
 
-    friend class WOutputPrivate;
+    // pointer
+    void notifyMotion(WCursor *cursor, WInputDevice *device, uint32_t timestamp);
+    void notifyButton(WCursor *cursor, WInputDevice *device,
+                      Qt::MouseButton button, wlr_button_state_t state,
+                      uint32_t timestamp);
+    void notifyAxis(WCursor *cursor, WInputDevice *device, wlr_axis_source_t source,
+                    Qt::Orientation orientation,
+                    double delta, int32_t delta_discrete, uint32_t timestamp);
+    void notifyFrame(WCursor *cursor);
 };
 
 WAYLIB_SERVER_END_NAMESPACE

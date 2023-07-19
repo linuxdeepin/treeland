@@ -26,13 +26,6 @@ class WAYLIB_SERVER_EXPORT WOutputRenderWindow : public QQuickWindow, public QQm
     Q_INTERFACES(QQmlParserStatus)
 
 public:
-    enum class Layer {
-        Background = -999,
-        ToplevelSurface = 0,
-        Cursor = 999
-    };
-    Q_ENUM(Layer)
-
     explicit WOutputRenderWindow(QObject *parent = nullptr);
     ~WOutputRenderWindow();
 

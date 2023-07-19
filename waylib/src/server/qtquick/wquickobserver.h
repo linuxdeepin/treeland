@@ -32,6 +32,7 @@ Q_SIGNALS:
 
 protected:
     void componentComplete() override;
+    void releaseResources() override;
     void itemChange(ItemChange change, const ItemChangeData &data) override;
 
     void privateImplicitWidthChanged();

@@ -51,8 +51,7 @@ Item {
             }
 
             onRequestMove: function(surface, seat, serial) {
-                if (seat === moveResizeHelper.seat)
-                    moveResizeHelper.startMove(surface, serial)
+                eventFilter.startMove(surface, seat, serial)
             }
         }
 
@@ -68,12 +67,13 @@ Item {
                     source: cursor1.cursorUrl
                 }
             }
+
+            eventFilter: eventFilter
         }
     }
 
-    MoveResizeHelper {
-        id: moveResizeHelper
-        seat: seat0.seat
+    EventFilter {
+        id: eventFilter
     }
 
     OutputLayout {
@@ -241,28 +241,42 @@ Item {
                 }
             }
 
-            OutputLayoutItem {
+            FocusScope {
                 required property WaylandSurface waylandSurface
                 required property OutputLayout outputLayout
 
-                visible: waylandSurface.mapped
-                layout: outputLayout
+                visible: waylandSurface && waylandSurface.mapped
                 width: surfaceItem.width
                 height: surfaceItem.height
                 x: waylandSurface.position.x
                 y: waylandSurface.position.y
+                z: focus ? OutputLayout.ActiveToplevelSurface : OutputLayout.ToplevelSurface
+
+                onFocusChanged: {
+                    if (typeof waylandSurface.setActivate === "function")
+                        waylandSurface.setActivate(focus)
+                    if (focus)
+                        surfaceItem.forceActiveFocus()
+                    else
+                        surfaceItem.focus = false
+                }
+
+                OutputLayoutItem {
+                    anchors.fill: parent
+                    layout: outputLayout
+
+                    onEnterOutput: function(output) {
+                        waylandSurface.enterOutput(output);
+                    }
+                    onLeaveOutput: function(output) {
+                        waylandSurface.leaveOutput(output);
+                    }
+                }
 
                 SurfaceItem {
                     id: surfaceItem
 
                     surface: waylandSurface
-                }
-
-                onEnterOutput: function(output) {
-                    waylandSurface.enterOutput(output);
-                }
-                onLeaveOutput: function(output) {
-                    waylandSurface.leaveOutput(output);
                 }
 
                 Component.onCompleted: {

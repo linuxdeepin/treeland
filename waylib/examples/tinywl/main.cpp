@@ -13,6 +13,7 @@
 #include <QTemporaryFile>
 #include <QMouseEvent>
 #include <QQuickItem>
+#include <QQuickWindow>
 
 #include <wquickbackend_p.h>
 #include <qwbackend.h>
@@ -20,75 +21,40 @@
 QW_USE_NAMESPACE
 WAYLIB_SERVER_USE_NAMESPACE
 
-class MoveResizeHelper : public QObject {
+class EventFilter : public WSeatEventFilter {
     Q_OBJECT
-    Q_PROPERTY(WSeat* seat READ seat WRITE setSeat NOTIFY seatChanged)
 
 public:
-    explicit MoveResizeHelper(QObject *parent = nullptr)
-        : QObject(parent)
+    explicit EventFilter(QObject *parent = nullptr)
+        : WSeatEventFilter(parent)
     {
 
     }
 
-    Q_SLOT void startMove(WSurface *surface, int serial);
-    Q_SLOT void startResize(WSurface *surface, Qt::Edges edge, int serial);
+    Q_SLOT void startMove(WSurface *surface, WSeat *seat, int serial);
+    Q_SLOT void startResize(WSurface *surface, WSeat *seat, Qt::Edges edge, int serial);
 
     inline void stop() {
-        m_surfaceItem = nullptr;
-        m_seat->setEventGrabber(nullptr);
+        surfaceShellItem = nullptr;
         surface->notifyEndState(type);
         surface = nullptr;
+        seat = nullptr;
     }
 
-    bool event(QEvent *event) override;
-
-    WSeat *seat() const;
-    void setSeat(WSeat *newSeat);
-
-    QQuickItem *surfaceItem() const;
-    void setSurfaceItem(QQuickItem *newSurfaceItem);
-
-signals:
-    void seatChanged();
-    void surfaceItemChanged();
-
 private:
+    bool eventFilter(WSeat *seat, QWindow *watched, QInputEvent *event) override;
+    bool eventFilter(WSeat *seat, WSurface *watched, QInputEvent *event) override;
+    bool ignoredEventFilter(WSeat *seat, QWindow *watched, QInputEvent *event) override;
+
+    // for move resize
     WSurface::State type;
     QPointer<WSurface> surface;
+    WSeat *seat = nullptr;
     QPointF surfacePosOfStartMoveResize;
     QSizeF surfaceSizeOfstartMoveResize;
     Qt::Edges resizeEdgets;
-
-    WSeat *m_seat = nullptr;
-    QPointer<QQuickItem> m_surfaceItem;
+    QPointer<QQuickItem> surfaceShellItem;
 };
-
-QQuickItem *MoveResizeHelper::surfaceItem() const
-{
-    return m_surfaceItem;
-}
-
-void MoveResizeHelper::setSurfaceItem(QQuickItem *newSurfaceItem)
-{
-    if (m_surfaceItem == newSurfaceItem)
-        return;
-    m_surfaceItem = newSurfaceItem;
-    emit surfaceItemChanged();
-}
-
-WSeat *MoveResizeHelper::seat() const
-{
-    return m_seat;
-}
-
-void MoveResizeHelper::setSeat(WSeat *newSeat)
-{
-    if (m_seat == newSeat)
-        return;
-    m_seat = newSeat;
-    emit seatChanged();
-}
 
 inline QPointF getItemGlobalPosition(QQuickItem *item)
 {
@@ -96,95 +62,115 @@ inline QPointF getItemGlobalPosition(QQuickItem *item)
     return parent ? parent->mapToGlobal(item->position()) : item->position();
 }
 
-void MoveResizeHelper::startMove(WSurface *surface, int serial)
+void EventFilter::startMove(WSurface *surface, WSeat *seat, int serial)
 {
     Q_UNUSED(serial)
-    if (!m_seat->cursor()
-            || m_seat->cursor()->state() != Qt::LeftButton) {
-        stop();
-        return;
-    }
 
-    m_surfaceItem = qobject_cast<QQuickItem*>(surface->shell());
-    if (!m_surfaceItem)
+    surfaceShellItem = qobject_cast<QQuickItem*>(surface->shell());
+    if (!surfaceShellItem)
         return;
 
     type = WSurface::State::Move;
     this->surface = surface;
-    surfacePosOfStartMoveResize = getItemGlobalPosition(m_surfaceItem);
+    this->seat = seat;
+    surfacePosOfStartMoveResize = getItemGlobalPosition(surfaceShellItem);
 
     surface->notifyBeginState(type);
-    m_seat->setEventGrabber(this);
 }
 
-void MoveResizeHelper::startResize(WSurface *surface, Qt::Edges edge, int serial)
+void EventFilter::startResize(WSurface *surface, WSeat *seat, Qt::Edges edge, int serial)
 {
     Q_UNUSED(serial)
-    if (!m_seat->cursor()
-            || m_seat->cursor()->state() != Qt::LeftButton) {
-        stop();
-        return;
-    }
 
-    m_surfaceItem = qobject_cast<QQuickItem*>(surface->shell());
-    if (!m_surfaceItem)
+    surfaceShellItem = qobject_cast<QQuickItem*>(surface->shell());
+    if (!surfaceShellItem)
         return;
 
     type = WSurface::State::Resize;
     this->surface = surface;
-    surfacePosOfStartMoveResize = getItemGlobalPosition(m_surfaceItem);
-    surfaceSizeOfstartMoveResize = m_surfaceItem->size();
+    this->seat = seat;
+    surfacePosOfStartMoveResize = getItemGlobalPosition(surfaceShellItem);
+    surfaceSizeOfstartMoveResize = surfaceShellItem->size();
     resizeEdgets = edge;
 
     surface->notifyBeginState(type);
-    m_seat->setEventGrabber(this);
 }
 
-bool MoveResizeHelper::event(QEvent *event)
+bool EventFilter::eventFilter(WSeat *seat, QWindow *watched, QInputEvent *event)
 {
-    if (!m_surfaceItem) {
-        if (m_seat) {
-            m_seat->setEventGrabber(nullptr);
-            m_seat = nullptr;
+    if (watched) {
+        if (event->type() == QEvent::MouseButtonPress) {
+            seat->setKeyboardFocusTarget(watched);
+        } else if (event->type() == QEvent::MouseMove && !seat->focusWindow()) {
+            seat->setKeyboardFocusTarget(watched);
         }
-        return QObject::event(event);
     }
 
-    if (Q_LIKELY(event->type() == QEvent::MouseMove)) {
-        auto cursor = m_seat->cursor();
-        Q_ASSERT(cursor);
-        QMouseEvent *ev = static_cast<QMouseEvent*>(event);
+    return false;
+}
 
-        if (type == WSurface::State::Move) {
-            auto increment_pos = ev->globalPosition() - cursor->lastPressedPosition();
-            auto new_pos = surfacePosOfStartMoveResize + m_surfaceItem->parentItem()->mapFromGlobal(increment_pos);
-            m_surfaceItem->setPosition(new_pos);
-        } else if (type == WSurface::State::Resize) {
-            auto increment_pos = m_surfaceItem->parentItem()->mapFromGlobal(ev->globalPosition() - cursor->lastPressedPosition());
-            QRectF geo(surfacePosOfStartMoveResize, surfaceSizeOfstartMoveResize);
+bool EventFilter::eventFilter(WSeat *seat, WSurface *watched, QInputEvent *event)
+{
+    if (watched && event->type() == QEvent::MouseButtonRelease) {
+        seat->setKeyboardFocusTarget(watched);
 
-            if (resizeEdgets & Qt::LeftEdge)
-                geo.setLeft(geo.left() + increment_pos.x());
-            if (resizeEdgets & Qt::TopEdge)
-                geo.setTop(geo.top() + increment_pos.y());
-
-            if (resizeEdgets & Qt::RightEdge)
-                geo.setRight(geo.right() + increment_pos.x());
-            if (resizeEdgets & Qt::BottomEdge)
-                geo.setBottom(geo.bottom() + increment_pos.y());
-
-            m_surfaceItem->setPosition(geo.topLeft());
-        } else {
-            Q_ASSERT_X(false, __FUNCTION__, "Not support surface state request");
-        }
-    } else if (event->type() == QEvent::MouseButtonRelease) {
-        stop();
-    } else {
-        event->ignore();
-        return false;
+        if (auto item = qobject_cast<QQuickItem*>(watched->shell()))
+            item->forceActiveFocus(Qt::MouseFocusReason);
     }
 
-    return true;
+    if (surfaceShellItem && watched->shell() == surfaceShellItem.get()
+        && seat == this->seat) {
+        // for move resize
+        if (Q_LIKELY(event->type() == QEvent::MouseMove)) {
+            auto cursor = seat->cursor();
+            Q_ASSERT(cursor);
+            QMouseEvent *ev = static_cast<QMouseEvent*>(event);
+
+            if (type == WSurface::State::Move) {
+                auto increment_pos = ev->globalPosition() - cursor->lastPressedPosition();
+                auto new_pos = surfacePosOfStartMoveResize + surfaceShellItem->parentItem()->mapFromGlobal(increment_pos);
+                surfaceShellItem->setPosition(new_pos);
+            } else if (type == WSurface::State::Resize) {
+                auto increment_pos = surfaceShellItem->parentItem()->mapFromGlobal(ev->globalPosition() - cursor->lastPressedPosition());
+                QRectF geo(surfacePosOfStartMoveResize, surfaceSizeOfstartMoveResize);
+
+                if (resizeEdgets & Qt::LeftEdge)
+                    geo.setLeft(geo.left() + increment_pos.x());
+                if (resizeEdgets & Qt::TopEdge)
+                    geo.setTop(geo.top() + increment_pos.y());
+
+                if (resizeEdgets & Qt::RightEdge)
+                    geo.setRight(geo.right() + increment_pos.x());
+                if (resizeEdgets & Qt::BottomEdge)
+                    geo.setBottom(geo.bottom() + increment_pos.y());
+
+                surfaceShellItem->setPosition(geo.topLeft());
+            } else {
+                Q_ASSERT_X(false, __FUNCTION__, "Not support surface state request");
+            }
+
+            return true;
+        } else if (event->type() == QEvent::MouseButtonRelease) {
+            stop();
+            return false;
+        }
+    }
+
+    return false;
+}
+
+bool EventFilter::ignoredEventFilter(WSeat *seat, QWindow *watched, QInputEvent *event)
+{
+    if (watched && event->type() == QEvent::MouseButtonPress) {
+        // clear focus
+        if (auto fs = seat->keyboardFocusSurface()) {
+            if (auto item = qobject_cast<QQuickItem*>(fs->shell()))
+                item->setFocus(false);
+            seat->setKeyboardFocusTarget(static_cast<WSurface*>(nullptr));
+        }
+    }
+
+    return false;
 }
 
 int main(int argc, char *argv[]) {
@@ -199,7 +185,7 @@ int main(int argc, char *argv[]) {
     QGuiApplication app(argc, argv);
 
     qmlRegisterModule("Tinywl", 1, 0);
-    qmlRegisterType<MoveResizeHelper>("Tinywl", 1, 0, "MoveResizeHelper");
+    qmlRegisterType<EventFilter>("Tinywl", 1, 0, "EventFilter");
 
     QQmlApplicationEngine waylandEngine;
     waylandEngine.load(QUrl("qrc:/Main.qml"));

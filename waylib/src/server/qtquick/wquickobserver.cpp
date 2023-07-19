@@ -18,9 +18,11 @@ public:
     bool transformChanged(QQuickItem *transformedItem) override {
         Q_Q(WQuickObserver);
 
-        Q_EMIT q->transformChanged(transformedItem);
-        Q_EMIT q->maybeScenePositionChanged();
-        Q_EMIT q->maybeGlobalPositionChanged();
+        if (!inDestructor) {
+            Q_EMIT q->transformChanged(transformedItem);
+            Q_EMIT q->maybeScenePositionChanged();
+            Q_EMIT q->maybeGlobalPositionChanged();
+        }
 
         return QQuickItemPrivate::transformChanged(transformedItem);
     }
@@ -73,8 +75,25 @@ void WQuickObserver::componentComplete()
     QQuickItem::componentComplete();
 }
 
+void WQuickObserver::releaseResources()
+{
+    Q_D(WQuickObserver);
+
+    if (d->windowXChangeConnection)
+        disconnect(d->windowXChangeConnection);
+    if (d->windowYChangeConnection)
+        disconnect(d->windowYChangeConnection);
+
+    QQuickItem::releaseResources();
+}
+
 void WQuickObserver::itemChange(ItemChange change, const ItemChangeData &data)
 {
+    Q_D(WQuickObserver);
+
+    if (d->inDestructor)
+        return QQuickItem::itemChange(change, data);
+
     if (change == ItemChange::ItemParentHasChanged) {
         Q_EMIT maybeScenePositionChanged();
         Q_EMIT maybeGlobalPositionChanged();

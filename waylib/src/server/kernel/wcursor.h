@@ -40,6 +40,8 @@ public:
     static WCursor *fromHandle(const QW_NAMESPACE::QWCursor *handle);
 
     static Qt::MouseButton fromNativeButton(uint32_t code);
+    static uint32_t toNativeButton(Qt::MouseButton button);
+
     Qt::MouseButtons state() const;
     Qt::MouseButton button() const;
 

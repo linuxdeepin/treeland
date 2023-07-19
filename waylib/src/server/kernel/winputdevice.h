@@ -35,28 +35,6 @@ public:
     };
     Q_ENUM(Type)
 
-    // wl_pointer_button_state
-    enum class ButtonState {
-        Released = 0,
-        Pressed = 1
-    };
-    Q_ENUM(ButtonState)
-
-    // wl_keyboard_key_state
-    enum class KeyState {
-        Released = 0,
-        Pressed = 1
-    };
-    Q_ENUM(KeyState)
-
-    enum class AxisSource {
-        Wheel,
-        Finger,
-        Continuous,
-        WheelTilt,
-    };
-    Q_ENUM(AxisSource)
-
     WInputDevice(QW_NAMESPACE::QWInputDevice *handle);
 
     QW_NAMESPACE::QWInputDevice *handle() const;

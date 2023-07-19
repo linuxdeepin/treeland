@@ -42,6 +42,7 @@ public:
     W_DECLARE_PUBLIC(WQuickSeat)
 
     WSeat *seat = nullptr;
+    WSeatEventFilter *eventFilter = nullptr;
     QString name;
     QList<WOutput*> outputs;
     WQuickCursor *cursor = nullptr;
@@ -129,6 +130,23 @@ WSeat *WQuickSeat::seat() const
     return d->seat;
 }
 
+WSeatEventFilter *WQuickSeat::eventFilter() const
+{
+    W_DC(WQuickSeat);
+    return d->eventFilter;
+}
+
+void WQuickSeat::setEventFilter(WSeatEventFilter *newEventFilter)
+{
+    W_D(WQuickSeat);
+    if (d->eventFilter == newEventFilter)
+        return;
+    d->eventFilter = newEventFilter;
+    if (d->seat)
+        d->seat->setEventFilter(newEventFilter);
+    Q_EMIT eventFilterChanged();
+}
+
 void WQuickSeat::addDevice(WInputDevice *device)
 {
     W_D(WQuickSeat);
@@ -163,6 +181,9 @@ void WQuickSeat::create()
     W_D(WQuickSeat);
     Q_ASSERT(!d->name.isEmpty());
     d->seat = server()->attach<WSeat>(d->name.toUtf8());
+    if (d->eventFilter)
+        d->seat->setEventFilter(d->eventFilter);
+
     Q_EMIT seatChanged();
 }
 

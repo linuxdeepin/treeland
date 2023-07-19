@@ -210,8 +210,7 @@ void WCursorPrivate::on_button(wlr_pointer_button_event *event)
 
     if (Q_LIKELY(seat)) {
         seat->notifyButton(q_func(), WInputDevice::fromHandle(device),
-                           event->button, static_cast<WInputDevice::ButtonState>(event->state),
-                           event->time_msec);
+                           WCursor::fromNativeButton(event->button), event->state, event->time_msec);
     }
 }
 
@@ -220,8 +219,7 @@ void WCursorPrivate::on_axis(wlr_pointer_axis_event *event)
     auto device = QWPointer::from(event->pointer);
 
     if (Q_LIKELY(seat)) {
-        seat->notifyAxis(q_func(), WInputDevice::fromHandle(device),
-                         static_cast<WInputDevice::AxisSource>(event->source),
+        seat->notifyAxis(q_func(), WInputDevice::fromHandle(device), event->source,
                          event->orientation == WLR_AXIS_ORIENTATION_HORIZONTAL
                          ? Qt::Horizontal : Qt::Vertical, event->delta, event->delta_discrete,
                          event->time_msec);
@@ -341,6 +339,31 @@ Qt::MouseButton WCursor::fromNativeButton(uint32_t code)
     }
 
     return qt_button;
+}
+
+uint32_t WCursor::toNativeButton(Qt::MouseButton button)
+{
+    switch (button) {
+    case Qt::LeftButton: return 0x110;    // kernel BTN_LEFT
+    case Qt::RightButton: return 0x111;
+    case Qt::MiddleButton: return 0x112;
+    case Qt::ExtraButton1: return 0x113;
+    case Qt::ExtraButton2: return 0x114;
+    case Qt::ExtraButton3: return 0x115;
+    case Qt::ExtraButton4: return 0x116;
+    case Qt::ExtraButton5: return 0x117;
+    case Qt::ExtraButton6: return 0x118;
+    case Qt::ExtraButton7: return 0x119;
+    case Qt::ExtraButton8: return 0x11a;
+    case Qt::ExtraButton9: return 0x11b;
+    case Qt::ExtraButton10: return 0x11c;
+    case Qt::ExtraButton11: return 0x11d;
+    case Qt::ExtraButton12: return 0x11e;
+    case Qt::ExtraButton13: return 0x11f;
+    default: qWarning() << "invalid Qt's button" << button;
+    }
+
+    return 0;
 }
 
 Qt::MouseButtons WCursor::state() const

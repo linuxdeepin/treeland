@@ -32,8 +32,6 @@ extern "C" {
 QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
-//QEvent::Type WInputEvent::m_type = static_cast<QEvent::Type>(QEvent::registerEventType());
-
 class WSeatPrivate : public WObjectPrivate
 {
 public:
@@ -51,10 +49,10 @@ public:
     inline wlr_seat *nativeHandle() const {
         Q_ASSERT(handle());
         return handle()->handle();
-    };
+    }
 
     inline bool shouldNotifyPointerEvent(WCursor *cursor) {
-        if (!hoverSurface)
+        if (!pointerEventGrabber)
             return false;
         auto w = cursor->eventWindow();
         if (Q_LIKELY(w)) {
@@ -65,51 +63,56 @@ public:
         return true;
     }
 
-    inline void doNotifyMotion(const WCursor *cursor, WInputDevice *device,
-                               uint32_t timestamp) {
-        Q_UNUSED(device)
-        auto pos = hoverSurface->mapFromGlobal(cursor->position());
+    inline wlr_surface *pointerFocusSurface() const {
+        return nativeHandle()->pointer_state.focused_surface;
+    }
+
+    inline wlr_surface *keyboardFocusSurface() const {
+        return nativeHandle()->keyboard_state.focused_surface;
+    }
+
+    inline bool doNotifyMotion(WSurface *target, QPointF localPos, uint32_t timestamp) {
         // Get a valid wlr_surface object by the input region of the client
-        auto target_surface = hoverSurface->inputTargetAt(pos)->handle();
+        auto target_surface = target->inputTargetAt(localPos)->handle();
         if (Q_UNLIKELY(!target_surface)) {
-            // Because the doNotifyMotion will received the event on before the WQuickItem, so
+            // Because the doNotifyMotion will received the event on before the QQuickItem, so
             // when the mouse move form the window edges to outside of the event area of the
             // window, that can't get a valid target surface object at here. Follow, only when
-            // the event spread to the WQuickItem's window can trigger the notifyLeaveSurface.
-            return;
+            // the event spread to the QQuickItem's window can trigger the notifyLeaveSurface.
+            return false;
         }
 
-        if (Q_LIKELY(nativeHandle()->pointer_state.focused_surface == target_surface)) {
-            handle()->pointerNotifyMotion(timestamp, pos.x(), pos.y());
+        if (Q_LIKELY(pointerFocusSurface() == target_surface)) {
+            handle()->pointerNotifyMotion(timestamp, localPos.x(), localPos.y());
         } else { // Should to notify the enter event on there
-            handle()->pointerNotifyEnter(QWSurface::from(target_surface), pos.x(), pos.y());
+            handle()->pointerNotifyEnter(QWSurface::from(target_surface), localPos.x(), localPos.y());
         }
+
+        return true;
     }
-    inline void doNotifyButton(const WCursor *cursor, WInputDevice *device,
-                               uint32_t button, WInputDevice::ButtonState state,
-                               uint32_t timestamp) {
-        Q_UNUSED(cursor);
-        Q_UNUSED(device);
-        handle()->pointerNotifyButton(timestamp, button, static_cast<wlr_button_state>(state));
+    inline bool doNotifyButton(uint32_t button, wlr_button_state state, uint32_t timestamp) {
+        if (!pointerFocusSurface())
+            return false;
+
+        handle()->pointerNotifyButton(timestamp, button, state);
+        return true;
     }
     static inline wlr_axis_orientation fromQtHorizontal(Qt::Orientation o) {
         return o == Qt::Horizontal ? WLR_AXIS_ORIENTATION_HORIZONTAL
                                    : WLR_AXIS_ORIENTATION_VERTICAL;
     }
-    inline void doNotifyAxis(const WCursor *cursor, WInputDevice *device,
-                             WInputDevice::AxisSource source, Qt::Orientation orientation,
+    inline bool doNotifyAxis(wlr_axis_source source, Qt::Orientation orientation,
                              double delta, int32_t delta_discrete, uint32_t timestamp) {
-        Q_UNUSED(cursor)
-        Q_UNUSED(device)
-        handle()->pointerNotifyAxis(timestamp, fromQtHorizontal(orientation), delta,
-                                     delta_discrete, static_cast<wlr_axis_source>(source));
+        if (!pointerFocusSurface())
+            return false;
+
+        handle()->pointerNotifyAxis(timestamp, fromQtHorizontal(orientation), delta, delta_discrete, source);
+        return true;
     }
-    inline void doNotifyFrame(const WCursor *cursor) {
-        Q_UNUSED(cursor);
+    inline void doNotifyFrame() {
         handle()->pointerNotifyFrame();
     }
     inline void doEnter(WSurface *surface) {
-        hoverSurface = surface;
         auto pos = surface->mapFromGlobal(cursor->position());
         auto target_surface = surface->inputTargetAt(pos)->handle();
         // When the hoverSuface is exists, indicate the event receive areas is filtered
@@ -118,7 +121,6 @@ public:
         handle()->pointerNotifyEnter(QWSurface::from(target_surface), pos.x(), pos.y());
     }
     inline void doClearFocus() {
-        hoverSurface = nullptr;
         handle()->pointerNotifyClearFocus();
     }
     inline void doSetKeyboardFocus(QWSurface *surface) {
@@ -130,18 +132,24 @@ public:
     }
 
     // for keyboard event
-    inline bool doNotifyServer();
-    inline void doNotifyKey(WInputDevice *device, uint32_t keycode,
-                            WInputDevice::KeyState state, uint32_t timestamp) {
+    inline bool doNotifyKey(WInputDevice *device, uint32_t keycode, uint32_t state, uint32_t timestamp) {
+        if (!keyboardFocusSurface())
+            return false;
+
         this->handle()->setKeyboard(qobject_cast<QWKeyboard*>(device->handle()));
         /* Send modifiers to the client. */
-        this->handle()->keyboardNotifyKey(timestamp, keycode, static_cast<uint32_t>(state));
+        this->handle()->keyboardNotifyKey(timestamp, keycode, state);
+        return true;
     }
-    inline void doNotifyModifiers(WInputDevice *device) {
+    inline bool doNotifyModifiers(WInputDevice *device) {
+        if (!keyboardFocusSurface())
+            return false;
+
         auto keyboard = qobject_cast<QWKeyboard*>(device->handle());
         this->handle()->setKeyboard(keyboard);
         /* Send modifiers to the client. */
         this->handle()->keyboardNotifyModifiers(&keyboard->handle()->modifiers);
+        return true;
     }
 
     // begin slot function
@@ -162,8 +170,9 @@ public:
     QByteArray name;
     WCursor* cursor = nullptr;
     QVector<WInputDevice*> deviceList;
-    QPointer<WSurface> hoverSurface;
-    QPointer<QObject> eventGrabber;
+    QPointer<WSurface> pointerEventGrabber;
+    QPointer<WSeatEventFilter> eventFilter;
+    QPointer<QWindow> focusWindow;
 
     // for event data
     Qt::KeyboardModifiers keyModifiers = Qt::NoModifier;
@@ -195,14 +204,36 @@ void WSeatPrivate::on_request_set_selection(wlr_seat_request_set_selection_event
 
 void WSeatPrivate::on_keyboard_key(wlr_keyboard_key_event *event, WInputDevice *device)
 {
-    q_func()->notifyKey(device, event->keycode,
-                        static_cast<WInputDevice::KeyState>(event->state),
-                        event->time_msec);
+    auto keyboard = qobject_cast<QWKeyboard*>(device->handle());
+
+    auto code = event->keycode + 8; // map to wl_keyboard::keymap_format::keymap_format_xkb_v1
+    auto et = event->state == WL_KEYBOARD_KEY_STATE_PRESSED ? QEvent::KeyPress : QEvent::KeyRelease;
+    xkb_keysym_t sym = xkb_state_key_get_one_sym(keyboard->handle()->xkb_state, code);
+    int qtkey = QXkbCommon::keysymToQtKey(sym, keyModifiers, keyboard->handle()->xkb_state, code);
+    const QString &text = QXkbCommon::lookupString(keyboard->handle()->xkb_state, code);
+
+    QKeyEvent e(et, qtkey, keyModifiers, code, event->keycode, keyboard->getModifiers(),
+                text, false, 1, device->qtDevice());
+    e.setTimestamp(event->time_msec);
+
+    if (eventFilter && eventFilter->eventFilter(q_func(), focusWindow, &e))
+        return;
+
+    if (focusWindow) {
+        QCoreApplication::sendEvent(focusWindow, &e);
+
+        if (!e.isAccepted() && eventFilter)
+            eventFilter->ignoredEventFilter(q_func(), focusWindow, &e);
+    } else {
+        doNotifyKey(device, event->keycode, event->state, event->time_msec);
+    }
 }
 
 void WSeatPrivate::on_keyboard_modifiers(WInputDevice *device)
 {
-    q_func()->notifyModifiers(device);
+    auto keyboard = qobject_cast<QWKeyboard*>(device->handle());
+    keyModifiers = QXkbCommon::modifiers(keyboard->handle()->xkb_state);
+    doNotifyModifiers(device);
 }
 
 void WSeatPrivate::connect()
@@ -276,6 +307,11 @@ WSeat *WSeat::fromHandle(const QWSeat *handle)
     return handle->getData<WSeat>();
 }
 
+QWSeat *WSeat::handle() const
+{
+    return d_func()->handle();
+}
+
 void WSeat::setCursor(WCursor *cursor)
 {
     W_D(WSeat);
@@ -347,23 +383,92 @@ void WSeat::detachInputDevice(WInputDevice *device)
     QWlrootsIntegration::instance()->removeInputDevice(device);
 }
 
-void WSeat::notifyEnterSurface(WSurface *surface)
+inline static WSeat *getSeat(QInputEvent *event)
 {
-    W_D(WSeat);
-    d->doEnter(surface);
+    auto inputDevice = WInputDevice::from(event->device());
+    if (Q_UNLIKELY(!inputDevice))
+        return nullptr;
+
+    return inputDevice->seat();
 }
 
-void WSeat::notifyLeaveSurface(WSurface *surface)
+bool WSeat::sendEvent(WSurface *target, QInputEvent *event)
 {
-    W_D(WSeat);
-    Q_ASSERT(d->hoverSurface == surface);
-    d->doClearFocus();
+    if (event->timestamp() == 0)
+        return false;
+
+    auto inputDevice = WInputDevice::from(event->device());
+    if (Q_UNLIKELY(!inputDevice))
+        return false;
+
+    auto seat = inputDevice->seat();
+    auto d = seat->d_func();
+
+    if (d->eventFilter && d->eventFilter->eventFilter(seat, target, event))
+        return true;
+
+    event->accept();
+
+    switch (event->type()) {
+    case QEvent::HoverEnter:
+        d->doEnter(target);
+        break;
+    case QEvent::HoverLeave:
+        Q_ASSERT(d->nativeHandle()->pointer_state.focused_surface);
+        d->doClearFocus();
+        break;
+    case QEvent::MouseButtonPress: {
+        auto e = static_cast<QSinglePointEvent*>(event);
+        d->doNotifyButton(WCursor::toNativeButton(e->button()), WLR_BUTTON_PRESSED, event->timestamp());
+        break;
+    }
+    case QEvent::MouseButtonRelease: {
+        auto e = static_cast<QSinglePointEvent*>(event);
+        d->doNotifyButton(WCursor::toNativeButton(e->button()), WLR_BUTTON_RELEASED, event->timestamp());
+        break;
+    }
+    case QEvent::HoverMove: Q_FALLTHROUGH();
+    case QEvent::MouseMove: {
+        auto e = static_cast<QSinglePointEvent*>(event);
+        d->doNotifyMotion(target, e->position(), e->timestamp());
+        break;
+    }
+    case QEvent::KeyPress: {
+        auto e = static_cast<QKeyEvent*>(event);
+        d->doNotifyKey(inputDevice, e->nativeVirtualKey(), WL_KEYBOARD_KEY_STATE_PRESSED, e->timestamp());
+        break;
+    }
+    case QEvent::KeyRelease: {
+        auto e = static_cast<QKeyEvent*>(event);
+        d->doNotifyKey(inputDevice, e->nativeVirtualKey(), WL_KEYBOARD_KEY_STATE_RELEASED, e->timestamp());
+        break;
+    }
+    default:
+        event->ignore();
+        return false;
+    }
+
+    return true;
 }
 
-WSurface *WSeat::hoverSurface() const
+void WSeat::setPointerEventGrabber(WSurface *surface)
+{
+    W_D(WSeat);
+    d->pointerEventGrabber = surface;
+}
+
+WSurface *WSeat::pointerFocusSurface() const
 {
     W_DC(WSeat);
-    return d->hoverSurface;
+    if (auto fs = d->pointerFocusSurface())
+        return WSurface::fromHandle(QWSurface::from(fs));
+    return nullptr;
+}
+
+WSurface *WSeat::pointerEventGrabber() const
+{
+    W_DC(WSeat);
+    return d->pointerEventGrabber;
 }
 
 void WSeat::setKeyboardFocusTarget(QWSurface *nativeSurface)
@@ -379,142 +484,152 @@ void WSeat::setKeyboardFocusTarget(WSurface *surface)
     setKeyboardFocusTarget(surface ? surface->handle() : nullptr);
 }
 
-void WSeat::notifyMotion(WCursor *cursor, WInputDevice *device,
-                         uint32_t timestamp)
+WSurface *WSeat::keyboardFocusSurface() const
 {
-    W_D(WSeat);
-
-    const QPointF &global = cursor->position();
-
-    if (Q_UNLIKELY(d->eventGrabber)) {
-        QMouseEvent e(QEvent::MouseMove, QPointF(), global, cursor->button(),
-                      cursor->state(), d->keyModifiers, device->qtDevice<QPointingDevice>());
-        e.setTimestamp(timestamp);
-        QCoreApplication::sendEvent(d->eventGrabber.data(), &e);
-
-        if (e.isAccepted())
-            return;
-    }
-
-    if (Q_LIKELY(d->shouldNotifyPointerEvent(cursor))) {
-        d->doNotifyMotion(cursor, device, timestamp);
-        // Continue to spread the event, in order to the QQuickWindow do handle
-        // the enter and leave events.
-    }
-
-    QWindow *w = cursor->eventWindow();
-    if (Q_UNLIKELY(!w))
-        return;
-
-    const QPointF &local = global - QPointF(w->position());
-    auto e = new QMouseEvent(QEvent::MouseMove, local, local, global,
-                             cursor->button(), cursor->state(), d->keyModifiers,
-                             device->qtDevice<QPointingDevice>());
-    e->setTimestamp(timestamp);
-    QCoreApplication::sendEvent(w, e);
+    W_DC(WSeat);
+    if (auto fs = d->keyboardFocusSurface())
+        return WSurface::fromHandle(QWSurface::from(fs));
+    return nullptr;
 }
 
-void WSeat::notifyButton(WCursor *cursor, WInputDevice *device, uint32_t button,
-                         WInputDevice::ButtonState state, uint32_t timestamp)
+void WSeat::setKeyboardFocusTarget(QWindow *window)
+{
+    W_D(WSeat);
+    d->focusWindow = window;
+}
+
+QWindow *WSeat::focusWindow() const
+{
+    W_DC(WSeat);
+    return d->focusWindow;
+}
+
+void WSeat::notifyMotion(WCursor *cursor, WInputDevice *device, uint32_t timestamp)
 {
     W_D(WSeat);
 
-    const QPointF &global = cursor->position();
-    const auto et = state == WInputDevice::ButtonState::Pressed ? QEvent::MouseButtonPress
-                                                                : QEvent::MouseButtonRelease;
-
-    if (Q_UNLIKELY(d->eventGrabber)) {
-        QMouseEvent e(et, QPointF(), global, cursor->button(),
-                      cursor->state(), d->keyModifiers, device->qtDevice<QPointingDevice>());
-        e.setTimestamp(timestamp);
-        QCoreApplication::sendEvent(d->eventGrabber.data(), &e);
-
-        if (e.isAccepted())
-            return;
-    }
-
-    if (Q_LIKELY(d->shouldNotifyPointerEvent(cursor))) {
-        d->doNotifyButton(cursor, device, button, state, timestamp);
-    }
-
-    QWindow *w = cursor->eventWindow();
-    if (Q_UNLIKELY(!w))
-        return;
-
-    const QPointF &local = global - QPointF(w->position());
     auto qwDevice = static_cast<QPointingDevice*>(device->qtDevice());
     Q_ASSERT(qwDevice);
-    auto e = new QMouseEvent(et, local, local, global, cursor->button(),
-                             cursor->state(), d->keyModifiers, qwDevice);
-    e->setTimestamp(timestamp);
-    QCoreApplication::sendEvent(w, e);
+    QWindow *w = cursor->eventWindow();
+    const QPointF &global = cursor->position();
+    const QPointF local = w ? global - QPointF(w->position()) : QPointF();
+
+    QMouseEvent e(QEvent::MouseMove, local, global, cursor->button(),
+                  cursor->state(), d->keyModifiers, qwDevice);
+    e.setTimestamp(timestamp);
+
+    if (Q_UNLIKELY(d->eventFilter)) {
+        if (d->eventFilter->eventFilter(this, w, &e))
+            return;
+    }
+
+    if (Q_LIKELY(d->shouldNotifyPointerEvent(cursor))) {
+        const QPointF local = d->pointerEventGrabber->mapFromGlobal(cursor->position());
+        d->doNotifyMotion(d->pointerEventGrabber, local, timestamp);
+        return;
+    }
+
+    if (w)
+        QCoreApplication::sendEvent(w, &e);
+
+    if (!e.isAccepted() && d->eventFilter)
+        d->eventFilter->ignoredEventFilter(this, w, &e);
 }
 
-void WSeat::notifyAxis(WCursor *cursor, WInputDevice *device,
-                        WInputDevice::AxisSource source, Qt::Orientation orientation,
-                        double delta, int32_t delta_discrete, uint32_t timestamp)
+void WSeat::notifyButton(WCursor *cursor, WInputDevice *device, Qt::MouseButton button,
+                         wlr_button_state_t state, uint32_t timestamp)
 {
     W_D(WSeat);
-    if (Q_LIKELY(d->shouldNotifyPointerEvent(cursor))) {
-        return d->doNotifyAxis(cursor, device, source, orientation,
-                               delta, delta_discrete, timestamp);
+
+    auto qwDevice = static_cast<QPointingDevice*>(device->qtDevice());
+    Q_ASSERT(qwDevice);
+
+    QWindow *w = cursor->eventWindow();
+    const QPointF &global = cursor->position();
+    const QPointF local = w ? global - QPointF(w->position()) : QPointF();
+    auto et = state == WLR_BUTTON_PRESSED ? QEvent::MouseButtonPress : QEvent::MouseButtonRelease;
+
+    QMouseEvent e(et, local, global, cursor->button(),
+                  cursor->state(), d->keyModifiers, qwDevice);
+    e.setTimestamp(timestamp);
+
+    if (Q_UNLIKELY(d->eventFilter)) {
+        if (d->eventFilter->eventFilter(this, w, &e))
+            return;
     }
+
+    if (Q_LIKELY(d->shouldNotifyPointerEvent(cursor))) {
+        d->doNotifyButton(WCursor::toNativeButton(button),
+                          static_cast<wlr_button_state>(state), timestamp);
+        return;
+    }
+
+    if (w)
+        QCoreApplication::sendEvent(w, &e);
+
+    if (!e.isAccepted() && d->eventFilter)
+        d->eventFilter->ignoredEventFilter(this, w, &e);
+}
+
+void WSeat::notifyAxis(WCursor *cursor, WInputDevice *device, wlr_axis_source_t source,
+                       Qt::Orientation orientation,
+                       double delta, int32_t delta_discrete, uint32_t timestamp)
+{
+    W_D(WSeat);
+
+    auto qwDevice = static_cast<QPointingDevice*>(device->qtDevice());
+    Q_ASSERT(qwDevice);
+
+    QWindow *w = cursor->eventWindow();
+    const QPointF &global = cursor->position();
+    const QPointF local = w ? global - QPointF(w->position()) : QPointF();
+
+    QPoint angleDelta = orientation == Qt::Horizontal ? QPoint(delta_discrete, 0) : QPoint(0, delta_discrete);
+    QWheelEvent e(local, global, QPoint(), angleDelta, Qt::NoButton, d->keyModifiers,
+                  Qt::NoScrollPhase, false, Qt::MouseEventNotSynthesized, qwDevice);
+    e.setTimestamp(timestamp);
+
+    if (Q_UNLIKELY(d->eventFilter)) {
+        if (d->eventFilter->eventFilter(this, w, &e))
+            return;
+    }
+
+    if (Q_LIKELY(d->shouldNotifyPointerEvent(cursor))) {
+        d->doNotifyAxis(static_cast<wlr_axis_source>(source), orientation, delta, delta_discrete, timestamp);
+        return;
+    }
+
+    if (w)
+        QCoreApplication::sendEvent(w, &e);
+
+    if (e.isAccepted())
+        return;
+
+    if (d->doNotifyAxis(static_cast<wlr_axis_source>(source), orientation, delta, delta_discrete, timestamp))
+        return;
+
+    if (d->eventFilter)
+        d->eventFilter->ignoredEventFilter(this, w, &e);
 }
 
 void WSeat::notifyFrame(WCursor *cursor)
 {
+    Q_UNUSED(cursor);
     W_D(WSeat);
-    if (Q_LIKELY(d->shouldNotifyPointerEvent(cursor))) {
-        d->doNotifyFrame(cursor);
-    }
+    d->doNotifyFrame();
 }
 
-void WSeat::notifyKey(WInputDevice *device, uint32_t keycode,
-                      WInputDevice::KeyState state, uint32_t timestamp)
-{
-    W_D(WSeat);
-
-    auto keyboard = qobject_cast<QWKeyboard*>(device->handle());
-    auto code = keycode + 8; // map to wl_keyboard::keymap_format::keymap_format_xkb_v1
-    auto et = state == WInputDevice::KeyState::Pressed ? QEvent::KeyPress : QEvent::KeyRelease;
-    xkb_keysym_t sym = xkb_state_key_get_one_sym(keyboard->handle()->xkb_state, code);
-    int qtkey = QXkbCommon::keysymToQtKey(sym, d->keyModifiers, keyboard->handle()->xkb_state, code);
-    const QString &text = QXkbCommon::lookupString(keyboard->handle()->xkb_state, code);
-
-    // TODO: Use the focus window
-    auto w = d->cursor->eventWindow();
-    if (w) {
-        QKeyEvent e(et, qtkey, d->keyModifiers, keycode, code, keyboard->getModifiers(),
-                    text, false, 1, device->qtDevice());
-        QCoreApplication::sendEvent(w, &e);
-
-        if (!e.isAccepted())
-            d->doNotifyKey(device, keycode, state, timestamp);
-    } else {
-        d->doNotifyKey(device, keycode, state, timestamp);
-    }
-}
-
-void WSeat::notifyModifiers(WInputDevice *device)
-{
-    auto keyboard = qobject_cast<QWKeyboard*>(device->handle());
-
-    W_D(WSeat);
-    d->keyModifiers = QXkbCommon::modifiers(keyboard->handle()->xkb_state);
-    d->doNotifyModifiers(device);
-}
-
-QObject *WSeat::eventGrabber() const
+WSeatEventFilter *WSeat::eventFilter() const
 {
     W_DC(WSeat);
-    return d->eventGrabber.data();
+    return d->eventFilter.data();
 }
 
-void WSeat::setEventGrabber(QObject *grabber)
+void WSeat::setEventFilter(WSeatEventFilter *filter)
 {
     W_D(WSeat);
-    Q_ASSERT(!grabber || !d->eventGrabber);
-    d->eventGrabber = grabber;
+    Q_ASSERT(!filter || !d->eventFilter);
+    d->eventFilter = filter;
 }
 
 void WSeat::create(WServer *server)
@@ -554,6 +669,30 @@ void WSeat::destroy(WServer *)
         d->handle()->setData(this, nullptr);
         m_handle = nullptr;
     }
+}
+
+WSeatEventFilter::WSeatEventFilter(QObject *parent)
+    : QObject(parent)
+{
+
+}
+
+bool WSeatEventFilter::eventFilter(WSeat *, WSurface *, QInputEvent *event)
+{
+    event->ignore();
+    return false;
+}
+
+bool WSeatEventFilter::eventFilter(WSeat *, QWindow *, QInputEvent *event)
+{
+    event->ignore();
+    return false;
+}
+
+bool WSeatEventFilter::ignoredEventFilter(WSeat *, QWindow *, QInputEvent *event)
+{
+    event->ignore();
+    return false;
 }
 
 WAYLIB_SERVER_END_NAMESPACE

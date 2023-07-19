@@ -112,7 +112,6 @@ void WBackendPrivate::on_output_destroy(QWOutput *output)
     for (int i = 0; i < outputList.count(); ++i) {
         if (outputList.at(i)->handle() == static_cast<void*>(output)) {
             auto device = outputList.takeAt(i);
-            QWlrootsIntegration::instance()->removeScreen(device);
             q_func()->outputRemoved(device);
             delete device;
             return;
@@ -153,9 +152,9 @@ void WBackend::outputAdded(WOutput *)
 
 }
 
-void WBackend::outputRemoved(WOutput *)
+void WBackend::outputRemoved(WOutput *output)
 {
-
+    QWlrootsIntegration::instance()->removeScreen(output);
 }
 
 void WBackend::inputAdded(WInputDevice *)
@@ -184,6 +183,11 @@ void WBackend::destroy(WServer *server)
 {
     Q_UNUSED(server)
     W_D(WBackend);
+
+    for (auto i : d->inputList)
+        inputRemoved(i);
+    for (auto i : d->outputList)
+        outputRemoved(i);
 
     qDeleteAll(d->inputList);
     qDeleteAll(d->outputList);

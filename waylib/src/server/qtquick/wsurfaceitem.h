@@ -41,10 +41,7 @@ Q_SIGNALS:
 
 protected:
     QSGNode *updatePaintNode(QSGNode *, UpdatePaintNodeData *) override;
-    void hoverEnterEvent(QHoverEvent *event) override;
-    void hoverLeaveEvent(QHoverEvent *event) override;
-    void mousePressEvent(QMouseEvent *event) override;
-    void mouseReleaseEvent(QMouseEvent *event) override;
+    bool event(QEvent *event) override;
 
     void releaseResources() override;
     void componentComplete() override;

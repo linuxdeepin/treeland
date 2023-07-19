@@ -107,10 +107,7 @@ void WServerPrivate::stop()
 
     auto i = interfaceList.crbegin();
     for (; i != interfaceList.crend(); ++i) {
-        if ((*i)->isValid()) {
-            (*i)->destroy(q);
-        }
-
+        (*i)->destroy(q);
         delete *i;
     }
 

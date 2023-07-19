@@ -41,6 +41,7 @@ public:
 private:
     QPointer<QW_NAMESPACE::QWBuffer> renderBuffer;
     bool bufferAttached = false;
+    QMetaObject::Connection onScreenChangedConnection;
     QMetaObject::Connection onScreenGeometryConnection;
 };
 

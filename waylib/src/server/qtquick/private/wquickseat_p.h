@@ -11,6 +11,7 @@ Q_MOC_INCLUDE(<wquickcursor.h>)
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
 class WSeat;
+class WSeatEventFilter;
 class WQuickCursor;
 class WQuickSeatPrivate;
 class WAYLIB_SERVER_EXPORT WQuickSeat : public WQuickWaylandServerInterface, public WObject
@@ -21,6 +22,7 @@ class WAYLIB_SERVER_EXPORT WQuickSeat : public WQuickWaylandServerInterface, pub
     Q_PROPERTY(WSeat* seat READ seat NOTIFY seatChanged)
     Q_PROPERTY(QString name READ name WRITE setName REQUIRED)
     Q_PROPERTY(WQuickCursor* cursor READ cursor WRITE setCursor NOTIFY cursorChanged)
+    Q_PROPERTY(WSeatEventFilter* eventFilter READ eventFilter WRITE setEventFilter NOTIFY eventFilterChanged)
 
 public:
     explicit WQuickSeat(QObject *parent = nullptr);
@@ -33,12 +35,16 @@ public:
 
     WSeat *seat() const;
 
+    WSeatEventFilter *eventFilter() const;
+    void setEventFilter(WSeatEventFilter *newEventFilter);
+
 public Q_SLOTS:
     void addDevice(WInputDevice *device);
 
 Q_SIGNALS:
     void seatChanged();
     void cursorChanged();
+    void eventFilterChanged();
 
 private:
     friend class WOutputViewport;

@@ -35,7 +35,7 @@ public:
 
     W_DECLARE_PUBLIC(WXdgShell)
 
-    QVector<WSurface*> surfaceList;
+    QVector<WXdgSurface*> surfaceList;
 };
 
 void WXdgShellPrivate::on_new_xdg_surface(wlr_xdg_surface *wlr_surface)
@@ -71,6 +71,12 @@ WXdgShell::WXdgShell()
 
 }
 
+QVector<WXdgSurface*> WXdgShell::surfaceList() const
+{
+    W_DC(WXdgShell);
+    return d->surfaceList;
+}
+
 void WXdgShell::surfaceAdded(WXdgSurface *)
 {
 
@@ -95,6 +101,15 @@ void WXdgShell::create(WServer *server)
 void WXdgShell::destroy(WServer *server)
 {
     Q_UNUSED(server);
+    W_D(WXdgShell);
+
+    auto list = d->surfaceList;
+    d->surfaceList.clear();
+
+    for (auto surface : list) {
+        surfaceRemoved(surface);
+        surface->deleteLater();
+    }
 }
 
 WAYLIB_SERVER_END_NAMESPACE
