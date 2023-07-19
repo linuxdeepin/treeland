@@ -50,6 +50,9 @@ protected:
     void notifyChanged(ChangeType type, std::any oldValue, std::any newValue) override;
     void notifyBeginState(State state) override;
     void notifyEndState(State state) override;
+
+private:
+    W_PRIVATE_SLOT(void updatePosition())
 };
 
 WAYLIB_SERVER_END_NAMESPACE

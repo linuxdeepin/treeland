@@ -343,7 +343,7 @@ WOutput *WSurface::primaryOutput() const
 QPointF WSurface::position() const
 {
     W_DC(WSurface);
-    return d->handler ? d->handler->position() : QPointF();
+    return QPointF();
 }
 
 WSurfaceHandler *WSurface::handler() const

@@ -90,6 +90,12 @@ void MoveResizeHelper::setSeat(WSeat *newSeat)
     emit seatChanged();
 }
 
+inline QPointF getItemGlobalPosition(QQuickItem *item)
+{
+    auto parent = item->parentItem();
+    return parent ? parent->mapToGlobal(item->position()) : item->position();
+}
+
 void MoveResizeHelper::startMove(WSurface *surface, int serial)
 {
     Q_UNUSED(serial)
@@ -105,7 +111,7 @@ void MoveResizeHelper::startMove(WSurface *surface, int serial)
 
     type = WSurface::State::Move;
     this->surface = surface;
-    surfacePosOfStartMoveResize = surface->position();
+    surfacePosOfStartMoveResize = getItemGlobalPosition(m_surfaceItem);
 
     surface->notifyBeginState(type);
     m_seat->setEventGrabber(this);
@@ -126,8 +132,8 @@ void MoveResizeHelper::startResize(WSurface *surface, Qt::Edges edge, int serial
 
     type = WSurface::State::Resize;
     this->surface = surface;
-    surfacePosOfStartMoveResize = surface->position();
-    surfaceSizeOfstartMoveResize = surface->size();
+    surfacePosOfStartMoveResize = getItemGlobalPosition(m_surfaceItem);
+    surfaceSizeOfstartMoveResize = m_surfaceItem->size();
     resizeEdgets = edge;
 
     surface->notifyBeginState(type);

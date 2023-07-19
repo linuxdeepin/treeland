@@ -32,6 +32,7 @@ class WAYLIB_SERVER_EXPORT WSurface : public QObject, public WObject
     Q_OBJECT
     W_DECLARE_PRIVATE(WSurface)
     Q_PROPERTY(bool mapped READ mapped NOTIFY mappedChanged)
+    Q_PROPERTY(QPointF position READ position NOTIFY positionChanged)
     Q_PROPERTY(QSize size READ size NOTIFY sizeChanged)
     Q_PROPERTY(QSize bufferSize READ bufferSize NOTIFY bufferSizeChanged)
     Q_PROPERTY(int bufferScale READ bufferScale NOTIFY bufferScaleChanged)
@@ -114,6 +115,7 @@ Q_SIGNALS:
 
     void mappedChanged();
     void textureChanged();
+    void positionChanged();
     void sizeChanged(QSize oldSize, QSize newSize);
     void bufferSizeChanged(QSize oldSize, QSize newSize);
     void bufferScaleChanged(int oldScale, int newScale);

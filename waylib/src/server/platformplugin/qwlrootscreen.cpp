@@ -83,10 +83,7 @@ QDpi QWlrootsScreen::logicalBaseDpi() const
 
 QDpi QWlrootsScreen::logicalDpi() const
 {
-    auto dpi = logicalBaseDpi();
-    const qreal scale = handle()->scale;
-
-    return QDpi(dpi.first * scale, dpi.second * scale);
+    return logicalBaseDpi();
 }
 
 Qt::ScreenOrientation QWlrootsScreen::nativeOrientation() const

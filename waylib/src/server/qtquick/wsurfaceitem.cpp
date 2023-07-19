@@ -266,6 +266,8 @@ void WSurfaceItem::releaseResources()
         d->textureProvider = nullptr;
     }
 
+    if (d->frameDoneConnection)
+        disconnect(d->frameDoneConnection);
     d->surface = nullptr;
     // Force to update the contents, avoid to render the invalid textures
     d->dirty(QQuickItemPrivate::Content);

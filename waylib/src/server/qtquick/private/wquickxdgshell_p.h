@@ -7,6 +7,7 @@
 #include <wquickwaylandserver.h>
 
 Q_MOC_INCLUDE(<wseat.h>)
+Q_MOC_INCLUDE(<wxdgsurface.h>)
 
 #include <QQmlEngine>
 

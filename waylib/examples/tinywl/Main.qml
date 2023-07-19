@@ -249,6 +249,8 @@ Item {
                 layout: outputLayout
                 width: surfaceItem.width
                 height: surfaceItem.height
+                x: waylandSurface.position.x
+                y: waylandSurface.position.y
 
                 SurfaceItem {
                     id: surfaceItem
@@ -265,6 +267,8 @@ Item {
 
                 Component.onCompleted: {
                     waylandSurface.shell = this
+                    if (waylandSurface.parentSurface)
+                        parent = waylandSurface.parentSurface.shell
                 }
             }
         }
