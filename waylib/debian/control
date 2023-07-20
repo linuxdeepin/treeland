@@ -7,7 +7,8 @@ Build-Depends: debhelper (>= 9),
  qt6-base-private-dev (>= 6.4.0),
  qt6-base-dev-tools (>= 6.4.0),
  qt6-declarative-private-dev (>= 6.4.0),
- libwlroots-dev (>= 0.15.1),
+ qwlroots-dev,
+ libwlroots-dev (>= 0.17.0),
  libpixman-1-dev,
  wayland-protocols
 Standards-Version: 3.9.8
@@ -22,7 +23,15 @@ Description:  A wrapper for wlroots based on Qt
 
 Package: libwaylib-dev
 Architecture: any
-Depends: ${shlibs:Depends}, ${misc:Depends}, libwaylib( =${binary:Version})
+Depends: ${shlibs:Depends},
+  ${misc:Depends},
+  libwaylib (=${binary:Version}),
+  qt6-base-private-dev (>= 6.4.0),
+  qt6-base-dev-tools (>= 6.4.0),
+  qt6-declarative-private-dev (>= 6.4.0),
+  libwlroots-dev (>= 0.17.0),
+  qwlroots-dev
 Description: A devel package for libwaylib
  .
- This package contains the header files and static libraries of waylib
+ This package contains the header files and static libraries of waylib.
+
