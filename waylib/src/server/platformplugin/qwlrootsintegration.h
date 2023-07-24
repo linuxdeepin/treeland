@@ -46,7 +46,7 @@ public:
         return m_screens;
     }
 
-    QInputDevice *addInputDevice(WInputDevice *device, const QString &seatName = QString());
+    QInputDevice *addInputDevice(WInputDevice *device, const QString &seatName);
     void removeInputDevice(WInputDevice *device);
     QInputDevice *getInputDeviceFrom(WInputDevice *device);
 

@@ -35,7 +35,7 @@ WAYLIB_SERVER_BEGIN_NAMESPACE
 class WSeatPrivate : public WObjectPrivate
 {
 public:
-    WSeatPrivate(WSeat *qq, const QByteArray &name)
+    WSeatPrivate(WSeat *qq, const QString &name)
         : WObjectPrivate(qq)
         , name(name)
     {
@@ -120,8 +120,10 @@ public:
         Q_ASSERT(target_surface);
         handle()->pointerNotifyEnter(QWSurface::from(target_surface), pos.x(), pos.y());
     }
-    inline void doClearFocus() {
+    inline void doClearPointerFocus() {
         handle()->pointerNotifyClearFocus();
+        if (cursor) // reset cursur from QCursor resource, the last cursor is from wlr_surface
+            cursor->setCursor(cursor->cursor());
     }
     inline void doSetKeyboardFocus(QWSurface *surface) {
         if (surface) {
@@ -167,7 +169,7 @@ public:
 
     W_DECLARE_PUBLIC(WSeat)
 
-    QByteArray name;
+    QString name;
     WCursor* cursor = nullptr;
     QVector<WInputDevice*> deviceList;
     QPointer<WSurface> pointerEventGrabber;
@@ -271,7 +273,7 @@ void WSeatPrivate::attachInputDevice(WInputDevice *device)
 {
     W_Q(WSeat);
     device->setSeat(q);
-    QWlrootsIntegration::instance()->addInputDevice(device);
+    QWlrootsIntegration::instance()->addInputDevice(device, name);
 
     if (device->type() == WInputDevice::Type::Keyboard) {
         auto keyboard = qobject_cast<QWKeyboard*>(device->handle());
@@ -297,7 +299,7 @@ void WSeatPrivate::attachInputDevice(WInputDevice *device)
     }
 }
 
-WSeat::WSeat(const QByteArray &name)
+WSeat::WSeat(const QString &name)
     : WObject(*new WSeatPrivate(this, name))
 {
 
@@ -311,6 +313,11 @@ WSeat *WSeat::fromHandle(const QWSeat *handle)
 QWSeat *WSeat::handle() const
 {
     return d_func()->handle();
+}
+
+QString WSeat::name() const
+{
+    return d_func()->name;
 }
 
 void WSeat::setCursor(WCursor *cursor)
@@ -416,7 +423,7 @@ bool WSeat::sendEvent(WSurface *target, QInputEvent *event)
         break;
     case QEvent::HoverLeave:
         Q_ASSERT(d->nativeHandle()->pointer_state.focused_surface);
-        d->doClearFocus();
+        d->doClearPointerFocus();
         break;
     case QEvent::MouseButtonPress: {
         auto e = static_cast<QSinglePointEvent*>(event);
@@ -637,7 +644,7 @@ void WSeat::create(WServer *server)
 {
     W_D(WSeat);
     // destroy follow display
-    m_handle = QWSeat::create(server->handle(), d->name.constData());
+    m_handle = QWSeat::create(server->handle(), d->name.toUtf8().constData());
     d->handle()->setData(this, this);
     d->connect();
 

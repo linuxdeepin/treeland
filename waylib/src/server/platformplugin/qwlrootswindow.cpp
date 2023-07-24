@@ -5,6 +5,9 @@
 #include "qwlrootscreen.h"
 #include "qwlrootsintegration.h"
 #include "woutput.h"
+#include "winputdevice.h"
+#include "wseat.h"
+#include "wcursor.h"
 
 #include <qwbuffer.h>
 #include <qwrenderer.h>
@@ -169,6 +172,17 @@ void QWlrootsRenderWindow::setDevicePixelRatio(qreal dpr)
 #else
     QWindowSystemInterface::handleWindowDevicePixelRatioChanged<QWindowSystemInterface::SynchronousDelivery>(window());
 #endif
+}
+
+bool QWlrootsRenderWindow::windowEvent(QEvent *event)
+{
+    if (auto ie = dynamic_cast<QInputEvent*>(event)) {
+        auto device = WInputDevice::from(ie->device());
+        Q_ASSERT(device);
+        lastActiveCursor = device->seat()->cursor();
+    }
+
+    return false;
 }
 
 WAYLIB_SERVER_END_NAMESPACE

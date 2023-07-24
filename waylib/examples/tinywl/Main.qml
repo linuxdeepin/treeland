@@ -62,10 +62,6 @@ Item {
                 id: cursor1
 
                 layout: layout
-                delegate: Image {
-                    sourceSize: cursor1.size
-                    source: cursor1.cursorUrl
-                }
             }
 
             eventFilter: eventFilter
@@ -111,6 +107,18 @@ Item {
                         output: waylandOutput
                         devicePixelRatio: parent.devicePixelRatio
                         anchors.centerIn: parent
+                        cursorDelegate: Item {
+                            required property OutputCursor cursor
+
+                            visible: cursor.visible && !cursor.isHardwareCursor
+
+                            Image {
+                                source: cursor.imageSource
+                                x: -cursor.hotspot.x
+                                y: -cursor.hotspot.y
+                                cache: false
+                            }
+                        }
 
                         RotationAnimation {
                             id: rotationAnimator

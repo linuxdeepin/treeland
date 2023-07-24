@@ -23,6 +23,67 @@ extern "C" {
 QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
+static void updateGLTexture(QWTexture *handle, QQuickWindow *window, QSGPlainTexture *texture) {
+    wlr_gles2_texture_attribs attribs;
+    wlr_gles2_texture_get_attribs(handle->handle(), &attribs);
+    QSize size(handle->handle()->width, handle->handle()->height);
+
+#define GL_TEXTURE_EXTERNAL_OES           0x8D65
+    QQuickWindowPrivate::TextureFromNativeTextureFlags flags = attribs.target == GL_TEXTURE_EXTERNAL_OES
+                                                                   ? QQuickWindowPrivate::NativeTextureIsExternalOES
+                                                                   : QQuickWindowPrivate::TextureFromNativeTextureFlags {};
+    texture->setTextureFromNativeTexture(QQuickWindowPrivate::get(window)->rhi,
+                                         attribs.tex, 0, 0, size,
+                                         {}, flags);
+
+    texture->setHasAlphaChannel(attribs.has_alpha);
+    texture->setTextureSize(size);
+}
+
+#ifdef ENABLE_VULKAN_RENDER
+void updateVKTexture(QWTexture *handle, QQuickWindow *window, QSGPlainTexture *texture) {
+    wlr_vk_image_attribs attribs;
+    wlr_vk_texture_get_image_attribs(handle->handle(), &attribs);
+    QSize size(handle->handle()->width, handle->handle()->height);
+
+    texture->setTextureFromNativeTexture(QQuickWindowPrivate::get(window)->rhi,
+                                         reinterpret_cast<quintptr>(attribs.image),
+                                         attribs.layout, attribs.format, size,
+                                         {}, {});
+    texture->setHasAlphaChannel(wlr_vk_texture_has_alpha(handle->handle()));
+    texture->setTextureSize(size);
+}
+#endif
+
+void updateImage(QWTexture *handle, QQuickWindow *, QSGPlainTexture *texture) {
+    auto image = wlr_pixman_texture_get_image(handle->handle());
+    texture->setImage(WTools::fromPixmanImage(image));
+}
+
+typedef void(*UpdateTextureFunction)(QWTexture *, QQuickWindow *, QSGPlainTexture *);
+
+static UpdateTextureFunction getUpdateTextFunction(QWTexture *handle, WTexture::Type &type)
+{
+    if (wlr_texture_is_gles2(handle->handle())) {
+        type = WTexture::Type::GLTexture;
+        return updateGLTexture;
+    } else if (wlr_texture_is_pixman(handle->handle())) {
+        type = WTexture::Type::Image;
+        return updateImage;
+    }
+#ifdef ENABLE_VULKAN_RENDER
+    else if (wlr_texture_is_vk(handle->handle())) {
+        type = WTexture::Type::VKTexture;
+        return updateVKTexture;
+    }
+#endif
+    else {
+        type = WTexture::Type::Unknow;
+    }
+
+    return nullptr;
+}
+
 class Q_DECL_HIDDEN WTexturePrivate : public WObjectPrivate {
 public:
     WTexturePrivate(WTexture *qq, QWTexture *handle);
@@ -33,47 +94,6 @@ public:
     }
 
     void init(QWTexture *handle);
-    void updateGLTexture() {
-        if (!window)
-            return;
-
-        wlr_gles2_texture_attribs attribs;
-        wlr_gles2_texture_get_attribs(nativeHandle(), &attribs);
-
-        #define GL_TEXTURE_EXTERNAL_OES           0x8D65
-        QQuickWindowPrivate::TextureFromNativeTextureFlags flags = attribs.target == GL_TEXTURE_EXTERNAL_OES
-                                                                       ? QQuickWindowPrivate::NativeTextureIsExternalOES
-                                                                       : QQuickWindowPrivate::TextureFromNativeTextureFlags {};
-        texture->setTextureFromNativeTexture(QQuickWindowPrivate::get(window)->rhi,
-                                             attribs.tex, 0, 0, QSize(nativeHandle()->width, nativeHandle()->height),
-                                             {}, flags);
-
-        texture->setHasAlphaChannel(attribs.has_alpha);
-        texture->setTextureSize(QSize(nativeHandle()->width, nativeHandle()->height));
-    }
-
-#ifdef ENABLE_VULKAN_RENDER
-    void updateVKTexture() {
-        if (!window)
-            return;
-
-        wlr_vk_image_attribs attribs;
-        wlr_vk_texture_get_image_attribs(nativeHandle(), &attribs);
-
-        texture->setTextureFromNativeTexture(QQuickWindowPrivate::get(window)->rhi,
-                                             reinterpret_cast<quintptr>(attribs.image),
-                                             attribs.layout, attribs.format,
-                                             QSize(nativeHandle()->width, nativeHandle()->height),
-                                             {}, {});
-        texture->setHasAlphaChannel(wlr_vk_texture_has_alpha(nativeHandle()));
-        texture->setTextureSize(QSize(nativeHandle()->width, nativeHandle()->height));
-    }
-#endif
-
-    void updateImage() {
-        auto image = wlr_pixman_texture_get_image(nativeHandle());
-        texture->setImage(WTools::fromPixmanImage(image));
-    }
 
     W_DECLARE_PUBLIC(WTexture)
 
@@ -81,7 +101,7 @@ public:
     WTexture::Type type;
 
     QScopedPointer<QSGPlainTexture> texture;
-    void(WTexturePrivate::*onWlrTextureChanged)();
+    UpdateTextureFunction updateTexture;
 
     QQuickWindow *window = nullptr;
 };
@@ -89,7 +109,7 @@ public:
 WTexturePrivate::WTexturePrivate(WTexture *qq, QWTexture *handle)
     : WObjectPrivate(qq)
     , handle(handle)
-    , onWlrTextureChanged(nullptr)
+    , updateTexture(nullptr)
 {
     if (handle)
         init(handle);
@@ -100,29 +120,23 @@ void WTexturePrivate::init(QWTexture *new_handle)
     auto gpuTexture = new QSGPlainTexture();
     gpuTexture->setOwnsTexture(true);
     texture.reset(gpuTexture);
-
-    if (wlr_texture_is_gles2(new_handle->handle())) {
-        type = WTexture::Type::GLTexture;
-        onWlrTextureChanged = &WTexturePrivate::updateGLTexture;
-    } else if (wlr_texture_is_pixman(new_handle->handle())) {
-        type = WTexture::Type::Image;
-        onWlrTextureChanged = &WTexturePrivate::updateImage;
-    }
-#ifdef ENABLE_VULKAN_RENDER
-    else if (wlr_texture_is_vk(new_handle->handle())) {
-        type = WTexture::Type::VKTexture;
-        onWlrTextureChanged = &WTexturePrivate::updateVKTexture;
-    }
-#endif
-    else {
-        type = WTexture::Type::Unknow;
-    }
+    updateTexture = getUpdateTextFunction(new_handle, type);
 }
 
 WTexture::WTexture(QWTexture *handle)
     : WObject(*new WTexturePrivate(this, handle))
 {
 
+}
+
+bool WTexture::makeTexture(QWTexture *handle, QSGPlainTexture *texture, QQuickWindow *window)
+{
+    Type type;
+    auto updateTexture = getUpdateTextFunction(handle, type);
+    if (!updateTexture)
+        return false;
+    updateTexture(handle, window, texture);
+    return true;
 }
 
 QWTexture *WTexture::handle() const
@@ -148,8 +162,15 @@ void WTexture::setHandle(QWTexture *handle)
 
     d->handle = new_handle;
 
-    if (Q_LIKELY(d->onWlrTextureChanged))
-        (d->*(d->onWlrTextureChanged))();
+    if (Q_LIKELY(d->updateTexture && d->window))
+        d->updateTexture(d->handle, d->window, d->texture.get());
+}
+
+void WTexture::setOwnsTexture(bool owns)
+{
+    W_D(WTexture);
+    Q_ASSERT(d->handle);
+    d->texture->setOwnsTexture(owns);
 }
 
 WTexture::Type WTexture::type() const
@@ -171,10 +192,16 @@ QSGTexture *WTexture::getSGTexture(QQuickWindow *window)
     const auto oldWindow = d->window;
     d->window = window;
     if (Q_UNLIKELY(!d->texture || window != oldWindow)) {
-        if (Q_LIKELY(d->onWlrTextureChanged))
-            (d->*(d->onWlrTextureChanged))();
+        if (Q_LIKELY(d->updateTexture))
+            d->updateTexture(d->handle, window, d->texture.get());
     }
     return d->texture.get();
+}
+
+const QImage &WTexture::image() const
+{
+    W_DC(WTexture);
+    return d->texture->image();
 }
 
 WAYLIB_SERVER_END_NAMESPACE

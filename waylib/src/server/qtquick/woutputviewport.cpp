@@ -2,81 +2,263 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "woutputviewport.h"
-#include "woutputrenderwindow.h"
+#include "woutputviewport_p.h"
 #include "woutput.h"
+#include "woutputlayout.h"
 #include "wquickseat_p.h"
 #include "wseat.h"
+#include "wtools.h"
 
-#include <qwoutput.h>
+#include <private/qsgplaintexture_p.h>
 
-#include <private/qquickitem_p.h>
+extern "C" {
+#include <wlr/render/wlr_texture.h>
+#include <wlr/render/pixman.h>
+}
 
-QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
-class WOutputViewportPrivate : public QQuickItemPrivate
+QSGTexture *CursorTextureFactory::createTexture(QQuickWindow *window) const
 {
-public:
-    WOutputViewportPrivate()
-    {
+    std::unique_ptr<QSGPlainTexture> texture(new QSGPlainTexture());
+    if (!WTexture::makeTexture(this->texture, texture.get(), window))
+        return nullptr;
 
+    texture->setOwnsTexture(false);
+    return texture.release();
+}
+
+QImage CursorTextureFactory::image() const
+{
+    if (!wlr_texture_is_pixman(texture->handle())) {
+        return {};
     }
-    ~WOutputViewportPrivate() {
 
+    auto image = wlr_pixman_texture_get_image(texture->handle());
+    return WTools::fromPixmanImage(image);
+}
+
+QuickOutputCursor::QuickOutputCursor(QObject *parent)
+    : QObject(parent)
+{
+
+}
+
+QuickOutputCursor::~QuickOutputCursor()
+{
+    if (delegateItem)
+        delegateItem->deleteLater();
+}
+
+QString QuickOutputCursor::imageProviderId()
+{
+    return QLatin1StringView("QuickOutputCursor");
+}
+
+bool QuickOutputCursor::visible() const
+{
+    return m_visible;
+}
+
+void QuickOutputCursor::setVisible(bool newVisible)
+{
+    if (m_visible == newVisible)
+        return;
+    m_visible = newVisible;
+    Q_EMIT visibleChanged();
+}
+
+bool QuickOutputCursor::isHardwareCursor() const
+{
+    return m_isHardwareCursor;
+}
+
+void QuickOutputCursor::setIsHardwareCursor(bool newIsHardwareCursor)
+{
+    if (m_isHardwareCursor == newIsHardwareCursor)
+        return;
+    m_isHardwareCursor = newIsHardwareCursor;
+    Q_EMIT isHardwareCursorChanged();
+}
+
+QPoint QuickOutputCursor::hotspot() const
+{
+    return m_hotspot;
+}
+
+void QuickOutputCursor::setHotspot(QPoint newHotspot)
+{
+    if (m_hotspot == newHotspot)
+        return;
+    m_hotspot = newHotspot;
+    Q_EMIT hotspotChanged();
+}
+
+void QuickOutputCursor::setTexture(wlr_texture *texture, const QPointF &position)
+{
+    // TODO: Though "lastTexture == texture", but maybe the texture native resource
+    // is changed(like as OpenGL texture id changed). Should add a signal at
+    // output_cursor_set_texture of wlroots, and remove 'position' argument.
+    if (lastTexture == texture && lastCursorPosition == position)
+        return;
+    lastTexture = texture;
+    lastCursorPosition = position;
+
+    QUrl url;
+
+    if (texture) {
+        url.setScheme("image");
+        url.setHost(imageProviderId());
+        url.setPath(QString("/%1/%2+%3").arg(quintptr(QWTexture::from(texture)), 0, 16).arg(position.x(), position.y()));
     }
 
-    inline WOutputRenderWindow *outputWindow() const {
-        auto ow = qobject_cast<WOutputRenderWindow*>(window);
-        Q_ASSERT(ow);
-        return ow;
-    }
+    setImageSource(url);
+}
 
-    void initForOutput() {
-        W_Q(WOutputViewport);
+QUrl QuickOutputCursor::imageSource() const
+{
+    return m_imageSource;
+}
 
-        auto qwoutput = output->handle();
-        auto mode = qwoutput->preferredMode();
-        if (mode)
-            qwoutput->setMode(mode);
-        qwoutput->enable(q->isVisible());
-        qwoutput->commit();
+void QuickOutputCursor::setImageSource(const QUrl &newImageSource)
+{
+    if (m_imageSource == newImageSource)
+        return;
+    m_imageSource = newImageSource;
+    Q_EMIT imageSourceChanged();
+}
 
-        outputWindow()->attach(q);
+void QuickOutputCursor::setPosition(const QPointF &pos)
+{
+    delegateItem->setPosition(delegateItem->parentItem()->mapFromGlobal(pos));
+}
 
-        QObject::connect(output, &WOutput::modeChanged, q, [this] {
-            updateImplicitSize();
-        });
+void QuickOutputCursor::setDelegateItem(QQuickItem *item)
+{
+    delegateItem = item;
+}
 
+QQuickTextureFactory *CursorProvider::requestTexture(const QString &id, QSize *size, const QSize &requestedSize)
+{
+    Q_UNUSED(requestedSize);
+
+    auto tmp = id.split('/');
+    if (tmp.isEmpty())
+        return nullptr;
+    bool ok = false;
+    QWTexture *texture = QWTexture::from(reinterpret_cast<wlr_texture*>(tmp.first().toLongLong(&ok, 16)));
+    if (!ok)
+        return nullptr;
+
+    CursorTextureFactory *factory = new CursorTextureFactory(texture);
+
+    if (size)
+        *size = factory->textureSize();
+
+    return factory;
+}
+
+void WOutputViewportPrivate::initForOutput()
+{
+    W_Q(WOutputViewport);
+
+    auto qwoutput = output->handle();
+    auto mode = qwoutput->preferredMode();
+    if (mode)
+        qwoutput->setMode(mode);
+    qwoutput->enable(q->isVisible());
+    qwoutput->commit();
+
+    outputWindow()->attach(q);
+
+    QObject::connect(output, &WOutput::modeChanged, q, [this] {
         updateImplicitSize();
+    });
+
+    updateImplicitSize();
+    clearCursors();
+}
+
+qreal WOutputViewportPrivate::getImplicitWidth() const
+{
+    return output->size().width() / devicePixelRatio;
+}
+
+qreal WOutputViewportPrivate::getImplicitHeight() const
+{
+    return output->size().height() / devicePixelRatio;
+}
+
+void WOutputViewportPrivate::updateImplicitSize()
+{
+    implicitWidthChanged();
+    implicitHeightChanged();
+
+    W_Q(WOutputViewport);
+    q->resetWidth();
+    q->resetHeight();
+}
+
+void WOutputViewportPrivate::setVisible(bool visible)
+{
+    QQuickItemPrivate::setVisible(visible);
+    if (output)
+        output->handle()->enable(visible);
+}
+
+void WOutputViewportPrivate::clearCursors()
+{
+    for (auto i : cursors)
+        i->deleteLater();
+    cursors.clear();
+}
+
+void WOutputViewportPrivate::updateCursors()
+{
+    if (!output || !cursorDelegate)
+        return;
+
+    W_Q(WOutputViewport);
+
+    int index = 0;
+    struct wlr_output_cursor *cursor;
+    wl_list_for_each(cursor, &output->handle()->handle()->cursors, link) {
+        QuickOutputCursor *quickCursor = nullptr;
+        if (index >= cursors.count()) {
+            quickCursor = new QuickOutputCursor(q);
+            auto obj = cursorDelegate->createWithInitialProperties({{"cursor", QVariant::fromValue(quickCursor)}}, qmlContext(q));
+            auto item = qobject_cast<QQuickItem*>(obj);
+
+            if (!item)
+                qFatal() << "Must using Item for the Cursor delegate";
+
+            QQmlEngine::setObjectOwnership(item, QQmlEngine::CppOwnership);
+            item->setZ(qreal(WOutputLayout::Layer::Cursor));
+            Q_ASSERT(window);
+            item->setParentItem(window->contentItem());
+
+            quickCursor->setDelegateItem(item);
+            cursors.append(quickCursor);
+        } else {
+            quickCursor = cursors.at(index);
+        }
+
+        quickCursor->setVisible(cursor->visible);
+        quickCursor->setIsHardwareCursor(output->handle()->handle()->hardware_cursor == cursor);
+        const QPointF position = QPointF(cursor->x, cursor->y) / cursor->output->scale;
+        quickCursor->setPosition(position);
+        quickCursor->setHotspot((QPointF(cursor->hotspot_x, cursor->hotspot_y) * cursor->output->scale).toPoint());
+        quickCursor->setTexture(cursor->texture, position);
+
+        ++index;
     }
 
-    qreal getImplicitWidth() const override {
-        return output->size().width() / devicePixelRatio;
+    // clean needless cursors
+    for (int i = index + 1; i < cursors.count(); ++i) {
+        cursors.at(i)->deleteLater();
+        cursors.removeAt(i);
     }
-    qreal getImplicitHeight() const override {
-        return output->size().height() / devicePixelRatio;
-    }
-
-    void updateImplicitSize() {
-        implicitWidthChanged();
-        implicitHeightChanged();
-
-        W_Q(WOutputViewport);
-        q->resetWidth();
-        q->resetHeight();
-    }
-
-    void setVisible(bool visible) override {
-        QQuickItemPrivate::setVisible(visible);
-        if (output)
-            output->handle()->enable(visible);
-    }
-
-    W_DECLARE_PUBLIC(WOutputViewport)
-    WOutput *output = nullptr;
-    WQuickSeat *seat = nullptr;
-    qreal devicePixelRatio = 1.0;
-};
+}
 
 WOutputViewport::WOutputViewport(QQuickItem *parent)
     : QQuickItem(*new WOutputViewportPrivate(), parent)
@@ -167,11 +349,33 @@ void WOutputViewport::setDevicePixelRatio(qreal newDevicePixelRatio)
     Q_EMIT devicePixelRatioChanged();
 }
 
+QQmlComponent *WOutputViewport::cursorDelegate() const
+{
+    W_DC(WOutputViewport);
+    return d->cursorDelegate;
+}
+
+void WOutputViewport::setCursorDelegate(QQmlComponent *delegate)
+{
+    W_D(WOutputViewport);
+    if (d->cursorDelegate == delegate)
+        return;
+
+    d->cursorDelegate = delegate;
+    d->clearCursors();
+
+    Q_EMIT cursorDelegateChanged();
+}
+
 void WOutputViewport::classBegin()
 {
     W_D(WOutputViewport);
 
     QQuickItem::classBegin();
+    auto engine = qmlEngine(this);
+
+    if (!engine->imageProvider(QuickOutputCursor::imageProviderId()))
+        engine->addImageProvider(QuickOutputCursor::imageProviderId(), new CursorProvider());
 }
 
 void WOutputViewport::componentComplete()
@@ -195,4 +399,22 @@ void WOutputViewport::releaseResources()
     QQuickItem::releaseResources();
 }
 
+void WOutputViewport::itemChange(ItemChange change, const ItemChangeData &data)
+{
+    QQuickItem::itemChange(change, data);
+
+    if (change == ItemChange::ItemSceneChange) {
+        W_D(WOutputViewport);
+        d->clearCursors();
+        if (d->updateCursorsConnection)
+            disconnect(d->updateCursorsConnection);
+        if (data.window) {
+            d->updateCursorsConnection = connect(data.window, SIGNAL(beforeSynchronizing()), this, SLOT(updateCursors()));
+            d->updateCursors();
+        }
+    }
+}
+
 WAYLIB_SERVER_END_NAMESPACE
+
+#include "moc_woutputviewport.cpp"

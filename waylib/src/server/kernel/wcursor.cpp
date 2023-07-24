@@ -63,8 +63,6 @@ WCursorPrivate::~WCursorPrivate()
             o->removeCursor(q_func());
     }
 
-    clearCursorImages();
-
     delete handle;
 }
 
@@ -74,25 +72,13 @@ wlr_cursor *WCursorPrivate::nativeHandle() const
     return handle->handle();
 }
 
-
 void WCursorPrivate::setType(const char *name)
 {
     W_Q(WCursor);
 
     if (!xcursor_manager)
         return;
-
-    if (outputLayout) {
-        for (auto o : outputLayout->outputs()) {
-            xcursor_manager->load(o->scale());
-            wlr_xcursor *xcursor = xcursor_manager->getXCursor(name, o->scale());
-            cursorImages.append(new WXCursorImage(xcursor, o->scale()));
-            // TODO: Support animation
-            WXCursorImage *image = cursorImages.last();
-            auto *imageBuffer = createImageBuffer(image->image());
-            handle->setBuffer(imageBuffer, image->hotspot(), image->scale());
-        }
-    }
+    handle->setXCursor(xcursor_manager, name);
 }
 
 static inline const char *qcursorToType(const QCursor &cursor) {
@@ -150,7 +136,14 @@ static inline const char *qcursorToType(const QCursor &cursor) {
 
 void WCursorPrivate::updateCursorImage()
 {
-    clearCursorImages();
+    if (!outputLayout || outputLayout->outputs().isEmpty())
+        return;
+
+    if (seat && seat->pointerFocusSurface())
+        return; // Using the wl_client's cursor resource
+
+    if (!eventWindow)
+        return;
 
     if (auto type_name = qcursorToType(cursor)) {
         setType(type_name);
@@ -159,27 +152,9 @@ void WCursorPrivate::updateCursorImage()
         if (img.isNull())
             return;
 
-        if (outputLayout) {
-            for (auto o : outputLayout->outputs()) {
-                QImage tmp = img;
-                if (!qFuzzyCompare(img.devicePixelRatio(), static_cast<qreal>(o->scale()))) {
-                    tmp = tmp.scaledToWidth(img.width() * o->scale() / img.devicePixelRatio(), Qt::SmoothTransformation);
-                    tmp.setDevicePixelRatio(o->scale());
-                }
-
-                cursorImages.append(new WXCursorImage(tmp, cursor.hotSpot() * o->scale() / img.devicePixelRatio()));
-                WXCursorImage *image = cursorImages.last();
-                auto *imageBuffer = createImageBuffer(image->image());
-                handle->setBuffer(imageBuffer, image->hotspot(), image->scale());
-            }
-        } else {
-            cursorImages.append(new WXCursorImage(img, cursor.hotSpot()));
-            auto *imageBuffer = createImageBuffer(img);
-            handle->setBuffer(imageBuffer, cursor.hotSpot(), img.devicePixelRatio());
-        }
+        auto *imageBuffer = createImageBuffer(img);
+        handle->setBuffer(imageBuffer, cursor.hotSpot(), img.devicePixelRatio());
     }
-
-    Q_EMIT q_func()->cursorImageMaybeChanged();
 }
 
 void WCursorPrivate::on_motion(wlr_pointer_motion_event *event)
@@ -261,12 +236,6 @@ void WCursorPrivate::processCursorMotion(QWPointer *device, uint32_t time)
 
     if (Q_LIKELY(seat))
         seat->notifyMotion(q, WInputDevice::fromHandle(device), time);
-}
-
-void WCursorPrivate::clearCursorImages()
-{
-    qDeleteAll(cursorImages);
-    cursorImages.clear();
 }
 
 WCursor::WCursor(WCursorPrivate &dd, QObject *parent)
@@ -405,10 +374,42 @@ QQuickWindow *WCursor::eventWindow() const
     return d->eventWindow.get();
 }
 
+const QPointingDevice *getDevice(const QString &seatName) {
+    for (auto i : QInputDevice::devices()) {
+        if (i->seatName() == seatName && (i->type() == QInputDevice::DeviceType::Mouse
+                                          || i->type() == QInputDevice::DeviceType::TouchPad))
+            return static_cast<const QPointingDevice*>(i);
+    }
+
+    return nullptr;
+}
+
 void WCursor::setEventWindow(QQuickWindow *window)
 {
     W_D(WCursor);
+    if (d->eventWindow == window)
+        return;
+
+    if (d->eventWindow) {
+        auto device = getDevice(d->seat->name());
+        Q_ASSERT(device && WInputDevice::from(device));
+        QInputEvent event(QEvent::Leave, device);
+        QCoreApplication::sendEvent(d->eventWindow, &event);
+    }
+
     d->eventWindow = window;
+
+    if (d->eventWindow) {
+        auto device = getDevice(d->seat->name());
+        Q_ASSERT(device && WInputDevice::from(device));
+        const QPointF global = position();
+        const QPointF local = global - d->eventWindow->position();
+        QEnterEvent event(local, local, global, device);
+        QCoreApplication::sendEvent(d->eventWindow, &event);
+    }
+
+    // ###(zccrs): Can't display cursor on startup, maybe is a bug of wlroots
+    d->updateCursorImage();
 }
 
 Qt::CursorShape WCursor::defaultCursor()
@@ -427,33 +428,18 @@ void WCursor::setXCursorManager(QWXCursorManager *manager)
     d->updateCursorImage();
 }
 
+QCursor WCursor::cursor() const
+{
+    W_DC(WCursor);
+    return d->cursor;
+}
+
 void WCursor::setCursor(const QCursor &cursor)
 {
     W_D(WCursor);
 
     d->cursor = cursor;
     d->updateCursorImage();
-}
-
-WXCursorImage *WCursor::getCursorImage(float scale) const
-{
-    W_DC(WCursor);
-
-    if (d->cursorImages.isEmpty())
-        return nullptr;
-
-    WXCursorImage *maxScaleImage = nullptr;
-
-    for (auto i : d->cursorImages) {
-        if (i->scale() < scale) {
-            if (!maxScaleImage || maxScaleImage->scale() < i->scale())
-                maxScaleImage = i;
-        } else {
-            return i;
-        }
-    }
-
-    return maxScaleImage;
 }
 
 bool WCursor::attachInputDevice(WInputDevice *device)
@@ -489,23 +475,15 @@ void WCursor::setLayout(WOutputLayout *layout)
     if (d->outputLayout == layout)
         return;
 
-    if (d->outputLayout) {
-        for (auto o : d->outputLayout->outputs())
-            disconnect(o, SIGNAL(scaleChanged()), this, SLOT(updateCursorImage()));
-    }
-
     d->outputLayout = layout;
     d->handle->attachOutputLayout(d->outputLayout);
 
     if (d->outputLayout) {
-        for (auto o : d->outputLayout->outputs()) {
-            connect(o, SIGNAL(scaleChanged()), this, SLOT(updateCursorImage()));
+        for (auto o : d->outputLayout->outputs())
             o->addCursor(this);
-        }
     }
 
     connect(d->outputLayout, &WOutputLayout::outputAdded, this, [this, d] (WOutput *o) {
-        connect(o, SIGNAL(scaleChanged()), this, SLOT(updateCursorImage()));
         o->addCursor(this);
         d->updateCursorImage();
     });

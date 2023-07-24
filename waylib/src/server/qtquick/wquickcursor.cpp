@@ -10,9 +10,6 @@
 
 #include <qwxcursormanager.h>
 
-#include <QQmlComponent>
-#include <QQuickImageProvider>
-
 QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
@@ -37,9 +34,6 @@ public:
     void onRenderWindowRemoved(WOutputRenderWindow *window);
     void onCursorPositionChanged();
 
-    inline QString imageProviderId() const {
-        return QString::number(quintptr(this), 16);
-    }
     void setCursorImageUrl(const QUrl &url);
     void updateXCursorManager();
 
@@ -51,45 +45,8 @@ public:
     bool componentComplete = true;
     QList<WOutputRenderWindow*> renderWindows;
     WOutputRenderWindow *currentRenderWindow = nullptr;
-    QList<QQuickItem*> cursorItems;
     QString xcursorThemeName;
     QSize cursorSize = QSize(24, 24);
-
-    QQmlComponent *delegate = nullptr;
-};
-
-class CursorImageProvider : public QQuickImageProvider
-{
-public:
-    CursorImageProvider(WQuickCursor *cursor)
-        : QQuickImageProvider(QQmlImageProviderBase::Image)
-        , m_cursor(cursor)
-    {
-
-    }
-
-    QImage requestImage(const QString &id, QSize *size, const QSize& requestedSize) override {
-        Q_UNUSED(id)
-
-        auto cd = WQuickCursorPrivate::get(m_cursor);
-        quint32 requestCursorSize = qMax(requestedSize.width(), requestedSize.height());
-        quint32 realCursorSize = cd->getCursorSize();
-        qreal scale = qreal(requestCursorSize) / realCursorSize;
-
-        if (qFuzzyIsNull(scale))
-            scale = 1.0;
-
-        auto cursorImage = m_cursor->getCursorImage(scale);
-        if (!cursorImage)
-            return QImage();
-
-        if (size)
-            *size = cursorImage->image().size();
-
-        return cursorImage->image();
-    }
-
-    WQuickCursor *m_cursor;
 };
 
 WQuickCursorPrivate::WQuickCursorPrivate(WQuickCursor *qq)
@@ -162,39 +119,16 @@ void WQuickCursorPrivate::setCurrentRenderWindow(WOutputRenderWindow *window)
 
 void WQuickCursorPrivate::onRenderWindowAdded(WOutputRenderWindow *window)
 {
-    if (!delegate)
-        return;
-
-    W_Q(WQuickCursor);
-    auto obj = delegate->createWithInitialProperties({{"cursor", QVariant::fromValue(q)}}, qmlContext(q));
-    auto item = qobject_cast<QQuickItem*>(obj);
-
-    if (!item) {
-        qWarning() << "Must using Item for the Cursor delegate";
-        obj->deleteLater();
-        return;
-    }
-
-    QQmlEngine::setObjectOwnership(item, QQmlEngine::CppOwnership);
-    cursorItems.append(item);
-    item->setZ(qreal(WOutputLayout::Layer::Cursor));
-    item->setParentItem(window->contentItem());
-    item->setPosition(item->parentItem()->mapFromGlobal(q->position()));
+    Q_UNUSED(window);
 }
 
 void WQuickCursorPrivate::onRenderWindowRemoved(WOutputRenderWindow *window)
 {
-    for (auto item : cursorItems) {
-        if (item->window() == window)
-            item->deleteLater();
-    }
+    Q_UNUSED(window);
 }
 
 void WQuickCursorPrivate::onCursorPositionChanged()
 {
-    // TODO: Auto hide the cursor item if it's a hardware cursor in current output.
-    for (auto item : cursorItems)
-        item->setPosition(item->parentItem()->mapFromGlobal(q_func()->position()));
     updateCurrentRenderWindow();
 }
 
@@ -209,14 +143,12 @@ void WQuickCursorPrivate::updateXCursorManager()
 WQuickCursor::WQuickCursor(QObject *parent)
     : WCursor(*new WQuickCursorPrivate(this), parent)
 {
-    connect(this, &WQuickCursor::cursorImageMaybeChanged, this, &WQuickCursor::cursorUrlChanged);
+
 }
 
 WQuickCursor::~WQuickCursor()
 {
-    W_DC(WQuickCursor);
-    if (auto engine = qmlEngine(this))
-        engine->removeImageProvider(d->imageProviderId());
+
 }
 
 WQuickOutputLayout *WQuickCursor::layout() const
@@ -248,36 +180,6 @@ WOutputRenderWindow *WQuickCursor::currentRenderWindow() const
 {
     W_DC(WQuickCursor);
     return d->currentRenderWindow;
-}
-
-QQmlComponent *WQuickCursor::delegate() const
-{
-    W_DC(WQuickCursor);
-    return d->delegate;
-}
-
-void WQuickCursor::setDelegate(QQmlComponent *delegate)
-{
-    W_D(WQuickCursor);
-    Q_ASSERT(!d->delegate);
-    Q_ASSERT(delegate);
-
-    d->delegate = delegate;
-
-    if (d->componentComplete) {
-        for (auto w : d->renderWindows)
-            d->onRenderWindowAdded(w);
-    }
-}
-
-QUrl WQuickCursor::cursorUrl() const
-{
-    QUrl url;
-    url.setScheme("image");
-    url.setHost(d_func()->imageProviderId());
-    // TODO: Support animation
-
-    return url;
 }
 
 QString WQuickCursor::themeName() const
@@ -348,7 +250,6 @@ void WQuickCursor::classBegin()
 {
     W_D(WQuickCursor);
     d->componentComplete = false;
-    qmlEngine(this)->addImageProvider(d_func()->imageProviderId(), new CursorImageProvider(this));
 }
 
 void WQuickCursor::componentComplete()

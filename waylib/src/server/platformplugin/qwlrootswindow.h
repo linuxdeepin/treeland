@@ -45,8 +45,10 @@ private:
     QMetaObject::Connection onScreenGeometryConnection;
 };
 
+class WCursor;
 class Q_DECL_HIDDEN QWlrootsRenderWindow : public QPlatformWindow
 {
+    friend class QWlrootsCursor;
 public:
     QWlrootsRenderWindow(QWindow *window);
 
@@ -55,9 +57,11 @@ public:
     WId winId() const override;
     qreal devicePixelRatio() const override;
     void setDevicePixelRatio(qreal dpr);
+    bool windowEvent(QEvent *event) override;
 
 private:
     qreal dpr = 1.0;
+    QPointer<WCursor> lastActiveCursor;
 };
 
 WAYLIB_SERVER_END_NAMESPACE

@@ -42,7 +42,6 @@ public:
 
     void connect();
     void processCursorMotion(QW_NAMESPACE::QWPointer *device, uint32_t time);
-    void clearCursorImages();
 
     W_DECLARE_PUBLIC(WCursor)
 
@@ -54,7 +53,6 @@ public:
     QPointer<QQuickWindow> eventWindow;
     WOutputLayout *outputLayout = nullptr;
     QList<WInputDevice*> deviceList;
-    QList<WXCursorImage*> cursorImages;
 
     // for event data
     Qt::MouseButtons state = Qt::NoButton;

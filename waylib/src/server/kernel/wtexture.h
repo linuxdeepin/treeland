@@ -10,7 +10,9 @@
 
 QT_BEGIN_NAMESPACE
 class QSGTexture;
+class QSGPlainTexture;
 class QQuickWindow;
+class QImage;
 QT_END_NAMESPACE
 
 QW_BEGIN_NAMESPACE
@@ -34,13 +36,18 @@ public:
 
     explicit WTexture(QW_NAMESPACE::QWTexture *handle);
 
+    static bool makeTexture(QW_NAMESPACE::QWTexture *handle, QSGPlainTexture *texture, QQuickWindow *window);
+
     QW_NAMESPACE::QWTexture *handle() const;
     void setHandle(QW_NAMESPACE::QWTexture *handle);
+    void setOwnsTexture(bool owns);
 
     Type type() const;
 
     QSize size() const;
     QSGTexture *getSGTexture(QQuickWindow *window);
+
+    const QImage &image() const;
 };
 
 WAYLIB_SERVER_END_NAMESPACE

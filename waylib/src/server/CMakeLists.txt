@@ -120,6 +120,7 @@ set(HEADERS
 set(PRIVATE_HEADERS
     platformplugin/types.h
     kernel/private/wsurface_p.h
+    qtquick/private/woutputviewport_p.h
 )
 
 add_library(${TARGET}

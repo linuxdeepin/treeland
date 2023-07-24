@@ -18,6 +18,7 @@ QW_BEGIN_NAMESPACE
 class QWXCursorManager;
 class QWInputDevice;
 class QWCursor;
+class QWOutputCursor;
 QW_END_NAMESPACE
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
@@ -52,8 +53,8 @@ public:
     static Qt::CursorShape defaultCursor();
 
     void setXCursorManager(QW_NAMESPACE::QWXCursorManager *manager);
+    QCursor cursor() const;
     void setCursor(const QCursor &cursor);
-    WXCursorImage *getCursorImage(float scale) const;
 
     void setLayout(WOutputLayout *layout);
     WOutputLayout *layout() const;
@@ -63,9 +64,6 @@ public:
 
     QPointF position() const;
     QPointF lastPressedPosition() const;
-
-Q_SIGNALS:
-    void cursorImageMaybeChanged();
 
 protected:
     WCursor(WCursorPrivate &dd, QObject *parent = nullptr);

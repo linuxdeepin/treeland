@@ -46,10 +46,12 @@ class WSeat : public WServerInterface, public WObject
 {
     W_DECLARE_PRIVATE(WSeat)
 public:
-    WSeat(const QByteArray &name = QByteArrayLiteral("seat0"));
+    WSeat(const QString &name = QStringLiteral("seat0"));
 
     static WSeat *fromHandle(const QW_NAMESPACE::QWSeat *handle);
     QW_NAMESPACE::QWSeat *handle() const;
+
+    QString name() const;
 
     void setCursor(WCursor *cursor);
     WCursor *cursor() const;

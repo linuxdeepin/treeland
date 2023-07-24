@@ -33,8 +33,6 @@ private:
     friend class WOutput;
 
     QList<WCursor*> cursors;
-    WCursor *activeCursor = nullptr;
-    QCursor windowCursor;
 };
 
 WAYLIB_SERVER_END_NAMESPACE

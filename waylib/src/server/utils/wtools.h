@@ -15,6 +15,8 @@ class WTools
 {
 public:
     static QImage fromPixmanImage(void *image, void *data = nullptr);
+    static QImage::Format toImageFormat(uint32_t drmFormat);
+    static uint32_t toDrmFormat(QImage::Format format);
     static QRegion fromPixmanRegion(void *region);
     static void toPixmanRegion(const QRegion &region, void *pixmanRegion);
     static QRect fromWLRBox(void *box);

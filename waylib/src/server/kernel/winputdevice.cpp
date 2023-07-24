@@ -63,6 +63,8 @@ WInputDevice *WInputDevice::fromHandle(const QWInputDevice *handle)
 
 WInputDevice *WInputDevice::from(const QInputDevice *device)
 {
+    if (device->systemId() < 65536)
+        return nullptr;
     return reinterpret_cast<WInputDevice*>(device->systemId());
 }
 

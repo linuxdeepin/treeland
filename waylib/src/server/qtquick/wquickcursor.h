@@ -23,9 +23,7 @@ class WAYLIB_SERVER_EXPORT WQuickCursor : public WCursor, public QQmlParserStatu
     Q_OBJECT
     W_DECLARE_PRIVATE(WQuickCursor)
     Q_PROPERTY(WQuickOutputLayout* layout READ layout WRITE setLayout REQUIRED)
-    Q_PROPERTY(QQmlComponent* delegate READ delegate WRITE setDelegate REQUIRED)
     Q_PROPERTY(WOutputRenderWindow* currentRenderWindow READ currentRenderWindow NOTIFY currentRenderWindowChanged)
-    Q_PROPERTY(QUrl cursorUrl READ cursorUrl NOTIFY cursorUrlChanged)
     Q_PROPERTY(QString themeName READ themeName WRITE setThemeName NOTIFY themeNameChanged)
     Q_PROPERTY(QSize size READ size WRITE setSize NOTIFY sizeChanged)
     QML_NAMED_ELEMENT(Cursor)
@@ -40,11 +38,6 @@ public:
 
     WOutputRenderWindow *currentRenderWindow() const;
 
-    QQmlComponent *delegate() const;
-    void setDelegate(QQmlComponent *delegate);
-
-    QUrl cursorUrl() const;
-
     QString themeName() const;
     void setThemeName(const QString &name);
 
@@ -52,7 +45,6 @@ public:
     void setSize(const QSize &size);
 
 Q_SIGNALS:
-    void cursorUrlChanged();
     void themeNameChanged();
     void sizeChanged();
     void currentRenderWindowChanged();

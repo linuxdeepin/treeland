@@ -2,67 +2,62 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "qwlrootscursor.h"
+#include "qwlrootswindow.h"
 #include "wcursor.h"
+#include "types.h"
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
 QWlrootsCursor::QWlrootsCursor()
     : QPlatformCursor()
 {
-    windowCursor = WCursor::defaultCursor();
+
 }
 
 #ifndef QT_NO_CURSOR
-void QWlrootsCursor::changeCursor(QCursor *windowCursor, QWindow *)
+void QWlrootsCursor::changeCursor(QCursor *windowCursor, QWindow *window)
 {
-    this->windowCursor = windowCursor ? *windowCursor : WCursor::defaultCursor();
-    if (!activeCursor)
+    if (!window || !QW::RenderWindow::check(window))
         return;
 
-    activeCursor->setCursor(this->windowCursor);
+    auto cursor = static_cast<QWlrootsRenderWindow*>(window->handle())->lastActiveCursor;
+    if (!cursor)
+        return;
+
+    cursor->setCursor(windowCursor ? *windowCursor : WCursor::defaultCursor());
 }
 
 void QWlrootsCursor::setOverrideCursor(const QCursor &cursor)
 {
-    if (activeCursor)
-        activeCursor->setCursor(cursor);
+    Q_UNUSED(cursor);
+    return;
 }
 
 void QWlrootsCursor::clearOverrideCursor()
 {
-    if (activeCursor)
-        activeCursor->setCursor(windowCursor); // default type
+
 }
 #endif
 
 QPoint QWlrootsCursor::pos() const
 {
-    return activeCursor ? activeCursor->position().toPoint() : QPoint();
+    return cursors.isEmpty() ? QPoint() : cursors.first()->position().toPoint();
 }
 
 void QWlrootsCursor::setPos(const QPoint &pos)
 {
-    if (activeCursor)
-        activeCursor->setPosition(pos);
+
 }
 
 void QWlrootsCursor::addCursor(WCursor *cursor)
 {
     cursors.append(cursor);
-    if (!activeCursor)
-        activeCursor = cursor;
 }
 
 void QWlrootsCursor::removeCursor(WCursor *cursor)
 {
     bool ok = cursors.removeOne(cursor);
     Q_ASSERT(ok);
-
-    if (cursor == activeCursor) {
-        activeCursor = nullptr;
-        if (!cursors.isEmpty())
-            activeCursor = cursors.first();
-    }
 }
 
 WAYLIB_SERVER_END_NAMESPACE

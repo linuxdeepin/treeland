@@ -6,6 +6,7 @@
 #include "qwlrootsintegration.h"
 #include "woutput.h"
 #include "woutputlayout.h"
+#include "wtools.h"
 
 #include <qwoutput.h>
 
@@ -19,8 +20,6 @@ extern "C" {
 #include <wlr/types/wlr_output.h>
 #undef static
 }
-
-#include <drm_fourcc.h>
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
@@ -241,43 +240,7 @@ void QWlrootsScreen::initialize()
 QImage::Format QWlrootsScreen::getFormat() const
 {
     auto f = m_output->handle()->preferredReadFormat();
-
-    switch (f) {
-    case DRM_FORMAT_C8:
-        return QImage::Format_Indexed8;
-    case DRM_FORMAT_XRGB4444:
-        return QImage::Format_RGB444;
-    case DRM_FORMAT_ARGB4444:
-        return QImage::Format_ARGB4444_Premultiplied;
-    case DRM_FORMAT_XRGB1555:
-        return QImage::Format_RGB555;
-    case DRM_FORMAT_ARGB1555:
-        return QImage::Format_ARGB8555_Premultiplied;
-    case DRM_FORMAT_RGB565:
-        return QImage::Format_RGB16;
-    case DRM_FORMAT_RGB888:
-        return QImage::Format_RGB888;
-    case DRM_FORMAT_BGR888:
-        return QImage::Format_BGR888;
-    case DRM_FORMAT_XRGB8888:
-        return QImage::Format_RGB32;
-    case DRM_FORMAT_RGBX8888:
-        return QImage::Format_RGBX8888;
-    case DRM_FORMAT_ARGB8888:
-        return QImage::Format_ARGB32_Premultiplied;
-    case DRM_FORMAT_RGBA8888:
-        return QImage::Format_RGBA8888;
-    case DRM_FORMAT_XRGB2101010:
-        return QImage::Format_RGB30;
-    case DRM_FORMAT_BGRX1010102:
-        return QImage::Format_BGR30;
-    case DRM_FORMAT_ARGB2101010:
-        return QImage::Format_A2RGB30_Premultiplied;
-    case DRM_FORMAT_BGRA1010102:
-        return QImage::Format_A2BGR30_Premultiplied;
-    default:
-        return QImage::Format_Invalid;
-    }
+    return WTools::toImageFormat(f);
 }
 
 wlr_output *QWlrootsScreen::handle() const
