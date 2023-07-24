@@ -185,7 +185,7 @@ void WSeatPrivate::on_destroy()
 
 void WSeatPrivate::on_request_set_cursor(wlr_seat_pointer_request_set_cursor_event *event)
 {
-    auto focused_client = handle()->handle()->pointer_state.focused_client;
+    auto focused_client = nativeHandle()->pointer_state.focused_client;
     /* This can be sent by any client, so we check to make sure this one is
      * actually has pointer focus first. */
     if (focused_client == event->seat_client) {
@@ -193,7 +193,8 @@ void WSeatPrivate::on_request_set_cursor(wlr_seat_pointer_request_set_cursor_eve
          * provided surface as the cursor image. It will set the hardware cursor
          * on the output that it's currently on and continue to do so as the
          * cursor moves between outputs. */
-        cursor->handle()->setSurface(QWSurface::from(event->surface), QPoint(event->hotspot_x, event->hotspot_y));
+        auto *surface = event->surface ? QWSurface::from(event->surface) : nullptr;
+        cursor->handle()->setSurface(surface, QPoint(event->hotspot_x, event->hotspot_y));
     }
 }
 
