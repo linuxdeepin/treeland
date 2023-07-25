@@ -51,7 +51,7 @@
               export WAYLAND_DEBUG=1
               export QT_PLUGIN_PATH=${makeQtpluginPath (with pkgs.qt6; [ qtbase qtdeclarative qtquick3d ])}
               export QML2_IMPORT_PATH=${makeQmlpluginPath (with pkgs.qt6; [ qtdeclarative qtquick3d ])}
-              export QML_IMPORT_PATH=QML2_IMPORT_PATH
+              export QML_IMPORT_PATH=$QML2_IMPORT_PATH
             '';
           };
         }
