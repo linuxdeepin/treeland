@@ -117,6 +117,9 @@ Item {
                                 x: -cursor.hotspot.x
                                 y: -cursor.hotspot.y
                                 cache: false
+                                width: cursor.size.width
+                                height: cursor.size.height
+                                sourceClipRect: cursor.sourceRect
                             }
                         }
 

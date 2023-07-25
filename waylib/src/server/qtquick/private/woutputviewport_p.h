@@ -65,8 +65,10 @@ class QuickOutputCursor : public QObject
     Q_OBJECT
     Q_PROPERTY(bool visible READ visible NOTIFY visibleChanged)
     Q_PROPERTY(bool isHardwareCursor READ isHardwareCursor NOTIFY isHardwareCursorChanged)
-    Q_PROPERTY(QPoint hotspot READ hotspot NOTIFY hotspotChanged)
+    Q_PROPERTY(QPointF hotspot READ hotspot NOTIFY hotspotChanged)
     Q_PROPERTY(QUrl imageSource READ imageSource NOTIFY imageSourceChanged)
+    Q_PROPERTY(QSizeF size READ size WRITE setSize NOTIFY sizeChanged)
+    Q_PROPERTY(QRectF sourceRect READ sourceRect WRITE setSourceRect NOTIFY sourceRectChanged)
     QML_NAMED_ELEMENT(OutputCursor)
 
 public:
@@ -77,21 +79,27 @@ public:
 
     bool visible() const;
     bool isHardwareCursor() const;
-    QPoint hotspot() const;
+    QPointF hotspot() const;
     QUrl imageSource() const;
+    QSizeF size() const;
+    QRectF sourceRect() const;
 
 Q_SIGNALS:
     void visibleChanged();
     void isHardwareCursorChanged();
     void hotspotChanged();
     void imageSourceChanged();
+    void sizeChanged();
+    void sourceRectChanged();
 
 private:
     void setVisible(bool newVisible);
     void setIsHardwareCursor(bool newIsHardwareCursor);
-    void setHotspot(QPoint newHotspot);
+    void setHotspot(QPointF newHotspot);
     void setTexture(wlr_texture *texture, const QPointF &position);
     void setImageSource(const QUrl &newImageSource);
+    void setSize(const QSizeF &newSize);
+    void setSourceRect(const QRectF &newSourceRect);
     void setPosition(const QPointF &pos);
     void setDelegateItem(QQuickItem *item);
 
@@ -100,8 +108,10 @@ private:
     QPointF lastCursorPosition;
     bool m_visible = false;
     bool m_isHardwareCursor = false;
-    QPoint m_hotspot;
+    QPointF m_hotspot;
     QUrl m_imageSource;
+    QSizeF m_size;
+    QRectF m_sourceRect;
 };
 
 class WOutputViewportPrivate : public QQuickItemPrivate

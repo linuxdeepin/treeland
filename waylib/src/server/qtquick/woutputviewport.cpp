@@ -81,12 +81,12 @@ void QuickOutputCursor::setIsHardwareCursor(bool newIsHardwareCursor)
     Q_EMIT isHardwareCursorChanged();
 }
 
-QPoint QuickOutputCursor::hotspot() const
+QPointF QuickOutputCursor::hotspot() const
 {
     return m_hotspot;
 }
 
-void QuickOutputCursor::setHotspot(QPoint newHotspot)
+void QuickOutputCursor::setHotspot(QPointF newHotspot)
 {
     if (m_hotspot == newHotspot)
         return;
@@ -126,6 +126,32 @@ void QuickOutputCursor::setImageSource(const QUrl &newImageSource)
         return;
     m_imageSource = newImageSource;
     Q_EMIT imageSourceChanged();
+}
+
+QSizeF QuickOutputCursor::size() const
+{
+    return m_size;
+}
+
+void QuickOutputCursor::setSize(const QSizeF &newSize)
+{
+    if (m_size == newSize)
+        return;
+    m_size = newSize;
+    Q_EMIT sizeChanged();
+}
+
+QRectF QuickOutputCursor::sourceRect() const
+{
+    return m_sourceRect;
+}
+
+void QuickOutputCursor::setSourceRect(const QRectF &newSourceRect)
+{
+    if (m_sourceRect == newSourceRect)
+        return;
+    m_sourceRect = newSourceRect;
+    emit sourceRectChanged();
 }
 
 void QuickOutputCursor::setPosition(const QPointF &pos)
@@ -247,7 +273,9 @@ void WOutputViewportPrivate::updateCursors()
         quickCursor->setIsHardwareCursor(output->handle()->handle()->hardware_cursor == cursor);
         const QPointF position = QPointF(cursor->x, cursor->y) / cursor->output->scale;
         quickCursor->setPosition(position);
-        quickCursor->setHotspot((QPointF(cursor->hotspot_x, cursor->hotspot_y) * cursor->output->scale).toPoint());
+        quickCursor->setHotspot((QPointF(cursor->hotspot_x, cursor->hotspot_y) / cursor->output->scale).toPoint());
+        quickCursor->setSize(QSizeF(cursor->width, cursor->height) / cursor->output->scale);
+        quickCursor->setSourceRect(QRectF(cursor->src_box.x, cursor->src_box.y, cursor->src_box.width, cursor->src_box.height));
         quickCursor->setTexture(cursor->texture, position);
 
         ++index;
