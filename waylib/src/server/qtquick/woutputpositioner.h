@@ -8,11 +8,13 @@
 #include <QQuickItem>
 
 Q_MOC_INCLUDE(<wquickoutputlayout.h>)
+Q_MOC_INCLUDE(<woutputpositioner_p.h>)
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
 class WOutput;
 class WQuickOutputLayout;
+class WOutputPositionerAttached;
 class WOutputPositionerPrivate;
 class WAYLIB_SERVER_EXPORT WOutputPositioner : public WQuickObserver, public WObject
 {
@@ -22,10 +24,13 @@ class WAYLIB_SERVER_EXPORT WOutputPositioner : public WQuickObserver, public WOb
     Q_PROPERTY(WQuickOutputLayout* layout READ layout WRITE setLayout NOTIFY layoutChanged)
     Q_PROPERTY(qreal devicePixelRatio READ devicePixelRatio WRITE setDevicePixelRatio NOTIFY devicePixelRatioChanged)
     QML_NAMED_ELEMENT(OutputPositioner)
+    QML_ATTACHED(WOutputPositionerAttached)
 
 public:
     explicit WOutputPositioner(QQuickItem *parent = nullptr);
     ~WOutputPositioner();
+
+    static WOutputPositionerAttached *qmlAttachedProperties(QObject *target);
 
     WOutput *output() const;
     void setOutput(WOutput *newOutput);

@@ -54,6 +54,7 @@ set(QTQUICK_SOURCES
     qtquick/private/wquickbackend.cpp
     qtquick/private/wquickseat.cpp
     qtquick/private/wwaylandcompositor.cpp
+    qtquick/private/wquickcoordmapper.cpp
 )
 
 set(UTILS_SOURCES
@@ -121,6 +122,8 @@ set(PRIVATE_HEADERS
     platformplugin/types.h
     kernel/private/wsurface_p.h
     qtquick/private/woutputviewport_p.h
+    qtquick/private/wquickcoordmapper_p.h
+    qtquick/private/woutputpositioner_p.h
 )
 
 add_library(${TARGET}

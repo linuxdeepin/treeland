@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "woutputpositioner.h"
+#include "woutputpositioner_p.h"
 #include "woutputrenderwindow.h"
 #include "woutput.h"
 #include "woutputlayout.h"
@@ -17,6 +18,27 @@
 QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
+WOutputPositionerAttached::WOutputPositionerAttached(QObject *parent)
+    : QObject(parent)
+{
+
+}
+
+WOutputPositioner *WOutputPositionerAttached::positioner() const
+{
+    return m_positioner;
+}
+
+void WOutputPositionerAttached::setPositioner(WOutputPositioner *positioner)
+{
+    if (m_positioner == positioner)
+        return;
+    m_positioner = positioner;
+    Q_EMIT positionerChanged();
+}
+
+#define DATA_OF_WOUPTUT "_WOutputPositioner"
+
 class WOutputPositionerPrivate : public WObjectPrivate
 {
 public:
@@ -28,6 +50,8 @@ public:
     ~WOutputPositionerPrivate() {
         if (layout)
             layout->remove(q_func());
+        if (output)
+            output->setProperty(DATA_OF_WOUPTUT, QVariant());
     }
 
     void initForOutput() {
@@ -72,10 +96,26 @@ WOutputPositioner::~WOutputPositioner()
 
 }
 
+WOutputPositionerAttached *WOutputPositioner::qmlAttachedProperties(QObject *target)
+{
+    auto output = qobject_cast<WOutput*>(target);
+    if (!output)
+        return nullptr;
+    auto attached = new WOutputPositionerAttached(output);
+    attached->setPositioner(qvariant_cast<WOutputPositioner*>(output->property(DATA_OF_WOUPTUT)));
+
+    return attached;
+}
+
 WOutput *WOutputPositioner::output() const
 {
     W_D(const WOutputPositioner);
     return d->output.get();
+}
+
+inline static WOutputPositionerAttached *getAttached(WOutput *output)
+{
+    return output->findChild<WOutputPositionerAttached*>(QString(), Qt::FindDirectChildrenOnly);
 }
 
 void WOutputPositioner::setOutput(WOutput *newOutput)
@@ -84,6 +124,12 @@ void WOutputPositioner::setOutput(WOutput *newOutput)
 
     Q_ASSERT(!d->output || !newOutput);
     d->output = newOutput;
+
+    if (auto attached = getAttached(newOutput)) {
+        attached->setPositioner(this);
+    } else {
+        newOutput->setProperty(DATA_OF_WOUPTUT, QVariant::fromValue(this));
+    }
 
     if (isComponentComplete()) {
         if (newOutput) {
