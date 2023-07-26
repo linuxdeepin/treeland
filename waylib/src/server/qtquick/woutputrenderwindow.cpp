@@ -300,9 +300,6 @@ void WOutputRenderWindowPrivate::init()
 
 void WOutputRenderWindowPrivate::init(OutputHelper *helper)
 {
-    auto qwoutput = helper->qwoutput();
-    qwoutput->initRender(compositor->allocator(), compositor->renderer());
-
     W_Q(WOutputRenderWindow);
     QMetaObject::invokeMethod(q, &WOutputRenderWindow::scheduleRender, Qt::QueuedConnection);
     helper->init();
@@ -508,6 +505,10 @@ void WOutputRenderWindow::attach(WOutputViewport *output)
     Q_ASSERT(output->output());
 
     d->outputs << new OutputHelper(output, this);
+    if (d->compositor) {
+        auto qwoutput = d->outputs.last()->qwoutput();
+        qwoutput->initRender(d->compositor->allocator(), d->compositor->renderer());
+    }
 
     if (!d->isInitialized())
         return;
@@ -546,6 +547,11 @@ void WOutputRenderWindow::setCompositor(WWaylandCompositor *newCompositor)
     Q_D(WOutputRenderWindow);
     Q_ASSERT(!d->compositor);
     d->compositor = newCompositor;
+
+    for (auto output : d->outputs) {
+        auto qwoutput = output->qwoutput();
+        qwoutput->initRender(d->compositor->allocator(), d->compositor->renderer());
+    }
 
     if (d->componentCompleted && d->compositor->isPolished()) {
         d->init();

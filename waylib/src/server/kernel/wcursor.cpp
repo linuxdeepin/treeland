@@ -136,7 +136,7 @@ static inline const char *qcursorToType(const QCursor &cursor) {
 
 void WCursorPrivate::updateCursorImage()
 {
-    if (!outputLayout || outputLayout->outputs().isEmpty())
+    if (!outputLayout)
         return;
 
     if (seat && seat->pointerFocusSurface())
@@ -485,7 +485,6 @@ void WCursor::setLayout(WOutputLayout *layout)
 
     connect(d->outputLayout, &WOutputLayout::outputAdded, this, [this, d] (WOutput *o) {
         o->addCursor(this);
-        d->updateCursorImage();
     });
 
     d->updateCursorImage();
