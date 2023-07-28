@@ -12,6 +12,7 @@ qt_standard_project_setup(REQUIRES 6.4)
 find_package(PkgConfig)
 pkg_search_module(PIXMAN REQUIRED pixman-1)
 pkg_search_module(LIBDRM REQUIRED IMPORTED_TARGET libdrm)
+pkg_search_module(WLROOTS REQUIRED IMPORTED_TARGET wlroots)
 
 include(${PROJECT_SOURCE_DIR}/cmake/WaylandScannerHelpers.cmake)
 ws_generate(server stable/xdg-shell/xdg-shell.xml xdg-shell-protocol)
@@ -182,7 +183,7 @@ endif()
 target_link_libraries(${TARGET}
     PRIVATE
     ${QT_LIBRAIES}
-    ${WLROOTS_LIBRARIES}
+    PkgConfig::WLROOTS
     PkgConfig::LIBDRM
 )
 

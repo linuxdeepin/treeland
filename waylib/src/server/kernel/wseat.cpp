@@ -6,6 +6,7 @@
 #include "winputdevice.h"
 #include "woutput.h"
 #include "wsurface.h"
+#include "wxdgsurface.h"
 #include "platformplugin/qwlrootsintegration.h"
 
 #include <qwseat.h>
@@ -18,6 +19,7 @@
 #include <QQuickItem>
 #include <QDebug>
 
+#include <qpa/qwindowsysteminterface.h>
 #include <private/qxkbcommon_p.h>
 #include <private/qquickwindow_p.h>
 #include <private/qquickdeliveryagent_p_p.h>
@@ -33,6 +35,9 @@ extern "C" {
 
 QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
+
+Q_LOGGING_CATEGORY(qLcWlrTouch, "waylib.server.seat", QtWarningMsg)
+Q_LOGGING_CATEGORY(qLcWlrTouchEvents, "waylib.server.seat.events", QtWarningMsg)
 
 class WSeatPrivate : public WObjectPrivate
 {
@@ -104,6 +109,66 @@ public:
             handle()->keyboardClearFocus();
         }
     }
+    inline void doTouchNotifyDown(WSurface *surface, uint32_t time_msec, int32_t touch_id, const QPointF &pos) {
+        handle()->touchNotifyDown(surface->handle(), time_msec, touch_id, pos.x(), pos.y());
+    }
+    inline void doTouchNotifyMotion(uint32_t time_msec, int32_t touch_id, const QPointF &pos) {
+        handle()->touchNotifyMotion(time_msec, touch_id, pos.x(), pos.y());
+    }
+    inline void doTouchNotifyUp(uint32_t time_msec, int32_t touch_id) {
+        handle()->touchNotifyUp(time_msec, touch_id);
+    }
+    inline void doTouchNotifyCancel(QWSurface *surface) {
+        handle()->touchNotifyCancel(surface);
+    }
+    inline void doNotifyFullTouchEvent(WSurface *surface, int32_t touch_id, const QPointF &position, QEventPoint::State state, uint32_t time_msec) {
+        switch (state) {
+        using enum QEventPoint::State;
+        case Pressed:
+            doTouchNotifyDown(surface, time_msec, touch_id, position);
+            break;
+        case Updated:
+            doTouchNotifyMotion(time_msec, touch_id, position);
+            break;
+        case Released:
+            doTouchNotifyUp(time_msec, touch_id);
+            break;
+        case Stationary:
+            // stationary points are not sent through wayland, the client must cache them
+            break;
+        case Unknown:
+            // Ignored
+            break;
+        }
+    }
+
+    inline void doNotifyTouchFrame(WInputDevice *device) {
+        auto qwDevice = qobject_cast<QPointingDevice*>(device->qtDevice());
+        Q_ASSERT(qwDevice);
+        auto *state = device->getAttachedData<WSeatPrivate::DeviceState>();
+
+        qCDebug(qLcWlrTouchEvents) << "Touch frame for device: " << qwDevice->name()
+                                   << ", handle the following state: " << state->m_points;
+
+        if (state->m_points.isEmpty())
+            return;
+
+        if (cursor->eventWindow()) {
+            QWindowSystemInterface::handleTouchEvent(cursor->eventWindow(), qwDevice, state->m_points,
+                                                     keyModifiers);
+        }
+
+        for (int i = 0; i < state->m_points.size(); ++i) {
+            QWindowSystemInterface::TouchPoint &tp(state->m_points[i]);
+            if (tp.state == QEventPoint::Released)
+                state->m_points.removeAt(i--);
+            else if (tp.state == QEventPoint::Pressed)
+                tp.state = QEventPoint::Stationary;
+            else if (tp.state == QEventPoint::Updated)
+                tp.state = QEventPoint::Stationary;  // notiyfy: qtbase don't change Updated
+        }
+        handle()->touchNotifyFrame();
+    }
 
     // for keyboard event
     inline bool doNotifyKey(WInputDevice *device, uint32_t keycode, uint32_t state, uint32_t timestamp) {
@@ -144,6 +209,7 @@ public:
     QString name;
     WCursor* cursor = nullptr;
     QVector<WInputDevice*> deviceList;
+    QVector<WInputDevice*> touchDeviceList;
     QPointer<WSeatEventFilter> eventFilter;
     QPointer<QWindow> focusWindow;
     wlr_surface *oldPointerFocusSurface = nullptr;
@@ -166,6 +232,18 @@ public:
 
     // for event data
     Qt::KeyboardModifiers keyModifiers = Qt::NoModifier;
+
+    // for touch event
+    struct DeviceState {
+        DeviceState() { }
+        QList<QWindowSystemInterface::TouchPoint> m_points;
+        inline QWindowSystemInterface::TouchPoint *point(int32_t touch_id) {
+            for (int i = 0; i < m_points.size(); ++i)
+                if (m_points.at(i).id == touch_id)
+                    return &m_points[i];
+            return nullptr;
+        }
+    };
 };
 
 void WSeatPrivate::on_destroy()
@@ -184,7 +262,7 @@ void WSeatPrivate::on_request_set_cursor(wlr_seat_pointer_request_set_cursor_eve
          * on the output that it's currently on and continue to do so as the
          * cursor moves between outputs. */
         auto *surface = event->surface ? QWSurface::from(event->surface) : nullptr;
-        cursor->handle()->setSurface(surface, QPoint(event->hotspot_x, event->hotspot_y));
+        cursor->setSurface(surface, QPoint(event->hotspot_x, event->hotspot_y));
     }
 }
 
@@ -352,6 +430,13 @@ void WSeat::attachInputDevice(WInputDevice *device)
 
     d->attachInputDevice(device);
     d->updateCapabilities();
+
+    if (device->type() == WInputDevice::Type::Touch) {
+        qCDebug(qLcWlrTouch, "WSeat: registerTouchDevice %s", device->qtDevice()->name());
+        auto *state = new WSeatPrivate::DeviceState;
+        device->setAttachedData<WSeatPrivate::DeviceState>(state);
+        d->touchDeviceList << device;
+    }
 }
 
 void WSeat::detachInputDevice(WInputDevice *device)
@@ -370,6 +455,13 @@ void WSeat::detachInputDevice(WInputDevice *device)
         d->cursor->detachInputDevice(device);
     }
 
+    if (device->type() == WInputDevice::Type::Touch) {
+        qCDebug(qLcWlrTouch, "WSeat: detachTouchDevice %s", device->qtDevice()->name());
+        auto *state = device->getAttachedData<WSeatPrivate::DeviceState>();
+        device->removeAttachedData<WSeatPrivate::DeviceState>();
+        delete state;
+        d->touchDeviceList.removeOne(device);
+    }
     QWlrootsIntegration::instance()->removeInputDevice(device);
 }
 
@@ -435,6 +527,21 @@ bool WSeat::sendEvent(WSurface *target, QObject *shellObject, QInputEvent *event
     case QEvent::KeyRelease: {
         auto e = static_cast<QKeyEvent*>(event);
         d->doNotifyKey(inputDevice, e->nativeVirtualKey(), WL_KEYBOARD_KEY_STATE_RELEASED, e->timestamp());
+        break;
+    }
+    case QEvent::TouchBegin: Q_FALLTHROUGH();
+    case QEvent::TouchUpdate: Q_FALLTHROUGH();
+    case QEvent::TouchEnd:
+    {
+        auto e = static_cast<QTouchEvent*>(event);
+        for (const QEventPoint &touchPoint : e->points()) {
+            d->doNotifyFullTouchEvent(target, touchPoint.id(), touchPoint.position(), touchPoint.state(), e->timestamp());
+        }
+        break;
+    }
+    case QEvent::TouchCancel: {
+        auto e = static_cast<QTouchEvent*>(event);
+        d->doTouchNotifyCancel(target->handle());
         break;
     }
     default:
@@ -581,6 +688,132 @@ void WSeat::notifyFrame(WCursor *cursor)
     Q_UNUSED(cursor);
     W_D(WSeat);
     d->doNotifyFrame();
+}
+
+// deal with touch event form wlr_cursor
+
+void WSeat::notifyTouchDown(WCursor *cursor, WInputDevice *device, int32_t touch_id, uint32_t time_msec)
+{
+    W_D(WSeat);
+    auto qwDevice = qobject_cast<QPointingDevice*>(device->qtDevice());
+    Q_ASSERT(qwDevice);
+    const QPointF &globalPos = cursor->position();
+
+    auto *state = device->getAttachedData<WSeatPrivate::DeviceState>();
+
+    QWindowSystemInterface::TouchPoint *tp = state->point(touch_id);
+    if (Q_UNLIKELY(tp)) {
+        // The touch_id may be reused by a new Down event after the Up event
+        // There may not be a Frame event after the last Up.
+        // Manually create a Frame event to prevent touch_id conflicts in DeviceState
+
+        if (Q_LIKELY(tp->state == QEventPoint::Released)) {
+            // Only the Released Point can be removed in next frame event.
+            notifyTouchFrame(cursor);
+        }
+
+        if (state->point(touch_id) != nullptr) {
+            qWarning("Inconsistent touch state, (got 'Down' But touch_id(%d) is not released", touch_id);
+        }
+    }
+
+    QWindowSystemInterface::TouchPoint newTp;
+    newTp.id = touch_id;
+    newTp.state = QEventPoint::Pressed;
+    // default value of newTp.area keep same with qlibinputtouch
+    // Ref: https://github.com/qt/qtbase/blob/6.5/src/platformsupport/input/libinput/qlibinputtouch.cpp#L114
+    newTp.area = QRect(0, 0, 8, 8);
+    newTp.area.moveCenter(globalPos);
+    state->m_points.append(newTp);
+    qCDebug(qLcWlrTouchEvents) << "Touch down form device: " << qwDevice->name()
+                               << ", touch id: " << touch_id
+                               << ", at position" << globalPos;
+}
+
+void WSeat::notifyTouchMotion(WCursor *cursor, WInputDevice *device, int32_t touch_id, uint32_t time_msec)
+{
+
+    W_DC(WSeat);
+    auto qwDevice = qobject_cast<QPointingDevice*>(device->qtDevice());
+    Q_ASSERT(qwDevice);
+
+    const QPointF &globalPos = cursor->position();
+    auto *state = device->getAttachedData<WSeatPrivate::DeviceState>();
+    QWindowSystemInterface::TouchPoint *tp = state->point(touch_id);
+
+    if (Q_LIKELY(tp)) {
+        auto tmpState = QEventPoint::Updated;
+        if (tp->area.center() == globalPos)
+            tmpState = QEventPoint::Stationary;
+        else
+            tp->area.moveCenter(globalPos);
+        // 'down' may be followed by 'motion' within the same "frame".
+        // Handle this by compressing and keeping the Pressed state until the 'frame'.
+        if (tp->state != QEventPoint::Pressed && tp->state != QEventPoint::Released)
+            tp->state = tmpState;
+        qCDebug(qLcWlrTouchEvents) << "Touch move form device: " << qwDevice->name()
+                                   << ", touch id: " << touch_id
+                                   << ", to position: " << globalPos
+                                   << ", state of the point: " << tp->state;
+    } else {
+        qWarning("Inconsistent touch state (got 'Motion' without 'Down'");
+    }
+}
+
+void WSeat::notifyTouchUp(WCursor *cursor, WInputDevice *device, int32_t touch_id, uint32_t time_msec)
+{
+    W_DC(WSeat);
+    auto qwDevice = qobject_cast<QPointingDevice*>(device->qtDevice());
+    Q_ASSERT(qwDevice);
+
+    auto *state = device->getAttachedData<WSeatPrivate::DeviceState>();
+    QWindowSystemInterface::TouchPoint *tp = state->point(touch_id);
+
+    if (Q_LIKELY(tp)) {
+        tp->state = QEventPoint::Released;
+        // There may not be a Frame event after the last Up. Work this around.
+        // IF All Points has Released, Send a Frame event immediately
+        // Ref: https://github.com/qt/qtbase/blob/6.5/src/platformsupport/input/libinput/qlibinputtouch.cpp#L150
+        QEventPoint::States s;
+        for (auto point : state->m_points) {
+            s |= point.state;
+        }
+        qCDebug(qLcWlrTouchEvents) << "Touch up form device: " << qwDevice->name()
+                                   << ", touch id: " << tp->id
+                                   << ", at position: " << tp->area.center()
+                                   << ", state of all points of this device: " << s;
+
+        if (s == QEventPoint::Released)
+            notifyTouchFrame(cursor);
+        else
+            qCDebug(qLcWlrTouchEvents) << "waiting for all points to be released";
+    } else {
+        qWarning("Inconsistent touch state (got 'Up' without 'Down'");
+    }
+}
+
+void WSeat::notifyTouchCancel(WCursor *cursor, WInputDevice *device, int32_t touch_id, uint32_t time_msec)
+{
+    W_DC(WSeat);
+    auto qwDevice = qobject_cast<QPointingDevice*>(device->qtDevice());
+    Q_ASSERT(qwDevice);
+
+    auto *state = device->getAttachedData<WSeatPrivate::DeviceState>();
+    qCDebug(qLcWlrTouchEvents) << "Touch cancel for device: " << qwDevice->name()
+        << ", discard the following state: " << state->m_points;
+
+    if (cursor->eventWindow()) {
+        QWindowSystemInterface::handleTouchCancelEvent(cursor->eventWindow(), qwDevice, d->keyModifiers);
+    }
+}
+
+void WSeat::notifyTouchFrame(WCursor *cursor)
+{
+    W_D(WSeat);
+    Q_UNUSED(cursor);
+    for (auto *device: d->touchDeviceList) {
+        d->doNotifyTouchFrame(device);
+    }
 }
 
 WSeatEventFilter *WSeat::eventFilter() const

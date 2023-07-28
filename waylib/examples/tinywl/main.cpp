@@ -20,6 +20,7 @@
 #include <QMouseEvent>
 #include <QQuickItem>
 #include <QQuickWindow>
+#include <QLoggingCategory>
 
 extern "C" {
 #define WLR_USE_UNSTABLE
@@ -115,9 +116,10 @@ void Helper::clearFocus(QWindow *window)
 bool Helper::eventFilter(WSeat *seat, QWindow *watched, QInputEvent *event)
 {
     if (watched) {
-        if (event->type() == QEvent::MouseButtonPress) {
+        if (event->type() == QEvent::MouseButtonPress || event->type() == QEvent::TouchBegin) {
             seat->setKeyboardFocusTarget(watched);
         } else if (event->type() == QEvent::MouseMove && !seat->focusWindow()) {
+            // TouchMove keep focus on first window
             seat->setKeyboardFocusTarget(watched);
         }
     }
@@ -166,7 +168,7 @@ bool Helper::eventFilter(WSeat *seat, WSurface *watched, QObject *surfaceItem, Q
 {
     Q_UNUSED(seat)
 
-    if (event->type() == QEvent::MouseButtonPress) {
+    if (event->type() == QEvent::MouseButtonPress || event->type() == QEvent::TouchBegin) {
         // surfaceItem is qml type: XdgSurfaceItem
         auto xdgSurface = qvariant_cast<WXdgSurface*>(surfaceItem->property("surface"));
         if (!xdgSurface)
@@ -175,7 +177,7 @@ bool Helper::eventFilter(WSeat *seat, WSurface *watched, QObject *surfaceItem, Q
         if (!xdgSurface->doesNotAcceptFocus() && m_activateSurface != xdgSurface)
             if (auto item = qobject_cast<QQuickItem*>(surfaceItem))
                 item->forceActiveFocus();
-    } else if (event->type() == QEvent::MouseButtonRelease) {
+    } else if (event->type() == QEvent::MouseButtonRelease || event->type() == QEvent::TouchEnd) {
         // surfaceItem is qml type: XdgSurfaceItem
         auto xdgSurface = qvariant_cast<WXdgSurface*>(surfaceItem->property("surface"));
         if (!xdgSurface)

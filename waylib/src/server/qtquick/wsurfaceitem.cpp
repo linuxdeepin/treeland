@@ -107,6 +107,7 @@ public:
     explicit EventItem(ContentItem *parent)
         : QQuickItem(parent) {
         setAcceptHoverEvents(true);
+        setAcceptTouchEvents(true);
         setAcceptedMouseButtons(Qt::AllButtons);
         setFlag(QQuickItem::ItemClipsChildrenToShape, true);
     }
@@ -129,20 +130,25 @@ public:
 private:
     bool event(QEvent *event) override {
         switch(event->type()) {
-        case QEvent::HoverEnter: Q_FALLTHROUGH();
-        case QEvent::HoverLeave: Q_FALLTHROUGH();
-        case QEvent::MouseButtonPress: Q_FALLTHROUGH();
-        case QEvent::MouseButtonRelease: Q_FALLTHROUGH();
-        case QEvent::MouseMove: Q_FALLTHROUGH();
-        case QEvent::HoverMove: Q_FALLTHROUGH();
-        case QEvent::KeyPress: Q_FALLTHROUGH();
-        case QEvent::KeyRelease: {
+        using enum QEvent::Type;
+        case HoverEnter: Q_FALLTHROUGH();
+        case HoverLeave: Q_FALLTHROUGH();
+        case MouseButtonPress: Q_FALLTHROUGH();
+        case MouseButtonRelease: Q_FALLTHROUGH();
+        case MouseMove: Q_FALLTHROUGH();
+        case HoverMove: Q_FALLTHROUGH();
+        case KeyPress: Q_FALLTHROUGH();
+        case KeyRelease: Q_FALLTHROUGH();
+        case TouchBegin: Q_FALLTHROUGH();
+        case TouchUpdate: Q_FALLTHROUGH();
+        case TouchEnd: Q_FALLTHROUGH();
+        case TouchCancel: {
             auto e = static_cast<QInputEvent*>(event);
             if (static_cast<ContentItem*>(parent())->surfaceItem()->sendEvent(e))
                 return true;
             break;
         }
-        case QEvent::FocusOut: {
+        case FocusOut: {
             if (isValid())
                 d()->q_func()->setFocus(false);
             break;

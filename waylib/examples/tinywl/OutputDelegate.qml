@@ -76,7 +76,7 @@ OutputPositioner {
 
     Image {
         id: background
-        source: "file:///usr/share/backgrounds/deepin/desktop.jpg"
+        source: "file:///usr/share/wallpapers/deepin/desktop.jpg"
         fillMode: Image.PreserveAspectCrop
         asynchronous: true
         anchors.fill: parent

@@ -14,13 +14,15 @@
 #include "platformplugin/qwlrootscursor.h"
 
 #include <qwbuffer.h>
+#include <qwcompositor.h>
 #include <qwcursor.h>
 #include <qwoutput.h>
 #include <qwxcursormanager.h>
 #include <qwoutputlayout.h>
 #include <qwinputdevice.h>
 #include <qwpointer.h>
-#include <qwsignalconnector.h>
+#include <qwtouch.h>
+#include <qwseat.h>
 
 #include <QCursor>
 #include <QPixmap>
@@ -34,6 +36,7 @@ extern "C" {
 #undef static
 #include <wlr/types/wlr_xcursor_manager.h>
 #include <wlr/types/wlr_pointer.h>
+#include <wlr/types/wlr_touch.h>
 }
 
 QW_USE_NAMESPACE
@@ -145,6 +148,11 @@ void WCursorPrivate::updateCursorImage()
     if (!eventWindow)
         return;
 
+    surfaceOfCursor.clear();
+
+    if (!visible)
+        return;
+
     if (auto type_name = qcursorToType(cursor)) {
         setType(type_name);
     } else {
@@ -208,6 +216,58 @@ void WCursorPrivate::on_frame()
     }
 }
 
+void WCursorPrivate::on_touch_down(wlr_touch_down_event *event)
+{
+    auto device = QWTouch::from(event->touch);
+
+    q_func()->setScalePosition(device, QPointF(event->x, event->y));
+
+    if (Q_LIKELY(seat)) {
+        seat->notifyTouchDown(q_func(), WInputDevice::fromHandle(device),
+                              event->touch_id, event->time_msec);
+    }
+
+}
+
+void WCursorPrivate::on_touch_motion(wlr_touch_motion_event *event)
+{
+    auto device = QWTouch::from(event->touch);
+
+    q_func()->setScalePosition(device, QPointF(event->x, event->y));
+
+    if (Q_LIKELY(seat)) {
+        seat->notifyTouchMotion(q_func(), WInputDevice::fromHandle(device),
+                                event->touch_id, event->time_msec);
+    }
+}
+
+void WCursorPrivate::on_touch_frame()
+{
+    if (Q_LIKELY(seat)) {
+        seat->notifyTouchFrame(q_func());
+    }
+}
+
+void WCursorPrivate::on_touch_cancel(wlr_touch_cancel_event *event)
+{
+    auto device = QWTouch::from(event->touch);
+
+    if (Q_LIKELY(seat)) {
+        seat->notifyTouchCancel(q_func(), WInputDevice::fromHandle(device),
+                                event->touch_id, event->time_msec);
+    }
+}
+
+void WCursorPrivate::on_touch_up(wlr_touch_up_event *event)
+{
+    auto device = QWTouch::from(event->touch);
+
+    if (Q_LIKELY(seat)) {
+        seat->notifyTouchUp(q_func(), WInputDevice::fromHandle(device),
+                            event->touch_id, event->time_msec);
+    }
+}
+
 void WCursorPrivate::connect()
 {
     Q_ASSERT(seat);
@@ -227,6 +287,23 @@ void WCursorPrivate::connect()
     });
     QObject::connect(handle, &QWCursor::frame, slotOwner, [this] () {
         on_frame();
+    });
+
+    // Handle touch device related signals
+    QObject::connect(handle, &QWCursor::touchDown, slotOwner, [this] (wlr_touch_down_event *event) {
+        on_touch_down(event);
+    });
+    QObject::connect(handle, &QWCursor::touchMotion, slotOwner, [this] (wlr_touch_motion_event *event) {
+        on_touch_motion(event);
+    });
+    QObject::connect(handle, &QWCursor::touchFrame, slotOwner, [this] () {
+        on_touch_frame();
+    });
+    QObject::connect(handle, &QWCursor::touchCancel, slotOwner, [this] (wlr_touch_cancel_event *event) {
+        on_touch_cancel(event);
+    });
+    QObject::connect(handle, &QWCursor::touchUp, slotOwner, [this] (wlr_touch_up_event *event) {
+        on_touch_up(event);
     });
 }
 
@@ -442,6 +519,16 @@ void WCursor::setCursor(const QCursor &cursor)
     d->updateCursorImage();
 }
 
+void WCursor::setSurface(QWSurface *surface, const QPoint &hotspot)
+{
+    W_D(WCursor);
+    d->surfaceOfCursor = surface;
+    d->surfaceCursorHotspot = hotspot;
+    if (d->visible) {
+        d->handle->setSurface(surface, hotspot);
+    }
+}
+
 bool WCursor::attachInputDevice(WInputDevice *device)
 {
     if (device->type() != WInputDevice::Type::Pointer
@@ -504,6 +591,30 @@ void WCursor::setPosition(const QPointF &pos)
 bool WCursor::setPositionWithChecker(const QPointF &pos)
 {
     return setPositionWithChecker(nullptr, pos);
+}
+
+bool WCursor::isVisible() const
+{
+    W_DC(WCursor);
+    return d->visible;
+}
+
+void WCursor::setVisible(bool visible)
+{
+    W_D(WCursor);
+    if (d->visible == visible)
+        return;
+    d->visible = visible;
+
+    if (visible) {
+        if (d->surfaceOfCursor) {
+            d->handle->setSurface(d->surfaceOfCursor, d->surfaceCursorHotspot);
+        } else {
+            d->updateCursorImage();
+        }
+    } else {
+        d->handle->unsetImage();
+    }
 }
 
 QPointF WCursor::position() const

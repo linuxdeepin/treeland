@@ -17,6 +17,7 @@ QW_END_NAMESPACE
 QT_BEGIN_NAMESPACE
 class QInputEvent;
 class QWindow;
+class QPointingDevice;
 QT_END_NAMESPACE
 
 typedef uint wlr_axis_source_t;
@@ -97,6 +98,13 @@ protected:
                     Qt::Orientation orientation,
                     double delta, int32_t delta_discrete, uint32_t timestamp);
     void notifyFrame(WCursor *cursor);
+
+    // touch
+    void notifyTouchDown(WCursor *cursor, WInputDevice *device, int32_t touch_id, uint32_t time_msec);
+    void notifyTouchMotion(WCursor *cursor, WInputDevice *device, int32_t touch_id, uint32_t time_msec);
+    void notifyTouchCancel(WCursor *cursor, WInputDevice *device, int32_t touch_id, uint32_t time_msec);
+    void notifyTouchUp(WCursor *cursor, WInputDevice *device, int32_t touch_id, uint32_t time_msec);
+    void notifyTouchFrame(WCursor *cursor);
 };
 
 WAYLIB_SERVER_END_NAMESPACE

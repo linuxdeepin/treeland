@@ -19,6 +19,7 @@ class QWXCursorManager;
 class QWInputDevice;
 class QWCursor;
 class QWOutputCursor;
+class QWSurface;
 QW_END_NAMESPACE
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
@@ -55,12 +56,16 @@ public:
     void setXCursorManager(QW_NAMESPACE::QWXCursorManager *manager);
     QCursor cursor() const;
     void setCursor(const QCursor &cursor);
+    void setSurface(QW_NAMESPACE::QWSurface *surface, const QPoint &hotspot);
 
     void setLayout(WOutputLayout *layout);
     WOutputLayout *layout() const;
 
     void setPosition(const QPointF &pos);
     bool setPositionWithChecker(const QPointF &pos);
+
+    bool isVisible() const;
+    void setVisible(bool visible);
 
     QPointF position() const;
     QPointF lastPressedPosition() const;

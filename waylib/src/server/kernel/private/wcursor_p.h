@@ -11,6 +11,7 @@
 QW_BEGIN_NAMESPACE
 class QWCursor;
 class QWPointer;
+class QWSurface;
 QW_END_NAMESPACE
 
 struct wlr_pointer_motion_event;
@@ -18,6 +19,10 @@ struct wlr_pointer_motion_absolute_event;
 struct wlr_pointer_button_event;
 struct wlr_pointer_axis_event;
 struct wlr_cursor;
+struct wlr_touch_down_event;
+struct wlr_touch_up_event;
+struct wlr_touch_motion_event;
+struct wlr_touch_cancel_event;
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
@@ -38,6 +43,11 @@ public:
     void on_button(wlr_pointer_button_event *event);
     void on_axis(wlr_pointer_axis_event *event);
     void on_frame();
+    void on_touch_down(wlr_touch_down_event *event);
+    void on_touch_motion(wlr_touch_motion_event *event);
+    void on_touch_frame();
+    void on_touch_cancel(wlr_touch_cancel_event *event);
+    void on_touch_up(wlr_touch_up_event *event);
     // end slot function
 
     void connect();
@@ -58,6 +68,9 @@ public:
     Qt::MouseButtons state = Qt::NoButton;
     Qt::MouseButton button = Qt::NoButton;
     QPointF lastPressedPosition;
+    bool visible = true;
+    QPointer<QW_NAMESPACE::QWSurface> surfaceOfCursor;
+    QPoint surfaceCursorHotspot;
 };
 
 WAYLIB_SERVER_END_NAMESPACE
