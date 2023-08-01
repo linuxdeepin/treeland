@@ -5,6 +5,7 @@
 #include <WSurface>
 #include <WSeat>
 #include <WCursor>
+#include <wsocket.h>
 
 #include <QGuiApplication>
 #include <QQmlApplicationEngine>
@@ -17,15 +18,16 @@
 
 #include <wquickbackend_p.h>
 #include <qwbackend.h>
+#include <qwdisplay.h>
 
 QW_USE_NAMESPACE
 WAYLIB_SERVER_USE_NAMESPACE
 
-class EventFilter : public WSeatEventFilter {
+class Helper : public WSeatEventFilter {
     Q_OBJECT
 
 public:
-    explicit EventFilter(QObject *parent = nullptr)
+    explicit Helper(QObject *parent = nullptr)
         : WSeatEventFilter(parent)
     {
 
@@ -33,6 +35,7 @@ public:
 
     Q_SLOT void startMove(WSurface *surface, WSeat *seat, int serial);
     Q_SLOT void startResize(WSurface *surface, WSeat *seat, Qt::Edges edge, int serial);
+    Q_SLOT bool startDemoClient(const QString &socket);
 
     inline void stop() {
         surfaceShellItem = nullptr;
@@ -62,7 +65,7 @@ inline QPointF getItemGlobalPosition(QQuickItem *item)
     return parent ? parent->mapToGlobal(item->position()) : item->position();
 }
 
-void EventFilter::startMove(WSurface *surface, WSeat *seat, int serial)
+void Helper::startMove(WSurface *surface, WSeat *seat, int serial)
 {
     Q_UNUSED(serial)
 
@@ -78,7 +81,7 @@ void EventFilter::startMove(WSurface *surface, WSeat *seat, int serial)
     surface->notifyBeginState(type);
 }
 
-void EventFilter::startResize(WSurface *surface, WSeat *seat, Qt::Edges edge, int serial)
+void Helper::startResize(WSurface *surface, WSeat *seat, Qt::Edges edge, int serial)
 {
     Q_UNUSED(serial)
 
@@ -96,7 +99,34 @@ void EventFilter::startResize(WSurface *surface, WSeat *seat, Qt::Edges edge, in
     surface->notifyBeginState(type);
 }
 
-bool EventFilter::eventFilter(WSeat *seat, QWindow *watched, QInputEvent *event)
+bool Helper::startDemoClient(const QString &socket)
+{
+    QTemporaryFile *tmpQmlFile = new QTemporaryFile();
+    tmpQmlFile->setParent(qApp);
+    tmpQmlFile->setAutoRemove(true);
+    QProcess waylandClientDemo;
+
+    if (tmpQmlFile->open()) {
+        QFile qmlFile(":/ClientWindow.qml");
+        if (qmlFile.open(QIODevice::ReadOnly)) {
+            tmpQmlFile->write(qmlFile.readAll());
+        }
+        tmpQmlFile->close();
+
+        waylandClientDemo.setProgram("qml");
+        waylandClientDemo.setArguments({tmpQmlFile->fileName(), "-platform", "wayland"});
+
+        QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
+        env.insert("WAYLAND_DISPLAY", socket);
+
+        waylandClientDemo.setProcessEnvironment(env);
+        return waylandClientDemo.startDetached();
+    }
+
+    return false;
+}
+
+bool Helper::eventFilter(WSeat *seat, QWindow *watched, QInputEvent *event)
 {
     if (watched) {
         if (event->type() == QEvent::MouseButtonPress) {
@@ -109,7 +139,7 @@ bool EventFilter::eventFilter(WSeat *seat, QWindow *watched, QInputEvent *event)
     return false;
 }
 
-bool EventFilter::eventFilter(WSeat *seat, WSurface *watched, QInputEvent *event)
+bool Helper::eventFilter(WSeat *seat, WSurface *watched, QInputEvent *event)
 {
     if (watched && event->type() == QEvent::MouseButtonRelease) {
         seat->setKeyboardFocusTarget(watched);
@@ -159,7 +189,7 @@ bool EventFilter::eventFilter(WSeat *seat, WSurface *watched, QInputEvent *event
     return false;
 }
 
-bool EventFilter::ignoredEventFilter(WSeat *seat, QWindow *watched, QInputEvent *event)
+bool Helper::ignoredEventFilter(WSeat *seat, QWindow *watched, QInputEvent *event)
 {
     if (watched && event->type() == QEvent::MouseButtonPress) {
         // clear focus
@@ -185,12 +215,13 @@ int main(int argc, char *argv[]) {
     QGuiApplication app(argc, argv);
 
     qmlRegisterModule("Tinywl", 1, 0);
-    qmlRegisterType<EventFilter>("Tinywl", 1, 0, "EventFilter");
+    qmlRegisterType<Helper>("Tinywl", 1, 0, "Helper");
 
     QQmlApplicationEngine waylandEngine;
     waylandEngine.load(QUrl("qrc:/Main.qml"));
     WServer *server = waylandEngine.rootObjects().first()->findChild<WServer*>();
     Q_ASSERT(server);
+    Q_ASSERT(server->isRunning());
 
     auto backend = server->findChild<WQuickBackend*>();
     Q_ASSERT(backend);
@@ -201,21 +232,6 @@ int main(int argc, char *argv[]) {
 //            x11->createOutput();
 //    }, nullptr);
 
-    QTemporaryFile tmpQmlFile;
-    tmpQmlFile.setAutoRemove(true);
-    QProcess waylandClientDemo;
-
-    if (tmpQmlFile.open()) {
-        QFile qmlFile(":/ClientWindow.qml");
-        if (qmlFile.open(QIODevice::ReadOnly)) {
-            tmpQmlFile.write(qmlFile.readAll());
-        }
-        tmpQmlFile.close();
-
-        waylandClientDemo.setProgram("qml");
-        waylandClientDemo.setArguments({tmpQmlFile.fileName(), "-platform", "wayland"});
-        server->startProcess(waylandClientDemo);
-    }
 
     return app.exec();
 }

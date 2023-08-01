@@ -10,6 +10,7 @@
 #include "wserver.h"
 #include "private/wserver_p.h"
 #include "wsurface.h"
+#include "wsocket.h"
 #include "platformplugin/qwlrootsintegration.h"
 
 #include <qwdisplay.h>
@@ -24,6 +25,8 @@
 #include <QMutex>
 #include <QDebug>
 #include <QProcess>
+#include <QLocalServer>
+#include <QLocalSocket>
 #include <private/qthread_p.h>
 #include <private/qguiapplication_p.h>
 #include <qpa/qplatformthemefactory_p.h>
@@ -75,11 +78,6 @@ void WServerPrivate::init()
         i->create(q);
     }
 
-    socket = display->addSocketAuto();
-    if (!socket) {
-        qFatal("Create socket failed");
-    }
-
     loop = wl_display_get_event_loop(display->handle());
     int fd = wl_event_loop_get_fd(loop);
 
@@ -95,6 +93,9 @@ void WServerPrivate::init()
 
     QAbstractEventDispatcher *dispatcher = QThread::currentThread()->eventDispatcher();
     QObject::connect(dispatcher, &QAbstractEventDispatcher::aboutToBlock, q, processWaylandEvents);
+
+    for (auto socket : sockets)
+        initSocket(socket);
 
     Q_EMIT q->started();
 }
@@ -119,6 +120,12 @@ void WServerPrivate::stop()
         display->deleteLater();
         display = nullptr;
     }
+}
+
+void WServerPrivate::initSocket(WSocket *socketServer)
+{
+    bool ok = socketServer->listen(display->handle());
+    Q_ASSERT(ok);
 }
 
 WServer::WServer(QObject *parent)
@@ -274,8 +281,6 @@ void WServer::initializeProxyQPA(int &argc, char **argv, const QStringList &prox
     Q_ASSERT(!proxyPlatformPlugins.isEmpty());
 
     W_DC(WServer);
-    Q_ASSERT(d->socket);
-    qputenv("WAYLAND_DISPLAY", d->socket);
     QPlatformIntegration *proxy = nullptr;
     for (const QString &name : proxyPlatformPlugins) {
         if (name.isEmpty())
@@ -289,20 +294,6 @@ void WServer::initializeProxyQPA(int &argc, char **argv, const QStringList &prox
     }
     proxy->initialize();
     QWlrootsIntegration::instance()->setProxy(proxy);
-    qunsetenv("WAYLAND_DISPLAY");
-}
-
-void WServer::startProcess(QProcess &process) const
-{
-    W_DC(WServer);
-    Q_ASSERT(d->socket);
-    qputenv("WAYLAND_DISPLAY", d->socket);
-
-    QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
-    env.insert("WAYLAND_DISPLAY", d->socket);
-
-    process.setProcessEnvironment(env);
-    process.start();
 }
 
 bool WServer::isRunning() const
@@ -311,12 +302,18 @@ bool WServer::isRunning() const
     return d->display;
 }
 
-const char *WServer::displayName() const
+void WServer::addSocket(WSocket *socket)
 {
-    if (!isRunning())
-        return nullptr;
-    W_DC(WServer);
-    return d->socket;
+    W_D(WServer);
+    Q_ASSERT(!d->sockets.contains(socket));
+    d->sockets.append(socket);
+
+    connect(socket, &WSocket::destroyed, this, [d, socket] {
+        d->sockets.removeOne(socket);
+    });
+
+    if (d->display)
+        d->initSocket(socket);
 }
 
 QObject *WServer::slotOwner() const

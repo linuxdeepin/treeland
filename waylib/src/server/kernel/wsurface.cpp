@@ -41,6 +41,13 @@ WSurfacePrivate::~WSurfacePrivate()
         buffer->unlock();
 }
 
+wl_client *WSurfacePrivate::waylandClient() const
+{
+    if (auto handle = nativeHandle())
+        return handle->resource->client;
+    return nullptr;
+}
+
 wlr_surface *WSurfacePrivate::nativeHandle() const {
     Q_ASSERT(handle);
     return handle->handle();

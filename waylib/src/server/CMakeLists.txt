@@ -34,6 +34,7 @@ set(KERNEL_SOURCES
     kernel/woutputlayout.cpp
     kernel/wxcursorimage.cpp
     kernel/wglobal.cpp
+    kernel/wsocket.cpp
 )
 
 # TODO: Using wlr_damage_ring
@@ -55,6 +56,7 @@ set(QTQUICK_SOURCES
     qtquick/private/wquickseat.cpp
     qtquick/private/wwaylandcompositor.cpp
     qtquick/private/wquickcoordmapper.cpp
+    qtquick/private/wquicksocket.cpp
 )
 
 set(UTILS_SOURCES
@@ -87,6 +89,7 @@ set(HEADERS
     kernel/wxdgsurface.h
     kernel/woutputlayout.h
     kernel/wxcursorimage.h
+    kernel/wsocket.h
     kernel/WOutput
     kernel/WServer
     kernel/WServerInterface
@@ -124,6 +127,7 @@ set(PRIVATE_HEADERS
     qtquick/private/woutputviewport_p.h
     qtquick/private/wquickcoordmapper_p.h
     qtquick/private/woutputpositioner_p.h
+    qtquick/private/wquicksocket_p.h
 )
 
 add_library(${TARGET}

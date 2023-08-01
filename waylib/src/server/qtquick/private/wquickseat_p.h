@@ -10,6 +10,8 @@ Q_MOC_INCLUDE(<wquickcursor.h>)
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
+class WOutput;
+class WInputDevice;
 class WSeat;
 class WSeatEventFilter;
 class WQuickCursor;

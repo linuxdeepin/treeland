@@ -20,6 +20,8 @@ QW_END_NAMESPACE
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
+class WOutput;
+class WInputDevice;
 class WQuickBackendPrivate;
 class WAYLIB_SERVER_EXPORT WQuickBackend : public WQuickWaylandServerInterface, public WObject
 {

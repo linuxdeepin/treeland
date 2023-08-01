@@ -51,10 +51,7 @@ protected:
     friend class WServerPrivate;
 };
 
-class WInputDevice;
-class WOutput;
-class WOutputViewport;
-class WBackend;
+class WSocket;
 class WServerPrivate;
 class WServer : public QObject, public WObject
 {
@@ -115,10 +112,9 @@ public:
     void stop();
     static void initializeQPA(bool master = true, const QStringList &parameters = {});
     void initializeProxyQPA(int &argc, char **argv, const QStringList &proxyPlatformPlugins = {}, const QStringList &parameters = {});
-    void startProcess(QProcess &process) const;
 
     bool isRunning() const;
-    const char *displayName() const;
+    void addSocket(WSocket *socket);
 
     QObject *slotOwner() const;
 

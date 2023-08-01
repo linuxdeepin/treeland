@@ -22,7 +22,6 @@ WAYLIB_SERVER_BEGIN_NAMESPACE
 
 class WServer;
 class WOutput;
-struct SurfaceData;
 class WSurfaceHandler;
 class WSurfacePrivate;
 class WAYLIB_SERVER_EXPORT WSurface : public QObject, public WObject

@@ -97,6 +97,7 @@ public:
     }
 
     void initForSurface();
+    void updateFrameDoneConnection();
 
     Q_DECLARE_PUBLIC(WSurfaceItem)
     QPointer<WSurface> surface;
@@ -269,6 +270,16 @@ void WSurfaceItem::geometryChange(const QRectF &newGeometry, const QRectF &oldGe
     QQuickItem::geometryChange(newGeometry, oldGeometry);
 }
 
+void WSurfaceItem::itemChange(ItemChange change, const ItemChangeData &data)
+{
+    QQuickItem::itemChange(change, data);
+
+    if (change == ItemVisibleHasChanged) {
+        Q_D(WSurfaceItem);
+        d->updateFrameDoneConnection();
+    }
+}
+
 void WSurfaceItem::invalidateSceneGraph()
 {
     Q_D(WSurfaceItem);
@@ -294,18 +305,27 @@ void WSurfaceItemPrivate::initForSurface()
         updateImplicitSize();
     });
     QObject::connect(surface, &WSurface::primaryOutputChanged, q, [this] {
-        if (frameDoneConnection)
-            QObject::disconnect(frameDoneConnection);
-        if (auto output = surface->primaryOutput()) {
-            auto viewport = WOutputViewport::get(output);
-            if (!viewport)
-                return;
-            frameDoneConnection = QObject::connect(viewport, &WOutputViewport::frameDone,
-                                                   surface, &WSurface::notifyFrameDone);
-        }
+        updateFrameDoneConnection();
     });
 
     updateImplicitSize();
+}
+
+void WSurfaceItemPrivate::updateFrameDoneConnection()
+{
+    if (frameDoneConnection)
+        QObject::disconnect(frameDoneConnection);
+
+    if (!effectiveVisible)
+        return;
+
+    if (auto output = surface->primaryOutput()) {
+        auto viewport = WOutputViewport::get(output);
+        if (!viewport)
+            return;
+        frameDoneConnection = QObject::connect(viewport, &WOutputViewport::frameDone,
+                                               surface, &WSurface::notifyFrameDone);
+    }
 }
 
 WAYLIB_SERVER_END_NAMESPACE

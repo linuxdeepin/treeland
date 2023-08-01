@@ -22,6 +22,7 @@ public:
     WSurfacePrivate(WSurface *qq, WServer *server);
     ~WSurfacePrivate();
 
+    wl_client *waylandClient() const override;
     wlr_surface *nativeHandle() const;
 
     // begin slot function

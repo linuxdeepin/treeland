@@ -26,6 +26,8 @@ public:
     void init();
     void stop();
 
+    void initSocket(WSocket *socketServer);
+
     W_DECLARE_PUBLIC(WServer)
     std::unique_ptr<QSocketNotifier> sockNot;
     std::unique_ptr<QObject> slotOwner;
@@ -33,8 +35,9 @@ public:
     QVector<WServerInterface*> interfaceList;
 
     QW_NAMESPACE::QWDisplay *display = nullptr;
-    const char *socket = nullptr;
     wl_event_loop *loop = nullptr;
+
+    QList<WSocket*> sockets;
 };
 
 WAYLIB_SERVER_END_NAMESPACE

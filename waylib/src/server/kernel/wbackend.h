@@ -10,6 +10,7 @@
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
 class WOutput;
+class WInputDevice;
 class WBackendPrivate;
 class WBackend : public WServerInterface, public WObject
 {

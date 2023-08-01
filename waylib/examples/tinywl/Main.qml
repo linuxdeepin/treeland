@@ -51,7 +51,7 @@ Item {
             }
 
             onRequestMove: function(surface, seat, serial) {
-                eventFilter.startMove(surface, seat, serial)
+                globalHelper.startMove(surface, seat, serial)
             }
         }
 
@@ -64,12 +64,23 @@ Item {
                 layout: layout
             }
 
-            eventFilter: eventFilter
+            eventFilter: globalHelper
+        }
+
+        WaylandSocket {
+            id: masterSocket
+
+            freezeClientWhenDisable: false
+
+            Component.onCompleted: {
+                console.info("Listing on:", socketFile)
+                globalHelper.startDemoClient(socketFile)
+            }
         }
     }
 
-    EventFilter {
-        id: eventFilter
+    Helper {
+        id: globalHelper
     }
 
     OutputLayout {
@@ -180,6 +191,16 @@ Item {
 
                         spacing: 10
 
+                        Switch {
+                            text: "Socket"
+                            onCheckedChanged: {
+                                masterSocket.enabled = checked
+                            }
+                            Component.onCompleted: {
+                                checked = masterSocket.enabled
+                            }
+                        }
+
                         Button {
                             text: "1X"
                             onClicked: {
@@ -256,7 +277,7 @@ Item {
                 required property WaylandSurface waylandSurface
                 required property OutputLayout outputLayout
 
-                visible: waylandSurface && waylandSurface.mapped
+                visible: waylandSurface && waylandSurface.mapped && waylandSurface.WaylandSocket.rootSocket.enabled
                 width: surfaceItem.width
                 height: surfaceItem.height
                 x: waylandSurface.position.x

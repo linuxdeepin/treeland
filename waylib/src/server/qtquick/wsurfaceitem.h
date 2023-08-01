@@ -46,6 +46,7 @@ protected:
     void releaseResources() override;
     void componentComplete() override;
     void geometryChange(const QRectF &newGeometry, const QRectF &oldGeometry) override;
+    void itemChange(ItemChange change, const ItemChangeData &data) override;
 
 private Q_SLOTS:
     void invalidateSceneGraph();

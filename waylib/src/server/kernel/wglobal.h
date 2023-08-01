@@ -43,6 +43,7 @@
 
 #include <QScopedPointer>
 
+struct wl_client;
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
 class WObjectPrivate;
@@ -62,7 +63,14 @@ protected:
 class WObjectPrivate
 {
 public:
+    static WObjectPrivate *get(WObject *qq) {
+        return qq->d_func();
+    }
+
     virtual ~WObjectPrivate();
+    virtual wl_client *waylandClient() const {
+        return nullptr;
+    }
 
 protected:
     WObjectPrivate(WObject *qq);
