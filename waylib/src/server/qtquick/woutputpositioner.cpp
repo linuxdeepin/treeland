@@ -125,10 +125,12 @@ void WOutputPositioner::setOutput(WOutput *newOutput)
     Q_ASSERT(!d->output || !newOutput);
     d->output = newOutput;
 
-    if (auto attached = getAttached(newOutput)) {
-        attached->setPositioner(this);
-    } else {
-        newOutput->setProperty(DATA_OF_WOUPTUT, QVariant::fromValue(this));
+    if (newOutput) {
+        if (auto attached = getAttached(newOutput)) {
+            attached->setPositioner(this);
+        } else {
+            newOutput->setProperty(DATA_OF_WOUPTUT, QVariant::fromValue(this));
+        }
     }
 
     if (isComponentComplete()) {
