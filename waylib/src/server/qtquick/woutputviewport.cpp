@@ -191,8 +191,8 @@ void WOutputViewportPrivate::initForOutput()
     outputWindow()->attach(q);
 
     auto qwoutput = output->handle();
-    if (!qwoutput->handle()->current_mode) {
-        // TODO: should set mode in compositor before add to WOutputViewport
+    if (!qwoutput->handle()->current_mode
+        && !qwoutput->handle()->pending.mode) {
         auto mode = qwoutput->preferredMode();
         if (mode)
             qwoutput->setMode(mode);
