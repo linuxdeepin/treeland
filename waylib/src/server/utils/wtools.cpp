@@ -177,6 +177,24 @@ uint32_t WTools::toDrmFormat(QImage::Format format)
     return DRM_FORMAT_INVALID;
 }
 
+QImage::Format WTools::convertToDrmSupportedFormat(QImage::Format format)
+{
+    switch (format) {
+    case QImage::Format_ARGB32:
+        return QImage::Format_ARGB32_Premultiplied;
+    case QImage::Format_RGBA8888:
+        return QImage::Format_RGBA8888_Premultiplied;
+    case QImage::Format_RGBA64:
+        return QImage::Format_RGBA64_Premultiplied;
+    case QImage::Format_RGBA16FPx4:
+        return QImage::Format_RGBA16FPx4_Premultiplied;
+    case QImage::Format_RGBA32FPx4:
+        return QImage::Format_RGBA32FPx4_Premultiplied;
+    }
+
+    return format;
+}
+
 QRegion WTools::fromPixmanRegion(void *region)
 {
     Q_ASSERT(sizeof(QRect) == sizeof(pixman_box32));

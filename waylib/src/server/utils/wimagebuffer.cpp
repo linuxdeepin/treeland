@@ -17,7 +17,12 @@ WAYLIB_SERVER_BEGIN_NAMESPACE
 
 WImageBufferImpl::WImageBufferImpl(const QImage &bufferImage)
 {
-    image = bufferImage;
+    auto newFormat = WTools::convertToDrmSupportedFormat(bufferImage.format());
+    if (newFormat != bufferImage.format()) {
+        image = bufferImage.convertedTo(newFormat);
+    } else {
+        image = bufferImage;
+    }
 }
 
 WImageBufferImpl::~WImageBufferImpl()
