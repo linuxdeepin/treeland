@@ -188,14 +188,21 @@ void WOutputViewportPrivate::initForOutput()
 {
     W_Q(WOutputViewport);
 
-    auto qwoutput = output->handle();
-    auto mode = qwoutput->preferredMode();
-    if (mode)
-        qwoutput->setMode(mode);
-    qwoutput->enable(q->isVisible());
-    qwoutput->commit();
-
     outputWindow()->attach(q);
+
+    auto qwoutput = output->handle();
+    if (!qwoutput->handle()->current_mode) {
+        // TODO: should set mode in compositor before add to WOutputViewport
+        auto mode = qwoutput->preferredMode();
+        if (mode)
+            qwoutput->setMode(mode);
+    }
+
+    qwoutput->enable(q->isVisible());
+    // Must commit after init render for the output, the init render
+    // behavior is in WOutputRenderWindow::attach
+    if (qwoutput->handle()->renderer)
+        qwoutput->commit();
 
     QObject::connect(output, &WOutput::modeChanged, q, [this] {
         updateImplicitSize();
