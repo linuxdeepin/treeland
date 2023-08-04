@@ -1,9 +1,12 @@
-cmake_minimum_required(VERSION 3.4)
+cmake_minimum_required(VERSION 3.1.0)
 
-project(SDDM)
+project(DDM
+    VERSION 0.0.1
+    LANGUAGES CXX C)
 
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 set(CMAKE_AUTOMOC ON)
+set(CMAKE_AUTORCC ON)
 SET(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 
 # Set version
@@ -18,17 +21,24 @@ option(BUILD_MAN_PAGES "Build man pages" OFF)
 option(ENABLE_JOURNALD "Enable logging to journald" ON)
 option(NO_SYSTEMD "Disable systemd support" OFF)
 option(USE_ELOGIND "Use elogind instead of logind" OFF)
-option(BUILD_WITH_QT6 "Build with Qt 6" OFF)
 
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
+option(WITH_SUBMODULE_QWLROOTS "Use the waylib from git submodule" OFF)
+
+if(WITH_SUBMODULE_QWLROOTS)
+    add_subdirectory(waylib)
+    message("Using waylib from submodule")
+endif()
 
 # ECM
 find_package(ECM 1.4.0 REQUIRED NO_MODULE)
 set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake;${CMAKE_MODULE_PATH};${ECM_MODULE_PATH}")
 
 # Definitions
-add_definitions(-Wall -Wextra -DQT_NO_CAST_FROM_ASCII -DQT_NO_CAST_FROM_BYTEARRAY -DQT_NO_FOREACH)
+add_definitions(-Wall -Wextra)
 
 # Default build type
 if(NOT CMAKE_BUILD_TYPE)
@@ -39,7 +49,7 @@ endif()
 if(CMAKE_BUILD_TYPE MATCHES [Dd]ebug)
     message(STATUS "Debug build")
     add_definitions(-DDEBUG)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -O0")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -O1")
 else()
     message(STATUS "Release build")
     add_definitions(-DNDEBUG)
@@ -75,22 +85,8 @@ find_package(XCB REQUIRED)
 # XKB
 find_package(XKB REQUIRED)
 
-# Qt
-if(BUILD_WITH_QT6)
-    set(QT_MAJOR_VERSION 6)
-    message(STATUS "Building Qt 6 version")
-else()
-    set(QT_MAJOR_VERSION 5)
-    message(STATUS "Building Qt 5 version")
-endif()
-
-find_package(Qt${QT_MAJOR_VERSION} 5.15.0 CONFIG REQUIRED Core DBus Gui Qml Quick LinguistTools Test QuickTest)
-
-# find qt5 imports dir
-get_target_property(QMAKE_EXECUTABLE Qt${QT_MAJOR_VERSION}::qmake LOCATION)
-if(NOT QT_IMPORTS_DIR)
-    execute_process(COMMAND ${QMAKE_EXECUTABLE} -query QT_INSTALL_QML OUTPUT_VARIABLE QT_IMPORTS_DIR OUTPUT_STRIP_TRAILING_WHITESPACE)
-endif()
+find_package(Qt6 CONFIG REQUIRED Core DBus Gui Qml Quick QuickControls2 LinguistTools Test QuickTest)
+qt_standard_project_setup(REQUIRES 6.4)
 
 # Uninstall target
 if ("${ECM_VERSION}" VERSION_LESS "1.7.0")
@@ -231,7 +227,6 @@ if(NOT DEFINED UID_MAX)
 endif()
 
 # Add subdirectories
-add_subdirectory(components)
 add_subdirectory(data)
 add_subdirectory(services)
 add_subdirectory(src)

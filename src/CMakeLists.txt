@@ -1,5 +1,10 @@
-configure_file("common/Constants.h.in" "common/Constants.h" IMMEDIATE @ONLY)
+if (QT_KNOWN_POLICY_QTP0001)
+    qt_policy(SET QTP0001 NEW)
+endif()
 
+add_subdirectory(common)
+add_subdirectory(auth)
 add_subdirectory(daemon)
 add_subdirectory(greeter)
 add_subdirectory(helper)
+add_subdirectory(treeland)

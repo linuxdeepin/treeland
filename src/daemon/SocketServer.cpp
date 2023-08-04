@@ -97,6 +97,9 @@ namespace SDDM {
         // connect signals
         connect(socket, &QLocalSocket::readyRead, this, &SocketServer::readyRead);
         connect(socket, &QLocalSocket::disconnected, socket, &QLocalSocket::deleteLater);
+        connect(socket, &QLocalSocket::disconnected, this, [this, socket] {
+            emit disconnected(socket);
+        });
     }
 
     void SocketServer::readyRead() {
@@ -128,7 +131,14 @@ namespace SDDM {
                     SocketWriter(socket) << quint32(DaemonMessages::HostName) << daemonApp->hostName();
 
                     // emit signal
-                    emit connected();
+                    emit connected(socket);
+                }
+                break;
+                case GreeterMessages::StartHelper: {
+                    QString path;
+                    input >> path;
+
+                    emit requestStartHelper(socket, path);
                 }
                 break;
                 case GreeterMessages::Login: {
@@ -142,6 +152,18 @@ namespace SDDM {
 
                     // emit signal
                     emit login(socket, user, password, session);
+                }
+                break;
+                case GreeterMessages::ActivateUser: {
+                    // log message
+                    qDebug() << "Message received from greeter: ActivateUser";
+
+                    // read username, pasword etc.
+                    QString user;
+                    input >> user;
+
+                    // emit signal
+                    emit requestActivateUser(socket, user);
                 }
                 break;
                 case GreeterMessages::PowerOff: {

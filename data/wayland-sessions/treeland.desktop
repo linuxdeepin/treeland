@@ -1,0 +1,8 @@
+[Desktop Entry]
+Name=TreeLand
+Comment=This session is DDE single wayland
+Exec=/usr/libexec/treeland-fake-session
+TryExec=/usr/libexec/treeland-fake-session
+Type=Application
+DesktopNames=TreeLand
+X-DDE-SINGLE-WAYLAND=true
