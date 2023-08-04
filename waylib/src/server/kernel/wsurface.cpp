@@ -11,6 +11,7 @@
 
 #include <qwoutput.h>
 #include <qwcompositor.h>
+#include <qwsubcompositor.h>
 #include <qwtexture.h>
 #include <qwbuffer.h>
 #include <QDebug>
@@ -18,6 +19,7 @@
 extern "C" {
 #define static
 #include <wlr/types/wlr_xdg_shell.h>
+#include <wlr/types/wlr_subcompositor.h>
 #undef static
 #include <wlr/util/edges.h>
 }
@@ -75,15 +77,24 @@ void WSurfacePrivate::on_commit()
     if (Q_UNLIKELY(nativeHandle()->current.scale != nativeHandle()->previous.scale)) {
         Q_EMIT q->bufferScaleChanged(nativeHandle()->previous.scale, nativeHandle()->current.scale);
     }
+
+    if (hasSubsurface) // Will make to true when QWSurface::newSubsurface
+        updateHasSubsurface();
 }
 
 void WSurfacePrivate::connect()
 {
-    QObject::connect(handle, &QWSurface::commit, q_func(), [this] {
+    W_Q(WSurface);
+
+    QObject::connect(handle, &QWSurface::commit, q, [this] {
         on_commit();
     });
-    QObject::connect(handle, &QWSurface::map, q_func(), &WSurface::mappedChanged);
-    QObject::connect(handle, &QWSurface::unmap, q_func(), &WSurface::mappedChanged);
+    QObject::connect(handle, &QWSurface::map, q, &WSurface::mappedChanged);
+    QObject::connect(handle, &QWSurface::unmap, q, &WSurface::mappedChanged);
+    QObject::connect(handle, &QWSurface::newSubsurface, q, [q, this] (QWSubsurface *sub) {
+        setHasSubsurface(true);
+        Q_EMIT q->newSubsurface(ensureSubsurface(sub->handle()));
+    });
 }
 
 void WSurfacePrivate::updateOutputs()
@@ -142,6 +153,43 @@ void WSurfacePrivate::updateBuffer()
     setBuffer(buffer);
 }
 
+WSurface *WSurfacePrivate::ensureSubsurface(wlr_subsurface *subsurface)
+{
+    if (auto surface = WSurface::fromHandle(subsurface->surface))
+        return surface;
+
+    auto surface = new WSurface(server, q_func());
+    surface->setHandle(QWSurface::from(subsurface->surface));
+
+    return surface;
+}
+
+void WSurfacePrivate::setSubsurface(QWSubsurface *newSubsurface)
+{
+    W_Q(WSurface);
+    if (subsurface == newSubsurface)
+        return;
+    subsurface = newSubsurface;
+    QObject::connect(subsurface, &QWSubsurface::destroyed, q, &WSurface::isSubsurfaceChanged);
+
+    Q_EMIT q->isSubsurfaceChanged();
+}
+
+void WSurfacePrivate::setHasSubsurface(bool newHasSubsurface)
+{
+    if (hasSubsurface == newHasSubsurface)
+        return;
+    hasSubsurface = newHasSubsurface;
+
+    Q_EMIT q_func()->hasSubsurfaceChanged();
+}
+
+void WSurfacePrivate::updateHasSubsurface()
+{
+    setHasSubsurface(handle && (!wl_list_empty(&nativeHandle()->current.subsurfaces_above)
+                                || !wl_list_empty(&nativeHandle()->current.subsurfaces_below)));
+}
+
 WSurface::WSurface(WServer *server, QObject *parent)
     : WSurface(*new WSurfacePrivate(this, server), parent)
 {
@@ -170,8 +218,23 @@ void WSurface::setHandle(QWSurface *handle)
     W_D(WSurface);
     d->handle = handle;
     d->handle->setData(this, this);
+
     d->connect();
     d->updateBuffer();
+    d->updateHasSubsurface();
+
+    if (auto sub = QWSubsurface::tryFrom(handle))
+        d->setSubsurface(sub);
+
+    wlr_surface *surface = d->nativeHandle();
+    wlr_subsurface *subsurface;
+    wl_list_for_each(subsurface, &surface->current.subsurfaces_below, current.link) {
+        Q_EMIT newSubsurface(d->ensureSubsurface(subsurface));
+    }
+
+    wl_list_for_each(subsurface, &surface->current.subsurfaces_above, current.link) {
+        Q_EMIT newSubsurface(d->ensureSubsurface(subsurface));
+    }
 }
 
 QWSurface *WSurface::handle() const
@@ -189,6 +252,13 @@ QWSurface *WSurface::inputTargetAt(QPointF &globalPos) const
 WSurface *WSurface::fromHandle(QWSurface *handle)
 {
     return handle->getData<WSurface>();
+}
+
+WSurface *WSurface::fromHandle(wlr_surface *handle)
+{
+    if (auto surface = QWSurface::get(handle))
+        return fromHandle(surface);
+    return nullptr;
 }
 
 bool WSurface::inputRegionContains(const QPointF &localPos) const
@@ -399,6 +469,36 @@ void WSurface::setShell(QObject *shell)
         return;
     d->shell = shell;
     Q_EMIT shellChanged();
+}
+
+bool WSurface::isSubsurface() const
+{
+    W_DC(WSurface);
+    return d->subsurface;
+}
+
+bool WSurface::hasSubsurface() const
+{
+    W_DC(WSurface);
+    return d->hasSubsurface;
+}
+
+QList<WSurface*> WSurface::subsurfaces() const
+{
+    auto d = const_cast<WSurface*>(this)->d_func();
+    QList<WSurface*> subsurfaeList;
+
+    auto surface = d->nativeHandle();
+    wlr_subsurface *subsurface;
+    wl_list_for_each(subsurface, &surface->current.subsurfaces_below, current.link) {
+        subsurfaeList.append(d->ensureSubsurface(subsurface));
+    }
+
+    wl_list_for_each(subsurface, &surface->current.subsurfaces_above, current.link) {
+        subsurfaeList.append(d->ensureSubsurface(subsurface));
+    }
+
+    return subsurfaeList;
 }
 
 WAYLIB_SERVER_END_NAMESPACE

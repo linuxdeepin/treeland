@@ -23,6 +23,7 @@ class WAYLIB_SERVER_EXPORT WSurfaceItem : public QQuickItem
     Q_OBJECT
     Q_DECLARE_PRIVATE(WSurfaceItem)
     Q_PROPERTY(WSurface* surface READ surface WRITE setSurface NOTIFY surfaceChanged REQUIRED)
+    Q_PROPERTY(QQuickItem* contentItem READ contentItem NOTIFY contentItemChanged)
     QML_NAMED_ELEMENT(SurfaceItem)
 
 public:
@@ -36,8 +37,11 @@ public:
     WSurface *surface() const;
     void setSurface(WSurface *newSurface);
 
+    QQuickItem *contentItem() const;
+
 Q_SIGNALS:
     void surfaceChanged();
+    void contentItemChanged();
 
 protected:
     QSGNode *updatePaintNode(QSGNode *, UpdatePaintNodeData *) override;
@@ -48,8 +52,10 @@ protected:
     void geometryChange(const QRectF &newGeometry, const QRectF &oldGeometry) override;
     void itemChange(ItemChange change, const ItemChangeData &data) override;
 
-private Q_SLOTS:
-    void invalidateSceneGraph();
+private:
+    W_PRIVATE_SLOT(void invalidateSceneGraph()) // Using by Qt library
+    W_PRIVATE_SLOT(void updateSubsurfaceItem())
+    W_PRIVATE_SLOT(void onHasSubsurfaceChanged())
 };
 
 WAYLIB_SERVER_END_NAMESPACE

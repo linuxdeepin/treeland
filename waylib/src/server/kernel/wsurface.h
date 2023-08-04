@@ -13,6 +13,8 @@
 
 #include <any>
 
+struct wlr_surface;
+
 QW_BEGIN_NAMESPACE
 class QWTexture;
 class QWSurface;
@@ -31,11 +33,14 @@ class WAYLIB_SERVER_EXPORT WSurface : public QObject, public WObject
     Q_OBJECT
     W_DECLARE_PRIVATE(WSurface)
     Q_PROPERTY(bool mapped READ mapped NOTIFY mappedChanged)
+    Q_PROPERTY(bool isSubsurface READ isSubsurface NOTIFY isSubsurfaceChanged)
+    Q_PROPERTY(bool hasSubsurface READ hasSubsurface NOTIFY hasSubsurfaceChanged)
     Q_PROPERTY(QPointF position READ position NOTIFY positionChanged)
     Q_PROPERTY(QSize size READ size NOTIFY sizeChanged)
     Q_PROPERTY(QSize bufferSize READ bufferSize NOTIFY bufferSizeChanged)
     Q_PROPERTY(int bufferScale READ bufferScale NOTIFY bufferScaleChanged)
     Q_PROPERTY(WSurface *parentSurface READ parentSurface CONSTANT)
+    Q_PROPERTY(QList<WSurface*> subsurfaces READ subsurfaces NOTIFY newSubsurface)
     Q_PROPERTY(QObject* shell READ shell WRITE setShell NOTIFY shellChanged)
     Q_PROPERTY(WOutput* primaryOutput READ primaryOutput NOTIFY primaryOutputChanged)
     QML_NAMED_ELEMENT(WaylandSurface)
@@ -69,6 +74,7 @@ public:
     virtual QW_NAMESPACE::QWSurface *inputTargetAt(QPointF &globalPos) const;
 
     static WSurface *fromHandle(QW_NAMESPACE::QWSurface *handle);
+    static WSurface *fromHandle(wlr_surface *handle);
 
     virtual bool inputRegionContains(const QPointF &localPos) const;
 
@@ -109,9 +115,12 @@ public:
     QObject *shell() const;
     void setShell(QObject *shell);
 
+    bool isSubsurface() const;
+    bool hasSubsurface() const;
+    QList<WSurface*> subsurfaces() const;
+
 Q_SIGNALS:
     void primaryOutputChanged();
-
     void mappedChanged();
     void textureChanged();
     void positionChanged();
@@ -119,6 +128,9 @@ Q_SIGNALS:
     void bufferSizeChanged(QSize oldSize, QSize newSize);
     void bufferScaleChanged(int oldScale, int newScale);
     void shellChanged();
+    void isSubsurfaceChanged();
+    void hasSubsurfaceChanged();
+    void newSubsurface(WSurface *subsurface);
 
 protected:
     WSurface(WSurfacePrivate &dd, QObject *parent);

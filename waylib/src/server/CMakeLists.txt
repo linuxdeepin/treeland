@@ -57,6 +57,7 @@ set(QTQUICK_SOURCES
     qtquick/private/wwaylandcompositor.cpp
     qtquick/private/wquickcoordmapper.cpp
     qtquick/private/wquicksocket.cpp
+    qtquick/private/wqmlcomconent.cpp
 )
 
 set(UTILS_SOURCES
@@ -128,6 +129,7 @@ set(PRIVATE_HEADERS
     qtquick/private/wquickcoordmapper_p.h
     qtquick/private/woutputpositioner_p.h
     qtquick/private/wquicksocket_p.h
+    qtquick/private/wqmlcomconent_p.h
 )
 
 add_library(${TARGET}

@@ -41,13 +41,7 @@ Item {
             id: shell
 
             onSurfaceAdded: function(surface) {
-                renderWindow.surfaceModel.append({waylandSurface: surface, outputLayout: layout})
-            }
-            onSurfaceRemoved: function(surface) {
-                for (var i = 0; i < renderWindow.surfaceModel.count; ++i) {
-                    if (renderWindow.surfaceModel.get(i).waylandSurface === surface)
-                        renderWindow.surfaceModel.remove(i)
-                }
+                xdgSurfaceManager.create(surface, {waylandSurface: surface});
             }
 
             onRequestMove: function(surface, seat, serial) {
@@ -79,6 +73,62 @@ Item {
         }
     }
 
+    WaylibComponent {
+        id: xdgSurfaceManager
+
+        Connections {
+            required property WaylandSurface waylandSurface
+
+            target: waylandSurface
+
+            function doDestroy() {
+                for (let i = 0; i < renderWindow.toplevelWindowModel.count; ++i) {
+                    if (renderWindow.toplevelWindowModel.get(i).waylandSurface === waylandSurface) {
+                        renderWindow.toplevelWindowModel.remove(i)
+                    }
+                }
+
+                subsurfaceManager.destroyIfOwnerIs(waylandSurface)
+            }
+
+            function onMappedChanged() {
+                if (waylandSurface.mapped) {
+                    if (waylandSurface.isSubsurface) {
+                        subsurfaceManager.create(null, waylandSurface, {waylandSurface: target})
+                    } else {
+                        renderWindow.toplevelWindowModel.append({waylandSurface: target, outputLayout: layout})
+                    }
+                } else {
+                    doDestroy()
+                }
+            }
+
+            function onNewSubsurface(surface) {
+                xdgSurfaceManager.create(surface, {waylandSurface: surface});
+            }
+
+            Component.onCompleted: {
+                onMappedChanged()
+                Qt.callLater(function() {
+                    waylandSurface.subsurfaces.forEach(onNewSubsurface)
+                })
+            }
+            Component.onDestruction: {
+                doDestroy()
+            }
+        }
+    }
+
+    WaylibComponent {
+        id: subsurfaceManager
+
+        SurfaceItem {
+            required property WaylandSurface waylandSurface
+
+            surface: waylandSurface
+        }
+    }
+
     Helper {
         id: globalHelper
     }
@@ -90,7 +140,7 @@ Item {
     OutputRenderWindow {
         id: renderWindow
 
-        property ListModel surfaceModel
+        property ListModel toplevelWindowModel: ListModel {}
 
         compositor: compositor
         width: outputRowLayout.implicitWidth + outputRowLayout.x
@@ -266,18 +316,13 @@ Item {
             anchors.fill: parent
             clip: false
 
-            model: ListModel {
-                Component.onCompleted: {
-                    if (!renderWindow.surfaceModel)
-                        renderWindow.surfaceModel = this
-                }
-            }
+            model: renderWindow.toplevelWindowModel
 
             FocusScope {
                 required property WaylandSurface waylandSurface
                 required property OutputLayout outputLayout
 
-                visible: waylandSurface && waylandSurface.mapped && waylandSurface.WaylandSocket.rootSocket.enabled
+                visible: waylandSurface && waylandSurface.WaylandSocket.rootSocket.enabled
                 width: surfaceItem.width
                 height: surfaceItem.height
                 x: waylandSurface.position.x
@@ -315,6 +360,10 @@ Item {
                     waylandSurface.shell = this
                     if (waylandSurface.parentSurface)
                         parent = waylandSurface.parentSurface.shell
+                }
+                Component.onDestruction: {
+                    if (waylandSurface)
+                        waylandSurface.shell = null
                 }
             }
         }

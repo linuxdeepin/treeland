@@ -10,9 +10,11 @@
 #include <QPointer>
 
 struct wlr_surface;
+struct wlr_subsurface;
 
 QW_BEGIN_NAMESPACE
 class QWSurface;
+class QWSubsurface;
 QW_END_NAMESPACE
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
@@ -36,9 +38,17 @@ public:
     void setBuffer(QW_NAMESPACE::QWBuffer *newBuffer);
     void updateBuffer();
 
+    WSurface *ensureSubsurface(wlr_subsurface *subsurface);
+    void setSubsurface(QW_NAMESPACE::QWSubsurface *newSubsurface);
+    void setHasSubsurface(bool newHasSubsurface);
+    void updateHasSubsurface();
+
     W_DECLARE_PUBLIC(WSurface)
 
     QW_NAMESPACE::QWSurface *handle = nullptr;
+    QPointer<QW_NAMESPACE::QWSubsurface> subsurface;
+    bool hasSubsurface = false;
+
     QW_NAMESPACE::QWBuffer *buffer = nullptr;
     mutable QW_NAMESPACE::QWTexture *texture = nullptr;
     WServer *server = nullptr;
