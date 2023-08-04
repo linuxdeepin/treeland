@@ -27,6 +27,8 @@
 #include "MessageHandler.h"
 #include "VirtualTerminal.h"
 #include "SignalHandler.h"
+#include "Messages.h"
+#include "SafeDataStream.h"
 
 #include <QtCore/QTimer>
 #include <QtCore/QFile>
@@ -124,7 +126,7 @@ namespace SDDM {
             exit(Auth::HELPER_OTHER_ERROR);
             return;
         }
-
+ 
         connect(m_socket, &QLocalSocket::connected, this, &HelperApp::doAuth);
         connect(m_session, &UserSession::finished, this, &HelperApp::sessionFinished);
         m_socket->connectToServer(server, QIODevice::ReadWrite | QIODevice::Unbuffered);
@@ -222,6 +224,16 @@ namespace SDDM {
         str << Msg::ERROR << message << type;
         str.send();
         m_socket->waitForBytesWritten();
+    }
+
+    bool HelperApp::isSingleMode() const {
+        const QStringList args = QCoreApplication::arguments();
+        return args.indexOf(QStringLiteral("--single-mode")) >= 0;
+    }
+
+    bool HelperApp::isGreeter() const {
+        const QStringList args = QCoreApplication::arguments();
+        return args.indexOf(QStringLiteral("--greeter")) >= 0;
     }
 
     Request HelperApp::request(const Request& request) {

@@ -1,45 +1,56 @@
-include_directories(
-    "${CMAKE_SOURCE_DIR}/src/common"
-    "${CMAKE_BINARY_DIR}/src/common"
-    "${LIBXCB_INCLUDE_DIR}"
-)
-
 set(GREETER_SOURCES
-    ${CMAKE_SOURCE_DIR}/src/common/Configuration.cpp
-    ${CMAKE_SOURCE_DIR}/src/common/ConfigReader.cpp
-    ${CMAKE_SOURCE_DIR}/src/common/Session.cpp
-    ${CMAKE_SOURCE_DIR}/src/common/SignalHandler.cpp
-    ${CMAKE_SOURCE_DIR}/src/common/SocketWriter.cpp
-    ${CMAKE_SOURCE_DIR}/src/common/ThemeConfig.cpp
-    ${CMAKE_SOURCE_DIR}/src/common/ThemeMetadata.cpp
+    GreeterApp.h
+    GreeterProxy.h
+    SessionModel.h
+    UserModel.h
     GreeterApp.cpp
     GreeterProxy.cpp
-    KeyboardLayout.cpp
-    KeyboardModel.cpp
-    ScreenModel.cpp
     SessionModel.cpp
     UserModel.cpp
-    waylandkeyboardbackend.cpp
-    waylandkeyboardbackend.h
-    XcbKeyboardBackend.cpp
 )
 
-configure_file("theme.qrc" "theme.qrc")
+set(QML_IMPORT_PATH ${QML_IMPORT_PATH} ${CMAKE_CURRENT_BINARY_DIR}/ CACHE STRING "" FORCE)
 
-qt_add_resources(RESOURCES ${CMAKE_CURRENT_BINARY_DIR}/theme.qrc)
+set_source_files_properties(GreeterModel.qml PROPERTIES
+    QT_QML_SINGLETON_TYPE TRUE
+)
 
-add_executable(ddm-greeter ${GREETER_SOURCES} ${RESOURCES})
-target_link_libraries(ddm-greeter
-                      Qt${QT_MAJOR_VERSION}::Quick
-                      ${LIBXCB_LIBRARIES}
-                      ${LIBXKB_LIBRARIES})
+qt_add_qml_module(greeterplugin
+    URI TreeLand.Greeter
+    STATIC
+    VERSION 1.0
+    PLUGIN_TARGET greeterplugin
+    NO_PLUGIN_OPTIONAL
+    NO_GENERATE_PLUGIN_SOURCE
+    CLASS_NAME
+        GreeterExtensionPlugin
+    SOURCES
+        ${GREETER_SOURCES}
+    RESOURCE_PREFIX
+        /qt/qml
+    QML_FILES
+      Greeter.qml
+      UserList.qml
+      SessionList.qml
+      UserInput.qml
+      GreeterModel.qml
+)
+
+target_include_directories(greeterplugin
+    PUBLIC
+        ${CMAKE_SOURCE_DIR}/src/greeter/
+)
+
+target_link_libraries(greeterplugin
+    PUBLIC
+        common
+        Qt${QT_MAJOR_VERSION}::Gui
+        Qt${QT_MAJOR_VERSION}::Qml
+)
 
 if(JOURNALD_FOUND)
-    target_link_libraries(ddm-greeter ${JOURNALD_LIBRARIES})
+    target_link_libraries(greeterplugin PUBLIC ${JOURNALD_LIBRARIES})
 endif()
 
 # Translations
-add_dependencies(ddm-greeter components-translation)
-add_dependencies(ddm-greeter themes-translation)
-
-install(TARGETS ddm-greeter DESTINATION "${CMAKE_INSTALL_BINDIR}")
+add_dependencies(greeterplugin components-translation)

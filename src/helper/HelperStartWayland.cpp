@@ -27,6 +27,9 @@
 #include <QCoreApplication>
 #include <QTextStream>
 #include <QDebug>
+#include <QCommandLineParser>
+#include <QCommandLineOption>
+
 #include "waylandhelper.h"
 #include "MessageHandler.h"
 #include <signal.h>
@@ -45,7 +48,7 @@ int main(int argc, char** argv)
     SDDM::SignalHandler s;
 
     Q_ASSERT(::getuid() != 0);
-    if (argc != 3) {
+    if (argc < 3) {
         QTextStream(stderr) << "Wrong number of arguments\n";
         return Auth::HELPER_OTHER_ERROR;
     }
@@ -67,6 +70,8 @@ int main(int argc, char** argv)
         qWarning() << "SDDM was unable to start" << app.arguments()[1];
         return Auth::HELPER_DISPLAYSERVER_ERROR;
     }
+
     helper.startGreeter(app.arguments()[2]);
+
     return app.exec();
 }

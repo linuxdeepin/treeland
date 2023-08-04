@@ -38,7 +38,7 @@ namespace SDDM {
 
         //  Name                   Type         Default value                                   Description
         // TODO: Change default to x11-user in a future release
-        Entry(DisplayServer,       QString,     _S("x11"),                                      _S("Which display server should be used.\n"
+        Entry(DisplayServer,       QString,     _S("single"),                                      _S("Which display server should be used.\n"
                                                                                                    "Valid values are: x11, x11-user, wayland. Wayland support is experimental"));
         Entry(HaltCommand,         QString,     _S(HALT_COMMAND),                               _S("Halt command"));
         Entry(RebootCommand,       QString,     _S(REBOOT_COMMAND),                             _S("Reboot command"));
@@ -79,6 +79,15 @@ namespace SDDM {
 
         Section(Wayland,
             Entry(CompositorCommand,   QString,     _S("weston --shell=fullscreen-shell.so"),   _S("Path of the Wayland compositor to execute when starting the greeter"));
+            Entry(SessionDir,          QStringList, {_S("/usr/local/share/wayland-sessions"),
+                                                     _S("/usr/share/wayland-sessions")},        _S("Comma-separated list of directories containing available Wayland sessions"));
+            Entry(SessionCommand,      QString,     _S(WAYLAND_SESSION_COMMAND),                _S("Path to a script to execute when starting the desktop session"));
+            Entry(SessionLogFile,      QString,     _S(".local/share/ddm/wayland-session.log"),_S("Path to the user session log file"));
+            Entry(EnableHiDPI,         bool,        true,                                       _S("Enable Qt's automatic high-DPI scaling"));
+        );
+
+        Section(Single,
+            Entry(CompositorCommand,   QString,     _S("treeland"),   _S("Path of the Wayland compositor to execute when starting the greeter"));
             Entry(SessionDir,          QStringList, {_S("/usr/local/share/wayland-sessions"),
                                                      _S("/usr/share/wayland-sessions")},        _S("Comma-separated list of directories containing available Wayland sessions"));
             Entry(SessionCommand,      QString,     _S(WAYLAND_SESSION_COMMAND),                _S("Path to a script to execute when starting the desktop session"));

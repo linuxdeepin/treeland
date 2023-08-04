@@ -95,6 +95,7 @@ namespace SDDM {
         QString logPriority = QStringLiteral("(II)");
         switch (type) {
             case QtDebugMsg:
+                logPriority = QStringLiteral("(DD)");
             break;
             case QtWarningMsg:
                 logPriority = QStringLiteral("(WW)");
@@ -124,7 +125,7 @@ namespace SDDM {
 #ifdef HAVE_JOURNALD
         // don't log to journald if running interactively, this is likely
         // the case when running ddm in test mode
-        static bool isInteractive = isatty(STDERR_FILENO) && qgetenv("USER") != "ddm";
+        static bool isInteractive = isatty(STDERR_FILENO) && qgetenv("USER") != "dde";
         if (!isInteractive) {
             // log to journald
             journaldLogger(type, context, msg);

@@ -25,9 +25,9 @@
 #include <QSharedPointer>
 #include <QProcessEnvironment>
 
-namespace SDDM {
-    class SessionModel;
+class SessionModel;
 
+namespace SDDM {
     class Session {
     public:
         enum Type {
@@ -62,6 +62,8 @@ namespace SDDM {
 
         bool isHidden() const;
         bool isNoDisplay() const;
+
+        bool isSingleMode() const;
 
         QProcessEnvironment additionalEnv() const;
 
