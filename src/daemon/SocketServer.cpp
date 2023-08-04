@@ -118,6 +118,9 @@ namespace SDDM {
 
             switch (GreeterMessages(message)) {
                 case GreeterMessages::Connect: {
+                    QString path;
+                    input >> path;
+
                     // log message
                     qDebug() << "Message received from greeter: Connect";
 
@@ -128,7 +131,7 @@ namespace SDDM {
                     SocketWriter(socket) << quint32(DaemonMessages::HostName) << daemonApp->hostName();
 
                     // emit signal
-                    emit connected();
+                    emit connected(socket, path);
                 }
                 break;
                 case GreeterMessages::Login: {

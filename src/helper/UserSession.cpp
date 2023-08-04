@@ -46,6 +46,7 @@
 namespace SDDM {
     UserSession::UserSession(HelperApp *parent)
         : QProcess(parent)
+        , m_helperApp(parent)
     {
         connect(this, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished), this, &UserSession::finished);
 #if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
@@ -59,76 +60,95 @@ namespace SDDM {
 
         bool isWaylandGreeter = false;
 
-        // If the Xorg display server was already started, write the passed
-        // auth cookie to /tmp/xauth_XXXXXX. This is done in the parent process
-        // so that it can clean up the file on session end.
-        if (env.value(QStringLiteral("XDG_SESSION_TYPE")) == QLatin1String("x11")
-            && m_displayServerCmd.isEmpty()) {
-            // Create the Xauthority file
-            QByteArray cookie = helper->cookie();
-            if (cookie.isEmpty()) {
-                qCritical() << "Can't start X11 session with empty auth cookie";
-                return false;
-            }
-
-            // Place it into /tmp, which is guaranteed to be read/writeable by
-            // everyone while having the sticky bit set to avoid messing with
-            // other's files.
-            m_xauthFile.setFileTemplate(QStringLiteral("/tmp/xauth_XXXXXX"));
-
-            if (!m_xauthFile.open()) {
-                qCritical() << "Could not create the Xauthority file";
-                return false;
-            }
-
-            QString display = processEnvironment().value(QStringLiteral("DISPLAY"));
-
-            if (!XAuth::writeCookieToFile(display, m_xauthFile.fileName(), cookie)) {
-                qCritical() << "Failed to write the Xauthority file";
-                m_xauthFile.close();
-                return false;
-            }
-
-            env.insert(QStringLiteral("XAUTHORITY"), m_xauthFile.fileName());
-            setProcessEnvironment(env);
-        }
-
-        if (env.value(QStringLiteral("XDG_SESSION_TYPE")) == QLatin1String("x11")) {
-            QString command;
+        if (m_helperApp->isSingleMode()) {
             if (env.value(QStringLiteral("XDG_SESSION_CLASS")) == QLatin1String("greeter")) {
-                command = m_path;
-            } else {
-                command = QStringLiteral("%1 \"%2\"").arg(mainConfig.X11.SessionCommand.get()).arg(m_path);
-            }
-
-            qInfo() << "Starting X11 session:" << m_displayServerCmd << command;
-            if (m_displayServerCmd.isEmpty()) {
-                auto args = QProcess::splitCommand(command);
-                setProgram(args.takeFirst());
-                setArguments(args);
-            } else {
-                setProgram(QStringLiteral(LIBEXEC_INSTALL_DIR "/ddm-helper-start-x11user"));
-                setArguments({m_displayServerCmd, command});
-            }
-            QProcess::start();
-
-        } else if (env.value(QStringLiteral("XDG_SESSION_TYPE")) == QLatin1String("wayland")) {
-            if (env.value(QStringLiteral("XDG_SESSION_CLASS")) == QLatin1String("greeter")) {
-                Q_ASSERT(!m_displayServerCmd.isEmpty());
-                setProgram(QStringLiteral(LIBEXEC_INSTALL_DIR "/ddm-helper-start-wayland"));
+                setProgram(QStringLiteral(LIBEXEC_INSTALL_DIR "/ddm-helper-start-single-wayland"));
+                // TODO: should we use 'treeland' command?
                 setArguments({m_displayServerCmd, m_path});
                 QProcess::start();
                 isWaylandGreeter = true;
-            } else {
-                setProgram(mainConfig.Wayland.SessionCommand.get());
+            }
+            else {
+                setProgram(mainConfig.Single.SessionCommand.get());
                 setArguments(QStringList{m_path});
                 qInfo() << "Starting Wayland user session:" << program() << m_path;
                 QProcess::start();
                 closeWriteChannel();
                 closeReadChannel(QProcess::StandardOutput);
             }
-        } else {
-            qCritical() << "Unable to run user session: unknown session type";
+        }
+        else {
+            // If the Xorg display server was already started, write the passed
+            // auth cookie to /tmp/xauth_XXXXXX. This is done in the parent process
+            // so that it can clean up the file on session end.
+            if (env.value(QStringLiteral("XDG_SESSION_TYPE")) == QLatin1String("x11")
+                && m_displayServerCmd.isEmpty()) {
+                // Create the Xauthority file
+                QByteArray cookie = helper->cookie();
+                if (cookie.isEmpty()) {
+                    qCritical() << "Can't start X11 session with empty auth cookie";
+                    return false;
+                }
+
+                // Place it into /tmp, which is guaranteed to be read/writeable by
+                // everyone while having the sticky bit set to avoid messing with
+                // other's files.
+                m_xauthFile.setFileTemplate(QStringLiteral("/tmp/xauth_XXXXXX"));
+
+                if (!m_xauthFile.open()) {
+                    qCritical() << "Could not create the Xauthority file";
+                    return false;
+                }
+
+                QString display = processEnvironment().value(QStringLiteral("DISPLAY"));
+
+                if (!XAuth::writeCookieToFile(display, m_xauthFile.fileName(), cookie)) {
+                    qCritical() << "Failed to write the Xauthority file";
+                    m_xauthFile.close();
+                    return false;
+                }
+
+                env.insert(QStringLiteral("XAUTHORITY"), m_xauthFile.fileName());
+                setProcessEnvironment(env);
+            }
+
+            if (env.value(QStringLiteral("XDG_SESSION_TYPE")) == QLatin1String("x11")) {
+                QString command;
+                if (env.value(QStringLiteral("XDG_SESSION_CLASS")) == QLatin1String("greeter")) {
+                    command = m_path;
+                } else {
+                    command = QStringLiteral("%1 \"%2\"").arg(mainConfig.X11.SessionCommand.get()).arg(m_path);
+                }
+
+                qInfo() << "Starting X11 session:" << m_displayServerCmd << command;
+                if (m_displayServerCmd.isEmpty()) {
+                    auto args = QProcess::splitCommand(command);
+                    setProgram(args.takeFirst());
+                    setArguments(args);
+                } else {
+                    setProgram(QStringLiteral(LIBEXEC_INSTALL_DIR "/ddm-helper-start-x11user"));
+                    setArguments({m_displayServerCmd, command});
+                }
+                QProcess::start();
+
+            } else if (env.value(QStringLiteral("XDG_SESSION_TYPE")) == QLatin1String("wayland")) {
+                if (env.value(QStringLiteral("XDG_SESSION_CLASS")) == QLatin1String("greeter")) {
+                    Q_ASSERT(!m_displayServerCmd.isEmpty());
+                    setProgram(QStringLiteral(LIBEXEC_INSTALL_DIR "/ddm-helper-start-wayland"));
+                    setArguments({m_displayServerCmd, m_path});
+                    QProcess::start();
+                    isWaylandGreeter = true;
+                } else {
+                    setProgram(mainConfig.Wayland.SessionCommand.get());
+                    setArguments(QStringList{m_path});
+                    qInfo() << "Starting Wayland user session:" << program() << m_path;
+                    QProcess::start();
+                    closeWriteChannel();
+                    closeReadChannel(QProcess::StandardOutput);
+                }
+            } else {
+                qCritical() << "Unable to run user session: unknown session type";
+            }
         }
 
         const bool started = waitForStarted();
@@ -212,6 +232,10 @@ namespace SDDM {
                 ::close(stdinFd);
             }
 
+            if (!m_helperApp->isGreeter() && m_helperApp->isSingleMode()) {
+                takeControl = false;
+            }
+
             // set this process as session leader
             if (setsid() < 0) {
                 qCritical("Failed to set pid %lld as leader of the new session and process group: %s",
@@ -228,7 +252,9 @@ namespace SDDM {
                 }
             }
 
-            VirtualTerminal::jumpToVt(vtNumber, x11UserSession);
+            if (!m_helperApp->isSingleMode()) {
+                VirtualTerminal::jumpToVt(vtNumber, x11UserSession);
+            }
         }
 
 #ifdef Q_OS_LINUX

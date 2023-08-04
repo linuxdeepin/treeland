@@ -59,6 +59,10 @@ add_executable(ddm-helper-start-wayland HelperStartWayland.cpp waylandsocketwatc
 target_link_libraries(ddm-helper-start-wayland Qt${QT_MAJOR_VERSION}::Core)
 install(TARGETS ddm-helper-start-wayland RUNTIME DESTINATION "${CMAKE_INSTALL_LIBEXECDIR}")
 
+add_executable(ddm-helper-start-single-wayland HelperStartSingleMode.cpp singlewaylandhelper.cpp ${CMAKE_SOURCE_DIR}/src/common/SignalHandler.cpp)
+target_link_libraries(ddm-helper-start-single-wayland Qt${QT_MAJOR_VERSION}::Core)
+install(TARGETS ddm-helper-start-single-wayland RUNTIME DESTINATION "${CMAKE_INSTALL_LIBEXECDIR}")
+
 add_executable(ddm-helper-start-x11user HelperStartX11User.cpp xorguserhelper.cpp
                                                 ${CMAKE_SOURCE_DIR}/src/common/ConfigReader.cpp
                                                 ${CMAKE_SOURCE_DIR}/src/common/Configuration.cpp
@@ -73,4 +77,5 @@ if(JOURNALD_FOUND)
     target_link_libraries(ddm-helper ${JOURNALD_LIBRARIES})
     target_link_libraries(ddm-helper-start-x11user ${JOURNALD_LIBRARIES})
     target_link_libraries(ddm-helper-start-wayland ${JOURNALD_LIBRARIES})
+    target_link_libraries(ddm-helper-start-single-wayland ${JOURNALD_LIBRARIES})
 endif()

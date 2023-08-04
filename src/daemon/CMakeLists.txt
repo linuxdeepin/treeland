@@ -36,6 +36,8 @@ set(DAEMON_SOURCES
     XorgUserDisplayServer.h
     WaylandDisplayServer.cpp
     WaylandDisplayServer.h
+    SingleWaylandDisplayServer.h
+    SingleWaylandDisplayServer.cpp
 )
 
 list(APPEND DAEMON_SOURCES ${CMAKE_SOURCE_DIR}/src/common/VirtualTerminal.cpp)

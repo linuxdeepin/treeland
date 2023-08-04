@@ -32,6 +32,7 @@
 
 #include <memory>
 
+#include <qstringliteral.h>
 #include <unistd.h>
 
 namespace SDDM {
@@ -68,6 +69,7 @@ namespace SDDM {
         QByteArray cookie { };
         bool autologin { false };
         bool greeter { false };
+        bool singleMode { false };
         QProcessEnvironment environment { };
         qint64 id { 0 };
         static qint64 lastId;
@@ -357,6 +359,14 @@ namespace SDDM {
         }
     }
 
+    void Auth::setSingleMode(bool on)
+    {
+        if (on != d->singleMode) {
+            d->singleMode = on;
+            Q_EMIT singleModeChanged();
+        }
+    }
+
     void Auth::setVerbose(bool on) {
         if (on != verbose()) {
             if (on)
@@ -381,6 +391,8 @@ namespace SDDM {
             args << QStringLiteral("--display-server") << d->displayServerCmd;
         if (d->greeter)
             args << QStringLiteral("--greeter");
+        if (d->singleMode)
+            args << QStringLiteral("--single-mode");
         d->child->start(QStringLiteral("%1/ddm-helper").arg(QStringLiteral(LIBEXEC_INSTALL_DIR)), args);
     }
 

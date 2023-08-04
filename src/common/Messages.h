@@ -30,15 +30,22 @@ namespace SDDM {
         Reboot,
         Suspend,
         Hibernate,
-        HybridSleep
+        HybridSleep,
+    };
+
+    enum class TreelandMessages {
+        Connect,
+        NewWaylandSocket,
     };
 
     enum class DaemonMessages {
-        HostName,
+        HostName = 0x0000,
         Capabilities,
         LoginSucceeded,
         LoginFailed,
         InformationMessage,
+        CreateWaylandSocket,
+        WaylandSocketCreated,
     };
 
     enum Capability {

@@ -26,6 +26,7 @@
 #include "DisplayManager.h"
 #include "XorgDisplayServer.h"
 #include "XorgUserDisplayServer.h"
+#include "SingleWaylandDisplayServer.h"
 #include "Seat.h"
 #include "SocketServer.h"
 #include "Greeter.h"
@@ -37,6 +38,7 @@
 #include <QLocalSocket>
 
 #include <pwd.h>
+#include <qstringliteral.h>
 #include <unistd.h>
 #include <sys/time.h>
 
@@ -95,6 +97,8 @@ namespace SDDM {
             ret = X11UserDisplayServerType;
         } else if (displayServerType == QStringLiteral("wayland")) {
             ret = WaylandDisplayServerType;
+        } else if (displayServerType == QStringLiteral("single")) {
+            ret = SingleCompositerServerType;
         } else {
             if (displayServerType != QLatin1String("x11")) {
                 qWarning("\"%s\" is an invalid value for General.DisplayServer: fall back to \"x11\"",
@@ -128,6 +132,12 @@ namespace SDDM {
             m_terminalId = fetchAvailableVt();
             m_displayServer = new WaylandDisplayServer(this);
             m_greeter->setDisplayServerCommand(mainConfig.Wayland.CompositorCommand.get());
+            break;
+        case SingleCompositerServerType:
+            m_terminalId = fetchAvailableVt();
+            m_displayServer = new SingleWaylandDisplayServer(m_socketServer, this);
+            m_greeter->setDisplayServerCommand(mainConfig.Single.CompositorCommand.get());
+            m_greeter->setSingleMode();
             break;
         }
 
@@ -261,7 +271,7 @@ namespace SDDM {
 
         if (!daemonApp->testing()) {
             // change the owner and group of the socket to avoid permission denied errors
-            struct passwd *pw = getpwnam("ddm");
+            struct passwd *pw = getpwnam("dde");
             if (pw) {
                 if (chown(qPrintable(m_socketServer->socketAddress()), pw->pw_uid, pw->pw_gid) == -1) {
                     qWarning() << "Failed to change owner of the socket";
@@ -315,7 +325,7 @@ namespace SDDM {
 
         //the SDDM user has special privileges that skip password checking so that we can load the greeter
         //block ever trying to log in as the SDDM user
-        if (user == QLatin1String("ddm")) {
+        if (user == QLatin1String("dde")) {
             emit loginFailed(m_socket);
             return;
         }
@@ -399,7 +409,7 @@ namespace SDDM {
             for(const SessionInfo &s : reply.value()) {
                 if (s.userName == user) {
                     OrgFreedesktopLogin1SessionInterface session(Logind::serviceName(), s.sessionPath.path(), QDBusConnection::systemBus());
-                    if (session.service() == QLatin1String("ddm") && session.state() == QLatin1String("online")) {
+                    if (session.service() == QLatin1String("dde") && session.state() == QLatin1String("online")) {
                         m_reuseSessionId = s.sessionId;
                         break;
                     }
@@ -412,9 +422,11 @@ namespace SDDM {
         m_sessionName = session.fileName();
 
         m_sessionTerminalId = m_terminalId;
-        if ((session.type() == Session::WaylandSession && m_displayServerType == X11DisplayServerType) || (m_greeter->isRunning() && m_displayServerType != X11DisplayServerType)) {
-            // Create a new VT when we need to have another compositor running
-            m_sessionTerminalId = VirtualTerminal::setUpNewVt();
+        if (m_displayServerType != DisplayServerType::SingleCompositerServerType) {
+            if ((session.type() == Session::WaylandSession && m_displayServerType == X11DisplayServerType) || (m_greeter->isRunning() && m_displayServerType != X11DisplayServerType)) {
+                // Create a new VT when we need to have another compositor running
+                m_sessionTerminalId = VirtualTerminal::setUpNewVt();
+            }
         }
 
         // some information
@@ -424,15 +436,19 @@ namespace SDDM {
         env.insert(session.additionalEnv());
 
         env.insert(QStringLiteral("PATH"), mainConfig.Users.DefaultPath.get());
-        env.insert(QStringLiteral("XDG_SEAT_PATH"), daemonApp->displayManager()->seatPath(seat()->name()));
         env.insert(QStringLiteral("XDG_SESSION_PATH"), daemonApp->displayManager()->sessionPath(QStringLiteral("Session%1").arg(daemonApp->newSessionId())));
         env.insert(QStringLiteral("DESKTOP_SESSION"), session.desktopSession());
         if (!session.desktopNames().isEmpty())
             env.insert(QStringLiteral("XDG_CURRENT_DESKTOP"), session.desktopNames());
         env.insert(QStringLiteral("XDG_SESSION_CLASS"), QStringLiteral("user"));
         env.insert(QStringLiteral("XDG_SESSION_TYPE"), session.xdgSessionType());
-        env.insert(QStringLiteral("XDG_SEAT"), seat()->name());
         env.insert(QStringLiteral("XDG_VTNR"), QString::number(m_sessionTerminalId));
+
+        if (m_displayServerType != DisplayServerType::SingleCompositerServerType) {
+            env.insert(QStringLiteral("XDG_SEAT"), seat()->name());
+            env.insert(QStringLiteral("XDG_SEAT_PATH"), daemonApp->displayManager()->seatPath(seat()->name()));
+        }
+
 #ifdef HAVE_SYSTEMD
         env.insert(QStringLiteral("XDG_SESSION_DESKTOP"), session.desktopNames());
 #endif
@@ -443,13 +459,34 @@ namespace SDDM {
           else
             m_auth->setDisplayServerCommand(XorgUserDisplayServer::command(this));
         } else {
-            m_auth->setDisplayServerCommand(QStringLiteral());
-	}
+            if (m_displayServerType == DisplayServerType::SingleCompositerServerType) {
+                auto* displayServer = reinterpret_cast<SingleWaylandDisplayServer*>(m_displayServer);
+
+                QEventLoop loop;
+                connect(displayServer, &SingleWaylandDisplayServer::createWaylandSocketFinished, &loop, &QEventLoop::quit);
+
+                // create wayland socket
+                displayServer->createWaylandSocket(user);
+
+                if (displayServer->getUserWaylandSocket(user).isEmpty()) {
+                    loop.exec();
+                }
+
+                const QString &display = displayServer->getUserWaylandSocket(user);
+                env.insert(QStringLiteral("WAYLAND_DISPLAY"), display);
+                m_auth->setDisplayServerCommand(QStringLiteral());
+                qInfo() << "WAYLAND_DISPLAY => " << display;
+            } else {
+                m_auth->setDisplayServerCommand(QStringLiteral());
+            }
+        }
+
         m_auth->setUser(user);
         if (m_reuseSessionId.isNull()) {
             m_auth->setSession(session.exec());
         }
         m_auth->insertEnvironment(env);
+        m_auth->setSingleMode(m_displayServerType == DisplayServerType::SingleCompositerServerType);
         m_auth->start();
     }
 
@@ -530,7 +567,7 @@ namespace SDDM {
 
     void Display::slotSessionStarted(bool success) {
         qDebug() << "Session started" << success;
-        if (success) {
+        if (success && m_displayServerType != SingleCompositerServerType) {
             QTimer::singleShot(5000, m_greeter, &Greeter::stop);
         }
     }

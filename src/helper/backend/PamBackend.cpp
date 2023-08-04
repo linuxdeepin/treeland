@@ -219,7 +219,7 @@ namespace SDDM {
 
         QString service = QStringLiteral("ddm");
 
-        if (user == QStringLiteral("ddm") && m_greeter)
+        if (user == QStringLiteral("dde") && m_greeter)
             service = QStringLiteral("ddm-greeter");
         else if (m_autologin)
             service = QStringLiteral("ddm-autologin");
@@ -252,8 +252,10 @@ namespace SDDM {
         QProcessEnvironment sessionEnv = m_app->session()->processEnvironment();
         const auto sessionType = sessionEnv.value(QStringLiteral("XDG_SESSION_TYPE"));
         const auto sessionClass = sessionEnv.value(QStringLiteral("XDG_SESSION_CLASS"));
-        QString tty = VirtualTerminal::path(sessionEnv.value(QStringLiteral("XDG_VTNR")).toInt());
-        m_pam->setItem(PAM_TTY, qPrintable(tty));
+        if (m_greeter) {
+            QString tty = VirtualTerminal::path(sessionEnv.value(QStringLiteral("XDG_VTNR")).toInt());
+            m_pam->setItem(PAM_TTY, qPrintable(tty));
+        }
         if (sessionType == QLatin1String("x11") && (sessionClass == QLatin1String("user") || !m_displayServer)) {
             QString display = sessionEnv.value(QStringLiteral("DISPLAY"));
             if (!display.isEmpty()) {

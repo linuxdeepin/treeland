@@ -40,6 +40,7 @@ namespace SDDM {
 
         void setSocket(const QString &socket);
         void setTheme(const QString &theme);
+        void setSingleMode(bool on = true);
 
         QString displayServerCommand() const;
         void setDisplayServerCommand(const QString &cmd);
@@ -67,6 +68,7 @@ namespace SDDM {
 
     private:
         bool m_started { false };
+        bool m_singleMode { false };
 
         Display * const m_display { nullptr };
         QString m_socket;

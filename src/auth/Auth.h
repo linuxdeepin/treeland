@@ -162,6 +162,12 @@ namespace SDDM {
          */
         void setCookie(const QByteArray &cookie);
 
+        /**
+         * Set the display server single mode
+         * @param on true use DDE single wayland mode
+         */
+        void setSingleMode(bool on = true);
+
     public Q_SLOTS:
         /**
         * Sets up the environment and starts the authentication
@@ -182,6 +188,7 @@ namespace SDDM {
         void displayServerCommandChanged();
         void sessionChanged();
         void requestChanged();
+        void singleModeChanged();
 
         /**
         * Emitted when authentication phase finishes

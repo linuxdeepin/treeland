@@ -19,6 +19,10 @@
 
 #include "WaylandDisplayServer.h"
 
+#include "Display.h"
+
+#include <sys/socket.h>
+
 namespace SDDM {
 
 WaylandDisplayServer::WaylandDisplayServer(Display *parent)
