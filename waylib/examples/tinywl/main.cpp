@@ -113,8 +113,8 @@ bool Helper::startDemoClient(const QString &socket)
         }
         tmpQmlFile->close();
 
-        waylandClientDemo.setProgram("qml");
-        waylandClientDemo.setArguments({tmpQmlFile->fileName(), "-platform", "wayland"});
+        waylandClientDemo.setProgram("gedit");
+//        waylandClientDemo.setArguments({tmpQmlFile->fileName(), "-platform", "wayland"});
 
         QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
         env.insert("WAYLAND_DISPLAY", socket);
