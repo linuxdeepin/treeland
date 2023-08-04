@@ -33,12 +33,10 @@ public:
     // begin slot function
     void on_configure(wlr_xdg_surface_configure *event);
     void on_ack_configure(wlr_xdg_surface_configure *event);
-    void on_commit() override;
     // end slot function
 
     void init();
     void connect();
-    void setPosition(const QPointF &newPos);
     void updatePosition();
 
     W_DECLARE_PUBLIC(WXdgSurface)
@@ -65,19 +63,12 @@ void WXdgSurfacePrivate::on_ack_configure(wlr_xdg_surface_configure *event)
 //    auto config = reinterpret_cast<wlr_xdg_surface_configure*>(data);
 }
 
-void WXdgSurfacePrivate::on_commit()
-{
-    WSurfacePrivate::on_commit();
-    updatePosition();
-}
-
 void WXdgSurfacePrivate::init()
 {
     W_Q(WXdgSurface);
     handle->setData(this, q);
     q->setHandle(handle->surface());
 
-    updatePosition();
     connect();
 }
 
@@ -91,23 +82,6 @@ void WXdgSurfacePrivate::connect()
     QObject::connect(handle, &QWXdgSurface::ackConfigure, q, [this] (wlr_xdg_surface_configure *event) {
         on_ack_configure(event);
     });
-
-    if (auto popup = handle->toPopup())
-        QObject::connect(popup, SIGNAL(reposition()), q, SLOT(updatePosition()));
-}
-
-void WXdgSurfacePrivate::setPosition(const QPointF &newPos)
-{
-    if (position == newPos)
-        return;
-    position = newPos;
-    Q_EMIT q_func()->positionChanged();
-}
-
-void WXdgSurfacePrivate::updatePosition()
-{
-    if (auto popup = handle->toPopup())
-        setPosition(popup->getPosition());
 }
 
 WXdgSurface::WXdgSurface(QWXdgSurface *handle, WServer *server, QObject *parent)
@@ -147,6 +121,11 @@ WSurface::Type *WXdgSurface::type() const
         return popupType();
 
     return noneType();
+}
+
+bool WXdgSurface::isPopup() const
+{
+    return type() == popupType();
 }
 
 bool WXdgSurface::testAttribute(WSurface::Attribute attr) const
@@ -207,7 +186,16 @@ bool WXdgSurface::resizeing() const
 QPointF WXdgSurface::position() const
 {
     W_DC(WXdgSurface);
-    return d->position;
+    if (auto popup = d->handle->toPopup())
+        return popup->getPosition();
+
+    return QPointF();
+}
+
+QRect WXdgSurface::getContentGeometry() const
+{
+    W_DC(WXdgSurface);
+    return d->handle->getGeometry();
 }
 
 WSurface *WXdgSurface::parentSurface() const
@@ -285,5 +273,3 @@ void WXdgSurface::notifyEndState(State state)
 }
 
 WAYLIB_SERVER_END_NAMESPACE
-
-#include "moc_wxdgsurface.cpp"

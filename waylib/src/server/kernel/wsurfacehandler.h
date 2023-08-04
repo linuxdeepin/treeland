@@ -22,8 +22,8 @@ public:
     WSurfaceHandler(WSurface *surface);
 
     virtual QPointF position() const = 0;
-    virtual QPointF mapFromGlobal(const QPointF &localPos);
-    virtual QPointF mapToGlobal(const QPointF &pos);
+    virtual QPointF mapFromGlobal(const QPointF &localPos) = 0;
+    virtual QPointF mapToGlobal(const QPointF &pos) = 0;
 
 protected:
     WSurfaceHandler(WSurfaceHandlerPrivate &dd);

@@ -62,22 +62,6 @@ void WSurfacePrivate::on_commit()
     if (nativeHandle()->current.committed & WLR_SURFACE_STATE_BUFFER)
         updateBuffer();
 
-    if (Q_UNLIKELY(nativeHandle()->current.width != nativeHandle()->previous.width
-                   || nativeHandle()->current.height != nativeHandle()->previous.height)) {
-        Q_EMIT q->sizeChanged(QSize(nativeHandle()->previous.width, nativeHandle()->previous.height),
-                              QSize(nativeHandle()->current.width, nativeHandle()->current.height));
-    }
-
-    if (Q_UNLIKELY(nativeHandle()->current.buffer_width != nativeHandle()->previous.buffer_width
-                   || nativeHandle()->current.buffer_height != nativeHandle()->previous.buffer_height)) {
-        Q_EMIT q->bufferSizeChanged(QSize(nativeHandle()->previous.buffer_width, nativeHandle()->previous.buffer_height),
-                                    QSize(nativeHandle()->current.buffer_width, nativeHandle()->current.buffer_height));
-    }
-
-    if (Q_UNLIKELY(nativeHandle()->current.scale != nativeHandle()->previous.scale)) {
-        Q_EMIT q->bufferScaleChanged(nativeHandle()->previous.scale, nativeHandle()->current.scale);
-    }
-
     if (hasSubsurface) // Will make to true when QWSurface::newSubsurface
         updateHasSubsurface();
 }
@@ -312,6 +296,12 @@ int WSurface::bufferScale() const
 void WSurface::resize(const QSize &newSize)
 {
     Q_UNUSED(newSize)
+}
+
+QRect WSurface::getContentGeometry() const
+{
+    W_DC(WSurface);
+    return QRect(QPoint(), size());
 }
 
 QPointF WSurface::mapToGlobal(const QPointF &localPos) const

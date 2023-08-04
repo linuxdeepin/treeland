@@ -318,24 +318,19 @@ Item {
 
             model: renderWindow.toplevelWindowModel
 
-            FocusScope {
+            SurfaceItem {
                 required property WaylandSurface waylandSurface
                 required property OutputLayout outputLayout
 
+                surface: waylandSurface
                 visible: waylandSurface && waylandSurface.WaylandSocket.rootSocket.enabled
-                width: surfaceItem.width
-                height: surfaceItem.height
-                x: waylandSurface.position.x
-                y: waylandSurface.position.y
+                x: waylandSurface.parentSurface ? implicitPosition.x : 0
+                y: waylandSurface.parentSurface ? implicitPosition.y : 0
                 z: focus ? OutputLayout.ActiveToplevelSurface : OutputLayout.ToplevelSurface
 
                 onFocusChanged: {
                     if (typeof waylandSurface.setActivate === "function")
                         waylandSurface.setActivate(focus)
-                    if (focus)
-                        surfaceItem.forceActiveFocus()
-                    else
-                        surfaceItem.focus = false
                 }
 
                 OutputLayoutItem {
@@ -350,16 +345,11 @@ Item {
                     }
                 }
 
-                SurfaceItem {
-                    id: surfaceItem
-
-                    surface: waylandSurface
-                }
-
                 Component.onCompleted: {
                     waylandSurface.shell = this
                     if (waylandSurface.parentSurface)
                         parent = waylandSurface.parentSurface.shell
+                    forceActiveFocus()
                 }
                 Component.onDestruction: {
                     if (waylandSurface)

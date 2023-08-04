@@ -23,38 +23,46 @@ class WAYLIB_SERVER_EXPORT WSurfaceItem : public QQuickItem
     Q_OBJECT
     Q_DECLARE_PRIVATE(WSurfaceItem)
     Q_PROPERTY(WSurface* surface READ surface WRITE setSurface NOTIFY surfaceChanged REQUIRED)
-    Q_PROPERTY(QQuickItem* contentItem READ contentItem NOTIFY contentItemChanged)
+    Q_PROPERTY(QQuickItem* contentItem READ contentItem CONSTANT)
+    Q_PROPERTY(ResizeMode resizeMode READ resizeMode WRITE setResizeMode NOTIFY resizeModeChanged FINAL)
+    Q_PROPERTY(QPointF implicitPosition READ implicitPosition NOTIFY implicitPositionChanged)
     QML_NAMED_ELEMENT(SurfaceItem)
 
 public:
+    enum ResizeMode {
+        SizeFromSurface,
+        SizeToSurface
+    };
+    Q_ENUM(ResizeMode)
+
     explicit WSurfaceItem(QQuickItem *parent = nullptr);
 
     bool isTextureProvider() const override;
     QSGTextureProvider *textureProvider() const override;
-
-    bool contains(const QPointF &localPos) const override;
 
     WSurface *surface() const;
     void setSurface(WSurface *newSurface);
 
     QQuickItem *contentItem() const;
 
+    ResizeMode resizeMode() const;
+    void setResizeMode(ResizeMode newResizeMode);
+
+    QPointF implicitPosition() const;
+
 Q_SIGNALS:
     void surfaceChanged();
-    void contentItemChanged();
+    void resizeModeChanged();
+    void implicitPositionChanged();
 
 protected:
-    QSGNode *updatePaintNode(QSGNode *, UpdatePaintNodeData *) override;
-    bool event(QEvent *event) override;
-
-    void releaseResources() override;
     void componentComplete() override;
     void geometryChange(const QRectF &newGeometry, const QRectF &oldGeometry) override;
     void itemChange(ItemChange change, const ItemChangeData &data) override;
+    void focusInEvent(QFocusEvent *event);
 
 private:
-    W_PRIVATE_SLOT(void invalidateSceneGraph()) // Using by Qt library
-    W_PRIVATE_SLOT(void updateSubsurfaceItem())
+    W_PRIVATE_SLOT(void onSurfaceCommit())
     W_PRIVATE_SLOT(void onHasSubsurfaceChanged())
 };
 

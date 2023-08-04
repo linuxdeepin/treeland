@@ -35,10 +35,6 @@ class WAYLIB_SERVER_EXPORT WSurface : public QObject, public WObject
     Q_PROPERTY(bool mapped READ mapped NOTIFY mappedChanged)
     Q_PROPERTY(bool isSubsurface READ isSubsurface NOTIFY isSubsurfaceChanged)
     Q_PROPERTY(bool hasSubsurface READ hasSubsurface NOTIFY hasSubsurfaceChanged)
-    Q_PROPERTY(QPointF position READ position NOTIFY positionChanged)
-    Q_PROPERTY(QSize size READ size NOTIFY sizeChanged)
-    Q_PROPERTY(QSize bufferSize READ bufferSize NOTIFY bufferSizeChanged)
-    Q_PROPERTY(int bufferScale READ bufferScale NOTIFY bufferScaleChanged)
     Q_PROPERTY(WSurface *parentSurface READ parentSurface CONSTANT)
     Q_PROPERTY(QList<WSurface*> subsurfaces READ subsurfaces NOTIFY newSubsurface)
     Q_PROPERTY(QObject* shell READ shell WRITE setShell NOTIFY shellChanged)
@@ -89,6 +85,7 @@ public:
     int bufferScale() const;
 
     virtual void resize(const QSize &newSize);
+    virtual QRect getContentGeometry() const;
 
     QPointF mapToGlobal(const QPointF &localPos) const;
     QPointF mapFromGlobal(const QPointF &globalPos) const;
@@ -123,10 +120,6 @@ Q_SIGNALS:
     void primaryOutputChanged();
     void mappedChanged();
     void textureChanged();
-    void positionChanged();
-    void sizeChanged(QSize oldSize, QSize newSize);
-    void bufferSizeChanged(QSize oldSize, QSize newSize);
-    void bufferScaleChanged(int oldScale, int newScale);
     void shellChanged();
     void isSubsurfaceChanged();
     void hasSubsurfaceChanged();

@@ -28,7 +28,7 @@ public:
     wlr_surface *nativeHandle() const;
 
     // begin slot function
-    virtual void on_commit();
+    void on_commit();
     void on_client_commit();
     // end slot function
 

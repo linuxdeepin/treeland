@@ -58,57 +58,32 @@ public:
 
 QPointF SurfaceHandler::position() const
 {
-    auto parent = item->parentItem();
-    return parent ? parent->mapToGlobal(item->position()) : item->position();
+    return item->mapToGlobal(item->contentItem()->position());
 }
 
 QPointF SurfaceHandler::mapFromGlobal(const QPointF &pos)
 {
-    return item->mapFromGlobal(pos);
+    return item->contentItem()->mapFromGlobal(pos);
 }
 
 QPointF SurfaceHandler::mapToGlobal(const QPointF &pos)
 {
-    return item->mapToGlobal(pos);
+    return item->contentItem()->mapToGlobal(pos);
 }
 
 class WSurfaceItemPrivate : public QQuickItemPrivate
 {
     friend class WSGTextureProvider;
 public:
-    WSurfaceItemPrivate()
-        : textureProvider(new WSGTextureProvider(this))
-    {
-
-    }
-    ~WSurfaceItemPrivate() {
-        if (textureProvider)
-            delete textureProvider;
-        if (surface)
-            static_cast<SurfaceHandler*>(surface->handler())->item = nullptr;
-    }
+    WSurfaceItemPrivate();
+    ~WSurfaceItemPrivate();
 
     inline static WSurfaceItemPrivate *get(WSurfaceItem *qq) {
         return qq->d_func();
     }
 
-    qreal getImplicitWidth() const override {
-        return surface ? surface->size().width() : 0;
-    }
-    qreal getImplicitHeight() const override {
-        return surface ? surface->size().height() : 0;
-    }
-
-    void updateImplicitSize() {
-        implicitWidthChanged();
-        implicitHeightChanged();
-
-        Q_Q(WSurfaceItem);
-        if (!widthValid())
-            q->resetWidth();
-        if (!heightValid())
-            q->resetHeight();
-    }
+    void onSurfaceCommit();
+    void setImplicitPosition(QPointF newImplicitPosition);
 
     // For QQuickItem
     bool contains(const QPointF &localPos) const;
@@ -127,24 +102,24 @@ public:
 
     Q_DECLARE_PUBLIC(WSurfaceItem)
     QPointer<WSurface> surface;
-    QQuickItem *proxyItem = nullptr;
+    QQuickItem *contentItem = nullptr;
+    QQuickItem *eventItem = nullptr;
+    WSurfaceItem::ResizeMode resizeMode = WSurfaceItem::SizeFromSurface;
+    // For xdg popup surface
+    // TODO: split the implementations of xdg surface to WXdgSurfaceItem,
+    // and split out the related implementations from WSurface too.
+    QPointF implicitPosition;
+
     QMetaObject::Connection frameDoneConnection;
     std::unique_ptr<SurfaceHandler> surfaceHandler;
     WSGTextureProvider *textureProvider = nullptr;
 };
 
-static void setItemForSurface(QQuickItem *item, bool on)
-{
-    item->setFlag(QQuickItem::ItemHasContents, on);
-    item->setAcceptHoverEvents(on);
-    item->setAcceptedMouseButtons(on ? Qt::AllButtons : Qt::NoButton);
-}
-
-class ProxyItem : public QQuickItem
+class ContentItem : public QQuickItem
 {
     Q_OBJECT
 public:
-    explicit ProxyItem(WSurfaceItem *parent);
+    explicit ContentItem(WSurfaceItem *parent);
 
     inline WSurfaceItem *surfaceItem() const {
         return qobject_cast<WSurfaceItem*>(parent());
@@ -158,43 +133,60 @@ public:
 
 private:
     QSGNode *updatePaintNode(QSGNode *, UpdatePaintNodeData *) override;
-    bool event(QEvent *event) override;
     void releaseResources() override;
 
     // Using by Qt library
     Q_PRIVATE_SLOT(d(), void invalidateSceneGraph())
 };
 
-ProxyItem::ProxyItem(WSurfaceItem *parent)
+class EventItem : public QQuickItem
+{
+public:
+    explicit EventItem(ContentItem *parent)
+        : QQuickItem(parent) {
+        setAcceptHoverEvents(true);
+        setAcceptedMouseButtons(Qt::AllButtons);
+        setFlag(QQuickItem::ItemClipsChildrenToShape, true);
+    }
+
+    inline WSurfaceItemPrivate *d() const {
+        return WSurfaceItemPrivate::get(static_cast<ContentItem*>(parent())->surfaceItem());
+    }
+
+    bool contains(const QPointF &point) const override {
+        return d()->contains(point);
+    }
+
+private:
+    bool event(QEvent *event) override {
+        if (d()->event(event))
+            return true;
+        return QQuickItem::event(event);
+    }
+};
+
+ContentItem::ContentItem(WSurfaceItem *parent)
     : QQuickItem(parent)
 {
-    QQuickItemPrivate::get(this)->anchors()->setFill(parent);
-    setItemForSurface(this, true);
+    setFlag(QQuickItem::ItemHasContents, true);
 }
 
-bool ProxyItem::isTextureProvider() const
+bool ContentItem::isTextureProvider() const
 {
     return true;
 }
 
-QSGTextureProvider *ProxyItem::textureProvider() const
+QSGTextureProvider *ContentItem::textureProvider() const
 {
     return d()->textureProvider;
 }
 
-QSGNode *ProxyItem::updatePaintNode(QSGNode *oldNode, UpdatePaintNodeData *data)
+QSGNode *ContentItem::updatePaintNode(QSGNode *oldNode, UpdatePaintNodeData *data)
 {
     return d()->updatePaintNode(oldNode, data);
 }
 
-bool ProxyItem::event(QEvent *event)
-{
-    if (d()->event(event))
-        return true;
-    return QQuickItem::event(event);
-}
-
-void ProxyItem::releaseResources()
+void ContentItem::releaseResources()
 {
     return d()->releaseResources();
 }
@@ -220,7 +212,7 @@ void WSGTextureProvider::updateTexture()
 WSurfaceItem::WSurfaceItem(QQuickItem *parent)
     : QQuickItem(*new WSurfaceItemPrivate(), parent)
 {
-    setItemForSurface(this, true);
+    setFlag(ItemIsFocusScope);
 }
 
 bool WSurfaceItem::isTextureProvider() const
@@ -232,12 +224,6 @@ QSGTextureProvider *WSurfaceItem::textureProvider() const
 {
     Q_D(const WSurfaceItem);
     return d->textureProvider;
-}
-
-bool WSurfaceItem::contains(const QPointF &localPos) const
-{
-    Q_D(const WSurfaceItem);
-    return d->contains(localPos);
 }
 
 WSurface *WSurfaceItem::surface() const
@@ -254,6 +240,14 @@ void WSurfaceItem::setSurface(WSurface *surface)
 
     Q_ASSERT(surface);
     d->surface = surface;
+    auto contentItem = new ContentItem(this);
+    d->contentItem = contentItem;
+    d->eventItem = new EventItem(contentItem);
+    QQuickItemPrivate::get(d->eventItem)->anchors()->setFill(d->contentItem);
+    if (d->focus)
+        d->eventItem->forceActiveFocus();
+    connect(this, &WSurfaceItem::focusChanged, d->eventItem, qOverload<bool>(&QQuickItem::setFocus));
+
     d->initForSurface();
     d->update();
 
@@ -263,28 +257,41 @@ void WSurfaceItem::setSurface(WSurface *surface)
 QQuickItem *WSurfaceItem::contentItem() const
 {
     Q_D(const WSurfaceItem);
-    return d->proxyItem ? d->proxyItem : const_cast<WSurfaceItem*>(this);
+    return d->contentItem;
 }
 
-QSGNode *WSurfaceItem::updatePaintNode(QSGNode *oldNode, QQuickItem::UpdatePaintNodeData *data)
+WSurfaceItem::ResizeMode WSurfaceItem::resizeMode() const
 {
-    Q_D(WSurfaceItem);
-    return d->updatePaintNode(oldNode, data);
+    Q_D(const WSurfaceItem);
+
+    return d->resizeMode;
 }
 
-bool WSurfaceItem::event(QEvent *event)
+void WSurfaceItem::setResizeMode(ResizeMode newResizeMode)
 {
     Q_D(WSurfaceItem);
-    if (d->event(event))
-        return true;
-    return QQuickItem::event(event);
+
+    if (d->resizeMode == newResizeMode)
+        return;
+    d->resizeMode = newResizeMode;
+    Q_EMIT resizeModeChanged();
 }
 
-void WSurfaceItem::releaseResources()
+QPointF WSurfaceItem::implicitPosition() const
 {
-    Q_D(WSurfaceItem);
-    d->releaseResources();
-    QQuickItem::releaseResources();
+    Q_D(const WSurfaceItem);
+
+    return d->implicitPosition;
+}
+
+void WSurfaceItemPrivate::setImplicitPosition(QPointF newImplicitPosition)
+{
+    Q_Q(WSurfaceItem);
+
+    if (implicitPosition == newImplicitPosition)
+        return;
+    implicitPosition = newImplicitPosition;
+    Q_EMIT q->implicitPositionChanged();
 }
 
 void WSurfaceItem::componentComplete()
@@ -303,6 +310,11 @@ void WSurfaceItem::geometryChange(const QRectF &newGeometry, const QRectF &oldGe
     Q_D(WSurfaceItem);
 
     QQuickItem::geometryChange(newGeometry, oldGeometry);
+
+    if (d->resizeMode == SizeToSurface && newGeometry.size() != oldGeometry.size()) {
+        d->contentItem->setSize(d->contentItem->size() + newGeometry.size() - oldGeometry.size());
+        d->surface->resize(d->contentItem->size().toSize());
+    }
 }
 
 void WSurfaceItem::itemChange(ItemChange change, const ItemChangeData &data)
@@ -315,6 +327,52 @@ void WSurfaceItem::itemChange(ItemChange change, const ItemChangeData &data)
     }
 }
 
+void WSurfaceItem::focusInEvent(QFocusEvent *event)
+{
+    QQuickItem::focusInEvent(event);
+
+    Q_D(WSurfaceItem);
+    if (d->eventItem)
+        d->eventItem->forceActiveFocus(event->reason());
+}
+
+WSurfaceItemPrivate::WSurfaceItemPrivate()
+    : textureProvider(new WSGTextureProvider(this))
+{
+
+}
+
+WSurfaceItemPrivate::~WSurfaceItemPrivate()
+{
+    if (textureProvider)
+        delete textureProvider;
+    if (surface)
+        static_cast<SurfaceHandler*>(surface->handler())->item = nullptr;
+}
+
+void WSurfaceItemPrivate::onSurfaceCommit()
+{
+    Q_Q(WSurfaceItem);
+
+    const QRectF geometry = surface->getContentGeometry();
+    if (resizeMode == WSurfaceItem::SizeFromSurface) {
+        if (!qFuzzyCompare(implicitWidth, geometry.width()))
+            q->setImplicitWidth(geometry.width());
+        if (!qFuzzyCompare(implicitHeight, geometry.height()))
+            q->setImplicitHeight(geometry.height());
+
+        contentItem->setSize(surface->size());
+    }
+    contentItem->setPosition(-geometry.topLeft());
+
+    updateSubsurfaceItem();
+
+    QPointF implicitPosition = surface->position() - contentItem->position();
+    if (auto parentSurface = surface->parentSurface())
+        implicitPosition -= parentSurface->getContentGeometry().topLeft();
+    setImplicitPosition(implicitPosition);
+}
+
 bool WSurfaceItemPrivate::contains(const QPointF &localPos) const
 {
     if (Q_UNLIKELY(!surface))
@@ -325,9 +383,7 @@ bool WSurfaceItemPrivate::contains(const QPointF &localPos) const
 
 QSGNode *WSurfaceItemPrivate::updatePaintNode(QSGNode *oldNode, QQuickItem::UpdatePaintNodeData *)
 {
-    Q_Q(WSurfaceItem);
-
-    if (!surface || q->width() <= 0 || q->height() <= 0) {
+    if (!surface || contentItem->width() <= 0 || contentItem->height() <= 0) {
         delete oldNode;
         return nullptr;
     }
@@ -347,7 +403,7 @@ QSGNode *WSurfaceItemPrivate::updatePaintNode(QSGNode *oldNode, QQuickItem::Upda
 
     const QRectF textureGeometry = surface->handle()->getBufferSourceBox();
     node->setSourceRect(textureGeometry);
-    const QRectF targetGeometry(surface->textureOffset(), q->size());
+    const QRectF targetGeometry(surface->textureOffset(), contentItem->size());
     node->setRect(targetGeometry);
     node->setFiltering(QSGTexture::Linear);
 
@@ -375,6 +431,8 @@ bool WSurfaceItemPrivate::event(QEvent *event)
 
 void WSurfaceItemPrivate::releaseResources()
 {
+    auto d = QQuickItemPrivate::get(contentItem);
+
     if (textureProvider) {
         class WSurfaceCleanupJob : public QRunnable
         {
@@ -387,8 +445,8 @@ void WSurfaceItemPrivate::releaseResources()
         };
 
         // Delay clean the textures on the next render after.
-        window->scheduleRenderJob(new WSurfaceCleanupJob(textureProvider),
-                                  QQuickWindow::AfterRenderingStage);
+        d->window->scheduleRenderJob(new WSurfaceCleanupJob(textureProvider),
+                                     QQuickWindow::AfterRenderingStage);
         textureProvider = nullptr;
     }
 
@@ -396,10 +454,7 @@ void WSurfaceItemPrivate::releaseResources()
         QObject::disconnect(frameDoneConnection);
     surface = nullptr;
     // Force to update the contents, avoid to render the invalid textures
-    if (proxyItem)
-        QQuickItemPrivate::get(proxyItem)->dirty(QQuickItemPrivate::Content);
-    else
-        dirty(QQuickItemPrivate::Content);
+    d->dirty(QQuickItemPrivate::Content);
 }
 
 void WSurfaceItemPrivate::invalidateSceneGraph()
@@ -412,7 +467,7 @@ void WSurfaceItemPrivate::invalidateSceneGraph()
 
 void WSurfaceItemPrivate::update()
 {
-    return proxyItem ? proxyItem->update() : q_func()->update();
+    return contentItem->update();
 }
 
 static WSurfaceItem *getItemFrom(wlr_surface *s)
@@ -441,17 +496,15 @@ void WSurfaceItemPrivate::initForSurface()
                      textureProvider, &WSGTextureProvider::updateTexture);
     QObject::connect(surface, &WSurface::destroyed, q,
                      &WSurfaceItem::releaseResources, Qt::DirectConnection);
-    QObject::connect(surface, &WSurface::sizeChanged, q, [this] {
-        updateImplicitSize();
-    });
     QObject::connect(surface, &WSurface::primaryOutputChanged, q, [this] {
         updateFrameDoneConnection();
     });
     QObject::connect(surface, SIGNAL(hasSubsurfaceChanged()), q, SLOT(onHasSubsurfaceChanged()));
+    QObject::connect(surface->handle(), SIGNAL(commit()), q, SLOT(onSurfaceCommit()));
 
     onHasSubsurfaceChanged();
-    updateImplicitSize();
     updateFrameDoneConnection();
+    onSurfaceCommit();
 
     if (surface->isSubsurface()) {
         if (auto sub = QWSubsurface::tryFrom(surface->handle()))
@@ -479,32 +532,10 @@ void WSurfaceItemPrivate::updateFrameDoneConnection()
 
 void WSurfaceItemPrivate::onHasSubsurfaceChanged()
 {
-    Q_Q(WSurfaceItem);
-
-    if (bool(proxyItem) == surface->hasSubsurface())
-        return;
-
     auto qwsurface = surface->handle();
     Q_ASSERT(qwsurface);
-    if (surface->hasSubsurface()) {
-        Q_ASSERT(!proxyItem);
-        proxyItem = new ProxyItem(q);
-
-        QObject::connect(qwsurface, SIGNAL(commit()), q, SLOT(updateSubsurfaceItem()));
+    if (surface->hasSubsurface())
         updateSubsurfaceItem();
-    } else {
-        proxyItem->setVisible(false);
-        proxyItem->deleteLater();
-        proxyItem = nullptr;
-
-        for (WSurfaceItem* subItem : q->findChildren<WSurfaceItem*>(Qt::FindDirectChildrenOnly))
-            subItem->setParentItem(q->parentItem());
-
-        QObject::disconnect(qwsurface, SIGNAL(commit()), q, SLOT(updateSubsurfaceItem()));
-    }
-
-    setItemForSurface(q, !proxyItem);
-    Q_EMIT q->contentItemChanged();
 }
 
 inline static WSurfaceItem *getItemFrom(wlr_subsurface *sub)
@@ -517,7 +548,7 @@ void WSurfaceItemPrivate::updateSubsurfaceItem()
     Q_Q(WSurfaceItem);
     auto surface = this->surface->handle()->handle();
     Q_ASSERT(surface);
-    Q_ASSERT(proxyItem);
+    Q_ASSERT(contentItem);
 
     QQuickItem *prev = nullptr;
     wlr_subsurface *subsurface;
@@ -533,12 +564,12 @@ void WSurfaceItemPrivate::updateSubsurfaceItem()
             item->stackAfter(prev);
         }
         prev = item;
-        item->setPosition(QPointF(subsurface->current.x, subsurface->current.y));
+        item->setPosition(contentItem->position() + QPointF(subsurface->current.x, subsurface->current.y));
     }
 
     if (prev)
-        proxyItem->stackBefore(prev);
-    prev = proxyItem;
+        contentItem->stackAfter(prev);
+    prev = contentItem;
 
     wl_list_for_each(subsurface, &surface->current.subsurfaces_above, current.link) {
         WSurfaceItem *item = getItemFrom(subsurface);
@@ -550,7 +581,7 @@ void WSurfaceItemPrivate::updateSubsurfaceItem()
         Q_ASSERT(prev->parentItem() == item->parentItem());
         item->stackAfter(prev);
         prev = item;
-        item->setPosition(QPointF(subsurface->current.x, subsurface->current.y));
+        item->setPosition(contentItem->position() + QPointF(subsurface->current.x, subsurface->current.y));
     }
 }
 

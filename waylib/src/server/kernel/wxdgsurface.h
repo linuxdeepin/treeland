@@ -18,6 +18,7 @@ class WAYLIB_SERVER_EXPORT WXdgSurface : public WSurface
 {
     Q_OBJECT
     W_DECLARE_PRIVATE(WXdgSurface)
+    Q_PROPERTY(bool isPopup READ isPopup CONSTANT)
 
 public:
     explicit WXdgSurface(QW_NAMESPACE::QWXdgSurface *handle, WServer *server, QObject *parent = nullptr);
@@ -27,6 +28,8 @@ public:
     static Type *popupType();
     static Type *noneType();
     Type *type() const override;
+    bool isPopup() const;
+
     bool testAttribute(Attribute attr) const override;
 
     QW_NAMESPACE::QWXdgSurface *handle() const;
@@ -39,6 +42,7 @@ public:
 
     bool resizeing() const;
     QPointF position() const override;
+    QRect getContentGeometry() const override;
 
 public Q_SLOTS:
     void setResizeing(bool resizeing);
@@ -50,9 +54,6 @@ protected:
     void notifyChanged(ChangeType type, std::any oldValue, std::any newValue) override;
     void notifyBeginState(State state) override;
     void notifyEndState(State state) override;
-
-private:
-    W_PRIVATE_SLOT(void updatePosition())
 };
 
 WAYLIB_SERVER_END_NAMESPACE

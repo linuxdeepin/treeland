@@ -25,24 +25,4 @@ WSurfaceHandler::WSurfaceHandler(WSurfaceHandlerPrivate &dd)
 
 }
 
-QPointF WSurfaceHandler::mapFromGlobal(const QPointF &localPos)
-{
-    W_DC(WSurfaceHandler);
-
-    QPointF pos = localPos;
-    auto *parent = d->surface->parentSurface();
-
-    while (parent) {
-        pos += parent->position();
-        parent = parent->parentSurface();
-    }
-
-    return pos;
-}
-
-QPointF WSurfaceHandler::mapToGlobal(const QPointF &pos)
-{
-    return pos - mapFromGlobal(position());
-}
-
 WAYLIB_SERVER_END_NAMESPACE
