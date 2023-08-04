@@ -70,6 +70,11 @@ namespace SDDM {
         }
     }
 
+    void Greeter::setSingleMode(bool on)
+    {
+        m_singleMode = on;
+    }
+
     QString Greeter::displayServerCommand() const
     {
         return m_displayServerCmd;
@@ -139,7 +144,9 @@ namespace SDDM {
                 m_process->setProcessEnvironment(env);
             }
             // Greeter command
-            m_process->start(QStringLiteral("%1/ddm-greeter").arg(QStringLiteral(BIN_INSTALL_DIR)), args);
+            if (!m_singleMode) {
+                m_process->start(QStringLiteral("%1/ddm-greeter").arg(QStringLiteral(BIN_INSTALL_DIR)), args);
+            }
 
             //if we fail to start bail immediately, and don't block in waitForStarted
             if (m_process->state() == QProcess::NotRunning) {
@@ -173,8 +180,11 @@ namespace SDDM {
 
             // command
             QStringList cmd;
-            cmd << QStringLiteral("%1/ddm-greeter").arg(QStringLiteral(BIN_INSTALL_DIR))
-                << args;
+            if (!m_singleMode) {
+                cmd << QStringLiteral("%1/ddm-greeter").arg(QStringLiteral(BIN_INSTALL_DIR));
+            }
+
+            cmd << args;
 
             // greeter environment
             QProcessEnvironment env;
@@ -208,6 +218,9 @@ namespace SDDM {
             } else if (m_display->displayServerType() == Display::WaylandDisplayServerType) {
                 env.insert(QStringLiteral("QT_QPA_PLATFORM"), QStringLiteral("wayland"));
                 env.insert(QStringLiteral("QT_WAYLAND_SHELL_INTEGRATION"), QStringLiteral("fullscreen-shell-v1"));
+            } else if (m_display->displayServerType() == Display::SingleCompositerServerType) {
+                env.insert(QStringLiteral("QT_QPA_PLATFORM"), QStringLiteral("wayland"));
+                env.insert(QStringLiteral("QT_WAYLAND_SHELL_INTEGRATION"), QStringLiteral("fullscreen-shell-v1"));
             }
             m_auth->insertEnvironment(env);
 
@@ -215,10 +228,11 @@ namespace SDDM {
             qDebug() << "Greeter starting...";
 
             // start greeter
-            m_auth->setUser(QStringLiteral("ddm"));
+            m_auth->setUser(QStringLiteral("dde"));
             m_auth->setDisplayServerCommand(m_displayServerCmd);
             m_auth->setGreeter(true);
             m_auth->setSession(cmd.join(QLatin1Char(' ')));
+            m_auth->setSingleMode(m_singleMode);
             m_auth->start();
         }
 

@@ -72,6 +72,8 @@ namespace SDDM {
         QTemporaryFile m_xauthFile;
         QString m_displayServerCmd;
 
+        HelperApp *m_helperApp;
+
         /*!
          Needed for getting the PID of a finished UserSession and calling HelperApp::utmpLogout
         */

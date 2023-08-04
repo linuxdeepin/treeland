@@ -219,7 +219,7 @@ namespace SDDM {
 
         QString service = QStringLiteral("ddm");
 
-        if (user == QStringLiteral("ddm") && m_greeter)
+        if (user == QStringLiteral("dde") && m_greeter)
             service = QStringLiteral("ddm-greeter");
         else if (m_autologin)
             service = QStringLiteral("ddm-autologin");

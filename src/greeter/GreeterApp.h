@@ -21,72 +21,32 @@
 #ifndef GREETERAPP_H
 #define GREETERAPP_H
 
-#include <QObject>
-#include <QScreen>
-#include <QQuickView>
+#include <qqml.h>
+#include <qqmlextensionplugin.h>
+#include <qscopedpointer.h>
+#include <QQmlEngine>
+#include <QQmlExtensionPlugin>
 
-class QTranslator;
+#include "SessionModel.h"
+#include "UserModel.h"
+#include "GreeterProxy.h"
 
-namespace SDDM {
-    class Configuration;
-    class ThemeMetadata;
-    class ThemeConfig;
-    class SessionModel;
-    class ScreenModel;
-    class UserModel;
-    class GreeterProxy;
-    class KeyboardModel;
-
-
-    class GreeterApp : public QObject
+class GreeterExtensionPlugin : public QQmlEngineExtensionPlugin
+{
+    Q_OBJECT
+    Q_PLUGIN_METADATA(IID QQmlEngineExtensionInterface_iid)
+public:
+    GreeterExtensionPlugin()
+        : QQmlEngineExtensionPlugin()
     {
-        Q_OBJECT
-        Q_DISABLE_COPY(GreeterApp)
-    public:
-        explicit GreeterApp(QObject *parent = nullptr);
+        qmlRegisterType<SessionModel>("TreeLand.Greeter", 1, 0, "SessionModel");
+        qmlRegisterType<UserModel>("TreeLand.Greeter", 1, 0, "UserModel");
+        qmlRegisterType<GreeterProxy>("TreeLand.Greeter", 1, 0, "Proxy");
+    }
 
-        bool isTestModeEnabled() const;
-        void setTestModeEnabled(bool value);
-
-        QString socketName() const;
-        void setSocketName(const QString &name);
-
-        QString themePath() const;
-        void setThemePath(const QString &path);
-
-    protected:
-        void customEvent(QEvent *event) override;
-
-    private slots:
-        void addViewForScreen(QScreen *screen);
-        void removeViewForScreen(QQuickView *view);
-
-    private:
-        bool m_testing = false;
-        QString m_socket;
-        QString m_themePath;
-
-        QList<QQuickView *> m_views;
-        QTranslator *m_theme_translator { nullptr },
-                    *m_components_tranlator { nullptr };
-
-        ThemeMetadata *m_metadata { nullptr };
-        ThemeConfig *m_themeConfig { nullptr };
-        SessionModel *m_sessionModel { nullptr };
-        UserModel *m_userModel { nullptr };
-        GreeterProxy *m_proxy { nullptr };
-        KeyboardModel *m_keyboard { nullptr };
-
-        void startup();
-        void activatePrimary();
-    };
-
-    class StartupEvent : public QEvent
+    void initializeEngine(QQmlEngine *engine, const char *uri) final
     {
-    public:
-        StartupEvent();
-    };
-}
-
+    }
+};
 
 #endif // GREETERAPP_H

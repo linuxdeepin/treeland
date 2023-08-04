@@ -45,7 +45,8 @@ namespace SDDM {
         enum DisplayServerType {
             X11DisplayServerType,
             X11UserDisplayServerType,
-            WaylandDisplayServerType
+            WaylandDisplayServerType,
+            SingleCompositerServerType
         };
         Q_ENUM(DisplayServerType)
 
@@ -64,6 +65,8 @@ namespace SDDM {
         QString reuseSessionId() const { return m_reuseSessionId; }
 
         Seat *seat() const;
+        void switchToUser(const QString &user);
+        void activateUser(const QString &user);
 
     public slots:
         bool start();
@@ -97,11 +100,9 @@ namespace SDDM {
         int m_terminalId = 0;
         int m_sessionTerminalId = 0;
 
-        QString m_passPhrase;
-        QString m_sessionName;
         QString m_reuseSessionId;
 
-        Auth *m_auth { nullptr };
+        QVector<Auth*> m_auths;
         DisplayServer *m_displayServer { nullptr };
         Seat *m_seat { nullptr };
         SocketServer *m_socketServer { nullptr };

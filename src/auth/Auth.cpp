@@ -32,6 +32,7 @@
 
 #include <memory>
 
+#include <qstringliteral.h>
 #include <unistd.h>
 
 namespace SDDM {
@@ -65,12 +66,16 @@ namespace SDDM {
         QString displayServerCmd;
         QString sessionPath { };
         QString user { };
+        QString password { };
         QByteArray cookie { };
         bool autologin { false };
         bool greeter { false };
+        bool singleMode { false };
         QProcessEnvironment environment { };
         qint64 id { 0 };
         static qint64 lastId;
+        QString sessionId;
+        int tty { 0 };
     };
 
     qint64 Auth::Private::lastId = 1;
@@ -289,6 +294,10 @@ namespace SDDM {
         return d->sessionPath;
     }
 
+    const QString &Auth::password() const {
+        return d->password;
+    }
+
     const QString &Auth::user() const {
         return d->user;
     }
@@ -299,6 +308,10 @@ namespace SDDM {
 
     AuthRequest *Auth::request() {
         return d->request;
+    }
+
+    QString Auth::sessionId() const {
+      return d->sessionId;
     }
 
     bool Auth::isActive() const {
@@ -324,6 +337,12 @@ namespace SDDM {
         if (user != d->user) {
             d->user = user;
             Q_EMIT userChanged();
+        }
+    }
+
+    void Auth::setPassword(const QString &password) {
+        if (password != d->password) {
+            d->password = password;
         }
     }
 
@@ -357,6 +376,31 @@ namespace SDDM {
         }
     }
 
+    void Auth::setSingleMode(bool on)
+    {
+        if (on != d->singleMode) {
+            d->singleMode = on;
+            Q_EMIT singleModeChanged();
+        }
+    }
+
+    void Auth::setSessionId(const QString& sessionId)
+    {
+        if (sessionId != d->sessionId) {
+          d->sessionId = sessionId;
+        }
+    }
+
+    int Auth::tty() const {
+        return d->tty;
+    }
+
+    void Auth::setTTY(int tty) {
+        if (tty != d->tty) {
+            d->tty = tty;
+        }
+    }
+
     void Auth::setVerbose(bool on) {
         if (on != verbose()) {
             if (on)
@@ -381,6 +425,8 @@ namespace SDDM {
             args << QStringLiteral("--display-server") << d->displayServerCmd;
         if (d->greeter)
             args << QStringLiteral("--greeter");
+        if (d->singleMode)
+            args << QStringLiteral("--single-mode");
         d->child->start(QStringLiteral("%1/ddm-helper").arg(QStringLiteral(LIBEXEC_INSTALL_DIR)), args);
     }
 

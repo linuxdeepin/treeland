@@ -24,68 +24,80 @@
 
 class QLocalSocket;
 
-namespace SDDM {
-    class SessionModel;
+class SessionModel;
+class UserModel;
 
-    class GreeterProxyPrivate;
-    class GreeterProxy : public QObject {
-        Q_OBJECT
-        Q_DISABLE_COPY(GreeterProxy)
+class GreeterProxyPrivate;
+class GreeterProxy : public QObject {
+    Q_OBJECT
+    Q_DISABLE_COPY(GreeterProxy)
 
-        Q_PROPERTY(QString  hostName        READ hostName       NOTIFY hostNameChanged)
-        Q_PROPERTY(bool     canPowerOff     READ canPowerOff    NOTIFY canPowerOffChanged)
-        Q_PROPERTY(bool     canReboot       READ canReboot      NOTIFY canRebootChanged)
-        Q_PROPERTY(bool     canSuspend      READ canSuspend     NOTIFY canSuspendChanged)
-        Q_PROPERTY(bool     canHibernate    READ canHibernate   NOTIFY canHibernateChanged)
-        Q_PROPERTY(bool     canHybridSleep  READ canHybridSleep NOTIFY canHybridSleepChanged)
+    Q_PROPERTY(QString  hostName        READ hostName       NOTIFY hostNameChanged)
+    Q_PROPERTY(bool     canPowerOff     READ canPowerOff    NOTIFY canPowerOffChanged)
+    Q_PROPERTY(bool     canReboot       READ canReboot      NOTIFY canRebootChanged)
+    Q_PROPERTY(bool     canSuspend      READ canSuspend     NOTIFY canSuspendChanged)
+    Q_PROPERTY(bool     canHibernate    READ canHibernate   NOTIFY canHibernateChanged)
+    Q_PROPERTY(bool     canHybridSleep  READ canHybridSleep NOTIFY canHybridSleepChanged)
+    Q_PROPERTY(SessionModel* sessionModel READ sessionModel WRITE setSessionModel NOTIFY sessionModelChanged)
+    Q_PROPERTY(UserModel* userModel READ userModel WRITE setUserModel NOTIFY userModelChanged)
+    Q_PROPERTY(bool     visible  READ visible NOTIFY visibleChanged)
 
-    public:
-        explicit GreeterProxy(const QString &socket, QObject *parent = 0);
-        ~GreeterProxy();
+public:
+    explicit GreeterProxy(QObject *parent = nullptr);
+    ~GreeterProxy();
 
-        const QString &hostName() const;
+    const QString &hostName() const;
 
-        bool canPowerOff() const;
-        bool canReboot() const;
-        bool canSuspend() const;
-        bool canHibernate() const;
-        bool canHybridSleep() const;
+    bool canPowerOff() const;
+    bool canReboot() const;
+    bool canSuspend() const;
+    bool canHibernate() const;
+    bool canHybridSleep() const;
 
-        bool isConnected() const;
+    bool isConnected() const;
 
-        void setSessionModel(SessionModel *model);
+    SessionModel *sessionModel() const;
+    void setSessionModel(SessionModel *model);
 
-    public slots:
-        void powerOff();
-        void reboot();
-        void suspend();
-        void hibernate();
-        void hybridSleep();
+    UserModel *userModel() const;
+    void setUserModel(UserModel *model);
 
-        void login(const QString &user, const QString &password, const int sessionIndex) const;
+    bool visible() const;
 
-    private slots:
-        void connected();
-        void disconnected();
-        void readyRead();
-        void error();
+public slots:
+    void powerOff();
+    void reboot();
+    void suspend();
+    void hibernate();
+    void hybridSleep();
 
-    signals:
-        void informationMessage(const QString &message);
-        void hostNameChanged(const QString &hostName);
-        void canPowerOffChanged(bool canPowerOff);
-        void canRebootChanged(bool canReboot);
-        void canSuspendChanged(bool canSuspend);
-        void canHibernateChanged(bool canHibernate);
-        void canHybridSleepChanged(bool canHybridSleep);
+    void login(const QString &user, const QString &password, const int sessionIndex) const;
+    void activateUser(const QString &user);
 
-        void socketDisconnected();
-        void loginFailed();
-        void loginSucceeded();
+private slots:
+    void connected();
+    void disconnected();
+    void readyRead();
+    void error();
 
-    private:
-        GreeterProxyPrivate *d { nullptr };
-    };
-}
+signals:
+    void informationMessage(const QString &message);
+    void hostNameChanged(const QString &hostName);
+    void canPowerOffChanged(bool canPowerOff);
+    void canRebootChanged(bool canReboot);
+    void canSuspendChanged(bool canSuspend);
+    void canHibernateChanged(bool canHibernate);
+    void canHybridSleepChanged(bool canHybridSleep);
+    void sessionModelChanged(SessionModel *model);
+    void userModelChanged(UserModel *model);
+    void visibleChanged(bool visible);
+
+    void socketDisconnected();
+    void loginFailed();
+    void loginSucceeded();
+
+private:
+    GreeterProxyPrivate *d { nullptr };
+};
 
 #endif // SDDM_GREETERPROXY_H

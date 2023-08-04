@@ -21,46 +21,53 @@
 #define SDDM_USERMODEL_H
 
 #include <QAbstractListModel>
+#include <QQmlEngine>
 
 #include <QHash>
+#include <qtmetamacros.h>
+#include <qvariant.h>
 
-namespace SDDM {
-    class UserModelPrivate;
+class UserModelPrivate;
 
-    class UserModel : public QAbstractListModel {
-        Q_OBJECT
-        Q_DISABLE_COPY(UserModel)
-        Q_PROPERTY(int lastIndex READ lastIndex CONSTANT)
-        Q_PROPERTY(QString lastUser READ lastUser CONSTANT)
-        Q_PROPERTY(int count READ rowCount CONSTANT)
-        Q_PROPERTY(int disableAvatarsThreshold READ disableAvatarsThreshold CONSTANT)
-        Q_PROPERTY(bool containsAllUsers READ containsAllUsers CONSTANT)
-    public:
-        enum UserRoles {
-            NameRole = Qt::UserRole + 1,
-            RealNameRole,
-            HomeDirRole,
-            IconRole,
-            NeedsPasswordRole
-        };
-        Q_ENUM(UserRoles)
-
-        UserModel(bool needAllUsers, QObject *parent = 0);
-        ~UserModel();
-
-        QHash<int, QByteArray> roleNames() const override;
-
-        int lastIndex() const;
-        QString lastUser() const;
-
-        int rowCount(const QModelIndex &parent = QModelIndex()) const override;
-        QVariant data(const QModelIndex &index, int role = Qt::DisplayRole) const override;
-
-        int disableAvatarsThreshold() const;
-        bool containsAllUsers() const;
-    private:
-        UserModelPrivate *d { nullptr };
+class UserModel : public QAbstractListModel {
+    Q_OBJECT
+    Q_DISABLE_COPY(UserModel)
+    Q_PROPERTY(int lastIndex READ lastIndex CONSTANT)
+    Q_PROPERTY(QString lastUser READ lastUser CONSTANT)
+    Q_PROPERTY(int count READ rowCount CONSTANT)
+    Q_PROPERTY(int disableAvatarsThreshold READ disableAvatarsThreshold CONSTANT)
+    Q_PROPERTY(bool containsAllUsers READ containsAllUsers CONSTANT)
+    QML_ELEMENT
+public:
+    enum UserRoles {
+        NameRole = Qt::UserRole + 1,
+        RealNameRole,
+        HomeDirRole,
+        IconRole,
+        NeedsPasswordRole,
+        LoginedRole,
     };
-}
+    Q_ENUM(UserRoles)
+
+    UserModel(bool needAllUsers = true, QObject *parent = nullptr);
+    ~UserModel();
+
+    QHash<int, QByteArray> roleNames() const override;
+
+    int lastIndex() const;
+    QString lastUser() const;
+
+    int rowCount(const QModelIndex &parent = QModelIndex()) const override;
+    QVariant data(const QModelIndex &index, int role = Qt::DisplayRole) const override;
+
+    Q_INVOKABLE QVariant get(const QString &username) const;
+
+    void updateUserLoginState(const QString &username, bool logined);
+
+    int disableAvatarsThreshold() const;
+    bool containsAllUsers() const;
+private:
+    UserModelPrivate *d { nullptr };
+};
 
 #endif // SDDM_USERMODEL_H

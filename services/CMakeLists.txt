@@ -3,7 +3,7 @@ if(SYSTEMD_FOUND)
     install(FILES "${CMAKE_CURRENT_BINARY_DIR}/ddm.service" DESTINATION "${SYSTEMD_SYSTEM_UNIT_DIR}")
 
     configure_file(ddm-sysuser.conf.in ddm-sysuser.conf)
-    install(FILES "${CMAKE_CURRENT_BINARY_DIR}/ddm-sysuser.conf" DESTINATION "${SYSTEMD_SYSUSERS_DIR}" RENAME ddm.conf)
+    install(FILES "${CMAKE_CURRENT_BINARY_DIR}/ddm-sysuser.conf" DESTINATION "${SYSTEMD_SYSUSERS_DIR}" RENAME dde.conf)
 endif()
 
 # systemd-tmpfiles can be used standalone without other systemd parts

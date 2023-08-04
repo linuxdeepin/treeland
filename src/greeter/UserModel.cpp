@@ -30,186 +30,220 @@
 #include <memory>
 #include <pwd.h>
 
-namespace SDDM {
-    class User {
-    public:
-        User(const struct passwd *data, const QString icon) :
-            name(QString::fromLocal8Bit(data->pw_name)),
-            realName(QString::fromLocal8Bit(data->pw_gecos).split(QLatin1Char(',')).first()),
-            homeDir(QString::fromLocal8Bit(data->pw_dir)),
-            uid(data->pw_uid),
-            gid(data->pw_gid),
-            // if shadow is used pw_passwd will be 'x' nevertheless, so this
-            // will always be true
-            needsPassword(strcmp(data->pw_passwd, "") != 0),
-            icon(icon)
-        {}
+using namespace SDDM;
 
-        QString name;
-        QString realName;
-        QString homeDir;
-        int uid { 0 };
-        int gid { 0 };
-        bool needsPassword { false };
-        QString icon;
-    };
+class User {
+public:
+    User(const struct passwd *data, const QString icon) :
+        name(QString::fromLocal8Bit(data->pw_name)),
+        realName(QString::fromLocal8Bit(data->pw_gecos).split(QLatin1Char(',')).first()),
+        homeDir(QString::fromLocal8Bit(data->pw_dir)),
+        uid(data->pw_uid),
+        gid(data->pw_gid),
+        // if shadow is used pw_passwd will be 'x' nevertheless, so this
+        // will always be true
+        needsPassword(strcmp(data->pw_passwd, "") != 0),
+        icon(icon)
+    {}
 
-    typedef std::shared_ptr<User> UserPtr;
+    QString name;
+    QString realName;
+    QString homeDir;
+    int uid { 0 };
+    int gid { 0 };
+    bool needsPassword { false };
+    bool logined { false };
+    QString icon;
+};
 
-    class UserModelPrivate {
-    public:
-        int lastIndex { 0 };
-        QList<UserPtr> users;
-        bool containsAllUsers { true };
-    };
+typedef std::shared_ptr<User> UserPtr;
 
-    UserModel::UserModel(bool needAllUsers, QObject *parent) : QAbstractListModel(parent), d(new UserModelPrivate()) {
-        const QString facesDir = mainConfig.Theme.FacesDir.get();
-        const QString themeDir = mainConfig.Theme.ThemeDir.get();
-        const QString currentTheme = mainConfig.Theme.Current.get();
-        const QString themeDefaultFace = QStringLiteral("%1/%2/faces/.face.icon").arg(themeDir).arg(currentTheme);
-        const QString defaultFace = QStringLiteral("%1/.face.icon").arg(facesDir);
-        const QString iconURI = QStringLiteral("file://%1").arg(
-                QFile::exists(themeDefaultFace) ? themeDefaultFace : defaultFace);
+class UserModelPrivate {
+public:
+    int lastIndex { 0 };
+    QList<UserPtr> users;
+    bool containsAllUsers { true };
+};
 
-        bool lastUserFound = false;
+UserModel::UserModel(bool needAllUsers, QObject *parent) : QAbstractListModel(parent), d(new UserModelPrivate()) {
+    const QString facesDir = mainConfig.Theme.FacesDir.get();
+    const QString themeDir = mainConfig.Theme.ThemeDir.get();
+    const QString currentTheme = mainConfig.Theme.Current.get();
+    const QString themeDefaultFace = QStringLiteral("%1/%2/faces/.face.icon").arg(themeDir).arg(currentTheme);
+    const QString defaultFace = QStringLiteral("%1/.face.icon").arg(facesDir);
+    const QString iconURI = QStringLiteral("file://%1").arg(
+        QFile::exists(themeDefaultFace) ? themeDefaultFace : defaultFace);
 
-        struct passwd *current_pw;
-        setpwent();
-        while ((current_pw = getpwent()) != nullptr) {
+    bool lastUserFound = false;
 
-            // skip entries with uids smaller than minimum uid
-            if (int(current_pw->pw_uid) < mainConfig.Users.MinimumUid.get())
-                continue;
+    struct passwd *current_pw;
+    setpwent();
+    while ((current_pw = getpwent()) != nullptr) {
 
-            // skip entries with uids greater than maximum uid
-            if (int(current_pw->pw_uid) > mainConfig.Users.MaximumUid.get())
-                continue;
-            // skip entries with user names in the hide users list
-            if (mainConfig.Users.HideUsers.get().contains(QString::fromLocal8Bit(current_pw->pw_name)))
-                continue;
+        // skip entries with uids smaller than minimum uid
+        if (int(current_pw->pw_uid) < mainConfig.Users.MinimumUid.get())
+            continue;
 
-            // skip entries with shells in the hide shells list
-            if (mainConfig.Users.HideShells.get().contains(QString::fromLocal8Bit(current_pw->pw_shell)))
-                continue;
+        // skip entries with uids greater than maximum uid
+        if (int(current_pw->pw_uid) > mainConfig.Users.MaximumUid.get())
+            continue;
+        // skip entries with user names in the hide users list
+        if (mainConfig.Users.HideUsers.get().contains(QString::fromLocal8Bit(current_pw->pw_name)))
+            continue;
 
-            // create user
-            UserPtr user { new User(current_pw, iconURI) };
+        // skip entries with shells in the hide shells list
+        if (mainConfig.Users.HideShells.get().contains(QString::fromLocal8Bit(current_pw->pw_shell)))
+            continue;
 
-            // add user
-            d->users << user;
+        // create user
+        UserPtr user { new User(current_pw, iconURI) };
 
-            if (user->name == lastUser())
-                lastUserFound = true;
+        // add user
+        d->users << user;
 
-            if (!needAllUsers && d->users.count() > mainConfig.Theme.DisableAvatarsThreshold.get()) {
-                struct passwd *lastUserData;
-                // If the theme doesn't require that all users are present, try to add the data for lastUser at least
-                if(!lastUserFound && (lastUserData = getpwnam(qPrintable(lastUser()))))
-                    d->users << UserPtr(new User(lastUserData, themeDefaultFace));
+        if (user->name == lastUser())
+            lastUserFound = true;
 
-                d->containsAllUsers = false;
-                break;
-            }
-        }
+        if (!needAllUsers && d->users.count() > mainConfig.Theme.DisableAvatarsThreshold.get()) {
+            struct passwd *lastUserData;
+            // If the theme doesn't require that all users are present, try to add the data for lastUser at least
+            if(!lastUserFound && (lastUserData = getpwnam(qPrintable(lastUser()))))
+                d->users << UserPtr(new User(lastUserData, themeDefaultFace));
 
-        endpwent();
-
-        // sort users by username
-        std::sort(d->users.begin(), d->users.end(), [&](const UserPtr &u1, const UserPtr &u2) { return u1->name < u2->name; });
-        // Remove duplicates in case we have several sources specified
-        // in nsswitch.conf(5).
-        auto newEnd = std::unique(d->users.begin(), d->users.end(), [&](const UserPtr &u1, const UserPtr &u2) { return u1->name == u2->name; });
-        d->users.erase(newEnd, d->users.end());
-
-        bool avatarsEnabled = mainConfig.Theme.EnableAvatars.get();
-        if (avatarsEnabled && mainConfig.Theme.EnableAvatars.isDefault()) {
-            if (d->users.count() > mainConfig.Theme.DisableAvatarsThreshold.get()) avatarsEnabled=false;
-        }
-
-        // find out index of the last user
-        for (int i = 0; i < d->users.size(); ++i) {
-            UserPtr user { d->users.at(i) };
-            if (user->name == stateConfig.Last.User.get())
-                d->lastIndex = i;
-
-            if (avatarsEnabled) {
-                const QString userFace = QStringLiteral("%1/.face.icon").arg(user->homeDir);
-                const QString systemFace = QStringLiteral("%1/%2.face.icon").arg(facesDir).arg(user->name);
-                const QString accountsServiceFace = QStringLiteral(ACCOUNTSSERVICE_DATA_DIR "/icons/%1").arg(user->name);
-
-                QString userIcon;
-                // If the home is encrypted it takes a lot of time to open
-                // up the greeter, therefore we try the system avatar first
-                if (QFile::exists(systemFace))
-                    userIcon = systemFace;
-                else if (QFile::exists(userFace))
-                    userIcon = userFace;
-                else if (QFile::exists(accountsServiceFace))
-                    userIcon = accountsServiceFace;
-
-                if (!userIcon.isEmpty())
-                    user->icon = QStringLiteral("file://%1").arg(userIcon);
-            }
+            d->containsAllUsers = false;
+            break;
         }
     }
 
-    UserModel::~UserModel() {
-        delete d;
+    endpwent();
+
+    // sort users by username
+    std::sort(d->users.begin(), d->users.end(), [&](const UserPtr &u1, const UserPtr &u2) { return u1->name < u2->name; });
+    // Remove duplicates in case we have several sources specified
+    // in nsswitch.conf(5).
+    auto newEnd = std::unique(d->users.begin(), d->users.end(), [&](const UserPtr &u1, const UserPtr &u2) { return u1->name == u2->name; });
+    d->users.erase(newEnd, d->users.end());
+
+    bool avatarsEnabled = mainConfig.Theme.EnableAvatars.get();
+    if (avatarsEnabled && mainConfig.Theme.EnableAvatars.isDefault()) {
+        if (d->users.count() > mainConfig.Theme.DisableAvatarsThreshold.get()) avatarsEnabled=false;
     }
 
-    QHash<int, QByteArray> UserModel::roleNames() const {
-        // set role names
-        QHash<int, QByteArray> roleNames;
-        roleNames[NameRole] = QByteArrayLiteral("name");
-        roleNames[RealNameRole] = QByteArrayLiteral("realName");
-        roleNames[HomeDirRole] = QByteArrayLiteral("homeDir");
-        roleNames[IconRole] = QByteArrayLiteral("icon");
-        roleNames[NeedsPasswordRole] = QByteArrayLiteral("needsPassword");
+    // find out index of the last user
+    for (int i = 0; i < d->users.size(); ++i) {
+        UserPtr user { d->users.at(i) };
+        if (user->name == stateConfig.Last.User.get())
+            d->lastIndex = i;
 
-        return roleNames;
+        if (avatarsEnabled) {
+            const QString userFace = QStringLiteral("%1/.face.icon").arg(user->homeDir);
+            const QString systemFace = QStringLiteral("%1/%2.face.icon").arg(facesDir).arg(user->name);
+            const QString accountsServiceFace = QStringLiteral(ACCOUNTSSERVICE_DATA_DIR "/icons/%1").arg(user->name);
+
+            QString userIcon;
+            // If the home is encrypted it takes a lot of time to open
+            // up the greeter, therefore we try the system avatar first
+            if (QFile::exists(systemFace))
+                userIcon = systemFace;
+            else if (QFile::exists(userFace))
+                userIcon = userFace;
+            else if (QFile::exists(accountsServiceFace))
+                userIcon = accountsServiceFace;
+
+            if (!userIcon.isEmpty())
+                user->icon = QStringLiteral("file://%1").arg(userIcon);
+        }
     }
+}
 
-    int UserModel::lastIndex() const {
-        return d->lastIndex;
+UserModel::~UserModel() {
+    delete d;
+}
+
+QHash<int, QByteArray> UserModel::roleNames() const {
+    // set role names
+    QHash<int, QByteArray> roleNames;
+    roleNames[NameRole] = QByteArrayLiteral("name");
+    roleNames[RealNameRole] = QByteArrayLiteral("realName");
+    roleNames[HomeDirRole] = QByteArrayLiteral("homeDir");
+    roleNames[IconRole] = QByteArrayLiteral("icon");
+    roleNames[NeedsPasswordRole] = QByteArrayLiteral("needsPassword");
+    roleNames[LoginedRole] = QByteArray("logined");
+
+    return roleNames;
+}
+
+int UserModel::lastIndex() const {
+    return d->lastIndex;
+}
+
+QString UserModel::lastUser() const {
+    return stateConfig.Last.User.get();
+}
+
+int UserModel::rowCount(const QModelIndex &parent) const {
+    return parent.isValid() ? 0 : d->users.length();
+}
+
+void UserModel::updateUserLoginState(const QString &username, bool logined)
+{
+    for (auto it = d->users.begin(); it != d->users.end(); ++it) {
+        if (it->get()->name == username) {
+            it->get()->logined = logined;
+            int pos = d->users.end() - it;
+            emit dataChanged(index(0, pos - 1), index(0, pos));
+            break;
+        }
     }
+    emit layoutChanged();
+}
 
-    QString UserModel::lastUser() const {
-        return stateConfig.Last.User.get();
-    }
-
-    int UserModel::rowCount(const QModelIndex &parent) const {
-        return parent.isValid() ? 0 : d->users.length();
-    }
-
-    QVariant UserModel::data(const QModelIndex &index, int role) const {
-        if (index.row() < 0 || index.row() > d->users.count())
-            return QVariant();
-
-        // get user
-        UserPtr user = d->users[index.row()];
-
-        // return correct value
-        if (role == NameRole)
-            return user->name;
-        else if (role == RealNameRole)
-            return user->realName;
-        else if (role == HomeDirRole)
-            return user->homeDir;
-        else if (role == IconRole)
-            return user->icon;
-        else if (role == NeedsPasswordRole)
-            return user->needsPassword;
-
-        // return empty value
+QVariant UserModel::data(const QModelIndex &index, int role) const {
+    if (index.row() < 0 || index.row() > d->users.count())
         return QVariant();
+
+    // get user
+    UserPtr user = d->users[index.row()];
+
+    // return correct value
+    if (role == NameRole)
+        return user->name;
+    else if (role == RealNameRole)
+        return user->realName;
+    else if (role == HomeDirRole)
+        return user->homeDir;
+    else if (role == IconRole)
+        return user->icon;
+    else if (role == NeedsPasswordRole)
+        return user->needsPassword;
+    else if (role == LoginedRole)
+        return user->logined;
+
+    // return empty value
+    return QVariant();
+}
+
+int UserModel::disableAvatarsThreshold() const {
+    return mainConfig.Theme.DisableAvatarsThreshold.get();
+}
+
+bool UserModel::containsAllUsers() const {
+    return d->containsAllUsers;
+}
+
+QVariant UserModel::get(const QString &username) const {
+    QVariantMap map;
+    for (auto user : d->users) {
+        if (user->name == username) {
+            map["name"] = user->name;
+            map["icon"] = user->icon;
+            map["realName"] = user->realName;
+            map["homeDir"] = user->homeDir;
+            map["needsPassword"] = user->needsPassword;
+            map["logined"] = user->logined;
+            break;
+        }
     }
 
-    int UserModel::disableAvatarsThreshold() const {
-        return mainConfig.Theme.DisableAvatarsThreshold.get();
-    }
-
-    bool UserModel::containsAllUsers() const {
-        return d->containsAllUsers;
-    }
+    return map;
 }

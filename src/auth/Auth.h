@@ -98,7 +98,12 @@ namespace SDDM {
         const QByteArray &cookie() const;
         const QString &user() const;
         const QString &session() const;
+        const QString &password() const;
         AuthRequest *request();
+        QString sessionId() const;
+        int tty() const;
+
+        void setTTY(int tty);
         /**
          * True if an authentication or session is in progress
          */
@@ -144,6 +149,9 @@ namespace SDDM {
         */
         void setUser(const QString &user);
 
+
+        void setPassword(const QString &password);
+
         /**
          * Set the display server command to be started before the greeter.
          * @param command Command of the display server to be started
@@ -161,6 +169,14 @@ namespace SDDM {
          * @param cookie cookie data
          */
         void setCookie(const QByteArray &cookie);
+
+        /**
+         * Set the display server single mode
+         * @param on true use DDE single wayland mode
+         */
+        void setSingleMode(bool on = true);
+
+        void setSessionId(const QString& sessionId);
 
     public Q_SLOTS:
         /**
@@ -182,6 +198,7 @@ namespace SDDM {
         void displayServerCommandChanged();
         void sessionChanged();
         void requestChanged();
+        void singleModeChanged();
 
         /**
         * Emitted when authentication phase finishes

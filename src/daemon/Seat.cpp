@@ -47,6 +47,12 @@ namespace SDDM {
     void Seat::createDisplay(Display::DisplayServerType serverType) {
         //reload config if needed
         mainConfig.load();
+        
+        if (Display::defaultDisplayServerType() == Display::SingleCompositerServerType && !m_displays.isEmpty()) {
+            auto display = m_displays.first();
+            display->switchToUser("dde");
+            return;
+        }
 
         // create a new display
         qDebug() << "Adding new display...";

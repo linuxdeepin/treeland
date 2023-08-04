@@ -120,6 +120,7 @@ void WaylandHelper::startGreeter(const QString &cmd)
         qDebug() << "wayland greeter finished" << exitCode << exitStatus;
         QCoreApplication::instance()->quit();
     });
+
     if (m_watcher->status() == WaylandSocketWatcher::Started) {
         m_environment.insert(QStringLiteral("WAYLAND_DISPLAY"), m_watcher->socketName());
         m_greeterProcess->setProcessEnvironment(m_environment);

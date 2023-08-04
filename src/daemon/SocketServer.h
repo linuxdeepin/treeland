@@ -54,7 +54,10 @@ namespace SDDM {
         void login(QLocalSocket *socket,
                    const QString &user, const QString &password,
                    const Session &session);
-        void connected();
+        void connected(QLocalSocket *socket);
+        void requestStartHelper(QLocalSocket *socket, const QString &path);
+        void disconnected(QLocalSocket *socket);
+        void requestActivateUser(QLocalSocket *socket, const QString &user);
 
     private:
         QLocalServer *m_server { nullptr };

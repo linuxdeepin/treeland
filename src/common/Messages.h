@@ -25,12 +25,20 @@
 namespace SDDM {
     enum class GreeterMessages {
         Connect = 0,
+        StartHelper,
         Login,
         PowerOff,
         Reboot,
         Suspend,
         Hibernate,
-        HybridSleep
+        HybridSleep,
+        ActivateUser,
+    };
+
+    enum class TreelandMessages {
+        Connect,
+        CreateWaylandSocket,
+        DeleteWaylandSocket,
     };
 
     enum class DaemonMessages {
@@ -39,6 +47,12 @@ namespace SDDM {
         LoginSucceeded,
         LoginFailed,
         InformationMessage,
+        CreateWaylandSocket,
+        DeleteWaylandSocket,
+        WaylandSocketCreated,
+        WaylandSocketDeleted,
+        UserActivateMessage,
+        SwitchToGreeter,
     };
 
     enum Capability {

@@ -42,6 +42,9 @@ namespace SDDM {
         const QString &user() const;
         const QByteArray &cookie() const;
 
+        bool isSingleMode() const;
+        bool isGreeter() const;
+
     public slots:
         Request request(const Request &request);
         void info(const QString &message, Auth::Info type);
