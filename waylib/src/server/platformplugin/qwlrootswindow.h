@@ -53,6 +53,7 @@ public:
     QWlrootsRenderWindow(QWindow *window);
 
     void initialize() override;
+    void setGeometry(const QRect &rect) override;
 
     WId winId() const override;
     qreal devicePixelRatio() const override;

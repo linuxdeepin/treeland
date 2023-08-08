@@ -21,13 +21,40 @@ extern "C" {
 QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
-class Q_DECL_HIDDEN WXdgSurfacePrivate : public WSurfacePrivate {
+inline static Qt::Edges toQtEdge(uint32_t edges) {
+    Qt::Edges qedges = Qt::Edges();
+
+    if (edges & WLR_EDGE_TOP) {
+        qedges |= Qt::TopEdge;
+    }
+
+    if (edges & WLR_EDGE_BOTTOM) {
+        qedges |= Qt::BottomEdge;
+    }
+
+    if (edges & WLR_EDGE_LEFT) {
+        qedges |= Qt::LeftEdge;
+    }
+
+    if (edges & WLR_EDGE_RIGHT) {
+        qedges |= Qt::RightEdge;
+    }
+
+    return qedges;
+}
+
+class Q_DECL_HIDDEN WXdgSurfacePrivate : public WObjectPrivate {
 public:
-    WXdgSurfacePrivate(WXdgSurface *qq, QWXdgSurface *handle, WServer *server);
+    WXdgSurfacePrivate(WXdgSurface *qq, QWXdgSurface *handle);
+    ~WXdgSurfacePrivate();
 
     inline wlr_xdg_surface *nativeHandle() const {
         Q_ASSERT(handle);
         return handle->handle();
+    }
+
+    wl_client *waylandClient() const {
+        return nativeHandle()->client->client;
     }
 
     // begin slot function
@@ -41,20 +68,43 @@ public:
 
     W_DECLARE_PUBLIC(WXdgSurface)
 
-    QWXdgSurface *handle;
+    QPointer<QWXdgSurface> handle;
+    WSurface *surface = nullptr;
     QPointF position;
+    uint resizeing:1;
+    uint activated:1;
 };
 
-WXdgSurfacePrivate::WXdgSurfacePrivate(WXdgSurface *qq, QWXdgSurface *hh, WServer *server)
-    : WSurfacePrivate(qq, server)
+WXdgSurfacePrivate::WXdgSurfacePrivate(WXdgSurface *qq, QWXdgSurface *hh)
+    : WObjectPrivate(qq)
     , handle(hh)
+    , resizeing(false)
+    , activated(false)
 {
+}
+
+WXdgSurfacePrivate::~WXdgSurfacePrivate()
+{
+    if (handle)
+        handle->setData(this, nullptr);
+    surface->removeAttachedData<WXdgSurface>();
 }
 
 void WXdgSurfacePrivate::on_configure(wlr_xdg_surface_configure *event)
 {
-    Q_UNUSED(event)
-//    auto config = reinterpret_cast<wlr_xdg_surface_configure*>(data);
+    if (handle->topToplevel()) {
+        W_Q(WXdgSurface);
+
+        if (event->toplevel_configure->resizing != resizeing) {
+            resizeing = event->toplevel_configure->resizing;
+            Q_EMIT q->resizeingChanged();
+        }
+
+        if (event->toplevel_configure->activated != activated) {
+            activated = event->toplevel_configure->activated;
+            Q_EMIT q->activateChanged();
+        }
+    }
 }
 
 void WXdgSurfacePrivate::on_ack_configure(wlr_xdg_surface_configure *event)
@@ -67,7 +117,10 @@ void WXdgSurfacePrivate::init()
 {
     W_Q(WXdgSurface);
     handle->setData(this, q);
-    q->setHandle(handle->surface());
+
+    Q_ASSERT(!q->surface());
+    surface = new WSurface(handle->surface(), q);
+    surface->setAttachedData<WXdgSurface>(q);
 
     connect();
 }
@@ -82,10 +135,42 @@ void WXdgSurfacePrivate::connect()
     QObject::connect(handle, &QWXdgSurface::ackConfigure, q, [this] (wlr_xdg_surface_configure *event) {
         on_ack_configure(event);
     });
+
+    if (auto toplevel = handle->topToplevel()) {
+        QObject::connect(toplevel, &QWXdgToplevel::requestMove, q, [q] (wlr_xdg_toplevel_move_event *event) {
+            auto seat = WSeat::fromHandle(QWSeat::from(event->seat->seat));
+            Q_EMIT q->requestMove(seat, event->serial);
+        });
+        QObject::connect(toplevel, &QWXdgToplevel::requestResize, q, [q] (wlr_xdg_toplevel_resize_event *event) {
+            auto seat = WSeat::fromHandle(QWSeat::from(event->seat->seat));
+            Q_EMIT q->requestResize(seat, toQtEdge(event->edges), event->serial);
+        });
+        QObject::connect(toplevel, &QWXdgToplevel::requestMaximize, q, [q] (bool maximize) {
+            if (maximize) {
+                Q_EMIT q->requestMaximize();
+            } else {
+                Q_EMIT q->requestToNormalState();
+            }
+        });
+        QObject::connect(toplevel, &QWXdgToplevel::requestFullscreen, q, [q] (bool fullscreen) {
+            if (fullscreen) {
+                Q_EMIT q->requestFullscreen();
+            } else {
+                Q_EMIT q->requestToNormalState();
+            }
+        });
+        QObject::connect(toplevel, &QWXdgToplevel::requestShowWindowMenu, q, [q] (wlr_xdg_toplevel_show_window_menu_event *event) {
+            auto seat = WSeat::fromHandle(QWSeat::from(event->seat->seat));
+            Q_EMIT q->requestShowWindowMenu(seat, QPoint(event->x, event->y), event->serial);
+        });
+
+        QObject::connect(toplevel, &QWXdgToplevel::parentChanged, q, &WXdgSurface::parentXdgSurfaceChanged);
+    }
 }
 
-WXdgSurface::WXdgSurface(QWXdgSurface *handle, WServer *server, QObject *parent)
-    : WSurface(*new WXdgSurfacePrivate(this, handle, server), parent)
+WXdgSurface::WXdgSurface(QWXdgSurface *handle, QObject *parent)
+    : QObject(parent)
+    , WObject(*new WXdgSurfacePrivate(this, handle))
 {
     d_func()->init();
 }
@@ -95,50 +180,22 @@ WXdgSurface::~WXdgSurface()
 
 }
 
-WSurface::Type *WXdgSurface::toplevelType()
-{
-    static Type type;
-    return &type;
-}
-
-WSurface::Type *WXdgSurface::popupType()
-{
-    static Type type;
-    return &type;
-}
-
-WSurface::Type *WXdgSurface::noneType()
-{
-    return nullptr;
-}
-
-WSurface::Type *WXdgSurface::type() const
-{
-    W_DC(WXdgSurface);
-    if (d->nativeHandle()->role == WLR_XDG_SURFACE_ROLE_TOPLEVEL)
-        return toplevelType();
-    else if (d->nativeHandle()->role == WLR_XDG_SURFACE_ROLE_POPUP)
-        return popupType();
-
-    return noneType();
-}
-
 bool WXdgSurface::isPopup() const
 {
-    return type() == popupType();
+    W_DC(WXdgSurface);
+    return d->nativeHandle()->role == WLR_XDG_SURFACE_ROLE_POPUP;
 }
 
-bool WXdgSurface::testAttribute(WSurface::Attribute attr) const
+bool WXdgSurface::doesNotAcceptFocus() const
 {
     W_DC(WXdgSurface);
+    return d->nativeHandle()->role == WLR_XDG_SURFACE_ROLE_NONE;
+}
 
-    if (attr == Attribute::Immovable) {
-        return d->nativeHandle()->role == WLR_XDG_SURFACE_ROLE_POPUP;
-    } else if (attr == Attribute::DoesNotAcceptFocus) {
-        return d->nativeHandle()->role == WLR_XDG_SURFACE_ROLE_NONE;
-    }
-
-    return WSurface::testAttribute(attr);
+WSurface *WXdgSurface::surface() const
+{
+    W_D(const WXdgSurface);
+    return d->surface;
 }
 
 QWXdgSurface *WXdgSurface::handle() const
@@ -162,10 +219,9 @@ WXdgSurface *WXdgSurface::fromHandle(QWXdgSurface *handle)
     return handle->getData<WXdgSurface>();
 }
 
-bool WXdgSurface::inputRegionContains(const QPointF &localPos) const
+WXdgSurface *WXdgSurface::fromSurface(WSurface *surface)
 {
-    W_DC(WXdgSurface);
-    return d->handle->surfaceAt(localPos, nullptr);
+    return surface->getAttachedData<WXdgSurface>();
 }
 
 void WXdgSurface::resize(const QSize &size)
@@ -177,19 +233,16 @@ void WXdgSurface::resize(const QSize &size)
     }
 }
 
-bool WXdgSurface::resizeing() const
+bool WXdgSurface::isResizeing() const
 {
     W_DC(WXdgSurface);
-    return d->nativeHandle()->toplevel->current.resizing;
+    return d->resizeing;
 }
 
-QPointF WXdgSurface::position() const
+bool WXdgSurface::isActivated() const
 {
     W_DC(WXdgSurface);
-    if (auto popup = d->handle->toPopup())
-        return popup->getPosition();
-
-    return QPointF();
+    return d->activated;
 }
 
 QRect WXdgSurface::getContentGeometry() const
@@ -198,7 +251,27 @@ QRect WXdgSurface::getContentGeometry() const
     return d->handle->getGeometry();
 }
 
-WSurface *WXdgSurface::parentSurface() const
+QSize WXdgSurface::minSize() const
+{
+    W_DC(WXdgSurface);
+    if (auto toplevel = d->handle->topToplevel())
+        return QSize(toplevel->handle()->current.min_width,
+                     toplevel->handle()->current.min_height);
+
+    return QSize();
+}
+
+QSize WXdgSurface::maxSize() const
+{
+    W_DC(WXdgSurface);
+    if (auto toplevel = d->handle->topToplevel())
+        return QSize(toplevel->handle()->current.max_width,
+                     toplevel->handle()->current.max_height);
+
+    return QSize();
+}
+
+WXdgSurface *WXdgSurface::parentXdgSurface() const
 {
     W_DC(WXdgSurface);
 
@@ -211,7 +284,9 @@ WSurface *WXdgSurface::parentSurface() const
         auto parent = popup->handle()->parent;
         if (!parent)
             return nullptr;
-        return fromHandle(QWXdgSurface::from(QWSurface::from(parent)));
+        auto xdgParent = QWXdgSurface::from(QWSurface::from(parent));
+        Q_ASSERT(xdgParent);
+        return fromHandle(xdgParent);
     }
 
     return nullptr;
@@ -241,35 +316,26 @@ void WXdgSurface::setActivate(bool on)
     }
 }
 
-void WXdgSurface::notifyChanged(ChangeType type, std::any oldValue, std::any newValue)
+bool WXdgSurface::checkNewSize(const QSize &size)
 {
-    WSurface::notifyChanged(type, oldValue, newValue);
-}
-
-void WXdgSurface::notifyBeginState(State state)
-{
-    if (state == State::Resize) {
-        setResizeing(true);
-    } else if (state == State::Maximize) {
-        setMaximize(true);
-    } else if (state == State::Activate) {
-        setActivate(true);
+    W_D(WXdgSurface);
+    if (auto toplevel = d->handle->topToplevel()) {
+        if (size.width() > toplevel->handle()->current.max_width
+            && toplevel->handle()->current.max_width > 0)
+            return false;
+        if (size.height() > toplevel->handle()->current.max_height
+            && toplevel->handle()->current.max_height > 0)
+            return false;
+        if (size.width() < toplevel->handle()->current.min_width
+            && toplevel->handle()->current.min_width> 0)
+            return false;
+        if (size.height() < toplevel->handle()->current.min_height
+            && toplevel->handle()->current.min_height > 0)
+            return false;
+        return true;
     }
 
-    WSurface::notifyBeginState(state);
-}
-
-void WXdgSurface::notifyEndState(State state)
-{
-    if (state == State::Resize) {
-        setResizeing(false);
-    } else if (state == State::Maximize) {
-        setMaximize(false);
-    } else if (state == State::Activate) {
-        setActivate(false);
-    }
-
-    WSurface::notifyEndState(state);
+    return false;
 }
 
 WAYLIB_SERVER_END_NAMESPACE

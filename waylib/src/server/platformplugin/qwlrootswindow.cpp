@@ -149,6 +149,14 @@ void QWlrootsRenderWindow::initialize()
 
 }
 
+void QWlrootsRenderWindow::setGeometry(const QRect &rect)
+{
+    if (geometry() == rect)
+        return;
+    QPlatformWindow::setGeometry(rect);
+    QWindowSystemInterface::handleGeometryChange(window(), rect);
+}
+
 WId QWlrootsRenderWindow::winId() const
 {
     return reinterpret_cast<WId>(const_cast<QWlrootsRenderWindow*>(this));

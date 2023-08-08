@@ -21,7 +21,7 @@ WAYLIB_SERVER_BEGIN_NAMESPACE
 
 class WSurfacePrivate : public WObjectPrivate {
 public:
-    WSurfacePrivate(WSurface *qq, WServer *server);
+    WSurfacePrivate(WSurface *qq, QW_NAMESPACE::QWSurface *handle);
     ~WSurfacePrivate();
 
     wl_client *waylandClient() const override;
@@ -32,6 +32,7 @@ public:
     void on_client_commit();
     // end slot function
 
+    void init();
     void connect();
     void updateOutputs();
     void setPrimaryOutput(WOutput *output);
@@ -45,19 +46,15 @@ public:
 
     W_DECLARE_PUBLIC(WSurface)
 
-    QW_NAMESPACE::QWSurface *handle = nullptr;
+    QPointer<QW_NAMESPACE::QWSurface> handle;
     QPointer<QW_NAMESPACE::QWSubsurface> subsurface;
     bool hasSubsurface = false;
 
     QW_NAMESPACE::QWBuffer *buffer = nullptr;
     mutable QW_NAMESPACE::QWTexture *texture = nullptr;
-    WServer *server = nullptr;
     QVector<WOutput*> outputs;
     WOutput *primaryOutput = nullptr;
     QMetaObject::Connection frameDoneConnection;
-
-    WSurfaceHandler *handler = nullptr;
-    QObject *shell = nullptr;
 };
 
 WAYLIB_SERVER_END_NAMESPACE

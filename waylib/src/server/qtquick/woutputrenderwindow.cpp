@@ -484,6 +484,7 @@ WOutputRenderWindow::WOutputRenderWindow(QObject *parent)
 
 WOutputRenderWindow::~WOutputRenderWindow()
 {
+    renderControl()->disconnect(this);
     renderControl()->invalidate();
     renderControl()->deleteLater();
 }

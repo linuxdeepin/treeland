@@ -16,6 +16,11 @@ WObject::~WObject()
 
 }
 
+WObjectPrivate *WObjectPrivate::get(WObject *qq)
+{
+    return qq->d_func();
+}
+
 WObjectPrivate::~WObjectPrivate()
 {
 

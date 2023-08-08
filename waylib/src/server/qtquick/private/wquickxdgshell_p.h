@@ -5,6 +5,7 @@
 
 #include <wglobal.h>
 #include <wquickwaylandserver.h>
+#include <wsurfaceitem.h>
 
 Q_MOC_INCLUDE(<wseat.h>)
 Q_MOC_INCLUDE(<wxdgsurface.h>)
@@ -34,15 +35,41 @@ Q_SIGNALS:
     void surfaceAdded(WXdgSurface *surface);
     void surfaceRemoved(WXdgSurface *surface);
 
-    void requestMove(WXdgSurface *surface, WSeat *seat, quint32 serial);
-    void requestResize(WXdgSurface *surface, WSeat *seat, Qt::Edges edge, quint32 serial);
-    void requestMaximize(WXdgSurface *surface);
-    void requestFullscreen(WXdgSurface *surface);
-    void requestToNormalState(WXdgSurface *surface);
-    void requestShowWindowMenu(WXdgSurface *surface, WSeat *seat, QPoint pos, quint32 serial);
-
 private:
     void create() override;
+};
+
+class WAYLIB_SERVER_EXPORT WXdgSurfaceItem : public WSurfaceItem
+{
+    Q_OBJECT
+    Q_PROPERTY(WXdgSurface* surface READ surface WRITE setSurface NOTIFY surfaceChanged)
+    Q_PROPERTY(QPointF implicitPosition READ implicitPosition NOTIFY implicitPositionChanged)
+    QML_NAMED_ELEMENT(XdgSurfaceItem)
+
+public:
+    explicit WXdgSurfaceItem(QQuickItem *parent = nullptr);
+    ~WXdgSurfaceItem();
+
+    WXdgSurface *surface() const;
+    void setSurface(WXdgSurface *surface);
+
+    QPointF implicitPosition() const;
+
+Q_SIGNALS:
+    void surfaceChanged();
+    void implicitPositionChanged();
+
+private:
+    Q_SLOT void onSurfaceCommit() override;
+    void initSurface() override;
+    bool resizeSurface(const QSize &newSize) override;
+    QRectF getContentGeometry() const override;
+
+    void setImplicitPosition(const QPointF &newImplicitPosition);
+
+private:
+    QPointer<WXdgSurface> m_surface;
+    QPointF m_implicitPosition;
 };
 
 WAYLIB_SERVER_END_NAMESPACE

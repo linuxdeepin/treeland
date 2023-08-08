@@ -13,47 +13,62 @@ QW_END_NAMESPACE
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
+class WSeat;
 class WXdgSurfacePrivate;
-class WAYLIB_SERVER_EXPORT WXdgSurface : public WSurface
+class WAYLIB_SERVER_EXPORT WXdgSurface : public QObject, public WObject
 {
     Q_OBJECT
     W_DECLARE_PRIVATE(WXdgSurface)
     Q_PROPERTY(bool isPopup READ isPopup CONSTANT)
+    Q_PROPERTY(bool isResizeing READ isResizeing NOTIFY resizeingChanged FINAL)
+    Q_PROPERTY(bool isActivated READ isActivated NOTIFY activateChanged FINAL)
+    Q_PROPERTY(WSurface* surface READ surface CONSTANT FINAL)
+    Q_PROPERTY(WXdgSurface* parentXdgSurface READ parentXdgSurface NOTIFY parentXdgSurfaceChanged FINAL)
+    QML_NAMED_ELEMENT(WaylandXdgSurface)
+    QML_UNCREATABLE("Only create in C++")
 
 public:
-    explicit WXdgSurface(QW_NAMESPACE::QWXdgSurface *handle, WServer *server, QObject *parent = nullptr);
+    explicit WXdgSurface(QW_NAMESPACE::QWXdgSurface *handle, QObject *parent = nullptr);
     ~WXdgSurface();
 
-    static Type *toplevelType();
-    static Type *popupType();
-    static Type *noneType();
-    Type *type() const override;
     bool isPopup() const;
+    bool doesNotAcceptFocus() const;
 
-    bool testAttribute(Attribute attr) const override;
-
+    WSurface *surface() const;
     QW_NAMESPACE::QWXdgSurface *handle() const;
-    QW_NAMESPACE::QWSurface *inputTargetAt(QPointF &localPos) const override;
+    QW_NAMESPACE::QWSurface *inputTargetAt(QPointF &localPos) const;
 
     static WXdgSurface *fromHandle(QW_NAMESPACE::QWXdgSurface *handle);
+    static WXdgSurface *fromSurface(WSurface *surface);
 
-    bool inputRegionContains(const QPointF &localPos) const override;
-    WSurface *parentSurface() const override;
+    WXdgSurface *parentXdgSurface() const;
 
-    bool resizeing() const;
-    QPointF position() const override;
-    QRect getContentGeometry() const override;
+    bool isResizeing() const;
+    bool isActivated() const;
+
+    QRect getContentGeometry() const;
+
+    QSize minSize() const;
+    QSize maxSize() const;
 
 public Q_SLOTS:
     void setResizeing(bool resizeing);
     void setMaximize(bool on);
     void setActivate(bool on);
-    void resize(const QSize &size) override;
 
-protected:
-    void notifyChanged(ChangeType type, std::any oldValue, std::any newValue) override;
-    void notifyBeginState(State state) override;
-    void notifyEndState(State state) override;
+    bool checkNewSize(const QSize &size);
+    void resize(const QSize &size);
+
+Q_SIGNALS:
+    void parentXdgSurfaceChanged();
+    void resizeingChanged();
+    void activateChanged();
+    void requestMove(WSeat *seat, quint32 serial);
+    void requestResize(WSeat *seat, Qt::Edges edge, quint32 serial);
+    void requestMaximize();
+    void requestFullscreen();
+    void requestToNormalState();
+    void requestShowWindowMenu(WSeat *seat, QPoint pos, quint32 serial);
 };
 
 WAYLIB_SERVER_END_NAMESPACE

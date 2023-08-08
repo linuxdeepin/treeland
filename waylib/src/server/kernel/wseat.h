@@ -35,7 +35,7 @@ public:
     explicit WSeatEventFilter(QObject *parent = nullptr);
 
 protected:
-    virtual bool eventFilter(WSeat *seat, WSurface *watched, QInputEvent *event);
+    virtual bool eventFilter(WSeat *seat, WSurface *watched, QObject *shellObject, QInputEvent *event);
     virtual bool eventFilter(WSeat *seat, QWindow *watched, QInputEvent *event);
     virtual bool ignoredEventFilter(WSeat *seat, QWindow *watched, QInputEvent *event);
 };
@@ -59,21 +59,23 @@ public:
     void attachInputDevice(WInputDevice *device);
     void detachInputDevice(WInputDevice *device);
 
-    static bool sendEvent(WSurface *target, QInputEvent *event);
+    // WSurfaceItem is a kind of shellObject
+    static bool sendEvent(WSurface *target, QObject *shellObject, QInputEvent *event);
+    static WSeat *get(QInputEvent *event);
 
     WSeatEventFilter *eventFilter() const;
     void setEventFilter(WSeatEventFilter *filter);
-
-    WSurface *pointerEventGrabber() const;
-    void setPointerEventGrabber(WSurface *surface);
 
     WSurface *pointerFocusSurface() const;
 
     void setKeyboardFocusTarget(QW_NAMESPACE::QWSurface *nativeSurface);
     void setKeyboardFocusTarget(WSurface *surface);
     WSurface *keyboardFocusSurface() const;
+    void clearKeyboardFocusSurface();
+
     void setKeyboardFocusTarget(QWindow *window);
     QWindow *focusWindow() const;
+    void clearkeyboardFocusWindow();
 
 protected:
     friend class WOutputPrivate;

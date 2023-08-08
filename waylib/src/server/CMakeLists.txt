@@ -7,6 +7,7 @@ find_package(Qt6
     Quick
     REQUIRED
 )
+qt_standard_project_setup(REQUIRES 6.4)
 
 find_package(PkgConfig)
 pkg_search_module(PIXMAN REQUIRED pixman-1)
@@ -25,7 +26,7 @@ set(KERNEL_SOURCES
     kernel/wseat.cpp
     kernel/wserver.cpp
     kernel/wsurface.cpp
-    kernel/wsurfacehandler.cpp
+
     kernel/wtexture.cpp
     kernel/wtypes.cpp
     kernel/wxcursormanager.cpp
@@ -57,7 +58,8 @@ set(QTQUICK_SOURCES
     qtquick/private/wwaylandcompositor.cpp
     qtquick/private/wquickcoordmapper.cpp
     qtquick/private/wquicksocket.cpp
-    qtquick/private/wqmlcomconent.cpp
+    qtquick/private/wqmldynamiccreator.cpp
+    qtquick/private/wqmlhelper.cpp
 )
 
 set(UTILS_SOURCES
@@ -82,7 +84,7 @@ set(HEADERS
     kernel/wseat.h
     kernel/wserver.h
     kernel/wsurface.h
-    kernel/wsurfacehandler.h
+
     kernel/wtexture.h
     kernel/wtypes.h
     kernel/wxcursormanager.h
@@ -129,22 +131,25 @@ set(PRIVATE_HEADERS
     qtquick/private/wquickcoordmapper_p.h
     qtquick/private/woutputpositioner_p.h
     qtquick/private/wquicksocket_p.h
-    qtquick/private/wqmlcomconent_p.h
+    qtquick/private/wqmldynamiccreator_p.h
+    qtquick/private/wqmlhelper_p.h
 )
 
 add_library(${TARGET}
     SHARED
     ${KERNEL_SOURCES}
-    ${QTQUICK_SOURCES}
     ${UTILS_SOURCES}
     ${QPA_SOURCES}
-    ${HEADERS}
-    ${PRIVATE_HEADERS}
+    ${QTQUICK_SOURCES}
 )
 
 qt_add_qml_module(${TARGET}
     URI Waylib.Server
-    VERSION "${PROJECT_VERSION}"
+    VERSION "1.0" # Qt bug: The major version must be larger than 0
+    OUTPUT_DIRECTORY "Waylib/Server"
+    SOURCES
+        ${HEADERS}
+        ${PRIVATE_HEADERS}
 )
 
 set_target_properties(${TARGET}

@@ -22,20 +22,23 @@ class WAYLIB_SERVER_EXPORT WSurfaceItem : public QQuickItem
 {
     Q_OBJECT
     Q_DECLARE_PRIVATE(WSurfaceItem)
-    Q_PROPERTY(WSurface* surface READ surface WRITE setSurface NOTIFY surfaceChanged REQUIRED)
+    Q_PROPERTY(WSurface* surface READ surface WRITE setSurface NOTIFY surfaceChanged)
     Q_PROPERTY(QQuickItem* contentItem READ contentItem CONSTANT)
+    Q_PROPERTY(QQuickItem* eventItem READ eventItem CONSTANT)
     Q_PROPERTY(ResizeMode resizeMode READ resizeMode WRITE setResizeMode NOTIFY resizeModeChanged FINAL)
-    Q_PROPERTY(QPointF implicitPosition READ implicitPosition NOTIFY implicitPositionChanged)
     QML_NAMED_ELEMENT(SurfaceItem)
 
 public:
     enum ResizeMode {
         SizeFromSurface,
-        SizeToSurface
+        SizeToSurface,
     };
     Q_ENUM(ResizeMode)
 
     explicit WSurfaceItem(QQuickItem *parent = nullptr);
+    ~WSurfaceItem();
+
+    static WSurfaceItem *fromFocusObject(QObject *focusObject);
 
     bool isTextureProvider() const override;
     QSGTextureProvider *textureProvider() const override;
@@ -44,26 +47,35 @@ public:
     void setSurface(WSurface *newSurface);
 
     QQuickItem *contentItem() const;
+    QQuickItem *eventItem() const;
 
     ResizeMode resizeMode() const;
     void setResizeMode(ResizeMode newResizeMode);
 
-    QPointF implicitPosition() const;
-
 Q_SIGNALS:
     void surfaceChanged();
+    void subsurfaceAdded(WSurfaceItem *item);
+    void subsurfaceRemoved(WSurfaceItem *item);
     void resizeModeChanged();
-    void implicitPositionChanged();
 
 protected:
     void componentComplete() override;
     void geometryChange(const QRectF &newGeometry, const QRectF &oldGeometry) override;
     void itemChange(ItemChange change, const ItemChangeData &data) override;
-    void focusInEvent(QFocusEvent *event);
+    void focusInEvent(QFocusEvent *event) override;
+
+    Q_SLOT virtual void onSurfaceCommit();
+    virtual void initSurface();
+    virtual bool sendEvent(QInputEvent *event);
+
+    virtual bool resizeSurface(const QSize &newSize);
+    virtual QRectF getContentGeometry() const;
+    virtual bool inputRegionContains(const QPointF &position) const;
 
 private:
-    W_PRIVATE_SLOT(void onSurfaceCommit())
     W_PRIVATE_SLOT(void onHasSubsurfaceChanged())
+
+    friend class EventItem;
 };
 
 WAYLIB_SERVER_END_NAMESPACE

@@ -18,8 +18,6 @@ class WAYLIB_SERVER_EXPORT WOutputLayout : public QW_NAMESPACE::QWOutputLayout, 
 public:
     enum class Layer {
         Background = -999,
-        ToplevelSurface = 0,
-        ActiveToplevelSurface = 1,
         Cursor = 999
     };
     Q_ENUM(Layer)

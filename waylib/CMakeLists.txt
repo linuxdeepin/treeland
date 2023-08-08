@@ -8,10 +8,6 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-set(CMAKE_AUTOMOC ON)
-set(CMAKE_AUTORCC ON)
-set(CMAKE_AUTOUIC ON)
-
 option(WITH_SUBMODULE_QWLROOTS "Use the QWlroots from git submodule" OFF)
 option(BUILD_TINYWL "A minimum viable product Wayland compositor based on waylib" ON)
 

@@ -14,6 +14,7 @@ class WOutput;
 class WInputDevice;
 class WSeat;
 class WSeatEventFilter;
+class WSurface;
 class WQuickCursor;
 class WQuickSeatPrivate;
 class WAYLIB_SERVER_EXPORT WQuickSeat : public WQuickWaylandServerInterface, public WObject
@@ -25,6 +26,7 @@ class WAYLIB_SERVER_EXPORT WQuickSeat : public WQuickWaylandServerInterface, pub
     Q_PROPERTY(QString name READ name WRITE setName REQUIRED)
     Q_PROPERTY(WQuickCursor* cursor READ cursor WRITE setCursor NOTIFY cursorChanged)
     Q_PROPERTY(WSeatEventFilter* eventFilter READ eventFilter WRITE setEventFilter NOTIFY eventFilterChanged)
+    Q_PROPERTY(WSurface* keyboardFocus READ keyboardFocus WRITE setKeyboardFocus NOTIFY keyboardFocusChanged FINAL)
 
 public:
     explicit WQuickSeat(QObject *parent = nullptr);
@@ -40,6 +42,9 @@ public:
     WSeatEventFilter *eventFilter() const;
     void setEventFilter(WSeatEventFilter *newEventFilter);
 
+    WSurface *keyboardFocus() const;
+    void setKeyboardFocus(WSurface *newKeyboardFocus);
+
 public Q_SLOTS:
     void addDevice(WInputDevice *device);
 
@@ -47,6 +52,7 @@ Q_SIGNALS:
     void seatChanged();
     void cursorChanged();
     void eventFilterChanged();
+    void keyboardFocusChanged();
 
 private:
     friend class WOutputViewport;
@@ -55,6 +61,7 @@ private:
 
     void create() override;
     void polish() override;
+    WSurface *m_keyboardFocus = nullptr;
 };
 
 WAYLIB_SERVER_END_NAMESPACE

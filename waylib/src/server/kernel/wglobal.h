@@ -42,30 +42,16 @@
 #endif
 
 #include <QScopedPointer>
+#include <QList>
 
 struct wl_client;
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
-class WObjectPrivate;
-class WAYLIB_SERVER_EXPORT WObject
-{
-protected:
-    WObject(WObjectPrivate &dd, WObject *parent = nullptr);
-
-    virtual ~WObject();
-
-    QScopedPointer<WObjectPrivate> w_d_ptr;
-
-    Q_DISABLE_COPY(WObject)
-    W_DECLARE_PRIVATE(WObject)
-};
-
+class WObject;
 class WObjectPrivate
 {
 public:
-    static WObjectPrivate *get(WObject *qq) {
-        return qq->d_func();
-    }
+    static WObjectPrivate *get(WObject *qq);
 
     virtual ~WObjectPrivate();
     virtual wl_client *waylandClient() const {
@@ -75,9 +61,64 @@ public:
 protected:
     WObjectPrivate(WObject *qq);
 
+    inline int indexOfAttachedData(const void *owner) const {
+        for (int i = 0; i < attachedDatas.count(); ++i)
+            if (attachedDatas.at(i).first == owner)
+                return i;
+        return -1;
+    }
+
     WObject *q_ptr;
+    QList<std::pair<const void*, void*>> attachedDatas;
 
     Q_DECLARE_PUBLIC(WObject)
+};
+
+class WAYLIB_SERVER_EXPORT WObject
+{
+public:
+    template<typename T>
+    T *getAttachedData(const void *owner) const {
+        void *data = w_d_ptr->attachedDatas.value(w_d_ptr->indexOfAttachedData(owner)).second;
+        return reinterpret_cast<T*>(data);
+    }
+    template<typename T>
+    T *getAttachedData() const {
+        const void *owner = typeid(T).name();
+        return getAttachedData<T>(owner);
+    }
+
+    template<typename T>
+    void setAttachedData(const void *owner, void *data) {
+        Q_ASSERT(w_d_ptr->indexOfAttachedData(owner) < 0);
+        w_d_ptr->attachedDatas.append({owner, data});
+    }
+    template<typename T>
+    void setAttachedData(void *data) {
+        const void *owner = typeid(T).name();
+        setAttachedData<T>(owner, data);
+    }
+
+    template<typename T>
+    void removeAttachedData(const void *owner) {
+        int index = w_d_ptr->indexOfAttachedData(owner);
+        Q_ASSERT(index >= 0);
+        w_d_ptr->attachedDatas.removeAt(index);
+    }
+    template<typename T>
+    void removeAttachedData() {
+        const void *owner = typeid(T).name();
+        removeAttachedData<T>(owner);
+    }
+
+protected:
+    WObject(WObjectPrivate &dd, WObject *parent = nullptr);
+
+    virtual ~WObject();
+    QScopedPointer<WObjectPrivate> w_d_ptr;
+
+    Q_DISABLE_COPY(WObject)
+    W_DECLARE_PRIVATE(WObject)
 };
 
 WAYLIB_SERVER_END_NAMESPACE

@@ -24,58 +24,26 @@ WAYLIB_SERVER_BEGIN_NAMESPACE
 
 class WServer;
 class WOutput;
-class WSurfaceHandler;
 class WSurfacePrivate;
 class WAYLIB_SERVER_EXPORT WSurface : public QObject, public WObject
 {
-    friend class WSurfaceHandler;
-
     Q_OBJECT
     W_DECLARE_PRIVATE(WSurface)
     Q_PROPERTY(bool mapped READ mapped NOTIFY mappedChanged)
     Q_PROPERTY(bool isSubsurface READ isSubsurface NOTIFY isSubsurfaceChanged)
     Q_PROPERTY(bool hasSubsurface READ hasSubsurface NOTIFY hasSubsurfaceChanged)
-    Q_PROPERTY(WSurface *parentSurface READ parentSurface CONSTANT)
     Q_PROPERTY(QList<WSurface*> subsurfaces READ subsurfaces NOTIFY newSubsurface)
-    Q_PROPERTY(QObject* shell READ shell WRITE setShell NOTIFY shellChanged)
     Q_PROPERTY(WOutput* primaryOutput READ primaryOutput NOTIFY primaryOutputChanged)
     QML_NAMED_ELEMENT(WaylandSurface)
-    QML_UNCREATABLE("Using in C++")
+    QML_UNCREATABLE("Only create in C++")
 
 public:
-    explicit WSurface(WServer *server, QObject *parent = nullptr);
-
-    enum class ChangeType {
-        Handler,
-        Outputs,
-    };
-    enum class State {
-        Move,
-        Resize,
-        Maximize,
-        Activate
-    };
-    enum class Attribute {
-        Immovable = 1 << 0,
-        DoesNotAcceptFocus = 1 << 1
-    };
-    Q_DECLARE_FLAGS(Attributes, Attribute)
-    Q_FLAG(Attribute)
-
-    struct Type {};
-    virtual Type *type() const;
-    virtual bool testAttribute(Attribute attr) const;
+    explicit WSurface(QW_NAMESPACE::QWSurface *handle, QObject *parent = nullptr);
 
     QW_NAMESPACE::QWSurface *handle() const;
-    virtual QW_NAMESPACE::QWSurface *inputTargetAt(QPointF &globalPos) const;
 
     static WSurface *fromHandle(QW_NAMESPACE::QWSurface *handle);
     static WSurface *fromHandle(wlr_surface *handle);
-
-    virtual bool inputRegionContains(const QPointF &localPos) const;
-
-    WServer *server() const;
-    virtual WSurface *parentSurface() const;
 
     // for current state
     bool mapped() const;
@@ -84,53 +52,36 @@ public:
     WLR::Transform orientation() const;
     int bufferScale() const;
 
-    virtual void resize(const QSize &newSize);
-    virtual QRect getContentGeometry() const;
-
-    QPointF mapToGlobal(const QPointF &localPos) const;
-    QPointF mapFromGlobal(const QPointF &globalPos) const;
-
     QW_NAMESPACE::QWTexture *texture() const;
     QW_NAMESPACE::QWBuffer *buffer() const;
     QPoint textureOffset() const;
 
     void notifyFrameDone();
-
-    Q_SLOT void enterOutput(WOutput *output);
-    Q_SLOT void leaveOutput(WOutput *output);
-    Q_SLOT QVector<WOutput*> outputs() const;
     WOutput *primaryOutput() const;
-
-    virtual QPointF position() const;
-    WSurfaceHandler *handler() const;
-    void setHandler(WSurfaceHandler *handler);
-
-    virtual void notifyChanged(ChangeType, std::any oldValue, std::any newValue);
-    virtual void notifyBeginState(State);
-    virtual void notifyEndState(State);
-
-    QObject *shell() const;
-    void setShell(QObject *shell);
 
     bool isSubsurface() const;
     bool hasSubsurface() const;
     QList<WSurface*> subsurfaces() const;
 
+public Q_SLOTS:
+    void enterOutput(WOutput *output);
+    void leaveOutput(WOutput *output);
+    QVector<WOutput*> outputs() const;
+    bool inputRegionContains(const QPointF &localPos) const;
+
+    void map();
+    void unmap();
+
 Q_SIGNALS:
     void primaryOutputChanged();
     void mappedChanged();
     void textureChanged();
-    void shellChanged();
     void isSubsurfaceChanged();
     void hasSubsurfaceChanged();
     void newSubsurface(WSurface *subsurface);
 
 protected:
     WSurface(WSurfacePrivate &dd, QObject *parent);
-
-    void setHandle(QW_NAMESPACE::QWSurface *handle);
 };
 
 WAYLIB_SERVER_END_NAMESPACE
-
-Q_DECLARE_OPERATORS_FOR_FLAGS(WAYLIB_SERVER_NAMESPACE::WSurface::Attributes)

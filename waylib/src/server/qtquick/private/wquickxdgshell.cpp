@@ -49,72 +49,15 @@ public:
     XdgShell *xdgShell = nullptr;
 };
 
-inline static Qt::Edges toQtEdge(uint32_t edges) {
-    Qt::Edges qedges = Qt::Edges();
-
-    if (edges & WLR_EDGE_TOP) {
-        qedges |= Qt::TopEdge;
-    }
-
-    if (edges & WLR_EDGE_BOTTOM) {
-        qedges |= Qt::BottomEdge;
-    }
-
-    if (edges & WLR_EDGE_LEFT) {
-        qedges |= Qt::LeftEdge;
-    }
-
-    if (edges & WLR_EDGE_RIGHT) {
-        qedges |= Qt::RightEdge;
-    }
-
-    return qedges;
-}
-
 void XdgShell::surfaceAdded(WXdgSurface *surface)
 {
     WXdgShell::surfaceAdded(surface);
-
-    if (auto toplevel = surface->handle()->topToplevel()) {
-        QObject::connect(toplevel, &QWXdgToplevel::requestMove, qq, [this] (wlr_xdg_toplevel_move_event *event) {
-            auto surface = WXdgSurface::fromHandle(QWXdgToplevel::from(event->toplevel));
-            auto seat = WSeat::fromHandle(QWSeat::from(event->seat->seat));
-            Q_EMIT qq->requestMove(surface, seat, event->serial);
-        });
-        QObject::connect(toplevel, &QWXdgToplevel::requestResize, qq, [this] (wlr_xdg_toplevel_resize_event *event) {
-            auto surface = WXdgSurface::fromHandle(QWXdgToplevel::from(event->toplevel));
-            auto seat = WSeat::fromHandle(QWSeat::from(event->seat->seat));
-            Q_EMIT qq->requestResize(surface, seat, toQtEdge(event->edges), event->serial);
-        });
-        QObject::connect(toplevel, &QWXdgToplevel::requestMaximize, qq, [this, surface] (bool maximize) {
-            if (maximize) {
-                Q_EMIT qq->requestMaximize(surface);
-            } else {
-                Q_EMIT qq->requestToNormalState(surface);
-            }
-        });
-        QObject::connect(toplevel, &QWXdgToplevel::requestFullscreen, qq, [this, surface] (bool fullscreen) {
-            if (fullscreen) {
-                Q_EMIT qq->requestFullscreen(surface);
-            } else {
-                Q_EMIT qq->requestToNormalState(surface);
-            }
-        });
-        QObject::connect(toplevel, &QWXdgToplevel::requestShowWindowMenu, qq, [this] (wlr_xdg_toplevel_show_window_menu_event *event) {
-            auto surface = WXdgSurface::fromHandle(QWXdgToplevel::from(event->toplevel));
-            auto seat = WSeat::fromHandle(QWSeat::from(event->seat->seat));
-            Q_EMIT qq->requestShowWindowMenu(surface, seat, QPoint(event->x, event->y), event->serial);
-        });
-    }
-
     Q_EMIT qq->surfaceAdded(surface);
 }
 
 void XdgShell::surfaceRemoved(WXdgSurface *surface)
 {
     WXdgShell::surfaceRemoved(surface);
-    surface->disconnect(surface, nullptr, qq, nullptr);
-
     Q_EMIT qq->surfaceRemoved(surface);
 }
 
@@ -131,6 +74,72 @@ void WQuickXdgShell::create()
 
     d->xdgShell = server()->attach<XdgShell>(this);
     WQuickWaylandServerInterface::polish();
+}
+
+WXdgSurfaceItem::WXdgSurfaceItem(QQuickItem *parent)
+    : WSurfaceItem(parent)
+{
+
+}
+
+WXdgSurfaceItem::~WXdgSurfaceItem()
+{
+
+}
+
+WXdgSurface *WXdgSurfaceItem::surface() const
+{
+    return m_surface;
+}
+
+void WXdgSurfaceItem::setSurface(WXdgSurface *surface)
+{
+    if (m_surface == surface)
+        return;
+
+    m_surface = surface;
+    WSurfaceItem::setSurface(surface->surface());
+
+    Q_EMIT surfaceChanged();
+}
+
+QPointF WXdgSurfaceItem::implicitPosition() const
+{
+    return m_implicitPosition;
+}
+
+void WXdgSurfaceItem::onSurfaceCommit()
+{
+    WSurfaceItem::onSurfaceCommit();
+    if (auto popup = m_surface->handle()->toPopup())
+        setImplicitPosition(popup->getPosition() - contentItem()->position());
+}
+
+void WXdgSurfaceItem::initSurface()
+{
+    WSurfaceItem::initSurface();
+    Q_ASSERT(m_surface);
+}
+
+bool WXdgSurfaceItem::resizeSurface(const QSize &newSize)
+{
+    if (!m_surface->checkNewSize(newSize))
+        return false;
+    m_surface->resize(newSize);
+    return true;
+}
+
+QRectF WXdgSurfaceItem::getContentGeometry() const
+{
+    return m_surface->getContentGeometry();
+}
+
+void WXdgSurfaceItem::setImplicitPosition(const QPointF &newImplicitPosition)
+{
+    if (m_implicitPosition == newImplicitPosition)
+        return;
+    m_implicitPosition = newImplicitPosition;
+    Q_EMIT implicitPositionChanged();
 }
 
 WAYLIB_SERVER_END_NAMESPACE

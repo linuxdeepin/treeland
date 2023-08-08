@@ -43,6 +43,7 @@ public:
 
     WSeat *seat = nullptr;
     WSeatEventFilter *eventFilter = nullptr;
+    WSurface *keyboardFocus = nullptr;
     QString name;
     QList<WOutput*> outputs;
     WQuickCursor *cursor = nullptr;
@@ -147,6 +148,25 @@ void WQuickSeat::setEventFilter(WSeatEventFilter *newEventFilter)
     Q_EMIT eventFilterChanged();
 }
 
+
+WSurface *WQuickSeat::keyboardFocus() const
+{
+    W_DC(WQuickSeat);
+    return d->keyboardFocus;
+}
+
+void WQuickSeat::setKeyboardFocus(WSurface *newKeyboardFocus)
+{
+    W_D(WQuickSeat);
+    if (d->keyboardFocus == newKeyboardFocus)
+        return;
+    d->keyboardFocus = newKeyboardFocus;
+    if (d->seat)
+        d->seat->setKeyboardFocusTarget(newKeyboardFocus);
+
+    Q_EMIT keyboardFocusChanged();
+}
+
 void WQuickSeat::addDevice(WInputDevice *device)
 {
     W_D(WQuickSeat);
@@ -183,6 +203,8 @@ void WQuickSeat::create()
     d->seat = server()->attach<WSeat>(d->name.toUtf8());
     if (d->eventFilter)
         d->seat->setEventFilter(d->eventFilter);
+    if (d->keyboardFocus)
+        d->seat->setKeyboardFocusTarget(d->keyboardFocus);
 
     Q_EMIT seatChanged();
 }

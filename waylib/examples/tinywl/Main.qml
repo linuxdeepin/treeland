@@ -3,6 +3,7 @@
 
 import QtQuick
 import QtQuick.Controls
+import QtQuick.Layouts
 import Waylib.Server
 import Tinywl
 
@@ -41,11 +42,13 @@ Item {
             id: shell
 
             onSurfaceAdded: function(surface) {
-                xdgSurfaceManager.create(surface, {waylandSurface: surface});
+                let type = surface.isPopup ? "popup" : "toplevel"
+                xdgSurfaceManager.add({type: type, waylandSurface: surface, outputLayout: layout})
             }
-
-            onRequestMove: function(surface, seat, serial) {
-                globalHelper.startMove(surface, seat, serial)
+            onSurfaceRemoved: function(surface) {
+                xdgSurfaceManager.removeIf(function(prop) {
+                    return prop.waylandSurface === surface
+                })
             }
         }
 
@@ -58,7 +61,8 @@ Item {
                 layout: layout
             }
 
-            eventFilter: globalHelper
+            eventFilter: Helper
+            keyboardFocus: Helper.getFocusSurfaceFrom(renderWindow.activeFocusItem)
         }
 
         WaylandSocket {
@@ -68,69 +72,34 @@ Item {
 
             Component.onCompleted: {
                 console.info("Listing on:", socketFile)
-                globalHelper.startDemoClient(socketFile)
+                Helper.startDemoClient(socketFile)
             }
         }
     }
 
-    WaylibComponent {
+    DynamicCreator {
         id: xdgSurfaceManager
 
-        Connections {
-            required property WaylandSurface waylandSurface
-
-            target: waylandSurface
-
-            function doDestroy() {
-                for (let i = 0; i < renderWindow.toplevelWindowModel.count; ++i) {
-                    if (renderWindow.toplevelWindowModel.get(i).waylandSurface === waylandSurface) {
-                        renderWindow.toplevelWindowModel.remove(i)
-                    }
+        function printStructureObject(obj) {
+            var json = ""
+            for (var prop in obj){
+                if (!obj.hasOwnProperty(prop)){
+                    continue;
                 }
-
-                subsurfaceManager.destroyIfOwnerIs(waylandSurface)
+                json += `    ${prop}: ${obj[prop]},\n`
             }
 
-            function onMappedChanged() {
-                if (waylandSurface.mapped) {
-                    if (waylandSurface.isSubsurface) {
-                        subsurfaceManager.create(null, waylandSurface, {waylandSurface: target})
-                    } else {
-                        renderWindow.toplevelWindowModel.append({waylandSurface: target, outputLayout: layout})
-                    }
-                } else {
-                    doDestroy()
-                }
-            }
-
-            function onNewSubsurface(surface) {
-                xdgSurfaceManager.create(surface, {waylandSurface: surface});
-            }
-
-            Component.onCompleted: {
-                onMappedChanged()
-                Qt.callLater(function() {
-                    waylandSurface.subsurfaces.forEach(onNewSubsurface)
-                })
-            }
-            Component.onDestruction: {
-                doDestroy()
-            }
+            return '{\n' + json + '}'
         }
-    }
 
-    WaylibComponent {
-        id: subsurfaceManager
-
-        SurfaceItem {
-            required property WaylandSurface waylandSurface
-
-            surface: waylandSurface
+        onObjectAdded: function(delegate, obj, properties) {
+            console.info(`New Xdg surface item ${obj} from delegate ${delegate} with initial properties:`,
+                         `\n${printStructureObject(properties)}`)
         }
-    }
-
-    Helper {
-        id: globalHelper
+        onObjectRemoved: function(delegate, obj, properties) {
+            console.info(`Xdg surface item ${obj} Removed, it's create from delegate ${delegate} with initial properties:`,
+                         `\n${printStructureObject(properties)}`)
+        }
     }
 
     OutputLayout {
@@ -139,8 +108,6 @@ Item {
 
     OutputRenderWindow {
         id: renderWindow
-
-        property ListModel toplevelWindowModel: ListModel {}
 
         compositor: compositor
         width: outputRowLayout.implicitWidth + outputRowLayout.x
@@ -312,48 +279,33 @@ Item {
             }
         }
 
-        Repeater {
+        ColumnLayout {
             anchors.fill: parent
-            clip: false
 
-            model: renderWindow.toplevelWindowModel
+            TabBar {
+                id: layoutChooser
 
-            SurfaceItem {
-                required property WaylandSurface waylandSurface
-                required property OutputLayout outputLayout
+                Layout.fillWidth: true
 
-                surface: waylandSurface
-                visible: waylandSurface && waylandSurface.WaylandSocket.rootSocket.enabled
-                x: waylandSurface.parentSurface ? implicitPosition.x : 0
-                y: waylandSurface.parentSurface ? implicitPosition.y : 0
-                z: focus ? OutputLayout.ActiveToplevelSurface : OutputLayout.ToplevelSurface
-
-                onFocusChanged: {
-                    if (typeof waylandSurface.setActivate === "function")
-                        waylandSurface.setActivate(focus)
+                TabButton {
+                    text: qsTr("Stack Layout")
                 }
-
-                OutputLayoutItem {
-                    anchors.fill: parent
-                    layout: outputLayout
-
-                    onEnterOutput: function(output) {
-                        waylandSurface.enterOutput(output);
-                    }
-                    onLeaveOutput: function(output) {
-                        waylandSurface.leaveOutput(output);
-                    }
+                TabButton {
+                    text: qsTr("Tiled Layout")
                 }
+            }
 
-                Component.onCompleted: {
-                    waylandSurface.shell = this
-                    if (waylandSurface.parentSurface)
-                        parent = waylandSurface.parentSurface.shell
-                    forceActiveFocus()
-                }
-                Component.onDestruction: {
-                    if (waylandSurface)
-                        waylandSurface.shell = null
+            Loader {
+                id: workspaceLoader
+
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+
+                active: true
+                source: layoutChooser.currentIndex === 0 ? "XdgStackWorkspace.qml" : "XdgTiledWorkspace.qml"
+
+                onLoaded: {
+                    item.creator = xdgSurfaceManager
                 }
             }
         }
