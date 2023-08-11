@@ -73,6 +73,7 @@ public:
     QPointF position;
     uint resizeing:1;
     uint activated:1;
+    uint maximized:1;
 };
 
 WXdgSurfacePrivate::WXdgSurfacePrivate(WXdgSurface *qq, QWXdgSurface *hh)
@@ -80,6 +81,7 @@ WXdgSurfacePrivate::WXdgSurfacePrivate(WXdgSurface *qq, QWXdgSurface *hh)
     , handle(hh)
     , resizeing(false)
     , activated(false)
+    , maximized(false)
 {
 }
 
@@ -103,6 +105,11 @@ void WXdgSurfacePrivate::on_configure(wlr_xdg_surface_configure *event)
         if (event->toplevel_configure->activated != activated) {
             activated = event->toplevel_configure->activated;
             Q_EMIT q->activateChanged();
+        }
+
+        if (event->toplevel_configure->maximized != maximized) {
+            maximized = event->toplevel_configure->maximized;
+            Q_EMIT q->maximizeChanged();
         }
     }
 }
@@ -243,6 +250,12 @@ bool WXdgSurface::isActivated() const
 {
     W_DC(WXdgSurface);
     return d->activated;
+}
+
+bool WXdgSurface::isMaximized() const
+{
+    W_DC(WXdgSurface);
+    return d->maximized;
 }
 
 QRect WXdgSurface::getContentGeometry() const

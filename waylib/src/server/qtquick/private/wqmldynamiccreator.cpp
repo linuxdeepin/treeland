@@ -55,13 +55,13 @@ void WAbstractCreatorComponent::creatorChange(WQmlCreator *oldCreator, WQmlCreat
 }
 
 void WAbstractCreatorComponent::notifyCreatorObjectAdded(WQmlCreator *creator, QObject *object,
-                                                         const QVariantMap &initialProperties)
+                                                         const QJSValue &initialProperties)
 {
     Q_EMIT creator->objectAdded(this, object, initialProperties);
 }
 
 void WAbstractCreatorComponent::notifyCreatorObjectRemoved(WQmlCreator *creator, QObject *object,
-                                                           const QVariantMap &initialProperties)
+                                                           const QJSValue &initialProperties)
 {
     Q_EMIT creator->objectRemoved(this, object, initialProperties);
 }
@@ -97,11 +97,11 @@ WQmlCreatorComponent::~WQmlCreatorComponent()
     clear();
 }
 
-bool WQmlCreatorComponent::checkByChooser(const QVariantMap &properties) const
+bool WQmlCreatorComponent::checkByChooser(const QJSValue &properties) const
 {
     if (m_chooserRole.isEmpty())
         return true;
-    return properties[m_chooserRole] == m_chooserRoleValue;
+    return properties.property(m_chooserRole).toVariant() == m_chooserRoleValue;
 }
 
 QQmlComponent *WQmlCreatorComponent::delegate() const
@@ -147,7 +147,7 @@ void WQmlCreatorComponent::destroy(QSharedPointer<WQmlCreatorDelegateData> data)
     if (data->object) {
         auto obj = data->object;
         obj.clear();
-        const QVariantMap p = data->data.lock()->properties;
+        const QJSValue p = data->data.lock()->properties;
         Q_EMIT objectRemoved(obj, p);
         notifyCreatorObjectRemoved(m_creator, obj, p);
 
@@ -199,11 +199,17 @@ void WQmlCreatorComponent::create(QSharedPointer<WQmlCreatorDelegateData> data)
     }
 }
 
-void WQmlCreatorComponent::create(QSharedPointer<WQmlCreatorDelegateData> data, QObject *parent, const QVariantMap &initialProperties)
+void WQmlCreatorComponent::create(QSharedPointer<WQmlCreatorDelegateData> data, QObject *parent, const QJSValue &initialProperties)
 {
     auto d = QQmlComponentPrivate::get(m_delegate);
     Q_ASSERT(!d->state.isCompletePending());
-    data->object = d->createWithProperties(parent, initialProperties, qmlContext(this));
+    // Don't use QVariantMap instead of QJSValue, because initial properties may be
+    // contains some QObject property , if that QObjects is destroyed in future,
+    // the QVariantMap's property would not update, you will get a invalid QObject pointer
+    // if you using it after it's destroyed, but the QJSValue will watching that QObjects,
+    // you will get a null pointer if you using after it's destroyed.
+    const auto tmp = qvariant_cast<QVariantMap>(initialProperties.toVariant());
+    data->object = d->createWithProperties(parent, tmp, qmlContext(this));
 
     if (data->object) {
         Q_EMIT objectAdded(data->object, initialProperties);
@@ -285,12 +291,12 @@ int WQmlCreator::count() const
     return m_datas.size();
 }
 
-void WQmlCreator::add(const QVariantMap &initialProperties)
+void WQmlCreator::add(const QJSValue &initialProperties)
 {
     add(nullptr, initialProperties);
 }
 
-void WQmlCreator::add(QObject *owner, const QVariantMap &initialProperties)
+void WQmlCreator::add(QObject *owner, const QJSValue &initialProperties)
 {
     QSharedPointer<WQmlCreatorData> data(new WQmlCreatorData());
     data->owner = owner;

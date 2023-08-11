@@ -19,14 +19,16 @@ Item {
             onOutputAdded: function(output) {
                 output.forceSoftwareCursor = true // Test
 
-                if (outputModel.count > 0)
+                if (QmlHelper.outputManager.count > 0)
                     output.scale = 2
 
                 Helper.allowNonDrmOutputAutoChangeMode(output)
-                outputModel.append({waylandOutput: output, outputLayout: layout})
+                QmlHelper.outputManager.add({waylandOutput: output})
             }
             onOutputRemoved: function(output) {
-
+                QmlHelper.outputManager.removeIf(function(prop) {
+                    return prop.waylandOutput === output
+                })
             }
             onInputAdded: function(inputDevice) {
                 seat0.addDevice(inputDevice)
@@ -44,10 +46,10 @@ Item {
 
             onSurfaceAdded: function(surface) {
                 let type = surface.isPopup ? "popup" : "toplevel"
-                xdgSurfaceManager.add({type: type, waylandSurface: surface, outputLayout: layout})
+                QmlHelper.xdgSurfaceManager.add({type: type, waylandSurface: surface})
             }
             onSurfaceRemoved: function(surface) {
-                xdgSurfaceManager.removeIf(function(prop) {
+                QmlHelper.xdgSurfaceManager.removeIf(function(prop) {
                     return prop.waylandSurface === surface
                 })
             }
@@ -59,7 +61,7 @@ Item {
             cursor: Cursor {
                 id: cursor1
 
-                layout: layout
+                layout: QmlHelper.layout
             }
 
             eventFilter: Helper
@@ -78,35 +80,6 @@ Item {
         }
     }
 
-    DynamicCreator {
-        id: xdgSurfaceManager
-
-        function printStructureObject(obj) {
-            var json = ""
-            for (var prop in obj){
-                if (!obj.hasOwnProperty(prop)) {
-                    continue;
-                }
-                json += `    ${prop}: ${obj[prop]},\n`
-            }
-
-            return '{\n' + json + '}'
-        }
-
-        onObjectAdded: function(delegate, obj, properties) {
-            console.info(`New Xdg surface item ${obj} from delegate ${delegate} with initial properties:`,
-                         `\n${printStructureObject(properties)}`)
-        }
-        onObjectRemoved: function(delegate, obj, properties) {
-            console.info(`Xdg surface item ${obj} Removed, it's create from delegate ${delegate} with initial properties:`,
-                         `\n${printStructureObject(properties)}`)
-        }
-    }
-
-    OutputLayout {
-        id: layout
-    }
-
     OutputRenderWindow {
         id: renderWindow
 
@@ -117,165 +90,11 @@ Item {
         Row {
             id: outputRowLayout
 
-            Repeater {
-                model: ListModel {
-                    id: outputModel
-                }
+            DynamicCreatorComponent {
+                creator: QmlHelper.outputManager
 
-                OutputPositioner {
-                    required property WaylandOutput waylandOutput
-                    required property OutputLayout outputLayout
-
-                    output: waylandOutput
-                    devicePixelRatio: waylandOutput.scale
-                    layout: outputLayout
-
-                    OutputViewport {
-                        id: outputViewport
-
-                        output: waylandOutput
-                        devicePixelRatio: parent.devicePixelRatio
-                        anchors.centerIn: parent
-                        cursorDelegate: Item {
-                            required property OutputCursor cursor
-
-                            visible: cursor.visible && !cursor.isHardwareCursor
-
-                            Image {
-                                source: cursor.imageSource
-                                x: -cursor.hotspot.x
-                                y: -cursor.hotspot.y
-                                cache: false
-                                width: cursor.size.width
-                                height: cursor.size.height
-                                sourceClipRect: cursor.sourceRect
-                            }
-                        }
-
-                        RotationAnimation {
-                            id: rotationAnimator
-
-                            target: outputViewport
-                            duration: 200
-                            alwaysRunToEnd: true
-                        }
-
-                        Timer {
-                            id: setTransform
-
-                            property var scheduleTransform
-                            onTriggered: waylandOutput.orientation = scheduleTransform
-                            interval: rotationAnimator.duration / 2
-                        }
-
-                        function rotationOutput(orientation) {
-                            setTransform.scheduleTransform = orientation
-                            setTransform.start()
-
-                            switch(orientation) {
-                            case WaylandOutput.R90:
-                                rotationAnimator.to = -90
-                                break
-                            case WaylandOutput.R180:
-                                rotationAnimator.to = 180
-                                break
-                            case WaylandOutput.R270:
-                                rotationAnimator.to = 90
-                                break
-                            default:
-                                rotationAnimator.to = 0
-                                break
-                            }
-
-                            rotationAnimator.from = rotation
-                            rotationAnimator.start()
-                        }
-                    }
-
-                    Image {
-                        id: background
-                        source: "file:///usr/share/backgrounds/deepin/desktop.jpg"
-                        fillMode: Image.PreserveAspectCrop
-                        asynchronous: true
-                        anchors.fill: parent
-                    }
-
-                    Column {
-                        anchors {
-                            bottom: parent.bottom
-                            right: parent.right
-                            margins: 10
-                        }
-
-                        spacing: 10
-
-                        Switch {
-                            text: "Socket"
-                            onCheckedChanged: {
-                                masterSocket.enabled = checked
-                            }
-                            Component.onCompleted: {
-                                checked = masterSocket.enabled
-                            }
-                        }
-
-                        Button {
-                            text: "1X"
-                            onClicked: {
-                                waylandOutput.scale = 1
-                            }
-                        }
-
-                        Button {
-                            text: "1.5X"
-                            onClicked: {
-                                waylandOutput.scale = 1.5
-                            }
-                        }
-
-                        Button {
-                            text: "Normal"
-                            onClicked: {
-                                outputViewport.rotationOutput(WaylandOutput.Normal)
-                            }
-                        }
-
-                        Button {
-                            text: "R90"
-                            onClicked: {
-                                outputViewport.rotationOutput(WaylandOutput.R90)
-                            }
-                        }
-
-                        Button {
-                            text: "R270"
-                            onClicked: {
-                                outputViewport.rotationOutput(WaylandOutput.R270)
-                            }
-                        }
-
-                        Button {
-                            text: "Quit"
-                            onClicked: {
-                                Qt.quit()
-                            }
-                        }
-                    }
-
-                    Text {
-                        anchors.centerIn: parent
-                        text: "Qt Quick in a texture"
-                        font.pointSize: 40
-                        color: "white"
-
-                        SequentialAnimation on rotation {
-                            id: ani
-                            running: true
-                            PauseAnimation { duration: 1500 }
-                            NumberAnimation { from: 0; to: 360; duration: 5000; easing.type: Easing.InOutCubic }
-                            loops: Animation.Infinite
-                        }
-                    }
+                OutputDelegate {
+                    property real topMargin: topbar.height
                 }
             }
         }
@@ -284,7 +103,7 @@ Item {
             anchors.fill: parent
 
             TabBar {
-                id: layoutChooser
+                id: topbar
 
                 Layout.fillWidth: true
 
@@ -303,10 +122,10 @@ Item {
                 Layout.fillHeight: true
 
                 active: true
-                source: layoutChooser.currentIndex === 0 ? "XdgStackWorkspace.qml" : "XdgTiledWorkspace.qml"
+                source: topbar.currentIndex === 0 ? "XdgStackWorkspace.qml" : "XdgTiledWorkspace.qml"
 
                 onLoaded: {
-                    item.creator = xdgSurfaceManager
+                    item.creator = QmlHelper.xdgSurfaceManager
                 }
             }
         }

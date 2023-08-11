@@ -22,6 +22,7 @@ class WAYLIB_SERVER_EXPORT WXdgSurface : public QObject, public WObject
     Q_PROPERTY(bool isPopup READ isPopup CONSTANT)
     Q_PROPERTY(bool isResizeing READ isResizeing NOTIFY resizeingChanged FINAL)
     Q_PROPERTY(bool isActivated READ isActivated NOTIFY activateChanged FINAL)
+    Q_PROPERTY(bool isMaximized READ isMaximized NOTIFY maximizeChanged FINAL)
     Q_PROPERTY(WSurface* surface READ surface CONSTANT FINAL)
     Q_PROPERTY(WXdgSurface* parentXdgSurface READ parentXdgSurface NOTIFY parentXdgSurfaceChanged FINAL)
     QML_NAMED_ELEMENT(WaylandXdgSurface)
@@ -45,6 +46,7 @@ public:
 
     bool isResizeing() const;
     bool isActivated() const;
+    bool isMaximized() const;
 
     QRect getContentGeometry() const;
 
@@ -63,6 +65,7 @@ Q_SIGNALS:
     void parentXdgSurfaceChanged();
     void resizeingChanged();
     void activateChanged();
+    void maximizeChanged();
     void requestMove(WSeat *seat, quint32 serial);
     void requestResize(WSeat *seat, Qt::Edges edge, quint32 serial);
     void requestMaximize();

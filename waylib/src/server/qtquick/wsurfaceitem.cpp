@@ -402,6 +402,9 @@ void WSurfaceItem::initSurface()
 bool WSurfaceItem::sendEvent(QInputEvent *event)
 {
     Q_D(WSurfaceItem);
+    if (!d->surface)
+        return false;
+
     return WSeat::sendEvent(d->surface.get(), this, event);
 }
 

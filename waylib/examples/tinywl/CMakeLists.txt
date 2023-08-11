@@ -11,6 +11,11 @@ add_executable(tinywl-qtquick
     main.cpp
 )
 
+set_source_files_properties(QmlHelper.qml
+    PROPERTIES
+        QT_QML_SINGLETON_TYPE TRUE
+)
+
 qt_add_qml_module(tinywl-qtquick
     URI Tinywl
     VERSION "1.0"
@@ -22,6 +27,8 @@ qt_add_qml_module(tinywl-qtquick
         XdgStackWorkspace.qml
         XdgSurface.qml
         XdgTiledWorkspace.qml
+        QmlHelper.qml
+        OutputDelegate.qml
 )
 
 target_link_libraries(tinywl-qtquick

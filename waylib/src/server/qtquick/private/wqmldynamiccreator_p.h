@@ -19,7 +19,7 @@ class WAbstractCreatorComponent;
 struct Q_DECL_HIDDEN WQmlCreatorData {
     QObject *owner;
     QList<std::pair<WAbstractCreatorComponent*, QWeakPointer<WQmlCreatorDelegateData>>> delegateDatas;
-    QVariantMap properties;
+    QJSValue properties;
 };
 
 class WQmlCreator;
@@ -45,8 +45,8 @@ Q_SIGNALS:
 
 protected:
     virtual void creatorChange(WQmlCreator *oldCreator, WQmlCreator *newCreator);
-    void notifyCreatorObjectAdded(WQmlCreator *creator, QObject *object, const QVariantMap &initialProperties);
-    void notifyCreatorObjectRemoved(WQmlCreator *creator, QObject *object, const QVariantMap &initialProperties);
+    void notifyCreatorObjectAdded(WQmlCreator *creator, QObject *object, const QJSValue &initialProperties);
+    void notifyCreatorObjectRemoved(WQmlCreator *creator, QObject *object, const QJSValue &initialProperties);
 
     WQmlCreator *m_creator = nullptr;
 };
@@ -59,8 +59,8 @@ public:
     explicit WQmlCreatorDataWatcher(QObject *parent = nullptr);
 
 Q_SIGNALS:
-    void added(QObject *owner, const QVariantMap &initialProperties);
-    void removed(QObject *owner, const QVariantMap &initialProperties);
+    void added(QObject *owner, const QJSValue &initialProperties);
+    void removed(QObject *owner, const QJSValue &initialProperties);
 
 private:
     QSharedPointer<WQmlCreatorDelegateData> add(QSharedPointer<WQmlCreatorData> data) override;
@@ -81,7 +81,7 @@ public:
     explicit WQmlCreatorComponent(QObject *parent = nullptr);
     ~WQmlCreatorComponent();
 
-    bool checkByChooser(const QVariantMap &properties) const;
+    bool checkByChooser(const QJSValue &properties) const;
 
     QQmlComponent *delegate() const;
     void setDelegate(QQmlComponent *component);
@@ -102,8 +102,8 @@ Q_SIGNALS:
     void chooserRoleChanged();
     void chooserRoleValueChanged();
 
-    void objectAdded(QObject *object, const QVariantMap &initialProperties);
-    void objectRemoved(QObject *object, const QVariantMap &initialProperties);
+    void objectAdded(QObject *object, const QJSValue &initialProperties);
+    void objectRemoved(QObject *object, const QJSValue &initialProperties);
 
 private:
     QSharedPointer<WQmlCreatorDelegateData> add(QSharedPointer<WQmlCreatorData> data) override;
@@ -115,7 +115,7 @@ private:
     void clear();
     void reset();
     void create(QSharedPointer<WQmlCreatorDelegateData> data);
-    Q_SLOT void create(QSharedPointer<WQmlCreatorDelegateData> data, QObject *parent, const QVariantMap &initialProperties);
+    Q_SLOT void create(QSharedPointer<WQmlCreatorDelegateData> data, QObject *parent, const QJSValue &initialProperties);
 
     QQmlComponent *m_delegate = nullptr;
     QObject *m_parent = nullptr;
@@ -142,8 +142,8 @@ public:
 
 public Q_SLOTS:
     // for model
-    void add(const QVariantMap &initialProperties);
-    void add(QObject *owner, const QVariantMap &initialProperties);
+    void add(const QJSValue &initialProperties);
+    void add(QObject *owner, const QJSValue &initialProperties);
     bool removeIf(QJSValue function);
     bool removeByOwner(QObject *owner);
     void clear(bool notify);
@@ -158,9 +158,9 @@ public Q_SLOTS:
 
 Q_SIGNALS:
     void objectAdded(WAbstractCreatorComponent *component, QObject *object,
-                     const QVariantMap &initialProperties);
+                     const QJSValue &initialProperties);
     void objectRemoved(WAbstractCreatorComponent *component, QObject *object,
-                       const QVariantMap &initialProperties);
+                       const QJSValue &initialProperties);
     void countChanged();
 
 private:
