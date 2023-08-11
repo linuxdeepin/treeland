@@ -4,6 +4,9 @@ qt_standard_project_setup(REQUIRES 6.4)
 set(QML_IMPORT_PATH ${CMAKE_BINARY_DIR}/src/server/ CACHE STRING "" FORCE)
 add_definitions(-DSOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
 
+find_package(PkgConfig REQUIRED)
+pkg_search_module(PIXMAN REQUIRED IMPORTED_TARGET pixman-1)
+
 add_executable(tinywl-qtquick
     main.cpp
 )
@@ -26,6 +29,7 @@ target_link_libraries(tinywl-qtquick
     Qt6::Quick
     Qt6::QuickControls2
     waylibserver
+    PkgConfig::PIXMAN
 )
 
 # Don't install, using for debug in local

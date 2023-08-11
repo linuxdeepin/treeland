@@ -22,6 +22,7 @@ Item {
                 if (outputModel.count > 0)
                     output.scale = 2
 
+                Helper.allowNonDrmOutputAutoChangeMode(output)
                 outputModel.append({waylandOutput: output, outputLayout: layout})
             }
             onOutputRemoved: function(output) {

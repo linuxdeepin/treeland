@@ -7,7 +7,9 @@
 #include <WSeat>
 #include <WCursor>
 #include <WSurfaceItem>
+#include <WOutput>
 
+struct wlr_output_event_request_state;
 QW_USE_NAMESPACE
 WAYLIB_SERVER_USE_NAMESPACE
 
@@ -24,10 +26,12 @@ public:
     WXdgSurface *activatedSurface() const;
 
 public Q_SLOTS:
-    Q_SLOT void startMove(WXdgSurface *surface, QQuickItem *shell, QQuickItem *event, WSeat *seat, int serial);
-    Q_SLOT void startResize(WXdgSurface *surface, QQuickItem *shell, QQuickItem *event, WSeat *seat, Qt::Edges edge, int serial);
-    Q_SLOT bool startDemoClient(const QString &socket);
-    Q_SLOT WSurface *getFocusSurfaceFrom(QObject *object);
+    void startMove(WXdgSurface *surface, QQuickItem *shell, QQuickItem *event, WSeat *seat, int serial);
+    void startResize(WXdgSurface *surface, QQuickItem *shell, QQuickItem *event, WSeat *seat, Qt::Edges edge, int serial);
+    bool startDemoClient(const QString &socket);
+    WSurface *getFocusSurfaceFrom(QObject *object);
+
+    void allowNonDrmOutputAutoChangeMode(WOutput *output);
 
 signals:
     void activatedSurfaceChanged();
@@ -38,6 +42,7 @@ private:
     bool ignoredEventFilter(WSeat *seat, QWindow *watched, QInputEvent *event) override;
 
     void setActivateSurface(WXdgSurface *newActivate);
+    void onOutputRequeseState(wlr_output_event_request_state *newState);
 
     QPointer<WXdgSurface> m_activateSurface;
 

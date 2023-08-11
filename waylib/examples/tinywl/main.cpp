@@ -4,6 +4,13 @@
 #include "helper.h"
 
 #include <WServer>
+#include <WOutput>
+// TODO: Don't use private API
+#include <wquickbackend_p.h>
+
+#include <qwbackend.h>
+#include <qwdisplay.h>
+#include <qwoutput.h>
 
 #include <QGuiApplication>
 #include <QQmlApplicationEngine>
@@ -14,9 +21,12 @@
 #include <QQuickItem>
 #include <QQuickWindow>
 
-#include <wquickbackend_p.h>
-#include <qwbackend.h>
-#include <qwdisplay.h>
+extern "C" {
+#define WLR_USE_UNSTABLE
+#define static
+#include <wlr/types/wlr_output.h>
+#undef static
+}
 
 inline QPointF getItemGlobalPosition(QQuickItem *item)
 {
@@ -88,6 +98,11 @@ WSurface *Helper::getFocusSurfaceFrom(QObject *object)
 {
     auto item = WSurfaceItem::fromFocusObject(object);
     return item ? item->surface() : nullptr;
+}
+
+void Helper::allowNonDrmOutputAutoChangeMode(WOutput *output)
+{
+    connect(output->handle(), &QWOutput::requestState, this, &Helper::onOutputRequeseState);
 }
 
 bool Helper::eventFilter(WSeat *seat, QWindow *watched, QInputEvent *event)
@@ -198,6 +213,20 @@ void Helper::setActivateSurface(WXdgSurface *newActivate)
     if (newActivate)
         newActivate->setActivate(true);
     Q_EMIT activatedSurfaceChanged();
+}
+
+void Helper::onOutputRequeseState(wlr_output_event_request_state *newState)
+{
+    if (newState->state->committed & WLR_OUTPUT_STATE_MODE) {
+        auto output = qobject_cast<QWOutput*>(sender());
+
+        if (newState->state->mode_type == WLR_OUTPUT_STATE_MODE_CUSTOM) {
+            const QSize size(newState->state->custom_mode.width, newState->state->custom_mode.height);
+            output->setCustomMode(size, newState->state->custom_mode.refresh);
+        } else {
+            output->setMode(newState->state->mode);
+        }
+    }
 }
 
 int main(int argc, char *argv[]) {

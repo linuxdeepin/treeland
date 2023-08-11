@@ -46,6 +46,7 @@ public:
 
             if (event->committed & WLR_OUTPUT_STATE_MODE) {
                 Q_EMIT qq->modeChanged();
+                Q_EMIT qq->transformedSizeChanged();
                 Q_EMIT qq->effectiveSizeChanged();
             }
 
