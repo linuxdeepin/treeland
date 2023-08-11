@@ -31,7 +31,7 @@ class WAYLIB_SERVER_EXPORT WSurfaceItem : public QQuickItem
 public:
     enum ResizeMode {
         SizeFromSurface,
-        SizeToSurface,
+        SizeToSurface
     };
     Q_ENUM(ResizeMode)
 

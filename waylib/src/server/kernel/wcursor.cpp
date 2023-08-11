@@ -185,7 +185,7 @@ void WCursorPrivate::on_button(wlr_pointer_button_event *event)
 
     if (Q_LIKELY(seat)) {
         seat->notifyButton(q_func(), WInputDevice::fromHandle(device),
-                           WCursor::fromNativeButton(event->button), event->state, event->time_msec);
+                           button, event->state, event->time_msec);
     }
 }
 

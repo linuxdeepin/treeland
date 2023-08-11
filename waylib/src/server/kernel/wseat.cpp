@@ -151,6 +151,22 @@ public:
     QPointer<WSeatEventFilter> eventFilter;
     QPointer<QWindow> focusWindow;
     wlr_surface *oldPointerFocusSurface = nullptr;
+    // ###: It's only using compare pointer value.
+    // It's for a Qt bug. When handling mouse events in QQuickDeliveryAgentPrivate::deliverPressOrReleaseEvent,
+    // if there are multiple QQuickItems that can receive the mouse events where the mouse is pressed, Qt will
+    // attempt to dispatch them one by one. Even if the top-level QQuickItem has already accepted the event,
+    // QQuickDeliveryAgentPrivate will still call setAccepted(false) to set the acceptance status to false for
+    // each mouse point in the QPointerEvent. Then it will try to pass the event to the QQuickPointerHandler
+    // objects of the underlying QQuickItems for processing. Although no QQuickPointerHandler receives the event,
+    // the above behavior has already caused QPointerEvent::allPointsAccepted to return false. This will cause
+    // QQuickDeliveryAgentPrivate::deliverPressOrReleaseEvent to return false, ultimately causing
+    // QQuickDeliveryAgentPrivate::deliverPointerEvent to believe that the event has not been accepted and set the
+    // accepted status of QEvent to false. This leads to WSeat considering the event unused, and then it is passed
+    // to WSeatEventFilter::ignoredEventFilter.
+    QEvent *lastAccpetEvent = nullptr; // This pointer can only using to here
+    inline bool checkEventIsAccepted(QEvent *event) const {
+        return event->isAccepted() || lastAccpetEvent == event;
+    }
 
     // for event data
     Qt::KeyboardModifiers keyModifiers = Qt::NoModifier;
@@ -201,7 +217,7 @@ void WSeatPrivate::on_keyboard_key(wlr_keyboard_key_event *event, WInputDevice *
     if (focusWindow) {
         QCoreApplication::sendEvent(focusWindow, &e);
 
-        if (!e.isAccepted() && eventFilter)
+        if (!checkEventIsAccepted(&e) && eventFilter)
             eventFilter->ignoredEventFilter(q_func(), focusWindow, &e);
     } else {
         doNotifyKey(device, event->keycode, event->state, event->time_msec);
@@ -389,6 +405,7 @@ bool WSeat::sendEvent(WSurface *target, QObject *shellObject, QInputEvent *event
         return true;
 
     event->accept();
+    d->lastAccpetEvent = event;
 
     switch (event->type()) {
     case QEvent::HoverEnter: {
@@ -528,7 +545,7 @@ void WSeat::notifyMotion(WCursor *cursor, WInputDevice *device, uint32_t timesta
     if (w)
         QCoreApplication::sendEvent(w, &e);
 
-    if (!e.isAccepted() && d->eventFilter)
+    if (!d->checkEventIsAccepted(&e) && d->eventFilter)
         d->eventFilter->ignoredEventFilter(this, w, &e);
 }
 
@@ -545,7 +562,7 @@ void WSeat::notifyButton(WCursor *cursor, WInputDevice *device, Qt::MouseButton 
     const QPointF local = w ? global - QPointF(w->position()) : QPointF();
     auto et = state == WLR_BUTTON_PRESSED ? QEvent::MouseButtonPress : QEvent::MouseButtonRelease;
 
-    QMouseEvent e(et, local, global, cursor->button(),
+    QMouseEvent e(et, local, global, button,
                   cursor->state(), d->keyModifiers, qwDevice);
     e.setTimestamp(timestamp);
 
@@ -557,7 +574,7 @@ void WSeat::notifyButton(WCursor *cursor, WInputDevice *device, Qt::MouseButton 
     if (w)
         QCoreApplication::sendEvent(w, &e);
 
-    if (!e.isAccepted() && d->eventFilter)
+    if (!d->checkEventIsAccepted(&e) && d->eventFilter)
         d->eventFilter->ignoredEventFilter(this, w, &e);
 }
 
@@ -587,7 +604,7 @@ void WSeat::notifyAxis(WCursor *cursor, WInputDevice *device, wlr_axis_source_t 
     if (w)
         QCoreApplication::sendEvent(w, &e);
 
-    if (e.isAccepted())
+    if (d->checkEventIsAccepted(&e))
         return;
 
     if (d->doNotifyAxis(static_cast<wlr_axis_source>(source), orientation, delta, delta_discrete, timestamp))

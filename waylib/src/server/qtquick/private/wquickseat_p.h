@@ -61,7 +61,6 @@ private:
 
     void create() override;
     void polish() override;
-    WSurface *m_keyboardFocus = nullptr;
 };
 
 WAYLIB_SERVER_END_NAMESPACE

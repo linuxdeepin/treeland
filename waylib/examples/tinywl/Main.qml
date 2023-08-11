@@ -83,7 +83,7 @@ Item {
         function printStructureObject(obj) {
             var json = ""
             for (var prop in obj){
-                if (!obj.hasOwnProperty(prop)){
+                if (!obj.hasOwnProperty(prop)) {
                     continue;
                 }
                 json += `    ${prop}: ${obj[prop]},\n`

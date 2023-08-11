@@ -10,7 +10,6 @@
 #include <QQmlContext>
 #include <QQuickStyle>
 #include <QProcess>
-#include <QTemporaryFile>
 #include <QMouseEvent>
 #include <QQuickItem>
 #include <QQuickWindow>
@@ -71,27 +70,16 @@ void Helper::startResize(WXdgSurface *surface, QQuickItem *shell, QQuickItem *ev
 
 bool Helper::startDemoClient(const QString &socket)
 {
-    QTemporaryFile *tmpQmlFile = new QTemporaryFile();
-    tmpQmlFile->setParent(qApp);
-    tmpQmlFile->setAutoRemove(true);
     QProcess waylandClientDemo;
 
-    if (tmpQmlFile->open()) {
-        QFile qmlFile(":/ClientWindow.qml");
-        if (qmlFile.open(QIODevice::ReadOnly)) {
-            tmpQmlFile->write(qmlFile.readAll());
-        }
-        tmpQmlFile->close();
+    waylandClientDemo.setProgram("qml");
+    waylandClientDemo.setArguments({SOURCE_DIR"/ClientWindow.qml", "-platform", "wayland"});
 
-        waylandClientDemo.setProgram("gedit");
-//        waylandClientDemo.setArguments({tmpQmlFile->fileName(), "-platform", "wayland"});
+    QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
+    env.insert("WAYLAND_DISPLAY", socket);
 
-        QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
-        env.insert("WAYLAND_DISPLAY", socket);
-
-        waylandClientDemo.setProcessEnvironment(env);
-        return waylandClientDemo.startDetached();
-    }
+    waylandClientDemo.setProcessEnvironment(env);
+    return waylandClientDemo.startDetached();
 
     return false;
 }
@@ -165,7 +153,7 @@ bool Helper::eventFilter(WSeat *seat, WSurface *watched, QObject *surfaceItem, Q
         if (!xdgSurface)
             return false;
         Q_ASSERT(xdgSurface->surface() == watched);
-        if (!xdgSurface->doesNotAcceptFocus())
+        if (!xdgSurface->doesNotAcceptFocus() && m_activateSurface != xdgSurface)
             if (auto item = qobject_cast<QQuickItem*>(surfaceItem))
                 item->forceActiveFocus();
     } else if (event->type() == QEvent::MouseButtonRelease) {

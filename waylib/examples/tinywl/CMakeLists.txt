@@ -2,6 +2,7 @@ find_package(Qt6 COMPONENTS Quick QuickControls2 REQUIRED)
 qt_standard_project_setup(REQUIRES 6.4)
 
 set(QML_IMPORT_PATH ${CMAKE_BINARY_DIR}/src/server/ CACHE STRING "" FORCE)
+add_definitions(-DSOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
 
 add_executable(tinywl-qtquick
     main.cpp
@@ -27,4 +28,5 @@ target_link_libraries(tinywl-qtquick
     waylibserver
 )
 
-install(TARGETS tinywl-qtquick DESTINATION ${CMAKE_INSTALL_BINDIR})
+# Don't install, using for debug in local
+#install(TARGETS tinywl-qtquick DESTINATION ${CMAKE_INSTALL_BINDIR})
