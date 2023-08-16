@@ -119,6 +119,10 @@ public:
         q_func()->close();
     }
 
+    static WSocketPrivate *get(WSocket *qq) {
+        return qq->d_func();
+    }
+
     void shutdown();
     void restore();
 
@@ -142,7 +146,7 @@ public:
 
 
 struct WlClientDestroyListener {
-    WlClientDestroyListener(WSocketPrivate *socket)
+    WlClientDestroyListener(WSocket *socket)
         : socket(socket)
     {
         destroy.notify = handle_destroy;
@@ -154,7 +158,7 @@ struct WlClientDestroyListener {
     static void handle_destroy(struct wl_listener *listener, void *);
 
     wl_listener destroy;
-    WSocketPrivate *socket;
+    QPointer<WSocket> socket;
 };
 
 WlClientDestroyListener::~WlClientDestroyListener()
@@ -176,7 +180,8 @@ WlClientDestroyListener *WlClientDestroyListener::get(wl_client *client)
 void WlClientDestroyListener::handle_destroy(wl_listener *listener, void *data)
 {
     WlClientDestroyListener *self = wl_container_of(listener, self, destroy);
-    self->socket->removeClient(reinterpret_cast<wl_client*>(data));
+    if (self->socket)
+        WSocketPrivate::get(self->socket)->removeClient(reinterpret_cast<wl_client*>(data));
     delete self;
 }
 
@@ -229,7 +234,7 @@ wl_client *WSocketPrivate::createClient(int fd)
     if (!wl_client) {
         qWarning() << "wl_client_create failed";
     } else {
-        auto listener = new WlClientDestroyListener(this);
+        auto listener = new WlClientDestroyListener(q_func());
         wl_client_add_destroy_listener(wl_client, &listener->destroy);
     }
 
@@ -253,7 +258,7 @@ WSocket::WSocket(bool freezeClientWhenDisable, WSocket *parentSocket, QObject *p
 WSocket *WSocket::get(wl_client *client)
 {
     if (auto tmp = WlClientDestroyListener::get(client))
-        return tmp->socket->q_func();
+        return tmp->socket;
     return nullptr;
 }
 
