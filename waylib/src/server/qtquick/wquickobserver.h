@@ -22,6 +22,10 @@ class WAYLIB_SERVER_EXPORT WQuickObserver : public QQuickItem
 public:
     explicit WQuickObserver(QQuickItem *parent = nullptr);
 
+#if QT_VERSION < QT_VERSION_CHECK(6, 5, 0)
+    ~WQuickObserver();
+#endif
+
     const QPointF globalPosition() const;
     const QPointF scenePosition() const;
 

@@ -290,7 +290,12 @@ void WServer::initializeProxyQPA(int &argc, char **argv, const QStringList &prox
             break;
     }
     if (!proxy) {
+        // QTBUG-8298(Make a stream version of qFatal), fix in 6.5.0
+#if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
         qFatal() << "Can't create the proxy platform plugin:" << proxyPlatformPlugins;
+#else
+        qFatal("Can't create the proxy platform plugin:%s", qPrintable(proxyPlatformPlugins.join(' ')));
+#endif
     }
     proxy->initialize();
     QWlrootsIntegration::instance()->setProxy(proxy);

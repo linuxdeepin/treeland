@@ -4,6 +4,7 @@
 #include "wqmldynamiccreator_p.h"
 
 #include <QJSValue>
+#include <QQuickItem>
 #include <private/qqmlcomponent_p.h>
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
@@ -192,8 +193,16 @@ void WQmlCreatorComponent::create(QSharedPointer<WQmlCreatorDelegateData> data)
     Q_ASSERT(m_delegate);
 
     auto d = QQmlComponentPrivate::get(m_delegate);
+#if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
     if (d->state.isCompletePending()) {
         QMetaObject::invokeMethod(this, "create", Qt::QueuedConnection, data, parent, data->data.lock()->properties);
+#else
+    if (d->state.completePending) {
+        QMetaObject::invokeMethod(this, "create", Qt::QueuedConnection,
+                                  Q_ARG(QSharedPointer<WQmlCreatorDelegateData>, data),
+                                  Q_ARG(QObject *, parent),
+                                  Q_ARG(const QJSValue &, data->data.lock()->properties));
+#endif
     } else {
         create(data, parent, data->data.lock()->properties);
     }
@@ -202,14 +211,39 @@ void WQmlCreatorComponent::create(QSharedPointer<WQmlCreatorDelegateData> data)
 void WQmlCreatorComponent::create(QSharedPointer<WQmlCreatorDelegateData> data, QObject *parent, const QJSValue &initialProperties)
 {
     auto d = QQmlComponentPrivate::get(m_delegate);
+
+#if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
     Q_ASSERT(!d->state.isCompletePending());
+#else
+    Q_ASSERT(!d->state.completePending);
+#endif
     // Don't use QVariantMap instead of QJSValue, because initial properties may be
     // contains some QObject property , if that QObjects is destroyed in future,
     // the QVariantMap's property would not update, you will get a invalid QObject pointer
     // if you using it after it's destroyed, but the QJSValue will watching that QObjects,
     // you will get a null pointer if you using after it's destroyed.
     const auto tmp = qvariant_cast<QVariantMap>(initialProperties.toVariant());
+
+#if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
     data->object = d->createWithProperties(parent, tmp, qmlContext(this));
+#else
+    // The `createWithInitialProperties` provided by QQmlComponent cannot set parent
+    // during the creation process. use `setParent` will too late as the creation has
+    // complete, lead to the windows of WOutputRenderWindow get empty...
+
+    // for Qt 6.5 The createWithInitialProperties with the parent parameter provided by
+    // QQmlComponentPrivate can solve this problem.
+    // Qt 6.4 requires beginCreate -> setInitialProperties/setParent -> completeCreate
+
+    data->object = m_delegate->beginCreate(qmlContext(this));
+    if (data->object) {
+        m_delegate->setInitialProperties(data->object, tmp);
+        data->object->setParent(parent);
+        if (auto item = qobject_cast<QQuickItem*>(data->object))
+            item->setParentItem(qobject_cast<QQuickItem*>(parent));
+        m_delegate->completeCreate();
+    }
+#endif
 
     if (data->object) {
         Q_EMIT objectAdded(data->object, initialProperties);

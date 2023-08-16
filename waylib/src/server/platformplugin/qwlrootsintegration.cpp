@@ -524,10 +524,12 @@ void QWlrootsIntegration::setApplicationIcon(const QIcon &icon) const
     CALL_PROXY(setApplicationIcon, icon);
 }
 
+#if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
 void QWlrootsIntegration::setApplicationBadge(qint64 number)
 {
     CALL_PROXY(setApplicationBadge, number);
 }
+#endif
 
 void QWlrootsIntegration::beep() const
 {

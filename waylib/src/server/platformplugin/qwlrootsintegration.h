@@ -101,8 +101,9 @@ public:
 
     void sync() override;
     void setApplicationIcon(const QIcon &icon) const override;
+#if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
     void setApplicationBadge(qint64 number) override;
-
+#endif
     void beep() const override;
     void quit() const override;
 

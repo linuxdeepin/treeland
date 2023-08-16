@@ -241,7 +241,11 @@ int main(int argc, char *argv[]) {
     QGuiApplication app(argc, argv);
 
     QQmlApplicationEngine waylandEngine;
+#if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
     waylandEngine.loadFromModule("Tinywl", "Main");
+#else
+    waylandEngine.load(QUrl(u"qrc:/Tinywl/Main.qml"_qs));
+#endif
     WServer *server = waylandEngine.rootObjects().first()->findChild<WServer*>();
     Q_ASSERT(server);
     Q_ASSERT(server->isRunning());

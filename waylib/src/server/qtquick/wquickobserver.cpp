@@ -38,6 +38,10 @@ public:
 
     QMetaObject::Connection windowXChangeConnection;
     QMetaObject::Connection windowYChangeConnection;
+
+#if QT_VERSION < QT_VERSION_CHECK(6, 5, 0)
+    bool inDestructor = false;
+#endif
 };
 
 
@@ -46,6 +50,14 @@ WQuickObserver::WQuickObserver(QQuickItem *parent)
 {
     setFlag(ItemObservesViewport);
 }
+
+#if QT_VERSION < QT_VERSION_CHECK(6, 5, 0)
+WQuickObserver::~WQuickObserver()
+{
+    Q_D(WQuickObserver);
+    d->inDestructor = true;
+}
+#endif
 
 const QPointF WQuickObserver::globalPosition() const
 {

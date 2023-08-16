@@ -4,6 +4,7 @@
 import QtQuick
 import QtQuick.Controls
 import Waylib.Server
+import Tinywl
 
 Item {
     id: root

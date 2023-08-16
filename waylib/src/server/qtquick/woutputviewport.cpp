@@ -263,7 +263,7 @@ void WOutputViewportPrivate::updateCursors()
             auto item = qobject_cast<QQuickItem*>(obj);
 
             if (!item)
-                qFatal() << "Must using Item for the Cursor delegate";
+                qFatal("Must using Item for the Cursor delegate");
 
             QQmlEngine::setObjectOwnership(item, QQmlEngine::CppOwnership);
             item->setZ(qreal(WOutputLayout::Layer::Cursor));

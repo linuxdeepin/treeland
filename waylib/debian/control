@@ -3,13 +3,16 @@ Section: libdevel
 Priority: optional
 Maintainer: zkyd <zkyd@zjide.org>
 Build-Depends: debhelper (>= 9),
+ cmake,
  pkg-config,
  qt6-base-private-dev (>= 6.4.0),
  qt6-base-dev-tools (>= 6.4.0),
  qt6-declarative-private-dev (>= 6.4.0),
+ qml6-module-qtquick-templates,
  qwlroots-dev,
  libwlroots-dev (>= 0.17.0),
  libpixman-1-dev,
+ libxcb-ewmh-dev,
  wayland-protocols
 Standards-Version: 3.9.8
 
