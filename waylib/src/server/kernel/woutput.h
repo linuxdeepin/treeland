@@ -11,6 +11,7 @@
 #include <QSize>
 #include <QPoint>
 #include <QQmlEngine>
+#include <QImage>
 
 QT_BEGIN_NAMESPACE
 class QScreen;
@@ -81,6 +82,7 @@ public:
     QSize effectiveSize() const;
     Transform orientation() const;
     float scale() const;
+    QImage::Format preferredReadFormat() const;
 
     void attach(QQuickWindow *window);
     QQuickWindow *attachedWindow() const;

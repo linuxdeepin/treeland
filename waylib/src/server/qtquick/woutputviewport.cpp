@@ -25,6 +25,13 @@ QSGTexture *CursorTextureFactory::createTexture(QQuickWindow *window) const
         return nullptr;
 
     texture->setOwnsTexture(false);
+
+    if (!texture->image().isNull()) {
+        // Can't use QSGPlainTexture for QQuickImage on software renderer
+        auto flags = texture->hasAlphaChannel() ? QQuickWindow::TextureHasAlphaChannel : QQuickWindow::CreateTextureOptions{0};
+        return window->createTextureFromImage(texture->image(), flags);
+    }
+
     return texture.release();
 }
 

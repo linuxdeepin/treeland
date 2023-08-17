@@ -195,24 +195,42 @@ QImage::Format WTools::convertToDrmSupportedFormat(QImage::Format format)
     return format;
 }
 
-QRegion WTools::fromPixmanRegion(void *region)
+QRegion WTools::fromPixmanRegion(pixman_region32 *region)
 {
-    Q_ASSERT(sizeof(QRect) == sizeof(pixman_box32));
-    auto typedRegion = reinterpret_cast<pixman_region32_t*>(region);
     int rectCount = 0;
-    auto rects = pixman_region32_rectangles(typedRegion, &rectCount);
+    auto rects = pixman_region32_rectangles(region, &rectCount);
+
+    if (!rectCount)
+        return {};
+
+    QVector<QRect> rectList;
+    rectList.resize(rectCount);
+
+    for (int i = 0; i < rectCount; ++i)
+        rectList[i].setCoords(rects[i].x1, rects[i].y1, rects[i].x2 - 1, rects[i].y2 - 1);
+
     QRegion qregion;
-    qregion.setRects(reinterpret_cast<QRect*>(rects), rectCount);
+    qregion.setRects(rectList.constData(), rectList.count());
+    Q_ASSERT(qregion.rectCount() == rectList.count());
     return qregion;
 }
 
-void WTools::toPixmanRegion(const QRegion &region, void *pixmanRegion)
+bool WTools::toPixmanRegion(const QRegion &region, pixman_region32 *pixmanRegion)
 {
-    Q_ASSERT(sizeof(QRect) == sizeof(pixman_box32));
-    auto typedRegion = reinterpret_cast<pixman_region32_t*>(pixmanRegion);
-    auto rects = reinterpret_cast<const pixman_box32_t*>(region.begin());
-    bool ok = pixman_region32_init_rects(typedRegion, rects, region.rectCount());
-    Q_ASSERT(ok);
+    QVector<pixman_box32_t> rects;
+    rects.resize(region.rectCount());
+
+    int i = 0;
+    for (const QRect &r : region) {
+        pixman_box32_t &box = rects[i++];
+        box.x1 = r.x();
+        box.y1 = r.y();
+        box.x2 = r.right() + 1;
+        box.y2 = r.bottom() + 1;
+    }
+    bool ok = pixman_region32_init_rects(pixmanRegion, rects.constData(), rects.count());
+    Q_ASSERT(!ok || pixman_region32_n_rects(pixmanRegion) == rects.count());
+    return ok;
 }
 
 QRect WTools::fromWLRBox(void *box)

@@ -63,10 +63,8 @@ private:
     friend class QWlrootsIntegration;
 
     void initialize();
-    QImage::Format getFormat() const;
     inline wlr_output *handle() const;
 
-    mutable QImage::Format m_format;
     QPointer<WOutput> m_output;
     mutable std::unique_ptr<QWlrootsCursor> m_cursor;
 };

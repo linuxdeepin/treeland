@@ -7,6 +7,7 @@
 #include "wserver.h"
 #include "wbackend.h"
 #include "woutputviewport.h"
+#include "wtools.h"
 #include "wquickbackend_p.h"
 #include "wwaylandcompositor_p.h"
 
@@ -20,11 +21,19 @@
 #include <qwbackend.h>
 #include <qwallocator.h>
 #include <qwcompositor.h>
+#include <qwdamagering.h>
+#include <qwbuffer.h>
 
 #include <QOffscreenSurface>
 #include <QQuickRenderControl>
 #include <QOpenGLFunctions>
 
+#define protected public
+#define private public
+#include <private/qsgrenderer_p.h>
+#include <private/qsgsoftwarerenderer_p.h>
+#undef protected
+#undef private
 #include <private/qquickwindow_p.h>
 #include <private/qquickrendercontrol_p.h>
 #include <private/qquickwindow_p.h>
@@ -49,6 +58,7 @@ extern "C" {
 #endif
 #include <wlr/util/region.h>
 #include <wlr/types/wlr_output.h>
+#include <wlr/types/wlr_damage_ring.h>
 }
 
 #include <drm_fourcc.h>
@@ -97,10 +107,15 @@ public:
         return m_output.get();
     }
 
+    inline QWDamageRing *damageRing() {
+        return &m_damageRing;
+    }
+
     void updateSceneDPR();
 
 private:
     QPointer<WOutputViewport> m_output;
+    QWDamageRing m_damageRing;
 };
 
 class RenderControl : public QQuickRenderControl
@@ -222,6 +237,7 @@ public:
         static_cast<QWlrootsRenderWindow*>(platformWindow)->setDevicePixelRatio(ratio);
     }
 
+    QSGRendererInterface::GraphicsApi graphicsApi() const;
     void init();
     void init(OutputHelper *helper);
     bool initRCWithRhi();
@@ -253,12 +269,20 @@ void OutputHelper::updateSceneDPR()
     WOutputRenderWindowPrivate::get(renderWindow())->updateSceneDPR();
 }
 
+QSGRendererInterface::GraphicsApi WOutputRenderWindowPrivate::graphicsApi() const
+{
+    auto api = WOutputHelper::getGraphicsApi(rc());
+    Q_ASSERT(api == WOutputHelper::getGraphicsApi());
+    return api;
+}
+
 void WOutputRenderWindowPrivate::init()
 {
     Q_ASSERT(compositor);
     Q_Q(WOutputRenderWindow);
 
-    initRCWithRhi();
+    if (QSGRendererInterface::isApiRhiBased(graphicsApi()))
+        initRCWithRhi();
     Q_ASSERT(context);
     renderContextProxy.reset(new RenderContextProxy(context));
     q->create();
@@ -395,6 +419,13 @@ void WOutputRenderWindowPrivate::updateSceneDPR()
     setSceneDevicePixelRatio(maxDPR);
 }
 
+inline static QImage *getImageFrom(const QQuickRenderTarget &rt)
+{
+    auto d = QQuickRenderTargetPrivate::get(&rt);
+    Q_ASSERT(d->type == QQuickRenderTargetPrivate::Type::PaintDevice);
+    return static_cast<QImage*>(d->u.paintDevice);
+}
+
 void WOutputRenderWindowPrivate::doRender()
 {
     bool needPolishItems = true;
@@ -410,7 +441,10 @@ void WOutputRenderWindowPrivate::doRender()
         if (!helper->contentIsDirty())
             continue;
 
-        auto rt = helper->acquireRenderTarget(rc());
+        const auto lastRT = helper->lastRenderTarget();
+        int bufferAge = 0;
+        auto rt = helper->acquireRenderTarget(rc(), &bufferAge);
+        Q_ASSERT(rt.first);
         if (rt.second.isNull())
             continue;
 
@@ -461,12 +495,49 @@ void WOutputRenderWindowPrivate::doRender()
 
             // TODO: use scissor with the damage regions for render.
             rc()->render();
+
+            auto softwareRenderer = dynamic_cast<QSGSoftwareRenderer*>(this->renderer);
+            if (softwareRenderer) {
+                {
+                    pixman_region32_t damage;
+                    pixman_region32_init(&damage);
+                    // TODO: Use QWDamageRing::setBounds
+                    helper->damageRing()->setBounds(helper->output()->output()->size());
+                    helper->damageRing()->getBufferDamage(bufferAge, &damage);
+                    const QRegion damageRegion = WTools::fromPixmanRegion(&damage);
+                    pixman_region32_fini(&damage);
+
+                    if (!damageRegion.isEmpty() && lastRT.first != rt.first && !lastRT.second.isNull()) {
+                        auto image = getImageFrom(lastRT.second);
+                        Q_ASSERT(image);
+                        QImage *currentImage = static_cast<QImage*>(softwareRenderer->m_rt.paintDevice);
+                        Q_ASSERT(currentImage);
+                        Q_ASSERT(image->size() == helper->output()->output()->size());
+
+                        // TODO: Don't use the previous render target, we can get the damage region of QtQuick
+                        // before QQuickRenderControl::render for QWDamageRing, and add dirty region to
+                        // QSGAbstractSoftwareRenderer to force repaint the damage region of current render target.
+                        QPainter pa(currentImage);
+                        for (const QRect &r : damageRegion - softwareRenderer->flushRegion()) {
+                            pa.drawImage(r, *image, r);
+                        }
+                    }
+                }
+
+                for (const QRect &r : softwareRenderer->flushRegion())
+                    helper->damageRing()->addBox(r);
+
+                if (!softwareRenderer->flushRegion().isEmpty())
+                    helper->qwoutput()->setDamage(&helper->damageRing()->handle()->current);
+            }
+
             rc()->endFrame();
         }
 
         if (helper->qwoutput()->commit())
             helper->resetState();
         helper->doneCurrent(glContext);
+        helper->damageRing()->rotate();
 
         Q_EMIT helper->output()->frameDone();
     }

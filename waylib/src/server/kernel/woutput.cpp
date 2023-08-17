@@ -5,6 +5,7 @@
 #include "wbackend.h"
 #include "wcursor.h"
 #include "wseat.h"
+#include "wtools.h"
 #include "platformplugin/qwlrootscreen.h"
 
 #include <qwoutput.h>
@@ -16,6 +17,7 @@
 extern "C" {
 #define static
 #include <wlr/types/wlr_output.h>
+#include <wlr/render/interface.h>
 #undef static
 #include <wlr/types/wlr_output_layout.h>
 }
@@ -229,6 +231,28 @@ float WOutput::scale() const
     W_DC(WOutput);
 
     return d->nativeHandle()->scale;
+}
+
+QImage::Format WOutput::preferredReadFormat() const
+{
+    W_DC(WOutput);
+
+    auto renderer = d->nativeHandle()->renderer;
+    // ###: The wlr_output_preferred_read_format force request
+    // attach the renderer to wlr_output, but maybe the renderer
+    // is rendering, you will get a crash at renderer_bind_buffer.
+    // So, if it's rendering, we direct get the preferred read
+    // format of current buffer by renderer->impl->preferred_read_format.
+    if (renderer && renderer->rendering) {
+        if (!renderer->impl->preferred_read_format
+            || !renderer->impl->read_pixels) {
+            return QImage::Format_Invalid;
+        }
+
+        return WTools::toImageFormat(renderer->impl->preferred_read_format(renderer));
+    }
+
+    return WTools::toImageFormat(d->handle->preferredReadFormat());
 }
 
 void WOutput::attach(QQuickWindow *window)

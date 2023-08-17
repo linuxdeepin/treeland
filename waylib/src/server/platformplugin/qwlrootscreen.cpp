@@ -53,9 +53,7 @@ int QWlrootsScreen::depth() const
 
 QImage::Format QWlrootsScreen::format() const
 {
-    if (m_format == QImage::Format_Invalid)
-        m_format = getFormat();
-    return m_format;
+    return m_output->preferredReadFormat();
 }
 
 QSizeF QWlrootsScreen::physicalSize() const
@@ -235,12 +233,6 @@ void QWlrootsScreen::initialize()
 
     QObject::connect(m_output.get(), &WOutput::scaleChanged, screen(), updateDpi);
     updateDpi();
-}
-
-QImage::Format QWlrootsScreen::getFormat() const
-{
-    auto f = m_output->handle()->preferredReadFormat();
-    return WTools::toImageFormat(f);
 }
 
 wlr_output *QWlrootsScreen::handle() const

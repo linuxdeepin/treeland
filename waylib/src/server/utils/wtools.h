@@ -9,6 +9,8 @@
 #include <QRegion>
 #include <QRect>
 
+struct pixman_region32;
+
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
 class WTools
@@ -18,8 +20,8 @@ public:
     static QImage::Format toImageFormat(uint32_t drmFormat);
     static uint32_t toDrmFormat(QImage::Format format);
     static QImage::Format convertToDrmSupportedFormat(QImage::Format format);
-    static QRegion fromPixmanRegion(void *region);
-    static void toPixmanRegion(const QRegion &region, void *pixmanRegion);
+    static QRegion fromPixmanRegion(pixman_region32 *region);
+    static bool toPixmanRegion(const QRegion &region, pixman_region32 *pixmanRegion);
     static QRect fromWLRBox(void *box);
     static void toWLRBox(const QRect &rect, void *box);
 };

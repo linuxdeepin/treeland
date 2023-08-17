@@ -233,7 +233,7 @@ int main(int argc, char *argv[]) {
 //    QQuickWindow::setGraphicsApi(QSGRendererInterface::Vulkan);
 
     WServer::initializeQPA();
-    QQuickStyle::setStyle("Material");
+//    QQuickStyle::setStyle("Material");
 
     QGuiApplication::setAttribute(Qt::AA_UseOpenGLES);
     QGuiApplication::setHighDpiScaleFactorRoundingPolicy(Qt::HighDpiScaleFactorRoundingPolicy::PassThrough);

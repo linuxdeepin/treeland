@@ -62,7 +62,7 @@ struct BufferData {
     QWBuffer *buffer = nullptr;
     // for software renderer
     QImage paintDevice;
-    QQuickRenderTarget rhiRenderTarget;
+    QQuickRenderTarget renderTarget;
     QQuickWindowRenderTarget windowRenderTarget;
 
     inline void resetWindowRenderTarget() {
@@ -113,6 +113,7 @@ public:
         renderable = true;
     }
     ~WOutputHelperPrivate() {
+        lastBuffer = nullptr;
         qDeleteAll(buffers);
     }
 
@@ -181,6 +182,7 @@ public:
     QWindow *outputWindow;
 
     QList<BufferData*> buffers;
+    BufferData *lastBuffer = nullptr;
 
     bool renderable = false;
     bool contentIsDirty = false;
@@ -218,6 +220,7 @@ void WOutputHelperPrivate::resetRenderBuffer()
 {
     qpaWindow()->setBuffer(nullptr);
     qDeleteAll(buffers);
+    lastBuffer = nullptr;
     buffers.clear();
 }
 
@@ -237,6 +240,8 @@ void WOutputHelperPrivate::onBufferDestroy(QWBuffer *buffer)
     for (int i = 0; i < buffers.count(); ++i) {
         auto data = buffers[i];
         if (data->buffer == buffer) {
+            if (lastBuffer == data)
+                lastBuffer = nullptr;
             buffers.removeAt(i);
             break;
         }
@@ -326,13 +331,13 @@ bool WOutputHelperPrivate::ensureRhiRenderTarget(QQuickRenderControl *rc, Buffer
 #else
     auto rhi = rc->rhi();
 #endif
-    auto tmp = data->rhiRenderTarget;
+    auto tmp = data->renderTarget;
     bool ok = createRhiRenderTarget(rhi, tmp, data->windowRenderTarget);
     if (!ok)
         return false;
-    data->rhiRenderTarget = QQuickRenderTarget::fromRhiRenderTarget(data->windowRenderTarget.renderTarget);
-    data->rhiRenderTarget.setDevicePixelRatio(tmp.devicePixelRatio());
-    data->rhiRenderTarget.setMirrorVertically(tmp.mirrorVertically());
+    data->renderTarget = QQuickRenderTarget::fromRhiRenderTarget(data->windowRenderTarget.renderTarget);
+    data->renderTarget.setDevicePixelRatio(tmp.devicePixelRatio());
+    data->renderTarget.setMirrorVertically(tmp.mirrorVertically());
 
     return true;
 }
@@ -342,6 +347,24 @@ WOutputHelper::WOutputHelper(WOutput *output, QObject *parent)
     , WObject(*new WOutputHelperPrivate(output, this))
 {
 
+}
+
+QSGRendererInterface::GraphicsApi WOutputHelper::getGraphicsApi(QQuickRenderControl *rc)
+{
+    auto d = QQuickRenderControlPrivate::get(rc);
+    return d->sg->rendererInterface(d->rc)->graphicsApi();
+}
+
+QSGRendererInterface::GraphicsApi WOutputHelper::getGraphicsApi()
+{
+    auto getApi = [] () {
+        // Only for get GraphicsApi
+        QQuickRenderControl rc;
+        return getGraphicsApi(&rc);
+    };
+
+    static auto api = getApi();
+    return api;
 }
 
 WOutput *WOutputHelper::output() const
@@ -366,8 +389,10 @@ std::pair<QWBuffer*, QQuickRenderTarget> WOutputHelper::acquireRenderTarget(QQui
 
     for (int i = 0; i < d->buffers.count(); ++i) {
         auto data = d->buffers[i];
-        if (data->buffer == buffer)
-            return {buffer, data->rhiRenderTarget};
+        if (data->buffer == buffer) {
+            d->lastBuffer = data;
+            return {buffer, data->renderTarget};
+        }
     }
 
     std::unique_ptr<BufferData> bufferData(new BufferData);
@@ -383,7 +408,6 @@ std::pair<QWBuffer*, QQuickRenderTarget> WOutputHelper::acquireRenderTarget(QQui
         if (bufferData->paintDevice.constBits() != data)
             bufferData->paintDevice = WTools::fromPixmanImage(image, data);
         Q_ASSERT(!bufferData->paintDevice.isNull());
-        bufferData->paintDevice.setDevicePixelRatio(d->qwoutput()->handle()->pending.scale);
         rt = QQuickRenderTarget::fromPaintDevice(&bufferData->paintDevice);
     }
 #ifdef ENABLE_VULKAN_RENDER
@@ -403,23 +427,37 @@ std::pair<QWBuffer*, QQuickRenderTarget> WOutputHelper::acquireRenderTarget(QQui
 
     delete texture;
 
-    if (!rt.isNull()) {
-        bufferData->rhiRenderTarget = rt;
-        if (!d->ensureRhiRenderTarget(rc, bufferData.get()))
-            bufferData->rhiRenderTarget = {};
-    }
+    bufferData->renderTarget = rt;
 
-    if (bufferData->rhiRenderTarget.isNull()) {
-        buffer->unlock();
-        return {};
+    if (QSGRendererInterface::isApiRhiBased(getGraphicsApi(rc))) {
+        if (!rt.isNull()) {
+            // Force convert to Rhi render target
+            if (!d->ensureRhiRenderTarget(rc, bufferData.get()))
+                bufferData->renderTarget = {};
+        }
+
+        if (bufferData->renderTarget.isNull()) {
+            buffer->unlock();
+            return {};
+        }
     }
 
     connect(buffer, SIGNAL(beforeDestroy(QWBuffer*)),
             this, SLOT(onBufferDestroy(QWBuffer*)), Qt::UniqueConnection);
 
     d->buffers.append(bufferData.release());
+    d->lastBuffer = d->buffers.last();
 
-    return {buffer, d->buffers.last()->rhiRenderTarget};
+    return {buffer, d->buffers.last()->renderTarget};
+}
+
+std::pair<QWBuffer *, QQuickRenderTarget> WOutputHelper::lastRenderTarget()
+{
+    W_DC(WOutputHelper);
+    if (!d->lastBuffer)
+        return {nullptr, {}};
+
+    return {d->lastBuffer->buffer, d->lastBuffer->renderTarget};
 }
 
 // Copy from "wlr_renderer.c" of wlroots
@@ -489,9 +527,7 @@ QWRenderer *WOutputHelper::createRenderer(QWBackend *backend)
     }
 
     wlr_renderer *renderer_handle = nullptr;
-    auto api = QQuickWindow::graphicsApi();
-    if (QQuickWindow::sceneGraphBackend() == QStringLiteral("software"))
-        api = QSGRendererInterface::Software;
+    auto api = getGraphicsApi();
 
     switch (api) {
     case QSGRendererInterface::OpenGL:

@@ -8,6 +8,7 @@
 
 #include <QObject>
 #include <QQuickRenderTarget>
+#include <QSGRendererInterface>
 
 QT_BEGIN_NAMESPACE
 class QOpenGLContext;
@@ -35,10 +36,14 @@ class WAYLIB_SERVER_EXPORT WOutputHelper : public QObject, public WObject
 public:
     explicit WOutputHelper(WOutput *output, QObject *parent = nullptr);
 
+    static QSGRendererInterface::GraphicsApi getGraphicsApi(QQuickRenderControl *rc);
+    static QSGRendererInterface::GraphicsApi getGraphicsApi();
+
     WOutput *output() const;
     QWindow *outputWindow() const;
 
     std::pair<QW_NAMESPACE::QWBuffer*, QQuickRenderTarget> acquireRenderTarget(QQuickRenderControl *rc, int *bufferAge = nullptr);
+    std::pair<QW_NAMESPACE::QWBuffer*, QQuickRenderTarget> lastRenderTarget();
     static QW_NAMESPACE::QWRenderer *createRenderer(QW_NAMESPACE::QWBackend *backend);
 
     bool renderable() const;
