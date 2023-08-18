@@ -116,7 +116,7 @@ public:
     }
 
     bool contains(const QPointF &point) const override {
-        if (Q_UNLIKELY(!d() || !d()->surface))
+        if (Q_UNLIKELY(!d() || !d()->surface || !d()->surface->handle()))
             return false;
 
         return d()->surface->inputRegionContains(point);
