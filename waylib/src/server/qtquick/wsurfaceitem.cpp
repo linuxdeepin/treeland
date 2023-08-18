@@ -111,6 +111,10 @@ public:
         setFlag(QQuickItem::ItemClipsChildrenToShape, true);
     }
 
+    inline bool isValid() const {
+        return parent() && static_cast<ContentItem*>(parent())->surfaceItem();
+    }
+
     inline WSurfaceItemPrivate *d() const {
         return WSurfaceItemPrivate::get(static_cast<ContentItem*>(parent())->surfaceItem());
     }
@@ -139,7 +143,8 @@ private:
             break;
         }
         case QEvent::FocusOut: {
-            d()->q_func()->setFocus(false);
+            if (isValid())
+                d()->q_func()->setFocus(false);
             break;
         }
         }

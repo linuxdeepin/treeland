@@ -49,12 +49,12 @@ Item {
             property OutputPositioner output
             property CoordMapper outputCoordMapper
 
-            visible: waylandSurface && waylandSurface.surface.mapped && waylandSurface.WaylandSocket.rootSocket.enabled
+            visible: waylandSurface.surface.mapped && waylandSurface.WaylandSocket.rootSocket.enabled
 
             states: [
                 State {
                     name: "maximize"
-                    when: waylandSurface && waylandSurface.isMaximized && outputCoordMapper
+                    when: waylandSurface.isMaximized && outputCoordMapper
                     PropertyChanges {
                         restoreEntryValues: true
                         surface {
@@ -179,10 +179,10 @@ Item {
             required property WaylandXdgSurface waylandSurface
 
             property alias xdgSurface: surface
-            property var xdgParent: waylandSurface ? root.getXdgSurfaceFromWaylandSurface(waylandSurface.parentXdgSurface) : null
+            property var xdgParent: root.getXdgSurfaceFromWaylandSurface(waylandSurface.parentXdgSurface)
 
             parent: xdgParent ? xdgParent.parent : root
-            visible: waylandSurface && waylandSurface.surface.mapped && waylandSurface.WaylandSocket.rootSocket.enabled
+            visible: waylandSurface.surface.mapped && waylandSurface.WaylandSocket.rootSocket.enabled
             x: surface.implicitPosition.x + (xdgParent ? xdgParent.xdgSurface.contentItem.x : 0)
             y: surface.implicitPosition.y + (xdgParent ? xdgParent.xdgSurface.contentItem.x : 0)
             padding: 0

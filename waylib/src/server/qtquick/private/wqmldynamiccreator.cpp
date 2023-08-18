@@ -146,14 +146,13 @@ void WQmlCreatorComponent::remove(QSharedPointer<WQmlCreatorData> data)
 void WQmlCreatorComponent::destroy(QSharedPointer<WQmlCreatorDelegateData> data)
 {
     if (data->object) {
-        auto obj = data->object;
-        obj.clear();
+        auto obj = data->object.get();
+        data->object.clear();
         const QJSValue p = data->data.lock()->properties;
         Q_EMIT objectRemoved(obj, p);
         notifyCreatorObjectRemoved(m_creator, obj, p);
 
-        if (obj)
-            obj->deleteLater();
+        obj->deleteLater();
     }
 }
 
