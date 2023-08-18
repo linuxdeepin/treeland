@@ -29,6 +29,7 @@ WAYLIB_SERVER_BEGIN_NAMESPACE
 class ContentItem;
 class WSGTextureProvider : public QSGTextureProvider
 {
+    friend class ContentItem;
 public:
     WSGTextureProvider(ContentItem *item);
 
@@ -96,6 +97,7 @@ private:
     Q_SLOT void invalidateSceneGraph();
 
     WSGTextureProvider *m_textureProvider = nullptr;
+    QMetaObject::Connection m_updateTextureConnection;
 };
 
 class EventItem : public QQuickItem
@@ -218,6 +220,9 @@ void ContentItem::releaseResources()
         // Delay clean the textures on the next render after.
         d->window->scheduleRenderJob(new WSurfaceCleanupJob(m_textureProvider),
                                      QQuickWindow::AfterRenderingStage);
+        m_textureProvider->item = nullptr;
+        if (m_updateTextureConnection)
+            QObject::disconnect(m_updateTextureConnection);
         m_textureProvider = nullptr;
     }
 
@@ -459,8 +464,9 @@ void WSurfaceItemPrivate::initForSurface()
 
     contentItem->m_textureProvider->updateTexture();
 
-    QObject::connect(surface, &WSurface::textureChanged,
-                     contentItem->m_textureProvider, &WSGTextureProvider::updateTexture);
+    contentItem->m_updateTextureConnection = QObject::connect(surface, &WSurface::textureChanged,
+                                                              contentItem->m_textureProvider,
+                                                              &WSGTextureProvider::updateTexture);
     QObject::connect(surface, &WSurface::destroyed, q,
                      &WSurfaceItem::releaseResources, Qt::DirectConnection);
     QObject::connect(surface, &WSurface::primaryOutputChanged, q, [this] {
