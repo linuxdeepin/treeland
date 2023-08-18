@@ -49,7 +49,7 @@
               export EGL_LOG_LEVEL=debug
               export LIBGL_DEBUG=verbose
               export WAYLAND_DEBUG=1
-              export QT_PLUGIN_PATH=${makeQtpluginPath (with pkgs.qt6; [ qtbase qtdeclarative qtquick3d ])}
+              export QT_PLUGIN_PATH=${makeQtpluginPath (with pkgs.qt6; [ qtbase qtdeclarative qtquick3d qtwayland ])}
               export QML2_IMPORT_PATH=${makeQmlpluginPath (with pkgs.qt6; [ qtdeclarative qtquick3d ])}
               export QML_IMPORT_PATH=$QML2_IMPORT_PATH
             '';
