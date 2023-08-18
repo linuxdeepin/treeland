@@ -6,6 +6,7 @@
 #include "wbackend.h"
 #include "wtools.h"
 #include "platformplugin/types.h"
+#include "private/wqmlhelper_p.h"
 
 #include <qwbackend.h>
 #include <qwoutput.h>
@@ -61,7 +62,7 @@ struct BufferData {
 
     QWBuffer *buffer = nullptr;
     // for software renderer
-    QImage paintDevice;
+    WImageRenderTarget paintDevice;
     QQuickRenderTarget renderTarget;
     QQuickWindowRenderTarget windowRenderTarget;
 

@@ -10,6 +10,7 @@
 #include "wtools.h"
 #include "wquickbackend_p.h"
 #include "wwaylandcompositor_p.h"
+#include "wqmlhelper_p.h"
 
 #include "platformplugin/qwlrootsintegration.h"
 #include "platformplugin/qwlrootscreen.h"
@@ -44,6 +45,7 @@
 #include <private/qquickanimatorcontroller_p.h>
 #include <private/qsgabstractrenderer_p.h>
 #include <private/qsgrenderer_p.h>
+#include <private/qpainter_p.h>
 
 extern "C" {
 #define static
@@ -419,12 +421,32 @@ void WOutputRenderWindowPrivate::updateSceneDPR()
     setSceneDevicePixelRatio(maxDPR);
 }
 
-inline static QImage *getImageFrom(const QQuickRenderTarget &rt)
+inline static WImageRenderTarget *getImageFrom(const QQuickRenderTarget &rt)
 {
     auto d = QQuickRenderTargetPrivate::get(&rt);
     Q_ASSERT(d->type == QQuickRenderTargetPrivate::Type::PaintDevice);
-    return static_cast<QImage*>(d->u.paintDevice);
+    return static_cast<WImageRenderTarget*>(d->u.paintDevice);
 }
+
+struct PixmanRegion
+{
+    PixmanRegion() {
+        pixman_region32_init(&data);
+    }
+    ~PixmanRegion() {
+        pixman_region32_fini(&data);
+    }
+
+    inline operator pixman_region32_t*() {
+        return &data;
+    }
+
+    inline bool isEmpty() const {
+        return !pixman_region32_not_empty(&data);
+    }
+
+    pixman_region32_t data;
+};
 
 void WOutputRenderWindowPrivate::doRender()
 {
@@ -457,76 +479,97 @@ void WOutputRenderWindowPrivate::doRender()
             rc()->beginFrame();
             rc()->sync();
 
-            bool flipY = rhi ? !rhi->isYUpInNDC() : false;
-            if (!customRenderTarget.isNull() && customRenderTarget.mirrorVertically())
-                flipY = !flipY;
-
             Q_ASSERT(helper->output()->output()->scale() <= q_func()->devicePixelRatio());
             const qreal devicePixelRatio = helper->output()->devicePixelRatio();
             const QSize pixelSize = helper->output()->output()->size();
 
-            renderContextProxy->dpr = devicePixelRatio;
-            renderContextProxy->deviceRect = QRect(QPoint(0, 0), pixelSize);
-            renderContextProxy->viewportRect = QRect(QPoint(0, 0), pixelSize);
-
-            QRectF rect(QPointF(0, 0), helper->output()->size());
-            QMatrix4x4 matrix;
-            matrix.ortho(rect.x(),
-                         rect.x() + rect.width(),
-                         flipY ? rect.y() : rect.y() + rect.height(),
-                         flipY ? rect.y() + rect.height() : rect.y(),
-                         1,
-                         -1);
             auto viewportMatrix = QQuickItemPrivate::get(helper->output())->itemNode()->matrix().inverted();
             QMatrix4x4 parentMatrix = QQuickItemPrivate::get(helper->output()->parentItem())->itemToWindowTransform().inverted();
             viewportMatrix *= parentMatrix;
-            renderContextProxy->projectionMatrix = matrix * viewportMatrix;
 
-            if (flipY) {
-                matrix.setToIdentity();
+            auto softwareRenderer = dynamic_cast<QSGSoftwareRenderer*>(this->renderer);
+            if (softwareRenderer) {
+                auto image = getImageFrom(rt.second);
+                image->setDevicePixelRatio(devicePixelRatio);
+                auto rootTransformNode = QQuickItemPrivate::get(contentItem)->itemNode();
+                // TODO: Should set to QSGSoftwareRenderer, but it's not support specify matrix.
+                if (rootTransformNode->matrix() != viewportMatrix)
+                    rootTransformNode->setMatrix(viewportMatrix);
+            } else {
+                bool flipY = rhi ? !rhi->isYUpInNDC() : false;
+                if (!customRenderTarget.isNull() && customRenderTarget.mirrorVertically())
+                    flipY = !flipY;
+
+                renderContextProxy->dpr = devicePixelRatio;
+                renderContextProxy->deviceRect = QRect(QPoint(0, 0), pixelSize);
+                renderContextProxy->viewportRect = QRect(QPoint(0, 0), pixelSize);
+
+                QRectF rect(QPointF(0, 0), helper->output()->size());
+                QMatrix4x4 matrix;
                 matrix.ortho(rect.x(),
                              rect.x() + rect.width(),
-                             rect.y() + rect.height(),
-                             rect.y(),
+                             flipY ? rect.y() : rect.y() + rect.height(),
+                             flipY ? rect.y() + rect.height() : rect.y(),
                              1,
                              -1);
+
+                renderContextProxy->projectionMatrix = matrix * viewportMatrix;
+
+                if (flipY) {
+                    matrix.setToIdentity();
+                    matrix.ortho(rect.x(),
+                                 rect.x() + rect.width(),
+                                 rect.y() + rect.height(),
+                                 rect.y(),
+                                 1,
+                                 -1);
+                }
+                renderContextProxy->projectionMatrixWithNativeNDC = matrix * viewportMatrix;
             }
-            renderContextProxy->projectionMatrixWithNativeNDC = matrix * viewportMatrix;
 
             // TODO: use scissor with the damage regions for render.
             rc()->render();
 
-            auto softwareRenderer = dynamic_cast<QSGSoftwareRenderer*>(this->renderer);
             if (softwareRenderer) {
-                {
-                    pixman_region32_t damage;
-                    pixman_region32_init(&damage);
-                    // TODO: Use QWDamageRing::setBounds
-                    helper->damageRing()->setBounds(helper->output()->output()->size());
-                    helper->damageRing()->getBufferDamage(bufferAge, &damage);
-                    const QRegion damageRegion = WTools::fromPixmanRegion(&damage);
-                    pixman_region32_fini(&damage);
+                auto currentImage = getImageFrom(rt.second);
+                Q_ASSERT(currentImage && currentImage == softwareRenderer->m_rt.paintDevice);
+                currentImage->setDevicePixelRatio(1.0);
+                const auto scaleTF = QTransform::fromScale(devicePixelRatio, devicePixelRatio);
+                const auto scaledFlushRegion = scaleTF.map(softwareRenderer->flushRegion());
+                PixmanRegion scaledFlushDamage;
+                bool ok = WTools::toPixmanRegion(scaledFlushRegion, scaledFlushDamage);
+                Q_ASSERT(ok);
 
-                    if (!damageRegion.isEmpty() && lastRT.first != rt.first && !lastRT.second.isNull()) {
+                {
+                    PixmanRegion damage;
+                    // TODO: Use QWDamageRing::setBounds
+                    helper->damageRing()->setBounds(pixelSize);
+                    helper->damageRing()->getBufferDamage(bufferAge, damage);
+
+                    if (!damage.isEmpty() && lastRT.first != rt.first && !lastRT.second.isNull()) {
                         auto image = getImageFrom(lastRT.second);
                         Q_ASSERT(image);
-                        QImage *currentImage = static_cast<QImage*>(softwareRenderer->m_rt.paintDevice);
-                        Q_ASSERT(currentImage);
-                        Q_ASSERT(image->size() == helper->output()->output()->size());
+                        Q_ASSERT(image->size() == pixelSize);
 
                         // TODO: Don't use the previous render target, we can get the damage region of QtQuick
                         // before QQuickRenderControl::render for QWDamageRing, and add dirty region to
                         // QSGAbstractSoftwareRenderer to force repaint the damage region of current render target.
                         QPainter pa(currentImage);
-                        for (const QRect &r : damageRegion - softwareRenderer->flushRegion()) {
-                            pa.drawImage(r, *image, r);
+
+                        PixmanRegion remainderDamage;
+                        ok = pixman_region32_subtract(remainderDamage, damage, scaledFlushDamage);
+                        Q_ASSERT(ok);
+
+                        int count = 0;
+                        auto rects = pixman_region32_rectangles(remainderDamage, &count);
+                        for (int i = 0; i < count; ++i) {
+                            auto r = rects[i];
+                            pa.drawImage(r.x1, r.y1, *image, r.x1, r.y1, r.x2 - r.x1, r.y2 - r.y1);
                         }
                     }
                 }
 
-                for (const QRect &r : softwareRenderer->flushRegion())
-                    helper->damageRing()->addBox(r);
-
+                helper->damageRing()->add(scaledFlushDamage);
                 if (!softwareRenderer->flushRegion().isEmpty())
                     helper->qwoutput()->setDamage(&helper->damageRing()->handle()->current);
             }

@@ -7,6 +7,40 @@
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
+WImageRenderTarget::WImageRenderTarget()
+    : image(new QImage())
+{
+
+}
+
+int WImageRenderTarget::devType() const
+{
+    return QInternal::CustomRaster;
+}
+
+QPaintEngine *WImageRenderTarget::paintEngine() const
+{
+    return image->paintEngine();
+}
+
+void WImageRenderTarget::setDevicePixelRatio(qreal dpr)
+{
+    image->setDevicePixelRatio(dpr);
+}
+
+int WImageRenderTarget::metric(PaintDeviceMetric metric) const
+{
+    return image->metric(metric);
+}
+
+QPaintDevice *WImageRenderTarget::redirected(QPoint *offset) const
+{
+    if (offset)
+        *offset = QPoint(0, 0);
+
+    return image.get();
+}
+
 WQmlHelper::WQmlHelper(QObject *parent)
     : QObject{parent}
 {
