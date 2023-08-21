@@ -102,7 +102,12 @@ void WSurfacePrivate::connect()
     QObject::connect(handle.get(), &QWSurface::unmapped, q, &WSurface::mappedChanged);
     QObject::connect(handle.get(), &QWSurface::newSubsurface, q, [q, this] (QWSubsurface *sub) {
         setHasSubsurface(true);
-        Q_EMIT q->newSubsurface(ensureSubsurface(sub->handle()));
+
+        auto surface = ensureSubsurface(sub->handle());
+        Q_EMIT q->newSubsurface(surface);
+
+        for (auto output : outputs)
+            surface->enterOutput(output);
     });
 }
 
@@ -164,7 +169,9 @@ WSurface *WSurfacePrivate::ensureSubsurface(wlr_subsurface *subsurface)
     if (auto surface = WSurface::fromHandle(subsurface->surface))
         return surface;
 
-    auto surface = new WSurface(QWSurface::from(subsurface->surface), q_func());
+    auto qwsurface = QWSurface::from(subsurface->surface);
+    auto surface = new WSurface(qwsurface, q_func());
+    QObject::connect(qwsurface, &QWSurface::beforeDestroy, surface, &WSurface::deleteLater);
 
     return surface;
 }
@@ -280,6 +287,9 @@ QWTexture *WSurface::texture() const
     if (!renderer)
         return nullptr;
 
+    if (!d->buffer)
+        return nullptr;
+
     d->texture = QWTexture::fromBuffer(renderer, d->buffer);
     return d->texture;
 }
@@ -323,6 +333,17 @@ void WSurface::enterOutput(WOutput *output)
         d->primaryOutput = output;
         Q_EMIT primaryOutputChanged();
     }
+
+    // for subsurface
+    auto surface = d->nativeHandle();
+    wlr_subsurface *subsurface;
+    wl_list_for_each(subsurface, &surface->current.subsurfaces_below, current.link) {
+        d->ensureSubsurface(subsurface)->enterOutput(output);
+    }
+
+    wl_list_for_each(subsurface, &surface->current.subsurfaces_above, current.link) {
+        d->ensureSubsurface(subsurface)->enterOutput(output);
+    }
 }
 
 void WSurface::leaveOutput(WOutput *output)
@@ -341,6 +362,17 @@ void WSurface::leaveOutput(WOutput *output)
     if (d->primaryOutput == output) {
         d->primaryOutput = d->outputs.isEmpty() ? nullptr : d->outputs.last();
         Q_EMIT primaryOutputChanged();
+    }
+
+    // for subsurface
+    auto surface = d->nativeHandle();
+    wlr_subsurface *subsurface;
+    wl_list_for_each(subsurface, &surface->current.subsurfaces_below, current.link) {
+        d->ensureSubsurface(subsurface)->leaveOutput(output);
+    }
+
+    wl_list_for_each(subsurface, &surface->current.subsurfaces_above, current.link) {
+        d->ensureSubsurface(subsurface)->leaveOutput(output);
     }
 }
 

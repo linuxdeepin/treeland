@@ -162,6 +162,9 @@ ContentItem::ContentItem(WSurfaceItem *parent)
 
 ContentItem::~ContentItem()
 {
+    if (m_updateTextureConnection)
+        QObject::disconnect(m_updateTextureConnection);
+
     if (m_textureProvider) {
         delete m_textureProvider;
         m_textureProvider = nullptr;
@@ -386,7 +389,9 @@ void WSurfaceItem::itemChange(ItemChange change, const ItemChangeData &data)
         if (d->surface)
             d->updateFrameDoneConnection();
     } else if (change == ItemChildRemovedChange) {
-        auto item = qobject_cast<WSurfaceItem*>(data.item);
+        // Don't use qobject_cast, because this item is in destroy,
+        // Use static_cast to avoid convert failed.
+        auto item = static_cast<WSurfaceItem*>(data.item);
         if (item && d->subsurfaces.removeOne(item)) {
             Q_EMIT subsurfaceRemoved(item);
         }
@@ -460,7 +465,8 @@ WSurfaceItemPrivate::WSurfaceItemPrivate()
 
 WSurfaceItemPrivate::~WSurfaceItemPrivate()
 {
-
+    if (frameDoneConnection)
+        QObject::disconnect(frameDoneConnection);
 }
 
 void WSurfaceItemPrivate::initForSurface()
