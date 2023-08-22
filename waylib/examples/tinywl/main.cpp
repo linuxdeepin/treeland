@@ -149,9 +149,6 @@ bool Helper::eventFilter(WSeat *seat, QWindow *watched, QInputEvent *event)
             return true;
         } else if (event->type() == QEvent::MouseButtonRelease) {
             stop();
-            // Don't continue delivery this mouse event, bacuse this event
-            // is working for move-resize job.
-            return true;
         }
     }
 

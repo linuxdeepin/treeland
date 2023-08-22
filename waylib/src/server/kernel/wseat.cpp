@@ -62,12 +62,8 @@ public:
     }
 
     inline bool doNotifyMotion(WSurface *target, QPointF localPos, uint32_t timestamp) {
-        if (!pointerFocusSurface()) {
-            doEnter(target, localPos);
-        } else {
-            Q_ASSERT(pointerFocusSurface() == target->handle()->handle());
-            handle()->pointerNotifyMotion(timestamp, localPos.x(), localPos.y());
-        }
+        Q_ASSERT(pointerFocusSurface() == target->handle()->handle());
+        handle()->pointerNotifyMotion(timestamp, localPos.x(), localPos.y());
         return true;
     }
     inline bool doNotifyButton(uint32_t button, wlr_button_state state, uint32_t timestamp) {
@@ -524,8 +520,9 @@ void WSeat::notifyMotion(WCursor *cursor, WInputDevice *device, uint32_t timesta
     const QPointF &global = cursor->position();
     const QPointF local = w ? global - QPointF(w->position()) : QPointF();
 
-    QMouseEvent e(QEvent::MouseMove, local, global, cursor->button(),
+    QMouseEvent e(QEvent::MouseMove, local, global, Qt::NoButton,
                   cursor->state(), d->keyModifiers, qwDevice);
+    Q_ASSERT(e.isUpdateEvent());
     e.setTimestamp(timestamp);
 
     if (Q_UNLIKELY(d->eventFilter)) {
@@ -564,6 +561,10 @@ void WSeat::notifyButton(WCursor *cursor, WInputDevice *device, Qt::MouseButton 
 
     QMouseEvent e(et, local, global, button,
                   cursor->state(), d->keyModifiers, qwDevice);
+    if (et == QEvent::MouseButtonPress)
+        Q_ASSERT(e.isBeginEvent());
+    else
+        Q_ASSERT(e.isEndEvent());
     e.setTimestamp(timestamp);
 
     if (Q_UNLIKELY(d->eventFilter)) {
