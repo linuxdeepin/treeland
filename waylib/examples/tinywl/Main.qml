@@ -87,6 +87,12 @@ Item {
         width: outputRowLayout.implicitWidth + outputRowLayout.x
         height: outputRowLayout.implicitHeight + outputRowLayout.y
 
+        MouseArea {
+            anchors.fill: parent
+            cursorShape: Qt.ArrowCursor
+            onPressed: Helper.clearFocus(renderWindow)
+        }
+
         Row {
             id: outputRowLayout
 

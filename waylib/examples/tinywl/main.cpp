@@ -105,6 +105,13 @@ void Helper::allowNonDrmOutputAutoChangeMode(WOutput *output)
     connect(output->handle(), &QWOutput::requestState, this, &Helper::onOutputRequeseState);
 }
 
+void Helper::clearFocus(QWindow *window)
+{
+    if (auto item = qobject_cast<QQuickItem*>(window->focusObject()))
+        item->setFocus(false);
+    setActivateSurface(nullptr);
+}
+
 bool Helper::eventFilter(WSeat *seat, QWindow *watched, QInputEvent *event)
 {
     if (watched) {
@@ -176,20 +183,6 @@ bool Helper::eventFilter(WSeat *seat, WSurface *watched, QObject *surfaceItem, Q
         Q_ASSERT(xdgSurface->surface() == watched);
         if (!xdgSurface->doesNotAcceptFocus())
             setActivateSurface(xdgSurface);
-    }
-
-    return false;
-}
-
-bool Helper::ignoredEventFilter(WSeat *seat, QWindow *watched, QInputEvent *event)
-{
-    Q_UNUSED(seat);
-
-    if (watched && event->type() == QEvent::MouseButtonPress) {
-        // clear focus
-        if (auto item = qobject_cast<QQuickItem*>(watched->focusObject()))
-            item->setFocus(false);
-        setActivateSurface(nullptr);
     }
 
     return false;

@@ -368,7 +368,7 @@ WSeat *WCursor::seat() const
     return d->seat;
 }
 
-QQuickWindow *WCursor::eventWindow() const
+QWindow *WCursor::eventWindow() const
 {
     W_DC(WCursor);
     return d->eventWindow.get();
@@ -384,7 +384,7 @@ const QPointingDevice *getDevice(const QString &seatName) {
     return nullptr;
 }
 
-void WCursor::setEventWindow(QQuickWindow *window)
+void WCursor::setEventWindow(QWindow *window)
 {
     W_D(WCursor);
     if (d->eventWindow == window)

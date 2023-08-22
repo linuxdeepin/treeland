@@ -11,7 +11,7 @@
 
 QT_BEGIN_NAMESPACE
 class QCursor;
-class QQuickWindow;
+class QWindow;
 QT_END_NAMESPACE
 
 QW_BEGIN_NAMESPACE
@@ -47,8 +47,8 @@ public:
     Qt::MouseButton button() const;
 
     WSeat *seat() const;
-    QQuickWindow *eventWindow() const;
-    void setEventWindow(QQuickWindow *window);
+    QWindow *eventWindow() const;
+    void setEventWindow(QWindow *window);
 
     static Qt::CursorShape defaultCursor();
 

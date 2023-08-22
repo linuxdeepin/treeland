@@ -9,6 +9,8 @@
 #include <WSurfaceItem>
 #include <WOutput>
 
+Q_DECLARE_OPAQUE_POINTER(QWindow*)
+
 struct wlr_output_event_request_state;
 QW_USE_NAMESPACE
 WAYLIB_SERVER_USE_NAMESPACE
@@ -32,6 +34,7 @@ public Q_SLOTS:
     WSurface *getFocusSurfaceFrom(QObject *object);
 
     void allowNonDrmOutputAutoChangeMode(WOutput *output);
+    void clearFocus(QWindow *window);
 
 signals:
     void activatedSurfaceChanged();
@@ -39,7 +42,6 @@ signals:
 private:
     bool eventFilter(WSeat *seat, QWindow *watched, QInputEvent *event) override;
     bool eventFilter(WSeat *seat, WSurface *watched, QObject *surfaceItem, QInputEvent *event) override;
-    bool ignoredEventFilter(WSeat *seat, QWindow *watched, QInputEvent *event) override;
 
     void setActivateSurface(WXdgSurface *newActivate);
     void onOutputRequeseState(wlr_output_event_request_state *newState);

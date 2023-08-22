@@ -207,14 +207,8 @@ void WSeatPrivate::on_keyboard_key(wlr_keyboard_key_event *event, WInputDevice *
                 text, false, 1, device->qtDevice());
     e.setTimestamp(event->time_msec);
 
-    if (eventFilter && eventFilter->eventFilter(q_func(), focusWindow, &e))
-        return;
-
     if (focusWindow) {
         QCoreApplication::sendEvent(focusWindow, &e);
-
-        if (!checkEventIsAccepted(&e) && eventFilter)
-            eventFilter->ignoredEventFilter(q_func(), focusWindow, &e);
     } else {
         doNotifyKey(device, event->keycode, event->state, event->time_msec);
     }
@@ -525,25 +519,8 @@ void WSeat::notifyMotion(WCursor *cursor, WInputDevice *device, uint32_t timesta
     Q_ASSERT(e.isUpdateEvent());
     e.setTimestamp(timestamp);
 
-    if (Q_UNLIKELY(d->eventFilter)) {
-        if (d->eventFilter->eventFilter(this, w, &e)) {
-            // ###: Qt need 'lastMousePosition' to synchronous hover in
-            // QQuickDeliveryAgentPrivate::flushFrameSynchronousEvents,
-            // If the mouse move event is not send to QQuickWindow, maybe
-            // you will get a bad QHoverEnter and QHoverLeave event in future,
-            // because the QQuickDeliveryAgent can't get the real last mouse
-            // position, the QQuickWindowPrivate::lastMousePosition is error.
-            if (QQuickWindow *qw = qobject_cast<QQuickWindow*>(w))
-                QQuickWindowPrivate::get(qw)->deliveryAgentPrivate()->lastMousePosition = e.position();
-            return;
-        }
-    }
-
     if (w)
         QCoreApplication::sendEvent(w, &e);
-
-    if (!d->checkEventIsAccepted(&e) && d->eventFilter)
-        d->eventFilter->ignoredEventFilter(this, w, &e);
 }
 
 void WSeat::notifyButton(WCursor *cursor, WInputDevice *device, Qt::MouseButton button,
@@ -567,16 +544,8 @@ void WSeat::notifyButton(WCursor *cursor, WInputDevice *device, Qt::MouseButton 
         Q_ASSERT(e.isEndEvent());
     e.setTimestamp(timestamp);
 
-    if (Q_UNLIKELY(d->eventFilter)) {
-        if (d->eventFilter->eventFilter(this, w, &e))
-            return;
-    }
-
     if (w)
         QCoreApplication::sendEvent(w, &e);
-
-    if (!d->checkEventIsAccepted(&e) && d->eventFilter)
-        d->eventFilter->ignoredEventFilter(this, w, &e);
 }
 
 void WSeat::notifyAxis(WCursor *cursor, WInputDevice *device, wlr_axis_source_t source,
@@ -597,11 +566,6 @@ void WSeat::notifyAxis(WCursor *cursor, WInputDevice *device, wlr_axis_source_t 
                   Qt::NoScrollPhase, false, Qt::MouseEventNotSynthesized, qwDevice);
     e.setTimestamp(timestamp);
 
-    if (Q_UNLIKELY(d->eventFilter)) {
-        if (d->eventFilter->eventFilter(this, w, &e))
-            return;
-    }
-
     if (w)
         QCoreApplication::sendEvent(w, &e);
 
@@ -610,9 +574,6 @@ void WSeat::notifyAxis(WCursor *cursor, WInputDevice *device, wlr_axis_source_t 
 
     if (d->doNotifyAxis(static_cast<wlr_axis_source>(source), orientation, delta, delta_discrete, timestamp))
         return;
-
-    if (d->eventFilter)
-        d->eventFilter->ignoredEventFilter(this, w, &e);
 }
 
 void WSeat::notifyFrame(WCursor *cursor)
@@ -674,6 +635,32 @@ void WSeat::destroy(WServer *)
     }
 }
 
+bool WSeat::filterInputEvent(QWindow *targetWindow, QInputEvent *event)
+{
+    W_D(WSeat);
+
+    if (Q_UNLIKELY(d->eventFilter)) {
+        if (d->eventFilter->eventFilter(this, targetWindow, event)) {
+            if (event->type() == QEvent::MouseMove || event->type() == QEvent::HoverMove) {
+                // ###: Qt need 'lastMousePosition' to synchronous hover in
+                // QQuickDeliveryAgentPrivate::flushFrameSynchronousEvents,
+                // If the mouse move event is not send to QQuickWindow, maybe
+                // you will get a bad QHoverEnter and QHoverLeave event in future,
+                // because the QQuickDeliveryAgent can't get the real last mouse
+                // position, the QQuickWindowPrivate::lastMousePosition is error.
+                if (QQuickWindow *qw = qobject_cast<QQuickWindow*>(targetWindow)) {
+                    const auto pos = static_cast<QSinglePointEvent*>(event)->position();
+                    QQuickWindowPrivate::get(qw)->deliveryAgentPrivate()->lastMousePosition = pos;
+                }
+            }
+
+            return true;
+        }
+    }
+
+    return false;
+}
+
 WSeatEventFilter::WSeatEventFilter(QObject *parent)
     : QObject(parent)
 {
@@ -687,12 +674,6 @@ bool WSeatEventFilter::eventFilter(WSeat *, WSurface *, QObject *, QInputEvent *
 }
 
 bool WSeatEventFilter::eventFilter(WSeat *, QWindow *, QInputEvent *event)
-{
-    event->ignore();
-    return false;
-}
-
-bool WSeatEventFilter::ignoredEventFilter(WSeat *, QWindow *, QInputEvent *event)
 {
     event->ignore();
     return false;

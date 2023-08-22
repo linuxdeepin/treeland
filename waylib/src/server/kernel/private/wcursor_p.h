@@ -50,7 +50,7 @@ public:
     QCursor cursor;
 
     WSeat *seat = nullptr;
-    QPointer<QQuickWindow> eventWindow;
+    QPointer<QWindow> eventWindow;
     WOutputLayout *outputLayout = nullptr;
     QList<WInputDevice*> deviceList;
 

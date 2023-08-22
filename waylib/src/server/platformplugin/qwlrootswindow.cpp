@@ -188,6 +188,7 @@ bool QWlrootsRenderWindow::windowEvent(QEvent *event)
         auto device = WInputDevice::from(ie->device());
         Q_ASSERT(device);
         lastActiveCursor = device->seat()->cursor();
+        return device->seat()->filterInputEvent(window(), ie);
     }
 
     return false;
