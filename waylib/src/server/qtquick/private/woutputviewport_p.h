@@ -96,7 +96,7 @@ private:
     void setVisible(bool newVisible);
     void setIsHardwareCursor(bool newIsHardwareCursor);
     void setHotspot(QPointF newHotspot);
-    void setTexture(wlr_texture *texture, const QPointF &position);
+    void setTexture(wlr_texture *texture);
     void setImageSource(const QUrl &newImageSource);
     void setSize(const QSizeF &newSize);
     void setSourceRect(const QRectF &newSourceRect);
@@ -105,13 +105,42 @@ private:
 
     QQuickItem *delegateItem = nullptr;
     wlr_texture *lastTexture = nullptr;
-    QPointF lastCursorPosition;
     bool m_visible = false;
     bool m_isHardwareCursor = false;
     QPointF m_hotspot;
     QUrl m_imageSource;
     QSizeF m_size;
     QRectF m_sourceRect;
+
+    struct TextureAttrib {
+        TextureAttrib (): type(INVALID) {}
+        enum { GLES, PIXMAN, VULKAN, EMPTY, INVALID } type;
+        union {
+            GLuint tex;
+            pixman_image_t *pimage;
+#ifdef ENABLE_VULKAN_RENDER
+            VkImage vimage;
+#endif
+        };
+        bool operator==(const TextureAttrib& rhs) const {
+            if (type != rhs.type)
+                return false;
+            switch (type) {
+            case GLES:
+                return tex == rhs.tex;
+            case PIXMAN:
+                return pimage == rhs.pimage;
+#ifdef ENABLE_VULKAN_RENDER
+            case VULKAN:
+                return vimage == rhs.vimage;
+#endif
+            case EMPTY:
+                return true;
+            default:
+                return false;
+            }
+        }
+    } lastTextureAttrib;
 };
 
 class WOutputViewportPrivate : public QQuickItemPrivate

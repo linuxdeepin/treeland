@@ -13,7 +13,13 @@
 
 extern "C" {
 #include <wlr/render/wlr_texture.h>
+#define static
+#include <wlr/render/gles2.h>
+#undef static
 #include <wlr/render/pixman.h>
+#ifdef ENABLE_VULKAN_RENDER
+#include <wlr/render/vulkan.h>
+#endif
 }
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
@@ -101,22 +107,46 @@ void QuickOutputCursor::setHotspot(QPointF newHotspot)
     Q_EMIT hotspotChanged();
 }
 
-void QuickOutputCursor::setTexture(wlr_texture *texture, const QPointF &position)
+void QuickOutputCursor::setTexture(wlr_texture *texture)
 {
-    // TODO: Though "lastTexture == texture", but maybe the texture native resource
-    // is changed(like as OpenGL texture id changed). Should add a signal at
-    // output_cursor_set_texture of wlroots, and remove 'position' argument.
-    if (lastTexture == texture && lastCursorPosition == position)
+    // Though "lastTexture == texture", but maybe the texture native resource
+    // is changed(like as OpenGL texture id changed). Need to check TextureAttrib
+    // whether to change
+    TextureAttrib texAttr;
+    if (!texture) {
+        texAttr.type = TextureAttrib::EMPTY;
+    } else if (wlr_texture_is_gles2(texture)) {
+        wlr_gles2_texture_attribs attr;
+        wlr_gles2_texture_get_attribs(texture, &attr);
+        texAttr.type = TextureAttrib::GLES;
+        texAttr.tex = attr.tex;
+    } else if (wlr_texture_is_pixman(texture)) {
+        texAttr.type = TextureAttrib::PIXMAN;
+        texAttr.pimage = wlr_pixman_texture_get_image(texture);
+    }
+#ifdef ENABLE_VULKAN_RENDER
+    else if (wlr_texture_is_vk(texture)) {
+        wlr_vk_image_attribs attr;
+        wlr_vk_texture_get_image_attribs(texture, &attr);
+        texAttr.type = TextureAttrib::VULKAN;
+        texAttr.vimage = attr.image;
+    }
+#endif
+
+    Q_ASSERT_X(texAttr.type != TextureAttrib::INVALID, "QuickOutputCursor::setTexture", "Unknow texture type");
+
+    if (lastTexture == texture && lastTextureAttrib == texAttr)
         return;
+
     lastTexture = texture;
-    lastCursorPosition = position;
+    lastTextureAttrib = texAttr;
 
     QUrl url;
 
     if (texture) {
         url.setScheme("image");
         url.setHost(imageProviderId());
-        url.setPath(QString("/%1/%2+%3").arg(quintptr(QWTexture::from(texture)), 0, 16).arg(position.x(), position.y()));
+        url.setPath(QString("/%1/%2").arg(quintptr(QWTexture::from(texture)), 0, 16));
     }
 
     setImageSource(url);
@@ -290,7 +320,7 @@ void WOutputViewportPrivate::updateCursors()
         quickCursor->setHotspot((QPointF(cursor->hotspot_x, cursor->hotspot_y) / cursor->output->scale).toPoint());
         quickCursor->setSize(QSizeF(cursor->width, cursor->height) / cursor->output->scale);
         quickCursor->setSourceRect(QRectF(cursor->src_box.x, cursor->src_box.y, cursor->src_box.width, cursor->src_box.height));
-        quickCursor->setTexture(cursor->texture, position);
+        quickCursor->setTexture(cursor->texture);
 
         ++index;
     }
