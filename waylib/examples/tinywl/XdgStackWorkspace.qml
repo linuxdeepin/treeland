@@ -173,7 +173,7 @@ Item {
         chooserRole: "type"
         chooserRoleValue: "popup"
 
-        Popup { // TODO: ensure the cursor item after Popup
+        Popup {
             id: popup
 
             required property WaylandXdgSurface waylandSurface

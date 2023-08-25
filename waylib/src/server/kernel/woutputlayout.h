@@ -5,6 +5,7 @@
 
 #include <wglobal.h>
 #include <qwoutputlayout.h>
+#include <limits.h>
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
@@ -18,7 +19,10 @@ class WAYLIB_SERVER_EXPORT WOutputLayout : public QW_NAMESPACE::QWOutputLayout, 
 public:
     enum class Layer {
         Background = -999,
-        Cursor = 999
+        Cursor = INT_MAX-1000
+        // Ensure the Cursor's z-axis is above all other components
+        // DefaultWindowDecoration = 1000000, at least it must be greater than 1000000
+        // QQuickItem's z is qreal value, INT_MAX is not the maximum value but big enough
     };
     Q_ENUM(Layer)
 
