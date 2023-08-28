@@ -515,7 +515,7 @@ void WOutputRenderWindowPrivate::doRender()
 
                 renderContextProxy->projectionMatrix = matrix * viewportMatrix;
 
-                if (flipY) {
+                if (rhi && !rhi->isYUpInNDC()) {
                     matrix.setToIdentity();
                     matrix.ortho(rect.x(),
                                  rect.x() + rect.width(),
