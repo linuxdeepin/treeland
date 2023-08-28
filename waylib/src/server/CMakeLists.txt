@@ -74,6 +74,7 @@ set(QPA_SOURCES
     platformplugin/qwlrootscreen.cpp
     platformplugin/qwlrootswindow.cpp
     platformplugin/qwlrootscursor.cpp
+    platformplugin/types.cpp
 )
 
 set(HEADERS

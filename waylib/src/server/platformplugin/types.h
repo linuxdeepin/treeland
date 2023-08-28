@@ -48,6 +48,8 @@ public:
     {
         setObjectName(id());
     }
+
+    static bool eventFilter(QWindow *window, QEvent *event);
 };
 
 class OffscreenSurface : public QOffscreenSurface

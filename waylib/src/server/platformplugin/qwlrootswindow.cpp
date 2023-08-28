@@ -182,7 +182,7 @@ void QWlrootsRenderWindow::setDevicePixelRatio(qreal dpr)
 #endif
 }
 
-bool QWlrootsRenderWindow::windowEvent(QEvent *event)
+bool QWlrootsRenderWindow::eventFilter(QEvent *event)
 {
     if (auto ie = dynamic_cast<QInputEvent*>(event)) {
         auto device = WInputDevice::from(ie->device());

@@ -715,10 +715,15 @@ void WOutputRenderWindow::componentComplete()
 
 bool WOutputRenderWindow::event(QEvent *event)
 {
+    Q_D(WOutputRenderWindow);
+
     if (event->type() == doRenderEventType) {
         d_func()->doRender();
         return true;
     }
+
+    if (QW::RenderWindow::eventFilter(this, event))
+        return true;
 
     return QQuickWindow::event(event);
 }

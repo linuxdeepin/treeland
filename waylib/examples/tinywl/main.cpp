@@ -124,6 +124,12 @@ bool Helper::eventFilter(WSeat *seat, QWindow *watched, QInputEvent *event)
         }
     }
 
+    if (event->type() == QEvent::MouseMove || event->type() == QEvent::MouseButtonPress) {
+        seat->cursor()->setVisible(true);
+    } else if (event->type() == QEvent::TouchBegin) {
+        seat->cursor()->setVisible(false);
+    }
+
     if (surfaceShellItem && seat == this->seat) {
         // for move resize
         if (Q_LIKELY(event->type() == QEvent::MouseMove)) {
