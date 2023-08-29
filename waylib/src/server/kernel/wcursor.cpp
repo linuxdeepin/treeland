@@ -484,9 +484,6 @@ void WCursor::setEventWindow(QWindow *window)
         QEnterEvent event(local, local, global, device);
         QCoreApplication::sendEvent(d->eventWindow, &event);
     }
-
-    // ###(zccrs): Can't display cursor on startup, maybe is a bug of wlroots
-    d->updateCursorImage();
 }
 
 Qt::CursorShape WCursor::defaultCursor()
@@ -526,6 +523,9 @@ void WCursor::setSurface(QWSurface *surface, const QPoint &hotspot)
     d->surfaceCursorHotspot = hotspot;
     if (d->visible) {
         d->handle->setSurface(surface, hotspot);
+        connect(d->surfaceOfCursor, &QWSurface::beforeDestroy, this, [d]() {
+            d->updateCursorImage();
+        });
     }
 }
 
@@ -609,6 +609,9 @@ void WCursor::setVisible(bool visible)
     if (visible) {
         if (d->surfaceOfCursor) {
             d->handle->setSurface(d->surfaceOfCursor, d->surfaceCursorHotspot);
+            connect(d->surfaceOfCursor, &QWSurface::beforeDestroy, this, [d]() {
+                d->updateCursorImage();
+            });
         } else {
             d->updateCursorImage();
         }
