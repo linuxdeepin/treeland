@@ -74,6 +74,7 @@ public:
     uint resizeing:1;
     uint activated:1;
     uint maximized:1;
+    uint minimized:1;
 };
 
 WXdgSurfacePrivate::WXdgSurfacePrivate(WXdgSurface *qq, QWXdgSurface *hh)
@@ -82,6 +83,7 @@ WXdgSurfacePrivate::WXdgSurfacePrivate(WXdgSurface *qq, QWXdgSurface *hh)
     , resizeing(false)
     , activated(false)
     , maximized(false)
+    , minimized(false)
 {
 }
 
@@ -156,14 +158,22 @@ void WXdgSurfacePrivate::connect()
             if (maximize) {
                 Q_EMIT q->requestMaximize();
             } else {
-                Q_EMIT q->requestToNormalState();
+                Q_EMIT q->requestCancelMaximize();
+            }
+        });
+        QObject::connect(toplevel, &QWXdgToplevel::requestMinimize, q, [q] (bool minimize) {
+            if (minimize) {
+                Q_EMIT q->requestMinimize();
+            } else {
+                Q_EMIT q->requestCancelMinimize();
             }
         });
         QObject::connect(toplevel, &QWXdgToplevel::requestFullscreen, q, [q] (bool fullscreen) {
+            // TODO: implement fullscreen support
             if (fullscreen) {
                 Q_EMIT q->requestFullscreen();
             } else {
-                Q_EMIT q->requestToNormalState();
+                Q_EMIT q->requestCancelFullscreen();
             }
         });
         QObject::connect(toplevel, &QWXdgToplevel::requestShowWindowMenu, q, [q] (wlr_xdg_toplevel_show_window_menu_event *event) {
@@ -258,6 +268,12 @@ bool WXdgSurface::isMaximized() const
     return d->maximized;
 }
 
+bool WXdgSurface::isMinimized() const
+{
+    W_DC(WXdgSurface);
+    return d->minimized;
+}
+
 QRect WXdgSurface::getContentGeometry() const
 {
     W_DC(WXdgSurface);
@@ -318,6 +334,16 @@ void WXdgSurface::setMaximize(bool on)
     W_D(WXdgSurface);
     if (auto toplevel = d->handle->topToplevel()) {
         toplevel->setMaximized(on);
+    }
+}
+
+void WXdgSurface::setMinimize(bool on)
+{
+    W_D(WXdgSurface);
+
+    if (d->minimized != on) {
+        d->minimized = on;
+        Q_EMIT minimizeChanged();
     }
 }
 

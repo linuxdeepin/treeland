@@ -23,6 +23,7 @@ class WAYLIB_SERVER_EXPORT WXdgSurface : public QObject, public WObject
     Q_PROPERTY(bool isResizeing READ isResizeing NOTIFY resizeingChanged FINAL)
     Q_PROPERTY(bool isActivated READ isActivated NOTIFY activateChanged FINAL)
     Q_PROPERTY(bool isMaximized READ isMaximized NOTIFY maximizeChanged FINAL)
+    Q_PROPERTY(bool isMinimized READ isMinimized NOTIFY minimizeChanged FINAL)
     Q_PROPERTY(WSurface* surface READ surface CONSTANT FINAL)
     Q_PROPERTY(WXdgSurface* parentXdgSurface READ parentXdgSurface NOTIFY parentXdgSurfaceChanged FINAL)
     QML_NAMED_ELEMENT(WaylandXdgSurface)
@@ -47,6 +48,7 @@ public:
     bool isResizeing() const;
     bool isActivated() const;
     bool isMaximized() const;
+    bool isMinimized() const;
 
     QRect getContentGeometry() const;
 
@@ -56,6 +58,7 @@ public:
 public Q_SLOTS:
     void setResizeing(bool resizeing);
     void setMaximize(bool on);
+    void setMinimize(bool on);
     void setActivate(bool on);
 
     bool checkNewSize(const QSize &size);
@@ -66,11 +69,15 @@ Q_SIGNALS:
     void resizeingChanged();
     void activateChanged();
     void maximizeChanged();
+    void minimizeChanged();
     void requestMove(WSeat *seat, quint32 serial);
     void requestResize(WSeat *seat, Qt::Edges edge, quint32 serial);
     void requestMaximize();
+    void requestCancelMaximize();
+    void requestMinimize();
+    void requestCancelMinimize();
     void requestFullscreen();
-    void requestToNormalState();
+    void requestCancelFullscreen();
     void requestShowWindowMenu(WSeat *seat, QPoint pos, quint32 serial);
 };
 
