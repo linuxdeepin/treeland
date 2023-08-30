@@ -239,6 +239,14 @@ public:
         static_cast<QWlrootsRenderWindow*>(platformWindow)->setDevicePixelRatio(ratio);
     }
 
+    inline bool isComponentComplete() const {
+#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0)
+        return componentComplete;
+#else
+        return componentCompleted;
+#endif
+    }
+
     QSGRendererInterface::GraphicsApi graphicsApi() const;
     void init();
     void init(OutputHelper *helper);
@@ -476,7 +484,8 @@ void WOutputRenderWindowPrivate::doRender()
         {
             q_func()->setRenderTarget(rt.second);
             // TODO: new render thread
-            rc()->beginFrame();
+            if (QSGRendererInterface::isApiRhiBased(WOutputHelper::getGraphicsApi()))
+                rc()->beginFrame();
             rc()->sync();
 
             Q_ASSERT(helper->output()->output()->scale() <= q_func()->devicePixelRatio());
@@ -574,7 +583,8 @@ void WOutputRenderWindowPrivate::doRender()
                     helper->qwoutput()->setDamage(&helper->damageRing()->handle()->current);
             }
 
-            rc()->endFrame();
+            if (QSGRendererInterface::isApiRhiBased(WOutputHelper::getGraphicsApi()))
+                rc()->endFrame();
         }
 
         if (helper->qwoutput()->commit())
@@ -668,11 +678,11 @@ void WOutputRenderWindow::setCompositor(WWaylandCompositor *newCompositor)
         qwoutput->initRender(d->compositor->allocator(), d->compositor->renderer());
     }
 
-    if (d->componentCompleted && d->compositor->isPolished()) {
+    if (d->isComponentComplete() && d->compositor->isPolished()) {
         d->init();
     } else {
         connect(newCompositor, &WWaylandCompositor::afterPolish, this, [d] {
-            if (d->componentCompleted)
+            if (d->isComponentComplete())
                 d->init();
         });
     }
@@ -701,13 +711,21 @@ void WOutputRenderWindow::update()
 void WOutputRenderWindow::classBegin()
 {
     Q_D(WOutputRenderWindow);
+#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0)
+    d->componentComplete = false;
+#else
     d->componentCompleted = false;
+#endif
 }
 
 void WOutputRenderWindow::componentComplete()
 {
     Q_D(WOutputRenderWindow);
+#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0)
+    d->componentComplete = true;
+#else
     d->componentCompleted = true;
+#endif
 
     if (d->compositor && d->compositor->isPolished())
         d->init();
