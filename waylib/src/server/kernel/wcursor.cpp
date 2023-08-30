@@ -519,13 +519,17 @@ void WCursor::setCursor(const QCursor &cursor)
 void WCursor::setSurface(QWSurface *surface, const QPoint &hotspot)
 {
     W_D(WCursor);
+    if (d->surfaceOfCursor) // don't update cursor image before older surface destroy
+        d->surfaceOfCursor->disconnect(this);
     d->surfaceOfCursor = surface;
     d->surfaceCursorHotspot = hotspot;
     if (d->visible) {
         d->handle->setSurface(surface, hotspot);
-        connect(d->surfaceOfCursor, &QWSurface::beforeDestroy, this, [d]() {
-            d->updateCursorImage();
-        });
+        if (surface) {
+            connect(surface, &QWSurface::beforeDestroy, this, [d]() {
+                d->updateCursorImage();
+            });
+        }
     }
 }
 
@@ -616,6 +620,8 @@ void WCursor::setVisible(bool visible)
             d->updateCursorImage();
         }
     } else {
+        if (d->surfaceOfCursor)
+            d->surfaceOfCursor->disconnect(this);
         d->handle->unsetImage();
     }
 }
