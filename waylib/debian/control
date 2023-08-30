@@ -9,7 +9,7 @@ Build-Depends: debhelper (>= 9),
  qt6-base-dev-tools (>= 6.4.0),
  qt6-declarative-private-dev (>= 6.4.0),
  qml6-module-qtquick-templates,
- qwlroots-dev,
+ libqwlroots-dev,
  libwlroots-dev (>= 0.17.0),
  libpixman-1-dev,
  libxcb-ewmh-dev,
@@ -33,7 +33,7 @@ Depends: ${shlibs:Depends},
   qt6-base-dev-tools (>= 6.4.0),
   qt6-declarative-private-dev (>= 6.4.0),
   libwlroots-dev (>= 0.17.0),
-  qwlroots-dev
+  libqwlroots-dev
 Description: A devel package for libwaylib
  .
  This package contains the header files and static libraries of waylib.
