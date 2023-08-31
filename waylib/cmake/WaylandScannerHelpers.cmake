@@ -1,6 +1,6 @@
-function(ws_generate type input_file output_name)
+function(ws_generate type protocols input_file output_name)
     find_package(PkgConfig)
-    pkg_get_variable(WAYLAND_PROTOCOLS wayland-protocols pkgdatadir)
+    pkg_get_variable(WAYLAND_PROTOCOLS ${protocols} pkgdatadir)
     pkg_get_variable(WAYLAND_SCANNER wayland-scanner wayland_scanner)
 
     if(NOT EXISTS input_file)

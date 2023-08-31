@@ -71,6 +71,7 @@ public:
     bool visible = true;
     QPointer<QW_NAMESPACE::QWSurface> surfaceOfCursor;
     QPoint surfaceCursorHotspot;
+    WCursor::CursorShape shape = WCursor::Invalid;
 };
 
 WAYLIB_SERVER_END_NAMESPACE

@@ -71,6 +71,8 @@ Item {
             keyboardFocus: Helper.getFocusSurfaceFrom(renderWindow.activeFocusItem)
         }
 
+        CursorShapeManager { }
+
         WaylandSocket {
             id: masterSocket
 

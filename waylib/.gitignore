@@ -28,6 +28,7 @@ CMakeLists.txt.user
 # nix
 .direnv/
 result
+result-*
 
 # clangd
 .cache/

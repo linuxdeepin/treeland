@@ -87,8 +87,8 @@ void WCursorPrivate::setType(const char *name)
     handle->setXCursor(xcursor_manager, name);
 }
 
-static inline const char *qcursorToType(const QCursor &cursor) {
-    switch ((int)cursor.shape()) {
+static inline const char *qcursorShapeToType(std::underlying_type_t<WCursor::CursorShape> shape) {
+    switch (shape) {
     case Qt::ArrowCursor:
         return "left_ptr";
     case Qt::UpArrowCursor:
@@ -169,10 +169,18 @@ static inline const char *qcursorToType(const QCursor &cursor) {
         return "w-resize";
     case WCursor::EResize:
         return "e-resize";
+    case WCursor::EWResize:
+        return "ew-resize";
     case WCursor::NWResize:
         return "nw-resize";
+    case WCursor::NWSEResize:
+        return "nwse-resize";
     case WCursor::NEResize:
         return "ne-resize";
+    case WCursor::NESWResize:
+        return "nesw-resize";
+    case WCursor::NSResize:
+        return "ns-resize";
     case WCursor::NResize:
         return "n-resize";
     case WCursor::AllScroll:
@@ -183,6 +191,38 @@ static inline const char *qcursorToType(const QCursor &cursor) {
         return "pointer";
     case WCursor::Wait:
         return "wait";
+    case WCursor::ContextMenu:
+        return "context-menu";
+    case WCursor::Help:
+        return "help";
+    case WCursor::Progress:
+        return "progress";
+    case WCursor::Cell:
+        return "cell";
+    case WCursor::Crosshair:
+        return "crosshair";
+    case WCursor::VerticalText:
+        return "vertical-text";
+    case WCursor::Alias:
+        return "alias";
+    case WCursor::Copy:
+        return "copy";
+    case WCursor::Move:
+        return "move";
+    case WCursor::NoDrop:
+        return "no-drop";
+    case WCursor::NotAllowed:
+        return "not-allowed";
+    case WCursor::Grab:
+        return "grab";
+    case WCursor::ColResize:
+        return "col-resize";
+    case WCursor::RowResize:
+        return "row-resize";
+    case WCursor::ZoomIn:
+        return "zoom-in";
+    case WCursor::ZoomOut:
+        return "zoom-out";
     default:
         break;
     }
@@ -195,15 +235,18 @@ void WCursorPrivate::updateCursorImage()
     if (!outputLayout)
         return;
 
-    if (seat && seat->pointerFocusSurface())
+    if (seat && seat->pointerFocusSurface()) {
+        if (auto type_name = qcursorShapeToType(shape))
+            setType(type_name);
         return; // Using the wl_client's cursor resource
+    }
 
     surfaceOfCursor.clear();
 
     if (!visible)
         return;
 
-    if (auto type_name = qcursorToType(cursor)) {
+    if (auto type_name = qcursorShapeToType(cursor.shape())) {
         setType(type_name);
     } else {
         const QImage &img = cursor.pixmap().toImage();
@@ -595,6 +638,7 @@ void WCursor::setSurface(QWSurface *surface, const QPoint &hotspot)
         d->surfaceOfCursor->disconnect(this);
     d->surfaceOfCursor = surface;
     d->surfaceCursorHotspot = hotspot;
+    d->shape = WCursor::Invalid; // clear cache
     if (d->visible) {
         d->handle->setSurface(surface, hotspot);
         if (surface) {
@@ -604,6 +648,13 @@ void WCursor::setSurface(QWSurface *surface, const QPoint &hotspot)
             // Do not call updateCursorImage immediately to prevent pointerFocusSurface not cleaning up in time
         }
     }
+}
+
+void WCursor::setCursorShape(CursorShape shape)
+{
+    W_D(WCursor);
+    d->shape = shape;
+    d->updateCursorImage();
 }
 
 bool WCursor::attachInputDevice(WInputDevice *device)

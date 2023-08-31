@@ -20,7 +20,18 @@ pkg_search_module(LIBDRM REQUIRED IMPORTED_TARGET libdrm)
 pkg_search_module(WLROOTS REQUIRED IMPORTED_TARGET wlroots)
 
 include(${PROJECT_SOURCE_DIR}/cmake/WaylandScannerHelpers.cmake)
-ws_generate(server stable/xdg-shell/xdg-shell.xml xdg-shell-protocol)
+ws_generate(
+    server
+    wayland-protocols
+    stable/xdg-shell/xdg-shell.xml
+    xdg-shell-protocol
+)
+ws_generate(
+    server
+    wayland-protocols
+    staging/cursor-shape/cursor-shape-v1.xml
+    cursor-shape-v1-protocol
+)
 
 add_definitions(-DWLR_USE_UNSTABLE -DLIBWAYLIB_SERVER_LIBRARY)
 
@@ -66,6 +77,7 @@ set(QTQUICK_SOURCES
     qtquick/private/wqmldynamiccreator.cpp
     qtquick/private/wqmlhelper.cpp
     qtquick/private/wquickxdgdecorationmanager.cpp
+    qtquick/private/wquickcursorshape.cpp
 )
 
 set(UTILS_SOURCES
@@ -142,6 +154,7 @@ set(PRIVATE_HEADERS
     qtquick/private/wqmldynamiccreator_p.h
     qtquick/private/wqmlhelper_p.h
     qtquick/private/wquickxdgdecorationmanager_p.h
+    qtquick/private/wquickcursorshape_p.h
 )
 
 if(NOT DISABLE_XWAYLAND)

@@ -35,6 +35,7 @@ class WCursor : public QObject, public WObject
 public:
     enum CursorShape {
         Default = Qt::CustomCursor + 1,
+        Invalid,
         BottomLeftCorner,
         BottomRightCorner,
         TopLeftCorner,
@@ -52,13 +53,33 @@ public:
         SResize,
         WResize,
         EResize,
+        EWResize,
         NWResize,
+        NWSEResize,
         NEResize,
+        NESWResize,
+        NSResize,
         NResize,
         AllScroll,
         Text,
         Pointer,
-        Wait
+        Wait,
+        ContextMenu,
+        Help,
+        Progress,
+        Cell,
+        Crosshair,
+        VerticalText,
+        Alias,
+        Copy,
+        Move,
+        NoDrop,
+        NotAllowed,
+        Grab,
+        ColResize,
+        RowResize,
+        ZoomIn,
+        ZoomOut
     };
     Q_ENUM(CursorShape)
     static_assert(BottomLeftCorner > Default, "");
@@ -86,6 +107,7 @@ public:
     QCursor cursor() const;
     void setCursor(const QCursor &cursor);
     void setSurface(QW_NAMESPACE::QWSurface *surface, const QPoint &hotspot);
+    void setCursorShape(CursorShape shape);
 
     void setLayout(WOutputLayout *layout);
     WOutputLayout *layout() const;

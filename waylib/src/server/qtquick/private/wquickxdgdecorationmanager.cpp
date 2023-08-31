@@ -68,6 +68,8 @@ WQuickXdgDecorationManager::WQuickXdgDecorationManager(QObject *parent):
 void WQuickXdgDecorationManager::create()
 {
     W_D(WQuickXdgDecorationManager);
+    WQuickWaylandServerInterface::create();
+
     d->manager = QWXdgDecorationManagerV1::create(server()->handle());
     connect(d->manager, &QWXdgDecorationManagerV1::newToplevelDecoration, this, [d](QWXdgToplevelDecorationV1 *decorat) {
         d->onNewToplevelDecoration(decorat);
