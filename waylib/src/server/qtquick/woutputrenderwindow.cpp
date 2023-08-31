@@ -514,24 +514,24 @@ void WOutputRenderWindowPrivate::doRender()
                 renderContextProxy->viewportRect = QRect(QPoint(0, 0), pixelSize);
 
                 QRectF rect(QPointF(0, 0), helper->output()->size());
-                QMatrix4x4 matrix;
-                matrix.ortho(rect.x(),
-                             rect.x() + rect.width(),
-                             flipY ? rect.y() : rect.y() + rect.height(),
-                             flipY ? rect.y() + rect.height() : rect.y(),
-                             1,
-                             -1);
 
+                const float left = rect.x();
+                const float right = rect.x() + rect.width();
+                float bottom = rect.y() + rect.height();
+                float top = rect.y();
+
+                if (flipY)
+                    std::swap(top, bottom);
+
+                QMatrix4x4 matrix;
+                matrix.ortho(left, right, bottom, top, 1, -1);
                 renderContextProxy->projectionMatrix = matrix * viewportMatrix;
 
                 if (rhi && !rhi->isYUpInNDC()) {
+                    std::swap(top, bottom);
+
                     matrix.setToIdentity();
-                    matrix.ortho(rect.x(),
-                                 rect.x() + rect.width(),
-                                 rect.y() + rect.height(),
-                                 rect.y(),
-                                 1,
-                                 -1);
+                    matrix.ortho(left, right, bottom, top, 1, -1);
                 }
                 renderContextProxy->projectionMatrixWithNativeNDC = matrix * viewportMatrix;
             }
