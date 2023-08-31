@@ -152,7 +152,8 @@ void WQmlCreatorComponent::destroy(QSharedPointer<WQmlCreatorDelegateData> data)
         Q_EMIT objectRemoved(obj, p);
         notifyCreatorObjectRemoved(m_creator, obj, p);
 
-        obj->deleteLater();
+        if (m_autoDestroy)
+            obj->deleteLater();
     }
 }
 
@@ -268,6 +269,12 @@ QList<QSharedPointer<WQmlCreatorDelegateData> > WQmlCreatorComponent::datas() co
     return m_datas;
 }
 
+// If autoDestroy is disabled, can using this interface to manual manager the object's life.
+void WQmlCreatorComponent::destroyObject(QObject *object)
+{
+    object->deleteLater();
+}
+
 QString WQmlCreatorComponent::chooserRole() const
 {
     return m_chooserRole;
@@ -296,6 +303,19 @@ void WQmlCreatorComponent::setChooserRoleValue(const QVariant &newChooserRoleVal
     reset();
 
     Q_EMIT chooserRoleValueChanged();
+}
+
+bool WQmlCreatorComponent::autoDestroy() const
+{
+    return m_autoDestroy;
+}
+
+void WQmlCreatorComponent::setAutoDestroy(bool newAutoDestroy)
+{
+    if (m_autoDestroy == newAutoDestroy)
+        return;
+    m_autoDestroy = newAutoDestroy;
+    Q_EMIT autoDestroyChanged();
 }
 
 WQmlCreator::WQmlCreator(QObject *parent)

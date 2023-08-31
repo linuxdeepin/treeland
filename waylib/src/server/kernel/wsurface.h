@@ -51,10 +51,8 @@ public:
     QSize bufferSize() const;
     WLR::Transform orientation() const;
     int bufferScale() const;
-
-    QW_NAMESPACE::QWTexture *texture() const;
+    QPoint bufferOffset() const;
     QW_NAMESPACE::QWBuffer *buffer() const;
-    QPoint textureOffset() const;
 
     void notifyFrameDone();
     WOutput *primaryOutput() const;
@@ -75,7 +73,7 @@ public Q_SLOTS:
 Q_SIGNALS:
     void primaryOutputChanged();
     void mappedChanged();
-    void textureChanged();
+    void bufferChanged();
     void isSubsurfaceChanged();
     void hasSubsurfaceChanged();
     void newSubsurface(WSurface *subsurface);

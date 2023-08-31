@@ -41,6 +41,11 @@ Item {
         creator: root.creator
         chooserRole: "type"
         chooserRoleValue: "toplevel"
+        autoDestroy: false
+
+        onObjectRemoved: function (obj) {
+            obj.doDestroy()
+        }
 
         XdgSurface {
             id: surface
@@ -48,13 +53,13 @@ Item {
             property bool activated: waylandSurface === Helper.activatedSurface
             property OutputPositioner output
             property CoordMapper outputCoordMapper
-
-            visible: waylandSurface.surface.mapped && waylandSurface.WaylandSocket.rootSocket.enabled
+            property bool mapped: waylandSurface.surface.mapped && waylandSurface.WaylandSocket.rootSocket.enabled
+            property bool pendingDestroy: false
 
             states: [
                 State {
                     name: "maximize"
-                    when: waylandSurface.isMaximized && outputCoordMapper
+                    when: waylandSurface && waylandSurface.isMaximized && outputCoordMapper
                     PropertyChanges {
                         restoreEntryValues: true
                         surface {
@@ -73,12 +78,59 @@ Item {
                     duration: 100
                 }
                 onRunningChanged: {
+                    if (!waylandSurface)
+                        return
+
                     if (running && waylandSurface.isMaximized) {
                         surface.resizeMode = SurfaceItem.SizeToSurface
                     } else if (!running && !waylandSurface.isMaximized) {
                         surface.resizeMode = SurfaceItem.SizeFromSurface
                     }
                 }
+            }
+
+            OpacityAnimator {
+                id: hideAnimation
+                duration: 300
+                target: surface
+                from: 1
+                to: 0
+
+                onStopped: {
+                    surface.visible = false
+                    if (pendingDestroy)
+                        toplevelComponent.destroyObject(surface)
+                }
+            }
+
+            onMappedChanged: {
+                if (pendingDestroy)
+                    return
+
+                // When Socket is enabled and mapped becomes false, set visible
+                // after hideAnimation complete， Otherwise set visible directly.
+                if (mapped || !waylandSurface.WaylandSocket.rootSocket.enabled) {
+                    visible = mapped
+                    return
+                }
+
+                // do animation for window close
+                hideAnimation.start()
+            }
+
+            function doDestroy() {
+                pendingDestroy = true
+
+                if (!visible || !hideAnimation.running) {
+                    toplevelComponent.destroyObject(surface)
+                    return
+                }
+
+                // unbind some properties
+                mapped = visible
+                activated = false
+                states = null
+                transitions = null
             }
 
             function getPrimaryOutputPositioner() {

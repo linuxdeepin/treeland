@@ -98,7 +98,7 @@ void WXdgSurfaceItem::setSurface(WXdgSurface *surface)
         return;
 
     m_surface = surface;
-    WSurfaceItem::setSurface(surface->surface());
+    WSurfaceItem::setSurface(surface ? surface->surface() : nullptr);
 
     Q_EMIT surfaceChanged();
 }

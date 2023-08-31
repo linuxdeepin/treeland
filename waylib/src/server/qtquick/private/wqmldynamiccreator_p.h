@@ -74,6 +74,7 @@ class WAYLIB_SERVER_EXPORT WQmlCreatorComponent : public WAbstractCreatorCompone
     Q_PROPERTY(QObject* parent READ parent WRITE setParent NOTIFY parentChanged FINAL)
     Q_PROPERTY(QString chooserRole READ chooserRole WRITE setChooserRole NOTIFY chooserRoleChanged FINAL)
     Q_PROPERTY(QVariant chooserRoleValue READ chooserRoleValue WRITE setChooserRoleValue NOTIFY chooserRoleValueChanged FINAL)
+    Q_PROPERTY(bool autoDestroy READ autoDestroy WRITE setAutoDestroy NOTIFY autoDestroyChanged FINAL)
     QML_NAMED_ELEMENT(DynamicCreatorComponent)
     Q_CLASSINFO("DefaultProperty", "delegate")
 
@@ -92,15 +93,21 @@ public:
     QVariant chooserRoleValue() const;
     void setChooserRoleValue(const QVariant &newChooserRoleValue);
 
+    bool autoDestroy() const;
+    void setAutoDestroy(bool newAutoDestroy);
+
     QObject *parent() const;
     void setParent(QObject *newParent);
 
     QList<QSharedPointer<WQmlCreatorDelegateData>> datas() const override;
 
+    Q_INVOKABLE void destroyObject(QObject *object);
+
 Q_SIGNALS:
     void parentChanged();
     void chooserRoleChanged();
     void chooserRoleValueChanged();
+    void autoDestroyChanged();
 
     void objectAdded(QObject *object, const QJSValue &initialProperties);
     void objectRemoved(QObject *object, const QJSValue &initialProperties);
@@ -121,6 +128,7 @@ private:
     QObject *m_parent = nullptr;
     QString m_chooserRole;
     QVariant m_chooserRoleValue;
+    bool m_autoDestroy = true;
 
     QList<QSharedPointer<WQmlCreatorDelegateData>> m_datas;
 };

@@ -38,9 +38,6 @@ WSurfacePrivate::~WSurfacePrivate()
     if (handle)
         handle->setData(this, nullptr);
 
-    if (texture)
-        delete texture;
-
     if (buffer)
         buffer->unlock();
 }
@@ -130,9 +127,6 @@ void WSurfacePrivate::setPrimaryOutput(WOutput *output)
 
 void WSurfacePrivate::setBuffer(QWBuffer *newBuffer)
 {
-    if (texture)
-        delete texture;
-
     if (buffer) {
         if (auto clientBuffer = QWClientBuffer::get(buffer)) {
             Q_ASSERT(clientBuffer->handle()->n_ignore_locks > 0);
@@ -152,7 +146,7 @@ void WSurfacePrivate::setBuffer(QWBuffer *newBuffer)
         buffer = nullptr;
     }
 
-    Q_EMIT q_func()->textureChanged();
+    Q_EMIT q_func()->bufferChanged();
 }
 
 void WSurfacePrivate::updateBuffer()
@@ -270,40 +264,16 @@ int WSurface::bufferScale() const
     return d->nativeHandle()->current.scale;
 }
 
-QWTexture *WSurface::texture() const
+QPoint WSurface::bufferOffset() const
 {
     W_DC(WSurface);
-    auto textureHandle = d->handle->getTexture();
-    if (textureHandle)
-        return textureHandle;
-
-    if (d->texture)
-        return d->texture;
-
-    if (!d->primaryOutput)
-        return nullptr;
-
-    auto renderer = d->primaryOutput->renderer();
-    if (!renderer)
-        return nullptr;
-
-    if (!d->buffer)
-        return nullptr;
-
-    d->texture = QWTexture::fromBuffer(renderer, d->buffer);
-    return d->texture;
+    return QPoint(d->nativeHandle()->current.dx, d->nativeHandle()->current.dy);
 }
 
 QWBuffer *WSurface::buffer() const
 {
     W_DC(WSurface);
     return d->buffer;
-}
-
-QPoint WSurface::textureOffset() const
-{
-    W_DC(WSurface);
-    return QPoint(0, 0);
 }
 
 void WSurface::notifyFrameDone()

@@ -51,7 +51,6 @@ public:
     bool hasSubsurface = false;
 
     QW_NAMESPACE::QWBuffer *buffer = nullptr;
-    mutable QW_NAMESPACE::QWTexture *texture = nullptr;
     QVector<WOutput*> outputs;
     WOutput *primaryOutput = nullptr;
     QMetaObject::Connection frameDoneConnection;
