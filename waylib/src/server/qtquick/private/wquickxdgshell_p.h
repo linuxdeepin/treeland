@@ -44,6 +44,8 @@ class WAYLIB_SERVER_EXPORT WXdgSurfaceItem : public WSurfaceItem
     Q_OBJECT
     Q_PROPERTY(WXdgSurface* surface READ surface WRITE setSurface NOTIFY surfaceChanged)
     Q_PROPERTY(QPointF implicitPosition READ implicitPosition NOTIFY implicitPositionChanged)
+    Q_PROPERTY(QSize minimumSize READ minimumSize NOTIFY minimumSizeChanged FINAL)
+    Q_PROPERTY(QSize maximumSize READ maximumSize NOTIFY maximumSizeChanged FINAL)
     QML_NAMED_ELEMENT(XdgSurfaceItem)
 
 public:
@@ -54,10 +56,14 @@ public:
     void setSurface(WXdgSurface *surface);
 
     QPointF implicitPosition() const;
+    QSize minimumSize() const;
+    QSize maximumSize() const;
 
 Q_SIGNALS:
     void surfaceChanged();
     void implicitPositionChanged();
+    void minimumSizeChanged();
+    void maximumSizeChanged();
 
 private:
     Q_SLOT void onSurfaceCommit() override;
@@ -70,6 +76,8 @@ private:
 private:
     QPointer<WXdgSurface> m_surface;
     QPointF m_implicitPosition;
+    QSize m_minimumSize;
+    QSize m_maximumSize;
 };
 
 WAYLIB_SERVER_END_NAMESPACE

@@ -41,7 +41,7 @@ Helper::Helper(QObject *parent)
 
 }
 
-void Helper::stop()
+void Helper::stopMoveResize()
 {
     surfaceShellItem = nullptr;
     eventItem = nullptr;
@@ -77,6 +77,13 @@ void Helper::startResize(WXdgSurface *surface, QQuickItem *shell, QQuickItem *ev
     resizeEdgets = edge;
 
     surface->setResizeing(true);
+}
+
+void Helper::cancelMoveResize(QQuickItem *shell)
+{
+    if (surfaceShellItem != shell)
+        return;
+    stopMoveResize();
 }
 
 bool Helper::startDemoClient(const QString &socket)
@@ -163,7 +170,7 @@ bool Helper::eventFilter(WSeat *seat, QWindow *watched, QInputEvent *event)
 
             return true;
         } else if (event->type() == QEvent::MouseButtonRelease) {
-            stop();
+            stopMoveResize();
         }
     }
 

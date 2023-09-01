@@ -108,11 +108,41 @@ QPointF WXdgSurfaceItem::implicitPosition() const
     return m_implicitPosition;
 }
 
+QSize WXdgSurfaceItem::maximumSize() const
+{
+    return m_maximumSize;
+}
+
+QSize WXdgSurfaceItem::minimumSize() const
+{
+    return m_minimumSize;
+}
+
+inline static int32_t getValidSize(int32_t size, int32_t fallback) {
+    return size > 0 ? size : fallback;
+}
+
 void WXdgSurfaceItem::onSurfaceCommit()
 {
     WSurfaceItem::onSurfaceCommit();
-    if (auto popup = m_surface->handle()->toPopup())
+    if (auto popup = m_surface->handle()->toPopup()) {
         setImplicitPosition(popup->getPosition() - contentItem()->position());
+    } else if (auto toplevel = m_surface->handle()->topToplevel()) {
+        const QSize minSize(getValidSize(toplevel->handle()->current.min_width, 0),
+                            getValidSize(toplevel->handle()->current.min_height, 0));
+        const QSize maxSize(getValidSize(toplevel->handle()->current.max_width, INT_MAX),
+                            getValidSize(toplevel->handle()->current.max_height, INT_MAX));
+
+        if (m_minimumSize != minSize) {
+            m_minimumSize = minSize;
+            Q_EMIT minimumSizeChanged();
+        }
+
+        if (m_maximumSize != maxSize) {
+            m_maximumSize = maxSize;
+            Q_EMIT maximumSizeChanged();
+        }
+    }
 }
 
 void WXdgSurfaceItem::initSurface()

@@ -121,17 +121,20 @@ Item {
                 }
             }
 
-            Loader {
-                id: workspaceLoader
-
+            Item {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
 
-                active: true
-                source: topbar.currentIndex === 0 ? "XdgStackWorkspace.qml" : "XdgTiledWorkspace.qml"
+                XdgStackWorkspace {
+                    visible: topbar.currentIndex === 0
+                    creator: QmlHelper.xdgSurfaceManager
+                    anchors.fill: parent
+                }
 
-                onLoaded: {
-                    item.creator = QmlHelper.xdgSurfaceManager
+                XdgTiledWorkspace {
+                    visible: topbar.currentIndex === 1
+                    creator: QmlHelper.xdgSurfaceManager
+                    anchors.fill: parent
                 }
             }
         }

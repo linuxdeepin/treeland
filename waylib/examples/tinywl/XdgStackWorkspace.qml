@@ -9,7 +9,7 @@ import Tinywl
 Item {
     id: root
 
-    property DynamicCreator creator
+    required property DynamicCreator creator
 
     function getXdgSurfaceFromWaylandSurface(surface) {
         let finder = function(props) {
@@ -55,6 +55,7 @@ Item {
             property CoordMapper outputCoordMapper
             property bool mapped: waylandSurface.surface.mapped && waylandSurface.WaylandSocket.rootSocket.enabled
             property bool pendingDestroy: false
+            property var lastResizeMode
 
             states: [
                 State {
@@ -78,7 +79,7 @@ Item {
                     duration: 100
                 }
                 onRunningChanged: {
-                    if (!waylandSurface)
+                    if (!waylandSurface || !surface.effectiveVisible)
                         return
 
                     if (running && waylandSurface.isMaximized) {
@@ -100,6 +101,21 @@ Item {
                     surface.visible = false
                     if (pendingDestroy)
                         toplevelComponent.destroyObject(surface)
+                }
+            }
+
+            onEffectiveVisibleChanged: {
+                if (surface.effectiveVisible) {
+                    console.assert(lastResizeMode !== undefined,
+                                   "Can't restore the resize mode on effective visible changed")
+
+                    // Apply the WSurfaceItem's size to wl_surface
+                    surface.resize(SurfaceItem.SizeToSurface)
+                    surface.resizeMode = lastResizeMode
+                } else {
+                    Helper.cancelMoveResize(surface)
+                    lastResizeMode = surface.resizeMode
+                    surface.resizeMode = SurfaceItem.ManualResize
                 }
             }
 
@@ -174,7 +190,7 @@ Item {
                 function onResizeingChanged() {
                     if (waylandSurface.isResizeing)
                         surface.resizeMode = SurfaceItem.SizeToSurface
-                    else
+                    else if (surface.resizeMode === SurfaceItem.SizeToSurface)
                         surface.resizeMode = SurfaceItem.SizeFromSurface
                 }
 
@@ -234,7 +250,7 @@ Item {
             property var xdgParent: root.getXdgSurfaceFromWaylandSurface(waylandSurface.parentXdgSurface)
 
             parent: xdgParent ? xdgParent.parent : root
-            visible: waylandSurface.surface.mapped && waylandSurface.WaylandSocket.rootSocket.enabled
+            visible: xdgParent.xdgSurface.effectiveVisible && waylandSurface.surface.mapped && waylandSurface.WaylandSocket.rootSocket.enabled
             x: surface.implicitPosition.x + (xdgParent ? xdgParent.xdgSurface.contentItem.x : 0)
             y: surface.implicitPosition.y + (xdgParent ? xdgParent.xdgSurface.contentItem.x : 0)
             padding: 0

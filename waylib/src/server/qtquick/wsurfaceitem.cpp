@@ -54,6 +54,8 @@ private:
 struct SurfaceState {
     QRectF bufferSourceBox;
     QPoint bufferOffset;
+    QRectF contentGeometry;
+    QSize surfaceSize;
 };
 
 class WSurfaceItemPrivate : public QQuickItemPrivate
@@ -74,6 +76,8 @@ public:
     void updateSubsurfaceItem();
     WSurfaceItem *ensureSubsurfaceItem(WSurface *subsurfaceSurface);
 
+    void resizeSurfaceToItemSize(const QSize &itemSize, const QSize &sizeDiff);
+
     Q_DECLARE_PUBLIC(WSurfaceItem)
     QPointer<WSurface> surface;
     std::unique_ptr<SurfaceState> surfaceState;
@@ -84,6 +88,7 @@ public:
     QList<WSurfaceItem*> subsurfaces;
 
     QMetaObject::Connection frameDoneConnection;
+    uint32_t beforeRequestResizeSurfaceStateSeq = 0;
 };
 
 class ContentItem : public QQuickItem
@@ -397,6 +402,7 @@ void WSurfaceItem::setSurface(WSurface *surface)
         return;
 
     auto oldSurface = d->surface;
+    d->beforeRequestResizeSurfaceStateSeq = 0;
     d->surface = surface;
     if (d->componentComplete) {
         if (oldSurface) {
@@ -446,6 +452,26 @@ void WSurfaceItem::setResizeMode(ResizeMode newResizeMode)
     Q_EMIT resizeModeChanged();
 }
 
+void WSurfaceItem::resize(ResizeMode mode)
+{
+    Q_ASSERT(mode != ManualResize);
+    Q_D(WSurfaceItem);
+
+    if (mode == SizeFromSurface) {
+        if (!qFuzzyCompare(d->implicitWidth, d->surfaceState->contentGeometry.width()))
+            setImplicitWidth(d->surfaceState->contentGeometry.width());
+        if (!qFuzzyCompare(d->implicitHeight, d->surfaceState->contentGeometry.height()))
+            setImplicitHeight(d->surfaceState->contentGeometry.height());
+    } else if (mode == SizeToSurface) {
+        const QSize newSize = size().toSize();
+        const QSize oldSize = d->surfaceState->contentGeometry.size().toSize();
+
+        d->resizeSurfaceToItemSize(newSize, newSize - oldSize);
+    } else {
+        qWarning() << "Invalid resize mode" << mode;
+    }
+}
+
 bool WSurfaceItem::cacheLastBuffer() const
 {
     Q_D(const WSurfaceItem);
@@ -460,6 +486,12 @@ void WSurfaceItem::setCacheLastBuffer(bool newCacheLastBuffer)
         return;
     d->cacheLastBuffer = newCacheLastBuffer;
     Q_EMIT cacheLastBufferChanged();
+}
+
+bool WSurfaceItem::effectiveVisible() const
+{
+    Q_D(const WSurfaceItem);
+    return d->effectiveVisible;
 }
 
 void WSurfaceItem::componentComplete()
@@ -482,12 +514,14 @@ void WSurfaceItem::geometryChange(const QRectF &newGeometry, const QRectF &oldGe
     if (newGeometry.size() == oldGeometry.size())
         return;
 
-    if (d->surface) {
-        if (d->resizeMode == SizeToSurface) {
-            if (resizeSurface(newGeometry.size().toSize()))
-                d->contentItem->setSize(d->contentItem->size() + newGeometry.size() - oldGeometry.size());
+    if (d->resizeMode == SizeToSurface) {
+        if (d->effectiveVisible) {
+            const QSize newSize = newGeometry.size().toSize();
+            const QSize oldSize = oldGeometry.size().toSize();
+
+            d->resizeSurfaceToItemSize(newSize, newSize - oldSize);
         }
-    } else {
+    } else if (!d->surface && d->resizeMode != ManualResize) {
         d->contentItem->setSize(d->contentItem->size() + newGeometry.size() - oldGeometry.size());
     }
 }
@@ -501,8 +535,17 @@ void WSurfaceItem::itemChange(ItemChange change, const ItemChangeData &data)
         return;
 
     if (change == ItemVisibleHasChanged) {
-        if (d->surface)
+        if (d->surface) {
             d->updateFrameDoneConnection();
+
+            if (d->effectiveVisible) {
+                if (d->resizeMode == SizeToSurface)
+                    resize(d->resizeMode);
+                d->contentItem->setSize(d->surfaceState->surfaceSize);
+            }
+        }
+
+        Q_EMIT effectiveVisibleChanged();
     } else if (change == ItemChildRemovedChange) {
         // Don't use qobject_cast, because this item is in destroy,
         // Use static_cast to avoid convert failed.
@@ -525,6 +568,8 @@ void WSurfaceItem::focusInEvent(QFocusEvent *event)
 void WSurfaceItem::releaseResources()
 {
     Q_D(WSurfaceItem);
+
+    d->beforeRequestResizeSurfaceStateSeq = 0;
 
     if (d->contentItem->m_updateTextureConnection)
         QObject::disconnect(d->contentItem->m_updateTextureConnection);
@@ -581,16 +626,26 @@ void WSurfaceItem::onSurfaceCommit()
 
     d->surfaceState->bufferSourceBox = d->surface->handle()->getBufferSourceBox();
     d->surfaceState->bufferOffset = d->surface->bufferOffset();
+    d->surfaceState->contentGeometry = getContentGeometry();
+    d->surfaceState->surfaceSize = d->surface->size();
 
-    const QRectF geometry = getContentGeometry();
-    if (d->resizeMode == WSurfaceItem::SizeFromSurface) {
-        if (!qFuzzyCompare(d->implicitWidth, geometry.width()))
-            setImplicitWidth(geometry.width());
-        if (!qFuzzyCompare(d->implicitHeight, geometry.height()))
-            setImplicitHeight(geometry.height());
+    // Maybe the beforeRequestResizeSurfaceStateSeq is set by resizeSurfaceToItemSize,
+    // the resizeSurfaceToItemSize wants to resize the wl_surface to current size of WSurfaceitem,
+    // If change the WSurfaceItem's size at here, you will see the WSurfaceItem flash.
+    if (d->beforeRequestResizeSurfaceStateSeq < d->surface->handle()->handle()->current.seq) {
+        if (d->beforeRequestResizeSurfaceStateSeq != 0) {
+            Q_ASSERT(d->beforeRequestResizeSurfaceStateSeq == d->surface->handle()->handle()->current.seq - 1);
+            d->beforeRequestResizeSurfaceStateSeq = 0;
+        }
+        if (d->resizeMode == WSurfaceItem::SizeFromSurface)
+            resize(d->resizeMode);
+
+        if (d->effectiveVisible)
+            d->contentItem->setSize(d->surfaceState->surfaceSize);
+        d->contentItem->setPosition(-d->surfaceState->contentGeometry.topLeft());
+    } else {
+        Q_ASSERT(d->beforeRequestResizeSurfaceStateSeq == d->surface->handle()->handle()->current.seq);
     }
-    d->contentItem->setSize(d->surface->size());
-    d->contentItem->setPosition(-geometry.topLeft());
 
     d->updateSubsurfaceItem();
 }
@@ -753,6 +808,25 @@ WSurfaceItem *WSurfaceItemPrivate::ensureSubsurfaceItem(WSurface *subsurfaceSurf
     Q_EMIT q->subsurfaceAdded(surfaceItem);
 
     return surfaceItem;
+}
+
+void WSurfaceItemPrivate::resizeSurfaceToItemSize(const QSize &itemSize, const QSize &sizeDiff)
+{
+    Q_Q(WSurfaceItem);
+
+    Q_ASSERT_X(itemSize == q->size().toSize(), "WSurfaceItem",
+               "The function only using for reisze wl_surface's "
+               "size to the WSurfaceItem's current size");
+
+    if (!surface) {
+        contentItem->setSize(contentItem->size() + sizeDiff);
+        return;
+    }
+
+    if (q->resizeSurface(itemSize)) {
+        contentItem->setSize(contentItem->size() + sizeDiff);
+        beforeRequestResizeSurfaceStateSeq = surface->handle()->handle()->pending.seq;
+    }
 }
 
 WAYLIB_SERVER_END_NAMESPACE

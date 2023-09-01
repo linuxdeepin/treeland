@@ -23,13 +23,14 @@ class Helper : public WSeatEventFilter {
 
 public:
     explicit Helper(QObject *parent = nullptr);
-    void stop();
+    void stopMoveResize();
 
     WXdgSurface *activatedSurface() const;
 
 public Q_SLOTS:
     void startMove(WXdgSurface *surface, QQuickItem *shell, QQuickItem *event, WSeat *seat, int serial);
     void startResize(WXdgSurface *surface, QQuickItem *shell, QQuickItem *event, WSeat *seat, Qt::Edges edge, int serial);
+    void cancelMoveResize(QQuickItem *shell);
     bool startDemoClient(const QString &socket);
     WSurface *getFocusSurfaceFrom(QObject *object);
 

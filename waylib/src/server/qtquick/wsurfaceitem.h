@@ -27,12 +27,14 @@ class WAYLIB_SERVER_EXPORT WSurfaceItem : public QQuickItem
     Q_PROPERTY(QQuickItem* eventItem READ eventItem CONSTANT)
     Q_PROPERTY(ResizeMode resizeMode READ resizeMode WRITE setResizeMode NOTIFY resizeModeChanged FINAL)
     Q_PROPERTY(bool cacheLastBuffer READ cacheLastBuffer WRITE setCacheLastBuffer NOTIFY cacheLastBufferChanged FINAL)
+    Q_PROPERTY(bool effectiveVisible READ effectiveVisible NOTIFY effectiveVisibleChanged FINAL)
     QML_NAMED_ELEMENT(SurfaceItem)
 
 public:
     enum ResizeMode {
         SizeFromSurface,
-        SizeToSurface
+        SizeToSurface,
+        ManualResize
     };
     Q_ENUM(ResizeMode)
 
@@ -52,9 +54,12 @@ public:
 
     ResizeMode resizeMode() const;
     void setResizeMode(ResizeMode newResizeMode);
+    Q_INVOKABLE void resize(ResizeMode mode);
 
     bool cacheLastBuffer() const;
     void setCacheLastBuffer(bool newCacheLastBuffer);
+
+    bool effectiveVisible() const;
 
 Q_SIGNALS:
     void surfaceChanged();
@@ -62,6 +67,7 @@ Q_SIGNALS:
     void subsurfaceRemoved(WSurfaceItem *item);
     void resizeModeChanged();
     void cacheLastBufferChanged();
+    void effectiveVisibleChanged();
 
 protected:
     void componentComplete() override;
