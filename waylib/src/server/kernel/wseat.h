@@ -36,7 +36,8 @@ public:
     explicit WSeatEventFilter(QObject *parent = nullptr);
 
 protected:
-    virtual bool eventFilter(WSeat *seat, WSurface *watched, QObject *shellObject, QInputEvent *event);
+    virtual bool eventFilter(WSeat *seat, WSurface *watched, QObject *shellObject,
+                             QObject *eventObject, QInputEvent *event);
     virtual bool eventFilter(WSeat *seat, QWindow *watched, QInputEvent *event);
 };
 
@@ -60,7 +61,7 @@ public:
     void detachInputDevice(WInputDevice *device);
 
     // WSurfaceItem is a kind of shellObject
-    static bool sendEvent(WSurface *target, QObject *shellObject, QInputEvent *event);
+    static bool sendEvent(WSurface *target, QObject *shellObject, QObject *eventObject, QInputEvent *event);
     static WSeat *get(QInputEvent *event);
 
     WSeatEventFilter *eventFilter() const;

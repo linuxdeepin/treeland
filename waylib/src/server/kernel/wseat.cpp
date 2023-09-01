@@ -48,6 +48,10 @@ public:
     {
 
     }
+    ~WSeatPrivate() {
+        if (onEventObjectDestroy)
+            QObject::disconnect(onEventObjectDestroy);
+    }
 
     inline QWSeat *handle() const {
         return q_func()->nativeInterface<QWSeat>();
@@ -93,11 +97,25 @@ public:
     inline void doNotifyFrame() {
         handle()->pointerNotifyFrame();
     }
-    inline void doEnter(WSurface *surface, const QPointF &position) {
+    inline void doEnter(WSurface *surface, QObject *eventObject, const QPointF &position) {
         oldPointerFocusSurface = handle()->handle()->pointer_state.focused_surface;
         handle()->pointerNotifyEnter(surface->handle(), position.x(), position.y());
+
+        Q_ASSERT(!pointerFocusEventObject || eventObject != pointerFocusEventObject);
+        if (pointerFocusEventObject) {
+            Q_ASSERT(onEventObjectDestroy);
+            QObject::disconnect(onEventObjectDestroy);
+        }
+        pointerFocusEventObject = eventObject;
+        if (eventObject) {
+            onEventObjectDestroy = QObject::connect(eventObject, &QObject::destroyed,
+                                                    q_func()->server()->slotOwner(), [this] {
+                doClearPointerFocus();
+            });
+        }
     }
     inline void doClearPointerFocus() {
+        pointerFocusEventObject.clear();
         handle()->pointerNotifyClearFocus();
         if (cursor) // reset cursur from QCursor resource, the last cursor is from wlr_surface
             cursor->setCursor(cursor->cursor());
@@ -212,6 +230,8 @@ public:
     QVector<WInputDevice*> touchDeviceList;
     QPointer<WSeatEventFilter> eventFilter;
     QPointer<QWindow> focusWindow;
+    QPointer<QObject> pointerFocusEventObject;
+    QMetaObject::Connection onEventObjectDestroy;
     wlr_surface *oldPointerFocusSurface = nullptr;
     // ###: It's only using compare pointer value.
     // It's for a Qt bug. When handling mouse events in QQuickDeliveryAgentPrivate::deliverPressOrReleaseEvent,
@@ -474,7 +494,7 @@ inline static WSeat *getSeat(QInputEvent *event)
     return inputDevice->seat();
 }
 
-bool WSeat::sendEvent(WSurface *target, QObject *shellObject, QInputEvent *event)
+bool WSeat::sendEvent(WSurface *target, QObject *shellObject, QObject *eventObject, QInputEvent *event)
 {
     auto inputDevice = WInputDevice::from(event->device());
     if (Q_UNLIKELY(!inputDevice))
@@ -483,7 +503,7 @@ bool WSeat::sendEvent(WSurface *target, QObject *shellObject, QInputEvent *event
     auto seat = inputDevice->seat();
     auto d = seat->d_func();
 
-    if (d->eventFilter && d->eventFilter->eventFilter(seat, target, shellObject, event))
+    if (d->eventFilter && d->eventFilter->eventFilter(seat, target, shellObject, eventObject, event))
         return true;
 
     event->accept();
@@ -492,7 +512,7 @@ bool WSeat::sendEvent(WSurface *target, QObject *shellObject, QInputEvent *event
     switch (event->type()) {
     case QEvent::HoverEnter: {
         auto e = static_cast<QHoverEvent*>(event);
-        d->doEnter(target, e->position());
+        d->doEnter(target, eventObject, e->position());
         break;
     }
     case QEvent::HoverLeave: {
@@ -900,7 +920,8 @@ WSeatEventFilter::WSeatEventFilter(QObject *parent)
 
 }
 
-bool WSeatEventFilter::eventFilter(WSeat *, WSurface *, QObject *, QInputEvent *event)
+bool WSeatEventFilter::eventFilter(WSeat *, WSurface *, QObject *,
+                                   QObject *, QInputEvent *event)
 {
     event->ignore();
     return false;

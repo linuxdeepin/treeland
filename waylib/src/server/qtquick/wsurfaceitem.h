@@ -24,10 +24,10 @@ class WAYLIB_SERVER_EXPORT WSurfaceItem : public QQuickItem
     Q_DECLARE_PRIVATE(WSurfaceItem)
     Q_PROPERTY(WSurface* surface READ surface WRITE setSurface NOTIFY surfaceChanged)
     Q_PROPERTY(QQuickItem* contentItem READ contentItem CONSTANT)
-    Q_PROPERTY(QQuickItem* eventItem READ eventItem CONSTANT)
+    Q_PROPERTY(QQuickItem* eventItem READ eventItem NOTIFY eventItemChanged)
     Q_PROPERTY(ResizeMode resizeMode READ resizeMode WRITE setResizeMode NOTIFY resizeModeChanged FINAL)
-    Q_PROPERTY(bool cacheLastBuffer READ cacheLastBuffer WRITE setCacheLastBuffer NOTIFY cacheLastBufferChanged FINAL)
     Q_PROPERTY(bool effectiveVisible READ effectiveVisible NOTIFY effectiveVisibleChanged FINAL)
+    Q_PROPERTY(Flags flags READ flags WRITE setFlags NOTIFY flagsChanged FINAL)
     QML_NAMED_ELEMENT(SurfaceItem)
 
 public:
@@ -37,6 +37,13 @@ public:
         ManualResize
     };
     Q_ENUM(ResizeMode)
+
+    enum Flag {
+        DontCacheLastBuffer = 0x1,
+        RejectEvent = 0x2
+    };
+    Q_ENUM(Flag)
+    Q_DECLARE_FLAGS(Flags, Flag)
 
     explicit WSurfaceItem(QQuickItem *parent = nullptr);
     ~WSurfaceItem();
@@ -56,18 +63,19 @@ public:
     void setResizeMode(ResizeMode newResizeMode);
     Q_INVOKABLE void resize(ResizeMode mode);
 
-    bool cacheLastBuffer() const;
-    void setCacheLastBuffer(bool newCacheLastBuffer);
-
     bool effectiveVisible() const;
+
+    Flags flags() const;
+    void setFlags(const Flags &newFlags);
 
 Q_SIGNALS:
     void surfaceChanged();
     void subsurfaceAdded(WSurfaceItem *item);
     void subsurfaceRemoved(WSurfaceItem *item);
     void resizeModeChanged();
-    void cacheLastBufferChanged();
     void effectiveVisibleChanged();
+    void eventItemChanged();
+    void flagsChanged();
 
 protected:
     void componentComplete() override;
@@ -93,3 +101,4 @@ private:
 WAYLIB_SERVER_END_NAMESPACE
 
 Q_DECLARE_METATYPE(WAYLIB_SERVER_NAMESPACE::WSurfaceItem*)
+Q_DECLARE_OPERATORS_FOR_FLAGS(WAYLIB_SERVER_NAMESPACE::WSurfaceItem::Flags)

@@ -177,7 +177,7 @@ bool Helper::eventFilter(WSeat *seat, QWindow *watched, QInputEvent *event)
     return false;
 }
 
-bool Helper::eventFilter(WSeat *seat, WSurface *watched, QObject *surfaceItem, QInputEvent *event)
+bool Helper::eventFilter(WSeat *seat, WSurface *watched, QObject *surfaceItem, QObject *, QInputEvent *event)
 {
     Q_UNUSED(seat)
 

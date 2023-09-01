@@ -77,6 +77,7 @@ public:
     WSurfaceItem *ensureSubsurfaceItem(WSurface *subsurfaceSurface);
 
     void resizeSurfaceToItemSize(const QSize &itemSize, const QSize &sizeDiff);
+    void updateEventItem(bool forceDestroy);
 
     Q_DECLARE_PUBLIC(WSurfaceItem)
     QPointer<WSurface> surface;
@@ -84,7 +85,7 @@ public:
     ContentItem *contentItem = nullptr;
     QQuickItem *eventItem = nullptr;
     WSurfaceItem::ResizeMode resizeMode = WSurfaceItem::SizeFromSurface;
-    bool cacheLastBuffer = true;
+    WSurfaceItem::Flags surfaceFlags;
     QList<WSurfaceItem*> subsurfaces;
 
     QMetaObject::Connection frameDoneConnection;
@@ -472,26 +473,28 @@ void WSurfaceItem::resize(ResizeMode mode)
     }
 }
 
-bool WSurfaceItem::cacheLastBuffer() const
-{
-    Q_D(const WSurfaceItem);
-
-    return d->cacheLastBuffer;
-}
-
-void WSurfaceItem::setCacheLastBuffer(bool newCacheLastBuffer)
-{
-    Q_D(WSurfaceItem);
-    if (d->cacheLastBuffer == newCacheLastBuffer)
-        return;
-    d->cacheLastBuffer = newCacheLastBuffer;
-    Q_EMIT cacheLastBufferChanged();
-}
-
 bool WSurfaceItem::effectiveVisible() const
 {
     Q_D(const WSurfaceItem);
     return d->effectiveVisible;
+}
+
+WSurfaceItem::Flags WSurfaceItem::flags() const
+{
+    Q_D(const WSurfaceItem);
+    return d->surfaceFlags;
+}
+
+void WSurfaceItem::setFlags(const Flags &newFlags)
+{
+    Q_D(WSurfaceItem);
+
+    if (d->surfaceFlags == newFlags)
+        return;
+    d->surfaceFlags = newFlags;
+    d->updateEventItem(false);
+
+    Q_EMIT flagsChanged();
 }
 
 void WSurfaceItem::componentComplete()
@@ -577,7 +580,7 @@ void WSurfaceItem::releaseResources()
     if (d->frameDoneConnection)
         QObject::disconnect(d->frameDoneConnection);
 
-    if (d->cacheLastBuffer) {
+    if (!d->surfaceFlags.testFlag(DontCacheLastBuffer)) {
         for (auto item : d->subsurfaces) {
             item->releaseResources();
             // Don't auto destroy subsurfaes's items, ensure save the
@@ -593,14 +596,7 @@ void WSurfaceItem::releaseResources()
             item->deleteLater();
     }
 
-    if (!d->eventItem)
-        return;
-
-    d->eventItem->setVisible(false);
-    d->eventItem->setParentItem(nullptr);
-    d->eventItem->setParent(nullptr);
-    delete d->eventItem;
-    d->eventItem = nullptr;
+    d->updateEventItem(true);
 }
 
 void WSurfaceItem::initSurface()
@@ -617,7 +613,7 @@ bool WSurfaceItem::sendEvent(QInputEvent *event)
     if (!d->surface)
         return false;
 
-    return WSeat::sendEvent(d->surface.get(), this, event);
+    return WSeat::sendEvent(d->surface.get(), this, d->eventItem, event);
 }
 
 void WSurfaceItem::onSurfaceCommit()
@@ -692,10 +688,6 @@ void WSurfaceItemPrivate::initForSurface()
 
     if (!surfaceState)
         surfaceState.reset(new SurfaceState());
-    if (!eventItem) {
-        eventItem = new EventItem(contentItem);
-        QQuickItemPrivate::get(eventItem)->anchors()->setFill(contentItem);
-    }
 
     contentItem->m_textureProvider->updateTexture();
     contentItem->m_updateTextureConnection = QObject::connect(surface, &WSurface::bufferChanged,
@@ -714,6 +706,7 @@ void WSurfaceItemPrivate::initForSurface()
 
     onHasSubsurfaceChanged();
     updateFrameDoneConnection();
+    updateEventItem(false);
     q->onSurfaceCommit();
 }
 
@@ -827,6 +820,26 @@ void WSurfaceItemPrivate::resizeSurfaceToItemSize(const QSize &itemSize, const Q
         contentItem->setSize(contentItem->size() + sizeDiff);
         beforeRequestResizeSurfaceStateSeq = surface->handle()->handle()->pending.seq;
     }
+}
+
+void WSurfaceItemPrivate::updateEventItem(bool forceDestroy)
+{
+    const bool needsEventItem = !forceDestroy && !surfaceFlags.testFlag(WSurfaceItem::RejectEvent);
+    if (bool(eventItem) == needsEventItem)
+        return;
+
+    if (eventItem) {
+        eventItem->setVisible(false);
+        eventItem->setParentItem(nullptr);
+        eventItem->setParent(nullptr);
+        delete eventItem;
+        eventItem = nullptr;
+    } else {
+        eventItem = new EventItem(contentItem);
+        QQuickItemPrivate::get(eventItem)->anchors()->setFill(contentItem);
+    }
+
+    Q_EMIT q_func()->eventItemChanged();
 }
 
 WAYLIB_SERVER_END_NAMESPACE
