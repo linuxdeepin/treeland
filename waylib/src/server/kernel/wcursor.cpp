@@ -528,7 +528,8 @@ void WCursor::setSurface(QWSurface *surface, const QPoint &hotspot)
         if (surface) {
             connect(surface, &QWSurface::beforeDestroy, this, [d]() {
                 d->updateCursorImage();
-            });
+            }, Qt::QueuedConnection);
+            // Do not call updateCursorImage immediately to prevent pointerFocusSurface not cleaning up in time
         }
     }
 }
@@ -615,7 +616,8 @@ void WCursor::setVisible(bool visible)
             d->handle->setSurface(d->surfaceOfCursor, d->surfaceCursorHotspot);
             connect(d->surfaceOfCursor, &QWSurface::beforeDestroy, this, [d]() {
                 d->updateCursorImage();
-            });
+            }, Qt::QueuedConnection);
+            // Do not call updateCursorImage immediately to prevent pointerFocusSurface not cleaning up in time
         } else {
             d->updateCursorImage();
         }
