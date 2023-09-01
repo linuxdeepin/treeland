@@ -13,8 +13,12 @@
 , wayland-protocols
 , pixman
 , libdrm
-, deepin
-, buildTinywl ? true
+, nixos-artwork
+
+# only for test 
+, makeTest ? null
+, pkgs ? null
+, waylib ? null
 }:
 
 stdenv.mkDerivation rec {
@@ -34,9 +38,10 @@ stdenv.mkDerivation rec {
     ];
   };
 
-  postPatch = lib.optionalString buildTinywl ''
-    substituteInPlace examples/tinywl/Main.qml \
-      --replace "/usr/share/backgrounds/deepin/desktop.jpg" "${deepin.deepin-wallpapers}/share/backgrounds/default_background.jpg"
+  postPatch = ''
+    substituteInPlace examples/tinywl/OutputDelegate.qml \
+      --replace "/usr/share/wallpapers/deepin/desktop.jpg" \
+                "${nixos-artwork.wallpapers.simple-blue}/share/backgrounds/nixos/nix-wallpaper-simple-blue.png"
   '';
 
   nativeBuildInputs = [
@@ -57,10 +62,16 @@ stdenv.mkDerivation rec {
   ];
 
   cmakeFlags = [
-    "-DBUILD_TINYWL=${if buildTinywl then "ON" else "OFF"}"
+    "-DINSTALL_TINYWL=ON"
   ];
 
   strictDeps = true;
+
+  outputs = [ "out" "dev" ];
+
+  passthru.tests = import ./nixos-test.nix {
+    inherit pkgs makeTest waylib;
+  };
 
   meta = with lib; {
     description = "A wrapper for wlroots based on Qt";

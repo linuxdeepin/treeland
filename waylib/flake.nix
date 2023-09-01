@@ -19,21 +19,27 @@
         let
           pkgs = nixpkgs.legacyPackages.${system};
 
-          waylib = pkgs.qt6.callPackage ./nix {
+          waylib = pkgs.qt6Packages.callPackage ./nix {
             nix-filter = nix-filter.lib;
             qwlroots = qwlroots.packages.${system}.qwlroots-qt6-wlroots-git;
+
+            # for test
+            inherit pkgs waylib;
+            makeTest = import (pkgs.path + "/nixos/tests/make-test-python.nix");
           };
         in
-        rec {
+        {
           packages.default = waylib;
 
-          devShells.default = pkgs.mkShell { 
+          checks.default = self.packages.${system}.default.tests;
+
+          devShells.default = pkgs.mkShell {
             packages = with pkgs; [
               wayland-utils
             ];
 
             inputsFrom = [
-              packages.default
+              self.packages.${system}.default
               qwlroots.packages.${system}.qwlroots-qt6-wlroots-git
             ];
 

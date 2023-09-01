@@ -52,5 +52,6 @@ target_link_libraries(tinywl-qtquick
     PkgConfig::PIXMAN
 )
 
-# Don't install, using for debug in local
-#install(TARGETS tinywl-qtquick DESTINATION ${CMAKE_INSTALL_BINDIR})
+if (INSTALL_TINYWL)
+    install(TARGETS tinywl-qtquick DESTINATION ${CMAKE_INSTALL_BINDIR})
+endif()
