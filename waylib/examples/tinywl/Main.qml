@@ -78,6 +78,10 @@ Item {
                 Helper.startDemoClient(socketFile)
             }
         }
+
+        XdgDecorationManager {
+            id: decorationManager
+        }
     }
 
     OutputRenderWindow {
@@ -113,9 +117,15 @@ Item {
 
                 TabButton {
                     text: qsTr("Stack Layout")
+                    onClicked: {
+                        decorationManager.mode = XdgDecorationManager.PreferClientSide
+                    }
                 }
                 TabButton {
                     text: qsTr("Tiled Layout")
+                    onClicked: {
+                        decorationManager.mode = XdgDecorationManager.PreferServerSide
+                    }
                 }
             }
 

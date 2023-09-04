@@ -65,6 +65,7 @@ set(QTQUICK_SOURCES
     qtquick/private/wquicksocket.cpp
     qtquick/private/wqmldynamiccreator.cpp
     qtquick/private/wqmlhelper.cpp
+    qtquick/private/wquickxdgdecorationmanager.cpp
 )
 
 set(UTILS_SOURCES
@@ -140,6 +141,7 @@ set(PRIVATE_HEADERS
     qtquick/private/wquicksocket_p.h
     qtquick/private/wqmldynamiccreator_p.h
     qtquick/private/wqmlhelper_p.h
+    qtquick/private/wquickxdgdecorationmanager_p.h
 )
 
 add_library(${TARGET}
