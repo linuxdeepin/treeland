@@ -49,7 +49,8 @@ public:
         setObjectName(id());
     }
 
-    static bool eventFilter(QWindow *window, QEvent *event);
+    static bool beforeDisposeEventFilter(QWindow *window, QEvent *event);
+    static bool afterDisposeEventFilter(QWindow *window, QEvent *event);
 };
 
 class OffscreenSurface : public QOffscreenSurface

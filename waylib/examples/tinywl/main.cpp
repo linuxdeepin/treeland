@@ -120,7 +120,7 @@ void Helper::clearFocus(QWindow *window)
     setActivateSurface(nullptr);
 }
 
-bool Helper::eventFilter(WSeat *seat, QWindow *watched, QInputEvent *event)
+bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *watched, QInputEvent *event)
 {
     if (watched) {
         if (event->type() == QEvent::MouseButtonPress || event->type() == QEvent::TouchBegin) {
@@ -177,7 +177,7 @@ bool Helper::eventFilter(WSeat *seat, QWindow *watched, QInputEvent *event)
     return false;
 }
 
-bool Helper::eventFilter(WSeat *seat, WSurface *watched, QObject *surfaceItem, QObject *, QInputEvent *event)
+bool Helper::afterHandleEvent(WSeat *seat, WSurface *watched, QObject *surfaceItem, QObject *, QInputEvent *event)
 {
     Q_UNUSED(seat)
 
@@ -198,6 +198,15 @@ bool Helper::eventFilter(WSeat *seat, WSurface *watched, QObject *surfaceItem, Q
         Q_ASSERT(xdgSurface->surface() == watched);
         if (!xdgSurface->doesNotAcceptFocus())
             setActivateSurface(xdgSurface);
+    }
+
+    return false;
+}
+
+bool Helper::unacceptedEvent(WSeat *, QWindow *watched, QInputEvent *event)
+{
+    if (event->type() == QEvent::MouseButtonPress) {
+        clearFocus(watched);
     }
 
     return false;

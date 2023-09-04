@@ -740,10 +740,17 @@ bool WOutputRenderWindow::event(QEvent *event)
         return true;
     }
 
-    if (QW::RenderWindow::eventFilter(this, event))
+    if (QW::RenderWindow::beforeDisposeEventFilter(this, event)) {
+        event->accept();
+        QW::RenderWindow::afterDisposeEventFilter(this, event);
+        return true;
+    }
+
+    bool isAccepted = QQuickWindow::event(event);
+    if (QW::RenderWindow::afterDisposeEventFilter(this, event))
         return true;
 
-    return QQuickWindow::event(event);
+    return isAccepted;
 }
 
 WAYLIB_SERVER_END_NAMESPACE

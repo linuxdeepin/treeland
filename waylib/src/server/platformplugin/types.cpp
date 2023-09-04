@@ -10,10 +10,19 @@ WAYLIB_SERVER_BEGIN_NAMESPACE
 
 namespace QW {
 
-bool RenderWindow::eventFilter(QWindow *window, QEvent *event)
+bool RenderWindow::beforeDisposeEventFilter(QWindow *window, QEvent *event)
 {
     if (auto qwRenderWindow = static_cast<QWlrootsRenderWindow*>(window->handle())) {
-        if (qwRenderWindow->eventFilter(event))
+        if (qwRenderWindow->beforeDisposeEventFilter(event))
+            return true;
+    }
+    return false;
+}
+
+bool RenderWindow::afterDisposeEventFilter(QWindow *window, QEvent *event)
+{
+    if (auto qwRenderWindow = static_cast<QWlrootsRenderWindow*>(window->handle())) {
+        if (qwRenderWindow->afterDisposeEventFilter(event))
             return true;
     }
     return false;

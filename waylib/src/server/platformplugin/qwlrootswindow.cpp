@@ -182,13 +182,27 @@ void QWlrootsRenderWindow::setDevicePixelRatio(qreal dpr)
 #endif
 }
 
-bool QWlrootsRenderWindow::eventFilter(QEvent *event)
+bool QWlrootsRenderWindow::beforeDisposeEventFilter(QEvent *event)
 {
-    if (auto ie = dynamic_cast<QInputEvent*>(event)) {
+    if (event->isInputEvent()) {
+        auto ie = static_cast<QInputEvent*>(event);
         auto device = WInputDevice::from(ie->device());
         Q_ASSERT(device);
         lastActiveCursor = device->seat()->cursor();
-        return device->seat()->filterInputEvent(window(), ie);
+        return device->seat()->filterEventBeforeDisposeStage(window(), ie);
+    }
+
+    return false;
+}
+
+bool QWlrootsRenderWindow::afterDisposeEventFilter(QEvent *event)
+{
+    if (event->isInputEvent()) {
+        auto ie = static_cast<QInputEvent*>(event);
+        auto device = WInputDevice::from(ie->device());
+        Q_ASSERT(device);
+        lastActiveCursor = device->seat()->cursor();
+        return device->seat()->filterEventAfterDisposeStage(window(), ie);
     }
 
     return false;

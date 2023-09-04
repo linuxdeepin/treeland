@@ -58,7 +58,8 @@ public:
     WId winId() const override;
     qreal devicePixelRatio() const override;
     void setDevicePixelRatio(qreal dpr);
-    bool eventFilter(QEvent *event);
+    bool beforeDisposeEventFilter(QEvent *event);
+    bool afterDisposeEventFilter(QEvent *event);
 
 private:
     qreal dpr = 1.0;

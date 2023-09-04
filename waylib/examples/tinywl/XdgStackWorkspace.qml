@@ -255,6 +255,7 @@ Item {
             y: surface.implicitPosition.y + (xdgParent ? xdgParent.xdgSurface.contentItem.x : 0)
             padding: 0
             background: null
+            closePolicy: Popup.CloseOnPressOutside
 
             XdgSurface {
                 id: surface

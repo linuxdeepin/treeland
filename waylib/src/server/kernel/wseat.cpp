@@ -46,7 +46,7 @@ public:
         : WObjectPrivate(qq)
         , name(name)
     {
-
+        pendingEvents.reserve(2);
     }
     ~WSeatPrivate() {
         if (onEventObjectDestroy)
@@ -71,14 +71,16 @@ public:
     }
 
     inline bool doNotifyMotion(WSurface *target, QObject *eventObject, QPointF localPos, uint32_t timestamp) {
-        if (pointerFocusSurface()) {
-            Q_ASSERT(pointerFocusEventObject == eventObject);
-            Q_ASSERT(pointerFocusSurface() == target->handle()->handle());
-        } else {
-            // Maybe this seat is grabbed by a xdg popup surface, so the surface of under mouse
-            // can't take pointer focus, but maybe the popup is closed now, so we should try again
-            // take pointer focus for this surface.
-            doEnter(target, eventObject, localPos);
+        if (target) {
+            if (pointerFocusSurface()) {
+                Q_ASSERT(pointerFocusEventObject == eventObject);
+                Q_ASSERT(pointerFocusSurface() == target->handle()->handle());
+            } else {
+                // Maybe this seat is grabbed by a xdg popup surface, so the surface of under mouse
+                // can't take pointer focus, but maybe the popup is closed now, so we should try again
+                // take pointer focus for this surface.
+                doEnter(target, eventObject, localPos);
+            }
         }
 
         handle()->pointerNotifyMotion(timestamp, localPos.x(), localPos.y());
@@ -252,21 +254,42 @@ public:
     QPointer<QObject> pointerFocusEventObject;
     QMetaObject::Connection onEventObjectDestroy;
     wlr_surface *oldPointerFocusSurface = nullptr;
-    // ###: It's only using compare pointer value.
-    // It's for a Qt bug. When handling mouse events in QQuickDeliveryAgentPrivate::deliverPressOrReleaseEvent,
-    // if there are multiple QQuickItems that can receive the mouse events where the mouse is pressed, Qt will
-    // attempt to dispatch them one by one. Even if the top-level QQuickItem has already accepted the event,
-    // QQuickDeliveryAgentPrivate will still call setAccepted(false) to set the acceptance status to false for
-    // each mouse point in the QPointerEvent. Then it will try to pass the event to the QQuickPointerHandler
-    // objects of the underlying QQuickItems for processing. Although no QQuickPointerHandler receives the event,
-    // the above behavior has already caused QPointerEvent::allPointsAccepted to return false. This will cause
-    // QQuickDeliveryAgentPrivate::deliverPressOrReleaseEvent to return false, ultimately causing
-    // QQuickDeliveryAgentPrivate::deliverPointerEvent to believe that the event has not been accepted and set the
-    // accepted status of QEvent to false. This leads to WSeat considering the event unused, and then it is passed
-    // to WSeatEventFilter::ignoredEventFilter.
-    QEvent *lastAccpetEvent = nullptr; // This pointer can only using to here
-    inline bool checkEventIsAccepted(QEvent *event) const {
-        return event->isAccepted() || lastAccpetEvent == event;
+
+    struct EventState {
+        // Don't use it, its may be a invalid pointer
+        void *event;
+        quint64 timestamp;
+        // ###: It's only using compare pointer value.
+        // It's for a Qt bug. When handling mouse events in QQuickDeliveryAgentPrivate::deliverPressOrReleaseEvent,
+        // if there are multiple QQuickItems that can receive the mouse events where the mouse is pressed, Qt will
+        // attempt to dispatch them one by one. Even if the top-level QQuickItem has already accepted the event,
+        // QQuickDeliveryAgentPrivate will still call setAccepted(false) to set the acceptance status to false for
+        // each mouse point in the QPointerEvent. Then it will try to pass the event to the QQuickPointerHandler
+        // objects of the underlying QQuickItems for processing. Although no QQuickPointerHandler receives the event,
+        // the above behavior has already caused QPointerEvent::allPointsAccepted to return false. This will cause
+        // QQuickDeliveryAgentPrivate::deliverPressOrReleaseEvent to return false, ultimately causing
+        // QQuickDeliveryAgentPrivate::deliverPointerEvent to believe that the event has not been accepted and set the
+        // accepted status of QEvent to false. This leads to WSeat considering the event unused, and then it is passed
+        // to WSeatEventFilter::unacceptedEvent.
+        bool isAccepted;
+    };
+    QList<EventState> pendingEvents;
+
+    inline EventState *addEventState(QInputEvent *event) {
+        Q_ASSERT(indexOfEventState(event) < 0);
+        pendingEvents.append({.event = event, .timestamp = event->timestamp(), .isAccepted = true});
+        return &pendingEvents.last();
+    }
+    inline int indexOfEventState(QInputEvent *event) const {
+        for (int i = 0; i < pendingEvents.size(); ++i)
+            if (pendingEvents.at(i).event == event
+                    && pendingEvents.at(i).timestamp == event->timestamp())
+                return i;
+        return -1;
+    }
+    inline EventState *getEventState(QInputEvent *event) {
+        int index = indexOfEventState(event);
+        return index < 0 ? nullptr : &pendingEvents[index];
     }
 
     // for event data
@@ -522,11 +545,14 @@ bool WSeat::sendEvent(WSurface *target, QObject *shellObject, QObject *eventObje
     auto seat = inputDevice->seat();
     auto d = seat->d_func();
 
-    if (d->eventFilter && d->eventFilter->eventFilter(seat, target, shellObject, eventObject, event))
+    auto eventState = d->getEventState(event);
+    if (eventState)
+        eventState->isAccepted = true;
+
+    if (shellObject && d->eventFilter && d->eventFilter->beforeHandleEvent(seat, target, shellObject, eventObject, event))
         return true;
 
     event->accept();
-    d->lastAccpetEvent = event;
 
     switch (event->type()) {
     case QEvent::HoverEnter: {
@@ -590,6 +616,29 @@ bool WSeat::sendEvent(WSurface *target, QObject *shellObject, QObject *eventObje
         event->ignore();
         return false;
     }
+
+    if (!shellObject || !d->eventFilter)
+        return true;
+
+    switch (event->type()) {
+    case QEvent::MouseButtonPress: Q_FALLTHROUGH();
+    case QEvent::MouseButtonRelease: Q_FALLTHROUGH();
+    case QEvent::HoverMove: Q_FALLTHROUGH();
+    case QEvent::MouseMove: {
+        // Maybe this event is eat by the event grabber
+        if (target != seat->pointerFocusSurface())
+            return true;
+        break;
+    case QEvent::KeyPress:
+    case QEvent::KeyRelease:
+        // Maybe this event is eat by the event grabber
+        if (target != seat->keyboardFocusSurface())
+            return true;
+        break;
+    }
+    }
+
+    d->eventFilter->afterHandleEvent(seat, target, shellObject, eventObject, event);
 
     return true;
 }
@@ -715,14 +764,11 @@ void WSeat::notifyAxis(WCursor *cursor, WInputDevice *device, wlr_axis_source_t 
                   Qt::NoScrollPhase, false, Qt::MouseEventNotSynthesized, qwDevice);
     e.setTimestamp(timestamp);
 
-    if (w)
+    if (w) {
         QCoreApplication::sendEvent(w, &e);
-
-    if (d->checkEventIsAccepted(&e))
-        return;
-
-    if (d->doNotifyAxis(static_cast<wlr_axis_source>(source), orientation, delta, delta_discrete, timestamp))
-        return;
+    } else {
+        d->doNotifyAxis(static_cast<wlr_axis_source>(source), orientation, delta, delta_discrete, timestamp);
+    }
 }
 
 void WSeat::notifyFrame(WCursor *cursor)
@@ -910,12 +956,14 @@ void WSeat::destroy(WServer *)
     }
 }
 
-bool WSeat::filterInputEvent(QWindow *targetWindow, QInputEvent *event)
+bool WSeat::filterEventBeforeDisposeStage(QWindow *targetWindow, QInputEvent *event)
 {
     W_D(WSeat);
 
+    d->addEventState(event);
+
     if (Q_UNLIKELY(d->eventFilter)) {
-        if (d->eventFilter->eventFilter(this, targetWindow, event)) {
+        if (d->eventFilter->beforeDisposeEvent(this, targetWindow, event)) {
             if (event->type() == QEvent::MouseMove || event->type() == QEvent::HoverMove) {
                 // ###: Qt need 'lastMousePosition' to synchronous hover in
                 // QQuickDeliveryAgentPrivate::flushFrameSynchronousEvents,
@@ -936,22 +984,89 @@ bool WSeat::filterInputEvent(QWindow *targetWindow, QInputEvent *event)
     return false;
 }
 
+bool WSeat::filterEventAfterDisposeStage(QWindow *targetWindow, QInputEvent *event)
+{
+    W_D(WSeat);
+
+    int eventStateIndex = d->indexOfEventState(event);
+    Q_ASSERT(eventStateIndex >= 0);
+
+    if (event->isAccepted() || d->pendingEvents.at(eventStateIndex).isAccepted) {
+        d->pendingEvents.removeAt(eventStateIndex);
+        return false;
+    }
+
+    d->pendingEvents[eventStateIndex].isAccepted = true;
+    bool ok = filterUnacceptedEvent(targetWindow, event);
+
+    d->pendingEvents.removeAt(eventStateIndex);
+
+    return ok;
+}
+
+bool WSeat::filterUnacceptedEvent(QWindow *targetWindow, QInputEvent *event)
+{
+    W_D(WSeat);
+
+    switch (event->type()) {
+    // Maybe this seat has grabbed in wlroots, should send these events to graber.
+    case QEvent::MouseButtonPress: Q_FALLTHROUGH();
+    case QEvent::MouseButtonRelease: Q_FALLTHROUGH();
+    case QEvent::HoverMove: Q_FALLTHROUGH();
+    case QEvent::MouseMove:
+        if (static_cast<QMouseEvent*>(event)->source() != Qt::MouseEventNotSynthesized)
+            return false;
+        if (d->handle()->pointerHasGrab())
+            return sendEvent(nullptr, nullptr, nullptr, event);
+        break;
+    case QEvent::KeyPress: Q_FALLTHROUGH();
+    case QEvent::KeyRelease:
+        if (d->handle()->keyboardHasGrab())
+            return sendEvent(nullptr, nullptr, nullptr, event);
+        break;
+        // TODO: Must send the touch events to touch grabber, but the touch
+        // event need a non-NULL surface object, we can create a wl_client
+        // in a new thread and add a exclusive wl_surface to receive these events.
+        //    case QEvent::TouchBegin: Q_FALLTHROUGH();
+        //    case QEvent::TouchCancel: Q_FALLTHROUGH();
+        //    case QEvent::TouchEnd: Q_FALLTHROUGH();
+        //    case QEvent::TouchUpdate: Q_FALLTHROUGH();
+        //        if (d->handle()->touchHasGrab())
+        //            return sendEvent(nullptr, nullptr, nullptr, event);
+        //        break;
+    }
+
+    if (d->eventFilter && d->eventFilter->unacceptedEvent(this, targetWindow, event))
+        return true;
+
+    return false;
+}
+
 WSeatEventFilter::WSeatEventFilter(QObject *parent)
     : QObject(parent)
 {
 
 }
 
-bool WSeatEventFilter::eventFilter(WSeat *, WSurface *, QObject *,
-                                   QObject *, QInputEvent *event)
+bool WSeatEventFilter::beforeHandleEvent(WSeat *, WSurface *, QObject *,
+                                         QObject *, QInputEvent *)
 {
-    event->ignore();
     return false;
 }
 
-bool WSeatEventFilter::eventFilter(WSeat *, QWindow *, QInputEvent *event)
+bool WSeatEventFilter::afterHandleEvent(WSeat *, WSurface *, QObject *,
+                                        QObject *, QInputEvent *)
 {
-    event->ignore();
+    return false;
+}
+
+bool WSeatEventFilter::beforeDisposeEvent(WSeat *, QWindow *, QInputEvent *)
+{
+    return false;
+}
+
+bool WSeatEventFilter::unacceptedEvent(WSeat *, QWindow *, QInputEvent *)
+{
     return false;
 }
 

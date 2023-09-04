@@ -87,10 +87,8 @@ Item {
         width: outputRowLayout.implicitWidth + outputRowLayout.x
         height: outputRowLayout.implicitHeight + outputRowLayout.y
 
-        MouseArea {
+        EventJunkman {
             anchors.fill: parent
-            cursorShape: Qt.ArrowCursor
-            onPressed: Helper.clearFocus(renderWindow)
         }
 
         Row {

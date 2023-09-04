@@ -52,6 +52,7 @@ set(QTQUICK_SOURCES
     qtquick/wquickoutputlayout.cpp
     qtquick/wquickcursor.cpp
     qtquick/wquickobserver.cpp
+    qtquick/weventjunkman.cpp
 
     qtquick/private/wquickxdgshell.cpp
     qtquick/private/wquickbackend.cpp
@@ -119,6 +120,7 @@ set(HEADERS
     qtquick/woutputpositioner.h
     qtquick/wquickcursor.h
     qtquick/wquickobserver.h
+    qtquick/weventjunkman.h
 
     utils/wtools.h
     utils/wthreadutils.h

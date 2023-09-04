@@ -41,8 +41,9 @@ signals:
     void activatedSurfaceChanged();
 
 private:
-    bool eventFilter(WSeat *seat, QWindow *watched, QInputEvent *event) override;
-    bool eventFilter(WSeat *seat, WSurface *watched, QObject *surfaceItem, QObject *, QInputEvent *event) override;
+    bool beforeDisposeEvent(WSeat *seat, QWindow *watched, QInputEvent *event) override;
+    bool afterHandleEvent(WSeat *seat, WSurface *watched, QObject *surfaceItem, QObject *, QInputEvent *event) override;
+    bool unacceptedEvent(WSeat *seat, QWindow *watched, QInputEvent *event) override;
 
     void setActivateSurface(WXdgSurface *newActivate);
     void onOutputRequeseState(wlr_output_event_request_state *newState);

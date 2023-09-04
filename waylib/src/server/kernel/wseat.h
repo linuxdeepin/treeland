@@ -36,9 +36,12 @@ public:
     explicit WSeatEventFilter(QObject *parent = nullptr);
 
 protected:
-    virtual bool eventFilter(WSeat *seat, WSurface *watched, QObject *shellObject,
-                             QObject *eventObject, QInputEvent *event);
-    virtual bool eventFilter(WSeat *seat, QWindow *watched, QInputEvent *event);
+    virtual bool beforeHandleEvent(WSeat *seat, WSurface *watched, QObject *shellObject,
+                                        QObject *eventObject, QInputEvent *event);
+    virtual bool afterHandleEvent(WSeat *seat, WSurface *watched, QObject *shellObject,
+                                       QObject *eventObject, QInputEvent *event);
+    virtual bool beforeDisposeEvent(WSeat *seat, QWindow *watched, QInputEvent *event);
+    virtual bool unacceptedEvent(WSeat *seat, QWindow *watched, QInputEvent *event);
 };
 
 class WCursor;
@@ -83,12 +86,15 @@ protected:
     friend class WCursor;
     friend class WCursorPrivate;
     friend class QWlrootsRenderWindow;
+    friend class WEventJunkman;
 
     void create(WServer *server) override;
     void destroy(WServer *server) override;
 
     // for event filter
-    bool filterInputEvent(QWindow *targetWindow, QInputEvent *event);
+    bool filterEventBeforeDisposeStage(QWindow *targetWindow, QInputEvent *event);
+    bool filterEventAfterDisposeStage(QWindow *targetWindow, QInputEvent *event);
+    bool filterUnacceptedEvent(QWindow *targetWindow, QInputEvent *event);
 
     // pointer
     void notifyMotion(WCursor *cursor, WInputDevice *device, uint32_t timestamp);
