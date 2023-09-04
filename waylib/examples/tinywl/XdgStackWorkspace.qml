@@ -50,7 +50,6 @@ Item {
         XdgSurface {
             id: surface
 
-            property bool activated: waylandSurface === Helper.activatedSurface
             property OutputPositioner output
             property CoordMapper outputCoordMapper
             property bool mapped: waylandSurface.surface.mapped && waylandSurface.WaylandSocket.rootSocket.enabled
@@ -112,6 +111,9 @@ Item {
                     // Apply the WSurfaceItem's size to wl_surface
                     surface.resize(SurfaceItem.SizeToSurface)
                     surface.resizeMode = lastResizeMode
+
+                    if (waylandSurface && waylandSurface.isActivated)
+                        surface.forceActiveFocus()
                 } else {
                     Helper.cancelMoveResize(surface)
                     lastResizeMode = surface.resizeMode
@@ -165,13 +167,18 @@ Item {
                 surface.outputCoordMapper = surface.CoordMapper.helper.get(output)
             }
 
-            onActivatedChanged: {
-                if (activated)
-                    WaylibHelper.itemStackToTop(this)
-            }
-
             Connections {
                 target: waylandSurface
+
+                function onActivateChanged() {
+                    if (waylandSurface.isActivated) {
+                        WaylibHelper.itemStackToTop(surface)
+                        if (surface.effectiveVisible)
+                            surface.forceActiveFocus()
+                    } else {
+                        surface.focus = false
+                    }
+                }
 
                 function onRequestMove(seat, serial) {
                     if (waylandSurface.isMaximized)
@@ -225,7 +232,6 @@ Item {
             }
 
             Component.onCompleted: {
-                forceActiveFocus()
                 Helper.activatedSurface = waylandSurface
 
                 if (waylandSurface.isMaximized) {

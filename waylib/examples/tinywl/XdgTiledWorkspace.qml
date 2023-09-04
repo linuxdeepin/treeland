@@ -54,14 +54,13 @@ Item {
             XdgSurface {
                 id: surface
 
-                property bool activated: waylandSurface === Helper.activatedSurface
                 property OutputPositioner output
                 property CoordMapper outputCoordMapper
                 property bool mapped: waylandSurface.surface.mapped && waylandSurface.WaylandSocket.rootSocket.enabled
                 property bool pendingDestroy: false
 
                 resizeMode: SurfaceItem.SizeToSurface
-                z: activated ? 1 : 0
+                z: (waylandSurface && waylandSurface.isActivated) ? 1 : 0
 
                 Layout.fillWidth: true
                 Layout.fillHeight: true
@@ -91,6 +90,9 @@ Item {
                         // Apply the WSurfaceItem's size to wl_surface
                         surface.resize(SurfaceItem.SizeToSurface)
                         surface.resizeMode = SurfaceItem.SizeToSurface
+
+                        if (waylandSurface && waylandSurface.isActivated)
+                            surface.forceActiveFocus()
                     } else {
                         surface.resizeMode = SurfaceItem.ManualResize
                     }
@@ -124,8 +126,20 @@ Item {
                     activated = false
                 }
 
+                Connections {
+                    target: waylandSurface
+
+                    function onActivateChanged() {
+                        if (waylandSurface.isActivated) {
+                            if (surface.effectiveVisible)
+                                surface.forceActiveFocus()
+                        } else {
+                            surface.focus = false
+                        }
+                    }
+                }
+
                 Component.onCompleted: {
-                    forceActiveFocus()
                     Helper.activatedSurface = waylandSurface
                 }
             }

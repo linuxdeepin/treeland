@@ -113,13 +113,6 @@ void Helper::allowNonDrmOutputAutoChangeMode(WOutput *output)
     connect(output->handle(), &QWOutput::requestState, this, &Helper::onOutputRequeseState);
 }
 
-void Helper::clearFocus(QWindow *window)
-{
-    if (auto item = qobject_cast<QQuickItem*>(window->focusObject()))
-        item->setFocus(false);
-    setActivateSurface(nullptr);
-}
-
 bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *watched, QInputEvent *event)
 {
     if (watched) {
@@ -187,26 +180,17 @@ bool Helper::afterHandleEvent(WSeat *seat, WSurface *watched, QObject *surfaceIt
         if (!xdgSurface)
             return false;
         Q_ASSERT(xdgSurface->surface() == watched);
-        if (!xdgSurface->doesNotAcceptFocus() && m_activateSurface != xdgSurface)
-            if (auto item = qobject_cast<QQuickItem*>(surfaceItem))
-                item->forceActiveFocus();
-    } else if (event->type() == QEvent::MouseButtonRelease || event->type() == QEvent::TouchEnd) {
-        // surfaceItem is qml type: XdgSurfaceItem
-        auto xdgSurface = qvariant_cast<WXdgSurface*>(surfaceItem->property("surface"));
-        if (!xdgSurface)
-            return false;
-        Q_ASSERT(xdgSurface->surface() == watched);
-        if (!xdgSurface->doesNotAcceptFocus())
-            setActivateSurface(xdgSurface);
+        setActivateSurface(xdgSurface);
     }
 
     return false;
 }
 
-bool Helper::unacceptedEvent(WSeat *, QWindow *watched, QInputEvent *event)
+bool Helper::unacceptedEvent(WSeat *, QWindow *, QInputEvent *event)
 {
-    if (event->type() == QEvent::MouseButtonPress) {
-        clearFocus(watched);
+    if (event->isSinglePointEvent()) {
+        if (static_cast<QSinglePointEvent*>(event)->isBeginEvent())
+            setActivateSurface(nullptr);
     }
 
     return false;
@@ -219,6 +203,9 @@ WXdgSurface *Helper::activatedSurface() const
 
 void Helper::setActivateSurface(WXdgSurface *newActivate)
 {
+    if (newActivate && newActivate->doesNotAcceptFocus())
+        return;
+
     if (m_activateSurface == newActivate)
         return;
     if (m_activateSurface)
