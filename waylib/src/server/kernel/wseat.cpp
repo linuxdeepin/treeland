@@ -70,15 +70,21 @@ public:
         return nativeHandle()->keyboard_state.focused_surface;
     }
 
-    inline bool doNotifyMotion(WSurface *target, QPointF localPos, uint32_t timestamp) {
-        Q_ASSERT(pointerFocusSurface() == target->handle()->handle());
+    inline bool doNotifyMotion(WSurface *target, QObject *eventObject, QPointF localPos, uint32_t timestamp) {
+        if (pointerFocusSurface()) {
+            Q_ASSERT(pointerFocusEventObject == eventObject);
+            Q_ASSERT(pointerFocusSurface() == target->handle()->handle());
+        } else {
+            // Maybe this seat is grabbed by a xdg popup surface, so the surface of under mouse
+            // can't take pointer focus, but maybe the popup is closed now, so we should try again
+            // take pointer focus for this surface.
+            doEnter(target, eventObject, localPos);
+        }
+
         handle()->pointerNotifyMotion(timestamp, localPos.x(), localPos.y());
         return true;
     }
     inline bool doNotifyButton(uint32_t button, wlr_button_state state, uint32_t timestamp) {
-        if (!pointerFocusSurface())
-            return false;
-
         handle()->pointerNotifyButton(timestamp, button, state);
         return true;
     }
@@ -97,9 +103,19 @@ public:
     inline void doNotifyFrame() {
         handle()->pointerNotifyFrame();
     }
-    inline void doEnter(WSurface *surface, QObject *eventObject, const QPointF &position) {
+    inline bool doEnter(WSurface *surface, QObject *eventObject, const QPointF &position) {
+        auto tmp = oldPointerFocusSurface;
         oldPointerFocusSurface = handle()->handle()->pointer_state.focused_surface;
         handle()->pointerNotifyEnter(surface->handle(), position.x(), position.y());
+        if (!pointerFocusSurface()) {
+            // Because if the last pointer focus surface is a popup, the 'pointerNotifyEnter'
+            // will call 'xdg_pointer_grab_enter' in wlroots, and the 'xdg_pointer_grab_enter'
+            // will call 'wlr_seat_pointer_clear_focus' if the surface's client and the popup's
+            // client is not equal.
+            oldPointerFocusSurface = tmp;
+            return false;
+        }
+        Q_ASSERT(pointerFocusSurface() == surface->handle()->handle());
 
         Q_ASSERT(!pointerFocusEventObject || eventObject != pointerFocusEventObject);
         if (pointerFocusEventObject) {
@@ -113,10 +129,13 @@ public:
                 doClearPointerFocus();
             });
         }
+
+        return true;
     }
     inline void doClearPointerFocus() {
         pointerFocusEventObject.clear();
         handle()->pointerNotifyClearFocus();
+        Q_ASSERT(!handle()->handle()->pointer_state.focused_surface);
         if (cursor) // reset cursur from QCursor resource, the last cursor is from wlr_surface
             cursor->setCursor(cursor->cursor());
     }
@@ -512,15 +531,18 @@ bool WSeat::sendEvent(WSurface *target, QObject *shellObject, QObject *eventObje
     switch (event->type()) {
     case QEvent::HoverEnter: {
         auto e = static_cast<QHoverEvent*>(event);
-        d->doEnter(target, eventObject, e->position());
-        break;
+        return d->doEnter(target, eventObject, e->position());
     }
     case QEvent::HoverLeave: {
-        auto currentFocus = d->nativeHandle()->pointer_state.focused_surface;
+        auto currentFocus = d->pointerFocusSurface();
+        // Maybe this seat is grabbed by a xdg popup surface, so the surface of under mouse
+        // can't take pointer focus, so if the eventObject is not pointerFocusEventObject,
+        // we should don't do anything.
+        if (d->pointerFocusEventObject != eventObject)
+            break;
         auto nativeTarget = target->handle()->handle();
-        Q_ASSERT(d->oldPointerFocusSurface == nativeTarget || currentFocus == nativeTarget);
-        if (currentFocus == nativeTarget)
-            d->doClearPointerFocus();
+        Q_ASSERT(!currentFocus || d->oldPointerFocusSurface == nativeTarget || currentFocus == nativeTarget);
+        d->doClearPointerFocus();
         break;
     }
     case QEvent::MouseButtonPress: {
@@ -536,7 +558,7 @@ bool WSeat::sendEvent(WSurface *target, QObject *shellObject, QObject *eventObje
     case QEvent::HoverMove: Q_FALLTHROUGH();
     case QEvent::MouseMove: {
         auto e = static_cast<QSinglePointEvent*>(event);
-        d->doNotifyMotion(target, e->position(), e->timestamp());
+        d->doNotifyMotion(target, eventObject, e->position(), e->timestamp());
         break;
     }
     case QEvent::KeyPress: {
