@@ -153,12 +153,16 @@ private:
     bool event(QEvent *event) override {
         switch(event->type()) {
         using enum QEvent::Type;
-        case HoverEnter: Q_FALLTHROUGH();
-        case HoverLeave: Q_FALLTHROUGH();
+        // Don't insert events before MouseButtonPress
         case MouseButtonPress: Q_FALLTHROUGH();
         case MouseButtonRelease: Q_FALLTHROUGH();
         case MouseMove: Q_FALLTHROUGH();
-        case HoverMove: Q_FALLTHROUGH();
+        case HoverMove:
+            if (static_cast<QMouseEvent*>(event)->source() != Qt::MouseEventNotSynthesized)
+                return true; // The non-native events don't send to WSeat
+            Q_FALLTHROUGH();
+        case HoverEnter: Q_FALLTHROUGH();
+        case HoverLeave: Q_FALLTHROUGH();
         case KeyPress: Q_FALLTHROUGH();
         case KeyRelease: Q_FALLTHROUGH();
         case TouchBegin: Q_FALLTHROUGH();

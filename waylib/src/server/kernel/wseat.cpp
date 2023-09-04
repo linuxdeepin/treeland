@@ -572,18 +572,21 @@ bool WSeat::sendEvent(WSurface *target, QObject *shellObject, QObject *eventObje
         break;
     }
     case QEvent::MouseButtonPress: {
-        auto e = static_cast<QSinglePointEvent*>(event);
+        auto e = static_cast<QMouseEvent*>(event);
+        Q_ASSERT(e->source() == Qt::MouseEventNotSynthesized);
         d->doNotifyButton(WCursor::toNativeButton(e->button()), WLR_BUTTON_PRESSED, event->timestamp());
         break;
     }
     case QEvent::MouseButtonRelease: {
-        auto e = static_cast<QSinglePointEvent*>(event);
+        auto e = static_cast<QMouseEvent*>(event);
+        Q_ASSERT(e->source() == Qt::MouseEventNotSynthesized);
         d->doNotifyButton(WCursor::toNativeButton(e->button()), WLR_BUTTON_RELEASED, event->timestamp());
         break;
     }
     case QEvent::HoverMove: Q_FALLTHROUGH();
     case QEvent::MouseMove: {
-        auto e = static_cast<QSinglePointEvent*>(event);
+        auto e = static_cast<QMouseEvent*>(event);
+        Q_ASSERT(e->source() == Qt::MouseEventNotSynthesized);
         d->doNotifyMotion(target, eventObject, e->position(), e->timestamp());
         break;
     }
