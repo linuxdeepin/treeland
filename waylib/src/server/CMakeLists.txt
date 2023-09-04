@@ -9,6 +9,11 @@ find_package(Qt6
 )
 qt_standard_project_setup(REQUIRES 6.4)
 
+if(QT_KNOWN_POLICY_QTP0001) # this policy was introduced in Qt 6.5
+    qt_policy(SET QTP0001 NEW)
+    # the RESOURCE_PREFIX argument for qt_add_qml_module() defaults to ":/qt/qml/"
+endif()
+
 find_package(PkgConfig)
 pkg_search_module(PIXMAN REQUIRED pixman-1)
 pkg_search_module(LIBDRM REQUIRED IMPORTED_TARGET libdrm)
@@ -38,8 +43,6 @@ set(KERNEL_SOURCES
     kernel/wglobal.cpp
     kernel/wsocket.cpp
 )
-
-# TODO: Using wlr_damage_ring
 
 set(QTQUICK_SOURCES
     qtquick/wsurfaceitem.cpp
@@ -161,7 +164,8 @@ set_target_properties(${TARGET}
         VERSION ${CMAKE_PROJECT_VERSION}
         SOVERSION ${PROJECT_VERSION_MAJOR}
         PUBLIC_HEADER "${HEADERS}"
-        PRIVATE_HEADER "${PRIVATE_HEADERS}"
+	# PRIVATE_HEADER "${PRIVATE_HEADERS}"
+	# CMake Warning has PRIVATE_HEADER files but no PRIVATE_HEADER DESTINATION
 )
 
 set(QT_LIBRAIES

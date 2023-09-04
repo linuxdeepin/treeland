@@ -48,7 +48,7 @@ static int wl_socket_lock(const QString &socketFile)
 
     if (lstat(addr_sun_path, &socket_stat) < 0 ) {
         if (errno != ENOENT) {
-            qDebug("did not manage to stat file %s\n", addr_sun_path);
+            qDebug("did not manage to stat file %s\n", qPrintable(addr_sun_path));
             goto err_fd;
         }
     } else if (socket_stat.st_mode & S_IWUSR ||

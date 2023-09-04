@@ -8,9 +8,9 @@ find_package(Qt6 6.4 REQUIRED COMPONENTS Quick)
 
 qt_standard_project_setup()
 
-if(QT_KNOWN_POLICY_QTP0001)
-    qt_policy(SET QTP0001 OLD)
-    # the RESOURCE_PREFIX argument for qt_add_qml_module() defaults to ":/"
+if(QT_KNOWN_POLICY_QTP0001) # this policy was introduced in Qt 6.5
+    qt_policy(SET QTP0001 NEW)
+    # the RESOURCE_PREFIX argument for qt_add_qml_module() defaults to ":/qt/qml/"
 endif()
 
 qt_add_executable(testPinchhandler

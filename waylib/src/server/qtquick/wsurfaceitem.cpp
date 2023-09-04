@@ -702,7 +702,7 @@ void WSurfaceItemPrivate::initForSurface()
     QObject::connect(surface, &WSurface::primaryOutputChanged, q, [this] {
         updateFrameDoneConnection();
 
-        if (!contentItem->m_textureProvider)
+        if (contentItem->m_textureProvider)
             contentItem->m_textureProvider->maybeUpdateTextureOnSurfacePrrimaryOutputChanged();
     });
     QObject::connect(surface, SIGNAL(hasSubsurfaceChanged()), q, SLOT(onHasSubsurfaceChanged()));

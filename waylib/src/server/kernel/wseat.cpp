@@ -494,7 +494,7 @@ void WSeat::attachInputDevice(WInputDevice *device)
     d->updateCapabilities();
 
     if (device->type() == WInputDevice::Type::Touch) {
-        qCDebug(qLcWlrTouch, "WSeat: registerTouchDevice %s", device->qtDevice()->name());
+        qCDebug(qLcWlrTouch, "WSeat: registerTouchDevice %s", qPrintable(device->qtDevice()->name()));
         auto *state = new WSeatPrivate::DeviceState;
         device->setAttachedData<WSeatPrivate::DeviceState>(state);
         d->touchDeviceList << device;
@@ -518,7 +518,7 @@ void WSeat::detachInputDevice(WInputDevice *device)
     }
 
     if (device->type() == WInputDevice::Type::Touch) {
-        qCDebug(qLcWlrTouch, "WSeat: detachTouchDevice %s", device->qtDevice()->name());
+        qCDebug(qLcWlrTouch, "WSeat: detachTouchDevice %s", qPrintable(device->qtDevice()->name()));
         auto *state = device->getAttachedData<WSeatPrivate::DeviceState>();
         device->removeAttachedData<WSeatPrivate::DeviceState>();
         delete state;

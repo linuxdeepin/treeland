@@ -1,6 +1,15 @@
 find_package(Qt6 COMPONENTS Quick QuickControls2 REQUIRED)
 qt_standard_project_setup(REQUIRES 6.4)
 
+if(QT_KNOWN_POLICY_QTP0001) # this policy was introduced in Qt 6.5
+    qt_policy(SET QTP0001 NEW)
+    # the RESOURCE_PREFIX argument for qt_add_qml_module() defaults to ":/qt/qml/"
+endif()
+if(POLICY CMP0071)
+    # https://cmake.org/cmake/help/latest/policy/CMP0071.html
+    cmake_policy(SET CMP0071 NEW)
+endif()
+
 set(QML_IMPORT_PATH ${CMAKE_BINARY_DIR}/src/server/ CACHE STRING "" FORCE)
 add_definitions(-DSOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
 
