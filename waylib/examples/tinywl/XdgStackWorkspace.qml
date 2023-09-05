@@ -214,7 +214,6 @@ Item {
 
                 // unbind some properties
                 mapped = visible
-                activated = false
                 states = null
                 transitions = null
             }
