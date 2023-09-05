@@ -33,6 +33,9 @@ Item {
             onInputAdded: function(inputDevice) {
                 seat0.addDevice(inputDevice)
             }
+            onInputRemoved: function(inputDevice) {
+                seat0.removeDevice(inputDevice)
+            }
         }
 
         WaylandCompositor {

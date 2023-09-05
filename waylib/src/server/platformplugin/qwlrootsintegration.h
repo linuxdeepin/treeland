@@ -47,7 +47,7 @@ public:
     }
 
     QInputDevice *addInputDevice(WInputDevice *device, const QString &seatName);
-    void removeInputDevice(WInputDevice *device);
+    QInputDevice *removeInputDevice(WInputDevice *device);
     QInputDevice *getInputDeviceFrom(WInputDevice *device);
 
     void initialize() override;

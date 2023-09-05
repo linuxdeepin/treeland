@@ -200,17 +200,40 @@ QInputDevice *QWlrootsIntegration::addInputDevice(WInputDevice *device, const QS
     if (qtdev) {
         device->setQtDevice(qtdev);
         QWindowSystemInterface::registerInputDevice(qtdev);
+
+        if (qtdev->type() == QInputDevice::DeviceType::Mouse || qtdev->type() == QInputDevice::DeviceType::TouchPad) {
+            auto primaryQtDevice = QPointingDevice::primaryPointingDevice();
+            if (!WInputDevice::from(primaryQtDevice)) {
+                // Ensure the primary pointing device is the WInputDevice
+                auto pd = const_cast<QPointingDevice*>(primaryQtDevice);
+                pd->setParent(nullptr);
+                delete pd;
+            }
+            Q_ASSERT(WInputDevice::from(QPointingDevice::primaryPointingDevice()));
+        } else if (qtdev->type() == QInputDevice::DeviceType::Keyboard) {
+            auto primaryQtDevice = QInputDevice::primaryKeyboard();
+            if (!WInputDevice::from(primaryQtDevice)) {
+                // Ensure the primary keyboard device is the WInputDevice
+                auto pd = const_cast<QInputDevice*>(primaryQtDevice);
+                pd->setParent(nullptr);
+                delete pd;
+            }
+            Q_ASSERT(WInputDevice::from(QInputDevice::primaryKeyboard()));
+        }
     }
 
     return qtdev;
 }
 
-void QWlrootsIntegration::removeInputDevice(WInputDevice *device)
+QInputDevice *QWlrootsIntegration::removeInputDevice(WInputDevice *device)
 {
     if (auto qdevice = getInputDeviceFrom(device)) {
         device->setQtDevice(nullptr);
         qdevice->deleteLater();
+        return qdevice;
     }
+
+    return nullptr;
 }
 
 QInputDevice *QWlrootsIntegration::getInputDeviceFrom(WInputDevice *device)

@@ -174,6 +174,13 @@ void WQuickSeat::addDevice(WInputDevice *device)
     d->seat->attachInputDevice(device);
 }
 
+void WQuickSeat::removeDevice(WInputDevice *device)
+{
+    W_D(WQuickSeat);
+
+    d->seat->detachInputDevice(device);
+}
+
 void WQuickSeat::addOutput(WOutput *output)
 {
     W_D(WQuickSeat);

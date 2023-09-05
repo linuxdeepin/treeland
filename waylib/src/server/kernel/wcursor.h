@@ -80,6 +80,7 @@ protected:
 
 private:
     friend class WSeat;
+    friend class WSeatPrivate;
     void setSeat(WSeat *seat);
     bool attachInputDevice(WInputDevice *device);
     void detachInputDevice(WInputDevice *device);

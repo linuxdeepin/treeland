@@ -47,7 +47,7 @@ public:
     // begin slot function
     void on_new_output(QWOutput *output);
     void on_new_input(QWInputDevice *device);
-    void on_input_destroy(void *data);
+    void on_input_destroy(QWInputDevice *data);
     void on_output_destroy(QWOutput *output);
     // end slot function
 
@@ -88,17 +88,17 @@ void WBackendPrivate::on_new_input(QWInputDevice *device)
 {
     auto input_device = new WInputDevice(device);
     inputList << input_device;
-    QObject::connect(device, &QObject::destroyed, q_func()->server(), [this] (QObject *data) {
+    QObject::connect(device, &QWInputDevice::beforeDestroy, q_func()->server(), [this] (QObject *data) {
         on_input_destroy(static_cast<QWInputDevice*>(data));
     });
 
     q_func()->inputAdded(input_device);
 }
 
-void WBackendPrivate::on_input_destroy(void *data)
+void WBackendPrivate::on_input_destroy(QWInputDevice *data)
 {
-    for (int i = 0; i < outputList.count(); ++i) {
-        if (outputList.at(i)->handle() == data) {
+    for (int i = 0; i < inputList.count(); ++i) {
+        if (inputList.at(i)->handle() == data) {
             auto device = inputList.takeAt(i);
             q_func()->inputRemoved(device);
             delete device;
@@ -110,7 +110,7 @@ void WBackendPrivate::on_input_destroy(void *data)
 void WBackendPrivate::on_output_destroy(QWOutput *output)
 {
     for (int i = 0; i < outputList.count(); ++i) {
-        if (outputList.at(i)->handle() == static_cast<void*>(output)) {
+        if (outputList.at(i)->handle() == output) {
             auto device = outputList.takeAt(i);
             q_func()->outputRemoved(device);
             delete device;

@@ -47,6 +47,7 @@ public:
 
 public Q_SLOTS:
     void addDevice(WInputDevice *device);
+    void removeDevice(WInputDevice *device);
 
 Q_SIGNALS:
     void seatChanged();

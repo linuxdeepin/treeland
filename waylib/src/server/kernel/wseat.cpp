@@ -51,6 +51,9 @@ public:
     ~WSeatPrivate() {
         if (onEventObjectDestroy)
             QObject::disconnect(onEventObjectDestroy);
+
+        for (auto device : deviceList)
+            detachInputDevice(device);
     }
 
     inline QWSeat *handle() const {
@@ -242,6 +245,7 @@ public:
     void connect();
     void updateCapabilities();
     void attachInputDevice(WInputDevice *device);
+    void detachInputDevice(WInputDevice *device);
 
     W_DECLARE_PUBLIC(WSeat)
 
@@ -395,7 +399,8 @@ void WSeatPrivate::attachInputDevice(WInputDevice *device)
 {
     W_Q(WSeat);
     device->setSeat(q);
-    QWlrootsIntegration::instance()->addInputDevice(device, name);
+    auto qtDevice = QWlrootsIntegration::instance()->addInputDevice(device, name);
+    Q_ASSERT(qtDevice);
 
     if (device->type() == WInputDevice::Type::Keyboard) {
         auto keyboard = qobject_cast<QWKeyboard*>(device->handle());
@@ -419,6 +424,15 @@ void WSeatPrivate::attachInputDevice(WInputDevice *device)
             on_keyboard_modifiers(device);
         });
     }
+}
+
+void WSeatPrivate::detachInputDevice(WInputDevice *device)
+{
+    if (cursor && device->type() == WInputDevice::Type::Pointer)
+        cursor->detachInputDevice(device);
+
+    auto qtDevice = QWlrootsIntegration::instance()->removeInputDevice(device);
+    Q_ASSERT(qtDevice);
 }
 
 WSeat::WSeat(const QString &name)
@@ -483,15 +497,13 @@ void WSeat::attachInputDevice(WInputDevice *device)
 
     d->deviceList << device;
 
-    if (!isValid()) {
-        return;
+    if (isValid()) {
+        if (d->cursor)
+            d->cursor->attachInputDevice(device);
+
+        d->attachInputDevice(device);
+        d->updateCapabilities();
     }
-
-    if (d->cursor)
-        d->cursor->attachInputDevice(device);
-
-    d->attachInputDevice(device);
-    d->updateCapabilities();
 
     if (device->type() == WInputDevice::Type::Touch) {
         qCDebug(qLcWlrTouch, "WSeat: registerTouchDevice %s", qPrintable(device->qtDevice()->name()));
@@ -506,16 +518,10 @@ void WSeat::detachInputDevice(WInputDevice *device)
     W_D(WSeat);
     device->setSeat(nullptr);
     d->deviceList.removeOne(device);
+    d->detachInputDevice(device);
 
-    if (!isValid()) {
-        return;
-    }
-
-    d->updateCapabilities();
-
-    if (d->cursor && device->type() == WInputDevice::Type::Pointer) {
-        d->cursor->detachInputDevice(device);
-    }
+    if (isValid())
+        d->updateCapabilities();
 
     if (device->type() == WInputDevice::Type::Touch) {
         qCDebug(qLcWlrTouch, "WSeat: detachTouchDevice %s", qPrintable(device->qtDevice()->name()));
@@ -524,7 +530,6 @@ void WSeat::detachInputDevice(WInputDevice *device)
         delete state;
         d->touchDeviceList.removeOne(device);
     }
-    QWlrootsIntegration::instance()->removeInputDevice(device);
 }
 
 inline static WSeat *getSeat(QInputEvent *event)
