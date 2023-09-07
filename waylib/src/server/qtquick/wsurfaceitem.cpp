@@ -461,6 +461,10 @@ void WSurfaceItem::resize(ResizeMode mode)
 {
     Q_ASSERT(mode != ManualResize);
     Q_D(WSurfaceItem);
+    Q_ASSERT(d->surfaceState);
+
+    if (!d->effectiveVisible)
+        return;
 
     if (mode == SizeFromSurface) {
         if (!qFuzzyCompare(d->implicitWidth, d->surfaceState->contentGeometry.width()))
@@ -546,7 +550,7 @@ void WSurfaceItem::itemChange(ItemChange change, const ItemChangeData &data)
             d->updateFrameDoneConnection();
 
             if (d->effectiveVisible) {
-                if (d->resizeMode == SizeToSurface)
+                if (d->resizeMode != ManualResize)
                     resize(d->resizeMode);
                 d->contentItem->setSize(d->surfaceState->surfaceSize);
             }

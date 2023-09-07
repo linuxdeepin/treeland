@@ -129,6 +129,7 @@ public:
     void addClient(wl_client *client);
     wl_client *createClient(int fd);
     void removeClient(wl_client *client);
+    void destroyClient(wl_client *client);
 
     W_DECLARE_PUBLIC(WSocket)
 
@@ -221,6 +222,9 @@ void WSocketPrivate::addClient(wl_client *client)
     Q_ASSERT(!clients.contains(client));
     clients.append(client);
 
+    auto listener = new WlClientDestroyListener(q_func());
+    wl_client_add_destroy_listener(client, &listener->destroy);
+
     if (!enabled && freezeClientWhenDisable) {
         pauseClient(client, true);
     }
@@ -233,9 +237,6 @@ wl_client *WSocketPrivate::createClient(int fd)
     auto wl_client = wl_client_create(display, fd);
     if (!wl_client) {
         qWarning() << "wl_client_create failed";
-    } else {
-        auto listener = new WlClientDestroyListener(q_func());
-        wl_client_add_destroy_listener(wl_client, &listener->destroy);
     }
 
     return wl_client;
@@ -244,8 +245,16 @@ wl_client *WSocketPrivate::createClient(int fd)
 void WSocketPrivate::removeClient(wl_client *client)
 {
     bool ok = clients.removeOne(client);
-    if (ok)
+    if (ok) {
+        destroyClient(client);
         Q_EMIT q_func()->clientsChanged();
+    }
+}
+
+void WSocketPrivate::destroyClient(wl_client *client)
+{
+    auto listener = WlClientDestroyListener::get(client);
+    delete listener;
 }
 
 WSocket::WSocket(bool freezeClientWhenDisable, WSocket *parentSocket, QObject *parent)
@@ -303,11 +312,8 @@ void WSocket::close()
     }
 
     if (!d->clients.isEmpty()) {
-        for (auto client : d->clients) {
-            auto listener = WlClientDestroyListener::get(client);
-            Q_ASSERT(listener);
-            delete listener;
-        }
+        for (auto client : d->clients)
+            d->destroyClient(client);
 
         d->clients.clear();
         Q_EMIT clientsChanged();
@@ -523,6 +529,20 @@ bool WSocket::listen(wl_display *display)
     Q_EMIT listeningChanged();
 
     return true;
+}
+
+void WSocket::addClient(wl_client *client)
+{
+    W_D(WSocket);
+    if (d->clients.contains(client))
+        return;
+    d->addClient(client);
+}
+
+void WSocket::removeClient(wl_client *client)
+{
+    W_D(WSocket);
+    d->removeClient(client);
 }
 
 QList<wl_client*> WSocket::clients() const

@@ -24,6 +24,7 @@ public:
     static bool toPixmanRegion(const QRegion &region, pixman_region32 *pixmanRegion);
     static QRect fromWLRBox(void *box);
     static void toWLRBox(const QRect &rect, void *box);
+    static Qt::Edges toQtEdge(uint32_t edges);
 };
 
 WAYLIB_SERVER_END_NAMESPACE

@@ -85,6 +85,23 @@ Item {
         XdgDecorationManager {
             id: decorationManager
         }
+
+        XWayland {
+            compositor: compositor.compositor
+            seat: seat0.seat
+            lazy: false
+
+            onReady: masterSocket.addClient(client())
+
+            onSurfaceAdded: function(surface) {
+                QmlHelper.xwaylandSurfaceManager.add({waylandSurface: surface})
+            }
+            onSurfaceRemoved: function(surface) {
+                QmlHelper.xwaylandSurfaceManager.removeIf(function(prop) {
+                    return prop.waylandSurface === surface
+                })
+            }
+        }
     }
 
     OutputRenderWindow {
@@ -136,15 +153,13 @@ Item {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
 
-                XdgStackWorkspace {
+                StackWorkspace {
                     visible: topbar.currentIndex === 0
-                    creator: QmlHelper.xdgSurfaceManager
                     anchors.fill: parent
                 }
 
-                XdgTiledWorkspace {
+                TiledWorkspace {
                     visible: topbar.currentIndex === 1
-                    creator: QmlHelper.xdgSurfaceManager
                     anchors.fill: parent
                 }
             }

@@ -18,7 +18,13 @@ QW_BEGIN_NAMESPACE
 class QWDisplay;
 QW_END_NAMESPACE
 
+struct wl_global;
+
 WAYLIB_SERVER_BEGIN_NAMESPACE
+
+typedef bool (*GlobalFilterFunc)(const wl_client *client,
+                                 const wl_global *global,
+                                 void *data);
 
 class WServer;
 class WServerInterface
@@ -117,6 +123,8 @@ public:
     void addSocket(WSocket *socket);
 
     QObject *slotOwner() const;
+
+    void setGlobalFilter(GlobalFilterFunc filter, void *data);
 
 Q_SIGNALS:
     void started();

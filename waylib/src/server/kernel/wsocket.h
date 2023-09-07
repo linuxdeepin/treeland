@@ -44,6 +44,8 @@ public:
     bool isListening() const;
     bool listen(struct wl_display *display);
 
+    void addClient(wl_client *client);
+    void removeClient(wl_client *client);
     QList<wl_client*> clients() const;
 
     bool isEnabled() const;

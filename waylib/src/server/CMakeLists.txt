@@ -91,7 +91,6 @@ set(HEADERS
     kernel/wseat.h
     kernel/wserver.h
     kernel/wsurface.h
-
     kernel/wtexture.h
     kernel/wtypes.h
     kernel/wxcursormanager.h
@@ -100,6 +99,8 @@ set(HEADERS
     kernel/woutputlayout.h
     kernel/wxcursorimage.h
     kernel/wsocket.h
+    kernel/wtoplevelsurface.h
+
     kernel/WOutput
     kernel/WServer
     kernel/WServerInterface
@@ -143,6 +144,26 @@ set(PRIVATE_HEADERS
     qtquick/private/wqmlhelper_p.h
     qtquick/private/wquickxdgdecorationmanager_p.h
 )
+
+if(NOT DISABLE_XWAYLAND)
+    list(APPEND KERNEL_SOURCES
+        kernel/wxwayland.cpp
+        kernel/wxwaylandsurface.cpp
+    )
+
+    list(APPEND QTQUICK_SOURCES
+        qtquick/private/wquickxwayland.cpp
+    )
+
+    list(APPEND HEADERS
+        kernel/wxwayland.h
+        kernel/wxwaylandsurface.h
+    )
+
+    list(APPEND PRIVATE_HEADERS
+        qtquick/private/wquickxwayland_p.h
+    )
+endif()
 
 add_library(${TARGET}
     SHARED

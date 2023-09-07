@@ -5,6 +5,7 @@
 
 #include <WServer>
 #include <WOutput>
+#include <WSurfaceItem>
 // TODO: Don't use private API
 #include <wquickbackend_p.h>
 
@@ -43,45 +44,47 @@ Helper::Helper(QObject *parent)
 
 void Helper::stopMoveResize()
 {
-    surfaceShellItem = nullptr;
-    eventItem = nullptr;
-    if (resizeEdgets != 0)
+    if (surface)
         surface->setResizeing(false);
+
+    setResizingItem(nullptr);
+
+    surfaceItem = nullptr;
     surface = nullptr;
     seat = nullptr;
+    resizeEdgets = {0};
 }
 
-void Helper::startMove(WXdgSurface *surface, QQuickItem *shell, QQuickItem *event, WSeat *seat, int serial)
+void Helper::startMove(WToplevelSurface *surface, WSurfaceItem *shell, WSeat *seat, int serial)
 {
     Q_UNUSED(serial)
 
-    surfaceShellItem = shell;
-    eventItem = event;
+    surfaceItem = shell;
     this->surface = surface;
     this->seat = seat;
     resizeEdgets = {0};
-    surfacePosOfStartMoveResize = getItemGlobalPosition(surfaceShellItem);
+    surfacePosOfStartMoveResize = getItemGlobalPosition(surfaceItem);
 }
 
-void Helper::startResize(WXdgSurface *surface, QQuickItem *shell, QQuickItem *event, WSeat *seat, Qt::Edges edge, int serial)
+void Helper::startResize(WToplevelSurface *surface, WSurfaceItem *shell, WSeat *seat, Qt::Edges edge, int serial)
 {
     Q_UNUSED(serial)
     Q_ASSERT(edge != 0);
 
-    surfaceShellItem = shell;
-    eventItem = event;
+    surfaceItem = shell;
     this->surface = surface;
     this->seat = seat;
-    surfacePosOfStartMoveResize = getItemGlobalPosition(surfaceShellItem);
-    surfaceSizeOfstartMoveResize = surfaceShellItem->size();
+    surfacePosOfStartMoveResize = getItemGlobalPosition(surfaceItem);
+    surfaceSizeOfStartMoveResize = surfaceItem->size();
     resizeEdgets = edge;
 
     surface->setResizeing(true);
+    setResizingItem(shell);
 }
 
-void Helper::cancelMoveResize(QQuickItem *shell)
+void Helper::cancelMoveResize(WSurfaceItem *shell)
 {
-    if (surfaceShellItem != shell)
+    if (surfaceItem != shell)
         return;
     stopMoveResize();
 }
@@ -130,7 +133,7 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *watched, QInputEvent *even
         seat->cursor()->setVisible(false);
     }
 
-    if (surfaceShellItem && seat == this->seat) {
+    if (surfaceItem && seat == this->seat) {
         // for move resize
         if (Q_LIKELY(event->type() == QEvent::MouseMove)) {
             auto cursor = seat->cursor();
@@ -139,11 +142,11 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *watched, QInputEvent *even
 
             if (resizeEdgets == 0) {
                 auto increment_pos = ev->globalPosition() - cursor->lastPressedPosition();
-                auto new_pos = surfacePosOfStartMoveResize + surfaceShellItem->parentItem()->mapFromGlobal(increment_pos);
-                surfaceShellItem->setPosition(new_pos);
-            } else if (surface->isResizeing()) {
-                auto increment_pos = surfaceShellItem->parentItem()->mapFromGlobal(ev->globalPosition() - cursor->lastPressedPosition());
-                QRectF geo(surfacePosOfStartMoveResize, surfaceSizeOfstartMoveResize);
+                auto new_pos = surfacePosOfStartMoveResize + surfaceItem->parentItem()->mapFromGlobal(increment_pos);
+                surfaceItem->setPosition(new_pos);
+            } else {
+                auto increment_pos = surfaceItem->parentItem()->mapFromGlobal(ev->globalPosition() - cursor->lastPressedPosition());
+                QRectF geo(surfacePosOfStartMoveResize, surfaceSizeOfStartMoveResize);
 
                 if (resizeEdgets & Qt::LeftEdge)
                     geo.setLeft(geo.left() + increment_pos.x());
@@ -156,8 +159,8 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *watched, QInputEvent *even
                     geo.setBottom(geo.bottom() + increment_pos.y());
 
                 if (surface->checkNewSize(geo.size().toSize())) {
-                    surfaceShellItem->setPosition(geo.topLeft());
-                    surfaceShellItem->setSize(geo.size());
+                    surfaceItem->setPosition(geo.topLeft());
+                    surfaceItem->setSize(geo.size());
                 }
             }
 
@@ -176,7 +179,7 @@ bool Helper::afterHandleEvent(WSeat *seat, WSurface *watched, QObject *surfaceIt
 
     if (event->type() == QEvent::MouseButtonPress || event->type() == QEvent::TouchBegin) {
         // surfaceItem is qml type: XdgSurfaceItem
-        auto xdgSurface = qvariant_cast<WXdgSurface*>(surfaceItem->property("surface"));
+        auto xdgSurface = qvariant_cast<WToplevelSurface*>(surfaceItem->property("surface"));
         if (!xdgSurface)
             return false;
         Q_ASSERT(xdgSurface->surface() == watched);
@@ -196,12 +199,12 @@ bool Helper::unacceptedEvent(WSeat *, QWindow *, QInputEvent *event)
     return false;
 }
 
-WXdgSurface *Helper::activatedSurface() const
+WToplevelSurface *Helper::activatedSurface() const
 {
     return m_activateSurface;
 }
 
-void Helper::setActivateSurface(WXdgSurface *newActivate)
+void Helper::setActivateSurface(WToplevelSurface *newActivate)
 {
     if (newActivate && newActivate->doesNotAcceptFocus())
         return;

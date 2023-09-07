@@ -9,6 +9,8 @@ QT_BEGIN_NAMESPACE
 class QLocalServer;
 QT_END_NAMESPACE
 
+Q_DECLARE_OPAQUE_POINTER(wl_client*)
+
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
 class WAYLIB_SERVER_EXPORT WQuickSocketAttached : public QObject
@@ -41,6 +43,9 @@ public:
     static WQuickSocketAttached *qmlAttachedProperties(QObject *target);
 
     WSocket *socket() const;
+
+    Q_INVOKABLE void addClient(wl_client *client);
+    Q_INVOKABLE void removeClient(wl_client *client);
 
     QString socketFile() const;
     void setSocketFile(const QString &newSocketFile);

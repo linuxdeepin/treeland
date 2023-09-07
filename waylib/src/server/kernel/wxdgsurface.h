@@ -4,7 +4,7 @@
 #pragma once
 
 #include <WSurface>
-#include <qwglobal.h>
+#include <wtoplevelsurface.h>
 
 QW_BEGIN_NAMESPACE
 class QWSurface;
@@ -15,16 +15,12 @@ WAYLIB_SERVER_BEGIN_NAMESPACE
 
 class WSeat;
 class WXdgSurfacePrivate;
-class WAYLIB_SERVER_EXPORT WXdgSurface : public QObject, public WObject
+class WAYLIB_SERVER_EXPORT WXdgSurface : public WToplevelSurface, public WObject
 {
     Q_OBJECT
     W_DECLARE_PRIVATE(WXdgSurface)
     Q_PROPERTY(bool isPopup READ isPopup CONSTANT)
     Q_PROPERTY(bool isResizeing READ isResizeing NOTIFY resizeingChanged FINAL)
-    Q_PROPERTY(bool isActivated READ isActivated NOTIFY activateChanged FINAL)
-    Q_PROPERTY(bool isMaximized READ isMaximized NOTIFY maximizeChanged FINAL)
-    Q_PROPERTY(bool isMinimized READ isMinimized NOTIFY minimizeChanged FINAL)
-    Q_PROPERTY(WSurface* surface READ surface CONSTANT FINAL)
     Q_PROPERTY(WXdgSurface* parentXdgSurface READ parentXdgSurface NOTIFY parentXdgSurfaceChanged FINAL)
     QML_NAMED_ELEMENT(WaylandXdgSurface)
     QML_UNCREATABLE("Only create in C++")
@@ -34,9 +30,9 @@ public:
     ~WXdgSurface();
 
     bool isPopup() const;
-    bool doesNotAcceptFocus() const;
+    bool doesNotAcceptFocus() const override;
 
-    WSurface *surface() const;
+    WSurface *surface() const override;
     QW_NAMESPACE::QWXdgSurface *handle() const;
     QW_NAMESPACE::QWSurface *inputTargetAt(QPointF &localPos) const;
 
@@ -46,39 +42,27 @@ public:
     WXdgSurface *parentXdgSurface() const;
 
     bool isResizeing() const;
-    bool isActivated() const;
-    bool isMaximized() const;
-    bool isMinimized() const;
+    bool isActivated() const override;
+    bool isMaximized() const override;
+    bool isMinimized() const override;
 
-    QRect getContentGeometry() const;
+    QRect getContentGeometry() const override;
 
-    QSize minSize() const;
-    QSize maxSize() const;
+    QSize minSize() const override;
+    QSize maxSize() const override;
 
 public Q_SLOTS:
-    void setResizeing(bool resizeing);
-    void setMaximize(bool on);
-    void setMinimize(bool on);
-    void setActivate(bool on);
+    void setResizeing(bool resizeing) override;
+    void setMaximize(bool on) override;
+    void setMinimize(bool on) override;
+    void setActivate(bool on) override;
 
-    bool checkNewSize(const QSize &size);
-    void resize(const QSize &size);
+    bool checkNewSize(const QSize &size) override;
+    void resize(const QSize &size) override;
 
 Q_SIGNALS:
     void parentXdgSurfaceChanged();
     void resizeingChanged();
-    void activateChanged();
-    void maximizeChanged();
-    void minimizeChanged();
-    void requestMove(WSeat *seat, quint32 serial);
-    void requestResize(WSeat *seat, Qt::Edges edge, quint32 serial);
-    void requestMaximize();
-    void requestCancelMaximize();
-    void requestMinimize();
-    void requestCancelMinimize();
-    void requestFullscreen();
-    void requestCancelFullscreen();
-    void requestShowWindowMenu(WSeat *seat, QPoint pos, quint32 serial);
 };
 
 WAYLIB_SERVER_END_NAMESPACE

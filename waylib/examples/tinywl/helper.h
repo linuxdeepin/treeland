@@ -3,11 +3,11 @@
 
 #pragma once
 
-#include <WXdgSurface>
 #include <WSeat>
 #include <WCursor>
 #include <WSurfaceItem>
 #include <WOutput>
+#include <wtoplevelsurface.h>
 
 Q_DECLARE_OPAQUE_POINTER(QWindow*)
 
@@ -17,7 +17,8 @@ WAYLIB_SERVER_USE_NAMESPACE
 
 class Helper : public WSeatEventFilter {
     Q_OBJECT
-    Q_PROPERTY(WXdgSurface* activatedSurface READ activatedSurface WRITE setActivateSurface NOTIFY activatedSurfaceChanged FINAL)
+    Q_PROPERTY(WToplevelSurface* activatedSurface READ activatedSurface WRITE setActivateSurface NOTIFY activatedSurfaceChanged FINAL)
+    Q_PROPERTY(WSurfaceItem* resizingItem READ resizingItem NOTIFY resizingItemChanged FINAL)
     QML_ELEMENT
     QML_SINGLETON
 
@@ -25,12 +26,13 @@ public:
     explicit Helper(QObject *parent = nullptr);
     void stopMoveResize();
 
-    WXdgSurface *activatedSurface() const;
+    WToplevelSurface *activatedSurface() const;
+    WSurfaceItem *resizingItem() const;
 
 public Q_SLOTS:
-    void startMove(WXdgSurface *surface, QQuickItem *shell, QQuickItem *event, WSeat *seat, int serial);
-    void startResize(WXdgSurface *surface, QQuickItem *shell, QQuickItem *event, WSeat *seat, Qt::Edges edge, int serial);
-    void cancelMoveResize(QQuickItem *shell);
+    void startMove(WToplevelSurface *surface, WSurfaceItem *shell, WSeat *seat, int serial);
+    void startResize(WToplevelSurface *surface, WSurfaceItem *shell, WSeat *seat, Qt::Edges edge, int serial);
+    void cancelMoveResize(WSurfaceItem *shell);
     bool startDemoClient(const QString &socket);
     WSurface *getFocusSurfaceFrom(QObject *object);
 
@@ -38,23 +40,38 @@ public Q_SLOTS:
 
 signals:
     void activatedSurfaceChanged();
+    void resizingItemChanged();
 
 private:
     bool beforeDisposeEvent(WSeat *seat, QWindow *watched, QInputEvent *event) override;
     bool afterHandleEvent(WSeat *seat, WSurface *watched, QObject *surfaceItem, QObject *, QInputEvent *event) override;
     bool unacceptedEvent(WSeat *seat, QWindow *watched, QInputEvent *event) override;
 
-    void setActivateSurface(WXdgSurface *newActivate);
+    void setActivateSurface(WToplevelSurface *newActivate);
+    void setResizingItem(WSurfaceItem *newResizingItem);
     void onOutputRequeseState(wlr_output_event_request_state *newState);
 
-    QPointer<WXdgSurface> m_activateSurface;
+    QPointer<WToplevelSurface> m_activateSurface;
 
     // for move resize
-    QPointer<WXdgSurface> surface;
-    QPointer<QQuickItem> surfaceShellItem;
-    QPointer<QQuickItem> eventItem;
+    QPointer<WToplevelSurface> surface;
+    QPointer<WSurfaceItem> surfaceItem;
     WSeat *seat = nullptr;
     QPointF surfacePosOfStartMoveResize;
-    QSizeF surfaceSizeOfstartMoveResize;
+    QSizeF surfaceSizeOfStartMoveResize;
     Qt::Edges resizeEdgets;
+    WSurfaceItem *m_resizingItem = nullptr;
 };
+
+inline WSurfaceItem *Helper::resizingItem() const
+{
+    return m_resizingItem;
+}
+
+inline void Helper::setResizingItem(WSurfaceItem *newResizingItem)
+{
+    if (m_resizingItem == newResizingItem)
+        return;
+    m_resizingItem = newResizingItem;
+    emit resizingItemChanged();
+}

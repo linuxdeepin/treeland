@@ -45,10 +45,30 @@ extern "C" {
 #include <wlr/types/wlr_cursor.h>
 #include <wlr/types/wlr_xcursor_manager.h>
 #include <wlr/util/log.h>
+#ifndef DISABLE_XWAYLAND
+#include <wlr/xwayland/shell.h>
+#endif
 }
 
 QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
+
+static bool globalFilter(const wl_client *client,
+                         const wl_global *global,
+                         void *data) {
+#ifndef DISABLE_XWAYLAND
+    if (wl_global_get_interface(global)->name == QByteArrayView("xwayland_shell_v1")) {
+        auto shell = reinterpret_cast<wlr_xwayland_shell_v1*>(wl_global_get_user_data(global));
+        return shell->client == client;
+    }
+#endif
+
+    WServerPrivate *d = reinterpret_cast<WServerPrivate*>(data);
+    if (!d->globalFilterFunc)
+        return true;
+
+    return d->globalFilterFunc(client, global, d->globalFilterFuncData);
+}
 
 WServerPrivate::WServerPrivate(WServer *qq)
     : WObjectPrivate(qq)
@@ -68,6 +88,7 @@ void WServerPrivate::init()
 
     slotOwner.reset(new QObject());
     display = new QWDisplay(q_func());
+    wl_display_set_global_filter(display->handle(), globalFilter, this);
 
     // free follow display
     Q_UNUSED(QWDataDeviceManager::create(display));
@@ -325,6 +346,13 @@ QObject *WServer::slotOwner() const
 {
     W_DC(WServer);
     return d->slotOwner.get();
+}
+
+void WServer::setGlobalFilter(GlobalFilterFunc filter, void *data)
+{
+    W_D(WServer);
+    d->globalFilterFunc = filter;
+    d->globalFilterFuncData = data;
 }
 
 WAYLIB_SERVER_END_NAMESPACE

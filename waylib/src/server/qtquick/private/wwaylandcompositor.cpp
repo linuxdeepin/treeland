@@ -27,6 +27,8 @@ public:
     WQuickBackend *backend = nullptr;
     QWRenderer *renderer = nullptr;
     QWAllocator *allocator = nullptr;
+    QWCompositor *compositor = nullptr;
+    QWSubcompositor *subcompositor = nullptr;
 };
 
 WWaylandCompositor::WWaylandCompositor(QObject *parent)
@@ -61,9 +63,23 @@ QWAllocator *WWaylandCompositor::allocator() const
     return d->allocator;
 }
 
+QWCompositor *WWaylandCompositor::compositor() const
+{
+    W_DC(WWaylandCompositor);
+    return d->compositor;
+}
+
+QWSubcompositor *WWaylandCompositor::subcompositor() const
+{
+    W_DC(WWaylandCompositor);
+    return d->subcompositor;
+}
+
 void WWaylandCompositor::create()
 {
     W_D(WWaylandCompositor);
+
+    WQuickWaylandServerInterface::create();
 
     Q_ASSERT(d->backend);
     d->renderer = WOutputHelper::createRenderer(d->backend->backend());
@@ -76,10 +92,13 @@ void WWaylandCompositor::create()
     d->renderer->initWlDisplay(display);
 
     // free follow display
-    Q_UNUSED(QWCompositor::create(display, d->renderer));
-    Q_UNUSED(QWSubcompositor::create(display));
+    d->compositor = QWCompositor::create(display, d->renderer);
+    d->subcompositor = QWSubcompositor::create(display);
 
-    WQuickWaylandServerInterface::create();
+    Q_EMIT rendererChanged();
+    Q_EMIT allocatorChanged();
+    Q_EMIT compositorChanged();
+    Q_EMIT subcompositorChanged();
 }
 
 WAYLIB_SERVER_END_NAMESPACE

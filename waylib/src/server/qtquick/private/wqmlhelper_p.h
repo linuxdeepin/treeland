@@ -57,10 +57,13 @@ class WAYLIB_SERVER_EXPORT WQmlHelper : public QObject
 {
     Q_OBJECT
     QML_NAMED_ELEMENT(WaylibHelper)
+    Q_PROPERTY(bool hasXWayland READ hasXWayland CONSTANT)
     QML_SINGLETON
 
 public:
     explicit WQmlHelper(QObject *parent = nullptr);
+
+    bool hasXWayland() const;
 
 public Q_SLOTS:
     void itemStackToTop(QQuickItem *item);

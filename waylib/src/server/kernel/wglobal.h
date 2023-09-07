@@ -41,6 +41,12 @@
 #define ENABLE_VULKAN_RENDER
 #endif
 
+#ifndef WLR_HAVE_XWAYLAND
+#ifndef DISABLE_XWAYLAND
+#define DISABLE_XWAYLAND
+#endif
+#endif
+
 #include <QScopedPointer>
 #include <QList>
 

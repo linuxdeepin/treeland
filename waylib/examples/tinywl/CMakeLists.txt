@@ -33,11 +33,13 @@ qt_add_qml_module(tinywl-qtquick
     QML_FILES
         Main.qml
         ClientWindow.qml
-        XdgStackWorkspace.qml
+        StackWorkspace.qml
         XdgSurface.qml
-        XdgTiledWorkspace.qml
+        TiledWorkspace.qml
         QmlHelper.qml
         OutputDelegate.qml
+        StackToplevelHelper.qml
+        TiledToplevelHelper.qml
 )
 
 target_link_libraries(tinywl-qtquick

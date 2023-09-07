@@ -38,6 +38,9 @@ public:
     wl_event_loop *loop = nullptr;
 
     QList<WSocket*> sockets;
+
+    GlobalFilterFunc globalFilterFunc = nullptr;
+    void *globalFilterFuncData = nullptr;
 };
 
 WAYLIB_SERVER_END_NAMESPACE

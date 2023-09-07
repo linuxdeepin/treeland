@@ -10,6 +10,7 @@ Item {
     property OutputLayout layout: OutputLayout {}
     property alias outputManager: outputManager
     property DynamicCreator xdgSurfaceManager: xdgSurfaceManager
+    property DynamicCreator xwaylandSurfaceManager: xwaylandSurfaceManager
 
     function printStructureObject(obj) {
         var json = ""
@@ -52,6 +53,20 @@ Item {
         // TODO: maybe crash here if the QQmlEngine is in destructor. Qt Bug?
         onObjectRemoved: function(delegate, obj, properties) {
             console.info(`Xdg surface item ${obj} is removed, it's create from delegate ${delegate} with initial properties:`,
+                         `\n${printStructureObject(properties)}`)
+        }
+    }
+
+    DynamicCreator {
+        id: xwaylandSurfaceManager
+        onObjectAdded: function(delegate, obj, properties) {
+            console.info(`New X11 surface item ${obj} from delegate ${delegate} with initial properties:`,
+                         `\n${printStructureObject(properties)}`)
+        }
+
+        // TODO: maybe crash here if the QQmlEngine is in destructor. Qt Bug?
+        onObjectRemoved: function(delegate, obj, properties) {
+            console.info(`X11 surface item ${obj} is removed, it's create from delegate ${delegate} with initial properties:`,
                          `\n${printStructureObject(properties)}`)
         }
     }

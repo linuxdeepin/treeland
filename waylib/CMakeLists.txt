@@ -10,10 +10,15 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 option(WITH_SUBMODULE_QWLROOTS "Use the QWlroots from git submodule" OFF)
 option(BUILD_TINYWL "A minimum viable product Wayland compositor based on waylib" ON)
+option(DISABLE_XWAYLAND "Disable the xwayland support" OFF)
 
 if(WITH_SUBMODULE_QWLROOTS)
     add_subdirectory(qwlroots)
     message("Using QWlroots from submodule")
+endif()
+
+if(DISABLE_XWAYLAND)
+    add_definitions(-DDISABLE_XWAYLAND)
 endif()
 
 # For Unix/Linux

@@ -4,6 +4,7 @@
 #include "wxdgsurface.h"
 #include "private/wsurface_p.h"
 #include "wseat.h"
+#include "wtools.h"
 
 #include <qwxdgshell.h>
 #include <qwseat.h>
@@ -15,33 +16,10 @@ extern "C" {
 #define static
 #include <wlr/types/wlr_xdg_shell.h>
 #undef static
-#include <wlr/util/edges.h>
 }
 
 QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
-
-inline static Qt::Edges toQtEdge(uint32_t edges) {
-    Qt::Edges qedges = Qt::Edges();
-
-    if (edges & WLR_EDGE_TOP) {
-        qedges |= Qt::TopEdge;
-    }
-
-    if (edges & WLR_EDGE_BOTTOM) {
-        qedges |= Qt::BottomEdge;
-    }
-
-    if (edges & WLR_EDGE_LEFT) {
-        qedges |= Qt::LeftEdge;
-    }
-
-    if (edges & WLR_EDGE_RIGHT) {
-        qedges |= Qt::RightEdge;
-    }
-
-    return qedges;
-}
 
 class Q_DECL_HIDDEN WXdgSurfacePrivate : public WObjectPrivate {
 public:
@@ -152,7 +130,7 @@ void WXdgSurfacePrivate::connect()
         });
         QObject::connect(toplevel, &QWXdgToplevel::requestResize, q, [q] (wlr_xdg_toplevel_resize_event *event) {
             auto seat = WSeat::fromHandle(QWSeat::from(event->seat->seat));
-            Q_EMIT q->requestResize(seat, toQtEdge(event->edges), event->serial);
+            Q_EMIT q->requestResize(seat, WTools::toQtEdge(event->edges), event->serial);
         });
         QObject::connect(toplevel, &QWXdgToplevel::requestMaximize, q, [q] (bool maximize) {
             if (maximize) {
@@ -186,7 +164,7 @@ void WXdgSurfacePrivate::connect()
 }
 
 WXdgSurface::WXdgSurface(QWXdgSurface *handle, QObject *parent)
-    : QObject(parent)
+    : WToplevelSurface(parent)
     , WObject(*new WXdgSurfacePrivate(this, handle))
 {
     d_func()->init();

@@ -47,6 +47,15 @@ WQmlHelper::WQmlHelper(QObject *parent)
 
 }
 
+bool WQmlHelper::hasXWayland() const
+{
+#ifdef DISABLE_XWAYLAND
+    return false;
+#else
+    return true;
+#endif
+}
+
 void WQmlHelper::itemStackToTop(QQuickItem *item)
 {
     auto parent = item->parentItem();

@@ -6,7 +6,10 @@
 #include <qcolorspace.h>
 #include <QDebug>
 
+extern "C" {
 #include <wlr/util/box.h>
+#include <wlr/util/edges.h>
+}
 #include <pixman.h>
 #include <drm_fourcc.h>
 
@@ -246,6 +249,29 @@ void WTools::toWLRBox(const QRect &rect, void *box)
     wlrBox->y = rect.y();
     wlrBox->width = rect.width();
     wlrBox->height = rect.height();
+}
+
+Qt::Edges WTools::toQtEdge(uint32_t edges)
+{
+    Qt::Edges qedges = Qt::Edges();
+
+    if (edges & WLR_EDGE_TOP) {
+        qedges |= Qt::TopEdge;
+    }
+
+    if (edges & WLR_EDGE_BOTTOM) {
+        qedges |= Qt::BottomEdge;
+    }
+
+    if (edges & WLR_EDGE_LEFT) {
+        qedges |= Qt::LeftEdge;
+    }
+
+    if (edges & WLR_EDGE_RIGHT) {
+        qedges |= Qt::RightEdge;
+    }
+
+    return qedges;
 }
 
 WAYLIB_SERVER_END_NAMESPACE

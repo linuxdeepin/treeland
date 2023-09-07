@@ -4,6 +4,8 @@
 #include "wquicksocket_p.h"
 #include "wsocket.h"
 
+#include <QQmlInfo>
+
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
 WQuickSocketAttached::WQuickSocketAttached(WSocket *socket)
@@ -51,6 +53,24 @@ WQuickSocketAttached *WQuickSocket::qmlAttachedProperties(QObject *target)
 WSocket *WQuickSocket::socket() const
 {
     return m_socket;
+}
+
+void WQuickSocket::addClient(wl_client *client)
+{
+    if (!m_socket) {
+        qmlWarning(this) << "Can't add client, WSocket is null";
+        return;
+    }
+    m_socket->addClient(client);
+}
+
+void WQuickSocket::removeClient(wl_client *client)
+{
+    if (!m_socket) {
+        qmlWarning(this) << "Can't add client, WSocket is null";
+        return;
+    }
+    m_socket->removeClient(client);
 }
 
 QString WQuickSocket::socketFile() const
@@ -130,10 +150,9 @@ void WQuickSocket::setSocket(WSocket *socket)
         m_socket->deleteLater();
 
     m_socket = socket;
-    if (m_socket)
-        m_socket->setParent(this);
 
     if (m_socket) {
+        m_socket->setParent(this);
         m_socket->setEnabled(m_enabled);
         server()->addSocket(m_socket);
     }
