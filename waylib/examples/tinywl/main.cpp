@@ -133,7 +133,7 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *watched, QInputEvent *even
         seat->cursor()->setVisible(false);
     }
 
-    if (surfaceItem && seat == this->seat) {
+    if (surfaceItem && (seat == this->seat || this->seat == nullptr)) {
         // for move resize
         if (Q_LIKELY(event->type() == QEvent::MouseMove)) {
             auto cursor = seat->cursor();

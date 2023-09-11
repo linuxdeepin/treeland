@@ -12,6 +12,7 @@ Item {
     required property ToplevelSurface waylandSurface
     required property ListModel dockModel
     required property DynamicCreatorComponent creator
+    property WindowDecoration decoration
 
     property OutputPositioner output
     property CoordMapper outputCoordMapper
@@ -98,6 +99,39 @@ Item {
         }
     }
 
+    Connections {
+        target: decoration
+
+        // TODO: Don't call connOfSurface
+
+        function onRequestMove() {
+            connOfSurface.onRequestMove(null, 0)
+        }
+
+        function onRequestResize(edges) {
+            connOfSurface.onRequestResize(null, edges, null)
+        }
+
+        function onRequestMinimize() {
+            connOfSurface.onRequestMinimize()
+        }
+
+        function onRequestToggleMaximize(max) {
+            if (max) {
+                connOfSurface.onRequestMaximize()
+            } else {
+                connOfSurface.onRequestCancelMaximize()
+            }
+        }
+
+        function onRequestClose() {
+            if (waylandSurface.close) // WXWaylandSurface
+                waylandSurface.close()
+            else
+                waylandSurface.surface.unmap()
+        }
+    }
+
     onMappedChanged: {
         if (pendingDestroy)
             return
@@ -180,6 +214,8 @@ Item {
     }
 
     Connections {
+        id: connOfSurface
+
         target: waylandSurface
         ignoreUnknownSignals: true
 

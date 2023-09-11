@@ -1,6 +1,10 @@
 // Copyright (C) 2023 JiDe Zhang <zhangjide@deepin.org>.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
+#define private public
+#include <QCursor>
+#undef private
+
 #include "wcursor.h"
 #include "private/wcursor_p.h"
 #include "winputdevice.h"
@@ -24,11 +28,11 @@
 #include <qwtouch.h>
 #include <qwseat.h>
 
-#include <QCursor>
 #include <QPixmap>
 #include <QCoreApplication>
 #include <QQuickWindow>
 #include <QDebug>
+#include <private/qcursor_p.h>
 
 extern "C" {
 #define static
@@ -130,6 +134,56 @@ static inline const char *qcursorToType(const QCursor &cursor) {
         return "dnd-move";
     case Qt::DragLinkCursor:
         return "dnd-link";
+    case WCursor::Default:
+        return "default";
+    case WCursor::BottomLeftCorner:
+        return "bottom_left_corner";
+    case WCursor::BottomRightCorner:
+        return "bottom_right_corner";
+    case WCursor::TopLeftCorner:
+        return "top_left_corner";
+    case WCursor::TopRightCorner:
+        return "top_right_corner";
+    case WCursor::BottomSide:
+        return "bottom_side";
+    case WCursor::LeftSide:
+        return "left_side";
+    case WCursor::RightSide:
+        return "right_side";
+    case WCursor::TopSide:
+        return "top_side";
+    case WCursor::Grabbing:
+        return "grabbing";
+    case WCursor::Xterm:
+        return "xterm";
+    case WCursor::Hand1:
+        return "hand1";
+    case WCursor::Watch:
+        return "watch";
+    case WCursor::SWResize:
+        return "sw-resize";
+    case WCursor::SEResize:
+        return "se-resize";
+    case WCursor::SResize:
+        return "s-resize";
+    case WCursor::WResize:
+        return "w-resize";
+    case WCursor::EResize:
+        return "e-resize";
+    case WCursor::NWResize:
+        return "nw-resize";
+    case WCursor::NEResize:
+        return "ne-resize";
+    case WCursor::NResize:
+        return "n-resize";
+    case WCursor::AllScroll:
+        return "all-scroll";
+    case WCursor::Text:
+        return "text";
+    case WCursor::Pointer:
+        return "pointer";
+    case WCursor::Wait:
+        return "wait";
     default:
         break;
     }
@@ -410,6 +464,24 @@ uint32_t WCursor::toNativeButton(Qt::MouseButton button)
     }
 
     return 0;
+}
+
+QCursor WCursor::toQCursor(CursorShape shape)
+{
+    static QBitmap tmp(1, 1);
+    // Ensure alloc a new QCursorData
+    QCursor cursor(tmp, tmp);
+
+    Q_ASSERT(cursor.d->ref == 1);
+    Q_ASSERT(cursor.d->bm);
+    Q_ASSERT(cursor.d->bmm);
+    delete cursor.d->bm;
+    delete cursor.d->bmm;
+    cursor.d->bm = nullptr;
+    cursor.d->bmm = nullptr;
+    cursor.d->cshape = static_cast<Qt::CursorShape>(shape);
+
+    return cursor;
 }
 
 Qt::MouseButtons WCursor::state() const

@@ -40,6 +40,7 @@ qt_add_qml_module(tinywl-qtquick
         OutputDelegate.qml
         StackToplevelHelper.qml
         TiledToplevelHelper.qml
+        WindowDecoration.qml
 )
 
 target_link_libraries(tinywl-qtquick

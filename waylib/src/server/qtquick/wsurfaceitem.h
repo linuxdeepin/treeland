@@ -28,6 +28,10 @@ class WAYLIB_SERVER_EXPORT WSurfaceItem : public QQuickItem
     Q_PROPERTY(ResizeMode resizeMode READ resizeMode WRITE setResizeMode NOTIFY resizeModeChanged FINAL)
     Q_PROPERTY(bool effectiveVisible READ effectiveVisible NOTIFY effectiveVisibleChanged FINAL)
     Q_PROPERTY(Flags flags READ flags WRITE setFlags NOTIFY flagsChanged FINAL)
+    Q_PROPERTY(qreal topPadding READ topPadding WRITE setTopPadding NOTIFY topPaddingChanged FINAL)
+    Q_PROPERTY(qreal bottomPadding READ bottomPadding WRITE setBottomPadding NOTIFY bottomPaddingChanged FINAL)
+    Q_PROPERTY(qreal leftPadding READ leftPadding WRITE setLeftPadding NOTIFY leftPaddingChanged FINAL)
+    Q_PROPERTY(qreal rightPadding READ rightPadding WRITE setRightPadding NOTIFY rightPaddingChanged FINAL)
     QML_NAMED_ELEMENT(SurfaceItem)
 
 public:
@@ -68,6 +72,18 @@ public:
     Flags flags() const;
     void setFlags(const Flags &newFlags);
 
+    qreal topPadding() const;
+    void setTopPadding(qreal newTopPadding);
+
+    qreal bottomPadding() const;
+    void setBottomPadding(qreal newBottomPadding);
+
+    qreal leftPadding() const;
+    void setLeftPadding(qreal newLeftPadding);
+
+    qreal rightPadding() const;
+    void setRightPadding(qreal newRightPadding);
+
 Q_SIGNALS:
     void surfaceChanged();
     void subsurfaceAdded(WSurfaceItem *item);
@@ -76,6 +92,10 @@ Q_SIGNALS:
     void effectiveVisibleChanged();
     void eventItemChanged();
     void flagsChanged();
+    void topPaddingChanged();
+    void bottomPaddingChanged();
+    void leftPaddingChanged();
+    void rightPaddingChanged();
 
 protected:
     void componentComplete() override;
@@ -90,6 +110,7 @@ protected:
 
     virtual bool resizeSurface(const QSize &newSize);
     virtual QRectF getContentGeometry() const;
+    virtual QSizeF getContentSize() const;
     virtual bool inputRegionContains(const QPointF &position) const;
 
 private:

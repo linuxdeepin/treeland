@@ -4,6 +4,7 @@
 #include "wqmlhelper_p.h"
 
 #include <QQuickItem>
+#include <QCursor>
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
@@ -65,6 +66,38 @@ void WQmlHelper::itemStackToTop(QQuickItem *item)
     if (children.count() < 2)
         return;
     item->stackAfter(children.last());
+}
+
+void WQmlHelper::setCursorShape(QQuickItem *item, WCursor::CursorShape shape)
+{
+    item->setCursor(WCursor::toQCursor(shape));
+}
+
+Qt::Edges WQmlHelper::getEdges(const QRectF &rect, const QPointF &pos, qreal edgeSize)
+{
+    const qreal vEdgeSize = std::min(edgeSize, rect.height() / 3);
+    const qreal hEdgeSize = std::min(edgeSize, rect.width() / 3);
+
+    if (pos.x() < rect.x() + hEdgeSize) {
+        if (pos.y() < rect.y() + vEdgeSize)
+            return Qt::TopEdge | Qt::LeftEdge;
+        if (pos.y() > rect.bottom() - vEdgeSize)
+            return Qt::BottomEdge | Qt::LeftEdge;
+
+        return Qt::LeftEdge;
+    } else if (pos.x() > rect.right() - hEdgeSize) {
+        if (pos.y() < rect.y() + vEdgeSize)
+            return Qt::TopEdge | Qt::RightEdge;
+        if (pos.y() > rect.bottom() - vEdgeSize)
+            return Qt::BottomEdge | Qt::RightEdge;
+
+        return Qt::RightEdge;
+    }
+
+    if (pos.y() < rect.y() + vEdgeSize)
+        return Qt::TopEdge;
+
+    return Qt::BottomEdge;
 }
 
 WAYLIB_SERVER_END_NAMESPACE

@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include <wglobal.h>
+#include <WCursor>
 #include <QQmlEngine>
 #define protected public
 #include <QImage>
@@ -67,6 +67,8 @@ public:
 
 public Q_SLOTS:
     void itemStackToTop(QQuickItem *item);
+    void setCursorShape(QQuickItem *item, WCursor::CursorShape shape);
+    Qt::Edges getEdges(const QRectF &rect, const QPointF &pos, qreal edgeSize);
 };
 
 WAYLIB_SERVER_END_NAMESPACE

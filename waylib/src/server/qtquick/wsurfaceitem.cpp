@@ -55,7 +55,7 @@ struct SurfaceState {
     QRectF bufferSourceBox;
     QPoint bufferOffset;
     QRectF contentGeometry;
-    QSize surfaceSize;
+    QSizeF contentSize;
 };
 
 class WSurfaceItemPrivate : public QQuickItemPrivate
@@ -74,10 +74,16 @@ public:
 
     void onHasSubsurfaceChanged();
     void updateSubsurfaceItem();
+    void onPaddingsChanged();
     WSurfaceItem *ensureSubsurfaceItem(WSurface *subsurfaceSurface);
 
     void resizeSurfaceToItemSize(const QSize &itemSize, const QSize &sizeDiff);
     void updateEventItem(bool forceDestroy);
+
+    inline QSizeF paddingsSize() const {
+        return QSizeF(paddings.left() + paddings.right(),
+                      paddings.top() + paddings.bottom());
+    }
 
     Q_DECLARE_PUBLIC(WSurfaceItem)
     QPointer<WSurface> surface;
@@ -86,6 +92,7 @@ public:
     QQuickItem *eventItem = nullptr;
     WSurfaceItem::ResizeMode resizeMode = WSurfaceItem::SizeFromSurface;
     WSurfaceItem::Flags surfaceFlags;
+    QMarginsF paddings;
     QList<WSurfaceItem*> subsurfaces;
 
     QMetaObject::Connection frameDoneConnection;
@@ -467,15 +474,16 @@ void WSurfaceItem::resize(ResizeMode mode)
         return;
 
     if (mode == SizeFromSurface) {
-        if (!qFuzzyCompare(d->implicitWidth, d->surfaceState->contentGeometry.width()))
-            setImplicitWidth(d->surfaceState->contentGeometry.width());
-        if (!qFuzzyCompare(d->implicitHeight, d->surfaceState->contentGeometry.height()))
-            setImplicitHeight(d->surfaceState->contentGeometry.height());
+        const QSizeF content = d->surfaceState->contentGeometry.size() + d->paddingsSize();
+        if (!qFuzzyCompare(d->implicitWidth, content.width()))
+            setImplicitWidth(content.width());
+        if (!qFuzzyCompare(d->implicitHeight, content.height()))
+            setImplicitHeight(content.height());
     } else if (mode == SizeToSurface) {
-        const QSize newSize = size().toSize();
-        const QSize oldSize = d->surfaceState->contentGeometry.size().toSize();
+        const QSizeF newSize = size() - d->paddingsSize();
+        const QSizeF oldSize = d->surfaceState->contentGeometry.size();
 
-        d->resizeSurfaceToItemSize(newSize, newSize - oldSize);
+        d->resizeSurfaceToItemSize(newSize.toSize(), (newSize - oldSize).toSize());
     } else {
         qWarning() << "Invalid resize mode" << mode;
     }
@@ -505,6 +513,70 @@ void WSurfaceItem::setFlags(const Flags &newFlags)
     Q_EMIT flagsChanged();
 }
 
+qreal WSurfaceItem::rightPadding() const
+{
+    Q_D(const WSurfaceItem);
+    return d->paddings.right();
+}
+
+void WSurfaceItem::setRightPadding(qreal newRightPadding)
+{
+    Q_D(WSurfaceItem);
+    if (qFuzzyCompare(d->paddings.right(), newRightPadding))
+        return;
+    d->paddings.setRight(newRightPadding);
+    d->onPaddingsChanged();
+    Q_EMIT rightPaddingChanged();
+}
+
+qreal WSurfaceItem::leftPadding() const
+{
+    Q_D(const WSurfaceItem);
+    return d->paddings.left();
+}
+
+void WSurfaceItem::setLeftPadding(qreal newLeftPadding)
+{
+    Q_D(WSurfaceItem);
+    if (qFuzzyCompare(d->paddings.left(), newLeftPadding))
+        return;
+    d->paddings.setLeft(newLeftPadding);
+    d->onPaddingsChanged();
+    Q_EMIT leftPaddingChanged();
+}
+
+qreal WSurfaceItem::bottomPadding() const
+{
+    Q_D(const WSurfaceItem);
+    return d->paddings.bottom();
+}
+
+void WSurfaceItem::setBottomPadding(qreal newBottomPadding)
+{
+    Q_D(WSurfaceItem);
+    if (qFuzzyCompare(d->paddings.bottom(), newBottomPadding))
+        return;
+    d->paddings.setBottom(newBottomPadding);
+    d->onPaddingsChanged();
+    Q_EMIT bottomPaddingChanged();
+}
+
+qreal WSurfaceItem::topPadding() const
+{
+    Q_D(const WSurfaceItem);
+    return d->paddings.top();
+}
+
+void WSurfaceItem::setTopPadding(qreal newTopPadding)
+{
+    Q_D(WSurfaceItem);
+    if (qFuzzyCompare(d->paddings.top(), newTopPadding))
+        return;
+    d->paddings.setTop(newTopPadding);
+    d->onPaddingsChanged();
+    Q_EMIT topPaddingChanged();
+}
+
 void WSurfaceItem::componentComplete()
 {
     Q_D(WSurfaceItem);
@@ -527,10 +599,11 @@ void WSurfaceItem::geometryChange(const QRectF &newGeometry, const QRectF &oldGe
 
     if (d->resizeMode == SizeToSurface) {
         if (d->effectiveVisible) {
-            const QSize newSize = newGeometry.size().toSize();
-            const QSize oldSize = oldGeometry.size().toSize();
+            const QSizeF newSize = newGeometry.size();
+            const QSizeF oldSize = oldGeometry.size();
 
-            d->resizeSurfaceToItemSize(newSize, newSize - oldSize);
+            d->resizeSurfaceToItemSize((newSize - d->paddingsSize()).toSize(),
+                                       (newSize - oldSize).toSize());
         }
     } else if (!d->surface && d->resizeMode != ManualResize) {
         d->contentItem->setSize(d->contentItem->size() + newGeometry.size() - oldGeometry.size());
@@ -552,7 +625,7 @@ void WSurfaceItem::itemChange(ItemChange change, const ItemChangeData &data)
             if (d->effectiveVisible) {
                 if (d->resizeMode != ManualResize)
                     resize(d->resizeMode);
-                d->contentItem->setSize(d->surfaceState->surfaceSize);
+                d->contentItem->setSize(d->surfaceState->contentSize);
             }
         }
 
@@ -631,7 +704,7 @@ void WSurfaceItem::onSurfaceCommit()
     d->surfaceState->bufferSourceBox = d->surface->handle()->getBufferSourceBox();
     d->surfaceState->bufferOffset = d->surface->bufferOffset();
     d->surfaceState->contentGeometry = getContentGeometry();
-    d->surfaceState->surfaceSize = d->surface->size();
+    d->surfaceState->contentSize = getContentSize();
 
     // Maybe the beforeRequestResizeSurfaceStateSeq is set by resizeSurfaceToItemSize,
     // the resizeSurfaceToItemSize wants to resize the wl_surface to current size of WSurfaceitem,
@@ -641,14 +714,14 @@ void WSurfaceItem::onSurfaceCommit()
             Q_ASSERT(d->beforeRequestResizeSurfaceStateSeq == d->surface->handle()->handle()->current.seq - 1);
             d->beforeRequestResizeSurfaceStateSeq = 0;
         }
+
         if (d->resizeMode == WSurfaceItem::SizeFromSurface)
             resize(d->resizeMode);
 
         if (d->effectiveVisible)
-            d->contentItem->setSize(d->surfaceState->surfaceSize);
-        d->contentItem->setPosition(-d->surfaceState->contentGeometry.topLeft());
-    } else {
-        Q_ASSERT(d->beforeRequestResizeSurfaceStateSeq == d->surface->handle()->handle()->current.seq);
+            d->contentItem->setSize(d->surfaceState->contentSize);
+        d->contentItem->setPosition(-d->surfaceState->contentGeometry.topLeft()
+                                    + QPointF(d->paddings.left(), d->paddings.top()));
     }
 
     d->updateSubsurfaceItem();
@@ -664,6 +737,12 @@ QRectF WSurfaceItem::getContentGeometry() const
 {
     Q_D(const WSurfaceItem);
     return QRectF(QPointF(0, 0), d->surface->size());
+}
+
+QSizeF WSurfaceItem::getContentSize() const
+{
+    Q_D(const WSurfaceItem);
+    return d->surface->size();
 }
 
 bool WSurfaceItem::inputRegionContains(const QPointF &position) const
@@ -783,6 +862,22 @@ void WSurfaceItemPrivate::updateSubsurfaceItem()
     }
 }
 
+void WSurfaceItemPrivate::onPaddingsChanged()
+{
+    W_Q(WSurfaceItem);
+
+    if (!surface || !surfaceState)
+        return;
+
+    if (resizeMode != WSurfaceItem::ManualResize)
+        q->resize(resizeMode);
+    contentItem->setPosition(-surfaceState->contentGeometry.topLeft()
+                             + QPointF(paddings.left(), paddings.top()));
+
+    // subsurfae need contentItem's position
+    updateSubsurfaceItem();
+}
+
 WSurfaceItem *WSurfaceItemPrivate::ensureSubsurfaceItem(WSurface *subsurfaceSurface)
 {
     for (int i = 0; i < subsurfaces.count(); ++i) {
@@ -815,9 +910,8 @@ void WSurfaceItemPrivate::resizeSurfaceToItemSize(const QSize &itemSize, const Q
 {
     Q_Q(WSurfaceItem);
 
-    Q_ASSERT_X(itemSize == q->size().toSize(), "WSurfaceItem",
-               "The function only using for reisze wl_surface's "
-               "size to the WSurfaceItem's current size");
+    Q_ASSERT_X(itemSize == (q->size() - paddingsSize()).toSize(), "WSurfaceItem",
+               "The function only using for reisze wl_surface's size to the WSurfaceItem's current size");
 
     if (!surface) {
         contentItem->setSize(contentItem->size() + sizeDiff);

@@ -133,6 +133,8 @@ private:
     Q_SLOT void onSurfaceCommit() override;
     void initSurface() override;
     bool resizeSurface(const QSize &newSize) override;
+    QRectF getContentGeometry() const override;
+    QSizeF getContentSize() const override;
     void updateSurfaceGeometry();
     void enableObserver(bool on);
 

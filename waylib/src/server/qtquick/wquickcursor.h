@@ -11,9 +11,28 @@ Q_MOC_INCLUDE("wquickoutputlayout.h")
 
 QT_BEGIN_NAMESPACE
 class QQmlComponent;
+class QQuickItem;
 QT_END_NAMESPACE
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
+
+class WAYLIB_SERVER_EXPORT WQuickCursorAttached : public QObject
+{
+    Q_OBJECT
+    Q_PROPERTY(WCursor::CursorShape shape READ shape WRITE setShape NOTIFY shapeChanged FINAL)
+    QML_ANONYMOUS
+
+public:
+    explicit WQuickCursorAttached(QQuickItem *parent);
+
+    QQuickItem *parent() const;
+
+    WCursor::CursorShape shape() const;
+    void setShape(WCursor::CursorShape shape);
+
+Q_SIGNALS:
+    void shapeChanged();
+};
 
 class WQuickOutputLayout;
 class WOutputRenderWindow;
@@ -27,11 +46,14 @@ class WAYLIB_SERVER_EXPORT WQuickCursor : public WCursor, public QQmlParserStatu
     Q_PROPERTY(QString themeName READ themeName WRITE setThemeName NOTIFY themeNameChanged)
     Q_PROPERTY(QSize size READ size WRITE setSize NOTIFY sizeChanged)
     QML_NAMED_ELEMENT(Cursor)
+    QML_ATTACHED(WQuickCursorAttached)
     Q_INTERFACES(QQmlParserStatus)
 
 public:
     explicit WQuickCursor(QObject *parent = nullptr);
     ~WQuickCursor();
+
+    static WQuickCursorAttached *qmlAttachedProperties(QObject *target);
 
     WQuickOutputLayout *layout() const;
     void setLayout(WQuickOutputLayout *layout);

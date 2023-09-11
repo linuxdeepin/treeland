@@ -13,6 +13,27 @@
 QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
+WQuickCursorAttached::WQuickCursorAttached(QQuickItem *parent)
+    : QObject(parent)
+{
+
+}
+
+QQuickItem *WQuickCursorAttached::parent() const
+{
+    return qobject_cast<QQuickItem*>(QObject::parent());
+}
+
+WCursor::CursorShape WQuickCursorAttached::shape() const
+{
+    return static_cast<WCursor::CursorShape>(parent()->cursor().shape());
+}
+
+void WQuickCursorAttached::setShape(WCursor::CursorShape shape)
+{
+    parent()->setCursor(WCursor::toQCursor(shape));
+}
+
 class WQuickCursorPrivate : public WCursorPrivate
 {
 public:
@@ -149,6 +170,13 @@ WQuickCursor::WQuickCursor(QObject *parent)
 WQuickCursor::~WQuickCursor()
 {
 
+}
+
+WQuickCursorAttached *WQuickCursor::qmlAttachedProperties(QObject *target)
+{
+    if (!target->isQuickItemType())
+        return nullptr;
+    return new WQuickCursorAttached(qobject_cast<QQuickItem*>(target));
 }
 
 WQuickOutputLayout *WQuickCursor::layout() const

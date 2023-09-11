@@ -95,6 +95,7 @@ Item {
             obj.doDestroy()
         }
 
+        // TODO: Support server decoration
         XdgSurface {
             id: surface
 
@@ -166,12 +167,31 @@ Item {
             resizeMode: waylandSurface.bypassManager ? SurfaceItem.SizeFromSurface : SurfaceItem.SizeToSurface
             autoConfigurePosition: !waylandSurface.bypassManager
 
+            topPadding: decoration.enable ? decoration.topMargin : 0
+            bottomPadding: decoration.enable ? decoration.bottomMargin : 0
+            leftPadding: decoration.enable ? decoration.leftMargin : 0
+            rightPadding: decoration.enable ? decoration.rightMargin : 0
+
+            // TODO: ensure the event to WindowDecoration before WSurfaceItem::eventItem on surface's edges
+            // maybe can use the SinglePointHandler?
+            WindowDecoration {
+                id: decoration
+
+                property bool enable: !waylandSurface.bypassManager
+                                      && waylandSurface.decorationsType !== XWaylandSurface.DecorationsNoBorder
+
+                anchors.fill: parent
+                z: surface.contentItem.z - 1
+                visible: enable
+            }
+
             StackToplevelHelper {
                 id: helper
                 surface: surface
                 waylandSurface: surface.waylandSurface
                 dockModel: dockModel
                 creator: xwaylandComponent
+                decoration: decoration
             }
 
             OutputLayoutItem {

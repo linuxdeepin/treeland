@@ -82,6 +82,7 @@ Item {
             }
         }
 
+        // TODO: add attached property for XdgSurface
         XdgDecorationManager {
             id: decorationManager
         }

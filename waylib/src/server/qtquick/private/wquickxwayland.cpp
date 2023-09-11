@@ -352,6 +352,16 @@ bool WXWaylandSurfaceItem::resizeSurface(const QSize &newSize)
     return true;
 }
 
+QRectF WXWaylandSurfaceItem::getContentGeometry() const
+{
+    return m_surface->getContentGeometry();
+}
+
+QSizeF WXWaylandSurfaceItem::getContentSize() const
+{
+    return size() - QSizeF(leftPadding() + rightPadding(), topPadding() + bottomPadding());
+}
+
 void WXWaylandSurfaceItem::updateSurfaceGeometry()
 {
     Q_ASSERT(observer);

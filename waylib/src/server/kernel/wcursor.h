@@ -10,7 +10,6 @@
 #include <QPointF>
 
 QT_BEGIN_NAMESPACE
-class QCursor;
 class QWindow;
 QT_END_NAMESPACE
 
@@ -35,6 +34,36 @@ class WCursor : public QObject, public WObject
     W_DECLARE_PRIVATE(WCursor)
 
 public:
+    enum CursorShape {
+        Default = Qt::CustomCursor + 1,
+        BottomLeftCorner,
+        BottomRightCorner,
+        TopLeftCorner,
+        TopRightCorner,
+        BottomSide,
+        LeftSide,
+        RightSide,
+        TopSide,
+        Grabbing,
+        Xterm,
+        Hand1,
+        Watch,
+        SWResize,
+        SEResize,
+        SResize,
+        WResize,
+        EResize,
+        NWResize,
+        NEResize,
+        NResize,
+        AllScroll,
+        Text,
+        Pointer,
+        Wait
+    };
+    Q_ENUM(CursorShape)
+    static_assert(BottomLeftCorner > Default, "");
+
     explicit WCursor(QObject *parent = nullptr);
 
     QW_NAMESPACE::QWCursor *handle() const;
@@ -43,6 +72,7 @@ public:
 
     static Qt::MouseButton fromNativeButton(uint32_t code);
     static uint32_t toNativeButton(Qt::MouseButton button);
+    static QCursor toQCursor(CursorShape shape);
 
     Qt::MouseButtons state() const;
     Qt::MouseButton button() const;
