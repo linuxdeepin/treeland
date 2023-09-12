@@ -309,35 +309,6 @@ Item {
 
             cancelMinimize();
         }
-
-        // for xwayland surface
-        function onRequestConfigure(geometry, flags) {
-            // Disable manager the window's position by client for a normal window
-            if (!(waylandSurface.windowTypes & XWaylandSurface.NET_WM_WINDOW_TYPE_NORMAL)) {
-                const pos = surface.parent.mapFromGlobal(geometry.x, geometry.y)
-                if (flags & XWaylandSurface.XCB_CONFIG_WINDOW_X)
-                    surface.x = pos.x
-                if (flags & XWaylandSurface.XCB_CONFIG_WINDOW_Y)
-                    surface.y = pos.y
-            }
-
-            if (flags & XWaylandSurface.XCB_CONFIG_WINDOW_WIDTH)
-                surface.width = geometry.width
-            if (flags & XWaylandSurface.XCB_CONFIG_WINDOW_HEIGHT)
-                surface.height = geometry.height
-        }
-
-        function onGeometryChanged() {
-            if (!waylandSurface.bypassManager)
-                return
-            let geo = waylandSurface.geometry
-            let pos = surface.parent.mapFromGlobal(geo.x, geo.y)
-
-            surface.x = pos.x
-            surface.y = pos.y
-            surface.width = pos.width
-            surface.height = pos.height
-        }
     }
 
     Component.onCompleted: {

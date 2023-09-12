@@ -19,6 +19,7 @@ class Helper : public WSeatEventFilter {
     Q_OBJECT
     Q_PROPERTY(WToplevelSurface* activatedSurface READ activatedSurface WRITE setActivateSurface NOTIFY activatedSurfaceChanged FINAL)
     Q_PROPERTY(WSurfaceItem* resizingItem READ resizingItem NOTIFY resizingItemChanged FINAL)
+    Q_PROPERTY(WSurfaceItem* movingItem READ movingItem NOTIFY movingItemChanged FINAL)
     QML_ELEMENT
     QML_SINGLETON
 
@@ -28,6 +29,7 @@ public:
 
     WToplevelSurface *activatedSurface() const;
     WSurfaceItem *resizingItem() const;
+    WSurfaceItem *movingItem() const;
 
 public Q_SLOTS:
     void startMove(WToplevelSurface *surface, WSurfaceItem *shell, WSeat *seat, int serial);
@@ -41,6 +43,7 @@ public Q_SLOTS:
 signals:
     void activatedSurfaceChanged();
     void resizingItemChanged();
+    void movingItemChanged();
 
 private:
     bool beforeDisposeEvent(WSeat *seat, QWindow *watched, QInputEvent *event) override;
@@ -49,6 +52,7 @@ private:
 
     void setActivateSurface(WToplevelSurface *newActivate);
     void setResizingItem(WSurfaceItem *newResizingItem);
+    void setMovingItem(WSurfaceItem *newMovingItem);
     void onOutputRequeseState(wlr_output_event_request_state *newState);
 
     QPointer<WToplevelSurface> m_activateSurface;
@@ -61,17 +65,5 @@ private:
     QSizeF surfaceSizeOfStartMoveResize;
     Qt::Edges resizeEdgets;
     WSurfaceItem *m_resizingItem = nullptr;
+    WSurfaceItem *m_movingItem = nullptr;
 };
-
-inline WSurfaceItem *Helper::resizingItem() const
-{
-    return m_resizingItem;
-}
-
-inline void Helper::setResizingItem(WSurfaceItem *newResizingItem)
-{
-    if (m_resizingItem == newResizingItem)
-        return;
-    m_resizingItem = newResizingItem;
-    emit resizingItemChanged();
-}

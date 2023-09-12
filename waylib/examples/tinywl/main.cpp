@@ -42,12 +42,39 @@ Helper::Helper(QObject *parent)
 
 }
 
+WSurfaceItem *Helper::resizingItem() const
+{
+    return m_resizingItem;
+}
+
+void Helper::setResizingItem(WSurfaceItem *newResizingItem)
+{
+    if (m_resizingItem == newResizingItem)
+        return;
+    m_resizingItem = newResizingItem;
+    emit resizingItemChanged();
+}
+
+WSurfaceItem *Helper::movingItem() const
+{
+    return m_movingItem;
+}
+
+void Helper::setMovingItem(WSurfaceItem *newMovingItem)
+{
+    if (m_movingItem == newMovingItem)
+        return;
+    m_movingItem = newMovingItem;
+    emit movingItemChanged();
+}
+
 void Helper::stopMoveResize()
 {
     if (surface)
         surface->setResizeing(false);
 
     setResizingItem(nullptr);
+    setMovingItem(nullptr);
 
     surfaceItem = nullptr;
     surface = nullptr;
@@ -57,6 +84,8 @@ void Helper::stopMoveResize()
 
 void Helper::startMove(WToplevelSurface *surface, WSurfaceItem *shell, WSeat *seat, int serial)
 {
+    stopMoveResize();
+
     Q_UNUSED(serial)
 
     surfaceItem = shell;
@@ -64,10 +93,14 @@ void Helper::startMove(WToplevelSurface *surface, WSurfaceItem *shell, WSeat *se
     this->seat = seat;
     resizeEdgets = {0};
     surfacePosOfStartMoveResize = getItemGlobalPosition(surfaceItem);
+
+    setMovingItem(shell);
 }
 
 void Helper::startResize(WToplevelSurface *surface, WSurfaceItem *shell, WSeat *seat, Qt::Edges edge, int serial)
 {
+    stopMoveResize();
+
     Q_UNUSED(serial)
     Q_ASSERT(edge != 0);
 

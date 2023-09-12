@@ -164,13 +164,24 @@ Item {
 
             surface: waylandSurface
             z: waylandSurface.bypassManager ? 1 : 0 // TODO: make to enum type
-            resizeMode: waylandSurface.bypassManager ? SurfaceItem.SizeFromSurface : SurfaceItem.SizeToSurface
-            autoConfigurePosition: !waylandSurface.bypassManager
+            positionMode: {
+                if (!surface.effectiveVisible)
+                    return XWaylandSurfaceItem.ManualPosition
+
+                return (Helper.movingItem === surface || resizeMode === SurfaceItem.SizeToSurface)
+                        ? XWaylandSurfaceItem.PositionToSurface
+                        : XWaylandSurfaceItem.PositionFromSurface
+            }
 
             topPadding: decoration.enable ? decoration.topMargin : 0
             bottomPadding: decoration.enable ? decoration.bottomMargin : 0
             leftPadding: decoration.enable ? decoration.leftMargin : 0
             rightPadding: decoration.enable ? decoration.rightMargin : 0
+
+            onEffectiveVisibleChanged: {
+                if (surface.effectiveVisible)
+                    surface.move(XWaylandSurfaceItem.PositionToSurface)
+            }
 
             // TODO: ensure the event to WindowDecoration before WSurfaceItem::eventItem on surface's edges
             // maybe can use the SinglePointHandler?
@@ -205,18 +216,6 @@ Item {
                 onLeaveOutput: function(output) {
                     if (surface.waylandSurface.surface)
                         surface.waylandSurface.surface.leaveOutput(output);
-                }
-            }
-
-            Component.onCompleted: {
-                const geometry = waylandSurface.geometry
-                const pos = surface.parent.mapFromGlobal(geometry.x, geometry.y)
-                surface.x = pos.x
-                surface.y = pos.y
-
-                if (!waylandSurface.isMaximized && !waylandSurface.bypassManager) {
-                    surface.width = geometry.width
-                    surface.height = geometry.height
                 }
             }
         }

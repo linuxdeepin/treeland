@@ -475,10 +475,7 @@ void WSurfaceItem::resize(ResizeMode mode)
 
     if (mode == SizeFromSurface) {
         const QSizeF content = d->surfaceState->contentGeometry.size() + d->paddingsSize();
-        if (!qFuzzyCompare(d->implicitWidth, content.width()))
-            setImplicitWidth(content.width());
-        if (!qFuzzyCompare(d->implicitHeight, content.height()))
-            setImplicitHeight(content.height());
+        setSize(content);
     } else if (mode == SizeToSurface) {
         const QSizeF newSize = size() - d->paddingsSize();
         const QSizeF oldSize = d->surfaceState->contentGeometry.size();
@@ -701,10 +698,7 @@ void WSurfaceItem::onSurfaceCommit()
 {
     Q_D(WSurfaceItem);
 
-    d->surfaceState->bufferSourceBox = d->surface->handle()->getBufferSourceBox();
-    d->surfaceState->bufferOffset = d->surface->bufferOffset();
-    d->surfaceState->contentGeometry = getContentGeometry();
-    d->surfaceState->contentSize = getContentSize();
+    updateSurfaceState();
 
     // Maybe the beforeRequestResizeSurfaceStateSeq is set by resizeSurfaceToItemSize,
     // the resizeSurfaceToItemSize wants to resize the wl_surface to current size of WSurfaceitem,
@@ -750,6 +744,18 @@ bool WSurfaceItem::inputRegionContains(const QPointF &position) const
     Q_D(const WSurfaceItem);
     Q_ASSERT(d->surface);
     return d->surface->inputRegionContains(position);
+}
+
+void WSurfaceItem::updateSurfaceState()
+{
+    Q_D(WSurfaceItem);
+
+    if (Q_LIKELY(d->surface)) {
+        d->surfaceState->bufferSourceBox = d->surface->handle()->getBufferSourceBox();
+        d->surfaceState->bufferOffset = d->surface->bufferOffset();
+    }
+    d->surfaceState->contentGeometry = getContentGeometry();
+    d->surfaceState->contentSize = getContentSize();
 }
 
 WSurfaceItemPrivate::WSurfaceItemPrivate()

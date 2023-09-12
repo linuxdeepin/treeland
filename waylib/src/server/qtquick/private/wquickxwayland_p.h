@@ -107,10 +107,19 @@ class WAYLIB_SERVER_EXPORT WXWaylandSurfaceItem : public WSurfaceItem
     Q_PROPERTY(WXWaylandSurface* surface READ surface WRITE setSurface NOTIFY surfaceChanged)
     Q_PROPERTY(QSize minimumSize READ minimumSize NOTIFY minimumSizeChanged FINAL)
     Q_PROPERTY(QSize maximumSize READ maximumSize NOTIFY maximumSizeChanged FINAL)
-    Q_PROPERTY(bool autoConfigurePosition READ autoConfigurePosition WRITE setAutoConfigurePosition NOTIFY autoConfigurePositionChanged FINAL)
+    Q_PROPERTY(PositionMode positionMode READ positionMode WRITE setPositionMode NOTIFY positionModeChanged FINAL)
+    Q_PROPERTY(QPointF positionOffset READ positionOffset WRITE setPositionOffset NOTIFY positionOffsetChanged FINAL)
+    Q_PROPERTY(bool ignoreConfigureRequest READ ignoreConfigureRequest WRITE setIgnoreConfigureRequest NOTIFY ignoreConfigureRequestChanged FINAL)
     QML_NAMED_ELEMENT(XWaylandSurfaceItem)
 
 public:
+    enum PositionMode {
+        PositionFromSurface,
+        PositionToSurface,
+        ManualPosition
+    };
+    Q_ENUM(PositionMode)
+
     explicit WXWaylandSurfaceItem(QQuickItem *parent = nullptr);
     ~WXWaylandSurfaceItem();
 
@@ -120,14 +129,23 @@ public:
     QSize minimumSize() const;
     QSize maximumSize() const;
 
-    bool autoConfigurePosition() const;
-    void setAutoConfigurePosition(bool newAutoConfigurePosition);
+    PositionMode positionMode() const;
+    void setPositionMode(PositionMode newPositionMode);
+    Q_INVOKABLE void move(PositionMode mode);
+
+    QPointF positionOffset() const;
+    void setPositionOffset(QPointF newPositionOffset);
+
+    bool ignoreConfigureRequest() const;
+    void setIgnoreConfigureRequest(bool newIgnoreConfigureRequest);
 
 Q_SIGNALS:
     void surfaceChanged();
     void minimumSizeChanged();
     void maximumSizeChanged();
-    void autoConfigurePositionChanged();
+    void positionModeChanged();
+    void positionOffsetChanged();
+    void ignoreConfigureRequestChanged();
 
 private:
     Q_SLOT void onSurfaceCommit() override;
@@ -135,15 +153,20 @@ private:
     bool resizeSurface(const QSize &newSize) override;
     QRectF getContentGeometry() const override;
     QSizeF getContentSize() const override;
-    void updateSurfaceGeometry();
-    void enableObserver(bool on);
+    void geometryChange(const QRectF &newGeometry, const QRectF &oldGeometry) override;
+
+    Q_SLOT void updatePosition();
+    void configureSurface(const QRect &newGeometry);
+    QPoint expectSurfacePosition(PositionMode mode) const;
+    QSize expectSurfaceSize(ResizeMode mode) const;
 
 private:
     QPointer<WXWaylandSurface> m_surface;
-    QPointer<WQuickObserver> observer;
     QSize m_minimumSize;
     QSize m_maximumSize;
-    bool m_autoConfigurePosition = false;
+    PositionMode m_positionMode = PositionFromSurface;
+    QPointF m_positionOffset;
+    bool m_ignoreConfigureRequest = false;
 };
 
 WAYLIB_SERVER_END_NAMESPACE

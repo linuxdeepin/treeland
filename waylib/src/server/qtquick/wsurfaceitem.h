@@ -113,6 +113,8 @@ protected:
     virtual QSizeF getContentSize() const;
     virtual bool inputRegionContains(const QPointF &position) const;
 
+    void updateSurfaceState();
+
 private:
     W_PRIVATE_SLOT(void onHasSubsurfaceChanged())
 

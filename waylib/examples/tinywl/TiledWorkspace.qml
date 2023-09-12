@@ -127,6 +127,8 @@ Item {
 
                 surface: waylandSurface
                 resizeMode: SurfaceItem.SizeToSurface
+                // TODO: Support popup/menu
+                positionMode: surface.effectiveVisible ? XWaylandSurfaceItem.PositionToSurface : XWaylandSurfaceItem.ManualPosition
                 z: (waylandSurface && waylandSurface.isActivated) ? 1 : 0
 
                 Layout.fillWidth: true
