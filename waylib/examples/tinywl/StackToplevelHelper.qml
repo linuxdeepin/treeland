@@ -3,6 +3,7 @@
 
 import QtQuick
 import Waylib.Server
+import QtQuick.Particles
 import Tinywl
 
 Item {
@@ -67,17 +68,18 @@ Item {
         restoreMode: Binding.RestoreNone
     }
 
-    OpacityAnimator {
-        id: hideAnimation
-        duration: 300
-        target: surface
-        from: 1
-        to: 0
+    Loader {
+        id: closeAnimation
+    }
 
-        onStopped: {
-            surface.visible = false
-            if (pendingDestroy)
-                creator.destroyObject(surface)
+    Component {
+        id: closeAnimationComponent
+
+        CloseAnimation {
+            onStopped: {
+                if (pendingDestroy)
+                    creator.destroyObject(surface)
+            }
         }
     }
 
@@ -137,7 +139,7 @@ Item {
             return
 
         // When Socket is enabled and mapped becomes false, set visible
-        // after hideAnimation complete， Otherwise set visible directly.
+        // after closeAnimation complete， Otherwise set visible directly.
         if (mapped) {
             if (waylandSurface.isMinimized) {
                 surface.visible = false;
@@ -158,7 +160,10 @@ Item {
                 surface.visible = false;
             } else {
                 // do animation for window close
-                hideAnimation.start()
+                closeAnimation.parent = surface.parent
+                closeAnimation.anchors.fill = surface
+                closeAnimation.sourceComponent = closeAnimationComponent
+                closeAnimation.item.start(surface)
             }
         }
     }
@@ -166,7 +171,7 @@ Item {
     function doDestroy() {
         pendingDestroy = true
 
-        if (!surface.visible || !hideAnimation.running) {
+        if (!surface.visible || !closeAnimation.active) {
             if (waylandSurface.isMinimized) {
                 // mapped becomes false and pendingDestroy
                 dockModel.removeSurface(surface)

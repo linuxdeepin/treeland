@@ -41,6 +41,7 @@ qt_add_qml_module(tinywl-qtquick
         StackToplevelHelper.qml
         TiledToplevelHelper.qml
         WindowDecoration.qml
+        CloseAnimation.qml
 )
 
 target_link_libraries(tinywl-qtquick
