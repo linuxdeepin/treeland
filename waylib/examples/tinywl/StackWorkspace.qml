@@ -106,7 +106,7 @@ Item {
                 id: helper
                 surface: surface
                 waylandSurface: surface.waylandSurface
-                dockModel: dockModel
+                dockModel: dock.model
                 creator: toplevelComponent
             }
         }
