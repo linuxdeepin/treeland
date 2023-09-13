@@ -69,7 +69,7 @@ static const QByteArrayView atom_map[WXWayland::AtomCount] = {
 void WXWaylandPrivate::init()
 {
     W_Q(WXWayland);
-    xcbConnection = xcb_connect(nullptr, nullptr);
+    xcbConnection = xcb_connect(q->displayName().constData(), nullptr);
     int err = xcb_connection_has_error(xcbConnection);
     if (err != 0) {
         qFatal("Can't connect to XWayland by xcb_connect");
