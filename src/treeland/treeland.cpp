@@ -9,8 +9,6 @@
 #include "SafeDataStream.h"
 #include "qwdisplay.h"
 #include "waylandsocketproxy.h"
-#include "wquickbackend_p.h"
-#include "wquicksocket_p.h"
 #include "waylandserver.h"
 #include "shortcut.h"
 
@@ -114,14 +112,17 @@ void TreeLand::setup()
 void TreeLand::connected() {
     // log connection
     qDebug() << "Connected to the daemon.";
-
-    WQuickSocket *socket = m_engine->rootObjects().first()->findChild<WQuickSocket*>();
-    Q_ASSERT(socket);
+#if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
+    Helper *helper = m_engine->singletonInstance<Helper*>("TreeLand", "Helper");
+#else
+    auto helperTypeId = qmlTypeId("TreeLand", 1, 0, "Helper");
+    Helper *helper = m_engine->singletonInstance<Helper*>(helperTypeId);
+#endif
 
     // send connected message
     SocketWriter(m_socket) << quint32(GreeterMessages::Connect);
 
-    SocketWriter(m_socket) << quint32(GreeterMessages::StartHelper) << socket->socketFile();
+    SocketWriter(m_socket) << quint32(GreeterMessages::StartHelper) << helper->socketFile();
 }
 
 void TreeLand::disconnected() {
