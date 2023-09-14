@@ -113,6 +113,7 @@ set(HEADERS
     kernel/WXCursorManager
     kernel/WXdgShell
     kernel/WXdgSurface
+    kernel/WSurface
 
     qtquick/wsurfaceitem.h
     qtquick/WSurfaceItem
