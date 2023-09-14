@@ -79,6 +79,7 @@ Item {
 
             Component.onCompleted: {
                 console.info("Listing on:", socketFile)
+                Helper.socketFile = socketFile
             }
         }
 

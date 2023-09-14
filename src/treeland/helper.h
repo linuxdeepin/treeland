@@ -20,6 +20,7 @@ class Helper : public WSeatEventFilter {
     Q_PROPERTY(WToplevelSurface* activatedSurface READ activatedSurface WRITE setActivateSurface NOTIFY activatedSurfaceChanged FINAL)
     Q_PROPERTY(WSurfaceItem* resizingItem READ resizingItem NOTIFY resizingItemChanged FINAL)
     Q_PROPERTY(WSurfaceItem* movingItem READ movingItem NOTIFY movingItemChanged FINAL)
+    Q_PROPERTY(QString socketFile READ socketFile WRITE setSocketFile FINAL)
     QML_ELEMENT
     QML_SINGLETON
 
@@ -30,6 +31,7 @@ public:
     WToplevelSurface *activatedSurface() const;
     WSurfaceItem *resizingItem() const;
     WSurfaceItem *movingItem() const;
+    QString socketFile() const;
 
     Q_INVOKABLE QString clientName(WSurface *surface) const;
 
@@ -56,6 +58,7 @@ private:
     void setActivateSurface(WToplevelSurface *newActivate);
     void setResizingItem(WSurfaceItem *newResizingItem);
     void setMovingItem(WSurfaceItem *newMovingItem);
+    void setSocketFile(const QString &socketFile);
     void onOutputRequeseState(wlr_output_event_request_state *newState);
 
     QPointer<WToplevelSurface> m_activateSurface;
@@ -69,4 +72,7 @@ private:
     Qt::Edges resizeEdgets;
     WSurfaceItem *m_resizingItem = nullptr;
     WSurfaceItem *m_movingItem = nullptr;
+
+    // for socket
+    QString m_socketFile;
 };

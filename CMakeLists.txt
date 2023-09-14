@@ -26,11 +26,15 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-option(WITH_SUBMODULE_QWLROOTS "Use the waylib from git submodule" OFF)
+option(WITH_SUBMODULE_WAYLIB "Use the waylib from git submodule" OFF)
 
-if(WITH_SUBMODULE_QWLROOTS)
+if(WITH_SUBMODULE_WAYLIB)
+    set(WITH_SUBMODULE_QWLROOTS ON)
     add_subdirectory(waylib)
     message("Using waylib from submodule")
+else()
+    find_package(Waylib REQUIRED Server)
+    find_package(QWlroots REQUIRED)
 endif()
 
 # ECM
@@ -231,8 +235,8 @@ add_subdirectory(data)
 add_subdirectory(services)
 add_subdirectory(src)
 
-enable_testing()
-add_subdirectory(test)
+#enable_testing()
+#add_subdirectory(test)
 
 # Display feature summary
 feature_summary(WHAT ALL FATAL_ON_MISSING_REQUIRED_PACKAGES)

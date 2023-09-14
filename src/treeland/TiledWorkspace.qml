@@ -63,8 +63,15 @@ Item {
                 Layout.minimumHeight: Math.max(surface.minimumSize.height, 50)
                 Layout.maximumWidth: surface.maximumSize.width
                 Layout.maximumHeight: surface.maximumSize.height
-                //Layout.horizontalStretchFactor: 1
-                //Layout.verticalStretchFactor: 1
+                Component.onCompleted: {
+                    if (Layout.horizontalStretchFactor !== undefined) {
+                        // introduced in Qt 6.5
+                        Layout.horizontalStretchFactor = 1
+                    }
+                    if (Layout.verticalStretchFactor !== undefined) {
+                        Layout.verticalStretchFactor = 1
+                    }
+                }
 
                 TiledToplevelHelper {
                     id: helper
@@ -138,8 +145,15 @@ Item {
                 Layout.minimumHeight: Math.max(surface.minimumSize.height, 50)
                 Layout.maximumWidth: surface.maximumSize.width
                 Layout.maximumHeight: surface.maximumSize.height
-                //Layout.horizontalStretchFactor: 1
-                //Layout.verticalStretchFactor: 1
+                Component.onCompleted: {
+                    if (Layout.horizontalStretchFactor !== undefined) {
+                        // introduced in Qt 6.5
+                        Layout.horizontalStretchFactor = 1
+                    }
+                    if (Layout.verticalStretchFactor !== undefined) {
+                        Layout.verticalStretchFactor = 1
+                    }
+                }
 
                 TiledToplevelHelper {
                     id: helper

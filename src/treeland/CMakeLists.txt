@@ -100,7 +100,7 @@ target_link_libraries(treeland
     PRIVATE
         common
         greeterplugin
-        waylibserver
+        $<IF:$<BOOL:${WITH_SUBMODULE_WAYLIB}>, waylibserver, ${WaylibServer_LIBRARIES}>
         PkgConfig::WAYLAND_SERVER
         PkgConfig::PIXMAN
         Qt${QT_MAJOR_VERSION}::Gui
@@ -108,6 +108,17 @@ target_link_libraries(treeland
         Qt${QT_MAJOR_VERSION}::Quick
         Qt${QT_MAJOR_VERSION}::QuickControls2
 )
+
+if (NOT WITH_SUBMODULE_WAYLIB)
+    target_link_libraries(treeland
+        PRIVATE
+        QWlroots::QWlroots
+    )
+    target_include_directories(treeland
+        PRIVATE
+        ${WaylibServer_INCLUDE_DIR}
+    )
+endif()
 
 if(JOURNALD_FOUND)
     target_link_libraries(treeland PRIVATE ${JOURNALD_LIBRARIES})
@@ -122,12 +133,23 @@ add_executable(treeland-helper
 target_link_libraries(treeland-helper
     PRIVATE
         common
-        waylibserver
+        $<IF:$<BOOL:${WITH_SUBMODULE_WAYLIB}>, waylibserver, ${WaylibServer_LIBRARIES}>
         PkgConfig::WAYLAND_SERVER
         PkgConfig::WAYLAND_CLIENT
         Qt${QT_MAJOR_VERSION}::Gui
         Qt${QT_MAJOR_VERSION}::Network
 )
+
+if (NOT WITH_SUBMODULE_WAYLIB)
+    target_link_libraries(treeland-helper
+        PUBLIC
+        QWlroots::QWlroots
+    )
+    target_include_directories(treeland-helper
+        PRIVATE
+        ${WaylibServer_INCLUDE_DIR}
+    )
+endif()
 
 install(TARGETS treeland-helper RUNTIME DESTINATION "${CMAKE_INSTALL_LIBEXECDIR}")
 
@@ -140,12 +162,23 @@ add_executable(treeland-fake-session
 target_link_libraries(treeland-fake-session
     PRIVATE
         common
-        waylibserver
+        $<IF:$<BOOL:${WITH_SUBMODULE_WAYLIB}>, waylibserver, ${WaylibServer_LIBRARIES}>
         PkgConfig::WAYLAND_SERVER
         PkgConfig::WAYLAND_CLIENT
         Qt${QT_MAJOR_VERSION}::Gui
         Qt${QT_MAJOR_VERSION}::Network
         Qt${QT_MAJOR_VERSION}::DBus
 )
+
+if (NOT WITH_SUBMODULE_WAYLIB)
+    target_link_libraries(treeland-fake-session
+        PRIVATE
+        QWlroots::QWlroots
+    )
+    target_include_directories(treeland-fake-session
+        PRIVATE
+        ${WaylibServer_INCLUDE_DIR}
+    )
+endif()
 
 install(TARGETS treeland-fake-session RUNTIME DESTINATION "${CMAKE_INSTALL_LIBEXECDIR}")
