@@ -6,8 +6,6 @@
 #include <WServer>
 #include <WOutput>
 #include <WSurfaceItem>
-// TODO: Don't use private API
-#include <wquickbackend_p.h>
 
 #include <qwbackend.h>
 #include <qwdisplay.h>
@@ -64,6 +62,11 @@ WSurfaceItem *Helper::movingItem() const
     return m_movingItem;
 }
 
+QString Helper::socketFile() const
+{
+    return m_socketFile;
+}
+
 QString Helper::clientName(WSurface *surface) const
 {
     wl_client *client = surface->handle()->handle()->resource->client;
@@ -88,6 +91,11 @@ void Helper::setMovingItem(WSurfaceItem *newMovingItem)
         return;
     m_movingItem = newMovingItem;
     emit movingItemChanged();
+}
+
+void Helper::setSocketFile(const QString &socketFile)
+{
+    m_socketFile = socketFile;
 }
 
 void Helper::stopMoveResize()
