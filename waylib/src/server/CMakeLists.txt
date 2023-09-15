@@ -35,7 +35,7 @@ set(KERNEL_SOURCES
 
     kernel/wtexture.cpp
     kernel/wtypes.cpp
-    kernel/wxcursormanager.cpp
+
     kernel/wxdgshell.cpp
     kernel/wxdgsurface.cpp
     kernel/woutputlayout.cpp
@@ -93,7 +93,6 @@ set(HEADERS
     kernel/wsurface.h
     kernel/wtexture.h
     kernel/wtypes.h
-    kernel/wxcursormanager.h
     kernel/wxdgshell.h
     kernel/wxdgsurface.h
     kernel/woutputlayout.h
@@ -110,7 +109,6 @@ set(HEADERS
     kernel/WSeat
     kernel/WInputEvent
     kernel/WTexture
-    kernel/WXCursorManager
     kernel/WXdgShell
     kernel/WXdgSurface
     kernel/WSurface

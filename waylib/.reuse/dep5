@@ -46,7 +46,6 @@ Files: examples/tinywl/qml.qrc
        src/server/kernel/WSurface
        src/server/kernel/WSurfaceLayout
        src/server/kernel/WTexture
-       src/server/kernel/WXCursorManager
        src/server/kernel/WXdgShell
        src/server/kernel/WXdgSurface
        src/server/qtquick/WQuickRenderControl

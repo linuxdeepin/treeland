@@ -25,7 +25,6 @@ WAYLIB_SERVER_BEGIN_NAMESPACE
 
 class WSeat;
 class WInputDevice;
-class WXCursorManager;
 class WXCursorImage;
 class WCursorPrivate;
 class WCursor : public QObject, public WObject

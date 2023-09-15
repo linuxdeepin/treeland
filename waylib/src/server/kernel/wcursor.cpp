@@ -8,7 +8,6 @@
 #include "wcursor.h"
 #include "private/wcursor_p.h"
 #include "winputdevice.h"
-#include "wxcursormanager.h"
 #include "wxcursorimage.h"
 #include "wimagebuffer.h"
 #include "wseat.h"
