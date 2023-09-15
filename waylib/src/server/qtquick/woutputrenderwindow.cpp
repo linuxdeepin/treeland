@@ -468,8 +468,13 @@ void WOutputRenderWindowPrivate::doRender()
             needPolishItems = false;
         }
 
-        if (!helper->contentIsDirty())
+        if (!helper->contentIsDirty()) {
+            if (helper->needsFrame()) {
+                if (helper->qwoutput()->commit())
+                    helper->resetState();
+            }
             continue;
+        }
 
         const auto lastRT = helper->lastRenderTarget();
         int bufferAge = 0;

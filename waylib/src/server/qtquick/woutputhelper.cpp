@@ -93,6 +93,9 @@ public:
         : WObjectPrivate(qq)
         , output(output)
         , outputWindow(new QW::Window)
+        , renderable(false)
+        , contentIsDirty(false)
+        , needsFrame(false)
     {
         outputWindow->QObject::setParent(qq);
         outputWindow->setScreen(QWlrootsIntegration::instance()->getScreenFrom(output)->screen());
@@ -100,6 +103,10 @@ public:
 
         QObject::connect(qwoutput(), &QWOutput::frame, qq, [this] {
             on_frame();
+        });
+        QObject::connect(qwoutput(), &QWOutput::needsFrame, qq, [this] {
+            setNeedsFrame(true);
+            qwoutput()->QWOutput::scheduleFrame();
         });
         QObject::connect(qwoutput(), &QWOutput::damage, qq, [this] {
             on_damage();
@@ -136,6 +143,7 @@ public:
 
     void setRenderable(bool newValue);
     void setContentIsDirty(bool newValue);
+    void setNeedsFrame(bool newNeedsFrame);
 
     void on_frame();
     void on_damage();
@@ -185,8 +193,9 @@ public:
     QList<BufferData*> buffers;
     BufferData *lastBuffer = nullptr;
 
-    bool renderable = false;
-    bool contentIsDirty = false;
+    uint renderable:1;
+    uint contentIsDirty:1;
+    uint needsFrame:1;
 };
 
 void WOutputHelperPrivate::setRenderable(bool newValue)
@@ -203,6 +212,14 @@ void WOutputHelperPrivate::setContentIsDirty(bool newValue)
         return;
     contentIsDirty = newValue;
     Q_EMIT q_func()->contentIsDirtyChanged();
+}
+
+void WOutputHelperPrivate::setNeedsFrame(bool newNeedsFrame)
+{
+    if (needsFrame == newNeedsFrame)
+        return;
+    needsFrame = newNeedsFrame;
+    Q_EMIT q_func()->needsFrameChanged();
 }
 
 void WOutputHelperPrivate::on_frame()
@@ -572,6 +589,12 @@ bool WOutputHelper::contentIsDirty() const
     return d->contentIsDirty;
 }
 
+bool WOutputHelper::needsFrame() const
+{
+    W_DC(WOutputHelper);
+    return d->needsFrame;
+}
+
 bool WOutputHelper::makeCurrent(QWBuffer *buffer, QOpenGLContext *context)
 {
     W_D(WOutputHelper);
@@ -589,6 +612,7 @@ void WOutputHelper::resetState()
     W_D(WOutputHelper);
     d->setContentIsDirty(false);
     d->setRenderable(false);
+    d->setNeedsFrame(false);
 }
 
 void WOutputHelper::update()

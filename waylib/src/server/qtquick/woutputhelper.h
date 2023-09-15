@@ -32,6 +32,7 @@ class WAYLIB_SERVER_EXPORT WOutputHelper : public QObject, public WObject
     W_DECLARE_PRIVATE(WOutputHelper)
     Q_PROPERTY(bool renderable READ renderable NOTIFY renderableChanged)
     Q_PROPERTY(bool contentIsDirty READ contentIsDirty NOTIFY contentIsDirtyChanged)
+    Q_PROPERTY(bool needsFrame READ needsFrame NOTIFY needsFrameChanged FINAL)
 
 public:
     explicit WOutputHelper(WOutput *output, QObject *parent = nullptr);
@@ -48,6 +49,7 @@ public:
 
     bool renderable() const;
     bool contentIsDirty() const;
+    bool needsFrame() const;
 
     bool makeCurrent(QW_NAMESPACE::QWBuffer *buffer, QOpenGLContext *context = nullptr);
     void doneCurrent(QOpenGLContext *context = nullptr);
@@ -60,6 +62,7 @@ Q_SIGNALS:
     void damaged();
     void renderableChanged();
     void contentIsDirtyChanged();
+    void needsFrameChanged();
 
 private:
     W_PRIVATE_SLOT(void onBufferDestroy(QWBuffer*))
