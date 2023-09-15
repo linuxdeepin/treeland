@@ -1,6 +1,6 @@
 ## INTRODUCTION
 
-[![IRC Network](https://img.shields.io/badge/irc-freenode-blue.svg "IRC Freenode")](https://webchat.freenode.net/?channels=ddm)
+DDM is a fork of SDDM. And use single compositor and session management functionality.
 
 SDDM is a modern display manager for X11 and Wayland sessions aiming to
 be fast, simple and beautiful.
