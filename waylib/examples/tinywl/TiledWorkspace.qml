@@ -86,6 +86,7 @@ Item {
                 id: popup
 
                 required property WaylandXdgSurface waylandSurface
+                property string type
 
                 property alias xdgSurface: surface
                 property var xdgParent: root.getXdgSurfaceFromWaylandSurface(waylandSurface.parentXdgSurface)

@@ -5,6 +5,7 @@
 
 #include <QJSValue>
 #include <QQuickItem>
+#include <QQmlInfo>
 #include <private/qqmlcomponent_p.h>
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
@@ -235,14 +236,24 @@ void WQmlCreatorComponent::create(QSharedPointer<WQmlCreatorDelegateData> data, 
     // QQmlComponentPrivate can solve this problem.
     // Qt 6.4 requires beginCreate -> setInitialProperties/setParent -> completeCreate
 
-    data->object = m_delegate->beginCreate(qmlContext(this));
-    if (data->object) {
-        m_delegate->setInitialProperties(data->object, tmp);
-        data->object->setParent(parent);
-        if (auto item = qobject_cast<QQuickItem*>(data->object))
+    QObject *rv = m_delegate->beginCreate(qmlContext(this));
+    if (rv) {
+        m_delegate->setInitialProperties(rv, tmp);
+        rv->setParent(parent);
+        if (auto item = qobject_cast<QQuickItem*>(rv))
             item->setParentItem(qobject_cast<QQuickItem*>(parent));
         m_delegate->completeCreate();
+        if (!d->requiredProperties().empty()) {
+            for (const auto &unsetRequiredProperty : std::as_const(d->requiredProperties())) {
+                const QQmlError error = QQmlComponentPrivate::unsetRequiredPropertyToQQmlError(unsetRequiredProperty);
+                qmlWarning(rv, error);
+            }
+            d->requiredProperties().clear();
+            rv->deleteLater();
+            rv = nullptr;
+        }
     }
+    data->object = rv;
 #endif
 
     if (data->object) {

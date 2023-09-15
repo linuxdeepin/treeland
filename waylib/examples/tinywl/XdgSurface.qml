@@ -6,6 +6,7 @@ import Waylib.Server
 
 XdgSurfaceItem {
     required property WaylandXdgSurface waylandSurface
+    property string type
 
     surface: waylandSurface
 
