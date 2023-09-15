@@ -82,7 +82,8 @@ void WQuickCursorPrivate::updateRenderWindows()
 
     W_Q(WQuickCursor);
     for (auto o : q->layout()->outputs()) {
-        QObject::connect(o, SIGNAL(windowChanged(QQuickWindow*)), q, SLOT(updateRenderWindows()));
+        QObject::connect(o, SIGNAL(windowChanged(QQuickWindow*)),
+                         q, SLOT(updateRenderWindows()), Qt::UniqueConnection);
 
         auto renderWindow = qobject_cast<WOutputRenderWindow*>(o->window());
         if (!renderWindow)
@@ -140,12 +141,22 @@ void WQuickCursorPrivate::setCurrentRenderWindow(WOutputRenderWindow *window)
 
 void WQuickCursorPrivate::onRenderWindowAdded(WOutputRenderWindow *window)
 {
-    Q_UNUSED(window);
+    W_Q(WQuickCursor);
+    bool ok = QObject::connect(window, SIGNAL(xChanged(int)), q, SLOT(updateCurrentRenderWindow()));
+    ok = ok && QObject::connect(window, SIGNAL(yChanged(int)), q, SLOT(updateCurrentRenderWindow()));
+    ok = ok && QObject::connect(window, SIGNAL(widthChanged(int)), q, SLOT(updateCurrentRenderWindow()));
+    ok = ok && QObject::connect(window, SIGNAL(heightChanged(int)), q, SLOT(updateCurrentRenderWindow()));
+    Q_ASSERT(ok);
 }
 
 void WQuickCursorPrivate::onRenderWindowRemoved(WOutputRenderWindow *window)
 {
-    Q_UNUSED(window);
+    W_Q(WQuickCursor);
+    bool ok = QObject::disconnect(window, SIGNAL(xChanged(int)), q, SLOT(updateCurrentRenderWindow()));
+    ok = ok && QObject::disconnect(window, SIGNAL(yChanged(int)), q, SLOT(updateCurrentRenderWindow()));
+    ok = ok && QObject::disconnect(window, SIGNAL(widthChanged(int)), q, SLOT(updateCurrentRenderWindow()));
+    ok = ok && QObject::disconnect(window, SIGNAL(heightChanged(int)), q, SLOT(updateCurrentRenderWindow()));
+    Q_ASSERT(ok);
 }
 
 void WQuickCursorPrivate::onCursorPositionChanged()

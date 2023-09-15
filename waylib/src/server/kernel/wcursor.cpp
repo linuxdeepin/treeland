@@ -198,9 +198,6 @@ void WCursorPrivate::updateCursorImage()
     if (seat && seat->pointerFocusSurface())
         return; // Using the wl_client's cursor resource
 
-    if (!eventWindow)
-        return;
-
     surfaceOfCursor.clear();
 
     if (!visible)

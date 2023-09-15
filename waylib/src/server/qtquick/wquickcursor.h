@@ -84,6 +84,7 @@ private:
     void componentComplete() override;
 
     W_PRIVATE_SLOT(void updateRenderWindows())
+    W_PRIVATE_SLOT(void updateCurrentRenderWindow())
     W_PRIVATE_SLOT(void updateXCursorManager())
 };
 
