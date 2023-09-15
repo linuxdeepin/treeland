@@ -409,6 +409,8 @@ void WXWaylandSurfaceItem::initSurface()
 {
     WSurfaceItem::initSurface();
     Q_ASSERT(m_surface);
+    connect(m_surface->handle(), &QWXWaylandSurface::beforeDestroy,
+            this, &WXWaylandSurfaceItem::releaseResources);
     updatePosition();
 }
 

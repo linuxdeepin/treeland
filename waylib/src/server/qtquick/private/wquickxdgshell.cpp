@@ -149,6 +149,8 @@ void WXdgSurfaceItem::initSurface()
 {
     WSurfaceItem::initSurface();
     Q_ASSERT(m_surface);
+    connect(m_surface->handle(), &QWXdgSurface::beforeDestroy,
+            this, &WXdgSurfaceItem::releaseResources);
 }
 
 bool WXdgSurfaceItem::resizeSurface(const QSize &newSize)

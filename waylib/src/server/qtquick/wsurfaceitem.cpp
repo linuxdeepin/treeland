@@ -658,6 +658,12 @@ void WSurfaceItem::releaseResources()
     if (d->frameDoneConnection)
         QObject::disconnect(d->frameDoneConnection);
 
+    if (d->surface) {
+        d->surface->disconnect(this);
+        if (auto qwsurface = d->surface->handle())
+            qwsurface->disconnect(this);
+    }
+
     if (!d->surfaceFlags.testFlag(DontCacheLastBuffer)) {
         for (auto item : d->subsurfaces) {
             item->releaseResources();
