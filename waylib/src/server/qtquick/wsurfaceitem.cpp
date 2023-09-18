@@ -85,6 +85,9 @@ public:
                       paddings.top() + paddings.bottom());
     }
 
+    qreal getImplicitWidth() const override;
+    qreal getImplicitHeight() const override;
+
     Q_DECLARE_PUBLIC(WSurfaceItem)
     QPointer<WSurface> surface;
     std::unique_ptr<SurfaceState> surfaceState;
@@ -523,6 +526,7 @@ void WSurfaceItem::setRightPadding(qreal newRightPadding)
         return;
     d->paddings.setRight(newRightPadding);
     d->onPaddingsChanged();
+    d->implicitWidthChanged();
     Q_EMIT rightPaddingChanged();
 }
 
@@ -539,6 +543,7 @@ void WSurfaceItem::setLeftPadding(qreal newLeftPadding)
         return;
     d->paddings.setLeft(newLeftPadding);
     d->onPaddingsChanged();
+    d->implicitWidthChanged();
     Q_EMIT leftPaddingChanged();
 }
 
@@ -555,6 +560,7 @@ void WSurfaceItem::setBottomPadding(qreal newBottomPadding)
         return;
     d->paddings.setBottom(newBottomPadding);
     d->onPaddingsChanged();
+    d->implicitHeightChanged();
     Q_EMIT bottomPaddingChanged();
 }
 
@@ -571,6 +577,7 @@ void WSurfaceItem::setTopPadding(qreal newTopPadding)
         return;
     d->paddings.setTop(newTopPadding);
     d->onPaddingsChanged();
+    d->implicitHeightChanged();
     Q_EMIT topPaddingChanged();
 }
 
@@ -760,8 +767,15 @@ void WSurfaceItem::updateSurfaceState()
         d->surfaceState->bufferSourceBox = d->surface->handle()->getBufferSourceBox();
         d->surfaceState->bufferOffset = d->surface->bufferOffset();
     }
+
+    auto oldSize = d->surfaceState->contentGeometry.size();
     d->surfaceState->contentGeometry = getContentGeometry();
     d->surfaceState->contentSize = getContentSize();
+
+    if (!qFuzzyCompare(oldSize.width(), d->surfaceState->contentGeometry.width()))
+        implicitWidthChanged();
+    if (!qFuzzyCompare(oldSize.height(), d->surfaceState->contentGeometry.height()))
+        implicitHeightChanged();
 }
 
 WSurfaceItemPrivate::WSurfaceItemPrivate()
@@ -954,6 +968,24 @@ void WSurfaceItemPrivate::updateEventItem(bool forceDestroy)
     }
 
     Q_EMIT q_func()->eventItemChanged();
+}
+
+qreal WSurfaceItemPrivate::getImplicitWidth() const
+{
+    const auto ps = paddingsSize();
+    if (!surfaceState)
+        return ps.width();
+
+    return surfaceState->contentGeometry.width() + ps.width();
+}
+
+qreal WSurfaceItemPrivate::getImplicitHeight() const
+{
+    const auto ps = paddingsSize();
+    if (!surfaceState)
+        return ps.height();
+
+    return surfaceState->contentGeometry.height() + ps.height();
 }
 
 WAYLIB_SERVER_END_NAMESPACE
