@@ -30,11 +30,7 @@ install(FILES
         WORLD_READ WORLD_EXECUTE
 )
 
-install(DIRECTORY
-    "wayland-sessions"
-    DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}"
-)
-
+add_subdirectory(wayland-sessions)
 if(BUILD_MAN_PAGES)
     add_subdirectory(man)
 endif()
