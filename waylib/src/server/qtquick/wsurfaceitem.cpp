@@ -56,6 +56,7 @@ struct SurfaceState {
     QPoint bufferOffset;
     QRectF contentGeometry;
     QSizeF contentSize;
+    qreal bufferScale = 1.0;
 };
 
 class WSurfaceItemPrivate : public QQuickItemPrivate
@@ -75,10 +76,12 @@ public:
     void onHasSubsurfaceChanged();
     void updateSubsurfaceItem();
     void onPaddingsChanged();
+    void updateContentItemPosition();
     WSurfaceItem *ensureSubsurfaceItem(WSurface *subsurfaceSurface);
 
     void resizeSurfaceToItemSize(const QSize &itemSize, const QSize &sizeDiff);
     void updateEventItem(bool forceDestroy);
+    void doResize(WSurfaceItem::ResizeMode mode);
 
     inline QSizeF paddingsSize() const {
         return QSizeF(paddings.left() + paddings.right(),
@@ -97,6 +100,7 @@ public:
     WSurfaceItem::Flags surfaceFlags;
     QMarginsF paddings;
     QList<WSurfaceItem*> subsurfaces;
+    qreal surfaceSizeRatio = 1.0;
 
     QMetaObject::Connection frameDoneConnection;
     uint32_t beforeRequestResizeSurfaceStateSeq = 0;
@@ -469,24 +473,20 @@ void WSurfaceItem::setResizeMode(ResizeMode newResizeMode)
 
 void WSurfaceItem::resize(ResizeMode mode)
 {
-    Q_ASSERT(mode != ManualResize);
     Q_D(WSurfaceItem);
-    Q_ASSERT(d->surfaceState);
+
+    if (mode == ManualResize) {
+        qmlWarning(this) << "Can't resize WSurfaceItem for ManualResize mode.";
+        return;
+    }
+
+    if (!d->surfaceState)
+        return;
 
     if (!d->effectiveVisible)
         return;
 
-    if (mode == SizeFromSurface) {
-        const QSizeF content = d->surfaceState->contentGeometry.size() + d->paddingsSize();
-        setSize(content);
-    } else if (mode == SizeToSurface) {
-        const QSizeF newSize = size() - d->paddingsSize();
-        const QSizeF oldSize = d->surfaceState->contentGeometry.size();
-
-        d->resizeSurfaceToItemSize(newSize.toSize(), (newSize - oldSize).toSize());
-    } else {
-        qWarning() << "Invalid resize mode" << mode;
-    }
+    d->doResize(mode);
 }
 
 bool WSurfaceItem::effectiveVisible() const
@@ -528,6 +528,31 @@ void WSurfaceItem::setRightPadding(qreal newRightPadding)
     d->onPaddingsChanged();
     d->implicitWidthChanged();
     Q_EMIT rightPaddingChanged();
+}
+
+qreal WSurfaceItem::surfaceSizeRatio() const
+{
+    Q_D(const WSurfaceItem);
+    return d->surfaceSizeRatio;
+}
+
+void WSurfaceItem::setSurfaceSizeRatio(qreal ssr)
+{
+    Q_D(WSurfaceItem);
+
+    if (qFuzzyCompare(ssr, d->surfaceSizeRatio))
+        return;
+    d->surfaceSizeRatio = ssr;
+    Q_EMIT surfaceSizeRatioChanged();
+
+    surfaceSizeRatioChange();
+}
+
+qreal WSurfaceItem::bufferScale() const
+{
+    Q_D(const WSurfaceItem);
+
+    return d->surfaceState ? d->surfaceState->bufferScale : 1.0;
 }
 
 qreal WSurfaceItem::leftPadding() const
@@ -606,11 +631,12 @@ void WSurfaceItem::geometryChange(const QRectF &newGeometry, const QRectF &oldGe
             const QSizeF newSize = newGeometry.size();
             const QSizeF oldSize = oldGeometry.size();
 
-            d->resizeSurfaceToItemSize((newSize - d->paddingsSize()).toSize(),
-                                       (newSize - oldSize).toSize());
+            d->resizeSurfaceToItemSize(((newSize - d->paddingsSize()) * d->surfaceSizeRatio).toSize(),
+                                       ((newSize - oldSize) * d->surfaceSizeRatio).toSize());
         }
     } else if (!d->surface && d->resizeMode != ManualResize) {
-        d->contentItem->setSize(d->contentItem->size() + newGeometry.size() - oldGeometry.size());
+        d->contentItem->setSize(d->contentItem->size() +
+                                (newGeometry.size() - oldGeometry.size()) * d->surfaceSizeRatio);
     }
 }
 
@@ -628,7 +654,7 @@ void WSurfaceItem::itemChange(ItemChange change, const ItemChangeData &data)
 
             if (d->effectiveVisible) {
                 if (d->resizeMode != ManualResize)
-                    resize(d->resizeMode);
+                    d->doResize(d->resizeMode);
                 d->contentItem->setSize(d->surfaceState->contentSize);
             }
         }
@@ -722,13 +748,13 @@ void WSurfaceItem::onSurfaceCommit()
             d->beforeRequestResizeSurfaceStateSeq = 0;
         }
 
-        if (d->resizeMode == WSurfaceItem::SizeFromSurface)
-            resize(d->resizeMode);
+        if (d->effectiveVisible) {
+            if (d->resizeMode == WSurfaceItem::SizeFromSurface)
+                d->doResize(d->resizeMode);
 
-        if (d->effectiveVisible)
             d->contentItem->setSize(d->surfaceState->contentSize);
-        d->contentItem->setPosition(-d->surfaceState->contentGeometry.topLeft()
-                                    + QPointF(d->paddings.left(), d->paddings.top()));
+        }
+        d->updateContentItemPosition();
     }
 
     d->updateSubsurfaceItem();
@@ -759,13 +785,35 @@ bool WSurfaceItem::inputRegionContains(const QPointF &position) const
     return d->surface->inputRegionContains(position);
 }
 
+void WSurfaceItem::surfaceSizeRatioChange()
+{
+    Q_D(WSurfaceItem);
+
+    if (d->resizeMode != ManualResize)
+        resize(d->resizeMode);
+
+    d->contentItem->setTransformOrigin(QQuickItem::TopLeft);
+    d->contentItem->setScale(1.0 / d->surfaceSizeRatio);
+
+    if (d->surfaceState) {
+        d->updateContentItemPosition();
+    }
+
+    if (d->surface) {
+        d->updateSubsurfaceItem();
+    }
+}
+
 void WSurfaceItem::updateSurfaceState()
 {
     Q_D(WSurfaceItem);
 
+    bool bufferScaleChanged = false;
     if (Q_LIKELY(d->surface)) {
         d->surfaceState->bufferSourceBox = d->surface->handle()->getBufferSourceBox();
         d->surfaceState->bufferOffset = d->surface->bufferOffset();
+        bufferScaleChanged = !qFuzzyCompare(d->surfaceState->bufferScale, d->surface->bufferScale());
+        d->surfaceState->bufferScale = d->surface->bufferScale();
     }
 
     auto oldSize = d->surfaceState->contentGeometry.size();
@@ -776,6 +824,9 @@ void WSurfaceItem::updateSurfaceState()
         implicitWidthChanged();
     if (!qFuzzyCompare(oldSize.height(), d->surfaceState->contentGeometry.height()))
         implicitHeightChanged();
+
+    if (bufferScaleChanged)
+        Q_EMIT this->bufferScaleChanged();
 }
 
 WSurfaceItemPrivate::WSurfaceItemPrivate()
@@ -862,13 +913,15 @@ void WSurfaceItemPrivate::updateSubsurfaceItem()
         if (!surface)
             continue;
         WSurfaceItem *item = ensureSubsurfaceItem(surface);
+        item->setSurfaceSizeRatio(surfaceSizeRatio);
         Q_ASSERT(item->parentItem() == q);
         if (prev) {
             Q_ASSERT(prev->parentItem() == item->parentItem());
             item->stackAfter(prev);
         }
         prev = item;
-        item->setPosition(contentItem->position() + QPointF(subsurface->current.x, subsurface->current.y));
+        const QPointF pos = contentItem->position() + QPointF(subsurface->current.x, subsurface->current.y) / surfaceSizeRatio;
+        item->setPosition(pos);
     }
 
     if (prev)
@@ -880,11 +933,13 @@ void WSurfaceItemPrivate::updateSubsurfaceItem()
         if (!surface)
             continue;
         WSurfaceItem *item = ensureSubsurfaceItem(surface);
+        item->setSurfaceSizeRatio(surfaceSizeRatio);
         Q_ASSERT(item->parentItem() == q);
         Q_ASSERT(prev->parentItem() == item->parentItem());
         item->stackAfter(prev);
         prev = item;
-        item->setPosition(contentItem->position() + QPointF(subsurface->current.x, subsurface->current.y));
+        const QPointF pos = contentItem->position() + QPointF(subsurface->current.x, subsurface->current.y) / surfaceSizeRatio;
+        item->setPosition(pos);
     }
 }
 
@@ -895,13 +950,19 @@ void WSurfaceItemPrivate::onPaddingsChanged()
     if (!surface || !surfaceState)
         return;
 
-    if (resizeMode != WSurfaceItem::ManualResize)
-        q->resize(resizeMode);
-    contentItem->setPosition(-surfaceState->contentGeometry.topLeft()
-                             + QPointF(paddings.left(), paddings.top()));
+    if (resizeMode != WSurfaceItem::ManualResize && effectiveVisible)
+        doResize(resizeMode);
+    updateContentItemPosition();
 
     // subsurfae need contentItem's position
     updateSubsurfaceItem();
+}
+
+void WSurfaceItemPrivate::updateContentItemPosition()
+{
+    Q_ASSERT(surfaceState);
+    contentItem->setPosition(-surfaceState->contentGeometry.topLeft() / surfaceSizeRatio
+                             + QPointF(paddings.left(), paddings.top()));
 }
 
 WSurfaceItem *WSurfaceItemPrivate::ensureSubsurfaceItem(WSurface *subsurfaceSurface)
@@ -936,7 +997,7 @@ void WSurfaceItemPrivate::resizeSurfaceToItemSize(const QSize &itemSize, const Q
 {
     Q_Q(WSurfaceItem);
 
-    Q_ASSERT_X(itemSize == (q->size() - paddingsSize()).toSize(), "WSurfaceItem",
+    Q_ASSERT_X(itemSize == ((q->size() - paddingsSize()) * surfaceSizeRatio).toSize(), "WSurfaceItem",
                "The function only using for reisze wl_surface's size to the WSurfaceItem's current size");
 
     if (!surface) {
@@ -968,6 +1029,26 @@ void WSurfaceItemPrivate::updateEventItem(bool forceDestroy)
     }
 
     Q_EMIT q_func()->eventItemChanged();
+}
+
+void WSurfaceItemPrivate::doResize(WSurfaceItem::ResizeMode mode)
+{
+    Q_ASSERT(mode != WSurfaceItem::ManualResize);
+    Q_ASSERT(effectiveVisible);
+    Q_ASSERT(surfaceState);
+    Q_Q(WSurfaceItem);
+
+    if (mode == WSurfaceItem::SizeFromSurface) {
+        const QSizeF content = (surfaceState->contentGeometry.size() / surfaceSizeRatio) + paddingsSize();
+        q->setSize(content);
+    } else if (mode == WSurfaceItem::SizeToSurface) {
+        const QSizeF newSize = (q->size() - paddingsSize()) * surfaceSizeRatio;
+        const QSizeF oldSize = surfaceState->contentGeometry.size();
+
+        resizeSurfaceToItemSize(newSize.toSize(), (newSize - oldSize).toSize());
+    } else {
+        qWarning() << "Invalid resize mode" << mode;
+    }
 }
 
 qreal WSurfaceItemPrivate::getImplicitWidth() const

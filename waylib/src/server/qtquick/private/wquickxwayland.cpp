@@ -288,7 +288,7 @@ void WXWaylandSurfaceItem::setSurface(WXWaylandSurface *surface)
                 resize(rm);
             }
             if (m_positionMode == PositionFromSurface) {
-                move(m_positionMode);
+                doMove(m_positionMode);
             }
         };
 
@@ -317,6 +317,27 @@ void WXWaylandSurfaceItem::setSurface(WXWaylandSurface *surface)
     Q_EMIT surfaceChanged();
 }
 
+WXWaylandSurfaceItem *WXWaylandSurfaceItem::parentSurfaceItem() const
+{
+    return m_parentSurfaceItem;
+}
+
+void WXWaylandSurfaceItem::setParentSurfaceItem(WXWaylandSurfaceItem *newParentSurfaceItem)
+{
+    if (m_parentSurfaceItem == newParentSurfaceItem)
+        return;
+    if (m_parentSurfaceItem) {
+        m_parentSurfaceItem->disconnect(this);
+    }
+
+    m_parentSurfaceItem = newParentSurfaceItem;
+    Q_EMIT parentSurfaceItemChanged();
+
+    if (m_parentSurfaceItem)
+        connect(m_parentSurfaceItem, &WSurfaceItem::surfaceSizeRatioChanged, this, &WXWaylandSurfaceItem::updatePosition);
+    checkMove(m_positionMode);
+}
+
 QSize WXWaylandSurfaceItem::maximumSize() const
 {
     return m_maximumSize;
@@ -342,16 +363,15 @@ void WXWaylandSurfaceItem::setPositionMode(PositionMode newPositionMode)
 
 void WXWaylandSurfaceItem::move(PositionMode mode)
 {
-    Q_ASSERT(mode != ManualPosition);
+    if (mode == ManualPosition) {
+        qmlWarning(this) << "Can't move WXWaylandSurfaceItem for ManualPosition mode.";
+        return;
+    }
 
     if (!isVisible())
         return;
 
-    if (mode == PositionFromSurface) {
-        setPosition(expectSurfacePosition(mode) - m_positionOffset - QPointF(leftPadding(), topPadding()));
-    } else if (mode == PositionToSurface) {
-        configureSurface(QRect(expectSurfacePosition(mode), expectSurfaceSize(resizeMode())));
-    }
+    doMove(mode);
 }
 
 QPointF WXWaylandSurfaceItem::positionOffset() const
@@ -430,7 +450,7 @@ QRectF WXWaylandSurfaceItem::getContentGeometry() const
 
 QSizeF WXWaylandSurfaceItem::getContentSize() const
 {
-    return size() - QSizeF(leftPadding() + rightPadding(), topPadding() + bottomPadding());
+    return (size() - QSizeF(leftPadding() + rightPadding(), topPadding() + bottomPadding())) * surfaceSizeRatio();
 }
 
 void WXWaylandSurfaceItem::geometryChange(const QRectF &newGeometry, const QRectF &oldGeometry)
@@ -444,13 +464,31 @@ void WXWaylandSurfaceItem::geometryChange(const QRectF &newGeometry, const QRect
     }
 }
 
+void WXWaylandSurfaceItem::doMove(PositionMode mode)
+{
+    Q_ASSERT(mode != ManualPosition);
+    Q_ASSERT(isVisible());
+
+    if (mode == PositionFromSurface) {
+        const QPoint epos = expectSurfacePosition(mode);
+        QPointF pos = epos;
+
+        const qreal ssr = m_parentSurfaceItem ? m_parentSurfaceItem->surfaceSizeRatio() : 1.0;
+        const auto pt = parentItem();
+        if (pt && !qFuzzyCompare(ssr, 1.0)) {
+            const QPoint pepos = m_parentSurfaceItem->expectSurfacePosition(mode);
+            pos = pepos + (epos - pepos) / ssr;
+        }
+
+        setPosition(pos - m_positionOffset - QPointF(leftPadding(), topPadding()));
+    } else if (mode == PositionToSurface) {
+        configureSurface(QRect(expectSurfacePosition(mode), expectSurfaceSize(resizeMode())));
+    }
+}
+
 void WXWaylandSurfaceItem::updatePosition()
 {
-    if (!m_surface)
-        return;
-
-    if (m_positionMode != ManualPosition)
-        move(m_positionMode);
+    checkMove(m_positionMode);
 }
 
 void WXWaylandSurfaceItem::configureSurface(const QRect &newGeometry)
@@ -471,7 +509,16 @@ QPoint WXWaylandSurfaceItem::expectSurfacePosition(PositionMode mode) const
                    ? m_surface->requestConfigureGeometry().topLeft()
                    : m_surface->geometry().topLeft();
     } else if (mode == PositionToSurface) {
-        return (position() + m_positionOffset + QPointF(leftPadding(), topPadding())).toPoint();
+        QPointF pos = position();
+        const qreal ssr = m_parentSurfaceItem ? m_parentSurfaceItem->surfaceSizeRatio() : 1.0;
+        const auto pt = parentItem();
+        if (pt && !qFuzzyCompare(ssr, 1.0)) {
+            const QPointF poffset(m_parentSurfaceItem->leftPadding(), m_parentSurfaceItem->topPadding());
+            pos = pt->mapToItem(m_parentSurfaceItem, pos) - poffset;
+            pos = pt->mapFromItem(m_parentSurfaceItem, pos * ssr + poffset);
+        }
+
+        return (pos + m_positionOffset + QPointF(leftPadding(), topPadding())).toPoint();
     }
 
     return m_surface->geometry().topLeft();

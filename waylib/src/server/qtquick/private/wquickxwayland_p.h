@@ -105,6 +105,7 @@ class WAYLIB_SERVER_EXPORT WXWaylandSurfaceItem : public WSurfaceItem
 {
     Q_OBJECT
     Q_PROPERTY(WXWaylandSurface* surface READ surface WRITE setSurface NOTIFY surfaceChanged)
+    Q_PROPERTY(WXWaylandSurfaceItem* parentSurfaceItem READ parentSurfaceItem WRITE setParentSurfaceItem NOTIFY parentSurfaceItemChanged FINAL)
     Q_PROPERTY(QSize minimumSize READ minimumSize NOTIFY minimumSizeChanged FINAL)
     Q_PROPERTY(QSize maximumSize READ maximumSize NOTIFY maximumSizeChanged FINAL)
     Q_PROPERTY(PositionMode positionMode READ positionMode WRITE setPositionMode NOTIFY positionModeChanged FINAL)
@@ -126,6 +127,9 @@ public:
     WXWaylandSurface *surface() const;
     void setSurface(WXWaylandSurface *surface);
 
+    WXWaylandSurfaceItem *parentSurfaceItem() const;
+    void setParentSurfaceItem(WXWaylandSurfaceItem *newParentSurfaceItem);
+
     QSize minimumSize() const;
     QSize maximumSize() const;
 
@@ -141,6 +145,7 @@ public:
 
 Q_SIGNALS:
     void surfaceChanged();
+    void parentSurfaceItemChanged();
     void minimumSizeChanged();
     void maximumSizeChanged();
     void positionModeChanged();
@@ -155,13 +160,22 @@ private:
     QSizeF getContentSize() const override;
     void geometryChange(const QRectF &newGeometry, const QRectF &oldGeometry) override;
 
+    inline void checkMove(PositionMode mode) {
+        if (!m_surface || mode == ManualPosition || !isVisible())
+            return;
+        doMove(mode);
+    }
+    void doMove(PositionMode mode);
     Q_SLOT void updatePosition();
     void configureSurface(const QRect &newGeometry);
+    // get xwayland surface's position of specified mode
     QPoint expectSurfacePosition(PositionMode mode) const;
+    // get xwayland surface's size of specified mode
     QSize expectSurfaceSize(ResizeMode mode) const;
 
 private:
     QPointer<WXWaylandSurface> m_surface;
+    QPointer<WXWaylandSurfaceItem> m_parentSurfaceItem;
     QSize m_minimumSize;
     QSize m_maximumSize;
     PositionMode m_positionMode = PositionFromSurface;
