@@ -19,6 +19,7 @@ Item {
     property CoordMapper outputCoordMapper
     property bool mapped: waylandSurface.surface && waylandSurface.surface.mapped && waylandSurface.WaylandSocket.rootSocket.enabled
     property bool pendingDestroy: false
+    property bool isMaximize: waylandSurface && waylandSurface.isMaximized && outputCoordMapper
 
     Binding {
         target: surface
@@ -26,7 +27,7 @@ Item {
         restoreMode: Binding.RestoreNone
         value: State {
             name: "maximize"
-            when: waylandSurface && waylandSurface.isMaximized && outputCoordMapper
+            when: isMaximize
             PropertyChanges {
                 restoreEntryValues: true
                 target: root.surface
