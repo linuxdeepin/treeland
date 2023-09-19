@@ -11,7 +11,7 @@
 #include "waylandsocketproxy.h"
 #include "waylandserver.h"
 #include "shortcut.h"
-
+#include "SignalHandler.h"
 #include "UserModel.h"
 
 #include <WServer>
@@ -186,5 +186,8 @@ int main (int argc, char *argv[]) {
     QGuiApplication::setQuitOnLastWindowClosed(false);
 
     TreeLand::TreeLand treeland(argc, argv);
+
+    SignalHandler s;
+
     return treeland.exec();
 }
