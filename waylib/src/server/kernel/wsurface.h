@@ -34,6 +34,7 @@ class WAYLIB_SERVER_EXPORT WSurface : public QObject, public WObject
     Q_PROPERTY(bool hasSubsurface READ hasSubsurface NOTIFY hasSubsurfaceChanged)
     Q_PROPERTY(QList<WSurface*> subsurfaces READ subsurfaces NOTIFY newSubsurface)
     Q_PROPERTY(WOutput* primaryOutput READ primaryOutput NOTIFY primaryOutputChanged)
+    Q_PROPERTY(uint32_t preferredBufferScale READ preferredBufferScale WRITE setPreferredBufferScale RESET resetPreferredBufferScale NOTIFY preferredBufferScaleChanged FINAL)
     QML_NAMED_ELEMENT(WaylandSurface)
     QML_UNCREATABLE("Only create in C++")
 
@@ -61,6 +62,10 @@ public:
     bool hasSubsurface() const;
     QList<WSurface*> subsurfaces() const;
 
+    uint32_t preferredBufferScale() const;
+    void setPreferredBufferScale(uint32_t newPreferredBufferScale);
+    void resetPreferredBufferScale();
+
 public Q_SLOTS:
     void enterOutput(WOutput *output);
     void leaveOutput(WOutput *output);
@@ -77,6 +82,7 @@ Q_SIGNALS:
     void isSubsurfaceChanged();
     void hasSubsurfaceChanged();
     void newSubsurface(WSurface *subsurface);
+    void preferredBufferScaleChanged();
 
 protected:
     WSurface(WSurfacePrivate &dd, QObject *parent);

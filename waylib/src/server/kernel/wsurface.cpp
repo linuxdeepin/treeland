@@ -113,8 +113,16 @@ void WSurfacePrivate::updateOutputs()
     outputs.clear();
     wlr_surface_output *output;
     wl_list_for_each(output, &nativeHandle()->current_outputs, link) {
-        outputs << WOutput::fromHandle(QWOutput::from(output->output));
+        auto qo = QWOutput::from(output->output);
+        if (!qo)
+            continue;
+        auto o = WOutput::fromHandle(qo);
+        if (!o)
+            continue;
+        outputs << o;
     }
+
+    updatePreferredBufferScale();
 }
 
 void WSurfacePrivate::setPrimaryOutput(WOutput *output)
@@ -156,6 +164,26 @@ void WSurfacePrivate::updateBuffer()
         buffer = QWBuffer::from(&handle->handle()->buffer->base);
 
     setBuffer(buffer);
+}
+
+void WSurfacePrivate::updatePreferredBufferScale()
+{
+    if (explicitPreferredBufferScale > 0)
+        return;
+
+    float maxScale = 1.0;
+    for (auto o : outputs)
+        maxScale = std::max(o->scale(), maxScale);
+    preferredBufferScale = qCeil(maxScale);
+    preferredBufferScaleChange();
+}
+
+void WSurfacePrivate::preferredBufferScaleChange()
+{
+    W_Q(WSurface);
+    if (handle)
+        handle->setPreferredBufferScale(q->preferredBufferScale());
+    Q_EMIT q->preferredBufferScaleChanged();
 }
 
 WSurface *WSurfacePrivate::ensureSubsurface(wlr_subsurface *subsurface)
@@ -296,6 +324,9 @@ void WSurface::enterOutput(WOutput *output)
     connect(output, &WOutput::destroyed, this, [d] {
         d->updateOutputs();
     });
+    connect(output, &WOutput::scaleChanged, this, [d] {
+        d->updatePreferredBufferScale();
+    });
 
     d->updateOutputs();
 
@@ -323,10 +354,7 @@ void WSurface::leaveOutput(WOutput *output)
         return;
     wlr_surface_send_leave(d->nativeHandle(), output->handle()->handle());
 
-    connect(output, &WOutput::destroyed, this, [d] {
-        d->updateOutputs();
-    });
-
+    output->disconnect(this);
     d->updateOutputs();
 
     if (d->primaryOutput == output) {
@@ -386,6 +414,32 @@ QList<WSurface*> WSurface::subsurfaces() const
     }
 
     return subsurfaeList;
+}
+
+uint32_t WSurface::preferredBufferScale() const
+{
+    W_DC(WSurface);
+    return d->explicitPreferredBufferScale > 0 ? d->explicitPreferredBufferScale : d->preferredBufferScale;
+}
+
+void WSurface::setPreferredBufferScale(uint32_t newPreferredBufferScale)
+{
+    W_D(WSurface);
+    if (d->explicitPreferredBufferScale == newPreferredBufferScale)
+        return;
+    const auto oldScale = preferredBufferScale();
+    d->explicitPreferredBufferScale = newPreferredBufferScale;
+    if (d->explicitPreferredBufferScale == 0)
+        d->updatePreferredBufferScale();
+
+    if (oldScale != preferredBufferScale()) {
+        d->preferredBufferScaleChange();
+    }
+}
+
+void WSurface::resetPreferredBufferScale()
+{
+    setPreferredBufferScale(0);
 }
 
 void WSurface::map()

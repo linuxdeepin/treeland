@@ -38,6 +38,8 @@ public:
     void setPrimaryOutput(WOutput *output);
     void setBuffer(QW_NAMESPACE::QWBuffer *newBuffer);
     void updateBuffer();
+    void updatePreferredBufferScale();
+    void preferredBufferScaleChange();
 
     WSurface *ensureSubsurface(wlr_subsurface *subsurface);
     void setSubsurface(QW_NAMESPACE::QWSubsurface *newSubsurface);
@@ -49,6 +51,8 @@ public:
     QPointer<QW_NAMESPACE::QWSurface> handle;
     QPointer<QW_NAMESPACE::QWSubsurface> subsurface;
     bool hasSubsurface = false;
+    uint32_t preferredBufferScale = 1;
+    uint32_t explicitPreferredBufferScale = 0;
 
     QW_NAMESPACE::QWBuffer *buffer = nullptr;
     QVector<WOutput*> outputs;
