@@ -65,6 +65,8 @@ void WQmlHelper::itemStackToTop(QQuickItem *item)
     auto children = parent->childItems();
     if (children.count() < 2)
         return;
+    if (children.last() == item)
+        return;
     item->stackAfter(children.last());
 }
 
