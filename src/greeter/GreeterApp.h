@@ -21,14 +21,15 @@
 #ifndef GREETERAPP_H
 #define GREETERAPP_H
 
-#include <qqml.h>
-#include <qqmlextensionplugin.h>
-#include <qscopedpointer.h>
+#include <QObject>
+#include <QScreen>
+#include <QQuickView>
 #include <QQmlEngine>
 #include <QQmlExtensionPlugin>
 
-#include "SessionModel.h"
 #include "UserModel.h"
+#include "KeyboardModel.h"
+#include "SessionModel.h"
 #include "GreeterProxy.h"
 
 class GreeterExtensionPlugin : public QQmlEngineExtensionPlugin
@@ -39,9 +40,10 @@ public:
     GreeterExtensionPlugin()
         : QQmlEngineExtensionPlugin()
     {
-        qmlRegisterType<SessionModel>("TreeLand.Greeter", 1, 0, "SessionModel");
-        qmlRegisterType<UserModel>("TreeLand.Greeter", 1, 0, "UserModel");
-        qmlRegisterType<GreeterProxy>("TreeLand.Greeter", 1, 0, "Proxy");
+        qmlRegisterType<SDDM::SessionModel>("TreeLand.Greeter", 1, 0, "SessionModel");
+        qmlRegisterType<SDDM::UserModel>("TreeLand.Greeter", 1, 0, "UserModel");
+        qmlRegisterType<SDDM::GreeterProxy>("TreeLand.Greeter", 1, 0, "Proxy");
+        qmlRegisterType<SDDM::KeyboardModel>("TreeLand.Greeter", 1, 0, "KeyboardModel");
     }
 
     void initializeEngine(QQmlEngine *engine, const char *uri) final

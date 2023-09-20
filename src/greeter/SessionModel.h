@@ -23,46 +23,47 @@
 
 #include "Session.h"
 
-#include <QQmlEngine>
-
 #include <QAbstractListModel>
+#include <QQmlEngine>
 
 #include <QHash>
 
-class SessionModelPrivate;
+namespace SDDM {
+    class SessionModelPrivate;
 
-class SessionModel : public QAbstractListModel {
-    Q_OBJECT
-    Q_DISABLE_COPY(SessionModel)
-    Q_PROPERTY(int lastIndex READ lastIndex CONSTANT)
-    QML_ELEMENT
-public:
-    enum SessionRole {
-        DirectoryRole = Qt::UserRole + 1,
-        FileRole,
-        TypeRole,
-        NameRole,
-        ExecRole,
-        CommentRole
+    class SessionModel : public QAbstractListModel {
+        Q_OBJECT
+        Q_DISABLE_COPY(SessionModel)
+        QML_ELEMENT
+
+        Q_PROPERTY(int lastIndex READ lastIndex CONSTANT)
+        Q_PROPERTY(int count READ rowCount CONSTANT)
+    public:
+        enum SessionRole {
+            DirectoryRole = Qt::UserRole + 1,
+            FileRole,
+            TypeRole,
+            NameRole,
+            ExecRole,
+            CommentRole
+        };
+        Q_ENUM(SessionRole)
+
+        SessionModel(QObject *parent = 0);
+        ~SessionModel();
+
+        QHash<int, QByteArray> roleNames() const override;
+
+        int lastIndex() const;
+
+        int rowCount(const QModelIndex &parent = QModelIndex()) const override;
+        QVariant data(const QModelIndex &index, int role = Qt::DisplayRole) const override;
+
+    private:
+        SessionModelPrivate *d { nullptr };
+
+        void populate(Session::Type type, const QStringList &dirPaths);
     };
-    Q_ENUM(SessionRole)
-
-    SessionModel(QObject *parent = 0);
-    ~SessionModel();
-
-    QHash<int, QByteArray> roleNames() const override;
-
-    int lastIndex() const;
-
-    int rowCount(const QModelIndex &parent = QModelIndex()) const override;
-    QVariant data(const QModelIndex &index, int role = Qt::DisplayRole) const override;
-
-private:
-    SessionModelPrivate *d { nullptr };
-
-    void populate(SDDM::Session::Type type, const QStringList &dirPaths);
-};
-
-QML_DECLARE_TYPE(SessionModel)
+}
 
 #endif // SDDM_SESSIONMODEL_H

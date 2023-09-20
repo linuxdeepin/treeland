@@ -5,8 +5,14 @@ set(GREETER_SOURCES
     UserModel.h
     GreeterApp.cpp
     GreeterProxy.cpp
+    KeyboardLayout.cpp
+    KeyboardModel.cpp
+    ScreenModel.cpp
     SessionModel.cpp
     UserModel.cpp
+    waylandkeyboardbackend.cpp
+    waylandkeyboardbackend.h
+    XcbKeyboardBackend.cpp
 )
 
 set(QML_IMPORT_PATH ${QML_IMPORT_PATH} ${CMAKE_CURRENT_BINARY_DIR}/ CACHE STRING "" FORCE)
@@ -46,6 +52,9 @@ target_link_libraries(greeterplugin
         common
         Qt${QT_MAJOR_VERSION}::Gui
         Qt${QT_MAJOR_VERSION}::Qml
+        Qt${QT_MAJOR_VERSION}::Quick
+        ${LIBXCB_LIBRARIES}
+        ${LIBXKB_LIBRARIES}
 )
 
 if(JOURNALD_FOUND)

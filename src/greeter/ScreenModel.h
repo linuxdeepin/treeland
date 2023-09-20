@@ -17,58 +17,51 @@
 * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 ***************************************************************************/
 
-#ifndef SDDM_USERMODEL_H
-#define SDDM_USERMODEL_H
+#ifndef SDDM_SCREENMODEL_H
+#define SDDM_SCREENMODEL_H
 
 #include <QAbstractListModel>
 
 #include <QHash>
+
 #include <QQmlEngine>
+#include <QRect>
+
+class QScreen;
 
 namespace SDDM {
-    class UserModelPrivate;
+    class ScreenModelPrivate;
 
-    class UserModel : public QAbstractListModel {
+    class ScreenModel : public QAbstractListModel {
         Q_OBJECT
-        Q_DISABLE_COPY(UserModel)
+        Q_DISABLE_COPY(ScreenModel)
+        Q_PROPERTY(int primary READ primary NOTIFY primaryChanged)
         QML_ELEMENT
-
-        Q_PROPERTY(int lastIndex READ lastIndex CONSTANT)
-        Q_PROPERTY(QString lastUser READ lastUser CONSTANT)
-        Q_PROPERTY(int count READ rowCount CONSTANT)
-        Q_PROPERTY(int disableAvatarsThreshold READ disableAvatarsThreshold CONSTANT)
-        Q_PROPERTY(bool containsAllUsers READ containsAllUsers CONSTANT)
     public:
-        enum UserRoles {
+        enum ScreenRoles {
             NameRole = Qt::UserRole + 1,
-            RealNameRole,
-            HomeDirRole,
-            IconRole,
-            NeedsPasswordRole,
-            LoginedRole,
+            GeometryRole
         };
-        Q_ENUM(UserRoles)
+        Q_ENUM(ScreenRoles)
 
-        UserModel(bool needAllUsers = true, QObject *parent = 0);
-        ~UserModel();
+        ScreenModel(QScreen *screen, QObject *parent = 0);
+        ~ScreenModel();
 
         QHash<int, QByteArray> roleNames() const override;
-
-        int lastIndex() const;
-        QString lastUser() const;
+        int primary() const;
 
         int rowCount(const QModelIndex &parent = QModelIndex()) const override;
         QVariant data(const QModelIndex &index, int role = Qt::DisplayRole) const override;
 
-        Q_INVOKABLE QVariant get(const QString &username) const;
+    public slots:
+        const QRect geometry(int index = -1) const;
 
-        void updateUserLoginState(const QString &username, bool logined);
+    signals:
+        void primaryChanged();
 
-        int disableAvatarsThreshold() const;
-        bool containsAllUsers() const;
     private:
-        UserModelPrivate *d { nullptr };
+        ScreenModelPrivate *d { nullptr };
     };
 }
 
-#endif // SDDM_USERMODEL_H
+#endif // SDDM_SCREENMODEL_H
