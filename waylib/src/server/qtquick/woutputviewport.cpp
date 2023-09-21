@@ -315,7 +315,7 @@ void WOutputViewportPrivate::updateCursors()
 
         quickCursor->setVisible(cursor->visible);
         quickCursor->setIsHardwareCursor(output->handle()->handle()->hardware_cursor == cursor);
-        const QPointF position = QPointF(cursor->x, cursor->y) / cursor->output->scale;
+        const QPointF position = QPointF(cursor->x, cursor->y) / cursor->output->scale + output->position();
         quickCursor->setPosition(position);
         quickCursor->setHotspot((QPointF(cursor->hotspot_x, cursor->hotspot_y) / cursor->output->scale).toPoint());
         quickCursor->setSize(QSizeF(cursor->width, cursor->height) / cursor->output->scale);

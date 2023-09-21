@@ -52,6 +52,11 @@ void WOutputLayout::move(WOutput *output, const QPoint &pos)
 {
     W_D(WOutputLayout);
     Q_ASSERT(d->outputs.contains(output));
+    Q_ASSERT(output->layout());
+
+    if (output->position() == pos)
+        return;
+
     QWOutputLayout::move(output->handle(), pos);
 }
 
