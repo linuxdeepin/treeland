@@ -27,6 +27,7 @@ class WAYLIB_SERVER_EXPORT WQuickBackend : public WQuickWaylandServerInterface, 
 {
     Q_OBJECT
     W_DECLARE_PRIVATE(WQuickBackend)
+    Q_PROPERTY(WSocket* ownsSocket READ ownsSocket CONSTANT)
     QML_NAMED_ELEMENT(WaylandBackend)
 
 public:

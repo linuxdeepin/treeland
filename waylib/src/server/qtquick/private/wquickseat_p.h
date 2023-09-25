@@ -62,6 +62,7 @@ private:
 
     void create() override;
     void polish() override;
+    void ownsSocketChange() override;
 };
 
 WAYLIB_SERVER_END_NAMESPACE

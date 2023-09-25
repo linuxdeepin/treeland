@@ -182,6 +182,12 @@ void WQuickXWayland::create()
     tryCreateXWayland();
 }
 
+void WQuickXWayland::ownsSocketChange()
+{
+    if (xwayland)
+        xwayland->setOwnsSocket(ownsSocket());
+}
+
 void WQuickXWayland::tryCreateXWayland()
 {
     if (!m_compositor)
@@ -190,6 +196,7 @@ void WQuickXWayland::tryCreateXWayland()
     Q_ASSERT(!xwayland);
 
     xwayland = server()->attach<XWayland>(this);
+    xwayland->setOwnsSocket(ownsSocket());
     connect(xwayland->handle(), &QWXWayland::ready, this, &WQuickXWayland::ready);
 
     Q_EMIT displayNameChanged();

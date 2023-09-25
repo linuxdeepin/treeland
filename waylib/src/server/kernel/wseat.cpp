@@ -964,6 +964,12 @@ void WSeat::destroy(WServer *)
     }
 }
 
+wl_global *WSeat::global() const
+{
+    W_D(const WSeat);
+    return d->nativeHandle()->global;
+}
+
 bool WSeat::filterEventBeforeDisposeStage(QWindow *targetWindow, QInputEvent *event)
 {
     W_D(WSeat);

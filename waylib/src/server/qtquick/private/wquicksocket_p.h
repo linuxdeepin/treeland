@@ -34,6 +34,7 @@ class WAYLIB_SERVER_EXPORT WQuickSocket : public WQuickWaylandServerInterface
     Q_PROPERTY(QString socketFile READ socketFile WRITE setSocketFile NOTIFY socketFileChanged FINAL)
     Q_PROPERTY(bool enabled READ enabled WRITE setEnabled NOTIFY enabledChanged FINAL)
     Q_PROPERTY(bool freezeClientWhenDisable READ freezeClientWhenDisable WRITE setFreezeClientWhenDisable NOTIFY freezeClientWhenDisableChanged FINAL)
+    Q_PROPERTY(WSocket* ownsSocket READ ownsSocket CONSTANT)
     QML_NAMED_ELEMENT(WaylandSocket)
     QML_ATTACHED(WQuickSocketAttached)
 

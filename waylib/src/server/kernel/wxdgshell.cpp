@@ -96,6 +96,7 @@ void WXdgShell::create(WServer *server)
     QObject::connect(xdg_shell, &QWXdgShell::newSurface, server->slotOwner(), [this] (wlr_xdg_surface *surface) {
         d_func()->on_new_xdg_surface(surface);
     });
+    m_handle = xdg_shell;
 }
 
 void WXdgShell::destroy(WServer *server)
@@ -110,6 +111,12 @@ void WXdgShell::destroy(WServer *server)
         surfaceRemoved(surface);
         surface->deleteLater();
     }
+}
+
+wl_global *WXdgShell::global() const
+{
+    auto handle = nativeInterface<QWXdgShell>();
+    return handle->handle()->global;
 }
 
 WAYLIB_SERVER_END_NAMESPACE

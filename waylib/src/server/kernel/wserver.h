@@ -27,6 +27,7 @@ typedef bool (*GlobalFilterFunc)(const wl_client *client,
                                  void *data);
 
 class WServer;
+class WSocket;
 class WServerInterface
 {
 public:
@@ -47,12 +48,22 @@ public:
         return m_server;
     }
 
+    inline void setOwnsSocket(const WSocket *socket) {
+        m_ownsSocket = socket;
+    }
+    inline const WSocket *ownsSocket() const {
+        return m_ownsSocket;
+    }
+
 protected:
     void *m_handle = nullptr;
     WServer *m_server = nullptr;
+    const WSocket *m_ownsSocket = nullptr;
 
     virtual void create(WServer *server) = 0;
     virtual void destroy(WServer *server) = 0;
+    virtual wl_global *global() const = 0;
+
     friend class WServer;
     friend class WServerPrivate;
 };
@@ -92,6 +103,7 @@ public:
     QVector<WServerInterface*> interfaceList() const;
     QVector<WServerInterface*> findInterfaces(void *handle) const;
     WServerInterface *findInterface(void *handle) const;
+    WServerInterface *findInterface(const wl_global *global) const;
     template<typename Interface>
     QVector<Interface*> findInterfaces() const {
         QVector<Interface*> list;

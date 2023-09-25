@@ -26,6 +26,7 @@ class WAYLIB_SERVER_EXPORT WXWaylandShellV1 : public WQuickWaylandServerInterfac
 {
     Q_OBJECT
     Q_PROPERTY(QW_NAMESPACE::QWXWaylandShellV1* shell READ shell NOTIFY shellChanged FINAL)
+    Q_PROPERTY(WSocket* ownsSocket READ ownsSocket CONSTANT)
     QML_NAMED_ELEMENT(XWaylandShellV1)
 
 public:
@@ -86,6 +87,7 @@ private:
     friend class XWayland;
 
     void create() override;
+    void ownsSocketChange() override;
     void tryCreateXWayland();
     void onIsToplevelChanged();
     void addSurface(WXWaylandSurface *surface);

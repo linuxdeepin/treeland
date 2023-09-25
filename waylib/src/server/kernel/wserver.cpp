@@ -56,6 +56,13 @@ WAYLIB_SERVER_BEGIN_NAMESPACE
 static bool globalFilter(const wl_client *client,
                          const wl_global *global,
                          void *data) {
+    WServerPrivate *d = reinterpret_cast<WServerPrivate*>(data);
+
+    if (auto interface = d->q_func()->findInterface(global)) {
+        if (interface->ownsSocket() && WSocket::get(client) != interface->ownsSocket())
+            return false;
+    }
+
 #ifndef DISABLE_XWAYLAND
     if (wl_global_get_interface(global)->name == QByteArrayView("xwayland_shell_v1")) {
         auto shell = reinterpret_cast<wlr_xwayland_shell_v1*>(wl_global_get_user_data(global));
@@ -63,7 +70,6 @@ static bool globalFilter(const wl_client *client,
     }
 #endif
 
-    WServerPrivate *d = reinterpret_cast<WServerPrivate*>(data);
     if (!d->globalFilterFunc)
         return true;
 
@@ -127,13 +133,14 @@ void WServerPrivate::stop()
 
     slotOwner.reset();
 
-    auto i = interfaceList.crbegin();
-    for (; i != interfaceList.crend(); ++i) {
+    auto list = interfaceList;
+    interfaceList.clear();
+    auto i = list.crbegin();
+    for (; i != list.crend(); ++i) {
         (*i)->destroy(q);
         delete *i;
     }
 
-    interfaceList.clear();
     sockNot.reset();
     QThread::currentThread()->eventDispatcher()->disconnect(q);
 
@@ -232,6 +239,16 @@ WServerInterface *WServer::findInterface(void *handle) const
 {
     Q_FOREACH(auto i, interfaceList()) {
         if (i->handle() == handle)
+            return i;
+    }
+
+    return nullptr;
+}
+
+WServerInterface *WServer::findInterface(const wl_global *global) const
+{
+    for (auto i : interfaceList()) {
+        if (i->global() == global)
             return i;
     }
 

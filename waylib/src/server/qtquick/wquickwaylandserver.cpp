@@ -14,6 +14,7 @@ public:
     Q_DECLARE_PUBLIC(WQuickWaylandServerInterface)
 
     bool isPolished = false;
+    WSocket *ownsSocket = nullptr;
 };
 
 class WQuickWaylandServerPrivate : public WServerPrivate
@@ -163,6 +164,23 @@ bool WQuickWaylandServerInterface::isPolished() const
     return d->isPolished;
 }
 
+WSocket *WQuickWaylandServerInterface::ownsSocket() const
+{
+    Q_D(const WQuickWaylandServerInterface);
+    return d->ownsSocket;
+}
+
+void WQuickWaylandServerInterface::setOwnsSocket(WSocket *socket)
+{
+    Q_D(WQuickWaylandServerInterface);
+    if (d->ownsSocket == socket)
+        return;
+    d->ownsSocket = socket;
+    Q_EMIT ownsSocketChanged();
+
+    ownsSocketChange();
+}
+
 void WQuickWaylandServerInterface::create()
 {
     Q_EMIT beforeCreate();
@@ -173,6 +191,11 @@ void WQuickWaylandServerInterface::polish()
     Q_D(WQuickWaylandServerInterface);
     d->isPolished = true;
     Q_EMIT afterPolish();
+}
+
+void WQuickWaylandServerInterface::ownsSocketChange()
+{
+
 }
 
 WQuickWaylandServer::WQuickWaylandServer(QObject *parent)

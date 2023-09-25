@@ -13,6 +13,7 @@
 extern "C" {
 #define class className
 #include <wlr/xwayland.h>
+#include <wlr/xwayland/shell.h>
 #undef class
 }
 
@@ -227,6 +228,11 @@ void WXWayland::destroy(WServer *server)
         surfaceRemoved(surface);
         surface->deleteLater();
     }
+}
+
+wl_global *WXWayland::global() const
+{
+    return handle()->handle()->shell_v1->global;
 }
 
 WAYLIB_SERVER_END_NAMESPACE

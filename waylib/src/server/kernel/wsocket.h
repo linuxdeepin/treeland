@@ -27,7 +27,7 @@ class WAYLIB_SERVER_EXPORT WSocket : public QObject, public WObject
 public:
     explicit WSocket(bool freezeClientWhenDisable, WSocket *parentSocket = nullptr, QObject *parent = nullptr);
 
-    static WSocket *get(wl_client *client);
+    static WSocket *get(const wl_client *client);
 
     WSocket *parentSocket() const;
     WSocket *rootSocket() const;

@@ -7,6 +7,8 @@
 #include <QQmlParserStatus>
 #include <QQmlEngine>
 
+Q_MOC_INCLUDE(<wsocket.h>)
+
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
 class WQuickWaylandServer;
@@ -17,6 +19,7 @@ class WAYLIB_SERVER_EXPORT WQuickWaylandServerInterface : public QObject
     Q_DECLARE_PRIVATE(WQuickWaylandServerInterface)
     QML_NAMED_ELEMENT(WaylandServerInterface)
     Q_PROPERTY(bool polished READ isPolished NOTIFY afterPolish)
+    Q_PROPERTY(WSocket* ownsSocket READ ownsSocket WRITE setOwnsSocket NOTIFY ownsSocketChanged)
 
 public:
     explicit WQuickWaylandServerInterface(QObject *parent = nullptr);
@@ -24,9 +27,13 @@ public:
     WQuickWaylandServer *server() const;
     bool isPolished() const;
 
+    WSocket *ownsSocket() const;
+    void setOwnsSocket(WSocket *socket);
+
 Q_SIGNALS:
     void beforeCreate();
     void afterPolish();
+    void ownsSocketChanged();
 
 protected:
     friend class WQuickWaylandServer;
@@ -34,6 +41,7 @@ protected:
 
     virtual void create();
     virtual void polish();
+    virtual void ownsSocketChange();
 };
 
 class WQuickWaylandServerPrivate;

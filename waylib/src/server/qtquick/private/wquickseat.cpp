@@ -208,6 +208,7 @@ void WQuickSeat::create()
     W_D(WQuickSeat);
     Q_ASSERT(!d->name.isEmpty());
     d->seat = server()->attach<WSeat>(d->name.toUtf8());
+    d->seat->setOwnsSocket(ownsSocket());
     if (d->eventFilter)
         d->seat->setEventFilter(d->eventFilter);
     if (d->keyboardFocus)
@@ -223,6 +224,13 @@ void WQuickSeat::polish()
         d->seat->setCursor(d->cursor);
         d->updateCursorMap();
     }
+}
+
+void WQuickSeat::ownsSocketChange()
+{
+    W_D(WQuickSeat);
+    if (d->seat)
+        d->seat->setOwnsSocket(ownsSocket());
 }
 
 WAYLIB_SERVER_END_NAMESPACE

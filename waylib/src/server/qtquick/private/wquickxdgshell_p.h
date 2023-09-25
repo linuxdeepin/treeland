@@ -37,6 +37,7 @@ Q_SIGNALS:
 
 private:
     void create() override;
+    void ownsSocketChange() override;
 };
 
 class WAYLIB_SERVER_EXPORT WXdgSurfaceItem : public WSurfaceItem

@@ -196,4 +196,9 @@ void WBackend::destroy(WServer *server)
     m_handle = nullptr;
 }
 
+wl_global *WBackend::global() const
+{
+    return nullptr;
+}
+
 WAYLIB_SERVER_END_NAMESPACE

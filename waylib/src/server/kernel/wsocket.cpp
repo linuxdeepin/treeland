@@ -155,7 +155,7 @@ struct WlClientDestroyListener {
 
     ~WlClientDestroyListener();
 
-    static WlClientDestroyListener *get(wl_client *client);
+    static WlClientDestroyListener *get(const wl_client *client);
     static void handle_destroy(struct wl_listener *listener, void *);
 
     wl_listener destroy;
@@ -167,9 +167,10 @@ WlClientDestroyListener::~WlClientDestroyListener()
     wl_list_remove(&destroy.link);
 }
 
-WlClientDestroyListener *WlClientDestroyListener::get(wl_client *client)
+WlClientDestroyListener *WlClientDestroyListener::get(const wl_client *client)
 {
-    wl_listener *listener = wl_client_get_destroy_listener(client, WlClientDestroyListener::handle_destroy);
+    wl_listener *listener = wl_client_get_destroy_listener(const_cast<wl_client*>(client),
+                                                           WlClientDestroyListener::handle_destroy);
     if (!listener) {
         return nullptr;
     }
@@ -264,7 +265,7 @@ WSocket::WSocket(bool freezeClientWhenDisable, WSocket *parentSocket, QObject *p
 
 }
 
-WSocket *WSocket::get(wl_client *client)
+WSocket *WSocket::get(const wl_client *client)
 {
     if (auto tmp = WlClientDestroyListener::get(client))
         return tmp->socket;
