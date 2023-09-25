@@ -56,13 +56,13 @@ OutputPositioner {
 
             switch(orientation) {
             case WaylandOutput.R90:
-                rotationAnimator.to = -90
+                rotationAnimator.to = 90
                 break
             case WaylandOutput.R180:
                 rotationAnimator.to = 180
                 break
             case WaylandOutput.R270:
-                rotationAnimator.to = 90
+                rotationAnimator.to = -90
                 break
             default:
                 rotationAnimator.to = 0
