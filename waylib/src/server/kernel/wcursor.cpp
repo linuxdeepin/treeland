@@ -538,8 +538,10 @@ void WCursor::setEventWindow(QWindow *window)
     if (d->eventWindow) {
         auto device = getDevice(d->seat->name());
         Q_ASSERT(device && WInputDevice::from(device));
-        QInputEvent event(QEvent::Leave, device);
-        QCoreApplication::sendEvent(d->eventWindow, &event);
+        if (WInputDevice::from(device)->seat()) {
+            QInputEvent event(QEvent::Leave, device);
+            QCoreApplication::sendEvent(d->eventWindow, &event);
+        }
     }
 
     d->eventWindow = window;
@@ -547,10 +549,12 @@ void WCursor::setEventWindow(QWindow *window)
     if (d->eventWindow) {
         auto device = getDevice(d->seat->name());
         Q_ASSERT(device && WInputDevice::from(device));
-        const QPointF global = position();
-        const QPointF local = global - d->eventWindow->position();
-        QEnterEvent event(local, local, global, device);
-        QCoreApplication::sendEvent(d->eventWindow, &event);
+        if (WInputDevice::from(device)->seat()) {
+            const QPointF global = position();
+            const QPointF local = global - d->eventWindow->position();
+            QEnterEvent event(local, local, global, device);
+            QCoreApplication::sendEvent(d->eventWindow, &event);
+        }
     }
 }
 

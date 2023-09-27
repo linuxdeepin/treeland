@@ -188,6 +188,7 @@ bool QWlrootsRenderWindow::beforeDisposeEventFilter(QEvent *event)
         auto ie = static_cast<QInputEvent*>(event);
         auto device = WInputDevice::from(ie->device());
         Q_ASSERT(device);
+        Q_ASSERT(device->seat());
         lastActiveCursor = device->seat()->cursor();
         return device->seat()->filterEventBeforeDisposeStage(window(), ie);
     }
