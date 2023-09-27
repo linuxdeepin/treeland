@@ -92,7 +92,7 @@ void WWaylandCompositor::create()
     d->renderer->initWlDisplay(display);
 
     // free follow display
-    d->compositor = QWCompositor::create(display, d->renderer);
+    d->compositor = QWCompositor::create(display, d->renderer, 6);
     d->subcompositor = QWSubcompositor::create(display);
 
     Q_EMIT rendererChanged();
