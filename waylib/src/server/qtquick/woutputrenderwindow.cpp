@@ -596,8 +596,6 @@ void WOutputRenderWindowPrivate::doRender()
             helper->resetState();
         helper->doneCurrent(glContext);
         helper->damageRing()->rotate();
-
-        Q_EMIT helper->output()->frameDone();
     }
 }
 

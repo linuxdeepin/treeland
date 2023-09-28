@@ -11,6 +11,21 @@ OutputItem {
     output: waylandOutput
     devicePixelRatio: waylandOutput.scale
     layout: QmlHelper.layout
+    cursorDelegate: Item {
+        required property OutputCursor cursor
+
+        visible: cursor.visible && !cursor.isHardwareCursor
+
+        Image {
+            source: cursor.imageSource
+            x: -cursor.hotspot.x
+            y: -cursor.hotspot.y
+            cache: false
+            width: cursor.size.width
+            height: cursor.size.height
+            sourceClipRect: cursor.sourceRect
+        }
+    }
 
     OutputViewport {
         id: outputViewport
@@ -18,21 +33,6 @@ OutputItem {
         output: waylandOutput
         devicePixelRatio: parent.devicePixelRatio
         anchors.centerIn: parent
-        cursorDelegate: Item {
-            required property OutputCursor cursor
-
-            visible: cursor.visible && !cursor.isHardwareCursor
-
-            Image {
-                source: cursor.imageSource
-                x: -cursor.hotspot.x
-                y: -cursor.hotspot.y
-                cache: false
-                width: cursor.size.width
-                height: cursor.size.height
-                sourceClipRect: cursor.sourceRect
-            }
-        }
 
         RotationAnimation {
             id: rotationAnimator

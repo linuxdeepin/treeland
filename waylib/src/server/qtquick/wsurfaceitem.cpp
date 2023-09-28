@@ -883,10 +883,7 @@ void WSurfaceItemPrivate::updateFrameDoneConnection()
         return;
 
     if (auto output = surface->primaryOutput()) {
-        auto viewport = WOutputViewport::get(output);
-        if (!viewport)
-            return;
-        frameDoneConnection = QObject::connect(viewport, &WOutputViewport::frameDone,
+        frameDoneConnection = QObject::connect(output, &WOutput::bufferCommitted,
                                                surface, &WSurface::notifyFrameDone);
     }
 }

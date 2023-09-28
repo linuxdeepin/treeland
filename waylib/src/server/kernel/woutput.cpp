@@ -57,6 +57,9 @@ public:
                 Q_EMIT qq->transformedSizeChanged();
                 Q_EMIT qq->effectiveSizeChanged();
             }
+
+            if (event->state->committed & WLR_OUTPUT_STATE_BUFFER)
+                Q_EMIT qq->bufferCommitted();
         });
     }
 

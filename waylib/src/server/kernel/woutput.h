@@ -105,6 +105,7 @@ Q_SIGNALS:
     void orientationChanged();
     void scaleChanged();
     void forceSoftwareCursorChanged();
+    void bufferCommitted();
 
 private:
     friend class QWlrootsIntegration;

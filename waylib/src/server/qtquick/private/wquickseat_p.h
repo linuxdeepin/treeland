@@ -56,7 +56,7 @@ Q_SIGNALS:
     void keyboardFocusChanged();
 
 private:
-    friend class WOutputViewport;
+    friend class WOutputItem;
     void addOutput(WOutput *output);
     void removeOutput(WOutput *output);
 
