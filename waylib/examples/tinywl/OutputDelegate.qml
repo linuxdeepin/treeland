@@ -46,7 +46,7 @@ OutputItem {
             id: setTransform
 
             property var scheduleTransform
-            onTriggered: waylandOutput.orientation = scheduleTransform
+            onTriggered: outputViewport.rotateOutput(scheduleTransform)
             interval: rotationAnimator.duration / 2
         }
 
@@ -104,14 +104,14 @@ OutputItem {
         Button {
             text: "1X"
             onClicked: {
-                waylandOutput.scale = 1
+                outputViewport.setOutputScale(1)
             }
         }
 
         Button {
             text: "1.5X"
             onClicked: {
-                waylandOutput.scale = 1.5
+                outputViewport.setOutputScale(1.5)
             }
         }
 

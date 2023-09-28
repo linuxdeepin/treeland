@@ -5,7 +5,51 @@
 #include "woutputviewport_p.h"
 #include "woutput.h"
 
+#include <qwbuffer.h>
+#include <qwswapchain.h>
+
+#include <QDebug>
+
+QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
+
+class OutputTextureProvider : public QSGTextureProvider
+{
+public:
+    explicit OutputTextureProvider(WOutputViewport *viewport)
+        : item(viewport) {}
+    ~OutputTextureProvider() {
+
+    }
+
+    QSGTexture *texture() const override {
+        return dwtexture ? dwtexture->getSGTexture(item->window()) : nullptr;
+    }
+
+    void setBuffer(QWBuffer *buffer) {
+        qwtexture.reset();
+
+        if (Q_LIKELY(buffer)) {
+            qwtexture.reset(QWTexture::fromBuffer(item->output()->renderer(), buffer));
+        }
+
+        if (Q_LIKELY(qwtexture)) {
+            if (Q_LIKELY(dwtexture)) {
+                dwtexture->setHandle(qwtexture.get());
+            } else {
+                dwtexture.reset(new WTexture(qwtexture.get()));
+            }
+        } else {
+            dwtexture.reset();
+        }
+
+        Q_EMIT textureChanged();
+    }
+
+    WOutputViewport *item;
+    std::unique_ptr<QWTexture> qwtexture;
+    std::unique_ptr<WTexture> dwtexture;
+};
 
 void WOutputViewportPrivate::initForOutput()
 {
@@ -18,6 +62,12 @@ void WOutputViewportPrivate::initForOutput()
     });
 
     updateImplicitSize();
+}
+
+void WOutputViewportPrivate::invalidateSceneGraph()
+{
+    if (textureProvider)
+        textureProvider.reset();
 }
 
 qreal WOutputViewportPrivate::getImplicitWidth() const
@@ -43,7 +93,7 @@ void WOutputViewportPrivate::updateImplicitSize()
 WOutputViewport::WOutputViewport(QQuickItem *parent)
     : QQuickItem(*new WOutputViewportPrivate(), parent)
 {
-
+    d_func()->textureProvider.reset(new OutputTextureProvider(this));
 }
 
 WOutputViewport::~WOutputViewport()
@@ -51,6 +101,17 @@ WOutputViewport::~WOutputViewport()
     W_D(WOutputViewport);
     if (d->componentComplete && d->output && d->window)
         d->outputWindow()->detach(this);
+}
+
+bool WOutputViewport::isTextureProvider() const
+{
+    return true;
+}
+
+QSGTextureProvider *WOutputViewport::textureProvider() const
+{
+    W_DC(WOutputViewport);
+    return d->textureProvider.get();
 }
 
 WOutput *WOutputViewport::output() const
@@ -70,6 +131,12 @@ void WOutputViewport::setOutput(WOutput *newOutput)
         if (newOutput)
             d->initForOutput();
     }
+}
+
+void WOutputViewport::setBuffer(QWBuffer *buffer)
+{
+    W_D(WOutputViewport);
+    d->textureProvider->setBuffer(buffer);
 }
 
 qreal WOutputViewport::devicePixelRatio() const
@@ -92,6 +159,57 @@ void WOutputViewport::setDevicePixelRatio(qreal newDevicePixelRatio)
     Q_EMIT devicePixelRatioChanged();
 }
 
+bool WOutputViewport::offscreen() const
+{
+    W_DC(WOutputViewport);
+    return d->offscreen;
+}
+
+void WOutputViewport::setOffscreen(bool newOffscreen)
+{
+    W_D(WOutputViewport);
+    if (d->offscreen == newOffscreen)
+        return;
+    d->offscreen = newOffscreen;
+    Q_EMIT offscreenChanged();
+}
+
+bool WOutputViewport::isRoot() const
+{
+    W_DC(WOutputViewport);
+    return d->root;
+}
+
+void WOutputViewport::setRoot(bool newRoot)
+{
+    W_D(WOutputViewport);
+    if (d->root == newRoot)
+        return;
+    d->root = newRoot;
+
+    if (newRoot) {
+        d->refFromEffectItem(true);
+    } else {
+        d->derefFromEffectItem(true);
+    }
+
+    Q_EMIT rootChanged();
+}
+
+void WOutputViewport::setOutputScale(float scale)
+{
+    W_D(WOutputViewport);
+    if (auto window = d->outputWindow())
+        window->setOutputScale(this, scale);
+}
+
+void WOutputViewport::rotateOutput(WOutput::Transform t)
+{
+    W_D(WOutputViewport);
+    if (auto window = d->outputWindow())
+        window->rotateOutput(this, t);
+}
+
 void WOutputViewport::componentComplete()
 {
     W_D(WOutputViewport);
@@ -100,6 +218,27 @@ void WOutputViewport::componentComplete()
         d->initForOutput();
 
     QQuickItem::componentComplete();
+}
+
+void WOutputViewport::releaseResources()
+{
+    W_D(WOutputViewport);
+
+    if (d->textureProvider) {
+        class WOutputViewportCleanupJob : public QRunnable
+        {
+        public:
+            WOutputViewportCleanupJob(QObject *object) : m_object(object) { }
+            void run() override {
+                delete m_object;
+            }
+            QObject *m_object;
+        };
+
+        // Delay clean the textures on the next render after.
+        d->window->scheduleRenderJob(new WOutputViewportCleanupJob(d->textureProvider.release()),
+                                     QQuickWindow::AfterRenderingStage);
+    }
 }
 
 WAYLIB_SERVER_END_NAMESPACE

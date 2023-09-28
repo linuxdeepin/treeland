@@ -32,15 +32,7 @@ public:
     WId winId() const override;
     qreal devicePixelRatio() const override;
 
-    void setBuffer(QW_NAMESPACE::QWBuffer *buffer);
-    QW_NAMESPACE::QWBuffer *buffer() const;
-
-    bool attachRenderer();
-    void detachRenderer();
-
 private:
-    QPointer<QW_NAMESPACE::QWBuffer> renderBuffer;
-    bool bufferAttached = false;
     QMetaObject::Connection onScreenChangedConnection;
     QMetaObject::Connection onScreenGeometryConnection;
 };

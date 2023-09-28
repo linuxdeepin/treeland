@@ -272,6 +272,8 @@ void Helper::onOutputRequeseState(wlr_output_event_request_state *newState)
         } else {
             output->setMode(newState->state->mode);
         }
+
+        output->commit();
     }
 }
 

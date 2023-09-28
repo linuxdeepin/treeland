@@ -384,12 +384,7 @@ public:
     }
 
     bool makeCurrent(QPlatformSurface *surface) override {
-        auto window = dynamic_cast<QWlrootsOutputWindow*>(surface);
-        if (window && window->attachRenderer()) {
-            m_currentSurface = window;
-            return true;
-        }
-
+        Q_UNUSED(surface);
         if (auto c = qobject_cast<QW::OpenGLContext*>(m_context)) {
             return eglMakeCurrent(c->eglDisplay(), EGL_NO_SURFACE, EGL_NO_SURFACE, c->eglContext());
         }
@@ -397,10 +392,7 @@ public:
         return false;
     }
     void doneCurrent() override {
-        if (m_currentSurface) {
-            m_currentSurface->detachRenderer();
-            m_currentSurface = nullptr;
-        } else if (auto c = qobject_cast<QW::OpenGLContext*>(m_context)) {
+        if (auto c = qobject_cast<QW::OpenGLContext*>(m_context)) {
             eglMakeCurrent(c->eglDisplay(), EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
         }
     }
@@ -411,7 +403,6 @@ public:
 
 private:
     QOpenGLContext *m_context = nullptr;
-    QWlrootsOutputWindow *m_currentSurface = nullptr;
     QSurfaceFormat m_format;
 };
 

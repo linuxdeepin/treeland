@@ -22,6 +22,7 @@ extern "C" {
 QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
+class OutputTextureProvider;
 class WOutputViewportPrivate : public QQuickItemPrivate
 {
 public:
@@ -40,6 +41,7 @@ public:
     }
 
     void initForOutput();
+    void invalidateSceneGraph();
 
     qreal getImplicitWidth() const override;
     qreal getImplicitHeight() const override;
@@ -49,6 +51,10 @@ public:
     W_DECLARE_PUBLIC(WOutputViewport)
     WOutput *output = nullptr;
     qreal devicePixelRatio = 1.0;
+    bool offscreen = false;
+    bool root = false;
+
+    std::unique_ptr<OutputTextureProvider> textureProvider;
 };
 
 WAYLIB_SERVER_END_NAMESPACE

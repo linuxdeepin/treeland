@@ -4,6 +4,7 @@
 #pragma once
 
 #include <wglobal.h>
+#include <woutput.h>
 #include <qwglobal.h>
 
 #include <QObject>
@@ -22,9 +23,11 @@ class QWBackend;
 class QWBuffer;
 QW_END_NAMESPACE
 
+struct wlr_swapchain;
+struct pixman_region32;
+
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
-class WOutput;
 class WOutputHelperPrivate;
 class WAYLIB_SERVER_EXPORT WOutputHelper : public QObject, public WObject
 {
@@ -40,15 +43,20 @@ public:
     WOutput *output() const;
     QWindow *outputWindow() const;
 
-    std::pair<QW_NAMESPACE::QWBuffer*, QQuickRenderTarget> acquireRenderTarget(QQuickRenderControl *rc, int *bufferAge = nullptr);
+    std::pair<QW_NAMESPACE::QWBuffer*, QQuickRenderTarget> acquireRenderTarget(QQuickRenderControl *rc,
+                                                                               int *bufferAge = nullptr,
+                                                                               wlr_swapchain **swapchain = nullptr);
     std::pair<QW_NAMESPACE::QWBuffer*, QQuickRenderTarget> lastRenderTarget();
+
+    void setBuffer(QW_NAMESPACE::QWBuffer *buffer);
+    void setScale(float scale);
+    void setTransform(WOutput::Transform t);
+    void setDamage(const pixman_region32 *damage);
+    bool commit();
 
     bool renderable() const;
     bool contentIsDirty() const;
     bool needsFrame() const;
-
-    bool makeCurrent(QW_NAMESPACE::QWBuffer *buffer, QOpenGLContext *context = nullptr);
-    void doneCurrent(QOpenGLContext *context = nullptr);
 
     void resetState();
     void update();

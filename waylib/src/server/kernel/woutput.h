@@ -40,8 +40,8 @@ class WAYLIB_SERVER_EXPORT WOutput : public QObject, public WObject
     Q_OBJECT
     W_DECLARE_PRIVATE(WOutput)
     Q_PROPERTY(QSize size READ effectiveSize NOTIFY effectiveSizeChanged)
-    Q_PROPERTY(Transform orientation READ orientation WRITE rotate NOTIFY orientationChanged)
-    Q_PROPERTY(float scale READ scale WRITE setScale NOTIFY scaleChanged)
+    Q_PROPERTY(Transform orientation READ orientation NOTIFY orientationChanged)
+    Q_PROPERTY(float scale READ scale NOTIFY scaleChanged)
     Q_PROPERTY(bool forceSoftwareCursor READ forceSoftwareCursor WRITE setForceSoftwareCursor NOTIFY forceSoftwareCursorChanged)
     QML_NAMED_ELEMENT(WaylandOutput)
     QML_UNCREATABLE("Can't create in qml")
@@ -72,9 +72,6 @@ public:
     static WOutput *fromHandle(const QW_NAMESPACE::QWOutput *handle);
 
     static WOutput *fromScreen(const QScreen *screen);
-
-    void rotate(Transform t);
-    void setScale(float scale);
 
     QPoint position() const;
     QSize size() const;

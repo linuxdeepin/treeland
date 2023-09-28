@@ -164,26 +164,6 @@ QWlrootsScreen *WOutput::screen() const
     return d->screen;
 }
 
-void WOutput::rotate(Transform t)
-{
-    W_D(WOutput);
-
-    if (d->orientation() == t)
-        return;
-
-    d->handle->setTransform(t);
-}
-
-void WOutput::setScale(float scale)
-{
-    W_D(WOutput);
-
-    if (this->scale() == scale)
-        return;
-
-    d->handle->setScale(scale);
-}
-
 QPoint WOutput::position() const
 {
     W_DC(WOutput);

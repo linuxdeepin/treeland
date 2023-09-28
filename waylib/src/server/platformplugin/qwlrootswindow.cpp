@@ -40,8 +40,6 @@ QWlrootsOutputWindow::~QWlrootsOutputWindow()
         QObject::disconnect(onScreenChangedConnection);
     if (onScreenGeometryConnection)
         QObject::disconnect(onScreenGeometryConnection);
-
-    setBuffer(nullptr);
 }
 
 void QWlrootsOutputWindow::initialize()
@@ -91,51 +89,6 @@ WId QWlrootsOutputWindow::winId() const
 qreal QWlrootsOutputWindow::devicePixelRatio() const
 {
     return 1.0;
-}
-
-void QWlrootsOutputWindow::setBuffer(QWBuffer *buffer)
-{
-    Q_ASSERT(buffer == renderBuffer || !bufferAttached);
-    renderBuffer = buffer;
-}
-
-QWBuffer *QWlrootsOutputWindow::buffer() const
-{
-    return renderBuffer.get();
-}
-
-bool QWlrootsOutputWindow::attachRenderer()
-{
-    if (!renderBuffer)
-        return false;
-
-    if (bufferAttached)
-        return true;
-
-    if (!qwScreen())
-        return false;
-
-    QWRenderer *renderer = qwScreen()->output()->renderer();
-    bool ok = wlr_renderer_begin_with_buffer(renderer->handle(), renderBuffer->handle());
-    if (!ok)
-        return false;
-
-    auto qwOutput = qwScreen()->output()->handle();
-    qwOutput->attachBuffer(renderBuffer);
-    bufferAttached = true;
-
-    return true;
-}
-
-void QWlrootsOutputWindow::detachRenderer()
-{
-    Q_ASSERT(renderBuffer && bufferAttached);
-    QWRenderer *renderer = qwScreen()->output()->renderer();
-    auto *qwOutput = qwScreen()->output()->handle();
-    renderer->end();
-    qwOutput->rollback();
-    renderBuffer->unlock();
-    bufferAttached = false;
 }
 
 QWlrootsRenderWindow::QWlrootsRenderWindow(QWindow *window)

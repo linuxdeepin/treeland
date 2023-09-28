@@ -41,6 +41,8 @@ public:
         , contentIsDirty(false)
         , needsFrame(false)
     {
+        wlr_output_state_init(&state);
+
         outputWindow->QObject::setParent(qq);
         outputWindow->setScreen(QWlrootsIntegration::instance()->getScreenFrom(output)->screen());
         outputWindow->create();
@@ -58,7 +60,6 @@ public:
         QObject::connect(output, &WOutput::modeChanged, qq, [this] {
             if (renderHelper)
                 renderHelper->setSize(this->output->size());
-            qpaWindow()->setBuffer(nullptr);
         }, Qt::QueuedConnection); // reset buffer on later, because it's rendering
 
         // In call the connect for 'frame' signal before, maybe the wlr_output object is already \
@@ -67,16 +68,16 @@ public:
         renderable = true;
     }
 
+    ~WOutputHelperPrivate() {
+        wlr_output_state_finish(&state);
+    }
+
     inline QWOutput *qwoutput() const {
         return output->handle();
     }
 
     inline QWRenderer *renderer() const {
         return output->renderer();
-    }
-
-    inline QWSwapchain *swapchain() const {
-        return output->swapchain();
     }
 
     inline QWlrootsOutputWindow *qpaWindow() const {
@@ -90,36 +91,7 @@ public:
     void on_frame();
     void on_damage();
 
-    QWBuffer *acquireBuffer(int *bufferAge);
-
-    inline bool makeCurrent(QWBuffer *buffer, QOpenGLContext *context) {
-        qpaWindow()->setBuffer(buffer);
-        bool ok = false;
-#ifndef QT_NO_OPENGL
-        if (context) {
-            ok = context->makeCurrent(outputWindow);
-        } else
-#endif
-        {
-            ok = qpaWindow()->attachRenderer();
-        }
-
-        if (!ok)
-            buffer->unlock();
-
-        return ok;
-    }
-
-    inline void doneCurrent(QOpenGLContext *context) {
-#ifndef QT_NO_OPENGL
-        if (context) {
-            context->doneCurrent();
-        } else
-#endif
-        {
-            qpaWindow()->detachRenderer();
-        }
-    }
+    QWBuffer *acquireBuffer(wlr_swapchain **sc, int *bufferAge);
 
     inline void update() {
         setContentIsDirty(true);
@@ -127,6 +99,7 @@ public:
 
     W_DECLARE_PUBLIC(WOutputHelper)
     WOutput *output;
+    wlr_output_state state;
     QWindow *outputWindow;
     WRenderHelper *renderHelper = nullptr;
 
@@ -171,14 +144,13 @@ void WOutputHelperPrivate::on_damage()
     Q_EMIT q_func()->damaged();
 }
 
-QWBuffer *WOutputHelperPrivate::acquireBuffer(int *bufferAge)
+QWBuffer *WOutputHelperPrivate::acquireBuffer(wlr_swapchain **sc, int *bufferAge)
 {
-    bool ok = wlr_output_configure_primary_swapchain(qwoutput()->handle(),
-                                                     &qwoutput()->handle()->pending,
-                                                     &qwoutput()->handle()->swapchain);
+    // TODO: Use a new wlr_output_state in WOutputHelper
+    bool ok = qwoutput()->configurePrimarySwapchain(&qwoutput()->handle()->pending, sc);
     if (!ok)
         return nullptr;
-    QWBuffer *newBuffer = swapchain()->acquire(bufferAge);
+    QWBuffer *newBuffer = QWSwapchain::from(*sc)->acquire(bufferAge);
     return newBuffer;
 }
 
@@ -201,11 +173,12 @@ QWindow *WOutputHelper::outputWindow() const
     return d->outputWindow;
 }
 
-std::pair<QWBuffer*, QQuickRenderTarget> WOutputHelper::acquireRenderTarget(QQuickRenderControl *rc, int *bufferAge)
+std::pair<QWBuffer *, QQuickRenderTarget> WOutputHelper::acquireRenderTarget(QQuickRenderControl *rc, int *bufferAge,
+                                                                             wlr_swapchain **swapchain)
 {
     W_D(WOutputHelper);
 
-    QWBuffer *buffer = d->acquireBuffer(bufferAge);
+    QWBuffer *buffer = d->acquireBuffer(swapchain ? swapchain : &d->qwoutput()->handle()->swapchain, bufferAge);
     if (!buffer)
         return {};
 
@@ -231,6 +204,39 @@ std::pair<QWBuffer*, QQuickRenderTarget> WOutputHelper::lastRenderTarget()
     return d->renderHelper->lastRenderTarget();
 }
 
+void WOutputHelper::setBuffer(QWBuffer *buffer)
+{
+    W_D(WOutputHelper);
+    wlr_output_state_set_buffer(&d->state, buffer->handle());
+}
+
+void WOutputHelper::setScale(float scale)
+{
+    W_D(WOutputHelper);
+    wlr_output_state_set_scale(&d->state, scale);
+}
+
+void WOutputHelper::setTransform(WOutput::Transform t)
+{
+    W_D(WOutputHelper);
+    wlr_output_state_set_transform(&d->state, static_cast<wl_output_transform>(t));
+}
+
+void WOutputHelper::setDamage(const pixman_region32 *damage)
+{
+    W_D(WOutputHelper);
+    wlr_output_state_set_damage(&d->state, damage);
+}
+
+bool WOutputHelper::commit()
+{
+    W_D(WOutputHelper);
+    bool ok = d->qwoutput()->commitState(&d->state);
+    wlr_output_state_finish(&d->state);
+
+    return ok;
+}
+
 bool WOutputHelper::renderable() const
 {
     W_DC(WOutputHelper);
@@ -249,24 +255,16 @@ bool WOutputHelper::needsFrame() const
     return d->needsFrame;
 }
 
-bool WOutputHelper::makeCurrent(QWBuffer *buffer, QOpenGLContext *context)
-{
-    W_D(WOutputHelper);
-    return d->makeCurrent(buffer, context);
-}
-
-void WOutputHelper::doneCurrent(QOpenGLContext *context)
-{
-    W_D(WOutputHelper);
-    d->doneCurrent(context);
-}
-
 void WOutputHelper::resetState()
 {
     W_D(WOutputHelper);
     d->setContentIsDirty(false);
     d->setRenderable(false);
     d->setNeedsFrame(false);
+
+    // reset output state
+    wlr_output_state_finish(&d->state);
+    wlr_output_state_init(&d->state);
 }
 
 void WOutputHelper::update()

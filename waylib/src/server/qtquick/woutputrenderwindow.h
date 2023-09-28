@@ -4,6 +4,7 @@
 #pragma once
 
 #include <wglobal.h>
+#include <woutput.h>
 #include <qwglobal.h>
 
 #include <QQuickWindow>
@@ -33,6 +34,9 @@ public:
 
     void attach(WOutputViewport *output);
     void detach(WOutputViewport *output);
+
+    void setOutputScale(WOutputViewport *output, float scale);
+    void rotateOutput(WOutputViewport *output, WOutput::Transform t);
 
     WWaylandCompositor *compositor() const;
     void setCompositor(WWaylandCompositor *newRenderer);
