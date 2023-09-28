@@ -1,8 +1,8 @@
 // Copyright (C) 2023 JiDe Zhang <zhangjide@deepin.org>.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
-#include "woutputpositioner.h"
-#include "woutputpositioner_p.h"
+#include "woutputitem.h"
+#include "woutputitem_p.h"
 #include "woutputrenderwindow.h"
 #include "woutput.h"
 #include "woutputlayout.h"
@@ -18,36 +18,36 @@
 QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
-WOutputPositionerAttached::WOutputPositionerAttached(QObject *parent)
+WOutputItemAttached::WOutputItemAttached(QObject *parent)
     : QObject(parent)
 {
 
 }
 
-WOutputPositioner *WOutputPositionerAttached::positioner() const
+WOutputItem *WOutputItemAttached::item() const
 {
     return m_positioner;
 }
 
-void WOutputPositionerAttached::setPositioner(WOutputPositioner *positioner)
+void WOutputItemAttached::setItem(WOutputItem *positioner)
 {
     if (m_positioner == positioner)
         return;
     m_positioner = positioner;
-    Q_EMIT positionerChanged();
+    Q_EMIT itemChanged();
 }
 
-#define DATA_OF_WOUPTUT "_WOutputPositioner"
+#define DATA_OF_WOUPTUT "_WOutputItem"
 
-class WOutputPositionerPrivate : public WObjectPrivate
+class WOutputItemPrivate : public WObjectPrivate
 {
 public:
-    WOutputPositionerPrivate(WOutputPositioner *qq)
+    WOutputItemPrivate(WOutputItem *qq)
         : WObjectPrivate(qq)
     {
 
     }
-    ~WOutputPositionerPrivate() {
+    ~WOutputItemPrivate() {
         if (layout)
             layout->remove(q_func());
         if (output)
@@ -55,7 +55,7 @@ public:
     }
 
     void initForOutput() {
-        W_Q(WOutputPositioner);
+        W_Q(WOutputItem);
 
         Q_ASSERT(output);
         if (layout)
@@ -69,7 +69,7 @@ public:
     }
 
     void updateImplicitSize() {
-        W_Q(WOutputPositioner);
+        W_Q(WOutputItem);
 
         q->privateImplicitWidthChanged();
         q->privateImplicitHeightChanged();
@@ -78,56 +78,56 @@ public:
         q->resetHeight();
     }
 
-    W_DECLARE_PUBLIC(WOutputPositioner)
+    W_DECLARE_PUBLIC(WOutputItem)
     QPointer<WOutput> output;
     QPointer<WQuickOutputLayout> layout;
     qreal devicePixelRatio = 1.0;
 };
 
-WOutputPositioner::WOutputPositioner(QQuickItem *parent)
+WOutputItem::WOutputItem(QQuickItem *parent)
     : WQuickObserver(parent)
-    , WObject(*new WOutputPositionerPrivate(this))
+    , WObject(*new WOutputItemPrivate(this))
 {
 
 }
 
-WOutputPositioner::~WOutputPositioner()
+WOutputItem::~WOutputItem()
 {
 
 }
 
-WOutputPositionerAttached *WOutputPositioner::qmlAttachedProperties(QObject *target)
+WOutputItemAttached *WOutputItem::qmlAttachedProperties(QObject *target)
 {
     auto output = qobject_cast<WOutput*>(target);
     if (!output)
         return nullptr;
-    auto attached = new WOutputPositionerAttached(output);
-    attached->setPositioner(qvariant_cast<WOutputPositioner*>(output->property(DATA_OF_WOUPTUT)));
+    auto attached = new WOutputItemAttached(output);
+    attached->setItem(qvariant_cast<WOutputItem*>(output->property(DATA_OF_WOUPTUT)));
 
     return attached;
 }
 
-WOutput *WOutputPositioner::output() const
+WOutput *WOutputItem::output() const
 {
-    W_D(const WOutputPositioner);
+    W_D(const WOutputItem);
     return d->output.get();
 }
 
-inline static WOutputPositionerAttached *getAttached(WOutput *output)
+inline static WOutputItemAttached *getAttached(WOutput *output)
 {
-    return output->findChild<WOutputPositionerAttached*>(QString(), Qt::FindDirectChildrenOnly);
+    return output->findChild<WOutputItemAttached*>(QString(), Qt::FindDirectChildrenOnly);
 }
 
-void WOutputPositioner::setOutput(WOutput *newOutput)
+void WOutputItem::setOutput(WOutput *newOutput)
 {
-    W_D(WOutputPositioner);
+    W_D(WOutputItem);
 
     Q_ASSERT(!d->output || !newOutput);
     d->output = newOutput;
 
     if (newOutput) {
         if (auto attached = getAttached(newOutput)) {
-            attached->setPositioner(this);
+            attached->setItem(this);
         } else {
             newOutput->setProperty(DATA_OF_WOUPTUT, QVariant::fromValue(this));
         }
@@ -140,15 +140,15 @@ void WOutputPositioner::setOutput(WOutput *newOutput)
     }
 }
 
-WQuickOutputLayout *WOutputPositioner::layout() const
+WQuickOutputLayout *WOutputItem::layout() const
 {
-    Q_D(const WOutputPositioner);
+    Q_D(const WOutputItem);
     return d->layout.get();
 }
 
-void WOutputPositioner::setLayout(WQuickOutputLayout *layout)
+void WOutputItem::setLayout(WQuickOutputLayout *layout)
 {
-    Q_D(WOutputPositioner);
+    Q_D(WOutputItem);
 
     if (d->layout == layout)
         return;
@@ -163,15 +163,15 @@ void WOutputPositioner::setLayout(WQuickOutputLayout *layout)
     Q_EMIT layoutChanged();
 }
 
-qreal WOutputPositioner::devicePixelRatio() const
+qreal WOutputItem::devicePixelRatio() const
 {
-    W_DC(WOutputPositioner);
+    W_DC(WOutputItem);
     return d->devicePixelRatio;
 }
 
-void WOutputPositioner::setDevicePixelRatio(qreal newDevicePixelRatio)
+void WOutputItem::setDevicePixelRatio(qreal newDevicePixelRatio)
 {
-    W_D(WOutputPositioner);
+    W_D(WOutputItem);
 
     if (qFuzzyCompare(d->devicePixelRatio, newDevicePixelRatio))
         return;
@@ -183,9 +183,9 @@ void WOutputPositioner::setDevicePixelRatio(qreal newDevicePixelRatio)
     Q_EMIT devicePixelRatioChanged();
 }
 
-void WOutputPositioner::componentComplete()
+void WOutputItem::componentComplete()
 {
-    W_D(WOutputPositioner);
+    W_D(WOutputItem);
 
     if (d->output)
         d->initForOutput();
@@ -193,21 +193,21 @@ void WOutputPositioner::componentComplete()
     WQuickObserver::componentComplete();
 }
 
-void WOutputPositioner::releaseResources()
+void WOutputItem::releaseResources()
 {
-    W_D(WOutputPositioner);
+    W_D(WOutputItem);
     WQuickObserver::releaseResources();
 }
 
-qreal WOutputPositioner::getImplicitWidth() const
+qreal WOutputItem::getImplicitWidth() const
 {
-    W_DC(WOutputPositioner);
+    W_DC(WOutputItem);
     return d->output->transformedSize().width() / d->devicePixelRatio;
 }
 
-qreal WOutputPositioner::getImplicitHeight() const
+qreal WOutputItem::getImplicitHeight() const
 {
-    W_DC(WOutputPositioner);
+    W_DC(WOutputItem);
     return d->output->transformedSize().height() / d->devicePixelRatio;
 }
 

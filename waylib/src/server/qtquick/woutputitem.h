@@ -8,29 +8,29 @@
 #include <QQuickItem>
 
 Q_MOC_INCLUDE(<wquickoutputlayout.h>)
-Q_MOC_INCLUDE(<woutputpositioner_p.h>)
+Q_MOC_INCLUDE(<woutputitem_p.h>)
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
 class WOutput;
 class WQuickOutputLayout;
-class WOutputPositionerAttached;
-class WOutputPositionerPrivate;
-class WAYLIB_SERVER_EXPORT WOutputPositioner : public WQuickObserver, public WObject
+class WOutputItemAttached;
+class WOutputItemPrivate;
+class WAYLIB_SERVER_EXPORT WOutputItem : public WQuickObserver, public WObject
 {
     Q_OBJECT
-    W_DECLARE_PRIVATE(WOutputPositioner)
+    W_DECLARE_PRIVATE(WOutputItem)
     Q_PROPERTY(WOutput* output READ output WRITE setOutput REQUIRED)
     Q_PROPERTY(WQuickOutputLayout* layout READ layout WRITE setLayout NOTIFY layoutChanged)
     Q_PROPERTY(qreal devicePixelRatio READ devicePixelRatio WRITE setDevicePixelRatio NOTIFY devicePixelRatioChanged)
-    QML_NAMED_ELEMENT(OutputPositioner)
-    QML_ATTACHED(WOutputPositionerAttached)
+    QML_NAMED_ELEMENT(OutputItem)
+    QML_ATTACHED(WOutputItemAttached)
 
 public:
-    explicit WOutputPositioner(QQuickItem *parent = nullptr);
-    ~WOutputPositioner();
+    explicit WOutputItem(QQuickItem *parent = nullptr);
+    ~WOutputItem();
 
-    static WOutputPositionerAttached *qmlAttachedProperties(QObject *target);
+    static WOutputItemAttached *qmlAttachedProperties(QObject *target);
 
     WOutput *output() const;
     void setOutput(WOutput *newOutput);

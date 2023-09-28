@@ -5,7 +5,7 @@ import QtQuick
 import QtQuick.Controls
 import Waylib.Server
 
-OutputPositioner {
+OutputItem {
     required property WaylandOutput waylandOutput
 
     output: waylandOutput

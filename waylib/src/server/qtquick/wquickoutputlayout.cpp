@@ -3,7 +3,7 @@
 
 #include "wquickoutputlayout.h"
 #include "private/woutputlayout_p.h"
-#include "woutputpositioner.h"
+#include "woutputitem.h"
 #include "woutput.h"
 #include "woutputlayout.h"
 
@@ -26,7 +26,7 @@ public:
 
     W_DECLARE_PUBLIC(WQuickOutputLayout)
 
-    QList<WOutputPositioner*> outputs;
+    QList<WOutputItem*> outputs;
 };
 
 WQuickOutputLayout::WQuickOutputLayout(QObject *parent)
@@ -35,13 +35,13 @@ WQuickOutputLayout::WQuickOutputLayout(QObject *parent)
 
 }
 
-QList<WOutputPositioner*> WQuickOutputLayout::outputs() const
+QList<WOutputItem*> WQuickOutputLayout::outputs() const
 {
     W_DC(WQuickOutputLayout);
     return d->outputs;
 }
 
-void WQuickOutputLayout::add(WOutputPositioner *output)
+void WQuickOutputLayout::add(WOutputItem *output)
 {
     W_D(WQuickOutputLayout);
     Q_ASSERT(!d->outputs.contains(output));
@@ -54,15 +54,15 @@ void WQuickOutputLayout::add(WOutputPositioner *output)
         Q_EMIT maybeLayoutChanged();
     };
 
-    connect(output, &WOutputPositioner::maybeGlobalPositionChanged, this, updateOutput, Qt::QueuedConnection);
-    connect(output, &WOutputPositioner::transformChanged, this, &WQuickOutputLayout::maybeLayoutChanged);
+    connect(output, &WOutputItem::maybeGlobalPositionChanged, this, updateOutput, Qt::QueuedConnection);
+    connect(output, &WOutputItem::transformChanged, this, &WQuickOutputLayout::maybeLayoutChanged);
     output->output()->setLayout(this);
 
     Q_EMIT outputsChanged();
     Q_EMIT maybeLayoutChanged();
 }
 
-void WQuickOutputLayout::remove(WOutputPositioner *output)
+void WQuickOutputLayout::remove(WOutputItem *output)
 {
     W_D(WQuickOutputLayout);
 

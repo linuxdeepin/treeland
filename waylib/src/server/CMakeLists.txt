@@ -61,7 +61,7 @@ set(QTQUICK_SOURCES
     qtquick/wquickwaylandserver.cpp
     qtquick/woutputrenderwindow.cpp
     qtquick/woutputviewport.cpp
-    qtquick/woutputpositioner.cpp
+    qtquick/woutputitem.cpp
     qtquick/woutputlayoutitem.cpp
     qtquick/wquickoutputlayout.cpp
     qtquick/wquickcursor.cpp
@@ -133,7 +133,7 @@ set(HEADERS
     qtquick/wquickwaylandserver.h
     qtquick/woutputrenderwindow.h
     qtquick/woutputviewport.h
-    qtquick/woutputpositioner.h
+    qtquick/woutputitem.h
     qtquick/wquickcursor.h
     qtquick/wquickobserver.h
     qtquick/weventjunkman.h
@@ -149,7 +149,7 @@ set(PRIVATE_HEADERS
     kernel/private/wsurface_p.h
     qtquick/private/woutputviewport_p.h
     qtquick/private/wquickcoordmapper_p.h
-    qtquick/private/woutputpositioner_p.h
+    qtquick/private/woutputitem_p.h
     qtquick/private/wquicksocket_p.h
     qtquick/private/wqmldynamiccreator_p.h
     qtquick/private/wqmlhelper_p.h
