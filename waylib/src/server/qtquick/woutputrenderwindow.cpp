@@ -4,6 +4,7 @@
 #include "woutputrenderwindow.h"
 #include "woutput.h"
 #include "woutputhelper.h"
+#include "wrenderhelper.h"
 #include "wserver.h"
 #include "wbackend.h"
 #include "woutputviewport.h"
@@ -281,8 +282,8 @@ void OutputHelper::updateSceneDPR()
 
 QSGRendererInterface::GraphicsApi WOutputRenderWindowPrivate::graphicsApi() const
 {
-    auto api = WOutputHelper::getGraphicsApi(rc());
-    Q_ASSERT(api == WOutputHelper::getGraphicsApi());
+    auto api = WRenderHelper::getGraphicsApi(rc());
+    Q_ASSERT(api == WRenderHelper::getGraphicsApi());
     return api;
 }
 
@@ -489,7 +490,7 @@ void WOutputRenderWindowPrivate::doRender()
         {
             q_func()->setRenderTarget(rt.second);
             // TODO: new render thread
-            if (QSGRendererInterface::isApiRhiBased(WOutputHelper::getGraphicsApi()))
+            if (QSGRendererInterface::isApiRhiBased(WRenderHelper::getGraphicsApi()))
                 rc()->beginFrame();
             rc()->sync();
 
@@ -588,7 +589,7 @@ void WOutputRenderWindowPrivate::doRender()
                     helper->qwoutput()->setDamage(&helper->damageRing()->handle()->current);
             }
 
-            if (QSGRendererInterface::isApiRhiBased(WOutputHelper::getGraphicsApi()))
+            if (QSGRendererInterface::isApiRhiBased(WRenderHelper::getGraphicsApi()))
                 rc()->endFrame();
         }
 

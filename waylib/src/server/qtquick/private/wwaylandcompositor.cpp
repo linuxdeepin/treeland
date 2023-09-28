@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "wwaylandcompositor_p.h"
-#include "woutputhelper.h"
+#include "wrenderhelper.h"
 #include "wquickbackend_p.h"
 
 #include <qwrenderer.h>
@@ -82,7 +82,7 @@ void WWaylandCompositor::create()
     WQuickWaylandServerInterface::create();
 
     Q_ASSERT(d->backend);
-    d->renderer = WOutputHelper::createRenderer(d->backend->backend());
+    d->renderer = WRenderHelper::createRenderer(d->backend->backend());
     if (!d->renderer) {
         qFatal("Failed to create renderer");
     }

@@ -37,15 +37,11 @@ class WAYLIB_SERVER_EXPORT WOutputHelper : public QObject, public WObject
 public:
     explicit WOutputHelper(WOutput *output, QObject *parent = nullptr);
 
-    static QSGRendererInterface::GraphicsApi getGraphicsApi(QQuickRenderControl *rc);
-    static QSGRendererInterface::GraphicsApi getGraphicsApi();
-
     WOutput *output() const;
     QWindow *outputWindow() const;
 
     std::pair<QW_NAMESPACE::QWBuffer*, QQuickRenderTarget> acquireRenderTarget(QQuickRenderControl *rc, int *bufferAge = nullptr);
     std::pair<QW_NAMESPACE::QWBuffer*, QQuickRenderTarget> lastRenderTarget();
-    static QW_NAMESPACE::QWRenderer *createRenderer(QW_NAMESPACE::QWBackend *backend);
 
     bool renderable() const;
     bool contentIsDirty() const;
@@ -63,9 +59,6 @@ Q_SIGNALS:
     void renderableChanged();
     void contentIsDirtyChanged();
     void needsFrameChanged();
-
-private:
-    W_PRIVATE_SLOT(void onBufferDestroy(QWBuffer*))
 };
 
 WAYLIB_SERVER_END_NAMESPACE

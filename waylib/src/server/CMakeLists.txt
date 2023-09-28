@@ -67,6 +67,7 @@ set(QTQUICK_SOURCES
     qtquick/wquickcursor.cpp
     qtquick/wquickobserver.cpp
     qtquick/weventjunkman.cpp
+    qtquick/wrenderhelper.cpp
 
     qtquick/private/wquickxdgshell.cpp
     qtquick/private/wquickbackend.cpp
@@ -137,6 +138,7 @@ set(HEADERS
     qtquick/wquickcursor.h
     qtquick/wquickobserver.h
     qtquick/weventjunkman.h
+    qtquick/wrenderhelper.h
 
     utils/wtools.h
     utils/wthreadutils.h
