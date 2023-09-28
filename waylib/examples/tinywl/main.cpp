@@ -22,6 +22,7 @@
 #include <QQuickItem>
 #include <QQuickWindow>
 #include <QLoggingCategory>
+#include <QKeySequence>
 
 extern "C" {
 #define WLR_USE_UNSTABLE
@@ -151,6 +152,14 @@ void Helper::allowNonDrmOutputAutoChangeMode(WOutput *output)
 
 bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *watched, QInputEvent *event)
 {
+    if (event->type() == QEvent::KeyPress) {
+        auto kevent = static_cast<QKeyEvent*>(event);
+        if (QKeySequence(kevent->keyCombination()) == QKeySequence::Quit) {
+            qApp->quit();
+            return true;
+        }
+    }
+
     if (watched) {
         if (event->type() == QEvent::MouseButtonPress || event->type() == QEvent::TouchBegin) {
             seat->setKeyboardFocusTarget(watched);

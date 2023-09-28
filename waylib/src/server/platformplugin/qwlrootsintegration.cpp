@@ -34,6 +34,7 @@
 #include <qpa/qplatformsurface.h>
 #include <qpa/qwindowsysteminterface.h>
 #include <qpa/qplatformoffscreensurface.h>
+#include <private/qgenericunixthemes_p.h>
 
 #ifndef QT_NO_OPENGL
 #include <qpa/qplatformopenglcontext.h>
@@ -519,7 +520,8 @@ QStringList QWlrootsIntegration::themeNames() const
 
 QPlatformTheme *QWlrootsIntegration::createPlatformTheme(const QString &name) const
 {
-    return CALL_PROXY(createPlatformTheme, name);
+    // TODO: use custom platform theme to allow compositor set some hints, like as font
+    return CALL_PROXY2(createPlatformTheme, new QGenericUnixTheme(), name);
 }
 
 QPlatformOffscreenSurface *QWlrootsIntegration::createPlatformOffscreenSurface(QOffscreenSurface *surface) const

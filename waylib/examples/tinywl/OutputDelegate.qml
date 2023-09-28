@@ -146,7 +146,7 @@ OutputPositioner {
 
     Text {
         anchors.centerIn: parent
-        text: "Qt Quick in a texture"
+        text: "'Ctrl+Q' quit"
         font.pointSize: 40
         color: "white"
 

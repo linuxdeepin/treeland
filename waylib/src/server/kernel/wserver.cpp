@@ -274,6 +274,10 @@ static bool initializeQtPlatform(bool isMaster, const QStringList &parameters, s
         }
     }
 
+    if (!QGuiApplicationPrivate::platform_theme) {
+        QGuiApplicationPrivate::platform_theme = QWlrootsIntegration::instance()->createPlatformTheme({});
+    }
+
     // fallback
     if (!QGuiApplicationPrivate::platform_theme) {
         QGuiApplicationPrivate::platform_theme = new QPlatformTheme;
