@@ -68,6 +68,7 @@ set(QTQUICK_SOURCES
     qtquick/wquickobserver.cpp
     qtquick/weventjunkman.cpp
     qtquick/wrenderhelper.cpp
+    qtquick/wquickitemproxy.cpp
 
     qtquick/private/wquickxdgshell.cpp
     qtquick/private/wquickbackend.cpp
@@ -139,6 +140,7 @@ set(HEADERS
     qtquick/wquickobserver.h
     qtquick/weventjunkman.h
     qtquick/wrenderhelper.h
+    qtquick/wquickitemproxy.h
 
     utils/wtools.h
     utils/wthreadutils.h
@@ -157,6 +159,7 @@ set(PRIVATE_HEADERS
     qtquick/private/wqmlhelper_p.h
     qtquick/private/wquickxdgdecorationmanager_p.h
     qtquick/private/wquickcursorshape_p.h
+    qtquick/private/wquickitemproxy_p.h
 )
 
 if(NOT DISABLE_XWAYLAND)
