@@ -364,38 +364,37 @@ void WCursorPrivate::on_touch_up(wlr_touch_up_event *event)
 void WCursorPrivate::connect()
 {
     Q_ASSERT(seat);
-    auto slotOwner = WServer::from(seat)->slotOwner();
 
-    QObject::connect(handle, &QWCursor::motion, slotOwner, [this] (wlr_pointer_motion_event *event) {
+    QObject::connect(handle, &QWCursor::motion, seat, [this] (wlr_pointer_motion_event *event) {
         on_motion(event);
     });
-    QObject::connect(handle, &QWCursor::motionAbsolute, slotOwner, [this] (wlr_pointer_motion_absolute_event *event) {
+    QObject::connect(handle, &QWCursor::motionAbsolute, seat, [this] (wlr_pointer_motion_absolute_event *event) {
         on_motion_absolute(event);
     });
-    QObject::connect(handle, &QWCursor::button, slotOwner, [this] (wlr_pointer_button_event *event) {
+    QObject::connect(handle, &QWCursor::button, seat, [this] (wlr_pointer_button_event *event) {
         on_button(event);
     });
-    QObject::connect(handle, &QWCursor::axis, slotOwner, [this] (wlr_pointer_axis_event *event) {
+    QObject::connect(handle, &QWCursor::axis, seat, [this] (wlr_pointer_axis_event *event) {
         on_axis(event);
     });
-    QObject::connect(handle, &QWCursor::frame, slotOwner, [this] () {
+    QObject::connect(handle, &QWCursor::frame, seat, [this] () {
         on_frame();
     });
 
     // Handle touch device related signals
-    QObject::connect(handle, &QWCursor::touchDown, slotOwner, [this] (wlr_touch_down_event *event) {
+    QObject::connect(handle, &QWCursor::touchDown, seat, [this] (wlr_touch_down_event *event) {
         on_touch_down(event);
     });
-    QObject::connect(handle, &QWCursor::touchMotion, slotOwner, [this] (wlr_touch_motion_event *event) {
+    QObject::connect(handle, &QWCursor::touchMotion, seat, [this] (wlr_touch_motion_event *event) {
         on_touch_motion(event);
     });
-    QObject::connect(handle, &QWCursor::touchFrame, slotOwner, [this] () {
+    QObject::connect(handle, &QWCursor::touchFrame, seat, [this] () {
         on_touch_frame();
     });
-    QObject::connect(handle, &QWCursor::touchCancel, slotOwner, [this] (wlr_touch_cancel_event *event) {
+    QObject::connect(handle, &QWCursor::touchCancel, seat, [this] (wlr_touch_cancel_event *event) {
         on_touch_cancel(event);
     });
-    QObject::connect(handle, &QWCursor::touchUp, slotOwner, [this] (wlr_touch_up_event *event) {
+    QObject::connect(handle, &QWCursor::touchUp, seat, [this] (wlr_touch_up_event *event) {
         on_touch_up(event);
     });
 }
@@ -557,7 +556,7 @@ void WCursor::setSeat(WSeat *seat)
 
     if (d->seat) {
         // reconnect signals
-        d->handle->disconnect(WServer::from(d->seat)->slotOwner());
+        d->handle->disconnect(d->seat);
     }
     d->seat = seat;
 

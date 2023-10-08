@@ -28,8 +28,9 @@ typedef bool (*GlobalFilterFunc)(const wl_client *client,
 
 class WServer;
 class WSocket;
-class WServerInterface
+class WServerInterface : public QObject
 {
+    Q_OBJECT
 public:
     virtual ~WServerInterface() {}
     inline void *handle() const {
@@ -133,8 +134,6 @@ public:
 
     bool isRunning() const;
     void addSocket(WSocket *socket);
-
-    QObject *slotOwner() const;
 
     void setGlobalFilter(GlobalFilterFunc filter, void *data);
 

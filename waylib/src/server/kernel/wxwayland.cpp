@@ -113,7 +113,7 @@ void WXWaylandPrivate::on_new_surface(wlr_xwayland_surface *xwl_surface)
     surface->setParent(server);
     Q_ASSERT(surface->parent() == server);
     QObject::connect(xwlSurface, &QWXWaylandSurface::beforeDestroy,
-                     server->slotOwner(), [this] (QWXWaylandSurface *surface) {
+                     q_func(), [this] (QWXWaylandSurface *surface) {
         on_surface_destroy(surface);
     });
 
@@ -206,10 +206,10 @@ void WXWayland::create(WServer *server)
     // free follow display
 
     auto handle = QWXWayland::create(server->handle(), d->compositor, d->lazy);
-    QObject::connect(handle, &QWXWayland::newSurface, server->slotOwner(), [d] (wlr_xwayland_surface *surface) {
+    QObject::connect(handle, &QWXWayland::newSurface, this, [d] (wlr_xwayland_surface *surface) {
         d->on_new_surface(surface);
     });
-    QObject::connect(handle, &QWXWayland::ready, server->slotOwner(), [d] {
+    QObject::connect(handle, &QWXWayland::ready, this, [d] {
         d->init();
     });
 

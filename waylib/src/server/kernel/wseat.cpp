@@ -130,7 +130,7 @@ public:
         pointerFocusEventObject = eventObject;
         if (eventObject) {
             onEventObjectDestroy = QObject::connect(eventObject, &QObject::destroyed,
-                                                    q_func()->server()->slotOwner(), [this] {
+                                                    q_func(), [this] {
                 doClearPointerFocus();
             });
         }
@@ -370,10 +370,10 @@ void WSeatPrivate::connect()
     QObject::connect(handle(), &QWSeat::destroyed, q_func()->server(), [this] {
         on_destroy();
     });
-    QObject::connect(handle(), &QWSeat::requestSetCursor, q_func()->server()->slotOwner(), [this] (wlr_seat_pointer_request_set_cursor_event *event) {
+    QObject::connect(handle(), &QWSeat::requestSetCursor, q_func(), [this] (wlr_seat_pointer_request_set_cursor_event *event) {
         on_request_set_cursor(event);
     });
-    QObject::connect(handle(), &QWSeat::requestSetSelection, q_func()->server()->slotOwner(), [this] (wlr_seat_request_set_selection_event *event) {
+    QObject::connect(handle(), &QWSeat::requestSetSelection, q_func(), [this] (wlr_seat_request_set_selection_event *event) {
         on_request_set_selection(event);
     });
 }
@@ -417,10 +417,10 @@ void WSeatPrivate::attachInputDevice(WInputDevice *device)
         xkb_context_unref(context);
         keyboard->setRepeatInfo(25, 600);
 
-        QObject::connect(keyboard, &QWKeyboard::key, q_func()->server()->slotOwner(), [this, device] (wlr_keyboard_key_event *event) {
+        QObject::connect(keyboard, &QWKeyboard::key, q_func(), [this, device] (wlr_keyboard_key_event *event) {
             on_keyboard_key(event, device);
         });
-        QObject::connect(keyboard, &QWKeyboard::modifiers, q_func()->server()->slotOwner(), [this, device] () {
+        QObject::connect(keyboard, &QWKeyboard::modifiers, q_func(), [this, device] () {
             on_keyboard_modifiers(device);
         });
     }

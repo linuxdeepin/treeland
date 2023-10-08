@@ -121,10 +121,10 @@ void WBackendPrivate::on_output_destroy(QWOutput *output)
 
 void WBackendPrivate::connect()
 {
-    QObject::connect(handle(), &QWBackend::newOutput, q_func()->server()->slotOwner(), [this] (QWOutput *output) {
+    QObject::connect(handle(), &QWBackend::newOutput, q_func(), [this] (QWOutput *output) {
         on_new_output(output);
     });
-    QObject::connect(handle(), &QWBackend::newInput, q_func()->server()->slotOwner(), [this] (QWInputDevice *device) {
+    QObject::connect(handle(), &QWBackend::newInput, q_func(), [this] (QWInputDevice *device) {
         on_new_input(device);
     });
 }

@@ -92,7 +92,6 @@ void WServerPrivate::init()
 {
     Q_ASSERT(!display);
 
-    slotOwner.reset(new QObject());
     display = new QWDisplay(q_func());
     wl_display_set_global_filter(display->handle(), globalFilter, this);
 
@@ -130,8 +129,6 @@ void WServerPrivate::init()
 void WServerPrivate::stop()
 {
     W_Q(WServer);
-
-    slotOwner.reset();
 
     auto list = interfaceList;
     interfaceList.clear();
@@ -361,12 +358,6 @@ void WServer::addSocket(WSocket *socket)
 
     if (d->display)
         d->initSocket(socket);
-}
-
-QObject *WServer::slotOwner() const
-{
-    W_DC(WServer);
-    return d->slotOwner.get();
 }
 
 void WServer::setGlobalFilter(GlobalFilterFunc filter, void *data)

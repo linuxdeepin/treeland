@@ -30,7 +30,6 @@ public:
 
     W_DECLARE_PUBLIC(WServer)
     std::unique_ptr<QSocketNotifier> sockNot;
-    std::unique_ptr<QObject> slotOwner;
 
     QVector<WServerInterface*> interfaceList;
 
