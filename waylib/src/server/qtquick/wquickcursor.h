@@ -45,6 +45,7 @@ class WAYLIB_SERVER_EXPORT WQuickCursor : public WCursor, public QQmlParserStatu
     Q_PROPERTY(WOutputRenderWindow* currentRenderWindow READ currentRenderWindow NOTIFY currentRenderWindowChanged)
     Q_PROPERTY(QString themeName READ themeName WRITE setThemeName NOTIFY themeNameChanged)
     Q_PROPERTY(QSize size READ size WRITE setSize NOTIFY sizeChanged)
+    Q_PROPERTY(QPointF position READ position NOTIFY positionChanged)
     QML_NAMED_ELEMENT(Cursor)
     QML_ATTACHED(WQuickCursorAttached)
     Q_INTERFACES(QQmlParserStatus)
@@ -74,11 +75,6 @@ Q_SIGNALS:
 private:
     using WCursor::setLayout;
     using WCursor::layout;
-
-    void move(QW_NAMESPACE::QWInputDevice *device, const QPointF &delta) override;
-    void setPosition(QW_NAMESPACE::QWInputDevice *device, const QPointF &pos) override;
-    bool setPositionWithChecker(QW_NAMESPACE::QWInputDevice *device, const QPointF &pos) override;
-    void setScalePosition(QW_NAMESPACE::QWInputDevice *device, const QPointF &ratio) override;
 
     void classBegin() override;
     void componentComplete() override;

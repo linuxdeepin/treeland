@@ -30,6 +30,8 @@ public:
     explicit WOutputViewport(QQuickItem *parent = nullptr);
     ~WOutputViewport();
 
+    Q_INVOKABLE void invalidate();
+
     bool isTextureProvider() const override;
     QSGTextureProvider *textureProvider() const override;
 

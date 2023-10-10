@@ -12,6 +12,7 @@
 #include "wquickseat_p.h"
 #include "wtools.h"
 #include "wtexture.h"
+#include "wquickcursor.h"
 
 #include <qwoutput.h>
 #include <qwoutputlayout.h>
@@ -116,8 +117,9 @@ QImage CursorTextureFactory::image() const
     return WTools::fromPixmanImage(image);
 }
 
-QuickOutputCursor::QuickOutputCursor(QObject *parent)
+QuickOutputCursor::QuickOutputCursor(wlr_output_cursor *handle, QObject *parent)
     : QObject(parent)
+    , m_handle(handle)
 {
 
 }
@@ -131,6 +133,11 @@ QuickOutputCursor::~QuickOutputCursor()
 QString QuickOutputCursor::imageProviderId()
 {
     return QLatin1StringView("QuickOutputCursor");
+}
+
+void QuickOutputCursor::setHandle(wlr_output_cursor *handle)
+{
+    m_handle = handle;
 }
 
 bool QuickOutputCursor::visible() const
@@ -256,9 +263,13 @@ void QuickOutputCursor::setSourceRect(const QRectF &newSourceRect)
     emit sourceRectChanged();
 }
 
-void QuickOutputCursor::setPosition(const QPointF &pos)
+bool QuickOutputCursor::setPosition(const QPointF &pos)
 {
-    delegateItem->setPosition(delegateItem->parentItem()->mapFromGlobal(pos));
+    const auto newPosition = delegateItem->parentItem()->mapFromGlobal(pos);
+    if (newPosition == delegateItem->position())
+        return false;
+    delegateItem->setPosition(newPosition);
+    return true;
 }
 
 void QuickOutputCursor::setDelegateItem(QQuickItem *item)
@@ -318,6 +329,7 @@ public:
 
     void clearCursors();
     void updateCursors();
+    QuickOutputCursor *getCursorBy(wlr_output_cursor *handle) const;
 
     W_DECLARE_PUBLIC(WOutputItem)
     QPointer<WOutput> output;
@@ -327,6 +339,7 @@ public:
     WQuickSeat *seat = nullptr;
     QQmlComponent *cursorDelegate = nullptr;
     QList<QuickOutputCursor*> cursors;
+    QuickOutputCursor *lastActiveCursor = nullptr;
     QMetaObject::Connection updateCursorsConnection;
 };
 
@@ -374,12 +387,15 @@ void WOutputItemPrivate::updateCursors()
 
     W_Q(WOutputItem);
 
-    int index = 0;
+    QList<QuickOutputCursor*> tmpCursors;
+    tmpCursors.reserve(cursors.size());
+    bool cursorsChanged = false;
+
     struct wlr_output_cursor *cursor;
     wl_list_for_each(cursor, &output->handle()->handle()->cursors, link) {
-        QuickOutputCursor *quickCursor = nullptr;
-        if (index >= cursors.count()) {
-            quickCursor = new QuickOutputCursor(q);
+        QuickOutputCursor *quickCursor = getCursorBy(cursor);
+        if (!quickCursor) {
+            quickCursor = new QuickOutputCursor(cursor, q);
             auto obj = cursorDelegate->createWithInitialProperties({{"cursor", QVariant::fromValue(quickCursor)}}, qmlContext(q));
             auto item = qobject_cast<QQuickItem*>(obj);
 
@@ -392,28 +408,54 @@ void WOutputItemPrivate::updateCursors()
             item->setParentItem(q->window()->contentItem());
 
             quickCursor->setDelegateItem(item);
-            cursors.append(quickCursor);
-        } else {
-            quickCursor = cursors.at(index);
+            cursorsChanged = true;
         }
+
+        tmpCursors.append(quickCursor);
 
         quickCursor->setVisible(cursor->visible);
         quickCursor->setIsHardwareCursor(output->handle()->handle()->hardware_cursor == cursor);
         const QPointF position = QPointF(cursor->x, cursor->y) / cursor->output->scale + output->position();
-        quickCursor->setPosition(position);
+        bool positionChanged = quickCursor->setPosition(position);
         quickCursor->setHotspot((QPointF(cursor->hotspot_x, cursor->hotspot_y) / cursor->output->scale).toPoint());
         quickCursor->setSize(QSizeF(cursor->width, cursor->height) / cursor->output->scale);
         quickCursor->setSourceRect(QRectF(cursor->src_box.x, cursor->src_box.y, cursor->src_box.width, cursor->src_box.height));
         quickCursor->setTexture(cursor->texture);
 
-        ++index;
+        if (cursor->visible && positionChanged && lastActiveCursor != quickCursor) {
+            lastActiveCursor = quickCursor;
+            Q_EMIT q->lastActiveCursorItemChanged();
+        }
     }
 
+    std::swap(tmpCursors, cursors);
     // clean needless cursors
-    for (int i = index + 1; i < cursors.count(); ++i) {
-        cursors.at(i)->deleteLater();
-        cursors.removeAt(i);
+    for (auto cursor : tmpCursors) {
+        if (cursors.contains(cursor))
+            continue;
+        if (cursor == lastActiveCursor) {
+            lastActiveCursor = nullptr;
+            Q_EMIT q->lastActiveCursorItemChanged();
+        }
+        cursor->deleteLater();
+        cursorsChanged = true;
     }
+
+    if (lastActiveCursor && !lastActiveCursor->visible()) {
+        lastActiveCursor = nullptr;
+        Q_EMIT q->lastActiveCursorItemChanged();
+    }
+
+    if (cursorsChanged)
+        Q_EMIT q->cursorItemsChanged();
+}
+
+QuickOutputCursor *WOutputItemPrivate::getCursorBy(wlr_output_cursor *handle) const
+{
+    for (auto cursor : cursors)
+        if (cursor->m_handle == handle)
+            return cursor;
+    return nullptr;
 }
 
 WOutputItem::WOutputItem(QQuickItem *parent)
@@ -558,6 +600,25 @@ void WOutputItem::setCursorDelegate(QQmlComponent *delegate)
     d->clearCursors();
 
     Q_EMIT cursorDelegateChanged();
+}
+
+QQuickItem *WOutputItem::lastActiveCursorItem() const
+{
+    W_DC(WOutputItem);
+    return d->lastActiveCursor ? d->lastActiveCursor->delegateItem : nullptr;
+}
+
+QList<QQuickItem *> WOutputItem::cursorItems() const
+{
+    W_DC(WOutputItem);
+
+    QList<QQuickItem *> items;
+    items.reserve(d->cursors.size());
+
+    for (auto cursor : d->cursors)
+        items.append(cursor->delegateItem);
+
+    return items;
 }
 
 void WOutputItem::classBegin()

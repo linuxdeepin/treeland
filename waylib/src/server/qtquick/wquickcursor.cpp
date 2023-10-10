@@ -53,7 +53,6 @@ public:
     void setCurrentRenderWindow(WOutputRenderWindow *window);
     void onRenderWindowAdded(WOutputRenderWindow *window);
     void onRenderWindowRemoved(WOutputRenderWindow *window);
-    void onCursorPositionChanged();
 
     void setCursorImageUrl(const QUrl &url);
     void updateXCursorManager();
@@ -159,11 +158,6 @@ void WQuickCursorPrivate::onRenderWindowRemoved(WOutputRenderWindow *window)
     Q_ASSERT(ok);
 }
 
-void WQuickCursorPrivate::onCursorPositionChanged()
-{
-    updateCurrentRenderWindow();
-}
-
 void WQuickCursorPrivate::updateXCursorManager()
 {
     if (xcursor_manager) delete xcursor_manager;
@@ -175,7 +169,7 @@ void WQuickCursorPrivate::updateXCursorManager()
 WQuickCursor::WQuickCursor(QObject *parent)
     : WCursor(*new WQuickCursorPrivate(this), parent)
 {
-
+    connect(this, SIGNAL(positionChanged()), this, SLOT(updateCurrentRenderWindow()));
 }
 
 WQuickCursor::~WQuickCursor()
@@ -251,38 +245,6 @@ void WQuickCursor::setSize(const QSize &size)
         return;
     d->cursorSize = size;
     QMetaObject::invokeMethod(this, "updateXCursorManager", Qt::QueuedConnection);
-}
-
-void WQuickCursor::move(QW_NAMESPACE::QWInputDevice *device, const QPointF &delta)
-{
-    W_D(WQuickCursor);
-    WCursor::move(device, delta);
-    d->onCursorPositionChanged();
-}
-
-void WQuickCursor::setPosition(QW_NAMESPACE::QWInputDevice *device, const QPointF &pos)
-{
-    W_D(WQuickCursor);
-    WCursor::setPosition(device, pos);
-    d->onCursorPositionChanged();
-}
-
-bool WQuickCursor::setPositionWithChecker(QW_NAMESPACE::QWInputDevice *device, const QPointF &pos)
-{
-    W_D(WQuickCursor);
-
-    if (!WCursor::setPositionWithChecker(device, pos))
-        return false;
-
-    d->onCursorPositionChanged();
-    return true;
-}
-
-void WQuickCursor::setScalePosition(QW_NAMESPACE::QWInputDevice *device, const QPointF &ratio)
-{
-    W_D(WQuickCursor);
-    WCursor::setScalePosition(device, ratio);
-    d->onCursorPositionChanged();
 }
 
 void WQuickCursor::classBegin()

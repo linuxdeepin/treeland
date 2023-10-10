@@ -98,9 +98,16 @@ WOutputViewport::WOutputViewport(QQuickItem *parent)
 
 WOutputViewport::~WOutputViewport()
 {
+    invalidate();
+}
+
+void WOutputViewport::invalidate()
+{
     W_D(WOutputViewport);
-    if (d->componentComplete && d->output && d->window)
+    if (d->componentComplete && d->output && d->window) {
         d->outputWindow()->detach(this);
+        d->output = nullptr;
+    }
 }
 
 bool WOutputViewport::isTextureProvider() const

@@ -121,6 +121,9 @@ public:
     QPointF position() const;
     QPointF lastPressedPosition() const;
 
+Q_SIGNALS:
+    void positionChanged();
+
 protected:
     WCursor(WCursorPrivate &dd, QObject *parent = nullptr);
 

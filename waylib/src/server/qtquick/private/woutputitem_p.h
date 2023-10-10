@@ -45,6 +45,7 @@ private:
 
 class QuickOutputCursor : public QObject
 {
+    friend class WOutputItem;
     friend class WOutputItemPrivate;
     Q_OBJECT
     Q_PROPERTY(bool visible READ visible NOTIFY visibleChanged)
@@ -56,7 +57,7 @@ class QuickOutputCursor : public QObject
     QML_NAMED_ELEMENT(OutputCursor)
 
 public:
-    explicit QuickOutputCursor(QObject *parent = nullptr);
+    explicit QuickOutputCursor(wlr_output_cursor *handle, QObject *parent = nullptr);
     ~QuickOutputCursor();
 
     static QString imageProviderId();
@@ -77,6 +78,7 @@ Q_SIGNALS:
     void sourceRectChanged();
 
 private:
+    void setHandle(wlr_output_cursor *handle);
     void setVisible(bool newVisible);
     void setIsHardwareCursor(bool newIsHardwareCursor);
     void setHotspot(QPointF newHotspot);
@@ -84,9 +86,10 @@ private:
     void setImageSource(const QUrl &newImageSource);
     void setSize(const QSizeF &newSize);
     void setSourceRect(const QRectF &newSourceRect);
-    void setPosition(const QPointF &pos);
+    bool setPosition(const QPointF &pos);
     void setDelegateItem(QQuickItem *item);
 
+    wlr_output_cursor *m_handle = nullptr;
     QQuickItem *delegateItem = nullptr;
     wlr_texture *lastTexture = nullptr;
     bool m_visible = false;

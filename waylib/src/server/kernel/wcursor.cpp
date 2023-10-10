@@ -417,22 +417,38 @@ WCursor::WCursor(WCursorPrivate &dd, QObject *parent)
 
 void WCursor::move(QWInputDevice *device, const QPointF &delta)
 {
+    const QPointF oldPos = position();
     d_func()->handle->move(device, delta);
+
+    if (oldPos != position())
+        Q_EMIT positionChanged();
 }
 
 void WCursor::setPosition(QWInputDevice *device, const QPointF &pos)
 {
+    const QPointF oldPos = position();
     d_func()->handle->warpClosest(device, pos);
+
+    if (oldPos != position())
+        Q_EMIT positionChanged();
 }
 
 bool WCursor::setPositionWithChecker(QWInputDevice *device, const QPointF &pos)
 {
+    const QPointF oldPos = position();
     return d_func()->handle->warp(device, pos);
+
+    if (oldPos != position())
+        Q_EMIT positionChanged();
 }
 
 void WCursor::setScalePosition(QWInputDevice *device, const QPointF &ratio)
 {
+    const QPointF oldPos = position();
     d_func()->handle->warpAbsolute(device, ratio);
+
+    if (oldPos != position())
+        Q_EMIT positionChanged();
 }
 
 WCursor::WCursor(QObject *parent)

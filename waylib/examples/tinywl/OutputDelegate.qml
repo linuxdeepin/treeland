@@ -7,6 +7,7 @@ import Waylib.Server
 
 OutputItem {
     required property WaylandOutput waylandOutput
+    property OutputViewport onscreenViewport: outputViewport
 
     output: waylandOutput
     devicePixelRatio: waylandOutput.scale
@@ -46,7 +47,7 @@ OutputItem {
             id: setTransform
 
             property var scheduleTransform
-            onTriggered: outputViewport.rotateOutput(scheduleTransform)
+            onTriggered: onscreenViewport.rotateOutput(scheduleTransform)
             interval: rotationAnimator.duration / 2
         }
 
@@ -82,6 +83,74 @@ OutputItem {
         anchors.fill: parent
     }
 
+    Component {
+        id: outputScaleEffect
+
+        OutputViewport {
+            readonly property OutputItem outputItem: waylandOutput.OutputItem.item
+
+            root: true
+            output: waylandOutput
+            devicePixelRatio: outputViewport.devicePixelRatio
+
+            ItemProxy {
+                sourceItem: outputViewport
+            }
+
+            Item {
+                width: outputItem.width
+                height: outputItem.height
+                anchors.centerIn: parent
+                rotation: -outputViewport.rotation
+
+                Item {
+                    y: 10
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    width: parent.width / 2
+                    height: parent.height / 3
+                    clip: true
+
+                    Item {
+                        id: centerItem
+                        width: 1
+                        height: 1
+                        anchors.centerIn: parent
+                        rotation: outputViewport.rotation
+
+                        ItemProxy {
+                            id: magnifyingLens
+
+                            sourceItem: outputViewport
+                            smooth: false
+                            scale: 10
+                            transformOrigin: Item.TopLeft
+
+                            function updatePosition() {
+                                const pos = outputItem.lastActiveCursorItem.mapToItem(outputViewport, Qt.point(0, 0))
+                                x = - pos.x * scale
+                                y = - pos.y * scale
+                            }
+
+                            Connections {
+                                target: outputItem.lastActiveCursorItem
+
+                                function onXChanged() {
+                                    magnifyingLens.updatePosition()
+                                }
+
+                                function onYChanged() {
+                                    magnifyingLens.updatePosition()
+                                }
+                            }
+
+                            Component.onCompleted: updatePosition()
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     Column {
         anchors {
             bottom: parent.bottom
@@ -90,6 +159,24 @@ OutputItem {
         }
 
         spacing: 10
+
+        Switch {
+            property OutputViewport outputViewportEffect
+
+            text: "Magnifying Lens"
+            onCheckedChanged: {
+                if (checked) {
+                    outputViewport.offscreen = true
+                    outputViewportEffect = outputScaleEffect.createObject(outputViewport.parent)
+                    onscreenViewport = outputViewportEffect
+                } else {
+                    outputViewportEffect.invalidate()
+                    outputViewportEffect.destroy()
+                    outputViewport.offscreen = false
+                    onscreenViewport = outputViewport
+                }
+            }
+        }
 
         Switch {
             text: "Socket"
@@ -104,14 +191,14 @@ OutputItem {
         Button {
             text: "1X"
             onClicked: {
-                outputViewport.setOutputScale(1)
+                onscreenViewport.setOutputScale(1)
             }
         }
 
         Button {
             text: "1.5X"
             onClicked: {
-                outputViewport.setOutputScale(1.5)
+                onscreenViewport.setOutputScale(1.5)
             }
         }
 
