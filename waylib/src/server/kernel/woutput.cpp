@@ -41,18 +41,18 @@ public:
 
         QObject::connect(this->handle.get(), qOverload<wlr_output_event_commit*>(&QWOutput::commit),
                          qq, [qq] (wlr_output_event_commit *event) {
-            if (event->committed & WLR_OUTPUT_STATE_SCALE) {
+            if (event->state->committed & WLR_OUTPUT_STATE_SCALE) {
                 Q_EMIT qq->scaleChanged();
                 Q_EMIT qq->effectiveSizeChanged();
             }
 
-            if (event->committed & WLR_OUTPUT_STATE_MODE) {
+            if (event->state->committed & WLR_OUTPUT_STATE_MODE) {
                 Q_EMIT qq->modeChanged();
                 Q_EMIT qq->transformedSizeChanged();
                 Q_EMIT qq->effectiveSizeChanged();
             }
 
-            if (event->committed & WLR_OUTPUT_STATE_TRANSFORM) {
+            if (event->state->committed & WLR_OUTPUT_STATE_TRANSFORM) {
                 Q_EMIT qq->orientationChanged();
                 Q_EMIT qq->transformedSizeChanged();
                 Q_EMIT qq->effectiveSizeChanged();
