@@ -23,7 +23,7 @@ jobs:
       - name: Install dep
         run: |
           pacman -Syu --noconfirm qt6-base qt6-declarative cmake pkgconfig pixman wayland-protocols git
-          pacman -Syu --noconfirm clang ninja
+          pacman -Syu --noconfirm clang ninja make
           pacman -Syu --noconfirm fakeroot meson sudo
       - name: Set up user
         run: |
@@ -32,6 +32,9 @@ jobs:
       - name: Install wlroots from the AUR
         run: |
           su githubuser -c "cd ~ && git clone https://aur.archlinux.org/wlroots-git.git && cd ./wlroots-git && makepkg -si --skippgpcheck --noconfirm"
+      - name: Install wlr-protocols form the AUR
+        run: |
+          su githubuser -c "cd ~ && git clone https://aur.archlinux.org/wlr-protocols-git.git && cd ./wlr-protocols-git && makepkg -si --skippgpcheck --noconfirm"
       - uses: actions/checkout@v3
         with:
           submodules: true

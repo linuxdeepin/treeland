@@ -46,8 +46,8 @@ void WXdgShellPrivate::on_new_xdg_surface(wlr_xdg_surface *wlr_surface)
     auto surface = new WXdgSurface(xdgSurface, server);
     surface->setParent(server);
     Q_ASSERT(surface->parent() == server);
-    QObject::connect(xdgSurface, &QWXdgSurface::beforeDestroy, q_func(), [this] (QObject *data) {
-        on_surface_destroy(static_cast<QWXdgSurface*>(data));
+    QObject::connect(xdgSurface, &QWXdgSurface::beforeDestroy, q_func(), [this] (QWXdgSurface *data) {
+        on_surface_destroy(data);
     });
 
     surfaceList.append(surface);

@@ -31,6 +31,14 @@ Item {
             }
         }
 
+        let layer = QmlHelper.layerSurfaceManager.getIf(layerComponent, finder)
+        if (layer) {
+            return {
+                shell: layer,
+                item: layer.surfaceItem
+            }
+        }
+
         let xwayland = QmlHelper.xwaylandSurfaceManager.getIf(xwaylandComponent, finder)
         if (xwayland) {
             return {
@@ -106,7 +114,6 @@ Item {
         // TODO: Support server decoration
         XdgSurface {
             id: surface
-
             property var doDestroy: helper.doDestroy
             property var cancelMinimize: helper.cancelMinimize
 
@@ -160,6 +167,21 @@ Item {
                 if (waylandSurface)
                     waylandSurface.surface.unmap()
             }
+        }
+    }
+
+    DynamicCreatorComponent {
+        id: layerComponent
+        creator: QmlHelper.layerSurfaceManager
+        autoDestroy: false
+
+        onObjectRemoved: function (obj) {
+            obj.doDestroy()
+        }
+
+        LayerSurface {
+            id: layerSurface
+            creator: layerComponent
         }
     }
 
@@ -240,10 +262,14 @@ Item {
                 onEnterOutput: function(output) {
                     if (surface.waylandSurface.surface)
                         surface.waylandSurface.surface.enterOutput(output);
+                    Helper.onSurfaceEnterOutput(waylandSurface, surface, output)
+                    surfaceItem.x = Helper.getLeftExclusiveMargin(waylandSurface) + 10
+                    surfaceItem.y = Helper.getTopExclusiveMargin(waylandSurface) + 10
                 }
                 onLeaveOutput: function(output) {
                     if (surface.waylandSurface.surface)
                         surface.waylandSurface.surface.leaveOutput(output);
+                    Helper.onSurfaceLeaveOutput(waylandSurface, surface, output)
                 }
             }
         }

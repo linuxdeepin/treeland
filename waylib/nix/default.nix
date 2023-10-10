@@ -11,6 +11,7 @@
 , qwlroots
 , wayland
 , wayland-protocols
+, wlr-protocols
 , pixman
 , libdrm
 , nixos-artwork
@@ -57,6 +58,7 @@ stdenv.mkDerivation rec {
     qwlroots
     wayland
     wayland-protocols
+    wlr-protocols
     pixman
     libdrm
   ];

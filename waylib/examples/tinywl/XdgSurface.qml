@@ -5,6 +5,7 @@ import QtQuick
 import Waylib.Server
 
 XdgSurfaceItem {
+    id: surfaceItem
     required property WaylandXdgSurface waylandSurface
     property string type
 
@@ -15,10 +16,14 @@ XdgSurfaceItem {
         layout: QmlHelper.layout
 
         onEnterOutput: function(output) {
-            waylandSurface.surface.enterOutput(output);
+            waylandSurface.surface.enterOutput(output)
+            Helper.onSurfaceEnterOutput(waylandSurface, surfaceItem, output)
+            surfaceItem.x = Helper.getLeftExclusiveMargin(waylandSurface) + 10
+            surfaceItem.y = Helper.getTopExclusiveMargin(waylandSurface) + 10
         }
         onLeaveOutput: function(output) {
-            waylandSurface.surface.leaveOutput(output);
+            waylandSurface.surface.leaveOutput(output)
+            Helper.onSurfaceLeaveOutput(waylandSurface, surfaceItem, output)
         }
     }
 }

@@ -32,10 +32,10 @@ Item {
                 restoreEntryValues: true
                 target: root.surface
 
-                x: outputCoordMapper.x
-                y: outputCoordMapper.y + output.topMargin
-                width: outputCoordMapper.width
-                height: outputCoordMapper.height - output.topMargin
+                x: outputCoordMapper.x + Helper.getLeftExclusiveMargin(waylandSurface)
+                y: outputCoordMapper.y + output.topMargin + Helper.getTopExclusiveMargin(waylandSurface)
+                width: outputCoordMapper.width - Helper.getLeftExclusiveMargin(waylandSurface) - Helper.getRightExclusiveMargin(waylandSurface)
+                height: outputCoordMapper.height - output.topMargin - Helper.getTopExclusiveMargin(waylandSurface) - Helper.getBottomExclusiveMargin(waylandSurface)
             }
         }
     }

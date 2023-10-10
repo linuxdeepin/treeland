@@ -142,6 +142,12 @@ QWOutput *WOutput::handle() const
     return d->handle.data();
 }
 
+wlr_output *WOutput::nativeHandle() const
+{
+    return handle()->handle();
+}
+
+
 WOutput *WOutput::fromHandle(const QWOutput *handle)
 {
     return handle->getData<WOutput>();

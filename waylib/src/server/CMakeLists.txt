@@ -18,6 +18,7 @@ find_package(PkgConfig)
 pkg_search_module(PIXMAN REQUIRED pixman-1)
 pkg_search_module(LIBDRM REQUIRED IMPORTED_TARGET libdrm)
 pkg_search_module(WLROOTS REQUIRED IMPORTED_TARGET wlroots)
+pkg_search_module(WLR_PROTOCOLS REQUIRED wlr-protocols)
 
 include(${PROJECT_SOURCE_DIR}/cmake/WaylandScannerHelpers.cmake)
 ws_generate(
@@ -31,6 +32,12 @@ ws_generate(
     wayland-protocols
     staging/cursor-shape/cursor-shape-v1.xml
     cursor-shape-v1-protocol
+)
+ws_generate(
+    server
+    wlr-protocols
+    unstable/wlr-layer-shell-unstable-v1.xml
+    wlr-layer-shell-unstable-v1-protocol
 )
 
 add_definitions(-DWLR_USE_UNSTABLE -DLIBWAYLIB_SERVER_LIBRARY)
@@ -49,6 +56,7 @@ set(KERNEL_SOURCES
 
     kernel/wxdgshell.cpp
     kernel/wxdgsurface.cpp
+    kernel/wlayersurface.cpp
     kernel/woutputlayout.cpp
     kernel/wxcursorimage.cpp
     kernel/wglobal.cpp
@@ -80,6 +88,7 @@ set(QTQUICK_SOURCES
     qtquick/private/wqmlhelper.cpp
     qtquick/private/wquickxdgdecorationmanager.cpp
     qtquick/private/wquickcursorshape.cpp
+    qtquick/private/wquicklayershell.cpp
 )
 
 set(UTILS_SOURCES
@@ -109,6 +118,7 @@ set(HEADERS
     kernel/wtypes.h
     kernel/wxdgshell.h
     kernel/wxdgsurface.h
+    kernel/wlayersurface.h
     kernel/woutputlayout.h
     kernel/wxcursorimage.h
     kernel/wsocket.h
@@ -126,6 +136,7 @@ set(HEADERS
     kernel/WXdgShell
     kernel/WXdgSurface
     kernel/WSurface
+    kernel/WLayerSurface
 
     qtquick/wsurfaceitem.h
     qtquick/WSurfaceItem
@@ -160,6 +171,7 @@ set(PRIVATE_HEADERS
     qtquick/private/wquickxdgdecorationmanager_p.h
     qtquick/private/wquickcursorshape_p.h
     qtquick/private/wquicktextureproxy_p.h
+    qtquick/private/wquicklayershell_p.h
 )
 
 if(NOT DISABLE_XWAYLAND)

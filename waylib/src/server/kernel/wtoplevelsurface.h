@@ -50,6 +50,13 @@ public:
         return QSize();
     }
 
+    virtual int keyboardFocusPriority() const {
+        // When a high-priority surface obtains keyboard focus
+        // it prevents a low-priority surface obtaining focus.
+        // Should always be 0 except layer surface
+        return 0;
+    }
+
 public Q_SLOTS:
     virtual void setMaximize(bool on) {
         Q_UNUSED(on);

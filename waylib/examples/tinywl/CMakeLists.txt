@@ -35,6 +35,7 @@ qt_add_qml_module(tinywl-qtquick
         ClientWindow.qml
         StackWorkspace.qml
         XdgSurface.qml
+        LayerSurface.qml
         TiledWorkspace.qml
         QmlHelper.qml
         OutputDelegate.qml

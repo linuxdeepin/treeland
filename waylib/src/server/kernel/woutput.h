@@ -13,6 +13,8 @@
 #include <QQmlEngine>
 #include <QImage>
 
+struct wlr_output;
+
 QT_BEGIN_NAMESPACE
 class QScreen;
 class QQuickWindow;
@@ -69,6 +71,8 @@ public:
     QW_NAMESPACE::QWAllocator *allocator() const;
 
     QW_NAMESPACE::QWOutput *handle() const;
+    wlr_output *nativeHandle() const;
+
     static WOutput *fromHandle(const QW_NAMESPACE::QWOutput *handle);
 
     static WOutput *fromScreen(const QScreen *screen);
