@@ -34,10 +34,6 @@ extern "C" {
 #include <wlr/types/wlr_buffer.h>
 }
 
-#include <xf86drm.h>
-#include <fcntl.h>
-#include <unistd.h>
-
 QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
@@ -150,53 +146,6 @@ bool createRhiRenderTarget(QRhi *rhi, const QQuickRenderTarget &source, QQuickWi
     return false;
 }
 // Copy end
-
-// Copy from "wlr_renderer.c" of wlroots
-static int open_drm_render_node(void) {
-    uint32_t flags = 0;
-    int devices_len = drmGetDevices2(flags, NULL, 0);
-    if (devices_len < 0) {
-        qFatal("drmGetDevices2 failed: %s", strerror(-devices_len));
-        return -1;
-    }
-    drmDevice **devices = reinterpret_cast<drmDevice**>(calloc(devices_len, sizeof(drmDevice *)));
-    if (devices == NULL) {
-        qFatal("Allocation failed: %s", strerror(errno));
-        return -1;
-    }
-    devices_len = drmGetDevices2(flags, devices, devices_len);
-    if (devices_len < 0) {
-        free(devices);
-        qFatal("drmGetDevices2 failed: %s", strerror(-devices_len));
-        return -1;
-    }
-
-    int fd = -1;
-    for (int i = 0; i < devices_len; i++) {
-        drmDevice *dev = devices[i];
-        if (dev->available_nodes & (1 << DRM_NODE_RENDER)) {
-            const char *name = dev->nodes[DRM_NODE_RENDER];
-            qDebug("Opening DRM render node '%s'", name);
-            fd = open(name, O_RDWR | O_CLOEXEC);
-            if (fd < 0) {
-                qFatal("Failed to open '%s': %s", name, strerror(errno));
-                goto out;
-            }
-            break;
-        }
-    }
-    if (fd < 0) {
-        qFatal("Failed to find any DRM render node");
-    }
-
-out:
-    for (int i = 0; i < devices_len; i++) {
-        drmFreeDevice(&devices[i]);
-    }
-    free(devices);
-
-    return fd;
-}
 
 class WRenderHelperPrivate : public WObjectPrivate
 {
@@ -376,53 +325,39 @@ std::pair<QWBuffer *, QQuickRenderTarget> WRenderHelper::lastRenderTarget() cons
     return {d->lastBuffer->buffer, d->lastBuffer->renderTarget};
 }
 
+static QWRenderer *createRendererWithType(const char *type, QWBackend *backend)
+{
+    qputenv("WLR_RENDERER", type);
+    auto render = QWRenderer::autoCreate(backend);
+    qunsetenv("WLR_RENDERER");
+
+    return render;
+}
+
 QWRenderer *WRenderHelper::createRenderer(QWBackend *backend)
 {
-    int drm_fd = wlr_backend_get_drm_fd(backend->handle());
-
-    auto backend_get_buffer_caps = [] (struct wlr_backend *backend) -> uint32_t {
-        if (!backend->impl->get_buffer_caps) {
-            return 0;
-        }
-
-        return backend->impl->get_buffer_caps(backend);
-    };
-
-    uint32_t backend_caps = backend_get_buffer_caps(backend->handle());
-    int render_drm_fd = -1;
-    if (drm_fd < 0 && (backend_caps & WLR_BUFFER_CAP_DMABUF) != 0) {
-        render_drm_fd = open_drm_render_node();
-        drm_fd = render_drm_fd;
-    }
-
-    wlr_renderer *renderer_handle = nullptr;
+    QWRenderer *renderer = nullptr;
     auto api = getGraphicsApi();
 
     switch (api) {
     case QSGRendererInterface::OpenGL:
-        renderer_handle = wlr_gles2_renderer_create_with_drm_fd(drm_fd);
+        renderer = createRendererWithType("gles2", backend);
+        Q_ASSERT(!renderer || wlr_renderer_is_gles2(renderer->handle()));
         break;
 #ifdef ENABLE_VULKAN_RENDER
     case QSGRendererInterface::Vulkan: {
-        renderer_handle = wlr_vk_renderer_create_with_drm_fd(drm_fd);
+        renderer = createRendererWithType("vulkan", backend);
+        Q_ASSERT(!renderer || wlr_renderer_is_vk(renderer->handle()));
         break;
     }
 #endif
     case QSGRendererInterface::Software:
-        renderer_handle = wlr_pixman_renderer_create();
+        renderer = createRendererWithType("pixman", backend);
+        Q_ASSERT(!renderer || wlr_renderer_is_pixman(renderer->handle()));
         break;
     default:
         qFatal("Not supported graphics api: %s", qPrintable(QQuickWindow::sceneGraphBackend()));
         break;
-    }
-
-    QWRenderer *renderer = nullptr;
-    if (renderer_handle) {
-        renderer = QWRenderer::from(renderer_handle);
-    }
-
-    if (render_drm_fd >= 0) {
-        close(render_drm_fd);
     }
 
     return renderer;
