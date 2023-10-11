@@ -231,8 +231,10 @@ void WOutputHelper::setDamage(const pixman_region32 *damage)
 bool WOutputHelper::commit()
 {
     W_D(WOutputHelper);
-    bool ok = d->qwoutput()->commitState(&d->state);
-    wlr_output_state_finish(&d->state);
+    wlr_output_state state = d->state;
+    wlr_output_state_init(&d->state);
+    bool ok = d->qwoutput()->commitState(&state);
+    wlr_output_state_finish(&state);
 
     return ok;
 }
@@ -263,8 +265,15 @@ void WOutputHelper::resetState()
     d->setNeedsFrame(false);
 
     // reset output state
-    wlr_output_state_finish(&d->state);
-    wlr_output_state_init(&d->state);
+    if (d->state.committed & WLR_OUTPUT_STATE_BUFFER) {
+        wlr_buffer_unlock(d->state.buffer);
+        d->state.buffer = nullptr;
+    }
+
+    free(d->state.gamma_lut);
+    d->state.gamma_lut = nullptr;
+    pixman_region32_clear(&d->state.damage);
+    d->state.committed = 0;
 }
 
 void WOutputHelper::update()
