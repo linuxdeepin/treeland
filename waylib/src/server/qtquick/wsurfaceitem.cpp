@@ -15,7 +15,7 @@
 #include <qwbuffer.h>
 
 #include <QQuickWindow>
-#include <QSGSimpleTextureNode>
+#include <QSGImageNode>
 #include <private/qquickitem_p.h>
 
 extern "C" {
@@ -101,6 +101,7 @@ public:
     QMarginsF paddings;
     QList<WSurfaceItem*> subsurfaces;
     qreal surfaceSizeRatio = 1.0;
+    bool mipmap = true;
 
     QMetaObject::Connection frameDoneConnection;
     uint32_t beforeRequestResizeSurfaceStateSeq = 0;
@@ -234,10 +235,10 @@ QSGNode *ContentItem::updatePaintNode(QSGNode *oldNode, UpdatePaintNodeData *)
         return nullptr;
     }
 
-    auto node = static_cast<QSGSimpleTextureNode*>(oldNode);
+    auto node = static_cast<QSGImageNode*>(oldNode);
     if (Q_UNLIKELY(!node)) {
         auto texture = m_textureProvider->texture();
-        node = new QSGSimpleTextureNode;
+        node = window()->createImageNode();
         node->setOwnsTexture(false);
         node->setTexture(texture);
     } else {
@@ -248,7 +249,8 @@ QSGNode *ContentItem::updatePaintNode(QSGNode *oldNode, UpdatePaintNodeData *)
     node->setSourceRect(textureGeometry);
     const QRectF targetGeometry(d()->surfaceState->bufferOffset, size());
     node->setRect(targetGeometry);
-    node->setFiltering(QSGTexture::Linear);
+    node->setFiltering(d()->smooth ? QSGTexture::Linear : QSGTexture::Nearest);
+    node->setMipmapFiltering(d()->mipmap ? node->filtering() : QSGTexture::None);
 
     return node;
 }
@@ -383,6 +385,7 @@ WSurfaceItem::WSurfaceItem(QQuickItem *parent)
     Q_D(WSurfaceItem);
     auto contentItem = new ContentItem(this);
     d->contentItem = contentItem;
+    connect(this, &WSurfaceItem::smoothChanged, d->contentItem, &ContentItem::update);
 }
 
 WSurfaceItem::~WSurfaceItem()
@@ -553,6 +556,22 @@ qreal WSurfaceItem::bufferScale() const
     Q_D(const WSurfaceItem);
 
     return d->surfaceState ? d->surfaceState->bufferScale : 1.0;
+}
+
+bool WSurfaceItem::mipmap() const
+{
+    Q_D(const WSurfaceItem);
+    return d->mipmap;
+}
+
+void WSurfaceItem::setMipmap(bool newMipmap)
+{
+    Q_D(WSurfaceItem);
+    if (d->mipmap == newMipmap)
+        return;
+    d->mipmap = newMipmap;
+    d->contentItem->update();
+    Q_EMIT mipmapChanged();
 }
 
 qreal WSurfaceItem::leftPadding() const
@@ -831,7 +850,7 @@ void WSurfaceItem::updateSurfaceState()
 
 WSurfaceItemPrivate::WSurfaceItemPrivate()
 {
-
+    smooth = true;
 }
 
 WSurfaceItemPrivate::~WSurfaceItemPrivate()

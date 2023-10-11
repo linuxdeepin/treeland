@@ -38,6 +38,7 @@ class WAYLIB_SERVER_EXPORT WSurfaceItem : public QQuickItem
     Q_PROPERTY(qreal implicitHeight READ implicitHeight NOTIFY implicitHeightChanged)
     Q_PROPERTY(qreal surfaceSizeRatio READ surfaceSizeRatio WRITE setSurfaceSizeRatio NOTIFY surfaceSizeRatioChanged)
     Q_PROPERTY(qreal bufferScale READ bufferScale NOTIFY bufferScaleChanged)
+    Q_PROPERTY(bool mipmap READ mipmap WRITE setMipmap NOTIFY mipmapChanged)
     QML_NAMED_ELEMENT(SurfaceItem)
 
 public:
@@ -95,6 +96,9 @@ public:
 
     qreal bufferScale() const;
 
+    bool mipmap() const;
+    void setMipmap(bool newMipmap);
+
 Q_SIGNALS:
     void surfaceChanged();
     void subsurfaceAdded(WSurfaceItem *item);
@@ -109,6 +113,7 @@ Q_SIGNALS:
     void rightPaddingChanged();
     void surfaceSizeRatioChanged();
     void bufferScaleChanged();
+    void mipmapChanged();
 
 protected:
     void componentComplete() override;
