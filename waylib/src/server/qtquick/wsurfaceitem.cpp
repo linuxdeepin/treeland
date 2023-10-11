@@ -225,6 +225,9 @@ bool ContentItem::isTextureProvider() const
 
 QSGTextureProvider *ContentItem::textureProvider() const
 {
+    if (QQuickItem::isTextureProvider())
+        return QQuickItem::textureProvider();
+
     return m_textureProvider;
 }
 
@@ -407,6 +410,9 @@ bool WSurfaceItem::isTextureProvider() const
 
 QSGTextureProvider *WSurfaceItem::textureProvider() const
 {
+    if (QQuickItem::isTextureProvider())
+        return QQuickItem::textureProvider();
+
     Q_D(const WSurfaceItem);
     return d->contentItem->textureProvider();
 }

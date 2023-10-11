@@ -113,13 +113,13 @@ void WOutputViewport::invalidate()
 bool WOutputViewport::isTextureProvider() const
 {
     W_DC(WOutputViewport);
-    return d->textureProvider.get();
+    return d->textureProvider ? true : QQuickItem::isTextureProvider();
 }
 
 QSGTextureProvider *WOutputViewport::textureProvider() const
 {
     W_DC(WOutputViewport);
-    return d->textureProvider.get();
+    return d->textureProvider ? d->textureProvider.get() : QQuickItem::textureProvider();
 }
 
 WOutput *WOutputViewport::output() const

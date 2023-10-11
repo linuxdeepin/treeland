@@ -135,12 +135,18 @@ void WQuickItemProxy::setMipmap(bool newMipmap)
 
 bool WQuickItemProxy::isTextureProvider() const
 {
+    if (QQuickItem::isTextureProvider())
+        return true;
+
     W_DC(WQuickItemProxy);
     return d->sourceItem && d->sourceItem->isTextureProvider();
 }
 
 QSGTextureProvider *WQuickItemProxy::textureProvider() const
 {
+    if (QQuickItem::isTextureProvider())
+        return QQuickItem::textureProvider();
+
     W_DC(WQuickItemProxy);
     if (!d->sourceItem)
         return nullptr;
