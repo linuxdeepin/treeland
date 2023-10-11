@@ -24,6 +24,7 @@ class WAYLIB_SERVER_EXPORT WOutputViewport : public QQuickItem
     Q_PROPERTY(qreal devicePixelRatio READ devicePixelRatio WRITE setDevicePixelRatio NOTIFY devicePixelRatioChanged)
     Q_PROPERTY(bool offscreen READ offscreen WRITE setOffscreen NOTIFY offscreenChanged)
     Q_PROPERTY(bool root READ isRoot WRITE setRoot NOTIFY rootChanged FINAL)
+    Q_PROPERTY(bool cacheBuffer READ cacheBuffer WRITE setCacheBuffer NOTIFY cacheBufferChanged FINAL)
     QML_NAMED_ELEMENT(OutputViewport)
 
 public:
@@ -49,6 +50,9 @@ public:
     bool isRoot() const;
     void setRoot(bool newRoot);
 
+    bool cacheBuffer() const;
+    void setCacheBuffer(bool newCacheBuffer);
+
 public Q_SLOTS:
     void setOutputScale(float scale);
     void rotateOutput(WOutput::Transform t);
@@ -57,6 +61,7 @@ Q_SIGNALS:
     void devicePixelRatioChanged();
     void offscreenChanged();
     void rootChanged();
+    void cacheBufferChanged();
 
 private:
     void componentComplete() override;

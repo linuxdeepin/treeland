@@ -27,6 +27,9 @@ class WOutputViewportPrivate : public QQuickItemPrivate
 {
 public:
     WOutputViewportPrivate()
+        : offscreen(false)
+        , root(false)
+        , cacheBuffer(false)
     {
 
     }
@@ -51,8 +54,9 @@ public:
     W_DECLARE_PUBLIC(WOutputViewport)
     WOutput *output = nullptr;
     qreal devicePixelRatio = 1.0;
-    bool offscreen = false;
-    bool root = false;
+    uint offscreen:1;
+    uint root:1;
+    uint cacheBuffer:1;
 
     std::unique_ptr<OutputTextureProvider> textureProvider;
 };

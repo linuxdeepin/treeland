@@ -93,7 +93,7 @@ void WOutputViewportPrivate::updateImplicitSize()
 WOutputViewport::WOutputViewport(QQuickItem *parent)
     : QQuickItem(*new WOutputViewportPrivate(), parent)
 {
-    d_func()->textureProvider.reset(new OutputTextureProvider(this));
+
 }
 
 WOutputViewport::~WOutputViewport()
@@ -112,7 +112,8 @@ void WOutputViewport::invalidate()
 
 bool WOutputViewport::isTextureProvider() const
 {
-    return true;
+    W_DC(WOutputViewport);
+    return d->textureProvider.get();
 }
 
 QSGTextureProvider *WOutputViewport::textureProvider() const
@@ -143,7 +144,8 @@ void WOutputViewport::setOutput(WOutput *newOutput)
 void WOutputViewport::setBuffer(QWBuffer *buffer)
 {
     W_D(WOutputViewport);
-    d->textureProvider->setBuffer(buffer);
+    if (d->textureProvider)
+        d->textureProvider->setBuffer(buffer);
 }
 
 qreal WOutputViewport::devicePixelRatio() const
@@ -201,6 +203,30 @@ void WOutputViewport::setRoot(bool newRoot)
     }
 
     Q_EMIT rootChanged();
+}
+
+bool WOutputViewport::cacheBuffer() const
+{
+    W_DC(WOutputViewport);
+    return d->cacheBuffer;
+}
+
+void WOutputViewport::setCacheBuffer(bool newCacheBuffer)
+{
+    W_D(WOutputViewport);
+    if (d->cacheBuffer == newCacheBuffer)
+        return;
+    d->cacheBuffer = newCacheBuffer;
+
+    if (d->cacheBuffer) {
+        Q_ASSERT(!d->textureProvider.get());
+        d->textureProvider.reset(new OutputTextureProvider(this));
+    } else {
+        Q_ASSERT(d->textureProvider.get());
+        d->textureProvider.reset();
+    }
+
+    Q_EMIT cacheBufferChanged();
 }
 
 void WOutputViewport::setOutputScale(float scale)

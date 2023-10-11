@@ -166,6 +166,7 @@ OutputItem {
             text: "Magnifying Lens"
             onCheckedChanged: {
                 if (checked) {
+                    outputViewport.cacheBuffer = true
                     outputViewport.offscreen = true
                     outputViewportEffect = outputScaleEffect.createObject(outputViewport.parent)
                     onscreenViewport = outputViewportEffect
@@ -173,6 +174,7 @@ OutputItem {
                     outputViewportEffect.invalidate()
                     outputViewportEffect.destroy()
                     outputViewport.offscreen = false
+                    outputViewport.cacheBuffer = false
                     onscreenViewport = outputViewport
                 }
             }
