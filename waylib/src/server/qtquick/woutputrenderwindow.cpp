@@ -726,12 +726,17 @@ void WOutputRenderWindowPrivate::renderInViewport(OutputHelper *helper)
     helper->m_renderer->setClearColor(clearColor);
 
     auto rtd = QQuickRenderTargetPrivate::get(&rt.second);
+    QSGRenderTarget sgRT;
+
     if (rtd->type == QQuickRenderTargetPrivate::Type::PaintDevice) {
-        helper->m_renderer->setRenderTarget(QSGRenderTarget{ rtd->u.paintDevice });
+        sgRT.paintDevice = rtd->u.paintDevice;
     } else {
         Q_ASSERT(rtd->type == QQuickRenderTargetPrivate::Type::RhiRenderTarget);
-        helper->m_renderer->setRenderTarget({ rtd->u.rhiRt, rtd->u.rhiRt->renderPassDescriptor(), m_context->currentFrameCommandBuffer() });
+        sgRT.rt = rtd->u.rhiRt;
+        sgRT.cb = m_context->currentFrameCommandBuffer();
+        sgRT.rpDesc = rtd->u.rhiRt->renderPassDescriptor();
     }
+    helper->m_renderer->setRenderTarget(sgRT);
 
     auto viewportMatrix = QQuickItemPrivate::get(helper->output())->itemNode()->matrix().inverted();
     QMatrix4x4 projectionMatrix, projectionMatrixWithNativeNDC;
