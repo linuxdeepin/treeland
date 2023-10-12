@@ -8,8 +8,8 @@
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
-class WQuickItemProxyPrivate;
-class WAYLIB_SERVER_EXPORT WQuickItemProxy : public QQuickItem, public WObject
+class WQuickTextureProxyPrivate;
+class WAYLIB_SERVER_EXPORT WQuickTextureProxy : public QQuickItem, public WObject
 {
     Q_OBJECT
     Q_PROPERTY(QQuickItem* sourceItem READ sourceItem WRITE setSourceItem NOTIFY sourceItemChanged)
@@ -18,12 +18,12 @@ class WAYLIB_SERVER_EXPORT WQuickItemProxy : public QQuickItem, public WObject
     Q_PROPERTY(qreal implicitHeight READ implicitHeight NOTIFY implicitHeightChanged FINAL)
     Q_PROPERTY(bool hideSource READ hideSource WRITE setHideSource NOTIFY hideSourceChanged)
     Q_PROPERTY(bool mipmap READ mipmap WRITE setMipmap NOTIFY mipmapChanged)
-    W_DECLARE_PRIVATE(WQuickItemProxy)
-    QML_NAMED_ELEMENT(ItemProxy)
+    W_DECLARE_PRIVATE(WQuickTextureProxy)
+    QML_NAMED_ELEMENT(TextureProxy)
 
 public:
-    explicit WQuickItemProxy(QQuickItem *parent = nullptr);
-    ~WQuickItemProxy() override;
+    explicit WQuickTextureProxy(QQuickItem *parent = nullptr);
+    ~WQuickTextureProxy() override;
 
     QQuickItem* sourceItem() const;
     void setSourceItem(QQuickItem* sourceItem);

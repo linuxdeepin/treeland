@@ -93,7 +93,7 @@ OutputItem {
             output: waylandOutput
             devicePixelRatio: outputViewport.devicePixelRatio
 
-            ItemProxy {
+            TextureProxy {
                 sourceItem: outputViewport
             }
 
@@ -117,7 +117,7 @@ OutputItem {
                         anchors.centerIn: parent
                         rotation: outputViewport.rotation
 
-                        ItemProxy {
+                        TextureProxy {
                             id: magnifyingLens
 
                             sourceItem: outputViewport

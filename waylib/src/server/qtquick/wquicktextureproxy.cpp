@@ -2,22 +2,22 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-#include "wquickitemproxy.h"
-#include "wquickitemproxy_p.h"
+#include "wquicktextureproxy.h"
+#include "wquicktextureproxy_p.h"
 
 #include <QSGImageNode>
 #include <private/qquickitem_p.h>
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
-WQuickItemProxyPrivate::~WQuickItemProxyPrivate()
+WQuickTextureProxyPrivate::~WQuickTextureProxyPrivate()
 {
     initSourceItem(sourceItem, nullptr);
 }
 
-#define LAYER "__layer_enabled_by_WQuickItemProxy"
+#define LAYER "__layer_enabled_by_WQuickTextureProxy"
 
-void WQuickItemProxyPrivate::initSourceItem(QQuickItem *old, QQuickItem *item)
+void WQuickTextureProxyPrivate::initSourceItem(QQuickItem *old, QQuickItem *item)
 {
     if (textureChangedConnection)
         QObject::disconnect(textureChangedConnection);
@@ -49,9 +49,9 @@ void WQuickItemProxyPrivate::initSourceItem(QQuickItem *old, QQuickItem *item)
     updateImplicitSize();
 }
 
-void WQuickItemProxyPrivate::onTextureChanged()
+void WQuickTextureProxyPrivate::onTextureChanged()
 {
-    W_Q(WQuickItemProxy);
+    W_Q(WQuickTextureProxy);
 
     const auto texture = sourceItem->textureProvider()->texture();
     QSize newTextureSize = texture ? texture->textureSize() : QSize();
@@ -62,50 +62,50 @@ void WQuickItemProxyPrivate::onTextureChanged()
     q->update();
 }
 
-void WQuickItemProxyPrivate::updateImplicitSize()
+void WQuickTextureProxyPrivate::updateImplicitSize()
 {
     if (!textureSize.isEmpty()) {
-        W_Q(WQuickItemProxy);
+        W_Q(WQuickTextureProxy);
         const qreal dpr = q->window() ? q->window()->effectiveDevicePixelRatio() : qApp->devicePixelRatio();
         q->setImplicitSize(textureSize.width() / dpr, textureSize.height() / dpr);
     }
 }
 
-WQuickItemProxy::WQuickItemProxy(QQuickItem *parent)
+WQuickTextureProxy::WQuickTextureProxy(QQuickItem *parent)
     : QQuickItem (parent)
-    , WObject(*new WQuickItemProxyPrivate(this))
+    , WObject(*new WQuickTextureProxyPrivate(this))
 {
     setFlag(ItemHasContents);
 }
 
-WQuickItemProxy::~WQuickItemProxy()
+WQuickTextureProxy::~WQuickTextureProxy()
 {
     if (window()) {
-        WQuickItemProxy::releaseResources();
+        WQuickTextureProxy::releaseResources();
     }
 }
 
-QQuickItem *WQuickItemProxy::sourceItem() const
+QQuickItem *WQuickTextureProxy::sourceItem() const
 {
-    W_DC(WQuickItemProxy);
+    W_DC(WQuickTextureProxy);
     return d->sourceItem;
 }
 
-QRectF WQuickItemProxy::sourceRect() const
+QRectF WQuickTextureProxy::sourceRect() const
 {
-    W_DC(WQuickItemProxy);
+    W_DC(WQuickTextureProxy);
     return d->sourceRect;
 }
 
-bool WQuickItemProxy::hideSource() const
+bool WQuickTextureProxy::hideSource() const
 {
-    W_DC(WQuickItemProxy);
+    W_DC(WQuickTextureProxy);
     return d->hideSource;
 }
 
-void WQuickItemProxy::setHideSource(bool newHideSource)
+void WQuickTextureProxy::setHideSource(bool newHideSource)
 {
-    W_D(WQuickItemProxy);
+    W_D(WQuickTextureProxy);
     if (d->hideSource == newHideSource)
         return;
 
@@ -117,15 +117,15 @@ void WQuickItemProxy::setHideSource(bool newHideSource)
     Q_EMIT hideSourceChanged();
 }
 
-bool WQuickItemProxy::mipmap() const
+bool WQuickTextureProxy::mipmap() const
 {
-    W_DC(WQuickItemProxy);
+    W_DC(WQuickTextureProxy);
     return d->mipmap;
 }
 
-void WQuickItemProxy::setMipmap(bool newMipmap)
+void WQuickTextureProxy::setMipmap(bool newMipmap)
 {
-    W_D(WQuickItemProxy);
+    W_D(WQuickTextureProxy);
     if (d->mipmap == newMipmap)
         return;
     d->mipmap = newMipmap;
@@ -133,30 +133,30 @@ void WQuickItemProxy::setMipmap(bool newMipmap)
     Q_EMIT mipmapChanged();
 }
 
-bool WQuickItemProxy::isTextureProvider() const
+bool WQuickTextureProxy::isTextureProvider() const
 {
     if (QQuickItem::isTextureProvider())
         return true;
 
-    W_DC(WQuickItemProxy);
+    W_DC(WQuickTextureProxy);
     return d->sourceItem && d->sourceItem->isTextureProvider();
 }
 
-QSGTextureProvider *WQuickItemProxy::textureProvider() const
+QSGTextureProvider *WQuickTextureProxy::textureProvider() const
 {
     if (QQuickItem::isTextureProvider())
         return QQuickItem::textureProvider();
 
-    W_DC(WQuickItemProxy);
+    W_DC(WQuickTextureProxy);
     if (!d->sourceItem)
         return nullptr;
 
     return d->sourceItem->textureProvider();
 }
 
-void WQuickItemProxy::setSourceItem(QQuickItem *sourceItem)
+void WQuickTextureProxy::setSourceItem(QQuickItem *sourceItem)
 {
-    W_D(WQuickItemProxy);
+    W_D(WQuickTextureProxy);
 
     if (d->sourceItem == sourceItem)
         return;
@@ -170,9 +170,9 @@ void WQuickItemProxy::setSourceItem(QQuickItem *sourceItem)
     update();
 }
 
-void WQuickItemProxy::setSourceRect(const QRectF &sourceRect)
+void WQuickTextureProxy::setSourceRect(const QRectF &sourceRect)
 {
-    W_D(WQuickItemProxy);
+    W_D(WQuickTextureProxy);
     if (d->sourceRect == sourceRect)
         return;
 
@@ -181,9 +181,9 @@ void WQuickItemProxy::setSourceRect(const QRectF &sourceRect)
     update();
 }
 
-QSGNode *WQuickItemProxy::updatePaintNode(QSGNode *old, QQuickItem::UpdatePaintNodeData *)
+QSGNode *WQuickTextureProxy::updatePaintNode(QSGNode *old, QQuickItem::UpdatePaintNodeData *)
 {
-    W_D(WQuickItemProxy);
+    W_D(WQuickTextureProxy);
 
     if (Q_UNLIKELY(!d->sourceItem || d->sourceItem->width() <=0 || d->sourceItem->height() <= 0)) {
         delete old;
@@ -219,9 +219,9 @@ QSGNode *WQuickItemProxy::updatePaintNode(QSGNode *old, QQuickItem::UpdatePaintN
     return node;
 }
 
-void WQuickItemProxy::componentComplete()
+void WQuickTextureProxy::componentComplete()
 {
-    W_D(WQuickItemProxy);
+    W_D(WQuickTextureProxy);
 
     if (d->sourceItem)
         d->initSourceItem(nullptr, d->sourceItem);
@@ -229,7 +229,7 @@ void WQuickItemProxy::componentComplete()
     return QQuickItem::componentComplete();
 }
 
-void WQuickItemProxy::itemChange(ItemChange change, const ItemChangeData &data)
+void WQuickTextureProxy::itemChange(ItemChange change, const ItemChangeData &data)
 {
     QQuickItem::itemChange(change, data);
 
@@ -239,4 +239,4 @@ void WQuickItemProxy::itemChange(ItemChange change, const ItemChangeData &data)
 
 WAYLIB_SERVER_END_NAMESPACE
 
-#include "moc_wquickitemproxy.cpp"
+#include "moc_wquicktextureproxy.cpp"

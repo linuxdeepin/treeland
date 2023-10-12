@@ -3,26 +3,26 @@
 
 #pragma once
 
-#include "wquickitemproxy.h"
+#include "wquicktextureproxy.h"
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
-class Q_DECL_HIDDEN WQuickItemProxyPrivate : public WObjectPrivate
+class Q_DECL_HIDDEN WQuickTextureProxyPrivate : public WObjectPrivate
 {
 public:
-    WQuickItemProxyPrivate(WQuickItemProxy *qq)
+    WQuickTextureProxyPrivate(WQuickTextureProxy *qq)
         : WObjectPrivate(qq)
     {
 
     }
 
-    ~WQuickItemProxyPrivate() override;
+    ~WQuickTextureProxyPrivate() override;
 
     void initSourceItem(QQuickItem *old, QQuickItem *item);
     void onTextureChanged();
     void updateImplicitSize();
 
-    W_DECLARE_PUBLIC(WQuickItemProxy)
+    W_DECLARE_PUBLIC(WQuickTextureProxy)
 
     QPointer<QQuickItem> sourceItem;
     QMetaObject::Connection textureChangedConnection;
