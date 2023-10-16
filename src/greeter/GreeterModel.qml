@@ -8,7 +8,7 @@ Item {
     property int currentSession
     readonly property UserModel userModel: userModel
     readonly property SessionModel sessionModel: sessionModel
-    readonly property Proxy proxy: proxy
+    readonly property Worker worker: worker
 
     UserModel {
         id: userModel
@@ -18,10 +18,18 @@ Item {
         id: sessionModel
     }
 
-    Proxy {
-      id: proxy
-      sessionModel: sessionModel
-      userModel: userModel
+    Worker {
+        id: worker
+        proxy: proxy
+        sessionModel: sessionModel
+        userModel: userModel
+    }
+
+    Connections {
+        target: worker
+        function onFramworkStateChanged(v) {
+            console.log(v)
+        }
     }
 
     Component.onCompleted: {

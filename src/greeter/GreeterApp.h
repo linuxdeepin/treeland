@@ -31,6 +31,7 @@
 #include "KeyboardModel.h"
 #include "SessionModel.h"
 #include "GreeterProxy.h"
+#include "DeepinAuth/greeterworker.h"
 
 class GreeterExtensionPlugin : public QQmlEngineExtensionPlugin
 {
@@ -42,8 +43,8 @@ public:
     {
         qmlRegisterType<SDDM::SessionModel>("TreeLand.Greeter", 1, 0, "SessionModel");
         qmlRegisterType<SDDM::UserModel>("TreeLand.Greeter", 1, 0, "UserModel");
-        qmlRegisterType<SDDM::GreeterProxy>("TreeLand.Greeter", 1, 0, "Proxy");
         qmlRegisterType<SDDM::KeyboardModel>("TreeLand.Greeter", 1, 0, "KeyboardModel");
+        qmlRegisterType<GreeterWorker>("TreeLand.Greeter", 1, 0, "Worker");
     }
 
     void initializeEngine(QQmlEngine *engine, const char *uri) final

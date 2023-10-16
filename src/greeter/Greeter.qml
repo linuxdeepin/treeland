@@ -20,7 +20,7 @@ Item {
     }
 
     Connections {
-        target: GreeterModel.proxy
+        target: GreeterModel.worker
         function onVisibleChanged(visible) {
             root.visible = visible
             root.onCurrentUserChanged();

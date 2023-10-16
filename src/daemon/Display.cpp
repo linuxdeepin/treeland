@@ -514,12 +514,18 @@ namespace SDDM {
             }
         }
 
-        auth->setUser(user);
+        if (m_displayServerType == DisplayServerType::SingleCompositerServerType) {
+            auth->setSingleMode(true);
+        }
+        else {
+            auth->setUser(user);
+        }
+
         if (m_reuseSessionId.isNull()) {
             auth->setSession(session.exec());
         }
+
         auth->insertEnvironment(env);
-        auth->setSingleMode(m_displayServerType == DisplayServerType::SingleCompositerServerType);
         auth->start();
     }
 

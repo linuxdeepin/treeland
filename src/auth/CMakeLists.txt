@@ -1,18 +1,17 @@
-set(SRCS
-    ${CMAKE_SOURCE_DIR}/src/auth/Auth.cpp
-    ${CMAKE_SOURCE_DIR}/src/auth/Auth.h
-    ${CMAKE_SOURCE_DIR}/src/auth/AuthMessages.h
-    ${CMAKE_SOURCE_DIR}/src/auth/AuthPrompt.cpp
-    ${CMAKE_SOURCE_DIR}/src/auth/AuthPrompt.h
-    ${CMAKE_SOURCE_DIR}/src/auth/AuthRequest.cpp
-    ${CMAKE_SOURCE_DIR}/src/auth/AuthRequest.h
-)
+add_library(auth STATIC)
 
-add_library(auth STATIC ${SRCS})
-
-target_include_directories(auth
+target_sources(auth
     PUBLIC
-        ${CMAKE_SOURCE_DIR}/src/auth
+    FILE_SET HEADERS
+    FILES
+        Auth.h
+        AuthMessages.h
+        AuthPrompt.h
+        AuthRequest.h
+    PRIVATE
+        Auth.cpp
+        AuthPrompt.cpp
+        AuthRequest.cpp
 )
 
 target_link_libraries(auth
@@ -20,6 +19,7 @@ target_link_libraries(auth
         common
         Qt${QT_MAJOR_VERSION}::Network
         Qt${QT_MAJOR_VERSION}::Qml
+        Qt${QT_MAJOR_VERSION}::DBus
 )
 
 if(PAM_FOUND)

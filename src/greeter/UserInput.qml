@@ -82,7 +82,9 @@ Item {
                     root.visible = false
                     return;
                 }
-                GreeterModel.proxy.login(GreeterModel.currentUser, password.text, GreeterModel.currentSession);
+                GreeterModel.worker.createAuthentication(GreeterModel.currentUser)
+                GreeterModel.worker.sendTokenToAuth(GreeterModel.currentUser, 1, password.text)
+                //GreeterModel.proxy.login(GreeterModel.currentUser, password.text, GreeterModel.currentSession);
             }
         }
 

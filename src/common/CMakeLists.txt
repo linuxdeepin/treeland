@@ -1,35 +1,45 @@
 configure_file("Constants.h.in" "Constants.h" IMMEDIATE @ONLY)
 
-set(SRCS
-    ${CMAKE_SOURCE_DIR}/src/common/ConfigReader.cpp
-    ${CMAKE_SOURCE_DIR}/src/common/ConfigReader.h
-    ${CMAKE_SOURCE_DIR}/src/common/Configuration.cpp
-    ${CMAKE_SOURCE_DIR}/src/common/Configuration.h
-    ${CMAKE_SOURCE_DIR}/src/common/Constants.h.in
-    ${CMAKE_SOURCE_DIR}/src/common/MessageHandler.h
-    ${CMAKE_SOURCE_DIR}/src/common/Messages.h
-    ${CMAKE_SOURCE_DIR}/src/common/SafeDataStream.cpp
-    ${CMAKE_SOURCE_DIR}/src/common/SafeDataStream.h
-    ${CMAKE_SOURCE_DIR}/src/common/Session.cpp
-    ${CMAKE_SOURCE_DIR}/src/common/Session.h
-    ${CMAKE_SOURCE_DIR}/src/common/SignalHandler.cpp
-    ${CMAKE_SOURCE_DIR}/src/common/SignalHandler.h
-    ${CMAKE_SOURCE_DIR}/src/common/SocketWriter.cpp
-    ${CMAKE_SOURCE_DIR}/src/common/SocketWriter.h
-    ${CMAKE_SOURCE_DIR}/src/common/ThemeConfig.cpp
-    ${CMAKE_SOURCE_DIR}/src/common/ThemeConfig.h
-    ${CMAKE_SOURCE_DIR}/src/common/ThemeMetadata.cpp
-    ${CMAKE_SOURCE_DIR}/src/common/ThemeMetadata.h
-    ${CMAKE_SOURCE_DIR}/src/common/VirtualTerminal.cpp
-    ${CMAKE_SOURCE_DIR}/src/common/VirtualTerminal.h
-    ${CMAKE_SOURCE_DIR}/src/common/XAuth.cpp
-    ${CMAKE_SOURCE_DIR}/src/common/XAuth.h
-    ${CMAKE_SOURCE_DIR}/src/common/LogindDBusTypes.cpp
+add_library(common STATIC)
 
-    ${CMAKE_BINARY_DIR}/src/common/Constants.h
+target_sources(common
+    PUBLIC
+    FILE_SET HEADERS
+    FILES
+        ConfigReader.h
+        Configuration.h
+        Constants.h.in
+        MessageHandler.h
+        Messages.h
+        SafeDataStream.h
+        Session.h
+        SignalHandler.h
+        SocketWriter.h
+        ThemeConfig.h
+        ThemeMetadata.h
+        VirtualTerminal.h
+        XAuth.h
+        MFAInfoList.h
+        QVariantMap.h
+        ArrayInt.h
+        DBusTypes.h
+    PRIVATE
+        ${CMAKE_CURRENT_BINARY_DIR}/Constants.h
+        ConfigReader.cpp
+        Configuration.cpp
+        SafeDataStream.cpp
+        Session.cpp
+        SignalHandler.cpp
+        SocketWriter.cpp
+        ThemeConfig.cpp
+        ThemeMetadata.cpp
+        VirtualTerminal.cpp
+        XAuth.cpp
+        LogindDBusTypes.cpp
+        MFAInfoList.cpp
+        QVariantMap.cpp
+        ArrayInt.cpp
 )
-
-add_library(common STATIC ${SRCS})
 
 target_include_directories(common
     PUBLIC
