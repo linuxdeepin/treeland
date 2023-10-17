@@ -264,7 +264,7 @@ public:
     }
 
     inline bool isComponentComplete() const {
-#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0)
+#if QT_VERSION >= QT_VERSION_CHECK(6, 6, 0)
         return componentComplete;
 #else
         return componentCompleted;
@@ -877,7 +877,7 @@ void WOutputRenderWindow::update()
 void WOutputRenderWindow::classBegin()
 {
     Q_D(WOutputRenderWindow);
-#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0)
+#if QT_VERSION >= QT_VERSION_CHECK(6, 6, 0)
     d->componentComplete = false;
 #else
     d->componentCompleted = false;
@@ -887,7 +887,7 @@ void WOutputRenderWindow::classBegin()
 void WOutputRenderWindow::componentComplete()
 {
     Q_D(WOutputRenderWindow);
-#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0)
+#if QT_VERSION >= QT_VERSION_CHECK(6, 6, 0)
     d->componentComplete = true;
 #else
     d->componentCompleted = true;
