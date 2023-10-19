@@ -1,3 +1,6 @@
+// Copyright (C) 2023 justforlxz <justforlxz@gmail.com>.
+// SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
+
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
@@ -78,10 +81,14 @@ Item {
             onClicked: {
                 var user = GreeterModel.userModel.get(GreeterModel.currentUser);
                 if (user.logined) {
-                    // TODO: hide greeter
-                    root.visible = false
-                    return;
+                    GreeterModel.proxy.unlock(user)
+                    return
                 }
+
+                if (password.text.length === 0) {
+                    return
+                }
+
                 GreeterModel.proxy.login(GreeterModel.currentUser, password.text, GreeterModel.currentSession);
             }
         }

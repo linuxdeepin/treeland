@@ -1,3 +1,6 @@
+// Copyright (C) 2023 justforlxz <justforlxz@gmail.com>.
+// SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
+
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
@@ -7,70 +10,61 @@ import TreeLand.Greeter
 Item {
     id: root
 
-    function onCurrentUserChanged() {
-        var user = GreeterModel.userModel.get(GreeterModel.currentUser);
-        //sessionBtn.visible = !user.logined;
+    Image {
+        id: background
+        source: "file:///usr/share/wallpapers/deepin/desktop.jpg"
+        fillMode: Image.PreserveAspectCrop
+        anchors.fill: parent
+        ScaleAnimator on scale {
+            from: 1
+            to: 1.1
+            duration: 400
+        }
     }
 
-    Connections {
-        target: GreeterModel
-        function onCurrentUserChanged() {
-          root.onCurrentUserChanged()
+    ParallelAnimation {
+        id: backgroundAni
+        ScaleAnimator {
+            target: background
+            from: 1.1
+            to: 1
+            duration: 400
         }
+        PropertyAnimation {
+            target: background
+            property: "opacity"
+            duration: 600
+            from: 1
+            to: 0
+            easing.type: Easing.InQuad
+        }
+    }
+
+    Center {
+        anchors.fill: parent
+        anchors.leftMargin: 50
+        anchors.topMargin: 50
+        anchors.rightMargin: 50
+        anchors.bottomMargin: 50
     }
 
     Connections {
         target: GreeterModel.proxy
-        function onVisibleChanged(visible) {
-            root.visible = visible
-            root.onCurrentUserChanged();
+        function onLoginSucceeded() {
+            GreeterModel.animationPlayed()
         }
     }
 
-    ColumnLayout {
-        anchors.fill: parent
-        Loader {
-            id: center
-            Layout.alignment: Qt.AlignHCenter
+    Connections {
+        target: GreeterModel
+        function onAnimationPlayed() {
+            backgroundAni.start()
         }
-        RowLayout {
-            id: bottom
-            Item {
-                Layout.fillWidth: true
-            }
-            Row {
-                id: button
-                Layout.rightMargin: 150
-                spacing: 10
-                //Button {
-                //    id: sessionBtn
-                //    text: "Session"
-                //    SessionList {
-                //      id: sessionList
-                //    }
-                //    onClicked: {
-                //        sessionList.x = (width - sessionList.width) / 2
-                //        sessionList.y = - sessionList.height
-                //        sessionList.open()
-                //    }
-                //}
-                Button {
-                    id: userBtn
-                    text: "User"
-                    UserList {
-                      id: userList
-                    }
-                    onClicked: {
-                        userList.x = (width - userList.width) / 2
-                        userList.y = - userList.height
-                        userList.open()
-                    }
-                }
-            }
-        }
-    }
+        function onAnimationPlayFinished() {
+            visible = false
 
-    Component.onCompleted: {
-        center.source = "UserInput.qml"
+            background.scale = 1.1
+            background.opacity = 1
+        }
     }
 }

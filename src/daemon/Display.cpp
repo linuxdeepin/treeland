@@ -337,7 +337,7 @@ namespace SDDM {
         //the SDDM user has special privileges that skip password checking so that we can load the greeter
         //block ever trying to log in as the SDDM user
         if (user == QLatin1String("dde")) {
-            emit loginFailed(m_socket);
+            emit loginFailed(m_socket, user);
             return;
         }
 
@@ -558,10 +558,10 @@ namespace SDDM {
             stateConfig.save();
 
             if (m_socket)
-                emit loginSucceeded(m_socket);
+                emit loginSucceeded(m_socket, user);
         } else if (m_socket) {
             qDebug() << "Authentication for user " << user << " failed";
-            emit loginFailed(m_socket);
+            emit loginFailed(m_socket, user);
         }
         m_socket = nullptr;
     }
@@ -576,6 +576,8 @@ namespace SDDM {
     }
 
     void Display::slotAuthError(const QString &message, Auth::Error error) {
+        Auth* auth = qobject_cast<Auth*>(sender());
+
         qWarning() << "Authentication error:" << error << message;
 
         if (!m_socket)
@@ -583,7 +585,7 @@ namespace SDDM {
 
         m_socketServer->informationMessage(m_socket, message);
         if (error == Auth::ERROR_AUTHENTICATION)
-            emit loginFailed(m_socket);
+            emit loginFailed(m_socket, auth->user());
     }
 
     void Display::slotHelperFinished(Auth::HelperExitStatus status) {

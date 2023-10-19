@@ -28,12 +28,13 @@ qt_add_qml_module(greeterplugin
         ${GREETER_SOURCES}
     RESOURCE_PREFIX
         /qt/qml
-    QML_FILES
-      Greeter.qml
-      UserList.qml
-      SessionList.qml
-      UserInput.qml
-      GreeterModel.qml
+    QML_FILES Greeter.qml
+    QML_FILES UserList.qml
+    QML_FILES SessionList.qml
+    QML_FILES UserInput.qml
+    QML_FILES GreeterModel.qml
+    QML_FILES Center.qml
+    QML_FILES LoginAnimation.qml
 )
 
 target_include_directories(greeterplugin

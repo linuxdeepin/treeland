@@ -29,6 +29,7 @@
 #include <QGuiApplication>
 #include <QCommandLineOption>
 #include <QCommandLineParser>
+#include <QVariantMap>
 
 using namespace SDDM;
 
@@ -43,7 +44,6 @@ public:
     bool canSuspend { false };
     bool canHibernate { false };
     bool canHybridSleep { false };
-    bool visible { true };
 };
 
 GreeterProxy::GreeterProxy(QObject *parent)
@@ -165,6 +165,11 @@ void GreeterProxy::login(const QString &user, const QString &password, const int
     SocketWriter(d->socket) << quint32(GreeterMessages::Login) << user << password << session;
 }
 
+void GreeterProxy::unlock(const QString &user) {
+    // TODO: use pam
+    emit loginSucceeded(user);
+}
+
 void GreeterProxy::activateUser(const QString &user) {
     auto userInfo = userModel()->get(user);
     SocketWriter(d->socket) << quint32(GreeterMessages::ActivateUser) << user;
@@ -186,10 +191,6 @@ void GreeterProxy::disconnected() {
 
 void GreeterProxy::error() {
     qCritical() << "Socket error: " << d->socket->errorString();
-}
-
-bool GreeterProxy::visible() const {
-    return d->visible;
 }
 
 void GreeterProxy::readyRead() {
@@ -237,21 +238,25 @@ void GreeterProxy::readyRead() {
             }
             break;
             case DaemonMessages::LoginSucceeded: {
+                QString user;
+                input >> user;
+
                 // log message
                 qDebug() << "Message received from daemon: LoginSucceeded";
 
                 // emit signal
-                emit loginSucceeded();
-                d->visible = false;
-                emit visibleChanged(d->visible);
+                emit loginSucceeded(user);
             }
             break;
             case DaemonMessages::LoginFailed: {
+                QString user;
+                input >> user;
+
                 // log message
                 qDebug() << "Message received from daemon: LoginFailed";
 
                 // emit signal
-                emit loginFailed();
+                emit loginFailed(user);
             }
             break;
             case DaemonMessages::InformationMessage: {
@@ -274,11 +279,6 @@ void GreeterProxy::readyRead() {
                 input >> user;
 
                 userModel()->updateUserLoginState(user, false);
-            }
-            break;
-            case DaemonMessages::SwitchToGreeter: {
-                d->visible = true;
-                emit visibleChanged(d->visible);
             }
             break;
             default: {
