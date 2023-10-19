@@ -40,7 +40,6 @@ class GreeterProxy : public QObject {
     Q_PROPERTY(bool     canHybridSleep  READ canHybridSleep NOTIFY canHybridSleepChanged)
     Q_PROPERTY(SessionModel* sessionModel READ sessionModel WRITE setSessionModel NOTIFY sessionModelChanged)
     Q_PROPERTY(UserModel* userModel READ userModel WRITE setUserModel NOTIFY userModelChanged)
-    Q_PROPERTY(bool     visible  READ visible NOTIFY visibleChanged)
 
 public:
     explicit GreeterProxy(QObject *parent = nullptr);
@@ -62,8 +61,6 @@ public:
     UserModel *userModel() const;
     void setUserModel(UserModel *model);
 
-    bool visible() const;
-
 public slots:
     void powerOff();
     void reboot();
@@ -73,6 +70,8 @@ public slots:
 
     void login(const QString &user, const QString &password, const int sessionIndex) const;
     void activateUser(const QString &user);
+    
+    void unlock(const QString &user);
 
 private slots:
     void connected();
@@ -90,11 +89,10 @@ signals:
     void canHybridSleepChanged(bool canHybridSleep);
     void sessionModelChanged(SessionModel *model);
     void userModelChanged(UserModel *model);
-    void visibleChanged(bool visible);
 
     void socketDisconnected();
-    void loginFailed();
-    void loginSucceeded();
+    void loginFailed(const QString &user);
+    void loginSucceeded(const QString &user);
 
 private:
     GreeterProxyPrivate *d { nullptr };

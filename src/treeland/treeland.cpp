@@ -68,6 +68,8 @@ TreeLand::TreeLand(int argc, char* argv[])
 
     if (!m_isTestMode) {
         qInstallMessageHandler(GreeterMessageHandler);
+
+        new SignalHandler;
     }
 
     m_socket = new QLocalSocket(this);
@@ -175,6 +177,17 @@ void TreeLand::readyRead() {
                 m_socketProxy->activateUser(user);
             }
             break;
+            case DaemonMessages::SwitchToGreeter: {
+#if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
+                Helper *helper = m_engine->singletonInstance<Helper*>("TreeLand", "Helper");
+#else
+                auto helperTypeId = qmlTypeId("TreeLand", 1, 0, "Helper");
+                Helper *helper = m_engine->singletonInstance<Helper*>(helperTypeId);
+#endif
+                Q_ASSERT(helper);
+                helper->greeterVisibleChanged();
+            }
+            break;
             default:
             break;
         }
@@ -193,8 +206,6 @@ int main (int argc, char *argv[]) {
     QGuiApplication::setQuitOnLastWindowClosed(false);
 
     TreeLand::TreeLand treeland(argc, argv);
-
-    SignalHandler s;
 
     return treeland.exec();
 }
