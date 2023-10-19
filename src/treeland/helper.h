@@ -51,6 +51,7 @@ signals:
     void movingItemChanged();
     void backToNormal();
     void reboot();
+    void greeterVisibleChanged();
 
 private:
     bool beforeDisposeEvent(WSeat *seat, QWindow *watched, QInputEvent *event) override;

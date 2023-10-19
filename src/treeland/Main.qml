@@ -217,12 +217,16 @@ Item {
             }
         }
 
+        Connections {
+            target: Helper
+            function onGreeterVisibleChanged() {
+                greeter.visible = true
+            }
+        }
+
         Greeter {
             id: greeter
             anchors.fill: parent
-            onVisibleChanged: {
-                workspaceLoader.visible = !greeter.visible
-            }
         }
     }
 }

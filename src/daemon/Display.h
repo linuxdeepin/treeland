@@ -82,8 +82,8 @@ namespace SDDM {
         void stopped();
         void displayServerFailed();
 
-        void loginFailed(QLocalSocket *socket);
-        void loginSucceeded(QLocalSocket *socket);
+        void loginFailed(QLocalSocket *socket, const QString &user);
+        void loginSucceeded(QLocalSocket *socket, const QString &user);
 
     private:
         QString findGreeterTheme() const;
