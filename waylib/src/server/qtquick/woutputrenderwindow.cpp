@@ -5,7 +5,6 @@
 #include "woutput.h"
 #include "woutputhelper.h"
 #include "wrenderhelper.h"
-#include "wserver.h"
 #include "wbackend.h"
 #include "woutputviewport.h"
 #include "wtools.h"
