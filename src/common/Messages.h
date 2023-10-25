@@ -33,6 +33,7 @@ namespace SDDM {
         Hibernate,
         HybridSleep,
         ActivateUser,
+        BackToNormal,
     };
 
     enum class TreelandMessages {
