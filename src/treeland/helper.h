@@ -49,6 +49,8 @@ signals:
     void keyEvent(uint32_t key, uint32_t modify);
     void resizingItemChanged();
     void movingItemChanged();
+    void backToNormal();
+    void reboot();
 
 private:
     bool beforeDisposeEvent(WSeat *seat, QWindow *watched, QInputEvent *event) override;

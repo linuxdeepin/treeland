@@ -29,6 +29,7 @@
 #include "MessageHandler.h"
 
 #include <QDBusConnectionInterface>
+#include <QDBusInterface>
 #include <QDebug>
 #include <QHostInfo>
 #include <QTimer>
@@ -118,6 +119,11 @@ namespace SDDM {
 
     int DaemonApp::newSessionId() {
         return m_lastSessionId++;
+    }
+
+    void DaemonApp::backToNormal() {
+        QDBusInterface interface("org.freedesktop.systemd1", "/org/freedesktop/systemd1", "org.freedesktop.systemd1.Manager", QDBusConnection::systemBus());
+        qDebug() << interface.call("ReenableUnitFiles", QStringList() << "lightdm.service", false, true);
     }
 }
 

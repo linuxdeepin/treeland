@@ -49,6 +49,8 @@ namespace SDDM {
         SeatManager *seatManager() const;
         SignalHandler *signalHandler() const;
 
+        void backToNormal();
+
     public slots:
         int newSessionId();
 
