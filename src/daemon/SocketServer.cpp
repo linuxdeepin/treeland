@@ -205,6 +205,13 @@ namespace SDDM {
                     daemonApp->powerManager()->hybridSleep();
                 }
                 break;
+                case GreeterMessages::BackToNormal: {
+                    // log message
+                    qDebug() << "Message received from greeter: Back to normal";
+                    // hybrid sleep
+                    daemonApp->backToNormal();
+                }
+                break;
                 default: {
                     // log message
                     qWarning() << "Unknown message" << message;

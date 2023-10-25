@@ -119,6 +119,13 @@ void TreeLand::connected() {
     Helper *helper = m_engine->singletonInstance<Helper*>(helperTypeId);
 #endif
 
+    connect(helper, &Helper::backToNormal, this, [=] {
+        SocketWriter(m_socket) << quint32(GreeterMessages::BackToNormal);
+    });
+    connect(helper, &Helper::reboot, this, [=] {
+        SocketWriter(m_socket) << quint32(GreeterMessages::Reboot);
+    });
+
     // send connected message
     SocketWriter(m_socket) << quint32(GreeterMessages::Connect);
 

@@ -103,13 +103,6 @@ OutputPositioner {
         }
 
         Button {
-            text: "Lock"
-            onClicked: {
-                greeter.visible = true
-            }
-        }
-
-        Button {
             text: "1X"
             onClicked: {
                 waylandOutput.scale = 1
@@ -120,6 +113,13 @@ OutputPositioner {
             text: "1.5X"
             onClicked: {
                 waylandOutput.scale = 1.5
+            }
+        }
+
+        Button {
+            text: "2X"
+            onClicked: {
+                waylandOutput.scale = 2
             }
         }
 

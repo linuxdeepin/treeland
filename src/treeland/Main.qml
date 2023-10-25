@@ -132,22 +132,70 @@ Item {
         ColumnLayout {
             id: workspaceLoader
             anchors.fill: parent
+            visible: false
 
-            TabBar {
-                id: topbar
-
+            Row {
                 Layout.fillWidth: true
 
-                TabButton {
-                    text: qsTr("Stack Layout")
-                    onClicked: {
-                        decorationManager.mode = XdgDecorationManager.PreferClientSide
-                    }
+                Rectangle {
+                    color: 'white'
+                    anchors.fill: parent
                 }
-                TabButton {
-                    text: qsTr("Tiled Layout")
-                    onClicked: {
-                        decorationManager.mode = XdgDecorationManager.PreferServerSide
+
+                Button {
+                    id: optionsBtn
+                    text: qsTr("Options")
+                    onClicked: optionsMenu.open()
+
+                    Menu {
+                        id: optionsMenu
+                        y: optionsBtn.height
+
+                        Menu {
+                            title: qsTr("Switch Windows Layout")
+                            MenuItem {
+                                text: "Stack Layout"
+                                onClicked: {
+                                    decorationManager.mode = XdgDecorationManager.PreferClientSide
+                                    stackLayout.visible = true
+                                }
+                            }
+                            MenuItem {
+                                text: "Tiled Layout"
+                                onClicked: {
+                                    decorationManager.mode = XdgDecorationManager.PreferServerSide
+                                    stackLayout.visible = false
+                                }
+                            }
+                        }
+
+                        MenuSeparator { }
+
+                        Menu {
+                            title: "Session"
+                            MenuItem {
+                                text: "Lock"
+                                onClicked: {
+                                    greeter.visible = true
+                                }
+                            }
+                        }
+
+                        MenuSeparator { }
+
+                        MenuItem {
+                            text: qsTr("Back to normal mode")
+                            onClicked: {
+                                Helper.backToNormal()
+                            }
+                        }
+
+                        MenuItem {
+                            text: qsTr("Reboot")
+                            onClicked: {
+                                Helper.reboot()
+                            }
+                        }
                     }
                 }
             }
@@ -157,12 +205,13 @@ Item {
                 Layout.fillHeight: true
 
                 StackWorkspace {
-                    visible: topbar.currentIndex === 0
+                    id: stackLayout
+                    visible: true
                     anchors.fill: parent
                 }
 
                 TiledWorkspace {
-                    visible: topbar.currentIndex === 1
+                    visible: !stackLayout.visible
                     anchors.fill: parent
                 }
             }
