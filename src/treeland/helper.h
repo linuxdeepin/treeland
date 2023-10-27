@@ -20,7 +20,6 @@ class Helper : public WSeatEventFilter {
     Q_PROPERTY(WToplevelSurface* activatedSurface READ activatedSurface WRITE setActivateSurface NOTIFY activatedSurfaceChanged FINAL)
     Q_PROPERTY(WSurfaceItem* resizingItem READ resizingItem NOTIFY resizingItemChanged FINAL)
     Q_PROPERTY(WSurfaceItem* movingItem READ movingItem NOTIFY movingItemChanged FINAL)
-    Q_PROPERTY(QString socketFile READ socketFile WRITE setSocketFile FINAL)
     QML_ELEMENT
     QML_SINGLETON
 
@@ -31,9 +30,6 @@ public:
     WToplevelSurface *activatedSurface() const;
     WSurfaceItem *resizingItem() const;
     WSurfaceItem *movingItem() const;
-    QString socketFile() const;
-
-    Q_INVOKABLE QString clientName(WSurface *surface) const;
 
 public Q_SLOTS:
     void startMove(WToplevelSurface *surface, WSurfaceItem *shell, WSeat *seat, int serial);
@@ -45,15 +41,13 @@ public Q_SLOTS:
 
 signals:
     void activatedSurfaceChanged();
-    // TODO: move to shortcut
-    void keyEvent(uint32_t key, uint32_t modify);
     void resizingItemChanged();
     void movingItemChanged();
     void backToNormal();
     void reboot();
     void greeterVisibleChanged();
 
-private:
+protected:
     bool beforeDisposeEvent(WSeat *seat, QWindow *watched, QInputEvent *event) override;
     bool afterHandleEvent(WSeat *seat, WSurface *watched, QObject *surfaceItem, QObject *, QInputEvent *event) override;
     bool unacceptedEvent(WSeat *seat, QWindow *watched, QInputEvent *event) override;
@@ -61,7 +55,6 @@ private:
     void setActivateSurface(WToplevelSurface *newActivate);
     void setResizingItem(WSurfaceItem *newResizingItem);
     void setMovingItem(WSurfaceItem *newMovingItem);
-    void setSocketFile(const QString &socketFile);
     void onOutputRequeseState(wlr_output_event_request_state *newState);
 
     QPointer<WToplevelSurface> m_activateSurface;
@@ -75,7 +68,4 @@ private:
     Qt::Edges resizeEdgets;
     WSurfaceItem *m_resizingItem = nullptr;
     WSurfaceItem *m_movingItem = nullptr;
-
-    // for socket
-    QString m_socketFile;
 };

@@ -5,12 +5,28 @@ import QtQuick
 import QtQuick.Controls
 import Waylib.Server
 
-OutputPositioner {
+OutputItem {
     required property WaylandOutput waylandOutput
+    property OutputViewport onscreenViewport: outputViewport
 
     output: waylandOutput
     devicePixelRatio: waylandOutput.scale
     layout: QmlHelper.layout
+    cursorDelegate: Item {
+        required property OutputCursor cursor
+
+        visible: cursor.visible && !cursor.isHardwareCursor
+
+        Image {
+            source: cursor.imageSource
+            x: -cursor.hotspot.x
+            y: -cursor.hotspot.y
+            cache: false
+            width: cursor.size.width
+            height: cursor.size.height
+            sourceClipRect: cursor.sourceRect
+        }
+    }
 
     OutputViewport {
         id: outputViewport
@@ -18,21 +34,6 @@ OutputPositioner {
         output: waylandOutput
         devicePixelRatio: parent.devicePixelRatio
         anchors.centerIn: parent
-        cursorDelegate: Item {
-            required property OutputCursor cursor
-
-            visible: cursor.visible && !cursor.isHardwareCursor
-
-            Image {
-                source: cursor.imageSource
-                x: -cursor.hotspot.x
-                y: -cursor.hotspot.y
-                cache: false
-                width: cursor.size.width
-                height: cursor.size.height
-                sourceClipRect: cursor.sourceRect
-            }
-        }
 
         RotationAnimation {
             id: rotationAnimator
@@ -46,7 +47,7 @@ OutputPositioner {
             id: setTransform
 
             property var scheduleTransform
-            onTriggered: waylandOutput.orientation = scheduleTransform
+            onTriggered: onscreenViewport.rotateOutput(scheduleTransform)
             interval: rotationAnimator.duration / 2
         }
 
@@ -56,13 +57,13 @@ OutputPositioner {
 
             switch(orientation) {
             case WaylandOutput.R90:
-                rotationAnimator.to = -90
+                rotationAnimator.to = 90
                 break
             case WaylandOutput.R180:
                 rotationAnimator.to = 180
                 break
             case WaylandOutput.R270:
-                rotationAnimator.to = 90
+                rotationAnimator.to = -90
                 break
             default:
                 rotationAnimator.to = 0
@@ -82,6 +83,74 @@ OutputPositioner {
         anchors.fill: parent
     }
 
+    Component {
+        id: outputScaleEffect
+
+        OutputViewport {
+            readonly property OutputItem outputItem: waylandOutput.OutputItem.item
+
+            root: true
+            output: waylandOutput
+            devicePixelRatio: outputViewport.devicePixelRatio
+
+            TextureProxy {
+                sourceItem: outputViewport
+            }
+
+            Item {
+                width: outputItem.width
+                height: outputItem.height
+                anchors.centerIn: parent
+                rotation: -outputViewport.rotation
+
+                Item {
+                    y: 10
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    width: parent.width / 2
+                    height: parent.height / 3
+                    clip: true
+
+                    Item {
+                        id: centerItem
+                        width: 1
+                        height: 1
+                        anchors.centerIn: parent
+                        rotation: outputViewport.rotation
+
+                        TextureProxy {
+                            id: magnifyingLens
+
+                            sourceItem: outputViewport
+                            smooth: false
+                            scale: 10
+                            transformOrigin: Item.TopLeft
+
+                            function updatePosition() {
+                                const pos = outputItem.lastActiveCursorItem.mapToItem(outputViewport, Qt.point(0, 0))
+                                x = - pos.x * scale
+                                y = - pos.y * scale
+                            }
+
+                            Connections {
+                                target: outputItem.lastActiveCursorItem
+
+                                function onXChanged() {
+                                    magnifyingLens.updatePosition()
+                                }
+
+                                function onYChanged() {
+                                    magnifyingLens.updatePosition()
+                                }
+                            }
+
+                            Component.onCompleted: updatePosition()
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     Column {
         anchors {
             bottom: parent.bottom
@@ -92,7 +161,26 @@ OutputPositioner {
         spacing: 10
 
         Switch {
-            visible: false
+            property OutputViewport outputViewportEffect
+
+            text: "Magnifying Lens"
+            onCheckedChanged: {
+                if (checked) {
+                    outputViewport.cacheBuffer = true
+                    outputViewport.offscreen = true
+                    outputViewportEffect = outputScaleEffect.createObject(outputViewport.parent)
+                    onscreenViewport = outputViewportEffect
+                } else {
+                    outputViewportEffect.invalidate()
+                    outputViewportEffect.destroy()
+                    outputViewport.offscreen = false
+                    outputViewport.cacheBuffer = false
+                    onscreenViewport = outputViewport
+                }
+            }
+        }
+
+        Switch {
             text: "Socket"
             onCheckedChanged: {
                 masterSocket.enabled = checked
@@ -105,14 +193,21 @@ OutputPositioner {
         Button {
             text: "1X"
             onClicked: {
-                waylandOutput.scale = 1
+                onscreenViewport.setOutputScale(1)
             }
         }
 
         Button {
             text: "1.5X"
             onClicked: {
-                waylandOutput.scale = 1.5
+                onscreenViewport.setOutputScale(1.5)
+            }
+        }
+
+        Button {
+            text: "2X"
+            onClicked: {
+                onscreenViewport.setOutputScale(2)
             }
         }
 

@@ -13,10 +13,9 @@ Item {
     required property ToplevelSurface waylandSurface
     required property ListModel dockModel
     required property DynamicCreatorComponent creator
-    required property Item workspace
     property WindowDecoration decoration
 
-    property OutputPositioner output
+    property OutputItem output
     property CoordMapper outputCoordMapper
     property bool mapped: waylandSurface.surface && waylandSurface.surface.mapped && waylandSurface.WaylandSocket.rootSocket.enabled
     property bool pendingDestroy: false
@@ -196,15 +195,15 @@ Item {
         surface.transitions = null
     }
 
-    function getPrimaryOutputPositioner() {
+    function getPrimaryOutputItem() {
         let output = waylandSurface.surface.primaryOutput
         if (!output)
             return null
-        return output.OutputPositioner.positioner
+        return output.OutputItem.item
     }
 
     function updateOutputCoordMapper() {
-        let output = getPrimaryOutputPositioner()
+        let output = getPrimaryOutputItem()
         if (!output)
             return
 

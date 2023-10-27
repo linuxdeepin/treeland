@@ -5,14 +5,15 @@
 #include "MessageHandler.h"
 #include "Messages.h"
 #include "SocketWriter.h"
-#include "helper.h"
+#include "treelandhelper.h"
 #include "SafeDataStream.h"
 #include "qwdisplay.h"
 #include "waylandsocketproxy.h"
-#include "waylandserver.h"
-#include "shortcut.h"
 #include "SignalHandler.h"
 #include "UserModel.h"
+
+#include "socketmanager.h"
+#include "shortcutmanager.h"
 
 #include <WServer>
 #include <WSurface>
@@ -20,6 +21,11 @@
 #include <WCursor>
 #include <qqmlextensionplugin.h>
 #include <wsocket.h>
+
+#include <qwbackend.h>
+#include <qwdisplay.h>
+#include <qwoutput.h>
+#include <qwcompositor.h>
 
 #include <QCommandLineParser>
 #include <QGuiApplication>
@@ -39,11 +45,12 @@ Q_LOGGING_CATEGORY(debug, "treeland.kernel.debug", QtDebugMsg);
 using namespace SDDM;
 
 namespace TreeLand {
-TreeLand::TreeLand(int argc, char* argv[])
-    : QGuiApplication(argc, argv)
+TreeLand::TreeLand(TreeLandAppContext context)
+    : QObject()
+    , m_context(context)
     , m_socketProxy(new WaylandSocketProxy(this))
 {
-    connect(this, &TreeLand::requestAddNewSocket, m_socketProxy, &WaylandSocketProxy::newSocket); 
+    connect(this, &TreeLand::requestAddNewSocket, m_socketProxy, &WaylandSocketProxy::newSocket);
     connect(m_socketProxy, &WaylandSocketProxy::socketCreated, this, [=] (std::shared_ptr<WSocket> socket) {
         WServer *server = m_engine->rootObjects().first()->findChild<WServer*>();
         Q_ASSERT(server);
@@ -54,19 +61,7 @@ TreeLand::TreeLand(int argc, char* argv[])
         Q_UNUSED(socket);
     });
 
-    QCommandLineOption socket({"s", "socket"}, "set ddm socket", "socket");
-    QCommandLineOption testMode({"t", "test-mode"}, "use test mode");
-
-    QCommandLineParser parser;
-    parser.addHelpOption();
-    parser.addOption(socket);
-    parser.addOption(testMode);
-
-    parser.process(*this);
-
-    m_isTestMode = parser.isSet(testMode);
-
-    if (!m_isTestMode) {
+    if (!context.isTestMode) {
         qInstallMessageHandler(GreeterMessageHandler);
 
         new SignalHandler;
@@ -81,8 +76,8 @@ TreeLand::TreeLand(int argc, char* argv[])
 
     setup();
 
-    if (!m_isTestMode) {
-        m_socket->connectToServer(parser.value(socket));
+    if (!context.isTestMode) {
+        m_socket->connectToServer(context.socket);
     }
 }
 
@@ -98,28 +93,37 @@ void TreeLand::setup()
 #endif
 
     WServer *server = m_engine->rootObjects().first()->findChild<WServer*>();
-    treeland_socket_manager_v1_create(server->handle()->handle(), this);
+    treeland_socket_manager_v1* socketManager = treeland_socket_manager_v1_create(server->handle()->handle(), this);
 
 #if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
-    Helper *helper = m_engine->singletonInstance<Helper*>("TreeLand", "Helper");
+    TreeLandHelper *helper = m_engine->singletonInstance<TreeLandHelper*>("TreeLand", "TreeLandHelper");
 #else
-    auto helperTypeId = qmlTypeId("TreeLand", 1, 0, "Helper");
-    Helper *helper = m_engine->singletonInstance<Helper*>(helperTypeId);
+    auto helperTypeId = qmlTypeId("TreeLand", 1, 0, "TreeLandHelper");
+    TreeLandHelper *helper = m_engine->singletonInstance<TreeLandHelper*>(helperTypeId);
 #endif
     Q_ASSERT(helper);
 
-    treeland_shortcut_manager_v1_create(server->handle()->handle(), this, helper);
+    treeland_shortcut_manager_v1* shortcutManager = treeland_shortcut_manager_v1_create(server->handle()->handle(), this, helper);
+
+    // ShortcutManager *shortcutManager = new ShortcutManager(this);
+    // connect(shortcutManager, &ShortcutManager::shortcutContextCreated, this, [=] (ShortcutContext *context) {
+    //     connect(helper, &TreeLandHelper::keyEvent, context, [=](uint32_t key, uint32_t modify) {
+    //         context->send_shortcut(key, modify);
+    //     });
+    // });
 }
 
 void TreeLand::connected() {
     // log connection
     qDebug() << "Connected to the daemon.";
+
 #if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
-    Helper *helper = m_engine->singletonInstance<Helper*>("TreeLand", "Helper");
+    TreeLandHelper *helper = m_engine->singletonInstance<TreeLandHelper*>("TreeLand", "TreeLandHelper");
 #else
-    auto helperTypeId = qmlTypeId("TreeLand", 1, 0, "Helper");
-    Helper *helper = m_engine->singletonInstance<Helper*>(helperTypeId);
+    auto helperTypeId = qmlTypeId("TreeLand", 1, 0, "TreeLandHelper");
+    TreeLandHelper *helper = m_engine->singletonInstance<TreeLandHelper*>(helperTypeId);
 #endif
+    Q_ASSERT(helper);
 
     connect(helper, &Helper::backToNormal, this, [=] {
         SocketWriter(m_socket) << quint32(GreeterMessages::BackToNormal);
@@ -141,7 +145,7 @@ void TreeLand::disconnected() {
     Q_EMIT socketDisconnected();
 
     qDebug() << "Display Manager is closed socket connect, quiting treeland.";
-    exit();
+    qApp->exit();
 }
 
 void TreeLand::error() {
@@ -205,7 +209,22 @@ int main (int argc, char *argv[]) {
     QGuiApplication::setHighDpiScaleFactorRoundingPolicy(Qt::HighDpiScaleFactorRoundingPolicy::PassThrough);
     QGuiApplication::setQuitOnLastWindowClosed(false);
 
-    TreeLand::TreeLand treeland(argc, argv);
+    QGuiApplication app(argc, argv);
 
-    return treeland.exec();
+    QCommandLineOption socket({"s", "socket"}, "set ddm socket", "socket");
+    QCommandLineOption testMode({"t", "test-mode"}, "use test mode");
+
+    QCommandLineParser parser;
+    parser.addHelpOption();
+    parser.addOption(socket);
+    parser.addOption(testMode);
+
+    parser.process(app);
+
+    TreeLand::TreeLand treeland({
+        parser.isSet(testMode),
+        parser.value(testMode),
+    });
+
+    return app.exec();
 }
