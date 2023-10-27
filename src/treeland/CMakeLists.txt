@@ -23,31 +23,37 @@ function(ws_generate type input_file output_name)
     )
 endfunction()
 
-ws_generate(server data/treeland-wayland-socket-manager.xml socket-server-protocol)
-ws_generate(client data/treeland-wayland-socket-manager.xml socket-client-protocol)
+ws_generate(server data/ztreeland-shortcut-manager-v1.xml shortcut-server-protocol)
+ws_generate(server data/treeland-socket-manager-v1.xml socket-server-protocol)
+ws_generate(server data/ztreeland-foreign-toplevel-manager-v1.xml foreign-toplevel-manager-server-protocol)
 
-ws_generate(server data/treeland-wayland-shortcut-manager.xml shortcut-server-protocol)
-ws_generate(client data/treeland-wayland-shortcut-manager.xml shortcut-client-protocol)
+add_subdirectory(treeland-helper)
+add_subdirectory(treeland-fake-session)
 
 set(TREELAND_SOURCES
     treeland.h
     treeland.cpp
-    waylandserver.cpp
-    shortcut.h
-    shortcut.cpp
+    socketmanager.h
+    socketmanager.cpp
     waylandsocketproxy.h
     waylandsocketproxy.cpp
-    ${CMAKE_BINARY_DIR}/src/treeland/socket-server-protocol.h
+    treelandhelper.h
+    treelandhelper.cpp
+    helper.h
+    helper.cpp
+    foreigntoplevelmanagerv1.h
+    foreigntoplevelmanagerv1.cpp
+    shortcutmanager.h
+    shortcutmanager.cpp
+    protocols/foreign_toplevel_manager_impl.cpp
+    protocols/shortcut_manager_impl.cpp
+    protocols/socket_manager_impl.cpp
     ${CMAKE_BINARY_DIR}/src/treeland/socket-server-protocol.c
-    ${CMAKE_BINARY_DIR}/src/treeland/shortcut-server-protocol.h
+    ${CMAKE_BINARY_DIR}/src/treeland/socket-server-protocol.h
     ${CMAKE_BINARY_DIR}/src/treeland/shortcut-server-protocol.c
-)
-
-set(HELPER_SOURCES
-    sockethelper.h
-    sockethelper.cpp
-    ${CMAKE_BINARY_DIR}/src/treeland/socket-client-protocol.h
-    ${CMAKE_BINARY_DIR}/src/treeland/socket-client-protocol.c
+    ${CMAKE_BINARY_DIR}/src/treeland/shortcut-server-protocol.h
+    ${CMAKE_BINARY_DIR}/src/treeland/foreign-toplevel-manager-server-protocol.h
+    ${CMAKE_BINARY_DIR}/src/treeland/foreign-toplevel-manager-server-protocol.c
 )
 
 set_source_files_properties("${CMAKE_SOURCE_DIR}/data/interfaces/org.freedesktop.login1.Manager.xml" PROPERTIES
@@ -65,10 +71,7 @@ qt_add_dbus_interface(DBUS_INTERFACE "${CMAKE_SOURCE_DIR}/data/interfaces/org.fr
 qt_add_dbus_interface(DBUS_INTERFACE "${CMAKE_SOURCE_DIR}/data/interfaces/org.freedesktop.login1.Seat.xml"  "Login1Seat")
 qt_add_dbus_interface(DBUS_INTERFACE "${CMAKE_SOURCE_DIR}/data/interfaces/org.freedesktop.login1.Session.xml"  "Login1Session")
 
-qt_add_executable(treeland
-    ${TREELAND_SOURCES}
-    ${DBUS_INTERFACE}
-)
+qt_add_executable(treeland)
 
 set_source_files_properties(QmlHelper.qml
     PROPERTIES
@@ -79,8 +82,8 @@ qt_add_qml_module(treeland
     URI TreeLand
     VERSION "1.0"
     SOURCES
-        helper.h
-        helper.cpp
+        ${TREELAND_SOURCES}
+        ${DBUS_INTERFACE}
     QML_FILES
         Main.qml
         CloseAnimation.qml
@@ -125,60 +128,3 @@ if(JOURNALD_FOUND)
 endif()
 
 install(TARGETS treeland RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}")
-
-add_executable(treeland-helper
-    ${HELPER_SOURCES}
-)
-
-target_link_libraries(treeland-helper
-    PRIVATE
-        common
-        $<IF:$<BOOL:${WITH_SUBMODULE_WAYLIB}>, waylibserver, ${WaylibServer_LIBRARIES}>
-        PkgConfig::WAYLAND_SERVER
-        PkgConfig::WAYLAND_CLIENT
-        Qt${QT_MAJOR_VERSION}::Gui
-        Qt${QT_MAJOR_VERSION}::Network
-)
-
-if (NOT WITH_SUBMODULE_WAYLIB)
-    target_link_libraries(treeland-helper
-        PUBLIC
-        QWlroots::QWlroots
-    )
-    target_include_directories(treeland-helper
-        PRIVATE
-        ${WaylibServer_INCLUDE_DIR}
-    )
-endif()
-
-install(TARGETS treeland-helper RUNTIME DESTINATION "${CMAKE_INSTALL_LIBEXECDIR}")
-
-add_executable(treeland-fake-session
-    fake-session.cpp
-    ${CMAKE_BINARY_DIR}/src/treeland/shortcut-client-protocol.h
-    ${CMAKE_BINARY_DIR}/src/treeland/shortcut-client-protocol.c
-)
-
-target_link_libraries(treeland-fake-session
-    PRIVATE
-        common
-        $<IF:$<BOOL:${WITH_SUBMODULE_WAYLIB}>, waylibserver, ${WaylibServer_LIBRARIES}>
-        PkgConfig::WAYLAND_SERVER
-        PkgConfig::WAYLAND_CLIENT
-        Qt${QT_MAJOR_VERSION}::Gui
-        Qt${QT_MAJOR_VERSION}::Network
-        Qt${QT_MAJOR_VERSION}::DBus
-)
-
-if (NOT WITH_SUBMODULE_WAYLIB)
-    target_link_libraries(treeland-fake-session
-        PRIVATE
-        QWlroots::QWlroots
-    )
-    target_include_directories(treeland-fake-session
-        PRIVATE
-        ${WaylibServer_INCLUDE_DIR}
-    )
-endif()
-
-install(TARGETS treeland-fake-session RUNTIME DESTINATION "${CMAKE_INSTALL_LIBEXECDIR}")

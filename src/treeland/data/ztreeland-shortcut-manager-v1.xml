@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<protocol name="treeland_manager_v1">
+<protocol name="ztreeland_shortcut_manager_v1">
     <copyright>
         Copyright © 2023 Uniontech
 
@@ -22,20 +22,20 @@
         FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
         DEALINGS IN THE SOFTWARE.
     </copyright>
-    <interface name="treeland_shortcut_manager_v1" version="1">
-        <description summary="client socket manager">
-        This interface allows a client to register a new Wayland socket for a new user logind.
+    <interface name="ztreeland_shortcut_manager_v1" version="1">
+        <description summary="shortcut manager">
+        This interface allows a client to get some shell's info.
 
         Warning! The protocol described in this file is currently in the testing
         phase. Backward compatible changes may be added together with the
         corresponding interface version bump. Backward incompatible changes can
         only be done by creating a new major version of the extension.
         </description>
-        <request name="create">
-            <arg name="id" type="new_id" interface="treeland_shortcut_context_v1"/>
+        <request name="get_shortcut_context">
+            <arg name="id" type="new_id" interface="ztreeland_shortcut_context_v1"/>
         </request>
     </interface>
-    <interface name="treeland_shortcut_context_v1" version="1">
+    <interface name="ztreeland_shortcut_context_v1" version="1">
         <description summary="client shortcut context">
         This interface allows a client to listen a shortcut action.
 
@@ -44,12 +44,14 @@
         corresponding interface version bump. Backward incompatible changes can
         only be done by creating a new major version of the extension.
         </description>
+        <enum name="error">
+            <entry name="already_listen" value="1"
+                summary="user has already been listen"/>
+        </enum>
         <event name="shortcut">
             <arg name="keycode" type="uint" />
             <arg name="modify" type="uint" />
         </event>
-        <request name="listen">
-        </request>
         <request name="destroy" type="destructor">
             <description summary="destroy the context object">
                 Destroy the context object.
