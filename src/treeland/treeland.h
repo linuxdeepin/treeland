@@ -4,16 +4,23 @@
 #include <QGuiApplication>
 
 #include <QLocalSocket>
+#include <QtWaylandCompositor/QWaylandCompositor>
 
 class QQmlApplicationEngine;
 
 namespace TreeLand {
 class WaylandSocketProxy;
-class TreeLand : public QGuiApplication
-{
+
+struct TreeLandAppContext {
+    bool isTestMode;
+    QString socket;
+};
+
+class TreeLand : public QObject {
     Q_OBJECT
+
 public:
-    explicit TreeLand(int argc, char* argv[]);
+    explicit TreeLand(TreeLandAppContext context);
 
 Q_SIGNALS:
     void socketDisconnected();
@@ -29,7 +36,7 @@ private:
     void setup();
 
 private:
-    bool m_isTestMode;
+    TreeLandAppContext m_context;
     QLocalSocket *m_socket;
     QLocalSocket *m_helperSocket;
     QQmlApplicationEngine *m_engine;

@@ -1,0 +1,32 @@
+#pragma once
+
+#include "helper.h"
+
+WAYLIB_SERVER_USE_NAMESPACE
+
+class TreeLandHelper : public Helper {
+    Q_OBJECT
+    Q_PROPERTY(QString socketFile READ socketFile WRITE setSocketFile FINAL)
+
+    QML_ELEMENT
+    QML_SINGLETON
+
+public:
+    explicit TreeLandHelper(QObject *parent = nullptr);
+
+    QString socketFile() const;
+
+    Q_INVOKABLE QString clientName(Waylib::Server::WSurface *surface) const;
+
+Q_SIGNALS:
+    void keyEvent(uint32_t key, uint32_t modify);
+
+protected:
+    bool beforeDisposeEvent(WSeat *seat, QWindow *watched, QInputEvent *event) override;
+
+private:
+    void setSocketFile(const QString &socketFile);
+
+private:
+    QString m_socketFile;
+};

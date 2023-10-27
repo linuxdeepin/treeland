@@ -62,40 +62,12 @@ WSurfaceItem *Helper::movingItem() const
     return m_movingItem;
 }
 
-QString Helper::socketFile() const
-{
-    return m_socketFile;
-}
-
-QString Helper::clientName(WSurface *surface) const
-{
-    wl_client *client = surface->handle()->handle()->resource->client;
-    pid_t pid;
-    uid_t uid;
-    gid_t gid;
-    wl_client_get_credentials(client, &pid, &uid, &gid);
-
-    QString programName;
-    QFile file(QString("/proc/%1/status").arg(pid));
-    if (file.open(QFile::ReadOnly)) {
-        programName = QString(file.readLine()).section(QRegularExpression("([\\t ]*:[\\t ]*|\\n)"),1,1);
-    }
-
-    qDebug() << "Program name for PID" << pid << "is" << programName;
-    return programName;
-}
-
 void Helper::setMovingItem(WSurfaceItem *newMovingItem)
 {
     if (m_movingItem == newMovingItem)
         return;
     m_movingItem = newMovingItem;
     emit movingItemChanged();
-}
-
-void Helper::setSocketFile(const QString &socketFile)
-{
-    m_socketFile = socketFile;
 }
 
 void Helper::stopMoveResize()
@@ -165,10 +137,12 @@ void Helper::allowNonDrmOutputAutoChangeMode(WOutput *output)
 
 bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *watched, QInputEvent *event)
 {
-    // TODO: shortcut
     if (event->type() == QEvent::KeyPress) {
-        auto e = static_cast<QKeyEvent*>(event);
-        emit keyEvent(e->key(), e->modifiers());
+        auto kevent = static_cast<QKeyEvent*>(event);
+        if (QKeySequence(kevent->keyCombination()) == QKeySequence::Quit) {
+            qApp->quit();
+            return true;
+        }
     }
 
     if (watched) {
@@ -283,5 +257,7 @@ void Helper::onOutputRequeseState(wlr_output_event_request_state *newState)
         } else {
             output->setMode(newState->state->mode);
         }
+
+        output->commit();
     }
 }

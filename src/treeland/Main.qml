@@ -72,6 +72,8 @@ Item {
             keyboardFocus: Helper.getFocusSurfaceFrom(renderWindow.activeFocusItem)
         }
 
+        CursorShapeManager { }
+
         WaylandSocket {
             id: masterSocket
 
@@ -79,7 +81,7 @@ Item {
 
             Component.onCompleted: {
                 console.info("Listing on:", socketFile)
-                Helper.socketFile = socketFile
+                TreeLandHelper.socketFile = socketFile
             }
         }
 

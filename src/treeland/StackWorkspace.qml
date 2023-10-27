@@ -9,7 +9,7 @@ import TreeLand
 Item {
     id: root
 
-    function getXdgSurfaceFromWaylandSurface(surface) {
+    function getSurfaceItemFromWaylandSurface(surface) {
         let finder = function(props) {
             if (props.waylandSurface === surface)
                 return true
@@ -18,16 +18,24 @@ Item {
         let toplevel = QmlHelper.xdgSurfaceManager.getIf(toplevelComponent, finder)
         if (toplevel) {
             return {
-                parent: toplevel,
-                xdgSurface: toplevel
+                shell: toplevel,
+                item: toplevel
             }
         }
 
         let popup = QmlHelper.xdgSurfaceManager.getIf(popupComponent, finder)
         if (popup) {
             return {
-                parent: popup,
-                xdgSurface: popup.xdgSurface
+                shell: popup,
+                item: popup.xdgSurface
+            }
+        }
+
+        let xwayland = QmlHelper.xwaylandSurfaceManager.getIf(xwaylandComponent, finder)
+        if (xwayland) {
+            return {
+                shell: xwayland,
+                item: xwayland
             }
         }
 
@@ -108,7 +116,6 @@ Item {
                 waylandSurface: surface.waylandSurface
                 dockModel: dock.model
                 creator: toplevelComponent
-                workspace: root
             }
         }
     }
@@ -126,12 +133,20 @@ Item {
             property string type
 
             property alias xdgSurface: surface
-            property var xdgParent: root.getXdgSurfaceFromWaylandSurface(waylandSurface.parentXdgSurface)
+            property var xdgParent: root.getSurfaceItemFromWaylandSurface(waylandSurface.parentXdgSurface)
 
-            parent: xdgParent ? xdgParent.parent : root
-            visible: xdgParent.xdgSurface.effectiveVisible && waylandSurface.surface.mapped && waylandSurface.WaylandSocket.rootSocket.enabled
-            x: surface.implicitPosition.x + (xdgParent ? xdgParent.xdgSurface.contentItem.x : 0)
-            y: surface.implicitPosition.y + (xdgParent ? xdgParent.xdgSurface.contentItem.x : 0)
+            parent: xdgParent ? xdgParent.shell : root
+            visible: xdgParent.item.effectiveVisible && waylandSurface.surface.mapped && waylandSurface.WaylandSocket.rootSocket.enabled
+            x: {
+                if (!xdgParent)
+                    return surface.implicitPosition.x
+                return surface.implicitPosition.x / xdgParent.item.surfaceSizeRatio + xdgParent.item.contentItem.x
+            }
+            y: {
+                if (!xdgParent)
+                    return surface.implicitPosition.y
+                return surface.implicitPosition.y / xdgParent.item.surfaceSizeRatio + xdgParent.item.contentItem.y
+            }
             padding: 0
             background: null
             closePolicy: Popup.CloseOnPressOutside
@@ -163,8 +178,10 @@ Item {
             required property XWaylandSurface waylandSurface
             property var doDestroy: helper.doDestroy
             property var cancelMinimize: helper.cancelMinimize
+            property var surfaceParent: root.getSurfaceItemFromWaylandSurface(waylandSurface.parentXWaylandSurface)
 
             surface: waylandSurface
+            parentSurfaceItem: surfaceParent ? surfaceParent.item : null
             z: waylandSurface.bypassManager ? 1 : 0 // TODO: make to enum type
             positionMode: {
                 if (!surface.effectiveVisible)
@@ -179,6 +196,15 @@ Item {
             bottomPadding: decoration.enable ? decoration.bottomMargin : 0
             leftPadding: decoration.enable ? decoration.leftMargin : 0
             rightPadding: decoration.enable ? decoration.rightMargin : 0
+
+            surfaceSizeRatio: {
+                const po = waylandSurface.surface.primaryOutput
+                if (!po)
+                    return 1.0
+                if (bufferScale >= po.scale)
+                    return 1.0
+                return po.scale / bufferScale
+            }
 
             onEffectiveVisibleChanged: {
                 if (surface.effectiveVisible)
