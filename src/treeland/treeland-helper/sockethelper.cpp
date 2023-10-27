@@ -8,57 +8,38 @@
 
 #include <QDebug>
 #include <QObject>
+#include <QWindow>
 
-#include <QAbstractEventDispatcher>
-#include <QSocketNotifier>
-#include <QThread>
 #include <QLocalSocket>
+#include <QtGui/qpa/qplatformnativeinterface.h>
 
 #include <sys/types.h>
 #include <pwd.h>
 #include <unistd.h>
-#include <wayland-client-core.h>
-#include <wayland-server-core.h>
 #include <wsocket.h>
 
-#include <socket-client-protocol.h>
+#include "qwayland-treeland-socket-manager-v1.h"
 
 using namespace SDDM;
 
 WAYLIB_SERVER_USE_NAMESPACE
 
-struct output {
-	struct wl_output *wl_output;
-	struct wl_list link;
-};
+SocketManager::SocketManager()
+    : QWaylandClientExtensionTemplate<SocketManager>(1)
+{
 
-static struct wl_list outputs;
-static struct treeland_socket_manager_v1 *manager = nullptr;
-
-static void registry_handle_global(void *data, struct wl_registry *registry,
-		uint32_t name, const char *interface, uint32_t version) {
-    qInfo() << "==== " << interface << treeland_socket_manager_v1_interface.name;
-	if (strcmp(interface, wl_output_interface.name) == 0) {
-		struct output *output = static_cast<struct output*>(calloc(1, sizeof(struct output)));
-		output->wl_output = (wl_output*)wl_registry_bind(registry, name, &wl_output_interface, 1);
-		wl_list_insert(&outputs, &output->link);
-	} else if (strcmp(interface, treeland_socket_manager_v1_interface.name) == 0) {
-		manager = (treeland_socket_manager_v1*)wl_registry_bind(registry, name, &treeland_socket_manager_v1_interface, 1);
-	}
 }
 
-static void registry_handle_global_remove(void *data,
-		struct wl_registry *registry, uint32_t name) {
-	// Who cares?
-}
+SocketContext::SocketContext(struct ::treeland_socket_context_v1 *object)
+    : QWaylandClientExtensionTemplate<SocketContext>(1)
+    , QtWayland::treeland_socket_context_v1(object)
+{
 
-static const struct wl_registry_listener registry_listener = {
-	.global = registry_handle_global,
-	.global_remove = registry_handle_global_remove,
-};
+}
 
 SocketHelper::SocketHelper(int argc, char* argv[])
     : QGuiApplication(argc, argv)
+    , m_socketManager(new SocketManager())
 {
     const QStringList args = QCoreApplication::arguments();
     QString server;
@@ -79,7 +60,13 @@ SocketHelper::SocketHelper(int argc, char* argv[])
     connect(m_socket, &QLocalSocket::readyRead, this, &SocketHelper::readyRead);
     connect(m_socket, &QLocalSocket::errorOccurred, this, &SocketHelper::error);
 
-    m_socket->connectToServer(server);
+    connect(m_socketManager, &SocketManager::activeChanged, this, [=] {
+        if (m_socketManager->isActive()) {
+            m_socket->connectToServer(server);
+        }
+    });
+
+    emit m_socketManager->activeChanged();
 }
 
 void SocketHelper::connected() {
@@ -120,14 +107,15 @@ void SocketHelper::readyRead() {
                 socket->autoCreate(path);
                 chown(socket->fullServerName().toUtf8(), pw->pw_uid, pw->pw_gid);
 
-                auto context_inter = treeland_socket_manager_v1_create(manager);
-                treeland_socket_context_v1_set_username(context_inter, username.toUtf8());
-                treeland_socket_context_v1_set_fd(context_inter, socket->socketFd());
-                treeland_socket_context_v1_commit(context_inter);
+                auto context = std::make_shared<SocketContext>(m_socketManager->create());
+                context->set_username(username);
+                context->set_fd(socket->socketFd());
+                context->commit();
+                context->setProperty("username", username);
 
                 SocketWriter(m_socket) << quint32(TreelandMessages::CreateWaylandSocket) << username << socket->fullServerName();
 
-                m_userSocket.insert(username, std::move(socket));
+                m_userSocket.insert(std::move(context), std::move(socket));
             }
             break;
             case DaemonMessages::DeleteWaylandSocket: {
@@ -135,8 +123,9 @@ void SocketHelper::readyRead() {
                 input >> user;
 
                 for (auto it = m_userSocket.begin(); it != m_userSocket.end(); ++it) {
-                    if (it.key() == user) {
-                        SocketWriter(m_socket) << quint32(TreelandMessages::DeleteWaylandSocket) << it.key();
+                    const QString username = it.key().get()->property("username").toString();
+                    if (username == user) {
+                        SocketWriter(m_socket) << quint32(TreelandMessages::DeleteWaylandSocket) << username;
                         m_userSocket.erase(it);
                         break;
                     }
@@ -161,28 +150,7 @@ int main (int argc, char *argv[]) {
         return -1;
     }
 
-    wl_list_init(&outputs);
-    struct wl_display *display = wl_display_connect(nullptr);
-    if (!display) {
-        qDebug() << "oh! no!";
-        return -1;
-    }
-
-    struct wl_registry *registry = wl_display_get_registry(display);
-    wl_registry_add_listener(registry, &registry_listener, NULL);
-    wl_display_roundtrip(display);
-
-    Q_ASSERT(manager);
-
-    auto processWaylandEvents = [display] {
-        wl_display_dispatch_pending(display);
-        wl_display_flush(display);
-    };
-
     SocketHelper helper(argc, argv);
-
-    QObject::connect(QThread::currentThread()->eventDispatcher(), &QAbstractEventDispatcher::aboutToBlock, qApp, processWaylandEvents);
-    QObject::connect(QThread::currentThread()->eventDispatcher(), &QAbstractEventDispatcher::awake, qApp, processWaylandEvents);
 
     return helper.exec();
 }

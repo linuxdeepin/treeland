@@ -1,3 +1,6 @@
+// Copyright (C) 2023 Dingyuan Zhang <lxz@mkacg.com>.
+// SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
+
 #include "treelandhelper.h"
 
 #include <WServer>
@@ -39,6 +42,8 @@ QString TreeLandHelper::socketFile() const
 void TreeLandHelper::setSocketFile(const QString &socketFile)
 {
     m_socketFile = socketFile;
+
+    emit socketFileChanged();
 }
 
 QString TreeLandHelper::clientName(Waylib::Server::WSurface *surface) const
@@ -58,4 +63,3 @@ QString TreeLandHelper::clientName(Waylib::Server::WSurface *surface) const
     qDebug() << "Program name for PID" << pid << "is" << programName;
     return programName;
 }
-

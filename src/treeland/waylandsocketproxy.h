@@ -7,23 +7,28 @@
 #include <QMap>
 
 #include <memory>
+#include <QQmlEngine>
+#include <wquickwaylandserver.h>
 
 namespace Waylib::Server {
     class WSocket;
 }
 
 namespace TreeLand {
-class WaylandSocketProxy : public QObject {
+class WaylandSocketProxy : public Waylib::Server::WQuickWaylandServerInterface {
     Q_OBJECT
+
+    QML_ELEMENT
+
 public:
-    using QObject::QObject;
+    explicit WaylandSocketProxy(QObject *parent = nullptr);
 
-    void newSocket(const QString &username, int fd);
-    void deleteSocket(const QString &username);
+    Q_INVOKABLE void newSocket(const QString &username, int fd);
+    Q_INVOKABLE void deleteSocket(const QString &username);
 
-    void activateUser(const QString &username);
+    Q_INVOKABLE void activateUser(const QString &username);
 
-    QString user(std::shared_ptr<Waylib::Server::WSocket> socket) const;
+    Q_INVOKABLE QString user(std::shared_ptr<Waylib::Server::WSocket> socket) const;
 
 Q_SIGNALS:
     void socketCreated(std::shared_ptr<Waylib::Server::WSocket> socket);

@@ -1,15 +1,17 @@
 // Copyright (C) 2023 Dingyuan Zhang <lxz@mkacg.com>.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
-#include <QGuiApplication>
+#pragma once
 
+#include "waylandsocketproxy.h"
+
+#include <QGuiApplication>
 #include <QLocalSocket>
 #include <QtWaylandCompositor/QWaylandCompositor>
 
 class QQmlApplicationEngine;
 
 namespace TreeLand {
-class WaylandSocketProxy;
 
 struct TreeLandAppContext {
     bool isTestMode;
@@ -18,13 +20,17 @@ struct TreeLandAppContext {
 
 class TreeLand : public QObject {
     Q_OBJECT
+    Q_PROPERTY(WaylandSocketProxy* socketProxy READ socketProxy WRITE setSocketProxy)
 
 public:
     explicit TreeLand(TreeLandAppContext context);
 
+    inline WaylandSocketProxy* socketProxy() const {
+        return m_socketProxy;
+    }
+
 Q_SIGNALS:
     void socketDisconnected();
-    void requestAddNewSocket(const QString &username, int fd);
 
 private Q_SLOTS:
     void connected();
@@ -34,6 +40,7 @@ private Q_SLOTS:
 
 private:
     void setup();
+    void setSocketProxy(WaylandSocketProxy *socketProxy);
 
 private:
     TreeLandAppContext m_context;

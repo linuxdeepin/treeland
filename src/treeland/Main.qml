@@ -14,6 +14,27 @@ Item {
     WaylandServer {
         id: server
 
+        ShortcutManager {
+            helper: TreeLandHelper
+        }
+
+        ForeignToplevelManager {
+            helper: TreeLandHelper
+        }
+
+        SocketManager {
+            onNewSocket: {
+                socketProxy.newSocket(username, fd)
+            }
+        }
+
+        WaylandSocketProxy {
+            id: socketProxy
+            Component.onCompleted: {
+                TreeLand.socketProxy = socketProxy
+            }
+        }
+
         WaylandBackend {
             id: backend
 
@@ -23,7 +44,7 @@ Item {
                 if (QmlHelper.outputManager.count > 0)
                     output.scale = 2
 
-                Helper.allowNonDrmOutputAutoChangeMode(output)
+                TreeLandHelper.allowNonDrmOutputAutoChangeMode(output)
                 QmlHelper.outputManager.add({waylandOutput: output})
             }
             onOutputRemoved: function(output) {
@@ -68,8 +89,8 @@ Item {
                 layout: QmlHelper.layout
             }
 
-            eventFilter: Helper
-            keyboardFocus: Helper.getFocusSurfaceFrom(renderWindow.activeFocusItem)
+            eventFilter: TreeLandHelper
+            keyboardFocus: TreeLandHelper.getFocusSurfaceFrom(renderWindow.activeFocusItem)
         }
 
         CursorShapeManager { }
@@ -134,9 +155,9 @@ Item {
         ColumnLayout {
             id: workspaceLoader
             anchors.fill: parent
-            visible: false
 
             Row {
+                id: topbar
                 Layout.fillWidth: true
 
                 Rectangle {
@@ -188,14 +209,14 @@ Item {
                         MenuItem {
                             text: qsTr("Back to normal mode")
                             onClicked: {
-                                Helper.backToNormal()
+                                TreeLandHelper.backToNormal()
                             }
                         }
 
                         MenuItem {
                             text: qsTr("Reboot")
                             onClicked: {
-                                Helper.reboot()
+                                TreeLandHelper.reboot()
                             }
                         }
                     }
@@ -220,7 +241,7 @@ Item {
         }
 
         Connections {
-            target: Helper
+            target: TreeLandHelper
             function onGreeterVisibleChanged() {
                 greeter.visible = true
             }

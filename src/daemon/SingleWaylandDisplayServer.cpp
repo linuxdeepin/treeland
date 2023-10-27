@@ -44,6 +44,13 @@ SingleWaylandDisplayServer::SingleWaylandDisplayServer(SocketServer *socketServe
         qWarning() << m_seatd->readAllStandardError();
     });
 
+    connect(m_helper, &QProcess::readyReadStandardOutput, this, [this] {
+        qInfo() << m_helper->readAllStandardOutput();
+    });
+    connect(m_helper, &QProcess::readyReadStandardError, this, [this] {
+        qWarning() << m_helper->readAllStandardError();
+    });
+
     m_seatd->start();
 
     QString socketName = QStringLiteral("treeland-helper-%1").arg(generateName(6));

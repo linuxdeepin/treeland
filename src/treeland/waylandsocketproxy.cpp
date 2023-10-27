@@ -5,9 +5,15 @@
 
 #include <wsocket.h>
 
+#include <QDebug>
+
 WAYLIB_SERVER_USE_NAMESPACE
 
 namespace TreeLand {
+WaylandSocketProxy::WaylandSocketProxy(QObject *parent)
+    : Waylib::Server::WQuickWaylandServerInterface(parent)
+{}
+
 void WaylandSocketProxy::newSocket(const QString &username, int fd)
 {
     auto socket = std::make_shared<WSocket>(true);
@@ -15,6 +21,8 @@ void WaylandSocketProxy::newSocket(const QString &username, int fd)
     socket->create(fd, false);
 
     emit socketCreated(socket);
+
+    server()->addSocket(socket.get());
 }
 
 QString WaylandSocketProxy::user(std::shared_ptr<Waylib::Server::WSocket> socket) const {

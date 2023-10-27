@@ -507,6 +507,11 @@ namespace SDDM {
 
                 const QString &display = displayServer->getUserWaylandSocket(user);
                 env.insert(QStringLiteral("WAYLAND_DISPLAY"), display);
+
+                #ifdef QT_DEBUG
+                env.insert("WAYLAND_DEBUG", "1");
+                #endif
+
                 auth->setDisplayServerCommand(QStringLiteral());
                 qInfo() << "WAYLAND_DISPLAY => " << display;
             } else {

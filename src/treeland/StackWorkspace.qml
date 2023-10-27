@@ -187,7 +187,7 @@ Item {
                 if (!surface.effectiveVisible)
                     return XWaylandSurfaceItem.ManualPosition
 
-                return (Helper.movingItem === surface || resizeMode === SurfaceItem.SizeToSurface)
+                return (TreeLandHelper.movingItem === surface || resizeMode === SurfaceItem.SizeToSurface)
                         ? XWaylandSurfaceItem.PositionToSurface
                         : XWaylandSurfaceItem.PositionFromSurface
             }
