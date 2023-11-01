@@ -8,10 +8,18 @@ test_build:
     - configure_repositories:
         project: vioken:CI
         repositories:
-          - name: deepin
+          - name: deepin_ci
             paths:
               - target_project: vioken
                 target_repository: deepin_develop
+            architectures:
+              - x86_64
+              - aarch64
+
+          - name: deepin_testing
+            paths:
+              - target_project: vioken
+                target_repository: deepin_23_testing
             architectures:
               - x86_64
               - aarch64
