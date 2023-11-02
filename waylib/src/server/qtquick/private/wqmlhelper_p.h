@@ -28,7 +28,12 @@ public:
         *image.get() = other;
         return *this;
     }
+
     inline operator const QImage&() const {
+        return *image.get();
+    }
+
+    inline operator QImage&() {
         return *image.get();
     }
 

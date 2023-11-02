@@ -25,6 +25,8 @@ QW_END_NAMESPACE
 
 struct wlr_swapchain;
 struct pixman_region32;
+struct wlr_output_layer_state;
+typedef QVarLengthArray<wlr_output_layer_state> wlr_output_layer_state_array;
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
@@ -49,16 +51,22 @@ public:
     std::pair<QW_NAMESPACE::QWBuffer*, QQuickRenderTarget> lastRenderTarget();
 
     void setBuffer(QW_NAMESPACE::QWBuffer *buffer);
+    QW_NAMESPACE::QWBuffer *buffer() const;
+
     void setScale(float scale);
     void setTransform(WOutput::Transform t);
     void setDamage(const pixman_region32 *damage);
+    const pixman_region32 *damage() const;
+    void setLayers(const wlr_output_layer_state_array &layers);
     bool commit();
+    bool testCommit();
+    bool testCommit(QW_NAMESPACE::QWBuffer *buffer, const wlr_output_layer_state_array &layers);
 
     bool renderable() const;
     bool contentIsDirty() const;
     bool needsFrame() const;
 
-    void resetState();
+    void resetState(bool resetRenderable);
     void update();
 
 Q_SIGNALS:

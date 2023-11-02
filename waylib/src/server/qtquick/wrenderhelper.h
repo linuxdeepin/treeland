@@ -12,6 +12,7 @@
 
 QT_BEGIN_NAMESPACE
 class QQuickRenderControl;
+class QSGTexture;
 QT_END_NAMESPACE
 
 QW_BEGIN_NAMESPACE
@@ -37,6 +38,8 @@ public:
 
     static QSGRendererInterface::GraphicsApi getGraphicsApi(QQuickRenderControl *rc);
     static QSGRendererInterface::GraphicsApi getGraphicsApi();
+
+    static QW_NAMESPACE::QWBuffer *toBuffer(QW_NAMESPACE::QWRenderer *renderer, QSGTexture *texture);
 
     QQuickRenderTarget acquireRenderTarget(QQuickRenderControl *rc, QW_NAMESPACE::QWBuffer *buffer);
     std::pair<QW_NAMESPACE::QWBuffer*, QQuickRenderTarget> lastRenderTarget() const;

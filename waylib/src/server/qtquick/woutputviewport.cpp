@@ -13,48 +13,27 @@
 QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
-class OutputTextureProvider : public QSGTextureProvider
+void WOutputViewportPrivate::init()
 {
-public:
-    explicit OutputTextureProvider(WOutputViewport *viewport)
-        : item(viewport) {}
-    ~OutputTextureProvider() {
+    Q_ASSERT(!renderBuffer);
+    Q_Q(WOutputViewport);
 
-    }
-
-    QSGTexture *texture() const override {
-        return dwtexture ? dwtexture->getSGTexture(item->window()) : nullptr;
-    }
-
-    void setBuffer(QWBuffer *buffer) {
-        qwtexture.reset();
-
-        if (Q_LIKELY(buffer)) {
-            qwtexture.reset(QWTexture::fromBuffer(item->output()->renderer(), buffer));
-        }
-
-        if (Q_LIKELY(qwtexture)) {
-            if (Q_LIKELY(dwtexture)) {
-                dwtexture->setHandle(qwtexture.get());
-            } else {
-                dwtexture.reset(new WTexture(qwtexture.get()));
-            }
-        } else {
-            dwtexture.reset();
-        }
-
-        Q_EMIT textureChanged();
-    }
-
-    WOutputViewport *item;
-    std::unique_ptr<QWTexture> qwtexture;
-    std::unique_ptr<WTexture> dwtexture;
-};
+    renderBuffer = new WBufferRenderer(q);
+    QQuickItemPrivate::get(renderBuffer)->anchors()->setFill(q);
+    QObject::connect(renderBuffer, &WBufferRenderer::cacheBufferChanged,
+                     q, &WOutputViewport::cacheBufferChanged);
+}
 
 void WOutputViewportPrivate::initForOutput()
 {
     W_Q(WOutputViewport);
 
+    if (root) {
+        renderBuffer->setSource(q, true);
+    } else {
+        renderBuffer->setSource(nullptr, true);
+    }
+    renderBuffer->setOutput(output);
     outputWindow()->attach(q);
 
     QObject::connect(output, &WOutput::modeChanged, q, [this] {
@@ -62,12 +41,6 @@ void WOutputViewportPrivate::initForOutput()
     });
 
     updateImplicitSize();
-}
-
-void WOutputViewportPrivate::invalidateSceneGraph()
-{
-    if (textureProvider)
-        textureProvider.reset();
 }
 
 qreal WOutputViewportPrivate::getImplicitWidth() const
@@ -93,7 +66,7 @@ void WOutputViewportPrivate::updateImplicitSize()
 WOutputViewport::WOutputViewport(QQuickItem *parent)
     : QQuickItem(*new WOutputViewportPrivate(), parent)
 {
-
+    d_func()->init();
 }
 
 WOutputViewport::~WOutputViewport()
@@ -113,13 +86,19 @@ void WOutputViewport::invalidate()
 bool WOutputViewport::isTextureProvider() const
 {
     W_DC(WOutputViewport);
-    return d->textureProvider ? true : QQuickItem::isTextureProvider();
+    if (QQuickItem::isTextureProvider())
+        return true;
+
+    return d->renderBuffer->isTextureProvider();
 }
 
 QSGTextureProvider *WOutputViewport::textureProvider() const
 {
     W_DC(WOutputViewport);
-    return d->textureProvider ? d->textureProvider.get() : QQuickItem::textureProvider();
+    if (auto tp = QQuickItem::textureProvider())
+        return tp;
+
+    return d->renderBuffer->textureProvider();
 }
 
 WOutput *WOutputViewport::output() const
@@ -133,19 +112,18 @@ void WOutputViewport::setOutput(WOutput *newOutput)
     W_D(WOutputViewport);
 
     Q_ASSERT(!d->output || !newOutput);
+
+    if (d->output && newOutput) {
+        qmlWarning(this) << "The \"output\" property is non-null, Not allow change it.";
+        return;
+    }
+
     d->output = newOutput;
 
     if (d->componentComplete) {
         if (newOutput)
             d->initForOutput();
     }
-}
-
-void WOutputViewport::setBuffer(QWBuffer *buffer)
-{
-    W_D(WOutputViewport);
-    if (d->textureProvider)
-        d->textureProvider->setBuffer(buffer);
 }
 
 qreal WOutputViewport::devicePixelRatio() const
@@ -196,10 +174,12 @@ void WOutputViewport::setRoot(bool newRoot)
         return;
     d->root = newRoot;
 
-    if (newRoot) {
-        d->refFromEffectItem(true);
-    } else {
-        d->derefFromEffectItem(true);
+    if (d->output) {
+        if (newRoot) {
+            d->renderBuffer->setSource(this, true);
+        } else if (d->output) {
+            d->renderBuffer->setSource(nullptr, true);
+        }
     }
 
     Q_EMIT rootChanged();
@@ -208,25 +188,28 @@ void WOutputViewport::setRoot(bool newRoot)
 bool WOutputViewport::cacheBuffer() const
 {
     W_DC(WOutputViewport);
-    return d->cacheBuffer;
+    return d->renderBuffer->cacheBuffer();
 }
 
 void WOutputViewport::setCacheBuffer(bool newCacheBuffer)
 {
     W_D(WOutputViewport);
-    if (d->cacheBuffer == newCacheBuffer)
+    d->renderBuffer->setCacheBuffer(newCacheBuffer);
+}
+
+WOutputViewport::LayerFlags WOutputViewport::layerFlags() const
+{
+    W_DC(WOutputViewport);
+    return d->layerFlags;
+}
+
+void WOutputViewport::setLayerFlags(const LayerFlags &newLayerFlags)
+{
+    W_D(WOutputViewport);
+    if (d->layerFlags == newLayerFlags)
         return;
-    d->cacheBuffer = newCacheBuffer;
-
-    if (d->cacheBuffer) {
-        Q_ASSERT(!d->textureProvider.get());
-        d->textureProvider.reset(new OutputTextureProvider(this));
-    } else {
-        Q_ASSERT(d->textureProvider.get());
-        d->textureProvider.reset();
-    }
-
-    Q_EMIT cacheBufferChanged();
+    d->layerFlags = newLayerFlags;
+    Q_EMIT layerFlagsChanged();
 }
 
 void WOutputViewport::setOutputScale(float scale)
@@ -251,27 +234,6 @@ void WOutputViewport::componentComplete()
         d->initForOutput();
 
     QQuickItem::componentComplete();
-}
-
-void WOutputViewport::releaseResources()
-{
-    W_D(WOutputViewport);
-
-    if (d->textureProvider) {
-        class WOutputViewportCleanupJob : public QRunnable
-        {
-        public:
-            WOutputViewportCleanupJob(QObject *object) : m_object(object) { }
-            void run() override {
-                delete m_object;
-            }
-            QObject *m_object;
-        };
-
-        // Delay clean the textures on the next render after.
-        d->window->scheduleRenderJob(new WOutputViewportCleanupJob(d->textureProvider.release()),
-                                     QQuickWindow::AfterRenderingStage);
-    }
 }
 
 WAYLIB_SERVER_END_NAMESPACE

@@ -69,6 +69,9 @@ public:
     QW_NAMESPACE::QWRenderer *renderer() const;
     QW_NAMESPACE::QWSwapchain *swapchain() const;
     QW_NAMESPACE::QWAllocator *allocator() const;
+    bool configureSwapchain(const QSize &size, uint32_t format,
+                            QW_NAMESPACE::QWSwapchain **swapchain,
+                            bool doTest = true);
 
     QW_NAMESPACE::QWOutput *handle() const;
     wlr_output *nativeHandle() const;

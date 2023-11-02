@@ -25,6 +25,7 @@ extern "C" {
 #define static
 #include <wlr/types/wlr_output.h>
 #undef static
+#include <wlr/types/wlr_output_layer.h>
 }
 
 QW_USE_NAMESPACE
@@ -100,6 +101,7 @@ public:
     W_DECLARE_PUBLIC(WOutputHelper)
     WOutput *output;
     wlr_output_state state;
+    wlr_output_layer_state_array layersCache;
     QWindow *outputWindow;
     WRenderHelper *renderHelper = nullptr;
 
@@ -210,6 +212,12 @@ void WOutputHelper::setBuffer(QWBuffer *buffer)
     wlr_output_state_set_buffer(&d->state, buffer->handle());
 }
 
+QWBuffer *WOutputHelper::buffer() const
+{
+    W_DC(WOutputHelper);
+    return d->state.buffer ? QWBuffer::from(d->state.buffer) : nullptr;
+}
+
 void WOutputHelper::setScale(float scale)
 {
     W_D(WOutputHelper);
@@ -228,6 +236,26 @@ void WOutputHelper::setDamage(const pixman_region32 *damage)
     wlr_output_state_set_damage(&d->state, damage);
 }
 
+const pixman_region32 *WOutputHelper::damage() const
+{
+    W_DC(WOutputHelper);
+    return &d->state.damage;
+}
+
+void WOutputHelper::setLayers(const wlr_output_layer_state_array &layers)
+{
+    W_D(WOutputHelper);
+
+    d->layersCache = layers;
+
+    if (!layers.isEmpty()) {
+        wlr_output_state_set_layers(&d->state, d->layersCache.data(), layers.length());
+    } else {
+        d->state.layers = nullptr;
+        d->state.committed &= (~WLR_OUTPUT_STATE_LAYERS);
+    }
+}
+
 bool WOutputHelper::commit()
 {
     W_D(WOutputHelper);
@@ -235,6 +263,31 @@ bool WOutputHelper::commit()
     wlr_output_state_init(&d->state);
     bool ok = d->qwoutput()->commitState(&state);
     wlr_output_state_finish(&state);
+
+    return ok;
+}
+
+bool WOutputHelper::testCommit()
+{
+    W_D(WOutputHelper);
+    return d->qwoutput()->testState(&d->state);
+}
+
+bool WOutputHelper::testCommit(QWBuffer *buffer, const wlr_output_layer_state_array &layers)
+{
+    W_D(WOutputHelper);
+    wlr_output_state state = d->state;
+
+    if (buffer)
+        wlr_output_state_set_buffer(&state, buffer->handle());
+    if (!layers.isEmpty())
+        wlr_output_state_set_layers(&state, const_cast<wlr_output_layer_state*>(layers.data()), layers.length());
+
+    bool ok = d->qwoutput()->testState(&state);
+    if (state.committed & WLR_OUTPUT_STATE_BUFFER) {
+        Q_ASSERT(buffer);
+        buffer->unlock();
+    }
 
     return ok;
 }
@@ -257,11 +310,12 @@ bool WOutputHelper::needsFrame() const
     return d->needsFrame;
 }
 
-void WOutputHelper::resetState()
+void WOutputHelper::resetState(bool resetRenderable)
 {
     W_D(WOutputHelper);
     d->setContentIsDirty(false);
-    d->setRenderable(false);
+    if (resetRenderable)
+        d->setRenderable(false);
     d->setNeedsFrame(false);
 
     // reset output state
@@ -269,6 +323,9 @@ void WOutputHelper::resetState()
         wlr_buffer_unlock(d->state.buffer);
         d->state.buffer = nullptr;
     }
+
+    d->state.layers = nullptr;
+    d->layersCache.clear();
 
     free(d->state.gamma_lut);
     d->state.gamma_lut = nullptr;

@@ -268,6 +268,8 @@ bool QuickOutputCursor::setPosition(const QPointF &pos)
     const auto newPosition = delegateItem->parentItem()->mapFromGlobal(pos);
     if (newPosition == delegateItem->position())
         return false;
+    // TODO: Don't change position if the item isn't visible, change position
+    // will lead to the window repaint.
     delegateItem->setPosition(newPosition);
     return true;
 }

@@ -17,6 +17,7 @@ WAYLIB_SERVER_BEGIN_NAMESPACE
 
 class WWaylandCompositor;
 class WOutputViewport;
+class WOutputLayer;
 class WOutputRenderWindowPrivate;
 class WAYLIB_SERVER_EXPORT WOutputRenderWindow : public QQuickWindow, public QQmlParserStatus
 {
@@ -34,6 +35,9 @@ public:
 
     void attach(WOutputViewport *output);
     void detach(WOutputViewport *output);
+
+    void attach(WOutputLayer *layer, WOutputViewport *output);
+    void detach(WOutputLayer *layer, WOutputViewport *output);
 
     void setOutputScale(WOutputViewport *output, float scale);
     void rotateOutput(WOutputViewport *output, WOutput::Transform t);

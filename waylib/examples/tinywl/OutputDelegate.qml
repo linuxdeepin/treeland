@@ -17,6 +17,10 @@ OutputItem {
         required property OutputCursor cursor
 
         visible: cursor.visible && !cursor.isHardwareCursor
+        width: cursor.size.width
+        height: cursor.size.height
+        OutputLayer.enabled: true
+        OutputLayer.outputs: [onscreenViewport]
 
         Image {
             id: cursorImage
@@ -102,6 +106,7 @@ OutputItem {
             root: true
             output: waylandOutput
             devicePixelRatio: outputViewport.devicePixelRatio
+            layerFlags: OutputViewport.AlwaysAccepted
 
             TextureProxy {
                 sourceItem: outputViewport

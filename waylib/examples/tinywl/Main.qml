@@ -19,9 +19,6 @@ Item {
             onOutputAdded: function(output) {
                 output.forceSoftwareCursor = true // Test
 
-                if (QmlHelper.outputManager.count > 0)
-                    output.scale = 2
-
                 Helper.allowNonDrmOutputAutoChangeMode(output)
                 QmlHelper.outputManager.add({waylandOutput: output})
             }

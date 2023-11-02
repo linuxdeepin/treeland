@@ -25,7 +25,6 @@ public:
     W_DECLARE_PUBLIC(WQuickTextureProxy)
 
     QPointer<QQuickItem> sourceItem;
-    QMetaObject::Connection textureChangedConnection;
     QSize textureSize;
     QRectF sourceRect;
     bool hideSource = false;

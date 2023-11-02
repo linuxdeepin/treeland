@@ -9,10 +9,6 @@
 
 #include <QQuickItem>
 
-QW_BEGIN_NAMESPACE
-class QWBuffer;
-QW_END_NAMESPACE
-
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
 class WOutputViewportPrivate;
@@ -25,9 +21,18 @@ class WAYLIB_SERVER_EXPORT WOutputViewport : public QQuickItem
     Q_PROPERTY(bool offscreen READ offscreen WRITE setOffscreen NOTIFY offscreenChanged)
     Q_PROPERTY(bool root READ isRoot WRITE setRoot NOTIFY rootChanged FINAL)
     Q_PROPERTY(bool cacheBuffer READ cacheBuffer WRITE setCacheBuffer NOTIFY cacheBufferChanged FINAL)
+    Q_PROPERTY(LayerFlags layerFlags READ layerFlags WRITE setLayerFlags NOTIFY layerFlagsChanged FINAL)
     QML_NAMED_ELEMENT(OutputViewport)
 
 public:
+    enum class LayerFlag {
+        AlwaysAccepted = 1,
+        AlwaysRejected = 2,
+        ForceComposite = 4
+    };
+    Q_ENUM(LayerFlag)
+    Q_DECLARE_FLAGS(LayerFlags, LayerFlag)
+
     explicit WOutputViewport(QQuickItem *parent = nullptr);
     ~WOutputViewport();
 
@@ -38,8 +43,6 @@ public:
 
     WOutput *output() const;
     void setOutput(WOutput *newOutput);
-
-    void setBuffer(QW_NAMESPACE::QWBuffer *buffer);
 
     qreal devicePixelRatio() const;
     void setDevicePixelRatio(qreal newDevicePixelRatio);
@@ -53,6 +56,9 @@ public:
     bool cacheBuffer() const;
     void setCacheBuffer(bool newCacheBuffer);
 
+    LayerFlags layerFlags() const;
+    void setLayerFlags(const LayerFlags &newLayerFlags);
+
 public Q_SLOTS:
     void setOutputScale(float scale);
     void rotateOutput(WOutput::Transform t);
@@ -62,13 +68,11 @@ Q_SIGNALS:
     void offscreenChanged();
     void rootChanged();
     void cacheBufferChanged();
+    void layerFlagsChanged();
 
 private:
     void componentComplete() override;
-    void releaseResources() override;
-
-    // Using by Qt library
-    W_PRIVATE_SLOT(void invalidateSceneGraph())
 };
 
 WAYLIB_SERVER_END_NAMESPACE
+Q_DECLARE_OPERATORS_FOR_FLAGS(WAYLIB_SERVER_NAMESPACE::WOutputViewport::LayerFlags)

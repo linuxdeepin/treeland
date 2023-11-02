@@ -6,6 +6,7 @@
 #include "woutputviewport.h"
 #include "woutputrenderwindow.h"
 #include "wtexture.h"
+#include "wbufferrenderer_p.h"
 
 #include <qwoutput.h>
 #include <qwtexture.h>
@@ -29,7 +30,6 @@ public:
     WOutputViewportPrivate()
         : offscreen(false)
         , root(false)
-        , cacheBuffer(false)
     {
 
     }
@@ -43,6 +43,11 @@ public:
         return ow;
     }
 
+    inline static WOutputViewportPrivate *get(WOutputViewport *viewport) {
+        return viewport->d_func();
+    }
+
+    void init();
     void initForOutput();
     void invalidateSceneGraph();
 
@@ -54,11 +59,11 @@ public:
     W_DECLARE_PUBLIC(WOutputViewport)
     WOutput *output = nullptr;
     qreal devicePixelRatio = 1.0;
+    WBufferRenderer *renderBuffer = nullptr;
+
     uint offscreen:1;
     uint root:1;
-    uint cacheBuffer:1;
-
-    std::unique_ptr<OutputTextureProvider> textureProvider;
+    WOutputViewport::LayerFlags layerFlags;
 };
 
 WAYLIB_SERVER_END_NAMESPACE

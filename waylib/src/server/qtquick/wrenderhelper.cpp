@@ -12,10 +12,15 @@
 #include <qwswapchain.h>
 #include <qwbuffer.h>
 #include <qwtexture.h>
+#include <qwbufferinterface.h>
 
+#include <QSGTexture>
 #include <private/qquickrendercontrol_p.h>
 #include <private/qquickwindow_p.h>
 #include <private/qrhi_p.h>
+#include <private/qsgplaintexture_p.h>
+#include <private/qsgadaptationlayer_p.h>
+#include <private/qsgsoftwarepixmaptexture_p.h>
 
 extern "C" {
 #define static
@@ -33,6 +38,9 @@ extern "C" {
 #include <wlr/backend/interface.h>
 #include <wlr/types/wlr_buffer.h>
 }
+
+#include <drm_fourcc.h>
+#include <dlfcn.h>
 
 QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
@@ -246,6 +254,201 @@ QSGRendererInterface::GraphicsApi WRenderHelper::getGraphicsApi()
 
     static auto api = getApi();
     return api;
+}
+
+class Q_DECL_HIDDEN GLTextureBuffer : public QWBufferInterface
+{
+public:
+    explicit GLTextureBuffer(wlr_egl *egl, QSGTexture *texture);
+
+    bool getDmabuf(wlr_dmabuf_attributes *attribs) const override;
+
+private:
+    wlr_egl *m_egl;
+    QSGTexture *m_texture;
+};
+
+GLTextureBuffer::GLTextureBuffer(wlr_egl *egl, QSGTexture *texture)
+    : m_egl(egl)
+    , m_texture(texture)
+{
+
+}
+
+bool GLTextureBuffer::getDmabuf(wlr_dmabuf_attributes *attribs) const
+{
+    auto rhiTexture = m_texture->rhiTexture();
+    if (!rhiTexture)
+        return false;
+
+    auto display = wlr_egl_get_display(m_egl);
+    auto context = wlr_egl_get_context(m_egl);
+
+    EGLImage image = eglCreateImage(display, context,
+                                    EGL_GL_TEXTURE_2D,
+                                    reinterpret_cast<EGLClientBuffer>(rhiTexture->nativeTexture().object),
+                                    nullptr);
+
+    if (image == EGL_NO_IMAGE)
+        return false;
+
+    static auto eglExportDMABUFImageQueryMESA =
+        reinterpret_cast<PFNEGLEXPORTDMABUFIMAGEQUERYMESAPROC>(eglGetProcAddress("eglExportDMABUFImageQueryMESA"));
+    static auto eglExportDMABUFImageMESA =
+        reinterpret_cast<PFNEGLEXPORTDMABUFIMAGEMESAPROC>(eglGetProcAddress("eglExportDMABUFImageMESA"));
+
+    if (!eglExportDMABUFImageQueryMESA || !eglExportDMABUFImageMESA)
+        return false;
+
+    bool ok = eglExportDMABUFImageQueryMESA(display,
+                                            image,
+                                            reinterpret_cast<int*>(&attribs->format),
+                                            &attribs->n_planes,
+                                            &attribs->modifier);
+    if (!ok)
+        return false;
+
+    ok = eglExportDMABUFImageMESA(display,
+                                  image,
+                                  attribs->fd,
+                                  reinterpret_cast<int*>(attribs->stride),
+                                  reinterpret_cast<int*>(attribs->offset));
+    if (!ok)
+        return false;
+
+    attribs->width = handle()->width;
+    attribs->height = handle()->height;
+
+    return true;
+}
+
+#ifdef ENABLE_VULKAN_RENDER
+class Q_DECL_HIDDEN VkTextureBuffer : public QWBufferInterface
+{
+public:
+    explicit VkTextureBuffer(VkInstance instance, VkDevice device, QSGTexture *texture);
+
+    bool getDmabuf(wlr_dmabuf_attributes *attribs) const override;
+
+private:
+    VkInstance m_instance;
+    VkDevice m_device;
+    QSGTexture *m_texture;
+};
+
+VkTextureBuffer::VkTextureBuffer(VkInstance instance, VkDevice device, QSGTexture *texture)
+    : m_instance(instance)
+    , m_device(device)
+    , m_texture(texture)
+{
+
+}
+
+bool VkTextureBuffer::getDmabuf(wlr_dmabuf_attributes *attribs) const
+{
+//    static auto vkGetInstanceProcAddr =
+//        reinterpret_cast<PFN_vkGetInstanceProcAddr>(::dlsym(RTLD_DEFAULT, "vkGetInstanceProcAddr"));
+//    static auto vkGetMemoryFdKHR =
+//        reinterpret_cast<PFN_vkGetMemoryFdKHR>(vkGetInstanceProcAddr(m_instance, "vkGetMemoryFdKHR"));
+//    static auto vkGetImageMemoryRequirements =
+//        reinterpret_cast<PFN_vkGetImageMemoryRequirements>(vkGetInstanceProcAddr(m_instance, "vkGetImageMemoryRequirements"));
+//    static auto vkGetImageSparseMemoryRequirements =
+//        reinterpret_cast<PFN_vkGetImageSparseMemoryRequirements>(vkGetInstanceProcAddr(m_instance, "vkGetImageSparseMemoryRequirements"));
+//    static auto vkGetImageSubresourceLayout =
+//        reinterpret_cast<PFN_vkGetImageSubresourceLayout>(vkGetInstanceProcAddr(m_instance, "vkGetImageSubresourceLayout"));
+
+    // TODO
+    return false;
+}
+#endif
+
+class Q_DECL_HIDDEN QImageBuffer : public QWBufferInterface
+{
+public:
+    explicit QImageBuffer(const QImage &image);
+
+    bool getShm(wlr_shm_attributes *attribs) const override;
+    bool beginDataPtrAccess(uint32_t flags, void **data, uint32_t *format, size_t *stride) override;
+    void endDataPtrAccess();
+
+private:
+    QImage m_image;
+};
+
+QImageBuffer::QImageBuffer(const QImage &image)
+    : m_image(image)
+{
+
+}
+
+bool QImageBuffer::getShm(wlr_shm_attributes *attribs) const
+{
+    attribs->fd = 0;
+    attribs->format = WTools::toDrmFormat(m_image.format());
+    attribs->width = m_image.width();
+    attribs->height = m_image.height();
+    attribs->stride = m_image.bytesPerLine();
+    return true;
+}
+
+bool QImageBuffer::beginDataPtrAccess(uint32_t flags, void **data, uint32_t *format, size_t *stride)
+{
+    Q_UNUSED(flags);
+    *data = m_image.bits();
+    *format = WTools::toDrmFormat(m_image.format());
+    *stride = m_image.bytesPerLine();
+
+    return true;
+}
+
+void QImageBuffer::endDataPtrAccess()
+{
+
+}
+
+QWBuffer *WRenderHelper::toBuffer(QWRenderer *renderer, QSGTexture *texture)
+{
+    const QSize size = texture->textureSize();
+
+    switch (getGraphicsApi()) {
+    case QSGRendererInterface::OpenGL: {
+        Q_ASSERT(wlr_renderer_is_gles2(renderer->handle()));
+        auto egl = wlr_gles2_renderer_get_egl(renderer->handle());
+        return QWBuffer::create(new GLTextureBuffer(egl, texture), size.width(), size.height());
+    }
+#ifdef ENABLE_VULKAN_RENDER
+    case QSGRendererInterface::Vulkan: {
+        Q_ASSERT(wlr_renderer_is_vk(renderer->handle()));
+        auto instance = wlr_vk_renderer_get_instance(renderer->handle());
+        auto device = wlr_vk_renderer_get_device(renderer->handle());
+        return QWBuffer::create(new VkTextureBuffer(instance, device, texture), size.width(), size.height());
+    }
+#endif
+    case QSGRendererInterface::Software: {
+        QImage image;
+        if (auto t = qobject_cast<QSGPlainTexture*>(texture)) {
+            image = t->image();
+        } else if (auto t = qobject_cast<QSGLayer*>(texture)) {
+            image = t->toImage();
+        } else if (QByteArrayView(texture->metaObject()->className())
+                   == QByteArrayView("QSGSoftwarePixmapTexture")) {
+            auto t = static_cast<QSGSoftwarePixmapTexture*>(texture);
+            image = t->pixmap().toImage();
+        } else {
+            qFatal("Can't get QImage from QSGTexture, class name: %s", texture->metaObject()->className());
+        }
+
+        if (image.isNull())
+            return nullptr;
+
+        return QWBuffer::create(new QImageBuffer(image), image.width(), image.height());
+    }
+    default:
+        qFatal("Can't get QWBuffer from QSGTexture, Not supported graphics API.");
+        break;
+    }
+
+    return nullptr;
 }
 
 QQuickRenderTarget WRenderHelper::acquireRenderTarget(QQuickRenderControl *rc, QWBuffer *buffer)
