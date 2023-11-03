@@ -3,6 +3,7 @@
 
 import QtQuick
 import QtQuick.Controls
+import QtQuick.Dialogs
 import QtQuick.Layouts
 import Waylib.Server
 import TreeLand
@@ -152,6 +153,22 @@ Item {
             }
         }
 
+        MessageDialog {
+            id: backToNormalDialog
+            buttons: MessageDialog.Ok | MessageDialog.Cancel
+            text: qsTr("Return to default mode")
+            informativeText: qsTr("Do you want to back to default?")
+            detailedText: qsTr("This action will reboot machine, please confirm.")
+            onButtonClicked: function (button, role) {
+                switch (button) {
+                case MessageDialog.Ok:
+                    TreeLandHelper.backToNormal()
+                    TreeLandHelper.reboot()
+                    break;
+                }
+            }
+        }
+
         ColumnLayout {
             id: workspaceLoader
             anchors.fill: parent
@@ -209,7 +226,7 @@ Item {
                         MenuItem {
                             text: qsTr("Back to normal mode")
                             onClicked: {
-                                TreeLandHelper.backToNormal()
+                                backToNormalDialog.open()
                             }
                         }
 
