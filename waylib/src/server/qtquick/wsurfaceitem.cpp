@@ -180,6 +180,7 @@ private:
         case HoverLeave: Q_FALLTHROUGH();
         case KeyPress: Q_FALLTHROUGH();
         case KeyRelease: Q_FALLTHROUGH();
+        case Wheel: Q_FALLTHROUGH();
         case TouchBegin: Q_FALLTHROUGH();
         case TouchUpdate: Q_FALLTHROUGH();
         case TouchEnd: Q_FALLTHROUGH();

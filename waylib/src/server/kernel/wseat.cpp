@@ -39,6 +39,30 @@ WAYLIB_SERVER_BEGIN_NAMESPACE
 Q_LOGGING_CATEGORY(qLcWlrTouch, "waylib.server.seat", QtWarningMsg)
 Q_LOGGING_CATEGORY(qLcWlrTouchEvents, "waylib.server.seat.events", QtWarningMsg)
 
+#if QT_CONFIG(wheelevent)
+class WSeatWheelEvent : public QWheelEvent {
+public:
+    WSeatWheelEvent(wlr_axis_source_t wlr_source, double wlr_delta,
+                    const QPointF &pos, const QPointF &globalPos, QPoint pixelDelta, QPoint angleDelta,
+                    Qt::MouseButtons buttons, Qt::KeyboardModifiers modifiers, Qt::ScrollPhase phase,
+                    bool inverted, Qt::MouseEventSource source = Qt::MouseEventNotSynthesized,
+                    const QPointingDevice *device = QPointingDevice::primaryPointingDevice())
+        : QWheelEvent(pos, globalPos, pixelDelta, angleDelta, buttons, modifiers, phase, inverted, source, device)
+        , m_wlrSource(wlr_source)
+        , m_wlrDelta(wlr_delta)
+    {
+
+    }
+
+    inline wlr_axis_source_t wlrSource() const { return m_wlrSource; }
+    inline double wlrDelta() const { return m_wlrDelta; }
+
+protected:
+    wlr_axis_source_t m_wlrSource;
+    double m_wlrDelta;
+};
+#endif
+
 class WSeatPrivate : public WObjectPrivate
 {
 public:
@@ -595,6 +619,19 @@ bool WSeat::sendEvent(WSurface *target, QObject *shellObject, QObject *eventObje
         d->doNotifyMotion(target, eventObject, e->position(), e->timestamp());
         break;
     }
+    case QEvent::Wheel: {
+        if (auto we = dynamic_cast<WSeatWheelEvent*>(event)) {
+            Qt::Orientation orientation = we->angleDelta().x() == 0 ? Qt::Vertical : Qt::Horizontal;
+            d->doNotifyAxis(static_cast<wlr_axis_source>(we->wlrSource()),
+                        orientation,
+                        we->wlrDelta(),
+                        we->angleDelta().x()+we->angleDelta().y(), // one of them must be 0
+                        we->timestamp());
+        } else {
+            qWarning("An Wheel event was received that was not sent by wlroot and will be ignored");
+        }
+        break;
+    }
     case QEvent::KeyPress: {
         auto e = static_cast<QKeyEvent*>(event);
         d->doNotifyKey(inputDevice, e->nativeVirtualKey(), WL_KEYBOARD_KEY_STATE_PRESSED, e->timestamp());
@@ -768,7 +805,7 @@ void WSeat::notifyAxis(WCursor *cursor, WInputDevice *device, wlr_axis_source_t 
     const QPointF local = w ? global - QPointF(w->position()) : QPointF();
 
     QPoint angleDelta = orientation == Qt::Horizontal ? QPoint(delta_discrete, 0) : QPoint(0, delta_discrete);
-    QWheelEvent e(local, global, QPoint(), angleDelta, Qt::NoButton, d->keyModifiers,
+    WSeatWheelEvent e(source, delta, local, global, QPoint(), angleDelta, Qt::NoButton, d->keyModifiers,
                   Qt::NoScrollPhase, false, Qt::MouseEventNotSynthesized, qwDevice);
     e.setTimestamp(timestamp);
 
