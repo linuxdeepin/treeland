@@ -55,12 +55,15 @@ stdenv.mkDerivation rec {
   buildInputs = [
     qtbase
     qtquick3d
-    qwlroots
     wayland
     wayland-protocols
     wlr-protocols
     pixman
     libdrm
+  ];
+
+  propagatedBuildInputs = [
+    qwlroots
   ];
 
   cmakeFlags = [

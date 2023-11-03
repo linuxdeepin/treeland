@@ -11,7 +11,6 @@ if(POLICY CMP0071)
 endif()
 
 set(QML_IMPORT_PATH ${CMAKE_BINARY_DIR}/src/server/ CACHE STRING "" FORCE)
-add_definitions(-DSOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
 
 find_package(PkgConfig REQUIRED)
 pkg_search_module(PIXMAN REQUIRED IMPORTED_TARGET pixman-1)
@@ -43,6 +42,11 @@ qt_add_qml_module(tinywl-qtquick
         TiledToplevelHelper.qml
         WindowDecoration.qml
         CloseAnimation.qml
+)
+
+target_compile_definitions(tinywl-qtquick
+    PRIVATE
+    SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}"
 )
 
 target_link_libraries(tinywl-qtquick

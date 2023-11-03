@@ -1,12 +1,17 @@
 set(TARGET waylibserver)
 
-find_package(Qt6
-    COMPONENTS
-    Core
-    Gui
-    Quick
-    REQUIRED
+set(WAYLIB_CMAKE_INSTALL_DIR
+    "${CMAKE_INSTALL_LIBDIR}/cmake/WaylibServer"
+    CACHE STRING "Install directory for waylib cmake files"
 )
+set(WAYLIB_INCLUDE_INSTALL_DIR
+    "${CMAKE_INSTALL_INCLUDEDIR}/${TARGET}"
+    CACHE STRING "Install directory for waylib headers"
+)
+
+set(QT_COMPONENTS Core Gui Quick)
+find_package(Qt6 COMPONENTS ${QT_COMPONENTS} REQUIRED)
+
 qt_standard_project_setup(REQUIRES 6.4)
 
 if(QT_KNOWN_POLICY_QTP0001) # this policy was introduced in Qt 6.5
@@ -15,12 +20,10 @@ if(QT_KNOWN_POLICY_QTP0001) # this policy was introduced in Qt 6.5
 endif()
 
 find_package(PkgConfig)
-pkg_search_module(PIXMAN REQUIRED pixman-1)
 pkg_search_module(LIBDRM REQUIRED IMPORTED_TARGET libdrm)
 pkg_search_module(WLROOTS REQUIRED IMPORTED_TARGET wlroots)
 pkg_search_module(WLR_PROTOCOLS REQUIRED wlr-protocols)
 
-include(${PROJECT_SOURCE_DIR}/cmake/WaylandScannerHelpers.cmake)
 ws_generate(
     server
     wayland-protocols
@@ -39,8 +42,6 @@ ws_generate(
     unstable/wlr-layer-shell-unstable-v1.xml
     wlr-layer-shell-unstable-v1-protocol
 )
-
-add_definitions(-DWLR_USE_UNSTABLE -DLIBWAYLIB_SERVER_LIBRARY)
 
 set(KERNEL_SOURCES
     kernel/wbackend.cpp
@@ -211,20 +212,22 @@ qt_add_qml_module(${TARGET}
         ${PRIVATE_HEADERS}
 )
 
+target_compile_definitions(${TARGET}
+    PRIVATE
+    WLR_USE_UNSTABLE
+    LIBWAYLIB_SERVER_LIBRARY
+)
+
 set_target_properties(${TARGET}
     PROPERTIES
         VERSION ${CMAKE_PROJECT_VERSION}
         SOVERSION ${PROJECT_VERSION_MAJOR}
+        EXPORT_NAME WaylibServer
         PUBLIC_HEADER "${HEADERS}"
 	# PRIVATE_HEADER "${PRIVATE_HEADERS}"
 	# CMake Warning has PRIVATE_HEADER files but no PRIVATE_HEADER DESTINATION
 )
 
-set(QT_LIBRAIES
-    Qt6::Core
-    Qt6::Gui
-    Qt6::Quick
-)
 
 if(WITH_SUBMODULE_QWLROOTS)
     target_link_libraries(${TARGET}
@@ -239,9 +242,14 @@ else()
     )
 endif()
 
+set(QT_LIBRARIES "")
+foreach(temp ${QT_COMPONENTS})
+    list(APPEND QT_LIBRARIES "Qt6::${temp}")
+endforeach()
+
 target_link_libraries(${TARGET}
     PRIVATE
-    ${QT_LIBRAIES}
+    ${QT_LIBRARIES}
     PkgConfig::WLROOTS
     PkgConfig::LIBDRM
 )
@@ -249,32 +257,61 @@ target_link_libraries(${TARGET}
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
 target_include_directories(${TARGET}
+    PUBLIC
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/kernel>
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/qtquick>
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/qtquick/private>
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/utils>
+        $<INSTALL_INTERFACE:${WAYLIB_INCLUDE_INSTALL_DIR}>
     PRIVATE
-    ${Qt6Gui_PRIVATE_INCLUDE_DIRS}
-    ${Qt6Quick_PRIVATE_INCLUDE_DIRS}
-    ${Qt6EglSupport_PRIVATE_INCLUDE_DIRS}
-    ${Qt6InputSupport_PRIVATE_INCLUDE_DIRS}
-    ${WLROOTS_INCLUDE_DIRS}
+        ${Qt6Gui_PRIVATE_INCLUDE_DIRS}
+        ${Qt6Quick_PRIVATE_INCLUDE_DIRS}
+        ${Qt6EglSupport_PRIVATE_INCLUDE_DIRS}
+        ${Qt6InputSupport_PRIVATE_INCLUDE_DIRS}
 )
 
-target_include_directories(${TARGET}
-    PUBLIC
-    kernel
-    qtquick
-    qtquick/private
-    utils
+target_link_directories(${TARGET}
+    INTERFACE
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>
+        $<INSTALL_INTERFACE:${CMAKE_INSTALL_LIBDIR}>
 )
 
 install(TARGETS ${TARGET}
+    EXPORT
+        WaylibServerTargets
     LIBRARY
         DESTINATION ${CMAKE_INSTALL_LIBDIR}
     PUBLIC_HEADER
         COMPONENT Development
-        DESTINATION include/${TARGET}
+        DESTINATION ${WAYLIB_INCLUDE_INSTALL_DIR}
+)
+
+configure_package_config_file(
+    "${CMAKE_CURRENT_SOURCE_DIR}/../cmake/WaylibServerConfig.cmake.in"
+    "${CMAKE_CURRENT_BINARY_DIR}/WaylibServerConfig.cmake"
+    INSTALL_DESTINATION ${WAYLIB_CMAKE_INSTALL_DIR}
+)
+
+write_basic_package_version_file(
+    "${CMAKE_CURRENT_BINARY_DIR}/WaylibServerConfigVersion.cmake"
+    VERSION ${DTK_VERSION}
+    COMPATIBILITY SameMinorVersion
+)
+
+install(FILES
+    ${CMAKE_CURRENT_BINARY_DIR}/WaylibServerConfig.cmake
+    ${CMAKE_CURRENT_BINARY_DIR}/WaylibServerConfigVersion.cmake
+    DESTINATION ${WAYLIB_CMAKE_INSTALL_DIR}
+)
+
+install(
+    EXPORT WaylibServerTargets
+    FILE WaylibServerTargets.cmake
+    DESTINATION ${WAYLIB_CMAKE_INSTALL_DIR}
+    NAMESPACE Waylib::
 )
 
 include(${PROJECT_SOURCE_DIR}/cmake/Helpers.cmake)
-add_cmake_module(WaylibServer ${TARGET} ${CMAKE_INSTALL_FULL_INCLUDEDIR}/${TARGET})
-add_pkgconfig_module(${TARGET} ${TARGET} ${CMAKE_INSTALL_FULL_INCLUDEDIR}/${TARGET}
+add_pkgconfig_module(${TARGET} ${TARGET} ${WAYLIB_INCLUDE_INSTALL_DIR}
     "qwlroots, Qt6Gui, Qt6Quick"
 )
