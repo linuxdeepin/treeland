@@ -297,6 +297,7 @@ void Helper::cancelMoveResize(WSurfaceItem *shell)
 
 bool Helper::startDemoClient(const QString &socket)
 {
+#ifdef START_DEMO
     QProcess waylandClientDemo;
 
     waylandClientDemo.setProgram("qml");
@@ -307,7 +308,7 @@ bool Helper::startDemoClient(const QString &socket)
 
     waylandClientDemo.setProcessEnvironment(env);
     return waylandClientDemo.startDetached();
-
+#endif
     return false;
 }
 
