@@ -55,6 +55,7 @@ class QuickOutputCursor : public QObject
     Q_PROPERTY(QSizeF size READ size WRITE setSize NOTIFY sizeChanged)
     Q_PROPERTY(QRectF sourceRect READ sourceRect WRITE setSourceRect NOTIFY sourceRectChanged)
     QML_NAMED_ELEMENT(OutputCursor)
+    QML_UNCREATABLE("Only create in C++")
 
 public:
     explicit QuickOutputCursor(wlr_output_cursor *handle, QObject *parent = nullptr);
