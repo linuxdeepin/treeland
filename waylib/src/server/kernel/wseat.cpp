@@ -241,7 +241,7 @@ public:
         if (!keyboardFocusSurface())
             return false;
 
-        this->handle()->setKeyboard(qobject_cast<QWKeyboard*>(device->handle()));
+        q_func()->setKeyboard(device);
         /* Send modifiers to the client. */
         this->handle()->keyboardNotifyKey(timestamp, keycode, state);
         return true;
@@ -251,7 +251,7 @@ public:
             return false;
 
         auto keyboard = qobject_cast<QWKeyboard*>(device->handle());
-        this->handle()->setKeyboard(keyboard);
+        q_func()->setKeyboard(device);
         /* Send modifiers to the client. */
         this->handle()->keyboardNotifyModifiers(&keyboard->handle()->modifiers);
         return true;
@@ -745,6 +745,28 @@ void WSeat::clearkeyboardFocusWindow()
 {
     W_D(WSeat);
     d->focusWindow = nullptr;
+}
+
+WInputDevice *WSeat::keyboard() const
+{
+    W_DC(WSeat);
+    auto qwKeyboard = d->handle()->getKeyboard();
+    if (qwKeyboard) {
+        auto device = WInputDevice::fromHandle(qwKeyboard);
+        Q_ASSERT(device);
+        return device;
+    } else {
+        return nullptr;
+    }
+}
+
+void WSeat::setKeyboard(WInputDevice *newKeyboard)
+{
+    W_D(WSeat);
+    if (newKeyboard == keyboard())
+        return;
+    d->handle()->setKeyboard(qobject_cast<QWKeyboard *>(newKeyboard->handle()));
+    Q_EMIT this->keyboardChanged();
 }
 
 void WSeat::notifyMotion(WCursor *cursor, WInputDevice *device, uint32_t timestamp)
