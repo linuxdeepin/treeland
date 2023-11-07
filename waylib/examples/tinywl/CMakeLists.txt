@@ -42,6 +42,7 @@ qt_add_qml_module(tinywl-qtquick
         TiledToplevelHelper.qml
         WindowDecoration.qml
         CloseAnimation.qml
+        MiniDock.qml
 )
 
 target_compile_definitions(tinywl-qtquick

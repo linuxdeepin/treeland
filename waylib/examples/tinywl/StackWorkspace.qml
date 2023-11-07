@@ -50,54 +50,15 @@ Item {
         return null
     }
 
-    Item {
+    MiniDock {
+        id: dock
         anchors {
             top: parent.top
             left: parent.left
             bottom: parent.bottom
             margins: 8
         }
-
         width: 250
-
-        ListView {
-            id: dock
-
-            model: ListModel {
-                id: dockModel
-
-                function removeSurface(surface) {
-                    for (var i = 0; i < dockModel.count; i++) {
-                        if (dockModel.get(i).source === surface) {
-                            dockModel.remove(i);
-                            break;
-                        }
-                    }
-                }
-            }
-            height: Math.min(parent.height, contentHeight)
-            anchors {
-                verticalCenter: parent.verticalCenter
-                left: parent.left
-                right: parent.right
-            }
-
-            spacing: 8
-
-            delegate: ShaderEffectSource {
-                id: dockitem
-                width: 100; height: 100
-                sourceItem: source
-                smooth: true
-
-                MouseArea {
-                    anchors.fill: parent;
-                    onClicked: {
-                        dockitem.sourceItem.cancelMinimize();
-                    }
-                }
-            }
-        }
     }
 
     DynamicCreatorComponent {
@@ -250,7 +211,7 @@ Item {
                 id: helper
                 surface: surface
                 waylandSurface: surface.waylandSurface
-                dockModel: dockModel
+                dockModel: dock.model
                 creator: xwaylandComponent
                 decoration: decoration
             }

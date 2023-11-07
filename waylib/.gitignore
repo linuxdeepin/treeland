@@ -34,3 +34,6 @@ result-*
 .cache/
 compile_commands.json
 
+# qtcreator
+*.autosave
+

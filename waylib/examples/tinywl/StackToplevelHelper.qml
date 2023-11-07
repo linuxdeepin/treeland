@@ -136,9 +136,6 @@ Item {
     }
 
     onMappedChanged: {
-        if (pendingDestroy)
-            return
-
         // When Socket is enabled and mapped becomes false, set visible
         // after closeAnimation complete， Otherwise set visible directly.
         if (mapped) {
@@ -183,7 +180,7 @@ Item {
         }
 
         // unbind some properties
-        mapped = surface.visible
+        mapped = false
         surface.states = null
         surface.transitions = null
     }

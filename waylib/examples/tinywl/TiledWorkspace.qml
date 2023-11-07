@@ -173,4 +173,19 @@ Item {
             }
         }
     }
+
+    DynamicCreatorComponent {
+        id: layerComponent
+        creator: QmlHelper.layerSurfaceManager
+        autoDestroy: false
+
+        onObjectRemoved: function (obj) {
+            obj.doDestroy()
+        }
+
+        LayerSurface {
+            id: layerSurface
+            creator: layerComponent
+        }
+    }
 }
