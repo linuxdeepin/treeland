@@ -103,7 +103,7 @@ target_link_libraries(treeland
     PRIVATE
         common
         greeterplugin
-        $<IF:$<BOOL:${WITH_SUBMODULE_WAYLIB}>, waylibserver, ${WaylibServer_LIBRARIES}>
+        $<IF:$<BOOL:${WITH_SUBMODULE_WAYLIB}>, waylibserver, Waylib::WaylibServer>
         PkgConfig::WAYLAND_SERVER
         PkgConfig::PIXMAN
         Qt${QT_MAJOR_VERSION}::Gui
@@ -111,17 +111,6 @@ target_link_libraries(treeland
         Qt${QT_MAJOR_VERSION}::Quick
         Qt${QT_MAJOR_VERSION}::QuickControls2
 )
-
-if (NOT WITH_SUBMODULE_WAYLIB)
-    target_link_libraries(treeland
-        PRIVATE
-        QWlroots::QWlroots
-    )
-    target_include_directories(treeland
-        PRIVATE
-        ${WaylibServer_INCLUDE_DIR}
-    )
-endif()
 
 if(JOURNALD_FOUND)
     target_link_libraries(treeland PRIVATE ${JOURNALD_LIBRARIES})
