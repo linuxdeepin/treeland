@@ -22,23 +22,12 @@ target_link_libraries(treeland-fake-session
     PRIVATE
         common
         $<TARGET_OBJECTS:treeland-shell-manager>
-        $<IF:$<BOOL:${WITH_SUBMODULE_WAYLIB}>, waylibserver, ${WaylibServer_LIBRARIES}>
+        $<IF:$<BOOL:${WITH_SUBMODULE_WAYLIB}>, waylibserver, Waylib::WaylibServer>
         Qt${QT_MAJOR_VERSION}::Gui
         Qt${QT_MAJOR_VERSION}::Network
         Qt${QT_MAJOR_VERSION}::DBus
         Qt::WaylandClient
         Qt::GuiPrivate
 )
-
-if (NOT WITH_SUBMODULE_WAYLIB)
-    target_link_libraries(treeland-fake-session
-        PRIVATE
-        QWlroots::QWlroots
-    )
-    target_include_directories(treeland-fake-session
-        PRIVATE
-        ${WaylibServer_INCLUDE_DIR}
-    )
-endif()
 
 install(TARGETS treeland-fake-session RUNTIME DESTINATION "${CMAKE_INSTALL_LIBEXECDIR}")

@@ -24,7 +24,7 @@ target_link_libraries(treeland-helper
     PRIVATE
         common
         $<TARGET_OBJECTS:treeland-socket-manager>
-        $<IF:$<BOOL:${WITH_SUBMODULE_WAYLIB}>, waylibserver, ${WaylibServer_LIBRARIES}>
+        $<IF:$<BOOL:${WITH_SUBMODULE_WAYLIB}>, waylibserver, Waylib::WaylibServer>
         Qt::Core
         Qt::Gui
         Qt::Network
@@ -32,16 +32,5 @@ target_link_libraries(treeland-helper
         Qt::GuiPrivate
         Qt::CorePrivate
 )
-
-if (NOT WITH_SUBMODULE_WAYLIB)
-    target_link_libraries(treeland-helper
-        PUBLIC
-        QWlroots::QWlroots
-    )
-    target_include_directories(treeland-helper
-        PRIVATE
-        ${WaylibServer_INCLUDE_DIR}
-    )
-endif()
 
 install(TARGETS treeland-helper RUNTIME DESTINATION "${CMAKE_INSTALL_LIBEXECDIR}")

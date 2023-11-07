@@ -34,7 +34,6 @@ if(WITH_SUBMODULE_WAYLIB)
     message("Using waylib from submodule")
 else()
     find_package(Waylib REQUIRED Server)
-    find_package(QWlroots REQUIRED)
 endif()
 
 # ECM
