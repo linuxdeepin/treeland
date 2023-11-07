@@ -44,10 +44,11 @@ Depends: ${shlibs:Depends},
          qml6-module-qtqml-workerscript,
          qml6-module-qtquick-templates,
          qml6-module-qtquick-particles,
-	 qml6-module-qtquick-dialogs,
-	 qml6-module-qtquick-window,
+         qml6-module-qtquick-dialogs,
+         qml6-module-qtquick-window,
          adduser,
-         seatd
+         seatd,
+         qt6-wayland
 Recommends: libpam-systemd, xwayland
 Description: a modern display manager for Wayland sessions aiming to be fast, simple and beautiful.
 
