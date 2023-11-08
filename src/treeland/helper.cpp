@@ -62,6 +62,181 @@ WSurfaceItem *Helper::movingItem() const
     return m_movingItem;
 }
 
+bool Helper::registerExclusiveZone(WLayerSurface *layerSurface)
+{
+    auto [ output, infoPtr ] = getFirstOutputOfSurface(layerSurface);
+    if (!output)
+        return 0;
+
+    auto exclusiveZone = layerSurface->exclusiveZone();
+    auto exclusiveEdge = layerSurface->getExclusiveZoneEdge();
+
+    if (exclusiveZone <= 0 || exclusiveEdge == WLayerSurface::AnchorType::None)
+        return false;
+
+    QListIterator<std::tuple<WLayerSurface*, uint32_t, WLayerSurface::AnchorType>> listIter(infoPtr->registeredSurfaceList);
+    while (listIter.hasNext()) {
+        if (std::get<WLayerSurface*>(listIter.next()) == layerSurface)
+            return false;
+    }
+
+    infoPtr->registeredSurfaceList.append(std::make_tuple(layerSurface, exclusiveZone, exclusiveEdge));
+    switch(exclusiveEdge) {
+        using enum WLayerSurface::AnchorType;
+    case Top:
+        infoPtr->m_topExclusiveMargin += exclusiveZone;
+        Q_EMIT topExclusiveMarginChanged();
+        break;
+    case Bottom:
+        infoPtr->m_bottomExclusiveMargin += exclusiveZone;
+        Q_EMIT bottomExclusiveMarginChanged();
+        break;
+    case Left:
+        infoPtr->m_leftExclusiveMargin += exclusiveZone;
+        Q_EMIT leftExclusiveMarginChanged();
+        break;
+    case Right:
+        infoPtr->m_rightExclusiveMargin += exclusiveZone;
+        Q_EMIT rightExclusiveMarginChanged();
+    default:
+        Q_UNREACHABLE();
+    }
+    return true;
+}
+
+bool Helper::unregisterExclusiveZone(WLayerSurface *layerSurface)
+{
+    auto [ output, infoPtr ] = getFirstOutputOfSurface(layerSurface);
+    if (!output)
+        return 0;
+
+    QMutableListIterator<std::tuple<WLayerSurface*, uint32_t, WLayerSurface::AnchorType>> listIter(infoPtr->registeredSurfaceList);
+    while (listIter.hasNext()) {
+        auto [ registeredSurface, exclusiveZone, exclusiveEdge ] = listIter.next();
+        if (registeredSurface == layerSurface) {
+            listIter.remove();
+
+            switch(exclusiveEdge) {
+                using enum WLayerSurface::AnchorType;
+            case Top:
+                infoPtr->m_topExclusiveMargin -= exclusiveZone;
+                Q_EMIT topExclusiveMarginChanged();
+                break;
+            case Bottom:
+                infoPtr->m_bottomExclusiveMargin -= exclusiveZone;
+                Q_EMIT bottomExclusiveMarginChanged();
+                break;
+            case Left:
+                infoPtr->m_leftExclusiveMargin -= exclusiveZone;
+                Q_EMIT leftExclusiveMarginChanged();
+                break;
+            case Right:
+                infoPtr->m_rightExclusiveMargin -= exclusiveZone;
+                Q_EMIT rightExclusiveMarginChanged();
+            default:
+                Q_UNREACHABLE();
+            }
+            return true;
+        }
+    }
+
+    return false;
+}
+
+QJSValue Helper::getExclusiveMargins(WLayerSurface *layerSurface)
+{
+    auto [ output, infoPtr ] = getFirstOutputOfSurface(layerSurface);
+    QMargins margins{0, 0, 0, 0};
+
+    if (output) {
+        QMutableListIterator<std::tuple<WLayerSurface*, uint32_t, WLayerSurface::AnchorType>> listIter(infoPtr->registeredSurfaceList);
+        while (listIter.hasNext()) {
+            auto [ registeredSurface, exclusiveZone, exclusiveEdge ] = listIter.next();
+            if (registeredSurface == layerSurface)
+                break;
+            switch(exclusiveEdge) {
+                using enum WLayerSurface::AnchorType;
+            case Top:
+                margins.setTop(margins.top() + exclusiveZone);
+                break;
+            case Bottom:
+                margins.setBottom(margins.bottom() + exclusiveZone);
+                break;
+            case Left:
+                margins.setLeft(margins.left() + exclusiveZone);
+                break;
+            case Right:
+                margins.setRight(margins.right() + exclusiveZone);
+            default:
+                Q_UNREACHABLE();
+            }
+        }
+    }
+
+    QJSValue jsMargins = qmlEngine(this)->newObject();; // Can't use QMargins in QML
+    jsMargins.setProperty("top" , margins.top());
+    jsMargins.setProperty("bottom", margins.bottom());
+    jsMargins.setProperty("left", margins.left());
+    jsMargins.setProperty("right", margins.right());
+    return jsMargins;
+}
+
+quint32 Helper::getTopExclusiveMargin(WToplevelSurface *layerSurface)
+{
+    auto [ _, infoPtr ] = getFirstOutputOfSurface(layerSurface);
+    if (!infoPtr)
+        return 0;
+    return infoPtr->m_topExclusiveMargin;
+}
+
+quint32 Helper::getBottomExclusiveMargin(WToplevelSurface *layerSurface)
+{
+    auto [ _, infoPtr ] = getFirstOutputOfSurface(layerSurface);
+    if (!infoPtr)
+        return 0;
+    return infoPtr->m_bottomExclusiveMargin;
+}
+
+quint32 Helper::getLeftExclusiveMargin(WToplevelSurface *layerSurface)
+{
+    auto [ _, infoPtr ] = getFirstOutputOfSurface(layerSurface);
+    if (!infoPtr)
+        return 0;
+    return infoPtr->m_leftExclusiveMargin;
+}
+
+quint32 Helper::getRightExclusiveMargin(WToplevelSurface *layerSurface)
+{
+    auto [ _, infoPtr ] = getFirstOutputOfSurface(layerSurface);
+    if (!infoPtr)
+        return 0;
+    return infoPtr->m_rightExclusiveMargin;
+}
+
+void Helper::onSurfaceEnterOutput(WToplevelSurface *surface, WSurfaceItem *surfaceItem, WOutput *output)
+{
+    auto *info = getOutputInfo(output);
+    info->surfaceList.append(surface);
+    info->surfaceItemList.append(surfaceItem);
+}
+
+void Helper::onSurfaceLeaveOutput(WToplevelSurface *surface, WSurfaceItem *surfaceItem, WOutput *output)
+{
+    auto *info = getOutputInfo(output);
+    info->surfaceList.removeOne(surface);
+    info->surfaceItemList.removeOne(surfaceItem);
+    // should delete OutputInfo if no surface?
+}
+
+std::pair<WOutput*,OutputInfo*> Helper::getFirstOutputOfSurface(WToplevelSurface *surface)
+{
+    for (auto zoneInfo: m_outputExclusiveZoneInfo) {
+        if (std::get<OutputInfo*>(zoneInfo)->surfaceList.contains(surface))
+            return zoneInfo;
+    }
+    return std::make_pair(nullptr, nullptr);
+}
+
 void Helper::setMovingItem(WSurfaceItem *newMovingItem)
 {
     if (m_movingItem == newMovingItem)
@@ -205,12 +380,12 @@ bool Helper::afterHandleEvent(WSeat *seat, WSurface *watched, QObject *surfaceIt
     Q_UNUSED(seat)
 
     if (event->type() == QEvent::MouseButtonPress || event->type() == QEvent::TouchBegin) {
-        // surfaceItem is qml type: XdgSurfaceItem
-        auto xdgSurface = qvariant_cast<WToplevelSurface*>(surfaceItem->property("surface"));
-        if (!xdgSurface)
+        // surfaceItem is qml type: XdgSurfaceItem or LayerSurfaceItem
+        auto toplevelSurface = qvariant_cast<WToplevelSurface*>(surfaceItem->property("surface"));
+        if (!toplevelSurface)
             return false;
-        Q_ASSERT(xdgSurface->surface() == watched);
-        setActivateSurface(xdgSurface);
+        Q_ASSERT(toplevelSurface->surface() == watched);
+        setActivateSurface(toplevelSurface);
     }
 
     return false;
@@ -238,8 +413,16 @@ void Helper::setActivateSurface(WToplevelSurface *newActivate)
 
     if (m_activateSurface == newActivate)
         return;
-    if (m_activateSurface)
+    if (m_activateSurface) {
+        if (newActivate) {
+            if (m_activateSurface->keyboardFocusPriority() > newActivate->keyboardFocusPriority())
+                return;
+        } else {
+            if (m_activateSurface->keyboardFocusPriority() > 0)
+                return;
+        }
         m_activateSurface->setActivate(false);
+    }
     m_activateSurface = newActivate;
     if (newActivate)
         newActivate->setActivate(true);
@@ -260,4 +443,14 @@ void Helper::onOutputRequeseState(wlr_output_event_request_state *newState)
 
         output->commit();
     }
+}
+
+OutputInfo* Helper::getOutputInfo(WOutput *output)
+{
+    for (const auto &[woutput, infoPtr]: m_outputExclusiveZoneInfo)
+        if (woutput == output)
+            return infoPtr;
+    auto infoPtr = new OutputInfo;
+    m_outputExclusiveZoneInfo.append(std::make_pair(output, infoPtr));
+    return infoPtr;
 }

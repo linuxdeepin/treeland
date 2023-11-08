@@ -23,6 +23,14 @@ Item {
             }
         }
 
+        let layer = QmlHelper.layerSurfaceManager.getIf(layerComponent, finder)
+        if (layer) {
+            return {
+                shell: layer,
+                item: layer.surfaceItem
+            }
+        }
+
         let popup = QmlHelper.xdgSurfaceManager.getIf(popupComponent, finder)
         if (popup) {
             return {
@@ -163,6 +171,21 @@ Item {
                     creator: xwaylandComponent
                 }
             }
+        }
+    }
+
+    DynamicCreatorComponent {
+        id: layerComponent
+        creator: QmlHelper.layerSurfaceManager
+        autoDestroy: false
+
+        onObjectRemoved: function (obj) {
+            obj.doDestroy()
+        }
+
+        LayerSurface {
+            id: layerSurface
+            creator: layerComponent
         }
     }
 }

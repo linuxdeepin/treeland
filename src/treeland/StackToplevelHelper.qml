@@ -32,10 +32,10 @@ Item {
                 restoreEntryValues: true
                 target: root.surface
 
-                x: outputCoordMapper.x
-                y: outputCoordMapper.y + output.topMargin
-                width: outputCoordMapper.width
-                height: outputCoordMapper.height - output.topMargin
+                x: outputCoordMapper.x + TreeLandHelper.getLeftExclusiveMargin(waylandSurface)
+                y: outputCoordMapper.y + output.topMargin + TreeLandHelper.getTopExclusiveMargin(waylandSurface)
+                width: outputCoordMapper.width - TreeLandHelper.getLeftExclusiveMargin(waylandSurface) - TreeLandHelper.getRightExclusiveMargin(waylandSurface)
+                height: outputCoordMapper.height - output.topMargin - TreeLandHelper.getTopExclusiveMargin(waylandSurface) - TreeLandHelper.getBottomExclusiveMargin(waylandSurface)
             }
         }
     }
@@ -136,9 +136,6 @@ Item {
     }
 
     onMappedChanged: {
-        if (pendingDestroy)
-            return
-
         console.log("onMappedChanged!", TreeLandHelper.clientName(waylandSurface.surface))
 
         if (TreeLandHelper.clientName(waylandSurface.surface) === "dofi") {
@@ -190,7 +187,7 @@ Item {
         }
 
         // unbind some properties
-        mapped = surface.visible
+        mapped = false
         surface.states = null
         surface.transitions = null
     }

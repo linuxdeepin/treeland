@@ -31,6 +31,14 @@ Item {
             }
         }
 
+        let layer = QmlHelper.layerSurfaceManager.getIf(layerComponent, finder)
+        if (layer) {
+            return {
+                shell: layer,
+                item: layer.surfaceItem
+            }
+        }
+
         let xwayland = QmlHelper.xwaylandSurfaceManager.getIf(xwaylandComponent, finder)
         if (xwayland) {
             return {
@@ -42,54 +50,15 @@ Item {
         return null
     }
 
-    Item {
+    MiniDock {
+        id: dock
         anchors {
             top: parent.top
             left: parent.left
             bottom: parent.bottom
             margins: 8
         }
-
         width: 250
-
-        ListView {
-            id: dock
-
-            model: ListModel {
-                id: dockModel
-
-                function removeSurface(surface) {
-                    for (var i = 0; i < dockModel.count; i++) {
-                        if (dockModel.get(i).source === surface) {
-                            dockModel.remove(i);
-                            break;
-                        }
-                    }
-                }
-            }
-            height: Math.min(parent.height, contentHeight)
-            anchors {
-                verticalCenter: parent.verticalCenter
-                left: parent.left
-                right: parent.right
-            }
-
-            spacing: 8
-
-            delegate: ShaderEffectSource {
-                id: dockitem
-                width: 100; height: 100
-                sourceItem: source
-                smooth: true
-
-                MouseArea {
-                    anchors.fill: parent;
-                    onClicked: {
-                        dockitem.sourceItem.cancelMinimize();
-                    }
-                }
-            }
-        }
     }
 
     DynamicCreatorComponent {
@@ -164,6 +133,21 @@ Item {
     }
 
     DynamicCreatorComponent {
+        id: layerComponent
+        creator: QmlHelper.layerSurfaceManager
+        autoDestroy: false
+
+        onObjectRemoved: function (obj) {
+            obj.doDestroy()
+        }
+
+        LayerSurface {
+            id: layerSurface
+            creator: layerComponent
+        }
+    }
+
+    DynamicCreatorComponent {
         id: xwaylandComponent
         creator: QmlHelper.xwaylandSurfaceManager
         autoDestroy: false
@@ -228,7 +212,7 @@ Item {
                 id: helper
                 surface: surface
                 waylandSurface: surface.waylandSurface
-                dockModel: dockModel
+                dockModel: dock.model
                 creator: xwaylandComponent
                 decoration: decoration
             }
@@ -240,10 +224,14 @@ Item {
                 onEnterOutput: function(output) {
                     if (surface.waylandSurface.surface)
                         surface.waylandSurface.surface.enterOutput(output);
+                    TreeLandHelper.onSurfaceEnterOutput(waylandSurface, surface, output)
+                    surfaceItem.x = TreeLandHelper.getLeftExclusiveMargin(waylandSurface) + 10
+                    surfaceItem.y = TreeLandHelper.getTopExclusiveMargin(waylandSurface) + 10
                 }
                 onLeaveOutput: function(output) {
                     if (surface.waylandSurface.surface)
                         surface.waylandSurface.surface.leaveOutput(output);
+                    TreeLandHelper.onSurfaceLeaveOutput(waylandSurface, surface, output)
                 }
             }
         }

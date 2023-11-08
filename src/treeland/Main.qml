@@ -81,6 +81,19 @@ Item {
             }
         }
 
+        LayerShell {
+            id: layerShell
+
+            onSurfaceAdded: function(surface) {
+                QmlHelper.layerSurfaceManager.add({waylandSurface: surface})
+            }
+            onSurfaceRemoved: function(surface) {
+                QmlHelper.layerSurfaceManager.removeIf(function(prop) {
+                    return prop.waylandSurface === surface
+                })
+            }
+        }
+
         Seat {
             id: seat0
             name: "seat0"
@@ -266,6 +279,7 @@ Item {
 
         Greeter {
             id: greeter
+            visible: !TreeLand.testMode
             anchors.fill: parent
         }
     }

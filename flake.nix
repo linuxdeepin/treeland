@@ -28,6 +28,11 @@
           packages.default = treeland;
 
           devShells.default = pkgs.mkShell {
+            packages = with pkgs; [
+              # For submodule build
+              libinput
+            ];
+
             inputsFrom = [
               self.packages.${system}.default
             ];
