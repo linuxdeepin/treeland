@@ -40,6 +40,7 @@ public:
     static WXdgSurface *fromSurface(WSurface *surface);
 
     WXdgSurface *parentXdgSurface() const;
+    WSurface *parentSurface() const override;
 
     bool isResizeing() const;
     bool isActivated() const override;

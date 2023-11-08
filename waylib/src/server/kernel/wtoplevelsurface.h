@@ -16,6 +16,7 @@ class WToplevelSurface : public QObject
     Q_PROPERTY(bool isMaximized READ isMaximized NOTIFY maximizeChanged)
     Q_PROPERTY(bool isMinimized READ isMinimized NOTIFY minimizeChanged)
     Q_PROPERTY(WSurface* surface READ surface NOTIFY surfaceChanged)
+    Q_PROPERTY(WSurface* parentSurface READ parentSurface NOTIFY parentSurfaceChanged)
     QML_NAMED_ELEMENT(ToplevelSurface)
     QML_UNCREATABLE("Only create in C++")
 
@@ -28,6 +29,10 @@ public:
     }
 
     virtual WSurface *surface() const {
+        return nullptr;
+    }
+
+    virtual WSurface *parentSurface() const {
         return nullptr;
     }
 
@@ -81,6 +86,7 @@ Q_SIGNALS:
     void maximizeChanged();
     void minimizeChanged();
     void surfaceChanged();
+    void parentSurfaceChanged();
 
     void requestMove(WSeat *seat, quint32 serial);
     void requestResize(WSeat *seat, Qt::Edges edge, quint32 serial);

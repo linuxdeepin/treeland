@@ -287,15 +287,25 @@ WXdgSurface *WXdgSurface::parentXdgSurface() const
         if (!parent)
             return nullptr;
         return fromHandle(QWXdgToplevel::from(parent));
+    }
+
+    return nullptr;
+}
+
+WSurface *WXdgSurface::parentSurface() const
+{
+    W_DC(WXdgSurface);
+    if (auto toplevel = d->handle->topToplevel()) {
+        auto parent = toplevel->handle()->parent;
+        if (!parent)
+            return nullptr;
+        return WSurface::fromHandle(parent->base->surface);
     } else if (auto popup = d->handle->toPopup()) {
         auto parent = popup->handle()->parent;
         if (!parent)
             return nullptr;
-        auto xdgParent = QWXdgSurface::from(QWSurface::from(parent));
-        Q_ASSERT(xdgParent);
-        return fromHandle(xdgParent);
+        return WSurface::fromHandle(parent);
     }
-
     return nullptr;
 }
 
