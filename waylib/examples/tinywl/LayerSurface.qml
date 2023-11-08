@@ -50,8 +50,12 @@ Item {
         onEnterOutput: function(output) {
             waylandSurface.surface.enterOutput(output)
             Helper.onSurfaceEnterOutput(waylandSurface, surfaceItem, output)
+            refreshAnchors()
+            refreshMargin()
+            configureSurfaceSize()
         }
         onLeaveOutput: function(output) {
+            Helper.unregisterExclusiveZone(waylandSurface)
             waylandSurface.surface.leaveOutput(output)
             Helper.onSurfaceLeaveOutput(waylandSurface, surfaceItem, output)
         }
@@ -194,12 +198,6 @@ Item {
 
         if (surfaceWidth && surfaceHeight)
             waylandSurface.configureSize(Qt.size(surfaceWidth, surfaceHeight))
-    }
-
-    Component.onCompleted: {
-        refreshAnchors()
-        refreshMargin()
-        configureSurfaceSize()
     }
 
     onHeightChanged: {

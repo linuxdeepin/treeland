@@ -140,26 +140,31 @@ QJSValue Helper::getExclusiveMargins(WLayerSurface *layerSurface)
 {
     auto [ output, infoPtr ] = getFirstOutputOfSurface(layerSurface);
     QMargins margins{0, 0, 0, 0};
-    QMutableListIterator<std::tuple<WLayerSurface*, uint32_t, WLayerSurface::AnchorType>> listIter(infoPtr->registeredSurfaceList);
-    while (listIter.hasNext()) {
-        auto [ registeredSurface, exclusiveZone, exclusiveEdge ] = listIter.next();
-        if (registeredSurface == layerSurface)
-            break;
-        switch(exclusiveEdge) {
-            using enum WLayerSurface::AnchorType;
-        case Top:
-            margins.setTop(margins.top()+exclusiveZone);
-            break;
-        case Bottom:
-            margins.setBottom(margins.bottom()+exclusiveZone);
-            break;
-        case Left:
-            margins.setLeft(margins.left()+exclusiveZone);
-            break;
-        case Right:
-            margins.setRight(margins.right()+exclusiveZone);
-        default:
-            Q_UNREACHABLE();
+
+    if (!output) {
+        qWarning() << "layerSurface(" << layerSurface << ") is not in any output, can't get exclusive Margins";
+    } else {
+        QMutableListIterator<std::tuple<WLayerSurface*, uint32_t, WLayerSurface::AnchorType>> listIter(infoPtr->registeredSurfaceList);
+        while (listIter.hasNext()) {
+            auto [ registeredSurface, exclusiveZone, exclusiveEdge ] = listIter.next();
+            if (registeredSurface == layerSurface)
+                break;
+            switch(exclusiveEdge) {
+                using enum WLayerSurface::AnchorType;
+            case Top:
+                margins.setTop(margins.top() + exclusiveZone);
+                break;
+            case Bottom:
+                margins.setBottom(margins.bottom() + exclusiveZone);
+                break;
+            case Left:
+                margins.setLeft(margins.left() + exclusiveZone);
+                break;
+            case Right:
+                margins.setRight(margins.right() + exclusiveZone);
+            default:
+                Q_UNREACHABLE();
+            }
         }
     }
 
