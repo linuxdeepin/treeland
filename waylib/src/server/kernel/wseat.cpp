@@ -475,6 +475,11 @@ QWSeat *WSeat::handle() const
     return d_func()->handle();
 }
 
+wlr_seat *WSeat::nativeHandle() const
+{
+    return d_func()->nativeHandle();
+}
+
 QString WSeat::name() const
 {
     return d_func()->name;
