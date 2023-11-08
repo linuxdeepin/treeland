@@ -95,6 +95,8 @@ qt_add_qml_module(treeland
         TiledWorkspace.qml
         WindowDecoration.qml
         XdgSurface.qml
+        LayerSurface.qml
+        MiniDock.qml
     RESOURCE_PREFIX
         /qt/qml
 )

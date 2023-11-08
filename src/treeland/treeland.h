@@ -21,12 +21,17 @@ struct TreeLandAppContext {
 class TreeLand : public QObject {
     Q_OBJECT
     Q_PROPERTY(WaylandSocketProxy* socketProxy READ socketProxy WRITE setSocketProxy)
+    Q_PROPERTY(bool testMode READ testMode CONSTANT)
 
 public:
     explicit TreeLand(TreeLandAppContext context);
 
     inline WaylandSocketProxy* socketProxy() const {
         return m_socketProxy;
+    }
+
+    inline bool testMode() const {
+        return m_context.isTestMode;
     }
 
 Q_SIGNALS:

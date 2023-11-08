@@ -3,8 +3,11 @@
 
 import QtQuick
 import Waylib.Server
+import TreeLand
 
 XdgSurfaceItem {
+    id: surfaceItem
+
     required property WaylandXdgSurface waylandSurface
     property string type
 
@@ -15,10 +18,15 @@ XdgSurfaceItem {
         layout: QmlHelper.layout
 
         onEnterOutput: function(output) {
-            waylandSurface.surface.enterOutput(output);
+            waylandSurface.surface.enterOutput(output)
+            TreeLandHelper.onSurfaceEnterOutput(waylandSurface, surfaceItem, output)
+
+            surfaceItem.x = TreeLandHelper.getLeftExclusiveMargin(waylandSurface) + 10
+            surfaceItem.y = TreeLandHelper.getTopExclusiveMargin(waylandSurface) + 10
         }
         onLeaveOutput: function(output) {
-            waylandSurface.surface.leaveOutput(output);
+            waylandSurface.surface.leaveOutput(output)
+            TreeLandHelper.onSurfaceLeaveOutput(waylandSurface, surfaceItem, output)
         }
     }
 }

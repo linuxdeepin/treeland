@@ -10,6 +10,7 @@ Item {
     property OutputLayout layout: OutputLayout {}
     property alias outputManager: outputManager
     property DynamicCreator xdgSurfaceManager: xdgSurfaceManager
+    property DynamicCreator layerSurfaceManager: layerSurfaceManager
     property DynamicCreator xwaylandSurfaceManager: xwaylandSurfaceManager
 
     function printStructureObject(obj) {
@@ -36,7 +37,6 @@ Item {
                          `\n${printStructureObject(properties)}`)
         }
 
-        // TODO: maybe crash here if the QQmlEngine is in destructor. Qt Bug?
         onObjectRemoved: function(delegate, obj, properties) {
             console.info(`Output item ${obj} is removed, it's create from delegate ${delegate} with initial properties:`,
                          `\n${printStructureObject(properties)}`)
@@ -50,9 +50,21 @@ Item {
                          `\n${printStructureObject(properties)}`)
         }
 
-        // TODO: maybe crash here if the QQmlEngine is in destructor. Qt Bug?
         onObjectRemoved: function(delegate, obj, properties) {
             console.info(`Xdg surface item ${obj} is removed, it's create from delegate ${delegate} with initial properties:`,
+                         `\n${printStructureObject(properties)}`)
+        }
+    }
+
+    DynamicCreator {
+        id: layerSurfaceManager
+        onObjectAdded: function(delegate, obj, properties) {
+            console.info(`New Layer surface item ${obj} from delegate ${delegate} with initial properties:`,
+                         `\n${printStructureObject(properties)}`)
+        }
+
+        onObjectRemoved: function(delegate, obj, properties) {
+            console.info(`Layer surface item ${obj} is removed, it's create from delegate ${delegate} with initial properties:`,
                          `\n${printStructureObject(properties)}`)
         }
     }
@@ -64,7 +76,6 @@ Item {
                          `\n${printStructureObject(properties)}`)
         }
 
-        // TODO: maybe crash here if the QQmlEngine is in destructor. Qt Bug?
         onObjectRemoved: function(delegate, obj, properties) {
             console.info(`X11 surface item ${obj} is removed, it's create from delegate ${delegate} with initial properties:`,
                          `\n${printStructureObject(properties)}`)
