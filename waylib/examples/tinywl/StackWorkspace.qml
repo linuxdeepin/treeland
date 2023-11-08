@@ -8,7 +8,7 @@ import Tinywl
 
 Item {
     id: root
-
+    required property Item activeFocusItem
     function getSurfaceItemFromWaylandSurface(surface) {
         let finder = function(props) {
             if (props.waylandSurface === surface)
@@ -233,6 +233,17 @@ Item {
                     Helper.onSurfaceLeaveOutput(waylandSurface, surface, output)
                 }
             }
+        }
+    }
+
+    DynamicCreatorComponent {
+        id: inputPopupComponent
+        creator: QmlHelper.inputPopupSurfaceManager
+
+        InputPopupSurface {
+            id: inputPopupSurface
+            waylandSurface: waylandSurface
+            parent: root.activeFocusItem
         }
     }
 }

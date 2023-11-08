@@ -44,6 +44,7 @@ qt_add_qml_module(tinywl-qtquick
         WindowDecoration.qml
         CloseAnimation.qml
         MiniDock.qml
+        InputPopupSurface.qml
 )
 
 target_compile_definitions(tinywl-qtquick

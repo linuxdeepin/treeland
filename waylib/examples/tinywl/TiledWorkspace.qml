@@ -8,7 +8,7 @@ import Waylib.Server
 
 Item {
     id: root
-
+    required property Item activeFocusItem
     function getXdgSurfaceFromWaylandSurface(surface) {
         let finder = function(props) {
             if (props.waylandSurface === surface)
@@ -186,6 +186,17 @@ Item {
         LayerSurface {
             id: layerSurface
             creator: layerComponent
+        }
+    }
+
+    DynamicCreatorComponent {
+        id: inputPopupComponent
+        creator: QmlHelper.inputPopupSurfaceManager
+
+        InputPopupSurface {
+            id: inputPopupSurface
+            waylandSurface: waylandSurface
+            parent: root.activeFocusItem
         }
     }
 }

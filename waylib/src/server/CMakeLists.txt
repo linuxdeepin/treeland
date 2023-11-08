@@ -90,6 +90,10 @@ set(QTQUICK_SOURCES
     qtquick/private/wquickxdgdecorationmanager.cpp
     qtquick/private/wquickcursorshape.cpp
     qtquick/private/wquicklayershell.cpp
+    qtquick/private/wquicktextinputv3.cpp
+    qtquick/private/wquickinputmethodv2.cpp
+    qtquick/private/wquickvirtualkeyboardv1.cpp
+    qtquick/private/winputmethodhelper.cpp
 )
 
 set(UTILS_SOURCES
@@ -173,6 +177,10 @@ set(PRIVATE_HEADERS
     qtquick/private/wquickcursorshape_p.h
     qtquick/private/wquicktextureproxy_p.h
     qtquick/private/wquicklayershell_p.h
+    qtquick/private/wquicktextinputv3_p.h
+    qtquick/private/wquickinputmethodv2_p.h
+    qtquick/private/wquickvirtualkeyboardv1_p.h
+    qtquick/private/winputmethodhelper_p.h
 )
 
 if(NOT DISABLE_XWAYLAND)
