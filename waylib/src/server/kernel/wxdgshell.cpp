@@ -29,8 +29,8 @@ public:
     }
 
     // begin slot function
-    void on_new_xdg_surface(wlr_xdg_surface *wlr_surface);
-    void on_surface_destroy(QObject *data);
+    void onNewXdgSurface(QWXdgSurface *xdgSurface);
+    void onSurfaceDestroy(QWXdgSurface *xdgSurface);
     // end slot function
 
     W_DECLARE_PUBLIC(WXdgShell)
@@ -38,26 +38,23 @@ public:
     QVector<WXdgSurface*> surfaceList;
 };
 
-void WXdgShellPrivate::on_new_xdg_surface(wlr_xdg_surface *wlr_surface)
+void WXdgShellPrivate::onNewXdgSurface(QWXdgSurface *xdgSurface)
 {
     auto server = q_func()->server();
     // TODO: QWXdgSurface::from(wlr_surface)
-    QWXdgSurface *xdgSurface = QWXdgSurface::from(QWSurface::from(wlr_surface->surface));
     auto surface = new WXdgSurface(xdgSurface, server);
     surface->setParent(server);
     Q_ASSERT(surface->parent() == server);
-    QObject::connect(xdgSurface, &QWXdgSurface::beforeDestroy, q_func(), [this] (QWXdgSurface *data) {
-        on_surface_destroy(data);
+    QObject::connect(xdgSurface, &QWXdgSurface::beforeDestroy, q_func(), [this](QWXdgSurface *data) {
+        onSurfaceDestroy(data);
     });
-
     surfaceList.append(surface);
     q_func()->surfaceAdded(surface);
 }
 
-void WXdgShellPrivate::on_surface_destroy(QObject *data)
+void WXdgShellPrivate::onSurfaceDestroy(QWXdgSurface *xdgSurface)
 {
-    QWXdgSurface *wlr_surface = qobject_cast<QWXdgSurface*>(data);
-    auto surface = WXdgSurface::fromHandle(wlr_surface);
+    auto surface = WXdgSurface::fromHandle(xdgSurface);
     Q_ASSERT(surface);
     bool ok = surfaceList.removeOne(surface);
     Q_ASSERT(ok);
@@ -93,8 +90,8 @@ void WXdgShell::create(WServer *server)
     // free follow display
 
     auto xdg_shell = QWXdgShell::create(server->handle(), 2);
-    QObject::connect(xdg_shell, &QWXdgShell::newSurface, this, [this] (wlr_xdg_surface *surface) {
-        d_func()->on_new_xdg_surface(surface);
+    QObject::connect(xdg_shell, &QWXdgShell::newSurface, this, [this] (wlr_xdg_surface *xdg_surface) {
+        d_func()->onNewXdgSurface(QWXdgSurface::from(QWSurface::from(xdg_surface->surface)));
     });
     m_handle = xdg_shell;
 }

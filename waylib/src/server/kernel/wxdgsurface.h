@@ -4,6 +4,7 @@
 #pragma once
 
 #include <WSurface>
+#include <WLayerSurface>
 #include <wtoplevelsurface.h>
 
 QW_BEGIN_NAMESPACE
@@ -41,6 +42,7 @@ public:
 
     WXdgSurface *parentXdgSurface() const;
     WSurface *parentSurface() const override;
+    QPointF getPopupPosition() const;
 
     bool isResizeing() const;
     bool isActivated() const override;

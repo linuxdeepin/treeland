@@ -8,8 +8,7 @@ import Tinywl
 
 Item {
     property alias waylandSurface: surfaceItem.surface
-    property int lastExclusiveZone: 0
-    property int lastExclusiveEdge: WaylandLayerSurface.AnchorType.None
+    property alias surfaceItem: surfaceItem
     property bool anchorWidth: false
     property bool anchorHeight: false
     // From Helper
@@ -50,9 +49,7 @@ Item {
         onEnterOutput: function(output) {
             waylandSurface.surface.enterOutput(output)
             Helper.onSurfaceEnterOutput(waylandSurface, surfaceItem, output)
-            refreshAnchors()
-            refreshMargin()
-            configureSurfaceSize()
+            Helper.registerExclusiveZone(waylandSurface)
         }
         onLeaveOutput: function(output) {
             Helper.unregisterExclusiveZone(waylandSurface)
@@ -210,6 +207,12 @@ Item {
         if (waylandSurface.desiredSize.width === 0 && width != 0) {
             configureSurfaceSize()
         }
+    }
+
+    Component.onCompleted: {
+        refreshAnchors()
+        refreshMargin()
+        configureSurfaceSize()
     }
 
     Connections {

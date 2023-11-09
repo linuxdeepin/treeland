@@ -64,6 +64,9 @@ WSurfaceItem *Helper::movingItem() const
 bool Helper::registerExclusiveZone(WLayerSurface *layerSurface)
 {
     auto [ output, infoPtr ] = getFirstOutputOfSurface(layerSurface);
+    if (!output)
+        return 0;
+
     auto exclusiveZone = layerSurface->exclusiveZone();
     auto exclusiveEdge = layerSurface->getExclusiveZoneEdge();
 
@@ -103,6 +106,9 @@ bool Helper::registerExclusiveZone(WLayerSurface *layerSurface)
 bool Helper::unregisterExclusiveZone(WLayerSurface *layerSurface)
 {
     auto [ output, infoPtr ] = getFirstOutputOfSurface(layerSurface);
+    if (!output)
+        return 0;
+
     QMutableListIterator<std::tuple<WLayerSurface*, uint32_t, WLayerSurface::AnchorType>> listIter(infoPtr->registeredSurfaceList);
     while (listIter.hasNext()) {
         auto [ registeredSurface, exclusiveZone, exclusiveEdge ] = listIter.next();
@@ -141,9 +147,7 @@ QJSValue Helper::getExclusiveMargins(WLayerSurface *layerSurface)
     auto [ output, infoPtr ] = getFirstOutputOfSurface(layerSurface);
     QMargins margins{0, 0, 0, 0};
 
-    if (!output) {
-        qWarning() << "layerSurface(" << layerSurface << ") is not in any output, can't get exclusive Margins";
-    } else {
+    if (output) {
         QMutableListIterator<std::tuple<WLayerSurface*, uint32_t, WLayerSurface::AnchorType>> listIter(infoPtr->registeredSurfaceList);
         while (listIter.hasNext()) {
             auto [ registeredSurface, exclusiveZone, exclusiveEdge ] = listIter.next();

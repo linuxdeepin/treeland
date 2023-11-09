@@ -38,6 +38,7 @@
               wayland-utils
               extra-cmake-modules
               qt6.qtwayland
+              libinput
             ];
 
             inputsFrom = [

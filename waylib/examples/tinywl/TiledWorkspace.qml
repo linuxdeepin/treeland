@@ -9,9 +9,12 @@ import Waylib.Server
 Item {
     id: root
     required property Item activeFocusItem
-    function getXdgSurfaceFromWaylandSurface(surface) {
+    function getSurfaceItemFromWaylandSurface(surface) {
         let finder = function(props) {
-            if (props.waylandSurface === surface)
+            if (!props.waylandSurface)
+                return false
+            // surface is WToplevelSurface or WSurfce
+            if (props.waylandSurface === surface || props.waylandSurface.surface === surface)
                 return true
         }
 
@@ -104,12 +107,21 @@ Item {
                 property string type
 
                 property alias xdgSurface: surface
-                property var xdgParent: root.getXdgSurfaceFromWaylandSurface(waylandSurface.parentXdgSurface)
+                property var parentItem: root.getSurfaceItemFromWaylandSurface(waylandSurface.parentSurface)
 
-                parent: xdgParent ? xdgParent.parent : root
-                visible: xdgParent.xdgSurface.effectiveVisible && waylandSurface.surface.mapped && waylandSurface.WaylandSocket.rootSocket.enabled
-                x: surface.implicitPosition.x + (xdgParent ? xdgParent.xdgSurface.contentItem.x : 0)
-                y: surface.implicitPosition.y + (xdgParent ? xdgParent.xdgSurface.contentItem.x : 0)
+                parent: parentItem ? parentItem.shell : root
+                visible: parentItem && parentItem.item.effectiveVisible
+                        && waylandSurface.surface.mapped && waylandSurface.WaylandSocket.rootSocket.enabled
+                x: {
+                    if (!parentItem)
+                        return surface.implicitPosition.x
+                    return surface.implicitPosition.x / parentItem.item.surfaceSizeRatio + parentItem.item.contentItem.x
+                }
+                y: {
+                    if (!parentItem)
+                        return surface.implicitPosition.y
+                    return surface.implicitPosition.y / parentItem.item.surfaceSizeRatio + parentItem.item.contentItem.y
+                }
                 padding: 0
                 background: null
                 closePolicy: Popup.CloseOnPressOutside

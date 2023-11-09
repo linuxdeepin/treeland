@@ -9,6 +9,7 @@
 #include <qwxdgshell.h>
 #include <qwseat.h>
 #include <qwcompositor.h>
+#include <qwlayershellv1.h>
 
 #include <QDebug>
 
@@ -322,6 +323,15 @@ WSurface *WXdgSurface::parentSurface() const
         return WSurface::fromHandle(parent);
     }
     return nullptr;
+}
+
+QPointF WXdgSurface::getPopupPosition() const
+{
+    auto *popup = handle()->toPopup();
+    Q_ASSERT(popup);
+    if (QWXdgSurface::from(popup->handle()->parent))
+        return popup->getPosition();
+    return {popup->handle()->current.geometry.x, popup->handle()->current.geometry.y};
 }
 
 void WXdgSurface::setResizeing(bool resizeing)
