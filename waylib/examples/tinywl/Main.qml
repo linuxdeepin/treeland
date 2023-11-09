@@ -106,6 +106,10 @@ Item {
             id: inputMethodManagerV2
         }
 
+        TextInputManagerV1 {
+            id: textInputManagerV1
+        }
+
         TextInputManagerV3 {
             id: textInputManagerV3
         }
@@ -135,6 +139,7 @@ Item {
     InputMethodHelper {
         id: inputMethodHelperSeat0
         seat: seat0
+        textInputManagerV1: textInputManagerV1
         textInputManagerV3: textInputManagerV3
         inputMethodManagerV2: inputMethodManagerV2
         virtualKeyboardManagerV1: virtualKeyboardManagerV1

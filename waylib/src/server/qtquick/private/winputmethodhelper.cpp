@@ -4,6 +4,7 @@
 #include "winputmethodhelper_p.h"
 
 #include "wquicktextinputv3_p.h"
+#include "wquicktextinputv1_p.h"
 #include "wquickinputmethodv2_p.h"
 #include "wquickvirtualkeyboardv1_p.h"
 #include "wquickseat_p.h"
@@ -76,8 +77,11 @@ public:
 
     WQuickSeat *seat;
     WQuickInputMethodManagerV2 *inputMethodManagerV2;
+    WQuickTextInputManagerV1 *textInputManagerV1;
     WQuickTextInputManagerV3 *textInputManagerV3;
     WQuickVirtualKeyboardManagerV1 *virtualKeyboardManagerV1;
+
+    WQuickTextInputV1 *activeTextInputV1;
     WQuickTextInputV3 *activeTextInputV3;
     WQuickInputMethodV2 *inputMethodV2;
     QList<WInputPopupV2 *> popupSurfaces;
@@ -114,6 +118,25 @@ void WInputMethodHelper::setTextInputManagerV3(WQuickTextInputManagerV3 *textInp
     d->textInputManagerV3 = textInputManagerV3;
     if (textInputManagerV3) {
         connect(d->textInputManagerV3, &WQuickTextInputManagerV3::newTextInput, this, &WInputMethodHelper::onNewTextInputV3);
+    }
+}
+
+WQuickTextInputManagerV1 *WInputMethodHelper::textInputManagerV1() const
+{
+    W_DC(WInputMethodHelper);
+    return d->textInputManagerV1;
+}
+
+void WInputMethodHelper::setTextInputManagerV1(WQuickTextInputManagerV1 *textInputManagerV1)
+{
+    W_D(WInputMethodHelper);
+    if (d->textInputManagerV1) {
+        qmlWarning(this) << "Trying to set text input manager v1 for input method helper twice. Ignore this request.";
+        return;
+    }
+    d->textInputManagerV1 = textInputManagerV1;
+    if (textInputManagerV1) {
+        connect(d->textInputManagerV1, &WQuickTextInputManagerV1::newTextInput, this, &WInputMethodHelper::onNewTextInputV1);
     }
 }
 
@@ -156,6 +179,20 @@ void WInputMethodHelper::setVirtualKeyboardManagerV1(
     }
 }
 
+WQuickTextInputV1 *WInputMethodHelper::activeTextInputV1() const
+{
+    return d_func()->activeTextInputV1;
+}
+
+void WInputMethodHelper::setActiveTextInputV1(WQuickTextInputV1 *newActiveTextInputV1)
+{
+    W_D(WInputMethodHelper);
+    if (newActiveTextInputV1 == d->activeTextInputV1)
+        return;
+    d->activeTextInputV1 = newActiveTextInputV1;
+    Q_EMIT this->activeTextInputV1Changed(d->activeTextInputV1);
+}
+
 WQuickTextInputV3 *WInputMethodHelper::activeTextInputV3() const
 {
     W_DC(WInputMethodHelper);
@@ -195,15 +232,73 @@ void WInputMethodHelper::onNewInputMethodV2(WQuickInputMethodV2 *newInputMethod)
         newInputMethod->sendUnavailable();
     }
     setInputMethodV2(newInputMethod);
-    // Once input method is online, try to resend enter to textInput
-    onKeyboardFocusChanged();
+
+    // If there is a active text input v1, just activate the input method
+    if (activeTextInputV1()) {
+        newInputMethod->sendActivate();
+        newInputMethod->sendDone();
+    } else {
+        // Once input method is online, try to resend enter to textInput
+        resendKeyboardFocus();
+    }
+
     connect(newInputMethod->handle(), &QWInputMethodV2::beforeDestroy, this, [this]{
         setInputMethodV2(nullptr);
-        onKeyboardFocusLost();
+        notifyKeyboardFocusLost();
     });
     connect(newInputMethod, &WQuickInputMethodV2::commit, this, &WInputMethodHelper::onInputMethodV2Committed);
     connect(newInputMethod, &WQuickInputMethodV2::newKeyboardGrab, this, &WInputMethodHelper::onNewKeyboardGrab);
     connect(newInputMethod, &WQuickInputMethodV2::newPopupSurface, this, &WInputMethodHelper::onInputPopupSurface);
+}
+
+void WInputMethodHelper::onNewTextInputV1(WQuickTextInputV1 *newTextInputV1)
+{
+    // Actually when textInputV1 is not activated, just created, we don't need to do anything, cause it is not associated with seat
+    // Unlike text input v3, we should listen on each text input v1 object cause it might be activated on this seat at any time
+    connect(newTextInputV1, &WQuickTextInputV1::seatChanged, this, [this, newTextInputV1](){
+        auto st = newTextInputV1->seat();
+        if (st && this->wseat()->name() == st->name()) {
+            if (activeTextInputV1()) {
+                // Let previous active text input leave
+                activeTextInputV1()->sendLeave();
+            }
+            if (activeTextInputV3()) {
+                activeTextInputV3()->sendLeave();
+            }
+            newTextInputV1->sendEnter(newTextInputV1->focusedSurface());
+            setActiveTextInputV1(newTextInputV1);
+            if (inputMethodV2()) {
+                inputMethodV2()->sendActivate();
+                inputMethodV2()->sendDone();
+            }
+        } else {
+            onTextInputV1Deactivated(newTextInputV1);
+        }
+    });
+    connect(newTextInputV1, &WQuickTextInputV1::commit, this, [this, newTextInputV1] (){
+        auto im = inputMethodV2();
+        if (!im)
+            return;
+        im->sendContentType(newTextInputV1->contentHint(), newTextInputV1->contentPurpose());
+        im->sendSurroundingText(newTextInputV1->surroundingText(), newTextInputV1->surroundingTextCursor(), newTextInputV1->surroundingTextAnchor());
+        updateAllPopupSurfaces(newTextInputV1->cursorRectangle());
+        im->sendDone();
+    });
+    connect(newTextInputV1, &WQuickTextInputV1::beforeDestroy, this, [this, newTextInputV1] (){
+        onTextInputV1Deactivated(newTextInputV1);
+    });
+}
+
+void WInputMethodHelper::onTextInputV1Deactivated(WQuickTextInputV1 *textInputV1)
+{
+    if (activeTextInputV1() && activeTextInputV1() == textInputV1) {
+        activeTextInputV1()->sendLeave();
+        setActiveTextInputV1(nullptr);
+        if (inputMethodV2()) {
+            inputMethodV2()->sendDeactivate();
+            inputMethodV2()->sendDone();
+        }
+    }
 }
 
 void WInputMethodHelper::onNewTextInputV3(WQuickTextInputV3 *newTextInput)
@@ -231,6 +326,9 @@ void WInputMethodHelper::onTextInputV3Enabled(WQuickTextInputV3 *enabledTextInpu
     if (activeTextInputV3()) {
         // Assume that previous active text input has been disabled
         onTextInputV3Disabled(activeTextInputV3());
+    }
+    if (activeTextInputV1()) {
+        onTextInputV1Deactivated(activeTextInputV1());
     }
     setActiveTextInputV3(enabledTextInputV3);
     auto im = inputMethodV2();
@@ -271,34 +369,39 @@ void WInputMethodHelper::onInputMethodV2Committed()
 {
     W_D(WInputMethodHelper);
     auto inputMethod = qobject_cast<WQuickInputMethodV2 *>(sender());
-    auto textInput = activeTextInputV3();
-    if (!textInput)
-        return;
+    Q_ASSERT(inputMethod);
     const WInputMethodV2State *const current = inputMethod->state();
-    if (!current->preeditStringText().isEmpty()) {
-        textInput->sendPreeditString(current->preeditStringText(), current->preeditStringCursorBegin(), current->preeditStringCursorEnd());
+    auto textInputV3 = activeTextInputV3();
+    if (textInputV3) {
+        if (!current->preeditStringText().isEmpty()) {
+            textInputV3->sendPreeditString(current->preeditStringText(), current->preeditStringCursorBegin(), current->preeditStringCursorEnd());
+        }
+        if (!current->commitString().isEmpty()) {
+            textInputV3->sendCommitString(current->commitString());
+        }
+        if (current->deleteSurroundingBeforeLength() || current->deleteSurroundingAfterLength()) {
+            textInputV3->sendDeleteSurroundingText(current->deleteSurroundingBeforeLength(), current->deleteSurroundingAfterLength());
+        }
+        textInputV3->sendDone();
     }
-    if (!current->commitString().isEmpty()) {
-        textInput->sendCommitString(current->commitString());
-    }
-    if (current->deleteSurroundingBeforeLength() || current->deleteSurroundingAfterLength()) {
-        textInput->sendDeleteSurroundingText(current->deleteSurroundingBeforeLength(), current->deleteSurroundingAfterLength());
-    }
-    textInput->sendDone();
-}
-
-void WInputMethodHelper::onKeyboardFocusChanged()
-{
-    W_D(WInputMethodHelper);
-    WSurface *keyboardFocus = seat()->keyboardFocus();
-    onKeyboardFocusLost(); // Focus change will cause a short period of lost focus
-    if (keyboardFocus) {
-        for (auto textInput : d->textInputManagerV3->textInputs()) {
-            if (keyboardFocus->handle()->handle()->resource->client == textInput->waylandClient()) {
-                textInput->sendEnter(keyboardFocus);
-            }
+    auto textInputV1 = activeTextInputV1();
+    if (textInputV1) {
+        if (current->deleteSurroundingBeforeLength() || current->deleteSurroundingAfterLength()) {
+            textInputV1->sendDeleteSurroundingText(0, textInputV1->surroundingText().length() - current->deleteSurroundingBeforeLength() - current->deleteSurroundingAfterLength());
+        }
+        textInputV1->sendCommitString(current->commitString());
+        if (!current->preeditStringText().isEmpty()) {
+            textInputV1->sendPreeditStyling(0, current->preeditStringCursorEnd() - current->preeditStringCursorBegin(), WQuickTextInputV1::PS_Active);
+            textInputV1->sendPreeditCursor(current->preeditStringCursorEnd() - current->preeditStringCursorBegin());
+            textInputV1->sendPreeditString(current->preeditStringText(), current->commitString());
         }
     }
+}
+
+void WInputMethodHelper::resendKeyboardFocus()
+{
+    notifyKeyboardFocusLost();
+    sendKeyboardFocus();
 }
 
 void WInputMethodHelper::sendInputMethodV2State(WQuickTextInputV3 *textInput)
@@ -317,7 +420,7 @@ void WInputMethodHelper::sendInputMethodV2State(WQuickTextInputV3 *textInput)
         im->sendContentType(current->contentHint(), current->contentPurpose());
     }
     if (current->features() & WTextInputV3State::CursorRect) {
-        updateAllPopupSurfaces();
+        updateAllPopupSurfaces(current->cursorRect());
     }
     im->sendDone();
 }
@@ -349,25 +452,36 @@ void WInputMethodHelper::onNewKeyboardGrab(WQuickInputMethodKeyboardGrabV2 *keyb
 void WInputMethodHelper::onInputPopupSurface(WQuickInputPopupSurfaceV2 *popupSurface)
 {
     W_D(WInputMethodHelper);
-    auto ti = activeTextInputV3();
-    if (!ti) {
-        qCWarning(qLcInputMethod) << "New popup surface" << popupSurface << "is discarded because there is no active textinput.";
-        return;
+
+    auto createPopupSurface = [this, d] (WSurface *focus, QRect cursorRect, WQuickInputPopupSurfaceV2 *popupSurface){
+        auto surface = new WInputPopupV2(popupSurface, focus, this);
+        d->popupSurfaces.append(surface);
+        Q_EMIT this->inputPopupSurfaceV2Added(surface);
+        updatePopupSurface(surface, cursorRect);
+        connect(popupSurface->handle(), &QWInputPopupSurfaceV2::beforeDestroy, this, [this, d, surface](){
+            Q_EMIT this->inputPopupSurfaceV2Removed(surface);
+            d->popupSurfaces.removeAll(surface);
+            surface->deleteLater();
+        });
+    };
+
+    if (auto ti = activeTextInputV1()) {
+        createPopupSurface(ti->focusedSurface(), ti->cursorRectangle(), popupSurface);
     }
-    auto surface = new WInputPopupV2(popupSurface, ti->focusedSurface(), this);
-    d->popupSurfaces.append(surface);
-    Q_EMIT this->inputPopupSurfaceV2Added(surface);
-    updatePopupSurface(surface);
-    connect(popupSurface->handle(), &QWInputPopupSurfaceV2::beforeDestroy, this, [this, d, surface](){
-        Q_EMIT this->inputPopupSurfaceV2Removed(surface);
-        d->popupSurfaces.removeAll(surface);
-        surface->deleteLater();
-    });
+
+    if (auto ti = activeTextInputV3()) {
+        createPopupSurface(ti->focusedSurface(), ti->state()->cursorRect(), popupSurface);
+    }
 }
 
-void WInputMethodHelper::onKeyboardFocusLost()
+void WInputMethodHelper::notifyKeyboardFocusLost()
 {
     W_D(WInputMethodHelper);
+    for (auto textInput : d->textInputManagerV1->textInputs()) {
+        if (textInput->focusedSurface()) {
+            textInput->sendLeave();
+        }
+    }
     for (auto textInput : d->textInputManagerV3->textInputs()) {
         if (textInput->focusedSurface()) {
             textInput->sendLeave();
@@ -375,21 +489,29 @@ void WInputMethodHelper::onKeyboardFocusLost()
     }
 }
 
-void WInputMethodHelper::updateAllPopupSurfaces()
+void WInputMethodHelper::updateAllPopupSurfaces(QRect cursorRect)
 {
     for (auto popup : d_func()->popupSurfaces) {
-        updatePopupSurface(popup);
+        updatePopupSurface(popup, cursorRect);
     }
 }
 
-void WInputMethodHelper::updatePopupSurface(WInputPopupV2 *popup)
+void WInputMethodHelper::updatePopupSurface(WInputPopupV2 *popup, QRect cursorRect)
 {
-    auto ti = activeTextInputV3();
-    if (!ti)
+    popup->handle()->sendTextInputRectangle(cursorRect);
+    popup->move(cursorRect.x() + cursorRect.width(), cursorRect.y() + cursorRect.height() + InputPopupTopMargin);
+}
+
+void WInputMethodHelper::sendKeyboardFocus()
+{
+    auto focus = seat()->keyboardFocus();
+    if (!focus)
         return;
-    auto rect = ti->state()->cursorRect();
-    popup->handle()->sendTextInputRectangle(rect);
-    popup->move(rect.x(), rect.y() + rect.height() + InputPopupTopMargin);
+    for (auto textInput : d_func()->textInputManagerV3->textInputs()) {
+        if (wl_resource_get_client(focus->handle()->handle()->resource) == textInput->waylandClient()) {
+            textInput->sendEnter(focus);
+        }
+    }
 }
 
 void WInputMethodHelper::setSeat(WQuickSeat *newSeat)
@@ -401,7 +523,7 @@ void WInputMethodHelper::setSeat(WQuickSeat *newSeat)
     }
     d->seat = newSeat;
     if (newSeat) {
-        connect(d->seat, &WQuickSeat::keyboardFocusChanged, this, &WInputMethodHelper::onKeyboardFocusChanged);
+        connect(d->seat, &WQuickSeat::keyboardFocusChanged, this, &WInputMethodHelper::resendKeyboardFocus);
     }
 }
 

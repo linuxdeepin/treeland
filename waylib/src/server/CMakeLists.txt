@@ -42,6 +42,12 @@ ws_generate(
     unstable/wlr-layer-shell-unstable-v1.xml
     wlr-layer-shell-unstable-v1-protocol
 )
+ws_generate(
+    server
+    wayland-protocols
+    unstable/text-input/text-input-unstable-v1.xml
+    text-input-unstable-v1-protocol
+)
 
 set(KERNEL_SOURCES
     kernel/wbackend.cpp
@@ -90,10 +96,12 @@ set(QTQUICK_SOURCES
     qtquick/private/wquickxdgdecorationmanager.cpp
     qtquick/private/wquickcursorshape.cpp
     qtquick/private/wquicklayershell.cpp
+    qtquick/private/wquicktextinputv1.cpp
     qtquick/private/wquicktextinputv3.cpp
     qtquick/private/wquickinputmethodv2.cpp
     qtquick/private/wquickvirtualkeyboardv1.cpp
     qtquick/private/winputmethodhelper.cpp
+    ${CMAKE_BINARY_DIR}/src/server/text-input-unstable-v1-protocol.c
 )
 
 set(UTILS_SOURCES
@@ -177,10 +185,12 @@ set(PRIVATE_HEADERS
     qtquick/private/wquickcursorshape_p.h
     qtquick/private/wquicktextureproxy_p.h
     qtquick/private/wquicklayershell_p.h
+    qtquick/private/wquicktextinputv1_p.h
     qtquick/private/wquicktextinputv3_p.h
     qtquick/private/wquickinputmethodv2_p.h
     qtquick/private/wquickvirtualkeyboardv1_p.h
     qtquick/private/winputmethodhelper_p.h
+    ${CMAKE_BINARY_DIR}/src/server/text-input-unstable-v1-protocol.h
 )
 
 if(NOT DISABLE_XWAYLAND)
