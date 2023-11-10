@@ -2,12 +2,29 @@ pkg_search_module(PIXMAN REQUIRED IMPORTED_TARGET pixman-1)
 pkg_search_module(WAYLAND_SERVER REQUIRED IMPORTED_TARGET wayland-server)
 pkg_search_module(WAYLAND_CLIENT REQUIRED IMPORTED_TARGET wayland-client)
 
-function(ws_generate type input_file output_name)
+function(ws_generate_local type input_file output_name)
     find_package(PkgConfig)
+    pkg_get_variable(WAYLAND_SCANNER wayland-scanner wayland_scanner)
+    execute_process(COMMAND ${WAYLAND_SCANNER}
+        ${type}-header
+        ${input_file}
+        ${CMAKE_CURRENT_BINARY_DIR}/${output_name}.h
+    )
+
+    execute_process(COMMAND ${WAYLAND_SCANNER}
+        public-code
+        ${input_file}
+        ${CMAKE_CURRENT_BINARY_DIR}/${output_name}.c
+    )
+endfunction()
+
+function(ws_generate type protocols input_file output_name)
+    find_package(PkgConfig)
+    pkg_get_variable(WAYLAND_PROTOCOLS wayland-protocols pkgdatadir)
     pkg_get_variable(WAYLAND_SCANNER wayland-scanner wayland_scanner)
 
     if(NOT EXISTS input_file)
-        set(input_file ${CMAKE_CURRENT_SOURCE_DIR}/${input_file})
+        set(input_file ${WAYLAND_PROTOCOLS}/${input_file})
     endif()
 
     execute_process(COMMAND ${WAYLAND_SCANNER}
@@ -23,9 +40,11 @@ function(ws_generate type input_file output_name)
     )
 endfunction()
 
-ws_generate(server data/ztreeland-shortcut-manager-v1.xml shortcut-server-protocol)
-ws_generate(server data/treeland-socket-manager-v1.xml socket-server-protocol)
-ws_generate(server data/ztreeland-foreign-toplevel-manager-v1.xml foreign-toplevel-manager-server-protocol)
+ws_generate_local(server ${CMAKE_CURRENT_SOURCE_DIR}/data/ztreeland-shortcut-manager-v1.xml shortcut-server-protocol)
+ws_generate_local(server ${CMAKE_CURRENT_SOURCE_DIR}/data/treeland-socket-manager-v1.xml socket-server-protocol)
+ws_generate_local(server ${CMAKE_CURRENT_SOURCE_DIR}/data/ztreeland-foreign-toplevel-manager-v1.xml foreign-toplevel-manager-server-protocol)
+
+ws_generate(server wayland-protocols staging/ext-foreign-toplevel-list/ext-foreign-toplevel-list-v1.xml ext-foreign-toplevel-list-server-protocol)
 
 add_subdirectory(treeland-helper)
 add_subdirectory(treeland-fake-session)
@@ -45,15 +64,21 @@ set(TREELAND_SOURCES
     foreigntoplevelmanagerv1.cpp
     shortcutmanager.h
     shortcutmanager.cpp
+    extforeigntoplevellist.h
+    extforeigntoplevellist.cpp
     protocols/foreign_toplevel_manager_impl.cpp
     protocols/shortcut_manager_impl.cpp
     protocols/socket_manager_impl.cpp
+    protocols/ext_foreign_toplevel_list_impl.h
+    protocols/ext_foreign_toplevel_list_impl.cpp
     ${CMAKE_BINARY_DIR}/src/treeland/socket-server-protocol.c
     ${CMAKE_BINARY_DIR}/src/treeland/socket-server-protocol.h
     ${CMAKE_BINARY_DIR}/src/treeland/shortcut-server-protocol.c
     ${CMAKE_BINARY_DIR}/src/treeland/shortcut-server-protocol.h
     ${CMAKE_BINARY_DIR}/src/treeland/foreign-toplevel-manager-server-protocol.h
     ${CMAKE_BINARY_DIR}/src/treeland/foreign-toplevel-manager-server-protocol.c
+    ${CMAKE_BINARY_DIR}/src/treeland/ext-foreign-toplevel-list-server-protocol.h
+    ${CMAKE_BINARY_DIR}/src/treeland/ext-foreign-toplevel-list-server-protocol.c
 )
 
 set_source_files_properties("${CMAKE_SOURCE_DIR}/data/interfaces/org.freedesktop.login1.Manager.xml" PROPERTIES
@@ -72,6 +97,11 @@ qt_add_dbus_interface(DBUS_INTERFACE "${CMAKE_SOURCE_DIR}/data/interfaces/org.fr
 qt_add_dbus_interface(DBUS_INTERFACE "${CMAKE_SOURCE_DIR}/data/interfaces/org.freedesktop.login1.Session.xml"  "Login1Session")
 
 qt_add_executable(treeland)
+
+target_compile_definitions(treeland
+    PRIVATE
+    WLR_USE_UNSTABLE
+)
 
 set_source_files_properties(QmlHelper.qml
     PROPERTIES

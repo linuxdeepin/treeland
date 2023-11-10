@@ -1,4 +1,6 @@
 find_package(Qt6 REQUIRED COMPONENTS WaylandClient)
+find_package(PkgConfig)
+pkg_get_variable(WAYLAND_PROTOCOLS wayland-protocols pkgdatadir)
 
 qt_add_library(treeland-shell-manager OBJECT)
 
@@ -6,6 +8,7 @@ qt_generate_wayland_protocol_client_sources(treeland-shell-manager
     FILES
         ${CMAKE_CURRENT_SOURCE_DIR}/../data/ztreeland-foreign-toplevel-manager-v1.xml
         ${CMAKE_CURRENT_SOURCE_DIR}/../data/ztreeland-shortcut-manager-v1.xml
+        ${WAYLAND_PROTOCOLS}/staging/ext-foreign-toplevel-list/ext-foreign-toplevel-list-v1.xml
 )
 
 target_link_libraries(treeland-shell-manager

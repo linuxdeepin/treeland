@@ -39,7 +39,7 @@ void ForeignToplevelManager::create()
 
     m_impl->global = wl_global_create(
         server()->handle()->handle(), &ztreeland_foreign_toplevel_manager_v1_interface,
-        ZTREELAND_FOREIGN_TOPLEVEL_MANAGER_V1_TOPLEVEL, m_impl, foreign_toplevel_manager_bind);
+        ZTREELAND_FOREIGN_TOPLEVEL_MANAGER_V1_TOPLEVEL_SINCE_VERSION, m_impl, foreign_toplevel_manager_bind);
 
     wl_list_init(&m_impl->contexts);
 
