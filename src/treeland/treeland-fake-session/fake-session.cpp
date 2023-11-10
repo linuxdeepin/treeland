@@ -47,6 +47,11 @@ void ExtForeignToplevelHandle::ext_foreign_toplevel_handle_v1_closed()
     qDebug() << Q_FUNC_INFO << "toplevel closed!!!!!!";
 }
 
+void ExtForeignToplevelHandle::ext_foreign_toplevel_handle_v1_identifier(const QString &identifier)
+{
+    qDebug() << Q_FUNC_INFO << identifier;
+}
+
 ForeignToplevelManager::ForeignToplevelManager()
     : QWaylandClientExtensionTemplate<ForeignToplevelManager>(1)
 {
@@ -57,20 +62,37 @@ void ForeignToplevelManager::ztreeland_foreign_toplevel_manager_v1_toplevel(stru
 {
     ForeignToplevelHandle* handle = new ForeignToplevelHandle(toplevel);
     emit newForeignToplevelHandle(handle);
+
+    qDebug() << Q_FUNC_INFO << "toplevel create!!!!!!";
 }
 
 ForeignToplevelHandle::ForeignToplevelHandle(struct ::ztreeland_foreign_toplevel_handle_v1 *object)
     : QWaylandClientExtensionTemplate<ForeignToplevelHandle>(1)
     , QtWayland::ztreeland_foreign_toplevel_handle_v1(object)
+    , m_pid(-1)
 {}
 
-void ForeignToplevelHandle::ztreeland_foreign_toplevel_handle_v1_app_id_changed(const QString &app_id)
+void ForeignToplevelHandle::ztreeland_foreign_toplevel_handle_v1_app_id(const QString &app_id)
 {
 }
 
-void ForeignToplevelHandle::ztreeland_foreign_toplevel_handle_v1_pid_changed(uint32_t pid)
+void ForeignToplevelHandle::ztreeland_foreign_toplevel_handle_v1_pid(uint32_t pid)
 {
-    emit pidChanged(pid);
+    m_pid = pid;
+}
+
+void ForeignToplevelHandle::ztreeland_foreign_toplevel_handle_v1_done()
+{
+    emit pidChanged(m_pid);
+}
+void ForeignToplevelHandle::ztreeland_foreign_toplevel_handle_v1_closed()
+{
+
+}
+
+void ForeignToplevelHandle::ztreeland_foreign_toplevel_handle_v1_identifier(const QString &identifier)
+{
+    qDebug() << Q_FUNC_INFO << identifier;
 }
 
 ShortcutManager::ShortcutManager()

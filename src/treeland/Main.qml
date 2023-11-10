@@ -20,7 +20,7 @@ Item {
         }
 
         ForeignToplevelManager {
-            helper: TreeLandHelper
+            id: foreignToplevelManager
         }
 
         SocketManager {
@@ -78,12 +78,14 @@ Item {
                 let type = surface.isPopup ? "popup" : "toplevel"
                 QmlHelper.xdgSurfaceManager.add({type: type, waylandSurface: surface})
                 extForeignToplevelList.add(surface)
+                foreignToplevelManager.add(surface)
             }
             onSurfaceRemoved: function(surface) {
                 QmlHelper.xdgSurfaceManager.removeIf(function(prop) {
                     return prop.waylandSurface === surface
                 })
                 extForeignToplevelList.remove(surface)
+                foreignToplevelManager.remove(surface)
             }
         }
 
