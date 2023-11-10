@@ -37,6 +37,7 @@ Q_SIGNALS:
 protected:
     void ext_foreign_toplevel_handle_v1_app_id(const QString &app_id) override;
     void ext_foreign_toplevel_handle_v1_closed() override;
+    void ext_foreign_toplevel_handle_v1_identifier(const QString &identifier) override;
 };
 
 class ForeignToplevelHandle;
@@ -63,8 +64,14 @@ Q_SIGNALS:
     void pidChanged(uint32_t pid);
 
 protected:
-    void ztreeland_foreign_toplevel_handle_v1_app_id_changed(const QString &app_id) override;
-    void ztreeland_foreign_toplevel_handle_v1_pid_changed(uint32_t pid) override;
+    void ztreeland_foreign_toplevel_handle_v1_app_id(const QString &app_id) override;
+    void ztreeland_foreign_toplevel_handle_v1_pid(uint32_t pid) override;
+    void ztreeland_foreign_toplevel_handle_v1_done() override;
+    void ztreeland_foreign_toplevel_handle_v1_closed() override;
+    void ztreeland_foreign_toplevel_handle_v1_identifier(const QString &identifier) override;
+
+private:
+    uint32_t m_pid;
 };
 
 class ShortcutManager : public QWaylandClientExtensionTemplate<ShortcutManager>, public QtWayland::ztreeland_shortcut_manager_v1
