@@ -52,6 +52,9 @@ public:
     QSize minSize() const override;
     QSize maxSize() const override;
 
+    QString title() const;
+    QString appId() const;
+
 public Q_SLOTS:
     void setResizeing(bool resizeing) override;
     void setMaximize(bool on) override;
@@ -64,6 +67,8 @@ public Q_SLOTS:
 Q_SIGNALS:
     void parentXdgSurfaceChanged();
     void resizeingChanged();
+    void titleChanged();
+    void appIdChanged();
 };
 
 WAYLIB_SERVER_END_NAMESPACE

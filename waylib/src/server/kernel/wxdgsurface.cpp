@@ -160,6 +160,9 @@ void WXdgSurfacePrivate::connect()
         });
 
         QObject::connect(toplevel, &QWXdgToplevel::parentChanged, q, &WXdgSurface::parentXdgSurfaceChanged);
+
+        QObject::connect(toplevel, &QWXdgToplevel::titleChanged, q, &WXdgSurface::titleChanged);
+        QObject::connect(toplevel, &QWXdgToplevel::appidChanged, q, &WXdgSurface::appIdChanged);
     }
 }
 
@@ -276,6 +279,18 @@ QSize WXdgSurface::maxSize() const
                      toplevel->handle()->current.max_height);
 
     return QSize();
+}
+
+QString WXdgSurface::title() const
+{
+    W_DC(WXdgSurface);
+    return {d->handle->topToplevel()->handle()->title};
+}
+
+QString WXdgSurface::appId() const
+{
+    W_DC(WXdgSurface);
+    return {d->handle->topToplevel()->handle()->app_id};
 }
 
 WXdgSurface *WXdgSurface::parentXdgSurface() const
