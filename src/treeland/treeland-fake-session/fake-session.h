@@ -6,8 +6,38 @@
 #include <QGuiApplication>
 #include <QtWaylandClient/QWaylandClientExtension>
 
+#include "qwayland-ext-foreign-toplevel-list-v1.h"
 #include "qwayland-ztreeland-foreign-toplevel-manager-v1.h"
 #include "qwayland-ztreeland-shortcut-manager-v1.h"
+
+class ExtForeignToplevelHandle;
+class ExtForeignToplevelList : public QWaylandClientExtensionTemplate<ExtForeignToplevelList>, public QtWayland::ext_foreign_toplevel_list_v1
+{
+    Q_OBJECT
+public:
+    explicit ExtForeignToplevelList();
+
+Q_SIGNALS:
+    void newToplevel(ExtForeignToplevelHandle *handle);
+
+protected:
+    virtual void ext_foreign_toplevel_list_v1_toplevel(struct ::ext_foreign_toplevel_handle_v1 *toplevel);
+    virtual void ext_foreign_toplevel_list_v1_finished();
+};
+
+class ExtForeignToplevelHandle : public QWaylandClientExtensionTemplate<ExtForeignToplevelHandle>, public QtWayland::ext_foreign_toplevel_handle_v1
+{
+    Q_OBJECT
+public:
+    explicit ExtForeignToplevelHandle(struct ::ext_foreign_toplevel_handle_v1 *object);
+
+Q_SIGNALS:
+    void appIdChanged(const QString &appId);
+
+protected:
+    void ext_foreign_toplevel_handle_v1_app_id(const QString &app_id) override;
+    void ext_foreign_toplevel_handle_v1_closed() override;
+};
 
 class ForeignToplevelHandle;
 class ForeignToplevelManager : public QWaylandClientExtensionTemplate<ForeignToplevelManager>, public QtWayland::ztreeland_foreign_toplevel_manager_v1
@@ -65,4 +95,5 @@ public:
 private:
     ShortcutManager* m_shortcutManager;
     ForeignToplevelManager *m_toplevelManager;
+    ExtForeignToplevelList *m_extForeignToplevelList;
 };

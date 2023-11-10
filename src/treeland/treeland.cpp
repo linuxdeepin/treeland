@@ -42,18 +42,7 @@ TreeLand::TreeLand(TreeLandAppContext context)
     : QObject()
     , m_context(context)
 {
-    // connect(this, &TreeLand::requestAddNewSocket, m_socketProxy, &WaylandSocketProxy::newSocket);
-    // connect(m_socketProxy, &WaylandSocketProxy::socketCreated, this, [=] (std::shared_ptr<WSocket> socket) {
-    //     WServer *server = m_engine->rootObjects().first()->findChild<WServer*>();
-    //     Q_ASSERT(server);
-    //     Q_ASSERT(server->isRunning());
-    //     server->addSocket(socket.get());
-    // });
-    // connect(m_socketProxy, &WaylandSocketProxy::socketDeleted, this, [=] (std::shared_ptr<WSocket> socket) {
-    //     Q_UNUSED(socket);
-    // });
-
-    if (!context.isTestMode) {
+    if (!context.socket.isEmpty()) {
         qInstallMessageHandler(GreeterMessageHandler);
 
         new SignalHandler;
@@ -68,7 +57,7 @@ TreeLand::TreeLand(TreeLandAppContext context)
 
     setup();
 
-    if (!context.isTestMode) {
+    if (!context.socket.isEmpty()) {
 #if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
         TreeLandHelper *helper = m_engine->singletonInstance<TreeLandHelper*>("TreeLand", "TreeLandHelper");
 #else
@@ -99,6 +88,10 @@ void TreeLand::setup()
     m_engine->addImportPath(":/qt/qml");
     m_engine->load(QUrl(u"qrc:/qt/qml/TreeLand/Main.qml"_qs));
 #endif
+}
+
+bool TreeLand::testMode() const {
+    return m_context.socket.isEmpty();
 }
 
 void TreeLand::connected() {
@@ -205,17 +198,14 @@ int main (int argc, char *argv[]) {
     QGuiApplication app(argc, argv);
 
     QCommandLineOption socket({"s", "socket"}, "set ddm socket", "socket");
-    QCommandLineOption testMode({"t", "test-mode"}, "use test mode");
 
     QCommandLineParser parser;
     parser.addHelpOption();
     parser.addOption(socket);
-    parser.addOption(testMode);
 
     parser.process(app);
 
     TreeLand::TreeLand treeland({
-        parser.isSet(testMode),
         parser.value(socket),
     });
 

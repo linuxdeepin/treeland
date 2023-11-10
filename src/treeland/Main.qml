@@ -36,6 +36,10 @@ Item {
             }
         }
 
+        ExtForeignToplevelList {
+            id: extForeignToplevelList
+        }
+
         WaylandBackend {
             id: backend
 
@@ -73,11 +77,13 @@ Item {
             onSurfaceAdded: function(surface) {
                 let type = surface.isPopup ? "popup" : "toplevel"
                 QmlHelper.xdgSurfaceManager.add({type: type, waylandSurface: surface})
+                extForeignToplevelList.add(surface)
             }
             onSurfaceRemoved: function(surface) {
                 QmlHelper.xdgSurfaceManager.removeIf(function(prop) {
                     return prop.waylandSurface === surface
                 })
+                extForeignToplevelList.remove(surface)
             }
         }
 
@@ -126,6 +132,7 @@ Item {
         }
 
         XWayland {
+            id: xwayland
             compositor: compositor.compositor
             seat: seat0.seat
             lazy: false

@@ -14,7 +14,6 @@ class QQmlApplicationEngine;
 namespace TreeLand {
 
 struct TreeLandAppContext {
-    bool isTestMode;
     QString socket;
 };
 
@@ -30,9 +29,7 @@ public:
         return m_socketProxy;
     }
 
-    inline bool testMode() const {
-        return m_context.isTestMode;
-    }
+    bool testMode() const;
 
 Q_SIGNALS:
     void socketDisconnected();
