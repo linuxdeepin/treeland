@@ -116,11 +116,11 @@
         "qwlroots": "qwlroots"
       },
       "locked": {
-        "lastModified": 1699435763,
-        "narHash": "sha256-iFhMrTW8FJNVZ15okwO59/NGIDgtzxDVQvM4RYi+/0Q=",
+        "lastModified": 1699613819,
+        "narHash": "sha256-3XZH2TixavGKChWDdhCFy7cAkLu+zuQfIjTXyvYZGyM=",
         "owner": "vioken",
         "repo": "waylib",
-        "rev": "1370efef0983dc2fd20d5a4fe908e38dc521e20b",
+        "rev": "b5d0c3b5915ffe038eee19faa0cfac1cbf6d971b",
         "type": "github"
       },
       "original": {
