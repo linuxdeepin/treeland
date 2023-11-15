@@ -228,8 +228,10 @@ void WInputMethodHelper::onNewVirtualKeyboardV1(WQuickVirtualKeyboardV1 *newVirt
 
 void WInputMethodHelper::onTextInputV3Enabled(WQuickTextInputV3 *enabledTextInputV3)
 {
-    if (activeTextInputV3())
-        return;
+    if (activeTextInputV3()) {
+        // Assume that previous active text input has been disabled
+        onTextInputV3Disabled(activeTextInputV3());
+    }
     setActiveTextInputV3(enabledTextInputV3);
     auto im = inputMethodV2();
     if (im) {
@@ -241,12 +243,13 @@ void WInputMethodHelper::onTextInputV3Enabled(WQuickTextInputV3 *enabledTextInpu
 void WInputMethodHelper::onTextInputV3Disabled(WQuickTextInputV3 *disabledTextInputV3)
 {
     if (activeTextInputV3() == disabledTextInputV3) {
+        // Should we consider the case when the same text input is disabled and then enabled at the same time.
         setActiveTextInputV3(nullptr);
-    }
-    auto im = inputMethodV2();
-    if (im) {
-        im->sendDeactivate();
-        sendInputMethodV2State(disabledTextInputV3);
+        auto im = inputMethodV2();
+        if (im) {
+            im->sendDeactivate();
+            sendInputMethodV2State(disabledTextInputV3);
+        }
     }
 }
 
