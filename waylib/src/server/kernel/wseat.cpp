@@ -27,6 +27,7 @@
 extern "C" {
 #include <wlr/types/wlr_seat.h>
 #include <wlr/types/wlr_data_device.h>
+#include <wlr/types/wlr_primary_selection.h>
 #define static
 #include <wlr/types/wlr_cursor.h>
 #undef static
@@ -261,6 +262,7 @@ public:
     void on_destroy();
     void on_request_set_cursor(wlr_seat_pointer_request_set_cursor_event *event);
     void on_request_set_selection(wlr_seat_request_set_selection_event *event);
+    void on_request_set_primary_selection(wlr_seat_request_set_primary_selection_event *event);
 
     void on_keyboard_key(wlr_keyboard_key_event *event, WInputDevice *device);
     void on_keyboard_modifiers(WInputDevice *device);
@@ -361,6 +363,11 @@ void WSeatPrivate::on_request_set_selection(wlr_seat_request_set_selection_event
     handle()->setSelection(event->source, event->serial);
 }
 
+void WSeatPrivate::on_request_set_primary_selection(wlr_seat_request_set_primary_selection_event *event)
+{
+    wlr_seat_set_primary_selection(nativeHandle(), event->source, event->serial);
+}
+
 void WSeatPrivate::on_keyboard_key(wlr_keyboard_key_event *event, WInputDevice *device)
 {
     auto keyboard = qobject_cast<QWKeyboard*>(device->handle());
@@ -399,6 +406,9 @@ void WSeatPrivate::connect()
     });
     QObject::connect(handle(), &QWSeat::requestSetSelection, q_func(), [this] (wlr_seat_request_set_selection_event *event) {
         on_request_set_selection(event);
+    });
+    QObject::connect(handle(), &QWSeat::requestSetPrimarySelection, q_func(), [this] (wlr_seat_request_set_primary_selection_event *event) {
+        on_request_set_primary_selection(event);
     });
 }
 
@@ -447,6 +457,7 @@ void WSeatPrivate::attachInputDevice(WInputDevice *device)
         QObject::connect(keyboard, &QWKeyboard::modifiers, q_func(), [this, device] () {
             on_keyboard_modifiers(device);
         });
+        handle()->setKeyboard(keyboard);
     }
 }
 

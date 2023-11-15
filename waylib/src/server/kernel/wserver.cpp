@@ -15,6 +15,7 @@
 
 #include <qwdisplay.h>
 #include <qwdatadevice.h>
+#include <qwprimaryselectionv1.h>
 
 #include <QVector>
 #include <QThread>
@@ -97,6 +98,7 @@ void WServerPrivate::init()
 
     // free follow display
     Q_UNUSED(QWDataDeviceManager::create(display));
+    Q_UNUSED(QWPrimarySelectionV1DeviceManager::create(display));
 
     W_Q(WServer);
 
