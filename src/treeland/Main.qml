@@ -257,7 +257,7 @@ Item {
                             MenuItem {
                                 text: "Stack Layout"
                                 onClicked: {
-                                    decorationManager.mode = XdgDecorationManager.PreferClientSide
+                                    decorationManager.mode = XdgDecorationManager.DecidesByClient
                                     stackLayout.visible = true
                                 }
                             }

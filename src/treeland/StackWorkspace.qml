@@ -75,12 +75,26 @@ Item {
             obj.doDestroy()
         }
 
-        // TODO: Support server decoration
         XdgSurface {
             id: surface
 
             property var doDestroy: helper.doDestroy
             property var cancelMinimize: helper.cancelMinimize
+            property var surfaceDecorationMapper: surface.waylandSurface.XdgDecorationManager
+
+            topPadding: decoration.enable ? decoration.topMargin : 0
+            bottomPadding: decoration.enable ? decoration.bottomMargin : 0
+            leftPadding: decoration.enable ? decoration.leftMargin : 0
+            rightPadding: decoration.enable ? decoration.rightMargin : 0
+
+            WindowDecoration {
+                property var enable: surfaceDecorationMapper.enable
+
+                id: decoration
+                anchors.fill: parent
+                z: surface.contentItem.z - 1
+                visible: enable
+            }
 
             StackToplevelHelper {
                 id: helper
@@ -88,6 +102,7 @@ Item {
                 waylandSurface: surface.waylandSurface
                 dockModel: dock.model
                 creator: toplevelComponent
+                decoration: decoration
             }
         }
     }
