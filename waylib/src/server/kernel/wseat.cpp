@@ -13,6 +13,7 @@
 #include <qwkeyboard.h>
 #include <qwcursor.h>
 #include <qwcompositor.h>
+#include <qwdatadevice.h>
 
 #include <QQuickWindow>
 #include <QGuiApplication>
@@ -38,7 +39,8 @@ QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
 Q_LOGGING_CATEGORY(qLcWlrTouch, "waylib.server.seat", QtWarningMsg)
-Q_LOGGING_CATEGORY(qLcWlrTouchEvents, "waylib.server.seat.events", QtWarningMsg)
+Q_LOGGING_CATEGORY(qLcWlrTouchEvents, "waylib.server.seat.events.touch", QtWarningMsg)
+Q_LOGGING_CATEGORY(qLcWlrDragEvents, "waylib.server.seat.events.drag", QtWarningMsg)
 
 #if QT_CONFIG(wheelevent)
 class WSeatWheelEvent : public QWheelEvent {
@@ -263,6 +265,8 @@ public:
     void on_request_set_cursor(wlr_seat_pointer_request_set_cursor_event *event);
     void on_request_set_selection(wlr_seat_request_set_selection_event *event);
     void on_request_set_primary_selection(wlr_seat_request_set_primary_selection_event *event);
+    void on_request_start_drag(wlr_seat_request_start_drag_event *event);
+    void on_start_drag(wlr_drag *drag);
 
     void on_keyboard_key(wlr_keyboard_key_event *event, WInputDevice *device);
     void on_keyboard_modifiers(WInputDevice *device);
@@ -368,6 +372,35 @@ void WSeatPrivate::on_request_set_primary_selection(wlr_seat_request_set_primary
     wlr_seat_set_primary_selection(nativeHandle(), event->source, event->serial);
 }
 
+void WSeatPrivate::on_request_start_drag(wlr_seat_request_start_drag_event *event)
+{
+    if (handle()->validatePointerGrabSerial(QWSurface::from(event->origin), event->serial)) {
+        wlr_seat_start_pointer_drag(nativeHandle(), event->drag, event->serial);
+        return;
+    }
+
+    struct wlr_touch_point *point;
+    if (handle()->validateTouchGrabSerial(QWSurface::from(event->origin), event->serial, &point)) {
+        wlr_seat_start_touch_drag(nativeHandle(), event->drag, event->serial, point);
+        return;
+    }
+
+    qCWarning(qLcWlrDragEvents) << "Ignoring start_drag request: "
+                                << "could not validate pointer or touch serial " << event->serial;
+
+    wlr_data_source_destroy(event->drag->source);
+}
+
+void WSeatPrivate::on_start_drag(wlr_drag *drag)
+{
+    doClearPointerFocus();
+    if (drag->icon) {
+        auto *surface = QWSurface::from(drag->icon->surface);
+        auto *wsurface = new WSurface(surface, surface);
+        cursor->setDragSurface(wsurface);
+    }
+}
+
 void WSeatPrivate::on_keyboard_key(wlr_keyboard_key_event *event, WInputDevice *device)
 {
     auto keyboard = qobject_cast<QWKeyboard*>(device->handle());
@@ -409,6 +442,12 @@ void WSeatPrivate::connect()
     });
     QObject::connect(handle(), &QWSeat::requestSetPrimarySelection, q_func(), [this] (wlr_seat_request_set_primary_selection_event *event) {
         on_request_set_primary_selection(event);
+    });
+    QObject::connect(handle(), &QWSeat::requestStartDrag, q_func(), [this] (wlr_seat_request_start_drag_event *event) {
+        on_request_start_drag(event);
+    });
+    QObject::connect(handle(), &QWSeat::startDrag, q_func(), [this] (wlr_drag *drag) {
+        on_start_drag(drag);
     });
 }
 

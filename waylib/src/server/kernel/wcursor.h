@@ -5,6 +5,7 @@
 
 #include <wglobal.h>
 #include <woutputlayout.h>
+#include <wsurface.h>
 
 #include <qwglobal.h>
 #include <QPointF>
@@ -108,6 +109,8 @@ public:
     void setCursor(const QCursor &cursor);
     void setSurface(QW_NAMESPACE::QWSurface *surface, const QPoint &hotspot);
     void setCursorShape(CursorShape shape);
+    void setDragSurface(WSurface *surface);
+    WSurface* dragSurface() const;
 
     void setLayout(WOutputLayout *layout);
     WOutputLayout *layout() const;
@@ -123,6 +126,7 @@ public:
 
 Q_SIGNALS:
     void positionChanged();
+    void dragSurfaceChanged();
 
 protected:
     WCursor(WCursorPrivate &dd, QObject *parent = nullptr);

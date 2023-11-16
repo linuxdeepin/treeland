@@ -672,6 +672,30 @@ void WCursor::setCursorShape(CursorShape shape)
     d->updateCursorImage();
 }
 
+void WCursor::setDragSurface(WSurface *surface)
+{
+    W_D(WCursor);
+    if (d->dragSurface == surface)
+        return;
+    if (d->dragSurface)
+        d->dragSurface->disconnect(this);
+
+    d->dragSurface = surface;
+    if (surface) {
+        connect(surface, &WSurface::destroyed, this, [this,d]() {
+            d->dragSurface = nullptr;
+            Q_EMIT dragSurfaceChanged();
+        });
+    }
+    Q_EMIT dragSurfaceChanged();
+}
+
+WSurface *WCursor::dragSurface() const
+{
+    W_DC(WCursor);
+    return d->dragSurface;
+}
+
 bool WCursor::attachInputDevice(WInputDevice *device)
 {
     if (device->type() != WInputDevice::Type::Pointer

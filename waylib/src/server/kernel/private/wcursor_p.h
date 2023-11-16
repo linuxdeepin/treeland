@@ -72,6 +72,8 @@ public:
     QPointer<QW_NAMESPACE::QWSurface> surfaceOfCursor;
     QPoint surfaceCursorHotspot;
     WCursor::CursorShape shape = WCursor::Invalid;
+    // for drag
+    WSurface* dragSurface = nullptr;
 };
 
 WAYLIB_SERVER_END_NAMESPACE

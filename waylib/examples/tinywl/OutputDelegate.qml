@@ -8,6 +8,7 @@ import Waylib.Server
 OutputItem {
     required property WaylandOutput waylandOutput
     property OutputViewport onscreenViewport: outputViewport
+    property Cursor waylandCursor
 
     output: waylandOutput
     devicePixelRatio: waylandOutput.scale
@@ -18,6 +19,7 @@ OutputItem {
         visible: cursor.visible && !cursor.isHardwareCursor
 
         Image {
+            id: cursorImage
             source: cursor.imageSource
             x: -cursor.hotspot.x
             y: -cursor.hotspot.y
@@ -25,6 +27,14 @@ OutputItem {
             width: cursor.size.width
             height: cursor.size.height
             sourceClipRect: cursor.sourceRect
+        }
+
+        SurfaceItem {
+            id: dragIcon
+            z: cursorImage.z - 1
+            flags: SurfaceItem.DontCacheLastBuffer
+            visible: waylandCursor.dragSurface !== null
+            surface: waylandCursor.dragSurface
         }
     }
 
