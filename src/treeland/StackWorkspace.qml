@@ -11,7 +11,10 @@ Item {
 
     function getSurfaceItemFromWaylandSurface(surface) {
         let finder = function(props) {
-            if (props.waylandSurface === surface)
+            if (!props.waylandSurface)
+                return false
+            // surface is WToplevelSurface or WSurfce
+            if (props.waylandSurface === surface || props.waylandSurface.surface === surface)
                 return true
         }
 
@@ -102,19 +105,20 @@ Item {
             property string type
 
             property alias xdgSurface: surface
-            property var xdgParent: root.getSurfaceItemFromWaylandSurface(waylandSurface.parentXdgSurface)
+            property var parentItem: root.getSurfaceItemFromWaylandSurface(waylandSurface.parentSurface)
 
-            parent: xdgParent ? xdgParent.shell : root
-            visible: xdgParent.item.effectiveVisible && waylandSurface.surface.mapped && waylandSurface.WaylandSocket.rootSocket.enabled
+            parent: parentItem ? parentItem.shell : root
+            visible: parentItem && parentItem.item.effectiveVisible
+                    && waylandSurface.surface.mapped && waylandSurface.WaylandSocket.rootSocket.enabled
             x: {
-                if (!xdgParent)
+                if (!parentItem)
                     return surface.implicitPosition.x
-                return surface.implicitPosition.x / xdgParent.item.surfaceSizeRatio + xdgParent.item.contentItem.x
+                return surface.implicitPosition.x / parentItem.item.surfaceSizeRatio + parentItem.item.contentItem.x
             }
             y: {
-                if (!xdgParent)
+                if (!parentItem)
                     return surface.implicitPosition.y
-                return surface.implicitPosition.y / xdgParent.item.surfaceSizeRatio + xdgParent.item.contentItem.y
+                return surface.implicitPosition.y / parentItem.item.surfaceSizeRatio + parentItem.item.contentItem.y
             }
             padding: 0
             background: null
