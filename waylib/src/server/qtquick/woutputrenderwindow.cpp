@@ -262,14 +262,6 @@ public:
         static_cast<QWlrootsRenderWindow*>(platformWindow)->setDevicePixelRatio(ratio);
     }
 
-    inline bool isComponentComplete() const {
-#if QT_VERSION >= QT_VERSION_CHECK(6, 6, 0)
-        return componentComplete;
-#else
-        return componentCompleted;
-#endif
-    }
-
     QSGRendererInterface::GraphicsApi graphicsApi() const;
     void init();
     void init(OutputHelper *helper);
@@ -290,6 +282,7 @@ public:
 
     Q_DECLARE_PUBLIC(WOutputRenderWindow)
 
+    bool componentCompleted = true;
     WWaylandCompositor *compositor = nullptr;
 
     QList<OutputHelper*> outputs;
@@ -843,11 +836,11 @@ void WOutputRenderWindow::setCompositor(WWaylandCompositor *newCompositor)
             qwoutput->initRender(d->compositor->allocator(), d->compositor->renderer());
     }
 
-    if (d->isComponentComplete() && d->compositor->isPolished()) {
+    if (d->componentCompleted && d->compositor->isPolished()) {
         d->init();
     } else {
         connect(newCompositor, &WWaylandCompositor::afterPolish, this, [d] {
-            if (d->isComponentComplete())
+            if (d->componentCompleted)
                 d->init();
         });
     }
@@ -876,21 +869,13 @@ void WOutputRenderWindow::update()
 void WOutputRenderWindow::classBegin()
 {
     Q_D(WOutputRenderWindow);
-#if QT_VERSION >= QT_VERSION_CHECK(6, 6, 0)
-    d->componentComplete = false;
-#else
     d->componentCompleted = false;
-#endif
 }
 
 void WOutputRenderWindow::componentComplete()
 {
     Q_D(WOutputRenderWindow);
-#if QT_VERSION >= QT_VERSION_CHECK(6, 6, 0)
-    d->componentComplete = true;
-#else
     d->componentCompleted = true;
-#endif
 
     if (d->compositor && d->compositor->isPolished())
         d->init();
