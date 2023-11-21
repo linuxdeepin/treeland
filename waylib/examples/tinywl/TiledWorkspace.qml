@@ -21,8 +21,8 @@ Item {
         let toplevel = QmlHelper.xdgSurfaceManager.getIf(toplevelComponent, finder)
         if (toplevel) {
             return {
-                parent: toplevel,
-                xdgSurface: toplevel
+                shell: toplevel,
+                item: toplevel
             }
         }
 
@@ -37,8 +37,8 @@ Item {
         let popup = QmlHelper.xdgSurfaceManager.getIf(popupComponent, finder)
         if (popup) {
             return {
-                parent: popup,
-                xdgSurface: popup.xdgSurface
+                shell: popup,
+                item: popup.xdgSurface
             }
         }
 
