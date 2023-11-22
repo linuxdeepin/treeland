@@ -95,6 +95,7 @@ set(QTQUICK_SOURCES
     qtquick/private/wqmlhelper.cpp
     qtquick/private/wquickxdgdecorationmanager.cpp
     qtquick/private/wquickcursorshape.cpp
+    qtquick/private/wquickgammacontrol.cpp
     qtquick/private/wquicklayershell.cpp
     qtquick/private/wquicktextinputv1.cpp
     qtquick/private/wquicktextinputv3.cpp
@@ -183,6 +184,7 @@ set(PRIVATE_HEADERS
     qtquick/private/wqmlhelper_p.h
     qtquick/private/wquickxdgdecorationmanager_p.h
     qtquick/private/wquickcursorshape_p.h
+    qtquick/private/wquickgammacontrol_p.h
     qtquick/private/wquicktextureproxy_p.h
     qtquick/private/wquicklayershell_p.h
     qtquick/private/wquicktextinputv1_p.h

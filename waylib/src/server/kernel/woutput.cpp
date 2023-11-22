@@ -6,6 +6,7 @@
 #include "wcursor.h"
 #include "wseat.h"
 #include "wtools.h"
+#include "wquickgammacontrol_p.h"
 #include "platformplugin/qwlrootscreen.h"
 
 #include <qwoutput.h>
@@ -22,13 +23,15 @@ extern "C" {
 #include <wlr/types/wlr_output_layout.h>
 }
 
-#include <QDebug>
+#include <QLoggingCategory>
 #include <QCoreApplication>
 #include <QQuickWindow>
 #include <QCursor>
 
 QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
+
+Q_LOGGING_CATEGORY(qLcOutput, "waylib.server.output", QtWarningMsg)
 
 class Q_DECL_HIDDEN WOutputPrivate : public WObjectPrivate
 {
@@ -286,6 +289,31 @@ void WOutput::removeCursor(WCursor *cursor)
 QList<WCursor *> WOutput::cursorList() const
 {
     return static_cast<QWlrootsCursor*>(screen()->cursor())->cursors;
+}
+
+bool WOutput::setGammaLut(size_t ramp_size, uint16_t* r, uint16_t* g, uint16_t* b)
+{
+    W_D(WOutput);
+    wlr_output_state state;
+
+    wlr_output_state_init(&state);
+    if (!wlr_output_state_set_gamma_lut(&state, ramp_size, r, g, b)) {
+        wlr_output_state_finish(&state);
+        qCWarning(qLcOutput) << "Gamma lut can't set to state!";
+        return false;
+    }
+
+    if (!handle()->testState(&state)) {
+        wlr_output_state_finish(&state);
+        qCWarning(qLcOutput) << "The gamma lut state can't accepted by the backend!";
+        return false;
+    }
+
+    bool ok = handle()->commitState(&state);
+    wlr_output_state_finish(&state);
+    if (!ok)
+        qCWarning(qLcOutput) << "Output commitState failed!";
+    return ok;
 }
 
 bool WOutput::forceSoftwareCursor() const

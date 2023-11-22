@@ -84,6 +84,14 @@ Item {
             keyboardFocus: Helper.getFocusSurfaceFrom(renderWindow.activeFocusItem)
         }
 
+        GammaControlManager {
+            onGammaChanged: function(output, gamma_control, ramp_size, r, g, b) {
+                if (!output.setGammaLut(ramp_size, r, g, b)) {
+                    sendFailedAndDestroy(gamma_control);
+                };
+            }
+        }
+
         CursorShapeManager { }
 
         WaylandSocket {
