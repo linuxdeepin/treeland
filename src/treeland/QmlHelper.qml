@@ -12,6 +12,7 @@ Item {
     property DynamicCreator xdgSurfaceManager: xdgSurfaceManager
     property DynamicCreator layerSurfaceManager: layerSurfaceManager
     property DynamicCreator xwaylandSurfaceManager: xwaylandSurfaceManager
+    property DynamicCreator inputPopupSurfaceManager: inputPopupSurfaceManager
 
     function printStructureObject(obj) {
         var json = ""
@@ -78,6 +79,19 @@ Item {
 
         onObjectRemoved: function(delegate, obj, properties) {
             console.info(`X11 surface item ${obj} is removed, it's create from delegate ${delegate} with initial properties:`,
+                         `\n${printStructureObject(properties)}`)
+        }
+    }
+
+    DynamicCreator {
+        id: inputPopupSurfaceManager
+        onObjectAdded: function (delegate, obj, properties) {
+            console.info(`New input popup surface item ${obj} from delegate ${delegate} with initial properties:`,
+                         `\n${printStructureObject(properties)}`)
+        }
+
+        onObjectRemoved: function (delegate, obj, properties) {
+            console.info(`Input popup surface item ${obj} is removed, it's create from delegate ${delegate} with initial properties:`,
                          `\n${printStructureObject(properties)}`)
         }
     }
