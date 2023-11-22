@@ -139,6 +139,22 @@ Item {
             id: decorationManager
         }
 
+        InputMethodManagerV2 {
+            id: inputMethodManagerV2
+        }
+
+        TextInputManagerV1 {
+            id: textInputManagerV1
+        }
+
+        TextInputManagerV3 {
+            id: textInputManagerV3
+        }
+
+        VirtualKeyboardManagerV1 {
+            id: virtualKeyboardManagerV1
+        }
+
         XWayland {
             id: xwayland
             compositor: compositor.compositor
@@ -155,6 +171,23 @@ Item {
                     return prop.waylandSurface === surface
                 })
             }
+        }
+    }
+
+    InputMethodHelper {
+        id: inputMethodHelperSeat0
+        seat: seat0
+        textInputManagerV1: textInputManagerV1
+        textInputManagerV3: textInputManagerV3
+        inputMethodManagerV2: inputMethodManagerV2
+        virtualKeyboardManagerV1: virtualKeyboardManagerV1
+        onInputPopupSurfaceV2Added: function (surface) {
+            QmlHelper.inputPopupSurfaceManager.add({ waylandSurface: surface })
+        }
+        onInputPopupSurfaceV2Removed: function (surface) {
+            QmlHelper.inputPopupSurfaceManager.removeIf(function (prop) {
+                return prop.waylandSurface === surface
+            })
         }
     }
 
@@ -276,11 +309,13 @@ Item {
                     id: stackLayout
                     visible: true
                     anchors.fill: parent
+                    activeFocusItem: renderWindow.activeFocusItem
                 }
 
                 TiledWorkspace {
                     visible: !stackLayout.visible
                     anchors.fill: parent
+                    activeFocusItem: renderWindow.activeFocusItem
                 }
             }
         }
