@@ -85,6 +85,8 @@ public:
     WQuickTextInputV3 *activeTextInputV3;
     WQuickInputMethodV2 *inputMethodV2;
     QList<WInputPopupV2 *> popupSurfaces;
+    QRect cursorRect;
+    QQuickItem *activeFocusItem;
 
     wlr_seat_keyboard_grab keyboardGrab;
     wlr_keyboard_grab_interface grabInterface;
@@ -223,6 +225,34 @@ void WInputMethodHelper::setInputMethodV2(WQuickInputMethodV2 *newInputMethodV2)
     }
 }
 
+QRect WInputMethodHelper::cursorRect() const
+{
+    return d_func()->cursorRect;
+}
+
+void WInputMethodHelper::setCursorRect(const QRect &rect)
+{
+    W_D(WInputMethodHelper);
+    if (d->cursorRect == rect)
+        return;
+    d->cursorRect = rect;
+    Q_EMIT cursorRectChanged();
+}
+
+QQuickItem *WInputMethodHelper::activeFocusItem() const
+{
+    return d_func()->activeFocusItem;
+}
+
+void WInputMethodHelper::setActiveFocusItem(QQuickItem *item)
+{
+    W_D(WInputMethodHelper);
+    if (d->activeFocusItem == item)
+        return;
+    d->activeFocusItem = item;
+    Q_EMIT this->activeFocusItemChanged();
+}
+
 void WInputMethodHelper::onNewInputMethodV2(WQuickInputMethodV2 *newInputMethod)
 {
     if (wseat()->name() != newInputMethod->seat()->name())
@@ -281,6 +311,7 @@ void WInputMethodHelper::onNewTextInputV1(WQuickTextInputV1 *newTextInputV1)
             return;
         im->sendContentType(newTextInputV1->contentHint(), newTextInputV1->contentPurpose());
         im->sendSurroundingText(newTextInputV1->surroundingText(), newTextInputV1->surroundingTextCursor(), newTextInputV1->surroundingTextAnchor());
+        setCursorRect(newTextInputV1->cursorRectangle());
         updateAllPopupSurfaces(newTextInputV1->cursorRectangle());
         im->sendDone();
     });
@@ -420,6 +451,7 @@ void WInputMethodHelper::sendInputMethodV2State(WQuickTextInputV3 *textInput)
         im->sendContentType(current->contentHint(), current->contentPurpose());
     }
     if (current->features() & WTextInputV3State::CursorRect) {
+        setCursorRect(current->cursorRect());
         updateAllPopupSurfaces(current->cursorRect());
     }
     im->sendDone();
@@ -499,7 +531,6 @@ void WInputMethodHelper::updateAllPopupSurfaces(QRect cursorRect)
 void WInputMethodHelper::updatePopupSurface(WInputPopupV2 *popup, QRect cursorRect)
 {
     popup->handle()->sendTextInputRectangle(cursorRect);
-    popup->move(cursorRect.x() + cursorRect.width(), cursorRect.y() + cursorRect.height() + InputPopupTopMargin);
 }
 
 void WInputMethodHelper::sendKeyboardFocus()

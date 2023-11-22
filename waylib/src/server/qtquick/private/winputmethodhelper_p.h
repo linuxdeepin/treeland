@@ -7,6 +7,7 @@
 
 #include <QObject>
 #include <QQmlEngine>
+#include <QQuickItem>
 
 Q_MOC_INCLUDE("wquickseat_p.h")
 Q_MOC_INCLUDE("wquicktextinputv1_p.h")
@@ -46,6 +47,9 @@ class WInputMethodHelper : public QObject, public WObject
     Q_PROPERTY(WQuickTextInputV3 *activeTextInputV3 READ activeTextInputV3 WRITE setActiveTextInputV3 NOTIFY activeTextInputV3Changed FINAL)
     Q_PROPERTY(WQuickInputMethodV2 *inputMethodV2 READ inputMethodV2 WRITE setInputMethodV2 NOTIFY inputMethodV2Changed FINAL)
 
+    Q_PROPERTY(QRect cursorRect READ cursorRect NOTIFY cursorRectChanged FINAL)
+    Q_PROPERTY(QQuickItem* activeFocusItem READ activeFocusItem WRITE setActiveFocusItem NOTIFY activeFocusItemChanged FINAL REQUIRED)
+
 public:
     explicit WInputMethodHelper(QObject *parent = nullptr);
 
@@ -67,6 +71,10 @@ public:
     void setActiveTextInputV3(WQuickTextInputV3 *newActiveTextInputV3);
     WQuickInputMethodV2 *inputMethodV2() const;
     void setInputMethodV2(WQuickInputMethodV2 *newInputMethodV2);
+    QRect cursorRect() const;
+    void setCursorRect(const QRect &rect);
+    QQuickItem *activeFocusItem() const;
+    void setActiveFocusItem(QQuickItem *item);
 
 Q_SIGNALS:
     void activeTextInputV1Changed(WQuickTextInputV1 *newActiveTextInputV1);
@@ -74,6 +82,9 @@ Q_SIGNALS:
     void inputMethodV2Changed(WQuickInputMethodV2 *newInputMethod);
     void inputPopupSurfaceV2Added(WInputPopupV2 *surfaceItem);
     void inputPopupSurfaceV2Removed(WInputPopupV2 *surfaceItem);
+
+    void cursorRectChanged();
+    void activeFocusItemChanged();
 
 private:
     void onNewInputMethodV2(WQuickInputMethodV2 *newInputMethod);

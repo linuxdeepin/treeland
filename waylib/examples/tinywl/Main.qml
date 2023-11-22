@@ -143,8 +143,9 @@ Item {
         textInputManagerV3: textInputManagerV3
         inputMethodManagerV2: inputMethodManagerV2
         virtualKeyboardManagerV1: virtualKeyboardManagerV1
+        activeFocusItem: renderWindow.activeFocusItem.parent
         onInputPopupSurfaceV2Added: function (surface) {
-            QmlHelper.inputPopupSurfaceManager.add({ waylandSurface: surface })
+            QmlHelper.inputPopupSurfaceManager.add({ popupSurface: surface, inputMethodHelper: inputMethodHelperSeat0 })
         }
         onInputPopupSurfaceV2Removed: function (surface) {
             QmlHelper.inputPopupSurfaceManager.removeIf(function (prop) {
@@ -206,13 +207,11 @@ Item {
                 StackWorkspace {
                     visible: topbar.currentIndex === 0
                     anchors.fill: parent
-                    activeFocusItem: renderWindow.activeFocusItem
                 }
 
                 TiledWorkspace {
                     visible: topbar.currentIndex === 1
                     anchors.fill: parent
-                    activeFocusItem: renderWindow.activeFocusItem
                 }
             }
         }

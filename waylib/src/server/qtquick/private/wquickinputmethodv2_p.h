@@ -34,6 +34,7 @@ class WQuickInputMethodV2;
 class WQuickInputMethodManagerV2Private;
 class WQuickTextInputV3;
 class WSurface;
+class WInputPopupSurfacePrivate;
 
 class WQuickInputMethodManagerV2 : public WQuickWaylandServerInterface, public WObject
 {
@@ -51,64 +52,6 @@ private:
     void create() override;
 };
 
-class WQuickInputPopupSurfaceV2;
-class WInputPopupSurfacePrivate;
-class WInputPopupV2 : public WToplevelSurface, public WObject
-{
-    Q_OBJECT
-    W_DECLARE_PRIVATE(WInputPopupSurface)
-    QML_NAMED_ELEMENT(WaylandInputPopupSurface)
-    QML_UNCREATABLE("Only created in C++")
-    Q_PROPERTY(QPointF pos READ pos WRITE move NOTIFY posChanged)
-
-public:
-    WInputPopupV2(WQuickInputPopupSurfaceV2 *surface, WSurface *parentSurface, QObject *parent = nullptr);
-    WSurface *surface() const override;
-    WQuickInputPopupSurfaceV2 *handle() const;
-    QW_NAMESPACE::QWInputPopupSurfaceV2 *qwHandle() const;
-    QRect getContentGeometry() const override;
-    QSize minSize() const override;
-    QSize maxSize() const override;
-    bool doesNotAcceptFocus() const override;
-    bool isActivated() const override;
-    QPointF pos() const;
-    void move(QPointF pos);
-    inline void move(qreal x, qreal y) { move({x, y}); }
-    WSurface *parentSurface() const override;
-
-Q_SIGNALS:
-    void posChanged();
-
-public Q_SLOTS:
-    bool checkNewSize(const QSize &size) override;
-};
-
-class WInputPopupV2Item : public WSurfaceItem
-{
-    Q_OBJECT
-    Q_PROPERTY(WInputPopupV2* surface READ surface WRITE setSurface NOTIFY surfaceChanged)
-    Q_PROPERTY(QPointF implicitPosition READ implicitPosition NOTIFY implicitPositionChanged)
-    Q_PROPERTY(QSize minimumSize READ minimumSize CONSTANT FINAL)
-    Q_PROPERTY(QSize maximumSize READ maximumSize CONSTANT FINAL)
-    QML_NAMED_ELEMENT(InputPopupSurfaceItem)
-
-public:
-    explicit WInputPopupV2Item(QQuickItem *parent = nullptr);
-
-    WInputPopupV2 *surface() const;
-    void setSurface(WInputPopupV2 *surface);
-    QPointF implicitPosition() const;
-    QSize minimumSize() const;
-    QSize maximumSize() const;
-
-Q_SIGNALS:
-    void surfaceChanged();
-    void implicitPositionChanged();
-
-private:
-    WInputPopupV2 *m_inputPopupSurface;
-};
-
 class WQuickInputPopupSurfaceV2 : public QObject, public WObject
 {
     Q_OBJECT
@@ -124,6 +67,46 @@ public:
 
 public Q_SLOTS:
     void sendTextInputRectangle(const QRect &sbox);
+};
+
+class WInputPopupV2 : public WToplevelSurface, public WObject
+{
+    Q_OBJECT
+    W_DECLARE_PRIVATE(WInputPopupSurface)
+    QML_NAMED_ELEMENT(WaylandInputPopupSurface)
+    QML_UNCREATABLE("Only created in C++")
+
+public:
+    WInputPopupV2(WQuickInputPopupSurfaceV2 *surface, WSurface *parentSurface, QObject *parent = nullptr);
+    WSurface *surface() const override;
+    WQuickInputPopupSurfaceV2 *handle() const;
+    QW_NAMESPACE::QWInputPopupSurfaceV2 *qwHandle() const;
+    QRect getContentGeometry() const override;
+    bool doesNotAcceptFocus() const override;
+    bool isActivated() const override;
+    WSurface *parentSurface() const override;
+
+public Q_SLOTS:
+    bool checkNewSize(const QSize &size) override;
+};
+
+class WInputPopupV2Item : public WSurfaceItem
+{
+    Q_OBJECT
+    Q_PROPERTY(WInputPopupV2* surface READ surface WRITE setSurface NOTIFY surfaceChanged REQUIRED)
+    QML_NAMED_ELEMENT(InputPopupSurfaceItem)
+
+public:
+    explicit WInputPopupV2Item(QQuickItem *parent = nullptr);
+
+    WInputPopupV2 *surface() const;
+    void setSurface(WInputPopupV2 *surface);
+
+Q_SIGNALS:
+    void surfaceChanged();
+
+private:
+    WInputPopupV2 *m_inputPopupSurface;
 };
 
 class WQuickInputMethodKeyboardGrabV2 : public QObject, public WObject

@@ -396,7 +396,6 @@ public:
     }
 
     WQuickInputPopupSurfaceV2 *handle;
-    QPointF pos;
     WSurface *const parent;
 };
 
@@ -436,33 +435,9 @@ QRect WInputPopupV2::getContentGeometry() const
     return {0, 0, d_func()->size().width(), d_func()->size().height()};
 }
 
-QPointF WInputPopupV2::pos() const
-{
-    return d_func()->pos;
-}
-
-void WInputPopupV2::move(QPointF pos)
-{
-    W_D(WInputPopupSurface);
-    if (d->pos == pos)
-        return;
-    d->pos = pos;
-    Q_EMIT this->posChanged();
-}
-
 WSurface *WInputPopupV2::parentSurface() const
 {
     return d_func()->parent;
-}
-
-QSize WInputPopupV2::minSize() const
-{
-    return d_func()->size();
-}
-
-QSize WInputPopupV2::maxSize() const
-{
-    return d_func()->size();
 }
 
 bool WInputPopupV2::checkNewSize(const QSize &size)
@@ -473,9 +448,7 @@ bool WInputPopupV2::checkNewSize(const QSize &size)
 WInputPopupV2Item::WInputPopupV2Item(QQuickItem *parent)
     : WSurfaceItem(parent)
     , m_inputPopupSurface(nullptr)
-{
-    connect(m_inputPopupSurface, &WInputPopupV2::posChanged, this, &WInputPopupV2Item::implicitPositionChanged);
-}
+{ }
 
 WInputPopupV2 *WInputPopupV2Item::surface() const
 {
@@ -489,21 +462,6 @@ void WInputPopupV2Item::setSurface(WInputPopupV2 *surface)
     m_inputPopupSurface = surface;
     WSurfaceItem::setSurface(surface ? surface->surface() : nullptr);
     Q_EMIT this->surfaceChanged();
-}
-
-QPointF WInputPopupV2Item::implicitPosition() const
-{
-    return m_inputPopupSurface->pos();
-}
-
-QSize WInputPopupV2Item::minimumSize() const
-{
-    return m_inputPopupSurface->minSize();
-}
-
-QSize WInputPopupV2Item::maximumSize() const
-{
-    return m_inputPopupSurface->maxSize();
 }
 
 WAYLIB_SERVER_END_NAMESPACE

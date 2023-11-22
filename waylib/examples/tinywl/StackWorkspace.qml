@@ -8,7 +8,7 @@ import Tinywl
 
 Item {
     id: root
-    required property Item activeFocusItem
+
     function getSurfaceItemFromWaylandSurface(surface) {
         let finder = function(props) {
             if (!props.waylandSurface)
@@ -245,9 +245,12 @@ Item {
         creator: QmlHelper.inputPopupSurfaceManager
 
         InputPopupSurface {
+            required property InputMethodHelper inputMethodHelper
+            required property WaylandInputPopupSurface popupSurface
+
             id: inputPopupSurface
-            waylandSurface: waylandSurface
-            parent: root.activeFocusItem
+            surface: popupSurface
+            helper: inputMethodHelper
         }
     }
 }
