@@ -5,22 +5,37 @@ import QtQuick
 import Waylib.Server
 
 InputPopupSurfaceItem {
-    required property WaylandInputPopupSurface waylandSurface
+    required property InputMethodHelper helper
 
-    surface: waylandSurface
+    property var cursorPoint: helper.activeFocusItem.mapToItem(parent, Qt.point(helper.cursorRect.x, helper.cursorRect.y))
+    property real cursorWidth: helper.cursorRect.width
+    property real cursorHeight: helper.cursorRect.height
 
-    x: waylandSurface.pos.x
-    y: waylandSurface.pos.y
+    x: {
+        var x = cursorPoint.x + cursorWidth
+        if (x + width > parent.width) {
+            x = parent.width - width
+        }
+        return x
+    }
+
+    y: {
+        var y = cursorPoint.y + cursorHeight
+        if (y + height > parent.height) {
+            y = min(cursorPoint.y - height, parent.height - height)
+        }
+        return y
+    }
 
     OutputLayoutItem {
         anchors.fill: parent
         layout: QmlHelper.layout
 
         onEnterOutput: function(output) {
-            waylandSurface.surface.enterOutput(output);
+            surface.surface.enterOutput(output);
         }
         onLeaveOutput: function(output) {
-            waylandSurface.surface.leaveOutput(output);
+            surface.surface.leaveOutput(output);
         }
     }
 }
