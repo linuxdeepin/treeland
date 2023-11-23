@@ -21,7 +21,7 @@
 
           waylib = pkgs.qt6Packages.callPackage ./nix {
             nix-filter = nix-filter.lib;
-            qwlroots = qwlroots.packages.${system}.qwlroots-qt6-wlroots-git;
+            qwlroots = qwlroots.packages.${system}.qwlroots-qt6;
 
             # for test
             inherit pkgs waylib;
