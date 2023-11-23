@@ -101,7 +101,7 @@ set(QTQUICK_SOURCES
     qtquick/private/wquickinputmethodv2.cpp
     qtquick/private/wquickvirtualkeyboardv1.cpp
     qtquick/private/winputmethodhelper.cpp
-    ${CMAKE_BINARY_DIR}/src/server/text-input-unstable-v1-protocol.c
+    ${CMAKE_CURRENT_BINARY_DIR}/text-input-unstable-v1-protocol.c
 )
 
 set(UTILS_SOURCES
@@ -190,7 +190,7 @@ set(PRIVATE_HEADERS
     qtquick/private/wquickinputmethodv2_p.h
     qtquick/private/wquickvirtualkeyboardv1_p.h
     qtquick/private/winputmethodhelper_p.h
-    ${CMAKE_BINARY_DIR}/src/server/text-input-unstable-v1-protocol.h
+    ${CMAKE_CURRENT_BINARY_DIR}/text-input-unstable-v1-protocol.h
 )
 
 if(NOT DISABLE_XWAYLAND)
