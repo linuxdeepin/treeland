@@ -206,9 +206,12 @@ Item {
         creator: QmlHelper.inputPopupSurfaceManager
 
         InputPopupSurface {
+            required property InputMethodHelper inputMethodHelper
+            required property WaylandInputPopupSurface popupSurface
+
             id: inputPopupSurface
-            waylandSurface: waylandSurface
-            parent: root.activeFocusItem
+            surface: popupSurface
+            helper: inputMethodHelper
         }
     }
 }
