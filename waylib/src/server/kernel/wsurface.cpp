@@ -345,6 +345,8 @@ void WSurface::enterOutput(WOutput *output)
     wl_list_for_each(subsurface, &surface->current.subsurfaces_above, current.link) {
         d->ensureSubsurface(subsurface)->enterOutput(output);
     }
+
+    Q_EMIT outputEntered(output);
 }
 
 void WSurface::leaveOutput(WOutput *output)
@@ -372,6 +374,8 @@ void WSurface::leaveOutput(WOutput *output)
     wl_list_for_each(subsurface, &surface->current.subsurfaces_above, current.link) {
         d->ensureSubsurface(subsurface)->leaveOutput(output);
     }
+
+    Q_EMIT outputLeft(output);
 }
 
 QVector<WOutput *> WSurface::outputs() const

@@ -102,6 +102,7 @@ set(QTQUICK_SOURCES
     qtquick/private/wquickinputmethodv2.cpp
     qtquick/private/wquickvirtualkeyboardv1.cpp
     qtquick/private/winputmethodhelper.cpp
+    qtquick/private/wquickforeigntoplevelmanagerv1.cpp
     ${CMAKE_CURRENT_BINARY_DIR}/text-input-unstable-v1-protocol.c
 )
 
@@ -192,6 +193,7 @@ set(PRIVATE_HEADERS
     qtquick/private/wquickinputmethodv2_p.h
     qtquick/private/wquickvirtualkeyboardv1_p.h
     qtquick/private/winputmethodhelper_p.h
+    qtquick/private/wquickforeigntoplevelmanagerv1_p.h
     ${CMAKE_CURRENT_BINARY_DIR}/text-input-unstable-v1-protocol.h
 )
 

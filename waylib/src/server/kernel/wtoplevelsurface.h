@@ -45,6 +45,9 @@ public:
     virtual bool isMinimized() const {
         return false;
     }
+    virtual bool isFullScreen() const {
+        return false;
+    }
 
     virtual QRect getContentGeometry() const = 0;
 

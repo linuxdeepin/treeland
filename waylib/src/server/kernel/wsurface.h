@@ -83,6 +83,8 @@ Q_SIGNALS:
     void hasSubsurfaceChanged();
     void newSubsurface(WSurface *subsurface);
     void preferredBufferScaleChanged();
+    void outputEntered(WOutput *output);
+    void outputLeft(WOutput *output);
 
 protected:
     WSurface(WSurfacePrivate &dd, QObject *parent);

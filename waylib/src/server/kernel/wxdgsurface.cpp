@@ -256,6 +256,12 @@ bool WXdgSurface::isMinimized() const
     return d->minimized;
 }
 
+bool WXdgSurface::isFullScreen() const
+{
+    W_DC(WXdgSurface);
+    return d->handle->topToplevel()->handle()->requested.fullscreen;
+}
+
 QRect WXdgSurface::getContentGeometry() const
 {
     W_DC(WXdgSurface);
