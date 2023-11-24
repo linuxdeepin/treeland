@@ -52,9 +52,9 @@ static const struct ext_foreign_toplevel_list_v1_interface toplevel_list_impl
     .stop = foreign_toplevel_list_handle_stop, .destroy = resource_handle_destroy
 };
 
-void foreign_toplevel_list_handle_stop(struct wl_client *client, struct wl_resource *resource)
+void foreign_toplevel_list_handle_stop([[maybe_unused]] struct wl_client *client, struct wl_resource *resource)
 {
-    struct ext_foreign_toplevel_list_v1 *handle = foreign_toplevel_list_from_resource(resource);
+    [[maybe_unused]] struct ext_foreign_toplevel_list_v1 *handle = foreign_toplevel_list_from_resource(resource);
 
     // TODO: stop
 }
@@ -137,7 +137,7 @@ void ext_foreign_toplevel_list_bind(struct wl_client *client,
     }
 }
 
-void ext_foreign_toplevel_list_handle_display_destroy(struct wl_listener *listener, void *data)
+void ext_foreign_toplevel_list_handle_display_destroy(struct wl_listener *listener, [[maybe_unused]] void *data)
 {
     struct ext_foreign_toplevel_list_v1 *list = wl_container_of(listener, list, display_destroy);
     ext_foreign_toplevel_list_v1_destroy(list);
@@ -154,8 +154,8 @@ struct ext_foreign_toplevel_list_v1 *ext_foreign_toplevel_list_v1_create(struct 
                                       handle,
                                       ext_foreign_toplevel_list_bind);
     if (!handle->global) {
-        free(handle);
-        return NULL;
+        delete handle;
+        return nullptr;
     }
 
     wl_signal_init(&handle->events.destroy);

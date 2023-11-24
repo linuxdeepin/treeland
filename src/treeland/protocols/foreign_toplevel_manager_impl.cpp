@@ -22,7 +22,8 @@ static const struct ztreeland_foreign_toplevel_manager_v1_interface foreign_topl
     .stop = foreign_toplevel_manager_handle_stop
 };
 
-void foreign_toplevel_manager_handle_stop(struct wl_client *client, struct wl_resource *resource)
+void foreign_toplevel_manager_handle_stop([[maybe_unused]] struct wl_client *client,
+                                          [[maybe_unused]] struct wl_resource *resource)
 {
     qDebug() << Q_FUNC_INFO;
 }
@@ -118,7 +119,7 @@ void foreign_toplevel_manager_bind(struct wl_client *client,
     }
 }
 
-void foreign_toplevel_manager_handle_display_destroy(struct wl_listener *listener, void *data)
+void foreign_toplevel_manager_handle_display_destroy(struct wl_listener *listener, [[maybe_unused]] void *data)
 {
     struct ztreeland_foreign_toplevel_manager_v1 *manager =
         wl_container_of(listener, manager, display_destroy);
@@ -150,8 +151,8 @@ ztreeland_foreign_toplevel_manager_v1_create(struct wl_display *display)
                                       handle,
                                       foreign_toplevel_manager_bind);
     if (!handle->global) {
-        free(handle);
-        return NULL;
+        delete handle;
+        return nullptr;
     }
 
     wl_signal_init(&handle->events.destroy);

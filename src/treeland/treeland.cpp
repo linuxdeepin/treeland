@@ -106,11 +106,11 @@ void TreeLand::connected() {
 #endif
     Q_ASSERT(helper);
 
-    connect(helper, &Helper::backToNormal, this, [=] {
+    connect(helper, &Helper::backToNormal, this, [this] {
         SocketWriter(m_socket) << quint32(GreeterMessages::BackToNormal);
     });
-    connect(helper, &Helper::reboot, this, [=] {
-        SocketWriter(m_socket) << quint32(GreeterMessages::Reboot);
+    connect(helper, &Helper::reboot, this, [this] {
+         SocketWriter(m_socket) << quint32(GreeterMessages::Reboot);
     });
 
     // send connected message

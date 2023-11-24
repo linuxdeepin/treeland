@@ -25,8 +25,8 @@ struct treeland_socket_context_v1 *socket_context_from_resource(struct wl_resour
 struct treeland_socket_manager_v1 *socket_manager_from_resource(
         struct wl_resource *resource);
 
-void context_handle_set_username(struct wl_client *client,
-        struct wl_resource *resource, const char *username) {
+void context_handle_set_username([[maybe_unused]] struct wl_client *client, struct wl_resource *resource, const char *username)
+{
     struct treeland_socket_context_v1 *context = socket_context_from_resource(resource);
     if (!context) {
         wl_resource_post_error(resource,
@@ -39,7 +39,8 @@ void context_handle_set_username(struct wl_client *client,
     context->state.username = strdup(username);
 }
 
-void context_handle_set_fd(struct wl_client *client, struct wl_resource *resource, int32_t fd) {
+void context_handle_set_fd([[maybe_unused]] struct wl_client *client, struct wl_resource *resource, int32_t fd)
+{
     struct treeland_socket_context_v1 *context = socket_context_from_resource(resource);
     if (!context) {
         wl_resource_post_error(resource,
@@ -52,7 +53,8 @@ void context_handle_set_fd(struct wl_client *client, struct wl_resource *resourc
     context->state.fd = fd;
 }
 
-void context_handle_commit(struct wl_client *client, struct wl_resource *resource) {
+void context_handle_commit([[maybe_unused]] struct wl_client *client, struct wl_resource *resource)
+{
     struct treeland_socket_context_v1 *context = socket_context_from_resource(resource);
     if (!context) {
         wl_resource_post_error(resource,
@@ -145,7 +147,8 @@ void socket_manager_bind(struct wl_client *client, void *data, uint32_t version,
     wl_resource_set_implementation(resource, &socket_manager_impl, manager, NULL);
 }
 
-void socket_manager_handle_display_destroy(struct wl_listener *listener, void *data) {
+void socket_manager_handle_display_destroy(struct wl_listener *listener, [[maybe_unused]] void *data)
+{
     struct treeland_socket_manager_v1 *manager =
         wl_container_of(listener, manager, display_destroy);
     wl_signal_emit_mutable(&manager->events.destroy, manager);

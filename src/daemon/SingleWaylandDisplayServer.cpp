@@ -70,11 +70,11 @@ SingleWaylandDisplayServer::SingleWaylandDisplayServer(SocketServer *socketServe
     qDebug() << "Socket server started.";
 
     // connect signals
-    connect(m_helperServer, &QLocalServer::newConnection, this, [=] {
+     connect(m_helperServer, &QLocalServer::newConnection, this, [this] {
         QLocalSocket *socket = m_helperServer->nextPendingConnection();
 
         // connect signals
-        connect(socket, &QLocalSocket::readyRead, this, [=] {
+        connect(socket, &QLocalSocket::readyRead, this, [this] {
             QLocalSocket *socket = qobject_cast<QLocalSocket *>(sender());
             QDataStream input(socket);
 
@@ -120,8 +120,8 @@ SingleWaylandDisplayServer::SingleWaylandDisplayServer(SocketServer *socketServe
         connect(socket, &QLocalSocket::disconnected, socket, &QLocalSocket::deleteLater);
     });
 
-    connect(m_socketServer, &SocketServer::connected, this, [=](QLocalSocket *socket) {
-        m_greeterSockets << socket;
+    connect(m_socketServer, &SocketServer::connected, this, [this](QLocalSocket *socket) { 
+        m_greeterSockets << socket; 
     });
     connect(m_socketServer, &SocketServer::requestStartHelper, this, [this](QLocalSocket *, const QString &path) {
         QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
@@ -131,12 +131,12 @@ SingleWaylandDisplayServer::SingleWaylandDisplayServer(SocketServer *socketServe
         m_helper->setProcessEnvironment(env);
         m_helper->start();
     });
-    connect(m_socketServer, &SocketServer::disconnected, this, [=](QLocalSocket *socket) {
+    connect(m_socketServer, &SocketServer::disconnected, this, [this](QLocalSocket *socket) {
         m_greeterSockets.removeOne(socket);
     });
 
     // TODO: use PAM auth again
-    connect(m_socketServer, &SocketServer::requestActivateUser, this, [this](QLocalSocket *socket, const QString &user){
+    connect(m_socketServer, &SocketServer::requestActivateUser, this, [this]([[maybe_unused]] QLocalSocket *socket, const QString &user){
         activateUser(user);
     });
 }

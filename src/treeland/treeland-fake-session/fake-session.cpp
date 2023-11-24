@@ -72,7 +72,7 @@ ForeignToplevelHandle::ForeignToplevelHandle(struct ::ztreeland_foreign_toplevel
     , m_pid(-1)
 {}
 
-void ForeignToplevelHandle::ztreeland_foreign_toplevel_handle_v1_app_id(const QString &app_id)
+void ForeignToplevelHandle::ztreeland_foreign_toplevel_handle_v1_app_id([[maybe_unused]] const QString &app_id)
 {
 }
 
@@ -120,12 +120,12 @@ FakeSession::FakeSession(int argc, char* argv[])
     , m_toplevelManager(new ForeignToplevelManager)
     , m_extForeignToplevelList(new ExtForeignToplevelList)
 {
-    connect(m_shortcutManager, &ShortcutManager::activeChanged, this, [=] {
+    connect(m_shortcutManager, &ShortcutManager::activeChanged, this, [this] {
         qDebug() << m_shortcutManager->isActive();
         if (m_shortcutManager->isActive()) {
 
             ShortcutContext* context = new ShortcutContext(m_shortcutManager->get_shortcut_context());
-            connect(context, &ShortcutContext::shortcutHappended, this, [=](uint32_t keycode, uint32_t modify) {
+            connect(context, &ShortcutContext::shortcutHappended, this, [](uint32_t keycode, uint32_t modify) {
                 auto keyEnum = static_cast<Qt::Key>(keycode);
                 auto modifyEnum = static_cast<Qt::KeyboardModifiers>(modify);
                 qDebug() << keyEnum << modifyEnum;
@@ -145,14 +145,12 @@ FakeSession::FakeSession(int argc, char* argv[])
         }
     });
 
-    connect(m_toplevelManager, &ForeignToplevelManager::newForeignToplevelHandle, this, [=](ForeignToplevelHandle *handle) {
-        connect(handle, &ForeignToplevelHandle::pidChanged, this, [=](uint32_t pid) {
-            qDebug() << "toplevel pid: " << pid;
-        });
+    connect(m_toplevelManager, &ForeignToplevelManager::newForeignToplevelHandle, this, [this](ForeignToplevelHandle *handle) {
+        connect(handle, &ForeignToplevelHandle::pidChanged, this, [](uint32_t pid) { qDebug() << "toplevel pid: " << pid; });
     });
 
-    connect(m_extForeignToplevelList, &ExtForeignToplevelList::newToplevel, this, [=](ExtForeignToplevelHandle *handle) {
-        connect(handle, &ExtForeignToplevelHandle::appIdChanged, this, [=](const QString &appId) {
+    connect(m_extForeignToplevelList, &ExtForeignToplevelList::newToplevel, this, [this](ExtForeignToplevelHandle *handle) {
+        connect(handle, &ExtForeignToplevelHandle::appIdChanged, this, [](const QString &appId) {
             qDebug() << "toplevel appid: " << appId;
         });
     });

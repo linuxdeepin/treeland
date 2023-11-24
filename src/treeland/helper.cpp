@@ -25,7 +25,6 @@
 #include <QRegularExpression>
 
 extern "C" {
-#define WLR_USE_UNSTABLE
 #define static
 #include <wlr/types/wlr_output.h>
 #include <wlr/types/wlr_compositor.h>
@@ -98,6 +97,7 @@ bool Helper::registerExclusiveZone(WLayerSurface *layerSurface)
     case Right:
         infoPtr->m_rightExclusiveMargin += exclusiveZone;
         Q_EMIT rightExclusiveMarginChanged();
+        break;
     default:
         Q_UNREACHABLE();
     }
@@ -133,6 +133,7 @@ bool Helper::unregisterExclusiveZone(WLayerSurface *layerSurface)
             case Right:
                 infoPtr->m_rightExclusiveMargin -= exclusiveZone;
                 Q_EMIT rightExclusiveMarginChanged();
+                break;
             default:
                 Q_UNREACHABLE();
             }
@@ -167,6 +168,7 @@ QJSValue Helper::getExclusiveMargins(WLayerSurface *layerSurface)
                 break;
             case Right:
                 margins.setRight(margins.right() + exclusiveZone);
+                break;
             default:
                 Q_UNREACHABLE();
             }
