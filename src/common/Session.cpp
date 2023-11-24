@@ -216,7 +216,7 @@ namespace SDDM {
         }
 
         QFile file;
-        for (const auto &path: qAsConst(sessionDirs)) {
+        for (const auto &path : std::as_const(sessionDirs)) {
             m_dir.setPath(path);
             m_fileName = m_dir.absoluteFilePath(fileName);
 
@@ -243,8 +243,8 @@ namespace SDDM {
 
         settings.beginGroup(QLatin1String("Desktop Entry"));
 
-        auto localizedValue = [&] (const QLatin1String &key) {
-            for (QString locale : qAsConst(locales)) {
+        auto localizedValue = [&](const QLatin1String &key) {
+            for (QString locale : std::as_const(locales)) {
                 QString localizedValue = settings.value(key + QLatin1Char('[') + locale + QLatin1Char(']'), QString()).toString();
                 if (!localizedValue.isEmpty()) {
                     return localizedValue;

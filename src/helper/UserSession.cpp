@@ -210,7 +210,6 @@ namespace SDDM {
         QString sessionType = processEnvironment().value(QStringLiteral("XDG_SESSION_TYPE"));
         QString sessionClass = processEnvironment().value(QStringLiteral("XDG_SESSION_CLASS"));
         const bool hasDisplayServer = !m_displayServerCmd.isEmpty();
-        const bool x11UserSession = sessionType == QLatin1String("x11") && sessionClass == QLatin1String("user");
         const bool waylandUserSession = sessionType == QLatin1String("wayland") && sessionClass == QLatin1String("user");
 
         // When the display server is part of the session, we leak the VT into

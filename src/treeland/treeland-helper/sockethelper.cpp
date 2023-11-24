@@ -60,7 +60,7 @@ SocketHelper::SocketHelper(int argc, char* argv[])
     connect(m_socket, &QLocalSocket::readyRead, this, &SocketHelper::readyRead);
     connect(m_socket, &QLocalSocket::errorOccurred, this, &SocketHelper::error);
 
-    connect(m_socketManager, &SocketManager::activeChanged, this, [=] {
+    connect(m_socketManager, &SocketManager::activeChanged, this, [this, server] {
         if (m_socketManager->isActive()) {
             m_socket->connectToServer(server);
         }

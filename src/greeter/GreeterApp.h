@@ -44,7 +44,7 @@ public:
         qmlRegisterType<GreeterProxy>("TreeLand.Greeter", 1, 0, "Proxy");
     }
 
-    void initializeEngine(QQmlEngine *engine, const char *uri) final
+    void initializeEngine([[maybe_unused]] QQmlEngine *engine, [[maybe_unused]] const char *uri) final
     {
     }
 };

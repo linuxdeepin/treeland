@@ -57,7 +57,7 @@ namespace SDDM {
 
         QDBusPendingReply<QVariant> reply = QDBusConnection::systemBus().asyncCall(canGraphicalMsg);
         QDBusPendingCallWatcher *watcher = new QDBusPendingCallWatcher(reply);
-        connect(watcher, &QDBusPendingCallWatcher::finished, this, [=]() {
+        connect(watcher, &QDBusPendingCallWatcher::finished, this, [watcher, reply, this]() {
             watcher->deleteLater();
             if (!reply.isValid())
                 return;
@@ -105,10 +105,10 @@ namespace SDDM {
         QDBusPendingReply<NamedSeatPathList> reply = QDBusConnection::systemBus().asyncCall(listSeatsMsg);
 
         QDBusPendingCallWatcher *watcher = new QDBusPendingCallWatcher(reply);
-        connect(watcher, &QDBusPendingCallWatcher::finished, this, [=]() {
+        connect(watcher, &QDBusPendingCallWatcher::finished, this, [watcher, reply, this]() {
             watcher->deleteLater();
             const auto seats = reply.value();
-            for(const NamedSeatPath &seat : seats) {
+            for (const NamedSeatPath &seat : seats) {
                 logindSeatAdded(seat.name, seat.path);
             }
         });
@@ -155,7 +155,7 @@ namespace SDDM {
     void SDDM::SeatManager::logindSeatAdded(const QString& name, const QDBusObjectPath& objectPath)
     {
         auto logindSeat = new LogindSeat(name, objectPath);
-        connect(logindSeat, &LogindSeat::canGraphicalChanged, this, [=]() {
+        connect(logindSeat, &LogindSeat::canGraphicalChanged, this, [this, logindSeat]() {
             if (logindSeat->canGraphical()) {
                 createSeat(logindSeat->name());
             } else {
