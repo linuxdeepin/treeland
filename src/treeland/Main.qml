@@ -19,8 +19,8 @@ Item {
             helper: TreeLandHelper
         }
 
-        ForeignToplevelManager {
-            id: foreignToplevelManager
+        TreeLandForeignToplevelManagerV1 {
+            id: treelandForeignToplevelManager
         }
 
         SocketManager {
@@ -80,7 +80,7 @@ Item {
 
                 if (!surface.isPopup) {
                     extForeignToplevelList.add(surface)
-                    foreignToplevelManager.add(surface)
+                    treelandForeignToplevelManager.add(surface)
                 }
             }
             onSurfaceRemoved: function(surface) {
@@ -90,7 +90,7 @@ Item {
 
                 if (!surface.isPopup) {
                     extForeignToplevelList.remove(surface)
-                    foreignToplevelManager.remove(surface)
+                    treelandForeignToplevelManager.remove(surface)
                 }
             }
         }

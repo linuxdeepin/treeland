@@ -90,11 +90,6 @@ void ForeignToplevelHandle::ztreeland_foreign_toplevel_handle_v1_closed()
 
 }
 
-void ForeignToplevelHandle::ztreeland_foreign_toplevel_handle_v1_identifier(const QString &identifier)
-{
-    qDebug() << Q_FUNC_INFO << identifier;
-}
-
 ShortcutManager::ShortcutManager()
     : QWaylandClientExtensionTemplate<ShortcutManager>(1)
 {
@@ -146,7 +141,9 @@ FakeSession::FakeSession(int argc, char* argv[])
     });
 
     connect(m_toplevelManager, &ForeignToplevelManager::newForeignToplevelHandle, this, [this](ForeignToplevelHandle *handle) {
-        connect(handle, &ForeignToplevelHandle::pidChanged, this, [](uint32_t pid) { qDebug() << "toplevel pid: " << pid; });
+        connect(handle, &ForeignToplevelHandle::pidChanged, this, [](pid_t pid) {
+            qDebug() << "toplevel pid: " << pid;
+        });
     });
 
     connect(m_extForeignToplevelList, &ExtForeignToplevelList::newToplevel, this, [this](ExtForeignToplevelHandle *handle) {

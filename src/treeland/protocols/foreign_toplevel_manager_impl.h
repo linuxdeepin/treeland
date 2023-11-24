@@ -5,72 +5,133 @@
 
 #include <wayland-server-core.h>
 
-#include <QString>
-
-#define TREELAND_SHELL_MANAGER_V1_VERSION 1
-
-namespace Waylib::Server {
-class WServer;
-}
-
-class ForeignToplevelManager;
-class TreeLandHelper;
-
-struct ztreeland_foreign_toplevel_manager_v1
-{
+struct treeland_foreign_toplevel_manager_v1 {
+    struct wl_event_loop *event_loop;
     struct wl_global *global;
+    struct wl_list resources; // wl_resource_get_link()
+    struct wl_list toplevels; // treeland_foreign_toplevel_handle_v1.link
 
-    struct
-    {
-        struct wl_signal handleCreated;
+    struct wl_listener display_destroy;
+
+    struct {
         struct wl_signal destroy;
     } events;
 
     void *data;
-
-    struct wl_list contexts;
-    struct wl_event_loop *event_loop;
-
-    struct wl_listener display_destroy;
-
-    std::vector<struct wl_resource *> clients;
-    std::vector<struct wl_resource *> surfaces;
 };
 
-struct ztreeland_foreign_toplevel_handle_v1
-{
-    struct ztreeland_foreign_toplevel_manager_v1 *manager;
+enum treeland_foreign_toplevel_handle_v1_state {
+    TREELAND_FOREIGN_TOPLEVEL_HANDLE_V1_STATE_MAXIMIZED = (1 << 0),
+    TREELAND_FOREIGN_TOPLEVEL_HANDLE_V1_STATE_MINIMIZED = (1 << 1),
+    TREELAND_FOREIGN_TOPLEVEL_HANDLE_V1_STATE_ACTIVATED = (1 << 2),
+    TREELAND_FOREIGN_TOPLEVEL_HANDLE_V1_STATE_FULLSCREEN = (1 << 3),
+};
+
+struct treeland_foreign_toplevel_handle_v1_output {
+    struct wl_list link; // treeland_foreign_toplevel_handle_v1.outputs
+    struct wlr_output *output;
+    struct treeland_foreign_toplevel_handle_v1 *toplevel;
+
+    // private state
+
+    struct wl_listener output_bind;
+    struct wl_listener output_destroy;
+};
+
+struct treeland_foreign_toplevel_handle_v1 {
+    struct treeland_foreign_toplevel_manager_v1 *manager;
+    struct wl_list resources;
     struct wl_list link;
-    struct wl_resource *resource;
-    struct wl_resource *surface;
+    struct wl_event_source *idle_source;
+
+    char *title;
+    char *app_id;
+    char *identifier;
+    pid_t pid;
+    struct treeland_foreign_toplevel_handle_v1 *parent;
+    struct wl_list outputs; // treeland_foreign_toplevel_v1_output.link
+    uint32_t state;         // enum treeland_foreign_toplevel_v1_state
+
+    struct {
+        // struct treeland_foreign_toplevel_handle_v1_maximized_event
+        struct wl_signal request_maximize;
+        // struct treeland_foreign_toplevel_handle_v1_minimized_event
+        struct wl_signal request_minimize;
+        // struct treeland_foreign_toplevel_handle_v1_activated_event
+        struct wl_signal request_activate;
+        // struct treeland_foreign_toplevel_handle_v1_fullscreen_event
+        struct wl_signal request_fullscreen;
+        struct wl_signal request_close;
+
+        // struct treeland_foreign_toplevel_handle_v1_set_rectangle_event
+        struct wl_signal set_rectangle;
+        struct wl_signal destroy;
+    } events;
+
+    void *data;
 };
 
-struct ztreeland_foreign_toplevel_manager_v1 *
-foreign_toplevel_manager_from_resource(struct wl_resource *resource);
+struct treeland_foreign_toplevel_handle_v1_maximized_event {
+    struct treeland_foreign_toplevel_handle_v1 *toplevel;
+    bool maximized;
+};
 
-void foreign_toplevel_manager_bind(struct wl_client *client,
-                                   void *data,
-                                   uint32_t version,
-                                   uint32_t id);
+struct treeland_foreign_toplevel_handle_v1_minimized_event {
+    struct treeland_foreign_toplevel_handle_v1 *toplevel;
+    bool minimized;
+};
 
-void foreign_toplevel_manager_handle_display_destroy(struct wl_listener *listener, void *data);
+struct treeland_foreign_toplevel_handle_v1_activated_event {
+    struct treeland_foreign_toplevel_handle_v1 *toplevel;
+    struct wlr_seat *seat;
+};
 
-struct ztreeland_foreign_toplevel_manager_v1 *
-ztreeland_foreign_toplevel_manager_v1_create(struct wl_display *display);
-void ztreeland_foreign_toplevel_manager_v1_destroy(
-    struct ztreeland_foreign_toplevel_manager_v1 *handle);
-void ztreeland_foreign_toplevel_manager_v1_toplevel(
-    struct ztreeland_foreign_toplevel_manager_v1 *handle, struct wl_resource *resource);
+struct treeland_foreign_toplevel_handle_v1_fullscreen_event {
+    struct treeland_foreign_toplevel_handle_v1 *toplevel;
+    bool fullscreen;
+    struct wlr_output *output;
+};
 
-void ztreeland_foreign_toplevel_handle_v1_closed(
-    struct ztreeland_foreign_toplevel_manager_v1 *handle, struct wl_resource *resource);
+struct treeland_foreign_toplevel_handle_v1_set_rectangle_event {
+    struct treeland_foreign_toplevel_handle_v1 *toplevel;
+    struct wlr_surface *surface;
+    int32_t x, y, width, height;
+};
 
-void ztreeland_foreign_toplevel_handle_v1_done(struct ztreeland_foreign_toplevel_manager_v1 *handle,
-                                               struct wl_resource *resource);
-void ztreeland_foreign_toplevel_handle_v1_pid(struct ztreeland_foreign_toplevel_manager_v1 *handle,
-                                              struct wl_resource *resource,
-                                              uint32_t pid);
-void ztreeland_foreign_toplevel_handle_v1_identifier(
-    struct ztreeland_foreign_toplevel_manager_v1 *handle,
-    struct wl_resource *resource,
-    const QString &identifier);
+struct treeland_foreign_toplevel_manager_v1 *
+treeland_foreign_toplevel_manager_v1_create(struct wl_display *display);
+
+struct treeland_foreign_toplevel_handle_v1 *
+treeland_foreign_toplevel_handle_v1_create(
+    struct treeland_foreign_toplevel_manager_v1 *manager);
+
+void treeland_foreign_toplevel_handle_v1_destroy(
+    struct treeland_foreign_toplevel_handle_v1 *toplevel);
+
+void treeland_foreign_toplevel_handle_v1_set_title(
+    struct treeland_foreign_toplevel_handle_v1 *toplevel, const char *title);
+void treeland_foreign_toplevel_handle_v1_set_app_id(
+    struct treeland_foreign_toplevel_handle_v1 *toplevel, const char *app_id);
+void treeland_foreign_toplevel_handle_v1_set_pid(
+    struct treeland_foreign_toplevel_handle_v1 *toplevel, const pid_t pid);
+void treeland_foreign_toplevel_handle_v1_set_identifier(
+    struct treeland_foreign_toplevel_handle_v1 *toplevel, const char *identifier);
+
+void treeland_foreign_toplevel_handle_v1_output_enter(
+    struct treeland_foreign_toplevel_handle_v1 *toplevel,
+    struct wlr_output *output);
+void treeland_foreign_toplevel_handle_v1_output_leave(
+    struct treeland_foreign_toplevel_handle_v1 *toplevel,
+    struct wlr_output *output);
+
+void treeland_foreign_toplevel_handle_v1_set_maximized(
+    struct treeland_foreign_toplevel_handle_v1 *toplevel, bool maximized);
+void treeland_foreign_toplevel_handle_v1_set_minimized(
+    struct treeland_foreign_toplevel_handle_v1 *toplevel, bool minimized);
+void treeland_foreign_toplevel_handle_v1_set_activated(
+    struct treeland_foreign_toplevel_handle_v1 *toplevel, bool activated);
+void treeland_foreign_toplevel_handle_v1_set_fullscreen(
+    struct treeland_foreign_toplevel_handle_v1 *toplevel, bool fullscreen);
+void treeland_foreign_toplevel_handle_v1_set_parent(
+    struct treeland_foreign_toplevel_handle_v1 *toplevel,
+    struct treeland_foreign_toplevel_handle_v1 *parent);
