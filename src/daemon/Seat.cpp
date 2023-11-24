@@ -96,7 +96,7 @@ namespace SDDM {
             return;
         }
 
-        QTimer::singleShot(2000, display, [=] { startDisplay(display, tryNr + 1); });
+        QTimer::singleShot(2000, display, [this, display, tryNr] { startDisplay(display, tryNr + 1); });
     }
 
     void Seat::removeDisplay(Display* display) {

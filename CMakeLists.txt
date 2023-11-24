@@ -5,6 +5,7 @@ project(DDM
     LANGUAGES CXX C)
 
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 SET(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
@@ -234,8 +235,8 @@ add_subdirectory(data)
 add_subdirectory(services)
 add_subdirectory(src)
 
-#enable_testing()
-#add_subdirectory(test)
+# enable_testing()
+# add_subdirectory(test)
 
 # Display feature summary
 feature_summary(WHAT ALL FATAL_ON_MISSING_REQUIRED_PACKAGES)

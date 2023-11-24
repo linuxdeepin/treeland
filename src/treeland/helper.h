@@ -24,11 +24,7 @@ class Helper : public WSeatEventFilter {
     Q_OBJECT
     Q_PROPERTY(WToplevelSurface* activatedSurface READ activatedSurface WRITE setActivateSurface NOTIFY activatedSurfaceChanged FINAL)
     Q_PROPERTY(WSurfaceItem* resizingItem READ resizingItem NOTIFY resizingItemChanged FINAL)
-    Q_PROPERTY(WSurfaceItem* movingItem READ movingItem NOTIFY movingItemChanged FINAL)
-    Q_PROPERTY(quint32 topExclusiveMargin NOTIFY topExclusiveMarginChanged)
-    Q_PROPERTY(quint32 bottomExclusiveMargin NOTIFY bottomExclusiveMarginChanged)
-    Q_PROPERTY(quint32 leftExclusiveMargin NOTIFY leftExclusiveMarginChanged)
-    Q_PROPERTY(quint32 rightExclusiveMargin NOTIFY rightExclusiveMarginChanged)
+    Q_PROPERTY(WSurfaceItem *movingItem READ movingItem NOTIFY movingItemChanged FINAL)
     QML_ELEMENT
     QML_SINGLETON
 

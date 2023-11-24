@@ -12,7 +12,6 @@
 #include <QRegularExpression>
 
 extern "C" {
-#define WLR_USE_UNSTABLE
 #define static
 #include <wlr/types/wlr_output.h>
 #include <wlr/types/wlr_compositor.h>

@@ -98,7 +98,7 @@ void shortcut_manager_bind(struct wl_client *client,
                                    NULL);
 }
 
-void shortcut_manager_handle_display_destroy(struct wl_listener *listener, void *data)
+void shortcut_manager_handle_display_destroy(struct wl_listener *listener, [[maybe_unused]] void *data)
 {
     struct ztreeland_shortcut_manager_v1 *manager =
         wl_container_of(listener, manager, display_destroy);
