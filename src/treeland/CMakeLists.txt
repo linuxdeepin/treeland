@@ -1,6 +1,7 @@
 pkg_search_module(PIXMAN REQUIRED IMPORTED_TARGET pixman-1)
 pkg_search_module(WAYLAND_SERVER REQUIRED IMPORTED_TARGET wayland-server)
 pkg_search_module(WAYLAND_CLIENT REQUIRED IMPORTED_TARGET wayland-client)
+pkg_search_module(WLROOTS REQUIRED IMPORTED_TARGET wlroots)
 
 function(ws_generate_local type input_file output_name)
     find_package(PkgConfig)
@@ -42,8 +43,9 @@ endfunction()
 
 ws_generate_local(server ${CMAKE_CURRENT_SOURCE_DIR}/data/ztreeland-shortcut-manager-v1.xml shortcut-server-protocol)
 ws_generate_local(server ${CMAKE_CURRENT_SOURCE_DIR}/data/treeland-socket-manager-v1.xml socket-server-protocol)
-ws_generate_local(server ${CMAKE_CURRENT_SOURCE_DIR}/data/ztreeland-foreign-toplevel-manager-v1.xml foreign-toplevel-manager-server-protocol)
+ws_generate_local(server ${CMAKE_CURRENT_SOURCE_DIR}/data/treeland-foreign-toplevel-manager-v1.xml foreign-toplevel-manager-server-protocol)
 
+ws_generate(server wayland-protocols stable/xdg-shell/xdg-shell.xml xdg-shell-protocol)
 ws_generate(server wayland-protocols staging/ext-foreign-toplevel-list/ext-foreign-toplevel-list-v1.xml ext-foreign-toplevel-list-server-protocol)
 
 add_subdirectory(treeland-helper)
@@ -71,6 +73,9 @@ set(TREELAND_SOURCES
     protocols/socket_manager_impl.cpp
     protocols/ext_foreign_toplevel_list_impl.h
     protocols/ext_foreign_toplevel_list_impl.cpp
+    protocols/foreigntoplevelhandlev1.h
+    protocols/foreigntoplevelhandlev1.cpp
+    protocols/foreigntoplevelmanagerv1.cpp
     ${CMAKE_BINARY_DIR}/src/treeland/socket-server-protocol.c
     ${CMAKE_BINARY_DIR}/src/treeland/socket-server-protocol.h
     ${CMAKE_BINARY_DIR}/src/treeland/shortcut-server-protocol.c
@@ -139,6 +144,7 @@ target_link_libraries(treeland
         $<IF:$<BOOL:${WITH_SUBMODULE_WAYLIB}>, waylibserver, Waylib::WaylibServer>
         PkgConfig::WAYLAND_SERVER
         PkgConfig::PIXMAN
+        PkgConfig::WLROOTS
         Qt${QT_MAJOR_VERSION}::Gui
         Qt${QT_MAJOR_VERSION}::DBus
         Qt${QT_MAJOR_VERSION}::Quick

@@ -7,7 +7,7 @@
 #include <QtWaylandClient/QWaylandClientExtension>
 
 #include "qwayland-ext-foreign-toplevel-list-v1.h"
-#include "qwayland-ztreeland-foreign-toplevel-manager-v1.h"
+#include "qwayland-treeland-foreign-toplevel-manager-v1.h"
 #include "qwayland-ztreeland-shortcut-manager-v1.h"
 
 class ExtForeignToplevelHandle;
@@ -61,17 +61,16 @@ public:
     explicit ForeignToplevelHandle(struct ::ztreeland_foreign_toplevel_handle_v1 *object);
 
 Q_SIGNALS:
-    void pidChanged(uint32_t pid);
+    void pidChanged(pid_t pid);
 
 protected:
     void ztreeland_foreign_toplevel_handle_v1_app_id(const QString &app_id) override;
     void ztreeland_foreign_toplevel_handle_v1_pid(uint32_t pid) override;
     void ztreeland_foreign_toplevel_handle_v1_done() override;
     void ztreeland_foreign_toplevel_handle_v1_closed() override;
-    void ztreeland_foreign_toplevel_handle_v1_identifier(const QString &identifier) override;
 
 private:
-    uint32_t m_pid;
+    pid_t m_pid;
 };
 
 class ShortcutManager : public QWaylandClientExtensionTemplate<ShortcutManager>, public QtWayland::ztreeland_shortcut_manager_v1

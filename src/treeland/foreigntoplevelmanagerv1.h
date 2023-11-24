@@ -49,22 +49,24 @@ private:
     ~QWForeignToplevelManagerV1() = default;
 };
 
-class ForeignToplevelManagerPrivate;
+WAYLIB_SERVER_BEGIN_NAMESPACE
+class WXdgSurface;
+class WOutput;
+WAYLIB_SERVER_END_NAMESPACE
 
-class ForeignToplevelManager : public Waylib::Server::WQuickWaylandServerInterface,
-                               public Waylib::Server::WObject
+class QuickForeignToplevelManagerV1Private;
+class QuickForeignToplevelManagerV1 : public WQuickWaylandServerInterface, public WObject
 {
     Q_OBJECT
-    W_DECLARE_PRIVATE(ForeignToplevelManager)
-
-    QML_ELEMENT
+    QML_NAMED_ELEMENT(TreeLandForeignToplevelManagerV1)
+    W_DECLARE_PRIVATE(QuickForeignToplevelManagerV1)
 
 public:
-    explicit ForeignToplevelManager(QObject *parent = nullptr);
+    explicit QuickForeignToplevelManagerV1(QObject *parent = nullptr);
 
-    Q_INVOKABLE void add(Waylib::Server::WXdgSurface *surface);
-    Q_INVOKABLE void remove(Waylib::Server::WXdgSurface *surface);
+    Q_INVOKABLE void add(WXdgSurface *surface);
+    Q_INVOKABLE void remove(WXdgSurface *surface);
 
-protected:
+private:
     void create() override;
 };

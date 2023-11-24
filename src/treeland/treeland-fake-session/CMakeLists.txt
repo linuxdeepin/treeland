@@ -6,7 +6,7 @@ qt_add_library(treeland-shell-manager OBJECT)
 
 qt_generate_wayland_protocol_client_sources(treeland-shell-manager
     FILES
-        ${CMAKE_CURRENT_SOURCE_DIR}/../data/ztreeland-foreign-toplevel-manager-v1.xml
+        ${CMAKE_CURRENT_SOURCE_DIR}/../data/treeland-foreign-toplevel-manager-v1.xml
         ${CMAKE_CURRENT_SOURCE_DIR}/../data/ztreeland-shortcut-manager-v1.xml
         ${WAYLAND_PROTOCOLS}/staging/ext-foreign-toplevel-list/ext-foreign-toplevel-list-v1.xml
 )
