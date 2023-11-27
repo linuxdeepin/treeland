@@ -331,7 +331,8 @@ QPointF WXdgSurface::getPopupPosition() const
     Q_ASSERT(popup);
     if (QWXdgSurface::from(popup->handle()->parent))
         return popup->getPosition();
-    return {popup->handle()->current.geometry.x, popup->handle()->current.geometry.y};
+    return {static_cast<qreal>(popup->handle()->current.geometry.x), 
+            static_cast<qreal>(popup->handle()->current.geometry.y)};
 }
 
 void WXdgSurface::setResizeing(bool resizeing)
