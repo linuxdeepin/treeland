@@ -25,7 +25,6 @@
 #include <QKeySequence>
 
 extern "C" {
-#define WLR_USE_UNSTABLE
 #define static
 #include <wlr/types/wlr_output.h>
 #undef static

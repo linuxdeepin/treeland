@@ -51,6 +51,7 @@ target_compile_definitions(tinywl-qtquick
     PRIVATE
     SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}"
     $<$<BOOL:${START_DEMO}>:START_DEMO>
+    WLR_USE_UNSTABLE
 )
 
 target_link_libraries(tinywl-qtquick

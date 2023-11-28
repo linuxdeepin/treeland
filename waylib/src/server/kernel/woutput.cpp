@@ -415,7 +415,6 @@ wlr_output *WOutput::nativeHandle() const
     return handle()->handle();
 }
 
-
 WOutput *WOutput::fromHandle(const QWOutput *handle)
 {
     return handle->getData<WOutput>();
@@ -579,6 +578,49 @@ bool WOutput::setGammaLut(size_t ramp_size, uint16_t* r, uint16_t* g, uint16_t* 
     if (!ok)
         qCWarning(qLcOutput) << "Output commitState failed!";
     return ok;
+}
+
+bool WOutput::enable(bool enabled)
+{
+    W_D(WOutput);
+    d->handle->enable(enabled);
+    return true;
+}
+
+void WOutput::enableAdaptiveSync(bool enabled)
+{
+    W_D(WOutput);
+    d->handle->enableAdaptiveSync(enabled);
+}
+
+void WOutput::setMode(wlr_output_mode *mode)
+{
+    W_D(WOutput);
+    d->handle->setMode(mode);
+}
+
+void WOutput::setCustomMode(const QSize &size, int32_t refresh)
+{
+    W_D(WOutput);
+    d->handle->setCustomMode(size, refresh);
+}
+
+bool WOutput::test()
+{
+    W_D(WOutput);
+    return d->handle->test();
+}
+
+bool WOutput::commit()
+{
+    W_D(WOutput);
+    return d->handle->commit();
+}
+
+void WOutput::rollback()
+{
+    W_D(WOutput);
+    d->handle->rollback();
 }
 
 bool WOutput::forceSoftwareCursor() const

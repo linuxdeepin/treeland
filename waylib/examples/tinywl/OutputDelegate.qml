@@ -6,6 +6,7 @@ import QtQuick.Controls
 import Waylib.Server
 
 OutputItem {
+    id: rootOutputItem
     required property WaylandOutput waylandOutput
     property OutputViewport onscreenViewport: outputViewport
     property Cursor waylandCursor
@@ -261,5 +262,18 @@ OutputItem {
             NumberAnimation { from: 0; to: 360; duration: 5000; easing.type: Easing.InOutCubic }
             loops: Animation.Infinite
         }
+    }
+
+    function setTransform(transform) {
+        onscreenViewport.rotationOutput(transform)
+    }
+
+    function setScale(scale) {
+        onscreenViewport.setOutputScale(scale)
+    }
+
+    function setOutputPosition(x, y) {
+        rootOutputItem.x = x;
+        rootOutputItem.y = y;
     }
 }
