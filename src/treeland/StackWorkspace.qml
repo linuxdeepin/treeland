@@ -101,6 +101,7 @@ Item {
                 surface: surface
                 waylandSurface: surface.waylandSurface
                 dockModel: dock.model
+                switcherModel: switcher.model
                 creator: toplevelComponent
                 decoration: decoration
             }
@@ -267,6 +268,37 @@ Item {
             id: inputPopupSurface
             surface: popupSurface
             helper: inputMethodHelper
+        }
+    }
+
+    WindowsSwitcher {
+        id: switcher
+        z: 1
+        anchors.fill: parent
+        visible: false
+        onSurfaceActivated: (surface) => {
+            surface.cancelMinimize()
+            TreeLandHelper.activatedSurface = surface.waylandSurface
+        }
+    }
+
+    Connections {
+        target: TreeLandHelper
+        function onSwitcherChanged(mode) {
+            switch (mode) {
+            case (TreeLandHelper.Show):
+                switcher.visible = true
+                break
+            case (TreeLandHelper.Hide):
+                switcher.visible = false
+                break
+            case (TreeLandHelper.Next):
+                switcher.next()
+                break
+            case (TreeLandHelper.Previous):
+                switcher.previous()
+                break
+            }
         }
     }
 }

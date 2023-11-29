@@ -133,6 +133,8 @@ qt_add_qml_module(treeland
         InputPopupSurface.qml
         LayerSurface.qml
         MiniDock.qml
+        WindowsSwitcher.qml
+        WindowsSwitcherPreview.qml
     RESOURCE_PREFIX
         /qt/qml
 )
