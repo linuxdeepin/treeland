@@ -29,6 +29,7 @@
 #include <QOffscreenSurface>
 #include <QQuickRenderControl>
 #include <QOpenGLFunctions>
+#include <memory>
 
 #define protected public
 #define private public
@@ -150,9 +151,10 @@ public:
 class RenderContextProxy : public QSGRenderContext
 {
 public:
-    RenderContextProxy(QSGRenderContext *target)
+    RenderContextProxy(QSGRenderContext *target, QQuickWindow *origin)
         : QSGRenderContext(target->sceneGraphContext())
-        , target(target) {}
+        , target(target)
+        , window(origin) {}
 
     bool isValid() const override {
         return target->isValid();
@@ -178,6 +180,9 @@ public:
         target->beginNextFrame(renderer, renderTarget, mainPassRecordingStart, mainPassRecordingEnd, callbackUserData);
     }
     void renderNextFrame(QSGRenderer *renderer) override {
+        auto *const windowPrivate = QQuickWindowPrivate::get(window);
+        windowPrivate->context = target;
+
         renderer->setDevicePixelRatio(dpr);
         renderer->setDeviceRect(deviceRect);
         renderer->setViewportRect(viewportRect);
@@ -223,6 +228,7 @@ public:
     }
 
     QSGRenderContext *target;
+    QQuickWindow *window;
     qreal dpr;
     QRect deviceRect;
     QRect viewportRect;
@@ -325,7 +331,7 @@ void WOutputRenderWindowPrivate::init()
     if (QSGRendererInterface::isApiRhiBased(graphicsApi()))
         initRCWithRhi();
     Q_ASSERT(context);
-    renderContextProxy.reset(new RenderContextProxy(context));
+    renderContextProxy = std::make_unique<RenderContextProxy>(context, q);
     q->create();
     rc()->m_renderWindow = q;
 
