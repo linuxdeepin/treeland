@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Dingyuan Zhang <lxz@mkacg.com>.
+// Copyright (C) 2023 Dingyuan Zhang <zhangdingyuan@uniontech.com>.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "treelandhelper.h"
@@ -7,6 +7,7 @@
 #include <WOutput>
 #include <WSurfaceItem>
 #include <QFile>
+#include <qnamespace.h>
 #include <qwcompositor.h>
 
 #include <QRegularExpression>
@@ -29,6 +30,53 @@ bool TreeLandHelper::beforeDisposeEvent(WSeat *seat, QWindow *watched, QInputEve
         auto e = static_cast<QKeyEvent*>(event);
         emit keyEvent(e->key(), e->modifiers());
     }
+
+    // Alt+Tab switcher
+    // TODO: move to mid handle
+    auto e = static_cast<QKeyEvent*>(event);
+    bool isSwitcher = false;
+    bool isPress = event->type() == QEvent::KeyPress;
+
+    switch (e->key()) {
+        case Qt::Key_Tab: {
+            if (e->modifiers() == Qt::AltModifier) {
+                if (m_switcherCurrentMode == Switcher::Hide) {
+                    m_switcherCurrentMode = Switcher::Show;
+                }
+                else {
+                    m_switcherCurrentMode = Switcher::Next;
+                }
+
+                isSwitcher = true;
+            }
+            else if (e->modifiers() == (Qt::AltModifier | Qt::ShiftModifier)) {
+                if (m_switcherCurrentMode == Switcher::Hide) {
+                    m_switcherCurrentMode = Switcher::Show;
+                }
+                else {
+                    m_switcherCurrentMode = Switcher::Previous;
+                }
+
+                isSwitcher = true;
+            }
+
+            if (isSwitcher) {
+                if (isPress) {
+                    Q_EMIT switcherChanged(m_switcherCurrentMode);
+                }
+                return true;
+            }
+        }
+        break;
+        default: {
+            if (m_switcherCurrentMode != Switcher::Hide) {
+                m_switcherCurrentMode = Switcher::Hide;
+                Q_EMIT switcherChanged(m_switcherCurrentMode);
+            }
+        }
+        break;
+    }
+
 
     return Helper::beforeDisposeEvent(seat, watched, event);
 }

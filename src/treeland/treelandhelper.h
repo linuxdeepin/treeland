@@ -17,6 +17,14 @@ class TreeLandHelper : public Helper {
 public:
     explicit TreeLandHelper(QObject *parent = nullptr);
 
+    enum Switcher {
+        Hide,
+        Show,
+        Next,
+        Previous,
+    };
+    Q_ENUM(Switcher)
+
     QString socketFile() const;
 
     Q_INVOKABLE QString clientName(Waylib::Server::WSurface *surface) const;
@@ -24,6 +32,7 @@ public:
 Q_SIGNALS:
     void keyEvent(uint32_t key, uint32_t modify);
     void socketFileChanged();
+    void switcherChanged(Switcher mode);
 
 protected:
     bool beforeDisposeEvent(WSeat *seat, QWindow *watched, QInputEvent *event) override;
@@ -33,4 +42,5 @@ private:
 
 private:
     QString m_socketFile;
+    Switcher m_switcherCurrentMode = Switcher::Hide;
 };

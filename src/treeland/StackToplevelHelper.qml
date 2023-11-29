@@ -12,6 +12,7 @@ Item {
     required property SurfaceItem surface
     required property ToplevelSurface waylandSurface
     required property ListModel dockModel
+    required property ListModel switcherModel
     required property DynamicCreatorComponent creator
     property WindowDecoration decoration
 
@@ -155,6 +156,8 @@ Item {
                 if (surface.effectiveVisible)
                     TreeLandHelper.activatedSurface = waylandSurface
             }
+
+            switcherModel.append({ source: surface });
         } else { // if not mapped
             if (waylandSurface.isMinimized) {
                 // mapped becomes false but not pendingDestroy
@@ -170,11 +173,14 @@ Item {
                 closeAnimation.sourceComponent = closeAnimationComponent
                 closeAnimation.item.start(surface)
             }
+            switcherModel.removeSurface(surface)
         }
     }
 
     function doDestroy() {
         pendingDestroy = true
+
+        switcherModel.removeSurface(surface)
 
         if (!surface.visible || !closeAnimation.active) {
             if (waylandSurface.isMinimized) {
