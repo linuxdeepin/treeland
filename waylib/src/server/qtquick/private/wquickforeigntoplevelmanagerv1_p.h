@@ -12,6 +12,12 @@
 
 Q_MOC_INCLUDE("wsurface.h")
 
+struct wlr_foreign_toplevel_handle_v1_maximized_event;
+struct wlr_foreign_toplevel_handle_v1_minimized_event;
+struct wlr_foreign_toplevel_handle_v1_activated_event;
+struct wlr_foreign_toplevel_handle_v1_fullscreen_event;
+struct wlr_foreign_toplevel_handle_v1_set_rectangle_event;
+
 QW_BEGIN_NAMESPACE
 class QWForeignToplevelManagerV1;
 QW_END_NAMESPACE
@@ -33,8 +39,22 @@ public:
     Q_INVOKABLE void add(WXdgSurface *surface);
     Q_INVOKABLE void remove(WXdgSurface *surface);
 
+Q_SIGNALS:
+    void requestMaximize(WXdgSurface *surface, wlr_foreign_toplevel_handle_v1_maximized_event *event);
+    void requestMinimize(WXdgSurface *surface, wlr_foreign_toplevel_handle_v1_minimized_event *event);
+    void requestActivate(WXdgSurface *surface, wlr_foreign_toplevel_handle_v1_activated_event *event);
+    void requestFullscreen(WXdgSurface *surface, wlr_foreign_toplevel_handle_v1_fullscreen_event *event);
+    void requestClose(WXdgSurface *surface);
+    void rectangleChanged(WXdgSurface *surface, wlr_foreign_toplevel_handle_v1_set_rectangle_event *event);
+
 private:
     void create() override;
 };
 
 WAYLIB_SERVER_END_NAMESPACE
+
+Q_DECLARE_OPAQUE_POINTER(wlr_foreign_toplevel_handle_v1_maximized_event*);
+Q_DECLARE_OPAQUE_POINTER(wlr_foreign_toplevel_handle_v1_minimized_event*);
+Q_DECLARE_OPAQUE_POINTER(wlr_foreign_toplevel_handle_v1_activated_event*);
+Q_DECLARE_OPAQUE_POINTER(wlr_foreign_toplevel_handle_v1_fullscreen_event*);
+Q_DECLARE_OPAQUE_POINTER(wlr_foreign_toplevel_handle_v1_set_rectangle_event*);

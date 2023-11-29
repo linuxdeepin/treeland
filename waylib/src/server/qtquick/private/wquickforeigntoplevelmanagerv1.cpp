@@ -12,6 +12,12 @@
 #include <map>
 #include <memory>
 
+extern "C" {
+#define static
+#include <wlr/types/wlr_foreign_toplevel_management_v1.h>
+#undef static
+}
+
 QW_USE_NAMESPACE
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
@@ -63,6 +69,41 @@ public:
         connection.push_back(QObject::connect(surface->surface(), &WSurface::outputLeft, q_func(), [this, handle](WOutput *output) {
             handle->outputLeave(output->handle());
         }));
+
+        connection.push_back(QObject::connect(handle.get(),
+                             &QWForeignToplevelHandleV1::requestActivate,
+                             q_func(),
+                             [surface, this](wlr_foreign_toplevel_handle_v1_activated_event *event) {
+                                 Q_EMIT q_func()->requestActivate(surface, event);
+                             }));
+
+        connection.push_back(QObject::connect(handle.get(),
+                             &QWForeignToplevelHandleV1::requestMaximize,
+                             q_func(),
+                             [surface, this](wlr_foreign_toplevel_handle_v1_maximized_event *event) {
+                                 Q_EMIT q_func()->requestMaximize(surface, event);
+                             }));
+
+        connection.push_back(QObject::connect(handle.get(),
+                             &QWForeignToplevelHandleV1::requestMinimize,
+                             q_func(),
+                             [surface, this](wlr_foreign_toplevel_handle_v1_minimized_event *event) {
+                                 Q_EMIT q_func()->requestMinimize(surface, event);
+                             }));
+
+        connection.push_back(QObject::connect(handle.get(),
+                             &QWForeignToplevelHandleV1::requestFullscreen,
+                             q_func(),
+                             [surface, this](wlr_foreign_toplevel_handle_v1_fullscreen_event *event) {
+                                 Q_EMIT q_func()->requestFullscreen(surface, event);
+                             }));
+
+        connection.push_back(QObject::connect(handle.get(),
+                             &QWForeignToplevelHandleV1::requestClose,
+                             q_func(),
+                             [surface, this] {
+                                 Q_EMIT q_func()->requestClose(surface);
+                             }));
 
         Q_EMIT surface->titleChanged();
         Q_EMIT surface->appIdChanged();

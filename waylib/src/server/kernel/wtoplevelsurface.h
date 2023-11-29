@@ -78,6 +78,9 @@ public Q_SLOTS:
     virtual void setResizeing(bool on) {
         Q_UNUSED(on);
     }
+    virtual void setFullScreen(bool on) {
+        Q_UNUSED(on);
+    }
 
     virtual bool checkNewSize(const QSize &size) = 0;
     virtual void resize(const QSize &size) {

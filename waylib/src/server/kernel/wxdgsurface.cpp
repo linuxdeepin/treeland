@@ -375,6 +375,15 @@ void WXdgSurface::setActivate(bool on)
     }
 }
 
+void WXdgSurface::setFullScreen(bool on)
+{
+    W_D(WXdgSurface);
+
+    if (auto toplevel = d->handle->topToplevel()) {
+        toplevel->setFullscreen(on);
+    }
+}
+
 bool WXdgSurface::checkNewSize(const QSize &size)
 {
     W_D(WXdgSurface);

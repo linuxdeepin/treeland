@@ -63,6 +63,7 @@ public Q_SLOTS:
     void setMaximize(bool on) override;
     void setMinimize(bool on) override;
     void setActivate(bool on) override;
+    void setFullScreen(bool on) override;
 
     bool checkNewSize(const QSize &size) override;
     void resize(const QSize &size) override;
