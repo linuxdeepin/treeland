@@ -88,7 +88,7 @@ Item {
             rightPadding: decoration.enable ? decoration.rightMargin : 0
 
             WindowDecoration {
-                property var enable: surfaceDecorationMapper.enable
+                property var enable: surfaceDecorationMapper.serverDecorationEnabled
 
                 id: decoration
                 anchors.fill: parent
