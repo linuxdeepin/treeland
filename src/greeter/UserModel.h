@@ -22,16 +22,12 @@
 
 #include <QAbstractListModel>
 #include <QQmlEngine>
-
 #include <QHash>
-#include <qtmetamacros.h>
-#include <qvariant.h>
 
-class UserModelPrivate;
+struct UserModelPrivate;
 
 class UserModel : public QAbstractListModel {
     Q_OBJECT
-    Q_DISABLE_COPY(UserModel)
     Q_PROPERTY(int lastIndex READ lastIndex CONSTANT)
     Q_PROPERTY(QString lastUser READ lastUser CONSTANT)
     Q_PROPERTY(int count READ rowCount CONSTANT)
@@ -46,28 +42,28 @@ public:
         IconRole,
         NeedsPasswordRole,
         LoginedRole,
+        IdentityRole
     };
     Q_ENUM(UserRoles)
 
-    UserModel(bool needAllUsers = true, QObject *parent = nullptr);
-    ~UserModel();
+    UserModel(const UserModel&) = delete;
+    UserModel& operator=(const UserModel&) = delete;
+    UserModel(bool needAllUsers = true,QObject *parent = nullptr);
+    ~UserModel() override;
 
-    QHash<int, QByteArray> roleNames() const override;
-
-    int lastIndex() const;
-    QString lastUser() const;
-
-    int rowCount(const QModelIndex &parent = QModelIndex()) const override;
-    QVariant data(const QModelIndex &index, int role = Qt::DisplayRole) const override;
-
-    Q_INVOKABLE QVariant get(const QString &username) const;
-
+    [[nodiscard]] QHash<int, QByteArray> roleNames() const override;
+    [[nodiscard]] int lastIndex() const;
+    [[nodiscard]] QString lastUser() const;
+    [[nodiscard]] int rowCount(const QModelIndex &parent = QModelIndex()) const override;
+    [[nodiscard]] QVariant data(const QModelIndex &index, int role = Qt::DisplayRole) const override;
+    [[nodiscard]] Q_INVOKABLE QVariant get(const QString &username) const;
+    [[nodiscard]] Q_INVOKABLE QVariant get(int index) const;
     void updateUserLoginState(const QString &username, bool logined);
+    [[nodiscard]] static int disableAvatarsThreshold();
+    [[nodiscard]] bool containsAllUsers() const;
 
-    int disableAvatarsThreshold() const;
-    bool containsAllUsers() const;
 private:
-    UserModelPrivate *d { nullptr };
+    UserModelPrivate *d {nullptr};
 };
 
-#endif // SDDM_USERMODEL_H
+#endif // USERMODEL_H

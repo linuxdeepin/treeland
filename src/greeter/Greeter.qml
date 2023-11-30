@@ -1,6 +1,5 @@
 // Copyright (C) 2023 justforlxz <justforlxz@gmail.com>.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
-
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
@@ -9,6 +8,11 @@ import TreeLand.Greeter
 
 Item {
     id: root
+    // prevent event passing through greeter
+    MouseArea {
+        anchors.fill: parent
+        enabled: true
+    }
 
     Image {
         id: background

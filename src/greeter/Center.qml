@@ -1,9 +1,9 @@
 // Copyright (C) 2023 justforlxz <justforlxz@gmail.com>.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
-
 import QtQuick
 import QtQuick.Layouts
 import QtQuick.Controls
+import org.deepin.dtk 1.0 as D
 
 Item {
     id: root
@@ -58,24 +58,31 @@ Item {
         width: root.width * 0.4
         Rectangle {
             anchors.right: parent.right
-            anchors.rightMargin: 30
+            anchors.rightMargin: parent.width / 10
             anchors.verticalCenter: parent.verticalCenter
-            width: 250
-            height: 300
+            width: 400
+            height: 500
             color: Qt.rgba(1, 1, 1, 0.5)
             radius: 15
             Text {
                 text: "There will display some widgets."
             }
         }
+    }
 
-        Rectangle {
-            width: 50
-            height: 30
-            color: 'red'
-            anchors.left: parent.left
-            anchors.bottom: parent.bottom
-            visible: false
+    Rectangle {
+        id: logo
+        width: 100
+        height: 60
+        anchors.left: parent.left
+        anchors.bottom: parent.bottom
+        color: Qt.rgba(1, 1, 1, 0.5)
+        Text {
+            width: parent.width
+            height: parent.height
+            text: "This is system logo."
+            color: 'black'
+            wrapMode: Text.Wrap
         }
     }
 
@@ -85,36 +92,113 @@ Item {
         anchors.right: parent.right
         anchors.top: parent.top
         anchors.bottom: parent.bottom
+
         UserInput {
             id: userInput
             anchors.verticalCenter: parent.verticalCenter
             anchors.left: parent.left
-            anchors.leftMargin: 60
+            anchors.leftMargin: 80
         }
+
         RowLayout {
-            id: bottom
+            id: bottomGroup
+            property var buttonSize: 30
             anchors.bottom: parent.bottom
             anchors.right: parent.right
-            Item {
-                Layout.fillWidth: true
+            spacing: 15
+
+            Rectangle {
+                implicitWidth: bottomGroup.buttonSize + 6
+                implicitHeight: bottomGroup.buttonSize + 6
+                color: "transparent"
+                Layout.alignment: Qt.AlignHCenter
+                RoundButton {
+                    id: wifiBtn
+                    text: '1'
+                    width: bottomGroup.buttonSize
+                    height: bottomGroup.buttonSize
+                    anchors.centerIn: parent
+                    onClicked: {
+                        console.log("need impl btn 1")
+                    }
+
+                    background: RoundBlur {}
+                }
             }
-            Row {
-                id: button
-                spacing: 10
-                Button {
-                    id: userBtn
-                    text: "User"
+
+            Rectangle {
+                implicitWidth: bottomGroup.buttonSize + 6
+                implicitHeight: bottomGroup.buttonSize + 6
+                color: "transparent"
+                Layout.alignment: Qt.AlignHCenter
+                RoundButton {
+                    id: boardBtn
+                    text: '2'
+                    width: bottomGroup.buttonSize
+                    height: bottomGroup.buttonSize
+                    anchors.centerIn: parent
+                    onClicked: {
+                        console.log(userList.count > 1)
+                    }
+
+                    background: RoundBlur {}
+                }
+            }
+
+            Rectangle {
+                implicitWidth: bottomGroup.buttonSize + 6
+                implicitHeight: bottomGroup.buttonSize + 6
+                color: "transparent"
+                Layout.alignment: Qt.AlignHCenter
+                visible: userList.count > 1
+
+                RoundButton {
+                    id: usersBtn
+                    text: '3'
+                    width: bottomGroup.buttonSize
+                    height: bottomGroup.buttonSize
+                    anchors.centerIn: parent
+                    hoverEnabled: parent.visible
+                    D.ToolTip.visible: hovered
+                    D.ToolTip.text: qsTr("Other Users")
                     UserList {
                         id: userList
+                        onClosed: {
+                            usersBtn.width -= 6
+                            usersBtn.height -= 6
+                        }
                     }
+
                     onClicked: {
-                        userList.x = (width - userList.width) / 2
-                        userList.y = - userList.height
+                        usersBtn.width += 6
+                        usersBtn.height += 6
+                        userList.x = (width - userList.width) / 2 - 10
+                        userList.y = -userList.height - 10
                         userList.open()
                     }
+
+                    background: RoundBlur {}
+                }
+            }
+
+            Rectangle {
+                implicitWidth: bottomGroup.buttonSize + 6
+                implicitHeight: bottomGroup.buttonSize + 6
+                color: "transparent"
+                Layout.alignment: Qt.AlignHCenter
+                RoundButton {
+                    id: powerBtn
+                    text: '4'
+                    width: bottomGroup.buttonSize
+                    height: bottomGroup.buttonSize
+                    anchors.centerIn: parent
+                    onClicked: {
+                        console.log("need impl btn 4")
+                    }
+
+                    background: RoundBlur {}
                 }
             }
         }
     }
 }
-
