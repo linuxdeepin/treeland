@@ -9,6 +9,8 @@ set(GREETER_SOURCES
     UserModel.cpp
 )
 
+find_package(Dtk6 REQUIRED COMPONENTS Declarative)
+
 set(QML_IMPORT_PATH ${QML_IMPORT_PATH} ${CMAKE_CURRENT_BINARY_DIR}/ CACHE STRING "" FORCE)
 
 set_source_files_properties(GreeterModel.qml PROPERTIES
@@ -35,6 +37,7 @@ qt_add_qml_module(greeterplugin
     QML_FILES GreeterModel.qml
     QML_FILES Center.qml
     QML_FILES LoginAnimation.qml
+    QML_FILES RoundBlur.qml
 )
 
 target_include_directories(greeterplugin
@@ -47,6 +50,7 @@ target_link_libraries(greeterplugin
         common
         Qt${QT_MAJOR_VERSION}::Gui
         Qt${QT_MAJOR_VERSION}::Qml
+        Dtk6::Declarative
 )
 
 if(JOURNALD_FOUND)

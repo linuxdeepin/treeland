@@ -20,6 +20,10 @@ Build-Depends: debhelper-compat (= 13),
                qt6-tools-dev-tools (>= 6.4.0~),
                qt6-wayland,
                qt6-wayland-dev,
+               libdtk6declarative-dev,
+               libdtk6gui-dev,
+               libdtk6core-dev,
+               libdtkcommon-dev,
                systemd [linux-any],
                libwaylib-dev,
                libqwlroots-dev,
@@ -48,7 +52,9 @@ Depends: ${shlibs:Depends},
          qml6-module-qtquick-window,
          adduser,
          seatd,
-         qt6-wayland
+         qt6-wayland,
+         libqt6svg6,
+         libdtk6declarative
 Recommends: libpam-systemd, xwayland
 Description: a modern display manager for Wayland sessions aiming to be fast, simple and beautiful.
 
