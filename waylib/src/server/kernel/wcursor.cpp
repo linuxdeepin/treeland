@@ -97,8 +97,9 @@ static inline const char *qcursorShapeToType(std::underlying_type_t<WCursor::Cur
         return "cross";
     case Qt::WaitCursor:
         return "wait";
-    case Qt::IBeamCursor:
-        return "ibeam";
+    case Qt::IBeamCursor: [[fallthrough]];
+    case WCursor::Text:
+        return "text";
     case Qt::SizeAllCursor:
         return "size_all";
     case Qt::BlankCursor:
@@ -185,8 +186,6 @@ static inline const char *qcursorShapeToType(std::underlying_type_t<WCursor::Cur
         return "n-resize";
     case WCursor::AllScroll:
         return "all-scroll";
-    case WCursor::Text:
-        return "text";
     case WCursor::Pointer:
         return "pointer";
     case WCursor::Wait:
