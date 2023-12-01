@@ -156,9 +156,10 @@ public:
     {
 
     }
+
     ~OutputHelper()
     {
-        cleanOutput2();
+        cleanLayerCompositor();
         qDeleteAll(m_layers);
     }
 
@@ -186,16 +187,20 @@ public:
     }
 
     inline WBufferRenderer *bufferRenderer() const {
-        return WOutputViewportPrivate::get(m_output)->renderBuffer;
+        return WOutputViewportPrivate::get(m_output)->bufferRenderer;
     }
 
     inline WBufferRenderer *bufferRenderer2() const {
         Q_ASSERT(m_output2);
-        return WOutputViewportPrivate::get(m_output2)->renderBuffer;
+        return WOutputViewportPrivate::get(m_output2)->bufferRenderer;
     }
 
     inline const QList<LayerData*> &layers() const {
         return m_layers;
+    }
+
+    inline void invalidate() {
+        m_output = nullptr;
     }
 
     void updateSceneDPR();
@@ -204,11 +209,11 @@ public:
     bool attachLayer(OutputLayer *layer);
     void detachLayer(OutputLayer *layer);
     void sortLayers();
-    void cleanOutput2();
+    void cleanLayerCompositor();
 
     void beforeRender();
-    WBufferRenderer *afterRender(QSGRenderContext *context, WBufferRenderer *base);
-    bool compositeLayers(QSGRenderContext *context, const QVector<LayerData*> layers);
+    WBufferRenderer *afterRender();
+    WBufferRenderer *compositeLayers(const QVector<LayerData*> layers);
     bool commit(WBufferRenderer *buffer);
 
 private:
@@ -219,7 +224,8 @@ private:
 
     // for compositeLayers
     QPointer<WOutputViewport> m_output2;
-    QList<WQuickTextureProxy*> m_layerProxys;
+    QPointer<QQuickItem> m_layerPorxyContainer;
+    QList<QPointer<WQuickTextureProxy>> m_layerProxys;
 };
 
 QWOutputLayer::QWOutputLayer(wlr_output_layer *handle, QWOutput *output, QObject *parent)
@@ -328,7 +334,7 @@ public:
     bool initRCWithRhi();
     void updateSceneDPR();
 
-    void doRenderOutputs(QSGRenderContext *context);
+    void doRenderOutputs();
     void doRender();
 
     inline void scheduleDoRender() {
@@ -402,24 +408,37 @@ void OutputHelper::sortLayers()
     });
 }
 
-void OutputHelper::cleanOutput2()
+void OutputHelper::cleanLayerCompositor()
 {
-    QList<WQuickTextureProxy*> tmpList;
+    QList<QPointer<WQuickTextureProxy>> tmpList;
     std::swap(m_layerProxys, tmpList);
 
-    if (!m_output2)
-        return;
-
     for (auto proxy : tmpList) {
+        if (!proxy)
+            continue;
+
         WBufferRenderer *source = qobject_cast<WBufferRenderer*>(proxy->sourceItem());
-        if (source) {
-            proxy->setSourceItem(nullptr);
+        proxy->setSourceItem(nullptr);
+
+        if (source)
             source->resetTextureProvider();
-        }
     }
 
-    m_output2->deleteLater();
-    m_output2 = nullptr;
+    if (m_output2) {
+        m_output2->deleteLater();
+        m_output2 = nullptr;
+    }
+
+    if (m_output) {
+        auto d = WOutputViewportPrivate::get(m_output);
+        if (!d->inDestructor)
+            d->setExtraRenderSource(nullptr);
+    }
+
+    if (m_layerPorxyContainer) {
+        m_layerPorxyContainer->deleteLater();
+        m_layerPorxyContainer = nullptr;
+    }
 }
 
 void OutputHelper::beforeRender()
@@ -440,12 +459,12 @@ struct Q_DECL_HIDDEN QScopedPointerWlArrayDeleter {
 };
 typedef QScopedPointer<wl_array, QScopedPointerWlArrayDeleter> wl_array_pointer;
 
-WBufferRenderer *OutputHelper::afterRender(QSGRenderContext *context, WBufferRenderer *base)
+WBufferRenderer *OutputHelper::afterRender()
 {
     const auto layersFlags = output()->layerFlags();
     if (m_layers.isEmpty() || layersFlags.testFlag(WOutputViewport::LayerFlag::AlwaysRejected)) {
-        cleanOutput2();
-        return base;
+        cleanLayerCompositor();
+        return bufferRenderer();
     }
 
     // update layers
@@ -455,8 +474,7 @@ WBufferRenderer *OutputHelper::afterRender(QSGRenderContext *context, WBufferRen
     datas.reserve(m_layers.size());
 
     const bool alwaysAccepted = layersFlags.testFlag(WOutputViewport::LayerFlag::AlwaysAccepted);
-    const bool forceComposite = layersFlags.testFlag(WOutputViewport::LayerFlag::ForceComposite);
-    const bool canRejected = !alwaysAccepted && !forceComposite;
+    const bool canRejected = !alwaysAccepted;
 
     for (auto i : m_layers) {
         if (!i->layer->layer->parent()->isVisible())
@@ -535,9 +553,12 @@ WBufferRenderer *OutputHelper::afterRender(QSGRenderContext *context, WBufferRen
                                      || i->renderMatrix != renderMatrix;
 
         if (!buffer || i->contentsIsDirty || needsFullUpdate) {
-            buffer = i->renderer->render(context, DRM_FORMAT_ARGB8888,
-                                         i->mapRect.size().toSize(), dpr, renderMatrix,
-                                         WBufferRenderer::DontConfigureSwapchain);
+            const QSize pixelSize(qCeil(i->mapRect.width()), qCeil(i->mapRect.height()));
+            buffer = i->renderer->beginRender(pixelSize, dpr, DRM_FORMAT_ARGB8888,
+                                              WBufferRenderer::DontConfigureSwapchain);
+            if (buffer)
+                i->renderer->render(0, renderMatrix,
+                                    i->layer->layer->flags().testFlag(WOutputLayer::PreserveColorContents));
         } else {
             isNewBuffer = false;
         }
@@ -564,104 +585,120 @@ WBufferRenderer *OutputHelper::afterRender(QSGRenderContext *context, WBufferRen
 
         if (isNewBuffer) {
             Q_ASSERT(buffer);
-            i->renderer->setBufferSubmitted(buffer);
-            buffer->unlock();
+            i->renderer->endRender();
         }
 
         datas.append(i);
     }
 
     if (layers.isEmpty()) {
-        cleanOutput2();
-        return base;
+        cleanLayerCompositor();
+        return bufferRenderer();
     }
 
+    if (output()->offscreen()) {
+        cleanLayerCompositor();
+        return bufferRenderer();
+    }
+
+    bool ok = WOutputHelper::testCommit(bufferRenderer()->currentBuffer(), layers);
+
     QList<LayerData*> needsCompositeLayers;
-    if (forceComposite) {
-        needsCompositeLayers = datas;
+    if (!ok) {
+        needsCompositeLayers = m_layers;
     } else {
-        if (output()->offscreen()) {
-            cleanOutput2();
-            return base;
-        }
-
-        bool ok = WOutputHelper::testCommit(bufferRenderer()->lastBuffer(), layers);
-
-        if (!ok) {
-            needsCompositeLayers = m_layers;
-        } else {
-            int needsCompositeIndex = -1;
-            {
-                for (int i = 0; i < layers.length(); ++i) {
-                    const auto &state = layers.at(i);
-                    if (state.accepted) {
-                        datas.at(i)->layer->layer->setAccepted(true);
-                    } else if (state.buffer) {
-                        needsCompositeIndex = i;
-                    }
+        int needsCompositeIndex = -1;
+        {
+            for (int i = 0; i < layers.length(); ++i) {
+                const auto &state = layers.at(i);
+                if (state.accepted) {
+                    datas.at(i)->layer->layer->setAccepted(true);
+                } else if (state.buffer) {
+                    needsCompositeIndex = i;
                 }
             }
-
-            if (needsCompositeIndex < datas.size() - 1) {
-                datas.resize(++needsCompositeIndex);
-                layers.remove(0, datas.size());
-                Q_ASSERT(!layers.isEmpty());
-                setLayers(layers);
-            }
-
-            needsCompositeLayers = datas;
         }
 
-        if (!alwaysAccepted) {
-            for (auto i : needsCompositeLayers)
-               i->layer->layer->setAccepted(false);
-            return base;
+        if (needsCompositeIndex < datas.size() - 1) {
+            datas.resize(++needsCompositeIndex);
+            layers.remove(0, datas.size());
+            Q_ASSERT(!layers.isEmpty());
+            setLayers(layers);
         }
+
+        needsCompositeLayers = datas;
+    }
+
+    if (!alwaysAccepted) {
+        for (auto i : needsCompositeLayers)
+            i->layer->layer->setAccepted(false);
+        return bufferRenderer();
     }
 
     if (needsCompositeLayers.isEmpty()) {
-        cleanOutput2();
-        return base;
+        cleanLayerCompositor();
+        return bufferRenderer();
     }
 
-    bool ok = compositeLayers(context, needsCompositeLayers);
-    return ok ? bufferRenderer2() : base;
+    return compositeLayers(needsCompositeLayers);
 }
 
 #define PRIVATE_WOutputViewport "__private_WOutputViewport"
-bool OutputHelper::compositeLayers(QSGRenderContext *context, const QList<LayerData*> layers)
+WBufferRenderer *OutputHelper::compositeLayers(const QList<LayerData*> layers)
 {
     Q_ASSERT(!layers.isEmpty());
-    if (!m_output2) {
-        m_output2 = new WOutputViewport(m_output);
-        m_output2->setObjectName(PRIVATE_WOutputViewport);
-        m_output2->setRoot(true);
-        m_output2->setOutput(m_output->output());
+
+    const bool usingShadowRenderer = this->output()->layerFlags().testFlag(WOutputViewport::LayerFlag::UsingShadowBufferOnComposite)
+                                     // TODO: Support preserveColorContents in Qt in QSGSoftwareRenderer
+                                     || dynamic_cast<QSGSoftwareRenderer*>(renderWindowD()->renderer);
+
+    if (!m_layerPorxyContainer) {
+        m_layerPorxyContainer = new QQuickItem(renderWindow()->contentItem());
     }
 
+    WOutputViewport *output;
     const qreal dpr = m_output->devicePixelRatio();
-    m_output2->setSize(m_output->size());
-    m_output2->setDevicePixelRatio(dpr);
 
-    if (m_layerProxys.size() <= layers.size())
-        m_layerProxys.reserve(layers.size() + 1);
+    if (usingShadowRenderer) {
+        if (!m_output2) {
+            m_output2 = new WOutputViewport(m_output);
+            m_output2->setObjectName(PRIVATE_WOutputViewport);
+            m_output2->setOutput(m_output->output());
+            bufferRenderer2()->setSourceList({m_layerPorxyContainer.get()}, true);
+        }
 
-    WQuickTextureProxy *outputProxy = nullptr;
-    if (m_layerProxys.isEmpty()) {
-        outputProxy = new WQuickTextureProxy(m_output2);
+        m_output2->setSize(m_output->size());
+        m_output2->setDevicePixelRatio(dpr);
+        output = m_output2;
+
+        if (m_layerProxys.size() <= layers.size())
+            m_layerProxys.reserve(layers.size() + 1);
+
+        if (m_layerProxys.isEmpty())
+            m_layerProxys.append(new WQuickTextureProxy(m_layerPorxyContainer));
+
+        auto outputProxy = m_layerProxys.first();
         bufferRenderer()->ensureTextureProvider();
         outputProxy->setSourceItem(bufferRenderer());
-        QQuickItemPrivate::get(outputProxy)->anchors()->setFill(m_output2);
-        m_layerProxys.append(outputProxy);
+        outputProxy->setSize(output->size());
+    } else {
+        output = m_output;
+
+        if (m_layerProxys.size() < layers.size())
+            m_layerProxys.reserve(layers.size());
+
+        WOutputViewportPrivate::get(output)->setExtraRenderSource(m_layerPorxyContainer);
     }
 
+    m_layerPorxyContainer->setSize(output->size());
+
     for (int i = 0; i < layers.count(); ++i) {
-        const int j = i + 1;
+        const int j = i + (usingShadowRenderer ? 1 : 0);
         WQuickTextureProxy *proxy = nullptr;
         if (j < m_layerProxys.size()) {
             proxy = m_layerProxys.at(j);
         } else {
-            proxy = new WQuickTextureProxy(m_output2);
+            proxy = new WQuickTextureProxy(m_layerPorxyContainer);
             m_layerProxys.append(proxy);
         }
 
@@ -675,7 +712,7 @@ bool OutputHelper::compositeLayers(QSGRenderContext *context, const QList<LayerD
     }
 
     // Clean
-    for (int i = layers.count() + 1; i < m_layerProxys.count(); ++i) {
+    for (int i = layers.count() + (usingShadowRenderer ? 1 : 0); i < m_layerProxys.count(); ++i) {
         auto proxy = m_layerProxys.takeAt(i);
         proxy->setVisible(false);
         proxy->deleteLater();
@@ -683,8 +720,22 @@ bool OutputHelper::compositeLayers(QSGRenderContext *context, const QList<LayerD
 
     renderWindow()->renderControl()->sync();
 
-    return bufferRenderer2()->render(context, qwoutput()->handle()->render_format,
-                                     m_output->output()->size(), dpr, QMatrix4x4());
+    if (usingShadowRenderer) {
+        const bool ok = bufferRenderer2()->beginRender(m_output->output()->size(), dpr,
+                                                       qwoutput()->handle()->render_format,
+                                                       WBufferRenderer::RedirectOpenGLContextDefaultFrameBufferObject);
+
+        if (ok) {
+            bufferRenderer()->endRender();
+            bufferRenderer2()->render(0, {}, true);
+
+            return bufferRenderer2();
+        }
+    } else {
+        bufferRenderer()->render(1, {}, true);
+    }
+
+    return bufferRenderer();
 }
 
 bool OutputHelper::commit(WBufferRenderer *buffer)
@@ -692,12 +743,12 @@ bool OutputHelper::commit(WBufferRenderer *buffer)
     if (output()->offscreen())
         return true;
 
-    if (!buffer || !buffer->lastBuffer()) {
+    if (!buffer || !buffer->currentBuffer()) {
         Q_ASSERT(!this->buffer());
         return WOutputHelper::commit();
     }
 
-    setBuffer(buffer->lastBuffer());
+    setBuffer(buffer->currentBuffer());
 
     if (m_lastCommitBuffer == buffer) {
         if (pixman_region32_not_empty(&buffer->damageRing()->handle()->current))
@@ -879,9 +930,9 @@ void WOutputRenderWindowPrivate::updateSceneDPR()
     setSceneDevicePixelRatio(maxDPR);
 }
 
-void WOutputRenderWindowPrivate::doRenderOutputs(QSGRenderContext *context)
+void WOutputRenderWindowPrivate::doRenderOutputs()
 {
-    QVector<std::pair<OutputHelper*, WBufferRenderer*>> renderResults;
+    QVector<OutputHelper*> renderResults;
     renderResults.reserve(outputs.size());
     for (OutputHelper *helper : outputs) {
         if (!helper->renderable() || !helper->output()->isVisible())
@@ -889,7 +940,7 @@ void WOutputRenderWindowPrivate::doRenderOutputs(QSGRenderContext *context)
 
         if (!helper->contentIsDirty()) {
             if (helper->needsFrame())
-                renderResults.append({helper, nullptr});
+                renderResults.append(helper);
             continue;
         }
 
@@ -926,37 +977,28 @@ void WOutputRenderWindowPrivate::doRenderOutputs(QSGRenderContext *context)
             renderMatrix = viewportMatrix * parentMatrix;
         }
 
-        QWBuffer *buffer = helper->bufferRenderer()->render(context, format,
-                                                            helper->output()->output()->size(),
-                                                            dpr, renderMatrix);
-        Q_ASSERT(buffer == helper->bufferRenderer()->lastBuffer());
-        renderResults.append({helper, buffer ? helper->bufferRenderer() : nullptr});
+        QWBuffer *buffer = helper->bufferRenderer()->beginRender(helper->output()->output()->size(),
+                                                                 dpr, format,
+                                                                 WBufferRenderer::RedirectOpenGLContextDefaultFrameBufferObject);
+        Q_ASSERT(buffer == helper->bufferRenderer()->currentBuffer());
+        helper->bufferRenderer()->render(0, renderMatrix, helper->output()->preserveColorContents());
+        renderResults.append(helper);
     }
 
-    for (auto i : renderResults) {
-        auto helper = i.first;
-        if (i.second && helper->contentIsDirty())
-            Q_ASSERT(i.second == helper->bufferRenderer());
-        auto bufferRenderer = helper->afterRender(context, i.second);
+    for (auto helper : renderResults) {
+        auto bufferRenderer = helper->afterRender();
+        bool ok = false;
 
-        if (i.second) {
-            Q_ASSERT(bufferRenderer);
-        }
-
-        bool ok = helper->commit(bufferRenderer);
         if (bufferRenderer) {
-            auto buffer = bufferRenderer->lastBuffer();
-            Q_ASSERT(buffer);
-            bufferRenderer->setBufferSubmitted(buffer);
-            buffer->unlock();
+            ok = helper->commit(bufferRenderer);
 
-            if (i.second && i.second != bufferRenderer) {
-                i.second->setBufferSubmitted(i.second->lastBuffer());
-                i.second->lastBuffer()->unlock();
+            if (bufferRenderer->currentBuffer()) {
+                bufferRenderer->endRender();
             }
         }
 
-        helper->resetState(ok);
+        if (bufferRenderer)
+            helper->resetState(ok);
     }
 }
 
@@ -999,7 +1041,7 @@ void WOutputRenderWindowPrivate::doRender()
     emit q->beforeRendering();
     runAndClearJobs(&beforeRenderingJobs);
 
-    doRenderOutputs(context);
+    doRenderOutputs();
 
     emit q->afterRendering();
     runAndClearJobs(&afterRenderingJobs);
@@ -1073,9 +1115,10 @@ void WOutputRenderWindow::detach(WOutputViewport *output)
     Q_ASSERT(index >= 0);
 
     auto outputHelper = d->outputs.takeAt(index);
+    outputHelper->invalidate();
     outputHelper->deleteLater();
 
-    if (!d->isInitialized())
+    if (d->inDestructor || !d->isInitialized())
         return;
 
     d->updateSceneDPR();

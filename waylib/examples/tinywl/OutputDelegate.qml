@@ -49,6 +49,7 @@ OutputItem {
         output: waylandOutput
         devicePixelRatio: parent.devicePixelRatio
         anchors.centerIn: parent
+        preserveColorContents: !rotationAnimator.running
 
         RotationAnimation {
             id: rotationAnimator
@@ -108,6 +109,7 @@ OutputItem {
             output: waylandOutput
             devicePixelRatio: outputViewport.devicePixelRatio
             layerFlags: OutputViewport.AlwaysAccepted
+            preserveColorContents: !rotationAnimator.running
 
             TextureProxy {
                 sourceItem: outputViewport

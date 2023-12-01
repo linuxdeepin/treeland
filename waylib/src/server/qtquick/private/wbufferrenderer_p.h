@@ -10,11 +10,13 @@
 
 #include <QQuickItem>
 #include <QQuickRenderTarget>
+#define protected public
+#include <private/qsgrenderer_p.h>
+#undef protected
 
 Q_MOC_INCLUDE(<private/qsgplaintexture_p.h>)
 
 QT_BEGIN_NAMESPACE
-class QSGRenderer;
 class QSGPlainTexture;
 class QSGRenderContext;
 QT_END_NAMESPACE
@@ -41,7 +43,8 @@ class WAYLIB_SERVER_EXPORT WBufferRenderer : public QQuickItem
 public:
     enum RenderFlag {
         DontConfigureSwapchain = 1,
-        DontTestSwapchain = 2
+        DontTestSwapchain = 2,
+        RedirectOpenGLContextDefaultFrameBufferObject = 4,
     };
     Q_DECLARE_FLAGS(RenderFlags, RenderFlag)
 
@@ -51,12 +54,14 @@ public:
     WOutput *output() const;
     void setOutput(WOutput *output);
 
+    int sourceCount() const;
     QList<QQuickItem*> sourceList() const;
     void setSourceList(QList<QQuickItem *> sources, bool hideSource);
 
     bool cacheBuffer() const;
     void setCacheBuffer(bool newCacheBuffer);
 
+    QW_NAMESPACE::QWBuffer *currentBuffer() const;
     QW_NAMESPACE::QWBuffer *lastBuffer() const;
     const QW_NAMESPACE::QWDamageRing *damageRing() const;
     QW_NAMESPACE::QWDamageRing *damageRing();
@@ -70,10 +75,10 @@ Q_SIGNALS:
     void cacheBufferChanged();
 
 protected:
-    QW_NAMESPACE::QWBuffer *render(QSGRenderContext *context, uint32_t format,
-                                   const QSize &pixelSize, qreal devicePixelRatio,
-                                   QMatrix4x4 renderMatrix, RenderFlags flags = {});
-    void setBufferSubmitted(QW_NAMESPACE::QWBuffer *buffer);
+    QW_NAMESPACE::QWBuffer *beginRender(const QSize &pixelSize, qreal devicePixelRatio,
+                                        uint32_t format, RenderFlags flags = {});
+    void render(int sourceIndex, QMatrix4x4 renderMatrix, bool preserveColorContents = false);
+    void endRender();
     void componentComplete() override;
 
 private:
@@ -103,13 +108,25 @@ private:
     QSGRenderer *ensureRenderer(QQuickItem *source, QSGRenderContext *rc);
 
     QW_NAMESPACE::QWSwapchain *m_swapchain = nullptr;
-    QPointer<QW_NAMESPACE::QWBuffer> m_lastBuffer;
     WRenderHelper *m_renderHelper = nullptr;
+    QPointer<QW_NAMESPACE::QWBuffer> m_lastBuffer;
+
+    struct RenderState {
+        RenderFlags flags;
+        QSGRenderContext *context;
+        QSize pixelSize;
+        qreal devicePixelRatio;
+        int bufferAge;
+        std::pair<QW_NAMESPACE::QWBuffer*, QQuickRenderTarget> lastRT;
+        QW_NAMESPACE::QWBuffer *buffer = nullptr;
+        QQuickRenderTarget renderTarget;
+        QSGRenderTarget sgRenderTarget;
+    } state;
 
     QPointer<WOutput> m_output;
 
     struct Data {
-        QQuickItem *source = nullptr;
+        QQuickItem *source = nullptr; // Don't using QPointer, See isRootItem
         QSGRenderer *renderer = nullptr;
     };
 

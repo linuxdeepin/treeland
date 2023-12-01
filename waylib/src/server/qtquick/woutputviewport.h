@@ -21,6 +21,7 @@ class WAYLIB_SERVER_EXPORT WOutputViewport : public QQuickItem
     Q_PROPERTY(bool offscreen READ offscreen WRITE setOffscreen NOTIFY offscreenChanged)
     Q_PROPERTY(bool root READ isRoot WRITE setRoot NOTIFY rootChanged FINAL)
     Q_PROPERTY(bool cacheBuffer READ cacheBuffer WRITE setCacheBuffer NOTIFY cacheBufferChanged FINAL)
+    Q_PROPERTY(bool preserveColorContents READ preserveColorContents WRITE setPreserveColorContents NOTIFY preserveColorContentsChanged FINAL)
     Q_PROPERTY(LayerFlags layerFlags READ layerFlags WRITE setLayerFlags NOTIFY layerFlagsChanged FINAL)
     QML_NAMED_ELEMENT(OutputViewport)
 
@@ -28,7 +29,7 @@ public:
     enum class LayerFlag {
         AlwaysAccepted = 1,
         AlwaysRejected = 2,
-        ForceComposite = 4
+        UsingShadowBufferOnComposite = 4,
     };
     Q_ENUM(LayerFlag)
     Q_DECLARE_FLAGS(LayerFlags, LayerFlag)
@@ -56,6 +57,9 @@ public:
     bool cacheBuffer() const;
     void setCacheBuffer(bool newCacheBuffer);
 
+    bool preserveColorContents() const;
+    void setPreserveColorContents(bool newPreserveColorContents);
+
     LayerFlags layerFlags() const;
     void setLayerFlags(const LayerFlags &newLayerFlags);
 
@@ -68,10 +72,13 @@ Q_SIGNALS:
     void offscreenChanged();
     void rootChanged();
     void cacheBufferChanged();
+    void preserveColorContentsChanged();
     void layerFlagsChanged();
 
 private:
     void componentComplete() override;
+    void releaseResources() override;
+    void itemChange(ItemChange, const ItemChangeData &) override;
 };
 
 WAYLIB_SERVER_END_NAMESPACE
