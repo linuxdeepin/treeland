@@ -470,7 +470,7 @@ WBufferRenderer *OutputHelper::afterRender(QSGRenderContext *context, WBufferRen
         if (!i->renderer) {
             i->renderer = new WBufferRenderer(source);
             QQuickItemPrivate::get(i->renderer)->anchors()->setFill(source);
-            i->renderer->setSource(source, false);
+            i->renderer->setSourceList({source}, false);
             i->renderer->setOutput(output()->output());
 
             connect(i->renderer, &WBufferRenderer::sceneGraphChanged, this, [i] {

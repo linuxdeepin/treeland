@@ -28,11 +28,7 @@ void WOutputViewportPrivate::initForOutput()
 {
     W_Q(WOutputViewport);
 
-    if (root) {
-        renderBuffer->setSource(q, true);
-    } else {
-        renderBuffer->setSource(nullptr, true);
-    }
+    updateRenderBufferSource();
     renderBuffer->setOutput(output);
     outputWindow()->attach(q);
 
@@ -61,6 +57,25 @@ void WOutputViewportPrivate::updateImplicitSize()
     W_Q(WOutputViewport);
     q->resetWidth();
     q->resetHeight();
+}
+
+void WOutputViewportPrivate::updateRenderBufferSource()
+{
+    W_Q(WOutputViewport);
+
+    if (root) {
+        renderBuffer->setSourceList({q}, true);
+    } else if (forceRenderChildren) {
+        renderBuffer->setSourceList({nullptr, q}, true);
+    } else {
+        renderBuffer->setSourceList({nullptr}, false);
+    }
+}
+
+void WOutputViewportPrivate::setForceRenderChildren(bool on)
+{
+    forceRenderChildren = on;
+    updateRenderBufferSource();
 }
 
 WOutputViewport::WOutputViewport(QQuickItem *parent)
@@ -175,11 +190,7 @@ void WOutputViewport::setRoot(bool newRoot)
     d->root = newRoot;
 
     if (d->output) {
-        if (newRoot) {
-            d->renderBuffer->setSource(this, true);
-        } else if (d->output) {
-            d->renderBuffer->setSource(nullptr, true);
-        }
+        d->updateRenderBufferSource();
     }
 
     Q_EMIT rootChanged();

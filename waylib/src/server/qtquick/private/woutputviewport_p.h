@@ -30,6 +30,7 @@ public:
     WOutputViewportPrivate()
         : offscreen(false)
         , root(false)
+        , forceRenderChildren(false)
     {
 
     }
@@ -55,6 +56,8 @@ public:
     qreal getImplicitHeight() const override;
 
     void updateImplicitSize();
+    void updateRenderBufferSource();
+    void setForceRenderChildren(bool on);
 
     W_DECLARE_PUBLIC(WOutputViewport)
     WOutput *output = nullptr;
@@ -63,6 +66,7 @@ public:
 
     uint offscreen:1;
     uint root:1;
+    uint forceRenderChildren:1;
     WOutputViewport::LayerFlags layerFlags;
 };
 

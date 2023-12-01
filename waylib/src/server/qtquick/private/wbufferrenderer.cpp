@@ -170,9 +170,8 @@ WBufferRenderer::WBufferRenderer(QQuickItem *parent)
 
 WBufferRenderer::~WBufferRenderer()
 {
-    resetSource();
+    resetSources();
 
-    m_renderer->deleteLater();
     delete m_renderHelper;
     delete m_swapchain;
 }
@@ -190,26 +189,50 @@ void WBufferRenderer::setOutput(WOutput *output)
     Q_EMIT sceneGraphChanged();
 }
 
-QQuickItem *WBufferRenderer::source() const
+QList<QQuickItem*> WBufferRenderer::sourceList() const
 {
-    return m_source;
+    QList<QQuickItem*> list;
+    list.reserve(m_sourceList.size());
+
+    for (const Data &i : m_sourceList)
+        list.append(i.source);
+
+    return list;
 }
 
-void WBufferRenderer::setSource(QQuickItem *s, bool hideSource)
+void WBufferRenderer::setSourceList(QList<QQuickItem*> sources, bool hideSource)
 {
-    if (m_source == s)
+    bool changed = sources.size() != m_sourceList.size() || m_hideSource != hideSource;
+    if (!changed) {
+        for (int i = 0; i < sources.size(); ++i) {
+            if (sources.at(i) != m_sourceList.at(i).source) {
+                changed = true;
+                break;
+            }
+        }
+    }
+
+    if (!changed)
         return;
 
-    resetSource();
-    m_source = s;
+    resetSources();
+    m_sourceList.clear();
     m_hideSource = hideSource;
 
-    if (m_source) {
-        connect(m_source, &QQuickItem::destroyed, this, [this] {
-            m_source = nullptr;
-            m_rootNode = nullptr;
+    for (auto s : sources) {
+        m_sourceList.append({s, nullptr});
+
+        if (isRootItem(s))
+            continue;
+
+        connect(s, &QQuickItem::destroyed, this, [this] {
+            const int index = indexOfSource(static_cast<QQuickItem*>(sender()));
+            Q_ASSERT(index >= 0);
+            removeSource(index);
+            m_sourceList.removeAt(index);
         });
-        auto d = QQuickItemPrivate::get(m_source);
+
+        auto d = QQuickItemPrivate::get(s);
         d->refFromEffectItem(m_hideSource);
     }
 
@@ -263,40 +286,7 @@ QWBuffer *WBufferRenderer::render(QSGRenderContext *context, uint32_t format,
     m_lastBuffer.clear();
     Q_ASSERT(m_output);
 
-    auto dr = qobject_cast<QSGDefaultRenderContext*>(context);
-    auto wd = QQuickWindowPrivate::get(window());
-    QSGRenderer *renderer = nullptr;
-
-    if (m_source) {
-        if (!m_renderer) {
-            m_rootNode = getRootNode(m_source);
-            Q_ASSERT(m_rootNode);
-
-            const bool useDepth = dr ? dr->useDepthBufferFor2D() : false;
-            const auto renderMode = useDepth ? QSGRendererInterface::RenderMode2D
-                                             : QSGRendererInterface::RenderMode2DNoDepthBuffer;
-            m_renderer = context->createRenderer(renderMode);
-            m_renderer->setRootNode(m_rootNode);
-            QObject::connect(m_renderer, &QSGRenderer::sceneGraphChanged,
-                             this, &WBufferRenderer::sceneGraphChanged);
-        }
-
-        m_renderer->setClearColor(Qt::transparent);
-        renderer = m_renderer;
-    } else {
-        renderer = wd->renderer;
-    }
-
     m_damageRing.setBounds(pixelSize);
-
-    renderer->setDevicePixelRatio(devicePixelRatio);
-    renderer->setDeviceRect(QRect(QPoint(0, 0), pixelSize));
-    renderer->setViewportRect(pixelSize);
-
-    if (!m_renderHelper)
-        m_renderHelper = new WRenderHelper(m_output->renderer());
-    m_renderHelper->setSize(pixelSize);
-
     // configure swapchain
     if (flags.testFlag(RenderFlag::DontConfigureSwapchain)) {
         auto renderFormat = pickFormat(m_output->renderer(), format);
@@ -322,6 +312,11 @@ QWBuffer *WBufferRenderer::render(QSGRenderContext *context, uint32_t format,
     if (!buffer)
         return nullptr;
 
+    if (!m_renderHelper)
+        m_renderHelper = new WRenderHelper(m_output->renderer());
+    m_renderHelper->setSize(pixelSize);
+
+    auto wd = QQuickWindowPrivate::get(window());
     Q_ASSERT(wd->renderControl);
     auto lastRT = m_renderHelper->lastRenderTarget();
     auto rt = m_renderHelper->acquireRenderTarget(wd->renderControl, buffer);
@@ -342,133 +337,142 @@ QWBuffer *WBufferRenderer::render(QSGRenderContext *context, uint32_t format,
         Q_ASSERT(sgRT.cb);
         sgRT.rpDesc = rtd->u.rhiRt->renderPassDescriptor();
     }
-    renderer->setRenderTarget(sgRT);
 
-    auto softwareRenderer = dynamic_cast<QSGSoftwareRenderer*>(renderer);
-    { // before render
-        if (softwareRenderer) {
-            auto image = getImageFrom(rt);
-            image->setDevicePixelRatio(devicePixelRatio);
+    auto dr = qobject_cast<QSGDefaultRenderContext*>(context);
+    for (Data &i : m_sourceList) {
+        QSGRenderer *renderer = ensureRenderer(i.source, context);
 
-            // TODO: Should set to QSGSoftwareRenderer, but it's not support specify matrix.
-            // If transform is changed, it will full repaint.
-            if (m_source) {
-                auto t = renderMatrix.toTransform();
-                if (t.type() > QTransform::TxTranslate) {
-                    (image->operator QImage &()).fill(renderer->clearColor());
-                    softwareRenderer->markDirty();
+        renderer->setDevicePixelRatio(devicePixelRatio);
+        renderer->setDeviceRect(QRect(QPoint(0, 0), pixelSize));
+        renderer->setViewportRect(pixelSize);
+        renderer->setRenderTarget(sgRT);
+
+        auto softwareRenderer = dynamic_cast<QSGSoftwareRenderer*>(renderer);
+        { // before render
+            if (softwareRenderer) {
+                auto image = getImageFrom(rt);
+                image->setDevicePixelRatio(devicePixelRatio);
+
+                // TODO: Should set to QSGSoftwareRenderer, but it's not support specify matrix.
+                // If transform is changed, it will full repaint.
+                if (isRootItem(i.source)) {
+                    auto rootTransform = QQuickItemPrivate::get(wd->contentItem)->itemNode();
+                    if (rootTransform->matrix() != renderMatrix)
+                        rootTransform->setMatrix(renderMatrix);
+                } else {
+                    auto t = renderMatrix.toTransform();
+                    if (t.type() > QTransform::TxTranslate) {
+                        (image->operator QImage &()).fill(renderer->clearColor());
+                        softwareRenderer->markDirty();
+                    }
+
+                    applyTransform(softwareRenderer, t);
                 }
-
-                applyTransform(softwareRenderer, t);
             } else {
-                auto rootTransform = QQuickItemPrivate::get(wd->contentItem)->itemNode();
-                if (rootTransform->matrix() != renderMatrix)
-                    rootTransform->setMatrix(renderMatrix);
-            }
-        } else {
-            bool flipY = wd->rhi ? !wd->rhi->isYUpInNDC() : false;
-            if (!rt.isNull() && rt.mirrorVertically())
-                flipY = !flipY;
+                bool flipY = wd->rhi ? !wd->rhi->isYUpInNDC() : false;
+                if (!rt.isNull() && rt.mirrorVertically())
+                    flipY = !flipY;
 
-            QRectF rect(QPointF(0, 0), QSizeF(pixelSize) / devicePixelRatio);
+                QRectF rect(QPointF(0, 0), QSizeF(pixelSize) / devicePixelRatio);
 
-            const float left = rect.x();
-            const float right = rect.x() + rect.width();
-            float bottom = rect.y() + rect.height();
-            float top = rect.y();
+                const float left = rect.x();
+                const float right = rect.x() + rect.width();
+                float bottom = rect.y() + rect.height();
+                float top = rect.y();
 
-            if (flipY)
-                std::swap(top, bottom);
+                if (flipY)
+                    std::swap(top, bottom);
 
-            QMatrix4x4 matrix;
-            matrix.ortho(left, right, bottom, top, 1, -1);
-
-            QMatrix4x4 projectionMatrix, projectionMatrixWithNativeNDC;
-            projectionMatrix = matrix * renderMatrix;
-
-            if (wd->rhi && !wd->rhi->isYUpInNDC()) {
-                std::swap(top, bottom);
-
-                matrix.setToIdentity();
+                QMatrix4x4 matrix;
                 matrix.ortho(left, right, bottom, top, 1, -1);
-            }
-            projectionMatrixWithNativeNDC = matrix * renderMatrix;
 
-            renderer->setProjectionMatrix(projectionMatrix);
-            renderer->setProjectionMatrixWithNativeNDC(projectionMatrixWithNativeNDC);
+                QMatrix4x4 projectionMatrix, projectionMatrixWithNativeNDC;
+                projectionMatrix = matrix * renderMatrix;
+
+                if (wd->rhi && !wd->rhi->isYUpInNDC()) {
+                    std::swap(top, bottom);
+
+                    matrix.setToIdentity();
+                    matrix.ortho(left, right, bottom, top, 1, -1);
+                }
+                projectionMatrixWithNativeNDC = matrix * renderMatrix;
+
+                renderer->setProjectionMatrix(projectionMatrix);
+                renderer->setProjectionMatrixWithNativeNDC(projectionMatrixWithNativeNDC);
 
 #ifndef QT_NO_OPENGL
-            if (!m_source && wd->rhi->backend() == QRhi::OpenGLES2) {
-                auto glRT = QRHI_RES(QGles2TextureRenderTarget, rtd->u.rhiRt);
-                Q_ASSERT(glRT->framebuffer > 0);
-                auto glContext = QOpenGLContext::currentContext();
-                Q_ASSERT(glContext);
-                QOpenGLContextPrivate::get(glContext)->defaultFboRedirect = glRT->framebuffer;
-            }
+                if (isRootItem(i.source) && wd->rhi->backend() == QRhi::OpenGLES2) {
+                    auto glRT = QRHI_RES(QGles2TextureRenderTarget, rtd->u.rhiRt);
+                    Q_ASSERT(glRT->framebuffer > 0);
+                    auto glContext = QOpenGLContext::currentContext();
+                    Q_ASSERT(glContext);
+                    QOpenGLContextPrivate::get(glContext)->defaultFboRedirect = glRT->framebuffer;
+                }
 #endif
+            }
         }
-    }
 
-    context->renderNextFrame(renderer);
+        context->renderNextFrame(renderer);
 
-    { // after render
-        if (!softwareRenderer) {
-            // TODO: get damage area from QRhi renderer
-            m_damageRing.addWhole();
+        { // after render
+            if (!softwareRenderer) {
+                // TODO: get damage area from QRhi renderer
+                m_damageRing.addWhole();
 
 #ifndef QT_NO_OPENGL
-            if (!m_source && wd->rhi->backend() == QRhi::OpenGLES2) {
-                auto glContext = QOpenGLContext::currentContext();
-                Q_ASSERT(glContext);
-                QOpenGLContextPrivate::get(glContext)->defaultFboRedirect = GL_NONE;
-            }
+                if (isRootItem(i.source) && wd->rhi->backend() == QRhi::OpenGLES2) {
+                    auto glContext = QOpenGLContext::currentContext();
+                    Q_ASSERT(glContext);
+                    QOpenGLContextPrivate::get(glContext)->defaultFboRedirect = GL_NONE;
+                }
 #endif
-        } else {
-            auto currentImage = getImageFrom(rt);
-            Q_ASSERT(currentImage && currentImage == softwareRenderer->m_rt.paintDevice);
-            currentImage->setDevicePixelRatio(1.0);
-            const auto scaleTF = QTransform::fromScale(devicePixelRatio, devicePixelRatio);
-            const auto scaledFlushRegion = scaleTF.map(softwareRenderer->flushRegion());
-            PixmanRegion scaledFlushDamage;
-            bool ok = WTools::toPixmanRegion(scaledFlushRegion, scaledFlushDamage);
-            Q_ASSERT(ok);
+            } else {
+                auto currentImage = getImageFrom(rt);
+                Q_ASSERT(currentImage && currentImage == softwareRenderer->m_rt.paintDevice);
+                currentImage->setDevicePixelRatio(1.0);
+                const auto scaleTF = QTransform::fromScale(devicePixelRatio, devicePixelRatio);
+                const auto scaledFlushRegion = scaleTF.map(softwareRenderer->flushRegion());
+                PixmanRegion scaledFlushDamage;
+                bool ok = WTools::toPixmanRegion(scaledFlushRegion, scaledFlushDamage);
+                Q_ASSERT(ok);
 
-            {
-                PixmanRegion damage;
-                m_damageRing.getBufferDamage(bufferAge, damage);
+                {
+                    PixmanRegion damage;
+                    m_damageRing.getBufferDamage(bufferAge, damage);
 
-                if (!damage.isEmpty() && lastRT.first != buffer && !lastRT.second.isNull()) {
-                    auto image = getImageFrom(lastRT.second);
-                    Q_ASSERT(image);
-                    Q_ASSERT(image->size() == pixelSize);
+                    if (!damage.isEmpty() && lastRT.first != buffer && !lastRT.second.isNull()) {
+                        auto image = getImageFrom(lastRT.second);
+                        Q_ASSERT(image);
+                        Q_ASSERT(image->size() == pixelSize);
 
-                    // TODO: Don't use the previous render target, we can get the damage region of QtQuick
-                    // before QQuickRenderControl::render for QWDamageRing, and add dirty region to
-                    // QSGAbstractSoftwareRenderer to force repaint the damage region of current render target.
-                    QPainter pa(currentImage);
+                        // TODO: Don't use the previous render target, we can get the damage region of QtQuick
+                        // before QQuickRenderControl::render for QWDamageRing, and add dirty region to
+                        // QSGAbstractSoftwareRenderer to force repaint the damage region of current render target.
+                        QPainter pa(currentImage);
 
-                    PixmanRegion remainderDamage;
-                    ok = pixman_region32_subtract(remainderDamage, damage, scaledFlushDamage);
-                    Q_ASSERT(ok);
+                        PixmanRegion remainderDamage;
+                        ok = pixman_region32_subtract(remainderDamage, damage, scaledFlushDamage);
+                        Q_ASSERT(ok);
 
-                    int count = 0;
-                    auto rects = pixman_region32_rectangles(remainderDamage, &count);
-                    for (int i = 0; i < count; ++i) {
-                        auto r = rects[i];
-                        pa.drawImage(r.x1, r.y1, *image, r.x1, r.y1, r.x2 - r.x1, r.y2 - r.y1);
+                        int count = 0;
+                        auto rects = pixman_region32_rectangles(remainderDamage, &count);
+                        for (int i = 0; i < count; ++i) {
+                            auto r = rects[i];
+                            pa.drawImage(r.x1, r.y1, *image, r.x1, r.y1, r.x2 - r.x1, r.y2 - r.y1);
+                        }
                     }
                 }
+
+                if (!isRootItem(i.source))
+                    applyTransform(softwareRenderer, renderMatrix.inverted().toTransform());
+                m_damageRing.add(scaledFlushDamage);
             }
-
-            if (m_source)
-                applyTransform(softwareRenderer, renderMatrix.inverted().toTransform());
-            m_damageRing.add(scaledFlushDamage);
         }
-    }
 
-    if (flags.testFlag(UpdateResource) && dr) {
-        QRhiResourceUpdateBatch *resourceUpdates = wd->rhi->nextResourceUpdateBatch();
-        dr->currentFrameCommandBuffer()->resourceUpdate(resourceUpdates);
+        if (dr) {
+            QRhiResourceUpdateBatch *resourceUpdates = wd->rhi->nextResourceUpdateBatch();
+            dr->currentFrameCommandBuffer()->resourceUpdate(resourceUpdates);
+        }
     }
 
     if (m_textureProvider.get())
@@ -568,14 +572,63 @@ void WBufferRenderer::releaseResources()
     }
 }
 
-void WBufferRenderer::resetSource()
+void WBufferRenderer::resetSources()
 {
-    if (m_source) {
-        auto d = QQuickItemPrivate::get(m_source);
-        d->derefFromEffectItem(m_hideSource);
-        m_source = nullptr;
+    for (int i = 0; i < m_sourceList.size(); ++i) {
+        removeSource(i);
     }
-    m_rootNode = nullptr;
+}
+
+void WBufferRenderer::removeSource(int index)
+{
+    auto s = m_sourceList.at(index);
+    if (isRootItem(s.source))
+        return;
+
+    s.renderer->deleteLater();
+    s.source->disconnect(this);
+    auto d = QQuickItemPrivate::get(s.source);
+    d->derefFromEffectItem(m_hideSource);
+}
+
+int WBufferRenderer::indexOfSource(QQuickItem *s)
+{
+    for (int i = 0; i < m_sourceList.size(); ++i) {
+        if (m_sourceList.at(i).source == s) {
+            return i;
+        }
+    }
+
+    return -1;
+}
+
+QSGRenderer *WBufferRenderer::ensureRenderer(QQuickItem *source, QSGRenderContext *rc)
+{
+    if (isRootItem(source))
+        return QQuickWindowPrivate::get(window())->renderer;
+
+    const int index = indexOfSource(source);
+    Q_ASSERT(index >= 0);
+    Data &d = m_sourceList[index];
+
+    if (Q_LIKELY(d.renderer))
+        return d.renderer;
+
+    auto rootNode = getRootNode(source);
+    Q_ASSERT(rootNode);
+
+    auto dr = qobject_cast<QSGDefaultRenderContext*>(rc);
+    const bool useDepth = dr ? dr->useDepthBufferFor2D() : false;
+    const auto renderMode = useDepth ? QSGRendererInterface::RenderMode2D
+                                     : QSGRendererInterface::RenderMode2DNoDepthBuffer;
+    d.renderer = rc->createRenderer(renderMode);
+    d.renderer->setRootNode(rootNode);
+    QObject::connect(d.renderer, &QSGRenderer::sceneGraphChanged,
+                     this, &WBufferRenderer::sceneGraphChanged);
+
+    d.renderer->setClearColor(Qt::transparent);
+
+    return d.renderer;
 }
 
 WAYLIB_SERVER_END_NAMESPACE

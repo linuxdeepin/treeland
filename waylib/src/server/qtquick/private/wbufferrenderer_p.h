@@ -41,8 +41,7 @@ class WAYLIB_SERVER_EXPORT WBufferRenderer : public QQuickItem
 public:
     enum RenderFlag {
         DontConfigureSwapchain = 1,
-        DontTestSwapchain = 2,
-        UpdateResource,
+        DontTestSwapchain = 2
     };
     Q_DECLARE_FLAGS(RenderFlags, RenderFlag)
 
@@ -52,8 +51,8 @@ public:
     WOutput *output() const;
     void setOutput(WOutput *output);
 
-    QQuickItem *source() const;
-    void setSource(QQuickItem *s, bool hideSource);
+    QList<QQuickItem*> sourceList() const;
+    void setSourceList(QList<QQuickItem *> sources, bool hideSource);
 
     bool cacheBuffer() const;
     void setCacheBuffer(bool newCacheBuffer);
@@ -93,16 +92,28 @@ private:
 
     Q_SLOT void invalidateSceneGraph();
     void releaseResources() override;
-    void resetSource();
+
+    inline bool isRootItem(const QQuickItem *source) const {
+        return nullptr == source;
+    }
+
+    void resetSources();
+    void removeSource(int index);
+    int indexOfSource(QQuickItem *item);
+    QSGRenderer *ensureRenderer(QQuickItem *source, QSGRenderContext *rc);
 
     QW_NAMESPACE::QWSwapchain *m_swapchain = nullptr;
     QPointer<QW_NAMESPACE::QWBuffer> m_lastBuffer;
-    QSGRenderer *m_renderer = nullptr;
     WRenderHelper *m_renderHelper = nullptr;
 
     QPointer<WOutput> m_output;
-    QQuickItem *m_source = nullptr;
-    QSGRootNode *m_rootNode = nullptr;
+
+    struct Data {
+        QQuickItem *source = nullptr;
+        QSGRenderer *renderer = nullptr;
+    };
+
+    QList<Data> m_sourceList;
     QW_NAMESPACE::QWDamageRing m_damageRing;
     std::unique_ptr<TextureProvider> m_textureProvider;
 
