@@ -120,10 +120,6 @@ public:
 
         Q_EMIT surface->titleChanged();
         Q_EMIT surface->appIdChanged();
-        Q_EMIT surface->requestMinimize();
-        Q_EMIT surface->requestMaximize();
-        Q_EMIT surface->requestFullscreen();
-        Q_EMIT surface->activateChanged();
 
         connections.insert({surface, connection});
     }
