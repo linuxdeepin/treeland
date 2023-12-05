@@ -8,6 +8,8 @@ FILES
     ext_foreign_toplevel_list_impl.h
     foreigntoplevelhandlev1.h
     foreign_toplevel_manager_impl.h
+    personalization_manager_impl.h
+    personalizationmanager.h
     shortcut_manager_impl.h
     socket_manager_impl.h
     utils.h
@@ -20,6 +22,9 @@ target_sources(treeland-protocols PRIVATE
     ext_foreign_toplevel_list_impl.cpp
     foreigntoplevelhandlev1.cpp
     foreigntoplevelmanagerv1.cpp
+    personalization_manager_impl.cpp
+    personalizationwindowcontext.cpp
+    personalizationmanager.cpp
 )
 
 target_compile_definitions(treeland-protocols

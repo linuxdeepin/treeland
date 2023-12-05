@@ -7,9 +7,13 @@
 #include <QObject>
 #include <QProcess>
 #include <QWindow>
+#include <QWidget>
+#include <QPushButton>
 #include <QTimer>
 #include <QtGui/qpa/qplatformnativeinterface.h>
 #include <QDBusInterface>
+#include <QtWaylandClient/QWaylandClientExtension>
+#include <QtWaylandClient/private/qwaylandwindow_p.h>
 
 #include <sys/types.h>
 #include <pwd.h>
@@ -110,11 +114,26 @@ void ShortcutContext::ztreeland_shortcut_context_v1_shortcut(uint32_t keycode, u
     emit shortcutHappended(keycode, modify);
 }
 
+PersonalizationManager::PersonalizationManager()
+    : QWaylandClientExtensionTemplate<PersonalizationManager>(1)
+{
+
+}
+
+PersonalizationWindow::PersonalizationWindow(struct ::personalization_window_context_v1 *object)
+    : QWaylandClientExtensionTemplate<PersonalizationWindow>(1)
+    , QtWayland::personalization_window_context_v1(object)
+{
+
+}
+
+static int state = 0;
 FakeSession::FakeSession(int argc, char* argv[])
-    : QGuiApplication(argc, argv)
+    : QApplication(argc, argv)
     , m_shortcutManager(new ShortcutManager)
     , m_toplevelManager(new ForeignToplevelManager)
     , m_extForeignToplevelList(new ExtForeignToplevelList)
+    , m_personalzationManger(new PersonalizationManager)
 {
     connect(m_shortcutManager, &ShortcutManager::activeChanged, this, [this] {
         qDebug() << m_shortcutManager->isActive();
@@ -134,6 +153,40 @@ FakeSession::FakeSession(int argc, char* argv[])
                     return;
                 }
             });
+        }
+    });
+
+    connect(m_personalzationManger, &PersonalizationManager::activeChanged, this, [this] {
+        qDebug() << "personalzation manager" <<  m_personalzationManger->isActive();
+
+        if (m_personalzationManger->isActive()) {
+            QWidget *widget = new QWidget;
+            widget->setAttribute(Qt::WA_TranslucentBackground);
+            widget->setWindowFlags(Qt::FramelessWindowHint); // 可选，去除窗口边框
+            widget->resize(640, 480);
+
+            QPushButton *button = new QPushButton("Click Me", widget);
+            button->setGeometry(0, 0, 100, 50); // 设置按钮的位置和大小
+
+            widget->show();
+
+            QWindow *window = widget->windowHandle();
+
+            if (window && window->handle()) {
+                QtWaylandClient::QWaylandWindow *waylandWindow =
+                    static_cast<QtWaylandClient::QWaylandWindow *>(window->handle());
+
+                struct wl_surface *surface = waylandWindow->wlSurface();
+                if (surface) {
+                    PersonalizationWindow* context = new PersonalizationWindow(m_personalzationManger->get_window_context(surface));
+
+                    QObject::connect(button, &QPushButton::clicked, [context](){
+                        state = !state;
+                        context->set_background_type(state);
+                        qDebug() << "===========background state: ==========" << state;
+                    });
+                }
+            }
         }
     });
 

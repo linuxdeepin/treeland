@@ -3,12 +3,13 @@
 
 #pragma once
 
-#include <QGuiApplication>
+#include <QApplication>
 #include <QtWaylandClient/QWaylandClientExtension>
 
 #include "qwayland-ext-foreign-toplevel-list-v1.h"
 #include "qwayland-treeland-foreign-toplevel-manager-v1.h"
 #include "qwayland-ztreeland-shortcut-manager-v1.h"
+#include "qwayland-treeland-personalization-manager-v1.h"
 
 class ExtForeignToplevelHandle;
 class ExtForeignToplevelList : public QWaylandClientExtensionTemplate<ExtForeignToplevelList>, public QtWayland::ext_foreign_toplevel_list_v1
@@ -93,12 +94,28 @@ protected:
     void ztreeland_shortcut_context_v1_shortcut(uint32_t keycode, uint32_t modify) override;
 };
 
-class FakeSession : public QGuiApplication {
+class PersonalizationManager : public QWaylandClientExtensionTemplate<PersonalizationManager>, public QtWayland::treeland_personalization_manager_v1
+{
+    Q_OBJECT
+public:
+    explicit PersonalizationManager();
+};
+
+class PersonalizationWindow : public QWaylandClientExtensionTemplate<PersonalizationWindow>, public QtWayland::personalization_window_context_v1
+{
+    Q_OBJECT
+public:
+    explicit PersonalizationWindow(struct ::personalization_window_context_v1 *object);
+};
+
+
+class FakeSession : public QApplication {
     Q_OBJECT
 public:
     explicit FakeSession(int argc, char* argv[]);
 
 private:
+    PersonalizationManager *m_personalzationManger;
     ShortcutManager* m_shortcutManager;
     ForeignToplevelManager *m_toplevelManager;
     ExtForeignToplevelList *m_extForeignToplevelList;
