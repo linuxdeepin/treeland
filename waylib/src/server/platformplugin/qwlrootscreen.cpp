@@ -53,10 +53,11 @@ int QWlrootsScreen::depth() const
 
 QImage::Format QWlrootsScreen::format() const
 {
-    static QImage::Format format = QImage::Format_Invalid;
-    if (Q_UNLIKELY(format == QImage::Format_Invalid))
-        format = m_output->preferredReadFormat();
-    return format;
+    auto format = WTools::toImageFormat(m_output->nativeHandle()->render_format);
+    if (format != QImage::Format_Invalid)
+        return format;
+
+    return QImage::Format_RGB32;
 }
 
 QSizeF QWlrootsScreen::physicalSize() const
