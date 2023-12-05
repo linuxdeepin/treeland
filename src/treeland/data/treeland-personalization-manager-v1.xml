@@ -16,7 +16,7 @@
 
         THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
         IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-        FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
+        FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
         THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
         LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
         FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
@@ -24,69 +24,46 @@
     </copyright>
     <interface name="treeland_personalization_manager_v1" version="1">
         <description summary="personalization manager">
-            This interface allows a client to customized display effects.
+        This interface allows a client to customized display effects.
 
-            Warning! The protocol described in this file is currently in the testing
-            phase. Backward compatible changes may be added together with the
-            corresponding interface version bump. Backward incompatible changes can
-            only be done by creating a new major version of the extension.
+        Warning! The protocol described in this file is currently in the testing
+        phase. Backward compatible changes may be added together with the
+        corresponding interface version bump. Backward incompatible changes can
+        only be done by creating a new major version of the extension.
         </description>
-        <request name="get_wallpaper_context">
-            <arg name="id" type="new_id" interface="treeland_wallpaper_context_v1" />
-        </request>
         <request name="get_window_context">
-            <arg name="surface" type="object" interface="wl_surface" />
-            <arg name="id" type="new_id" interface="treeland_window_context_v1" />
+            <arg name="id" type="new_id" interface="personalization_window_context_v1"/>
+            <arg name="surface" type="object" interface="wl_surface"/>
         </request>
     </interface>
-    <interface name="treeland_wallpaper_context_v1" version="1">
-        <description summary="client wallpaper context">
-            This interface allows a client set window wallpaper.
+    <interface name="personalization_window_context_v1" version="1">
+        <description summary="client custom window context">
+        This interface allows a client personalization window.
 
-            Warning! The protocol described in this file is currently in the testing
-            phase. Backward compatible changes may be added together with the
-            corresponding interface version bump. Backward incompatible changes can
-            only be done by creating a new major version of the extension.
+        Warning! The protocol described in this file is currently in the testing
+        phase. Backward compatible changes may be added together with the
+        corresponding interface version bump. Backward incompatible changes can
+        only be done by creating a new major version of the extension.
         </description>
-        <request name="destroy" type="destructor">
-            <description summary="destroy the context object">
-                Destroy the context object.
+        <enum name="background_type">
+            <description summary="Windows will have different background effects">
+                This will instruct the compositor how to set the background
+                for the window, desktop.
             </description>
-        </request>
-    </interface>
-    <interface name="treeland_window_context_v1" version="1">
-        <description summary="client window context">
-            This interface allows a client set window properties.
-
-            Warning! The protocol described in this file is currently in the testing
-            phase. Backward compatible changes may be added together with the
-            corresponding interface version bump. Backward incompatible changes can
-            only be done by creating a new major version of the extension.
-        </description>
-        <request name="set_radius">
-            <description summary="the radius which represents the toplevel">
-                The radius of the surface specified in this request corresponds to the place where
-                the app using this protocol represents the given toplevel.
-            </description>
-
-            <arg name="x" type="int" />
-            <arg name="y" type="int" />
-        </request>
-        <request name="set_no_titlebar">
-            <description summary="toplevel doesn't need titlebar">
-                When the value is non-zero, the toplevel titlebar will be disabled.
-            </description>
-
-            <arg name="value" type="int" />
-        </request>
-        <request name="destroy" type="destructor">
-            <description summary="destroy the context object">
-                Destroy the context object.
-            </description>
-        </request>
-        <enum name="error">
-            <entry name="invalid_radius" value="0"
-                summary="the provided radius is invalid" />
+            <entry name="normal" value="0" summary="not draw the background image"/>
+            <entry name="wallpaper" value="1" summary="draw the background image"/>
+            <entry name="blend" value="2" summary="draw the blend background image"/>
         </enum>
+        <request name="set_background_type">
+            <description summary="set window background type">
+                Destroy the context object.
+            </description>
+            <arg name="type" type="uint" summary="background enum"/>
+        </request>
+        <request name="destroy" type="destructor">
+            <description summary="destroy the context object">
+                Destroy the context object.
+            </description>
+        </request>
     </interface>
 </protocol>

@@ -82,6 +82,7 @@ Item {
             property var doDestroy: helper.doDestroy
             property var cancelMinimize: helper.cancelMinimize
             property var surfaceDecorationMapper: surface.waylandSurface.XdgDecorationManager
+            property var personalizationMapper: surface.waylandSurface.PersonalizationManager
 
             topPadding: decoration.enable ? decoration.topMargin : 0
             bottomPadding: decoration.enable ? decoration.bottomMargin : 0
@@ -105,6 +106,16 @@ Item {
                 switcherModel: switcher.model
                 creator: toplevelComponent
                 decoration: decoration
+            }
+
+            Image {
+                id: background
+                z: surface.contentItem.z - 1
+                visible: personalizationMapper.backgroundWallpaper
+                source: "file:///usr/share/wallpapers/deepin/desktop.jpg"
+                fillMode: Image.PreserveAspectCrop
+                asynchronous: true
+                anchors.fill: parent
             }
         }
     }
