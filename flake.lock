@@ -35,11 +35,11 @@
     },
     "nixpkgs": {
       "locked": {
-        "lastModified": 1700390070,
-        "narHash": "sha256-de9KYi8rSJpqvBfNwscWdalIJXPo8NjdIZcEJum1mH0=",
+        "lastModified": 1700794826,
+        "narHash": "sha256-RyJTnTNKhO0yqRpDISk03I/4A67/dp96YRxc86YOPgU=",
         "owner": "NixOS",
         "repo": "nixpkgs",
-        "rev": "e4ad989506ec7d71f7302cc3067abd82730a4beb",
+        "rev": "5a09cb4b393d58f9ed0d9ca1555016a8543c2ac8",
         "type": "github"
       },
       "original": {
@@ -63,14 +63,14 @@
           "waylib",
           "nixpkgs"
         ],
-        "wlroots-unstable": "wlroots-unstable"
+        "wlroots-17": "wlroots-17"
       },
       "locked": {
-        "lastModified": 1700128769,
-        "narHash": "sha256-VpdG0k4RXFvY2RCGbBh8ioqP0hHm/hVbf1TDgC13icA=",
+        "lastModified": 1700711542,
+        "narHash": "sha256-WFE55JTJFBE4yIHiRv0Xh31faQKOyPqc3TSa5wyu7Uc=",
         "owner": "vioken",
         "repo": "qwlroots",
-        "rev": "85cf4cc23ad4396fe23617829c102da66fd9e615",
+        "rev": "16b01b7e6d1ad639138c3d4caf0935b8837ee323",
         "type": "github"
       },
       "original": {
@@ -116,11 +116,11 @@
         "qwlroots": "qwlroots"
       },
       "locked": {
-        "lastModified": 1700463390,
-        "narHash": "sha256-bvxNU2k8KtKJHeIO8ubO94wbp9E3/mdYgvdCmDeVgvc=",
+        "lastModified": 1701076923,
+        "narHash": "sha256-6Kd802MYx5H2lmfnfOUMthgzFndkU2G7GdgwYtIyJzs=",
         "owner": "vioken",
         "repo": "waylib",
-        "rev": "f2e4fd8a96b2040c7083abd80cfb4e31503e319f",
+        "rev": "f9062df164b8dc9b4e2f9c19dd0f6df5d72f737b",
         "type": "github"
       },
       "original": {
@@ -129,20 +129,21 @@
         "type": "github"
       }
     },
-    "wlroots-unstable": {
+    "wlroots-17": {
       "flake": false,
       "locked": {
         "host": "gitlab.freedesktop.org",
-        "lastModified": 1700012279,
-        "narHash": "sha256-45cJ0vJmbR9Li8pyvmWxI/DnQrl4ItEx/nQE2tLUdjg=",
+        "lastModified": 1700582773,
+        "narHash": "sha256-VUrnSG4UAAH0cBy15lG0w8RernwegD6lkOdLvWU3a4c=",
         "owner": "wlroots",
         "repo": "wlroots",
-        "rev": "b0bd86285f0a74d9fbb32d46113fd93f1740896b",
+        "rev": "767eedd3cbe9900687bf3b82236320dcd7b77aae",
         "type": "gitlab"
       },
       "original": {
         "host": "gitlab.freedesktop.org",
         "owner": "wlroots",
+        "ref": "0.17.0",
         "repo": "wlroots",
         "type": "gitlab"
       }
