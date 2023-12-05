@@ -53,6 +53,10 @@ Item {
             id: extForeignToplevelList
         }
 
+        PersonalizationManager {
+            id: personalizationManager
+        }
+
         WaylandBackend {
             id: backend
 
