@@ -1,42 +1,43 @@
 test_build:
   steps:
     - link_package:
-        source_project: vioken
+        source_project: deepin:Develop:dde
         source_package: %{SCM_REPOSITORY_NAME}
-        target_project: vioken:CI
+        target_project: deepin:CI
 
     - configure_repositories:
-        project: vioken:CI
+        project: deepin:CI
         repositories:
-          - name: deepin_ci
+          - name: deepin_develop
             paths:
-              - target_project: vioken
+              - target_project: deepin:CI
                 target_repository: deepin_develop
-            architectures:
-              - x86_64
-              - aarch64
-
-          - name: deepin_testing
-            paths:
-              - target_project: vioken
-                target_repository: deepin_23_testing
             architectures:
               - x86_64
               - aarch64
 
           - name: debian
             paths:
-              - target_project: vioken
-                target_repository: Debian_Sid_standard
+              - target_project: deepin:CI
+                target_repository: debian_sid
             architectures:
               - x86_64
+
   filters:
     event: pull_request
+
+tag_build:
+  steps:
+    - trigger_services:
+        project: deepin:Unstable:dde
+        package: %{SCM_REPOSITORY_NAME}
+  filters:
+    event: tag_push
 
 commit_build:
   steps:
     - trigger_services:
-        project: vioken
+        project: deepin:Develop:dde
         package: %{SCM_REPOSITORY_NAME}
   filters:
     event: push
