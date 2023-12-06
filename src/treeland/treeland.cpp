@@ -33,6 +33,9 @@
 #include <QQmlApplicationEngine>
 #include <QQuickStyle>
 
+Q_IMPORT_PLUGIN(TreeLand_ProtocolsPlugin)
+Q_IMPORT_PLUGIN(TreeLand_UtilsPlugin)
+
 Q_LOGGING_CATEGORY(debug, "treeland.kernel.debug", QtDebugMsg);
 
 using namespace SDDM;

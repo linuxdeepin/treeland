@@ -16,7 +16,7 @@
 #include <iostream>
 #include <QTimer>
 
-#include "protocols/socket_manager_impl.h"
+#include "socket_manager_impl.h"
 
 SocketManager::SocketManager(QObject *parent)
     : Waylib::Server::WQuickWaylandServerInterface(parent)

@@ -4,7 +4,7 @@
 #pragma once
 
 #include "ext-foreign-toplevel-list-server-protocol.h"
-#include "protocols/ext_foreign_toplevel_list_impl.h"
+#include "ext_foreign_toplevel_list_impl.h"
 #include "treelandhelper.h"
 
 #include <wxdgsurface.h>

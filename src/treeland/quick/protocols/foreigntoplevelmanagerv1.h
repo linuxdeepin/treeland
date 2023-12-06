@@ -4,9 +4,7 @@
 #pragma once
 
 #include "foreign-toplevel-manager-server-protocol.h"
-#include "protocols/foreign_toplevel_manager_impl.h"
-#include "treeland.h"
-#include "treelandhelper.h"
+#include "foreign_toplevel_manager_impl.h"
 
 #include <qtmetamacros.h>
 #include <wxdgsurface.h>

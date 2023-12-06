@@ -4,7 +4,7 @@
 #include "foreigntoplevelmanagerv1.h"
 
 #include "foreign-toplevel-manager-server-protocol.h"
-#include "protocols/foreigntoplevelhandlev1.h"
+#include "foreigntoplevelhandlev1.h"
 
 #include <qwcompositor.h>
 #include <qwdisplay.h>
@@ -15,6 +15,7 @@
 #include <wayland-util.h>
 #include <wxdgshell.h>
 #include <wxdgsurface.h>
+#include <woutput.h>
 
 #include <QDebug>
 #include <QTimer>
