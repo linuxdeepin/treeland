@@ -327,21 +327,6 @@ QPlatformBackingStore *QWlrootsIntegration::createPlatformBackingStore(QWindow *
     return CALL_PROXY2(createPlatformBackingStore, nullptr, window);
 }
 
-static inline WOutput *outputFrom(QWlrootsOutputWindow *surface) {
-    auto ws = surface->qwScreen();
-    return ws ? ws->output() : nullptr;
-}
-
-static inline WOutput *outputFrom(QPlatformSurface *surface) {
-    auto w = dynamic_cast<QWlrootsOutputWindow*>(surface);
-    return w ? outputFrom(w) : nullptr;
-}
-
-static inline QWOutput *qoutputFrom(QPlatformSurface *surface) {
-    auto o = outputFrom(surface);
-    return o ? o->handle() : nullptr;
-}
-
 #ifndef QT_NO_OPENGL
 class Q_DECL_HIDDEN OpenGLContext : public QPlatformOpenGLContext {
 public:
@@ -356,6 +341,8 @@ public:
         m_format.setDepthBufferSize(8);
         m_format.setStencilBufferSize(8);
         m_format.setRenderableType(QSurfaceFormat::OpenGLES);
+        m_format.setSwapBehavior(QSurfaceFormat::SingleBuffer);
+        m_format.setMajorVersion(3);
 
         if (auto c = qobject_cast<QW::OpenGLContext*>(m_context)) {
             auto eglConfig = q_configFromGLFormat(c->eglDisplay(), m_format, false, EGL_WINDOW_BIT);
@@ -372,14 +359,11 @@ public:
     }
 
     void swapBuffers(QPlatformSurface *surface) override {
-        if (QWOutput *output = qoutputFrom(surface))
-            output->commit();
+        Q_UNUSED(surface);
+        Q_UNREACHABLE();
     }
     GLuint defaultFramebufferObject(QPlatformSurface *surface) const override {
-        if (QWOutput *output = qoutputFrom(surface)) {
-            return wlr_gles2_renderer_get_current_fbo(output->handle()->renderer);
-        }
-
+        Q_UNUSED(surface);
         return 0;
     }
 

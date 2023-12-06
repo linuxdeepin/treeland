@@ -27,6 +27,10 @@
 #include <private/qsgdefaultrendercontext_p.h>
 #include <private/qsgrenderer_p.h>
 #include <private/qrhi_p.h>
+#ifndef QT_NO_OPENGL
+#include <private/qrhigles2_p.h>
+#include <private/qopenglcontext_p.h>
+#endif
 
 extern "C" {
 #include <wlr/types/wlr_damage_ring.h>
@@ -392,6 +396,16 @@ QWBuffer *WBufferRenderer::render(QSGRenderContext *context, uint32_t format,
 
             renderer->setProjectionMatrix(projectionMatrix);
             renderer->setProjectionMatrixWithNativeNDC(projectionMatrixWithNativeNDC);
+
+#ifndef QT_NO_OPENGL
+            if (!m_source && wd->rhi->backend() == QRhi::OpenGLES2) {
+                auto glRT = QRHI_RES(QGles2TextureRenderTarget, rtd->u.rhiRt);
+                Q_ASSERT(glRT->framebuffer > 0);
+                auto glContext = QOpenGLContext::currentContext();
+                Q_ASSERT(glContext);
+                QOpenGLContextPrivate::get(glContext)->defaultFboRedirect = glRT->framebuffer;
+            }
+#endif
         }
     }
 
@@ -401,6 +415,14 @@ QWBuffer *WBufferRenderer::render(QSGRenderContext *context, uint32_t format,
         if (!softwareRenderer) {
             // TODO: get damage area from QRhi renderer
             m_damageRing.addWhole();
+
+#ifndef QT_NO_OPENGL
+            if (!m_source && wd->rhi->backend() == QRhi::OpenGLES2) {
+                auto glContext = QOpenGLContext::currentContext();
+                Q_ASSERT(glContext);
+                QOpenGLContextPrivate::get(glContext)->defaultFboRedirect = GL_NONE;
+            }
+#endif
         } else {
             auto currentImage = getImageFrom(rt);
             Q_ASSERT(currentImage && currentImage == softwareRenderer->m_rt.paintDevice);
