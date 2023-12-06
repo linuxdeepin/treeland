@@ -7,7 +7,7 @@
 #include <QQmlEngine>
 #include <wquickwaylandserver.h>
 
-#include "protocols/socket_manager_impl.h"
+#include "socket_manager_impl.h"
 
 class TreeLandHelper;
 namespace Waylib::Server {

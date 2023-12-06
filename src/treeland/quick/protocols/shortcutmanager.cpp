@@ -16,7 +16,7 @@
 #include <iostream>
 #include <QTimer>
 
-#include "protocols/shortcut_manager_impl.h"
+#include "shortcut_manager_impl.h"
 
 ShortcutManager::ShortcutManager(QObject *parent)
     : Waylib::Server::WQuickWaylandServerInterface(parent)

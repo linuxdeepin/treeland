@@ -7,6 +7,8 @@ import QtQuick.Dialogs
 import QtQuick.Layouts
 import Waylib.Server
 import TreeLand
+import TreeLand.Utils
+import TreeLand.Protocols
 import TreeLand.Greeter
 
 Item {
