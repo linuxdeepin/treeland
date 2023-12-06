@@ -6,7 +6,7 @@
 #include "foreign-toplevel-manager-server-protocol.h"
 #include "protocols/foreign_toplevel_manager_impl.h"
 #include "treeland.h"
-#include "treelandhelper.h"
+#include "utils/treelandhelper.h"
 
 #include <qtmetamacros.h>
 #include <wxdgsurface.h>

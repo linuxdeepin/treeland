@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include "waylandsocketproxy.h"
+#include "utils/waylandsocketproxy.h"
 
 #include <QGuiApplication>
 #include <QLocalSocket>

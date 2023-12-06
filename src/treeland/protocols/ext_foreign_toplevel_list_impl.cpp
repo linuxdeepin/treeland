@@ -4,7 +4,7 @@
 #include "ext_foreign_toplevel_list_impl.h"
 
 #include "ext-foreign-toplevel-list-server-protocol.h"
-#include "extforeigntoplevellist.h"
+#include "quick/extforeigntoplevellist.h"
 #include "utils.h"
 
 #include <pixman.h>

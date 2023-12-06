@@ -54,20 +54,20 @@ add_subdirectory(treeland-fake-session)
 set(TREELAND_SOURCES
     treeland.h
     treeland.cpp
-    socketmanager.h
-    socketmanager.cpp
-    waylandsocketproxy.h
-    waylandsocketproxy.cpp
-    treelandhelper.h
-    treelandhelper.cpp
-    helper.h
-    helper.cpp
-    foreigntoplevelmanagerv1.h
-    foreigntoplevelmanagerv1.cpp
-    shortcutmanager.h
-    shortcutmanager.cpp
-    extforeigntoplevellist.h
-    extforeigntoplevellist.cpp
+    utils/treelandhelper.h
+    utils/treelandhelper.cpp
+    utils/helper.h
+    utils/helper.cpp
+    utils/waylandsocketproxy.h
+    utils/waylandsocketproxy.cpp
+    quick/socketmanager.h
+    quick/socketmanager.cpp
+    quick/foreigntoplevelmanagerv1.h
+    quick/foreigntoplevelmanagerv1.cpp
+    quick/shortcutmanager.h
+    quick/shortcutmanager.cpp
+    quick/extforeigntoplevellist.h
+    quick/extforeigntoplevellist.cpp
     protocols/foreign_toplevel_manager_impl.cpp
     protocols/shortcut_manager_impl.cpp
     protocols/socket_manager_impl.cpp
@@ -108,7 +108,7 @@ target_compile_definitions(treeland
     WLR_USE_UNSTABLE
 )
 
-set_source_files_properties(QmlHelper.qml
+set_source_files_properties(qml/QmlHelper.qml
     PROPERTIES
         QT_QML_SINGLETON_TYPE TRUE
 )
@@ -120,21 +120,27 @@ qt_add_qml_module(treeland
         ${TREELAND_SOURCES}
         ${DBUS_INTERFACE}
     QML_FILES
-        Main.qml
-        CloseAnimation.qml
-        OutputDelegate.qml
-        QmlHelper.qml
-        StackToplevelHelper.qml
-        StackWorkspace.qml
-        TiledToplevelHelper.qml
-        TiledWorkspace.qml
-        WindowDecoration.qml
-        XdgSurface.qml
-        InputPopupSurface.qml
-        LayerSurface.qml
-        MiniDock.qml
+        qml/Main.qml
+        qml/CloseAnimation.qml
+        qml/OutputDelegate.qml
+        qml/QmlHelper.qml
+        qml/StackToplevelHelper.qml
+        qml/StackWorkspace.qml
+        qml/TiledToplevelHelper.qml
+        qml/TiledWorkspace.qml
+        qml/WindowDecoration.qml
+        qml/XdgSurface.qml
+        qml/InputPopupSurface.qml
+        qml/LayerSurface.qml
+        qml/MiniDock.qml
     RESOURCE_PREFIX
         /qt/qml
+)
+
+target_include_directories(treeland
+    PRIVATE
+        quick
+        utils
 )
 
 target_link_libraries(treeland

@@ -11,7 +11,7 @@
 
 #include "shortcut-server-protocol.h"
 
-#include "treelandhelper.h"
+#include "utils/treelandhelper.h"
 
 class ShortcutManager : public Waylib::Server::WQuickWaylandServerInterface {
     Q_OBJECT

@@ -5,8 +5,8 @@
 #include "MessageHandler.h"
 #include "Messages.h"
 #include "SocketWriter.h"
-#include "treelandhelper.h"
-#include "waylandsocketproxy.h"
+#include "utils/treelandhelper.h"
+#include "utils/waylandsocketproxy.h"
 #include "SignalHandler.h"
 
 #include <WServer>

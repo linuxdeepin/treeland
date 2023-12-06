@@ -9,7 +9,7 @@
 
 #include "utils.h"
 #include "shortcut-server-protocol.h"
-#include "shortcutmanager.h"
+#include "quick/shortcutmanager.h"
 
 static std::map<struct wl_resource*, QMetaObject::Connection> CLIENT_CONNECT;
 
