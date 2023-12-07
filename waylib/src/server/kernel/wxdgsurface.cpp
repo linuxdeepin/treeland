@@ -54,6 +54,7 @@ public:
     uint activated:1;
     uint maximized:1;
     uint minimized:1;
+    uint fullscreen:1;
 };
 
 WXdgSurfacePrivate::WXdgSurfacePrivate(WXdgSurface *qq, QWXdgSurface *hh)
@@ -91,6 +92,10 @@ void WXdgSurfacePrivate::on_configure(wlr_xdg_surface_configure *event)
         if (event->toplevel_configure->maximized != maximized) {
             maximized = event->toplevel_configure->maximized;
             Q_EMIT q->maximizeChanged();
+        }
+        if (event->toplevel_configure->fullscreen != fullscreen) {
+            fullscreen = event->toplevel_configure->fullscreen;
+            Q_EMIT q->fullscreenChanged();
         }
     }
 }

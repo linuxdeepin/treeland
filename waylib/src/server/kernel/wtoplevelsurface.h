@@ -93,6 +93,7 @@ Q_SIGNALS:
     void minimizeChanged();
     void surfaceChanged();
     void parentSurfaceChanged();
+    void fullscreenChanged();
 
     void requestMove(WSeat *seat, quint32 serial);
     void requestResize(WSeat *seat, Qt::Edges edge, quint32 serial);

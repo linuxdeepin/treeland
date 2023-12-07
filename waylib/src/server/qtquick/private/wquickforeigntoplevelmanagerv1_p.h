@@ -24,6 +24,29 @@ QW_END_NAMESPACE
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
+class WSurface;
+class WQuickForeignToplevelManagerV1;
+class WQuickForeignToplevelManagerAttached : public QObject
+{
+    Q_OBJECT
+    QML_ANONYMOUS
+
+public:
+    WQuickForeignToplevelManagerAttached(WSurface *target, WQuickForeignToplevelManagerV1 *manager);
+
+Q_SIGNALS:
+    void requestMaximize(bool maximized);
+    void requestMinimize(bool minimized);
+    void requestActivate(bool activated);
+    void requestFullscreen(bool fullscreen);
+    void requestClose();
+    void rectangleChanged(const QRect &rect);
+
+private:
+    WSurface *m_target;
+    WQuickForeignToplevelManagerV1 *m_manager;
+};
+
 class WXdgSurface;
 class WOutput;
 class WQuickForeignToplevelManagerV1Private;
@@ -32,12 +55,15 @@ class WQuickForeignToplevelManagerV1 : public WQuickWaylandServerInterface, publ
     Q_OBJECT
     QML_NAMED_ELEMENT(ForeignToplevelManagerV1)
     W_DECLARE_PRIVATE(WQuickForeignToplevelManagerV1)
+    QML_ATTACHED(WQuickForeignToplevelManagerAttached)
 
 public:
     explicit WQuickForeignToplevelManagerV1(QObject *parent = nullptr);
 
     Q_INVOKABLE void add(WXdgSurface *surface);
     Q_INVOKABLE void remove(WXdgSurface *surface);
+
+    static WQuickForeignToplevelManagerAttached *qmlAttachedProperties(QObject *target);
 
 Q_SIGNALS:
     void requestMaximize(WXdgSurface *surface, wlr_foreign_toplevel_handle_v1_maximized_event *event);
