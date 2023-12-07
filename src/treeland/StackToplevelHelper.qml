@@ -14,6 +14,7 @@ Item {
     required property ListModel dockModel
     required property DynamicCreatorComponent creator
     property WindowDecoration decoration
+    property var quickForeignToplevelManageMapper: waylandSurface.TreeLandForeignToplevelManagerV1
 
     property OutputItem output
     property CoordMapper outputCoordMapper
@@ -99,6 +100,51 @@ Item {
             } else {
                 TreeLandHelper.cancelMoveResize(surface)
             }
+        }
+    }
+
+    Connections {
+        target: quickForeignToplevelManageMapper
+
+        function onRequestMaximize(maximized) {
+            if (maximized) {
+                connOfSurface.onRequestCancelMaximize()
+            } else {
+                connOfSurface.onRequestMaximize()
+            }
+        }
+
+        function onRequestMinimize(minimized) {
+            if (minimized) {
+                connOfSurface.onRequestMinimize()
+                TreeLandHelper.activatedSurface = null
+            } else {
+                connOfSurface.onRequestCancelMinimize()
+            }
+        }
+
+        function onRequestActivate(activated) {
+            if (activated && waylandSurface.isMinimized) {
+                cancelMinimize()
+            }
+
+            surface.focus = activated
+            TreeLandHelper.activatedSurface = activated ? surface : null
+        }
+
+        function onRequestFullscreen(fullscreen) {
+            // TODO: add full screen action
+        }
+
+        function onRequestClose() {
+            if (waylandSurface.close)
+                waylandSurface.close()
+            else
+                waylandSurface.surface.unmap()
+        }
+
+        function onRectangleChanged(edges) {
+            connOfSurface.onRequestResize(null, edges, null)
         }
     }
 
@@ -305,8 +351,8 @@ Item {
                 return
 
             surface.focus = false;
-            if (TreeLandHelper.activeSurface === surface)
-                TreeLandHelper.activeSurface = null;
+            if (TreeLandHelper.activatedSurface === surface)
+                TreeLandHelper.activatedSurface = null;
 
             surface.visible = false;
             dockModel.append({ source: surface });
