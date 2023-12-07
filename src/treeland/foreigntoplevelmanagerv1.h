@@ -15,6 +15,12 @@
 #include <QObject>
 #include <QQmlEngine>
 
+struct treeland_foreign_toplevel_handle_v1_maximized_event;
+struct treeland_foreign_toplevel_handle_v1_minimized_event;
+struct treeland_foreign_toplevel_handle_v1_activated_event;
+struct treeland_foreign_toplevel_handle_v1_fullscreen_event;
+struct treeland_foreign_toplevel_handle_v1_set_rectangle_event;
+
 QW_USE_NAMESPACE
 WAYLIB_SERVER_USE_NAMESPACE
 
@@ -54,12 +60,35 @@ class WXdgSurface;
 class WOutput;
 WAYLIB_SERVER_END_NAMESPACE
 
+class QuickForeignToplevelManagerV1;
+class QuickForeignToplevelManagerAttached : public QObject
+{
+    Q_OBJECT
+    QML_ANONYMOUS
+
+public:
+    QuickForeignToplevelManagerAttached(WSurface *target, QuickForeignToplevelManagerV1 *manager);
+
+Q_SIGNALS:
+    void requestMaximize(bool maximized);
+    void requestMinimize(bool minimized);
+    void requestActivate(bool activated);
+    void requestFullscreen(bool fullscreen);
+    void requestClose();
+    void rectangleChanged(const QRect &rect);
+
+private:
+    WSurface *m_target;
+    QuickForeignToplevelManagerV1 *m_manager;
+};
+
 class QuickForeignToplevelManagerV1Private;
 class QuickForeignToplevelManagerV1 : public WQuickWaylandServerInterface, public WObject
 {
     Q_OBJECT
     QML_NAMED_ELEMENT(TreeLandForeignToplevelManagerV1)
     W_DECLARE_PRIVATE(QuickForeignToplevelManagerV1)
+    QML_ATTACHED(QuickForeignToplevelManagerAttached)
 
 public:
     explicit QuickForeignToplevelManagerV1(QObject *parent = nullptr);
@@ -67,6 +96,22 @@ public:
     Q_INVOKABLE void add(WXdgSurface *surface);
     Q_INVOKABLE void remove(WXdgSurface *surface);
 
+    static QuickForeignToplevelManagerAttached *qmlAttachedProperties(QObject *target);
+
+Q_SIGNALS:
+    void requestMaximize(WXdgSurface *surface, treeland_foreign_toplevel_handle_v1_maximized_event *event);
+    void requestMinimize(WXdgSurface *surface, treeland_foreign_toplevel_handle_v1_minimized_event *event);
+    void requestActivate(WXdgSurface *surface, treeland_foreign_toplevel_handle_v1_activated_event *event);
+    void requestFullscreen(WXdgSurface *surface, treeland_foreign_toplevel_handle_v1_fullscreen_event *event);
+    void requestClose(WXdgSurface *surface);
+    void rectangleChanged(WXdgSurface *surface, treeland_foreign_toplevel_handle_v1_set_rectangle_event *event);
+
 private:
     void create() override;
 };
+
+Q_DECLARE_OPAQUE_POINTER(treeland_foreign_toplevel_handle_v1_maximized_event*);
+Q_DECLARE_OPAQUE_POINTER(treeland_foreign_toplevel_handle_v1_minimized_event*);
+Q_DECLARE_OPAQUE_POINTER(treeland_foreign_toplevel_handle_v1_activated_event*);
+Q_DECLARE_OPAQUE_POINTER(treeland_foreign_toplevel_handle_v1_fullscreen_event*);
+Q_DECLARE_OPAQUE_POINTER(treeland_foreign_toplevel_handle_v1_set_rectangle_event*);
