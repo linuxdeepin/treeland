@@ -410,11 +410,12 @@ WToplevelSurface *Helper::activatedSurface() const
 
 void Helper::setActivateSurface(WToplevelSurface *newActivate)
 {
+    if (m_activateSurface == newActivate)
+        return;
+
     if (newActivate && newActivate->doesNotAcceptFocus())
         return;
 
-    if (m_activateSurface == newActivate)
-        return;
     if (m_activateSurface) {
         if (newActivate) {
             if (m_activateSurface->keyboardFocusPriority() > newActivate->keyboardFocusPriority())

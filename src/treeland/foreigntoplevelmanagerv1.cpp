@@ -28,6 +28,57 @@ extern "C" {
 #undef static
 }
 
+static QuickForeignToplevelManagerV1 *FOREIGN_TOPLEVEL_MANAGER = nullptr;
+
+QuickForeignToplevelManagerAttached::QuickForeignToplevelManagerAttached(WSurface *target, QuickForeignToplevelManagerV1 *manager)
+    : QObject(manager)
+    , m_target(target)
+    , m_manager(manager)
+{
+    connect(manager, &QuickForeignToplevelManagerV1::requestActivate, this, [this](WXdgSurface *surface, [[maybe_unused]] treeland_foreign_toplevel_handle_v1_activated_event *event) {
+        if (surface->surface() != m_target) {
+            return;
+        }
+
+        Q_EMIT requestActivate(true);
+    });
+    connect(manager, &QuickForeignToplevelManagerV1::requestMinimize, this, [this](WXdgSurface *surface, treeland_foreign_toplevel_handle_v1_minimized_event *event) {
+        if (surface->surface() != m_target) {
+            return;
+        }
+
+        Q_EMIT requestMinimize(event->minimized);
+    });
+    connect(manager, &QuickForeignToplevelManagerV1::requestMaximize, this, [this](WXdgSurface *surface, treeland_foreign_toplevel_handle_v1_maximized_event *event) {
+        if (surface->surface() != m_target) {
+            return;
+        }
+
+        Q_EMIT requestMaximize(event->maximized);
+    });
+    connect(manager, &QuickForeignToplevelManagerV1::requestFullscreen, this, [this](WXdgSurface *surface, treeland_foreign_toplevel_handle_v1_fullscreen_event *event) {
+        if (surface->surface() != m_target) {
+            return;
+        }
+
+        Q_EMIT requestFullscreen(event->fullscreen);
+    });
+    connect(manager, &QuickForeignToplevelManagerV1::requestClose, this, [this](WXdgSurface *surface) {
+        if (surface->surface() != m_target) {
+            return;
+        }
+
+        Q_EMIT requestClose();
+    });
+    connect(manager, &QuickForeignToplevelManagerV1::rectangleChanged, this, [this](WXdgSurface *surface, treeland_foreign_toplevel_handle_v1_set_rectangle_event *event) {
+        if (surface->surface() != m_target) {
+            return;
+        }
+
+        Q_EMIT rectangleChanged({event->x, event->y, event->width, event->height});
+    });
+}
+
 class QuickForeignToplevelManagerV1Private : public WObjectPrivate {
 public:
     QuickForeignToplevelManagerV1Private(QuickForeignToplevelManagerV1 *qq)
@@ -44,14 +95,14 @@ public:
         connection.push_back(QObject::connect(surface, &WXdgSurface::appIdChanged, q_func(),
                          [=] { handle->setAppId(surface->appId().toUtf8()); }));
 
-        connection.push_back(QObject::connect(surface, &WXdgSurface::requestMinimize, q_func(),
+        connection.push_back(QObject::connect(surface, &WXdgSurface::minimizeChanged, q_func(),
                          [=] { handle->setMinimized(surface->isMinimized()); }));
 
-        connection.push_back(QObject::connect(surface, &WXdgSurface::requestMaximize, q_func(),
+        connection.push_back(QObject::connect(surface, &WXdgSurface::maximizeChanged, q_func(),
                          [=] { handle->setMaximized(surface->isMaximized()); }));
 
         connection.push_back(QObject::connect(
-            surface, &WXdgSurface::requestFullscreen, q_func(),
+            surface, &WXdgSurface::fullscreenChanged, q_func(),
             [=] { handle->setFullScreen(surface->isFullScreen()); }));
 
         connection.push_back(QObject::connect(surface, &WXdgSurface::activateChanged, q_func(),
@@ -78,37 +129,37 @@ public:
 
         connection.push_back(QObject::connect(handle.get(),
                              &TreeLandForeignToplevelHandleV1::requestActivate,
-                             surface,
-                             [surface](treeland_foreign_toplevel_handle_v1_activated_event *event) {
-                                 surface->setActivate(event->toplevel->state & TREELAND_FOREIGN_TOPLEVEL_HANDLE_V1_STATE_ACTIVATED);
+                             q_func(),
+                             [surface, this, handle](treeland_foreign_toplevel_handle_v1_activated_event *event) {
+                                 Q_EMIT q_func()->requestActivate(surface, event);
                              }));
 
         connection.push_back(QObject::connect(handle.get(),
                              &TreeLandForeignToplevelHandleV1::requestMaximize,
-                             surface,
-                             [surface](treeland_foreign_toplevel_handle_v1_maximized_event *event) {
-                                 surface->setMaximize(event->maximized);
+                             q_func(),
+                             [surface, this](treeland_foreign_toplevel_handle_v1_maximized_event *event) {
+                                 Q_EMIT q_func()->requestMaximize(surface, event);
                              }));
 
         connection.push_back(QObject::connect(handle.get(),
                              &TreeLandForeignToplevelHandleV1::requestMinimize,
-                             surface,
-                             [surface](treeland_foreign_toplevel_handle_v1_minimized_event *event) {
-                                 surface->setMinimize(event->minimized);
+                             q_func(),
+                             [surface, this, handle](treeland_foreign_toplevel_handle_v1_minimized_event *event) {
+                                 Q_EMIT q_func()->requestMinimize(surface, event);
                              }));
 
         connection.push_back(QObject::connect(handle.get(),
                              &TreeLandForeignToplevelHandleV1::requestFullscreen,
-                             surface,
-                             [surface](treeland_foreign_toplevel_handle_v1_fullscreen_event *event) {
-                                 surface->setFullScreen(event->fullscreen);
+                             q_func(),
+                             [surface, this](treeland_foreign_toplevel_handle_v1_fullscreen_event *event) {
+                                 Q_EMIT q_func()->requestFullscreen(surface, event);
                              }));
 
         connection.push_back(QObject::connect(handle.get(),
                              &TreeLandForeignToplevelHandleV1::requestClose,
-                             surface,
-                             [surface] {
-                                 surface->handle()->topToplevel()->sendClose();
+                             q_func(),
+                             [surface, this] {
+                                 Q_EMIT q_func()->requestClose(surface);
                              }));
 
         wl_client *client = surface->handle()->handle()->resource->client;
@@ -120,6 +171,10 @@ public:
 
         Q_EMIT surface->titleChanged();
         Q_EMIT surface->appIdChanged();
+        Q_EMIT surface->minimizeChanged();
+        Q_EMIT surface->maximizeChanged();
+        Q_EMIT surface->fullscreenChanged();
+        Q_EMIT surface->activateChanged();
 
         connections.insert({surface, connection});
     }
@@ -158,7 +213,14 @@ public:
 
 QuickForeignToplevelManagerV1::QuickForeignToplevelManagerV1(QObject *parent)
     : WQuickWaylandServerInterface(parent)
-    , WObject(*new QuickForeignToplevelManagerV1Private(this), nullptr) {}
+    , WObject(*new QuickForeignToplevelManagerV1Private(this), nullptr)
+{
+    if (FOREIGN_TOPLEVEL_MANAGER) {
+        qFatal("There are multiple instances of QuickForeignToplevelManagerV1");
+    }
+
+    FOREIGN_TOPLEVEL_MANAGER = this;
+}
 
 void QuickForeignToplevelManagerV1::add(WXdgSurface *surface) {
     W_D(QuickForeignToplevelManagerV1);
@@ -175,4 +237,13 @@ void QuickForeignToplevelManagerV1::create() {
     WQuickWaylandServerInterface::create();
 
     d->manager = TreeLandForeignToplevelManagerV1::create(server()->handle());
+}
+
+QuickForeignToplevelManagerAttached *QuickForeignToplevelManagerV1::qmlAttachedProperties(QObject *target)
+{
+    if (auto *surface = qobject_cast<WXdgSurface*>(target)) {
+        return new QuickForeignToplevelManagerAttached(surface->surface(), FOREIGN_TOPLEVEL_MANAGER);
+    }
+
+    return nullptr;
 }
