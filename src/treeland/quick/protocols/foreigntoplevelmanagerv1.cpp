@@ -5,6 +5,7 @@
 
 #include "foreign-toplevel-manager-server-protocol.h"
 #include "foreigntoplevelhandlev1.h"
+#include "foreign_toplevel_manager_impl.h"
 
 #include <qwcompositor.h>
 #include <qwdisplay.h>
@@ -168,7 +169,7 @@ public:
         wl_client_get_credentials(client, &pid, nullptr, nullptr);
         handle->setPid(pid);
 
-        handle->setIdentifier(QString::number(reinterpret_cast<std::uintptr_t>(surface)).toUtf8());
+        handle->setIdentifier(*reinterpret_cast<const uint32_t *>(surface->handle()->handle()));
 
         Q_EMIT surface->titleChanged();
         Q_EMIT surface->appIdChanged();
@@ -210,6 +211,7 @@ public:
     TreeLandForeignToplevelManagerV1 *manager = nullptr;
     std::map<WXdgSurface*, std::shared_ptr<TreeLandForeignToplevelHandleV1>> surfaces;
     std::map<WXdgSurface*, std::vector<QMetaObject::Connection>> connections;
+    std::vector<TreeLandDockPreviewContextV1*> dockPreviews;
 };
 
 QuickForeignToplevelManagerV1::QuickForeignToplevelManagerV1(QObject *parent)
@@ -233,11 +235,56 @@ void QuickForeignToplevelManagerV1::remove(WXdgSurface *surface) {
     d->remove(surface);
 }
 
+void QuickForeignToplevelManagerV1::enterDockPreview(WSurface *relative_surface) {
+    W_D(QuickForeignToplevelManagerV1);
+
+    for (auto *context : d->dockPreviews) {
+        if (context->handle()->relative_surface == relative_surface->handle()->handle()->resource) {
+            context->enter();
+            break;
+        }
+    }
+}
+
+void QuickForeignToplevelManagerV1::leaveDockPreview(WSurface *relative_surface) {
+    W_D(QuickForeignToplevelManagerV1);
+
+    for (auto *context : d->dockPreviews) {
+        if (context->handle()->relative_surface == relative_surface->handle()->handle()->resource) {
+            context->leave();
+            break;
+        }
+    }
+}
+
 void QuickForeignToplevelManagerV1::create() {
     W_D(QuickForeignToplevelManagerV1);
     WQuickWaylandServerInterface::create();
 
     d->manager = TreeLandForeignToplevelManagerV1::create(server()->handle());
+
+    connect(d->manager, &TreeLandForeignToplevelManagerV1::dockPreviewContextCreated, this, [this, d](TreeLandDockPreviewContextV1 *context) {
+        d->dockPreviews.push_back(context);
+        connect(context, &TreeLandDockPreviewContextV1::beforeDestroy, this, [d, context] {
+            std::erase_if(d->dockPreviews, [context] (auto *p) { return p == context; });
+        });
+        connect(context, &TreeLandDockPreviewContextV1::requestShow, this, [this, d](struct treeland_dock_preview_context_v1_preview_event *event) {
+            std::vector<WSurface*> surfaces;
+            for (auto it = event->toplevels.cbegin(); it != event->toplevels.cend(); ++it) {
+                const uint32_t identifier = *it;
+                for (auto it = d->surfaces.cbegin(); it != d->surfaces.cend(); ++it) {
+                    if (it->second->handle()->identifier == identifier) {
+                        surfaces.push_back(WSurface::fromHandle(it->first->handle()->handle()->surface));
+                        break;
+                    }
+                }
+            };
+
+            Q_EMIT requestDockPreview(surfaces, WSurface::fromHandle(wlr_surface_from_resource(event->toplevel->relative_surface)), QPoint(event->x, event->y), event->direction);
+        });
+
+        connect(context, &TreeLandDockPreviewContextV1::requestClose, this, &QuickForeignToplevelManagerV1::requestDockClose);
+    });
 }
 
 QuickForeignToplevelManagerAttached *QuickForeignToplevelManagerV1::qmlAttachedProperties(QObject *target)

@@ -22,6 +22,7 @@ public:
         Q_ASSERT(!map.contains(handle));
         map.insert(handle, qq);
         sc.connect(&handle->events.destroy, this, &TreeLandForeignToplevelManagerV1Private::on_destroy);
+        sc.connect(&handle->events.dock_preview_created, this, &TreeLandForeignToplevelManagerV1Private::on_dock_preview_created);
     }
     ~TreeLandForeignToplevelManagerV1Private() {
         if (!m_handle)
@@ -38,6 +39,7 @@ public:
     }
 
     void on_destroy(void *);
+    void on_dock_preview_created(void *);
 
     static QHash<void*, TreeLandForeignToplevelManagerV1*> map;
     QW_DECLARE_PUBLIC(TreeLandForeignToplevelManagerV1)
@@ -50,6 +52,12 @@ void TreeLandForeignToplevelManagerV1Private::on_destroy(void *)
     destroy();
     m_handle = nullptr;
     delete q_func();
+}
+
+void TreeLandForeignToplevelManagerV1Private::on_dock_preview_created(void *data)
+{
+    auto *context = TreeLandDockPreviewContextV1::from(static_cast<treeland_dock_preview_context_v1*>(data));
+    Q_EMIT q_func()->dockPreviewContextCreated(context);
 }
 
 TreeLandForeignToplevelManagerV1::TreeLandForeignToplevelManagerV1(treeland_foreign_toplevel_manager_v1 *handle, bool isOwner)

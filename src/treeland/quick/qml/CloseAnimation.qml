@@ -7,7 +7,7 @@ import QtQuick.Particles
 Item {
     id: root
 
-    signal stopped
+    signal stopped()
 
     visible: false
 

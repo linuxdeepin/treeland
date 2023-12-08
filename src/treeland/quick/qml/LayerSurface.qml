@@ -17,6 +17,8 @@ Item {
     property bool mapped: waylandSurface.surface && waylandSurface.surface.mapped && waylandSurface.WaylandSocket.rootSocket.enabled
     property bool pendingDestroy: false
 
+    property alias surfaceItem: surfaceItem
+
     id: root
     z: zValueFormLayer(waylandSurface.layer)
 

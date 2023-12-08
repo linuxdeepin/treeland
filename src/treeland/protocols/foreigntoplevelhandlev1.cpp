@@ -173,7 +173,7 @@ void TreeLandForeignToplevelHandleV1::setPid(pid_t pid)
     treeland_foreign_toplevel_handle_v1_set_pid(handle(), pid);
 }
 
-void TreeLandForeignToplevelHandleV1::setIdentifier(const char *identifier)
+void TreeLandForeignToplevelHandleV1::setIdentifier(uint32_t identifier)
 {
     treeland_foreign_toplevel_handle_v1_set_identifier(handle(), identifier);
 }

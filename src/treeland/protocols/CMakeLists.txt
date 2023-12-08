@@ -30,6 +30,7 @@ target_sources(treeland-protocols PRIVATE
     personalizationwallpapercontext.cpp
     personalizationmanager.cpp
     qshortcutmanager.cpp
+    dockpreviewcontextv1.cpp
 )
 
 target_compile_definitions(treeland-protocols

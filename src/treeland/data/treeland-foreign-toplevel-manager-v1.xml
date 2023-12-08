@@ -60,6 +60,10 @@
                 the client should free any resources associated with it.
             </description>
         </event>
+        <request name="get_dock_preview_context">
+            <arg name="relative_surface" type="object" interface="wl_surface" />
+            <arg name="id" type="new_id" interface="treeland_dock_preview_context_v1" />
+        </request>
     </interface>
     <interface name="ztreeland_foreign_toplevel_handle_v1" version="1">
         <description summary="An opened toplevel">
@@ -93,28 +97,13 @@
         </event>
         <event name="identifier">
             <description summary="a stable identifier for a toplevel">
-                This identifier is used to check if two or more toplevel handles belong
-                to the same toplevel.
-
-                The identifier is useful for command line tools or privileged clients
-                which may need to reference an exact toplevel across processes or
-                instances of the ext_foreign_toplevel_list_v1 global.
-
-                The compositor must only send this event when the handle is created.
-
-                The identifier must be unique per toplevel and it's handles. Two different
-                toplevels must not have the same identifier. The identifier is only valid
-                as long as the toplevel is mapped. If the toplevel is unmapped the identifier
-                must not be reused. An identifier must not be reused by the compositor to
-                ensure there are no races when sharing identifiers between processes.
-
-                An identifier is a string that contains up to 32 printable ASCII bytes.
-                An identifier must not be an empty string. It is recommended that a
-                compositor includes an opaque generation value in identifiers. How the
-                generation value is used when generating the identifier is implementation
-                dependent.
+                The identifier of each top level and its handle must be unique.
+                Two different top layers cannot have the same identifier.
+                This identifier is only valid as long as the top level is mapped.
+                Identifiers must not be reused if the top level is not mapped.
+                The compositor must not reuse identifiers to ensure there are no races when identifiers are shared between processes.
             </description>
-            <arg name="identifier" type="string" />
+            <arg name="identifier" type="uint" />
         </event>
 
         <event name="output_enter">
@@ -289,5 +278,60 @@
             <arg name="parent" type="object" interface="ztreeland_foreign_toplevel_handle_v1"
                 allow-null="true" />
         </event>
+    </interface>
+    <interface name="treeland_dock_preview_context_v1" version="1">
+        <description summary="handle dock preview">
+            This interface allows dock set windows preview.
+
+            Warning! The protocol described in this file is currently in the testing
+            phase. Backward compatible changes may be added together with the
+            corresponding interface version bump. Backward incompatible changes can
+            only be done by creating a new major version of the extension.
+        </description>
+
+        <enum name="direction">
+            <description summary="types of direction on the dock preview">
+            </description>
+
+            <entry name="top" value="0" summary="top" />
+            <entry name="right" value="1" summary="right" />
+            <entry name="bottom" value="2" summary="bottom" />
+            <entry name="left" value="3" summary="left" />
+        </enum>
+
+        <event name="enter">
+            <description summary="enter preview box">
+                This event is sent after mouse enter preview box.
+            </description>
+        </event>
+        <event name="leave">
+            <description summary="leave preview box">
+                This event is sent after mouse leave preview box.
+            </description>
+        </event>
+
+        <request name="show">
+            <description summary="set preview surfaces">
+                X and Y are relative to the relative_surface.
+                surfaces wl_array is identifiers.
+            </description>
+
+            <arg name="surfaces" type="array" />
+            <arg name="x" type="int" />
+            <arg name="y" type="int" />
+            <arg name="direction" type="uint" />
+        </request>
+
+        <request name="close">
+            <description summary="close preview box">
+                close preview box
+            </description>
+        </request>
+
+        <request name="destroy" type="destructor">
+            <description summary="destroy the context object">
+                Destroy the context object.
+            </description>
+        </request>
     </interface>
 </protocol>
