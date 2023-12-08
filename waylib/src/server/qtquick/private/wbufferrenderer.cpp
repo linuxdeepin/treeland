@@ -127,37 +127,73 @@ public:
     explicit TextureProvider(WBufferRenderer *item)
         : item(item) {}
     ~TextureProvider() {
-
+        if (m_texture)
+            cleanTexture();
     }
 
     QSGTexture *texture() const override {
-        return dwtexture ? dwtexture->getSGTexture(item->window()) : nullptr;
+        return m_texture ? &m_texture->texture : nullptr;
     }
 
     void setBuffer(QWBuffer *buffer) {
-        qwtexture.reset();
+        Q_ASSERT(item);
 
-        if (Q_LIKELY(buffer)) {
-            qwtexture.reset(QWTexture::fromBuffer(item->output()->renderer(), buffer));
-        }
+        if (m_texture)
+            cleanTexture();
 
-        if (Q_LIKELY(qwtexture)) {
-            if (Q_LIKELY(dwtexture)) {
-                dwtexture->setHandle(qwtexture.get());
-            } else {
-                dwtexture.reset(new WTexture(qwtexture.get()));
-                dwtexture->setOwnsTexture(false);
+        Q_ASSERT(!m_texture);
+        if (buffer)
+            m_texture = new Texture(item->window(), item->output()->renderer(), buffer);
+
+        Q_EMIT textureChanged();
+    }
+
+    void cleanTexture() {
+        Q_ASSERT(item);
+
+        class TextureCleanupJob : public QRunnable
+        {
+        public:
+            TextureCleanupJob(Texture *texture)
+                : texture(texture) { }
+            void run() override {
+                delete texture;
             }
-        } else {
-            dwtexture.reset();
-        }
+            Texture *texture;
+        };
+
+        // Delay clean the textures on the next render after.
+        item->window()->scheduleRenderJob(new TextureCleanupJob(m_texture),
+                                          QQuickWindow::AfterSynchronizingStage);
+        m_texture = nullptr;
+    }
+
+    void invalidate() {
+        cleanTexture();
+        item = nullptr;
 
         Q_EMIT textureChanged();
     }
 
     WBufferRenderer *item;
-    std::unique_ptr<QWTexture> qwtexture;
-    std::unique_ptr<WTexture> dwtexture;
+
+    struct Texture {
+        Texture(QQuickWindow *window, QWRenderer *renderer, QWBuffer *buffer)
+        {
+            qwtexture = QWTexture::fromBuffer(renderer, buffer);
+            WTexture::makeTexture(qwtexture, &texture, window);
+            texture.setOwnsTexture(false);
+        }
+
+        ~Texture() {
+            delete qwtexture;
+        }
+
+        QWTexture *qwtexture;
+        QSGPlainTexture texture;
+    };
+
+    Texture *m_texture = nullptr;
 };
 
 WBufferRenderer::WBufferRenderer(QQuickItem *parent)
@@ -602,6 +638,7 @@ void WBufferRenderer::releaseResources()
             QObject *m_object;
         };
 
+        m_textureProvider->invalidate();
         // Delay clean the textures on the next render after.
         window()->scheduleRenderJob(new TextureProviderCleanupJob(m_textureProvider.release()),
                                     QQuickWindow::AfterRenderingStage);
