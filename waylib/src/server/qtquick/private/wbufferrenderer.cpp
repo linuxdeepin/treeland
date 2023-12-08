@@ -202,7 +202,7 @@ WBufferRenderer::WBufferRenderer(QQuickItem *parent)
     , m_forceCacheBuffer(false)
     , m_hideSource(false)
 {
-
+    m_textureProvider.reset(new TextureProvider(this));
 }
 
 WBufferRenderer::~WBufferRenderer()
@@ -318,7 +318,7 @@ QWDamageRing *WBufferRenderer::damageRing()
 
 bool WBufferRenderer::isTextureProvider() const
 {
-    return m_cacheBuffer;
+    return true;
 }
 
 QSGTextureProvider *WBufferRenderer::textureProvider() const
@@ -351,6 +351,9 @@ QWBuffer *WBufferRenderer::beginRender(const QSize &pixelSize, qreal devicePixel
         if (!ok)
             return nullptr;
     }
+
+    if (!shouldCacheBuffer())
+        m_textureProvider->setBuffer(nullptr);
 
     // TODO: Support scanout buffer of wlr_surface(from WSurfaceItem)
     int bufferAge;
@@ -403,6 +406,9 @@ QWBuffer *WBufferRenderer::beginRender(const QSize &pixelSize, qreal devicePixel
     state.buffer = buffer;
     state.renderTarget = rt;
     state.sgRenderTarget = sgRT;
+
+    if (!shouldCacheBuffer())
+        m_textureProvider->setBuffer(buffer);
 
     return buffer;
 }
@@ -542,7 +548,7 @@ void WBufferRenderer::endRender()
     Q_ASSERT(state.buffer);
     auto buffer = state.buffer;
     state.buffer = nullptr;
-    if (m_textureProvider.get())
+    if (shouldCacheBuffer())
         m_textureProvider->setBuffer(buffer);
 
     m_lastBuffer = buffer;
@@ -566,40 +572,31 @@ void WBufferRenderer::componentComplete()
     QQuickItem::componentComplete();
 }
 
-void WBufferRenderer::ensureTextureProvider()
+void WBufferRenderer::setForceCacheBuffer(bool force)
 {
-    m_forceCacheBuffer = true;
+    if (m_forceCacheBuffer == force)
+        return;
+    m_forceCacheBuffer = force;
     updateTextureProvider();
 }
 
 void WBufferRenderer::resetTextureProvider()
 {
-    m_forceCacheBuffer = false;
-    updateTextureProvider();
+    if (m_textureProvider)
+        m_textureProvider->setBuffer(nullptr);
 }
 
 void WBufferRenderer::updateTextureProvider()
 {
     if (shouldCacheBuffer()) {
-        if (!m_textureProvider.get())
-            m_textureProvider.reset(new TextureProvider(this));
-        if (m_lastBuffer)
-            m_textureProvider->setBuffer(m_lastBuffer);
-    } else if (m_textureProvider.get()) {
-        m_textureProvider.reset();
+        m_textureProvider->setBuffer(m_lastBuffer);
+    } else {
+        m_textureProvider->setBuffer(nullptr);
     }
-
-    if (flags().testFlag(ItemHasContents))
-        update();
 }
 
 QSGNode *WBufferRenderer::updatePaintNode(QSGNode *oldNode, UpdatePaintNodeData *)
 {
-    if (!m_textureProvider.get()) {
-        delete oldNode;
-        return nullptr;
-    }
-
     auto node = static_cast<QSGImageNode*>(oldNode);
     if (Q_UNLIKELY(!node)) {
         node = window()->createImageNode();

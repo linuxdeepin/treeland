@@ -90,7 +90,7 @@ private:
         return m_cacheBuffer || m_forceCacheBuffer;
     }
 
-    void ensureTextureProvider();
+    void setForceCacheBuffer(bool force);
     void resetTextureProvider();
     void updateTextureProvider();
     QSGNode *updatePaintNode(QSGNode *oldNode, UpdatePaintNodeData *data) override;

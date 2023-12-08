@@ -420,8 +420,10 @@ void OutputHelper::cleanLayerCompositor()
         WBufferRenderer *source = qobject_cast<WBufferRenderer*>(proxy->sourceItem());
         proxy->setSourceItem(nullptr);
 
-        if (source)
+        if (source) {
+            source->setForceCacheBuffer(false);
             source->resetTextureProvider();
+        }
     }
 
     if (m_output2) {
@@ -681,7 +683,7 @@ WBufferRenderer *OutputHelper::compositeLayers(const QList<LayerData*> layers)
             m_layerProxys.append(new WQuickTextureProxy(m_layerPorxyContainer));
 
         auto outputProxy = m_layerProxys.first();
-        bufferRenderer()->ensureTextureProvider();
+        bufferRenderer()->setForceCacheBuffer(true);
         outputProxy->setSourceItem(bufferRenderer());
         outputProxy->setSize(output->size());
     } else {
@@ -707,7 +709,7 @@ WBufferRenderer *OutputHelper::compositeLayers(const QList<LayerData*> layers)
 
         LayerData *layer = layers.at(i);
         layer->layer->layer->setAccepted(true);
-        layer->renderer->ensureTextureProvider();
+        layer->renderer->setForceCacheBuffer(true);
         proxy->setSourceItem(layer->renderer);
         proxy->setPosition(layer->mapRect.topLeft() / dpr);
         proxy->setSize(layer->mapRect.size());
