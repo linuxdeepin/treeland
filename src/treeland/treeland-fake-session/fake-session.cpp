@@ -9,6 +9,7 @@
 #include <QWindow>
 #include <QTimer>
 #include <QtGui/qpa/qplatformnativeinterface.h>
+#include <QDBusInterface>
 
 #include <sys/types.h>
 #include <pwd.h>
@@ -124,12 +125,8 @@ FakeSession::FakeSession(int argc, char* argv[])
                 auto keyEnum = static_cast<Qt::Key>(keycode);
                 auto modifyEnum = static_cast<Qt::KeyboardModifiers>(modify);
                 qDebug() << keyEnum << modifyEnum;
-                if (keyEnum == Qt::Key_Super_L && modifyEnum == Qt::NoModifier) {
-                    static QProcess process;
-                    if (process.state() == QProcess::ProcessState::Running) {
-                        process.kill();
-                    }
-                    process.start("dofi", {"-S", "run"});
+                if ((keyEnum == Qt::Key_Super_L && modifyEnum == Qt::NoModifier) || (keyEnum == Qt::Key_Meta && modifyEnum == Qt::MetaModifier)) {
+                    QProcess::startDetached("dde-launchpad", {"-t", "-platform", "wayland"});
                     return;
                 }
                 if (keyEnum == Qt::Key_T && modifyEnum.testFlags(Qt::ControlModifier | Qt::AltModifier)) {
@@ -153,6 +150,8 @@ FakeSession::FakeSession(int argc, char* argv[])
     });
 
     emit m_shortcutManager->activeChanged();
+
+    QProcess::startDetached("dde-shell", {"-p", "org.deepin.ds.dock"});
 }
 
 int main (int argc, char *argv[]) {
