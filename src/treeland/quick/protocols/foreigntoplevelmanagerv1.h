@@ -94,6 +94,9 @@ public:
     Q_INVOKABLE void add(WXdgSurface *surface);
     Q_INVOKABLE void remove(WXdgSurface *surface);
 
+    Q_INVOKABLE void enterDockPreview(WSurface *relative_surface);
+    Q_INVOKABLE void leaveDockPreview(WSurface *relative_surface);
+
     static QuickForeignToplevelManagerAttached *qmlAttachedProperties(QObject *target);
 
 Q_SIGNALS:
@@ -103,6 +106,8 @@ Q_SIGNALS:
     void requestFullscreen(WXdgSurface *surface, treeland_foreign_toplevel_handle_v1_fullscreen_event *event);
     void requestClose(WXdgSurface *surface);
     void rectangleChanged(WXdgSurface *surface, treeland_foreign_toplevel_handle_v1_set_rectangle_event *event);
+    void requestDockPreview(std::vector<WSurface*> surfaces, WSurface *target, QPoint abs, int direction);
+    void requestDockClose();
 
 private:
     void create() override;

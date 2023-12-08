@@ -16,6 +16,7 @@ Item {
     required property ToplevelSurface waylandSurface
     required property ListModel dockModel
     required property ListModel switcherModel
+    required property ListModel dockPreviewModel
     required property DynamicCreatorComponent creator
     property WindowDecoration decoration
     property var quickForeignToplevelManageMapper: waylandSurface.TreeLandForeignToplevelManagerV1
@@ -207,6 +208,7 @@ Item {
             }
 
             switcherModel.append({ source: surface });
+            dockPreviewModel.append({ surface: surface, source: waylandSurface.surface });
         } else { // if not mapped
             if (waylandSurface.isMinimized) {
                 // mapped becomes false but not pendingDestroy
@@ -223,6 +225,7 @@ Item {
                 closeAnimation.item.start(surface)
             }
             switcherModel.removeSurface(surface)
+            dockPreviewModel.removeSurface(surface)
         }
     }
 
@@ -230,6 +233,7 @@ Item {
         pendingDestroy = true
 
         switcherModel.removeSurface(surface)
+        dockPreviewModel.removeSurface(surface)
 
         if (!surface.visible || !closeAnimation.active) {
             if (waylandSurface.isMinimized) {

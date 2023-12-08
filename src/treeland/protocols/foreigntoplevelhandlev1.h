@@ -12,6 +12,7 @@ struct treeland_foreign_toplevel_handle_v1_minimized_event;
 struct treeland_foreign_toplevel_handle_v1_activated_event;
 struct treeland_foreign_toplevel_handle_v1_fullscreen_event;
 struct treeland_foreign_toplevel_handle_v1_set_rectangle_event;
+struct treeland_dock_preview_context_v1_preview_event;
 struct treeland_foreign_toplevel_manager_v1;
 
 QW_USE_NAMESPACE
@@ -21,6 +22,7 @@ class QWOutput;
 class QWDisplay;
 QW_END_NAMESPACE
 
+class TreeLandDockPreviewContextV1;
 class TreeLandForeignToplevelManagerV1Private;
 class QW_EXPORT TreeLandForeignToplevelManagerV1 : public QObject, public QWObject
 {
@@ -37,6 +39,7 @@ public:
 
 Q_SIGNALS:
     void beforeDestroy(TreeLandForeignToplevelManagerV1 *self);
+    void dockPreviewContextCreated(TreeLandDockPreviewContextV1 *context);
 
 private:
     TreeLandForeignToplevelManagerV1(treeland_foreign_toplevel_manager_v1 *handle, bool isOwner);
@@ -69,7 +72,7 @@ public:
     void setParent(TreeLandForeignToplevelHandleV1 *parent);
     void setTitle(const char *title);
     void setPid(pid_t pid);
-    void setIdentifier(const char *identifier);
+    void setIdentifier(uint32_t identifier);
 
 Q_SIGNALS:
     void beforeDestroy(TreeLandForeignToplevelHandleV1 *self);
@@ -83,3 +86,32 @@ Q_SIGNALS:
 private:
     TreeLandForeignToplevelHandleV1(treeland_foreign_toplevel_handle_v1 *handle, bool isOwner);
 };
+
+struct treeland_dock_preview_context_v1;
+class TreeLandDockPreviewContextV1Private;
+class TreeLandDockPreviewContextV1 : public QObject, public QWObject
+{
+    Q_OBJECT
+    QW_DECLARE_PRIVATE(TreeLandDockPreviewContextV1)
+public:
+    ~TreeLandDockPreviewContextV1() = default;
+
+    inline treeland_dock_preview_context_v1 *handle() const {
+        return QWObject::handle<treeland_dock_preview_context_v1>();
+    }
+
+    static TreeLandDockPreviewContextV1 *get(treeland_dock_preview_context_v1 *handle);
+    static TreeLandDockPreviewContextV1 *from(treeland_dock_preview_context_v1 *handle);
+
+    void enter();
+    void leave();
+
+Q_SIGNALS:
+    void beforeDestroy(TreeLandDockPreviewContextV1 *self);
+    void requestShow(treeland_dock_preview_context_v1_preview_event *event);
+    void requestClose();
+
+private:
+    TreeLandDockPreviewContextV1(treeland_dock_preview_context_v1 *handle, bool isOwner);
+};
+

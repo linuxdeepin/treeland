@@ -5,15 +5,19 @@
 
 #include <wayland-server-core.h>
 
+#include <vector>
+
 struct treeland_foreign_toplevel_manager_v1 {
     struct wl_event_loop *event_loop;
     struct wl_global *global;
     struct wl_list resources; // wl_resource_get_link()
+    struct wl_list dock_preview;
     struct wl_list toplevels; // treeland_foreign_toplevel_handle_v1.link
 
     struct wl_listener display_destroy;
 
     struct {
+        struct wl_signal dock_preview_created;
         struct wl_signal destroy;
     } events;
 
@@ -38,6 +42,18 @@ struct treeland_foreign_toplevel_handle_v1_output {
     struct wl_listener output_destroy;
 };
 
+struct treeland_dock_preview_context_v1 {
+    struct treeland_foreign_toplevel_manager_v1 *manager;
+    struct wl_resource *resource;
+    struct wl_list link;
+    struct wl_resource *relative_surface;
+    struct {
+        struct wl_signal request_show;
+        struct wl_signal request_close;
+        struct wl_signal destroy;
+    } events;
+};
+
 struct treeland_foreign_toplevel_handle_v1 {
     struct treeland_foreign_toplevel_manager_v1 *manager;
     struct wl_list resources;
@@ -46,8 +62,9 @@ struct treeland_foreign_toplevel_handle_v1 {
 
     char *title;
     char *app_id;
-    char *identifier;
+    uint32_t identifier;
     pid_t pid;
+
     struct treeland_foreign_toplevel_handle_v1 *parent;
     struct wl_list outputs; // treeland_foreign_toplevel_v1_output.link
     uint32_t state;         // enum treeland_foreign_toplevel_v1_state
@@ -98,6 +115,13 @@ struct treeland_foreign_toplevel_handle_v1_set_rectangle_event {
     int32_t x, y, width, height;
 };
 
+struct treeland_dock_preview_context_v1_preview_event {
+    struct treeland_dock_preview_context_v1 *toplevel;
+    std::vector<uint32_t> toplevels;
+    int32_t x, y;
+    int32_t direction;
+};
+
 struct treeland_foreign_toplevel_manager_v1 *
 treeland_foreign_toplevel_manager_v1_create(struct wl_display *display);
 
@@ -115,7 +139,7 @@ void treeland_foreign_toplevel_handle_v1_set_app_id(
 void treeland_foreign_toplevel_handle_v1_set_pid(
     struct treeland_foreign_toplevel_handle_v1 *toplevel, const pid_t pid);
 void treeland_foreign_toplevel_handle_v1_set_identifier(
-    struct treeland_foreign_toplevel_handle_v1 *toplevel, const char *identifier);
+    struct treeland_foreign_toplevel_handle_v1 *toplevel, uint32_t identifier);
 
 void treeland_foreign_toplevel_handle_v1_output_enter(
     struct treeland_foreign_toplevel_handle_v1 *toplevel,
@@ -135,3 +159,10 @@ void treeland_foreign_toplevel_handle_v1_set_fullscreen(
 void treeland_foreign_toplevel_handle_v1_set_parent(
     struct treeland_foreign_toplevel_handle_v1 *toplevel,
     struct treeland_foreign_toplevel_handle_v1 *parent);
+
+void treeland_dock_preview_context_v1_enter(
+    struct treeland_dock_preview_context_v1 *toplevel);
+void treeland_dock_preview_context_v1_leave(
+    struct treeland_dock_preview_context_v1 *toplevel);
+void treeland_dock_preview_context_v1_destroy(
+    struct treeland_dock_preview_context_v1 *toplevel);

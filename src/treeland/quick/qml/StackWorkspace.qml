@@ -136,6 +136,7 @@ Item {
                 waylandSurface: toplevelSurfaceItem.waylandSurface
                 dockModel: dock.model
                 switcherModel: switcher.model
+                dockPreviewModel: dockPreview.model
                 creator: toplevelComponent
                 decoration: decoration
             }
@@ -380,6 +381,33 @@ Item {
         z: 1
         anchors.fill: parent
         visible: false
+        onSurfaceActivated: (surface) => {
+            surface.cancelMinimize()
+            TreeLandHelper.activatedSurface = surface.waylandSurface
+        }
+    }
+
+    Connections {
+        target: treelandForeignToplevelManager
+        function onRequestDockPreview(surfaces, target, abs, direction) {
+            dockPreview.show(surfaces, getSurfaceItemFromWaylandSurface(target), abs, direction)
+        }
+        function onRequestDockClose() {
+            dockPreview.close()
+        }
+    }
+
+    DockPreview {
+        id: dockPreview
+        z: 1
+        anchors.fill: parent
+        visible: false
+        onEntered: (relativeSurface) => {
+            treelandForeignToplevelManager.enterDockPreview(relativeSurface)
+        }
+        onExited: (relativeSurface) => {
+            treelandForeignToplevelManager.leaveDockPreview(relativeSurface)
+        }
         onSurfaceActivated: (surface) => {
             surface.cancelMinimize()
             TreeLandHelper.activatedSurface = surface.waylandSurface
