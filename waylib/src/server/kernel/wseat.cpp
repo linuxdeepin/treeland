@@ -708,7 +708,6 @@ bool WSeat::sendEvent(WSurface *target, QObject *shellObject, QObject *eventObje
         break;
     }
     case QEvent::TouchCancel: {
-        auto e = static_cast<QTouchEvent*>(event);
         d->doTouchNotifyCancel(target->handle());
         break;
     }

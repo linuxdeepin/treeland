@@ -263,7 +263,7 @@ void WQuickTextInputV1::sendModifiersMap(QStringList modifiersMap)
 {
     wl_array modifiers_map_arr;
     wl_array_init(&modifiers_map_arr);
-    for (const QString modifier : modifiersMap) {
+    for (const QString &modifier : modifiersMap) {
         QByteArray ba = modifier.toLatin1();
         char *p = static_cast<char *>(wl_array_add(&modifiers_map_arr, ba.length() + 1));
         strncpy(p, ba.data(), ba.length());

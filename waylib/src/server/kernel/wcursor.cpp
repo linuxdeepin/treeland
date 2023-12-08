@@ -434,10 +434,11 @@ void WCursor::setPosition(QWInputDevice *device, const QPointF &pos)
 bool WCursor::setPositionWithChecker(QWInputDevice *device, const QPointF &pos)
 {
     const QPointF oldPos = position();
-    return d_func()->handle->warp(device, pos);
+    bool ok = d_func()->handle->warp(device, pos);
 
     if (oldPos != position())
         Q_EMIT positionChanged();
+    return ok;
 }
 
 void WCursor::setScalePosition(QWInputDevice *device, const QPointF &ratio)

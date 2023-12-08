@@ -96,6 +96,7 @@ bool Helper::registerExclusiveZone(WLayerSurface *layerSurface)
     case Right:
         infoPtr->m_rightExclusiveMargin += exclusiveZone;
         Q_EMIT rightExclusiveMarginChanged();
+        break;
     default:
         Q_UNREACHABLE();
     }
@@ -131,6 +132,7 @@ bool Helper::unregisterExclusiveZone(WLayerSurface *layerSurface)
             case Right:
                 infoPtr->m_rightExclusiveMargin -= exclusiveZone;
                 Q_EMIT rightExclusiveMarginChanged();
+                break;
             default:
                 Q_UNREACHABLE();
             }
@@ -165,6 +167,7 @@ QJSValue Helper::getExclusiveMargins(WLayerSurface *layerSurface)
                 break;
             case Right:
                 margins.setRight(margins.right() + exclusiveZone);
+                break;
             default:
                 Q_UNREACHABLE();
             }
@@ -425,10 +428,10 @@ WToplevelSurface *Helper::activatedSurface() const
 
 void Helper::setActivateSurface(WToplevelSurface *newActivate)
 {
-    if (newActivate && newActivate->doesNotAcceptFocus())
+    if (m_activateSurface == newActivate)
         return;
 
-    if (m_activateSurface == newActivate)
+    if (newActivate && newActivate->doesNotAcceptFocus())
         return;
 
     if (m_activateSurface) {
@@ -466,7 +469,7 @@ void Helper::onOutputRequeseState(wlr_output_event_request_state *newState)
 
 OutputInfo* Helper::getOutputInfo(WOutput *output)
 {
-    for (const auto [woutput, infoPtr]: m_outputExclusiveZoneInfo)
+    for (const auto &[woutput, infoPtr]: m_outputExclusiveZoneInfo)
         if (woutput == output)
             return infoPtr;
     auto infoPtr = new OutputInfo;

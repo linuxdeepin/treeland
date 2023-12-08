@@ -387,7 +387,7 @@ void WInputMethodHelper::onTextInputV3Committed(WQuickTextInputV3 *textInputV3)
     auto im = inputMethodV2();
     if (!im)
         return;
-    const WTextInputV3State *const current = textInputV3->state();
+    [[maybe_unused]] const WTextInputV3State *const current = textInputV3->state();
     sendInputMethodV2State(textInputV3);
 }
 
