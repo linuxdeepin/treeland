@@ -298,6 +298,7 @@ WSGTextureProvider::WSGTextureProvider(ContentItem *item)
     : item(item)
 {
     dwtexture.reset(new WTexture(nullptr));
+    dwtexture->setOwnsTexture(false);
 }
 
 WSGTextureProvider::~WSGTextureProvider()

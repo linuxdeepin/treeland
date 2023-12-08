@@ -99,6 +99,7 @@ public:
 
     QWTexture *handle;
     WTexture::Type type;
+    bool ownsTexture = false;
 
     QScopedPointer<QSGPlainTexture> texture;
     UpdateTextureFunction updateTexture;
@@ -118,7 +119,7 @@ WTexturePrivate::WTexturePrivate(WTexture *qq, QWTexture *handle)
 void WTexturePrivate::init(QWTexture *new_handle)
 {
     auto gpuTexture = new QSGPlainTexture();
-    gpuTexture->setOwnsTexture(true);
+    gpuTexture->setOwnsTexture(ownsTexture);
     texture.reset(gpuTexture);
     updateTexture = getUpdateTextFunction(new_handle, type);
 }
@@ -169,8 +170,9 @@ void WTexture::setHandle(QWTexture *handle)
 void WTexture::setOwnsTexture(bool owns)
 {
     W_D(WTexture);
-    Q_ASSERT(d->handle);
-    d->texture->setOwnsTexture(owns);
+    d->ownsTexture = owns;
+    if (d->texture)
+        d->texture->setOwnsTexture(owns);
 }
 
 WTexture::Type WTexture::type() const

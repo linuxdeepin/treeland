@@ -146,6 +146,7 @@ public:
                 dwtexture->setHandle(qwtexture.get());
             } else {
                 dwtexture.reset(new WTexture(qwtexture.get()));
+                dwtexture->setOwnsTexture(false);
             }
         } else {
             dwtexture.reset();
