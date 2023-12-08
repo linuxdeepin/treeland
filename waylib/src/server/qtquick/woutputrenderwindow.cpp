@@ -554,7 +554,10 @@ WBufferRenderer *OutputHelper::afterRender()
 
         if (!buffer || i->contentsIsDirty || needsFullUpdate) {
             const QSize pixelSize(qCeil(i->mapRect.width()), qCeil(i->mapRect.height()));
-            buffer = i->renderer->beginRender(pixelSize, dpr, DRM_FORMAT_ARGB8888,
+            const bool alpha = !i->layer->layer->flags().testFlag(WOutputLayer::NoAlpha);
+            buffer = i->renderer->beginRender(pixelSize, dpr,
+                                              // TODO: Allows control format by WOutputLayer
+                                              alpha ? DRM_FORMAT_ARGB8888 : DRM_FORMAT_XRGB8888,
                                               WBufferRenderer::DontConfigureSwapchain);
             if (buffer)
                 i->renderer->render(0, renderMatrix,

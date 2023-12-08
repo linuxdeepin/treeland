@@ -36,6 +36,7 @@ public:
         SizeFollowTransformation = 0x1,
         SizeFollowItemTransformation = 0x2,
         PreserveColorContents = 0x4,
+        NoAlpha = 0x8,
     };
     Q_ENUM(Flag)
     Q_DECLARE_FLAGS(Flags, Flag)
