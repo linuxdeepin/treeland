@@ -38,6 +38,7 @@ qt_add_qml_module(greeterplugin
     QML_FILES Center.qml
     QML_FILES LoginAnimation.qml
     QML_FILES RoundBlur.qml
+    QML_FILES PowerList.qml
 )
 
 target_include_directories(greeterplugin
