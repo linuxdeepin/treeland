@@ -192,8 +192,21 @@ Item {
                     width: bottomGroup.buttonSize
                     height: bottomGroup.buttonSize
                     anchors.centerIn: parent
+                    D.ToolTip.visible: hovered
+                    D.ToolTip.text: qsTr("Power")
+                    PowerList {
+                        id: powerList
+                        onClosed: {
+                            powerBtn.width -= 6
+                            powerBtn.height -= 6
+                        }
+                    }
                     onClicked: {
-                        console.log("need impl btn 4")
+                        powerBtn.width += 6
+                        powerBtn.height += 6
+                        powerList.x = (width - powerList.width) / 2 - 10
+                        powerList.y = -powerList.height - 10
+                        powerList.open()
                     }
 
                     background: RoundBlur {}
