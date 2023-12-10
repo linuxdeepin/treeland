@@ -56,16 +56,17 @@ Item {
         anchors.top: parent.top
         anchors.bottom: parent.bottom
         width: root.width * 0.4
-        Rectangle {
+
+        TimeDateWidget {
             anchors.right: parent.right
             anchors.rightMargin: parent.width / 10
             anchors.verticalCenter: parent.verticalCenter
             width: 400
-            height: 500
-            color: Qt.rgba(1, 1, 1, 0.5)
-            radius: 15
-            Text {
-                text: "There will display some widgets."
+            height: 156
+            background: Rectangle {
+                radius: 8
+                color: "white"
+                opacity: 0.1
             }
         }
     }
