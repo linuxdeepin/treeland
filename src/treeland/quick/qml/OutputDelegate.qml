@@ -6,6 +6,7 @@ import QtQuick.Controls
 import Waylib.Server
 
 OutputItem {
+    id: rootOutputItem
     required property WaylandOutput waylandOutput
     property OutputViewport onscreenViewport: outputViewport
 
@@ -246,5 +247,18 @@ OutputItem {
                 Qt.quit()
             }
         }
+    }
+
+    function setTransform(transform) {
+        onscreenViewport.rotationOutput(transform)
+    }
+
+    function setScale(scale) {
+        onscreenViewport.setOutputScale(scale)
+    }
+
+    function setOutputPosition(x, y) {
+        rootOutputItem.x = x;
+        rootOutputItem.y = y;
     }
 }
