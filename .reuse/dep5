@@ -3,7 +3,7 @@ Upstream-Name: treeland
 Source: https://github.com/vioken/treeland
 
 # ci
-Files: .github/* .obs/workflows.yml
+Files: .github/* .obs/*.yml
 Copyright: None
 License: CC0-1.0
 
@@ -18,6 +18,11 @@ License: CC0-1.0
 
 # debian rpm archlinux
 Files: debian/* rpm/* archlinux/*
+Copyright: None
+License: CC0-1.0
+
+# Nix Develop files
+Files: *.nix .envrc flake.lock
 Copyright: None
 License: CC0-1.0
 
