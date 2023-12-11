@@ -5,6 +5,10 @@
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     flake-utils.url = "github:numtide/flake-utils";
     nix-filter.url = "github:numtide/nix-filter";
+    dde-nixos = {
+      url = "github:linuxdeepin/dde-nixos";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
     waylib = {
       url = "github:vioken/waylib";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -13,7 +17,7 @@
     };
   };
 
-  outputs = { self, nixpkgs, flake-utils, nix-filter, waylib }@input:
+  outputs = { self, nixpkgs, flake-utils, nix-filter, waylib, dde-nixos }@input:
     flake-utils.lib.eachSystem [ "x86_64-linux" "aarch64-linux" "riscv64-linux" ]
       (system:
         let
@@ -22,6 +26,7 @@
           treeland = pkgs.qt6Packages.callPackage ./nix {
             nix-filter = nix-filter.lib;
             waylib = waylib.packages.${system}.default;
+            dtkdeclarative = dde-nixos.packages.${system}.qt6.dtkdeclarative;
           };
         in
         {
