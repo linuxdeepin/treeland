@@ -11,6 +11,7 @@
 , qtbase
 , qtquick3d
 , qtwayland
+, dtkdeclarative
 , waylib
 , wayland
 , wayland-protocols
@@ -56,6 +57,7 @@ stdenv.mkDerivation rec {
     qtbase
     qtquick3d
     qtwayland
+    dtkdeclarative
     waylib
     wayland
     wayland-protocols
