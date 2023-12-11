@@ -101,6 +101,7 @@ Item {
             anchors.leftMargin: 80
         }
 
+        //TODO: abstract ot a Button type
         RowLayout {
             id: bottomGroup
             property var buttonSize: 30
@@ -139,7 +140,7 @@ Item {
                     height: bottomGroup.buttonSize
                     anchors.centerIn: parent
                     onClicked: {
-                        console.log(userList.count > 1)
+                        console.log("need impl btn 2")
                     }
 
                     background: RoundBlur {}
@@ -156,25 +157,23 @@ Item {
                 RoundButton {
                     id: usersBtn
                     text: '3'
-                    width: bottomGroup.buttonSize
-                    height: bottomGroup.buttonSize
+                    property bool expand: false
+                    width: expand ? bottomGroup.buttonSize + 6 : bottomGroup.buttonSize
+                    height: expand ? bottomGroup.buttonSize + 6 : bottomGroup.buttonSize
                     anchors.centerIn: parent
                     hoverEnabled: parent.visible
                     D.ToolTip.visible: hovered
                     D.ToolTip.text: qsTr("Other Users")
+
                     UserList {
                         id: userList
-                        onClosed: {
-                            usersBtn.width -= 6
-                            usersBtn.height -= 6
-                        }
+                        x: (usersBtn.width - userList.width) / 2 - 10
+                        y: -userList.height - 10
+                        onClosed: usersBtn.expand = false
                     }
 
                     onClicked: {
-                        usersBtn.width += 6
-                        usersBtn.height += 6
-                        userList.x = (width - userList.width) / 2 - 10
-                        userList.y = -userList.height - 10
+                        usersBtn.expand = true
                         userList.open()
                     }
 
@@ -190,23 +189,20 @@ Item {
                 RoundButton {
                     id: powerBtn
                     text: '4'
-                    width: bottomGroup.buttonSize
-                    height: bottomGroup.buttonSize
+                    property bool expand: false
+                    width: expand ? bottomGroup.buttonSize + 6 : bottomGroup.buttonSize
+                    height: expand ? bottomGroup.buttonSize + 6 : bottomGroup.buttonSize
                     anchors.centerIn: parent
                     D.ToolTip.visible: hovered
                     D.ToolTip.text: qsTr("Power")
                     PowerList {
                         id: powerList
-                        onClosed: {
-                            powerBtn.width -= 6
-                            powerBtn.height -= 6
-                        }
+                        y: -powerList.height - 10
+                        x: (powerBtn.width - powerList.width) / 2 - 10
+                        onClosed: powerBtn.expand = false
                     }
                     onClicked: {
-                        powerBtn.width += 6
-                        powerBtn.height += 6
-                        powerList.x = (width - powerList.width) / 2 - 10
-                        powerList.y = -powerList.height - 10
+                        powerBtn.expand = true
                         powerList.open()
                     }
 

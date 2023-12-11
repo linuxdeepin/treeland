@@ -16,7 +16,6 @@ Control {
 
         onTriggered: {
             currentDate = new Date()
-            console.log()
         }
     }
 
