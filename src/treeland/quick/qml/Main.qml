@@ -14,6 +14,17 @@ import TreeLand.Greeter
 Item {
     id :root
 
+    function getOutputDelegateFromWaylandOutput(output) {
+        let finder = function(props) {
+            if (!props.waylandOutput)
+                return false
+            if (props.waylandOutput === output)
+                return true
+        }
+
+        return QmlHelper.outputManager.getIf(outputDelegateCreator, finder)
+    }
+
     WaylandServer {
         id: server
 
@@ -53,11 +64,13 @@ Item {
 
                 TreeLandHelper.allowNonDrmOutputAutoChangeMode(output)
                 QmlHelper.outputManager.add({waylandOutput: output})
+                outputManagerV1.newOutput(output)
             }
             onOutputRemoved: function(output) {
                 QmlHelper.outputManager.removeIf(function(prop) {
                     return prop.waylandOutput === output
                 })
+                outputManagerV1.removeOutput(output)
             }
             onInputAdded: function(inputDevice) {
                 seat0.addDevice(inputDevice)
@@ -121,6 +134,50 @@ Item {
 
             eventFilter: TreeLandHelper
             keyboardFocus: TreeLandHelper.getFocusSurfaceFrom(renderWindow.activeFocusItem)
+        }
+
+        GammaControlManager {
+            onGammaChanged: function(output, gamma_control, ramp_size, r, g, b) {
+                if (!output.setGammaLut(ramp_size, r, g, b)) {
+                    sendFailedAndDestroy(gamma_control);
+                };
+            }
+        }
+
+        OutputManager {
+            id: outputManagerV1
+
+            onRequestTestOrApply: function(config, onlyTest) {
+                var states = outputManagerV1.stateListPending();
+                var ok = true;
+                for (const i in states) {
+                    let output = states[i].output;
+                    output.enable(states[i].enabled);
+                    if (states[i].enabled) {
+                        if (states[i].mode)
+                            output.setMode(states[i].mode);
+                        else
+                            output.setCustomMode(states[i].custom_mode_size,
+                                                 states[i].custom_mode_refresh);
+
+                        output.enableAdaptiveSync(states[i].adaptive_sync_enabled);
+                        if (!onlyTest) {
+                            let outputDelegate = getOutputDelegateFromWaylandOutput(output);
+                            outputDelegate.setTransform(states[i].transform)
+                            outputDelegate.setScale(states[i].scale)
+                            outputDelegate.setOutputPosition(states[i].x, states[i].y)
+                        }
+                    }
+
+                    if (onlyTest) {
+                        ok &= output.test()
+                        output.rollback()
+                    } else {
+                        ok &= output.commit()
+                    }
+                }
+                outputManagerV1.sendResult(config, ok)
+            }
         }
 
         CursorShapeManager { }
@@ -206,9 +263,11 @@ Item {
         }
 
         Row {
+            // TODO: Row may break output position setting of OutputManager
             id: outputRowLayout
 
             DynamicCreatorComponent {
+                id: outputDelegateCreator
                 creator: QmlHelper.outputManager
 
                 OutputDelegate {
