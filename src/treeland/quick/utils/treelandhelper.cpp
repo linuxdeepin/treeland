@@ -11,6 +11,9 @@
 #include <qwcompositor.h>
 
 #include <QRegularExpression>
+#include <QAction>
+
+#include <algorithm>
 
 extern "C" {
 #define static
@@ -25,10 +28,20 @@ TreeLandHelper::TreeLandHelper(QObject *parent)
 
 bool TreeLandHelper::beforeDisposeEvent(WSeat *seat, QWindow *watched, QInputEvent *event)
 {
-    // TODO: shortcut
     if (event->type() == QEvent::KeyPress) {
         auto e = static_cast<QKeyEvent*>(event);
-        emit keyEvent(e->key(), e->modifiers());
+        QKeySequence sequence(e->modifiers() | e->key());
+        bool isFind = false;
+        for (QAction *action : m_actions) {
+            if (action->shortcut() == sequence) {
+                isFind = true;
+                action->activate(QAction::Trigger);
+            }
+        }
+
+        if (isFind) {
+            return true;
+        }
     }
 
     // Alt+Tab switcher
@@ -77,7 +90,6 @@ bool TreeLandHelper::beforeDisposeEvent(WSeat *seat, QWindow *watched, QInputEve
         break;
     }
 
-
     return Helper::beforeDisposeEvent(seat, watched, event);
 }
 
@@ -109,4 +121,20 @@ QString TreeLandHelper::clientName(Waylib::Server::WSurface *surface) const
 
     qDebug() << "Program name for PID" << pid << "is" << programName;
     return programName;
+}
+
+bool TreeLandHelper::addAction(QAction *action)
+{
+    auto find = std::ranges::find_if(m_actions, [action](QAction *a) { return a->shortcut() == action->shortcut(); });
+
+    if (find == m_actions.end()) {
+        m_actions.push_back(action);
+    }
+
+    return find == m_actions.end();
+}
+
+void TreeLandHelper::removeAction(QAction *action)
+{
+    std::erase_if(m_actions, [action](QAction *a) { return a == action ;});
 }

@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Dingyuan Zhang <lxz@mkacg.com>.
+// Copyright (C) 2023 Dingyuan Zhang <zhangdingyuan@uniontech.com>.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #pragma once
@@ -9,32 +9,21 @@
 #include <QQmlEngine>
 #include <wquickwaylandserver.h>
 
-#include "shortcut-server-protocol.h"
-
 #include "treelandhelper.h"
 
-class ShortcutManager : public Waylib::Server::WQuickWaylandServerInterface {
+class ShortcutManagerV1Private;
+class ShortcutManagerV1 : public Waylib::Server::WQuickWaylandServerInterface , public WObject{
     Q_OBJECT
-    Q_PROPERTY(TreeLandHelper *helper READ helper WRITE setHelper)
-
-    QML_ELEMENT
+    QML_NAMED_ELEMENT(ShortcutManager)
+    W_DECLARE_PRIVATE(ShortcutManagerV1)
+    Q_PROPERTY(TreeLandHelper *helper WRITE setHelper)
 
 public:
-    explicit ShortcutManager(QObject *parent = nullptr);
-
-    ztreeland_shortcut_manager_v1 *impl();
-
-    TreeLandHelper *helper() const {
-        return m_helper;
-    }
+    explicit ShortcutManagerV1(QObject *parent = nullptr);
 
 protected:
     void create() override;
 
 private:
     void setHelper(TreeLandHelper *helper);
-
-private:
-    ztreeland_shortcut_manager_v1 *m_impl;
-    TreeLandHelper *m_helper;
 };

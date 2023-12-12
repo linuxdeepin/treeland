@@ -9,44 +9,74 @@
 
 #include "utils.h"
 #include "shortcut-server-protocol.h"
-#include "shortcutmanager.h"
+
+#define SHORTCUT_MANAGEMENT_V1_VERSION 1
 
 static std::map<struct wl_resource*, QMetaObject::Connection> CLIENT_CONNECT;
 
-static const struct ztreeland_shortcut_context_v1_interface shortcut_context_impl{
+static const struct treeland_shortcut_context_v1_interface shortcut_context_impl{
     .destroy = resource_handle_destroy,
 };
 
-struct ztreeland_shortcut_manager_v1 *shortcut_manager_from_resource(struct wl_resource *resource);
+struct treeland_shortcut_manager_v1 *shortcut_manager_from_resource(struct wl_resource *resource);
 
-struct ztreeland_shortcut_context_v1 *shortcut_context_from_resource(struct wl_resource *resource) {
-    assert(wl_resource_instance_of(resource, &ztreeland_shortcut_context_v1_interface, &shortcut_context_impl));
-    return static_cast<ztreeland_shortcut_context_v1*>(wl_resource_get_user_data(resource));
+struct treeland_shortcut_context_v1 *shortcut_context_from_resource(struct wl_resource *resource) {
+    assert(wl_resource_instance_of(resource, &treeland_shortcut_context_v1_interface, &shortcut_context_impl));
+    return static_cast<treeland_shortcut_context_v1*>(wl_resource_get_user_data(resource));
+}
+
+void shortcut_manager_resource_destroy(struct wl_resource *resource)
+{
+    wl_list_remove(wl_resource_get_link(resource));
+}
+
+void treeland_shortcut_context_v1_destroy(
+    struct treeland_shortcut_context_v1 *context)
+{
+    if (!context) {
+        return;
+    }
+
+    wl_signal_emit_mutable(&context->events.destroy, context);
+
+    wl_list_remove(wl_resource_get_link(context->resource));
+
+    free(context);
+}
+
+void treeland_shortcut_context_v1_send_shortcut(struct treeland_shortcut_context_v1 *context)
+{
+    treeland_shortcut_context_v1_send_shortcut(context->resource);
+}
+
+void treeland_shortcut_context_v1_send_register_failed(struct treeland_shortcut_context_v1 *context)
+{
+    wl_resource_post_error(context->resource,
+                            TREELAND_SHORTCUT_CONTEXT_V1_ERROR_REGISTER_FAILED,
+                            "register shortcut failed.");
 }
 
 void shortcut_context_resource_destroy(struct wl_resource *resource) {
-    struct ztreeland_shortcut_context_v1 *context = shortcut_context_from_resource(resource);
+    struct treeland_shortcut_context_v1 *context = shortcut_context_from_resource(resource);
 
     context_destroy(context);
 }
 
 void create_shortcut_context_listener(struct wl_client *client,
-                                           struct wl_resource *manager_resource,
-                                           uint32_t id)
+                                      struct wl_resource *manager_resource,
+                                      const char * key,
+                                      uint32_t id)
 {
+    struct treeland_shortcut_manager_v1 *manager = shortcut_manager_from_resource(manager_resource);
 
-    struct ztreeland_shortcut_manager_v1 *manager = shortcut_manager_from_resource(manager_resource);
-
-    struct ztreeland_shortcut_context_v1 *context = static_cast<ztreeland_shortcut_context_v1*>(calloc(1, sizeof(*context)));
+    struct treeland_shortcut_context_v1 *context = static_cast<treeland_shortcut_context_v1*>(calloc(1, sizeof(*context)));
     if (context == NULL) {
         wl_resource_post_no_memory(manager_resource);
         return;
     }
 
-    context->manager = manager;
-
     uint32_t version = wl_resource_get_version(manager_resource);
-    struct wl_resource *resource = wl_resource_create(client, &ztreeland_shortcut_context_v1_interface, version, id);
+    struct wl_resource *resource = wl_resource_create(client, &treeland_shortcut_context_v1_interface, version, id);
     if (resource == NULL) {
         free(context);
         wl_resource_post_no_memory(manager_resource);
@@ -55,64 +85,91 @@ void create_shortcut_context_listener(struct wl_client *client,
 
     wl_resource_set_implementation(resource, &shortcut_context_impl, context, shortcut_context_resource_destroy);
 
-    wl_list_insert(&manager->contexts, &context->link);
+    wl_signal_init(&context->events.destroy);
 
-    QMetaObject::Connection connect = QObject::connect(context->manager->manager->helper(), &TreeLandHelper::keyEvent, qApp, [resource](int key, int modify) {
-        ztreeland_shortcut_context_v1_send_shortcut(resource, static_cast<uint32_t>(key), static_cast<uint32_t>(modify));
-    });
+    context->manager = manager;
+    context->resource = resource;
+    context->key = strdup(key);
 
-    CLIENT_CONNECT[resource] = connect;
+    wl_list_insert(&manager->resources, wl_resource_get_link(resource));
+
+    wl_signal_emit_mutable(&manager->events.new_context, context);
 }
 
-static const struct ztreeland_shortcut_manager_v1_interface shortcut_manager_impl {
-    .get_shortcut_context = create_shortcut_context_listener,
+static const struct treeland_shortcut_manager_v1_interface shortcut_manager_impl {
+    .register_shortcut_context = create_shortcut_context_listener ,
 };
 
-struct ztreeland_shortcut_manager_v1 *shortcut_manager_from_resource(
+struct treeland_shortcut_manager_v1 *shortcut_manager_from_resource(
     struct wl_resource *resource)
 {
     assert(wl_resource_instance_of(
-        resource, &ztreeland_shortcut_manager_v1_interface, &shortcut_manager_impl));
-    struct ztreeland_shortcut_manager_v1 *manager =
-        static_cast<ztreeland_shortcut_manager_v1 *>(
+        resource, &treeland_shortcut_manager_v1_interface, &shortcut_manager_impl));
+    struct treeland_shortcut_manager_v1 *manager =
+        static_cast<treeland_shortcut_manager_v1 *>(
             wl_resource_get_user_data(resource));
     assert(manager != NULL);
     return manager;
 }
 
-void shortcut_manager_bind(struct wl_client *client,
-                         void             *data,
-                         uint32_t          version,
-                         uint32_t          id)
+static void treeland_shortcut_manager_bind(struct wl_client *client,
+                                                   void *data,
+                                                   uint32_t version,
+                                                   uint32_t id)
 {
-    struct ztreeland_shortcut_manager_v1 *manager =
-        static_cast<ztreeland_shortcut_manager_v1 *>(data);
-
-    struct wl_resource *resource = wl_resource_create(
-        client, &ztreeland_shortcut_manager_v1_interface, version, id);
+    struct treeland_shortcut_manager_v1 *manager =
+        static_cast<struct treeland_shortcut_manager_v1 *>(data);
+    struct wl_resource *resource =
+        wl_resource_create(client, &treeland_shortcut_manager_v1_interface, version, id);
     if (!resource) {
         wl_client_post_no_memory(client);
         return;
     }
-    wl_resource_set_implementation(resource, &shortcut_manager_impl, manager,
-                                   NULL);
+    wl_resource_set_implementation(resource,
+                                   &shortcut_manager_impl,
+                                   manager,
+                                   shortcut_manager_resource_destroy);
+
+    wl_list_insert(&manager->resources, wl_resource_get_link(resource));
+
 }
 
-void shortcut_manager_handle_display_destroy(struct wl_listener *listener, [[maybe_unused]] void *data)
+static void handle_display_destroy(struct wl_listener *listener, [[maybe_unused]] void *data)
 {
-    struct ztreeland_shortcut_manager_v1 *manager =
+    struct treeland_shortcut_manager_v1 *manager =
         wl_container_of(listener, manager, display_destroy);
     wl_signal_emit_mutable(&manager->events.destroy, manager);
-    assert(wl_list_empty(&manager->events.destroy.listener_list));
+    wl_list_remove(&manager->display_destroy.link);
+    wl_global_destroy(manager->global);
+    free(manager);
+}
 
-    struct ztreeland_shortcut_context_v1 *context;
-    struct ztreeland_shortcut_context_v1 *tmp;
-    wl_list_for_each_safe(context, tmp, &manager->contexts, link)
-    {
-        context_destroy(context);
+struct treeland_shortcut_manager_v1 *
+treeland_shortcut_manager_v1_create(struct wl_display *display)
+{
+    struct treeland_shortcut_manager_v1 *manager =
+        static_cast<struct treeland_shortcut_manager_v1 *>(calloc(1, sizeof(*manager)));
+    if (!manager) {
+        return NULL;
     }
 
-    wl_global_destroy(manager->global);
-    wl_list_remove(&manager->display_destroy.link);
-    free(manager);
+    manager->event_loop = wl_display_get_event_loop(display);
+    manager->global = wl_global_create(display,
+                                       &treeland_shortcut_manager_v1_interface,
+                                       SHORTCUT_MANAGEMENT_V1_VERSION,
+                                       manager,
+                                       treeland_shortcut_manager_bind);
+    if (!manager->global) {
+        free(manager);
+        return NULL;
+    }
+
+    wl_signal_init(&manager->events.new_context);
+    wl_signal_init(&manager->events.destroy);
+    wl_list_init(&manager->resources);
+
+    manager->display_destroy.notify = handle_display_destroy;
+    wl_display_add_destroy_listener(display, &manager->display_destroy);
+
+    return manager;
 }

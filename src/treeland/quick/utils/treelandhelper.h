@@ -29,8 +29,10 @@ public:
 
     Q_INVOKABLE QString clientName(Waylib::Server::WSurface *surface) const;
 
+    bool addAction(QAction *action);
+    void removeAction(QAction *action);
+
 Q_SIGNALS:
-    void keyEvent(uint32_t key, uint32_t modify);
     void socketFileChanged();
     void switcherChanged(Switcher mode);
 
@@ -43,4 +45,5 @@ private:
 private:
     QString m_socketFile;
     Switcher m_switcherCurrentMode = Switcher::Hide;
+    std::vector<QAction*> m_actions;
 };
