@@ -8,7 +8,7 @@
 
 #include "qwayland-ext-foreign-toplevel-list-v1.h"
 #include "qwayland-treeland-foreign-toplevel-manager-v1.h"
-#include "qwayland-ztreeland-shortcut-manager-v1.h"
+#include "qwayland-treeland-shortcut-manager-v1.h"
 #include "qwayland-treeland-personalization-manager-v1.h"
 
 class ExtForeignToplevelHandle;
@@ -74,24 +74,24 @@ private:
     pid_t m_pid;
 };
 
-class ShortcutManager : public QWaylandClientExtensionTemplate<ShortcutManager>, public QtWayland::ztreeland_shortcut_manager_v1
+class ShortcutManager : public QWaylandClientExtensionTemplate<ShortcutManager>, public QtWayland::treeland_shortcut_manager_v1
 {
     Q_OBJECT
 public:
     explicit ShortcutManager();
 };
 
-class ShortcutContext : public QWaylandClientExtensionTemplate<ShortcutContext>, public QtWayland::ztreeland_shortcut_context_v1
+class ShortcutContext : public QWaylandClientExtensionTemplate<ShortcutContext>, public QtWayland::treeland_shortcut_context_v1
 {
     Q_OBJECT
 public:
-    explicit ShortcutContext(struct ::ztreeland_shortcut_context_v1 *object);
+    explicit ShortcutContext(struct ::treeland_shortcut_context_v1 *object);
 
 Q_SIGNALS:
-    void shortcutHappended(uint32_t keycode, uint32_t modify);
+    void shortcutHappended();
 
 protected:
-    void ztreeland_shortcut_context_v1_shortcut(uint32_t keycode, uint32_t modify) override;
+    void treeland_shortcut_context_v1_shortcut() override;
 };
 
 class PersonalizationManager : public QWaylandClientExtensionTemplate<PersonalizationManager>, public QtWayland::treeland_personalization_manager_v1

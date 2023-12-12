@@ -13,6 +13,7 @@ FILES
     shortcut_manager_impl.h
     socket_manager_impl.h
     utils.h
+    qshortcutmanager.h
 )
 
 target_sources(treeland-protocols PRIVATE
@@ -26,6 +27,7 @@ target_sources(treeland-protocols PRIVATE
     personalizationwindowcontext.cpp
     personalizationwallpapercontext.cpp
     personalizationmanager.cpp
+    qshortcutmanager.cpp
 )
 
 target_compile_definitions(treeland-protocols

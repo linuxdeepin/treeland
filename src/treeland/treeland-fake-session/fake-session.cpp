@@ -103,17 +103,16 @@ ShortcutManager::ShortcutManager()
 
 }
 
-ShortcutContext::ShortcutContext(struct ::ztreeland_shortcut_context_v1 *object)
+ShortcutContext::ShortcutContext(struct ::treeland_shortcut_context_v1 *object)
     : QWaylandClientExtensionTemplate<ShortcutContext>(1)
-    , QtWayland::ztreeland_shortcut_context_v1(object)
+    , QtWayland::treeland_shortcut_context_v1(object)
 {
 
 }
 
-void ShortcutContext::ztreeland_shortcut_context_v1_shortcut(uint32_t keycode, uint32_t modify)
+void ShortcutContext::treeland_shortcut_context_v1_shortcut()
 {
-    qDebug() << Q_FUNC_INFO << keycode << modify;
-    emit shortcutHappended(keycode, modify);
+    emit shortcutHappended();
 }
 
 PersonalizationManager::PersonalizationManager()
@@ -144,28 +143,24 @@ void PersonalizationWallpaper::personalization_wallpaper_context_v1_wallpapers(w
 static int click_state = 0;
 FakeSession::FakeSession(int argc, char* argv[])
     : QApplication(argc, argv)
+    , m_personalzationManger(new PersonalizationManager)
     , m_shortcutManager(new ShortcutManager)
     , m_toplevelManager(new ForeignToplevelManager)
     , m_extForeignToplevelList(new ExtForeignToplevelList)
-    , m_personalzationManger(new PersonalizationManager)
 {
     connect(m_shortcutManager, &ShortcutManager::activeChanged, this, [this] {
         qDebug() << m_shortcutManager->isActive();
         if (m_shortcutManager->isActive()) {
+            ShortcutContext* superContext = new ShortcutContext(m_shortcutManager->register_shortcut_context("Meta+Meta"));
+            connect(superContext, &ShortcutContext::shortcutHappended, this, [] {
+                qDebug() << Q_FUNC_INFO;
+                QProcess::startDetached("dde-launchpad", {"-t", "-platform", "wayland"});
+            });
 
-            ShortcutContext* context = new ShortcutContext(m_shortcutManager->get_shortcut_context());
-            connect(context, &ShortcutContext::shortcutHappended, this, [](uint32_t keycode, uint32_t modify) {
-                auto keyEnum = static_cast<Qt::Key>(keycode);
-                auto modifyEnum = static_cast<Qt::KeyboardModifiers>(modify);
-                qDebug() << keyEnum << modifyEnum;
-                if ((keyEnum == Qt::Key_Super_L && modifyEnum == Qt::NoModifier) || (keyEnum == Qt::Key_Meta && modifyEnum == Qt::MetaModifier)) {
-                    QProcess::startDetached("dde-launchpad", {"-t", "-platform", "wayland"});
-                    return;
-                }
-                if (keyEnum == Qt::Key_T && modifyEnum.testFlags(Qt::ControlModifier | Qt::AltModifier)) {
-                    QProcess::startDetached("x-terminal-emulator");
-                    return;
-                }
+            ShortcutContext* terminalContext = new ShortcutContext(m_shortcutManager->register_shortcut_context("Ctrl+Alt+T"));
+            connect(terminalContext, &ShortcutContext::shortcutHappended, this, [] {
+                qDebug() << Q_FUNC_INFO;
+                QProcess::startDetached("x-terminal-emulator");
             });
         }
     });
