@@ -62,9 +62,9 @@ TreeLand::TreeLand(TreeLandAppContext context)
 
     if (!context.socket.isEmpty()) {
 #if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
-        TreeLandHelper *helper = m_engine->singletonInstance<TreeLandHelper*>("TreeLand", "TreeLandHelper");
+        TreeLandHelper *helper = m_engine->singletonInstance<TreeLandHelper*>("TreeLand.Utils", "TreeLandHelper");
 #else
-        auto helperTypeId = qmlTypeId("TreeLand", 1, 0, "TreeLandHelper");
+        auto helperTypeId = qmlTypeId("TreeLand.Utils", 1, 0, "TreeLandHelper");
         TreeLandHelper *helper = m_engine->singletonInstance<TreeLandHelper*>(helperTypeId);
 #endif
         Q_ASSERT(helper);
@@ -102,9 +102,9 @@ void TreeLand::connected() {
     qDebug() << "Connected to the daemon.";
 
 #if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
-    TreeLandHelper *helper = m_engine->singletonInstance<TreeLandHelper*>("TreeLand", "TreeLandHelper");
+    TreeLandHelper *helper = m_engine->singletonInstance<TreeLandHelper*>("TreeLand.Utils", "TreeLandHelper");
 #else
-    auto helperTypeId = qmlTypeId("TreeLand", 1, 0, "TreeLandHelper");
+    auto helperTypeId = qmlTypeId("TreeLand.Utils", 1, 0, "TreeLandHelper");
     TreeLandHelper *helper = m_engine->singletonInstance<TreeLandHelper*>(helperTypeId);
 #endif
     Q_ASSERT(helper);
@@ -172,7 +172,7 @@ void TreeLand::readyRead() {
             break;
             case DaemonMessages::SwitchToGreeter: {
 #if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
-                Helper *helper = m_engine->singletonInstance<Helper*>("TreeLand", "Helper");
+                Helper *helper = m_engine->singletonInstance<Helper*>("TreeLand.Utils", "Helper");
 #else
                 auto helperTypeId = qmlTypeId("TreeLand", 1, 0, "Helper");
                 Helper *helper = m_engine->singletonInstance<Helper*>(helperTypeId);
