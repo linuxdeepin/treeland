@@ -152,6 +152,15 @@ FakeSession::FakeSession(int argc, char* argv[])
     emit m_shortcutManager->activeChanged();
 
     QProcess::startDetached("dde-shell", {"-p", "org.deepin.ds.dock"});
+
+    QDBusInterface systemd("org.freedesktop.systemd1", "/org/freedesktop/systemd1", "org.freedesktop.systemd1.Manager");
+    systemd.call("UnsetEnvironment", QStringList{"DISPLAY", "WAYLAND_DISPLAY", "XDG_SESSION_TYPE", "XDG_CURRENT_DESKTOP"});
+    systemd.call("SetEnvironment", QStringList{
+                                       "XDG_CURRENT_DESKTOP=DDE",
+                                       QString("WAYLAND_DISPLAY=%1").arg(qgetenv("WAYLAND_DISPLAY")),
+                                       "XDG_SESSION_TYPE=wayland"
+                                   }
+    );
 }
 
 int main (int argc, char *argv[]) {
