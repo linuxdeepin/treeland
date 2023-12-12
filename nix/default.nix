@@ -39,7 +39,7 @@ stdenv.mkDerivation rec {
   };
 
   postPatch = ''
-    substituteInPlace src/{treeland/OutputDelegate.qml,greeter/Greeter.qml} \
+    substituteInPlace src/{treeland/quick/qml/OutputDelegate.qml,greeter/Greeter.qml} \
       --replace "/usr/share/wallpapers/deepin/desktop.jpg" \
                 "${nixos-artwork.wallpapers.simple-blue}/share/backgrounds/nixos/nix-wallpaper-simple-blue.png"
   '';

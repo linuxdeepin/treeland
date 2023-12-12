@@ -51,8 +51,9 @@
               export NIX_CFLAGS_COMPILE=$(echo $NIX_CFLAGS_COMPILE | sed 's/-DQT_NO_DEBUG//')
               #export QT_LOGGING_RULES="*.debug=true;qt.*.debug=false"
               #export WAYLAND_DEBUG=1
-              export QT_PLUGIN_PATH=${makeQtpluginPath (with pkgs.qt6; [ qtbase qtdeclarative qtquick3d qtwayland ])}
-              export QML2_IMPORT_PATH=${makeQmlpluginPath (with pkgs.qt6; [ qtdeclarative qtquick3d ])}
+              export QT_PLUGIN_PATH=${makeQtpluginPath (with pkgs.qt6; [ qtbase qtdeclarative qtquick3d qtwayland qt5compat ])}
+              export QML2_IMPORT_PATH=${makeQmlpluginPath (with pkgs.qt6; [ qtdeclarative qtquick3d qt5compat ] 
+                                                          ++ [ dde-nixos.packages.${system}.qt6.dtkdeclarative ] )}
               export QML_IMPORT_PATH=$QML2_IMPORT_PATH
             '';
           };
