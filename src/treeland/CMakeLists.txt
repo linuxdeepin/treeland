@@ -1,3 +1,5 @@
+pkg_search_module(WLROOTS REQUIRED IMPORTED_TARGET wlroots)
+
 add_subdirectory(data)
 add_subdirectory(protocols)
 add_subdirectory(quick)
@@ -39,6 +41,11 @@ target_link_libraries(treeland
         treeland-protocols
         greeterplugin
         Qt${QT_MAJOR_VERSION}::DBus
+)
+
+target_compile_definitions(treeland
+    PRIVATE
+    WLR_USE_UNSTABLE
 )
 
 if(JOURNALD_FOUND)
