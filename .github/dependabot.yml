@@ -6,6 +6,6 @@
 version: 2
 updates:
   - package-ecosystem: "gitsubmodule" # See documentation for possible values
-    directory: "/waylib" # Location of package manifests
+    directory: "/"
     schedule:
       interval: "daily"
