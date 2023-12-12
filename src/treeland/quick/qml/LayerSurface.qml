@@ -5,6 +5,7 @@ import QtQuick
 import Waylib.Server
 import QtQuick.Particles
 import TreeLand
+import TreeLand.Utils
 
 Item {
     property alias waylandSurface: surfaceItem.surface

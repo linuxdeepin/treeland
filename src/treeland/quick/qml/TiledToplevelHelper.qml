@@ -5,6 +5,7 @@ import QtQuick
 import QtQuick.Controls
 import Waylib.Server
 import TreeLand
+import TreeLand.Utils
 
 Item {
     required property SurfaceItem surface
