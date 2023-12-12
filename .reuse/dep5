@@ -22,7 +22,7 @@ Copyright: None
 License: CC0-1.0
 
 # Nix Develop files
-Files: *.nix .envrc flake.lock
+Files: *.nix .envrc flake.lock renovate.json
 Copyright: None
 License: CC0-1.0
 
