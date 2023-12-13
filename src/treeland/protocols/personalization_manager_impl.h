@@ -4,6 +4,7 @@
 #pragma once
 
 #include <wayland-server-core.h>
+#include <QStringList>
 
 struct treeland_personalization_manager_v1 {
     struct wl_event_loop *event_loop;
@@ -14,6 +15,7 @@ struct treeland_personalization_manager_v1 {
 
     struct {
         struct wl_signal window_context_created;
+        struct wl_signal wallpaper_context_created;
         struct wl_signal destroy;
     } events;
 
@@ -23,7 +25,6 @@ struct treeland_personalization_manager_v1 {
 struct personalization_window_context_v1 {
     struct treeland_personalization_manager_v1 *manager;
     struct wlr_surface *surface;
-    struct wl_list resources;
     struct wl_list link;
     uint32_t background_type;
 
@@ -35,8 +36,25 @@ struct personalization_window_context_v1 {
     void *data;
 };
 
+struct personalization_wallpaper_context_v1 {
+    struct treeland_personalization_manager_v1 *manager;
+    struct wl_list link;
+    struct wl_resource *resource;
+    const char* path;
+    uint32_t uid;
+
+    struct {
+        struct wl_signal set_user_wallpaper;
+        struct wl_signal get_user_wallpaper;
+        struct wl_signal destroy;
+    } events;
+
+    void *data;
+};
+
 struct treeland_personalization_manager_v1 *
 treeland_personalization_manager_v1_create(struct wl_display *display);
 
-void personalization_window_context_v1_destroy(
-    struct personalization_window_context_v1 *window);
+void personalization_wallpaper_v1_send_wallpapers(personalization_wallpaper_context_v1 *wallpaper, const QStringList &wallpapers);
+void personalization_window_context_v1_destroy(struct personalization_window_context_v1 *window);
+void personalization_wallpaper_context_v1_destroy(struct personalization_wallpaper_context_v1 *wallpaper);

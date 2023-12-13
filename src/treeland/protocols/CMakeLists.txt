@@ -24,6 +24,7 @@ target_sources(treeland-protocols PRIVATE
     foreigntoplevelmanagerv1.cpp
     personalization_manager_impl.cpp
     personalizationwindowcontext.cpp
+    personalizationwallpapercontext.cpp
     personalizationmanager.cpp
 )
 
