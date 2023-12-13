@@ -88,7 +88,7 @@ OutputItem {
 
     Image {
         id: background
-        source: "file:///usr/share/wallpapers/deepin/desktop.jpg"
+        source:  personalizationManager.currentWallpaper
         fillMode: Image.PreserveAspectCrop
         asynchronous: true
         anchors.fill: parent

@@ -32,9 +32,50 @@
         only be done by creating a new major version of the extension.
         </description>
         <request name="get_window_context">
+            <description summary="get personalization window context">
+                set window background, shadow based on context
+            </description>
             <arg name="id" type="new_id" interface="personalization_window_context_v1"/>
             <arg name="surface" type="object" interface="wl_surface"/>
         </request>
+        <request name="get_wallpaper_context">
+            <description summary="custom wallpaper context">
+                custom user wallpaper
+            </description>
+            <arg name="id" type="new_id" interface="personalization_wallpaper_context_v1"/>
+        </request>
+    </interface>
+    <interface name="personalization_wallpaper_context_v1" version="1">
+        <description summary="client custom wallpaper context">
+        This interface allows a client personalization wallpaper.
+
+        Warning! The protocol described in this file is currently in the testing
+        phase. Backward compatible changes may be added together with the
+        corresponding interface version bump. Backward incompatible changes can
+        only be done by creating a new major version of the extension.
+        </description>
+        <request name="set_wallpaper">
+            <description summary="set the current user's wallpaper">
+                set the current user's wallpaper
+	      </description>
+            <arg name="path" type="string" summary="background enum"/>
+        </request>
+        <request name="get_wallpapers">
+            <description summary="get the current user's wallpapers">
+                get the current user's wallpaper
+            </description>
+        </request>
+        <request name="destroy" type="destructor">
+            <description summary="destroy the context object">
+                Destroy the context object.
+            </description>
+        </request>
+        <event name="wallpapers">
+            <description summary="get user's wallpaper completed">
+                Send this signal after getting the user's wallpaper.
+            </description>
+            <arg name="paths" type="array" summary="wallpapers list"/>
+        </event>
     </interface>
     <interface name="personalization_window_context_v1" version="1">
         <description summary="client custom window context">

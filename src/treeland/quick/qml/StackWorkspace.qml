@@ -7,6 +7,7 @@ import Waylib.Server
 import TreeLand
 import TreeLand.Protocols
 import TreeLand.Utils
+import TreeLand.Protocols
 
 Item {
     id: root
@@ -142,7 +143,7 @@ Item {
             Image {
                 id: background
                 z: toplevelSurfaceItem.contentItem.z - 2
-                visible: personalizationMapper.backgroundWallpaper
+                visible: personalizationMapper.backgroundType
                 source: "file:///usr/share/wallpapers/deepin/desktop.jpg"
                 fillMode: Image.PreserveAspectCrop
                 asynchronous: true

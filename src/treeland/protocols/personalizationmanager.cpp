@@ -22,7 +22,10 @@ public:
         Q_ASSERT(!map.contains(handle));
         map.insert(handle, qq);
         sc.connect(&handle->events.destroy, this, &TreeLandPersonalizationManagerPrivate::on_destroy);
-        sc.connect(&handle->events.window_context_created, this, &TreeLandPersonalizationManagerPrivate::on_window_context_created);
+        sc.connect(&handle->events.window_context_created, this,
+                   &TreeLandPersonalizationManagerPrivate::on_window_context_created);
+        sc.connect(&handle->events.wallpaper_context_created, this,
+                   &TreeLandPersonalizationManagerPrivate::on_wallpaper_context_created);
     }
     ~TreeLandPersonalizationManagerPrivate() {
         if (!m_handle)
@@ -40,6 +43,7 @@ public:
 
     void on_destroy(void *);
     void on_window_context_created(void *);
+    void on_wallpaper_context_created(void *);
 
     static QHash<void*, TreeLandPersonalizationManager*> map;
     QW_DECLARE_PUBLIC(TreeLandPersonalizationManager)
@@ -58,6 +62,13 @@ void TreeLandPersonalizationManagerPrivate::on_window_context_created(void *data
 {
     if (auto *p = reinterpret_cast<personalization_window_context_v1*>(data)) {
         Q_EMIT q_func()->windowContextCreated(PersonalizationWindowContext::from(p));
+    }
+}
+
+void TreeLandPersonalizationManagerPrivate::on_wallpaper_context_created(void *data)
+{
+    if (auto *p = reinterpret_cast<personalization_wallpaper_context_v1*>(data)) {
+        Q_EMIT q_func()->wallpaperContextCreated(PersonalizationWallpaperContext::from(p));
     }
 }
 
@@ -86,4 +97,9 @@ TreeLandPersonalizationManager *TreeLandPersonalizationManager::create(QWDisplay
     if (!handle)
         return nullptr;
     return new TreeLandPersonalizationManager(handle, true);
+}
+
+void TreeLandPersonalizationManager::onSendUserWallpapers(personalization_wallpaper_context_v1 *wallpaper, const QStringList& wallpapers)
+{
+    personalization_wallpaper_v1_send_wallpapers(wallpaper, wallpapers);
 }
