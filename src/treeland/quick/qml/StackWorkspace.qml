@@ -110,7 +110,7 @@ Item {
 
             Image {
                 id: background
-                z: surface.contentItem.z - 1
+                z: surface.contentItem.z - 2
                 visible: personalizationMapper.backgroundWallpaper
                 source: "file:///usr/share/wallpapers/deepin/desktop.jpg"
                 fillMode: Image.PreserveAspectCrop
