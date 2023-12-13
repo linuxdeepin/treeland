@@ -8,7 +8,9 @@
 #include <QProcess>
 #include <QWindow>
 #include <QWidget>
+#include <QBoxLayout>
 #include <QPushButton>
+#include <QFileDialog>
 #include <QTimer>
 #include <QtGui/qpa/qplatformnativeinterface.h>
 #include <QDBusInterface>
@@ -127,7 +129,19 @@ PersonalizationWindow::PersonalizationWindow(struct ::personalization_window_con
 
 }
 
-static int state = 0;
+PersonalizationWallpaper::PersonalizationWallpaper(struct ::personalization_wallpaper_context_v1 *object)
+    : QWaylandClientExtensionTemplate<PersonalizationWallpaper>(1)
+    , QtWayland::personalization_wallpaper_context_v1(object)
+{
+
+}
+
+void PersonalizationWallpaper::personalization_wallpaper_context_v1_wallpapers(wl_array *paths)
+{
+
+}
+
+static int click_state = 0;
 FakeSession::FakeSession(int argc, char* argv[])
     : QApplication(argc, argv)
     , m_shortcutManager(new ShortcutManager)
@@ -165,9 +179,17 @@ FakeSession::FakeSession(int argc, char* argv[])
             widget->setWindowFlags(Qt::FramelessWindowHint); // 可选，去除窗口边框
             widget->resize(640, 480);
 
-            QPushButton *button = new QPushButton("Click Me", widget);
-            button->setGeometry(0, 0, 100, 50); // 设置按钮的位置和大小
+            QHBoxLayout* layout = new QHBoxLayout;
 
+            QPushButton *click_button = new QPushButton("Click Me");
+            QPushButton *set_button = new QPushButton("Set Wallpaper");
+            QPushButton *get_button = new QPushButton("Get Wallpaper");
+
+            layout->addWidget(click_button);
+            layout->addWidget(set_button);
+            layout->addWidget(get_button);
+
+            widget->setLayout(layout);
             widget->show();
 
             QWindow *window = widget->windowHandle();
@@ -178,17 +200,37 @@ FakeSession::FakeSession(int argc, char* argv[])
 
                 struct wl_surface *surface = waylandWindow->wlSurface();
                 if (surface) {
-                    PersonalizationWindow* context = new PersonalizationWindow(m_personalzationManger->get_window_context(surface));
+                    PersonalizationWindow* window_context = new PersonalizationWindow(m_personalzationManger->get_window_context(surface));
 
-                    QObject::connect(button, &QPushButton::clicked, [context](){
-                        state = !state;
-                        context->set_background_type(state);
-                        qDebug() << "===========background state: ==========" << state;
+                    QObject::connect(click_button, &QPushButton::clicked, [window_context](){
+                        click_state = !click_state;
+                        window_context->set_background_type(click_state);
+                        qDebug() << "===========background state: ==========" << click_state;
                     });
                 }
+
+                PersonalizationWallpaper* wallpaper_context = new PersonalizationWallpaper(m_personalzationManger->get_wallpaper_context());
+                QObject::connect(set_button, &QPushButton::clicked, [wallpaper_context](){
+                    qDebug() << "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx set user wallpaper";
+                    QFileDialog fileDialog;
+                    fileDialog.setFileMode(QFileDialog::ExistingFile);
+                    fileDialog.setNameFilter("Images (*.png *.jpg *.bmp *.gif)");
+
+                    if (fileDialog.exec() == QDialog::Accepted) {
+                        // 获取用户选择的文件路径
+                        QString selectedFilePath = fileDialog.selectedFiles().first();
+                        wallpaper_context->set_wallpaper(selectedFilePath);
+                    }
+                });
+
+                QObject::connect(get_button, &QPushButton::clicked, [wallpaper_context](){
+                    wallpaper_context->get_wallpapers();
+                });
             }
         }
     });
+
+    connect(m_personalzationManger, &PersonalizationManager::activeChanged, this, [this] {});
 
     connect(m_toplevelManager, &ForeignToplevelManager::newForeignToplevelHandle, this, [this](ForeignToplevelHandle *handle) {
         connect(handle, &ForeignToplevelHandle::pidChanged, this, [](pid_t pid) {
