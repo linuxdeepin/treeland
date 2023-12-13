@@ -10,6 +10,7 @@
 , wrapQtAppsHook
 , qtbase
 , qtquick3d
+, qtimageformats
 , qtwayland
 , dtkdeclarative
 , dtksystemsettings
@@ -61,6 +62,7 @@ stdenv.mkDerivation rec {
   buildInputs = [
     qtbase
     qtquick3d
+    qtimageformats
     qtwayland
     dtkdeclarative
     dtksystemsettings
