@@ -6,6 +6,7 @@ qt_add_qml_module(treeland-quick-protocols
     STATIC
     SOURCES
         extforeigntoplevellist.cpp
+        outputmanagement.cpp
         foreigntoplevelmanagerv1.cpp
         shortcutmanager.cpp
         socketmanager.cpp
@@ -19,6 +20,7 @@ target_sources(treeland-quick-protocols PUBLIC
 FILE_SET HEADERS
 FILES
     extforeigntoplevellist.h
+    outputmanagement.h
     foreigntoplevelmanagerv1.h
     shortcutmanager.h
     socketmanager.h

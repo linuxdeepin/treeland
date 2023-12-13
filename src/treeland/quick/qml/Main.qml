@@ -56,12 +56,14 @@ Item {
                 TreeLandHelper.allowNonDrmOutputAutoChangeMode(output)
                 QmlHelper.outputManager.add({waylandOutput: output})
                 outputManagerV1.newOutput(output)
+                treelandOutputManager.newOutput(output)
             }
             onOutputRemoved: function(output) {
                 QmlHelper.outputManager.removeIf(function(prop) {
                     return prop.waylandOutput === output
                 })
                 outputManagerV1.removeOutput(output)
+                treelandOutputManager.removeOutput(output)
             }
             onInputAdded: function(inputDevice) {
                 seat0.addDevice(inputDevice)
@@ -168,6 +170,14 @@ Item {
                     }
                 }
                 outputManagerV1.sendResult(config, ok)
+            }
+        }
+
+        TreelandOutputManager {
+            id: treelandOutputManager
+
+            onRequestSetPrimaryOutput: function(outputName) {
+                primaryOutput = outputName
             }
         }
 

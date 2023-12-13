@@ -11,9 +11,6 @@
 #include <wserver.h>
 
 #include <QDebug>
-#include <cstdint>
-#include <cstring>
-#include <iostream>
 #include <QTimer>
 
 #include "socket_manager_impl.h"

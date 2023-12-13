@@ -9,11 +9,6 @@
 
 #include "socket_manager_impl.h"
 
-class TreeLandHelper;
-namespace Waylib::Server {
-    class WServer;
-}
-
 class SocketManager : public Waylib::Server::WQuickWaylandServerInterface {
     Q_OBJECT
 

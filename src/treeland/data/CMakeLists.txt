@@ -43,6 +43,7 @@ ws_generate_local(server ${CMAKE_CURRENT_SOURCE_DIR}/treeland-shortcut-manager-v
 ws_generate_local(server ${CMAKE_CURRENT_SOURCE_DIR}/treeland-socket-manager-v1.xml socket-server-protocol)
 ws_generate_local(server ${CMAKE_CURRENT_SOURCE_DIR}/treeland-foreign-toplevel-manager-v1.xml foreign-toplevel-manager-server-protocol)
 ws_generate_local(server ${CMAKE_CURRENT_SOURCE_DIR}/treeland-personalization-manager-v1.xml personalization-server-protocol)
+ws_generate_local(server ${CMAKE_CURRENT_SOURCE_DIR}/treeland-output-management.xml output-management-protocol)
 
 ws_generate(server wayland-protocols stable/xdg-shell/xdg-shell.xml xdg-shell-protocol)
 ws_generate(server wayland-protocols staging/ext-foreign-toplevel-list/ext-foreign-toplevel-list-v1.xml ext-foreign-toplevel-list-server-protocol)
@@ -55,6 +56,7 @@ target_sources(treeland-data PRIVATE
     personalization-server-protocol.c
     foreign-toplevel-manager-server-protocol.c
     ext-foreign-toplevel-list-server-protocol.c
+    output-management-protocol.c
 )
 
 target_link_libraries(treeland-data

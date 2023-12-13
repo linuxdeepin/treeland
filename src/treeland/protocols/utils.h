@@ -3,11 +3,13 @@
 
 #pragma once
 
+#include <wayland-server.h>
 #include <wayland-server-core.h>
 
 static void resource_handle_destroy(struct wl_client *,
                                     struct wl_resource *resource)
 {
+    wl_list_remove(&resource->link);
     wl_resource_destroy(resource);
 }
 
