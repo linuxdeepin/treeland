@@ -154,6 +154,16 @@ namespace SDDM {
                     emit login(socket, user, password, session);
                 }
                 break;
+                case GreeterMessages::Unlock : {
+                    // log message
+                    qDebug() << "Message received from greeter: Unlock";
+                    QString user;
+                    QString password;
+
+                    input >> user >> password;
+                    emit unlock(socket, user, password);
+                }
+                break;
                 case GreeterMessages::ActivateUser: {
                     // log message
                     qDebug() << "Message received from greeter: ActivateUser";

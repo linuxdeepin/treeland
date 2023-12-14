@@ -121,6 +121,10 @@ namespace SDDM {
             m_backend->setGreeter(true);
         }
 
+        if ((pos = args.indexOf(QStringLiteral("--identify-only"))) >= 0) {
+            m_backend->setIdentifyOnly(true);
+        }
+
         if (server.isEmpty() || m_id <= 0) {
             qCritical() << "This application is not supposed to be executed manually";
             exit(Auth::HELPER_OTHER_ERROR);
@@ -128,7 +132,9 @@ namespace SDDM {
         }
  
         connect(m_socket, &QLocalSocket::connected, this, &HelperApp::doAuth);
-        connect(m_session, &UserSession::finished, this, &HelperApp::sessionFinished);
+        if(!m_backend->identifyOnly()){
+            connect(m_session, &UserSession::finished, this, &HelperApp::sessionFinished);
+        }
         m_socket->connectToServer(server, QIODevice::ReadWrite | QIODevice::Unbuffered);
     }
 
@@ -205,7 +211,6 @@ namespace SDDM {
         }
         else
             exit(Auth::HELPER_SUCCESS);
-        return;
     }
 
     void HelperApp::sessionFinished(int status) {
@@ -310,7 +315,10 @@ namespace SDDM {
         Q_ASSERT(getuid() == 0);
 
         m_session->stop();
-        m_backend->closeSession();
+        
+        if(!m_backend->identifyOnly()){
+            m_backend->closeSession();
+        }
 
         // write logout to utmp/wtmp
         qint64 pid = m_session->cachedProcessId();

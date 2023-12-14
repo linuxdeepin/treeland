@@ -54,8 +54,23 @@ Item {
 
     Connections {
         target: GreeterModel.proxy
-        function onLoginSucceeded(user) {
-            GreeterModel.emitAnimationPlayed()
+        function onLoginSucceeded(userName) {
+            if(GreeterModel.userModel.lastUser != userName){
+                return
+            }
+
+           GreeterModel.emitAnimationPlayed()
+        }
+    }
+
+    Connections {
+        target: GreeterModel.proxy
+        function onLoginFailed(user) {
+            if(GreeterModel.userModel.lastUser() != userName){
+                return
+            }
+
+            console.log("login failed:",user)
         }
     }
 
