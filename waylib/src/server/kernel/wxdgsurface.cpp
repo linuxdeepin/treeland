@@ -340,7 +340,7 @@ QPointF WXdgSurface::getPopupPosition() const
 {
     auto *popup = handle()->toPopup();
     Q_ASSERT(popup);
-    if (QWXdgSurface::from(popup->handle()->parent))
+    if (popup->handle()->parent && QWXdgSurface::from(popup->handle()->parent))
         return popup->getPosition();
     return {static_cast<qreal>(popup->handle()->current.geometry.x), 
             static_cast<qreal>(popup->handle()->current.geometry.y)};
