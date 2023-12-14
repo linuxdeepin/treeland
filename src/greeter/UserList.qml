@@ -43,7 +43,7 @@ D.Popup {
         GreeterModel.currentUserIndex = index
         let user = GreeterModel.userModel.get(index)
         users.lastCheckedIndex = index
-        //GreeterModel.proxy.activateUser(model.name)
+        GreeterModel.proxy.activateUser(model.name)
         userList.close()
     }
 

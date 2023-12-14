@@ -14,8 +14,8 @@ Item {
     readonly property Proxy proxy: proxy
 
     // TODO: use group to wait all animation
-    signal animationPlayed
-    signal animationPlayFinished
+    signal animationPlayed()
+    signal animationPlayFinished()
 
     function emitAnimationPlayed() {
         animationPlayed();

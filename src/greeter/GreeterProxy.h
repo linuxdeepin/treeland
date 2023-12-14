@@ -68,10 +68,10 @@ public slots:
     void hibernate();
     void hybridSleep();
 
-    void login(const QString &user, const QString &password, const int sessionIndex) const;
+    void login(const QString &user, const QString &password, int sessionIndex) const;
     void activateUser(const QString &user);
     
-    void unlock(const QString &user);
+    void unlock(const QString &user, const QString &password);
 
 private slots:
     void connected();

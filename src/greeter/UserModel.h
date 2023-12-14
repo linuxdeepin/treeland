@@ -53,7 +53,7 @@ public:
 
     [[nodiscard]] QHash<int, QByteArray> roleNames() const override;
     [[nodiscard]] int lastIndex() const;
-    [[nodiscard]] QString lastUser() const;
+    [[nodiscard]] static QString lastUser();
     [[nodiscard]] int rowCount(const QModelIndex &parent = QModelIndex()) const override;
     [[nodiscard]] QVariant data(const QModelIndex &index, int role = Qt::DisplayRole) const override;
     [[nodiscard]] Q_INVOKABLE QVariant get(const QString &username) const;

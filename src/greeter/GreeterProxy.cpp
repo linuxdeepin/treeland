@@ -165,9 +165,9 @@ void GreeterProxy::login(const QString &user, const QString &password, const int
     SocketWriter(d->socket) << quint32(GreeterMessages::Login) << user << password << session;
 }
 
-void GreeterProxy::unlock(const QString &user) {
-    // TODO: use pam
-    emit loginSucceeded(user);
+void GreeterProxy::unlock(const QString &user, const QString &password) {
+    auto userInfo = userModel()->get(user);
+    SocketWriter(d->socket) << quint32(GreeterMessages::Unlock) << user << password;
 }
 
 void GreeterProxy::activateUser(const QString &user) {
@@ -242,7 +242,7 @@ void GreeterProxy::readyRead() {
                 input >> user;
 
                 // log message
-                qDebug() << "Message received from daemon: LoginSucceeded";
+                qDebug() << "Message received from daemon: LoginSucceeded:" << user;
 
                 // emit signal
                 emit loginSucceeded(user);
@@ -253,7 +253,7 @@ void GreeterProxy::readyRead() {
                 input >> user;
 
                 // log message
-                qDebug() << "Message received from daemon: LoginFailed";
+                qDebug() << "Message received from daemon: LoginFailed" << user;
 
                 // emit signal
                 emit loginFailed(user);
@@ -283,7 +283,7 @@ void GreeterProxy::readyRead() {
             break;
             default: {
                 // log message
-                qWarning() << "Unknown message received from daemon.";
+                qWarning() << "Unknown message received from daemon." << message;
             }
         }
     }

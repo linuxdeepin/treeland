@@ -75,6 +75,8 @@ namespace SDDM {
         void login(QLocalSocket *socket,
                    const QString &user, const QString &password,
                    const Session &session);
+        void unlock(QLocalSocket *socket,
+                   const QString &user, const QString &password);
         bool attemptAutologin();
         void displayServerStarted();
 
@@ -91,6 +93,7 @@ namespace SDDM {
 
         void startAuth(const QString &user, const QString &password,
                        const Session &session);
+        void startIdentify(const QString &user, const QString &password);
 
         DisplayServerType m_displayServerType = X11DisplayServerType;
 
@@ -111,7 +114,7 @@ namespace SDDM {
 
     private slots:
         void slotRequestChanged();
-        void slotAuthenticationFinished(const QString &user, bool success);
+        void slotAuthenticationFinished(const QString &user, bool success, bool identifyOnly);
         void slotSessionStarted(bool success);
         void slotHelperFinished(Auth::HelperExitStatus status);
         void slotAuthInfo(const QString &message, Auth::Info info);

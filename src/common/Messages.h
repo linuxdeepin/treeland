@@ -34,6 +34,7 @@ namespace SDDM {
         HybridSleep,
         ActivateUser,
         BackToNormal,
+        Unlock,
     };
 
     enum class TreelandMessages {
