@@ -124,7 +124,7 @@ Item {
     Item {
         id: surfacesQObjParent
         visible: false
-        
+
         DynamicCreatorComponent {
             id: toplevelComponent
             creator: QmlHelper.xdgSurfaceManager
