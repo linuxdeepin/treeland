@@ -367,7 +367,7 @@ Item {
                 greeter.visible = true
             }
         }
-        
+
         Shortcut {
             sequences: ["Meta+S"]
             context: Qt.ApplicationShortcut
