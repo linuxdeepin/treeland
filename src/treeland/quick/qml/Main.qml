@@ -250,7 +250,7 @@ Item {
         }
         onInputPopupSurfaceV2Removed: function (surface) {
             QmlHelper.inputPopupSurfaceManager.removeIf(function (prop) {
-                return prop.waylandSurface === surface
+                return prop.popupSurface === surface
             })
         }
     }
