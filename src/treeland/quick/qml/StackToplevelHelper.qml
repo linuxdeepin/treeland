@@ -25,6 +25,7 @@ Item {
     property bool isMaximize: waylandSurface && waylandSurface.isMaximized && outputCoordMapper
     property bool isFullScreen: waylandSurface && waylandSurface.isFullScreen && outputCoordMapper
     property bool showCloseAnimation: false
+    property bool showNewAnimation: true
 
     // For Maximize
     function getMaximizeX() {
@@ -81,6 +82,18 @@ Item {
             return SurfaceItem.SizeFromSurface
         }
         restoreMode: Binding.RestoreNone
+    }
+
+    Loader {
+        id: newAnimation
+    }
+
+    Component {
+        id: newAnimationComponent
+
+        NewAnimation {
+            target: surface
+        }
     }
 
     Loader {
@@ -206,6 +219,13 @@ Item {
 
                 if (surface.effectiveVisible)
                     Helper.activatedSurface = waylandSurface
+
+                if (showNewAnimation) {
+                    newAnimation.parent = surface.parent
+                    newAnimation.anchors.fill = surface
+                    newAnimation.sourceComponent = newAnimationComponent
+                    newAnimation.item.start()
+                }
             }
             workspace().surfaces.appendEnhanced({item: surface})
             QmlHelper.workspaceManager.allSurfaces.append({item: surface})
