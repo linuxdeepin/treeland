@@ -150,6 +150,9 @@ namespace SDDM {
         // connect login signal
         connect(m_socketServer, &SocketServer::login, this, &Display::login);
 
+        // connect unlock signal
+        connect(m_socketServer, &SocketServer::unlock,this, &Display::unlock);
+
         // connect login result signals
         connect(this, &Display::loginFailed, m_socketServer, &SocketServer::loginFailed);
         connect(this, &Display::loginSucceeded, m_socketServer, &SocketServer::loginSucceeded);
@@ -345,6 +348,21 @@ namespace SDDM {
         startAuth(user, password, session);
     }
 
+    void Display::unlock(QLocalSocket *socket,
+                        const QString &user, const QString &password) {
+        m_socket = socket;
+
+        //the SDDM user has special privileges that skip password checking so that we can load the greeter
+        //block ever trying to log in as the SDDM user
+        if (user == QLatin1String("dde")) {
+            emit loginFailed(m_socket, user);
+            return;
+        }
+
+        // authenticate
+        startIdentify(user, password);
+    }
+
     QString Display::findGreeterTheme() const {
         QString themeName = mainConfig.Theme.Current.get();
 
@@ -384,6 +402,26 @@ namespace SDDM {
                 return true;
         }
         return false;
+    }
+
+    void Display::startIdentify(const QString &user, const QString &password) {
+        qDebug() << "start Identify user" << user;
+        auto *auth = new Auth(this);
+        auth->setObjectName("userIdentify");
+        m_auths.push_back(auth);
+
+        auth->setVerbose(true);
+        connect(auth, &Auth::requestChanged, this, &Display::slotRequestChanged);
+        connect(auth, &Auth::authentication, this, &Display::slotAuthenticationFinished);
+        connect(auth, &Auth::finished, this, &Display::slotHelperFinished);
+        connect(auth, &Auth::info, this, &Display::slotAuthInfo);
+        connect(auth, &Auth::error, this, &Display::slotAuthError);
+
+        auth->setVerbose(true);
+        auth->setPassword(password);
+        auth->setUser(user);
+        auth->setIdentifyOnly(true);
+        auth->start();
     }
 
     void Display::startAuth(const QString &user, const QString &password, const Session &session) {
@@ -528,19 +566,22 @@ namespace SDDM {
         auth->start();
     }
 
-    void Display::slotAuthenticationFinished(const QString &user, bool success) {
+    void Display::slotAuthenticationFinished(const QString &user, bool success, bool identifyOnly) {
         Auth* auth = nullptr;
-        for (auto* item : m_auths) {
-            if (item->user() == user) {
-                auth = item;
-                break;
-            }
+
+        if(identifyOnly){
+            auto ret = std::find_if(m_auths.crbegin(),m_auths.crend(),[&user](Auth *ptr) { qDebug() << ptr->user(); return ptr->user() == user;});
+            Q_ASSERT(ret != m_auths.crend());
+            auth = *ret;
+        } else {
+            auto ret = std::find_if(m_auths.cbegin(),m_auths.cend(),[&user](Auth *ptr) { return ptr->user() == user;});
+            Q_ASSERT(ret != m_auths.cend());
+            auth = *ret;
         }
-        Q_ASSERT(auth);
+
+        Q_ASSERT(auth && auth->identifyOnly() == identifyOnly);
 
         if (success) {
-            qDebug() << "Authentication for user " << user << " successful";
-
             if (!m_reuseSessionId.isNull()) {
                 OrgFreedesktopLogin1ManagerInterface manager(Logind::serviceName(), Logind::managerPath(), QDBusConnection::systemBus());
                 manager.UnlockSession(m_reuseSessionId);
@@ -564,9 +605,6 @@ namespace SDDM {
 
             if (m_socket)
                 emit loginSucceeded(m_socket, user);
-        } else if (m_socket) {
-            qDebug() << "Authentication for user " << user << " failed";
-            emit loginFailed(m_socket, user);
         }
         m_socket = nullptr;
     }
@@ -601,14 +639,19 @@ namespace SDDM {
         // error happens (in this case we want to show the message from the
         // greeter
 
-        daemonApp->displayManager()->RemoveSession(auth->sessionId());
-
         m_auths.removeOne(auth);
         auth->deleteLater();
 
+        if(!auth->identifyOnly()) {
+            daemonApp->displayManager()->RemoveSession(auth->sessionId());
+        }
+
         if (m_displayServerType == DisplayServerType::SingleCompositerServerType) {
             auto* server = reinterpret_cast<SingleWaylandDisplayServer*>(m_displayServer);
-            server->deleteWaylandSocket(auth->user());
+            if(!auth->identifyOnly()){
+                server->deleteWaylandSocket(auth->user());
+            }
+
             // TODO: switch to greeter
             server->activateUser("dde");
             return;

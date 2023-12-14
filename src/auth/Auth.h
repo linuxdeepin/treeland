@@ -54,6 +54,7 @@ namespace SDDM {
         Q_PROPERTY(bool autologin READ autologin WRITE setAutologin NOTIFY autologinChanged)
         Q_PROPERTY(bool greeter READ isGreeter WRITE setGreeter NOTIFY greeterChanged)
         Q_PROPERTY(bool verbose READ verbose WRITE setVerbose NOTIFY verboseChanged)
+        Q_PROPERTY(bool identifyOnly READ identifyOnly WRITE setIdentifyOnly)
         Q_PROPERTY(QByteArray cookie READ cookie WRITE setCookie NOTIFY cookieChanged)
         Q_PROPERTY(QString user READ user WRITE setUser NOTIFY userChanged)
         Q_PROPERTY(QString session READ session WRITE setSession NOTIFY sessionChanged)
@@ -95,6 +96,7 @@ namespace SDDM {
         bool autologin() const;
         bool isGreeter() const;
         bool verbose() const;
+        bool identifyOnly() const;
         const QByteArray &cookie() const;
         const QString &user() const;
         const QString &session() const;
@@ -143,6 +145,7 @@ namespace SDDM {
         */
         void setVerbose(bool on = true);
 
+        void setIdentifyOnly(bool on = false);
         /**
         * Sets the user which will then authenticate
         * @param user username
@@ -209,7 +212,7 @@ namespace SDDM {
         * @param user username
         * @param success true if succeeded
         */
-        void authentication(QString user, bool success);
+        void authentication(QString user, bool success, bool identifyOnly);
 
         /**
         * Emitted when session starting phase finishes

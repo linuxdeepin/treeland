@@ -203,9 +203,8 @@ int UserModel::lastIndex() const {
     return d->lastIndex;
 }
 
-QString UserModel::lastUser() const {
-    auto user = stateConfig.Last.User.get();
-    return user.isEmpty() ? d->users.first()->name : user;
+QString UserModel::lastUser() {
+    return stateConfig.Last.User.get();
 }
 
 int UserModel::rowCount(const QModelIndex &parent) const {

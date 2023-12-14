@@ -71,6 +71,7 @@ namespace SDDM {
         bool autologin { false };
         bool greeter { false };
         bool singleMode { false };
+        bool identifyOnly { false };
         QProcessEnvironment environment { };
         qint64 id { 0 };
         static qint64 lastId;
@@ -187,20 +188,22 @@ namespace SDDM {
                     str >> user;
                     if (!user.isEmpty()) {
                         auth->setUser(user);
-                        Q_EMIT auth->authentication(user, true);
+                        Q_EMIT auth->authentication(user, true, auth->identifyOnly());
                         str.reset();
                         str << AUTHENTICATED << environment << cookie;
                         str.send();
                     }
                     else {
-                        Q_EMIT auth->authentication(user, false);
+                        Q_EMIT auth->authentication(auth->user(), false, auth->identifyOnly());
                     }
                     break;
                 }
                 case SESSION_STATUS: {
                     bool status;
                     str >> status;
-                    Q_EMIT auth->sessionStarted(status);
+                    if(!auth->identifyOnly()) {
+                        Q_EMIT auth->sessionStarted(status);
+                    }
                     str.reset();
                     str << SESSION_STATUS;
                     str.send();
@@ -411,6 +414,16 @@ namespace SDDM {
         }
     }
 
+    bool Auth::identifyOnly() const {
+        return d->identifyOnly;
+    }
+
+    void Auth::setIdentifyOnly(bool on) {
+        if (on != d->identifyOnly) {
+            d->identifyOnly = on;
+        }
+    }
+
     void Auth::start() {
         QStringList args;
         args << QStringLiteral("--socket") << SocketServer::instance()->fullServerName();
@@ -427,6 +440,8 @@ namespace SDDM {
             args << QStringLiteral("--greeter");
         if (d->singleMode)
             args << QStringLiteral("--single-mode");
+        if (d->identifyOnly)
+            args << QStringLiteral("--identify-only");
         d->child->start(QStringLiteral("%1/ddm-helper").arg(QStringLiteral(LIBEXEC_INSTALL_DIR)), args);
     }
 

@@ -17,14 +17,14 @@ Item {
         username.text = currentUser.realName.length == 0 ? currentUser.name : currentUser.realName
         passwordField.text = ''
         avatar.source = currentUser.icon
-        passwordField.visible = !currentUser.logined
         lockIcon.source = currentUser.logined ? "file:///usr/share/icons/Papirus-Dark/16x16/actions/unlock" : "file:///usr/share/icons/Papirus-Dark/16x16/actions/lock"
     }
 
     function userLogin() {
         let user = GreeterModel.userModel.get(GreeterModel.currentUserIndex)
         if (user.logined) {
-            GreeterModel.proxy.unlock(user)
+            GreeterModel.proxy.unlock(user.name, passwordField.text)
+            passwordField.text = ''
             return
         }
 
@@ -34,6 +34,7 @@ Item {
 
         GreeterModel.proxy.login(user.name, passwordField.text,
                                  GreeterModel.currentSession)
+        passwordField.text = ''
     }
 
     Connections {
@@ -108,7 +109,7 @@ Item {
             echoMode: TextInput.Password
             focus: true
             rightPadding: 24
-            onAccepted: userLogin()
+
             RoundButton {
                 id: showPasswordBtn
                 property var showPassword: false

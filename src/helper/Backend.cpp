@@ -58,6 +58,14 @@ namespace SDDM {
         m_greeter = on;
     }
 
+    bool Backend::identifyOnly() const {
+        return m_identifyOnly;
+    }
+
+    void Backend::setIdentifyOnly(bool on) {
+        m_identifyOnly = on;
+    }
+
     bool Backend::openSession() {
         struct passwd *pw;
         pw = getpwnam(qPrintable(qobject_cast<HelperApp*>(parent())->user()));

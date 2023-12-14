@@ -38,6 +38,8 @@ namespace SDDM {
         void setAutologin(bool on = true);
         void setDisplayServer(bool on = true);
         void setGreeter(bool on = true);
+        bool identifyOnly() const;
+        void setIdentifyOnly(bool on);
 
     public slots:
         virtual bool start(const QString &user = QString()) = 0;
@@ -53,6 +55,7 @@ namespace SDDM {
         bool m_autologin { false };
         bool m_displayServer = false;
         bool m_greeter { false };
+        bool m_identifyOnly { false };
     };
 }
 
