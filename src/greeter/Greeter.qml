@@ -54,8 +54,8 @@ Item {
 
     Connections {
         target: GreeterModel.proxy
-        function onLoginSucceeded() {
-            GreeterModel.animationPlayed()
+        function onLoginSucceeded(user) {
+            GreeterModel.emitAnimationPlayed()
         }
     }
 
