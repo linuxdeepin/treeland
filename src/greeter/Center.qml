@@ -30,7 +30,7 @@ Item {
 
         LoginAnimation {
             onStopped: {
-                GreeterModel.animationPlayFinished()
+                GreeterModel.emitAnimationPlayFinished()
             }
         }
     }

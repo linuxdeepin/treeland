@@ -17,6 +17,14 @@ Item {
     signal animationPlayed
     signal animationPlayFinished
 
+    function emitAnimationPlayed() {
+        animationPlayed();
+    }
+
+    function emitAnimationPlayFinished() {
+        animationPlayFinished();
+    }
+
     UserModel {
         id: userModel
     }
