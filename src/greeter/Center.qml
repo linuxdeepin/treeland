@@ -98,7 +98,7 @@ Item {
             id: userInput
             anchors.verticalCenter: parent.verticalCenter
             anchors.left: parent.left
-            anchors.leftMargin: 80
+            anchors.leftMargin: parent.width / 6
         }
 
         //TODO: abstract ot a Button type
