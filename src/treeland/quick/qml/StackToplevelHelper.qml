@@ -5,6 +5,7 @@ import QtQuick
 import Waylib.Server
 import QtQuick.Particles
 import TreeLand
+import TreeLand.Protocols
 import TreeLand.Utils
 
 Item {

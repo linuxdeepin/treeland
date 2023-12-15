@@ -4,6 +4,7 @@
 import QtQuick
 import Waylib.Server
 import TreeLand
+import TreeLand.Protocols
 import TreeLand.Utils
 
 XdgSurfaceItem {
