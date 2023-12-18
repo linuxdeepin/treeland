@@ -55,7 +55,8 @@ Item {
     Connections {
         target: GreeterModel.proxy
         function onLoginSucceeded(userName) {
-            if(GreeterModel.userModel.lastUser != userName){
+            var authUser = GreeterModel.userModel.lastUser;
+            if(authUser.length != 0 && authUser != userName) {
                 return
             }
 
