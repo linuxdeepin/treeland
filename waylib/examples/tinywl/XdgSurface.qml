@@ -18,7 +18,7 @@ XdgSurfaceItem {
         onEnterOutput: function(output) {
             waylandSurface.surface.enterOutput(output)
             Helper.onSurfaceEnterOutput(waylandSurface, surfaceItem, output)
-            if (!surfaceItem.isPopup) {
+            if (!waylandSurface.isPopup) {
                 // don't change initial position of popup
                 surfaceItem.x = Helper.getLeftExclusiveMargin(waylandSurface) + 10
                 surfaceItem.y = Helper.getTopExclusiveMargin(waylandSurface) + 10
