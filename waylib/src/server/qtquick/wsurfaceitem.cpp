@@ -17,6 +17,7 @@
 #include <QQuickWindow>
 #include <QSGImageNode>
 #include <private/qquickitem_p.h>
+#include <private/qsgplaintexture_p.h>
 
 extern "C" {
 #define static
@@ -40,15 +41,36 @@ public:
     QSGTexture *texture() const override;
     void updateTexture(); // in render thread
     void maybeUpdateTextureOnSurfacePrrimaryOutputChanged();
-    void reset();
-
-    QWTexture *ensureTexture();
+    void invalidate();
 
 private:
+    void cleanTexture();
+
     ContentItem *item;
-    QWBuffer *buffer = nullptr;
-    std::unique_ptr<QWTexture> qwtexture;
-    std::unique_ptr<WTexture> dwtexture;
+
+    struct Texture {
+        Texture(QQuickWindow *window, QWTexture *qwtexture)
+            : qwtexture(qwtexture)
+        {
+            WTexture::makeTexture(qwtexture, &texture, window);
+            texture.setOwnsTexture(false);
+        }
+
+        Texture(QQuickWindow *window, QWRenderer *renderer, QWBuffer *buffer)
+            : Texture(window, QWTexture::fromBuffer(renderer, buffer))
+        {
+
+        }
+
+        ~Texture() {
+            delete qwtexture;
+        }
+
+        QWTexture *qwtexture = nullptr;
+        QSGPlainTexture texture;
+    };
+
+    Texture *m_texture = nullptr;
 };
 
 struct SurfaceState {
@@ -240,13 +262,11 @@ QSGNode *ContentItem::updatePaintNode(QSGNode *oldNode, UpdatePaintNodeData *)
 
     auto node = static_cast<QSGImageNode*>(oldNode);
     if (Q_UNLIKELY(!node)) {
-        auto texture = m_textureProvider->texture();
         node = window()->createImageNode();
         node->setOwnsTexture(false);
-        node->setTexture(texture);
-    } else {
-        node->markDirty(QSGNode::DirtyMaterial);
     }
+    auto texture = m_textureProvider->texture();
+    node->setTexture(texture);
 
     const QRectF textureGeometry = d()->surfaceState->bufferSourceBox;
     node->setSourceRect(textureGeometry);
@@ -295,89 +315,98 @@ void ContentItem::invalidateSceneGraph()
 WSGTextureProvider::WSGTextureProvider(ContentItem *item)
     : item(item)
 {
-    dwtexture.reset(new WTexture(nullptr));
-    dwtexture->setOwnsTexture(false);
+
 }
 
 WSGTextureProvider::~WSGTextureProvider()
 {
-    if (buffer)
-        buffer->unlock();
-    buffer = nullptr;
+    if (m_texture)
+        cleanTexture();
 }
 
 QSGTexture *WSGTextureProvider::texture() const
 {
-    if (!buffer)
-        return nullptr;
-
-    return dwtexture->getSGTexture(item->window());
+    return m_texture ? &m_texture->texture : nullptr;
 }
 
 void WSGTextureProvider::updateTexture()
 {
-    if (qwtexture)
-        qwtexture.reset();
+    Q_ASSERT(item);
 
-    if (buffer)
-        buffer->unlock();
-    buffer = item->d()->surface->buffer();
-    // lock buffer to ensure the WSurfaceItem can keep the last frame after WSurface destroyed.
-    if (buffer)
-        buffer->lock();
+    const bool oldTextureIsNull = (m_texture == nullptr);
+    if (m_texture)
+        cleanTexture();
 
-    dwtexture->setHandle(ensureTexture());
+    Q_ASSERT(!m_texture);
+
+    auto qwtexture = item->d()->surface->handle()->getTexture();
+    if (qwtexture) {
+        m_texture = new Texture(item->window(), qwtexture);
+        m_texture->qwtexture = nullptr; // Avoid destory it in Texture::~Texture
+    }
+
+    do {
+        auto buffer = item->d()->surface->buffer();
+        if (!buffer)
+            break;
+
+        auto output = item->d()->surface->primaryOutput();
+        if (!output)
+            break;
+
+        auto renderer = output->renderer();
+        if (!renderer)
+            break;
+
+        if (auto qwtexture = QWTexture::fromBuffer(renderer, buffer))
+            m_texture = new Texture(item->window(), qwtexture);
+    } while(false);
+
+    if (oldTextureIsNull && !m_texture)
+        return;
+
     Q_EMIT textureChanged();
     item->update();
 }
 
 void WSGTextureProvider::maybeUpdateTextureOnSurfacePrrimaryOutputChanged()
 {
-    // Maybe the last failure of WSGTextureProvider::ensureTexture() cause is
+    // Maybe the last failure of WSGTextureProvider::updateTexture() cause is
     // because the surface's primary output is nullptr.
-    if (!dwtexture->handle()) {
-        dwtexture->setHandle(ensureTexture());
-        if (!dwtexture->handle()) {
-            Q_EMIT textureChanged();
-            item->update();
-        }
-    }
+    if (!m_texture)
+        updateTexture();
 }
 
-void WSGTextureProvider::reset()
+void WSGTextureProvider::invalidate()
 {
-    if (qwtexture)
-        qwtexture.reset();
-    if (buffer)
-        buffer->unlock();
-    buffer = nullptr;
-    dwtexture->setHandle(nullptr);
+    cleanTexture();
+    item = nullptr;
+
     Q_EMIT textureChanged();
-    item->update();
 }
 
-QWTexture *WSGTextureProvider::ensureTexture()
+void WSGTextureProvider::cleanTexture()
 {
-    auto textureHandle = item->d()->surface->handle()->getTexture();
-    if (textureHandle)
-        return textureHandle;
+    class TextureCleanupJob : public QRunnable
+    {
+    public:
+        TextureCleanupJob(Texture *texture)
+            : texture(texture) { }
+        void run() override {
+            delete texture;
+        }
+        Texture *texture;
+    };
 
-    if (qwtexture)
-        return qwtexture.get();
+    if (auto window = (item ? item->window() : nullptr)) {
+        // Delay clean the textures on the next render after.
+        window->scheduleRenderJob(new TextureCleanupJob(m_texture),
+                                  QQuickWindow::AfterSynchronizingStage);
+    } else {
+        delete m_texture;
+    }
 
-    if (!buffer)
-        return nullptr;
-
-    auto output = item->d()->surface->primaryOutput();
-    if (!output)
-        return nullptr;
-
-    auto renderer = output->renderer();
-    if (!renderer)
-        return nullptr;
-
-    qwtexture.reset(QWTexture::fromBuffer(renderer, buffer));
-    return qwtexture.get();
+    m_texture = nullptr;
 }
 
 WSurfaceItem::WSurfaceItem(QQuickItem *parent)
@@ -718,7 +747,7 @@ void WSurfaceItem::releaseResources()
         }
     } else {
         if (d->contentItem->m_textureProvider)
-            d->contentItem->m_textureProvider->reset();
+            d->contentItem->m_textureProvider->invalidate();
 
         for (auto item : d->subsurfaces)
             item->deleteLater();
