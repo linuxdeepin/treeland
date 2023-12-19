@@ -1027,9 +1027,16 @@ static void QQuickAnimatorController_advance(QQuickAnimatorController *ac)
 
 void WOutputRenderWindowPrivate::doRender()
 {
+    bool hasDirtyOutput = false;
     for (OutputHelper *helper : outputs) {
         helper->beforeRender();
+
+        if (helper->renderable() && helper->output()->isVisible() && helper->contentIsDirty())
+            hasDirtyOutput = true;
     }
+
+    if (!hasDirtyOutput)
+        return;
 
     rc()->polishItems();
     const bool isRhi = QSGRendererInterface::isApiRhiBased(WRenderHelper::getGraphicsApi());
