@@ -347,7 +347,7 @@ QWBuffer *WBufferRenderer::beginRender(const QSize &pixelSize, qreal devicePixel
             m_swapchain = QWSwapchain::create(m_output->allocator(), pixelSize, renderFormat);
         }
     } else {
-        bool ok = m_output->configureSwapchain(pixelSize, format, &m_swapchain, flags);
+        bool ok = m_output->configureSwapchain(pixelSize, format, &m_swapchain, flags.testFlag(DontTestSwapchain));
         if (!ok)
             return nullptr;
     }
