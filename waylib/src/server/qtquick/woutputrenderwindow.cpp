@@ -334,7 +334,7 @@ public:
     bool initRCWithRhi();
     void updateSceneDPR();
 
-    void doRenderOutputs();
+    QVector<std::pair<OutputHelper *, WBufferRenderer *> > doRenderOutputs();
     void doRender();
 
     inline void scheduleDoRender() {
@@ -935,7 +935,7 @@ void WOutputRenderWindowPrivate::updateSceneDPR()
     setSceneDevicePixelRatio(maxDPR);
 }
 
-void WOutputRenderWindowPrivate::doRenderOutputs()
+QVector<std::pair<OutputHelper*, WBufferRenderer*>> WOutputRenderWindowPrivate::doRenderOutputs()
 {
     QVector<OutputHelper*> renderResults;
     renderResults.reserve(outputs.size());
@@ -990,21 +990,15 @@ void WOutputRenderWindowPrivate::doRenderOutputs()
         renderResults.append(helper);
     }
 
+    QVector<std::pair<OutputHelper*, WBufferRenderer*>> needsCommit;
+    needsCommit.reserve(renderResults.size());
     for (auto helper : renderResults) {
         auto bufferRenderer = helper->afterRender();
-        bool ok = false;
-
-        if (bufferRenderer) {
-            ok = helper->commit(bufferRenderer);
-
-            if (bufferRenderer->currentBuffer()) {
-                bufferRenderer->endRender();
-            }
-        }
-
         if (bufferRenderer)
-            helper->resetState(ok);
+            needsCommit.append({helper, bufferRenderer});
     }
+
+    return needsCommit;
 }
 
 // ###: QQuickAnimatorController::advance symbol not export
@@ -1053,13 +1047,23 @@ void WOutputRenderWindowPrivate::doRender()
     emit q->beforeRendering();
     runAndClearJobs(&beforeRenderingJobs);
 
-    doRenderOutputs();
+    auto needsCommit = doRenderOutputs();
 
     emit q->afterRendering();
     runAndClearJobs(&afterRenderingJobs);
 
     if (isRhi) {
         rc()->endFrame();
+    }
+
+    for (auto i : needsCommit) {
+        bool ok = i.first->commit(i.second);
+
+        if (i.second->currentBuffer()) {
+            i.second->endRender();
+        }
+
+        i.first->resetState(ok);
     }
 
     resetGlState();
