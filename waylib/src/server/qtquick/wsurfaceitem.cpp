@@ -101,7 +101,6 @@ public:
     QMarginsF paddings;
     QList<WSurfaceItem*> subsurfaces;
     qreal surfaceSizeRatio = 1.0;
-    bool mipmap = true;
 
     QMetaObject::Connection frameDoneConnection;
     uint32_t beforeRequestResizeSurfaceStateSeq = 0;
@@ -254,7 +253,6 @@ QSGNode *ContentItem::updatePaintNode(QSGNode *oldNode, UpdatePaintNodeData *)
     const QRectF targetGeometry(d()->surfaceState->bufferOffset, size());
     node->setRect(targetGeometry);
     node->setFiltering(d()->smooth ? QSGTexture::Linear : QSGTexture::Nearest);
-    node->setMipmapFiltering(d()->mipmap ? node->filtering() : QSGTexture::None);
 
     return node;
 }
@@ -566,22 +564,6 @@ qreal WSurfaceItem::bufferScale() const
     Q_D(const WSurfaceItem);
 
     return d->surfaceState ? d->surfaceState->bufferScale : 1.0;
-}
-
-bool WSurfaceItem::mipmap() const
-{
-    Q_D(const WSurfaceItem);
-    return d->mipmap;
-}
-
-void WSurfaceItem::setMipmap(bool newMipmap)
-{
-    Q_D(WSurfaceItem);
-    if (d->mipmap == newMipmap)
-        return;
-    d->mipmap = newMipmap;
-    d->contentItem->update();
-    Q_EMIT mipmapChanged();
 }
 
 qreal WSurfaceItem::leftPadding() const
