@@ -29,10 +29,6 @@ Item {
             return
         }
 
-        if (passwordField.text.length === 0) {
-            return
-        }
-
         GreeterModel.proxy.login(user.name, passwordField.text,
                                  GreeterModel.currentSession)
     }
