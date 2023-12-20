@@ -39,6 +39,7 @@ public:
     GreeterExtensionPlugin()
         : QQmlEngineExtensionPlugin()
     {
+        Q_INIT_RESOURCE(greeter_assets);
         qmlRegisterType<SessionModel>("TreeLand.Greeter", 1, 0, "SessionModel");
         qmlRegisterType<UserModel>("TreeLand.Greeter", 1, 0, "UserModel");
         qmlRegisterType<GreeterProxy>("TreeLand.Greeter", 1, 0, "Proxy");
@@ -47,6 +48,8 @@ public:
     void initializeEngine([[maybe_unused]] QQmlEngine *engine, [[maybe_unused]] const char *uri) final
     {
     }
+
+    ~GreeterExtensionPlugin() { Q_CLEANUP_RESOURCE(greeter_assets); }
 };
 
 #endif // GREETERAPP_H

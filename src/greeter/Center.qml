@@ -8,6 +8,8 @@ import org.deepin.dtk 1.0 as D
 Item {
     id: root
 
+    property UserInput loginGroup: userInput
+
     Loader {
         id: leftAnimation
     }
@@ -154,14 +156,18 @@ Item {
                 Layout.alignment: Qt.AlignHCenter
                 visible: userList.count > 1
 
-                RoundButton {
+                D.RoundButton {
                     id: usersBtn
-                    text: '3'
+
                     property bool expand: false
+                    icon.name: "login_user"
+                    icon.width: 16
+                    icon.height: 16
                     width: expand ? bottomGroup.buttonSize + 6 : bottomGroup.buttonSize
                     height: expand ? bottomGroup.buttonSize + 6 : bottomGroup.buttonSize
                     anchors.centerIn: parent
                     hoverEnabled: parent.visible
+
                     D.ToolTip.visible: hovered
                     D.ToolTip.text: qsTr("Other Users")
 
@@ -186,10 +192,13 @@ Item {
                 implicitHeight: bottomGroup.buttonSize + 6
                 color: "transparent"
                 Layout.alignment: Qt.AlignHCenter
-                RoundButton {
+                D.RoundButton {
                     id: powerBtn
-                    text: '4'
+
                     property bool expand: false
+                    icon.name: "login_power"
+                    icon.width: 16
+                    icon.height: 16
                     width: expand ? bottomGroup.buttonSize + 6 : bottomGroup.buttonSize
                     height: expand ? bottomGroup.buttonSize + 6 : bottomGroup.buttonSize
                     anchors.centerIn: parent

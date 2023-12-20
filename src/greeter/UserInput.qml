@@ -11,20 +11,21 @@ Item {
     width: 220
     height: 300
 
+    property string normalHint: qsTr("Please enter your password or fingerprint.")
+
     function updateUser() {
         let currentUser = GreeterModel.userModel.get(
                 GreeterModel.currentUserIndex)
         username.text = currentUser.realName.length == 0 ? currentUser.name : currentUser.realName
         passwordField.text = ''
         avatar.source = currentUser.icon
-        lockIcon.source = currentUser.logined ? "file:///usr/share/icons/Papirus-Dark/16x16/actions/unlock" : "file:///usr/share/icons/Papirus-Dark/16x16/actions/lock"
+        updateHintMsg(normalHint)
     }
 
     function userLogin() {
         let user = GreeterModel.userModel.get(GreeterModel.currentUserIndex)
         if (user.logined) {
             GreeterModel.proxy.unlock(user.name, passwordField.text)
-            passwordField.text = ''
             return
         }
 
@@ -34,14 +35,6 @@ Item {
 
         GreeterModel.proxy.login(user.name, passwordField.text,
                                  GreeterModel.currentSession)
-        passwordField.text = ''
-    }
-
-    Connections {
-        target: GreeterModel.userModel
-        function onDataChanged() {
-            updateUser()
-        }
     }
 
     Connections {
@@ -62,17 +55,18 @@ Item {
 
     Rectangle {
         anchors.horizontalCenter: parent.horizontalCenter
-        width: 24
-        height: 24
+        width: 32
+        height: 32
         color: "transparent"
-        anchors.top: parent.top
-        anchors.topMargin: 10
-        Image {
-            id: lockIcon
-            anchors.fill: parent
-            height: 24
-            width: 24
-            fillMode: Image.PreserveAspectFit
+        anchors.bottom: parent.top
+        anchors.bottomMargin: 56
+        D.DciIcon {
+            name: "login_lock"
+            anchors.centerIn: parent
+            sourceSize {
+                width: 18
+                height: 22
+            }
         }
     }
 
@@ -103,41 +97,63 @@ Item {
 
         TextField {
             id: passwordField
+
+            property bool capsIndicatorVisible: false
+
             width: loginGroup.width
             height: 30
             anchors.horizontalCenter: parent.horizontalCenter
-            echoMode: TextInput.Password
+            echoMode: showPasswordBtn.pressed ? TextInput.Normal : TextInput.Password
             focus: true
             rightPadding: 24
+            maximumLength: 510
+            placeholderText: qsTr("Please enter password")
+            placeholderTextColor: "gray"
 
-            RoundButton {
-                id: showPasswordBtn
-                property var showPassword: false
+            Keys.onPressed: function (event) {
+                if (event.key == Qt.Key_CapsLock) {
+                    capsIndicatorVisible = !capsIndicatorVisible
+                    event.accepted = true
+                } else if (event.key == Qt.Key_Return) {
+                    userLogin()
+                    event.accepted = true
+                }
+            }
 
-                text: 'P'
-                width: 24
-                height: 24
+            RowLayout {
+                height: parent.height
                 anchors.right: parent.right
-                anchors.verticalCenter: parent.verticalCenter
-                anchors.rightMargin: 2
-                background: Rectangle {
-                    id: hintButtonBackground
-                    anchors.fill: parent
-                    radius: parent.height / 2
-                    color: "transparent"
+                anchors.rightMargin: 3
+
+                D.ActionButton {
+                    visible: passwordField.capsIndicatorVisible
+                    palette.windowText: undefined
+                    icon.name: "login_capslock"
+                    icon.height: 10
+                    icon.width: 10
+                    Layout.alignment: Qt.AlignHCenter
+                    implicitWidth: 16
+                    implicitHeight: 16
                 }
 
-                onClicked: {
-                    showPassword = !showPassword
-                    passwordField.echoMode = showPassword ? TextInput.Normal : TextInput.Password
-                }
+                D.ActionButton {
+                    id: showPasswordBtn
+                    palette.windowText: undefined
+                    icon.name: pressed ? "login_display_password" : "login_hidden_password"
+                    icon.height: 10
+                    icon.width: 10
+                    Layout.alignment: Qt.AlignHCenter
+                    implicitWidth: 16
+                    implicitHeight: 16
+                    hoverEnabled: true
 
-                onPressed: {
-                    hintButtonBackground.color = Qt.rgba(0, 0, 0, 0.6)
-                }
-
-                onReleased: {
-                    hintButtonBackground.color = "transparent"
+                    background: Rectangle {
+                        anchors.fill: parent
+                        radius: 4
+                        color: showPasswordBtn.hovered ? Qt.rgba(
+                                                             0, 0, 0,
+                                                             0.1) : "transparent"
+                    }
                 }
             }
 
@@ -150,17 +166,20 @@ Item {
         }
     }
 
-    RoundButton {
+    D.RoundButton {
         id: loginBtn
-        text: "\u2192"
+        icon.name: "login_open"
+        icon.width: 16
+        icon.height: 16
         height: passwordField.height
         width: height
         anchors.left: userCol.right
         anchors.bottom: userCol.bottom
-        anchors.leftMargin: 10
+        anchors.leftMargin: 20
+        enabled: passwordField.length != 0
         background: Rectangle {
             anchors.fill: parent
-            color: Qt.rgba(104 / 255, 158 / 255, 233 / 255, 0.5)
+            color: Qt.rgba(255, 255, 255, 0.4)
             radius: parent.height / 2
         }
 
@@ -180,7 +199,7 @@ Item {
         background: Rectangle {
             id: hintBtnBackground
             anchors.fill: parent
-            color: Qt.rgba(104 / 255, 158 / 255, 233 / 255, 0.5)
+            color: Qt.rgba(255, 255, 255, 0.4)
             radius: parent.height / 2
         }
 
@@ -208,7 +227,7 @@ Item {
         anchors.rightMargin: 10
         background: Rectangle {
             anchors.fill: parent
-            color: Qt.rgba(104 / 255, 158 / 255, 233 / 255, 0.5)
+            color: Qt.rgba(255, 255, 255, 0.4)
             radius: parent.height / 2
         }
 
@@ -218,7 +237,6 @@ Item {
     }
 
     Text {
-        text: hintBtn.showHint ? "This is user custom hint message." : "Please enter your password or fingerprint."
         id: hintText
         font.pointSize: 10
         color: "gray"
@@ -229,5 +247,19 @@ Item {
 
     Component.onCompleted: {
         updateUser()
+        passwordField.forceActiveFocus()
+    }
+
+    function updateHintMsg(msg) {
+        hintText.text = msg
+    }
+
+    function userAuthSuccessed() {
+        passwordField.text = ""
+    }
+
+    function userAuthFailed() {
+        passwordField.selectAll()
+        passwordField.forceActiveFocus()
     }
 }

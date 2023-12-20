@@ -45,6 +45,7 @@ Item {
     }
 
     Center {
+        id: center
         anchors.fill: parent
         anchors.leftMargin: 50
         anchors.topMargin: 50
@@ -55,23 +56,25 @@ Item {
     Connections {
         target: GreeterModel.proxy
         function onLoginSucceeded(userName) {
-            var authUser = GreeterModel.userModel.lastUser;
-            if(authUser.length != 0 && authUser != userName) {
+            var authUser = GreeterModel.userModel.lastUser
+            if (authUser.length != 0 && authUser != userName) {
                 return
             }
 
-           GreeterModel.emitAnimationPlayed()
+            center.loginGroup.userAuthSuccessed()
+            GreeterModel.emitAnimationPlayed()
         }
     }
 
     Connections {
         target: GreeterModel.proxy
         function onLoginFailed(user) {
-            if(GreeterModel.userModel.lastUser() != userName){
+            var authUser = GreeterModel.userModel.lastUser
+            if (authUser.length != 0 && authUser != userName) {
                 return
             }
-
-            console.log("login failed:",user)
+            center.loginGroup.userAuthFailed()
+            center.loginGroup.updateHintMsg(qsTr("Password is incorrect."))
         }
     }
 

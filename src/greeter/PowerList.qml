@@ -35,18 +35,18 @@ D.Menu {
         onTriggered: GreeterModel.proxy.hibernate()
     }
 
-    Action {
+    D.Action {
         enabled: GreeterModel.proxy.canSuspend
         text: qsTr("Suspend")
-        icon.source: "file:///usr/share/icons/Papirus-Dark/symbolic/actions/system-suspend-symbolic"
+        icon.name: "login_sleep"
 
         onTriggered: GreeterModel.proxy.suspend()
     }
 
-    Action {
+    D.Action {
         enabled: GreeterModel.proxy.canReboot
         text: qsTr("Reboot")
-        icon.source: "file:///usr/share/icons/Papirus-Dark/symbolic/actions/system-restart-symbolic"
+        icon.name: "login_reboot"
 
         onTriggered: GreeterModel.proxy.reboot()
     }
