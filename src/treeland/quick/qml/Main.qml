@@ -63,9 +63,6 @@ Item {
             onOutputAdded: function(output) {
                 output.forceSoftwareCursor = true // Test
 
-                if (QmlHelper.outputManager.count > 0)
-                    output.scale = 2
-
                 TreeLandHelper.allowNonDrmOutputAutoChangeMode(output)
                 QmlHelper.outputManager.add({waylandOutput: output})
                 outputManagerV1.newOutput(output)
