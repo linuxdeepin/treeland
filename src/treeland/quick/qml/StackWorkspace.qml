@@ -24,7 +24,8 @@ Item {
         if (toplevel) {
             return {
                 shell: toplevel,
-                item: toplevel
+                item: toplevel,
+                type: "toplevel"
             }
         }
 
@@ -32,7 +33,8 @@ Item {
         if (popup) {
             return {
                 shell: popup,
-                item: popup.xdgSurface
+                item: popup.xdgSurface,
+                type: "popup"
             }
         }
 
@@ -40,7 +42,8 @@ Item {
         if (layer) {
             return {
                 shell: layer,
-                item: layer.surfaceItem
+                item: layer.surfaceItem,
+                type: "layer"
             }
         }
 
@@ -48,7 +51,8 @@ Item {
         if (xwayland) {
             return {
                 shell: xwayland,
-                item: xwayland
+                item: xwayland,
+                type: "xwayland"
             }
         }
 
@@ -136,18 +140,52 @@ Item {
             property alias xdgSurface: surface
             property var parentItem: root.getSurfaceItemFromWaylandSurface(waylandSurface.parentSurface)
 
-            parent: parentItem ? parentItem.shell : root
+            parent: parentItem ? parentItem.item : root
             visible: parentItem && parentItem.item.effectiveVisible
                     && waylandSurface.surface.mapped && waylandSurface.WaylandSocket.rootSocket.enabled
             x: {
-                if (!parentItem)
-                    return surface.implicitPosition.x
-                return surface.implicitPosition.x / parentItem.item.surfaceSizeRatio + parentItem.item.contentItem.x
+                let retX = 0 // X coordinate relative to parent
+                let minX = 0
+                let maxX = root.width - xdgSurface.width
+                if (!parentItem) {
+                    retX = surface.implicitPosition.x
+                    if (retX > maxX)
+                        retX = maxX
+                    if (retX < minX)
+                        retX = minX
+                } else {
+                    retX = surface.implicitPosition.x / parentItem.item.surfaceSizeRatio + parentItem.item.contentItem.x
+                    let parentX = parent.mapToItem(root, 0, 0).x
+                    if (retX + parentX > maxX) {
+                        if (parentItem.type === "popup")
+                            retX = retX - xdgSurface.width - parent.width
+                        else
+                            retX = maxX - parentX
+                    }
+                    if (retX + parentX < minX)
+                        retX = minX - parentX
+                }
+                return retX
             }
             y: {
-                if (!parentItem)
-                    return surface.implicitPosition.y
-                return surface.implicitPosition.y / parentItem.item.surfaceSizeRatio + parentItem.item.contentItem.y
+                let retY = 0 // Y coordinate relative to parent
+                let minY = 0
+                let maxY = root.height - xdgSurface.height
+                if (!parentItem) {
+                    retY = surface.implicitPosition.y
+                    if (retY > maxY)
+                        retY = maxY
+                    if (retY < minY)
+                        retY = minY
+                } else {
+                    retY = surface.implicitPosition.y / parentItem.item.surfaceSizeRatio + parentItem.item.contentItem.y
+                    let parentY = parent.mapToItem(root, 0, 0).y
+                    if (retY + parentY > maxY)
+                        retY = maxY - parentY
+                    if (retY + parentY < minY)
+                        retY = minY - parentY
+                }
+                return retY
             }
             padding: 0
             background: null

@@ -23,8 +23,11 @@ XdgSurfaceItem {
             waylandSurface.surface.enterOutput(output)
             TreeLandHelper.onSurfaceEnterOutput(waylandSurface, surfaceItem, output)
 
-            surfaceItem.x = TreeLandHelper.getLeftExclusiveMargin(waylandSurface) + 10
-            surfaceItem.y = TreeLandHelper.getTopExclusiveMargin(waylandSurface) + 10
+            if (!waylandSurface.isPopup) {
+                // don't change initial position of popup
+                surfaceItem.x = TreeLandHelper.getLeftExclusiveMargin(waylandSurface) + 10
+                surfaceItem.y = TreeLandHelper.getTopExclusiveMargin(waylandSurface) + 10
+            }
         }
         onLeaveOutput: function(output) {
             waylandSurface.surface.leaveOutput(output)
