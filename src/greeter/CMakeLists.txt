@@ -7,6 +7,7 @@ set(GREETER_SOURCES
     GreeterProxy.cpp
     SessionModel.cpp
     UserModel.cpp
+    greeter_assets.qrc
 )
 
 find_package(Dtk6 REQUIRED COMPONENTS Declarative)
