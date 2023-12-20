@@ -69,8 +69,13 @@ public:
     WQuickInputPopupSurfaceV2Private(QWInputPopupSurfaceV2 *h, WQuickInputPopupSurfaceV2 *qq)
         : WObjectPrivate(qq)
         , handle(h)
-        , popupSurface(new WSurface(h->surface(), qq))
-    { }
+        , popupSurface(WSurface::fromHandle(h->surface()))
+    {
+        if (!popupSurface) {
+            popupSurface = new WSurface(h->surface());
+            QObject::connect(h->surface(), &QWSurface::beforeDestroy, popupSurface, &WSurface::deleteLater);
+        }
+    }
 
     W_DECLARE_PUBLIC(WQuickInputPopupSurfaceV2)
     QWInputPopupSurfaceV2 *handle;
