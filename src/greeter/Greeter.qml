@@ -53,26 +53,33 @@ Item {
         anchors.bottomMargin: 50
     }
 
+
+    function checkUser(userName) {
+        let user = GreeterModel.userModel.get(GreeterModel.currentUserIndex)
+        console.log("last activate user:",user.name,"current user:",userName)
+        return user.name == userName
+    }
+
     Connections {
         target: GreeterModel.proxy
         function onLoginSucceeded(userName) {
-            var authUser = GreeterModel.userModel.lastUser
-            if (authUser.length != 0 && authUser != userName) {
+            if (!checkUser(userName)) {
                 return
             }
 
             center.loginGroup.userAuthSuccessed()
+            center.loginGroup.updateHintMsg(center.loginGroup.normalHint)
             GreeterModel.emitAnimationPlayed()
         }
     }
 
     Connections {
         target: GreeterModel.proxy
-        function onLoginFailed(user) {
-            var authUser = GreeterModel.userModel.lastUser
-            if (authUser.length != 0 && authUser != userName) {
+        function onLoginFailed(userName) {
+            if (!checkUser(userName)) {
                 return
             }
+
             center.loginGroup.userAuthFailed()
             center.loginGroup.updateHintMsg(qsTr("Password is incorrect."))
         }
