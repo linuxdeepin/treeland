@@ -5,6 +5,7 @@ add_subdirectory(protocols)
 add_subdirectory(quick)
 add_subdirectory(treeland-helper)
 add_subdirectory(treeland-fake-session)
+add_subdirectory(treeland-wallpaper)
 
 set_source_files_properties("${CMAKE_SOURCE_DIR}/data/interfaces/org.freedesktop.login1.Manager.xml" PROPERTIES
    INCLUDE "LogindDBusTypes.h"

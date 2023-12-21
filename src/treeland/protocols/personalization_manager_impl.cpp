@@ -303,6 +303,8 @@ static void treeland_personalization_manager_bind(struct wl_client *client,
                                    &treeland_personalization_manager_impl,
                                    manager,
                                    treeland_personalization_manager_resource_destroy);
+
+    wl_list_insert(&manager->resources, wl_resource_get_link(resource));
 }
 
 static void handle_display_destroy(struct wl_listener *listener, [[maybe_unused]] void *data)
