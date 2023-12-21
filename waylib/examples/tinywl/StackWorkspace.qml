@@ -9,19 +9,6 @@ import Tinywl
 Item {
     id: root
 
-    required property DynamicCreatorComponent outputDelegateCreator
-
-    function getOutputDelegateFromWaylandOutput(output) {
-        let finder = function(props) {
-            if (!props.waylandOutput)
-                return false
-            if (props.waylandOutput === output)
-                return true
-        }
-
-        return QmlHelper.outputManager.getIf(outputDelegateCreator, finder)
-    }
-
     function getSurfaceItemFromWaylandSurface(surface) {
         let finder = function(props) {
             if (!props.waylandSurface)

@@ -10,17 +10,6 @@ import Tinywl
 Item {
     id :root
 
-    function getOutputDelegateFromWaylandOutput(output) {
-        let finder = function(props) {
-            if (!props.waylandOutput)
-                return false
-            if (props.waylandOutput === output)
-                return true
-        }
-
-        return QmlHelper.outputManager.getIf(outputDelegateCreator, finder)
-    }
-
     WaylandServer {
         id: server
 
@@ -120,7 +109,7 @@ Item {
 
                         output.enableAdaptiveSync(states[i].adaptive_sync_enabled);
                         if (!onlyTest) {
-                            let outputDelegate = getOutputDelegateFromWaylandOutput(output);
+                            let outputDelegate = output.OutputItem.item
                             outputDelegate.setTransform(states[i].transform)
                             outputDelegate.setScale(states[i].scale)
                             outputDelegate.setOutputPosition(states[i].x, states[i].y)
@@ -263,7 +252,6 @@ Item {
                 StackWorkspace {
                     visible: topbar.currentIndex === 0
                     anchors.fill: parent
-                    outputDelegateCreator: outputDelegateCreator
                 }
 
                 TiledWorkspace {
