@@ -10,23 +10,4 @@ XdgSurfaceItem {
     property string type
 
     surface: waylandSurface
-
-    OutputLayoutItem {
-        anchors.fill: parent
-        layout: QmlHelper.layout
-
-        onEnterOutput: function(output) {
-            waylandSurface.surface.enterOutput(output)
-            Helper.onSurfaceEnterOutput(waylandSurface, surfaceItem, output)
-            if (!waylandSurface.isPopup) {
-                // don't change initial position of popup
-                surfaceItem.x = Helper.getLeftExclusiveMargin(waylandSurface) + 10
-                surfaceItem.y = Helper.getTopExclusiveMargin(waylandSurface) + 10
-            }
-        }
-        onLeaveOutput: function(output) {
-            waylandSurface.surface.leaveOutput(output)
-            Helper.onSurfaceLeaveOutput(waylandSurface, surfaceItem, output)
-        }
-    }
 }

@@ -263,6 +263,7 @@ Item {
                 StackWorkspace {
                     visible: topbar.currentIndex === 0
                     anchors.fill: parent
+                    outputDelegateCreator: outputDelegateCreator
                 }
 
                 TiledWorkspace {
