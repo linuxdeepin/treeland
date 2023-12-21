@@ -1,0 +1,272 @@
+// Copyright (C) 2023 JiDe Zhang <zhangjide@deepin.org>.
+// SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
+
+#include "wrenderbufferblitter.h"
+#include "wrenderbuffernode_p.h"
+
+#include <QSGImageNode>
+#include <QSGTextureProvider>
+#include <private/qsgplaintexture_p.h>
+#include <private/qquickitem_p.h>
+
+WAYLIB_SERVER_BEGIN_NAMESPACE
+
+class Q_DECL_HIDDEN BlitTextureProvider : public QSGTextureProvider {
+public:
+    BlitTextureProvider()
+        : QSGTextureProvider()
+    {
+
+    }
+
+    inline QSGTexture *texture() const override {
+        return m_texture;
+    }
+    inline void setTexture(QSGTexture *tex) {
+        m_texture = tex;
+    }
+
+private:
+    QSGTexture *m_texture = nullptr;
+};
+
+class Content;
+class Q_DECL_HIDDEN WRenderBufferBlitterPrivate : public WObjectPrivate
+{
+public:
+    WRenderBufferBlitterPrivate(WRenderBufferBlitter *qq)
+        : WObjectPrivate(qq)
+    {
+
+    }
+
+    static inline WRenderBufferBlitterPrivate *get(WRenderBufferBlitter *qq) {
+        return qq->d_func();
+    }
+
+    void init();
+
+    inline QQmlListProperty<QObject> data() {
+        return QQuickItemPrivate::get(container)->data();
+    }
+
+    BlitTextureProvider *ensureTextureProvider() const;
+
+    W_DECLARE_PUBLIC(WRenderBufferBlitter)
+    Content *content;
+    QQuickItem *container;
+    mutable BlitTextureProvider *tp = nullptr;
+};
+
+class Q_DECL_HIDDEN Content : public QQuickItem
+{
+public:
+    explicit Content(WRenderBufferBlitter *parent)
+        : QQuickItem(parent) {
+
+    }
+
+    inline WRenderBufferBlitterPrivate *d() const {
+        auto p = qobject_cast<WRenderBufferBlitter*>(parent());
+        Q_ASSERT(p);
+        return WRenderBufferBlitterPrivate::get(p);
+    }
+
+    bool isTextureProvider() const override {
+        return true;
+    }
+
+    QSGTextureProvider *textureProvider() const override {
+        if (QQuickItem::isTextureProvider())
+            return QQuickItem::textureProvider();
+
+        return d()->ensureTextureProvider();
+    }
+
+    inline bool offscreen() const {
+        return !flags().testFlag(ItemHasContents);
+    }
+
+    inline bool setOffscreen(bool newOffscreen) {
+        if (offscreen() == newOffscreen)
+            return false;
+
+        if (d()->tp) {
+            if (newOffscreen)
+                disconnect(d()->tp, &BlitTextureProvider::textureChanged, this, &Content::update);
+            else
+                connect(d()->tp, &BlitTextureProvider::textureChanged, this, &Content::update);
+        }
+
+        setFlag(ItemHasContents, !newOffscreen);
+        return true;
+    }
+
+private:
+    QSGNode *updatePaintNode(QSGNode *old, UpdatePaintNodeData *) override {
+        const auto tp = d()->ensureTextureProvider();
+        if (Q_LIKELY(!tp->texture())) {
+            delete old;
+            return nullptr;
+        }
+
+        auto node = static_cast<QSGImageNode*>(old);
+        if (Q_UNLIKELY(!node)) {
+            node = window()->createImageNode();
+            node->setOwnsTexture(false);
+        }
+
+        auto texture = tp->texture();
+        node->setTexture(texture);
+
+        const QRectF sourceRect(QPointF(0, 0), texture->textureSize());
+
+        node->setSourceRect(sourceRect);
+        node->setRect(QRectF(QPointF(0, 0), size()));
+        node->setFiltering(smooth() ? QSGTexture::Linear : QSGTexture::Nearest);
+        node->setAnisotropyLevel(antialiasing() ? QSGTexture::Anisotropy4x : QSGTexture::AnisotropyNone);
+
+        return node;
+    }
+};
+
+void WRenderBufferBlitterPrivate::init()
+{
+    W_Q(WRenderBufferBlitter);
+    content = new Content(q);
+    container = new QQuickItem(q);
+
+    auto d = QQuickItemPrivate::get(container);
+    if (d->window->graphicsApi() != QSGRendererInterface::Software)
+        d->refFromEffectItem(true);
+}
+
+BlitTextureProvider *WRenderBufferBlitterPrivate::ensureTextureProvider() const
+{
+    if (Q_LIKELY(tp))
+        return tp;
+
+    tp = new BlitTextureProvider();
+
+    if (!content->offscreen())
+        tp->connect(tp, &BlitTextureProvider::textureChanged, content, &Content::update);
+
+    return tp;
+}
+
+WRenderBufferBlitter::WRenderBufferBlitter(QQuickItem *parent)
+    : QQuickItem(parent)
+    , WObject(*new WRenderBufferBlitterPrivate(this))
+{
+    setFlag(ItemHasContents);
+    W_D(WRenderBufferBlitter);
+    d->init();
+}
+
+WRenderBufferBlitter::~WRenderBufferBlitter()
+{
+    WRenderBufferBlitter::releaseResources();
+}
+
+QQuickItem *WRenderBufferBlitter::content() const
+{
+    W_DC(WRenderBufferBlitter);
+    return d->content;
+}
+
+bool WRenderBufferBlitter::offscreen() const
+{
+    W_DC(WRenderBufferBlitter);
+    return d->content->offscreen();
+}
+
+void WRenderBufferBlitter::setOffscreen(bool newOffscreen)
+{
+    W_D(WRenderBufferBlitter);
+    if (d->content->setOffscreen(newOffscreen))
+        Q_EMIT offscreenChanged();
+}
+
+void WRenderBufferBlitter::invalidateSceneGraph()
+{
+    W_D(WRenderBufferBlitter);
+    delete d->tp;
+    d->tp = nullptr;
+}
+
+static void onTextureChanged(WRenderBufferNode *node, void *data) {
+    auto *d = reinterpret_cast<WRenderBufferBlitterPrivate*>(data);
+    if (!d->tp)
+        return;
+
+    d->tp->setTexture(node->texture());
+
+    struct Notifer : public QRunnable {
+        void run() override {
+            if (tp)
+                Q_EMIT tp->textureChanged();
+        }
+
+        QPointer<QSGTextureProvider> tp;
+    };
+
+    auto notifer = new Notifer();
+    notifer->tp = d->tp;
+    d->content->window()->scheduleRenderJob(notifer, QQuickWindow::BeforeSynchronizingStage);
+}
+
+QSGNode *WRenderBufferBlitter::updatePaintNode(QSGNode *oldNode, QQuickItem::UpdatePaintNodeData *oldData)
+{
+    Q_UNUSED(oldData)
+
+    auto node = static_cast<WRenderBufferNode*>(oldNode);
+    if (Q_LIKELY(node)) {
+        node->resize(size());
+        return node;
+    }
+
+    W_D(WRenderBufferBlitter);
+    if (window()->graphicsApi() == QSGRendererInterface::Software) {
+        node = WRenderBufferNode::createSoftwareNode(this);
+    } else {
+        node = WRenderBufferNode::createRhiNode(this);
+    }
+
+    node->setContentItem(d->container);
+    node->setTextureChangedCallback(onTextureChanged, d);
+    node->resize(size());
+    onTextureChanged(node, d);
+
+    return node;
+}
+
+void WRenderBufferBlitter::itemChange(ItemChange type, const ItemChangeData &data)
+{
+    if (type == ItemDevicePixelRatioHasChanged) {
+        update();
+    }
+
+    QQuickItem::itemChange(type, data);
+}
+
+void WRenderBufferBlitter::geometryChange(const QRectF &newGeometry, const QRectF &oldGeometry)
+{
+    QQuickItem::geometryChange(newGeometry, oldGeometry);
+
+    W_D(WRenderBufferBlitter);
+    d->content->setSize(newGeometry.size());
+    d->container->setSize(newGeometry.size());
+}
+
+void WRenderBufferBlitter::releaseResources()
+{
+    W_D(WRenderBufferBlitter);
+    if (d->tp) {
+        QQuickWindowQObjectCleanupJob::schedule(window(), d->tp);
+        d->tp = nullptr;
+    }
+}
+
+WAYLIB_SERVER_END_NAMESPACE
+
+#include "moc_wrenderbufferblitter.cpp"

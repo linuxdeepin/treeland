@@ -85,6 +85,7 @@ set(QTQUICK_SOURCES
     qtquick/wrenderhelper.cpp
     qtquick/wquicktextureproxy.cpp
     qtquick/woutputlayer.cpp
+    qtquick/wrenderbufferblitter.cpp
 
     qtquick/private/wquickxdgshell.cpp
     qtquick/private/wquickbackend.cpp
@@ -106,6 +107,7 @@ set(QTQUICK_SOURCES
     qtquick/private/winputmethodhelper.cpp
     qtquick/private/wquickforeigntoplevelmanagerv1.cpp
     qtquick/private/wbufferrenderer.cpp
+    qtquick/private/wrenderbuffernode.cpp
 
     ${CMAKE_CURRENT_BINARY_DIR}/text-input-unstable-v1-protocol.c
 )
@@ -172,6 +174,7 @@ set(HEADERS
     qtquick/wrenderhelper.h
     qtquick/wquicktextureproxy.h
     qtquick/woutputlayer.h
+    qtquick/wrenderbufferblitter.h
 
     utils/wtools.h
     utils/wthreadutils.h
@@ -201,6 +204,7 @@ set(PRIVATE_HEADERS
     qtquick/private/winputmethodhelper_p.h
     qtquick/private/wquickforeigntoplevelmanagerv1_p.h
     qtquick/private/wbufferrenderer_p.h
+    qtquick/private/wrenderbuffernode_p.h
 
     ${CMAKE_CURRENT_BINARY_DIR}/text-input-unstable-v1-protocol.h
 )

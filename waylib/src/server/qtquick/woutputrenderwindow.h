@@ -18,6 +18,7 @@ WAYLIB_SERVER_BEGIN_NAMESPACE
 class WWaylandCompositor;
 class WOutputViewport;
 class WOutputLayer;
+class WBufferRenderer;
 class WOutputRenderWindowPrivate;
 class WAYLIB_SERVER_EXPORT WOutputRenderWindow : public QQuickWindow, public QQmlParserStatus
 {
@@ -49,6 +50,7 @@ public:
 
     qreal width() const;
     qreal height() const;
+    WBufferRenderer *currentRenderer() const;
 
 public Q_SLOTS:
     void render();

@@ -61,8 +61,11 @@ public:
     bool cacheBuffer() const;
     void setCacheBuffer(bool newCacheBuffer);
 
+    QSGRenderer *currentRenderer() const;
+    const QMatrix4x4 &currentWorldTransform() const;
     QW_NAMESPACE::QWBuffer *currentBuffer() const;
     QW_NAMESPACE::QWBuffer *lastBuffer() const;
+    QRhiTexture *currentRenderTarget() const;
     const QW_NAMESPACE::QWDamageRing *damageRing() const;
     QW_NAMESPACE::QWDamageRing *damageRing();
 
@@ -77,7 +80,7 @@ Q_SIGNALS:
 protected:
     QW_NAMESPACE::QWBuffer *beginRender(const QSize &pixelSize, qreal devicePixelRatio,
                                         uint32_t format, RenderFlags flags = {});
-    void render(int sourceIndex, QMatrix4x4 renderMatrix, bool preserveColorContents = false);
+    void render(int sourceIndex, const QMatrix4x4 &renderMatrix, bool preserveColorContents = false);
     void endRender();
     void componentComplete() override;
 
@@ -114,6 +117,8 @@ private:
     struct RenderState {
         RenderFlags flags;
         QSGRenderContext *context;
+        QSGRenderer *renderer;
+        QMatrix4x4 worldTransform;
         QSize pixelSize;
         qreal devicePixelRatio;
         int bufferAge;

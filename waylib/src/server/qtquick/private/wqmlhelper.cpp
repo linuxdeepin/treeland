@@ -5,6 +5,8 @@
 
 #include <QQuickItem>
 #include <QCursor>
+#include <QSGNode>
+#include <private/qquickitem_p.h>
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
@@ -100,6 +102,18 @@ Qt::Edges WQmlHelper::getEdges(const QRectF &rect, const QPointF &pos, qreal edg
         return Qt::TopEdge;
 
     return Qt::BottomEdge;
+}
+
+QSGRootNode *WQmlHelper::getRootNode(QQuickItem *item)
+{
+    const auto d = QQuickItemPrivate::get(item);
+    QSGNode *root = d->itemNode();
+    if (!root)
+        return nullptr;
+
+    while (root->firstChild() && root->type() != QSGNode::RootNodeType)
+        root = root->firstChild();
+    return root->type() == QSGNode::RootNodeType ? static_cast<QSGRootNode*>(root) : nullptr;
 }
 
 WAYLIB_SERVER_END_NAMESPACE

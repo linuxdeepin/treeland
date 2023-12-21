@@ -1,0 +1,935 @@
+// Copyright (C) 2023 JiDe Zhang <zhangjide@deepin.org>.
+// SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
+
+#include "wrenderbuffernode_p.h"
+#include "wbufferrenderer_p.h"
+#include "wqmlhelper_p.h"
+
+#include <QQuickItem>
+#include <QRunnable>
+#include <QSGImageNode>
+#include <private/qquickitem_p.h>
+#include <private/qsgplaintexture_p.h>
+#include <private/qrhi_p.h>
+#include <private/qrhivulkan_p.h>
+#include <private/qsgrenderer_p.h>
+#include <private/qsgdefaultrendercontext_p.h>
+#include <private/qsgrhisupport_p.h>
+#include <private/qquickrendercontrol_p.h>
+
+#include <algorithm>
+
+WAYLIB_SERVER_BEGIN_NAMESPACE
+
+class Q_DECL_HIDDEN DataManagerBase : public QObject
+{
+public:
+    mutable QAtomicInt ref;
+
+    explicit DataManagerBase(QQuickWindow *owner)
+        : QObject(owner) {}
+};
+
+template <class T>
+class Q_DECL_HIDDEN DataManagerPointer
+{
+    static_assert(std::is_base_of<DataManagerBase, T>::value);
+public:
+    DataManagerPointer() noexcept = default;
+    constexpr DataManagerPointer(std::nullptr_t) noexcept : DataManagerPointer{} {}
+    inline DataManagerPointer(T *p) : pointer(p) {
+        if (pointer)
+            pointer->ref.ref();
+    }
+
+    DataManagerPointer(DataManagerPointer<T> &&other) noexcept
+        : pointer(std::exchange(other.pointer, nullptr)) {}
+
+    DataManagerPointer(const DataManagerPointer<T> &other) noexcept
+        : pointer(other.pointer) {
+        ref();
+    }
+
+    DataManagerPointer &operator=(const DataManagerPointer<T> &other) noexcept
+    {
+        deref();
+        pointer = other.pointer;
+        ref();
+        return *this;
+    }
+
+    DataManagerPointer &operator=(DataManagerPointer<T> &&other) noexcept
+    {
+        pointer = std::exchange(other.pointer, nullptr);
+        return *this;
+    }
+
+    ~DataManagerPointer() {
+        deref();
+    }
+
+    inline DataManagerPointer<T> &operator=(T* p) {
+        deref();
+        pointer = p;
+        ref();
+        return *this;
+    }
+
+    T* data() const noexcept
+    { return pointer; }
+    T* get() const noexcept
+    { return data(); }
+    T* operator->() const noexcept
+    { return data(); }
+    T& operator*() const noexcept
+    { return *data(); }
+    operator T*() const noexcept
+    { return data(); }
+
+    bool isNull() const noexcept
+    { return pointer.isNull(); }
+
+    bool operator==(T *other) const noexcept
+    { return pointer == other; }
+    bool operator!=(T *other) const noexcept
+    { return pointer != other; }
+
+private:
+    void deref() {
+        if (!pointer)
+            return;
+        pointer->ref.deref();
+        if (pointer->ref == 0) {
+            pointer->DataManagerBase::deleteLater();
+            pointer.clear();
+        }
+    }
+
+    void ref() {
+        if (pointer)
+            pointer->ref.ref();
+    }
+
+    QPointer<T> pointer;
+};
+
+template <class Derive, class DataType, typename... DataKeys>
+class Q_DECL_HIDDEN DataManager : public DataManagerBase
+{
+public:
+    struct Data {
+        int released = 0;
+        DataType *data = nullptr;
+    };
+
+    static DataManagerPointer<Derive> get(QQuickWindow *owner) {
+        return owner->findChild<Derive*>({}, Qt::FindDirectChildrenOnly);
+    }
+
+    static DataManagerPointer<Derive> resolve(const DataManagerPointer<Derive> &other, QQuickWindow *owner) {
+        static_assert(&Derive::metaObject);
+        Q_ASSERT(owner);
+        if (other && other->owner() == owner)
+            return other;
+        {
+            Derive *other = get(owner);
+            if (!other)
+                other = new Derive(owner);
+            return other;
+        }
+    }
+
+    inline QQuickWindow *owner() const {
+        return static_cast<QQuickWindow*>(parent());
+    }
+
+    Data *resolve(Data *data, DataKeys&&... keys) {
+        if (data && get()->check(data->data, std::forward<DataKeys>(keys)...)
+            && dataList.contains(data)) {
+            return data;
+        }
+        if (data)
+            release(data);
+
+        for (auto data : dataList) {
+            if (get()->check(data->data, std::forward<DataKeys>(keys)...)) {
+                data->released = 0;
+                return data;
+            }
+        }
+
+        data = new Data();
+        if (data->data = get()->create(std::forward<DataKeys>(keys)...)) {
+            dataList.append(data);
+            return data;
+        }
+
+        delete data;
+        return nullptr;
+    }
+
+    inline void release(Data *data) {
+        data->released++;
+        ensureCleanJob();
+    }
+
+protected:
+    struct CleanJob : public QRunnable {
+        CleanJob(DataManager *manager)
+            : manager(manager) {}
+
+        void run() override {
+            if (!manager)
+                return;
+
+            manager->cleanJob = nullptr;
+
+            QList<Data*> tmp;
+            std::swap(manager->dataList, tmp);
+            manager->dataList.reserve(tmp.size());
+
+            for (Data *data : tmp) {
+                if (data->released > 2) {
+                    manager->get()->destroy(data->data);
+                    delete data;
+                } else {
+                    manager->dataList << data;
+
+                    if (data->released > 0) {
+                        data->released++;
+                        manager->ensureCleanJob();
+                    }
+                }
+            }
+        }
+
+        QPointer<DataManager> manager;
+    };
+
+    inline void ensureCleanJob() {
+        if (!cleanJob) {
+            cleanJob = new CleanJob(this);
+            owner()->scheduleRenderJob(cleanJob, QQuickWindow::AfterRenderingStage);
+        }
+    }
+
+    inline const Derive *get() const {
+        return static_cast<const Derive*>(this);
+    }
+
+    inline Derive *get() {
+        return static_cast<Derive*>(this);
+    }
+
+    DataManager(QQuickWindow *owner)
+        : DataManagerBase(owner) {
+        Q_ASSERT(owner->findChildren<Derive*>(Qt::FindDirectChildrenOnly).size() == 0);
+    }
+
+    using QObject::deleteLater;
+    ~DataManager() {
+        for (auto data : dataList) {
+            Derive::destroy(data->data);
+            delete data;
+        }
+    }
+
+    QList<Data*> dataList;
+    QRunnable *cleanJob = nullptr;
+};
+
+class Q_DECL_HIDDEN RhiTextureManager : public DataManager<RhiTextureManager, QRhiTexture, QRhiTexture::Format, const QSize&>
+{
+    Q_OBJECT
+
+    friend class DataManager;
+
+    RhiTextureManager(QQuickWindow *owner)
+        : DataManager<RhiTextureManager, QRhiTexture, QRhiTexture::Format, const QSize&>(owner) {
+        Q_ASSERT(owner->findChildren<RhiTextureManager*>(Qt::FindDirectChildrenOnly).size() == 1);
+    }
+
+    static bool check(QRhiTexture *texture, QRhiTexture::Format format, const QSize &size) {
+        return texture->format() == format && texture->pixelSize() == size;
+    }
+
+    QRhiTexture *create(QRhiTexture::Format format, const QSize &size) {
+        auto texture = owner()->rhi()->newTexture(format, size, 1, QRhiTexture::RenderTarget);
+        if  (!texture->create()) {
+            delete texture;
+            return nullptr;
+        }
+
+        return texture;
+    }
+
+    static void destroy(QRhiTexture *texture) {
+        texture->deleteLater();
+    }
+};
+
+class Q_DECL_HIDDEN RhiManager : public DataManager<RhiManager, void>
+{
+    Q_OBJECT
+public:
+    QRhi *rhi() const {
+        return m_rhi->rhi;
+    }
+
+    QQuickGraphicsConfiguration graphicsConfiguration() const {
+        return m_rhi->gc;
+    }
+
+    void sync(const QSize &pixelSize, QSGRootNode *rootNode,
+              const QMatrix4x4 &matrix = {}, QSGRenderer *base = nullptr,
+              const QVector2D &dpr = {}) {
+        if (base) {
+            renderer->setDevicePixelRatio(base->devicePixelRatio());
+            renderer->setDeviceRect(base->deviceRect());
+            renderer->setViewportRect(base->viewportRect());
+            renderer->setProjectionMatrix(base->projectionMatrix());
+            renderer->setProjectionMatrixWithNativeNDC(base->projectionMatrixWithNativeNDC());
+        } else {
+            renderer->setDevicePixelRatio(1.0);
+            renderer->setDeviceRect(QRect(QPoint(0, 0), pixelSize));
+            renderer->setViewportRect(pixelSize);
+
+            QRectF rect(QPointF(0, 0), QSizeF(pixelSize.width() / dpr.x(),
+                                              pixelSize.height() / dpr.y()));
+            renderer->setProjectionMatrixToRect(rect, rhi()->isYUpInNDC()
+                                                          ? QSGRenderer::MatrixTransformFlipY
+                                                          : QSGRenderer::MatrixTransformFlag {});
+        }
+
+        if (!matrix.isIdentity()) {
+            renderer->setProjectionMatrix(renderer->projectionMatrix() * matrix);
+            renderer->setProjectionMatrixWithNativeNDC(renderer->projectionMatrixWithNativeNDC() * matrix);
+        }
+
+        if (renderer->rootNode() == rootNode) {
+            rootNode->markDirty(QSGNode::DirtyForceUpdate);
+        } else {
+            renderer->setRootNode(rootNode);
+        }
+    }
+
+    bool render(QRhiRenderTarget *rt) {
+        QRhiCommandBuffer *cb = nullptr;
+        if (rhi()->beginOffscreenFrame(&cb) != QRhi::FrameOpSuccess)
+            return false;
+        Q_ASSERT(cb);
+
+        renderer->setRenderTarget({ rt, rt->renderPassDescriptor(), cb });
+        auto dc = static_cast<QSGDefaultRenderContext*>(context);
+        const qreal oldDPR = dc->currentDevicePixelRatio();
+        auto const oldCB = dc->currentFrameCommandBuffer();
+        context->prepareSync(renderer->devicePixelRatio(), cb, graphicsConfiguration());
+        context->renderNextFrame(renderer);
+        context->prepareSync(oldDPR, oldCB, graphicsConfiguration());
+
+        return rhi()->endOffscreenFrame() == QRhi::FrameOpSuccess;
+    }
+
+    QSGRenderContext *context;
+    QSGRenderer *renderer;
+
+private:
+    friend class DataManager;
+
+    RhiManager(QQuickWindow *owner)
+        : DataManager<RhiManager, void>(owner) {
+        Q_ASSERT(owner->findChildren<RhiManager*>(Qt::FindDirectChildrenOnly).size() == 1);
+        auto rhi = QSGRhiSupport::instance()->createRhi(owner, owner);
+        if (!rhi.rhi)
+            return;
+        Q_ASSERT(rhi.rhi->backend() == owner->rhi()->backend());
+        m_rhi.reset(new Rhi());
+        m_rhi->rhi = rhi.rhi;
+        m_rhi->own = rhi.own;
+        m_rhi->gc = owner->graphicsConfiguration();
+
+        context = QQuickWindowPrivate::get(owner)->context;
+        renderer = context->createRenderer(QSGRendererInterface::RenderMode2DNoDepthBuffer);
+    }
+
+    ~RhiManager() {
+        delete renderer;
+    }
+
+    static bool check() {
+        Q_UNREACHABLE();
+        return true;
+    }
+
+    static void *create() {
+        Q_UNREACHABLE();
+        return nullptr;
+    }
+
+    static void destroy(void*) {
+        Q_UNREACHABLE();
+    }
+
+    struct Rhi {
+        QRhi *rhi;
+        bool own;
+        QQuickGraphicsConfiguration gc;
+
+        static inline void cleanup(Rhi *pointer) {
+            if (!pointer || !pointer->own)
+                return;
+
+            auto rhiSupport = QSGRhiSupport::instance();
+            if (rhiSupport)
+                rhiSupport->destroyRhi(pointer->rhi, pointer->gc);
+            else
+                delete pointer->rhi;
+        }
+    };
+    QScopedPointer<Rhi> m_rhi;
+};
+
+static QSizeF mapSize(const QRectF &source, const QMatrix4x4 &matrix)
+{
+    auto topLeft = matrix.map(source.topLeft());
+    auto bottomLeft = matrix.map(source.bottomLeft());
+    auto topRight = matrix.map(source.topRight());
+    auto bottomRight = matrix.map(source.bottomRight());
+
+    const qreal width1 = std::sqrt(std::pow(topRight.x() - topLeft.x(), 2)
+                                   + std::pow(topRight.y() - topLeft.y(), 2));
+    const qreal width2 = std::sqrt(std::pow(bottomRight.x() - bottomLeft.x(), 2)
+                                   + std::pow(bottomRight.y() - bottomLeft.y(), 2));
+    const qreal height1 = std::sqrt(std::pow(bottomLeft.x() - topLeft.x(), 2)
+                                    + std::pow(bottomLeft.y() - topLeft.y(), 2));
+    const qreal height2 = std::sqrt(std::pow(bottomRight.x() - topRight.x(), 2)
+                                    + std::pow(bottomRight.y() - topRight.y(), 2));
+
+    QSizeF size;
+    size.setWidth(std::max(width1, width2));
+    size.setHeight(std::max(height1, height2));
+
+    return size;
+}
+
+class Q_DECL_HIDDEN RhiNode : public WRenderBufferNode {
+public:
+    RhiNode(QQuickItem *item)
+        : WRenderBufferNode(item, new Texture)
+    {
+
+    }
+
+    ~RhiNode() {
+        destroy();
+    }
+
+    StateFlags changedStates() const override {
+        return renderData
+                   ? RenderTargetState | ViewportState | BlendState | ScissorState | DepthState
+                   : RenderTargetState;
+    }
+
+    void releaseResources() override {
+        destroy();
+    }
+
+    QRhiTexture *currentRenderTexture() const {
+        auto rt = renderTarget();
+        if (rt->resourceType() != QRhiResource::TextureRenderTarget)
+            return nullptr;
+        auto rhiRT = static_cast<QRhiTextureRenderTarget*>(rt);
+        auto rtDesc = rhiRT->description();
+        if (rtDesc.colorAttachmentCount() < 1)
+            return nullptr;
+        return rtDesc.colorAttachmentAt(0)->texture();
+    }
+
+    inline WBufferRenderer *maybeBufferRenderer() const {
+        const auto currentRenderer = renderWindow()->currentRenderer();
+        if (!currentRenderer || !currentRenderer->currentRenderer())
+            return nullptr;
+        return renderTarget() == currentRenderer->currentRenderer()->renderTarget().rt
+                   ? currentRenderer
+                   : nullptr;
+    }
+
+    void prepare() override {
+        if (Q_UNLIKELY(!m_item || !m_item->window())) {
+            reset();
+            return;
+        }
+
+        auto window = renderWindow();
+        auto ct = currentRenderTexture();
+        if (!ct) {
+            reset();
+            return;
+        }
+
+        const auto currentRenderer = maybeBufferRenderer();
+        // TODO: Apple viewport to matrix, needs get QSGRenderer
+        renderMatrix = currentRenderer
+                           ? currentRenderer->currentWorldTransform() * (*this->matrix())
+                           : *this->matrix();
+        devicePixelRatio = effectiveDevicePixelRatio();
+        const auto oldManager = manager;
+        manager = RhiTextureManager::resolve(manager, window);
+
+        if (oldManager != manager) {
+            sgTexture()->setTexture(nullptr);
+            if (oldManager && texture)
+                oldManager->release(texture);
+        }
+
+        Q_ASSERT(ct->rhi() == window->rhi());
+        rhi = rhi->resolve(rhi, window);
+        Q_ASSERT(rhi);
+
+        const bool hasRotation = renderMatrix.flags().testAnyFlags(QMatrix4x4::Rotation2D | QMatrix4x4::Rotation);
+        QSize pixelSize;
+
+        if (hasRotation) {
+            const QSizeF size = mapSize(m_rect, renderMatrix) * devicePixelRatio;
+            if (size.isEmpty()) {
+                reset();
+                return;
+            }
+
+            pixelSize = size.toSize();
+
+            if (!renderData) {
+                renderData.reset(new RenderData);
+
+                renderData->imageNode = rhi->context->sceneGraphContext()->createImageNode();
+                renderData->imageNode->setFlag(QSGNode::OwnedByParent);
+                renderData->imageNode->setOwnsTexture(false);
+                renderData->texture.setOwnsTexture(false);
+                renderData->imageNode->setTexture(&renderData->texture);
+
+                renderData->rootNode = new QSGRootNode;
+                renderData->rootNode->appendChildNode(renderData->imageNode);
+            }
+        } else {
+            renderData.reset();
+
+            QSizeF size = renderMatrix.mapRect(m_rect).size() * devicePixelRatio;
+            if (!size.isValid()) {
+                reset();
+                return;
+            }
+
+            pixelSize = size.toSize();
+        }
+
+        texture = manager->resolve(texture, ct->format(), pixelSize);
+        if (Q_UNLIKELY(!texture)) {
+            reset();
+            return;
+        }
+        Q_ASSERT(texture->data);
+
+        if (renderData) {
+            if (!renderData->rt || sgTexture()->rhiTexture() != texture->data) {
+                QRhiTextureRenderTargetDescription rtDesc(texture->data);
+                const auto flags = QRhiTextureRenderTarget::PreserveColorContents;
+                auto newRT = rhi->rhi()->newTextureRenderTarget(rtDesc, flags);
+                newRT->setRenderPassDescriptor(newRT->newCompatibleRenderPassDescriptor());
+                if (!newRT->create()) {
+                    delete newRT;
+                    return;
+                }
+
+                renderData->rt.reset(newRT);
+            }
+        }
+    }
+
+    void render(const RenderState *state) override {
+        Q_UNUSED(state)
+
+        if (Q_UNLIKELY(!texture))
+            return;
+
+        auto ct = currentRenderTexture();
+        Q_ASSERT(ct);
+
+        if (renderData) {
+            renderData->texture.setTexture(ct);
+            renderData->texture.setTextureSize(ct->pixelSize());
+
+            const QPointF sourcePos = renderMatrix.map(m_rect.topLeft());
+            renderData->imageNode->setRect(QRectF(-(devicePixelRatio - 1) * sourcePos, ct->pixelSize()));
+            rhi->sync(texture->data->pixelSize(), renderData->rootNode, renderMatrix.inverted(), nullptr,
+                      {texture->data->pixelSize().width() / float(m_rect.width() * devicePixelRatio),
+                       texture->data->pixelSize().height() / float(m_rect.height() * devicePixelRatio)});
+            rhi->render(renderData->rt.get());
+        } else {
+            auto rhi = this->rhi->rhi();
+            QPointF sourcePos = renderMatrix.map(m_rect.topLeft()) * devicePixelRatio;
+
+            auto rub = rhi->nextResourceUpdateBatch();
+            QRhiTextureCopyDescription desc;
+            desc.setPixelSize(texture->data->pixelSize());
+            desc.setSourceTopLeft(sourcePos.toPoint());
+            rub->copyTexture(texture->data, ct, desc);
+
+            QRhiCommandBuffer *cb = nullptr;
+            if (rhi->beginOffscreenFrame(&cb) != QRhi::FrameOpSuccess)
+                return;
+            Q_ASSERT(cb);
+
+            // TODO: needs vkCmdPipelineBarrier?
+            cb->resourceUpdate(rub);
+            rhi->endOffscreenFrame();
+        }
+
+        if (sgTexture()->rhiTexture() != texture->data)
+            sgTexture()->setTexture(texture->data);
+        doNotifyTextureChanged();
+
+        if (m_content) {
+            auto rootNode = WQmlHelper::getRootNode(m_content);
+            if (!rootNode)
+                return;
+
+            Q_ASSERT(renderTarget()->resourceType() == QRhiResource::TextureRenderTarget);
+            auto textureRT = static_cast<QRhiTextureRenderTarget*>(renderTarget());
+            auto saveFlags = textureRT->flags();
+            textureRT->setFlags(QRhiTextureRenderTarget::PreserveColorContents);
+
+            auto currentRenderer = maybeBufferRenderer();
+            rhi->sync(ct->pixelSize(), rootNode, *this->matrix(),
+                        currentRenderer ? currentRenderer->currentRenderer() : nullptr);
+            rhi->render(textureRT);
+            textureRT->setFlags(saveFlags);
+        }
+    }
+
+private:
+    void reset(bool notifyTexture = true) {
+        if (renderData)
+            renderData->rt.reset();
+
+        if (!sgTexture()->rhiTexture() && notifyTexture)
+            doNotifyTextureChanged();
+        sgTexture()->setTexture(nullptr);
+        if (texture && manager)
+            manager->release(texture);
+        texture = nullptr;
+    }
+
+    void destroy() {
+        reset(false);
+        renderData.reset();
+        manager = nullptr;
+        texture = nullptr;
+    }
+
+    DataManagerPointer<RhiTextureManager> manager;
+    RhiTextureManager::Data *texture = nullptr;
+    DataManagerPointer<RhiManager> rhi;
+    QMatrix4x4 renderMatrix;
+    qreal devicePixelRatio;
+
+    struct RenderData {
+        struct QRhiTextureRenderTargetDeleter {
+            inline void operator()(QRhiTextureRenderTarget *pointer) const {
+                if (pointer) {
+                    delete pointer->renderPassDescriptor();
+                    pointer->setRenderPassDescriptor(nullptr);
+                    pointer->deleteLater();
+                }
+            }
+        };
+
+        std::unique_ptr<QRhiTextureRenderTarget, QRhiTextureRenderTargetDeleter> rt;
+        QSGRootNode *rootNode;
+        QSGImageNode *imageNode;
+        QSGPlainTexture texture;
+    };
+
+    std::unique_ptr<RenderData> renderData;
+
+    struct Texture : public QSGDynamicTexture {
+        void setTexture(QRhiTexture *texture) {
+            if (texture)
+                m_textureSize = texture->pixelSize();
+            m_texture = texture;
+        }
+
+        bool updateTexture() override {
+            return true;
+        }
+
+        qint64 comparisonKey() const override {
+            if (m_texture)
+                return qint64(m_texture);
+
+            return qint64(this);
+        }
+
+        QRhiTexture *rhiTexture() const override {
+            return m_texture;
+        }
+
+        QSize textureSize() const override {
+            return m_textureSize;
+        }
+
+        bool hasAlphaChannel() const override {
+            return true;
+        }
+
+        bool hasMipmaps() const {
+            return mipmapFiltering() != QSGTexture::None;
+        }
+
+        QRhiTexture *m_texture = nullptr;
+        QSize m_textureSize;
+    };
+
+    inline Texture *sgTexture() const {
+        return static_cast<Texture*>(m_texture.get());
+    }
+};
+
+QSGTexture *WRenderBufferNode::texture() const
+{
+    return m_texture.data();
+}
+
+WRenderBufferNode *WRenderBufferNode::createRhiNode(QQuickItem *item)
+{
+    auto node = new RhiNode(item);
+    return node;
+}
+
+class Q_DECL_HIDDEN QImageManager : public DataManager<QImageManager, QImage, QImage::Format, const QSize&>
+{
+    Q_OBJECT
+
+    friend class DataManager;
+
+    QImageManager(QQuickWindow *owner)
+        : DataManager<QImageManager, QImage, QImage::Format, const QSize&>(owner) {
+        Q_ASSERT(owner->findChildren<QImageManager*>(Qt::FindDirectChildrenOnly).size() == 1);
+    }
+
+    static bool check(QImage *image, QImage::Format format, const QSize &size) {
+        return image->format() == format && image->size() == size;
+    }
+
+    QImage *create(QImage::Format format, const QSize &size) {
+        return new QImage(size, format);
+    }
+
+    static void destroy(QImage *image) {
+        delete image;
+    }
+};
+
+class Q_DECL_HIDDEN SoftwareNode : public WRenderBufferNode {
+public:
+    SoftwareNode(QQuickItem *item)
+        : WRenderBufferNode(item, new QSGPlainTexture)
+    {
+        texture()->setOwnsTexture(false);
+        // Ensuse always render on software renderer
+        texture()->setHasAlphaChannel(true);
+    }
+
+    ~SoftwareNode() {
+        destroy();
+    }
+
+    void releaseResources() override {
+        destroy();
+    }
+
+    QImage toImage() const override
+    {
+        return image ? *image->data : QImage();
+    }
+
+    void render(const RenderState *state) override {
+        Q_UNUSED(state)
+        auto window = renderWindow();
+        if (!window)
+            return;
+        QSGRendererInterface *rif = window->rendererInterface();
+        QPainter *p = static_cast<QPainter *>(rif->getResource(window,
+                                                               QSGRendererInterface::PainterResource));
+        Q_ASSERT(p);
+
+        // const auto currentRenderer = window->currentRenderer();
+        // const auto sgRenderer = currentRenderer ? currentRenderer->currentRenderer() : nullptr;
+        const auto matrix = /*(sgRenderer && sgRenderer->renderTarget().paintDevice == p->device())
+            ? currentRenderer->currentWorldTransform() * (*this->matrix()) :*/ *this->matrix();
+        const auto oldManager = manager;
+        manager = QImageManager::resolve(manager, window);
+
+        if (oldManager != manager) {
+            texture()->setTexture(nullptr);
+            if (oldManager && image)
+                oldManager->release(image);
+        }
+
+        const bool hasRotation = matrix.flags().testAnyFlags(QMatrix4x4::Rotation2D | QMatrix4x4::Rotation);
+        QSizeF size;
+
+        if (hasRotation) {
+            size = mapSize(m_rect, matrix);
+        } else {
+            size = matrix.mapRect(m_rect).size();
+        }
+
+        if (size.isEmpty()) {
+            reset();
+            return;
+        }
+
+        const qreal dpr = effectiveDevicePixelRatio();
+        size *= dpr;
+        const QSize pixelSize = size.toSize();
+        const auto device = p->device();
+
+        QImage sourceImage;
+        QPixmap sourcePixmap;
+
+        if (Q_LIKELY(device->devType() == QInternal::CustomRaster)) {
+            auto rt = static_cast<WImageRenderTarget*>(device);
+            sourceImage = rt->operator const QImage &();
+        } else if (device->devType() == QInternal::Image) {
+            sourceImage = *static_cast<QImage*>(device);
+        } else if (device->devType() == QInternal::Pixmap) {
+            sourcePixmap = *static_cast<QPixmap*>(device);
+        } else {
+            return;
+        }
+
+        if (Q_UNLIKELY(sourceImage.isNull())) {
+            image = manager->resolve(image, QImage::Format_RGB30, pixelSize);
+        } else {
+            image = manager->resolve(image, sourceImage.format(), pixelSize);
+        }
+
+        painter.begin(image->data);
+        painter.setRenderHint(QPainter::SmoothPixmapTransform);
+        painter.setCompositionMode(QPainter::CompositionMode_Source);
+        auto transform = matrix.toTransform().inverted();
+        QTransform resetPos;
+        resetPos.translate((dpr - 1) * transform.dx(),
+                           (dpr - 1) * transform.dy());
+        painter.setTransform(transform * resetPos);
+
+        // TODO: copy damage area from the previous frame
+        if (Q_UNLIKELY(sourceImage.isNull())) {
+            painter.drawPixmap(sourcePixmap.rect(), sourcePixmap, sourcePixmap.rect());
+        } else {
+            painter.drawImage(sourceImage.rect(), sourceImage, sourceImage.rect());
+        }
+
+        painter.end();
+
+        texture()->setImage(*image->data);
+        // Ensuse always render on software renderer
+        texture()->setHasAlphaChannel(true);
+        doNotifyTextureChanged();
+    }
+
+private:
+    inline QSGPlainTexture *texture() const {
+        return static_cast<QSGPlainTexture*>(m_texture.get());
+    }
+
+    void reset(bool notifyTexture = true) {
+        if (!texture()->image().isNull() && notifyTexture)
+            doNotifyTextureChanged();
+        texture()->setTexture(nullptr);
+        if (image && manager)
+            manager->release(image);
+        image = nullptr;
+    }
+
+    void destroy() {
+        reset(false);
+        manager = nullptr;
+        image = nullptr;
+    }
+
+    friend class WRenderBufferNode;
+    DataManagerPointer<QImageManager> manager;
+    QImageManager::Data *image = nullptr;
+    QPainter painter;
+};
+
+WRenderBufferNode *WRenderBufferNode::createSoftwareNode(QQuickItem *item)
+{
+    auto node = new SoftwareNode(item);
+    return node;
+}
+
+QRectF WRenderBufferNode::rect() const
+{
+    return QRectF(0, 0, m_item->width(), m_item->height());
+}
+
+WRenderBufferNode::RenderingFlags WRenderBufferNode::flags() const
+{
+    return BoundedRectRendering;
+}
+
+void WRenderBufferNode::resize(const QSizeF &size)
+{
+    if (m_size == size)
+        return;
+    m_size = size;
+    m_rect = QRectF(QPointF(0, 0), m_size);
+}
+
+void WRenderBufferNode::setContentItem(QQuickItem *item)
+{
+    if (m_content == item)
+        return;
+    m_content = item;
+    markDirty(DirtyMaterial);
+}
+
+void WRenderBufferNode::setTextureChangedCallback(TextureChangedNotifer callback, void *data)
+{
+    m_renderCallback = callback;
+    m_callbackData = data;
+}
+
+WOutputRenderWindow *WRenderBufferNode::renderWindow() const
+{
+    Q_ASSERT(m_item);
+    auto rw = qobject_cast<WOutputRenderWindow*>(m_item->window());
+    Q_ASSERT(rw);
+    return rw;
+}
+
+qreal WRenderBufferNode::effectiveDevicePixelRatio() const
+{
+    auto window = renderWindow();
+    auto renderer = window->currentRenderer();
+    if (!renderer)
+        return window->effectiveDevicePixelRatio();
+    auto sgRenderer = renderer->currentRenderer();
+    if (!sgRenderer || sgRenderer->renderTarget().rt != renderTarget())
+        return window->effectiveDevicePixelRatio();
+
+    return sgRenderer->devicePixelRatio();
+}
+
+WRenderBufferNode::WRenderBufferNode(QQuickItem *item, QSGTexture *texture)
+    : m_item(item)
+    , m_texture(texture)
+{
+
+}
+
+WAYLIB_SERVER_END_NAMESPACE
+
+#include "wrenderbuffernode.moc"
