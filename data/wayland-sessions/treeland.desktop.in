@@ -4,5 +4,5 @@ Comment=This session is DDE single wayland
 Exec=${CMAKE_INSTALL_FULL_LIBEXECDIR}/treeland-fake-session
 TryExec=${CMAKE_INSTALL_FULL_LIBEXECDIR}/treeland-fake-session
 Type=Application
-DesktopNames=TreeLand
+DesktopNames=DDE
 X-DDE-SINGLE-WAYLAND=true
