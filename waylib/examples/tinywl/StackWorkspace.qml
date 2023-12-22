@@ -303,7 +303,7 @@ Item {
                     outputCounter++
 
                     if (outputCounter == 1) {
-                        let outputDelegate = getOutputDelegateFromWaylandOutput(output)
+                        let outputDelegate = output.OutputItem.item
                         xwaylandSurfaceItem.x = outputDelegate.x
                                 + Helper.getLeftExclusiveMargin(waylandSurface)
                                 + 10

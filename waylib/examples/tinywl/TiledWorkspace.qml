@@ -22,15 +22,8 @@ Item {
         if (toplevel) {
             return {
                 shell: toplevel,
-                item: toplevel
-            }
-        }
-
-        let layer = QmlHelper.layerSurfaceManager.getIf(layerComponent, finder)
-        if (layer) {
-            return {
-                shell: layer,
-                item: layer.surfaceItem
+                item: toplevel,
+                type: "toplevel"
             }
         }
 
@@ -38,7 +31,26 @@ Item {
         if (popup) {
             return {
                 shell: popup,
-                item: popup.xdgSurface
+                item: popup.xdgSurface,
+                type: "popup"
+            }
+        }
+
+        let layer = QmlHelper.layerSurfaceManager.getIf(layerComponent, finder)
+        if (layer) {
+            return {
+                shell: layer,
+                item: layer.surfaceItem,
+                type: "layer"
+            }
+        }
+
+        let xwayland = QmlHelper.xwaylandSurfaceManager.getIf(xwaylandComponent, finder)
+        if (xwayland) {
+            return {
+                shell: xwayland,
+                item: xwayland,
+                type: "xwayland"
             }
         }
 
