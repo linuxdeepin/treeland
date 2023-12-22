@@ -362,13 +362,11 @@ Item {
                     id: stackLayout
                     visible: true
                     anchors.fill: parent
-                    activeFocusItem: renderWindow.activeFocusItem
                 }
 
                 TiledWorkspace {
                     visible: !stackLayout.visible
                     anchors.fill: parent
-                    activeFocusItem: renderWindow.activeFocusItem
                 }
             }
         }
