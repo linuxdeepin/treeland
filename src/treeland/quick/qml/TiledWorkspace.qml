@@ -5,10 +5,13 @@ import QtQuick
 import QtQuick.Layouts
 import QtQuick.Controls
 import Waylib.Server
+import TreeLand
+import TreeLand.Protocols
+import TreeLand.Utils
 
 Item {
     id: root
-    required property Item activeFocusItem
+
     function getSurfaceItemFromWaylandSurface(surface) {
         let finder = function(props) {
             if (!props.waylandSurface)
@@ -22,15 +25,8 @@ Item {
         if (toplevel) {
             return {
                 shell: toplevel,
-                item: toplevel
-            }
-        }
-
-        let layer = QmlHelper.layerSurfaceManager.getIf(layerComponent, finder)
-        if (layer) {
-            return {
-                shell: layer,
-                item: layer.surfaceItem
+                item: toplevel,
+                type: "toplevel"
             }
         }
 
@@ -38,7 +34,26 @@ Item {
         if (popup) {
             return {
                 shell: popup,
-                item: popup.xdgSurface
+                item: popup.xdgSurface,
+                type: "popup"
+            }
+        }
+
+        let layer = QmlHelper.layerSurfaceManager.getIf(layerComponent, finder)
+        if (layer) {
+            return {
+                shell: layer,
+                item: layer.surfaceItem,
+                type: "layer"
+            }
+        }
+
+        let xwayland = QmlHelper.xwaylandSurfaceManager.getIf(xwaylandComponent, finder)
+        if (xwayland) {
+            return {
+                shell: xwayland,
+                item: xwayland,
+                type: "xwayland"
             }
         }
 
@@ -61,7 +76,7 @@ Item {
             }
 
             XdgSurface {
-                id: surface
+                id: toplevelSurfaceItem
 
                 property var doDestroy: helper.doDestroy
 
@@ -70,25 +85,32 @@ Item {
 
                 Layout.fillWidth: true
                 Layout.fillHeight: true
-                Layout.minimumWidth: Math.max(surface.minimumSize.width, 100)
-                Layout.minimumHeight: Math.max(surface.minimumSize.height, 50)
-                Layout.maximumWidth: surface.maximumSize.width
-                Layout.maximumHeight: surface.maximumSize.height
-                Component.onCompleted: {
-                    if (Layout.horizontalStretchFactor !== undefined) {
-                        // introduced in Qt 6.5
-                        Layout.horizontalStretchFactor = 1
+                Layout.minimumWidth: Math.max(toplevelSurfaceItem.minimumSize.width, 100)
+                Layout.minimumHeight: Math.max(toplevelSurfaceItem.minimumSize.height, 50)
+                Layout.maximumWidth: toplevelSurfaceItem.maximumSize.width
+                Layout.maximumHeight: toplevelSurfaceItem.maximumSize.height
+                Layout.horizontalStretchFactor: 1
+                Layout.verticalStretchFactor: 1
+
+                OutputLayoutItem {
+                    anchors.fill: parent
+                    layout: QmlHelper.layout
+
+                    onEnterOutput: function(output) {
+                        waylandSurface.surface.enterOutput(output)
+                        TreeLandHelper.onSurfaceEnterOutput(waylandSurface, toplevelSurfaceItem, output)
                     }
-                    if (Layout.verticalStretchFactor !== undefined) {
-                        Layout.verticalStretchFactor = 1
+                    onLeaveOutput: function(output) {
+                        waylandSurface.surface.leaveOutput(output)
+                        TreeLandHelper.onSurfaceLeaveOutput(waylandSurface, toplevelSurfaceItem, output)
                     }
                 }
 
                 TiledToplevelHelper {
                     id: helper
 
-                    surface: surface
-                    waylandSurface: surface.waylandSurface
+                    surface: toplevelSurfaceItem
+                    waylandSurface: toplevelSurfaceItem.waylandSurface
                     creator: toplevelComponent
                 }
             }
@@ -106,29 +128,77 @@ Item {
                 required property WaylandXdgSurface waylandSurface
                 property string type
 
-                property alias xdgSurface: surface
+                property alias xdgSurface: popupSurfaceItem
                 property var parentItem: root.getSurfaceItemFromWaylandSurface(waylandSurface.parentSurface)
 
-                parent: parentItem ? parentItem.shell : root
+                parent: parentItem ? parentItem.item : root
                 visible: parentItem && parentItem.item.effectiveVisible
                         && waylandSurface.surface.mapped && waylandSurface.WaylandSocket.rootSocket.enabled
                 x: {
-                    if (!parentItem)
-                        return surface.implicitPosition.x
-                    return surface.implicitPosition.x / parentItem.item.surfaceSizeRatio + parentItem.item.contentItem.x
+                    let retX = 0 // X coordinate relative to parent
+                    let minX = 0
+                    let maxX = root.width - xdgSurface.width
+                    if (!parentItem) {
+                        retX = popupSurfaceItem.implicitPosition.x
+                        if (retX > maxX)
+                            retX = maxX
+                        if (retX < minX)
+                            retX = minX
+                    } else {
+                        retX = popupSurfaceItem.implicitPosition.x / parentItem.item.surfaceSizeRatio + parentItem.item.contentItem.x
+                        let parentX = parent.mapToItem(root, 0, 0).x
+                        if (retX + parentX > maxX) {
+                            if (parentItem.type === "popup")
+                                retX = retX - xdgSurface.width - parent.width
+                            else
+                                retX = maxX - parentX
+                        }
+                        if (retX + parentX < minX)
+                            retX = minX - parentX
+                    }
+                    return retX
                 }
                 y: {
-                    if (!parentItem)
-                        return surface.implicitPosition.y
-                    return surface.implicitPosition.y / parentItem.item.surfaceSizeRatio + parentItem.item.contentItem.y
+                    let retY = 0 // Y coordinate relative to parent
+                    let minY = 0
+                    let maxY = root.height - xdgSurface.height
+                    if (!parentItem) {
+                        retY = popupSurfaceItem.implicitPosition.y
+                        if (retY > maxY)
+                            retY = maxY
+                        if (retY < minY)
+                            retY = minY
+                    } else {
+                        retY = popupSurfaceItem.implicitPosition.y / parentItem.item.surfaceSizeRatio + parentItem.item.contentItem.y
+                        let parentY = parent.mapToItem(root, 0, 0).y
+                        if (retY + parentY > maxY)
+                            retY = maxY - parentY
+                        if (retY + parentY < minY)
+                            retY = minY - parentY
+                    }
+                    return retY
                 }
                 padding: 0
                 background: null
                 closePolicy: Popup.CloseOnPressOutside
 
                 XdgSurface {
-                    id: surface
+                    id: popupSurfaceItem
                     waylandSurface: popup.waylandSurface
+
+                    OutputLayoutItem {
+                        anchors.fill: parent
+                        layout: QmlHelper.layout
+
+                        onEnterOutput: function(output) {
+                            waylandSurface.surface.enterOutput(output)
+                            TreeLandHelper.onSurfaceEnterOutput(waylandSurface, popupSurfaceItem, output)
+                        }
+                        onLeaveOutput: function(output) {
+                            waylandSurface.surface.leaveOutput(output)
+                            TreeLandHelper.onSurfaceLeaveOutput(waylandSurface, popupSurfaceItem, output)
+                        }
+                    }
                 }
 
                 onClosed: {
@@ -148,7 +218,7 @@ Item {
             }
 
             XWaylandSurfaceItem {
-                id: surface
+                id: xwaylandSurfaceItem
 
                 required property XWaylandSurface waylandSurface
                 property var doDestroy: helper.doDestroy
@@ -156,29 +226,38 @@ Item {
                 surface: waylandSurface
                 resizeMode: SurfaceItem.SizeToSurface
                 // TODO: Support popup/menu
-                positionMode: surface.effectiveVisible ? XWaylandSurfaceItem.PositionToSurface : XWaylandSurfaceItem.ManualPosition
+                positionMode: xwaylandSurfaceItem.effectiveVisible ? XWaylandSurfaceItem.PositionToSurface : XWaylandSurfaceItem.ManualPosition
                 z: (waylandSurface && waylandSurface.isActivated) ? 1 : 0
 
                 Layout.fillWidth: true
                 Layout.fillHeight: true
-                Layout.minimumWidth: Math.max(surface.minimumSize.width, 100)
-                Layout.minimumHeight: Math.max(surface.minimumSize.height, 50)
-                Layout.maximumWidth: surface.maximumSize.width
-                Layout.maximumHeight: surface.maximumSize.height
-                Component.onCompleted: {
-                    if (Layout.horizontalStretchFactor !== undefined) {
-                        // introduced in Qt 6.5
-                        Layout.horizontalStretchFactor = 1
+                Layout.minimumWidth: Math.max(xwaylandSurfaceItem.minimumSize.width, 100)
+                Layout.minimumHeight: Math.max(xwaylandSurfaceItem.minimumSize.height, 50)
+                Layout.maximumWidth: xwaylandSurfaceItem.maximumSize.width
+                Layout.maximumHeight: xwaylandSurfaceItem.maximumSize.height
+                Layout.horizontalStretchFactor: 1
+                Layout.verticalStretchFactor: 1
+
+                OutputLayoutItem {
+                    anchors.fill: parent
+                    layout: QmlHelper.layout
+
+                    onEnterOutput: function(output) {
+                        if (xwaylandSurfaceItem.waylandSurface.surface)
+                            xwaylandSurfaceItem.waylandSurface.surface.enterOutput(output);
+                        TreeLandHelper.onSurfaceEnterOutput(waylandSurface, xwaylandSurfaceItem, output)
                     }
-                    if (Layout.verticalStretchFactor !== undefined) {
-                        Layout.verticalStretchFactor = 1
+                    onLeaveOutput: function(output) {
+                        if (xwaylandSurfaceItem.waylandSurface.surface)
+                            xwaylandSurfaceItem.waylandSurface.surface.leaveOutput(output);
+                        TreeLandHelper.onSurfaceLeaveOutput(waylandSurface, xwaylandSurfaceItem, output)
                     }
                 }
 
                 TiledToplevelHelper {
                     id: helper
 
-                    surface: surface
+                    surface: xwaylandSurfaceItem
                     waylandSurface: surface.waylandSurface
                     creator: xwaylandComponent
                 }

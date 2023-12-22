@@ -10,7 +10,6 @@ import TreeLand.Utils
 
 Item {
     id: root
-    required property Item activeFocusItem
     function getSurfaceItemFromWaylandSurface(surface) {
         let finder = function(props) {
             if (!props.waylandSurface)
