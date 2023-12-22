@@ -273,9 +273,4 @@ OutputItem {
     function setScale(scale) {
         onscreenViewport.setOutputScale(scale)
     }
-
-    function setOutputPosition(x, y) {
-        rootOutputItem.x = x;
-        rootOutputItem.y = y;
-    }
 }

@@ -36,6 +36,7 @@ public:
 
     void setType(const char *name);
     void updateCursorImage();
+    void sendEnterEvent();
 
     // begin slot function
     void on_motion(wlr_pointer_motion_event *event);

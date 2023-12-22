@@ -257,6 +257,30 @@ void WCursorPrivate::updateCursorImage()
     }
 }
 
+const QPointingDevice *getDevice(const QString &seatName) {
+    for (auto i : QInputDevice::devices()) {
+        if (i->seatName() == seatName && (i->type() == QInputDevice::DeviceType::Mouse
+                                          || i->type() == QInputDevice::DeviceType::TouchPad))
+            return static_cast<const QPointingDevice*>(i);
+    }
+
+    return nullptr;
+}
+
+void WCursorPrivate::sendEnterEvent() {
+    W_Q(WCursor);
+
+    auto device = getDevice(seat->name());
+    Q_ASSERT(device && WInputDevice::from(device));
+
+    if (WInputDevice::from(device)->seat()) {
+        const QPointF global = q->position();
+        const QPointF local = global - eventWindow->position();
+        QEnterEvent event(local, local, global, device);
+        QCoreApplication::sendEvent(eventWindow, &event);
+    }
+}
+
 void WCursorPrivate::on_motion(wlr_pointer_motion_event *event)
 {
     auto device = QWPointer::from(event->pointer);
@@ -562,6 +586,10 @@ void WCursor::setSeat(WSeat *seat)
 
     if (d->seat) {
         d->connect();
+
+        if (d->eventWindow) {
+            d->sendEnterEvent();
+        }
     }
 }
 
@@ -575,16 +603,6 @@ QWindow *WCursor::eventWindow() const
 {
     W_DC(WCursor);
     return d->eventWindow.get();
-}
-
-const QPointingDevice *getDevice(const QString &seatName) {
-    for (auto i : QInputDevice::devices()) {
-        if (i->seatName() == seatName && (i->type() == QInputDevice::DeviceType::Mouse
-                                          || i->type() == QInputDevice::DeviceType::TouchPad))
-            return static_cast<const QPointingDevice*>(i);
-    }
-
-    return nullptr;
 }
 
 void WCursor::setEventWindow(QWindow *window)
@@ -604,15 +622,8 @@ void WCursor::setEventWindow(QWindow *window)
 
     d->eventWindow = window;
 
-    if (d->eventWindow) {
-        auto device = getDevice(d->seat->name());
-        Q_ASSERT(device && WInputDevice::from(device));
-        if (WInputDevice::from(device)->seat()) {
-            const QPointF global = position();
-            const QPointF local = global - d->eventWindow->position();
-            QEnterEvent event(local, local, global, device);
-            QCoreApplication::sendEvent(d->eventWindow, &event);
-        }
+    if (d->eventWindow && d->seat) {
+        d->sendEnterEvent();
     }
 }
 

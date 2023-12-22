@@ -2,6 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "wquickoutputmanager_p.h"
+#include "woutputitem.h"
+#include "woutputitem_p.h"
+
 #include <qwoutput.h>
 
 extern "C" {
@@ -61,7 +64,6 @@ void WQuickOutputManagerPrivate::outputMgrApplyOrTest(QWOutputConfigurationV1 *c
 {
     W_Q(WQuickOutputManager);
     wlr_output_configuration_head_v1 *config_head;
-    int ok = 1;
 
     stateListPending.clear();
 
@@ -130,12 +132,17 @@ void WQuickOutputManager::newOutput(WOutput *output)
 {
     W_D(WQuickOutputManager);
     const auto *wlr_output = output->nativeHandle();
+
+    auto *attached = output->findChild<WOutputItemAttached*>(QString(), Qt::FindDirectChildrenOnly);
+    if (!attached)
+        attached = WOutputItem::qmlAttachedProperties(output);
+
     WOutputState state {
         .m_output = output,
         .m_enabled = wlr_output->enabled,
         .m_mode = wlr_output->current_mode,
-        .m_x = 0,
-        .m_y = 0,
+        .m_x = attached ? static_cast<int32_t>(attached->item()->x()) : 0,
+        .m_y = attached ? static_cast<int32_t>(attached->item()->y()) : 0,
         .m_custom_mode_size = {  wlr_output->width,  wlr_output->height },
         .m_custom_mode_refresh =  wlr_output->refresh,
         .m_transform = static_cast<WOutput::Transform>(wlr_output->transform),
