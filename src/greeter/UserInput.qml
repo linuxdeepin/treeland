@@ -182,53 +182,55 @@ Item {
         onClicked: userLogin()
     }
 
-    RoundButton {
-        property var showHint: false
-
-        id: hintBtn
-        text: 'H'
-        height: passwordField.height
-        width: height
+    RowLayout {
+        spacing: 10
         anchors.right: userCol.left
         anchors.bottom: userCol.bottom
         anchors.rightMargin: 10
-        background: Rectangle {
-            id: hintBtnBackground
-            anchors.fill: parent
-            color: Qt.rgba(255, 255, 255, 0.4)
-            radius: parent.height / 2
+        height: passwordField.height
+
+        D.RoundButton {
+            id: langBtn
+            text: 'L'
+            Layout.fillHeight: true
+            Layout.preferredWidth: passwordField.height
+            background: Rectangle {
+                anchors.fill: parent
+                color: Qt.rgba(255, 255, 255, 0.4)
+                radius: parent.height / 2
+            }
+
+            onClicked: {
+                console.log("need impl langBtn")
+            }
         }
 
-        onClicked: {
-            showHint = !showHint
-        }
+        D.RoundButton {
+            id: hintBtn
+            icon.name: "login_hint"
+            icon.width: 16
+            icon.height: 16
+            visible: hintLabel.hintText.length != 0
+            Layout.fillHeight: true
+            Layout.preferredWidth: passwordField.height
+            background: Rectangle {
+                id: hintBtnBackground
+                anchors.fill: parent
+                color: Qt.rgba(255, 255, 255, 0.4)
+                radius: parent.height / 2
+            }
 
-        onPressed: {
-            hintBtnBackground.color = Qt.rgba(0, 0, 0, 0.6)
-        }
+            HintLabel { 
+                id: hintLabel
+                x: hintBtn.width - hintLabel.width
+                y: hintBtn.height + 11
+                hintText: {
+                    let user = GreeterModel.userModel.get(GreeterModel.currentUserIndex)
+                    return user.passwordHint
+                }
+            }
 
-        onReleased: {
-            hintBtnBackground.color = Qt.rgba(104 / 255, 158 / 255,
-                                              233 / 255, 0.5)
-        }
-    }
-
-    RoundButton {
-        id: langBtn
-        text: 'L'
-        height: hintBtn.height
-        width: height
-        anchors.right: hintBtn.left
-        anchors.bottom: hintBtn.bottom
-        anchors.rightMargin: 10
-        background: Rectangle {
-            anchors.fill: parent
-            color: Qt.rgba(255, 255, 255, 0.4)
-            radius: parent.height / 2
-        }
-
-        onClicked: {
-            console.log("need impl langBtn")
+            onClicked: hintLabel.open()
         }
     }
 
@@ -238,7 +240,7 @@ Item {
         color: "gray"
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.top: userCol.bottom
-        anchors.topMargin: 10
+        anchors.topMargin: 16
     }
 
     Component.onCompleted: {
