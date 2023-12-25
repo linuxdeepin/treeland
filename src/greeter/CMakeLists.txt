@@ -3,14 +3,16 @@ set(GREETER_SOURCES
     GreeterProxy.h
     SessionModel.h
     UserModel.h
+    User.h
     GreeterApp.cpp
     GreeterProxy.cpp
     SessionModel.cpp
     UserModel.cpp
+    User.cpp
     greeter_assets.qrc
 )
 
-find_package(Dtk6 REQUIRED COMPONENTS Declarative)
+find_package(Dtk6 REQUIRED COMPONENTS SystemSettings Declarative)
 
 set(QML_IMPORT_PATH ${QML_IMPORT_PATH} ${CMAKE_CURRENT_BINARY_DIR}/ CACHE STRING "" FORCE)
 
@@ -41,6 +43,7 @@ qt_add_qml_module(greeterplugin
     QML_FILES RoundBlur.qml
     QML_FILES PowerList.qml
     QML_FILES TimeDateWidget.qml
+    QML_FILES HintLabel.qml
 )
 
 target_include_directories(greeterplugin
@@ -54,6 +57,7 @@ target_link_libraries(greeterplugin
         Qt${QT_MAJOR_VERSION}::Gui
         Qt${QT_MAJOR_VERSION}::Qml
         Dtk6::Declarative
+        Dtk6::SystemSettings
 )
 
 if(JOURNALD_FOUND)

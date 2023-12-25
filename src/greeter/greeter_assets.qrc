@@ -10,5 +10,6 @@
         <file>icons/login_reboot.dci</file>
         <file>icons/login_sleep.dci</file>
         <file>icons/login_user.dci</file>
+        <file>icons/login_hint.dci</file>
     </qresource>
 </RCC>
