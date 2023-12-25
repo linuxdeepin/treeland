@@ -40,15 +40,16 @@ public:
         RealNameRole,
         HomeDirRole,
         IconRole,
-        NeedsPasswordRole,
+        NoPasswordRole,
         LoginedRole,
-        IdentityRole
+        IdentityRole,
+        PasswordHintRole
     };
     Q_ENUM(UserRoles)
 
     UserModel(const UserModel&) = delete;
     UserModel& operator=(const UserModel&) = delete;
-    UserModel(bool needAllUsers = true,QObject *parent = nullptr);
+    explicit UserModel(QObject *parent = nullptr);
     ~UserModel() override;
 
     [[nodiscard]] QHash<int, QByteArray> roleNames() const override;
@@ -62,8 +63,12 @@ public:
     [[nodiscard]] static int disableAvatarsThreshold();
     [[nodiscard]] bool containsAllUsers() const;
 
+private Q_SLOTS:
+    void onUserAdded(quint64 uid);
+    void onUserDeleted(quint64 uid);
+
 private:
-    UserModelPrivate *d {nullptr};
+    UserModelPrivate *d{nullptr};
 };
 
 #endif // USERMODEL_H
