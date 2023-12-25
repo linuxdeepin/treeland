@@ -129,6 +129,7 @@ bool TreeLandHelper::addAction(QAction *action)
 
     if (find == m_actions.end()) {
         m_actions.push_back(action);
+        qDebug() << action->shortcut();
     }
 
     return find == m_actions.end();

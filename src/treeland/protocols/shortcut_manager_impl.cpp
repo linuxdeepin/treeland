@@ -30,13 +30,19 @@ void shortcut_manager_resource_destroy(struct wl_resource *resource)
     wl_list_remove(wl_resource_get_link(resource));
 }
 
-void treeland_shortcut_context_v1_destroy(
-    struct treeland_shortcut_context_v1 *context)
+void treeland_shortcut_context_v1_destroy(struct wl_resource *resource)
 {
+    struct treeland_shortcut_context_v1 *context = shortcut_context_from_resource(resource);
     if (!context) {
         return;
     }
 
+    treeland_shortcut_context_v1_destroy(context);
+}
+
+void treeland_shortcut_context_v1_destroy(
+    struct treeland_shortcut_context_v1 *context)
+{
     wl_signal_emit_mutable(&context->events.destroy, context);
 
     wl_list_remove(wl_resource_get_link(context->resource));
@@ -54,12 +60,6 @@ void treeland_shortcut_context_v1_send_register_failed(struct treeland_shortcut_
     wl_resource_post_error(context->resource,
                             TREELAND_SHORTCUT_CONTEXT_V1_ERROR_REGISTER_FAILED,
                             "register shortcut failed.");
-}
-
-void shortcut_context_resource_destroy(struct wl_resource *resource) {
-    struct treeland_shortcut_context_v1 *context = shortcut_context_from_resource(resource);
-
-    context_destroy(context);
 }
 
 void create_shortcut_context_listener(struct wl_client *client,
@@ -83,7 +83,7 @@ void create_shortcut_context_listener(struct wl_client *client,
         return;
     }
 
-    wl_resource_set_implementation(resource, &shortcut_context_impl, context, shortcut_context_resource_destroy);
+    wl_resource_set_implementation(resource, &shortcut_context_impl, context, treeland_shortcut_context_v1_destroy);
 
     wl_signal_init(&context->events.destroy);
 

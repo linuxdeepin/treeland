@@ -51,6 +51,9 @@ void ShortcutManagerV1::create()
         connect(action, &QAction::triggered, this, [context] {
             context->happend();
         });
+        connect(context, &QTreeLandShortcutContextV1::beforeDestroy, this, [d, action] {
+            d->helper->removeAction(action);
+        });
 
         d->helper->addAction(action);
     });

@@ -1,4 +1,5 @@
 install(DIRECTORY "flags" DESTINATION "${DATA_INSTALL_DIR}")
+install(DIRECTORY "shortcuts" DESTINATION "${TREELAND_DATA_DIR}")
 
 install(FILES
     "org.freedesktop.DisplayManager.conf"

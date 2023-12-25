@@ -3,6 +3,9 @@
 
 #include "fake-session.h"
 
+#include "shortcutmanager.h"
+#include "Constants.h"
+
 #include <QDebug>
 #include <QObject>
 #include <QProcess>
@@ -16,11 +19,13 @@
 #include <QDBusInterface>
 #include <QtWaylandClient/QWaylandClientExtension>
 #include <QtWaylandClient/private/qwaylandwindow_p.h>
+#include <QDir>
 
 #include <sys/types.h>
 #include <pwd.h>
 #include <unistd.h>
 
+namespace Protocols {
 ExtForeignToplevelList::ExtForeignToplevelList()
     : QWaylandClientExtensionTemplate<ExtForeignToplevelList>(1)
 {
@@ -127,6 +132,7 @@ PersonalizationWindow::PersonalizationWindow(struct ::personalization_window_con
 {
 
 }
+}
 
 PersonalizationWallpaper::PersonalizationWallpaper(struct ::personalization_wallpaper_context_v1 *object)
     : QWaylandClientExtensionTemplate<PersonalizationWallpaper>(1)
@@ -143,29 +149,26 @@ void PersonalizationWallpaper::personalization_wallpaper_context_v1_wallpapers(w
 static int click_state = 0;
 FakeSession::FakeSession(int argc, char* argv[])
     : QApplication(argc, argv)
-    , m_personalzationManger(new PersonalizationManager)
-    , m_shortcutManager(new ShortcutManager)
-    , m_toplevelManager(new ForeignToplevelManager)
-    , m_extForeignToplevelList(new ExtForeignToplevelList)
+    , m_personalzationManger(new Protocols::PersonalizationManager)
+    , m_shortcutManager(new Protocols::ShortcutManager)
+    , m_toplevelManager(new Protocols::ForeignToplevelManager)
+    , m_extForeignToplevelList(new Protocols::ExtForeignToplevelList)
 {
-    connect(m_shortcutManager, &ShortcutManager::activeChanged, this, [this] {
+    connect(m_shortcutManager, &Protocols::ShortcutManager::activeChanged, this, [this] {
         qDebug() << m_shortcutManager->isActive();
         if (m_shortcutManager->isActive()) {
-            ShortcutContext* superContext = new ShortcutContext(m_shortcutManager->register_shortcut_context("Meta+Meta"));
-            connect(superContext, &ShortcutContext::shortcutHappended, this, [] {
-                qDebug() << Q_FUNC_INFO;
-                QProcess::startDetached("dde-launchpad", {"-t", "-platform", "wayland"});
-            });
-
-            ShortcutContext* terminalContext = new ShortcutContext(m_shortcutManager->register_shortcut_context("Ctrl+Alt+T"));
-            connect(terminalContext, &ShortcutContext::shortcutHappended, this, [] {
-                qDebug() << Q_FUNC_INFO;
-                QProcess::startDetached("x-terminal-emulator");
-            });
+            QDir dir(TREELAND_DATA_DIR"/shortcuts");
+            for (auto d : dir.entryInfoList(QDir::Filter::Files)) {
+                auto shortcut = new Shortcut(d.filePath());
+                Protocols::ShortcutContext* context = new Protocols::ShortcutContext(m_shortcutManager->register_shortcut_context(shortcut->shortcut()));
+                connect(context, &Protocols::ShortcutContext::shortcutHappended, this, [shortcut] {
+                    shortcut->exec();
+                });
+            }
         }
     });
 
-    connect(m_personalzationManger, &PersonalizationManager::activeChanged, this, [this] {
+    connect(m_personalzationManger, &Protocols::PersonalizationManager::activeChanged, this, [this] {
         qDebug() << "personalzation manager" <<  m_personalzationManger->isActive();
 
         if (m_personalzationManger->isActive()) {
@@ -195,7 +198,7 @@ FakeSession::FakeSession(int argc, char* argv[])
 
                 struct wl_surface *surface = waylandWindow->wlSurface();
                 if (surface) {
-                    PersonalizationWindow* window_context = new PersonalizationWindow(m_personalzationManger->get_window_context(surface));
+                    Protocols::PersonalizationWindow* context = new Protocols::PersonalizationWindow(m_personalzationManger->get_window_context(surface));
 
                     QObject::connect(click_button, &QPushButton::clicked, [window_context](){
                         click_state = !click_state;
@@ -225,16 +228,14 @@ FakeSession::FakeSession(int argc, char* argv[])
         }
     });
 
-    connect(m_personalzationManger, &PersonalizationManager::activeChanged, this, [this] {});
-
-    connect(m_toplevelManager, &ForeignToplevelManager::newForeignToplevelHandle, this, [this](ForeignToplevelHandle *handle) {
-        connect(handle, &ForeignToplevelHandle::pidChanged, this, [](pid_t pid) {
+    connect(m_toplevelManager, &Protocols::ForeignToplevelManager::newForeignToplevelHandle, this, [this](Protocols::ForeignToplevelHandle *handle) {
+        connect(handle, &Protocols::ForeignToplevelHandle::pidChanged, this, [](pid_t pid) {
             qDebug() << "toplevel pid: " << pid;
         });
     });
 
-    connect(m_extForeignToplevelList, &ExtForeignToplevelList::newToplevel, this, [this](ExtForeignToplevelHandle *handle) {
-        connect(handle, &ExtForeignToplevelHandle::appIdChanged, this, [](const QString &appId) {
+    connect(m_extForeignToplevelList, &Protocols::ExtForeignToplevelList::newToplevel, this, [this](Protocols::ExtForeignToplevelHandle *handle) {
+        connect(handle, &Protocols::ExtForeignToplevelHandle::appIdChanged, this, [](const QString &appId) {
             qDebug() << "toplevel appid: " << appId;
         });
     });
