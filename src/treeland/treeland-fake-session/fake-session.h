@@ -11,6 +11,7 @@
 #include "qwayland-treeland-shortcut-manager-v1.h"
 #include "qwayland-treeland-personalization-manager-v1.h"
 
+namespace Protocols {
 class ExtForeignToplevelHandle;
 class ExtForeignToplevelList : public QWaylandClientExtensionTemplate<ExtForeignToplevelList>, public QtWayland::ext_foreign_toplevel_list_v1
 {
@@ -124,8 +125,8 @@ public:
     explicit FakeSession(int argc, char* argv[]);
 
 private:
-    PersonalizationManager *m_personalzationManger;
-    ShortcutManager* m_shortcutManager;
-    ForeignToplevelManager *m_toplevelManager;
-    ExtForeignToplevelList *m_extForeignToplevelList;
+    Protocols::PersonalizationManager *m_personalzationManger;
+    Protocols::ShortcutManager* m_shortcutManager;
+    Protocols::ForeignToplevelManager *m_toplevelManager;
+    Protocols::ExtForeignToplevelList *m_extForeignToplevelList;
 };

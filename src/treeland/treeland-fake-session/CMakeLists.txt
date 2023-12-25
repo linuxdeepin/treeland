@@ -20,6 +20,8 @@ target_link_libraries(treeland-shell-manager
 qt_add_executable(treeland-fake-session
     fake-session.h
     fake-session.cpp
+    shortcutmanager.h
+    shortcutmanager.cpp
 )
 
 target_link_libraries(treeland-fake-session
