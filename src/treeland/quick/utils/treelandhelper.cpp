@@ -29,18 +29,20 @@ TreeLandHelper::TreeLandHelper(QObject *parent)
 bool TreeLandHelper::beforeDisposeEvent(WSeat *seat, QWindow *watched, QInputEvent *event)
 {
     if (event->type() == QEvent::KeyPress) {
-        auto e = static_cast<QKeyEvent*>(event);
-        QKeySequence sequence(e->modifiers() | e->key());
-        bool isFind = false;
-        for (QAction *action : m_actions) {
-            if (action->shortcut() == sequence) {
-                isFind = true;
-                action->activate(QAction::Trigger);
+        if (!m_actions.empty() && !m_currentUser.isEmpty()) {
+            auto e = static_cast<QKeyEvent*>(event);
+            QKeySequence sequence(e->modifiers() | e->key());
+            bool isFind = false;
+            for (QAction *action : m_actions[m_currentUser]) {
+                if (action->shortcut() == sequence) {
+                    isFind = true;
+                    action->activate(QAction::Trigger);
+                }
             }
-        }
 
-        if (isFind) {
-            return true;
+            if (isFind) {
+                return true;
+            }
         }
     }
 
@@ -93,6 +95,11 @@ bool TreeLandHelper::beforeDisposeEvent(WSeat *seat, QWindow *watched, QInputEve
     return Helper::beforeDisposeEvent(seat, watched, event);
 }
 
+void TreeLandHelper::setCurrentUser(const QString &currentUser)
+{
+    m_currentUser = currentUser;
+}
+
 QString TreeLandHelper::socketFile() const
 {
     return m_socketFile;
@@ -123,19 +130,26 @@ QString TreeLandHelper::clientName(Waylib::Server::WSurface *surface) const
     return programName;
 }
 
-bool TreeLandHelper::addAction(QAction *action)
+bool TreeLandHelper::addAction(const QString &user, QAction *action)
 {
-    auto find = std::ranges::find_if(m_actions, [action](QAction *a) { return a->shortcut() == action->shortcut(); });
-
-    if (find == m_actions.end()) {
-        m_actions.push_back(action);
-        qDebug() << action->shortcut();
+    if (!m_actions.count(user)) {
+        m_actions[user] = {};
     }
 
-    return find == m_actions.end();
+    auto find = std::ranges::find_if(m_actions[user], [action](QAction *a) { return a->shortcut() == action->shortcut(); });
+
+    if (find == m_actions[user].end()) {
+        m_actions[user].push_back(action);
+    }
+
+    return find == m_actions[user].end();
 }
 
-void TreeLandHelper::removeAction(QAction *action)
+void TreeLandHelper::removeAction(const QString &user, QAction *action)
 {
-    std::erase_if(m_actions, [action](QAction *a) { return a == action ;});
+    if (!m_actions.count(user)) {
+        return;
+    }
+
+    std::erase_if(m_actions[user], [action](QAction *a) { return a == action ;});
 }

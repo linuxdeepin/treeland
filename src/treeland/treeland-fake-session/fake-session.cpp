@@ -132,7 +132,6 @@ PersonalizationWindow::PersonalizationWindow(struct ::personalization_window_con
 {
 
 }
-}
 
 PersonalizationWallpaper::PersonalizationWallpaper(struct ::personalization_wallpaper_context_v1 *object)
     : QWaylandClientExtensionTemplate<PersonalizationWallpaper>(1)
@@ -144,6 +143,7 @@ PersonalizationWallpaper::PersonalizationWallpaper(struct ::personalization_wall
 void PersonalizationWallpaper::personalization_wallpaper_context_v1_wallpapers(wl_array *paths)
 {
 
+}
 }
 
 static int click_state = 0;
@@ -198,7 +198,7 @@ FakeSession::FakeSession(int argc, char* argv[])
 
                 struct wl_surface *surface = waylandWindow->wlSurface();
                 if (surface) {
-                    Protocols::PersonalizationWindow* context = new Protocols::PersonalizationWindow(m_personalzationManger->get_window_context(surface));
+                    Protocols::PersonalizationWindow* window_context = new Protocols::PersonalizationWindow(m_personalzationManger->get_window_context(surface));
 
                     QObject::connect(click_button, &QPushButton::clicked, [window_context](){
                         click_state = !click_state;
@@ -207,7 +207,7 @@ FakeSession::FakeSession(int argc, char* argv[])
                     });
                 }
 
-                PersonalizationWallpaper* wallpaper_context = new PersonalizationWallpaper(m_personalzationManger->get_wallpaper_context());
+                Protocols::PersonalizationWallpaper* wallpaper_context = new Protocols::PersonalizationWallpaper(m_personalzationManger->get_wallpaper_context());
                 QObject::connect(set_button, &QPushButton::clicked, [wallpaper_context](){
                     qDebug() << "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx set user wallpaper";
                     QFileDialog fileDialog;

@@ -33,6 +33,7 @@ Item {
 
         WaylandSocketProxy {
             id: socketProxy
+
             Component.onCompleted: {
                 TreeLand.socketProxy = socketProxy
             }
@@ -368,6 +369,13 @@ Item {
                     visible: !stackLayout.visible
                     anchors.fill: parent
                 }
+            }
+        }
+
+        Connections {
+            target: socketProxy
+            function onUserActivated(user) {
+                TreeLandHelper.currentUser = user
             }
         }
 
