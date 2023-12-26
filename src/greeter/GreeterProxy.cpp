@@ -281,6 +281,18 @@ void GreeterProxy::readyRead() {
                 userModel()->updateUserLoginState(user, false);
             }
             break;
+            case DaemonMessages::SwitchToGreeter: {
+                qInfo() << "switch to greeter";
+                emit switchToGreeter();
+            }
+            break;
+            case DaemonMessages::UserActivateMessage: {
+                QString user;
+                input >> user;
+
+                qInfo() << "activate successfully: " << user;
+            }
+            break;
             default: {
                 // log message
                 qWarning() << "Unknown message received from daemon." << message;
