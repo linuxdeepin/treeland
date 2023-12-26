@@ -8,6 +8,7 @@
 #include <unistd.h>
 #include <wayland-server-core.h>
 #include <wayland-util.h>
+#include <pwd.h>
 
 #include <QDebug>
 #include <QTimer>
@@ -48,13 +49,21 @@ void ShortcutManagerV1::create()
     connect(d->manager, &QTreeLandShortcutManagerV1::newContext, this, [this, d](QTreeLandShortcutContextV1 *context) {
         QAction *action = new QAction(context);
         action->setShortcut(QString(context->handle()->key));
+
+        struct wl_client *client = wl_resource_get_client(context->handle()->resource);
+        uid_t uid;
+        wl_client_get_credentials(client, nullptr, &uid, nullptr);
+        struct passwd* pw = getpwuid(uid);
+        const QString username(pw->pw_name);
+
         connect(action, &QAction::triggered, this, [context] {
             context->happend();
         });
-        connect(context, &QTreeLandShortcutContextV1::beforeDestroy, this, [d, action] {
-            d->helper->removeAction(action);
+
+        connect(context, &QTreeLandShortcutContextV1::beforeDestroy, this, [d, username, action] {
+            d->helper->removeAction(username, action);
         });
 
-        d->helper->addAction(action);
+        d->helper->addAction(username, action);
     });
 }

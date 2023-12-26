@@ -118,6 +118,7 @@ public:
 protected:
     void personalization_wallpaper_context_v1_wallpapers(wl_array *paths) override;
 };
+}
 
 class FakeSession : public QApplication {
     Q_OBJECT

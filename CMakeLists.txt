@@ -180,7 +180,7 @@ endif()
 
 
 # Set constants
-set(TREELAND_DATA_DIR           "${CMAKE_INSTALL_PREFIX}/share/treeland/"          CACHE PATH      "treeland data install directory")
+set(TREELAND_DATA_DIR           "${CMAKE_INSTALL_DATADIR}/treeland/"               CACHE PATH      "treeland data install directory")
 set(DATA_INSTALL_DIR            "${CMAKE_INSTALL_FULL_DATADIR}/ddm"                CACHE PATH      "System application data install directory")
 set(DBUS_CONFIG_DIR             "${CMAKE_INSTALL_SYSCONFDIR}/dbus-1/system.d"       CACHE PATH      "DBus config files directory")
 set(STATE_DIR                   "${CMAKE_INSTALL_FULL_LOCALSTATEDIR}/lib/ddm"      CACHE PATH      "State directory")

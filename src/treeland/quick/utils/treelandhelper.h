@@ -7,9 +7,12 @@
 
 WAYLIB_SERVER_USE_NAMESPACE
 
+class WaylandSocketProxy;
+
 class TreeLandHelper : public Helper {
     Q_OBJECT
     Q_PROPERTY(QString socketFile READ socketFile WRITE setSocketFile NOTIFY socketFileChanged FINAL)
+    Q_PROPERTY(QString currentUser WRITE setCurrentUser FINAL)
 
     QML_ELEMENT
     QML_SINGLETON
@@ -25,12 +28,14 @@ public:
     };
     Q_ENUM(Switcher)
 
+    void setCurrentUser(const QString &currentUser);
+
     QString socketFile() const;
 
     Q_INVOKABLE QString clientName(Waylib::Server::WSurface *surface) const;
 
-    bool addAction(QAction *action);
-    void removeAction(QAction *action);
+    bool addAction(const QString &user, QAction *action);
+    void removeAction(const QString &user, QAction *action);
 
 Q_SIGNALS:
     void socketFileChanged();
@@ -44,6 +49,7 @@ private:
 
 private:
     QString m_socketFile;
+    QString m_currentUser;
     Switcher m_switcherCurrentMode = Switcher::Hide;
-    std::vector<QAction*> m_actions;
+    std::map<QString, std::vector<QAction*>> m_actions;
 };
