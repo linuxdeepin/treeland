@@ -58,7 +58,7 @@ Depends: ${shlibs:Depends},
          qt6-wayland,
          libqt6svg6,
          libdtk6declarative,
-         libdtk6systemsettings1
+         libdtk6systemsettings
 Recommends: libpam-systemd, xwayland
 Description: a modern display manager for Wayland sessions aiming to be fast, simple and beautiful.
 

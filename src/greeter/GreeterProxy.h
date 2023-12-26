@@ -93,6 +93,7 @@ signals:
     void socketDisconnected();
     void loginFailed(const QString &user);
     void loginSucceeded(const QString &user);
+    void switchToGreeter();
 
 private:
     GreeterProxyPrivate *d { nullptr };
