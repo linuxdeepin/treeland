@@ -13,7 +13,6 @@
 
 #include <QObject>
 #include <QQmlEngine>
-#include <QDir>
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 class WXdgSurface;
@@ -23,7 +22,10 @@ WAYLIB_SERVER_END_NAMESPACE
 QW_USE_NAMESPACE
 WAYLIB_SERVER_USE_NAMESPACE
 
+class QDir;
+class QSettings;
 class QuickPersonalizationManager;
+
 class WAYLIB_SERVER_EXPORT QuickPersonalizationManagerAttached : public QObject
 {
     Q_OBJECT
@@ -78,26 +80,15 @@ public:
 
     QString currentWallpaper();
 
-    uid_t currentUserId() const {
-        return m_currentUserId;
-    }
-
-    void setCurrentUserId(uid_t uid) {
-        m_currentUserId = uid;
-        Q_EMIT currentUserIdChanged(m_currentUserId);
-    }
+    uid_t currentUserId();
+    void setCurrentUserId(uid_t uid);
 
 Q_SIGNALS:
     void backgroundTypeChanged(WSurface *surface, uint32_t type);
-    void sendUserwallpapers(personalization_wallpaper_context_v1 *wallpaper, const QStringList& wallpapers);
+    void sendUserwallpapers(personalization_wallpaper_context_v1 *wallpaper);
     void currentWallpaperChanged(const QString &wallpaper);
     void currentUserIdChanged(uid_t uid);
 
 private:
-   QString getUserCacheWallpaperPath(uid_t uid);
-   QStringList entryWallpaperFiles(const QDir &dir);
-
-private:
     void create() override;
-    uid_t m_currentUserId = 0;
 };

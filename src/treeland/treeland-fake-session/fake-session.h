@@ -117,7 +117,7 @@ public:
     explicit PersonalizationWallpaper(struct ::personalization_wallpaper_context_v1 *object);
 
 protected:
-    void personalization_wallpaper_context_v1_wallpapers(wl_array *paths) override;
+    void personalization_wallpaper_context_v1_wallpapers(const QString &metadata) override;
 };
 }
 

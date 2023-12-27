@@ -57,11 +57,12 @@
         <request name="set_wallpaper">
             <description summary="set the current user's wallpaper">
                 set the current user's wallpaper
-	      </description>
-            <arg name="path" type="string" summary="background enum"/>
+	        </description>
+            <arg name="fd" type="fd" summary="wallpaper file fd"/>
+            <arg name="metadata" type="string" summary="file related metadata information"/>
         </request>
         <request name="get_wallpapers">
-            <description summary="get the current user's wallpapers">
+            <description summary="get the current user's wallpaper">
                 get the current user's wallpaper
             </description>
         </request>
@@ -71,10 +72,10 @@
             </description>
         </request>
         <event name="wallpapers">
-            <description summary="get user's wallpaper completed">
+            <description summary="get current wallpaper event">
                 Send this signal after getting the user's wallpaper.
             </description>
-            <arg name="paths" type="array" summary="wallpapers list"/>
+            <arg name="metadata" type="string" summary="file related metadata information"/>
         </event>
     </interface>
     <interface name="personalization_window_context_v1" version="1">
