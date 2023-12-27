@@ -84,7 +84,8 @@ static void personalization_window_context_resource_destroy(
 
 void set_user_wallpaper(struct wl_client *client,
                         struct wl_resource *manager_resource,
-                        const char *path);
+                        int32_t fd,
+                        const char *metadata);
 
 void get_user_wallpapers(struct wl_client *client,
                          struct wl_resource *manager_resource);
@@ -250,18 +251,20 @@ void create_personalization_wallpaper_context_listener(struct wl_client *client,
 
 void set_user_wallpaper(struct wl_client *client,
                         struct wl_resource *resource,
-                        const char *path)
+                        int32_t fd,
+                        const char *metadata)
 {
     struct personalization_wallpaper_context_v1 *wallpaper = personalization_wallpaper_from_resource(resource);
-    if(wallpaper == NULL || !strlen(path))
+    if(wallpaper == NULL || fd == -1)
         return;
 
-    wallpaper->path = path;
+    wallpaper->fd = fd;
+    wallpaper->metaData = metadata;
     wl_signal_emit_mutable(&wallpaper->events.set_user_wallpaper, wallpaper);
 }
 
 void get_user_wallpapers(struct wl_client *client,
-                        struct wl_resource *resource)
+                         struct wl_resource *resource)
 {
     struct personalization_wallpaper_context_v1 *wallpaper = personalization_wallpaper_from_resource(resource);
     if(wallpaper == NULL)
@@ -270,20 +273,12 @@ void get_user_wallpapers(struct wl_client *client,
     wl_signal_emit_mutable(&wallpaper->events.get_user_wallpaper, wallpaper);
 }
 
-void personalization_wallpaper_v1_send_wallpapers(personalization_wallpaper_context_v1 *wallpaper, const QStringList &wallpapers)
+void personalization_wallpaper_v1_send_wallpapers(personalization_wallpaper_context_v1 *wallpaper)
 {
-    wl_array wallpaper_arr;
-    wl_array_init(&wallpaper_arr);
-    for (const QString &path : wallpapers) {
-        QByteArray ba = path.toLatin1();
-        int length = ba.length() + 1;
-        char *p = static_cast<char *>(wl_array_add(&wallpaper_arr, length));
-        memset(p, 0, length);
-        strncpy(p, ba.data(), ba.length());
-    }
+    if (!wallpaper)
+        return;
 
-    personalization_wallpaper_context_v1_send_wallpapers(wallpaper->resource, &wallpaper_arr);
-    wl_array_release(&wallpaper_arr);
+    personalization_wallpaper_context_v1_send_wallpapers(wallpaper->resource, wallpaper->metaData);
 }
 
 static void treeland_personalization_manager_bind(struct wl_client *client,

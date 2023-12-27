@@ -14,6 +14,8 @@
 #include <QBoxLayout>
 #include <QPushButton>
 #include <QFileDialog>
+#include <QJsonDocument>
+#include <QJsonObject>
 #include <QTimer>
 #include <QtGui/qpa/qplatformnativeinterface.h>
 #include <QDBusInterface>
@@ -147,9 +149,9 @@ PersonalizationWallpaper::PersonalizationWallpaper(struct ::personalization_wall
 
 }
 
-void PersonalizationWallpaper::personalization_wallpaper_context_v1_wallpapers(wl_array *paths)
+void PersonalizationWallpaper::personalization_wallpaper_context_v1_wallpapers(const QString &metadata)
 {
-
+    qDebug() << "=========================================== " << metadata;
 }
 }
 
@@ -302,7 +304,18 @@ FakeSession::FakeSession(int argc, char* argv[])
                     if (fileDialog.exec() == QDialog::Accepted) {
                         // 获取用户选择的文件路径
                         QString selectedFilePath = fileDialog.selectedFiles().first();
-                        wallpaper_context->set_wallpaper(selectedFilePath);
+                        QFile file(selectedFilePath);
+                        if (file.open(QIODevice::ReadOnly)) {
+                            QJsonObject json;
+                            json.insert("Group", "system");
+                            json.insert("ImagePath", selectedFilePath);
+                            json.insert("FillMode", 1);
+                            json.insert("Output", "eDP-1");
+                            json.insert("CurrentIndex", 4);
+
+                            QJsonDocument json_doc(json);;
+                            wallpaper_context->set_wallpaper(file.handle(), json_doc.toJson(QJsonDocument::Compact));
+                        }
                     }
                 });
 

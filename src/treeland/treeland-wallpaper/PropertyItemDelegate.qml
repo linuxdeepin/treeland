@@ -1,4 +1,4 @@
-// Copyright (C) 2023 wenhao Peng <pengwenhao@uniontech.com>.
+// Copyright (C) 2023 pengwenhao <pengwenhao@gmail.com>.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 import QtQuick 2.0
@@ -23,7 +23,7 @@ Control {
                 Layout.leftMargin: 5
                 sourceComponent: control.action
             }
-        }
+    }
 
     background: RoundRectangle {
         implicitWidth: 66

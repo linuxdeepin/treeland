@@ -33,7 +33,7 @@ public:
     static TreeLandPersonalizationManager *from(treeland_personalization_manager_v1 *handle);
     static TreeLandPersonalizationManager *create(QWDisplay *display);
 
-    void onSendUserWallpapers(personalization_wallpaper_context_v1 *wallpaper, const QStringList& images);
+    void onSendUserWallpapers(personalization_wallpaper_context_v1 *wallpaper);
 
 Q_SIGNALS:
     void beforeDestroy(TreeLandPersonalizationManager *self);

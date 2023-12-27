@@ -99,7 +99,7 @@ TreeLandPersonalizationManager *TreeLandPersonalizationManager::create(QWDisplay
     return new TreeLandPersonalizationManager(handle, true);
 }
 
-void TreeLandPersonalizationManager::onSendUserWallpapers(personalization_wallpaper_context_v1 *wallpaper, const QStringList& wallpapers)
+void TreeLandPersonalizationManager::onSendUserWallpapers(personalization_wallpaper_context_v1 *wallpaper)
 {
-    personalization_wallpaper_v1_send_wallpapers(wallpaper, wallpapers);
+    personalization_wallpaper_v1_send_wallpapers(wallpaper);
 }

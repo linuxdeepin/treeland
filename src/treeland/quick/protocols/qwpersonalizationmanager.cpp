@@ -16,9 +16,12 @@
 #include <wxdgshell.h>
 #include <wxdgsurface.h>
 
+#include <QDir>
 #include <QDebug>
-#include <QTimer>
+#include <QSettings>
 #include <QStandardPaths>
+#include <QJsonDocument>
+#include <QJsonObject>
 
 #include <sys/socket.h>
 #include <unistd.h>
@@ -33,14 +36,92 @@ static QuickPersonalizationManager *PERSONALIZATION_MANAGER = nullptr;
 
 class QuickPersonalizationManagerPrivate : public WObjectPrivate {
 public:
-    QuickPersonalizationManagerPrivate(QuickPersonalizationManager *qq)
-        : WObjectPrivate(qq) {}
-    ~QuickPersonalizationManagerPrivate() = default;
+    QuickPersonalizationManagerPrivate(QuickPersonalizationManager *qq);
+    ~QuickPersonalizationManagerPrivate();
+
+    void updateCacheWallpaperPath(uid_t uid);
+    bool parseMetaData(const char* metadata);
+    void loadWallpaperSettings();
+    void saveWallpaperSettings(const QString& current, const char* meta);
 
     W_DECLARE_PUBLIC(QuickPersonalizationManager)
 
+    uid_t m_currentUserId = 0;
+    QString m_cacheDirectory;
+    QString m_settingFile;
+    QString m_currentWallpaper;
+    QString m_iniMetaData;
+
     TreeLandPersonalizationManager *manager = nullptr;
+    WallpaperMetaData *m_metaData = nullptr;
 };
+
+QuickPersonalizationManagerPrivate::QuickPersonalizationManagerPrivate(QuickPersonalizationManager *qq)
+    : WObjectPrivate(qq)
+    , m_metaData(new WallpaperMetaData())
+{
+}
+
+QuickPersonalizationManagerPrivate::~QuickPersonalizationManagerPrivate()
+{
+    if (!m_metaData) {
+        delete m_metaData;
+    }
+}
+
+bool QuickPersonalizationManagerPrivate::parseMetaData(const char* metadata)
+{
+    QJsonDocument json_doc = QJsonDocument::fromJson(metadata);
+
+    if (!json_doc.isNull() && m_metaData) {
+        QJsonObject json_obj = json_doc.object();
+
+        m_metaData->currentIndex = json_obj["CurrentIndex"].toInt();
+        m_metaData->group = json_obj["Group"].toString();
+        m_metaData->imagePath = json_obj["ImagePath"].toString();
+        m_metaData->output = json_obj["Output"].toString();
+
+        QFileInfo file_info(m_metaData->imagePath);
+        m_metaData->suffix = file_info.suffix();
+
+        return true;
+    }
+
+    return false;
+}
+
+void QuickPersonalizationManagerPrivate::updateCacheWallpaperPath(uid_t uid)
+{
+    QString cache_location = QStandardPaths::writableLocation(QStandardPaths::CacheLocation);
+    m_cacheDirectory = cache_location + QString("/wallpaper/%1/").arg(uid);
+    m_settingFile = m_cacheDirectory + "wallpaper.ini";
+}
+
+void QuickPersonalizationManagerPrivate::loadWallpaperSettings()
+{
+    if (m_settingFile.isEmpty())
+        return;
+
+    QSettings settings(m_settingFile, QSettings::IniFormat);
+
+    m_currentWallpaper = settings.value("currentwallpaper").toString();
+    m_iniMetaData = settings.value("metadata").toString();
+    parseMetaData(m_iniMetaData.toLocal8Bit());
+}
+
+void QuickPersonalizationManagerPrivate::saveWallpaperSettings(const QString& current, const char* meta)
+{
+    if (m_settingFile.isEmpty())
+        return;
+
+    QSettings settings(m_settingFile, QSettings::IniFormat);
+
+    settings.setValue("currentwallpaper", current);
+    settings.setValue("metadata", meta);
+
+    m_currentWallpaper = current;
+    m_iniMetaData = QString::fromLocal8Bit(meta);
+}
 
 QuickPersonalizationManager::QuickPersonalizationManager(QObject *parent)
     : WQuickWaylandServerInterface(parent)
@@ -51,6 +132,8 @@ QuickPersonalizationManager::QuickPersonalizationManager(QObject *parent)
     }
 
     PERSONALIZATION_MANAGER = this;
+
+    setCurrentUserId(1000);  //TODO : test
 }
 
 void QuickPersonalizationManager::create() {
@@ -98,30 +181,35 @@ void QuickPersonalizationManager::onWallpaperContextCreated(PersonalizationWallp
 
 void QuickPersonalizationManager::onSetUserWallpaper(personalization_wallpaper_context_v1 *context)
 {
-    if (!context)
+    if (!context || context->fd == -1)
         return;
 
-    QFileInfo file(context->path);
-    if (!file.exists())
+    W_D(QuickPersonalizationManager);
+
+    QFile src_file;
+    if (!src_file.open(context->fd, QIODevice::ReadOnly))
         return;
 
-    m_currentUserId = context->uid;
-    QString cache_location = QStandardPaths::writableLocation(QStandardPaths::CacheLocation);
-    QString dest_file = cache_location + QString("/wallpaper/%1/%2").arg(m_currentUserId).arg(file.fileName());
+    QByteArray data = src_file.readAll();
+    src_file.close();
 
-    QString cache_dir = getUserCacheWallpaperPath(m_currentUserId);
-    QDir dir(cache_dir);
-    if (dir.exists()) {
-        QStringList file_list = dir.entryList(QDir::Files);
-        foreach (const QString &file, file_list) {
-            QFile::remove(dir.filePath(file));
+    if (d->parseMetaData(context->metaData)) {
+        QString dest_path = d->m_cacheDirectory + "desktop." + d->m_metaData->suffix;
+
+        QDir dir(d->m_cacheDirectory);
+        if (!dir.exists()) {
+            dir.mkpath(d->m_cacheDirectory);
         }
-    } else {
-        dir.mkpath(cache_dir);
-    }
 
-    if (QFile::copy(context->path, cache_dir.append(file.fileName()))) {
-        Q_EMIT currentWallpaperChanged(dest_file);
+        setCurrentUserId(context->uid);
+        QFile dest_file(dest_path);
+        if (dest_file.open(QIODevice::WriteOnly)) {
+            dest_file.write(data);
+            dest_file.close();
+
+            d->saveWallpaperSettings(dest_path, context->metaData);
+            Q_EMIT currentWallpaperChanged(dest_path);
+        }
     }
 }
 
@@ -130,12 +218,14 @@ void QuickPersonalizationManager::onGetUserWallpaper(personalization_wallpaper_c
     if (!context)
         return;
 
-    QString cache_dir = getUserCacheWallpaperPath(context->uid);
-    QDir dir(cache_dir);
+    W_D(QuickPersonalizationManager);
+
+    QDir dir(d->m_cacheDirectory);
     if (!dir.exists())
         return;
 
-    Q_EMIT sendUserwallpapers(context, entryWallpaperFiles(dir));
+    context->metaData = d->m_iniMetaData.toLocal8Bit();
+    Q_EMIT sendUserwallpapers(context);
 }
 
 void QuickPersonalizationManager::onBackgroundTypeChanged(PersonalizationWindowContext *context)
@@ -147,40 +237,31 @@ void QuickPersonalizationManager::onBackgroundTypeChanged(PersonalizationWindowC
     Q_EMIT backgroundTypeChanged(WSurface::fromHandle(p->surface), p->background_type);
 }
 
-QString QuickPersonalizationManager::getUserCacheWallpaperPath(uid_t uid)
-{
-    QString cache_location = QStandardPaths::writableLocation(QStandardPaths::CacheLocation);
-    return cache_location.append(QString("/wallpaper/%1/").arg(uid));
-}
-
-QStringList QuickPersonalizationManager::entryWallpaperFiles(const QDir &dir)
-{
-    if (!dir.exists())
-        return QStringList();
-
-    QStringList nameFilters{"*.png" ,"*.jpg" ,"*.jpeg" , "*.bmp", "*.gif"};
-    QStringList entries = dir.entryList(nameFilters);
-    for (QStringList::iterator it = entries.begin(); it != entries.end(); ++it) {
-        *it = dir.absolutePath() + "/" + *it;
-    }
-
-    return entries;
-}
-
 QString QuickPersonalizationManager::currentWallpaper()
 {
-    QString cache_dir = getUserCacheWallpaperPath(m_currentUserId);
-    QDir dir(cache_dir);
+    W_D(QuickPersonalizationManager);
 
-    QStringList wallpapers = entryWallpaperFiles(dir);
-    if (!wallpapers.isEmpty()) {
-        QString default_wallpaper = wallpapers.first();
-
-        if (QFile::exists(default_wallpaper)) {
-            return QString("file://%1").arg(default_wallpaper);
-        }
+    if (QFile::exists(d->m_currentWallpaper)) {
+        return QString("file://%1").arg(d->m_currentWallpaper);
     }
     return "file:///usr/share/wallpapers/deepin/desktop.jpg";
+}
+
+uid_t QuickPersonalizationManager::currentUserId()
+{
+    W_D(QuickPersonalizationManager);
+    return d->m_currentUserId;
+}
+
+void QuickPersonalizationManager::setCurrentUserId(uid_t uid)
+{
+    W_D(QuickPersonalizationManager);
+
+    d->m_currentUserId = uid;
+    d->updateCacheWallpaperPath(uid);
+    d->loadWallpaperSettings();
+
+    Q_EMIT currentUserIdChanged(uid);
 }
 
 QuickPersonalizationManagerAttached::QuickPersonalizationManagerAttached(WSurface *target, QuickPersonalizationManager *manager)
@@ -204,3 +285,5 @@ QuickPersonalizationManagerAttached *QuickPersonalizationManager::qmlAttachedPro
 
     return nullptr;
 }
+
+

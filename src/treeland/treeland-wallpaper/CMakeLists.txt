@@ -19,9 +19,14 @@ qt_add_qml_module(treeland-wallpaper
     VERSION "1.0"
     SOURCES
         personalizationmangerclient.cpp
+        personalizationmangerclient.h
+        wallpapercardmodel.cpp
+        wallpapercardmodel.h
     QML_FILES
         main.qml
         Wallpaper.qml
+        WallpaperCard.qml
+        WallpaperSetting.qml
         PropertyItemDelegate.qml
 )
 
