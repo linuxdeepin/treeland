@@ -26,7 +26,7 @@
           treeland = pkgs.qt6Packages.callPackage ./nix {
             nix-filter = nix-filter.lib;
             waylib = waylib.packages.${system}.default;
-            dtkdeclarative = dde-nixos.packages.${system}.qt6.dtkdeclarative;
+            inherit (dde-nixos.packages.${system}.qt6) dtkdeclarative dtksystemsettings;
           };
         in
         {
