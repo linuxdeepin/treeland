@@ -1077,6 +1077,9 @@ WOutputRenderWindow::WOutputRenderWindow(QObject *parent)
 
     if (parent)
         QObject::setParent(parent);
+
+    connect(contentItem(), &QQuickItem::widthChanged, this, &WOutputRenderWindow::widthChanged);
+    connect(contentItem(), &QQuickItem::heightChanged, this, &WOutputRenderWindow::heightChanged);
 }
 
 WOutputRenderWindow::~WOutputRenderWindow()
@@ -1238,6 +1241,28 @@ void WOutputRenderWindow::update()
     for (auto o : d->outputs)
         o->update(); // make contents to dirty
     d->scheduleDoRender();
+}
+
+qreal WOutputRenderWindow::width()
+{
+    return contentItem()->width();
+}
+
+qreal WOutputRenderWindow::height()
+{
+    return contentItem()->height();
+}
+
+void WOutputRenderWindow::setWidth(qreal arg)
+{
+    QQuickWindow::setWidth(arg);
+    contentItem()->setWidth(arg);
+}
+
+void WOutputRenderWindow::setHeight(qreal arg)
+{
+    QQuickWindow::setHeight(arg);
+    contentItem()->setHeight(arg);
 }
 
 void WOutputRenderWindow::classBegin()
