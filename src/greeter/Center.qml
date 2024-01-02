@@ -130,21 +130,40 @@ Item {
                 }
             }
 
+            //NOTE: Remove this on later
+            MessageDialog {
+                id: backToNormalDialog
+                buttons: MessageDialog.Ok | MessageDialog.Cancel
+                text: qsTr("Return to default mode")
+                informativeText: qsTr("Do you want to back to default?")
+                detailedText: qsTr("This action will reboot machine, please confirm.")
+                onButtonClicked: function (button, role) {
+                    switch (button) {
+                    case MessageDialog.Ok:
+                        TreeLandHelper.backToNormal()
+                        TreeLandHelper.reboot()
+                        break;
+                    }
+                }
+            }
+
+
             Rectangle {
                 implicitWidth: bottomGroup.buttonSize + 6
                 implicitHeight: bottomGroup.buttonSize + 6
                 color: "transparent"
                 Layout.alignment: Qt.AlignHCenter
-                RoundButton {
+                D.RoundButton {
                     id: boardBtn
                     text: '2'
                     width: bottomGroup.buttonSize
                     height: bottomGroup.buttonSize
                     anchors.centerIn: parent
-                    onClicked: {
-                        console.log("need impl btn 2")
-                    }
 
+                    D.ToolTip.visible: hovered
+                    D.ToolTip.text: qsTr("Back To Normal Mode")
+
+                    onClicked: backToNormalDialog.open()
                     background: RoundBlur {}
                 }
             }
