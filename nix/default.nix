@@ -12,12 +12,14 @@
 , qtquick3d
 , qtwayland
 , dtkdeclarative
+, dtksystemsettings
 , waylib
 , wayland
 , wayland-protocols
 , wlr-protocols
 , pixman
 , pam
+, libxcrypt
 , nixos-artwork
 }:
 
@@ -39,9 +41,12 @@ stdenv.mkDerivation rec {
   };
 
   postPatch = ''
-    substituteInPlace src/{treeland/quick/qml/OutputDelegate.qml,greeter/Greeter.qml} \
-      --replace "/usr/share/wallpapers/deepin/desktop.jpg" \
+    for file in $(grep -rl "/usr/share/wallpapers/deepin")
+    do
+      substituteInPlace $file \
+        --replace "/usr/share/wallpapers/deepin/desktop.jpg" \
                 "${nixos-artwork.wallpapers.simple-blue}/share/backgrounds/nixos/nix-wallpaper-simple-blue.png"
+    done
   '';
 
   nativeBuildInputs = [
@@ -58,12 +63,14 @@ stdenv.mkDerivation rec {
     qtquick3d
     qtwayland
     dtkdeclarative
+    dtksystemsettings
     waylib
     wayland
     wayland-protocols
     wlr-protocols
     pixman
     pam
+    libxcrypt
   ];
 
    cmakeFlags = [
