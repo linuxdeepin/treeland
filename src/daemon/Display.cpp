@@ -550,6 +550,8 @@ namespace SDDM {
                 env.insert("WAYLAND_DEBUG", "1");
                 #endif
 
+                env.insert("DDE_CURRENT_COMPOSITER", "TreeLand");
+
                 auth->setDisplayServerCommand(QStringLiteral());
                 qInfo() << "WAYLAND_DISPLAY => " << display;
             } else {
