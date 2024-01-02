@@ -27,10 +27,10 @@ D.Menu {
         }
     }
 
-    Action {
+    D.Action {
         enabled: GreeterModel.proxy.canHibernate
         text: qsTr("Hibernate")
-        icon.source: "file:///usr/share/icons/Papirus-Dark/symbolic/actions/system-hibernate-symbolic"
+        icon.name: "login_sleep"
 
         onTriggered: GreeterModel.proxy.hibernate()
     }
@@ -38,7 +38,7 @@ D.Menu {
     D.Action {
         enabled: GreeterModel.proxy.canSuspend
         text: qsTr("Suspend")
-        icon.name: "login_sleep"
+        icon.name: "login_suspend"
 
         onTriggered: GreeterModel.proxy.suspend()
     }
@@ -51,11 +51,11 @@ D.Menu {
         onTriggered: GreeterModel.proxy.reboot()
     }
 
-    Action {
+    D.Action {
         id: powerOff
         enabled: GreeterModel.proxy.canPowerOff
         text: qsTr("Shut Down")
-        icon.source: "file:///usr/share/icons/Papirus-Dark/symbolic/actions/system-shutdown-symbolic"
+        icon.name: "login_poweroff"
 
         onTriggered: GreeterModel.proxy.powerOff()
     }

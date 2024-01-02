@@ -11,5 +11,8 @@
         <file>icons/login_sleep.dci</file>
         <file>icons/login_user.dci</file>
         <file>icons/login_hint.dci</file>
+        <file>icons/login_logout.dci</file>
+        <file>icons/login_poweroff.dci</file>
+        <file>icons/login_suspend.dci</file>
     </qresource>
 </RCC>
