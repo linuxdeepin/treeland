@@ -20,7 +20,7 @@ makeTest
 
       environment = {
         variables = {
-        #  "WLR_RENDERER" = "pixman";
+          WLR_RENDERER = "pixman";
           XDG_RUNTIME_DIR = "/run/user/1000";
         };
         systemPackages = with pkgs; [ waylib wayland-utils foot xterm ];
