@@ -220,7 +220,7 @@ Item {
                 radius: parent.height / 2
             }
 
-            HintLabel { 
+            HintLabel {
                 id: hintLabel
                 x: hintBtn.width - hintLabel.width
                 y: hintBtn.height + 11
@@ -246,6 +246,12 @@ Item {
     Component.onCompleted: {
         updateUser()
         passwordField.forceActiveFocus()
+    }
+
+    onVisibleChanged: {
+        if(visible === true) {
+            passwordField.forceActiveFocus()
+        }
     }
 
     function updateHintMsg(msg) {
