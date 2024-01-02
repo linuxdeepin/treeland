@@ -69,6 +69,7 @@ namespace SDDM {
     private:
         bool m_started { false };
         bool m_singleMode { false };
+        int m_maxRetry{ 3 };
 
         Display * const m_display { nullptr };
         QString m_socket;

@@ -30,6 +30,7 @@
 #include "XorgDisplayServer.h"
 #include "XorgUserDisplayServer.h"
 #include "WaylandDisplayServer.h"
+#include "PowerManager.h"
 
 #include <QtCore/QDebug>
 #include <QtCore/QProcess>
@@ -323,6 +324,16 @@ namespace SDDM {
         m_auth->deleteLater();
         m_auth = nullptr;
 
+        //NOTE: remove this in future
+        if (status != Auth::HELPER_SUCCESS and m_maxRetry-- > 0) {
+            stop();
+            qInfo() << "restart Greeter...";
+            if (start()) { // if restart successfully, reset retry times.
+                m_maxRetry = 3;
+            }
+            return;
+        }
+
         if (status == Auth::HELPER_DISPLAYSERVER_ERROR) {
             Q_EMIT displayServerFailed();
         } else if (status == Auth::HELPER_TTY_ERROR) {
@@ -330,6 +341,9 @@ namespace SDDM {
         } else if (status == Auth::HELPER_SESSION_ERROR) {
             Q_EMIT failed();
         }
+
+        daemonApp->backToNormal();
+        daemonApp->powerManager()->reboot();
     }
 
     bool Greeter::isRunning() const {
