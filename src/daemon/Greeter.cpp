@@ -325,6 +325,7 @@ namespace SDDM {
         m_auth = nullptr;
 
         //NOTE: remove this in future
+#ifdef NDEBUG
         if (status != Auth::HELPER_SUCCESS and m_maxRetry-- > 0) {
             stop();
             qInfo() << "restart Greeter...";
@@ -333,6 +334,7 @@ namespace SDDM {
             }
             return;
         }
+#endif
 
         if (status == Auth::HELPER_DISPLAYSERVER_ERROR) {
             Q_EMIT displayServerFailed();
