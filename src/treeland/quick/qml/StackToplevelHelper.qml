@@ -75,6 +75,20 @@ Item {
     }
 
     Loader {
+        id: newWindowAnimation
+    }
+
+    Component {
+        id: newWindowAnimationComponent
+
+        NewWindowAnimation {
+            target: surface
+            onStopped: {
+            }
+        }
+    }
+
+    Loader {
         id: closeAnimation
     }
 
@@ -185,6 +199,18 @@ Item {
         }
     }
 
+    // FIXME: As a temporary solution, you should wait for "mapping"/"Position"/"Rect" to
+    //        be ready and play the window animation immediately.
+    Timer {
+        id: newWindowAnimationTimer
+        interval: 350
+        onTriggered: {
+                surface.visible = true
+                newWindowAnimation.item.start()
+
+        }
+    }
+
     onMappedChanged: {
         console.log("onMappedChanged!", TreeLandHelper.clientName(waylandSurface.surface))
 
@@ -200,10 +226,17 @@ Item {
                 surface.visible = false;
                 dockModel.append({ source: surface });
             } else {
-                surface.visible = true;
+                // FIXME: when newWindowAnimationTimer.start will visible=true
+                surface.visible = false
 
                 if (surface.effectiveVisible)
                     TreeLandHelper.activatedSurface = waylandSurface
+
+                newWindowAnimation.parent = surface.parent
+                newWindowAnimation.anchors.fill = surface
+                newWindowAnimation.sourceComponent = newWindowAnimationComponent
+
+                newWindowAnimationTimer.start()
             }
 
             switcherModel.append({ source: surface });
