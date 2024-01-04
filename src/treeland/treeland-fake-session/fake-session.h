@@ -87,6 +87,7 @@ class ShortcutContext : public QWaylandClientExtensionTemplate<ShortcutContext>,
     Q_OBJECT
 public:
     explicit ShortcutContext(struct ::treeland_shortcut_context_v1 *object);
+    ~ShortcutContext() override;
 
 Q_SIGNALS:
     void shortcutHappended();
@@ -130,4 +131,5 @@ private:
     Protocols::ShortcutManager* m_shortcutManager;
     Protocols::ForeignToplevelManager *m_toplevelManager;
     Protocols::ExtForeignToplevelList *m_extForeignToplevelList;
+    std::vector<Protocols::ShortcutContext*> m_customShortcuts;
 };

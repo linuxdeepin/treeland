@@ -22,7 +22,7 @@ public:
         Q_ASSERT(!map.contains(handle));
         map.insert(handle, qq);
         sc.connect(&handle->events.destroy, this, &QTreeLandShortcutManagerV1Private::on_destroy);
-        sc.connect(&handle->events.new_context, this, &QTreeLandShortcutManagerV1Private::on_new_context);
+        sc.connect(&handle->events.context, this, &QTreeLandShortcutManagerV1Private::on_new_context);
     }
     ~QTreeLandShortcutManagerV1Private() {
         if (!m_handle)

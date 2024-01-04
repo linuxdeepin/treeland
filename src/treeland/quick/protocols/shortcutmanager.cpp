@@ -50,7 +50,7 @@ void ShortcutManagerV1::create()
         QAction *action = new QAction(context);
         action->setShortcut(QString(context->handle()->key));
 
-        struct wl_client *client = wl_resource_get_client(context->handle()->resource);
+        struct wl_client *client = wl_resource_get_client(context->handle()->manager->client);
         uid_t uid;
         wl_client_get_credentials(client, nullptr, &uid, nullptr);
         struct passwd* pw = getpwuid(uid);

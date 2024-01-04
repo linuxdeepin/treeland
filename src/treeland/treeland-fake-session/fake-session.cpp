@@ -20,6 +20,9 @@
 #include <QtWaylandClient/QWaylandClientExtension>
 #include <QtWaylandClient/private/qwaylandwindow_p.h>
 #include <QDir>
+#include <QStandardPaths>
+#include <QSettings>
+#include <QFileSystemWatcher>
 
 #include <sys/types.h>
 #include <pwd.h>
@@ -115,6 +118,10 @@ ShortcutContext::ShortcutContext(struct ::treeland_shortcut_context_v1 *object)
 
 }
 
+ShortcutContext::~ShortcutContext() {
+    destroy();
+}
+
 void ShortcutContext::treeland_shortcut_context_v1_shortcut()
 {
     emit shortcutHappended();
@@ -146,6 +153,53 @@ void PersonalizationWallpaper::personalization_wallpaper_context_v1_wallpapers(w
 }
 }
 
+static const QMap<QString, QString> SpecialKeyMap = {
+    {"minus", "-"}, {"equal", "="}, {"brackertleft", "["}, {"breckertright", "]"},
+    {"backslash", "\\"}, {"semicolon", ";"}, {"apostrophe", "'"}, {"comma", ","},
+    {"period", "."}, {"slash", "/"}, {"grave", "`"},
+};
+
+static const QMap<QString, QString> SpecialRequireShiftKeyMap = {
+    {"exclam", "!"}, {"at", "@"}, {"numbersign", "#"}, {"dollar", "$"},
+    {"percent", "%"}, {"asciicircum", "^"}, {"ampersand", "&"}, {"asterisk", "*"},
+    {"parenleft", "("}, {"parenright", ")"}, {"underscore", "_"}, {"plus", "+"},
+    {"braceleft", "{"}, {"braceright", "}"}, {"bar", "|"}, {"colon", ":"},
+    {"quotedbl", "\""}, {"less", "<"}, {"greater", ">"}, {"question", "?"},
+    {"asciitilde", "~"}
+};
+
+QString transFromDaemonAccelStr(const QString &accelStr)
+{
+    if (accelStr.isEmpty()) {
+        return accelStr;
+    }
+
+    QString str(accelStr);
+
+    str.remove("<")
+            .replace(">", "+")
+            .replace("Control", "Ctrl")
+            .replace("Super", "Meta");
+
+    for (auto it = SpecialKeyMap.constBegin(); it != SpecialKeyMap.constEnd(); ++it) {
+        QString origin(str);
+        str.replace(it.key(), it.value());
+        if (str != origin) {
+            return str;
+        }
+    }
+
+    for (auto it = SpecialRequireShiftKeyMap.constBegin(); it != SpecialRequireShiftKeyMap.constEnd(); ++it) {
+        QString origin(str);
+        str.replace(it.key(), it.value());
+        if (str != origin) {
+            return str.remove("Shift+");
+        }
+    }
+
+    return str;
+}
+
 static int click_state = 0;
 FakeSession::FakeSession(int argc, char* argv[])
     : QApplication(argc, argv)
@@ -156,7 +210,38 @@ FakeSession::FakeSession(int argc, char* argv[])
 {
     connect(m_shortcutManager, &Protocols::ShortcutManager::activeChanged, this, [this] {
         qDebug() << m_shortcutManager->isActive();
+
         if (m_shortcutManager->isActive()) {
+            // TODO: Use a converter
+            const QString configDir = QString("%1/deepin/dde-daemon/keybinding/").arg(QStandardPaths::standardLocations(QStandardPaths::ConfigLocation).first());
+            const QString customIni = QString("%1/custom.ini").arg(configDir);
+
+            auto updateShortcuts = [this, customIni] {
+                for (auto *context : m_customShortcuts) {
+                    delete context;
+                }
+
+                m_customShortcuts.clear();
+
+                QSettings custom(customIni, QSettings::IniFormat);
+                for (auto group : custom.childGroups()) {
+                    const QString &action = custom.value(QString("%1/Action").arg(group)).toString();
+                    const QString &accels = transFromDaemonAccelStr(custom.value(QString("%1/Accels").arg(group)).toString());
+                    Protocols::ShortcutContext* context = new Protocols::ShortcutContext(m_shortcutManager->register_shortcut_context(accels));
+                    m_customShortcuts.push_back(context);
+                    connect(context, &Protocols::ShortcutContext::shortcutHappended, this, [action] {
+                        QProcess::startDetached(action);
+                    });
+                }
+            };
+
+            QFileSystemWatcher *watcher = new QFileSystemWatcher({customIni}, this);
+            connect(watcher, &QFileSystemWatcher::fileChanged, this, [updateShortcuts] {
+                updateShortcuts();
+            });
+
+            updateShortcuts();
+
             QDir dir(TREELAND_DATA_DIR"/shortcuts");
             for (auto d : dir.entryInfoList(QDir::Filter::Files)) {
                 auto shortcut = new Shortcut(d.filePath());
