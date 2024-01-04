@@ -8,12 +8,13 @@
 struct treeland_shortcut_manager_v1 {
     struct wl_event_loop *event_loop;
     struct wl_global *global;
-    struct wl_list resources;
+    struct wl_list contexts;
+    struct wl_resource *client;
 
     struct wl_listener display_destroy;
 
     struct {
-        struct wl_signal new_context;
+        struct wl_signal context;
         struct wl_signal destroy;
     } events;
 
@@ -23,8 +24,8 @@ struct treeland_shortcut_manager_v1 {
 struct treeland_shortcut_context_v1 {
     struct treeland_shortcut_manager_v1 *manager;
     char *key;
-    struct wl_resource *resource;
     struct wl_list link;
+    struct wl_resource *resource;
 
     struct {
         struct wl_signal destroy;
