@@ -6,14 +6,6 @@
 #include <wayland-server-core.h>
 #include <QStringList>
 
-struct WallpaperMetaData {
-    QString group;
-    QString imagePath;               // wallpaper path
-    QString suffix;                  // wallpaper suffix
-    QString output;                  // Output which wallpaper belongs
-    int currentIndex;
-};
-
 struct treeland_personalization_manager_v1 {
     struct wl_event_loop *event_loop;
     struct wl_global *global;

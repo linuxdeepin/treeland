@@ -88,10 +88,10 @@ OutputItem {
 
     Image {
         id: background
-        source:  personalizationManager.currentWallpaper
         fillMode: Image.PreserveAspectCrop
-        asynchronous: true
+        source: personalizationManager.currentWallpaper + "?" + new Date().getTime()
         anchors.fill: parent
+        asynchronous: true
     }
 
     Component {
