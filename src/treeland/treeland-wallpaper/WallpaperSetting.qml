@@ -45,9 +45,11 @@ Item {
 
                     Image {
                         id: backgroundImage
+                        anchors.fill: parent
+                        anchors.margins: 4
                         fillMode: Image.PreserveAspectCrop
                         asynchronous: true
-                        sourceSize: Qt.size(background.width, background.height)
+                        sourceSize: Qt.size(width, height)
                     }
 
                     Rectangle {
@@ -68,31 +70,31 @@ Item {
                     implicitWidth: parent.width - background.width - parent.spacing
 
                     ColumnLayout {
-                       implicitWidth: parent.width
+                        implicitWidth: parent.width
                         spacing: 10
 
                         ColumnLayout {
                             id: information
                             implicitWidth: parent.width
                             spacing: 1
+
                             PropertyItemDelegate {
-                                Layout.fillWidth: true
+                                implicitWidth: parent.width
                                 title: qsTr("Current Wallpaepr")
 
                                 corners: RoundRectangle.TopCorner
                                 action: Text {
-                                    text: "wave of the blue"
+                                    text: personalization.currentGroup
                                 }
                             }
 
                             PropertyItemDelegate {
-                                Layout.fillWidth: true
+                                implicitWidth: parent.width
                                 title: qsTr("Wallpaper Display Method")
 
                                 corners: RoundRectangle.BottomCorner
                                 action: ComboBox {
                                     ColorSelector.family: Palette.CommonColor
-                                    Layout.fillWidth: true
                                     model: ListModel {
                                         ListElement { text: "Stretch"}
                                         ListElement { text: "Preserve Aspect Fit"}
@@ -130,8 +132,14 @@ Item {
                             Button {
                                 id: add_directory
                                 text: "Add Directory"
+                                visible: false
                                 Layout.preferredWidth: (parent.width - parent.spacing) / 2
                                 Layout.alignment: Qt.AlignRight
+                            }
+
+                            Item {
+                                id: spacer
+                                Layout.fillWidth: true
                             }
                         }
                     }

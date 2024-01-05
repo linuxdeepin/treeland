@@ -12,9 +12,10 @@ Item {
     property alias modelData: gridView.model
     property alias titleText: title.text
     property alias descriptionText: description.text
+    property alias descriptionVisiable: description.visible
 
     implicitWidth: parent.width
-    implicitHeight: 240
+    implicitHeight: head.height + gridView.contentHeight +  10
 
     ColumnLayout {
         spacing: 10
@@ -40,6 +41,14 @@ Item {
                     Layout.alignment: Qt.AlignRight
                     width: parent.width / 2
                     height: 32
+
+                    MouseArea {
+                        anchors.fill: parent
+
+                        onClicked: {
+                            modelData.showAll = !modelData.showAll
+                        }
+                    }
                 }
             }
         }
@@ -47,7 +56,9 @@ Item {
         GridView {
             id: gridView
             implicitWidth: parent.width
-            implicitHeight: parent.height - head.height - parent.spacing
+            implicitHeight: parent.height
+            clip: true
+            interactive: false
             cellWidth: 140
             cellHeight: 105
             currentIndex: model.currentIndex
@@ -62,7 +73,7 @@ Item {
                     anchors.fill: parent
                     fillMode: Image.PreserveAspectCrop
                     asynchronous: true
-                    sourceSize: Qt.size(width - 10, height - 10)
+                    sourceSize: Qt.size(width, height)
                     source: imageSource
                 }
 
@@ -86,8 +97,40 @@ Item {
 
                 MouseArea {
                     anchors.fill: parent
+                    hoverEnabled: true
                     onClicked: {
                         personalization.setWallpaper(imageSource, group, index)
+                    }
+
+                    onEntered: {
+                        if (gridView.currentIndex !== index && group === "Local")
+                            removeButton.visible = true
+                    }
+
+                    onExited: {
+                        removeButton.visible = false;
+                    }
+                }
+
+                FloatingButton {
+                    id: removeButton
+                    x: itemImage.width - removeButton.width / 2
+                    y: 0
+                    visible: false
+
+                    icon {
+                        width: 8
+                        height: 8
+                        name: "clear"
+                    }
+
+                    MouseArea {
+                        id: removeButtonArea
+                        anchors.fill: parent
+
+                        onClicked: {
+                            personalization.removeWallpaper(imageSource, group, index)
+                        }
                     }
                 }
             }

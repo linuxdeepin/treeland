@@ -44,6 +44,8 @@ signals:
 public slots:
     void addWallpaper(const QString &path);
     void setWallpaper(const QString &path, const QString &group, int index);
+    void removeWallpaper(const QString &path, const QString &group, int index);
+
     WallpaperCardModel* wallpaperModel(const QString &group, const QString &dir);
 
 private:

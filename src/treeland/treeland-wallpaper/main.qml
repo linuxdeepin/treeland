@@ -6,8 +6,8 @@ import QtQuick.Controls 2.15
 
 ApplicationWindow {
     visible: true
-    width: 720
-    height: 450
+    width: 765
+    height: 750
     title: qsTr("Wallpaper Settings")
 
     Wallpaper {

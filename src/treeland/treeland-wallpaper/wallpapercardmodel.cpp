@@ -12,6 +12,7 @@ struct WallpaperCardModelPrivate {
     int currentIndex {0};
     QString directory;
     QStringList wallpapers;
+    bool m_toggleShowAll = false;
 };
 
 WallpaperCardModel::WallpaperCardModel(QObject *parent)
@@ -45,8 +46,31 @@ int WallpaperCardModel::currentIndex() const {
     return d->currentIndex;
 }
 
-int WallpaperCardModel::rowCount(const QModelIndex &parent) const {
+bool WallpaperCardModel::showAll() const
+{
+    return d->m_toggleShowAll;
+}
+
+void WallpaperCardModel::setShowAll(bool enable)
+{
+    d->m_toggleShowAll = enable;
+
+    Q_EMIT showAllChanged(d->m_toggleShowAll);
+    Q_EMIT layoutChanged();
+}
+
+int WallpaperCardModel::dataCount() const
+{
     return static_cast<int>(d->wallpapers.length());
+}
+
+int WallpaperCardModel::rowCount(const QModelIndex &parent) const
+{
+    if (!d->m_toggleShowAll && dataCount() > 10) {
+        return 10;
+    }
+
+    return dataCount();
 }
 
 QVariant WallpaperCardModel::data(const QModelIndex &index, int role) const {
@@ -72,6 +96,7 @@ QString WallpaperCardModel::directory()
 void WallpaperCardModel::setDirectory(const QString& directory)
 {
     QDir dir(directory);
+    dir.setSorting(QDir::Time);
     d->directory = directory;
 
     QStringList entries = dir.entryList({"*.png", "*.jpg", "*.jpeg", "*.bmp", "*.gif"});
@@ -82,8 +107,18 @@ void WallpaperCardModel::setDirectory(const QString& directory)
 
 void WallpaperCardModel::append(const QString& path)
 {
-    beginInsertRows(QModelIndex(), rowCount(), rowCount());
-    d->wallpapers.push_back("file://" + path);
-    setCurrentIndex(rowCount());
+    beginInsertRows(QModelIndex(), 0, 0);
+    d->wallpapers.push_front("file://" + path);
+    setCurrentIndex(0);
     endInsertRows();
+
+    Q_EMIT dataCountChanged(d->wallpapers.length());
+    Q_EMIT layoutChanged();
+}
+
+void WallpaperCardModel::remove(int index)
+{
+    beginRemoveRows(QModelIndex(), index, index);
+    d->wallpapers.remove(index);
+    endRemoveRows();
 }
