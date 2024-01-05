@@ -223,13 +223,6 @@ OutputItem {
         }
 
         Button {
-            text: "2X"
-            onClicked: {
-                waylandOutput.scale = 2
-            }
-        }
-
-        Button {
             text: "Normal"
             onClicked: {
                 outputViewport.rotationOutput(WaylandOutput.Normal)
@@ -265,10 +258,5 @@ OutputItem {
 
     function setScale(scale) {
         onscreenViewport.setOutputScale(scale)
-    }
-
-    function setOutputPosition(x, y) {
-        rootOutputItem.x = x;
-        rootOutputItem.y = y;
     }
 }
