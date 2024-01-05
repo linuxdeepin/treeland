@@ -65,7 +65,7 @@ class QuickPersonalizationManager : public WQuickWaylandServerInterface, public 
     W_DECLARE_PRIVATE(QuickPersonalizationManager)
     QML_ATTACHED(QuickPersonalizationManagerAttached)
 
-    Q_PROPERTY(QString currentWallpaper READ currentWallpaper NOTIFY currentWallpaperChanged FINAL)
+    Q_PROPERTY(QString currentWallpaper READ currentWallpaper WRITE setCurrentWallpaper NOTIFY currentWallpaperChanged FINAL)
     Q_PROPERTY(uid_t currentUserId READ currentUserId WRITE setCurrentUserId NOTIFY currentUserIdChanged FINAL)
 
 public:
@@ -79,6 +79,7 @@ public:
     static QuickPersonalizationManagerAttached *qmlAttachedProperties(QObject *target);
 
     QString currentWallpaper();
+    void setCurrentWallpaper(const QString& path);
 
     uid_t currentUserId();
     void setCurrentUserId(uid_t uid);

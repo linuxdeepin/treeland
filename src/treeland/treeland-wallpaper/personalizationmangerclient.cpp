@@ -82,6 +82,17 @@ void PersonalizationManager::addWallpaper(const QString &path)
     }
 }
 
+void PersonalizationManager::removeWallpaper(const QString &path, const QString &group, int index)
+{
+    if (m_modes[group]->currentIndex() == index)
+        return;
+
+    QString local_path = QUrl(path).toLocalFile();
+    QFile::remove(local_path);
+
+    m_modes[group]->remove(index);
+}
+
 void PersonalizationManager::setWallpaper(const QString &path, const QString &group, int index)
 {
     if (!m_wallpaperContext)

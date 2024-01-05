@@ -25,31 +25,44 @@ Item {
             Layout.alignment: Qt.AlignTop | Qt.AlignVCenter
         }
 
-        WallpaperCard {
-            group: "Local"
-            directory: personalization.cacheDirectory
-
-            Layout.alignment: Qt.AlignVCenter
-            modelData: personalization.wallpaperModel(group, directory)
-            visible: modelData.count > 0
-            titleText: qsTr("Local Picture")
-            descriptionText: qsTr("Show All ") + modelData.count;
-        }
-
-        WallpaperCard {
-            group: "System"
-            directory: "/home/zoro/Pictures/"
-
-            Layout.alignment: Qt.AlignVCenter
-            modelData: personalization.wallpaperModel(group, directory)
-            visible: modelData.count > 0
-            titleText: qsTr("System Picture")
-            descriptionText: qsTr("Show All ") + modelData.count;
-        }
-
-        Item {
-            id: spacer
+        Flickable {
             Layout.fillHeight: true
+            Layout.fillWidth: true
+            clip: true
+
+            contentWidth: parent.width
+            contentHeight: localCard.height + systemCard.height
+
+            ColumnLayout {
+                anchors.fill: parent
+                spacing: 10
+
+                WallpaperCard {
+                    id: localCard
+                    group: "Local"
+                    directory: personalization.cacheDirectory
+
+                    Layout.alignment: Qt.AlignVCenter
+                    modelData: personalization.wallpaperModel(group, directory)
+                    visible: modelData.count > 0
+                    titleText: qsTr("Local Picture")
+                    descriptionText: qsTr("Show All") + "-" + modelData.count
+                    descriptionVisiable: modelData.count > 10
+                }
+
+                WallpaperCard {
+                    id: systemCard
+                    group: "System"
+                    directory: "/home/zoro/Pictures/"
+
+                    Layout.alignment: Qt.AlignVCenter
+                    modelData: personalization.wallpaperModel(group, directory)
+                    visible: modelData.count > 0
+                    titleText: qsTr("System Picture")
+                    descriptionText: qsTr("Show All ") + "-" + modelData.count
+                    descriptionVisiable: modelData.count > 10
+                }
+            }
         }
     }
 }

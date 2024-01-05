@@ -40,7 +40,6 @@ public:
     ~QuickPersonalizationManagerPrivate();
 
     void updateCacheWallpaperPath(uid_t uid);
-    bool parseMetaData(const char* metadata);
     void loadWallpaperSettings();
     void saveWallpaperSettings(const QString& current, const char* meta);
 
@@ -53,41 +52,15 @@ public:
     QString m_iniMetaData;
 
     TreeLandPersonalizationManager *manager = nullptr;
-    WallpaperMetaData *m_metaData = nullptr;
 };
 
 QuickPersonalizationManagerPrivate::QuickPersonalizationManagerPrivate(QuickPersonalizationManager *qq)
     : WObjectPrivate(qq)
-    , m_metaData(new WallpaperMetaData())
 {
 }
 
 QuickPersonalizationManagerPrivate::~QuickPersonalizationManagerPrivate()
 {
-    if (!m_metaData) {
-        delete m_metaData;
-    }
-}
-
-bool QuickPersonalizationManagerPrivate::parseMetaData(const char* metadata)
-{
-    QJsonDocument json_doc = QJsonDocument::fromJson(metadata);
-
-    if (!json_doc.isNull() && m_metaData) {
-        QJsonObject json_obj = json_doc.object();
-
-        m_metaData->currentIndex = json_obj["CurrentIndex"].toInt();
-        m_metaData->group = json_obj["Group"].toString();
-        m_metaData->imagePath = json_obj["ImagePath"].toString();
-        m_metaData->output = json_obj["Output"].toString();
-
-        QFileInfo file_info(m_metaData->imagePath);
-        m_metaData->suffix = file_info.suffix();
-
-        return true;
-    }
-
-    return false;
 }
 
 void QuickPersonalizationManagerPrivate::updateCacheWallpaperPath(uid_t uid)
@@ -104,9 +77,9 @@ void QuickPersonalizationManagerPrivate::loadWallpaperSettings()
 
     QSettings settings(m_settingFile, QSettings::IniFormat);
 
-    m_currentWallpaper = settings.value("currentwallpaper").toString();
+    W_Q(QuickPersonalizationManager);
+    q->setCurrentWallpaper(settings.value("currentwallpaper").toString());
     m_iniMetaData = settings.value("metadata").toString();
-    parseMetaData(m_iniMetaData.toLocal8Bit());
 }
 
 void QuickPersonalizationManagerPrivate::saveWallpaperSettings(const QString& current, const char* meta)
@@ -119,7 +92,8 @@ void QuickPersonalizationManagerPrivate::saveWallpaperSettings(const QString& cu
     settings.setValue("currentwallpaper", current);
     settings.setValue("metadata", meta);
 
-    m_currentWallpaper = current;
+    W_Q(QuickPersonalizationManager);
+    q->setCurrentWallpaper(current);
     m_iniMetaData = QString::fromLocal8Bit(meta);
 }
 
@@ -133,7 +107,10 @@ QuickPersonalizationManager::QuickPersonalizationManager(QObject *parent)
 
     PERSONALIZATION_MANAGER = this;
 
-    setCurrentUserId(1000);  //TODO : test
+#ifndef NDEBUG
+#include <unistd.h>
+    setCurrentUserId(getuid());
+#endif
 }
 
 void QuickPersonalizationManager::create() {
@@ -152,11 +129,6 @@ void QuickPersonalizationManager::create() {
     connect(this, &QuickPersonalizationManager::sendUserwallpapers,
             d->manager,
             &TreeLandPersonalizationManager::onSendUserWallpapers);
-    connect(this, &QuickPersonalizationManager::currentUserIdChanged,
-            this, [this]() {
-                QString wallpaper = currentWallpaper();
-                Q_EMIT currentWallpaperChanged(wallpaper);
-            });
 }
 
 void QuickPersonalizationManager::onWindowContextCreated(PersonalizationWindowContext *context)
@@ -193,23 +165,18 @@ void QuickPersonalizationManager::onSetUserWallpaper(personalization_wallpaper_c
     QByteArray data = src_file.readAll();
     src_file.close();
 
-    if (d->parseMetaData(context->metaData)) {
-        QString dest_path = d->m_cacheDirectory + "desktop." + d->m_metaData->suffix;
+    QString dest_path = d->m_cacheDirectory + "desktop";
+    QDir dir(d->m_cacheDirectory);
+    if (!dir.exists()) {
+        dir.mkpath(d->m_cacheDirectory);
+    }
 
-        QDir dir(d->m_cacheDirectory);
-        if (!dir.exists()) {
-            dir.mkpath(d->m_cacheDirectory);
-        }
+    QFile dest_file(dest_path);
+    if (dest_file.open(QIODevice::WriteOnly)) {
+        dest_file.write(data);
+        dest_file.close();
 
-        setCurrentUserId(context->uid);
-        QFile dest_file(dest_path);
-        if (dest_file.open(QIODevice::WriteOnly)) {
-            dest_file.write(data);
-            dest_file.close();
-
-            d->saveWallpaperSettings(dest_path, context->metaData);
-            Q_EMIT currentWallpaperChanged(dest_path);
-        }
+        d->saveWallpaperSettings(dest_path, context->metaData);
     }
 }
 
@@ -245,6 +212,14 @@ QString QuickPersonalizationManager::currentWallpaper()
         return QString("file://%1").arg(d->m_currentWallpaper);
     }
     return "file:///usr/share/wallpapers/deepin/desktop.jpg";
+}
+
+void QuickPersonalizationManager::setCurrentWallpaper(const QString& path)
+{
+    W_D(QuickPersonalizationManager);
+
+    d->m_currentWallpaper = path;
+    Q_EMIT currentWallpaperChanged(path);
 }
 
 uid_t QuickPersonalizationManager::currentUserId()
