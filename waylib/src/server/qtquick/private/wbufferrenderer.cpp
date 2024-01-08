@@ -494,6 +494,15 @@ void WBufferRenderer::render(int sourceIndex, QMatrix4x4 renderMatrix, bool pres
         if (!softwareRenderer) {
             // TODO: get damage area from QRhi renderer
             m_damageRing.addWhole();
+            // ###: maybe Qt bug? Before executing QRhi::endOffscreenFrame, we may
+            // use the same QSGRenderer for multiple drawings. This can lead to
+            // rendering the same content for different QSGRhiRenderTarget instances
+            // when using the RhiGles backend. Additionally, considering that the
+            // result of the current drawing may be needed when drawing the next
+            // sourceIndex, we should let the RHI (Rendering Hardware Interface)
+            // complete the results of this drawing here to ensure the current
+            // drawing result is available for use.
+            wd->rhi->finish();
         } else {
             auto currentImage = getImageFrom(state.renderTarget);
             Q_ASSERT(currentImage && currentImage == softwareRenderer->m_rt.paintDevice);
