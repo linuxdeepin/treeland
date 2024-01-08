@@ -1194,16 +1194,20 @@ void WOutputRenderWindow::setOutputScale(WOutputViewport *output, float scale)
 {
     Q_D(WOutputRenderWindow);
 
-    if (auto helper = d->getOutputHelper(output))
+    if (auto helper = d->getOutputHelper(output)) {
         helper->setScale(scale);
+        update();
+    }
 }
 
 void WOutputRenderWindow::rotateOutput(WOutputViewport *output, WOutput::Transform t)
 {
     Q_D(WOutputRenderWindow);
 
-    if (auto helper = d->getOutputHelper(output))
+    if (auto helper = d->getOutputHelper(output)) {
         helper->setTransform(t);
+        update();
+    }
 }
 
 WWaylandCompositor *WOutputRenderWindow::compositor() const
