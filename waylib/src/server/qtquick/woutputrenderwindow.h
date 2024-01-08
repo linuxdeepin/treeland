@@ -47,8 +47,8 @@ public:
     WWaylandCompositor *compositor() const;
     void setCompositor(WWaylandCompositor *newRenderer);
 
-    qreal width();
-    qreal height();
+    qreal width() const;
+    qreal height() const;
 
 public Q_SLOTS:
     void render();
