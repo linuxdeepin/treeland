@@ -30,7 +30,7 @@ public:
     WOutputViewportPrivate()
         : offscreen(false)
         , root(false)
-        , preserveColorContents(true)
+        , preserveColorContents(false)
     {
 
     }
