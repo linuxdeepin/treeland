@@ -75,6 +75,40 @@ QWBackend *WQuickBackend::backend() const
     return d->backend->nativeInterface<QWBackend>();
 }
 
+template<class T>
+static bool hasBackend(QWBackend *handle)
+{
+    if (qobject_cast<T*>(handle))
+        return true;
+    if (auto multiBackend = qobject_cast<QWMultiBackend*>(handle)) {
+        bool exists = false;
+        multiBackend->forEachBackend([] (wlr_backend *backend, void *userData) {
+            bool &exists = *reinterpret_cast<bool*>(userData);
+            if (T::from(backend))
+                exists = true;
+        }, &exists);
+
+        return exists;
+    }
+
+    return false;
+}
+
+bool WQuickBackend::hasDrm() const
+{
+    return hasBackend<QWDrmBackend>(backend());
+}
+
+bool WQuickBackend::hasX11() const
+{
+    return hasBackend<QWX11Backend>(backend());
+}
+
+bool WQuickBackend::hasWayland() const
+{
+    return hasBackend<QWWaylandBackend>(backend());
+}
+
 void WQuickBackend::create()
 {
     WQuickWaylandServerInterface::create();

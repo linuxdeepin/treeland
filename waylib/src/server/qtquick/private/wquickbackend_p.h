@@ -28,12 +28,18 @@ class WAYLIB_SERVER_EXPORT WQuickBackend : public WQuickWaylandServerInterface, 
     Q_OBJECT
     W_DECLARE_PRIVATE(WQuickBackend)
     Q_PROPERTY(WSocket* ownsSocket READ ownsSocket CONSTANT)
+    Q_PROPERTY(bool hasDrm READ hasDrm FINAL)
+    Q_PROPERTY(bool hasX11 READ hasDrm FINAL)
+    Q_PROPERTY(bool hasWayland READ hasDrm FINAL)
     QML_NAMED_ELEMENT(WaylandBackend)
 
 public:
     explicit WQuickBackend(QObject *parent = nullptr);
 
     QW_NAMESPACE::QWBackend *backend() const;
+    bool hasDrm() const;
+    bool hasX11() const;
+    bool hasWayland() const;
 
 Q_SIGNALS:
     void outputAdded(WOutput *output);
