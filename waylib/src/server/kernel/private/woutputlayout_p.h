@@ -10,11 +10,13 @@ class WOutputLayoutPrivate : public WObjectPrivate
 public:
     WOutputLayoutPrivate(WOutputLayout *qq);
 
-    void onOutputLayoutChanged();
-
     W_DECLARE_PUBLIC(WOutputLayout)
 
-    QList<WOutput*> outputs;
+    QList<QPointer<WOutput>> outputs;
+
+    void updateImplicitSize();
+    int implicitWidth { 0 };
+    int implicitHeight { 0 };
 };
 
 WAYLIB_SERVER_END_NAMESPACE

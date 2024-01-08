@@ -515,8 +515,8 @@ void WSeatPrivate::detachInputDevice(WInputDevice *device)
     if (cursor && device->type() == WInputDevice::Type::Pointer)
         cursor->detachInputDevice(device);
 
-    auto qtDevice = QWlrootsIntegration::instance()->removeInputDevice(device);
-    Q_ASSERT(qtDevice);
+    [[maybe_unused]] bool ok = QWlrootsIntegration::instance()->removeInputDevice(device);
+    Q_ASSERT(ok);
 }
 
 WSeat::WSeat(const QString &name)

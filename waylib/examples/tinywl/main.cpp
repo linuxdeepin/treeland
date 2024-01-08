@@ -513,6 +513,5 @@ int main(int argc, char *argv[]) {
 //            x11->createOutput();
 //    }, nullptr);
 
-
     return app.exec();
 }

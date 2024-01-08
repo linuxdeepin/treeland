@@ -17,6 +17,22 @@ WOutputLayoutPrivate::WOutputLayoutPrivate(WOutputLayout *qq)
 
 }
 
+void WOutputLayoutPrivate::updateImplicitSize()
+{
+    W_Q(WOutputLayout);
+
+    const auto &newSize = q->getBox(nullptr);
+
+    if (implicitWidth != newSize.x() + newSize.width()) {
+        implicitWidth = newSize.x() + newSize.width();
+        Q_EMIT q->implicitWidthChanged();
+    }
+    if (implicitHeight != newSize.y() + newSize.height()) {
+        implicitHeight = newSize.y() + newSize.height();
+        Q_EMIT q->implicitHeightChanged();
+    }
+}
+
 WOutputLayout::WOutputLayout(WOutputLayoutPrivate &dd, QObject *parent)
     : QWOutputLayout(parent)
     , WObject(dd)
@@ -33,7 +49,11 @@ WOutputLayout::WOutputLayout(QObject *parent)
 QList<WOutput*> WOutputLayout::outputs() const
 {
     W_DC(WOutputLayout);
-    return d->outputs;
+    QList<WOutput*> outputs;
+    for (const auto &output : d->outputs) {
+        outputs.append(output.get());
+    }
+    return outputs;
 }
 
 void WOutputLayout::add(WOutput *output, const QPoint &pos)
@@ -44,6 +64,11 @@ void WOutputLayout::add(WOutput *output, const QPoint &pos)
 
     QWOutputLayout::add(output->handle(), pos);
     output->setLayout(this);
+
+    connect(output, &WOutput::effectiveSizeChanged, this, [d](){
+        d->updateImplicitSize();
+    });
+    d->updateImplicitSize();
 
     Q_EMIT outputAdded(output);
 }
@@ -58,6 +83,8 @@ void WOutputLayout::move(WOutput *output, const QPoint &pos)
         return;
 
     QWOutputLayout::move(output->handle(), pos);
+
+    d->updateImplicitSize();
 }
 
 void WOutputLayout::remove(WOutput *output)
@@ -68,13 +95,15 @@ void WOutputLayout::remove(WOutput *output)
 
     QWOutputLayout::remove(output->handle());
     output->setLayout(nullptr);
+    output->disconnect(this);
+    d->updateImplicitSize();
 
     Q_EMIT outputRemoved(output);
 }
 
-QList<WOutput *> WOutputLayout::getIntersectedOutputs(const QRect &geometry) const
+QList<WOutput*> WOutputLayout::getIntersectedOutputs(const QRect &geometry) const
 {
-    Q_D(const WOutputLayout);
+    W_DC(WOutputLayout);
 
     QList<WOutput*> outputs;
 
@@ -85,6 +114,18 @@ QList<WOutput *> WOutputLayout::getIntersectedOutputs(const QRect &geometry) con
     }
 
     return outputs;
+}
+
+int WOutputLayout::implicitWidth() const
+{
+    W_DC(WOutputLayout);
+    return d->implicitWidth;
+}
+
+int WOutputLayout::implicitHeight() const
+{
+    W_DC(WOutputLayout);
+    return d->implicitHeight;
 }
 
 WAYLIB_SERVER_END_NAMESPACE

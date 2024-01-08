@@ -48,7 +48,11 @@ void WQuickOutputLayout::add(WOutputItem *output)
     d->outputs.append(output);
     add(output->output(), output->globalPosition().toPoint());
 
-    auto updateOutput = [d, output, this] {
+    auto updateOutput = [d, this] {
+        W_D(WQuickOutputLayout);
+        auto *output = qobject_cast<WOutputItem*>(sender());
+        if (!output) // Maybe output has destroyed but event still in queue
+            return;
         Q_ASSERT(d->outputs.contains(output));
         move(output->output(), output->globalPosition().toPoint());
         Q_EMIT maybeLayoutChanged();

@@ -23,7 +23,11 @@ public:
 
         W_Q(WOutputLayoutItem);
         auto oldOutputs = outputs;
-        outputs = layout->getIntersectedOutputs(QRectF(q->globalPosition(), q->size()).toRect());
+        outputs.clear();
+
+        for (auto output: layout->getIntersectedOutputs(QRectF(q->globalPosition(), q->size()).toRect())) {
+            outputs.append(output);
+        };
 
         bool changed = false;
 
@@ -34,6 +38,7 @@ public:
             changed = true;
         }
 
+        oldOutputs.removeAll(nullptr);
         for (auto o : oldOutputs) {
             Q_EMIT q->leaveOutput(o);
             changed = true;
@@ -44,7 +49,7 @@ public:
     }
 
     W_DECLARE_PUBLIC(WOutputLayoutItem)
-    QList<WOutput*> outputs;
+    QList<QPointer<WOutput>> outputs;
     WQuickOutputLayout *layout = nullptr;
 };
 
@@ -90,7 +95,11 @@ void WOutputLayoutItem::resetOutput()
 QList<WOutput*> WOutputLayoutItem::outputs() const
 {
     W_DC(WOutputLayoutItem);
-    return d->outputs;
+    QList<WOutput*> outputs;
+    for (const auto &output : d->outputs) {
+        outputs.append(output.get());
+    }
+    return outputs;
 }
 
 void WOutputLayoutItem::componentComplete()

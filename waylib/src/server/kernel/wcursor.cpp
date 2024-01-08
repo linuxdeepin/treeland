@@ -613,7 +613,10 @@ void WCursor::setEventWindow(QWindow *window)
 
     if (d->eventWindow) {
         auto device = getDevice(d->seat->name());
-        Q_ASSERT(device && WInputDevice::from(device));
+        if (!device)
+            return;
+        if (!WInputDevice::from(device))
+            return;
         if (WInputDevice::from(device)->seat()) {
             QInputEvent event(QEvent::Leave, device);
             QCoreApplication::sendEvent(d->eventWindow, &event);

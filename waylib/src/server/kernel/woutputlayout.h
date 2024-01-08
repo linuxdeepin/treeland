@@ -15,6 +15,8 @@ class WAYLIB_SERVER_EXPORT WOutputLayout : public QW_NAMESPACE::QWOutputLayout, 
 {
     Q_OBJECT
     W_DECLARE_PRIVATE(WOutputLayout)
+    Q_PROPERTY(int implicitWidth READ implicitWidth NOTIFY implicitWidthChanged)
+    Q_PROPERTY(int implicitHeight READ implicitHeight NOTIFY implicitHeightChanged)
 
 public:
     enum class Layer {
@@ -36,9 +38,14 @@ public:
 
     QList<WOutput*> getIntersectedOutputs(const QRect &geometry) const;
 
+    int implicitWidth() const;
+    int implicitHeight() const;
+
 Q_SIGNALS:
     void outputAdded(WOutput *output);
     void outputRemoved(WOutput *output);
+    void implicitWidthChanged();
+    void implicitHeightChanged();
 
 protected:
     WOutputLayout(WOutputLayoutPrivate &dd, QObject *parent = nullptr);

@@ -125,23 +125,9 @@ Item {
                         output.rollback()
                     } else {
                         ok &= output.commit()
-                        if (ok)
-                            updateRenderWindowSize()
                     }
                 }
                 outputManagerV1.sendResult(config, ok)
-            }
-
-            function updateRenderWindowSize() {
-                var states = outputManagerV1.stateListPending()
-                var maxX = 0, maxY = 0
-                for (const i in states) {
-                    let outputDelegate = states[i].output.OutputItem.item
-                    maxX = Math.max(maxX, outputDelegate.x + outputDelegate.width)
-                    maxY = Math.max(maxY, outputDelegate.y + outputDelegate.height)
-                }
-                outputLayout.xRange = maxX
-                outputLayout.yRange = maxY
             }
         }
 
@@ -219,8 +205,8 @@ Item {
         id: renderWindow
 
         compositor: compositor
-        width: outputLayout.xRange + outputLayout.x
-        height: outputLayout.yRange + outputLayout.y
+        width: QmlHelper.layout.implicitWidth
+        height: QmlHelper.layout.implicitHeight
 
         EventJunkman {
             anchors.fill: parent
@@ -229,9 +215,6 @@ Item {
         Item {
             id: outputLayout
 
-            property int xRange: 0
-            property int yRange: 0
-
             DynamicCreatorComponent {
                 id: outputDelegateCreator
                 creator: QmlHelper.outputManager
@@ -239,16 +222,8 @@ Item {
                 OutputDelegate {
                     property real topMargin: topbar.height
                     waylandCursor: cursor1
-
-                    Component.onCompleted: {
-                        x = outputLayout.xRange
-                        y = 0
-                        outputLayout.xRange += width
-                        if (outputLayout.yRange < height)
-                            outputLayout.yRange = height
-                    }
-
-
+                    x: { x = QmlHelper.layout.implicitWidth }
+                    y: 0
                 }
             }
         }

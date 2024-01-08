@@ -40,7 +40,7 @@ public:
     W_DECLARE_PUBLIC(WInputDevice);
 
     QWInputDevice *handle = nullptr;
-    QInputDevice *qtDevice = nullptr;
+    QPointer<QInputDevice> qtDevice;
     WSeat *seat = nullptr;
 };
 

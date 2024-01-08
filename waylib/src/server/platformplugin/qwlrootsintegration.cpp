@@ -226,15 +226,14 @@ QInputDevice *QWlrootsIntegration::addInputDevice(WInputDevice *device, const QS
     return qtdev;
 }
 
-QInputDevice *QWlrootsIntegration::removeInputDevice(WInputDevice *device)
+bool QWlrootsIntegration::removeInputDevice(WInputDevice *device)
 {
     if (auto qdevice = getInputDeviceFrom(device)) {
-        device->setQtDevice(nullptr);
-        qdevice->deleteLater();
-        return qdevice;
+        delete qdevice;
+        return true;
     }
 
-    return nullptr;
+    return false;
 }
 
 QInputDevice *QWlrootsIntegration::getInputDeviceFrom(WInputDevice *device)
