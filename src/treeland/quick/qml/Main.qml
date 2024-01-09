@@ -51,7 +51,8 @@ Item {
             id: backend
 
             onOutputAdded: function(output) {
-                output.forceSoftwareCursor = true // Test
+                if (!backend.hasDrm)
+                    output.forceSoftwareCursor = true // Test
 
                 TreeLandHelper.allowNonDrmOutputAutoChangeMode(output)
                 QmlHelper.outputManager.add({waylandOutput: output})
