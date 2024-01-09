@@ -59,6 +59,7 @@ Item {
                 treelandOutputManager.newOutput(output)
             }
             onOutputRemoved: function(output) {
+                output.OutputItem.item.invalidate()
                 QmlHelper.outputManager.removeIf(function(prop) {
                     return prop.waylandOutput === output
                 })
