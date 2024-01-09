@@ -178,7 +178,7 @@ void TreeLand::readyRead() {
                 Helper *helper = m_engine->singletonInstance<Helper*>(helperTypeId);
 #endif
                 Q_ASSERT(helper);
-                helper->greeterVisibleChanged();
+                Q_EMIT helper->greeterVisibleChanged();
             }
             break;
             default:
