@@ -259,4 +259,8 @@ OutputItem {
     function setScale(scale) {
         onscreenViewport.setOutputScale(scale)
     }
+
+    function invalidate() {
+        onscreenViewport.invalidate()
+    }
 }
