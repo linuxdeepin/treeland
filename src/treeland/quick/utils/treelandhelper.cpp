@@ -83,6 +83,22 @@ bool TreeLandHelper::beforeDisposeEvent(WSeat *seat, QWindow *watched, QInputEve
             }
         }
         break;
+        case Qt::Key_BracketLeft:
+        case Qt::Key_Delete: {
+            if (e->modifiers() == Qt::MetaModifier) {
+                Q_EMIT backToNormal();
+                Q_EMIT reboot();
+                return true;
+            }
+        }
+        break;
+        case Qt::Key_L: {
+            if (e->modifiers() == Qt::MetaModifier) {
+                Q_EMIT greeterVisibleChanged();
+                return true;
+            }
+        }
+        break;
         default: {
             if (m_switcherCurrentMode != Switcher::Hide) {
                 m_switcherCurrentMode = Switcher::Hide;
