@@ -100,12 +100,14 @@ OutputItem {
         OutputViewport {
             readonly property OutputItem outputItem: waylandOutput.OutputItem.item
 
+            id: viewport
             root: true
             output: waylandOutput
             devicePixelRatio: outputViewport.devicePixelRatio
 
             TextureProxy {
                 sourceItem: outputViewport
+                anchors.fill: parent
             }
 
             Item {
@@ -135,6 +137,8 @@ OutputItem {
                             smooth: false
                             scale: 10
                             transformOrigin: Item.TopLeft
+                            width: viewport.width
+                            height: viewport.height
 
                             function updatePosition() {
                                 const pos = outputItem.lastActiveCursorItem.mapToItem(outputViewport, Qt.point(0, 0))
