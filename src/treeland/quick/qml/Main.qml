@@ -3,7 +3,6 @@
 
 import QtQuick
 import QtQuick.Controls
-import QtQuick.Dialogs
 import QtQuick.Layouts
 import Waylib.Server
 import TreeLand
@@ -306,92 +305,9 @@ Item {
             }
         }
 
-        MessageDialog {
-            id: backToNormalDialog
-            buttons: MessageDialog.Ok | MessageDialog.Cancel
-            text: qsTr("Return to default mode")
-            informativeText: qsTr("Do you want to back to default?")
-            detailedText: qsTr("This action will reboot machine, please confirm.")
-            onButtonClicked: function (button, role) {
-                switch (button) {
-                case MessageDialog.Ok:
-                    TreeLandHelper.backToNormal()
-                    TreeLandHelper.reboot()
-                    break;
-                }
-            }
-        }
-
         ColumnLayout {
             id: workspaceLoader
             anchors.fill: parent
-
-            Row {
-                id: topbar
-                Layout.fillWidth: true
-
-                Rectangle {
-                    color: 'white'
-                    anchors.fill: parent
-                }
-
-                Button {
-                    id: optionsBtn
-                    text: qsTr("Options")
-                    onClicked: optionsMenu.open()
-
-                    Menu {
-                        id: optionsMenu
-                        y: optionsBtn.height
-
-                        Menu {
-                            title: qsTr("Switch Windows Layout")
-                            MenuItem {
-                                text: "Stack Layout"
-                                onClicked: {
-                                    decorationManager.mode = XdgDecorationManager.DecidesByClient
-                                    stackLayout.visible = true
-                                }
-                            }
-                            MenuItem {
-                                text: "Tiled Layout"
-                                onClicked: {
-                                    decorationManager.mode = XdgDecorationManager.PreferServerSide
-                                    stackLayout.visible = false
-                                }
-                            }
-                        }
-
-                        MenuSeparator { }
-
-                        Menu {
-                            title: "Session"
-                            MenuItem {
-                                text: "Lock"
-                                onClicked: {
-                                    greeter.visible = true
-                                }
-                            }
-                        }
-
-                        MenuSeparator { }
-
-                        MenuItem {
-                            text: qsTr("Back to normal mode")
-                            onClicked: {
-                                backToNormalDialog.open()
-                            }
-                        }
-
-                        MenuItem {
-                            text: qsTr("Reboot")
-                            onClicked: {
-                                TreeLandHelper.reboot()
-                            }
-                        }
-                    }
-                }
-            }
 
             Item {
                 Layout.fillWidth: true

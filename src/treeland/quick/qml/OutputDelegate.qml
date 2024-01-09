@@ -195,16 +195,6 @@ OutputItem {
             }
         }
 
-        Switch {
-            text: "Socket"
-            onCheckedChanged: {
-                masterSocket.enabled = checked
-            }
-            Component.onCompleted: {
-                checked = masterSocket.enabled
-            }
-        }
-
         Button {
             text: "1X"
             onClicked: {
@@ -244,14 +234,6 @@ OutputItem {
             text: "R270"
             onClicked: {
                 outputViewport.rotationOutput(WaylandOutput.R270)
-            }
-        }
-
-        Button {
-            visible: false
-            text: "Quit"
-            onClicked: {
-                Qt.quit()
             }
         }
     }
