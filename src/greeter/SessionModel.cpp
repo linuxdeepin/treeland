@@ -162,7 +162,7 @@ void SessionModel::populate(Session::Type type, const QStringList &dirPaths) {
         }
         // add to sessions list
         // TODO: only show support sessions(X-DDE-SINGLE-WAYLAND)
-        if (!si->isHidden() && !si->isNoDisplay() && execAllowed && si->isSingleMode()) {
+        if (si->isSingleMode() && execAllowed) {
             d->displayNames.append(si->displayName());
             d->sessions.push_back(si);
         } else {
