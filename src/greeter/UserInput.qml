@@ -34,8 +34,8 @@ Item {
     }
 
     Connections {
-        target: GreeterModel
-        function onCurrentUserChanged() {
+        target: GreeterModel.userModel
+        function onUpdateTranslations() {
             updateUser()
         }
     }
@@ -124,7 +124,7 @@ Item {
             width: loginGroup.width
             height: 30
             anchors.horizontalCenter: parent.horizontalCenter
-            echoMode: showPasswordBtn.hiddenPWD ? TextInput.Normal : TextInput.Password
+            echoMode: showPasswordBtn.hiddenPWD ? TextInput.Password : TextInput.Normal
             focus: true
             rightPadding: 24
             maximumLength: 510
@@ -161,7 +161,7 @@ Item {
                     id: showPasswordBtn
                     palette.windowText: undefined
                     property bool hiddenPWD: true
-                    icon.name: hiddenPWD ? "login_display_password" : "login_hidden_password"
+                    icon.name: hiddenPWD ? "login_hidden_password" : "login_display_password"
                     icon.height: 10
                     icon.width: 10
                     Layout.alignment: Qt.AlignHCenter

@@ -26,6 +26,15 @@ Item {
         animationPlayFinished()
     }
 
+    Connections {
+        target: userModel
+        function onUpdateTranslations(locale) {
+            console.log("translation updated");
+            logoProvider.updateLocale(locale)
+            TreeLand.retranslate()
+        }
+    }
+
     UserModel {
         id: userModel
     }
