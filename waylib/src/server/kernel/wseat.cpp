@@ -35,6 +35,10 @@ extern "C" {
 #include <wlr/types/wlr_xdg_shell.h>
 }
 
+QT_BEGIN_NAMESPACE
+Q_GUI_EXPORT bool qt_sendShortcutOverrideEvent(QObject *o, ulong timestamp, int k, Qt::KeyboardModifiers mods, const QString &text = QString(), bool autorep = false, ushort count = 1);
+QT_END_NAMESPACE
+
 QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
@@ -414,6 +418,12 @@ void WSeatPrivate::on_keyboard_key(wlr_keyboard_key_event *event, WInputDevice *
     QKeyEvent e(et, qtkey, keyModifiers, code, event->keycode, keyboard->getModifiers(),
                 text, false, 1, device->qtDevice());
     e.setTimestamp(event->time_msec);
+
+    if (qt_sendShortcutOverrideEvent(focusWindow ? (QObject*)focusWindow.get() : (QObject*)qGuiApp,
+                                     e.timestamp(), e.key(), e.modifiers(),
+                                     e.text(), e.isAutoRepeat(), e.count())) {
+        return;
+    }
 
     if (focusWindow) {
         QCoreApplication::sendEvent(focusWindow, &e);
