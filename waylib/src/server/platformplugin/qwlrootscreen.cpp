@@ -98,7 +98,7 @@ Qt::ScreenOrientation QWlrootsScreen::orientation() const
     bool isPortrait = nativeOrientation() == Qt::PortraitOrientation;
     switch (handle()->transform) {
     case WL_OUTPUT_TRANSFORM_NORMAL:
-        return isPortrait ? Qt::PortraitOrientation : Qt::LandscapeOrientation;;
+        return isPortrait ? Qt::PortraitOrientation : Qt::LandscapeOrientation;
     case WL_OUTPUT_TRANSFORM_90:
         return isPortrait ? Qt::InvertedLandscapeOrientation : Qt::PortraitOrientation;
     case WL_OUTPUT_TRANSFORM_180:

@@ -218,7 +218,7 @@ void WOutputViewport::setCacheBuffer(bool newCacheBuffer)
 bool WOutputViewport::preserveColorContents() const
 {
     W_DC(WOutputViewport);
-    return d->preserveColorContents;;
+    return d->preserveColorContents;
 }
 
 void WOutputViewport::setPreserveColorContents(bool newPreserveColorContents)
