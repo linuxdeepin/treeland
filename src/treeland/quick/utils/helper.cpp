@@ -175,7 +175,7 @@ QJSValue Helper::getExclusiveMargins(WLayerSurface *layerSurface)
         }
     }
 
-    QJSValue jsMargins = qmlEngine(this)->newObject();; // Can't use QMargins in QML
+    QJSValue jsMargins = qmlEngine(this)->newObject(); // Can't use QMargins in QML
     jsMargins.setProperty("top" , margins.top());
     jsMargins.setProperty("bottom", margins.bottom());
     jsMargins.setProperty("left", margins.left());

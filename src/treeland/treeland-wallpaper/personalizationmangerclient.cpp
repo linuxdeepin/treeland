@@ -137,7 +137,7 @@ WallpaperCardModel* PersonalizationManager::wallpaperModel(const QString &group,
         return m_modes[group];
 
     auto model = new WallpaperCardModel(this);
-    model->setDirectory(dir);;
+    model->setDirectory(dir);
     m_modes[group] = model;
     return m_modes[group];
 }
