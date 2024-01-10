@@ -29,6 +29,8 @@ public:
         return m_socketProxy;
     }
 
+    Q_INVOKABLE void retranslate() noexcept;
+
     bool testMode() const;
 
 Q_SIGNALS:

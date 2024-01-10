@@ -4,21 +4,7 @@
 
 #include "User.h"
 #include <QUrl>
-
-QString toString(AccountTypes type) noexcept
-{
-    DACCOUNTS_USE_NAMESPACE
-    switch (type) {
-    case AccountTypes::Admin:
-        return QStringLiteral("Administrator");
-    case AccountTypes::Default:
-        return QStringLiteral("Standard User");
-    default:
-        qDebug() << "ignore other types.";
-    }
-
-    return {};
-}
+#include <QObject>
 
 struct UserPrivate
 {
@@ -30,7 +16,8 @@ struct UserPrivate
     QString fullName;
     QString homeDir;
     QUrl icon;
-    QString identity;
+    QLocale locale;
+    AccountTypes identity;
     QString passwordHint;
     QString limitTime;
     AccountsUserPtr inter{nullptr};
@@ -41,7 +28,7 @@ struct UserPrivate
 void UserPrivate::updateUserData()
 {
     noPasswdLogin = inter->noPasswdLogin();
-    identity = toString(inter->accountType());
+    identity = inter->accountType();
     uid = inter->UID();
     gid = inter->GID();
     userName = inter->userName();
@@ -49,6 +36,7 @@ void UserPrivate::updateUserData()
     homeDir = inter->homeDir();
     icon = inter->iconFile();
     passwordHint = inter->passwordHint();
+    locale = QLocale{inter->locale()};
 }
 
 User::User(AccountsUserPtr ptr)
@@ -80,7 +68,7 @@ bool User::noPasswdLogin() const noexcept
 
 QString User::identity() const noexcept
 {
-    return d->identity;
+    return toString(d->identity);
 }
 
 quint64 User::UID() const noexcept
@@ -118,6 +106,10 @@ const QString &User::passwordHint() const noexcept
     return d->passwordHint;
 }
 
+const QLocale& User::locale() const noexcept {
+    return d->locale;
+}
+
 bool User::logined() const noexcept
 {
     return d->logined;
@@ -134,3 +126,16 @@ void User::updateLimitTime(const QString &time) noexcept
     emit limitTimeChanged(time);
 }
 
+QString User::toString(AccountTypes type) noexcept {
+    DACCOUNTS_USE_NAMESPACE
+    switch (type) {
+    case AccountTypes::Admin:
+    return tr("Administrator");
+    case AccountTypes::Default:
+    return tr("Standard User");
+    default:
+    qDebug() << "ignore other types.";
+    }
+
+    return {};
+}

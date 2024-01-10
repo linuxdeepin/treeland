@@ -343,9 +343,10 @@ namespace SDDM {
         } else if (status == Auth::HELPER_SESSION_ERROR) {
             Q_EMIT failed();
         }
-
+#ifdef NDEBUG
         daemonApp->backToNormal();
         daemonApp->powerManager()->reboot();
+#endif
     }
 
     bool Greeter::isRunning() const {

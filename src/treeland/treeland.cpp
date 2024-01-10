@@ -127,6 +127,10 @@ void TreeLand::setSocketProxy(WaylandSocketProxy *socketProxy)
     m_socketProxy = socketProxy;
 }
 
+void TreeLand::retranslate() noexcept {
+    m_engine->retranslate();
+}
+
 void TreeLand::disconnected() {
     // log disconnection
     qDebug() << "Disconnected from the daemon.";

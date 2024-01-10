@@ -23,8 +23,10 @@
 #include <QAbstractListModel>
 #include <QQmlEngine>
 #include <QHash>
+#include "User.h"
 
 struct UserModelPrivate;
+using UserPtr = std::shared_ptr<User>;
 
 class UserModel : public QAbstractListModel {
     Q_OBJECT
@@ -32,7 +34,7 @@ class UserModel : public QAbstractListModel {
                     currentUserNameChanged)
     Q_PROPERTY(int lastIndex READ lastIndex CONSTANT)
     Q_PROPERTY(QString lastUser READ lastUser CONSTANT)
-    Q_PROPERTY(int count READ rowCount CONSTANT)
+    Q_PROPERTY(int count READ rowCount NOTIFY countChanged)
     Q_PROPERTY(int disableAvatarsThreshold READ disableAvatarsThreshold CONSTANT)
     Q_PROPERTY(bool containsAllUsers READ containsAllUsers CONSTANT)
     QML_ELEMENT
@@ -45,7 +47,8 @@ public:
         NoPasswordRole,
         LoginedRole,
         IdentityRole,
-        PasswordHintRole
+        PasswordHintRole,
+        LocaleRole
     };
     Q_ENUM(UserRoles)
 
@@ -62,6 +65,7 @@ public:
                                             int role = Qt::DisplayRole) const override;
     [[nodiscard]] Q_INVOKABLE QVariant get(const QString &username) const;
     [[nodiscard]] Q_INVOKABLE QVariant get(int index) const;
+    [[nodiscard]] UserPtr getUser(const QString& username) const noexcept;
     [[nodiscard]] QString currentUserName() const noexcept;
     void updateUserLimits(const QString &userName, const QString &time) const noexcept;
     void setCurrentUserName(const QString &userName) noexcept;
@@ -71,6 +75,8 @@ public:
 
 Q_SIGNALS:
     void currentUserNameChanged();
+    void updateTranslations(const QLocale& locale);
+    void countChanged();
 
 private Q_SLOTS:
     void onUserAdded(quint64 uid);

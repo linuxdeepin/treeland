@@ -18,7 +18,6 @@
 ***************************************************************************/
 
 #include "UserModel.h"
-#include "User.h"
 #include "Configuration.h"
 #include <QFile>
 #include <QList>
@@ -26,12 +25,13 @@
 #include <QStringList>
 #include <DDBusInterface>
 #include <memory>
+#include <QTranslator>
+#include <QStandardPaths>
+#include <QGuiApplication>
 #include <pwd.h>
 
 using namespace SDDM;
 DACCOUNTS_USE_NAMESPACE
-
-using UserPtr = std::shared_ptr<User>;
 
 struct UserModelPrivate
 {
@@ -39,6 +39,7 @@ struct UserModelPrivate
     int lastIndex{0};
     QString currentUserName;
     DAccountsManager manager;
+    QTranslator *lastTrans{nullptr};
     QList<UserPtr> users;
 };
 
@@ -48,6 +49,35 @@ UserModel::UserModel(QObject *parent)
 {
     connect(&d->manager, &DAccountsManager::UserAdded, this, &UserModel::onUserAdded);
     connect(&d->manager, &DAccountsManager::UserDeleted, this, &UserModel::onUserDeleted);
+
+    connect(this,&UserModel::currentUserNameChanged,[this]{
+        auto user = getUser(d->currentUserName);
+        if(!user) {
+            qWarning() << "couldn't find user:" << d->currentUserName;
+            return;
+        }
+
+        auto locale = user->locale();
+        qInfo() << "current locale:" << locale.language();
+        auto *newTrans = new QTranslator{this};
+        auto dirs = QStandardPaths::standardLocations(QStandardPaths::GenericDataLocation);
+        for(const auto& dir : dirs) {
+            if(newTrans->load(locale,"greeter",".",dir + "/ddm/translations",".qm")){
+                if(d->lastTrans) {
+                    QGuiApplication::removeTranslator(d->lastTrans);
+                }
+                d->lastTrans->deleteLater();
+                d->lastTrans = newTrans;
+                QGuiApplication::installTranslator(d->lastTrans);
+                emit updateTranslations(locale);
+                emit dataChanged(createIndex(0, 0), createIndex(rowCount(), 0));
+                return;
+            }
+        }
+
+        newTrans->deleteLater();
+        qWarning() << "failed to load new translator under" << dirs.last();
+    });
 
     auto userList = d->manager.userList();
     if (!userList) {
@@ -99,6 +129,7 @@ QHash<int, QByteArray> UserModel::roleNames() const
     names[LoginedRole] = QByteArray("logined");
     names[IdentityRole] = QByteArray("identity");
     names[PasswordHintRole] = QByteArray("passwordHint");
+    names[LocaleRole] = QByteArray("LocaleRole");
     return names;
 }
 
@@ -159,6 +190,8 @@ QVariant UserModel::data(const QModelIndex &index, int role) const
         return user->identity();
     case PasswordHintRole:
         return user->passwordHint();
+    case LocaleRole:
+        return user->locale();
     default:
         return {};
     }
@@ -189,6 +222,7 @@ QVariant UserModel::get(const QString &username) const
             map["logined"] = user->logined();
             map["identity"] = user->identity();
             map["passwordHint"] = user->passwordHint();
+            map["locale"] = user->locale();
             break;
         }
     }
@@ -212,8 +246,18 @@ QVariant UserModel::get(int index) const
     map["logined"] = user->logined();
     map["identity"] = user->identity();
     map["passwordHint"] = user->passwordHint();
+    map["locale"] = user->locale();
 
     return map;
+}
+
+UserPtr UserModel::getUser(const QString& username) const noexcept {
+    for (const auto &user : d->users) {
+        if (user->userName() == username) {
+            return user;
+        }
+    }
+    return nullptr;
 }
 
 QString UserModel::currentUserName() const noexcept
@@ -250,6 +294,8 @@ void UserModel::onUserAdded(quint64 uid)
     std::sort(d->users.begin(), d->users.end(), [](const UserPtr &u1, const UserPtr &u2) {
         return u1->userName() < u2->userName();
     });
+
+    emit countChanged();
 }
 
 void UserModel::onUserDeleted(quint64 uid)
@@ -259,4 +305,6 @@ void UserModel::onUserDeleted(quint64 uid)
     std::sort(d->users.begin(), d->users.end(), [](const UserPtr &u1, const UserPtr &u2) {
         return u1->userName() < u2->userName();
     });
+
+    emit countChanged();
 }
