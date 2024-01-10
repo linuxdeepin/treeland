@@ -61,6 +61,10 @@ Item {
         width: root.width * 0.4
 
         TimeDateWidget {
+            currentLocale :{
+                let user = GreeterModel.userModel.get(GreeterModel.currentUser)
+                return user.locale
+            }
             anchors.right: parent.right
             anchors.rightMargin: parent.width / 10
             anchors.verticalCenter: parent.verticalCenter
@@ -177,7 +181,7 @@ Item {
                     anchors.centerIn: parent
 
                     D.ToolTip.visible: hovered
-                    D.ToolTip.text: qsTr("Back To Normal Mode")
+                    D.ToolTip.text: qsTr("Back To Default Mode")
 
                     onClicked: backToNormalDialog.open()
                     background: RoundBlur {}
