@@ -17,7 +17,7 @@ OutputItem {
     cursorDelegate: Item {
         required property OutputCursor cursor
 
-        visible: cursor.visible && !cursor.isHardwareCursor
+        visible: cursor.visible
         width: cursor.size.width
         height: cursor.size.height
         OutputLayer.enabled: true
@@ -25,6 +25,7 @@ OutputItem {
 
         Image {
             id: cursorImage
+            visible: !cursor.isHardwareCursor
             source: cursor.imageSource
             x: -cursor.hotspot.x
             y: -cursor.hotspot.y
