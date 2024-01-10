@@ -31,7 +31,10 @@ WCursor::CursorShape WQuickCursorAttached::shape() const
 
 void WQuickCursorAttached::setShape(WCursor::CursorShape shape)
 {
+    if (this->shape() == shape)
+        return;
     parent()->setCursor(WCursor::toQCursor(shape));
+    Q_EMIT shapeChanged();
 }
 
 class WQuickCursorPrivate : public WCursorPrivate
