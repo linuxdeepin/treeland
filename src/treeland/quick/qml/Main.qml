@@ -276,6 +276,8 @@ Item {
         width: outputLayout.xRange + outputLayout.x
         height: outputLayout.yRange + outputLayout.y
 
+        property OutputDelegate activeOutputDelegate: null
+
         EventJunkman {
             anchors.fill: parent
         }
@@ -291,8 +293,14 @@ Item {
                 creator: QmlHelper.outputManager
 
                 OutputDelegate {
+                    id: outputDelegate
                     property real topMargin: topbar.height
                     waylandCursor: cursor1
+
+                    onLastActiveCursorItemChanged: {
+                        if (lastActiveCursorItem != null)
+                            renderWindow.activeOutputDelegate = outputDelegate
+                    }
 
                     Component.onCompleted: {
                         x = outputLayout.xRange
@@ -303,11 +311,19 @@ Item {
                     }
                 }
             }
+
+            Greeter {
+                id: greeter
+                z: 1
+                visible: !TreeLand.testMode
+                anchors.fill: renderWindow.activeOutputDelegate
+            }
         }
 
         ColumnLayout {
             id: workspaceLoader
             anchors.fill: parent
+            visible: !greeter.visible
 
             Item {
                 Layout.fillWidth: true
@@ -338,12 +354,6 @@ Item {
             function onGreeterVisibleChanged() {
                 greeter.visible = true
             }
-        }
-
-        Greeter {
-            id: greeter
-            visible: !TreeLand.testMode
-            anchors.fill: parent
         }
     }
 }
