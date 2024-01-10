@@ -22,6 +22,20 @@ set_source_files_properties(GreeterModel.qml PROPERTIES
     QT_QML_SINGLETON_TYPE TRUE
 )
 
+set(QML_FILES
+    Greeter.qml
+    UserList.qml
+    SessionList.qml
+    UserInput.qml
+    GreeterModel.qml
+    Center.qml
+    LoginAnimation.qml
+    RoundBlur.qml
+    PowerList.qml
+    TimeDateWidget.qml
+    HintLabel.qml
+)
+
 qt_add_qml_module(greeterplugin
     URI TreeLand.Greeter
     STATIC
@@ -35,18 +49,28 @@ qt_add_qml_module(greeterplugin
         ${GREETER_SOURCES}
     RESOURCE_PREFIX
         /qt/qml
-    QML_FILES Greeter.qml
-    QML_FILES UserList.qml
-    QML_FILES SessionList.qml
-    QML_FILES UserInput.qml
-    QML_FILES GreeterModel.qml
-    QML_FILES Center.qml
-    QML_FILES LoginAnimation.qml
-    QML_FILES RoundBlur.qml
-    QML_FILES PowerList.qml
-    QML_FILES TimeDateWidget.qml
-    QML_FILES HintLabel.qml
+    QML_FILES ${QML_FILES}
 )
+
+qt_add_lupdate(greeterplugin
+    TS_FILES
+        translations/greeter.zh_CN.ts
+        translations/greeter.en_US.ts
+    NO_GLOBAL_TARGET
+)
+
+add_dependencies(greeterplugin greeterplugin_lupdate)
+
+set(TRANSLATED_FILES)
+qt_add_lrelease(greeterplugin
+    TS_FILES
+        translations/greeter.zh_CN.ts
+        translations/greeter.en_US.ts
+    QM_FILES_OUTPUT_VARIABLE TRANSLATED_FILES
+)
+add_dependencies(greeterplugin_lrelease greeterplugin_lupdate)
+
+install(FILES ${TRANSLATED_FILES} DESTINATION ${COMPONENTS_TRANSLATION_DIR})
 
 target_include_directories(greeterplugin
     PUBLIC
