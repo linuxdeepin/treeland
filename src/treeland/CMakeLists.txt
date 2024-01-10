@@ -22,7 +22,7 @@ qt_add_dbus_interface(DBUS_INTERFACE "${CMAKE_SOURCE_DIR}/data/interfaces/org.fr
 qt_add_dbus_interface(DBUS_INTERFACE "${CMAKE_SOURCE_DIR}/data/interfaces/org.freedesktop.login1.Seat.xml"  "Login1Seat")
 qt_add_dbus_interface(DBUS_INTERFACE "${CMAKE_SOURCE_DIR}/data/interfaces/org.freedesktop.login1.Session.xml"  "Login1Session")
 
-qt_add_executable(treeland)
+qt_add_executable(treeland override_dtkdeclarative_qml.qrc)
 
 target_sources(treeland PUBLIC
 FILE_SET HEADERS
