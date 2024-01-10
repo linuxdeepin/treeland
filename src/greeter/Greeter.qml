@@ -8,6 +8,8 @@ import TreeLand.Greeter
 
 Item {
     id: root
+    clip: true
+
     // prevent event passing through greeter
     MouseArea {
         anchors.fill: parent
