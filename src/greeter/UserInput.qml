@@ -11,19 +11,19 @@ Item {
     width: 220
     height: 300
 
-    property string normalHint: qsTr("Please enter your password or fingerprint.")
+    property string normalHint: qsTr("Please enter password")
 
     function updateUser() {
-        let currentUser = GreeterModel.userModel.get(
-                GreeterModel.currentUserIndex)
+        let currentUser = GreeterModel.userModel.get(GreeterModel.currentUser)
         username.text = currentUser.realName.length == 0 ? currentUser.name : currentUser.realName
         passwordField.text = ''
         avatar.fallbackSource = currentUser.icon
+        passwordField.visible = !currentUser.noPassword
         updateHintMsg(normalHint)
     }
 
     function userLogin() {
-        let user = GreeterModel.userModel.get(GreeterModel.currentUserIndex)
+        let user = GreeterModel.userModel.get(GreeterModel.currentUser)
         if (user.logined) {
             GreeterModel.proxy.unlock(user.name, passwordField.text)
             return
@@ -35,7 +35,7 @@ Item {
 
     Connections {
         target: GreeterModel
-        function onCurrentUserIndexChanged() {
+        function onCurrentUserChanged() {
             updateUser()
         }
     }
@@ -124,7 +124,7 @@ Item {
             width: loginGroup.width
             height: 30
             anchors.horizontalCenter: parent.horizontalCenter
-            echoMode: showPasswordBtn.pressed ? TextInput.Normal : TextInput.Password
+            echoMode: showPasswordBtn.hiddenPWD ? TextInput.Normal : TextInput.Password
             focus: true
             rightPadding: 24
             maximumLength: 510
@@ -160,7 +160,8 @@ Item {
                 D.ActionButton {
                     id: showPasswordBtn
                     palette.windowText: undefined
-                    icon.name: pressed ? "login_display_password" : "login_hidden_password"
+                    property bool hiddenPWD: true
+                    icon.name: hiddenPWD ? "login_display_password" : "login_hidden_password"
                     icon.height: 10
                     icon.width: 10
                     Layout.alignment: Qt.AlignHCenter
@@ -175,6 +176,8 @@ Item {
                                                              0, 0, 0,
                                                              0.1) : "transparent"
                     }
+
+                    onClicked: hiddenPWD = !hiddenPWD
                 }
             }
 
@@ -251,8 +254,7 @@ Item {
                 x: hintBtn.width - hintLabel.width
                 y: hintBtn.height + 11
                 hintText: {
-                    let user = GreeterModel.userModel.get(
-                            GreeterModel.currentUserIndex)
+                    let user = GreeterModel.userModel.get(GreeterModel.currentUser)
                     return user.passwordHint
                 }
             }

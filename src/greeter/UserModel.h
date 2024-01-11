@@ -28,6 +28,8 @@ struct UserModelPrivate;
 
 class UserModel : public QAbstractListModel {
     Q_OBJECT
+    Q_PROPERTY(QString currentUserName READ currentUserName WRITE setCurrentUserName NOTIFY
+                    currentUserNameChanged)
     Q_PROPERTY(int lastIndex READ lastIndex CONSTANT)
     Q_PROPERTY(QString lastUser READ lastUser CONSTANT)
     Q_PROPERTY(int count READ rowCount CONSTANT)
@@ -56,12 +58,19 @@ public:
     [[nodiscard]] int lastIndex() const;
     [[nodiscard]] static QString lastUser();
     [[nodiscard]] int rowCount(const QModelIndex &parent = QModelIndex()) const override;
-    [[nodiscard]] QVariant data(const QModelIndex &index, int role = Qt::DisplayRole) const override;
+    [[nodiscard]] Q_INVOKABLE QVariant data(const QModelIndex &index,
+                                            int role = Qt::DisplayRole) const override;
     [[nodiscard]] Q_INVOKABLE QVariant get(const QString &username) const;
     [[nodiscard]] Q_INVOKABLE QVariant get(int index) const;
+    [[nodiscard]] QString currentUserName() const noexcept;
+    void updateUserLimits(const QString &userName, const QString &time) const noexcept;
+    void setCurrentUserName(const QString &userName) noexcept;
     void updateUserLoginState(const QString &username, bool logined);
     [[nodiscard]] static int disableAvatarsThreshold();
     [[nodiscard]] bool containsAllUsers() const;
+
+Q_SIGNALS:
+    void currentUserNameChanged();
 
 private Q_SLOTS:
     void onUserAdded(quint64 uid);
