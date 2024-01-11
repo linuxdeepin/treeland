@@ -12,17 +12,18 @@ Item {
     readonly property UserModel userModel: userModel
     readonly property SessionModel sessionModel: sessionModel
     readonly property Proxy proxy: proxy
+    readonly property LogoProvider logoProvider: logoProvider
 
     // TODO: use group to wait all animation
-    signal animationPlayed()
-    signal animationPlayFinished()
+    signal animationPlayed
+    signal animationPlayFinished
 
     function emitAnimationPlayed() {
-        animationPlayed();
+        animationPlayed()
     }
 
     function emitAnimationPlayFinished() {
-        animationPlayFinished();
+        animationPlayFinished()
     }
 
     UserModel {
@@ -37,6 +38,10 @@ Item {
         id: proxy
         sessionModel: sessionModel
         userModel: userModel
+    }
+
+    LogoProvider {
+        id: logoProvider
     }
 
     Component.onCompleted: {

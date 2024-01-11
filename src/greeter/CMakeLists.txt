@@ -4,11 +4,13 @@ set(GREETER_SOURCES
     SessionModel.h
     UserModel.h
     User.h
+    LogoProvider.h
     GreeterApp.cpp
     GreeterProxy.cpp
     SessionModel.cpp
     UserModel.cpp
     User.cpp
+    LogoProvider.cpp
     greeter_assets.qrc
 )
 

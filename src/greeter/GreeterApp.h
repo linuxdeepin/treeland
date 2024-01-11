@@ -26,10 +26,12 @@
 #include <qscopedpointer.h>
 #include <QQmlEngine>
 #include <QQmlExtensionPlugin>
+#include <QTranslator>
 
 #include "SessionModel.h"
 #include "UserModel.h"
 #include "GreeterProxy.h"
+#include "LogoProvider.h"
 
 class GreeterExtensionPlugin : public QQmlEngineExtensionPlugin
 {
@@ -43,6 +45,7 @@ public:
         qmlRegisterType<SessionModel>("TreeLand.Greeter", 1, 0, "SessionModel");
         qmlRegisterType<UserModel>("TreeLand.Greeter", 1, 0, "UserModel");
         qmlRegisterType<GreeterProxy>("TreeLand.Greeter", 1, 0, "Proxy");
+        qmlRegisterType<logoProvider>("TreeLand.Greeter", 1, 0, "LogoProvider");
     }
 
     void initializeEngine([[maybe_unused]] QQmlEngine *engine, [[maybe_unused]] const char *uri) final
