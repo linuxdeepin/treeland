@@ -6,7 +6,7 @@ Control {
     id: timedataWidget
 
     property date currentDate: new Date()
-    property var currentLocale: Qt.locale("zh_CN")
+    property var currentLocale: Qt.locale()
 
     Timer {
         interval: 1000

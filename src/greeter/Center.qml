@@ -75,18 +75,33 @@ Item {
     }
 
     Rectangle {
-        id: logo
-        width: 100
-        height: 60
+        width: logo.implicitWidth
+        height: logo.implicitHeight
         anchors.left: parent.left
         anchors.bottom: parent.bottom
-        color: Qt.rgba(1, 1, 1, 0.5)
-        Text {
-            width: parent.width
-            height: parent.height
-            text: "This is system logo."
-            color: 'black'
-            wrapMode: Text.Wrap
+        color: "transparent"
+
+        RowLayout {
+            id: logo
+            anchors.fill: parent
+            spacing: 5
+
+            Image {
+                id: logoPic
+                Layout.alignment: Qt.AlignBottom | Qt.AlignLeft
+                source: GreeterModel.logoProvider.logo
+                Layout.maximumHeight: 132
+                Layout.maximumWidth: 128
+                fillMode: Image.PreserveAspectFit
+            }
+
+            Text {
+                Layout.alignment: Qt.AlignLeft
+                text: GreeterModel.logoProvider.version
+                font.weight: Font.Normal
+                font.pixelSize: logoPic.height / 2
+                color: Qt.rgba(1, 1, 1, 153 / 255)
+            }
         }
     }
 
@@ -116,6 +131,7 @@ Item {
                 implicitWidth: bottomGroup.buttonSize + 6
                 implicitHeight: bottomGroup.buttonSize + 6
                 color: "transparent"
+                visible: false
                 Layout.alignment: Qt.AlignHCenter
                 RoundButton {
                     id: wifiBtn
@@ -143,11 +159,10 @@ Item {
                     case MessageDialog.Ok:
                         TreeLandHelper.backToNormal()
                         TreeLandHelper.reboot()
-                        break;
+                        break
                     }
                 }
             }
-
 
             Rectangle {
                 implicitWidth: bottomGroup.buttonSize + 6
@@ -156,7 +171,7 @@ Item {
                 Layout.alignment: Qt.AlignHCenter
                 D.RoundButton {
                     id: boardBtn
-                    text: '2'
+                    text: 'B'
                     width: bottomGroup.buttonSize
                     height: bottomGroup.buttonSize
                     anchors.centerIn: parent

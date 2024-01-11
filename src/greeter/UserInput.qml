@@ -18,7 +18,7 @@ Item {
                 GreeterModel.currentUserIndex)
         username.text = currentUser.realName.length == 0 ? currentUser.name : currentUser.realName
         passwordField.text = ''
-        avatar.source = currentUser.icon
+        avatar.fallbackSource = currentUser.icon
         updateHintMsg(normalHint)
     }
 
@@ -71,14 +71,39 @@ Item {
         spacing: 15
         anchors.centerIn: parent
 
-        Item {
+        Rectangle {
             width: 120
             height: 120
             anchors.horizontalCenter: parent.horizontalCenter
-            Image {
+            color: "transparent"
+            radius: 20
+            border.width: 2
+            border.color: Qt.rgba(1, 1, 1, 0.1)
+
+            D.QtIcon {
                 id: avatar
                 anchors.fill: parent
-                fillMode: Image.PreserveAspectFit
+                visible: false
+            }
+
+            Rectangle {
+                id: maskSource
+                radius: 20
+                anchors.fill: avatar
+                visible: false
+            }
+            D.OpacityMask {
+                anchors.fill: avatar
+                source: avatar
+                maskSource: maskSource
+                invert: false
+            }
+            Rectangle {
+                radius: 20
+                anchors.fill: avatar
+                color: "transparent"
+                border.width: 1
+                border.color: Qt.rgba(0, 0, 0, 0.2)
             }
         }
 
@@ -192,6 +217,7 @@ Item {
         D.RoundButton {
             id: langBtn
             text: 'L'
+            visible: false
             Layout.fillHeight: true
             Layout.preferredWidth: passwordField.height
             background: Rectangle {
@@ -225,7 +251,8 @@ Item {
                 x: hintBtn.width - hintLabel.width
                 y: hintBtn.height + 11
                 hintText: {
-                    let user = GreeterModel.userModel.get(GreeterModel.currentUserIndex)
+                    let user = GreeterModel.userModel.get(
+                            GreeterModel.currentUserIndex)
                     return user.passwordHint
                 }
             }
@@ -249,7 +276,7 @@ Item {
     }
 
     onVisibleChanged: {
-        if(visible === true) {
+        if (visible === true) {
             passwordField.forceActiveFocus()
         }
     }
