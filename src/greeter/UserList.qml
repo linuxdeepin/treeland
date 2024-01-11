@@ -39,20 +39,20 @@ D.Popup {
         }
     }
 
-    function selectCurrentUser(index) {
-        GreeterModel.currentUserIndex = index
+    function selectCurrentUser(userName, index) {
+        GreeterModel.currentUser = userName
         users.lastCheckedIndex = index
-        let user = GreeterModel.userModel.get(index)
-        GreeterModel.proxy.activateUser(user.name)
+        GreeterModel.proxy.activateUser(userName)
         userList.close()
     }
 
     onAboutToShow: {
-        if (lastCheckedIndex == -1) {
-            listv.currentIndex = listv.model.lastIndex
-            return
+        //FIXME: we shouldn't use index directly
+        if (users.lastCheckedIndex == -1) {
+            users.lastCheckedIndex = GreeterModel.userModel.lastIndex
         }
-        listv.currentIndex = lastCheckedIndex
+        listv.currentIndex = users.lastCheckedIndex
+        listv.positionViewAtIndex(listv.currentIndex, ListView.Beginning)
     }
 
     D.ScrollView {
@@ -71,7 +71,7 @@ D.Popup {
             keyNavigationWraps: true
             highlightMoveDuration: 0
             Keys.onTabPressed: listv.incrementCurrentIndex()
-            Keys.onReturnPressed: selectCurrentUser(listv.currentIndex)
+            Keys.onReturnPressed: selectCurrentUser(model.name, model.index)
 
             property D.Palette highlightColor: D.Palette {
                 normal: D.DTK.makeColor(D.Color.Highlight)
@@ -181,14 +181,14 @@ D.Popup {
                         Text {
                             id: displayUserName
                             text: model.realName.length == 0 ? model.name : model.realName
-                            color: listv.currentIndex == index ? "white" : "black"
+                            color: singleUser.ListView.isCurrentItem ? "white" : "black"
                             font.weight: Font.Medium
                             font.pixelSize: 13
                             font.family: "Source Han Sans CN"
                         }
                         Text {
                             text: model.identity
-                            color: listv.currentIndex == index ? Qt.rgba(
+                            color: singleUser.ListView.isCurrentItem ? Qt.rgba(
                                                                      1, 1, 1,
                                                                      0.7) : Qt.rgba(
                                                                      0,
@@ -204,8 +204,7 @@ D.Popup {
                     id: userBackground
                     anchors.fill: parent
                     radius: 6
-                    color: listv.currentIndex
-                           == index ? listv.D.ColorSelector.highlightColor : "transparent"
+                    color: singleUser.ListView.isCurrentItem ? listv.D.ColorSelector.highlightColor : "transparent"
 
                     D.BoxShadow {
                         anchors.fill: parent
@@ -218,9 +217,9 @@ D.Popup {
                     }
                 }
 
-                onClicked: selectCurrentUser(index)
+                onClicked: selectCurrentUser(model.name, index)
 
-                checked: GreeterModel.currentUserIndex == index
+                checked: GreeterModel.currentUser === model.name
             }
         }
     }

@@ -7,7 +7,7 @@ import QtQuick
 import TreeLand.Greeter
 
 Item {
-    property int currentUserIndex
+    property alias currentUser: userModel.currentUserName
     property int currentSession
     readonly property UserModel userModel: userModel
     readonly property SessionModel sessionModel: sessionModel
@@ -45,7 +45,7 @@ Item {
     }
 
     Component.onCompleted: {
-        GreeterModel.currentUserIndex = userModel.lastIndex
+        GreeterModel.currentUser = userModel.data(userModel.index(userModel.lastIndex,0), UserModel.NameRole)
         GreeterModel.currentSession = sessionModel.lastIndex
     }
 }

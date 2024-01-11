@@ -32,6 +32,7 @@ struct UserPrivate
     QUrl icon;
     QString identity;
     QString passwordHint;
+    QString limitTime;
     AccountsUserPtr inter{nullptr};
 
     void updateUserData();
@@ -126,3 +127,10 @@ void User::setLogined(bool newState) const noexcept
 {
     d->logined = newState;
 }
+
+void User::updateLimitTime(const QString &time) noexcept
+{
+    d->limitTime = time;
+    emit limitTimeChanged(time);
+}
+
