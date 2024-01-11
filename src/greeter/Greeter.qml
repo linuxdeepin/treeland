@@ -57,7 +57,7 @@ Item {
 
 
     function checkUser(userName) {
-        let user = GreeterModel.userModel.get(GreeterModel.currentUserIndex)
+        let user = GreeterModel.userModel.get(GreeterModel.currentUser)
         console.log("last activate user:",user.name,"current user:",userName)
         return user.name == userName
     }

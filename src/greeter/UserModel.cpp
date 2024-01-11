@@ -37,6 +37,7 @@ struct UserModelPrivate
 {
     bool containsAllUsers{true};
     int lastIndex{0};
+    QString currentUserName;
     DAccountsManager manager;
     QList<UserPtr> users;
 };
@@ -213,6 +214,28 @@ QVariant UserModel::get(int index) const
     map["passwordHint"] = user->passwordHint();
 
     return map;
+}
+
+QString UserModel::currentUserName() const noexcept
+{
+    return d->currentUserName;
+}
+
+void UserModel::updateUserLimits(const QString &userName, const QString &time) const noexcept
+{
+    auto user = std::find_if(d->users.begin(), d->users.end(), [&userName](const UserPtr &user) {
+        return user->userName() == userName;
+    });
+
+    if (user != d->users.end()) {
+        (*user)->updateLimitTime(time);
+    }
+}
+
+void UserModel::setCurrentUserName(const QString &userName) noexcept
+{
+    d->currentUserName = userName;
+    emit currentUserNameChanged();
 }
 
 void UserModel::onUserAdded(quint64 uid)
