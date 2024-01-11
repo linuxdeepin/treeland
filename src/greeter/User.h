@@ -31,9 +31,11 @@ public:
     [[nodiscard]] const QString &passwordHint() const noexcept;
     [[nodiscard]] bool logined() const noexcept;
     void setLogined(bool newState) const noexcept;
+    void updateLimitTime(const QString &time) noexcept;
 
 Q_SIGNALS:
     void userDataChanged();
+    void limitTimeChanged(const QString &time);
 
 private:
     UserPrivate *d{nullptr};
