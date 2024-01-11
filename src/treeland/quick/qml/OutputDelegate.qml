@@ -17,10 +17,11 @@ OutputItem {
     cursorDelegate: Item {
         required property OutputCursor cursor
 
-        visible: cursor.visible && !cursor.isHardwareCursor
+        visible: cursor.visible
 
         Image {
             id: cursorImage
+            visible: !cursor.isHardwareCursor
             source: cursor.imageSource
             x: -cursor.hotspot.x
             y: -cursor.hotspot.y
