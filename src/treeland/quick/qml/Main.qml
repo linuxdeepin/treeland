@@ -316,6 +316,9 @@ Item {
                         outputLayout.xRange += width
                         if (outputLayout.yRange < height)
                             outputLayout.yRange = height
+                        if (renderWindow.activeOutputDelegate == null) {
+                            renderWindow.activeOutputDelegate = outputDelegate
+                        }
                     }
                 }
             }
