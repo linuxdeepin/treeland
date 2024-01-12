@@ -53,7 +53,7 @@ Item {
                 WallpaperCard {
                     id: systemCard
                     group: "System"
-                    directory: "/home/zoro/Pictures/"
+                    directory: "/usr/share/wallpapers/deepin/"
 
                     Layout.alignment: Qt.AlignVCenter
                     modelData: personalization.wallpaperModel(group, directory)
