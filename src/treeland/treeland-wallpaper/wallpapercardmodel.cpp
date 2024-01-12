@@ -40,6 +40,7 @@ void WallpaperCardModel::setCurrentIndex(int index)
 {
     d->currentIndex = index;
     Q_EMIT currentIndexChanged(d->currentIndex);
+    Q_EMIT layoutChanged();
 }
 
 int WallpaperCardModel::currentIndex() const {
@@ -109,11 +110,10 @@ void WallpaperCardModel::append(const QString& path)
 {
     beginInsertRows(QModelIndex(), 0, 0);
     d->wallpapers.push_front("file://" + path);
-    setCurrentIndex(0);
     endInsertRows();
 
+    setCurrentIndex(0);
     Q_EMIT dataCountChanged(d->wallpapers.length());
-    Q_EMIT layoutChanged();
 }
 
 void WallpaperCardModel::remove(int index)

@@ -68,6 +68,7 @@ void QuickPersonalizationManagerPrivate::updateCacheWallpaperPath(uid_t uid)
     QString cache_location = QStandardPaths::writableLocation(QStandardPaths::CacheLocation);
     m_cacheDirectory = cache_location + QString("/wallpaper/%1/").arg(uid);
     m_settingFile = m_cacheDirectory + "wallpaper.ini";
+    m_currentWallpaper = "/usr/share/wallpapers/deepin/desktop.jpg";
 }
 
 void QuickPersonalizationManagerPrivate::loadWallpaperSettings()
