@@ -64,7 +64,9 @@ WXdgSurfacePrivate::WXdgSurfacePrivate(WXdgSurface *qq, QWXdgSurface *hh)
     , activated(false)
     , maximized(false)
     , minimized(false)
+    , fullscreen(false)
 {
+
 }
 
 WXdgSurfacePrivate::~WXdgSurfacePrivate()
@@ -93,6 +95,7 @@ void WXdgSurfacePrivate::on_configure(wlr_xdg_surface_configure *event)
             maximized = event->toplevel_configure->maximized;
             Q_EMIT q->maximizeChanged();
         }
+
         if (event->toplevel_configure->fullscreen != fullscreen) {
             fullscreen = event->toplevel_configure->fullscreen;
             Q_EMIT q->fullscreenChanged();
@@ -153,7 +156,6 @@ void WXdgSurfacePrivate::connect()
             }
         });
         QObject::connect(toplevel, &QWXdgToplevel::requestFullscreen, q, [q] (bool fullscreen) {
-            // TODO: implement fullscreen support
             if (fullscreen) {
                 Q_EMIT q->requestFullscreen();
             } else {
@@ -264,7 +266,7 @@ bool WXdgSurface::isMinimized() const
 bool WXdgSurface::isFullScreen() const
 {
     W_DC(WXdgSurface);
-    return d->handle->topToplevel()->handle()->requested.fullscreen;
+    return d->fullscreen;
 }
 
 QRect WXdgSurface::getContentGeometry() const

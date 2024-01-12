@@ -32,6 +32,7 @@ public:
         , xwayland(xwayland)
         , maximized(false)
         , minimized(false)
+        , fullscreen(false)
         , activated(false)
     {
 
@@ -68,6 +69,7 @@ public:
     WXWaylandSurface::WindowTypes windowTypes = {0};
     uint maximized:1;
     uint minimized:1;
+    uint fullscreen:1;
     uint activated:1;
 };
 
@@ -323,6 +325,12 @@ bool WXWaylandSurface::isMinimized() const
     return d->minimized;
 }
 
+bool WXWaylandSurface::isFullScreen() const
+{
+    W_DC(WXWaylandSurface);
+    return d->fullscreen;
+}
+
 bool WXWaylandSurface::isActivated() const
 {
     W_DC(WXWaylandSurface);
@@ -478,6 +486,18 @@ void WXWaylandSurface::setMinimize(bool on)
     d->minimized = on;
     handle()->setMinimized(on);
     Q_EMIT minimizeChanged();
+}
+
+void WXWaylandSurface::setFullScreen(bool on)
+{
+    W_D(WXWaylandSurface);
+
+    if (d->fullscreen == on && d->nativeHandle()->fullscreen == on)
+        return;
+
+    d->fullscreen = on;
+    handle()->setFullscreen(on);
+    Q_EMIT fullscreenChanged();
 }
 
 void WXWaylandSurface::setActivate(bool on)

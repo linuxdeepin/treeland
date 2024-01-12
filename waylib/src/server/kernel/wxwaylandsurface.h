@@ -91,6 +91,7 @@ public:
     bool hasChild() const;
     bool isMaximized() const override;
     bool isMinimized() const override;
+    bool isFullScreen() const override;
     bool isActivated() const override;
 
     bool doesNotAcceptFocus() const override;
@@ -114,6 +115,7 @@ public Q_SLOTS:
     void configure(const QRect &geometry);
     void setMaximize(bool on) override;
     void setMinimize(bool on) override;
+    void setFullScreen(bool on) override;
     void setActivate(bool on) override;
     void close();
     void restack(WXWaylandSurface *sibling, StackMode mode);

@@ -15,6 +15,7 @@ class WToplevelSurface : public QObject
     Q_PROPERTY(bool isActivated READ isActivated NOTIFY activateChanged)
     Q_PROPERTY(bool isMaximized READ isMaximized NOTIFY maximizeChanged)
     Q_PROPERTY(bool isMinimized READ isMinimized NOTIFY minimizeChanged)
+    Q_PROPERTY(bool isFullScreen READ isFullScreen NOTIFY fullscreenChanged)
     Q_PROPERTY(WSurface* surface READ surface NOTIFY surfaceChanged)
     Q_PROPERTY(WSurface* parentSurface READ parentSurface NOTIFY parentSurfaceChanged)
     QML_NAMED_ELEMENT(ToplevelSurface)
