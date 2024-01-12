@@ -82,26 +82,75 @@ Item {
                 rightMargin: 8
             }
 
-            Button {
-                text: "Min"
-                onClicked: root.requestMinimize()
-            }
-            Button {
-                text: "Max"
-                onClicked: {
-                    const max = (text === "Max")
-                    root.requestToggleMaximize(max)
+            Rectangle {
+                width: 80
+                height: titlebar.height
+                color: "#dcdcdc"
 
-                    if (max) {
-                        text = "Restore"
-                    } else {
-                        text = "Max"
+                Text {
+                    anchors.fill: parent
+                    text: "Min"
+                    horizontalAlignment: Text.AlignHCenter
+                    verticalAlignment: Text.AlignVCenter
+                    MouseArea {
+                        anchors.fill: parent
+                        onReleased: {
+                            root.requestMinimize()
+                        }
                     }
                 }
             }
-            Button {
-                text: "Close"
-                onClicked: root.requestClose()
+
+            Rectangle {
+                width: 80
+                height: titlebar.height
+                color: "#dcdcdc"
+                id: maxBtn
+
+                Text {
+                    text: "Max"
+                    anchors.fill: parent
+                    horizontalAlignment: Text.AlignHCenter
+                    verticalAlignment: Text.AlignVCenter
+                    MouseArea {
+                        anchors.fill: parent
+                        onReleased: {
+                            const max = (parent.text === "Max")
+                            root.requestToggleMaximize(max)
+
+                            if (max) {
+                                parent.text = "Restore"
+                            } else {
+                                parent.text = "Max"
+                            }
+                        }
+                    }
+                }
+            }
+            Rectangle {
+                width: 80
+                height: titlebar.height
+                color: "#dcdcdc"
+                id: closeBtn
+
+                Text {
+                    text: "Close"
+                    anchors.fill: parent
+                    horizontalAlignment: Text.AlignHCenter
+                    verticalAlignment: Text.AlignVCenter
+                    MouseArea {
+                        anchors.fill: parent
+                        onPressed: {
+                            closeBtn.color = "#ff6347"
+                        }
+                        onReleased: {
+                            closeBtn.color = "#dcdcdc"
+                            if (containsMouse) {
+                                root.requestClose()
+                            }
+                        }
+                    }
+                }
             }
         }
     }
