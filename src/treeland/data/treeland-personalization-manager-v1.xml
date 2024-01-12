@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<protocol name="treeland_personalization_manager_v1">
+    <copyright>
+        Copyright © 2023 Uniontech
+
+        Permission is hereby granted, free of charge, to any person obtaining a
+        copy of this software and associated documentation files (the "Software"),
+        to deal in the Software without restriction, including without limitation
+        the rights to use, copy, modify, merge, publish, distribute, sublicense,
+        and/or sell copies of the Software, and to permit persons to whom the
+        Software is furnished to do so, subject to the following conditions:
+
+        The above copyright notice and this permission notice (including the next
+        paragraph) shall be included in all copies or substantial portions of the
+        Software.
+
+        THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+        IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+        FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+        THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+        LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+        FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+        DEALINGS IN THE SOFTWARE.
+    </copyright>
+    <interface name="treeland_personalization_manager_v1" version="1">
+        <description summary="personalization manager">
+        This interface allows a client to customized display effects.
+
+        Warning! The protocol described in this file is currently in the testing
+        phase. Backward compatible changes may be added together with the
+        corresponding interface version bump. Backward incompatible changes can
+        only be done by creating a new major version of the extension.
+        </description>
+        <request name="get_window_context">
+            <description summary="get personalization window context">
+                set window background, shadow based on context
+            </description>
+            <arg name="id" type="new_id" interface="personalization_window_context_v1"/>
+            <arg name="surface" type="object" interface="wl_surface"/>
+        </request>
+        <request name="get_wallpaper_context">
+            <description summary="custom wallpaper context">
+                custom user wallpaper
+            </description>
+            <arg name="id" type="new_id" interface="personalization_wallpaper_context_v1"/>
+        </request>
+    </interface>
+    <interface name="personalization_wallpaper_context_v1" version="1">
+        <description summary="client custom wallpaper context">
+        This interface allows a client personalization wallpaper.
+
+        Warning! The protocol described in this file is currently in the testing
+        phase. Backward compatible changes may be added together with the
+        corresponding interface version bump. Backward incompatible changes can
+        only be done by creating a new major version of the extension.
+        </description>
+        <request name="set_wallpaper">
+            <description summary="set the current user's wallpaper">
+                set the current user's wallpaper
+	        </description>
+            <arg name="fd" type="fd" summary="wallpaper file fd"/>
+            <arg name="metadata" type="string" summary="file related metadata information"/>
+        </request>
+        <request name="get_wallpapers">
+            <description summary="get the current user's wallpaper">
+                get the current user's wallpaper
+            </description>
+        </request>
+        <request name="destroy" type="destructor">
+            <description summary="destroy the context object">
+                Destroy the context object.
+            </description>
+        </request>
+        <event name="wallpapers">
+            <description summary="get current wallpaper event">
+                Send this signal after getting the user's wallpaper.
+            </description>
+            <arg name="metadata" type="string" summary="file related metadata information"/>
+        </event>
+    </interface>
+    <interface name="personalization_window_context_v1" version="1">
+        <description summary="client custom window context">
+        This interface allows a client personalization window.
+
+        Warning! The protocol described in this file is currently in the testing
+        phase. Backward compatible changes may be added together with the
+        corresponding interface version bump. Backward incompatible changes can
+        only be done by creating a new major version of the extension.
+        </description>
+        <enum name="background_type">
+            <description summary="Windows will have different background effects">
+                This will instruct the compositor how to set the background
+                for the window, desktop.
+            </description>
+            <entry name="normal" value="0" summary="not draw the background image"/>
+            <entry name="wallpaper" value="1" summary="draw the background image"/>
+            <entry name="blend" value="2" summary="draw the blend background image"/>
+        </enum>
+        <request name="set_background_type">
+            <description summary="set window background type">
+                Destroy the context object.
+            </description>
+            <arg name="type" type="uint" summary="background enum"/>
+        </request>
+        <request name="destroy" type="destructor">
+            <description summary="destroy the context object">
+                Destroy the context object.
+            </description>
+        </request>
+    </interface>
+</protocol>
