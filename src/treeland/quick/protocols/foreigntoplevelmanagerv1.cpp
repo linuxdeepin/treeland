@@ -169,7 +169,7 @@ public:
         wl_client_get_credentials(client, &pid, nullptr, nullptr);
         handle->setPid(pid);
 
-        handle->setIdentifier(*reinterpret_cast<const uint32_t *>(surface->handle()->handle()));
+        handle->setIdentifier(*reinterpret_cast<const uint32_t *>(surface->surface()->handle()->handle()));
 
         Q_EMIT surface->titleChanged();
         Q_EMIT surface->appIdChanged();
