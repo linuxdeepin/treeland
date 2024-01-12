@@ -300,6 +300,14 @@ Item {
                     onLastActiveCursorItemChanged: {
                         if (lastActiveCursorItem != null)
                             renderWindow.activeOutputDelegate = outputDelegate
+                        else if (renderWindow.activeOutputDelegate === outputDelegate) {
+                            for (const output of QmlHelper.layout.outputs) {
+                                if (output.lastActiveCursorItem) {
+                                    renderWindow.activeOutputDelegate = output
+                                    break
+                                }
+                            }
+                        }
                     }
 
                     Component.onCompleted: {
