@@ -280,6 +280,14 @@ FakeSession::FakeSession(int argc, char* argv[])
                                        QString("XDG_CURRENT_DESKTOP=%1").arg(qgetenv("XDG_CURRENT_DESKTOP")),
                                    }
     );
+
+    if (!QProcess::startDetached("dim")) {
+        qDebug() << "Failed to start deepin input method";
+    }
+
+    if (!QProcess::startDetached("dde-application-manager")) {
+        qDebug() << "Filed to start deepin application manager";
+    }
 }
 
 int main (int argc, char *argv[]) {
