@@ -234,13 +234,16 @@ Item {
                     }
 
                     RenderBufferBlitter {
+                        id: blitter
                         width: 200
                         height: 200
                         anchors.centerIn: parent
 
                         MultiEffect {
-                            anchors.fill: parent
-                            source: parent.parent.content
+                            anchors.centerIn: parent
+                            width: blitter.width
+                            height: blitter.height
+                            source: blitter.content
                             autoPaddingEnabled: false
                             blurEnabled: true
                             blur: 1.0
@@ -265,13 +268,14 @@ Item {
         }
 
         RenderBufferBlitter {
+            id: blitter
             width: 300
             height: 300
             anchors.centerIn: parent
 
             MultiEffect {
                 anchors.fill: parent
-                source: parent.parent.content
+                source: blitter.content
                 autoPaddingEnabled: false
                 blurEnabled: true
                 blur: 1.0

@@ -3,9 +3,12 @@
 
 #include "wqmlhelper_p.h"
 
+#define private public
+#include <QSGNode>
+#undef private
+
 #include <QQuickItem>
 #include <QCursor>
-#include <QSGNode>
 #include <private/qquickitem_p.h>
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
@@ -114,6 +117,26 @@ QSGRootNode *WQmlHelper::getRootNode(QQuickItem *item)
     while (root->firstChild() && root->type() != QSGNode::RootNodeType)
         root = root->firstChild();
     return root->type() == QSGNode::RootNodeType ? static_cast<QSGRootNode*>(root) : nullptr;
+}
+
+int &WQmlHelper::QSGNode_subtreeRenderableCount(QSGNode *node)
+{
+    return node->m_subtreeRenderableCount;
+}
+
+QSGNode *&WQmlHelper::QSGNode_firstChild(QSGNode *node)
+{
+    return node->m_firstChild;
+}
+
+QSGNode *&WQmlHelper::QSGNode_lastChild(QSGNode *node)
+{
+    return node->m_lastChild;
+}
+
+QSGNode *&WQmlHelper::QSGNode_parent(QSGNode *node)
+{
+    return node->m_parent;
 }
 
 WAYLIB_SERVER_END_NAMESPACE

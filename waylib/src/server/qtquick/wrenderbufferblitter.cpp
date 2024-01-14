@@ -47,6 +47,9 @@ public:
     void init();
 
     inline QQmlListProperty<QObject> data() {
+        if (!container)
+            return QQuickItemPrivate::get(q_func())->data();
+
         return QQuickItemPrivate::get(container)->data();
     }
 
@@ -54,7 +57,7 @@ public:
 
     W_DECLARE_PUBLIC(WRenderBufferBlitter)
     Content *content;
-    QQuickItem *container;
+    QQuickItem *container = nullptr;
     mutable BlitTextureProvider *tp = nullptr;
 };
 
@@ -134,11 +137,13 @@ void WRenderBufferBlitterPrivate::init()
 {
     W_Q(WRenderBufferBlitter);
     content = new Content(q);
-    container = new QQuickItem(q);
 
-    auto d = QQuickItemPrivate::get(container);
-    if (d->window->graphicsApi() != QSGRendererInterface::Software)
+    if (q->window()->graphicsApi() != QSGRendererInterface::Software) {
+        container = new QQuickItem(q);
+
+        auto d = QQuickItemPrivate::get(container);
         d->refFromEffectItem(true);
+    }
 }
 
 BlitTextureProvider *WRenderBufferBlitterPrivate::ensureTextureProvider() const
@@ -255,7 +260,9 @@ void WRenderBufferBlitter::geometryChange(const QRectF &newGeometry, const QRect
 
     W_D(WRenderBufferBlitter);
     d->content->setSize(newGeometry.size());
-    d->container->setSize(newGeometry.size());
+
+    if (d->container)
+        d->container->setSize(newGeometry.size());
 }
 
 void WRenderBufferBlitter::releaseResources()

@@ -1,6 +1,13 @@
 // Copyright (C) 2023 JiDe Zhang <zhangjide@deepin.org>.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
+#include <QDebug>
+#define protected public
+#define private public
+#include <private/qsgrenderer_p.h>
+#undef protected
+#undef private
+
 #include "wrenderbuffernode_p.h"
 #include "wbufferrenderer_p.h"
 #include "wqmlhelper_p.h"
@@ -283,6 +290,8 @@ public:
     void sync(const QSize &pixelSize, QSGRootNode *rootNode,
               const QMatrix4x4 &matrix = {}, QSGRenderer *base = nullptr,
               const QVector2D &dpr = {}) {
+        Q_ASSERT(!renderer->rootNode());
+
         if (base) {
             renderer->setDevicePixelRatio(base->devicePixelRatio());
             renderer->setDeviceRect(base->deviceRect());
@@ -301,19 +310,15 @@ public:
                                                           : QSGRenderer::MatrixTransformFlag {});
         }
 
-        if (!matrix.isIdentity()) {
+        if (Q_UNLIKELY(!matrix.isIdentity())) {
             renderer->setProjectionMatrix(renderer->projectionMatrix() * matrix);
             renderer->setProjectionMatrixWithNativeNDC(renderer->projectionMatrixWithNativeNDC() * matrix);
         }
 
-        if (renderer->rootNode() == rootNode) {
-            rootNode->markDirty(QSGNode::DirtyForceUpdate);
-        } else {
-            renderer->setRootNode(rootNode);
-        }
+        renderer->setRootNode(rootNode);
     }
 
-    bool render(QRhiRenderTarget *rt) {
+    bool preprocess(QRhiRenderTarget *rt, qreal &oldDPR, QRhiCommandBuffer* &oldCB) {
         QRhiCommandBuffer *cb = nullptr;
         if (rhi()->beginOffscreenFrame(&cb) != QRhi::FrameOpSuccess)
             return false;
@@ -321,17 +326,39 @@ public:
 
         renderer->setRenderTarget({ rt, rt->renderPassDescriptor(), cb });
         auto dc = static_cast<QSGDefaultRenderContext*>(context);
-        const qreal oldDPR = dc->currentDevicePixelRatio();
-        auto const oldCB = dc->currentFrameCommandBuffer();
+        oldDPR = dc->currentDevicePixelRatio();
+        oldCB = dc->currentFrameCommandBuffer();
         context->prepareSync(renderer->devicePixelRatio(), cb, graphicsConfiguration());
-        context->renderNextFrame(renderer);
-        context->prepareSync(oldDPR, oldCB, graphicsConfiguration());
 
-        return rhi()->endOffscreenFrame() == QRhi::FrameOpSuccess;
+        renderer->m_is_rendering = true;
+        renderer->preprocess();
+
+        return true;
     }
 
-    QSGRenderContext *context;
-    QSGRenderer *renderer;
+    bool render(qreal oldDPR, QRhiCommandBuffer* &oldCB) {
+        Q_ASSERT(renderer->m_is_rendering);
+        renderer->render();
+        renderer->m_is_rendering = false;
+        renderer->m_changed_emitted = false;
+
+        context->prepareSync(oldDPR, oldCB, graphicsConfiguration());
+
+        bool ok = rhi()->endOffscreenFrame() == QRhi::FrameOpSuccess;
+        renderer->setRootNode(nullptr);
+
+        return ok;
+    }
+
+    inline bool render(QRhiRenderTarget *rt) {
+        qreal oldDPR;
+        QRhiCommandBuffer *oldCB;
+
+        if (!preprocess(rt, oldDPR, oldCB))
+            return false;
+
+        return render(oldDPR, oldCB);
+    }
 
 private:
     friend class DataManager;
@@ -386,6 +413,10 @@ private:
                 delete pointer->rhi;
         }
     };
+
+    QSGRenderContext *context;
+    QSGRenderer *renderer;
+
     QScopedPointer<Rhi> m_rhi;
 };
 
@@ -410,6 +441,36 @@ static QSizeF mapSize(const QRectF &source, const QMatrix4x4 &matrix)
     size.setHeight(std::max(height1, height2));
 
     return size;
+}
+
+inline static void restoreChildNodesTo(QSGNode *node, QSGNode *realParent) {
+    Q_ASSERT(realParent->firstChild() == node->firstChild());
+    Q_ASSERT(realParent->lastChild() == node->lastChild());
+
+    WQmlHelper::QSGNode_subtreeRenderableCount(node) = 0;
+    WQmlHelper::QSGNode_firstChild(node) = nullptr;
+    WQmlHelper::QSGNode_lastChild(node) = nullptr;
+
+    node = realParent->firstChild();
+    do {
+        WQmlHelper::QSGNode_parent(node) = realParent;
+        node = node->nextSibling();
+    } while (node);
+}
+
+inline static void overrideChildNodesTo(QSGNode *node, QSGNode *newParent) {
+    Q_ASSERT(newParent->childCount() == 0);
+    Q_ASSERT(node->firstChild());
+    WQmlHelper::QSGNode_subtreeRenderableCount(newParent) = 0;
+    WQmlHelper::QSGNode_firstChild(newParent) = node->firstChild();
+    WQmlHelper::QSGNode_lastChild(newParent) = node->lastChild();
+
+    node = newParent->firstChild();
+    do {
+        WQmlHelper::QSGNode_parent(node) = newParent;
+        node->markDirty(QSGNode::DirtyNodeAdded);
+        node = node->nextSibling();
+    } while (node);
 }
 
 class Q_DECL_HIDDEN RhiNode : public WRenderBufferNode {
@@ -501,14 +562,12 @@ public:
             if (!renderData) {
                 renderData.reset(new RenderData);
 
-                renderData->imageNode = rhi->context->sceneGraphContext()->createImageNode();
+                renderData->imageNode = window->createImageNode();
                 renderData->imageNode->setFlag(QSGNode::OwnedByParent);
                 renderData->imageNode->setOwnsTexture(false);
                 renderData->texture.setOwnsTexture(false);
                 renderData->imageNode->setTexture(&renderData->texture);
-
-                renderData->rootNode = new QSGRootNode;
-                renderData->rootNode->appendChildNode(renderData->imageNode);
+                renderData->rootNode.appendChildNode(renderData->imageNode);
             }
         } else {
             renderData.reset();
@@ -560,7 +619,8 @@ public:
 
             const QPointF sourcePos = renderMatrix.map(m_rect.topLeft());
             renderData->imageNode->setRect(QRectF(-(devicePixelRatio - 1) * sourcePos, ct->pixelSize()));
-            rhi->sync(texture->data->pixelSize(), renderData->rootNode, renderMatrix.inverted(), nullptr,
+
+            rhi->sync(texture->data->pixelSize(), &renderData->rootNode, renderMatrix.inverted(), nullptr,
                       {texture->data->pixelSize().width() / float(m_rect.width() * devicePixelRatio),
                        texture->data->pixelSize().height() / float(m_rect.height() * devicePixelRatio)});
             rhi->render(renderData->rt.get());
@@ -590,18 +650,72 @@ public:
 
         if (m_content) {
             auto rootNode = WQmlHelper::getRootNode(m_content);
-            if (!rootNode)
+            if (!rootNode || !rootNode->firstChild())
                 return;
 
             Q_ASSERT(renderTarget()->resourceType() == QRhiResource::TextureRenderTarget);
             auto textureRT = static_cast<QRhiTextureRenderTarget*>(renderTarget());
             auto saveFlags = textureRT->flags();
             textureRT->setFlags(QRhiTextureRenderTarget::PreserveColorContents);
-
             auto currentRenderer = maybeBufferRenderer();
-            rhi->sync(ct->pixelSize(), rootNode, *this->matrix(),
-                        currentRenderer ? currentRenderer->currentRenderer() : nullptr);
-            rhi->render(textureRT);
+
+            if (clipList() || inheritedOpacity() < 1.0) {
+                if (!node)
+                    node.reset(new Node);
+
+                node->opacityNode.setOpacity(inheritedOpacity());
+                node->transformNode.setMatrix(*this->matrix());
+
+                QSGNode *childContainer = &node->opacityNode;
+                if (clipList()) {
+                    if (!node->clipNode) {
+                        node->clipNode = new QQuickDefaultClipNode(QRectF(0, 0, 65535, 65535));
+                        node->clipNode->setFlag(QSGNode::OwnedByParent, false);
+                        node->clipNode->setClipRect(node->clipNode->rect());
+                        node->clipNode->update();
+
+                        node->rootNode.reparentChildNodesTo(node->clipNode);
+                        node->rootNode.appendChildNode(node->clipNode);
+                    }
+                } else {
+                    if (node->clipNode)
+                        node->clipNode->reparentChildNodesTo(&node->rootNode);
+
+                    delete node->clipNode;
+                    node->clipNode = nullptr;
+                }
+
+                overrideChildNodesTo(rootNode, childContainer);
+
+                rhi->sync(ct->pixelSize(), &node->rootNode, {},
+                          currentRenderer ? currentRenderer->currentRenderer() : nullptr);
+                qreal oldDPR;
+                QRhiCommandBuffer *oldCB;
+                if (rhi->preprocess(textureRT, oldDPR, oldCB)) {
+                    if (node->clipNode) {
+                        if (!node->clipNode->clipList()) {
+                            node->clipNode->setRendererClipList(clipList());
+                        } else {
+                            auto lastClipNode = node->clipNode->clipList();
+                            while (auto cliplist = lastClipNode->clipList())
+                                lastClipNode = cliplist;
+                            Q_ASSERT(lastClipNode->clipList());
+                            const_cast<QSGClipNode*>(lastClipNode)->setRendererClipList(clipList());
+                        }
+                    }
+
+                    rhi->render(oldDPR, oldCB);
+                }
+
+                restoreChildNodesTo(childContainer, rootNode);
+            } else {
+                node.reset();
+
+                rhi->sync(ct->pixelSize(), rootNode, *this->matrix(),
+                          currentRenderer ? currentRenderer->currentRenderer() : nullptr);
+                rhi->render(textureRT);
+            }
+
             textureRT->setFlags(saveFlags);
         }
     }
@@ -622,6 +736,7 @@ private:
     void destroy() {
         reset(false);
         renderData.reset();
+        node.reset();
         manager = nullptr;
         texture = nullptr;
     }
@@ -631,6 +746,23 @@ private:
     DataManagerPointer<RhiManager> rhi;
     QMatrix4x4 renderMatrix;
     qreal devicePixelRatio;
+
+    struct Node {
+        Node() {
+            transformNode.setFlag(QSGNode::OwnedByParent, false);
+            opacityNode.setFlag(QSGNode::OwnedByParent, false);
+            rootNode.setFlag(QSGNode::OwnedByParent, false);
+            transformNode.appendChildNode(&opacityNode);
+            rootNode.appendChildNode(&transformNode);
+        }
+
+        QSGRootNode rootNode;
+        QSGTransformNode transformNode;
+        QSGOpacityNode opacityNode;
+        QQuickDefaultClipNode *clipNode = nullptr;
+    };
+
+    std::unique_ptr<Node> node;
 
     struct RenderData {
         struct QRhiTextureRenderTargetDeleter {
@@ -644,7 +776,7 @@ private:
         };
 
         std::unique_ptr<QRhiTextureRenderTarget, QRhiTextureRenderTargetDeleter> rt;
-        QSGRootNode *rootNode;
+        QSGRootNode rootNode;
         QSGImageNode *imageNode;
         QSGPlainTexture texture;
     };
