@@ -59,17 +59,6 @@ Item {
         return null
     }
 
-    MiniDock {
-        id: dock
-        anchors {
-            top: parent.top
-            left: parent.left
-            bottom: parent.bottom
-            margins: 8
-        }
-        width: 250
-    }
-
     DynamicCreatorComponent {
         id: toplevelComponent
         creator: QmlHelper.xdgSurfaceManager
@@ -134,7 +123,6 @@ Item {
                 id: helper
                 surface: toplevelSurfaceItem
                 waylandSurface: toplevelSurfaceItem.waylandSurface
-                dockModel: dock.model
                 switcherModel: switcher.model
                 dockPreviewModel: dockPreview.model
                 creator: toplevelComponent
@@ -350,7 +338,6 @@ Item {
                 id: helper
                 surface: xwaylandSurfaceItem
                 waylandSurface: xwaylandSurfaceItem.waylandSurface
-                dockModel: dock.model
                 creator: xwaylandComponent
                 decoration: decoration
             }

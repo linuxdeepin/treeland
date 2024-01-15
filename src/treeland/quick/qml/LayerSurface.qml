@@ -88,11 +88,17 @@ Item {
             if (!waylandSurface.WaylandSocket.rootSocket.enabled) {
                surface.visible = false
             } else {
-                // do animation for window close
-                closeAnimation.parent = root.parent
-                closeAnimation.anchors.fill = root
-                closeAnimation.sourceComponent = closeAnimationComponent
-                closeAnimation.item.start(root)
+                let showCloseAnimation = false
+                if (showCloseAnimation) {
+                    // do animation for window close
+                    closeAnimation.parent = root.parent
+                    closeAnimation.anchors.fill = root
+                    closeAnimation.sourceComponent = closeAnimationComponent
+                    closeAnimation.item.start(root)
+                } else {
+                    if (pendingDestroy)
+                        creator.destroyObject(root)
+                }
             }
         }
     }

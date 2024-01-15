@@ -20,7 +20,6 @@ qt_add_qml_module(treeland-qml
         XdgSurface.qml
         InputPopupSurface.qml
         LayerSurface.qml
-        MiniDock.qml
         WindowsSwitcher.qml
         WindowsSwitcherPreview.qml
         DockPreview.qml
