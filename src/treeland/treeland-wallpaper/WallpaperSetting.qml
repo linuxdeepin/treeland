@@ -94,11 +94,11 @@ Item {
 
                                 corners: RoundRectangle.BottomCorner
                                 action: ComboBox {
+                                    enabled: false
                                     ColorSelector.family: Palette.CommonColor
                                     model: ListModel {
-                                        ListElement { text: "Stretch"}
-                                        ListElement { text: "Preserve Aspect Fit"}
-                                        ListElement { text: "entry_voice"}
+                                        ListElement { text: qsTr("Stretch") }
+                                        ListElement { text: qsTr("Preserve Aspect Fit") }
                                     }
                                     textRole: "text"
                                 }

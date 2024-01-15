@@ -59,7 +59,7 @@ Item {
                     modelData: personalization.wallpaperModel(group, directory)
                     visible: modelData.count > 0
                     titleText: qsTr("System Picture")
-                    descriptionText: qsTr("Show All ") + "-" + modelData.count
+                    descriptionText: qsTr("Show All") + "-" + modelData.count
                     descriptionVisiable: modelData.count > 10
                 }
             }
