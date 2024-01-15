@@ -133,6 +133,8 @@ static void treeland_shortcut_manager_bind(struct wl_client *client,
                                    manager,
                                    shortcut_manager_resource_destroy);
 
+    wl_list_insert(&manager->contexts, wl_resource_get_link(resource));
+
     manager->client = resource;
 }
 
