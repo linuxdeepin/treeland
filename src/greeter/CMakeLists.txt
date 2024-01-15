@@ -50,6 +50,8 @@ qt_add_qml_module(greeterplugin
     RESOURCE_PREFIX
         /qt/qml
     QML_FILES ${QML_FILES}
+    OUTPUT_DIRECTORY
+        ${PROJECT_BINARY_DIR}/qt/qml/TreeLand/Greeter
 )
 
 qt_add_lupdate(greeterplugin
