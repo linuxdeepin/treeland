@@ -12,6 +12,8 @@
 #include <QJsonDocument>
 #include <QStandardPaths>
 #include <QtWaylandClient/QWaylandClientExtension>
+#include <QStandardPaths>
+#include <QTranslator>
 
 #include <sys/types.h>
 #include <pwd.h>
@@ -23,6 +25,14 @@ PersonalizationManager::PersonalizationManager()
 {
     connect(this, &PersonalizationManager::activeChanged, this, &PersonalizationManager::onActiveChanged);
     m_cacheDirectory = QStandardPaths::writableLocation(QStandardPaths::CacheLocation) + "/wallpaper/";
+
+    QTranslator *translate = new QTranslator(this);
+    auto dirs = QStandardPaths::standardLocations(QStandardPaths::GenericDataLocation);
+    for(const auto& dir : dirs) {
+        if (translate->load(QLocale::system(),"wallpaper",".", dir + "/ddm/translations",".qm")) {
+            qApp->installTranslator(translate);
+        }
+    }
 }
 
 PersonalizationManager::~PersonalizationManager()
