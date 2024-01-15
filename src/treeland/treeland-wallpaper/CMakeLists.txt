@@ -14,6 +14,14 @@ qt_generate_wayland_protocol_client_sources(treeland-wallpaper
         ${CMAKE_CURRENT_SOURCE_DIR}/../data/treeland-personalization-manager-v1.xml
 )
 
+set(QML_FILES
+    main.qml
+    Wallpaper.qml
+    WallpaperCard.qml
+    WallpaperSetting.qml
+    PropertyItemDelegate.qml
+)
+
 qt_add_qml_module(treeland-wallpaper
     URI Wallpaper
     VERSION "1.0"
@@ -22,13 +30,27 @@ qt_add_qml_module(treeland-wallpaper
         personalizationmangerclient.h
         wallpapercardmodel.cpp
         wallpapercardmodel.h
-    QML_FILES
-        main.qml
-        Wallpaper.qml
-        WallpaperCard.qml
-        WallpaperSetting.qml
-        PropertyItemDelegate.qml
+    QML_FILES ${QML_FILES}
 )
+
+qt_add_lupdate(treeland-wallpaper
+    TS_FILES
+        translations/wallpaper.zh_CN.ts
+        translations/wallpaper.en_US.ts
+    NO_GLOBAL_TARGET
+)
+
+add_dependencies(treeland-wallpaper treeland-wallpaper_lupdate)
+set(TRANSLATED_FILES)
+qt_add_lrelease(treeland-wallpaper
+    TS_FILES
+        translations/wallpaper.zh_CN.ts
+        translations/wallpaper.en_US.ts
+    QM_FILES_OUTPUT_VARIABLE TRANSLATED_FILES
+)
+add_dependencies(treeland-wallpaper_lrelease treeland-wallpaper_lupdate)
+
+install(FILES ${TRANSLATED_FILES} DESTINATION ${COMPONENTS_TRANSLATION_DIR})
 
 target_link_libraries(treeland-wallpaper
     PRIVATE
