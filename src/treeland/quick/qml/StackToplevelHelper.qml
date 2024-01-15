@@ -26,24 +26,34 @@ Item {
     property bool mapped: waylandSurface.surface && waylandSurface.surface.mapped && waylandSurface.WaylandSocket.rootSocket.enabled
     property bool pendingDestroy: false
     property bool isMaximize: waylandSurface && waylandSurface.isMaximized && outputCoordMapper
+    property bool isFullScreen: waylandSurface && waylandSurface.isFullScreen && outputCoordMapper
 
-    Binding {
-        target: surface
-        property: "states"
-        restoreMode: Binding.RestoreNone
-        value: State {
-            name: "maximize"
-            when: isMaximize
-            PropertyChanges {
-                restoreEntryValues: true
-                target: root.surface
+    // For Maximize
+    function getMaximizeX() {
+        return outputCoordMapper.x + Helper.getLeftExclusiveMargin(waylandSurface)
+    }
+    function getMaximizeY() {
+        return outputCoordMapper.y + output.topMargin + Helper.getTopExclusiveMargin(waylandSurface)
+    }
+    function getMaximizeWidth() {
+        return outputCoordMapper.width - Helper.getLeftExclusiveMargin(waylandSurface) - Helper.getRightExclusiveMargin(waylandSurface)
+    }
+    function getMaximizeHeight() {
+        return outputCoordMapper.height - output.topMargin - Helper.getTopExclusiveMargin(waylandSurface) - Helper.getBottomExclusiveMargin(waylandSurface)
+    }
 
-                x: outputCoordMapper.x + TreeLandHelper.getLeftExclusiveMargin(waylandSurface)
-                y: outputCoordMapper.y + output.topMargin + TreeLandHelper.getTopExclusiveMargin(waylandSurface)
-                width: outputCoordMapper.width - TreeLandHelper.getLeftExclusiveMargin(waylandSurface) - TreeLandHelper.getRightExclusiveMargin(waylandSurface)
-                height: outputCoordMapper.height - output.topMargin - TreeLandHelper.getTopExclusiveMargin(waylandSurface) - TreeLandHelper.getBottomExclusiveMargin(waylandSurface)
-            }
-        }
+    // For Fullscreen
+    function getFullscreenX() {
+        return outputCoordMapper.x
+    }
+    function getFullscreenY() {
+        return outputCoordMapper.y + output.topMargin
+    }
+    function getFullscreenWidth() {
+        return outputCoordMapper.width
+    }
+    function getFullscreenHeight() {
+        return outputCoordMapper.height - output.topMargin
     }
 
     Binding {
@@ -377,6 +387,33 @@ Item {
                 return
 
             cancelMinimize();
+        }
+
+        function onRequestFullscreen() {
+            if (waylandSurface.isResizeing)
+                return
+
+            if (waylandSurface.isFullScreen)
+                return
+
+            if (!surface.effectiveVisible)
+                return
+
+            updateOutputCoordMapper()
+            waylandSurface.setFullScreen(true)
+        }
+
+        function onRequestCancelFullscreen() {
+            if (waylandSurface.isResizeing)
+                return
+
+            if (!waylandSurface.isFullScreen)
+                return
+
+            if (!surface.effectiveVisible)
+                return
+
+            waylandSurface.setFullScreen(false)
         }
     }
 
