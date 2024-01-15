@@ -10,6 +10,9 @@ qt_add_qml_module(treeland-quick-utils
         dockpreviewfilter.cpp
     RESOURCE_PREFIX
         /qt/qml
+    OUTPUT_DIRECTORY
+        ${PROJECT_BINARY_DIR}/qt/qml/TreeLand/Utils
+
 )
 
 target_sources(treeland-quick-utils PUBLIC
