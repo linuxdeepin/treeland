@@ -271,30 +271,24 @@ FakeSession::FakeSession(int argc, char* argv[])
     });
 
     emit m_shortcutManager->activeChanged();
-
-    QProcess::startDetached("dde-shell", {"-p", "org.deepin.ds.dock"});
-
-    QDBusInterface systemd("org.freedesktop.systemd1", "/org/freedesktop/systemd1", "org.freedesktop.systemd1.Manager");
-    systemd.call("UnsetEnvironment", QStringList{"DISPLAY", "WAYLAND_DISPLAY", "XDG_SESSION_TYPE"});
-    systemd.call("SetEnvironment", QStringList{
-                                       QString("DISPLAY=%1").arg(qgetenv("DISPLAY")),
-                                       QString("WAYLAND_DISPLAY=%1").arg(qgetenv("WAYLAND_DISPLAY")),
-                                       QString("XDG_SESSION_TYPE=%1").arg(qgetenv("XDG_SESSION_TYPE")),
-                                       QString("XDG_CURRENT_DESKTOP=%1").arg(qgetenv("XDG_CURRENT_DESKTOP")),
-                                   }
-    );
-
-    if (!QProcess::startDetached("dim")) {
-        qDebug() << "Failed to start deepin input method";
-    }
-
-    if (!QProcess::startDetached("dde-application-manager")) {
-        qDebug() << "Filed to start deepin application manager";
-    }
 }
 
 int main (int argc, char *argv[]) {
     FakeSession helper(argc, argv);
+
+    QTimer::singleShot(0, &helper, [&helper] {
+        QDBusInterface systemd("org.freedesktop.systemd1", "/org/freedesktop/systemd1", "org.freedesktop.systemd1.Manager");
+        systemd.call("UnsetEnvironment", QStringList{"DISPLAY", "WAYLAND_DISPLAY", "XDG_SESSION_TYPE"});
+        systemd.call("SetEnvironment", QStringList{
+                                        QString("DISPLAY=%1").arg(qgetenv("DISPLAY")),
+                                        QString("WAYLAND_DISPLAY=%1").arg(qgetenv("WAYLAND_DISPLAY")),
+                                        QString("XDG_SESSION_TYPE=%1").arg(qgetenv("XDG_SESSION_TYPE")),
+                                        QString("XDG_CURRENT_DESKTOP=%1").arg(qgetenv("XDG_CURRENT_DESKTOP")),
+                                    }
+        );
+
+        systemd.call("StartUnit", "dde-fake-session.target", "replace");
+    });
 
     return helper.exec();
 }
