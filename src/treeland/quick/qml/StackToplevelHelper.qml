@@ -14,7 +14,6 @@ Item {
 
     required property SurfaceItem surface
     required property ToplevelSurface waylandSurface
-    required property ListModel dockModel
     required property ListModel switcherModel
     required property ListModel dockPreviewModel
     required property DynamicCreatorComponent creator
@@ -199,7 +198,6 @@ Item {
         if (mapped) {
             if (waylandSurface.isMinimized) {
                 surface.visible = false;
-                dockModel.append({ source: surface });
             } else {
                 surface.visible = true;
 
@@ -210,19 +208,20 @@ Item {
             switcherModel.append({ source: surface });
             dockPreviewModel.append({ surface: surface, source: waylandSurface.surface });
         } else { // if not mapped
-            if (waylandSurface.isMinimized) {
-                // mapped becomes false but not pendingDestroy
-                dockModel.removeSurface(surface)
-            }
-
             if (!waylandSurface.WaylandSocket.rootSocket.enabled) {
                 surface.visible = false;
             } else {
                 // do animation for window close
-                closeAnimation.parent = surface.parent
-                closeAnimation.anchors.fill = surface
-                closeAnimation.sourceComponent = closeAnimationComponent
-                closeAnimation.item.start(surface)
+                let showCloseAnimation = false
+                if (showCloseAnimation) {
+                    closeAnimation.parent = surface.parent
+                    closeAnimation.anchors.fill = surface
+                    closeAnimation.sourceComponent = closeAnimationComponent
+                    closeAnimation.item.start(surface)
+                } else {
+                    if (pendingDestroy)
+                        creator.destroyObject(surface)
+                }
             }
             switcherModel.removeSurface(surface)
             dockPreviewModel.removeSurface(surface)
@@ -236,11 +235,6 @@ Item {
         dockPreviewModel.removeSurface(surface)
 
         if (!surface.visible || !closeAnimation.active) {
-            if (waylandSurface.isMinimized) {
-                // mapped becomes false and pendingDestroy
-                dockModel.removeSurface(surface)
-            }
-
             creator.destroyObject(surface)
             return
         }
@@ -278,7 +272,6 @@ Item {
 
         surface.visible = true;
 
-        dockModel.removeSurface(surface)
         waylandSurface.setMinimize(false)
     }
 
@@ -368,7 +361,6 @@ Item {
                 TreeLandHelper.activatedSurface = null;
 
             surface.visible = false;
-            dockModel.append({ source: surface });
             waylandSurface.setMinimize(true)
         }
 
