@@ -217,7 +217,7 @@ Item {
             }
             padding: 0
             background: null
-            closePolicy: Popup.CloseOnPressOutside
+            closePolicy: Popup.NoAutoClose
 
             XdgSurface {
                 id: popupSurfaceItem
@@ -236,11 +236,6 @@ Item {
                         TreeLandHelper.onSurfaceLeaveOutput(waylandSurface, popupSurfaceItem, output)
                     }
                 }
-            }
-
-            onClosed: {
-                if (waylandSurface)
-                    waylandSurface.surface.unmap()
             }
         }
     }

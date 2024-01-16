@@ -6,6 +6,7 @@
 #include <WServer>
 #include <WOutput>
 #include <WSurfaceItem>
+#include <wxdgsurface.h>
 
 #include <qwbackend.h>
 #include <qwdisplay.h>
@@ -383,10 +384,16 @@ bool Helper::afterHandleEvent(WSeat *seat, WSurface *watched, QObject *surfaceIt
 
     if (event->type() == QEvent::MouseButtonPress || event->type() == QEvent::TouchBegin) {
         // surfaceItem is qml type: XdgSurfaceItem or LayerSurfaceItem
-        auto toplevelSurface = qvariant_cast<WToplevelSurface*>(surfaceItem->property("surface"));
+        auto *toplevelSurface = qvariant_cast<WToplevelSurface*>(surfaceItem->property("surface"));
         if (!toplevelSurface)
             return false;
         Q_ASSERT(toplevelSurface->surface() == watched);
+        if (auto *xdgSurface = qvariant_cast<WXdgSurface*>(surfaceItem->property("surface"))) {
+            // TODO(waylib): popupSurface should not inherit WToplevelSurface
+            if (xdgSurface->isPopup()) {
+                return false;
+            }
+        }
         setActivateSurface(toplevelSurface);
     }
 
