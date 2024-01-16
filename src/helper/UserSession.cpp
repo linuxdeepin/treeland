@@ -242,7 +242,7 @@ namespace SDDM {
 
             // take control of the tty
             if (takeControl) {
-                if (ioctl(STDIN_FILENO, TIOCSCTTY) < 0) {
+                if (ioctl(STDIN_FILENO, TIOCSCTTY, 0) < 0) {
                     const auto error = strerror(errno);
                     qCritical().nospace() << "Failed to take control of " << ttyString << " (" << QFileInfo(ttyString).owner() << "): " << error;
                     _exit(Auth::HELPER_TTY_ERROR);

@@ -5,6 +5,7 @@
 
 #include "shortcutmanager.h"
 #include "Constants.h"
+#include "SignalHandler.h"
 
 #include <QDebug>
 #include <QObject>
@@ -210,6 +211,8 @@ FakeSession::FakeSession(int argc, char* argv[])
     , m_toplevelManager(new Protocols::ForeignToplevelManager)
     , m_extForeignToplevelList(new Protocols::ExtForeignToplevelList)
 {
+    auto *s = new SDDM::SignalHandler(this);
+
     connect(m_shortcutManager, &Protocols::ShortcutManager::activeChanged, this, [this] {
         qDebug() << m_shortcutManager->isActive();
 

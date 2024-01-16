@@ -54,10 +54,8 @@ namespace SDDM {
             , m_session(new UserSession(this))
             , m_socket(new QLocalSocket(this)) {
         qInstallMessageHandler(HelperMessageHandler);
+        //TODO: replace this workaround in the future
         SignalHandler *s = new SignalHandler(this);
-        QObject::connect(s, &SignalHandler::sigtermReceived, m_session, [] {
-            QCoreApplication::instance()->exit(-1);
-        });
 
         QTimer::singleShot(0, this, SLOT(setUp()));
     }
@@ -130,7 +128,7 @@ namespace SDDM {
             exit(Auth::HELPER_OTHER_ERROR);
             return;
         }
- 
+
         connect(m_socket, &QLocalSocket::connected, this, &HelperApp::doAuth);
         if(!m_backend->identifyOnly()){
             connect(m_session, &UserSession::finished, this, &HelperApp::sessionFinished);
@@ -315,7 +313,6 @@ namespace SDDM {
         Q_ASSERT(getuid() == 0);
 
         m_session->stop();
-        
         if(!m_backend->identifyOnly()){
             m_backend->closeSession();
         }
