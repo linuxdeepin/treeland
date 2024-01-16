@@ -107,7 +107,8 @@ Item {
 
                         FileDialog {
                             id: fileDialog
-                            title: "Please choose a file"
+                            options: FileDialog.DontUseNativeDialog
+                            title: qsTr("Please choose a file")
 
                             onAccepted: {
                                 personalization.addWallpaper(fileDialog.selectedFile);
@@ -131,7 +132,7 @@ Item {
 
                             Button {
                                 id: add_directory
-                                text: "Add Directory"
+                                text: qsTr("Add Directory")
                                 visible: false
                                 Layout.preferredWidth: (parent.width - parent.spacing) / 2
                                 Layout.alignment: Qt.AlignRight
