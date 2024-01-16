@@ -213,11 +213,11 @@ public:
     void sortLayers();
     void cleanLayerCompositor();
 
-    QWBuffer *beginRender(WBufferRenderer *renderer,
-                          const QSize &pixelSize, uint32_t format,
-                          WBufferRenderer::RenderFlags flags);
-    void render(WBufferRenderer *renderer, int sourceIndex,
-                const QMatrix4x4 &renderMatrix, bool preserveColorContents);
+    inline QWBuffer *beginRender(WBufferRenderer *renderer,
+                                 const QSize &pixelSize, uint32_t format,
+                                 WBufferRenderer::RenderFlags flags);
+    inline void render(WBufferRenderer *renderer, int sourceIndex,
+                       const QMatrix4x4 &renderMatrix, bool preserveColorContents);
     void beforeRender();
     WBufferRenderer *afterRender();
     WBufferRenderer *compositeLayers(const QVector<LayerData*> layers);
@@ -343,7 +343,6 @@ public:
 
     QVector<std::pair<OutputHelper *, WBufferRenderer *> > doRenderOutputs();
     void doRender();
-    void initialRenderState();
     inline void pushRenderer(WBufferRenderer *renderer) {
         rendererList.push(renderer);
     }
@@ -351,6 +350,9 @@ public:
     inline void scheduleDoRender() {
         if (!isInitialized())
             return; // Not initialized
+
+        if (inRendering)
+            return;
 
         QCoreApplication::postEvent(q_func(), new QEvent(doRenderEventType));
     }
@@ -361,7 +363,6 @@ public:
 
     bool componentCompleted = true;
     bool inRendering = false;
-    bool needsInitialRenderState = false;
     WWaylandCompositor *compositor = nullptr;
 
     QList<OutputHelper*> outputs;
@@ -467,7 +468,6 @@ QWBuffer *OutputHelper::beginRender(WBufferRenderer *renderer,
                                     const QSize &pixelSize, uint32_t format,
                                     WBufferRenderer::RenderFlags flags)
 {
-    renderWindowD()->initialRenderState();
     return renderer->beginRender(pixelSize, devicePixelRatio(), format, flags);
 }
 
@@ -1058,21 +1058,28 @@ static void QQuickAnimatorController_advance(QQuickAnimatorController *ac)
 void WOutputRenderWindowPrivate::doRender()
 {
     Q_ASSERT(rendererList.isEmpty());
+    Q_ASSERT(!inRendering);
     inRendering = true;
-    needsInitialRenderState = true;
+
+    rc()->polishItems();
+    if (QSGRendererInterface::isApiRhiBased(WRenderHelper::getGraphicsApi()))
+        rc()->beginFrame();
+    rc()->sync();
+
+    QQuickAnimatorController_advance(animationController.get());
+    Q_EMIT q_func()->beforeRendering();
+    runAndClearJobs(&beforeRenderingJobs);
 
     for (OutputHelper *helper : outputs)
         helper->beforeRender();
 
     auto needsCommit = doRenderOutputs();
 
-    if (!needsInitialRenderState) {
-        Q_EMIT q_func()->afterRendering();
-        runAndClearJobs(&afterRenderingJobs);
+    Q_EMIT q_func()->afterRendering();
+    runAndClearJobs(&afterRenderingJobs);
 
-        if (QSGRendererInterface::isApiRhiBased(WRenderHelper::getGraphicsApi()))
-            rc()->endFrame();
-    }
+    if (QSGRendererInterface::isApiRhiBased(WRenderHelper::getGraphicsApi()))
+        rc()->endFrame();
 
     for (auto i : needsCommit) {
         bool ok = i.first->commit(i.second);
@@ -1086,23 +1093,6 @@ void WOutputRenderWindowPrivate::doRender()
 
     resetGlState();
     inRendering = false;
-}
-
-void WOutputRenderWindowPrivate::initialRenderState()
-{
-    Q_ASSERT(inRendering);
-    if (!needsInitialRenderState)
-        return;
-    needsInitialRenderState = false;
-
-    rc()->polishItems();
-    if (QSGRendererInterface::isApiRhiBased(WRenderHelper::getGraphicsApi()))
-        rc()->beginFrame();
-    rc()->sync();
-
-    QQuickAnimatorController_advance(animationController.get());
-    Q_EMIT q_func()->beforeRendering();
-    runAndClearJobs(&beforeRenderingJobs);
 }
 
 // TODO: Support QWindow::setCursor
