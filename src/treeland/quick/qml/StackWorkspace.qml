@@ -116,6 +116,7 @@ Item {
                 id: decoration
                 anchors.fill: parent
                 z: toplevelSurfaceItem.contentItem.z - 1
+                surface: toplevelSurfaceItem.waylandSurface
                 visible: enable
             }
 
@@ -330,6 +331,7 @@ Item {
                 anchors.fill: parent
                 z: xwaylandSurfaceItem.contentItem.z - 1
                 visible: enable
+                surface: waylandSurface
             }
 
             OutputLayoutItem {
