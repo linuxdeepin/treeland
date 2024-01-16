@@ -214,7 +214,7 @@ Item {
             }
             padding: 0
             background: null
-            closePolicy: Popup.CloseOnPressOutside
+            closePolicy: Popup.NoAutoClose
 
             XdgSurface {
                 id: popupSurfaceItem
@@ -233,11 +233,6 @@ Item {
                         Helper.onSurfaceLeaveOutput(waylandSurface, popupSurfaceItem, output)
                     }
                 }
-            }
-
-            onClosed: {
-                if (waylandSurface)
-                   waylandSurface.surface.unmap()
             }
         }
     }

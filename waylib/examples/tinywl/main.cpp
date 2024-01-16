@@ -6,6 +6,7 @@
 #include <WServer>
 #include <WOutput>
 #include <WSurfaceItem>
+#include <wxdgsurface.h>
 // TODO: Don't use private API
 #include <wquickbackend_p.h>
 
@@ -307,8 +308,7 @@ bool Helper::startDemoClient(const QString &socket)
     QProcess waylandClientDemo;
 
     waylandClientDemo.setProgram("qml");
-    waylandClientDemo.setArguments({SOURCE_DIR"/ClientWindow.qml", "-platform", "wayland"});
-
+    waylandClientDemo.setArguments({"-a", "widget", SOURCE_DIR"/ClientWindow.qml", "-platform", "wayland"});
     QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
     env.insert("WAYLAND_DISPLAY", socket);
 
@@ -400,11 +400,17 @@ bool Helper::afterHandleEvent(WSeat *seat, WSurface *watched, QObject *surfaceIt
 
     if (event->type() == QEvent::MouseButtonPress || event->type() == QEvent::TouchBegin) {
         // surfaceItem is qml type: XdgSurfaceItem or LayerSurfaceItem
-        auto toplevelSurface = qvariant_cast<WToplevelSurface*>(surfaceItem->property("surface"));
+        auto *toplevelSurface = qvariant_cast<WToplevelSurface*>(surfaceItem->property("surface"));
 
         if (!toplevelSurface)
             return false;
         Q_ASSERT(toplevelSurface->surface() == watched);
+        if (auto *xdgSurface = qvariant_cast<WXdgSurface*>(surfaceItem->property("surface"))) {
+            // TODO: popupSurface should not inherit WToplevelSurface
+            if (xdgSurface->isPopup()) {
+                return false;
+            }
+        }
         setActivateSurface(toplevelSurface);
     }
 
