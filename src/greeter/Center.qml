@@ -175,7 +175,9 @@ Item {
                 Layout.alignment: Qt.AlignHCenter
                 D.RoundButton {
                     id: boardBtn
-                    text: 'B'
+                    icon.name: "backToLightdm"
+                    icon.width: 16
+                    icon.height: 16
                     width: bottomGroup.buttonSize
                     height: bottomGroup.buttonSize
                     anchors.centerIn: parent
