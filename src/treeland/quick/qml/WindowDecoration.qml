@@ -2,8 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 import QtQuick
+import Qt5Compat.GraphicalEffects
 import QtQuick.Controls
 import Waylib.Server
+import org.deepin.dtk 1.0 as D
+import org.deepin.dtk.style 1.0 as DS
 
 Item {
     id: root
@@ -18,6 +21,8 @@ Item {
     readonly property real bottomMargin: 0
     readonly property real leftMargin: 0
     readonly property real rightMargin: 0
+
+    required property WaylandXdgSurface surface
 
     MouseArea {
         property int edges: 0
@@ -60,11 +65,22 @@ Item {
         }
     }
 
-    Rectangle {
+
+    D.RoundRectangle {
         id: titlebar
         anchors.top: parent.top
         width: parent.width
         height: 30
+        radius: 15
+        corners: D.RoundRectangle.TopLeftCorner | D.RoundRectangle.TopRightCorner
+    }
+
+    Item {
+        anchors.fill: titlebar
+        layer.enabled: true
+        layer.effect: OpacityMask {
+            maskSource: titlebar
+        }
 
         MouseArea {
             anchors.fill: parent
@@ -79,76 +95,63 @@ Item {
             anchors {
                 verticalCenter: parent.verticalCenter
                 right: parent.right
-                rightMargin: 8
             }
 
-            Rectangle {
-                width: 80
-                height: titlebar.height
-                color: "#dcdcdc"
+            Item {
+                id: control
+                property D.Palette textColor: DS.Style.button.text
+                property D.Palette backgroundColor: DS.Style.windowButton.background
+            }
 
-                Text {
-                    anchors.fill: parent
-                    text: "Min"
-                    horizontalAlignment: Text.AlignHCenter
-                    verticalAlignment: Text.AlignVCenter
-                    MouseArea {
-                        anchors.fill: parent
-                        onReleased: {
-                            root.requestMinimize()
-                        }
+            Loader {
+                objectName: "minimizeBtn"
+                sourceComponent: D.WindowButton {
+                    icon.name: "window_minimize"
+                    textColor: control.textColor
+                    height: titlebar.height
+
+                    onClicked: {
+                        root.requestMinimize()
                     }
                 }
             }
 
-            Rectangle {
-                width: 80
-                height: titlebar.height
-                color: "#dcdcdc"
-                id: maxBtn
+            Loader {
+                objectName: "quitFullBtn"
+                visible: false
+                sourceComponent: D.WindowButton {
+                    icon.name: "window_quit_full"
+                    textColor: control.textColor
+                    height: titlebar.height
 
-                Text {
-                    text: "Max"
-                    anchors.fill: parent
-                    horizontalAlignment: Text.AlignHCenter
-                    verticalAlignment: Text.AlignVCenter
-                    MouseArea {
-                        anchors.fill: parent
-                        onReleased: {
-                            const max = (parent.text === "Max")
-                            root.requestToggleMaximize(max)
-
-                            if (max) {
-                                parent.text = "Restore"
-                            } else {
-                                parent.text = "Max"
-                            }
-                        }
+                    onClicked: {
                     }
                 }
             }
-            Rectangle {
-                width: 80
-                height: titlebar.height
-                color: "#dcdcdc"
-                id: closeBtn
 
-                Text {
-                    text: "Close"
-                    anchors.fill: parent
-                    horizontalAlignment: Text.AlignHCenter
-                    verticalAlignment: Text.AlignVCenter
-                    MouseArea {
-                        anchors.fill: parent
-                        onPressed: {
-                            closeBtn.color = "#ff6347"
-                        }
-                        onReleased: {
-                            closeBtn.color = "#dcdcdc"
-                            if (containsMouse) {
-                                root.requestClose()
-                            }
-                        }
+            Loader {
+                id: maxOrWindedBtn
+                objectName: "maxOrWindedBtn"
+                sourceComponent: D.WindowButton {
+                    icon.name: surface.isMaximized ? "window_restore" : "window_maximize"
+                    textColor: control.textColor
+                    height: titlebar.height
+
+                    onClicked: {
+                        root.requestToggleMaximize(!surface.isMaximized) 
+                    }
+                }
+            }
+
+            Loader {
+                objectName: "closeBtn"
+                sourceComponent: D.WindowButton {
+                    icon.name: "window_close"
+                    textColor: control.textColor
+                    height: titlebar.height
+
+                    onClicked: {
+                        root.requestClose()
                     }
                 }
             }

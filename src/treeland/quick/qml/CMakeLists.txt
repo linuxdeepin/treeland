@@ -3,6 +3,8 @@ set_source_files_properties(QmlHelper.qml
         QT_QML_SINGLETON_TYPE TRUE
 )
 
+find_package(Dtk6 REQUIRED COMPONENTS Declarative)
+
 qt_add_qml_module(treeland-qml
     URI TreeLand
     VERSION "1.0"
@@ -29,3 +31,7 @@ qt_add_qml_module(treeland-qml
         ${PROJECT_BINARY_DIR}/qt/qml/TreeLand
 )
 
+target_link_libraries(treeland-qml
+    PUBLIC
+        Dtk6::Declarative
+)
