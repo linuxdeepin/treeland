@@ -8,6 +8,7 @@
 
 #include <QDebug>
 #include <QInputDevice>
+#include <QPointer>
 
 extern "C" {
 #include <wlr/types/wlr_input_device.h>
