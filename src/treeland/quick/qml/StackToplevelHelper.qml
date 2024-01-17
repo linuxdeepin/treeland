@@ -199,11 +199,6 @@ Item {
     onMappedChanged: {
         console.log("onMappedChanged!", TreeLandHelper.clientName(waylandSurface.surface))
 
-        if (TreeLandHelper.clientName(waylandSurface.surface) === "dofi") {
-            z = 3
-            surface.anchors.centerIn = workspace
-        }
-
         // When Socket is enabled and mapped becomes false, set visible
         // after closeAnimation complete， Otherwise set visible directly.
         if (mapped) {
