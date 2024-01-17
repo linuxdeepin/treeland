@@ -101,6 +101,22 @@ Item {
                         toplevelSurfaceItem.y = outputDelegate.y
                                 + TreeLandHelper.getTopExclusiveMargin(waylandSurface)
                                 + 10
+
+                        if (TreeLandHelper.clientName(waylandSurface.surface) === "dde-desktop") {
+                            z = -1
+                            toplevelSurfaceItem.x = outputDelegate.x
+                            toplevelSurfaceItem.y = outputDelegate.y
+                            toplevelSurfaceItem.width = output.size.width
+                            toplevelSurfaceItem.height = output.size.height
+                        }
+
+                        if (TreeLandHelper.clientName(waylandSurface.surface) === "dde-launchpad") {
+                            z = 99
+                            toplevelSurfaceItem.x = outputDelegate.x
+                            toplevelSurfaceItem.y = outputDelegate.y
+                            toplevelSurfaceItem.width = output.size.width
+                            toplevelSurfaceItem.height = output.size.height
+                        }
                     }
                 }
                 onLeaveOutput: function(output) {
