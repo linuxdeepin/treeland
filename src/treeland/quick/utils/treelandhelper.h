@@ -37,6 +37,8 @@ public:
     bool addAction(const QString &user, QAction *action);
     void removeAction(const QString &user, QAction *action);
 
+    Q_INVOKABLE void closeSurface(Waylib::Server::WSurface *surface);
+
 Q_SIGNALS:
     void socketFileChanged();
     void switcherChanged(Switcher mode);

@@ -189,10 +189,7 @@ Item {
         }
 
         function onRequestClose() {
-            if (waylandSurface.close) // WXWaylandSurface
-                waylandSurface.close()
-            else
-                waylandSurface.surface.unmap()
+            TreeLandHelper.closeSurface(waylandSurface.surface);
         }
     }
 
