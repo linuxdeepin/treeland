@@ -32,13 +32,13 @@ Item {
         return outputCoordMapper.x + Helper.getLeftExclusiveMargin(waylandSurface)
     }
     function getMaximizeY() {
-        return outputCoordMapper.y + output.topMargin + Helper.getTopExclusiveMargin(waylandSurface)
+        return outputCoordMapper.y + Helper.getTopExclusiveMargin(waylandSurface)
     }
     function getMaximizeWidth() {
         return outputCoordMapper.width - Helper.getLeftExclusiveMargin(waylandSurface) - Helper.getRightExclusiveMargin(waylandSurface)
     }
     function getMaximizeHeight() {
-        return outputCoordMapper.height - output.topMargin - Helper.getTopExclusiveMargin(waylandSurface) - Helper.getBottomExclusiveMargin(waylandSurface)
+        return outputCoordMapper.height - Helper.getTopExclusiveMargin(waylandSurface) - Helper.getBottomExclusiveMargin(waylandSurface)
     }
 
     // For Fullscreen
@@ -46,13 +46,13 @@ Item {
         return outputCoordMapper.x
     }
     function getFullscreenY() {
-        return outputCoordMapper.y + output.topMargin
+        return outputCoordMapper.y
     }
     function getFullscreenWidth() {
         return outputCoordMapper.width
     }
     function getFullscreenHeight() {
-        return outputCoordMapper.height - output.topMargin
+        return outputCoordMapper.height
     }
 
     Binding {
