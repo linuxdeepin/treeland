@@ -16,6 +16,7 @@ Item {
     property CoordMapper outputCoordMapper
     property bool mapped: waylandSurface.surface && waylandSurface.surface.mapped && waylandSurface.WaylandSocket.rootSocket.enabled
     property bool pendingDestroy: false
+    property bool showCloseAnimation: false
 
     property alias surfaceItem: surfaceItem
 
@@ -88,16 +89,13 @@ Item {
             if (!waylandSurface.WaylandSocket.rootSocket.enabled) {
                surface.visible = false
             } else {
-                let showCloseAnimation = false
+                // if don't show CloseAnimation will destroyObject in doDestroy, here is too early
                 if (showCloseAnimation) {
                     // do animation for window close
                     closeAnimation.parent = root.parent
                     closeAnimation.anchors.fill = root
                     closeAnimation.sourceComponent = closeAnimationComponent
                     closeAnimation.item.start(root)
-                } else {
-                    if (pendingDestroy)
-                        creator.destroyObject(root)
                 }
             }
         }
@@ -113,6 +111,10 @@ Item {
 
         // unbind some properties
         mapped = false
+
+        if (!showCloseAnimation) {
+            creator.destroyObject(surface)
+        }
     }
 
     function getPrimaryOutputItem() {
