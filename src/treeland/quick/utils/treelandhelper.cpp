@@ -9,6 +9,8 @@
 #include <QFile>
 #include <qnamespace.h>
 #include <qwcompositor.h>
+#include <wxdgsurface.h>
+#include <qwxdgshell.h>
 
 #include <QRegularExpression>
 #include <QAction>
@@ -144,6 +146,15 @@ QString TreeLandHelper::clientName(Waylib::Server::WSurface *surface) const
 
     qDebug() << "Program name for PID" << pid << "is" << programName;
     return programName;
+}
+
+void TreeLandHelper::closeSurface(Waylib::Server::WSurface *surface)
+{
+    if (auto s = Waylib::Server::WXdgSurface::fromSurface(surface)) {
+        if (!s->isPopup()) {
+            s->handle()->topToplevel()->sendClose();
+        }
+    }
 }
 
 bool TreeLandHelper::addAction(const QString &user, QAction *action)
