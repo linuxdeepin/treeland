@@ -151,6 +151,7 @@ Item {
                         target: toplevelSurfaceItem
                         x: helper.getFullscreenX()
                         y: helper.getFullscreenY()
+			z: 100 + 1 // LayerType.Overlay + 1
                         width: helper.getFullscreenWidth()
                         height: helper.getFullscreenHeight()
                     }
@@ -393,6 +394,7 @@ Item {
                         target: xwaylandSurfaceItem
                         x: helper.getFullscreenX()
                         y: helper.getFullscreenY()
+			z: 100 + 1 // LayerType.Overlay + 1
                         width: helper.getFullscreenWidth()
                         height: helper.getFullscreenHeight()
                         positionMode: XWaylandSurfaceItem.PositionToSurface
