@@ -57,12 +57,3 @@ void DockPreviewFilterProxyModel::remove(Waylib::Server::WSurface *surface)
 
     invalidateFilter();
 }
-
-void DockPreviewFilterProxyModel::close(Waylib::Server::WSurface *surface)
-{
-    if (auto s = Waylib::Server::WXdgSurface::fromSurface(surface)) {
-        if (!s->isPopup()) {
-            s->handle()->topToplevel()->sendClose();
-        }
-    }
-}

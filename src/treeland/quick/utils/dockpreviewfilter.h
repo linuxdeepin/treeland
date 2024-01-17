@@ -20,7 +20,6 @@ public:
     Q_INVOKABLE void clear();
     Q_INVOKABLE void append(Waylib::Server::WSurface *surface);
     Q_INVOKABLE void remove(Waylib::Server::WSurface *surface);
-    Q_INVOKABLE void close(Waylib::Server::WSurface *surface);
 
 protected:
     bool filterAcceptsRow(int sourceRow, const QModelIndex &sourceParent) const override;

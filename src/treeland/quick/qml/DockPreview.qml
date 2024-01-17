@@ -270,7 +270,7 @@ Item {
                         anchors.topMargin: 5
                         text: "X"
                         onClicked: {
-                            filterModel.close(surface.surface.surface);
+                            TreeLandHelper.closeSurface(surface.surface.surface);
                         }
                     }
                 }
