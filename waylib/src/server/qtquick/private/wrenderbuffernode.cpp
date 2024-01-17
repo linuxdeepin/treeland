@@ -486,9 +486,17 @@ public:
     }
 
     StateFlags changedStates() const override {
-        return renderData
-                   ? RenderTargetState | ViewportState | BlendState | ScissorState | DepthState
-                   : RenderTargetState;
+        if (Q_UNLIKELY(renderData && !contentNode))
+            return (RenderTargetState | ViewportState);
+
+        return {0};
+    }
+
+    RenderingFlags flags() const override {
+        if (Q_UNLIKELY(!contentNode))
+            return BoundedRectRendering | DepthAwareRendering;
+
+        return DepthAwareRendering;
     }
 
     void releaseResources() override {
@@ -516,6 +524,8 @@ public:
     }
 
     void prepare() override {
+        contentNode = nullptr;
+
         if (Q_UNLIKELY(!m_item || !m_item->window())) {
             reset();
             return;
@@ -602,6 +612,13 @@ public:
                 renderData->rt.reset(newRT);
             }
         }
+
+        if (m_content) {
+            auto rootNode = WQmlHelper::getRootNode(m_content);
+            if (rootNode && rootNode->firstChild()) {
+                contentNode = rootNode;
+            }
+        }
     }
 
     void render(const RenderState *state) override {
@@ -648,11 +665,7 @@ public:
             sgTexture()->setTexture(texture->data);
         doNotifyTextureChanged();
 
-        if (m_content) {
-            auto rootNode = WQmlHelper::getRootNode(m_content);
-            if (!rootNode || !rootNode->firstChild())
-                return;
-
+        if (contentNode) {
             Q_ASSERT(renderTarget()->resourceType() == QRhiResource::TextureRenderTarget);
             auto textureRT = static_cast<QRhiTextureRenderTarget*>(renderTarget());
             auto saveFlags = textureRT->flags();
@@ -685,7 +698,7 @@ public:
                     node->clipNode = nullptr;
                 }
 
-                overrideChildNodesTo(rootNode, childContainer);
+                overrideChildNodesTo(contentNode, childContainer);
 
                 rhi->sync(ct->pixelSize(), &node->rootNode, {},
                           currentRenderer ? currentRenderer->currentRenderer() : nullptr);
@@ -707,11 +720,11 @@ public:
                     rhi->render(oldDPR, oldCB);
                 }
 
-                restoreChildNodesTo(childContainer, rootNode);
+                restoreChildNodesTo(childContainer, contentNode);
             } else {
                 node.reset();
 
-                rhi->sync(ct->pixelSize(), rootNode, *this->matrix(),
+                rhi->sync(ct->pixelSize(), contentNode, *this->matrix(),
                           currentRenderer ? currentRenderer->currentRenderer() : nullptr);
                 rhi->render(textureRT);
             }
@@ -763,6 +776,7 @@ private:
     };
 
     std::unique_ptr<Node> node;
+    QSGRootNode *contentNode = nullptr;
 
     struct RenderData {
         struct QRhiTextureRenderTargetDeleter {
