@@ -26,6 +26,7 @@ Item {
     property bool pendingDestroy: false
     property bool isMaximize: waylandSurface && waylandSurface.isMaximized && outputCoordMapper
     property bool isFullScreen: waylandSurface && waylandSurface.isFullScreen && outputCoordMapper
+    property bool showCloseAnimation: false
 
     // For Maximize
     function getMaximizeX() {
@@ -221,16 +222,13 @@ Item {
             if (!waylandSurface.WaylandSocket.rootSocket.enabled) {
                 surface.visible = false;
             } else {
-                // do animation for window close
-                let showCloseAnimation = false
+                // if don't show CloseAnimation will destroyObject in doDestroy, here is too early
                 if (showCloseAnimation) {
+                    // do animation for window close
                     closeAnimation.parent = surface.parent
                     closeAnimation.anchors.fill = surface
                     closeAnimation.sourceComponent = closeAnimationComponent
                     closeAnimation.item.start(surface)
-                } else {
-                    if (pendingDestroy)
-                        creator.destroyObject(surface)
                 }
             }
             switcherModel.removeSurface(surface)
@@ -253,6 +251,10 @@ Item {
         mapped = false
         surface.states = null
         surface.transitions = null
+
+        if (!showCloseAnimation) {
+            creator.destroyObject(surface)
+        }
     }
 
     function getPrimaryOutputItem() {
