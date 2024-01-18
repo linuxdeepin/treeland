@@ -4,32 +4,32 @@
 <context>
     <name>Center</name>
     <message>
-        <location filename="../Center.qml" line="158"/>
+        <location filename="../Center.qml" line="160"/>
         <source>Return to default mode</source>
         <translation>返回默认模式</translation>
     </message>
     <message>
-        <location filename="../Center.qml" line="159"/>
+        <location filename="../Center.qml" line="161"/>
         <source>Do you want to back to default?</source>
         <translation>是否返回默认模式</translation>
     </message>
     <message>
-        <location filename="../Center.qml" line="160"/>
+        <location filename="../Center.qml" line="162"/>
         <source>This action will reboot machine, please confirm.</source>
         <translation>此操作将会重启机器，请确认</translation>
     </message>
     <message>
-        <location filename="../Center.qml" line="184"/>
+        <location filename="../Center.qml" line="188"/>
         <source>Back To Default Mode</source>
         <translation>回到默认模式</translation>
     </message>
     <message>
-        <location filename="../Center.qml" line="211"/>
+        <location filename="../Center.qml" line="215"/>
         <source>Other Users</source>
         <translation>其他用户</translation>
     </message>
     <message>
-        <location filename="../Center.qml" line="245"/>
+        <location filename="../Center.qml" line="249"/>
         <source>Power</source>
         <translation>电源</translation>
     </message>

@@ -4,32 +4,32 @@
 <context>
     <name>Center</name>
     <message>
-        <location filename="../Center.qml" line="158"/>
+        <location filename="../Center.qml" line="160"/>
         <source>Return to default mode</source>
         <translation>Return to default mode</translation>
     </message>
     <message>
-        <location filename="../Center.qml" line="159"/>
+        <location filename="../Center.qml" line="161"/>
         <source>Do you want to back to default?</source>
         <translation>Do you want to back to default?</translation>
     </message>
     <message>
-        <location filename="../Center.qml" line="160"/>
+        <location filename="../Center.qml" line="162"/>
         <source>This action will reboot machine, please confirm.</source>
         <translation>This action will reboot machine, please confirm.</translation>
     </message>
     <message>
-        <location filename="../Center.qml" line="184"/>
+        <location filename="../Center.qml" line="188"/>
         <source>Back To Default Mode</source>
         <translation>Back To Default Mode</translation>
     </message>
     <message>
-        <location filename="../Center.qml" line="211"/>
+        <location filename="../Center.qml" line="215"/>
         <source>Other Users</source>
         <translation>Other Users</translation>
     </message>
     <message>
-        <location filename="../Center.qml" line="245"/>
+        <location filename="../Center.qml" line="249"/>
         <source>Power</source>
         <translation>Power</translation>
     </message>
