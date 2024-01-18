@@ -29,16 +29,16 @@ Item {
 
     // For Maximize
     function getMaximizeX() {
-        return outputCoordMapper.x + Helper.getLeftExclusiveMargin(waylandSurface)
+        return outputCoordMapper.x + TreeLandHelper.getLeftExclusiveMargin(waylandSurface)
     }
     function getMaximizeY() {
-        return outputCoordMapper.y + Helper.getTopExclusiveMargin(waylandSurface)
+        return outputCoordMapper.y + TreeLandHelper.getTopExclusiveMargin(waylandSurface)
     }
     function getMaximizeWidth() {
-        return outputCoordMapper.width - Helper.getLeftExclusiveMargin(waylandSurface) - Helper.getRightExclusiveMargin(waylandSurface)
+        return outputCoordMapper.width - TreeLandHelper.getLeftExclusiveMargin(waylandSurface) - TreeLandHelper.getRightExclusiveMargin(waylandSurface)
     }
     function getMaximizeHeight() {
-        return outputCoordMapper.height - Helper.getTopExclusiveMargin(waylandSurface) - Helper.getBottomExclusiveMargin(waylandSurface)
+        return outputCoordMapper.height - TreeLandHelper.getTopExclusiveMargin(waylandSurface) - TreeLandHelper.getBottomExclusiveMargin(waylandSurface)
     }
 
     // For Fullscreen
