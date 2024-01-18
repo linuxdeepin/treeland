@@ -550,7 +550,8 @@ namespace SDDM {
                 env.insert("WAYLAND_DEBUG", "1");
                 #endif
 
-                env.insert("DDE_CURRENT_COMPOSITER", "TreeLand");
+                env.insert("DDE_CURRENT_COMPOSITER", "TreeLand"); // TODO: remove when dde-desktop and dde-shell changed!
+                env.insert("DDE_CURRENT_COMPOSITOR", "TreeLand");
 
                 auth->setDisplayServerCommand(QStringLiteral());
                 qInfo() << "WAYLAND_DISPLAY => " << display;
