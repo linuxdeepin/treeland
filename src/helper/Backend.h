@@ -41,6 +41,8 @@ namespace SDDM {
         bool identifyOnly() const;
         void setIdentifyOnly(bool on);
 
+        inline bool isGreeter() const { return m_greeter; }
+
     public slots:
         virtual bool start(const QString &user = QString()) = 0;
         virtual bool authenticate() = 0;
