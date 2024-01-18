@@ -55,7 +55,6 @@ namespace SDDM {
             , m_socket(new QLocalSocket(this)) {
         qInstallMessageHandler(HelperMessageHandler);
         //TODO: replace this workaround in the future
-        SignalHandler *s = new SignalHandler(this);
 
         QTimer::singleShot(0, this, SLOT(setUp()));
     }
@@ -133,6 +132,13 @@ namespace SDDM {
         if(!m_backend->identifyOnly()){
             connect(m_session, &UserSession::finished, this, &HelperApp::sessionFinished);
         }
+
+        connect(new SignalHandler(this), &SignalHandler::sigtermReceived, this, [this] {
+            if (m_backend->isGreeter()) {
+                qApp->quit();
+            }
+        });
+
         m_socket->connectToServer(server, QIODevice::ReadWrite | QIODevice::Unbuffered);
     }
 
