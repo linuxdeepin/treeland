@@ -111,11 +111,9 @@ Item {
                         }
 
                         if (TreeLandHelper.clientName(waylandSurface.surface) === "dde-launchpad") {
-                            z = 99
+                            z = 25 + 1 // keep fullscreen z
                             toplevelSurfaceItem.x = outputDelegate.x
                             toplevelSurfaceItem.y = outputDelegate.y
-                            toplevelSurfaceItem.width = output.size.width
-                            toplevelSurfaceItem.height = output.size.height
                         }
                     }
                 }
@@ -167,7 +165,7 @@ Item {
                         target: toplevelSurfaceItem
                         x: helper.getFullscreenX()
                         y: helper.getFullscreenY()
-			z: 100 + 1 // LayerType.Overlay + 1
+                        z: TreeLandHelper.clientName(waylandSurface.surface) == "dde-launchpad" ? 25 : 100 + 1 // LayerType.Overlay + 1
                         width: helper.getFullscreenWidth()
                         height: helper.getFullscreenHeight()
                     }
