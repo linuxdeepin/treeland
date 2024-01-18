@@ -7,3 +7,6 @@ Before=graphical-session.target
 
 Requires=dde-fake-session-initialized.target
 After=dde-fake-session-initialized.target
+
+BindsTo=dde-fake-session.service
+After=dde-fake-session.service

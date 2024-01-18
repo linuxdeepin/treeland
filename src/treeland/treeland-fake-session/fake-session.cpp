@@ -26,6 +26,9 @@
 #include <QStandardPaths>
 #include <QSettings>
 #include <QFileSystemWatcher>
+#include <QCommandLineOption>
+#include <QCommandLineParser>
+#include <QDBusServiceWatcher>
 
 #include <sys/types.h>
 #include <pwd.h>
@@ -204,13 +207,14 @@ QString transFromDaemonAccelStr(const QString &accelStr)
 }
 
 static int click_state = 0;
-FakeSession::FakeSession(int argc, char* argv[])
-    : QApplication(argc, argv)
+FakeSession::FakeSession(QObject *parent)
+    : QObject(parent)
     , m_personalzationManger(new Protocols::PersonalizationManager)
     , m_shortcutManager(new Protocols::ShortcutManager)
     , m_toplevelManager(new Protocols::ForeignToplevelManager)
     , m_extForeignToplevelList(new Protocols::ExtForeignToplevelList)
 {
+
     auto *s = new SDDM::SignalHandler(this);
 
     connect(m_shortcutManager, &Protocols::ShortcutManager::activeChanged, this, [this] {
@@ -274,9 +278,34 @@ FakeSession::FakeSession(int argc, char* argv[])
 }
 
 int main (int argc, char *argv[]) {
-    FakeSession helper(argc, argv);
+    QApplication app(argc, argv);
 
-    QTimer::singleShot(0, &helper, [&helper] {
+    QCommandLineParser parser;
+    parser.setApplicationDescription("dde-session");
+    parser.addHelpOption();
+    parser.addVersionOption();
+
+    QCommandLineOption systemd(QStringList{"d", "systemd", "wait for systemd services"});
+    parser.addOption(systemd);
+    parser.process(app);
+
+    if (parser.isSet(systemd)) {
+        QDBusServiceWatcher *watcher = new QDBusServiceWatcher("org.deepin.dde.Session1", QDBusConnection::sessionBus(), QDBusServiceWatcher::WatchForUnregistration);
+        watcher->connect(watcher, &QDBusServiceWatcher::serviceUnregistered, [&] {
+            qInfo() << "dde session exit";
+            QDBusInterface systemd("org.freedesktop.systemd1", "/org/freedesktop/systemd1", "org.freedesktop.systemd1.Manager");
+            systemd.call("UnsetEnvironment", QStringList{"DISPLAY", "WAYLAND_DISPLAY", "XDG_SESSION_TYPE"});
+            systemd.call("StartUnit", "dde-fake-session-shutdown.target", "replace");
+            qApp->quit();
+        });
+        return app.exec();
+    }
+
+    FakeSession helper;
+
+    QDBusConnection::sessionBus().registerService("org.deepin.dde.Session1");
+
+    QTimer::singleShot(0, &helper, [] {
         QDBusInterface systemd("org.freedesktop.systemd1", "/org/freedesktop/systemd1", "org.freedesktop.systemd1.Manager");
         systemd.call("UnsetEnvironment", QStringList{"DISPLAY", "WAYLAND_DISPLAY", "XDG_SESSION_TYPE"});
         systemd.call("SetEnvironment", QStringList{
@@ -292,5 +321,5 @@ int main (int argc, char *argv[]) {
         systemd.call("StartUnit", "dde-fake-session.target", "replace");
     });
 
-    return helper.exec();
+    return app.exec();
 }

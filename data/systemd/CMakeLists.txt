@@ -4,9 +4,13 @@ macro(install_symlink filepath wantsdir)
     install(FILES ${PROJECT_BINARY_DIR}/link/${wantsdir}/${filepath} DESTINATION lib/systemd/user/${wantsdir}/)
 endmacro(install_symlink)
 
+configure_file("dde-fake-session.service.in" "dde-fake-session.service" IMMEDIATE @ONLY)
+
 set(SERVICES
     dde-fake-session-initialized.target
     dde-fake-session.target
+    dde-fake-session-shutdown.target
+    ${CMAKE_CURRENT_BINARY_DIR}/dde-fake-session.service
 )
 install(FILES ${SERVICES} DESTINATION lib/systemd/user/)
 
