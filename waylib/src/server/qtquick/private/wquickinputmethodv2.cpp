@@ -11,6 +11,7 @@
 #include <qwinputmethodv2.h>
 #include <qwseat.h>
 #include <qwkeyboard.h>
+#include <qwvirtualkeyboardv1.h>
 
 #include <QKeySequence>
 #include <QLoggingCategory>
@@ -24,6 +25,7 @@ extern "C" {
 #define static
 #include <wlr/types/wlr_compositor.h>
 #undef static
+#include <wlr/types/wlr_virtual_keyboard_v1.h>
 }
 
 QW_USE_NAMESPACE
@@ -90,6 +92,16 @@ public:
         , handle(h)
     { }
     W_DECLARE_PUBLIC(WQuickInputMethodKeyboardGrabV2)
+
+    inline wlr_input_method_keyboard_grab_v2 *nativeHandle() const {
+        Q_ASSERT(handle);
+        return handle->handle();
+    }
+
+    wl_client *waylandClient() const {
+        return nativeHandle()->resource->client;
+    }
+
     QWInputMethodKeyboardGrabV2 *handle;
     wlr_keyboard_modifiers modifiers;
 };
@@ -327,6 +339,12 @@ void WQuickInputMethodKeyboardGrabV2::setKeyboard(WInputDevice *keyboard)
     W_D(WQuickInputMethodKeyboardGrabV2);
     if (keyboard) {
         auto qwKeyboard = qobject_cast<QWKeyboard *>(keyboard->handle());
+        auto *virtualKeyboard = qobject_cast<QWVirtualKeyboardV1*>(qwKeyboard);
+        // refer to: https://github.com/swaywm/sway/blob/master/sway/input/keyboard.c#L391
+        if (virtualKeyboard &&
+            wl_resource_get_client(virtualKeyboard->handle()->resource) == d->waylandClient()) {
+            return;
+        }
         d->handle->setKeyboard(qwKeyboard);
     } else {
         d->handle->setKeyboard(nullptr);
