@@ -121,10 +121,10 @@ protected:
 };
 }
 
-class FakeSession : public QApplication {
+class FakeSession : public QObject {
     Q_OBJECT
 public:
-    explicit FakeSession(int argc, char* argv[]);
+    explicit FakeSession(QObject *parent = nullptr);
 
 private:
     Protocols::PersonalizationManager *m_personalzationManger;
