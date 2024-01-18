@@ -284,6 +284,8 @@ int main (int argc, char *argv[]) {
                                         QString("WAYLAND_DISPLAY=%1").arg(qgetenv("WAYLAND_DISPLAY")),
                                         QString("XDG_SESSION_TYPE=%1").arg(qgetenv("XDG_SESSION_TYPE")),
                                         QString("XDG_CURRENT_DESKTOP=%1").arg(qgetenv("XDG_CURRENT_DESKTOP")),
+                                        QString("DDE_CURRENT_COMPOSITER=TreeLand"), // TODO: remove when release stable version.
+                                        QString("DDE_CURRENT_COMPOSITOR=TreeLand"),
                                     }
         );
 
