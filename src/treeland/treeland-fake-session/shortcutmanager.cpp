@@ -15,19 +15,18 @@ void Shortcut::exec() {
 
     if (type == "Exec") {
         const QString &exec = m_settings.value("Type.Exec/Exec").toString();
-        QProcess::startDetached(exec);
+        const QString &args = m_settings.value("Type.Exec/Args").toString();
+        QProcess::startDetached(exec, args.split(" "));
     }
 
     if (type == "DBus") {
-        const QString &service = m_settings.value("Service").toString();
-        const QString &path = m_settings.value("Path").toString();
-        const QString &interface = m_settings.value("Interface").toString();
-        const QString &method = m_settings.value("Method").toString();
-        const QStringList &args =
-            m_settings.value("Args").toString().split(",");
+        const QString &service = m_settings.value("Type.DBus/Service").toString();
+        const QString &path = m_settings.value("Type.DBus/Path").toString();
+        const QString &interface = m_settings.value("Type.DBus/Interface").toString();
+        const QString &method = m_settings.value("Type.DBus/Method").toString();
 
         QDBusInterface dbus(service, path, interface);
-        dbus.asyncCall(method, args);
+        dbus.asyncCall(method);
     }
 
     if (type == "Action") {
