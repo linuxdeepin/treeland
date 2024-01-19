@@ -3,12 +3,29 @@
 
 import QtQuick 2.15
 import QtQuick.Controls 2.15
+import org.deepin.dtk 1.0 as D
+import org.deepin.dtk.style 1.0 as DS
 
 ApplicationWindow {
+    id: window
     visible: true
     width: 765
     height: 750
     title: qsTr("Wallpaper Settings")
+    flags: Qt.Window | Qt.WindowCloseButtonHint | Qt.WindowTitleHint
+    header: D.TitleBar {
+        windowButtonGroup: Row {
+            D.WindowButton {
+                icon.name: "window_close"
+                textColor: DS.Style.button.text
+                onClicked: Qt.quit()
+            }
+        }
+        DragHandler {
+            onActiveChanged: if (active) window.startSystemMove()
+            target: null
+        }
+    }
 
     Wallpaper {
         anchors.fill: parent
