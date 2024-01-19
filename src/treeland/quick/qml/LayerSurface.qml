@@ -87,7 +87,7 @@ Item {
         } else { // if not mapped
             TreeLandHelper.unregisterExclusiveZone(waylandSurface)
             if (!waylandSurface.WaylandSocket.rootSocket.enabled) {
-               surface.visible = false
+                visible = false
             } else {
                 // if don't show CloseAnimation will destroyObject in doDestroy, here is too early
                 if (showCloseAnimation) {
