@@ -1,7 +1,7 @@
 Source: waylib
 Section: libdevel
 Priority: optional
-Maintainer: zkyd <zkyd@zjide.org>
+Maintainer: JiDe Zhang <zhangjide@deepin.org>
 Build-Depends: debhelper (>= 9),
  cmake,
  pkg-config,
@@ -30,9 +30,9 @@ Architecture: any
 Depends: ${shlibs:Depends},
   ${misc:Depends},
   libwaylib (=${binary:Version}),
-  qt6-base-private-dev (>= 6.4.0),
-  qt6-base-dev-tools (>= 6.4.0),
-  qt6-declarative-private-dev (>= 6.4.0),
+  qt6-base-private-dev (>= 6.6.0),
+  qt6-base-dev-tools (>= 6.6.0),
+  qt6-declarative-private-dev (>= 6.6.0),
   libwlroots-dev (>= 0.17.0),
   libqwlroots-dev
 Description: A devel package for libwaylib
