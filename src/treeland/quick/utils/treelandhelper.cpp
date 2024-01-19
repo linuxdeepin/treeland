@@ -51,37 +51,45 @@ bool TreeLandHelper::beforeDisposeEvent(WSeat *seat, QWindow *watched, QInputEve
     // Alt+Tab switcher
     // TODO: move to mid handle
     auto e = static_cast<QKeyEvent*>(event);
-    bool isSwitcher = false;
-    bool isPress = event->type() == QEvent::KeyPress;
+    static bool isSwitcher = false;
 
     switch (e->key()) {
+        case Qt::Key_Alt: {
+          if (isSwitcher && event->type() == QKeyEvent::KeyRelease) {
+                m_switcherCurrentMode = Switcher::Hide;
+                isSwitcher = false;
+                Q_EMIT switcherChanged(m_switcherCurrentMode);
+                return false;
+          }
+        }
+        break;
         case Qt::Key_Tab: {
-            if (e->modifiers() == Qt::AltModifier) {
-                if (m_switcherCurrentMode == Switcher::Hide) {
-                    m_switcherCurrentMode = Switcher::Show;
-                }
-                else {
-                    m_switcherCurrentMode = Switcher::Next;
-                }
+            if (event->type() == QEvent::KeyPress) {
+                if (e->modifiers().testFlag(Qt::AltModifier)) {
+                    if (e->modifiers() == Qt::AltModifier) {
+                        if (m_switcherCurrentMode == Switcher::Hide) {
+                            m_switcherCurrentMode = Switcher::Show;
+                        }
+                        else {
+                            m_switcherCurrentMode = Switcher::Next;
+                        }
+                        isSwitcher = true;
+                    }
+                    else if (e->modifiers() == (Qt::AltModifier | Qt::ShiftModifier)) {
+                        if (m_switcherCurrentMode == Switcher::Hide) {
+                            m_switcherCurrentMode = Switcher::Show;
+                        }
+                        else {
+                            m_switcherCurrentMode = Switcher::Previous;
+                        }
+                        isSwitcher = true;
+                    }
 
-                isSwitcher = true;
-            }
-            else if (e->modifiers() == (Qt::AltModifier | Qt::ShiftModifier)) {
-                if (m_switcherCurrentMode == Switcher::Hide) {
-                    m_switcherCurrentMode = Switcher::Show;
+                    if (isSwitcher) {
+                        Q_EMIT switcherChanged(m_switcherCurrentMode);
+                        return true;
+                    }
                 }
-                else {
-                    m_switcherCurrentMode = Switcher::Previous;
-                }
-
-                isSwitcher = true;
-            }
-
-            if (isSwitcher) {
-                if (isPress) {
-                    Q_EMIT switcherChanged(m_switcherCurrentMode);
-                }
-                return true;
             }
         }
         break;
@@ -102,10 +110,6 @@ bool TreeLandHelper::beforeDisposeEvent(WSeat *seat, QWindow *watched, QInputEve
         }
         break;
         default: {
-            if (m_switcherCurrentMode != Switcher::Hide) {
-                m_switcherCurrentMode = Switcher::Hide;
-                Q_EMIT switcherChanged(m_switcherCurrentMode);
-            }
         }
         break;
     }

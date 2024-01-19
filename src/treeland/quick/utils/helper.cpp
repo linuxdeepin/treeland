@@ -417,6 +417,24 @@ WToplevelSurface *Helper::activatedSurface() const
 
 void Helper::setActivateSurface(WToplevelSurface *newActivate)
 {
+    if (newActivate) {
+        wl_client *client = newActivate->surface()->handle()->handle()->resource->client;
+        pid_t pid;
+        uid_t uid;
+        gid_t gid;
+        wl_client_get_credentials(client, &pid, &uid, &gid);
+
+        QString programName;
+        QFile file(QString("/proc/%1/status").arg(pid));
+        if (file.open(QFile::ReadOnly)) {
+            programName = QString(file.readLine()).section(QRegularExpression("([\\t ]*:[\\t ]*|\\n)"),1,1);
+        }
+
+        if (programName == "dde-desktop") {
+            return;
+        }
+    }
+
     if (m_activateSurface == newActivate)
         return;
 
