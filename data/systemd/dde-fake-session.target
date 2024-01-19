@@ -2,9 +2,6 @@
 Description=dde-fake-session target
 DefaultDependencies=no
 
-BindsTo=graphical-session.target
-Before=graphical-session.target
-
 Requires=dde-fake-session-initialized.target
 After=dde-fake-session-initialized.target
 
