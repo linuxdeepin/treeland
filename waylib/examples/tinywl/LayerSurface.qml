@@ -85,7 +85,7 @@ Item {
         } else { // if not mapped
             Helper.unregisterExclusiveZone(waylandSurface)
             if (!waylandSurface.WaylandSocket.rootSocket.enabled) {
-               surface.visible = false
+                visible = false
             } else {
                 // do animation for window close
                 closeAnimation.parent = root.parent
