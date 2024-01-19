@@ -208,8 +208,11 @@ Item {
                     TreeLandHelper.activatedSurface = waylandSurface
             }
 
-            switcherModel.append({ source: surface });
-            dockPreviewModel.append({ surface: surface, source: waylandSurface.surface });
+            let clientName = TreeLandHelper.clientName(waylandSurface.surface)
+            if (clientName !== "dde-desktop" && clientName !== "dde-launchpad") {
+                switcherModel.append({ source: surface });
+                dockPreviewModel.append({ surface: surface, source: waylandSurface.surface });
+            }
         } else { // if not mapped
             if (!waylandSurface.WaylandSocket.rootSocket.enabled) {
                 surface.visible = false;

@@ -87,7 +87,8 @@ Item {
                 let type = surface.isPopup ? "popup" : "toplevel"
                 QmlHelper.xdgSurfaceManager.add({type: type, waylandSurface: surface})
 
-                if (!surface.isPopup) {
+                let clientName = TreeLandHelper.clientName(surface.surface)
+                if (!surface.isPopup && clientName !== "dde-desktop" && clientName !== "dde-launchpad") {
                     extForeignToplevelList.add(surface)
                     treelandForeignToplevelManager.add(surface)
                 }
@@ -97,7 +98,8 @@ Item {
                     return prop.waylandSurface === surface
                 })
 
-                if (!surface.isPopup) {
+                let clientName = TreeLandHelper.clientName(surface.surface)
+                if (!surface.isPopup && (clientName !== "dde-desktop" || clientName !== "dde-launchpad")) {
                     extForeignToplevelList.remove(surface)
                     treelandForeignToplevelManager.remove(surface)
                 }

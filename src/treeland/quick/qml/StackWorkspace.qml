@@ -78,6 +78,17 @@ Item {
             property var surfaceDecorationMapper: toplevelSurfaceItem.waylandSurface.XdgDecorationManager
             property var personalizationMapper: toplevelSurfaceItem.waylandSurface.PersonalizationManager
             property int outputCounter: 0
+            z: {
+                if (TreeLandHelper.clientName(waylandSurface.surface) === "dde-desktop") {
+                    return -100 + 1
+                }
+                else if (TreeLandHelper.clientName(waylandSurface.surface) === "dde-launchpad") {
+                    return 25
+                }
+                else {
+                    return 0
+                }
+            }
 
             topPadding: decoration.enable ? decoration.topMargin : 0
             bottomPadding: decoration.enable ? decoration.bottomMargin : 0
@@ -103,7 +114,6 @@ Item {
                                 + 10
 
                         if (TreeLandHelper.clientName(waylandSurface.surface) === "dde-desktop") {
-                            z = -1
                             toplevelSurfaceItem.x = outputDelegate.x
                             toplevelSurfaceItem.y = outputDelegate.y
                             toplevelSurfaceItem.width = output.size.width
@@ -111,7 +121,6 @@ Item {
                         }
 
                         if (TreeLandHelper.clientName(waylandSurface.surface) === "dde-launchpad") {
-                            z = 25 + 1 // keep fullscreen z
                             toplevelSurfaceItem.x = outputDelegate.x
                             toplevelSurfaceItem.y = outputDelegate.y
                         }
@@ -439,7 +448,7 @@ Item {
 
     WindowsSwitcher {
         id: switcher
-        z: 1
+        z: 100 + 1
         anchors.fill: parent
         visible: false
         onSurfaceActivated: (surface) => {
@@ -460,7 +469,7 @@ Item {
 
     DockPreview {
         id: dockPreview
-        z: 1
+        z: 100 + 1
         anchors.fill: parent
         visible: false
         onEntered: (relativeSurface) => {
