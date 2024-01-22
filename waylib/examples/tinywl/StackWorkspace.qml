@@ -310,7 +310,7 @@ Item {
                                       && waylandSurface.decorationsType !== XWaylandSurface.DecorationsNoBorder
 
                 anchors.fill: parent
-                z: xwaylandSurfaceItem.contentItem.z - 1
+                z: SurfaceItem.ZOrder.ContentItem - 1
                 visible: enable
             }
 

@@ -95,6 +95,14 @@ public:
     Q_ENUM(Flag)
     Q_DECLARE_FLAGS(Flags, Flag)
 
+    enum class ZOrder : qint16 {
+        BelowSubsurface = -100,
+        ContentItem = 0,
+        EventItem = 100,
+        AboveSubsurface = 200
+    };
+    Q_ENUM(ZOrder)
+
     explicit WSurfaceItem(QQuickItem *parent = nullptr);
     ~WSurfaceItem();
 

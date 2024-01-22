@@ -1064,6 +1064,8 @@ void WSurfaceItemPrivate::initForDelegate()
     if (newContentContainer == contentContainer)
         return;
 
+    newContentContainer->setZ(qreal(WSurfaceItem::ZOrder::ContentItem));
+
     if (contentContainer) {
         newContentContainer->setPosition(contentContainer->position());
         newContentContainer->setSize(contentContainer->size());
@@ -1104,6 +1106,7 @@ void WSurfaceItemPrivate::updateSubsurfaceItem()
         if (!surface)
             continue;
         WSurfaceItem *item = ensureSubsurfaceItem(surface);
+        item->setZ(qreal(WSurfaceItem::ZOrder::BelowSubsurface));
         item->setSurfaceSizeRatio(surfaceSizeRatio);
         Q_ASSERT(item->parentItem() == q);
         if (prev) {
@@ -1115,19 +1118,18 @@ void WSurfaceItemPrivate::updateSubsurfaceItem()
         item->setPosition(pos);
     }
 
-    if (prev)
-        contentContainer->stackAfter(prev);
-    prev = contentContainer;
-
     wl_list_for_each(subsurface, &surface->current.subsurfaces_above, current.link) {
         WSurface *surface = WSurface::fromHandle(subsurface->surface);
         if (!surface)
             continue;
         WSurfaceItem *item = ensureSubsurfaceItem(surface);
+        item->setZ(qreal(WSurfaceItem::ZOrder::AboveSubsurface));
         item->setSurfaceSizeRatio(surfaceSizeRatio);
         Q_ASSERT(item->parentItem() == q);
-        Q_ASSERT(prev->parentItem() == item->parentItem());
-        item->stackAfter(prev);
+        if (prev) {
+            Q_ASSERT(prev->parentItem() == item->parentItem());
+            item->stackAfter(prev);
+        }
         prev = item;
         const QPointF pos = contentContainer->position() + QPointF(subsurface->current.x, subsurface->current.y) / surfaceSizeRatio;
         item->setPosition(pos);
@@ -1220,6 +1222,7 @@ void WSurfaceItemPrivate::updateEventItem(bool forceDestroy)
         eventItem = nullptr;
     } else {
         eventItem = new EventItem(q_func());
+        eventItem->setZ(qreal(WSurfaceItem::ZOrder::EventItem));
         QQuickItemPrivate::get(eventItem)->anchors()->setFill(contentContainer);
     }
 
