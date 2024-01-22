@@ -14,6 +14,45 @@ QT_END_NAMESPACE
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
+class WSurfaceItemContentPrivate;
+class WAYLIB_SERVER_EXPORT WSurfaceItemContent : public QQuickItem, public WObject
+{
+    Q_OBJECT
+    W_DECLARE_PRIVATE(WSurfaceItemContent)
+    Q_PROPERTY(WSurface* surface READ surface WRITE setSurface NOTIFY surfaceChanged FINAL)
+    Q_PROPERTY(bool cacheLastBuffer READ cacheLastBuffer WRITE setCacheLastBuffer NOTIFY cacheLastBufferChanged FINAL)
+    QML_NAMED_ELEMENT(SurfaceItemContent)
+
+public:
+    explicit WSurfaceItemContent(QQuickItem *parent = nullptr);
+
+    WSurface *surface() const;
+    void setSurface(WSurface *surface);
+
+    bool isTextureProvider() const override;
+    QSGTextureProvider *textureProvider() const override;
+
+    bool cacheLastBuffer() const;
+    void setCacheLastBuffer(bool newCacheLastBuffer);
+
+Q_SIGNALS:
+    void surfaceChanged();
+    void cacheLastBufferChanged();
+
+private:
+    friend class WSurfaceItem;
+    friend class WSurfaceItemPrivate;
+    friend class WSGTextureProvider;
+
+    void componentComplete() override;
+    QSGNode *updatePaintNode(QSGNode *, UpdatePaintNodeData *) override;
+    void releaseResources() override;
+    void itemChange(ItemChange change, const ItemChangeData &data) override;
+
+    // Using by Qt library
+    Q_SLOT void invalidateSceneGraph();
+};
+
 class WCursor;
 class WOutput;
 class WQuickSurface;
@@ -23,7 +62,7 @@ class WAYLIB_SERVER_EXPORT WSurfaceItem : public QQuickItem
     Q_OBJECT
     Q_DECLARE_PRIVATE(WSurfaceItem)
     Q_PROPERTY(WSurface* surface READ surface WRITE setSurface NOTIFY surfaceChanged)
-    Q_PROPERTY(QQuickItem* contentItem READ contentItem CONSTANT)
+    Q_PROPERTY(QQuickItem* contentItem READ contentItem NOTIFY contentItemChanged)
     Q_PROPERTY(QQuickItem* eventItem READ eventItem NOTIFY eventItemChanged)
     Q_PROPERTY(ResizeMode resizeMode READ resizeMode WRITE setResizeMode NOTIFY resizeModeChanged FINAL)
     Q_PROPERTY(bool effectiveVisible READ effectiveVisible NOTIFY effectiveVisibleChanged FINAL)
@@ -38,6 +77,7 @@ class WAYLIB_SERVER_EXPORT WSurfaceItem : public QQuickItem
     Q_PROPERTY(qreal implicitHeight READ implicitHeight NOTIFY implicitHeightChanged)
     Q_PROPERTY(qreal surfaceSizeRatio READ surfaceSizeRatio WRITE setSurfaceSizeRatio NOTIFY surfaceSizeRatioChanged)
     Q_PROPERTY(qreal bufferScale READ bufferScale NOTIFY bufferScaleChanged)
+    Q_PROPERTY(QQmlComponent* delegate READ delegate WRITE setDelegate NOTIFY delegateChanged FINAL)
     QML_NAMED_ELEMENT(SurfaceItem)
 
 public:
@@ -59,9 +99,6 @@ public:
     ~WSurfaceItem();
 
     static WSurfaceItem *fromFocusObject(QObject *focusObject);
-
-    bool isTextureProvider() const override;
-    QSGTextureProvider *textureProvider() const override;
 
     WSurface *surface() const;
     void setSurface(WSurface *newSurface);
@@ -95,6 +132,9 @@ public:
 
     qreal bufferScale() const;
 
+    QQmlComponent *delegate() const;
+    void setDelegate(QQmlComponent *newDelegate);
+
 Q_SIGNALS:
     void surfaceChanged();
     void subsurfaceAdded(WSurfaceItem *item);
@@ -109,6 +149,8 @@ Q_SIGNALS:
     void rightPaddingChanged();
     void surfaceSizeRatioChanged();
     void bufferScaleChanged();
+    void contentItemChanged();
+    void delegateChanged();
 
 protected:
     void componentComplete() override;
