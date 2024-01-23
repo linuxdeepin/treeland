@@ -9,14 +9,14 @@
 #include <QQmlEngine>
 #include <wquickwaylandserver.h>
 
-#include "treelandhelper.h"
+#include "helper.h"
 
 class ShortcutManagerV1Private;
 class ShortcutManagerV1 : public Waylib::Server::WQuickWaylandServerInterface , public WObject{
     Q_OBJECT
     QML_NAMED_ELEMENT(ShortcutManager)
     W_DECLARE_PRIVATE(ShortcutManagerV1)
-    Q_PROPERTY(TreeLandHelper *helper WRITE setHelper)
+    Q_PROPERTY(Helper *helper WRITE setHelper)
 
 public:
     explicit ShortcutManagerV1(QObject *parent = nullptr);
@@ -25,5 +25,5 @@ protected:
     void create() override;
 
 private:
-    void setHelper(TreeLandHelper *helper);
+    void setHelper(Helper *helper);
 };

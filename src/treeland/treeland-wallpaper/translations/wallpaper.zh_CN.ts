@@ -70,7 +70,7 @@
 <context>
     <name>main</name>
     <message>
-        <location filename="../main.qml" line="11"/>
+        <location filename="../main.qml" line="14"/>
         <source>Wallpaper Settings</source>
         <translation>壁纸设置</translation>
     </message>

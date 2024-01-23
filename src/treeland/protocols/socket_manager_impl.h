@@ -15,7 +15,7 @@ class WServer;
 }
 
 class SocketManager;
-class TreeLandHelper;
+class Helper;
 
 struct treeland_socket_manager_v1 {
   struct wl_global *global;

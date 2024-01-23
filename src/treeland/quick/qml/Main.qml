@@ -17,7 +17,7 @@ Item {
         id: server
 
         ShortcutManager {
-            helper: TreeLandHelper
+            helper: Helper
         }
 
         TreeLandForeignToplevelManagerV1 {
@@ -53,7 +53,7 @@ Item {
                 if (!backend.hasDrm)
                     output.forceSoftwareCursor = true // Test
 
-                TreeLandHelper.allowNonDrmOutputAutoChangeMode(output)
+                Helper.allowNonDrmOutputAutoChangeMode(output)
                 QmlHelper.outputManager.add({waylandOutput: output})
                 outputManagerV1.newOutput(output)
                 treelandOutputManager.newOutput(output)
@@ -87,7 +87,7 @@ Item {
                 let type = surface.isPopup ? "popup" : "toplevel"
                 QmlHelper.xdgSurfaceManager.add({type: type, waylandSurface: surface})
 
-                let clientName = TreeLandHelper.clientName(surface.surface)
+                let clientName = Helper.clientName(surface.surface)
                 if (!surface.isPopup && clientName !== "dde-desktop" && clientName !== "dde-launchpad") {
                     extForeignToplevelList.add(surface)
                     treelandForeignToplevelManager.add(surface)
@@ -98,7 +98,7 @@ Item {
                     return prop.waylandSurface === surface
                 })
 
-                let clientName = TreeLandHelper.clientName(surface.surface)
+                let clientName = Helper.clientName(surface.surface)
                 if (!surface.isPopup && (clientName !== "dde-desktop" || clientName !== "dde-launchpad")) {
                     extForeignToplevelList.remove(surface)
                     treelandForeignToplevelManager.remove(surface)
@@ -128,8 +128,8 @@ Item {
                 layout: QmlHelper.layout
             }
 
-            eventFilter: TreeLandHelper
-            keyboardFocus: TreeLandHelper.getFocusSurfaceFrom(renderWindow.activeFocusItem)
+            eventFilter: Helper
+            keyboardFocus: Helper.getFocusSurfaceFrom(renderWindow.activeFocusItem)
         }
 
         GammaControlManager {
@@ -195,7 +195,7 @@ Item {
 
             Component.onCompleted: {
                 console.info("Listing on:", socketFile)
-                TreeLandHelper.socketFile = socketFile
+                Helper.socketFile = socketFile
             }
         }
 
@@ -338,12 +338,12 @@ Item {
         Connections {
             target: socketProxy
             function onUserActivated(user) {
-                TreeLandHelper.currentUser = user
+                Helper.currentUser = user
             }
         }
 
         Connections {
-            target: TreeLandHelper
+            target: Helper
             function onGreeterVisibleChanged() {
                 greeter.visible = true
             }

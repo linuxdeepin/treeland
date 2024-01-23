@@ -163,8 +163,8 @@ Item {
                 onButtonClicked: function (button, role) {
                     switch (button) {
                     case MessageDialog.Ok:
-                        TreeLandHelper.backToNormal()
-                        TreeLandHelper.reboot()
+                        Helper.backToNormal()
+                        Helper.reboot()
                         break
                     }
                 }

@@ -100,11 +100,11 @@ Item {
                         if (waylandSurface.surface) {
                             waylandSurface.surface.enterOutput(output)
                         }
-                        TreeLandHelper.onSurfaceEnterOutput(waylandSurface, toplevelSurfaceItem, output)
+                        Helper.onSurfaceEnterOutput(waylandSurface, toplevelSurfaceItem, output)
                     }
                     onLeaveOutput: function(output) {
                         waylandSurface.surface.leaveOutput(output)
-                        TreeLandHelper.onSurfaceLeaveOutput(waylandSurface, toplevelSurfaceItem, output)
+                        Helper.onSurfaceLeaveOutput(waylandSurface, toplevelSurfaceItem, output)
                     }
                 }
 
@@ -196,11 +196,11 @@ Item {
                             if (waylandSurface.surface) {
                                 waylandSurface.surface.enterOutput(output)
                             }
-                            TreeLandHelper.onSurfaceEnterOutput(waylandSurface, popupSurfaceItem, output)
+                            Helper.onSurfaceEnterOutput(waylandSurface, popupSurfaceItem, output)
                         }
                         onLeaveOutput: function(output) {
                             waylandSurface.surface.leaveOutput(output)
-                            TreeLandHelper.onSurfaceLeaveOutput(waylandSurface, popupSurfaceItem, output)
+                            Helper.onSurfaceLeaveOutput(waylandSurface, popupSurfaceItem, output)
                         }
                     }
                 }
@@ -244,12 +244,12 @@ Item {
                     onEnterOutput: function(output) {
                         if (xwaylandSurfaceItem.waylandSurface.surface)
                             xwaylandSurfaceItem.waylandSurface.surface.enterOutput(output);
-                        TreeLandHelper.onSurfaceEnterOutput(waylandSurface, xwaylandSurfaceItem, output)
+                        Helper.onSurfaceEnterOutput(waylandSurface, xwaylandSurfaceItem, output)
                     }
                     onLeaveOutput: function(output) {
                         if (xwaylandSurfaceItem.waylandSurface.surface)
                             xwaylandSurfaceItem.waylandSurface.surface.leaveOutput(output);
-                        TreeLandHelper.onSurfaceLeaveOutput(waylandSurface, xwaylandSurfaceItem, output)
+                        Helper.onSurfaceLeaveOutput(waylandSurface, xwaylandSurfaceItem, output)
                     }
                 }
 

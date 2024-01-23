@@ -9,7 +9,7 @@
 #include <wayland-server.h>
 
 class ExtForeignToplevelList;
-class TreeLandHelper;
+class Helper;
 struct ext_foreign_toplevel_handle_v1;
 
 struct ext_foreign_toplevel_list_v1

@@ -25,7 +25,7 @@ public:
     W_DECLARE_PUBLIC(ShortcutManagerV1)
 
     QTreeLandShortcutManagerV1 *manager = nullptr;
-    TreeLandHelper *helper = nullptr;
+    Helper *helper = nullptr;
 };
 
 
@@ -35,7 +35,7 @@ ShortcutManagerV1::ShortcutManagerV1(QObject *parent)
 {
 }
 
-void ShortcutManagerV1::setHelper(TreeLandHelper *helper) {
+void ShortcutManagerV1::setHelper(Helper *helper) {
     W_D(ShortcutManagerV1);
 
     d->helper = helper;
