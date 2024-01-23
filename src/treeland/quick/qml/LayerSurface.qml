@@ -49,7 +49,9 @@ Item {
         layout: QmlHelper.layout
 
         onEnterOutput: function(output) {
-            waylandSurface.surface.enterOutput(output)
+            if (waylandSurface.surface) {
+                waylandSurface.surface.enterOutput(output)
+            }
             TreeLandHelper.onSurfaceEnterOutput(waylandSurface, surfaceItem, output)
             TreeLandHelper.registerExclusiveZone(waylandSurface)
         }
