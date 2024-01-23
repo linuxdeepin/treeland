@@ -2,7 +2,7 @@ test_build:
   steps:
     - link_package:
         source_project: vioken
-        source_package: %{SCM_REPOSITORY_NAME} 
+        source_package: %{SCM_REPOSITORY_NAME}
         target_project: vioken:CI
 
     - configure_repositories:
@@ -12,14 +12,6 @@ test_build:
             paths:
               - target_project: vioken
                 target_repository: deepin_develop
-            architectures:
-              - x86_64
-              - aarch64
-          
-          - name: deepin_testing
-            paths:
-              - target_project: vioken
-                target_repository: deepin_23_testing
             architectures:
               - x86_64
               - aarch64
