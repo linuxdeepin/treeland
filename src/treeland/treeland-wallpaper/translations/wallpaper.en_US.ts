@@ -66,7 +66,7 @@
 <context>
     <name>main</name>
     <message>
-        <location filename="../main.qml" line="11"/>
+        <location filename="../main.qml" line="14"/>
         <source>Wallpaper Settings</source>
         <translation type="unfinished"></translation>
     </message>

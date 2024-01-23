@@ -79,10 +79,10 @@ Item {
             property var personalizationMapper: toplevelSurfaceItem.waylandSurface.PersonalizationManager
             property int outputCounter: 0
             z: {
-                if (TreeLandHelper.clientName(waylandSurface.surface) === "dde-desktop") {
+                if (Helper.clientName(waylandSurface.surface) === "dde-desktop") {
                     return -100 + 1
                 }
-                else if (TreeLandHelper.clientName(waylandSurface.surface) === "dde-launchpad") {
+                else if (Helper.clientName(waylandSurface.surface) === "dde-launchpad") {
                     return 25
                 }
                 else {
@@ -103,26 +103,26 @@ Item {
                     if (waylandSurface.surface) {
                         waylandSurface.surface.enterOutput(output)
                     }
-                    TreeLandHelper.onSurfaceEnterOutput(waylandSurface, toplevelSurfaceItem, output)
+                    Helper.onSurfaceEnterOutput(waylandSurface, toplevelSurfaceItem, output)
                     outputCounter++
 
                     if (outputCounter == 1) {
                         let outputDelegate = output.OutputItem.item
                         toplevelSurfaceItem.x = outputDelegate.x
-                                + TreeLandHelper.getLeftExclusiveMargin(waylandSurface)
+                                + Helper.getLeftExclusiveMargin(waylandSurface)
                                 + 10
                         toplevelSurfaceItem.y = outputDelegate.y
-                                + TreeLandHelper.getTopExclusiveMargin(waylandSurface)
+                                + Helper.getTopExclusiveMargin(waylandSurface)
                                 + 10
 
-                        if (TreeLandHelper.clientName(waylandSurface.surface) === "dde-desktop") {
+                        if (Helper.clientName(waylandSurface.surface) === "dde-desktop") {
                             toplevelSurfaceItem.x = outputDelegate.x
                             toplevelSurfaceItem.y = outputDelegate.y
                             toplevelSurfaceItem.width = output.size.width
                             toplevelSurfaceItem.height = output.size.height
                         }
 
-                        if (TreeLandHelper.clientName(waylandSurface.surface) === "dde-launchpad") {
+                        if (Helper.clientName(waylandSurface.surface) === "dde-launchpad") {
                             toplevelSurfaceItem.x = outputDelegate.x
                             toplevelSurfaceItem.y = outputDelegate.y
                         }
@@ -130,7 +130,7 @@ Item {
                 }
                 onLeaveOutput: function(output) {
                     waylandSurface.surface.leaveOutput(output)
-                    TreeLandHelper.onSurfaceLeaveOutput(waylandSurface, toplevelSurfaceItem, output)
+                    Helper.onSurfaceLeaveOutput(waylandSurface, toplevelSurfaceItem, output)
                     outputCounter--
                 }
             }
@@ -176,7 +176,7 @@ Item {
                         target: toplevelSurfaceItem
                         x: helper.getFullscreenX()
                         y: helper.getFullscreenY()
-                        z: TreeLandHelper.clientName(waylandSurface.surface) == "dde-launchpad" ? 25 : 100 + 1 // LayerType.Overlay + 1
+                        z: Helper.clientName(waylandSurface.surface) == "dde-launchpad" ? 25 : 100 + 1 // LayerType.Overlay + 1
                         width: helper.getFullscreenWidth()
                         height: helper.getFullscreenHeight()
                     }
@@ -273,11 +273,11 @@ Item {
                         if (waylandSurface.surface) {
                             waylandSurface.surface.enterOutput(output)
                         }
-                        TreeLandHelper.onSurfaceEnterOutput(waylandSurface, popupSurfaceItem, output)
+                        Helper.onSurfaceEnterOutput(waylandSurface, popupSurfaceItem, output)
                     }
                     onLeaveOutput: function(output) {
                         waylandSurface.surface.leaveOutput(output)
-                        TreeLandHelper.onSurfaceLeaveOutput(waylandSurface, popupSurfaceItem, output)
+                        Helper.onSurfaceLeaveOutput(waylandSurface, popupSurfaceItem, output)
                     }
                 }
             }
@@ -324,7 +324,7 @@ Item {
                 if (!xwaylandSurfaceItem.effectiveVisible)
                     return XWaylandSurfaceItem.ManualPosition
 
-                return (TreeLandHelper.movingItem === xwaylandSurfaceItem || resizeMode === SurfaceItem.SizeToSurface)
+                return (Helper.movingItem === xwaylandSurfaceItem || resizeMode === SurfaceItem.SizeToSurface)
                         ? XWaylandSurfaceItem.PositionToSurface
                         : XWaylandSurfaceItem.PositionFromSurface
             }
@@ -369,24 +369,24 @@ Item {
                 onEnterOutput: function(output) {
                     if (xwaylandSurfaceItem.waylandSurface.surface)
                         xwaylandSurfaceItem.waylandSurface.surface.enterOutput(output);
-                    TreeLandHelper.onSurfaceEnterOutput(waylandSurface, xwaylandSurfaceItem, output)
+                    Helper.onSurfaceEnterOutput(waylandSurface, xwaylandSurfaceItem, output)
 
                     outputCounter++
 
                     if (outputCounter == 1) {
                         let outputDelegate = output.OutputItem.item
                         xwaylandSurfaceItem.x = outputDelegate.x
-                                + TreeLandHelper.getLeftExclusiveMargin(waylandSurface)
+                                + Helper.getLeftExclusiveMargin(waylandSurface)
                                 + 10
                         xwaylandSurfaceItem.y = outputDelegate.y
-                                + TreeLandHelper.getTopExclusiveMargin(waylandSurface)
+                                + Helper.getTopExclusiveMargin(waylandSurface)
                                 + 10
                     }
                 }
                 onLeaveOutput: function(output) {
                     if (xwaylandSurfaceItem.waylandSurface.surface)
                         xwaylandSurfaceItem.waylandSurface.surface.leaveOutput(output);
-                    TreeLandHelper.onSurfaceLeaveOutput(waylandSurface, xwaylandSurfaceItem, output)
+                    Helper.onSurfaceLeaveOutput(waylandSurface, xwaylandSurfaceItem, output)
                     outputCounter--
                 }
             }
@@ -457,7 +457,7 @@ Item {
         visible: false
         onSurfaceActivated: (surface) => {
             surface.cancelMinimize()
-            TreeLandHelper.activatedSurface = surface.waylandSurface
+            Helper.activatedSurface = surface.waylandSurface
         }
     }
 
@@ -484,24 +484,24 @@ Item {
         }
         onSurfaceActivated: (surface) => {
             surface.cancelMinimize()
-            TreeLandHelper.activatedSurface = surface.waylandSurface
+            Helper.activatedSurface = surface.waylandSurface
         }
     }
 
     Connections {
-        target: TreeLandHelper
+        target: Helper
         function onSwitcherChanged(mode) {
             switch (mode) {
-            case (TreeLandHelper.Show):
+            case (Helper.Show):
                 switcher.visible = true
                 break
-            case (TreeLandHelper.Hide):
+            case (Helper.Hide):
                 switcher.visible = false
                 break
-            case (TreeLandHelper.Next):
+            case (Helper.Next):
                 switcher.next()
                 break
-            case (TreeLandHelper.Previous):
+            case (Helper.Previous):
                 switcher.previous()
                 break
             }

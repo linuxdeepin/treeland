@@ -6,7 +6,6 @@ qt_add_qml_module(treeland-quick-utils
     STATIC
     SOURCES
         helper.cpp
-        treelandhelper.cpp
         dockpreviewfilter.cpp
     RESOURCE_PREFIX
         /qt/qml
@@ -19,7 +18,6 @@ target_sources(treeland-quick-utils PUBLIC
 FILE_SET HEADERS
 FILES
     helper.h
-    treelandhelper.h
     dockpreviewfilter.h
 )
 

@@ -25,11 +25,33 @@ class Helper : public WSeatEventFilter {
     Q_PROPERTY(WToplevelSurface* activatedSurface READ activatedSurface WRITE setActivateSurface NOTIFY activatedSurfaceChanged FINAL)
     Q_PROPERTY(WSurfaceItem* resizingItem READ resizingItem NOTIFY resizingItemChanged FINAL)
     Q_PROPERTY(WSurfaceItem *movingItem READ movingItem NOTIFY movingItemChanged FINAL)
+    Q_PROPERTY(QString socketFile READ socketFile WRITE setSocketFile NOTIFY socketFileChanged FINAL)
+    Q_PROPERTY(QString currentUser WRITE setCurrentUser FINAL)
     QML_ELEMENT
     QML_SINGLETON
 
 public:
     explicit Helper(QObject *parent = nullptr);
+
+    enum Switcher {
+        Hide,
+        Show,
+        Next,
+        Previous,
+    };
+    Q_ENUM(Switcher)
+
+    void setCurrentUser(const QString &currentUser);
+
+    QString socketFile() const;
+
+    Q_INVOKABLE QString clientName(Waylib::Server::WSurface *surface) const;
+
+    bool addAction(const QString &user, QAction *action);
+    void removeAction(const QString &user, QAction *action);
+
+    Q_INVOKABLE void closeSurface(Waylib::Server::WSurface *surface);
+
     void stopMoveResize();
 
     WToplevelSurface *activatedSurface() const;
@@ -57,7 +79,7 @@ public Q_SLOTS:
 
     void allowNonDrmOutputAutoChangeMode(WOutput *output);
 
-signals:
+Q_SIGNALS:
     void activatedSurfaceChanged();
     void resizingItemChanged();
     void movingItemChanged();
@@ -68,6 +90,8 @@ signals:
     void bottomExclusiveMarginChanged();
     void leftExclusiveMarginChanged();
     void rightExclusiveMarginChanged();
+    void socketFileChanged();
+    void switcherChanged(Switcher mode);
 
 protected:
     bool beforeDisposeEvent(WSeat *seat, QWindow *watched, QInputEvent *event) override;
@@ -92,6 +116,15 @@ protected:
     WSurfaceItem *m_resizingItem = nullptr;
     WSurfaceItem *m_movingItem = nullptr;
     QList<std::pair<WOutput*,OutputInfo*>> m_outputExclusiveZoneInfo;
+
+private:
+    void setSocketFile(const QString &socketFile);
+
+private:
+    QString m_socketFile;
+    QString m_currentUser;
+    Switcher m_switcherCurrentMode = Switcher::Hide;
+    std::map<QString, std::vector<QAction*>> m_actions;
 };
 
 struct OutputInfo {

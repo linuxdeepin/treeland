@@ -30,16 +30,16 @@ Item {
 
     // For Maximize
     function getMaximizeX() {
-        return outputCoordMapper.x + TreeLandHelper.getLeftExclusiveMargin(waylandSurface)
+        return outputCoordMapper.x + Helper.getLeftExclusiveMargin(waylandSurface)
     }
     function getMaximizeY() {
-        return outputCoordMapper.y + TreeLandHelper.getTopExclusiveMargin(waylandSurface)
+        return outputCoordMapper.y + Helper.getTopExclusiveMargin(waylandSurface)
     }
     function getMaximizeWidth() {
-        return outputCoordMapper.width - TreeLandHelper.getLeftExclusiveMargin(waylandSurface) - TreeLandHelper.getRightExclusiveMargin(waylandSurface)
+        return outputCoordMapper.width - Helper.getLeftExclusiveMargin(waylandSurface) - Helper.getRightExclusiveMargin(waylandSurface)
     }
     function getMaximizeHeight() {
-        return outputCoordMapper.height - TreeLandHelper.getTopExclusiveMargin(waylandSurface) - TreeLandHelper.getBottomExclusiveMargin(waylandSurface)
+        return outputCoordMapper.height - Helper.getTopExclusiveMargin(waylandSurface) - Helper.getBottomExclusiveMargin(waylandSurface)
     }
 
     // For Fullscreen
@@ -76,7 +76,7 @@ Item {
         value: {
             if (!surface.effectiveVisible)
                 return SurfaceItem.ManualResize
-            if (TreeLandHelper.resizingItem === surface
+            if (Helper.resizingItem === surface
                     || stateTransition.running
                     || waylandSurface.isMaximized)
                 return SurfaceItem.SizeToSurface
@@ -113,7 +113,7 @@ Item {
                 if (waylandSurface && waylandSurface.isActivated)
                     surface.forceActiveFocus()
             } else {
-                TreeLandHelper.cancelMoveResize(surface)
+                Helper.cancelMoveResize(surface)
             }
         }
     }
@@ -132,7 +132,7 @@ Item {
         function onRequestMinimize(minimized) {
             if (minimized) {
                 connOfSurface.onRequestMinimize()
-                TreeLandHelper.activatedSurface = null
+                Helper.activatedSurface = null
             } else {
                 connOfSurface.onRequestCancelMinimize()
             }
@@ -144,7 +144,7 @@ Item {
             }
 
             surface.focus = activated
-            TreeLandHelper.activatedSurface = activated ? surface : null
+            Helper.activatedSurface = activated ? surface : null
         }
 
         function onRequestFullscreen(fullscreen) {
@@ -189,12 +189,12 @@ Item {
         }
 
         function onRequestClose() {
-            TreeLandHelper.closeSurface(waylandSurface.surface);
+            Helper.closeSurface(waylandSurface.surface);
         }
     }
 
     onMappedChanged: {
-        console.log("onMappedChanged!", TreeLandHelper.clientName(waylandSurface.surface))
+        console.log("onMappedChanged!", Helper.clientName(waylandSurface.surface))
 
         // When Socket is enabled and mapped becomes false, set visible
         // after closeAnimation complete， Otherwise set visible directly.
@@ -205,10 +205,10 @@ Item {
                 surface.visible = true;
 
                 if (surface.effectiveVisible)
-                    TreeLandHelper.activatedSurface = waylandSurface
+                    Helper.activatedSurface = waylandSurface
             }
 
-            let clientName = TreeLandHelper.clientName(waylandSurface.surface)
+            let clientName = Helper.clientName(waylandSurface.surface)
             if (clientName !== "dde-desktop" && clientName !== "dde-launchpad") {
                 switcherModel.append({ source: surface });
                 dockPreviewModel.append({ surface: surface, source: waylandSurface.surface });
@@ -275,7 +275,7 @@ Item {
         if (!waylandSurface.isMinimized)
             return
 
-        TreeLandHelper.activatedSurface = waylandSurface
+        Helper.activatedSurface = waylandSurface
 
         surface.visible = true;
 
@@ -305,7 +305,7 @@ Item {
             if (!surface.effectiveVisible)
                 return
 
-            TreeLandHelper.startMove(waylandSurface, surface, seat, serial)
+            Helper.startMove(waylandSurface, surface, seat, serial)
         }
 
         function onRequestResize(seat, edges, serial) {
@@ -315,7 +315,7 @@ Item {
             if (!surface.effectiveVisible)
                 return
 
-            TreeLandHelper.startResize(waylandSurface, surface, seat, edges, serial)
+            Helper.startResize(waylandSurface, surface, seat, edges, serial)
         }
 
         function rectMarginsRemoved(rect, left, top, right, bottom) {
@@ -364,8 +364,8 @@ Item {
                 return
 
             surface.focus = false;
-            if (TreeLandHelper.activatedSurface === surface)
-                TreeLandHelper.activatedSurface = null;
+            if (Helper.activatedSurface === surface)
+                Helper.activatedSurface = null;
 
             surface.visible = false;
             waylandSurface.setMinimize(true)

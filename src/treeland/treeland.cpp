@@ -5,7 +5,7 @@
 #include "MessageHandler.h"
 #include "Messages.h"
 #include "SocketWriter.h"
-#include "treelandhelper.h"
+#include "helper.h"
 #include "waylandsocketproxy.h"
 #include "SignalHandler.h"
 
@@ -62,17 +62,17 @@ TreeLand::TreeLand(TreeLandAppContext context)
 
     if (!context.socket.isEmpty()) {
 #if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
-        TreeLandHelper *helper = m_engine->singletonInstance<TreeLandHelper*>("TreeLand.Utils", "TreeLandHelper");
+        Helper *helper = m_engine->singletonInstance<Helper*>("TreeLand.Utils", "Helper");
 #else
-        auto helperTypeId = qmlTypeId("TreeLand.Utils", 1, 0, "TreeLandHelper");
-        TreeLandHelper *helper = m_engine->singletonInstance<TreeLandHelper*>(helperTypeId);
+        auto helperTypeId = qmlTypeId("TreeLand.Utils", 1, 0, "Helper");
+        Helper *helper = m_engine->singletonInstance<Helper*>(helperTypeId);
 #endif
         Q_ASSERT(helper);
         auto connectToServer = [this, context] {
             m_socket->connectToServer(context.socket);
         };
 
-        connect(helper, &TreeLandHelper::socketFileChanged, this, connectToServer);
+        connect(helper, &Helper::socketFileChanged, this, connectToServer);
 
         if (!helper->socketFile().isEmpty()) {
             connectToServer();
@@ -123,10 +123,10 @@ void TreeLand::connected() {
     qDebug() << "Connected to the daemon.";
 
 #if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
-    TreeLandHelper *helper = m_engine->singletonInstance<TreeLandHelper*>("TreeLand.Utils", "TreeLandHelper");
+    Helper *helper = m_engine->singletonInstance<Helper*>("TreeLand.Utils", "Helper");
 #else
-    auto helperTypeId = qmlTypeId("TreeLand.Utils", 1, 0, "TreeLandHelper");
-    TreeLandHelper *helper = m_engine->singletonInstance<TreeLandHelper*>(helperTypeId);
+    auto helperTypeId = qmlTypeId("TreeLand.Utils", 1, 0, "Helper");
+    Helper *helper = m_engine->singletonInstance<Helper*>(helperTypeId);
 #endif
     Q_ASSERT(helper);
 
