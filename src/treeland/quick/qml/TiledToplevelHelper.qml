@@ -54,7 +54,7 @@ Item {
             return
 
         if (mapped && surface.effectiveVisible)
-            TreeLandHelper.activatedSurface = waylandSurface
+            Helper.activatedSurface = waylandSurface
 
         // When Socket is enabled and mapped becomes false, set visible
         // after hideAnimation complete， Otherwise set visible directly.

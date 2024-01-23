@@ -52,13 +52,13 @@ Item {
             if (waylandSurface.surface) {
                 waylandSurface.surface.enterOutput(output)
             }
-            TreeLandHelper.onSurfaceEnterOutput(waylandSurface, surfaceItem, output)
-            TreeLandHelper.registerExclusiveZone(waylandSurface)
+            Helper.onSurfaceEnterOutput(waylandSurface, surfaceItem, output)
+            Helper.registerExclusiveZone(waylandSurface)
         }
         onLeaveOutput: function(output) {
-            TreeLandHelper.unregisterExclusiveZone(waylandSurface)
+            Helper.unregisterExclusiveZone(waylandSurface)
             waylandSurface.surface.leaveOutput(output)
-            TreeLandHelper.onSurfaceLeaveOutput(waylandSurface, surfaceItem, output)
+            Helper.onSurfaceLeaveOutput(waylandSurface, surfaceItem, output)
         }
     }
 
@@ -81,13 +81,13 @@ Item {
         // When Socket is enabled and mapped becomes false, set visible
         // after closeAnimation complete， Otherwise set visible directly.
         if (mapped) {
-            TreeLandHelper.registerExclusiveZone(waylandSurface)
+            Helper.registerExclusiveZone(waylandSurface)
             refreshMargin()
             visible = true
             if (surfaceItem.effectiveVisible)
-                TreeLandHelper.activatedSurface = waylandSurface
+                Helper.activatedSurface = waylandSurface
         } else { // if not mapped
-            TreeLandHelper.unregisterExclusiveZone(waylandSurface)
+            Helper.unregisterExclusiveZone(waylandSurface)
             if (!waylandSurface.WaylandSocket.rootSocket.enabled) {
                 visible = false
             } else {
@@ -175,13 +175,13 @@ Item {
     }
 
     function refreshExclusiveZone() {
-        TreeLandHelper.unregisterExclusiveZone(waylandSurface)
-        TreeLandHelper.registerExclusiveZone(waylandSurface)
+        Helper.unregisterExclusiveZone(waylandSurface)
+        Helper.registerExclusiveZone(waylandSurface)
     }
 
     function refreshMargin() {
         var accpectExclusive = waylandSurface.exclusiveZone >= 0 ? 1 : 0;
-        var exclusiveMargin = TreeLandHelper.getExclusiveMargins(waylandSurface)
+        var exclusiveMargin = Helper.getExclusiveMargins(waylandSurface)
 
         var topMargin = waylandSurface.topMargin + accpectExclusive * exclusiveMargin.top;
         var bottomMargin = waylandSurface.bottomMargin + accpectExclusive * exclusiveMargin.bottom;
@@ -236,8 +236,8 @@ Item {
         }
 
         function onExclusiveZoneChanged() {
-            TreeLandHelper.unregisterExclusiveZone(waylandSurface)
-            TreeLandHelper.registerExclusiveZone(waylandSurface)
+            Helper.unregisterExclusiveZone(waylandSurface)
+            Helper.registerExclusiveZone(waylandSurface)
         }
 
         function onTopMarginChanged() {
@@ -270,7 +270,7 @@ Item {
     }
 
     Connections {
-        target: TreeLandHelper
+        target: Helper
 
         function onTopExclusiveMarginChanged() {
             refreshMargin()

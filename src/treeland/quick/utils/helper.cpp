@@ -12,6 +12,7 @@
 #include <qwdisplay.h>
 #include <qwoutput.h>
 #include <qwcompositor.h>
+#include <qwxdgshell.h>
 
 #include <QGuiApplication>
 #include <QQmlApplicationEngine>
@@ -24,6 +25,7 @@
 #include <QLoggingCategory>
 #include <QFile>
 #include <QRegularExpression>
+#include <QAction>
 
 extern "C" {
 #define static
@@ -316,6 +318,90 @@ void Helper::allowNonDrmOutputAutoChangeMode(WOutput *output)
 bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *watched, QInputEvent *event)
 {
     if (event->type() == QEvent::KeyPress) {
+        if (!m_actions.empty() && !m_currentUser.isEmpty()) {
+            auto e = static_cast<QKeyEvent*>(event);
+            QKeySequence sequence(e->modifiers() | e->key());
+            bool isFind = false;
+            for (QAction *action : m_actions[m_currentUser]) {
+                if (action->shortcut() == sequence) {
+                    isFind = true;
+                    action->activate(QAction::Trigger);
+                }
+            }
+
+            if (isFind) {
+                return true;
+            }
+        }
+    }
+
+    // Alt+Tab switcher
+    // TODO: move to mid handle
+    auto e = static_cast<QKeyEvent*>(event);
+    static bool isSwitcher = false;
+
+    switch (e->key()) {
+        case Qt::Key_Alt: {
+          if (isSwitcher && event->type() == QKeyEvent::KeyRelease) {
+                m_switcherCurrentMode = Switcher::Hide;
+                isSwitcher = false;
+                Q_EMIT switcherChanged(m_switcherCurrentMode);
+                return false;
+          }
+        }
+        break;
+        case Qt::Key_Tab: {
+            if (event->type() == QEvent::KeyPress) {
+                if (e->modifiers().testFlag(Qt::AltModifier)) {
+                    if (e->modifiers() == Qt::AltModifier) {
+                        if (m_switcherCurrentMode == Switcher::Hide) {
+                            m_switcherCurrentMode = Switcher::Show;
+                        }
+                        else {
+                            m_switcherCurrentMode = Switcher::Next;
+                        }
+                        isSwitcher = true;
+                    }
+                    else if (e->modifiers() == (Qt::AltModifier | Qt::ShiftModifier)) {
+                        if (m_switcherCurrentMode == Switcher::Hide) {
+                            m_switcherCurrentMode = Switcher::Show;
+                        }
+                        else {
+                            m_switcherCurrentMode = Switcher::Previous;
+                        }
+                        isSwitcher = true;
+                    }
+
+                    if (isSwitcher) {
+                        Q_EMIT switcherChanged(m_switcherCurrentMode);
+                        return true;
+                    }
+                }
+            }
+        }
+        break;
+        case Qt::Key_BracketLeft:
+        case Qt::Key_Delete: {
+            if (e->modifiers() == Qt::MetaModifier) {
+                Q_EMIT backToNormal();
+                Q_EMIT reboot();
+                return true;
+            }
+        }
+        break;
+        case Qt::Key_L: {
+            if (e->modifiers() == Qt::MetaModifier) {
+                Q_EMIT greeterVisibleChanged();
+                return true;
+            }
+        }
+        break;
+        default: {
+        }
+        break;
+    }
+
+    if (event->type() == QEvent::KeyPress) {
         auto kevent = static_cast<QKeyEvent*>(event);
         if (QKeySequence(kevent->keyCombination()) == QKeySequence::Quit) {
             qApp->quit();
@@ -481,4 +567,72 @@ OutputInfo* Helper::getOutputInfo(WOutput *output)
     auto infoPtr = new OutputInfo;
     m_outputExclusiveZoneInfo.append(std::make_pair(output, infoPtr));
     return infoPtr;
+}
+
+void Helper::setCurrentUser(const QString &currentUser)
+{
+    m_currentUser = currentUser;
+}
+
+QString Helper::socketFile() const
+{
+    return m_socketFile;
+}
+
+void Helper::setSocketFile(const QString &socketFile)
+{
+    m_socketFile = socketFile;
+
+    emit socketFileChanged();
+}
+
+QString Helper::clientName(Waylib::Server::WSurface *surface) const
+{
+    wl_client *client = surface->handle()->handle()->resource->client;
+    pid_t pid;
+    uid_t uid;
+    gid_t gid;
+    wl_client_get_credentials(client, &pid, &uid, &gid);
+
+    QString programName;
+    QFile file(QString("/proc/%1/status").arg(pid));
+    if (file.open(QFile::ReadOnly)) {
+        programName = QString(file.readLine()).section(QRegularExpression("([\\t ]*:[\\t ]*|\\n)"),1,1);
+    }
+
+    qDebug() << "Program name for PID" << pid << "is" << programName;
+    return programName;
+}
+
+void Helper::closeSurface(Waylib::Server::WSurface *surface)
+{
+    if (auto s = Waylib::Server::WXdgSurface::fromSurface(surface)) {
+        if (!s->isPopup()) {
+            s->handle()->topToplevel()->sendClose();
+        }
+    }
+}
+
+bool Helper::addAction(const QString &user, QAction *action)
+{
+    if (!m_actions.count(user)) {
+        m_actions[user] = {};
+    }
+
+    auto find = std::ranges::find_if(m_actions[user], [action](QAction *a) { return a->shortcut() == action->shortcut(); });
+
+    if (find == m_actions[user].end()) {
+        m_actions[user].push_back(action);
+    }
+
+    return find == m_actions[user].end();
+}
+
+void Helper::removeAction(const QString &user, QAction *action)
+{
+    if (!m_actions.count(user)) {
+        return;
+    }
+
+    std::erase_if(m_actions[user], [action](QAction *a) { return a == action ;});
 }

@@ -5,7 +5,7 @@
 
 #include "personalization-server-protocol.h"
 #include "personalization_manager_impl.h"
-#include "treelandhelper.h"
+#include "helper.h"
 
 #include <qtmetamacros.h>
 #include <wxdgsurface.h>
