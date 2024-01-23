@@ -321,15 +321,16 @@ Item {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
 
-                StackWorkspace {
+                Loader {
                     id: stackLayout
-                    visible: true
                     anchors.fill: parent
+                    sourceComponent: StackWorkspace { }
                 }
 
-                TiledWorkspace {
-                    visible: !stackLayout.visible
+                Loader {
+                    active: !stackLayout.active
                     anchors.fill: parent
+                    sourceComponent: TiledWorkspace { }
                 }
             }
         }
