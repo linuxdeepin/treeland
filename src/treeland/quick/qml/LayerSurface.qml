@@ -115,7 +115,7 @@ Item {
         mapped = false
 
         if (!showCloseAnimation) {
-            creator.destroyObject(surface)
+            creator.destroyObject(root)
         }
     }
 
