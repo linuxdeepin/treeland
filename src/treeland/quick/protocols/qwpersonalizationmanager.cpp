@@ -107,11 +107,6 @@ QuickPersonalizationManager::QuickPersonalizationManager(QObject *parent)
     }
 
     PERSONALIZATION_MANAGER = this;
-
-#ifndef NDEBUG
-#include <unistd.h>
-    setCurrentUserId(getuid());
-#endif
 }
 
 void QuickPersonalizationManager::create() {

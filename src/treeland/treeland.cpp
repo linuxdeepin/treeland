@@ -33,6 +33,8 @@
 #include <QQmlApplicationEngine>
 #include <QQuickStyle>
 
+#include <pwd.h>
+
 Q_IMPORT_PLUGIN(TreeLand_ProtocolsPlugin)
 Q_IMPORT_PLUGIN(TreeLand_UtilsPlugin)
 
@@ -148,6 +150,11 @@ void TreeLand::setSocketProxy(WaylandSocketProxy *socketProxy)
     m_socketProxy = socketProxy;
 }
 
+void TreeLand::setPersonalManager(QuickPersonalizationManager *manager)
+{
+    m_personalManager = manager;
+}
+
 void TreeLand::retranslate() noexcept {
     m_engine->retranslate();
 }
@@ -193,6 +200,9 @@ void TreeLand::readyRead() {
                 input >> user;
 
                 m_socketProxy->activateUser(user);
+
+                struct passwd *pwd = getpwnam(user.toUtf8());
+                m_personalManager->setCurrentUserId(pwd->pw_uid);
             }
             break;
             case DaemonMessages::SwitchToGreeter: {
