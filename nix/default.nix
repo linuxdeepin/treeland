@@ -1,7 +1,6 @@
 { stdenv
 , lib
 , nix-filter
-, fetchFromGitHub
 , cmake
 , extra-cmake-modules
 , pkg-config
@@ -12,6 +11,7 @@
 , qtquick3d
 , qtimageformats
 , qtwayland
+, qtsvg
 , dtkdeclarative
 , dtksystemsettings
 , waylib
@@ -24,7 +24,7 @@
 , nixos-artwork
 }:
 
-stdenv.mkDerivation rec {
+stdenv.mkDerivation (finalAttrs: {
   pname = "treeland";
   version = "0.0.1";
 
@@ -64,6 +64,7 @@ stdenv.mkDerivation rec {
     qtquick3d
     qtimageformats
     qtwayland
+    qtsvg
     dtkdeclarative
     dtksystemsettings
     waylib
@@ -99,11 +100,12 @@ stdenv.mkDerivation rec {
     "-DDBUS_CONFIG_DIR=${placeholder "out"}/share/dbus-1/system.d"
   ];
 
-  meta = with lib; {
+  meta = {
     description = "DDM is a fork of SDDM";
     homepage = "https://github.com/vioken/treeland";
-    license = licenses.gpl3Plus;
-    platforms = platforms.linux;
+    license = with lib.licenses; [ gpl3Only lgpl3Only asl20 ];
+    platforms = lib.platforms.linux;
+    maintainers = with lib.maintainers; [ rewine ];
   };
-}
+})
 
