@@ -2,6 +2,7 @@ pkg_search_module(WLROOTS REQUIRED IMPORTED_TARGET wlroots)
 find_package(Dtk6 REQUIRED COMPONENTS Declarative)
 # qt_finalize_target will collect all executable's private dependencies that are CMake targets
 
+add_subdirectory(dbus)
 add_subdirectory(data)
 add_subdirectory(protocols)
 add_subdirectory(quick)
@@ -24,17 +25,20 @@ qt_add_dbus_interface(DBUS_INTERFACE "${CMAKE_SOURCE_DIR}/data/interfaces/org.fr
 qt_add_dbus_interface(DBUS_INTERFACE "${CMAKE_SOURCE_DIR}/data/interfaces/org.freedesktop.login1.Seat.xml"  "Login1Seat")
 qt_add_dbus_interface(DBUS_INTERFACE "${CMAKE_SOURCE_DIR}/data/interfaces/org.freedesktop.login1.Session.xml"  "Login1Session")
 
+qt_add_dbus_adaptor(DBUS_ADAPTOR "${CMAKE_CURRENT_SOURCE_DIR}/dbus/org.deepin.compositor1.xml" "Treeland.h" TreeLand::TreeLand)
+
 qt_add_executable(treeland override_dtkdeclarative_qml.qrc)
 
 target_sources(treeland PUBLIC
 FILE_SET HEADERS
 FILES
-    treeland.h
+    Treeland.h
 )
 
 target_sources(treeland PRIVATE
-    treeland.cpp
+    Treeland.cpp
     ${DBUS_INTERFACE}
+    ${DBUS_ADAPTOR}
 )
 
 target_link_libraries(treeland

@@ -1,6 +1,9 @@
 find_package(Qt6 REQUIRED COMPONENTS WaylandClient Widgets)
 find_package(PkgConfig)
 pkg_get_variable(WAYLAND_PROTOCOLS wayland-protocols pkgdatadir)
+pkg_check_modules(Systemd REQUIRED IMPORTED_TARGET libsystemd)
+
+qt_add_dbus_interface(DBUS_INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}/../dbus/org.deepin.compositor1.xml" "DBusCompositor1")
 
 qt_add_library(treeland-shell-manager OBJECT)
 
@@ -17,14 +20,31 @@ target_link_libraries(treeland-shell-manager
     Qt::Core
 )
 
+qt_add_executable(treeland-sd
+    sd.cpp
+    ${DBUS_INTERFACE}
+)
+
+qt_add_executable(treeland-shortcut
+    shortcut.h
+    shortcut.cpp
+    shortcutmanager.h
+    shortcutmanager.cpp
+)
+
 qt_add_executable(treeland-fake-session
-    fake-session.h
     fake-session.cpp
     shortcutmanager.h
     shortcutmanager.cpp
 )
 
-target_link_libraries(treeland-fake-session
+target_link_libraries(treeland-sd
+    PRIVATE
+        Qt${QT_MAJOR_VERSION}::DBus
+        PkgConfig::Systemd
+)
+
+target_link_libraries(treeland-shortcut
     PRIVATE
         common
         $<TARGET_OBJECTS:treeland-shell-manager>
@@ -36,6 +56,12 @@ target_link_libraries(treeland-fake-session
         Qt::WaylandClient
         Qt::GuiPrivate
         Qt::WaylandClientPrivate
+        PkgConfig::Systemd
+)
+
+target_link_libraries(treeland-fake-session
+    PRIVATE
+        Qt${QT_MAJOR_VERSION}::DBus
 )
 
 qt_add_executable(treeland-window-bg-test
@@ -54,3 +80,5 @@ target_link_libraries(treeland-window-bg-test
         Qt::WaylandClientPrivate
 )
 install(TARGETS treeland-fake-session RUNTIME DESTINATION "${CMAKE_INSTALL_LIBEXECDIR}")
+install(TARGETS treeland-sd RUNTIME DESTINATION "${CMAKE_INSTALL_LIBEXECDIR}")
+install(TARGETS treeland-shortcut RUNTIME DESTINATION "${CMAKE_INSTALL_LIBEXECDIR}")

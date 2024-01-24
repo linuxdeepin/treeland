@@ -1,0 +1,16 @@
+[Unit]
+Description=start treeland socket
+StartLimitBurst=3
+CollectMode=inactive-or-failed
+
+Wants=treeland-sd.socket
+
+[Service]
+Type=oneshot
+ExecCondition=/bin/sh -c 'test "$XDG_SESSION_TYPE" = "wayland" || exit 2'
+ExecStart=/usr/bin/true
+Slice=session.slice
+Restart=on-failure
+RestartSec=1s
+
+

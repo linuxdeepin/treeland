@@ -179,6 +179,8 @@ OutputItem {
         onscreenViewport.setOutputScale(scale)
     }
 
+    Component.onCompleted: setScale(2)
+
     function invalidate() {
         onscreenViewport.invalidate()
     }
