@@ -22,6 +22,7 @@ set(DDE_SESSION_INITIALIZED_WANTS
     dde-fake-session-initialized.target.wants/fake-dde-am.service
     dde-fake-session-initialized.target.wants/fake-dde-im.service
     dde-fake-session-initialized.target.wants/fake-dde-osd.service
+    dde-fake-session-initialized.target.wants/fake-dde-filemanager-server.service
 )
 
 install(FILES ${DDE_SESSION_PRE_WANTS} DESTINATION lib/systemd/user/)
@@ -32,3 +33,4 @@ install_symlink(fake-dde-polkit-agent.service dde-fake-session-initialized.targe
 install_symlink(fake-dde-am.service dde-fake-session-initialized.target.wants)
 install_symlink(fake-dde-im.service dde-fake-session-initialized.target.wants)
 install_symlink(fake-dde-osd.service dde-fake-session-initialized.target.wants)
+install_symlink(fake-dde-filemanagerserver.service dde-fake-session-initialized.target.wants)
