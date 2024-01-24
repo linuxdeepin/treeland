@@ -44,6 +44,9 @@ Item {
 
         PersonalizationManager {
             id: personalizationManager
+            Component.onCompleted: {
+                TreeLand.personalManager = personalizationManager
+            }
         }
 
         WaylandBackend {
