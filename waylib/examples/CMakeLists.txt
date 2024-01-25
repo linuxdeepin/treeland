@@ -7,3 +7,4 @@ include_directories(PRIVATE
 
 add_subdirectory(tinywl)
 add_subdirectory(blur)
+add_subdirectory(surface-delegate)
