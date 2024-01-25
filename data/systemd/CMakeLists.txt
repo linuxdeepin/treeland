@@ -33,4 +33,4 @@ install_symlink(fake-dde-polkit-agent.service dde-fake-session-initialized.targe
 install_symlink(fake-dde-am.service dde-fake-session-initialized.target.wants)
 install_symlink(fake-dde-im.service dde-fake-session-initialized.target.wants)
 install_symlink(fake-dde-osd.service dde-fake-session-initialized.target.wants)
-install_symlink(fake-dde-filemanagerserver.service dde-fake-session-initialized.target.wants)
+install_symlink(fake-dde-filemanager-server.service dde-fake-session-initialized.target.wants)
