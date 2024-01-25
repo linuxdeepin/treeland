@@ -1,3 +1,9 @@
+treeland (0.2.1) unstable; urgency=medium
+
+  * fix cannot set wallpaper
+
+ -- Dingyuan Zhang <zhangdingyuan@uniontech.com>  Thu, 25 Jan 2024 09:29:40 +0800
+
 treeland (0.2.0) unstable; urgency=medium
 
   * Support dock preview
