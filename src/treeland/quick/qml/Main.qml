@@ -304,6 +304,17 @@ Item {
                             renderWindow.activeOutputDelegate = outputDelegate
                         }
                     }
+
+                    Component.onDestruction: {
+                        if (renderWindow.activeOutputDelegate === outputDelegate) {
+                            for (const output of QmlHelper.layout.outputs) {
+                                if (output.lastActiveCursorItem && output !== outputDelegate) {
+                                    renderWindow.activeOutputDelegate = output
+                                    break
+                                }
+                            }
+                        }
+                    }
                 }
             }
 
