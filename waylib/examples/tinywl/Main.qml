@@ -77,7 +77,7 @@ Item {
             name: "seat0"
             cursor: Cursor {
                 id: cursor1
-
+                themeName: cursorThemeName
                 layout: QmlHelper.layout
             }
 

@@ -495,6 +495,9 @@ int main(int argc, char *argv[]) {
     QGuiApplication app(argc, argv);
 
     QQmlApplicationEngine waylandEngine;
+    QString cursorThemeName = getenv("XCURSOR_THEME");
+    waylandEngine.rootContext()->setContextProperty("cursorThemeName", cursorThemeName);
+
 #if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
     waylandEngine.loadFromModule("Tinywl", "Main");
 #else
