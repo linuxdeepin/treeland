@@ -290,21 +290,24 @@ void UserModel::onUserAdded(quint64 uid)
         return;
     }
 
+    beginResetModel();
     d->users.emplace_back(std::make_unique<User>(std::move(newUser).value()));
     std::sort(d->users.begin(), d->users.end(), [](const UserPtr &u1, const UserPtr &u2) {
         return u1->userName() < u2->userName();
     });
+    endResetModel();
 
     emit countChanged();
 }
 
 void UserModel::onUserDeleted(quint64 uid)
 {
+    beginResetModel();
     d->users.removeIf([uid](const UserPtr &user) { return user->UID() == uid; });
 
-    std::sort(d->users.begin(), d->users.end(), [](const UserPtr &u1, const UserPtr &u2) {
-        return u1->userName() < u2->userName();
-    });
+    std::sort(
+        d->users.begin(), d->users.end(), [](const UserPtr &u1, const UserPtr &u2) { return u1->userName() < u2->userName(); });
+    endResetModel();
 
     emit countChanged();
 }
