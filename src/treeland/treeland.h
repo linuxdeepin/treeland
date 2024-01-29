@@ -16,6 +16,7 @@ namespace TreeLand {
 
 struct TreeLandAppContext {
     QString socket;
+    QString run;
 };
 
 class TreeLand : public QObject {
