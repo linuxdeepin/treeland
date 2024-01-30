@@ -252,6 +252,7 @@ target_compile_definitions(${TARGET}
     PRIVATE
     WLR_USE_UNSTABLE
     LIBWAYLIB_SERVER_LIBRARY
+    QT_NO_SIGNALS_SLOTS_KEYWORDS
 )
 
 set_target_properties(${TARGET}

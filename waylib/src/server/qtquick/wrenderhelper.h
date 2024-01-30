@@ -39,11 +39,15 @@ public:
     static QSGRendererInterface::GraphicsApi getGraphicsApi(QQuickRenderControl *rc);
     static QSGRendererInterface::GraphicsApi getGraphicsApi();
 
-    static QW_NAMESPACE::QWBuffer *toBuffer(QW_NAMESPACE::QWRenderer *renderer, QSGTexture *texture);
+    static QW_NAMESPACE::QWBuffer *toBuffer(QW_NAMESPACE::QWRenderer *renderer, QSGTexture *texture, QSGRendererInterface::GraphicsApi api);
 
     QQuickRenderTarget acquireRenderTarget(QQuickRenderControl *rc, QW_NAMESPACE::QWBuffer *buffer);
     std::pair<QW_NAMESPACE::QWBuffer*, QQuickRenderTarget> lastRenderTarget() const;
     static QW_NAMESPACE::QWRenderer *createRenderer(QW_NAMESPACE::QWBackend *backend);
+    static QW_NAMESPACE::QWRenderer *createRenderer(QW_NAMESPACE::QWBackend *backend, QSGRendererInterface::GraphicsApi api);
+
+    static void setupRendererBackend(QW_NAMESPACE::QWBackend *testBackend = nullptr);
+    static QSGRendererInterface::GraphicsApi probe(QW_NAMESPACE::QWBackend *testBackend, const QList<QSGRendererInterface::GraphicsApi> &apiList);
 
 Q_SIGNALS:
     void sizeChanged();

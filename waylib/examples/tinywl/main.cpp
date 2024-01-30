@@ -7,6 +7,7 @@
 #include <WOutput>
 #include <WSurfaceItem>
 #include <wxdgsurface.h>
+#include <wrenderhelper.h>
 // TODO: Don't use private API
 #include <wquickbackend_p.h>
 
@@ -484,7 +485,7 @@ OutputInfo* Helper::getOutputInfo(WOutput *output)
 }
 
 int main(int argc, char *argv[]) {
-//    QQuickWindow::setGraphicsApi(QSGRendererInterface::Vulkan);
+    WRenderHelper::setupRendererBackend();
 
     WServer::initializeQPA();
 //    QQuickStyle::setStyle("Material");

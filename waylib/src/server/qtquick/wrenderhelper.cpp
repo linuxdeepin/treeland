@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "wrenderhelper.h"
-#include "wbackend.h"
 #include "wtools.h"
 #include "private/wqmlhelper_p.h"
 
@@ -13,6 +12,7 @@
 #include <qwbuffer.h>
 #include <qwtexture.h>
 #include <qwbufferinterface.h>
+#include <qwdisplay.h>
 
 #include <QSGTexture>
 #include <private/qquickrendercontrol_p.h>
@@ -27,7 +27,6 @@ extern "C" {
 #include <wlr/render/wlr_renderer.h>
 #include <wlr/render/gles2.h>
 #undef static
-#include <wlr/render/pixman.h>
 #include <wlr/render/egl.h>
 #include <wlr/render/pixman.h>
 #ifdef ENABLE_VULKAN_RENDER
@@ -37,6 +36,9 @@ extern "C" {
 #include <wlr/backend.h>
 #include <wlr/backend/interface.h>
 #include <wlr/types/wlr_buffer.h>
+#include <wlr/render/drm_format_set.h>
+#include <wlr/render/allocator.h>
+#include <wlr/render/swapchain.h>
 }
 
 #include <drm_fourcc.h>
@@ -406,11 +408,11 @@ void QImageBuffer::endDataPtrAccess()
 
 }
 
-QWBuffer *WRenderHelper::toBuffer(QWRenderer *renderer, QSGTexture *texture)
+QWBuffer *WRenderHelper::toBuffer(QWRenderer *renderer, QSGTexture *texture, QSGRendererInterface::GraphicsApi api)
 {
     const QSize size = texture->textureSize();
 
-    switch (getGraphicsApi()) {
+    switch (api) {
     case QSGRendererInterface::OpenGL: {
         Q_ASSERT(wlr_renderer_is_gles2(renderer->handle()));
         auto egl = wlr_gles2_renderer_get_egl(renderer->handle());
@@ -539,9 +541,13 @@ static QWRenderer *createRendererWithType(const char *type, QWBackend *backend)
 
 QWRenderer *WRenderHelper::createRenderer(QWBackend *backend)
 {
-    QWRenderer *renderer = nullptr;
     auto api = getGraphicsApi();
+    return createRenderer(backend, api);
+}
 
+QWRenderer *WRenderHelper::createRenderer(QWBackend *backend, QSGRendererInterface::GraphicsApi api)
+{
+    QWRenderer *renderer = nullptr;
     switch (api) {
     case QSGRendererInterface::OpenGL:
         renderer = createRendererWithType("gles2", backend);
@@ -565,6 +571,115 @@ QWRenderer *WRenderHelper::createRenderer(QWBackend *backend)
 
     return renderer;
 }
+
+constexpr const char *GraphicsApiName(QSGRendererInterface::GraphicsApi api)
+{
+    switch (api) {
+        using enum QSGRendererInterface::GraphicsApi;
+    case Software:
+        return "Software";
+    case OpenGL:
+        return "OpenGL";
+    case Vulkan:
+        return "Vulkan";
+    default:
+        return "Unknown/Unsupported";
+    }
+}
+
+void WRenderHelper::setupRendererBackend(QWBackend *testBackend)
+{
+    const auto wlrRenderer = qgetenv("WLR_RENDERER");
+
+    if (wlrRenderer == "auto" || wlrRenderer.isEmpty()) {
+        if (qEnvironmentVariableIsSet("QSG_RHI_BACKEND")) {
+            // when environment variable QSG_RHI_BACKEND was set, don't call setGraphicsApi
+            return;
+        }
+
+        QList<QSGRendererInterface::GraphicsApi> apiList = {
+            QSGRendererInterface::OpenGL,
+            QSGRendererInterface::Software
+            // TODO: Add vulkan to list.
+        };
+        std::unique_ptr<QWDisplay> display { nullptr };
+        if (!testBackend) {
+            display.reset(new QWDisplay());
+            testBackend = QWBackend::autoCreate(display.get());
+
+            if (!testBackend)
+                qFatal("Failed to create wlr_backend");
+        }
+        QQuickWindow::setGraphicsApi(WRenderHelper::probe(testBackend, apiList));
+    } else if (wlrRenderer == "gles2") {
+        QQuickWindow::setGraphicsApi(QSGRendererInterface::OpenGL);
+    } else if (wlrRenderer == "vulkan") {
+#ifdef ENABLE_VULKAN_RENDER
+        QQuickWindow::setGraphicsApi(QSGRendererInterface::Vulkan);
+#else
+        qFatal("Vulkan support is not enabled");
+#endif
+    } else if (wlrRenderer == "pixman") {
+        QQuickWindow::setGraphicsApi(QSGRendererInterface::Software);
+    } else {
+        qFatal() << "Unknown/Unsupported wlr renderer: " << wlrRenderer;
+    }
+}
+
+QSGRendererInterface::GraphicsApi WRenderHelper::probe(QWBackend *testBackend, const QList<QSGRendererInterface::GraphicsApi> &apiList)
+{
+    auto acceptApi = QSGRendererInterface::Unknown;
+
+    for (auto api : apiList) {
+        auto renderer = createRenderer(testBackend, api);
+        if (!renderer) {
+            qInfo() << GraphicsApiName(api) << " api failed to create wlr_renderer";
+            continue;
+        }
+
+        const auto *formats = renderer->getDmabufTextureFormats();
+
+        if (formats && formats->len == 0) {
+            qInfo() << GraphicsApiName(api) << " api don't support any format";
+            continue;
+        }
+
+        // TODO: how to test when formats gets NULL
+        if (formats && formats->len) {
+            auto *format = &formats->formats[0];
+
+            auto allocDeleter = [](wlr_allocator *alloc) {
+                wlr_allocator_destroy(alloc);
+            };
+            std::unique_ptr<wlr_allocator, decltype(allocDeleter)> alloc {
+                wlr_allocator_autocreate(testBackend->handle(), renderer->handle())
+                , allocDeleter
+            };
+
+            auto swapchainDeleter = [](wlr_swapchain *swapchain) {
+                wlr_swapchain_destroy(swapchain);
+            };
+            std::unique_ptr<wlr_swapchain, decltype(swapchainDeleter)> swapchain {
+                wlr_swapchain_create(alloc.get(), 1000, 800, format)
+                , swapchainDeleter
+            };
+
+            auto *buffer = wlr_swapchain_acquire(swapchain.get(), nullptr); // destroy follow swapchain
+            std::unique_ptr<QWTexture> texture { QWTexture::fromBuffer(renderer, QWBuffer::from(buffer)) };
+
+            if (!texture) {
+                qInfo() << GraphicsApiName(api) << " api failed to convert buffer to texture";
+                continue;
+            }
+        }
+
+        acceptApi = api;
+        break;
+    }
+
+    return acceptApi;
+}
+
 
 WAYLIB_SERVER_END_NAMESPACE
 
