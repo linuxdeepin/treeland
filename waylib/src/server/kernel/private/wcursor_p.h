@@ -34,6 +34,7 @@ public:
 
     wlr_cursor *nativeHandle() const;
 
+    const char *checkTypeAndFallback(const char *name);
     void setType(const char *name);
     void updateCursorImage();
     void sendEnterEvent();
