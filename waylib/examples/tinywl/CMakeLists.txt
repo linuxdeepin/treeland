@@ -58,7 +58,7 @@ target_link_libraries(tinywl-qtquick
     PRIVATE
     Qt6::Quick
     Qt6::QuickControls2
-    waylibserver
+    Waylib::WaylibServer
     PkgConfig::PIXMAN
 )
 

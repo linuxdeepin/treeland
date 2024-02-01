@@ -36,7 +36,6 @@
           devShells.default = pkgs.mkShell {
             packages = with pkgs; [
               wayland-utils
-              extra-cmake-modules
               qt6.qtwayland
               libinput
             ];

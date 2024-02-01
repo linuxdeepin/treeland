@@ -1,7 +1,6 @@
 { stdenv
 , lib
 , nix-filter
-, fetchFromGitHub
 , cmake
 , pkg-config
 , wayland-scanner
@@ -22,7 +21,7 @@
 , waylib ? null
 }:
 
-stdenv.mkDerivation rec {
+stdenv.mkDerivation (finalAttrs: {
   pname = "waylib";
   version = "0.1.1";
 
@@ -67,7 +66,7 @@ stdenv.mkDerivation rec {
   ];
 
   cmakeFlags = [
-    "-DINSTALL_TINYWL=ON"
+    (lib.cmakeBool "INSTALL_TINYWL" true)
   ];
 
   strictDeps = true;
@@ -78,11 +77,12 @@ stdenv.mkDerivation rec {
     inherit pkgs makeTest waylib;
   };
 
-  meta = with lib; {
+  meta = {
     description = "A wrapper for wlroots based on Qt";
     homepage = "https://github.com/vioken/waylib";
-    license = licenses.gpl3Plus;
-    platforms = platforms.linux;
+    license = with lib.licenses; [ gpl3Only lgpl3Only asl20 ];
+    platforms = lib.platforms.linux;
+    maintainers = with lib.maintainers; [ rewine ];
   };
-}
+})
 
