@@ -26,7 +26,7 @@
 
 stdenv.mkDerivation (finalAttrs: {
   pname = "treeland";
-  version = "0.0.1";
+  version = "0.2.2";
 
   src = nix-filter.filter {
     root = ./..;
@@ -42,11 +42,17 @@ stdenv.mkDerivation (finalAttrs: {
   };
 
   postPatch = ''
-    for file in $(grep -rl "/usr/share/wallpapers/deepin")
+    for file in $(grep -rl "/usr/share/wallpapers/deepin/desktop.jpg")
     do
       substituteInPlace $file \
-        --replace "/usr/share/wallpapers/deepin/desktop.jpg" \
+        --replace-fail "/usr/share/wallpapers/deepin/desktop.jpg" \
                 "${nixos-artwork.wallpapers.simple-blue}/share/backgrounds/nixos/nix-wallpaper-simple-blue.png"
+    done
+    
+    for file in $(grep -rl "/usr/bin")
+    do
+      substituteInPlace $file \
+        --replace-fail "/usr/bin" "/run/current-system/sw/bin"
     done
   '';
 
@@ -99,6 +105,8 @@ stdenv.mkDerivation (finalAttrs: {
     "-DSYSTEMD_TMPFILES_DIR=${placeholder "out"}/lib/tmpfiles.d"
     "-DDBUS_CONFIG_DIR=${placeholder "out"}/share/dbus-1/system.d"
   ];
+
+  passthru.providedSessions = [ "treeland" ];
 
   meta = {
     description = "DDM is a fork of SDDM";
