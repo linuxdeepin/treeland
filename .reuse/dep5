@@ -3,7 +3,7 @@ Upstream-Name: treeland
 Source: https://github.com/vioken/treeland
 
 # ci
-Files: .github/* .obs/*.yml
+Files: .github/* .obs/*.yml garnix.yaml
 Copyright: None
 License: CC0-1.0
 
