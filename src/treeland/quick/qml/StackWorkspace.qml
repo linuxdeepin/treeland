@@ -454,10 +454,18 @@ Item {
         id: switcher
         z: 100 + 1
         anchors.fill: parent
-        visible: false
+        visible: dbgswtchr.checked
         onSurfaceActivated: (surface) => {
             surface.cancelMinimize()
             Helper.activatedSurface = surface.waylandSurface
+        }
+    }
+
+    Switch {
+        id: dbgswtchr
+        anchors {
+            bottom: parent.bottom
+            left: parent.left
         }
     }
 
