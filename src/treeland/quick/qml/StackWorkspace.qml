@@ -59,12 +59,16 @@ Item {
         return null
     }
 
+    required property OutputDelegate activeOutputDelegate
+    readonly property real switcherHideOpacity: 0.3
+
     DynamicCreatorComponent {
         id: toplevelComponent
         creator: QmlHelper.xdgSurfaceManager
         chooserRole: "type"
         chooserRoleValue: "toplevel"
         autoDestroy: false
+
 
         onObjectRemoved: function (obj) {
             obj.doDestroy()
@@ -89,6 +93,7 @@ Item {
                     return 0
                 }
             }
+            opacity: switcher.visible?switcherHideOpacity:1
 
             topPadding: decoration.enable ? decoration.topMargin : 0
             bottomPadding: decoration.enable ? decoration.bottomMargin : 0
@@ -327,6 +332,7 @@ Item {
                         ? XWaylandSurfaceItem.PositionToSurface
                         : XWaylandSurfaceItem.PositionFromSurface
             }
+            opacity: switcher.visible?switcherHideOpacity:1
 
             topPadding: decoration.enable ? decoration.topMargin : 0
             bottomPadding: decoration.enable ? decoration.bottomMargin : 0
@@ -452,8 +458,9 @@ Item {
     WindowsSwitcher {
         id: switcher
         z: 100 + 1
-        anchors.fill: parent
+        anchors.fill: activeOutputBox
         visible: false // dbgswtchr.checked
+        activeOutput: activeOutputDelegate
         onSurfaceActivated: (surface) => {
             surface.cancelMinimize()
             Helper.activatedSurface = surface.waylandSurface
