@@ -10,12 +10,13 @@ Item {
     id: root
     property alias model: model
     property var current: 0
+    required property OutputDelegate activeOutput
 
     signal surfaceActivated(surface: XdgSurface)
 
     onVisibleChanged: {
         if (visible) {
-            calcLayout()
+            indicator.calcLayout()
             next()
         }
         else {
@@ -81,147 +82,162 @@ Item {
                 }
             }
         }
-        // onCountChanged: calcLayout()
+        onCountChanged: if(visible)indicator.calcLayout()
     }
-    // Component.onCompleted: calcLayout()
+
     property int spacing: 10
     property var rows: []
     property int rowHeight: 0
     property int padding: 8
     onRowsChanged: console.log('rows', rows.length, rowHeight)
-    ColumnLayout {
-        id: eqhgrid // equal height grid
-        anchors.centerIn: parent
-        Repeater {
-            model: rows
-            RowLayout {
-                width: eqhgrid.width
-                Layout.alignment: Qt.AlignHCenter
-                property int baseIdx: {
-                    var idx = 0
-                    for (var i = 0; i < index; i++)
-                        idx += rows[i].length
-                    return idx
-                }
-                Repeater {
-                    model: modelData
-                    Rectangle {
-                        property XdgSurface source: modelData.source
-                        width: source.width / source.height * rowHeight + 2 * root.padding
-                        height: col.height + 2 * root.padding
-                        property int globalIdx: index + parent.baseIdx
-                        Component.onCompleted: console.log('item', modelData,
-                                                           index, globalIdx)
-                        border.color: "blue"
-                        border.width: globalIdx == root.current ? 2 : 0
-                        radius: 8
-                        Column {
-                            anchors {
-                                left: parent.left
-                                right: parent.right
-                                top: parent.top
-                                margins: root.padding
-                            }
-                            id: col
-                            RowLayout {
-                                width: parent.width
-                                Rectangle {
-                                    height: width
-                                    width: 24
-                                    color: "yellow"
+
+    Item {
+        id: indicator
+        
+        // currently use binding, so indicator follows mouse/active output
+        x: {
+            const coord=parent.mapFromItem(activeOutput,0,0)
+            console.log('coord',coord,width,height)
+            return coord.x
+        }
+        y: {
+            const coord=parent.mapFromItem(activeOutput,0,0)
+            return coord.y
+        }
+        width: activeOutput?.width
+        height: activeOutput?.height
+        Component.onCompleted: console.log('box hw',activeOutput,width,height)
+
+        ColumnLayout {
+            id: eqhgrid // equal height grid
+            anchors.centerIn: parent
+            Component.onCompleted: console.log('eqhgrid',mapToGlobal(0,0),width,height,rows)
+            Repeater {
+                model: rows
+                RowLayout {
+                    width: eqhgrid.width
+                    Layout.alignment: Qt.AlignHCenter
+                    property int baseIdx: {
+                        var idx = 0
+                        for (var i = 0; i < index; i++)
+                            idx += rows[i].length
+                        return idx
+                    }
+                    Repeater {
+                        model: modelData
+                        Rectangle {
+                            property XdgSurface source: modelData.source
+                            width: modelData.dw + 2 * padding
+                            height: col.height + 2 * padding
+                            property int globalIdx: index + parent.baseIdx
+                            Component.onCompleted: console.log('item', modelData,
+                                                            index, globalIdx,height,width)
+                            border.color: "blue"
+                            border.width: globalIdx == root.current ? 2 : 0
+                            radius: 8
+                            Column {
+                                anchors {
+                                    left: parent.left
+                                    right: parent.right
+                                    top: parent.top
+                                    margins: padding
                                 }
-                                Text {
-                                    Layout.fillWidth: true
-                                    text: "test title ttttttttttttttttttttttt"
-                                    elide: Qt.ElideRight
+                                id: col
+                                RowLayout {
+                                    width: parent.width
+                                    Rectangle {
+                                        height: width
+                                        width: 24
+                                        color: "yellow"
+                                    }
+                                    Text {
+                                        Layout.fillWidth: true
+                                        text: "test title ttttttttttttttttttttttt"
+                                        elide: Qt.ElideRight
+                                    }
                                 }
-                            }
-                            Item {
-                                id: thumb
-                                width: parent.width
-                                height: source.height * width / source.width
-                                clip: true
-                                visible: true
-                                ShaderEffectSource {
-                                    anchors.centerIn: parent
+                                Item {
+                                    id: thumb
                                     width: parent.width
                                     height: source.height * width / source.width
-                                    live: true
-                                    hideSource: visible
-                                    smooth: true
-                                    sourceItem: source
+                                    clip: true
+                                    visible: true
+                                    ShaderEffectSource {
+                                        anchors.centerIn: parent
+                                        width: parent.width
+                                        height: source.height * width / source.width
+                                        live: true
+                                        hideSource: false
+                                        smooth: true
+                                        sourceItem: source
+                                    }
+                                    Component.onCompleted: console.log('thumb',source)
                                 }
-                                Component.onCompleted: console.log('thumb',source)
                             }
                         }
                     }
                 }
             }
         }
-    }
 
-    function calcLayout() {
-        console.warn('calcLayout')
-        var minH = 100, maxH = 200
-        function tryLayout(rowH, div) {
-            var nrows = 1
-            var acc = 0
-            var rowstmp = []
-            var currow = []
-            for (var i = 0; i < model.count; i++) {
-                var win = model.get(i)
-                console.log('win',i,'=',win,win.source,win.source.width)
-                var ratio = win.source.width / win.source.height
-                acc += ratio
-                if (acc * rowH <= root.width)
-                    currow.push(win)
-                else {
-                    acc = ratio
-                    nrows++
-                    console.log('cur', currow, 'tmp', rowstmp)
-                    rowstmp.push(currow)
-                    currow = [win]
-                    if (nrows > div)
-                        break
+        function calcLayout() {
+            var minH = 100, maxH = 200, maxW = indicator.width * maxH / indicator.height, totMaxWidth = indicator.width * 0.7
+            function tryLayout(rowH, div) {
+                var nrows = 1
+                var acc = 0
+                var rowstmp = []
+                var currow = []
+                for (var i = 0; i < model.count; i++) {
+                    var win = model.get(i)
+                    var ratio = win.source.width / win.source.height
+                    var curW = Math.min(maxW, ratio * rowH)
+                    console.log('curW', curW)
+                    var wwin = {
+                        "dw": curW
+                    }
+                    Object.assign(wwin, win)
+                    acc += curW
+                    if (acc <= totMaxWidth)
+                        currow.push(wwin)
+                    else {
+                        acc = curW
+                        nrows++
+                        console.log('cur', currow, 'tmp', rowstmp)
+                        rowstmp.push(currow)
+                        currow = [wwin]
+                        if (nrows > div)
+                            break
+                    }
+                    console.info(acc)
                 }
-                console.info(acc)
+                if (nrows <= div) {
+                    if (currow.length)
+                        rowstmp.push(currow)
+                    rowHeight = rowH
+                    rows = rowstmp
+                    console.log('calcover', nrows, rowH,rows)
+                    return true
+                }
+                return false
             }
-            if (nrows <= div) {
-                if (currow.length)
-                    rowstmp.push(currow)
-                rowHeight = rowH
-                rows = rowstmp
-                console.log('calcover', nrows, rowH)
-                return true
+
+            for (var div = 1; indicator.height / div >= minH; div++) {
+                // return if width satisfies
+                console.log('div=', div)
+                var rowH = Math.min(indicator.height / div, maxH)
+                if (tryLayout(rowH, div))
+                    return
             }
-            return false
+            tryLayout(minH, 999)
+            console.warn('cannot layout')
         }
 
-        for (var div = 1; root.height / div >= minH; div++) {
-            // return if width satisfies
-            console.log('div=', div)
-            var rowH = Math.min(root.height / div, maxH)
-            if (tryLayout(rowH, div))
-                return
+        Rectangle {
+            width: eqhgrid.width
+            height: eqhgrid.height
+            anchors.centerIn: parent
+            radius: 10
+            opacity: 0.4
         }
-        tryLayout(minH, 999)
-        console.warn('cannot layout')
     }
-
-    Rectangle {
-        width: eqhgrid.width
-        height: eqhgrid.height
-        anchors.centerIn: parent
-        radius: 10
-        opacity: 0.4
-    }
-
-    // Row {
-    //     anchors.centerIn: parent
-    //     id: switcher
-    //     Repeater {
-    //         model: model
-    //         
-    //     }
-    // }
 }
