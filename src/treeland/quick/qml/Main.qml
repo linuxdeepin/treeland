@@ -338,7 +338,9 @@ Item {
                 Loader {
                     id: stackLayout
                     anchors.fill: parent
-                    sourceComponent: StackWorkspace { }
+                    sourceComponent: StackWorkspace {
+                        outputRenderWindow: renderWindow
+                    }
                 }
 
                 Loader {
