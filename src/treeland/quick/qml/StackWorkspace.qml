@@ -61,7 +61,12 @@ Item {
 
     required property OutputRenderWindow outputRenderWindow
     readonly property real switcherHideOpacity: 0.3
-
+    Item {
+        // TODO: some surfaces like layersurface should not be opacity 
+        id: allWins
+        anchors.fill: parent
+        enabled: !switcher.visible
+        opacity: switcher.visible?switcherHideOpacity:1
     DynamicCreatorComponent {
         id: toplevelComponent
         creator: QmlHelper.xdgSurfaceManager
@@ -93,7 +98,7 @@ Item {
                     return 0
                 }
             }
-            opacity: switcher.visible?switcherHideOpacity:1
+            // opacity: switcher.visible&&!activeFocus?switcherHideOpacity:1
 
             topPadding: decoration.enable ? decoration.topMargin : 0
             bottomPadding: decoration.enable ? decoration.bottomMargin : 0
@@ -333,7 +338,7 @@ Item {
                         ? XWaylandSurfaceItem.PositionToSurface
                         : XWaylandSurfaceItem.PositionFromSurface
             }
-            opacity: switcher.visible?switcherHideOpacity:1
+            // opacity: switcher.visible&&!activeFocus?switcherHideOpacity:1
 
             topPadding: decoration.enable ? decoration.topMargin : 0
             bottomPadding: decoration.enable ? decoration.bottomMargin : 0
@@ -455,13 +460,15 @@ Item {
             helper: inputMethodHelper
         }
     }
+    }
 
     WindowsSwitcher {
         id: switcher
         z: 100 + 1
-        anchors.fill: activeOutputBox
+        anchors.fill: parent
         visible: dbgswtchr.checked
         activeOutput: outputRenderWindow.activeOutputDelegate
+        // allWins: allWins
         onSurfaceActivated: (surface) => {
             surface.cancelMinimize()
             Helper.activatedSurface = surface.waylandSurface
