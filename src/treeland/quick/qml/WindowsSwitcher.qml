@@ -17,6 +17,7 @@ Item {
 
     onVisibleChanged: {
         if (visible) {
+            current = 0
             indicatorPlane.calcLayout()
             next()
             // console.log('liveview',allWins,allWins.width,allWins.height,workspaceLiveView.width,workspaceLiveView.height,workspaceLiveView.z)
@@ -56,6 +57,11 @@ Item {
     function stop() {
         if (context.item) {
             context.item.stop()
+        }
+        // adjust win stack
+        if (current != 0) {
+            // console.log('adjust',current,'to first')
+            model.move(current,0,1)
         }
     }
     
