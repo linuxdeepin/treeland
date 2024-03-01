@@ -66,14 +66,13 @@ Item {
         id: allWins
         anchors.fill: parent
         enabled: !switcher.visible
-        opacity: switcher.visible?switcherHideOpacity:1
+        opacity: switcher.visible ? switcherHideOpacity : 1
         DynamicCreatorComponent {
             id: toplevelComponent
             creator: QmlHelper.xdgSurfaceManager
             chooserRole: "type"
             chooserRoleValue: "toplevel"
             autoDestroy: false
-
 
             onObjectRemoved: function (obj) {
                 obj.doDestroy()
