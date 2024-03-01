@@ -11,6 +11,7 @@ Item {
     property alias model: model
     property var current: 0
     required property OutputDelegate activeOutput
+    // required property var allWins
 
     signal surfaceActivated(surface: XdgSurface)
 
@@ -18,6 +19,7 @@ Item {
         if (visible) {
             indicator.calcLayout()
             next()
+            // console.log('liveview',allWins,allWins.width,allWins.height,workspaceLiveView.width,workspaceLiveView.height,workspaceLiveView.z)
         }
         else {
             stop()
@@ -60,6 +62,20 @@ Item {
             context.item.stop()
         }
     }
+
+    // invisible impl, makes cursor style also not changed
+    // ShaderEffectSource {
+    //     id: workspaceLiveView
+    //     anchors{
+    //         fill: parent
+    //         margins: 50
+    //     }
+    //     live: true
+    //     hideSource: false
+    //     smooth: true
+    //     sourceItem: allWins
+    //     // opacity: .3
+    // }
 
     Loader {
         id: context
