@@ -123,71 +123,102 @@ Item {
         width: activeOutput?.width
         height: activeOutput?.height
         Component.onCompleted: console.log('box hw',activeOutput,width,height)
-
-        ColumnLayout {
-            id: eqhgrid // equal height grid
+        Flickable {
+            id: flickable
+            width: parent.width * 0.6
+            height: Math.min(eqhgrid.height, parent.height * 0.7)
             anchors.centerIn: parent
-            Component.onCompleted: console.log('eqhgrid',mapToGlobal(0,0),width,height,rows)
-            Repeater {
-                model: rows
-                RowLayout {
-                    width: eqhgrid.width
-                    Layout.alignment: Qt.AlignHCenter
-                    property int baseIdx: {
-                        var idx = 0
-                        for (var i = 0; i < index; i++)
-                            idx += rows[i].length
-                        return idx
-                    }
-                    Repeater {
-                        model: modelData
-                        Rectangle {
-                            property XdgSurface source: modelData.source
-                            width: modelData.dw + 2 * padding
-                            height: col.height + 2 * padding
-                            property int globalIdx: index + parent.baseIdx
-                            Component.onCompleted: console.log('item', modelData,
-                                                            index, globalIdx,height,width)
-                            border.color: "blue"
-                            border.width: globalIdx == root.current ? 2 : 0
-                            radius: 8
-                            Column {
-                                anchors {
-                                    left: parent.left
-                                    right: parent.right
-                                    top: parent.top
-                                    margins: padding
-                                }
-                                id: col
-                                RowLayout {
-                                    width: parent.width
-                                    Rectangle {
-                                        height: width
-                                        width: 24
-                                        color: "yellow"
+            contentHeight: eqhgrid.height
+            boundsBehavior: Flickable.StopAtBounds
+            Behavior on contentY {
+                NumberAnimation {
+                    duration: 200
+                }
+            }
+            clip: true
+
+            ColumnLayout {
+                id: eqhgrid // equal height grid
+                anchors.centerIn: parent
+                Component.onCompleted: console.log('eqhgrid',mapToGlobal(0,0),width,height,rows)
+                Repeater {
+                    model: rows
+                    RowLayout {
+                        width: eqhgrid.width
+                        Layout.alignment: Qt.AlignHCenter
+                        property int baseIdx: {
+                            var idx = 0
+                            for (var i = 0; i < index; i++)
+                                idx += rows[i].length
+                            return idx
+                        }
+                        Repeater {
+                            model: modelData
+                            Rectangle {
+                                property XdgSurface source: modelData.source
+                                property bool highlighted: globalIdx == root.current 
+                                width: modelData.dw + 2 * padding
+                                height: col.height + 2 * padding
+                                property int globalIdx: index + parent.baseIdx
+                                Component.onCompleted: console.log('item', modelData,
+                                                                index, globalIdx,height,width)
+                                border.color: "blue"
+                                border.width: highlighted ? 2 : 0
+                                radius: 8
+                                onHighlightedChanged: {
+                                    // auto scroll to current highlight
+                                    if (highlighted) {
+                                        console.log('highlighted',
+                                                    flickable.contentY,
+                                                    mapToItem(flickable, 0, 0),
+                                                    mapFromItem(flickable, 0, 0))
+                                        flickable.contentY = Math.min(
+                                                    Math.max(
+                                                        mapToItem(
+                                                            eqhgrid, 0,
+                                                            height).y - flickable.height,
+                                                        flickable.contentY),
+                                                    mapToItem(eqhgrid, 0, 0).y)
                                     }
-                                    Text {
-                                        Layout.fillWidth: true
-                                        text: "test title ttttttttttttttttttttttt"
-                                        elide: Qt.ElideRight
-                                    }
                                 }
-                                Item {
-                                    id: thumb
-                                    width: parent.width
-                                    height: source.height * width / source.width
-                                    clip: true
-                                    visible: true
-                                    ShaderEffectSource {
-                                        anchors.centerIn: parent
+                                Column {
+                                    anchors {
+                                        left: parent.left
+                                        right: parent.right
+                                        top: parent.top
+                                        margins: padding
+                                    }
+                                    id: col
+                                    RowLayout {
+                                        width: parent.width
+                                        Rectangle {
+                                            height: width
+                                            width: 24
+                                            color: "yellow"
+                                        }
+                                        Text {
+                                            Layout.fillWidth: true
+                                            text: "test title ttttttttttttttttttttttt"
+                                            elide: Qt.ElideRight
+                                        }
+                                    }
+                                    Item {
+                                        id: thumb
                                         width: parent.width
                                         height: source.height * width / source.width
-                                        live: true
-                                        hideSource: false
-                                        smooth: true
-                                        sourceItem: source
+                                        clip: true
+                                        visible: true
+                                        ShaderEffectSource {
+                                            anchors.centerIn: parent
+                                            width: parent.width
+                                            height: source.height * width / source.width
+                                            live: true
+                                            hideSource: false
+                                            smooth: true
+                                            sourceItem: source
+                                        }
+                                        Component.onCompleted: console.log('thumb',source)
                                     }
-                                    Component.onCompleted: console.log('thumb',source)
                                 }
                             }
                         }
@@ -249,8 +280,8 @@ Item {
         }
 
         Rectangle {
-            width: eqhgrid.width
-            height: eqhgrid.height
+            width: flickable.width
+            height: flickable.height
             anchors.centerIn: parent
             radius: 10
             opacity: 0.4
