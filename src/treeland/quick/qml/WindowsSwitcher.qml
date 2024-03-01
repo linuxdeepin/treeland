@@ -136,6 +136,14 @@ Item {
             }
         }
 
+        Rectangle {
+            width: flickable.width + 2 * padding
+            height: flickable.height + 2 * padding
+            anchors.centerIn: flickable
+            radius: 10
+            opacity: 0.4
+        }
+
         Flickable {
             id: flickable
             width: eqhgrid.width
@@ -177,6 +185,7 @@ Item {
                                                                 index, globalIdx,height,width)
                                 border.color: "blue"
                                 border.width: highlighted ? 2 : 0
+                                color: Qt.rgba(255,255,255,.2)
                                 radius: 8
                                 onHighlightedChanged: {
                                     // auto scroll to current highlight
@@ -195,23 +204,31 @@ Item {
                                     }
                                 }
                                 Column {
+                                    id: col
                                     anchors {
                                         left: parent.left
                                         right: parent.right
                                         top: parent.top
-                                        margins: padding
+                                        margins: root.padding
                                     }
-                                    id: col
+                                    spacing: 5
+
                                     RowLayout {
                                         width: parent.width
                                         Rectangle {
                                             height: width
                                             width: 24
                                             color: "yellow"
+                                            radius: 5
                                         }
                                         Text {
                                             Layout.fillWidth: true
-                                            text: "test title ttttttttttttttttttttttt"
+                                            text: {
+                                                const xdg=source.waylandSurface
+                                                const wholeTitle=xdg.appId?.length?`${xdg.title} - ${xdg.appId}`:xdg.title
+                                                console.log(wholeTitle)
+                                                wholeTitle
+                                            }
                                             elide: Qt.ElideRight
                                         }
                                     }
@@ -296,14 +313,6 @@ Item {
             }
             tryLayout(minH, 999)
             console.warn('cannot layout')
-        }
-
-        Rectangle {
-            width: flickable.width
-            height: flickable.height
-            anchors.centerIn: parent
-            radius: 10
-            opacity: 0.4
         }
     }
 }
