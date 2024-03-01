@@ -17,7 +17,7 @@ Item {
 
     onVisibleChanged: {
         if (visible) {
-            indicator.calcLayout()
+            indicatorPlane.calcLayout()
             next()
             // console.log('liveview',allWins,allWins.width,allWins.height,workspaceLiveView.width,workspaceLiveView.height,workspaceLiveView.z)
         }
@@ -31,16 +31,12 @@ Item {
         if (current < 0) {
             current = 0
         }
-
-        show();
     }
     function next() {
         current = current + 1
         if (current >= model.count) {
             current = 0
         }
-
-        show();
     }
 
     function show() {
@@ -62,6 +58,8 @@ Item {
             context.item.stop()
         }
     }
+    
+    onCurrentChanged: show()
 
     // invisible impl, makes cursor style also not changed
     // ShaderEffectSource {
@@ -98,7 +96,7 @@ Item {
                 }
             }
         }
-        onCountChanged: if(visible)indicator.calcLayout()
+        onCountChanged: if(visible)indicatorPlane.calcLayout()
     }
 
     property int spacing: 10
@@ -108,9 +106,9 @@ Item {
     onRowsChanged: console.log('rows', rows.length, rowHeight)
 
     Item {
-        id: indicator
+        id: indicatorPlane
         
-        // currently use binding, so indicator follows mouse/active output
+        // currently use binding, so indicatorPlane follows mouse/active output
         x: {
             const coord=parent.mapFromItem(activeOutput,0,0)
             console.log('coord',coord,width,height)
@@ -123,9 +121,18 @@ Item {
         width: activeOutput?.width
         height: activeOutput?.height
         Component.onCompleted: console.log('box hw',activeOutput,width,height)
+        
+        MouseArea {
+            anchors.fill: parent
+            onClicked: {
+                console.log('out')
+                root.visible = false
+            }
+        }
+
         Flickable {
             id: flickable
-            width: parent.width * 0.6
+            width: eqhgrid.width
             height: Math.min(eqhgrid.height, parent.height * 0.7)
             anchors.centerIn: parent
             contentHeight: eqhgrid.height
@@ -220,6 +227,12 @@ Item {
                                         Component.onCompleted: console.log('thumb',source)
                                     }
                                 }
+                                TapHandler {
+                                    onTapped: {
+                                        console.log('tapped idx',globalIdx)
+                                        root.current = globalIdx
+                                    }
+                                }
                             }
                         }
                     }
@@ -228,7 +241,7 @@ Item {
         }
 
         function calcLayout() {
-            var minH = 100, maxH = 200, maxW = indicator.width * maxH / indicator.height, totMaxWidth = indicator.width * 0.7
+            var minH = 100, maxH = 200, maxW = indicatorPlane.width * maxH / indicatorPlane.height, totMaxWidth = indicatorPlane.width * 0.7
             function tryLayout(rowH, div) {
                 var nrows = 1
                 var acc = 0
@@ -268,10 +281,10 @@ Item {
                 return false
             }
 
-            for (var div = 1; indicator.height / div >= minH; div++) {
+            for (var div = 1; indicatorPlane.height / div >= minH; div++) {
                 // return if width satisfies
                 console.log('div=', div)
-                var rowH = Math.min(indicator.height / div, maxH)
+                var rowH = Math.min(indicatorPlane.height / div, maxH)
                 if (tryLayout(rowH, div))
                     return
             }
