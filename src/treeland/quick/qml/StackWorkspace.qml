@@ -65,6 +65,7 @@ Item {
         // DONE: some surfaces like layersurface should not be opacity 
         id: allWins
         anchors.fill: parent
+        visible: !multitaskView.visible
         enabled: !switcher.visible
         opacity: switcher.visible ? switcherHideOpacity : 1
         z: 0
@@ -471,6 +472,23 @@ Item {
         onSurfaceActivated: (surface) => {
             surface.cancelMinimize()
             Helper.activatedSurface = surface.waylandSurface
+        }
+    }
+
+    MultitaskView {
+        id: multitaskView
+        visible: dbgswtchr.checked
+        anchors.fill: parent
+        model: switcher.model
+        outputRenderWindow: outputRenderWindow
+        onVisibleChanged: console.log('!!!')
+    }
+
+    Switch {
+        id: dbgswtchr
+        anchors {
+            bottom: parent.bottom
+            left: parent.left
         }
     }
 
