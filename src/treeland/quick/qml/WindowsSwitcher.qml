@@ -20,7 +20,6 @@ Item {
             current = 0
             indicatorPlane.calcLayout()
             next()
-            // console.log('liveview',allWins,allWins.width,allWins.height,workspaceLiveView.width,workspaceLiveView.height,workspaceLiveView.z)
         }
         else {
             stop()
@@ -109,7 +108,6 @@ Item {
     property var rows: []
     property int rowHeight: 0
     property int padding: 8
-    // onRowsChanged: console.log('rows', rows.length, rowHeight)
 
     Item {
         id: indicatorPlane
@@ -117,7 +115,6 @@ Item {
         // currently use binding, so indicatorPlane follows mouse/active output
         x: {
             const coord=parent.mapFromItem(activeOutput,0,0)
-            console.log('coord',coord,width,height)
             return coord.x
         }
         y: {
@@ -126,7 +123,6 @@ Item {
         }
         width: activeOutput?.width
         height: activeOutput?.height
-        // Component.onCompleted: console.log('box hw',activeOutput,width,height)
         
         MouseArea {
             anchors.fill: parent
@@ -158,160 +154,94 @@ Item {
             }
             clip: true
 
-            ColumnLayout {
-                id: eqhgrid // equal height grid
+            EQHGrid {
+                id: eqhgrid
+                model: model
+                minH: 100
+                maxH: 200
+                maxW: indicatorPlane.width * maxH / indicatorPlane.height
+                availW: indicatorPlane.width * .7
+                availH: indicatorPlane.height * .7
                 anchors.centerIn: parent
-                // Component.onCompleted: console.log('eqhgrid',mapToGlobal(0,0),width,height,rows)
-                Repeater {
-                    model: rows
-                    RowLayout {
-                        width: eqhgrid.width
-                        Layout.alignment: Qt.AlignHCenter
-                        property int baseIdx: {
-                            var idx = 0
-                            for (var i = 0; i < index; i++)
-                                idx += rows[i].length
-                            return idx
-                        }
-                        Repeater {
-                            model: modelData
-                            Rectangle {
-                                property XdgSurface source: modelData.source
-                                property bool highlighted: globalIdx == root.current 
-                                width: modelData.dw + 2 * padding
-                                height: col.height + 2 * padding
-                                property int globalIdx: index + parent.baseIdx
-                                Component.onCompleted: console.log('item', modelData,
-                                                                index, globalIdx,height,width)
-                                border.color: "blue"
-                                border.width: highlighted ? 2 : 0
-                                color: Qt.rgba(255,255,255,.2)
-                                radius: 8
-                                onHighlightedChanged: {
-                                    // auto scroll to current highlight
-                                    if (highlighted) {
-                                        console.log('highlighted',
-                                                    flickable.contentY,
-                                                    mapToItem(flickable, 0, 0),
-                                                    mapFromItem(flickable, 0, 0))
-                                        flickable.contentY = Math.min(
-                                                    Math.max(
-                                                        mapToItem(
-                                                            eqhgrid, 0,
-                                                            height).y - flickable.height,
-                                                        flickable.contentY),
-                                                    mapToItem(eqhgrid, 0, 0).y)
-                                    }
-                                }
-                                Column {
-                                    id: col
-                                    anchors {
-                                        left: parent.left
-                                        right: parent.right
-                                        top: parent.top
-                                        margins: root.padding
-                                    }
-                                    spacing: 5
+                delegate: Rectangle {
+                    property XdgSurface source: modelData.source
+                    property bool highlighted: globalIndex == root.current 
 
-                                    RowLayout {
-                                        width: parent.width
-                                        Rectangle {
-                                            height: width
-                                            width: 24
-                                            color: "yellow"
-                                            radius: 5
-                                        }
-                                        Text {
-                                            Layout.fillWidth: true
-                                            text: {
-                                                const xdg = source.waylandSurface
-                                                const wholeTitle = xdg.appId?.length ? `${xdg.title} - ${xdg.appId}` : xdg.title
-                                                wholeTitle
-                                            }
-                                            elide: Qt.ElideRight
-                                        }
-                                    }
-                                    Item {
-                                        id: thumb
-                                        width: parent.width
-                                        height: source.height * width / source.width
-                                        clip: true
-                                        visible: true
-                                        ShaderEffectSource {
-                                            anchors.centerIn: parent
-                                            width: parent.width
-                                            height: source.height * width / source.width
-                                            live: true
-                                            hideSource: false
-                                            smooth: true
-                                            sourceItem: source
-                                        }
-                                        Component.onCompleted: console.log('thumb',source)
-                                    }
-                                }
-                                TapHandler {
-                                    onTapped: {
-                                        console.log('tapped idx',globalIdx)
-                                        root.current = globalIdx
-                                    }
-                                }
+                    width: modelData.dw + 2 * padding
+                    height: col.height + 2 * padding
+                    border.color: "blue"
+                    border.width: highlighted ? 2 : 0
+                    color: Qt.rgba(255,255,255,.2)
+                    radius: 8
+                    
+                    onHighlightedChanged: {
+                        // auto scroll to current highlight
+                        if (highlighted) {
+                            flickable.contentY = Math.min(
+                                        Math.max(
+                                            mapToItem(
+                                                eqhgrid, 0,
+                                                height).y - flickable.height,
+                                            flickable.contentY),
+                                        mapToItem(eqhgrid, 0, 0).y)
+                        }
+                    }
+                    Column {
+                        id: col
+                        anchors {
+                            left: parent.left
+                            right: parent.right
+                            top: parent.top
+                            margins: root.padding
+                        }
+                        spacing: 5
+
+                        RowLayout {
+                            width: parent.width
+                            Rectangle {
+                                height: width
+                                width: 24
+                                color: "yellow"
+                                radius: 5
                             }
+                            Text {
+                                Layout.fillWidth: true
+                                text: {
+                                    const xdg = source.waylandSurface
+                                    const wholeTitle = xdg.appId?.length ? `${xdg.title} - ${xdg.appId}` : xdg.title
+                                    wholeTitle
+                                }
+                                elide: Qt.ElideRight
+                            }
+                        }
+                        Item {
+                            id: thumb
+                            width: parent.width
+                            height: source.height * width / source.width
+                            clip: true
+                            visible: true
+                            ShaderEffectSource {
+                                anchors.centerIn: parent
+                                width: parent.width
+                                height: source.height * width / source.width
+                                live: true
+                                hideSource: false
+                                smooth: true
+                                sourceItem: source
+                            }
+                        }
+                    }
+                    TapHandler {
+                        onTapped: {
+                            // console.log('tapped idx',globalIndex)
+                            root.current = globalIndex
                         }
                     }
                 }
             }
         }
-
-        function calcLayout() {
-            var minH = 100, maxH = 200, maxW = indicatorPlane.width * maxH / indicatorPlane.height, totMaxWidth = indicatorPlane.width * 0.7
-            function tryLayout(rowH, div) {
-                var nrows = 1
-                var acc = 0
-                var rowstmp = []
-                var currow = []
-                for (var i = 0; i < model.count; i++) {
-                    var win = model.get(i)
-                    var ratio = win.source.width / win.source.height
-                    var curW = Math.min(maxW, ratio * rowH)
-                    console.log('curW', curW)
-                    var wwin = {
-                        "dw": curW
-                    }
-                    Object.assign(wwin, win)
-                    acc += curW
-                    if (acc <= totMaxWidth)
-                        currow.push(wwin)
-                    else {
-                        acc = curW
-                        nrows++
-                        console.log('cur', currow, 'tmp', rowstmp)
-                        rowstmp.push(currow)
-                        currow = [wwin]
-                        if (nrows > div)
-                            break
-                    }
-                    console.info(acc)
-                }
-                if (nrows <= div) {
-                    if (currow.length)
-                        rowstmp.push(currow)
-                    rowHeight = rowH
-                    rows = rowstmp
-                    console.log('calcover', nrows, rowH,rows)
-                    return true
-                }
-                return false
-            }
-
-            for (var div = 1; indicatorPlane.height / div >= minH; div++) {
-                // return if width satisfies
-                console.log('div=', div)
-                var rowH = Math.min(indicatorPlane.height / div, maxH)
-                if (tryLayout(rowH, div))
-                    return
-            }
-            tryLayout(minH, 999)
-            console.warn('cannot layout')
+        function calcLayout(){
+            eqhgrid.calcLayout()
         }
     }
 }
