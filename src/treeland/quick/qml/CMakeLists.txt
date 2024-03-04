@@ -25,6 +25,7 @@ qt_add_qml_module(treeland-qml
         WindowsSwitcher.qml
         WindowsSwitcherPreview.qml
         DockPreview.qml
+        EQHGrid.qml
     RESOURCE_PREFIX
         /qt/qml
     OUTPUT_DIRECTORY
