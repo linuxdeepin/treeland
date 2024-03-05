@@ -6,6 +6,7 @@ import QtQuick.Layouts
 import QtQuick.Controls
 import Waylib.Server
 import TreeLand
+import TreeLand.Utils
 
 Item {
     id: root
@@ -17,17 +18,21 @@ Item {
         Repeater {
             model: QmlHelper.layout.outputs
             Item {
-                x: {
-                    const coord=parent.mapFromItem(modelData,0,0)
-                    console.log('coord',coord,width,height)
-                    return coord.x
+                function calcDisplayRect(item,output){
+                    // margins on this output
+                    const margins = Helper.getOutputExclusiveMargins(output)
+                    const coord = parent.mapFromItem(item,0,0)
+                    // global pos before culling zones
+                    const origin = Qt.rect(coord.x,coord.y,item.width,item.height)
+                    console.log('calcdisplay',origin,margins,margins.top,coord)
+                    return Qt.rect(origin.x + margins.left, origin.y + margins.top, 
+                        origin.width - margins.left - margins.right, origin.height - margins.top - margins.bottom)
                 }
-                y: {
-                    const coord=parent.mapFromItem(modelData,0,0)
-                    return coord.y
-                }
-                width: modelData?.width
-                height: modelData?.height
+                property rect displayRect: root.visible ? calcDisplayRect(modelData,modelData.output) : Qt.rect(0,0,0,0)
+                x: displayRect.x
+                y: displayRect.y
+                width: displayRect.width
+                height: displayRect.height
 
                 // Component.onCompleted: console.log('output',modelData,QmlHelper.printStructureObject(modelData))
                 onHeightChanged: console.log(this,'height',height)
