@@ -79,7 +79,7 @@ public:
     static WLayerSurface *fromHandle(QW_NAMESPACE::QWLayerSurfaceV1 *handle);
     static WLayerSurface *fromSurface(WSurface *surface);
 
-    QRect getContentGeometry() const;
+    QRect getContentGeometry() const override;
     int keyboardFocusPriority() const override;
 
     // layer shell info
@@ -110,7 +110,7 @@ Q_SIGNALS:
     void keyboardInteractivityChanged();
 
 public Q_SLOTS:
-    bool checkNewSize(const QSize &size);
+    bool checkNewSize(const QSize &size) override;
     void setActivate(bool on) override;
 };
 

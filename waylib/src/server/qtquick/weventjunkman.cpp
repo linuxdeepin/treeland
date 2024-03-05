@@ -34,6 +34,8 @@ bool WEventJunkman::event(QEvent *event)
         seat->filterUnacceptedEvent(window(), e);
         return true;
     }
+    default:
+        break;
     }
 
     return QQuickItem::event(event);

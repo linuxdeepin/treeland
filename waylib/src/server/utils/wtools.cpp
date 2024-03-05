@@ -75,6 +75,8 @@ inline QImage::Format toQImageFormat(pixman_format_code_t format, bool &sRGB) {
         return QImage::Format_Indexed8;
     case PIXMAN_g8:
         return QImage::Format_Grayscale8;
+    default:
+        break;
     }
 
     return QImage::Format_Invalid;
@@ -193,6 +195,8 @@ QImage::Format WTools::convertToDrmSupportedFormat(QImage::Format format)
         return QImage::Format_RGBA16FPx4_Premultiplied;
     case QImage::Format_RGBA32FPx4:
         return QImage::Format_RGBA32FPx4_Premultiplied;
+    default:
+        break;
     }
 
     return format;

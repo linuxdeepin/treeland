@@ -234,6 +234,8 @@ void WXWaylandSurfacePrivate::updateWindowTypes()
         case WXWayland::NET_WM_WINDOW_TYPE_SPLASH:
             types |= WXWaylandSurface::NET_WM_WINDOW_TYPE_SPLASH;
             break;
+        default:
+            break;
         }
     }
 

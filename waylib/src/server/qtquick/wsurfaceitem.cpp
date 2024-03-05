@@ -168,6 +168,8 @@ private:
                 d()->q_func()->setFocus(false);
             break;
         }
+        default:
+            break;
         }
 
         return QQuickItem::event(event);

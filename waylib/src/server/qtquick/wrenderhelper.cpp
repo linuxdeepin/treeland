@@ -371,7 +371,7 @@ public:
 
     bool getShm(wlr_shm_attributes *attribs) const override;
     bool beginDataPtrAccess(uint32_t flags, void **data, uint32_t *format, size_t *stride) override;
-    void endDataPtrAccess();
+    void endDataPtrAccess() override;
 
 private:
     QImage m_image;

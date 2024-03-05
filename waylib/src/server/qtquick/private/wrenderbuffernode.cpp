@@ -166,7 +166,7 @@ public:
         }
 
         data = new Data();
-        if (data->data = get()->create(std::forward<DataKeys>(keys)...)) {
+        if ((data->data = get()->create(std::forward<DataKeys>(keys)...))) {
             dataList.append(data);
             return data;
         }
@@ -827,7 +827,7 @@ private:
             return true;
         }
 
-        bool hasMipmaps() const {
+        bool hasMipmaps() const override {
             return mipmapFiltering() != QSGTexture::None;
         }
 

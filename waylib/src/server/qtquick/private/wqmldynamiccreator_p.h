@@ -117,7 +117,7 @@ private:
     void remove(QSharedPointer<WQmlCreatorData> data) override;
 
     void destroy(QSharedPointer<WQmlCreatorDelegateData> data);
-    void remove(QSharedPointer<WQmlCreatorDelegateData> data);
+    void remove(QSharedPointer<WQmlCreatorDelegateData> data) override;
 
     void clear();
     void reset();

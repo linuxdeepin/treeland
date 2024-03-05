@@ -92,6 +92,7 @@ Q_SIGNALS:
     void keyboardChanged();
 
 protected:
+    using QObject::eventFilter;
     friend class WOutputPrivate;
     friend class WCursor;
     friend class WCursorPrivate;

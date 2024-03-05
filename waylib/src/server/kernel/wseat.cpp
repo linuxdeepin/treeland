@@ -744,6 +744,8 @@ bool WSeat::sendEvent(WSurface *target, QObject *shellObject, QObject *eventObje
         if (target != seat->keyboardFocusSurface())
             return true;
         break;
+    default:
+        break;
     }
     }
 
@@ -1171,6 +1173,8 @@ bool WSeat::filterUnacceptedEvent(QWindow *targetWindow, QInputEvent *event)
         //        if (d->handle()->touchHasGrab())
         //            return sendEvent(nullptr, nullptr, nullptr, event);
         //        break;
+    default:
+        break;
     }
 
     if (d->eventFilter && d->eventFilter->unacceptedEvent(this, targetWindow, event))
