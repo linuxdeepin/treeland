@@ -4,6 +4,7 @@
 import QtQuick
 import QtQuick.Controls
 import Waylib.Server
+import TreeLand.Protocols
 
 OutputItem {
     id: rootOutputItem
@@ -93,6 +94,9 @@ OutputItem {
         source: personalizationManager.currentWallpaper + "?" + new Date().getTime()
         anchors.fill: parent
         asynchronous: true
+        Component.onCompleted: {
+            background.PersonalizationManager.backgroundImage = background
+        }
     }
 
     Component {

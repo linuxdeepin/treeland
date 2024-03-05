@@ -183,14 +183,13 @@ Item {
                 }
             ]
 
-            Image {
+            ShaderEffectSource {
                 id: background
                 z: toplevelSurfaceItem.contentItem.z - 2
                 visible: personalizationMapper.backgroundType
-                source: "file:///usr/share/wallpapers/deepin/desktop.jpg"
-                fillMode: Image.PreserveAspectCrop
-                asynchronous: true
                 anchors.fill: parent
+                sourceRect: { Qt.rect(parent.x, parent.y, parent.width, parent.height) }
+                sourceItem: personalizationMapper.backgroundImage
             }
         }
     }
