@@ -33,6 +33,7 @@ extern "C" {
 }
 
 static QuickPersonalizationManager *PERSONALIZATION_MANAGER = nullptr;
+static QQuickItem *PERSONALIZATION_IMAGE = nullptr;
 
 class QuickPersonalizationManagerPrivate : public WObjectPrivate {
 public:
@@ -248,12 +249,31 @@ QuickPersonalizationManagerAttached::QuickPersonalizationManagerAttached(WSurfac
     });
 }
 
+QuickPersonalizationManagerAttached::QuickPersonalizationManagerAttached(QQuickItem *target, QuickPersonalizationManager *manager)
+    : QObject(manager)
+    , m_target(target)
+    , m_manager(manager)
+{
+    if (PERSONALIZATION_IMAGE != nullptr) {
+        qFatal("Must set image once!");
+    }
+    PERSONALIZATION_IMAGE = target;
+}
+
+QQuickItem *QuickPersonalizationManagerAttached::backgroundImage() const
+{
+    return PERSONALIZATION_IMAGE;
+}
+
 QuickPersonalizationManagerAttached *QuickPersonalizationManager::qmlAttachedProperties(QObject *target)
 {
     if (auto *surface = qobject_cast<WXdgSurface*>(target)) {
         return new QuickPersonalizationManagerAttached(surface->surface(), PERSONALIZATION_MANAGER);
     }
 
+    if (auto *image = qobject_cast<QQuickItem*>(target)) {
+        return new QuickPersonalizationManagerAttached(image, PERSONALIZATION_MANAGER);
+    }
     return nullptr;
 }
 
