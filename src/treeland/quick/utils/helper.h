@@ -19,6 +19,15 @@ QW_USE_NAMESPACE
 WAYLIB_SERVER_USE_NAMESPACE
 
 struct OutputInfo;
+struct Margins {
+    Q_GADGET
+    Q_PROPERTY(uint32_t left MEMBER left)
+    Q_PROPERTY(uint32_t top MEMBER top)
+    Q_PROPERTY(uint32_t right MEMBER right)
+    Q_PROPERTY(uint32_t bottom MEMBER bottom)
+public:
+    uint32_t left,top,right,bottom;
+};
 
 class Helper : public WSeatEventFilter {
     Q_OBJECT
@@ -61,7 +70,7 @@ public:
 
     Q_INVOKABLE bool registerExclusiveZone(WLayerSurface *layerSurface);
     Q_INVOKABLE bool unregisterExclusiveZone(WLayerSurface *layerSurface);
-    Q_INVOKABLE QJSValue getExclusiveMargins(WLayerSurface *layerSurface);
+    Q_INVOKABLE Margins getExclusiveMargins(WLayerSurface *layerSurface);
     Q_INVOKABLE quint32 getTopExclusiveMargin(WToplevelSurface *layerSurface);
     Q_INVOKABLE quint32 getBottomExclusiveMargin(WToplevelSurface *layerSurface);
     Q_INVOKABLE quint32 getLeftExclusiveMargin(WToplevelSurface *layerSurface);
@@ -70,6 +79,7 @@ public:
     // Output
     Q_INVOKABLE void onSurfaceEnterOutput(WToplevelSurface *surface, WSurfaceItem *surfaceItem, WOutput *output);
     Q_INVOKABLE void onSurfaceLeaveOutput(WToplevelSurface *surface, WSurfaceItem *surfaceItem, WOutput *output);
+    Q_INVOKABLE Margins getOutputExclusiveMargins(WOutput *output);
     std::pair<WOutput*,OutputInfo*> getFirstOutputOfSurface(WToplevelSurface *surface);
 
 public Q_SLOTS:
@@ -133,9 +143,6 @@ struct OutputInfo {
     QList<WSurfaceItem*> surfaceItemList;
 
     // for Exclusive Zone
-    quint32 m_topExclusiveMargin = 0;
-    quint32 m_bottomExclusiveMargin = 0;
-    quint32 m_leftExclusiveMargin = 0;
-    quint32 m_rightExclusiveMargin = 0;
+    Margins exclusiveMargins = {0,0,0,0};
     QList<std::tuple<WLayerSurface*, uint32_t, WLayerSurface::AnchorType>> registeredSurfaceList;
 };

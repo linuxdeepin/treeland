@@ -86,19 +86,19 @@ bool Helper::registerExclusiveZone(WLayerSurface *layerSurface)
     switch(exclusiveEdge) {
         using enum WLayerSurface::AnchorType;
     case Top:
-        infoPtr->m_topExclusiveMargin += exclusiveZone;
+        infoPtr->exclusiveMargins.top += exclusiveZone;
         Q_EMIT topExclusiveMarginChanged();
         break;
     case Bottom:
-        infoPtr->m_bottomExclusiveMargin += exclusiveZone;
+        infoPtr->exclusiveMargins.bottom += exclusiveZone;
         Q_EMIT bottomExclusiveMarginChanged();
         break;
     case Left:
-        infoPtr->m_leftExclusiveMargin += exclusiveZone;
+        infoPtr->exclusiveMargins.left += exclusiveZone;
         Q_EMIT leftExclusiveMarginChanged();
         break;
     case Right:
-        infoPtr->m_rightExclusiveMargin += exclusiveZone;
+        infoPtr->exclusiveMargins.right += exclusiveZone;
         Q_EMIT rightExclusiveMarginChanged();
         break;
     default:
@@ -122,19 +122,19 @@ bool Helper::unregisterExclusiveZone(WLayerSurface *layerSurface)
             switch(exclusiveEdge) {
                 using enum WLayerSurface::AnchorType;
             case Top:
-                infoPtr->m_topExclusiveMargin -= exclusiveZone;
+                infoPtr->exclusiveMargins.top -= exclusiveZone;
                 Q_EMIT topExclusiveMarginChanged();
                 break;
             case Bottom:
-                infoPtr->m_bottomExclusiveMargin -= exclusiveZone;
+                infoPtr->exclusiveMargins.bottom -= exclusiveZone;
                 Q_EMIT bottomExclusiveMarginChanged();
                 break;
             case Left:
-                infoPtr->m_leftExclusiveMargin -= exclusiveZone;
+                infoPtr->exclusiveMargins.left -= exclusiveZone;
                 Q_EMIT leftExclusiveMarginChanged();
                 break;
             case Right:
-                infoPtr->m_rightExclusiveMargin -= exclusiveZone;
+                infoPtr->exclusiveMargins.right -= exclusiveZone;
                 Q_EMIT rightExclusiveMarginChanged();
                 break;
             default:
@@ -147,10 +147,10 @@ bool Helper::unregisterExclusiveZone(WLayerSurface *layerSurface)
     return false;
 }
 
-QJSValue Helper::getExclusiveMargins(WLayerSurface *layerSurface)
+Margins Helper::getExclusiveMargins(WLayerSurface *layerSurface)
 {
     auto [ output, infoPtr ] = getFirstOutputOfSurface(layerSurface);
-    QMargins margins{0, 0, 0, 0};
+    Margins margins;
 
     if (output) {
         QMutableListIterator<std::tuple<WLayerSurface*, uint32_t, WLayerSurface::AnchorType>> listIter(infoPtr->registeredSurfaceList);
@@ -161,16 +161,16 @@ QJSValue Helper::getExclusiveMargins(WLayerSurface *layerSurface)
             switch(exclusiveEdge) {
                 using enum WLayerSurface::AnchorType;
             case Top:
-                margins.setTop(margins.top() + exclusiveZone);
+                margins.top += exclusiveZone;
                 break;
             case Bottom:
-                margins.setBottom(margins.bottom() + exclusiveZone);
+                margins.bottom += exclusiveZone;
                 break;
             case Left:
-                margins.setLeft(margins.left() + exclusiveZone);
+                margins.left += exclusiveZone;
                 break;
             case Right:
-                margins.setRight(margins.right() + exclusiveZone);
+                margins.right += exclusiveZone;
                 break;
             default:
                 Q_UNREACHABLE();
@@ -178,12 +178,7 @@ QJSValue Helper::getExclusiveMargins(WLayerSurface *layerSurface)
         }
     }
 
-    QJSValue jsMargins = qmlEngine(this)->newObject(); // Can't use QMargins in QML
-    jsMargins.setProperty("top" , margins.top());
-    jsMargins.setProperty("bottom", margins.bottom());
-    jsMargins.setProperty("left", margins.left());
-    jsMargins.setProperty("right", margins.right());
-    return jsMargins;
+    return margins;
 }
 
 quint32 Helper::getTopExclusiveMargin(WToplevelSurface *layerSurface)
@@ -191,7 +186,7 @@ quint32 Helper::getTopExclusiveMargin(WToplevelSurface *layerSurface)
     auto [ _, infoPtr ] = getFirstOutputOfSurface(layerSurface);
     if (!infoPtr)
         return 0;
-    return infoPtr->m_topExclusiveMargin;
+    return infoPtr->exclusiveMargins.top;
 }
 
 quint32 Helper::getBottomExclusiveMargin(WToplevelSurface *layerSurface)
@@ -199,7 +194,7 @@ quint32 Helper::getBottomExclusiveMargin(WToplevelSurface *layerSurface)
     auto [ _, infoPtr ] = getFirstOutputOfSurface(layerSurface);
     if (!infoPtr)
         return 0;
-    return infoPtr->m_bottomExclusiveMargin;
+    return infoPtr->exclusiveMargins.bottom;
 }
 
 quint32 Helper::getLeftExclusiveMargin(WToplevelSurface *layerSurface)
@@ -207,7 +202,7 @@ quint32 Helper::getLeftExclusiveMargin(WToplevelSurface *layerSurface)
     auto [ _, infoPtr ] = getFirstOutputOfSurface(layerSurface);
     if (!infoPtr)
         return 0;
-    return infoPtr->m_leftExclusiveMargin;
+    return infoPtr->exclusiveMargins.left;
 }
 
 quint32 Helper::getRightExclusiveMargin(WToplevelSurface *layerSurface)
@@ -215,7 +210,7 @@ quint32 Helper::getRightExclusiveMargin(WToplevelSurface *layerSurface)
     auto [ _, infoPtr ] = getFirstOutputOfSurface(layerSurface);
     if (!infoPtr)
         return 0;
-    return infoPtr->m_rightExclusiveMargin;
+    return infoPtr->exclusiveMargins.right;
 }
 
 void Helper::onSurfaceEnterOutput(WToplevelSurface *surface, WSurfaceItem *surfaceItem, WOutput *output)
@@ -231,6 +226,11 @@ void Helper::onSurfaceLeaveOutput(WToplevelSurface *surface, WSurfaceItem *surfa
     info->surfaceList.removeOne(surface);
     info->surfaceItemList.removeOne(surfaceItem);
     // should delete OutputInfo if no surface?
+}
+
+Margins Helper::getOutputExclusiveMargins(WOutput *output)
+{
+    return getOutputInfo(output)->exclusiveMargins;
 }
 
 std::pair<WOutput*,OutputInfo*> Helper::getFirstOutputOfSurface(WToplevelSurface *surface)
