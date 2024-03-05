@@ -30,6 +30,7 @@ class WAYLIB_SERVER_EXPORT QuickPersonalizationManagerAttached : public QObject
 {
     Q_OBJECT
     Q_PROPERTY(BackgroundType backgroundType READ backgroundType NOTIFY backgroundTypeChanged FINAL)
+    Q_PROPERTY(QQuickItem* backgroundImage READ backgroundImage FINAL)
     QML_ANONYMOUS
 
 public:
@@ -41,16 +42,18 @@ public:
     Q_ENUM(BackgroundType)
 
     QuickPersonalizationManagerAttached(WSurface *target, QuickPersonalizationManager *manager);
+    QuickPersonalizationManagerAttached(QQuickItem *target, QuickPersonalizationManager *manager);
 
     BackgroundType backgroundType() const {
         return m_backgroundType;
     };
+    QQuickItem *backgroundImage() const;
 
 Q_SIGNALS:
     void backgroundTypeChanged();
 
 private:
-    WSurface *m_target;
+    QObject *m_target;
     QuickPersonalizationManager *m_manager;
     BackgroundType m_backgroundType = Normal;
 };

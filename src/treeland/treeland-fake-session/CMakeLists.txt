@@ -38,4 +38,19 @@ target_link_libraries(treeland-fake-session
         Qt::WaylandClientPrivate
 )
 
+qt_add_executable(treeland-window-bg-test
+    wallpaper_test.cpp
+)
+
+target_link_libraries(treeland-window-bg-test
+    PRIVATE
+        common
+        $<TARGET_OBJECTS:treeland-shell-manager>
+        $<IF:$<BOOL:${WITH_SUBMODULE_WAYLIB}>, waylibserver, Waylib::WaylibServer>
+        Qt${QT_MAJOR_VERSION}::Gui
+        Qt${QT_MAJOR_VERSION}::Widgets
+        Qt::WaylandClient
+        Qt::GuiPrivate
+        Qt::WaylandClientPrivate
+)
 install(TARGETS treeland-fake-session RUNTIME DESTINATION "${CMAKE_INSTALL_LIBEXECDIR}")
