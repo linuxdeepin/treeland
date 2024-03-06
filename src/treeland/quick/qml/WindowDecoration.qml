@@ -7,6 +7,7 @@ import QtQuick.Controls
 import Waylib.Server
 import org.deepin.dtk 1.0 as D
 import org.deepin.dtk.style 1.0 as DS
+import TreeLand.Utils
 
 Item {
     id: root
@@ -62,6 +63,7 @@ Item {
 
         onPressed: {
             root.requestResize(edges)
+            Helper.activatedSurface = surface
         }
     }
 
@@ -87,6 +89,7 @@ Item {
             Cursor.shape: pressed ? Cursor.Grabbing : Qt.ArrowCursor
 
             onPressed: {
+                Helper.activatedSurface = surface
                 root.requestMove()
             }
         }
