@@ -11,7 +11,6 @@ Item {
     property alias model: model
     property var current: 0
     required property OutputDelegate activeOutput
-    // required property var allWins
 
     signal surfaceActivated(surface: XdgSurface)
 
@@ -59,26 +58,12 @@ Item {
         }
         // adjust win stack
         if (current != 0) {
-            // console.log('adjust',current,'to first')
-            model.move(current,0,1)
+            // console.log('adjust', current, 'to first')
+            model.move(current, 0, 1)
         }
     }
     
     onCurrentChanged: show()
-
-    // invisible impl, makes cursor style also not changed
-    // ShaderEffectSource {
-    //     id: workspaceLiveView
-    //     anchors{
-    //         fill: parent
-    //         margins: 50
-    //     }
-    //     live: true
-    //     hideSource: false
-    //     smooth: true
-    //     sourceItem: allWins
-    //     // opacity: .3
-    // }
 
     Loader {
         id: context
@@ -114,11 +99,11 @@ Item {
         
         // currently use binding, so indicatorPlane follows mouse/active output
         x: {
-            const coord=parent.mapFromItem(activeOutput,0,0)
+            const coord=parent.mapFromItem(activeOutput, 0, 0)
             return coord.x
         }
         y: {
-            const coord=parent.mapFromItem(activeOutput,0,0)
+            const coord=parent.mapFromItem(activeOutput, 0, 0)
             return coord.y
         }
         width: activeOutput?.width
@@ -127,7 +112,6 @@ Item {
         MouseArea {
             anchors.fill: parent
             onClicked: {
-                console.log('out')
                 root.visible = false
             }
         }
@@ -171,7 +155,7 @@ Item {
                     height: col.height + 2 * padding
                     border.color: "blue"
                     border.width: highlighted ? 2 : 0
-                    color: Qt.rgba(255,255,255,.2)
+                    color: Qt.rgba(255, 255, 255, .2)
                     radius: 8
                     
                     onHighlightedChanged: {
@@ -179,11 +163,9 @@ Item {
                         if (highlighted) {
                             flickable.contentY = Math.min(
                                         Math.max(
-                                            mapToItem(
-                                                eqhgrid, 0,
-                                                height).y - flickable.height,
-                                            flickable.contentY),
-                                        mapToItem(eqhgrid, 0, 0).y)
+                                            mapToItem(eqhgrid, 0, height).y - flickable.height,
+                                            flickable.contentY
+                                        ), mapToItem(eqhgrid, 0, 0).y)
                         }
                     }
                     Column {
@@ -233,7 +215,7 @@ Item {
                     }
                     TapHandler {
                         onTapped: {
-                            // console.log('tapped idx',globalIndex)
+                            // console.log('tapped idx', globalIndex)
                             root.current = globalIndex
                         }
                     }

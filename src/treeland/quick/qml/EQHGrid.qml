@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Dingyuan Zhang <zhangdingyuan@uniontech.com>.
+// Copyright (C) 2024 Yicheng Zhong <zhongyicheng@uniontech.com>.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 import QtQuick
 import QtQuick.Layouts
@@ -18,10 +18,6 @@ ColumnLayout {
     property int padding: 8
     property var rows: []
     spacing: 10
-    onRowsChanged: console.log('rows', rows.length, rowHeight)
-
-    Component.onCompleted: console.log('eqhgrid',availH,availW, mapToGlobal(0, 0), width,
-                                       height, rows, delegate)
 
     Repeater {
         model: rows
@@ -57,7 +53,6 @@ ColumnLayout {
                 var win = model.get(i)
                 var ratio = getRatio(win)
                 var curW = Math.min(maxW, ratio * rowH)
-                console.log('curW', curW,ratio)
                 var wwin = {
                     "dw": curW
                 }
@@ -68,20 +63,17 @@ ColumnLayout {
                 else {
                     acc = curW
                     nrows++
-                    console.log('cur', currow, 'tmp', rowstmp)
                     rowstmp.push(currow)
                     currow = [wwin]
                     if (nrows > div)
                         break
                 }
-                console.info(acc)
             }
             if (nrows <= div) {
                 if (currow.length)
                     rowstmp.push(currow)
                 rowHeight = rowH
                 rows = rowstmp
-                console.log('calcover', nrows, rowH, rows)
                 return true
             }
             return false
@@ -89,7 +81,6 @@ ColumnLayout {
 
         for (var div = 1; availH / div >= minH; div++) {
             // return if width satisfies
-            console.log('div=', div,availH,availW,maxH,maxW)
             var rowH = Math.min(availH / div, maxH)
             if (tryLayout(rowH, div))
                 return
