@@ -12,8 +12,10 @@ Item {
     property bool anchorWidth: false
     property bool anchorHeight: false
     required property DynamicCreatorComponent creator
-    property OutputItem output
-    property CoordMapper outputCoordMapper
+    // the output attached to, default is primary
+    // TODO bind to layershell manager's state
+    property OutputItem output: getPrimaryOutputItem()
+    property CoordMapper outputCoordMapper: output ? this.CoordMapper.helper.get(output) : null
     property bool mapped: waylandSurface.surface && waylandSurface.surface.mapped && waylandSurface.WaylandSocket.rootSocket.enabled
     property bool pendingDestroy: false
     property bool showCloseAnimation: false
@@ -126,14 +128,6 @@ Item {
         return output.OutputItem.item
     }
 
-    function updateOutputCoordMapper() {
-        let output = getPrimaryOutputItem()
-        if (!output)
-            return
-        root.output = output
-        root.outputCoordMapper = surface.CoordMapper.helper.get(output)
-    }
-
     function zValueFormLayer(layer) {
         switch (layer) {
         case WaylandLayerSurface.LayerType.Background:
@@ -158,12 +152,14 @@ Item {
         anchorWidth = left && right
         anchorHeight = top && bottom
 
-        anchors.top = top ? parent.top : undefined
-        anchors.bottom = bottom ? parent.bottom : undefined
-        anchors.verticalCenter = (top || bottom) ? undefined : parent.verticalCenter;
-        anchors.left = left ? parent.left : undefined
-        anchors.right = right ? parent.right : undefined
-        anchors.horizontalCenter = (left || right) ? undefined : parent.horizontalCenter;
+        if (root.outputCoordMapper) {
+            anchors.top = top ? root.outputCoordMapper.top : undefined
+            anchors.bottom = bottom ? root.outputCoordMapper.bottom : undefined
+            anchors.verticalCenter = (top || bottom) ? undefined : root.outputCoordMapper.verticalCenter;
+            anchors.left = left ? root.outputCoordMapper.left : undefined
+            anchors.right = right ? root.outputCoordMapper.right : undefined
+            anchors.horizontalCenter = (left || right) ? undefined : root.outputCoordMapper.horizontalCenter;
+        }
         // Setting anchors may change the container size which should keep same with surfaceItem
         if (!anchorWidth)
             width = surfaceItem.width
@@ -222,6 +218,10 @@ Item {
         refreshAnchors()
         refreshMargin()
         configureSurfaceSize()
+    }
+
+    onOutputCoordMapperChanged: {
+        refreshAnchors()
     }
 
     Connections {
