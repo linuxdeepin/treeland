@@ -3,8 +3,6 @@
 
 #pragma once
 
-#include <cassert>
-
 #include <QObject>
 #include <QQmlEngine>
 #include <wquickwaylandserver.h>
@@ -16,7 +14,7 @@ class ShortcutManagerV1 : public Waylib::Server::WQuickWaylandServerInterface , 
     Q_OBJECT
     QML_NAMED_ELEMENT(ShortcutManager)
     W_DECLARE_PRIVATE(ShortcutManagerV1)
-    Q_PROPERTY(Helper *helper WRITE setHelper)
+    Q_PROPERTY(Helper *helper READ helper WRITE setHelper)
 
 public:
     explicit ShortcutManagerV1(QObject *parent = nullptr);
@@ -26,4 +24,5 @@ protected:
 
 private:
     void setHelper(Helper *helper);
+    Helper *helper();
 };

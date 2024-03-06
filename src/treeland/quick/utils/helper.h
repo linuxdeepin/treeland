@@ -26,7 +26,7 @@ class Helper : public WSeatEventFilter {
     Q_PROPERTY(WSurfaceItem* resizingItem READ resizingItem NOTIFY resizingItemChanged FINAL)
     Q_PROPERTY(WSurfaceItem *movingItem READ movingItem NOTIFY movingItemChanged FINAL)
     Q_PROPERTY(QString socketFile READ socketFile WRITE setSocketFile NOTIFY socketFileChanged FINAL)
-    Q_PROPERTY(QString currentUser WRITE setCurrentUser FINAL)
+    Q_PROPERTY(QString currentUser READ currentUser WRITE setCurrentUser FINAL)
     QML_ELEMENT
     QML_SINGLETON
 
@@ -42,6 +42,7 @@ public:
     Q_ENUM(Switcher)
 
     void setCurrentUser(const QString &currentUser);
+    inline QString currentUser() const { return m_currentUser; }
 
     QString socketFile() const;
 
