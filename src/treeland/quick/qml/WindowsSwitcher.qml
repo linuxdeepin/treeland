@@ -28,7 +28,7 @@ Item {
     function previous() {
         current = current - 1
         if (current < 0) {
-            current = 0
+            current = Math.max(0, model.count - 1)
         }
     }
     function next() {
@@ -39,7 +39,7 @@ Item {
     }
 
     function show() {
-        if (model.count < 1) {
+        if (current >= model.count || current < 0) {
             return
         }
 
@@ -49,17 +49,18 @@ Item {
         context.anchors.fill = root
         context.sourceComponent = contextComponent
         context.item.start(source)
-        surfaceActivated(source)
     }
 
     function stop() {
         if (context.item) {
             context.item.stop()
         }
-        // adjust win stack
+        const source = model.get(current).source
+        // activated window changed
         if (current != 0) {
-            // console.log('adjust', current, 'to first')
+            // adjust window stack
             model.move(current, 0, 1)
+            surfaceActivated(source)
         }
     }
     
