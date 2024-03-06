@@ -41,6 +41,13 @@ void ShortcutManagerV1::setHelper(Helper *helper) {
     d->helper = helper;
 }
 
+Helper *ShortcutManagerV1::helper()
+{
+    W_D(ShortcutManagerV1);
+
+    return d->helper;
+}
+
 void ShortcutManagerV1::create()
 {
     W_D(ShortcutManagerV1);

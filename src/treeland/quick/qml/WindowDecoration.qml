@@ -141,7 +141,7 @@ Item {
                     height: titlebar.height
 
                     onClicked: {
-                        root.requestToggleMaximize(!surface.isMaximized) 
+                        root.requestToggleMaximize(!surface.isMaximized)
                     }
                 }
             }

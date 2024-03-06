@@ -206,7 +206,6 @@ QString transFromDaemonAccelStr(const QString &accelStr)
     return str;
 }
 
-static int click_state = 0;
 FakeSession::FakeSession(QObject *parent)
     : QObject(parent)
     , m_personalzationManger(new Protocols::PersonalizationManager)
@@ -215,7 +214,7 @@ FakeSession::FakeSession(QObject *parent)
     , m_extForeignToplevelList(new Protocols::ExtForeignToplevelList)
 {
 
-    auto *s = new SDDM::SignalHandler(this);
+    new SDDM::SignalHandler(this);
 
     connect(m_shortcutManager, &Protocols::ShortcutManager::activeChanged, this, [this] {
         qDebug() << m_shortcutManager->isActive();

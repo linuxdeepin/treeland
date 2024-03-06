@@ -7,7 +7,6 @@
 #include <map>
 #include <QMetaObject>
 
-#include "utils.h"
 #include "shortcut-server-protocol.h"
 
 #define SHORTCUT_MANAGEMENT_V1_VERSION 1
