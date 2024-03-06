@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "wallpapercardmodel.h"
-#include "Constants.h"
-#include "Configuration.h"
 #include <QDir>
 #include <QFile>
 #include <QList>
@@ -67,6 +65,7 @@ int WallpaperCardModel::dataCount() const
 
 int WallpaperCardModel::rowCount(const QModelIndex &parent) const
 {
+    Q_UNUSED(parent)
     if (!d->m_toggleShowAll && dataCount() > 10) {
         return 10;
     }

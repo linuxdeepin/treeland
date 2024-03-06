@@ -249,7 +249,7 @@ void create_personalization_wallpaper_context_listener(struct wl_client *client,
     wl_signal_emit_mutable(&manager->events.wallpaper_context_created, context);
 }
 
-void set_user_wallpaper(struct wl_client *client,
+void set_user_wallpaper(struct wl_client *client [[maybe_unused]],
                         struct wl_resource *resource,
                         int32_t fd,
                         const char *metadata)
@@ -263,7 +263,7 @@ void set_user_wallpaper(struct wl_client *client,
     wl_signal_emit_mutable(&wallpaper->events.set_user_wallpaper, wallpaper);
 }
 
-void get_user_wallpapers(struct wl_client *client,
+void get_user_wallpapers(struct wl_client *client [[maybe_unused]],
                          struct wl_resource *resource)
 {
     struct personalization_wallpaper_context_v1 *wallpaper = personalization_wallpaper_from_resource(resource);

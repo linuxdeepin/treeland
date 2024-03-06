@@ -14,7 +14,7 @@ class WallpaperCardModel : public QAbstractListModel {
     Q_PROPERTY(QString directory READ directory WRITE setDirectory NOTIFY directoryChanged FINAL)
     Q_PROPERTY(int currentIndex READ currentIndex WRITE setCurrentIndex NOTIFY currentIndexChanged FINAL)
     Q_PROPERTY(bool showAll READ showAll WRITE setShowAll NOTIFY showAllChanged FINAL)
-    Q_PROPERTY(int count READ dataCount NOTIFY dataCountChanged CONSTANT)
+    Q_PROPERTY(int count READ dataCount NOTIFY dataCountChanged FINAL)
     QML_ELEMENT
 public:
     enum WallpaperCardRoles {
@@ -32,14 +32,14 @@ public:
 
     [[nodiscard]] QHash<int, QByteArray> roleNames() const override;
     [[nodiscard]] int currentIndex() const;
-    [[nodiscard]] void setCurrentIndex(int index);
+    void setCurrentIndex(int index);
     [[nodiscard]] bool showAll() const;
-    [[nodiscard]] void setShowAll(bool enable);
+    void setShowAll(bool enable);
     [[nodiscard]] int dataCount() const;
     [[nodiscard]] int rowCount(const QModelIndex &parent = QModelIndex()) const override;
     [[nodiscard]] QVariant data(const QModelIndex &index, int role = Qt::DisplayRole) const override;
-    [[nodiscard]] Q_INVOKABLE void append(const QString& path);
-    [[nodiscard]] Q_INVOKABLE void remove(int index);
+    Q_INVOKABLE void append(const QString& path);
+    Q_INVOKABLE void remove(int index);
 
 Q_SIGNALS:
     void directoryChanged(const QString& directory);
