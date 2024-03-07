@@ -155,13 +155,7 @@ TreeLand::TreeLand(TreeLandAppContext context)
     connect(m_socket, &QLocalSocket::errorOccurred, this, &TreeLand::error);
 
     setup();
-
-#if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
     Helper *helper = m_engine->singletonInstance<Helper *>("TreeLand.Utils", "Helper");
-#else
-    auto helperTypeId = qmlTypeId("TreeLand.Utils", 1, 0, "Helper");
-    Helper *helper = m_engine->singletonInstance<Helper *>(helperTypeId);
-#endif
 
     if (!context.socket.isEmpty()) {
         Q_ASSERT(helper);
@@ -225,13 +219,7 @@ void TreeLand::setup()
     m_engine = new QQmlApplicationEngine(this);
     m_engine->addUrlInterceptor(new DtkInterceptor(this));
     m_engine->rootContext()->setContextProperty("TreeLand", this);
-
-#if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
     m_engine->loadFromModule("TreeLand", "Main");
-#else
-    m_engine->addImportPath(":/qt/qml");
-    m_engine->load(QUrl(u"qrc:/qt/qml/TreeLand/Main.qml"_qs));
-#endif
 }
 
 bool TreeLand::testMode() const {
@@ -242,12 +230,7 @@ void TreeLand::connected() {
     // log connection
     qDebug() << "Connected to the daemon.";
 
-#if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
     Helper *helper = m_engine->singletonInstance<Helper*>("TreeLand.Utils", "Helper");
-#else
-    auto helperTypeId = qmlTypeId("TreeLand.Utils", 1, 0, "Helper");
-    Helper *helper = m_engine->singletonInstance<Helper*>(helperTypeId);
-#endif
     Q_ASSERT(helper);
 
     connect(helper, &Helper::backToNormal, this, [this] {
@@ -324,12 +307,8 @@ void TreeLand::readyRead() {
             }
             break;
             case DaemonMessages::SwitchToGreeter: {
-#if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
                 Helper *helper = m_engine->singletonInstance<Helper*>("TreeLand.Utils", "Helper");
-#else
-                auto helperTypeId = qmlTypeId("TreeLand", 1, 0, "Helper");
-                Helper *helper = m_engine->singletonInstance<Helper*>(helperTypeId);
-#endif
+
                 Q_ASSERT(helper);
                 Q_EMIT helper->greeterVisibleChanged();
             }

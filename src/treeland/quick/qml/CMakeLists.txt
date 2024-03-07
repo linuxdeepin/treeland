@@ -35,6 +35,6 @@ qt_add_qml_module(treeland-qml
 target_link_libraries(treeland-qml
     PUBLIC
         Dtk6::Declarative
-	Qt6::Quick
-	Qt6::QuickControls2
+        Qt6::Quick
+        Qt6::QuickControls2
 )
