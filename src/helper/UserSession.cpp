@@ -51,9 +51,7 @@ namespace SDDM {
         , m_helperApp(parent)
     {
         connect(this, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished), this, &UserSession::finished);
-#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
         setChildProcessModifier(std::bind(&UserSession::childModifier, this));
-#endif
     }
 
     bool UserSession::start() {
@@ -201,11 +199,7 @@ namespace SDDM {
         return m_path;
     }
 
-#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
     void UserSession::childModifier() {
-#else
-    void UserSession::setupChildProcess() {
-#endif
         // Session type
         QString sessionType = processEnvironment().value(QStringLiteral("XDG_SESSION_TYPE"));
         QString sessionClass = processEnvironment().value(QStringLiteral("XDG_SESSION_CLASS"));
