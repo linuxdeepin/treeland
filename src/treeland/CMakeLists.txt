@@ -1,4 +1,6 @@
 pkg_search_module(WLROOTS REQUIRED IMPORTED_TARGET wlroots)
+find_package(Dtk6 REQUIRED COMPONENTS Declarative)
+# qt_finalize_target will collect all executable's private dependencies that are CMake targets
 
 add_subdirectory(data)
 add_subdirectory(protocols)
