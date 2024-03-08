@@ -90,13 +90,13 @@ OutputItem {
 
     Image {
         id: background
+        // register backgroundImage
+        property var personalizationMapper: background.PersonalizationManager
+
         fillMode: Image.PreserveAspectCrop
         source: personalizationManager.currentWallpaper + "?" + new Date().getTime()
         anchors.fill: parent
         asynchronous: true
-        Component.onCompleted: {
-            background.PersonalizationManager.backgroundImage = background
-        }
     }
 
     Component {
