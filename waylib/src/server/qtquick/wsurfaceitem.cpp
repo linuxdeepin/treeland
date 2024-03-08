@@ -1216,7 +1216,7 @@ void WSurfaceItemPrivate::updateEventItem(bool forceDestroy)
         eventItem->setVisible(false);
         eventItem->setParentItem(nullptr);
         eventItem->setParent(nullptr);
-        delete eventItem;
+        eventItem->deleteLater();
         eventItem = nullptr;
     } else {
         eventItem = new EventItem(q_func());
