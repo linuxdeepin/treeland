@@ -8,6 +8,7 @@ import TreeLand
 import TreeLand.Protocols
 import TreeLand.Utils
 import TreeLand.Protocols
+import org.deepin.dtk 1.0 as D
 
 Item {
     id: root
@@ -62,7 +63,7 @@ Item {
     required property OutputDelegate activeOutputDelegate
     readonly property real switcherHideOpacity: 0.3
     Item {
-        // DONE: some surfaces like layersurface should not be opacity 
+        // DONE: some surfaces like layersurface should not be opacity
         id: allWins
         anchors.fill: parent
         enabled: !switcher.visible && !multitaskView.active
@@ -292,6 +293,13 @@ Item {
                         }
                     }
                 }
+            }
+            D.InWindowBlur {
+                id: blur
+                anchors.fill: parent
+                z: toplevelSurfaceItem.contentItem.z - 2
+                visible: personalizationMapper.backgroundType == 2
+                radius: 16
             }
         }
 
