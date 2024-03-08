@@ -9,8 +9,11 @@ import org.deepin.dtk 1.0 as D
 import org.deepin.dtk.style 1.0 as DS
 import TreeLand.Utils
 
-Item {
+D.RoundRectangle {
     id: root
+    radius: 15
+    corners: D.RoundRectangle.TopLeftCorner | D.RoundRectangle.TopRightCorner
+    color: "transparent"
 
     signal requestMove
     signal requestMinimize
@@ -22,8 +25,22 @@ Item {
     readonly property real bottomMargin: 0
     readonly property real leftMargin: 0
     readonly property real rightMargin: 0
+    property D.Palette backgroundColor: DS.Style.highlightPanel.background
+    property D.Palette outerShadowColor: DS.Style.highlightPanel.dropShadow
+    property D.Palette innerShadowColor: DS.Style.highlightPanel.innerShadow
+
 
     required property WaylandXdgSurface surface
+
+    D.BoxShadow {
+        anchors.fill: root
+        shadowColor: root.D.ColorSelector.outerShadowColor
+        shadowOffsetY: 4
+        shadowBlur: 16
+        cornerRadius: root.radius
+        hollow: true
+    }
+
 
     MouseArea {
         property int edges: 0
@@ -67,17 +84,16 @@ Item {
         }
     }
 
-
     D.RoundRectangle {
         id: titlebar
         anchors.top: parent.top
         width: parent.width
         height: 30
-        radius: 15
-        corners: D.RoundRectangle.TopLeftCorner | D.RoundRectangle.TopRightCorner
+        radius: parent.radius
+        corners: parent.corners
     }
-
-    Item {
+    // TODO: use twice element, need optimize.
+    Rectangle {
         anchors.fill: titlebar
         layer.enabled: true
         layer.effect: OpacityMask {
@@ -94,6 +110,11 @@ Item {
             }
         }
 
+        Label {
+            anchors.centerIn: parent
+            clip: true
+            text: surface.title
+        }
         Row {
             anchors {
                 verticalCenter: parent.verticalCenter
