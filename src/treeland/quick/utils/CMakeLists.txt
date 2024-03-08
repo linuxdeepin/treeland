@@ -28,7 +28,7 @@ target_compile_definitions(treeland-quick-utils
 
 target_link_libraries(treeland-quick-utils
     PUBLIC
-        $<IF:$<BOOL:${WITH_SUBMODULE_WAYLIB}>, waylibserver, Waylib::WaylibServer>
+        Waylib::WaylibServer
         Qt${QT_MAJOR_VERSION}::Core
         Qt${QT_MAJOR_VERSION}::Quick
         Qt${QT_MAJOR_VERSION}::QuickControls2

@@ -44,7 +44,7 @@ target_link_libraries(treeland-protocols
         treeland-data
         treeland-quick-protocols
         PkgConfig::WLROOTS
-        $<IF:$<BOOL:${WITH_SUBMODULE_WAYLIB}>, waylibserver, Waylib::WaylibServer>
+        Waylib::WaylibServer
         Qt${QT_MAJOR_VERSION}::Core
         Qt${QT_MAJOR_VERSION}::Gui
         Qt${QT_MAJOR_VERSION}::Quick

@@ -28,7 +28,7 @@ target_link_libraries(treeland-fake-session
     PRIVATE
         common
         $<TARGET_OBJECTS:treeland-shell-manager>
-        $<IF:$<BOOL:${WITH_SUBMODULE_WAYLIB}>, waylibserver, Waylib::WaylibServer>
+        Waylib::WaylibServer
         Qt${QT_MAJOR_VERSION}::Gui
         Qt${QT_MAJOR_VERSION}::Widgets
         Qt${QT_MAJOR_VERSION}::Network
@@ -46,7 +46,7 @@ target_link_libraries(treeland-window-bg-test
     PRIVATE
         common
         $<TARGET_OBJECTS:treeland-shell-manager>
-        $<IF:$<BOOL:${WITH_SUBMODULE_WAYLIB}>, waylibserver, Waylib::WaylibServer>
+        Waylib::WaylibServer
         Qt${QT_MAJOR_VERSION}::Gui
         Qt${QT_MAJOR_VERSION}::Widgets
         Qt::WaylandClient

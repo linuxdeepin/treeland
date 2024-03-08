@@ -24,7 +24,7 @@ target_link_libraries(treeland-helper
     PRIVATE
         common
         $<TARGET_OBJECTS:treeland-socket-manager>
-        $<IF:$<BOOL:${WITH_SUBMODULE_WAYLIB}>, waylibserver, Waylib::WaylibServer>
+        Waylib::WaylibServer
         Qt::Core
         Qt::Gui
         Qt::Network
