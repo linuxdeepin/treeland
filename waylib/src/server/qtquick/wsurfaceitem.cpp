@@ -163,11 +163,7 @@ private:
                 return true;
             break;
         }
-        case FocusOut: {
-            if (isValid())
-                d()->q_func()->setFocus(false);
-            break;
-        }
+        // No need to process focusOut, see [PR 282](https://github.com/vioken/waylib/pull/282)
         default:
             break;
         }
