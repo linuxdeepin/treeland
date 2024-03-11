@@ -62,11 +62,13 @@ Item {
     required property OutputDelegate activeOutputDelegate
     readonly property real switcherHideOpacity: 0.3
     Item {
-        // TODO: some surfaces like layersurface should not be opacity 
+        // DONE: some surfaces like layersurface should not be opacity 
         id: allWins
         anchors.fill: parent
         enabled: !switcher.visible
         opacity: switcher.visible ? switcherHideOpacity : 1
+        z: 0
+
         DynamicCreatorComponent {
             id: toplevelComponent
             creator: QmlHelper.xdgSurfaceManager
@@ -293,21 +295,6 @@ Item {
         }
 
         DynamicCreatorComponent {
-            id: layerComponent
-            creator: QmlHelper.layerSurfaceManager
-            autoDestroy: false
-
-            onObjectRemoved: function (obj) {
-                obj.doDestroy()
-            }
-
-            LayerSurface {
-                id: layerSurface
-                creator: layerComponent
-            }
-        }
-
-        DynamicCreatorComponent {
             id: xwaylandComponent
             creator: QmlHelper.xwaylandSurfaceManager
             autoDestroy: false
@@ -457,6 +444,21 @@ Item {
                 surface: popupSurface
                 helper: inputMethodHelper
             }
+        }
+    }
+
+    DynamicCreatorComponent {
+        id: layerComponent
+        creator: QmlHelper.layerSurfaceManager
+        autoDestroy: false
+
+        onObjectRemoved: function (obj) {
+            obj.doDestroy()
+        }
+
+        LayerSurface {
+            id: layerSurface
+            creator: layerComponent
         }
     }
 
