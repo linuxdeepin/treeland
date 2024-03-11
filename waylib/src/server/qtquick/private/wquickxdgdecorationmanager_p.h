@@ -35,8 +35,8 @@ class WAYLIB_SERVER_EXPORT WQuickXdgDecorationManager : public WQuickWaylandServ
 {
     Q_OBJECT
     W_DECLARE_PRIVATE(WQuickXdgDecorationManager)
-    Q_PROPERTY(DecorationMode mode READ mode WRITE setMode NOTIFY modeChanged)
     Q_PROPERTY(WSocket* ownsSocket READ ownsSocket CONSTANT)
+    Q_PROPERTY(DecorationMode preferredMode READ preferredMode WRITE setPreferredMode NOTIFY preferredModeChanged)
     QML_ATTACHED(WQuickXdgDecorationManagerAttached)
     QML_NAMED_ELEMENT(XdgDecorationManager)
 
@@ -44,23 +44,25 @@ public:
     explicit WQuickXdgDecorationManager(QObject *parent = nullptr);
 
     enum DecorationMode {
-        DecidesByClient,
-        PreferClientSide,
-        PreferServerSide,
+        Undefined,  // client not send any mode
+        None,       // client send unset mode
+        Client,
+        Server,
     };
     Q_ENUM(DecorationMode)
 
-    void setMode(DecorationMode mode);
+    DecorationMode preferredMode() const;
+    void setPreferredMode(DecorationMode mode);
+
     void setModeBySurface(WSurface *surface, DecorationMode mode);
 
-    DecorationMode mode() const;
     DecorationMode modeBySurface(WSurface* surface) const;
 
     static WQuickXdgDecorationManagerAttached *qmlAttachedProperties(QObject *target);
 
 Q_SIGNALS:
-    void modeChanged(DecorationMode mode);
     void surfaceModeChanged(WSurface *surface, DecorationMode mode);
+    void preferredModeChanged(DecorationMode mode);
 
 private:
     void create() override;

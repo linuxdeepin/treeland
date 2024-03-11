@@ -147,6 +147,7 @@ Item {
         // TODO: add attached property for XdgSurface
         XdgDecorationManager {
             id: decorationManager
+            preferredMode: XdgDecorationManager.Client
         }
 
         InputMethodManagerV2 {
@@ -239,13 +240,13 @@ Item {
                 TabButton {
                     text: qsTr("Stack Layout")
                     onClicked: {
-                        decorationManager.mode = XdgDecorationManager.PreferClientSide
+                        decorationManager.preferredMode = XdgDecorationManager.Client
                     }
                 }
                 TabButton {
                     text: qsTr("Tiled Layout")
                     onClicked: {
-                        decorationManager.mode = XdgDecorationManager.PreferServerSide
+                        decorationManager.preferredMode = XdgDecorationManager.Server
                     }
                 }
             }

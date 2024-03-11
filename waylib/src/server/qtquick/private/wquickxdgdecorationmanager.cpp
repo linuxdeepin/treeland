@@ -34,13 +34,13 @@ public:
     void updateDecorationMode(QWXdgToplevelDecorationV1 *decorat);
 
     WQuickXdgDecorationManager::DecorationMode modeBySurface(WSurface *surface) const {
-        return decorations.value(surface, WQuickXdgDecorationManager::DecidesByClient);
+        return decorations.value(surface, WQuickXdgDecorationManager::Undefined);
     }
 
     W_DECLARE_PUBLIC(WQuickXdgDecorationManager)
 
     QWXdgDecorationManagerV1 *manager = nullptr;
-    WQuickXdgDecorationManager::DecorationMode mode = WQuickXdgDecorationManager::DecidesByClient;
+    WQuickXdgDecorationManager::DecorationMode preferredMode = WQuickXdgDecorationManager::Server;
     QMap<WSurface*, WQuickXdgDecorationManager::DecorationMode> decorations;
 };
 
@@ -63,9 +63,37 @@ void WQuickXdgDecorationManagerPrivate::updateDecorationMode(QWXdgToplevelDecora
     W_Q(WQuickXdgDecorationManager);
 
     auto *surface = WSurface::fromHandle(decorat->handle()->toplevel->base->surface);
-    WQuickXdgDecorationManager::DecorationMode mode = static_cast<WQuickXdgDecorationManager::DecorationMode>(decorat->handle()->requested_mode);
-
-    decorations.insert(surface, mode);
+    WQuickXdgDecorationManager::DecorationMode mode = WQuickXdgDecorationManager::Undefined;
+    switch (decorat->handle()->requested_mode) {
+        case WLR_XDG_TOPLEVEL_DECORATION_V1_MODE_NONE:
+            mode = WQuickXdgDecorationManager::None;
+            break;
+        case WLR_XDG_TOPLEVEL_DECORATION_V1_MODE_CLIENT_SIDE:
+            mode = WQuickXdgDecorationManager::Client;
+            break;
+        case WLR_XDG_TOPLEVEL_DECORATION_V1_MODE_SERVER_SIDE:
+            mode = WQuickXdgDecorationManager::Server;
+            break;
+        default:
+            Q_UNREACHABLE();
+            break;
+    }
+    if (mode == WQuickXdgDecorationManager::None) {
+        switch (preferredMode) {
+            case WQuickXdgDecorationManager::Client:
+                decorat->setMode(WLR_XDG_TOPLEVEL_DECORATION_V1_MODE_CLIENT_SIDE);
+                break;
+            case WQuickXdgDecorationManager::Server:
+                decorat->setMode(WLR_XDG_TOPLEVEL_DECORATION_V1_MODE_SERVER_SIDE);
+                break;
+            default:
+                Q_UNREACHABLE();
+                break;
+        }
+        decorations.insert(surface, preferredMode);
+    } else {
+        decorations.insert(surface, mode);
+    }
 
     Q_EMIT q->surfaceModeChanged(surface, mode);
 }
@@ -92,22 +120,28 @@ void WQuickXdgDecorationManager::create()
     });
 }
 
-void WQuickXdgDecorationManager::setMode(DecorationMode mode)
+WQuickXdgDecorationManager::DecorationMode WQuickXdgDecorationManager::preferredMode() const
+{
+    W_D(const WQuickXdgDecorationManager);
+    return d->preferredMode;
+}
+
+void WQuickXdgDecorationManager::setPreferredMode(DecorationMode mode)
 {
     W_D(WQuickXdgDecorationManager);
-
-    if (d->mode == mode) {
+    if (d->preferredMode == mode) {
         return;
     }
-
+    if (d->preferredMode == DecorationMode::Undefined || d->preferredMode == DecorationMode::None) {
+        qWarning("Prefer mode must be 'Client' or 'Server'");
+        return;
+    }
     // update all existing decoration that mode changed
     for (auto *surface : d->decorations.keys()) {
         setModeBySurface(surface, mode);
     }
-
-    d->mode = mode;
-
-    Q_EMIT modeChanged(mode);
+    d->preferredMode = mode;
+    Q_EMIT preferredModeChanged(mode);
 }
 
 void WQuickXdgDecorationManager::setModeBySurface(WSurface *surface, DecorationMode mode)
@@ -124,24 +158,21 @@ void WQuickXdgDecorationManager::setModeBySurface(WSurface *surface, DecorationM
         wl_list_for_each(wlr_decorations, &wlr_manager->decorations, link) {
             if (WSurface::fromHandle(wlr_decorations->toplevel->base->surface) == surface) {
                 auto * decorat = QWXdgToplevelDecorationV1::from(wlr_decorations);
-                if (mode == WQuickXdgDecorationManager::PreferClientSide)
-                    decorat->setMode(WLR_XDG_TOPLEVEL_DECORATION_V1_MODE_CLIENT_SIDE);
-                else if (mode == WQuickXdgDecorationManager::PreferServerSide)
-                    decorat->setMode(WLR_XDG_TOPLEVEL_DECORATION_V1_MODE_SERVER_SIDE);
-                else {
-                    decorat->setMode(decorat->handle()->requested_mode);
+                switch (mode) {
+                    case WQuickXdgDecorationManager::Client:
+                        decorat->setMode(WLR_XDG_TOPLEVEL_DECORATION_V1_MODE_CLIENT_SIDE);
+                        break;
+                    case WQuickXdgDecorationManager::Server:
+                        decorat->setMode(WLR_XDG_TOPLEVEL_DECORATION_V1_MODE_SERVER_SIDE);
+                        break;
+                    default:
+                        Q_UNREACHABLE();
+                        break;
                 }
-                d->updateDecorationMode(decorat);
                 break;
             }
         }
     }
-}
-
-WQuickXdgDecorationManager::DecorationMode WQuickXdgDecorationManager::mode() const
-{
-    W_DC(WQuickXdgDecorationManager);
-    return d->mode;
 }
 
 WQuickXdgDecorationManager::DecorationMode WQuickXdgDecorationManager::modeBySurface(WSurface *surface) const
@@ -163,7 +194,7 @@ WQuickXdgDecorationManagerAttached::WQuickXdgDecorationManagerAttached(WSurface 
 }
 
 bool WQuickXdgDecorationManagerAttached::serverDecorationEnabled() const {
-    return m_manager->modeBySurface(m_target) == WQuickXdgDecorationManager::PreferServerSide;
+    return m_manager->modeBySurface(m_target) == WQuickXdgDecorationManager::Server;
 }
 
 WQuickXdgDecorationManagerAttached *WQuickXdgDecorationManager::qmlAttachedProperties(QObject *target)
