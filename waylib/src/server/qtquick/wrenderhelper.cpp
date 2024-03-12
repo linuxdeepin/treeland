@@ -646,8 +646,6 @@ QSGRendererInterface::GraphicsApi WRenderHelper::probe(QWBackend *testBackend, c
 
         // TODO: how to test when formats gets NULL
         if (formats && formats->len) {
-            auto *format = &formats->formats[0];
-
             auto allocDeleter = [](wlr_allocator *alloc) {
                 wlr_allocator_destroy(alloc);
             };
@@ -659,16 +657,31 @@ QSGRendererInterface::GraphicsApi WRenderHelper::probe(QWBackend *testBackend, c
             auto swapchainDeleter = [](wlr_swapchain *swapchain) {
                 wlr_swapchain_destroy(swapchain);
             };
-            std::unique_ptr<wlr_swapchain, decltype(swapchainDeleter)> swapchain {
-                wlr_swapchain_create(alloc.get(), 1000, 800, format)
-                , swapchainDeleter
-            };
 
-            auto *buffer = wlr_swapchain_acquire(swapchain.get(), nullptr); // destroy follow swapchain
-            std::unique_ptr<QWTexture> texture { QWTexture::fromBuffer(renderer, QWBuffer::from(buffer)) };
+            bool hasSupportedFormat = false;
+            for (int formatId = 0; formatId < formats->len; formatId++) {
+                auto *format = &formats->formats[formatId];
 
-            if (!texture) {
-                qInfo() << GraphicsApiName(api) << " api failed to convert buffer to texture";
+                std::unique_ptr<wlr_swapchain, decltype(swapchainDeleter)> swapchain {
+                    wlr_swapchain_create(alloc.get(), 1000, 800, format)
+                    , swapchainDeleter
+                };
+
+                auto *buffer = wlr_swapchain_acquire(swapchain.get(), nullptr); // destroy follow swapchain
+
+                if (!buffer) {
+                    continue;
+                } else {
+                    std::unique_ptr<QWTexture> texture { QWTexture::fromBuffer(renderer, QWBuffer::from(buffer)) };
+                    if (!texture)
+                        continue;
+                    hasSupportedFormat = true;
+                    break;
+                }
+            }
+
+            if (!hasSupportedFormat) {
+                qInfo() << GraphicsApiName(api) << " api failed to convert any buffer to texture";
                 continue;
             }
         }
