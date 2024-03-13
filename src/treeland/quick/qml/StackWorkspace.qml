@@ -11,7 +11,7 @@ import TreeLand.Utils
 import TreeLand.Protocols
 import org.deepin.dtk 1.0 as D
 
-Item {
+FocusScope {
     id: root
     function getSurfaceItemFromWaylandSurface(surface) {
         let finder = function(props) {
@@ -84,6 +84,7 @@ Item {
         anchors.fill: parent
         visible: !multitaskView.active
         enabled: !switcher.visible && !multitaskView.active
+        focus: enabled
         opacity: if (switcher.visible || dockPreview.previewing) switcherHideOpacity
             else 1
         z: 0
@@ -121,6 +122,7 @@ Item {
                 workspaceId: wsid
                 workspaceRelativeId: index
                 visible: workspaceRelativeId === currentWorkspaceId
+                focus: visible
                 anchors.fill: parent
                 Component.onCompleted: {
                     workspaceManager.workspacesById.set(workspaceId, this)
@@ -172,6 +174,7 @@ Item {
                 bottomPadding: decoration.enable ? decoration.bottomMargin : 0
                 leftPadding: decoration.enable ? decoration.leftMargin : 0
                 rightPadding: decoration.enable ? decoration.rightMargin : 0
+                focus: this.waylandSurface === Helper.activatedSurface
 
                 OutputLayoutItem {
                     anchors.fill: parent
@@ -387,8 +390,6 @@ Item {
                 required property int workspaceId
                 parent: QmlHelper.workspaceManager.workspacesById.get(workspaceId)
 
-                Component.onCompleted: console.log('xwayland',this,'created to',workspaceId,parent)
-
                 surface: waylandSurface
                 parentSurfaceItem: surfaceParent ? surfaceParent.item : null
                 z: waylandSurface.bypassManager ? 1 : 0 // TODO: make to enum type
@@ -536,6 +537,7 @@ Item {
             id: layerSurface
             creator: layerComponent
             activeOutputItem: activeOutputDelegate
+            focus: Helper.activatedSurface === this.waylandSurface
         }
     }
 
@@ -546,6 +548,7 @@ Item {
         enabled: !multitaskView.active
         model: workspaceManager.workspacesById.get(workspaceManager.layoutOrder.get(currentWorkspaceId).wsid).surfaces
         visible: false // dbgswtchr.checked
+        focus: false
         activeOutput: activeOutputDelegate
         onSurfaceActivated: (surface) => {
             surface.cancelMinimize()
@@ -572,10 +575,12 @@ Item {
     Loader {
         id: multitaskView
         active: false
+        focus: false
         anchors.fill: parent
         sourceComponent: Component {
             MultitaskView {
                 anchors.fill: parent
+                focus: false
                 currentWorkspaceId: root.currentWorkspaceId
                 setCurrentWorkspaceId: (id) => root.currentWorkspaceId = id
                 onVisibleChanged: {
