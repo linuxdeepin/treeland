@@ -1,5 +1,5 @@
 // Copyright (C) 2024 Yicheng Zhong <zhongyicheng@uniontech.com>.
-// SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
+// SPDX-License-Identif ier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 import QtQuick
 import QtQuick.Layouts
@@ -12,30 +12,39 @@ Item {
     id: root
     required property ListModel model
     required property OutputRenderWindow outputRenderWindow
+    property int current: -1
+
+    function exit(surfaceItem) {
+        if (surfaceItem)
+            Helper.activatedSurface = surfaceItem.waylandSurface
+        else if (current >= 0 && current < model.count)
+            Helper.activatedSurface = model.get(current).source.waylandSurface
+        visible = false
+    }
 
     Item {
         id: outputsPlacementItem
         Repeater {
             model: QmlHelper.layout.outputs
-            Item {
-                function calcDisplayRect(item,output){
+            MouseArea {
+                id: outputPlacementItem
+                function calcDisplayRect(item, output) {
                     // margins on this output
                     const margins = Helper.getOutputExclusiveMargins(output)
-                    const coord = parent.mapFromItem(item,0,0)
+                    const coord = parent.mapFromItem(item, 0, 0)
                     // global pos before culling zones
-                    const origin = Qt.rect(coord.x,coord.y,item.width,item.height)
-                    console.log('calcdisplay',origin,margins,margins.top,coord)
+                    const origin = Qt.rect(coord.x, coord.y, item.width, item.height)
                     return Qt.rect(origin.x + margins.left, origin.y + margins.top, 
                         origin.width - margins.left - margins.right, origin.height - margins.top - margins.bottom)
                 }
-                property rect displayRect: root.visible ? calcDisplayRect(modelData,modelData.output) : Qt.rect(0,0,0,0)
+                property rect displayRect: root.visible ? calcDisplayRect(modelData, modelData.output) : Qt.rect(0, 0, 0, 0)
                 x: displayRect.x
                 y: displayRect.y
                 width: displayRect.width
                 height: displayRect.height
 
-                // Component.onCompleted: console.log('output',modelData,QmlHelper.printStructureObject(modelData))
-                onHeightChanged: console.log(this,'height',height)
+                onClicked: root.exit()
+
                 ListModel {
                     id: outputProxy
                 }
@@ -52,29 +61,31 @@ Item {
                     spacing: 20
                     Connections {
                         target: root
-                        function onVisibleChanged(){
+                        function onVisibleChanged() {
                             outputProxy.clear()
                             const filter=(item) => {
-                                // console.log('filtering',item.source.waylandSurface.surface.primaryOutput,modelData.output,QmlHelper.printStructureObject(modelData))
                                 return item.source.waylandSurface.surface.primaryOutput === modelData.output
                             }
-                            for(var i=0;i<root.model.count;i++) {
+                            for (var i=0;i<root.model.count;i++) {
                                 const item=root.model.get(i)
-                                if(filter(item)){
+                                if (filter(item)) {
                                     outputProxy.append(item)
                                 }
                             }
-                            console.log('calc',grid.calcLayout())
+                            grid.calcLayout()
                         }
                     }
                     delegate: Item {
-                            property XdgSurface source: modelData.source
+                            property SurfaceItem source: modelData.source
                             width: modelData.dw
                             height: width * source.height / source.width
                             clip: true
                             property bool highlighted: hvhdlr.hovered
                             HoverHandler {
                                 id: hvhdlr
+                            }
+                            TapHandler {
+                                onTapped: root.exit(source)
                             }
                             Rectangle {
                                 anchors.fill: parent
@@ -100,7 +111,7 @@ Item {
                                     horizontalCenter: parent.horizontalCenter
                                     margins: 10
                                 }
-                                width: Math.min(implicitContentWidth + 2 * padding,parent.width*.7)
+                                width: Math.min(implicitContentWidth + 2 * padding, parent.width*.7)
                                 padding: 10
                                 visible: highlighted
                                 
@@ -109,7 +120,7 @@ Item {
                                     elide: Qt.ElideRight
                                 }
                                 background: Rectangle {
-                                    color: Qt.rgba(255,255,255,.2)
+                                    color: Qt.rgba(255, 255, 255, .2)
                                     radius: 5
                                 }
                             }
