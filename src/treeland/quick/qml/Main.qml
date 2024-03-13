@@ -283,11 +283,28 @@ Item {
 
         EventJunkman {
             anchors.fill: parent
+            focus: false
+        }
+
+        onActiveFocusItemChanged: {
+            // in case unexpected behavior happens
+            if (activeFocusItem === renderWindow.contentItem) {
+                console.warn('focusOnroot')
+                // manually pick one child to focus
+                for(let item of renderWindow.contentItem.children) {
+                    if (item.focus) {
+                        item.forceActiveFocus()
+                        return
+                    }
+                }
+                console.exception('no active focus !!!')
+            }
         }
 
         Item {
             id: outputLayout
-
+            objectName: "outputlayout"
+            focus: greeter.visible
             DynamicCreatorComponent {
                 id: outputDelegateCreator
                 creator: QmlHelper.outputManager
@@ -334,31 +351,38 @@ Item {
                 id: greeter
                 z: 1
                 visible: !TreeLand.testMode
+                enabled: visible
+                focus: enabled
                 anchors.fill: renderWindow.activeOutputDelegate
             }
         }
 
-        ColumnLayout {
+        FocusScope {
             id: workspaceLoader
             anchors.fill: parent
             visible: !greeter.visible
-
-            Item {
-                Layout.fillWidth: true
-                Layout.fillHeight: true
-
-                Loader {
-                    id: stackLayout
-                    anchors.fill: parent
-                    sourceComponent: StackWorkspace {
-                        activeOutputDelegate: renderWindow.activeOutputDelegate
+            enabled: visible
+            focus: enabled
+            ColumnLayout {
+                FocusScope {
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                    focus: true
+                    activeFocusOnTab: true
+                    Loader {
+                        id: stackLayout
+                        anchors.fill: parent
+                        sourceComponent: StackWorkspace {
+                            focus: stackLayout.active
+                            activeOutputDelegate: renderWindow.activeOutputDelegate
+                        }
                     }
-                }
 
-                Loader {
-                    active: !stackLayout.active
-                    anchors.fill: parent
-                    sourceComponent: TiledWorkspace { }
+                    Loader {
+                        active: !stackLayout.active
+                        anchors.fill: parent
+                        sourceComponent: TiledWorkspace { }
+                    }
                 }
             }
         }
