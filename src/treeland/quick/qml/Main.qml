@@ -295,7 +295,6 @@ Item {
         Item {
             id: outputLayout
             objectName: "outputlayout"
-            focus: greeter.visible
             DynamicCreatorComponent {
                 id: outputDelegateCreator
                 creator: QmlHelper.outputManager
@@ -341,7 +340,7 @@ Item {
             Greeter {
                 id: greeter
                 z: 1
-                visible: !TreeLand.testMode
+                visible: { visible = !TreeLand.testMode }
                 enabled: visible
                 focus: enabled
                 anchors.fill: renderWindow.activeOutputDelegate
@@ -350,12 +349,14 @@ Item {
 
         FocusScope {
             id: workspaceLoader
+            objectName: "workspaceLoader"
             anchors.fill: parent
             visible: !greeter.visible
             enabled: visible
             focus: enabled
             ColumnLayout {
                 FocusScope {
+                    objectName: "loadercontainer"
                     Layout.fillWidth: true
                     Layout.fillHeight: true
                     focus: true
@@ -363,6 +364,7 @@ Item {
                     Loader {
                         id: stackLayout
                         anchors.fill: parent
+                        focus: true
                         sourceComponent: StackWorkspace {
                             focus: stackLayout.active
                             activeOutputDelegate: renderWindow.activeOutputDelegate
