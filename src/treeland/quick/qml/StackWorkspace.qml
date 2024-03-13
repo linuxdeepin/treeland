@@ -481,7 +481,6 @@ Item {
         anchors.fill: parent
         model: switcher.model
         outputRenderWindow: outputRenderWindow
-        onVisibleChanged: console.log('!!!')
     }
 
     Switch {
