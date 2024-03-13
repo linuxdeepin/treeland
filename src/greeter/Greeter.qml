@@ -6,7 +6,7 @@ import QtQuick.Layouts
 
 import TreeLand.Greeter
 
-Item {
+FocusScope {
     id: root
     clip: true
 
@@ -53,6 +53,8 @@ Item {
         anchors.topMargin: 50
         anchors.rightMargin: 50
         anchors.bottomMargin: 50
+
+        focus: true
     }
 
 
