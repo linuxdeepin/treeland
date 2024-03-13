@@ -8,7 +8,7 @@ import org.deepin.dtk 1.0 as D
 import TreeLand
 import TreeLand.Utils
 
-Item {
+FocusScope {
     id: root
 
     property UserInput loginGroup: userInput
@@ -111,18 +111,22 @@ Item {
         }
     }
 
-    Item {
+    FocusScope {
         id: right
         anchors.left: quickActions.right
         anchors.right: parent.right
         anchors.top: parent.top
         anchors.bottom: parent.bottom
 
+        focus: true
+
         UserInput {
             id: userInput
             anchors.verticalCenter: parent.verticalCenter
             anchors.left: parent.left
             anchors.leftMargin: parent.width / 6
+
+            focus: true
         }
 
         //TODO: abstract ot a Button type
