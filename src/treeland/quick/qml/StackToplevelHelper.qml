@@ -110,8 +110,10 @@ Item {
                 // Apply the WSurfaceItem's size to wl_surface
                 surface.resize(SurfaceItem.SizeToSurface)
 
+                // process defered visible change after mapped
+                // TODO whatif layersurface set exclusive focus?
                 if (waylandSurface && waylandSurface.isActivated)
-                    surface.forceActiveFocus()
+                    Helper.activatedSurface = surface
             } else {
                 Helper.cancelMoveResize(surface)
             }
@@ -143,7 +145,7 @@ Item {
                 cancelMinimize()
             }
 
-            surface.focus = activated
+            // surface.focus = activated
             Helper.activatedSurface = activated ? surface : null
         }
 
@@ -291,10 +293,9 @@ Item {
         function onActivateChanged() {
             if (waylandSurface.isActivated) {
                 WaylibHelper.itemStackToTop(surface)
-                if (surface.effectiveVisible)
-                    surface.forceActiveFocus()
-            } else {
-                surface.focus = false
+                if (surface.effectiveVisible) {
+                    Helper.activatedSurface = waylandSurface
+                }
             }
         }
 
@@ -363,7 +364,7 @@ Item {
             if (!surface.effectiveVisible)
                 return
 
-            surface.focus = false;
+            // TODO activate next in stack
             if (Helper.activatedSurface === surface)
                 Helper.activatedSurface = null;
 
