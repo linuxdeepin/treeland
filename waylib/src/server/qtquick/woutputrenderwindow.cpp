@@ -1106,6 +1106,12 @@ WOutputRenderWindow::WOutputRenderWindow(QObject *parent)
 
     connect(contentItem(), &QQuickItem::widthChanged, this, &WOutputRenderWindow::widthChanged);
     connect(contentItem(), &QQuickItem::heightChanged, this, &WOutputRenderWindow::heightChanged);
+    // renderwindow inherits qquickwindow, default no focusscope-isolation & no focus on contentItem(QQuickRootItem) when startup
+    // setFocus(true) to deliver focus to children on startup, 
+    // set focusscope to persist & restore in-scope focusItem, even after other item takes away the focus
+    // see [QQuickApplicationWindow](qt6/qtdeclarative/src/quicktemplates/qquickapplicationwindow.cpp)
+    contentItem()->setFlag(QQuickItem::ItemIsFocusScope);
+    contentItem()->setFocus(true);
 }
 
 WOutputRenderWindow::~WOutputRenderWindow()
