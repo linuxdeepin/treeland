@@ -7,7 +7,7 @@ import QtQuick.Particles
 import TreeLand
 import TreeLand.Utils
 
-Item {
+FocusScope {
     property alias waylandSurface: surfaceItem.surface
     property bool anchorWidth: false
     property bool anchorHeight: false
@@ -27,6 +27,7 @@ Item {
 
     LayerSurfaceItem {
         anchors.centerIn: parent
+        focus: true
 
         id: surfaceItem
 
@@ -239,8 +240,6 @@ Item {
         function onActivateChanged() {
             if (waylandSurface.isActivated && surfaceItem.effectiveVisible) {
                 surfaceItem.forceActiveFocus()
-            } else {
-                surfaceItem.focus = false
             }
         }
     }

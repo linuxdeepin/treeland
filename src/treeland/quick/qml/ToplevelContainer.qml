@@ -9,7 +9,7 @@ import TreeLand.Protocols
 import TreeLand.Utils
 import TreeLand.Protocols
 
-Item {
+FocusScope {
     id: root
     required property int workspaceId
     required property int workspaceRelativeId
