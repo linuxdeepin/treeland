@@ -467,11 +467,28 @@ Item {
         id: switcher
         z: 100 + 1
         anchors.fill: parent
+        enabled: !multitaskView.visible
         visible: false // dbgswtchr.checked
         activeOutput: activeOutputDelegate
         onSurfaceActivated: (surface) => {
             surface.cancelMinimize()
             Helper.activatedSurface = surface.waylandSurface
+        }
+        Binding {
+            target: Helper
+            property: "switcherEnabled"
+            value: switcher.enabled
+        }
+        Binding {
+            target: Helper
+            property: "switcherOn"
+            value: switcher.visible
+        }
+        Connections {
+            target: Helper
+            function onSwitcherOnChanged(on) {
+                if (!on) switcher.visible = false
+            }
         }
     }
 
@@ -520,13 +537,8 @@ Item {
     Connections {
         target: Helper
         function onSwitcherChanged(mode) {
+            switcher.visible = true // ensure, won't emit event if already visible
             switch (mode) {
-            case (Helper.Show):
-                switcher.visible = true
-                break
-            case (Helper.Hide):
-                switcher.visible = false
-                break
             case (Helper.Next):
                 switcher.next()
                 break
