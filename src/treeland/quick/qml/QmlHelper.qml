@@ -13,6 +13,7 @@ Item {
     property DynamicCreator layerSurfaceManager: layerSurfaceManager
     property DynamicCreator xwaylandSurfaceManager: xwaylandSurfaceManager
     property DynamicCreator inputPopupSurfaceManager: inputPopupSurfaceManager
+    property alias shortcutManager: shortcutManager
 
     function printStructureObject(obj) {
         var json = ""
@@ -94,5 +95,11 @@ Item {
             console.info(`Input popup surface item ${obj} is removed, it's create from delegate ${delegate} with initial properties:`,
                          `\n${printStructureObject(properties)}`)
         }
+    }
+
+    QtObject {
+        id: shortcutManager
+        signal screenLocked
+        signal multitaskViewToggled
     }
 }

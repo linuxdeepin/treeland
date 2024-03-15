@@ -364,5 +364,27 @@ Item {
                 greeter.visible = true
             }
         }
+        
+        Shortcut {
+            sequences: ["Meta+S"]
+            context: Qt.ApplicationShortcut
+            onActivated: {
+                QmlHelper.shortcutManager.multitaskViewToggled()
+            }
+        }
+        Shortcut {
+            sequences: ["Meta+L"]
+            autoRepeat: false
+            context: Qt.ApplicationShortcut
+            onActivated: {
+                QmlHelper.shortcutManager.screenLocked()
+            }
+        }
+        Connections {
+            target: QmlHelper.shortcutManager
+            function onScreenLocked() {
+                greeter.visible = true
+            }
+        }
     }
 }
