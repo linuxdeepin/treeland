@@ -467,7 +467,7 @@ Item {
         id: switcher
         z: 100 + 1
         anchors.fill: parent
-        enabled: !multitaskView.visible
+        enabled: !multitaskView.active
         visible: false // dbgswtchr.checked
         activeOutput: activeOutputDelegate
         onSurfaceActivated: (surface) => {
@@ -546,6 +546,12 @@ Item {
                 switcher.previous()
                 break
             }
+        }
+    }
+    Connections {
+        target: QmlHelper.shortcutManager
+        function onMultitaskViewToggled() {
+            multitaskView.active = !multitaskView.active
         }
     }
 }
