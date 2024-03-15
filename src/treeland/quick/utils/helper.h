@@ -36,6 +36,8 @@ class Helper : public WSeatEventFilter {
     Q_PROPERTY(WSurfaceItem *movingItem READ movingItem NOTIFY movingItemChanged FINAL)
     Q_PROPERTY(QString socketFile READ socketFile WRITE setSocketFile NOTIFY socketFileChanged FINAL)
     Q_PROPERTY(QString currentUser READ currentUser WRITE setCurrentUser FINAL)
+    Q_PROPERTY(bool switcherOn MEMBER m_switcherOn NOTIFY switcherOnChanged FINAL)
+    Q_PROPERTY(bool switcherEnabled MEMBER m_switcherEnabled FINAL)
     QML_ELEMENT
     QML_SINGLETON
 
@@ -43,8 +45,6 @@ public:
     explicit Helper(QObject *parent = nullptr);
 
     enum Switcher {
-        Hide,
-        Show,
         Next,
         Previous,
     };
@@ -102,7 +102,8 @@ Q_SIGNALS:
     void leftExclusiveMarginChanged();
     void rightExclusiveMarginChanged();
     void socketFileChanged();
-    void switcherChanged(Switcher mode);
+    void switcherChanged(Switcher action);
+    void switcherOnChanged(bool on);
 
 protected:
     bool beforeDisposeEvent(WSeat *seat, QWindow *watched, QInputEvent *event) override;
@@ -134,8 +135,9 @@ private:
 private:
     QString m_socketFile;
     QString m_currentUser;
-    Switcher m_switcherCurrentMode = Switcher::Hide;
     std::map<QString, std::vector<QAction*>> m_actions;
+    bool m_switcherOn = false;
+    bool m_switcherEnabled = true;
 };
 
 struct OutputInfo {

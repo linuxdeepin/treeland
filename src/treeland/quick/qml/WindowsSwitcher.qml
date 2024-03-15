@@ -18,7 +18,7 @@ Item {
         if (visible) {
             current = 0
             indicatorPlane.calcLayout()
-            next()
+            show()
         }
         else {
             stop()
