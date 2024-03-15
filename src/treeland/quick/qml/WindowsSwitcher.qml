@@ -39,6 +39,7 @@ Item {
     }
 
     function show() {
+        // current may be in intermediate state, make sure current is in range
         if (current >= model.count || current < 0) {
             return
         }
@@ -64,7 +65,10 @@ Item {
         }
     }
     
-    onCurrentChanged: show()
+    onCurrentChanged: {
+        // change may be triggered by: click, keyboard navigation
+        show()
+    }
 
     Loader {
         id: context
@@ -87,7 +91,11 @@ Item {
                 }
             }
         }
-        onCountChanged: if (visible) indicatorPlane.calcLayout()
+        onCountChanged: if (visible) {
+            // in case a window exited when previewing
+            current = Math.max(Math.min(current, model.count - 1), 0)
+            indicatorPlane.calcLayout()
+        }
     }
 
     property int spacing: 10
