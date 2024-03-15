@@ -11,7 +11,6 @@ import TreeLand.Utils
 Item {
     id: root
     required property ListModel model
-    required property OutputRenderWindow outputRenderWindow
     property int current: -1
 
     function exit(surfaceItem) {
@@ -60,14 +59,14 @@ Item {
                     availW: parent.width
                     spacing: 20
                     Connections {
-                        target: root
-                        function onVisibleChanged() {
+                        target: root.Component
+                        function onCompleted() {
                             outputProxy.clear()
-                            const filter=(item) => {
+                            const filter = (item) => {
                                 return item.source.waylandSurface.surface.primaryOutput === modelData.output
                             }
-                            for (var i=0;i<root.model.count;i++) {
-                                const item=root.model.get(i)
+                            for (var i = 0; i < root.model.count; i++) {
+                                const item = root.model.get(i)
                                 if (filter(item)) {
                                     outputProxy.append(item)
                                 }
@@ -100,7 +99,7 @@ Item {
                                     margins: 3
                                 }
                                 live: true
-                                hideSource: false
+                                hideSource: true
                                 smooth: true
                                 sourceItem: source
                             }
@@ -111,7 +110,7 @@ Item {
                                     horizontalCenter: parent.horizontalCenter
                                     margins: 10
                                 }
-                                width: Math.min(implicitContentWidth + 2 * padding, parent.width*.7)
+                                width: Math.min(implicitContentWidth + 2 * padding, parent.width * .7)
                                 padding: 10
                                 visible: highlighted
                                 
