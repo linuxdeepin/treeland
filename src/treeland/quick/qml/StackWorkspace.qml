@@ -65,9 +65,9 @@ Item {
         // DONE: some surfaces like layersurface should not be opacity 
         id: allWins
         anchors.fill: parent
-        visible: !multitaskView.visible
-        enabled: !switcher.visible
-        opacity: switcher.visible ? switcherHideOpacity : 1
+        enabled: !switcher.visible && !multitaskView.active
+        opacity: if (switcher.visible) switcherHideOpacity
+            else 1
         z: 0
 
         DynamicCreatorComponent {
@@ -475,19 +475,18 @@ Item {
         }
     }
 
-    MultitaskView {
+    Loader {
         id: multitaskView
-        visible: dbgswtchr.checked
-        anchors.fill: parent
-        model: switcher.model
-        outputRenderWindow: outputRenderWindow
-    }
-
-    Switch {
-        id: dbgswtchr
-        anchors {
-            bottom: parent.bottom
-            left: parent.left
+        active: false
+        sourceComponent: Component {
+            MultitaskView {
+                anchors.fill: parent
+                model: switcher.model
+                onVisibleChanged: {
+                    console.assert(!visible,'should be exit')
+                    multitaskView.active = false
+                }
+            }
         }
     }
 
