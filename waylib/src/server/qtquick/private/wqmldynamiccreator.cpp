@@ -306,8 +306,11 @@ QVariant WQmlCreatorComponent::chooserRoleValue() const
     return m_chooserRoleValue;
 }
 
-void WQmlCreatorComponent::setChooserRoleValue(const QVariant &newChooserRoleValue)
+void WQmlCreatorComponent::setChooserRoleValue(QVariant newChooserRoleValue)
 {
+    // jsvalue assigned to qproperty aren't auto converted to QVariantMap, differs with invoke args
+    if (newChooserRoleValue.canConvert<QJSValue>())
+        newChooserRoleValue = newChooserRoleValue.value<QJSValue>().toVariant();
     if (m_chooserRoleValue == newChooserRoleValue)
         return;
     m_chooserRoleValue = newChooserRoleValue;
