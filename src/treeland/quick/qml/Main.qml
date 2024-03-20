@@ -85,10 +85,12 @@ Item {
 
         XdgShell {
             id: shell
+            property int workspaceId: 0
 
             onSurfaceAdded: function(surface) {
                 let type = surface.isPopup ? "popup" : "toplevel"
-                QmlHelper.xdgSurfaceManager.add({type: type, waylandSurface: surface})
+                const wid = (++workspaceId) % 3
+                QmlHelper.xdgSurfaceManager.add({type: type, workspaceId: wid, waylandSurface: surface})
 
                 let clientName = Helper.clientName(surface.surface)
                 if (!surface.isPopup && clientName !== "dde-desktop" && clientName !== "dde-launchpad") {
@@ -232,7 +234,7 @@ Item {
             onReady: masterSocket.addClient(client())
 
             onSurfaceAdded: function(surface) {
-                QmlHelper.xwaylandSurfaceManager.add({waylandSurface: surface})
+                QmlHelper.xwaylandSurfaceManager.add({waylandSurface: surface, workspaceId: 0})
             }
             onSurfaceRemoved: function(surface) {
                 QmlHelper.xwaylandSurfaceManager.removeIf(function(prop) {
@@ -378,6 +380,20 @@ Item {
             context: Qt.ApplicationShortcut
             onActivated: {
                 QmlHelper.shortcutManager.screenLocked()
+            }
+        }
+        Shortcut {
+            sequences: ["Alt+Right"]
+            context: Qt.ApplicationShortcut
+            onActivated: {
+                QmlHelper.shortcutManager.nextWorkspace()
+            }
+        }
+        Shortcut {
+            sequences: ["Alt+Left"]
+            context: Qt.ApplicationShortcut
+            onActivated: {
+                QmlHelper.shortcutManager.prevWorkspace()
             }
         }
         Connections {

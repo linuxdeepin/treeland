@@ -101,5 +101,8 @@ Item {
         id: shortcutManager
         signal screenLocked
         signal multitaskViewToggled
+        signal nextWorkspace
+        signal prevWorkspace
     }
+    property var workspaces: new Map()
 }
