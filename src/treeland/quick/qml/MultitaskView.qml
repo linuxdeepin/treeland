@@ -10,7 +10,7 @@ import TreeLand.Utils
 
 Item {
     id: root
-    required property ListModel model
+    required property var model
     property int current: -1
 
     function exit(surfaceItem) {
@@ -63,12 +63,13 @@ Item {
                         function onCompleted() {
                             outputProxy.clear()
                             const filter = (item) => {
-                                return item.source.waylandSurface.surface.primaryOutput === modelData.output
+                                if (!(item instanceof XdgSurface))
+                                    return false
+                                return item.waylandSurface.surface.primaryOutput === modelData.output
                             }
-                            for (var i = 0; i < root.model.count; i++) {
-                                const item = root.model.get(i)
+                            for (let item of root.model) {
                                 if (filter(item)) {
-                                    outputProxy.append(item)
+                                    outputProxy.append({source: item})
                                 }
                             }
                             grid.calcLayout()

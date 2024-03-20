@@ -28,6 +28,7 @@ qt_add_qml_module(treeland-qml
         DockPreview.qml
         MultitaskView.qml
         EQHGrid.qml
+        ToplevelContainer.qml
     RESOURCE_PREFIX
         /qt/qml
     OUTPUT_DIRECTORY

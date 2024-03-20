@@ -62,15 +62,72 @@ Item {
 
     required property OutputDelegate activeOutputDelegate
     readonly property real switcherHideOpacity: 0.3
-    Item {
-        // DONE: some surfaces like layersurface should not be opacity
-        id: allWins
-        anchors.fill: parent
-        enabled: !switcher.visible && !multitaskView.active
-        opacity: if (switcher.visible) switcherHideOpacity
-            else 1
-        z: 0
 
+    property int currentWorkspaceId: 0
+
+    Column {
+        anchors {
+            bottom: root.bottom
+            left: root.left
+        }
+        Slider {
+            from: 0
+            to: {
+                console.log('slider to=',QmlHelper.workspaces.size) 
+                to = QmlHelper.workspaces.size }
+            value: 0
+            onValueChanged: root.currentWorkspaceId = value
+            Component.onCompleted: console.log('workspaces=',QmlHelper.workspaces,QmlHelper.workspaces.size)
+        }
+    }
+
+    ListModel {
+        id: wsmodel
+        ListElement {
+            wsid: 0
+        }
+        ListElement {
+            wsid: 1
+        }
+        ListElement {
+            wsid: 2
+        }
+    }
+    FocusScope {
+        anchors.fill: parent
+        function destroyWs(id) {
+            console.log('destroyws',id)
+            // wsmodel.remove(id,1)
+            wsmodel.move(id,0,1)
+            console.log(wsmodel)
+        }
+        Repeater {
+            model: wsmodel
+            anchors.fill: parent
+            enabled: !switcher.visible && !multitaskView.active
+            opacity: if (switcher.visible) switcherHideOpacity
+                else 1
+            z: 0
+            onItemRemoved: console.log('item revmoved')
+            delegate: ToplevelContainer {
+                objectName: `ToplevelContainer ${wsid}`
+                required property int index
+                required property int wsid
+                workspaceId: wsid
+                workspaceRelativeId: index
+                visible: workspaceRelativeId === currentWorkspaceId
+                Component.onCompleted: {
+                    console.log(this,'visible',visible,parent.visible)
+                    QmlHelper.workspaces.set(workspaceId, this)
+                }
+            }
+        }
+    }
+
+    Item {
+        id: surfacesQObjParent
+        visible: false
+        
         DynamicCreatorComponent {
             id: toplevelComponent
             creator: QmlHelper.xdgSurfaceManager
@@ -90,6 +147,8 @@ Item {
                 property var surfaceDecorationMapper: toplevelSurfaceItem.waylandSurface.XdgDecorationManager
                 property var personalizationMapper: toplevelSurfaceItem.waylandSurface.PersonalizationManager
                 property int outputCounter: 0
+                required property int workspaceId
+                parent: QmlHelper.workspaces.get(workspaceId)
                 z: {
                     if (Helper.clientName(waylandSurface.surface) === "dde-desktop") {
                         return -100 + 1
@@ -101,12 +160,15 @@ Item {
                         return 0
                     }
                 }
-                // opacity: switcher.visible&&!activeFocus?switcherHideOpacity:1
 
                 topPadding: decoration.enable ? decoration.topMargin : 0
                 bottomPadding: decoration.enable ? decoration.bottomMargin : 0
                 leftPadding: decoration.enable ? decoration.leftMargin : 0
                 rightPadding: decoration.enable ? decoration.rightMargin : 0
+
+                Button {
+                    onClicked: workspaceId = 0
+                }
 
                 OutputLayoutItem {
                     anchors.fill: parent
@@ -321,6 +383,11 @@ Item {
                 property var surfaceParent: root.getSurfaceItemFromWaylandSurface(waylandSurface.parentXWaylandSurface)
                 property int outputCounter: 0
 
+                required property int workspaceId
+                parent: QmlHelper.workspaces.get(workspaceId)
+
+                Component.onCompleted: console.log('xwayland',this,'created to',workspaceId,parent)
+
                 surface: waylandSurface
                 parentSurfaceItem: surfaceParent ? surfaceParent.item : null
                 z: waylandSurface.bypassManager ? 1 : 0 // TODO: make to enum type
@@ -332,7 +399,6 @@ Item {
                             ? XWaylandSurfaceItem.PositionToSurface
                             : XWaylandSurfaceItem.PositionFromSurface
                 }
-                // opacity: switcher.visible&&!activeFocus?switcherHideOpacity:1
 
                 topPadding: decoration.enable ? decoration.topMargin : 0
                 bottomPadding: decoration.enable ? decoration.bottomMargin : 0
@@ -509,7 +575,8 @@ Item {
         sourceComponent: Component {
             MultitaskView {
                 anchors.fill: parent
-                model: switcher.model
+                model: QmlHelper.workspaces.get(wsmodel.get(currentWorkspaceId).wsid).children
+                Component.onCompleted: console.log(wsmodel.get(currentWorkspaceId).wsid)
                 onVisibleChanged: {
                     console.assert(!visible,'should be exit')
                     multitaskView.active = false
@@ -563,6 +630,14 @@ Item {
         target: QmlHelper.shortcutManager
         function onMultitaskViewToggled() {
             multitaskView.active = !multitaskView.active
+        }
+        function onNextWorkspace() {
+            const nWorkspaces = wsmodel.count
+            currentWorkspaceId = (currentWorkspaceId + 1) % nWorkspaces
+        }
+        function onPrevWorkspace() {
+            const nWorkspaces = wsmodel.count
+            currentWorkspaceId = (currentWorkspaceId - 1 + nWorkspaces) % nWorkspaces
         }
     }
 }
