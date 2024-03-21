@@ -75,18 +75,18 @@ public:
         , handlerArg({.helper = qq})
     {}
 
-    WQuickSeat *seat;
-    WQuickInputMethodManagerV2 *inputMethodManagerV2;
-    WQuickTextInputManagerV1 *textInputManagerV1;
-    WQuickTextInputManagerV3 *textInputManagerV3;
-    WQuickVirtualKeyboardManagerV1 *virtualKeyboardManagerV1;
+    WQuickSeat *seat { nullptr };
+    WQuickInputMethodManagerV2 *inputMethodManagerV2 { nullptr };
+    WQuickTextInputManagerV1 *textInputManagerV1 { nullptr };
+    WQuickTextInputManagerV3 *textInputManagerV3 { nullptr };
+    WQuickVirtualKeyboardManagerV1 *virtualKeyboardManagerV1 { nullptr };
 
-    WQuickTextInputV1 *activeTextInputV1;
-    WQuickTextInputV3 *activeTextInputV3;
-    WQuickInputMethodV2 *inputMethodV2;
+    WQuickTextInputV1 *activeTextInputV1 { nullptr };
+    WQuickTextInputV3 *activeTextInputV3 { nullptr };
+    WQuickInputMethodV2 *inputMethodV2 { nullptr };
     QList<WInputPopupV2 *> popupSurfaces;
     QRect cursorRect;
-    QQuickItem *activeFocusItem;
+    QQuickItem *activeFocusItem { nullptr };
 
     wlr_seat_keyboard_grab keyboardGrab;
     wlr_keyboard_grab_interface grabInterface;
