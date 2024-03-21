@@ -159,7 +159,9 @@ private:
         case TouchEnd: Q_FALLTHROUGH();
         case TouchCancel: {
             auto e = static_cast<QInputEvent*>(event);
-            if (static_cast<WSurfaceItem*>(parent())->sendEvent(e))
+            Q_ASSERT(e);
+            // We may receive HoverLeave when WSurfaceItem was destroying
+            if (parent() && static_cast<WSurfaceItem*>(parent())->sendEvent(e))
                 return true;
             break;
         }
