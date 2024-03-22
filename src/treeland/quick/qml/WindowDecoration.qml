@@ -23,7 +23,7 @@ Item {
     readonly property real leftMargin: 0
     readonly property real rightMargin: 0
 
-    required property WaylandXdgSurface surface
+    required property ToplevelSurface surface
 
     MouseArea {
         property int edges: 0
