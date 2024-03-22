@@ -259,6 +259,10 @@ void WQmlCreatorComponent::create(QSharedPointer<WQmlCreatorDelegateData> data, 
     if (data->object) {
         Q_EMIT objectAdded(data->object, initialProperties);
         notifyCreatorObjectAdded(m_creator, data->object, initialProperties);
+    } else {
+        qWarning() << "WQmlCreatorComponent::create failed" << "parent=" << parent << "initialProperties=" << tmp;
+        for (auto e: d->state.errors)
+            qWarning() << e.error;
     }
 }
 
