@@ -399,6 +399,8 @@ Item {
                 StackToplevelHelper {
                     id: helper
                     surface: xwaylandSurfaceItem
+                    dockPreviewModel: dock.model
+                    switcherModel: switcher.model
                     waylandSurface: xwaylandSurfaceItem.waylandSurface
                     creator: xwaylandComponent
                     decoration: decoration
