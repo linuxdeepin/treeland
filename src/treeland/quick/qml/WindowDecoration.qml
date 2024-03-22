@@ -30,7 +30,7 @@ D.RoundRectangle {
     property D.Palette innerShadowColor: DS.Style.highlightPanel.innerShadow
 
 
-    required property WaylandXdgSurface surface
+    required property ToplevelSurface surface
 
     D.BoxShadow {
         anchors.fill: root
