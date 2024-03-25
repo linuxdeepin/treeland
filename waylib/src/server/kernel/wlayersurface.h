@@ -5,6 +5,7 @@
 
 #include <WSurface>
 #include <wtoplevelsurface.h>
+#include <WOutput>
 
 struct wlr_layer_surface_v1;
 
@@ -32,6 +33,7 @@ class WAYLIB_SERVER_EXPORT WLayerSurface : public WToplevelSurface, public WObje
     Q_PROPERTY(int32_t topMargin READ topMargin NOTIFY topMarginChanged)
     Q_PROPERTY(int32_t bottomMargin READ bottomMargin NOTIFY bottomMarginChanged)
     Q_PROPERTY(KeyboardInteractivity keyboardInteractivity READ keyboardInteractivity NOTIFY keyboardInteractivityChanged)
+    Q_PROPERTY(WOutput *output READ output CONSTANT) // constant in wlr_layershell_v1
 
     QML_NAMED_ELEMENT(WaylandLayerSurface)
     QML_UNCREATABLE("Only create in C++")
@@ -92,6 +94,7 @@ public:
     int32_t topMargin() const;
     int32_t bottomMargin() const;
     KeyboardInteractivity keyboardInteractivity() const;
+    WOutput *output() const;
     Q_INVOKABLE AnchorType getExclusiveZoneEdge() const;
     Q_INVOKABLE uint32_t configureSize(const QSize &newSize);
 

@@ -6,10 +6,12 @@
 #include "wseat.h"
 #include "wtools.h"
 #include "wsurface.h"
+#include "woutput.h"
 
 #include <qwlayershellv1.h>
 #include <qwseat.h>
 #include <qwcompositor.h>
+#include <qwoutput.h>
 
 #include <QDebug>
 
@@ -70,6 +72,7 @@ public:
     int32_t topMargin = 0, bottomMargin = 0;
     int32_t exclusiveZone = 0;
     WLayerSurface::KeyboardInteractivity keyboardInteractivity = WLayerSurface::KeyboardInteractivity::None;
+    WOutput *output = nullptr;
 };
 
 WLayerSurfacePrivate::WLayerSurfacePrivate(WLayerSurface *qq, QWLayerSurfaceV1 *hh)
@@ -96,6 +99,7 @@ void WLayerSurfacePrivate::init()
     surface = new WSurface(handle->surface(), q);
     surface->setAttachedData<WLayerSurface>(q);
     updateLayerProperty();
+    output = nativeHandle()->output ? WOutput::fromHandle(QWOutput::from(nativeHandle()->output)) : nullptr;
 
     connect();
 }
@@ -360,6 +364,12 @@ WLayerSurface::KeyboardInteractivity WLayerSurface::keyboardInteractivity() cons
 {
     W_DC(WLayerSurface);
     return d->keyboardInteractivity;
+}
+
+WOutput *WLayerSurface::output() const
+{
+    W_DC(WLayerSurface);
+    return d->output;
 }
 
 WLayerSurface::AnchorType WLayerSurface::getExclusiveZoneEdge() const
