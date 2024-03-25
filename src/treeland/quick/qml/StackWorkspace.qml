@@ -153,7 +153,7 @@ Item {
 
                     id: decoration
                     anchors.fill: parent
-                    z: toplevelSurfaceItem.contentItem.z - 1
+                    z: SurfaceItem.ZOrder.ContentItem - 1
                     surface: toplevelSurfaceItem.waylandSurface
                     visible: enable
                 }
@@ -362,7 +362,7 @@ Item {
                                         && waylandSurface.decorationsType !== XWaylandSurface.DecorationsNoBorder
 
                     anchors.fill: parent
-                    z: xwaylandSurfaceItem.contentItem.z - 1
+                    z: SurfaceItem.ZOrder.ContentItem - 1
                     visible: enable
                     surface: waylandSurface
                 }
@@ -428,7 +428,7 @@ Item {
                             target: xwaylandSurfaceItem
                             x: helper.getFullscreenX()
                             y: helper.getFullscreenY()
-                z: 100 + 1 // LayerType.Overlay + 1
+                            z: 100 + 1 // LayerType.Overlay + 1
                             width: helper.getFullscreenWidth()
                             height: helper.getFullscreenHeight()
                             positionMode: XWaylandSurfaceItem.PositionToSurface
