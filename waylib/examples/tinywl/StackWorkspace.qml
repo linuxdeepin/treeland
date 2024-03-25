@@ -85,6 +85,20 @@ Item {
             property var doDestroy: helper.doDestroy
             property var cancelMinimize: helper.cancelMinimize
             property int outputCounter: 0
+            property var surfaceDecorationMapper: toplevelSurfaceItem.waylandSurface.XdgDecorationManager
+
+            topPadding: decoration.enable ? decoration.topMargin : 0
+            bottomPadding: decoration.enable ? decoration.bottomMargin : 0
+            leftPadding: decoration.enable ? decoration.leftMargin : 0
+            rightPadding: decoration.enable ? decoration.rightMargin : 0
+
+            WindowDecoration {
+                id: decoration
+                property var enable: surfaceDecorationMapper.serverDecorationEnabled
+                anchors.fill: parent
+                z: SurfaceItem.ZOrder.ContentItem - 1
+                visible: enable
+            }
 
             OutputLayoutItem {
                 anchors.fill: parent
@@ -118,6 +132,7 @@ Item {
                 waylandSurface: toplevelSurfaceItem.waylandSurface
                 dockModel: dock.model
                 creator: toplevelComponent
+                decoration: decoration
             }
 
             states: [
