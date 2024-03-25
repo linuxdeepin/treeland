@@ -26,7 +26,7 @@ struct Margins {
     Q_PROPERTY(uint32_t right MEMBER right)
     Q_PROPERTY(uint32_t bottom MEMBER bottom)
 public:
-    uint32_t left,top,right,bottom;
+    uint32_t left = 0, top = 0, right = 0, bottom = 0;
 };
 
 class Helper : public WSeatEventFilter {
