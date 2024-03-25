@@ -470,6 +470,7 @@ Item {
         LayerSurface {
             id: layerSurface
             creator: layerComponent
+            activeOutputItem: activeOutputDelegate
         }
     }
 

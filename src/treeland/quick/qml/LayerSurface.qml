@@ -13,8 +13,8 @@ Item {
     property bool anchorHeight: false
     required property DynamicCreatorComponent creator
     // the output attached to, default is primary
-    // TODO bind to layershell manager's state
-    property OutputItem output: getPrimaryOutputItem()
+    required property OutputItem activeOutputItem
+    property OutputItem output: getInitialOutputItem()
     property CoordMapper outputCoordMapper: output ? this.CoordMapper.helper.get(output) : null
     property bool mapped: waylandSurface.surface && waylandSurface.surface.mapped && waylandSurface.WaylandSocket.rootSocket.enabled
     property bool pendingDestroy: false
@@ -121,10 +121,10 @@ Item {
         }
     }
 
-    function getPrimaryOutputItem() {
-        let output = waylandSurface.surface.primaryOutput
+    function getInitialOutputItem() {
+        const output = waylandSurface.output
         if (!output)
-            return null
+            return activeOutputItem
         return output.OutputItem.item
     }
 
@@ -159,6 +159,8 @@ Item {
             anchors.left = left ? root.outputCoordMapper.left : undefined
             anchors.right = right ? root.outputCoordMapper.right : undefined
             anchors.horizontalCenter = (left || right) ? undefined : root.outputCoordMapper.horizontalCenter;
+        } else {
+            console.warn('No outputCoordMapper',root.output)
         }
         // Setting anchors may change the container size which should keep same with surfaceItem
         if (!anchorWidth)
