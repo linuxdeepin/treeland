@@ -125,7 +125,6 @@ Item {
             height: 30
             anchors.horizontalCenter: parent.horizontalCenter
             echoMode: showPasswordBtn.hiddenPWD ? TextInput.Password : TextInput.Normal
-            focus: true
             rightPadding: 24
             maximumLength: 510
             placeholderText: qsTr("Please enter password")
@@ -274,13 +273,10 @@ Item {
 
     Component.onCompleted: {
         updateUser()
-        passwordField.forceActiveFocus()
     }
 
-    onVisibleChanged: {
-        if (visible === true) {
-            passwordField.forceActiveFocus()
-        }
+    onActiveFocusChanged: {
+        if (activeFocus) passwordField.forceActiveFocus()
     }
 
     function updateHintMsg(msg) {
@@ -293,6 +289,7 @@ Item {
 
     function userAuthFailed() {
         passwordField.selectAll()
-        passwordField.forceActiveFocus()
+        if (loginGroup.activeFocus)
+            passwordField.forceActiveFocus()
     }
 }
