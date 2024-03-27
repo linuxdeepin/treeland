@@ -63,46 +63,27 @@ Item {
     required property OutputDelegate activeOutputDelegate
     readonly property real switcherHideOpacity: 0.3
 
+    property var workspaceManager: QmlHelper.workspaceManager
     property int currentWorkspaceId: 0
 
-    Column {
-        anchors {
-            bottom: root.bottom
-            left: root.left
-        }
-        Slider {
-            from: 0
-            to: {
-                console.log('slider to=',QmlHelper.workspaces.size) 
-                to = QmlHelper.workspaces.size }
-            value: 0
-            onValueChanged: root.currentWorkspaceId = value
-            Component.onCompleted: console.log('workspaces=',QmlHelper.workspaces,QmlHelper.workspaces.size)
-        }
-    }
-
-    ListModel {
-        id: wsmodel
-        ListElement {
-            wsid: 0
-        }
-        ListElement {
-            wsid: 1
-        }
-        ListElement {
-            wsid: 2
-        }
-    }
     FocusScope {
         anchors.fill: parent
-        function destroyWs(id) {
-            console.log('destroyws',id)
-            // wsmodel.remove(id,1)
-            wsmodel.move(id,0,1)
-            console.log(wsmodel)
+        Row {
+            anchors {
+                right: parent.right
+                bottom: parent.bottom
+            }
+            Button {
+                icon.name: 'minus'
+                onClicked: workspaceManager.destroyWs(currentWorkspaceId)
+            }
+            Button {
+                icon.name: 'plus'
+                onClicked: workspaceManager.createWs()
+            }
         }
         Repeater {
-            model: wsmodel
+            model: workspaceManager.layoutOrder
             anchors.fill: parent
             enabled: !switcher.visible && !multitaskView.active
             opacity: if (switcher.visible) switcherHideOpacity
@@ -116,9 +97,10 @@ Item {
                 workspaceId: wsid
                 workspaceRelativeId: index
                 visible: workspaceRelativeId === currentWorkspaceId
+                anchors.fill: parent
                 Component.onCompleted: {
                     console.log(this,'visible',visible,parent.visible)
-                    QmlHelper.workspaces.set(workspaceId, this)
+                    workspaceManager.workspacesById.set(workspaceId, this)
                 }
             }
         }
@@ -147,8 +129,6 @@ Item {
                 property var surfaceDecorationMapper: toplevelSurfaceItem.waylandSurface.XdgDecorationManager
                 property var personalizationMapper: toplevelSurfaceItem.waylandSurface.PersonalizationManager
                 property int outputCounter: 0
-                required property int workspaceId
-                parent: QmlHelper.workspaces.get(workspaceId)
                 z: {
                     if (Helper.clientName(waylandSurface.surface) === "dde-desktop") {
                         return -100 + 1
@@ -160,6 +140,8 @@ Item {
                         return 0
                     }
                 }
+
+                required property int workspaceId
 
                 topPadding: decoration.enable ? decoration.topMargin : 0
                 bottomPadding: decoration.enable ? decoration.bottomMargin : 0
@@ -384,7 +366,6 @@ Item {
                 property int outputCounter: 0
 
                 required property int workspaceId
-                parent: QmlHelper.workspaces.get(workspaceId)
 
                 Component.onCompleted: console.log('xwayland',this,'created to',workspaceId,parent)
 
@@ -575,8 +556,8 @@ Item {
         sourceComponent: Component {
             MultitaskView {
                 anchors.fill: parent
-                model: QmlHelper.workspaces.get(wsmodel.get(currentWorkspaceId).wsid).children
-                Component.onCompleted: console.log(wsmodel.get(currentWorkspaceId).wsid)
+                model: workspaceManager.workspacesById.get(workspaceManager.layoutOrder.get(currentWorkspaceId).wsid).children
+                Component.onCompleted: console.log(workspaceManager.layoutOrder.get(currentWorkspaceId).wsid)
                 onVisibleChanged: {
                     console.assert(!visible,'should be exit')
                     multitaskView.active = false
@@ -632,11 +613,11 @@ Item {
             multitaskView.active = !multitaskView.active
         }
         function onNextWorkspace() {
-            const nWorkspaces = wsmodel.count
+            const nWorkspaces = workspaceManager.layoutOrder.count
             currentWorkspaceId = (currentWorkspaceId + 1) % nWorkspaces
         }
         function onPrevWorkspace() {
-            const nWorkspaces = wsmodel.count
+            const nWorkspaces = workspaceManager.layoutOrder.count
             currentWorkspaceId = (currentWorkspaceId - 1 + nWorkspaces) % nWorkspaces
         }
     }
