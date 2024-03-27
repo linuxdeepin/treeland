@@ -89,7 +89,8 @@ Item {
 
             onSurfaceAdded: function(surface) {
                 let type = surface.isPopup ? "popup" : "toplevel"
-                const wid = (++workspaceId) % 3
+                // const wid = QmlHelper.workspaceManager.layoutOrder.get((++workspaceId) % QmlHelper.workspaceManager.layoutOrder.count).wsid
+                const wid = stackLayout.item.currentWorkspaceId
                 QmlHelper.xdgSurfaceManager.add({type: type, workspaceId: wid, waylandSurface: surface})
 
                 let clientName = Helper.clientName(surface.surface)
@@ -234,7 +235,7 @@ Item {
             onReady: masterSocket.addClient(client())
 
             onSurfaceAdded: function(surface) {
-                QmlHelper.xwaylandSurfaceManager.add({waylandSurface: surface, workspaceId: 0})
+                QmlHelper.xwaylandSurfaceManager.add({waylandSurface: surface, workspaceId: stackLayout.item.currentWorkspaceId})
             }
             onSurfaceRemoved: function(surface) {
                 QmlHelper.xwaylandSurfaceManager.removeIf(function(prop) {

@@ -13,21 +13,29 @@ Item {
     id: root
     required property int workspaceId
     required property int workspaceRelativeId
-    anchors.fill: parent
 
-    Button {
-        onHoveredChanged: {
-            console.log('allwins',root.children)
+    Item {
+        id: dbg
+        anchors {
+            top: parent.top
+            right: parent.right
         }
-        onClicked: {
-            parent.parent.destroyWs(workspaceRelativeId)
+        width: 200
+        Column {
+            Text {
+                text: `No.${workspaceRelativeId} wsid: ${workspaceId}`
+                color: "white"
+            }
         }
     }
 
     Component.onDestruction: {
+        const moveToRelId = workspaceRelativeId > 0 ? workspaceRelativeId - 1 : workspaceRelativeId + 1
+        const moveTo = QmlHelper.workspaceManager.layoutOrder.get(moveToRelId).wsid
+        console.log(`workspace ${workspaceId} onDestruction, move wins to (No.${moveToRelId}, id=${moveTo})`)
         for(let item of children) {
             if(item instanceof XdgSurface)
-                item.parent = QmlHelper.workspaces[0]
+                item.workspaceId = moveTo
         }
     }
 }
