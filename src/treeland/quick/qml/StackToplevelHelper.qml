@@ -411,4 +411,19 @@ Item {
             updateOutputCoordMapper()
         }
     }
+
+    // for workspace management
+    Connections {
+        target: surface
+        function onWorkspaceIdChanged() {
+            // sync state to succesive models
+            console.log('workspaceIdChanged, reparenting to id=',workspaceId)
+            
+        }
+    }
+    Binding {
+        target: surface
+        property: "parent"
+        value: QmlHelper.workspaceManager.workspacesById.get(workspaceId)
+    }
 }

@@ -14,6 +14,7 @@ Item {
     property DynamicCreator xwaylandSurfaceManager: xwaylandSurfaceManager
     property DynamicCreator inputPopupSurfaceManager: inputPopupSurfaceManager
     property alias shortcutManager: shortcutManager
+    property alias workspaceManager: workspaceManager
 
     function printStructureObject(obj) {
         var json = ""
@@ -104,5 +105,34 @@ Item {
         signal nextWorkspace
         signal prevWorkspace
     }
-    property var workspaces: new Map()
+    QtObject {
+        id: workspaceManager
+        property var workspacesById: new Map()
+        property alias nWorkspaces: layoutOrder.count
+        property var __: QtObject {
+            id: privt
+            property int workspaceIdCnt: { workspaceIdCnt = layoutOrder.count - 1 }
+        }
+        function createWs() {
+            layoutOrder.append({ wsid: ++privt.workspaceIdCnt })
+        }
+        function destroyWs(id) {
+            console.log('destroyws',id)
+            layoutOrder.remove(id)
+            console.log(layoutOrder)
+        }
+        function moveWs(from, to) {
+            layoutOrder.move(from, to, 1)
+        }
+
+        property ListModel layoutOrder: ListModel {
+            id: layoutOrder
+            ListElement {
+                wsid: 0
+            }
+        }
+        Component.onCompleted: {
+            createWs(),createWs()
+        }
+    }
 }
