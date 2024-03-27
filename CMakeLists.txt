@@ -17,6 +17,11 @@ set(SDDM_VERSION_PATCH 0)
 set(SDDM_VERSION_STRING "${SDDM_VERSION_MAJOR}.${SDDM_VERSION_MINOR}.${SDDM_VERSION_PATCH}")
 add_compile_definitions("SDDM_VERSION=\"${SDDM_VERSION_STRING}\"")
 
+# Standard installation paths
+include(GNUInstallDirs)
+# Macros
+include(FeatureSummary)
+
 # Options
 option(BUILD_MAN_PAGES "Build man pages" OFF)
 option(ENABLE_JOURNALD "Enable logging to journald" ON)
@@ -28,11 +33,11 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 option(WITH_SUBMODULE_WAYLIB "Use the waylib from git submodule" OFF)
+add_feature_info(submodule_waylib WITH_SUBMODULE_WAYLIB "Use waylib from submodule")
 
 if(WITH_SUBMODULE_WAYLIB)
     set(WITH_SUBMODULE_QWLROOTS ON)
     add_subdirectory(waylib)
-    message("Using waylib from submodule")
 else()
     find_package(Waylib REQUIRED Server)
 endif()
@@ -53,11 +58,9 @@ endif()
 if(CMAKE_BUILD_TYPE MATCHES [Dd]ebug)
     message(STATUS "Debug build")
     add_definitions(-DDEBUG)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -O0")
 else()
     message(STATUS "Release build")
     add_definitions(-DNDEBUG)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O2")
 endif()
 
 # Default absolute paths
@@ -67,12 +70,6 @@ endif()
 if(NOT DEFINED CMAKE_INSTALL_LOCALSTATEDIR)
     set(CMAKE_INSTALL_LOCALSTATEDIR "/var")
 endif()
-
-# Standard installation paths
-include(GNUInstallDirs)
-
-# Macros
-include(FeatureSummary)
 
 # PKG-CONFIG
 find_package(PkgConfig)
