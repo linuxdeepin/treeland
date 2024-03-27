@@ -15,6 +15,7 @@
 #include <WCursor>
 #include <qqmlextensionplugin.h>
 #include <wsocket.h>
+#include <wrenderhelper.h>
 
 #include <qwbackend.h>
 #include <qwdisplay.h>
@@ -216,6 +217,7 @@ public:
 
 void TreeLand::setup()
 {
+    WRenderHelper::setupRendererBackend();
     m_engine = new QQmlApplicationEngine(this);
     m_engine->addUrlInterceptor(new DtkInterceptor(this));
     m_engine->rootContext()->setContextProperty("TreeLand", this);
