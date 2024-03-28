@@ -10,6 +10,11 @@
 #include <QLocalSocket>
 #include <QtWaylandCompositor/QWaylandCompositor>
 
+#include <QDBusContext>
+#include <QDBusUnixFileDescriptor>
+
+#include <memory>
+
 class QQmlApplicationEngine;
 
 namespace TreeLand {
@@ -19,7 +24,7 @@ struct TreeLandAppContext {
     QString run;
 };
 
-class TreeLand : public QObject {
+class TreeLand : public QObject, protected QDBusContext {
     Q_OBJECT
     Q_PROPERTY(WaylandSocketProxy* socketProxy READ socketProxy WRITE setSocketProxy)
     Q_PROPERTY(QuickPersonalizationManager* personalManager READ personalManager WRITE setPersonalManager)
@@ -43,6 +48,9 @@ public:
 Q_SIGNALS:
     void socketDisconnected();
 
+public Q_SLOTS:
+    bool Activate(QDBusUnixFileDescriptor fd);
+
 private Q_SLOTS:
     void connected();
     void disconnected();
@@ -61,5 +69,9 @@ private:
     QQmlApplicationEngine *m_engine;
     WaylandSocketProxy *m_socketProxy;
     QuickPersonalizationManager *m_personalManager;
+    QString m_currentUser;
+    std::shared_ptr<WSocket> m_systemdSocket;
+    QMap<QString, std::shared_ptr<Waylib::Server::WSocket>> m_userWaylandSocket;
+    QMap<QString, std::shared_ptr<QDBusUnixFileDescriptor>> m_userDisplayFds;
 };
 }

@@ -1,18 +1,24 @@
 // Copyright (C) 2023 Dingyuan Zhang <lxz@mkacg.com>.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
-#include "treeland.h"
+#include "Treeland.h"
 #include "MessageHandler.h"
 #include "Messages.h"
 #include "SocketWriter.h"
 #include "helper.h"
 #include "waylandsocketproxy.h"
 #include "SignalHandler.h"
+#include "compositor1adaptor.h"
+
+#include <systemd/sd-daemon.h>
 
 #include <WServer>
 #include <WSurface>
 #include <WSeat>
 #include <WCursor>
+#include <pwd.h>
+#include <qdbusconnection.h>
+#include <qdbusunixfiledescriptor.h>
 #include <qqmlextensionplugin.h>
 #include <wsocket.h>
 
@@ -32,6 +38,7 @@
 #include <QTimer>
 #include <QQmlApplicationEngine>
 #include <QQuickStyle>
+#include <QDBusConnectionInterface>
 
 #include <pwd.h>
 #include <wordexp.h>
@@ -220,6 +227,16 @@ void TreeLand::setup()
     m_engine->addUrlInterceptor(new DtkInterceptor(this));
     m_engine->rootContext()->setContextProperty("TreeLand", this);
     m_engine->loadFromModule("TreeLand", "Main");
+
+    auto socket = std::make_shared<WSocket>(true);
+    if (socket->create(SD_LISTEN_FDS_START, false)) {
+        m_systemdSocket = socket;
+
+        WServer *server = m_engine->rootObjects().first()->findChild<WServer*>();
+        server->addSocket(socket.get());
+
+        sd_notify(0, "READY=1");
+    }
 }
 
 bool TreeLand::testMode() const {
@@ -293,17 +310,22 @@ void TreeLand::readyRead() {
                 QString user;
                 input >> user;
 
-                m_socketProxy->deleteSocket(user);
+                // m_socketProxy->deleteSocket(user);
             }
             break;
             case DaemonMessages::UserActivateMessage: {
                 QString user;
                 input >> user;
 
-                m_socketProxy->activateUser(user);
+                // m_socketProxy->activateUser(user);
 
                 struct passwd *pwd = getpwnam(user.toUtf8());
                 m_personalManager->setCurrentUserId(pwd->pw_uid);
+                m_currentUser = user;
+
+                for (auto it = m_userWaylandSocket.begin(); it != m_userWaylandSocket.end(); ++it) {
+                    it.value()->setEnabled(it.key() == user);
+                }
             }
             break;
             case DaemonMessages::SwitchToGreeter: {
@@ -318,6 +340,43 @@ void TreeLand::readyRead() {
         }
     }
 }
+
+bool TreeLand::Activate(QDBusUnixFileDescriptor _fd) {
+    if (!_fd.isValid()) {
+        return false;
+    }
+
+    auto fd = std::make_shared<QDBusUnixFileDescriptor>();
+    fd->swap(_fd);
+
+    auto socket = std::make_shared<WSocket>(true);
+    socket->create(fd->fileDescriptor(), false);
+
+    WServer *server = m_engine->rootObjects().first()->findChild<WServer*>();
+    server->addSocket(socket.get());
+
+    auto uid = connection().interface()->serviceUid(message().service());
+    struct passwd *pw;
+    pw = getpwuid(uid);
+    QString user{pw->pw_name};
+    m_userWaylandSocket[user] = socket;
+    m_userDisplayFds[user] = fd;
+
+    socket->setEnabled(true);
+
+    // for (auto it = m_userWaylandSocket.begin(); it != m_userWaylandSocket.end(); ++it) {
+    //     it.value()->setEnabled(it.key() == m_currentUser);
+    // }
+
+    connect(connection().interface(), &QDBusConnectionInterface::serviceUnregistered, socket.get(), [this, user] {
+        qInfo() << Q_FUNC_INFO;
+        m_userWaylandSocket.remove(user);
+        m_userDisplayFds.remove(user);
+    });
+
+    return true;
+}
+
 }
 
 int main (int argc, char *argv[]) {
@@ -342,6 +401,17 @@ int main (int argc, char *argv[]) {
     parser.process(app);
 
     TreeLand::TreeLand treeland({parser.value(socket), parser.value(run)});
+
+    new Compositor1Adaptor(&treeland);
+
+    // FIXME: current only support session level
+#if 1
+    QDBusConnection::sessionBus().registerService("org.deepin.Compositor1");
+    QDBusConnection::sessionBus().registerObject("/org/deepin/Compositor1", &treeland);
+#else
+    QDBusConnection::systemBus().registerService("org.deepin.Compositor1");
+    QDBusConnection::systemBus().registerObject("/org/deepin/Compositor1", &treeland);
+#endif
 
     return app.exec();
 }

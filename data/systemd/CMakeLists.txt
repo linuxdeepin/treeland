@@ -4,33 +4,16 @@ macro(install_symlink filepath wantsdir)
     install(FILES ${PROJECT_BINARY_DIR}/link/${wantsdir}/${filepath} DESTINATION lib/systemd/user/${wantsdir}/)
 endmacro(install_symlink)
 
-configure_file("dde-fake-session.service.in" "dde-fake-session.service" IMMEDIATE @ONLY)
+configure_file("treeland-sd.service.in" "treeland-sd.service" IMMEDIATE @ONLY)
+configure_file("dde-session-shortcut.service.in" "dde-session-shortcut.service" IMMEDIATE @ONLY)
 
 set(SERVICES
-    dde-fake-session-initialized.target
-    dde-fake-session.target
-    dde-fake-session-shutdown.target
-    ${CMAKE_CURRENT_BINARY_DIR}/dde-fake-session.service
+    treeland.service
+    treeland-sd.socket
+    ${CMAKE_CURRENT_BINARY_DIR}/treeland-sd.service
+    ${CMAKE_CURRENT_BINARY_DIR}/dde-session-shortcut.service
 )
 install(FILES ${SERVICES} DESTINATION lib/systemd/user/)
 
-install(DIRECTORY DESTINATION lib/systemd/user/dde-fake-session-initialized.target.wants/)
-set(DDE_SESSION_INITIALIZED_WANTS
-    dde-fake-session-initialized.target.wants/fake-dde-desktop.service
-    dde-fake-session-initialized.target.wants/fake-dde.service
-    dde-fake-session-initialized.target.wants/fake-dde-polkit-agent.service
-    dde-fake-session-initialized.target.wants/fake-dde-am.service
-    dde-fake-session-initialized.target.wants/fake-dde-im.service
-    dde-fake-session-initialized.target.wants/fake-dde-osd.service
-    dde-fake-session-initialized.target.wants/fake-dde-filemanager-server.service
-)
-
-install(FILES ${DDE_SESSION_PRE_WANTS} DESTINATION lib/systemd/user/)
-install(FILES ${DDE_SESSION_INITIALIZED_WANTS} DESTINATION lib/systemd/user/)
-install_symlink(fake-dde-desktop.service dde-fake-session-initialized.target.wants)
-install_symlink(fake-dde.service dde-fake-session-initialized.target.wants)
-install_symlink(fake-dde-polkit-agent.service dde-fake-session-initialized.target.wants)
-install_symlink(fake-dde-am.service dde-fake-session-initialized.target.wants)
-install_symlink(fake-dde-im.service dde-fake-session-initialized.target.wants)
-install_symlink(fake-dde-osd.service dde-fake-session-initialized.target.wants)
-install_symlink(fake-dde-filemanager-server.service dde-fake-session-initialized.target.wants)
+install_symlink(treeland.service dde-session.target.wants)
+install_symlink(dde-session-shortcut.service dde-session.target.wants)

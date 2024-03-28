@@ -533,18 +533,18 @@ namespace SDDM {
             if (m_displayServerType == DisplayServerType::SingleCompositerServerType) {
                 auto* displayServer = reinterpret_cast<SingleWaylandDisplayServer*>(m_displayServer);
 
-                QEventLoop loop;
-                connect(displayServer, &SingleWaylandDisplayServer::createWaylandSocketFinished, &loop, &QEventLoop::quit);
+                // QEventLoop loop;
+                // connect(displayServer, &SingleWaylandDisplayServer::createWaylandSocketFinished, &loop, &QEventLoop::quit);
 
                 // create wayland socket
-                displayServer->createWaylandSocket(user);
+                // displayServer->createWaylandSocket(user);
 
-                if (displayServer->getUserWaylandSocket(user).isEmpty()) {
-                    loop.exec();
-                }
+                // if (displayServer->getUserWaylandSocket(user).isEmpty()) {
+                //     loop.exec();
+                // }
 
-                const QString &display = displayServer->getUserWaylandSocket(user);
-                env.insert(QStringLiteral("WAYLAND_DISPLAY"), display);
+                // const QString &display = displayServer->getUserWaylandSocket(user);
+                // env.insert(QStringLiteral("WAYLAND_DISPLAY"), display);
 
                 #ifdef QT_DEBUG
                 env.insert("WAYLAND_DEBUG", "1");
@@ -554,7 +554,7 @@ namespace SDDM {
                 env.insert("DDE_CURRENT_COMPOSITOR", "TreeLand");
 
                 auth->setDisplayServerCommand(QStringLiteral());
-                qInfo() << "WAYLAND_DISPLAY => " << display;
+                // qInfo() << "WAYLAND_DISPLAY => " << display;
             } else {
                 auth->setDisplayServerCommand(QStringLiteral());
             }

@@ -1,0 +1,10 @@
+[Unit]
+Description=User Compositor Socket
+PartOf=treeland-sd.service
+
+[Socket]
+ListenStream=%t/treeland.socket
+RemoveOnStop=true
+FileDescriptorName=TreeLand
+ExecStartPost=-/usr/bin/systemctl --user set-environment WAYLAND_DISPLAY=%t/treeland.socket
+ExecStopPost=-/usr/bin/systemctl --user unset-environment WAYLAND_DISPLAY
