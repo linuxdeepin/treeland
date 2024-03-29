@@ -66,18 +66,16 @@ Item {
     property var workspaceManager: QmlHelper.workspaceManager
     property int currentWorkspaceId: 0
 
+    // activated workspace driven by surface activation
+    property Item activatedSurfaceItem: getSurfaceItemFromWaylandSurface(Helper.activatedSurface)?.item
+    onActivatedSurfaceItemChanged: {
+        if (activatedSurfaceItem?.parent?.workspaceRelativeId !== null)
+            currentWorkspaceId = activatedSurfaceItem.parent.workspaceRelativeId
+    }
+
     FocusScope {
         anchors.fill: parent
-        Connections {
-            target: Helper
-            function onActivatedSurfaceChanged() {
-                const activatedSurfaceWsId = getSurfaceItemFromWaylandSurface(Helper.activatedSurface)?.item.workspaceId
-                console.log('activatedsurface',Helper.activatedSurface,'item',getSurfaceItemFromWaylandSurface(Helper.activatedSurface),'id',activatedSurfaceWsId)
-                if (activatedSurfaceWsId != null && activatedSurfaceWsId !== currentWorkspaceId) {
-                    currentWorkspaceId = activatedSurfaceWsId
-                }
-            }
-        }
+
         Row {
             anchors {
                 right: parent.right
@@ -638,6 +636,8 @@ Item {
             relId = (relId + d + nWorkspaces) % nWorkspaces
             console.log(surfaceItem,surfaceItem.workspaceId,relId)
             surfaceItem.workspaceId = workspaceManager.layoutOrder.get(relId).wsid
+            // change workspace since no activatedSurface change
+            currentWorkspaceId = relId
         }
     }
 }

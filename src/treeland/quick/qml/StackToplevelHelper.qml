@@ -142,7 +142,7 @@ Item {
             }
 
             surface.focus = activated
-            Helper.activatedSurface = activated ? surface : null
+            Helper.activatedSurface = activated ? waylandSurface : null
         }
 
         function onRequestFullscreen(fullscreen) {
