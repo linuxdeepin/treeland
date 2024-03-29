@@ -67,7 +67,8 @@ Item {
                                     return false
                                 return item.waylandSurface.surface.primaryOutput === modelData.output
                             }
-                            for (let item of root.model) {
+                            for (let i = 0; i < root.model.count; i++) {
+                                const item = root.model.get(i).item
                                 if (filter(item)) {
                                     outputProxy.append({source: item})
                                 }
