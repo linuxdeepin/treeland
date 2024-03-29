@@ -8,7 +8,7 @@ import TreeLand
 
 Item {
     id: root
-    property alias model: model
+    required property ListModel model
     property var current: 0
     required property OutputDelegate activeOutput
 
@@ -16,11 +16,11 @@ Item {
 
     onVisibleChanged: {
         if (visible) {
+            model = workspaceManager.workspacesById.get(workspaceManager.layoutOrder.get(currentWorkspaceId).wsid).surfaces
             current = 0
             indicatorPlane.calcLayout()
             show()
-        }
-        else {
+        } else {
             stop()
         }
     }
@@ -44,7 +44,7 @@ Item {
             return
         }
 
-        const source = model.get(current).source
+        const source = model.get(current).item
 
         context.parent = parent
         context.anchors.fill = root
@@ -56,11 +56,9 @@ Item {
         if (context.item) {
             context.item.stop()
         }
-        const source = model.get(current).source
+        const source = model.get(current).item
         // activated window changed
         if (current != 0) {
-            // adjust window stack
-            model.move(current, 0, 1)
             surfaceActivated(source)
         }
     }
@@ -81,20 +79,14 @@ Item {
         }
     }
 
-    ListModel {
-        id: model
-        function removeSurface(surface) {
-            for (var i = 0; i < model.count; i++) {
-                if (model.get(i).source === surface) {
-                    model.remove(i);
-                    break;
-                }
+    Connections {
+        target: model
+        function onCountChanged() {
+            if (root.visible) {
+                // in case a window exited when previewing
+                current = Math.max(Math.min(current, model.count - 1), 0)
+                indicatorPlane.calcLayout()
             }
-        }
-        onCountChanged: if (visible) {
-            // in case a window exited when previewing
-            current = Math.max(Math.min(current, model.count - 1), 0)
-            indicatorPlane.calcLayout()
         }
     }
 
@@ -149,15 +141,16 @@ Item {
 
             EQHGrid {
                 id: eqhgrid
-                model: model
+                model: root.model
                 minH: 100
                 maxH: 200
                 maxW: indicatorPlane.width * maxH / indicatorPlane.height
                 availW: indicatorPlane.width * .7
                 availH: indicatorPlane.height * .7
+                getRatio: (data) => data.item.width / data.item.height
                 anchors.centerIn: parent
                 delegate: Rectangle {
-                    property XdgSurface source: modelData.source
+                    property XdgSurface source: modelData.item
                     property bool highlighted: globalIndex == root.current 
 
                     width: modelData.dw + 2 * padding
