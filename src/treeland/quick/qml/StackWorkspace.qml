@@ -535,6 +535,7 @@ Item {
         z: 100 + 1
         anchors.fill: parent
         enabled: !multitaskView.active
+        model: workspaceManager.workspacesById.get(workspaceManager.layoutOrder.get(currentWorkspaceId).wsid).surfaces
         visible: false // dbgswtchr.checked
         activeOutput: activeOutputDelegate
         onSurfaceActivated: (surface) => {
