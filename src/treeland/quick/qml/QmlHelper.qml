@@ -127,6 +127,7 @@ Item {
 
         property ListModel layoutOrder: ListModel {
             id: layoutOrder
+            objectName: "layoutOrder"
             ListElement {
                 wsid: 0
             }

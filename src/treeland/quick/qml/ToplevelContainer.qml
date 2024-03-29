@@ -32,13 +32,44 @@ Item {
 
     ListModel {
         id: surfacesModel
-        onCountChanged: console.log('item added?',this)
         function removeIf(cond) {
-            for(let i = 0; i<this.count; i++) {
+            for (let i = 0; i < this.count; i++) {
                 if (cond(this.get(i))) {
                     this.remove(i)
                     return
                 }
+            }
+        }
+        function findIf(cond) {
+            for (let i = 0; i < this.count; i++) {
+                if (cond(this.get(i))) {
+                    return i
+                }
+            }
+            return -1
+        }
+        function appendEnhanced(data) {
+            // ensure activated surface is on top, activatedSurfaceChanged may happen before model append
+            if (data.item.waylandSurface === Helper.activatedSurface) {
+                console.log('append ensured!')
+                this.insert(0,data)
+            }
+            else
+                this.append(data)
+        }
+        onCountChanged: {
+            console.log('onCountChanged!',this,count)
+        }
+    }
+
+    Connections {
+        target: Helper
+        function onActivatedSurfaceChanged() {
+            if (Helper.activatedSurface !== null) {
+                // adjust window stack
+                const activatedSurfaceIndex = surfacesModel.findIf((data) => data.item.waylandSurface === Helper.activatedSurface)
+                if (activatedSurfaceIndex >= 0)
+                    surfacesModel.move(activatedSurfaceIndex, 0, 1)
             }
         }
     }
@@ -46,10 +77,11 @@ Item {
     Component.onDestruction: {
         const moveToRelId = 0
         const moveTo = QmlHelper.workspaceManager.layoutOrder.get(moveToRelId).wsid
-        console.log(`workspace (No.${workspaceRelativeId}, id=${workspaceId}) onDestruction, move wins to (No.${moveToRelId}, id=${moveTo})`)
-        for(let item of children) {
-            if(item instanceof XdgSurface)
-                item.workspaceId = moveTo
+        let temp = Array.from(children) // immutable when iterating
+        for (let child of temp) {
+            if(child instanceof XdgSurface) {
+                child.workspaceId = moveTo
+            }
         }
     }
 }
