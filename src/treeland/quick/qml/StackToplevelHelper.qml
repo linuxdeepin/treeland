@@ -207,7 +207,7 @@ Item {
                 if (surface.effectiveVisible)
                     Helper.activatedSurface = waylandSurface
             }
-            workspace().surfaces.append({item: surface})
+            workspace().surfaces.appendEnhanced({item: surface})
         } else { // if not mapped
             if (!waylandSurface.WaylandSocket.rootSocket.enabled) {
                 surface.visible = false;
@@ -221,14 +221,14 @@ Item {
                     closeAnimation.item.start(surface)
                 }
             }
-            workspace().surfaces.removeIf((val) => val === surface)
+            workspace().surfaces.removeIf((val) => val.item === surface)
         }
     }
 
     function doDestroy() {
         pendingDestroy = true
         // may have been removed when unmapped?
-        workspace().surfaces.removeIf((val) => val === surface)
+        workspace().surfaces.removeIf((val) => val.item === surface)
 
         if (!surface.visible || !closeAnimation.active) {
             creator.destroyObject(surface)
@@ -414,10 +414,9 @@ Item {
             console.log('workspaceIdChanged, reparenting to id=',workspaceId)
         }
         function onParentChanged() {
-            console.log('parent changed to',target.parent,parentCached)
-            parentCached?.surfaces.removeIf((val) => val === surface)
+            parentCached?.surfaces.removeIf((val) => val.item === surface)
             parentCached = target.parent
-            target.parent.surfaces.append({item: surface})
+            target.parent.surfaces.appendEnhanced({item: surface})
         }
     }
 }

@@ -90,7 +90,7 @@ Item {
             onSurfaceAdded: function(surface) {
                 let type = surface.isPopup ? "popup" : "toplevel"
                 // const wid = QmlHelper.workspaceManager.layoutOrder.get((++workspaceId) % QmlHelper.workspaceManager.layoutOrder.count).wsid
-                const wid = stackLayout.item.currentWorkspaceId
+                const wid = QmlHelper.workspaceManager.layoutOrder.get(stackLayout.item.currentWorkspaceId).wsid
                 QmlHelper.xdgSurfaceManager.add({type: type, workspaceId: wid, waylandSurface: surface})
 
                 let clientName = Helper.clientName(surface.surface)
