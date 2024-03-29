@@ -13,6 +13,7 @@ Item {
     id: root
     required property int workspaceId
     required property int workspaceRelativeId
+    property alias surfaces: surfacesModel
 
     Item {
         id: dbg
@@ -29,10 +30,23 @@ Item {
         }
     }
 
+    ListModel {
+        id: surfacesModel
+        onCountChanged: console.log('item added?',this)
+        function removeIf(cond) {
+            for(let i = 0; i<this.count; i++) {
+                if (cond(this.get(i))) {
+                    this.remove(i)
+                    return
+                }
+            }
+        }
+    }
+
     Component.onDestruction: {
-        const moveToRelId = workspaceRelativeId > 0 ? workspaceRelativeId - 1 : workspaceRelativeId + 1
+        const moveToRelId = 0
         const moveTo = QmlHelper.workspaceManager.layoutOrder.get(moveToRelId).wsid
-        console.log(`workspace ${workspaceId} onDestruction, move wins to (No.${moveToRelId}, id=${moveTo})`)
+        console.log(`workspace (No.${workspaceRelativeId}, id=${workspaceId}) onDestruction, move wins to (No.${moveToRelId}, id=${moveTo})`)
         for(let item of children) {
             if(item instanceof XdgSurface)
                 item.workspaceId = moveTo

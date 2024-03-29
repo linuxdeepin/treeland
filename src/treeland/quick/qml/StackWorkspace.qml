@@ -68,6 +68,16 @@ Item {
 
     FocusScope {
         anchors.fill: parent
+        Connections {
+            target: Helper
+            function onActivatedSurfaceChanged() {
+                const activatedSurfaceWsId = getSurfaceItemFromWaylandSurface(Helper.activatedSurface)?.item.workspaceId
+                console.log('activatedsurface',Helper.activatedSurface,'item',getSurfaceItemFromWaylandSurface(Helper.activatedSurface),'id',activatedSurfaceWsId)
+                if (activatedSurfaceWsId != null && activatedSurfaceWsId !== currentWorkspaceId) {
+                    currentWorkspaceId = activatedSurfaceWsId
+                }
+            }
+        }
         Row {
             anchors {
                 right: parent.right
@@ -142,6 +152,8 @@ Item {
                 }
 
                 required property int workspaceId
+                // put here, otherwise may initialize late
+                parent: QmlHelper.workspaceManager.workspacesById.get(workspaceId)
 
                 topPadding: decoration.enable ? decoration.topMargin : 0
                 bottomPadding: decoration.enable ? decoration.bottomMargin : 0
@@ -206,8 +218,6 @@ Item {
                     id: helper
                     surface: toplevelSurfaceItem
                     waylandSurface: toplevelSurfaceItem.waylandSurface
-                    switcherModel: switcher.model
-                    dockPreviewModel: dockPreview.model
                     creator: toplevelComponent
                     decoration: decoration
                 }
@@ -366,6 +376,7 @@ Item {
                 property int outputCounter: 0
 
                 required property int workspaceId
+                parent: QmlHelper.workspaceManager.workspacesById.get(workspaceId)
 
                 Component.onCompleted: console.log('xwayland',this,'created to',workspaceId,parent)
 
@@ -446,8 +457,6 @@ Item {
                 StackToplevelHelper {
                     id: helper
                     surface: xwaylandSurfaceItem
-                    dockPreviewModel: dock.model
-                    switcherModel: switcher.model
                     waylandSurface: xwaylandSurfaceItem.waylandSurface
                     creator: xwaylandComponent
                     decoration: decoration
@@ -556,7 +565,7 @@ Item {
         sourceComponent: Component {
             MultitaskView {
                 anchors.fill: parent
-                model: workspaceManager.workspacesById.get(workspaceManager.layoutOrder.get(currentWorkspaceId).wsid).children
+                model: workspaceManager.workspacesById.get(workspaceManager.layoutOrder.get(currentWorkspaceId).wsid).surfaces
                 Component.onCompleted: console.log(workspaceManager.layoutOrder.get(currentWorkspaceId).wsid)
                 onVisibleChanged: {
                     console.assert(!visible,'should be exit')
