@@ -14,8 +14,6 @@ Item {
 
     required property SurfaceItem surface
     required property ToplevelSurface waylandSurface
-    required property ListModel switcherModel
-    required property ListModel dockPreviewModel
     required property DynamicCreatorComponent creator
     property WindowDecoration decoration
     property var quickForeignToplevelManageMapper: waylandSurface.TreeLandForeignToplevelManagerV1
@@ -193,6 +191,8 @@ Item {
         }
     }
 
+    function workspace() { return QmlHelper.workspaceManager.workspacesById.get(surface.workspaceId) }
+
     onMappedChanged: {
         console.log("onMappedChanged!", Helper.clientName(waylandSurface.surface))
 
@@ -207,12 +207,7 @@ Item {
                 if (surface.effectiveVisible)
                     Helper.activatedSurface = waylandSurface
             }
-
-            let clientName = Helper.clientName(waylandSurface.surface)
-            if (clientName !== "dde-desktop" && clientName !== "dde-launchpad") {
-                switcherModel.append({ source: surface });
-                dockPreviewModel.append({ surface: surface, source: waylandSurface.surface });
-            }
+            workspace().surfaces.append({item: surface})
         } else { // if not mapped
             if (!waylandSurface.WaylandSocket.rootSocket.enabled) {
                 surface.visible = false;
@@ -226,16 +221,14 @@ Item {
                     closeAnimation.item.start(surface)
                 }
             }
-            switcherModel.removeSurface(surface)
-            dockPreviewModel.removeSurface(surface)
+            workspace().surfaces.removeIf((val) => val === surface)
         }
     }
 
     function doDestroy() {
         pendingDestroy = true
-
-        switcherModel.removeSurface(surface)
-        dockPreviewModel.removeSurface(surface)
+        // may have been removed when unmapped?
+        workspace().surfaces.removeIf((val) => val === surface)
 
         if (!surface.visible || !closeAnimation.active) {
             creator.destroyObject(surface)
@@ -415,15 +408,16 @@ Item {
     // for workspace management
     Connections {
         target: surface
+        property ToplevelContainer parentCached: { parentCached = target.parent }
         function onWorkspaceIdChanged() {
             // sync state to succesive models
             console.log('workspaceIdChanged, reparenting to id=',workspaceId)
-            
         }
-    }
-    Binding {
-        target: surface
-        property: "parent"
-        value: QmlHelper.workspaceManager.workspacesById.get(workspaceId)
+        function onParentChanged() {
+            console.log('parent changed to',target.parent,parentCached)
+            parentCached?.surfaces.removeIf((val) => val === surface)
+            parentCached = target.parent
+            target.parent.surfaces.append({item: surface})
+        }
     }
 }
