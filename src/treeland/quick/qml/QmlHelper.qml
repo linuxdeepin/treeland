@@ -104,6 +104,7 @@ Item {
         signal multitaskViewToggled
         signal nextWorkspace
         signal prevWorkspace
+        signal moveToNeighborWorkspace(d: int)
     }
     QtObject {
         id: workspaceManager

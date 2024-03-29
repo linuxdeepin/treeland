@@ -83,12 +83,17 @@ Item {
                 right: parent.right
                 bottom: parent.bottom
             }
+            visible: TreeLand.testMode
             Button {
-                icon.name: 'minus'
+                Text {
+                    text: 'remove'
+                }
                 onClicked: workspaceManager.destroyWs(currentWorkspaceId)
             }
             Button {
-                icon.name: 'plus'
+                Text {
+                    text: 'add'
+                }
                 onClicked: workspaceManager.createWs()
             }
         }
@@ -159,10 +164,6 @@ Item {
                 bottomPadding: decoration.enable ? decoration.bottomMargin : 0
                 leftPadding: decoration.enable ? decoration.leftMargin : 0
                 rightPadding: decoration.enable ? decoration.rightMargin : 0
-
-                Button {
-                    onClicked: workspaceId = 0
-                }
 
                 OutputLayoutItem {
                     anchors.fill: parent
@@ -629,6 +630,14 @@ Item {
         function onPrevWorkspace() {
             const nWorkspaces = workspaceManager.layoutOrder.count
             currentWorkspaceId = (currentWorkspaceId - 1 + nWorkspaces) % nWorkspaces
+        }
+        function onMoveToNeighborWorkspace(d) {
+            const nWorkspaces = workspaceManager.layoutOrder.count
+            const surfaceItem = getSurfaceItemFromWaylandSurface(Helper.activatedSurface).item
+            let relId = workspaceManager.workspacesById.get(surfaceItem.workspaceId).workspaceRelativeId
+            relId = (relId + d + nWorkspaces) % nWorkspaces
+            console.log(surfaceItem,surfaceItem.workspaceId,relId)
+            surfaceItem.workspaceId = workspaceManager.layoutOrder.get(relId).wsid
         }
     }
 }

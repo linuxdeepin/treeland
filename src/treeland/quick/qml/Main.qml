@@ -397,6 +397,20 @@ Item {
                 QmlHelper.shortcutManager.prevWorkspace()
             }
         }
+        Shortcut {
+            sequences: ["Meta+Shift+Right"]
+            context: Qt.ApplicationShortcut
+            onActivated: {
+                QmlHelper.shortcutManager.moveToNeighborWorkspace(1)
+            }
+        }
+        Shortcut {
+            sequences: ["Meta+Shift+Left"]
+            context: Qt.ApplicationShortcut
+            onActivated: {
+                QmlHelper.shortcutManager.moveToNeighborWorkspace(-1)
+            }
+        }
         Connections {
             target: QmlHelper.shortcutManager
             function onScreenLocked() {
