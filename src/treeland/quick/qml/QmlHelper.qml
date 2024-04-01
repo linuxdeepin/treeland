@@ -118,9 +118,8 @@ Item {
             layoutOrder.append({ wsid: ++privt.workspaceIdCnt })
         }
         function destroyWs(id) {
-            console.log('destroyws',id)
+            console.log(`workspace id=${id} destroyed!`)
             layoutOrder.remove(id)
-            console.log(layoutOrder)
         }
         function moveWs(from, to) {
             layoutOrder.move(from, to, 1)
