@@ -97,6 +97,7 @@ public:
     WOutput *output() const;
     Q_INVOKABLE AnchorType getExclusiveZoneEdge() const;
     Q_INVOKABLE uint32_t configureSize(const QSize &newSize);
+    Q_INVOKABLE void closed();
 
     void updateLayerProperty();
 
@@ -111,6 +112,7 @@ Q_SIGNALS:
     void bottomMarginChanged();
     void exclusiveZoneChanged();
     void keyboardInteractivityChanged();
+    void layerPropertiesChanged();
 
 public Q_SLOTS:
     bool checkNewSize(const QSize &size) override;

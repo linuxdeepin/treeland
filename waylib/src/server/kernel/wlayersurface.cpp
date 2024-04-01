@@ -50,15 +50,15 @@ public:
     void connect();
     void updatePosition();
 
-    void setDesiredSize(QSize newSize);
-    void setLayer(WLayerSurface::LayerType layer);
-    void setAncher(WLayerSurface::AnchorTypes ancher);
-    void setExclusiveZone(int32_t zone);
-    void setLeftMargin(int32_t margin);
-    void setRightMargin(int32_t margin);
-    void setTopMargin(int32_t margin);
-    void setBottomMargin(int32_t margin);
-    void setKeyboardInteractivity(WLayerSurface::KeyboardInteractivity interactivity);
+    bool setDesiredSize(QSize newSize);
+    bool setLayer(WLayerSurface::LayerType layer);
+    bool setAncher(WLayerSurface::AnchorTypes ancher);
+    bool setExclusiveZone(int32_t zone);
+    bool setLeftMargin(int32_t margin);
+    bool setRightMargin(int32_t margin);
+    bool setTopMargin(int32_t margin);
+    bool setBottomMargin(int32_t margin);
+    bool setKeyboardInteractivity(WLayerSurface::KeyboardInteractivity interactivity);
 
     W_DECLARE_PUBLIC(WLayerSurface)
 
@@ -115,105 +115,132 @@ void WLayerSurfacePrivate::connect()
     });
 }
 
+static inline void debugOutput(wlr_layer_surface_v1_state s)
+{
+    qDebug() << "committed: " << s.committed << " "
+             << "configure_serial: " << s.configure_serial << "\n"
+             << "anchor: " << s.anchor << " "
+             << "layer: " << s.layer << " "
+             << "exclusive_zone: " << s.exclusive_zone << " "
+             << "keyboard_interactive: " << s.keyboard_interactive << "\n"
+             << "margin: " << s.margin.left << s.margin.right << s.margin.top << s.margin.bottom << "\n"
+             << "desired_width/height: " << s.desired_width << " " << s.desired_height << "\n"
+             << "actual_width/height" << s.actual_width << " " << s.actual_height << "\n";
+}
+
 void WLayerSurfacePrivate::updateLayerProperty()
 {
     W_Q(WLayerSurface);
 
     wlr_layer_surface_v1_state state = q->nativeHandle()->current;
 
-    setDesiredSize(QSize(state.desired_width, state.desired_height));
-    setLayer(static_cast<WLayerSurface::LayerType>(state.layer));
-    setAncher(WLayerSurface::AnchorTypes::fromInt(state.anchor));
-    setExclusiveZone(state.exclusive_zone);
-    setLeftMargin(state.margin.left);
-    setRightMargin(state.margin.right);
-    setTopMargin(state.margin.top);
-    setBottomMargin(state.margin.bottom);
-    setKeyboardInteractivity(static_cast<WLayerSurface::KeyboardInteractivity>(state.keyboard_interactive));
+    int hasChange = false;
+    hasChange |= setDesiredSize(QSize(state.desired_width, state.desired_height));
+    hasChange |= setLayer(static_cast<WLayerSurface::LayerType>(state.layer));
+    hasChange |= setAncher(WLayerSurface::AnchorTypes::fromInt(state.anchor));
+    hasChange |= setExclusiveZone(state.exclusive_zone);
+    hasChange |= setLeftMargin(state.margin.left);
+    hasChange |= setRightMargin(state.margin.right);
+    hasChange |= setTopMargin(state.margin.top);
+    hasChange |= setBottomMargin(state.margin.bottom);
+    hasChange |= setKeyboardInteractivity(static_cast<WLayerSurface::KeyboardInteractivity>(state.keyboard_interactive));
+
+    if (hasChange)
+        Q_EMIT q->layerPropertiesChanged();
+
 }
 
 // begin set property
 
-void WLayerSurfacePrivate::setDesiredSize(QSize newSize)
+bool WLayerSurfacePrivate::setDesiredSize(QSize newSize)
 {
     W_Q(WLayerSurface);
     if (desiredSize == newSize)
-        return;
+        return false;
     desiredSize = newSize;
     Q_EMIT q->desiredSizeChanged();
+    return true;
 }
 
 
-void WLayerSurfacePrivate::setLayer(WLayerSurface::LayerType layer)
+bool WLayerSurfacePrivate::setLayer(WLayerSurface::LayerType layer)
 {
     W_Q(WLayerSurface);
     if (this->layer == layer)
-        return;
+        return false;
     this->layer = layer;
     Q_EMIT q->layerChanged();
+    return true;
 }
 
-void WLayerSurfacePrivate::setAncher(WLayerSurface::AnchorTypes ancher)
+bool WLayerSurfacePrivate::setAncher(WLayerSurface::AnchorTypes ancher)
 {
     W_Q(WLayerSurface);
     if (this->ancher == ancher)
-        return;
+        return false;
     this->ancher = ancher;
     Q_EMIT q->ancherChanged();
+    return true;
 }
 
-void WLayerSurfacePrivate::setExclusiveZone(int32_t zone)
+bool WLayerSurfacePrivate::setExclusiveZone(int32_t zone)
 {
     W_Q(WLayerSurface);
     if (exclusiveZone == zone)
-        return;
+        return false;
     exclusiveZone = zone;
     Q_EMIT q->exclusiveZoneChanged();
+    return true;
 }
 
-void WLayerSurfacePrivate::setLeftMargin(int32_t margin)
+bool WLayerSurfacePrivate::setLeftMargin(int32_t margin)
 {
     W_Q(WLayerSurface);
     if (leftMargin == margin)
-        return;
+        return false;
     leftMargin = margin;
     Q_EMIT q->leftMarginChanged();
+    return true;
 }
 
-void WLayerSurfacePrivate::setRightMargin(int32_t margin)
+bool WLayerSurfacePrivate::setRightMargin(int32_t margin)
 {
     W_Q(WLayerSurface);
     if (rightMargin == margin)
-        return;
+        return false;
     rightMargin = margin;
     Q_EMIT q->rightMarginChanged();
+    return true;
 }
 
-void WLayerSurfacePrivate::setTopMargin(int32_t margin)
+bool WLayerSurfacePrivate::setTopMargin(int32_t margin)
 {
     W_Q(WLayerSurface);
     if (topMargin == margin)
-        return;
+        return false;
     topMargin = margin;
     Q_EMIT q->topMarginChanged();
+    return true;
 }
 
-void WLayerSurfacePrivate::setBottomMargin(int32_t margin)
+bool WLayerSurfacePrivate::setBottomMargin(int32_t margin)
 {
     W_Q(WLayerSurface);
     if (bottomMargin == margin)
-        return;
+        return false;
     bottomMargin = margin;
     Q_EMIT q->bottomMarginChanged();
+    return true;
 }
 
-void WLayerSurfacePrivate::setKeyboardInteractivity(WLayerSurface::KeyboardInteractivity interactivity)
+bool WLayerSurfacePrivate::setKeyboardInteractivity(WLayerSurface::KeyboardInteractivity interactivity)
 {
     W_Q(WLayerSurface);
     if (keyboardInteractivity == interactivity)
-        return;
+        return false;
     keyboardInteractivity = interactivity;
     Q_EMIT q->keyboardInteractivityChanged();
+    return true;
 }
 
 // end set property
@@ -392,6 +419,13 @@ WLayerSurface::AnchorType WLayerSurface::getExclusiveZoneEdge() const
 uint32_t WLayerSurface::configureSize(const QSize &newSize)
 {
     return handle()->configure(newSize.width(), newSize.height());
+}
+
+void WLayerSurface::closed()
+{
+    // 1. Notify the client that the surface has been closed
+    // 2. Destroy the struct wlr_layer_surface_v1
+    wlr_layer_surface_v1_destroy(nativeHandle());
 }
 
 void WLayerSurface::setActivate(bool on)

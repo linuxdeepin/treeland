@@ -55,6 +55,7 @@ Item {
             Helper.unregisterExclusiveZone(waylandSurface)
             waylandSurface.surface.leaveOutput(output)
             Helper.onSurfaceLeaveOutput(waylandSurface, surfaceItem, output)
+            waylandSurface.closed()
         }
     }
 
@@ -159,9 +160,6 @@ Item {
             width = surfaceItem.width
         if (!anchorHeight)
             height = surfaceItem.height
-        // Anchors also influence Edge of Exclusive Zone
-        if (waylandSurface.exclusiveZone > 0)
-            refreshExclusiveZone()
     }
 
     function refreshExclusiveZone() {
@@ -218,36 +216,11 @@ Item {
     Connections {
         target: waylandSurface
 
-        function onLayerChanged() {
-            z = zValueFormLayer(waylandSurface.layer)
-        }
-
-        function onAncherChanged() {
-            refreshAnchors()
-        }
-
-        function onExclusiveZoneChanged() {
+        function onLayerPropertiesChanged() {
             Helper.unregisterExclusiveZone(waylandSurface)
             Helper.registerExclusiveZone(waylandSurface)
-        }
-
-        function onTopMarginChanged() {
+            refreshAnchors()
             refreshMargin()
-        }
-
-        function onBottomMarginChanged() {
-            refreshMargin()
-        }
-
-        function onLeftMarginChanged() {
-            refreshMargin()
-        }
-
-        function onRightMarginChanged() {
-            refreshMargin()
-        }
-
-        function onDesiredSizeChanged() {
             configureSurfaceSize()
         }
 

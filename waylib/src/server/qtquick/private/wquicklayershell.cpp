@@ -105,19 +105,6 @@ WLayerSurface *WLayerSurfaceItem::surface() const
     return m_surface;
 }
 
-static inline void debugOutput(wlr_layer_surface_v1_state s)
-{
-    qDebug() << "committed: " << s.committed << " "
-             << "configure_serial: " << s.configure_serial << "\n"
-             << "anchor: " << s.anchor << " "
-             << "layer: " << s.layer << " "
-             << "exclusive_zone: " << s.exclusive_zone << " "
-             << "keyboard_interactive: " << s.keyboard_interactive << "\n"
-             << "margin: " << s.margin.left << s.margin.right << s.margin.top << s.margin.bottom << "\n"
-             << "desired_width/height: " << s.desired_width << " " << s.desired_height << "\n"
-             << "actual_width/height" << s.actual_width << " " << s.actual_height << "\n";
-}
-
 void WLayerSurfaceItem::setSurface(WLayerSurface *surface)
 {
     if (m_surface == surface)
