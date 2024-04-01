@@ -6,7 +6,7 @@ qt_add_qml_module(treeland-quick-utils
     STATIC
     SOURCES
         helper.cpp
-        dockpreviewfilter.cpp
+        filterproxymodel.cpp
     RESOURCE_PREFIX
         /qt/qml
     OUTPUT_DIRECTORY
@@ -18,7 +18,7 @@ target_sources(treeland-quick-utils PUBLIC
 FILE_SET HEADERS
 FILES
     helper.h
-    dockpreviewfilter.h
+    filterproxymodel.h
 )
 
 target_compile_definitions(treeland-quick-utils

@@ -208,6 +208,7 @@ Item {
                     Helper.activatedSurface = waylandSurface
             }
             workspace().surfaces.appendEnhanced({item: surface})
+            QmlHelper.workspaceManager.allSurfaces.append({item: surface})
         } else { // if not mapped
             if (!waylandSurface.WaylandSocket.rootSocket.enabled) {
                 surface.visible = false;
@@ -222,6 +223,7 @@ Item {
                 }
             }
             workspace().surfaces.removeIf((val) => val.item === surface)
+            QmlHelper.workspaceManager.allSurfaces.removeIf((val) => val.item === surface)
         }
     }
 
@@ -229,6 +231,7 @@ Item {
         pendingDestroy = true
         // may have been removed when unmapped?
         workspace().surfaces.removeIf((val) => val.item === surface)
+        QmlHelper.workspaceManager.allSurfaces.removeIf((val) => val.item === surface)
 
         if (!surface.visible || !closeAnimation.active) {
             creator.destroyObject(surface)
