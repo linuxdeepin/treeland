@@ -51,14 +51,10 @@ Item {
         function appendEnhanced(data) {
             // ensure activated surface is on top, activatedSurfaceChanged may happen before model append
             if (data.item.waylandSurface === Helper.activatedSurface) {
-                console.log('append ensured!')
                 this.insert(0,data)
             }
             else
                 this.append(data)
-        }
-        onCountChanged: {
-            console.log('onCountChanged!',this,count)
         }
     }
 

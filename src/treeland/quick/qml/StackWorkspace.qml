@@ -75,6 +75,14 @@ Item {
 
     FocusScope {
         anchors.fill: parent
+        enabled: !switcher.visible && !multitaskView.active
+        opacity: if (switcher.visible || dockPreview.previewing) switcherHideOpacity
+            else 1
+        z: 0
+
+        Behavior on opacity {
+            NumberAnimation { duration: 300 }
+        }
 
         Row {
             anchors {
@@ -98,11 +106,6 @@ Item {
         Repeater {
             model: workspaceManager.layoutOrder
             anchors.fill: parent
-            enabled: !switcher.visible && !multitaskView.active
-            opacity: if (switcher.visible) switcherHideOpacity
-                else 1
-            z: 0
-            onItemRemoved: console.log('item revmoved')
             delegate: ToplevelContainer {
                 objectName: `ToplevelContainer ${wsid}`
                 required property int index
@@ -112,7 +115,6 @@ Item {
                 visible: workspaceRelativeId === currentWorkspaceId
                 anchors.fill: parent
                 Component.onCompleted: {
-                    console.log(this,'visible',visible,parent.visible)
                     workspaceManager.workspacesById.set(workspaceId, this)
                 }
             }
@@ -566,7 +568,6 @@ Item {
             MultitaskView {
                 anchors.fill: parent
                 model: workspaceManager.workspacesById.get(workspaceManager.layoutOrder.get(currentWorkspaceId).wsid).surfaces
-                Component.onCompleted: console.log(workspaceManager.layoutOrder.get(currentWorkspaceId).wsid)
                 onVisibleChanged: {
                     console.assert(!visible,'should be exit')
                     multitaskView.active = false
@@ -634,7 +635,6 @@ Item {
             const surfaceItem = getSurfaceItemFromWaylandSurface(Helper.activatedSurface).item
             let relId = workspaceManager.workspacesById.get(surfaceItem.workspaceId).workspaceRelativeId
             relId = (relId + d + nWorkspaces) % nWorkspaces
-            console.log(surfaceItem,surfaceItem.workspaceId,relId)
             surfaceItem.workspaceId = workspaceManager.layoutOrder.get(relId).wsid
             // change workspace since no activatedSurface change
             currentWorkspaceId = relId
