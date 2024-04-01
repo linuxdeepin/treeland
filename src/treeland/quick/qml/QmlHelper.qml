@@ -133,6 +133,18 @@ Item {
                 wsid: 0
             }
         }
+        property ListModel allSurfaces: ListModel {
+            id: allSurfaces
+            objectName: "allSurfaces"
+            function removeIf(cond) {
+                for (let i = 0; i < this.count; i++) {
+                    if (cond(this.get(i))) {
+                        this.remove(i)
+                        return
+                    }
+                }
+            }
+        }
         Component.onCompleted: {
             createWs(),createWs()
         }

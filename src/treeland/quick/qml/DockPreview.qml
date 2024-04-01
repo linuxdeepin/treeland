@@ -55,17 +55,14 @@ Item {
         return null
     }
 
-    property alias model: model
-
     signal stopped
     signal entered(var relativeSurface)
     signal exited(var relativeSurface)
-    signal surfaceActivated(XdgSurface surface)
+    signal surfaceActivated(Item surface)
 
     visible: false
 
     property XdgSurface currentSurface
-    property var surfaces
 
     property var target
     property var pos
@@ -75,11 +72,8 @@ Item {
     property var isEntered: false
 
     function show(surfaces, target, pos, direction) {
-        filterModel.clear();
-        for (let surface of surfaces) {
-            filterModel.append(surface);
-        }
-        root.surfaces = surfaces
+        console.log('show',surfaces,filterModel,filterModel.sourceModel.count,filterModel.count)
+        filterModel.desiredSurfaces = surfaces
         root.pos = pos;
         root.direction = direction;
         root.target = target;
@@ -89,7 +83,6 @@ Item {
     function close() {
         visible = false;
         stopped();
-        filterModel.clear();
     }
 
     Loader {
@@ -103,22 +96,14 @@ Item {
         }
     }
 
-    DockPreviewFilter {
+    FilterProxyModel {
         id: filterModel
-        sourceModel: model
-    }
-
-    ListModel {
-        id: model
-        function removeSurface(surface) {
-            for (var i = 0; i < model.count; i++) {
-                if (model.get(i).source === surface) {
-                    model.remove(i);
-                    break;
-                }
-            }
-            filterModel.remove(surface.waylandSurface.surface);
+        sourceModel: QmlHelper.workspaceManager.allSurfaces
+        filterAcceptsRow: (data) => {
+            return desiredSurfaces.some(surface => data.item.waylandSurface.surface == surface)
         }
+        property var desiredSurfaces: []
+        onDesiredSurfacesChanged: invalidate()
     }
 
     Timer {
@@ -194,11 +179,9 @@ Item {
                 anchors.topMargin: 5
                 text: "X"
                 onClicked: {
-                    for (let surface of root.surfaces) {
-                        let s = getSurfaceItemFromWaylandSurface(surface)
-                        if (s) {
-                            filterModel.close(s.item.surface.surface);
-                        }
+                    for (let i = 0; i < filterModel.count; i++) {
+                        const item = filterModel.get(i).item
+                        Helper.closeSurface(item.waylandSurface.surface)
                     }
                     exitedTimer.start();
                     closeAllBtn.visible = false // WTF: why this button cannot hide when root is hide.
@@ -215,21 +198,24 @@ Item {
             orientation: root.direction % 2 ? ListView.Vertical : ListView.Horizontal
             model: filterModel
             delegate: Item {
-                required property XdgSurface surface
+                required property Item item
+                property Item surfaceItem: item
                 width: 180
                 height: 180
                 clip: true
                 visible: true
 
+                Component.onCompleted: console.log('surfaceItem',surfaceItem)
+
                 ShaderEffectSource {
                     id: effect
                     anchors.centerIn: parent
                     width: parent.width - 20
-                    height: Math.min(surface.height * width / surface.width, width)
+                    height: Math.min(surfaceItem.height * width / surfaceItem.width, width)
                     live: true
                     hideSource: false
                     smooth: true
-                    sourceItem: surface
+                    sourceItem: surfaceItem
                     HoverHandler {
                         acceptedDevices: PointerDevice.AllDevices
                         cursorShape: Qt.PointingHandCursor
@@ -238,13 +224,12 @@ Item {
                                 root.isEntered = true;
                                 closeBtn.visible = true
                                 closeAllBtn.visible = false
-                                title.text = surface.surface.title
+                                title.text = surfaceItem.waylandSurface.title
 
                                 context.parent = root.parent;
                                 context.anchors.fill = root;
                                 context.sourceComponent = contextComponent;
-                                context.item.start(surface);
-                                surfaceActivated(surface);
+                                context.item.start(surfaceItem);
                             }
                             else {
                                 title.text = "Title"
@@ -257,7 +242,7 @@ Item {
                     MouseArea {
                         anchors.fill: parent
                         onClicked: {
-                            surfaceActivated(surface);
+                            surfaceActivated(surfaceItem);
                         }
                     }
 
@@ -270,7 +255,7 @@ Item {
                         anchors.topMargin: 5
                         text: "X"
                         onClicked: {
-                            Helper.closeSurface(surface.surface.surface);
+                            Helper.closeSurface(surfaceItem.waylandSurface.surface);
                         }
                     }
                 }

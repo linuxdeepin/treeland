@@ -596,9 +596,9 @@ Item {
         onExited: (relativeSurface) => {
             treelandForeignToplevelManager.leaveDockPreview(relativeSurface)
         }
-        onSurfaceActivated: (surface) => {
-            surface.cancelMinimize()
-            Helper.activatedSurface = surface.waylandSurface
+        onSurfaceActivated: (surfaceItem) => {
+            surfaceItem.cancelMinimize()
+            Helper.activatedSurface = surfaceItem.waylandSurface
         }
     }
 
