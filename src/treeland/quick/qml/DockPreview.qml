@@ -62,7 +62,7 @@ Item {
 
     visible: false
 
-    property XdgSurface currentSurface
+    property bool previewing: context.item?.visible // TODO: use loader.active
 
     property var target
     property var pos
@@ -72,7 +72,6 @@ Item {
     property var isEntered: false
 
     function show(surfaces, target, pos, direction) {
-        console.log('show',surfaces,filterModel,filterModel.sourceModel.count,filterModel.count)
         filterModel.desiredSurfaces = surfaces
         root.pos = pos;
         root.direction = direction;
@@ -205,8 +204,6 @@ Item {
                 clip: true
                 visible: true
 
-                Component.onCompleted: console.log('surfaceItem',surfaceItem)
-
                 ShaderEffectSource {
                     id: effect
                     anchors.centerIn: parent
@@ -243,6 +240,7 @@ Item {
                         anchors.fill: parent
                         onClicked: {
                             surfaceActivated(surfaceItem);
+                            exitedTimer.start();
                         }
                     }
 
