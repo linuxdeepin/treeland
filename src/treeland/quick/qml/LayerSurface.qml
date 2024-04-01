@@ -51,16 +51,15 @@ Item {
         layout: QmlHelper.layout
 
         onEnterOutput: function(output) {
-            if (waylandSurface.surface) {
-                waylandSurface.surface.enterOutput(output)
-            }
-            Helper.onSurfaceEnterOutput(waylandSurface, surfaceItem, output)
             Helper.registerExclusiveZone(waylandSurface)
+            waylandSurface.surface.enterOutput(output)
+            Helper.onSurfaceEnterOutput(waylandSurface, surfaceItem, output)
         }
         onLeaveOutput: function(output) {
             Helper.unregisterExclusiveZone(waylandSurface)
             waylandSurface.surface.leaveOutput(output)
             Helper.onSurfaceLeaveOutput(waylandSurface, surfaceItem, output)
+            waylandSurface.closed()
         }
     }
 
@@ -229,36 +228,11 @@ Item {
     Connections {
         target: waylandSurface
 
-        function onLayerChanged() {
-            z = zValueFormLayer(waylandSurface.layer)
-        }
-
-        function onAncherChanged() {
-            refreshAnchors()
-        }
-
-        function onExclusiveZoneChanged() {
+        function onLayerPropertiesChanged() {
             Helper.unregisterExclusiveZone(waylandSurface)
             Helper.registerExclusiveZone(waylandSurface)
-        }
-
-        function onTopMarginChanged() {
+            refreshAnchors()
             refreshMargin()
-        }
-
-        function onBottomMarginChanged() {
-            refreshMargin()
-        }
-
-        function onLeftMarginChanged() {
-            refreshMargin()
-        }
-
-        function onRightMarginChanged() {
-            refreshMargin()
-        }
-
-        function onDesiredSizeChanged() {
             configureSurfaceSize()
         }
 
