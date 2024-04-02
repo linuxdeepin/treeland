@@ -6,7 +6,6 @@
 #include "foreign-toplevel-manager-server-protocol.h"
 #include "foreign_toplevel_manager_impl.h"
 
-#include <qtmetamacros.h>
 #include <wxdgsurface.h>
 #include <wquickwaylandserver.h>
 
@@ -38,12 +37,12 @@ public:
     static QWForeignToplevelManagerV1 *from(ztreeland_foreign_toplevel_manager_v1 *handle);
     static QWForeignToplevelManagerV1 *create(QWDisplay *display);
 
-    void topLevel(Waylib::Server::WXdgSurface *surface);
-    void close(Waylib::Server::WXdgSurface *surface);
-    void done(Waylib::Server::WXdgSurface *surface);
-    void setPid(Waylib::Server::WXdgSurface *surface, uint32_t pid);
-    void setIdentifier(Waylib::Server::WXdgSurface *surface, const QString &identifier);
-    void updateSurfaceInfo(Waylib::Server::WXdgSurface *surface);
+    void topLevel(Waylib::Server::WToplevelSurface *surface);
+    void close(Waylib::Server::WToplevelSurface *surface);
+    void done(Waylib::Server::WToplevelSurface *surface);
+    void setPid(Waylib::Server::WToplevelSurface *surface, uint32_t pid);
+    void setIdentifier(Waylib::Server::WToplevelSurface *surface, const QString &identifier);
+    void updateSurfaceInfo(Waylib::Server::WToplevelSurface *surface);
 
 Q_SIGNALS:
     void beforeDestroy(QWForeignToplevelManagerV1 *self);
@@ -91,8 +90,8 @@ class QuickForeignToplevelManagerV1 : public WQuickWaylandServerInterface, publi
 public:
     explicit QuickForeignToplevelManagerV1(QObject *parent = nullptr);
 
-    Q_INVOKABLE void add(WXdgSurface *surface);
-    Q_INVOKABLE void remove(WXdgSurface *surface);
+    Q_INVOKABLE void add(WToplevelSurface *surface);
+    Q_INVOKABLE void remove(WToplevelSurface *surface);
 
     Q_INVOKABLE void enterDockPreview(WSurface *relative_surface);
     Q_INVOKABLE void leaveDockPreview(WSurface *relative_surface);
@@ -100,12 +99,12 @@ public:
     static QuickForeignToplevelManagerAttached *qmlAttachedProperties(QObject *target);
 
 Q_SIGNALS:
-    void requestMaximize(WXdgSurface *surface, treeland_foreign_toplevel_handle_v1_maximized_event *event);
-    void requestMinimize(WXdgSurface *surface, treeland_foreign_toplevel_handle_v1_minimized_event *event);
-    void requestActivate(WXdgSurface *surface, treeland_foreign_toplevel_handle_v1_activated_event *event);
-    void requestFullscreen(WXdgSurface *surface, treeland_foreign_toplevel_handle_v1_fullscreen_event *event);
-    void requestClose(WXdgSurface *surface);
-    void rectangleChanged(WXdgSurface *surface, treeland_foreign_toplevel_handle_v1_set_rectangle_event *event);
+    void requestMaximize(WToplevelSurface *surface, treeland_foreign_toplevel_handle_v1_maximized_event *event);
+    void requestMinimize(WToplevelSurface *surface, treeland_foreign_toplevel_handle_v1_minimized_event *event);
+    void requestActivate(WToplevelSurface *surface, treeland_foreign_toplevel_handle_v1_activated_event *event);
+    void requestFullscreen(WToplevelSurface *surface, treeland_foreign_toplevel_handle_v1_fullscreen_event *event);
+    void requestClose(WToplevelSurface *surface);
+    void rectangleChanged(WToplevelSurface *surface, treeland_foreign_toplevel_handle_v1_set_rectangle_event *event);
     void requestDockPreview(std::vector<WSurface*> surfaces, WSurface *target, QPoint abs, int direction);
     void requestDockClose();
 
