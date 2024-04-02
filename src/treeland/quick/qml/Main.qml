@@ -83,6 +83,19 @@ Item {
             backend: backend
         }
 
+        Seat {
+            id: seat0
+            name: "seat0"
+            cursor: Cursor {
+                id: cursor1
+
+                layout: QmlHelper.layout
+            }
+
+            eventFilter: Helper
+            keyboardFocus: Helper.getFocusSurfaceFrom(renderWindow.activeFocusItem)
+        }
+
         XdgShell {
             id: shell
             property int workspaceId: 0
@@ -125,17 +138,25 @@ Item {
             }
         }
 
-        Seat {
-            id: seat0
-            name: "seat0"
-            cursor: Cursor {
-                id: cursor1
+        XWayland {
+            id: xwayland
+            compositor: compositor.compositor
+            seat: seat0.seat
+            lazy: false
 
-                layout: QmlHelper.layout
+            onReady: masterSocket.addClient(client())
+
+            onSurfaceAdded: function(surface) {
+                QmlHelper.xwaylandSurfaceManager.add({waylandSurface: surface, workspaceId: stackLayout.item.currentWorkspaceId})
+                QmlHelper.xwaylandSurfaceManager.add({waylandSurface: surface})
+                treelandForeignToplevelManager.add(surface)
             }
-
-            eventFilter: Helper
-            keyboardFocus: Helper.getFocusSurfaceFrom(renderWindow.activeFocusItem)
+            onSurfaceRemoved: function(surface) {
+                QmlHelper.xwaylandSurfaceManager.removeIf(function(prop) {
+                    return prop.waylandSurface === surface
+                })
+                treelandForeignToplevelManager.remove(surface)
+            }
         }
 
         GammaControlManager {
@@ -224,24 +245,6 @@ Item {
 
         VirtualKeyboardManagerV1 {
             id: virtualKeyboardManagerV1
-        }
-
-        XWayland {
-            id: xwayland
-            compositor: compositor.compositor
-            seat: seat0.seat
-            lazy: false
-
-            onReady: masterSocket.addClient(client())
-
-            onSurfaceAdded: function(surface) {
-                QmlHelper.xwaylandSurfaceManager.add({waylandSurface: surface, workspaceId: stackLayout.item.currentWorkspaceId})
-            }
-            onSurfaceRemoved: function(surface) {
-                QmlHelper.xwaylandSurfaceManager.removeIf(function(prop) {
-                    return prop.waylandSurface === surface
-                })
-            }
         }
     }
 
