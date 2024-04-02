@@ -7,6 +7,7 @@
 #include <WOutput>
 #include <WSurfaceItem>
 #include <wxdgsurface.h>
+#include <wxwaylandsurface.h>
 
 #include <qwbackend.h>
 #include <qwdisplay.h>
@@ -588,6 +589,8 @@ void Helper::closeSurface(Waylib::Server::WSurface *surface)
         if (!s->isPopup()) {
             s->handle()->topToplevel()->sendClose();
         }
+    } else if (auto s = Waylib::Server::WXWaylandSurface::fromSurface(surface)) {
+        s->close();
     }
 }
 
