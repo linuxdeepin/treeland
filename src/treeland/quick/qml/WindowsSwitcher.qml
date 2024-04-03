@@ -12,7 +12,7 @@ Item {
     property var current: 0
     required property OutputDelegate activeOutput
 
-    signal surfaceActivated(surface: XdgSurface)
+    signal surfaceActivated(surface: SurfaceItem)
 
     onVisibleChanged: {
         if (visible) {
@@ -150,8 +150,8 @@ Item {
                 getRatio: (data) => data.item.width / data.item.height
                 anchors.centerIn: parent
                 delegate: Rectangle {
-                    property XdgSurface source: modelData.item
-                    property bool highlighted: globalIndex == root.current 
+                    property SurfaceItem source: modelData.item
+                    property bool highlighted: globalIndex == root.current
 
                     width: modelData.dw + 2 * padding
                     height: col.height + 2 * padding
