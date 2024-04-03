@@ -568,69 +568,14 @@ Item {
         active: false
         anchors.fill: parent
         sourceComponent: Component {
-            ColumnLayout{
+            MultitaskView {
                 anchors.fill: parent
-                ListView {
-                    id: workspacesList
-                    orientation: ListView.Horizontal
-                    model: workspaceManager.layoutOrder
-                    Layout.preferredHeight: root.height * .2
-                    Layout.preferredWidth: contentItem.childrenRect.width
-                    Layout.maximumWidth: parent.width
-                    Layout.alignment: Qt.AlignHCenter
-                    delegate: Item {
-                        required property int wsid
-                        required property int index
-                        height: workspacesList.height
-                        width: height * root.width / root.height
-                        Rectangle {
-                            anchors {
-                                fill: parent
-                                margins: 10
-                            }
-                            border.color: "blue"
-                            border.width: root.currentWorkspaceIndex == index ? 2 : 0
-                            ShaderEffectSource {
-                                sourceItem: activeOutputDelegate
-                                anchors.fill: parent
-                            }
-                            ShaderEffectSource {
-                                sourceItem: workspaceManager.workspacesById.get(wsid)
-                                anchors.fill: parent
-                            }
-                            HoverHandler {
-                                id: hvrhdlr
-                            }
-                            TapHandler {
-                                id: taphdlr
-                                onTapped: {
-                                    if (root.currentWorkspaceId === index)
-                                        multitaskView.active = false
-                                    else
-                                        root.currentWorkspaceId = index
-                                }
-                            }
-                            Rectangle {
-                                anchors.fill: parent
-                                color: Qt.rgba(0,0,0,.2)
-                                visible: hvrhdlr.hovered
-                                Text {
-                                    anchors.centerIn: parent
-                                    color: "white"
-                                    text: `No.${index}`
-                                }
-                            }
-                        }
-                    }
-                }
-                MultitaskView {
-                    Layout.fillHeight: true
-                    Layout.fillWidth: true
-                    model: workspaceManager.workspacesById.get(workspaceManager.layoutOrder.get(currentWorkspaceId).wsid).surfaces
-                    onVisibleChanged: {
-                        console.assert(!visible,'should be exit')
-                        multitaskView.active = false
-                    }
+                currentWorkspaceId: root.currentWorkspaceId
+                setCurrentWorkspaceId: (id) => root.currentWorkspaceId = id
+                model: workspaceManager.workspacesById.get(workspaceManager.layoutOrder.get(currentWorkspaceId).wsid).surfaces
+                onVisibleChanged: {
+                    console.assert(!visible,'should be exit')
+                    multitaskView.active = false
                 }
             }
         }
