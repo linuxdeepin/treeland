@@ -11,7 +11,7 @@ ColumnLayout {
     required property int maxW
     required property int availH
     required property int availW
-    required property ListModel model
+    required property var model
     required property Component delegate
     
     property int rowHeight: 0
