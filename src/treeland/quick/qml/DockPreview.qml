@@ -69,7 +69,7 @@ Item {
     property int direction: 0
 
     property int checkExited: 0
-    property var isEntered: false
+    property bool isEntered: false
 
     function show(surfaces, target, pos, direction) {
         filterModel.desiredSurfaces = surfaces

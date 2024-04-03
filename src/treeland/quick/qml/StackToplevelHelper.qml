@@ -176,10 +176,7 @@ Item {
         }
 
         function onRequestClose() {
-            if (waylandSurface.close)
-                waylandSurface.close()
-            else
-                waylandSurface.surface.unmap()
+            Helper.closeSurface(waylandSurface.surface);
         }
 
         function onRectangleChanged(edges) {
@@ -213,6 +210,7 @@ Item {
         }
 
         function onRequestClose() {
+            //quickForeignToplevelManageMapper.onRequestActivate(false) // TODO: @rewine
             Helper.closeSurface(waylandSurface.surface);
         }
     }

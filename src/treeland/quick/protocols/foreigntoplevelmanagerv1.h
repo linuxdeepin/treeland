@@ -10,7 +10,6 @@
 #include <wquickwaylandserver.h>
 
 #include <QObject>
-#include <QQmlEngine>
 
 struct treeland_foreign_toplevel_handle_v1_maximized_event;
 struct treeland_foreign_toplevel_handle_v1_minimized_event;
@@ -51,11 +50,6 @@ private:
     QWForeignToplevelManagerV1(ztreeland_foreign_toplevel_manager_v1 *handle, bool isOwner);
     ~QWForeignToplevelManagerV1() = default;
 };
-
-WAYLIB_SERVER_BEGIN_NAMESPACE
-class WXdgSurface;
-class WOutput;
-WAYLIB_SERVER_END_NAMESPACE
 
 class QuickForeignToplevelManagerV1;
 class QuickForeignToplevelManagerAttached : public QObject
