@@ -17,7 +17,7 @@ Item {
         if (surfaceItem)
             Helper.activatedSurface = surfaceItem.waylandSurface
         else if (current >= 0 && current < model.count)
-            Helper.activatedSurface = model.get(current).source.waylandSurface
+            Helper.activatedSurface = model.get(current).item.waylandSurface
         visible = false
     }
 
@@ -44,8 +44,28 @@ Item {
 
                 onClicked: root.exit()
 
-                ListModel {
+                FilterProxyModel {
                     id: outputProxy
+                    sourceModel: root.model
+                    property bool initialized: false
+                    filterAcceptsRow: (d) => {
+                        const item = d.item
+                        if (!(item instanceof SurfaceItem))
+                            return false
+                        return item.waylandSurface.surface.primaryOutput === modelData.output
+                    }
+                    Component.onCompleted: {
+                        initialized = true  // TODO better initialize timing
+                        invalidate()
+                        grid.calcLayout()
+                    }
+                    onCountChanged: {
+                        grid.calcLayout()
+                    }
+                    onSourceModelChanged: {
+                        invalidate()
+                        if (initialized) grid.calcLayout()
+                    }
                 }
 
                 EQHGrid {
@@ -58,26 +78,9 @@ Item {
                     availH: parent.height
                     availW: parent.width
                     spacing: 20
-                    Connections {
-                        target: root.Component
-                        function onCompleted() {
-                            outputProxy.clear()
-                            const filter = (item) => {
-                                if (!(item instanceof XdgSurface))
-                                    return false
-                                return item.waylandSurface.surface.primaryOutput === modelData.output
-                            }
-                            for (let i = 0; i < root.model.count; i++) {
-                                const item = root.model.get(i).item
-                                if (filter(item)) {
-                                    outputProxy.append({source: item})
-                                }
-                            }
-                            grid.calcLayout()
-                        }
-                    }
+                    getRatio: (d) => d.item.height / d.item.width
                     delegate: Item {
-                            property SurfaceItem source: modelData.source
+                            property SurfaceItem source: modelData.item
                             width: modelData.dw
                             height: width * source.height / source.width
                             clip: true
