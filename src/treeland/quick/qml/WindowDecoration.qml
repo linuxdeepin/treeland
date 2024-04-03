@@ -100,14 +100,21 @@ D.RoundRectangle {
             maskSource: titlebar
         }
 
-        MouseArea {
-            anchors.fill: parent
-            Cursor.shape: pressed ? Cursor.Grabbing : Qt.ArrowCursor
+        HoverHandler {} // block hover events to resizing mouse area, avoid cursor change
 
-            onPressed: {
+        TapHandler {
+            onTapped: {
                 Helper.activatedSurface = surface
-                root.requestMove()
             }
+            onDoubleTapped: {
+                root.requestToggleMaximize(!surface.isMaximized)
+            }
+            cursorShape: pressed ? Qt.ClosedHandCursor : Qt.ArrowCursor
+        }
+
+        DragHandler {
+            target: root.parent
+            cursorShape: active ? Qt.DragMoveCursor : Qt.ArrowCursor
         }
 
         Label {
