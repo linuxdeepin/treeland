@@ -23,6 +23,12 @@ Item {
         visible = false
     }
 
+    QtObject {
+        id: dragManager
+        property Item item  // current dragged item
+        property var accept // accept callback func
+    }
+
     Item {
         id: outputsPlacementItem
         Repeater {
@@ -52,7 +58,7 @@ Item {
                         id: workspacesList
                         orientation: ListView.Horizontal
                         model: workspaceManager.layoutOrder
-                        Layout.preferredHeight: root.height * .2
+                        Layout.preferredHeight: outputPlacementItem.height * .2
                         Layout.preferredWidth: contentItem.childrenRect.width
                         Layout.maximumWidth: parent.width
                         Layout.alignment: Qt.AlignHCenter
@@ -60,24 +66,33 @@ Item {
                             required property int wsid
                             required property int index
                             height: workspacesList.height
-                            width: height * root.width / root.height
-                            Rectangle {
+                            width: height * outputPlacementItem.width / outputPlacementItem.height
+                            Item {
                                 anchors {
                                     fill: parent
                                     margins: 10
                                 }
-                                border.color: "blue"
-                                border.width: root.currentWorkspaceIndex == index ? 2 : 0
+                                clip: true
                                 ShaderEffectSource {
                                     sourceItem: activeOutputDelegate
                                     anchors.fill: parent
                                 }
                                 ShaderEffectSource {
                                     sourceItem: workspaceManager.workspacesById.get(wsid)
+                                    sourceRect: outputPlacementItem.displayRect
                                     anchors.fill: parent
                                 }
                                 HoverHandler {
                                     id: hvrhdlr
+                                    onHoveredChanged: if (hovered) {
+                                        if (dragManager.item) {
+                                            dragManager.accept = ()=>{
+                                                dragManager.item.source.workspaceId = wsid
+                                            }
+                                        }
+                                    } else {
+                                        dragManager.accept = null
+                                    }
                                 }
                                 TapHandler {
                                     id: taphdlr
@@ -90,8 +105,7 @@ Item {
                                 }
                                 Rectangle {
                                     anchors.fill: parent
-                                    color: Qt.rgba(0,0,0,.2)
-                                    visible: hvrhdlr.hovered
+                                    color: hvrhdlr.hovered ? Qt.rgba(0,0,0,.2) : Qt.rgba(0,0,0,0)
                                     Text {
                                         anchors.centerIn: parent
                                         color: "white"
@@ -143,15 +157,51 @@ Item {
                             getRatio: (d) => d.item.width / d.item.height
                             delegate: Item {
                                     property SurfaceItem source: modelData.item
-                                    width: modelData.dw
+
+                                    property var initialState
+                                    property real animRatio: 1
+                                    function conv(y, item=parent) { // convert to outputPlacementItem's coord
+                                        return mapToItem(outputPlacementItem, mapFromItem(item, 0, y)).y
+                                    }
+                                    onYChanged: {
+                                        // ori * ratio(y=destY) = destw, ori * ratio(y=oriY) = ori
+                                        const destW = 100
+                                        const destY = conv(workspacesList.height, workspacesList)
+                                        const deltY = Math.max(conv(Math.min(y, initialState.y)) - destY, 0)
+                                        const fullY = conv(0) - destY
+                                        animRatio = ( (( fullY - deltY) / fullY) * (destW - initialState.width) + initialState.width) / initialState.width
+                                    }
+                                    
+                                    Component.onCompleted: {
+                                        initialState = {x: x, y: y, width: width}
+                                    }
+
+                                    width: modelData.dw * animRatio
                                     height: width * source.height / source.width
                                     clip: true
-                                    property bool highlighted: hvhdlr.hovered
+                                    z: drg.active ? 1 : 0   // dragged item should float
+                                    property bool highlighted: dragManager.item == this || (!dragManager.item && hvhdlr.hovered)
                                     HoverHandler {
                                         id: hvhdlr
                                     }
                                     TapHandler {
                                         onTapped: root.exit(source)
+                                    }
+                                    DragHandler {
+                                        id: drg
+                                        property var curState
+                                        onActiveChanged: if (active) {
+                                            dragManager.item = parent
+                                        } else {
+                                            if (dragManager.accept) {
+                                                dragManager.accept()
+                                            } else {
+                                                parent.x = initialState.x
+                                                parent.y = initialState.y
+                                                parent.animRatio = 1
+                                            }
+                                            dragManager.item = null
+                                        }
                                     }
                                     Rectangle {
                                         anchors.fill: parent
