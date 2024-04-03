@@ -101,7 +101,7 @@ Item {
                                     margins: 3
                                 }
                                 live: true
-                                hideSource: true
+                                // no hidesource, may conflict with workspace thumb
                                 smooth: true
                                 sourceItem: source
                             }
