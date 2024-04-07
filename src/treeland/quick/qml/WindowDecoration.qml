@@ -123,6 +123,7 @@ D.RoundRectangle {
 
         DragHandler {
             target: root.parent
+            onActiveChanged: if (active) Helper.activatedSurface = surface
             cursorShape: active ? Qt.DragMoveCursor : Qt.ArrowCursor
         }
 
