@@ -18,7 +18,7 @@ D.RoundRectangle {
 
     signal requestMove
     signal requestMinimize
-    signal requestToggleMaximize(var max)
+    signal requestMaximize(var max)
     signal requestClose
     signal requestResize(var edges)
 
@@ -117,7 +117,7 @@ D.RoundRectangle {
                 Helper.activatedSurface = surface
             }
             onDoubleTapped: {
-                root.requestToggleMaximize(!surface.isMaximized)
+                root.requestMaximize(!surface.isMaximized)
             }
         }
 
@@ -178,7 +178,7 @@ D.RoundRectangle {
                     height: titlebar.height
 
                     onClicked: {
-                        root.requestToggleMaximize(!surface.isMaximized)
+                        root.requestMaximize(!surface.isMaximized)
                     }
                 }
             }

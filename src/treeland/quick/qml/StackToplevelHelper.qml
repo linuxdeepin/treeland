@@ -138,80 +138,65 @@ Item {
         }
     }
 
-    Connections {
-        target: quickForeignToplevelManageMapper
+    Repeater {
+        model: [root.quickForeignToplevelManager || null,root.decoration]
 
-        function onRequestMaximize(maximized) {
-            if (maximized) {
-                connOfSurface.onRequestCancelMaximize()
-            } else {
-                connOfSurface.onRequestMaximize()
+        Item {
+            Connections {
+                target: modelData
+                ignoreUnknownSignals: true
+
+                function onRequestMaximize(maximized) {
+                    if (maximized) {
+                        doMaximize()
+                    } else {
+                        cancelMaximize()
+                    }
+                }
+
+                function onRequestMinimize(minimized = true) {
+                    if (minimized) {
+                        doMinimize()
+                    } else {
+                        cancelMinimize()
+                    }
+                }
+
+                function onRequestActivate(activated) {
+                    if (activated && waylandSurface.isMinimized) {
+                        cancelMinimize()
+                    }
+
+                    surface.focus = activated
+                    Helper.activatedSurface = activated ? waylandSurface : null
+                }
+
+                function onRequestFullscreen(fullscreen) {
+                    if (fullscreen) {
+                        doFullscreen();
+                    } else {
+                        cancelFullscreen();
+                    }
+                }
+
+                function onRequestClose() {
+                    //quickForeignToplevelManageMapper.onRequestActivate(false) // TODO: @rewine
+                    Helper.closeSurface(waylandSurface.surface);
+                }
+
+                function onRectangleChanged(edges) {
+                    // error
+                    doResize(null, edges, null)
+                }
+
+                function onRequestMove() {
+                    doMove(null, 0)
+                }
+
+                function onRequestResize(edges) {
+                    doResize(null, edges, null)
+                }
             }
-        }
-
-        function onRequestMinimize(minimized) {
-            if (minimized) {
-                connOfSurface.onRequestMinimize()
-                Helper.activatedSurface = null
-            } else {
-                connOfSurface.onRequestCancelMinimize()
-            }
-        }
-
-        function onRequestActivate(activated) {
-            if (activated && waylandSurface.isMinimized) {
-                cancelMinimize()
-            }
-
-            surface.focus = activated
-            Helper.activatedSurface = activated ? waylandSurface : null
-        }
-
-        function onRequestFullscreen(fullscreen) {
-            if (fullscreen) {
-                connOfSurface.onRequestFullscreen();
-            } else {
-                connOfSurface.onRequestCancelFullscreen();
-            }
-        }
-
-        function onRequestClose() {
-            Helper.closeSurface(waylandSurface.surface);
-        }
-
-        function onRectangleChanged(edges) {
-            connOfSurface.onRequestResize(null, edges, null)
-        }
-    }
-
-    Connections {
-        target: decoration
-
-        // TODO: Don't call connOfSurface
-
-        function onRequestMove() {
-            connOfSurface.onRequestMove(null, 0)
-        }
-
-        function onRequestResize(edges) {
-            connOfSurface.onRequestResize(null, edges, null)
-        }
-
-        function onRequestMinimize() {
-            connOfSurface.onRequestMinimize()
-        }
-
-        function onRequestToggleMaximize(max) {
-            if (max) {
-                connOfSurface.onRequestMaximize()
-            } else {
-                connOfSurface.onRequestCancelMaximize()
-            }
-        }
-
-        function onRequestClose() {
-            //quickForeignToplevelManageMapper.onRequestActivate(false) // TODO: @rewine
-            Helper.closeSurface(waylandSurface.surface);
         }
     }
 
@@ -295,20 +280,6 @@ Item {
         root.outputCoordMapper = surface.CoordMapper.helper.get(output)
     }
 
-    function cancelMinimize () {
-        if (waylandSurface.isResizeing)
-            return
-
-        if (!waylandSurface.isMinimized)
-            return
-
-        Helper.activatedSurface = waylandSurface
-
-        surface.visible = true;
-
-        waylandSurface.setMinimize(false)
-    }
-
     Connections {
         id: connOfSurface
 
@@ -326,111 +297,109 @@ Item {
         }
 
         function onRequestMove(seat, serial) {
-            if (waylandSurface.isMaximized)
-                return
-
-            if (!surface.effectiveVisible)
-                return
-
-            Helper.startMove(waylandSurface, surface, seat, serial)
+            doMove(seat, serial)
         }
 
         function onRequestResize(seat, edges, serial) {
-            if (waylandSurface.isMaximized)
-                return
-
-            if (!surface.effectiveVisible)
-                return
-
-            Helper.startResize(waylandSurface, surface, seat, edges, serial)
-        }
-
-        function rectMarginsRemoved(rect, left, top, right, bottom) {
-            rect.x += left
-            rect.y += top
-            rect.width -= (left + right)
-            rect.height -= (top + bottom)
-            return rect
+            doResize(seat, edges, serial)
         }
 
         function onRequestMaximize() {
-            if (waylandSurface.isResizeing)
-                return
-
-            if (waylandSurface.isMaximized)
-                return
-
-            if (!surface.effectiveVisible)
-                return
-
-            updateOutputCoordMapper()
-            waylandSurface.setMaximize(true)
+            doMaximize()
         }
 
         function onRequestCancelMaximize() {
-            if (waylandSurface.isResizeing)
-                return
-
-            if (!waylandSurface.isMaximized)
-                return
-
-            if (!surface.effectiveVisible)
-                return
-
-            waylandSurface.setMaximize(false)
+            cancelMaximize()
         }
 
         function onRequestMinimize() {
-            if (waylandSurface.isResizeing)
-                return
-
-            if (waylandSurface.isMinimized)
-                return
-
-            if (!surface.effectiveVisible)
-                return
-
-            surface.focus = false;
-            if (Helper.activatedSurface === surface)
-                Helper.activatedSurface = null;
-
-            surface.visible = false;
-            waylandSurface.setMinimize(true)
+            doMinimize()
         }
 
         function onRequestCancelMinimize() {
-            if (!surface.effectiveVisible)
-                return
-
-            cancelMinimize();
+            cancelMinimize()
         }
 
         function onRequestFullscreen() {
-            if (waylandSurface.isResizeing)
-                return
-
-            if (waylandSurface.isFullScreen)
-                return
-
-            if (!surface.effectiveVisible)
-                return
-
-            updateOutputCoordMapper()
-            waylandSurface.setFullScreen(true)
+            doFullscreen()
         }
 
         function onRequestCancelFullscreen() {
-            if (waylandSurface.isResizeing)
-                return
-
-            if (!waylandSurface.isFullScreen)
-                return
-
-            if (!surface.effectiveVisible)
-                return
-
-            waylandSurface.setFullScreen(false)
+            cancelFullscreen()
         }
+    }
+
+    function doMove(seat, serial) {
+        if (waylandSurface.isMaximized)
+            return
+
+        Helper.startMove(waylandSurface, surface, seat, serial)
+    }
+
+    function doResize(seat, edges, serial) {
+        if (waylandSurface.isMaximized)
+            return
+
+        Helper.startResize(waylandSurface, surface, seat, edges, serial)
+    }
+
+    function doMaximize() {
+        if (waylandSurface.isResizeing)
+            return
+
+        updateOutputCoordMapper()
+        waylandSurface.setMaximize(true)
+    }
+
+    function cancelMaximize() {
+        if (waylandSurface.isResizeing)
+            return
+
+        waylandSurface.setMaximize(false)
+    }
+
+    function doMinimize() {
+        if (waylandSurface.isResizeing)
+            return
+
+        if (waylandSurface.isMinimized)
+            return
+
+        surface.focus = false;
+        if (Helper.activatedSurface === surface)
+            Helper.activatedSurface = null;
+
+        surface.visible = false;
+        waylandSurface.setMinimize(true)
+    }
+
+    function cancelMinimize () {
+        if (waylandSurface.isResizeing)
+            return
+
+        if (!waylandSurface.isMinimized)
+            return
+
+        Helper.activatedSurface = waylandSurface
+
+        surface.visible = true;
+
+        waylandSurface.setMinimize(false)
+    }
+
+    function doFullscreen() {
+        if (waylandSurface.isResizeing)
+            return
+
+        updateOutputCoordMapper()
+        waylandSurface.setFullScreen(true)
+    }
+
+    function cancelFullscreen() {
+        if (waylandSurface.isResizeing)
+            return
+
+        waylandSurface.setFullScreen(false)
     }
 
     Component.onCompleted: {
