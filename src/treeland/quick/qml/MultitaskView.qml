@@ -87,10 +87,19 @@ Item {
                                 }
                                 HoverHandler {
                                     id: hvrhdlr
+                                    enabled: !drg.active
                                     onHoveredChanged: if (hovered) {
                                         if (dragManager.item) {
-                                            dragManager.accept = ()=>{
-                                                dragManager.item.source.workspaceId = wsid
+                                            if (dragManager.item.source) {  // is dragging surface
+                                                dragManager.accept = () => {
+                                                    dragManager.item.source.workspaceId = wsid
+                                                }
+                                            } else {    // is dragging workspace
+                                                console.log('hovered by ws',wsid)
+                                                dragManager.accept = () => {
+                                                    const draggedWs = QmlHelper.workspaceManager.workspacesById.get(dragManager.item.wsid)
+                                                    QmlHelper.workspaceManager.layoutOrder.move(draggedWs.workspaceRelativeId, index, 1)
+                                                }
                                             }
                                         }
                                     } else {
@@ -114,6 +123,20 @@ Item {
                                         color: "white"
                                         text: `No.${index}`
                                     }
+                                    border.color: "blue"
+                                    border.width: root.currentWorkspaceId === index ? 2 : 0
+                                }
+                            }
+                            DragHandler {
+                                id: drg
+                                onActiveChanged: if (active) {
+                                    console.log('active')
+                                    dragManager.item = parent
+                                } else {
+                                    if (dragManager.accept) {
+                                        dragManager.accept()
+                                    }
+                                    dragManager.item = null
                                 }
                             }
                         }
