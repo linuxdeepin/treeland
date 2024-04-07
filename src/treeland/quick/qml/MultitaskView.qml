@@ -54,15 +54,11 @@ Item {
 
                 ColumnLayout {
                     anchors.fill: parent
-                    ListView {
-                        id: workspacesList
-                        orientation: ListView.Horizontal
+                    DelegateModel {
+                        id: visualModel
                         model: workspaceManager.layoutOrder
-                        Layout.preferredHeight: outputPlacementItem.height * .2
-                        Layout.preferredWidth: contentItem.childrenRect.width
-                        Layout.maximumWidth: parent.width
-                        Layout.alignment: Qt.AlignHCenter
                         delegate: Rectangle {
+                            id: wsThumbItem
                             required property int wsid
                             required property int index
                             height: workspacesList.height
@@ -87,16 +83,34 @@ Item {
                                 }
                                 HoverHandler {
                                     id: hvrhdlr
+                                    enabled: !drg.active
                                     onHoveredChanged: if (hovered) {
                                         if (dragManager.item) {
-                                            dragManager.accept = ()=>{
-                                                dragManager.item.source.workspaceId = wsid
+                                            if (dragManager.item.source) {  // is dragging surface
+                                                dragManager.accept = () => {
+                                                    dragManager.item.source.workspaceId = wsid
+                                                }
+                                            } else {    // is dragging workspace
+                                                dragManager.accept = () => {
+                                                    const draggedItem = dragManager.item
+                                                    const draggedWs = QmlHelper.workspaceManager.workspacesById.get(draggedItem.wsid)
+                                                    const destIndex = draggedItem.DelegateModel.itemsIndex
+                                                    QmlHelper.workspaceManager.layoutOrder.move(draggedWs.workspaceRelativeId, destIndex, 1)
+                                                    // make curWorkspaceId follow the workspace
+                                                    root.setCurrentWorkspaceId(destIndex)
+                                                    // reset dragged item's align
+                                                    visualModel.items.move(destIndex, destIndex)
+                                                    draggedItem.y = draggedItem.initialState.y  // y is not set by layout?
+                                                }
+                                                visualModel.items.move(dragManager.item.DelegateModel.itemsIndex, wsThumbItem.DelegateModel.itemsIndex)
                                             }
                                         }
                                     } else {
-                                        dragManager.accept = null
+                                        if (dragManager.item?.source) // is dragging surface, workspace always lose hover
+                                            dragManager.accept = null
                                     }
                                 }
+                                DelegateModel.inPersistedItems: true
                                 TapHandler {
                                     id: taphdlr
                                     onTapped: {
@@ -116,7 +130,35 @@ Item {
                                     }
                                 }
                             }
+
+                            property var initialState
+                            DragHandler {
+                                id: drg
+                                onActiveChanged: if (active) {
+                                    console.log('active')
+                                    dragManager.item = parent
+                                    initialState = {x: parent.x, y: parent.y}
+                                } else {
+                                    if (dragManager.accept) {
+                                        dragManager.accept()
+                                    } else {
+                                        parent.x = initialState.x
+                                        parent.y = initialState.y
+                                        visualModel.items.move(parent.DelegateModel.itemsIndex, parent.index)
+                                    }
+                                    dragManager.item = null
+                                }
+                            }
                         }
+                    }
+                    ListView {
+                        id: workspacesList
+                        orientation: ListView.Horizontal
+                        model: visualModel
+                        Layout.preferredHeight: outputPlacementItem.height * .2
+                        Layout.preferredWidth: model.count * height * outputPlacementItem.width / outputPlacementItem.height
+                        Layout.maximumWidth: parent.width
+                        Layout.alignment: Qt.AlignHCenter
                     }
                     Item {
                         id: surfacesGridView
