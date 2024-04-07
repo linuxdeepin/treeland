@@ -23,8 +23,6 @@ class WAYLIB_SERVER_EXPORT WXdgSurface : public WToplevelSurface, public WObject
     Q_PROPERTY(bool isPopup READ isPopup CONSTANT)
     Q_PROPERTY(bool isResizeing READ isResizeing NOTIFY resizeingChanged FINAL)
     Q_PROPERTY(WXdgSurface* parentXdgSurface READ parentXdgSurface NOTIFY parentXdgSurfaceChanged FINAL)
-    Q_PROPERTY(QString title READ title NOTIFY titleChanged FINAL)
-    Q_PROPERTY(QString appId READ appId NOTIFY appIdChanged FINAL)
     QML_NAMED_ELEMENT(WaylandXdgSurface)
     QML_UNCREATABLE("Only create in C++")
 
@@ -57,8 +55,8 @@ public:
     QSize minSize() const override;
     QSize maxSize() const override;
 
-    QString title() const;
-    QString appId() const;
+    QString title() const override;
+    QString appId() const override;
 
 public Q_SLOTS:
     void setResizeing(bool resizeing) override;
@@ -73,8 +71,6 @@ public Q_SLOTS:
 Q_SIGNALS:
     void parentXdgSurfaceChanged();
     void resizeingChanged();
-    void titleChanged();
-    void appIdChanged();
 };
 
 WAYLIB_SERVER_END_NAMESPACE

@@ -18,6 +18,8 @@ class WToplevelSurface : public QObject
     Q_PROPERTY(bool isFullScreen READ isFullScreen NOTIFY fullscreenChanged)
     Q_PROPERTY(WSurface* surface READ surface NOTIFY surfaceChanged)
     Q_PROPERTY(WSurface* parentSurface READ parentSurface NOTIFY parentSurfaceChanged)
+    Q_PROPERTY(QString title READ title NOTIFY titleChanged)
+    Q_PROPERTY(QString appId READ appId NOTIFY appIdChanged)
     QML_NAMED_ELEMENT(ToplevelSurface)
     QML_UNCREATABLE("Only create in C++")
 
@@ -49,6 +51,12 @@ public:
     virtual bool isFullScreen() const {
         return false;
     }
+    virtual QString title() const {
+        return {};
+    };
+    virtual QString appId() const {
+        return {};
+    };
 
     virtual QRect getContentGeometry() const = 0;
 
@@ -95,6 +103,8 @@ Q_SIGNALS:
     void surfaceChanged();
     void parentSurfaceChanged();
     void fullscreenChanged();
+    void titleChanged();
+    void appIdChanged();
 
     void requestMove(WSeat *seat, quint32 serial);
     void requestResize(WSeat *seat, Qt::Edges edge, quint32 serial);

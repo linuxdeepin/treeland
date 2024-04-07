@@ -102,6 +102,10 @@ public:
 
     QRect getContentGeometry() const override;
 
+    QString title() const override;
+    QString appId() const override;
+    pid_t pid() const;
+
     QRect requestConfigureGeometry() const;
     ConfigureFlags requestConfigureFlags() const;
 

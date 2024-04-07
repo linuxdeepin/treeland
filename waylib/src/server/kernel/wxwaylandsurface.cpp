@@ -149,7 +149,10 @@ void WXWaylandSurfacePrivate::init()
                      q, &WXWaylandSurface::geometryChanged);
     QObject::connect(handle, &QWXWaylandSurface::decorationsChanged,
                      q, &WXWaylandSurface::decorationsTypeChanged);
-
+    QObject::connect(handle, &QWXWaylandSurface::titleChanged,
+                     q, &WXWaylandSurface::titleChanged);
+    QObject::connect(handle, &QWXWaylandSurface::classChanged,
+                     q, &WXWaylandSurface::appIdChanged);
     updateChildren();
     updateParent();
 }
@@ -390,6 +393,27 @@ QRect WXWaylandSurface::getContentGeometry() const
     W_DC(WXWaylandSurface);
 
     return QRect(0, 0, d->nativeHandle()->width, d->nativeHandle()->height);
+}
+
+QString WXWaylandSurface::title() const
+{
+    W_DC(WXWaylandSurface);
+
+    return QString::fromUtf8(d->nativeHandle()->title);
+}
+
+QString WXWaylandSurface::appId() const
+{
+    W_DC(WXWaylandSurface);
+
+    return QString::fromLocal8Bit(d->nativeHandle()->className);
+}
+
+pid_t WXWaylandSurface::pid() const
+{
+    W_DC(WXWaylandSurface);
+
+    return d->nativeHandle()->pid;
 }
 
 QRect WXWaylandSurface::requestConfigureGeometry() const

@@ -298,13 +298,13 @@ QSize WXdgSurface::maxSize() const
 QString WXdgSurface::title() const
 {
     W_DC(WXdgSurface);
-    return {d->handle->topToplevel()->handle()->title};
+    return QString::fromUtf8(d->handle->topToplevel()->handle()->title);
 }
 
 QString WXdgSurface::appId() const
 {
     W_DC(WXdgSurface);
-    return {d->handle->topToplevel()->handle()->app_id};
+    return QString::fromLocal8Bit(d->handle->topToplevel()->handle()->app_id);
 }
 
 WXdgSurface *WXdgSurface::parentXdgSurface() const
