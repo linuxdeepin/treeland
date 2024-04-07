@@ -168,7 +168,8 @@ Item {
                     }
 
                     surface.focus = activated
-                    Helper.activatedSurface = activated ? waylandSurface : null
+                    if (activated)
+                        Helper.activatedSurface = waylandSurface
                 }
 
                 function onRequestFullscreen(fullscreen) {
@@ -240,6 +241,8 @@ Item {
             }
             workspace().surfaces.removeIf((val) => val.item === surface)
             QmlHelper.workspaceManager.allSurfaces.removeIf((val) => val.item === surface)
+            if (Helper.activatedSurface === waylandSurface)
+                surface.parent.selectSurfaceToActivate()
         }
     }
 
@@ -366,11 +369,12 @@ Item {
             return
 
         surface.focus = false;
-        if (Helper.activatedSurface === surface)
-            Helper.activatedSurface = null;
-
         surface.visible = false;
         waylandSurface.setMinimize(true)
+
+        if (Helper.activatedSurface === waylandSurface) {
+            surface.parent.selectSurfaceToActivate()
+        }
     }
 
     function cancelMinimize () {

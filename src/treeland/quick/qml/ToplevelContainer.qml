@@ -80,4 +80,11 @@ Item {
             }
         }
     }
+
+    function selectSurfaceToActivate() {
+        const nextIndex = surfacesModel.findIf( (data) => !data.item.waylandSurface.isMinimized )
+        if (nextIndex >= 0)
+            Helper.activatedSurface = surfacesModel.get(nextIndex).item.waylandSurface
+        else Helper.activatedSurface = null
+    }
 }
