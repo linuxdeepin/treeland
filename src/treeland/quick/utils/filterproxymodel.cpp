@@ -8,6 +8,11 @@ FilterProxyModel::FilterProxyModel(QObject *parent)
     : QSortFilterProxyModel{parent}
 {
     connect(this, &QSortFilterProxyModel::layoutChanged, this, &FilterProxyModel::countChanged);
+    connect(this, &QSortFilterProxyModel::rowsInserted, this, &FilterProxyModel::countChanged);
+    connect(this, &QSortFilterProxyModel::rowsRemoved, this, &FilterProxyModel::countChanged);
+    connect(this, &QSortFilterProxyModel::modelReset, this, &FilterProxyModel::countChanged);
+    connect(this, &QSortFilterProxyModel::layoutChanged, [](){qDebug()<<"layout changed";});
+    connect(this, &QSortFilterProxyModel::rowsRemoved,[](){qDebug()<<"removed";});
 }
 
 bool FilterProxyModel::filterAcceptsRow(int source_row, const QModelIndex &source_parent) const

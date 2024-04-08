@@ -70,7 +70,7 @@ Item {
     // activated workspace driven by surface activation
     property Item activatedSurfaceItem: getSurfaceItemFromWaylandSurface(Helper.activatedSurface)?.item
     onActivatedSurfaceItemChanged: {
-        if (activatedSurfaceItem?.parent?.workspaceRelativeId !== null)
+        if (activatedSurfaceItem?.parent?.workspaceRelativeId !== undefined)
             currentWorkspaceId = activatedSurfaceItem.parent.workspaceRelativeId
     }
 
@@ -572,7 +572,6 @@ Item {
                 anchors.fill: parent
                 currentWorkspaceId: root.currentWorkspaceId
                 setCurrentWorkspaceId: (id) => root.currentWorkspaceId = id
-                model: workspaceManager.workspacesById.get(workspaceManager.layoutOrder.get(currentWorkspaceId).wsid).surfaces
                 onVisibleChanged: {
                     console.assert(!visible,'should be exit')
                     multitaskView.active = false

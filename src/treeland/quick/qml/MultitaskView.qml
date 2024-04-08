@@ -10,9 +10,9 @@ import TreeLand.Utils
 
 Item {
     id: root
-    required property var model
     required property int currentWorkspaceId
     required property var setCurrentWorkspaceId
+    property ListModel model: QmlHelper.workspaceManager.workspacesById.get(QmlHelper.workspaceManager.layoutOrder.get(currentWorkspaceId).wsid).surfaces
     property int current: -1
 
     function exit(surfaceItem) {
