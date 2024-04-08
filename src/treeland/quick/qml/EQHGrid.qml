@@ -3,8 +3,8 @@
 import QtQuick
 import QtQuick.Layouts
 
-ColumnLayout {
-    id: eqhgrid // equal height grid
+Item {
+    id: root
 
     required property int minH
     required property int maxH
@@ -14,36 +14,37 @@ ColumnLayout {
     required property var model
     required property Component delegate
     
-    property int rowHeight: 0
-    property int padding: 8
-    property var rows: []
-    spacing: 10
+    property int itemVerticalPadding: 0
+    property int spacing: 8
+
+    property var pos: []
 
     Repeater {
-        model: rows
-        RowLayout {
-            id: row
-            width: eqhgrid.width
-            Layout.alignment: Qt.AlignHCenter
-            property int baseIdx: {
-                var idx = 0
-                for (var i = 0; i < index; i++)
-                    idx += rows[i].length
-                return idx
+        model: root.model
+        Loader {
+            required property int index
+            required property var modelData
+            property var internalData: pos[index]
+            property int globalIndex: index
+            property real displayWidth: internalData.dw
+            active: internalData !== undefined
+            sourceComponent: root.delegate
+            onInternalDataChanged: if (active) {
+                x = internalData.dx
+                y = internalData.dy
+                displayWidth = internalData.dw
             }
-            Repeater {
-                model: modelData
-                delegate: Loader {
-                    required property int index
-                    required property var modelData
-                    property int globalIndex: index + row.baseIdx
-                    sourceComponent: eqhgrid.delegate
-                }
-            }
+            Behavior on x { enabled: active; NumberAnimation { duration: 300}}
+            Behavior on y { enabled: active; NumberAnimation { duration: 300}}
         }
+        // caution: repeater's remove may happen after calclayout, so last elem got null and some got wrong sourceitem
+        onItemAdded: calcLayout()
+        onItemRemoved: calcLayout()
     }
     property var getRatio: (d)=>d.source.width / d.source.height
     function calcLayout() {
+        let rows = []
+        let rowHeight = 0
         function tryLayout(rowH, div) {
             var nrows = 1
             var acc = 0
@@ -53,18 +54,15 @@ ColumnLayout {
                 var win = model.get(i)
                 var ratio = getRatio(win)
                 var curW = Math.min(maxW, ratio * rowH)
-                var wwin = {
-                    "dw": curW
-                }
-                Object.assign(wwin, win)
-                acc += curW
+                const displayInfo = {dw: curW}
+                acc += curW + root.spacing
                 if (acc <= availW)
-                    currow.push(wwin)
+                    currow.push(displayInfo)
                 else {
                     acc = curW
                     nrows++
                     rowstmp.push(currow)
-                    currow = [wwin]
+                    currow = [displayInfo]
                     if (nrows > div)
                         break
                 }
@@ -78,14 +76,38 @@ ColumnLayout {
             }
             return false
         }
-
+        function calcDisplayPos() {
+            let postmp = []
+            let curY = 0
+            const maxW = rows.reduce((acc, row) => Math.max(acc, row.reduce( (acc, it) => it.dw + acc + root.spacing, -root.spacing )), 0)
+            root.width = maxW
+            const hCenter = root.width / 2
+            for (let row of rows) {
+                const totW = row.reduce((acc, it) => it.dw + acc + root.spacing, -root.spacing)
+                const left = hCenter - totW / 2
+                row.reduce((acc, it) => {
+                    Object.assign(it, {dx: acc, dy: curY})
+                    postmp.push(it)
+                    return it.dw + acc + root.spacing
+                }, left)
+                curY += rowHeight + itemVerticalPadding + root.spacing
+            }
+            pos = postmp
+            root.height = curY - root.spacing
+            return
+        }
         for (var div = 1; availH / div >= minH; div++) {
             // return if width satisfies
             var rowH = Math.min(availH / div, maxH)
-            if (tryLayout(rowH, div))
+            if (tryLayout(rowH, div)) {
+                calcDisplayPos()
                 return
+            }
         }
-        tryLayout(minH, 999)
-        console.warn('cannot layout')
+        if (tryLayout(minH, 999)) {
+            calcDisplayPos()
+        } else {
+            console.warn('cannot layout')
+        }
     }
 }

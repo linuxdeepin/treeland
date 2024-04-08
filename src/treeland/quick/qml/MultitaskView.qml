@@ -105,7 +105,7 @@ Item {
                                 }
                                 Rectangle {
                                     anchors.fill: parent
-                                    color: hvrhdlr.hovered ? Qt.rgba(0,0,0,.2) : Qt.rgba(0,0,0,0)
+                                    color: hvrhdlr.hovered ? Qt.rgba(0, 0, 0, .2) : Qt.rgba(0, 0, 0, 0)
                                     Text {
                                         anchors.centerIn: parent
                                         color: "white"
@@ -119,6 +119,7 @@ Item {
                         id: surfacesGridView
                         Layout.fillHeight: true
                         Layout.fillWidth: true
+                        Layout.margins: 30
 
                         FilterProxyModel {
                             id: outputProxy
@@ -135,9 +136,6 @@ Item {
                                 invalidate()
                                 grid.calcLayout()
                             }
-                            onCountChanged: {
-                                grid.calcLayout()
-                            }
                             onSourceModelChanged: {
                                 invalidate()
                                 if (initialized) grid.calcLayout()
@@ -146,21 +144,20 @@ Item {
 
                         EQHGrid {
                             id: grid
-                            anchors.centerIn: parent
+                            anchors.fill: parent
                             model: outputProxy
                             minH: 100
                             maxH: parent.height
                             maxW: parent.width
                             availH: parent.height
                             availW: parent.width
-                            spacing: 20
                             getRatio: (d) => d.item.width / d.item.height
                             delegate: Item {
-                                    property SurfaceItem source: modelData.item
+                                    property SurfaceItem source: modelData
 
                                     property var initialState
                                     property real animRatio: 1
-                                    function conv(y, item=parent) { // convert to outputPlacementItem's coord
+                                    function conv(y, item = parent) { // convert to outputPlacementItem's coord
                                         return mapToItem(outputPlacementItem, mapFromItem(item, 0, y)).y
                                     }
                                     onYChanged: {
@@ -171,12 +168,8 @@ Item {
                                         const fullY = conv(0) - destY
                                         animRatio = ( (( fullY - deltY) / fullY) * (destW - initialState.width) + initialState.width) / initialState.width
                                     }
-                                    
-                                    Component.onCompleted: {
-                                        initialState = {x: x, y: y, width: width}
-                                    }
 
-                                    width: modelData.dw * animRatio
+                                    width: displayWidth * animRatio
                                     height: width * source.height / source.width
                                     clip: true
                                     z: drg.active ? 1 : 0   // dragged item should float
@@ -192,6 +185,7 @@ Item {
                                         property var curState
                                         onActiveChanged: if (active) {
                                             dragManager.item = parent
+                                            initialState = {x: parent.x, y: parent.y, width: parent.width}
                                         } else {
                                             if (dragManager.accept) {
                                                 dragManager.accept()
