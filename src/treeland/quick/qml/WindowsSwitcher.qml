@@ -147,13 +147,14 @@ Item {
                 maxW: indicatorPlane.width * maxH / indicatorPlane.height
                 availW: indicatorPlane.width * .7
                 availH: indicatorPlane.height * .7
+                itemVerticalPadding: 24 + 2 * padding
                 getRatio: (data) => data.item.width / data.item.height
                 anchors.centerIn: parent
                 delegate: Rectangle {
-                    property SurfaceItem source: modelData.item
-                    property bool highlighted: globalIndex == root.current
+                    property SurfaceItem source: modelData
+                    property bool highlighted: globalIndex == root.current 
 
-                    width: modelData.dw + 2 * padding
+                    width: displayWidth
                     height: col.height + 2 * padding
                     border.color: "blue"
                     border.width: highlighted ? 2 : 0
@@ -181,10 +182,12 @@ Item {
                         spacing: 5
 
                         RowLayout {
+                            id: titlebar
                             width: parent.width
+                            height: 24
                             Rectangle {
-                                height: width
-                                width: 24
+                                height: parent.height
+                                width: height
                                 color: "yellow"
                                 radius: 5
                             }
