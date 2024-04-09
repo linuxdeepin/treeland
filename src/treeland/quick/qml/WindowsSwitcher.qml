@@ -152,7 +152,11 @@ Item {
                 anchors.centerIn: parent
                 delegate: Rectangle {
                     property SurfaceItem source: modelData
-                    property bool highlighted: globalIndex == root.current 
+                    property bool highlighted: globalIndex == root.current
+                    property real ratio: source.width / source.height
+                    onRatioChanged: {
+                        eqhgrid.calcLayout()
+                    }
 
                     width: displayWidth
                     height: col.height + 2 * padding
