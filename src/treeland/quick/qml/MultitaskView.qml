@@ -155,6 +155,11 @@ Item {
                             delegate: Item {
                                     property SurfaceItem source: modelData
 
+                                    property real ratio: source.width / source.height
+                                    onRatioChanged: {
+                                        grid.calcLayout()
+                                    }
+
                                     property var initialState
                                     property real animRatio: 1
                                     function conv(y, item = parent) { // convert to outputPlacementItem's coord
