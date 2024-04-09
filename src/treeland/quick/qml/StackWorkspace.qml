@@ -119,9 +119,10 @@ FocusScope {
                 objectName: `ToplevelContainer ${wsid}`
                 required property int index
                 required property int wsid
+                property bool isCurrentWorkspace: workspaceRelativeId === currentWorkspaceId
                 workspaceId: wsid
                 workspaceRelativeId: index
-                visible: workspaceRelativeId === currentWorkspaceId
+                visible: isCurrentWorkspace
                 focus: visible
                 anchors.fill: parent
                 Component.onCompleted: {
