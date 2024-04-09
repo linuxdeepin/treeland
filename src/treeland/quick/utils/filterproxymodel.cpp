@@ -7,12 +7,16 @@
 FilterProxyModel::FilterProxyModel(QObject *parent)
     : QSortFilterProxyModel{parent}
 {
+    initConnections();
+    connect(this, &QSortFilterProxyModel::modelReset,this,&FilterProxyModel::initConnections);
+    connect(this, &QSortFilterProxyModel::sourceModelChanged,this,&FilterProxyModel::initConnections);
+}
+
+void FilterProxyModel::initConnections()
+{
     connect(this, &QSortFilterProxyModel::layoutChanged, this, &FilterProxyModel::countChanged);
     connect(this, &QSortFilterProxyModel::rowsInserted, this, &FilterProxyModel::countChanged);
     connect(this, &QSortFilterProxyModel::rowsRemoved, this, &FilterProxyModel::countChanged);
-    connect(this, &QSortFilterProxyModel::modelReset, this, &FilterProxyModel::countChanged);
-    connect(this, &QSortFilterProxyModel::layoutChanged, [](){qDebug()<<"layout changed";});
-    connect(this, &QSortFilterProxyModel::rowsRemoved,[](){qDebug()<<"removed";});
 }
 
 bool FilterProxyModel::filterAcceptsRow(int source_row, const QModelIndex &source_parent) const
@@ -24,6 +28,7 @@ bool FilterProxyModel::filterAcceptsRow(int source_row, const QModelIndex &sourc
     auto jsData = qjsEngine(this)->toScriptValue(rowData);
     return m_filterAcceptsRow.call(QJSValueList({jsData})).toBool();
 }
+
 void FilterProxyModel::setFilterAcceptsRow(const QJSValue &val)
 {
     if (val.equals(m_filterAcceptsRow))

@@ -27,9 +27,9 @@ Item {
             property var internalData: pos[index]
             property int globalIndex: index
             property real displayWidth: internalData.dw
-            active: internalData !== undefined
+            active: internalData
             sourceComponent: root.delegate
-            onInternalDataChanged: if (active) {
+            onInternalDataChanged: if (internalData) {
                 x = internalData.dx
                 y = internalData.dy
                 displayWidth = internalData.dw
@@ -38,7 +38,9 @@ Item {
             Behavior on y { enabled: active; NumberAnimation { duration: 300}}
         }
         // caution: repeater's remove may happen after calclayout, so last elem got null and some got wrong sourceitem
-        onItemAdded: calcLayout()
+        onItemAdded: {
+            calcLayout()
+        }
         onItemRemoved: calcLayout()
     }
     property var getRatio: (d)=>d.source.width / d.source.height
