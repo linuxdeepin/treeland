@@ -216,7 +216,7 @@ Item {
             } else {
                 surface.visible = true;
 
-                if (surface.effectiveVisible)
+                if (surface.parent.isCurrentWorkspace)
                     Helper.activatedSurface = waylandSurface
 
                 if (showNewAnimation) {
