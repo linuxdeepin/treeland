@@ -62,11 +62,14 @@ Item {
                         Layout.preferredWidth: contentItem.childrenRect.width
                         Layout.maximumWidth: parent.width
                         Layout.alignment: Qt.AlignHCenter
-                        delegate: Item {
+                        delegate: Rectangle {
                             required property int wsid
                             required property int index
                             height: workspacesList.height
                             width: height * outputPlacementItem.width / outputPlacementItem.height
+                            border.width: workspaceManager.workspacesById.get(wsid).isCurrentWorkspace ? 2 : 0
+                            border.color: "blue"
+                            color: "transparent"
                             Item {
                                 anchors {
                                     fill: parent
