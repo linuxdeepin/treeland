@@ -1,5 +1,6 @@
 find_package(Qt6 REQUIRED COMPONENTS WaylandClient Widgets)
 find_package(PkgConfig)
+pkg_search_module(WAYLAND_CLIENT REQUIRED IMPORTED_TARGET wayland-client)
 pkg_get_variable(WAYLAND_PROTOCOLS wayland-protocols pkgdatadir)
 
 qt_add_library(treeland-shell-manager OBJECT)
@@ -15,6 +16,7 @@ qt_generate_wayland_protocol_client_sources(treeland-shell-manager
 target_link_libraries(treeland-shell-manager
     PUBLIC
     Qt::Core
+    PkgConfig::WAYLAND_CLIENT
 )
 
 qt_add_executable(treeland-fake-session
@@ -36,6 +38,7 @@ target_link_libraries(treeland-fake-session
         Qt::WaylandClient
         Qt::GuiPrivate
         Qt::WaylandClientPrivate
+        PkgConfig::WAYLAND_CLIENT
 )
 
 qt_add_executable(treeland-window-bg-test
@@ -52,5 +55,6 @@ target_link_libraries(treeland-window-bg-test
         Qt::WaylandClient
         Qt::GuiPrivate
         Qt::WaylandClientPrivate
+        PkgConfig::WAYLAND_CLIENT
 )
 install(TARGETS treeland-fake-session RUNTIME DESTINATION "${CMAKE_INSTALL_LIBEXECDIR}")
