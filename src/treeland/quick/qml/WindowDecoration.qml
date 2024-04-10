@@ -4,6 +4,7 @@
 import QtQuick
 import Qt5Compat.GraphicalEffects
 import QtQuick.Controls
+import QtQuick.Effects
 import Waylib.Server
 import org.deepin.dtk 1.0 as D
 import org.deepin.dtk.style 1.0 as DS
@@ -91,14 +92,21 @@ D.RoundRectangle {
         height: 30
         radius: parent.radius
         corners: parent.corners
+        layer.enabled: true
     }
     // TODO: use twice element, need optimize.
+    /*  CAUTION: impl of mask clip is riscky
+    *   layer.effect creates a sibling node and set hideSource to true,
+    *   results in both sibling and origin invisible in shadereffectsource when they're not effectiveVisible
+    *   (maybe a bug involving hideSource, if set only one shadereffectsource can display)
+    *   so use opacity=0 & explicit mask effect item
+    */
     Rectangle {
+        id: titlebarContent
         anchors.fill: titlebar
+
         layer.enabled: true
-        layer.effect: OpacityMask {
-            maskSource: titlebar
-        }
+        opacity: 0
 
         HoverHandler {} // block hover events to resizing mouse area, avoid cursor change
 
@@ -187,5 +195,12 @@ D.RoundRectangle {
                 }
             }
         }
+    }
+
+    MultiEffect {
+        source: titlebarContent
+        anchors.fill: titlebar
+        maskEnabled: true
+        maskSource: titlebar
     }
 }
