@@ -1,5 +1,4 @@
 pkg_search_module(WAYLAND_SERVER REQUIRED IMPORTED_TARGET wayland-server)
-pkg_search_module(WAYLAND_CLIENT REQUIRED IMPORTED_TARGET wayland-client)
 
 function(ws_generate_local type input_file output_name)
     find_package(PkgConfig)
