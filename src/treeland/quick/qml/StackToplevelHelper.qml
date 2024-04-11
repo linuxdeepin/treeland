@@ -82,6 +82,15 @@ Item {
         }
         restoreMode: Binding.RestoreNone
     }
+    // if surface mapped when not visible, it will change mode to sizefromsurf
+    // but mode change is not applied if no resize event happens afterwards, so trigger resize here
+    Connections {
+        target: surface
+        function onResizeModeChanged() {
+            if (surface.resizeMode != SurfaceItem.ManualResize)
+                surface.resize(surface.resizeMode)
+        }
+    }
 
     Loader {
         id: closeAnimation
