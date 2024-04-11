@@ -93,7 +93,7 @@ Item {
             }
 
             eventFilter: Helper
-            keyboardFocus: Helper.getFocusSurfaceFrom(renderWindow.activeFocusItem)
+            keyboardFocus: Helper.activatedSurface?.surface
         }
 
         XdgShell {
