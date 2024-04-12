@@ -63,6 +63,28 @@ struct BufferData {
     QQuickWindowRenderTarget windowRenderTarget;
 
     inline void resetWindowRenderTarget() {
+#if QT_VERSION >= QT_VERSION_CHECK(6, 8, 0)
+        if (windowRenderTarget.rt.owns)
+            delete windowRenderTarget.rt.renderTarget;
+
+        delete windowRenderTarget.res.texture;
+        delete windowRenderTarget.res.renderBuffer;
+        delete windowRenderTarget.res.rpDesc;
+
+        windowRenderTarget.rt = {};
+        windowRenderTarget.res = {};
+        { // windowRenderTarget.implicitBuffers.reset(rhi);
+            delete windowRenderTarget.implicitBuffers.depthStencil;
+            delete windowRenderTarget.implicitBuffers.depthStencilTexture;
+            delete windowRenderTarget.implicitBuffers.multisampleTexture;
+            windowRenderTarget.implicitBuffers = {};
+        }
+
+        if (windowRenderTarget.sw.owns)
+            delete windowRenderTarget.sw.paintDevice;
+
+        windowRenderTarget.sw = {};
+#else
         if (windowRenderTarget.owns) {
             delete windowRenderTarget.renderTarget;
             delete windowRenderTarget.rpDesc;
@@ -79,6 +101,7 @@ struct BufferData {
         windowRenderTarget.depthStencil = nullptr;
         windowRenderTarget.paintDevice = nullptr;
         windowRenderTarget.owns = false;
+#endif
     }
 };
 
@@ -106,11 +129,17 @@ static bool createRhiRenderTarget(const QRhiColorAttachment &colorAttachment,
         return false;
     }
 
+#if QT_VERSION >= QT_VERSION_CHECK(6, 8, 0)
+    dst.rt.renderTarget = rt.release();
+    dst.res.rpDesc = rp.release();
+    dst.implicitBuffers.depthStencil = depthStencil.release();
+    dst.rt.owns = true; // ownership of the native resource itself is not transferred but the QRhi objects are on us now
+#else
     dst.renderTarget = rt.release();
     dst.rpDesc = rp.release();
     dst.depthStencil = depthStencil.release();
     dst.owns = true; // ownership of the native resource itself is not transferred but the QRhi objects are on us now
-
+#endif
     return true;
 }
 
@@ -122,7 +151,13 @@ bool createRhiRenderTarget(QRhi *rhi, const QQuickRenderTarget &source, QQuickWi
     case QQuickRenderTargetPrivate::Type::NativeTexture: {
         const auto format = rtd->u.nativeTexture.rhiFormat == QRhiTexture::UnknownFormat ? QRhiTexture::RGBA8
                                                                                          : QRhiTexture::Format(rtd->u.nativeTexture.rhiFormat);
-        const auto flags = QRhiTexture::RenderTarget | QRhiTexture::Flags(rtd->u.nativeTexture.rhiFlags);
+        const auto flags = QRhiTexture::RenderTarget | QRhiTexture::Flags(
+#if QT_VERSION >= QT_VERSION_CHECK(6, 8, 0)
+                               rtd->u.nativeTexture.rhiFormatFlags
+#else
+                               rtd->u.nativeTexture.rhiFlags
+#endif
+                                                                          );
         std::unique_ptr<QRhiTexture> texture(rhi->newTexture(format, rtd->pixelSize, rtd->sampleCount, flags));
 #if QT_VERSION < QT_VERSION_CHECK(6, 6, 0)
         if (!texture->createFrom({ rtd->u.nativeTexture.object, rtd->u.nativeTexture.layout }))
@@ -133,7 +168,11 @@ bool createRhiRenderTarget(QRhi *rhi, const QQuickRenderTarget &source, QQuickWi
         QRhiColorAttachment att(texture.get());
         if (!createRhiRenderTarget(att, rtd->pixelSize, rtd->sampleCount, rhi, dst))
             return false;
+#if QT_VERSION >= QT_VERSION_CHECK(6, 8, 0)
+        dst.res.texture = texture.release();
+#else
         dst.texture = texture.release();
+#endif
         return true;
     }
     case QQuickRenderTargetPrivate::Type::NativeRenderbuffer: {
@@ -145,7 +184,11 @@ bool createRhiRenderTarget(QRhi *rhi, const QQuickRenderTarget &source, QQuickWi
         QRhiColorAttachment att(renderbuffer.get());
         if (!createRhiRenderTarget(att, rtd->pixelSize, rtd->sampleCount, rhi, dst))
             return false;
+#if QT_VERSION >= QT_VERSION_CHECK(6, 8, 0)
+        dst.res.renderBuffer = renderbuffer.release();
+#else
         dst.renderBuffer = renderbuffer.release();
+#endif
         return true;
     }
 
@@ -209,7 +252,11 @@ bool WRenderHelperPrivate::ensureRhiRenderTarget(QQuickRenderControl *rc, Buffer
     bool ok = createRhiRenderTarget(rhi, tmp, data->windowRenderTarget);
     if (!ok)
         return false;
+#if QT_VERSION >= QT_VERSION_CHECK(6, 8, 0)
+    data->renderTarget = QQuickRenderTarget::fromRhiRenderTarget(data->windowRenderTarget.rt.renderTarget);
+#else
     data->renderTarget = QQuickRenderTarget::fromRhiRenderTarget(data->windowRenderTarget.renderTarget);
+#endif
     data->renderTarget.setDevicePixelRatio(tmp.devicePixelRatio());
     data->renderTarget.setMirrorVertically(tmp.mirrorVertically());
 

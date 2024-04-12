@@ -46,7 +46,7 @@ class WAYLIB_SERVER_EXPORT WQuickCursor : public WCursor, public QQmlParserStatu
     Q_PROPERTY(QString themeName READ themeName WRITE setThemeName NOTIFY themeNameChanged)
     Q_PROPERTY(QSize size READ size WRITE setSize NOTIFY sizeChanged)
     Q_PROPERTY(QPointF position READ position NOTIFY positionChanged)
-    Q_PROPERTY(WSurface* dragSurface READ dragSurface NOTIFY dragSurfaceChanged)
+    Q_PROPERTY(WAYLIB_SERVER_NAMESPACE::WSurface* dragSurface READ dragSurface NOTIFY dragSurfaceChanged)
     QML_NAMED_ELEMENT(Cursor)
     QML_ATTACHED(WQuickCursorAttached)
     Q_INTERFACES(QQmlParserStatus)
