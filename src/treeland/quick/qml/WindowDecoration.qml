@@ -42,7 +42,6 @@ D.RoundRectangle {
         hollow: true
     }
 
-
     MouseArea {
         property int edges: 0
 
@@ -108,7 +107,10 @@ D.RoundRectangle {
         layer.enabled: true
         opacity: 0
 
-        HoverHandler {} // block hover events to resizing mouse area, avoid cursor change
+        HoverHandler {
+            // block hover events to resizing mouse area, avoid cursor change
+            cursorShape: Qt.ArrowCursor
+        }
 
         TapHandler {
             onTapped: {
@@ -117,7 +119,6 @@ D.RoundRectangle {
             onDoubleTapped: {
                 root.requestToggleMaximize(!surface.isMaximized)
             }
-            cursorShape: pressed ? Qt.ClosedHandCursor : Qt.ArrowCursor
         }
 
         DragHandler {
