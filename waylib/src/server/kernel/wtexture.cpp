@@ -40,6 +40,14 @@ static void updateGLTexture(QWTexture *handle, QQuickWindow *window, QSGPlainTex
     texture->setTextureSize(size);
 }
 
+static inline quint64 vkimage_cast(void *image) {
+    return reinterpret_cast<quintptr>(image);
+}
+
+static inline quint64 vkimage_cast(quint64 image) {
+    return image;
+}
+
 #ifdef ENABLE_VULKAN_RENDER
 void updateVKTexture(QWTexture *handle, QQuickWindow *window, QSGPlainTexture *texture) {
     wlr_vk_image_attribs attribs;
@@ -47,7 +55,7 @@ void updateVKTexture(QWTexture *handle, QQuickWindow *window, QSGPlainTexture *t
     QSize size(handle->handle()->width, handle->handle()->height);
 
     texture->setTextureFromNativeTexture(QQuickWindowPrivate::get(window)->rhi,
-                                         reinterpret_cast<quintptr>(attribs.image),
+                                         vkimage_cast(attribs.image),
                                          attribs.layout, attribs.format, size,
                                          {}, {});
     texture->setHasAlphaChannel(wlr_vk_texture_has_alpha(handle->handle()));
