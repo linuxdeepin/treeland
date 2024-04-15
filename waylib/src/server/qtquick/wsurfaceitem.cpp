@@ -16,6 +16,7 @@
 
 #include <QQuickWindow>
 #include <QSGImageNode>
+#include <QSGRenderNode>
 #include <private/qquickitem_p.h>
 
 extern "C" {
@@ -233,8 +234,6 @@ public:
             updateSurfaceState();
         });
         QObject::connect(surface, &WSurface::primaryOutputChanged, q, [this] {
-            updateFrameDoneConnection();
-
             if (textureProvider)
                 textureProvider->maybeUpdateTextureOnSurfacePrrimaryOutputChanged();
         });
@@ -256,13 +255,13 @@ public:
         if (frameDoneConnection)
             QObject::disconnect(frameDoneConnection);
 
-        if (!q_func()->isVisible())
-            return;
-
-        if (auto output = surface->primaryOutput()) {
-            frameDoneConnection = QObject::connect(output, &WOutput::bufferCommitted,
-                                                   surface, &WSurface::notifyFrameDone);
-        }
+        // wayland protocol job should not run in rendering thread, so set context qobject to contentItem
+        frameDoneConnection = QObject::connect(q_func()->window(), &QQuickWindow::afterRendering, q_func(), [this](){
+            if (q_func()->rendered) {
+                surface->notifyFrameDone();
+                q_func()->rendered = false;
+            }
+        }); // if signal is emitted from seperated rendering thread, default QueuedConnection is used
     }
 
     void updateSurfaceState() {
@@ -366,8 +365,30 @@ void WSurfaceItemContent::componentComplete()
         d->init();
 }
 
+class WSGRenderFootprintNode: public QSGRenderNode
+{
+public:
+    WSGRenderFootprintNode(WSurfaceItemContent *owner)
+        : QSGRenderNode()
+        , m_owner(owner)
+    {
+        setFlag(QSGNode::OwnedByParent); // parent is fixed, auto release
+    }
+
+    ~WSGRenderFootprintNode() {}
+
+    void render(const RenderState*) override
+    {
+        if (Q_LIKELY(m_owner))
+            m_owner->rendered = true;
+    }
+
+    QPointer<WSurfaceItemContent> m_owner;
+};
+
 QSGNode *WSurfaceItemContent::updatePaintNode(QSGNode *oldNode, UpdatePaintNodeData *)
 {
+    auto privt = QQuickItemPrivate::get(this);
     W_D(WSurfaceItemContent);
     if (!d->textureProvider || !d->textureProvider->texture() || width() <= 0 || height() <= 0) {
         delete oldNode;
@@ -380,6 +401,8 @@ QSGNode *WSurfaceItemContent::updatePaintNode(QSGNode *oldNode, UpdatePaintNodeD
         node = window()->createImageNode();
         node->setOwnsTexture(false);
         node->setTexture(texture);
+        QSGNode *fpnode = new WSGRenderFootprintNode(this);
+        node->appendChildNode(fpnode);
     } else {
         node->markDirty(QSGNode::DirtyMaterial);
     }
@@ -425,11 +448,6 @@ void WSurfaceItemContent::itemChange(ItemChange change, const ItemChangeData &da
 {
     QQuickItem::itemChange(change, data);
     W_D(WSurfaceItemContent);
-
-    if (change == ItemVisibleHasChanged) {
-        if (d->surface)
-            d->updateFrameDoneConnection();
-    }
 }
 
 void WSurfaceItemContent::invalidateSceneGraph()

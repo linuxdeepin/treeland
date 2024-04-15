@@ -43,11 +43,13 @@ private:
     friend class WSurfaceItem;
     friend class WSurfaceItemPrivate;
     friend class WSGTextureProvider;
+    friend class WSGRenderFootprintNode;
 
     void componentComplete() override;
     QSGNode *updatePaintNode(QSGNode *, UpdatePaintNodeData *) override;
     void releaseResources() override;
     void itemChange(ItemChange change, const ItemChangeData &data) override;
+    QAtomicInteger<bool> rendered = false;
 
     // Using by Qt library
     Q_SLOT void invalidateSceneGraph();
