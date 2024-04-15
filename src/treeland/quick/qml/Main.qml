@@ -364,6 +364,7 @@ Item {
             enabled: visible
             focus: enabled
             ColumnLayout {
+                anchors.fill: parent
                 FocusScope {
                     objectName: "loadercontainer"
                     Layout.fillWidth: true
