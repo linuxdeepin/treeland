@@ -33,22 +33,23 @@ qt_add_qml_module(treeland-wallpaper
     QML_FILES ${QML_FILES}
 )
 
-qt_add_lupdate(treeland-wallpaper
-    TS_FILES
+qt_add_lupdate(TS_FILES
         translations/wallpaper.zh_CN.ts
         translations/wallpaper.en_US.ts
+    SOURCE_TARGETS treeland-wallpaper
+    LUPDATE_TARGET treeland-wallpaper_lupdate
     NO_GLOBAL_TARGET
 )
 
 add_dependencies(treeland-wallpaper treeland-wallpaper_lupdate)
 set(TRANSLATED_FILES)
-qt_add_lrelease(treeland-wallpaper
-    TS_FILES
+qt_add_lrelease(TS_FILES
         translations/wallpaper.zh_CN.ts
         translations/wallpaper.en_US.ts
+    LRELEASE_TARGET treeland-wallpaper_lrelease
     QM_FILES_OUTPUT_VARIABLE TRANSLATED_FILES
 )
-add_dependencies(treeland-wallpaper_lrelease treeland-wallpaper_lupdate)
+add_dependencies(treeland-wallpaper_lrelease treeland-wallpaper_lrelease)
 
 install(FILES ${TRANSLATED_FILES} DESTINATION ${COMPONENTS_TRANSLATION_DIR})
 

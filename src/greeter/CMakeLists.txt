@@ -54,23 +54,24 @@ qt_add_qml_module(greeterplugin
         ${PROJECT_BINARY_DIR}/qt/qml/TreeLand/Greeter
 )
 
-qt_add_lupdate(greeterplugin
-    TS_FILES
+qt_add_lupdate(TS_FILES
         translations/greeter.zh_CN.ts
         translations/greeter.en_US.ts
+    SOURCE_TARGETS greeterplugin
+    LUPDATE_TARGET greeterplugin_lupdate
     NO_GLOBAL_TARGET
 )
 
 add_dependencies(greeterplugin greeterplugin_lupdate)
 
 set(TRANSLATED_FILES)
-qt_add_lrelease(greeterplugin
-    TS_FILES
+qt_add_lrelease(TS_FILES
         translations/greeter.zh_CN.ts
         translations/greeter.en_US.ts
+    LRELEASE_TARGET greeterplugin_lrelease
     QM_FILES_OUTPUT_VARIABLE TRANSLATED_FILES
 )
-add_dependencies(greeterplugin_lrelease greeterplugin_lupdate)
+add_dependencies(greeterplugin_lrelease greeterplugin_lrelease)
 
 install(FILES ${TRANSLATED_FILES} DESTINATION ${COMPONENTS_TRANSLATION_DIR})
 
