@@ -1073,7 +1073,7 @@ void WSurfaceItemPrivate::initForDelegate()
 
         auto contentItem = qobject_cast<QQuickItem*>(obj);
         if (!contentItem)
-            qFatal("SurfaceItem's delegate must is Item", delegate->errorString());
+            qFatal() << "SurfaceItem's delegate must is Item";
 
         QQmlEngine::setObjectOwnership(contentItem, QQmlEngine::CppOwnership);
         contentItem->setParentItem(newContentContainer);
