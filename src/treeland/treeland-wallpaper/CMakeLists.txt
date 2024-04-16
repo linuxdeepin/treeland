@@ -1,3 +1,4 @@
+find_package(QT NAMES Qt6 REQUIRED COMPONENTS Core)
 find_package(Qt6 REQUIRED COMPONENTS WaylandClient Quick Core Gui)
 find_package(Dtk6 REQUIRED COMPONENTS Declarative)
 find_package(PkgConfig)
@@ -33,22 +34,38 @@ qt_add_qml_module(treeland-wallpaper
     QML_FILES ${QML_FILES}
 )
 
-qt_add_lupdate(treeland-wallpaper
-    TS_FILES
-        translations/wallpaper.zh_CN.ts
-        translations/wallpaper.en_US.ts
-    NO_GLOBAL_TARGET
-)
-
-add_dependencies(treeland-wallpaper treeland-wallpaper_lupdate)
 set(TRANSLATED_FILES)
-qt_add_lrelease(treeland-wallpaper
-    TS_FILES
-        translations/wallpaper.zh_CN.ts
-        translations/wallpaper.en_US.ts
-    QM_FILES_OUTPUT_VARIABLE TRANSLATED_FILES
-)
-add_dependencies(treeland-wallpaper_lrelease treeland-wallpaper_lupdate)
+
+if ((${QT_VERSION_MAJOR} EQUAL 6) AND (${QT_VERSION_MINOR} LESS 7))
+    qt_add_lupdate(treeland-wallpaper
+        TS_FILES
+            translations/wallpaper.zh_CN.ts
+            translations/wallpaper.en_US.ts
+        NO_GLOBAL_TARGET
+    )
+
+    qt_add_lrelease(treeland-wallpaper
+        TS_FILES
+            translations/wallpaper.zh_CN.ts
+            translations/wallpaper.en_US.ts
+        QM_FILES_OUTPUT_VARIABLE TRANSLATED_FILES
+    )
+elseif ((${QT_VERSION_MAJOR} EQUAL 6) AND (${QT_VERSION_MINOR} GREATER_EQUAL 7))
+    qt_add_lupdate(
+        SOURCE_TARGETS treeland-wallpaper
+        TS_FILES
+            translations/wallpaper.zh_CN.ts
+            translations/wallpaper.en_US.ts
+        NO_GLOBAL_TARGET
+    )
+
+    qt_add_lrelease(
+        TS_FILES
+            translations/wallpaper.zh_CN.ts
+            translations/wallpaper.en_US.ts
+        QM_FILES_OUTPUT_VARIABLE TRANSLATED_FILES
+    )
+endif()
 
 install(FILES ${TRANSLATED_FILES} DESTINATION ${COMPONENTS_TRANSLATION_DIR})
 

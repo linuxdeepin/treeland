@@ -14,6 +14,7 @@ set(GREETER_SOURCES
     greeter_assets.qrc
 )
 
+find_package(QT NAMES Qt6 REQUIRED COMPONENTS Core)
 find_package(Dtk6 REQUIRED COMPONENTS SystemSettings Declarative)
 
 set(QML_IMPORT_PATH ${QML_IMPORT_PATH} ${CMAKE_CURRENT_BINARY_DIR}/ CACHE STRING "" FORCE)
@@ -54,23 +55,37 @@ qt_add_qml_module(greeterplugin
         ${PROJECT_BINARY_DIR}/qt/qml/TreeLand/Greeter
 )
 
-qt_add_lupdate(greeterplugin
-    TS_FILES
-        translations/greeter.zh_CN.ts
-        translations/greeter.en_US.ts
-    NO_GLOBAL_TARGET
-)
-
-add_dependencies(greeterplugin greeterplugin_lupdate)
-
 set(TRANSLATED_FILES)
-qt_add_lrelease(greeterplugin
-    TS_FILES
-        translations/greeter.zh_CN.ts
-        translations/greeter.en_US.ts
-    QM_FILES_OUTPUT_VARIABLE TRANSLATED_FILES
-)
-add_dependencies(greeterplugin_lrelease greeterplugin_lupdate)
+if ((${QT_VERSION_MAJOR} EQUAL 6) AND (${QT_VERSION_MINOR} LESS 7))
+    qt_add_lupdate(greeterplugin
+        TS_FILES
+            translations/greeter.zh_CN.ts
+            translations/greeter.en_US.ts
+        NO_GLOBAL_TARGET
+    )
+
+    qt_add_lrelease(greeterplugin
+        TS_FILES
+            translations/greeter.zh_CN.ts
+            translations/greeter.en_US.ts
+        QM_FILES_OUTPUT_VARIABLE TRANSLATED_FILES
+    )
+elseif ((${QT_VERSION_MAJOR} EQUAL 6) AND (${QT_VERSION_MINOR} GREATER_EQUAL 7))
+    qt_add_lupdate(
+        SOURCE_TARGETS greeterplugin
+        TS_FILES
+            translations/greeter.zh_CN.ts
+            translations/greeter.en_US.ts
+        NO_GLOBAL_TARGET
+    )
+
+    qt_add_lrelease(
+        TS_FILES
+            translations/greeter.zh_CN.ts
+            translations/greeter.en_US.ts
+        QM_FILES_OUTPUT_VARIABLE TRANSLATED_FILES
+    )
+endif()
 
 install(FILES ${TRANSLATED_FILES} DESTINATION ${COMPONENTS_TRANSLATION_DIR})
 
