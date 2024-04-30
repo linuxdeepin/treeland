@@ -62,11 +62,6 @@ public:
             if (renderHelper)
                 renderHelper->setSize(this->output->size());
         }, Qt::QueuedConnection); // reset buffer on later, because it's rendering
-
-        // In call the connect for 'frame' signal before, maybe the wlr_output object is already
-        // emit the signal, so we should suppose the renderable is true in order that ensure can
-        // render on the next time
-        renderable = true;
     }
 
     ~WOutputHelperPrivate() {

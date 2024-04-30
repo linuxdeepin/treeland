@@ -974,7 +974,8 @@ QVector<std::pair<OutputHelper*, WBufferRenderer*>> WOutputRenderWindowPrivate::
     QVector<OutputHelper*> renderResults;
     renderResults.reserve(outputs.size());
     for (OutputHelper *helper : outputs) {
-        if (!helper->renderable() || !helper->output()->isVisible())
+        if (!helper->renderable() || !helper->output()->isVisible()
+            || !helper->output()->output()->isEnabled())
             continue;
 
         if (!helper->contentIsDirty()) {
@@ -1141,10 +1142,12 @@ void WOutputRenderWindow::attach(WOutputViewport *output)
     Q_ASSERT(output->output());
 
     d->outputs << new OutputHelper(output, this);
+
     if (d->compositor) {
         auto qwoutput = d->outputs.last()->qwoutput();
         if (qwoutput->handle()->renderer != d->compositor->renderer()->handle())
             qwoutput->initRender(d->compositor->allocator(), d->compositor->renderer());
+        Q_EMIT outputViewportInitialized(output);
     }
 
     if (!d->isInitialized())
@@ -1247,6 +1250,7 @@ void WOutputRenderWindow::setCompositor(WWaylandCompositor *newCompositor)
         auto qwoutput = output->qwoutput();
         if (qwoutput->handle()->renderer != d->compositor->renderer()->handle())
             qwoutput->initRender(d->compositor->allocator(), d->compositor->renderer());
+        Q_EMIT outputViewportInitialized(output->output());
     }
 
     if (d->componentCompleted && d->compositor->isPolished()) {

@@ -44,6 +44,7 @@ public:
 
     void setOutputScale(WOutputViewport *output, float scale);
     void rotateOutput(WOutputViewport *output, WOutput::Transform t);
+    void setOutputEnabled(WOutputViewport *output, bool enabled);
 
     WWaylandCompositor *compositor() const;
     void setCompositor(WWaylandCompositor *newRenderer);
@@ -62,6 +63,7 @@ public Q_SLOTS:
 Q_SIGNALS:
     void widthChanged();
     void heightChanged();
+    void outputViewportInitialized(WAYLIB_SERVER_NAMESPACE::WOutputViewport *output);
 
 private:
     void classBegin() override;

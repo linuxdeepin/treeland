@@ -350,20 +350,6 @@ void WOutputItemPrivate::initForOutput()
     W_Q(WOutputItem);
     Q_ASSERT(output);
 
-    auto qwoutput = output->handle();
-    if (!qwoutput->handle()->current_mode
-        && !qwoutput->handle()->pending.mode) {
-        auto mode = qwoutput->preferredMode();
-        if (mode)
-            qwoutput->setMode(mode);
-    }
-
-    qwoutput->enable(q->isVisible());
-    // Must commit after init render for the output, the init render
-    // behavior is in WOutputRenderWindow::attach
-    if (qwoutput->handle()->renderer)
-        qwoutput->commit();
-
     if (layout)
         layout->add(q);
 

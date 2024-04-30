@@ -336,6 +336,9 @@ QWBuffer *WBufferRenderer::beginRender(const QSize &pixelSize, qreal devicePixel
     Q_ASSERT(!state.buffer);
     Q_ASSERT(m_output);
 
+    if (pixelSize.isEmpty())
+        return nullptr;
+
     m_damageRing.setBounds(pixelSize);
     // configure swapchain
     if (flags.testFlag(RenderFlag::DontConfigureSwapchain)) {

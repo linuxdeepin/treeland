@@ -57,6 +57,7 @@ public Q_SLOTS:
     WSurface *getFocusSurfaceFrom(QObject *object);
 
     void allowNonDrmOutputAutoChangeMode(WOutput *output);
+    void enableOutput(WOutput *output);
 
 signals:
     void activatedSurfaceChanged();

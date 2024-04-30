@@ -45,6 +45,7 @@ class WAYLIB_SERVER_EXPORT WOutput : public QObject, public WObject
 {
     Q_OBJECT
     W_DECLARE_PRIVATE(WOutput)
+    Q_PROPERTY(bool enabled READ isEnabled NOTIFY enabledChanged)
     Q_PROPERTY(QSize size READ effectiveSize NOTIFY effectiveSizeChanged)
     Q_PROPERTY(Transform orientation READ orientation NOTIFY orientationChanged)
     Q_PROPERTY(float scale READ scale NOTIFY scaleChanged)
@@ -84,6 +85,7 @@ public:
 
     static WOutput *fromScreen(const QScreen *screen);
 
+    bool isEnabled() const;
     QPoint position() const;
     QSize size() const;
     QSize transformedSize() const;
@@ -111,11 +113,11 @@ public:
     Q_INVOKABLE bool commit();
     Q_INVOKABLE void rollback();
 
-
     bool forceSoftwareCursor() const;
     void setForceSoftwareCursor(bool on);
 
 Q_SIGNALS:
+    void enabledChanged();
     void positionChanged(const QPoint &pos);
     void modeChanged();
     void transformedSizeChanged();

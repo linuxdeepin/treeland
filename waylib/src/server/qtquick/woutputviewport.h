@@ -74,6 +74,7 @@ Q_SIGNALS:
     void cacheBufferChanged();
     void preserveColorContentsChanged();
     void layerFlagsChanged();
+    void outputRenderInitialized();
 
 private:
     void componentComplete() override;

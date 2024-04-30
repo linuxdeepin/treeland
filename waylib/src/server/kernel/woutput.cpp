@@ -72,6 +72,9 @@ public:
 
             if (event->state->committed & WLR_OUTPUT_STATE_BUFFER)
                 Q_EMIT qq->bufferCommitted();
+
+            if (event->state->committed & WLR_OUTPUT_STATE_ENABLED)
+                Q_EMIT qq->enabledChanged();
         });
     }
 
@@ -395,6 +398,7 @@ static bool wlr_output_configure_primary_swapchain(struct wlr_output *output, in
 bool WOutput::configureSwapchain(const QSize &size, uint32_t format,
                                  QWSwapchain **swapchain, bool doTest)
 {
+    Q_ASSERT(!size.isEmpty());
     wlr_swapchain *sc = (*swapchain)->handle();
     bool ok = wlr_output_configure_primary_swapchain(nativeHandle(), size.width(), size.height(),
                                                      format, &sc, doTest);
@@ -435,6 +439,12 @@ QWlrootsScreen *WOutput::screen() const
 {
     W_DC(WOutput);
     return d->screen;
+}
+
+bool WOutput::isEnabled() const
+{
+    W_DC(WOutput);
+    return d->handle->handle()->enabled;
 }
 
 QPoint WOutput::position() const

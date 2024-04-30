@@ -209,6 +209,12 @@ Item {
         width: QmlHelper.layout.implicitWidth
         height: QmlHelper.layout.implicitHeight
 
+        onOutputViewportInitialized: function (viewport) {
+            // Trigger QWOutput::frame signal in order to ensure WOutputHelper::renderable
+            // property is true, OutputRenderWindow when will render this output in next frame.
+            Helper.enableOutput(viewport.output)
+        }
+
         EventJunkman {
             anchors.fill: parent
         }
