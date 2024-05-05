@@ -1093,6 +1093,15 @@ void WOutputRenderWindowPrivate::doRender()
     }
 
     resetGlState();
+
+    // On Intel&Nvidia multi-GPU environment, wlroots using Intel card do render for all
+    // outputs, and blit nvidia's output buffer in drm_connector_state_update_primary_fb,
+    // the 'blit' behavior will make EGL context to Nvidia renderer. So must done current
+    // OpenGL context here in order to ensure QtQuick always make EGL context to Intel
+    // renderer before next frame.
+    if (glContext)
+        glContext->doneCurrent();
+
     inRendering = false;
 }
 
