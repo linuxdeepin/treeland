@@ -166,6 +166,13 @@ private:
                 return true;
             break;
         }
+        case NativeGesture: {
+            auto e = static_cast<QNativeGestureEvent*>(event);
+            Q_ASSERT(e);
+            if (parent() && static_cast<WSurfaceItem*>(parent())->sendEvent(e))
+                return true;
+            break;
+        }
         // No need to process focusOut, see [PR 282](https://github.com/vioken/waylib/pull/282)
         default:
             break;

@@ -55,6 +55,7 @@ set(KERNEL_SOURCES
     kernel/winputdevice.cpp
     kernel/woutput.cpp
     kernel/wseat.cpp
+    kernel/wevent.cpp
     kernel/wserver.cpp
     kernel/wsurface.cpp
 
@@ -133,6 +134,7 @@ set(HEADERS
     kernel/winputdevice.h
     kernel/woutput.h
     kernel/wseat.h
+    kernel/wevent.h
     kernel/wserver.h
     kernel/wsurface.h
     kernel/wtexture.h
@@ -152,6 +154,7 @@ set(HEADERS
     kernel/WCursor
     kernel/WInputDevice
     kernel/WSeat
+    kernel/WEvent
     kernel/WInputEvent
     kernel/WTexture
     kernel/WXdgShell

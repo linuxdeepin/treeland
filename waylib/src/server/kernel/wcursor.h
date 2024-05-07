@@ -144,6 +144,15 @@ private:
     void detachInputDevice(WInputDevice *device);
 
     W_PRIVATE_SLOT(void updateCursorImage())
+
+    W_PRIVATE_SLOT(void on_swipe_begin(wlr_pointer_swipe_begin_event *event))
+    W_PRIVATE_SLOT(void on_swipe_update(wlr_pointer_swipe_update_event *event))
+    W_PRIVATE_SLOT(void on_swipe_end(wlr_pointer_swipe_end_event *event))
+    W_PRIVATE_SLOT(void on_pinch_begin(wlr_pointer_pinch_begin_event *event))
+    W_PRIVATE_SLOT(void on_pinch_update(wlr_pointer_pinch_update_event *event))
+    W_PRIVATE_SLOT(void on_pinch_end(wlr_pointer_pinch_end_event *event))
+    W_PRIVATE_SLOT(void on_hold_begin(wlr_pointer_hold_begin_event *event))
+    W_PRIVATE_SLOT(void on_hold_end(wlr_pointer_hold_end_event *event))
 };
 
 WAYLIB_SERVER_END_NAMESPACE

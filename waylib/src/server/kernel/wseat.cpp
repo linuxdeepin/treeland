@@ -14,6 +14,7 @@
 #include <qwcursor.h>
 #include <qwcompositor.h>
 #include <qwdatadevice.h>
+#include <qwpointergesturesv1.h>
 
 #include <QQuickWindow>
 #include <QGuiApplication>
@@ -46,6 +47,7 @@ WAYLIB_SERVER_BEGIN_NAMESPACE
 Q_LOGGING_CATEGORY(qLcWlrTouch, "waylib.server.seat", QtWarningMsg)
 Q_LOGGING_CATEGORY(qLcWlrTouchEvents, "waylib.server.seat.events.touch", QtWarningMsg)
 Q_LOGGING_CATEGORY(qLcWlrDragEvents, "waylib.server.seat.events.drag", QtWarningMsg)
+Q_LOGGING_CATEGORY(qLcWlrGestureEvents, "waylib.server.seat.events.gesture", QtWarningMsg)
 
 #if QT_CONFIG(wheelevent)
 class WSeatWheelEvent : public QWheelEvent {
@@ -305,7 +307,8 @@ public:
     W_DECLARE_PUBLIC(WSeat)
 
     QString name;
-    WCursor* cursor = nullptr;
+    WCursor *cursor = nullptr;
+    QWPointerGesturesV1 *gesture = nullptr;
     QVector<WInputDevice*> deviceList;
     QVector<WInputDevice*> touchDeviceList;
     QPointer<WSeatEventFilter> eventFilter;
@@ -313,6 +316,10 @@ public:
     QPointer<QObject> pointerFocusEventObject;
     QMetaObject::Connection onEventObjectDestroy;
     wlr_surface *oldPointerFocusSurface = nullptr;
+
+    bool gestureActive = false;
+    int gestureFingers = 0;
+    qreal lastScale = 1.0;
 
     struct EventState {
         // Don't use it, its may be a invalid pointer
@@ -770,6 +777,44 @@ bool WSeat::sendEvent(WSurface *target, QObject *shellObject, QObject *eventObje
         d->doTouchNotifyCancel(target->handle());
         break;
     }
+    case QEvent::NativeGesture: {
+        if (!d->gesture)
+            break;
+        auto e = static_cast<WGestureEvent*>(event);
+        switch (e->gestureType()) {
+            case Qt::NativeGestureType::BeginNativeGesture:
+                if (e->libInputGestureType() == WGestureEvent::WLibInputGestureType::SwipeGesture)
+                    d->gesture->sendSwipeBegin(d->handle(), e->timestamp(), e->fingerCount());
+                if (e->libInputGestureType() == WGestureEvent::WLibInputGestureType::PinchGesture)
+                    d->gesture->sendPinchBegin(d->handle(), e->timestamp(), e->fingerCount());
+                if (e->libInputGestureType() == WGestureEvent::WLibInputGestureType::HoldGesture)
+                    d->gesture->sendHoldBegin(d->handle(), e->timestamp(), e->fingerCount());
+                break;
+            case Qt::NativeGestureType::PanNativeGesture:
+                if (e->libInputGestureType() == WGestureEvent::WLibInputGestureType::SwipeGesture)
+                    d->gesture->sendSwipeUpdate(d->handle(), e->timestamp(), e->delta());
+                if (e->libInputGestureType() == WGestureEvent::WLibInputGestureType::PinchGesture)
+                    d->gesture->sendPinchUpdate(d->handle(), e->timestamp(), e->delta(), d->lastScale, 0);
+                break;
+            case Qt::NativeGestureType::ZoomNativeGesture:
+                d->gesture->sendPinchUpdate(d->handle(), e->timestamp(), e->delta(), d->lastScale, 0);
+                break;
+            case Qt::NativeGestureType::RotateNativeGesture:
+                d->gesture->sendPinchUpdate(d->handle(), e->timestamp(), e->delta(), d->lastScale, e->value());
+                break;
+            case Qt::NativeGestureType::EndNativeGesture:
+                if (e->libInputGestureType() == WGestureEvent::WLibInputGestureType::SwipeGesture)
+                    d->gesture->sendSwipeEnd(d->handle(), e->timestamp(), e->cancelled());
+                if (e->libInputGestureType() == WGestureEvent::WLibInputGestureType::PinchGesture)
+                    d->gesture->sendPinchEnd(d->handle(), e->timestamp(), e->cancelled());
+                if (e->libInputGestureType() == WGestureEvent::WLibInputGestureType::HoldGesture)
+                    d->gesture->sendHoldEnd(d->handle(), e->timestamp(), e->cancelled());
+                break;
+            default:
+                break;
+        }
+        break;
+    }
     default:
         event->ignore();
         return false;
@@ -960,6 +1005,116 @@ void WSeat::notifyFrame(WCursor *cursor)
     d->doNotifyFrame();
 }
 
+void WSeat::notifyGestureBegin(WCursor *cursor, WInputDevice *device, uint32_t time_msec, uint32_t fingers, WGestureEvent::WLibInputGestureType libInputGestureType)
+{
+    W_D(WSeat);
+    if (d->gestureActive) {
+        qCWarning(qLcWlrGestureEvents) << "Unexpected GestureBegin while already active";
+    }
+    d->gestureActive = true;
+    d->gestureFingers = fingers;
+    auto qwDevice = qobject_cast<QPointingDevice*>(device->qtDevice());
+    auto *w = cursor->eventWindow();
+    const QPointF &global = cursor->position();
+    const QPointF local = w ? global - QPointF(w->position()) : QPointF();
+
+    WGestureEvent e(libInputGestureType, Qt::NativeGestureType::BeginNativeGesture, qwDevice,
+                    fingers, local, local, global, 0, QPointF(0, 0));
+    if (w)
+        QCoreApplication::sendEvent(w, &e);
+}
+
+void WSeat::notifyGestureUpdate(WCursor *cursor, WInputDevice *device, uint32_t time_msec, const QPointF &delta, double scale, double rotation, WGestureEvent::WLibInputGestureType libInputGestureType)
+{
+    W_D(WSeat);
+    if (!d->gestureActive) {
+        qCWarning(qLcWlrGestureEvents) << "Unexpected GestureUpdate while not begin";
+        return;
+    }
+    auto qwDevice = qobject_cast<QPointingDevice*>(device->qtDevice());
+    auto *w = cursor->eventWindow();
+    const QPointF &global = cursor->position();
+    const QPointF local = w ? global - QPointF(w->position()) : QPointF();
+    if (!delta.isNull()) {
+        WGestureEvent e(libInputGestureType, Qt::NativeGestureType::PanNativeGesture, qwDevice,
+                        d->gestureFingers, local, local, global, 0, delta);
+        if (w)
+            QCoreApplication::sendEvent(w, &e);
+    }
+    if (rotation != 0) {
+        WGestureEvent e(libInputGestureType, Qt::NativeGestureType::RotateNativeGesture, qwDevice,
+                        d->gestureFingers, local, local, global, rotation, delta);
+        if (w)
+            QCoreApplication::sendEvent(w, &e);
+    }
+    if (scale != 0) {
+        WGestureEvent e(libInputGestureType, Qt::NativeGestureType::ZoomNativeGesture, qwDevice,
+                        d->gestureFingers, local, local, global, rotation, delta);
+        if (w)
+            QCoreApplication::sendEvent(w, &e);
+        d->lastScale = scale;
+    }
+}
+
+void WSeat::notifyGestureEnd(WCursor *cursor, WInputDevice *device, uint32_t time_msec, bool cancelled, WGestureEvent::WLibInputGestureType libInputGestureType)
+{
+    W_D(WSeat);
+    if (!d->gestureActive) {
+        qCWarning(qLcWlrGestureEvents) << "Unexpected GestureEnd while not begin";
+        return;
+    }
+    d->gestureActive = false;
+    auto qwDevice = qobject_cast<QPointingDevice*>(device->qtDevice());
+    auto *w = cursor->eventWindow();
+    const QPointF &global = cursor->position();
+    const QPointF local = w ? global - QPointF(w->position()) : QPointF();
+
+    WGestureEvent e(libInputGestureType, Qt::NativeGestureType::EndNativeGesture, qwDevice,
+                    d->gestureFingers, local, local, global, 0, QPointF(0, 0));
+    if (w)
+        QCoreApplication::sendEvent(w, &e);
+}
+
+void WSeat::notifyHoldBegin(WCursor *cursor, WInputDevice *device, uint32_t time_msec, uint32_t fingers)
+{
+    W_D(WSeat);
+    if (d->gestureActive) {
+        qCWarning(qLcWlrGestureEvents) << "Unexpected HoldBegin while already active";
+    }
+    d->gestureActive = true;
+    d->gestureFingers = fingers;
+    auto qwDevice = qobject_cast<QPointingDevice*>(device->qtDevice());
+    auto *w = cursor->eventWindow();
+    const QPointF &global = cursor->position();
+    const QPointF local = w ? global - QPointF(w->position()) : QPointF();
+
+    WGestureEvent e(WGestureEvent::HoldGesture, Qt::NativeGestureType::BeginNativeGesture, qwDevice,
+                    d->gestureFingers, local, local, global, 0, QPointF(0, 0));
+    e.setTimestamp(time_msec);
+    if (w)
+        QCoreApplication::sendEvent(w, &e);
+}
+void WSeat::notifyHoldEnd(WCursor *cursor, WInputDevice *device, uint32_t time_msec, bool cancelled)
+{
+    W_D(WSeat);
+    if (!d->gestureActive) {
+        qCWarning(qLcWlrGestureEvents) << "Unexpected HoldEnd while not begin";
+        return;
+    }
+    d->gestureActive = false;
+    auto qwDevice = qobject_cast<QPointingDevice*>(device->qtDevice());
+    auto *w = cursor->eventWindow();
+    const QPointF &global = cursor->position();
+    const QPointF local = w ? global - QPointF(w->position()) : QPointF();
+
+    WGestureEvent e(WGestureEvent::HoldGesture, Qt::NativeGestureType::EndNativeGesture, qwDevice,
+                    d->gestureFingers, local, local, global, 0, QPointF(0, 0));
+    e.setTimestamp(time_msec);
+    e.setCancelled(cancelled);
+    if (w)
+        QCoreApplication::sendEvent(w, &e);
+}
+
 // deal with touch event form wlr_cursor
 
 void WSeat::notifyTouchDown(WCursor *cursor, WInputDevice *device, int32_t touch_id, uint32_t time_msec)
@@ -1113,6 +1268,8 @@ void WSeat::create(WServer *server)
         if (d->cursor)
             d->cursor->attachInputDevice(i);
     }
+    if (!qEnvironmentVariableIsSet("WAYLIB_DISABLE_GESTURE"))
+        d->gesture = QWPointerGesturesV1::create(server->handle());
 
     d->updateCapabilities();
 }

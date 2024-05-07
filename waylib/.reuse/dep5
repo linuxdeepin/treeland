@@ -33,7 +33,7 @@ Files: debian/*
 Copyright: None
 License: CC0-1.0
 
-# 
+#
 Files: examples/tinywl/qml.qrc
        tests/manual/cursor/cursor.qrc
        src/server/kernel/WBackend
@@ -42,6 +42,7 @@ Files: examples/tinywl/qml.qrc
        src/server/kernel/WInputEvent
        src/server/kernel/WOutput
        src/server/kernel/WSeat
+       src/server/kernel/WEvent
        src/server/kernel/WServer
        src/server/kernel/WServerInterface
        src/server/kernel/WSurface

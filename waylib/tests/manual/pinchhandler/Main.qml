@@ -4,6 +4,7 @@
 import QtQuick
 import QtQuick.Window
 import QtQuick.Controls
+import pinchhandler
 
 Window {
     width: 1000; height: 800
@@ -32,6 +33,11 @@ Window {
             color:            "white"
             anchors.centerIn: parent
         }
+    }
+
+    EventItem {
+        id: eventItem
+        anchors.fill: parent
     }
 
     PinchHandler {

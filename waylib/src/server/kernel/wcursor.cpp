@@ -389,6 +389,82 @@ void WCursorPrivate::on_frame()
     }
 }
 
+void WCursorPrivate::on_swipe_begin(wlr_pointer_swipe_begin_event *event)
+{
+    auto device = QWPointer::from(event->pointer);
+    if (Q_LIKELY(seat)) {
+        seat->notifyGestureBegin(q_func(), WInputDevice::fromHandle(device),
+                               event->time_msec, event->fingers, WGestureEvent::SwipeGesture);
+    }
+}
+
+void WCursorPrivate::on_swipe_update(wlr_pointer_swipe_update_event *event)
+{
+    auto device = QWPointer::from(event->pointer);
+    if (Q_LIKELY(seat)) {
+        QPointF delta = QPointF(event->dx, event->dy);
+        seat->notifyGestureUpdate(q_func(), WInputDevice::fromHandle(device),
+                                event->time_msec, delta, 0, 0, WGestureEvent::SwipeGesture);
+    }
+}
+
+void WCursorPrivate::on_swipe_end(wlr_pointer_swipe_end_event *event)
+{
+    auto device = QWPointer::from(event->pointer);
+    if (Q_LIKELY(seat)) {
+        seat->notifyGestureEnd(q_func(), WInputDevice::fromHandle(device),
+                             event->time_msec, event->cancelled, WGestureEvent::SwipeGesture);
+    }
+}
+
+void WCursorPrivate::on_pinch_begin(wlr_pointer_pinch_begin_event *event)
+{
+    auto device = QWPointer::from(event->pointer);
+    if (Q_LIKELY(seat)) {
+        seat->notifyGestureBegin(q_func(), WInputDevice::fromHandle(device),
+                              event->time_msec, event->fingers, WGestureEvent::PinchGesture);
+    }
+}
+
+void WCursorPrivate::on_pinch_update(wlr_pointer_pinch_update_event *event)
+{
+    auto device = QWPointer::from(event->pointer);
+    if (Q_LIKELY(seat)) {
+        QPointF delta = QPointF(event->dx, event->dy);
+        seat->notifyGestureUpdate(q_func(), WInputDevice::fromHandle(device),
+                                event->time_msec, delta, event->scale, event->rotation,
+                                WGestureEvent::PinchGesture);
+    }
+}
+
+void WCursorPrivate::on_pinch_end(wlr_pointer_pinch_end_event *event)
+{
+    auto device = QWPointer::from(event->pointer);
+    if (Q_LIKELY(seat)) {
+        seat->notifyGestureEnd(q_func(), WInputDevice::fromHandle(device),
+                             event->time_msec, event->cancelled,
+                             WGestureEvent::PinchGesture);
+    }
+}
+
+void WCursorPrivate::on_hold_begin(wlr_pointer_hold_begin_event *event)
+{
+    auto device = QWPointer::from(event->pointer);
+    if (Q_LIKELY(seat)) {
+        seat->notifyHoldBegin(q_func(), WInputDevice::fromHandle(device),
+                              event->time_msec, event->fingers);
+    }
+}
+
+void WCursorPrivate::on_hold_end(wlr_pointer_hold_end_event *event)
+{
+    auto device = QWPointer::from(event->pointer);
+    if (Q_LIKELY(seat)) {
+        seat->notifyHoldEnd(q_func(), WInputDevice::fromHandle(device),
+                            event->time_msec, event->cancelled);
+    }
+}
+
 void WCursorPrivate::on_touch_down(wlr_touch_down_event *event)
 {
     auto device = QWTouch::from(event->touch);
@@ -444,6 +520,7 @@ void WCursorPrivate::on_touch_up(wlr_touch_up_event *event)
 
 void WCursorPrivate::connect()
 {
+    W_Q(WCursor);
     Q_ASSERT(seat);
 
     QObject::connect(handle, &QWCursor::motion, seat, [this] (wlr_pointer_motion_event *event) {
@@ -461,6 +538,23 @@ void WCursorPrivate::connect()
     QObject::connect(handle, &QWCursor::frame, seat, [this] () {
         on_frame();
     });
+
+    QObject::connect(handle, SIGNAL(swipeBegin(wlr_pointer_swipe_begin_event*)),
+                     q, SLOT(on_swipe_begin(wlr_pointer_swipe_begin_event*)));
+    QObject::connect(handle, SIGNAL(swipeUpdate(wlr_pointer_swipe_update_event*)),
+                     q, SLOT(on_swipe_update(wlr_pointer_swipe_update_event*)));
+    QObject::connect(handle, SIGNAL(swipeEnd(wlr_pointer_swipe_end_event*)),
+                     q, SLOT(on_swipe_end(wlr_pointer_swipe_end_event*)));
+    QObject::connect(handle, SIGNAL(pinchBegin(wlr_pointer_pinch_begin_event*)),
+                     q, SLOT(on_pinch_begin(wlr_pointer_pinch_begin_event*)));
+    QObject::connect(handle, SIGNAL(pinchUpdate(wlr_pointer_pinch_update_event*)),
+                     q, SLOT(on_pinch_update(wlr_pointer_pinch_update_event*)));
+    QObject::connect(handle, SIGNAL(pinchEnd(wlr_pointer_pinch_end_event*)),
+                     q, SLOT(on_pinch_end(wlr_pointer_pinch_end_event*)));
+    QObject::connect(handle, SIGNAL(holdBegin(wlr_pointer_hold_begin_event*)),
+                     q, SLOT(on_hold_begin(wlr_pointer_hold_begin_event*)));
+    QObject::connect(handle, SIGNAL(holdEnd(wlr_pointer_hold_end_event*)),
+                     q, SLOT(on_hold_end(wlr_pointer_hold_end_event*)));
 
     // Handle touch device related signals
     QObject::connect(handle, &QWCursor::touchDown, seat, [this] (wlr_touch_down_event *event) {

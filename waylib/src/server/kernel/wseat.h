@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include <WEvent>
 #include <WServer>
 #include <WInputDevice>
 
@@ -117,6 +118,13 @@ protected:
                     Qt::Orientation orientation,
                     double delta, int32_t delta_discrete, uint32_t timestamp);
     void notifyFrame(WCursor *cursor);
+
+    // gesture
+    void notifyGestureBegin(WCursor *cursor, WInputDevice *device, uint32_t time_msec, uint32_t fingers, WGestureEvent::WLibInputGestureType libInputGestureType);
+    void notifyGestureUpdate(WCursor *cursor, WInputDevice *device, uint32_t time_msec, const QPointF &delta, double scale, double rotation, WGestureEvent::WLibInputGestureType libInputGestureType);
+    void notifyGestureEnd(WCursor *cursor, WInputDevice *device, uint32_t time_msec, bool cancelled, WGestureEvent::WLibInputGestureType libInputGestureType);
+    void notifyHoldBegin(WCursor *cursor, WInputDevice *device, uint32_t time_msec, uint32_t fingers);
+    void notifyHoldEnd(WCursor *cursor, WInputDevice *device, uint32_t time_msec, bool cancelled);
 
     // touch
     void notifyTouchDown(WCursor *cursor, WInputDevice *device, int32_t touch_id, uint32_t time_msec);
