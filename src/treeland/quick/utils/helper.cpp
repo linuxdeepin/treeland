@@ -316,6 +316,29 @@ void Helper::allowNonDrmOutputAutoChangeMode(WOutput *output)
     connect(output->handle(), &QWOutput::requestState, this, &Helper::onOutputRequeseState);
 }
 
+void Helper::enableOutput(WOutput *output)
+{
+    // Enable on default
+    auto qwoutput = output->handle();
+    // Don't care for WOutput::isEnabled, must do WOutput::commit here,
+    // In order to ensure trigger QWOutput::frame signal, WOutputRenderWindow
+    // needs this signal to render next frmae. Because QWOutput::frame signal
+    // maybe emit before WOutputRenderWindow::attach, if no commit here,
+    // WOutputRenderWindow will ignore this ouptut on render.
+    if (!qwoutput->property("_Enabled").toBool()) {
+        qwoutput->setProperty("_Enabled", true);
+
+        if (!qwoutput->handle()->current_mode) {
+            auto mode = qwoutput->preferredMode();
+            if (mode)
+                output->setMode(mode);
+        }
+        output->enable(true);
+        bool ok = output->commit();
+        Q_ASSERT(ok);
+    }
+}
+
 bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *watched, QInputEvent *event)
 {
     if (event->type() == QEvent::KeyPress) {
