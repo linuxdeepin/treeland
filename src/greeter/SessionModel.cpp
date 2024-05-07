@@ -27,7 +27,7 @@
 #include <QProcessEnvironment>
 #include <QFileSystemWatcher>
 
-using namespace SDDM;
+using namespace DDM;
 
 class SessionModelPrivate {
 public:

@@ -60,7 +60,7 @@ public:
 private:
     SessionModelPrivate *d { nullptr };
 
-    void populate(SDDM::Session::Type type, const QStringList &dirPaths);
+    void populate(DDM::Session::Type type, const QStringList &dirPaths);
 };
 
 QML_DECLARE_TYPE(SessionModel)
