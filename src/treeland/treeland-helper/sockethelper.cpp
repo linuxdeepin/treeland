@@ -20,7 +20,7 @@
 
 #include "qwayland-treeland-socket-manager-v1.h"
 
-using namespace SDDM;
+using namespace DDM;
 
 WAYLIB_SERVER_USE_NAMESPACE
 
