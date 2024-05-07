@@ -71,7 +71,6 @@ install(FILES ${TRANSLATED_FILES} DESTINATION ${COMPONENTS_TRANSLATION_DIR})
 
 target_link_libraries(treeland-wallpaper
     PRIVATE
-        common
         Qt${QT_MAJOR_VERSION}::Gui
         Qt::WaylandClient
         Dtk6::Declarative

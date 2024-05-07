@@ -214,7 +214,7 @@ FakeSession::FakeSession(QObject *parent)
     , m_extForeignToplevelList(new Protocols::ExtForeignToplevelList)
 {
 
-    new SDDM::SignalHandler(this);
+    new DDM::SignalHandler(this);
 
     connect(m_shortcutManager, &Protocols::ShortcutManager::activeChanged, this, [this] {
         qDebug() << m_shortcutManager->isActive();

@@ -42,8 +42,6 @@ Q_IMPORT_PLUGIN(TreeLand_UtilsPlugin)
 
 Q_LOGGING_CATEGORY(debug, "treeland.kernel.debug", QtDebugMsg);
 
-using namespace SDDM;
-
 QString unescape(const QString &str) noexcept
 {
     QString unescapedStr;
@@ -143,9 +141,9 @@ TreeLand::TreeLand(TreeLandAppContext context)
     , m_context(context)
 {
     if (!context.socket.isEmpty()) {
-        qInstallMessageHandler(GreeterMessageHandler);
+        qInstallMessageHandler(DDM::GreeterMessageHandler);
 
-        new SignalHandler;
+        new DDM::SignalHandler;
     }
 
     m_socket = new QLocalSocket(this);
@@ -236,16 +234,16 @@ void TreeLand::connected() {
     Q_ASSERT(helper);
 
     connect(helper, &Helper::backToNormal, this, [this] {
-        SocketWriter(m_socket) << quint32(GreeterMessages::BackToNormal);
+        DDM::SocketWriter(m_socket) << quint32(DDM::GreeterMessages::BackToNormal);
     });
     connect(helper, &Helper::reboot, this, [this] {
-         SocketWriter(m_socket) << quint32(GreeterMessages::Reboot);
+        DDM::SocketWriter(m_socket) << quint32(DDM::GreeterMessages::Reboot);
     });
 
     // send connected message
-    SocketWriter(m_socket) << quint32(GreeterMessages::Connect);
+    DDM::SocketWriter(m_socket) << quint32(DDM::GreeterMessages::Connect);
 
-    SocketWriter(m_socket) << quint32(GreeterMessages::StartHelper) << helper->socketFile();
+    DDM::SocketWriter(m_socket) << quint32(DDM::GreeterMessages::StartHelper) << helper->socketFile();
 }
 
 void TreeLand::setSocketProxy(WaylandSocketProxy *socketProxy)
@@ -285,20 +283,20 @@ void TreeLand::readyRead() {
         quint32 message;
         input >> message;
 
-        switch (DaemonMessages(message)) {
-            case DaemonMessages::Capabilities: {
+        switch (DDM::DaemonMessages(message)) {
+            case DDM::DaemonMessages::Capabilities: {
                 // log message
                 qDebug() << "Message received from daemon: Capabilities";
             }
             break;
-            case DaemonMessages::WaylandSocketDeleted: {
+            case DDM::DaemonMessages::WaylandSocketDeleted: {
                 QString user;
                 input >> user;
 
                 m_socketProxy->deleteSocket(user);
             }
             break;
-            case DaemonMessages::UserActivateMessage: {
+            case DDM::DaemonMessages::UserActivateMessage: {
                 QString user;
                 input >> user;
 
@@ -308,7 +306,7 @@ void TreeLand::readyRead() {
                 m_personalManager->setCurrentUserId(pwd->pw_uid);
             }
             break;
-            case DaemonMessages::SwitchToGreeter: {
+            case DDM::DaemonMessages::SwitchToGreeter: {
                 Helper *helper = m_engine->singletonInstance<Helper*>("TreeLand.Utils", "Helper");
 
                 Q_ASSERT(helper);
@@ -323,7 +321,7 @@ void TreeLand::readyRead() {
 }
 
 int main (int argc, char *argv[]) {
-    qInstallMessageHandler(SDDM::GreeterMessageHandler);
+    qInstallMessageHandler(DDM::GreeterMessageHandler);
 
     WServer::initializeQPA();
     // QQuickStyle::setStyle("Material");

@@ -16,6 +16,7 @@ set(GREETER_SOURCES
 
 find_package(QT NAMES Qt6 REQUIRED COMPONENTS Core)
 find_package(Dtk6 REQUIRED COMPONENTS SystemSettings Declarative)
+find_package(DDM REQUIRED COMPONENTS Auth)
 
 set(QML_IMPORT_PATH ${QML_IMPORT_PATH} ${CMAKE_CURRENT_BINARY_DIR}/ CACHE STRING "" FORCE)
 
@@ -95,8 +96,9 @@ target_include_directories(greeterplugin
 )
 
 target_link_libraries(greeterplugin
+    PRIVATE
+        DDM::Auth
     PUBLIC
-        common
         Qt${QT_MAJOR_VERSION}::Gui
         Qt${QT_MAJOR_VERSION}::Qml
         Dtk6::Declarative
@@ -106,6 +108,3 @@ target_link_libraries(greeterplugin
 if(JOURNALD_FOUND)
     target_link_libraries(greeterplugin PUBLIC ${JOURNALD_LIBRARIES})
 endif()
-
-# Translations
-add_dependencies(greeterplugin components-translation)

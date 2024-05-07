@@ -31,7 +31,7 @@
 #include <QCommandLineParser>
 #include <QVariantMap>
 
-using namespace SDDM;
+using namespace DDM;
 
 class GreeterProxyPrivate {
 public:
