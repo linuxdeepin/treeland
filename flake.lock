@@ -74,11 +74,11 @@
     },
     "nixpkgs": {
       "locked": {
-        "lastModified": 1712791164,
-        "narHash": "sha256-3sbWO1mbpWsLepZGbWaMovSO7ndZeFqDSdX0hZ9nVyw=",
+        "lastModified": 1714906307,
+        "narHash": "sha256-UlRZtrCnhPFSJlDQE7M0eyhgvuuHBTe1eJ9N9AQlJQ0=",
         "owner": "NixOS",
         "repo": "nixpkgs",
-        "rev": "1042fd8b148a9105f3c0aca3a6177fd1d9360ba5",
+        "rev": "25865a40d14b3f9cf19f19b924e2ab4069b09588",
         "type": "github"
       },
       "original": {
@@ -170,11 +170,11 @@
         "qwlroots": "qwlroots"
       },
       "locked": {
-        "lastModified": 1712896180,
-        "narHash": "sha256-XquD0DEto/OXhq7oEbOv0ddKYLIirOAk5ZdtGEr/rf8=",
+        "lastModified": 1715060968,
+        "narHash": "sha256-k5OQsOs7/WB/G2hxi+9cm7FbSJ+w8m1bQZBGkLezD+c=",
         "owner": "vioken",
         "repo": "waylib",
-        "rev": "1f6d79f4fd10502af63d0a2b10d00a16f8cd32ac",
+        "rev": "b3fe4e2716d680ed8a394258d0ba850feb11ad07",
         "type": "github"
       },
       "original": {
