@@ -28,7 +28,7 @@ qt_add_executable(treeland-fake-session
 
 target_link_libraries(treeland-fake-session
     PRIVATE
-        common
+        DDM::Common
         $<TARGET_OBJECTS:treeland-shell-manager>
         Waylib::WaylibServer
         Qt${QT_MAJOR_VERSION}::Gui
@@ -47,7 +47,7 @@ qt_add_executable(treeland-window-bg-test
 
 target_link_libraries(treeland-window-bg-test
     PRIVATE
-        common
+        DDM::Common
         $<TARGET_OBJECTS:treeland-shell-manager>
         Waylib::WaylibServer
         Qt${QT_MAJOR_VERSION}::Gui

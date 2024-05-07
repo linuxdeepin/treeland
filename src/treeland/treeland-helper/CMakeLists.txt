@@ -25,7 +25,7 @@ qt_add_executable(treeland-helper
 
 target_link_libraries(treeland-helper
     PRIVATE
-        common
+        DDM::Common
         $<TARGET_OBJECTS:treeland-socket-manager>
         Waylib::WaylibServer
         Qt::Core

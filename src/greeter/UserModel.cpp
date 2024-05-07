@@ -30,7 +30,7 @@
 #include <QGuiApplication>
 #include <pwd.h>
 
-using namespace SDDM;
+using namespace DDM;
 DACCOUNTS_USE_NAMESPACE
 
 struct UserModelPrivate
