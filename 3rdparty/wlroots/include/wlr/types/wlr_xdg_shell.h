@@ -141,6 +141,7 @@ enum wlr_xdg_surface_role {
 struct wlr_xdg_toplevel_state {
 	bool maximized, fullscreen, resizing, activated, suspended;
 	uint32_t tiled; // enum wlr_edges
+	uint32_t constrained; // enum wlr_edges
 	int32_t width, height;
 	int32_t max_width, max_height;
 	int32_t min_width, min_height;
@@ -168,6 +169,7 @@ struct wlr_xdg_toplevel_configure {
 	// The following fields must always be set to reflect the current state
 	bool maximized, fullscreen, resizing, activated, suspended;
 	uint32_t tiled; // enum wlr_edges
+	uint32_t constrained; // enum wlr_edges
 	int32_t width, height;
 
 	// Only for WLR_XDG_TOPLEVEL_CONFIGURE_BOUNDS
@@ -453,6 +455,14 @@ uint32_t wlr_xdg_toplevel_set_wm_capabilities(struct wlr_xdg_toplevel *toplevel,
  */
 uint32_t wlr_xdg_toplevel_set_suspended(struct wlr_xdg_toplevel *toplevel,
 		bool suspended);
+
+/**
+ * Request that this toplevel consider itself constrained and doesn't attempt to
+ * resize from some edges. `constrained_edges` is a bitfield of enum wlr_edges.
+ * Returns the associated configure serial.
+ */
+uint32_t wlr_xdg_toplevel_set_constrained(struct wlr_xdg_toplevel *toplevel,
+		uint32_t constrained_edges);
 
 /**
  * Request that this toplevel closes.
