@@ -24,7 +24,7 @@ Item {
     property bool pendingDestroy: false
     property bool isMaximize: waylandSurface && waylandSurface.isMaximized && outputCoordMapper
     property bool isFullScreen: waylandSurface && waylandSurface.isFullScreen && outputCoordMapper
-    property bool showCloseAnimation: false
+    property bool showCloseAnimation: true
     property bool showNewAnimation: true
     onIsMaximizeChanged: console.log(`${surface} isMaximize changed, ${waylandSurface.isMaximized}, ${outputCoordMapper}`)
 

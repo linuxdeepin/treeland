@@ -2,29 +2,28 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 import QtQuick
-import QtQuick.Particles
 
 Item {
     id: root
 
-    signal stopped()
+    signal stopped
 
-    visible: false
+    visible: true
 
-    function start(target) {
-        width = target.width
-        height = target.height
-        effect.sourceItem = target
-        effect.width = target.width
-        effect.height = target.height
-        visible = true
-        hideAnimation.start()
+    required property var target
+
+    width: target.width
+    height: target.height
+
+    function start() {
+        visible = true;
+        animation.start();
     }
 
     function stop() {
-        visible = false
-        effect.sourceItem = null
-        stopped()
+        visible = false;
+        effect.sourceItem = null;
+        stopped();
     }
 
     Item {
@@ -34,64 +33,78 @@ Item {
         height: parent.height
         clip: true
 
+        transform: [
+            Rotation {
+                id: rotation
+                origin.x: width / 2
+                origin.y: height / 2
+                axis {
+                    x: 1
+                    y: 0
+                    z: 0
+                }
+                angle: 0
+            },
+            Scale {
+                id: scale
+                origin.x: width / 2
+                origin.y: height / 2
+                xScale: 1
+                yScale: 1
+            }
+        ]
+
         ShaderEffectSource {
             id: effect
-            live: false
+            live: true
             hideSource: true
+            sourceItem: target
+            width: target.width
+            height: target.height
         }
     }
 
-    PropertyAnimation {
-        id: hideAnimation
-        duration: 500
-        target: content
-        from: parent.height
-        to: 0
-        property: "height"
-
-        onStopped: {
-            root.stopped()
+    Connections {
+        target: animation
+        function onStopped() {
+            stop();
         }
     }
 
-    // Copy from the Qt particles example "affectors"
-    ParticleSystem {
-        id: flameSystem
+    ParallelAnimation {
+        id: animation
 
-        anchors.fill: parent
-
-        ImageParticle {
-            groups: ["flame"]
-            source: "qrc:///particleresources/glowdot.png"
-            color: "#88ff200f"
-            colorVariation: 0.1
+        PropertyAnimation {
+            target: rotation
+            property: "angle"
+            duration: 400
+            from: 0
+            to: 72
+            easing.type: Easing.OutCubic
         }
-
-        Row {
-            width: parent.width
-            anchors {
-                bottom: parent.bottom
-                bottomMargin: parent.height - content.height
-            }
-
-            Repeater {
-                model: parent.width / 50
-
-                Emitter {
-                    system: flameSystem
-                    group: "flame"
-                    width: 50
-                    height: 50
-
-                    emitRate: 120
-                    lifeSpan: 200
-                    size: 50
-                    endSize: 10
-                    sizeVariation: 10
-                    acceleration: PointDirection { y: -40 }
-                    velocity: AngleDirection { angle: 270; magnitude: 20; angleVariation: 22; magnitudeVariation: 5 }
-                }
-            }
+        PropertyAnimation {
+            target: scale
+            property: "xScale"
+            duration: 400
+            from: 1
+            to: 0.4
+            easing.type: Easing.OutCubic
+        }
+        PropertyAnimation {
+            target: scale
+            property: "yScale"
+            duration: 400
+            from: 1
+            to: 0.4
+            easing.type: Easing.OutCubic
+        }
+        PropertyAnimation {
+            target: content
+            property: "opacity"
+            duration: 400
+            from: 1
+            to: 0.2
+            easing.type: Easing.InQuad
         }
     }
 }

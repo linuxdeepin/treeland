@@ -18,7 +18,7 @@ FocusScope {
     property CoordMapper outputCoordMapper: output ? this.CoordMapper.helper.get(output) : null
     property bool mapped: waylandSurface.surface && waylandSurface.surface.mapped && waylandSurface.WaylandSocket.rootSocket.enabled
     property bool pendingDestroy: false
-    property bool showCloseAnimation: false
+    property bool showCloseAnimation: true
 
     property alias surfaceItem: surfaceItem
 
