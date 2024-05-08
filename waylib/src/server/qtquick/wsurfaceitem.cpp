@@ -1232,12 +1232,14 @@ void WSurfaceItemPrivate::updateEventItem(bool forceDestroy)
     if (bool(eventItem) == needsEventItem)
         return;
 
-    if (eventItem) {
-        eventItem->setVisible(false);
-        eventItem->setParentItem(nullptr);
-        eventItem->setParent(nullptr);
-        eventItem->deleteLater();
-        eventItem = nullptr;
+    if (auto eventItemTmp = eventItem) {
+        // set evItem's parentItem to null will invoke clearFocusInScope then focusIn surfaceItem
+        // first clear eventItem to avoid forceActiveFocus on eventItem again
+        this->eventItem = nullptr;
+        eventItemTmp->setVisible(false);
+        eventItemTmp->setParentItem(nullptr);
+        eventItemTmp->setParent(nullptr);
+        eventItemTmp->deleteLater();
     } else {
         eventItem = new EventItem(q_func());
         eventItem->setZ(qreal(WSurfaceItem::ZOrder::EventItem));
