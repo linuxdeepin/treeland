@@ -1133,7 +1133,7 @@ void WSeat::destroy(WServer *)
         setCursor(nullptr);
 
     if (m_handle) {
-        d->handle()->setData(this, nullptr);
+        d->handle()->setData(nullptr, nullptr);
         m_handle = nullptr;
     }
 }

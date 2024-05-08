@@ -36,7 +36,7 @@ WSurfacePrivate::WSurfacePrivate(WSurface *qq, QWSurface *handle)
 WSurfacePrivate::~WSurfacePrivate()
 {
     if (handle)
-        handle->setData(this, nullptr);
+        handle->setData(nullptr, nullptr);
 
     if (buffer)
         buffer->unlock();

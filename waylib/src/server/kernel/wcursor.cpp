@@ -59,7 +59,7 @@ WCursorPrivate::WCursorPrivate(WCursor *qq)
 
 WCursorPrivate::~WCursorPrivate()
 {
-    handle->setData(this, nullptr);
+    handle->setData(nullptr, nullptr);
     if (seat)
         seat->setCursor(nullptr);
 

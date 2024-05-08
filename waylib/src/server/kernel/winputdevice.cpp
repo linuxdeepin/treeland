@@ -28,7 +28,7 @@ public:
         this->handle->setData(this, qq);
     }
     ~WInputDevicePrivate() {
-        handle->setData(this, nullptr);
+        handle->setData(nullptr, nullptr);
         if (seat)
             seat->detachInputDevice(q_func());
     }

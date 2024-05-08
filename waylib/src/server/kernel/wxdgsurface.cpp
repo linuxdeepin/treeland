@@ -72,7 +72,7 @@ WXdgSurfacePrivate::WXdgSurfacePrivate(WXdgSurface *qq, QWXdgSurface *hh)
 WXdgSurfacePrivate::~WXdgSurfacePrivate()
 {
     if (handle)
-        handle->setData(this, nullptr);
+        handle->setData(nullptr, nullptr);
     surface->removeAttachedData<WXdgSurface>();
 }
 

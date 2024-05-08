@@ -79,7 +79,7 @@ public:
     }
 
     ~WOutputPrivate() {
-        handle->setData(this, nullptr);
+        handle->setData(nullptr, nullptr);
         if (layout)
             layout->remove(q_func());
     }

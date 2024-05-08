@@ -86,7 +86,7 @@ WLayerSurfacePrivate::WLayerSurfacePrivate(WLayerSurface *qq, QWLayerSurfaceV1 *
 WLayerSurfacePrivate::~WLayerSurfacePrivate()
 {
     if (handle)
-        handle->setData(this, nullptr);
+        handle->setData(nullptr, nullptr);
     surface->removeAttachedData<WLayerSurface>();
 }
 

@@ -76,7 +76,7 @@ public:
 WXWaylandSurfacePrivate::~WXWaylandSurfacePrivate()
 {
     if (handle)
-        handle->setData(this, nullptr);
+        handle->setData(nullptr, nullptr);
     if (surface)
         surface->removeAttachedData<WXWaylandSurface>();
 }
