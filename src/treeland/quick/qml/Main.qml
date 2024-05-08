@@ -96,6 +96,11 @@ Item {
             keyboardFocus: Helper.activatedSurface?.surface
         }
 
+        PointerGesturesV1 {
+            id: pointerGestures
+            seat: seat0.seat
+        }
+
         XdgShell {
             id: shell
             property int workspaceId: 0
