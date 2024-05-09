@@ -27,7 +27,6 @@ else()
     find_package(Waylib REQUIRED Server)
 endif()
 
-
 # PKG-CONFIG
 find_package(PkgConfig)
 
@@ -36,7 +35,7 @@ qt_standard_project_setup(REQUIRES 6.6)
 
 # Set constants
 set(TREELAND_DATA_DIR           "${CMAKE_INSTALL_FULL_DATADIR}/treeland/"               CACHE PATH      "treeland data install directory")
-set(COMPONENTS_TRANSLATION_DIR  "${DATA_INSTALL_DIR}/translations"                  CACHE PATH      "Components translations directory")
+set(COMPONENTS_TRANSLATION_DIR  "${TREELAND_DATA_DIR}/translations"                  CACHE PATH      "Components translations directory")
 
 add_compile_definitions("TREELAND_DATA_DIR=\"${TREELAND_DATA_DIR}\"")
 
