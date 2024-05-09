@@ -16,6 +16,54 @@ Item {
     property alias shortcutManager: shortcutManager
     property alias workspaceManager: workspaceManager
 
+    function getSurfaceItemFromWaylandSurface(surface) {
+        let finder = function(props) {
+            if (!props.waylandSurface)
+                return false
+            // surface is WToplevelSurface or WSurfce
+            if (props.waylandSurface === surface || props.waylandSurface.surface === surface)
+                return true
+        }
+
+        let toplevel = xdgSurfaceManager.getIf(toplevelComponent, finder)
+        if (toplevel) {
+            return {
+                shell: toplevel,
+                item: toplevel,
+                type: "toplevel"
+            }
+        }
+
+        let popup = xdgSurfaceManager.getIf(popupComponent, finder)
+        if (popup) {
+            return {
+                shell: popup,
+                item: popup.xdgSurface,
+                type: "popup"
+            }
+        }
+
+        let layer = layerSurfaceManager.getIf(layerComponent, finder)
+        if (layer) {
+            return {
+                shell: layer,
+                item: layer.surfaceItem,
+                type: "layer"
+            }
+        }
+
+        let xwayland = xwaylandSurfaceManager.getIf(xwaylandComponent, finder)
+        if (xwayland) {
+            return {
+                shell: xwayland,
+                item: xwayland,
+                type: "xwayland"
+            }
+        }
+
+        return null
+    }
+
     function printStructureObject(obj) {
         var json = ""
         for (var prop in obj){
