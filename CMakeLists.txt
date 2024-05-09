@@ -40,3 +40,4 @@ set(COMPONENTS_TRANSLATION_DIR  "${TREELAND_DATA_DIR}/translations"             
 add_compile_definitions("TREELAND_DATA_DIR=\"${TREELAND_DATA_DIR}\"")
 
 add_subdirectory(src)
+add_subdirectory(data)

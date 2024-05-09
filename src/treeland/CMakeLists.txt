@@ -6,24 +6,9 @@ find_package(DDM REQUIRED COMPONENTS Common)
 add_subdirectory(data)
 add_subdirectory(protocols)
 add_subdirectory(quick)
-add_subdirectory(treeland-helper)
-add_subdirectory(treeland-fake-session)
 add_subdirectory(treeland-wallpaper)
 
-set_source_files_properties("${CMAKE_SOURCE_DIR}/data/interfaces/org.freedesktop.login1.Manager.xml" PROPERTIES
-   INCLUDE "LogindDBusTypes.h"
-)
-set_source_files_properties("${CMAKE_SOURCE_DIR}/data/interfaces/org.freedesktop.login1.Seat.xml" PROPERTIES
-   INCLUDE "LogindDBusTypes.h"
-)
-
-set_source_files_properties("${CMAKE_SOURCE_DIR}/data/interfaces/org.freedesktop.login1.Session.xml" PROPERTIES
-   INCLUDE "LogindDBusTypes.h"
-)
-
-qt_add_dbus_interface(DBUS_INTERFACE "${CMAKE_SOURCE_DIR}/data/interfaces/org.freedesktop.login1.Manager.xml"  "Login1Manager")
-qt_add_dbus_interface(DBUS_INTERFACE "${CMAKE_SOURCE_DIR}/data/interfaces/org.freedesktop.login1.Seat.xml"  "Login1Seat")
-qt_add_dbus_interface(DBUS_INTERFACE "${CMAKE_SOURCE_DIR}/data/interfaces/org.freedesktop.login1.Session.xml"  "Login1Session")
+qt_add_dbus_adaptor(DBUS_ADAPTOR "${CMAKE_SOURCE_DIR}/data/dbus/org.deepin.compositor1.xml" "treeland.h" TreeLand::TreeLand)
 
 qt_add_executable(treeland override_dtkdeclarative_qml.qrc)
 
@@ -35,7 +20,7 @@ FILES
 
 target_sources(treeland PRIVATE
     treeland.cpp
-    ${DBUS_INTERFACE}
+    ${DBUS_ADAPTOR}
 )
 
 target_link_libraries(treeland
@@ -57,3 +42,22 @@ if(JOURNALD_FOUND)
 endif()
 
 install(TARGETS treeland RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}")
+
+## systemd socket
+
+pkg_check_modules(Systemd REQUIRED IMPORTED_TARGET libsystemd)
+
+qt_add_dbus_interface(DBUS_INTERFACE "${CMAKE_SOURCE_DIR}/data/dbus/org.deepin.compositor1.xml" "DBusCompositor1")
+
+qt_add_executable(treeland-sd
+    systemd-socket.cpp
+    ${DBUS_INTERFACE}
+)
+
+target_link_libraries(treeland-sd
+    PRIVATE
+        Qt${QT_MAJOR_VERSION}::DBus
+        PkgConfig::Systemd
+)
+
+install(TARGETS treeland-sd RUNTIME DESTINATION "${CMAKE_INSTALL_LIBEXECDIR}")
