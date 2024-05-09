@@ -2,22 +2,24 @@
   description = "A basic flake to help develop treeland";
 
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+    nixpkgs.url = "github:NixOS/nixpkgs/master";
     flake-utils.url = "github:numtide/flake-utils";
     nix-filter.url = "github:numtide/nix-filter";
-    dde-nixos = {
-      url = "github:linuxdeepin/dde-nixos";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
     waylib = {
       url = "github:vioken/waylib";
       inputs.nixpkgs.follows = "nixpkgs";
       inputs.flake-utils.follows = "flake-utils";
       inputs.nix-filter.follows = "nix-filter";
     };
+    ddm = {
+      url = "github:linuxdeepin/ddm";
+      inputs.nixpkgs.follows = "nixpkgs";
+      inputs.flake-utils.follows = "flake-utils";
+      inputs.nix-filter.follows = "nix-filter";
+    };
   };
 
-  outputs = { self, nixpkgs, flake-utils, nix-filter, waylib, dde-nixos }@input:
+  outputs = { self, nixpkgs, flake-utils, nix-filter, waylib, ddm }@input:
     flake-utils.lib.eachSystem [ "x86_64-linux" "aarch64-linux" "riscv64-linux" ]
       (system:
         let
@@ -26,7 +28,7 @@
           treeland = pkgs.qt6Packages.callPackage ./nix {
             nix-filter = nix-filter.lib;
             waylib = waylib.packages.${system}.default;
-            inherit (dde-nixos.packages.${system}.qt6) dtkdeclarative dtksystemsettings;
+            ddm = ddm.packages.${system}.default;
           };
         in
         {
@@ -75,12 +77,9 @@
                   ddm-greeter.text = ''
                     auth     required       pam_succeed_if.so audit quiet_success user = dde
                     auth     optional       pam_permit.so
-
                     account  required       pam_succeed_if.so audit quiet_success user = dde
                     account  sufficient     pam_unix.so
-
                     password required       pam_deny.so
-
                     session  required       pam_succeed_if.so audit quiet_success user = dde
                     session  required       pam_env.so conffile=/etc/pam/environment readenv=0
                     session  optional       ${pkgs.systemd}/lib/security/pam_systemd.so
@@ -92,7 +91,6 @@
                     auth     requisite pam_nologin.so
                     auth     required  pam_succeed_if.so uid >= 1000 quiet
                     auth     required  pam_permit.so
-
                     account  include   system-local-login
                     password include   system-local-login
                     session  include   system-local-login
@@ -107,15 +105,12 @@
                   HaltCommand=/run/current-system/systemd/bin/systemctl poweroff
                   Numlock=none
                   RebootCommand=/run/current-system/systemd/bin/systemctl reboot
-
                   [Users]
                   HideShells=/run/current-system/sw/bin/nologin
                   HideUsers=nixbld1,nixbld10,nixbld11,nixbld12,nixbld13,nixbld14,nixbld15,nixbld16,nixbld17,nixbld18,nixbld19,nixbld2,nixbld20,nixbld21,nixbld22,nixbld23,nixbld24,nixbld25,nixbld26,nixbld27,nixbld28,nixbld29,nixbld3,nixbld30,nixbld31,nixbld32,nixbld4,nixbld5,nixbld6,nixbld7,nixbld8,nixbld9
                   MaximumUid=30000
-
                   [Wayland]
                   SessionDir=${treeland}/share/wayland-sessions
-
                   [Single]
                   CompositorCommand=treeland
                   SessionDir=${treeland}/share/wayland-sessions
@@ -215,14 +210,10 @@
                 makeQmlpluginPath = pkgs.lib.makeSearchPathOutput "out" pkgs.qt6.qtbase.qtQmlPrefix;
               in
               ''
-                # unexpected QT_NO_DEBUG form qt-base-hook
-                # https://github.com/NixOS/nixpkgs/issues/251918
-                export NIX_CFLAGS_COMPILE=$(echo $NIX_CFLAGS_COMPILE | sed 's/-DQT_NO_DEBUG//')
                 #export QT_LOGGING_RULES="*.debug=true;qt.*.debug=false"
                 #export WAYLAND_DEBUG=1
                 export QT_PLUGIN_PATH=${makeQtpluginPath (with pkgs.qt6; [ qtbase qtdeclarative qtquick3d qtimageformats qtwayland qt5compat qtsvg ])}
-                export QML2_IMPORT_PATH=${makeQmlpluginPath (with pkgs.qt6; [ qtdeclarative qtquick3d qt5compat ] 
-                                                            ++ [ dde-nixos.packages.${system}.qt6.dtkdeclarative ] )}
+                export QML2_IMPORT_PATH=${makeQmlpluginPath (with pkgs; with qt6; [ qtdeclarative qtquick3d qt5compat deepin.dtkdeclarative ] )}
                 export QML_IMPORT_PATH=$QML2_IMPORT_PATH
               '';
           };
