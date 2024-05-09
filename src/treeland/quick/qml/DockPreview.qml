@@ -7,54 +7,6 @@ Item {
     id: root
     clip: true
 
-    function getSurfaceItemFromWaylandSurface(surface) {
-        let finder = function(props) {
-            if (!props.waylandSurface)
-                return false
-            // surface is WToplevelSurface or WSurfce
-            if (props.waylandSurface === surface || props.waylandSurface.surface === surface)
-                return true
-        }
-
-        let toplevel = QmlHelper.xdgSurfaceManager.getIf(toplevelComponent, finder)
-        if (toplevel) {
-            return {
-                shell: toplevel,
-                item: toplevel,
-                type: "toplevel"
-            }
-        }
-
-        let popup = QmlHelper.xdgSurfaceManager.getIf(popupComponent, finder)
-        if (popup) {
-            return {
-                shell: popup,
-                item: popup.xdgSurface,
-                type: "popup"
-            }
-        }
-
-        let layer = QmlHelper.layerSurfaceManager.getIf(layerComponent, finder)
-        if (layer) {
-            return {
-                shell: layer,
-                item: layer.surfaceItem,
-                type: "layer"
-            }
-        }
-
-        let xwayland = QmlHelper.xwaylandSurfaceManager.getIf(xwaylandComponent, finder)
-        if (xwayland) {
-            return {
-                shell: xwayland,
-                item: xwayland,
-                type: "xwayland"
-            }
-        }
-
-        return null
-    }
-
     signal stopped
     signal entered(var relativeSurface)
     signal exited(var relativeSurface)
