@@ -1,0 +1,25 @@
+[Unit]
+Description=TreeLand socket helper service
+StartLimitBurst=3
+CollectMode=inactive-or-failed
+
+Requires=treeland-sd.socket
+PartOf=treeland-sd.socket
+After=treeland-sd.socket
+
+Requisite=dde-session-pre.target
+PartOf=dde-session-pre.target
+Before=dde-session-pre.target
+
+[Service]
+ExecCondition=/bin/sh -c 'test "$XDG_SESSION_TYPE" = "wayland" || exit 2'
+Type=notify
+Sockets=treeland-sd.socket
+UnsetEnvironment=DISPLAY
+UnsetEnvironment=WAYLAND_DISPLAY
+ExecStart=@CMAKE_INSTALL_FULL_LIBEXECDIR@/treeland-sd
+ExecStartPost=-/usr/bin/systemctl --user set-environment DDE_CURRENT_COMPOSITOR=TreeLand
+ExecStopPost=-/usr/bin/systemctl --user unset-environment DDE_CURRENT_COMPOSITOR
+Slice=session.slice
+Restart=on-failure
+RestartSec=1s

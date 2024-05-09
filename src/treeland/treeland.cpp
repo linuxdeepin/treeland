@@ -8,6 +8,7 @@
 #include "helper.h"
 #include "waylandsocketproxy.h"
 #include "SignalHandler.h"
+#include "compositor1adaptor.h"
 
 #include <WServer>
 #include <WSurface>
@@ -36,6 +37,8 @@
 
 #include <pwd.h>
 #include <wordexp.h>
+#include <qdbusconnection.h>
+#include <qdbusunixfiledescriptor.h>
 
 Q_IMPORT_PLUGIN(TreeLand_ProtocolsPlugin)
 Q_IMPORT_PLUGIN(TreeLand_UtilsPlugin)
@@ -240,8 +243,6 @@ void TreeLand::connected() {
 
     // send connected message
     DDM::SocketWriter(m_socket) << quint32(DDM::GreeterMessages::Connect);
-
-    DDM::SocketWriter(m_socket) << quint32(DDM::GreeterMessages::StartHelper) << helper->socketFile();
 }
 
 void TreeLand::setSocketProxy(WaylandSocketProxy *socketProxy)
@@ -316,6 +317,38 @@ void TreeLand::readyRead() {
         }
     }
 }
+
+bool TreeLand::Activate(QDBusUnixFileDescriptor _fd) {
+    if (!_fd.isValid()) {
+        return false;
+    }
+
+    auto fd = std::make_shared<QDBusUnixFileDescriptor>();
+    fd->swap(_fd);
+
+    auto socket = std::make_shared<WSocket>(true);
+    socket->create(fd->fileDescriptor(), false);
+
+    WServer *server = m_engine->rootObjects().first()->findChild<WServer*>();
+    server->addSocket(socket.get());
+
+    auto uid = connection().interface()->serviceUid(message().service());
+    struct passwd *pw;
+    pw = getpwuid(uid);
+    QString user{pw->pw_name};
+    m_userWaylandSocket[user] = socket;
+    m_userDisplayFds[user] = fd;
+
+    socket->setEnabled(true);
+
+    connect(connection().interface(), &QDBusConnectionInterface::serviceUnregistered, socket.get(), [this, user] {
+        m_userWaylandSocket.remove(user);
+        m_userDisplayFds.remove(user);
+    });
+
+    return true;
+}
+
 }
 
 int main (int argc, char *argv[]) {
@@ -340,6 +373,10 @@ int main (int argc, char *argv[]) {
     parser.process(app);
 
     TreeLand::TreeLand treeland({parser.value(socket), parser.value(run)});
+    new Compositor1Adaptor(&treeland);
+
+    QDBusConnection::systemBus().registerService("org.deepin.Compositor1");
+    QDBusConnection::systemBus().registerObject("/org/deepin/Compositor1", &treeland);
 
     return app.exec();
 }

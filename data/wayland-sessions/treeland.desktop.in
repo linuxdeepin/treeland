@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=DDE
+Comment=This session is DDE single wayland
+Exec=${CMAKE_INSTALL_FULL_BINDIR}/dde-session
+TryExec=${CMAKE_INSTALL_FULL_BINDIR}/dde-session
+Type=Application
+DesktopNames=DDE
+Hidden=true
+X-DDE-SINGLE-WAYLAND=true
