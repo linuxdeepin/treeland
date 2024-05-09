@@ -12,8 +12,8 @@
 , qtimageformats
 , qtwayland
 , qtsvg
-, dtkdeclarative
-, dtksystemsettings
+, ddm
+, deepin
 , waylib
 , wayland
 , wayland-protocols
@@ -48,12 +48,6 @@ stdenv.mkDerivation (finalAttrs: {
         --replace-fail "/usr/share/wallpapers/deepin/desktop.jpg" \
                 "${nixos-artwork.wallpapers.simple-blue}/share/backgrounds/nixos/nix-wallpaper-simple-blue.png"
     done
-    
-    for file in $(grep -rl "/usr/bin")
-    do
-      substituteInPlace $file \
-        --replace-fail "/usr/bin" "/run/current-system/sw/bin"
-    done
   '';
 
   nativeBuildInputs = [
@@ -71,8 +65,9 @@ stdenv.mkDerivation (finalAttrs: {
     qtimageformats
     qtwayland
     qtsvg
-    dtkdeclarative
-    dtksystemsettings
+    ddm
+    deepin.dtk6declarative
+    deepin.dtk6systemsettings
     waylib
     wayland
     wayland-protocols
@@ -83,21 +78,6 @@ stdenv.mkDerivation (finalAttrs: {
   ];
 
    cmakeFlags = [
-    "-DCONFIG_FILE=/etc/ddm.conf"
-    "-DCONFIG_DIR=/etc/ddm.conf.d"
-
-    # Set UID_MIN and UID_MAX so that the build script won't try
-    # to read them from /etc/login.defs (fails in chroot).
-    # The values come from NixOS; they may not be appropriate
-    # for running DDM outside NixOS, but that configuration is
-    # not supported anyway.
-    "-DUID_MIN=1000"
-    "-DUID_MAX=29999"
-
-    # we still want to run the DM on VT 7 for the time being, as 1-6 are
-    # occupied by getties by default
-    "-DSDDM_INITIAL_VT=7"
-
     "-DQT_IMPORTS_DIR=${placeholder "out"}/${qtbase.qtQmlPrefix}"
     "-DCMAKE_INSTALL_SYSCONFDIR=${placeholder "out"}/etc"
     "-DSYSTEMD_SYSTEM_UNIT_DIR=${placeholder "out"}/lib/systemd/system"
@@ -105,8 +85,6 @@ stdenv.mkDerivation (finalAttrs: {
     "-DSYSTEMD_TMPFILES_DIR=${placeholder "out"}/lib/tmpfiles.d"
     "-DDBUS_CONFIG_DIR=${placeholder "out"}/share/dbus-1/system.d"
   ];
-
-  passthru.providedSessions = [ "treeland" ];
 
   meta = {
     description = "DDM is a fork of SDDM";
