@@ -101,30 +101,28 @@ std::optional<QStringList> unescapeExecArgs(const QString &str) noexcept
     std::unique_ptr<wordexp_t, decltype(deleter)> words{new (std::nothrow) wordexp_t{0, nullptr, 0}, deleter};
 
     if (auto ret = wordexp(unescapedStr.toLocal8Bit(), words.get(), WRDE_SHOWERR); ret != 0) {
-        if (ret != 0) {
-            QString errMessage;
-            switch (ret) {
-            case WRDE_BADCHAR:
-                errMessage = "BADCHAR";
-                break;
-            case WRDE_BADVAL:
-                errMessage = "BADVAL";
-                break;
-            case WRDE_CMDSUB:
-                errMessage = "CMDSUB";
-                break;
-            case WRDE_NOSPACE:
-                errMessage = "NOSPACE";
-                break;
-            case WRDE_SYNTAX:
-                errMessage = "SYNTAX";
-                break;
-            default:
-                errMessage = "unknown";
-            }
-            qWarning() << "wordexp error: " << errMessage;
-            return std::nullopt;
+        QString errMessage;
+        switch (ret) {
+        case WRDE_BADCHAR:
+            errMessage = "BADCHAR";
+            break;
+        case WRDE_BADVAL:
+            errMessage = "BADVAL";
+            break;
+        case WRDE_CMDSUB:
+            errMessage = "CMDSUB";
+            break;
+        case WRDE_NOSPACE:
+            errMessage = "NOSPACE";
+            break;
+        case WRDE_SYNTAX:
+            errMessage = "SYNTAX";
+            break;
+        default:
+            errMessage = "unknown";
         }
+        qWarning() << "wordexp error: " << errMessage;
+        return std::nullopt;
     }
 
     QStringList execList;
