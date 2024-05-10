@@ -67,6 +67,15 @@ FocusScope {
     property var workspaceManager: QmlHelper.workspaceManager
     property int currentWorkspaceId: 0
 
+    Connections {
+        target: workspaceManager.layoutOrder
+        function onCountChanged() {
+            if (currentWorkspaceId >= target.count) {
+                currentWorkspaceId = target.count - 1
+            }
+        }
+    }
+
     // activated workspace driven by surface activation
     property Item activatedSurfaceItem:
         getSurfaceItemFromWaylandSurface(Helper.activatedSurface)?.item || null // cannot assign [undefined] to QQuickItem*, need to assign null
