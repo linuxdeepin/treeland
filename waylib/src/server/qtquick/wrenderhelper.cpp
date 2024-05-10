@@ -656,6 +656,8 @@ void WRenderHelper::setupRendererBackend(QWBackend *testBackend)
 
             if (!testBackend)
                 qFatal("Failed to create wlr_backend");
+
+            testBackend->start();
         }
         QQuickWindow::setGraphicsApi(WRenderHelper::probe(testBackend, apiList));
     } else if (wlrRenderer == "gles2") {
