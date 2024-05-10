@@ -158,6 +158,7 @@ Item {
                                 }
                                 onClicked: {
                                     workspaceManager.destroyWs(parent.index)
+                                    root.model = QmlHelper.workspaceManager.workspacesById.get(QmlHelper.workspaceManager.layoutOrder.get(currentWorkspaceId).wsid).surfaces
                                 }
                             }
 
@@ -165,7 +166,6 @@ Item {
                             DragHandler {
                                 id: drg
                                 onActiveChanged: if (active) {
-                                    console.log('active')
                                     dragManager.item = parent
                                     initialState = {x: parent.x, y: parent.y}
                                 } else {
