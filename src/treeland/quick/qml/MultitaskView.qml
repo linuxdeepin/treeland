@@ -7,6 +7,8 @@ import QtQuick.Controls
 import Waylib.Server
 import TreeLand
 import TreeLand.Utils
+import org.deepin.dtk 1.0 as D
+import org.deepin.dtk.style 1.0 as DS
 
 Item {
     id: root
@@ -131,6 +133,34 @@ Item {
                                 }
                             }
 
+                            D.RoundButton {
+                                id: wsDestroyBtn
+                                icon.name: "window_close"
+                                icon.width: 20
+                                icon.height: 20
+                                height: 24
+                                width: height
+                                visible: (workspaceManager.layoutOrder.count > 1)
+                                    && hvrhdlr.hovered
+                                anchors {
+                                    right: parent.right
+                                    top: parent.top
+                                }
+                                Item {
+                                    id: control
+                                    property D.Palette textColor: DS.Style.button.text
+                                }
+                                textColor: control.textColor
+                                background: Rectangle {
+                                    anchors.fill: parent
+                                    color: "white"
+                                    radius: parent.height / 2
+                                }
+                                onClicked: {
+                                    workspaceManager.destroyWs(parent.index)
+                                }
+                            }
+
                             property var initialState
                             DragHandler {
                                 id: drg
@@ -151,14 +181,40 @@ Item {
                             }
                         }
                     }
-                    ListView {
-                        id: workspacesList
-                        orientation: ListView.Horizontal
-                        model: visualModel
+                    Item {
                         Layout.preferredHeight: outputPlacementItem.height * .2
-                        Layout.preferredWidth: model.count * height * outputPlacementItem.width / outputPlacementItem.height
-                        Layout.maximumWidth: parent.width
+                        Layout.preferredWidth: parent.width
                         Layout.alignment: Qt.AlignHCenter
+                        ListView {
+                            id: workspacesList
+                            orientation: ListView.Horizontal
+                            model: visualModel
+                            height: parent.height
+                            width: Math.min(parent.width,
+                                model.count * height * outputPlacementItem.width / outputPlacementItem.height)
+                            anchors.horizontalCenter: parent.horizontalCenter
+                        }
+                        D.RoundButton {
+                            id: wsCreateBtn
+                            anchors {
+                                right: parent.right
+                                verticalCenter: parent.verticalCenter
+                                margins: 20
+                            }
+                            height: 80
+                            width: height
+                            icon.name: "list_add"
+                            icon.height: height
+                            icon.width: width
+                            background: Rectangle {
+                                color: Qt.rgba(255, 255, 255, .4)
+                                anchors.fill: parent
+                                radius: 20
+                            }
+                            onClicked: {
+                                workspaceManager.createWs()
+                            }
+                        }
                     }
                     Item {
                         id: surfacesGridView

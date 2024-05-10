@@ -93,25 +93,6 @@ FocusScope {
             NumberAnimation { duration: 300 }
         }
 
-        Row {
-            anchors {
-                right: parent.right
-                bottom: parent.bottom
-            }
-            visible: TreeLand.testMode
-            Button {
-                Text {
-                    text: 'remove'
-                }
-                onClicked: workspaceManager.destroyWs(currentWorkspaceId)
-            }
-            Button {
-                Text {
-                    text: 'add'
-                }
-                onClicked: workspaceManager.createWs()
-            }
-        }
         Repeater {
             model: workspaceManager.layoutOrder
             anchors.fill: parent
