@@ -29,6 +29,7 @@
 #include <QQuickView>
 #include <QQmlContext>
 #include <QQmlEngine>
+#include <DLog>
 #include <QDebug>
 #include <QLoggingCategory>
 #include <QTimer>
@@ -44,6 +45,9 @@ Q_IMPORT_PLUGIN(TreeLand_ProtocolsPlugin)
 Q_IMPORT_PLUGIN(TreeLand_UtilsPlugin)
 
 Q_LOGGING_CATEGORY(debug, "treeland.kernel.debug", QtDebugMsg);
+
+using namespace DDM;
+DCORE_USE_NAMESPACE;
 
 QString unescape(const QString &str) noexcept
 {
@@ -352,8 +356,6 @@ bool TreeLand::Activate(QDBusUnixFileDescriptor _fd) {
 }
 
 int main (int argc, char *argv[]) {
-    qInstallMessageHandler(DDM::GreeterMessageHandler);
-
     WServer::initializeQPA();
     // QQuickStyle::setStyle("Material");
 
@@ -362,6 +364,12 @@ int main (int argc, char *argv[]) {
     QGuiApplication::setQuitOnLastWindowClosed(false);
 
     QGuiApplication app(argc, argv);
+    app.setOrganizationName("deepin");
+    app.setApplicationName("treeland");
+
+    DLogManager::registerConsoleAppender();
+    DLogManager::registerJournalAppender();
+    DLogManager::registerFileAppender();
 
     QCommandLineOption socket({"s", "socket"}, "set ddm socket", "socket");
     QCommandLineOption run({"r", "run"}, "run a process", "run");
