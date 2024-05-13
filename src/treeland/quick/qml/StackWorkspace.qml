@@ -225,6 +225,7 @@ FocusScope {
                     z: SurfaceItem.ZOrder.ContentItem - 1
                     surface: toplevelSurfaceItem.waylandSurface
                     visible: enable
+                    moveable: !helper.isMaximize && !helper.isFullScreen
                 }
 
                 StackToplevelHelper {
@@ -434,6 +435,7 @@ FocusScope {
                     z: SurfaceItem.ZOrder.ContentItem - 1
                     visible: enable
                     surface: waylandSurface
+                    moveable: !helper.isMaximize && !helper.isFullScreen
                 }
 
                 OutputLayoutItem {
