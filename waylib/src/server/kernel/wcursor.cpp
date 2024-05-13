@@ -361,7 +361,7 @@ void WCursorPrivate::on_button(wlr_pointer_button_event *event)
         state &= ~button;
     } else {
         state |= button;
-        lastPressedPosition = q_func()->position();
+        lastPressedOrTouchDownPosition = q_func()->position();
     }
 
     if (Q_LIKELY(seat)) {
@@ -394,6 +394,7 @@ void WCursorPrivate::on_touch_down(wlr_touch_down_event *event)
     auto device = QWTouch::from(event->touch);
 
     q_func()->setScalePosition(device, QPointF(event->x, event->y));
+    lastPressedOrTouchDownPosition = q_func()->position();
 
     if (Q_LIKELY(seat)) {
         seat->notifyTouchDown(q_func(), WInputDevice::fromHandle(device),
@@ -872,10 +873,10 @@ QPointF WCursor::position() const
     return d->handle->position();
 }
 
-QPointF WCursor::lastPressedPosition() const
+QPointF WCursor::lastPressedOrTouchDownPosition() const
 {
     W_DC(WCursor);
-    return d->lastPressedPosition;
+    return d->lastPressedOrTouchDownPosition;
 }
 
 WAYLIB_SERVER_END_NAMESPACE

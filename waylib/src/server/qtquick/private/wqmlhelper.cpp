@@ -104,7 +104,10 @@ Qt::Edges WQmlHelper::getEdges(const QRectF &rect, const QPointF &pos, qreal edg
     if (pos.y() < rect.y() + vEdgeSize)
         return Qt::TopEdge;
 
-    return Qt::BottomEdge;
+    if (pos.y() > rect.bottom() - vEdgeSize)
+        return Qt::BottomEdge;
+
+    return Qt::Edges::fromInt(0);
 }
 
 QSGRootNode *WQmlHelper::getRootNode(QQuickItem *item)

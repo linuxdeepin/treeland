@@ -122,7 +122,7 @@ public:
     void setVisible(bool visible);
 
     QPointF position() const;
-    QPointF lastPressedPosition() const;
+    QPointF lastPressedOrTouchDownPosition() const;
 
 Q_SIGNALS:
     void positionChanged();

@@ -69,7 +69,7 @@ public:
     // for event data
     Qt::MouseButtons state = Qt::NoButton;
     Qt::MouseButton button = Qt::NoButton;
-    QPointF lastPressedPosition;
+    QPointF lastPressedOrTouchDownPosition;
     bool visible = true;
     QPointer<QW_NAMESPACE::QWSurface> surfaceOfCursor;
     QPoint surfaceCursorHotspot;
