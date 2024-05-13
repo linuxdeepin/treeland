@@ -26,6 +26,7 @@ D.RoundRectangle {
     readonly property real bottomMargin: 0
     readonly property real leftMargin: 0
     readonly property real rightMargin: 0
+    property bool moveable: ture
     property D.Palette backgroundColor: DS.Style.highlightPanel.background
     property D.Palette outerShadowColor: DS.Style.highlightPanel.dropShadow
     property D.Palette innerShadowColor: DS.Style.highlightPanel.innerShadow
@@ -122,6 +123,7 @@ D.RoundRectangle {
         }
 
         DragHandler {
+            enabled: moveable
             target: root.parent
             onActiveChanged: if (active) Helper.activatedSurface = surface
             cursorShape: active ? Qt.DragMoveCursor : Qt.ArrowCursor
