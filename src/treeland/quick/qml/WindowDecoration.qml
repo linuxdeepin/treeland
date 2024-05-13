@@ -42,47 +42,73 @@ D.RoundRectangle {
         hollow: true
     }
 
-    MouseArea {
-        property int edges: 0
-
-        anchors {
-            fill: parent
-            margins: -5
-        }
-
-        hoverEnabled: true
-        Cursor.shape: {
-            switch(edges) {
-            case Qt.TopEdge:
-                return Cursor.TopSide
-            case Qt.RightEdge:
-                return Cursor.RightSide
-            case Qt.BottomEdge:
-                return Cursor.BottomSide
-            case Qt.LeftEdge:
-                return Cursor.LeftSide
-            case Qt.TopEdge | Qt.LeftEdge:
-                return Cursor.TopLeftCorner
-            case Qt.TopEdge | Qt.RightEdge:
-                return Cursor.TopRightCorner
-            case Qt.BottomEdge | Qt.LeftEdge:
-                return Cursor.BottomLeftCorner
-            case Qt.BottomEdge | Qt.RightEdge:
-                return Cursor.BottomRightCorner
+    Repeater {
+        model: [[-5,0,0,0],[0,-5,0,0],[0,0,-5,0],[0,0,0,-5]]
+        Item {
+            id: handlerContainer
+            property var cursorShapes: [Qt.SizeVerCursor,Qt.SizeVerCursor,Qt.SizeHorCursor,Qt.SizeHorCursor]
+            property var edges: [Qt.TopEdge,Qt.BottomEdge,Qt.LeftEdge,Qt.RightEdge]
+            anchors {
+                fill: parent
+                topMargin: modelData[0]
+                bottomMargin: modelData[1]
+                leftMargin: modelData[2]
+                rightMargin: modelData[3]
             }
-
-            return Qt.ArrowCursor;
-        }
-
-        onPositionChanged: function (event) {
-            edges = WaylibHelper.getEdges(Qt.rect(0, 0, width, height), Qt.point(event.x, event.y), 10)
-        }
-
-        onPressed: {
-            root.requestResize(edges)
-            Helper.activatedSurface = surface
+            HoverHandler {
+                cursorShape: cursorShapes[index]
+            }
+            TapHandler {
+                onTapped: {
+                    root.requestResize(edges[index])
+                    console.log('req resize')
+                    Helper.activatedSurface = surface
+                }
+            }
         }
     }
+
+    // MouseArea {
+    //     property int edges: 0
+
+    //     anchors {
+    //         fill: parent
+    //         margins: -5
+    //     }
+
+    //     hoverEnabled: true
+    //     Cursor.shape: {
+    //         switch(edges) {
+    //         case Qt.TopEdge:
+    //             return Cursor.TopSide
+    //         case Qt.RightEdge:
+    //             return Cursor.RightSide
+    //         case Qt.BottomEdge:
+    //             return Cursor.BottomSide
+    //         case Qt.LeftEdge:
+    //             return Cursor.LeftSide
+    //         case Qt.TopEdge | Qt.LeftEdge:
+    //             return Cursor.TopLeftCorner
+    //         case Qt.TopEdge | Qt.RightEdge:
+    //             return Cursor.TopRightCorner
+    //         case Qt.BottomEdge | Qt.LeftEdge:
+    //             return Cursor.BottomLeftCorner
+    //         case Qt.BottomEdge | Qt.RightEdge:
+    //             return Cursor.BottomRightCorner
+    //         }
+
+    //         return Qt.ArrowCursor;
+    //     }
+
+    //     onPositionChanged: function (event) {
+    //         edges = WaylibHelper.getEdges(Qt.rect(0, 0, width, height), Qt.point(event.x, event.y), 10)
+    //     }
+
+    //     onPressed: {
+    //         root.requestResize(edges)
+    //         Helper.activatedSurface = surface
+    //     }
+    // }
 
     D.RoundRectangle {
         id: titlebar
