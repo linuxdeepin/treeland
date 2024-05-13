@@ -428,17 +428,17 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *watched, QInputEvent *even
 
     if (surfaceItem && (seat == this->seat || this->seat == nullptr)) {
         // for move resize
-        if (Q_LIKELY(event->type() == QEvent::MouseMove)) {
+        if (Q_LIKELY(event->type() == QEvent::MouseMove || event->type() == QEvent::TouchUpdate)) {
             auto cursor = seat->cursor();
             Q_ASSERT(cursor);
             QMouseEvent *ev = static_cast<QMouseEvent*>(event);
 
             if (resizeEdgets == 0) {
-                auto increment_pos = ev->globalPosition() - cursor->lastPressedPosition();
+                auto increment_pos = ev->globalPosition() - cursor->lastPressedOrTouchDownPosition();
                 auto new_pos = surfacePosOfStartMoveResize + surfaceItem->parentItem()->mapFromGlobal(increment_pos);
                 surfaceItem->setPosition(new_pos);
             } else {
-                auto increment_pos = surfaceItem->parentItem()->mapFromGlobal(ev->globalPosition() - cursor->lastPressedPosition());
+                auto increment_pos = surfaceItem->parentItem()->mapFromGlobal(ev->globalPosition() - cursor->lastPressedOrTouchDownPosition());
                 QRectF geo(surfacePosOfStartMoveResize, surfaceSizeOfStartMoveResize);
 
                 if (resizeEdgets & Qt::LeftEdge)
@@ -458,7 +458,7 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *watched, QInputEvent *even
             }
 
             return true;
-        } else if (event->type() == QEvent::MouseButtonRelease) {
+        } else if (event->type() == QEvent::MouseButtonRelease || event->type() == QEvent::TouchEnd) {
             stopMoveResize();
         }
     }

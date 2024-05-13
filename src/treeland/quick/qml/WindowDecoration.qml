@@ -48,7 +48,7 @@ D.RoundRectangle {
 
         anchors {
             fill: parent
-            margins: -5
+            margins: -10
         }
 
         hoverEnabled: true
@@ -79,9 +79,12 @@ D.RoundRectangle {
             edges = WaylibHelper.getEdges(Qt.rect(0, 0, width, height), Qt.point(event.x, event.y), 10)
         }
 
-        onPressed: {
-            root.requestResize(edges)
+        onPressed: function (event) {
+            // Maybe missing onPositionChanged when use touchscreen
+            edges = WaylibHelper.getEdges(Qt.rect(0, 0, width, height), Qt.point(event.x, event.y), 10)
             Helper.activatedSurface = surface
+            if(edges)
+                root.requestResize(edges)
         }
     }
 
