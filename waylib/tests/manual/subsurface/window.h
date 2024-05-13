@@ -18,6 +18,11 @@ public:
 
     QWindow *parent() const;
     void setParent(QWindow *newParent);
+    Q_INVOKABLE inline bool destroy() {
+        // can't close with parent, setParent(nullptr) destroys subsurf and make new xdgsurface
+        QQuickWindow::destroy();
+        return true;
+    }
 
 signals:
     void parentChanged();

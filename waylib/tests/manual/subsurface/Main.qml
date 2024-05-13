@@ -61,13 +61,23 @@ Window {
         height: 200
         color: "yellow"
 
-        Button {
+        Column {
             anchors.centerIn: parent
-            text: "Add"
-            onClicked: {
-                window4.createObject()
+            property CustomWindow winObj
+            Button {
+                text: "Add"
+                onClicked: {
+                    parent.winObj = window4.createObject()
+                }
+            }
+            Button {
+                text: "Destroy"
+                onClicked: {
+                    console.log('destroying',parent.winObj,parent.winObj.close())
+                }
             }
         }
+
     }
 
     Component {
