@@ -452,5 +452,7 @@ Item {
                 greeter.active = !TreeLand.testMode
             }
         }
+
+        Component.onCompleted: seat0.setKeyboardFocusWindow(this)
     }
 }
