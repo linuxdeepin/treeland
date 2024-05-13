@@ -167,6 +167,12 @@ void WQuickSeat::setKeyboardFocus(WSurface *newKeyboardFocus)
     Q_EMIT keyboardFocusChanged();
 }
 
+void WQuickSeat::setKeyboardFocusWindow(QWindow *window)
+{
+    W_D(WQuickSeat);
+    d->seat->setKeyboardFocusTarget(window);
+}
+
 void WQuickSeat::addDevice(WInputDevice *device)
 {
     W_D(WQuickSeat);

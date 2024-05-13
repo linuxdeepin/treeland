@@ -4,6 +4,7 @@
 #pragma once
 
 #include <wquickwaylandserver.h>
+#include <QWindow>
 
 Q_MOC_INCLUDE(<wseat.h>)
 Q_MOC_INCLUDE(<wquickcursor.h>)
@@ -44,6 +45,8 @@ public:
 
     WSurface *keyboardFocus() const;
     void setKeyboardFocus(WSurface *newKeyboardFocus);
+
+    Q_INVOKABLE void setKeyboardFocusWindow(QWindow *window);
 
 public Q_SLOTS:
     void addDevice(WInputDevice *device);
