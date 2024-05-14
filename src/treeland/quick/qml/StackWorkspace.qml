@@ -130,6 +130,21 @@ FocusScope {
                 }
             }
         }
+
+        DynamicCreatorComponent {
+            id: inputPopupComponent
+            creator: QmlHelper.inputPopupSurfaceManager
+
+            InputPopupSurface {
+                required property InputMethodHelper inputMethodHelper
+                required property WaylandInputPopupSurface popupSurface
+
+                id: inputPopupSurface
+                surface: popupSurface
+                helper: inputMethodHelper
+            }
+        }
+
     }
 
     Item {
@@ -509,20 +524,6 @@ FocusScope {
                         }
                     }
                 ]
-            }
-        }
-
-        DynamicCreatorComponent {
-            id: inputPopupComponent
-            creator: QmlHelper.inputPopupSurfaceManager
-
-            InputPopupSurface {
-                required property InputMethodHelper inputMethodHelper
-                required property WaylandInputPopupSurface popupSurface
-
-                id: inputPopupSurface
-                surface: popupSurface
-                helper: inputMethodHelper
             }
         }
     }
