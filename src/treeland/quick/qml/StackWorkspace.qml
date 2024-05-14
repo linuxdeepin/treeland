@@ -76,7 +76,7 @@ FocusScope {
     }
 
     // activated surface driven by workspace change
-    onCurrentWorkspaceIdChanged: 
+    onCurrentWorkspaceIdChanged:
         if (activatedSurfaceItem?.parent?.workspaceRelativeId !== currentWorkspaceId)
             workspaceManager.workspacesById.get(workspaceManager.layoutOrder.get(currentWorkspaceId).wsid).selectSurfaceToActivate()
 
@@ -206,17 +206,15 @@ FocusScope {
                         if (outputCounter == 1) {
                             let outputDelegate = output.OutputItem.item
                             toplevelSurfaceItem.x = outputDelegate.x
-                                    + Helper.getLeftExclusiveMargin(waylandSurface)
-                                    + 10
+                                    + (outputDelegate.width - toplevelSurfaceItem.width) / 2
                             toplevelSurfaceItem.y = outputDelegate.y
-                                    + Helper.getTopExclusiveMargin(waylandSurface)
-                                    + 10
+                                    + (outputDelegate.height - toplevelSurfaceItem.height) / 2
 
                             if (Helper.clientName(waylandSurface.surface) === "dde-desktop") {
                                 toplevelSurfaceItem.x = outputDelegate.x
                                 toplevelSurfaceItem.y = outputDelegate.y
-                                toplevelSurfaceItem.width = output.size.width
-                                toplevelSurfaceItem.height = output.size.height
+                                toplevelSurfaceItem.width = outputDelegate.width
+                                toplevelSurfaceItem.height = outputDelegate.height
                             }
 
                             if (Helper.clientName(waylandSurface.surface) === "dde-launchpad") {
