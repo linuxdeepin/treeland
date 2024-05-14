@@ -93,7 +93,7 @@ Item {
             }
 
             eventFilter: Helper
-            keyboardFocus: Helper.activatedSurface?.surface
+            keyboardFocus: Helper.activatedSurface?.surface || null
         }
 
         XdgShell {
