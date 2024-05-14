@@ -129,11 +129,6 @@ Item {
                                "The surface's resizeMode Shouldn't is ManualResize")
                 // Apply the WSurfaceItem's size to wl_surface
                 surface.resize(SurfaceItem.SizeToSurface)
-
-                // process defered visible change after mapped
-                // TODO whatif layersurface set exclusive focus?
-                if (waylandSurface && waylandSurface.isActivated)
-                    Helper.activatedSurface = surface
             } else {
                 Helper.cancelMoveResize(surface)
             }
