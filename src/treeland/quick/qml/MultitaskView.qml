@@ -182,6 +182,7 @@ Item {
                         }
                     }
                     Item {
+                        id: workspacesListContainer
                         Layout.preferredHeight: outputPlacementItem.height * .2
                         Layout.preferredWidth: parent.width
                         Layout.alignment: Qt.AlignHCenter
@@ -216,131 +217,142 @@ Item {
                             }
                         }
                     }
-                    Item {
+                    Loader {
                         id: surfacesGridView
                         Layout.fillHeight: true
                         Layout.fillWidth: true
                         Layout.margins: 30
 
-                        FilterProxyModel {
-                            id: outputProxy
-                            sourceModel: root.model
-                            property bool initialized: false
-                            filterAcceptsRow: (d) => {
-                                const item = d.item
-                                if (!(item instanceof SurfaceItem))
-                                    return false
-                                return item.waylandSurface.surface.primaryOutput === modelData.output
-                            }
-                            Component.onCompleted: {
-                                initialized = true  // TODO better initialize timing
-                                invalidate()
-                                grid.calcLayout()
-                            }
-                            onSourceModelChanged: {
-                                invalidate()
-                                if (initialized) grid.calcLayout()
-                            }
+                        active: false
+                        Component.onCompleted: {
+                            // must after wslist's height stablized, so that surfaces animation is initialized correctly
+                            active = true
                         }
 
-                        EQHGrid {
-                            id: grid
-                            anchors.fill: parent
-                            model: outputProxy
-                            minH: 100
-                            maxH: parent.height
-                            maxW: parent.width
-                            availH: parent.height
-                            availW: parent.width
-                            getRatio: (d) => d.item.width / d.item.height
-                            delegate: Item {
-                                    property SurfaceItem source: modelData
-
-                                    property real ratio: source.width / source.height
-                                    onRatioChanged: {
+                        sourceComponent: Component {
+                            Item {
+                                anchors.fill: parent
+                                FilterProxyModel {
+                                    id: outputProxy
+                                    sourceModel: root.model
+                                    property bool initialized: false
+                                    filterAcceptsRow: (d) => {
+                                        const item = d.item
+                                        if (!(item instanceof SurfaceItem))
+                                            return false
+                                        return item.waylandSurface.surface.primaryOutput === modelData.output
+                                    }
+                                    Component.onCompleted: {
+                                        initialized = true  // TODO better initialize timing
+                                        invalidate()
                                         grid.calcLayout()
                                     }
-
-                                    property var initialState
-                                    property real animRatio: 1
-                                    function conv(y, item = parent) { // convert to outputPlacementItem's coord
-                                        return mapToItem(outputPlacementItem, mapFromItem(item, 0, y)).y
-                                    }
-                                    onYChanged: {
-                                        // ori * ratio(y=destY) = destw, ori * ratio(y=oriY) = ori
-                                        const destW = 100
-                                        const destY = conv(workspacesList.height, workspacesList)
-                                        const deltY = Math.max(conv(Math.min(y, initialState.y)) - destY, 0)
-                                        const fullY = conv(0) - destY
-                                        animRatio = ( (( fullY - deltY) / fullY) * (destW - initialState.width) + initialState.width) / initialState.width
-                                    }
-
-                                    width: displayWidth * animRatio
-                                    height: width * source.height / source.width
-                                    clip: true
-                                    z: drg.active ? 1 : 0   // dragged item should float
-                                    property bool highlighted: dragManager.item == this || (!dragManager.item && hvhdlr.hovered)
-                                    HoverHandler {
-                                        id: hvhdlr
-                                    }
-                                    TapHandler {
-                                        onTapped: root.exit(source)
-                                    }
-                                    DragHandler {
-                                        id: drg
-                                        property var curState
-                                        onActiveChanged: if (active) {
-                                            dragManager.item = parent
-                                            initialState = {x: parent.x, y: parent.y, width: parent.width}
-                                        } else {
-                                            if (dragManager.accept) {
-                                                dragManager.accept()
-                                            } else {
-                                                parent.x = initialState.x
-                                                parent.y = initialState.y
-                                                parent.animRatio = 1
-                                            }
-                                            dragManager.item = null
-                                        }
-                                    }
-                                    Rectangle {
-                                        anchors.fill: parent
-                                        color: "transparent"
-                                        border.width: highlighted ? 2 : 0
-                                        border.color: "blue"
-                                        radius: 8
-                                    }
-                                    ShaderEffectSource {
-                                        anchors {
-                                            fill: parent
-                                            margins: 3
-                                        }
-                                        live: true
-                                        // no hidesource, may conflict with workspace thumb
-                                        smooth: true
-                                        sourceItem: source
-                                    }
-                                    Control {
-                                        id: titleBox
-                                        anchors {
-                                            bottom: parent.bottom
-                                            horizontalCenter: parent.horizontalCenter
-                                            margins: 10
-                                        }
-                                        width: Math.min(implicitContentWidth + 2 * padding, parent.width * .7)
-                                        padding: 10
-                                        visible: highlighted
-                                        
-                                        contentItem: Text {
-                                            text: source.waylandSurface.title
-                                            elide: Qt.ElideRight
-                                        }
-                                        background: Rectangle {
-                                            color: Qt.rgba(255, 255, 255, .2)
-                                            radius: 5
-                                        }
+                                    onSourceModelChanged: {
+                                        invalidate()
+                                        if (initialized) grid.calcLayout()
                                     }
                                 }
+
+                                EQHGrid {
+                                    id: grid
+                                    anchors.fill: parent
+                                    model: outputProxy
+                                    minH: 100
+                                    maxH: parent.height
+                                    maxW: parent.width
+                                    availH: parent.height
+                                    availW: parent.width
+                                    getRatio: (d) => d.item.width / d.item.height
+                                    delegate: Item {
+                                            property SurfaceItem source: modelData
+
+                                            property real ratio: source.width / source.height
+                                            onRatioChanged: {
+                                                grid.calcLayout()
+                                            }
+
+                                            property var initialState
+                                            property real animRatio: 1
+                                            function conv(y, item = parent) { // convert to outputPlacementItem's coord
+                                                return mapToItem(outputPlacementItem, mapFromItem(item, 0, y)).y
+                                            }
+                                            onYChanged: {
+                                                // ori * ratio(y=destY) = destw, ori * ratio(y=oriY) = ori
+                                                const destW = 100
+                                                const destY = conv(workspacesList.height, workspacesList)
+                                                const deltY = Math.max(conv(Math.min(y, initialState.y)) - destY, 0)
+                                                const fullY = conv(0) - destY
+                                                animRatio = ( (( fullY - deltY) / fullY) * (destW - initialState.width) + initialState.width) / initialState.width
+                                            }
+
+                                            width: displayWidth * animRatio
+                                            height: width * source.height / source.width
+                                            clip: true
+                                            z: drg.active ? 1 : 0   // dragged item should float
+                                            property bool highlighted: dragManager.item == this || (!dragManager.item && hvhdlr.hovered)
+                                            HoverHandler {
+                                                id: hvhdlr
+                                            }
+                                            TapHandler {
+                                                onTapped: root.exit(source)
+                                            }
+                                            DragHandler {
+                                                id: drg
+                                                property var curState
+                                                onActiveChanged: if (active) {
+                                                    dragManager.item = parent
+                                                    initialState = {x: parent.x, y: parent.y, width: parent.width}
+                                                } else {
+                                                    if (dragManager.accept) {
+                                                        dragManager.accept()
+                                                    } else {
+                                                        parent.x = initialState.x
+                                                        parent.y = initialState.y
+                                                        parent.animRatio = 1
+                                                    }
+                                                    dragManager.item = null
+                                                }
+                                            }
+                                            Rectangle {
+                                                anchors.fill: parent
+                                                color: "transparent"
+                                                border.width: highlighted ? 2 : 0
+                                                border.color: "blue"
+                                                radius: 8
+                                            }
+                                            ShaderEffectSource {
+                                                anchors {
+                                                    fill: parent
+                                                    margins: 3
+                                                }
+                                                live: true
+                                                // no hidesource, may conflict with workspace thumb
+                                                smooth: true
+                                                sourceItem: source
+                                            }
+                                            Control {
+                                                id: titleBox
+                                                anchors {
+                                                    bottom: parent.bottom
+                                                    horizontalCenter: parent.horizontalCenter
+                                                    margins: 10
+                                                }
+                                                width: Math.min(implicitContentWidth + 2 * padding, parent.width * .7)
+                                                padding: 10
+                                                visible: highlighted
+                                                
+                                                contentItem: Text {
+                                                    text: source.waylandSurface.title
+                                                    elide: Qt.ElideRight
+                                                }
+                                                background: Rectangle {
+                                                    color: Qt.rgba(255, 255, 255, .2)
+                                                    radius: 5
+                                                }
+                                            }
+                                        }
+                                }
+                            }
                         }
                     }
                 }

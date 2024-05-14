@@ -26,16 +26,27 @@ Item {
             required property var modelData
             property var internalData: pos[index]
             property int globalIndex: index
-            property real displayWidth: internalData.dw
-            active: internalData
+            property real displayWidth: modelData.width
+            property bool initialized: false
+            property bool actv: initialized && pos.length > index
             sourceComponent: root.delegate
-            onInternalDataChanged: if (internalData) {
+            function initialize() {
+                return mapFromItem(modelData, 0, 0)
+            }
+            x: { return initialize().x }
+            y: { return initialize().y }
+            z: -index
+            onInternalDataChanged: if (internalData && internalData.dw && initialized) {
                 x = internalData.dx
                 y = internalData.dy
                 displayWidth = internalData.dw
             }
-            Behavior on x { enabled: active; NumberAnimation { duration: 300}}
-            Behavior on y { enabled: active; NumberAnimation { duration: 300}}
+            Behavior on x { enabled: actv; NumberAnimation { duration: 250; easing.type: Easing.OutCubic }}
+            Behavior on y { enabled: actv; NumberAnimation { duration: 250; easing.type: Easing.OutCubic }}
+            Behavior on displayWidth { enabled: actv; NumberAnimation { duration: 250; easing.type: Easing.OutCubic }}
+            Component.onCompleted: {
+                initialized = true
+            }
         }
         // caution: repeater's remove may happen after calclayout, so last elem got null and some got wrong sourceitem
         onItemAdded: {
