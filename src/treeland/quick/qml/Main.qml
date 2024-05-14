@@ -134,7 +134,6 @@ Item {
 
             onSurfaceAdded: function(surface) {
                 QmlHelper.xwaylandSurfaceManager.add({waylandSurface: surface, workspaceId: stackLayout.item.currentWorkspaceId})
-                QmlHelper.xwaylandSurfaceManager.add({waylandSurface: surface})
                 treelandForeignToplevelManager.add(surface)
             }
             onSurfaceRemoved: function(surface) {

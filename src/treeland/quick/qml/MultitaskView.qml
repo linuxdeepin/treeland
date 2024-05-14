@@ -203,7 +203,7 @@ Item {
                                 margins: 20
                             }
                             height: 80
-                            width: height
+                            width: 80
                             icon.name: "list_add"
                             icon.height: height
                             icon.width: width
