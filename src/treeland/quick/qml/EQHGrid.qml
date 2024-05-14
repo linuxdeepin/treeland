@@ -16,6 +16,8 @@ Item {
     
     property int itemVerticalPadding: 0
     property int spacing: 8
+    property bool enterAnimationEnabled: false
+    property bool enterAnimationFinished: false
 
     property var pos: []
 
@@ -28,7 +30,7 @@ Item {
             property int globalIndex: index
             property real displayWidth: modelData.width
             property bool initialized: false
-            property bool actv: initialized && pos.length > index
+            property bool actv: root.enterAnimationEnabled && !root.enterAnimationFinished && initialized && pos.length > index
             sourceComponent: root.delegate
             function initialize() {
                 return mapFromItem(modelData, 0, 0)
@@ -43,7 +45,15 @@ Item {
             }
             Behavior on x { enabled: actv; NumberAnimation { duration: 250; easing.type: Easing.OutCubic }}
             Behavior on y { enabled: actv; NumberAnimation { duration: 250; easing.type: Easing.OutCubic }}
-            Behavior on displayWidth { enabled: actv; NumberAnimation { duration: 250; easing.type: Easing.OutCubic }}
+            Behavior on displayWidth {
+                enabled: actv
+                SequentialAnimation {
+                    NumberAnimation { duration: 250; easing.type: Easing.OutCubic }
+                    ScriptAction {
+                        script: root.enterAnimationFinished = true
+                    }
+                }
+            }
             Component.onCompleted: {
                 initialized = true
             }

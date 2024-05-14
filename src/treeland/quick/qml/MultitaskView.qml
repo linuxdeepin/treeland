@@ -263,6 +263,7 @@ Item {
                                     availH: parent.height
                                     availW: parent.width
                                     getRatio: (d) => d.item.width / d.item.height
+                                    enterAnimationEnabled: true
                                     delegate: Item {
                                             property SurfaceItem source: modelData
 
