@@ -206,7 +206,10 @@ void WSurfacePrivate::setSubsurface(QWSubsurface *newSubsurface)
     subsurface = newSubsurface;
     QObject::connect(subsurface, &QWSubsurface::destroyed, q, &WSurface::isSubsurfaceChanged);
 
-    Q_EMIT q->isSubsurfaceChanged();
+    if (isSubsurface != !subsurface.isNull()){
+        isSubsurface = !subsurface.isNull();
+        Q_EMIT q->isSubsurfaceChanged();
+    }
 }
 
 void WSurfacePrivate::setHasSubsurface(bool newHasSubsurface)
@@ -393,7 +396,7 @@ WOutput *WSurface::primaryOutput() const
 bool WSurface::isSubsurface() const
 {
     W_DC(WSurface);
-    return d->subsurface;
+    return d->isSubsurface;
 }
 
 bool WSurface::hasSubsurface() const
