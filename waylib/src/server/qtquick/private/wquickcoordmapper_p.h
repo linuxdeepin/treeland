@@ -65,8 +65,6 @@ public:
 
 private:
     void updatePosition();
-
-    WQuickObserver *m_target;
 };
 
 WAYLIB_SERVER_END_NAMESPACE

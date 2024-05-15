@@ -8,6 +8,34 @@
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
+class WQuickCoordMapperPrivate : public QQuickItemPrivate
+{
+public:
+    WQuickCoordMapperPrivate(WQuickObserver *target)
+        : target(target)
+    {
+    }
+
+    bool transformChanged(QQuickItem *transformedItem) override {
+        Q_Q(WQuickCoordMapper);
+        q->updatePosition();
+
+        return QQuickItemPrivate::transformChanged(transformedItem);
+    }
+
+    static WQuickCoordMapperPrivate *get(WQuickCoordMapper *item) {
+        return item->d_func();
+    }
+
+    static const WQuickCoordMapperPrivate *get(const WQuickCoordMapper *item) {
+        return item->d_func();
+    }
+
+    WQuickObserver *target;
+
+    Q_DECLARE_PUBLIC(WQuickCoordMapper)
+};
+
 WQuickCoordMapperHelper::WQuickCoordMapperHelper(QQuickItem *target)
     : QObject(target)
     , m_target(target)
@@ -18,7 +46,7 @@ WQuickCoordMapperHelper::WQuickCoordMapperHelper(QQuickItem *target)
 WQuickCoordMapper *WQuickCoordMapperHelper::get(WQuickObserver *target)
 {
     for (auto i : list) {
-        if (i->m_target == target)
+        if (WQuickCoordMapperPrivate::get(i)->target == target)
             return i;
     }
 
@@ -51,22 +79,8 @@ WQuickCoordMapperHelper *WQuickCoordMapperAttached::helper() const
     return helper;
 }
 
-class WQuickCoordMapperPrivate : public QQuickItemPrivate
-{
-public:
-    bool transformChanged(QQuickItem *transformedItem) override {
-        Q_Q(WQuickCoordMapper);
-        q->updatePosition();
-
-        return QQuickItemPrivate::transformChanged(transformedItem);
-    }
-
-    Q_DECLARE_PUBLIC(WQuickCoordMapper)
-};
-
 WQuickCoordMapper::WQuickCoordMapper(WQuickObserver *target, QQuickItem *parent)
-    : QQuickItem(*new WQuickCoordMapperPrivate(), parent)
-    , m_target(target)
+    : QQuickItem(*new WQuickCoordMapperPrivate(target), parent)
 {
     setFlag(QQuickItem::ItemObservesViewport);
 
@@ -79,9 +93,11 @@ WQuickCoordMapper::WQuickCoordMapper(WQuickObserver *target, QQuickItem *parent)
 
 void WQuickCoordMapper::updatePosition()
 {
+    Q_D(WQuickCoordMapper);
+
     auto parent = parentItem();
     Q_ASSERT(parent);
-    const QPointF &pos = m_target->globalPosition();
+    const QPointF &pos = d->target->globalPosition();
     setPosition(parent->mapFromGlobal(pos));
 }
 
