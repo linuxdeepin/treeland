@@ -60,7 +60,6 @@ FocusScope {
             Helper.unregisterExclusiveZone(waylandSurface)
             waylandSurface.surface.leaveOutput(output)
             Helper.onSurfaceLeaveOutput(waylandSurface, surfaceItem, output)
-            waylandSurface.closed()
         }
     }
 
@@ -160,7 +159,7 @@ FocusScope {
             anchors.right = right ? root.outputCoordMapper.right : undefined
             anchors.horizontalCenter = (left || right) ? undefined : root.outputCoordMapper.horizontalCenter;
         } else {
-            console.warn('No outputCoordMapper',root.output)
+            console.warn('No outputCoordMapper', root.output)
         }
         // Setting anchors may change the container size which should keep same with surfaceItem
         if (!anchorWidth)
@@ -217,6 +216,11 @@ FocusScope {
     }
 
     Component.onCompleted: {
+        if (!root.outputCoordMapper) {
+            console.warn('No outputCoordMapper', root.output)
+            waylandSurface.closed()
+            return
+        }
         refreshAnchors()
         refreshMargin()
         configureSurfaceSize()
