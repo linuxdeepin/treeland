@@ -34,6 +34,7 @@ public:
 
     void init();
     void connect();
+    void instantRelease();    // release qwobject etc.
     void updateOutputs();
     void setPrimaryOutput(WOutput *output);
     void setBuffer(QW_NAMESPACE::QWBuffer *newBuffer);

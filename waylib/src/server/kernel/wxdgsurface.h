@@ -57,6 +57,9 @@ public:
 
     QString title() const override;
     QString appId() const override;
+    
+    //release resources requiring instant release, then QObject::deleteLater
+    void deleteLater();
 
 public Q_SLOTS:
     void setResizeing(bool resizeing) override;

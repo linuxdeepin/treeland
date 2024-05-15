@@ -35,9 +35,7 @@ WSurfacePrivate::WSurfacePrivate(WSurface *qq, QWSurface *handle)
 
 WSurfacePrivate::~WSurfacePrivate()
 {
-    if (handle)
-        handle->setData(nullptr, nullptr);
-
+    instantRelease();
     if (buffer)
         buffer->unlock();
 }
@@ -459,6 +457,26 @@ void WSurface::unmap()
 {
     W_D(WSurface);
     wlr_surface_unmap(d->nativeHandle());
+}
+
+void WSurface::deleteLater()
+{
+    W_D(WSurface);
+    d->instantRelease();
+    QObject::deleteLater();
+}
+
+void WSurfacePrivate::instantRelease()
+{
+    W_Q(WSurface);
+    if (handle) {
+        handle->setData(nullptr, nullptr);
+        handle->disconnect(q);
+        subsurface->disconnect(q);
+        for (auto o : outputs)
+            o->disconnect(q);
+        handle = nullptr;
+    }
 }
 
 WAYLIB_SERVER_END_NAMESPACE

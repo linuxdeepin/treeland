@@ -44,6 +44,7 @@ class WAYLIB_SERVER_EXPORT WLayerSurface : public WToplevelSurface, public WObje
 public:
     explicit WLayerSurface(QW_NAMESPACE::QWLayerSurfaceV1 *handle, QObject *parent = nullptr);
     ~WLayerSurface();
+    void deleteLater();
 
     enum class LayerType {
         Background = 0,

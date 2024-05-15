@@ -45,6 +45,8 @@ public:
     void connect();
     void updatePosition();
 
+    void instantRelease();
+
     W_DECLARE_PUBLIC(WXdgSurface)
 
     QPointer<QWXdgSurface> handle;
@@ -73,7 +75,26 @@ WXdgSurfacePrivate::~WXdgSurfacePrivate()
 {
     if (handle)
         handle->setData(nullptr, nullptr);
-    surface->removeAttachedData<WXdgSurface>();
+    instantRelease();
+}
+
+void WXdgSurfacePrivate::instantRelease()
+{
+    if (!surface)
+        return;
+    W_Q(WXdgSurface);
+    handle->disconnect(q);
+    if (auto toplevel = handle->topToplevel())
+        toplevel->disconnect(q);
+    surface->deleteLater();
+    surface = nullptr;
+}
+
+void WXdgSurface::deleteLater()
+{
+    W_D(WXdgSurface);
+    d->instantRelease();
+    QObject::deleteLater();
 }
 
 void WXdgSurfacePrivate::on_configure(wlr_xdg_surface_configure *event)

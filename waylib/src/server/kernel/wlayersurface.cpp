@@ -49,6 +49,7 @@ public:
     void init();
     void connect();
     void updatePosition();
+    void instantRelease();
 
     bool setDesiredSize(QSize newSize);
     bool setLayer(WLayerSurface::LayerType layer);
@@ -87,7 +88,18 @@ WLayerSurfacePrivate::~WLayerSurfacePrivate()
 {
     if (handle)
         handle->setData(nullptr, nullptr);
-    surface->removeAttachedData<WLayerSurface>();
+    instantRelease();
+}
+
+void WLayerSurfacePrivate::instantRelease()
+{
+    if (!surface)
+        return;
+    W_Q(WLayerSurface);
+    handle->disconnect(q);
+    handle->surface()->disconnect(q);
+    surface->deleteLater();
+    surface = nullptr;
 }
 
 void WLayerSurfacePrivate::init()
@@ -255,6 +267,12 @@ WLayerSurface::WLayerSurface(QWLayerSurfaceV1 *handle, QObject *parent)
 WLayerSurface::~WLayerSurface()
 {
 
+}
+
+void WLayerSurface::deleteLater()
+{
+    d_func()->instantRelease();
+    QObject::deleteLater();
 }
 
 bool WLayerSurface::isPopup() const
