@@ -593,6 +593,8 @@ void WSurfaceItem::setSurface(WSurface *surface)
             initSurface();
     }
 
+    // TODO: reset subsurfaces?
+
     if (!d->surface)
         releaseResources();
 
@@ -880,10 +882,10 @@ void WSurfaceItem::releaseResources()
     if (!d->surfaceFlags.testFlag(DontCacheLastBuffer)) {
         for (auto item : d->subsurfaces) {
             item->releaseResources();
-            // Don't auto destroy subsurfaes's items, ensure save the
             // subsurface's contents at the last frame buffer.
-            QObject::disconnect(item->surface(), &QWSurface::destroyed,
-                                item, &WSurfaceItem::deleteLater);
+            // AutoDestroy: disconnects (subsurfaceItem.surface, destroyed, this, lambda{deleteLater})
+            bool disconnAutoDestroy = QObject::disconnect(item->surface(), &WSurface::destroyed, this, nullptr);
+            Q_ASSERT(disconnAutoDestroy);
         }
     } else {
         for (auto item : d->subsurfaces)
@@ -1194,8 +1196,10 @@ WSurfaceItem *WSurfaceItemPrivate::ensureSubsurfaceItem(WSurface *subsurfaceSurf
     // will disable this connection at parent WSurfaceItem::releaseResources to save the
     // parent WSurface last frame, the last frame contents should include its subsurfaces's
     // contents.
+    // AutoDestroy: Connect to this(parent)'s lambda since the autodestroy is managed by parent,
+    // avoids disconnected with all slots on subsurfaceItem in subsurface's releaseResources
     QObject::connect(subsurfaceSurface, &QWSurface::destroyed,
-                     surfaceItem, &WSurfaceItem::deleteLater, Qt::QueuedConnection);
+                    q, [this,surfaceItem]{ surfaceItem->deleteLater(); }, Qt::QueuedConnection);
     surfaceItem->setDelegate(delegate);
     surfaceItem->setFlags(surfaceFlags);
     surfaceItem->setSurface(subsurfaceSurface);
