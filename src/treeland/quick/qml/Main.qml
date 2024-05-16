@@ -331,22 +331,12 @@ Item {
                     }
                 }
             }
-
-            Greeter {
-                id: greeter
-                z: 1
-                visible: { visible = !TreeLand.testMode }
-                enabled: visible
-                focus: enabled
-                anchors.fill: renderWindow.activeOutputDelegate
-            }
         }
 
         FocusScope {
             id: workspaceLoader
             objectName: "workspaceLoader"
             anchors.fill: parent
-            visible: !greeter.visible
             enabled: visible
             focus: enabled
             ColumnLayout {
@@ -376,6 +366,19 @@ Item {
             }
         }
 
+        Repeater {
+            model: QmlHelper.layout.outputs
+            delegate: Loader {
+                property var output: modelData.output.OutputItem.item
+                property CoordMapper outputCoordMapper: this.CoordMapper.helper.get(output)
+                active: !TreeLand.testMoe
+                visible: renderWindow.activeOutputDelegate === outputDelegate
+                anchors.fill: outputCoordMapper
+                sourceComponent: Greeter {
+                    id: greeter
+                    focus: true
+                    anchors.fill: parent
+                }
             }
         }
 
