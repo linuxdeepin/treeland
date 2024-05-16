@@ -900,7 +900,8 @@ void WSurfaceItem::releaseResources()
             // subsurface's contents at the last frame buffer.
             // AutoDestroy: disconnects (subsurfaceItem.surface, destroyed, this, lambda{deleteLater})
             bool disconnAutoDestroy = QObject::disconnect(item->surface(), &WSurface::destroyed, this, nullptr);
-            Q_ASSERT(disconnAutoDestroy);
+            Q_ASSERT( disconnAutoDestroy || item->property("_autoDestroyReleased").toBool() );
+            item->setProperty("_autoDestroyReleased", true);
         }
     } else {
         for (auto item : d->subsurfaces)
