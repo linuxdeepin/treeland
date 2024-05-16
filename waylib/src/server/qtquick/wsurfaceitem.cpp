@@ -249,6 +249,7 @@ public:
         updateFrameDoneConnection();
         updateSurfaceState();
         tp()->updateTexture();
+        q->rendered = true;
     }
 
     void updateFrameDoneConnection() {
