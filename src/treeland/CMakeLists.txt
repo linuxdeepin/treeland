@@ -47,6 +47,17 @@ install(TARGETS treeland RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}")
 
 pkg_check_modules(Systemd REQUIRED IMPORTED_TARGET libsystemd)
 
+set_source_files_properties("${CMAKE_SOURCE_DIR}/data/interfaces/org.freedesktop.DisplayManager.xml" PROPERTIES
+    NO_NAMESPACE ON
+    CLASSNAME DisplayManager
+)
+set_source_files_properties("${CMAKE_SOURCE_DIR}/data/interfaces/org.freedesktop.DisplayManager.Session.xml" PROPERTIES
+    NO_NAMESPACE ON
+    CLASSNAME DisplaySession
+)
+
+qt_add_dbus_interface(DBUS_INTERFACE "${CMAKE_SOURCE_DIR}/data/interfaces/org.freedesktop.DisplayManager.xml" DisplayManager)
+qt_add_dbus_interface(DBUS_INTERFACE "${CMAKE_SOURCE_DIR}/data/interfaces/org.freedesktop.DisplayManager.Session.xml" DisplayManagerSession)
 qt_add_dbus_interface(DBUS_INTERFACE "${CMAKE_SOURCE_DIR}/data/dbus/org.deepin.compositor1.xml" "DBusCompositor1")
 
 qt_add_executable(treeland-sd

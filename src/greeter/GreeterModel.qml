@@ -47,6 +47,10 @@ Item {
         id: proxy
         sessionModel: sessionModel
         userModel: userModel
+
+        Component.onCompleted: {
+            proxy.init();
+        }
     }
 
     LogoProvider {

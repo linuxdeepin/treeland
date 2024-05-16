@@ -21,6 +21,7 @@
 #define SDDM_GREETERPROXY_H
 
 #include <QObject>
+#include <QDBusObjectPath>
 
 class QLocalSocket;
 
@@ -67,10 +68,10 @@ public slots:
     void suspend();
     void hibernate();
     void hybridSleep();
+    void init();
 
     void login(const QString &user, const QString &password, int sessionIndex) const;
     void activateUser(const QString &user);
-    
     void unlock(const QString &user, const QString &password);
 
 private slots:
@@ -78,6 +79,8 @@ private slots:
     void disconnected();
     void readyRead();
     void error();
+    void onSessionAdded(const QDBusObjectPath &session);
+    void onSessionRemoved(const QDBusObjectPath &session);
 
 signals:
     void informationMessage(const QString &message);

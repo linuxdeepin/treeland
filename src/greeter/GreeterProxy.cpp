@@ -25,6 +25,9 @@
 #include "SocketWriter.h"
 #include "UserModel.h"
 
+#include "DisplayManager.h"
+#include "DisplayManagerSession.h"
+
 #include <QLocalSocket>
 #include <QGuiApplication>
 #include <QCommandLineOption>
@@ -38,6 +41,7 @@ public:
     SessionModel *sessionModel { nullptr };
     UserModel *userModel { nullptr };
     QLocalSocket *socket { nullptr };
+    DisplayManager *displayManager { nullptr };
     QString hostName;
     bool canPowerOff { false };
     bool canReboot { false };
@@ -64,6 +68,8 @@ GreeterProxy::GreeterProxy(QObject *parent)
     if (server.isEmpty()) {
         return;
     }
+
+    d->displayManager = new DisplayManager("org.freedesktop.DisplayManager", "/org/freedesktop/DisplayManager", QDBusConnection::systemBus(), this);
 
     d->socket = new QLocalSocket(this);
     // connect signals
@@ -146,6 +152,16 @@ void GreeterProxy::hybridSleep() {
     SocketWriter(d->socket) << quint32(GreeterMessages::HybridSleep);
 }
 
+void GreeterProxy::init() {
+    connect(d->displayManager, &DisplayManager::SessionAdded, this, &GreeterProxy::onSessionAdded);
+    connect(d->displayManager, &DisplayManager::SessionRemoved, this, &GreeterProxy::onSessionRemoved);
+
+    auto sessions = d->displayManager->sessions();
+    for (auto session : sessions) {
+        onSessionAdded(session);
+    }
+}
+
 void GreeterProxy::login(const QString &user, const QString &password, const int sessionIndex) const {
     if (!d->sessionModel) {
         // log error
@@ -191,6 +207,20 @@ void GreeterProxy::disconnected() {
 
 void GreeterProxy::error() {
     qCritical() << "Socket error: " << d->socket->errorString();
+}
+
+void GreeterProxy::onSessionAdded(const QDBusObjectPath &session)
+{
+    DisplaySession s(d->displayManager->service(), session.path(), QDBusConnection::systemBus());
+
+    userModel()->updateUserLoginState(s.userName(), true);
+}
+
+void GreeterProxy::onSessionRemoved(const QDBusObjectPath &session)
+{
+    DisplaySession s(d->displayManager->service(), session.path(), QDBusConnection::systemBus());
+
+    userModel()->updateUserLoginState(s.userName(), false);
 }
 
 void GreeterProxy::readyRead() {
@@ -265,20 +295,6 @@ void GreeterProxy::readyRead() {
 
                 qDebug() << "Information Message received from daemon: " << message;
                 emit informationMessage(message);
-            }
-            break;
-            case DaemonMessages::WaylandSocketCreated: {
-                QString user;
-                input >> user;
-
-                userModel()->updateUserLoginState(user, true);
-            }
-            break;
-            case DaemonMessages::WaylandSocketDeleted: {
-                QString user;
-                input >> user;
-
-                userModel()->updateUserLoginState(user, false);
             }
             break;
             case DaemonMessages::SwitchToGreeter: {

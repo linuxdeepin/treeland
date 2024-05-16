@@ -406,7 +406,8 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *watched, QInputEvent *even
     if (event->type() == QEvent::KeyPress) {
         auto kevent = static_cast<QKeyEvent*>(event);
         if (QKeySequence(kevent->keyCombination()) == QKeySequence::Quit) {
-            qApp->quit();
+            // NOTE: 133 exitcode is reset DDM restart limit.
+            qApp->exit(133);
             return true;
         }
     }
