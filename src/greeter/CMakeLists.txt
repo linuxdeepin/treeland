@@ -18,6 +18,24 @@ find_package(QT NAMES Qt6 REQUIRED COMPONENTS Core)
 find_package(Dtk6 REQUIRED COMPONENTS SystemSettings Declarative)
 find_package(DDM REQUIRED COMPONENTS Auth)
 
+set_source_files_properties("${CMAKE_SOURCE_DIR}/data/interfaces/org.freedesktop.DisplayManager.xml" PROPERTIES
+    NO_NAMESPACE ON
+    CLASSNAME DisplayManager
+)
+set_source_files_properties("${CMAKE_SOURCE_DIR}/data/interfaces/org.freedesktop.DisplayManager.Seat.xml" PROPERTIES
+    NO_NAMESPACE ON
+    CLASSNAME DisplaySeat
+)
+
+set_source_files_properties("${CMAKE_SOURCE_DIR}/data/interfaces/org.freedesktop.DisplayManager.Session.xml" PROPERTIES
+    NO_NAMESPACE ON
+    CLASSNAME DisplaySession
+)
+
+qt_add_dbus_interface(DDM_DBUS_SOURCES "${CMAKE_SOURCE_DIR}/data/interfaces/org.freedesktop.DisplayManager.xml"          DisplayManager)
+qt_add_dbus_interface(DDM_DBUS_SOURCES "${CMAKE_SOURCE_DIR}/data/interfaces/org.freedesktop.DisplayManager.Seat.xml"     DisplayManagerSeat)
+qt_add_dbus_interface(DDM_DBUS_SOURCES "${CMAKE_SOURCE_DIR}/data/interfaces/org.freedesktop.DisplayManager.Session.xml"  DisplayManagerSession)
+
 set(QML_IMPORT_PATH ${QML_IMPORT_PATH} ${CMAKE_CURRENT_BINARY_DIR}/ CACHE STRING "" FORCE)
 
 set_source_files_properties(GreeterModel.qml PROPERTIES
@@ -49,6 +67,7 @@ qt_add_qml_module(greeterplugin
         GreeterExtensionPlugin
     SOURCES
         ${GREETER_SOURCES}
+        ${DDM_DBUS_SOURCES}
     RESOURCE_PREFIX
         /qt/qml
     QML_FILES ${QML_FILES}
