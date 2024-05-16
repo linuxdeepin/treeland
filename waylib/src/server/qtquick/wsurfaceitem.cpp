@@ -260,14 +260,18 @@ public:
     }
 
     void updateFrameDoneConnection() {
+        W_Q(WSurfaceItemContent);
+
         if (frameDoneConnection)
             QObject::disconnect(frameDoneConnection);
+        if (!q->window()) // maybe null due to item not fully initialized
+            return;
 
         // wayland protocol job should not run in rendering thread, so set context qobject to contentItem
-        frameDoneConnection = QObject::connect(q_func()->window(), &QQuickWindow::afterRendering, q_func(), [this](){
-            if (q_func()->rendered) {
+        frameDoneConnection = QObject::connect(q->window(), &QQuickWindow::afterRendering, q, [this, q](){
+            if (q->rendered) {
                 surface->notifyFrameDone();
-                q_func()->rendered = false;
+                q->rendered = false;
             }
         }); // if signal is emitted from seperated rendering thread, default QueuedConnection is used
     }
@@ -456,6 +460,9 @@ void WSurfaceItemContent::itemChange(ItemChange change, const ItemChangeData &da
 {
     QQuickItem::itemChange(change, data);
     W_D(WSurfaceItemContent);
+    if (change == QQuickItem::ItemSceneChange) {
+        d->updateFrameDoneConnection();
+    }
 }
 
 void WSurfaceItemContent::invalidateSceneGraph()
