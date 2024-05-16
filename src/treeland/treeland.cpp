@@ -9,6 +9,9 @@
 #include "SignalHandler.h"
 #include "compositor1adaptor.h"
 
+#include "DisplayManager.h"
+#include "DisplayManagerSession.h"
+
 #include <WServer>
 #include <WSurface>
 #include <WSeat>
@@ -332,7 +335,13 @@ bool TreeLand::Activate(QDBusUnixFileDescriptor _fd) {
     m_userWaylandSocket[user] = socket;
     m_userDisplayFds[user] = fd;
 
-    socket->setEnabled(true);
+    DisplayManager manager("org.freedesktop.DisplayManager", "/org/freedesktop/DisplayManager", QDBusConnection::systemBus());
+
+    const auto sessionPath = manager.lastSession();
+    if (!sessionPath.path().isEmpty()) {
+        DisplaySession session(manager.service(), sessionPath.path(), QDBusConnection::systemBus());
+        socket->setEnabled(session.userName() == user);
+    }
 
     connect(connection().interface(), &QDBusConnectionInterface::serviceUnregistered, socket.get(), [this, user] {
         m_userWaylandSocket.remove(user);
