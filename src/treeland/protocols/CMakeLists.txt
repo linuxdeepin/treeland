@@ -12,7 +12,6 @@ FILES
     personalization_manager_impl.h
     personalizationmanager.h
     shortcut_manager_impl.h
-    socket_manager_impl.h
     utils.h
     qshortcutmanager.h
 )
@@ -20,7 +19,6 @@ FILES
 target_sources(treeland-protocols PRIVATE
     foreign_toplevel_manager_impl.cpp
     shortcut_manager_impl.cpp
-    socket_manager_impl.cpp
     ext_foreign_toplevel_list_impl.cpp
     foreigntoplevelhandlev1.cpp
     foreigntoplevelmanagerv1.cpp

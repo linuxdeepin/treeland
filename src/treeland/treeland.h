@@ -3,7 +3,6 @@
 
 #pragma once
 
-#include "waylandsocketproxy.h"
 #include "quick/protocols/qwpersonalizationmanager.h"
 
 #include <QDBusContext>
@@ -25,16 +24,11 @@ struct TreeLandAppContext {
 
 class TreeLand : public QObject, protected QDBusContext {
     Q_OBJECT
-    Q_PROPERTY(WaylandSocketProxy* socketProxy READ socketProxy WRITE setSocketProxy)
     Q_PROPERTY(QuickPersonalizationManager* personalManager READ personalManager WRITE setPersonalManager)
     Q_PROPERTY(bool testMode READ testMode CONSTANT)
 
 public:
     explicit TreeLand(TreeLandAppContext context);
-
-    inline WaylandSocketProxy* socketProxy() const {
-        return m_socketProxy;
-    }
 
     inline QuickPersonalizationManager* personalManager() const {
         return m_personalManager;
@@ -58,7 +52,6 @@ private Q_SLOTS:
 
 private:
     void setup();
-    void setSocketProxy(WaylandSocketProxy *socketProxy);
     void setPersonalManager(QuickPersonalizationManager *manager);
 
 private:
@@ -66,7 +59,6 @@ private:
     QLocalSocket *m_socket;
     QLocalSocket *m_helperSocket;
     QQmlApplicationEngine *m_engine;
-    WaylandSocketProxy *m_socketProxy;
     QuickPersonalizationManager *m_personalManager;
     std::shared_ptr<WSocket> m_systemdSocket;
     QMap<QString, std::shared_ptr<Waylib::Server::WSocket>> m_userWaylandSocket;

@@ -9,8 +9,6 @@ qt_add_qml_module(treeland-quick-protocols
         outputmanagement.cpp
         foreigntoplevelmanagerv1.cpp
         shortcutmanager.cpp
-        socketmanager.cpp
-        waylandsocketproxy.cpp
         qwpersonalizationmanager.cpp
     RESOURCE_PREFIX
         /qt/qml
@@ -25,8 +23,6 @@ FILES
     outputmanagement.h
     foreigntoplevelmanagerv1.h
     shortcutmanager.h
-    socketmanager.h
-    waylandsocketproxy.h
     qwpersonalizationmanager.h
 )
 

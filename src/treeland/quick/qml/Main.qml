@@ -24,20 +24,6 @@ Item {
             id: treelandForeignToplevelManager
         }
 
-        SocketManager {
-            onNewSocket: {
-                socketProxy.newSocket(username, fd)
-            }
-        }
-
-        WaylandSocketProxy {
-            id: socketProxy
-
-            Component.onCompleted: {
-                TreeLand.socketProxy = socketProxy
-            }
-        }
-
         ExtForeignToplevelList {
             id: extForeignToplevelList
         }
@@ -390,10 +376,6 @@ Item {
             }
         }
 
-        Connections {
-            target: socketProxy
-            function onUserActivated(user) {
-                Helper.currentUser = user
             }
         }
 
