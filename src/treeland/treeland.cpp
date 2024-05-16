@@ -6,7 +6,6 @@
 #include "Messages.h"
 #include "SocketWriter.h"
 #include "helper.h"
-#include "waylandsocketproxy.h"
 #include "SignalHandler.h"
 #include "compositor1adaptor.h"
 
@@ -249,11 +248,6 @@ void TreeLand::connected() {
     DDM::SocketWriter(m_socket) << quint32(DDM::GreeterMessages::Connect);
 }
 
-void TreeLand::setSocketProxy(WaylandSocketProxy *socketProxy)
-{
-    m_socketProxy = socketProxy;
-}
-
 void TreeLand::setPersonalManager(QuickPersonalizationManager *manager)
 {
     m_personalManager = manager;
@@ -292,18 +286,13 @@ void TreeLand::readyRead() {
                 qDebug() << "Message received from daemon: Capabilities";
             }
             break;
-            case DDM::DaemonMessages::WaylandSocketDeleted: {
-                QString user;
-                input >> user;
-
-                m_socketProxy->deleteSocket(user);
-            }
-            break;
             case DDM::DaemonMessages::UserActivateMessage: {
                 QString user;
                 input >> user;
 
-                m_socketProxy->activateUser(user);
+                for (auto key : m_userWaylandSocket.keys()) {
+                    m_userWaylandSocket[key]->setEnabled(key == user);
+                }
 
                 struct passwd *pwd = getpwnam(user.toUtf8());
                 m_personalManager->setCurrentUserId(pwd->pw_uid);
