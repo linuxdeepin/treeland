@@ -5,11 +5,13 @@
 #define TREELAND_WALLPAPER_H
 
 #include <QAbstractListModel>
-#include <QQmlEngine>
 #include <QHash>
+#include <QQmlEngine>
 
 struct WallpaperCardModelPrivate;
-class WallpaperCardModel : public QAbstractListModel {
+
+class WallpaperCardModel : public QAbstractListModel
+{
     Q_OBJECT
     Q_PROPERTY(QString directory READ directory WRITE setDirectory NOTIFY directoryChanged FINAL)
     Q_PROPERTY(int currentIndex READ currentIndex WRITE setCurrentIndex NOTIFY currentIndexChanged FINAL)
@@ -17,18 +19,16 @@ class WallpaperCardModel : public QAbstractListModel {
     Q_PROPERTY(int count READ dataCount NOTIFY dataCountChanged FINAL)
     QML_ELEMENT
 public:
-    enum WallpaperCardRoles {
-        ImageSourceRole = Qt::UserRole + 1
-    };
+    enum WallpaperCardRoles { ImageSourceRole = Qt::UserRole + 1 };
     Q_ENUM(WallpaperCardRoles)
 
-    WallpaperCardModel(const WallpaperCardModel&) = delete;
-    WallpaperCardModel& operator=(const WallpaperCardModel&) = delete;
+    WallpaperCardModel(const WallpaperCardModel &) = delete;
+    WallpaperCardModel &operator=(const WallpaperCardModel &) = delete;
     WallpaperCardModel(QObject *parent = nullptr);
     ~WallpaperCardModel() override;
 
     QString directory();
-    void setDirectory(const QString& directory);
+    void setDirectory(const QString &directory);
 
     [[nodiscard]] QHash<int, QByteArray> roleNames() const override;
     [[nodiscard]] int currentIndex() const;
@@ -37,18 +37,19 @@ public:
     void setShowAll(bool enable);
     [[nodiscard]] int dataCount() const;
     [[nodiscard]] int rowCount(const QModelIndex &parent = QModelIndex()) const override;
-    [[nodiscard]] QVariant data(const QModelIndex &index, int role = Qt::DisplayRole) const override;
-    Q_INVOKABLE void append(const QString& path);
+    [[nodiscard]] QVariant data(const QModelIndex &index,
+                                int role = Qt::DisplayRole) const override;
+    Q_INVOKABLE void append(const QString &path);
     Q_INVOKABLE void remove(int index);
 
 Q_SIGNALS:
-    void directoryChanged(const QString& directory);
+    void directoryChanged(const QString &directory);
     void currentIndexChanged(int index);
     void showAllChanged(bool enable);
     void dataCountChanged(int count);
 
 private:
-    WallpaperCardModelPrivate *d {nullptr};
+    WallpaperCardModelPrivate *d{ nullptr };
 };
 
 #endif // TREELAND_WALLPAPER_H

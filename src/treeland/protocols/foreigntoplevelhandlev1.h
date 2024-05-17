@@ -4,6 +4,7 @@
 #pragma once
 
 #include <qwglobal.h>
+
 #include <QObject>
 
 struct treeland_foreign_toplevel_handle_v1;
@@ -24,12 +25,14 @@ QW_END_NAMESPACE
 
 class TreeLandDockPreviewContextV1;
 class TreeLandForeignToplevelManagerV1Private;
+
 class QW_EXPORT TreeLandForeignToplevelManagerV1 : public QObject, public QWObject
 {
     Q_OBJECT
     QW_DECLARE_PRIVATE(TreeLandForeignToplevelManagerV1)
 public:
-    inline treeland_foreign_toplevel_manager_v1 *handle() const {
+    inline treeland_foreign_toplevel_manager_v1 *handle() const
+    {
         return QWObject::handle<treeland_foreign_toplevel_manager_v1>();
     }
 
@@ -47,6 +50,7 @@ private:
 };
 
 class TreeLandForeignToplevelHandleV1Private;
+
 class TreeLandForeignToplevelHandleV1 : public QObject, public QWObject
 {
     Q_OBJECT
@@ -54,7 +58,8 @@ class TreeLandForeignToplevelHandleV1 : public QObject, public QWObject
 public:
     ~TreeLandForeignToplevelHandleV1() = default;
 
-    inline treeland_foreign_toplevel_handle_v1 *handle() const {
+    inline treeland_foreign_toplevel_handle_v1 *handle() const
+    {
         return QWObject::handle<treeland_foreign_toplevel_handle_v1>();
     }
 
@@ -89,6 +94,7 @@ private:
 
 struct treeland_dock_preview_context_v1;
 class TreeLandDockPreviewContextV1Private;
+
 class TreeLandDockPreviewContextV1 : public QObject, public QWObject
 {
     Q_OBJECT
@@ -96,7 +102,8 @@ class TreeLandDockPreviewContextV1 : public QObject, public QWObject
 public:
     ~TreeLandDockPreviewContextV1() = default;
 
-    inline treeland_dock_preview_context_v1 *handle() const {
+    inline treeland_dock_preview_context_v1 *handle() const
+    {
         return QWObject::handle<treeland_dock_preview_context_v1>();
     }
 
@@ -114,4 +121,3 @@ Q_SIGNALS:
 private:
     TreeLandDockPreviewContextV1(treeland_dock_preview_context_v1 *handle, bool isOwner);
 };
-

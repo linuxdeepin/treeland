@@ -1,42 +1,44 @@
 /***************************************************************************
-* Copyright (c) 2015-2016 Pier Luigi Fiorini <pierluigi.fiorini@gmail.com>
-* Copyright (c) 2013 Abdurrahman AVCI <abdurrahmanavci@gmail.com>
-*
-* This program is free software; you can redistribute it and/or modify
-* it under the terms of the GNU General Public License as published by
-* the Free Software Foundation; either version 2 of the License, or
-* (at your option) any later version.
-*
-* This program is distributed in the hope that it will be useful,
-* but WITHOUT ANY WARRANTY; without even the implied warranty of
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-* GNU General Public License for more details.
-*
-* You should have received a copy of the GNU General Public License
-* along with this program; if not, write to the
-* Free Software Foundation, Inc.,
-* 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
-***************************************************************************/
+ * Copyright (c) 2015-2016 Pier Luigi Fiorini <pierluigi.fiorini@gmail.com>
+ * Copyright (c) 2013 Abdurrahman AVCI <abdurrahmanavci@gmail.com>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the
+ * Free Software Foundation, Inc.,
+ * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+ ***************************************************************************/
 
 #include "SessionModel.h"
 
 #include "Configuration.h"
 
 #include <QFileInfo>
-#include <QVector>
-#include <QProcessEnvironment>
 #include <QFileSystemWatcher>
+#include <QProcessEnvironment>
+#include <QVector>
 
 using namespace DDM;
 
-class SessionModelPrivate {
+class SessionModelPrivate
+{
 public:
-    ~SessionModelPrivate() {
+    ~SessionModelPrivate()
+    {
         qDeleteAll(sessions);
         sessions.clear();
     }
 
-    int lastIndex { 0 };
+    int lastIndex{ 0 };
     QStringList displayNames;
     QVector<Session *> sessions;
 };
@@ -72,11 +74,13 @@ SessionModel::SessionModel(QObject *parent)
     watcher->addPaths(mainConfig.X11.SessionDir.get());
 }
 
-SessionModel::~SessionModel() {
+SessionModel::~SessionModel()
+{
     delete d;
 }
 
-QHash<int, QByteArray> SessionModel::roleNames() const {
+QHash<int, QByteArray> SessionModel::roleNames() const
+{
     // set role names
     QHash<int, QByteArray> roleNames;
     roleNames[DirectoryRole] = QByteArrayLiteral("directory");
@@ -89,15 +93,18 @@ QHash<int, QByteArray> SessionModel::roleNames() const {
     return roleNames;
 }
 
-int SessionModel::lastIndex() const {
+int SessionModel::lastIndex() const
+{
     return d->lastIndex;
 }
 
-int SessionModel::rowCount(const QModelIndex &parent) const {
+int SessionModel::rowCount(const QModelIndex &parent) const
+{
     return parent.isValid() ? 0 : d->sessions.length();
 }
 
-QVariant SessionModel::data(const QModelIndex &index, int role) const {
+QVariant SessionModel::data(const QModelIndex &index, int role) const
+{
     if (index.row() < 0 || index.row() >= d->sessions.count())
         return QVariant();
 
@@ -106,32 +113,34 @@ QVariant SessionModel::data(const QModelIndex &index, int role) const {
 
     // return correct value
     switch (role) {
-        case DirectoryRole:
-            return session->directory().absolutePath();
-        case FileRole:
-            return session->fileName();
-        case TypeRole:
-            return session->type();
-        case NameRole:
-            if (d->displayNames.count(session->displayName()) > 1 && session->type() == Session::WaylandSession)
-                return tr("%1 (Wayland)").arg(session->displayName());
-            return session->displayName();
-        case ExecRole:
-            return session->exec();
-        case CommentRole:
-            return session->comment();
-        default:
-            break;
+    case DirectoryRole:
+        return session->directory().absolutePath();
+    case FileRole:
+        return session->fileName();
+    case TypeRole:
+        return session->type();
+    case NameRole:
+        if (d->displayNames.count(session->displayName()) > 1
+            && session->type() == Session::WaylandSession)
+            return tr("%1 (Wayland)").arg(session->displayName());
+        return session->displayName();
+    case ExecRole:
+        return session->exec();
+    case CommentRole:
+        return session->comment();
+    default:
+        break;
     }
 
     // return empty value
     return QVariant();
 }
 
-void SessionModel::populate(Session::Type type, const QStringList &dirPaths) {
+void SessionModel::populate(Session::Type type, const QStringList &dirPaths)
+{
     // read session files
     QStringList sessions;
-    for (const auto &path: dirPaths) {
+    for (const auto &path : dirPaths) {
         QDir dir = path;
         dir.setNameFilters(QStringList() << QStringLiteral("*.desktop"));
         dir.setFilter(QDir::Files);
@@ -151,7 +160,7 @@ void SessionModel::populate(Session::Type type, const QStringList &dirPaths) {
             QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
             QString envPath = env.value(QStringLiteral("PATH"));
             const QStringList pathList = envPath.split(QLatin1Char(':'));
-            for(const QString &path : pathList) {
+            for (const QString &path : pathList) {
                 QDir pathDir(path);
                 fi.setFile(pathDir, si->tryExec());
                 if (fi.exists() && fi.isExecutable()) {

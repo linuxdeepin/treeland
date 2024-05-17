@@ -2,12 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "wallpapercardmodel.h"
+
 #include <QDir>
 #include <QFile>
 #include <QList>
 
-struct WallpaperCardModelPrivate {
-    int currentIndex {0};
+struct WallpaperCardModelPrivate
+{
+    int currentIndex{ 0 };
     QString directory;
     QStringList wallpapers;
     bool m_toggleShowAll = false;
@@ -19,13 +21,15 @@ WallpaperCardModel::WallpaperCardModel(QObject *parent)
 {
 }
 
-WallpaperCardModel::~WallpaperCardModel() {
+WallpaperCardModel::~WallpaperCardModel()
+{
     delete d;
 }
 
-QHash<int, QByteArray> WallpaperCardModel::roleNames() const {
+QHash<int, QByteArray> WallpaperCardModel::roleNames() const
+{
     // set role names
-    static auto roleNames = [](){
+    static auto roleNames = []() {
         QHash<int, QByteArray> names;
         names[ImageSourceRole] = QByteArrayLiteral("imageSource");
         return names;
@@ -41,7 +45,8 @@ void WallpaperCardModel::setCurrentIndex(int index)
     Q_EMIT layoutChanged();
 }
 
-int WallpaperCardModel::currentIndex() const {
+int WallpaperCardModel::currentIndex() const
+{
     return d->currentIndex;
 }
 
@@ -73,14 +78,15 @@ int WallpaperCardModel::rowCount(const QModelIndex &parent) const
     return dataCount();
 }
 
-QVariant WallpaperCardModel::data(const QModelIndex &index, int role) const {
+QVariant WallpaperCardModel::data(const QModelIndex &index, int role) const
+{
     if (index.row() < 0 || index.row() > d->wallpapers.count())
         return {};
 
     // return correct value
-    switch(role) {
+    switch (role) {
     case ImageSourceRole:
-        return  d->wallpapers.at(index.row());
+        return d->wallpapers.at(index.row());
     default:
         return {};
     }
@@ -93,19 +99,19 @@ QString WallpaperCardModel::directory()
     return d->directory;
 }
 
-void WallpaperCardModel::setDirectory(const QString& directory)
+void WallpaperCardModel::setDirectory(const QString &directory)
 {
     QDir dir(directory);
     dir.setSorting(QDir::Time);
     d->directory = directory;
 
-    QStringList entries = dir.entryList({"*.png", "*.jpg", "*.jpeg", "*.bmp", "*.gif"});
+    QStringList entries = dir.entryList({ "*.png", "*.jpg", "*.jpeg", "*.bmp", "*.gif" });
     for (QStringList::iterator it = entries.begin(); it != entries.end(); ++it) {
         d->wallpapers.push_back("file://" + dir.absolutePath() + "/" + *it);
     }
 }
 
-void WallpaperCardModel::append(const QString& path)
+void WallpaperCardModel::append(const QString &path)
 {
     beginInsertRows(QModelIndex(), 0, 0);
     d->wallpapers.push_front("file://" + path);

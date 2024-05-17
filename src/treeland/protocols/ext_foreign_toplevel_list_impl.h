@@ -41,16 +41,16 @@ struct ext_foreign_toplevel_handle_v1
     struct wl_resource *surface;
 };
 
-struct ext_foreign_toplevel_list_v1 *
-foreign_toplevel_list_from_resource(struct wl_resource *resource);
+struct ext_foreign_toplevel_list_v1 *foreign_toplevel_list_from_resource(
+    struct wl_resource *resource);
 void ext_foreign_toplevel_list_bind(struct wl_client *client,
                                     void *data,
                                     uint32_t version,
                                     uint32_t id);
 void ext_foreign_toplevel_list_handle_display_destroy(struct wl_listener *listener, void *data);
 
-struct ext_foreign_toplevel_list_v1 *
-ext_foreign_toplevel_list_v1_create(struct wl_display *display);
+struct ext_foreign_toplevel_list_v1 *ext_foreign_toplevel_list_v1_create(
+    struct wl_display *display);
 void ext_foreign_toplevel_list_v1_destroy(struct ext_foreign_toplevel_list_v1 *handle);
 void ext_foreign_toplevel_list_v1_toplevel(struct ext_foreign_toplevel_list_v1 *handle,
                                            struct wl_resource *resource);

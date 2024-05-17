@@ -6,15 +6,16 @@
 #include "ext-foreign-toplevel-list-server-protocol.h"
 #include "ext_foreign_toplevel_list_impl.h"
 
-#include <qwcompositor.h>
-#include <qwdisplay.h>
-#include <qwsignalconnector.h>
-#include <qwxdgshell.h>
 #include <wayland-server-core.h>
 #include <wayland-server.h>
 #include <wayland-util.h>
 #include <wxdgshell.h>
 #include <wxdgsurface.h>
+
+#include <qwcompositor.h>
+#include <qwdisplay.h>
+#include <qwsignalconnector.h>
+#include <qwxdgshell.h>
 
 #include <QDebug>
 #include <QTimer>
@@ -22,7 +23,6 @@
 #include <cstdint>
 #include <cstring>
 #include <iostream>
-
 #include <sys/socket.h>
 #include <unistd.h>
 

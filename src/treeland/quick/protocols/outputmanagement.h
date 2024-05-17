@@ -3,8 +3,9 @@
 
 #pragma once
 
-#include <qwsignalconnector.h>
 #include <wquickwaylandserver.h>
+
+#include <qwsignalconnector.h>
 
 #include <QList>
 #include <QQmlEngine>
@@ -15,7 +16,8 @@ WAYLIB_SERVER_BEGIN_NAMESPACE
 class WOutput;
 WAYLIB_SERVER_END_NAMESPACE
 
-class TreelandOutputManager : public Waylib::Server::WQuickWaylandServerInterface {
+class TreelandOutputManager : public Waylib::Server::WQuickWaylandServerInterface
+{
     Q_OBJECT
     QML_ELEMENT
     Q_PROPERTY(const char *primaryOutput READ primaryOutput WRITE setPrimaryOutput NOTIFY primaryOutputChanged)
@@ -39,7 +41,7 @@ Q_SIGNALS:
     void primaryOutputChanged();
 
 private:
-    treeland_output_manager_v1 *m_handle { nullptr };
-    QList<WAYLIB_SERVER_NAMESPACE::WOutput*> m_outputs;
+    treeland_output_manager_v1 *m_handle{ nullptr };
+    QList<WAYLIB_SERVER_NAMESPACE::WOutput *> m_outputs;
     QW_NAMESPACE::QWSignalConnector m_sc;
 };
