@@ -366,26 +366,32 @@ Item {
             }
         }
 
-        Repeater {
-            model: QmlHelper.layout.outputs
-            delegate: Loader {
-                property var output: modelData.output.OutputItem.item
-                property CoordMapper outputCoordMapper: this.CoordMapper.helper.get(output)
-                active: !TreeLand.testMoe
-                visible: renderWindow.activeOutputDelegate === outputDelegate
-                anchors.fill: outputCoordMapper
-                sourceComponent: Greeter {
-                    id: greeter
+        Loader {
+            active: !TreeLand.testMode
+            id: greeter
+            asynchronous: true
+            sourceComponent: Repeater {
+                model: QmlHelper.layout.outputs
+                delegate: Greeter {
+                    property var output: modelData.output.OutputItem.item
+                    property CoordMapper outputCoordMapper: this.CoordMapper.helper.get(output)
                     focus: true
-                    anchors.fill: parent
+                    anchors.fill: outputCoordMapper
                 }
+            }
+        }
+
+        Connections {
+            target: greeter.active ? GreeterModel : null
+            function onAnimationPlayFinished() {
+                greeter.active = false
             }
         }
 
         Connections {
             target: Helper
             function onGreeterVisibleChanged() {
-                greeter.visible = true
+                greeter.active = !TreeLand.testMode
             }
         }
 
@@ -435,7 +441,7 @@ Item {
         Connections {
             target: QmlHelper.shortcutManager
             function onScreenLocked() {
-                greeter.visible = true
+                greeter.active = !TreeLand.testMode
             }
         }
     }

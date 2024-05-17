@@ -90,20 +90,11 @@ FocusScope {
     }
 
     Connections {
-        target: GreeterModel.proxy
-        function onSwitchToGreeter() {
-            root.visible = true
-        }
-    }
-
-    Connections {
         target: GreeterModel
         function onAnimationPlayed() {
             backgroundAni.start()
         }
         function onAnimationPlayFinished() {
-            visible = false
-
             background.scale = 1.1
             background.opacity = 1
         }
