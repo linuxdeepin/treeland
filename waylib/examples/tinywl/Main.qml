@@ -182,6 +182,11 @@ Item {
                 })
             }
         }
+
+        XdgOutputManager {
+            id: xdgOutputManager
+            layout: QmlHelper.layout
+        }
     }
 
     InputMethodHelper {

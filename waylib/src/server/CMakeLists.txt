@@ -115,6 +115,7 @@ set(QTQUICK_SOURCES
     qtquick/private/wquickforeigntoplevelmanagerv1.cpp
     qtquick/private/wbufferrenderer.cpp
     qtquick/private/wrenderbuffernode.cpp
+    qtquick/private/wquickxdgoutput.cpp
 
     ${CMAKE_CURRENT_BINARY_DIR}/text-input-unstable-v1-protocol.c
 )
@@ -214,6 +215,7 @@ set(PRIVATE_HEADERS
     qtquick/private/wquickforeigntoplevelmanagerv1_p.h
     qtquick/private/wbufferrenderer_p.h
     qtquick/private/wrenderbuffernode_p.h
+    qtquick/private/wquickxdgoutput_p.h
 
     ${CMAKE_CURRENT_BINARY_DIR}/text-input-unstable-v1-protocol.h
 )
