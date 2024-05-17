@@ -10,9 +10,11 @@
 #include <qwkeyboard.h>
 
 Q_MOC_INCLUDE("winputdevice.h")
+Q_MOC_INCLUDE(<qwvirtualkeyboardv1.h>)
 
 QW_BEGIN_NAMESPACE
 class QWVirtualKeyboardV1;
+class QWVirtualKeyboardManagerV1;
 class QWKeyboard;
 QW_END_NAMESPACE
 
@@ -24,18 +26,11 @@ class WInputDevice;
 class WQuickVirtualKeyboardV1 : public QObject, public WObject
 {
     Q_OBJECT
-    QML_NAMED_ELEMENT(VirtualKeyboardV1)
-    QML_UNCREATABLE("Only created by VirtualKeyboardManagerV1 in C++")
     W_DECLARE_PRIVATE(WQuickVirtualKeyboardV1)
-    Q_PROPERTY(WInputDevice* keyboard READ keyboard CONSTANT FINAL)
-
 public:
+    explicit WQuickVirtualKeyboardV1(QW_NAMESPACE::QWVirtualKeyboardV1 *handle, QObject *parent = nullptr);
     QW_NAMESPACE::QWVirtualKeyboardV1 *handle() const;
     WInputDevice *keyboard() const;
-
-private:
-    explicit WQuickVirtualKeyboardV1(QW_NAMESPACE::QWVirtualKeyboardV1 *handle, QObject *parent = nullptr);
-    friend class WQuickVirtualKeyboardManagerV1;
 };
 
 class WQuickVirtualKeyboardManagerV1 : public WQuickWaylandServerInterface, public WObject
@@ -43,17 +38,13 @@ class WQuickVirtualKeyboardManagerV1 : public WQuickWaylandServerInterface, publ
     Q_OBJECT
     QML_NAMED_ELEMENT(VirtualKeyboardManagerV1)
     W_DECLARE_PRIVATE(WQuickVirtualKeyboardManagerV1)
-    Q_PROPERTY(QList<WQuickVirtualKeyboardV1 *> virtualKeyboards READ virtualKeyboards FINAL)
-
 public:
     explicit WQuickVirtualKeyboardManagerV1(QObject *parent = nullptr);
-    QList<WQuickVirtualKeyboardV1 *> virtualKeyboards() const;
 
 Q_SIGNALS:
-    void newVirtualKeyboard(WQuickVirtualKeyboardV1 *vk);
+    void newVirtualKeyboard(QW_NAMESPACE::QWVirtualKeyboardV1 *virtualKeyboard);
 
 private:
     void create() override;
 };
-
 WAYLIB_SERVER_END_NAMESPACE

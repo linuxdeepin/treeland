@@ -75,6 +75,8 @@ set(KERNEL_SOURCES
     kernel/wxcursorimage.cpp
     kernel/wglobal.cpp
     kernel/wsocket.cpp
+
+    ${CMAKE_CURRENT_BINARY_DIR}/text-input-unstable-v1-protocol.c
 )
 
 set(QTQUICK_SOURCES
@@ -213,6 +215,7 @@ set(PRIVATE_HEADERS
     qtquick/private/wquicktextinputv3_p.h
     qtquick/private/wquickinputmethodv2_p.h
     qtquick/private/wquickvirtualkeyboardv1_p.h
+    qtquick/private/winputmethodcommon_p.h
     qtquick/private/winputmethodhelper_p.h
     qtquick/private/wquickforeigntoplevelmanagerv1_p.h
     qtquick/private/wbufferrenderer_p.h

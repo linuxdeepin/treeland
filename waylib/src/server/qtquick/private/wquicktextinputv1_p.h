@@ -3,15 +3,14 @@
 
 #pragma once
 
-#include <wglobal.h>
-#include <wquickwaylandserver.h>
+#include "wglobal.h"
+#include "wquickwaylandserver.h"
+#include "winputmethodcommon_p.h"
 
 #include <qwglobal.h>
 
 #include <QObject>
 #include <QQmlEngine>
-
-#include <text-input-unstable-v1-protocol.h>
 
 QW_BEGIN_NAMESPACE
 class QWDisplay;
@@ -19,127 +18,185 @@ QW_END_NAMESPACE
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 struct ws_text_input_v1;
-
+struct ws_text_input_manager_v1;
 class WSurface;
 class WSeat;
-class WQuickTextInputV1Private;
-class WQuickTextInputManagerV1Private;
-
-class WQuickTextInputV1 : public QObject, public WObject
+class WTextInputV1;
+class WTextInputManagerV1Private;
+class WTextInputV1Private;
+class WTextInputManagerV1 : public QObject, public WObject
 {
     Q_OBJECT
-    W_DECLARE_PRIVATE(WQuickTextInputV1)
-    QML_NAMED_ELEMENT(TextInputV1)
-    QML_UNCREATABLE("Only created in C++ by WQuickTextInputManagerV1.")
-    Q_PROPERTY(WSeat* seat READ seat NOTIFY seatChanged FINAL)
-    Q_PROPERTY(bool active READ active NOTIFY activeChanged FINAL)
-    Q_PROPERTY(QString surroundingText READ surroundingText NOTIFY surroundingTextChanged FINAL)
-    Q_PROPERTY(quint32 surroundingTextCursor READ surroundingTextCursor NOTIFY surroundingTextChanged FINAL)
-    Q_PROPERTY(quint32 surroundingTextAnchor READ surroundingTextAnchor NOTIFY surroundingTextChanged FINAL)
-    Q_PROPERTY(ContentHint contentHint READ contentHint NOTIFY contentTypeChanged FINAL)
-    Q_PROPERTY(ContentPurpose contentPurpose READ contentPurpose NOTIFY contentTypeChanged FINAL)
-    Q_PROPERTY(QRect cursorRectangle READ cursorRectangle NOTIFY cursorRectangleChanged FINAL)
-    Q_PROPERTY(QString preferredLanguage READ preferredLanguage NOTIFY preferredLanguageChanged FINAL)
-    Q_PROPERTY(WSurface* focusedSurface READ focusedSurface NOTIFY focusedSurfaceChanged FINAL)
-
+    W_DECLARE_PRIVATE(WTextInputManagerV1)
 public:
-    enum ContentHint {
-        CH_None = ZWP_TEXT_INPUT_V1_CONTENT_HINT_NONE,
-        CH_Default = ZWP_TEXT_INPUT_V1_CONTENT_HINT_DEFAULT,
-        CH_Password = ZWP_TEXT_INPUT_V1_CONTENT_HINT_PASSWORD,
-        CH_AutoCompletion = ZWP_TEXT_INPUT_V1_CONTENT_HINT_AUTO_COMPLETION,
-        CH_AutoCorrection = ZWP_TEXT_INPUT_V1_CONTENT_HINT_AUTO_CORRECTION,
-        CH_AutoCapitalization = ZWP_TEXT_INPUT_V1_CONTENT_HINT_AUTO_CAPITALIZATION,
-        CH_Lowercase = ZWP_TEXT_INPUT_V1_CONTENT_HINT_LOWERCASE,
-        CH_Uppercase = ZWP_TEXT_INPUT_V1_CONTENT_HINT_UPPERCASE,
-        CH_Titlecase = ZWP_TEXT_INPUT_V1_CONTENT_HINT_TITLECASE,
-        CH_HiddenText = ZWP_TEXT_INPUT_V1_CONTENT_HINT_HIDDEN_TEXT,
-        CH_SensitiveData = ZWP_TEXT_INPUT_V1_CONTENT_HINT_SENSITIVE_DATA,
-        CH_Latin = ZWP_TEXT_INPUT_V1_CONTENT_HINT_LATIN,
-        CH_Multiline = ZWP_TEXT_INPUT_V1_CONTENT_HINT_MULTILINE
-    };
-    Q_ENUM(ContentHint)
-
-    enum ContentPurpose {
-        CP_Normal = ZWP_TEXT_INPUT_V1_CONTENT_PURPOSE_NORMAL,
-        CP_Alpha = ZWP_TEXT_INPUT_V1_CONTENT_PURPOSE_ALPHA,
-        CP_Digits = ZWP_TEXT_INPUT_V1_CONTENT_PURPOSE_DIGITS,
-        CP_Number = ZWP_TEXT_INPUT_V1_CONTENT_PURPOSE_NUMBER,
-        CP_Phone = ZWP_TEXT_INPUT_V1_CONTENT_PURPOSE_PHONE,
-        CP_Url = ZWP_TEXT_INPUT_V1_CONTENT_PURPOSE_URL,
-        CP_Email = ZWP_TEXT_INPUT_V1_CONTENT_PURPOSE_EMAIL,
-        CP_Name = ZWP_TEXT_INPUT_V1_CONTENT_PURPOSE_NAME,
-        CP_Password = ZWP_TEXT_INPUT_V1_CONTENT_PURPOSE_PASSWORD,
-        CP_Date = ZWP_TEXT_INPUT_V1_CONTENT_PURPOSE_DATE,
-        CP_Time = ZWP_TEXT_INPUT_V1_CONTENT_PURPOSE_TIME,
-        CP_Datetime= ZWP_TEXT_INPUT_V1_CONTENT_PURPOSE_DATETIME,
-        CP_Terminal = ZWP_TEXT_INPUT_V1_CONTENT_PURPOSE_TERMINAL
-    };
-    Q_ENUM(ContentPurpose)
-
-    enum PreeditStyle {
-        PS_Default = ZWP_TEXT_INPUT_V1_PREEDIT_STYLE_DEFAULT,
-        PS_None = ZWP_TEXT_INPUT_V1_PREEDIT_STYLE_NONE,
-        PS_Active = ZWP_TEXT_INPUT_V1_PREEDIT_STYLE_ACTIVE,
-        PS_Inactive = ZWP_TEXT_INPUT_V1_PREEDIT_STYLE_INACTIVE,
-        PS_Highlight = ZWP_TEXT_INPUT_V1_PREEDIT_STYLE_HIGHLIGHT,
-        PS_Underline = ZWP_TEXT_INPUT_V1_PREEDIT_STYLE_UNDERLINE,
-        PS_Selection = ZWP_TEXT_INPUT_V1_PREEDIT_STYLE_SELECTION,
-        PS_Incorrect = ZWP_TEXT_INPUT_V1_PREEDIT_STYLE_INCORRECT
-    };
-    Q_ENUM(PreeditStyle)
-
-    enum TextDirection {
-        TD_Auto = ZWP_TEXT_INPUT_V1_TEXT_DIRECTION_AUTO,
-        TD_Ltr = ZWP_TEXT_INPUT_V1_TEXT_DIRECTION_LTR,
-        TD_Rtl = ZWP_TEXT_INPUT_V1_TEXT_DIRECTION_RTL
-    };
-    Q_ENUM(TextDirection)
-
-    WSeat *seat() const;
-    bool active() const;
-    QString surroundingText() const;
-    quint32 surroundingTextCursor() const;
-    quint32 surroundingTextAnchor() const;
-    ContentHint contentHint() const;
-    ContentPurpose contentPurpose() const;
-    QRect cursorRectangle() const;
-    QString preferredLanguage() const;
-    WSurface *focusedSurface() const;
+    static WTextInputManagerV1 *create(QW_NAMESPACE::QWDisplay *display);
 
 Q_SIGNALS:
-    void seatChanged();
-    void activeChanged();
+    void newTextInput(WTextInputV1 *ti);
+
+private:
+    explicit WTextInputManagerV1(ws_text_input_manager_v1 *handle);
+};
+
+class WTextInputV1 : public QObject, public WObject
+{
+    Q_OBJECT
+    W_DECLARE_PRIVATE(WTextInputV1)
+    Q_PROPERTY(WSeat *seat READ seat NOTIFY seatChanged FINAL)
+    Q_PROPERTY(WSurface *focusedSurface READ focusedSurface NOTIFY focusedSurfaceChanged FINAL)
+    Q_PROPERTY(QString surroundingText READ surroundingText NOTIFY surroundingTextChanged FINAL)
+    Q_PROPERTY(uint surroundingCursor READ surroundingCursor NOTIFY surroundingTextChanged FINAL)
+    Q_PROPERTY(uint surroundingAnchor READ surroundingAnchor NOTIFY surroundingTextChanged FINAL)
+    Q_PROPERTY(uint contentHint READ contentHint NOTIFY contentTypeChanged FINAL)
+    Q_PROPERTY(uint contentPurpose READ contentPurpose NOTIFY contentTypeChanged FINAL)
+    Q_PROPERTY(QRect cursorRectangle READ cursorRectangle NOTIFY cursorRectangleChanged FINAL)
+    Q_PROPERTY(QString preferredLanguage READ preferredLanguage NOTIFY preferredLanguageChanged FINAL)
+
+public:
+    WSeat *seat() const;
+    WSurface *focusedSurface() const;
+    QString surroundingText() const;
+    uint surroundingCursor() const;
+    uint surroundingAnchor() const;
+    uint contentHint() const;
+    uint contentPurpose() const;
+    QRect cursorRectangle() const;
+    QString preferredLanguage() const;
+
+Q_SIGNALS:
+    void activate(WSeat *seat, WSurface *surface);
+    void deactivate(WSeat *seat);
     void showInputPanel();
     void hideInputPanel();
     void reset();
-    void surroundingTextChanged();
-    void contentTypeChanged();
+    void commitState();
+    void invokeAction(uint button, uint index);
+    void beforeDestroy();
+    // As text input v1 does not have a double-buffer mechanism, we should provide change signal for property
+    // This is necessary for QML to perform property binding
+    void surroundingTextChanged(); // text, cursor and anchor
+    void contentTypeChanged(); // hint and purpose
     void cursorRectangleChanged();
     void preferredLanguageChanged();
-    void commit();
-    void invoke(quint32 button, quint32 index);
-    void beforeDestroy();
-    void focusedSurfaceChanged();
+    void seatChanged(WSeat *seat);
+    void focusedSurfaceChanged(WSurface *surface);
 
 public Q_SLOTS:
     void sendEnter(WSurface *surface);
     void sendLeave();
-    void sendModifiersMap(QStringList modifiers);
-    void sendInputPanelState(quint32 state);
-    void sendPreeditString(QString text, QString commit);
-    void sendPreeditStyling(quint32 index, quint32 length, PreeditStyle style);
-    void sendPreeditCursor(qint32 index);
-    void sendCommitString(QString text);
-    void sendCursorPosition(qint32 index, qint32 anchor);
-    void sendDeleteSurroundingText(qint32 index, quint32 length);
-    void sendKeySym(quint32 time, quint32 sym, quint32 state, quint32 modifiers);
-    void sendLanguage(QString language);
-    void sendTextDirection(TextDirection textDirection);
+    void sendModifiersMap(QStringList map);
+    void sendInputPanelState(uint state);
+    void sendPreeditString(const QString &text, const QString &commit);
+    void sendPreeditStyling(uint index, uint length, uint style);
+    void sendPreeditCursor(int index);
+    void sendCommitString(const QString &text);
+    void sendCursorPosition(int index, int anchor);
+    void sendDeleteSurroundingString(int index, uint length);
+    void sendKeysym(uint time, uint sym, uint state, uint modifiers);
+    void sendLanguage(const QString &language);
+    void sendTextDirection(uint direction);
 
 private:
-    explicit WQuickTextInputV1(ws_text_input_v1 *handle, QObject *parent = nullptr);
-    friend class WQuickTextInputManagerV1Private;
+    explicit WTextInputV1(ws_text_input_v1 *handle, QObject *parent = nullptr);
+    friend class WTextInputManagerV1Private;
+};
+class WSurface;
+class WSeat;
+class WTextInputV1;
+class WTextInputManagerV1;
+class WQuickTextInputV1Private;
+class WQuickTextInputManagerV1Private;
+class WQuickTextInputV1 : public WQuickTextInput
+{
+    Q_OBJECT
+    W_DECLARE_PRIVATE(WQuickTextInputV1)
+
+public:
+    enum ContentHint {
+        CH_None = 0x0,
+        CH_Default = 0x7,
+        CH_Password = 0xc0,
+        CH_AutoCompletion = 0x1,
+        CH_AutoCorrection = 0x2,
+        CH_AutoCapitalization = 0x4,
+        CH_Lowercase = 0x8,
+        CH_Uppercase = 0x10,
+        CH_Titlecase = 0x20,
+        CH_HiddenText = 0x40,
+        CH_SensitiveData = 0x80,
+        CH_Latin = 0x100,
+        CH_Multiline = 0x200
+    };
+    Q_FLAG(ContentHint)
+    Q_DECLARE_FLAGS(ContentHints, ContentHint)
+
+    enum ContentPurpose {
+        CP_Normal,
+        CP_Alpha,
+        CP_Digits,
+        CP_Number,
+        CP_Phone,
+        CP_Url,
+        CP_Email,
+        CP_Name,
+        CP_Password,
+        CP_Date,
+        CP_Time,
+        CP_Datetime,
+        CP_Terminal
+    };
+    Q_ENUM(ContentPurpose)
+
+    enum PreeditStyle {
+        PS_Default,
+        PS_None,
+        PS_Active,
+        PS_Inactive,
+        PS_Highlight,
+        PS_Underline,
+        PS_Selection,
+        PS_Incorrect
+    };
+    Q_ENUM(PreeditStyle)
+
+    enum TextDirection {
+        TD_Auto,
+        TD_Ltr,
+        TD_Rtl
+    };
+    Q_ENUM(TextDirection)
+
+    explicit WQuickTextInputV1(WTextInputV1 *handle, QObject *parent = nullptr);
+    WSeat *seat() const override;
+    QString surroundingText() const override;
+    int surroundingCursor() const override;
+    int surroundingAnchor() const override;
+    IME::ContentHints contentHints() const override;
+    IME::ContentPurpose contentPurpose() const override;
+    QRect cursorRect() const override;
+    WSurface *focusedSurface() const override;
+    IME::Features features() const override;
+
+
+public Q_SLOTS:
+    void sendEnter(WSurface *surface) override;
+    void sendLeave() override;
+    void sendDone() override;
+    void handleIMCommitted(WQuickInputMethodV2 *im) override;
+
+private:
+    void sendModifiersMap(QStringList modifiers);
+    void sendInputPanelState(uint state);
+    void sendPreeditString(QString text, QString commit);
+    void sendPreeditStyling(uint index, uint length, PreeditStyle style);
+    void sendPreeditCursor(int index);
+    void sendCommitString(QString text);
+    void sendCursorPosition(int index, int anchor);
+    void sendDeleteSurroundingText(int index, uint length);
+    void sendKeySym(uint time, uint sym, uint state, uint modifiers);
+    void sendLanguage(QString language);
+    void sendTextDirection(TextDirection textDirection);
+    WTextInputV1 *handle() const;
 };
 
 class WQuickTextInputManagerV1 : public WQuickWaylandServerInterface, public WObject
@@ -147,15 +204,12 @@ class WQuickTextInputManagerV1 : public WQuickWaylandServerInterface, public WOb
     Q_OBJECT
     W_DECLARE_PRIVATE(WQuickTextInputManagerV1)
     QML_NAMED_ELEMENT(TextInputManagerV1)
-    Q_PROPERTY(QList<WQuickTextInputV1*> textInputs READ textInputs FINAL)
 
 public:
     explicit WQuickTextInputManagerV1(QObject *parent = nullptr);
-    QList<WQuickTextInputV1 *> textInputs() const;
 
 Q_SIGNALS:
-    void beforeDestroy();
-    void newTextInput(WQuickTextInputV1 *newTextInput);
+    void newTextInput(WTextInputV1 *textInput);
 
 protected:
     void create() override;

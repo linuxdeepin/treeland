@@ -22,11 +22,24 @@ public:
     WQuickVirtualKeyboardV1Private(QWVirtualKeyboardV1 *h, WQuickVirtualKeyboardV1 *qq)
         : WObjectPrivate(qq)
         , handle(h)
-        , keyboard(new WInputDevice(QWInputDevice::from(&h->handle()->keyboard.base)))
-    { }
+        , keyboard(WInputDevice::fromHandle(QWKeyboard::from(&h->handle()->keyboard)))
+        , ownKeyboard(false)
+    {
+        if (!keyboard) {
+            keyboard = new WInputDevice(QWKeyboard::from(&h->handle()->keyboard));
+            ownKeyboard = true;
+        }
+    }
+
+    ~WQuickVirtualKeyboardV1Private()
+    {
+        if (ownKeyboard)
+            delete keyboard;
+    }
 
     QWVirtualKeyboardV1 *const handle;
-    WInputDevice *const keyboard;
+    WInputDevice *keyboard;
+    bool ownKeyboard;
 };
 
 class WQuickVirtualKeyboardManagerV1Private : public WObjectPrivate
@@ -39,7 +52,6 @@ public:
     { }
 
     QWVirtualKeyboardManagerV1 *manager;
-    QList<WQuickVirtualKeyboardV1 *> virtualKeyboards;
 };
 
 WQuickVirtualKeyboardManagerV1::WQuickVirtualKeyboardManagerV1(QObject *parent)
@@ -47,26 +59,13 @@ WQuickVirtualKeyboardManagerV1::WQuickVirtualKeyboardManagerV1(QObject *parent)
     , WObject(*new WQuickVirtualKeyboardManagerV1Private(this))
 {}
 
-QList<WQuickVirtualKeyboardV1 *> WQuickVirtualKeyboardManagerV1::virtualKeyboards() const
-{
-    W_DC(WQuickVirtualKeyboardManagerV1);
-    return d->virtualKeyboards;
-}
-
 void WQuickVirtualKeyboardManagerV1::create()
 {
     W_D(WQuickVirtualKeyboardManagerV1);
     WQuickWaylandServerInterface::create();
     d->manager = QWVirtualKeyboardManagerV1::create(server()->handle());
-    connect(d->manager, &QWVirtualKeyboardManagerV1::newVirtualKeyboard, this, [this, d](QWVirtualKeyboardV1 *vk) {
-        auto quickVirtualKeyboard = new WQuickVirtualKeyboardV1(vk, this);
-        d->virtualKeyboards.append(quickVirtualKeyboard);
-        connect(quickVirtualKeyboard->handle(), &QWVirtualKeyboardV1::beforeDestroy, this, [this, d, quickVirtualKeyboard]() {
-            d->virtualKeyboards.removeAll(quickVirtualKeyboard);
-            quickVirtualKeyboard->deleteLater();
-        });
-        Q_EMIT this->newVirtualKeyboard(quickVirtualKeyboard);
-    });
+    Q_ASSERT(d->manager);
+    connect(d->manager, &QWVirtualKeyboardManagerV1::newVirtualKeyboard, this, &WQuickVirtualKeyboardManagerV1::newVirtualKeyboard);
 }
 
 QWVirtualKeyboardV1 *WQuickVirtualKeyboardV1::handle() const
