@@ -2,9 +2,12 @@
 Description=User Compositor Socket
 PartOf=treeland-sd.service
 
+Requisite=dde-session-pre.target
+PartOf=dde-session-pre.target
+Before=dde-session-pre.target
+
 [Socket]
 ListenStream=%t/treeland.socket
 RemoveOnStop=true
 FileDescriptorName=TreeLand
-ExecStartPost=-/usr/bin/systemctl --user set-environment WAYLAND_DISPLAY=%t/treeland.socket
 ExecStopPost=-/usr/bin/systemctl --user unset-environment WAYLAND_DISPLAY
