@@ -99,7 +99,7 @@ Item {
                     anchors.fill: parent
                     hoverEnabled: true
                     onClicked: {
-                        personalization.setWallpaper(imageSource, group, index)
+                        personalization.changeWallpaper(imageSource, group, index)
                     }
 
                     onEntered: {

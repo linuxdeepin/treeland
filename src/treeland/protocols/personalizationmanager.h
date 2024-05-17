@@ -94,8 +94,8 @@ public:
 
 Q_SIGNALS:
     void beforeDestroy(PersonalizationWallpaperContext *self);
-    void setUserWallpaper(personalization_wallpaper_context_v1 *handle);
-    void getUserWallpaper(personalization_wallpaper_context_v1 *handle);
+    void commit(personalization_wallpaper_context_v1 *handle);
+    void getWallpapers(personalization_wallpaper_context_v1 *handle);
 
 private:
     PersonalizationWallpaperContext(personalization_wallpaper_context_v1 *handle, bool isOwner);

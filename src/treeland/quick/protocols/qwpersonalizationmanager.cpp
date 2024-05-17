@@ -144,16 +144,16 @@ void QuickPersonalizationManager::onWallpaperContextCreated(
     PersonalizationWallpaperContext *context)
 {
     connect(context,
-            &PersonalizationWallpaperContext::setUserWallpaper,
+            &PersonalizationWallpaperContext::commit,
             this,
-            &QuickPersonalizationManager::onSetUserWallpaper);
+            &QuickPersonalizationManager::onCommit);
     connect(context,
-            &PersonalizationWallpaperContext::getUserWallpaper,
+            &PersonalizationWallpaperContext::getWallpapers,
             this,
-            &QuickPersonalizationManager::onGetUserWallpaper);
+            &QuickPersonalizationManager::onGetWallpapers);
 }
 
-void QuickPersonalizationManager::onSetUserWallpaper(personalization_wallpaper_context_v1 *context)
+void QuickPersonalizationManager::onCommit(personalization_wallpaper_context_v1 *context)
 {
     if (!context || context->fd == -1)
         return;
@@ -182,7 +182,7 @@ void QuickPersonalizationManager::onSetUserWallpaper(personalization_wallpaper_c
     }
 }
 
-void QuickPersonalizationManager::onGetUserWallpaper(personalization_wallpaper_context_v1 *context)
+void QuickPersonalizationManager::onGetWallpapers(personalization_wallpaper_context_v1 *context)
 {
     if (!context)
         return;

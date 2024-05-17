@@ -22,15 +22,11 @@ public:
     {
         Q_ASSERT(!map.contains(handle));
         map.insert(handle, qq);
-        sc.connect(&handle->events.destroy,
-                   this,
-                   &PersonalizationWallpaperContextPrivate::on_destroy);
-        sc.connect(&handle->events.set_user_wallpaper,
-                   this,
-                   &PersonalizationWallpaperContextPrivate::on_set_user_wallpaper);
-        sc.connect(&handle->events.get_user_wallpaper,
-                   this,
-                   &PersonalizationWallpaperContextPrivate::on_get_user_wallpaper);
+        sc.connect(&handle->events.destroy, this, &PersonalizationWallpaperContextPrivate::on_destroy);
+        sc.connect(&handle->events.commit, this,
+                   &PersonalizationWallpaperContextPrivate::on_commit);
+        sc.connect(&handle->events.get_wallpapers, this,
+                   &PersonalizationWallpaperContextPrivate::on_get_wallpapers);
     }
 
     ~PersonalizationWallpaperContextPrivate()
@@ -52,8 +48,8 @@ public:
     }
 
     void on_destroy(void *);
-    void on_set_user_wallpaper(void *);
-    void on_get_user_wallpaper(void *);
+    void on_commit(void *);
+    void on_get_wallpapers(void *);
 
     static QHash<void *, PersonalizationWallpaperContext *> map;
     QW_DECLARE_PUBLIC(PersonalizationWallpaperContext)
@@ -69,16 +65,14 @@ void PersonalizationWallpaperContextPrivate::on_destroy(void *)
     delete q_func();
 }
 
-void PersonalizationWallpaperContextPrivate::on_set_user_wallpaper(void *data)
+void PersonalizationWallpaperContextPrivate::on_commit(void *data)
 {
-    Q_EMIT q_func()->setUserWallpaper(
-        reinterpret_cast<personalization_wallpaper_context_v1 *>(data));
+    Q_EMIT q_func()->commit(reinterpret_cast<personalization_wallpaper_context_v1*>(data));
 }
 
-void PersonalizationWallpaperContextPrivate::on_get_user_wallpaper(void *data)
+void PersonalizationWallpaperContextPrivate::on_get_wallpapers(void *data)
 {
-    Q_EMIT q_func()->getUserWallpaper(
-        reinterpret_cast<personalization_wallpaper_context_v1 *>(data));
+    Q_EMIT q_func()->getWallpapers(reinterpret_cast<personalization_wallpaper_context_v1*>(data));
 }
 
 PersonalizationWallpaperContext::PersonalizationWallpaperContext(

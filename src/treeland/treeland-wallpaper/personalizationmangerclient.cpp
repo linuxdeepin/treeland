@@ -92,7 +92,10 @@ void PersonalizationManager::addWallpaper(const QString &path)
             m_metaData->imagePath = dest;
             m_metaData->currentIndex = m_modes["Local"]->currentIndex();
 
-            m_wallpaperContext->set_wallpaper(file.handle(), converToJson(m_metaData));
+            m_wallpaperContext->set_fd(file.handle(), converToJson(m_metaData));
+            m_wallpaperContext->set_on(PersonalizationWallpaper::options_background);
+            m_wallpaperContext->commit();
+
             Q_EMIT wallpaperChanged(dest);
         }
     }
@@ -109,7 +112,7 @@ void PersonalizationManager::removeWallpaper(const QString &path, const QString 
     m_modes[group]->remove(index);
 }
 
-void PersonalizationManager::setWallpaper(const QString &path, const QString &group, int index)
+void PersonalizationManager::changeWallpaper(const QString &path, const QString &group, int index)
 {
     if (!m_wallpaperContext)
         return;
@@ -126,7 +129,10 @@ void PersonalizationManager::setWallpaper(const QString &path, const QString &gr
         m_metaData->currentIndex = index;
         setCurrentGroup(group);
 
-        m_wallpaperContext->set_wallpaper(file.handle(), converToJson(m_metaData));
+        m_wallpaperContext->set_fd(file.handle(), converToJson(m_metaData));
+        m_wallpaperContext->set_on(PersonalizationWallpaper::options_background);
+        m_wallpaperContext->commit();
+
         Q_EMIT wallpaperChanged(dest);
     }
 }

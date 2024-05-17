@@ -73,8 +73,8 @@ public:
     void onWindowContextCreated(PersonalizationWindowContext *context);
     void onWallpaperContextCreated(PersonalizationWallpaperContext *context);
     void onBackgroundTypeChanged(PersonalizationWindowContext *context);
-    void onSetUserWallpaper(personalization_wallpaper_context_v1 *context);
-    void onGetUserWallpaper(personalization_wallpaper_context_v1 *context);
+    void onCommit(personalization_wallpaper_context_v1 *context);
+    void onGetWallpapers(personalization_wallpaper_context_v1 *context);
     static QuickPersonalizationManagerAttached *qmlAttachedProperties(QObject *target);
 
     QString currentWallpaper();

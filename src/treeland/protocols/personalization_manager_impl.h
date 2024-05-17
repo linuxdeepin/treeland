@@ -47,13 +47,14 @@ struct personalization_wallpaper_context_v1
     struct wl_list link;
     struct wl_resource *resource;
     int32_t fd;
-    const char *metaData;
     uint32_t uid;
+    uint32_t options;
+    const char* metaData;
+    const char* identifier;
 
-    struct
-    {
-        struct wl_signal set_user_wallpaper;
-        struct wl_signal get_user_wallpaper;
+    struct {
+        struct wl_signal commit;
+        struct wl_signal get_wallpapers;
         struct wl_signal destroy;
     } events;
 
