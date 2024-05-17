@@ -3,8 +3,8 @@
 
 #pragma once
 
-#include <QSortFilterProxyModel>
 #include <QQuickItem>
+#include <QSortFilterProxyModel>
 
 class FilterProxyModel : public QSortFilterProxyModel
 {

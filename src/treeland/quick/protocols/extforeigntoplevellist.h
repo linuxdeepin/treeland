@@ -7,8 +7,8 @@
 #include "ext_foreign_toplevel_list_impl.h"
 #include "helper.h"
 
-#include <wxdgsurface.h>
 #include <wquickwaylandserver.h>
+#include <wxdgsurface.h>
 
 #include <QObject>
 #include <QQmlEngine>

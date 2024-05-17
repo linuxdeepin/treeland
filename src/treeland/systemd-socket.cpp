@@ -1,19 +1,20 @@
 // Copyright (C) 2023 Dingyuan Zhang <lxz@mkacg.com>.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
-#include <qdbusconnection.h>
-#include <qdbusinterface.h>
-#include <qdbusunixfiledescriptor.h>
-#include <sys/socket.h>
-#include <sys/un.h>
 #include <systemd/sd-daemon.h>
-#include <unistd.h>
 
 #include <QCoreApplication>
 #include <QDBusInterface>
 #include <QDBusServiceWatcher>
 #include <QDebug>
 #include <QFile>
+#include <qdbusconnection.h>
+#include <qdbusinterface.h>
+#include <qdbusunixfiledescriptor.h>
+
+#include <sys/socket.h>
+#include <sys/un.h>
+#include <unistd.h>
 
 int main(int argc, char *argv[])
 {
@@ -27,19 +28,23 @@ int main(int argc, char *argv[])
     QDBusUnixFileDescriptor unixFileDescriptor(SD_LISTEN_FDS_START);
 
     auto activateFd = [unixFileDescriptor] {
-        QDBusInterface updateFd(
-            "org.deepin.Compositor1", "/org/deepin/Compositor1",
-            "org.deepin.Compositor1", QDBusConnection::systemBus());
+        QDBusInterface updateFd("org.deepin.Compositor1",
+                                "/org/deepin/Compositor1",
+                                "org.deepin.Compositor1",
+                                QDBusConnection::systemBus());
 
         updateFd.call("Activate", QVariant::fromValue(unixFileDescriptor));
     };
 
-    QDBusServiceWatcher *compositorWatcher = new QDBusServiceWatcher(
-        "org.deepin.Compositor1", QDBusConnection::systemBus(),
-        QDBusServiceWatcher::WatchForRegistration);
+    QDBusServiceWatcher *compositorWatcher =
+        new QDBusServiceWatcher("org.deepin.Compositor1",
+                                QDBusConnection::systemBus(),
+                                QDBusServiceWatcher::WatchForRegistration);
 
-    QObject::connect(compositorWatcher, &QDBusServiceWatcher::serviceRegistered,
-                     compositorWatcher, activateFd);
+    QObject::connect(compositorWatcher,
+                     &QDBusServiceWatcher::serviceRegistered,
+                     compositorWatcher,
+                     activateFd);
 
     activateFd();
 

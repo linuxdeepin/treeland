@@ -6,6 +6,7 @@
 #include "shortcut_manager_impl.h"
 
 #include <qwglobal.h>
+
 #include <QObject>
 
 QW_USE_NAMESPACE
@@ -17,12 +18,14 @@ QW_END_NAMESPACE
 
 class QTreeLandShortcutContextV1;
 class QTreeLandShortcutManagerV1Private;
+
 class QW_EXPORT QTreeLandShortcutManagerV1 : public QObject, public QWObject
 {
     Q_OBJECT
     QW_DECLARE_PRIVATE(QTreeLandShortcutManagerV1)
 public:
-    inline treeland_shortcut_manager_v1 *handle() const {
+    inline treeland_shortcut_manager_v1 *handle() const
+    {
         return QWObject::handle<treeland_shortcut_manager_v1>();
     }
 
@@ -40,6 +43,7 @@ private:
 };
 
 class QTreeLandShortcutContextV1Private;
+
 class QTreeLandShortcutContextV1 : public QObject, public QWObject
 {
     Q_OBJECT
@@ -47,7 +51,8 @@ class QTreeLandShortcutContextV1 : public QObject, public QWObject
 public:
     ~QTreeLandShortcutContextV1() = default;
 
-    inline treeland_shortcut_context_v1 *handle() const {
+    inline treeland_shortcut_context_v1 *handle() const
+    {
         return QWObject::handle<treeland_shortcut_context_v1>();
     }
 

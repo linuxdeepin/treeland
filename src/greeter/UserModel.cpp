@@ -1,33 +1,37 @@
 /***************************************************************************
-* Copyright (c) 2013 Abdurrahman AVCI <abdurrahmanavci@gmail.com>
-*
-* This program is free software; you can redistribute it and/or modify
-* it under the terms of the GNU General Public License as published by
-* the Free Software Foundation; either version 2 of the License, or
-* (at your option) any later version.
-*
-* This program is distributed in the hope that it will be useful,
-* but WITHOUT ANY WARRANTY; without even the implied warranty of
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-* GNU General Public License for more details.
-*
-* You should have received a copy of the GNU General Public License
-* along with this program; if not, write to the
-* Free Software Foundation, Inc.,
-* 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
-***************************************************************************/
+ * Copyright (c) 2013 Abdurrahman AVCI <abdurrahmanavci@gmail.com>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the
+ * Free Software Foundation, Inc.,
+ * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+ ***************************************************************************/
 
 #include "UserModel.h"
+
 #include "Configuration.h"
-#include <QFile>
-#include <QList>
-#include <QTextStream>
-#include <QStringList>
+
 #include <DDBusInterface>
-#include <memory>
-#include <QTranslator>
-#include <QStandardPaths>
+
+#include <QFile>
 #include <QGuiApplication>
+#include <QList>
+#include <QStandardPaths>
+#include <QStringList>
+#include <QTextStream>
+#include <QTranslator>
+
+#include <memory>
 #include <pwd.h>
 
 using namespace DDM;
@@ -35,11 +39,11 @@ DACCOUNTS_USE_NAMESPACE
 
 struct UserModelPrivate
 {
-    bool containsAllUsers{true};
-    int lastIndex{0};
+    bool containsAllUsers{ true };
+    int lastIndex{ 0 };
     QString currentUserName;
     DAccountsManager manager;
-    QTranslator *lastTrans{nullptr};
+    QTranslator *lastTrans{ nullptr };
     QList<UserPtr> users;
 };
 
@@ -50,20 +54,20 @@ UserModel::UserModel(QObject *parent)
     connect(&d->manager, &DAccountsManager::UserAdded, this, &UserModel::onUserAdded);
     connect(&d->manager, &DAccountsManager::UserDeleted, this, &UserModel::onUserDeleted);
 
-    connect(this,&UserModel::currentUserNameChanged,[this]{
+    connect(this, &UserModel::currentUserNameChanged, [this] {
         auto user = getUser(d->currentUserName);
-        if(!user) {
+        if (!user) {
             qWarning() << "couldn't find user:" << d->currentUserName;
             return;
         }
 
         auto locale = user->locale();
         qInfo() << "current locale:" << locale.language();
-        auto *newTrans = new QTranslator{this};
+        auto *newTrans = new QTranslator{ this };
         auto dirs = QStandardPaths::standardLocations(QStandardPaths::GenericDataLocation);
-        for(const auto& dir : dirs) {
-            if(newTrans->load(locale,"greeter",".",dir + "/ddm/translations",".qm")){
-                if(d->lastTrans) {
+        for (const auto &dir : dirs) {
+            if (newTrans->load(locale, "greeter", ".", dir + "/ddm/translations", ".qm")) {
+                if (d->lastTrans) {
                     QGuiApplication::removeTranslator(d->lastTrans);
                 }
                 d->lastTrans->deleteLater();
@@ -251,7 +255,8 @@ QVariant UserModel::get(int index) const
     return map;
 }
 
-UserPtr UserModel::getUser(const QString& username) const noexcept {
+UserPtr UserModel::getUser(const QString &username) const noexcept
+{
     for (const auto &user : d->users) {
         if (user->userName() == username) {
             return user;
@@ -303,10 +308,13 @@ void UserModel::onUserAdded(quint64 uid)
 void UserModel::onUserDeleted(quint64 uid)
 {
     beginResetModel();
-    d->users.removeIf([uid](const UserPtr &user) { return user->UID() == uid; });
+    d->users.removeIf([uid](const UserPtr &user) {
+        return user->UID() == uid;
+    });
 
-    std::sort(
-        d->users.begin(), d->users.end(), [](const UserPtr &u1, const UserPtr &u2) { return u1->userName() < u2->userName(); });
+    std::sort(d->users.begin(), d->users.end(), [](const UserPtr &u1, const UserPtr &u2) {
+        return u1->userName() < u2->userName();
+    });
     endResetModel();
 
     emit countChanged();

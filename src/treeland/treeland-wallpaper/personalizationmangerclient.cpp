@@ -3,33 +3,37 @@
 
 #include "personalizationmangerclient.h"
 
+#include <QDebug>
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
-#include <QDebug>
-#include <QObject>
-#include <QJsonObject>
 #include <QJsonDocument>
-#include <QStandardPaths>
-#include <QtWaylandClient/QWaylandClientExtension>
+#include <QJsonObject>
+#include <QObject>
 #include <QStandardPaths>
 #include <QTranslator>
+#include <QtWaylandClient/QWaylandClientExtension>
 
-#include <sys/types.h>
 #include <pwd.h>
+#include <sys/types.h>
 #include <unistd.h>
 
 PersonalizationManager::PersonalizationManager()
     : QWaylandClientExtensionTemplate<PersonalizationManager>(1)
     , m_metaData(new WallpaperMetaData())
 {
-    connect(this, &PersonalizationManager::activeChanged, this, &PersonalizationManager::onActiveChanged);
-    m_cacheDirectory = QStandardPaths::writableLocation(QStandardPaths::CacheLocation) + "/wallpaper/";
+    connect(this,
+            &PersonalizationManager::activeChanged,
+            this,
+            &PersonalizationManager::onActiveChanged);
+    m_cacheDirectory =
+        QStandardPaths::writableLocation(QStandardPaths::CacheLocation) + "/wallpaper/";
 
     QTranslator *translate = new QTranslator(this);
     auto dirs = QStandardPaths::standardLocations(QStandardPaths::GenericDataLocation);
-    for(const auto& dir : dirs) {
-        if (translate->load(QLocale::system(),"wallpaper",".", dir + "/ddm/translations",".qm")) {
+    for (const auto &dir : dirs) {
+        if (translate
+                ->load(QLocale::system(), "wallpaper", ".", dir + "/ddm/translations", ".qm")) {
             qApp->installTranslator(translate);
         }
     }
@@ -57,8 +61,10 @@ void PersonalizationManager::onActiveChanged()
 
     if (!m_wallpaperContext) {
         m_wallpaperContext = new PersonalizationWallpaper(get_wallpaper_context());
-        connect(m_wallpaperContext, &PersonalizationWallpaper::wallpaperChanged,
-                this, &PersonalizationManager::onWallpaperChanged);
+        connect(m_wallpaperContext,
+                &PersonalizationWallpaper::wallpaperChanged,
+                this,
+                &PersonalizationManager::onWallpaperChanged);
     }
 
     m_wallpaperContext->get_wallpapers();
@@ -130,7 +136,7 @@ QString PersonalizationManager::currentGroup()
     return m_metaData->group;
 }
 
-void PersonalizationManager::setCurrentGroup(const QString& group)
+void PersonalizationManager::setCurrentGroup(const QString &group)
 {
     m_metaData->group = group;
     Q_EMIT currentGroupChanged(group);
@@ -141,7 +147,7 @@ QString PersonalizationManager::cacheDirectory()
     return m_cacheDirectory;
 }
 
-WallpaperCardModel* PersonalizationManager::wallpaperModel(const QString &group, const QString &dir)
+WallpaperCardModel *PersonalizationManager::wallpaperModel(const QString &group, const QString &dir)
 {
     if (m_modes.contains(group))
         return m_modes[group];
@@ -164,7 +170,7 @@ QString PersonalizationManager::converToJson(WallpaperMetaData *data)
     return json_doc.toJson(QJsonDocument::Compact);
 }
 
-void PersonalizationManager::onWallpaperChanged(const QString& meta)
+void PersonalizationManager::onWallpaperChanged(const QString &meta)
 {
     QJsonDocument json_doc = QJsonDocument::fromJson(meta.toLocal8Bit());
 
@@ -188,17 +194,17 @@ PersonalizationWindow::PersonalizationWindow(struct ::personalization_window_con
     : QWaylandClientExtensionTemplate<PersonalizationWindow>(1)
     , QtWayland::personalization_window_context_v1(object)
 {
-
 }
 
-PersonalizationWallpaper::PersonalizationWallpaper(struct ::personalization_wallpaper_context_v1 *object)
+PersonalizationWallpaper::PersonalizationWallpaper(
+    struct ::personalization_wallpaper_context_v1 *object)
     : QWaylandClientExtensionTemplate<PersonalizationWallpaper>(1)
     , QtWayland::personalization_wallpaper_context_v1(object)
 {
-
 }
 
-void PersonalizationWallpaper::personalization_wallpaper_context_v1_wallpapers(const QString &metadata)
+void PersonalizationWallpaper::personalization_wallpaper_context_v1_wallpapers(
+    const QString &metadata)
 {
     Q_EMIT wallpaperChanged(metadata);
 }

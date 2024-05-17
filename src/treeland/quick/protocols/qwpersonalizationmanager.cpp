@@ -6,22 +6,23 @@
 #include "personalization-server-protocol.h"
 #include "personalizationmanager.h"
 
-#include <qwcompositor.h>
-#include <qwdisplay.h>
-#include <qwsignalconnector.h>
-#include <qwxdgshell.h>
 #include <wayland-server-core.h>
 #include <wayland-server.h>
 #include <wayland-util.h>
 #include <wxdgshell.h>
 #include <wxdgsurface.h>
 
-#include <QDir>
+#include <qwcompositor.h>
+#include <qwdisplay.h>
+#include <qwsignalconnector.h>
+#include <qwxdgshell.h>
+
 #include <QDebug>
-#include <QSettings>
-#include <QStandardPaths>
+#include <QDir>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QSettings>
+#include <QStandardPaths>
 
 #include <sys/socket.h>
 #include <unistd.h>
@@ -35,14 +36,15 @@ extern "C" {
 static QuickPersonalizationManager *PERSONALIZATION_MANAGER = nullptr;
 static QQuickItem *PERSONALIZATION_IMAGE = nullptr;
 
-class QuickPersonalizationManagerPrivate : public WObjectPrivate {
+class QuickPersonalizationManagerPrivate : public WObjectPrivate
+{
 public:
     QuickPersonalizationManagerPrivate(QuickPersonalizationManager *qq);
     ~QuickPersonalizationManagerPrivate();
 
     void updateCacheWallpaperPath(uid_t uid);
     void loadWallpaperSettings();
-    void saveWallpaperSettings(const QString& current, const char* meta);
+    void saveWallpaperSettings(const QString &current, const char *meta);
 
     W_DECLARE_PUBLIC(QuickPersonalizationManager)
 
@@ -55,14 +57,13 @@ public:
     TreeLandPersonalizationManager *manager = nullptr;
 };
 
-QuickPersonalizationManagerPrivate::QuickPersonalizationManagerPrivate(QuickPersonalizationManager *qq)
+QuickPersonalizationManagerPrivate::QuickPersonalizationManagerPrivate(
+    QuickPersonalizationManager *qq)
     : WObjectPrivate(qq)
 {
 }
 
-QuickPersonalizationManagerPrivate::~QuickPersonalizationManagerPrivate()
-{
-}
+QuickPersonalizationManagerPrivate::~QuickPersonalizationManagerPrivate() { }
 
 void QuickPersonalizationManagerPrivate::updateCacheWallpaperPath(uid_t uid)
 {
@@ -84,7 +85,8 @@ void QuickPersonalizationManagerPrivate::loadWallpaperSettings()
     m_iniMetaData = settings.value("metadata").toString();
 }
 
-void QuickPersonalizationManagerPrivate::saveWallpaperSettings(const QString& current, const char* meta)
+void QuickPersonalizationManagerPrivate::saveWallpaperSettings(const QString &current,
+                                                               const char *meta)
 {
     if (m_settingFile.isEmpty())
         return;
@@ -110,7 +112,8 @@ QuickPersonalizationManager::QuickPersonalizationManager(QObject *parent)
     PERSONALIZATION_MANAGER = this;
 }
 
-void QuickPersonalizationManager::create() {
+void QuickPersonalizationManager::create()
+{
     W_D(QuickPersonalizationManager);
     WQuickWaylandServerInterface::create();
 
@@ -123,7 +126,8 @@ void QuickPersonalizationManager::create() {
             &TreeLandPersonalizationManager::wallpaperContextCreated,
             this,
             &QuickPersonalizationManager::onWallpaperContextCreated);
-    connect(this, &QuickPersonalizationManager::sendUserwallpapers,
+    connect(this,
+            &QuickPersonalizationManager::sendUserwallpapers,
             d->manager,
             &TreeLandPersonalizationManager::onSendUserWallpapers);
 }
@@ -136,7 +140,8 @@ void QuickPersonalizationManager::onWindowContextCreated(PersonalizationWindowCo
             &QuickPersonalizationManager::onBackgroundTypeChanged);
 }
 
-void QuickPersonalizationManager::onWallpaperContextCreated(PersonalizationWallpaperContext *context)
+void QuickPersonalizationManager::onWallpaperContextCreated(
+    PersonalizationWallpaperContext *context)
 {
     connect(context,
             &PersonalizationWallpaperContext::setUserWallpaper,
@@ -211,7 +216,7 @@ QString QuickPersonalizationManager::currentWallpaper()
     return "file:///usr/share/wallpapers/deepin/desktop.jpg";
 }
 
-void QuickPersonalizationManager::setCurrentWallpaper(const QString& path)
+void QuickPersonalizationManager::setCurrentWallpaper(const QString &path)
 {
     W_D(QuickPersonalizationManager);
 
@@ -236,20 +241,25 @@ void QuickPersonalizationManager::setCurrentUserId(uid_t uid)
     Q_EMIT currentUserIdChanged(uid);
 }
 
-QuickPersonalizationManagerAttached::QuickPersonalizationManagerAttached(WSurface *target, QuickPersonalizationManager *manager)
+QuickPersonalizationManagerAttached::QuickPersonalizationManagerAttached(
+    WSurface *target, QuickPersonalizationManager *manager)
     : QObject(manager)
     , m_target(target)
     , m_manager(manager)
 {
-    connect(m_manager, &QuickPersonalizationManager::backgroundTypeChanged, this, [this] (WSurface *surface, uint32_t type) {
-        if (m_target == surface) {
-            m_backgroundType = static_cast<BackgroundType>(type);
-            Q_EMIT backgroundTypeChanged();
-        }
-    });
+    connect(m_manager,
+            &QuickPersonalizationManager::backgroundTypeChanged,
+            this,
+            [this](WSurface *surface, uint32_t type) {
+                if (m_target == surface) {
+                    m_backgroundType = static_cast<BackgroundType>(type);
+                    Q_EMIT backgroundTypeChanged();
+                }
+            });
 }
 
-QuickPersonalizationManagerAttached::QuickPersonalizationManagerAttached(QQuickItem *target, QuickPersonalizationManager *manager)
+QuickPersonalizationManagerAttached::QuickPersonalizationManagerAttached(
+    QQuickItem *target, QuickPersonalizationManager *manager)
     : QObject(manager)
     , m_target(target)
     , m_manager(manager)
@@ -265,16 +275,15 @@ QQuickItem *QuickPersonalizationManagerAttached::backgroundImage() const
     return PERSONALIZATION_IMAGE;
 }
 
-QuickPersonalizationManagerAttached *QuickPersonalizationManager::qmlAttachedProperties(QObject *target)
+QuickPersonalizationManagerAttached *QuickPersonalizationManager::qmlAttachedProperties(
+    QObject *target)
 {
-    if (auto *surface = qobject_cast<WXdgSurface*>(target)) {
+    if (auto *surface = qobject_cast<WXdgSurface *>(target)) {
         return new QuickPersonalizationManagerAttached(surface->surface(), PERSONALIZATION_MANAGER);
     }
 
-    if (auto *image = qobject_cast<QQuickItem*>(target)) {
+    if (auto *image = qobject_cast<QQuickItem *>(target)) {
         return new QuickPersonalizationManagerAttached(image, PERSONALIZATION_MANAGER);
     }
     return nullptr;
 }
-
-

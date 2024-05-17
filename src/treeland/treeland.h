@@ -7,22 +7,24 @@
 
 #include <QDBusContext>
 #include <QDBusUnixFileDescriptor>
-
-#include <memory>
 #include <QGuiApplication>
 #include <QLocalSocket>
 #include <QtWaylandCompositor/QWaylandCompositor>
+
+#include <memory>
 
 class QQmlApplicationEngine;
 
 namespace TreeLand {
 
-struct TreeLandAppContext {
+struct TreeLandAppContext
+{
     QString socket;
     QString run;
 };
 
-class TreeLand : public QObject, protected QDBusContext {
+class TreeLand : public QObject, protected QDBusContext
+{
     Q_OBJECT
     Q_PROPERTY(QuickPersonalizationManager* personalManager READ personalManager WRITE setPersonalManager)
     Q_PROPERTY(bool testMode READ testMode CONSTANT)
@@ -30,9 +32,7 @@ class TreeLand : public QObject, protected QDBusContext {
 public:
     explicit TreeLand(TreeLandAppContext context);
 
-    inline QuickPersonalizationManager* personalManager() const {
-        return m_personalManager;
-    }
+    inline QuickPersonalizationManager *personalManager() const { return m_personalManager; }
 
     Q_INVOKABLE void retranslate() noexcept;
 
@@ -64,4 +64,4 @@ private:
     QMap<QString, std::shared_ptr<Waylib::Server::WSocket>> m_userWaylandSocket;
     QMap<QString, std::shared_ptr<QDBusUnixFileDescriptor>> m_userDisplayFds;
 };
-}
+} // namespace TreeLand

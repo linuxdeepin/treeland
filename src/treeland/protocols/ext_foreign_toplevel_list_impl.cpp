@@ -7,10 +7,12 @@
 #include "utils.h"
 
 #include <pixman.h>
-#include <qwcompositor.h>
+
 #include <wayland-server-core.h>
 #include <wayland-server.h>
 #include <wayland-util.h>
+
+#include <qwcompositor.h>
 
 #include <QDebug>
 
@@ -26,7 +28,8 @@ static const struct ext_foreign_toplevel_handle_v1_interface toplevel_handle_imp
 
 void foreign_toplevel_list_handle_stop(struct wl_client *client, struct wl_resource *resource);
 
-struct ext_foreign_toplevel_handle_v1 *ext_foreign_toplevel_handle_from_resource(struct wl_resource *resource)
+struct ext_foreign_toplevel_handle_v1 *ext_foreign_toplevel_handle_from_resource(
+    struct wl_resource *resource)
 {
     assert(wl_resource_instance_of(resource,
                                    &ext_foreign_toplevel_handle_v1_interface,
@@ -41,7 +44,8 @@ void ext_foreign_toplevel_handle_destroy(struct wl_client *, struct wl_resource 
 
 void ext_foreign_toplevel_handle_resource_destroy(struct wl_resource *resource)
 {
-    struct ext_foreign_toplevel_handle_v1 *context = ext_foreign_toplevel_handle_from_resource(resource);
+    struct ext_foreign_toplevel_handle_v1 *context =
+        ext_foreign_toplevel_handle_from_resource(resource);
 
     context_destroy(context);
 }
@@ -51,15 +55,17 @@ static const struct ext_foreign_toplevel_list_v1_interface toplevel_list_impl
     .stop = foreign_toplevel_list_handle_stop, .destroy = resource_handle_destroy
 };
 
-void foreign_toplevel_list_handle_stop([[maybe_unused]] struct wl_client *client, struct wl_resource *resource)
+void foreign_toplevel_list_handle_stop([[maybe_unused]] struct wl_client *client,
+                                       struct wl_resource *resource)
 {
-    [[maybe_unused]] struct ext_foreign_toplevel_list_v1 *handle = foreign_toplevel_list_from_resource(resource);
+    [[maybe_unused]] struct ext_foreign_toplevel_list_v1 *handle =
+        foreign_toplevel_list_from_resource(resource);
 
     // TODO: stop
 }
 
-struct ext_foreign_toplevel_list_v1 *
-foreign_toplevel_list_from_resource(struct wl_resource *resource)
+struct ext_foreign_toplevel_list_v1 *foreign_toplevel_list_from_resource(
+    struct wl_resource *resource)
 {
     assert(wl_resource_instance_of(resource,
                                    &ext_foreign_toplevel_list_v1_interface,
@@ -70,10 +76,10 @@ foreign_toplevel_list_from_resource(struct wl_resource *resource)
     return list;
 }
 
-struct ext_foreign_toplevel_handle_v1 *
-create_toplevel_handle(struct ext_foreign_toplevel_list_v1 *manager,
-                       struct wl_resource *client,
-                       struct wl_resource *surface)
+struct ext_foreign_toplevel_handle_v1 *create_toplevel_handle(
+    struct ext_foreign_toplevel_list_v1 *manager,
+    struct wl_resource *client,
+    struct wl_resource *surface)
 {
     struct ext_foreign_toplevel_handle_v1 *handle = new ext_foreign_toplevel_handle_v1;
     struct wl_resource *handle_resource =
@@ -136,7 +142,8 @@ void ext_foreign_toplevel_list_bind(struct wl_client *client,
     }
 }
 
-void ext_foreign_toplevel_list_handle_display_destroy(struct wl_listener *listener, [[maybe_unused]] void *data)
+void ext_foreign_toplevel_list_handle_display_destroy(struct wl_listener *listener,
+                                                      [[maybe_unused]] void *data)
 {
     struct ext_foreign_toplevel_list_v1 *list = wl_container_of(listener, list, display_destroy);
     ext_foreign_toplevel_list_v1_destroy(list);

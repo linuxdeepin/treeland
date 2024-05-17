@@ -4,6 +4,7 @@
 #pragma once
 
 #include <qwglobal.h>
+
 #include <QObject>
 
 struct personalization_window_context_v1;
@@ -20,12 +21,14 @@ class TreeLandPersonalizationManager;
 class PersonalizationWindowContext;
 class PersonalizationWallpaperContext;
 class TreeLandPersonalizationManagerPrivate;
+
 class QW_EXPORT TreeLandPersonalizationManager : public QObject, public QWObject
 {
     Q_OBJECT
     QW_DECLARE_PRIVATE(TreeLandPersonalizationManager)
 public:
-    inline treeland_personalization_manager_v1 *handle() const {
+    inline treeland_personalization_manager_v1 *handle() const
+    {
         return QWObject::handle<treeland_personalization_manager_v1>();
     }
 
@@ -46,6 +49,7 @@ private:
 };
 
 class PersonalizationWindowContextPrivate;
+
 class PersonalizationWindowContext : public QObject, public QWObject
 {
     Q_OBJECT
@@ -53,7 +57,8 @@ class PersonalizationWindowContext : public QObject, public QWObject
 public:
     ~PersonalizationWindowContext() = default;
 
-    inline personalization_window_context_v1 *handle() const {
+    inline personalization_window_context_v1 *handle() const
+    {
         return QWObject::handle<personalization_window_context_v1>();
     }
 
@@ -69,8 +74,8 @@ private:
     PersonalizationWindowContext(personalization_window_context_v1 *handle, bool isOwner);
 };
 
-
 class PersonalizationWallpaperContextPrivate;
+
 class PersonalizationWallpaperContext : public QObject, public QWObject
 {
     Q_OBJECT
@@ -78,7 +83,8 @@ class PersonalizationWallpaperContext : public QObject, public QWObject
 public:
     ~PersonalizationWallpaperContext() = default;
 
-    inline personalization_wallpaper_context_v1 *handle() const {
+    inline personalization_wallpaper_context_v1 *handle() const
+    {
         return QWObject::handle<personalization_wallpaper_context_v1>();
     }
 

@@ -6,8 +6,8 @@
 #include "foreign-toplevel-manager-server-protocol.h"
 #include "foreign_toplevel_manager_impl.h"
 
-#include <wxdgsurface.h>
 #include <wquickwaylandserver.h>
+#include <wxdgsurface.h>
 
 #include <QObject>
 
@@ -52,6 +52,7 @@ private:
 };
 
 class QuickForeignToplevelManagerV1;
+
 class QuickForeignToplevelManagerAttached : public QObject
 {
     Q_OBJECT
@@ -74,6 +75,7 @@ private:
 };
 
 class QuickForeignToplevelManagerV1Private;
+
 class QuickForeignToplevelManagerV1 : public WQuickWaylandServerInterface, public WObject
 {
     Q_OBJECT
@@ -93,21 +95,29 @@ public:
     static QuickForeignToplevelManagerAttached *qmlAttachedProperties(QObject *target);
 
 Q_SIGNALS:
-    void requestMaximize(WToplevelSurface *surface, treeland_foreign_toplevel_handle_v1_maximized_event *event);
-    void requestMinimize(WToplevelSurface *surface, treeland_foreign_toplevel_handle_v1_minimized_event *event);
-    void requestActivate(WToplevelSurface *surface, treeland_foreign_toplevel_handle_v1_activated_event *event);
-    void requestFullscreen(WToplevelSurface *surface, treeland_foreign_toplevel_handle_v1_fullscreen_event *event);
+    void requestMaximize(WToplevelSurface *surface,
+                         treeland_foreign_toplevel_handle_v1_maximized_event *event);
+    void requestMinimize(WToplevelSurface *surface,
+                         treeland_foreign_toplevel_handle_v1_minimized_event *event);
+    void requestActivate(WToplevelSurface *surface,
+                         treeland_foreign_toplevel_handle_v1_activated_event *event);
+    void requestFullscreen(WToplevelSurface *surface,
+                           treeland_foreign_toplevel_handle_v1_fullscreen_event *event);
     void requestClose(WToplevelSurface *surface);
-    void rectangleChanged(WToplevelSurface *surface, treeland_foreign_toplevel_handle_v1_set_rectangle_event *event);
-    void requestDockPreview(std::vector<WSurface*> surfaces, WSurface *target, QPoint abs, int direction);
+    void rectangleChanged(WToplevelSurface *surface,
+                          treeland_foreign_toplevel_handle_v1_set_rectangle_event *event);
+    void requestDockPreview(std::vector<WSurface *> surfaces,
+                            WSurface *target,
+                            QPoint abs,
+                            int direction);
     void requestDockClose();
 
 private:
     void create() override;
 };
 
-Q_DECLARE_OPAQUE_POINTER(treeland_foreign_toplevel_handle_v1_maximized_event*);
-Q_DECLARE_OPAQUE_POINTER(treeland_foreign_toplevel_handle_v1_minimized_event*);
-Q_DECLARE_OPAQUE_POINTER(treeland_foreign_toplevel_handle_v1_activated_event*);
-Q_DECLARE_OPAQUE_POINTER(treeland_foreign_toplevel_handle_v1_fullscreen_event*);
-Q_DECLARE_OPAQUE_POINTER(treeland_foreign_toplevel_handle_v1_set_rectangle_event*);
+Q_DECLARE_OPAQUE_POINTER(treeland_foreign_toplevel_handle_v1_maximized_event *);
+Q_DECLARE_OPAQUE_POINTER(treeland_foreign_toplevel_handle_v1_minimized_event *);
+Q_DECLARE_OPAQUE_POINTER(treeland_foreign_toplevel_handle_v1_activated_event *);
+Q_DECLARE_OPAQUE_POINTER(treeland_foreign_toplevel_handle_v1_fullscreen_event *);
+Q_DECLARE_OPAQUE_POINTER(treeland_foreign_toplevel_handle_v1_set_rectangle_event *);
