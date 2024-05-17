@@ -22,6 +22,7 @@ makeTest
         variables = {
           WLR_RENDERER = "pixman";
           XDG_RUNTIME_DIR = "/run/user/1000";
+          WAYLIB_DISABLE_GESTURE = "on";
         };
         systemPackages = with pkgs; [ waylib wayland-utils foot xterm ];
       };
@@ -59,7 +60,7 @@ makeTest
       machine.succeed("su - ${user.name} -c 'foot >&2 &'")
       machine.wait_until_succeeds("pgrep foot")
       machine.screenshot("tinywl_foot")
-     
+
       # Test run client in xwayland
       machine.succeed("su - ${user.name} -c 'xterm >&2 &'")
       machine.wait_until_succeeds("pgrep xterm")
