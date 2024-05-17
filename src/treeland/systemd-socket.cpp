@@ -8,9 +8,10 @@
 #include <QDBusServiceWatcher>
 #include <QDebug>
 #include <QFile>
-#include <qdbusconnection.h>
-#include <qdbusinterface.h>
-#include <qdbusunixfiledescriptor.h>
+#include <QDBusConnection>
+#include <QDBusInterface>
+#include <QDBusUnixFileDescriptor>
+#include <QtEnvironmentVariables>
 
 #include <sys/socket.h>
 #include <sys/un.h>
@@ -27,26 +28,33 @@ int main(int argc, char *argv[])
 
     QDBusUnixFileDescriptor unixFileDescriptor(SD_LISTEN_FDS_START);
 
-    auto activateFd = [unixFileDescriptor] {
-        QDBusInterface updateFd("org.deepin.Compositor1",
-                                "/org/deepin/Compositor1",
-                                "org.deepin.Compositor1",
-                                QDBusConnection::systemBus());
+    auto active = [unixFileDescriptor](const QDBusConnection &connection) {
+        auto activateFd = [unixFileDescriptor, connection] {
+            QDBusInterface updateFd("org.deepin.Compositor1",
+                                    "/org/deepin/Compositor1",
+                                    "org.deepin.Compositor1",
+                                    connection);
 
-        updateFd.call("Activate", QVariant::fromValue(unixFileDescriptor));
+            if (updateFd.isValid()) {
+                updateFd.call("Activate", QVariant::fromValue(unixFileDescriptor));
+            }
+        };
+
+        QDBusServiceWatcher *compositorWatcher =
+            new QDBusServiceWatcher("org.deepin.Compositor1",
+                                    connection,
+                                    QDBusServiceWatcher::WatchForRegistration);
+
+        QObject::connect(compositorWatcher,
+                         &QDBusServiceWatcher::serviceRegistered,
+                         compositorWatcher,
+                         activateFd);
+
+        activateFd();
     };
 
-    QDBusServiceWatcher *compositorWatcher =
-        new QDBusServiceWatcher("org.deepin.Compositor1",
-                                QDBusConnection::systemBus(),
-                                QDBusServiceWatcher::WatchForRegistration);
-
-    QObject::connect(compositorWatcher,
-                     &QDBusServiceWatcher::serviceRegistered,
-                     compositorWatcher,
-                     activateFd);
-
-    activateFd();
+    active(QDBusConnection::sessionBus());
+    active(QDBusConnection::systemBus());
 
     sd_notify(0, "READY=1");
 

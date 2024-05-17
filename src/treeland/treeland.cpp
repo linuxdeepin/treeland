@@ -401,5 +401,8 @@ int main(int argc, char *argv[])
     QDBusConnection::systemBus().registerService("org.deepin.Compositor1");
     QDBusConnection::systemBus().registerObject("/org/deepin/Compositor1", &treeland);
 
+    QDBusConnection::sessionBus().registerService("org.deepin.Compositor1");
+    QDBusConnection::sessionBus().registerObject("/org/deepin/Compositor1", &treeland);
+
     return app.exec();
 }
