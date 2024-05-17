@@ -18,6 +18,7 @@ Sockets=treeland-sd.socket
 UnsetEnvironment=DISPLAY
 UnsetEnvironment=WAYLAND_DISPLAY
 ExecStart=@CMAKE_INSTALL_FULL_LIBEXECDIR@/treeland-sd
+ExecStartPost=-/usr/bin/systemctl --user set-environment WAYLAND_DISPLAY=%t/treeland.socket
 ExecStartPost=-/usr/bin/systemctl --user set-environment DDE_CURRENT_COMPOSITOR=TreeLand
 ExecStopPost=-/usr/bin/systemctl --user unset-environment DDE_CURRENT_COMPOSITOR
 Slice=session.slice
