@@ -5,7 +5,8 @@
 
 #include <wayland-server-core.h>
 
-struct treeland_shortcut_manager_v1 {
+struct treeland_shortcut_manager_v1
+{
     struct wl_event_loop *event_loop;
     struct wl_global *global;
     struct wl_list contexts;
@@ -13,7 +14,8 @@ struct treeland_shortcut_manager_v1 {
 
     struct wl_listener display_destroy;
 
-    struct {
+    struct
+    {
         struct wl_signal context;
         struct wl_signal destroy;
     } events;
@@ -21,25 +23,26 @@ struct treeland_shortcut_manager_v1 {
     void *data;
 };
 
-struct treeland_shortcut_context_v1 {
+struct treeland_shortcut_context_v1
+{
     struct treeland_shortcut_manager_v1 *manager;
     char *key;
     struct wl_list link;
     struct wl_resource *resource;
 
-    struct {
+    struct
+    {
         struct wl_signal destroy;
     } events;
 };
 
-void shortcut_manager_bind(struct wl_client *client, void *data,
-                           uint32_t version, uint32_t id);
+void shortcut_manager_bind(struct wl_client *client, void *data, uint32_t version, uint32_t id);
 
-struct treeland_shortcut_manager_v1 *
-treeland_shortcut_manager_v1_create(struct wl_display *display);
+struct treeland_shortcut_manager_v1 *treeland_shortcut_manager_v1_create(
+    struct wl_display *display);
 
-void treeland_shortcut_context_v1_destroy(
-    struct treeland_shortcut_context_v1 *context);
+void treeland_shortcut_context_v1_destroy(struct treeland_shortcut_context_v1 *context);
 
 void treeland_shortcut_context_v1_send_shortcut(struct treeland_shortcut_context_v1 *context);
-void treeland_shortcut_context_v1_send_register_failed(struct treeland_shortcut_context_v1 *context);
+void treeland_shortcut_context_v1_send_register_failed(
+    struct treeland_shortcut_context_v1 *context);

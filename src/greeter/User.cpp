@@ -3,15 +3,16 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "User.h"
-#include <QUrl>
+
 #include <QObject>
+#include <QUrl>
 
 struct UserPrivate
 {
-    bool logined{false};
-    bool noPasswdLogin{false};
-    quint64 uid{0};
-    quint64 gid{0};
+    bool logined{ false };
+    bool noPasswdLogin{ false };
+    quint64 uid{ 0 };
+    quint64 gid{ 0 };
     QString userName;
     QString fullName;
     QString homeDir;
@@ -20,7 +21,7 @@ struct UserPrivate
     AccountTypes identity;
     QString passwordHint;
     QString limitTime;
-    AccountsUserPtr inter{nullptr};
+    AccountsUserPtr inter{ nullptr };
 
     void updateUserData();
 };
@@ -36,7 +37,7 @@ void UserPrivate::updateUserData()
     homeDir = inter->homeDir();
     icon = inter->iconFile();
     passwordHint = inter->passwordHint();
-    locale = QLocale{inter->locale()};
+    locale = QLocale{ inter->locale() };
 }
 
 User::User(AccountsUserPtr ptr)
@@ -106,7 +107,8 @@ const QString &User::passwordHint() const noexcept
     return d->passwordHint;
 }
 
-const QLocale& User::locale() const noexcept {
+const QLocale &User::locale() const noexcept
+{
     return d->locale;
 }
 
@@ -126,15 +128,16 @@ void User::updateLimitTime(const QString &time) noexcept
     emit limitTimeChanged(time);
 }
 
-QString User::toString(AccountTypes type) noexcept {
+QString User::toString(AccountTypes type) noexcept
+{
     DACCOUNTS_USE_NAMESPACE
     switch (type) {
     case AccountTypes::Admin:
-    return tr("Administrator");
+        return tr("Administrator");
     case AccountTypes::Default:
-    return tr("Standard User");
+        return tr("Standard User");
     default:
-    qDebug() << "ignore other types.";
+        qDebug() << "ignore other types.";
     }
 
     return {};

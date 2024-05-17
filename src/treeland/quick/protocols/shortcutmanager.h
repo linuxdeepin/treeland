@@ -3,14 +3,17 @@
 
 #pragma once
 
-#include <QObject>
-#include <QQmlEngine>
-#include <wquickwaylandserver.h>
-
 #include "helper.h"
 
+#include <wquickwaylandserver.h>
+
+#include <QObject>
+#include <QQmlEngine>
+
 class ShortcutManagerV1Private;
-class ShortcutManagerV1 : public Waylib::Server::WQuickWaylandServerInterface , public WObject{
+
+class ShortcutManagerV1 : public Waylib::Server::WQuickWaylandServerInterface, public WObject
+{
     Q_OBJECT
     QML_NAMED_ELEMENT(ShortcutManager)
     W_DECLARE_PRIVATE(ShortcutManagerV1)

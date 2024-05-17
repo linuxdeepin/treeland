@@ -3,16 +3,16 @@
 
 #pragma once
 
+#include "helper.h"
 #include "personalization-server-protocol.h"
 #include "personalization_manager_impl.h"
-#include "helper.h"
 
-#include <qtmetamacros.h>
-#include <wxdgsurface.h>
 #include <wquickwaylandserver.h>
+#include <wxdgsurface.h>
 
 #include <QObject>
 #include <QQmlEngine>
+#include <qtmetamacros.h>
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 class WXdgSurface;
@@ -34,19 +34,14 @@ class WAYLIB_SERVER_EXPORT QuickPersonalizationManagerAttached : public QObject
     QML_ANONYMOUS
 
 public:
-    enum BackgroundType {
-        Normal,
-        Wallpaper,
-        Blend
-    };
+    enum BackgroundType { Normal, Wallpaper, Blend };
     Q_ENUM(BackgroundType)
 
     QuickPersonalizationManagerAttached(WSurface *target, QuickPersonalizationManager *manager);
     QuickPersonalizationManagerAttached(QQuickItem *target, QuickPersonalizationManager *manager);
 
-    BackgroundType backgroundType() const {
-        return m_backgroundType;
-    };
+    BackgroundType backgroundType() const { return m_backgroundType; };
+
     QQuickItem *backgroundImage() const;
 
 Q_SIGNALS:
@@ -61,6 +56,7 @@ private:
 class QuickPersonalizationManagerPrivate;
 class PersonalizationWindowContext;
 class PersonalizationWallpaperContext;
+
 class QuickPersonalizationManager : public WQuickWaylandServerInterface, public WObject
 {
     Q_OBJECT
@@ -82,7 +78,7 @@ public:
     static QuickPersonalizationManagerAttached *qmlAttachedProperties(QObject *target);
 
     QString currentWallpaper();
-    void setCurrentWallpaper(const QString& path);
+    void setCurrentWallpaper(const QString &path);
 
     uid_t currentUserId();
     void setCurrentUserId(uid_t uid);

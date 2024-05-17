@@ -3,23 +3,25 @@
 
 #pragma once
 
-#include <WSeat>
 #include <WCursor>
-#include <WSurfaceItem>
-#include <WOutput>
 #include <WLayerSurface>
+#include <WOutput>
+#include <WSeat>
+#include <WSurfaceItem>
 #include <wtoplevelsurface.h>
 
 #include <QList>
 
-Q_DECLARE_OPAQUE_POINTER(QWindow*)
+Q_DECLARE_OPAQUE_POINTER(QWindow *)
 
 struct wlr_output_event_request_state;
 QW_USE_NAMESPACE
 WAYLIB_SERVER_USE_NAMESPACE
 
 struct OutputInfo;
-struct Margins {
+
+struct Margins
+{
     Q_GADGET
     Q_PROPERTY(uint32_t left MEMBER left)
     Q_PROPERTY(uint32_t top MEMBER top)
@@ -29,7 +31,8 @@ public:
     uint32_t left = 0, top = 0, right = 0, bottom = 0;
 };
 
-class Helper : public WSeatEventFilter {
+class Helper : public WSeatEventFilter
+{
     Q_OBJECT
     Q_PROPERTY(WToplevelSurface* activatedSurface READ activatedSurface WRITE setActivateSurface NOTIFY activatedSurfaceChanged FINAL)
     Q_PROPERTY(WSurfaceItem* resizingItem READ resizingItem NOTIFY resizingItemChanged FINAL)
@@ -51,6 +54,7 @@ public:
     Q_ENUM(Switcher)
 
     void setCurrentUser(const QString &currentUser);
+
     inline QString currentUser() const { return m_currentUser; }
 
     QString socketFile() const;
@@ -77,14 +81,19 @@ public:
     Q_INVOKABLE quint32 getRightExclusiveMargin(WToplevelSurface *layerSurface);
 
     // Output
-    Q_INVOKABLE void onSurfaceEnterOutput(WToplevelSurface *surface, WSurfaceItem *surfaceItem, WOutput *output);
-    Q_INVOKABLE void onSurfaceLeaveOutput(WToplevelSurface *surface, WSurfaceItem *surfaceItem, WOutput *output);
+    Q_INVOKABLE void onSurfaceEnterOutput(WToplevelSurface *surface,
+                                          WSurfaceItem *surfaceItem,
+                                          WOutput *output);
+    Q_INVOKABLE void onSurfaceLeaveOutput(WToplevelSurface *surface,
+                                          WSurfaceItem *surfaceItem,
+                                          WOutput *output);
     Q_INVOKABLE Margins getOutputExclusiveMargins(WOutput *output);
-    std::pair<WOutput*,OutputInfo*> getFirstOutputOfSurface(WToplevelSurface *surface);
+    std::pair<WOutput *, OutputInfo *> getFirstOutputOfSurface(WToplevelSurface *surface);
 
 public Q_SLOTS:
     void startMove(WToplevelSurface *surface, WSurfaceItem *shell, WSeat *seat, int serial);
-    void startResize(WToplevelSurface *surface, WSurfaceItem *shell, WSeat *seat, Qt::Edges edge, int serial);
+    void startResize(
+        WToplevelSurface *surface, WSurfaceItem *shell, WSeat *seat, Qt::Edges edge, int serial);
     void cancelMoveResize(WSurfaceItem *shell);
     WSurface *getFocusSurfaceFrom(QObject *object);
 
@@ -108,14 +117,18 @@ Q_SIGNALS:
 
 protected:
     bool beforeDisposeEvent(WSeat *seat, QWindow *watched, QInputEvent *event) override;
-    bool afterHandleEvent(WSeat *seat, WSurface *watched, QObject *surfaceItem, QObject *, QInputEvent *event) override;
+    bool afterHandleEvent(WSeat *seat,
+                          WSurface *watched,
+                          QObject *surfaceItem,
+                          QObject *,
+                          QInputEvent *event) override;
     bool unacceptedEvent(WSeat *seat, QWindow *watched, QInputEvent *event) override;
 
     void setActivateSurface(WToplevelSurface *newActivate);
     void setResizingItem(WSurfaceItem *newResizingItem);
     void setMovingItem(WSurfaceItem *newMovingItem);
     void onOutputRequeseState(wlr_output_event_request_state *newState);
-    OutputInfo* getOutputInfo(WOutput *output);
+    OutputInfo *getOutputInfo(WOutput *output);
 
     QPointer<WToplevelSurface> m_activateSurface;
 
@@ -128,7 +141,7 @@ protected:
     Qt::Edges resizeEdgets;
     WSurfaceItem *m_resizingItem = nullptr;
     WSurfaceItem *m_movingItem = nullptr;
-    QList<std::pair<WOutput*,OutputInfo*>> m_outputExclusiveZoneInfo;
+    QList<std::pair<WOutput *, OutputInfo *>> m_outputExclusiveZoneInfo;
 
 private:
     void setSocketFile(const QString &socketFile);
@@ -136,16 +149,17 @@ private:
 private:
     QString m_socketFile;
     QString m_currentUser;
-    std::map<QString, std::vector<QAction*>> m_actions;
+    std::map<QString, std::vector<QAction *>> m_actions;
     bool m_switcherOn = false;
     bool m_switcherEnabled = true;
 };
 
-struct OutputInfo {
-    QList<WToplevelSurface*> surfaceList;
-    QList<WSurfaceItem*> surfaceItemList;
+struct OutputInfo
+{
+    QList<WToplevelSurface *> surfaceList;
+    QList<WSurfaceItem *> surfaceItemList;
 
     // for Exclusive Zone
-    Margins exclusiveMargins = {0,0,0,0};
-    QList<std::tuple<WLayerSurface*, uint32_t, WLayerSurface::AnchorType>> registeredSurfaceList;
+    Margins exclusiveMargins = { 0, 0, 0, 0 };
+    QList<std::tuple<WLayerSurface *, uint32_t, WLayerSurface::AnchorType>> registeredSurfaceList;
 };

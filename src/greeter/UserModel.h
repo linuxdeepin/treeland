@@ -1,34 +1,36 @@
 /***************************************************************************
-* Copyright (c) 2013 Abdurrahman AVCI <abdurrahmanavci@gmail.com>
-*
-* This program is free software; you can redistribute it and/or modify
-* it under the terms of the GNU General Public License as published by
-* the Free Software Foundation; either version 2 of the License, or
-* (at your option) any later version.
-*
-* This program is distributed in the hope that it will be useful,
-* but WITHOUT ANY WARRANTY; without even the implied warranty of
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-* GNU General Public License for more details.
-*
-* You should have received a copy of the GNU General Public License
-* along with this program; if not, write to the
-* Free Software Foundation, Inc.,
-* 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
-***************************************************************************/
+ * Copyright (c) 2013 Abdurrahman AVCI <abdurrahmanavci@gmail.com>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the
+ * Free Software Foundation, Inc.,
+ * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+ ***************************************************************************/
 
 #ifndef SDDM_USERMODEL_H
 #define SDDM_USERMODEL_H
 
-#include <QAbstractListModel>
-#include <QQmlEngine>
-#include <QHash>
 #include "User.h"
+
+#include <QAbstractListModel>
+#include <QHash>
+#include <QQmlEngine>
 
 struct UserModelPrivate;
 using UserPtr = std::shared_ptr<User>;
 
-class UserModel : public QAbstractListModel {
+class UserModel : public QAbstractListModel
+{
     Q_OBJECT
     Q_PROPERTY(QString currentUserName READ currentUserName WRITE setCurrentUserName NOTIFY
                     currentUserNameChanged)
@@ -52,8 +54,8 @@ public:
     };
     Q_ENUM(UserRoles)
 
-    UserModel(const UserModel&) = delete;
-    UserModel& operator=(const UserModel&) = delete;
+    UserModel(const UserModel &) = delete;
+    UserModel &operator=(const UserModel &) = delete;
     explicit UserModel(QObject *parent = nullptr);
     ~UserModel() override;
 
@@ -65,7 +67,7 @@ public:
                                             int role = Qt::DisplayRole) const override;
     [[nodiscard]] Q_INVOKABLE QVariant get(const QString &username) const;
     [[nodiscard]] Q_INVOKABLE QVariant get(int index) const;
-    [[nodiscard]] UserPtr getUser(const QString& username) const noexcept;
+    [[nodiscard]] UserPtr getUser(const QString &username) const noexcept;
     [[nodiscard]] QString currentUserName() const noexcept;
     void updateUserLimits(const QString &userName, const QString &time) const noexcept;
     void setCurrentUserName(const QString &userName) noexcept;
@@ -75,7 +77,7 @@ public:
 
 Q_SIGNALS:
     void currentUserNameChanged();
-    void updateTranslations(const QLocale& locale);
+    void updateTranslations(const QLocale &locale);
     void countChanged();
 
 private Q_SLOTS:
@@ -83,7 +85,7 @@ private Q_SLOTS:
     void onUserDeleted(quint64 uid);
 
 private:
-    UserModelPrivate *d{nullptr};
+    UserModelPrivate *d{ nullptr };
 };
 
 #endif // USERMODEL_H

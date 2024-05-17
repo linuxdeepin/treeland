@@ -3,17 +3,16 @@
 
 #pragma once
 
-#include <wayland-server.h>
 #include <wayland-server-core.h>
+#include <wayland-server.h>
 
-static void resource_handle_destroy(struct wl_client *,
-                                    struct wl_resource *resource)
+static void resource_handle_destroy(struct wl_client *, struct wl_resource *resource)
 {
     wl_list_remove(&resource->link);
     wl_resource_destroy(resource);
 }
 
-template <typename T>
+template<typename T>
 static void context_destroy(T *context)
 {
     if (context == nullptr) {

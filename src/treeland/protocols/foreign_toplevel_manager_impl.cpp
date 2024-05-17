@@ -47,10 +47,11 @@ static void treeland_foreign_toplevel_handle_destroy(struct wl_client *client,
                                                      struct wl_resource *resource);
 static void treeland_foreign_toplevel_manager_handle_stop(struct wl_client *client,
                                                           struct wl_resource *resource);
-static void treeland_foreign_toplevel_manager_handle_get_dock_preview_context(struct wl_client *client,
-                                                                              struct wl_resource *resource,
-                                                                              struct wl_resource *relative_surface,
-                                                                              uint32_t id);
+static void treeland_foreign_toplevel_manager_handle_get_dock_preview_context(
+    struct wl_client *client,
+    struct wl_resource *resource,
+    struct wl_resource *relative_surface,
+    uint32_t id);
 
 static void treeland_dock_preview_context_handle_show(struct wl_client *client,
                                                       struct wl_resource *resource,
@@ -61,7 +62,8 @@ static void treeland_dock_preview_context_handle_show(struct wl_client *client,
 static void treeland_dock_preview_context_handle_close(struct wl_client *client,
                                                        struct wl_resource *resource);
 
-static void treeland_dock_preview_context_handle_destroy(struct wl_client *client, struct wl_resource *resource);
+static void treeland_dock_preview_context_handle_destroy(struct wl_client *client,
+                                                         struct wl_resource *resource);
 
 static const struct ztreeland_foreign_toplevel_handle_v1_interface treeland_toplevel_handle_impl = {
     .set_maximized = treeland_foreign_toplevel_handle_set_maximized,
@@ -78,13 +80,13 @@ static const struct ztreeland_foreign_toplevel_handle_v1_interface treeland_topl
 
 static const struct treeland_dock_preview_context_v1_interface
     treeland_dock_preview_context_impl = {
-    .show = treeland_dock_preview_context_handle_show,
-    .close = treeland_dock_preview_context_handle_close,
-    .destroy = treeland_dock_preview_context_handle_destroy,
-};
+        .show = treeland_dock_preview_context_handle_show,
+        .close = treeland_dock_preview_context_handle_close,
+        .destroy = treeland_dock_preview_context_handle_destroy,
+    };
 
-static struct treeland_foreign_toplevel_handle_v1 *
-toplevel_handle_from_resource(struct wl_resource *resource)
+static struct treeland_foreign_toplevel_handle_v1 *toplevel_handle_from_resource(
+    struct wl_resource *resource)
 {
     assert(wl_resource_instance_of(resource,
                                    &ztreeland_foreign_toplevel_handle_v1_interface,
@@ -93,8 +95,8 @@ toplevel_handle_from_resource(struct wl_resource *resource)
         wl_resource_get_user_data(resource));
 }
 
-static struct treeland_dock_preview_context_v1 *
-toplevel_dock_preview_context_from_resource(struct wl_resource *resource)
+static struct treeland_dock_preview_context_v1 *toplevel_dock_preview_context_from_resource(
+    struct wl_resource *resource)
 {
     assert(wl_resource_instance_of(resource,
                                    &treeland_dock_preview_context_v1_interface,
@@ -116,14 +118,14 @@ static void toplevel_handle_send_maximized_event(struct wl_resource *resource, b
     wl_signal_emit_mutable(&toplevel->events.request_maximize, &event);
 }
 
-static void treeland_foreign_toplevel_handle_set_maximized([[maybe_unused]] struct wl_client *client,
-                                                           struct wl_resource *resource)
+static void treeland_foreign_toplevel_handle_set_maximized(
+    [[maybe_unused]] struct wl_client *client, struct wl_resource *resource)
 {
     toplevel_handle_send_maximized_event(resource, true);
 }
 
-static void treeland_foreign_toplevel_handle_unset_maximized([[maybe_unused]] struct wl_client *client,
-                                                             struct wl_resource *resource)
+static void treeland_foreign_toplevel_handle_unset_maximized(
+    [[maybe_unused]] struct wl_client *client, struct wl_resource *resource)
 {
     toplevel_handle_send_maximized_event(resource, false);
 }
@@ -142,14 +144,14 @@ static void treeland_toplevel_send_minimized_event(struct wl_resource *resource,
     wl_signal_emit_mutable(&toplevel->events.request_minimize, &event);
 }
 
-static void treeland_foreign_toplevel_handle_set_minimized([[maybe_unused]] struct wl_client *client,
-                                                           struct wl_resource *resource)
+static void treeland_foreign_toplevel_handle_set_minimized(
+    [[maybe_unused]] struct wl_client *client, struct wl_resource *resource)
 {
     treeland_toplevel_send_minimized_event(resource, true);
 }
 
-static void treeland_foreign_toplevel_handle_unset_minimized([[maybe_unused]] struct wl_client *client,
-                                                             struct wl_resource *resource)
+static void treeland_foreign_toplevel_handle_unset_minimized(
+    [[maybe_unused]] struct wl_client *client, struct wl_resource *resource)
 {
     treeland_toplevel_send_minimized_event(resource, false);
 }
@@ -175,9 +177,14 @@ static void toplevel_send_fullscreen_event(struct wl_resource *resource,
     wl_signal_emit_mutable(&toplevel->events.request_fullscreen, &event);
 }
 
-static void dock_send_preview_event(struct wl_resource *resource, struct wl_array *surfaces, int32_t x, int32_t y, int32_t direction)
+static void dock_send_preview_event(struct wl_resource *resource,
+                                    struct wl_array *surfaces,
+                                    int32_t x,
+                                    int32_t y,
+                                    int32_t direction)
 {
-    struct treeland_dock_preview_context_v1 *dock_preview = toplevel_dock_preview_context_from_resource(resource);
+    struct treeland_dock_preview_context_v1 *dock_preview =
+        toplevel_dock_preview_context_from_resource(resource);
     if (!dock_preview) {
         return;
     }
@@ -200,15 +207,16 @@ static void dock_send_preview_event(struct wl_resource *resource, struct wl_arra
     wl_signal_emit_mutable(&dock_preview->events.request_show, &event);
 }
 
-static void treeland_foreign_toplevel_handle_set_fullscreen([[maybe_unused]] struct wl_client *client,
-                                                            struct wl_resource *resource,
-                                                            struct wl_resource *output)
+static void treeland_foreign_toplevel_handle_set_fullscreen(
+    [[maybe_unused]] struct wl_client *client,
+    struct wl_resource *resource,
+    struct wl_resource *output)
 {
     toplevel_send_fullscreen_event(resource, true, output);
 }
 
-static void treeland_foreign_toplevel_handle_unset_fullscreen([[maybe_unused]] struct wl_client *client,
-                                                              struct wl_resource *resource)
+static void treeland_foreign_toplevel_handle_unset_fullscreen(
+    [[maybe_unused]] struct wl_client *client, struct wl_resource *resource)
 {
     toplevel_send_fullscreen_event(resource, false, NULL);
 }
@@ -243,13 +251,14 @@ static void treeland_foreign_toplevel_handle_close([[maybe_unused]] struct wl_cl
     wl_signal_emit_mutable(&toplevel->events.request_close, toplevel);
 }
 
-static void treeland_foreign_toplevel_handle_set_rectangle([[maybe_unused]] struct wl_client *client,
-                                                           struct wl_resource *resource,
-                                                           struct wl_resource *surface,
-                                                           int32_t x,
-                                                           int32_t y,
-                                                           int32_t width,
-                                                           int32_t height)
+static void treeland_foreign_toplevel_handle_set_rectangle(
+    [[maybe_unused]] struct wl_client *client,
+    struct wl_resource *resource,
+    struct wl_resource *surface,
+    int32_t x,
+    int32_t y,
+    int32_t width,
+    int32_t height)
 {
     struct treeland_foreign_toplevel_handle_v1 *toplevel = toplevel_handle_from_resource(resource);
     if (!toplevel) {
@@ -419,7 +428,8 @@ static void toplevel_handle_output_bind(struct wl_listener *listener, void *data
     toplevel_update_idle_source(toplevel_output->toplevel);
 }
 
-static void toplevel_handle_output_destroy(struct wl_listener *listener, [[maybe_unused]] void *data)
+static void toplevel_handle_output_destroy(struct wl_listener *listener,
+                                           [[maybe_unused]] void *data)
 {
     struct treeland_foreign_toplevel_handle_v1_output *toplevel_output =
         wl_container_of(listener, toplevel_output, output_destroy);
@@ -458,8 +468,8 @@ void treeland_foreign_toplevel_handle_v1_output_enter(
     toplevel_send_output(toplevel, output, true);
 }
 
-static void
-toplevel_output_destroy(struct treeland_foreign_toplevel_handle_v1_output *toplevel_output)
+static void toplevel_output_destroy(
+    struct treeland_foreign_toplevel_handle_v1_output *toplevel_output)
 {
     wl_list_remove(&toplevel_output->link);
     wl_list_remove(&toplevel_output->output_bind.link);
@@ -641,20 +651,17 @@ void treeland_foreign_toplevel_handle_v1_set_parent(
     toplevel_update_idle_source(toplevel);
 }
 
-void treeland_dock_preview_context_v1_enter(
-    struct treeland_dock_preview_context_v1 *toplevel)
+void treeland_dock_preview_context_v1_enter(struct treeland_dock_preview_context_v1 *toplevel)
 {
     treeland_dock_preview_context_v1_send_enter(toplevel->resource);
 }
 
-void treeland_dock_preview_context_v1_leave(
-    struct treeland_dock_preview_context_v1 *toplevel)
+void treeland_dock_preview_context_v1_leave(struct treeland_dock_preview_context_v1 *toplevel)
 {
     treeland_dock_preview_context_v1_send_leave(toplevel->resource);
 }
 
-void treeland_dock_preview_context_v1_destroy(
-    struct treeland_dock_preview_context_v1 *toplevel)
+void treeland_dock_preview_context_v1_destroy(struct treeland_dock_preview_context_v1 *toplevel)
 {
     if (!toplevel) {
         return;
@@ -733,11 +740,11 @@ static void treeland_dock_preview_context_handle_show([[maybe_unused]] struct wl
     dock_send_preview_event(resource, surfaces, x, y, direction);
 }
 
-
 static void treeland_dock_preview_context_handle_close([[maybe_unused]] struct wl_client *client,
                                                        struct wl_resource *resource)
 {
-    struct treeland_dock_preview_context_v1 *dock_preview = toplevel_dock_preview_context_from_resource(resource);
+    struct treeland_dock_preview_context_v1 *dock_preview =
+        toplevel_dock_preview_context_from_resource(resource);
     if (!dock_preview) {
         return;
     }
@@ -745,7 +752,8 @@ static void treeland_dock_preview_context_handle_close([[maybe_unused]] struct w
     wl_signal_emit_mutable(&dock_preview->events.request_close, nullptr);
 }
 
-static void treeland_dock_preview_context_handle_destroy([[maybe_unused]] struct wl_client *client, struct wl_resource *resource)
+static void treeland_dock_preview_context_handle_destroy([[maybe_unused]] struct wl_client *client,
+                                                         struct wl_resource *resource)
 {
     wl_resource_destroy(resource);
 }
@@ -775,8 +783,8 @@ static struct wl_resource *create_toplevel_resource_for_resource(
     return resource;
 }
 
-struct treeland_foreign_toplevel_handle_v1 *
-treeland_foreign_toplevel_handle_v1_create(struct treeland_foreign_toplevel_manager_v1 *manager)
+struct treeland_foreign_toplevel_handle_v1 *treeland_foreign_toplevel_handle_v1_create(
+    struct treeland_foreign_toplevel_manager_v1 *manager)
 {
     struct treeland_foreign_toplevel_handle_v1 *toplevel =
         static_cast<struct treeland_foreign_toplevel_handle_v1 *>(calloc(1, sizeof(*toplevel)));
@@ -810,12 +818,18 @@ treeland_foreign_toplevel_handle_v1_create(struct treeland_foreign_toplevel_mana
 static const struct ztreeland_foreign_toplevel_manager_v1_interface
     treeland_foreign_toplevel_manager_impl = {
         .stop = treeland_foreign_toplevel_manager_handle_stop,
-        .get_dock_preview_context = treeland_foreign_toplevel_manager_handle_get_dock_preview_context,
-};
+        .get_dock_preview_context =
+            treeland_foreign_toplevel_manager_handle_get_dock_preview_context,
+    };
 
-struct treeland_foreign_toplevel_manager_v1 *foreign_toplevel_manager_from_resource(struct wl_resource *resource) {
-    assert(wl_resource_instance_of(resource, &ztreeland_foreign_toplevel_manager_v1_interface, &treeland_foreign_toplevel_manager_impl));
-    struct treeland_foreign_toplevel_manager_v1 *manager = static_cast<treeland_foreign_toplevel_manager_v1*>(wl_resource_get_user_data(resource));
+struct treeland_foreign_toplevel_manager_v1 *foreign_toplevel_manager_from_resource(
+    struct wl_resource *resource)
+{
+    assert(wl_resource_instance_of(resource,
+                                   &ztreeland_foreign_toplevel_manager_v1_interface,
+                                   &treeland_foreign_toplevel_manager_impl));
+    struct treeland_foreign_toplevel_manager_v1 *manager =
+        static_cast<treeland_foreign_toplevel_manager_v1 *>(wl_resource_get_user_data(resource));
     assert(manager != NULL);
     return manager;
 }
@@ -833,7 +847,8 @@ static void treeland_foreign_toplevel_manager_handle_stop([[maybe_unused]] struc
 
 static void treeland_dock_preview_context_resource_destroy(struct wl_resource *resource)
 {
-    struct treeland_dock_preview_context_v1 *context = toplevel_dock_preview_context_from_resource(resource);
+    struct treeland_dock_preview_context_v1 *context =
+        toplevel_dock_preview_context_from_resource(resource);
     if (!context) {
         return;
     }
@@ -845,28 +860,34 @@ static void treeland_dock_preview_context_resource_destroy(struct wl_resource *r
     free(context);
 }
 
-static void treeland_foreign_toplevel_manager_handle_get_dock_preview_context(struct wl_client *client,
-                                                                              struct wl_resource *manager_resource,
-                                                                              struct wl_resource *relative_surface,
-                                                                              uint32_t id)
+static void treeland_foreign_toplevel_manager_handle_get_dock_preview_context(
+    struct wl_client *client,
+    struct wl_resource *manager_resource,
+    struct wl_resource *relative_surface,
+    uint32_t id)
 {
     auto *manager = foreign_toplevel_manager_from_resource(manager_resource);
 
-    struct treeland_dock_preview_context_v1 *context = static_cast<treeland_dock_preview_context_v1*>(calloc(1, sizeof(*context)));
+    struct treeland_dock_preview_context_v1 *context =
+        static_cast<treeland_dock_preview_context_v1 *>(calloc(1, sizeof(*context)));
     if (context == NULL) {
         wl_resource_post_no_memory(manager_resource);
         return;
     }
 
     uint32_t version = wl_resource_get_version(manager_resource);
-    struct wl_resource *resource = wl_resource_create(client, &treeland_dock_preview_context_v1_interface, version, id);
+    struct wl_resource *resource =
+        wl_resource_create(client, &treeland_dock_preview_context_v1_interface, version, id);
     if (resource == NULL) {
         free(context);
         wl_resource_post_no_memory(manager_resource);
         return;
     }
 
-    wl_resource_set_implementation(resource, &treeland_dock_preview_context_impl, context, treeland_dock_preview_context_resource_destroy);
+    wl_resource_set_implementation(resource,
+                                   &treeland_dock_preview_context_impl,
+                                   context,
+                                   treeland_dock_preview_context_resource_destroy);
     wl_resource_set_user_data(resource, context);
 
     wl_signal_init(&context->events.request_show);
@@ -971,8 +992,8 @@ static void handle_display_destroy(struct wl_listener *listener, [[maybe_unused]
     free(manager);
 }
 
-struct treeland_foreign_toplevel_manager_v1 *
-treeland_foreign_toplevel_manager_v1_create(struct wl_display *display)
+struct treeland_foreign_toplevel_manager_v1 *treeland_foreign_toplevel_manager_v1_create(
+    struct wl_display *display)
 {
     struct treeland_foreign_toplevel_manager_v1 *manager =
         static_cast<struct treeland_foreign_toplevel_manager_v1 *>(calloc(1, sizeof(*manager)));

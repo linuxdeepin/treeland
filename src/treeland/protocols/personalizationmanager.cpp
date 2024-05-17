@@ -5,9 +5,9 @@
 
 #include "personalization_manager_impl.h"
 
-#include <qwsignalconnector.h>
-#include <qwglobal.h>
 #include <qwdisplay.h>
+#include <qwglobal.h>
+#include <qwsignalconnector.h>
 
 #include <QHash>
 
@@ -16,24 +16,33 @@ QW_USE_NAMESPACE
 class TreeLandPersonalizationManagerPrivate : public QWObjectPrivate
 {
 public:
-    TreeLandPersonalizationManagerPrivate(treeland_personalization_manager_v1 *handle, bool isOwner, TreeLandPersonalizationManager *qq)
+    TreeLandPersonalizationManagerPrivate(treeland_personalization_manager_v1 *handle,
+                                          bool isOwner,
+                                          TreeLandPersonalizationManager *qq)
         : QWObjectPrivate(handle, isOwner, qq)
     {
         Q_ASSERT(!map.contains(handle));
         map.insert(handle, qq);
-        sc.connect(&handle->events.destroy, this, &TreeLandPersonalizationManagerPrivate::on_destroy);
-        sc.connect(&handle->events.window_context_created, this,
+        sc.connect(&handle->events.destroy,
+                   this,
+                   &TreeLandPersonalizationManagerPrivate::on_destroy);
+        sc.connect(&handle->events.window_context_created,
+                   this,
                    &TreeLandPersonalizationManagerPrivate::on_window_context_created);
-        sc.connect(&handle->events.wallpaper_context_created, this,
+        sc.connect(&handle->events.wallpaper_context_created,
+                   this,
                    &TreeLandPersonalizationManagerPrivate::on_wallpaper_context_created);
     }
-    ~TreeLandPersonalizationManagerPrivate() {
+
+    ~TreeLandPersonalizationManagerPrivate()
+    {
         if (!m_handle)
             return;
         destroy();
     }
 
-    inline void destroy() {
+    inline void destroy()
+    {
         Q_ASSERT(m_handle);
         Q_ASSERT(map.contains(m_handle));
         Q_EMIT q_func()->beforeDestroy(q_func());
@@ -45,11 +54,12 @@ public:
     void on_window_context_created(void *);
     void on_wallpaper_context_created(void *);
 
-    static QHash<void*, TreeLandPersonalizationManager*> map;
+    static QHash<void *, TreeLandPersonalizationManager *> map;
     QW_DECLARE_PUBLIC(TreeLandPersonalizationManager)
     QWSignalConnector sc;
 };
-QHash<void*, TreeLandPersonalizationManager*> TreeLandPersonalizationManagerPrivate::map;
+
+QHash<void *, TreeLandPersonalizationManager *> TreeLandPersonalizationManagerPrivate::map;
 
 void TreeLandPersonalizationManagerPrivate::on_destroy(void *)
 {
@@ -60,31 +70,33 @@ void TreeLandPersonalizationManagerPrivate::on_destroy(void *)
 
 void TreeLandPersonalizationManagerPrivate::on_window_context_created(void *data)
 {
-    if (auto *p = reinterpret_cast<personalization_window_context_v1*>(data)) {
+    if (auto *p = reinterpret_cast<personalization_window_context_v1 *>(data)) {
         Q_EMIT q_func()->windowContextCreated(PersonalizationWindowContext::from(p));
     }
 }
 
 void TreeLandPersonalizationManagerPrivate::on_wallpaper_context_created(void *data)
 {
-    if (auto *p = reinterpret_cast<personalization_wallpaper_context_v1*>(data)) {
+    if (auto *p = reinterpret_cast<personalization_wallpaper_context_v1 *>(data)) {
         Q_EMIT q_func()->wallpaperContextCreated(PersonalizationWallpaperContext::from(p));
     }
 }
 
-TreeLandPersonalizationManager::TreeLandPersonalizationManager(treeland_personalization_manager_v1 *handle, bool isOwner)
+TreeLandPersonalizationManager::TreeLandPersonalizationManager(
+    treeland_personalization_manager_v1 *handle, bool isOwner)
     : QObject(nullptr)
     , QWObject(*new TreeLandPersonalizationManagerPrivate(handle, isOwner, this))
 {
-
 }
 
-TreeLandPersonalizationManager *TreeLandPersonalizationManager::get(treeland_personalization_manager_v1 *handle)
+TreeLandPersonalizationManager *TreeLandPersonalizationManager::get(
+    treeland_personalization_manager_v1 *handle)
 {
     return TreeLandPersonalizationManagerPrivate::map.value(handle);
 }
 
-TreeLandPersonalizationManager *TreeLandPersonalizationManager::from(treeland_personalization_manager_v1 *handle)
+TreeLandPersonalizationManager *TreeLandPersonalizationManager::from(
+    treeland_personalization_manager_v1 *handle)
 {
     if (auto o = get(handle))
         return o;
@@ -99,7 +111,8 @@ TreeLandPersonalizationManager *TreeLandPersonalizationManager::create(QWDisplay
     return new TreeLandPersonalizationManager(handle, true);
 }
 
-void TreeLandPersonalizationManager::onSendUserWallpapers(personalization_wallpaper_context_v1 *wallpaper)
+void TreeLandPersonalizationManager::onSendUserWallpapers(
+    personalization_wallpaper_context_v1 *wallpaper)
 {
     personalization_wallpaper_v1_send_wallpapers(wallpaper);
 }

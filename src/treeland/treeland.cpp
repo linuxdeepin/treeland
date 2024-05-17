@@ -2,46 +2,47 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "treeland.h"
-#include "MessageHandler.h"
-#include "Messages.h"
-#include "SocketWriter.h"
-#include "helper.h"
-#include "SignalHandler.h"
-#include "compositor1adaptor.h"
 
 #include "DisplayManager.h"
 #include "DisplayManagerSession.h"
+#include "MessageHandler.h"
+#include "Messages.h"
+#include "SignalHandler.h"
+#include "SocketWriter.h"
+#include "compositor1adaptor.h"
+#include "helper.h"
 
+#include <WCursor>
+#include <WSeat>
 #include <WServer>
 #include <WSurface>
-#include <WSeat>
-#include <WCursor>
-#include <qqmlextensionplugin.h>
-#include <wsocket.h>
+#include <wordexp.h>
 #include <wrenderhelper.h>
+#include <wsocket.h>
 
 #include <qwbackend.h>
+#include <qwcompositor.h>
 #include <qwdisplay.h>
 #include <qwoutput.h>
-#include <qwcompositor.h>
+
+#include <DLog>
 
 #include <QCommandLineParser>
+#include <QDebug>
 #include <QGuiApplication>
-#include <QQuickItem>
-#include <QQuickView>
+#include <QLoggingCategory>
+#include <QQmlApplicationEngine>
 #include <QQmlContext>
 #include <QQmlEngine>
-#include <DLog>
-#include <QDebug>
-#include <QLoggingCategory>
-#include <QTimer>
-#include <QQmlApplicationEngine>
+#include <QQuickItem>
 #include <QQuickStyle>
-
-#include <pwd.h>
-#include <wordexp.h>
+#include <QQuickView>
+#include <QTimer>
 #include <qdbusconnection.h>
 #include <qdbusunixfiledescriptor.h>
+#include <qqmlextensionplugin.h>
+
+#include <pwd.h>
 
 Q_IMPORT_PLUGIN(TreeLand_ProtocolsPlugin)
 Q_IMPORT_PLUGIN(TreeLand_UtilsPlugin)
@@ -107,7 +108,9 @@ std::optional<QStringList> unescapeExecArgs(const QString &str) noexcept
         wordfree(word);
         delete word;
     };
-    std::unique_ptr<wordexp_t, decltype(deleter)> words{new (std::nothrow) wordexp_t{0, nullptr, 0}, deleter};
+    std::unique_ptr<wordexp_t, decltype(deleter)> words{ new (std::nothrow)
+                                                             wordexp_t{ 0, nullptr, 0 },
+                                                         deleter };
 
     if (auto ret = wordexp(unescapedStr.toLocal8Bit(), words.get(), WRDE_SHOWERR); ret != 0) {
         QString errMessage;
@@ -136,7 +139,7 @@ std::optional<QStringList> unescapeExecArgs(const QString &str) noexcept
 
     QStringList execList;
     for (std::size_t i = 0; i < words->we_wordc; ++i) {
-      execList.emplace_back(words->we_wordv[i]);
+        execList.emplace_back(words->we_wordv[i]);
     }
 
     return execList;
@@ -165,7 +168,9 @@ TreeLand::TreeLand(TreeLandAppContext context)
 
     if (!context.socket.isEmpty()) {
         Q_ASSERT(helper);
-        auto connectToServer = [this, context] { m_socket->connectToServer(context.socket); };
+        auto connectToServer = [this, context] {
+            m_socket->connectToServer(context.socket);
+        };
 
         connect(helper, &Helper::socketFileChanged, this, connectToServer);
 
@@ -175,28 +180,28 @@ TreeLand::TreeLand(TreeLandAppContext context)
     }
 
     if (!context.run.isEmpty()) {
-      qInfo() << "run cmd:" << context.run;
-      auto exec = [runCmd = context.run, helper] {
-        if (auto cmdline = unescapeExecArgs(runCmd); cmdline) {
-          auto cmdArgs = cmdline.value();
+        qInfo() << "run cmd:" << context.run;
+        auto exec = [runCmd = context.run, helper] {
+            if (auto cmdline = unescapeExecArgs(runCmd); cmdline) {
+                auto cmdArgs = cmdline.value();
 
-          auto envs = QProcessEnvironment::systemEnvironment();
-          envs.insert("WAYLAND_DISPLAY", helper->socketFile());
+                auto envs = QProcessEnvironment::systemEnvironment();
+                envs.insert("WAYLAND_DISPLAY", helper->socketFile());
 
-          QProcess process;
-          process.setProgram(cmdArgs.constFirst());
-          process.setArguments(cmdArgs.mid(1));
-          process.setProcessEnvironment(envs);
-          process.startDetached();
+                QProcess process;
+                process.setProgram(cmdArgs.constFirst());
+                process.setArguments(cmdArgs.mid(1));
+                process.setProcessEnvironment(envs);
+                process.startDetached();
+            }
+        };
+        auto con =
+            connect(helper, &Helper::socketFileChanged, this, exec, Qt::SingleShotConnection);
+
+        if (!helper->socketFile().isEmpty()) {
+            QObject::disconnect(con);
+            exec();
         }
-      };
-      auto con = connect(helper, &Helper::socketFileChanged, this, exec,
-                         Qt::SingleShotConnection);
-
-      if (!helper->socketFile().isEmpty()) {
-        QObject::disconnect(con);
-        exec();
-      }
     }
 }
 
@@ -207,6 +212,7 @@ public:
         : QObject(parent)
     {
     }
+
     QUrl intercept(const QUrl &path, DataType type)
     {
         if (type != DataType::QmlFile)
@@ -229,15 +235,17 @@ void TreeLand::setup()
     m_engine->loadFromModule("TreeLand", "Main");
 }
 
-bool TreeLand::testMode() const {
+bool TreeLand::testMode() const
+{
     return m_context.socket.isEmpty();
 }
 
-void TreeLand::connected() {
+void TreeLand::connected()
+{
     // log connection
     qDebug() << "Connected to the daemon.";
 
-    Helper *helper = m_engine->singletonInstance<Helper*>("TreeLand.Utils", "Helper");
+    Helper *helper = m_engine->singletonInstance<Helper *>("TreeLand.Utils", "Helper");
     Q_ASSERT(helper);
 
     connect(helper, &Helper::backToNormal, this, [this] {
@@ -256,11 +264,13 @@ void TreeLand::setPersonalManager(QuickPersonalizationManager *manager)
     m_personalManager = manager;
 }
 
-void TreeLand::retranslate() noexcept {
+void TreeLand::retranslate() noexcept
+{
     m_engine->retranslate();
 }
 
-void TreeLand::disconnected() {
+void TreeLand::disconnected()
+{
     // log disconnection
     qDebug() << "Disconnected from the daemon.";
 
@@ -270,11 +280,13 @@ void TreeLand::disconnected() {
     qApp->exit();
 }
 
-void TreeLand::error() {
+void TreeLand::error()
+{
     qCritical() << "Socket error: " << m_socket->errorString();
 }
 
-void TreeLand::readyRead() {
+void TreeLand::readyRead()
+{
     // input stream
     QDataStream input(m_socket);
 
@@ -284,37 +296,35 @@ void TreeLand::readyRead() {
         input >> message;
 
         switch (DDM::DaemonMessages(message)) {
-            case DDM::DaemonMessages::Capabilities: {
-                // log message
-                qDebug() << "Message received from daemon: Capabilities";
-            }
-            break;
-            case DDM::DaemonMessages::UserActivateMessage: {
-                QString user;
-                input >> user;
+        case DDM::DaemonMessages::Capabilities: {
+            // log message
+            qDebug() << "Message received from daemon: Capabilities";
+        } break;
+        case DDM::DaemonMessages::UserActivateMessage: {
+            QString user;
+            input >> user;
 
-                for (auto key : m_userWaylandSocket.keys()) {
-                    m_userWaylandSocket[key]->setEnabled(key == user);
-                }
-
-                struct passwd *pwd = getpwnam(user.toUtf8());
-                m_personalManager->setCurrentUserId(pwd->pw_uid);
+            for (auto key : m_userWaylandSocket.keys()) {
+                m_userWaylandSocket[key]->setEnabled(key == user);
             }
-            break;
-            case DDM::DaemonMessages::SwitchToGreeter: {
-                Helper *helper = m_engine->singletonInstance<Helper*>("TreeLand.Utils", "Helper");
 
-                Q_ASSERT(helper);
-                Q_EMIT helper->greeterVisibleChanged();
-            }
-            break;
-            default:
+            struct passwd *pwd = getpwnam(user.toUtf8());
+            m_personalManager->setCurrentUserId(pwd->pw_uid);
+        } break;
+        case DDM::DaemonMessages::SwitchToGreeter: {
+            Helper *helper = m_engine->singletonInstance<Helper *>("TreeLand.Utils", "Helper");
+
+            Q_ASSERT(helper);
+            Q_EMIT helper->greeterVisibleChanged();
+        } break;
+        default:
             break;
         }
     }
 }
 
-bool TreeLand::Activate(QDBusUnixFileDescriptor _fd) {
+bool TreeLand::Activate(QDBusUnixFileDescriptor _fd)
+{
     if (!_fd.isValid()) {
         return false;
     }
@@ -325,17 +335,19 @@ bool TreeLand::Activate(QDBusUnixFileDescriptor _fd) {
     auto socket = std::make_shared<WSocket>(true);
     socket->create(fd->fileDescriptor(), false);
 
-    WServer *server = m_engine->rootObjects().first()->findChild<WServer*>();
+    WServer *server = m_engine->rootObjects().first()->findChild<WServer *>();
     server->addSocket(socket.get());
 
     auto uid = connection().interface()->serviceUid(message().service());
     struct passwd *pw;
     pw = getpwuid(uid);
-    QString user{pw->pw_name};
+    QString user{ pw->pw_name };
     m_userWaylandSocket[user] = socket;
     m_userDisplayFds[user] = fd;
 
-    DisplayManager manager("org.freedesktop.DisplayManager", "/org/freedesktop/DisplayManager", QDBusConnection::systemBus());
+    DisplayManager manager("org.freedesktop.DisplayManager",
+                           "/org/freedesktop/DisplayManager",
+                           QDBusConnection::systemBus());
 
     const auto sessionPath = manager.lastSession();
     if (!sessionPath.path().isEmpty()) {
@@ -343,22 +355,27 @@ bool TreeLand::Activate(QDBusUnixFileDescriptor _fd) {
         socket->setEnabled(session.userName() == user);
     }
 
-    connect(connection().interface(), &QDBusConnectionInterface::serviceUnregistered, socket.get(), [this, user] {
-        m_userWaylandSocket.remove(user);
-        m_userDisplayFds.remove(user);
-    });
+    connect(connection().interface(),
+            &QDBusConnectionInterface::serviceUnregistered,
+            socket.get(),
+            [this, user] {
+                m_userWaylandSocket.remove(user);
+                m_userDisplayFds.remove(user);
+            });
 
     return true;
 }
 
-}
+} // namespace TreeLand
 
-int main (int argc, char *argv[]) {
+int main(int argc, char *argv[])
+{
     WServer::initializeQPA();
     // QQuickStyle::setStyle("Material");
 
     QGuiApplication::setAttribute(Qt::AA_UseOpenGLES);
-    QGuiApplication::setHighDpiScaleFactorRoundingPolicy(Qt::HighDpiScaleFactorRoundingPolicy::PassThrough);
+    QGuiApplication::setHighDpiScaleFactorRoundingPolicy(
+        Qt::HighDpiScaleFactorRoundingPolicy::PassThrough);
     QGuiApplication::setQuitOnLastWindowClosed(false);
 
     QGuiApplication app(argc, argv);
@@ -369,16 +386,16 @@ int main (int argc, char *argv[]) {
     DLogManager::registerJournalAppender();
     DLogManager::registerFileAppender();
 
-    QCommandLineOption socket({"s", "socket"}, "set ddm socket", "socket");
-    QCommandLineOption run({"r", "run"}, "run a process", "run");
+    QCommandLineOption socket({ "s", "socket" }, "set ddm socket", "socket");
+    QCommandLineOption run({ "r", "run" }, "run a process", "run");
 
     QCommandLineParser parser;
     parser.addHelpOption();
-    parser.addOptions({socket, run});
+    parser.addOptions({ socket, run });
 
     parser.process(app);
 
-    TreeLand::TreeLand treeland({parser.value(socket), parser.value(run)});
+    TreeLand::TreeLand treeland({ parser.value(socket), parser.value(run) });
     new Compositor1Adaptor(&treeland);
 
     QDBusConnection::systemBus().registerService("org.deepin.Compositor1");
