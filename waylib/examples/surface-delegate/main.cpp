@@ -7,6 +7,7 @@
 #include <qwbackend.h>
 #include <qwdisplay.h>
 #include <qwoutput.h>
+#include <qwlogging.h>
 
 #include <QGuiApplication>
 #include <QQmlApplicationEngine>
@@ -46,6 +47,7 @@ public:
 };
 
 int main(int argc, char *argv[]) {
+    QWLog::init();
     WServer::initializeQPA();
 //    QQuickStyle::setStyle("Material");
 

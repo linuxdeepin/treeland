@@ -14,6 +14,7 @@
 #include <qwbackend.h>
 #include <qwdisplay.h>
 #include <qwoutput.h>
+#include <qwlogging.h>
 
 #include <QGuiApplication>
 #include <QQmlApplicationEngine>
@@ -510,6 +511,7 @@ OutputInfo* Helper::getOutputInfo(WOutput *output)
 int main(int argc, char *argv[]) {
     WRenderHelper::setupRendererBackend();
 
+    QWLog::init();
     WServer::initializeQPA();
 //    QQuickStyle::setStyle("Material");
 

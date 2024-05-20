@@ -9,6 +9,7 @@
 #include <qwbackend.h>
 #include <qwdisplay.h>
 #include <qwoutput.h>
+#include <qwlogging.h>
 
 #include <QGuiApplication>
 #include <QQmlApplicationEngine>
@@ -29,6 +30,7 @@ WAYLIB_SERVER_USE_NAMESPACE
 QW_USE_NAMESPACE
 
 int main(int argc, char *argv[]) {
+    QWLog::init();
     WServer::initializeQPA();
 //    QQuickStyle::setStyle("Material");
 
