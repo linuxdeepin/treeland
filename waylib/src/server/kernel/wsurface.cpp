@@ -13,6 +13,7 @@
 #include <qwsubcompositor.h>
 #include <qwtexture.h>
 #include <qwbuffer.h>
+#include <qwfractionalscalemanagerv1.h>
 #include <QDebug>
 
 extern "C" {
@@ -172,6 +173,9 @@ void WSurfacePrivate::updatePreferredBufferScale()
     float maxScale = 1.0;
     for (auto o : outputs)
         maxScale = std::max(o->scale(), maxScale);
+    if (handle)
+        QWFractionalScaleManagerV1::notifyScale(handle, maxScale);
+
     preferredBufferScale = qCeil(maxScale);
     preferredBufferScaleChange();
 }
