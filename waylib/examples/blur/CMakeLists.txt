@@ -14,6 +14,7 @@ set(QML_IMPORT_PATH ${CMAKE_BINARY_DIR}/src/server/ CACHE STRING "" FORCE)
 
 find_package(PkgConfig REQUIRED)
 pkg_search_module(PIXMAN REQUIRED IMPORTED_TARGET pixman-1)
+pkg_search_module(WAYLAND REQUIRED IMPORTED_TARGET wayland-server)
 
 add_executable(blur
     main.cpp
@@ -39,6 +40,7 @@ target_link_libraries(blur
     Qt6::QuickControls2
     waylibserver
     PkgConfig::PIXMAN
+    PkgConfig::WAYLAND
 )
 
 if (INSTALL_TINYWL)

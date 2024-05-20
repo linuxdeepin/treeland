@@ -22,7 +22,13 @@ endif()
 find_package(PkgConfig)
 pkg_search_module(LIBDRM REQUIRED IMPORTED_TARGET libdrm)
 pkg_search_module(WLROOTS REQUIRED IMPORTED_TARGET wlroots)
+pkg_search_module(WAYLAND REQUIRED IMPORTED_TARGET wayland-server)
+pkg_search_module(WAYLAND_PROTOCOLS REQUIRED IMPORTED_TARGET wayland-protocols)
 pkg_search_module(WLR_PROTOCOLS REQUIRED wlr-protocols)
+pkg_search_module(PIXMAN REQUIRED IMPORTED_TARGET pixman-1)
+pkg_search_module(XKBCOMMON REQUIRED IMPORTED_TARGET xkbcommon)
+pkg_search_module(XCB REQUIRED IMPORTED_TARGET xcb)
+pkg_search_module(EGL REQUIRED IMPORTED_TARGET egl)
 
 ws_generate(
     server
@@ -292,6 +298,12 @@ target_link_libraries(${TARGET}
     ${QT_LIBRARIES}
     PkgConfig::WLROOTS
     PkgConfig::LIBDRM
+    PkgConfig::WAYLAND
+    PkgConfig::WAYLAND_PROTOCOLS
+    PkgConfig::PIXMAN
+    PkgConfig::XKBCOMMON
+    PkgConfig::XCB
+    PkgConfig::EGL
 )
 
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
