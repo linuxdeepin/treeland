@@ -460,7 +460,7 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *watched, QInputEvent *even
 
                 if (surface->checkNewSize(geo.size().toSize())) {
                     surfaceItem->setPosition(geo.topLeft());
-                    surfaceItem->setSize(geo.size());
+                    surfaceItem->resizeSurface(geo.size().toSize());
                 }
             }
 

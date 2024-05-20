@@ -74,8 +74,7 @@ Item {
         value: {
             if (!surface.effectiveVisible)
                 return SurfaceItem.ManualResize
-            if (Helper.resizingItem === surface
-                    || stateTransition.running
+            if ( stateTransition.running
                     || waylandSurface.isMaximized)
                 return SurfaceItem.SizeToSurface
             return SurfaceItem.SizeFromSurface
