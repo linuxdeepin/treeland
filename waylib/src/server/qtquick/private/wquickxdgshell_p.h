@@ -59,6 +59,7 @@ public:
     QPointF implicitPosition() const;
     QSize minimumSize() const;
     QSize maximumSize() const;
+    bool resizeSurface(const QSize &newSize) override;
 
 Q_SIGNALS:
     void surfaceChanged();
@@ -69,7 +70,6 @@ Q_SIGNALS:
 private:
     Q_SLOT void onSurfaceCommit() override;
     void initSurface() override;
-    bool resizeSurface(const QSize &newSize) override;
     QRectF getContentGeometry() const override;
 
     void setImplicitPosition(const QPointF &newImplicitPosition);

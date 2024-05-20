@@ -138,6 +138,7 @@ public:
     PositionMode positionMode() const;
     void setPositionMode(PositionMode newPositionMode);
     Q_INVOKABLE void move(PositionMode mode);
+    bool resizeSurface(const QSize &newSize) override;
 
     QPointF positionOffset() const;
     void setPositionOffset(QPointF newPositionOffset);
@@ -157,7 +158,6 @@ Q_SIGNALS:
 private:
     Q_SLOT void onSurfaceCommit() override;
     void initSurface() override;
-    bool resizeSurface(const QSize &newSize) override;
     QRectF getContentGeometry() const override;
     QSizeF getContentSize() const override;
     void geometryChange(const QRectF &newGeometry, const QRectF &oldGeometry) override;

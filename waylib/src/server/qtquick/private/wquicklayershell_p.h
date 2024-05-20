@@ -43,6 +43,7 @@ public:
 
     WLayerSurface *surface() const;
     void setSurface(WLayerSurface *surface);
+    bool resizeSurface(const QSize &newSize) override;
 
 Q_SIGNALS:
     void surfaceChanged();
@@ -50,7 +51,6 @@ Q_SIGNALS:
 private:
     Q_SLOT void onSurfaceCommit() override;
     void initSurface() override;
-    bool resizeSurface(const QSize &newSize) override;
     QRectF getContentGeometry() const override;
 
 private:
