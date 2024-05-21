@@ -5,6 +5,11 @@
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
+wl_client *WObject::waylandClient() const
+{
+    return w_d_ptr->waylandClient();
+}
+
 WObject::WObject(WObjectPrivate &dd, WObject *)
     : w_d_ptr(&dd)
 {

@@ -117,6 +117,8 @@ public:
         removeAttachedData<T>(owner);
     }
 
+    wl_client *waylandClient() const;
+
 protected:
     WObject(WObjectPrivate &dd, WObject *parent = nullptr);
 
