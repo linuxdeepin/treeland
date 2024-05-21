@@ -13,6 +13,7 @@
 #include "wtools.h"
 #include "wtexture.h"
 #include "wquickcursor.h"
+#include "private/wglobal_p.h"
 
 #include <qwoutput.h>
 #include <qwoutputlayout.h>
@@ -353,7 +354,7 @@ void WOutputItemPrivate::initForOutput()
     if (layout)
         layout->add(q);
 
-    QObject::connect(output, &WOutput::transformedSizeChanged, q, [this] {
+    output->safeConnect(&WOutput::transformedSizeChanged, q, [this] {
         updateImplicitSize();
     });
 

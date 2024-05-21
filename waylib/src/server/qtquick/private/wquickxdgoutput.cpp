@@ -3,6 +3,8 @@
 
 #include "wquickxdgoutput_p.h"
 #include "woutputlayout.h"
+#include "private/wglobal_p.h"
+
 #include <qwxdgoutputv1.h>
 #include <QQmlInfo>
 

@@ -96,6 +96,9 @@ public Q_SLOTS:
     void sendLanguage(const QString &language);
     void sendTextDirection(uint direction);
 
+protected:
+    ~WTextInputV1() override = default;
+
 private:
     explicit WTextInputV1(ws_text_input_v1 *handle, QObject *parent = nullptr);
     friend class WTextInputManagerV1Private;

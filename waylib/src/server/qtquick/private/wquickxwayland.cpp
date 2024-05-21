@@ -62,13 +62,13 @@ void XWayland::surfaceAdded(WXWaylandSurface *surface)
 {
     WXWayland::surfaceAdded(surface);
 
-    QObject::connect(surface, &WXWaylandSurface::isToplevelChanged,
+    surface->safeConnect(&WXWaylandSurface::isToplevelChanged,
                      qq, &WQuickXWayland::onIsToplevelChanged);
-    QObject::connect(surface->handle(), &QWXWaylandSurface::associate,
+    surface->safeConnect(&QWXWaylandSurface::associate,
                      qq, [this, surface] {
         qq->addSurface(surface);
     });
-    QObject::connect(surface->handle(), &QWXWaylandSurface::dissociate,
+    surface->safeConnect(&QWXWaylandSurface::dissociate,
                      qq, [this, surface] {
         qq->removeSurface(surface);
     });
@@ -197,7 +197,7 @@ void WQuickXWayland::tryCreateXWayland()
 
     xwayland = server()->attach<XWayland>(this);
     xwayland->setOwnsSocket(ownsSocket());
-    connect(xwayland->handle(), &QWXWayland::ready, this, &WQuickXWayland::ready);
+    xwayland->safeConnect(&QWXWayland::ready, this, &WQuickXWayland::ready);
 
     Q_EMIT displayNameChanged();
 }
@@ -269,7 +269,7 @@ void WXWaylandSurfaceItem::setSurface(WXWaylandSurface *surface)
         return;
 
     if (m_surface) {
-        bool ok = m_surface->disconnect(this);
+        bool ok = m_surface->safeDisconnect(this);
         Q_ASSERT(ok);
     }
 
@@ -278,7 +278,7 @@ void WXWaylandSurfaceItem::setSurface(WXWaylandSurface *surface)
     if (surface) {
         Q_ASSERT(surface->surface());
         WSurfaceItem::setSurface(surface->surface());
-        connect(surface, &WXWaylandSurface::surfaceChanged, this, [this] {
+        surface->safeConnect(&WXWaylandSurface::surfaceChanged, this, [this] {
             WSurfaceItem::setSurface(m_surface->surface());
         });
 
@@ -299,7 +299,7 @@ void WXWaylandSurfaceItem::setSurface(WXWaylandSurface *surface)
             }
         };
 
-        connect(surface, &WXWaylandSurface::requestConfigure,
+        surface->safeConnect(&WXWaylandSurface::requestConfigure,
                 this, [updateGeometry, this] {
             if (m_ignoreConfigureRequest)
                 return;
@@ -308,7 +308,7 @@ void WXWaylandSurfaceItem::setSurface(WXWaylandSurface *surface)
             configureSurface(geometry);
             updateGeometry();
         });
-        connect(surface, &WXWaylandSurface::geometryChanged, this, updateGeometry);
+        surface->safeConnect(&WXWaylandSurface::geometryChanged, this, updateGeometry);
         connect(this, &WXWaylandSurfaceItem::topPaddingChanged,
                 this, &WXWaylandSurfaceItem::updatePosition, Qt::UniqueConnection);
         connect(this, &WXWaylandSurfaceItem::leftPaddingChanged,
@@ -436,7 +436,7 @@ void WXWaylandSurfaceItem::initSurface()
 {
     WSurfaceItem::initSurface();
     Q_ASSERT(m_surface);
-    connect(m_surface->handle(), &QWXWaylandSurface::beforeDestroy,
+    connect(m_surface, &WWrapObject::aboutToBeInvalidated,
             this, &WXWaylandSurfaceItem::releaseResources);
     updatePosition();
 }

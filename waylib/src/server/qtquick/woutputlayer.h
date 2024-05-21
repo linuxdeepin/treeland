@@ -19,9 +19,9 @@ WAYLIB_SERVER_BEGIN_NAMESPACE
 
 class WOutputViewport;
 class WOutputLayerPrivate;
-class WAYLIB_SERVER_EXPORT WOutputLayer : public QObject, public WObject
+class WAYLIB_SERVER_EXPORT WOutputLayer : public QObject
 {
-    W_DECLARE_PRIVATE(WOutputLayer)
+    Q_DECLARE_PRIVATE(WOutputLayer)
     Q_OBJECT
     Q_PROPERTY(bool enabled READ enabled WRITE setEnabled NOTIFY enabledChanged FINAL)
     Q_PROPERTY(Flags flags READ flags WRITE setFlags NOTIFY flagsChanged FINAL)

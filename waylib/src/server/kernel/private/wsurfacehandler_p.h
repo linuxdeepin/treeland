@@ -4,6 +4,7 @@
 #pragma once
 
 #include "wsurfacehandler.h"
+#include "wglobal_p.h"
 
 #include <QPointF>
 #include <QHash>

@@ -4,8 +4,9 @@
 #pragma once
 
 #include "wsurface.h"
+#include "private/wglobal_p.h"
 
-#include <qwglobal.h>
+#include <qwcompositor.h>
 #include <QObject>
 #include <QPointer>
 
@@ -13,19 +14,19 @@ struct wlr_surface;
 struct wlr_subsurface;
 
 QW_BEGIN_NAMESPACE
-class QWSurface;
 class QWSubsurface;
 QW_END_NAMESPACE
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
-class WSurfacePrivate : public WObjectPrivate {
+class WSurfacePrivate : public WWrapObjectPrivate {
 public:
     WSurfacePrivate(WSurface *qq, QW_NAMESPACE::QWSurface *handle);
     ~WSurfacePrivate();
 
+    WWRAP_HANDLE_FUNCTIONS(QW_NAMESPACE::QWSurface, wlr_surface)
+
     wl_client *waylandClient() const override;
-    wlr_surface *nativeHandle() const;
 
     // begin slot function
     void on_commit();
@@ -34,7 +35,7 @@ public:
 
     void init();
     void connect();
-    void instantRelease();    // release qwobject etc.
+    void instantRelease() override;    // release qwobject etc.
     void updateOutputs();
     void setPrimaryOutput(WOutput *output);
     void setBuffer(QW_NAMESPACE::QWBuffer *newBuffer);
@@ -49,7 +50,6 @@ public:
 
     W_DECLARE_PUBLIC(WSurface)
 
-    QPointer<QW_NAMESPACE::QWSurface> handle;
     QPointer<QW_NAMESPACE::QWSubsurface> subsurface;
     bool hasSubsurface = false;
     bool isSubsurface = false;  // qpointer would be null due to qwsubsurface' destroy, cache here

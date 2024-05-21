@@ -3,6 +3,7 @@
 
 #include "wrenderbufferblitter.h"
 #include "wrenderbuffernode_p.h"
+#include "private/wglobal_p.h"
 
 #include <QSGImageNode>
 #include <QSGTextureProvider>

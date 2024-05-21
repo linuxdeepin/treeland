@@ -5,6 +5,7 @@
 #include "wseat.h"
 #include "wquickcursor.h"
 #include "woutput.h"
+#include "private/wglobal_p.h"
 
 #include <qwcursor.h>
 #include <qwoutput.h>

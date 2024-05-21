@@ -16,7 +16,7 @@ WAYLIB_SERVER_BEGIN_NAMESPACE
 
 class WSeat;
 class WXdgSurfacePrivate;
-class WAYLIB_SERVER_EXPORT WXdgSurface : public WToplevelSurface, public WObject
+class WAYLIB_SERVER_EXPORT WXdgSurface : public WToplevelSurface
 {
     Q_OBJECT
     W_DECLARE_PRIVATE(WXdgSurface)
@@ -57,9 +57,6 @@ public:
 
     QString title() const override;
     QString appId() const override;
-    
-    //release resources requiring instant release, then QObject::deleteLater
-    void deleteLater();
 
 public Q_SLOTS:
     void setResizeing(bool resizeing) override;

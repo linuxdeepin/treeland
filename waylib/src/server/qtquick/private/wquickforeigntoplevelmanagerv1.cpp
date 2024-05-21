@@ -5,6 +5,7 @@
 #include "woutput.h"
 #include "wquickforeigntoplevelmanagerv1_p.h"
 #include "wxdgsurface.h"
+#include "private/wglobal_p.h"
 
 #include <qwforeigntoplevelhandlev1.h>
 #include <qwxdgshell.h>

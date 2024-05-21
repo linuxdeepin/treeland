@@ -3,6 +3,7 @@
 
 #include "wglobal.h"
 #include "wquickfractionalscalemanagerv1_p.h"
+#include "private/wglobal_p.h"
 
 #include <qwfractionalscalemanagerv1.h>
 

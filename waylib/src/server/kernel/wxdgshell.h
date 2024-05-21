@@ -9,8 +9,9 @@ WAYLIB_SERVER_BEGIN_NAMESPACE
 
 class WXdgSurface;
 class WXdgShellPrivate;
-class WAYLIB_SERVER_EXPORT WXdgShell : public WServerInterface, public WObject
+class WAYLIB_SERVER_EXPORT WXdgShell : public QObject, public WObject, public WServerInterface
 {
+    Q_OBJECT
     W_DECLARE_PRIVATE(WXdgShell)
 public:
     WXdgShell();

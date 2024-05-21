@@ -48,7 +48,7 @@ protected:
 
 class WCursor;
 class WSeatPrivate;
-class WSeat : public WServerInterface, public WObject
+class WSeat : public WWrapObject, public WServerInterface
 {
     Q_OBJECT
     W_DECLARE_PRIVATE(WSeat)

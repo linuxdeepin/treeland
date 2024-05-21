@@ -3,6 +3,7 @@
 
 #include "wquickvirtualkeyboardv1_p.h"
 #include "winputdevice.h"
+#include "private/wglobal_p.h"
 
 #include <qwvirtualkeyboardv1.h>
 

@@ -33,7 +33,7 @@ WQuickSocket::WQuickSocket(QObject *parent)
 WQuickSocketAttached *WQuickSocket::qmlAttachedProperties(QObject *target)
 {
     if (auto wobject = dynamic_cast<WObject*>(target)) {
-        auto client = WObjectPrivate::get(wobject)->waylandClient();
+        auto client = wobject->waylandClient();
         if (client) {
             auto socket = WSocket::get(client);
             WQuickSocketAttached *attached = nullptr;

@@ -18,7 +18,7 @@ WAYLIB_SERVER_BEGIN_NAMESPACE
 class WSeat;
 class WXWaylandSurface;
 class WXWaylandPrivate;
-class WAYLIB_SERVER_EXPORT WXWayland : public WServerInterface, public WObject
+class WAYLIB_SERVER_EXPORT WXWayland : public WServerInterface, public WWrapObject
 {
     W_DECLARE_PRIVATE(WXWayland)
 public:

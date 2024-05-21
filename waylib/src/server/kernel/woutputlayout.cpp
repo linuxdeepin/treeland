@@ -65,7 +65,7 @@ void WOutputLayout::add(WOutput *output, const QPoint &pos)
     QWOutputLayout::add(output->handle(), pos);
     output->setLayout(this);
 
-    connect(output, &WOutput::effectiveSizeChanged, this, [d](){
+    output->safeConnect(&WOutput::effectiveSizeChanged, this, [d](){
         d->updateImplicitSize();
     });
     d->updateImplicitSize();
@@ -95,7 +95,7 @@ void WOutputLayout::remove(WOutput *output)
 
     QWOutputLayout::remove(output->handle());
     output->setLayout(nullptr);
-    output->disconnect(this);
+    output->safeDisconnect(this);
     d->updateImplicitSize();
 
     Q_EMIT outputRemoved(output);

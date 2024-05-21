@@ -25,7 +25,7 @@ WAYLIB_SERVER_BEGIN_NAMESPACE
 class WServer;
 class WOutput;
 class WSurfacePrivate;
-class WAYLIB_SERVER_EXPORT WSurface : public QObject, public WObject
+class WAYLIB_SERVER_EXPORT WSurface : public WWrapObject
 {
     Q_OBJECT
     W_DECLARE_PRIVATE(WSurface)
@@ -65,8 +65,6 @@ public:
     uint32_t preferredBufferScale() const;
     void setPreferredBufferScale(uint32_t newPreferredBufferScale);
     void resetPreferredBufferScale();
-    // release resources requiring instant release, then QObject::deleteLater 
-    void deleteLater();
 
 public Q_SLOTS:
     void enterOutput(WOutput *output);

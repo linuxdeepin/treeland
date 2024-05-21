@@ -12,7 +12,7 @@ WAYLIB_SERVER_BEGIN_NAMESPACE
 class WOutput;
 class WInputDevice;
 class WBackendPrivate;
-class WBackend : public WServerInterface, public WObject
+class WBackend : public QObject, public WObject,  public WServerInterface
 {
     friend class WOutputPrivate;
     W_DECLARE_PRIVATE(WBackend)

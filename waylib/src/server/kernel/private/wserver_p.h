@@ -4,6 +4,7 @@
 #pragma once
 
 #include "wserver.h"
+#include "wglobal_p.h"
 
 struct wl_event_loop;
 

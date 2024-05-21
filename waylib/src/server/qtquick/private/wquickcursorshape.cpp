@@ -4,6 +4,8 @@
 #include "wquickcursorshape_p.h"
 #include "wcursor.h"
 #include "wseat.h"
+#include "private/wglobal_p.h"
+
 #include <qwcursorshapev1.h>
 #include <qwseat.h>
 

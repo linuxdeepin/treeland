@@ -3,6 +3,7 @@
 
 #include "wxdgshell.h"
 #include "wxdgsurface.h"
+#include "private/wglobal_p.h"
 
 #include <qwxdgshell.h>
 #include <qwcompositor.h>
@@ -45,8 +46,8 @@ void WXdgShellPrivate::onNewXdgSurface(QWXdgSurface *xdgSurface)
     auto surface = new WXdgSurface(xdgSurface, server);
     surface->setParent(server);
     Q_ASSERT(surface->parent() == server);
-    QObject::connect(xdgSurface, &QWXdgSurface::beforeDestroy, q_func(), [this](QWXdgSurface *data) {
-        onSurfaceDestroy(data);
+    surface->safeConnect(&QWXdgSurface::beforeDestroy, q_func(), [this, xdgSurface] {
+        onSurfaceDestroy(xdgSurface);
     });
     surfaceList.append(surface);
     q_func()->surfaceAdded(surface);
@@ -59,7 +60,7 @@ void WXdgShellPrivate::onSurfaceDestroy(QWXdgSurface *xdgSurface)
     bool ok = surfaceList.removeOne(surface);
     Q_ASSERT(ok);
     q_func()->surfaceRemoved(surface);
-    surface->deleteLater();
+    surface->safeDeleteLater();
 }
 
 WXdgShell::WXdgShell()
@@ -106,7 +107,7 @@ void WXdgShell::destroy(WServer *server)
 
     for (auto surface : list) {
         surfaceRemoved(surface);
-        surface->deleteLater();
+        surface->safeDeleteLater();
     }
 }
 

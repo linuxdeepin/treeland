@@ -6,6 +6,7 @@
 #include "wseat.h"
 #include "wtoplevelsurface.h"
 #include "wtools.h"
+#include "private/wglobal_p.h"
 
 #include <qwcompositor.h>
 #include <qwseat.h>

@@ -7,6 +7,7 @@
 #include "wxdgshell.h"
 #include "wxdgsurface.h"
 #include "wsurface.h"
+#include "private/wglobal_p.h"
 
 #include <qwxdgshell.h>
 #include <qwseat.h>
@@ -158,7 +159,7 @@ void WXdgSurfaceItem::initSurface()
 {
     WSurfaceItem::initSurface();
     Q_ASSERT(m_surface);
-    connect(m_surface->handle(), &QWXdgSurface::beforeDestroy,
+    connect(m_surface, &WWrapObject::aboutToBeInvalidated,
             this, &WXdgSurfaceItem::releaseResources);
 }
 

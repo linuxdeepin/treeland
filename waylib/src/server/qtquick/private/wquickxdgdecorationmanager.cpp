@@ -4,6 +4,7 @@
 #include "wquickxdgdecorationmanager_p.h"
 #include "wsurface.h"
 #include "wxdgsurface.h"
+#include "private/wglobal_p.h"
 
 #include <qwxdgdecorationmanagerv1.h>
 

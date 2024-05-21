@@ -28,9 +28,8 @@ typedef bool (*GlobalFilterFunc)(const wl_client *client,
 
 class WServer;
 class WSocket;
-class WServerInterface : public QObject
+class WServerInterface
 {
-    Q_OBJECT
 public:
     virtual ~WServerInterface() {}
     inline void *handle() const {

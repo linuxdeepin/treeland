@@ -28,7 +28,7 @@ class WSeat;
 class WInputDevice;
 class WXCursorImage;
 class WCursorPrivate;
-class WCursor : public QObject, public WObject
+class WCursor : public WWrapObject
 {
     Q_OBJECT
     W_DECLARE_PRIVATE(WCursor)
@@ -130,6 +130,7 @@ Q_SIGNALS:
 
 protected:
     WCursor(WCursorPrivate &dd, QObject *parent = nullptr);
+    ~WCursor() override = default;
 
     virtual void move(QW_NAMESPACE::QWInputDevice *device, const QPointF &delta);
     virtual void setPosition(QW_NAMESPACE::QWInputDevice *device, const QPointF &pos);

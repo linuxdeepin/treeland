@@ -32,7 +32,7 @@ void WOutputViewportPrivate::initForOutput()
     bufferRenderer->setOutput(output);
     outputWindow()->attach(q);
 
-    QObject::connect(output, &WOutput::modeChanged, q, [this] {
+    output->safeConnect(&WOutput::modeChanged, q, [this] {
         updateImplicitSize();
     });
 

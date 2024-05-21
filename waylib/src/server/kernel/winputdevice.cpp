@@ -3,6 +3,7 @@
 
 #include "winputdevice.h"
 #include "wseat.h"
+#include "private/wglobal_p.h"
 
 #include <qwinputdevice.h>
 
@@ -18,35 +19,32 @@ extern "C" {
 QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
-class WInputDevicePrivate : public WObjectPrivate
+class WInputDevicePrivate : public WWrapObjectPrivate
 {
 public:
     WInputDevicePrivate(WInputDevice *qq, void *handle)
-        : WObjectPrivate(qq)
-        , handle(reinterpret_cast<QWInputDevice*>(handle))
+        : WWrapObjectPrivate(qq)
     {
-        this->handle->setData(this, qq);
+        initHandle(reinterpret_cast<QWInputDevice*>(handle));
+        this->handle()->setData(this, qq);
     }
-    ~WInputDevicePrivate() {
-        handle->setData(nullptr, nullptr);
+
+    void instantRelease() override {
+        handle()->setData(nullptr, nullptr);
         if (seat)
             seat->detachInputDevice(q_func());
     }
 
-    inline wlr_input_device *nativeHandle() const {
-        Q_ASSERT(handle);
-        return handle->handle();
-    }
+    WWRAP_HANDLE_FUNCTIONS(QWInputDevice, wlr_input_device)
 
     W_DECLARE_PUBLIC(WInputDevice);
 
-    QWInputDevice *handle = nullptr;
     QPointer<QInputDevice> qtDevice;
     WSeat *seat = nullptr;
 };
 
 WInputDevice::WInputDevice(QWInputDevice *handle)
-    : WObject(*new WInputDevicePrivate(this, handle))
+    : WWrapObject(*new WInputDevicePrivate(this, handle))
 {
 
 }
@@ -54,7 +52,7 @@ WInputDevice::WInputDevice(QWInputDevice *handle)
 QWInputDevice *WInputDevice::handle() const
 {
     W_DC(WInputDevice);
-    return reinterpret_cast<QWInputDevice*>(d->handle);
+    return d->handle();
 }
 
 WInputDevice *WInputDevice::fromHandle(const QWInputDevice *handle)
@@ -73,7 +71,7 @@ WInputDevice::Type WInputDevice::type() const
 {
     W_DC(WInputDevice);
 
-    switch (d->handle->handle()->type) {
+    switch (d->nativeHandle()->type) {
     case WLR_INPUT_DEVICE_KEYBOARD: return Type::Keyboard;
     case WLR_INPUT_DEVICE_POINTER: return Type::Pointer;
     case WLR_INPUT_DEVICE_TOUCH: return Type::Touch;
@@ -83,7 +81,7 @@ WInputDevice::Type WInputDevice::type() const
     }
 
     // TODO: use qCWarning
-    qWarning("Unknow input device type %i\n", d->handle->handle()->type);
+    qWarning("Unknow input device type %i\n", d->nativeHandle()->type);
     return Type::Unknow;
 }
 

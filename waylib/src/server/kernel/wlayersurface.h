@@ -18,7 +18,7 @@ WAYLIB_SERVER_BEGIN_NAMESPACE
 
 class WSeat;
 class WLayerSurfacePrivate;
-class WAYLIB_SERVER_EXPORT WLayerSurface : public WToplevelSurface, public WObject
+class WAYLIB_SERVER_EXPORT WLayerSurface : public WToplevelSurface
 {
     Q_OBJECT
     W_DECLARE_PRIVATE(WLayerSurface)
@@ -44,7 +44,6 @@ class WAYLIB_SERVER_EXPORT WLayerSurface : public WToplevelSurface, public WObje
 public:
     explicit WLayerSurface(QW_NAMESPACE::QWLayerSurfaceV1 *handle, QObject *parent = nullptr);
     ~WLayerSurface();
-    void deleteLater();
 
     enum class LayerType {
         Background = 0,

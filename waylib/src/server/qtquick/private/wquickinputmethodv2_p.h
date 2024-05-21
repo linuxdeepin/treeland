@@ -50,7 +50,7 @@ private:
     void create() override;
 };
 
-class WQuickInputPopupSurfaceV2 : public QObject, public WObject
+class WQuickInputPopupSurfaceV2 : public WWrapObject
 {
     Q_OBJECT
     W_DECLARE_PRIVATE(WQuickInputPopupSurfaceV2)
@@ -63,9 +63,11 @@ public:
 
 public Q_SLOTS:
     void sendTextInputRectangle(const QRect &sbox);
+protected:
+    ~WQuickInputPopupSurfaceV2() override = default;
 };
 
-class WInputPopupV2 : public WToplevelSurface, public WObject
+class WInputPopupV2 : public WToplevelSurface
 {
     Q_OBJECT
     W_DECLARE_PRIVATE(WInputPopupV2)
@@ -83,6 +85,9 @@ public:
 
 public Q_SLOTS:
     bool checkNewSize(const QSize &size) override;
+
+protected:
+    ~WInputPopupV2() override = default;
 };
 
 class WInputPopupV2Item : public WSurfaceItem
@@ -120,7 +125,7 @@ public Q_SLOTS:
     void setKeyboard(WInputDevice *keyboard);
 };
 
-class WQuickInputMethodV2 : public QObject, public WObject
+class WQuickInputMethodV2 : public WWrapObject
 {
     Q_OBJECT
     W_DECLARE_PRIVATE(WQuickInputMethodV2)
@@ -148,5 +153,8 @@ Q_SIGNALS:
     void committed();
     void newPopupSurface(QW_NAMESPACE::QWInputPopupSurfaceV2 *surface);
     void newKeyboardGrab(QW_NAMESPACE::QWInputMethodKeyboardGrabV2 *keyboardGrab);
+
+private:
+    friend class WQuickInputMethodManagerV2;
 };
 WAYLIB_SERVER_END_NAMESPACE

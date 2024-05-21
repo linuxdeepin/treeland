@@ -228,14 +228,14 @@ void QWlrootsScreen::initialize()
         QWindowSystemInterface::handleScreenGeometryChange(screen(), newGeo, newGeo);
     };
 
-    QObject::connect(m_output.get(), &WOutput::transformedSizeChanged, screen(), updateGeometry);
+    m_output->safeConnect(&WOutput::transformedSizeChanged, screen(), updateGeometry);
 
     auto updateDpi = [this] {
         const auto dpi = logicalDpi();
         QWindowSystemInterface::handleScreenLogicalDotsPerInchChange(screen(), dpi.first, dpi.second);
     };
 
-    QObject::connect(m_output.get(), &WOutput::scaleChanged, screen(), updateDpi);
+    m_output->safeConnect(&WOutput::scaleChanged, screen(), updateDpi);
     updateDpi();
 }
 

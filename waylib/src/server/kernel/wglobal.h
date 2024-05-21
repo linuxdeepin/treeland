@@ -47,45 +47,24 @@
 #endif
 #endif
 
+#include <qwglobal.h>
 #include <QScopedPointer>
 #include <QList>
+#include <QObject>
+#include <QThread>
+
+#include <type_traits>
 
 struct wl_client;
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
-class WObject;
-class WObjectPrivate
-{
-public:
-    static WObjectPrivate *get(WObject *qq);
-
-    virtual ~WObjectPrivate();
-    virtual wl_client *waylandClient() const {
-        return nullptr;
-    }
-
-protected:
-    WObjectPrivate(WObject *qq);
-
-    inline int indexOfAttachedData(const void *owner) const {
-        for (int i = 0; i < attachedDatas.count(); ++i)
-            if (attachedDatas.at(i).first == owner)
-                return i;
-        return -1;
-    }
-
-    WObject *q_ptr;
-    QList<std::pair<const void*, void*>> attachedDatas;
-
-    Q_DECLARE_PUBLIC(WObject)
-};
-
+class WObjectPrivate;
 class WAYLIB_SERVER_EXPORT WObject
 {
 public:
     template<typename T>
     T *getAttachedData(const void *owner) const {
-        void *data = w_d_ptr->attachedDatas.value(w_d_ptr->indexOfAttachedData(owner)).second;
+        void *data = attachedDatas().value(indexOfAttachedData(owner)).second;
         return reinterpret_cast<T*>(data);
     }
     template<typename T>
@@ -96,8 +75,8 @@ public:
 
     template<typename T>
     void setAttachedData(const void *owner, void *data) {
-        Q_ASSERT(w_d_ptr->indexOfAttachedData(owner) < 0);
-        w_d_ptr->attachedDatas.append({owner, data});
+        Q_ASSERT(indexOfAttachedData(owner) < 0);
+        attachedDatas().append({owner, data});
     }
     template<typename T>
     void setAttachedData(void *data) {
@@ -107,9 +86,9 @@ public:
 
     template<typename T>
     void removeAttachedData(const void *owner) {
-        int index = w_d_ptr->indexOfAttachedData(owner);
+        int index = indexOfAttachedData(owner);
         Q_ASSERT(index >= 0);
-        w_d_ptr->attachedDatas.removeAt(index);
+        attachedDatas().removeAt(index);
     }
     template<typename T>
     void removeAttachedData() {
@@ -122,11 +101,86 @@ public:
 protected:
     WObject(WObjectPrivate &dd, WObject *parent = nullptr);
 
+    int indexOfAttachedData(const void *owner) const;
+    const QList<std::pair<const void*, void*>> &attachedDatas() const;
+    QList<std::pair<const void*, void*>> &attachedDatas();
+
     virtual ~WObject();
     QScopedPointer<WObjectPrivate> w_d_ptr;
 
     Q_DISABLE_COPY(WObject)
     W_DECLARE_PRIVATE(WObject)
+};
+
+class WWrapObjectPrivate;
+// Wrap Object in QWlroots
+class WAYLIB_SERVER_EXPORT WWrapObject : public QObject,  public WObject
+{
+    Q_OBJECT
+
+public:
+    QW_NAMESPACE::QWWrapObject *handle() const;
+    bool isInvalidated() const;
+
+    bool safeDisconnect(const QObject *receiver);
+    bool safeDisconnect(const QMetaObject::Connection &connection);
+
+    void safeDeleteLater();
+
+Q_SIGNALS:
+    void aboutToBeInvalidated();
+    void invalidated();
+
+public:
+    template<typename Func1, typename Func2>
+    inline typename std::enable_if<std::is_base_of<WWrapObject, typename QtPrivate::FunctionPointer<Func1>::Object>::value ||
+                                       std::is_same<QObject, typename QtPrivate::FunctionPointer<Func1>::Object>::value, QMetaObject::Connection>::type
+    safeConnect(Func1 signal, const QObject *receiver, Func2 slot, Qt::ConnectionType type = Qt::AutoConnection) {
+        return QObject::connect(qobject_cast<typename QtPrivate::FunctionPointer<Func1>::Object*>(this), signal, receiver, slot, type);
+    }
+
+    template<typename Func1, typename Func2>
+    typename std::enable_if<std::is_base_of<QW_NAMESPACE::QWWrapObject, typename QtPrivate::FunctionPointer<Func1>::Object>::value, QMetaObject::Connection>::type
+    safeConnect(Func1 signal, const QObject *receiver, Func2 slot, Qt::ConnectionType type = Qt::AutoConnection) {
+        // Isn't thread safety
+        Q_ASSERT(QThread::currentThread() == thread());
+        Q_ASSERT_X(this != receiver, "safeConnect",
+                   "Not need to use safeConnect for the signal of self's handle object,"
+                   " Please use QObject::connect().");
+
+        if constexpr (std::is_same_v<decltype(signal), decltype(&QObject::destroyed)>) {
+            // Post warning in compilation time
+            int The_Connect_Maybe_Invalid_Bacause_Maybe_Disconnect_After_T_beforeDestroy;
+        }
+
+        beginSafeConnect();
+        auto h = qobject_cast<typename QtPrivate::FunctionPointer<Func1>::Object*>(handle());
+        Q_ASSERT(h);
+        auto connection = QObject::connect(h, signal, receiver, slot, type);
+        endSafeConnect(connection);
+
+        return connection;
+    }
+
+protected:
+    WWrapObject(QObject *parent = nullptr);
+    WWrapObject(WWrapObjectPrivate &dd, QObject *parent = nullptr);
+    virtual ~WWrapObject() override;
+    using QObject::connect;
+    using QObject::disconnect;
+    using QObject::deleteLater;
+
+    void invalidate();
+    void initHandle(QW_NAMESPACE::QWWrapObject *handle);
+
+    void beginSafeConnect();
+    void endSafeConnect(const QMetaObject::Connection &connection);
+
+#ifdef QT_DEBUG
+    bool event(QEvent *event) override;
+#endif
+
+    W_DECLARE_PRIVATE(WWrapObject)
 };
 
 WAYLIB_SERVER_END_NAMESPACE

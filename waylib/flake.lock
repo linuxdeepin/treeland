@@ -35,11 +35,11 @@
     },
     "nixpkgs": {
       "locked": {
-        "lastModified": 1716509168,
-        "narHash": "sha256-4zSIhSRRIoEBwjbPm3YiGtbd8HDWzFxJjw5DYSDy1n8=",
+        "lastModified": 1717196966,
+        "narHash": "sha256-yZKhxVIKd2lsbOqYd5iDoUIwsRZFqE87smE2Vzf6Ck0=",
         "owner": "NixOS",
         "repo": "nixpkgs",
-        "rev": "bfb7a882678e518398ce9a31a881538679f6f092",
+        "rev": "57610d2f8f0937f39dbd72251e9614b1561942d8",
         "type": "github"
       },
       "original": {
@@ -63,11 +63,11 @@
         "wlroots-master": "wlroots-master"
       },
       "locked": {
-        "lastModified": 1716863436,
-        "narHash": "sha256-3FuwwEABoC/hyYK/jftTg1YzgcJjKS4rRN/qkI4WOk8=",
+        "lastModified": 1717411262,
+        "narHash": "sha256-Fu5Cq4LoS9y+eT7d0TfBBMXNlFIXOrnNrtmurWANG/w=",
         "owner": "vioken",
         "repo": "qwlroots",
-        "rev": "2cfeeb00ba7f835bad4669d5e1656aef03b7f689",
+        "rev": "2f824badc91d8bbf72e4bfe03613b36db2877490",
         "type": "github"
       },
       "original": {

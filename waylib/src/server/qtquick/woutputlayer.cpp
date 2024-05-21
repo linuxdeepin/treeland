@@ -12,11 +12,11 @@
 QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
-class WOutputLayerPrivate : public WObjectPrivate
+class WOutputLayerPrivate : public QObjectPrivate
 {
 public:
     WOutputLayerPrivate(WOutputLayer *qq)
-        : WObjectPrivate(qq) {
+        : QObjectPrivate() {
 
     }
 
@@ -89,8 +89,7 @@ void WOutputLayerPrivate::setRefItem(bool on)
 }
 
 WOutputLayer::WOutputLayer(QQuickItem *parent)
-    : QObject(parent)
-    , WObject(*new WOutputLayerPrivate(this))
+    : QObject(*new WOutputLayerPrivate(this), parent)
 {
     Q_ASSERT(parent);
     connect(parent, &QQuickItem::windowChanged, this, [this] {

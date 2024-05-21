@@ -4,6 +4,7 @@
 #include "wquickoutputmanager_p.h"
 #include "woutputitem.h"
 #include "woutputitem_p.h"
+#include "private/wglobal_p.h"
 
 #include <qwoutput.h>
 

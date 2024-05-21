@@ -5,6 +5,7 @@
 #include "wrenderhelper.h"
 #include "woutput.h"
 #include "platformplugin/types.h"
+#include "private/wglobal_p.h"
 
 #include <qwoutput.h>
 #include <qwrenderer.h>
@@ -48,17 +49,17 @@ public:
         outputWindow->setScreen(QWlrootsIntegration::instance()->getScreenFrom(output)->screen());
         outputWindow->create();
 
-        QObject::connect(qwoutput(), &QWOutput::frame, qq, [this] {
+        output->safeConnect(&QWOutput::frame, qq, [this] {
             on_frame();
         });
-        QObject::connect(qwoutput(), &QWOutput::needsFrame, qq, [this] {
+        output->safeConnect(&QWOutput::needsFrame, qq, [this] {
             setNeedsFrame(true);
             qwoutput()->QWOutput::scheduleFrame();
         });
-        QObject::connect(qwoutput(), &QWOutput::damage, qq, [this] {
+        output->safeConnect(&QWOutput::damage, qq, [this] {
             on_damage();
         });
-        QObject::connect(output, &WOutput::modeChanged, qq, [this] {
+        output->safeConnect(&WOutput::modeChanged, qq, [this] {
             if (renderHelper)
                 renderHelper->setSize(this->output->size());
         }, Qt::QueuedConnection); // reset buffer on later, because it's rendering

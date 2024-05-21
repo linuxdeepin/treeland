@@ -4,6 +4,7 @@
 #pragma once
 
 #include "wglobal.h"
+#include "private/wglobal_p.h"
 
 #include <QObject>
 #include <QQmlEngine>

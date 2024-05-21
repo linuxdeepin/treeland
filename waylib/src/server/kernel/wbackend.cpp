@@ -7,6 +7,7 @@
 #include "winputdevice.h"
 #include "platformplugin/qwlrootsintegration.h"
 #include "platformplugin/qwlrootscreen.h"
+#include "private/wglobal_p.h"
 
 #include <qwbackend.h>
 #include <qwdisplay.h>
@@ -77,7 +78,7 @@ void WBackendPrivate::on_new_output(QWOutput *output)
     outputList << woutput;
     QWlrootsIntegration::instance()->addScreen(woutput);
 
-    QObject::connect(output, &QWOutput::beforeDestroy, q_func()->server(), [this] (QWOutput *output) {
+    woutput->safeConnect(&QWOutput::beforeDestroy, q_func()->server(), [this, output] {
         on_output_destroy(output);
     });
 
@@ -88,8 +89,9 @@ void WBackendPrivate::on_new_input(QWInputDevice *device)
 {
     auto input_device = new WInputDevice(device);
     inputList << input_device;
-    QObject::connect(device, &QWInputDevice::beforeDestroy, q_func()->server(), [this] (QObject *data) {
-        on_input_destroy(static_cast<QWInputDevice*>(data));
+    input_device->safeConnect(&QWInputDevice::beforeDestroy,
+                             q_func()->server(), [this, device] {
+        on_input_destroy(device);
     });
 
     q_func()->inputAdded(input_device);

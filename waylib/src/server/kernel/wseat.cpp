@@ -8,6 +8,7 @@
 #include "wsurface.h"
 #include "wxdgsurface.h"
 #include "platformplugin/qwlrootsintegration.h"
+#include "private/wglobal_p.h"
 
 #include <qwseat.h>
 #include <qwkeyboard.h>
@@ -73,11 +74,11 @@ protected:
 };
 #endif
 
-class WSeatPrivate : public WObjectPrivate
+class WSeatPrivate : public WWrapObjectPrivate
 {
 public:
     WSeatPrivate(WSeat *qq, const QString &name)
-        : WObjectPrivate(qq)
+        : WWrapObjectPrivate(qq)
         , name(name)
     {
         pendingEvents.reserve(2);
@@ -495,22 +496,23 @@ void WSeatPrivate::on_keyboard_modifiers(WInputDevice *device)
 
 void WSeatPrivate::connect()
 {
-    QObject::connect(handle(), &QWSeat::destroyed, q_func()->server(), [this] {
+    W_Q(WSeat);
+    QObject::connect(handle(), &QWSeat::destroyed, q, [this] {
         on_destroy();
     });
-    QObject::connect(handle(), &QWSeat::requestSetCursor, q_func(), [this] (wlr_seat_pointer_request_set_cursor_event *event) {
+    QObject::connect(handle(), &QWSeat::requestSetCursor, q, [this] (wlr_seat_pointer_request_set_cursor_event *event) {
         on_request_set_cursor(event);
     });
-    QObject::connect(handle(), &QWSeat::requestSetSelection, q_func(), [this] (wlr_seat_request_set_selection_event *event) {
+    QObject::connect(handle(), &QWSeat::requestSetSelection, q, [this] (wlr_seat_request_set_selection_event *event) {
         on_request_set_selection(event);
     });
-    QObject::connect(handle(), &QWSeat::requestSetPrimarySelection, q_func(), [this] (wlr_seat_request_set_primary_selection_event *event) {
+    QObject::connect(handle(), &QWSeat::requestSetPrimarySelection, q, [this] (wlr_seat_request_set_primary_selection_event *event) {
         on_request_set_primary_selection(event);
     });
-    QObject::connect(handle(), &QWSeat::requestStartDrag, q_func(), [this] (wlr_seat_request_start_drag_event *event) {
+    QObject::connect(handle(), &QWSeat::requestStartDrag, q, [this] (wlr_seat_request_start_drag_event *event) {
         on_request_start_drag(event);
     });
-    QObject::connect(handle(), &QWSeat::startDrag, q_func(), [this] (wlr_drag *drag) {
+    QObject::connect(handle(), &QWSeat::startDrag, q, [this] (wlr_drag *drag) {
         on_start_drag(drag);
     });
 }
@@ -554,10 +556,10 @@ void WSeatPrivate::attachInputDevice(WInputDevice *device)
         xkb_context_unref(context);
         keyboard->setRepeatInfo(25, 600);
 
-        QObject::connect(keyboard, &QWKeyboard::key, q_func(), [this, device] (wlr_keyboard_key_event *event) {
+        device->safeConnect(&QWKeyboard::key, q, [this, device] (wlr_keyboard_key_event *event) {
             on_keyboard_key(event, device);
         });
-        QObject::connect(keyboard, &QWKeyboard::modifiers, q_func(), [this, device] () {
+        device->safeConnect(&QWKeyboard::modifiers, q, [this, device] () {
             on_keyboard_modifiers(device);
         });
         handle()->setKeyboard(keyboard);
@@ -574,7 +576,7 @@ void WSeatPrivate::detachInputDevice(WInputDevice *device)
 }
 
 WSeat::WSeat(const QString &name)
-    : WObject(*new WSeatPrivate(this, name))
+    : WWrapObject(*new WSeatPrivate(this, name))
 {
 
 }
@@ -1259,6 +1261,7 @@ void WSeat::create(WServer *server)
     W_D(WSeat);
     // destroy follow display
     m_handle = QWSeat::create(server->handle(), d->name.toUtf8().constData());
+    initHandle(d->handle());
     d->handle()->setData(this, this);
     d->connect();
 

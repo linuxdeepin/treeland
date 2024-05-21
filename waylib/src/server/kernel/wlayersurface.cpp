@@ -7,6 +7,7 @@
 #include "wtools.h"
 #include "wsurface.h"
 #include "woutput.h"
+#include "private/wtoplevelsurface_p.h"
 
 #include <qwlayershellv1.h>
 #include <qwseat.h>
@@ -28,15 +29,12 @@ extern "C" {
 QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
-class Q_DECL_HIDDEN WLayerSurfacePrivate : public WObjectPrivate {
+class Q_DECL_HIDDEN WLayerSurfacePrivate : public WToplevelSurfacePrivate {
 public:
     WLayerSurfacePrivate(WLayerSurface *qq, QWLayerSurfaceV1 *handle);
     ~WLayerSurfacePrivate();
 
-    inline wlr_layer_surface_v1 *nativeHandle() const {
-        Q_ASSERT(handle);
-        return handle->handle();
-    }
+    WWRAP_HANDLE_FUNCTIONS(QWLayerSurfaceV1, wlr_layer_surface_v1)
 
     wl_client *waylandClient() const {
         return nativeHandle()->resource->client;
@@ -63,7 +61,6 @@ public:
 
     W_DECLARE_PUBLIC(WLayerSurface)
 
-    QPointer<QWLayerSurfaceV1> handle;
     WSurface *surface = nullptr;
     uint activated:1;
     QSize desiredSize;
@@ -77,38 +74,37 @@ public:
 };
 
 WLayerSurfacePrivate::WLayerSurfacePrivate(WLayerSurface *qq, QWLayerSurfaceV1 *hh)
-    : WObjectPrivate(qq)
-    , handle(hh)
+    : WToplevelSurfacePrivate(qq)
     , activated(false)
 {
-
+    initHandle(hh);
 }
 
 WLayerSurfacePrivate::~WLayerSurfacePrivate()
 {
-    if (handle)
-        handle->setData(nullptr, nullptr);
-    instantRelease();
+
 }
 
 void WLayerSurfacePrivate::instantRelease()
 {
+    W_Q(WLayerSurface);
+    handle()->setData(nullptr, nullptr);
+    handle()->disconnect(q);
+    handle()->surface()->disconnect(q);
+
     if (!surface)
         return;
-    W_Q(WLayerSurface);
-    handle->disconnect(q);
-    handle->surface()->disconnect(q);
-    surface->deleteLater();
+    surface->safeDeleteLater();
     surface = nullptr;
 }
 
 void WLayerSurfacePrivate::init()
 {
     W_Q(WLayerSurface);
-    handle->setData(this, q);
+    handle()->setData(this, q);
 
     Q_ASSERT(!q->surface());
-    surface = new WSurface(handle->surface(), q);
+    surface = new WSurface(handle()->surface(), q);
     surface->setAttachedData<WLayerSurface>(q);
     updateLayerProperty();
     output = nativeHandle()->output ? WOutput::fromHandle(QWOutput::from(nativeHandle()->output)) : nullptr;
@@ -122,7 +118,7 @@ void WLayerSurfacePrivate::connect()
     // TODO(@rewine): Support popup surface
     //QObject::connect(handle, &QWLayerSurfaceV1::newPopup, q, [this] (QWXdgPopup *popup) {});
 
-    QObject::connect(handle->surface(), &QWSurface::commit, q, [this] () {
+    surface->safeConnect(&QWSurface::commit, q, [this] () {
         updateLayerProperty();
     });
 }
@@ -258,8 +254,7 @@ bool WLayerSurfacePrivate::setKeyboardInteractivity(WLayerSurface::KeyboardInter
 // end set property
 
 WLayerSurface::WLayerSurface(QWLayerSurfaceV1 *handle, QObject *parent)
-    : WToplevelSurface(parent)
-    , WObject(*new WLayerSurfacePrivate(this, handle))
+    : WToplevelSurface(*new WLayerSurfacePrivate(this, handle), parent)
 {
     d_func()->init();
 }
@@ -267,12 +262,6 @@ WLayerSurface::WLayerSurface(QWLayerSurfaceV1 *handle, QObject *parent)
 WLayerSurface::~WLayerSurface()
 {
 
-}
-
-void WLayerSurface::deleteLater()
-{
-    d_func()->instantRelease();
-    QObject::deleteLater();
 }
 
 bool WLayerSurface::isPopup() const
@@ -303,13 +292,13 @@ WSurface *WLayerSurface::surface() const
 QWLayerSurfaceV1 *WLayerSurface::handle() const
 {
     W_DC(WLayerSurface);
-    return d->handle;
+    return d->handle();
 }
 
 wlr_layer_surface_v1 *WLayerSurface::nativeHandle() const
 {
     W_D(const WLayerSurface);
-    return d->handle->handle();
+    return d->nativeHandle();
 }
 
 QWSurface *WLayerSurface::inputTargetAt(QPointF &localPos) const
@@ -317,7 +306,7 @@ QWSurface *WLayerSurface::inputTargetAt(QPointF &localPos) const
     W_DC(WLayerSurface);
     // find a wlr_suface object who can receive the events
     const QPointF pos = localPos;
-    auto sur = d->handle->surfaceAt(pos, &localPos);
+    auto sur = d->handle()->surfaceAt(pos, &localPos);
 
     return sur;
 }

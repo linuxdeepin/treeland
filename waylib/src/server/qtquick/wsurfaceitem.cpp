@@ -124,7 +124,11 @@ public:
     }
 
     inline bool isValid() const {
-        return parent();
+        if (!parent())
+            return false;
+
+        auto surface = static_cast<WSurfaceItem*>(parent())->surface();
+        return surface && !surface->isInvalidated();
     }
 
     inline WSurfaceItemPrivate *d() const {
@@ -182,15 +186,16 @@ private:
     }
 };
 
-class WSurfaceItemContentPrivate : public WObjectPrivate
+class WSurfaceItemContentPrivate: public QQuickItemPrivate
 {
 public:
-    WSurfaceItemContentPrivate(WSurfaceItemContent *qq)
-        : WObjectPrivate(qq) {}
+    WSurfaceItemContentPrivate(WSurfaceItemContent *qq){}
 
     ~WSurfaceItemContentPrivate() {
-        if (updateTextureConnection)
-            QObject::disconnect(updateTextureConnection);
+        if (updateTextureConnection) {
+            Q_ASSERT(surface);
+            surface->safeDisconnect(updateTextureConnection);
+        }
 
         if (frameDoneConnection)
             QObject::disconnect(frameDoneConnection);
@@ -205,26 +210,27 @@ public:
         if (!textureProvider) {
             Q_ASSERT(surface);
             textureProvider = new WSGTextureProvider(const_cast<WSurfaceItemContent*>(q_func()));
-            updateTextureConnection = QObject::connect(surface, &WSurface::bufferChanged,
-                                                       textureProvider,
-                                                       &WSGTextureProvider::updateTexture);
+            updateTextureConnection = surface->safeConnect(&WSurface::bufferChanged,
+                                                           textureProvider,
+                                                           &WSGTextureProvider::updateTexture);
         }
         return textureProvider;
     }
 
     void invalidate() {
-        if (updateTextureConnection)
-            QObject::disconnect(updateTextureConnection);
+        if (surface) {
+            W_Q(WSurfaceItemContent);
+            surface->safeDisconnect(q);
+            if (textureProvider) {
+                surface->safeDisconnect(textureProvider);
+            }
+            surface = nullptr;
+        }
 
         if (frameDoneConnection)
             QObject::disconnect(frameDoneConnection);
 
-        if (surface) {
-            W_Q(WSurfaceItemContent);
-            surface->disconnect(q);
-            if (auto qwsurface = surface->handle())
-                qwsurface->disconnect(q);
-        }
+        Q_ASSERT(!updateTextureConnection);
 
         if (dontCacheLastBuffer && textureProvider)
             textureProvider->reset();
@@ -233,24 +239,19 @@ public:
     void init() {
         W_Q(WSurfaceItemContent);
 
-        QObject::connect(surface->handle(), &QWSurface::beforeDestroy, q,
-                         [this] {
-                invalidate();
-            }, Qt::DirectConnection);
-        QObject::connect(surface->handle(), &QWSurface::commit, q, [this] {
+        surface->safeConnect(&QWSurface::commit, q, [this] {
             updateSurfaceState();
         });
-        QObject::connect(surface, &WSurface::primaryOutputChanged, q, [this] {
+        surface->safeConnect(&WSurface::primaryOutputChanged, q, [this] {
             if (textureProvider)
                 textureProvider->maybeUpdateTextureOnSurfacePrrimaryOutputChanged();
         });
 
         if (textureProvider) {
-            if (updateTextureConnection)
-                QObject::disconnect(updateTextureConnection);
-            updateTextureConnection = QObject::connect(surface, &WSurface::bufferChanged,
-                                                       textureProvider,
-                                                       &WSGTextureProvider::updateTexture);
+            Q_ASSERT(!updateTextureConnection);
+            updateTextureConnection = surface->safeConnect(&WSurface::bufferChanged,
+                                                           textureProvider,
+                                                           &WSGTextureProvider::updateTexture);
         }
 
         updateFrameDoneConnection();
@@ -297,8 +298,7 @@ public:
 
 
 WSurfaceItemContent::WSurfaceItemContent(QQuickItem *parent)
-    : QQuickItem(parent)
-    , WObject(*new WSurfaceItemContentPrivate(this))
+    : QQuickItem(*new WSurfaceItemContentPrivate(this), parent)
 {
     setFlag(QQuickItem::ItemHasContents, true);
 }
@@ -321,12 +321,9 @@ void WSurfaceItemContent::setSurface(WSurface *surface)
     d->surface = surface;
     if (isComponentComplete()) {
         if (oldSurface) {
-            if (auto qwsurface = oldSurface->handle())
-                qwsurface->disconnect(this);
-
-            oldSurface->disconnect(this);
+            oldSurface->safeDisconnect(this);
             if (d->textureProvider)
-                oldSurface->disconnect(d->textureProvider);
+                oldSurface->safeDisconnect(d->textureProvider);
         }
 
         if (d->surface)
@@ -598,10 +595,7 @@ void WSurfaceItem::setSurface(WSurface *surface)
     d->surface = surface;
     if (d->componentComplete) {
         if (oldSurface) {
-            if (auto qwsurface = oldSurface->handle())
-                qwsurface->disconnect(this);
-
-            oldSurface->disconnect(this);
+            oldSurface->safeDisconnect(this);
         }
 
         if (d->surface)
@@ -889,9 +883,7 @@ void WSurfaceItem::releaseResources()
     d->beforeRequestResizeSurfaceStateSeq = 0;
 
     if (d->surface) {
-        d->surface->disconnect(this);
-        if (auto qwsurface = d->surface->handle())
-            qwsurface->disconnect(this);
+        d->surface->safeDisconnect(this);
     }
 
     if (!d->surfaceFlags.testFlag(DontCacheLastBuffer)) {
@@ -1048,10 +1040,10 @@ void WSurfaceItemPrivate::initForSurface()
     if (!surfaceState)
         surfaceState.reset(new SurfaceState());
 
-    QObject::connect(surface->handle(), &QWSurface::beforeDestroy, q,
+    QObject::connect(surface, &WWrapObject::aboutToBeInvalidated, q,
                      &WSurfaceItem::releaseResources, Qt::DirectConnection);
-    QObject::connect(surface, SIGNAL(hasSubsurfaceChanged()), q, SLOT(onHasSubsurfaceChanged()));
-    QObject::connect(surface->handle(), &QWSurface::commit, q, &WSurfaceItem::onSurfaceCommit);
+    surface->safeConnect(&WSurface::hasSubsurfaceChanged, q, [this]{ onHasSubsurfaceChanged(); });
+    surface->safeConnect(&QWSurface::commit, q, &WSurfaceItem::onSurfaceCommit);
 
     onHasSubsurfaceChanged();
     updateEventItem(false);
@@ -1214,8 +1206,8 @@ WSurfaceItem *WSurfaceItemPrivate::ensureSubsurfaceItem(WSurface *subsurfaceSurf
     // contents.
     // AutoDestroy: Connect to this(parent)'s lambda since the autodestroy is managed by parent,
     // avoids disconnected with all slots on subsurfaceItem in subsurface's releaseResources
-    QObject::connect(subsurfaceSurface, &QWSurface::destroyed,
-                    q, [this,surfaceItem]{ surfaceItem->deleteLater(); }, Qt::QueuedConnection);
+    subsurfaceSurface->safeConnect(&WSurface::destroyed,
+                             q, [this,surfaceItem]{ surfaceItem->deleteLater(); }, Qt::QueuedConnection);
     surfaceItem->setDelegate(delegate);
     surfaceItem->setFlags(surfaceFlags);
     surfaceItem->setSurface(subsurfaceSurface);
@@ -1309,5 +1301,4 @@ qreal WSurfaceItemPrivate::getImplicitHeight() const
 
 WAYLIB_SERVER_END_NAMESPACE
 
-#include "moc_wsurfaceitem.cpp"
 #include "wsurfaceitem.moc"

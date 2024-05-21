@@ -4,6 +4,7 @@
 #include "wquickbackend_p.h"
 #include "wbackend.h"
 #include "woutput.h"
+#include "private/wglobal_p.h"
 
 #include <qwbackend.h>
 #include <qwoutput.h>

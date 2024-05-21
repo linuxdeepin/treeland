@@ -28,15 +28,13 @@ QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
 WSurfacePrivate::WSurfacePrivate(WSurface *qq, QWSurface *handle)
-    : WObjectPrivate(qq)
-    , handle(handle)
+    : WWrapObjectPrivate(qq)
 {
-
+    initHandle(handle);
 }
 
 WSurfacePrivate::~WSurfacePrivate()
 {
-    instantRelease();
     if (buffer)
         buffer->unlock();
 }
@@ -46,11 +44,6 @@ wl_client *WSurfacePrivate::waylandClient() const
     if (auto handle = nativeHandle())
         return handle->resource->client;
     return nullptr;
-}
-
-wlr_surface *WSurfacePrivate::nativeHandle() const {
-    Q_ASSERT(handle);
-    return handle->handle();
 }
 
 void WSurfacePrivate::on_commit()
@@ -67,13 +60,13 @@ void WSurfacePrivate::on_commit()
 void WSurfacePrivate::init()
 {
     W_Q(WSurface);
-    handle->setData(this, q);
+    handle()->setData(this, q);
 
     connect();
     updateBuffer();
     updateHasSubsurface();
 
-    if (auto sub = QWSubsurface::tryFrom(handle))
+    if (auto sub = QWSubsurface::tryFrom(handle()))
         setSubsurface(sub);
 
     wlr_surface *surface = nativeHandle();
@@ -91,12 +84,12 @@ void WSurfacePrivate::connect()
 {
     W_Q(WSurface);
 
-    QObject::connect(handle.get(), &QWSurface::commit, q, [this] {
+    QObject::connect(handle(), &QWSurface::commit, q, [this] {
         on_commit();
     });
-    QObject::connect(handle.get(), &QWSurface::mapped, q, &WSurface::mappedChanged);
-    QObject::connect(handle.get(), &QWSurface::unmapped, q, &WSurface::mappedChanged);
-    QObject::connect(handle.get(), &QWSurface::newSubsurface, q, [q, this] (QWSubsurface *sub) {
+    QObject::connect(handle(), &QWSurface::mapped, q, &WSurface::mappedChanged);
+    QObject::connect(handle(), &QWSurface::unmapped, q, &WSurface::mappedChanged);
+    QObject::connect(handle(), &QWSurface::newSubsurface, q, [q, this] (QWSubsurface *sub) {
         setHasSubsurface(true);
 
         auto surface = ensureSubsurface(sub->handle());
@@ -159,8 +152,8 @@ void WSurfacePrivate::setBuffer(QWBuffer *newBuffer)
 void WSurfacePrivate::updateBuffer()
 {
     QWBuffer *buffer = nullptr;
-    if (handle->handle()->buffer)
-        buffer = QWBuffer::from(&handle->handle()->buffer->base);
+    if (nativeHandle()->buffer)
+        buffer = QWBuffer::from(&nativeHandle()->buffer->base);
 
     setBuffer(buffer);
 }
@@ -173,8 +166,8 @@ void WSurfacePrivate::updatePreferredBufferScale()
     float maxScale = 1.0;
     for (auto o : outputs)
         maxScale = std::max(o->scale(), maxScale);
-    if (handle)
-        QWFractionalScaleManagerV1::notifyScale(handle, maxScale);
+    if (handle())
+        QWFractionalScaleManagerV1::notifyScale(handle(), maxScale);
 
     preferredBufferScale = qCeil(maxScale);
     preferredBufferScaleChange();
@@ -183,8 +176,8 @@ void WSurfacePrivate::updatePreferredBufferScale()
 void WSurfacePrivate::preferredBufferScaleChange()
 {
     W_Q(WSurface);
-    if (handle)
-        handle->setPreferredBufferScale(q->preferredBufferScale());
+    if (handle())
+        handle()->setPreferredBufferScale(q->preferredBufferScale());
     Q_EMIT q->preferredBufferScaleChanged();
 }
 
@@ -195,7 +188,7 @@ WSurface *WSurfacePrivate::ensureSubsurface(wlr_subsurface *subsurface)
 
     auto qwsurface = QWSurface::from(subsurface->surface);
     auto surface = new WSurface(qwsurface, q_func());
-    QObject::connect(qwsurface, &QWSurface::beforeDestroy, surface, &WSurface::deleteLater);
+    surface->safeConnect(&QWSurface::beforeDestroy, surface, &WSurface::safeDeleteLater);
 
     return surface;
 }
@@ -225,7 +218,7 @@ void WSurfacePrivate::setHasSubsurface(bool newHasSubsurface)
 
 void WSurfacePrivate::updateHasSubsurface()
 {
-    setHasSubsurface(handle && (!wl_list_empty(&nativeHandle()->current.subsurfaces_above)
+    setHasSubsurface(handle() && (!wl_list_empty(&nativeHandle()->current.subsurfaces_above)
                                 || !wl_list_empty(&nativeHandle()->current.subsurfaces_below)));
 }
 
@@ -236,8 +229,7 @@ WSurface::WSurface(QWSurface *handle, QObject *parent)
 }
 
 WSurface::WSurface(WSurfacePrivate &dd, QObject *parent)
-    : QObject(parent)
-    , WObject(dd)
+    : WWrapObject(dd, parent)
 {
     dd.init();
 }
@@ -245,7 +237,7 @@ WSurface::WSurface(WSurfacePrivate &dd, QObject *parent)
 QWSurface *WSurface::handle() const
 {
     W_DC(WSurface);
-    return d->handle;
+    return d->handle();
 }
 
 WSurface *WSurface::fromHandle(QWSurface *handle)
@@ -263,7 +255,7 @@ WSurface *WSurface::fromHandle(wlr_surface *handle)
 bool WSurface::inputRegionContains(const QPointF &localPos) const
 {
     W_DC(WSurface);
-    return d->handle->pointAcceptsInput(localPos);
+    return d->handle()->pointAcceptsInput(localPos);
 }
 
 bool WSurface::mapped() const
@@ -326,10 +318,10 @@ void WSurface::enterOutput(WOutput *output)
         return;
     wlr_surface_send_enter(d->nativeHandle(), output->handle()->handle());
 
-    connect(output, &WOutput::destroyed, this, [d] {
+    output->safeConnect(&WOutput::destroyed, this, [d] {
         d->updateOutputs();
     });
-    connect(output, &WOutput::scaleChanged, this, [d] {
+    output->safeConnect(&WOutput::scaleChanged, this, [d] {
         d->updatePreferredBufferScale();
     });
 
@@ -361,7 +353,7 @@ void WSurface::leaveOutput(WOutput *output)
         return;
     wlr_surface_send_leave(d->nativeHandle(), output->handle()->handle());
 
-    output->disconnect(this);
+    output->safeDisconnect(this);
     d->updateOutputs();
 
     if (d->primaryOutput == output) {
@@ -463,23 +455,15 @@ void WSurface::unmap()
     wlr_surface_unmap(d->nativeHandle());
 }
 
-void WSurface::deleteLater()
-{
-    W_D(WSurface);
-    d->instantRelease();
-    QObject::deleteLater();
-}
-
 void WSurfacePrivate::instantRelease()
 {
     W_Q(WSurface);
-    if (handle) {
-        handle->setData(nullptr, nullptr);
-        handle->disconnect(q);
+    if (handle()) {
+        handle()->setData(nullptr, nullptr);
+        handle()->disconnect(q);
         subsurface->disconnect(q);
         for (auto o : outputs)
-            o->disconnect(q);
-        handle = nullptr;
+            o->safeDisconnect(q);
     }
 }
 

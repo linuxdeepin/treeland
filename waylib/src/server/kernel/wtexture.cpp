@@ -3,6 +3,7 @@
 
 #include "wtexture.h"
 #include "utils/wtools.h"
+#include "private/wglobal_p.h"
 
 #include <qwtexture.h>
 

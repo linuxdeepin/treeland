@@ -41,7 +41,7 @@ class WCursor;
 class WBackend;
 class WServer;
 class WOutputPrivate;
-class WAYLIB_SERVER_EXPORT WOutput : public QObject, public WObject
+class WAYLIB_SERVER_EXPORT WOutput : public WWrapObject
 {
     Q_OBJECT
     W_DECLARE_PRIVATE(WOutput)

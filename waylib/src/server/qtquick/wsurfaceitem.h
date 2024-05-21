@@ -15,10 +15,10 @@ QT_END_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
 class WSurfaceItemContentPrivate;
-class WAYLIB_SERVER_EXPORT WSurfaceItemContent : public QQuickItem, public WObject
+class WAYLIB_SERVER_EXPORT WSurfaceItemContent : public QQuickItem
 {
     Q_OBJECT
-    W_DECLARE_PRIVATE(WSurfaceItemContent)
+    Q_DECLARE_PRIVATE(WSurfaceItemContent)
     Q_PROPERTY(WSurface* surface READ surface WRITE setSurface NOTIFY surfaceChanged FINAL)
     Q_PROPERTY(bool cacheLastBuffer READ cacheLastBuffer WRITE setCacheLastBuffer NOTIFY cacheLastBufferChanged FINAL)
     QML_NAMED_ELEMENT(SurfaceItemContent)
@@ -182,9 +182,6 @@ protected:
     virtual void surfaceSizeRatioChange();
 
     void updateSurfaceState();
-
-private:
-    W_PRIVATE_SLOT(void onHasSubsurfaceChanged())
 
     friend class EventItem;
 };

@@ -8,6 +8,7 @@
 #include "wtools.h"
 #include "wquickgammacontrol_p.h"
 #include "platformplugin/qwlrootscreen.h"
+#include "private/wglobal_p.h"
 
 #include <qwoutput.h>
 #include <qwoutputlayout.h>
@@ -42,55 +43,26 @@ WAYLIB_SERVER_BEGIN_NAMESPACE
 
 Q_LOGGING_CATEGORY(qLcOutput, "waylib.server.output", QtWarningMsg)
 
-class Q_DECL_HIDDEN WOutputPrivate : public WObjectPrivate
+class Q_DECL_HIDDEN WOutputPrivate : public WWrapObjectPrivate
 {
 public:
     WOutputPrivate(WOutput *qq, QWOutput *handle)
-        : WObjectPrivate(qq)
-        , handle(handle)
+        : WWrapObjectPrivate(qq)
     {
-        this->handle->setData(this, qq);
-
-        QObject::connect(this->handle.get(), qOverload<wlr_output_event_commit*>(&QWOutput::commit),
-                         qq, [qq] (wlr_output_event_commit *event) {
-            if (event->state->committed & WLR_OUTPUT_STATE_SCALE) {
-                Q_EMIT qq->scaleChanged();
-                Q_EMIT qq->effectiveSizeChanged();
-            }
-
-            if (event->state->committed & WLR_OUTPUT_STATE_MODE) {
-                Q_EMIT qq->modeChanged();
-                Q_EMIT qq->transformedSizeChanged();
-                Q_EMIT qq->effectiveSizeChanged();
-            }
-
-            if (event->state->committed & WLR_OUTPUT_STATE_TRANSFORM) {
-                Q_EMIT qq->orientationChanged();
-                Q_EMIT qq->transformedSizeChanged();
-                Q_EMIT qq->effectiveSizeChanged();
-            }
-
-            if (event->state->committed & WLR_OUTPUT_STATE_BUFFER)
-                Q_EMIT qq->bufferCommitted();
-
-            if (event->state->committed & WLR_OUTPUT_STATE_ENABLED)
-                Q_EMIT qq->enabledChanged();
-        });
+        initHandle(handle);
+        this->handle()->setData(this, qq);
     }
 
-    ~WOutputPrivate() {
-        handle->setData(nullptr, nullptr);
+    void instantRelease() override {
+        handle()->setData(nullptr, nullptr);
         if (layout)
             layout->remove(q_func());
     }
 
-    inline wlr_output *nativeHandle() const {
-        Q_ASSERT(handle);
-        return handle->handle();
-    };
+    WWRAP_HANDLE_FUNCTIONS(QWOutput, wlr_output)
 
     inline QSize size() const {
-        Q_ASSERT(handle);
+        Q_ASSERT(handle());
         return QSize(nativeHandle()->width, nativeHandle()->height);
     }
 
@@ -100,7 +72,6 @@ public:
 
     W_DECLARE_PUBLIC(WOutput)
 
-    QPointer<QWOutput> handle;
     bool forceSoftwareCursor = false;
     QWlrootsScreen *screen = nullptr;
     QQuickWindow *window = nullptr;
@@ -110,10 +81,34 @@ public:
 };
 
 WOutput::WOutput(QWOutput *handle, WBackend *backend)
-    : QObject()
-    , WObject(*new WOutputPrivate(this, handle))
+    : WWrapObject(*new WOutputPrivate(this, handle))
 {
     d_func()->backend = backend;
+    connect(handle, qOverload<wlr_output_event_commit*>(&QWOutput::commit),
+            this, [this] (wlr_output_event_commit *event) {
+        if (event->state->committed & WLR_OUTPUT_STATE_SCALE) {
+            Q_EMIT this->scaleChanged();
+            Q_EMIT this->effectiveSizeChanged();
+        }
+
+        if (event->state->committed & WLR_OUTPUT_STATE_MODE) {
+            Q_EMIT this->modeChanged();
+            Q_EMIT this->transformedSizeChanged();
+            Q_EMIT this->effectiveSizeChanged();
+        }
+
+        if (event->state->committed & WLR_OUTPUT_STATE_TRANSFORM) {
+            Q_EMIT this->orientationChanged();
+            Q_EMIT this->transformedSizeChanged();
+            Q_EMIT this->effectiveSizeChanged();
+        }
+
+        if (event->state->committed & WLR_OUTPUT_STATE_BUFFER)
+            Q_EMIT this->bufferCommitted();
+
+        if (event->state->committed & WLR_OUTPUT_STATE_ENABLED)
+            Q_EMIT this->enabledChanged();
+    });
 }
 
 WOutput::~WOutput()
@@ -411,12 +406,13 @@ bool WOutput::configureSwapchain(const QSize &size, uint32_t format,
 QWOutput *WOutput::handle() const
 {
     W_DC(WOutput);
-    return d->handle.data();
+    return d->handle();
 }
 
 wlr_output *WOutput::nativeHandle() const
 {
-    return handle()->handle();
+    W_DC(WOutput);
+    return d->nativeHandle();
 }
 
 WOutput *WOutput::fromHandle(const QWOutput *handle)
@@ -444,7 +440,7 @@ QWlrootsScreen *WOutput::screen() const
 bool WOutput::isEnabled() const
 {
     W_DC(WOutput);
-    return d->handle->handle()->enabled;
+    return d->nativeHandle()->enabled;
 }
 
 QPoint WOutput::position() const
@@ -456,7 +452,7 @@ QPoint WOutput::position() const
     if (Q_UNLIKELY(!d->layout))
         return p;
 
-    auto l_output = d->layout->get(d->handle);
+    auto l_output = d->layout->get(d->handle());
 
     if (Q_UNLIKELY(!l_output))
         return p;
@@ -475,14 +471,14 @@ QSize WOutput::transformedSize() const
 {
     W_DC(WOutput);
 
-    return d->handle->transformedResolution();
+    return d->handle()->transformedResolution();
 }
 
 QSize WOutput::effectiveSize() const
 {
     W_DC(WOutput);
 
-    return d->handle->effectiveResolution();
+    return d->handle()->effectiveResolution();
 }
 
 WOutput::Transform WOutput::orientation() const
@@ -518,7 +514,7 @@ QImage::Format WOutput::preferredReadFormat() const
         return WTools::toImageFormat(renderer->impl->preferred_read_format(renderer));
     }
 
-    return WTools::toImageFormat(d->handle->preferredReadFormat());
+    return WTools::toImageFormat(d->handle()->preferredReadFormat());
 }
 
 void WOutput::attach(QQuickWindow *window)
@@ -593,44 +589,44 @@ bool WOutput::setGammaLut(size_t ramp_size, uint16_t* r, uint16_t* g, uint16_t* 
 bool WOutput::enable(bool enabled)
 {
     W_D(WOutput);
-    d->handle->enable(enabled);
+    d->handle()->enable(enabled);
     return true;
 }
 
 void WOutput::enableAdaptiveSync(bool enabled)
 {
     W_D(WOutput);
-    d->handle->enableAdaptiveSync(enabled);
+    d->handle()->enableAdaptiveSync(enabled);
 }
 
 void WOutput::setMode(wlr_output_mode *mode)
 {
     W_D(WOutput);
-    d->handle->setMode(mode);
+    d->handle()->setMode(mode);
 }
 
 void WOutput::setCustomMode(const QSize &size, int32_t refresh)
 {
     W_D(WOutput);
-    d->handle->setCustomMode(size, refresh);
+    d->handle()->setCustomMode(size, refresh);
 }
 
 bool WOutput::test()
 {
     W_D(WOutput);
-    return d->handle->test();
+    return d->handle()->test();
 }
 
 bool WOutput::commit()
 {
     W_D(WOutput);
-    return d->handle->commit();
+    return d->handle()->commit();
 }
 
 void WOutput::rollback()
 {
     W_D(WOutput);
-    d->handle->rollback();
+    d->handle()->rollback();
 }
 
 bool WOutput::forceSoftwareCursor() const
@@ -645,7 +641,7 @@ void WOutput::setForceSoftwareCursor(bool on)
     if (d->forceSoftwareCursor == on)
         return;
     d->forceSoftwareCursor = on;
-    d->handle->lockSoftwareCursors(on);
+    d->handle()->lockSoftwareCursors(on);
 
     Q_EMIT forceSoftwareCursorChanged();
 }

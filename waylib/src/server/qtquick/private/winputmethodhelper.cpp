@@ -11,6 +11,7 @@
 #include "wseat.h"
 #include "wsurface.h"
 #include "wxdgsurface.h"
+#include "private/wglobal_p.h"
 
 #include <qwcompositor.h>
 #include <qwinputmethodv2.h>
@@ -223,6 +224,8 @@ void WInputMethodHelper::setInputMethod(WQuickInputMethodV2 *im)
     W_D(WInputMethodHelper);
     if (d->activeInputMethod == im)
         return;
+    if (d->activeInputMethod)
+        d->activeInputMethod->safeDisconnect(this);
     d->activeInputMethod = im;
     Q_EMIT activeInputMethodChanged();
 }
@@ -297,12 +300,11 @@ void WInputMethodHelper::handleNewIMV2(QWInputMethodV2 *imv2)
     // Once input method is online, try to resend enter to textInput
     resendKeyboardFocus();
     // For text input v1, when after sendEnter, enabled signal will be emitted
-    connect(wimv2->handle(), &QWInputMethodV2::beforeDestroy, this, [this, wimv2]{
+    wimv2->safeConnect(&QWInputMethodV2::beforeDestroy, this, [this, wimv2]{
         if (inputMethod() == wimv2) {
             setInputMethod(nullptr);
-            wimv2->disconnect();
         }
-        wimv2->deleteLater();
+        wimv2->safeDeleteLater();
         notifyLeave();
     });
 
@@ -352,10 +354,10 @@ void WInputMethodHelper::handleNewIPSV2(QWInputPopupSurfaceV2 *ipsv2)
         d->popupSurfaces.append(surface);
         Q_EMIT inputPopupSurfaceV2Added(surface);
         updatePopupSurface(surface, cursorRect);
-        connect(popupSurface, &QWInputPopupSurfaceV2::beforeDestroy, this, [this, d, surface](){
+        surface->safeConnect(&QWInputPopupSurfaceV2::beforeDestroy, this, [this, d, surface](){
             d->popupSurfaces.removeAll(surface);
             Q_EMIT inputPopupSurfaceV2Removed(surface);
-            surface->deleteLater();
+            surface->safeDeleteLater();
         });
     };
 

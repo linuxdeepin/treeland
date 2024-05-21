@@ -4,6 +4,7 @@
 #pragma once
 
 #include "wquicktextureproxy.h"
+#include "private/wglobal_p.h"
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 

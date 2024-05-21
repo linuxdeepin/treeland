@@ -6,6 +6,8 @@
 #include "winputdevice.h"
 #include "wsurface.h"
 #include "wxdgsurface.h"
+#include "private/wglobal_p.h"
+#include "private/wtoplevelsurface_p.h"
 
 #include <qwcompositor.h>
 #include <qwinputmethodv2.h>
@@ -58,22 +60,24 @@ void WQuickInputMethodManagerV2::create()
     connect(d->manager, &QWInputMethodManagerV2::inputMethod, this, &WQuickInputMethodManagerV2::newInputMethod);
 }
 
-class WQuickInputPopupSurfaceV2Private : public WObjectPrivate
+class WQuickInputPopupSurfaceV2Private : public WWrapObjectPrivate
 {
 public:
     WQuickInputPopupSurfaceV2Private(QWInputPopupSurfaceV2 *h, WQuickInputPopupSurfaceV2 *qq)
-        : WObjectPrivate(qq)
-        , handle(h)
+        : WWrapObjectPrivate(qq)
         , popupSurface(WSurface::fromHandle(h->surface()))
     {
+        initHandle(h);
         if (!popupSurface) {
             popupSurface = new WSurface(h->surface());
-            QObject::connect(h->surface(), &QWSurface::beforeDestroy, popupSurface, &WSurface::deleteLater);
+            popupSurface->safeConnect(&QWSurface::beforeDestroy,
+                                     popupSurface, &WSurface::safeDeleteLater);
         }
     }
 
+    WWRAP_HANDLE_FUNCTIONS(QWInputPopupSurfaceV2, wlr_input_popup_surface_v2)
+
     W_DECLARE_PUBLIC(WQuickInputPopupSurfaceV2)
-    QWInputPopupSurfaceV2 *const handle;
     WSurface *popupSurface;
 };
 
@@ -95,22 +99,24 @@ public:
     QWInputMethodKeyboardGrabV2 *const handle;
 };
 
-class WQuickInputMethodV2Private : public WObjectPrivate
+class WQuickInputMethodV2Private : public WWrapObjectPrivate
 {
 public:
     WQuickInputMethodV2Private(QWInputMethodV2 *h, WQuickInputMethodV2 *qq)
-        : WObjectPrivate(qq)
-        , handle(h)
-    { }
+        : WWrapObjectPrivate(qq)
+    {
+        initHandle(h);
+    }
+
+    WWRAP_HANDLE_FUNCTIONS(QWInputMethodV2, wlr_input_method_v2)
 
     W_DECLARE_PUBLIC(WQuickInputMethodV2)
-    QWInputMethodV2 *const handle;
 };
 
 WQuickInputMethodV2::WQuickInputMethodV2(QWInputMethodV2 *h, QObject *parent) :
-    QObject(parent),
-    WObject(*new WQuickInputMethodV2Private(h, this), nullptr)
+    WWrapObject(*new WQuickInputMethodV2Private(h, this), parent)
 {
+    W_D(WQuickInputMethodV2);
     connect(handle(), &QWInputMethodV2::commit, this, &WQuickInputMethodV2::committed);
     connect(handle(), &QWInputMethodV2::grabKeybord, this, &WQuickInputMethodV2::newKeyboardGrab);
     connect(handle(), &QWInputMethodV2::newPopupSurface, this, &WQuickInputMethodV2::newPopupSurface);
@@ -118,60 +124,59 @@ WQuickInputMethodV2::WQuickInputMethodV2(QWInputMethodV2 *h, QObject *parent) :
 
 QWInputMethodV2 *WQuickInputMethodV2::handle() const
 {
-    return d_func()->handle;
+    return d_func()->handle();
 }
 
 WSeat *WQuickInputMethodV2::seat() const
 {
     W_DC(WQuickInputMethodV2);
-    return WSeat::fromHandle(QWSeat::from(d->handle->handle()->seat));
+    return WSeat::fromHandle(QWSeat::from(d->nativeHandle()->seat));
 }
 
 void WQuickInputMethodV2::sendContentType(quint32 hint, quint32 purpose)
 {
     W_D(WQuickInputMethodV2);
-    d->handle->sendContentType(hint, purpose);
+    d->handle()->sendContentType(hint, purpose);
 }
 
 void WQuickInputMethodV2::sendActivate()
 {
     W_D(WQuickInputMethodV2);
-    d->handle->sendActivate();
+    d->handle()->sendActivate();
 }
 
 void WQuickInputMethodV2::sendDeactivate()
 {
     W_D(WQuickInputMethodV2);
-    d->handle->sendDeactivate();
+    d->handle()->sendDeactivate();
 }
 
 void WQuickInputMethodV2::sendDone()
 {
     W_D(WQuickInputMethodV2);
-    d->handle->sendDone();
+    d->handle()->sendDone();
 }
 
 void WQuickInputMethodV2::sendSurroundingText(const QString &text, quint32 cursor, quint32 anchor)
 {
     W_D(WQuickInputMethodV2);
-    d->handle->sendSurroundingText(qPrintable(text), cursor, anchor);
+    d->handle()->sendSurroundingText(qPrintable(text), cursor, anchor);
 }
 
 void WQuickInputMethodV2::sendTextChangeCause(quint32 cause)
 {
     W_D(WQuickInputMethodV2);
-    d->handle->sendTextChangeCause(cause);
+    d->handle()->sendTextChangeCause(cause);
 }
 
 void WQuickInputMethodV2::sendUnavailable()
 {
     W_D(WQuickInputMethodV2);
-    d->handle->sendUnavailable();
+    d->handle()->sendUnavailable();
 }
 
 WQuickInputPopupSurfaceV2::WQuickInputPopupSurfaceV2(QWInputPopupSurfaceV2 *handle, QObject *parent) :
-    QObject(parent),
-    WObject(*new WQuickInputPopupSurfaceV2Private(handle, this), nullptr)
+    WWrapObject(*new WQuickInputPopupSurfaceV2Private(handle, this), parent)
 { }
 
 WSurface *WQuickInputPopupSurfaceV2::surface() const
@@ -182,13 +187,13 @@ WSurface *WQuickInputPopupSurfaceV2::surface() const
 
 QWInputPopupSurfaceV2 *WQuickInputPopupSurfaceV2::handle() const
 {
-    return d_func()->handle;
+    return d_func()->handle();
 }
 
 void WQuickInputPopupSurfaceV2::sendTextInputRectangle(const QRect &sbox)
 {
     W_D(WQuickInputPopupSurfaceV2);
-    d->handle->send_text_input_rectangle(sbox);
+    d->handle()->send_text_input_rectangle(sbox);
 }
 
 WQuickInputMethodKeyboardGrabV2::WQuickInputMethodKeyboardGrabV2(QWInputMethodKeyboardGrabV2 *handle, QObject *parent):
@@ -242,28 +247,29 @@ void WQuickInputMethodKeyboardGrabV2::setKeyboard(WInputDevice *keyboard)
     }
 }
 
-class WInputPopupV2Private : public WObjectPrivate
+class WInputPopupV2Private : public WToplevelSurfacePrivate
 {
 public:
     W_DECLARE_PUBLIC(WInputPopupV2)
     explicit WInputPopupV2Private(QWInputPopupSurfaceV2 *surface, WSurface *parentSurface, WInputPopupV2 *qq)
-        : WObjectPrivate(qq)
-        , handle(surface)
+        : WToplevelSurfacePrivate(qq)
         , parent(parentSurface)
-    { }
+    {
+        initHandle(surface);
+    }
+
+    WWRAP_HANDLE_FUNCTIONS(QWInputPopupSurfaceV2, wlr_input_popup_surface_v2)
 
     QSize size() const
     {
-        return {handle->surface()->handle()->current.width, handle->surface()->handle()->current.height};
+        return {handle()->surface()->handle()->current.width, handle()->surface()->handle()->current.height};
     }
 
-    QWInputPopupSurfaceV2 *const handle;
     WSurface *const parent;
 };
 
 WInputPopupV2::WInputPopupV2(QWInputPopupSurfaceV2 *surface, WSurface *parentSurface, QObject *parent)
-    : WToplevelSurface(parent)
-    , WObject(*new WInputPopupV2Private(surface, parentSurface, this))
+    : WToplevelSurface(*new WInputPopupV2Private(surface, parentSurface, this), parent)
 { }
 
 bool WInputPopupV2::doesNotAcceptFocus() const
@@ -276,14 +282,14 @@ WSurface *WInputPopupV2::surface() const
     auto wSurface = WSurface::fromHandle(handle()->surface());
     if (!wSurface) {
         wSurface = new WSurface(handle()->surface());
-        connect(handle()->surface(), &QWSurface::beforeDestroy, wSurface, &WSurface::deleteLater);
+        wSurface->safeConnect(&QWSurface::beforeDestroy, wSurface, &WSurface::safeDeleteLater);
     }
     return wSurface;
 }
 
 QWInputPopupSurfaceV2 *WInputPopupV2::handle() const
 {
-    return d_func()->handle;
+    return d_func()->handle();
 }
 
 bool WInputPopupV2::isActivated() const
@@ -327,31 +333,31 @@ void WInputPopupV2Item::setSurface(WInputPopupV2 *surface)
 
 QString WQuickInputMethodV2::commitString() const
 {
-    return d_func()->handle->handle()->current.commit_text;
+    return d_func()->nativeHandle()->current.commit_text;
 }
 
 uint WQuickInputMethodV2::deleteSurroundingBeforeLength() const
 {
-    return d_func()->handle->handle()->current.delete_c.before_length;
+    return d_func()->nativeHandle()->current.delete_c.before_length;
 }
 
 uint WQuickInputMethodV2::deleteSurroundingAfterLength() const
 {
-    return d_func()->handle->handle()->current.delete_c.after_length;
+    return d_func()->nativeHandle()->current.delete_c.after_length;
 }
 
 QString WQuickInputMethodV2::preeditString() const
 {
-    return d_func()->handle->handle()->current.preedit.text;
+    return d_func()->nativeHandle()->current.preedit.text;
 }
 
 int WQuickInputMethodV2::preeditCursorBegin() const
 {
-    return d_func()->handle->handle()->current.preedit.cursor_begin;
+    return d_func()->nativeHandle()->current.preedit.cursor_begin;
 }
 
 int WQuickInputMethodV2::preeditCursorEnd() const
 {
-    return d_func()->handle->handle()->current.preedit.cursor_end;
+    return d_func()->nativeHandle()->current.preedit.cursor_end;
 }
 WAYLIB_SERVER_END_NAMESPACE

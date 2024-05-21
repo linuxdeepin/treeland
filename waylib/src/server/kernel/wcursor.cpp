@@ -51,15 +51,20 @@ inline QWBuffer* createImageBuffer(QImage image)
 }
 
 WCursorPrivate::WCursorPrivate(WCursor *qq)
-    : WObjectPrivate(qq)
-    , handle(new QWCursor())
+    : WWrapObjectPrivate(qq)
 {
-    handle->setData(this, qq);
+    initHandle(new QWCursor());
+    handle()->setData(this, qq);
 }
 
 WCursorPrivate::~WCursorPrivate()
 {
-    handle->setData(nullptr, nullptr);
+    delete handle();
+}
+
+void WCursorPrivate::instantRelease()
+{
+    handle()->setData(nullptr, nullptr);
     if (seat)
         seat->setCursor(nullptr);
 
@@ -67,14 +72,6 @@ WCursorPrivate::~WCursorPrivate()
         for (auto o : outputLayout->outputs())
             o->removeCursor(q_func());
     }
-
-    delete handle;
-}
-
-wlr_cursor *WCursorPrivate::nativeHandle() const
-{
-    Q_ASSERT(handle);
-    return handle->handle();
 }
 
 const char *WCursorPrivate::checkTypeAndFallback(const char *name)
@@ -131,8 +128,8 @@ void WCursorPrivate::setType(const char *name)
         return;
 
     // FIXME: Prevent the cursor from being black in some situations，but why need unsetImage manually?
-    handle->unsetImage();
-    handle->setXCursor(xcursor_manager, name);
+    handle()->unsetImage();
+    handle()->setXCursor(xcursor_manager, name);
 }
 
 static inline const char *qcursorShapeToType(std::underlying_type_t<WCursor::CursorShape> shape) {
@@ -310,7 +307,7 @@ void WCursorPrivate::updateCursorImage()
             return;
 
         auto *imageBuffer = createImageBuffer(img);
-        handle->setBuffer(imageBuffer, cursor.hotSpot(), img.devicePixelRatio());
+        handle()->setBuffer(imageBuffer, cursor.hotSpot(), img.devicePixelRatio());
     }
 }
 
@@ -523,53 +520,53 @@ void WCursorPrivate::connect()
     W_Q(WCursor);
     Q_ASSERT(seat);
 
-    QObject::connect(handle, &QWCursor::motion, seat, [this] (wlr_pointer_motion_event *event) {
+    QObject::connect(handle(), &QWCursor::motion, q, [this] (wlr_pointer_motion_event *event) {
         on_motion(event);
     });
-    QObject::connect(handle, &QWCursor::motionAbsolute, seat, [this] (wlr_pointer_motion_absolute_event *event) {
+    QObject::connect(handle(), &QWCursor::motionAbsolute, q, [this] (wlr_pointer_motion_absolute_event *event) {
         on_motion_absolute(event);
     });
-    QObject::connect(handle, &QWCursor::button, seat, [this] (wlr_pointer_button_event *event) {
+    QObject::connect(handle(), &QWCursor::button, q, [this] (wlr_pointer_button_event *event) {
         on_button(event);
     });
-    QObject::connect(handle, &QWCursor::axis, seat, [this] (wlr_pointer_axis_event *event) {
+    QObject::connect(handle(), &QWCursor::axis, q, [this] (wlr_pointer_axis_event *event) {
         on_axis(event);
     });
-    QObject::connect(handle, &QWCursor::frame, seat, [this] () {
+    QObject::connect(handle(), &QWCursor::frame, q, [this] () {
         on_frame();
     });
 
-    QObject::connect(handle, SIGNAL(swipeBegin(wlr_pointer_swipe_begin_event*)),
+    QObject::connect(handle(), SIGNAL(swipeBegin(wlr_pointer_swipe_begin_event*)),
                      q, SLOT(on_swipe_begin(wlr_pointer_swipe_begin_event*)));
-    QObject::connect(handle, SIGNAL(swipeUpdate(wlr_pointer_swipe_update_event*)),
+    QObject::connect(handle(), SIGNAL(swipeUpdate(wlr_pointer_swipe_update_event*)),
                      q, SLOT(on_swipe_update(wlr_pointer_swipe_update_event*)));
-    QObject::connect(handle, SIGNAL(swipeEnd(wlr_pointer_swipe_end_event*)),
+    QObject::connect(handle(), SIGNAL(swipeEnd(wlr_pointer_swipe_end_event*)),
                      q, SLOT(on_swipe_end(wlr_pointer_swipe_end_event*)));
-    QObject::connect(handle, SIGNAL(pinchBegin(wlr_pointer_pinch_begin_event*)),
+    QObject::connect(handle(), SIGNAL(pinchBegin(wlr_pointer_pinch_begin_event*)),
                      q, SLOT(on_pinch_begin(wlr_pointer_pinch_begin_event*)));
-    QObject::connect(handle, SIGNAL(pinchUpdate(wlr_pointer_pinch_update_event*)),
+    QObject::connect(handle(), SIGNAL(pinchUpdate(wlr_pointer_pinch_update_event*)),
                      q, SLOT(on_pinch_update(wlr_pointer_pinch_update_event*)));
-    QObject::connect(handle, SIGNAL(pinchEnd(wlr_pointer_pinch_end_event*)),
+    QObject::connect(handle(), SIGNAL(pinchEnd(wlr_pointer_pinch_end_event*)),
                      q, SLOT(on_pinch_end(wlr_pointer_pinch_end_event*)));
-    QObject::connect(handle, SIGNAL(holdBegin(wlr_pointer_hold_begin_event*)),
+    QObject::connect(handle(), SIGNAL(holdBegin(wlr_pointer_hold_begin_event*)),
                      q, SLOT(on_hold_begin(wlr_pointer_hold_begin_event*)));
-    QObject::connect(handle, SIGNAL(holdEnd(wlr_pointer_hold_end_event*)),
+    QObject::connect(handle(), SIGNAL(holdEnd(wlr_pointer_hold_end_event*)),
                      q, SLOT(on_hold_end(wlr_pointer_hold_end_event*)));
 
     // Handle touch device related signals
-    QObject::connect(handle, &QWCursor::touchDown, seat, [this] (wlr_touch_down_event *event) {
+    QObject::connect(handle(), &QWCursor::touchDown, q, [this] (wlr_touch_down_event *event) {
         on_touch_down(event);
     });
-    QObject::connect(handle, &QWCursor::touchMotion, seat, [this] (wlr_touch_motion_event *event) {
+    QObject::connect(handle(), &QWCursor::touchMotion, q, [this] (wlr_touch_motion_event *event) {
         on_touch_motion(event);
     });
-    QObject::connect(handle, &QWCursor::touchFrame, seat, [this] () {
+    QObject::connect(handle(), &QWCursor::touchFrame, q, [this] () {
         on_touch_frame();
     });
-    QObject::connect(handle, &QWCursor::touchCancel, seat, [this] (wlr_touch_cancel_event *event) {
+    QObject::connect(handle(), &QWCursor::touchCancel, q, [this] (wlr_touch_cancel_event *event) {
         on_touch_cancel(event);
     });
-    QObject::connect(handle, &QWCursor::touchUp, seat, [this] (wlr_touch_up_event *event) {
+    QObject::connect(handle(), &QWCursor::touchUp, q, [this] (wlr_touch_up_event *event) {
         on_touch_up(event);
     });
 }
@@ -583,8 +580,7 @@ void WCursorPrivate::processCursorMotion(QWPointer *device, uint32_t time)
 }
 
 WCursor::WCursor(WCursorPrivate &dd, QObject *parent)
-    : QObject(parent)
-    , WObject(dd)
+    : WWrapObject(dd, parent)
 {
 
 }
@@ -592,7 +588,7 @@ WCursor::WCursor(WCursorPrivate &dd, QObject *parent)
 void WCursor::move(QWInputDevice *device, const QPointF &delta)
 {
     const QPointF oldPos = position();
-    d_func()->handle->move(device, delta);
+    d_func()->handle()->move(device, delta);
 
     if (oldPos != position())
         Q_EMIT positionChanged();
@@ -601,7 +597,7 @@ void WCursor::move(QWInputDevice *device, const QPointF &delta)
 void WCursor::setPosition(QWInputDevice *device, const QPointF &pos)
 {
     const QPointF oldPos = position();
-    d_func()->handle->warpClosest(device, pos);
+    d_func()->handle()->warpClosest(device, pos);
 
     if (oldPos != position())
         Q_EMIT positionChanged();
@@ -610,7 +606,7 @@ void WCursor::setPosition(QWInputDevice *device, const QPointF &pos)
 bool WCursor::setPositionWithChecker(QWInputDevice *device, const QPointF &pos)
 {
     const QPointF oldPos = position();
-    bool ok = d_func()->handle->warp(device, pos);
+    bool ok = d_func()->handle()->warp(device, pos);
 
     if (oldPos != position())
         Q_EMIT positionChanged();
@@ -620,7 +616,7 @@ bool WCursor::setPositionWithChecker(QWInputDevice *device, const QPointF &pos)
 void WCursor::setScalePosition(QWInputDevice *device, const QPointF &ratio)
 {
     const QPointF oldPos = position();
-    d_func()->handle->warpAbsolute(device, ratio);
+    d_func()->handle()->warpAbsolute(device, ratio);
 
     if (oldPos != position())
         Q_EMIT positionChanged();
@@ -635,7 +631,7 @@ WCursor::WCursor(QObject *parent)
 QWCursor *WCursor::handle() const
 {
     W_DC(WCursor);
-    return d->handle;
+    return d->handle();
 }
 
 WCursor *WCursor::fromHandle(const QWCursor *handle)
@@ -732,7 +728,7 @@ void WCursor::setSeat(WSeat *seat)
 
     if (d->seat) {
         // reconnect signals
-        d->handle->disconnect(d->seat);
+        d->handle()->disconnect(d->seat);
     }
     d->seat = seat;
 
@@ -826,7 +822,7 @@ void WCursor::setSurface(QWSurface *surface, const QPoint &hotspot)
     d->surfaceCursorHotspot = hotspot;
     d->shape = WCursor::Invalid; // clear cache
     if (d->visible) {
-        d->handle->setSurface(surface, hotspot);
+        d->handle()->setSurface(surface, hotspot);
         if (surface) {
             connect(surface, &QWSurface::beforeDestroy, this, [d]() {
                 d->updateCursorImage();
@@ -849,7 +845,7 @@ void WCursor::setDragSurface(WSurface *surface)
     if (d->dragSurface == surface)
         return;
     if (d->dragSurface)
-        d->dragSurface->disconnect(this);
+        d->dragSurface->safeDisconnect(this);
 
     d->dragSurface = surface;
     if (surface) {
@@ -877,7 +873,7 @@ bool WCursor::attachInputDevice(WInputDevice *device)
 
     W_D(WCursor);
     Q_ASSERT(!d->deviceList.contains(device));
-    d->handle->attachInputDevice(device->handle());
+    d->handle()->attachInputDevice(device->handle());
     d->deviceList << device;
     return true;
 }
@@ -889,8 +885,8 @@ void WCursor::detachInputDevice(WInputDevice *device)
     if (!d->deviceList.removeOne(device))
         return;
 
-    d->handle->detachInputDevice(device->handle());
-    d->handle->mapInputToOutput(device->handle(), nullptr);
+    d->handle()->detachInputDevice(device->handle());
+    d->handle()->mapInputToOutput(device->handle(), nullptr);
 }
 
 void WCursor::setLayout(WOutputLayout *layout)
@@ -901,7 +897,7 @@ void WCursor::setLayout(WOutputLayout *layout)
         return;
 
     d->outputLayout = layout;
-    d->handle->attachOutputLayout(d->outputLayout);
+    d->handle()->attachOutputLayout(d->outputLayout);
 
     if (d->outputLayout) {
         for (auto o : d->outputLayout->outputs())
@@ -946,7 +942,7 @@ void WCursor::setVisible(bool visible)
 
     if (visible) {
         if (d->surfaceOfCursor) {
-            d->handle->setSurface(d->surfaceOfCursor, d->surfaceCursorHotspot);
+            d->handle()->setSurface(d->surfaceOfCursor, d->surfaceCursorHotspot);
             connect(d->surfaceOfCursor, &QWSurface::beforeDestroy, this, [d]() {
                 d->updateCursorImage();
             }, Qt::QueuedConnection);
@@ -957,14 +953,14 @@ void WCursor::setVisible(bool visible)
     } else {
         if (d->surfaceOfCursor)
             d->surfaceOfCursor->disconnect(this);
-        d->handle->unsetImage();
+        d->handle()->unsetImage();
     }
 }
 
 QPointF WCursor::position() const
 {
     W_DC(WCursor);
-    return d->handle->position();
+    return d->handle()->position();
 }
 
 QPointF WCursor::lastPressedOrTouchDownPosition() const

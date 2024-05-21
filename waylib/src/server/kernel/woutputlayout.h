@@ -49,6 +49,7 @@ Q_SIGNALS:
 
 protected:
     WOutputLayout(WOutputLayoutPrivate &dd, QObject *parent = nullptr);
+    ~WOutputLayout() override = default;
 
 protected:
     using QW_NAMESPACE::QWOutputLayout::add;

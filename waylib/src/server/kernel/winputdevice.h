@@ -19,9 +19,8 @@ WAYLIB_SERVER_BEGIN_NAMESPACE
 
 class WSeat;
 class WInputDevicePrivate;
-class WInputDevice : public WObject
+class WInputDevice : public WWrapObject
 {
-    Q_GADGET
     W_DECLARE_PRIVATE(WInputDevice)
 public:
     enum class Type {

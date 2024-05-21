@@ -4,12 +4,14 @@
 #pragma once
 
 #include "wcursor.h"
+#include "private/wglobal_p.h"
+
+#include <qwcursor.h>
 
 #include <QCursor>
 #include <QPointer>
 
 QW_BEGIN_NAMESPACE
-class QWCursor;
 class QWPointer;
 class QWSurface;
 QW_END_NAMESPACE
@@ -34,13 +36,15 @@ struct wlr_touch_cancel_event;
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
-class WCursorPrivate : public WObjectPrivate
+class WCursorPrivate : public WWrapObjectPrivate
 {
 public:
     WCursorPrivate(WCursor *qq);
     ~WCursorPrivate();
 
-    wlr_cursor *nativeHandle() const;
+    WWRAP_HANDLE_FUNCTIONS(QW_NAMESPACE::QWCursor, wlr_cursor)
+
+    void instantRelease() override;
 
     const char *checkTypeAndFallback(const char *name);
     void setType(const char *name);
@@ -73,7 +77,6 @@ public:
 
     W_DECLARE_PUBLIC(WCursor)
 
-    QW_NAMESPACE::QWCursor *handle;
     QW_NAMESPACE::QWXCursorManager *xcursor_manager = nullptr;
     QCursor cursor;
 

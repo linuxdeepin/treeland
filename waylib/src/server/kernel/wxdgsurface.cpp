@@ -5,6 +5,7 @@
 #include "private/wsurface_p.h"
 #include "wseat.h"
 #include "wtools.h"
+#include "private/wtoplevelsurface_p.h"
 
 #include <qwxdgshell.h>
 #include <qwseat.h>
@@ -22,15 +23,12 @@ extern "C" {
 QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
-class Q_DECL_HIDDEN WXdgSurfacePrivate : public WObjectPrivate {
+class Q_DECL_HIDDEN WXdgSurfacePrivate : public WToplevelSurfacePrivate {
 public:
     WXdgSurfacePrivate(WXdgSurface *qq, QWXdgSurface *handle);
     ~WXdgSurfacePrivate();
 
-    inline wlr_xdg_surface *nativeHandle() const {
-        Q_ASSERT(handle);
-        return handle->handle();
-    }
+    WWRAP_HANDLE_FUNCTIONS(QWXdgSurface, wlr_xdg_surface)
 
     wl_client *waylandClient() const {
         return nativeHandle()->client->client;
@@ -49,7 +47,6 @@ public:
 
     W_DECLARE_PUBLIC(WXdgSurface)
 
-    QPointer<QWXdgSurface> handle;
     WSurface *surface = nullptr;
     QPointF position;
     uint resizeing:1;
@@ -60,22 +57,19 @@ public:
 };
 
 WXdgSurfacePrivate::WXdgSurfacePrivate(WXdgSurface *qq, QWXdgSurface *hh)
-    : WObjectPrivate(qq)
-    , handle(hh)
+    : WToplevelSurfacePrivate(qq)
     , resizeing(false)
     , activated(false)
     , maximized(false)
     , minimized(false)
     , fullscreen(false)
 {
-
+    initHandle(hh);
 }
 
 WXdgSurfacePrivate::~WXdgSurfacePrivate()
 {
-    if (handle)
-        handle->setData(nullptr, nullptr);
-    instantRelease();
+
 }
 
 void WXdgSurfacePrivate::instantRelease()
@@ -83,23 +77,17 @@ void WXdgSurfacePrivate::instantRelease()
     if (!surface)
         return;
     W_Q(WXdgSurface);
-    handle->disconnect(q);
-    if (auto toplevel = handle->topToplevel())
+    handle()->setData(nullptr, nullptr);
+    handle()->disconnect(q);
+    if (auto toplevel = handle()->topToplevel())
         toplevel->disconnect(q);
-    surface->deleteLater();
+    surface->safeDeleteLater();
     surface = nullptr;
-}
-
-void WXdgSurface::deleteLater()
-{
-    W_D(WXdgSurface);
-    d->instantRelease();
-    QObject::deleteLater();
 }
 
 void WXdgSurfacePrivate::on_configure(wlr_xdg_surface_configure *event)
 {
-    if (handle->topToplevel()) {
+    if (handle()->topToplevel()) {
         W_Q(WXdgSurface);
 
         if (event->toplevel_configure->resizing != resizeing) {
@@ -133,10 +121,10 @@ void WXdgSurfacePrivate::on_ack_configure(wlr_xdg_surface_configure *event)
 void WXdgSurfacePrivate::init()
 {
     W_Q(WXdgSurface);
-    handle->setData(this, q);
+    handle()->setData(this, q);
 
     Q_ASSERT(!q->surface());
-    surface = new WSurface(handle->surface(), q);
+    surface = new WSurface(handle()->surface(), q);
     surface->setAttachedData<WXdgSurface>(q);
 
     connect();
@@ -146,14 +134,15 @@ void WXdgSurfacePrivate::connect()
 {
     W_Q(WXdgSurface);
 
-    QObject::connect(handle, &QWXdgSurface::configure, q, [this] (wlr_xdg_surface_configure *event) {
+    QObject::connect(handle(), &QWXdgSurface::configure, q, [this] (wlr_xdg_surface_configure *event) {
         on_configure(event);
     });
-    QObject::connect(handle, &QWXdgSurface::ackConfigure, q, [this] (wlr_xdg_surface_configure *event) {
+    QObject::connect(handle(), &QWXdgSurface::ackConfigure, q, [this] (wlr_xdg_surface_configure *event) {
         on_ack_configure(event);
     });
 
-    if (auto toplevel = handle->topToplevel()) {
+    // TODO: use safeConnect for toplevel
+    if (auto toplevel = handle()->topToplevel()) {
         QObject::connect(toplevel, &QWXdgToplevel::requestMove, q, [q] (wlr_xdg_toplevel_move_event *event) {
             auto seat = WSeat::fromHandle(QWSeat::from(event->seat->seat));
             Q_EMIT q->requestMove(seat, event->serial);
@@ -196,8 +185,7 @@ void WXdgSurfacePrivate::connect()
 }
 
 WXdgSurface::WXdgSurface(QWXdgSurface *handle, QObject *parent)
-    : WToplevelSurface(parent)
-    , WObject(*new WXdgSurfacePrivate(this, handle))
+    : WToplevelSurface(*new WXdgSurfacePrivate(this, handle), parent)
 {
     d_func()->init();
 }
@@ -228,7 +216,7 @@ WSurface *WXdgSurface::surface() const
 QWXdgSurface *WXdgSurface::handle() const
 {
     W_DC(WXdgSurface);
-    return d->handle;
+    return d->handle();
 }
 
 QWSurface *WXdgSurface::inputTargetAt(QPointF &localPos) const
@@ -236,7 +224,7 @@ QWSurface *WXdgSurface::inputTargetAt(QPointF &localPos) const
     W_DC(WXdgSurface);
     // find a wlr_suface object who can receive the events
     const QPointF pos = localPos;
-    auto sur = d->handle->surfaceAt(pos, &localPos);
+    auto sur = d->handle()->surfaceAt(pos, &localPos);
 
     return sur;
 }
@@ -255,7 +243,7 @@ void WXdgSurface::resize(const QSize &size)
 {
     W_D(WXdgSurface);
 
-    if (auto toplevel = d->handle->topToplevel()) {
+    if (auto toplevel = d->handle()->topToplevel()) {
         toplevel->setSize(size);
     }
 }
@@ -293,13 +281,13 @@ bool WXdgSurface::isFullScreen() const
 QRect WXdgSurface::getContentGeometry() const
 {
     W_DC(WXdgSurface);
-    return d->handle->getGeometry();
+    return d->handle()->getGeometry();
 }
 
 QSize WXdgSurface::minSize() const
 {
     W_DC(WXdgSurface);
-    if (auto toplevel = d->handle->topToplevel())
+    if (auto toplevel = d->handle()->topToplevel())
         return QSize(toplevel->handle()->current.min_width,
                      toplevel->handle()->current.min_height);
 
@@ -309,7 +297,7 @@ QSize WXdgSurface::minSize() const
 QSize WXdgSurface::maxSize() const
 {
     W_DC(WXdgSurface);
-    if (auto toplevel = d->handle->topToplevel())
+    if (auto toplevel = d->handle()->topToplevel())
         return QSize(toplevel->handle()->current.max_width,
                      toplevel->handle()->current.max_height);
 
@@ -319,20 +307,20 @@ QSize WXdgSurface::maxSize() const
 QString WXdgSurface::title() const
 {
     W_DC(WXdgSurface);
-    return QString::fromUtf8(d->handle->topToplevel()->handle()->title);
+    return QString::fromUtf8(d->handle()->topToplevel()->handle()->title);
 }
 
 QString WXdgSurface::appId() const
 {
     W_DC(WXdgSurface);
-    return QString::fromLocal8Bit(d->handle->topToplevel()->handle()->app_id);
+    return QString::fromLocal8Bit(d->handle()->topToplevel()->handle()->app_id);
 }
 
 WXdgSurface *WXdgSurface::parentXdgSurface() const
 {
     W_DC(WXdgSurface);
 
-    if (auto toplevel = d->handle->topToplevel()) {
+    if (auto toplevel = d->handle()->topToplevel()) {
         auto parent = toplevel->handle()->parent;
         if (!parent)
             return nullptr;
@@ -345,12 +333,12 @@ WXdgSurface *WXdgSurface::parentXdgSurface() const
 WSurface *WXdgSurface::parentSurface() const
 {
     W_DC(WXdgSurface);
-    if (auto toplevel = d->handle->topToplevel()) {
+    if (auto toplevel = d->handle()->topToplevel()) {
         auto parent = toplevel->handle()->parent;
         if (!parent)
             return nullptr;
         return WSurface::fromHandle(parent->base->surface);
-    } else if (auto popup = d->handle->toPopup()) {
+    } else if (auto popup = d->handle()->toPopup()) {
         auto parent = popup->handle()->parent;
         if (!parent)
             return nullptr;
@@ -372,7 +360,7 @@ QPointF WXdgSurface::getPopupPosition() const
 void WXdgSurface::setResizeing(bool resizeing)
 {
     W_D(WXdgSurface);
-    if (auto toplevel = d->handle->topToplevel()) {
+    if (auto toplevel = d->handle()->topToplevel()) {
         toplevel->setResizing(resizeing);
     }
 }
@@ -380,7 +368,7 @@ void WXdgSurface::setResizeing(bool resizeing)
 void WXdgSurface::setMaximize(bool on)
 {
     W_D(WXdgSurface);
-    if (auto toplevel = d->handle->topToplevel()) {
+    if (auto toplevel = d->handle()->topToplevel()) {
         toplevel->setMaximized(on);
     }
 }
@@ -398,7 +386,7 @@ void WXdgSurface::setMinimize(bool on)
 void WXdgSurface::setActivate(bool on)
 {
     W_D(WXdgSurface);
-    if (auto toplevel = d->handle->topToplevel()) {
+    if (auto toplevel = d->handle()->topToplevel()) {
         toplevel->setActivated(on);
     }
 }
@@ -407,7 +395,7 @@ void WXdgSurface::setFullScreen(bool on)
 {
     W_D(WXdgSurface);
 
-    if (auto toplevel = d->handle->topToplevel()) {
+    if (auto toplevel = d->handle()->topToplevel()) {
         toplevel->setFullscreen(on);
     }
 }
@@ -415,7 +403,7 @@ void WXdgSurface::setFullScreen(bool on)
 bool WXdgSurface::checkNewSize(const QSize &size)
 {
     W_D(WXdgSurface);
-    if (auto toplevel = d->handle->topToplevel()) {
+    if (auto toplevel = d->handle()->topToplevel()) {
         if (size.width() > toplevel->handle()->current.max_width
             && toplevel->handle()->current.max_width > 0)
             return false;

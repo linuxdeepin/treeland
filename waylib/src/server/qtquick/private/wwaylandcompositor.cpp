@@ -4,6 +4,7 @@
 #include "wwaylandcompositor_p.h"
 #include "wrenderhelper.h"
 #include "wquickbackend_p.h"
+#include "private/wglobal_p.h"
 
 #include <qwrenderer.h>
 #include <qwallocator.h>

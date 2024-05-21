@@ -9,9 +9,11 @@
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
 class WSeat;
-class WToplevelSurface : public QObject
+class WToplevelSurfacePrivate;
+class WToplevelSurface : public WWrapObject
 {
     Q_OBJECT
+    W_DECLARE_PRIVATE(WToplevelSurface)
     Q_PROPERTY(bool isActivated READ isActivated NOTIFY activateChanged)
     Q_PROPERTY(bool isMaximized READ isMaximized NOTIFY maximizeChanged)
     Q_PROPERTY(bool isMinimized READ isMinimized NOTIFY minimizeChanged)
@@ -24,9 +26,6 @@ class WToplevelSurface : public QObject
     QML_UNCREATABLE("Only create in C++")
 
 public:
-    explicit WToplevelSurface(QObject *parent = nullptr)
-        : QObject(parent) {}
-
     virtual bool doesNotAcceptFocus() const {
         return false;
     }
@@ -53,10 +52,10 @@ public:
     }
     virtual QString title() const {
         return {};
-    };
+    }
     virtual QString appId() const {
         return {};
-    };
+    }
 
     virtual QRect getContentGeometry() const = 0;
 
@@ -115,6 +114,11 @@ Q_SIGNALS:
     void requestFullscreen();
     void requestCancelFullscreen();
     void requestShowWindowMenu(WSeat *seat, QPoint pos, quint32 serial);
+
+protected:
+    explicit WToplevelSurface(WToplevelSurfacePrivate &d, QObject *parent = nullptr);
+
+    ~WToplevelSurface() override = default;
 };
 
 WAYLIB_SERVER_END_NAMESPACE

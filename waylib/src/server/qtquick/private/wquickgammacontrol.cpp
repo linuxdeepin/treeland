@@ -3,6 +3,8 @@
 
 #include "wquickgammacontrol_p.h"
 #include "woutput.h"
+#include "private/wglobal_p.h"
+
 #include <qwgammacontorlv1.h>
 #include <qwoutput.h>
 

@@ -328,7 +328,7 @@ WSurface *Helper::getFocusSurfaceFrom(QObject *object)
 
 void Helper::allowNonDrmOutputAutoChangeMode(WOutput *output)
 {
-    connect(output->handle(), &QWOutput::requestState, this, &Helper::onOutputRequeseState);
+    output->safeConnect(&QWOutput::requestState, this, &Helper::onOutputRequeseState);
 }
 
 void Helper::enableOutput(WOutput *output)

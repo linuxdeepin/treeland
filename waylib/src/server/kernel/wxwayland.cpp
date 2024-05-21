@@ -4,6 +4,7 @@
 #include "wxwayland.h"
 #include "wxwaylandsurface.h"
 #include "wseat.h"
+#include "private/wglobal_p.h"
 
 #include <qwseat.h>
 #include <qwxwayland.h>
@@ -22,11 +23,11 @@ extern "C" {
 QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
-class WXWaylandPrivate : public WObjectPrivate
+class WXWaylandPrivate : public WWrapObjectPrivate
 {
 public:
     WXWaylandPrivate(WXWayland *qq, QWCompositor *compositor, bool lazy)
-        : WObjectPrivate(qq)
+        : WWrapObjectPrivate(qq)
         , compositor(compositor)
         , lazy(lazy)
     {
@@ -112,9 +113,9 @@ void WXWaylandPrivate::on_new_surface(wlr_xwayland_surface *xwl_surface)
     auto surface = new WXWaylandSurface(xwlSurface, q, server);
     surface->setParent(server);
     Q_ASSERT(surface->parent() == server);
-    QObject::connect(xwlSurface, &QWXWaylandSurface::beforeDestroy,
-                     q_func(), [this] (QWXWaylandSurface *surface) {
-        on_surface_destroy(surface);
+    surface->safeConnect(&QWXWaylandSurface::beforeDestroy,
+                     q, [this, xwlSurface] {
+        on_surface_destroy(xwlSurface);
     });
 
     surfaceList.append(surface);
@@ -128,11 +129,11 @@ void WXWaylandPrivate::on_surface_destroy(QWXWaylandSurface *xwl_surface)
     bool ok = surfaceList.removeOne(surface);
     Q_ASSERT(ok);
     q_func()->surfaceRemoved(surface);
-    surface->deleteLater();
+    surface->safeDeleteLater();
 }
 
 WXWayland::WXWayland(QWCompositor *compositor, bool lazy)
-    : WObject(*new WXWaylandPrivate(this, compositor, lazy))
+    : WWrapObject(*new WXWaylandPrivate(this, compositor, lazy))
 {
 
 }
@@ -206,14 +207,15 @@ void WXWayland::create(WServer *server)
     // free follow display
 
     auto handle = QWXWayland::create(server->handle(), d->compositor, d->lazy);
+    initHandle(handle);
+    m_handle = handle;
+
     QObject::connect(handle, &QWXWayland::newSurface, this, [d] (wlr_xwayland_surface *surface) {
         d->on_new_surface(surface);
     });
     QObject::connect(handle, &QWXWayland::ready, this, [d] {
         d->init();
     });
-
-    m_handle = handle;
 }
 
 void WXWayland::destroy(WServer *server)
@@ -226,7 +228,7 @@ void WXWayland::destroy(WServer *server)
 
     for (auto surface : list) {
         surfaceRemoved(surface);
-        surface->deleteLater();
+        surface->safeDeleteLater();
     }
 }
 

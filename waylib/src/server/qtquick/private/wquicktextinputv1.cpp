@@ -6,6 +6,7 @@
 #include "wseat.h"
 #include "wsurface.h"
 #include "wtools.h"
+#include "private/wglobal_p.h"
 
 #include <qwdisplay.h>
 #include <qwseat.h>

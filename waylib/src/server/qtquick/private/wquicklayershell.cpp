@@ -4,6 +4,8 @@
 #include "wquicklayershell_p.h"
 #include "wlayersurface.h"
 #include "woutput.h"
+#include "private/wglobal_p.h"
+
 #include <qwlayershellv1.h>
 #include <qwxdgshell.h>
 
@@ -53,8 +55,8 @@ void WQuickLayerShellPrivate::onNewSurface(QWLayerSurfaceV1 *layerSurface)
     surface->setParent(server);
     Q_ASSERT(surface->parent() == server);
 
-    QObject::connect(layerSurface, &QWLayerSurfaceV1::beforeDestroy, q, [this] (QWLayerSurfaceV1 *data) {
-        onSurfaceDestroy(data);
+    surface->safeConnect(&QWLayerSurfaceV1::beforeDestroy, q, [this, layerSurface] {
+        onSurfaceDestroy(layerSurface);
     });
 
     surfaceList.append(surface);
@@ -68,7 +70,7 @@ void WQuickLayerShellPrivate::onSurfaceDestroy(QWLayerSurfaceV1 *layerSurface)
     bool ok = surfaceList.removeOne(surface);
     Q_ASSERT(ok);
     Q_EMIT q_func()->surfaceRemoved(surface);
-    surface->deleteLater();
+    surface->safeDeleteLater();
 }
 
 WQuickLayerShell::WQuickLayerShell(QObject *parent):
@@ -129,7 +131,7 @@ void WLayerSurfaceItem::initSurface()
 {
     WSurfaceItem::initSurface();
     Q_ASSERT(m_surface);
-    connect(m_surface->handle(), &QWLayerSurfaceV1::beforeDestroy,
+    connect(m_surface, &WWrapObject::aboutToBeInvalidated,
             this, &WLayerSurfaceItem::releaseResources);
 }
 
