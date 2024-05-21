@@ -14,6 +14,8 @@ FILES
     shortcut_manager_impl.h
     utils.h
     qshortcutmanager.h
+    ext_session_lock_manager_impl.h
+    qsessionlockmanagerimpl.h
 )
 
 target_sources(treeland-protocols PRIVATE
@@ -29,6 +31,8 @@ target_sources(treeland-protocols PRIVATE
     personalizationmanager.cpp
     qshortcutmanager.cpp
     dockpreviewcontextv1.cpp
+    ext_session_lock_manager_impl.cpp
+    qsessionlockmanagerimpl.cpp
 )
 
 target_compile_definitions(treeland-protocols

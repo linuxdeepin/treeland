@@ -45,6 +45,7 @@ ws_generate_local(server ${CMAKE_CURRENT_SOURCE_DIR}/treeland-output-management.
 
 ws_generate(server wayland-protocols stable/xdg-shell/xdg-shell.xml xdg-shell-protocol)
 ws_generate(server wayland-protocols staging/ext-foreign-toplevel-list/ext-foreign-toplevel-list-v1.xml ext-foreign-toplevel-list-server-protocol)
+ws_generate(server wayland-protocols staging/ext-session-lock/ext-session-lock-v1.xml ext-session-lock-server-protocol)
 
 add_library(treeland-data STATIC)
 
@@ -54,6 +55,7 @@ target_sources(treeland-data PRIVATE
     foreign-toplevel-manager-server-protocol.c
     ext-foreign-toplevel-list-server-protocol.c
     output-management-protocol.c
+    ext-session-lock-server-protocol.c
 )
 
 target_link_libraries(treeland-data

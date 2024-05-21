@@ -10,6 +10,7 @@ qt_add_qml_module(treeland-quick-protocols
         foreigntoplevelmanagerv1.cpp
         shortcutmanager.cpp
         qwpersonalizationmanager.cpp
+        sessionlockmanager.cpp
     RESOURCE_PREFIX
         /qt/qml
     OUTPUT_DIRECTORY
@@ -24,6 +25,7 @@ FILES
     foreigntoplevelmanagerv1.h
     shortcutmanager.h
     qwpersonalizationmanager.h
+    sessionlockmanager.h
 )
 
 target_compile_definitions(treeland-quick-protocols

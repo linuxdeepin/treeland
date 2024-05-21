@@ -174,6 +174,11 @@ void GreeterProxy::hybridSleep()
 
 void GreeterProxy::init()
 {
+    if (!d->displayManager) {
+        qWarning() << "Socket is null, failed to init greeter proxy";
+        return;
+    }
+
     connect(d->displayManager, &DisplayManager::SessionAdded, this, &GreeterProxy::onSessionAdded);
     connect(d->displayManager,
             &DisplayManager::SessionRemoved,

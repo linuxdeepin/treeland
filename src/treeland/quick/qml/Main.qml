@@ -20,6 +20,10 @@ Item {
             helper: Helper
         }
 
+        SessionLockManager {
+            id: sessionLockManager
+        }
+
         TreeLandForeignToplevelManagerV1 {
             id: treelandForeignToplevelManager
         }
@@ -375,7 +379,7 @@ Item {
         }
 
         Loader {
-            active: !TreeLand.testMode
+            active: sessionLockManager.locked
             id: greeter
             asynchronous: true
             sourceComponent: Repeater {
