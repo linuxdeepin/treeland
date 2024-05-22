@@ -242,6 +242,8 @@ FocusScope {
                     decoration: decoration
                 }
 
+                property bool isMoveResizing: Helper.resizingItem == toplevelSurfaceItem || Helper.movingItem == toplevelSurfaceItem
+                
                 states: [
                     State {
                         name: "maximize"
@@ -486,6 +488,8 @@ FocusScope {
                     creator: xwaylandComponent
                     decoration: decoration
                 }
+
+                property bool isMoveResizing: Helper.resizingItem == xwaylandSurfaceItem || Helper.movingItem == xwaylandSurfaceItem
 
                 states: [
                     State {
