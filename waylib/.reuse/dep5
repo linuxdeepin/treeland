@@ -4,7 +4,7 @@ Upstream-Contact: JiDe Zhang <zccrs@live.com>
 Source: https://github.com/vioken/waylib
 
 # ci
-Files: .github/* .obs/*.yml
+Files: .github/* .obs/*.yml renovate.json
 Copyright: None
 License: CC0-1.0
 
