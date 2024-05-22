@@ -31,7 +31,7 @@ jobs:
       - name: Install wlr-protocols form the AUR
         run: |
           su githubuser -c "cd ~ && git clone https://aur.archlinux.org/wlr-protocols-git.git && cd ./wlr-protocols-git && makepkg -si --skippgpcheck --noconfirm"
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           submodules: true
       - name: Configure CMake
