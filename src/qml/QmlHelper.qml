@@ -38,14 +38,48 @@ Item {
 
     DynamicCreator {
         id: outputManager
+        property var outputSet: new Set()
         onObjectAdded: function(delegate, obj, properties) {
-            console.info(`New output item ${obj} from delegate ${delegate} with initial properties:`,
+            console.info(`New output item ${obj} ${obj.waylandOutput.name} from delegate ${delegate} with initial properties:`,
                          `\n${printStructureObject(properties)}`)
+            outputSet.add(obj.waylandOutput.name)
+            updateEnvHash()
         }
 
         onObjectRemoved: function(delegate, obj, properties) {
             console.info(`Output item ${obj} is removed, it's create from delegate ${delegate} with initial properties:`,
                          `\n${printStructureObject(properties)}`)
+            outputSet.delete(obj.waylandOutput.name)
+            updateEnvHash()
+        }
+    }
+
+    property string envHash: "" // outputs environment
+    property string prevEnvHash: undefined
+    property var restoreStates: new Map() // Map<Env,Map<SurfaceKey,SurfaceState>>
+    function updateEnvHash() {
+        console.log(outputManager.outputSet.size, JSON.stringify(outputManager.outputSet),Array.from(outputManager.outputSet))
+        prevEnvHash = envHash
+        envHash = JSON.stringify(Array.from(outputManager.outputSet))
+    }
+    onEnvHashChanged: {
+        console.log(`env changed  ${prevEnvHash}=>${envHash}, ${workspaceManager.allSurfaces.count} surfaces exist`)
+        if (!restoreStates.has(envHash))
+            restoreStates.set(envHash, new Map())
+        let curStateStore = restoreStates.get(envHash)
+        let prevStateStore = restoreStates.get(prevEnvHash)
+        for (let i = 0; i < workspaceManager.allSurfaces.count; i++) {
+            const surf = workspaceManager.allSurfaces.get(i).wrapper
+            const surfKey = surf.waylandSurface
+            console.debug(`restoring ${surfKey} ${printStructureObject(surf.store?.normal)} => ${printStructureObject(curStateStore.get(surfKey)?.store?.normal)}`)
+            let prevStore={t:Date.now()}
+            Object.assign(prevStore,surf.store)
+            prevStateStore.set(surfKey, {state: surf.state, store: prevStore})
+            console.debug(`saved ${prevEnvHash}.${surfKey} = ${printStructureObject(prevStore.normal)}@<${prevStore.t}>`)
+            if (curStateStore.has(surfKey)) {
+                const surfState = curStateStore.get(surfKey)
+                surf.restoreState(surfState.store)
+            }
         }
     }
 
