@@ -133,7 +133,8 @@ Item {
             onReady: masterSocket.addClient(client())
 
             onSurfaceAdded: function(surface) {
-                QmlHelper.xwaylandSurfaceManager.add({waylandSurface: surface, workspaceId: stackLayout.item.currentWorkspaceId})
+                const wid = QmlHelper.workspaceManager.layoutOrder.get(stackLayout.item.currentWorkspaceId).wsid
+                QmlHelper.xwaylandSurfaceManager.add({waylandSurface: surface, workspaceId: wid})
                 treelandForeignToplevelManager.add(surface)
             }
             onSurfaceRemoved: function(surface) {
