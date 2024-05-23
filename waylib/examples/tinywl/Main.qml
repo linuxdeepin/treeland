@@ -187,6 +187,8 @@ Item {
             id: xdgOutputManager
             layout: QmlHelper.layout
         }
+
+        ScreenCopyManager { }
     }
 
     InputMethodHelper {
