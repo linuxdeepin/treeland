@@ -231,6 +231,11 @@ Item {
         VirtualKeyboardManagerV1 {
             id: virtualKeyboardManagerV1
         }
+
+        XdgOutputManager {
+            id: xdgOutputManager
+            layout: QmlHelper.layout
+        }
     }
 
     InputMethodHelper {
