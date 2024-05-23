@@ -344,9 +344,11 @@ FocusScope {
                 property var cancelMinimize: helper.cancelMinimize
                 property var surfaceParent: QmlHelper.getSurfaceItemFromWaylandSurface(waylandSurface.parentXWaylandSurface)
                 property int outputCounter: 0
+                property bool forcePositionToSurface: false
 
                 required property int workspaceId
                 parent: QmlHelper.workspaceManager.workspacesById.get(workspaceId)
+                focus: this.waylandSurface === Helper.activatedSurface
 
                 surface: waylandSurface
                 parentSurfaceItem: surfaceParent ? surfaceParent.item : null
@@ -354,6 +356,9 @@ FocusScope {
                 positionMode: {
                     if (!xwaylandSurfaceItem.effectiveVisible)
                         return XWaylandSurfaceItem.ManualPosition
+
+                    if (xwaylandSurfaceItem.forcePositionToSurface)
+                        return XWaylandSurfaceItem.PositionToSurface
 
                     return (Helper.movingItem === xwaylandSurfaceItem || resizeMode === SurfaceItem.SizeToSurface)
                             ? XWaylandSurfaceItem.PositionToSurface
@@ -405,14 +410,15 @@ FocusScope {
 
                         outputCounter++
 
-                        if (outputCounter == 1) {
+                        if (outputCounter == 1 &&
+                                xwaylandSurfaceItem.waylandSurface.windowTypes === XWaylandSurface.NET_WM_WINDOW_TYPE_NORMAL) {
                             let outputDelegate = output.OutputItem.item
+                            forcePositionToSurface = true
                             xwaylandSurfaceItem.x = outputDelegate.x
-                                    + Helper.getLeftExclusiveMargin(waylandSurface)
-                                    + 10
+                                   + (outputDelegate.width - xwaylandSurfaceItem.width) / 2
                             xwaylandSurfaceItem.y = outputDelegate.y
-                                    + Helper.getTopExclusiveMargin(waylandSurface)
-                                    + 10
+                                   + (outputDelegate.height - xwaylandSurfaceItem.height) / 2
+                            forcePositionToSurface = false
                         }
                     }
                     onLeaveOutput: function(output) {
