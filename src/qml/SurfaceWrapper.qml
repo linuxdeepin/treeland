@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 import QtQuick
+import QtQuick.Controls
 import Waylib.Server
 import TreeLand
 import TreeLand.Utils
@@ -34,10 +35,10 @@ SurfaceItemFactory {
     }
 
     function move(pos) {
-        isMoveResizing = true
+        manualMoveResizing = true
         surfaceItem.x = pos.x
         surfaceItem.y = pos.y
-        isMoveResizing = false
+        manualMoveResizing = false
     }
 
     required property int workspaceId
@@ -85,6 +86,29 @@ SurfaceItemFactory {
         }
         states: [
             State {
+                name: "" // avoid applying propertychange on initialize
+                PropertyChanges {
+                    id: defulatState
+                    restoreEntryValues: false
+                    target: toplevelSurfaceItem
+                    x: store.normal.x
+                    y: store.normal.y
+                    width: store.normal.width
+                    height: store.normal.height
+                }
+            },
+            State {
+                name: "intermediate"
+                PropertyChanges {
+                    restoreEntryValues: false
+                    target: toplevelSurfaceItem
+                    x: store.normal.x
+                    y: store.normal.y
+                    width: store.normal.width
+                    height: store.normal.height
+                }
+            },
+            State {
                 name: "maximize"
                 when: helper.isMaximize
                 PropertyChanges {
@@ -110,7 +134,33 @@ SurfaceItemFactory {
                 }
             }
         ]
-        data: []
+    }
+
+    property var store: {}
+    property int storeNormalWidth: undefined
+    property bool isRestoring: false
+    property bool aboutToRestore: false
+    function saveState() {
+        let nw = store ?? {}
+        console.debug(`store = ${store} state = {x: ${surfaceItem.x}, y: ${surfaceItem.y}, width: ${surfaceItem.width}, height: ${surfaceItem.height}}`)
+        nw.normal = {x: surfaceItem.x, y: surfaceItem.y, width: surfaceItem.width, height: surfaceItem.height}
+        store = nw
+    }
+    function restoreState(toStore) {
+        console.debug(`restoring state to ${QmlHelper.printStructureObject(toStore.normal)}`)
+        surfaceItem.state = "intermediate"
+        store = toStore
+        surfaceItem.state = ""
+    }
+    onIsMoveResizingChanged: if (!isMoveResizing) {
+        if (state == "")
+            saveState()
+    }
+    onStoreChanged: {
+        storeNormalWidth = store.normal.width
+    }
+    Component.onCompleted: {
+        saveState() // save initial state
     }
 
     OutputLayoutItem {
@@ -174,5 +224,6 @@ SurfaceItemFactory {
         surfaceWrapper: root
     }
 
-    property bool isMoveResizing: Helper.resizingItem == toplevelSurfaceItem || Helper.movingItem == toplevelSurfaceItem
+    property bool manualMoveResizing: false
+    property bool isMoveResizing: manualMoveResizing || Helper.resizingItem == surfaceItem || Helper.movingItem == surfaceItem
 }
