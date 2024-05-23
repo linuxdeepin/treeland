@@ -24,6 +24,7 @@
 #include <qwcompositor.h>
 #include <qwdisplay.h>
 #include <qwoutput.h>
+#include <qwlogging.h>
 
 #include <DLog>
 
@@ -370,6 +371,7 @@ bool TreeLand::Activate(QDBusUnixFileDescriptor _fd)
 
 int main(int argc, char *argv[])
 {
+    QWLog::init();
     WServer::initializeQPA();
     // QQuickStyle::setStyle("Material");
 
