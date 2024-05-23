@@ -147,6 +147,10 @@ void WXWaylandSurfacePrivate::init()
                      q, &WXWaylandSurface::bypassManagerChanged);
     QObject::connect(handle, &QWXWaylandSurface::geometryChanged,
                      q, &WXWaylandSurface::geometryChanged);
+    QObject::connect(handle, &QWXWaylandSurface::windowTypeChanged,
+                     q, [this] {
+                         updateWindowTypes();
+                     });
     QObject::connect(handle, &QWXWaylandSurface::decorationsChanged,
                      q, &WXWaylandSurface::decorationsTypeChanged);
     QObject::connect(handle, &QWXWaylandSurface::titleChanged,
@@ -155,6 +159,7 @@ void WXWaylandSurfacePrivate::init()
                      q, &WXWaylandSurface::appIdChanged);
     updateChildren();
     updateParent();
+    updateWindowTypes();
 }
 
 void WXWaylandSurfacePrivate::updateChildren()
