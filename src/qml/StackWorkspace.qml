@@ -296,10 +296,10 @@ FocusScope {
                 }
                 function move(pos) {
                     forcePositionToSurface = true
-                    isMoveResizing = true
+                    manualMoveResizing = true
                     surfaceItem.x = pos.x
                     surfaceItem.y = pos.y
-                    isMoveResizing = false
+                    manualMoveResizing = false
                     forcePositionToSurface = false
                 }
 

@@ -30,6 +30,7 @@ Item {
     property bool isFullScreen: waylandSurface && waylandSurface.isFullScreen && outputCoordMapper
     property bool showCloseAnimation: false
     property bool showNewAnimation: true
+    onIsMaximizeChanged: console.log(`${surface} isMaximize changed, ${waylandSurface.isMaximized}, ${outputCoordMapper}`)
 
     // For Maximize
     property rect maximizeRect: outputCoordMapper ? Qt.rect(
