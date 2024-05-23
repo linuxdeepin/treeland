@@ -487,7 +487,7 @@ void WXWaylandSurfaceItem::doMove(PositionMode mode)
             pos = pepos + (epos - pepos) / ssr;
         }
 
-        setPosition(pos - m_positionOffset - QPointF(leftPadding(), topPadding()));
+        setPosition(pos - m_positionOffset);
     } else if (mode == PositionToSurface) {
         configureSurface(QRect(expectSurfacePosition(mode), expectSurfaceSize(resizeMode())));
     }
