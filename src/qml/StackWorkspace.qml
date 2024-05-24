@@ -175,6 +175,13 @@ FocusScope {
                     }
                 }
 
+                function move(pos) {
+                    isMoveResizing = true
+                    x = pos.x
+                    y = pos.y
+                    isMoveResizing = false
+                }
+
                 required property int workspaceId
                 // put here, otherwise may initialize late
                 parent: QmlHelper.workspaceManager.workspacesById.get(workspaceId)
@@ -197,11 +204,9 @@ FocusScope {
                         outputCounter++
 
                         if (outputCounter == 1) {
+                            const pos = QmlHelper.winposManager.nextPos(waylandSurface.appId, toplevelSurfaceItem.parent, toplevelSurfaceItem)
                             let outputDelegate = output.OutputItem.item
-                            toplevelSurfaceItem.x = outputDelegate.x
-                                    + (outputDelegate.width - toplevelSurfaceItem.width) / 2
-                            toplevelSurfaceItem.y = outputDelegate.y
-                                    + (outputDelegate.height - toplevelSurfaceItem.height) / 2
+                            toplevelSurfaceItem.move(pos)
 
                             if (Helper.clientName(waylandSurface.surface) === "dde-desktop") {
                                 toplevelSurfaceItem.x = outputDelegate.x
@@ -220,6 +225,11 @@ FocusScope {
                         waylandSurface.surface.leaveOutput(output)
                         Helper.onSurfaceLeaveOutput(waylandSurface, toplevelSurfaceItem, output)
                         outputCounter--
+                        
+                        if (outputCounter == 0) {
+                            const pos = QmlHelper.winposManager.nextPos(waylandSurface.appId, toplevelSurfaceItem.parent, toplevelSurfaceItem)
+                            toplevelSurfaceItem.move(pos)
+                        }
                     }
                 }
 
@@ -416,6 +426,12 @@ FocusScope {
                             ? XWaylandSurfaceItem.PositionToSurface
                             : XWaylandSurfaceItem.PositionFromSurface
                 }
+                function move(pos) {
+                    isMoveResizing = true
+                    x = pos.x
+                    y = pos.y
+                    isMoveResizing = false
+                }
 
                 topPadding: decoration.enable ? decoration.topMargin : 0
                 bottomPadding: decoration.enable ? decoration.bottomMargin : 0
@@ -466,10 +482,8 @@ FocusScope {
                                 xwaylandSurfaceItem.waylandSurface.windowTypes === XWaylandSurface.NET_WM_WINDOW_TYPE_NORMAL) {
                             let outputDelegate = output.OutputItem.item
                             forcePositionToSurface = true
-                            xwaylandSurfaceItem.x = outputDelegate.x
-                                   + (outputDelegate.width - xwaylandSurfaceItem.width) / 2
-                            xwaylandSurfaceItem.y = outputDelegate.y
-                                   + (outputDelegate.height - xwaylandSurfaceItem.height) / 2
+                            const pos = QmlHelper.winposManager.nextPos(`xwayland_${waylandSurface.appId}`, xwaylandSurfaceItem.parent, xwaylandSurfaceItem)
+                            xwaylandSurfaceItem.move(pos)
                             forcePositionToSurface = false
                         }
                     }
@@ -478,6 +492,9 @@ FocusScope {
                             xwaylandSurfaceItem.waylandSurface.surface.leaveOutput(output);
                         Helper.onSurfaceLeaveOutput(waylandSurface, xwaylandSurfaceItem, output)
                         outputCounter--
+                        if (outputCounter == 0 &&
+                            xwaylandSurfaceItem.waylandSurface.windowTypes === XWaylandSurface.NET_WM_WINDOW_TYPE_NORMAL)
+                            xwaylandSurfaceItem.move(QmlHelper.winposManager.nextPos(`xwayland_${waylandSurface.appId}`, xwaylandSurfaceItem.parent, xwaylandSurfaceItem))
                     }
                 }
 
