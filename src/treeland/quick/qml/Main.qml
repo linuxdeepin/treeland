@@ -39,9 +39,6 @@ Item {
             id: backend
 
             onOutputAdded: function(output) {
-                if (!backend.hasDrm)
-                    output.forceSoftwareCursor = true // Test
-
                 Helper.allowNonDrmOutputAutoChangeMode(output)
                 QmlHelper.outputManager.add({waylandOutput: output})
                 outputManagerV1.newOutput(output)
