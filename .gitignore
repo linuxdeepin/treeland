@@ -1,8 +1,22 @@
 .vscode/
 .cache/
-build/
+build*/
 
 *.user
+
+# Compiled Object files
+*.slo
+*.lo
+*.o
+
+# Compiled Dynamic libraries
+*.so
+*.dylib
+
+# Compiled Static libraries
+*.lai
+*.la
+*.a
 
 # nix
 .direnv/
@@ -12,8 +26,15 @@ result-*
 # clangd
 compile_commands.json
 
+# executeable files
+*.qm
+
 # cmake
 CMakeLists.txt.user
 
 #ccls
 .ccls-cache
+
+# qtcreator
+*.autosave
+
