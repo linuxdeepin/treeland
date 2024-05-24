@@ -236,6 +236,10 @@ Item {
             id: xdgOutputManager
             layout: QmlHelper.layout
         }
+
+        FractionalScaleManagerV1 {
+            id: fractionalScaleManagerV1
+        }
     }
 
     InputMethodHelper {
