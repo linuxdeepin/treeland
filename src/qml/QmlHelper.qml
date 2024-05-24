@@ -15,6 +15,9 @@ Item {
     property DynamicCreator inputPopupSurfaceManager: inputPopupSurfaceManager
     property alias shortcutManager: shortcutManager
     property alias workspaceManager: workspaceManager
+    property alias winposManager: winposManager
+    property OutputRenderWindow renderWindow: null
+    property Cursor cursor: null
 
     function printStructureObject(obj) {
         var json = ""
@@ -146,6 +149,113 @@ Item {
         }
         Component.onCompleted: {
             createWs(),createWs()
+        }
+    }
+
+    QtObject {
+        id: winposManager
+        readonly property string spawnPolicy: "Line"
+        property var __: QtObject {
+            id: priv
+            property var seq: new Map()
+            property string prevSpawn: ""
+        }
+        function nextPos(iden, target, surfaceItem) {
+            class Gen{
+                constructor(pos, region, outputRegion) {
+                    this.pos = pos  // initial pos
+                    this.region = region    // (0,0) bounding rect
+                    this.outputRegion = outputRegion
+                    this.cnt = -1
+                }
+            }
+            // start from pos, stacking following down-right line
+            class LineGen extends Gen {
+                constructor(k, dy, ...args) {
+                    super(...args)
+                    this.k = k
+                    this.x = this.pos.x
+                    this.dy = dy // y-offset each tick, x-offset inferred by screen w/h ratio
+                    this.b = this.pos.y - k * this.pos.x
+                }
+                gen() {
+                    this.cnt++
+                    let nx = this.x + this.dy / this.k
+                    let ny = this.k * nx + this.b
+                    if (nx > this.region.width || ny > this.region.height) { // exceed right/bottom
+                        this.b -= this.dy
+                        if (this.k * this.region.width + this.b < 0)
+                            while (this.b + this.region.height < this.region.height)
+                                this.b += this.region.height
+                        if (this.b < 0) // start from top-edge
+                            ny = 0, nx = -this.b / this.k
+                        else    // start from left-edge
+                            nx = 0, ny = this.b
+                    }
+                    this.x = nx
+                    return Qt.point(nx, ny)
+                }
+            }
+            // start from center, scatter to coners
+            class CornerGen extends Gen {
+                constructor(sw, sh, bias, ...args) {
+                    super(...args)
+                    this.sw = sw    // surface width
+                    this.sh = sh    // surface height
+                    this.bias = bias
+                }
+                gen() {
+                    const cnt = this.cnt
+                    const w = this.outputRegion.width
+                    const h = this.outputRegion.height
+                    const sw = this.sw
+                    const sh = this.sh
+                    const bx = this.bias * Math.floor(cnt / 4)
+                    const by = bx * h / w
+                    this.cnt++
+                    let rt
+                    switch (cnt % 4) {
+                        case 0: rt = Qt.point(0 + bx, 0 + by); break
+                        case 1: rt = Qt.point(w - sw - bx, by); break
+                        case 2: rt = Qt.point(bx, h - sh - by); break
+                        case 3: rt = Qt.point(w - sw - bx, h - sh - by); break
+                        default:  rt =Qt.point(w/2 - sw/2, h/2 - sh/2)
+                    }
+                    return rt
+                }
+            }
+
+            const outputDelegate = renderWindow.activeOutputDelegate
+            const w = outputDelegate.width
+            const h = outputDelegate.height
+            const sw = surfaceItem.width
+            const sh = surfaceItem.height
+            const dy = outputDelegate.height / 40
+            const contW = w - sw
+            const contH = h - sh
+
+            const baseArgs = [
+                cursor.position, // first spawned win's position for LineGen
+                Qt.rect(0, 0, contW, contH), // region to ensure spawned win wholely in screen
+                Qt.rect(0, 0, w, h) // output rect
+            ]
+            // restart seq if: active output changed or spawning app changed
+            if (!(priv.seq.has(iden) && priv.seq.get(iden).output == outputDelegate && priv.prevSpawn == iden ))
+                priv.seq.set(iden, {cnt: -1, output: outputDelegate, pos: cursor.position,
+                    gen:
+                        winposManager.spawnPolicy === "Line"
+                        ? new LineGen(9/16, dy, ...baseArgs)
+                        : new CornerGen(sw, sh, 5, ...baseArgs)
+                })
+
+            priv.prevSpawn = iden
+            const cur = priv.seq.get(iden)
+            cur.cnt++
+            cur.gen.region = Qt.rect(0, 0, contW, contH)
+            const rt = cur.gen.gen()
+            console.debug(`New window nextPos iden=${iden} pos=${rt} ( cnt=${cur.cnt} initialPos=${cur.pos} geo=${cur.gen.region}, ${cur.gen.outputRegion} )`)
+
+            return outputDelegate.mapToItem(target, rt)
         }
     }
 }
