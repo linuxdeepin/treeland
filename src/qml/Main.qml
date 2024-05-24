@@ -457,6 +457,10 @@ Item {
             }
         }
 
-        Component.onCompleted: seat0.setKeyboardFocusWindow(this)
+        Component.onCompleted: {
+            QmlHelper.renderWindow = this
+            QmlHelper.cursor = cursor1
+            seat0.setKeyboardFocusWindow(this)
+        }
     }
 }
