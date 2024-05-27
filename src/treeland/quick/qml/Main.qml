@@ -240,6 +240,8 @@ Item {
         FractionalScaleManagerV1 {
             id: fractionalScaleManagerV1
         }
+
+        ScreenCopyManager { }
     }
 
     InputMethodHelper {
