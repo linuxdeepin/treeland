@@ -20,6 +20,14 @@ include(FeatureSummary)
 option(WITH_SUBMODULE_WAYLIB "Use the waylib from git submodule" OFF)
 add_feature_info(submodule_waylib WITH_SUBMODULE_WAYLIB "Use waylib from submodule")
 
+option(ADDRESS_SANITIZER "Enable address sanitize" OFF)
+add_feature_info(ASanSupport ADDRESS_SANITIZER "https://github.com/google/sanitizers/wiki/AddressSanitizer")
+
+if (ADDRESS_SANITIZER)
+    add_compile_options(-fsanitize=address -fno-optimize-sibling-calls -fno-omit-frame-pointer)
+    add_link_options(-fsanitize=address)
+endif()
+
 if(WITH_SUBMODULE_WAYLIB)
     set(WITH_SUBMODULE_QWLROOTS ON)
     add_subdirectory(waylib)
@@ -41,3 +49,6 @@ add_compile_definitions("TREELAND_DATA_DIR=\"${TREELAND_DATA_DIR}\"")
 
 add_subdirectory(src)
 add_subdirectory(data)
+
+# Display feature summary
+feature_summary(WHAT ALL FATAL_ON_MISSING_REQUIRED_PACKAGES)
