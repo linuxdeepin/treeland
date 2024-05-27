@@ -13,6 +13,53 @@ import org.deepin.dtk 1.0 as D
 
 FocusScope {
     id: root
+    function getSurfaceItemFromWaylandSurface(surface) {
+        let finder = function(props) {
+            if (!props.waylandSurface)
+                return false
+            // surface is WToplevelSurface or WSurfce
+            if (props.waylandSurface === surface || props.waylandSurface.surface === surface)
+                return true
+        }
+
+        let toplevel = QmlHelper.xdgSurfaceManager.getIf(toplevelComponent, finder)
+        if (toplevel) {
+            return {
+                shell: toplevel,
+                item: toplevel,
+                type: "toplevel"
+            }
+        }
+
+        let popup = QmlHelper.xdgSurfaceManager.getIf(popupComponent, finder)
+        if (popup) {
+            return {
+                shell: popup,
+                item: popup.xdgSurface,
+                type: "popup"
+            }
+        }
+
+        let layer = QmlHelper.layerSurfaceManager.getIf(layerComponent, finder)
+        if (layer) {
+            return {
+                shell: layer,
+                item: layer.surfaceItem,
+                type: "layer"
+            }
+        }
+
+        let xwayland = QmlHelper.xwaylandSurfaceManager.getIf(xwaylandComponent, finder)
+        if (xwayland) {
+            return {
+                shell: xwayland,
+                item: xwayland,
+                type: "xwayland"
+            }
+        }
+
+        return null
+    }
 
     required property OutputDelegate activeOutputDelegate
     readonly property real switcherHideOpacity: 0.3
@@ -31,7 +78,7 @@ FocusScope {
 
     // activated workspace driven by surface activation
     property Item activatedSurfaceItem:
-        QmlHelper.getSurfaceItemFromWaylandSurface(Helper.activatedSurface)?.item || null // cannot assign [undefined] to QQuickItem*, need to assign null
+        getSurfaceItemFromWaylandSurface(Helper.activatedSurface)?.item || null // cannot assign [undefined] to QQuickItem*, need to assign null
     onActivatedSurfaceItemChanged: {
         if (activatedSurfaceItem?.parent?.workspaceRelativeId !== undefined)
             currentWorkspaceId = activatedSurfaceItem.parent.workspaceRelativeId
@@ -244,7 +291,7 @@ FocusScope {
                 property string type
 
                 property alias xdgSurface: popupSurfaceItem
-                property var parentItem: QmlHelper.getSurfaceItemFromWaylandSurface(waylandSurface.parentSurface)
+                property var parentItem: root.getSurfaceItemFromWaylandSurface(waylandSurface.parentSurface)
 
                 parent: parentItem ? parentItem.item : root
                 visible: parentItem && parentItem.item.effectiveVisible
@@ -342,7 +389,7 @@ FocusScope {
                 required property XWaylandSurface waylandSurface
                 property var doDestroy: helper.doDestroy
                 property var cancelMinimize: helper.cancelMinimize
-                property var surfaceParent: QmlHelper.getSurfaceItemFromWaylandSurface(waylandSurface.parentXWaylandSurface)
+                property var surfaceParent: root.getSurfaceItemFromWaylandSurface(waylandSurface.parentXWaylandSurface)
                 property int outputCounter: 0
                 property bool forcePositionToSurface: false
 
@@ -545,7 +592,7 @@ FocusScope {
     Connections {
         target: treelandForeignToplevelManager
         function onRequestDockPreview(surfaces, target, abs, direction) {
-            dockPreview.show(surfaces, QmlHelper.getSurfaceItemFromWaylandSurface(target), abs, direction)
+            dockPreview.show(surfaces, getSurfaceItemFromWaylandSurface(target), abs, direction)
         }
         function onRequestDockClose() {
             dockPreview.close()
@@ -598,7 +645,7 @@ FocusScope {
         }
         function onMoveToNeighborWorkspace(d) {
             const nWorkspaces = workspaceManager.layoutOrder.count
-            const surfaceItem = QmlHelper.getSurfaceItemFromWaylandSurface(Helper.activatedSurface).item
+            const surfaceItem = getSurfaceItemFromWaylandSurface(Helper.activatedSurface).item
             let relId = workspaceManager.workspacesById.get(surfaceItem.workspaceId).workspaceRelativeId
             relId = (relId + d + nWorkspaces) % nWorkspaces
             surfaceItem.workspaceId = workspaceManager.layoutOrder.get(relId).wsid
