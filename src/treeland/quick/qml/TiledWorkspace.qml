@@ -12,6 +12,54 @@ import TreeLand.Utils
 Item {
     id: root
 
+    function getSurfaceItemFromWaylandSurface(surface) {
+        let finder = function(props) {
+            if (!props.waylandSurface)
+                return false
+            // surface is WToplevelSurface or WSurfce
+            if (props.waylandSurface === surface || props.waylandSurface.surface === surface)
+                return true
+        }
+
+        let toplevel = QmlHelper.xdgSurfaceManager.getIf(toplevelComponent, finder)
+        if (toplevel) {
+            return {
+                shell: toplevel,
+                item: toplevel,
+                type: "toplevel"
+            }
+        }
+
+        let popup = QmlHelper.xdgSurfaceManager.getIf(popupComponent, finder)
+        if (popup) {
+            return {
+                shell: popup,
+                item: popup.xdgSurface,
+                type: "popup"
+            }
+        }
+
+        let layer = QmlHelper.layerSurfaceManager.getIf(layerComponent, finder)
+        if (layer) {
+            return {
+                shell: layer,
+                item: layer.surfaceItem,
+                type: "layer"
+            }
+        }
+
+        let xwayland = QmlHelper.xwaylandSurfaceManager.getIf(xwaylandComponent, finder)
+        if (xwayland) {
+            return {
+                shell: xwayland,
+                item: xwayland,
+                type: "xwayland"
+            }
+        }
+
+        return null
+    }
+
     GridLayout {
         anchors.fill: parent
         columns: Math.floor(root.width / 1920 * 4)
@@ -83,7 +131,7 @@ Item {
                 property string type
 
                 property alias xdgSurface: popupSurfaceItem
-                property var parentItem: QmlHelper.getSurfaceItemFromWaylandSurface(waylandSurface.parentSurface)
+                property var parentItem: root.getSurfaceItemFromWaylandSurface(waylandSurface.parentSurface)
 
                 parent: parentItem ? parentItem.item : root
                 visible: parentItem && parentItem.item.effectiveVisible
