@@ -3,8 +3,8 @@
 
 #pragma once
 
-#include "server-protocol.h"
 #include "impl/personalization_manager_impl.h"
+#include "server-protocol.h"
 
 #include <wquickwaylandserver.h>
 #include <wxdgsurface.h>
@@ -63,8 +63,7 @@ class QuickPersonalizationManager : public WQuickWaylandServerInterface, public 
     W_DECLARE_PRIVATE(QuickPersonalizationManager)
     QML_ATTACHED(QuickPersonalizationManagerAttached)
 
-    Q_PROPERTY(QString currentWallpaper READ currentWallpaper WRITE setCurrentWallpaper NOTIFY currentWallpaperChanged FINAL)
-    Q_PROPERTY(uid_t currentUserId READ currentUserId WRITE setCurrentUserId NOTIFY currentUserIdChanged FINAL)
+    Q_PROPERTY(uid_t userId READ userId WRITE setUserId NOTIFY userIdChanged FINAL)
 
 public:
     explicit QuickPersonalizationManager(QObject *parent = nullptr);
@@ -72,22 +71,24 @@ public:
     void onWindowContextCreated(PersonalizationWindowContext *context);
     void onWallpaperContextCreated(PersonalizationWallpaperContext *context);
     void onBackgroundTypeChanged(PersonalizationWindowContext *context);
-    void onSetUserWallpaper(personalization_wallpaper_context_v1 *context);
-    void onGetUserWallpaper(personalization_wallpaper_context_v1 *context);
+    void onCommit(personalization_wallpaper_context_v1 *context);
+    void onGetWallpapers(personalization_wallpaper_context_v1 *context);
     static QuickPersonalizationManagerAttached *qmlAttachedProperties(QObject *target);
 
-    QString currentWallpaper();
-    void setCurrentWallpaper(const QString &path);
-
-    uid_t currentUserId();
-    void setCurrentUserId(uid_t uid);
+    uid_t userId();
+    void setUserId(uid_t uid);
 
 Q_SIGNALS:
     void backgroundTypeChanged(WSurface *surface, uint32_t type);
-    void sendUserwallpapers(personalization_wallpaper_context_v1 *wallpaper);
-    void currentWallpaperChanged(const QString &wallpaper);
-    void currentUserIdChanged(uid_t uid);
+    void userIdChanged(uid_t uid);
+    void backgroundChanged();
+    void lockscreenChanged();
+
+public slots:
+    QString background(WOutput *w_output);
+    QString lockscreen(WOutput *w_output);
 
 private:
     void create() override;
+    QString saveImage(personalization_wallpaper_context_v1 *context, const QString file);
 };

@@ -54,15 +54,34 @@
         corresponding interface version bump. Backward incompatible changes can
         only be done by creating a new major version of the extension.
         </description>
-        <request name="set_wallpaper">
-            <description summary="set the current user's wallpaper">
-                set the current user's wallpaper
-	        </description>
+        <request name="set_fd">
+            <description summary="set the current user's wallpaper fd"/>
             <arg name="fd" type="fd" summary="wallpaper file fd"/>
             <arg name="metadata" type="string" summary="file related metadata information"/>
         </request>
-        <request name="get_wallpapers">
-            <description summary="get the current user's wallpaper">
+        <request name="set_identifier">
+            <description summary="identifier for the application window" />
+            <arg name="identifier" type="string" summary="Identifier for the application window"/>
+        </request>
+        <enum name="options">
+            <description summary="xdg desktop portal supported keys" />
+            <entry name="preview" value="1" summary="whether to show a preview of the picture"/>
+            <entry name="background" value="2" summary="configure screen background"/>
+            <entry name="lockscreen" value="4" summary="configure screen wallpaper"/>
+        </enum>
+        <request name="set_output">
+            <description summary="configure xdg desktop portal options"/>
+            <arg name="output" type="string" summary="system output name"/>
+        </request>
+        <request name="set_on">
+            <description summary="configure xdg desktop portal options"/>
+            <arg name="options" type="uint" enum="options" summary="xdg desktop portal options"/>
+        </request>
+        <request name="commit">
+            <description summary="commit configuration" />
+        </request>
+        <request name="get_metadata">
+            <description summary="get user save meta data">
                 get the current user's wallpaper
             </description>
         </request>
@@ -71,11 +90,11 @@
                 Destroy the context object.
             </description>
         </request>
-        <event name="wallpapers">
-            <description summary="get current wallpaper event">
+        <event name="metadata">
+            <description summary="get metadata event">
                 Send this signal after getting the user's wallpaper.
             </description>
-            <arg name="metadata" type="string" summary="file related metadata information"/>
+            <arg name="metadata" type="string" summary="user meta data"/>
         </event>
     </interface>
     <interface name="personalization_window_context_v1" version="1">

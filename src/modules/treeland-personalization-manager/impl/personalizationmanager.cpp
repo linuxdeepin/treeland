@@ -110,9 +110,3 @@ TreeLandPersonalizationManager *TreeLandPersonalizationManager::create(QWDisplay
         return nullptr;
     return new TreeLandPersonalizationManager(handle, true);
 }
-
-void TreeLandPersonalizationManager::onSendUserWallpapers(
-    personalization_wallpaper_context_v1 *wallpaper)
-{
-    personalization_wallpaper_v1_send_wallpapers(wallpaper);
-}
