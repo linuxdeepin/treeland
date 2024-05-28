@@ -4,8 +4,6 @@ find_package(Dtk6 REQUIRED COMPONENTS Declarative)
 find_package(PkgConfig)
 pkg_get_variable(WAYLAND_PROTOCOLS wayland-protocols pkgdatadir)
 
-set(QML_IMPORT_PATH ${QML_IMPORT_PATH} ${CMAKE_CURRENT_BINARY_DIR}/ CACHE STRING "" FORCE)
-
 qt_add_executable(treeland-wallpaper
     main.cpp
 )
