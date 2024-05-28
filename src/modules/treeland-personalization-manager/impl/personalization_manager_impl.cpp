@@ -80,17 +80,29 @@ static void personalization_window_context_resource_destroy(struct wl_resource *
     wl_list_remove(wl_resource_get_link(resource));
 }
 
-void set_user_wallpaper(struct wl_client *client,
-                        struct wl_resource *manager_resource,
-                        int32_t fd,
-                        const char *metadata);
+void get_metadata(struct wl_client *client, struct wl_resource *manager_resource);
 
-void get_user_wallpapers(struct wl_client *client, struct wl_resource *manager_resource);
+void set_fd(struct wl_client *client,
+            struct wl_resource *resource,
+            int32_t fd,
+            const char *metadata);
+
+void set_identifier(struct wl_client *client, struct wl_resource *resource, const char *identifier);
+
+void set_output(struct wl_client *client, struct wl_resource *resource, const char *output);
+
+void set_on(struct wl_client *client, struct wl_resource *resource, uint32_t options);
+
+void commit(struct wl_client *client, struct wl_resource *resource);
 
 static const struct personalization_wallpaper_context_v1_interface
     personalization_wallpaper_context_impl = {
-        .set_wallpaper = set_user_wallpaper,
-        .get_wallpapers = get_user_wallpapers,
+        .set_fd = set_fd,
+        .set_identifier = set_identifier,
+        .set_output = set_output,
+        .set_on = set_on,
+        .commit = commit,
+        .get_metadata = get_metadata,
         .destroy = personalization_wallpaper_context_destroy,
     };
 
@@ -221,8 +233,8 @@ void create_personalization_wallpaper_context_listener(struct wl_client *client,
     context->manager = manager;
 
     wl_list_init(&context->link);
-    wl_signal_init(&context->events.set_user_wallpaper);
-    wl_signal_init(&context->events.get_user_wallpaper);
+    wl_signal_init(&context->events.commit);
+    wl_signal_init(&context->events.get_wallpapers);
     wl_signal_init(&context->events.destroy);
 
     uint32_t version = wl_resource_get_version(manager_resource);
@@ -246,10 +258,10 @@ void create_personalization_wallpaper_context_listener(struct wl_client *client,
     wl_signal_emit_mutable(&manager->events.wallpaper_context_created, context);
 }
 
-void set_user_wallpaper(struct wl_client *client [[maybe_unused]],
-                        struct wl_resource *resource,
-                        int32_t fd,
-                        const char *metadata)
+void set_fd(struct wl_client *client [[maybe_unused]],
+            struct wl_resource *resource,
+            int32_t fd,
+            const char *metadata)
 {
     struct personalization_wallpaper_context_v1 *wallpaper =
         personalization_wallpaper_from_resource(resource);
@@ -257,26 +269,61 @@ void set_user_wallpaper(struct wl_client *client [[maybe_unused]],
         return;
 
     wallpaper->fd = fd;
-    wallpaper->metaData = metadata;
-    wl_signal_emit_mutable(&wallpaper->events.set_user_wallpaper, wallpaper);
+    wallpaper->meta_data = strdup(metadata);
 }
 
-void get_user_wallpapers(struct wl_client *client [[maybe_unused]], struct wl_resource *resource)
+void set_identifier(struct wl_client *client [[maybe_unused]],
+                    struct wl_resource *resource,
+                    const char *identifier)
 {
     struct personalization_wallpaper_context_v1 *wallpaper =
         personalization_wallpaper_from_resource(resource);
     if (wallpaper == NULL)
         return;
 
-    wl_signal_emit_mutable(&wallpaper->events.get_user_wallpaper, wallpaper);
+    wallpaper->identifier = strdup(identifier);
 }
 
-void personalization_wallpaper_v1_send_wallpapers(personalization_wallpaper_context_v1 *wallpaper)
+void set_output(struct wl_client *client, struct wl_resource *resource, const char *output)
 {
-    if (!wallpaper)
+    struct personalization_wallpaper_context_v1 *wallpaper =
+        personalization_wallpaper_from_resource(resource);
+    if (wallpaper == NULL)
         return;
 
-    personalization_wallpaper_context_v1_send_wallpapers(wallpaper->resource, wallpaper->metaData);
+    wallpaper->output_name = strdup(output);
+}
+
+void set_on(struct wl_client *client [[maybe_unused]],
+            struct wl_resource *resource,
+            uint32_t options)
+{
+    struct personalization_wallpaper_context_v1 *wallpaper =
+        personalization_wallpaper_from_resource(resource);
+    if (wallpaper == NULL)
+        return;
+
+    wallpaper->options = options;
+}
+
+void commit(struct wl_client *client [[maybe_unused]], struct wl_resource *resource)
+{
+    struct personalization_wallpaper_context_v1 *wallpaper =
+        personalization_wallpaper_from_resource(resource);
+    if (wallpaper == NULL || wallpaper->fd == -1)
+        return;
+
+    wl_signal_emit_mutable(&wallpaper->events.commit, wallpaper);
+}
+
+void get_metadata(struct wl_client *client [[maybe_unused]], struct wl_resource *resource)
+{
+    struct personalization_wallpaper_context_v1 *wallpaper =
+        personalization_wallpaper_from_resource(resource);
+    if (wallpaper == NULL)
+        return;
+
+    wl_signal_emit_mutable(&wallpaper->events.get_wallpapers, wallpaper);
 }
 
 static void treeland_personalization_manager_bind(struct wl_client *client,
