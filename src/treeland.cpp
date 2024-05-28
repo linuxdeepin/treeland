@@ -307,7 +307,7 @@ void TreeLand::readyRead()
             }
 
             struct passwd *pwd = getpwnam(user.toUtf8());
-            m_personalManager->setCurrentUserId(pwd->pw_uid);
+            m_personalManager->setUserId(pwd->pw_uid);
         } break;
         case DDM::DaemonMessages::SwitchToGreeter: {
             Helper *helper = m_engine->singletonInstance<Helper *>("TreeLand.Utils", "Helper");

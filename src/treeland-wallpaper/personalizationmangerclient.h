@@ -17,15 +17,19 @@ class PersonalizationManager : public QWaylandClientExtensionTemplate<Personaliz
                                public QtWayland::treeland_personalization_manager_v1
 {
     Q_OBJECT
+    Q_PROPERTY(QString output READ output WRITE setOutput NOTIFY outputChanged FINAL)
     Q_PROPERTY(QString currentGroup READ currentGroup WRITE setCurrentGroup NOTIFY currentGroupChanged FINAL)
     Q_PROPERTY(QString cacheDirectory READ cacheDirectory CONSTANT)
     QML_ELEMENT
+
 public:
     struct WallpaperMetaData
     {
         QString group;
         QString imagePath; // wallpaper path
         QString output;    // Output which wallpaper belongs
+        quint32 options;
+        QScreen *screen;
         int currentIndex;
     };
 
@@ -38,26 +42,36 @@ public:
     QString currentGroup();
     void setCurrentGroup(const QString &group);
 
+    QString output();
+    void setOutput(const QString &name);
+
 signals:
     void wallpaperChanged(const QString &path);
     void currentGroupChanged(const QString &path);
+    void outputChanged(const QString &name);
 
 public slots:
     void addWallpaper(const QString &path);
-    void setWallpaper(const QString &path, const QString &group, int index);
+    void setBackground(const QString &path, const QString &group, int index);
+    void setLockscreen(const QString &path, const QString &group, int index);
+    void setBoth(const QString &path, const QString &group, int index);
     void removeWallpaper(const QString &path, const QString &group, int index);
+    QStringList outputModel();
 
     WallpaperCardModel *wallpaperModel(const QString &group, const QString &dir);
 
 private:
-    QString converToJson(WallpaperMetaData *data);
-    void onWallpaperChanged(const QString &meta);
+    QString converToJson(QMap<QString, WallpaperMetaData *> screens);
+    void onMetadataChanged(const QString &meta);
+    void changeWallpaper(
+        const QString &path, const QString &output, const QString &group, int index, quint32 op);
 
 private:
     PersonalizationWallpaper *m_wallpaperContext = nullptr;
-    WallpaperMetaData *m_metaData = nullptr;
     QMap<QString, WallpaperCardModel *> m_modes;
+    QMap<QString, WallpaperMetaData *> m_screens;
     QString m_cacheDirectory;
+    QString m_currentOutput;
 };
 
 class PersonalizationWindow : public QWaylandClientExtensionTemplate<PersonalizationWindow>,
@@ -76,8 +90,8 @@ public:
     explicit PersonalizationWallpaper(struct ::personalization_wallpaper_context_v1 *object);
 
 signals:
-    void wallpaperChanged(const QString &meta);
+    void metadataChanged(const QString &meta);
 
 protected:
-    void personalization_wallpaper_context_v1_wallpapers(const QString &metadata) override;
+    void personalization_wallpaper_context_v1_metadata(const QString &metadata) override;
 };

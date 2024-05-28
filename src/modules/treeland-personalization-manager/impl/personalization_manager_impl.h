@@ -47,13 +47,17 @@ struct personalization_wallpaper_context_v1
     struct wl_list link;
     struct wl_resource *resource;
     int32_t fd;
-    const char *metaData;
     uint32_t uid;
+    uint32_t options;
+
+    const char *meta_data;
+    const char *identifier;
+    const char *output_name;
 
     struct
     {
-        struct wl_signal set_user_wallpaper;
-        struct wl_signal get_user_wallpaper;
+        struct wl_signal commit;
+        struct wl_signal get_wallpapers;
         struct wl_signal destroy;
     } events;
 
@@ -63,7 +67,6 @@ struct personalization_wallpaper_context_v1
 struct treeland_personalization_manager_v1 *treeland_personalization_manager_v1_create(
     struct wl_display *display);
 
-void personalization_wallpaper_v1_send_wallpapers(personalization_wallpaper_context_v1 *wallpaper);
 void personalization_window_context_v1_destroy(struct personalization_window_context_v1 *window);
 void personalization_wallpaper_context_v1_destroy(
     struct personalization_wallpaper_context_v1 *wallpaper);

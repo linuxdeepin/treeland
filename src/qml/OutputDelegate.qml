@@ -98,9 +98,19 @@ OutputItem {
         property var personalizationMapper: background.PersonalizationManager
 
         fillMode: Image.PreserveAspectCrop
-        source: personalizationManager.currentWallpaper + "?" + new Date().getTime()
         anchors.fill: parent
         asynchronous: true
+
+        Component.onCompleted: {
+            background.source = personalizationManager.background(output) + "?" + new Date().getTime()
+        }
+
+        Connections {
+            target: personalizationManager
+            onBackgroundChanged: {
+                background.source = personalizationManager.background(output) + "?" + new Date().getTime()
+            }
+        }
     }
 
     Component {
@@ -166,7 +176,6 @@ OutputItem {
                                     magnifyingLens.updatePosition()
                                 }
                             }
-
                             Component.onCompleted: updatePosition()
                         }
                     }

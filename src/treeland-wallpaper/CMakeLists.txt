@@ -25,10 +25,10 @@ qt_add_qml_module(treeland-wallpaper
     URI Wallpaper
     VERSION "1.0"
     SOURCES
-        personalizationmangerclient.cpp
-        personalizationmangerclient.h
-        wallpapercardmodel.cpp
-        wallpapercardmodel.h
+    personalizationmangerclient.cpp
+    personalizationmangerclient.h
+    wallpapercardmodel.cpp
+    wallpapercardmodel.h
     QML_FILES ${QML_FILES}
 )
 
