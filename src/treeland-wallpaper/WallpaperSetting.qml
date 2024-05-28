@@ -90,6 +90,24 @@ Item {
 
                             PropertyItemDelegate {
                                 implicitWidth: parent.width
+                                title: qsTr("Screen Output")
+
+                                action: ComboBox {
+                                    ColorSelector.family: Palette.CommonColor
+                                    model: personalization.outputModel()
+
+                                    Component.onCompleted: {
+                                        personalization.output = currentText
+                                    }
+
+                                    onActivated: {
+                                        personalization.output = currentText
+                                    }
+                                }
+                            }
+
+                            PropertyItemDelegate {
+                                implicitWidth: parent.width
                                 title: qsTr("Wallpaper Display Method")
 
                                 corners: RoundRectangle.BottomCorner

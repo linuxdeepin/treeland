@@ -8,6 +8,7 @@ import org.deepin.dtk 1.0
 Item {
     property string group
     property string directory
+    property string outputName
 
     property alias modelData: gridView.model
     property alias titleText: title.text
@@ -95,12 +96,25 @@ Item {
                     maskSource: maskRect
                 }
 
+                Menu {
+                    id: imageMenu
+                    MenuItem {
+                        text: qsTr("Set as background")
+                        onTriggered: personalization.setBackground(imageSource, group, index)
+                    }
+                    MenuItem {
+                        text: qsTr("Set as LockScreen")
+                        onTriggered: personalization.setLockscreen(imageSource, group, index)
+                    }
+                    MenuItem {
+                        text: qsTr("Set as Both")
+                        onTriggered: personalization.setBoth(imageSource, group, index)
+                    }
+                }
+
                 MouseArea {
                     anchors.fill: parent
                     hoverEnabled: true
-                    onClicked: {
-                        personalization.setWallpaper(imageSource, group, index)
-                    }
 
                     onEntered: {
                         if (gridView.currentIndex !== index && group === "Local")
@@ -109,6 +123,10 @@ Item {
 
                     onExited: {
                         removeButton.visible = false;
+                    }
+
+                    onPressAndHold: {
+                        imageMenu.popup()
                     }
                 }
 

@@ -10,6 +10,7 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QObject>
+#include <QScreen>
 #include <QStandardPaths>
 #include <QTranslator>
 #include <QtWaylandClient/QWaylandClientExtension>
@@ -20,7 +21,6 @@
 
 PersonalizationManager::PersonalizationManager()
     : QWaylandClientExtensionTemplate<PersonalizationManager>(1)
-    , m_metaData(new WallpaperMetaData())
 {
     connect(this,
             &PersonalizationManager::activeChanged,
@@ -37,6 +37,13 @@ PersonalizationManager::PersonalizationManager()
             qApp->installTranslator(translate);
         }
     }
+
+    Q_FOREACH (QScreen *screen, qApp->screens()) {
+        WallpaperMetaData *meta = new WallpaperMetaData;
+        meta->screen = screen;
+        meta->output = screen->name();
+        m_screens.insert(meta->output, meta);
+    }
 }
 
 PersonalizationManager::~PersonalizationManager()
@@ -49,8 +56,8 @@ PersonalizationManager::~PersonalizationManager()
         qDeleteAll(m_modes);
     }
 
-    if (m_metaData) {
-        delete m_metaData;
+    if (m_screens.size() > 0) {
+        qDeleteAll(m_screens);
     }
 }
 
@@ -62,12 +69,12 @@ void PersonalizationManager::onActiveChanged()
     if (!m_wallpaperContext) {
         m_wallpaperContext = new PersonalizationWallpaper(get_wallpaper_context());
         connect(m_wallpaperContext,
-                &PersonalizationWallpaper::wallpaperChanged,
+                &PersonalizationWallpaper::metadataChanged,
                 this,
-                &PersonalizationManager::onWallpaperChanged);
+                &PersonalizationManager::onMetadataChanged);
     }
 
-    m_wallpaperContext->get_wallpapers();
+    m_wallpaperContext->get_metadata();
 }
 
 void PersonalizationManager::addWallpaper(const QString &path)
@@ -85,17 +92,7 @@ void PersonalizationManager::addWallpaper(const QString &path)
         dir.mkpath(m_cacheDirectory);
     }
 
-    if (QFile::copy(local_path, dest)) {
-        QFile file(dest);
-        if (file.open(QIODevice::ReadOnly)) {
-            m_modes["Local"]->append(dest);
-            m_metaData->imagePath = dest;
-            m_metaData->currentIndex = m_modes["Local"]->currentIndex();
-
-            m_wallpaperContext->set_wallpaper(file.handle(), converToJson(m_metaData));
-            Q_EMIT wallpaperChanged(dest);
-        }
-    }
+    QFile::copy(local_path, dest);
 }
 
 void PersonalizationManager::removeWallpaper(const QString &path, const QString &group, int index)
@@ -109,7 +106,8 @@ void PersonalizationManager::removeWallpaper(const QString &path, const QString 
     m_modes[group]->remove(index);
 }
 
-void PersonalizationManager::setWallpaper(const QString &path, const QString &group, int index)
+void PersonalizationManager::changeWallpaper(
+    const QString &path, const QString &output, const QString &group, int index, quint32 op)
 {
     if (!m_wallpaperContext)
         return;
@@ -121,25 +119,86 @@ void PersonalizationManager::setWallpaper(const QString &path, const QString &gr
     QFile file(dest);
     if (file.open(QIODevice::ReadOnly)) {
         m_modes[group]->setCurrentIndex(index);
-
-        m_metaData->imagePath = dest;
-        m_metaData->currentIndex = index;
         setCurrentGroup(group);
 
-        m_wallpaperContext->set_wallpaper(file.handle(), converToJson(m_metaData));
-        Q_EMIT wallpaperChanged(dest);
+        auto meta_data = m_screens.value(output);
+        if (meta_data != nullptr) {
+            meta_data->imagePath = dest;
+            meta_data->output = output;
+            meta_data->currentIndex = index;
+            meta_data->options = op;
+
+            m_wallpaperContext->set_on(op);
+            m_wallpaperContext->set_fd(file.handle(), converToJson(m_screens));
+            m_wallpaperContext->set_output(meta_data->output);
+            m_wallpaperContext->commit();
+
+            Q_EMIT wallpaperChanged(dest);
+        }
     }
+}
+
+void PersonalizationManager::setBackground(const QString &path, const QString &group, int index)
+{
+    changeWallpaper(path,
+                    m_currentOutput,
+                    group,
+                    index,
+                    PersonalizationWallpaper::options_background);
+}
+
+void PersonalizationManager::setLockscreen(const QString &path, const QString &group, int index)
+{
+    changeWallpaper(path,
+                    m_currentOutput,
+                    group,
+                    index,
+                    PersonalizationWallpaper::options_lockscreen);
+}
+
+void PersonalizationManager::setBoth(const QString &path, const QString &group, int index)
+{
+    changeWallpaper(path,
+                    m_currentOutput,
+                    group,
+                    index,
+                    PersonalizationWallpaper::options_lockscreen
+                        | PersonalizationWallpaper::options_lockscreen);
 }
 
 QString PersonalizationManager::currentGroup()
 {
-    return m_metaData->group;
+    if (m_currentOutput.isEmpty())
+        return QString();
+
+    auto meta = m_screens[m_currentOutput];
+    return meta->group;
 }
 
 void PersonalizationManager::setCurrentGroup(const QString &group)
 {
-    m_metaData->group = group;
+    if (m_currentOutput.isEmpty())
+        return;
+
+    auto meta = m_screens[m_currentOutput];
+    meta->group = group;
     Q_EMIT currentGroupChanged(group);
+}
+
+QString PersonalizationManager::output()
+{
+    return m_currentOutput;
+}
+
+void PersonalizationManager::setOutput(const QString &name)
+{
+    m_currentOutput = name;
+    Q_EMIT outputChanged(m_currentOutput);
+}
+
+QStringList PersonalizationManager::outputModel()
+{
+    return m_screens.keys();
 }
 
 QString PersonalizationManager::cacheDirectory()
@@ -158,36 +217,58 @@ WallpaperCardModel *PersonalizationManager::wallpaperModel(const QString &group,
     return m_modes[group];
 }
 
-QString PersonalizationManager::converToJson(WallpaperMetaData *data)
+QString PersonalizationManager::converToJson(QMap<QString, WallpaperMetaData *> screens)
 {
+    QMapIterator<QString, WallpaperMetaData *> it(screens);
+
     QJsonObject json;
-    json.insert("Group", data->group);
-    json.insert("ImagePath", data->imagePath);
-    json.insert("Output", data->output);
-    json.insert("CurrentIndex", data->currentIndex);
+    while (it.hasNext()) {
+        it.next();
+        QJsonObject content;
+        content.insert("Group", it.value()->group);
+        content.insert("ImagePath", it.value()->imagePath);
+        content.insert("Output", it.value()->output);
+        content.insert("CurrentIndex", it.value()->currentIndex);
+        content.insert("Options", QString::number(it.value()->options));
+
+        json[it.key()] = content;
+    }
 
     QJsonDocument json_doc(json);
     return json_doc.toJson(QJsonDocument::Compact);
 }
 
-void PersonalizationManager::onWallpaperChanged(const QString &meta)
+void PersonalizationManager::onMetadataChanged(const QString &metadata)
 {
-    QJsonDocument json_doc = QJsonDocument::fromJson(meta.toLocal8Bit());
+    QJsonDocument json_doc = QJsonDocument::fromJson(metadata.toLocal8Bit());
 
     if (!json_doc.isNull()) {
-        QJsonObject json_obj = json_doc.object();
+        QJsonObject json = json_doc.object();
 
-        m_metaData->currentIndex = json_obj["CurrentIndex"].toInt();
-        m_metaData->group = json_obj["Group"].toString();
-        m_metaData->imagePath = json_obj["ImagePath"].toString();
-        m_metaData->output = json_obj["Output"].toString();
+        QMapIterator<QString, WallpaperMetaData *> it(m_screens);
+        while (it.hasNext()) {
+            it.next();
+            QJsonObject context = json.value(it.key()).toObject();
+            if (context.isEmpty())
+                continue;
+
+            it.value()->currentIndex = context["CurrentIndex"].toInt();
+            it.value()->group = context["Group"].toString();
+            it.value()->imagePath = context["ImagePath"].toString();
+            it.value()->output = context["Output"].toString();
+            it.value()->options = context["Options"].toInt();
+        }
     }
 
-    auto model = m_modes[m_metaData->group];
+    if (m_currentOutput.isEmpty())
+        return;
+
+    auto meta = m_screens[m_currentOutput];
+    auto model = m_modes[meta->group];
     if (model) {
-        model->setCurrentIndex(m_metaData->currentIndex);
+        model->setCurrentIndex(meta->currentIndex);
     }
-    Q_EMIT wallpaperChanged(m_metaData->imagePath);
+    Q_EMIT wallpaperChanged(meta->imagePath);
 }
 
 PersonalizationWindow::PersonalizationWindow(struct ::personalization_window_context_v1 *object)
@@ -203,8 +284,8 @@ PersonalizationWallpaper::PersonalizationWallpaper(
 {
 }
 
-void PersonalizationWallpaper::personalization_wallpaper_context_v1_wallpapers(
+void PersonalizationWallpaper::personalization_wallpaper_context_v1_metadata(
     const QString &metadata)
 {
-    Q_EMIT wallpaperChanged(metadata);
+    Q_EMIT metadataChanged(metadata);
 }
