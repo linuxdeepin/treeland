@@ -30,7 +30,7 @@ WQuickFractionalScaleManagerV1::WQuickFractionalScaleManagerV1(QObject *parent)
     , WObject(*new WQuickFractionalScaleManagerV1Private(this), nullptr)
 {
     if (FRACTIONAL_SCALE_MANAGER) {
-        qFatal("There are multiple instances of WQuickForeignToplevelManagerV1");
+        qFatal("There are multiple instances of WQuickFractionalScaleManagerV1");
     }
 
     FRACTIONAL_SCALE_MANAGER = this;
