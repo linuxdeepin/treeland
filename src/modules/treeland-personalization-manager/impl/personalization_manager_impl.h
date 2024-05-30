@@ -19,6 +19,7 @@ struct treeland_personalization_manager_v1
     {
         struct wl_signal window_context_created;
         struct wl_signal wallpaper_context_created;
+        struct wl_signal cursor_context_created;
         struct wl_signal destroy;
     } events;
 
@@ -64,9 +65,29 @@ struct personalization_wallpaper_context_v1
     void *data;
 };
 
+struct personalization_cursor_context_v1
+{
+    struct treeland_personalization_manager_v1 *manager;
+    struct wl_list link;
+    struct wl_resource *resource;
+
+    bool verfity;
+    uint32_t size;
+    const char* theme;
+
+    struct {
+        struct wl_signal commit;
+        struct wl_signal get_theme;
+        struct wl_signal get_size;
+        struct wl_signal destroy;
+    } events;
+
+    void *data;
+};
+
 struct treeland_personalization_manager_v1 *treeland_personalization_manager_v1_create(
     struct wl_display *display);
 
-void personalization_window_context_v1_destroy(struct personalization_window_context_v1 *window);
-void personalization_wallpaper_context_v1_destroy(
-    struct personalization_wallpaper_context_v1 *wallpaper);
+void personalization_wallpaper_context_v1_destroy(personalization_wallpaper_context_v1 *wallpaper);
+void personalization_window_context_v1_destroy(personalization_window_context_v1 *window);
+void personalization_cursor_context_v1_destroy(personalization_cursor_context_v1 *cursor);

@@ -7,9 +7,10 @@
 
 #include <QObject>
 
-struct personalization_window_context_v1;
 struct treeland_personalization_manager_v1;
 struct personalization_wallpaper_context_v1;
+struct personalization_window_context_v1;
+struct personalization_cursor_context_v1;
 
 QW_USE_NAMESPACE
 
@@ -20,6 +21,7 @@ QW_END_NAMESPACE
 class TreeLandPersonalizationManager;
 class PersonalizationWindowContext;
 class PersonalizationWallpaperContext;
+class PersonalizationCursorContext;
 class TreeLandPersonalizationManagerPrivate;
 
 class QW_EXPORT TreeLandPersonalizationManager : public QObject, public QWObject
@@ -40,6 +42,7 @@ Q_SIGNALS:
     void beforeDestroy(TreeLandPersonalizationManager *self);
     void windowContextCreated(PersonalizationWindowContext *context);
     void wallpaperContextCreated(PersonalizationWallpaperContext *context);
+    void cursorContextCreated(PersonalizationCursorContext *context);
 
 private:
     TreeLandPersonalizationManager(treeland_personalization_manager_v1 *handle, bool isOwner);
@@ -97,4 +100,33 @@ Q_SIGNALS:
 
 private:
     PersonalizationWallpaperContext(personalization_wallpaper_context_v1 *handle, bool isOwner);
+};
+
+class PersonalizationCursorContextPrivate;
+
+class PersonalizationCursorContext : public QObject, public QWObject
+{
+    Q_OBJECT
+    QW_DECLARE_PRIVATE(PersonalizationCursorContext)
+public:
+    ~PersonalizationCursorContext() = default;
+
+    inline personalization_cursor_context_v1 *handle() const
+    {
+        return QWObject::handle<personalization_cursor_context_v1>();
+    }
+
+    static PersonalizationCursorContext *get(personalization_cursor_context_v1 *handle);
+    static PersonalizationCursorContext *from(personalization_cursor_context_v1 *handle);
+    static PersonalizationCursorContext *create(personalization_cursor_context_v1 *handle);
+
+Q_SIGNALS:
+    void beforeDestroy(PersonalizationCursorContext *self);
+    void commit(personalization_cursor_context_v1 *handle);
+    void get_size(personalization_cursor_context_v1 *handle);
+    void get_theme(personalization_cursor_context_v1 *handle);
+    void verfity(personalization_cursor_context_v1 *handle);
+
+private:
+    PersonalizationCursorContext(personalization_cursor_context_v1 *handle, bool isOwner);
 };

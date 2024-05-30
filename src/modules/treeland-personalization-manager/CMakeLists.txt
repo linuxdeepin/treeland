@@ -4,6 +4,7 @@ ws_generate_local(server ${CMAKE_CURRENT_SOURCE_DIR}/protocols/treeland-personal
 ws_generate(server wayland-protocols stable/xdg-shell/xdg-shell.xml xdg-shell-protocol)
 
 pkg_search_module(WLROOTS REQUIRED IMPORTED_TARGET wlroots)
+find_package(Dtk6Core REQUIRED)
 
 set(MODULE_URI "PersonalizationManager")
 
@@ -30,6 +31,7 @@ target_sources(${MODULE_NAME} PRIVATE
     impl/personalization_manager_impl.cpp
     impl/personalizationwindowcontext.cpp
     impl/personalizationwallpapercontext.cpp
+    impl/personalizationcursorcontext.cpp
     impl/personalizationmanager.cpp
     server-protocol.c
     xdg-shell-protocol.c
@@ -53,4 +55,5 @@ target_link_libraries(${MODULE_NAME}
         Qt${QT_MAJOR_VERSION}::Core
         Qt${QT_MAJOR_VERSION}::Gui
         Qt${QT_MAJOR_VERSION}::Quick
+        Dtk6::Core
 )

@@ -44,6 +44,12 @@
             </description>
             <arg name="id" type="new_id" interface="personalization_wallpaper_context_v1"/>
         </request>
+        <request name="get_cursor_context">
+            <description summary="custom wallpaper context">
+                custom user cursor
+            </description>
+            <arg name="id" type="new_id" interface="personalization_cursor_context_v1"/>
+        </request>
     </interface>
     <interface name="personalization_wallpaper_context_v1" version="1">
         <description summary="client custom wallpaper context">
@@ -95,6 +101,58 @@
                 Send this signal after getting the user's wallpaper.
             </description>
             <arg name="metadata" type="string" summary="user meta data"/>
+        </event>
+    </interface>
+    <interface name="personalization_cursor_context_v1" version="1">
+        <description summary="client custom cursor context">
+        This interface allows a client personalization cursor.
+
+        Warning! The protocol described in this file is currently in the testing
+        phase. Backward compatible changes may be added together with the
+        corresponding interface version bump. Backward incompatible changes can
+        only be done by creating a new major version of the extension.
+        </description>
+        <request name="set_theme">
+            <description summary="set system cursor theme"/>
+            <arg name="name" type="string" summary="cursor theme name"/>
+        </request>
+        <request name="get_theme">
+            <description summary="get system cursor theme"/>
+        </request>
+        <request name="set_size">
+            <description summary="set system cursor size"/>
+            <arg name="size" type="uint" summary="cursor size"/>
+        </request>
+        <request name="get_size">
+            <description summary="get system cursor size"/>
+        </request>
+        <request name="commit">
+            <description summary="commit configure">
+            if only one commit fails validation, the commit will fail
+            </description>
+        </request>
+        <request name="destroy" type="destructor">
+            <description summary="destroy the context object">
+                Destroy the context object.
+            </description>
+        </request>
+        <event name="verfity">
+            <description summary="verfity event">
+                Send this signal after commit cursor configure.
+            </description>
+            <arg name="success" type="int" summary="check whether the configuration is successful"/>
+        </event>
+        <event name="theme">
+            <description summary="cursor theme changed event">
+                Send this signal after system cursor theme changed.
+            </description>
+            <arg name="name" type="string" summary="cursor theme name"/>
+        </event>
+        <event name="size">
+            <description summary="cursor size changed event">
+                Send this signal after system cursor size changed.
+            </description>
+            <arg name="size" type="uint" summary="cursor size"/>
         </event>
     </interface>
     <interface name="personalization_window_context_v1" version="1">

@@ -55,6 +55,7 @@ private:
 class QuickPersonalizationManagerPrivate;
 class PersonalizationWindowContext;
 class PersonalizationWallpaperContext;
+class PersonalizationCursorContext;
 
 class QuickPersonalizationManager : public WQuickWaylandServerInterface, public WObject
 {
@@ -64,25 +65,42 @@ class QuickPersonalizationManager : public WQuickWaylandServerInterface, public 
     QML_ATTACHED(QuickPersonalizationManagerAttached)
 
     Q_PROPERTY(uid_t userId READ userId WRITE setUserId NOTIFY userIdChanged FINAL)
+    Q_PROPERTY(QString cursorTheme READ cursorTheme WRITE setCursorTheme NOTIFY cursorThemeChanged FINAL)
+    Q_PROPERTY(QSize cursorSize READ cursorSize WRITE setCursorSize NOTIFY cursorSizeChanged FINAL)
 
 public:
     explicit QuickPersonalizationManager(QObject *parent = nullptr);
 
     void onWindowContextCreated(PersonalizationWindowContext *context);
     void onWallpaperContextCreated(PersonalizationWallpaperContext *context);
+    void onCursorContextCreated(PersonalizationCursorContext *context);
+
     void onBackgroundTypeChanged(PersonalizationWindowContext *context);
-    void onCommit(personalization_wallpaper_context_v1 *context);
+    void onWallpaperCommit(personalization_wallpaper_context_v1 *context);
     void onGetWallpapers(personalization_wallpaper_context_v1 *context);
+
+    void onCursorCommit(personalization_cursor_context_v1 *context);
+    void onGetCursorTheme(personalization_cursor_context_v1 *context);
+    void onGetCursorSize(personalization_cursor_context_v1 *context);
+
     static QuickPersonalizationManagerAttached *qmlAttachedProperties(QObject *target);
 
     uid_t userId();
     void setUserId(uid_t uid);
+
+    QString cursorTheme();
+    void setCursorTheme(const QString &name);
+
+    QSize cursorSize();
+    void setCursorSize(const QSize &size);
 
 Q_SIGNALS:
     void backgroundTypeChanged(WSurface *surface, uint32_t type);
     void userIdChanged(uid_t uid);
     void backgroundChanged();
     void lockscreenChanged();
+    void cursorThemeChanged(const QString &name);
+    void cursorSizeChanged(const QSize &size);
 
 public slots:
     QString background(WOutput *w_output);
