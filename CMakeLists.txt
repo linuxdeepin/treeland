@@ -28,9 +28,12 @@ if (ADDRESS_SANITIZER)
     add_link_options(-fsanitize=address)
 endif()
 
+set(QML_IMPORT_PATH "${PROJECT_BINARY_DIR}/qt/qml;${QML_IMPORT_PATH}" CACHE STRING "For LSP" FORCE)
+
 if(WITH_SUBMODULE_WAYLIB)
     set(WITH_SUBMODULE_QWLROOTS ON)
     add_subdirectory(waylib)
+    set(QML_IMPORT_PATH "${PROJECT_BINARY_DIR}/src/server;${QML_IMPORT_PATH}" CACHE STRING "For LSP" FORCE)
 else()
     find_package(Waylib REQUIRED Server)
 endif()
