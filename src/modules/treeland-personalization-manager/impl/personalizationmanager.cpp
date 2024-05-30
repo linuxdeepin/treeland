@@ -32,6 +32,9 @@ public:
         sc.connect(&handle->events.wallpaper_context_created,
                    this,
                    &TreeLandPersonalizationManagerPrivate::on_wallpaper_context_created);
+        sc.connect(&handle->events.cursor_context_created,
+                   this,
+                   &TreeLandPersonalizationManagerPrivate::on_cursor_context_created);
     }
 
     ~TreeLandPersonalizationManagerPrivate()
@@ -53,6 +56,7 @@ public:
     void on_destroy(void *);
     void on_window_context_created(void *);
     void on_wallpaper_context_created(void *);
+    void on_cursor_context_created(void *);
 
     static QHash<void *, TreeLandPersonalizationManager *> map;
     QW_DECLARE_PUBLIC(TreeLandPersonalizationManager)
@@ -79,6 +83,13 @@ void TreeLandPersonalizationManagerPrivate::on_wallpaper_context_created(void *d
 {
     if (auto *p = reinterpret_cast<personalization_wallpaper_context_v1 *>(data)) {
         Q_EMIT q_func()->wallpaperContextCreated(PersonalizationWallpaperContext::from(p));
+    }
+}
+
+void TreeLandPersonalizationManagerPrivate::on_cursor_context_created(void *data)
+{
+    if (auto *p = reinterpret_cast<personalization_cursor_context_v1 *>(data)) {
+        Q_EMIT q_func()->cursorContextCreated(PersonalizationCursorContext::from(p));
     }
 }
 

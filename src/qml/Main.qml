@@ -75,7 +75,8 @@ Item {
             name: "seat0"
             cursor: Cursor {
                 id: cursor1
-
+                themeName: personalizationManager.cursorTheme
+                size: personalizationManager.cursorSize
                 layout: QmlHelper.layout
             }
 

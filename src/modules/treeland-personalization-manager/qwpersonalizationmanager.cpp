@@ -23,6 +23,7 @@
 #include <QJsonObject>
 #include <QSettings>
 #include <QStandardPaths>
+#include <DConfig>
 
 #include <sys/socket.h>
 #include <unistd.h>
@@ -32,6 +33,8 @@ extern "C" {
 #include <wlr/types/wlr_xdg_shell.h>
 #undef static
 }
+
+DCORE_USE_NAMESPACE
 
 static QuickPersonalizationManager *PERSONALIZATION_MANAGER = nullptr;
 static QQuickItem *PERSONALIZATION_IMAGE = nullptr;
@@ -44,6 +47,7 @@ public:
     QuickPersonalizationManagerPrivate(QuickPersonalizationManager *qq);
     ~QuickPersonalizationManagerPrivate();
 
+    void initCursorConfig();
     void updateCacheWallpaperPath(uid_t uid);
     QString readWallpaperSettings(const QString &group, WOutput *w_output);
     void saveWallpaperSettings(const QString &current,
@@ -56,6 +60,7 @@ public:
     QString m_cacheDirectory;
     QString m_settingFile;
     QString m_iniMetaData;
+    DConfig *m_cursorConfig = nullptr;
 
     TreeLandPersonalizationManager *manager = nullptr;
 };
@@ -63,10 +68,17 @@ public:
 QuickPersonalizationManagerPrivate::QuickPersonalizationManagerPrivate(
     QuickPersonalizationManager *qq)
     : WObjectPrivate(qq)
+    , m_cursorConfig(DConfig::create("org.deepin.Treeland", "org.deepin.Treeland", QString()))
 {
 }
 
-QuickPersonalizationManagerPrivate::~QuickPersonalizationManagerPrivate() { }
+QuickPersonalizationManagerPrivate::~QuickPersonalizationManagerPrivate()
+{
+    if (m_cursorConfig != nullptr) {
+        delete m_cursorConfig;
+        m_cursorConfig = nullptr;
+    }
+}
 
 void QuickPersonalizationManagerPrivate::updateCacheWallpaperPath(uid_t uid)
 {
@@ -94,7 +106,7 @@ QString QuickPersonalizationManagerPrivate::readWallpaperSettings(const QString 
                                                                   WOutput *w_output)
 {
     if (m_settingFile.isEmpty())
-        return QString();
+        return DEFAULT_WALLPAPER;
 
     QSettings settings(m_settingFile, QSettings::IniFormat);
 
@@ -158,6 +170,10 @@ void QuickPersonalizationManager::create()
             &TreeLandPersonalizationManager::wallpaperContextCreated,
             this,
             &QuickPersonalizationManager::onWallpaperContextCreated);
+    connect(d->manager,
+            &TreeLandPersonalizationManager::cursorContextCreated,
+            this,
+            &QuickPersonalizationManager::onCursorContextCreated);
 }
 
 void QuickPersonalizationManager::onWindowContextCreated(PersonalizationWindowContext *context)
@@ -168,21 +184,35 @@ void QuickPersonalizationManager::onWindowContextCreated(PersonalizationWindowCo
             &QuickPersonalizationManager::onBackgroundTypeChanged);
 }
 
-void QuickPersonalizationManager::onWallpaperContextCreated(
-    PersonalizationWallpaperContext *context)
+void QuickPersonalizationManager::onWallpaperContextCreated(PersonalizationWallpaperContext *context)
 {
     connect(context,
             &PersonalizationWallpaperContext::commit,
             this,
-            &QuickPersonalizationManager::onCommit);
+            &QuickPersonalizationManager::onWallpaperCommit);
     connect(context,
             &PersonalizationWallpaperContext::getWallpapers,
             this,
             &QuickPersonalizationManager::onGetWallpapers);
 }
 
-QString QuickPersonalizationManager::saveImage(personalization_wallpaper_context_v1 *context,
-                                               const QString prefix)
+void QuickPersonalizationManager::onCursorContextCreated(PersonalizationCursorContext *context)
+{
+    connect(context,
+            &PersonalizationCursorContext::commit,
+            this,
+            &QuickPersonalizationManager::onCursorCommit);
+    connect(context,
+            &PersonalizationCursorContext::get_theme,
+            this,
+            &QuickPersonalizationManager::onGetCursorTheme);
+    connect(context,
+            &PersonalizationCursorContext::get_size,
+            this,
+            &QuickPersonalizationManager::onGetCursorSize);
+}
+
+QString QuickPersonalizationManager::saveImage(personalization_wallpaper_context_v1 *context, const QString prefix)
 {
     if (!context || context->fd == -1 || !strlen(context->output_name))
         return QString();
@@ -215,7 +245,7 @@ QString QuickPersonalizationManager::saveImage(personalization_wallpaper_context
     return QString();
 }
 
-void QuickPersonalizationManager::onCommit(personalization_wallpaper_context_v1 *context)
+void QuickPersonalizationManager::onWallpaperCommit(personalization_wallpaper_context_v1 *context)
 {
     if (context->options & PERSONALIZATION_WALLPAPER_CONTEXT_V1_OPTIONS_BACKGROUND) {
         QString background = saveImage(context, "background");
@@ -230,6 +260,53 @@ void QuickPersonalizationManager::onCommit(personalization_wallpaper_context_v1 
             Q_EMIT backgroundChanged();
         }
     }
+}
+
+void QuickPersonalizationManager::onCursorCommit(personalization_cursor_context_v1 *context)
+{
+    if (!context)
+        return;
+
+    W_D(QuickPersonalizationManager);
+
+    if (d->m_cursorConfig == nullptr || !d->m_cursorConfig->isValid()) {
+        personalization_cursor_context_v1_send_verfity(context->resource, false);
+        return;
+    }
+
+    if (context->size > 0)
+        setCursorSize(QSize(context->size, context->size));
+
+    if (strlen(context->theme) > 0)
+        setCursorTheme(context->theme);
+
+    personalization_cursor_context_v1_send_verfity(context->resource, true);
+}
+
+void QuickPersonalizationManager::onGetCursorTheme(personalization_cursor_context_v1 *context)
+{
+    if (!context)
+        return;
+
+    W_D(QuickPersonalizationManager);
+    if (d->m_cursorConfig == nullptr || !d->m_cursorConfig->isValid())
+        return;
+
+    context->theme = cursorTheme().toStdString().c_str();
+    personalization_cursor_context_v1_send_theme(context->resource, context->theme);
+}
+
+void QuickPersonalizationManager::onGetCursorSize(personalization_cursor_context_v1 *context)
+{
+    if (!context)
+        return;
+
+    W_D(QuickPersonalizationManager);
+    if (d->m_cursorConfig == nullptr)
+        return;
+
+    context->size = cursorSize().width();
+    personalization_cursor_context_v1_send_size(context->resource, context->size);
 }
 
 void QuickPersonalizationManager::onGetWallpapers(personalization_wallpaper_context_v1 *context)
@@ -271,7 +348,37 @@ void QuickPersonalizationManager::setUserId(uid_t uid)
     Q_EMIT userIdChanged(uid);
 }
 
-QString QuickPersonalizationManager::background(WOutput *w_output)
+QString QuickPersonalizationManager::cursorTheme()
+{
+    W_D(QuickPersonalizationManager);
+    QString value = d->m_cursorConfig->value("CursorThemeName").toString();
+    return value;
+}
+
+void QuickPersonalizationManager::setCursorTheme(const QString &name)
+{
+    W_D(QuickPersonalizationManager);
+    d->m_cursorConfig->setValue("CursorThemeName", name);
+
+    Q_EMIT cursorThemeChanged(name);
+}
+
+QSize QuickPersonalizationManager::cursorSize()
+{
+    W_D(QuickPersonalizationManager);
+    int size = d->m_cursorConfig->value("CursorSize").toInt();
+    return QSize(size, size);
+}
+
+void QuickPersonalizationManager::setCursorSize(const QSize &size)
+{
+    W_D(QuickPersonalizationManager);
+    d->m_cursorConfig->setValue("CursorSize", size.width());
+
+    Q_EMIT cursorSizeChanged(size);
+}
+
+QString QuickPersonalizationManager::background(WOutput* w_output)
 {
     W_D(QuickPersonalizationManager);
     return d->readWallpaperSettings("background", w_output);
