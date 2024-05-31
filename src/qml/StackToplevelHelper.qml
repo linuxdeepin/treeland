@@ -10,6 +10,7 @@ import TreeLand.Protocols.ForeignToplevelManager
 import TreeLand.Protocols.PersonalizationManager
 import TreeLand.Protocols.OutputManagement
 import TreeLand.Protocols.ShortcutManager
+import TreeLand.Protocols.WindowManagement
 import TreeLand.Utils
 
 Item {
@@ -140,12 +141,23 @@ Item {
 
     function workspace() { return QmlHelper.workspaceManager.workspacesById.get(parent.workspaceId) }
 
+    function setAllSurfacesVisble(visible) {
+        for (var i = 0; i < QmlHelper.workspaceManager.allSurfaces.count; ++i) {
+            QmlHelper.workspaceManager.allSurfaces.get(i).item.visible = visible
+        }
+    }
+
     onMappedChanged: {
         console.log("onMappedChanged!", Helper.clientName(waylandSurface.surface))
 
         // When Socket is enabled and mapped becomes false, set visible
         // after closeAnimation complete， Otherwise set visible directly.
         if (mapped) {
+            if (treelandWindowManagement.desktopState === TreelandWindowManagement.Show) {
+                treelandWindowManagement.desktopState = TreelandWindowManagement.Normal
+                setAllSurfacesVisble(false)
+            }
+
             if (waylandSurface.isMinimized) {
                 surface.visible = false;
             } else {
@@ -319,6 +331,11 @@ Item {
 
         if (!waylandSurface.isMinimized)
             return
+
+        if (treelandWindowManagement.desktopState === TreelandWindowManagement.Show) {
+            treelandWindowManagement.desktopState = TreelandWindowManagement.Normal
+            setAllSurfacesVisble(false)
+        }
 
         Helper.activatedSurface = waylandSurface
 
