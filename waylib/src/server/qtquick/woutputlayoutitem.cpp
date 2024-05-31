@@ -32,10 +32,10 @@ public:
 
         bool changed = false;
 
-        for (auto o : outputs) {
-            if (oldOutputs.removeOne(o))
+        for (int i = 0; i < outputs.count(); i++) {
+            if (oldOutputs.removeOne(outputs.at(i)))
                 continue;
-            Q_EMIT q->enterOutput(o);
+            Q_EMIT q->enterOutput(outputs.at(i));
             changed = true;
         }
 
@@ -98,7 +98,7 @@ QList<WOutput*> WOutputLayoutItem::outputs() const
     W_DC(WOutputLayoutItem);
     QList<WOutput*> outputs;
     for (const auto &output : d->outputs) {
-        outputs.append(output.get());
+        outputs.append(output);
     }
     return outputs;
 }
