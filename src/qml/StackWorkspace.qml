@@ -13,6 +13,7 @@ import TreeLand.Protocols.OutputManagement
 import TreeLand.Protocols.ShortcutManager
 import TreeLand.Utils
 import org.deepin.dtk 1.0 as D
+import TreeLand.Protocols.WindowManagement
 
 FocusScope {
     id: root
@@ -95,7 +96,7 @@ FocusScope {
 
     FocusScope {
         anchors.fill: parent
-        visible: !multitaskView.active
+        visible: !multitaskView.active && !treelandWindowManagement.desktopState
         enabled: !switcher.visible && !multitaskView.active
         focus: enabled
         opacity: if (switcher.visible || dockPreview.previewing) switcherHideOpacity
