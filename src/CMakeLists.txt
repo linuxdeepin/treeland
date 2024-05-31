@@ -44,6 +44,7 @@ target_link_libraries(treeland
         treeland-personalization-manager # for header
         treeland-personalization-managerplugin
         treeland-shortcut-managerplugin
+        treeland-window-managementplugin
 )
 
 target_compile_definitions(treeland

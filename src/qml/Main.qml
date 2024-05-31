@@ -13,6 +13,7 @@ import TreeLand.Protocols.ForeignToplevelManager
 import TreeLand.Protocols.PersonalizationManager
 import TreeLand.Protocols.OutputManagement
 import TreeLand.Protocols.ShortcutManager
+import TreeLand.Protocols.WindowManagement
 
 Item {
     id :root
@@ -263,6 +264,14 @@ Item {
         }
 
         ScreenCopyManager { }
+
+        TreelandWindowManagement {
+            id: treelandWindowManagement
+
+            onRequestShowDesktop: function(state) {
+                desktopState = state
+            }
+        }
     }
 
     InputMethodHelper {
