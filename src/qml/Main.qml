@@ -14,6 +14,7 @@ import TreeLand.Protocols.PersonalizationManager
 import TreeLand.Protocols.OutputManagement
 import TreeLand.Protocols.ShortcutManager
 import TreeLand.Protocols.WallpaperColor
+import TreeLand.Protocols.WindowManagement
 
 Item {
     id :root
@@ -267,6 +268,14 @@ Item {
 
         TreelandWallpaperColor {
             id: wallpaperColor
+        }
+
+        TreelandWindowManagement {
+            id: treelandWindowManagement
+
+            onRequestShowDesktop: function(state) {
+                desktopState = state
+            }
         }
     }
 
