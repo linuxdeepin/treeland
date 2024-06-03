@@ -79,11 +79,12 @@ Item {
                 obj.doDestroy()
             }
 
-            XdgSurface {
+            XdgSurfaceItem {
                 id: toplevelSurfaceItem
 
                 property var doDestroy: helper.doDestroy
 
+                shellSurface: waylandSurface
                 resizeMode: SurfaceItem.SizeToSurface
                 z: (waylandSurface && waylandSurface.isActivated) ? 1 : 0
 
@@ -188,9 +189,9 @@ Item {
                 background: null
                 closePolicy: Popup.NoAutoClose
 
-                XdgSurface {
+                XdgSurfaceItem {
                     id: popupSurfaceItem
-                    waylandSurface: popup.waylandSurface
+                    shellSurface: popup.waylandSurface
 
                     OutputLayoutItem {
                         anchors.fill: parent

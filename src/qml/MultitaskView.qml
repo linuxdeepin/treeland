@@ -19,9 +19,9 @@ Item {
 
     function exit(surfaceItem) {
         if (surfaceItem)
-            Helper.activatedSurface = surfaceItem.waylandSurface
+            Helper.activatedSurface = surfaceItem.shellSurface
         else if (current >= 0 && current < model.count)
-            Helper.activatedSurface = model.get(current).item.waylandSurface
+            Helper.activatedSurface = model.get(current).item.shellSurface
         visible = false
     }
 
@@ -265,7 +265,7 @@ Item {
                                     getRatio: (d) => d.item.width / d.item.height
                                     enterAnimationEnabled: true
                                     delegate: Item {
-                                            property SurfaceItem source: modelData
+                                            property SurfaceItem source: modelData.item
 
                                             property real ratio: source.width / source.height
                                             onRatioChanged: {

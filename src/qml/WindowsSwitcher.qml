@@ -12,7 +12,7 @@ Item {
     property var current: 0
     required property OutputDelegate activeOutput
 
-    signal surfaceActivated(surface: SurfaceItem)
+    signal surfaceActivated(surface: SurfaceWrapper)
 
     onVisibleChanged: {
         if (visible) {
@@ -56,10 +56,10 @@ Item {
         if (context.item) {
             context.item.stop()
         }
-        const source = model.get(current).item
+        const wrapper = model.get(current).wrapper
         // activated window changed
         if (current != 0) {
-            surfaceActivated(source)
+            surfaceActivated(wrapper)
         }
     }
     
@@ -151,7 +151,7 @@ Item {
                 getRatio: (data) => data.item.width / data.item.height
                 anchors.centerIn: parent
                 delegate: Rectangle {
-                    property SurfaceItem source: modelData
+                    property SurfaceItem source: modelData.item
                     property bool highlighted: globalIndex == root.current
                     property real ratio: source.width / source.height
                     onRatioChanged: {
@@ -198,7 +198,7 @@ Item {
                             Text {
                                 Layout.fillWidth: true
                                 text: {
-                                    const xdg = source.waylandSurface
+                                    const xdg = source.shellSurface
                                     const wholeTitle = xdg.appId?.length ? `${xdg.title} - ${xdg.appId}` : xdg.title
                                     wholeTitle
                                 }
@@ -224,7 +224,6 @@ Item {
                     }
                     TapHandler {
                         onTapped: {
-                            // console.log('tapped idx', globalIndex)
                             root.current = globalIndex
                         }
                     }
