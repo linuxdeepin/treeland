@@ -12,11 +12,6 @@ import TreeLand.Protocols.PersonalizationManager
 import TreeLand.Protocols.OutputManagement
 import TreeLand.Protocols.ShortcutManager
 import TreeLand.Utils
-import TreeLand.Protocols.ExtForeignToplevelList
-import TreeLand.Protocols.ForeignToplevelManager
-import TreeLand.Protocols.PersonalizationManager
-import TreeLand.Protocols.OutputManagement
-import TreeLand.Protocols.ShortcutManager
 import org.deepin.dtk 1.0 as D
 
 FocusScope {
