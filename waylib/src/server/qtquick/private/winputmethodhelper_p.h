@@ -103,9 +103,11 @@ private:
     void updatePopupSurface(WInputPopupV2 *popup, QRect cursorRect);
     void notifyLeave();
     void resendKeyboardFocus();
+    void connectToTI(WQuickTextInput *ti);
+    void disableTI(WQuickTextInput *ti);
     void tryAddTextInput(WQuickTextInput *ti);
     void handleTIEnabled();
-    void handleTIDisabled(WQuickTextInput *ti);
+    void handleTIDisabled();
     void handleFocusedTICommitted();
     void handleIMCommitted();
 };
