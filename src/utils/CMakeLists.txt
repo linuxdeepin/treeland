@@ -7,6 +7,7 @@ qt_add_qml_module(utils
     SOURCES
         helper.cpp
         filterproxymodel.cpp
+        surfaceitemfactory.cpp
     RESOURCE_PREFIX
         /qt/qml
     OUTPUT_DIRECTORY

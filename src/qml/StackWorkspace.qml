@@ -85,7 +85,7 @@ FocusScope {
     onActivatedSurfaceItemChanged: {
         if (activatedSurfaceItem?.parent?.workspaceRelativeId !== undefined)
             currentWorkspaceId = activatedSurfaceItem.parent.workspaceRelativeId
-        QmlHelper.winposManager.updateSeq(Helper.activatedSurface.appId, activatedSurfaceItem)
+        QmlHelper.winposManager.updateSeq(Helper.activatedSurface.appId, activatedSurfaceItem.surfaceItem)
     }
 
     // activated surface driven by workspace change
@@ -134,7 +134,7 @@ FocusScope {
                 required property WaylandInputPopupSurface popupSurface
 
                 id: inputPopupSurface
-                surface: popupSurface
+                shellSurface: popupSurface
                 helper: inputMethodHelper
             }
         }
@@ -150,147 +150,25 @@ FocusScope {
             creator: QmlHelper.xdgSurfaceManager
             chooserRole: "type"
             chooserRoleValue: "toplevel"
+            contextProperties: ({surfType: "xdg"}) // Object/QVariantMap type should use `({})`
             autoDestroy: false
 
             onObjectRemoved: function (obj) {
                 obj.doDestroy()
             }
 
-            XdgSurface {
-                id: toplevelSurfaceItem
-
-                property var doDestroy: helper.doDestroy
-                property var cancelMinimize: helper.cancelMinimize
-                property var surfaceDecorationMapper: toplevelSurfaceItem.waylandSurface.XdgDecorationManager
-                property var personalizationMapper: toplevelSurfaceItem.waylandSurface.PersonalizationManager
-                property int outputCounter: 0
-                z: {
-                    if (Helper.clientName(waylandSurface.surface) === "dde-desktop") {
-                        return -100 + 1
-                    }
-                    else if (Helper.clientName(waylandSurface.surface) === "dde-launchpad") {
-                        return 25
-                    }
-                    else {
-                        return 0
-                    }
-                }
-
-                function move(pos) {
-                    isMoveResizing = true
-                    x = pos.x
-                    y = pos.y
-                    isMoveResizing = false
-                }
-
-                required property int workspaceId
-                // put here, otherwise may initialize late
-                parent: QmlHelper.workspaceManager.workspacesById.get(workspaceId)
-
-                topPadding: decoration.enable ? decoration.topMargin : 0
-                bottomPadding: decoration.enable ? decoration.bottomMargin : 0
-                leftPadding: decoration.enable ? decoration.leftMargin : 0
-                rightPadding: decoration.enable ? decoration.rightMargin : 0
-                focus: this.waylandSurface === Helper.activatedSurface
-
-                OutputLayoutItem {
-                    anchors.fill: parent
-                    layout: QmlHelper.layout
-
-                    onEnterOutput: function(output) {
-                        if (waylandSurface.surface) {
-                            waylandSurface.surface.enterOutput(output)
-                        }
-                        Helper.onSurfaceEnterOutput(waylandSurface, toplevelSurfaceItem, output)
-                        outputCounter++
-
-                        if (outputCounter == 1) {
-                            const pos = QmlHelper.winposManager.nextPos(waylandSurface.appId, toplevelSurfaceItem.parent, toplevelSurfaceItem)
-                            let outputDelegate = output.OutputItem.item
-                            toplevelSurfaceItem.move(pos)
-
-                            if (Helper.clientName(waylandSurface.surface) === "dde-desktop") {
-                                toplevelSurfaceItem.x = outputDelegate.x
-                                toplevelSurfaceItem.y = outputDelegate.y
-                                toplevelSurfaceItem.width = outputDelegate.width
-                                toplevelSurfaceItem.height = outputDelegate.height
-                            }
-
-                            if (Helper.clientName(waylandSurface.surface) === "dde-launchpad") {
-                                toplevelSurfaceItem.x = outputDelegate.x
-                                toplevelSurfaceItem.y = outputDelegate.y
-                            }
-                        }
-                    }
-                    onLeaveOutput: function(output) {
-                        waylandSurface.surface.leaveOutput(output)
-                        Helper.onSurfaceLeaveOutput(waylandSurface, toplevelSurfaceItem, output)
-                        outputCounter--
-                        
-                        if (outputCounter == 0) {
-                            const pos = QmlHelper.winposManager.nextPos(waylandSurface.appId, toplevelSurfaceItem.parent, toplevelSurfaceItem)
-                            toplevelSurfaceItem.move(pos)
-                        }
-                    }
-                }
-
-                WindowDecoration {
-                    property var enable: surfaceDecorationMapper.serverDecorationEnabled
-
-                    id: decoration
-                    anchors.fill: parent
-                    z: SurfaceItem.ZOrder.ContentItem - 1
-                    surface: toplevelSurfaceItem.waylandSurface
-                    visible: enable
-                    moveable: !helper.isMaximize && !helper.isFullScreen
-                }
-
-                StackToplevelHelper {
-                    id: helper
-                    surface: toplevelSurfaceItem
-                    waylandSurface: toplevelSurfaceItem.waylandSurface
-                    creator: toplevelComponent
-                    decoration: decoration
-                }
-
-                property bool isMoveResizing: Helper.resizingItem == toplevelSurfaceItem || Helper.movingItem == toplevelSurfaceItem
-                
-                states: [
-                    State {
-                        name: "maximize"
-                        when: helper.isMaximize
-                        PropertyChanges {
-                            restoreEntryValues: true
-                            target: toplevelSurfaceItem
-                            x: helper.getMaximizeX()
-                            y: helper.getMaximizeY()
-                            width: helper.getMaximizeWidth()
-                            height: helper.getMaximizeHeight()
-                        }
-                    },
-                    State {
-                        name: "fullscreen"
-                        when: helper.isFullScreen
-                        PropertyChanges {
-                            restoreEntryValues: true
-                            target: toplevelSurfaceItem
-                            x: helper.getFullscreenX()
-                            y: helper.getFullscreenY()
-                            z: Helper.clientName(waylandSurface.surface) == "dde-launchpad" ? 25 : 100 + 1 // LayerType.Overlay + 1
-                            width: helper.getFullscreenWidth()
-                            height: helper.getFullscreenHeight()
-                        }
-                    }
-                ]
-
+            SurfaceWrapper {
+                id: wrapper
                 ShaderEffectSource {
                     id: background
-                    z: toplevelSurfaceItem.contentItem.z - 2
-                    visible: personalizationMapper.backgroundType
+                    parent: wrapper.surfaceItem
+                    z: wrapper.toplevelSurfaceItem.contentItem.z - 2
+                    visible: false
                     anchors.fill: parent
-                    sourceRect: { Qt.rect(parent.x, parent.y, parent.width, parent.height) }
+                    sourceRect: { Qt.rect(toplevelSurfaceItem.x, toplevelSurfaceItem.y, toplevelSurfaceItem.width, toplevelSurfaceItem.height) }
                     sourceItem: personalizationMapper.backgroundImage
                 }
+                decoration.enable: surfaceDecorationMapper.serverDecorationEnabled
             }
         }
 
@@ -299,18 +177,19 @@ FocusScope {
             creator: QmlHelper.xdgSurfaceManager
             chooserRole: "type"
             chooserRoleValue: "popup"
+            contextProperties: ({surfType: "xdg"})
 
-            Popup {
+            Item {
                 id: popup
 
                 required property WaylandXdgSurface waylandSurface
                 property string type
 
                 property alias xdgSurface: popupSurfaceItem
-                property var parentItem: root.getSurfaceItemFromWaylandSurface(waylandSurface.parentSurface)
+                property var parentItem: root.getSurfaceItemFromWaylandSurface(waylandSurface.parentSurface)?.item?.surfaceItem
 
-                parent: parentItem ? parentItem.item : root
-                visible: parentItem && parentItem.item.effectiveVisible
+                parent: parentItem ?? root
+                visible: parentItem?.effectiveVisible
                         && waylandSurface.surface.mapped && waylandSurface.WaylandSocket.rootSocket.enabled
                 x: {
                     let retX = 0 // X coordinate relative to parent
@@ -323,7 +202,7 @@ FocusScope {
                         if (retX < minX)
                             retX = minX
                     } else {
-                        retX = popupSurfaceItem.implicitPosition.x / parentItem.item.surfaceSizeRatio + parentItem.item.contentItem.x
+                        retX = popupSurfaceItem.implicitPosition.x / parentItem.surfaceSizeRatio + parentItem.contentItem.x
                         let parentX = parent.mapToItem(root, 0, 0).x
                         if (retX + parentX > maxX) {
                             if (parentItem.type === "popup")
@@ -347,7 +226,7 @@ FocusScope {
                         if (retY < minY)
                             retY = minY
                     } else {
-                        retY = popupSurfaceItem.implicitPosition.y / parentItem.item.surfaceSizeRatio + parentItem.item.contentItem.y
+                        retY = popupSurfaceItem.implicitPosition.y / parentItem.surfaceSizeRatio + parentItem.contentItem.y
                         let parentY = parent.mapToItem(root, 0, 0).y
                         if (retY + parentY > maxY)
                             retY = maxY - parentY
@@ -356,13 +235,11 @@ FocusScope {
                     }
                     return retY
                 }
-                padding: 0
-                background: null
-                closePolicy: Popup.NoAutoClose
+                z: 201
 
-                XdgSurface {
+                XdgSurfaceItem {
                     id: popupSurfaceItem
-                    waylandSurface: popup.waylandSurface
+                    shellSurface: popup.waylandSurface
 
                     OutputLayoutItem {
                         anchors.fill: parent
@@ -393,156 +270,39 @@ FocusScope {
         DynamicCreatorComponent {
             id: xwaylandComponent
             creator: QmlHelper.xwaylandSurfaceManager
+            contextProperties: ({surfType: "xwayland"})
             autoDestroy: false
 
             onObjectRemoved: function (obj) {
                 obj.doDestroy()
             }
-
-            XWaylandSurfaceItem {
-                id: xwaylandSurfaceItem
-
-                required property XWaylandSurface waylandSurface
-                property var doDestroy: helper.doDestroy
-                property var cancelMinimize: helper.cancelMinimize
-                property var surfaceParent: root.getSurfaceItemFromWaylandSurface(waylandSurface.parentXWaylandSurface)
-                property int outputCounter: 0
+            SurfaceWrapper {
                 property bool forcePositionToSurface: false
-
-                required property int workspaceId
-                parent: QmlHelper.workspaceManager.workspacesById.get(workspaceId)
-                focus: this.waylandSurface === Helper.activatedSurface
-
-                surface: waylandSurface
-                parentSurfaceItem: surfaceParent ? surfaceParent.item : null
+                property var surfaceParent: root.getSurfaceItemFromWaylandSurface(waylandSurface.parentXWaylandSurface)
+                asXwayland.parentSurfaceItem: surfaceParent ? surfaceParent.item : null
                 z: waylandSurface.bypassManager ? 1 : 0 // TODO: make to enum type
-                positionMode: {
-                    if (!xwaylandSurfaceItem.effectiveVisible)
+                decoration.enable: !waylandSurface.bypassManager
+                                        && waylandSurface.decorationsType !== XWaylandSurface.DecorationsNoBorder
+                asXwayland.positionMode: {
+                    if (!surfaceItem.effectiveVisible)
                         return XWaylandSurfaceItem.ManualPosition
 
-                    if (xwaylandSurfaceItem.forcePositionToSurface)
+                    if (surfaceItem.forcePositionToSurface)
                         return XWaylandSurfaceItem.PositionToSurface
 
-                    return (Helper.movingItem === xwaylandSurfaceItem || resizeMode === SurfaceItem.SizeToSurface)
+                    return (Helper.movingItem === surfaceItem || surfaceItem.resizeMode === SurfaceItem.SizeToSurface)
                             ? XWaylandSurfaceItem.PositionToSurface
                             : XWaylandSurfaceItem.PositionFromSurface
                 }
                 function move(pos) {
+                    forcePositionToSurface = true
                     isMoveResizing = true
-                    x = pos.x
-                    y = pos.y
+                    surfaceItem.x = pos.x
+                    surfaceItem.y = pos.y
                     isMoveResizing = false
+                    forcePositionToSurface = false
                 }
 
-                topPadding: decoration.enable ? decoration.topMargin : 0
-                bottomPadding: decoration.enable ? decoration.bottomMargin : 0
-                leftPadding: decoration.enable ? decoration.leftMargin : 0
-                rightPadding: decoration.enable ? decoration.rightMargin : 0
-
-                surfaceSizeRatio: {
-                    const po = waylandSurface.surface.primaryOutput
-                    if (!po)
-                        return 1.0
-                    if (bufferScale >= po.scale)
-                        return 1.0
-                    return po.scale / bufferScale
-                }
-
-                onEffectiveVisibleChanged: {
-                    if (xwaylandSurfaceItem.effectiveVisible)
-                        xwaylandSurfaceItem.move(XWaylandSurfaceItem.PositionToSurface)
-                }
-
-                // TODO: ensure the event to WindowDecoration before WSurfaceItem::eventItem on surface's edges
-                // maybe can use the SinglePointHandler?
-                WindowDecoration {
-                    id: decoration
-
-                    property bool enable: !waylandSurface.bypassManager
-                                        && waylandSurface.decorationsType !== XWaylandSurface.DecorationsNoBorder
-
-                    anchors.fill: parent
-                    z: SurfaceItem.ZOrder.ContentItem - 1
-                    visible: enable
-                    surface: waylandSurface
-                    moveable: !helper.isMaximize && !helper.isFullScreen
-                }
-
-                OutputLayoutItem {
-                    anchors.fill: parent
-                    layout: QmlHelper.layout
-
-                    onEnterOutput: function(output) {
-                        if (xwaylandSurfaceItem.waylandSurface.surface)
-                            xwaylandSurfaceItem.waylandSurface.surface.enterOutput(output);
-                        Helper.onSurfaceEnterOutput(waylandSurface, xwaylandSurfaceItem, output)
-
-                        outputCounter++
-
-                        if (outputCounter == 1 &&
-                                xwaylandSurfaceItem.waylandSurface.windowTypes === XWaylandSurface.NET_WM_WINDOW_TYPE_NORMAL) {
-                            let outputDelegate = output.OutputItem.item
-                            forcePositionToSurface = true
-                            const pos = QmlHelper.winposManager.nextPos(`xwayland_${waylandSurface.appId}`, xwaylandSurfaceItem.parent, xwaylandSurfaceItem)
-                            xwaylandSurfaceItem.move(pos)
-                            forcePositionToSurface = false
-                        }
-                    }
-                    onLeaveOutput: function(output) {
-                        if (xwaylandSurfaceItem.waylandSurface.surface)
-                            xwaylandSurfaceItem.waylandSurface.surface.leaveOutput(output);
-                        Helper.onSurfaceLeaveOutput(waylandSurface, xwaylandSurfaceItem, output)
-                        outputCounter--
-                        if (outputCounter == 0 &&
-                            xwaylandSurfaceItem.waylandSurface.windowTypes === XWaylandSurface.NET_WM_WINDOW_TYPE_NORMAL)
-                            xwaylandSurfaceItem.move(QmlHelper.winposManager.nextPos(`xwayland_${waylandSurface.appId}`, xwaylandSurfaceItem.parent, xwaylandSurfaceItem))
-                    }
-                }
-
-                StackToplevelHelper {
-                    id: helper
-                    surface: xwaylandSurfaceItem
-                    waylandSurface: xwaylandSurfaceItem.waylandSurface
-                    creator: xwaylandComponent
-                    decoration: decoration
-                }
-
-                property bool isMoveResizing: Helper.resizingItem == xwaylandSurfaceItem || Helper.movingItem == xwaylandSurfaceItem
-
-                states: [
-                    State {
-                        name: "maximize"
-                        when: helper.isMaximize
-                        PropertyChanges {
-                            restoreEntryValues: true
-                            target: xwaylandSurfaceItem
-                            x: helper.getMaximizeX()
-                            y: helper.getMaximizeY()
-                            width: helper.getMaximizeWidth()
-                            height: helper.getMaximizeHeight()
-                            positionMode: XWaylandSurfaceItem.PositionToSurface
-                        }
-                    },
-                    State {
-                        name: "fullscreen"
-                        when: helper.isFullScreen
-                        PropertyChanges {
-                            restoreEntryValues: true
-                            target: xwaylandSurfaceItem
-                            x: helper.getFullscreenX()
-                            y: helper.getFullscreenY()
-                            z: 100 + 1 // LayerType.Overlay + 1
-                            width: helper.getFullscreenWidth()
-                            height: helper.getFullscreenHeight()
-                            positionMode: XWaylandSurfaceItem.PositionToSurface
-                        }
-                        PropertyChanges {
-                            restoreEntryValues: true
-                            target: decoration
-                            enable: false
-                        }
-                    }
-                ]
             }
         }
     }
@@ -573,9 +333,9 @@ FocusScope {
         visible: false // dbgswtchr.checked
         focus: false
         activeOutput: activeOutputDelegate
-        onSurfaceActivated: (surface) => {
-            surface.cancelMinimize()
-            Helper.activatedSurface = surface.waylandSurface
+        onSurfaceActivated: (wrapper) => {
+            wrapper.cancelMinimize()
+            Helper.activatedSurface = wrapper.surfaceItem.shellSurface
         }
         Binding {
             target: Helper

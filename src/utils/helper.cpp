@@ -481,11 +481,11 @@ bool Helper::afterHandleEvent(
 
     if (event->type() == QEvent::MouseButtonPress || event->type() == QEvent::TouchBegin) {
         // surfaceItem is qml type: XdgSurfaceItem or LayerSurfaceItem
-        auto *toplevelSurface = qvariant_cast<WToplevelSurface *>(surfaceItem->property("surface"));
+        auto toplevelSurface = qobject_cast<WSurfaceItem*>(surfaceItem)->shellSurface();
         if (!toplevelSurface)
             return false;
         Q_ASSERT(toplevelSurface->surface() == watched);
-        if (auto *xdgSurface = qvariant_cast<WXdgSurface *>(surfaceItem->property("surface"))) {
+        if (auto *xdgSurface = qobject_cast<WXdgSurface *>(toplevelSurface)) {
             // TODO(waylib): popupSurface should not inherit WToplevelSurface
             if (xdgSurface->isPopup()) {
                 return false;
@@ -514,6 +514,7 @@ WToplevelSurface *Helper::activatedSurface() const
 
 void Helper::setActivateSurface(WToplevelSurface *newActivate)
 {
+    qDebug()<<"setActivateSurf"<<newActivate;
     if (newActivate) {
         wl_client *client = newActivate->surface()->handle()->handle()->resource->client;
         pid_t pid;

@@ -20,7 +20,7 @@ qt_add_qml_module(treeland-qml
         TiledToplevelHelper.qml
         TiledWorkspace.qml
         WindowDecoration.qml
-        XdgSurface.qml
+        SurfaceWrapper.qml
         InputPopupSurface.qml
         LayerSurface.qml
         WindowsSwitcher.qml

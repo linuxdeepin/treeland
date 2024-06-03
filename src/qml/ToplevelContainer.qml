@@ -53,7 +53,7 @@ FocusScope {
         }
         function appendEnhanced(data) {
             // ensure activated surface is on top, activatedSurfaceChanged may happen before model append
-            if (data.item.waylandSurface === Helper.activatedSurface) {
+            if (data.item.shellSurface === Helper.activatedSurface) {
                 this.insert(0,data)
             }
             else
@@ -66,7 +66,7 @@ FocusScope {
         function onActivatedSurfaceChanged() {
             if (Helper.activatedSurface !== null) {
                 // adjust window stack
-                const activatedSurfaceIndex = surfacesModel.findIf((data) => data.item.waylandSurface === Helper.activatedSurface)
+                const activatedSurfaceIndex = surfacesModel.findIf((data) => data.item.shellSurface === Helper.activatedSurface)
                 if (activatedSurfaceIndex >= 0)
                     surfacesModel.move(activatedSurfaceIndex, 0, 1)
             }
@@ -78,16 +78,16 @@ FocusScope {
         const moveTo = QmlHelper.workspaceManager.layoutOrder.get(moveToRelId).wsid
         let temp = Array.from(children) // immutable when iterating
         for (let child of temp) {
-            if(child instanceof XdgSurface) {
+            if(child instanceof SurfaceWrapper) {
                 child.workspaceId = moveTo
             }
         }
     }
 
     function selectSurfaceToActivate() {
-        const nextIndex = surfacesModel.findIf( (data) => !data.item.waylandSurface.isMinimized )
+        const nextIndex = surfacesModel.findIf( (data) => !data.item.shellSurface.isMinimized )
         if (nextIndex >= 0)
-            Helper.activatedSurface = surfacesModel.get(nextIndex).item.waylandSurface
+            Helper.activatedSurface = surfacesModel.get(nextIndex).item.shellSurface
         else Helper.activatedSurface = null
     }
 }

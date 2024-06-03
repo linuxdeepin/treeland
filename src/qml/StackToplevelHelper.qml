@@ -18,6 +18,7 @@ Item {
     required property SurfaceItem surface
     required property ToplevelSurface waylandSurface
     required property DynamicCreatorComponent creator
+    required property SurfaceItemFactory surfaceWrapper
     property WindowDecoration decoration
     property var quickForeignToplevelManageMapper: waylandSurface.TreeLandForeignToplevelManagerV1
 
@@ -31,69 +32,20 @@ Item {
     property bool showNewAnimation: true
 
     // For Maximize
-    function getMaximizeX() {
-        return outputCoordMapper.x + Helper.getLeftExclusiveMargin(waylandSurface)
-    }
-    function getMaximizeY() {
-        return outputCoordMapper.y + Helper.getTopExclusiveMargin(waylandSurface)
-    }
-    function getMaximizeWidth() {
-        return outputCoordMapper.width - Helper.getLeftExclusiveMargin(waylandSurface) - Helper.getRightExclusiveMargin(waylandSurface)
-    }
-    function getMaximizeHeight() {
-        return outputCoordMapper.height - Helper.getTopExclusiveMargin(waylandSurface) - Helper.getBottomExclusiveMargin(waylandSurface)
-    }
+    property rect maximizeRect: outputCoordMapper ? Qt.rect(
+        outputCoordMapper.x + Helper.getLeftExclusiveMargin(waylandSurface),
+        outputCoordMapper.y + Helper.getTopExclusiveMargin(waylandSurface),
+        outputCoordMapper.width - Helper.getLeftExclusiveMargin(waylandSurface) - Helper.getRightExclusiveMargin(waylandSurface),
+        outputCoordMapper.height - Helper.getTopExclusiveMargin(waylandSurface) - Helper.getBottomExclusiveMargin(waylandSurface)
+    ) : Qt.rect(0,0,0,0)
 
     // For Fullscreen
-    function getFullscreenX() {
-        return outputCoordMapper.x
-    }
-    function getFullscreenY() {
-        return outputCoordMapper.y
-    }
-    function getFullscreenWidth() {
-        return outputCoordMapper.width
-    }
-    function getFullscreenHeight() {
-        return outputCoordMapper.height
-    }
-
-    Binding {
-        target: surface
-        property: "transitions"
-        restoreMode: Binding.RestoreNone
-        value: Transition {
-            id: stateTransition
-
-            NumberAnimation {
-                properties: "x,y,width,height"
-                duration: 100
-            }
-        }
-    }
-
-    Binding {
-        target: surface
-        property: "resizeMode"
-        value: {
-            if (!surface.effectiveVisible)
-                return SurfaceItem.ManualResize
-            if ( stateTransition.running
-                    || waylandSurface.isMaximized)
-                return SurfaceItem.SizeToSurface
-            return SurfaceItem.SizeFromSurface
-        }
-        restoreMode: Binding.RestoreNone
-    }
-    // if surface mapped when not visible, it will change mode to sizefromsurf
-    // but mode change is not applied if no resize event happens afterwards, so trigger resize here
-    Connections {
-        target: surface
-        function onResizeModeChanged() {
-            if (surface.resizeMode != SurfaceItem.ManualResize)
-                surface.resize(surface.resizeMode)
-        }
-    }
+    property rect fullscreenRect: outputCoordMapper ? Qt.rect(
+        outputCoordMapper.x,
+        outputCoordMapper.y,
+        outputCoordMapper.width,
+        outputCoordMapper.height
+    ) : Qt.rect(0,0,0,0)
 
     Loader {
         id: newAnimation
@@ -117,22 +69,7 @@ Item {
         CloseAnimation {
             onStopped: {
                 if (pendingDestroy)
-                    creator.destroyObject(surface)
-            }
-        }
-    }
-
-    Connections {
-        target: surface
-
-        function onEffectiveVisibleChanged() {
-            if (surface.effectiveVisible) {
-                console.assert(surface.resizeMode !== SurfaceItem.ManualResize,
-                               "The surface's resizeMode Shouldn't is ManualResize")
-                // Apply the WSurfaceItem's size to wl_surface
-                surface.resize(SurfaceItem.SizeToSurface)
-            } else {
-                Helper.cancelMoveResize(surface)
+                    creator.destroyObject(surfaceWrapper)
             }
         }
     }
@@ -200,7 +137,7 @@ Item {
         }
     }
 
-    function workspace() { return QmlHelper.workspaceManager.workspacesById.get(surface.workspaceId) }
+    function workspace() { return QmlHelper.workspaceManager.workspacesById.get(parent.workspaceId) }
 
     onMappedChanged: {
         console.log("onMappedChanged!", Helper.clientName(waylandSurface.surface))
@@ -223,8 +160,8 @@ Item {
                     newAnimation.item.start()
                 }
             }
-            workspace().surfaces.appendEnhanced({item: surface})
-            QmlHelper.workspaceManager.allSurfaces.append({item: surface})
+            workspace().surfaces.appendEnhanced({item: surface, wrapper: surfaceWrapper})
+            QmlHelper.workspaceManager.allSurfaces.append({item: surface, wrapper: surfaceWrapper})
         } else { // if not mapped
             if (!waylandSurface.WaylandSocket.rootSocket.enabled) {
                 surface.visible = false;
@@ -238,7 +175,7 @@ Item {
                     closeAnimation.item.start(surface)
                 }
             }
-            workspace().surfaces.removeIf((val) => val.item === surface)
+            workspace()?.surfaces.removeIf((val) => val.item === surface)
             QmlHelper.workspaceManager.allSurfaces.removeIf((val) => val.item === surface)
             if (Helper.activatedSurface === waylandSurface)
                 surface.parent.selectSurfaceToActivate()
@@ -252,7 +189,7 @@ Item {
         QmlHelper.workspaceManager.allSurfaces.removeIf((val) => val.item === surface)
 
         if (!surface.visible || !closeAnimation.active) {
-            creator.destroyObject(surface)
+            creator.destroyObject(surfaceWrapper)
             return
         }
 
@@ -262,7 +199,7 @@ Item {
         surface.transitions = null
 
         if (!showCloseAnimation) {
-            creator.destroyObject(surface)
+            creator.destroyObject(surfaceWrapper)
         }
     }
 
@@ -421,7 +358,7 @@ Item {
         function onParentChanged() {
             parentCached?.surfaces.removeIf((val) => val.item === surface)
             parentCached = target.parent
-            target.parent.surfaces.appendEnhanced({item: surface})
+            target.parent.surfaces.appendEnhanced({item: surface, wrapper: surfaceWrapper})
         }
     }
 }
