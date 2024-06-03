@@ -11,11 +11,6 @@ import TreeLand.Protocols.PersonalizationManager
 import TreeLand.Protocols.OutputManagement
 import TreeLand.Protocols.ShortcutManager
 import TreeLand.Utils
-import TreeLand.Protocols.ExtForeignToplevelList
-import TreeLand.Protocols.ForeignToplevelManager
-import TreeLand.Protocols.PersonalizationManager
-import TreeLand.Protocols.OutputManagement
-import TreeLand.Protocols.ShortcutManager
 
 FocusScope {
     id: root
