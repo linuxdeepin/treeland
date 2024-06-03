@@ -1,0 +1,178 @@
+// Copyright (C) 2023 JiDe Zhang <zccrs@live.com>.
+// SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
+
+import QtQuick
+import Waylib.Server
+import TreeLand
+import TreeLand.Utils
+
+SurfaceItemFactory {
+    id: root
+
+    required property ToplevelSurface waylandSurface
+    property string type
+
+    property var doDestroy: helper.doDestroy
+    property var cancelMinimize: helper.cancelMinimize
+    property var surfaceDecorationMapper: waylandSurface.XdgDecorationManager
+    property var personalizationMapper: waylandSurface.PersonalizationManager
+    property int outputCounter: 0
+    property alias toplevelSurfaceItem: root.surfaceItem
+    property alias decoration: decoration
+    readonly property XWaylandSurfaceItem asXwayland: {surfaceItem as XWaylandSurfaceItem}
+    readonly property XdgSurfaceItem asXdg: {surfaceItem as XdgSurfaceItem}
+    z: {
+        if (Helper.clientName(waylandSurface.surface) === "dde-desktop") {
+            return -100 + 1
+        }
+        else if (Helper.clientName(waylandSurface.surface) === "dde-launchpad") {
+            return 25
+        }
+        else {
+            return 0
+        }
+    }
+
+    function move(pos) {
+        isMoveResizing = true
+        surfaceItem.x = pos.x
+        surfaceItem.y = pos.y
+        isMoveResizing = false
+    }
+
+    required property int workspaceId
+    // put here, otherwise may initialize late
+    parent: QmlHelper.workspaceManager.workspacesById.get(workspaceId)
+
+    surfaceItem {
+        parent: root.parent
+        shellSurface: waylandSurface
+        topPadding: decoration.enable ? decoration.topMargin : 0
+        bottomPadding: decoration.enable ? decoration.bottomMargin : 0
+        leftPadding: decoration.enable ? decoration.leftMargin : 0
+        rightPadding: decoration.enable ? decoration.rightMargin : 0
+        focus: toplevelSurfaceItem.shellSurface === Helper.activatedSurface
+        resizeMode:
+            if (!surfaceItem.effectiveVisible)
+                SurfaceItem.ManualResize
+            else if (stateTransition.running
+                    || waylandSurface.isMaximized)
+                SurfaceItem.SizeToSurface
+            else
+                SurfaceItem.SizeFromSurface
+        onResizeModeChanged: {
+            // if surface mapped when not visible, it will change mode to sizefromsurf
+            // but mode change is not applied if no resize event happens afterwards, so trigger resize here
+            if (surfaceItem.resizeMode != SurfaceItem.ManualResize)
+                surfaceItem.resize(surfaceItem.resizeMode)
+        }
+        onEffectiveVisibleChanged: {
+            if (surfaceItem.effectiveVisible) {
+                console.assert(surfaceItem.resizeMode !== SurfaceItem.ManualResize,
+                               "The surface's resizeMode Shouldn't is ManualResize")
+                // Apply the WSurfaceItem's size to wl_surface
+                surfaceItem.resize(SurfaceItem.SizeToSurface)
+            } else {
+                Helper.cancelMoveResize(surfaceItem)
+            }
+        }
+        transitions: Transition {
+            id: stateTransition
+            NumberAnimation {
+                properties: "x,y,width,height"
+                duration: 100
+            }
+        }
+        states: [
+            State {
+                name: "maximize"
+                when: helper.isMaximize
+                PropertyChanges {
+                    restoreEntryValues: true
+                    target: toplevelSurfaceItem
+                    x: helper.maximizeRect.x
+                    y: helper.maximizeRect.y
+                    width: helper.maximizeRect.width
+                    height: helper.maximizeRect.height
+                }
+            },
+            State {
+                name: "fullscreen"
+                when: helper.isFullScreen
+                PropertyChanges {
+                    restoreEntryValues: true
+                    target: toplevelSurfaceItem
+                    x: helper.fullscreenRect.x
+                    y: helper.fullscreenRect.y
+                    z: Helper.clientName(waylandSurface.surface) == "dde-launchpad" ? 25 : 100 + 1 // LayerType.Overlay + 1
+                    width: helper.fullscreenRect.width
+                    height: helper.fullscreenRect.height
+                }
+            }
+        ]
+        data: []
+    }
+
+    OutputLayoutItem {
+        parent: surfaceItem
+        anchors.fill: parent
+        layout: QmlHelper.layout
+
+        onEnterOutput: function(output) {
+            if (waylandSurface.surface) {
+                waylandSurface.surface.enterOutput(output)
+            }
+            Helper.onSurfaceEnterOutput(waylandSurface, toplevelSurfaceItem, output)
+            outputCounter++
+
+            if (outputCounter == 1) {
+                const pos = QmlHelper.winposManager.nextPos(waylandSurface.appId, toplevelSurfaceItem.parent, toplevelSurfaceItem)
+                let outputDelegate = output.OutputItem.item
+                move(pos)
+
+                if (Helper.clientName(waylandSurface.surface) === "dde-desktop") {
+                    toplevelSurfaceItem.x = outputDelegate.x
+                    toplevelSurfaceItem.y = outputDelegate.y
+                    toplevelSurfaceItem.width = outputDelegate.width
+                    toplevelSurfaceItem.height = outputDelegate.height
+                }
+
+                if (Helper.clientName(waylandSurface.surface) === "dde-launchpad") {
+                    toplevelSurfaceItem.x = outputDelegate.x
+                    toplevelSurfaceItem.y = outputDelegate.y
+                }
+            }
+        }
+        onLeaveOutput: function(output) {
+            waylandSurface.surface.leaveOutput(output)
+            Helper.onSurfaceLeaveOutput(waylandSurface, toplevelSurfaceItem, output)
+            outputCounter--
+            
+            if (outputCounter == 0 && helper.mapped) {
+                console.log(`nextPos when output=0 ${waylandSurface} ${toplevelSurfaceItem}`)
+                const pos = QmlHelper.winposManager.nextPos(waylandSurface.appId, toplevelSurfaceItem.parent, toplevelSurfaceItem)
+                toplevelSurfaceItem.move(pos)
+            }
+        }
+    }
+
+    WindowDecoration {
+        id: decoration
+        parent: surfaceItem
+        anchors.fill: parent
+        z: SurfaceItem.ZOrder.ContentItem - 1
+        surface: toplevelSurfaceItem.shellSurface
+        moveable: !helper.isMaximize && !helper.isFullScreen
+    }
+
+    StackToplevelHelper {
+        id: helper
+        surface: surfaceItem
+        waylandSurface: toplevelSurfaceItem.shellSurface
+        creator: toplevelComponent
+        decoration: decoration
+        surfaceWrapper: root
+    }
+
+    property bool isMoveResizing: Helper.resizingItem == toplevelSurfaceItem || Helper.movingItem == toplevelSurfaceItem
+}
