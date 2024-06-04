@@ -9,5 +9,5 @@ XdgSurfaceItem {
     required property WaylandXdgSurface waylandSurface
     property string type
 
-    surface: waylandSurface
+    shellSurface: waylandSurface
 }

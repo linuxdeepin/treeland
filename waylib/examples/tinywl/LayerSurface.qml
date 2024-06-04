@@ -7,7 +7,7 @@ import QtQuick.Particles
 import Tinywl
 
 Item {
-    property alias waylandSurface: surfaceItem.surface
+    property alias waylandSurface: surfaceItem.shellSurface
     property alias surfaceItem: surfaceItem
     property bool anchorWidth: false
     property bool anchorHeight: false
@@ -19,7 +19,7 @@ Item {
     property bool pendingDestroy: false
 
     id: root
-    z: zValueFormLayer(waylandSurface.layer)
+    z: zValueFormLayer((waylandSurface as WaylandLayerSurface).layer)
 
     LayerSurfaceItem {
         anchors.centerIn: parent

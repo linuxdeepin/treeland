@@ -156,7 +156,7 @@ Item {
 
                         XdgSurfaceItem {
                             required property WaylandXdgSurface waylandSurface
-                            surface: waylandSurface
+                            shellSurface: waylandSurface
 
                             delegate: Rectangle {
                                 required property SurfaceItem surface
@@ -165,7 +165,7 @@ Item {
                                 color: "red"
 
                                 SurfaceItemContent {
-                                    surface: parent.surface.surface.surface
+                                    surface: parent.surface.shellSurface.surface
                                     anchors.fill: parent
                                 }
                             }

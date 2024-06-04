@@ -215,7 +215,7 @@ Item {
                 required property XWaylandSurface waylandSurface
                 property var doDestroy: helper.doDestroy
 
-                surface: waylandSurface
+                shellSurface: waylandSurface
                 resizeMode: SurfaceItem.SizeToSurface
                 // TODO: Support popup/menu
                 positionMode: xwaylandSurfaceItem.effectiveVisible ? XWaylandSurfaceItem.PositionToSurface : XWaylandSurfaceItem.ManualPosition
@@ -281,7 +281,7 @@ Item {
             required property WaylandInputPopupSurface popupSurface
 
             id: inputPopupSurface
-            surface: popupSurface
+            shellSurface: popupSurface
             helper: inputMethodHelper
         }
     }

@@ -18,6 +18,7 @@ Item {
     readonly property real bottomMargin: 0
     readonly property real leftMargin: 0
     readonly property real rightMargin: 0
+    required property ToplevelSurface surface
 
     MouseArea {
         property int edges: 0

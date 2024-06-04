@@ -98,6 +98,7 @@ Item {
                 anchors.fill: parent
                 z: SurfaceItem.ZOrder.ContentItem - 1
                 visible: enable
+                surface: waylandSurface
             }
 
             OutputLayoutItem {
@@ -285,7 +286,7 @@ Item {
             property var surfaceParent: root.getSurfaceItemFromWaylandSurface(waylandSurface.parentXWaylandSurface)
             property int outputCounter: 0
 
-            surface: waylandSurface
+            shellSurface: waylandSurface
             parentSurfaceItem: surfaceParent ? surfaceParent.item : null
             z: waylandSurface.bypassManager ? 1 : 0 // TODO: make to enum type
             positionMode: {
@@ -327,6 +328,7 @@ Item {
                 anchors.fill: parent
                 z: SurfaceItem.ZOrder.ContentItem - 1
                 visible: enable
+                surface: waylandSurface
             }
 
             OutputLayoutItem {
@@ -413,7 +415,7 @@ Item {
             required property WaylandInputPopupSurface popupSurface
 
             id: inputPopupSurface
-            surface: popupSurface
+            shellSurface: popupSurface
             helper: inputMethodHelper
         }
     }
