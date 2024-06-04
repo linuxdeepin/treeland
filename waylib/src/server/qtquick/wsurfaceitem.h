@@ -5,6 +5,7 @@
 
 #include <wglobal.h>
 #include <WSurface>
+#include <wtoplevelsurface.h>
 
 #include <QQuickItem>
 
@@ -64,6 +65,7 @@ class WAYLIB_SERVER_EXPORT WSurfaceItem : public QQuickItem
     Q_OBJECT
     Q_DECLARE_PRIVATE(WSurfaceItem)
     Q_PROPERTY(WSurface* surface READ surface WRITE setSurface NOTIFY surfaceChanged)
+    Q_PROPERTY(WToplevelSurface* shellSurface READ shellSurface WRITE setShellSurface NOTIFY shellSurfaceChanged)
     Q_PROPERTY(QQuickItem* contentItem READ contentItem NOTIFY contentItemChanged)
     Q_PROPERTY(QQuickItem* eventItem READ eventItem NOTIFY eventItemChanged)
     Q_PROPERTY(ResizeMode resizeMode READ resizeMode WRITE setResizeMode NOTIFY resizeModeChanged FINAL)
@@ -112,6 +114,9 @@ public:
 
     WSurface *surface() const;
     void setSurface(WSurface *newSurface);
+
+    WToplevelSurface *shellSurface() const;
+    virtual bool setShellSurface(WToplevelSurface *surface);
 
     QQuickItem *contentItem() const;
     QQuickItem *eventItem() const;
@@ -164,6 +169,7 @@ Q_SIGNALS:
     void bufferScaleChanged();
     void contentItemChanged();
     void delegateChanged();
+    void shellSurfaceChanged();
 
 protected:
     void componentComplete() override;

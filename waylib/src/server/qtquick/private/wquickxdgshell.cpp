@@ -96,22 +96,6 @@ WXdgSurfaceItem::~WXdgSurfaceItem()
 
 }
 
-WXdgSurface *WXdgSurfaceItem::surface() const
-{
-    return m_surface;
-}
-
-void WXdgSurfaceItem::setSurface(WXdgSurface *surface)
-{
-    if (m_surface == surface)
-        return;
-
-    m_surface = surface;
-    WSurfaceItem::setSurface(surface ? surface->surface() : nullptr);
-
-    Q_EMIT surfaceChanged();
-}
-
 QPointF WXdgSurfaceItem::implicitPosition() const
 {
     return m_implicitPosition;
@@ -134,10 +118,10 @@ inline static int32_t getValidSize(int32_t size, int32_t fallback) {
 void WXdgSurfaceItem::onSurfaceCommit()
 {
     WSurfaceItem::onSurfaceCommit();
-    if (auto popup = m_surface->handle()->toPopup()) {
+    if (auto popup = xdgSurface()->handle()->toPopup()) {
         Q_UNUSED(popup);
-        setImplicitPosition(m_surface->getPopupPosition());
-    } else if (auto toplevel = m_surface->handle()->topToplevel()) {
+        setImplicitPosition(xdgSurface()->getPopupPosition());
+    } else if (auto toplevel = xdgSurface()->handle()->topToplevel()) {
         const QSize minSize(getValidSize(toplevel->handle()->current.min_width, 0),
                             getValidSize(toplevel->handle()->current.min_height, 0));
         const QSize maxSize(getValidSize(toplevel->handle()->current.max_width, INT_MAX),
@@ -158,22 +142,22 @@ void WXdgSurfaceItem::onSurfaceCommit()
 void WXdgSurfaceItem::initSurface()
 {
     WSurfaceItem::initSurface();
-    Q_ASSERT(m_surface);
-    connect(m_surface, &WWrapObject::aboutToBeInvalidated,
+    Q_ASSERT(xdgSurface());
+    connect(xdgSurface(), &WWrapObject::aboutToBeInvalidated,
             this, &WXdgSurfaceItem::releaseResources);
 }
 
 bool WXdgSurfaceItem::resizeSurface(const QSize &newSize)
 {
-    if (!m_surface->checkNewSize(newSize))
+    if (!xdgSurface()->checkNewSize(newSize))
         return false;
-    m_surface->resize(newSize);
+    xdgSurface()->resize(newSize);
     return true;
 }
 
 QRectF WXdgSurfaceItem::getContentGeometry() const
 {
-    return m_surface->getContentGeometry();
+    return xdgSurface()->getContentGeometry();
 }
 
 void WXdgSurfaceItem::setImplicitPosition(const QPointF &newImplicitPosition)

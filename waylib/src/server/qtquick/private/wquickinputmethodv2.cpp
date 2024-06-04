@@ -314,22 +314,7 @@ bool WInputPopupV2::checkNewSize(const QSize &size)
 
 WInputPopupV2Item::WInputPopupV2Item(QQuickItem *parent)
     : WSurfaceItem(parent)
-    , m_inputPopupSurface(nullptr)
 { }
-
-WInputPopupV2 *WInputPopupV2Item::surface() const
-{
-    return m_inputPopupSurface;
-}
-
-void WInputPopupV2Item::setSurface(WInputPopupV2 *surface)
-{
-    if (m_inputPopupSurface == surface)
-        return;
-    m_inputPopupSurface = surface;
-    WSurfaceItem::setSurface(surface ? surface->surface() : nullptr);
-    Q_EMIT this->surfaceChanged();
-}
 
 QString WQuickInputMethodV2::commitString() const
 {

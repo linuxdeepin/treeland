@@ -106,7 +106,6 @@ class WQuickObserver;
 class WAYLIB_SERVER_EXPORT WXWaylandSurfaceItem : public WSurfaceItem
 {
     Q_OBJECT
-    Q_PROPERTY(WXWaylandSurface* surface READ surface WRITE setSurface NOTIFY surfaceChanged)
     Q_PROPERTY(WXWaylandSurfaceItem* parentSurfaceItem READ parentSurfaceItem WRITE setParentSurfaceItem NOTIFY parentSurfaceItemChanged FINAL)
     Q_PROPERTY(QSize minimumSize READ minimumSize NOTIFY minimumSizeChanged FINAL)
     Q_PROPERTY(QSize maximumSize READ maximumSize NOTIFY maximumSizeChanged FINAL)
@@ -126,8 +125,8 @@ public:
     explicit WXWaylandSurfaceItem(QQuickItem *parent = nullptr);
     ~WXWaylandSurfaceItem();
 
-    WXWaylandSurface *surface() const;
-    void setSurface(WXWaylandSurface *surface);
+    inline WXWaylandSurface* xwaylandSurface() const { return qobject_cast<WXWaylandSurface*>(shellSurface()); }
+    bool setShellSurface(WToplevelSurface *surface) override;
 
     WXWaylandSurfaceItem *parentSurfaceItem() const;
     void setParentSurfaceItem(WXWaylandSurfaceItem *newParentSurfaceItem);
@@ -147,7 +146,6 @@ public:
     void setIgnoreConfigureRequest(bool newIgnoreConfigureRequest);
 
 Q_SIGNALS:
-    void surfaceChanged();
     void parentSurfaceItemChanged();
     void minimumSizeChanged();
     void maximumSizeChanged();
@@ -163,7 +161,7 @@ private:
     void geometryChange(const QRectF &newGeometry, const QRectF &oldGeometry) override;
 
     inline void checkMove(PositionMode mode) {
-        if (!m_surface || mode == ManualPosition || !isVisible())
+        if (!xwaylandSurface() || mode == ManualPosition || !isVisible())
             return;
         doMove(mode);
     }
@@ -176,7 +174,6 @@ private:
     QSize expectSurfaceSize(ResizeMode mode) const;
 
 private:
-    QPointer<WXWaylandSurface> m_surface;
     QPointer<WXWaylandSurfaceItem> m_parentSurfaceItem;
     QSize m_minimumSize;
     QSize m_maximumSize;

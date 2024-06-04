@@ -258,28 +258,15 @@ WXWaylandSurfaceItem::~WXWaylandSurfaceItem()
 
 }
 
-WXWaylandSurface *WXWaylandSurfaceItem::surface() const
+bool WXWaylandSurfaceItem::setShellSurface(WToplevelSurface *surface)
 {
-    return m_surface;
-}
-
-void WXWaylandSurfaceItem::setSurface(WXWaylandSurface *surface)
-{
-    if (m_surface == surface)
-        return;
-
-    if (m_surface) {
-        bool ok = m_surface->safeDisconnect(this);
-        Q_ASSERT(ok);
-    }
-
-    m_surface = surface;
+    if (!WSurfaceItem::setShellSurface(surface))
+        return false;
 
     if (surface) {
         Q_ASSERT(surface->surface());
-        WSurfaceItem::setSurface(surface->surface());
         surface->safeConnect(&WXWaylandSurface::surfaceChanged, this, [this] {
-            WSurfaceItem::setSurface(m_surface->surface());
+            WSurfaceItem::setSurface(xwaylandSurface()->surface());
         });
 
         auto updateGeometry = [this] {
@@ -299,7 +286,7 @@ void WXWaylandSurfaceItem::setSurface(WXWaylandSurface *surface)
             }
         };
 
-        surface->safeConnect(&WXWaylandSurface::requestConfigure,
+        xwaylandSurface()->safeConnect(&WXWaylandSurface::requestConfigure,
                 this, [updateGeometry, this] {
             if (m_ignoreConfigureRequest)
                 return;
@@ -308,7 +295,7 @@ void WXWaylandSurfaceItem::setSurface(WXWaylandSurface *surface)
             configureSurface(geometry);
             updateGeometry();
         });
-        surface->safeConnect(&WXWaylandSurface::geometryChanged, this, updateGeometry);
+        xwaylandSurface()->safeConnect(&WXWaylandSurface::geometryChanged, this, updateGeometry);
         connect(this, &WXWaylandSurfaceItem::topPaddingChanged,
                 this, &WXWaylandSurfaceItem::updatePosition, Qt::UniqueConnection);
         connect(this, &WXWaylandSurfaceItem::leftPaddingChanged,
@@ -317,11 +304,8 @@ void WXWaylandSurfaceItem::setSurface(WXWaylandSurface *surface)
         // This behovior can control by compositor using PositionMode::ManualPosition
         connect(this, &WXWaylandSurfaceItem::effectiveVisibleChanged,
                 this, &WXWaylandSurfaceItem::updatePosition, Qt::UniqueConnection);
-    } else {
-        WSurfaceItem::setSurface(nullptr);
     }
-
-    Q_EMIT surfaceChanged();
+    return true;
 }
 
 WXWaylandSurfaceItem *WXWaylandSurfaceItem::parentSurfaceItem() const
@@ -413,11 +397,11 @@ void WXWaylandSurfaceItem::onSurfaceCommit()
 {
     WSurfaceItem::onSurfaceCommit();
 
-    QSize minSize = m_surface->minSize();
+    QSize minSize = xwaylandSurface()->minSize();
     if (!minSize.isValid())
         minSize = QSize(0, 0);
 
-    QSize maxSize = m_surface->maxSize();
+    QSize maxSize = xwaylandSurface()->maxSize();
     if (maxSize.isValid())
         maxSize = QSize(INT_MAX, INT_MAX);
 
@@ -435,15 +419,15 @@ void WXWaylandSurfaceItem::onSurfaceCommit()
 void WXWaylandSurfaceItem::initSurface()
 {
     WSurfaceItem::initSurface();
-    Q_ASSERT(m_surface);
-    connect(m_surface, &WWrapObject::aboutToBeInvalidated,
+    Q_ASSERT(xwaylandSurface());
+    connect(xwaylandSurface(), &WWrapObject::aboutToBeInvalidated,
             this, &WXWaylandSurfaceItem::releaseResources);
     updatePosition();
 }
 
 bool WXWaylandSurfaceItem::resizeSurface(const QSize &newSize)
 {
-    if (!m_surface->checkNewSize(newSize))
+    if (!xwaylandSurface()->checkNewSize(newSize))
         return false;
 
     configureSurface(QRect(expectSurfacePosition(m_positionMode), newSize));
@@ -452,7 +436,7 @@ bool WXWaylandSurfaceItem::resizeSurface(const QSize &newSize)
 
 QRectF WXWaylandSurfaceItem::getContentGeometry() const
 {
-    return m_surface->getContentGeometry();
+    return xwaylandSurface()->getContentGeometry();
 }
 
 QSizeF WXWaylandSurfaceItem::getContentSize() const
@@ -465,7 +449,7 @@ void WXWaylandSurfaceItem::geometryChange(const QRectF &newGeometry, const QRect
     WSurfaceItem::geometryChange(newGeometry, oldGeometry);
 
     if (newGeometry.topLeft() != oldGeometry.topLeft()
-        && m_positionMode == PositionToSurface && m_surface) {
+        && m_positionMode == PositionToSurface && xwaylandSurface()) {
         configureSurface(QRect(expectSurfacePosition(m_positionMode),
                                expectSurfaceSize(resizeMode())));
     }
@@ -502,19 +486,19 @@ void WXWaylandSurfaceItem::configureSurface(const QRect &newGeometry)
 {
     if (!isVisible())
         return;
-    m_surface->configure(newGeometry);
+    xwaylandSurface()->configure(newGeometry);
     updateSurfaceState();
 }
 
 QPoint WXWaylandSurfaceItem::expectSurfacePosition(PositionMode mode) const
 {
     if (mode == PositionFromSurface) {
-        const bool useRequestPositon = !m_surface->isBypassManager()
-                                       && m_surface->requestConfigureFlags()
+        const bool useRequestPositon = !xwaylandSurface()->isBypassManager()
+                                       && xwaylandSurface()->requestConfigureFlags()
                                               .testAnyFlags(WXWaylandSurface::XCB_CONFIG_WINDOW_POSITION);
         return useRequestPositon
-                   ? m_surface->requestConfigureGeometry().topLeft()
-                   : m_surface->geometry().topLeft();
+                   ? xwaylandSurface()->requestConfigureGeometry().topLeft()
+                   : xwaylandSurface()->geometry().topLeft();
     } else if (mode == PositionToSurface) {
         QPointF pos = position();
         const qreal ssr = m_parentSurfaceItem ? m_parentSurfaceItem->surfaceSizeRatio() : 1.0;
@@ -528,23 +512,23 @@ QPoint WXWaylandSurfaceItem::expectSurfacePosition(PositionMode mode) const
         return (pos + m_positionOffset + QPointF(leftPadding(), topPadding())).toPoint();
     }
 
-    return m_surface->geometry().topLeft();
+    return xwaylandSurface()->geometry().topLeft();
 }
 
 QSize WXWaylandSurfaceItem::expectSurfaceSize(ResizeMode mode) const
 {
     if (mode == SizeFromSurface) {
-        const bool useRequestSize = !m_surface->isBypassManager()
-                                    && m_surface->requestConfigureFlags()
+        const bool useRequestSize = !xwaylandSurface()->isBypassManager()
+                                    && xwaylandSurface()->requestConfigureFlags()
                                            .testAnyFlags(WXWaylandSurface::XCB_CONFIG_WINDOW_SIZE);
         return useRequestSize
-                   ? m_surface->requestConfigureGeometry().size()
-                   : m_surface->geometry().size();
+                   ? xwaylandSurface()->requestConfigureGeometry().size()
+                   : xwaylandSurface()->geometry().size();
     } else if (mode == SizeToSurface) {
         return WXWaylandSurfaceItem::getContentSize().toSize();
     }
 
-    return m_surface->geometry().size();
+    return xwaylandSurface()->geometry().size();
 }
 
 WAYLIB_SERVER_END_NAMESPACE

@@ -93,20 +93,10 @@ protected:
 class WInputPopupV2Item : public WSurfaceItem
 {
     Q_OBJECT
-    Q_PROPERTY(WInputPopupV2* surface READ surface WRITE setSurface NOTIFY surfaceChanged FINAL REQUIRED)
     QML_NAMED_ELEMENT(InputPopupSurfaceItem)
 
 public:
     explicit WInputPopupV2Item(QQuickItem *parent = nullptr);
-
-    WInputPopupV2 *surface() const;
-    void setSurface(WInputPopupV2 *surface);
-
-Q_SIGNALS:
-    void surfaceChanged();
-
-private:
-    WInputPopupV2 *m_inputPopupSurface;
 };
 
 class WQuickInputMethodKeyboardGrabV2 : public QObject, public WObject
