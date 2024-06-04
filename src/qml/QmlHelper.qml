@@ -155,10 +155,12 @@ Item {
     QtObject {
         id: winposManager
         readonly property string spawnPolicy: "Line"
+        readonly property bool ignoreGeneration: true
         property var __: QtObject {
             id: priv
             property var seq: new Map()
-            property string prevSpawn: ""
+            property var spawn: ["",null]
+            property var prevSpawn
         }
         function nextPos(iden, target, surfaceItem) {
             class Gen{
@@ -174,9 +176,14 @@ Item {
                 constructor(k, dy, ...args) {
                     super(...args)
                     this.k = k
-                    this.x = this.pos.x
+                    let startPos = Qt.point(
+                        Math.min(this.pos.x, this.region.width),
+                        Math.min(this.pos.y, this.region.height)
+                    )
+                    this.x = startPos.x
                     this.dy = dy // y-offset each tick, x-offset inferred by screen w/h ratio
-                    this.b = this.pos.y - k * this.pos.x
+                    this.b = startPos.y - k * this.pos.x
+                    this.next = startPos
                 }
                 gen() {
                     this.cnt++
@@ -185,15 +192,16 @@ Item {
                     if (nx > this.region.width || ny > this.region.height) { // exceed right/bottom
                         this.b -= this.dy
                         if (this.k * this.region.width + this.b < 0)
-                            while (this.b + this.region.height < this.region.height)
-                                this.b += this.region.height
+                            this.b = (this.b % this.region.height + this.region.height) % this.region.height
                         if (this.b < 0) // start from top-edge
                             ny = 0, nx = -this.b / this.k
                         else    // start from left-edge
                             nx = 0, ny = this.b
                     }
                     this.x = nx
-                    return Qt.point(nx, ny)
+                    let res = this.next
+                    this.next = Qt.point(nx, ny)
+                    return this.next
                 }
             }
             // start from center, scatter to coners
@@ -231,24 +239,26 @@ Item {
             const sw = surfaceItem.width
             const sh = surfaceItem.height
             const dy = outputDelegate.height / 40
-            const contW = w - sw
-            const contH = h - sh
+            const contW = Math.max(w - sw, 1) // spawned win may exceed screen size, ensure has region
+            const contH = Math.max(h - sh, 1)
+            const [prevIden, prevItem] = priv.prevSpawn
+            const initialPos = prevIden === iden ? Qt.point(prevItem.x, prevItem.y) : cursor.position
 
             const baseArgs = [
-                cursor.position, // first spawned win's position for LineGen
+                initialPos, // first spawned win's position for LineGen
                 Qt.rect(0, 0, contW, contH), // region to ensure spawned win wholely in screen
                 Qt.rect(0, 0, w, h) // output rect
             ]
             // restart seq if: active output changed or spawning app changed
-            if (!(priv.seq.has(iden) && priv.seq.get(iden).output == outputDelegate && priv.prevSpawn == iden ))
-                priv.seq.set(iden, {cnt: -1, output: outputDelegate, pos: cursor.position,
+            if (!(priv.seq.has(iden) && priv.seq.get(iden).output == outputDelegate && prevIden == iden )
+                || ignoreGeneration) // ignore whether last activated window belongs to same spawing seq
+                priv.seq.set(iden, {cnt: -1, output: outputDelegate, pos: initialPos,
                     gen:
                         winposManager.spawnPolicy === "Line"
                         ? new LineGen(9/16, dy, ...baseArgs)
                         : new CornerGen(sw, sh, 5, ...baseArgs)
                 })
 
-            priv.prevSpawn = iden
             const cur = priv.seq.get(iden)
             cur.cnt++
             cur.gen.region = Qt.rect(0, 0, contW, contH)
@@ -256,6 +266,11 @@ Item {
             console.debug(`New window nextPos iden=${iden} pos=${rt} ( cnt=${cur.cnt} initialPos=${cur.pos} geo=${cur.gen.region}, ${cur.gen.outputRegion} )`)
 
             return outputDelegate.mapToItem(target, rt)
+        }
+        // process non-spawn events
+        function updateSeq(iden, item) {
+            priv.prevSpawn = priv.spawn
+            priv.spawn = [iden, item]
         }
     }
 }
