@@ -85,6 +85,7 @@ FocusScope {
     onActivatedSurfaceItemChanged: {
         if (activatedSurfaceItem?.parent?.workspaceRelativeId !== undefined)
             currentWorkspaceId = activatedSurfaceItem.parent.workspaceRelativeId
+        QmlHelper.winposManager.updateSeq(Helper.activatedSurface.appId, activatedSurfaceItem)
     }
 
     // activated surface driven by workspace change
