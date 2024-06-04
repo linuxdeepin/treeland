@@ -208,6 +208,9 @@ public:
         : WObjectPrivate(qq)
         , renderer(renderer)
     {}
+    ~WRenderHelperPrivate() {
+        resetRenderBuffer();
+    }
 
     void resetRenderBuffer();
     void onBufferDestroy();
