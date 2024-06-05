@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<protocol name="treeland_geometry_selection_v1">
+  <description summary="protocol for selecting screen geometry">
+    This protocol allows authorized application select geometry on the screen for
+    later use. For example, to capture a part of screen or a window.
+  </description>
+
+  <interface name="treeland_geometry_selection_v1" version="1">
+    <enum name="selection_type">
+      <entry name="window" value="0" summary="select window geometry"/>
+      <entry name="free_selection" value="1" summary="free selection"/>
+      <entry name="single_point" value="2" summary="pick single point"/>
+    </enum>
+
+    <request name="start">
+      <description summary="start select geometry">
+        Start select geometry.
+      </description>
+      <arg name="type" type="uint" enum="selection_type"/>
+      <arg name="block" type="uint" summary="block output or not."/>
+    </request>
+
+    <request name="destroy" type="destructor">
+      <description summary="destroy geometry selection handle">
+        This request will stop blocking output and destroy geometry selection handle.
+      </description>
+    </request>
+
+    <event name="geometry">
+      <description summary="geometry is selected">
+        Geometry is selected.
+      </description>
+      <arg name="x" type="int"/>
+      <arg name="y" type="int"/>
+      <arg name="width" type="uint"/>
+      <arg name="height" type="uint"/>
+    </event>
+  </interface>
+
+  <interface name="treeland_geometry_selection_manager_v1" version="1">
+    <description summary="geometry selection manager">
+      The geometry selection manager allows client to create a geometry selection session.
+    </description>
+
+    <request name="create_geometry_selection">
+      <description summary="request an geometry selection object">
+        Request a new geometry selection.
+      </description>
+      <arg name="geometry_selection" type="new_id" interface="treeland_geometry_selection_v1"/>
+    </request>
+
+    <request name="destroy" type="destructor">
+      <description summary="destroy the geometry selection manager">
+        Destroys the geometry selection object.
+        The treeland_geometry_selection_v1 objects originating from it becomes invalid.
+      </description>
+    </request>
+  </interface>
+</protocol>
