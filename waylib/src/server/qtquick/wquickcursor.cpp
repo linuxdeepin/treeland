@@ -163,7 +163,10 @@ void WQuickCursorPrivate::onRenderWindowRemoved(WOutputRenderWindow *window)
 
 void WQuickCursorPrivate::updateXCursorManager()
 {
-    if (xcursor_manager) delete xcursor_manager;
+    if (xcursor_manager) {
+        delete xcursor_manager;
+        xcursor_manager = nullptr;
+    }
     const char *cursor_theme = xcursorThemeName.isEmpty() ? nullptr : qPrintable(xcursorThemeName);
     auto xm = QWXCursorManager::create(cursor_theme, getCursorSize());
     q_func()->setXCursorManager(xm);
