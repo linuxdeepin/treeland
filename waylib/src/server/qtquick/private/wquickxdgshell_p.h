@@ -57,7 +57,6 @@ public:
     QPointF implicitPosition() const;
     QSize minimumSize() const;
     QSize maximumSize() const;
-    bool resizeSurface(const QSize &newSize) override;
 
 Q_SIGNALS:
     void implicitPositionChanged();

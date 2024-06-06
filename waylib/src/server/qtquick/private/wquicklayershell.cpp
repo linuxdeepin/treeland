@@ -119,15 +119,6 @@ void WLayerSurfaceItem::initSurface()
             this, &WLayerSurfaceItem::releaseResources);
 }
 
-bool WLayerSurfaceItem::resizeSurface(const QSize &newSize)
-{
-    if (!layerSurface()->checkNewSize(newSize))
-       return false;
-    layerSurface()->configureSize(newSize);
-
-    return true;
-}
-
 QRectF WLayerSurfaceItem::getContentGeometry() const
 {
    return layerSurface()->getContentGeometry();

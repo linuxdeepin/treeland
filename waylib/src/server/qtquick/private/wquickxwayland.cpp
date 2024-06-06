@@ -425,11 +425,8 @@ void WXWaylandSurfaceItem::initSurface()
     updatePosition();
 }
 
-bool WXWaylandSurfaceItem::resizeSurface(const QSize &newSize)
+bool WXWaylandSurfaceItem::doResizeSurface(const QSize &newSize)
 {
-    if (!xwaylandSurface()->checkNewSize(newSize))
-        return false;
-
     configureSurface(QRect(expectSurfacePosition(m_positionMode), newSize));
     return true;
 }

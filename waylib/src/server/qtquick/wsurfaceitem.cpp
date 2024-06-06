@@ -78,6 +78,7 @@ public:
 
     void resizeSurfaceToItemSize(const QSize &itemSize, const QSize &sizeDiff);
     void updateEventItem(bool forceDestroy);
+    void updateEventItemGeometry();
     void doResize(WSurfaceItem::ResizeMode mode);
 
     inline QSizeF paddingsSize() const {
@@ -924,6 +925,14 @@ bool WSurfaceItem::sendEvent(QInputEvent *event)
     return WSeat::sendEvent(d->surface.get(), this, d->eventItem, event);
 }
 
+bool WSurfaceItem::doResizeSurface(const QSize &newSize)
+{
+    Q_D(WSurfaceItem);
+    Q_ASSERT(d->shellSurface);
+    d->shellSurface->resize(newSize);
+    return true;
+}
+
 void WSurfaceItem::onSurfaceCommit()
 {
     Q_D(WSurfaceItem);
@@ -951,10 +960,17 @@ void WSurfaceItem::onSurfaceCommit()
     d->updateSubsurfaceItem();
 }
 
-bool WSurfaceItem::resizeSurface(const QSize &newSize)
+bool WSurfaceItem::resizeSurface(const QSizeF &newSize)
 {
-    Q_UNUSED(newSize);
-    return false;
+    Q_D(const WSurfaceItem);
+    if (!d->shellSurface || !d->contentContainer)
+        return false;
+    const QRectF tmp(0, 0, newSize.width(), newSize.height());
+    // See surfaceSizeRatio, the content item maybe has been scaled.
+    const QSize mappedSize = d->contentContainer->mapRectFromItem(this, tmp).size().toSize();
+    if (!d->shellSurface->checkNewSize(mappedSize))
+        return false;
+    return doResizeSurface(mappedSize);
 }
 
 QRectF WSurfaceItem::getContentGeometry() const
@@ -988,6 +1004,10 @@ void WSurfaceItem::surfaceSizeRatioChange()
 
     if (d->surfaceState) {
         d->updateContentPosition();
+    }
+
+    if (d->eventItem) {
+        d->updateEventItemGeometry();
     }
 
     if (d->surface) {
@@ -1105,10 +1125,9 @@ void WSurfaceItemPrivate::initForDelegate()
         contentContainer->deleteLater();
     }
     contentContainer = newContentContainer;
-
-    if (eventItem) {
-        QQuickItemPrivate::get(eventItem)->anchors()->setFill(contentContainer);
-    }
+    updateEventItem(false);
+    if (eventItem)
+        updateEventItemGeometry();
 
     Q_EMIT q->contentItemChanged();
 }
@@ -1241,7 +1260,9 @@ void WSurfaceItemPrivate::resizeSurfaceToItemSize(const QSize &itemSize, const Q
 
 void WSurfaceItemPrivate::updateEventItem(bool forceDestroy)
 {
-    const bool needsEventItem = !forceDestroy && !surfaceFlags.testFlag(WSurfaceItem::RejectEvent);
+    auto contentItem = getItemContent();
+    const bool needsEventItem = contentItem && !forceDestroy
+                                && !surfaceFlags.testFlag(WSurfaceItem::RejectEvent);
     if (bool(eventItem) == needsEventItem)
         return;
 
@@ -1256,10 +1277,19 @@ void WSurfaceItemPrivate::updateEventItem(bool forceDestroy)
     } else {
         eventItem = new EventItem(q_func());
         eventItem->setZ(qreal(WSurfaceItem::ZOrder::EventItem));
-        QQuickItemPrivate::get(eventItem)->anchors()->setFill(contentContainer);
+        updateEventItemGeometry();
     }
 
     Q_EMIT q_func()->eventItemChanged();
+}
+
+void WSurfaceItemPrivate::updateEventItemGeometry()
+{
+    Q_ASSERT(eventItem);
+    Q_ASSERT(contentContainer);
+    QQuickItemPrivate::get(eventItem)->anchors()->setFill(contentContainer);
+    eventItem->setTransformOrigin(contentContainer->transformOrigin());
+    eventItem->setScale(contentContainer->scale());
 }
 
 void WSurfaceItemPrivate::doResize(WSurfaceItem::ResizeMode mode)

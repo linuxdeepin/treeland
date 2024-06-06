@@ -147,14 +147,6 @@ void WXdgSurfaceItem::initSurface()
             this, &WXdgSurfaceItem::releaseResources);
 }
 
-bool WXdgSurfaceItem::resizeSurface(const QSize &newSize)
-{
-    if (!xdgSurface()->checkNewSize(newSize))
-        return false;
-    xdgSurface()->resize(newSize);
-    return true;
-}
-
 QRectF WXdgSurfaceItem::getContentGeometry() const
 {
     return xdgSurface()->getContentGeometry();

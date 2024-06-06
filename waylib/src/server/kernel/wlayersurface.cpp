@@ -346,6 +346,11 @@ int WLayerSurface::keyboardFocusPriority() const
     return 0;
 }
 
+void WLayerSurface::resize(const QSize &size)
+{
+    configureSize(size);
+}
+
 QSize WLayerSurface::desiredSize() const
 {
     W_DC(WLayerSurface);

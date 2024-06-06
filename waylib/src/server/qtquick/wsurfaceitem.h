@@ -151,7 +151,7 @@ public:
     void setDelegate(QQmlComponent *newDelegate);
     
     // resize internal surface, should be in SizeFromSurface mode
-    virtual bool resizeSurface(const QSize &newSize);
+    bool resizeSurface(const QSizeF &newSize);
 
 Q_SIGNALS:
     void surfaceChanged();
@@ -182,6 +182,7 @@ protected:
     virtual void initSurface();
     virtual bool sendEvent(QInputEvent *event);
 
+    virtual bool doResizeSurface(const QSize &newSize);
     virtual QRectF getContentGeometry() const;
     virtual QSizeF getContentSize() const;
     virtual bool inputRegionContains(const QPointF &position) const;

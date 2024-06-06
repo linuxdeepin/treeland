@@ -40,7 +40,6 @@ public:
     ~WLayerSurfaceItem();
 
     inline WLayerSurface* layerSurface() const { return qobject_cast<WLayerSurface*>(shellSurface()); }
-    bool resizeSurface(const QSize &newSize) override;
 
 private:
     Q_SLOT void onSurfaceCommit() override;
