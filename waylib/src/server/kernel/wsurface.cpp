@@ -188,7 +188,7 @@ WSurface *WSurfacePrivate::ensureSubsurface(wlr_subsurface *subsurface)
 
     auto qwsurface = QWSurface::from(subsurface->surface);
     auto surface = new WSurface(qwsurface, q_func());
-    surface->safeConnect(&QWSurface::beforeDestroy, surface, &WSurface::safeDeleteLater);
+    QObject::connect(surface->handle(), &QWSurface::beforeDestroy, surface, &WSurface::safeDeleteLater);
 
     return surface;
 }
