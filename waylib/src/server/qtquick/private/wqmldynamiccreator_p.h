@@ -6,6 +6,7 @@
 #include <wglobal.h>
 #include <QList>
 #include <QQmlComponent>
+#include <QQmlContext>
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
@@ -74,6 +75,7 @@ class WAYLIB_SERVER_EXPORT WQmlCreatorComponent : public WAbstractCreatorCompone
     Q_PROPERTY(QObject* parent READ parent WRITE setParent NOTIFY parentChanged FINAL)
     Q_PROPERTY(QString chooserRole READ chooserRole WRITE setChooserRole NOTIFY chooserRoleChanged FINAL)
     Q_PROPERTY(QVariant chooserRoleValue READ chooserRoleValue WRITE setChooserRoleValue NOTIFY chooserRoleValueChanged FINAL)
+    Q_PROPERTY(QVariantMap contextProperties WRITE setContextProperties FINAL)
     Q_PROPERTY(bool autoDestroy READ autoDestroy WRITE setAutoDestroy NOTIFY autoDestroyChanged FINAL)
     QML_NAMED_ELEMENT(DynamicCreatorComponent)
     Q_CLASSINFO("DefaultProperty", "delegate")
@@ -92,6 +94,8 @@ public:
 
     QVariant chooserRoleValue() const;
     void setChooserRoleValue(QVariant newChooserRoleValue);
+
+    void setContextProperties(const QVariantMap &properties);
 
     bool autoDestroy() const;
     void setAutoDestroy(bool newAutoDestroy);
@@ -129,6 +133,7 @@ private:
     QString m_chooserRole;
     QVariant m_chooserRoleValue;
     bool m_autoDestroy = true;
+    QList<QQmlContext::PropertyPair> m_contextProperties;
 
     QList<QSharedPointer<WQmlCreatorDelegateData>> m_datas;
 };

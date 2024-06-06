@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "wqmldynamiccreator_p.h"
+#include "wxdgsurface.h"
 
 #include <QJSValue>
 #include <QQuickItem>
@@ -226,7 +227,10 @@ void WQmlCreatorComponent::create(QSharedPointer<WQmlCreatorDelegateData> data, 
     const auto tmp = qvariant_cast<QVariantMap>(initialProperties.toVariant());
 
 #if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
-    data->object = d->createWithProperties(parent, tmp, qmlContext(this));
+    auto context = new QQmlContext(qmlContext(this), this);
+    context->setContextProperties(m_contextProperties);
+    data->object = d->createWithProperties(parent, tmp, context);
+    context->setParent(data->object);
 #else
     // The `createWithInitialProperties` provided by QQmlComponent cannot set parent
     // during the creation process. use `setParent` will too late as the creation has
@@ -321,6 +325,14 @@ void WQmlCreatorComponent::setChooserRoleValue(QVariant newChooserRoleValue)
     reset();
 
     Q_EMIT chooserRoleValueChanged();
+}
+
+void WQmlCreatorComponent::setContextProperties(const QVariantMap &properties)
+{
+    m_contextProperties.clear();
+    for (auto [k,v]: properties.asKeyValueRange()) {
+        m_contextProperties.append(QQmlContext::PropertyPair{k,v});
+    }
 }
 
 bool WQmlCreatorComponent::autoDestroy() const
