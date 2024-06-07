@@ -20,12 +20,10 @@ target_sources(${MODULE_NAME} PUBLIC
 FILE_SET HEADERS
 FILES
     extforeigntoplevellist.h
-    impl/ext_foreign_toplevel_list_impl.h
 )
 
 target_sources(${MODULE_NAME} PRIVATE
     extforeigntoplevellist.cpp
-    impl/ext_foreign_toplevel_list_impl.cpp
     server-protocol.c
 )
 

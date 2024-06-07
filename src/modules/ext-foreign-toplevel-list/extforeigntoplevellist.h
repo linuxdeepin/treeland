@@ -4,7 +4,6 @@
 #pragma once
 
 #include "server-protocol.h"
-#include "impl/ext_foreign_toplevel_list_impl.h"
 #include "helper.h"
 
 #include <wquickwaylandserver.h>
@@ -13,21 +12,12 @@
 #include <QObject>
 #include <QQmlEngine>
 
-class QWExtForeignToplevelListV1Private;
-
-class QW_EXPORT QWExtForeignToplevelListV1 : public QObject, public QWObject
+struct ext_foreign_toplevel_list_v1 : public QObject
 {
     Q_OBJECT
-    QW_DECLARE_PRIVATE(QWExtForeignToplevelListV1)
 public:
-    inline ext_foreign_toplevel_list_v1 *handle() const
-    {
-        return QWObject::handle<ext_foreign_toplevel_list_v1>();
-    }
-
-    static QWExtForeignToplevelListV1 *get(ext_foreign_toplevel_list_v1 *handle);
-    static QWExtForeignToplevelListV1 *from(ext_foreign_toplevel_list_v1 *handle);
-    static QWExtForeignToplevelListV1 *create(QWDisplay *display);
+    ~ext_foreign_toplevel_list_v1();
+    static ext_foreign_toplevel_list_v1 *create(QWDisplay *display);
 
     void topLevel(Waylib::Server::WXdgSurface *surface);
     void close(Waylib::Server::WXdgSurface *surface);
@@ -38,23 +28,45 @@ public:
     void updateSurfaceInfo(Waylib::Server::WXdgSurface *surface);
 
 Q_SIGNALS:
-    void beforeDestroy(QWExtForeignToplevelListV1 *self);
+    void beforeDestroy(ext_foreign_toplevel_list_v1 *self);
 
 private:
-    QWExtForeignToplevelListV1(ext_foreign_toplevel_list_v1 *handle, bool isOwner);
-    ~QWExtForeignToplevelListV1() = default;
+    ext_foreign_toplevel_list_v1(ext_foreign_toplevel_list_v1 *handle, bool isOwner);
+    bool init(QWDisplay *display);
+    ext_foreign_toplevel_handle_v1 *createToplevelHandle(
+        struct wl_resource *client,
+        struct wl_resource *surface);
+    void on_handleCreated(void *data);
+
+    struct wl_global *m_global;
+    std::list<struct wl_resource *> clients;
+    std::vector<struct wl_resource *> surfaces;
+    std::list<struct ext_foreign_toplevel_handle_v1 *> handles;
+    std::vector<Waylib::Server::WXdgSurface *> xdgSurfaces;
+
+    static void ext_foreign_toplevel_list_v1_destroy(struct wl_resource *resource);
+    static void ext_foreign_toplevel_list_bind(struct wl_client *client,
+                                    void *data,
+                                    uint32_t version,
+                                    uint32_t id);
+    friend struct ext_foreign_toplevel_handle_v1;
+};
+
+struct ext_foreign_toplevel_handle_v1
+{
+    struct ext_foreign_toplevel_list_v1 *manager;
+    struct wl_list link;
+    struct wl_resource *resource;
+    struct wl_resource *surface;
+    inline ~ext_foreign_toplevel_handle_v1() {manager->clients.remove(resource);}
 };
 
 class ExtForeignToplevelListPrivate;
 
-class ExtForeignToplevelList : public Waylib::Server::WQuickWaylandServerInterface,
-                               public Waylib::Server::WObject
+class ExtForeignToplevelList : public Waylib::Server::WQuickWaylandServerInterface
 {
     Q_OBJECT
-    W_DECLARE_PRIVATE(ExtForeignToplevelList)
-
     QML_ELEMENT
-
 public:
     explicit ExtForeignToplevelList(QObject *parent = nullptr);
 
@@ -63,4 +75,5 @@ public:
 
 protected:
     void create() override;
+    QScopedPointer<ext_foreign_toplevel_list_v1> manager;
 };
