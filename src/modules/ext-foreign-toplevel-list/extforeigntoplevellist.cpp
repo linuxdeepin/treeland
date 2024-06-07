@@ -4,7 +4,6 @@
 #include "extforeigntoplevellist.h"
 
 #include "server-protocol.h"
-#include "impl/ext_foreign_toplevel_list_impl.h"
 
 #include <wayland-server-core.h>
 #include <wayland-server.h>
@@ -33,146 +32,266 @@ extern "C" {
 #undef static
 }
 
-class QWExtForeignToplevelListV1Private : public QWObjectPrivate
-{
-public:
-    QWExtForeignToplevelListV1Private(ext_foreign_toplevel_list_v1 *handle,
-                                      bool isOwner,
-                                      QWExtForeignToplevelListV1 *qq)
-        : QWObjectPrivate(handle, isOwner, qq)
-    {
-        Q_ASSERT(!map.contains(handle));
-        map.insert(handle, qq);
-        sc.connect(&handle->events.destroy, this, &QWExtForeignToplevelListV1Private::on_destroy);
-        sc.connect(&handle->events.handleCreated,
-                   this,
-                   &QWExtForeignToplevelListV1Private::on_handleCreated);
-    }
-
-    ~QWExtForeignToplevelListV1Private()
-    {
-        if (!m_handle)
-            return;
-        destroy();
-        if (isHandleOwner)
-            ext_foreign_toplevel_list_v1_destroy(q_func()->handle());
-    }
-
-    inline void destroy()
-    {
-        Q_ASSERT(m_handle);
-        Q_ASSERT(map.contains(m_handle));
-        Q_EMIT q_func()->beforeDestroy(q_func());
-        map.remove(m_handle);
-        sc.invalidate();
-    }
-
-    void on_destroy(void *);
-    void on_handleCreated(void *);
-
-    static QHash<void *, QWExtForeignToplevelListV1 *> map;
-    QW_DECLARE_PUBLIC(QWExtForeignToplevelListV1)
-    QWSignalConnector sc;
-
-    std::vector<Waylib::Server::WXdgSurface *> xdgSurfaces;
-};
-
-QHash<void *, QWExtForeignToplevelListV1 *> QWExtForeignToplevelListV1Private::map;
-
-void QWExtForeignToplevelListV1Private::on_destroy(void *)
-{
-    destroy();
-    m_handle = nullptr;
-    delete q_func();
-}
-
-void QWExtForeignToplevelListV1Private::on_handleCreated(void *data)
+void ext_foreign_toplevel_list_v1::on_handleCreated(void *data)
 {
     struct wl_resource *resource = static_cast<struct wl_resource *>(data);
 
     for (auto *surface : xdgSurfaces) {
         if (surface->surface()->handle()->handle()->resource == resource) {
-            q_func()->updateSurfaceInfo(surface);
+            updateSurfaceInfo(surface);
             break;
         }
     }
 }
 
-QWExtForeignToplevelListV1::QWExtForeignToplevelListV1(ext_foreign_toplevel_list_v1 *handle,
+ext_foreign_toplevel_list_v1::ext_foreign_toplevel_list_v1(ext_foreign_toplevel_list_v1 *handle,
                                                        bool isOwner)
     : QObject(nullptr)
-    , QWObject(*new QWExtForeignToplevelListV1Private(handle, isOwner, this))
 {
 }
 
-QWExtForeignToplevelListV1 *QWExtForeignToplevelListV1::get(ext_foreign_toplevel_list_v1 *handle)
+ext_foreign_toplevel_list_v1::~ext_foreign_toplevel_list_v1()
 {
-    return QWExtForeignToplevelListV1Private::map.value(handle);
+    Q_EMIT beforeDestroy(this);
+    struct ext_foreign_toplevel_handle_v1 *context;
+    struct ext_foreign_toplevel_handle_v1 *tmp;
+    for (auto handle : handles) {
+        delete handle;
+    }
+    handles.clear();
+    wl_global_destroy(m_global);
 }
 
-QWExtForeignToplevelListV1 *QWExtForeignToplevelListV1::from(ext_foreign_toplevel_list_v1 *handle)
+ext_foreign_toplevel_list_v1 *ext_foreign_toplevel_list_v1::create(QWDisplay *display)
 {
-    if (auto o = get(handle))
-        return o;
-    return new QWExtForeignToplevelListV1(handle, false);
-}
+    auto *handle = new ext_foreign_toplevel_list_v1(nullptr,true);
 
-QWExtForeignToplevelListV1 *QWExtForeignToplevelListV1::create(QWDisplay *display)
-{
-    auto *handle = ext_foreign_toplevel_list_v1_create(display->handle());
-    if (!handle)
+    if (!handle->init(display)) {
+        delete handle;
         return nullptr;
-    return new QWExtForeignToplevelListV1(handle, true);
+    }
+    return handle;
 }
 
-void QWExtForeignToplevelListV1::topLevel(Waylib::Server::WXdgSurface *surface)
-{
-    d_func()->xdgSurfaces.push_back(surface);
-
-    ext_foreign_toplevel_list_v1_toplevel(handle(),
-                                          surface->surface()->handle()->handle()->resource);
+bool ext_foreign_toplevel_list_v1::init(QWDisplay *display) {
+    m_global = wl_global_create(display->handle(),
+                                      &ext_foreign_toplevel_list_v1_interface,
+                                      EXT_FOREIGN_TOPLEVEL_LIST_V1_TOPLEVEL_SINCE_VERSION,
+                                      this,
+                                      ext_foreign_toplevel_list_bind);
+    if(!m_global)
+        return false;
+    connect(display, &QWDisplay::beforeDestroy, this, []{});
+    return true;
 }
 
-void QWExtForeignToplevelListV1::close(Waylib::Server::WXdgSurface *surface)
+void foreign_toplevel_list_handle_stop([[maybe_unused]] struct wl_client *client,
+                                       struct wl_resource *resource);
+void ext_foreign_toplevel_interface_destroy(struct wl_client *, struct wl_resource *resource);
+
+static const struct ext_foreign_toplevel_list_v1_interface toplevel_list_impl
 {
-    std::erase_if(d_func()->xdgSurfaces, [=](auto *s) {
+    .stop = foreign_toplevel_list_handle_stop, .destroy = ext_foreign_toplevel_interface_destroy
+};
+
+ext_foreign_toplevel_list_v1 *foreign_toplevel_list_from_resource(
+    struct wl_resource *resource)
+{
+    assert(wl_resource_instance_of(resource,
+                                   &ext_foreign_toplevel_list_v1_interface,
+                                   &toplevel_list_impl));
+    ext_foreign_toplevel_list_v1 *list =
+        static_cast<ext_foreign_toplevel_list_v1 *>(wl_resource_get_user_data(resource));
+    assert(list != NULL);
+    return list;
+}
+
+void ext_foreign_toplevel_list_v1::ext_foreign_toplevel_list_v1_destroy(struct wl_resource *resource)
+{
+    auto *handle = foreign_toplevel_list_from_resource(resource);
+    std::erase_if(handle->clients, [=](auto *c) {
+        return c == resource;
+    });
+}
+
+void ext_foreign_toplevel_list_v1::ext_foreign_toplevel_list_bind(struct wl_client *client,
+                                    void *data,
+                                    uint32_t version,
+                                    uint32_t id)
+{
+    auto *handle = static_cast<ext_foreign_toplevel_list_v1 *>(data);
+
+    struct wl_resource *resource =
+        wl_resource_create(client, &ext_foreign_toplevel_list_v1_interface, version, id);
+    if (!resource) {
+        wl_client_post_no_memory(client);
+        return;
+    }
+    wl_resource_set_implementation(resource,
+                                   &::toplevel_list_impl,
+                                   handle,
+                                   ext_foreign_toplevel_list_v1_destroy);
+
+    handle->clients.push_back(resource);
+
+    // send all surface to client.
+    for (auto *surface : handle->xdgSurfaces) {
+        auto *toplevel = handle->createToplevelHandle(resource, surface->surface()->handle()->handle()->resource);
+        ext_foreign_toplevel_list_v1_send_toplevel(resource, toplevel->resource);
+        handle->on_handleCreated(surface->surface()->handle()->handle()->resource);
+    }
+}
+
+void ext_foreign_toplevel_handle_destroy(struct wl_client *, struct wl_resource *resource);
+
+static const struct ext_foreign_toplevel_handle_v1_interface toplevel_handle_impl
+{
+    .destroy = ext_foreign_toplevel_handle_destroy,
+};
+
+void ext_foreign_toplevel_handle_resource_destroy(struct wl_resource *resource)
+{
+    assert(wl_resource_instance_of(resource,
+                                   &ext_foreign_toplevel_handle_v1_interface,
+                                   &toplevel_handle_impl));
+    auto *handle = 
+        static_cast<ext_foreign_toplevel_handle_v1 *>(wl_resource_get_user_data(resource));
+
+    if (handle == nullptr) {
+        return;
+    }
+
+    delete handle;
+}
+
+void ext_foreign_toplevel_handle_destroy(struct wl_client *, struct wl_resource *resource)
+{
+    ext_foreign_toplevel_handle_resource_destroy(resource);
+}
+
+void foreign_toplevel_list_handle_stop([[maybe_unused]] struct wl_client *client,
+                                       struct wl_resource *resource)
+{
+    assert(wl_resource_instance_of(resource,
+                                   &ext_foreign_toplevel_list_v1_interface,
+                                   &toplevel_list_impl));
+    [[maybe_unused]] auto *manager =
+        foreign_toplevel_list_from_resource(resource);
+
+    // TODO: stop
+}
+
+void ext_foreign_toplevel_interface_destroy(struct wl_client *, struct wl_resource *resource)
+{
+    wl_list_remove(&resource->link);
+    wl_resource_destroy(resource);
+}
+
+ext_foreign_toplevel_handle_v1 *ext_foreign_toplevel_list_v1::createToplevelHandle(
+    struct wl_resource *client,
+    struct wl_resource *surface)
+{
+    auto *handle = new ext_foreign_toplevel_handle_v1;
+    struct wl_resource *handle_resource =
+        wl_resource_create(wl_resource_get_client(client),
+                           &ext_foreign_toplevel_handle_v1_interface,
+                           wl_resource_get_version(client),
+                           0);
+    if (!handle_resource) {
+        wl_client_post_no_memory(wl_resource_get_client(client));
+        return {};
+    }
+
+    wl_resource_set_implementation(handle_resource,
+                                   &toplevel_handle_impl,
+                                   handle,
+                                   ext_foreign_toplevel_handle_resource_destroy);
+
+    handles.push_back(handle);
+
+    handle->manager = this;
+    handle->resource = handle_resource;
+    handle->surface = surface;
+
+    return handle;
+}
+
+void ext_foreign_toplevel_list_v1::topLevel(Waylib::Server::WXdgSurface *surface)
+{
+    auto resource = surface->surface()->handle()->handle()->resource;
+    xdgSurfaces.push_back(surface);
+
+    // send surface to all clients.
+    for (auto *client : clients) {
+        auto *toplevel = this->createToplevelHandle(client, resource);
+        ext_foreign_toplevel_list_v1_send_toplevel(client, toplevel->resource);
+        on_handleCreated(resource);
+    }
+}
+
+void ext_foreign_toplevel_list_v1::close(Waylib::Server::WXdgSurface *surface)
+{
+    std::erase_if(xdgSurfaces, [=](auto *s) {
         return s == surface;
     });
 
-    ext_foreign_toplevel_handle_v1_closed(handle(),
-                                          surface->surface()->handle()->handle()->resource);
+    auto resource = surface->surface()->handle()->handle()->resource;
+    for (auto h : handles) {
+        if (h->surface == resource){
+            ext_foreign_toplevel_handle_v1_send_closed(h->resource);
+            h->surface = nullptr;
+        }
+    }
 }
 
-void QWExtForeignToplevelListV1::done(Waylib::Server::WXdgSurface *surface)
+void ext_foreign_toplevel_list_v1::done(Waylib::Server::WXdgSurface *surface)
 {
-    ext_foreign_toplevel_handle_v1_done(handle(), surface->surface()->handle()->handle()->resource);
+    auto resource = surface->surface()->handle()->handle()->resource;
+    for (auto h : handles)
+    {
+        if (h->surface == resource) {
+            ext_foreign_toplevel_handle_v1_send_done(h->resource);
+        }
+    }
 }
 
-void QWExtForeignToplevelListV1::setTitle(Waylib::Server::WXdgSurface *surface,
+void ext_foreign_toplevel_list_v1::setTitle(Waylib::Server::WXdgSurface *surface,
                                           const QString &title)
 {
-    ext_foreign_toplevel_handle_v1_title(handle(),
-                                         surface->surface()->handle()->handle()->resource,
-                                         title);
+    auto resource = surface->surface()->handle()->handle()->resource;
+    for (auto h : handles)
+    {
+        if (h->surface == resource) {
+            ext_foreign_toplevel_handle_v1_send_title(h->resource, title.toUtf8());
+        }
+    }
 }
 
-void QWExtForeignToplevelListV1::setAppId(Waylib::Server::WXdgSurface *surface,
+void ext_foreign_toplevel_list_v1::setAppId(Waylib::Server::WXdgSurface *surface,
                                           const QString &appId)
 {
-    ext_foreign_toplevel_handle_v1_app_id(handle(),
-                                          surface->surface()->handle()->handle()->resource,
-                                          appId);
+    auto resource = surface->surface()->handle()->handle()->resource;
+    for (auto h : handles)
+    {
+        if (h->surface == resource) {
+            ext_foreign_toplevel_handle_v1_send_app_id(h->resource, appId.toUtf8());
+        }
+    }
 }
 
-void QWExtForeignToplevelListV1::setIdentifier(Waylib::Server::WXdgSurface *surface,
+void ext_foreign_toplevel_list_v1::setIdentifier(Waylib::Server::WXdgSurface *surface,
                                                const QString &identifier)
 {
-    ext_foreign_toplevel_handle_v1_identifier(handle(),
-                                              surface->surface()->handle()->handle()->resource,
-                                              identifier);
+    auto resource = surface->surface()->handle()->handle()->resource;
+    for (auto h : handles)
+    {
+        if (h->surface == resource) {
+            ext_foreign_toplevel_handle_v1_send_identifier(h->resource, identifier.toUtf8());
+        }
+    }
 }
 
-void QWExtForeignToplevelListV1::updateSurfaceInfo(Waylib::Server::WXdgSurface *surface)
+void ext_foreign_toplevel_list_v1::updateSurfaceInfo(Waylib::Server::WXdgSurface *surface)
 {
     auto handle = [this, surface] {
         const QString &title = surface->title();
@@ -197,45 +316,26 @@ void QWExtForeignToplevelListV1::updateSurfaceInfo(Waylib::Server::WXdgSurface *
     handle();
 }
 
-class ExtForeignToplevelListPrivate : public WObjectPrivate
-{
-public:
-    ExtForeignToplevelListPrivate(ExtForeignToplevelList *qq)
-        : WObjectPrivate(qq)
-    {
-    }
-
-    W_DECLARE_PUBLIC(ExtForeignToplevelList)
-
-    QWExtForeignToplevelListV1 *manager = nullptr;
-};
 
 ExtForeignToplevelList::ExtForeignToplevelList(QObject *parent)
     : Waylib::Server::WQuickWaylandServerInterface(parent)
-    , Waylib::Server::WObject(*new ExtForeignToplevelListPrivate(this), nullptr)
 {
 }
 
 void ExtForeignToplevelList::add(Waylib::Server::WXdgSurface *surface)
 {
-    W_D(ExtForeignToplevelList);
+    manager->topLevel(surface);
 
-    d->manager->topLevel(surface);
-
-    d->manager->updateSurfaceInfo(surface);
+    manager->updateSurfaceInfo(surface);
 }
 
 void ExtForeignToplevelList::remove(Waylib::Server::WXdgSurface *surface)
 {
-    W_D(ExtForeignToplevelList);
-
-    d->manager->close(surface);
+    manager->close(surface);
 }
 
 void ExtForeignToplevelList::create()
 {
-    W_D(ExtForeignToplevelList);
     WQuickWaylandServerInterface::create();
-
-    d->manager = QWExtForeignToplevelListV1::create(server()->handle());
+    manager.reset(ext_foreign_toplevel_list_v1::create(server()->handle()));
 }
