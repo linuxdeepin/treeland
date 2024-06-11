@@ -37,7 +37,7 @@ Q_SIGNALS:
                       size_t ramp_size, uint16_t *r, uint16_t *g, uint16_t *b);
 
 private:
-    void create() override;
+    WServerInterface *create() override;
 };
 
 

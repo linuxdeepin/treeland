@@ -53,6 +53,18 @@ extern "C" {
 QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
+WServerInterface::WServerInterface(void *handle, wl_global *global)
+    : m_handle(handle)
+    , m_global(global)
+{
+
+}
+
+WServerInterface::WServerInterface()
+{
+
+}
+
 static bool globalFilter(const wl_client *client,
                          const wl_global *global,
                          void *data) {

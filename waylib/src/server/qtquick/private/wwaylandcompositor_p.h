@@ -53,7 +53,7 @@ Q_SIGNALS:
     void subcompositorChanged();
 
 private:
-    void create() override;
+    WServerInterface *create() override;
 };
 
 WAYLIB_SERVER_END_NAMESPACE

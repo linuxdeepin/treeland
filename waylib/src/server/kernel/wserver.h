@@ -31,6 +31,9 @@ class WSocket;
 class WServerInterface
 {
 public:
+    explicit WServerInterface(void *handle, wl_global *global);
+    WServerInterface();
+
     virtual ~WServerInterface() {}
     inline void *handle() const {
         return m_handle;
@@ -57,12 +60,19 @@ public:
 
 protected:
     void *m_handle = nullptr;
+    wl_global *m_global = nullptr;
     WServer *m_server = nullptr;
     const WSocket *m_ownsSocket = nullptr;
 
-    virtual void create(WServer *server) = 0;
-    virtual void destroy(WServer *server) = 0;
-    virtual wl_global *global() const = 0;
+    virtual void create(WServer *server) {
+        Q_UNUSED(server);
+    }
+    virtual void destroy(WServer *server) {
+        Q_UNUSED(server);
+    }
+    virtual wl_global *global() const {
+        return m_global;
+    }
 
     friend class WServer;
     friend class WServerPrivate;

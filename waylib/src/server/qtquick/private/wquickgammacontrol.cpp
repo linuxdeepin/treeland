@@ -45,10 +45,9 @@ WQuickGammaControlManager::WQuickGammaControlManager(QObject *parent):
     GAMMA_CONTROL_MANAGER = this;
 }
 
-void WQuickGammaControlManager::create()
+WServerInterface *WQuickGammaControlManager::create()
 {
     W_D(WQuickGammaControlManager);
-    WQuickWaylandServerInterface::create();
 
     d->manager = QWGammaControlManagerV1::create(server()->handle());
     connect(d->manager, &QWGammaControlManagerV1::gammaChanged, this,
@@ -66,6 +65,8 @@ void WQuickGammaControlManager::create()
                 }
                 Q_EMIT gammaChanged(wOutput, gamma_control, ramp_size, r, g, b);
     });
+
+    return new WServerInterface(d->manager, d->manager->handle()->global);
 }
 
 wlr_gamma_control_v1 *WQuickGammaControlManager::getControl(wlr_output *output)

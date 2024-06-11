@@ -461,18 +461,20 @@ void WQuickXdgOutputManager::clearOverrideClients()
     d->scaleOverrideClients.clear();
 }
 
-void WQuickXdgOutputManager::create()
+WServerInterface *WQuickXdgOutputManager::create()
 {
     W_D(WQuickXdgOutputManager);
-    WQuickWaylandServerInterface::create();
     if (d->layout) {
         d->manager =
             way_xdg_output_manager_v1_create(server()->handle()->handle(), d->layout->handle());
         d->manager->impl = d;
         d->manager->is_scale_override_client = &WQuickXdgOutputManagerPrivate::isOverrideClientCallback;
+        return new WServerInterface(d->manager, d->manager->global);
     } else {
         qWarning() << "Output layout not set, xdg output manager will never be created!";
     }
+
+    return nullptr;
 }
 
 bool WQuickXdgOutputManagerPrivate::isOverrideClientCallback(void *data, struct wl_client *client)

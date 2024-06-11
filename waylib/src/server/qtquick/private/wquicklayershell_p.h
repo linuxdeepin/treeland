@@ -27,7 +27,7 @@ Q_SIGNALS:
     void surfaceRemoved(WLayerSurface *surface);
 
 private:
-    void create() override;
+    WServerInterface *create() override;
 };
 
 class WAYLIB_SERVER_EXPORT WLayerSurfaceItem : public WSurfaceItem

@@ -80,15 +80,16 @@ WQuickLayerShell::WQuickLayerShell(QObject *parent):
 
 }
 
-void WQuickLayerShell::create()
+WServerInterface *WQuickLayerShell::create()
 {
     W_D(WQuickLayerShell);
-    WQuickWaylandServerInterface::create();
 
     d->shell = QWLayerShellV1::create(server()->handle(), 4u);
     connect(d->shell, &QWLayerShellV1::newSurface, this, [d](QWLayerSurfaceV1 *surface) {
         d->onNewSurface(surface);
     });
+
+    return new WServerInterface(d->shell, d->shell->handle()->global);
 }
 
 WLayerSurfaceItem::WLayerSurfaceItem(QQuickItem *parent)

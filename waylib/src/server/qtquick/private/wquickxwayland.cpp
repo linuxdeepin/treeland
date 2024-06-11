@@ -17,6 +17,7 @@
 extern "C" {
 #define class className
 #include <wlr/xwayland.h>
+#include <wlr/xwayland/shell.h>
 #undef class
 }
 
@@ -34,11 +35,14 @@ QWXWaylandShellV1 *WXWaylandShellV1::shell() const
     return m_shell;
 }
 
-void WXWaylandShellV1::create()
+WServerInterface *WXWaylandShellV1::create()
 {
     m_shell = QWXWaylandShellV1::create(server()->handle(), 1);
     if (!m_shell)
-        Q_EMIT shellChanged();
+        return nullptr;
+
+    Q_EMIT shellChanged();
+    return new WServerInterface(m_shell, m_shell->handle()->global);
 }
 
 class XWayland : public WXWayland
@@ -176,16 +180,10 @@ void WQuickXWayland::setSeat(WSeat *newSeat)
     Q_EMIT seatChanged();
 }
 
-void WQuickXWayland::create()
+WServerInterface *WQuickXWayland::create()
 {
-    WQuickWaylandServerInterface::create();
     tryCreateXWayland();
-}
-
-void WQuickXWayland::ownsSocketChange()
-{
-    if (xwayland)
-        xwayland->setOwnsSocket(ownsSocket());
+    return xwayland;
 }
 
 void WQuickXWayland::tryCreateXWayland()
@@ -196,7 +194,6 @@ void WQuickXWayland::tryCreateXWayland()
     Q_ASSERT(!xwayland);
 
     xwayland = server()->attach<XWayland>(this);
-    xwayland->setOwnsSocket(ownsSocket());
     xwayland->safeConnect(&QWXWayland::ready, this, &WQuickXWayland::ready);
 
     Q_EMIT displayNameChanged();

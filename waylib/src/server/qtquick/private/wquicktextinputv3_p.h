@@ -39,7 +39,7 @@ Q_SIGNALS:
     void newTextInput(QW_NAMESPACE::QWTextInputV3 *textInput);
 
 private:
-    void create() override;
+    WServerInterface *create() override;
 };
 
 /**

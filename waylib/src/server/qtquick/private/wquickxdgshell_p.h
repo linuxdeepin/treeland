@@ -37,8 +37,7 @@ Q_SIGNALS:
     void surfaceRemoved(WXdgSurface *surface);
 
 private:
-    void create() override;
-    void ownsSocketChange() override;
+    WServerInterface *create() override;
 };
 
 class WAYLIB_SERVER_EXPORT WXdgSurfaceItem : public WSurfaceItem

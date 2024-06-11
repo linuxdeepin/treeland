@@ -110,13 +110,12 @@ bool WQuickBackend::hasWayland() const
     return hasBackend<QWWaylandBackend>(backend());
 }
 
-void WQuickBackend::create()
+WServerInterface *WQuickBackend::create()
 {
-    WQuickWaylandServerInterface::create();
-
     W_D(WQuickBackend);
     Q_ASSERT(!d->backend);
     d->backend = server()->attach<Backend>(this);
+    return d->backend;
 }
 
 void WQuickBackend::polish()
@@ -134,8 +133,6 @@ void WQuickBackend::polish()
     if (!backend()->start()) {
         qFatal("Start wlr backend falied");
     }
-
-    WQuickWaylandServerInterface::polish();
 }
 
 WAYLIB_SERVER_END_NAMESPACE

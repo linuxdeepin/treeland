@@ -15,6 +15,7 @@ public:
 
     bool isPolished = false;
     WSocket *ownsSocket = nullptr;
+    WServerInterface *interface = nullptr;
 };
 
 class WQuickWaylandServerPrivate : public WServerPrivate
@@ -59,8 +60,8 @@ void WQuickWaylandServerPrivate::interfaces_append(QQmlListProperty<WQuickWaylan
     i->setParent(q);
 
     if (self->componentComplete) {
-        i->create();
-        QMetaObject::invokeMethod(i, &WQuickWaylandServerInterface::polish, Qt::QueuedConnection);
+        i->doCreate();
+        QMetaObject::invokeMethod(i, &WQuickWaylandServerInterface::doPolish, Qt::QueuedConnection);
     }
 
     Q_EMIT q->interfacesChanged();
@@ -178,24 +179,44 @@ void WQuickWaylandServerInterface::setOwnsSocket(WSocket *socket)
     d->ownsSocket = socket;
     Q_EMIT ownsSocketChanged();
 
-    ownsSocketChange();
+    if (d->interface)
+        d->interface->setOwnsSocket(socket);
 }
 
-void WQuickWaylandServerInterface::create()
+WServerInterface *WQuickWaylandServerInterface::create()
 {
-    Q_EMIT beforeCreate();
+    return nullptr;
 }
 
 void WQuickWaylandServerInterface::polish()
 {
-    Q_D(WQuickWaylandServerInterface);
-    d->isPolished = true;
-    Q_EMIT afterPolish();
+
 }
 
-void WQuickWaylandServerInterface::ownsSocketChange()
+void WQuickWaylandServerInterface::doCreate()
 {
+    Q_D(WQuickWaylandServerInterface);
+    Q_ASSERT(!d->interface);
+    Q_EMIT beforeCreate();
+    d->interface = create();
 
+    if (!d->interface)
+        return;
+
+    d->interface->setOwnsSocket(ownsSocket());
+
+    if (!server()->interfaceList().contains(d->interface))
+        server()->attach(d->interface);
+}
+
+void WQuickWaylandServerInterface::doPolish()
+{
+    Q_D(WQuickWaylandServerInterface);
+
+    polish();
+
+    d->isPolished = true;
+    Q_EMIT afterPolish();
 }
 
 WQuickWaylandServer::WQuickWaylandServer(QObject *parent)
@@ -216,10 +237,10 @@ void WQuickWaylandServer::componentComplete()
 
     start();
     for (auto i : d->m_interfaces)
-        i->create();
+        i->doCreate();
 
     for (auto i : d->m_interfaces)
-        i->polish();
+        i->doPolish();
 
     d->componentComplete = true;
 

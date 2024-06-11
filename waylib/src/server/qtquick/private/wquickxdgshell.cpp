@@ -69,20 +69,13 @@ WQuickXdgShell::WQuickXdgShell(QObject *parent)
 
 }
 
-void WQuickXdgShell::create()
+WServerInterface *WQuickXdgShell::create()
 {
     W_D(WQuickXdgShell);
 
     d->xdgShell = server()->attach<XdgShell>(this);
-    d->xdgShell->setOwnsSocket(ownsSocket());
-    WQuickWaylandServerInterface::polish();
-}
 
-void WQuickXdgShell::ownsSocketChange()
-{
-    W_D(WQuickXdgShell);
-    if (d->xdgShell)
-        d->xdgShell->setOwnsSocket(ownsSocket());
+    return d->xdgShell;
 }
 
 WXdgSurfaceItem::WXdgSurfaceItem(QQuickItem *parent)

@@ -7,6 +7,12 @@
 
 #include <qwfractionalscalemanagerv1.h>
 
+extern "C" {
+#define static
+#include <wlr/types/wlr_fractional_scale_v1.h>
+#undef static
+}
+
 #define WLR_FRACTIONAL_SCALE_V1_VERSION 1
 
 QW_USE_NAMESPACE
@@ -37,12 +43,13 @@ WQuickFractionalScaleManagerV1::WQuickFractionalScaleManagerV1(QObject *parent)
     FRACTIONAL_SCALE_MANAGER = this;
 }
 
-void WQuickFractionalScaleManagerV1::create()
+WServerInterface *WQuickFractionalScaleManagerV1::create()
 {
     W_D(WQuickFractionalScaleManagerV1);
-    WQuickWaylandServerInterface::create();
 
     d->manager = QWFractionalScaleManagerV1::create(server()->handle(), WLR_FRACTIONAL_SCALE_V1_VERSION);
+
+    return new WServerInterface(d->manager, d->manager->handle()->global);
 }
 
 WAYLIB_SERVER_END_NAMESPACE

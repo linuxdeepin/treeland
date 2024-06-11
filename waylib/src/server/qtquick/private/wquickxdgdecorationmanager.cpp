@@ -110,15 +110,16 @@ WQuickXdgDecorationManager::WQuickXdgDecorationManager(QObject *parent):
     XDG_DECORATION_MANAGER = this;
 }
 
-void WQuickXdgDecorationManager::create()
+WServerInterface *WQuickXdgDecorationManager::create()
 {
     W_D(WQuickXdgDecorationManager);
-    WQuickWaylandServerInterface::create();
 
     d->manager = QWXdgDecorationManagerV1::create(server()->handle());
     connect(d->manager, &QWXdgDecorationManagerV1::newToplevelDecoration, this, [d](QWXdgToplevelDecorationV1 *decorat) {
         d->onNewToplevelDecoration(decorat);
     });
+
+    return new WServerInterface(d->manager, d->manager->handle()->global);
 }
 
 WQuickXdgDecorationManager::DecorationMode WQuickXdgDecorationManager::preferredMode() const
