@@ -14,7 +14,7 @@ public:
     Q_DECLARE_PUBLIC(WQuickWaylandServerInterface)
 
     bool isPolished = false;
-    WSocket *ownsSocket = nullptr;
+    WSocket *targetSocket = nullptr;
     WServerInterface *interface = nullptr;
 };
 
@@ -165,22 +165,22 @@ bool WQuickWaylandServerInterface::isPolished() const
     return d->isPolished;
 }
 
-WSocket *WQuickWaylandServerInterface::ownsSocket() const
+WSocket *WQuickWaylandServerInterface::targetSocket() const
 {
     Q_D(const WQuickWaylandServerInterface);
-    return d->ownsSocket;
+    return d->targetSocket;
 }
 
-void WQuickWaylandServerInterface::setOwnsSocket(WSocket *socket)
+void WQuickWaylandServerInterface::setTargetSocket(WSocket *socket)
 {
     Q_D(WQuickWaylandServerInterface);
-    if (d->ownsSocket == socket)
+    if (d->targetSocket == socket)
         return;
-    d->ownsSocket = socket;
-    Q_EMIT ownsSocketChanged();
+    d->targetSocket = socket;
+    Q_EMIT targetSocketChanged();
 
     if (d->interface)
-        d->interface->setOwnsSocket(socket);
+        d->interface->setTargetSocket(socket);
 }
 
 WServerInterface *WQuickWaylandServerInterface::create()
@@ -203,7 +203,7 @@ void WQuickWaylandServerInterface::doCreate()
     if (!d->interface)
         return;
 
-    d->interface->setOwnsSocket(ownsSocket());
+    d->interface->setTargetSocket(targetSocket());
 
     if (!server()->interfaceList().contains(d->interface))
         server()->attach(d->interface);

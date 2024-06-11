@@ -173,9 +173,9 @@ Item {
             lazy: false
 
             onReady: function () {
-                masterSocket.addClient(client())
                 xdgOutputManager.addOverrideClient(client())
             }
+
             onSurfaceAdded: function(surface) {
                 QmlHelper.xwaylandSurfaceManager.add({waylandSurface: surface})
             }

@@ -4,6 +4,7 @@
 #include "wxwayland.h"
 #include "wxwaylandsurface.h"
 #include "wseat.h"
+#include "wsocket.h"
 #include "private/wglobal_p.h"
 
 #include <qwseat.h>
@@ -40,6 +41,10 @@ public:
 
     void init();
 
+    wl_client *waylandClient() const override {
+        return q_func()->handle()->handle()->server->client;
+    }
+
     // begin slot function
     void on_new_surface(wlr_xwayland_surface *xwl_surface);
     void on_surface_destroy(QWXWaylandSurface *xwl_surface);
@@ -52,6 +57,8 @@ public:
     QVector<WXWaylandSurface*> surfaceList;
     xcb_connection_t *xcbConnection = nullptr;
     QVector<xcb_atom_t> atoms;
+
+    WSocket *socket = nullptr;
 };
 
 static const QByteArrayView atom_map[WXWayland::AtomCount] = {
@@ -70,6 +77,8 @@ static const QByteArrayView atom_map[WXWayland::AtomCount] = {
 
 void WXWaylandPrivate::init()
 {
+    socket->addClient(waylandClient());
+
     W_Q(WXWayland);
     xcbConnection = xcb_connect(q->displayName().constData(), nullptr);
     int err = xcb_connection_has_error(xcbConnection);
@@ -135,7 +144,8 @@ void WXWaylandPrivate::on_surface_destroy(QWXWaylandSurface *xwl_surface)
 WXWayland::WXWayland(QWCompositor *compositor, bool lazy)
     : WWrapObject(*new WXWaylandPrivate(this, compositor, lazy))
 {
-
+    // TODO: Add setFreezeClientWhenDisable in WSocket
+    d_func()->socket = new WSocket(false, nullptr, this);
 }
 
 QByteArray WXWayland::displayName() const
@@ -191,6 +201,18 @@ QVector<WXWaylandSurface*> WXWayland::surfaceList() const
     return d->surfaceList;
 }
 
+WSocket *WXWayland::ownsSocket() const
+{
+    W_DC(WXWayland);
+    return d->socket->parentSocket();
+}
+
+void WXWayland::setOwnsSocket(WSocket *socket)
+{
+    W_D(WXWayland);
+    d->socket->setParentSocket(socket);
+}
+
 void WXWayland::surfaceAdded(WXWaylandSurface *)
 {
 
@@ -209,6 +231,7 @@ void WXWayland::create(WServer *server)
     auto handle = QWXWayland::create(server->handle(), d->compositor, d->lazy);
     initHandle(handle);
     m_handle = handle;
+    d->socket->bind(handle->handle()->server->x_fd[1]);
 
     QObject::connect(handle, &QWXWayland::newSurface, this, [d] (wlr_xwayland_surface *surface) {
         d->on_new_surface(surface);

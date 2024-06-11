@@ -3,6 +3,7 @@
 
 #include "wquickxdgoutput_p.h"
 #include "woutputlayout.h"
+#include "wsocket.h"
 #include "private/wglobal_p.h"
 
 #include "xdg-output-unstable-v1-protocol.h"
@@ -392,7 +393,7 @@ public:
     WOutputLayout *layout = nullptr;
     qreal scaleOverride = 1.0;
     struct way_xdg_output_manager_v1 *manager;
-    QList<wl_client*> scaleOverrideClients;
+    QList<WClient*> scaleOverrideClients;
 };
 
 WQuickXdgOutputManager::WQuickXdgOutputManager(QObject *parent)
@@ -440,7 +441,7 @@ WOutputLayout *WQuickXdgOutputManager::layout() const
     return d->layout;
 }
 
-void WQuickXdgOutputManager::addOverrideClient(wl_client *client)
+void WQuickXdgOutputManager::addOverrideClient(WClient *client)
 {
     W_D(WQuickXdgOutputManager);
     if (d->scaleOverrideClients.contains(client))
@@ -449,7 +450,7 @@ void WQuickXdgOutputManager::addOverrideClient(wl_client *client)
     d->scaleOverrideClients.append(client);
 }
 
-void WQuickXdgOutputManager::removeOverrideClient(wl_client *client)
+void WQuickXdgOutputManager::removeOverrideClient(WClient *client)
 {
     W_D(WQuickXdgOutputManager);
     d->scaleOverrideClients.removeOne(client);
@@ -483,7 +484,8 @@ bool WQuickXdgOutputManagerPrivate::isOverrideClientCallback(void *data, struct 
         return false;
 
     auto d = reinterpret_cast<WQuickXdgOutputManagerPrivate *>(data);
-    return d->scaleOverrideClients.contains(client);
+    auto wclient = WClient::get(client);
+    return wclient ? d->scaleOverrideClients.contains(wclient) : false;
 }
 
 WAYLIB_SERVER_END_NAMESPACE

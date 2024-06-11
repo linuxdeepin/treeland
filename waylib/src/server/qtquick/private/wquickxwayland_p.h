@@ -26,7 +26,7 @@ class WAYLIB_SERVER_EXPORT WXWaylandShellV1 : public WQuickWaylandServerInterfac
 {
     Q_OBJECT
     Q_PROPERTY(QW_NAMESPACE::QWXWaylandShellV1* shell READ shell NOTIFY shellChanged FINAL)
-    Q_PROPERTY(WSocket* ownsSocket READ ownsSocket CONSTANT)
+    Q_PROPERTY(WSocket* targetSocket READ targetSocket CONSTANT)
     QML_NAMED_ELEMENT(XWaylandShellV1)
 
 public:
@@ -69,7 +69,7 @@ public:
 
     QByteArray displayName() const;
 
-    Q_INVOKABLE wl_client *client() const;
+    Q_INVOKABLE WClient *client() const;
     Q_INVOKABLE pid_t pid() const;
 
 Q_SIGNALS:

@@ -70,10 +70,23 @@ static bool globalFilter(const wl_client *client,
                          void *data) {
     WServerPrivate *d = reinterpret_cast<WServerPrivate*>(data);
 
-    if (auto interface = d->q_func()->findInterface(global)) {
-        if (interface->ownsSocket() && WSocket::get(client) != interface->ownsSocket())
-            return false;
-    }
+    do {
+        if (auto interface = d->q_func()->findInterface(global)) {
+            auto wclient = WClient::get(client);
+            if (!wclient) {
+                auto client_cred = WClient::getCredentials(client);
+                if (client_cred->pid == getpid()) {
+                    break;
+                }
+            }
+
+            Q_ASSERT(wclient);
+            if (interface->targetSocket() && wclient->socket() != interface->targetSocket())
+                return false;
+            if (!interface->targetClients().isEmpty() && !interface->targetClients().contains(wclient))
+                return false;
+        }
+    } while(false);
 
 #ifndef DISABLE_XWAYLAND
     if (wl_global_get_interface(global)->name == QByteArrayView("xwayland_shell_v1")) {

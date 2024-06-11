@@ -35,7 +35,7 @@ class WAYLIB_SERVER_EXPORT WQuickXdgDecorationManager : public WQuickWaylandServ
 {
     Q_OBJECT
     W_DECLARE_PRIVATE(WQuickXdgDecorationManager)
-    Q_PROPERTY(WSocket* ownsSocket READ ownsSocket CONSTANT)
+    Q_PROPERTY(WSocket* targetSocket READ targetSocket CONSTANT)
     Q_PROPERTY(DecorationMode preferredMode READ preferredMode WRITE setPreferredMode NOTIFY preferredModeChanged)
     QML_ATTACHED(WQuickXdgDecorationManagerAttached)
     QML_NAMED_ELEMENT(XdgDecorationManager)

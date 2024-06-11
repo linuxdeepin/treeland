@@ -54,6 +54,9 @@ public:
     xcb_connection_t *xcbConnection() const;
     QVector<WXWaylandSurface*> surfaceList() const;
 
+    WSocket *ownsSocket() const;
+    void setOwnsSocket(WSocket *socket);
+
 protected:
     virtual void surfaceAdded(WXWaylandSurface *surface);
     virtual void surfaceRemoved(WXWaylandSurface *surface);

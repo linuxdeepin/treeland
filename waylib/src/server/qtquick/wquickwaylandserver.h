@@ -19,7 +19,7 @@ class WAYLIB_SERVER_EXPORT WQuickWaylandServerInterface : public QObject
     Q_DECLARE_PRIVATE(WQuickWaylandServerInterface)
     QML_NAMED_ELEMENT(WaylandServerInterface)
     Q_PROPERTY(bool polished READ isPolished NOTIFY afterPolish)
-    Q_PROPERTY(WSocket* ownsSocket READ ownsSocket WRITE setOwnsSocket NOTIFY ownsSocketChanged)
+    Q_PROPERTY(WSocket* targetSocket READ targetSocket WRITE setTargetSocket NOTIFY targetSocketChanged)
 
 public:
     explicit WQuickWaylandServerInterface(QObject *parent = nullptr);
@@ -27,13 +27,13 @@ public:
     WQuickWaylandServer *server() const;
     bool isPolished() const;
 
-    WSocket *ownsSocket() const;
-    void setOwnsSocket(WSocket *socket);
+    WSocket *targetSocket() const;
+    void setTargetSocket(WSocket *socket);
 
 Q_SIGNALS:
     void beforeCreate();
     void afterPolish();
-    void ownsSocketChanged();
+    void targetSocketChanged();
 
 protected:
     friend class WQuickWaylandServer;

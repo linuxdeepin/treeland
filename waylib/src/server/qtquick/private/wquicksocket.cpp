@@ -35,10 +35,9 @@ WQuickSocketAttached *WQuickSocket::qmlAttachedProperties(QObject *target)
     if (auto wobject = dynamic_cast<WObject*>(target)) {
         auto client = wobject->waylandClient();
         if (client) {
-            auto socket = WSocket::get(client);
-            WQuickSocketAttached *attached = nullptr;
-            if (socket)
-                attached = socket->findChild<WQuickSocketAttached*>(QString(), Qt::FindDirectChildrenOnly);
+            auto socket = client->socket();
+            Q_ASSERT(socket);
+            auto attached = socket->findChild<WQuickSocketAttached*>(QString(), Qt::FindDirectChildrenOnly);
 
             if (!attached)
                 attached = new WQuickSocketAttached(socket);
@@ -67,7 +66,16 @@ void WQuickSocket::addClient(wl_client *client)
 void WQuickSocket::removeClient(wl_client *client)
 {
     if (!m_socket) {
-        qmlWarning(this) << "Can't add client, WSocket is null";
+        qmlWarning(this) << "Can't remove client, WSocket is null";
+        return;
+    }
+    m_socket->removeClient(client);
+}
+
+void WQuickSocket::removeClient(WClient *client)
+{
+    if (!m_socket) {
+        qmlWarning(this) << "Can't remove client, WSocket is null";
         return;
     }
     m_socket->removeClient(client);

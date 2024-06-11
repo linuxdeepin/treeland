@@ -25,8 +25,8 @@ public:
     void setLayout(WOutputLayout *layout);
     WOutputLayout *layout() const;
 
-    Q_INVOKABLE void addOverrideClient(wl_client *client);
-    Q_INVOKABLE void removeOverrideClient(wl_client *client);
+    Q_INVOKABLE void addOverrideClient(WClient *client);
+    Q_INVOKABLE void removeOverrideClient(WClient *client);
     Q_INVOKABLE void clearOverrideClients();
 
     void setScaleOverride(qreal scaleOverride);

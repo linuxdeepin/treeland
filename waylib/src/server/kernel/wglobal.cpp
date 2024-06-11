@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "wglobal.h"
+#include "wsocket.h"
 #include "private/wglobal_p.h"
 
 #include <private/qobject_p_p.h>
@@ -15,9 +16,16 @@ Q_LOGGING_CATEGORY(lcGeneral, "waylib.general", QtInfoMsg);
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
-wl_client *WObject::waylandClient() const
+WClient *WObject::waylandClient() const
 {
-    return w_d_ptr->waylandClient();
+    auto client = w_d_ptr->waylandClient();
+    if (!client)
+        return nullptr;
+
+    auto wclient = WClient::get(client);
+    Q_ASSERT(wclient);
+
+    return wclient;
 }
 
 WObject::WObject(WObjectPrivate &dd, WObject *)

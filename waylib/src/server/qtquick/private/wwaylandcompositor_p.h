@@ -32,7 +32,7 @@ class WAYLIB_SERVER_EXPORT WWaylandCompositor : public WQuickWaylandServerInterf
     Q_PROPERTY(QW_NAMESPACE::QWAllocator *allocator READ allocator NOTIFY allocatorChanged)
     Q_PROPERTY(QW_NAMESPACE::QWCompositor *compositor READ compositor NOTIFY compositorChanged)
     Q_PROPERTY(QW_NAMESPACE::QWSubcompositor *subcompositor READ subcompositor NOTIFY subcompositorChanged)
-    Q_PROPERTY(WSocket* ownsSocket READ ownsSocket CONSTANT)
+    Q_PROPERTY(WSocket* targetSocket READ targetSocket CONSTANT)
     QML_NAMED_ELEMENT(WaylandCompositor)
 
 public:
