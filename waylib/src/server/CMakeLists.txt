@@ -55,6 +55,13 @@ ws_generate(
     text-input-unstable-v1-protocol
 )
 
+ws_generate(
+    server
+    wayland-protocols
+    unstable/xdg-output/xdg-output-unstable-v1.xml
+    xdg-output-unstable-v1-protocol
+)
+
 set(KERNEL_SOURCES
     kernel/wbackend.cpp
     kernel/wcursor.cpp
@@ -123,6 +130,7 @@ set(QTQUICK_SOURCES
     qtquick/private/wquickscreencopy.cpp
 
     ${CMAKE_CURRENT_BINARY_DIR}/text-input-unstable-v1-protocol.c
+    ${CMAKE_CURRENT_BINARY_DIR}/xdg-output-unstable-v1-protocol.c
 )
 
 set(UTILS_SOURCES
@@ -228,6 +236,7 @@ set(PRIVATE_HEADERS
     qtquick/private/wquickscreencopy_p.h
 
     ${CMAKE_CURRENT_BINARY_DIR}/text-input-unstable-v1-protocol.h
+    ${CMAKE_CURRENT_BINARY_DIR}/xdg-output-unstable-v1-protocol.h
 )
 
 if(NOT DISABLE_XWAYLAND)
