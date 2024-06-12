@@ -3,10 +3,10 @@
 
 #pragma once
 
+#include <woutput.h>
 #include <wquickwaylandserver.h>
 
 #include <qwsignalconnector.h>
-#include <woutput.h>
 
 #include <QList>
 #include <QQmlEngine>
@@ -27,9 +27,6 @@ public:
     Q_INVOKABLE void newOutput(WAYLIB_SERVER_NAMESPACE::WOutput *output);
     Q_INVOKABLE void removeOutput(WAYLIB_SERVER_NAMESPACE::WOutput *output);
 
-public Q_SLOTS:
-    void on_set_primary_output(void *data);
-
 protected:
     void create() override;
 
@@ -40,5 +37,4 @@ Q_SIGNALS:
 private:
     treeland_output_manager_v1 *m_handle{ nullptr };
     QList<WAYLIB_SERVER_NAMESPACE::WOutput *> m_outputs;
-    QW_NAMESPACE::QWSignalConnector m_sc;
 };
