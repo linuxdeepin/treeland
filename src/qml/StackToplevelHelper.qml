@@ -138,7 +138,7 @@ Item {
     }
 
     Repeater {
-        model: [root.quickForeignToplevelManager || null,root.decoration]
+        model: [ root.quickForeignToplevelManageMapper, root.decoration, ]
 
         Item {
             Connections {
