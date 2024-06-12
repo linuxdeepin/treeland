@@ -4,21 +4,26 @@
 #include "output_manager_impl.h"
 
 #include <wayland-server-core.h>
-
 #include <cassert>
 
-static void output_manager_interface_handle_destroy(struct wl_client *, struct wl_resource *resource)
+using QW_NAMESPACE::QWDisplay;
+
+static treeland_output_manager_v1 *output_manager_from_resource(wl_resource *resource);
+static void output_manager_bind(wl_client *client, void *data, uint32_t version, uint32_t id);
+
+// For treeland_output_manager_v1_interface
+static void output_manager_interface_handle_destroy(wl_client *, wl_resource *resource)
 {
     wl_list_remove(&resource->link);
     wl_resource_destroy(resource);
 }
 
-void output_manager_handle_set_primary_output([[maybe_unused]] struct wl_client *client,
-                                              struct wl_resource *resource,
+static void output_manager_handle_set_primary_output([[maybe_unused]] wl_client *client,
+                                              wl_resource *resource,
                                               const char *output)
 {
     auto *manager = output_manager_from_resource(resource);
-    wl_signal_emit(&manager->events.set_primary_output, &output);
+    Q_EMIT manager->requestSetPrimaryOutput(output);
 }
 
 static const struct treeland_output_manager_v1_interface output_manager_impl
@@ -27,52 +32,57 @@ static const struct treeland_output_manager_v1_interface output_manager_impl
     .destroy = output_manager_interface_handle_destroy,
 };
 
-struct treeland_output_manager_v1 *treeland_output_manager_v1_create(struct wl_display *display)
+// treeland output manager impl
+treeland_output_manager_v1::~treeland_output_manager_v1()
 {
-    auto *manager =
-        static_cast<treeland_output_manager_v1 *>(calloc(1, sizeof(treeland_output_manager_v1)));
-    if (manager == nullptr) {
+    Q_EMIT beforeDestroy();
+    // TODO: send stop to all clients
+    wl_global_destroy(global);
+}
+
+treeland_output_manager_v1 *treeland_output_manager_v1::create(QWDisplay *display)
+{
+    auto *manager = new treeland_output_manager_v1;
+    if (!manager) {
         return nullptr;
     }
-    manager->global = wl_global_create(display,
+    manager->global = wl_global_create(display->handle(),
                                        &treeland_output_manager_v1_interface,
                                        TREELAND_OUTPUT_MANAGER_V1_VERSION,
                                        manager,
                                        output_manager_bind);
 
     wl_list_init(&manager->resources);
-    wl_signal_init(&manager->events.set_primary_output);
 
-    manager->display_destroy.notify = output_manager_handle_display_destroy;
-    wl_display_add_destroy_listener(display, &manager->display_destroy);
+    connect(display, &QWDisplay::beforeDestroy, manager, [manager] { delete manager; });
+
     return manager;
 }
 
-void treeland_output_manager_v1_set_primary_output(treeland_output_manager_v1 *manager,
-                                                   const char *name)
+void treeland_output_manager_v1::set_primary_output(const char *name)
 {
-    manager->primary_output_name = name;
+    this->primary_output_name = name;
     wl_resource *resource;
-    wl_list_for_each(resource, &manager->resources, link)
+    wl_list_for_each(resource, &this->resources, link)
     {
         treeland_output_manager_v1_send_primary_output(resource, name);
     }
 }
 
-struct treeland_output_manager_v1 *output_manager_from_resource(struct wl_resource *resource)
+// static func
+static treeland_output_manager_v1 *output_manager_from_resource(wl_resource *resource)
 {
     assert(wl_resource_instance_of(resource,
                                    &treeland_output_manager_v1_interface,
                                    &output_manager_impl));
-    struct treeland_output_manager_v1 *manager =
-        static_cast<treeland_output_manager_v1 *>(wl_resource_get_user_data(resource));
-    assert(manager != NULL);
+    auto *manager = static_cast<treeland_output_manager_v1 *>(wl_resource_get_user_data(resource));
+    assert(manager != nullptr);
     return manager;
 }
 
-void output_manager_bind(struct wl_client *client, void *data, uint32_t version, uint32_t id)
+static void output_manager_bind(wl_client *client, void *data, uint32_t version, uint32_t id)
 {
-    struct treeland_output_manager_v1 *manager = static_cast<treeland_output_manager_v1 *>(data);
+    auto *manager = static_cast<treeland_output_manager_v1 *>(data);
 
     struct wl_resource *resource =
         wl_resource_create(client, &treeland_output_manager_v1_interface, version, id);
@@ -80,19 +90,8 @@ void output_manager_bind(struct wl_client *client, void *data, uint32_t version,
         wl_client_post_no_memory(client);
         return;
     }
-    wl_resource_set_implementation(resource, &output_manager_impl, manager, NULL);
+    wl_resource_set_implementation(resource, &output_manager_impl, manager, nullptr);
     wl_list_insert(&manager->resources, wl_resource_get_link(resource));
 
     treeland_output_manager_v1_send_primary_output(resource, manager->primary_output_name);
-}
-
-void output_manager_handle_display_destroy(struct wl_listener *listener,
-                                           [[maybe_unused]] void *data)
-{
-    struct treeland_output_manager_v1 *manager =
-        wl_container_of(listener, manager, display_destroy);
-
-    wl_global_destroy(manager->global);
-    wl_list_remove(&manager->display_destroy.link);
-    free(manager);
 }

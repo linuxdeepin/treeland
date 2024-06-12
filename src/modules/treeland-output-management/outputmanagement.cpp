@@ -23,12 +23,6 @@ TreelandOutputManager::TreelandOutputManager(QObject *parent)
 {
 }
 
-void TreelandOutputManager::on_set_primary_output(void *data)
-{
-    const char *name = *(static_cast<const char **>(data));
-    Q_EMIT requestSetPrimaryOutput(name);
-}
-
 const char *TreelandOutputManager::primaryOutput()
 {
     return m_handle->primary_output_name;
@@ -38,7 +32,7 @@ bool TreelandOutputManager::setPrimaryOutput(const char *name)
 {
     if (name == nullptr) {
         if (m_outputs.empty()) { // allow null when output list is empty
-            treeland_output_manager_v1_set_primary_output(m_handle, nullptr);
+            m_handle->set_primary_output(nullptr);
             Q_EMIT primaryOutputChanged();
             return true;
         } else {
@@ -50,7 +44,7 @@ bool TreelandOutputManager::setPrimaryOutput(const char *name)
         return true;
     for (auto *output : m_outputs)
         if (strcmp(output->nativeHandle()->name, name) == 0) {
-            treeland_output_manager_v1_set_primary_output(m_handle, output->nativeHandle()->name);
+            m_handle->set_primary_output(output->nativeHandle()->name);
             Q_EMIT primaryOutputChanged();
             return true;
         }
@@ -80,9 +74,10 @@ void TreelandOutputManager::removeOutput(WAYLIB_SERVER_NAMESPACE::WOutput *outpu
 
 void TreelandOutputManager::create()
 {
-    m_handle = treeland_output_manager_v1_create(server()->handle()->handle());
+    m_handle = treeland_output_manager_v1::create(server()->handle());
 
-    m_sc.connect(&m_handle->events.set_primary_output,
-                 this,
-                 &TreelandOutputManager::on_set_primary_output);
+    connect(m_handle,
+            &treeland_output_manager_v1::requestSetPrimaryOutput,
+            this,
+            &TreelandOutputManager::requestSetPrimaryOutput);
 }
