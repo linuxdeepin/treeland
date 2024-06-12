@@ -3,53 +3,16 @@
 
 #pragma once
 
-#include "server-protocol.h"
 #include "impl/foreign_toplevel_manager_impl.h"
+#include "server-protocol.h"
 
 #include <wquickwaylandserver.h>
 #include <wxdgsurface.h>
 
 #include <QObject>
 
-struct treeland_foreign_toplevel_handle_v1_maximized_event;
-struct treeland_foreign_toplevel_handle_v1_minimized_event;
-struct treeland_foreign_toplevel_handle_v1_activated_event;
-struct treeland_foreign_toplevel_handle_v1_fullscreen_event;
-struct treeland_foreign_toplevel_handle_v1_set_rectangle_event;
-
 QW_USE_NAMESPACE
 WAYLIB_SERVER_USE_NAMESPACE
-
-class QWForeignToplevelManagerV1Private;
-
-class QW_EXPORT QWForeignToplevelManagerV1 : public QObject, public QWObject
-{
-    Q_OBJECT
-    QW_DECLARE_PRIVATE(QWForeignToplevelManagerV1)
-public:
-    inline ztreeland_foreign_toplevel_manager_v1 *handle() const
-    {
-        return QWObject::handle<ztreeland_foreign_toplevel_manager_v1>();
-    }
-
-    static QWForeignToplevelManagerV1 *get(ztreeland_foreign_toplevel_manager_v1 *handle);
-    static QWForeignToplevelManagerV1 *from(ztreeland_foreign_toplevel_manager_v1 *handle);
-    static QWForeignToplevelManagerV1 *create(QWDisplay *display);
-
-    void topLevel(Waylib::Server::WToplevelSurface *surface);
-    void close(Waylib::Server::WToplevelSurface *surface);
-    void done(Waylib::Server::WToplevelSurface *surface);
-    void setPid(Waylib::Server::WToplevelSurface *surface, uint32_t pid);
-    void setIdentifier(Waylib::Server::WToplevelSurface *surface, const QString &identifier);
-    void updateSurfaceInfo(Waylib::Server::WToplevelSurface *surface);
-
-Q_SIGNALS:
-    void beforeDestroy(QWForeignToplevelManagerV1 *self);
-
-private:
-    QWForeignToplevelManagerV1(ztreeland_foreign_toplevel_manager_v1 *handle, bool isOwner);
-    ~QWForeignToplevelManagerV1() = default;
-};
 
 class QuickForeignToplevelManagerV1;
 
@@ -74,13 +37,10 @@ private:
     QuickForeignToplevelManagerV1 *m_manager;
 };
 
-class QuickForeignToplevelManagerV1Private;
-
-class QuickForeignToplevelManagerV1 : public WQuickWaylandServerInterface, public WObject
+class QuickForeignToplevelManagerV1 : public WQuickWaylandServerInterface
 {
     Q_OBJECT
     QML_NAMED_ELEMENT(TreeLandForeignToplevelManagerV1)
-    W_DECLARE_PRIVATE(QuickForeignToplevelManagerV1)
     QML_ATTACHED(QuickForeignToplevelManagerAttached)
 
 public:
@@ -112,8 +72,16 @@ Q_SIGNALS:
                             int direction);
     void requestDockClose();
 
+private Q_SLOTS:
+    void onDockPreviewContextCreated(treeland_dock_preview_context_v1 *context);
+
 private:
     void create() override;
+
+    treeland_foreign_toplevel_manager_v1 *m_manager = nullptr;
+    std::map<WToplevelSurface *, std::shared_ptr<treeland_foreign_toplevel_handle_v1>> m_surfaces;
+    std::map<WToplevelSurface *, std::vector<QMetaObject::Connection>> m_connections;
+    std::vector<treeland_dock_preview_context_v1 *> m_dockPreviews; // TODO: remove m_dockPreviews
 };
 
 Q_DECLARE_OPAQUE_POINTER(treeland_foreign_toplevel_handle_v1_maximized_event *);

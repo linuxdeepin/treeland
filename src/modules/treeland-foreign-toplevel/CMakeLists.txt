@@ -21,16 +21,12 @@ target_sources(${MODULE_NAME} PUBLIC
 FILE_SET HEADERS
 FILES
     foreigntoplevelmanagerv1.h
-    impl/foreigntoplevelhandlev1.h
     impl/foreign_toplevel_manager_impl.h
 )
 
 target_sources(${MODULE_NAME} PRIVATE
     foreigntoplevelmanagerv1.cpp
     impl/foreign_toplevel_manager_impl.cpp
-    impl/foreigntoplevelhandlev1.cpp
-    impl/foreigntoplevelmanagerv1.cpp
-    impl/dockpreviewcontextv1.cpp
     server-protocol.c
     xdg-shell-protocol.c
 )
