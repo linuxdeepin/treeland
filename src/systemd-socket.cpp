@@ -3,14 +3,16 @@
 
 #include <systemd/sd-daemon.h>
 
+#include <QCommandLineOption>
+#include <QCommandLineParser>
 #include <QCoreApplication>
-#include <QDBusInterface>
-#include <QDBusServiceWatcher>
-#include <QDebug>
-#include <QFile>
 #include <QDBusConnection>
 #include <QDBusInterface>
+#include <QDBusReply>
+#include <QDBusServiceWatcher>
 #include <QDBusUnixFileDescriptor>
+#include <QDebug>
+#include <QFile>
 #include <QtEnvironmentVariables>
 
 #include <sys/socket.h>
@@ -21,6 +23,21 @@ int main(int argc, char *argv[])
 {
     QCoreApplication app(argc, argv);
 
+    QCommandLineParser parser;
+    parser.setApplicationDescription("TreeLand socket helper");
+    parser.addHelpOption();
+    parser.addVersionOption();
+
+    QCommandLineOption typeOption(QStringList() << "t"
+                                                << "type",
+                                  "xwayland",
+                                  "wayland");
+    parser.addOption(typeOption);
+
+    parser.process(app);
+
+    const QString &type = parser.value(typeOption);
+
     if (sd_listen_fds(0) > 1) {
         fprintf(stderr, "Too many file descriptors received.\n");
         exit(1);
@@ -28,15 +45,29 @@ int main(int argc, char *argv[])
 
     QDBusUnixFileDescriptor unixFileDescriptor(SD_LISTEN_FDS_START);
 
-    auto active = [unixFileDescriptor](const QDBusConnection &connection) {
-        auto activateFd = [unixFileDescriptor, connection] {
+    auto active = [unixFileDescriptor, type](const QDBusConnection &connection) {
+        auto activateFd = [unixFileDescriptor, type, connection] {
             QDBusInterface updateFd("org.deepin.Compositor1",
                                     "/org/deepin/Compositor1",
                                     "org.deepin.Compositor1",
                                     connection);
 
             if (updateFd.isValid()) {
-                updateFd.call("Activate", QVariant::fromValue(unixFileDescriptor));
+                if (type == "wayland") {
+                    updateFd.call("ActivateWayland", QVariant::fromValue(unixFileDescriptor));
+                } else if (type == "xwayland") {
+                    QDBusReply<QString> reply = updateFd.call("XWaylandName");
+                    if (reply.isValid()) {
+                        const QString &xwaylandName = reply.value();
+
+                        QDBusInterface systemd("org.freedesktop.systemd1",
+                                               "/org/freedesktop/systemd1",
+                                               "org.freedesktop.systemd1.Manager",
+                                               QDBusConnection::sessionBus());
+                        systemd.call("SetEnvironment",
+                                     QStringList() << QString("DISPLAY=%1").arg(xwaylandName));
+                    }
+                }
             }
         };
 
