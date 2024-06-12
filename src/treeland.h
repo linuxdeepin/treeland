@@ -44,7 +44,8 @@ Q_SIGNALS:
     void socketDisconnected();
 
 public Q_SLOTS:
-    bool Activate(QDBusUnixFileDescriptor fd);
+    bool ActivateWayland(QDBusUnixFileDescriptor fd);
+    QString XWaylandName();
 
 private Q_SLOTS:
     void connected();

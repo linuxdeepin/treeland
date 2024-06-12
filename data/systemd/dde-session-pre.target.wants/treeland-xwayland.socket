@@ -1,0 +1,13 @@
+[Unit]
+Description=User XWayland Socket
+PartOf=treeland-xwayland.service
+
+Requisite=dde-session-pre.target
+PartOf=dde-session-pre.target
+Before=dde-session-pre.target
+
+[Socket]
+ListenStream=%t/treeland-xwayland
+RemoveOnStop=true
+FileDescriptorName=TreeLand-Xwayland
+ExecStopPost=-/usr/bin/systemctl --user unset-environment DISPLAY

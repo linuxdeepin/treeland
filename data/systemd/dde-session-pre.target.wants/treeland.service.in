@@ -11,6 +11,10 @@ Requires=treeland-sd.service
 PartOf=treeland-sd.service
 Before=treeland-sd.service
 
+Requires=treeland-xwayland.service
+PartOf=treeland-xwayland.service
+Before=treeland-xwayland.service
+
 Requisite=dde-session-pre.target
 PartOf=dde-session-pre.target
 Before=dde-session-pre.target
@@ -22,11 +26,6 @@ BusName=org.deepin.Compositor1
 UnsetEnvironment=DISPLAY
 UnsetEnvironment=WAYLAND_DISPLAY
 ExecStart=@CMAKE_INSTALL_FULL_BINDIR@/treeland
-
-# wait xwayland update
-ExecStartPost=-/usr/bin/systemctl --user unset-environment DISPLAY
-
-ExecStartPost=-/usr/bin/systemctl --user set-environment WAYLAND_DISPLAY=%t/treeland.socket
 ExecStartPost=-/usr/bin/systemctl --user set-environment DDE_CURRENT_COMPOSITOR=TreeLand
 ExecStopPost=-/usr/bin/systemctl --user unset-environment DDE_CURRENT_COMPOSITOR
 Slice=session.slice

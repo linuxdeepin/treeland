@@ -37,7 +37,8 @@ class Helper : public WSeatEventFilter
     Q_PROPERTY(WToplevelSurface* activatedSurface READ activatedSurface WRITE setActivateSurface NOTIFY activatedSurfaceChanged FINAL)
     Q_PROPERTY(WSurfaceItem* resizingItem READ resizingItem NOTIFY resizingItemChanged FINAL)
     Q_PROPERTY(WSurfaceItem *movingItem READ movingItem WRITE setMovingItem NOTIFY movingItemChanged FINAL)
-    Q_PROPERTY(QString socketFile READ socketFile WRITE setSocketFile NOTIFY socketFileChanged FINAL)
+    Q_PROPERTY(QString waylandSocket READ waylandSocket WRITE setWaylandSocket NOTIFY socketFileChanged FINAL)
+    Q_PROPERTY(QString xwaylandSocket READ xwaylandSocket WRITE setXWaylandSocket NOTIFY socketFileChanged FINAL)
     Q_PROPERTY(QString currentUser READ currentUser WRITE setCurrentUser FINAL)
     Q_PROPERTY(bool switcherOn MEMBER m_switcherOn NOTIFY switcherOnChanged FINAL)
     Q_PROPERTY(bool switcherEnabled MEMBER m_switcherEnabled FINAL)
@@ -57,7 +58,8 @@ public:
 
     inline QString currentUser() const { return m_currentUser; }
 
-    QString socketFile() const;
+    QString waylandSocket() const;
+    QString xwaylandSocket() const;
 
     Q_INVOKABLE QString clientName(Waylib::Server::WSurface *surface) const;
 
@@ -144,10 +146,12 @@ protected:
     QList<std::pair<WOutput *, OutputInfo *>> m_outputExclusiveZoneInfo;
 
 private:
-    void setSocketFile(const QString &socketFile);
+    void setWaylandSocket(const QString &socketFile);
+    void setXWaylandSocket(const QString &socketFile);
 
 private:
-    QString m_socketFile;
+    QString m_waylandSocket;
+    QString m_xwaylandSocket;
     QString m_currentUser;
     std::map<QString, std::vector<QAction *>> m_actions;
     bool m_switcherOn = false;
