@@ -20,13 +20,11 @@ target_sources(${MODULE_NAME} PUBLIC
 FILE_SET HEADERS
 FILES
     shortcutmanager.h
-    impl/qshortcutmanager.h
     impl/shortcut_manager_impl.h
 )
 
 target_sources(${MODULE_NAME} PRIVATE
     shortcutmanager.cpp
-    impl/qshortcutmanager.cpp
     impl/shortcut_manager_impl.cpp
     server-protocol.c
 )

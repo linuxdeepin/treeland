@@ -5,44 +5,42 @@
 
 #include <wayland-server-core.h>
 
-struct treeland_shortcut_manager_v1
+#include <qwdisplay.h>
+
+#include <QList>
+#include <QObject>
+
+struct treeland_shortcut_context_v1;
+
+struct treeland_shortcut_manager_v1 : public QObject
 {
-    struct wl_event_loop *event_loop;
-    struct wl_global *global;
-    struct wl_list contexts;
-    struct wl_resource *client;
+    Q_OBJECT
+public:
+    ~treeland_shortcut_manager_v1();
+    wl_event_loop *event_loop{ nullptr };
+    wl_global *global{ nullptr };
+    QList<wl_resource *> clients;
 
-    struct wl_listener display_destroy;
+    QList<treeland_shortcut_context_v1 *> contexts;
 
-    struct
-    {
-        struct wl_signal context;
-        struct wl_signal destroy;
-    } events;
+    static treeland_shortcut_manager_v1 *create(QW_NAMESPACE::QWDisplay *display);
 
-    void *data;
+Q_SIGNALS:
+    void newContext(uid_t uid, treeland_shortcut_context_v1 *context);
+    void beforeDestroy();
 };
 
-struct treeland_shortcut_context_v1
+struct treeland_shortcut_context_v1 : public QObject
 {
-    struct treeland_shortcut_manager_v1 *manager;
-    char *key;
-    struct wl_list link;
-    struct wl_resource *resource;
+    Q_OBJECT
+public:
+    ~treeland_shortcut_context_v1();
+    treeland_shortcut_manager_v1 *manager{ nullptr };
+    char *key{ nullptr };
+    wl_resource *resource{ nullptr };
 
-    struct
-    {
-        struct wl_signal destroy;
-    } events;
+    void send_shortcut();
+    void send_register_failed();
+Q_SIGNALS:
+    void beforeDestroy();
 };
-
-void shortcut_manager_bind(struct wl_client *client, void *data, uint32_t version, uint32_t id);
-
-struct treeland_shortcut_manager_v1 *treeland_shortcut_manager_v1_create(
-    struct wl_display *display);
-
-void treeland_shortcut_context_v1_destroy(struct treeland_shortcut_context_v1 *context);
-
-void treeland_shortcut_context_v1_send_shortcut(struct treeland_shortcut_context_v1 *context);
-void treeland_shortcut_context_v1_send_register_failed(
-    struct treeland_shortcut_context_v1 *context);

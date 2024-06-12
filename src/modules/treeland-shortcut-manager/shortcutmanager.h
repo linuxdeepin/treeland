@@ -10,13 +10,13 @@
 #include <QObject>
 #include <QQmlEngine>
 
-class ShortcutManagerV1Private;
+class treeland_shortcut_context_v1;
+class treeland_shortcut_manager_v1;
 
-class ShortcutManagerV1 : public Waylib::Server::WQuickWaylandServerInterface, public WObject
+class ShortcutManagerV1 : public Waylib::Server::WQuickWaylandServerInterface
 {
     Q_OBJECT
     QML_NAMED_ELEMENT(ShortcutManager)
-    W_DECLARE_PRIVATE(ShortcutManagerV1)
     Q_PROPERTY(Helper *helper READ helper WRITE setHelper)
 
 public:
@@ -25,7 +25,13 @@ public:
 protected:
     void create() override;
 
+private Q_SLOTS:
+    void onNewContext(uid_t uid, treeland_shortcut_context_v1 *context);
+
 private:
     void setHelper(Helper *helper);
     Helper *helper();
+
+    treeland_shortcut_manager_v1 *m_manager = nullptr;
+    Helper *m_helper = nullptr;
 };
