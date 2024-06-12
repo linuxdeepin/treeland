@@ -130,9 +130,14 @@ Item {
             id: xwayland
             compositor: compositor.compositor
             seat: seat0.seat
-            lazy: false
+            lazy: true
 
             onReady: masterSocket.addClient(client())
+
+            onDisplayNameChanged: {
+                console.info("XWayland Listing on: ", xwayland.displayName)
+                Helper.xwaylandSocket = xwayland.displayName
+            }
 
             onSurfaceAdded: function(surface) {
                 const wid = QmlHelper.workspaceManager.layoutOrder.get(stackLayout.item.currentWorkspaceId).wsid
@@ -209,8 +214,8 @@ Item {
             freezeClientWhenDisable: false
 
             Component.onCompleted: {
-                console.info("Listing on:", socketFile)
-                Helper.socketFile = socketFile
+                console.info("Wayland Listing on:", socketFile)
+                Helper.waylandSocket = socketFile
             }
         }
 

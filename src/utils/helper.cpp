@@ -587,14 +587,26 @@ void Helper::setCurrentUser(const QString &currentUser)
     m_currentUser = currentUser;
 }
 
-QString Helper::socketFile() const
+QString Helper::waylandSocket() const
 {
-    return m_socketFile;
+    return m_waylandSocket;
 }
 
-void Helper::setSocketFile(const QString &socketFile)
+QString Helper::xwaylandSocket() const
 {
-    m_socketFile = socketFile;
+    return m_xwaylandSocket;
+}
+
+void Helper::setWaylandSocket(const QString &socketFile)
+{
+    m_waylandSocket = socketFile;
+
+    emit socketFileChanged();
+}
+
+void Helper::setXWaylandSocket(const QString &socketFile)
+{
+    m_xwaylandSocket = socketFile;
 
     emit socketFileChanged();
 }

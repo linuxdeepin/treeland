@@ -23,13 +23,15 @@
 #include <qwbackend.h>
 #include <qwcompositor.h>
 #include <qwdisplay.h>
-#include <qwoutput.h>
 #include <qwlogging.h>
+#include <qwoutput.h>
+#include <qwxwayland.h>
 
 #include <DLog>
 
 #include <QCommandLineParser>
 #include <QDebug>
+#include <QEventLoop>
 #include <QGuiApplication>
 #include <QLoggingCategory>
 #include <QQmlApplicationEngine>
@@ -39,11 +41,17 @@
 #include <QQuickStyle>
 #include <QQuickView>
 #include <QTimer>
-#include <qdbusconnection.h>
-#include <qdbusunixfiledescriptor.h>
-#include <qqmlextensionplugin.h>
+#include <QtLogging>
 
 #include <pwd.h>
+#include <sys/socket.h>
+
+extern "C" {
+#define class _class
+#include <wlr/xwayland/server.h>
+#include <wlr/xwayland/xwayland.h>
+#undef class
+}
 
 Q_LOGGING_CATEGORY(debug, "treeland.kernel.debug", QtDebugMsg);
 
@@ -172,7 +180,7 @@ TreeLand::TreeLand(TreeLandAppContext context)
 
         connect(helper, &Helper::socketFileChanged, this, connectToServer);
 
-        if (!helper->socketFile().isEmpty()) {
+        if (!helper->waylandSocket().isEmpty()) {
             connectToServer();
         }
     }
@@ -184,7 +192,8 @@ TreeLand::TreeLand(TreeLandAppContext context)
                 auto cmdArgs = cmdline.value();
 
                 auto envs = QProcessEnvironment::systemEnvironment();
-                envs.insert("WAYLAND_DISPLAY", helper->socketFile());
+                envs.insert("WAYLAND_DISPLAY", helper->waylandSocket());
+                envs.insert("DISPLAY", helper->xwaylandSocket());
 
                 QProcess process;
                 process.setProgram(cmdArgs.constFirst());
@@ -196,7 +205,7 @@ TreeLand::TreeLand(TreeLandAppContext context)
         auto con =
             connect(helper, &Helper::socketFileChanged, this, exec, Qt::SingleShotConnection);
 
-        if (!helper->socketFile().isEmpty()) {
+        if (!helper->waylandSocket().isEmpty()) {
             QObject::disconnect(con);
             exec();
         }
@@ -321,7 +330,7 @@ void TreeLand::readyRead()
     }
 }
 
-bool TreeLand::Activate(QDBusUnixFileDescriptor _fd)
+bool TreeLand::ActivateWayland(QDBusUnixFileDescriptor _fd)
 {
     if (!_fd.isValid()) {
         return false;
@@ -364,6 +373,22 @@ bool TreeLand::Activate(QDBusUnixFileDescriptor _fd)
     return true;
 }
 
+QString TreeLand::XWaylandName()
+{
+    auto uid = connection().interface()->serviceUid(message().service());
+    struct passwd *pw;
+    pw = getpwuid(uid);
+    QString user{ pw->pw_name };
+
+    Helper *helper = m_engine->singletonInstance<Helper *>("TreeLand.Utils", "Helper");
+    Q_ASSERT(helper);
+
+    const QString &display = helper->xwaylandSocket();
+    qCDebug(debug) << QString("user %1 got xwayland display %2.").arg(user).arg(display);
+
+    return display;
+}
+
 } // namespace TreeLand
 
 int main(int argc, char *argv[])
@@ -395,8 +420,10 @@ int main(int argc, char *argv[])
     parser.process(app);
 
     TreeLand::TreeLand treeland({ parser.value(socket), parser.value(run) });
+
     new Compositor1Adaptor(&treeland);
 
+    // init dbus after QML engine loaded.
     QDBusConnection::systemBus().registerService("org.deepin.Compositor1");
     QDBusConnection::systemBus().registerObject("/org/deepin/Compositor1", &treeland);
 
