@@ -81,10 +81,16 @@ static bool globalFilter(const wl_client *client,
             }
 
             Q_ASSERT(wclient);
-            if (interface->targetSocket() && wclient->socket() != interface->targetSocket())
+            if (interface->targetSocket()
+                && (interface->exclusionTargetSocket()
+                    == bool(wclient->socket() == interface->targetSocket()))) {
                 return false;
-            if (!interface->targetClients().isEmpty() && !interface->targetClients().contains(wclient))
+            }
+            if (!interface->targetClients().isEmpty()
+                && (interface->exclusionTargetClients()
+                    == interface->targetClients().contains(wclient))) {
                 return false;
+            }
         }
     } while(false);
 

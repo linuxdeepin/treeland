@@ -52,18 +52,26 @@ public:
         return m_server;
     }
 
-    inline void setTargetSocket(const WSocket *socket) {
+    inline void setTargetSocket(const WSocket *socket, bool exclusionMode) {
         m_targetSocket = socket;
+        m_exclusionTargetSocket = exclusionMode;
     }
     inline const WSocket *targetSocket() const {
         return m_targetSocket;
     }
+    inline bool exclusionTargetSocket() const {
+        return m_exclusionTargetSocket;
+    }
 
-    inline void setTargetClients(const QList<WClient*> &clients) {
+    inline void setTargetClients(const QList<WClient*> &clients, bool exclusionMode) {
         m_targetClients = clients;
+        m_exclusionTargetClients = exclusionMode;
     }
     inline QList<WClient*> targetClients() const {
         return m_targetClients;
+    }
+    inline bool exclusionTargetClients() const {
+        return m_exclusionTargetClients;
     }
 
 protected:
@@ -72,6 +80,8 @@ protected:
     WServer *m_server = nullptr;
     const WSocket *m_targetSocket = nullptr;
     QList<WClient*> m_targetClients;
+    uint m_exclusionTargetSocket:1;
+    uint m_exclusionTargetClients:1;
 
     virtual void create(WServer *server) {
         Q_UNUSED(server);
