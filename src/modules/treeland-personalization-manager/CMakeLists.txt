@@ -18,6 +18,12 @@ qt_add_qml_module(${MODULE_NAME}
         ${PROJECT_BINARY_DIR}/qt/qml/TreeLand/Protocols/${MODULE_URI}
 )
 
+qt_add_resources(${MODULE_NAME} "default_background"
+    PREFIX "/"
+    FILES
+        desktop.webp
+)
+
 target_sources(${MODULE_NAME} PUBLIC
 FILE_SET HEADERS
 FILES
