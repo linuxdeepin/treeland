@@ -17,13 +17,14 @@
 #include <qwsignalconnector.h>
 #include <qwxdgshell.h>
 
+#include <DConfig>
+
 #include <QDebug>
 #include <QDir>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QSettings>
 #include <QStandardPaths>
-#include <DConfig>
 
 #include <sys/socket.h>
 #include <unistd.h>
@@ -39,7 +40,7 @@ DCORE_USE_NAMESPACE
 static QuickPersonalizationManager *PERSONALIZATION_MANAGER = nullptr;
 static QQuickItem *PERSONALIZATION_IMAGE = nullptr;
 
-#define DEFAULT_WALLPAPER "file:///usr/share/wallpapers/deepin/desktop.jpg"
+#define DEFAULT_WALLPAPER "qrc:/desktop.webp"
 
 class QuickPersonalizationManagerPrivate : public WObjectPrivate
 {
@@ -110,16 +111,13 @@ QString QuickPersonalizationManagerPrivate::readWallpaperSettings(const QString 
 
     QSettings settings(m_settingFile, QSettings::IniFormat);
 
-    QString value = DEFAULT_WALLPAPER;
+    QString value;
     QString output_name = outputName(w_output);
     if (output_name.isEmpty())
         return DEFAULT_WALLPAPER;
     else {
-        value = settings.value(group + "/" + output_name).toString();
+        value = settings.value(group + "/" + output_name, DEFAULT_WALLPAPER).toString();
     }
-
-    if (value.isEmpty())
-        return DEFAULT_WALLPAPER;
 
     return QString("file://%1").arg(value);
 }
@@ -184,7 +182,8 @@ void QuickPersonalizationManager::onWindowContextCreated(PersonalizationWindowCo
             &QuickPersonalizationManager::onBackgroundTypeChanged);
 }
 
-void QuickPersonalizationManager::onWallpaperContextCreated(PersonalizationWallpaperContext *context)
+void QuickPersonalizationManager::onWallpaperContextCreated(
+    PersonalizationWallpaperContext *context)
 {
     connect(context,
             &PersonalizationWallpaperContext::commit,
@@ -212,7 +211,8 @@ void QuickPersonalizationManager::onCursorContextCreated(PersonalizationCursorCo
             &QuickPersonalizationManager::onGetCursorSize);
 }
 
-QString QuickPersonalizationManager::saveImage(personalization_wallpaper_context_v1 *context, const QString prefix)
+QString QuickPersonalizationManager::saveImage(personalization_wallpaper_context_v1 *context,
+                                               const QString prefix)
 {
     if (!context || context->fd == -1 || !strlen(context->output_name))
         return QString();
@@ -378,7 +378,7 @@ void QuickPersonalizationManager::setCursorSize(const QSize &size)
     Q_EMIT cursorSizeChanged(size);
 }
 
-QString QuickPersonalizationManager::background(WOutput* w_output)
+QString QuickPersonalizationManager::background(WOutput *w_output)
 {
     W_D(QuickPersonalizationManager);
     return d->readWallpaperSettings("background", w_output);
