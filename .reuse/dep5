@@ -38,7 +38,7 @@ Copyright: vioken
 License: GPL-2.0-only
 
 # png svg
-Files: **/*.svg **/*.png **/*.dci **/*.gif logo.png
+Files: **/*.svg **/*.png **/*.jpg **/*.jpeg **/*.webp **/*.dci **/*.gif logo.png
 Copyright: vioken
 License: CC0-1.0
 
