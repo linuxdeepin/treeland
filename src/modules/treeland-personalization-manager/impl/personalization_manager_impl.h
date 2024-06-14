@@ -5,89 +5,90 @@
 
 #include <wayland-server-core.h>
 
+#include <qwdisplay.h>
+#include <QObject>
 #include <QStringList>
 
-struct treeland_personalization_manager_v1
+struct personalization_window_context_v1;
+struct personalization_wallpaper_context_v1;
+struct personalization_cursor_context_v1;
+struct wlr_surface;
+
+struct treeland_personalization_manager_v1 : public QObject
 {
-    struct wl_event_loop *event_loop;
-    struct wl_global *global;
-    struct wl_list resources; // wl_resource_get_link()
+    Q_OBJECT
+public:
+    explicit treeland_personalization_manager_v1();
+    ~treeland_personalization_manager_v1();
 
-    struct wl_listener display_destroy;
+    wl_event_loop *event_loop;
+    wl_global *global;
+    wl_list resources; // wl_resource_get_link()
 
-    struct
-    {
-        struct wl_signal window_context_created;
-        struct wl_signal wallpaper_context_created;
-        struct wl_signal cursor_context_created;
-        struct wl_signal destroy;
-    } events;
+    static treeland_personalization_manager_v1* create(QW_NAMESPACE::QWDisplay *display);
 
-    void *data;
+Q_SIGNALS:
+    void beforeDestroy();
+    void windowContextCreated(personalization_window_context_v1 *context);
+    void wallpaperContextCreated(personalization_wallpaper_context_v1 *context);
+    void cursorContextCreated(personalization_cursor_context_v1 *context);
 };
 
-struct personalization_window_context_v1
+struct personalization_window_context_v1 : public QObject
 {
-    struct treeland_personalization_manager_v1 *manager;
-    struct wlr_surface *surface;
-    struct wl_list link;
+    Q_OBJECT
+public:
+    ~personalization_window_context_v1();
+    treeland_personalization_manager_v1 *manager;
+    wlr_surface *surface;
     uint32_t background_type;
 
-    struct
-    {
-        struct wl_signal set_background_type;
-        struct wl_signal destroy;
-    } events;
-
-    void *data;
+Q_SIGNALS:
+    void beforeDestroy();
+    void backgroundTypeChanged(personalization_window_context_v1 *handle);
 };
 
-struct personalization_wallpaper_context_v1
+struct personalization_wallpaper_context_v1 : public QObject
 {
-    struct treeland_personalization_manager_v1 *manager;
-    struct wl_list link;
-    struct wl_resource *resource;
+    Q_OBJECT
+public:
+    ~personalization_wallpaper_context_v1();
+    treeland_personalization_manager_v1 *manager;
+    wl_resource *resource;
     int32_t fd;
     uint32_t uid;
     uint32_t options;
 
-    const char *meta_data;
-    const char *identifier;
-    const char *output_name;
+    QString meta_data;
+    QString identifier ;
+    QString output_name;
 
-    struct
-    {
-        struct wl_signal commit;
-        struct wl_signal get_wallpapers;
-        struct wl_signal destroy;
-    } events;
+    void set_meta_data(const QString &data);
 
-    void *data;
+Q_SIGNALS:
+    void beforeDestroy();
+    void commit(personalization_wallpaper_context_v1 *handle);
+    void getWallpapers(personalization_wallpaper_context_v1 *handle);
 };
 
-struct personalization_cursor_context_v1
+struct personalization_cursor_context_v1 : public QObject
 {
-    struct treeland_personalization_manager_v1 *manager;
-    struct wl_list link;
-    struct wl_resource *resource;
+    Q_OBJECT
+public:
+    ~personalization_cursor_context_v1();
+    treeland_personalization_manager_v1 *manager;
+    wl_resource *resource;
 
-    bool verfity;
     uint32_t size;
-    const char* theme;
+    QString theme;
 
-    struct {
-        struct wl_signal commit;
-        struct wl_signal get_theme;
-        struct wl_signal get_size;
-        struct wl_signal destroy;
-    } events;
+    void set_theme(const QString &theme);
+    void set_size(uint32_t size);
+    void verfity(bool verfityed);
 
-    void *data;
+Q_SIGNALS:
+    void beforeDestroy();
+    void commit(personalization_cursor_context_v1 *handle);
+    void get_size(personalization_cursor_context_v1 *handle);
+    void get_theme(personalization_cursor_context_v1 *handle);
 };
-
-struct treeland_personalization_manager_v1 *treeland_personalization_manager_v1_create(
-    struct wl_display *display);
-
-void personalization_wallpaper_context_v1_destroy(personalization_wallpaper_context_v1 *wallpaper);
-void personalization_window_context_v1_destroy(personalization_window_context_v1 *window);
-void personalization_cursor_context_v1_destroy(personalization_cursor_context_v1 *cursor);

@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include "qwpersonalizationmanager.h"
+#include "personalizationmanager.h"
 
 #include <QDBusContext>
 #include <QDBusUnixFileDescriptor>

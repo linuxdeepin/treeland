@@ -4,28 +4,22 @@
 #pragma once
 
 #include "impl/personalization_manager_impl.h"
-#include "server-protocol.h"
 
 #include <wquickwaylandserver.h>
 #include <wxdgsurface.h>
+
+#include <DConfig>
 
 #include <QObject>
 #include <QQmlEngine>
 #include <QQuickItem>
 
-WAYLIB_SERVER_BEGIN_NAMESPACE
-class WXdgSurface;
-class WSurface;
-WAYLIB_SERVER_END_NAMESPACE
-
 QW_USE_NAMESPACE
 WAYLIB_SERVER_USE_NAMESPACE
 
-class QDir;
-class QSettings;
 class QuickPersonalizationManager;
 
-class WAYLIB_SERVER_EXPORT QuickPersonalizationManagerAttached : public QObject
+class QuickPersonalizationManagerAttached : public QObject
 {
     Q_OBJECT
     Q_PROPERTY(BackgroundType backgroundType READ backgroundType NOTIFY backgroundTypeChanged FINAL)
@@ -52,16 +46,10 @@ private:
     BackgroundType m_backgroundType = Normal;
 };
 
-class QuickPersonalizationManagerPrivate;
-class PersonalizationWindowContext;
-class PersonalizationWallpaperContext;
-class PersonalizationCursorContext;
-
-class QuickPersonalizationManager : public WQuickWaylandServerInterface, public WObject
+class QuickPersonalizationManager : public WQuickWaylandServerInterface
 {
     Q_OBJECT
     QML_NAMED_ELEMENT(PersonalizationManager)
-    W_DECLARE_PRIVATE(QuickPersonalizationManager)
     QML_ATTACHED(QuickPersonalizationManagerAttached)
 
     Q_PROPERTY(uid_t userId READ userId WRITE setUserId NOTIFY userIdChanged FINAL)
@@ -71,11 +59,11 @@ class QuickPersonalizationManager : public WQuickWaylandServerInterface, public 
 public:
     explicit QuickPersonalizationManager(QObject *parent = nullptr);
 
-    void onWindowContextCreated(PersonalizationWindowContext *context);
-    void onWallpaperContextCreated(PersonalizationWallpaperContext *context);
-    void onCursorContextCreated(PersonalizationCursorContext *context);
+    void onWindowContextCreated(personalization_window_context_v1 *context);
+    void onWallpaperContextCreated(personalization_wallpaper_context_v1 *context);
+    void onCursorContextCreated(personalization_cursor_context_v1 *context);
 
-    void onBackgroundTypeChanged(PersonalizationWindowContext *context);
+    void onBackgroundTypeChanged(personalization_window_context_v1 *context);
     void onWallpaperCommit(personalization_wallpaper_context_v1 *context);
     void onGetWallpapers(personalization_wallpaper_context_v1 *context);
 
@@ -102,11 +90,23 @@ Q_SIGNALS:
     void cursorThemeChanged(const QString &name);
     void cursorSizeChanged(const QSize &size);
 
-public slots:
+public Q_SLOTS:
     QString background(WOutput *w_output);
     QString lockscreen(WOutput *w_output);
 
 private:
     void create() override;
+
     QString saveImage(personalization_wallpaper_context_v1 *context, const QString file);
+    void updateCacheWallpaperPath(uid_t uid);
+    QString readWallpaperSettings(const QString &group, WOutput *w_output);
+    void saveWallpaperSettings(const QString &current,
+                               personalization_wallpaper_context_v1 *context);
+
+    uid_t m_userId = 0;
+    QString m_cacheDirectory;
+    QString m_settingFile;
+    QString m_iniMetaData;
+    QScopedPointer<DTK_CORE_NAMESPACE::DConfig> m_cursorConfig;
+    treeland_personalization_manager_v1 *m_manager = nullptr;
 };
