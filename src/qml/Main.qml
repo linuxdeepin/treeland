@@ -132,7 +132,10 @@ Item {
             seat: seat0.seat
             lazy: false
 
-            onReady: masterSocket.addClient(client())
+            onReady: function () {
+                masterSocket.addClient(client())
+                xdgOutputManager.addOverrideClient(client())
+            }
 
             onSurfaceAdded: function(surface) {
                 const wid = QmlHelper.workspaceManager.layoutOrder.get(stackLayout.item.currentWorkspaceId).wsid
