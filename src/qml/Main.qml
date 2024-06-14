@@ -303,6 +303,9 @@ Item {
         Item {
             id: outputLayout
             objectName: "outputlayout"
+            // register backgroundImage
+            property var personalizationMapper: background.PersonalizationManager
+
             DynamicCreatorComponent {
                 id: outputDelegateCreator
                 creator: QmlHelper.outputManager

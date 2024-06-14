@@ -94,8 +94,6 @@ OutputItem {
 
     Image {
         id: background
-        // register backgroundImage
-        property var personalizationMapper: background.PersonalizationManager
 
         fillMode: Image.PreserveAspectCrop
         anchors.fill: parent
