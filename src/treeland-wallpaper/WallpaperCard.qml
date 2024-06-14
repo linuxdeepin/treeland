@@ -4,6 +4,7 @@
 import QtQuick 2.0
 import QtQuick.Layouts 1.11
 import org.deepin.dtk 1.0
+import Wallpaper
 
 Item {
     property string group
@@ -69,6 +70,20 @@ Item {
                 height: gridView.cellHeight
 
                 Image {
+                    property bool isDarktype: true
+                    anchors.centerIn : parent
+                    id: img2x2
+                    width: 2
+                    height: 2
+                    source: imageSource
+                    fillMode: Image.Stretch
+                    Component.onCompleted: {
+                        img2x2.grabToImage(function(result) {
+                            isDarktype = ImageHelper.isDarkType(result.image);
+                        });
+                    }
+                }
+                Image {
                     id: itemImage
                     anchors.margins: 8
                     anchors.fill: parent
@@ -76,6 +91,13 @@ Item {
                     asynchronous: true
                     sourceSize: Qt.size(width, height)
                     source: imageSource
+                    Text {
+                        anchors.centerIn : parent
+                        visible: ImageHelper.debug
+                        font.pointSize: 24
+                        text: img2x2.isDarktype ? "black" : "white"
+                        color: img2x2.isDarktype ? "white" : "black"
+                    }
                 }
 
                 Rectangle {
@@ -100,6 +122,7 @@ Item {
                     id: imageMenu
                     MenuItem {
                         text: qsTr("Set as background")
+                        // TODO: set isDarkType
                         onTriggered: personalization.setBackground(imageSource, group, index)
                     }
                     MenuItem {
