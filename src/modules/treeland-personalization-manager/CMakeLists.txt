@@ -27,18 +27,13 @@ qt_add_resources(${MODULE_NAME} "default_background"
 target_sources(${MODULE_NAME} PUBLIC
 FILE_SET HEADERS
 FILES
-    qwpersonalizationmanager.h
+    personalizationmanager.h
     impl/personalization_manager_impl.h
-    impl/personalizationmanager.h
 )
 
 target_sources(${MODULE_NAME} PRIVATE
-    qwpersonalizationmanager.cpp
+    personalizationmanager.cpp
     impl/personalization_manager_impl.cpp
-    impl/personalizationwindowcontext.cpp
-    impl/personalizationwallpapercontext.cpp
-    impl/personalizationcursorcontext.cpp
-    impl/personalizationmanager.cpp
     server-protocol.c
     xdg-shell-protocol.c
 )
