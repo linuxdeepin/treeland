@@ -30,6 +30,7 @@ qt_add_qml_module(treeland-wallpaper
     wallpapercardmodel.cpp
     wallpapercardmodel.h
     QML_FILES ${QML_FILES}
+    SOURCES imagehelper.h imagehelper.cpp
 )
 
 set(TRANSLATED_FILES)
