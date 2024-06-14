@@ -47,8 +47,6 @@ struct way_xdg_output_manager_v1 {
     struct wl_listener layout_destroy;
 
     float scale_override;
-    bool (*is_scale_override_client)(void *data, struct wl_client *client);
-    void *impl;
 };
 
 struct way_xdg_output_v1 {
@@ -60,7 +58,6 @@ struct way_xdg_output_v1 {
 
     int32_t x, y;
     int32_t width, height;
-    int32_t scale_override_width, scale_override_height;
 
     struct wl_listener destroy;
     struct wl_listener description;
@@ -84,25 +81,11 @@ static void output_send_details(struct way_xdg_output_v1 *xdg_output,
                                 struct wl_resource *resource) {
     zxdg_output_v1_send_logical_position(resource,
                                          xdg_output->x, xdg_output->y);
-    struct way_xdg_output_manager_v1 *manager = xdg_output->manager;
-    if (manager->is_scale_override_client &&
-            manager->is_scale_override_client(manager->impl, resource->client)) {
-        zxdg_output_v1_send_logical_size(resource,
-                                         xdg_output->scale_override_width, xdg_output->scale_override_height);
-    } else {
-        zxdg_output_v1_send_logical_size(resource,
-                                         xdg_output->width, xdg_output->height);
-    }
+    zxdg_output_v1_send_logical_size(resource,
+                                     xdg_output->width, xdg_output->height);
     if (wl_resource_get_version(resource) < OUTPUT_DONE_DEPRECATED_SINCE_VERSION) {
         zxdg_output_v1_send_done(resource);
     }
-}
-
-void output_effective_resolution_scale_override(struct way_xdg_output_manager_v1 *manager, struct wlr_output *output,
-                                                     int *width, int *height) {
-    wlr_output_transformed_resolution(output, width, height);
-    *width /= manager->scale_override;
-    *height /= manager->scale_override;
 }
 
 static void output_update(struct way_xdg_output_v1 *xdg_output) {
@@ -116,20 +99,21 @@ static void output_update(struct way_xdg_output_v1 *xdg_output) {
     }
 
     int width, height;
-    wlr_output_effective_resolution(layout_output->output, &width, &height);
+    if (xdg_output->manager->scale_override > 0.0) {
+        wlr_output_transformed_resolution(layout_output->output, &width, &height);
+
+        width /= xdg_output->manager->scale_override;
+        height /= xdg_output->manager->scale_override;
+    } else {
+        wlr_output_effective_resolution(layout_output->output, &width, &height);
+    }
+
     if (xdg_output->width != width || xdg_output->height != height) {
         xdg_output->width = width;
         xdg_output->height = height;
         updated = true;
     }
 
-    output_effective_resolution_scale_override(xdg_output->manager,
-                                                    layout_output->output, &width, &height);
-    if (xdg_output->scale_override_width != width || xdg_output->scale_override_height != height) {
-        xdg_output->scale_override_width = width;
-        xdg_output->scale_override_height = height;
-        updated = true;
-    }
     if (updated) {
         struct wl_resource *resource;
         wl_resource_for_each(resource, &xdg_output->resources) {
@@ -315,8 +299,6 @@ static void manager_destroy(struct way_xdg_output_manager_v1 *manager) {
     wl_list_remove(&manager->layout_add.link);
     wl_list_remove(&manager->layout_change.link);
     wl_list_remove(&manager->layout_destroy.link);
-    manager->is_scale_override_client = NULL;
-    manager->impl = NULL;
     free(manager);
 }
 
@@ -335,13 +317,13 @@ static void handle_display_destroy(struct wl_listener *listener, void *data) {
 }
 
 static struct way_xdg_output_manager_v1 *way_xdg_output_manager_v1_create(
-    struct wl_display *display, struct wlr_output_layout *layout) {
+    struct wl_display *display, struct wlr_output_layout *layout, float scale_override) {
     struct way_xdg_output_manager_v1 *manager =
         static_cast<way_xdg_output_manager_v1 *>(calloc(1, sizeof(*manager)));
     if (manager == NULL) {
         return NULL;
     }
-    manager->scale_override = 1.0;
+    manager->scale_override = scale_override;
     manager->layout = layout;
     manager->global = wl_global_create(display,
                                        &zxdg_output_manager_v1_interface, OUTPUT_MANAGER_VERSION, manager,
@@ -391,9 +373,8 @@ public:
     static bool isOverrideClientCallback(void *data, struct wl_client *client);
 
     WOutputLayout *layout = nullptr;
-    qreal scaleOverride = 1.0;
+    qreal scaleOverride = 0.0;
     struct way_xdg_output_manager_v1 *manager;
-    QList<WClient*> scaleOverrideClients;
 };
 
 WQuickXdgOutputManager::WQuickXdgOutputManager(QObject *parent)
@@ -410,8 +391,10 @@ void WQuickXdgOutputManager::setScaleOverride(qreal scaleOverride)
         return;
 
     d->scaleOverride = scaleOverride;
-    if (d->manager)
+    if (d->manager) {
         d->manager->scale_override = scaleOverride;
+        output_manager_send_details(d->manager);
+    }
 
     Q_EMIT scaleOverrideChanged();
 }
@@ -420,6 +403,12 @@ qreal WQuickXdgOutputManager::scaleOverride() const
 {
     Q_D(const WQuickXdgOutputManager);
     return d->scaleOverride;
+}
+
+void WQuickXdgOutputManager::resetScaleOverride()
+{
+    Q_D(WQuickXdgOutputManager);
+    setScaleOverride(0.0);
 }
 
 void WQuickXdgOutputManager::setLayout(WOutputLayout *layout)
@@ -441,51 +430,19 @@ WOutputLayout *WQuickXdgOutputManager::layout() const
     return d->layout;
 }
 
-void WQuickXdgOutputManager::addOverrideClient(WClient *client)
-{
-    W_D(WQuickXdgOutputManager);
-    if (d->scaleOverrideClients.contains(client))
-        return;
-
-    d->scaleOverrideClients.append(client);
-}
-
-void WQuickXdgOutputManager::removeOverrideClient(WClient *client)
-{
-    W_D(WQuickXdgOutputManager);
-    d->scaleOverrideClients.removeOne(client);
-}
-
-void WQuickXdgOutputManager::clearOverrideClients()
-{
-    W_D(WQuickXdgOutputManager);
-    d->scaleOverrideClients.clear();
-}
-
 WServerInterface *WQuickXdgOutputManager::create()
 {
     W_D(WQuickXdgOutputManager);
     if (d->layout) {
-        d->manager =
-            way_xdg_output_manager_v1_create(server()->handle()->handle(), d->layout->handle());
-        d->manager->impl = d;
-        d->manager->is_scale_override_client = &WQuickXdgOutputManagerPrivate::isOverrideClientCallback;
+        d->manager = way_xdg_output_manager_v1_create(server()->handle()->handle(),
+                                                      d->layout->handle(),
+                                                      d->scaleOverride);
         return new WServerInterface(d->manager, d->manager->global);
     } else {
         qWarning() << "Output layout not set, xdg output manager will never be created!";
     }
 
     return nullptr;
-}
-
-bool WQuickXdgOutputManagerPrivate::isOverrideClientCallback(void *data, struct wl_client *client)
-{
-    if (!data)
-        return false;
-
-    auto d = reinterpret_cast<WQuickXdgOutputManagerPrivate *>(data);
-    auto wclient = WClient::get(client);
-    return wclient ? d->scaleOverrideClients.contains(wclient) : false;
 }
 
 WAYLIB_SERVER_END_NAMESPACE

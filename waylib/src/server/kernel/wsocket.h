@@ -6,6 +6,7 @@
 #include <wglobal.h>
 
 #include <QObject>
+#include <QQmlEngine>
 
 struct wl_display;
 struct wl_client;
@@ -18,6 +19,8 @@ class WAYLIB_SERVER_EXPORT WClient : public QObject, public WObject
 {
     Q_OBJECT
     W_DECLARE_PRIVATE(WClient)
+    // Using for QQmlListProperty
+    QML_ANONYMOUS
 
 public:
     WSocket *socket() const;

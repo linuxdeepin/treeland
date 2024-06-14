@@ -20,6 +20,8 @@ class WAYLIB_SERVER_EXPORT WQuickWaylandServerInterface : public QObject
     QML_NAMED_ELEMENT(WaylandServerInterface)
     Q_PROPERTY(bool polished READ isPolished NOTIFY afterPolish)
     Q_PROPERTY(WSocket* targetSocket READ targetSocket WRITE setTargetSocket NOTIFY targetSocketChanged)
+    Q_PRIVATE_PROPERTY(WQuickWaylandServerInterface::d_func(), QQmlListProperty<WClient> targetClients READ targetClients NOTIFY targetClientsChanged DESIGNABLE false)
+    Q_PROPERTY(bool exclusionTargetClients READ exclusionTargetClients WRITE setExclusionTargetClients NOTIFY exclusionTargetClientsChanged FINAL)
 
 public:
     explicit WQuickWaylandServerInterface(QObject *parent = nullptr);
@@ -30,10 +32,15 @@ public:
     WSocket *targetSocket() const;
     void setTargetSocket(WSocket *socket);
 
+    bool exclusionTargetClients() const;
+    void setExclusionTargetClients(bool newExclusionTargetClients);
+
 Q_SIGNALS:
     void beforeCreate();
     void afterPolish();
     void targetSocketChanged();
+    void targetClientsChanged();
+    void exclusionTargetClientsChanged();
 
 protected:
     friend class WQuickWaylandServer;

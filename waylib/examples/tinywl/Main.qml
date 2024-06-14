@@ -173,7 +173,7 @@ Item {
             lazy: false
 
             onReady: function () {
-                xdgOutputManager.addOverrideClient(client())
+                xwaylandXdgOutputManager.targetClients.push(client())
             }
 
             onSurfaceAdded: function(surface) {
@@ -186,10 +186,20 @@ Item {
             }
         }
 
+        // for the non-xwayland clients
         XdgOutputManager {
-            id: xdgOutputManager
+            layout: QmlHelper.layout
+            exclusionTargetClients: true
+            targetClients: xwaylandXdgOutputManager.targetClients
+        }
+
+        // for the xwayland clients
+        XdgOutputManager {
+            id: xwaylandXdgOutputManager
             layout: QmlHelper.layout
             scaleOverride: 1.0
+            exclusionTargetClients: false
+            objectName: "XdgOutputManagerForXWayalnd"
         }
 
         ScreenCopyManager { }

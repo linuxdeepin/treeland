@@ -15,7 +15,7 @@ class WAYLIB_SERVER_EXPORT WQuickXdgOutputManager : public WQuickWaylandServerIn
 {
     Q_OBJECT
     Q_PROPERTY(WOutputLayout* layout READ layout WRITE setLayout REQUIRED)
-    Q_PROPERTY(qreal scaleOverride READ scaleOverride WRITE setScaleOverride NOTIFY scaleOverrideChanged)
+    Q_PROPERTY(qreal scaleOverride READ scaleOverride WRITE setScaleOverride NOTIFY scaleOverrideChanged RESET resetScaleOverride)
     W_DECLARE_PRIVATE(WQuickXdgOutputManager)
     QML_NAMED_ELEMENT(XdgOutputManager)
 
@@ -25,12 +25,9 @@ public:
     void setLayout(WOutputLayout *layout);
     WOutputLayout *layout() const;
 
-    Q_INVOKABLE void addOverrideClient(WClient *client);
-    Q_INVOKABLE void removeOverrideClient(WClient *client);
-    Q_INVOKABLE void clearOverrideClients();
-
     void setScaleOverride(qreal scaleOverride);
     qreal scaleOverride() const;
+    void resetScaleOverride();
 
 Q_SIGNALS:
     void scaleOverrideChanged();
