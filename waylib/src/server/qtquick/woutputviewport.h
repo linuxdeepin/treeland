@@ -16,10 +16,10 @@ class WAYLIB_SERVER_EXPORT WOutputViewport : public QQuickItem
 {
     Q_OBJECT
     Q_DECLARE_PRIVATE(WOutputViewport)
+    Q_PROPERTY(QQuickItem* input READ input WRITE setInput NOTIFY inputChanged RESET resetInput FINAL)
     Q_PROPERTY(WOutput* output READ output WRITE setOutput REQUIRED)
     Q_PROPERTY(qreal devicePixelRatio READ devicePixelRatio WRITE setDevicePixelRatio NOTIFY devicePixelRatioChanged)
     Q_PROPERTY(bool offscreen READ offscreen WRITE setOffscreen NOTIFY offscreenChanged)
-    Q_PROPERTY(bool root READ isRoot WRITE setRoot NOTIFY rootChanged FINAL)
     Q_PROPERTY(bool cacheBuffer READ cacheBuffer WRITE setCacheBuffer NOTIFY cacheBufferChanged FINAL)
     Q_PROPERTY(bool preserveColorContents READ preserveColorContents WRITE setPreserveColorContents NOTIFY preserveColorContentsChanged FINAL)
     Q_PROPERTY(LayerFlags layerFlags READ layerFlags WRITE setLayerFlags NOTIFY layerFlagsChanged FINAL)
@@ -42,6 +42,10 @@ public:
     bool isTextureProvider() const override;
     QSGTextureProvider *textureProvider() const override;
 
+    QQuickItem *input() const;
+    void setInput(QQuickItem *item);
+    void resetInput();
+
     WOutput *output() const;
     void setOutput(WOutput *newOutput);
 
@@ -50,9 +54,6 @@ public:
 
     bool offscreen() const;
     void setOffscreen(bool newOffscreen);
-
-    bool isRoot() const;
-    void setRoot(bool newRoot);
 
     bool cacheBuffer() const;
     void setCacheBuffer(bool newCacheBuffer);
@@ -70,11 +71,11 @@ public Q_SLOTS:
 Q_SIGNALS:
     void devicePixelRatioChanged();
     void offscreenChanged();
-    void rootChanged();
     void cacheBufferChanged();
     void preserveColorContentsChanged();
     void layerFlagsChanged();
     void outputRenderInitialized();
+    void inputChanged();
 
 private:
     void componentComplete() override;

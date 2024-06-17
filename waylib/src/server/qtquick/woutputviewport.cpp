@@ -65,9 +65,10 @@ void WOutputViewportPrivate::updateRenderBufferSource()
 
     QList<QQuickItem*> sources;
 
-    if (root) {
-        sources.append(q);
+    if (input) {
+        sources.append(input);
     } else {
+        // the "nullptr" is on behalf of the window's contentItem
         sources.append(nullptr);
     }
 
@@ -121,6 +122,32 @@ QSGTextureProvider *WOutputViewport::textureProvider() const
         return tp;
 
     return d->bufferRenderer->textureProvider();
+}
+
+QQuickItem *WOutputViewport::input() const
+{
+    W_DC(WOutputViewport);
+    return d->input;
+}
+
+void WOutputViewport::setInput(QQuickItem *item)
+{
+    W_D(WOutputViewport);
+    if (d->input == item)
+        return;
+
+    d->input = item;
+
+    if (d->output) {
+        d->updateRenderBufferSource();
+    }
+
+    Q_EMIT inputChanged();
+}
+
+void WOutputViewport::resetInput()
+{
+    setInput(nullptr);
 }
 
 WOutput *WOutputViewport::output() const
@@ -181,26 +208,6 @@ void WOutputViewport::setOffscreen(bool newOffscreen)
         return;
     d->offscreen = newOffscreen;
     Q_EMIT offscreenChanged();
-}
-
-bool WOutputViewport::isRoot() const
-{
-    W_DC(WOutputViewport);
-    return d->root;
-}
-
-void WOutputViewport::setRoot(bool newRoot)
-{
-    W_D(WOutputViewport);
-    if (d->root == newRoot)
-        return;
-    d->root = newRoot;
-
-    if (d->output) {
-        d->updateRenderBufferSource();
-    }
-
-    Q_EMIT rootChanged();
 }
 
 bool WOutputViewport::cacheBuffer() const

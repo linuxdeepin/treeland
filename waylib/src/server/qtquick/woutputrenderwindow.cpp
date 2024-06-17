@@ -990,8 +990,9 @@ QVector<std::pair<OutputHelper*, WBufferRenderer*>> WOutputRenderWindowPrivate::
         QMatrix4x4 renderMatrix;
 
         auto viewportMatrix = QQuickItemPrivate::get(helper->output())->itemNode()->matrix().inverted();
-        if (helper->output()->isRoot()) {
+        if (helper->output()->input() == helper->output()) {
             auto mapToViewportMatrixData = viewportMatrix.constData();
+            // Remove the x,y translate, if the input item is it self, only apply scale/rotation to render.
             const QMatrix4x4 tmpMatrix {
                 mapToViewportMatrixData[0],
                 mapToViewportMatrixData[1 * 4 + 0],
@@ -1011,7 +1012,11 @@ QVector<std::pair<OutputHelper*, WBufferRenderer*>> WOutputRenderWindowPrivate::
                 mapToViewportMatrixData[3 * 4 + 3],
             };
             renderMatrix = tmpMatrix;
-        } else {
+        } else if (auto inputItem = helper->output()->input()) {
+            QMatrix4x4 matrix = QQuickItemPrivate::get(helper->output()->parentItem())->itemToWindowTransform();
+            matrix *= QQuickItemPrivate::get(inputItem)->windowToItemTransform();
+            renderMatrix = viewportMatrix * matrix.inverted();
+        } else { // the input item is window's contentItem
             QMatrix4x4 parentMatrix = QQuickItemPrivate::get(helper->output()->parentItem())->itemToWindowTransform().inverted();
             renderMatrix = viewportMatrix * parentMatrix;
         }

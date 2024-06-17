@@ -106,7 +106,7 @@ OutputItem {
             readonly property OutputItem outputItem: waylandOutput.OutputItem.item
 
             id: viewport
-            root: true
+            input: this
             output: waylandOutput
             devicePixelRatio: outputViewport.devicePixelRatio
             layerFlags: OutputViewport.AlwaysAccepted
