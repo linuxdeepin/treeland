@@ -425,7 +425,7 @@ void WBufferRenderer::render(int sourceIndex, const QMatrix4x4 &renderMatrix, bo
     Q_ASSERT(state.buffer);
 
     const auto &source = m_sourceList.at(sourceIndex);
-    QSGRenderer *renderer = ensureRenderer(source.source, state.context);
+    QSGRenderer *renderer = ensureRenderer(sourceIndex, state.context);
     auto wd = QQuickWindowPrivate::get(window());
 
     const qreal devicePixelRatio = state.devicePixelRatio;
@@ -696,19 +696,16 @@ int WBufferRenderer::indexOfSource(QQuickItem *s)
     return -1;
 }
 
-QSGRenderer *WBufferRenderer::ensureRenderer(QQuickItem *source, QSGRenderContext *rc)
+QSGRenderer *WBufferRenderer::ensureRenderer(int sourceIndex, QSGRenderContext *rc)
 {
-    if (isRootItem(source))
+    Data &d = m_sourceList[sourceIndex];
+    if (isRootItem(d.source))
         return QQuickWindowPrivate::get(window())->renderer;
-
-    const int index = indexOfSource(source);
-    Q_ASSERT(index >= 0);
-    Data &d = m_sourceList[index];
 
     if (Q_LIKELY(d.renderer))
         return d.renderer;
 
-    auto rootNode = WQmlHelper::getRootNode(source);
+    auto rootNode = WQmlHelper::getRootNode(d.source);
     Q_ASSERT(rootNode);
 
     auto dr = qobject_cast<QSGDefaultRenderContext*>(rc);

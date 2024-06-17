@@ -108,7 +108,7 @@ private:
     void resetSources();
     void removeSource(int index);
     int indexOfSource(QQuickItem *item);
-    QSGRenderer *ensureRenderer(QQuickItem *source, QSGRenderContext *rc);
+    QSGRenderer *ensureRenderer(int sourceIndex, QSGRenderContext *rc);
 
     QW_NAMESPACE::QWSwapchain *m_swapchain = nullptr;
     WRenderHelper *m_renderHelper = nullptr;
