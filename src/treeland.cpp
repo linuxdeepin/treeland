@@ -183,6 +183,9 @@ TreeLand::TreeLand(TreeLandAppContext context)
         if (!helper->waylandSocket().isEmpty()) {
             connectToServer();
         }
+    } else {
+        struct passwd *pw = getpwuid(getuid());
+        helper->setCurrentUser(pw->pw_name);
     }
 
     if (!context.run.isEmpty()) {
