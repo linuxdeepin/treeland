@@ -3,6 +3,10 @@ Description=TreeLand socket helper service
 StartLimitBurst=3
 CollectMode=inactive-or-failed
 
+Requires=treeland.service
+PartOf=treeland.service
+After=treeland.service
+
 Requires=treeland-sd.socket
 PartOf=treeland-sd.socket
 After=treeland-sd.socket
