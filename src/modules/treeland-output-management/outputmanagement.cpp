@@ -72,7 +72,7 @@ void TreelandOutputManager::removeOutput(WAYLIB_SERVER_NAMESPACE::WOutput *outpu
     }
 }
 
-void TreelandOutputManager::create()
+WServerInterface *TreelandOutputManager::create()
 {
     m_handle = treeland_output_manager_v1::create(server()->handle());
 
@@ -80,4 +80,5 @@ void TreelandOutputManager::create()
             &treeland_output_manager_v1::requestSetPrimaryOutput,
             this,
             &TreelandOutputManager::requestSetPrimaryOutput);
+    return new WServerInterface(m_handle, m_handle->global);
 }

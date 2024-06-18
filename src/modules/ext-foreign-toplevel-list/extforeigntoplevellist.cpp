@@ -334,8 +334,8 @@ void ExtForeignToplevelList::remove(Waylib::Server::WXdgSurface *surface)
     manager->close(surface);
 }
 
-void ExtForeignToplevelList::create()
+WServerInterface *ExtForeignToplevelList::create()
 {
-    WQuickWaylandServerInterface::create();
     manager.reset(ext_foreign_toplevel_list_v1::create(server()->handle()));
+    return new WServerInterface(manager.data(), manager.data()->m_global);
 }

@@ -458,10 +458,8 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *watched, QInputEvent *even
                 if (resizeEdgets & Qt::BottomEdge)
                     geo.setBottom(geo.bottom() + increment_pos.y());
 
-                if (surface->checkNewSize(geo.size().toSize())) {
+                if (surfaceItem->resizeSurface(geo.size().toSize()))
                     surfaceItem->setPosition(geo.topLeft());
-                    surfaceItem->resizeSurface(geo.size().toSize());
-                }
             }
 
             return true;

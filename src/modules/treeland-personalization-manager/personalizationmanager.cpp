@@ -107,10 +107,8 @@ QuickPersonalizationManager::QuickPersonalizationManager(QObject *parent)
     PERSONALIZATION_MANAGER = this;
 }
 
-void QuickPersonalizationManager::create()
+WServerInterface *QuickPersonalizationManager::create()
 {
-    WQuickWaylandServerInterface::create();
-
     m_manager = treeland_personalization_manager_v1::create(server()->handle());
     connect(m_manager,
             &treeland_personalization_manager_v1::windowContextCreated,
@@ -124,6 +122,7 @@ void QuickPersonalizationManager::create()
             &treeland_personalization_manager_v1::cursorContextCreated,
             this,
             &QuickPersonalizationManager::onCursorContextCreated);
+    return new WServerInterface(m_manager, m_manager->global);
 }
 
 void QuickPersonalizationManager::onWindowContextCreated(personalization_window_context_v1 *context)
