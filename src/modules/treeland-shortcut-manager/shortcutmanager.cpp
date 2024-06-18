@@ -31,13 +31,14 @@ Helper *ShortcutManagerV1::helper()
     return m_helper;
 }
 
-void ShortcutManagerV1::create()
+WServerInterface *ShortcutManagerV1::create()
 {
     m_manager = treeland_shortcut_manager_v1::create(server()->handle());
     connect(m_manager,
             &treeland_shortcut_manager_v1::newContext,
             this,
             &ShortcutManagerV1::onNewContext);
+    return new WServerInterface(m_manager, m_manager->global);
 }
 
 void ShortcutManagerV1::onNewContext(uid_t uid, treeland_shortcut_context_v1 *context)

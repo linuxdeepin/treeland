@@ -23,7 +23,7 @@ public:
     explicit ShortcutManagerV1(QObject *parent = nullptr);
 
 protected:
-    void create() override;
+    WServerInterface *create() override;
 
 private Q_SLOTS:
     void onNewContext(uid_t uid, treeland_shortcut_context_v1 *context);

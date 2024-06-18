@@ -50,6 +50,7 @@ private:
                                     uint32_t version,
                                     uint32_t id);
     friend struct ext_foreign_toplevel_handle_v1;
+    friend class ExtForeignToplevelList;
 };
 
 struct ext_foreign_toplevel_handle_v1
@@ -74,6 +75,6 @@ public:
     Q_INVOKABLE void remove(Waylib::Server::WXdgSurface *surface);
 
 protected:
-    void create() override;
+    WServerInterface *create() override;
     QScopedPointer<ext_foreign_toplevel_list_v1> manager;
 };

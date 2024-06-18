@@ -76,7 +76,7 @@ private Q_SLOTS:
     void onDockPreviewContextCreated(treeland_dock_preview_context_v1 *context);
 
 private:
-    void create() override;
+    WServerInterface *create() override;
 
     treeland_foreign_toplevel_manager_v1 *m_manager = nullptr;
     std::map<WToplevelSurface *, std::shared_ptr<treeland_foreign_toplevel_handle_v1>> m_surfaces;

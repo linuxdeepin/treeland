@@ -6,8 +6,8 @@
 #include <QQmlContext>
 #include <wxwaylandsurface.h>
 #include <wxdgsurface.h>
-#include <wquickxwayland_p.h>
-#include <wquickxdgshell_p.h>
+#include <wxwaylandsurfaceitem.h>
+#include <wxdgsurfaceitem.h>
 
 SurfaceItemFactory::SurfaceItemFactory(QQuickItem *parent)
     : QQuickItem(parent)

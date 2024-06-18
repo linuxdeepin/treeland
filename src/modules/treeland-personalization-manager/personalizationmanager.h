@@ -95,7 +95,7 @@ public Q_SLOTS:
     QString lockscreen(WOutput *w_output);
 
 private:
-    void create() override;
+    WServerInterface *create() override;
 
     QString saveImage(personalization_wallpaper_context_v1 *context, const QString file);
     void updateCacheWallpaperPath(uid_t uid);

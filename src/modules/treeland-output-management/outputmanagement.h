@@ -12,6 +12,7 @@
 #include <QQmlEngine>
 
 struct treeland_output_manager_v1;
+WAYLIB_SERVER_USE_NAMESPACE
 
 class TreelandOutputManager : public Waylib::Server::WQuickWaylandServerInterface
 {
@@ -28,7 +29,7 @@ public:
     Q_INVOKABLE void removeOutput(WAYLIB_SERVER_NAMESPACE::WOutput *output);
 
 protected:
-    void create() override;
+    WServerInterface *create() override;
 
 Q_SIGNALS:
     void requestSetPrimaryOutput(const char *);

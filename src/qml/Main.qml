@@ -132,7 +132,9 @@ Item {
             seat: seat0.seat
             lazy: true
 
-            onReady: masterSocket.addClient(client())
+            onReady: {
+                xwaylandXdgOutputManager.targetClients.push(client())
+            }
 
             onDisplayNameChanged: {
                 console.info("XWayland Listing on: ", xwayland.displayName)
@@ -240,9 +242,20 @@ Item {
             id: virtualKeyboardManagerV1
         }
 
+        // for the non-xwayland clients
         XdgOutputManager {
-            id: xdgOutputManager
             layout: QmlHelper.layout
+            exclusionTargetClients: true
+            targetClients: xwaylandXdgOutputManager.targetClients
+        }
+
+        // for the xwayland clients
+        XdgOutputManager {
+            id: xwaylandXdgOutputManager
+            layout: QmlHelper.layout
+            scaleOverride: 1.0
+            exclusionTargetClients: false
+            objectName: "XdgOutputManagerForXWayalnd"
         }
 
         FractionalScaleManagerV1 {
