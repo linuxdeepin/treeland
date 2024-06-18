@@ -13,6 +13,7 @@ option(BUILD_TINYWL "A minimum viable product Wayland compositor based on waylib
 option(DISABLE_XWAYLAND "Disable the xwayland support" OFF)
 # Don't install tinywl by default, using for debug in local
 option(INSTALL_TINYWL "A minimum viable product Wayland compositor based on waylib" OFF)
+option(ADDRESS_SANITIZER "Enable address sanitize" OFF)
 
 if(WITH_SUBMODULE_QWLROOTS)
     add_subdirectory(qwlroots)
@@ -21,6 +22,11 @@ endif()
 
 if(DISABLE_XWAYLAND)
     add_definitions(-DDISABLE_XWAYLAND)
+endif()
+
+if (ADDRESS_SANITIZER)
+    add_compile_options(-fsanitize=address -fno-optimize-sibling-calls -fno-omit-frame-pointer)
+    add_link_options(-fsanitize=address)
 endif()
 
 # For Unix/Linux

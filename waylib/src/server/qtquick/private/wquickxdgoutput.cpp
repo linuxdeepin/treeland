@@ -374,7 +374,7 @@ public:
 
     WOutputLayout *layout = nullptr;
     qreal scaleOverride = 0.0;
-    struct way_xdg_output_manager_v1 *manager;
+    struct way_xdg_output_manager_v1 *manager{ nullptr };
 };
 
 WQuickXdgOutputManager::WQuickXdgOutputManager(QObject *parent)

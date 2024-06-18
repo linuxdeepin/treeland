@@ -12,12 +12,13 @@ makeTest
       fonts.packages = with pkgs; [ dejavu_fonts ];
 
       imports = [  (pkgs.path + "/nixos/tests/common/user-account.nix") ];
-
+      
+      virtualisation.memorySize = 2048;
+      
       services.getty.autologinUser = "alice";
       security.polkit.enable = true;
       hardware.opengl.enable = true;
       programs.xwayland.enable = true;
-
       environment = {
         variables = {
           WLR_RENDERER = "pixman";

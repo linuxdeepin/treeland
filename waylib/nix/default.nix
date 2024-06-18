@@ -19,6 +19,7 @@
 , makeTest ? null
 , pkgs ? null
 , waylib ? null
+, debug ? true
 }:
 
 stdenv.mkDerivation (finalAttrs: {
@@ -65,8 +66,11 @@ stdenv.mkDerivation (finalAttrs: {
     qwlroots
   ];
 
+  cmakeBuildType = if debug then "Debug" else "Release";
+
   cmakeFlags = [
     (lib.cmakeBool "INSTALL_TINYWL" true)
+    (lib.cmakeBool "ADDRESS_SANITIZER" debug)
   ];
 
   strictDeps = true;
