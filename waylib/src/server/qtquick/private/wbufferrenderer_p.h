@@ -76,6 +76,8 @@ Q_SIGNALS:
     void sceneGraphChanged();
     void devicePixelRatioChanged();
     void cacheBufferChanged();
+    void beforeRendering();
+    void afterRendering();
 
 protected:
     QW_NAMESPACE::QWBuffer *beginRender(const QSize &pixelSize, qreal devicePixelRatio,

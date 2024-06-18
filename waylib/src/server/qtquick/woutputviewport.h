@@ -22,6 +22,7 @@ class WAYLIB_SERVER_EXPORT WOutputViewport : public QQuickItem
     Q_PROPERTY(bool offscreen READ offscreen WRITE setOffscreen NOTIFY offscreenChanged)
     Q_PROPERTY(bool cacheBuffer READ cacheBuffer WRITE setCacheBuffer NOTIFY cacheBufferChanged FINAL)
     Q_PROPERTY(bool preserveColorContents READ preserveColorContents WRITE setPreserveColorContents NOTIFY preserveColorContentsChanged FINAL)
+    Q_PROPERTY(bool live READ live WRITE setLive NOTIFY liveChanged FINAL)
     Q_PROPERTY(LayerFlags layerFlags READ layerFlags WRITE setLayerFlags NOTIFY layerFlagsChanged FINAL)
     QML_NAMED_ELEMENT(OutputViewport)
 
@@ -61,12 +62,16 @@ public:
     bool preserveColorContents() const;
     void setPreserveColorContents(bool newPreserveColorContents);
 
+    bool live() const;
+    void setLive(bool newLive);
+
     LayerFlags layerFlags() const;
     void setLayerFlags(const LayerFlags &newLayerFlags);
 
 public Q_SLOTS:
     void setOutputScale(float scale);
     void rotateOutput(WOutput::Transform t);
+    void render(bool doCommit);
 
 Q_SIGNALS:
     void devicePixelRatioChanged();
@@ -76,6 +81,7 @@ Q_SIGNALS:
     void layerFlagsChanged();
     void outputRenderInitialized();
     void inputChanged();
+    void liveChanged();
 
 private:
     void componentComplete() override;

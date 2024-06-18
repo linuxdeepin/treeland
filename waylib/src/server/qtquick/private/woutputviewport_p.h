@@ -30,6 +30,8 @@ public:
     WOutputViewportPrivate()
         : offscreen(false)
         , preserveColorContents(false)
+        , live(true)
+        , forceRender(false)
     {
 
     }
@@ -43,6 +45,10 @@ public:
 
     inline static WOutputViewportPrivate *get(WOutputViewport *viewport) {
         return viewport->d_func();
+    }
+
+    inline bool renderable() const {
+        return (forceRender || live) && q_func()->isVisible();
     }
 
     void init();
@@ -65,6 +71,8 @@ public:
 
     uint offscreen:1;
     uint preserveColorContents:1;
+    uint live:1;
+    uint forceRender:1;
     WOutputViewport::LayerFlags layerFlags;
 };
 

@@ -164,7 +164,7 @@ public:
     }
 
     inline void init() {
-        connect(this, &OutputHelper::requestRender, renderWindow(), &WOutputRenderWindow::render);
+        connect(this, &OutputHelper::requestRender, renderWindow(), qOverload<>(&WOutputRenderWindow::render));
         connect(this, &OutputHelper::damaged, renderWindow(), &WOutputRenderWindow::scheduleRender);
         connect(output(), &WOutputViewport::layerFlagsChanged, renderWindow(), &WOutputRenderWindow::scheduleRender);
         // TODO: pre update scale after WOutputHelper::setScale
@@ -341,8 +341,13 @@ public:
     bool initRCWithRhi();
     void updateSceneDPR();
 
-    QVector<std::pair<OutputHelper *, WBufferRenderer *> > doRenderOutputs();
-    void doRender();
+    QVector<std::pair<OutputHelper *, WBufferRenderer *>>
+    doRenderOutputs(const QList<OutputHelper *> &outputs, bool forceRender);
+    void doRender(const QList<OutputHelper*> &outputs, bool forceRender, bool doCommit);
+    inline void doRender() {
+        doRender(outputs, false, true);
+    }
+
     inline void pushRenderer(WBufferRenderer *renderer) {
         rendererList.push(renderer);
     }
@@ -969,19 +974,23 @@ void WOutputRenderWindowPrivate::updateSceneDPR()
     setSceneDevicePixelRatio(maxDPR);
 }
 
-QVector<std::pair<OutputHelper*, WBufferRenderer*>> WOutputRenderWindowPrivate::doRenderOutputs()
+QVector<std::pair<OutputHelper*, WBufferRenderer*>>
+WOutputRenderWindowPrivate::doRenderOutputs(const QList<OutputHelper*> &outputs, bool forceRender)
 {
     QVector<OutputHelper*> renderResults;
     renderResults.reserve(outputs.size());
     for (OutputHelper *helper : outputs) {
-        if (!helper->renderable() || !helper->output()->isVisible()
-            || !helper->output()->output()->isEnabled())
-            continue;
+        if (Q_LIKELY(!forceRender)) {
+            if (!helper->renderable()
+                || Q_UNLIKELY(!WOutputViewportPrivate::get(helper->output())->renderable())
+                || !helper->output()->output()->isEnabled())
+                continue;
 
-        if (!helper->contentIsDirty()) {
-            if (helper->needsFrame())
-                renderResults.append(helper);
-            continue;
+            if (!helper->contentIsDirty()) {
+                if (helper->needsFrame())
+                    renderResults.append(helper);
+                continue;
+            }
         }
 
         Q_ASSERT(helper->output()->output()->scale() <= helper->output()->devicePixelRatio());
@@ -1061,7 +1070,8 @@ static void QQuickAnimatorController_advance(QQuickAnimatorController *ac)
         ac->m_window->update();
 }
 
-void WOutputRenderWindowPrivate::doRender()
+void WOutputRenderWindowPrivate::doRender(const QList<OutputHelper *> &outputs,
+                                          bool forceRender, bool doCommit)
 {
     Q_ASSERT(rendererList.isEmpty());
     Q_ASSERT(!inRendering);
@@ -1079,7 +1089,7 @@ void WOutputRenderWindowPrivate::doRender()
     for (OutputHelper *helper : outputs)
         helper->beforeRender();
 
-    auto needsCommit = doRenderOutputs();
+    auto needsCommit = doRenderOutputs(outputs, forceRender);
 
     Q_EMIT q_func()->afterRendering();
     runAndClearJobs(&afterRenderingJobs);
@@ -1087,14 +1097,16 @@ void WOutputRenderWindowPrivate::doRender()
     if (QSGRendererInterface::isApiRhiBased(WRenderHelper::getGraphicsApi()))
         rc()->endFrame();
 
-    for (auto i : needsCommit) {
-        bool ok = i.first->commit(i.second);
+    if (doCommit) {
+        for (auto i : needsCommit) {
+            bool ok = i.first->commit(i.second);
 
-        if (i.second->currentBuffer()) {
-            i.second->endRender();
+            if (i.second->currentBuffer()) {
+                i.second->endRender();
+            }
+
+            i.first->resetState(ok);
         }
-
-        i.first->resetState(ok);
     }
 
     resetGlState();
@@ -1287,6 +1299,15 @@ void WOutputRenderWindow::render()
 {
     Q_D(WOutputRenderWindow);
     d->doRender();
+}
+
+void WOutputRenderWindow::render(WOutputViewport *output, bool doCommit)
+{
+    Q_D(WOutputRenderWindow);
+    int index = d->indexOfOutputHelper(output);
+    Q_ASSERT(index >= 0);
+
+    d->doRender({d->outputs.at(index)}, true, doCommit);
 }
 
 void WOutputRenderWindow::scheduleRender()

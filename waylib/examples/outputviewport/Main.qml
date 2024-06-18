@@ -122,6 +122,7 @@ Item {
 
                         input: outputViewportInputSelector.currentIndex === 0 ? null : contents
                         scale: input ? 1.1 : 1
+                        live: input ? false : true
                         output: waylandOutput
                         devicePixelRatio: parent.devicePixelRatio
                         anchors {
@@ -192,7 +193,7 @@ Item {
 
                             ComboBox {
                                 id: outputViewportInputSelector
-                                model: ["Root Item", "Non Root Item"]
+                                model: ["Root Item(live)", "Non Root Item(not live)"]
                             }
 
                             Button {
@@ -237,20 +238,20 @@ Item {
                                 }
                             }
                         }
-                    }
 
-                    Text {
-                        anchors.centerIn: parent
-                        text: "'Ctrl+Q' quit"
-                        font.pointSize: 40
-                        color: "white"
+                        Text {
+                            anchors.centerIn: parent
+                            text: "'Ctrl+Q' quit"
+                            font.pointSize: 40
+                            color: "white"
 
-                        SequentialAnimation on rotation {
-                            id: ani
-                            running: true
-                            PauseAnimation { duration: 1500 }
-                            NumberAnimation { from: 0; to: 360; duration: 5000; easing.type: Easing.InOutCubic }
-                            loops: Animation.Infinite
+                            SequentialAnimation on rotation {
+                                id: ani
+                                running: true
+                                PauseAnimation { duration: 1500 }
+                                NumberAnimation { from: 0; to: 360; duration: 5000; easing.type: Easing.InOutCubic }
+                                loops: Animation.Infinite
+                            }
                         }
                     }
 

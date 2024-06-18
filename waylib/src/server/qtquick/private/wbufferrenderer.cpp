@@ -339,6 +339,8 @@ QWBuffer *WBufferRenderer::beginRender(const QSize &pixelSize, qreal devicePixel
     if (pixelSize.isEmpty())
         return nullptr;
 
+    Q_EMIT beforeRendering();
+
     m_damageRing.setBounds(pixelSize);
     // configure swapchain
     if (flags.testFlag(RenderFlag::DontConfigureSwapchain)) {
@@ -586,6 +588,8 @@ void WBufferRenderer::endRender()
         QOpenGLContextPrivate::get(glContext)->defaultFboRedirect = GL_NONE;
     }
 #endif
+
+    Q_EMIT afterRendering();
 }
 
 void WBufferRenderer::componentComplete()

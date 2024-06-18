@@ -22,6 +22,10 @@ void WOutputViewportPrivate::init()
     QQuickItemPrivate::get(bufferRenderer)->anchors()->setFill(q);
     QObject::connect(bufferRenderer, &WBufferRenderer::cacheBufferChanged,
                      q, &WOutputViewport::cacheBufferChanged);
+    QObject::connect(bufferRenderer, &WBufferRenderer::afterRendering,
+                     q, [this] {
+        forceRender = false;
+    });
 }
 
 void WOutputViewportPrivate::initForOutput()
@@ -75,6 +79,7 @@ void WOutputViewportPrivate::updateRenderBufferSource()
     if (extraRenderSource)
         sources.append(extraRenderSource);
 
+    forceRender = true;
     bufferRenderer->setSourceList(sources, true);
 }
 
@@ -237,6 +242,22 @@ void WOutputViewport::setPreserveColorContents(bool newPreserveColorContents)
     Q_EMIT preserveColorContentsChanged();
 }
 
+bool WOutputViewport::live() const
+{
+    W_DC(WOutputViewport);
+    return d->live;
+}
+
+void WOutputViewport::setLive(bool newLive)
+{
+    W_D(WOutputViewport);
+    if (d->live == newLive)
+        return;
+
+    d->live = newLive;
+    Q_EMIT liveChanged();
+}
+
 WOutputViewport::LayerFlags WOutputViewport::layerFlags() const
 {
     W_DC(WOutputViewport);
@@ -264,6 +285,13 @@ void WOutputViewport::rotateOutput(WOutput::Transform t)
     W_D(WOutputViewport);
     if (auto window = d->outputWindow())
         window->rotateOutput(this, t);
+}
+
+void WOutputViewport::render(bool doCommit)
+{
+    W_D(WOutputViewport);
+    if (auto window = d->outputWindow())
+        window->render(this, doCommit);
 }
 
 void WOutputViewport::componentComplete()
