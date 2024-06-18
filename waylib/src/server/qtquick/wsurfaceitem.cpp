@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "wsurfaceitem.h"
+#include "wsurfaceitem_p.h"
 #include "wsurface.h"
 #include "wtexture.h"
 #include "wseat.h"
@@ -49,68 +50,6 @@ private:
     QWBuffer *buffer = nullptr;
     std::unique_ptr<QWTexture> qwtexture;
     std::unique_ptr<WTexture> dwtexture;
-};
-
-struct SurfaceState {
-    QRectF contentGeometry;
-    QSizeF contentSize;
-    qreal bufferScale = 1.0;
-};
-
-class WSurfaceItemPrivate : public QQuickItemPrivate
-{
-public:
-    WSurfaceItemPrivate();
-    ~WSurfaceItemPrivate();
-
-    inline static WSurfaceItemPrivate *get(WSurfaceItem *qq) {
-        return qq->d_func();
-    }
-
-    void initForSurface();
-    void initForDelegate();
-
-    void onHasSubsurfaceChanged();
-    void updateSubsurfaceItem();
-    void onPaddingsChanged();
-    void updateContentPosition();
-    WSurfaceItem *ensureSubsurfaceItem(WSurface *subsurfaceSurface);
-
-    void resizeSurfaceToItemSize(const QSize &itemSize, const QSize &sizeDiff);
-    void updateEventItem(bool forceDestroy);
-    void updateEventItemGeometry();
-    void doResize(WSurfaceItem::ResizeMode mode);
-
-    inline QSizeF paddingsSize() const {
-        return QSizeF(paddings.left() + paddings.right(),
-                      paddings.top() + paddings.bottom());
-    }
-
-    qreal getImplicitWidth() const override;
-    qreal getImplicitHeight() const override;
-
-    inline WSurfaceItemContent *getItemContent() const {
-        if (delegate || !contentContainer)
-            return nullptr;
-        auto content = qobject_cast<WSurfaceItemContent*>(contentContainer);
-        Q_ASSERT(content);
-        return content;
-    }
-
-    Q_DECLARE_PUBLIC(WSurfaceItem)
-    QPointer<WSurface> surface;
-    QPointer<WToplevelSurface> shellSurface;
-    std::unique_ptr<SurfaceState> surfaceState;
-    QQuickItem *contentContainer = nullptr;
-    QQmlComponent *delegate = nullptr;
-    QQuickItem *eventItem = nullptr;
-    WSurfaceItem::ResizeMode resizeMode = WSurfaceItem::SizeFromSurface;
-    WSurfaceItem::Flags surfaceFlags;
-    QMarginsF paddings;
-    QList<WSurfaceItem*> subsurfaces;
-    qreal surfaceSizeRatio = 1.0;
-
-    uint32_t beforeRequestResizeSurfaceStateSeq = 0;
 };
 
 class EventItem : public QQuickItem
@@ -561,7 +500,12 @@ QWTexture *WSGTextureProvider::ensureTexture()
 }
 
 WSurfaceItem::WSurfaceItem(QQuickItem *parent)
-    : QQuickItem(*new WSurfaceItemPrivate(), parent)
+    : WSurfaceItem(*new WSurfaceItemPrivate(), parent)
+{
+}
+
+WSurfaceItem::WSurfaceItem(WSurfaceItemPrivate &dd, QQuickItem *parent)
+    : QQuickItem(dd, parent)
 {
     setFlag(ItemIsFocusScope);
 }
@@ -1341,7 +1285,7 @@ bool WSurfaceItem::setShellSurface(WToplevelSurface *surface)
     Q_D(WSurfaceItem);
     if (d->shellSurface == surface)
         return false;
-    
+
     if (d->shellSurface) {
         bool ok = d->shellSurface->safeDisconnect(this);
         Q_ASSERT(ok);

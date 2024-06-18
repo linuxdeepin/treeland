@@ -40,39 +40,4 @@ private:
     WServerInterface *create() override;
 };
 
-class WAYLIB_SERVER_EXPORT WXdgSurfaceItem : public WSurfaceItem
-{
-    Q_OBJECT
-    Q_PROPERTY(QPointF implicitPosition READ implicitPosition NOTIFY implicitPositionChanged)
-    Q_PROPERTY(QSize minimumSize READ minimumSize NOTIFY minimumSizeChanged FINAL)
-    Q_PROPERTY(QSize maximumSize READ maximumSize NOTIFY maximumSizeChanged FINAL)
-    QML_NAMED_ELEMENT(XdgSurfaceItem)
-
-public:
-    explicit WXdgSurfaceItem(QQuickItem *parent = nullptr);
-    ~WXdgSurfaceItem();
-
-    inline WXdgSurface* xdgSurface() const { return qobject_cast<WXdgSurface*>(shellSurface()); }
-    QPointF implicitPosition() const;
-    QSize minimumSize() const;
-    QSize maximumSize() const;
-
-Q_SIGNALS:
-    void implicitPositionChanged();
-    void minimumSizeChanged();
-    void maximumSizeChanged();
-
-private:
-    Q_SLOT void onSurfaceCommit() override;
-    void initSurface() override;
-    QRectF getContentGeometry() const override;
-
-    void setImplicitPosition(const QPointF &newImplicitPosition);
-
-private:
-    QPointF m_implicitPosition;
-    QSize m_minimumSize;
-    QSize m_maximumSize;
-};
-
 WAYLIB_SERVER_END_NAMESPACE

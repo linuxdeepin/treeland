@@ -172,6 +172,7 @@ Q_SIGNALS:
     void shellSurfaceChanged();
 
 protected:
+    explicit WSurfaceItem(WSurfaceItemPrivate &dd, QQuickItem *parent = nullptr);
     void componentComplete() override;
     void geometryChange(const QRectF &newGeometry, const QRectF &oldGeometry) override;
     void itemChange(ItemChange change, const ItemChangeData &data) override;

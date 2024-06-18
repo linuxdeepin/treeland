@@ -103,6 +103,8 @@ set(QTQUICK_SOURCES
     qtquick/wquicktextureproxy.cpp
     qtquick/woutputlayer.cpp
     qtquick/wrenderbufferblitter.cpp
+    qtquick/wxdgsurfaceitem.cpp
+    qtquick/wxwaylandsurfaceitem.cpp
 
     qtquick/private/wquickxdgshell.cpp
     qtquick/private/wquickbackend.cpp
@@ -198,6 +200,8 @@ set(HEADERS
     qtquick/wquicktextureproxy.h
     qtquick/woutputlayer.h
     qtquick/wrenderbufferblitter.h
+    qtquick/wxdgsurfaceitem.h
+    qtquick/wxwaylandsurfaceitem.h
 
     utils/wtools.h
     utils/wthreadutils.h
@@ -234,6 +238,7 @@ set(PRIVATE_HEADERS
     qtquick/private/wquickxdgoutput_p.h
     qtquick/private/wquickfractionalscalemanagerv1_p.h
     qtquick/private/wquickscreencopy_p.h
+    qtquick/private/wsurfaceitem_p.h
 
     ${CMAKE_CURRENT_BINARY_DIR}/text-input-unstable-v1-protocol.h
     ${CMAKE_CURRENT_BINARY_DIR}/xdg-output-unstable-v1-protocol.h
