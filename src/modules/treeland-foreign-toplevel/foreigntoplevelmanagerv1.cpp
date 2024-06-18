@@ -261,16 +261,15 @@ void QuickForeignToplevelManagerV1::leaveDockPreview(WSurface *relative_surface)
     }
 }
 
-void QuickForeignToplevelManagerV1::create()
+WServerInterface *QuickForeignToplevelManagerV1::create()
 {
-    WQuickWaylandServerInterface::create();
-
     m_manager = treeland_foreign_toplevel_manager_v1::create(server()->handle());
 
     connect(m_manager,
             &treeland_foreign_toplevel_manager_v1::dockPreviewContextCreated,
             this,
             &QuickForeignToplevelManagerV1::onDockPreviewContextCreated);
+    return new WServerInterface(m_manager, m_manager->global);
 }
 
 void QuickForeignToplevelManagerV1::onDockPreviewContextCreated(
