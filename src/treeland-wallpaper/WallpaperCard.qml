@@ -122,12 +122,11 @@ Item {
                     id: imageMenu
                     MenuItem {
                         text: qsTr("Set as background")
-                        // TODO: set isDarkType
-                        onTriggered: personalization.setBackground(imageSource, group, index)
+                        onTriggered: personalization.setBackground(imageSource, group, index, img2x2.isDarktype)
                     }
                     MenuItem {
                         text: qsTr("Set as LockScreen")
-                        onTriggered: personalization.setLockscreen(imageSource, group, index)
+                        onTriggered: personalization.setLockscreen(imageSource, group, index, img2x2.isDarktype)
                     }
                     MenuItem {
                         text: qsTr("Set as Both")

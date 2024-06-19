@@ -35,9 +35,11 @@ static QuickPersonalizationManager *PERSONALIZATION_MANAGER = nullptr;
 static QQuickItem *PERSONALIZATION_IMAGE = nullptr;
 
 #define DEFAULT_WALLPAPER "qrc:/desktop.webp"
+#define DEFAULT_WALLPAPER_ISDARK false
 
-static QString outputName(const WOutput *w_output)
+QString QuickPersonalizationManager::getOutputName(const WOutput *w_output)
 {
+    // TODO: remove if https://github.com/vioken/waylib/pull/386 merged
     if (!w_output)
         return QString();
 
@@ -58,21 +60,14 @@ void QuickPersonalizationManager::updateCacheWallpaperPath(uid_t uid)
     m_iniMetaData = settings.value("metadata").toString();
 }
 
-QString QuickPersonalizationManager::readWallpaperSettings(const QString &group, WOutput *w_output)
+QString QuickPersonalizationManager::readWallpaperSettings(const QString &group,
+                                                           const QString &output)
 {
     if (m_settingFile.isEmpty())
         return DEFAULT_WALLPAPER;
 
     QSettings settings(m_settingFile, QSettings::IniFormat);
-
-    QString value;
-    QString output_name = outputName(w_output);
-    if (output_name.isEmpty())
-        return DEFAULT_WALLPAPER;
-    else {
-        value = settings.value(group + "/" + output_name, DEFAULT_WALLPAPER).toString();
-    }
-
+    QString value = settings.value(group + "/" + output, DEFAULT_WALLPAPER).toString();
     return QString("file://%1").arg(value);
 }
 
@@ -86,12 +81,14 @@ void QuickPersonalizationManager::saveWallpaperSettings(
 
     if (context->options & PERSONALIZATION_WALLPAPER_CONTEXT_V1_OPTIONS_BACKGROUND) {
         settings.setValue(QString("background/%s").arg(context->output_name), current);
-        settings.setValue(QString("background/%s/tone").arg(context->output_name), context->isdark);
+        settings.setValue(QString("background/%s/isdark").arg(context->output_name),
+                          context->isdark);
     }
 
     if (context->options & PERSONALIZATION_WALLPAPER_CONTEXT_V1_OPTIONS_LOCKSCREEN) {
         settings.setValue(QString("lockscreen/%s").arg(context->output_name), current);
-        settings.setValue(QString("background/%s/tone").arg(context->output_name), context->isdark);
+        settings.setValue(QString("background/%s/isdark").arg(context->output_name),
+                          context->isdark);
     }
 
     settings.setValue("metadata", context->meta_data);
@@ -310,14 +307,24 @@ void QuickPersonalizationManager::setCursorSize(const QSize &size)
     Q_EMIT cursorSizeChanged(size);
 }
 
-QString QuickPersonalizationManager::background(WOutput *w_output)
+QString QuickPersonalizationManager::background(const QString &output)
 {
-    return readWallpaperSettings("background", w_output);
+    return readWallpaperSettings("background", output);
 }
 
-QString QuickPersonalizationManager::lockscreen(WOutput *w_output)
+QString QuickPersonalizationManager::lockscreen(const QString &output)
 {
-    return readWallpaperSettings("lockscreen", w_output);
+    return readWallpaperSettings("lockscreen", output);
+}
+
+bool QuickPersonalizationManager::backgroundIsDark(const QString &output)
+{
+    if (m_settingFile.isEmpty())
+        return DEFAULT_WALLPAPER_ISDARK;
+
+    QSettings settings(m_settingFile, QSettings::IniFormat);
+    return settings.value(QString("background/%s/isdark").arg(output), DEFAULT_WALLPAPER_ISDARK)
+        .toBool();
 }
 
 QuickPersonalizationManagerAttached::QuickPersonalizationManagerAttached(

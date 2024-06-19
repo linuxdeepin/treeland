@@ -106,8 +106,12 @@ void PersonalizationManager::removeWallpaper(const QString &path, const QString 
     m_modes[group]->remove(index);
 }
 
-void PersonalizationManager::changeWallpaper(
-    const QString &path, const QString &output, const QString &group, int index, quint32 op)
+void PersonalizationManager::changeWallpaper(const QString &path,
+                                             const QString &output,
+                                             const QString &group,
+                                             int index,
+                                             quint32 op,
+                                             bool isdark)
 {
     if (!m_wallpaperContext)
         return;
@@ -127,8 +131,10 @@ void PersonalizationManager::changeWallpaper(
             meta_data->output = output;
             meta_data->currentIndex = index;
             meta_data->options = op;
+            meta_data->isdark = isdark;
 
             m_wallpaperContext->set_on(op);
+            m_wallpaperContext->set_isdark(isdark);
             m_wallpaperContext->set_fd(file.handle(), converToJson(m_screens));
             m_wallpaperContext->set_output(meta_data->output);
             m_wallpaperContext->commit();
@@ -138,22 +144,30 @@ void PersonalizationManager::changeWallpaper(
     }
 }
 
-void PersonalizationManager::setBackground(const QString &path, const QString &group, int index)
+void PersonalizationManager::setBackground(const QString &path,
+                                           const QString &group,
+                                           int index,
+                                           bool isdark)
 {
     changeWallpaper(path,
                     m_currentOutput,
                     group,
                     index,
-                    PersonalizationWallpaper::options_background);
+                    PersonalizationWallpaper::options_background,
+                    isdark);
 }
 
-void PersonalizationManager::setLockscreen(const QString &path, const QString &group, int index)
+void PersonalizationManager::setLockscreen(const QString &path,
+                                           const QString &group,
+                                           int index,
+                                           bool isdark)
 {
     changeWallpaper(path,
                     m_currentOutput,
                     group,
                     index,
-                    PersonalizationWallpaper::options_lockscreen);
+                    PersonalizationWallpaper::options_lockscreen,
+                    isdark);
 }
 
 void PersonalizationManager::setBoth(const QString &path, const QString &group, int index)

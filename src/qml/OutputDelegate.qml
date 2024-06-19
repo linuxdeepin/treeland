@@ -9,6 +9,7 @@ import TreeLand.Protocols.ForeignToplevelManager
 import TreeLand.Protocols.PersonalizationManager
 import TreeLand.Protocols.OutputManagement
 import TreeLand.Protocols.ShortcutManager
+import TreeLand.Protocols.WallpaperColor
 
 OutputItem {
     id: rootOutputItem
@@ -100,13 +101,19 @@ OutputItem {
         asynchronous: true
 
         Component.onCompleted: {
-            background.source = personalizationManager.background(output) + "?" + new Date().getTime()
+            let name = personalizationManager.getOutputName(output);
+            background.source = personalizationManager.background(name) + "?" + new Date().getTime()
+            wallpaperColor.updateWallpaperColor(name, personalizationManager.backgroundIsDark(name));
         }
 
         Connections {
             target: personalizationManager
-            onBackgroundChanged: {
-                background.source = personalizationManager.background(output) + "?" + new Date().getTime()
+            function onBackgroundChanged(outputName, isdark) {
+                let name = personalizationManager.getOutputName(output);
+                if (outputName === name) {
+                    background.source = personalizationManager.background(outputName) + "?" + new Date().getTime()
+                    wallpaperColor.updateWallpaperColor(outputName, isdark);
+                }
             }
         }
     }
