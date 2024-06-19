@@ -8,7 +8,7 @@ import TreeLand
 import TreeLand.Utils
 
 FocusScope {
-    property alias waylandSurface: surfaceItem.surface
+    property alias waylandSurface: surfaceItem.shellSurface
     property bool anchorWidth: false
     property bool anchorHeight: false
     required property DynamicCreatorComponent creator
