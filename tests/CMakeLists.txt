@@ -1,1 +1,2 @@
 add_subdirectory(test_window_bg)
+add_subdirectory(test_wallpaper_color)
