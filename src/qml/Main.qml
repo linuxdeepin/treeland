@@ -13,6 +13,7 @@ import TreeLand.Protocols.ForeignToplevelManager
 import TreeLand.Protocols.PersonalizationManager
 import TreeLand.Protocols.OutputManagement
 import TreeLand.Protocols.ShortcutManager
+import TreeLand.Protocols.WallpaperColor
 
 Item {
     id :root
@@ -263,6 +264,10 @@ Item {
         }
 
         ScreenCopyManager { }
+
+        TreelandWallpaperColor {
+            id: wallpaperColor
+        }
     }
 
     InputMethodHelper {

@@ -27,7 +27,8 @@ public:
     {
         QString group;
         QString imagePath; // wallpaper path
-        QString output;    // Output which wallpaper belongs
+        bool isdark;
+        QString output; // Output which wallpaper belongs
         quint32 options;
         QScreen *screen;
         int currentIndex;
@@ -52,8 +53,8 @@ signals:
 
 public slots:
     void addWallpaper(const QString &path);
-    void setBackground(const QString &path, const QString &group, int index);
-    void setLockscreen(const QString &path, const QString &group, int index);
+    void setBackground(const QString &path, const QString &group, int index, bool isdark);
+    void setLockscreen(const QString &path, const QString &group, int index, bool isdark);
     void setBoth(const QString &path, const QString &group, int index);
     void removeWallpaper(const QString &path, const QString &group, int index);
     QStringList outputModel();
@@ -63,8 +64,12 @@ public slots:
 private:
     QString converToJson(QMap<QString, WallpaperMetaData *> screens);
     void onMetadataChanged(const QString &meta);
-    void changeWallpaper(
-        const QString &path, const QString &output, const QString &group, int index, quint32 op);
+    void changeWallpaper(const QString &path,
+                         const QString &output,
+                         const QString &group,
+                         int index,
+                         quint32 op,
+                         bool isdark = true);
 
 private:
     PersonalizationWallpaper *m_wallpaperContext = nullptr;
