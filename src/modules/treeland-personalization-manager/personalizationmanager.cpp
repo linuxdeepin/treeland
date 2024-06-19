@@ -19,6 +19,7 @@
 #include <QJsonObject>
 #include <QSettings>
 #include <QStandardPaths>
+#include <QGuiApplication>
 
 #include <sys/socket.h>
 #include <unistd.h>
@@ -161,52 +162,56 @@ void QuickPersonalizationManager::onCursorContextCreated(personalization_cursor_
             &QuickPersonalizationManager::onGetCursorSize);
 }
 
-QString QuickPersonalizationManager::saveImage(personalization_wallpaper_context_v1 *context,
+void QuickPersonalizationManager::writeContext(personalization_wallpaper_context_v1 *context, const QByteArray &data, const QString &dest)
+{
+    QFile dest_file(dest);
+    if (dest_file.open(QIODevice::WriteOnly)) {
+        dest_file.write(data);
+        dest_file.close();
+
+        saveWallpaperSettings(dest, context);
+        Q_EMIT backgroundChanged(context->output_name, context->isdark);
+    }
+}
+
+void QuickPersonalizationManager::saveImage(personalization_wallpaper_context_v1 *context,
                                                const QString prefix)
 {
     if (!context || context->fd == -1 || context->output_name.isEmpty())
-        return QString();
+        return;
 
     QFile src_file;
     if (!src_file.open(context->fd, QIODevice::ReadOnly))
-        return QString();
+        return;
 
     QByteArray data = src_file.readAll();
     src_file.close();
-
-    QString dest_path = m_cacheDirectory + prefix + "_" + context->output_name;
 
     QDir dir(m_cacheDirectory);
     if (!dir.exists()) {
         dir.mkpath(m_cacheDirectory);
     }
 
-    QFile dest_file(dest_path);
-    if (dest_file.open(QIODevice::WriteOnly)) {
-        dest_file.write(data);
-        dest_file.close();
-
-        saveWallpaperSettings(dest_path, context);
-        return dest_path;
+    QString dest = m_cacheDirectory + prefix + "_" + context->output_name;
+    if (context->output_name.isEmpty()) {
+        for (QScreen *screen : QGuiApplication::screens()) {
+            context->output_name = screen->name();
+            dest = m_cacheDirectory + prefix + "_" + screen->name();
+            writeContext(context, data, dest);
+        }
+    } else {
+        writeContext(context, data, dest);
     }
-
-    return QString();
 }
 
 void QuickPersonalizationManager::onWallpaperCommit(personalization_wallpaper_context_v1 *context)
 {
     if (context->options & PERSONALIZATION_WALLPAPER_CONTEXT_V1_OPTIONS_BACKGROUND) {
-        QString background = saveImage(context, "background");
-        if (!background.isEmpty()) {
-            Q_EMIT backgroundChanged(context->output_name, context->isdark);
-        }
+        saveImage(context, "background");
     }
 
     if (context->options & PERSONALIZATION_WALLPAPER_CONTEXT_V1_OPTIONS_LOCKSCREEN) {
-        QString lockscreen = saveImage(context, "lockscreen");
-        if (!lockscreen.isEmpty()) {
-            Q_EMIT backgroundChanged(context->output_name, context->isdark);
-        }
+        saveImage(context, "lockscreen");
     }
 }
 
