@@ -82,6 +82,8 @@ void set_output(struct wl_client *client, struct wl_resource *resource, const ch
 
 void set_on(struct wl_client *client, struct wl_resource *resource, uint32_t options);
 
+void set_isdark(struct wl_client *client, struct wl_resource *resource, uint32_t dark);
+
 void wallpaper_commit(struct wl_client *client, struct wl_resource *resource);
 
 static void personalization_wallpaper_context_destroy([[maybe_unused]] struct wl_client *client,
@@ -96,6 +98,7 @@ static const struct personalization_wallpaper_context_v1_interface
         .set_identifier = set_identifier,
         .set_output = set_output,
         .set_on = set_on,
+        .set_isdark = set_isdark,
         .commit = wallpaper_commit,
         .get_metadata = get_metadata,
         .destroy = personalization_wallpaper_context_destroy,
@@ -382,6 +385,15 @@ void get_metadata(struct wl_client *client [[maybe_unused]], struct wl_resource 
         return;
 
     Q_EMIT wallpaper->getWallpapers(wallpaper);
+}
+
+void set_isdark(struct wl_client *client [[maybe_unused]], struct wl_resource *resource, uint32_t isdark)
+{
+    auto *wallpaper = personalization_wallpaper_from_resource(resource);
+    if (!wallpaper)
+        return;
+
+    wallpaper->isdark = isdark;
 }
 
 void set_cursor_theme(struct wl_client *client, struct wl_resource *resource, const char *name)

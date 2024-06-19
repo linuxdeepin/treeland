@@ -86,10 +86,12 @@ void QuickPersonalizationManager::saveWallpaperSettings(
 
     if (context->options & PERSONALIZATION_WALLPAPER_CONTEXT_V1_OPTIONS_BACKGROUND) {
         settings.setValue(QString("background/%s").arg(context->output_name), current);
+        settings.setValue(QString("background/%s/tone").arg(context->output_name), context->isdark);
     }
 
     if (context->options & PERSONALIZATION_WALLPAPER_CONTEXT_V1_OPTIONS_LOCKSCREEN) {
         settings.setValue(QString("lockscreen/%s").arg(context->output_name), current);
+        settings.setValue(QString("background/%s/tone").arg(context->output_name), context->isdark);
     }
 
     settings.setValue("metadata", context->meta_data);
@@ -199,14 +201,14 @@ void QuickPersonalizationManager::onWallpaperCommit(personalization_wallpaper_co
     if (context->options & PERSONALIZATION_WALLPAPER_CONTEXT_V1_OPTIONS_BACKGROUND) {
         QString background = saveImage(context, "background");
         if (!background.isEmpty()) {
-            Q_EMIT backgroundChanged();
+            Q_EMIT backgroundChanged(context->output_name, context->isdark);
         }
     }
 
     if (context->options & PERSONALIZATION_WALLPAPER_CONTEXT_V1_OPTIONS_LOCKSCREEN) {
         QString lockscreen = saveImage(context, "lockscreen");
         if (!lockscreen.isEmpty()) {
-            Q_EMIT backgroundChanged();
+            Q_EMIT backgroundChanged(context->output_name, context->isdark);
         }
     }
 }

@@ -83,6 +83,10 @@
             <description summary="configure xdg desktop portal options"/>
             <arg name="options" type="uint" enum="options" summary="xdg desktop portal options"/>
         </request>
+        <request name="set_isdark">
+            <description summary="Set whether the current wallpaper is dark"/>
+            <arg name="isdark" type="uint" summary="is dark"/>
+        </request>
         <request name="commit">
             <description summary="commit configuration" />
         </request>

@@ -85,7 +85,7 @@ public:
 Q_SIGNALS:
     void backgroundTypeChanged(WSurface *surface, uint32_t type);
     void userIdChanged(uid_t uid);
-    void backgroundChanged();
+    void backgroundChanged(const QString& output, bool isdark);
     void lockscreenChanged();
     void cursorThemeChanged(const QString &name);
     void cursorSizeChanged(const QSize &size);
