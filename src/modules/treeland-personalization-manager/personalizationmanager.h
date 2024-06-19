@@ -81,25 +81,27 @@ public:
 
     QSize cursorSize();
     void setCursorSize(const QSize &size);
+    Q_INVOKABLE QString getOutputName(const WOutput *w_output);
 
 Q_SIGNALS:
     void backgroundTypeChanged(WSurface *surface, uint32_t type);
     void userIdChanged(uid_t uid);
-    void backgroundChanged(const QString& output, bool isdark);
+    void backgroundChanged(const QString &output, bool isdark);
     void lockscreenChanged();
     void cursorThemeChanged(const QString &name);
     void cursorSizeChanged(const QSize &size);
 
 public Q_SLOTS:
-    QString background(WOutput *w_output);
-    QString lockscreen(WOutput *w_output);
+    QString background(const QString &output);
+    QString lockscreen(const QString &output);
+    bool backgroundIsDark(const QString &output);
 
 private:
     WServerInterface *create() override;
 
     QString saveImage(personalization_wallpaper_context_v1 *context, const QString file);
     void updateCacheWallpaperPath(uid_t uid);
-    QString readWallpaperSettings(const QString &group, WOutput *w_output);
+    QString readWallpaperSettings(const QString &group, const QString &output);
     void saveWallpaperSettings(const QString &current,
                                personalization_wallpaper_context_v1 *context);
 
