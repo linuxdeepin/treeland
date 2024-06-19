@@ -99,7 +99,8 @@ public Q_SLOTS:
 private:
     WServerInterface *create() override;
 
-    QString saveImage(personalization_wallpaper_context_v1 *context, const QString file);
+    void writeContext(personalization_wallpaper_context_v1 *context, const QByteArray &data, const QString &dest);
+    void saveImage(personalization_wallpaper_context_v1 *context, const QString file);
     void updateCacheWallpaperPath(uid_t uid);
     QString readWallpaperSettings(const QString &group, const QString &output);
     void saveWallpaperSettings(const QString &current,
