@@ -58,6 +58,7 @@ public:
     int32_t fd;
     uint32_t uid;
     uint32_t options;
+    bool isdark;
 
     QString meta_data;
     QString identifier ;
