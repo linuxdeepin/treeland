@@ -45,6 +45,11 @@ WXdgSurfaceItem::~WXdgSurfaceItem()
 
 }
 
+WXdgSurface* WXdgSurfaceItem::xdgSurface() const
+{
+    return qobject_cast<WXdgSurface*>(shellSurface());
+}
+
 QPointF WXdgSurfaceItem::implicitPosition() const
 {
     const Q_D(WXdgSurfaceItem);
