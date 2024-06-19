@@ -5,6 +5,7 @@
 
 #include "../modules/foreign-toplevel/foreigntoplevelmanagerv1.h"
 #include "../modules/primary-output/outputmanagement.h"
+#include "../modules/virtual-output/virtualoutputmanager.h"
 
 #include <WBackend>
 #include <WForeignToplevel>
@@ -325,6 +326,11 @@ void Helper::initProtocols(WOutputRenderWindow *window)
                     engine->singletonInstance<PrimaryOutputV1 *>("TreeLand.Protocols",
                                                                  "PrimaryOutputV1");
                 Q_ASSERT(primaryOutput);
+
+                VirtualOutputV1 *virtualOutputV1 =
+                    engine->singletonInstance<VirtualOutputV1 *>("TreeLand.Protocols",
+                                                                 "VirtualOutputV1");
+                Q_ASSERT(virtualOutputV1);
 
                 primaryOutput->newOutput(output);
 

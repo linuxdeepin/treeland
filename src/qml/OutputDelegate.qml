@@ -11,6 +11,7 @@ OutputItem {
     required property WaylandOutput waylandOutput
     property OutputViewport onscreenViewport: outputViewport
     property Cursor waylandCursor
+    property var attachViewport: VirtualOutputV1.Attach(outputViewport).outputViewport
 
     output: waylandOutput
     devicePixelRatio: waylandOutput.scale
@@ -46,6 +47,11 @@ OutputItem {
         output: waylandOutput
         devicePixelRatio: parent.devicePixelRatio
         anchors.centerIn: parent
+
+        TextureProxy {
+            sourceItem: attachViewport
+            anchors.fill: parent
+        }
 
         RotationAnimation {
             id: rotationAnimator
@@ -125,6 +131,8 @@ OutputItem {
 
             TextureProxy {
                 sourceItem: outputViewport
+                // sourceItem: virtualOutputV1.outputViewport
+                // sourceItem: attachViewport
                 anchors.fill: parent
             }
 
