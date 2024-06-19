@@ -10,4 +10,4 @@ Before=dde-session-pre.target
 ListenStream=%t/treeland.socket
 RemoveOnStop=true
 FileDescriptorName=TreeLand
-ExecStopPost=-/usr/bin/systemctl --user unset-environment WAYLAND_DISPLAY
+ExecStop=-/usr/bin/systemctl --user unset-environment WAYLAND_DISPLAY
