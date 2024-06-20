@@ -1,4 +1,4 @@
-set(MODULE_NAME treeland-personalization-manager)
+set(MODULE_NAME personalization)
 
 ws_generate_local(server ${CMAKE_CURRENT_SOURCE_DIR}/protocols/treeland-personalization-manager-v1.xml server-protocol)
 ws_generate(server wayland-protocols stable/xdg-shell/xdg-shell.xml xdg-shell-protocol)
@@ -6,17 +6,7 @@ ws_generate(server wayland-protocols stable/xdg-shell/xdg-shell.xml xdg-shell-pr
 pkg_search_module(WLROOTS REQUIRED IMPORTED_TARGET wlroots)
 find_package(Dtk6Core REQUIRED)
 
-set(MODULE_URI "PersonalizationManager")
-
-qt_add_qml_module(${MODULE_NAME}
-    URI TreeLand.Protocols.${MODULE_URI}
-    VERSION "1.0"
-    STATIC
-    RESOURCE_PREFIX
-        /qt/qml
-    OUTPUT_DIRECTORY
-        ${PROJECT_BINARY_DIR}/qt/qml/TreeLand/Protocols/${MODULE_URI}
-)
+qt_add_library(${MODULE_NAME} STATIC)
 
 qt_add_resources(${MODULE_NAME} "default_background"
     PREFIX "/"
@@ -50,7 +40,6 @@ target_compile_definitions(${MODULE_NAME}
 
 target_link_libraries(${MODULE_NAME}
     PUBLIC
-        utils
         PkgConfig::WLROOTS
         Waylib::WaylibServer
         Qt${QT_MAJOR_VERSION}::Core

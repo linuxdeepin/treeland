@@ -16,32 +16,13 @@
 #include <sys/socket.h>
 #include <unistd.h>
 
-ShortcutManagerV1::ShortcutManagerV1(QObject *parent)
-    : Waylib::Server::WQuickWaylandServerInterface(parent)
+ShortcutV1::ShortcutV1(Helper *helper, QObject *parent)
+    : QObject(parent)
+    , m_helper(helper)
 {
 }
 
-void ShortcutManagerV1::setHelper(Helper *helper)
-{
-    m_helper = helper;
-}
-
-Helper *ShortcutManagerV1::helper()
-{
-    return m_helper;
-}
-
-WServerInterface *ShortcutManagerV1::create()
-{
-    m_manager = treeland_shortcut_manager_v1::create(server()->handle());
-    connect(m_manager,
-            &treeland_shortcut_manager_v1::newContext,
-            this,
-            &ShortcutManagerV1::onNewContext);
-    return new WServerInterface(m_manager, m_manager->global);
-}
-
-void ShortcutManagerV1::onNewContext(uid_t uid, treeland_shortcut_context_v1 *context)
+void ShortcutV1::onNewContext(uid_t uid, treeland_shortcut_context_v1 *context)
 {
     QAction *action = new QAction(context);
     action->setShortcut(QString(context->key));
@@ -58,4 +39,17 @@ void ShortcutManagerV1::onNewContext(uid_t uid, treeland_shortcut_context_v1 *co
     });
 
     m_helper->addAction(username, action);
+}
+
+void ShortcutV1::create(WServer *server)
+{
+    m_manager = treeland_shortcut_manager_v1::create(server->handle());
+    connect(m_manager, &treeland_shortcut_manager_v1::newContext, this, &ShortcutV1::onNewContext);
+}
+
+void ShortcutV1::destroy(WServer *server) { }
+
+wl_global *ShortcutV1::global() const
+{
+    return m_manager->global;
 }

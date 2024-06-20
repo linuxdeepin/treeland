@@ -13,7 +13,7 @@ class ImageHelper : public QObject
     Q_OBJECT
     QML_ELEMENT
     QML_SINGLETON
-    Q_PROPERTY(bool debug MEMBER debug)
+    Q_PROPERTY(bool debug MEMBER debug CONSTANT)
 public:
     explicit ImageHelper(QObject *parent = nullptr);
 

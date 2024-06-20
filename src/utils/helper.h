@@ -3,16 +3,36 @@
 
 #pragma once
 
+#include "wglobal.h"
+
 #include <WCursor>
 #include <WLayerSurface>
 #include <WOutput>
 #include <WSeat>
 #include <WSurfaceItem>
+#include <wquickoutputlayout.h>
 #include <wtoplevelsurface.h>
+#include <wxdgdecorationmanager.h>
 
 #include <QList>
+#include <QQmlApplicationEngine>
+
+Q_MOC_INCLUDE(<woutputrenderwindow.h>)
+Q_MOC_INCLUDE(<wqmlcreator.h>)
+Q_MOC_INCLUDE(<qwcompositor.h>)
 
 Q_DECLARE_OPAQUE_POINTER(QWindow *)
+
+WAYLIB_SERVER_BEGIN_NAMESPACE
+class WQuickCursor;
+class WQmlCreator;
+class WOutputRenderWindow;
+class WInputMethodHelper;
+WAYLIB_SERVER_END_NAMESPACE
+
+QW_BEGIN_NAMESPACE
+class QWCompositor;
+QW_END_NAMESPACE
 
 struct wlr_output_event_request_state;
 QW_USE_NAMESPACE
@@ -39,14 +59,25 @@ class Helper : public WSeatEventFilter
     Q_PROPERTY(WSurfaceItem *movingItem READ movingItem WRITE setMovingItem NOTIFY movingItemChanged FINAL)
     Q_PROPERTY(QString waylandSocket READ waylandSocket WRITE setWaylandSocket NOTIFY socketFileChanged FINAL)
     Q_PROPERTY(QString xwaylandSocket READ xwaylandSocket WRITE setXWaylandSocket NOTIFY socketFileChanged FINAL)
-    Q_PROPERTY(QString currentUser READ currentUser WRITE setCurrentUser FINAL)
+    Q_PROPERTY(QString currentUser READ currentUser WRITE setCurrentUser NOTIFY currentUserChanged FINAL)
     Q_PROPERTY(bool switcherOn MEMBER m_switcherOn NOTIFY switcherOnChanged FINAL)
     Q_PROPERTY(bool switcherEnabled MEMBER m_switcherEnabled FINAL)
-    QML_ELEMENT
-    QML_SINGLETON
+    Q_PROPERTY(WQuickOutputLayout* outputLayout READ outputLayout CONSTANT)
+    Q_PROPERTY(WSeat* seat READ seat CONSTANT)
+    Q_PROPERTY(WCursor* cursor READ cursor CONSTANT)
+    Q_PROPERTY(QW_NAMESPACE::QWCompositor* compositor READ compositor NOTIFY compositorChanged FINAL)
+    Q_PROPERTY(WXdgDecorationManager *xdgDecorationManager READ xdgDecorationManager NOTIFY xdgDecorationManagerChanged)
+    Q_PROPERTY(WQmlCreator* outputCreator READ outputCreator CONSTANT)
+    Q_PROPERTY(WQmlCreator* xdgShellCreator READ xdgShellCreator CONSTANT)
+    Q_PROPERTY(WQmlCreator* xwaylandCreator READ xwaylandCreator CONSTANT)
+    Q_PROPERTY(WQmlCreator* layerShellCreator READ layerShellCreator CONSTANT)
+    Q_PROPERTY(WQmlCreator* inputPopupCreator READ inputPopupCreator CONSTANT)
+
+    // TODO: move to workspace
+    Q_PROPERTY(int currentWorkspaceId READ currentWorkspaceId WRITE setCurrentWorkspaceId NOTIFY currentWorkspaceIdChanged FINAL)
 
 public:
-    explicit Helper(QObject *parent = nullptr);
+    explicit Helper(WServer *server);
 
     enum Switcher {
         Next,
@@ -54,9 +85,28 @@ public:
     };
     Q_ENUM(Switcher)
 
+    void initProtocols(WOutputRenderWindow *window);
+    WQuickOutputLayout *outputLayout() const;
+    WSeat *seat() const;
+    QWCompositor *compositor() const;
+
+    WCursor *cursor() const;
+
+    WXdgDecorationManager *xdgDecorationManager() const;
+
+    WQmlCreator *outputCreator() const;
+    WQmlCreator *xdgShellCreator() const;
+    WQmlCreator *xwaylandCreator() const;
+    WQmlCreator *layerShellCreator() const;
+    WQmlCreator *inputPopupCreator() const;
+
     void setCurrentUser(const QString &currentUser);
 
     inline QString currentUser() const { return m_currentUser; }
+
+    inline int currentWorkspaceId() const { return m_currentWorkspaceId; }
+
+    void setCurrentWorkspaceId(int currentWorkspaceId);
 
     QString waylandSocket() const;
     QString xwaylandSocket() const;
@@ -116,6 +166,10 @@ Q_SIGNALS:
     void socketFileChanged();
     void switcherChanged(Switcher action);
     void switcherOnChanged(bool on);
+    void compositorChanged();
+    void xdgDecorationManagerChanged();
+    void currentWorkspaceIdChanged();
+    void currentUserChanged(const QString &user);
 
 protected:
     bool beforeDisposeEvent(WSeat *seat, QWindow *watched, QInputEvent *event) override;
@@ -132,18 +186,40 @@ protected:
     void onOutputRequeseState(wlr_output_event_request_state *newState);
     OutputInfo *getOutputInfo(WOutput *output);
 
+    WServer *m_server = nullptr;
+    QWRenderer *m_renderer = nullptr;
+    QWAllocator *m_allocator = nullptr;
+    QWCompositor *m_compositor = nullptr;
+    WQuickOutputLayout *m_outputLayout = nullptr;
+    WQuickCursor *m_cursor = nullptr;
+    QPointer<WSeat> m_seat;
+
+    WXdgDecorationManager *m_xdgDecorationManager;
+
+    WQmlCreator *m_outputCreator = nullptr;
+    WQmlCreator *m_xdgShellCreator = nullptr;
+    WQmlCreator *m_xwaylandCreator = nullptr;
+    WQmlCreator *m_layerShellCreator = nullptr;
+    WQmlCreator *m_inputPopupCreator = nullptr;
+
+    QPointer<WSocket> m_socket;
+
     QPointer<WToplevelSurface> m_activateSurface;
 
-    // for move resize
-    QPointer<WToplevelSurface> surface;
-    QPointer<WSurfaceItem> surfaceItem;
-    WSeat *seat = nullptr;
-    QPointF surfacePosOfStartMoveResize;
-    QSizeF surfaceSizeOfStartMoveResize;
-    Qt::Edges resizeEdgets;
-    WSurfaceItem *m_resizingItem = nullptr;
-    WSurfaceItem *m_movingItem = nullptr;
     QList<std::pair<WOutput *, OutputInfo *>> m_outputExclusiveZoneInfo;
+
+    // for move resize
+    struct
+    {
+        QPointer<WToplevelSurface> surface;
+        QPointer<WSurfaceItem> surfaceItem;
+        WSeat *seat = nullptr;
+        QPointF surfacePosOfStartMoveResize;
+        QSizeF surfaceSizeOfStartMoveResize;
+        Qt::Edges resizeEdgets;
+        WSurfaceItem *resizingItem = nullptr;
+        WSurfaceItem *movingItem = nullptr;
+    } moveReiszeState;
 
 private:
     void setWaylandSocket(const QString &socketFile);
@@ -156,6 +232,8 @@ private:
     std::map<QString, std::vector<QAction *>> m_actions;
     bool m_switcherOn = false;
     bool m_switcherEnabled = true;
+
+    int m_currentWorkspaceId{ 0 };
 };
 
 struct OutputInfo

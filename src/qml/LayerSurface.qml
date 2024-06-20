@@ -49,7 +49,7 @@ FocusScope {
 
     OutputLayoutItem {
         anchors.fill: parent
-        layout: QmlHelper.layout
+        layout: Helper.outputLayout
 
         onEnterOutput: function(output) {
             Helper.registerExclusiveZone(waylandSurface)

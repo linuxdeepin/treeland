@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "windowmanagement.h"
+
 #include "impl/window_management_impl.h"
 
 #include <wserver.h>
@@ -15,20 +16,20 @@ extern "C" {
 #include <wayland-server-core.h>
 }
 
-TreelandWindowManagement::TreelandWindowManagement(QObject *parent)
-    : Waylib::Server::WQuickWaylandServerInterface(parent)
+WindowManagementV1::WindowManagementV1(QObject *parent)
+    : QObject(parent)
 {
     qRegisterMetaType<DesktopState>("DesktopState");
 }
 
-TreelandWindowManagement::DesktopState TreelandWindowManagement::desktopState()
+WindowManagementV1::DesktopState WindowManagementV1::desktopState()
 {
     // TODO: When the protocol is not initialized,
     // qml calls the current interface m_handle is empty
     return m_handle ? static_cast<DesktopState>(m_handle->state) : DesktopState::Normal;
 }
 
-void TreelandWindowManagement::setDesktopState(DesktopState state)
+void WindowManagementV1::setDesktopState(DesktopState state)
 {
     uint32_t s = 0;
     switch (state) {
@@ -52,13 +53,19 @@ void TreelandWindowManagement::setDesktopState(DesktopState state)
     qmlWarning(this) << QString("Try to show desktop state (%1)!").arg(s);
 }
 
-WServerInterface *TreelandWindowManagement::create()
+void WindowManagementV1::create(WServer *server)
 {
-    m_handle = treeland_window_management_v1::create(server()->handle());
+    m_handle = treeland_window_management_v1::create(server->handle());
 
     connect(m_handle,
             &treeland_window_management_v1::requestShowDesktop,
             this,
-            &TreelandWindowManagement::requestShowDesktop);
-    return new WServerInterface(m_handle, m_handle->global);
+            &WindowManagementV1::requestShowDesktop);
+}
+
+void WindowManagementV1::destroy(WServer *server) { }
+
+wl_global *WindowManagementV1::global() const
+{
+    return m_handle->global;
 }

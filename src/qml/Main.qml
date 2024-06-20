@@ -8,301 +8,22 @@ import Waylib.Server
 import TreeLand
 import TreeLand.Utils
 import TreeLand.Greeter
-import TreeLand.Protocols.ExtForeignToplevelList
-import TreeLand.Protocols.ForeignToplevelManager
-import TreeLand.Protocols.PersonalizationManager
-import TreeLand.Protocols.OutputManagement
-import TreeLand.Protocols.ShortcutManager
-import TreeLand.Protocols.WallpaperColor
-import TreeLand.Protocols.WindowManagement
+import TreeLand.Protocols
 
 Item {
-    id :root
+    id: root
 
-    WaylandServer {
-        id: server
-
-        ShortcutManager {
-            helper: Helper
-        }
-
-        TreeLandForeignToplevelManagerV1 {
-            id: treelandForeignToplevelManager
-        }
-
-        ExtForeignToplevelList {
-            id: extForeignToplevelList
-        }
-
-        PersonalizationManager {
-            id: personalizationManager
-            Component.onCompleted: {
-                TreeLand.personalManager = personalizationManager
-            }
-        }
-
-        WaylandBackend {
-            id: backend
-
-            onOutputAdded: function(output) {
-                Helper.allowNonDrmOutputAutoChangeMode(output)
-                QmlHelper.outputManager.add({waylandOutput: output})
-                outputManagerV1.newOutput(output)
-                treelandOutputManager.newOutput(output)
-            }
-            onOutputRemoved: function(output) {
-                output.OutputItem.item.invalidate()
-                QmlHelper.outputManager.removeIf(function(prop) {
-                    return prop.waylandOutput === output
-                })
-                outputManagerV1.removeOutput(output)
-                treelandOutputManager.removeOutput(output)
-            }
-            onInputAdded: function(inputDevice) {
-                seat0.addDevice(inputDevice)
-            }
-            onInputRemoved: function(inputDevice) {
-                seat0.removeDevice(inputDevice)
-            }
-        }
-
-        WaylandCompositor {
-            id: compositor
-
-            backend: backend
-        }
-
-        Seat {
-            id: seat0
-            name: "seat0"
-            cursor: Cursor {
-                id: cursor1
-                themeName: personalizationManager.cursorTheme
-                size: personalizationManager.cursorSize
-                layout: QmlHelper.layout
-            }
-
-            eventFilter: Helper
-            keyboardFocus: Helper.activatedSurface?.surface || null
-        }
-
-        XdgShell {
-            id: shell
-            property int workspaceId: 0
-
-            onSurfaceAdded: function(surface) {
-                let type = surface.isPopup ? "popup" : "toplevel"
-                // const wid = QmlHelper.workspaceManager.layoutOrder.get((++workspaceId) % QmlHelper.workspaceManager.layoutOrder.count).wsid
-                const wid = QmlHelper.workspaceManager.layoutOrder.get(stackLayout.item.currentWorkspaceId).wsid
-                QmlHelper.xdgSurfaceManager.add({type: type, workspaceId: wid, waylandSurface: surface})
-
-                let clientName = Helper.clientName(surface.surface)
-                if (!surface.isPopup && clientName !== "dde-desktop" && clientName !== "dde-launchpad") {
-                    extForeignToplevelList.add(surface)
-                    treelandForeignToplevelManager.add(surface)
-                }
-            }
-            onSurfaceRemoved: function(surface) {
-                QmlHelper.xdgSurfaceManager.removeIf(function(prop) {
-                    return prop.waylandSurface === surface
-                })
-
-                let clientName = Helper.clientName(surface.surface)
-                if (!surface.isPopup && (clientName !== "dde-desktop" || clientName !== "dde-launchpad")) {
-                    extForeignToplevelList.remove(surface)
-                    treelandForeignToplevelManager.remove(surface)
-                }
-            }
-        }
-
-        LayerShell {
-            id: layerShell
-
-            onSurfaceAdded: function(surface) {
-                QmlHelper.layerSurfaceManager.add({waylandSurface: surface})
-            }
-            onSurfaceRemoved: function(surface) {
-                QmlHelper.layerSurfaceManager.removeIf(function(prop) {
-                    return prop.waylandSurface === surface
-                })
-            }
-        }
-
-        XWayland {
-            id: xwayland
-            compositor: compositor.compositor
-            seat: seat0.seat
-            lazy: true
-
-            onReady: {
-                xwaylandXdgOutputManager.targetClients.push(client())
-            }
-
-            onDisplayNameChanged: {
-                console.info("XWayland Listing on: ", xwayland.displayName)
-                Helper.xwaylandSocket = xwayland.displayName
-            }
-
-            onSurfaceAdded: function(surface) {
-                const wid = QmlHelper.workspaceManager.layoutOrder.get(stackLayout.item.currentWorkspaceId).wsid
-                QmlHelper.xwaylandSurfaceManager.add({waylandSurface: surface, workspaceId: wid})
-                treelandForeignToplevelManager.add(surface)
-            }
-            onSurfaceRemoved: function(surface) {
-                QmlHelper.xwaylandSurfaceManager.removeIf(function(prop) {
-                    return prop.waylandSurface === surface
-                })
-                treelandForeignToplevelManager.remove(surface)
-            }
-        }
-
-        GammaControlManager {
-            onGammaChanged: function(output, gamma_control, ramp_size, r, g, b) {
-                if (!output.setGammaLut(ramp_size, r, g, b)) {
-                    sendFailedAndDestroy(gamma_control);
-                };
-            }
-        }
-
-        OutputManager {
-            id: outputManagerV1
-
-            onRequestTestOrApply: function(config, onlyTest) {
-                var states = outputManagerV1.stateListPending()
-                var ok = true
-
-                for (const i in states) {
-                    let output = states[i].output
-                    output.enable(states[i].enabled)
-                    if (states[i].enabled) {
-                        if (states[i].mode)
-                            output.setMode(states[i].mode)
-                        else
-                            output.setCustomMode(states[i].custom_mode_size,
-                                                 states[i].custom_mode_refresh)
-
-                        output.enableAdaptiveSync(states[i].adaptive_sync_enabled)
-                        if (!onlyTest) {
-                            let outputDelegate = output.OutputItem.item
-                            outputDelegate.setTransform(states[i].transform)
-                            outputDelegate.setScale(states[i].scale)
-                            outputDelegate.x = states[i].x
-                            outputDelegate.y = states[i].y
-                        }
-                    }
-
-                    if (onlyTest) {
-                        ok &= output.test()
-                        output.rollback()
-                    } else {
-                        ok &= output.commit()
-                    }
-                }
-                outputManagerV1.sendResult(config, ok)
-            }
-        }
-
-        TreelandOutputManager {
-            id: treelandOutputManager
-
-            onRequestSetPrimaryOutput: function(outputName) {
-                primaryOutput = outputName
-            }
-        }
-
-        CursorShapeManager { }
-
-        WaylandSocket {
-            id: masterSocket
-
-            freezeClientWhenDisable: false
-
-            Component.onCompleted: {
-                console.info("Wayland Listing on:", socketFile)
-                Helper.waylandSocket = socketFile
-            }
-        }
-
-        // TODO: add attached property for XdgSurface
-        XdgDecorationManager {
-            id: decorationManager
-        }
-
-        InputMethodManagerV2 {
-            id: inputMethodManagerV2
-        }
-
-        TextInputManagerV1 {
-            id: textInputManagerV1
-        }
-
-        TextInputManagerV3 {
-            id: textInputManagerV3
-        }
-
-        VirtualKeyboardManagerV1 {
-            id: virtualKeyboardManagerV1
-        }
-
-        // for the non-xwayland clients
-        XdgOutputManager {
-            layout: QmlHelper.layout
-            exclusionTargetClients: true
-            targetClients: xwaylandXdgOutputManager.targetClients
-        }
-
-        // for the xwayland clients
-        XdgOutputManager {
-            id: xwaylandXdgOutputManager
-            layout: QmlHelper.layout
-            scaleOverride: 1.0
-            exclusionTargetClients: false
-            objectName: "XdgOutputManagerForXWayalnd"
-        }
-
-        FractionalScaleManagerV1 {
-            id: fractionalScaleManagerV1
-        }
-
-        ScreenCopyManager { }
-
-        TreelandWallpaperColor {
-            id: wallpaperColor
-        }
-
-        TreelandWindowManagement {
-            id: treelandWindowManagement
-
-            onRequestShowDesktop: function(state) {
-                desktopState = state
-            }
-        }
-    }
-
-    InputMethodHelper {
-        id: inputMethodHelperSeat0
-        seat: seat0
-        textInputManagerV1: textInputManagerV1
-        textInputManagerV3: textInputManagerV3
-        inputMethodManagerV2: inputMethodManagerV2
-        virtualKeyboardManagerV1: virtualKeyboardManagerV1
-        activeFocusItem: renderWindow.activeFocusItem.parent
-        onInputPopupSurfaceV2Added: function (surface) {
-            QmlHelper.inputPopupSurfaceManager.add({ popupSurface: surface, inputMethodHelper: inputMethodHelperSeat0 })
-        }
-        onInputPopupSurfaceV2Removed: function (surface) {
-            QmlHelper.inputPopupSurfaceManager.removeIf(function (prop) {
-                return prop.popupSurface === surface
-            })
-        }
+    Binding {
+        target: Helper.seat
+        property: "keyboardFocus"
+        value: Helper.getFocusSurfaceFrom(renderWindow.activeFocusItem)
     }
 
     OutputRenderWindow {
         id: renderWindow
 
-        compositor: compositor
-        width: QmlHelper.layout.implicitWidth
-        height: QmlHelper.layout.implicitHeight
+        width: Helper.outputLayout.implicitWidth
+        height: Helper.outputLayout.implicitHeight
 
         property OutputDelegate activeOutputDelegate: null
 
@@ -334,25 +55,21 @@ Item {
 
         Item {
             id: outputLayout
-            objectName: "outputlayout"
             // register backgroundImage
-            property var personalizationMapper: outputLayout.PersonalizationManager
+            property var personalizationMapper: outputLayout.PersonalizationV1
 
             DynamicCreatorComponent {
                 id: outputDelegateCreator
-                creator: QmlHelper.outputManager
+                creator: Helper.outputCreator
 
                 OutputDelegate {
                     id: outputDelegate
-                    waylandCursor: cursor1
-                    x: { x = QmlHelper.layout.implicitWidth }
-                    y: 0
 
                     onLastActiveCursorItemChanged: {
                         if (lastActiveCursorItem != null)
                             renderWindow.activeOutputDelegate = outputDelegate
                         else if (renderWindow.activeOutputDelegate === outputDelegate) {
-                            for (const output of QmlHelper.layout.outputs) {
+                            for (const output of Helper.outputLayout.outputs) {
                                 if (output.lastActiveCursorItem) {
                                     renderWindow.activeOutputDelegate = output
                                     break
@@ -362,14 +79,14 @@ Item {
                     }
 
                     Component.onCompleted: {
-                        if (renderWindow.activeOutputDelegate == null) {
+                        if (!renderWindow.activeOutputDelegate) {
                             renderWindow.activeOutputDelegate = outputDelegate
                         }
                     }
 
                     Component.onDestruction: {
                         if (renderWindow.activeOutputDelegate === outputDelegate) {
-                            for (const output of QmlHelper.layout.outputs) {
+                            for (const output of Helper.outputLayout.outputs) {
                                 if (output.lastActiveCursorItem && output !== outputDelegate) {
                                     renderWindow.activeOutputDelegate = output
                                     break
@@ -419,7 +136,7 @@ Item {
             id: greeter
             asynchronous: true
             sourceComponent: Repeater {
-                model: QmlHelper.layout.outputs
+                model: Helper.outputLayout.outputs
                 delegate: Greeter {
                     property var output: modelData.output.OutputItem.item
                     property CoordMapper outputCoordMapper: this.CoordMapper.helper.get(output)
@@ -495,8 +212,6 @@ Item {
 
         Component.onCompleted: {
             QmlHelper.renderWindow = this
-            QmlHelper.cursor = cursor1
-            seat0.setKeyboardFocusWindow(this)
         }
     }
 }

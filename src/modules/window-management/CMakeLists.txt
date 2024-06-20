@@ -1,31 +1,21 @@
-set(MODULE_NAME treeland-output-management)
+set(MODULE_NAME window-management)
 
-ws_generate_local(server ${CMAKE_CURRENT_SOURCE_DIR}/protocols/treeland-output-management.xml server-protocol)
+ws_generate_local(server ${CMAKE_CURRENT_SOURCE_DIR}/protocols/treeland-window-management-v1.xml server-protocol)
 
 pkg_search_module(WLROOTS REQUIRED IMPORTED_TARGET wlroots)
 
-set(MODULE_URI "OutputManagement")
-
-qt_add_qml_module(${MODULE_NAME}
-    URI TreeLand.Protocols.${MODULE_URI}
-    VERSION "1.0"
-    STATIC
-    RESOURCE_PREFIX
-        /qt/qml
-    OUTPUT_DIRECTORY
-        ${PROJECT_BINARY_DIR}/qt/qml/TreeLand/Protocols/${MODULE_URI}
-)
+qt_add_library(${MODULE_NAME} STATIC)
 
 target_sources(${MODULE_NAME} PUBLIC
 FILE_SET HEADERS
 FILES
-    outputmanagement.h
-    impl/output_manager_impl.h
+    windowmanagement.h
+    impl/window_management_impl.h
 )
 
 target_sources(${MODULE_NAME} PRIVATE
-    outputmanagement.cpp
-    impl/output_manager_impl.cpp
+    windowmanagement.cpp
+    impl/window_management_impl.cpp
     server-protocol.c
 )
 

@@ -15,6 +15,5 @@ ExecCondition=/bin/sh -c 'test "$DDE_CURRENT_COMPOSITOR" = "TreeLand" || exit 2'
 Type=notify
 ExecStart=@CMAKE_INSTALL_FULL_LIBEXECDIR@/treeland-shortcut
 Slice=session.slice
-Restart=on-failure
 RestartSec=3s
 

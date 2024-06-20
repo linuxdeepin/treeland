@@ -5,7 +5,7 @@
 
 #include "impl/personalization_manager_impl.h"
 
-#include <wquickwaylandserver.h>
+#include <wserver.h>
 #include <wxdgsurface.h>
 
 #include <DConfig>
@@ -17,7 +17,7 @@
 QW_USE_NAMESPACE
 WAYLIB_SERVER_USE_NAMESPACE
 
-class QuickPersonalizationManager;
+class PersonalizationV1;
 
 class QuickPersonalizationManagerAttached : public QObject
 {
@@ -30,8 +30,8 @@ public:
     enum BackgroundType { Normal, Wallpaper, Blend };
     Q_ENUM(BackgroundType)
 
-    QuickPersonalizationManagerAttached(WSurface *target, QuickPersonalizationManager *manager);
-    QuickPersonalizationManagerAttached(QQuickItem *target, QuickPersonalizationManager *manager);
+    QuickPersonalizationManagerAttached(WSurface *target, PersonalizationV1 *manager);
+    QuickPersonalizationManagerAttached(QQuickItem *target, PersonalizationV1 *manager);
 
     BackgroundType backgroundType() const { return m_backgroundType; };
 
@@ -42,14 +42,13 @@ Q_SIGNALS:
 
 private:
     QObject *m_target;
-    QuickPersonalizationManager *m_manager;
+    PersonalizationV1 *m_manager;
     BackgroundType m_backgroundType = Normal;
 };
 
-class QuickPersonalizationManager : public WQuickWaylandServerInterface
+class PersonalizationV1 : public QObject, public WServerInterface
 {
     Q_OBJECT
-    QML_NAMED_ELEMENT(PersonalizationManager)
     QML_ATTACHED(QuickPersonalizationManagerAttached)
 
     Q_PROPERTY(uid_t userId READ userId WRITE setUserId NOTIFY userIdChanged FINAL)
@@ -57,7 +56,7 @@ class QuickPersonalizationManager : public WQuickWaylandServerInterface
     Q_PROPERTY(QSize cursorSize READ cursorSize WRITE setCursorSize NOTIFY cursorSizeChanged FINAL)
 
 public:
-    explicit QuickPersonalizationManager(QObject *parent = nullptr);
+    explicit PersonalizationV1(QObject *parent = nullptr);
 
     void onWindowContextCreated(personalization_window_context_v1 *context);
     void onWallpaperContextCreated(personalization_wallpaper_context_v1 *context);
@@ -96,10 +95,15 @@ public Q_SLOTS:
     QString lockscreen(const QString &output);
     bool backgroundIsDark(const QString &output);
 
-private:
-    WServerInterface *create() override;
+protected:
+    void create(WServer *server) override;
+    void destroy(WServer *server) override;
+    wl_global *global() const override;
 
-    void writeContext(personalization_wallpaper_context_v1 *context, const QByteArray &data, const QString &dest);
+private:
+    void writeContext(personalization_wallpaper_context_v1 *context,
+                      const QByteArray &data,
+                      const QString &dest);
     void saveImage(personalization_wallpaper_context_v1 *context, const QString file);
     void updateCacheWallpaperPath(uid_t uid);
     QString readWallpaperSettings(const QString &group, const QString &output);

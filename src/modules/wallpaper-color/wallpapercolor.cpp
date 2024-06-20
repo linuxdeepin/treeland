@@ -17,19 +17,24 @@ extern "C" {
 #include <wayland-server-core.h>
 }
 
-TreelandWallpaperColor::TreelandWallpaperColor(QObject *parent)
-    : Waylib::Server::WQuickWaylandServerInterface(parent)
+WallpaperColorV1::WallpaperColorV1(QObject *parent)
+    : QObject(parent)
 {
 }
 
-WServerInterface *TreelandWallpaperColor::create()
+void WallpaperColorV1::create(WServer *server)
 {
-    m_handle = wallpaper_color_manager_v1::create(server()->handle());
-
-    return new WServerInterface(m_handle, m_handle->global);
+    m_handle = wallpaper_color_manager_v1::create(server->handle());
 }
 
-void TreelandWallpaperColor::updateWallpaperColor(const QString &output, bool isDarkType)
+void WallpaperColorV1::destroy(WServer *server) { }
+
+wl_global *WallpaperColorV1::global() const
+{
+    return m_handle->global;
+}
+
+void WallpaperColorV1::updateWallpaperColor(const QString &output, bool isDarkType)
 {
     m_handle->updateWallpaperColor(output, isDarkType);
 }

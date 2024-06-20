@@ -4,8 +4,8 @@
 #include "outputmanagement.h"
 
 #include "impl/output_manager_impl.h"
-#include "wglobal.h"
 
+#include <wglobal.h>
 #include <woutput.h>
 #include <wserver.h>
 
@@ -18,17 +18,17 @@ extern "C" {
 #include <wayland-server-core.h>
 }
 
-TreelandOutputManager::TreelandOutputManager(QObject *parent)
-    : Waylib::Server::WQuickWaylandServerInterface(parent)
+PrimaryOutputV1::PrimaryOutputV1(QObject *parent)
+    : QObject(parent)
 {
 }
 
-const char *TreelandOutputManager::primaryOutput()
+const char *PrimaryOutputV1::primaryOutput()
 {
     return m_handle->primary_output_name;
 }
 
-bool TreelandOutputManager::setPrimaryOutput(const char *name)
+bool PrimaryOutputV1::setPrimaryOutput(const char *name)
 {
     if (name == nullptr) {
         if (m_outputs.empty()) { // allow null when output list is empty
@@ -52,14 +52,14 @@ bool TreelandOutputManager::setPrimaryOutput(const char *name)
     return false;
 }
 
-void TreelandOutputManager::newOutput(WAYLIB_SERVER_NAMESPACE::WOutput *output)
+void PrimaryOutputV1::newOutput(WAYLIB_SERVER_NAMESPACE::WOutput *output)
 {
     m_outputs.append(output);
     if (m_handle->primary_output_name == nullptr)
         setPrimaryOutput(output->nativeHandle()->name);
 }
 
-void TreelandOutputManager::removeOutput(WAYLIB_SERVER_NAMESPACE::WOutput *output)
+void PrimaryOutputV1::removeOutput(WAYLIB_SERVER_NAMESPACE::WOutput *output)
 {
     m_outputs.removeOne(output);
 
@@ -72,13 +72,19 @@ void TreelandOutputManager::removeOutput(WAYLIB_SERVER_NAMESPACE::WOutput *outpu
     }
 }
 
-WServerInterface *TreelandOutputManager::create()
+void PrimaryOutputV1::create(WServer *server)
 {
-    m_handle = treeland_output_manager_v1::create(server()->handle());
+    m_handle = treeland_output_manager_v1::create(server->handle());
 
     connect(m_handle,
             &treeland_output_manager_v1::requestSetPrimaryOutput,
             this,
-            &TreelandOutputManager::requestSetPrimaryOutput);
-    return new WServerInterface(m_handle, m_handle->global);
+            &PrimaryOutputV1::requestSetPrimaryOutput);
+}
+
+void PrimaryOutputV1::destroy(WServer *server) { }
+
+wl_global *PrimaryOutputV1::global() const
+{
+    return m_handle->global;
 }

@@ -3,15 +3,14 @@
 
 #pragma once
 
-#include "personalizationmanager.h"
+#include <WServer>
+#include <wsocket.h>
 
 #include <QDBusContext>
 #include <QDBusUnixFileDescriptor>
 #include <QGuiApplication>
 #include <QLocalSocket>
 #include <QtWaylandCompositor/QWaylandCompositor>
-
-#include <wsocket.h>
 
 #include <memory>
 
@@ -28,13 +27,10 @@ struct TreeLandAppContext
 class TreeLand : public QObject, protected QDBusContext
 {
     Q_OBJECT
-    Q_PROPERTY(QuickPersonalizationManager* personalManager READ personalManager WRITE setPersonalManager)
     Q_PROPERTY(bool testMode READ testMode CONSTANT)
 
 public:
     explicit TreeLand(TreeLandAppContext context);
-
-    inline QuickPersonalizationManager *personalManager() const { return m_personalManager; }
 
     Q_INVOKABLE void retranslate() noexcept;
 
@@ -55,14 +51,13 @@ private Q_SLOTS:
 
 private:
     void setup();
-    void setPersonalManager(QuickPersonalizationManager *manager);
 
 private:
     TreeLandAppContext m_context;
     QLocalSocket *m_socket;
     QLocalSocket *m_helperSocket;
+    Waylib::Server::WServer *m_server;
     QQmlApplicationEngine *m_engine;
-    QuickPersonalizationManager *m_personalManager;
     QMap<QString, std::shared_ptr<Waylib::Server::WSocket>> m_userWaylandSocket;
     QMap<QString, std::shared_ptr<QDBusUnixFileDescriptor>> m_userDisplayFds;
 };

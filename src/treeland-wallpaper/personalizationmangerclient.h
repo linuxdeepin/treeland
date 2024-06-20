@@ -13,7 +13,7 @@
 class PersonalizationWindow;
 class PersonalizationWallpaper;
 
-class PersonalizationManager : public QWaylandClientExtensionTemplate<PersonalizationManager>,
+class PersonalizationV1 : public QWaylandClientExtensionTemplate<PersonalizationV1>,
                                public QtWayland::treeland_personalization_manager_v1
 {
     Q_OBJECT
@@ -34,8 +34,8 @@ public:
         int currentIndex;
     };
 
-    explicit PersonalizationManager();
-    ~PersonalizationManager();
+    explicit PersonalizationV1();
+    ~PersonalizationV1();
 
     void onActiveChanged();
     QString cacheDirectory();

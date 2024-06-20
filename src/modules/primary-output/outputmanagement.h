@@ -4,7 +4,7 @@
 #pragma once
 
 #include <woutput.h>
-#include <wquickwaylandserver.h>
+#include <wserver.h>
 
 #include <qwsignalconnector.h>
 
@@ -14,22 +14,23 @@
 struct treeland_output_manager_v1;
 WAYLIB_SERVER_USE_NAMESPACE
 
-class TreelandOutputManager : public Waylib::Server::WQuickWaylandServerInterface
+class PrimaryOutputV1 : public QObject, public Waylib::Server::WServerInterface
 {
     Q_OBJECT
-    QML_ELEMENT
     Q_PROPERTY(const char *primaryOutput READ primaryOutput WRITE setPrimaryOutput NOTIFY primaryOutputChanged)
 
 public:
-    explicit TreelandOutputManager(QObject *parent = nullptr);
+    explicit PrimaryOutputV1(QObject *parent = nullptr);
 
     const char *primaryOutput();
     bool setPrimaryOutput(const char *name);
-    Q_INVOKABLE void newOutput(WAYLIB_SERVER_NAMESPACE::WOutput *output);
-    Q_INVOKABLE void removeOutput(WAYLIB_SERVER_NAMESPACE::WOutput *output);
+    void newOutput(WAYLIB_SERVER_NAMESPACE::WOutput *output);
+    void removeOutput(WAYLIB_SERVER_NAMESPACE::WOutput *output);
 
 protected:
-    WServerInterface *create() override;
+    void create(WServer *server) override;
+    void destroy(WServer *server) override;
+    wl_global *global() const override;
 
 Q_SIGNALS:
     void requestSetPrimaryOutput(const char *);
