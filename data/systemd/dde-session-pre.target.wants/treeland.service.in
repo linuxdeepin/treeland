@@ -1,6 +1,6 @@
 [Unit]
 Description=TreeLand session service
-StartLimitBurst=3
+StartLimitBurst=60
 CollectMode=inactive-or-failed
 
 Requires=treeland-sd.socket
@@ -14,6 +14,10 @@ Before=treeland-sd.service
 Requires=treeland-xwayland.service
 PartOf=treeland-xwayland.service
 Before=treeland-xwayland.service
+
+Requires=treeland-shortcut.service
+PartOf=treeland-shortcut.service
+Before=treeland-shortcut.service
 
 Requisite=dde-session-pre.target
 PartOf=dde-session-pre.target
