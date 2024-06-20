@@ -437,6 +437,12 @@ QWlrootsScreen *WOutput::screen() const
     return d->screen;
 }
 
+QString WOutput::name() const
+{
+    W_DC(WOutput);
+    return QString::fromUtf8(d->nativeHandle()->name);
+}
+
 bool WOutput::isEnabled() const
 {
     W_DC(WOutput);

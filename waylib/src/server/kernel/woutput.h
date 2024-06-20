@@ -50,6 +50,7 @@ class WAYLIB_SERVER_EXPORT WOutput : public WWrapObject
     Q_PROPERTY(Transform orientation READ orientation NOTIFY orientationChanged)
     Q_PROPERTY(float scale READ scale NOTIFY scaleChanged)
     Q_PROPERTY(bool forceSoftwareCursor READ forceSoftwareCursor WRITE setForceSoftwareCursor NOTIFY forceSoftwareCursorChanged)
+    Q_PROPERTY(QString name READ name CONSTANT)
     QML_NAMED_ELEMENT(WaylandOutput)
     QML_UNCREATABLE("Can't create in qml")
 
@@ -85,6 +86,7 @@ public:
 
     static WOutput *fromScreen(const QScreen *screen);
 
+    QString name() const;
     bool isEnabled() const;
     QPoint position() const;
     QSize size() const;
