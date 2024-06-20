@@ -6,7 +6,7 @@ qt_add_executable(test-wallpaper-color
 
 qt_generate_wayland_protocol_client_sources(test-wallpaper-color
     FILES
-        ${CMAKE_CURRENT_SOURCE_DIR}/../../src/modules/treeland-wallpaper-color/protocols/treeland-wallpaper-color-v1.xml
+        ${CMAKE_CURRENT_SOURCE_DIR}/../../src/modules/wallpaper-color/protocols/treeland-wallpaper-color-v1.xml
 )
 
 target_link_libraries(test-wallpaper-color

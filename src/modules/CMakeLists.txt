@@ -42,10 +42,9 @@ link_libraries(
     PkgConfig::WAYLAND_SERVER
 )
 
-add_subdirectory("ext-foreign-toplevel-list")
-add_subdirectory("treeland-foreign-toplevel")
-add_subdirectory("treeland-output-management")
-add_subdirectory("treeland-personalization-manager")
-add_subdirectory("treeland-shortcut-manager")
-add_subdirectory("treeland-wallpaper-color")
-add_subdirectory("treeland-window-management")
+add_subdirectory("foreign-toplevel")
+add_subdirectory("primary-output")
+add_subdirectory("personalization")
+add_subdirectory("shortcut")
+add_subdirectory("wallpaper-color")
+add_subdirectory("window-management")

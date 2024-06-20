@@ -3,24 +3,25 @@
 
 #pragma once
 
-#include <wquickwaylandserver.h>
 
 #include <QQmlEngine>
+#include <wserver.h>
 
 struct wallpaper_color_manager_v1;
 WAYLIB_SERVER_USE_NAMESPACE
 
-class TreelandWallpaperColor : public Waylib::Server::WQuickWaylandServerInterface
+class WallpaperColorV1 : public QObject, public Waylib::Server::WServerInterface
 {
     Q_OBJECT
-    QML_ELEMENT
 
 public:
-    explicit TreelandWallpaperColor(QObject *parent = nullptr);
+    explicit WallpaperColorV1(QObject *parent = nullptr);
     Q_INVOKABLE void updateWallpaperColor(const QString &output, bool isDarkType);
 
 protected:
-    WServerInterface *create() override;
+    void create(WServer *server) override;
+    void destroy(WServer *server) override;
+    wl_global *global() const override;
 
 private:
     wallpaper_color_manager_v1 *m_handle{ nullptr };

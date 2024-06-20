@@ -4,12 +4,7 @@
 import QtQuick
 import QtQuick.Controls
 import Waylib.Server
-import TreeLand.Protocols.ExtForeignToplevelList
-import TreeLand.Protocols.ForeignToplevelManager
-import TreeLand.Protocols.PersonalizationManager
-import TreeLand.Protocols.OutputManagement
-import TreeLand.Protocols.ShortcutManager
-import TreeLand.Protocols.WallpaperColor
+import TreeLand.Protocols
 
 OutputItem {
     id: rootOutputItem
@@ -19,7 +14,6 @@ OutputItem {
 
     output: waylandOutput
     devicePixelRatio: waylandOutput.scale
-    layout: QmlHelper.layout
     cursorDelegate: Item {
         required property OutputCursor cursor
 
@@ -101,18 +95,18 @@ OutputItem {
         asynchronous: true
 
         Component.onCompleted: {
-            let name = personalizationManager.getOutputName(output);
-            background.source = personalizationManager.background(name) + "?" + new Date().getTime()
-            wallpaperColor.updateWallpaperColor(name, personalizationManager.backgroundIsDark(name));
+            let name = PersonalizationV1.getOutputName(output);
+            background.source = PersonalizationV1.background(name) + "?" + new Date().getTime()
+            WallpaperColorV1.updateWallpaperColor(name, PersonalizationV1.backgroundIsDark(name));
         }
 
         Connections {
-            target: personalizationManager
+            target: PersonalizationV1
             function onBackgroundChanged(outputName, isdark) {
-                let name = personalizationManager.getOutputName(output);
+                let name = PersonalizationV1.getOutputName(output);
                 if (outputName === name) {
-                    background.source = personalizationManager.background(outputName) + "?" + new Date().getTime()
-                    wallpaperColor.updateWallpaperColor(outputName, isdark);
+                    background.source = PersonalizationV1.background(outputName) + "?" + new Date().getTime()
+                    WallpaperColorV1.updateWallpaperColor(outputName, isdark);
                 }
             }
         }
@@ -197,7 +191,5 @@ OutputItem {
         onscreenViewport.setOutputScale(scale)
     }
 
-    function invalidate() {
-        onscreenViewport.invalidate()
-    }
+    Component.onDestruction: onscreenViewport.invalidate()
 }

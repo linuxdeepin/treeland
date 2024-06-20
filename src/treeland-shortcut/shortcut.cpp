@@ -58,10 +58,10 @@ QString transFromDaemonAccelStr(const QString &accelStr)
     return str;
 }
 
-ShortcutManager::ShortcutManager()
-    : QWaylandClientExtensionTemplate<ShortcutManager>(1)
+ShortcutV1::ShortcutV1()
+    : QWaylandClientExtensionTemplate<ShortcutV1>(1)
 {
-    connect(this, &ShortcutManager::activeChanged, this, [this] {
+    connect(this, &ShortcutV1::activeChanged, this, [this] {
         qDebug() << isActive();
 
         if (isActive()) {
@@ -166,7 +166,7 @@ int main(int argc, char *argv[])
 {
     QApplication app(argc, argv);
 
-    new ShortcutManager;
+    new ShortcutV1;
 
     sd_notify(0, "READY=1");
 

@@ -19,13 +19,13 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-PersonalizationManager::PersonalizationManager()
-    : QWaylandClientExtensionTemplate<PersonalizationManager>(1)
+PersonalizationV1::PersonalizationV1()
+    : QWaylandClientExtensionTemplate<PersonalizationV1>(1)
 {
     connect(this,
-            &PersonalizationManager::activeChanged,
+            &PersonalizationV1::activeChanged,
             this,
-            &PersonalizationManager::onActiveChanged);
+            &PersonalizationV1::onActiveChanged);
     m_cacheDirectory =
         QStandardPaths::writableLocation(QStandardPaths::CacheLocation) + "/wallpaper/";
 
@@ -46,7 +46,7 @@ PersonalizationManager::PersonalizationManager()
     }
 }
 
-PersonalizationManager::~PersonalizationManager()
+PersonalizationV1::~PersonalizationV1()
 {
     if (m_wallpaperContext) {
         m_wallpaperContext->deleteLater();
@@ -61,7 +61,7 @@ PersonalizationManager::~PersonalizationManager()
     }
 }
 
-void PersonalizationManager::onActiveChanged()
+void PersonalizationV1::onActiveChanged()
 {
     if (!isActive())
         return;
@@ -71,13 +71,13 @@ void PersonalizationManager::onActiveChanged()
         connect(m_wallpaperContext,
                 &PersonalizationWallpaper::metadataChanged,
                 this,
-                &PersonalizationManager::onMetadataChanged);
+                &PersonalizationV1::onMetadataChanged);
     }
 
     m_wallpaperContext->get_metadata();
 }
 
-void PersonalizationManager::addWallpaper(const QString &path)
+void PersonalizationV1::addWallpaper(const QString &path)
 {
     if (!m_wallpaperContext)
         return;
@@ -95,7 +95,7 @@ void PersonalizationManager::addWallpaper(const QString &path)
     QFile::copy(local_path, dest);
 }
 
-void PersonalizationManager::removeWallpaper(const QString &path, const QString &group, int index)
+void PersonalizationV1::removeWallpaper(const QString &path, const QString &group, int index)
 {
     if (m_modes[group]->currentIndex() == index)
         return;
@@ -106,7 +106,7 @@ void PersonalizationManager::removeWallpaper(const QString &path, const QString 
     m_modes[group]->remove(index);
 }
 
-void PersonalizationManager::changeWallpaper(const QString &path,
+void PersonalizationV1::changeWallpaper(const QString &path,
                                              const QString &output,
                                              const QString &group,
                                              int index,
@@ -144,7 +144,7 @@ void PersonalizationManager::changeWallpaper(const QString &path,
     }
 }
 
-void PersonalizationManager::setBackground(const QString &path,
+void PersonalizationV1::setBackground(const QString &path,
                                            const QString &group,
                                            int index,
                                            bool isdark)
@@ -157,7 +157,7 @@ void PersonalizationManager::setBackground(const QString &path,
                     isdark);
 }
 
-void PersonalizationManager::setLockscreen(const QString &path,
+void PersonalizationV1::setLockscreen(const QString &path,
                                            const QString &group,
                                            int index,
                                            bool isdark)
@@ -170,7 +170,7 @@ void PersonalizationManager::setLockscreen(const QString &path,
                     isdark);
 }
 
-void PersonalizationManager::setBoth(const QString &path, const QString &group, int index)
+void PersonalizationV1::setBoth(const QString &path, const QString &group, int index)
 {
     changeWallpaper(path,
                     m_currentOutput,
@@ -180,7 +180,7 @@ void PersonalizationManager::setBoth(const QString &path, const QString &group, 
                         | PersonalizationWallpaper::options_lockscreen);
 }
 
-QString PersonalizationManager::currentGroup()
+QString PersonalizationV1::currentGroup()
 {
     if (m_currentOutput.isEmpty())
         return QString();
@@ -189,7 +189,7 @@ QString PersonalizationManager::currentGroup()
     return meta->group;
 }
 
-void PersonalizationManager::setCurrentGroup(const QString &group)
+void PersonalizationV1::setCurrentGroup(const QString &group)
 {
     if (m_currentOutput.isEmpty())
         return;
@@ -199,28 +199,28 @@ void PersonalizationManager::setCurrentGroup(const QString &group)
     Q_EMIT currentGroupChanged(group);
 }
 
-QString PersonalizationManager::output()
+QString PersonalizationV1::output()
 {
     return m_currentOutput;
 }
 
-void PersonalizationManager::setOutput(const QString &name)
+void PersonalizationV1::setOutput(const QString &name)
 {
     m_currentOutput = name;
     Q_EMIT outputChanged(m_currentOutput);
 }
 
-QStringList PersonalizationManager::outputModel()
+QStringList PersonalizationV1::outputModel()
 {
     return m_screens.keys();
 }
 
-QString PersonalizationManager::cacheDirectory()
+QString PersonalizationV1::cacheDirectory()
 {
     return m_cacheDirectory;
 }
 
-WallpaperCardModel *PersonalizationManager::wallpaperModel(const QString &group, const QString &dir)
+WallpaperCardModel *PersonalizationV1::wallpaperModel(const QString &group, const QString &dir)
 {
     if (m_modes.contains(group))
         return m_modes[group];
@@ -231,7 +231,7 @@ WallpaperCardModel *PersonalizationManager::wallpaperModel(const QString &group,
     return m_modes[group];
 }
 
-QString PersonalizationManager::converToJson(QMap<QString, WallpaperMetaData *> screens)
+QString PersonalizationV1::converToJson(QMap<QString, WallpaperMetaData *> screens)
 {
     QMapIterator<QString, WallpaperMetaData *> it(screens);
 
@@ -252,7 +252,7 @@ QString PersonalizationManager::converToJson(QMap<QString, WallpaperMetaData *> 
     return json_doc.toJson(QJsonDocument::Compact);
 }
 
-void PersonalizationManager::onMetadataChanged(const QString &metadata)
+void PersonalizationV1::onMetadataChanged(const QString &metadata)
 {
     QJsonDocument json_doc = QJsonDocument::fromJson(metadata.toLocal8Bit());
 
