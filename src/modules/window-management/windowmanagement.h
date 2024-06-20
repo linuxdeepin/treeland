@@ -3,30 +3,31 @@
 
 #pragma once
 
-#include <wquickwaylandserver.h>
+#include <wserver.h>
 
 #include <QQmlEngine>
 
 struct treeland_window_management_v1;
 WAYLIB_SERVER_USE_NAMESPACE
 
-class TreelandWindowManagement : public Waylib::Server::WQuickWaylandServerInterface
+class WindowManagementV1 : public QObject, public Waylib::Server::WServerInterface
 {
     Q_OBJECT
-    QML_ELEMENT
     Q_PROPERTY(DesktopState desktopState READ desktopState WRITE setDesktopState NOTIFY desktopStateChanged)
 
 public:
     enum class DesktopState { Normal, Show, Preview };
     Q_ENUM(DesktopState)
 
-    explicit TreelandWindowManagement(QObject *parent = nullptr);
+    explicit WindowManagementV1(QObject *parent = nullptr);
 
     DesktopState desktopState();
     void setDesktopState(DesktopState state);
 
 protected:
-    WServerInterface *create() override;
+    void create(WServer *server) override;
+    void destroy(WServer *server) override;
+    wl_global *global() const override;
 
 Q_SIGNALS:
     void requestShowDesktop(uint32_t state);

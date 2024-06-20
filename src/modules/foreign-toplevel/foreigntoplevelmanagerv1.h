@@ -4,9 +4,8 @@
 #pragma once
 
 #include "impl/foreign_toplevel_manager_impl.h"
-#include "server-protocol.h"
 
-#include <wquickwaylandserver.h>
+#include <wserver.h>
 #include <wxdgsurface.h>
 
 #include <QObject>
@@ -14,15 +13,15 @@
 QW_USE_NAMESPACE
 WAYLIB_SERVER_USE_NAMESPACE
 
-class QuickForeignToplevelManagerV1;
+class ForeignToplevelV1;
 
-class QuickForeignToplevelManagerAttached : public QObject
+class ForeignToplevelAttached : public QObject
 {
     Q_OBJECT
     QML_ANONYMOUS
 
 public:
-    QuickForeignToplevelManagerAttached(WSurface *target, QuickForeignToplevelManagerV1 *manager);
+    ForeignToplevelAttached(WSurface *target, ForeignToplevelV1 *manager);
 
 Q_SIGNALS:
     void requestMaximize(bool maximized);
@@ -34,17 +33,16 @@ Q_SIGNALS:
 
 private:
     WSurface *m_target;
-    QuickForeignToplevelManagerV1 *m_manager;
+    ForeignToplevelV1 *m_manager;
 };
 
-class QuickForeignToplevelManagerV1 : public WQuickWaylandServerInterface
+class ForeignToplevelV1 : public QObject, public WServerInterface
 {
     Q_OBJECT
-    QML_NAMED_ELEMENT(TreeLandForeignToplevelManagerV1)
-    QML_ATTACHED(QuickForeignToplevelManagerAttached)
+    QML_ATTACHED(ForeignToplevelAttached)
 
 public:
-    explicit QuickForeignToplevelManagerV1(QObject *parent = nullptr);
+    explicit ForeignToplevelV1(QObject *parent = nullptr);
 
     Q_INVOKABLE void add(WToplevelSurface *surface);
     Q_INVOKABLE void remove(WToplevelSurface *surface);
@@ -52,7 +50,7 @@ public:
     Q_INVOKABLE void enterDockPreview(WSurface *relative_surface);
     Q_INVOKABLE void leaveDockPreview(WSurface *relative_surface);
 
-    static QuickForeignToplevelManagerAttached *qmlAttachedProperties(QObject *target);
+    static ForeignToplevelAttached *qmlAttachedProperties(QObject *target);
 
 Q_SIGNALS:
     void requestMaximize(WToplevelSurface *surface,
@@ -72,12 +70,15 @@ Q_SIGNALS:
                             int direction);
     void requestDockClose();
 
+protected:
+    void create(WServer *server) override;
+    void destroy(WServer *server) override;
+    wl_global *global() const override;
+
 private Q_SLOTS:
     void onDockPreviewContextCreated(treeland_dock_preview_context_v1 *context);
 
 private:
-    WServerInterface *create() override;
-
     treeland_foreign_toplevel_manager_v1 *m_manager = nullptr;
     std::map<WToplevelSurface *, std::shared_ptr<treeland_foreign_toplevel_handle_v1>> m_surfaces;
     std::map<WToplevelSurface *, std::vector<QMetaObject::Connection>> m_connections;

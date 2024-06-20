@@ -13,12 +13,12 @@
 
 class ShortcutContext;
 
-class ShortcutManager : public QWaylandClientExtensionTemplate<ShortcutManager>,
+class ShortcutV1 : public QWaylandClientExtensionTemplate<ShortcutV1>,
                         public QtWayland::treeland_shortcut_manager_v1
 {
     Q_OBJECT
 public:
-    explicit ShortcutManager();
+    explicit ShortcutV1();
 
 private:
     std::vector<ShortcutContext *> m_customShortcuts;

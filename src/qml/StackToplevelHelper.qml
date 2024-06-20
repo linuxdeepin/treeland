@@ -5,12 +5,7 @@ import QtQuick
 import Waylib.Server
 import QtQuick.Particles
 import TreeLand
-import TreeLand.Protocols.ExtForeignToplevelList
-import TreeLand.Protocols.ForeignToplevelManager
-import TreeLand.Protocols.PersonalizationManager
-import TreeLand.Protocols.OutputManagement
-import TreeLand.Protocols.ShortcutManager
-import TreeLand.Protocols.WindowManagement
+import TreeLand.Protocols
 import TreeLand.Utils
 
 Item {
@@ -21,7 +16,7 @@ Item {
     required property DynamicCreatorComponent creator
     required property SurfaceItemFactory surfaceWrapper
     property WindowDecoration decoration
-    property var quickForeignToplevelManageMapper: waylandSurface.TreeLandForeignToplevelManagerV1
+    property var quickForeignToplevelManageMapper: waylandSurface.ForeignToplevelV1
 
     property OutputItem output
     property CoordMapper outputCoordMapper
@@ -148,13 +143,13 @@ Item {
     }
 
     onMappedChanged: {
-        console.log("onMappedChanged!", Helper.clientName(waylandSurface.surface))
+        console.log("onMappedChanged!", Helper.clientName(waylandSurface.surface), mapped)
 
         // When Socket is enabled and mapped becomes false, set visible
         // after closeAnimation complete， Otherwise set visible directly.
         if (mapped) {
-            if (treelandWindowManagement.desktopState === TreelandWindowManagement.Show) {
-                treelandWindowManagement.desktopState = TreelandWindowManagement.Normal
+            if (WindowManagementV1.desktopState === WindowManagementV1.Show) {
+                WindowManagementV1.desktopState = WindowManagementV1.Normal
                 setAllSurfacesVisble(false)
             }
 
@@ -332,8 +327,8 @@ Item {
         if (!waylandSurface.isMinimized)
             return
 
-        if (treelandWindowManagement.desktopState === TreelandWindowManagement.Show) {
-            treelandWindowManagement.desktopState = TreelandWindowManagement.Normal
+        if (WindowManagementV1.desktopState === WindowManagementV1.Show) {
+            WindowManagementV1.desktopState = WindowManagementV1.Normal
             setAllSurfacesVisble(false)
         }
 
@@ -367,12 +362,15 @@ Item {
 
     // for workspace management
     Connections {
-        target: surface
-        property ToplevelContainer parentCached: { parentCached = target.parent }
+        target: surface.parent
         function onWorkspaceIdChanged() {
             // sync state to succesive models
             console.log('workspaceIdChanged, reparenting to id=',workspaceId)
         }
+    }
+    Connections {
+        target: surface
+        property ToplevelContainer parentCached: { parentCached = target.parent }
         function onParentChanged() {
             parentCached?.surfaces.removeIf((val) => val.item === surface)
             parentCached = target.parent

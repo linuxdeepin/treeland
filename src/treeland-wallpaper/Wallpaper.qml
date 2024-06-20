@@ -12,7 +12,7 @@ Item {
         implicitWidth: parent.width
         spacing: 10
 
-        PersonalizationManager {
+        PersonalizationV1 {
             id: personalization
 
             onWallpaperChanged: {

@@ -15,8 +15,7 @@ SurfaceItemFactory {
 
     property var doDestroy: helper.doDestroy
     property var cancelMinimize: helper.cancelMinimize
-    property var surfaceDecorationMapper: waylandSurface.XdgDecorationManager
-    property var personalizationMapper: waylandSurface.PersonalizationManager
+    property var personalizationMapper: waylandSurface.PersonalizationV1
     property int outputCounter: 0
     property alias toplevelSurfaceItem: root.surfaceItem
     property alias decoration: decoration
@@ -166,7 +165,7 @@ SurfaceItemFactory {
     OutputLayoutItem {
         parent: surfaceItem
         anchors.fill: parent
-        layout: QmlHelper.layout
+        layout: Helper.outputLayout
 
         onEnterOutput: function(output) {
             if (waylandSurface.surface) {
@@ -197,7 +196,7 @@ SurfaceItemFactory {
             waylandSurface.surface.leaveOutput(output)
             Helper.onSurfaceLeaveOutput(waylandSurface, toplevelSurfaceItem, output)
             outputCounter--
-            
+
             if (outputCounter == 0 && helper.mapped) {
                 console.log(`nextPos when output=0 ${waylandSurface} ${toplevelSurfaceItem}`)
                 const pos = QmlHelper.winposManager.nextPos(waylandSurface.appId, toplevelSurfaceItem.parent, toplevelSurfaceItem)
@@ -213,7 +212,7 @@ SurfaceItemFactory {
         z: SurfaceItem.ZOrder.ContentItem - 1
         surface: toplevelSurfaceItem.shellSurface
         visible: enable && !helper.isFullScreen
-        moveable: !helper.isMaximize
+        moveable: !helper.isMaximize && !helper.isFullScreen
         radius: helper.isMaximize ? 0 : 15
     }
 

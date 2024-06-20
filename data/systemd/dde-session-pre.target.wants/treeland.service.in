@@ -3,20 +3,16 @@ Description=TreeLand session service
 StartLimitBurst=60
 CollectMode=inactive-or-failed
 
-Requires=treeland-sd.socket
-PartOf=treeland-sd.socket
+Wants=treeland-sd.socket
 After=treeland-sd.socket
 
-Requires=treeland-sd.service
-PartOf=treeland-sd.service
+Wants=treeland-sd.service
 Before=treeland-sd.service
 
-Requires=treeland-xwayland.service
-PartOf=treeland-xwayland.service
+Wants=treeland-xwayland.service
 Before=treeland-xwayland.service
 
-Requires=treeland-shortcut.service
-PartOf=treeland-shortcut.service
+Wants=treeland-shortcut.service
 Before=treeland-shortcut.service
 
 Requisite=dde-session-pre.target
@@ -35,4 +31,3 @@ ExecStop=-/usr/bin/systemctl --user unset-environment DDE_CURRENT_COMPOSITOR
 Slice=session.slice
 Restart=on-failure
 RestartSec=1s
-

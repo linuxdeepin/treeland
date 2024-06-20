@@ -31,16 +31,16 @@ extern "C" {
 #undef static
 }
 
-static QuickForeignToplevelManagerV1 *FOREIGN_TOPLEVEL_MANAGER = nullptr;
+static ForeignToplevelV1 *FOREIGN_TOPLEVEL_MANAGER = nullptr;
 
-QuickForeignToplevelManagerAttached::QuickForeignToplevelManagerAttached(
-    WSurface *target, QuickForeignToplevelManagerV1 *manager)
+ForeignToplevelAttached::ForeignToplevelAttached(WSurface *target,
+                                                                         ForeignToplevelV1 *manager)
     : QObject(target)
     , m_target(target)
     , m_manager(manager)
 {
     connect(manager,
-            &QuickForeignToplevelManagerV1::requestActivate,
+            &ForeignToplevelV1::requestActivate,
             this,
             [this](WToplevelSurface *surface,
                    [[maybe_unused]] treeland_foreign_toplevel_handle_v1_activated_event *event) {
@@ -51,7 +51,7 @@ QuickForeignToplevelManagerAttached::QuickForeignToplevelManagerAttached(
                 Q_EMIT requestActivate(true);
             });
     connect(manager,
-            &QuickForeignToplevelManagerV1::requestMinimize,
+            &ForeignToplevelV1::requestMinimize,
             this,
             [this](WToplevelSurface *surface,
                    treeland_foreign_toplevel_handle_v1_minimized_event *event) {
@@ -62,7 +62,7 @@ QuickForeignToplevelManagerAttached::QuickForeignToplevelManagerAttached(
                 Q_EMIT requestMinimize(event->minimized);
             });
     connect(manager,
-            &QuickForeignToplevelManagerV1::requestMaximize,
+            &ForeignToplevelV1::requestMaximize,
             this,
             [this](WToplevelSurface *surface,
                    treeland_foreign_toplevel_handle_v1_maximized_event *event) {
@@ -73,7 +73,7 @@ QuickForeignToplevelManagerAttached::QuickForeignToplevelManagerAttached(
                 Q_EMIT requestMaximize(event->maximized);
             });
     connect(manager,
-            &QuickForeignToplevelManagerV1::requestFullscreen,
+            &ForeignToplevelV1::requestFullscreen,
             this,
             [this](WToplevelSurface *surface,
                    treeland_foreign_toplevel_handle_v1_fullscreen_event *event) {
@@ -83,18 +83,15 @@ QuickForeignToplevelManagerAttached::QuickForeignToplevelManagerAttached(
 
                 Q_EMIT requestFullscreen(event->fullscreen);
             });
-    connect(manager,
-            &QuickForeignToplevelManagerV1::requestClose,
-            this,
-            [this](WToplevelSurface *surface) {
-                if (surface->surface() != m_target) {
-                    return;
-                }
+    connect(manager, &ForeignToplevelV1::requestClose, this, [this](WToplevelSurface *surface) {
+        if (surface->surface() != m_target) {
+            return;
+        }
 
-                Q_EMIT requestClose();
-            });
+        Q_EMIT requestClose();
+    });
     connect(manager,
-            &QuickForeignToplevelManagerV1::rectangleChanged,
+            &ForeignToplevelV1::rectangleChanged,
             this,
             [this](WToplevelSurface *surface,
                    treeland_foreign_toplevel_handle_v1_set_rectangle_event *event) {
@@ -106,8 +103,8 @@ QuickForeignToplevelManagerAttached::QuickForeignToplevelManagerAttached(
             });
 }
 
-QuickForeignToplevelManagerV1::QuickForeignToplevelManagerV1(QObject *parent)
-    : WQuickWaylandServerInterface(parent)
+ForeignToplevelV1::ForeignToplevelV1(QObject *parent)
+    : QObject(parent)
 {
     if (FOREIGN_TOPLEVEL_MANAGER) {
         qFatal("There are multiple instances of QuickForeignToplevelManagerV1");
@@ -116,7 +113,24 @@ QuickForeignToplevelManagerV1::QuickForeignToplevelManagerV1(QObject *parent)
     FOREIGN_TOPLEVEL_MANAGER = this;
 }
 
-void QuickForeignToplevelManagerV1::add(WToplevelSurface *surface)
+void ForeignToplevelV1::create(WServer *server)
+{
+    m_manager = treeland_foreign_toplevel_manager_v1::create(server->handle());
+
+    connect(m_manager,
+            &treeland_foreign_toplevel_manager_v1::dockPreviewContextCreated,
+            this,
+            &ForeignToplevelV1::onDockPreviewContextCreated);
+}
+
+void ForeignToplevelV1::destroy(WServer *server) { }
+
+wl_global *ForeignToplevelV1::global() const
+{
+    return m_manager->global;
+}
+
+void ForeignToplevelV1::add(WToplevelSurface *surface)
 {
     auto handle = std::shared_ptr<treeland_foreign_toplevel_handle_v1>(
         treeland_foreign_toplevel_handle_v1::create(m_manager));
@@ -231,7 +245,7 @@ void QuickForeignToplevelManagerV1::add(WToplevelSurface *surface)
     m_connections.insert({ surface, connection });
 }
 
-void QuickForeignToplevelManagerV1::remove(WToplevelSurface *surface)
+void ForeignToplevelV1::remove(WToplevelSurface *surface)
 {
     for (auto co : m_connections[surface]) {
         QObject::disconnect(co);
@@ -241,7 +255,7 @@ void QuickForeignToplevelManagerV1::remove(WToplevelSurface *surface)
     m_surfaces.erase(surface);
 }
 
-void QuickForeignToplevelManagerV1::enterDockPreview(WSurface *relative_surface)
+void ForeignToplevelV1::enterDockPreview(WSurface *relative_surface)
 {
     for (auto *context : m_dockPreviews) {
         if (context->relative_surface == relative_surface->handle()->handle()->resource) {
@@ -251,7 +265,7 @@ void QuickForeignToplevelManagerV1::enterDockPreview(WSurface *relative_surface)
     }
 }
 
-void QuickForeignToplevelManagerV1::leaveDockPreview(WSurface *relative_surface)
+void ForeignToplevelV1::leaveDockPreview(WSurface *relative_surface)
 {
     for (auto *context : m_dockPreviews) {
         if (context->relative_surface == relative_surface->handle()->handle()->resource) {
@@ -261,19 +275,7 @@ void QuickForeignToplevelManagerV1::leaveDockPreview(WSurface *relative_surface)
     }
 }
 
-WServerInterface *QuickForeignToplevelManagerV1::create()
-{
-    m_manager = treeland_foreign_toplevel_manager_v1::create(server()->handle());
-
-    connect(m_manager,
-            &treeland_foreign_toplevel_manager_v1::dockPreviewContextCreated,
-            this,
-            &QuickForeignToplevelManagerV1::onDockPreviewContextCreated);
-    return new WServerInterface(m_manager, m_manager->global);
-}
-
-void QuickForeignToplevelManagerV1::onDockPreviewContextCreated(
-    treeland_dock_preview_context_v1 *context)
+void ForeignToplevelV1::onDockPreviewContextCreated(treeland_dock_preview_context_v1 *context)
 {
     m_dockPreviews.push_back(context);
     connect(context, &treeland_dock_preview_context_v1::beforeDestroy, this, [this, context] {
@@ -306,19 +308,18 @@ void QuickForeignToplevelManagerV1::onDockPreviewContextCreated(
     connect(context,
             &treeland_dock_preview_context_v1::requestClose,
             this,
-            &QuickForeignToplevelManagerV1::requestDockClose);
+            &ForeignToplevelV1::requestDockClose);
 }
 
-QuickForeignToplevelManagerAttached *QuickForeignToplevelManagerV1::qmlAttachedProperties(
-    QObject *target)
+ForeignToplevelAttached *ForeignToplevelV1::qmlAttachedProperties(QObject *target)
 {
     if (auto *surface = qobject_cast<WXdgSurface *>(target)) {
-        return new QuickForeignToplevelManagerAttached(surface->surface(),
+        return new ForeignToplevelAttached(surface->surface(),
                                                        FOREIGN_TOPLEVEL_MANAGER);
     }
 
     if (auto *surface = qobject_cast<WXWaylandSurface *>(target)) {
-        return new QuickForeignToplevelManagerAttached(surface->surface(),
+        return new ForeignToplevelAttached(surface->surface(),
                                                        FOREIGN_TOPLEVEL_MANAGER);
     }
 

@@ -10,13 +10,19 @@
 #include "SignalHandler.h"
 #include "SocketWriter.h"
 #include "compositor1adaptor.h"
+#include "foreigntoplevelmanagerv1.h"
 #include "helper.h"
+#include "outputmanagement.h"
+#include "personalizationmanager.h"
+#include "shortcutmanager.h"
+#include "wallpapercolor.h"
+#include "windowmanagement.h"
 
 #include <WCursor>
 #include <WSeat>
-#include <WServer>
 #include <WSurface>
 #include <wordexp.h>
+#include <woutputrenderwindow.h>
 #include <wrenderhelper.h>
 #include <wsocket.h>
 
@@ -242,7 +248,67 @@ void TreeLand::setup()
     m_engine = new QQmlApplicationEngine(this);
     m_engine->addUrlInterceptor(new DtkInterceptor(this));
     m_engine->rootContext()->setContextProperty("TreeLand", this);
+
+    m_server = new WServer(this);
+    m_server->start();
+
+    qmlRegisterSingletonInstance<Helper>("TreeLand.Utils", 1, 0, "Helper", new Helper(m_server));
+
+    qmlRegisterSingletonInstance<ForeignToplevelV1>("TreeLand.Protocols",
+                                                    1,
+                                                    0,
+                                                    "ForeignToplevelV1",
+                                                    m_server->attach<ForeignToplevelV1>());
+
+    qmlRegisterSingletonInstance<PrimaryOutputV1>("TreeLand.Protocols",
+                                                  1,
+                                                  0,
+                                                  "PrimaryOutputV1",
+                                                  m_server->attach<PrimaryOutputV1>());
+
+    qmlRegisterSingletonInstance<PersonalizationV1>("TreeLand.Protocols",
+                                                    1,
+                                                    0,
+                                                    "PersonalizationV1",
+                                                    m_server->attach<PersonalizationV1>());
+
+    qmlRegisterSingletonInstance<WallpaperColorV1>("TreeLand.Protocols",
+                                                   1,
+                                                   0,
+                                                   "WallpaperColorV1",
+                                                   m_server->attach<WallpaperColorV1>());
+
+    qmlRegisterSingletonInstance<WindowManagementV1>("TreeLand.Protocols",
+                                                     1,
+                                                     0,
+                                                     "WindowManagementV1",
+                                                     m_server->attach<WindowManagementV1>());
+
     m_engine->loadFromModule("TreeLand", "Main");
+
+    auto window = m_engine->rootObjects().first()->findChild<WOutputRenderWindow *>();
+    Q_ASSERT(window);
+
+    Helper *helper = m_engine->singletonInstance<Helper *>("TreeLand.Utils", "Helper");
+    Q_ASSERT(helper);
+
+    helper->initProtocols(window);
+
+    m_server->attach<ShortcutV1>(helper);
+
+    PersonalizationV1 *personalization =
+        m_engine->singletonInstance<PersonalizationV1 *>("TreeLand.Protocols", "PersonalizationV1");
+    Q_ASSERT(personalization);
+
+    connect(
+        helper,
+        &Helper::currentUserChanged,
+        personalization,
+        [personalization](const QString &user) {
+            struct passwd *pwd = getpwnam(user.toUtf8());
+            personalization->setUserId(pwd->pw_uid);
+        },
+        Qt::QueuedConnection);
 }
 
 bool TreeLand::testMode() const
@@ -267,11 +333,6 @@ void TreeLand::connected()
 
     // send connected message
     DDM::SocketWriter(m_socket) << quint32(DDM::GreeterMessages::Connect);
-}
-
-void TreeLand::setPersonalManager(QuickPersonalizationManager *manager)
-{
-    m_personalManager = manager;
 }
 
 void TreeLand::retranslate() noexcept
@@ -319,7 +380,8 @@ void TreeLand::readyRead()
             }
 
             struct passwd *pwd = getpwnam(user.toUtf8());
-            m_personalManager->setUserId(pwd->pw_uid);
+            Helper *helper = m_engine->singletonInstance<Helper *>("TreeLand.Utils", "Helper");
+            helper->setCurrentUser(pwd->pw_name);
         } break;
         case DDM::DaemonMessages::SwitchToGreeter: {
             Helper *helper = m_engine->singletonInstance<Helper *>("TreeLand.Utils", "Helper");
@@ -345,8 +407,7 @@ bool TreeLand::ActivateWayland(QDBusUnixFileDescriptor _fd)
     auto socket = std::make_shared<WSocket>(true);
     socket->create(fd->fileDescriptor(), false);
 
-    WServer *server = m_engine->rootObjects().first()->findChild<WServer *>();
-    server->addSocket(socket.get());
+    m_server->addSocket(socket.get());
 
     auto uid = connection().interface()->serviceUid(message().service());
     struct passwd *pw;
@@ -396,6 +457,8 @@ QString TreeLand::XWaylandName()
 
 int main(int argc, char *argv[])
 {
+    WRenderHelper::setupRendererBackend();
+
     QWLog::init();
     WServer::initializeQPA();
     // QQuickStyle::setStyle("Material");

@@ -5,19 +5,14 @@ pragma Singleton
 
 import QtQuick
 import Waylib.Server
+import TreeLand.Utils
 
 Item {
-    property OutputLayout layout: OutputLayout {}
-    property alias outputManager: outputManager
-    property DynamicCreator xdgSurfaceManager: xdgSurfaceManager
-    property DynamicCreator layerSurfaceManager: layerSurfaceManager
-    property DynamicCreator xwaylandSurfaceManager: xwaylandSurfaceManager
-    property DynamicCreator inputPopupSurfaceManager: inputPopupSurfaceManager
     property alias shortcutManager: shortcutManager
     property alias workspaceManager: workspaceManager
     property alias winposManager: winposManager
     property OutputRenderWindow renderWindow: null
-    property Cursor cursor: null
+    property Cursor cursor: Helper.cursor
 
     function printStructureObject(obj) {
         var json = ""
@@ -34,24 +29,6 @@ Item {
         }
 
         return '{\n' + json + '}'
-    }
-
-    DynamicCreator {
-        id: outputManager
-        property var outputSet: new Set()
-        onObjectAdded: function(delegate, obj, properties) {
-            console.info(`New output item ${obj} ${obj.waylandOutput.name} from delegate ${delegate} with initial properties:`,
-                         `\n${printStructureObject(properties)}`)
-            outputSet.add(obj.waylandOutput.name)
-            updateEnvHash()
-        }
-
-        onObjectRemoved: function(delegate, obj, properties) {
-            console.info(`Output item ${obj} is removed, it's create from delegate ${delegate} with initial properties:`,
-                         `\n${printStructureObject(properties)}`)
-            outputSet.delete(obj.waylandOutput.name)
-            updateEnvHash()
-        }
     }
 
     property string envHash: "" // outputs environment
@@ -80,58 +57,6 @@ Item {
                 const surfState = curStateStore.get(surfKey)
                 surf.restoreState(surfState.store)
             }
-        }
-    }
-
-    DynamicCreator {
-        id: xdgSurfaceManager
-        onObjectAdded: function(delegate, obj, properties) {
-            console.info(`New Xdg surface item ${obj} from delegate ${delegate} with initial properties:`,
-                         `\n${printStructureObject(properties)}`)
-        }
-
-        onObjectRemoved: function(delegate, obj, properties) {
-            console.info(`Xdg surface item ${obj} is removed, it's create from delegate ${delegate} with initial properties:`,
-                         `\n${printStructureObject(properties)}`)
-        }
-    }
-
-    DynamicCreator {
-        id: layerSurfaceManager
-        onObjectAdded: function(delegate, obj, properties) {
-            console.info(`New Layer surface item ${obj} from delegate ${delegate} with initial properties:`,
-                         `\n${printStructureObject(properties)}`)
-        }
-
-        onObjectRemoved: function(delegate, obj, properties) {
-            console.info(`Layer surface item ${obj} is removed, it's create from delegate ${delegate} with initial properties:`,
-                         `\n${printStructureObject(properties)}`)
-        }
-    }
-
-    DynamicCreator {
-        id: xwaylandSurfaceManager
-        onObjectAdded: function(delegate, obj, properties) {
-            console.info(`New X11 surface item ${obj} from delegate ${delegate} with initial properties:`,
-                         `\n${printStructureObject(properties)}`)
-        }
-
-        onObjectRemoved: function(delegate, obj, properties) {
-            console.info(`X11 surface item ${obj} is removed, it's create from delegate ${delegate} with initial properties:`,
-                         `\n${printStructureObject(properties)}`)
-        }
-    }
-
-    DynamicCreator {
-        id: inputPopupSurfaceManager
-        onObjectAdded: function (delegate, obj, properties) {
-            console.info(`New input popup surface item ${obj} from delegate ${delegate} with initial properties:`,
-                         `\n${printStructureObject(properties)}`)
-        }
-
-        onObjectRemoved: function (delegate, obj, properties) {
-            console.info(`Input popup surface item ${obj} is removed, it's create from delegate ${delegate} with initial properties:`,
-                         `\n${printStructureObject(properties)}`)
         }
     }
 

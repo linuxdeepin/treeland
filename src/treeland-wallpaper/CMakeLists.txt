@@ -10,7 +10,7 @@ qt_add_executable(treeland-wallpaper
 
 qt_generate_wayland_protocol_client_sources(treeland-wallpaper
     FILES
-        ${CMAKE_SOURCE_DIR}/src/modules/treeland-personalization-manager/protocols/treeland-personalization-manager-v1.xml
+        ${CMAKE_SOURCE_DIR}/src/modules/personalization/protocols/treeland-personalization-manager-v1.xml
 )
 
 set(QML_FILES

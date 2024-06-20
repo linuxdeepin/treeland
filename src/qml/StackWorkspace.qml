@@ -6,14 +6,9 @@ import QtQuick.Controls
 import QtQuick.Layouts
 import Waylib.Server
 import TreeLand
-import TreeLand.Protocols.ExtForeignToplevelList
-import TreeLand.Protocols.ForeignToplevelManager
-import TreeLand.Protocols.PersonalizationManager
-import TreeLand.Protocols.OutputManagement
-import TreeLand.Protocols.ShortcutManager
+import TreeLand.Protocols
 import TreeLand.Utils
 import org.deepin.dtk 1.0 as D
-import TreeLand.Protocols.WindowManagement
 
 FocusScope {
     id: root
@@ -26,7 +21,7 @@ FocusScope {
                 return true
         }
 
-        let toplevel = QmlHelper.xdgSurfaceManager.getIf(toplevelComponent, finder)
+        let toplevel = Helper.xdgShellCreator.getIf(toplevelComponent, finder)
         if (toplevel) {
             return {
                 shell: toplevel,
@@ -35,7 +30,7 @@ FocusScope {
             }
         }
 
-        let popup = QmlHelper.xdgSurfaceManager.getIf(popupComponent, finder)
+        let popup = Helper.xdgShellCreator.getIf(popupComponent, finder)
         if (popup) {
             return {
                 shell: popup,
@@ -44,7 +39,7 @@ FocusScope {
             }
         }
 
-        let layer = QmlHelper.layerSurfaceManager.getIf(layerComponent, finder)
+        let layer = Helper.layerShellCreator.getIf(layerComponent, finder)
         if (layer) {
             return {
                 shell: layer,
@@ -53,7 +48,7 @@ FocusScope {
             }
         }
 
-        let xwayland = QmlHelper.xwaylandSurfaceManager.getIf(xwaylandComponent, finder)
+        let xwayland = Helper.xwaylandCreator.getIf(xwaylandComponent, finder)
         if (xwayland) {
             return {
                 shell: xwayland,
@@ -69,7 +64,7 @@ FocusScope {
     readonly property real switcherHideOpacity: 0.3
 
     property var workspaceManager: QmlHelper.workspaceManager
-    property int currentWorkspaceId: 0
+    property var currentWorkspaceId: Helper.currentWorkspaceId
 
     Connections {
         target: workspaceManager.layoutOrder
@@ -86,17 +81,19 @@ FocusScope {
     onActivatedSurfaceItemChanged: {
         if (activatedSurfaceItem?.parent?.workspaceRelativeId !== undefined)
             currentWorkspaceId = activatedSurfaceItem.parent.workspaceRelativeId
-        QmlHelper.winposManager.updateSeq(Helper.activatedSurface.appId, activatedSurfaceItem.surfaceItem)
+        if (Helper.activatedSurface) {
+            QmlHelper.winposManager.updateSeq(Helper.activatedSurface.appId, activatedSurfaceItem.surfaceItem)
+        }
     }
 
     // activated surface driven by workspace change
     onCurrentWorkspaceIdChanged:
         if (activatedSurfaceItem?.parent?.workspaceRelativeId !== currentWorkspaceId)
-            workspaceManager.workspacesById.get(workspaceManager.layoutOrder.get(currentWorkspaceId).wsid).selectSurfaceToActivate()
+            workspaceManager.workspacesById.get(workspaceManager.layoutOrder.get(currentWorkspaceId).wsid)?.selectSurfaceToActivate()
 
     FocusScope {
         anchors.fill: parent
-        visible: !multitaskView.active && !treelandWindowManagement.desktopState
+        visible: !multitaskView.active && !WindowManagementV1.desktopState
         enabled: !switcher.visible && !multitaskView.active
         focus: enabled
         opacity: if (switcher.visible || dockPreview.previewing) switcherHideOpacity
@@ -128,15 +125,14 @@ FocusScope {
 
         DynamicCreatorComponent {
             id: inputPopupComponent
-            creator: QmlHelper.inputPopupSurfaceManager
+            creator: Helper.inputPopupCreator
 
             InputPopupSurface {
-                required property InputMethodHelper inputMethodHelper
                 required property WaylandInputPopupSurface popupSurface
 
+                parent: getSurfaceItemFromWaylandSurface(popupSurface.parentSurface)
                 id: inputPopupSurface
                 shellSurface: popupSurface
-                helper: inputMethodHelper
             }
         }
 
@@ -148,7 +144,7 @@ FocusScope {
 
         DynamicCreatorComponent {
             id: toplevelComponent
-            creator: QmlHelper.xdgSurfaceManager
+            creator: Helper.xdgShellCreator
             chooserRole: "type"
             chooserRoleValue: "toplevel"
             contextProperties: ({surfType: "xdg"}) // Object/QVariantMap type should use `({})`
@@ -169,13 +165,25 @@ FocusScope {
                     sourceRect: { Qt.rect(toplevelSurfaceItem.x, toplevelSurfaceItem.y, toplevelSurfaceItem.width, toplevelSurfaceItem.height) }
                     sourceItem: wrapper.personalizationMapper.backgroundImage
                 }
-                decoration.enable: surfaceDecorationMapper.serverDecorationEnabled
+
+                Connections {
+                    target: Helper.xdgDecorationManager
+                    function onSurfaceModeChanged(surface,mode) {
+                        if (wrapper.waylandSurface.surface === surface) {
+                            wrapper.decoration.enable = mode !== XdgDecorationManager.Client
+                        }
+                    }
+                }
+
+                Component.onCompleted: {
+                    wrapper.decoration.enable = Helper.xdgDecorationManager.modeBySurface(wrapper.waylandSurface.surface) !== XdgDecorationManager.Client
+                }
             }
         }
 
         DynamicCreatorComponent {
             id: popupComponent
-            creator: QmlHelper.xdgSurfaceManager
+            creator: Helper.xdgShellCreator
             chooserRole: "type"
             chooserRoleValue: "popup"
             contextProperties: ({surfType: "xdg"})
@@ -244,7 +252,7 @@ FocusScope {
 
                     OutputLayoutItem {
                         anchors.fill: parent
-                        layout: QmlHelper.layout
+                        layout: Helper.outputLayout
 
                         onEnterOutput: function(output) {
                             if (waylandSurface.surface) {
@@ -270,7 +278,7 @@ FocusScope {
 
         DynamicCreatorComponent {
             id: xwaylandComponent
-            creator: QmlHelper.xwaylandSurfaceManager
+            creator: Helper.xwaylandCreator
             contextProperties: ({surfType: "xwayland"})
             autoDestroy: false
 
@@ -310,7 +318,7 @@ FocusScope {
 
     DynamicCreatorComponent {
         id: layerComponent
-        creator: QmlHelper.layerSurfaceManager
+        creator: Helper.layerShellCreator
         autoDestroy: false
 
         onObjectRemoved: function (obj) {
@@ -376,7 +384,7 @@ FocusScope {
     }
 
     Connections {
-        target: treelandForeignToplevelManager
+        target: ForeignToplevel
         function onRequestDockPreview(surfaces, target, abs, direction) {
             dockPreview.show(surfaces, getSurfaceItemFromWaylandSurface(target), abs, direction)
         }
@@ -391,10 +399,10 @@ FocusScope {
         anchors.fill: parent
         visible: false
         onEntered: (relativeSurface) => {
-            treelandForeignToplevelManager.enterDockPreview(relativeSurface)
+            ForeignToplevel.enterDockPreview(relativeSurface)
         }
         onExited: (relativeSurface) => {
-            treelandForeignToplevelManager.leaveDockPreview(relativeSurface)
+            ForeignToplevel.leaveDockPreview(relativeSurface)
         }
         onSurfaceActivated: (surfaceItem) => {
             surfaceItem.cancelMinimize()

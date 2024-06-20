@@ -6,7 +6,7 @@ qt_add_executable(test-show-desktop
 
 qt_generate_wayland_protocol_client_sources(test-show-desktop
     FILES
-        ${CMAKE_CURRENT_SOURCE_DIR}/../../src/modules/treeland-window-management/protocols/treeland-window-management-v1.xml
+        ${CMAKE_CURRENT_SOURCE_DIR}/../../src/modules/window-management/protocols/treeland-window-management-v1.xml
 )
 
 target_link_libraries(test-show-desktop

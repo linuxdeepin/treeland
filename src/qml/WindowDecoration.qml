@@ -127,11 +127,19 @@ D.RoundRectangle {
         }
 
         TapHandler {
-            onTapped: {
-                Helper.activatedSurface = surface
+            acceptedButtons: Qt.LeftButton | Qt.RightButton
+            onTapped: (eventPoint, button) => {
+                if (button === Qt.RightButton) {
+                    menu.popup(eventPoint.position.x, eventPoint.position.y)
+                }
+                else {
+                    Helper.activatedSurface = surface
+                }
             }
-            onDoubleTapped: {
-                root.requestMaximize(!surface.isMaximized)
+            onDoubleTapped: (_, button) => {
+                if (button === Qt.LeftButton) {
+                    root.requestMaximize(!surface.isMaximized)
+                }
             }
         }
 
@@ -214,17 +222,6 @@ D.RoundRectangle {
                     onClicked: {
                         root.requestClose()
                     }
-                }
-            }
-        }
-
-        MouseArea {
-            anchors.fill: parent
-            acceptedButtons: Qt.LeftButton | Qt.RightButton
-
-            onPressed: function (event) {
-                if(event.button === Qt.RightButton) {
-                    menu.popup(event.x, event.y)
                 }
             }
         }
