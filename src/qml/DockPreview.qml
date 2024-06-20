@@ -51,7 +51,7 @@ Item {
         id: filterModel
         sourceModel: QmlHelper.workspaceManager.allSurfaces
         filterAcceptsRow: (data) => {
-            return desiredSurfaces.some(surface => data.item.waylandSurface.surface == surface)
+            return desiredSurfaces.some(surface => data.item.shellSurface.surface === surface)
         }
         property var desiredSurfaces: []
         onDesiredSurfacesChanged: invalidate()
@@ -61,7 +61,7 @@ Item {
         id: exitedTimer
         interval: 100
         onTriggered: {
-            root.exited(root.target.item.surface.surface);
+            root.exited(root.target.item.shellSurface.surface);
             context.item.stop();
             root.close()
         }
@@ -98,7 +98,7 @@ Item {
             cursorShape: Qt.PointingHandCursor
             onHoveredChanged: {
                 if (hovered) {
-                    root.entered(root.target.item.surface.surface);
+                    root.entered(root.target.item.shellSurface.surface);
                 }
                 else {
                     exitedTimer.start();
@@ -132,7 +132,7 @@ Item {
                 onClicked: {
                     for (let i = 0; i < filterModel.count; i++) {
                         const item = filterModel.get(i).item
-                        Helper.closeSurface(item.waylandSurface.surface)
+                        Helper.closeSurface(item.shellSurface.surface)
                     }
                     exitedTimer.start();
                     closeAllBtn.visible = false // WTF: why this button cannot hide when root is hide.
@@ -173,7 +173,7 @@ Item {
                                 root.isEntered = true;
                                 closeBtn.visible = true
                                 closeAllBtn.visible = false
-                                title.text = surfaceItem.waylandSurface.title
+                                title.text = surfaceItem.shellSurface.title
 
                                 context.parent = root.parent;
                                 context.anchors.fill = root;
@@ -205,7 +205,7 @@ Item {
                         anchors.topMargin: 5
                         text: "X"
                         onClicked: {
-                            Helper.closeSurface(surfaceItem.waylandSurface.surface);
+                            Helper.closeSurface(surfaceItem.shellSurface.surface);
                         }
                     }
                 }
