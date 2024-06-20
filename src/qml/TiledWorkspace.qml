@@ -6,11 +6,7 @@ import QtQuick.Layouts
 import QtQuick.Controls
 import Waylib.Server
 import TreeLand
-import TreeLand.Protocols.ExtForeignToplevelList
-import TreeLand.Protocols.ForeignToplevelManager
-import TreeLand.Protocols.PersonalizationManager
-import TreeLand.Protocols.OutputManagement
-import TreeLand.Protocols.ShortcutManager
+import TreeLand.Protocols
 import TreeLand.Utils
 
 Item {
@@ -25,7 +21,7 @@ Item {
                 return true
         }
 
-        let toplevel = QmlHelper.xdgSurfaceManager.getIf(toplevelComponent, finder)
+        let toplevel = Helper.xdgShellCreator.getIf(toplevelComponent, finder)
         if (toplevel) {
             return {
                 shell: toplevel,
@@ -34,7 +30,7 @@ Item {
             }
         }
 
-        let popup = QmlHelper.xdgSurfaceManager.getIf(popupComponent, finder)
+        let popup = Helper.xdgShellCreator.getIf(popupComponent, finder)
         if (popup) {
             return {
                 shell: popup,
@@ -43,7 +39,7 @@ Item {
             }
         }
 
-        let layer = QmlHelper.layerSurfaceManager.getIf(layerComponent, finder)
+        let layer = Helper.layerShellCreator.getIf(layerComponent, finder)
         if (layer) {
             return {
                 shell: layer,
@@ -52,7 +48,7 @@ Item {
             }
         }
 
-        let xwayland = QmlHelper.xwaylandSurfaceManager.getIf(xwaylandComponent, finder)
+        let xwayland = Helper.xwaylandCreator.getIf(xwaylandComponent, finder)
         if (xwayland) {
             return {
                 shell: xwayland,
@@ -70,7 +66,7 @@ Item {
 
         DynamicCreatorComponent {
             id: toplevelComponent
-            creator: QmlHelper.xdgSurfaceManager
+            creator: Helper.xdgShellCreator
             chooserRole: "type"
             chooserRoleValue: "toplevel"
             autoDestroy: false
@@ -99,7 +95,7 @@ Item {
 
                 OutputLayoutItem {
                     anchors.fill: parent
-                    layout: QmlHelper.layout
+                    layout: Helper.outputLayout
 
                     onEnterOutput: function(output) {
                         if (waylandSurface.surface) {
@@ -125,7 +121,7 @@ Item {
 
         DynamicCreatorComponent {
             id: popupComponent
-            creator: QmlHelper.xdgSurfaceManager
+            creator: Helper.xdgShellCreator
             chooserRole: "type"
             chooserRoleValue: "popup"
 
@@ -195,7 +191,7 @@ Item {
 
                     OutputLayoutItem {
                         anchors.fill: parent
-                        layout: QmlHelper.layout
+                        layout: Helper.outputLayout
 
                         onEnterOutput: function(output) {
                             if (waylandSurface.surface) {
@@ -214,7 +210,7 @@ Item {
 
         DynamicCreatorComponent {
             id: xwaylandComponent
-            creator: QmlHelper.xwaylandSurfaceManager
+            creator: Helper.xwaylandCreator
             autoDestroy: false
 
             onObjectRemoved: function (obj) {
@@ -244,7 +240,7 @@ Item {
 
                 OutputLayoutItem {
                     anchors.fill: parent
-                    layout: QmlHelper.layout
+                    layout: Helper.outputLayout
 
                     onEnterOutput: function(output) {
                         if (xwaylandSurfaceItem.waylandSurface.surface)
@@ -271,7 +267,7 @@ Item {
 
     DynamicCreatorComponent {
         id: layerComponent
-        creator: QmlHelper.layerSurfaceManager
+        creator: Helper.layerShellCreator
         autoDestroy: false
 
         onObjectRemoved: function (obj) {
@@ -286,15 +282,14 @@ Item {
 
     DynamicCreatorComponent {
         id: inputPopupComponent
-        creator: QmlHelper.inputPopupSurfaceManager
+        creator: Helper.inputPopupCreator
 
         InputPopupSurface {
-            required property InputMethodHelper inputMethodHelper
             required property WaylandInputPopupSurface popupSurface
 
+            parent: getSurfaceItemFromWaylandSurface(popupSurface.parentSurface)
             id: inputPopupSurface
             surface: popupSurface
-            helper: inputMethodHelper
         }
     }
 }

@@ -1,6 +1,5 @@
 [Unit]
 Description=TreeLand socket helper service
-StartLimitBurst=3
 CollectMode=inactive-or-failed
 
 Requires=treeland-xwayland.socket
@@ -21,5 +20,4 @@ UnsetEnvironment=DISPLAY
 ExecStart=@CMAKE_INSTALL_FULL_LIBEXECDIR@/treeland-sd --type xwayland
 ExecStop=-/usr/bin/systemctl --user unset-environment DISPLAY
 Slice=session.slice
-Restart=on-failure
 RestartSec=3s

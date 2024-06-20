@@ -1,20 +1,10 @@
-set(MODULE_NAME treeland-shortcut-manager)
+set(MODULE_NAME shortcut)
 
 ws_generate_local(server ${CMAKE_CURRENT_SOURCE_DIR}/protocols/treeland-shortcut-manager-v1.xml server-protocol)
 
 pkg_search_module(WLROOTS REQUIRED IMPORTED_TARGET wlroots)
 
-set(MODULE_URI "ShortcutManager")
-
-qt_add_qml_module(${MODULE_NAME}
-    URI TreeLand.Protocols.${MODULE_URI}
-    VERSION "1.0"
-    STATIC
-    RESOURCE_PREFIX
-        /qt/qml
-    OUTPUT_DIRECTORY
-        ${PROJECT_BINARY_DIR}/qt/qml/TreeLand/Protocols/${MODULE_URI}
-)
+qt_add_library(${MODULE_NAME} STATIC)
 
 target_sources(${MODULE_NAME} PUBLIC
 FILE_SET HEADERS

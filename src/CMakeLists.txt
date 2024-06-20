@@ -38,14 +38,12 @@ target_link_libraries(treeland
         Dtk6::Declarative
         utilsplugin
         treeland-qmlplugin
-        ext-foreign-toplevel-listplugin
-        treeland-foreign-toplevelplugin
-        treeland-output-managementplugin
-        treeland-personalization-manager # for header
-        treeland-personalization-managerplugin
-        treeland-shortcut-managerplugin
-        treeland-wallpaper-colorplugin
-        treeland-window-managementplugin
+        foreign-toplevel
+        primary-output
+        personalization
+        shortcut
+        wallpaper-color
+        window-management
 )
 
 target_compile_definitions(treeland

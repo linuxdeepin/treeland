@@ -34,7 +34,7 @@ Item {
     Item {
         id: outputsPlacementItem
         Repeater {
-            model: QmlHelper.layout.outputs
+            model: Helper.outputLayout.outputs
             MouseArea {
                 id: outputPlacementItem
                 function calcDisplayRect(item, output) {
@@ -43,7 +43,7 @@ Item {
                     const coord = parent.mapFromItem(item, 0, 0)
                     // global pos before culling zones
                     const origin = Qt.rect(coord.x, coord.y, item.width, item.height)
-                    return Qt.rect(origin.x + margins.left, origin.y + margins.top, 
+                    return Qt.rect(origin.x + margins.left, origin.y + margins.top,
                         origin.width - margins.left - margins.right, origin.height - margins.top - margins.bottom)
                 }
                 property rect displayRect: root.visible ? calcDisplayRect(modelData, modelData.output) : Qt.rect(0, 0, 0, 0)
@@ -341,7 +341,7 @@ Item {
                                                 width: Math.min(implicitContentWidth + 2 * padding, parent.width * .7)
                                                 padding: 10
                                                 visible: highlighted
-                                                
+
                                                 contentItem: Text {
                                                     text: source.waylandSurface.title
                                                     elide: Qt.ElideRight

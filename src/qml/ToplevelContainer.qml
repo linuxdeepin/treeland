@@ -5,11 +5,7 @@ import QtQuick
 import QtQuick.Controls
 import Waylib.Server
 import TreeLand
-import TreeLand.Protocols.ExtForeignToplevelList
-import TreeLand.Protocols.ForeignToplevelManager
-import TreeLand.Protocols.PersonalizationManager
-import TreeLand.Protocols.OutputManagement
-import TreeLand.Protocols.ShortcutManager
+import TreeLand.Protocols
 import TreeLand.Utils
 
 FocusScope {
