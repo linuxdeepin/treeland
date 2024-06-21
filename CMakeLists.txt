@@ -23,6 +23,9 @@ add_feature_info(submodule_waylib WITH_SUBMODULE_WAYLIB "Use waylib from submodu
 option(ADDRESS_SANITIZER "Enable address sanitize" OFF)
 add_feature_info(ASanSupport ADDRESS_SANITIZER "https://github.com/google/sanitizers/wiki/AddressSanitizer")
 
+option(BUILD_TEST_CLIENTS "Build clients demo to test treeland" OFF)
+add_feature_info(DemoClents BUILD_TEST_CLIENTS "clients demo for testing")
+
 if (ADDRESS_SANITIZER)
     add_compile_options(-fsanitize=address -fno-optimize-sibling-calls -fno-omit-frame-pointer)
     add_link_options(-fsanitize=address)
@@ -53,7 +56,7 @@ add_compile_definitions("TREELAND_DATA_DIR=\"${TREELAND_DATA_DIR}\"")
 add_subdirectory(src)
 add_subdirectory(data)
 
-if (CMAKE_BUILD_TYPE STREQUAL "Debug")
+if (BUILD_TEST_CLIENTS)
     add_subdirectory(tests)
 endif()
 
