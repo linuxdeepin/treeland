@@ -90,6 +90,16 @@ D.RoundRectangle {
         }
     }
 
+    WindowMenu {
+        id: menu
+
+        onRequestClose: root.requestClose()
+        onRequestMaximize: root.requestMaximize(max)
+        onRequestMinimize: root.requestMinimize()
+        onRequestMove:root.requestMove()
+        onRequestResize: root.requestResize(edges)
+    }
+
     D.RoundRectangle {
         id: titlebar
         anchors.top: parent.top
@@ -206,6 +216,17 @@ D.RoundRectangle {
                     onClicked: {
                         root.requestClose()
                     }
+                }
+            }
+        }
+
+        MouseArea {
+            anchors.fill: parent
+            acceptedButtons: Qt.LeftButton | Qt.RightButton
+
+            onPressed: function (event) {
+                if(event.button === Qt.RightButton) {
+                    menu.popup(event.x, event.y)
                 }
             }
         }
