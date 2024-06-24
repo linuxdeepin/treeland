@@ -48,10 +48,10 @@ SurfaceItemFactory {
     surfaceItem {
         parent: root.parent
         shellSurface: waylandSurface
-        topPadding: decoration.enable ? decoration.topMargin : 0
-        bottomPadding: decoration.enable ? decoration.bottomMargin : 0
-        leftPadding: decoration.enable ? decoration.leftMargin : 0
-        rightPadding: decoration.enable ? decoration.rightMargin : 0
+        topPadding: decoration.visible ? decoration.topMargin : 0
+        bottomPadding: decoration.visible ? decoration.bottomMargin : 0
+        leftPadding: decoration.visible ? decoration.leftMargin : 0
+        rightPadding: decoration.visible ? decoration.rightMargin : 0
         focus: toplevelSurfaceItem.shellSurface === Helper.activatedSurface
         resizeMode:
             if (!surfaceItem.effectiveVisible)
@@ -212,7 +212,9 @@ SurfaceItemFactory {
         anchors.fill: parent
         z: SurfaceItem.ZOrder.ContentItem - 1
         surface: toplevelSurfaceItem.shellSurface
-        moveable: !helper.isMaximize && !helper.isFullScreen
+        visible: enable && !helper.isFullScreen
+        moveable: !helper.isMaximize
+        radius: helper.isMaximize ? 0 : 15
     }
 
     StackToplevelHelper {
