@@ -23,7 +23,7 @@ class QuickPersonalizationManagerAttached : public QObject
 {
     Q_OBJECT
     Q_PROPERTY(BackgroundType backgroundType READ backgroundType NOTIFY backgroundTypeChanged FINAL)
-    Q_PROPERTY(QQuickItem* backgroundImage READ backgroundImage FINAL)
+    Q_PROPERTY(QQuickItem* backgroundImage READ backgroundImage CONSTANT FINAL)
     QML_ANONYMOUS
 
 public:
