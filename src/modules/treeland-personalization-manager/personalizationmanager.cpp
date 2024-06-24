@@ -104,6 +104,11 @@ QuickPersonalizationManager::QuickPersonalizationManager(QObject *parent)
     }
 
     PERSONALIZATION_MANAGER = this;
+
+    // When not use ddm, set uid by self
+    if (qgetenv("XDG_SESSION_DESKTOP") == "treeland-user") {
+        setUserId(getgid());
+    }
 }
 
 WServerInterface *QuickPersonalizationManager::create()
