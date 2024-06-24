@@ -10,6 +10,7 @@ Item {
     property bool offscreen: false
     property alias radius: blur.blurMax
     property alias content: blur
+    property alias multiplier: blur.blurMultiplier
     default property alias data: blitter.data
 
     RenderBufferBlitter {
