@@ -21,6 +21,7 @@ qt_add_qml_module(treeland-qml
         TiledWorkspace.qml
         WindowDecoration.qml
         SurfaceWrapper.qml
+        WindowMenu.qml
         InputPopupSurface.qml
         LayerSurface.qml
         WindowsSwitcher.qml
