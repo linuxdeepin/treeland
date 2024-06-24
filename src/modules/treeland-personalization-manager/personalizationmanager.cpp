@@ -15,11 +15,11 @@
 
 #include <QDebug>
 #include <QDir>
+#include <QGuiApplication>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QSettings>
 #include <QStandardPaths>
-#include <QGuiApplication>
 
 #include <sys/socket.h>
 #include <unistd.h>
@@ -69,7 +69,7 @@ QString QuickPersonalizationManager::readWallpaperSettings(const QString &group,
 
     QSettings settings(m_settingFile, QSettings::IniFormat);
     QString value = settings.value(group + "/" + output, DEFAULT_WALLPAPER).toString();
-    return QString("file://%1").arg(value);
+    return value == DEFAULT_WALLPAPER ? value : QString("file://%1").arg(value);
 }
 
 void QuickPersonalizationManager::saveWallpaperSettings(
@@ -81,14 +81,14 @@ void QuickPersonalizationManager::saveWallpaperSettings(
     QSettings settings(m_settingFile, QSettings::IniFormat);
 
     if (context->options & PERSONALIZATION_WALLPAPER_CONTEXT_V1_OPTIONS_BACKGROUND) {
-        settings.setValue(QString("background/%s").arg(context->output_name), current);
-        settings.setValue(QString("background/%s/isdark").arg(context->output_name),
+        settings.setValue(QString("background/%1").arg(context->output_name), current);
+        settings.setValue(QString("background/%1/isdark").arg(context->output_name),
                           context->isdark);
     }
 
     if (context->options & PERSONALIZATION_WALLPAPER_CONTEXT_V1_OPTIONS_LOCKSCREEN) {
-        settings.setValue(QString("lockscreen/%s").arg(context->output_name), current);
-        settings.setValue(QString("background/%s/isdark").arg(context->output_name),
+        settings.setValue(QString("lockscreen/%1").arg(context->output_name), current);
+        settings.setValue(QString("background/%1/isdark").arg(context->output_name),
                           context->isdark);
     }
 
@@ -167,7 +167,9 @@ void QuickPersonalizationManager::onCursorContextCreated(personalization_cursor_
             &QuickPersonalizationManager::onGetCursorSize);
 }
 
-void QuickPersonalizationManager::writeContext(personalization_wallpaper_context_v1 *context, const QByteArray &data, const QString &dest)
+void QuickPersonalizationManager::writeContext(personalization_wallpaper_context_v1 *context,
+                                               const QByteArray &data,
+                                               const QString &dest)
 {
     QFile dest_file(dest);
     if (dest_file.open(QIODevice::WriteOnly)) {
@@ -180,7 +182,7 @@ void QuickPersonalizationManager::writeContext(personalization_wallpaper_context
 }
 
 void QuickPersonalizationManager::saveImage(personalization_wallpaper_context_v1 *context,
-                                               const QString prefix)
+                                            const QString prefix)
 {
     if (!context || context->fd == -1 || context->output_name.isEmpty())
         return;
@@ -333,7 +335,7 @@ bool QuickPersonalizationManager::backgroundIsDark(const QString &output)
         return DEFAULT_WALLPAPER_ISDARK;
 
     QSettings settings(m_settingFile, QSettings::IniFormat);
-    return settings.value(QString("background/%s/isdark").arg(output), DEFAULT_WALLPAPER_ISDARK)
+    return settings.value(QString("background/%1/isdark").arg(output), DEFAULT_WALLPAPER_ISDARK)
         .toBool();
 }
 

@@ -167,7 +167,7 @@ FocusScope {
                     visible: false
                     anchors.fill: parent
                     sourceRect: { Qt.rect(toplevelSurfaceItem.x, toplevelSurfaceItem.y, toplevelSurfaceItem.width, toplevelSurfaceItem.height) }
-                    sourceItem: personalizationMapper.backgroundImage
+                    sourceItem: wrapper.personalizationMapper.backgroundImage
                 }
                 decoration.enable: surfaceDecorationMapper.serverDecorationEnabled
             }
