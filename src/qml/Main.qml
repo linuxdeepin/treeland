@@ -336,7 +336,7 @@ Item {
             id: outputLayout
             objectName: "outputlayout"
             // register backgroundImage
-            property var personalizationMapper: background.PersonalizationManager
+            property var personalizationMapper: outputLayout.PersonalizationManager
 
             DynamicCreatorComponent {
                 id: outputDelegateCreator
