@@ -12,7 +12,6 @@ import TreeLand.Utils
 
 D.RoundRectangle {
     id: root
-    radius: 15
     corners: D.RoundRectangle.TopLeftCorner | D.RoundRectangle.TopRightCorner
     color: "transparent"
 
@@ -27,14 +26,13 @@ D.RoundRectangle {
     readonly property real leftMargin: 0
     readonly property real rightMargin: 0
     property bool moveable: true
+    property bool enable: true
     property D.Palette backgroundColor: DS.Style.highlightPanel.background
     property D.Palette outerShadowColor: DS.Style.highlightPanel.dropShadow
     property D.Palette innerShadowColor: DS.Style.highlightPanel.innerShadow
-    property var enable: true
+    required property ToplevelSurface surface
 
     visible: enable
-
-    required property ToplevelSurface surface
 
     D.BoxShadow {
         anchors.fill: root
