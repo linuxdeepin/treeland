@@ -4,6 +4,7 @@
 import QtQuick
 import QtQuick.Controls
 import Waylib.Server
+import Tinywl
 
 OutputItem {
     id: rootOutputItem
@@ -13,7 +14,7 @@ OutputItem {
 
     output: waylandOutput
     devicePixelRatio: waylandOutput.scale
-    layout: QmlHelper.layout
+
     cursorDelegate: Item {
         required property OutputCursor cursor
 
@@ -203,11 +204,9 @@ OutputItem {
 
         Switch {
             text: "Socket"
+            checked: true
             onCheckedChanged: {
-                masterSocket.enabled = checked
-            }
-            Component.onCompleted: {
-                checked = masterSocket.enabled
+                Helper.setSocketEnabled(checked)
             }
         }
 
@@ -277,7 +276,5 @@ OutputItem {
         onscreenViewport.setOutputScale(scale)
     }
 
-    function invalidate() {
-        onscreenViewport.invalidate()
-    }
+    Component.onDestruction: onscreenViewport.invalidate()
 }

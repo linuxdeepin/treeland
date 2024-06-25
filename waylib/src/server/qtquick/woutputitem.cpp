@@ -6,10 +6,8 @@
 #include "woutputrenderwindow.h"
 #include "woutput.h"
 #include "woutputlayout.h"
-#include "wquickseat_p.h"
 #include "wquickoutputlayout.h"
 #include "wseat.h"
-#include "wquickseat_p.h"
 #include "wtools.h"
 #include "wtexture.h"
 #include "wquickcursor.h"
@@ -339,7 +337,6 @@ public:
     QPointer<WQuickOutputLayout> layout;
     qreal devicePixelRatio = 1.0;
 
-    WQuickSeat *seat = nullptr;
     QQmlComponent *cursorDelegate = nullptr;
     QList<QuickOutputCursor*> cursors;
     QuickOutputCursor *lastActiveCursor = nullptr;
@@ -356,6 +353,13 @@ void WOutputItemPrivate::initForOutput()
 
     output->safeConnect(&WOutput::transformedSizeChanged, q, [this] {
         updateImplicitSize();
+    });
+
+    output->safeConnect(&WOutput::aboutToBeInvalidated, q, [this, q] {
+        if (layout) {
+            layout->remove(q);
+            layout = nullptr;
+        }
     });
 
     updateImplicitSize();
@@ -465,9 +469,14 @@ WOutputItemAttached *WOutputItem::qmlAttachedProperties(QObject *target)
     if (!output)
         return nullptr;
     auto attached = new WOutputItemAttached(output);
-    attached->setItem(qvariant_cast<WOutputItem*>(output->property(DATA_OF_WOUPTUT)));
+    attached->setItem(getOutputItem(output));
 
     return attached;
+}
+
+WOutputItem *WOutputItem::getOutputItem(WOutput *output)
+{
+    return qvariant_cast<WOutputItem*>(output->property(DATA_OF_WOUPTUT)) ;
 }
 
 WOutput *WOutputItem::output() const
@@ -486,7 +495,6 @@ void WOutputItem::setOutput(WOutput *newOutput)
     W_D(WOutputItem);
 
     Q_ASSERT(!d->output || !newOutput);
-    auto oldOutput = d->output;
     d->output = newOutput;
 
     if (newOutput) {
@@ -500,11 +508,6 @@ void WOutputItem::setOutput(WOutput *newOutput)
     if (isComponentComplete()) {
         if (newOutput) {
             d->initForOutput();
-            if (d->seat)
-                d->seat->addOutput(d->output);
-        } else {
-            if (d->seat)
-                d->seat->removeOutput(oldOutput);
         }
     }
 }
@@ -550,27 +553,6 @@ void WOutputItem::setDevicePixelRatio(qreal newDevicePixelRatio)
         d->updateImplicitSize();
 
     Q_EMIT devicePixelRatioChanged();
-}
-
-WQuickSeat *WOutputItem::seat() const
-{
-    W_D(const WOutputItem);
-    return d->seat;
-}
-
-// Bind this seat to output
-void WOutputItem::setSeat(WQuickSeat *newSeat)
-{
-    W_D(WOutputItem);
-
-    if (d->seat == newSeat)
-        return;
-    d->seat = newSeat;
-
-    if (isComponentComplete() && d->output)
-        d->seat->addOutput(d->output);
-
-    Q_EMIT seatChanged();
 }
 
 QQmlComponent *WOutputItem::cursorDelegate() const
@@ -627,8 +609,6 @@ void WOutputItem::componentComplete()
 
     if (d->output) {
         d->initForOutput();
-        if (d->seat)
-            d->seat->addOutput(d->output);
     }
 
     WQuickObserver::componentComplete();
@@ -637,8 +617,7 @@ void WOutputItem::componentComplete()
 void WOutputItem::releaseResources()
 {
     W_D(WOutputItem);
-    if (d->seat)
-        d->seat->removeOutput(d_func()->output);
+
     WQuickObserver::releaseResources();
 }
 

@@ -13,7 +13,10 @@ Item {
 
     property OutputItem output
     property CoordMapper outputCoordMapper
-    property bool mapped: waylandSurface.surface && waylandSurface.surface.mapped && waylandSurface.WaylandSocket.rootSocket.enabled
+
+    property bool mapped: waylandSurface.surface
+                          && waylandSurface.surface.mapped
+                          && waylandSurface.WaylandSocket.rootSocket.enabled
     property bool pendingDestroy: false
 
     OpacityAnimator {

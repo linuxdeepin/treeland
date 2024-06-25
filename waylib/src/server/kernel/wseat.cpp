@@ -315,6 +315,7 @@ public:
     QPointer<WSeatEventFilter> eventFilter;
     QPointer<QWindow> focusWindow;
     QPointer<QObject> pointerFocusEventObject;
+    QPointer<WSurface> m_keyboardFocusSurface;
     QMetaObject::Connection onEventObjectDestroy;
     wlr_surface *oldPointerFocusSurface = nullptr;
 
@@ -643,11 +644,12 @@ void WSeat::attachInputDevice(WInputDevice *device)
     d->deviceList << device;
 
     if (isValid()) {
-        if (d->cursor)
-            d->cursor->attachInputDevice(device);
-
         d->attachInputDevice(device);
         d->updateCapabilities();
+
+        if (d->cursor)
+            // after d->attachInputDevice
+            d->cursor->attachInputDevice(device);
     }
 
     if (device->type() == WInputDevice::Type::Touch) {
@@ -864,25 +866,24 @@ WSurface *WSeat::pointerFocusSurface() const
     return nullptr;
 }
 
-void WSeat::setKeyboardFocusTarget(QWSurface *nativeSurface)
-{
-    W_D(WSeat);
-    d->doSetKeyboardFocus(nativeSurface);
-}
-
-void WSeat::setKeyboardFocusTarget(WSurface *surface)
+void WSeat::setKeyboardFocusSurface(WSurface *surface)
 {
     W_D(WSeat);
 
-    setKeyboardFocusTarget(surface ? surface->handle() : nullptr);
+    if (d->m_keyboardFocusSurface == surface)
+        return;
+
+    d->m_keyboardFocusSurface = surface;
+    if (isValid())
+        d->doSetKeyboardFocus(surface ? surface->handle() : nullptr);
+
+    Q_EMIT keyboardFocusSurfaceChanged();
 }
 
 WSurface *WSeat::keyboardFocusSurface() const
 {
     W_DC(WSeat);
-    if (auto fs = d->keyboardFocusSurface())
-        return WSurface::fromHandle(QWSurface::from(fs));
-    return nullptr;
+    return d->m_keyboardFocusSurface;
 }
 
 void WSeat::clearKeyboardFocusSurface()
@@ -891,19 +892,19 @@ void WSeat::clearKeyboardFocusSurface()
     d->doSetKeyboardFocus(nullptr);
 }
 
-void WSeat::setKeyboardFocusTarget(QWindow *window)
+void WSeat::setKeyboardFocusWindow(QWindow *window)
 {
     W_D(WSeat);
     d->focusWindow = window;
 }
 
-QWindow *WSeat::focusWindow() const
+QWindow *WSeat::keyboardFocusWindow() const
 {
     W_DC(WSeat);
     return d->focusWindow;
 }
 
-void WSeat::clearkeyboardFocusWindow()
+void WSeat::clearKeyboardFocusWindow()
 {
     W_D(WSeat);
     d->focusWindow = nullptr;
@@ -1271,10 +1272,18 @@ void WSeat::create(WServer *server)
         if (d->cursor)
             d->cursor->attachInputDevice(i);
     }
+
     if (!qEnvironmentVariableIsSet("WAYLIB_DISABLE_GESTURE"))
         d->gesture = QWPointerGesturesV1::create(server->handle());
 
     d->updateCapabilities();
+
+    if (d->cursor)
+        // after d->attachInputDevice
+        d->cursor->setSeat(this);
+
+    if (d->m_keyboardFocusSurface)
+        d->doSetKeyboardFocus(d->m_keyboardFocusSurface->handle());
 }
 
 void WSeat::destroy(WServer *)

@@ -18,7 +18,7 @@ Item {
                 return true
         }
 
-        let toplevel = QmlHelper.xdgSurfaceManager.getIf(toplevelComponent, finder)
+        let toplevel = Helper.xdgShellCreator.getIf(toplevelComponent, finder)
         if (toplevel) {
             return {
                 shell: toplevel,
@@ -27,7 +27,7 @@ Item {
             }
         }
 
-        let popup = QmlHelper.xdgSurfaceManager.getIf(popupComponent, finder)
+        let popup = Helper.xdgShellCreator.getIf(popupComponent, finder)
         if (popup) {
             return {
                 shell: popup,
@@ -36,7 +36,7 @@ Item {
             }
         }
 
-        let layer = QmlHelper.layerSurfaceManager.getIf(layerComponent, finder)
+        let layer = Helper.layerShellCreator.getIf(layerComponent, finder)
         if (layer) {
             return {
                 shell: layer,
@@ -45,7 +45,7 @@ Item {
             }
         }
 
-        let xwayland = QmlHelper.xwaylandSurfaceManager.getIf(xwaylandComponent, finder)
+        let xwayland = Helper.xwaylandCreator.getIf(xwaylandComponent, finder)
         if (xwayland) {
             return {
                 shell: xwayland,
@@ -70,7 +70,7 @@ Item {
 
     DynamicCreatorComponent {
         id: toplevelComponent
-        creator: QmlHelper.xdgSurfaceManager
+        creator: Helper.xdgShellCreator
         chooserRole: "type"
         chooserRoleValue: "toplevel"
         autoDestroy: false
@@ -85,25 +85,35 @@ Item {
             property var doDestroy: helper.doDestroy
             property var cancelMinimize: helper.cancelMinimize
             property int outputCounter: 0
-            property var surfaceDecorationMapper: toplevelSurfaceItem.waylandSurface.XdgDecorationManager
 
-            topPadding: decoration.enable ? decoration.topMargin : 0
-            bottomPadding: decoration.enable ? decoration.bottomMargin : 0
-            leftPadding: decoration.enable ? decoration.leftMargin : 0
-            rightPadding: decoration.enable ? decoration.rightMargin : 0
+            topPadding: decoration.visible ? decoration.topMargin : 0
+            bottomPadding: decoration.visible ? decoration.bottomMargin : 0
+            leftPadding: decoration.visible ? decoration.leftMargin : 0
+            rightPadding: decoration.visible ? decoration.rightMargin : 0
 
             WindowDecoration {
                 id: decoration
-                property var enable: surfaceDecorationMapper.serverDecorationEnabled
                 anchors.fill: parent
                 z: SurfaceItem.ZOrder.ContentItem - 1
-                visible: enable
                 surface: waylandSurface
+
+                Connections {
+                    target: Helper.xdgDecorationManager
+
+                    function onSurfaceModeChanged(surface, mode) {
+                        if (waylandSurface === surface)
+                            visible = (mode !== XdgDecorationManager.Client)
+                    }
+                }
+
+                Component.onCompleted: {
+                    visible = Helper.xdgDecorationManager.modeBySurface(surface.surface) !== XdgDecorationManager.Client
+                }
             }
 
             OutputLayoutItem {
                 anchors.fill: parent
-                layout: QmlHelper.layout
+                layout: Helper.outputLayout
 
                 onEnterOutput: function(output) {
                     waylandSurface.surface.enterOutput(output)
@@ -168,7 +178,7 @@ Item {
 
     DynamicCreatorComponent {
         id: popupComponent
-        creator: QmlHelper.xdgSurfaceManager
+        creator: Helper.xdgShellCreator
         chooserRole: "type"
         chooserRoleValue: "popup"
 
@@ -238,7 +248,7 @@ Item {
 
                 OutputLayoutItem {
                     anchors.fill: parent
-                    layout: QmlHelper.layout
+                    layout: Helper.outputLayout
 
                     onEnterOutput: function(output) {
                         waylandSurface.surface.enterOutput(output)
@@ -255,7 +265,7 @@ Item {
 
     DynamicCreatorComponent {
         id: layerComponent
-        creator: QmlHelper.layerSurfaceManager
+        creator: Helper.layerShellCreator
         autoDestroy: false
 
         onObjectRemoved: function (obj) {
@@ -270,7 +280,7 @@ Item {
 
     DynamicCreatorComponent {
         id: xwaylandComponent
-        creator: QmlHelper.xwaylandSurfaceManager
+        creator: Helper.xwaylandCreator
         autoDestroy: false
 
         onObjectRemoved: function (obj) {
@@ -333,7 +343,7 @@ Item {
 
             OutputLayoutItem {
                 anchors.fill: parent
-                layout: QmlHelper.layout
+                layout: Helper.outputLayout
 
                 onEnterOutput: function(output) {
                     if (xwaylandSurfaceItem.waylandSurface.surface)
@@ -408,15 +418,14 @@ Item {
 
     DynamicCreatorComponent {
         id: inputPopupComponent
-        creator: QmlHelper.inputPopupSurfaceManager
+        creator: Helper.inputPopupCreator
 
         InputPopupSurface {
-            required property InputMethodHelper inputMethodHelper
             required property WaylandInputPopupSurface popupSurface
 
+            parent: getSurfaceItemFromWaylandSurface(popupSurface.parentSurface)
             id: inputPopupSurface
             shellSurface: popupSurface
-            helper: inputMethodHelper
         }
     }
 }

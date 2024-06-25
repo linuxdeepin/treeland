@@ -115,7 +115,7 @@ public:
     Interface *attach(Args&&...args) {
         static_assert(std::is_base_of<WServerInterface, Interface>::value,
                 "Not base of WServerInterface");
-        auto interface = new Interface(std::forward<Args...>(args...));
+        auto interface = new Interface(std::forward<Args>(args)...);
         attach(interface);
         return interface;
     }

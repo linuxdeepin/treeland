@@ -322,15 +322,36 @@ const QPointingDevice *getDevice(const QString &seatName) {
 }
 
 void WCursorPrivate::sendEnterEvent() {
+    if (enterWindowEventHasSend)
+        return;
+
     W_Q(WCursor);
 
     auto device = getDevice(seat->name());
     Q_ASSERT(device && WInputDevice::from(device));
 
     if (WInputDevice::from(device)->seat()) {
+        enterWindowEventHasSend = true;
         const QPointF global = q->position();
         const QPointF local = global - eventWindow->position();
         QEnterEvent event(local, local, global, device);
+        QCoreApplication::sendEvent(eventWindow, &event);
+    }
+}
+
+void WCursorPrivate::sendLeaveEvent()
+{
+    if (leaveWindowEventHasSend)
+        return;
+
+    auto device = getDevice(seat->name());
+    if (!device)
+        return;
+    if (!WInputDevice::from(device))
+        return;
+    if (WInputDevice::from(device)->seat()) {
+        leaveWindowEventHasSend = true;
+        QInputEvent event(QEvent::Leave, device);
         QCoreApplication::sendEvent(eventWindow, &event);
     }
 }
@@ -759,21 +780,15 @@ void WCursor::setEventWindow(QWindow *window)
     if (d->eventWindow == window)
         return;
 
-    if (d->eventWindow) {
-        auto device = getDevice(d->seat->name());
-        if (!device)
-            return;
-        if (!WInputDevice::from(device))
-            return;
-        if (WInputDevice::from(device)->seat()) {
-            QInputEvent event(QEvent::Leave, device);
-            QCoreApplication::sendEvent(d->eventWindow, &event);
-        }
+    if (d->eventWindow && d->seat) {
+        d->sendLeaveEvent();
     }
 
     d->eventWindow = window;
+    d->enterWindowEventHasSend = false;
+    d->leaveWindowEventHasSend = false;
 
-    if (d->eventWindow && d->seat) {
+    if (d->eventWindow && d->seat && !d->deviceList.isEmpty()) {
         d->sendEnterEvent();
     }
 }
@@ -875,6 +890,12 @@ bool WCursor::attachInputDevice(WInputDevice *device)
     Q_ASSERT(!d->deviceList.contains(device));
     d->handle()->attachInputDevice(device->handle());
     d->deviceList << device;
+
+    if (d->eventWindow && d->deviceList.count() == 1) {
+        Q_ASSERT(d->seat);
+        d->sendEnterEvent();
+    }
+
     return true;
 }
 
@@ -887,6 +908,11 @@ void WCursor::detachInputDevice(WInputDevice *device)
 
     d->handle()->detachInputDevice(device->handle());
     d->handle()->mapInputToOutput(device->handle(), nullptr);
+
+    if (d->eventWindow && d->deviceList.isEmpty()) {
+        Q_ASSERT(d->seat);
+        d->sendLeaveEvent();
+    }
 }
 
 void WCursor::setLayout(WOutputLayout *layout)

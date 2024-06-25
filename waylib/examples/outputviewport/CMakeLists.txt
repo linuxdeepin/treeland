@@ -21,11 +21,12 @@ add_executable(outputviewport
 )
 
 qt_add_qml_module(outputviewport
-    URI Examples.OutputViewport
+    URI OutputViewport
     VERSION "1.0"
     QML_FILES
         Main.qml
-        SOURCES helper.h helper.cpp
+    SOURCES
+        helper.h
 )
 
 target_compile_definitions(outputviewport

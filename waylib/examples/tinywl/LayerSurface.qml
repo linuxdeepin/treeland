@@ -44,7 +44,7 @@ Item {
 
     OutputLayoutItem {
         anchors.fill: parent
-        layout: QmlHelper.layout
+        layout: Helper.outputLayout
 
         onEnterOutput: function(output) {
             waylandSurface.surface.enterOutput(output)
@@ -55,7 +55,6 @@ Item {
             Helper.unregisterExclusiveZone(waylandSurface)
             waylandSurface.surface.leaveOutput(output)
             Helper.onSurfaceLeaveOutput(waylandSurface, surfaceItem, output)
-            waylandSurface.closed()
         }
     }
 

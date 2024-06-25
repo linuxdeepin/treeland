@@ -13,7 +13,7 @@ public:
 
     W_DECLARE_PUBLIC(WOutputLayout)
 
-    QList<QPointer<WOutput>> outputs;
+    QList<WOutput*> outputs;
 
     void updateImplicitSize();
     int implicitWidth { 0 };

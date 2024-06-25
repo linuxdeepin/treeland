@@ -6,7 +6,6 @@
 #include "wcursor.h"
 #include "wseat.h"
 #include "wtools.h"
-#include "wquickgammacontrol_p.h"
 #include "platformplugin/qwlrootscreen.h"
 #include "private/wglobal_p.h"
 

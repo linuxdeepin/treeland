@@ -7,13 +7,6 @@ import QtQuick
 import Waylib.Server
 
 Item {
-    property OutputLayout layout: OutputLayout {}
-    property alias outputManager: outputManager
-    property DynamicCreator xdgSurfaceManager: xdgSurfaceManager
-    property DynamicCreator layerSurfaceManager: layerSurfaceManager
-    property DynamicCreator xwaylandSurfaceManager: xwaylandSurfaceManager
-    property DynamicCreator inputPopupSurfaceManager: inputPopupSurfaceManager
-
     function printStructureObject(obj) {
         var json = ""
         for (var prop in obj){
@@ -29,70 +22,5 @@ Item {
         }
 
         return '{\n' + json + '}'
-    }
-
-    DynamicCreator {
-        id: outputManager
-        onObjectAdded: function(delegate, obj, properties) {
-            console.info(`New output item ${obj} from delegate ${delegate} with initial properties:`,
-                         `\n${printStructureObject(properties)}`)
-        }
-
-        onObjectRemoved: function(delegate, obj, properties) {
-            console.info(`Output item ${obj} is removed, it's create from delegate ${delegate} with initial properties:`,
-                         `\n${printStructureObject(properties)}`)
-        }
-    }
-
-    DynamicCreator {
-        id: xdgSurfaceManager
-        onObjectAdded: function(delegate, obj, properties) {
-            console.info(`New Xdg surface item ${obj} from delegate ${delegate} with initial properties:`,
-                         `\n${printStructureObject(properties)}`)
-        }
-
-        onObjectRemoved: function(delegate, obj, properties) {
-            console.info(`Xdg surface item ${obj} is removed, it's create from delegate ${delegate} with initial properties:`,
-                         `\n${printStructureObject(properties)}`)
-        }
-    }
-
-    DynamicCreator {
-        id: layerSurfaceManager
-        onObjectAdded: function(delegate, obj, properties) {
-            console.info(`New Layer surface item ${obj} from delegate ${delegate} with initial properties:`,
-                         `\n${printStructureObject(properties)}`)
-        }
-
-        onObjectRemoved: function(delegate, obj, properties) {
-            console.info(`Layer surface item ${obj} is removed, it's create from delegate ${delegate} with initial properties:`,
-                         `\n${printStructureObject(properties)}`)
-        }
-    }
-
-    DynamicCreator {
-        id: xwaylandSurfaceManager
-        onObjectAdded: function(delegate, obj, properties) {
-            console.info(`New X11 surface item ${obj} from delegate ${delegate} with initial properties:`,
-                         `\n${printStructureObject(properties)}`)
-        }
-
-        onObjectRemoved: function(delegate, obj, properties) {
-            console.info(`X11 surface item ${obj} is removed, it's create from delegate ${delegate} with initial properties:`,
-                         `\n${printStructureObject(properties)}`)
-        }
-    }
-
-    DynamicCreator {
-        id: inputPopupSurfaceManager
-        onObjectAdded: function (delegate, obj, properties) {
-            console.info(`New input popup surface item ${obj} from delegate ${delegate} with initial properties:`,
-                         `\n${printStructureObject(properties)}`)
-        }
-
-        onObjectRemoved: function (delegate, obj, properties) {
-            console.info(`Input popup surface item ${obj} is removed, it's create from delegate ${delegate} with initial properties:`,
-                         `\n${printStructureObject(properties)}`)
-        }
     }
 }

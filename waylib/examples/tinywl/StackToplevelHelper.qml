@@ -17,7 +17,9 @@ Item {
 
     property OutputItem output
     property CoordMapper outputCoordMapper
-    property bool mapped: waylandSurface.surface && waylandSurface.surface.mapped && waylandSurface.WaylandSocket.rootSocket.enabled
+    property bool mapped: waylandSurface.surface
+                          && waylandSurface.surface.mapped
+                          && waylandSurface.WaylandSocket.rootSocket.enabled
     property bool pendingDestroy: false
     property bool isMaximize: waylandSurface && waylandSurface.isMaximized && outputCoordMapper
     property bool isFullScreen: waylandSurface && waylandSurface.isFullScreen && outputCoordMapper

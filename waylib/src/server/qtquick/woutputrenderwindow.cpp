@@ -9,8 +9,6 @@
 #include "woutputviewport.h"
 #include "woutputviewport_p.h"
 #include "wtools.h"
-#include "wquickbackend_p.h"
-#include "wwaylandcompositor_p.h"
 #include "wqmlhelper_p.h"
 #include "woutputlayer.h"
 #include "wbufferrenderer_p.h"
@@ -368,7 +366,9 @@ public:
 
     bool componentCompleted = true;
     bool inRendering = false;
-    WWaylandCompositor *compositor = nullptr;
+
+    QPointer<QWRenderer> m_renderer;
+    QPointer<QWAllocator> m_allocator;
 
     QList<OutputHelper*> outputs;
     QList<OutputLayer*> layers;
@@ -835,7 +835,7 @@ QSGRendererInterface::GraphicsApi WOutputRenderWindowPrivate::graphicsApi() cons
 
 void WOutputRenderWindowPrivate::init()
 {
-    Q_ASSERT(compositor);
+    Q_ASSERT(m_renderer);
     Q_Q(WOutputRenderWindow);
 
     if (QSGRendererInterface::isApiRhiBased(graphicsApi()))
@@ -904,12 +904,12 @@ bool WOutputRenderWindowPrivate::initRCWithRhi()
     if (rhiSupport->rhiBackend() == QRhi::Vulkan) {
         vkInstance.reset(new QVulkanInstance());
 
-        auto phdev = wlr_vk_renderer_get_physical_device(compositor->renderer()->handle());
-        auto dev = wlr_vk_renderer_get_device(compositor->renderer()->handle());
-        auto queue_family = wlr_vk_renderer_get_queue_family(compositor->renderer()->handle());
+        auto phdev = wlr_vk_renderer_get_physical_device(m_renderer->handle());
+        auto dev = wlr_vk_renderer_get_device(m_renderer->handle());
+        auto queue_family = wlr_vk_renderer_get_queue_family(m_renderer->handle());
 
 #if QT_VERSION > QT_VERSION_CHECK(6, 6, 0)
-        auto instance = wlr_vk_renderer_get_instance(compositor->renderer()->handle());
+        auto instance = wlr_vk_renderer_get_instance(m_renderer->handle());
         vkInstance->setVkInstance(instance);
 #endif
         //        vkInstance->setExtensions(fromCStyleList(vkRendererAttribs.extension_count, vkRendererAttribs.extensions));
@@ -923,8 +923,8 @@ bool WOutputRenderWindowPrivate::initRCWithRhi()
     } else
 #endif
     if (rhiSupport->rhiBackend() == QRhi::OpenGLES2) {
-        Q_ASSERT(wlr_renderer_is_gles2(compositor->renderer()->handle()));
-        auto egl = wlr_gles2_renderer_get_egl(compositor->renderer()->handle());
+        Q_ASSERT(wlr_renderer_is_gles2(m_renderer->handle()));
+        auto egl = wlr_gles2_renderer_get_egl(m_renderer->handle());
         auto display = wlr_egl_get_display(egl);
         auto context = wlr_egl_get_context(egl);
 
@@ -1169,10 +1169,10 @@ void WOutputRenderWindow::attach(WOutputViewport *output)
 
     d->outputs << new OutputHelper(output, this);
 
-    if (d->compositor) {
+    if (d->m_renderer) {
         auto qwoutput = d->outputs.last()->qwoutput();
-        if (qwoutput->handle()->renderer != d->compositor->renderer()->handle())
-            qwoutput->initRender(d->compositor->allocator(), d->compositor->renderer());
+        if (qwoutput->handle()->renderer != d->m_renderer->handle())
+            qwoutput->initRender(d->m_allocator, d->m_renderer);
         Q_EMIT outputViewportInitialized(output);
     }
 
@@ -1260,32 +1260,26 @@ void WOutputRenderWindow::rotateOutput(WOutputViewport *output, WOutput::Transfo
     }
 }
 
-WWaylandCompositor *WOutputRenderWindow::compositor() const
-{
-    Q_D(const WOutputRenderWindow);
-    return d->compositor;
-}
-
-void WOutputRenderWindow::setCompositor(WWaylandCompositor *newCompositor)
+void WOutputRenderWindow::init(QWRenderer *renderer, QWAllocator *allocator)
 {
     Q_D(WOutputRenderWindow);
-    Q_ASSERT(!d->compositor);
-    d->compositor = newCompositor;
+    Q_ASSERT(!d->m_renderer);
+    Q_ASSERT(!d->m_allocator);
+    Q_ASSERT(renderer);
+    Q_ASSERT(allocator);
+
+    d->m_renderer = renderer;
+    d->m_allocator = allocator;
 
     for (auto output : d->outputs) {
         auto qwoutput = output->qwoutput();
-        if (qwoutput->handle()->renderer != d->compositor->renderer()->handle())
-            qwoutput->initRender(d->compositor->allocator(), d->compositor->renderer());
+        if (qwoutput->handle()->renderer != d->m_renderer->handle())
+            qwoutput->initRender(d->m_allocator, d->m_renderer);
         Q_EMIT outputViewportInitialized(output->output());
     }
 
-    if (d->componentCompleted && d->compositor->isPolished()) {
+    if (d->componentCompleted) {
         d->init();
-    } else {
-        connect(newCompositor, &WWaylandCompositor::afterPolish, this, [d] {
-            if (d->componentCompleted)
-                d->init();
-        });
     }
 }
 
@@ -1357,7 +1351,7 @@ void WOutputRenderWindow::componentComplete()
     Q_D(WOutputRenderWindow);
     d->componentCompleted = true;
 
-    if (d->compositor && d->compositor->isPolished())
+    if (d->m_renderer)
         d->init();
 }
 

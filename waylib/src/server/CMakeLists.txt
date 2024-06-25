@@ -62,7 +62,7 @@ ws_generate(
     xdg-output-unstable-v1-protocol
 )
 
-set(KERNEL_SOURCES
+set(SOURCES
     kernel/wbackend.cpp
     kernel/wcursor.cpp
     kernel/winputdevice.cpp
@@ -76,21 +76,13 @@ set(KERNEL_SOURCES
     kernel/wtexture.cpp
     kernel/wtypes.cpp
 
-    kernel/wxdgshell.cpp
-    kernel/wxdgsurface.cpp
-    kernel/wlayersurface.cpp
     kernel/woutputlayout.cpp
     kernel/wxcursorimage.cpp
     kernel/wglobal.cpp
     kernel/wsocket.cpp
 
-    ${CMAKE_CURRENT_BINARY_DIR}/text-input-unstable-v1-protocol.c
-)
-
-set(QTQUICK_SOURCES
     qtquick/wsurfaceitem.cpp
     qtquick/woutputhelper.cpp
-    qtquick/wquickwaylandserver.cpp
     qtquick/woutputrenderwindow.cpp
     qtquick/woutputviewport.cpp
     qtquick/woutputitem.cpp
@@ -104,49 +96,49 @@ set(QTQUICK_SOURCES
     qtquick/woutputlayer.cpp
     qtquick/wrenderbufferblitter.cpp
     qtquick/wxdgsurfaceitem.cpp
+    qtquick/wlayersurfaceitem.cpp
     qtquick/wxwaylandsurfaceitem.cpp
+    qtquick/wqmlcreator.cpp
+    qtquick/winputpopupsurfaceitem.cpp
 
-    qtquick/private/wquickxdgshell.cpp
-    qtquick/private/wquickbackend.cpp
-    qtquick/private/wquickseat.cpp
-    qtquick/private/wwaylandcompositor.cpp
     qtquick/private/wquickcoordmapper.cpp
-    qtquick/private/wquicksocket.cpp
-    qtquick/private/wqmldynamiccreator.cpp
+    qtquick/private/wquicksocketattached.cpp
     qtquick/private/wqmlhelper.cpp
-    qtquick/private/wquickxdgdecorationmanager.cpp
-    qtquick/private/wquickcursorshape.cpp
-    qtquick/private/wquickgammacontrol.cpp
-    qtquick/private/wquickoutputmanager.cpp
-    qtquick/private/wquicklayershell.cpp
-    qtquick/private/wquicktextinputv1.cpp
-    qtquick/private/wquicktextinputv3.cpp
-    qtquick/private/wquickinputmethodv2.cpp
-    qtquick/private/wquickvirtualkeyboardv1.cpp
-    qtquick/private/winputmethodhelper.cpp
-    qtquick/private/wquickforeigntoplevelmanagerv1.cpp
     qtquick/private/wbufferrenderer.cpp
     qtquick/private/wrenderbuffernode.cpp
-    qtquick/private/wquickxdgoutput.cpp
-    qtquick/private/wquickfractionalscalemanagerv1.cpp
-    qtquick/private/wquickscreencopy.cpp
 
     ${CMAKE_CURRENT_BINARY_DIR}/text-input-unstable-v1-protocol.c
     ${CMAKE_CURRENT_BINARY_DIR}/xdg-output-unstable-v1-protocol.c
-)
 
-set(UTILS_SOURCES
     utils/wtools.cpp
     utils/wthreadutils.cpp
     utils/wimagebuffer.cpp
-)
 
-set(QPA_SOURCES
     platformplugin/qwlrootsintegration.cpp
     platformplugin/qwlrootscreen.cpp
     platformplugin/qwlrootswindow.cpp
     platformplugin/qwlrootscursor.cpp
     platformplugin/types.cpp
+
+    protocols/wxdgshell.cpp
+    protocols/wxdgsurface.cpp
+    protocols/wxwayland.cpp
+    protocols/wxwaylandsurface.cpp
+    protocols/wlayersurface.cpp
+    protocols/wforeigntoplevelv1.cpp
+    protocols/wxdgoutput.cpp
+    protocols/wxdgdecorationmanager.cpp
+    protocols/wlayershell.cpp
+    protocols/winputmethodhelper.cpp
+    protocols/winputpopupsurface.cpp
+    protocols/private/winputmethodv2.cpp
+    protocols/private/wtextinputv1.cpp
+    protocols/private/wtextinputv3.cpp
+    protocols/private/wvirtualkeyboardv1.cpp
+    protocols/wcursorshapemanagerv1.cpp
+    protocols/woutputmanagerv1.cpp
+
+    ${CMAKE_CURRENT_BINARY_DIR}/text-input-unstable-v1-protocol.c
 )
 
 set(HEADERS
@@ -161,9 +153,6 @@ set(HEADERS
     kernel/wsurface.h
     kernel/wtexture.h
     kernel/wtypes.h
-    kernel/wxdgshell.h
-    kernel/wxdgsurface.h
-    kernel/wlayersurface.h
     kernel/woutputlayout.h
     kernel/wxcursorimage.h
     kernel/wsocket.h
@@ -179,17 +168,13 @@ set(HEADERS
     kernel/WEvent
     kernel/WInputEvent
     kernel/WTexture
-    kernel/WXdgShell
-    kernel/WXdgSurface
     kernel/WSurface
-    kernel/WLayerSurface
 
     qtquick/wsurfaceitem.h
     qtquick/WSurfaceItem
     qtquick/woutputhelper.h
     qtquick/woutputlayoutitem.h
     qtquick/wquickoutputlayout.h
-    qtquick/wquickwaylandserver.h
     qtquick/woutputrenderwindow.h
     qtquick/woutputviewport.h
     qtquick/woutputitem.h
@@ -201,75 +186,84 @@ set(HEADERS
     qtquick/woutputlayer.h
     qtquick/wrenderbufferblitter.h
     qtquick/wxdgsurfaceitem.h
+    qtquick/wlayersurfaceitem.h
     qtquick/wxwaylandsurfaceitem.h
+    qtquick/winputpopupsurfaceitem.h
+    qtquick/wqmlcreator.h
 
     utils/wtools.h
     utils/wthreadutils.h
     utils/WThreadUtils
     utils/wimagebuffer.h
+
+    protocols/wxdgshell.h
+    protocols/WXdgShell
+    protocols/wxdgsurface.h
+    protocols/WXdgSurface
+    protocols/wlayersurface.h
+    protocols/wxdgdecorationmanager.h
+    protocols/WXdgDecorationManager
+    protocols/WLayerSurface
+    protocols/wforeigntoplevelv1.h
+    protocols/WForeignToplevel
+    protocols/wxdgoutput.h
+    protocols/WXdgOutput
+    protocols/WInputMethodHelper
+    protocols/winputmethodhelper.h
+    protocols/winputpopupsurface.h
+    protocols/WInputPopupSurface
+    protocols/wcursorshapemanagerv1.h
+    protocols/WCursorShapeManagerV1
+    protocols/woutputmanagerv1.h
+    protocols/WOutputManagerV1
+    protocols/wlayershell.h
+    protocols/WLayerShell
+    protocols/wxwayland.h
+    protocols/WXWayland
+    protocols/wxwaylandsurface.h
+    protocols/WXWaylandSurface
 )
 
 set(PRIVATE_HEADERS
     platformplugin/types.h
     kernel/private/wglobal_p.h
     kernel/private/wsurface_p.h
-    kernel/private/wtoplevelsurface_p.h
     qtquick/private/woutputviewport_p.h
     qtquick/private/wquickcoordmapper_p.h
     qtquick/private/woutputitem_p.h
-    qtquick/private/wquicksocket_p.h
-    qtquick/private/wqmldynamiccreator_p.h
+    qtquick/private/wquicksocketattached_p.h
+    qtquick/private/wqmlcreator_p.h
     qtquick/private/wqmlhelper_p.h
-    qtquick/private/wquickxdgdecorationmanager_p.h
-    qtquick/private/wquickcursorshape_p.h
-    qtquick/private/wquickgammacontrol_p.h
-    qtquick/private/wquickoutputmanager_p.h
     qtquick/private/wquicktextureproxy_p.h
-    qtquick/private/wquicklayershell_p.h
-    qtquick/private/wquicktextinputv1_p.h
-    qtquick/private/wquicktextinputv3_p.h
-    qtquick/private/wquickinputmethodv2_p.h
-    qtquick/private/wquickvirtualkeyboardv1_p.h
-    qtquick/private/winputmethodcommon_p.h
-    qtquick/private/winputmethodhelper_p.h
-    qtquick/private/wquickforeigntoplevelmanagerv1_p.h
     qtquick/private/wbufferrenderer_p.h
     qtquick/private/wrenderbuffernode_p.h
-    qtquick/private/wquickxdgoutput_p.h
-    qtquick/private/wquickfractionalscalemanagerv1_p.h
-    qtquick/private/wquickscreencopy_p.h
     qtquick/private/wsurfaceitem_p.h
 
     ${CMAKE_CURRENT_BINARY_DIR}/text-input-unstable-v1-protocol.h
     ${CMAKE_CURRENT_BINARY_DIR}/xdg-output-unstable-v1-protocol.h
+
+    protocols/private/winputmethodv2_p.h
+    protocols/private/wtextinput_p.h
+    protocols/private/wtextinputv1_p.h
+    protocols/private/wtextinputv3_p.h
+    protocols/private/wvirtualkeyboardv1_p.h
 )
 
 if(NOT DISABLE_XWAYLAND)
-    list(APPEND KERNEL_SOURCES
-        kernel/wxwayland.cpp
-        kernel/wxwaylandsurface.cpp
-    )
-
-    list(APPEND QTQUICK_SOURCES
-        qtquick/private/wquickxwayland.cpp
+    list(APPEND SOURCES
+        protocols/wxwayland.cpp
+        protocols/wxwaylandsurface.cpp
     )
 
     list(APPEND HEADERS
-        kernel/wxwayland.h
-        kernel/wxwaylandsurface.h
-    )
-
-    list(APPEND PRIVATE_HEADERS
-        qtquick/private/wquickxwayland_p.h
+        protocols/wxwayland.h
+        protocols/wxwaylandsurface.h
     )
 endif()
 
 add_library(${TARGET}
     SHARED
-    ${KERNEL_SOURCES}
-    ${UTILS_SOURCES}
-    ${QPA_SOURCES}
-    ${QTQUICK_SOURCES}
+    ${SOURCES}
 )
 
 add_library(Waylib::WaylibServer ALIAS ${TARGET})
@@ -299,8 +293,6 @@ set_target_properties(${TARGET}
 	# PRIVATE_HEADER "${PRIVATE_HEADERS}"
 	# CMake Warning has PRIVATE_HEADER files but no PRIVATE_HEADER DESTINATION
 )
-
-
 if(WITH_SUBMODULE_QWLROOTS)
     target_link_libraries(${TARGET}
         PUBLIC
@@ -340,6 +332,8 @@ target_include_directories(${TARGET}
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/qtquick>
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/qtquick/private>
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/utils>
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/protocols>
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/protocols/private>
         $<INSTALL_INTERFACE:${WAYLIB_INCLUDE_INSTALL_DIR}>
     PRIVATE
         ${Qt6Gui_PRIVATE_INCLUDE_DIRS}

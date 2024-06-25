@@ -73,28 +73,29 @@ public:
 
 void WBackendPrivate::on_new_output(QWOutput *output)
 {
-    auto woutput = new WOutput(output, q_func());
+    W_Q(WBackend);
+    auto woutput = new WOutput(output, q);
 
     outputList << woutput;
     QWlrootsIntegration::instance()->addScreen(woutput);
 
-    woutput->safeConnect(&QWOutput::beforeDestroy, q_func()->server(), [this, output] {
+    woutput->safeConnect(&QWOutput::beforeDestroy, q, [this, output] {
         on_output_destroy(output);
     });
 
-    q_func()->outputAdded(woutput);
+    Q_EMIT q->outputAdded(woutput);
 }
 
 void WBackendPrivate::on_new_input(QWInputDevice *device)
 {
+    W_Q(WBackend);
     auto input_device = new WInputDevice(device);
     inputList << input_device;
-    input_device->safeConnect(&QWInputDevice::beforeDestroy,
-                             q_func()->server(), [this, device] {
+    input_device->safeConnect(&QWInputDevice::beforeDestroy, q, [this, device] {
         on_input_destroy(device);
     });
 
-    q_func()->inputAdded(input_device);
+    Q_EMIT q->inputAdded(input_device);
 }
 
 void WBackendPrivate::on_input_destroy(QWInputDevice *data)
@@ -102,8 +103,10 @@ void WBackendPrivate::on_input_destroy(QWInputDevice *data)
     for (int i = 0; i < inputList.count(); ++i) {
         if (inputList.at(i)->handle() == data) {
             auto device = inputList.takeAt(i);
-            q_func()->inputRemoved(device);
-            delete device;
+
+            W_Q(WBackend);
+            Q_EMIT q->inputRemoved(device);
+            device->safeDeleteLater();
             return;
         }
     }
@@ -113,9 +116,12 @@ void WBackendPrivate::on_output_destroy(QWOutput *output)
 {
     for (int i = 0; i < outputList.count(); ++i) {
         if (outputList.at(i)->handle() == output) {
-            auto device = outputList.takeAt(i);
-            q_func()->outputRemoved(device);
-            delete device;
+            auto woutput = outputList.takeAt(i);
+
+            W_Q(WBackend);
+            Q_EMIT q->outputRemoved(woutput);
+            QWlrootsIntegration::instance()->removeScreen(woutput);
+            woutput->safeDeleteLater();
             return;
         }
     }
@@ -137,6 +143,11 @@ WBackend::WBackend()
 
 }
 
+QWBackend *WBackend::handle() const
+{
+    return nativeInterface<QWBackend>();
+}
+
 QVector<WOutput*> WBackend::outputList() const
 {
     W_DC(WBackend);
@@ -149,24 +160,38 @@ QVector<WInputDevice *> WBackend::inputDeviceList() const
     return d->inputList;
 }
 
-void WBackend::outputAdded(WOutput *)
+template<class T>
+static bool hasBackend(QWBackend *handle)
 {
+    if (qobject_cast<T*>(handle))
+        return true;
+    if (auto multiBackend = qobject_cast<QWMultiBackend*>(handle)) {
+        bool exists = false;
+        multiBackend->forEachBackend([] (wlr_backend *backend, void *userData) {
+            bool &exists = *reinterpret_cast<bool*>(userData);
+            if (T::from(backend))
+                exists = true;
+        }, &exists);
 
+        return exists;
+    }
+
+    return false;
 }
 
-void WBackend::outputRemoved(WOutput *output)
+bool WBackend::hasDrm() const
 {
-    QWlrootsIntegration::instance()->removeScreen(output);
+    return hasBackend<QWDrmBackend>(handle());
 }
 
-void WBackend::inputAdded(WInputDevice *)
+bool WBackend::hasX11() const
 {
-
+    return hasBackend<QWX11Backend>(handle());
 }
 
-void WBackend::inputRemoved(WInputDevice *)
+bool WBackend::hasWayland() const
 {
-
+    return hasBackend<QWWaylandBackend>(handle());
 }
 
 void WBackend::create(WServer *server)
@@ -185,11 +210,6 @@ void WBackend::destroy(WServer *server)
 {
     Q_UNUSED(server)
     W_D(WBackend);
-
-    for (auto i : d->inputList)
-        inputRemoved(i);
-    for (auto i : d->outputList)
-        outputRemoved(i);
 
     qDeleteAll(d->inputList);
     qDeleteAll(d->outputList);

@@ -25,6 +25,8 @@ qt_add_qml_module(blur
     VERSION "1.0"
     QML_FILES
         Main.qml
+    SOURCES
+        helper.h
 )
 
 target_compile_definitions(blur

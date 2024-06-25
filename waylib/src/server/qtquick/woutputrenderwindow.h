@@ -10,12 +10,10 @@
 #include <QQuickWindow>
 #include <QQmlParserStatus>
 
-Q_MOC_INCLUDE(<wwaylandcompositor_p.h>)
 Q_MOC_INCLUDE(<wquickoutputlayout.h>)
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
-class WWaylandCompositor;
 class WOutputViewport;
 class WOutputLayer;
 class WBufferRenderer;
@@ -24,7 +22,6 @@ class WAYLIB_SERVER_EXPORT WOutputRenderWindow : public QQuickWindow, public QQm
 {
     Q_OBJECT
     Q_DECLARE_PRIVATE(WOutputRenderWindow)
-    Q_PROPERTY(WWaylandCompositor *compositor READ compositor WRITE setCompositor REQUIRED)
     Q_PROPERTY(qreal width READ width WRITE setWidth NOTIFY widthChanged)
     Q_PROPERTY(qreal height READ height WRITE setHeight NOTIFY heightChanged)
     QML_NAMED_ELEMENT(OutputRenderWindow)
@@ -46,8 +43,7 @@ public:
     void rotateOutput(WOutputViewport *output, WOutput::Transform t);
     void setOutputEnabled(WOutputViewport *output, bool enabled);
 
-    WWaylandCompositor *compositor() const;
-    void setCompositor(WWaylandCompositor *newRenderer);
+    void init(QW_NAMESPACE::QWRenderer *renderer, QW_NAMESPACE::QWAllocator *allocator);
 
     qreal width() const;
     qreal height() const;

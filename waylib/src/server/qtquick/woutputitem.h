@@ -24,7 +24,6 @@ class WAYLIB_SERVER_EXPORT WOutputItem : public WQuickObserver, public WObject
     Q_PROPERTY(WOutput* output READ output WRITE setOutput REQUIRED)
     Q_PROPERTY(WQuickOutputLayout* layout READ layout WRITE setLayout NOTIFY layoutChanged)
     Q_PROPERTY(qreal devicePixelRatio READ devicePixelRatio WRITE setDevicePixelRatio NOTIFY devicePixelRatioChanged)
-    Q_PROPERTY(WQuickSeat* seat READ seat WRITE setSeat NOTIFY seatChanged)
     Q_PROPERTY(QQmlComponent* cursorDelegate READ cursorDelegate WRITE setCursorDelegate NOTIFY cursorDelegateChanged)
     Q_PROPERTY(QQuickItem* lastActiveCursorItem READ lastActiveCursorItem NOTIFY lastActiveCursorItemChanged)
     Q_PROPERTY(QList<QQuickItem*> cursorItems READ cursorItems NOTIFY cursorItemsChanged)
@@ -36,6 +35,7 @@ public:
     ~WOutputItem();
 
     static WOutputItemAttached *qmlAttachedProperties(QObject *target);
+    static WOutputItem *getOutputItem(WOutput *output);
 
     WOutput *output() const;
     void setOutput(WOutput *newOutput);
@@ -45,9 +45,6 @@ public:
 
     qreal devicePixelRatio() const;
     void setDevicePixelRatio(qreal newDevicePixelRatio);
-
-    WQuickSeat *seat() const;
-    void setSeat(WQuickSeat *newSeat);
 
     QQmlComponent *cursorDelegate() const;
     void setCursorDelegate(QQmlComponent *delegate);

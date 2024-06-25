@@ -50,6 +50,7 @@ public:
     void setType(const char *name);
     void updateCursorImage();
     void sendEnterEvent();
+    void sendLeaveEvent();
 
     // begin slot function
     void on_motion(wlr_pointer_motion_event *event);
@@ -82,6 +83,8 @@ public:
 
     WSeat *seat = nullptr;
     QPointer<QWindow> eventWindow;
+    bool enterWindowEventHasSend = false;
+    bool leaveWindowEventHasSend = false;
     WOutputLayout *outputLayout = nullptr;
     QList<WInputDevice*> deviceList;
 

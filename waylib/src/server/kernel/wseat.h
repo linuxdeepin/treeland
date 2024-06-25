@@ -10,6 +10,8 @@
 #include <QEvent>
 #include <QSharedData>
 
+Q_MOC_INCLUDE(<wsurface.h>)
+
 QW_BEGIN_NAMESPACE
 class QWSeat;
 class QWSurface;
@@ -53,6 +55,8 @@ class WSeat : public WWrapObject, public WServerInterface
     Q_OBJECT
     W_DECLARE_PRIVATE(WSeat)
     Q_PROPERTY(WInputDevice* keyboard READ keyboard WRITE setKeyboard NOTIFY keyboardChanged FINAL)
+    Q_PROPERTY(WSurface* keyboardFocus READ keyboardFocusSurface WRITE setKeyboardFocusSurface NOTIFY keyboardFocusSurfaceChanged FINAL)
+
 public:
     WSeat(const QString &name = QStringLiteral("seat0"));
 
@@ -77,20 +81,20 @@ public:
 
     WSurface *pointerFocusSurface() const;
 
-    void setKeyboardFocusTarget(QW_NAMESPACE::QWSurface *nativeSurface);
-    void setKeyboardFocusTarget(WSurface *surface);
+    void setKeyboardFocusSurface(WSurface *surface);
     WSurface *keyboardFocusSurface() const;
     void clearKeyboardFocusSurface();
 
-    void setKeyboardFocusTarget(QWindow *window);
-    QWindow *focusWindow() const;
-    void clearkeyboardFocusWindow();
+    void setKeyboardFocusWindow(QWindow *window);
+    QWindow *keyboardFocusWindow() const;
+    void clearKeyboardFocusWindow();
 
     WInputDevice *keyboard() const;
     void setKeyboard(WInputDevice *newKeyboard);
 
 Q_SIGNALS:
     void keyboardChanged();
+    void keyboardFocusSurfaceChanged();
 
 protected:
     using QObject::eventFilter;

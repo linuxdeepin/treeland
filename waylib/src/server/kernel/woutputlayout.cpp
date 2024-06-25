@@ -49,11 +49,7 @@ WOutputLayout::WOutputLayout(QObject *parent)
 QList<WOutput*> WOutputLayout::outputs() const
 {
     W_DC(WOutputLayout);
-    QList<WOutput*> outputs;
-    for (const auto &output : d->outputs) {
-        outputs.append(output.get());
-    }
-    return outputs;
+    return d->outputs;
 }
 
 void WOutputLayout::add(WOutput *output, const QPoint &pos)
