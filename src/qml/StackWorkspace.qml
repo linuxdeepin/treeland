@@ -398,7 +398,7 @@ FocusScope {
     }
 
     Connections {
-        target: ForeignToplevel
+        target: ForeignToplevelV1
         function onRequestDockPreview(surfaces, target, abs, direction) {
             dockPreview.show(surfaces, getSurfaceItemFromWaylandSurface(target), abs, direction)
         }
@@ -413,10 +413,10 @@ FocusScope {
         anchors.fill: parent
         visible: false
         onEntered: (relativeSurface) => {
-            ForeignToplevel.enterDockPreview(relativeSurface)
+            ForeignToplevelV1.enterDockPreview(relativeSurface)
         }
         onExited: (relativeSurface) => {
-            ForeignToplevel.leaveDockPreview(relativeSurface)
+            ForeignToplevelV1.leaveDockPreview(relativeSurface)
         }
         onSurfaceActivated: (surfaceItem) => {
             surfaceItem.cancelMinimize()

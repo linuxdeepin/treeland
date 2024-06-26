@@ -33,8 +33,7 @@ extern "C" {
 
 static ForeignToplevelV1 *FOREIGN_TOPLEVEL_MANAGER = nullptr;
 
-ForeignToplevelAttached::ForeignToplevelAttached(WSurface *target,
-                                                                         ForeignToplevelV1 *manager)
+ForeignToplevelAttached::ForeignToplevelAttached(WSurface *target, ForeignToplevelV1 *manager)
     : QObject(target)
     , m_target(target)
     , m_manager(manager)
@@ -311,16 +310,14 @@ void ForeignToplevelV1::onDockPreviewContextCreated(treeland_dock_preview_contex
             &ForeignToplevelV1::requestDockClose);
 }
 
-ForeignToplevelAttached *ForeignToplevelV1::qmlAttachedProperties(QObject *target)
+ForeignToplevelAttached *ForeignToplevelV1::Attached(QObject *target)
 {
     if (auto *surface = qobject_cast<WXdgSurface *>(target)) {
-        return new ForeignToplevelAttached(surface->surface(),
-                                                       FOREIGN_TOPLEVEL_MANAGER);
+        return new ForeignToplevelAttached(surface->surface(), FOREIGN_TOPLEVEL_MANAGER);
     }
 
     if (auto *surface = qobject_cast<WXWaylandSurface *>(target)) {
-        return new ForeignToplevelAttached(surface->surface(),
-                                                       FOREIGN_TOPLEVEL_MANAGER);
+        return new ForeignToplevelAttached(surface->surface(), FOREIGN_TOPLEVEL_MANAGER);
     }
 
     return nullptr;

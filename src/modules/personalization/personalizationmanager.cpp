@@ -352,7 +352,7 @@ QQuickItem *QuickPersonalizationManagerAttached::backgroundImage() const
     return PERSONALIZATION_IMAGE;
 }
 
-QuickPersonalizationManagerAttached *PersonalizationV1::qmlAttachedProperties(QObject *target)
+QuickPersonalizationManagerAttached *PersonalizationV1::Attached(QObject *target)
 {
     if (auto *surface = qobject_cast<WXdgSurface *>(target)) {
         return new QuickPersonalizationManagerAttached(surface->surface(), PERSONALIZATION_MANAGER);

@@ -15,7 +15,7 @@ SurfaceItemFactory {
 
     property var doDestroy: helper.doDestroy
     property var cancelMinimize: helper.cancelMinimize
-    property var personalizationMapper: waylandSurface.PersonalizationV1
+    property var personalizationMapper: PersonalizationV1.Attach(waylandSurface)
     property int outputCounter: 0
     property alias toplevelSurfaceItem: root.surfaceItem
     property alias decoration: decoration

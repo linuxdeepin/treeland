@@ -39,7 +39,6 @@ private:
 class ForeignToplevelV1 : public QObject, public WServerInterface
 {
     Q_OBJECT
-    QML_ATTACHED(ForeignToplevelAttached)
 
 public:
     explicit ForeignToplevelV1(QObject *parent = nullptr);
@@ -50,7 +49,7 @@ public:
     Q_INVOKABLE void enterDockPreview(WSurface *relative_surface);
     Q_INVOKABLE void leaveDockPreview(WSurface *relative_surface);
 
-    static ForeignToplevelAttached *qmlAttachedProperties(QObject *target);
+    Q_INVOKABLE ForeignToplevelAttached *Attached(QObject *target);
 
 Q_SIGNALS:
     void requestMaximize(WToplevelSurface *surface,
