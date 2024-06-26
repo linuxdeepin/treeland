@@ -8,7 +8,7 @@ qt_add_executable(test-window-cursor
 
 qt_generate_wayland_protocol_client_sources(test-window-cursor
     FILES
-    ${CMAKE_CURRENT_SOURCE_DIR}/../../src/modules/treeland-personalization-manager/protocols/treeland-personalization-manager-v1.xml
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../src/modules/personalization/protocols/treeland-personalization-manager-v1.xml
 )
 
 target_link_libraries(test-window-cursor
