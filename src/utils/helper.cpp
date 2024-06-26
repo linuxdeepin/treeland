@@ -716,7 +716,7 @@ void Helper::enableOutput(WOutput *output)
 
 bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *watched, QInputEvent *event)
 {
-    if (event->type() == QEvent::KeyPress) {
+    if (event->type() == QEvent::KeyRelease) {
         if (!m_actions.empty() && !m_currentUser.isEmpty()) {
             auto e = static_cast<QKeyEvent *>(event);
             QKeySequence sequence(e->modifiers() | e->key());
