@@ -61,11 +61,11 @@
     },
     "nixpkgs": {
       "locked": {
-        "lastModified": 1718703545,
-        "narHash": "sha256-cJXbmRpphoQXR5E69halLKLURmVS4Z4UtOVAvyer9nI=",
+        "lastModified": 1719381159,
+        "narHash": "sha256-Kp7O8zV0dFNinR9bAwRQ0XG0cmJ3L5/Md4E/uat5aXc=",
         "owner": "NixOS",
         "repo": "nixpkgs",
-        "rev": "5c65f9166181c321f2c940e0b39ef628d178e655",
+        "rev": "c4f0f788123973aedb7a88d78109909d9f223ca6",
         "type": "github"
       },
       "original": {
@@ -92,11 +92,11 @@
         "wlroots-master": "wlroots-master"
       },
       "locked": {
-        "lastModified": 1718693135,
-        "narHash": "sha256-u5WZgwLQzZZ3QLrT+Gt0qABNkIiGh26xTg2lkFhwc2U=",
+        "lastModified": 1718885849,
+        "narHash": "sha256-AdWxGIGpmhKdaPUoWdPozX8NBgMnOK7qoPm9HYDEXXU=",
         "owner": "vioken",
         "repo": "qwlroots",
-        "rev": "c9fed5e872801abdf25f15746256e373af4bca7c",
+        "rev": "09470bbb9720374bc182dd4bdb8ccb913fef9187",
         "type": "github"
       },
       "original": {
@@ -143,11 +143,11 @@
         "qwlroots": "qwlroots"
       },
       "locked": {
-        "lastModified": 1718703007,
-        "narHash": "sha256-H66c0PWD+ba0gaXreAODgDQt9h+JSIi1/yvALPdq3Fo=",
+        "lastModified": 1719287344,
+        "narHash": "sha256-5GCjH8j7UhzZtCxzjSOq1WZqdnpG1Jf1fVcYD2LvEv8=",
         "owner": "vioken",
         "repo": "waylib",
-        "rev": "3f306f2b9cc15161bf9b26ea866b413595b7f3cf",
+        "rev": "e138aa2acb5bd69b32b871851f6df4e58301ae2f",
         "type": "github"
       },
       "original": {
