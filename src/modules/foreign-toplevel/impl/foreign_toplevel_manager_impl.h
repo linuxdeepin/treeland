@@ -90,7 +90,7 @@ public:
     uint32_t identifier;
     pid_t pid;
 
-    treeland_foreign_toplevel_handle_v1 *parent;
+    treeland_foreign_toplevel_handle_v1 *parent{ nullptr };
     QList<treeland_foreign_toplevel_handle_v1_output>
         outputs;    // treeland_foreign_toplevel_v1_output.link
     uint32_t state; // enum treeland_foreign_toplevel_v1_state
