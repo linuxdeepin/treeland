@@ -25,8 +25,9 @@ ColumnLayout {
     }
 
     Flickable {
-        width: parent.width
-        height: parent.height - setting.height
+        Layout.fillHeight: true
+        Layout.fillWidth: true
+
         clip: true
 
         contentWidth: width
