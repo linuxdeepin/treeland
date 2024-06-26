@@ -8,6 +8,7 @@
 #include <QPlatformSurfaceEvent>
 #include <QDebug>
 #include <QTimer>
+#include <QSettings>
 
 #include "personalization_manager.h"
 
@@ -48,11 +49,19 @@ public:
             return;
 
         if (rect1.contains(ev->position())) {
-            cursor_context->set_theme("Breeze_Light");
+            QString config = "test_config.ini";
+            QSettings settings(config, QSettings::IniFormat);
+            QString theme = settings.value("Cursor/theme", "Breeze_Light").toString();
+            qDebug() << "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" << theme;
+            cursor_context->set_theme(theme);
             cursor_context->commit();
         }
         else if (rect2.contains(ev->position())) {
-            cursor_context->set_size(32);
+            QString config = "test_config.ini";
+            QSettings settings(config, QSettings::IniFormat);
+            int cursor_size = settings.value("Cursor/size", 32).toInt();
+            qDebug() << "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" << cursor_size;
+            cursor_context->set_size(cursor_size);
             cursor_context->commit();
         }
         else if (rect3.contains(ev->position()))
