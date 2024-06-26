@@ -80,6 +80,11 @@ static treeland_output_manager_v1 *output_manager_from_resource(wl_resource *res
     return manager;
 }
 
+static void output_manager_resource_destroy(struct wl_resource *resource)
+{
+    wl_list_remove(wl_resource_get_link(resource));
+}
+
 static void output_manager_bind(wl_client *client, void *data, uint32_t version, uint32_t id)
 {
     auto *manager = static_cast<treeland_output_manager_v1 *>(data);
@@ -90,7 +95,11 @@ static void output_manager_bind(wl_client *client, void *data, uint32_t version,
         wl_client_post_no_memory(client);
         return;
     }
-    wl_resource_set_implementation(resource, &output_manager_impl, manager, nullptr);
+
+    wl_resource_set_implementation(resource,
+                                   &output_manager_impl,
+                                   manager,
+                                   output_manager_resource_destroy);
     wl_list_insert(&manager->resources, wl_resource_get_link(resource));
 
     treeland_output_manager_v1_send_primary_output(resource, manager->primary_output_name);
