@@ -23,7 +23,7 @@ public:
     explicit PrimaryOutputV1(QObject *parent = nullptr);
 
     const char *primaryOutput();
-    bool setPrimaryOutput(const char *name);
+
     void newOutput(WAYLIB_SERVER_NAMESPACE::WOutput *output);
     void removeOutput(WAYLIB_SERVER_NAMESPACE::WOutput *output);
 
@@ -35,6 +35,9 @@ protected:
 Q_SIGNALS:
     void requestSetPrimaryOutput(const char *);
     void primaryOutputChanged();
+
+public Q_SLOTS:
+    bool setPrimaryOutput(const char *name);
 
 private:
     treeland_output_manager_v1 *m_handle{ nullptr };

@@ -79,7 +79,7 @@ void PrimaryOutputV1::create(WServer *server)
     connect(m_handle,
             &treeland_output_manager_v1::requestSetPrimaryOutput,
             this,
-            &PrimaryOutputV1::requestSetPrimaryOutput);
+            &PrimaryOutputV1::setPrimaryOutput);
 }
 
 void PrimaryOutputV1::destroy(WServer *server) { }
