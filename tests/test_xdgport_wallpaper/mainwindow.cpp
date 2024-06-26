@@ -8,6 +8,7 @@
 #include <QDBusConnection>
 #include <QDBusArgument>
 #include <QVariantMap>
+#include <QSettings>
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -32,7 +33,10 @@ void MainWindow::setWallpaper()
 {
     QString app_id = "G4";
     QString parent_window = "";
-    QString uri = "/home/uos/Pictures/Wallpapers/abc-123.jpg";
+    QString config = "test_config.ini";
+    QSettings settings(config, QSettings::IniFormat);
+    QString uri = settings.value("Wallpaper/path", "/home/uos/Pictures/Wallpapers/abc-123.jpg").toString();
+    qDebug() << "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx=========" << uri;
 
     QVariantMap options;
     options.insert("output", "X11-2");
