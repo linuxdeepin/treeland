@@ -134,6 +134,7 @@ void Helper::initProtocols(WOutputRenderWindow *window)
     auto xwayland_lazy = true;
     auto *xwayland = m_server->attach<WXWayland>(m_compositor, xwayland_lazy);
     xwayland->setSeat(m_seat);
+    setXWaylandSocket(xwayland->displayName());
 
     m_xdgDecorationManager = m_server->attach<WXdgDecorationManager>();
     Q_EMIT xdgDecorationManagerChanged();
