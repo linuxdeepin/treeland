@@ -6,62 +6,60 @@ import QtQuick.Controls 2.15
 import QtQuick.Layouts 2.15
 import Wallpaper
 
-Item {
-    ColumnLayout {
-        implicitHeight: parent.height
-        implicitWidth: parent.width
-        spacing: 10
+ColumnLayout {
+    implicitHeight: parent.height
+    implicitWidth: parent.width
+    spacing: 10
 
-        PersonalizationV1 {
-            id: personalization
+    PersonalizationV1 {
+        id: personalization
 
-            onWallpaperChanged: {
-                setting.imageSource = "file://" + path;
+        onWallpaperChanged: {
+            setting.imageSource = "file://" + path;
+        }
+    }
+
+    WallpaperSetting {
+        id: setting
+        Layout.alignment: Qt.AlignTop | Qt.AlignVCenter
+    }
+
+    Flickable {
+        width: parent.width
+        height: parent.height - setting.height
+        clip: true
+
+        contentWidth: width
+        contentHeight: localCard.height + systemCard.height
+
+        ColumnLayout {
+            anchors.fill: parent
+            spacing: 10
+
+            WallpaperCard {
+                id: localCard
+                group: "Local"
+                directory: personalization.cacheDirectory
+
+                Layout.alignment: Qt.AlignVCenter
+                modelData: personalization.wallpaperModel(group, directory)
+                visible: modelData.count > 0
+                titleText: qsTr("Local Picture")
+                descriptionText: qsTr("Show All") + "-" + modelData.count
+                descriptionVisiable: modelData.count > 10
             }
-        }
 
-        WallpaperSetting {
-            id: setting
-            Layout.alignment: Qt.AlignTop | Qt.AlignVCenter
-        }
+            WallpaperCard {
+                id: systemCard
+                group: "System"
+                directory: "/usr/share/wallpapers/deepin/"
 
-        Flickable {
-            Layout.fillHeight: true
-            Layout.fillWidth: true
-            clip: true
-
-            contentWidth: parent.width
-            contentHeight: localCard.height + systemCard.height
-
-            ColumnLayout {
-                anchors.fill: parent
-                spacing: 10
-
-                WallpaperCard {
-                    id: localCard
-                    group: "Local"
-                    directory: personalization.cacheDirectory
-
-                    Layout.alignment: Qt.AlignVCenter
-                    modelData: personalization.wallpaperModel(group, directory)
-                    visible: modelData.count > 0
-                    titleText: qsTr("Local Picture")
-                    descriptionText: qsTr("Show All") + "-" + modelData.count
-                    descriptionVisiable: modelData.count > 10
-                }
-
-                WallpaperCard {
-                    id: systemCard
-                    group: "System"
-                    directory: "/usr/share/wallpapers/deepin/"
-
-                    Layout.alignment: Qt.AlignVCenter
-                    modelData: personalization.wallpaperModel(group, directory)
-                    visible: modelData.count > 0
-                    titleText: qsTr("System Picture")
-                    descriptionText: qsTr("Show All") + "-" + modelData.count
-                    descriptionVisiable: modelData.count > 10
-                }
+                Layout.alignment: Qt.AlignVCenter
+                modelData: personalization.wallpaperModel(group, directory)
+                visible: true
+                titleText: qsTr("System Picture")
+                descriptionText: qsTr("Show All") + "-" + modelData.count
+                descriptionVisiable: modelData.count > 10
             }
         }
     }
