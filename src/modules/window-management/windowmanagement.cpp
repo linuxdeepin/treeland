@@ -58,9 +58,8 @@ void WindowManagementV1::create(WServer *server)
     m_handle = treeland_window_management_v1::create(server->handle());
 
     connect(m_handle, &treeland_window_management_v1::requestShowDesktop, [this](uint32_t state) {
-        DesktopState s = static_cast<DesktopState >(state);
+        DesktopState s = static_cast<DesktopState>(state);
         setDesktopState(s);
-        Q_EMIT requestShowDesktop(state);
     });
 }
 
