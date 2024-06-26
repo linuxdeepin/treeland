@@ -170,13 +170,27 @@ FocusScope {
                     target: Helper.xdgDecorationManager
                     function onSurfaceModeChanged(surface,mode) {
                         if (wrapper.waylandSurface.surface === surface) {
-                            wrapper.decoration.enable = mode !== XdgDecorationManager.Client
+                            if (Helper.clientName(waylandSurface.surface) === "dde-desktop") {
+                                wrapper.decoration.enable = false
+                            }
+                            else if (Helper.clientName(waylandSurface.surface) === "dde-launchpad") {
+                                wrapper.decoration.enable = false
+                            } else {
+                                wrapper.decoration.enable = mode !== XdgDecorationManager.Client
+                            }
                         }
                     }
                 }
 
                 Component.onCompleted: {
-                    wrapper.decoration.enable = Helper.xdgDecorationManager.modeBySurface(wrapper.waylandSurface.surface) !== XdgDecorationManager.Client
+                    if (Helper.clientName(waylandSurface.surface) === "dde-desktop") {
+                        wrapper.decoration.enable = false
+                    }
+                    else if (Helper.clientName(waylandSurface.surface) === "dde-launchpad") {
+                        wrapper.decoration.enable = false
+                    } else {
+                        wrapper.decoration.enable = Helper.xdgDecorationManager.modeBySurface(wrapper.waylandSurface.surface) !== XdgDecorationManager.Client
+                    }
                 }
             }
         }
