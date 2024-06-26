@@ -239,8 +239,7 @@ void Helper::initProtocols(WOutputRenderWindow *window)
                                                           Q_ARG(int, m_currentWorkspaceId));
                     auto wid = retValue.toQObject()->property("wsid");
 
-                    qCDebug(HelperDebugLog)
-                        << "new xwayland surface, wid: " << wid;
+                    qCDebug(HelperDebugLog) << "new xwayland surface, wid: " << wid;
 
                     initProperties.setProperty("workspaceId", engine->toScriptValue(wid));
 
@@ -918,6 +917,15 @@ void Helper::setActivateSurface(WToplevelSurface *newActivate)
         m_activateSurface->setActivate(false);
     }
     m_activateSurface = newActivate;
+
+    static QMetaObject::Connection invalidCheck;
+    disconnect(invalidCheck);
+    invalidCheck =
+        connect(newActivate, &WToplevelSurface::aboutToBeInvalidated, this, [newActivate, this] {
+            newActivate->setActivate(false);
+            setActivateSurface(nullptr);
+        });
+
     if (newActivate)
         newActivate->setActivate(true);
     Q_EMIT activatedSurfaceChanged();
