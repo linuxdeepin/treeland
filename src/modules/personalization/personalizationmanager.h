@@ -49,7 +49,6 @@ private:
 class PersonalizationV1 : public QObject, public WServerInterface
 {
     Q_OBJECT
-    QML_ATTACHED(QuickPersonalizationManagerAttached)
 
     Q_PROPERTY(uid_t userId READ userId WRITE setUserId NOTIFY userIdChanged FINAL)
     Q_PROPERTY(QString cursorTheme READ cursorTheme WRITE setCursorTheme NOTIFY cursorThemeChanged FINAL)
@@ -70,7 +69,7 @@ public:
     void onGetCursorTheme(personalization_cursor_context_v1 *context);
     void onGetCursorSize(personalization_cursor_context_v1 *context);
 
-    static QuickPersonalizationManagerAttached *qmlAttachedProperties(QObject *target);
+    Q_INVOKABLE QuickPersonalizationManagerAttached *Attached(QObject *target);
 
     uid_t userId();
     void setUserId(uid_t uid);

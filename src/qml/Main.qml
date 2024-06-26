@@ -56,7 +56,7 @@ Item {
         Item {
             id: outputLayout
             // register backgroundImage
-            property var personalizationMapper: outputLayout.PersonalizationV1
+            property var personalizationMapper: PersonalizationV1.Attach(outputLayout)
 
             DynamicCreatorComponent {
                 id: outputDelegateCreator
