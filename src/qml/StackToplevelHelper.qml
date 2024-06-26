@@ -16,7 +16,7 @@ Item {
     required property DynamicCreatorComponent creator
     required property SurfaceItemFactory surfaceWrapper
     property WindowDecoration decoration
-    property var quickForeignToplevelManageMapper: waylandSurface.ForeignToplevelV1
+    property var quickForeignToplevelManageMapper: ForeignToplevelV1.Attached(waylandSurface)
 
     property OutputItem output
     property CoordMapper outputCoordMapper
