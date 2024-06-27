@@ -20,6 +20,8 @@
 #include <qwxdgshell.h>
 
 #include <QDebug>
+#include <QFile>
+#include <QRegularExpression>
 #include <QTimer>
 
 #include <sys/socket.h>
@@ -131,6 +133,23 @@ wl_global *ForeignToplevelV1::global() const
 
 void ForeignToplevelV1::add(WToplevelSurface *surface)
 {
+    /* TODO: dde-desktop and dde-launchpad are not supported yet */
+    wl_client *client = surface->surface()->handle()->handle()->resource->client;
+    pid_t pid;
+    wl_client_get_credentials(client, &pid, nullptr, nullptr);
+
+    QString programName;
+    QFile file(QString("/proc/%1/status").arg(pid));
+    if (file.open(QFile::ReadOnly)) {
+        programName =
+            QString(file.readLine()).section(QRegularExpression("([\\t ]*:[\\t ]*|\\n)"), 1, 1);
+    }
+
+    if (programName == "dde-desktop" || programName == "dde-launchpad") {
+        return;
+    }
+    /* TODO: end */
+
     auto handle = std::shared_ptr<treeland_foreign_toplevel_handle_v1>(
         treeland_foreign_toplevel_handle_v1::create(m_manager));
     m_surfaces.insert({ surface, handle });
@@ -246,6 +265,10 @@ void ForeignToplevelV1::add(WToplevelSurface *surface)
 
 void ForeignToplevelV1::remove(WToplevelSurface *surface)
 {
+    if (!m_surfaces.count(surface)) {
+        return;
+    }
+
     for (auto co : m_connections[surface]) {
         QObject::disconnect(co);
     }
