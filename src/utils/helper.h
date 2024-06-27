@@ -142,6 +142,8 @@ public:
     Q_INVOKABLE Margins getOutputExclusiveMargins(WOutput *output);
     std::pair<WOutput *, OutputInfo *> getFirstOutputOfSurface(WToplevelSurface *surface);
 
+    Q_INVOKABLE bool selectSurfaceToActivate(WToplevelSurface *surface) const;
+
 public Q_SLOTS:
     void startMove(WToplevelSurface *surface, WSurfaceItem *shell, WSeat *seat, int serial);
     void startResize(
