@@ -615,6 +615,21 @@ std::pair<WOutput *, OutputInfo *> Helper::getFirstOutputOfSurface(WToplevelSurf
     return std::make_pair(nullptr, nullptr);
 }
 
+bool Helper::selectSurfaceToActivate(WToplevelSurface *surface) const {
+    if (!surface) {
+        return false;
+    }
+
+    if (surface->isMinimized()) {
+        return false;
+    }
+
+    if (surface->doesNotAcceptFocus())
+        return false;
+
+    return true;
+}
+
 void Helper::setMovingItem(WSurfaceItem *newMovingItem)
 {
     if (moveReiszeState.movingItem == newMovingItem)
