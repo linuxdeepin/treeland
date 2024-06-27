@@ -138,27 +138,27 @@ void ForeignToplevelV1::add(WToplevelSurface *surface)
     // initSurface
     std::vector<QMetaObject::Connection> connection;
 
-    connection.push_back(connect(surface, &WToplevelSurface::titleChanged, this, [=] {
+    connection.push_back(surface->safeConnect(&WToplevelSurface::titleChanged, this, [=] {
         handle->set_title(surface->title());
     }));
 
-    connection.push_back(connect(surface, &WToplevelSurface::appIdChanged, this, [=] {
+    connection.push_back(surface->safeConnect(&WToplevelSurface::appIdChanged, this, [=] {
         handle->set_app_id(surface->appId());
     }));
 
-    connection.push_back(connect(surface, &WToplevelSurface::minimizeChanged, this, [=] {
+    connection.push_back(surface->safeConnect(&WToplevelSurface::minimizeChanged, this, [=] {
         handle->set_minimized(surface->isMinimized());
     }));
 
-    connection.push_back(connect(surface, &WToplevelSurface::maximizeChanged, this, [=] {
+    connection.push_back(surface->safeConnect(&WToplevelSurface::maximizeChanged, this, [=] {
         handle->set_maximized(surface->isMaximized());
     }));
 
-    connection.push_back(connect(surface, &WToplevelSurface::fullscreenChanged, this, [=] {
+    connection.push_back(surface->safeConnect(&WToplevelSurface::fullscreenChanged, this, [=] {
         handle->set_fullscreen(surface->isFullScreen());
     }));
 
-    connection.push_back(connect(surface, &WToplevelSurface::activateChanged, this, [=] {
+    connection.push_back(surface->safeConnect(&WToplevelSurface::activateChanged, this, [=] {
         handle->set_activated(surface->isActivated());
     }));
 
