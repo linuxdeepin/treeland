@@ -81,7 +81,7 @@ FocusScope {
     }
 
     function selectSurfaceToActivate() {
-        const nextIndex = surfacesModel.findIf( (data) => !data.item.shellSurface.isMinimized )
+        const nextIndex = surfacesModel.findIf( (data) => Helper.selectSurfaceToActivate(data.item.shellSurface))
         if (nextIndex >= 0)
             Helper.activatedSurface = surfacesModel.get(nextIndex).item.shellSurface
         else Helper.activatedSurface = null

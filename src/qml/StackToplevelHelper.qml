@@ -316,6 +316,7 @@ Item {
         waylandSurface.setMinimize(true)
 
         if (Helper.activatedSurface === waylandSurface) {
+            Helper.activatedSurface = null
             surface.parent.selectSurfaceToActivate()
         }
     }
@@ -335,6 +336,7 @@ Item {
         Helper.activatedSurface = waylandSurface
 
         surface.visible = true;
+        surface.focus = true;
 
         waylandSurface.setMinimize(false)
     }

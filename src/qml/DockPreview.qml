@@ -33,6 +33,7 @@ Item {
 
     function close() {
         visible = false;
+        filterModel.desiredSurfaces = []
         stopped();
     }
 
@@ -150,6 +151,7 @@ Item {
             model: filterModel
             delegate: Item {
                 required property Item item
+                required property var wrapper
                 property Item surfaceItem: item
                 width: 180
                 height: 180
@@ -191,7 +193,7 @@ Item {
                     MouseArea {
                         anchors.fill: parent
                         onClicked: {
-                            surfaceActivated(surfaceItem);
+                            surfaceActivated(wrapper);
                             exitedTimer.start();
                         }
                     }
