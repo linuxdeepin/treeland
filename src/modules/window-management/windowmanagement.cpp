@@ -34,13 +34,13 @@ void WindowManagementV1::setDesktopState(DesktopState state)
     uint32_t s = 0;
     switch (state) {
     case DesktopState::Normal:
-        s = TREELAND_WINDOW_MANAGEMENT_V1_DESKTOP_STATE_NORMAL;
+        s = WINDOW_MANAGEMENT_V1_DESKTOP_STATE_NORMAL;
         break;
     case DesktopState::Show:
-        s = TREELAND_WINDOW_MANAGEMENT_V1_DESKTOP_STATE_SHOW;
+        s = WINDOW_MANAGEMENT_V1_DESKTOP_STATE_SHOW;
         break;
     case DesktopState::Preview:
-        s = TREELAND_WINDOW_MANAGEMENT_V1_DESKTOP_STATE_PREVIEW_SHOW;
+        s = WINDOW_MANAGEMENT_V1_DESKTOP_STATE_PREVIEW_SHOW;
         break;
     default:
         Q_UNREACHABLE();
