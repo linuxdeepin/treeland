@@ -238,6 +238,7 @@ Item {
                 WaylibHelper.itemStackToTop(surface)
                 if (surface.effectiveVisible) {
                     Helper.activatedSurface = waylandSurface
+                    surface.focus = true;
                 }
             }
         }
