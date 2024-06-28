@@ -28,7 +28,7 @@ Item {
     Binding {
         target: Helper.seat
         property: "keyboardFocus"
-        value: Helper.getFocusSurfaceFrom(renderWindow.activeFocusItem)
+        value: Helper.activatedSurface?.surface || null
     }
 
     OutputRenderWindow {
@@ -51,17 +51,9 @@ Item {
         }
 
         onActiveFocusItemChanged: {
-            // in case unexpected behavior happens
+            // Focus does not return to the workspace when a popup is closed from within QML
             if (activeFocusItem === renderWindow.contentItem) {
-                console.warn('focusOnroot')
-                // manually pick one child to focus
-                for(let item of renderWindow.contentItem.children) {
-                    if (item.focus) {
-                        item.forceActiveFocus()
-                        return
-                    }
-                }
-                console.exception('no active focus !!!')
+                workspaceLoader.forceActiveFocus()
             }
         }
 
