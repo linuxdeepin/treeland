@@ -615,7 +615,8 @@ std::pair<WOutput *, OutputInfo *> Helper::getFirstOutputOfSurface(WToplevelSurf
     return std::make_pair(nullptr, nullptr);
 }
 
-bool Helper::selectSurfaceToActivate(WToplevelSurface *surface) const {
+bool Helper::selectSurfaceToActivate(WToplevelSurface *surface) const
+{
     if (!surface) {
         return false;
     }
@@ -895,7 +896,7 @@ WToplevelSurface *Helper::activatedSurface() const
 
 void Helper::setActivateSurface(WToplevelSurface *newActivate)
 {
-    qDebug() << "setActivateSurf" << newActivate;
+    qCDebug(HelperDebugLog) << newActivate;
     if (newActivate) {
         wl_client *client = newActivate->surface()->handle()->handle()->resource->client;
         pid_t pid;
@@ -921,8 +922,10 @@ void Helper::setActivateSurface(WToplevelSurface *newActivate)
     if (newActivate && newActivate->doesNotAcceptFocus())
         return;
 
-    if (m_activateSurface) {
+    if (m_activateSurface && m_activateSurface->isActivated()) {
         if (newActivate) {
+            qCDebug(HelperDebugLog)
+                << "newActivate keyboardFocusPriority " << newActivate->keyboardFocusPriority();
             if (m_activateSurface->keyboardFocusPriority() > newActivate->keyboardFocusPriority())
                 return;
         } else {
@@ -931,10 +934,14 @@ void Helper::setActivateSurface(WToplevelSurface *newActivate)
         }
         m_activateSurface->setActivate(false);
     }
-    m_activateSurface = newActivate;
 
     static QMetaObject::Connection invalidCheck;
     disconnect(invalidCheck);
+
+    m_activateSurface = newActivate;
+
+    qCDebug(HelperDebugLog) << "Surface: " << newActivate << " is activated";
+
     invalidCheck =
         connect(newActivate, &WToplevelSurface::aboutToBeInvalidated, this, [newActivate, this] {
             newActivate->setActivate(false);
