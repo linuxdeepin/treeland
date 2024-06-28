@@ -108,6 +108,7 @@ FocusScope {
             model: workspaceManager.layoutOrder
             anchors.fill: parent
             delegate: ToplevelContainer {
+                id: container
                 objectName: `ToplevelContainer ${wsid}`
                 required property int index
                 required property int wsid
@@ -120,6 +121,34 @@ FocusScope {
                 Component.onCompleted: {
                     workspaceManager.workspacesById.set(workspaceId, this)
                 }
+
+                Connections {
+                    target: Helper
+                    function onActivatedSurfaceChanged() {
+                        // FIXME:When the layershell is closed, the focus cannot
+                        //       be returned to the workspace. because the two are parallel layers.
+                        if (!Helper.activatedSurface && container.visible) {
+                            container.forceActiveFocus()
+                        }
+                    }
+                }
+            }
+        }
+
+        DynamicCreatorComponent {
+            id: layerComponent
+            creator: Helper.layerShellCreator
+            autoDestroy: false
+
+            onObjectRemoved: function (obj) {
+                obj.doDestroy()
+            }
+
+            LayerSurface {
+                id: layerSurface
+                creator: layerComponent
+                activeOutputItem: activeOutputDelegate
+                focus: Helper.activatedSurface === this.waylandSurface
             }
         }
 
@@ -327,23 +356,6 @@ FocusScope {
                 }
 
             }
-        }
-    }
-
-    DynamicCreatorComponent {
-        id: layerComponent
-        creator: Helper.layerShellCreator
-        autoDestroy: false
-
-        onObjectRemoved: function (obj) {
-            obj.doDestroy()
-        }
-
-        LayerSurface {
-            id: layerSurface
-            creator: layerComponent
-            activeOutputItem: activeOutputDelegate
-            focus: Helper.activatedSurface === this.waylandSurface
         }
     }
 
