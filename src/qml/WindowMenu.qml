@@ -48,12 +48,12 @@ D.Menu {
 
     D.MenuItem {
         text: qsTr("Move to Work Space Left")
-        onTriggered: QmlHelper.shortcutManager.moveToNeighborWorkspace(1)
+        onTriggered: QmlHelper.shortcutManager.moveToNeighborWorkspace(-1)
     }
 
     D.MenuItem {
         text: qsTr("Move to Work Space Right")
-        onTriggered: QmlHelper.shortcutManager.moveToNeighborWorkspace(-1)
+        onTriggered: QmlHelper.shortcutManager.moveToNeighborWorkspace(1)
     }
 
     D.MenuItem {
