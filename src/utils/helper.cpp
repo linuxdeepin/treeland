@@ -342,9 +342,9 @@ void Helper::initProtocols(WOutputRenderWindow *window)
                                                                  "PrimaryOutputV1");
                 Q_ASSERT(primaryOutput);
 
-                primaryOutput->newOutput(output);
+                primaryOutput->removeOutput(output);
 
-                outputManager->newOutput(output);
+                outputManager->removeOutput(output);
             });
 
     connect(backend, &WBackend::inputAdded, this, [this](WInputDevice *device) {
