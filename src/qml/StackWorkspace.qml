@@ -25,7 +25,7 @@ FocusScope {
         if (toplevel) {
             return {
                 shell: toplevel,
-                item: toplevel,
+                item: toplevel.asXdg,
                 type: "toplevel"
             }
         }
@@ -52,7 +52,7 @@ FocusScope {
         if (xwayland) {
             return {
                 shell: xwayland,
-                item: xwayland,
+                item: xwayland.asXwayland,
                 type: "xwayland"
             }
         }
@@ -238,7 +238,7 @@ FocusScope {
                 property string type
 
                 property alias xdgSurface: popupSurfaceItem
-                property var parentItem: root.getSurfaceItemFromWaylandSurface(waylandSurface.parentSurface)?.item?.surfaceItem
+                property var parentItem: root.getSurfaceItemFromWaylandSurface(waylandSurface.parentSurface)?.item
 
                 parent: parentItem ?? root
                 visible: parentItem?.effectiveVisible

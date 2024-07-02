@@ -25,7 +25,7 @@ Item {
         if (toplevel) {
             return {
                 shell: toplevel,
-                item: toplevel,
+                item: toplevel.asXdg,
                 type: "toplevel"
             }
         }
@@ -52,7 +52,7 @@ Item {
         if (xwayland) {
             return {
                 shell: xwayland,
-                item: xwayland,
+                item: xwayland.asXwayland,
                 type: "xwayland"
             }
         }
