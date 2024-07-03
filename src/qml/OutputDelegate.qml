@@ -11,6 +11,8 @@ OutputItem {
     required property WaylandOutput waylandOutput
     property OutputViewport onscreenViewport: outputViewport
     property Cursor waylandCursor
+    property var attachVirtualOutput: VirtualOutputV1.Attach(outputViewport)
+    property var attachViewport: attachVirtualOutput.outputViewport
 
     output: waylandOutput
     devicePixelRatio: waylandOutput.scale
@@ -42,6 +44,13 @@ OutputItem {
 
     OutputViewport {
         id: outputViewport
+
+        input: (waylandOutput && (waylandOutput !== attachViewport.output)) ? textureProxp : null
+        TextureProxy {
+            id: textureProxp
+            sourceItem: attachViewport
+            anchors.fill: parent
+        }
 
         output: waylandOutput
         devicePixelRatio: parent.devicePixelRatio
