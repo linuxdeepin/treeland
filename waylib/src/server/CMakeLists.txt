@@ -199,6 +199,7 @@ set(HEADERS
     qtquick/wxwaylandsurfaceitem.h
     qtquick/winputpopupsurfaceitem.h
     qtquick/wqmlcreator.h
+    qtquick/wbuffertextureprovider.h
 
     utils/wtools.h
     utils/wthreadutils.h

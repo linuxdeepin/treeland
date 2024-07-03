@@ -16,6 +16,7 @@ QT_END_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
 class WSurfaceItemContentPrivate;
+class WBufferTextureProvider;
 class WAYLIB_SERVER_EXPORT WSurfaceItemContent : public QQuickItem
 {
     Q_OBJECT
@@ -32,6 +33,7 @@ public:
 
     bool isTextureProvider() const override;
     QSGTextureProvider *textureProvider() const override;
+    WBufferTextureProvider *wTextureProvider() const;
 
     bool cacheLastBuffer() const;
     void setCacheLastBuffer(bool newCacheLastBuffer);
