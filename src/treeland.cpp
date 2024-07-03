@@ -17,6 +17,7 @@
 #include "shortcutmanager.h"
 #include "wallpapercolor.h"
 #include "windowmanagement.h"
+#include "virtualoutputmanager.h"
 
 #include <WCursor>
 #include <WSeat>
@@ -283,6 +284,11 @@ void TreeLand::setup()
                                                      0,
                                                      "WindowManagementV1",
                                                      m_server->attach<WindowManagementV1>());
+    qmlRegisterSingletonInstance<VirtualOutputV1>("TreeLand.Protocols",
+                                                     1,
+                                                     0,
+                                                     "VirtualOutputV1",
+                                                     m_server->attach<VirtualOutputV1>());
 
     m_engine->loadFromModule("TreeLand", "Main");
 
