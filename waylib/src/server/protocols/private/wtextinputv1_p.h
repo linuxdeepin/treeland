@@ -10,7 +10,6 @@
 #include <qwglobal.h>
 
 #include <QObject>
-#include <QQmlEngine>
 #include <QRect>
 
 extern "C" {

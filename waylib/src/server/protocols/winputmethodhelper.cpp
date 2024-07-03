@@ -4,6 +4,7 @@
 #include "winputmethodhelper.h"
 #include "wtextinputv3_p.h"
 #include "wtextinputv1_p.h"
+#include "wtextinputv2_p.h"
 #include "wtextinput_p.h"
 #include "winputmethodv2_p.h"
 #include "wvirtualkeyboardv1_p.h"
@@ -76,6 +77,7 @@ public:
         , seat(st)
         , inputMethodManagerV2(server->attach<WInputMethodManagerV2>())
         , textInputManagerV1(server->attach<WTextInputManagerV1>())
+        , textInputManagerV2(server->attach<WTextInputManagerV2>())
         , textInputManagerV3(server->attach<WTextInputManagerV3>())
         , virtualKeyboardManagerV1(server->attach<WVirtualKeyboardManagerV1>())
         , activeTextInput(nullptr)
@@ -88,15 +90,16 @@ public:
         Q_ASSERT(server);
         Q_ASSERT(seat);
         Q_ASSERT(inputMethodManagerV2);
-        Q_ASSERT(textInputManagerV3);
         Q_ASSERT(textInputManagerV1);
-
+        Q_ASSERT(textInputManagerV2);
+        Q_ASSERT(textInputManagerV3);
     }
 
     const QPointer<WServer> server;
     const QPointer<WSeat> seat;
     const QPointer<WInputMethodManagerV2> inputMethodManagerV2;
     const QPointer<WTextInputManagerV1> textInputManagerV1;
+    const QPointer<WTextInputManagerV2> textInputManagerV2;
     const QPointer<WTextInputManagerV3> textInputManagerV3;
     const QPointer<WVirtualKeyboardManagerV1> virtualKeyboardManagerV1;
     WTextInput *activeTextInput { nullptr };
@@ -122,6 +125,7 @@ WInputMethodHelper::WInputMethodHelper(WServer *server, WSeat *seat)
     connect(d->textInputManagerV3, &WTextInputManagerV3::newTextInput, this, &WInputMethodHelper::handleNewTI);
     connect(d->virtualKeyboardManagerV1, &WVirtualKeyboardManagerV1::newVirtualKeyboard, this, &WInputMethodHelper::handleNewVKV1);
     connect(d->textInputManagerV1, &WTextInputManagerV1::newTextInput, this, &WInputMethodHelper::handleNewTI);
+    connect(d->textInputManagerV2, &WTextInputManagerV2::newTextInput, this, &WInputMethodHelper::handleNewTI);
 }
 
 WInputMethodHelper::~WInputMethodHelper()
@@ -130,6 +134,7 @@ WInputMethodHelper::~WInputMethodHelper()
     if (d->seat) d->seat->safeDisconnect(this);
     if (d->inputMethodManagerV2) d->inputMethodManagerV2->disconnect(this);
     if (d->textInputManagerV1) d->textInputManagerV1->disconnect(this);
+    if (d->textInputManagerV2) d->textInputManagerV2->disconnect(this);
     if (d->textInputManagerV3) d->textInputManagerV3->disconnect(this);
     if (d->virtualKeyboardManagerV1) d->virtualKeyboardManagerV1->disconnect(this);
 }
@@ -301,12 +306,16 @@ void WInputMethodHelper::handleNewVKV1(QWVirtualKeyboardV1 *vkv1)
 void WInputMethodHelper::resendKeyboardFocus()
 {
     W_D(WInputMethodHelper);
+    qCInfo(qLcInputMethod()) << "resend keyboard focus";
     notifyLeave();
     auto focus = d->seat->keyboardFocusSurface();
     if (!focus)
         return;
+    qCDebug(qLcInputMethod) << "focus" << focus << "from client" << focus->waylandClient();
     for (auto textInput : d->textInputs) {
+        qCDebug(qLcInputMethod()) << "trying to send focus to" << textInput << "from client" << textInput->waylandClient();
         if (focus->waylandClient() == textInput->waylandClient()) {
+            qCDebug(qLcInputMethod) << "focus sent to" << textInput;
             textInput->sendEnter(focus);
         }
     }
@@ -315,6 +324,7 @@ void WInputMethodHelper::resendKeyboardFocus()
 
 void WInputMethodHelper::connectToTI(WTextInput *ti)
 {
+    qCDebug(qLcInputMethod()) << "connect to text input" << ti;
     connect(ti, &WTextInput::enabled, this, &WInputMethodHelper::handleTIEnabled, Qt::UniqueConnection);
     connect(ti, &WTextInput::disabled, this, &WInputMethodHelper::handleTIDisabled, Qt::UniqueConnection);
     connect(ti, &WTextInput::requestLeave, ti, &WTextInput::sendLeave, Qt::UniqueConnection);
@@ -338,6 +348,8 @@ void WInputMethodHelper::disableTI(WTextInput *ti)
 void WInputMethodHelper::handleNewTI(WTextInput *ti)
 {
     W_D(WInputMethodHelper);
+    qCDebug(qLcInputMethod()) << "handle new text input" << ti
+                              << "from seat:" << ti->seat();
     if (d->textInputs.contains(ti))
         return;
     d->textInputs.append(ti);
@@ -398,6 +410,8 @@ void WInputMethodHelper::handleFocusedTICommitted()
 {
     auto ti = focusedTextInput();
     Q_ASSERT(ti);
+    qCDebug(qLcInputMethod) << "Focused text input" << ti << "committed."
+                            << "Cursor rectangle:" << ti->cursorRect();
     auto im = inputMethod();
     if (im) {
         IME::Features features = ti->features();
@@ -426,7 +440,9 @@ void WInputMethodHelper::handleIMCommitted()
 void WInputMethodHelper::notifyLeave()
 {
     if (auto ti = focusedTextInput()) {
-        ti->sendLeave();
+        if (ti->focusedSurface()) {
+            ti->sendLeave();
+        }
     }
 }
 

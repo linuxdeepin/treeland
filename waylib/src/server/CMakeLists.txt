@@ -58,6 +58,13 @@ ws_generate(
 ws_generate(
     server
     wayland-protocols
+    ${CMAKE_CURRENT_LIST_DIR}/protocols/private/text-input-unstable-v2.xml
+    text-input-unstable-v2-protocol
+)
+
+ws_generate(
+    server
+    wayland-protocols
     unstable/xdg-output/xdg-output-unstable-v1.xml
     xdg-output-unstable-v1-protocol
 )
@@ -108,6 +115,7 @@ set(SOURCES
     qtquick/private/wrenderbuffernode.cpp
 
     ${CMAKE_CURRENT_BINARY_DIR}/text-input-unstable-v1-protocol.c
+    ${CMAKE_CURRENT_BINARY_DIR}/text-input-unstable-v2-protocol.c
     ${CMAKE_CURRENT_BINARY_DIR}/xdg-output-unstable-v1-protocol.c
 
     utils/wtools.cpp
@@ -133,6 +141,7 @@ set(SOURCES
     protocols/winputpopupsurface.cpp
     protocols/private/winputmethodv2.cpp
     protocols/private/wtextinputv1.cpp
+    protocols/private/wtextinputv2.cpp
     protocols/private/wtextinputv3.cpp
     protocols/private/wvirtualkeyboardv1.cpp
     protocols/wcursorshapemanagerv1.cpp
@@ -240,11 +249,13 @@ set(PRIVATE_HEADERS
     qtquick/private/wsurfaceitem_p.h
 
     ${CMAKE_CURRENT_BINARY_DIR}/text-input-unstable-v1-protocol.h
+    ${CMAKE_CURRENT_BINARY_DIR}/text-input-unstable-v2-protocol.h
     ${CMAKE_CURRENT_BINARY_DIR}/xdg-output-unstable-v1-protocol.h
 
     protocols/private/winputmethodv2_p.h
     protocols/private/wtextinput_p.h
     protocols/private/wtextinputv1_p.h
+    protocols/private/wtextinputv2_p.h
     protocols/private/wtextinputv3_p.h
     protocols/private/wvirtualkeyboardv1_p.h
 )
