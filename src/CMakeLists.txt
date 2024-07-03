@@ -44,6 +44,7 @@ target_link_libraries(treeland
         shortcut
         wallpaper-color
         window-management
+        virtual-output
 )
 
 target_compile_definitions(treeland
