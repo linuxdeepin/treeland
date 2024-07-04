@@ -71,6 +71,7 @@ public:
     QMarginsF paddings;
     QList<WSurfaceItem*> subsurfaces;
     qreal surfaceSizeRatio = 1.0;
+    bool live = true;
 
     uint32_t beforeRequestResizeSurfaceStateSeq = 0;
 };

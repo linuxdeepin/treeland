@@ -23,6 +23,7 @@ class WAYLIB_SERVER_EXPORT WSurfaceItemContent : public QQuickItem
     Q_DECLARE_PRIVATE(WSurfaceItemContent)
     Q_PROPERTY(WSurface* surface READ surface WRITE setSurface NOTIFY surfaceChanged FINAL)
     Q_PROPERTY(bool cacheLastBuffer READ cacheLastBuffer WRITE setCacheLastBuffer NOTIFY cacheLastBufferChanged FINAL)
+    Q_PROPERTY(bool live READ live WRITE setLive NOTIFY liveChanged FINAL)
     QML_NAMED_ELEMENT(SurfaceItemContent)
 
 public:
@@ -38,9 +39,13 @@ public:
     bool cacheLastBuffer() const;
     void setCacheLastBuffer(bool newCacheLastBuffer);
 
+    bool live() const;
+    void setLive(bool live);
+
 Q_SIGNALS:
     void surfaceChanged();
     void cacheLastBufferChanged();
+    void liveChanged();
 
 private:
     friend class WSurfaceItem;

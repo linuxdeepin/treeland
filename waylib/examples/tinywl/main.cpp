@@ -597,15 +597,16 @@ bool Helper::startDemoClient(const QString &socket)
 #ifdef START_DEMO
     QProcess waylandClientDemo;
 
-    waylandClientDemo.setProgram("qml");
-    waylandClientDemo.setArguments({"-a", "widget", SOURCE_DIR"/ClientWindow.qml", "-platform", "wayland"});
+    waylandClientDemo.setProgram(PROJECT_BINARY_DIR"/examples/animationclient/animationclient");
+    waylandClientDemo.setArguments({"-platform", "wayland"});
     QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
     env.insert("WAYLAND_DISPLAY", socket);
 
     waylandClientDemo.setProcessEnvironment(env);
     return waylandClientDemo.startDetached();
-#endif
+#else
     return false;
+#endif
 }
 
 WSurface *Helper::getFocusSurfaceFrom(QObject *object)
