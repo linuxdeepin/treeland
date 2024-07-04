@@ -11,7 +11,7 @@ D.Menu {
     signal requestMinimize
     signal requestMaximize(var max)
     signal requestClose
-    signal requestResize(var edges)
+    signal requestResize(var edges, bool movecursor)
 
     D.MenuItem {
         text: qsTr("Minimize")
@@ -35,7 +35,7 @@ D.Menu {
 
     D.MenuItem {
         text: qsTr("Resize")
-        onTriggered: requestResize(Qt.BottomEdge | Qt.RightEdge)
+        onTriggered: requestResize(Qt.BottomEdge | Qt.RightEdge, true)
     }
 
     D.MenuItem {
