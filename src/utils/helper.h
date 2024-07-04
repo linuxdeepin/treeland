@@ -149,6 +149,7 @@ public Q_SLOTS:
     void startResize(
         WToplevelSurface *surface, WSurfaceItem *shell, WSeat *seat, Qt::Edges edge, int serial);
     void cancelMoveResize(WSurfaceItem *shell);
+    void moveCursor(WSurfaceItem *shell, WSeat *seat);
     WSurface *getFocusSurfaceFrom(QObject *object);
 
     void allowNonDrmOutputAutoChangeMode(WOutput *output);
@@ -216,6 +217,7 @@ protected:
         QPointer<WToplevelSurface> surface;
         QPointer<WSurfaceItem> surfaceItem;
         WSeat *seat = nullptr;
+        QPointF cursorStartMovePosition;
         QPointF surfacePosOfStartMoveResize;
         QSizeF surfaceSizeOfStartMoveResize;
         Qt::Edges resizeEdgets;
