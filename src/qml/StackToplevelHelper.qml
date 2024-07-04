@@ -120,15 +120,15 @@ Item {
 
                 function onRectangleChanged(edges) {
                     // error
-                    doResize(null, edges, null)
+                    doResize(null, edges, null, false)
                 }
 
                 function onRequestMove() {
                     doMove(null, 0)
                 }
 
-                function onRequestResize(edges) {
-                    doResize(null, edges, null)
+                function onRequestResize(edges, movecursor) {
+                    doResize(Helper.seat, edges, null, movecursor)
                 }
             }
         }
@@ -283,9 +283,12 @@ Item {
         Helper.startMove(waylandSurface, surface, seat, serial)
     }
 
-    function doResize(seat, edges, serial) {
+    function doResize(seat, edges, serial, movecursor) {
         if (waylandSurface.isMaximized)
             return
+
+        if (movecursor)
+            Helper.moveCursor(surface, seat)
 
         Helper.startResize(waylandSurface, surface, seat, edges, serial)
     }

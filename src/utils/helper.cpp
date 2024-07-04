@@ -665,6 +665,9 @@ void Helper::startMove(WToplevelSurface *surface, WSurfaceItem *shell, WSeat *se
     moveReiszeState.resizeEdgets = { 0 };
     moveReiszeState.surfacePosOfStartMoveResize =
         getItemGlobalPosition(moveReiszeState.surfaceItem);
+    if (seat)
+        moveReiszeState.cursorStartMovePosition = seat->cursor()->position();
+
     setMovingItem(shell);
 }
 
@@ -683,6 +686,8 @@ void Helper::startResize(
         getItemGlobalPosition(moveReiszeState.surfaceItem);
     moveReiszeState.surfaceSizeOfStartMoveResize = moveReiszeState.surfaceItem->size();
     moveReiszeState.resizeEdgets = edge;
+    if (seat)
+        moveReiszeState.cursorStartMovePosition = seat->cursor()->position();
 
     surface->setResizeing(true);
     setResizingItem(shell);
@@ -693,6 +698,14 @@ void Helper::cancelMoveResize(WSurfaceItem *shell)
     if (moveReiszeState.surfaceItem != shell)
         return;
     stopMoveResize();
+}
+
+void Helper::moveCursor(WSurfaceItem *shell, WSeat *seat)
+{
+    QPointF position = getItemGlobalPosition(shell);
+    QSizeF size = shell->size();
+
+    seat->setCursorPosition(QPointF(position.x() + size.width() + 5, position.y() + size.height() + 5));
 }
 
 WSurface *Helper::getFocusSurfaceFrom(QObject *object)
@@ -822,13 +835,13 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *watched, QInputEvent *even
 
             if (moveReiszeState.resizeEdgets == 0) {
                 auto increment_pos =
-                    ev->globalPosition() - cursor->lastPressedOrTouchDownPosition();
+                    ev->globalPosition() - moveReiszeState.cursorStartMovePosition;
                 auto new_pos = moveReiszeState.surfacePosOfStartMoveResize
                     + moveReiszeState.surfaceItem->parentItem()->mapFromGlobal(increment_pos);
                 moveReiszeState.surfaceItem->setPosition(new_pos);
             } else {
                 auto increment_pos = moveReiszeState.surfaceItem->parentItem()->mapFromGlobal(
-                    ev->globalPosition() - cursor->lastPressedOrTouchDownPosition());
+                    ev->globalPosition() - moveReiszeState.cursorStartMovePosition);
                 QRectF geo(moveReiszeState.surfacePosOfStartMoveResize,
                            moveReiszeState.surfaceSizeOfStartMoveResize);
 

@@ -15,7 +15,7 @@ Item {
     signal requestMinimize
     signal requestMaximize(var max)
     signal requestClose
-    signal requestResize(var edges)
+    signal requestResize(var edges, bool movecursor)
 
     readonly property real topMargin: titlebar.height
     readonly property real bottomMargin: 0
@@ -82,7 +82,7 @@ Item {
             edges = WaylibHelper.getEdges(Qt.rect(0, 0, width, height), Qt.point(event.x, event.y), 10)
             Helper.activatedSurface = surface
             if(edges)
-                root.requestResize(edges)
+                root.requestResize(edges, false)
         }
     }
 
@@ -92,8 +92,8 @@ Item {
         onRequestClose: root.requestClose()
         onRequestMaximize: root.requestMaximize(max)
         onRequestMinimize: root.requestMinimize()
-        onRequestMove:root.requestMove()
-        onRequestResize: root.requestResize(edges)
+        onRequestMove: root.requestMove()
+        onRequestResize: root.requestResize(edges, movecursor)
     }
 
     Item {
