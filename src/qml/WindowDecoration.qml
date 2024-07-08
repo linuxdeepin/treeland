@@ -2,18 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 import QtQuick
-import Qt5Compat.GraphicalEffects
 import QtQuick.Controls
-import QtQuick.Effects
 import Waylib.Server
 import org.deepin.dtk 1.0 as D
 import org.deepin.dtk.style 1.0 as DS
 import TreeLand.Utils
 
-D.RoundRectangle {
+Item {
     id: root
-    corners: D.RoundRectangle.TopLeftCorner | D.RoundRectangle.TopRightCorner
-    color: "transparent"
 
     signal requestMove
     signal requestMinimize
@@ -25,11 +21,13 @@ D.RoundRectangle {
     readonly property real bottomMargin: 0
     readonly property real leftMargin: 0
     readonly property real rightMargin: 0
+    readonly property real titlebarHeight: 30
     property bool moveable: true
     property bool enable: true
     property D.Palette backgroundColor: DS.Style.highlightPanel.background
     property D.Palette outerShadowColor: DS.Style.highlightPanel.dropShadow
     property D.Palette innerShadowColor: DS.Style.highlightPanel.innerShadow
+    property real radius: 0
     required property ToplevelSurface surface
 
     visible: enable
@@ -98,139 +96,138 @@ D.RoundRectangle {
         onRequestResize: root.requestResize(edges)
     }
 
-    D.RoundRectangle {
+    Item {
         id: titlebar
         anchors.top: parent.top
         width: parent.width
-        height: 30
-        radius: parent.radius
-        corners: parent.corners
-        layer.enabled: true
-    }
-    // TODO: use twice element, need optimize.
-    /*  CAUTION: impl of mask clip is riscky
-    *   layer.effect creates a sibling node and set hideSource to true,
-    *   results in both sibling and origin invisible in shadereffectsource when they're not effectiveVisible
-    *   (maybe a bug involving hideSource, if set only one shadereffectsource can display)
-    *   so use opacity=0 & explicit mask effect item
-    */
-    Rectangle {
-        id: titlebarContent
-        anchors.fill: titlebar
+        height: root.titlebarHeight
+        clip: true
 
-        layer.enabled: true
-        opacity: 0
+        D.RoundRectangle {
+            id: titlebarContent
+            width: parent.width
+            height: parent.height + root.radius
 
-        HoverHandler {
-            // block hover events to resizing mouse area, avoid cursor change
-            cursorShape: Qt.ArrowCursor
-        }
-
-        TapHandler {
-            acceptedButtons: Qt.LeftButton | Qt.RightButton
-            onTapped: (eventPoint, button) => {
-                if (button === Qt.RightButton) {
-                    menu.popup(eventPoint.position.x, eventPoint.position.y)
-                }
-                else {
-                    Helper.activatedSurface = surface
-                }
+            HoverHandler {
+                // block hover events to resizing mouse area, avoid cursor change
+                cursorShape: Qt.ArrowCursor
             }
-            onDoubleTapped: (_, button) => {
-                if (button === Qt.LeftButton) {
-                    root.requestMaximize(!surface.isMaximized)
-                }
-            }
-        }
 
-        DragHandler {
-            enabled: moveable
-            target: root.parent
-            onActiveChanged: if (active) {
-                Helper.activatedSurface = surface
-                Helper.movingItem = root.parent
-            } else {
-                Helper.movingItem = null
+            TapHandler {
+                acceptedButtons: Qt.LeftButton | Qt.RightButton
+                onTapped: (eventPoint, button) => {
+                              if (button === Qt.RightButton) {
+                                  menu.popup(eventPoint.position.x, eventPoint.position.y)
+                              }
+                              else {
+                                  Helper.activatedSurface = surface
+                              }
+                          }
+                onDoubleTapped: (_, button) => {
+                                    if (button === Qt.LeftButton) {
+                                        root.requestMaximize(!surface.isMaximized)
+                                    }
+                                }
             }
-            cursorShape: active ? Qt.DragMoveCursor : Qt.ArrowCursor
-        }
 
-        Label {
-            anchors.centerIn: parent
-            clip: true
-            text: surface.title
-        }
-        Row {
-            anchors {
-                verticalCenter: parent.verticalCenter
-                right: parent.right
+            DragHandler {
+                enabled: moveable
+                target: root.parent
+                onActiveChanged: if (active) {
+                                     Helper.activatedSurface = surface
+                                     Helper.movingItem = root.parent
+                                 } else {
+                                     Helper.movingItem = null
+                                 }
+                cursorShape: active ? Qt.DragMoveCursor : Qt.ArrowCursor
+            }
+
+            Label {
+                anchors.centerIn: buttonContainer
+                clip: true
+                text: surface.title
             }
 
             Item {
-                id: control
-                property D.Palette textColor: DS.Style.button.text
-                property D.Palette backgroundColor: DS.Style.windowButton.background
+                id: buttonContainer
+                width: parent.width
+                height: titlebar.height
             }
 
-            Loader {
-                objectName: "minimizeBtn"
-                sourceComponent: D.WindowButton {
-                    icon.name: "window_minimize"
-                    textColor: control.textColor
-                    height: titlebar.height
+            Row {
+                anchors {
+                    verticalCenter: buttonContainer.verticalCenter
+                    right: buttonContainer.right
+                }
 
-                    onClicked: {
-                        root.requestMinimize()
+                Item {
+                    id: control
+                    property D.Palette textColor: DS.Style.button.text
+                    property D.Palette backgroundColor: DS.Style.windowButton.background
+                }
+
+                Loader {
+                    objectName: "minimizeBtn"
+                    sourceComponent: D.WindowButton {
+                        icon.name: "window_minimize"
+                        textColor: control.textColor
+                        height: titlebar.height
+
+                        onClicked: {
+                            root.requestMinimize()
+                        }
                     }
                 }
-            }
 
-            Loader {
-                objectName: "quitFullBtn"
-                visible: false
-                sourceComponent: D.WindowButton {
-                    icon.name: "window_quit_full"
-                    textColor: control.textColor
-                    height: titlebar.height
+                Loader {
+                    objectName: "quitFullBtn"
+                    visible: false
+                    sourceComponent: D.WindowButton {
+                        icon.name: "window_quit_full"
+                        textColor: control.textColor
+                        height: titlebar.height
 
-                    onClicked: {
+                        onClicked: {
+                        }
                     }
                 }
-            }
 
-            Loader {
-                id: maxOrWindedBtn
-                objectName: "maxOrWindedBtn"
-                sourceComponent: D.WindowButton {
-                    icon.name: surface.isMaximized ? "window_restore" : "window_maximize"
-                    textColor: control.textColor
-                    height: titlebar.height
+                Loader {
+                    id: maxOrWindedBtn
+                    objectName: "maxOrWindedBtn"
+                    sourceComponent: D.WindowButton {
+                        icon.name: surface.isMaximized ? "window_restore" : "window_maximize"
+                        textColor: control.textColor
+                        height: titlebar.height
 
-                    onClicked: {
-                        root.requestMaximize(!surface.isMaximized)
+                        onClicked: {
+                            root.requestMaximize(!surface.isMaximized)
+                        }
                     }
                 }
-            }
 
-            Loader {
-                objectName: "closeBtn"
-                sourceComponent: D.WindowButton {
-                    icon.name: "window_close"
-                    textColor: control.textColor
-                    height: titlebar.height
+                Loader {
+                    objectName: "closeBtn"
+                    sourceComponent: D.WindowButton {
+                        icon.name: "window_close"
+                        textColor: control.textColor
+                        height: titlebar.height
 
-                    onClicked: {
-                        root.requestClose()
+                        onClicked: {
+                            root.requestClose()
+                        }
                     }
                 }
             }
         }
-    }
 
-    MultiEffect {
-        source: titlebarContent
-        anchors.fill: titlebar
-        maskEnabled: true
-        maskSource: titlebar
+        D.ItemViewport {
+            anchors.fill: titlebarContent
+            fixed: true
+            enabled: root.radius > 0
+            sourceItem: titlebarContent
+            radius: root.radius * 2 > root.titlebarHeight ? 0 : root.radius
+            hideSource: true
+        }
     }
 }
