@@ -76,7 +76,6 @@ void WQuickOutputLayout::remove(WOutputItem *output)
 
     if (auto o = output->output()) {
         remove(o);
-        o->setLayout(nullptr);
     }
 
     Q_EMIT outputsChanged();
