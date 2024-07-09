@@ -18,7 +18,7 @@ class WAYLIB_SERVER_EXPORT WOutputViewport : public QQuickItem
     Q_OBJECT
     Q_DECLARE_PRIVATE(WOutputViewport)
     Q_PROPERTY(QQuickItem* input READ input WRITE setInput NOTIFY inputChanged RESET resetInput FINAL)
-    Q_PROPERTY(WOutput* output READ output WRITE setOutput REQUIRED)
+    Q_PROPERTY(WOutput* output READ output WRITE setOutput NOTIFY outputChanged REQUIRED)
     Q_PROPERTY(qreal devicePixelRatio READ devicePixelRatio WRITE setDevicePixelRatio NOTIFY devicePixelRatioChanged)
     Q_PROPERTY(bool offscreen READ offscreen WRITE setOffscreen NOTIFY offscreenChanged)
     Q_PROPERTY(bool cacheBuffer READ cacheBuffer WRITE setCacheBuffer NOTIFY cacheBufferChanged FINAL)
@@ -84,6 +84,7 @@ Q_SIGNALS:
     void outputRenderInitialized();
     void inputChanged();
     void liveChanged();
+    void outputChanged();
 
 private:
     void componentComplete() override;

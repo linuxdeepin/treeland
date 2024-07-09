@@ -21,7 +21,7 @@ class WAYLIB_SERVER_EXPORT WOutputItem : public WQuickObserver, public WObject
 {
     Q_OBJECT
     W_DECLARE_PRIVATE(WOutputItem)
-    Q_PROPERTY(WOutput* output READ output WRITE setOutput REQUIRED)
+    Q_PROPERTY(WOutput* output READ output WRITE setOutput NOTIFY outputChanged REQUIRED)
     Q_PROPERTY(WQuickOutputLayout* layout READ layout WRITE setLayout NOTIFY layoutChanged)
     Q_PROPERTY(qreal devicePixelRatio READ devicePixelRatio WRITE setDevicePixelRatio NOTIFY devicePixelRatioChanged)
     Q_PROPERTY(QQmlComponent* cursorDelegate READ cursorDelegate WRITE setCursorDelegate NOTIFY cursorDelegateChanged)
@@ -53,6 +53,7 @@ public:
     QList<QQuickItem*> cursorItems() const;
 
 Q_SIGNALS:
+    void outputChanged();
     void layoutChanged();
     void devicePixelRatioChanged();
     void seatChanged();

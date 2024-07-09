@@ -178,6 +178,7 @@ void WOutputViewport::setOutput(WOutput *newOutput)
         if (newOutput)
             d->initForOutput();
     }
+    Q_EMIT outputChanged();
 }
 
 qreal WOutputViewport::devicePixelRatio() const

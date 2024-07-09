@@ -510,6 +510,7 @@ void WOutputItem::setOutput(WOutput *newOutput)
             d->initForOutput();
         }
     }
+    Q_EMIT outputChanged();
 }
 
 WQuickOutputLayout *WOutputItem::layout() const
