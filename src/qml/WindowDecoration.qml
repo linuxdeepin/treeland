@@ -130,6 +130,14 @@ Item {
                                 }
             }
 
+            TapHandler {
+                acceptedButtons: Qt.NoButton
+                acceptedDevices: PointerDevice.TouchScreen
+                onDoubleTapped: function(eventPoint, button) {
+                    root.requestMaximize(!surface.isMaximized)
+                }
+            }
+
             DragHandler {
                 enabled: moveable
                 target: root.parent
