@@ -28,5 +28,6 @@ Q_SIGNALS:
 
 private:
     void create(WServer *server) override;
+    wl_global *global() const override;
 };
 WAYLIB_SERVER_END_NAMESPACE

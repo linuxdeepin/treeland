@@ -160,8 +160,13 @@ Q_SIGNALS:
 protected:
     void create(WServer *server) override;
     void destroy(WServer *server) override;
+    wl_global *global() const override {
+        return m_global;
+    }
 
 private:
     friend void text_input_manager_get_text_input(wl_client *client, wl_resource *resource, uint32_t id);
+
+    wl_global *m_global = nullptr;
 };
 WAYLIB_SERVER_END_NAMESPACE

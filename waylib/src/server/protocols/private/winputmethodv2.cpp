@@ -55,6 +55,11 @@ void WInputMethodManagerV2::create(WServer *server)
     connect(handle, &QWInputMethodManagerV2::inputMethod, this, &WInputMethodManagerV2::newInputMethod);
 }
 
+wl_global *WInputMethodManagerV2::global() const
+{
+    return nativeInterface<QWInputMethodManagerV2>()->handle()->global;
+}
+
 class WInputMethodV2Private : public WWrapObjectPrivate
 {
 public:

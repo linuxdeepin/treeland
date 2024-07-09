@@ -195,4 +195,9 @@ void WForeignToplevel::destroy(WServer *server) {
 
 }
 
+wl_global *WForeignToplevel::global() const
+{
+    return nativeInterface<QWForeignToplevelManagerV1>()->handle()->global;
+}
+
 WAYLIB_SERVER_END_NAMESPACE

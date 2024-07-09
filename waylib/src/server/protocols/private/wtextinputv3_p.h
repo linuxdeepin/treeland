@@ -124,6 +124,7 @@ Q_SIGNALS:
 private:
     void create(WServer *server) override;
     void destroy(WServer *server) override;
+    wl_global *global() const override;
 };
 Q_DECLARE_OPERATORS_FOR_FLAGS(WTextInputV3::ContentHints)
 Q_DECLARE_OPERATORS_FOR_FLAGS(WTextInputV3::Features)

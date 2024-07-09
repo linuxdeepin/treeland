@@ -32,9 +32,6 @@ class WClient;
 class WServerInterface
 {
 public:
-    explicit WServerInterface(void *handle, wl_global *global);
-    WServerInterface();
-
     virtual ~WServerInterface() {}
     inline void *handle() const {
         return m_handle;
@@ -52,36 +49,18 @@ public:
         return m_server;
     }
 
-    inline void setTargetSocket(const WSocket *socket, bool exclusionMode) {
-        m_targetSocket = socket;
-        m_exclusionTargetSocket = exclusionMode;
-    }
-    inline const WSocket *targetSocket() const {
-        return m_targetSocket;
-    }
-    inline bool exclusionTargetSocket() const {
-        return m_exclusionTargetSocket;
+    inline std::function<bool(WClient*)> filter() const {
+        return m_filter;
     }
 
-    inline void setTargetClients(const QList<WClient*> &clients, bool exclusionMode) {
-        m_targetClients = clients;
-        m_exclusionTargetClients = exclusionMode;
-    }
-    inline QList<WClient*> targetClients() const {
-        return m_targetClients;
-    }
-    inline bool exclusionTargetClients() const {
-        return m_exclusionTargetClients;
+    inline void setFilter(std::function<bool(WClient*)> f) {
+        m_filter = f;
     }
 
 protected:
     void *m_handle = nullptr;
-    wl_global *m_global = nullptr;
     WServer *m_server = nullptr;
-    const WSocket *m_targetSocket = nullptr;
-    QList<WClient*> m_targetClients;
-    uint m_exclusionTargetSocket:1;
-    uint m_exclusionTargetClients:1;
+    std::function<bool(WClient*)> m_filter;
 
     virtual void create(WServer *server) {
         Q_UNUSED(server);
@@ -89,9 +68,7 @@ protected:
     virtual void destroy(WServer *server) {
         Q_UNUSED(server);
     }
-    virtual wl_global *global() const {
-        return m_global;
-    }
+    virtual wl_global *global() const = 0;
 
     friend class WServer;
     friend class WServerPrivate;

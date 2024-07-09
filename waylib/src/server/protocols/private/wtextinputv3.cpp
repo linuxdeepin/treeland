@@ -68,6 +68,11 @@ void WTextInputManagerV3::destroy(WServer *server)
     d_func()->textInputs.clear();
 }
 
+wl_global *WTextInputManagerV3::global() const
+{
+    return nativeInterface<QWTextInputManagerV3>()->handle()->global;
+}
+
 class WTextInputV3Private : public WTextInputPrivate
 {
 public:

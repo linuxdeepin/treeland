@@ -140,8 +140,6 @@ void Helper::initProtocols(WOutputRenderWindow *window, QQmlEngine *qmlEngine)
 
     xwaylandOutputManager->setScaleOverride(1.0);
 
-    xdgOutputManager->setTargetClients(xwaylandOutputManager->targetClients(), true);
-
     connect(xdgShell, &WXdgShell::surfaceAdded, this, [this, qmlEngine, foreignToplevel](WXdgSurface *surface) {
         auto initProperties = qmlEngine->newObject();
         initProperties.setProperty("type", surface->isPopup() ? "popup" : "toplevel");
@@ -166,10 +164,11 @@ void Helper::initProtocols(WOutputRenderWindow *window, QQmlEngine *qmlEngine)
     m_xwayland = m_server->attach<WXWayland>(m_compositor, xwayland_lazy);
     m_xwayland->setSeat(m_seat);
 
-    connect(m_xwayland, &WXWayland::ready, this, [this, xwaylandOutputManager] () {
-        auto clients = xwaylandOutputManager->targetClients();
-        clients.append(m_xwayland->waylandClient());
-        xwaylandOutputManager->setTargetClients(clients, true);
+    xdgOutputManager->setFilter([this] (WClient *client) {
+        return client != m_xwayland->waylandClient();
+    });
+    xwaylandOutputManager->setFilter([this] (WClient *client) {
+        return client == m_xwayland->waylandClient();
     });
 
     connect(m_xwayland, &WXWayland::surfaceAdded, this, [this, qmlEngine] (WXWaylandSurface *surface) {
