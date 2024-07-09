@@ -35,13 +35,13 @@ WAYLIB_SERVER_BEGIN_NAMESPACE
 class WOutputHelperPrivate : public WObjectPrivate
 {
 public:
-    WOutputHelperPrivate(WOutput *output, WOutputHelper *qq)
+    WOutputHelperPrivate(WOutput *output, WOutputHelper *qq, bool r/* renderable */, bool c /*contentIsDirty*/, bool n/*needsFrame*/)
         : WObjectPrivate(qq)
         , output(output)
         , outputWindow(new QW::Window)
-        , renderable(false)
-        , contentIsDirty(false)
-        , needsFrame(false)
+        , renderable(r)
+        , contentIsDirty(c)
+        , needsFrame(n)
     {
         wlr_output_state_init(&state);
 
@@ -152,9 +152,14 @@ QWBuffer *WOutputHelperPrivate::acquireBuffer(wlr_swapchain **sc, int *bufferAge
     return newBuffer;
 }
 
-WOutputHelper::WOutputHelper(WOutput *output, QObject *parent)
+WOutputHelper::WOutputHelper(WOutput *output, bool renderable, bool contentIsDirty, bool needsFrame, QObject *parent)
     : QObject(parent)
-    , WObject(*new WOutputHelperPrivate(output, this))
+    , WObject(*new WOutputHelperPrivate(output, this, renderable, contentIsDirty, needsFrame))
+{
+}
+
+WOutputHelper::WOutputHelper(WOutput *output, QObject *parent)
+    : WOutputHelper(output, false, false, false, parent)
 {
 
 }

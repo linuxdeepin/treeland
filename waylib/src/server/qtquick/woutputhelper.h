@@ -69,6 +69,9 @@ public:
     void resetState(bool resetRenderable);
     void update();
 
+protected:
+    WOutputHelper(WOutput *output, bool renderable, bool contentIsDirty, bool needsFrame, QObject *parent = nullptr);
+
 Q_SIGNALS:
     void requestRender();
     void damaged();

@@ -148,8 +148,8 @@ public:
         QMatrix4x4 renderMatrix;
     };
 
-    OutputHelper(WOutputViewport *output, WOutputRenderWindow *parent)
-        : WOutputHelper(output->output(), parent)
+    OutputHelper(WOutputViewport *output, WOutputRenderWindow *parent, bool renderable, bool contentIsDirty, bool needsFrame)
+        : WOutputHelper(output->output(), renderable, contentIsDirty, needsFrame, parent)
         , m_output(output)
     {
 
@@ -1161,13 +1161,24 @@ void WOutputRenderWindow::attach(WOutputViewport *output)
     if (output->objectName() == PRIVATE_WOutputViewport)
         return;
 
-    Q_ASSERT(std::find_if(d->outputs.cbegin(), d->outputs.cend(), [output] (OutputHelper *h) {
-                 return h->output() == output;
-    }) == d->outputs.cend());
-
     Q_ASSERT(output->output());
-
-    d->outputs << new OutputHelper(output, this);
+    bool initialRenderable = false;
+    bool initialContentIsDirty = false;
+    bool initialNeedsFrame = false;
+    for (const auto &helper : d->outputs) {
+        Q_ASSERT(helper->output() != output);
+        if (helper->qwoutput() == output->output()->handle()) {
+            // For a new viewport, it should initialize state from viewports with the same output.
+            initialRenderable |= helper->renderable();
+            initialContentIsDirty |= helper->contentIsDirty();
+            initialNeedsFrame |= helper->needsFrame();
+        }
+    }
+    d->outputs << new OutputHelper(output,
+                                   this,
+                                   initialRenderable,
+                                   initialContentIsDirty,
+                                   initialNeedsFrame);
 
     if (d->m_renderer) {
         auto qwoutput = d->outputs.last()->qwoutput();
