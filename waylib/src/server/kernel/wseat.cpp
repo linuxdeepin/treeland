@@ -285,6 +285,20 @@ public:
         this->handle()->keyboardNotifyModifiers(&keyboard->handle()->modifiers);
         return true;
     }
+    inline void doMouseMove(WCursor *cursor, const QPointingDevice *device, uint32_t timestamp) {
+        Q_ASSERT(device);
+        QWindow *w = cursor->eventWindow();
+        const QPointF &global = cursor->position();
+        const QPointF local = w ? global - QPointF(w->position()) : QPointF();
+
+        QMouseEvent e(QEvent::MouseMove, local, global, Qt::NoButton,
+                      cursor->state(), keyModifiers, device);
+        Q_ASSERT(e.isUpdateEvent());
+        e.setTimestamp(timestamp);
+
+        if (w)
+            QCoreApplication::sendEvent(w, &e);
+    }
 
     // begin slot function
     void on_destroy();
@@ -636,6 +650,27 @@ WCursor *WSeat::cursor() const
     return d->cursor;
 }
 
+void WSeat::setCursorPosition(const QPointF &pos)
+{
+    W_D(WSeat);
+    if (!cursor())
+        return;
+
+    cursor()->setPosition(pos);
+    d->doMouseMove(cursor(), QPointingDevice::primaryPointingDevice(), QDateTime::currentMSecsSinceEpoch());
+}
+
+bool WSeat::setCursorPositionWithChecker(const QPointF &pos)
+{
+    W_D(WSeat);
+    if (!cursor())
+        return false;
+
+    bool ok = cursor()->setPositionWithChecker(pos);
+    d->doMouseMove(cursor(), QPointingDevice::primaryPointingDevice(), QDateTime::currentMSecsSinceEpoch());
+    return ok;
+}
+
 void WSeat::attachInputDevice(WInputDevice *device)
 {
     Q_ASSERT(!device->seat());
@@ -937,18 +972,7 @@ void WSeat::notifyMotion(WCursor *cursor, WInputDevice *device, uint32_t timesta
     W_D(WSeat);
 
     auto qwDevice = static_cast<QPointingDevice*>(device->qtDevice());
-    Q_ASSERT(qwDevice);
-    QWindow *w = cursor->eventWindow();
-    const QPointF &global = cursor->position();
-    const QPointF local = w ? global - QPointF(w->position()) : QPointF();
-
-    QMouseEvent e(QEvent::MouseMove, local, global, Qt::NoButton,
-                  cursor->state(), d->keyModifiers, qwDevice);
-    Q_ASSERT(e.isUpdateEvent());
-    e.setTimestamp(timestamp);
-
-    if (w)
-        QCoreApplication::sendEvent(w, &e);
+    d->doMouseMove(cursor, qwDevice, timestamp);
 }
 
 void WSeat::notifyButton(WCursor *cursor, WInputDevice *device, Qt::MouseButton button,

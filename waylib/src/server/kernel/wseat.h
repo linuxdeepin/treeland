@@ -68,6 +68,8 @@ public:
 
     void setCursor(WCursor *cursor);
     WCursor *cursor() const;
+    void setCursorPosition(const QPointF &pos);
+    bool setCursorPositionWithChecker(const QPointF &pos);
 
     void attachInputDevice(WInputDevice *device);
     void detachInputDevice(WInputDevice *device);
