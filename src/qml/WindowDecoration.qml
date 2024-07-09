@@ -136,6 +136,9 @@ Item {
                 onDoubleTapped: function(eventPoint, button) {
                     root.requestMaximize(!surface.isMaximized)
                 }
+                onLongPressed: function() {
+                    menu.popup(point.position.x, point.position.y)
+                }
             }
 
             DragHandler {
