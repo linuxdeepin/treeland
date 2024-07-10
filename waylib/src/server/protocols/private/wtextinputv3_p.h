@@ -118,6 +118,8 @@ class WAYLIB_SERVER_EXPORT WTextInputManagerV3 : public QObject, public WObject,
 public:
     explicit WTextInputManagerV3(QObject *parent = nullptr);
 
+    QByteArrayView interfaceName() const override;
+
 Q_SIGNALS:
     void newTextInput(WTextInputV3 *textInput);
 

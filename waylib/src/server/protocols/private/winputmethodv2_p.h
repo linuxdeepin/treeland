@@ -68,6 +68,8 @@ class WInputMethodManagerV2 : public QObject, public WObject, public WServerInte
 public:
     explicit WInputMethodManagerV2(QObject *parent = nullptr);
 
+    QByteArrayView interfaceName() const override;
+
 Q_SIGNALS:
     void newInputMethod(QW_NAMESPACE::QWInputMethodV2 *inputMethod);
 

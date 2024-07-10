@@ -126,6 +126,11 @@ QWCursorShapeManagerV1 *WCursorShapeManagerV1::handle() const
     return nativeInterface<QWCursorShapeManagerV1>();
 }
 
+QByteArrayView WCursorShapeManagerV1::interfaceName() const
+{
+    return "wp_cursor_shape_manager_v1";
+}
+
 void WCursorShapeManagerV1::create(WServer *server)
 {
     W_D(WCursorShapeManagerV1);

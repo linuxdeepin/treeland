@@ -58,6 +58,8 @@ public:
     WSocket *ownsSocket() const;
     void setOwnsSocket(WSocket *socket);
 
+    QByteArrayView interfaceName() const override;
+
 Q_SIGNALS:
     void ready();
     void surfaceAdded(WXWaylandSurface *surface);

@@ -1337,6 +1337,11 @@ wl_global *WSeat::global() const
     return d->nativeHandle()->global;
 }
 
+QByteArrayView WSeat::interfaceName() const
+{
+    return wl_seat_interface.name;
+}
+
 bool WSeat::filterEventBeforeDisposeStage(QWindow *targetWindow, QInputEvent *event)
 {
     W_D(WSeat);

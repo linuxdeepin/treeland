@@ -29,6 +29,11 @@ WVirtualKeyboardManagerV1::WVirtualKeyboardManagerV1(QObject *parent)
     : WObject(*new WVirtualKeyboardManagerV1Private(this))
 {}
 
+QByteArrayView WVirtualKeyboardManagerV1::interfaceName() const
+{
+    return "zwp_virtual_keyboard_manager_v1";
+}
+
 void WVirtualKeyboardManagerV1::create(WServer *server)
 {
     W_D(WVirtualKeyboardManagerV1);

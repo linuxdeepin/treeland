@@ -162,6 +162,11 @@ QWOutputManagerV1 *WOutputManagerV1::handle() const
     return nativeInterface<QWOutputManagerV1>();
 }
 
+QByteArrayView WOutputManagerV1::interfaceName() const
+{
+    return "zwlr_output_head_v1";
+}
+
 void WOutputManagerV1::create(WServer *server)
 {
     W_D(WOutputManagerV1);

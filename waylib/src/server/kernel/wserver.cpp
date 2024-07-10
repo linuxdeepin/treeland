@@ -115,6 +115,8 @@ void WServerPrivate::init()
 
     for (auto i : std::as_const(interfaceList)) {
         i->create(q);
+        if (auto global = i->global())
+            Q_ASSERT(wl_global_get_interface(global)->name == i->interfaceName());
     }
 
     loop = wl_display_get_event_loop(display->handle());
@@ -196,19 +198,31 @@ void WServer::attach(WServerInterface *interface)
 {
     W_D(WServer);
     Q_ASSERT(!d->interfaceList.contains(interface));
-    d->interfaceList << interface;
 
     Q_ASSERT(interface->m_server == nullptr);
     interface->m_server = this;
 
     if (isRunning()) {
+        Q_ASSERT(!d->pendingInterface);
+        // Save to pendingInterface in order to find this
+        // WServerInterface object by WServer::findInterface(wl_global)
+        d->pendingInterface = interface;
         interface->create(this);
+        d->pendingInterface = nullptr;
+
+        if (auto global = interface->global())
+            Q_ASSERT(wl_global_get_interface(global)->name == interface->interfaceName());
     }
+
+    // After interface->create append to the list when server is runing
+    // See WServer::findInterface(wl_global)
+    d->interfaceList << interface;
 }
 
 bool WServer::detach(WServerInterface *interface)
 {
     W_D(WServer);
+    Q_ASSERT(interface != d->pendingInterface);
     bool ok = d->interfaceList.removeOne(interface);
     if (!ok)
         return false;
@@ -252,9 +266,21 @@ WServerInterface *WServer::findInterface(void *handle) const
 
 WServerInterface *WServer::findInterface(const wl_global *global) const
 {
-    for (auto i : interfaceList()) {
+    Q_FOREACH (const auto &i, interfaceList()) {
         if (i->global() == global)
             return i;
+    }
+
+    W_DC(WServer);
+
+    // When call WServerInterface::create, will call wl_global_create in wlroots,
+    // and will call globalFilter in libwayland(wl_global_is_visible), globalFilter
+    // wants to find a WServerInterface object and use WServerInterface::filter to filter
+    // the new wl_global, but during for WServerInterface::create now, so can't use
+    // WServerInterface::global() to find which a WServerInterface of the new wl_global.
+    if (d->pendingInterface
+        && d->pendingInterface->interfaceName() == wl_global_get_interface(global)->name) {
+        return d->pendingInterface;
     }
 
     return nullptr;

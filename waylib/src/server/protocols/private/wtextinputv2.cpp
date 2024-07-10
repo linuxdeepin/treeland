@@ -335,6 +335,11 @@ WTextInputManagerV2::WTextInputManagerV2(QObject *parent)
     , WObject(*new WTextInputManagerV2Private(this))
 { }
 
+QByteArrayView WTextInputManagerV2::interfaceName() const
+{
+    return zwp_text_input_manager_v2_interface.name;
+}
+
 void WTextInputManagerV2::create(WServer *server)
 {
     W_D(WTextInputManagerV2);

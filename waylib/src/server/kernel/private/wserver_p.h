@@ -33,6 +33,7 @@ public:
     std::unique_ptr<QSocketNotifier> sockNot;
 
     QVector<WServerInterface*> interfaceList;
+    WServerInterface *pendingInterface = nullptr;
 
     QW_NAMESPACE::QWDisplay *display = nullptr;
     wl_event_loop *loop = nullptr;

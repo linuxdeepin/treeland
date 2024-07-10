@@ -223,4 +223,9 @@ wl_global *WBackend::global() const
     return nullptr;
 }
 
+QByteArrayView WBackend::interfaceName() const
+{
+    return {};
+}
+
 WAYLIB_SERVER_END_NAMESPACE

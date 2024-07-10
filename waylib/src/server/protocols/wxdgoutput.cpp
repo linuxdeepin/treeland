@@ -412,6 +412,11 @@ void WXdgOutputManager::resetScaleOverride()
     setScaleOverride(0.0);
 }
 
+QByteArrayView WXdgOutputManager::interfaceName() const
+{
+    return "zxdg_output_manager_v1";
+}
+
 WOutputLayout *WXdgOutputManager::layout() const
 {
     W_DC(WXdgOutputManager);

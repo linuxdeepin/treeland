@@ -47,6 +47,11 @@ WInputMethodManagerV2::WInputMethodManagerV2(QObject *parent)
     : WObject(*new WInputMethodManagerV2Private(this), nullptr)
 { }
 
+QByteArrayView WInputMethodManagerV2::interfaceName() const
+{
+    return "zwp_input_method_manager_v2";
+}
+
 void WInputMethodManagerV2::create(WServer *server)
 {
     auto handle = QWInputMethodManagerV2::create(server->handle());

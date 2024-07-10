@@ -23,6 +23,8 @@ public:
     qreal scaleOverride() const;
     void resetScaleOverride();
 
+    QByteArrayView interfaceName() const override;
+
 Q_SIGNALS:
     void scaleOverrideChanged();
 

@@ -217,6 +217,11 @@ void WXWayland::setOwnsSocket(WSocket *socket)
     d->socket->setParentSocket(socket);
 }
 
+QByteArrayView WXWayland::interfaceName() const
+{
+    return "xwayland_shell_v1";
+}
+
 void WXWayland::addSurface(WXWaylandSurface *surface)
 {
     surface->safeConnect(&WXWaylandSurface::isToplevelChanged,

@@ -135,6 +135,8 @@ class WTextInputManagerV2 : public QObject, public WObject, public WServerInterf
 public:
     explicit WTextInputManagerV2(QObject *parent = nullptr);
 
+    QByteArrayView interfaceName() const override;
+
 Q_SIGNALS:
     void newTextInput(WTextInputV2 *textInput);
 

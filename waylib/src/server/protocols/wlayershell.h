@@ -23,6 +23,7 @@ public:
     void *create();
 
     QVector<WLayerSurface*> surfaceList() const;
+    QByteArrayView interfaceName() const override;
 
 Q_SIGNALS:
     void surfaceAdded(WLayerSurface *surface);

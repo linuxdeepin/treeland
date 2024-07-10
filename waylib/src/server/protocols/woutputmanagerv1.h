@@ -56,6 +56,7 @@ public:
     void newOutput(WOutput *output);
     void removeOutput(WOutput *output);
     QW_NAMESPACE::QWOutputManagerV1 *handle() const;
+    QByteArrayView interfaceName() const override;
 
 Q_SIGNALS:
     void requestTestOrApply(QW_NAMESPACE::QWOutputConfigurationV1 *config, bool onlyTest);

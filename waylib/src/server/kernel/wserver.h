@@ -57,6 +57,8 @@ public:
         m_filter = f;
     }
 
+    virtual QByteArrayView interfaceName() const = 0;
+
 protected:
     void *m_handle = nullptr;
     WServer *m_server = nullptr;

@@ -27,6 +27,8 @@ public:
     void addSurface(WXdgSurface *surface);
     void removeSurface(WXdgSurface *surface);
 
+    QByteArrayView interfaceName() const override;
+
 Q_SIGNALS:
     void requestMaximize(WXdgSurface *surface, bool isMaximized);
     void requestMinimize(WXdgSurface *surface, bool isMinimized);

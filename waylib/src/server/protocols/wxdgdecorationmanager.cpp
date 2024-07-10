@@ -202,4 +202,9 @@ WXdgDecorationManager::DecorationMode WXdgDecorationManager::modeBySurface(WSurf
     return d->modeBySurface(surface);
 }
 
+QByteArrayView WXdgDecorationManager::interfaceName() const
+{
+    return "zxdg_decoration_manager_v1";
+}
+
 WAYLIB_SERVER_END_NAMESPACE

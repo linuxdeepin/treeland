@@ -17,6 +17,7 @@ public:
     WXdgShell();
 
     QVector<WXdgSurface*> surfaceList() const;
+    QByteArrayView interfaceName() const override;
 
 Q_SIGNALS:
     void surfaceAdded(WXdgSurface *surface);

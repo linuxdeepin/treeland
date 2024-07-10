@@ -185,6 +185,11 @@ void WForeignToplevel::removeSurface(WXdgSurface *surface)
     d->remove(surface);
 }
 
+QByteArrayView WForeignToplevel::interfaceName() const
+{
+    return "zwlr_foreign_toplevel_manager_v1";
+}
+
 void WForeignToplevel::create(WServer *server) {
     W_D(WForeignToplevel);
 

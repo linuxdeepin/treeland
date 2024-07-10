@@ -75,6 +75,11 @@ QVector<WXdgSurface*> WXdgShell::surfaceList() const
     return d->surfaceList;
 }
 
+QByteArrayView WXdgShell::interfaceName() const
+{
+    return "xdg_wm_base";
+}
+
 void WXdgShell::create(WServer *server)
 {
     W_D(WXdgShell);

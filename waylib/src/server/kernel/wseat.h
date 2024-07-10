@@ -109,6 +109,7 @@ protected:
     void create(WServer *server) override;
     void destroy(WServer *server) override;
     wl_global *global() const override;
+    QByteArrayView interfaceName() const override;
 
     // for event filter
     bool filterEventBeforeDisposeStage(QWindow *targetWindow, QInputEvent *event);

@@ -476,6 +476,11 @@ WTextInputManagerV1::WTextInputManagerV1(QObject *parent)
     , WObject(*new WTextInputManagerV1Private(this))
 { }
 
+QByteArrayView WTextInputManagerV1::interfaceName() const
+{
+    return zwp_text_input_manager_v1_interface.name;
+}
+
 CHECK_ENUM(WTextInputV1::CH_None, ZWP_TEXT_INPUT_V1_CONTENT_HINT_NONE);
 CHECK_ENUM(WTextInputV1::CH_Default, ZWP_TEXT_INPUT_V1_CONTENT_HINT_DEFAULT);
 CHECK_ENUM(WTextInputV1::CH_Password, ZWP_TEXT_INPUT_V1_CONTENT_HINT_PASSWORD);

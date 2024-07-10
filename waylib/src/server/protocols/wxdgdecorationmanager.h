@@ -37,6 +37,8 @@ public:
     Q_INVOKABLE void setModeBySurface(WAYLIB_SERVER_NAMESPACE::WSurface *surface, DecorationMode mode);
     Q_INVOKABLE DecorationMode modeBySurface(WAYLIB_SERVER_NAMESPACE::WSurface* surface) const;
 
+    QByteArrayView interfaceName() const override;
+
 Q_SIGNALS:
     void surfaceModeChanged(WAYLIB_SERVER_NAMESPACE::WSurface *surface, DecorationMode mode);
     void preferredModeChanged(DecorationMode mode);

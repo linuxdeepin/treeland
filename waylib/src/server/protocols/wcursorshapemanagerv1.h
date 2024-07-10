@@ -26,6 +26,8 @@ public:
 
     QW_NAMESPACE::QWCursorShapeManagerV1 *handle() const;
 
+    QByteArrayView interfaceName() const override;
+
 protected:
     void create(WServer *server) override;
     wl_global *global() const override;

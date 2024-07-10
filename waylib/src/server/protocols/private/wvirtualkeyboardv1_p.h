@@ -23,6 +23,8 @@ class WVirtualKeyboardManagerV1 : public QObject, public WObject, public WServer
 public:
     explicit WVirtualKeyboardManagerV1(QObject *parent = nullptr);
 
+    QByteArrayView interfaceName() const override;
+
 Q_SIGNALS:
     void newVirtualKeyboard(QW_NAMESPACE::QWVirtualKeyboardV1 *virtualKeyboard);
 

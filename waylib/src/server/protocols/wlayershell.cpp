@@ -84,6 +84,11 @@ QVector<WLayerSurface*> WLayerShell::surfaceList() const
     return d->surfaceList;
 }
 
+QByteArrayView WLayerShell::interfaceName() const
+{
+    return "zwlr_layer_shell_v1";
+}
+
 void WLayerShell::create(WServer *server)
 {
     W_D(WLayerShell);
