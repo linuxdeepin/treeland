@@ -154,9 +154,9 @@ QWlrootsScreen *QWlrootsIntegration::getScreenFrom(const WOutput *output)
     return output->screen();
 }
 
-QInputDevice *QWlrootsIntegration::addInputDevice(WInputDevice *device, const QString &seatName)
+QPointer<QInputDevice> QWlrootsIntegration::addInputDevice(WInputDevice *device, const QString &seatName)
 {
-    QInputDevice *qtdev = nullptr;
+    QPointer<QInputDevice> qtdev;
     auto qwDevice = device->handle();
     const QString name = QString::fromUtf8(qwDevice->handle()->name);
     qint64 systemId = reinterpret_cast<qint64>(device);

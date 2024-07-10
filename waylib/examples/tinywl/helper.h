@@ -61,6 +61,7 @@ class Helper : public WSeatEventFilter {
 
 public:
     explicit Helper(QObject *parent = nullptr);
+    ~Helper() override;
 
     void initProtocols(WOutputRenderWindow *window, QQmlEngine *qmlEngine);
     WQuickOutputLayout *outputLayout() const;

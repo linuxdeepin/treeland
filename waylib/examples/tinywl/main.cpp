@@ -86,6 +86,20 @@ Helper::Helper(QObject *parent)
     m_cursor->setLayout(m_outputLayout);
 }
 
+Helper::~Helper()
+{
+    for (auto &info : m_outputExclusiveZoneInfo) {
+        if (info.first) {
+            delete info.first;
+            info.first = nullptr;
+        }
+        if (info.second) {
+            delete info.second;
+            info.second = nullptr;
+        }
+    }
+}
+
 void Helper::initProtocols(WOutputRenderWindow *window, QQmlEngine *qmlEngine)
 {
     auto backend = m_server->attach<WBackend>();
