@@ -657,7 +657,7 @@ WClient *WSocket::addClient(wl_client *client)
     W_D(WSocket);
 
     WClient *wclient = nullptr;
-    if (wclient = WClient::get(client)) {
+    if ((wclient = WClient::get(client))) {
         if (wclient->socket() != this)
             return nullptr;
         if (d->clients.contains(wclient))

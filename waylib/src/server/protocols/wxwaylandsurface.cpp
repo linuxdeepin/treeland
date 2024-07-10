@@ -44,7 +44,7 @@ public:
         return nativeHandle()->maximized_horz && nativeHandle()->maximized_vert;
     }
 
-    wl_client *waylandClient() const {
+    wl_client *waylandClient() const override {
         return surface->handle()->handle()->resource->client;
     }
 
