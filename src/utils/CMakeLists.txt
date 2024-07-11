@@ -1,4 +1,5 @@
 pkg_search_module(WLROOTS REQUIRED IMPORTED_TARGET wlroots)
+pkg_search_module(LIBINPUT REQUIRED IMPORTED_TARGET libinput)
 
 qt_add_qml_module(utils
     URI TreeLand.Utils
@@ -8,6 +9,7 @@ qt_add_qml_module(utils
         helper.cpp
         filterproxymodel.cpp
         surfaceitemfactory.cpp
+        inputdevice.cpp
     RESOURCE_PREFIX
         /qt/qml
     OUTPUT_DIRECTORY
@@ -19,6 +21,7 @@ FILE_SET HEADERS
 FILES
     helper.h
     filterproxymodel.h
+    inputdevice.h
 )
 
 target_compile_definitions(utils
@@ -29,6 +32,7 @@ target_compile_definitions(utils
 target_link_libraries(utils
     PUBLIC
         PkgConfig::WLROOTS
+        PkgConfig::LIBINPUT
         Waylib::WaylibServer
         Qt${QT_MAJOR_VERSION}::Core
         Qt${QT_MAJOR_VERSION}::Quick
