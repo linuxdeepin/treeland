@@ -159,8 +159,11 @@ void WQmlCreatorComponent::destroy(QSharedPointer<WQmlCreatorDelegateData> data)
         Q_EMIT objectRemoved(obj, p);
         notifyCreatorObjectRemoved(creator(), obj, p);
 
-        if (m_autoDestroy)
-            obj->deleteLater();
+        if (m_autoDestroy) {
+            obj->setParent(nullptr);
+            delete obj;
+            obj = nullptr;
+        }
     }
 }
 
