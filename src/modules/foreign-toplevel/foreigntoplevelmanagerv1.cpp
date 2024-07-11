@@ -345,3 +345,8 @@ ForeignToplevelAttached *ForeignToplevelV1::Attached(QObject *target)
 
     return nullptr;
 }
+
+QByteArrayView ForeignToplevelV1::interfaceName() const
+{
+    return "ztreeland_foreign_toplevel_manager_v1";
+}

@@ -127,14 +127,17 @@ void Helper::initProtocols(WOutputRenderWindow *window)
     auto *xwaylandOutputManager = m_server->attach<WXdgOutputManager>(m_outputLayout);
 
     xwaylandOutputManager->setScaleOverride(1.0);
-
-    xdgOutputManager->setTargetClients(xwaylandOutputManager->targetClients(), true);
-    xwaylandOutputManager->setTargetClients(xwaylandOutputManager->targetClients(), false);
-
     auto xwayland_lazy = true;
     auto *xwayland = m_server->attach<WXWayland>(m_compositor, xwayland_lazy);
     xwayland->setSeat(m_seat);
     setXWaylandSocket(xwayland->displayName());
+
+    xdgOutputManager->setFilter([xwayland](WClient *client){
+        return client != xwayland->waylandClient();
+    });
+    xwaylandOutputManager->setFilter([xwayland](WClient *client){
+        return client == xwayland->waylandClient();
+    });
 
     m_xdgDecorationManager = m_server->attach<WXdgDecorationManager>();
     Q_EMIT xdgDecorationManagerChanged();
@@ -210,12 +213,6 @@ void Helper::initProtocols(WOutputRenderWindow *window)
             &WInputMethodHelper::inputPopupSurfaceV2Removed,
             m_inputPopupCreator,
             &WQmlCreator::removeByOwner);
-
-    connect(xwayland, &WXWayland::ready, this, [this, xwayland, xwaylandOutputManager]() {
-        auto clients = xwaylandOutputManager->targetClients();
-        clients.append(xwayland->waylandClient());
-        xwaylandOutputManager->setTargetClients(clients, true);
-    });
 
     connect(xwayland,
             &WXWayland::surfaceAdded,

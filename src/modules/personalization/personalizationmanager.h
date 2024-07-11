@@ -80,6 +80,7 @@ public:
     QSize cursorSize();
     void setCursorSize(const QSize &size);
     Q_INVOKABLE QString getOutputName(const WOutput *w_output);
+    QByteArrayView interfaceName() const override;
 
 Q_SIGNALS:
     void backgroundTypeChanged(WSurface *surface, uint32_t type);

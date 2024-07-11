@@ -50,6 +50,7 @@ public:
     Q_INVOKABLE void leaveDockPreview(WSurface *relative_surface);
 
     Q_INVOKABLE ForeignToplevelAttached *Attached(QObject *target);
+    QByteArrayView interfaceName() const override;
 
 Q_SIGNALS:
     void requestMaximize(WToplevelSurface *surface,

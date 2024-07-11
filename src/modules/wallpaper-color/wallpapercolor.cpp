@@ -38,3 +38,9 @@ void WallpaperColorV1::updateWallpaperColor(const QString &output, bool isDarkTy
 {
     m_handle->updateWallpaperColor(output, isDarkType);
 }
+
+
+QByteArrayView WallpaperColorV1::interfaceName() const
+{
+    return wallpaper_color_manager_v1_interface.name;
+}

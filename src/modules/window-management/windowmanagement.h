@@ -24,6 +24,7 @@ public:
     DesktopState desktopState();
     void setDesktopState(DesktopState state);
 
+
 protected:
     void create(WServer *server) override;
     void destroy(WServer *server) override;
@@ -35,4 +36,8 @@ Q_SIGNALS:
 
 private:
     treeland_window_management_v1 *m_handle{ nullptr };
+
+    // WServerInterface interface
+public:
+    QByteArrayView interfaceName() const override;
 };
