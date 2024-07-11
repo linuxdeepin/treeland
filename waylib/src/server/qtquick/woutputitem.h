@@ -71,6 +71,7 @@ private:
     qreal getImplicitHeight() const override;
 
     W_PRIVATE_SLOT(void updateCursors())
+    W_PRIVATE_SLOT(void onCursorItemPositionChanged())
 };
 
 WAYLIB_SERVER_END_NAMESPACE

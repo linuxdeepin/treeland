@@ -44,6 +44,8 @@ public:
     void setOutputEnabled(WOutputViewport *output, bool enabled);
 
     void init(QW_NAMESPACE::qw_renderer *renderer, QW_NAMESPACE::qw_allocator *allocator);
+    QW_NAMESPACE::qw_renderer *renderer() const;
+    QW_NAMESPACE::qw_allocator *allocator() const;
 
     qreal width() const;
     qreal height() const;
@@ -63,6 +65,7 @@ Q_SIGNALS:
     void widthChanged();
     void heightChanged();
     void outputViewportInitialized(WAYLIB_SERVER_NAMESPACE::WOutputViewport *output);
+    void initialized();
 
 private:
     void classBegin() override;

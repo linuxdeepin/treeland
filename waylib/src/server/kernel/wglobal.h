@@ -5,6 +5,7 @@
 
 #include <qwconfig.h>
 #include <qtguiglobal.h>
+#include <QtQmlIntegration>
 
 #define SERVER_NAMESPACE Server
 #define WAYLIB_SERVER_NAMESPACE Waylib::SERVER_NAMESPACE
@@ -183,6 +184,68 @@ protected:
 #endif
 
     W_DECLARE_PRIVATE(WWrapObject)
+};
+
+class WAYLIB_SERVER_EXPORT WGlobal {
+    Q_GADGET
+    QML_NAMED_ELEMENT(Waylib)
+    QML_UNCREATABLE("Use for enums")
+
+public:
+    enum class CursorShape {
+        Default = Qt::CustomCursor + 1,
+        Invalid,
+        ClientResource,
+        BottomLeftCorner,
+        BottomRightCorner,
+        TopLeftCorner,
+        TopRightCorner,
+        BottomSide,
+        LeftSide,
+        RightSide,
+        TopSide,
+        Grabbing,
+        Xterm,
+        Hand1,
+        Watch,
+        SWResize,
+        SEResize,
+        SResize,
+        WResize,
+        EResize,
+        EWResize,
+        NWResize,
+        NWSEResize,
+        NEResize,
+        NESWResize,
+        NSResize,
+        NResize,
+        AllScroll,
+        Text,
+        Pointer,
+        Wait,
+        ContextMenu,
+        Help,
+        Progress,
+        Cell,
+        Crosshair,
+        VerticalText,
+        Alias,
+        Copy,
+        Move,
+        NoDrop,
+        NotAllowed,
+        Grab,
+        ColResize,
+        RowResize,
+        ZoomIn,
+        ZoomOut
+    };
+    Q_ENUM(CursorShape)
+    static_assert(CursorShape::BottomLeftCorner > CursorShape::Default, "");
+
+    static bool isInvalidCursor(const QCursor &c);
+    static bool isClientResourceCursor(const QCursor &c);
 };
 
 WAYLIB_SERVER_END_NAMESPACE

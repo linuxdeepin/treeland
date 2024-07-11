@@ -129,7 +129,7 @@ private:
     OutputInfo* getOutputInfo(WOutput *output);
 
     WQuickOutputLayout *m_outputLayout = nullptr;
-    WQuickCursor *m_cursor = nullptr;
+    WCursor *m_cursor = nullptr;
 
     WServer *m_server = nullptr;
     qw_renderer *m_renderer = nullptr;

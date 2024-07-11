@@ -80,7 +80,7 @@ public:
 
 public Q_SLOTS:
     void itemStackToTop(QQuickItem *item);
-    void setCursorShape(QQuickItem *item, WCursor::CursorShape shape);
+    void setCursorShape(QQuickItem *item, WGlobal::CursorShape shape);
     Qt::Edges getEdges(const QRectF &rect, const QPointF &pos, qreal edgeSize);
 };
 

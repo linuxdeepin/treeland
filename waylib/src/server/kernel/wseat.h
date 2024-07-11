@@ -26,6 +26,7 @@ QT_END_NAMESPACE
 typedef uint wlr_axis_source_t;
 typedef uint wlr_button_state_t;
 struct wlr_seat;
+struct wlr_seat_client;
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
@@ -70,6 +71,10 @@ public:
     WCursor *cursor() const;
     void setCursorPosition(const QPointF &pos);
     bool setCursorPositionWithChecker(const QPointF &pos);
+    WGlobal::CursorShape requestedCursorShape() const;
+    WSurface *requestedCursorSurface() const;
+    QPoint requestedCursorSurfaceHotspot() const;
+    WSurface *requestedDragSurface() const;
 
     void attachInputDevice(WInputDevice *device);
     void detachInputDevice(WInputDevice *device);
@@ -97,6 +102,9 @@ public:
 Q_SIGNALS:
     void keyboardChanged();
     void keyboardFocusSurfaceChanged();
+    void requestCursorShape(WAYLIB_SERVER_NAMESPACE::WGlobal::CursorShape shape);
+    void requestCursorSurface(WAYLIB_SERVER_NAMESPACE::WSurface *surface, const QPoint &hotspot);
+    void requestDrag(WAYLIB_SERVER_NAMESPACE::WSurface *surface);
 
 protected:
     using QObject::eventFilter;
@@ -105,6 +113,7 @@ protected:
     friend class WCursorPrivate;
     friend class QWlrootsRenderWindow;
     friend class WEventJunkman;
+    friend class WCursorShapeManagerV1;
 
     void create(WServer *server) override;
     void destroy(WServer *server) override;
@@ -139,6 +148,8 @@ protected:
     void notifyTouchCancel(WCursor *cursor, WInputDevice *device, int32_t touch_id, uint32_t time_msec);
     void notifyTouchUp(WCursor *cursor, WInputDevice *device, int32_t touch_id, uint32_t time_msec);
     void notifyTouchFrame(WCursor *cursor);
+
+    void setCursorShape(wlr_seat_client *client, WGlobal::CursorShape shape);
 };
 
 WAYLIB_SERVER_END_NAMESPACE

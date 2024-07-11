@@ -15,33 +15,26 @@ OutputItem {
     output: waylandOutput
     devicePixelRatio: waylandOutput.scale
 
-    cursorDelegate: Item {
-        required property OutputCursor cursor
+    cursorDelegate: Cursor {
+        id: cursorItem
 
-        visible: cursor.visible
-        width: cursor.size.width
-        height: cursor.size.height
+        readonly property point position: parent.mapFromGlobal(cursor.position.x, cursor.position.y)
+
+        x: position.x - hotSpot.x
+        y: position.y - hotSpot.y
+        visible: valid && cursor.visible
         OutputLayer.enabled: true
         OutputLayer.outputs: [onscreenViewport]
 
-        Image {
-            id: cursorImage
-            visible: !cursor.isHardwareCursor
-            source: cursor.imageSource
-            x: -cursor.hotspot.x
-            y: -cursor.hotspot.y
-            cache: false
-            width: cursor.size.width
-            height: cursor.size.height
-            sourceClipRect: cursor.sourceRect
-        }
-
         SurfaceItem {
             id: dragIcon
-            z: cursorImage.z - 1
+            parent: cursorItem.parent
+            z: cursorItem.z - 1
             flags: SurfaceItem.DontCacheLastBuffer
-            visible: waylandCursor.dragSurface !== null
-            surface: waylandCursor.dragSurface
+            visible: surface !== null
+            surface: cursorItem.cursor.requestedDragSurface
+            x: cursorItem.position.x
+            y: cursorItem.position.y
         }
     }
 

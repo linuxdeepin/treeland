@@ -42,23 +42,16 @@ Item {
                     output: waylandOutput
                     devicePixelRatio: waylandOutput.scale
                     layout: outputLayout
-                    cursorDelegate: Item {
-                        required property OutputCursor cursor
+                    cursorDelegate: Cursor {
+                        id: cursorItem
 
-                        visible: cursor.visible && !cursor.isHardwareCursor
-                        width: cursor.size.width
-                        height: cursor.size.height
+                        readonly property point position: parent.mapFromGlobal(cursor.position.x, cursor.position.y)
 
-                        Image {
-                            id: cursorImage
-                            source: cursor.imageSource
-                            x: -cursor.hotspot.x
-                            y: -cursor.hotspot.y
-                            cache: false
-                            width: cursor.size.width
-                            height: cursor.size.height
-                            sourceClipRect: cursor.sourceRect
-                        }
+                        x: position.x - hotSpot.x
+                        y: position.y - hotSpot.y
+                        visible: valid && cursor.visible
+                        OutputLayer.enabled: true
+                        OutputLayer.outputs: [outputViewport]
                     }
 
                     OutputViewport {

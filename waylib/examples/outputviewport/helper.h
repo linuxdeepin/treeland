@@ -13,7 +13,7 @@ WAYLIB_SERVER_BEGIN_NAMESPACE
 class WServer;
 class WOutputRenderWindow;
 class WQuickOutputLayout;
-class WQuickCursor;
+class WCursor;
 class WSeat;
 class WBackend;
 WAYLIB_SERVER_END_NAMESPACE
@@ -52,6 +52,6 @@ private:
     qw_allocator *m_allocator = nullptr;
     qw_compositor *m_compositor = nullptr;
     WQuickOutputLayout *m_outputLayout = nullptr;
-    WQuickCursor *m_cursor = nullptr;
+    WCursor *m_cursor = nullptr;
     QPointer<WSeat> m_seat;
 };

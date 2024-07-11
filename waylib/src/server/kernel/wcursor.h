@@ -32,58 +32,14 @@ class WAYLIB_SERVER_EXPORT WCursor : public WWrapObject
 {
     Q_OBJECT
     W_DECLARE_PRIVATE(WCursor)
+    Q_PROPERTY(bool visible READ isVisible WRITE setVisible NOTIFY visibleChanged FINAL)
+    Q_PROPERTY(QCursor cursor READ cursor WRITE setCursor NOTIFY cursorChanged FINAL)
+    Q_PROPERTY(QPointF position READ position NOTIFY positionChanged FINAL)
+    Q_PROPERTY(WAYLIB_SERVER_NAMESPACE::WSurface* requestedDragSurface READ requestedDragSurface NOTIFY requestedDragSurfaceChanged FINAL)
+    QML_ANONYMOUS
 
 public:
-    enum CursorShape {
-        Default = Qt::CustomCursor + 1,
-        Invalid,
-        BottomLeftCorner,
-        BottomRightCorner,
-        TopLeftCorner,
-        TopRightCorner,
-        BottomSide,
-        LeftSide,
-        RightSide,
-        TopSide,
-        Grabbing,
-        Xterm,
-        Hand1,
-        Watch,
-        SWResize,
-        SEResize,
-        SResize,
-        WResize,
-        EResize,
-        EWResize,
-        NWResize,
-        NWSEResize,
-        NEResize,
-        NESWResize,
-        NSResize,
-        NResize,
-        AllScroll,
-        Text,
-        Pointer,
-        Wait,
-        ContextMenu,
-        Help,
-        Progress,
-        Cell,
-        Crosshair,
-        VerticalText,
-        Alias,
-        Copy,
-        Move,
-        NoDrop,
-        NotAllowed,
-        Grab,
-        ColResize,
-        RowResize,
-        ZoomIn,
-        ZoomOut
-    };
-    Q_ENUM(CursorShape)
-    static_assert(BottomLeftCorner > Default, "");
+    typedef WGlobal::CursorShape CursorShape;
 
     explicit WCursor(QObject *parent = nullptr);
 
@@ -104,13 +60,13 @@ public:
 
     static Qt::CursorShape defaultCursor();
 
-    void setXCursorManager(QW_NAMESPACE::qw_xcursor_manager *manager);
     QCursor cursor() const;
     void setCursor(const QCursor &cursor);
-    void setSurface(QW_NAMESPACE::qw_surface *surface, const QPoint &hotspot);
-    void setCursorShape(CursorShape shape);
-    void setDragSurface(WSurface *surface);
-    WSurface* dragSurface() const;
+
+    // from client
+    CursorShape requestedCursorShape() const;
+    std::pair<WSurface*, QPoint> requestedCursorSurface() const;
+    WSurface* requestedDragSurface() const;
 
     void setLayout(WOutputLayout *layout);
     WOutputLayout *layout() const;
@@ -126,7 +82,13 @@ public:
 
 Q_SIGNALS:
     void positionChanged();
-    void dragSurfaceChanged();
+    void seatChanged();
+    void requestedCursorShapeChanged();
+    void requestedCursorSurfaceChanged();
+    void requestedDragSurfaceChanged();
+    void layoutChanged();
+    void cursorChanged();
+    void visibleChanged();
 
 protected:
     WCursor(WCursorPrivate &dd, QObject *parent = nullptr);
@@ -143,8 +105,6 @@ private:
     void setSeat(WSeat *seat);
     bool attachInputDevice(WInputDevice *device);
     void detachInputDevice(WInputDevice *device);
-
-    W_PRIVATE_SLOT(void updateCursorImage())
 
     W_PRIVATE_SLOT(void on_swipe_begin(wlr_pointer_swipe_begin_event *event))
     W_PRIVATE_SLOT(void on_swipe_update(wlr_pointer_swipe_update_event *event))

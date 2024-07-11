@@ -385,6 +385,16 @@ public:
     // for keyboard event
     QTimer m_repeatTimer;
     std::unique_ptr<QKeyEvent> m_repeatKey;
+
+    // for cursor data
+    // TODO: make to QWSeatClient in wlroots
+    // Don't access its member, maybe is a invalid pointer
+    wlr_seat_client *cursorClient = nullptr;
+    QPointer<WSurface> cursorSurface;
+    QPoint cursorSurfaceHotspot;
+    WGlobal::CursorShape cursorShape;
+
+    QPointer<WSurface> dragSurface;
 };
 
 void WSeatPrivate::on_destroy()
@@ -403,7 +413,22 @@ void WSeatPrivate::on_request_set_cursor(wlr_seat_pointer_request_set_cursor_eve
          * on the output that it's currently on and continue to do so as the
          * cursor moves between outputs. */
         auto *surface = event->surface ? qw_surface::from(event->surface) : nullptr;
-        cursor->setSurface(surface, QPoint(event->hotspot_x, event->hotspot_y));
+        cursorClient = event->seat_client;
+
+        if (cursorSurface)
+            cursorSurface->safeDeleteLater();
+
+        W_Q(WSeat);
+        if (surface) {
+            cursorSurface = new WSurface(surface, q);
+            QObject::connect(surface, &qw_surface::before_destroy,
+                             cursorSurface, &WSurface::safeDeleteLater);
+        }
+        cursorSurfaceHotspot.rx() = event->hotspot_x;
+        cursorSurfaceHotspot.ry() = event->hotspot_y;
+
+        if (cursorSurface)
+            Q_EMIT q->requestCursorSurface(cursorSurface, cursorSurfaceHotspot);
     }
 }
 
@@ -440,9 +465,15 @@ void WSeatPrivate::on_start_drag(wlr_drag *drag)
 {
     doClearPointerFocus();
     if (drag->icon) {
+        W_Q(WSeat);
         auto *surface = qw_surface::from(drag->icon->surface);
-        auto *wsurface = new WSurface(surface, surface);
-        cursor->setDragSurface(wsurface);
+        auto *wsurface = new WSurface(surface, q);
+        QObject::connect(surface, &qw_surface::before_destroy,
+                         wsurface, &WSurface::safeDeleteLater);
+        if (dragSurface)
+            dragSurface->safeDeleteLater();
+        dragSurface = wsurface;
+        Q_EMIT q->requestDrag(dragSurface.get());
     }
 }
 void WSeatPrivate::handleKeyEvent(QKeyEvent &e)
@@ -662,6 +693,36 @@ bool WSeat::setCursorPositionWithChecker(const QPointF &pos)
     bool ok = cursor()->setPositionWithChecker(pos);
     d->doMouseMove(cursor(), QPointingDevice::primaryPointingDevice(), QDateTime::currentMSecsSinceEpoch());
     return ok;
+}
+
+WGlobal::CursorShape WSeat::requestedCursorShape() const
+{
+    W_DC(WSeat);
+
+    if (d->cursorClient == d->nativeHandle()->pointer_state.focused_client)
+        return d->cursorShape;
+    return WGlobal::CursorShape::Invalid;
+}
+
+WSurface *WSeat::requestedCursorSurface() const
+{
+    W_DC(WSeat);
+
+    if (d->cursorClient == d->nativeHandle()->pointer_state.focused_client)
+        return d->cursorSurface;
+    return nullptr;
+}
+
+QPoint WSeat::requestedCursorSurfaceHotspot() const
+{
+    W_DC(WSeat);
+    return d->cursorSurfaceHotspot;
+}
+
+WSurface *WSeat::requestedDragSurface() const
+{
+    W_DC(WSeat);
+    return d->dragSurface;
 }
 
 void WSeat::attachInputDevice(WInputDevice *device)
@@ -1260,6 +1321,16 @@ void WSeat::notifyTouchFrame(WCursor *cursor)
     for (auto *device: std::as_const(d->touchDeviceList)) {
         d->doNotifyTouchFrame(device);
     }
+}
+
+void WSeat::setCursorShape(wlr_seat_client *client, WGlobal::CursorShape shape)
+{
+    W_D(WSeat);
+    if (client != d->nativeHandle()->pointer_state.focused_client)
+        return;
+    d->cursorShape = shape;
+    d->cursorClient = client;
+    Q_EMIT requestCursorShape(shape);
 }
 
 WSeatEventFilter *WSeat::eventFilter() const

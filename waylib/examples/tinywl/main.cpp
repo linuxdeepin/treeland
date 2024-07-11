@@ -65,7 +65,7 @@ Helper::Helper(QObject *parent)
     : WSeatEventFilter(parent)
     , m_server(new WServer(this))
     , m_outputLayout(new WQuickOutputLayout(this))
-    , m_cursor(new WQuickCursor(this))
+    , m_cursor(new WCursor(this))
     , m_seat(new WSeat())
     , m_outputCreator(new WQmlCreator(this))
     , m_xdgShellCreator(new WQmlCreator(this))
@@ -75,7 +75,6 @@ Helper::Helper(QObject *parent)
 {
     m_seat->setEventFilter(this);
     m_seat->setCursor(m_cursor);
-    m_cursor->setThemeName(getenv("XCURSOR_THEME"));
     m_cursor->setLayout(m_outputLayout);
 }
 

@@ -4,28 +4,13 @@
 #include "woutputitem.h"
 #include "woutputitem_p.h"
 #include "woutput.h"
-#include "woutputlayout.h"
 #include "wquickoutputlayout.h"
-#include "wtools.h"
 #include "wtexture.h"
 #include "wquickcursor.h"
 #include "private/wglobal_p.h"
 
 #include <qwoutput.h>
 #include <qwoutputlayout.h>
-
-#include <private/qquickitem_p.h>
-#include <private/qsgplaintexture_p.h>
-
-extern "C" {
-#define static
-#include <wlr/render/gles2.h>
-#undef static
-#include <wlr/render/pixman.h>
-#ifdef ENABLE_VULKAN_RENDER
-#include <wlr/render/vulkan.h>
-#endif
-}
 
 QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
@@ -47,252 +32,6 @@ void WOutputItemAttached::setItem(WOutputItem *positioner)
         return;
     m_positioner = positioner;
     Q_EMIT itemChanged();
-}
-
-class Q_DECL_HIDDEN CursorTextureFactory : public QQuickTextureFactory
-{
-public:
-    CursorTextureFactory(qw_texture *texture)
-        : QQuickTextureFactory()
-        , texture(texture)
-    {
-
-    }
-
-    QSGTexture *createTexture(QQuickWindow *window) const override;
-    QSize textureSize() const override {
-        return QSize(texture->handle()->width, texture->handle()->height);
-    }
-    int textureByteCount() const override {
-        const QSize size = textureSize();
-        // ###(zccrs): Don't know byte count of wlr_texture
-        return size.width() * size.height() * 4;
-    }
-    QImage image() const override;
-
-private:
-    qw_texture *texture;
-};
-
-class Q_DECL_HIDDEN CursorProvider : public QQuickImageProvider
-{
-public:
-    CursorProvider()
-        : QQuickImageProvider(QQmlImageProviderBase::Texture)
-    {
-
-    }
-
-    QQuickTextureFactory *requestTexture(const QString &id, QSize *size, const QSize &requestedSize) override;
-};
-
-QSGTexture *CursorTextureFactory::createTexture(QQuickWindow *window) const
-{
-    std::unique_ptr<QSGPlainTexture> texture(new QSGPlainTexture());
-    if (!WTexture::makeTexture(this->texture, texture.get(), window))
-        return nullptr;
-
-    texture->setOwnsTexture(false);
-
-    if (!texture->image().isNull()) {
-        // Can't use QSGPlainTexture for QQuickImage on software renderer
-        auto flags = texture->hasAlphaChannel() ? QQuickWindow::TextureHasAlphaChannel : QQuickWindow::CreateTextureOptions{0};
-        return window->createTextureFromImage(texture->image(), flags);
-    }
-
-    return texture.release();
-}
-
-QImage CursorTextureFactory::image() const
-{
-    if (!wlr_texture_is_pixman(texture->handle())) {
-        return {};
-    }
-
-    auto image = wlr_pixman_texture_get_image(texture->handle());
-    return WTools::fromPixmanImage(image);
-}
-
-QuickOutputCursor::QuickOutputCursor(wlr_output_cursor *handle, QObject *parent)
-    : QObject(parent)
-    , m_handle(handle)
-{
-
-}
-
-QuickOutputCursor::~QuickOutputCursor()
-{
-    if (delegateItem)
-        delegateItem->deleteLater();
-}
-
-QString QuickOutputCursor::imageProviderId()
-{
-    return QLatin1StringView("QuickOutputCursor");
-}
-
-void QuickOutputCursor::setHandle(wlr_output_cursor *handle)
-{
-    m_handle = handle;
-}
-
-bool QuickOutputCursor::visible() const
-{
-    return m_visible;
-}
-
-void QuickOutputCursor::setVisible(bool newVisible)
-{
-    if (m_visible == newVisible)
-        return;
-    m_visible = newVisible;
-    Q_EMIT visibleChanged();
-}
-
-bool QuickOutputCursor::isHardwareCursor() const
-{
-    return m_isHardwareCursor;
-}
-
-void QuickOutputCursor::setIsHardwareCursor(bool newIsHardwareCursor)
-{
-    if (m_isHardwareCursor == newIsHardwareCursor)
-        return;
-    m_isHardwareCursor = newIsHardwareCursor;
-    Q_EMIT isHardwareCursorChanged();
-}
-
-QPointF QuickOutputCursor::hotspot() const
-{
-    return m_hotspot;
-}
-
-void QuickOutputCursor::setHotspot(QPointF newHotspot)
-{
-    if (m_hotspot == newHotspot)
-        return;
-    m_hotspot = newHotspot;
-    Q_EMIT hotspotChanged();
-}
-
-void QuickOutputCursor::setTexture(wlr_texture *texture)
-{
-    // Though "lastTexture == texture", but maybe the texture native resource
-    // is changed(like as OpenGL texture id changed). Need to check TextureAttrib
-    // whether to change
-    TextureAttrib texAttr;
-    if (!texture) {
-        texAttr.type = TextureAttrib::EMPTY;
-    } else if (wlr_texture_is_gles2(texture)) {
-        wlr_gles2_texture_attribs attr;
-        wlr_gles2_texture_get_attribs(texture, &attr);
-        texAttr.type = TextureAttrib::GLES;
-        texAttr.tex = attr.tex;
-    } else if (wlr_texture_is_pixman(texture)) {
-        texAttr.type = TextureAttrib::PIXMAN;
-        texAttr.pimage = wlr_pixman_texture_get_image(texture);
-    }
-#ifdef ENABLE_VULKAN_RENDER
-    else if (wlr_texture_is_vk(texture)) {
-        wlr_vk_image_attribs attr;
-        wlr_vk_texture_get_image_attribs(texture, &attr);
-        texAttr.type = TextureAttrib::VULKAN;
-        texAttr.vimage = attr.image;
-    }
-#endif
-
-    Q_ASSERT_X(texAttr.type != TextureAttrib::INVALID, "QuickOutputCursor::setTexture", "Unknow texture type");
-
-    if (lastTexture == texture && lastTextureAttrib == texAttr)
-        return;
-
-    lastTexture = texture;
-    lastTextureAttrib = texAttr;
-
-    QUrl url;
-
-    if (texture) {
-        url.setScheme("image");
-        url.setHost(imageProviderId());
-        url.setPath(QString("/%1/%2").arg(quintptr(qw_texture::from(texture)), 0, 16));
-    }
-
-    setImageSource(url);
-}
-
-QUrl QuickOutputCursor::imageSource() const
-{
-    return m_imageSource;
-}
-
-void QuickOutputCursor::setImageSource(const QUrl &newImageSource)
-{
-    if (m_imageSource == newImageSource)
-        return;
-    m_imageSource = newImageSource;
-    Q_EMIT imageSourceChanged();
-}
-
-QSizeF QuickOutputCursor::size() const
-{
-    return m_size;
-}
-
-void QuickOutputCursor::setSize(const QSizeF &newSize)
-{
-    if (m_size == newSize)
-        return;
-    m_size = newSize;
-    Q_EMIT sizeChanged();
-}
-
-QRectF QuickOutputCursor::sourceRect() const
-{
-    return m_sourceRect;
-}
-
-void QuickOutputCursor::setSourceRect(const QRectF &newSourceRect)
-{
-    if (m_sourceRect == newSourceRect)
-        return;
-    m_sourceRect = newSourceRect;
-    emit sourceRectChanged();
-}
-
-bool QuickOutputCursor::setPosition(const QPointF &pos)
-{
-    const auto newPosition = delegateItem->parentItem()->mapFromGlobal(pos);
-    if (newPosition == delegateItem->position())
-        return false;
-    // TODO: Don't change position if the item isn't visible, change position
-    // will lead to the window repaint.
-    delegateItem->setPosition(newPosition);
-    return true;
-}
-
-void QuickOutputCursor::setDelegateItem(QQuickItem *item)
-{
-    delegateItem = item;
-}
-
-QQuickTextureFactory *CursorProvider::requestTexture(const QString &id, QSize *size, const QSize &requestedSize)
-{
-    Q_UNUSED(requestedSize);
-
-    auto tmp = id.split('/');
-    if (tmp.isEmpty())
-        return nullptr;
-    bool ok = false;
-    qw_texture *texture = qw_texture::from(reinterpret_cast<wlr_texture*>(tmp.first().toLongLong(&ok, 16)));
-    if (!ok)
-        return nullptr;
-
-    CursorTextureFactory *factory = new CursorTextureFactory(texture);
-
-    if (size)
-        *size = factory->textureSize();
-
-    return factory;
 }
 
 #define DATA_OF_WOUPTUT "_WOutputItem"
@@ -327,7 +66,8 @@ public:
 
     void clearCursors();
     void updateCursors();
-    QuickOutputCursor *getCursorBy(wlr_output_cursor *handle) const;
+    void onCursorItemPositionChanged();
+    QQuickItem *getCursorItemBy(WCursor *cursor) const;
 
     W_DECLARE_PUBLIC(WOutputItem)
     QPointer<WOutput> output;
@@ -335,9 +75,9 @@ public:
     qreal devicePixelRatio = 1.0;
 
     QQmlComponent *cursorDelegate = nullptr;
-    QList<QuickOutputCursor*> cursors;
-    QuickOutputCursor *lastActiveCursor = nullptr;
+    QList<std::pair<WCursor*, QQuickItem*>> cursorItems;
     QMetaObject::Connection updateCursorsConnection;
+    QPointer<QQuickItem> lastActiveCursorItem;
 };
 
 void WOutputItemPrivate::initForOutput()
@@ -360,14 +100,22 @@ void WOutputItemPrivate::initForOutput()
     });
 
     updateImplicitSize();
+
     clearCursors();
+    if (updateCursorsConnection)
+        QObject::disconnect(updateCursorsConnection);
+    if (output) {
+        updateCursorsConnection = QObject::connect(output, SIGNAL(cursorListChanged()),
+                                                   q, SLOT(updateCursors()));
+        updateCursors();
+    }
 }
 
 void WOutputItemPrivate::clearCursors()
 {
-    for (auto i : std::as_const(cursors))
-        i->deleteLater();
-    cursors.clear();
+    for (auto i : std::as_const(cursorItems))
+        i.second->deleteLater();
+    cursorItems.clear();
 }
 
 void WOutputItemPrivate::updateCursors()
@@ -377,74 +125,68 @@ void WOutputItemPrivate::updateCursors()
 
     W_Q(WOutputItem);
 
-    QList<QuickOutputCursor*> tmpCursors;
-    tmpCursors.reserve(cursors.size());
+    QList<std::pair<WCursor*, QQuickItem*>> tmpCursors;
+    tmpCursors.reserve(cursorItems.size());
     bool cursorsChanged = false;
 
-    struct wlr_output_cursor *cursor;
-    wl_list_for_each(cursor, &output->handle()->handle()->cursors, link) {
-        QuickOutputCursor *quickCursor = getCursorBy(cursor);
-        if (!quickCursor) {
-            quickCursor = new QuickOutputCursor(cursor, q);
-            auto obj = cursorDelegate->createWithInitialProperties({{"cursor", QVariant::fromValue(quickCursor)}}, qmlContext(q));
-            auto item = qobject_cast<QQuickItem*>(obj);
+    const auto cursorList = output->cursorList();
+    for (WCursor *cursor : cursorList) {
+        auto *item = getCursorItemBy(cursor);
+        if (!item) {
+            Q_ASSERT(q->window());
+            auto obj = cursorDelegate->createWithInitialProperties({
+                {"cursor", QVariant::fromValue(cursor)},
+                {"parent", QVariant::fromValue(q->window()->contentItem())},
+            }, qmlContext(q));
+            item = qobject_cast<QQuickItem*>(obj);
 
             if (!item)
                 qFatal("Cursor delegate must is Item");
 
+            Q_ASSERT(item->parentItem() == q->window()->contentItem());
             QQmlEngine::setObjectOwnership(item, QQmlEngine::CppOwnership);
             item->setZ(qreal(WOutputLayout::Layer::Cursor));
-            Q_ASSERT(q->window());
-            item->setParentItem(q->window()->contentItem());
-
-            quickCursor->setDelegateItem(item);
             cursorsChanged = true;
+
+            bool ok = QObject::connect(item, SIGNAL(xChanged()), q, SLOT(onCursorItemPositionChanged()));
+            Q_ASSERT(ok);
+            ok = QObject::connect(item, SIGNAL(yChanged()), q, SLOT(onCursorItemPositionChanged()));
+            Q_ASSERT(ok);
         }
 
-        tmpCursors.append(quickCursor);
-
-        quickCursor->setVisible(cursor->visible);
-        quickCursor->setIsHardwareCursor(output->handle()->handle()->hardware_cursor == cursor);
-        const QPointF position = QPointF(cursor->x, cursor->y) / cursor->output->scale + output->position();
-        bool positionChanged = quickCursor->setPosition(position);
-        quickCursor->setHotspot((QPointF(cursor->hotspot_x, cursor->hotspot_y) / cursor->output->scale).toPoint());
-        quickCursor->setSize(QSizeF(cursor->width, cursor->height) / cursor->output->scale);
-        quickCursor->setSourceRect(QRectF(cursor->src_box.x, cursor->src_box.y, cursor->src_box.width, cursor->src_box.height));
-        quickCursor->setTexture(cursor->texture);
-
-        if (cursor->visible && positionChanged && lastActiveCursor != quickCursor) {
-            lastActiveCursor = quickCursor;
-            Q_EMIT q->lastActiveCursorItemChanged();
-        }
+        tmpCursors.append(std::make_pair(cursor, item));
     }
 
-    std::swap(tmpCursors, cursors);
+    std::swap(tmpCursors, cursorItems);
     // clean needless cursors
-    for (auto cursor : std::as_const(tmpCursors)) {
-        if (cursors.contains(cursor))
+    for (auto i : std::as_const(tmpCursors)) {
+        if (cursorItems.contains(i))
             continue;
-        if (cursor == lastActiveCursor) {
-            lastActiveCursor = nullptr;
-            Q_EMIT q->lastActiveCursorItemChanged();
-        }
-        cursor->deleteLater();
+        i.second->setParent(nullptr);
+        i.second->deleteLater();
         cursorsChanged = true;
-    }
-
-    if (lastActiveCursor && !lastActiveCursor->visible()) {
-        lastActiveCursor = nullptr;
-        Q_EMIT q->lastActiveCursorItemChanged();
     }
 
     if (cursorsChanged)
         Q_EMIT q->cursorItemsChanged();
 }
 
-QuickOutputCursor *WOutputItemPrivate::getCursorBy(wlr_output_cursor *handle) const
+void WOutputItemPrivate::onCursorItemPositionChanged()
 {
-    for (auto cursor : std::as_const(cursors))
-        if (cursor->m_handle == handle)
-            return cursor;
+    W_Q(WOutputItem);
+    auto item = qobject_cast<QQuickItem*>(q->sender());
+    Q_ASSERT(item);
+    if (lastActiveCursorItem == item)
+        return;
+    lastActiveCursorItem = item;
+    Q_EMIT q->lastActiveCursorItemChanged();
+}
+
+QQuickItem *WOutputItemPrivate::getCursorItemBy(WCursor *cursor) const
+{
+    for (auto i : std::as_const(cursorItems))
+        if (i.first == cursor)
+            return i.second;
     return nullptr;
 }
 
@@ -574,7 +316,7 @@ void WOutputItem::setCursorDelegate(QQmlComponent *delegate)
 QQuickItem *WOutputItem::lastActiveCursorItem() const
 {
     W_DC(WOutputItem);
-    return d->lastActiveCursor ? d->lastActiveCursor->delegateItem : nullptr;
+    return d->lastActiveCursorItem;
 }
 
 QList<QQuickItem *> WOutputItem::cursorItems() const
@@ -582,10 +324,10 @@ QList<QQuickItem *> WOutputItem::cursorItems() const
     W_DC(WOutputItem);
 
     QList<QQuickItem *> items;
-    items.reserve(d->cursors.size());
+    items.reserve(d->cursorItems.size());
 
-    for (auto cursor : std::as_const(d->cursors))
-        items.append(cursor->delegateItem);
+    for (auto i : std::as_const(d->cursorItems))
+        items.append(i.second);
 
     return items;
 }
@@ -595,10 +337,6 @@ void WOutputItem::classBegin()
     W_D(WOutputItem);
 
     QQuickItem::classBegin();
-    auto engine = qmlEngine(this);
-
-    if (!engine->imageProvider(QuickOutputCursor::imageProviderId()))
-        engine->addImageProvider(QuickOutputCursor::imageProviderId(), new CursorProvider());
 }
 
 void WOutputItem::componentComplete()
@@ -622,17 +360,6 @@ void WOutputItem::releaseResources()
 void WOutputItem::itemChange(ItemChange change, const ItemChangeData &data)
 {
     QQuickItem::itemChange(change, data);
-
-    if (change == ItemChange::ItemSceneChange) {
-        W_D(WOutputItem);
-        d->clearCursors();
-        if (d->updateCursorsConnection)
-            disconnect(d->updateCursorsConnection);
-        if (data.window) {
-            d->updateCursorsConnection = connect(data.window, SIGNAL(beforeSynchronizing()), this, SLOT(updateCursors()));
-            d->updateCursors();
-        }
-    }
 }
 
 qreal WOutputItem::getImplicitWidth() const

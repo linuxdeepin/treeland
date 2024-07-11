@@ -46,9 +46,6 @@ public:
 
     void instantRelease() override;
 
-    const char *checkTypeAndFallback(const char *name);
-    void setType(const char *name);
-    void updateCursorImage();
     void sendEnterEvent();
     void sendLeaveEvent();
 
@@ -85,7 +82,7 @@ public:
     QPointer<QWindow> eventWindow;
     bool enterWindowEventHasSend = false;
     bool leaveWindowEventHasSend = false;
-    WOutputLayout *outputLayout = nullptr;
+    QPointer<WOutputLayout> outputLayout;
     QList<WInputDevice*> deviceList;
 
     // for event data
@@ -93,11 +90,6 @@ public:
     Qt::MouseButton button = Qt::NoButton;
     QPointF lastPressedOrTouchDownPosition;
     bool visible = true;
-    QPointer<QW_NAMESPACE::qw_surface> surfaceOfCursor;
-    QPoint surfaceCursorHotspot;
-    WCursor::CursorShape shape = WCursor::Invalid;
-    // for drag
-    WSurface* dragSurface = nullptr;
 };
 
 WAYLIB_SERVER_END_NAMESPACE

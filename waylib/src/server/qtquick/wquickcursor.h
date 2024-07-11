@@ -6,12 +6,10 @@
 #include <wcursor.h>
 Q_MOC_INCLUDE("wquickoutputlayout.h")
 
-#include <QQmlEngine>
-#include <QQmlParserStatus>
+#include <QQuickItem>
 
 QT_BEGIN_NAMESPACE
 class QQmlComponent;
-class QQuickItem;
 QT_END_NAMESPACE
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
@@ -19,7 +17,7 @@ WAYLIB_SERVER_BEGIN_NAMESPACE
 class WAYLIB_SERVER_EXPORT WQuickCursorAttached : public QObject
 {
     Q_OBJECT
-    Q_PROPERTY(WCursor::CursorShape shape READ shape WRITE setShape NOTIFY shapeChanged FINAL)
+    Q_PROPERTY(WGlobal::CursorShape shape READ shape WRITE setShape NOTIFY shapeChanged FINAL)
     QML_ANONYMOUS
 
 public:
@@ -27,62 +25,67 @@ public:
 
     QQuickItem *parent() const;
 
-    WCursor::CursorShape shape() const;
-    void setShape(WCursor::CursorShape shape);
+    WGlobal::CursorShape shape() const;
+    void setShape(WGlobal::CursorShape shape);
 
 Q_SIGNALS:
     void shapeChanged();
 };
 
 class WQuickOutputLayout;
-class WOutputRenderWindow;
 class WQuickCursorPrivate;
-class WAYLIB_SERVER_EXPORT WQuickCursor : public WCursor, public QQmlParserStatus
+class WAYLIB_SERVER_EXPORT WQuickCursor : public QQuickItem
 {
     Q_OBJECT
-    W_DECLARE_PRIVATE(WQuickCursor)
-    Q_PROPERTY(WQuickOutputLayout* layout READ layout WRITE setLayout REQUIRED)
-    Q_PROPERTY(WOutputRenderWindow* currentRenderWindow READ currentRenderWindow NOTIFY currentRenderWindowChanged)
+    Q_DECLARE_PRIVATE(WQuickCursor)
+    Q_PROPERTY(bool valid READ valid NOTIFY validChanged FINAL)
+    Q_PROPERTY(WAYLIB_SERVER_NAMESPACE::WCursor* cursor READ cursor WRITE setCursor NOTIFY cursorChanged)
     Q_PROPERTY(QString themeName READ themeName WRITE setThemeName NOTIFY themeNameChanged)
-    Q_PROPERTY(QSize size READ size WRITE setSize NOTIFY sizeChanged)
-    Q_PROPERTY(QPointF position READ position NOTIFY positionChanged)
-    Q_PROPERTY(WAYLIB_SERVER_NAMESPACE::WSurface* dragSurface READ dragSurface NOTIFY dragSurfaceChanged)
+    Q_PROPERTY(QSize sourceSize READ sourceSize WRITE setSourceSize NOTIFY sourceSizeChanged)
+    Q_PROPERTY(QPointF hotSpot READ hotSpot NOTIFY hotSpotChanged FINAL)
     QML_NAMED_ELEMENT(Cursor)
     QML_ATTACHED(WQuickCursorAttached)
-    Q_INTERFACES(QQmlParserStatus)
 
 public:
-    explicit WQuickCursor(QObject *parent = nullptr);
+    explicit WQuickCursor(QQuickItem *parent = nullptr);
     ~WQuickCursor();
 
     static WQuickCursorAttached *qmlAttachedProperties(QObject *target);
 
-    WQuickOutputLayout *layout() const;
-    void setLayout(WQuickOutputLayout *layout);
+    QSGTextureProvider *textureProvider() const override;
+    bool isTextureProvider() const override;
 
-    WOutputRenderWindow *currentRenderWindow() const;
+    bool valid() const;
+
+    WCursor *cursor() const;
+    void setCursor(WCursor *cursor);
 
     QString themeName() const;
     void setThemeName(const QString &name);
 
-    QSize size() const;
-    void setSize(const QSize &size);
+    QSize sourceSize() const;
+    void setSourceSize(const QSize &size);
+
+    QPointF hotSpot() const;
 
 Q_SIGNALS:
+    void validChanged();
+    void cursorChanged();
     void themeNameChanged();
-    void sizeChanged();
+    void sourceSizeChanged();
     void currentRenderWindowChanged();
+    void hotSpotChanged();
 
 private:
-    using WCursor::setLayout;
-    using WCursor::layout;
-
-    void classBegin() override;
     void componentComplete() override;
+    void itemChange(ItemChange change, const ItemChangeData &data) override;
+    void geometryChange(const QRectF &newGeometry, const QRectF &oldGeometry) override;
+    QSGNode *updatePaintNode(QSGNode *node, UpdatePaintNodeData *data) override;
+    void releaseResources() override;
 
-    W_PRIVATE_SLOT(void updateRenderWindows())
-    W_PRIVATE_SLOT(void updateCurrentRenderWindow())
-    W_PRIVATE_SLOT(void updateXCursorManager())
+    W_PRIVATE_SLOT(void updateTexture())
+    W_PRIVATE_SLOT(void updateCursor())
+    W_PRIVATE_SLOT(void updateImplicitSize())
 };
 
 WAYLIB_SERVER_END_NAMESPACE

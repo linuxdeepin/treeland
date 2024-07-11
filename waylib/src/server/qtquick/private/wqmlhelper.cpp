@@ -75,7 +75,7 @@ void WQmlHelper::itemStackToTop(QQuickItem *item)
     item->stackAfter(children.last());
 }
 
-void WQmlHelper::setCursorShape(QQuickItem *item, WCursor::CursorShape shape)
+void WQmlHelper::setCursorShape(QQuickItem *item, WGlobal::CursorShape shape)
 {
     item->setCursor(WCursor::toQCursor(shape));
 }

@@ -103,6 +103,7 @@ set(SOURCES
     utils/wtools.cpp
     utils/wthreadutils.cpp
     utils/wimagebuffer.cpp
+    utils/wcursorimage.cpp
 
     platformplugin/qwlrootsintegration.cpp
     platformplugin/qwlrootscreen.cpp
@@ -187,6 +188,8 @@ set(HEADERS
     utils/wthreadutils.h
     utils/WThreadUtils
     utils/wimagebuffer.h
+    utils/wcursorimage.h
+    utils/WCursorImage
 
     protocols/wxdgshell.h
     protocols/WXdgShell

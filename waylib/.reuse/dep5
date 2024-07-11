@@ -60,6 +60,7 @@ Files: examples/tinywl/qml.qrc
        src/server/qtquick/WSurfaceItem
        src/server/utils/WSignalConnector
        src/server/utils/WThreadUtils
+       src/server/utils/WCursorImage
        tests/main.cpp
        tests/test.h
 Copyright: JiDe Zhang

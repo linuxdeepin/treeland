@@ -35,12 +35,6 @@ WAYLIB_SERVER_BEGIN_NAMESPACE
 
 Q_LOGGING_CATEGORY(qLcWlrCursor, "waylib.server.cursor", QtWarningMsg)
 
-inline qw_buffer* createImageBuffer(QImage image)
-{
-    auto *bufferImpl = new WImageBufferImpl(image);
-    return qw_buffer::create(bufferImpl, image.width(), image.height());
-}
-
 WCursorPrivate::WCursorPrivate(WCursor *qq)
     : WWrapObjectPrivate(qq)
 {
@@ -62,243 +56,6 @@ void WCursorPrivate::instantRelease()
     if (outputLayout) {
         for (auto o : outputLayout->outputs())
             o->removeCursor(q_func());
-    }
-}
-
-const char *WCursorPrivate::checkTypeAndFallback(const char *name)
-{
-    if (!xcursor_manager)
-        return nullptr;
-
-    if (xcursor_manager->get_xcursor(name, 1.0)) {
-        return name;
-    }
-
-    static const std::vector<std::vector<const char*>> typeLists = {
-        {"ibeam", "text", "xterm"},
-        {"openhand", "grab"},
-        {"crosshair", "cross", "all-scroll"},
-        {"closedhand", "dnd-move", "move", "dnd-none", "grabbing"},
-        {"dnd-copy", "copy"},
-        {"dnd-link", "link"},
-        {"row-resize", "size_ver", "ns-resize", "split_v", "n-resize", "s-resize"},
-        {"col-resize", "size_hor", "ew-resize", "split_h", "e-resize", "w-resize"},
-        {"nwse-resize", "nw-resize", "se-resize", "size_fdiag"},
-        {"progress", "wait", "watch"},
-        {"hand1", "hand2", "pointer", "pointing_hand"},
-    };
-
-    for (const auto &typeList : std::as_const(typeLists)) {
-        bool hasType = std::find_if(typeList.begin(), typeList.end(), [name](const char *type) {
-            return std::strcmp(type, name) == 0;
-        }) != typeList.end();
-
-        if(!hasType)
-            continue;
-
-        auto it = std::find_if(typeList.begin(), typeList.end(), [this](const char *type) {
-            return xcursor_manager->get_xcursor(type, 1.0) != nullptr;
-        });
-
-        if (it == typeList.end())
-            return nullptr;
-
-        qCDebug(qLcWlrCursor) << "Can't load cursor `" << name
-                              <<"`, use `" << *it << "` as fallback";
-        return *it;
-    }
-
-    return nullptr;
-}
-
-void WCursorPrivate::setType(const char *name)
-{
-    W_Q(WCursor);
-
-    if (!xcursor_manager)
-        return;
-
-    // FIXME: Prevent the cursor from being black in some situations，but why need unsetImage manually?
-    handle()->unset_image();
-    handle()->set_xcursor(*xcursor_manager, name);
-}
-
-static inline const char *qcursorShapeToType(std::underlying_type_t<WCursor::CursorShape> shape) {
-    switch (shape) {
-    case Qt::ArrowCursor:
-        return "left_ptr";
-    case Qt::UpArrowCursor:
-        return "up_arrow";
-    case Qt::CrossCursor:
-        return "cross";
-    case Qt::WaitCursor:
-        return "wait";
-    case Qt::IBeamCursor:
-        return "ibeam";
-    case Qt::SizeAllCursor:
-        return "size_all";
-    case Qt::BlankCursor:
-        return "blank";
-    case Qt::PointingHandCursor:
-        return "pointing_hand";
-    case Qt::SizeBDiagCursor:
-        return "size_bdiag";
-    case Qt::SizeFDiagCursor:
-        return "size_fdiag";
-    case Qt::SizeVerCursor:
-        return "size_ver";
-    case Qt::SplitVCursor:
-        return "split_v";
-    case Qt::SizeHorCursor:
-        return "size_hor";
-    case Qt::SplitHCursor:
-        return "split_h";
-    case Qt::WhatsThisCursor:
-        return "whats_this";
-    case Qt::ForbiddenCursor:
-        return "forbidden";
-    case Qt::BusyCursor:
-        return "left_ptr_watch";
-    case Qt::OpenHandCursor:
-        return "openhand";
-    case Qt::ClosedHandCursor:
-        return "closedhand";
-    case Qt::DragCopyCursor:
-        return "dnd-copy";
-    case Qt::DragMoveCursor:
-        return "dnd-move";
-    case Qt::DragLinkCursor:
-        return "dnd-link";
-    case WCursor::Default:
-        return "default";
-    case WCursor::BottomLeftCorner:
-        return "bottom_left_corner";
-    case WCursor::BottomRightCorner:
-        return "bottom_right_corner";
-    case WCursor::TopLeftCorner:
-        return "top_left_corner";
-    case WCursor::TopRightCorner:
-        return "top_right_corner";
-    case WCursor::BottomSide:
-        return "bottom_side";
-    case WCursor::LeftSide:
-        return "left_side";
-    case WCursor::RightSide:
-        return "right_side";
-    case WCursor::TopSide:
-        return "top_side";
-    case WCursor::Grabbing:
-        return "grabbing";
-    case WCursor::Xterm:
-        return "xterm";
-    case WCursor::Hand1:
-        return "hand1";
-    case WCursor::Watch:
-        return "watch";
-    case WCursor::SWResize:
-        return "sw-resize";
-    case WCursor::SEResize:
-        return "se-resize";
-    case WCursor::SResize:
-        return "s-resize";
-    case WCursor::WResize:
-        return "w-resize";
-    case WCursor::EResize:
-        return "e-resize";
-    case WCursor::EWResize:
-        return "ew-resize";
-    case WCursor::NWResize:
-        return "nw-resize";
-    case WCursor::NWSEResize:
-        return "nwse-resize";
-    case WCursor::NEResize:
-        return "ne-resize";
-    case WCursor::NESWResize:
-        return "nesw-resize";
-    case WCursor::NSResize:
-        return "ns-resize";
-    case WCursor::NResize:
-        return "n-resize";
-    case WCursor::AllScroll:
-        return "all-scroll";
-    case WCursor::Text:
-        return "text";
-    case WCursor::Pointer:
-        return "pointer";
-    case WCursor::Wait:
-        return "wait";
-    case WCursor::ContextMenu:
-        return "context-menu";
-    case WCursor::Help:
-        return "help";
-    case WCursor::Progress:
-        return "progress";
-    case WCursor::Cell:
-        return "cell";
-    case WCursor::Crosshair:
-        return "crosshair";
-    case WCursor::VerticalText:
-        return "vertical-text";
-    case WCursor::Alias:
-        return "alias";
-    case WCursor::Copy:
-        return "copy";
-    case WCursor::Move:
-        return "move";
-    case WCursor::NoDrop:
-        return "no-drop";
-    case WCursor::NotAllowed:
-        return "not-allowed";
-    case WCursor::Grab:
-        return "grab";
-    case WCursor::ColResize:
-        return "col-resize";
-    case WCursor::RowResize:
-        return "row-resize";
-    case WCursor::ZoomIn:
-        return "zoom-in";
-    case WCursor::ZoomOut:
-        return "zoom-out";
-    default:
-        break;
-    }
-
-    return nullptr;
-}
-
-void WCursorPrivate::updateCursorImage()
-{
-    if (!outputLayout)
-        return;
-
-    if (seat && seat->pointerFocusSurface()) {
-        auto typeName = qcursorShapeToType(shape);
-        if (typeName) {
-            if (auto checkedName = checkTypeAndFallback(typeName))
-                setType(checkedName);
-            else {
-                qCWarning(qLcWlrCursor) << "Can't load cursor `" << typeName
-                                        << "`, Use `default` as fallback";
-                setType("default");
-            }
-        }
-        return; // Using the wl_client's cursor resource if shape is Invalid
-    }
-
-    surfaceOfCursor.clear();
-
-    if (!visible)
-        return;
-
-    if (auto typeName = checkTypeAndFallback(qcursorShapeToType(cursor.shape()))) {
-        setType(typeName);
-    } else {
-        const QImage &img = cursor.pixmap().toImage();
-        if (img.isNull())
-            return;
-
-        auto *imageBuffer = createImageBuffer(img);
-        handle()->set_buffer(*imageBuffer, cursor.hotSpot().x(), cursor.hotSpot().y(), img.devicePixelRatio());
     }
 }
 
@@ -741,17 +498,27 @@ void WCursor::setSeat(WSeat *seat)
 
     if (d->seat) {
         // reconnect signals
-        d->handle()->disconnect(d->seat);
+        d->handle()->disconnect(this);
+        d->seat->disconnect(this);
     }
     d->seat = seat;
 
     if (d->seat) {
         d->connect();
 
+        connect(d->seat, &WSeat::requestCursorShape, this, &WCursor::requestedCursorShapeChanged);
+        connect(d->seat, &WSeat::requestCursorSurface, this, &WCursor::requestedCursorSurfaceChanged);
+        connect(d->seat, &WSeat::requestDrag, this, &WCursor::requestedDragSurfaceChanged);
+
         if (d->eventWindow) {
             d->sendEnterEvent();
         }
     }
+
+    Q_EMIT seatChanged();
+    Q_EMIT requestedCursorShapeChanged();
+    Q_EMIT requestedCursorSurfaceChanged();
+    Q_EMIT requestedDragSurfaceChanged();
 }
 
 WSeat *WCursor::seat() const
@@ -790,22 +557,6 @@ Qt::CursorShape WCursor::defaultCursor()
     return Qt::ArrowCursor;
 }
 
-void WCursor::setXCursorManager(qw_xcursor_manager *manager)
-{
-    W_D(WCursor);
-
-    if (d->xcursor_manager == manager)
-        return;
-
-    d->xcursor_manager = manager;
-
-    // Make sure the theme with a scaling factor of 1.0 was loaded
-    // Used to check whether the theme support the type of cursor in `setType`
-    d->xcursor_manager->load(1.0);
-
-    d->updateCursorImage();
-}
-
 QCursor WCursor::cursor() const
 {
     W_DC(WCursor);
@@ -816,58 +567,32 @@ void WCursor::setCursor(const QCursor &cursor)
 {
     W_D(WCursor);
 
-    d->cursor = cursor;
-    d->updateCursorImage();
-}
-
-void WCursor::setSurface(qw_surface *surface, const QPoint &hotspot)
-{
-    W_D(WCursor);
-    if (d->surfaceOfCursor) // don't update cursor image before older surface destroy
-        d->surfaceOfCursor->disconnect(this);
-    d->surfaceOfCursor = surface;
-    d->surfaceCursorHotspot = hotspot;
-    d->shape = WCursor::Invalid; // clear cache
-    if (d->visible) {
-        d->handle()->set_surface(*surface, hotspot.x(), hotspot.y());
-        if (surface) {
-            connect(surface, &qw_surface::before_destroy, this, [d]() {
-                d->updateCursorImage();
-            }, Qt::QueuedConnection);
-            // Do not call updateCursorImage immediately to prevent pointerFocusSurface not cleaning up in time
-        }
-    }
-}
-
-void WCursor::setCursorShape(CursorShape shape)
-{
-    W_D(WCursor);
-    d->shape = shape;
-    d->updateCursorImage();
-}
-
-void WCursor::setDragSurface(WSurface *surface)
-{
-    W_D(WCursor);
-    if (d->dragSurface == surface)
+    if (d->cursor == cursor)
         return;
-    if (d->dragSurface)
-        d->dragSurface->safeDisconnect(this);
-
-    d->dragSurface = surface;
-    if (surface) {
-        connect(surface, &WSurface::destroyed, this, [this,d]() {
-            d->dragSurface = nullptr;
-            Q_EMIT dragSurfaceChanged();
-        });
-    }
-    Q_EMIT dragSurfaceChanged();
+    d->cursor = cursor;
+    Q_EMIT cursorChanged();
 }
 
-WSurface *WCursor::dragSurface() const
+WGlobal::CursorShape WCursor::requestedCursorShape() const
 {
     W_DC(WCursor);
-    return d->dragSurface;
+    return d->seat ? d->seat->requestedCursorShape() : WGlobal::CursorShape::Invalid;
+}
+
+std::pair<WSurface *, QPoint> WCursor::requestedCursorSurface() const
+{
+    W_DC(WCursor);
+    if (!d->seat)
+        return {};
+
+    return std::make_pair(d->seat->requestedCursorSurface(),
+                          d->seat->requestedCursorSurfaceHotspot());
+}
+
+WSurface *WCursor::requestedDragSurface() const
+{
+    W_DC(WCursor);
+    return d->seat ? d->seat->requestedDragSurface() : nullptr;
 }
 
 bool WCursor::attachInputDevice(WInputDevice *device)
@@ -926,7 +651,7 @@ void WCursor::setLayout(WOutputLayout *layout)
         o->addCursor(this);
     });
 
-    d->updateCursorImage();
+    Q_EMIT layoutChanged();
 }
 
 WOutputLayout *WCursor::layout() const
@@ -957,22 +682,7 @@ void WCursor::setVisible(bool visible)
     if (d->visible == visible)
         return;
     d->visible = visible;
-
-    if (visible) {
-        if (d->surfaceOfCursor) {
-            d->handle()->set_surface(d->surfaceOfCursor->handle(), d->surfaceCursorHotspot.x(), d->surfaceCursorHotspot.y());
-            connect(d->surfaceOfCursor, &qw_surface::before_destroy, this, [d]() {
-                d->updateCursorImage();
-            }, Qt::QueuedConnection);
-            // Do not call updateCursorImage immediately to prevent pointerFocusSurface not cleaning up in time
-        } else {
-            d->updateCursorImage();
-        }
-    } else {
-        if (d->surfaceOfCursor)
-            d->surfaceOfCursor->disconnect(this);
-        d->handle()->unset_image();
-    }
+    Q_EMIT visibleChanged();
 }
 
 QPointF WCursor::position() const

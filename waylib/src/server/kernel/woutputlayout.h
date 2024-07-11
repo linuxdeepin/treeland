@@ -44,6 +44,7 @@ public:
 Q_SIGNALS:
     void outputAdded(WAYLIB_SERVER_NAMESPACE::WOutput *output);
     void outputRemoved(WAYLIB_SERVER_NAMESPACE::WOutput *output);
+    void outputsChanged();
     void implicitWidthChanged();
     void implicitHeightChanged();
 

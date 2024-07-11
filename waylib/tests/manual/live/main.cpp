@@ -44,11 +44,10 @@ Helper::Helper(QObject *parent)
     , m_outputCreator(new WQmlCreator(this))
     , m_xdgShellCreator(new WQmlCreator(this))
     , m_outputLayout(new WQuickOutputLayout(this))
-    , m_cursor(new WQuickCursor(this))
+    , m_cursor(new WCursor(this))
 {
     m_seat = m_server->attach<WSeat>();
     m_seat->setCursor(m_cursor);
-    m_cursor->setThemeName(getenv("XCURSOR_THEME"));
     m_cursor->setLayout(m_outputLayout);
 }
 

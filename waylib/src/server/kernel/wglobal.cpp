@@ -6,6 +6,7 @@
 #include "private/wglobal_p.h"
 
 #include <private/qobject_p_p.h>
+#include <QCursor>
 #include <QLoggingCategory>
 
 #ifdef QT_DEBUG
@@ -238,5 +239,15 @@ bool WWrapObject::event(QEvent *event)
     return QObject::event(event);
 }
 #endif
+
+bool WGlobal::isInvalidCursor(const QCursor &c)
+{
+    return static_cast<CursorShape>(c.shape()) == CursorShape::Invalid;
+}
+
+bool WGlobal::isClientResourceCursor(const QCursor &c)
+{
+    return static_cast<CursorShape>(c.shape()) == CursorShape::ClientResource;
+}
 
 WAYLIB_SERVER_END_NAMESPACE

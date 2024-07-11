@@ -807,6 +807,8 @@ void WOutputRenderWindowPrivate::init()
                      q, &WOutputRenderWindow::update);
     QObject::connect(rc(), &QQuickRenderControl::sceneChanged,
                      q, &WOutputRenderWindow::update);
+
+    Q_EMIT q->initialized();
 }
 
 void WOutputRenderWindowPrivate::init(OutputHelper *helper)
@@ -1231,6 +1233,18 @@ void WOutputRenderWindow::init(qw_renderer *renderer, qw_allocator *allocator)
     if (d->componentCompleted) {
         d->init();
     }
+}
+
+qw_renderer *WOutputRenderWindow::renderer() const
+{
+    Q_D(const WOutputRenderWindow);
+    return d->m_renderer;
+}
+
+qw_allocator *WOutputRenderWindow::allocator() const
+{
+    Q_D(const WOutputRenderWindow);
+    return d->m_allocator;
 }
 
 WBufferRenderer *WOutputRenderWindow::currentRenderer() const

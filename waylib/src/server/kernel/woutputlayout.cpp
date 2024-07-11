@@ -70,6 +70,7 @@ void WOutputLayout::add(WOutput *output, const QPoint &pos)
     d->updateImplicitSize();
 
     Q_EMIT outputAdded(output);
+    Q_EMIT outputsChanged();
 }
 
 void WOutputLayout::move(WOutput *output, const QPoint &pos)
@@ -98,6 +99,7 @@ void WOutputLayout::remove(WOutput *output)
     d->updateImplicitSize();
 
     Q_EMIT outputRemoved(output);
+    Q_EMIT outputsChanged();
 }
 
 QList<WOutput*> WOutputLayout::getIntersectedOutputs(const QRect &geometry) const

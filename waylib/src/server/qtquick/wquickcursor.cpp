@@ -2,16 +2,112 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "wquickcursor.h"
-#include "private/wcursor_p.h"
 #include "woutputrenderwindow.h"
-#include "wquickoutputlayout.h"
 #include "woutputitem.h"
-#include "wxcursorimage.h"
+#include "wcursorimage.h"
+#include "wbuffertextureprovider.h"
+#include "wimagebuffer.h"
+#include "wtexture.h"
+#include "wseat.h"
+#include "wsurfaceitem.h"
 
 #include <qwxcursormanager.h>
+#include <qwbuffer.h>
+#include <qwtexture.h>
+#include <qwcompositor.h>
+
+#include <QSGImageNode>
+#include <private/qquickitem_p.h>
+#include <private/qsgplaintexture_p.h>
 
 QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
+
+class Q_DECL_HIDDEN CursorTextureProvider : public WBufferTextureProvider
+{
+public:
+    CursorTextureProvider() {
+        m_texture.setOwnsTexture(false);
+    }
+
+    void setImage(const QImage &image, QQuickWindow *window) {
+        WOutputRenderWindow* rw = qobject_cast<WOutputRenderWindow*>(window);
+        Q_ASSERT(rw);
+
+        if (image.isNull() || !rw->renderer()) {
+            resetBuffer();
+            return;
+        }
+
+        auto buffer = qw_buffer::create(new WImageBufferImpl(image),
+                                       image.width(), image.height());
+        this->buffer.reset(buffer);
+        m_qwTexture.reset(qw_texture::from_buffer(*rw->renderer(), *buffer));
+        WTexture::makeTexture(m_qwTexture.get(), &m_texture, window);
+
+        Q_EMIT textureChanged();
+    }
+
+    void setProxy(WBufferTextureProvider *proxy) {
+        if (this->proxy == proxy)
+            return;
+
+        if (this->proxy) {
+            bool ok = this->proxy->disconnect(this);
+            Q_ASSERT(ok);
+        }
+
+        this->proxy = proxy;
+
+        if (this->proxy) {
+            connect(proxy, &WBufferTextureProvider::textureChanged,
+                    this, &CursorTextureProvider::textureChanged);
+        }
+
+        Q_EMIT textureChanged();
+    }
+
+    void resetBuffer() {
+        if (buffer) {
+            this->buffer.reset();
+            this->m_qwTexture.reset();
+            Q_EMIT textureChanged();
+        }
+    }
+    void reset() {
+        resetBuffer();
+        setProxy(nullptr);
+    }
+
+    QSGTexture *texture() const override {
+        if (proxy)
+            return proxy->texture();
+        return buffer ? const_cast<QSGPlainTexture*>(&m_texture) : nullptr;
+    }
+    qw_texture *qwTexture() const override {
+        if (proxy)
+            return proxy->qwTexture();
+        return m_qwTexture.get();
+    }
+    qw_buffer *qwBuffer() const override {
+        if (proxy)
+            return proxy->qwBuffer();
+        return buffer.get();
+    }
+
+    struct QWBufferDeleter
+    {
+        static inline void cleanup(qw_buffer *pointer) {
+            if (pointer) pointer->drop(); }
+        void operator()(qw_buffer *pointer) const { cleanup(pointer); }
+    };
+
+    std::unique_ptr<qw_buffer, QWBufferDeleter> buffer;
+    std::unique_ptr<qw_texture> m_qwTexture;
+    QSGPlainTexture m_texture;
+
+    QPointer<WBufferTextureProvider> proxy;
+};
 
 WQuickCursorAttached::WQuickCursorAttached(QQuickItem *parent)
     : QObject(parent)
@@ -24,12 +120,12 @@ QQuickItem *WQuickCursorAttached::parent() const
     return qobject_cast<QQuickItem*>(QObject::parent());
 }
 
-WCursor::CursorShape WQuickCursorAttached::shape() const
+WGlobal::CursorShape WQuickCursorAttached::shape() const
 {
-    return static_cast<WCursor::CursorShape>(parent()->cursor().shape());
+    return static_cast<WGlobal::CursorShape>(parent()->cursor().shape());
 }
 
-void WQuickCursorAttached::setShape(WCursor::CursorShape shape)
+void WQuickCursorAttached::setShape(WGlobal::CursorShape shape)
 {
     if (this->shape() == shape)
         return;
@@ -37,145 +133,175 @@ void WQuickCursorAttached::setShape(WCursor::CursorShape shape)
     Q_EMIT shapeChanged();
 }
 
-class Q_DECL_HIDDEN WQuickCursorPrivate : public WCursorPrivate
+class Q_DECL_HIDDEN WQuickCursorPrivate : public QQuickItemPrivate
 {
 public:
     WQuickCursorPrivate(WQuickCursor *qq);
-    ~WQuickCursorPrivate() {
-        delete xcursor_manager;
-    }
 
     inline static WQuickCursorPrivate *get(WQuickCursor *qq) {
         return qq->d_func();
     }
 
-    // TODO: Allow add render window in public interface, because
-    // maybe a WOutputRenderWindow is no attach output.
-    void updateRenderWindows();
-    void updateCurrentRenderWindow();
-    void setCurrentRenderWindow(WOutputRenderWindow *window);
-    void onRenderWindowAdded(WOutputRenderWindow *window);
-    void onRenderWindowRemoved(WOutputRenderWindow *window);
+    CursorTextureProvider *tp() const;
 
-    void setCursorImageUrl(const QUrl &url);
+    void invalidate() {
+        QObject::disconnect(updateTextureConnection);
+        if (textureProvider)
+            textureProvider->reset();
+    }
+
+    void setSurface(WSurface *surface);
     void updateXCursorManager();
+    void updateTexture();
+    void updateCursor();
+    void updateImplicitSize();
+    void setHotSpot(const QPoint &newHotSpot);
 
     inline quint32 getCursorSize() const {
         return qMax(cursorSize.width(), cursorSize.height());
     }
 
-    W_DECLARE_PUBLIC(WQuickCursor)
-    bool componentComplete = true;
-    QList<WOutputRenderWindow*> renderWindows;
-    WOutputRenderWindow *currentRenderWindow = nullptr;
+    Q_DECLARE_PUBLIC(WQuickCursor)
+
+    mutable CursorTextureProvider *textureProvider = nullptr;
+    mutable QMetaObject::Connection updateTextureConnection;
+
+    WCursor *cursor = nullptr;
+    WCursorImage *cursorImage = nullptr;
+
+    WSurfaceItemContent *cursorSurfaceItem = nullptr;
+
     QString xcursorThemeName;
     QSize cursorSize = QSize(24, 24);
+    QPoint hotSpot;
 };
 
+void WQuickCursorPrivate::setHotSpot(const QPoint &newHotSpot)
+{
+    if (hotSpot == newHotSpot)
+        return;
+    hotSpot = newHotSpot;
+
+    W_Q(WQuickCursor);
+    Q_EMIT q->hotSpotChanged();
+}
+
 WQuickCursorPrivate::WQuickCursorPrivate(WQuickCursor *qq)
-    : WCursorPrivate(qq)
+    : QQuickItemPrivate()
 {
 
 }
 
-void WQuickCursorPrivate::updateRenderWindows()
+CursorTextureProvider *WQuickCursorPrivate::tp() const
 {
-    QList<WOutputRenderWindow*> newList;
+    if (!textureProvider) {
+        Q_ASSERT(cursorImage);
+        textureProvider = new CursorTextureProvider;
+        updateTextureConnection = QObject::connect(cursorImage, SIGNAL(imageChanged()),
+                                                   q_func(), SLOT(updateTexture()));
+        Q_ASSERT(updateTextureConnection);
 
-    W_Q(WQuickCursor);
-    for (auto o : q->layout()->outputs()) {
-        QObject::connect(o, SIGNAL(windowChanged(QQuickWindow*)),
-                         q, SLOT(updateRenderWindows()), Qt::UniqueConnection);
-
-        auto renderWindow = qobject_cast<WOutputRenderWindow*>(o->window());
-        if (!renderWindow)
-            continue;
-        if (newList.contains(renderWindow))
-            continue;
-        newList.append(renderWindow);
-
-        if (!renderWindows.contains(renderWindow)) {
-            renderWindows.append(renderWindow);
-            onRenderWindowAdded(renderWindow);
+        if (cursorSurfaceItem) {
+            Q_ASSERT(cursorSurfaceItem->surface());
+            textureProvider->setProxy(cursorSurfaceItem->wTextureProvider());
+        } else {
+            const_cast<WQuickCursorPrivate*>(this)->updateTexture();
         }
     }
+    return textureProvider;
+}
 
-    for (int i = 0; i < renderWindows.count(); ++i) {
-        auto window = renderWindows.at(i);
-        if (!newList.contains(window)) {
-            renderWindows.removeAt(i);
-            --i;
-            onRenderWindowRemoved(window);
+void WQuickCursorPrivate::setSurface(WSurface *surface)
+{
+    if (surface) {
+        if (!cursorSurfaceItem) {
+            W_Q(WQuickCursor);
+            cursorSurfaceItem = new WSurfaceItemContent(q);
+            QQuickItemPrivate::get(cursorSurfaceItem)->anchors()->setFill(q);
+            bool ok = QObject::connect(cursorSurfaceItem, SIGNAL(implicitWidthChanged()),
+                                       q, SLOT(updateImplicitSize()));
+            Q_ASSERT(ok);
+            ok = QObject::connect(cursorSurfaceItem, SIGNAL(implicitHeightChanged()),
+                                  q, SLOT(updateImplicitSize()));
+            Q_ASSERT(ok);
         }
+
+        cursorSurfaceItem->setSurface(surface);
+        if (textureProvider)
+            textureProvider->setProxy(cursorSurfaceItem->wTextureProvider());
+    } else if (cursorSurfaceItem) {
+        cursorSurfaceItem->deleteLater();
+        cursorSurfaceItem = nullptr;
     }
 
-    updateCurrentRenderWindow();
-}
-
-void WQuickCursorPrivate::updateCurrentRenderWindow()
-{
-    if (renderWindows.isEmpty()) {
-        setCurrentRenderWindow(nullptr);
-        return;
-    }
-
-    W_Q(WQuickCursor);
-    const QPoint pos = q->position().toPoint();
-    if (currentRenderWindow && currentRenderWindow->geometry().contains(pos))
-        return;
-
-    for (auto window : std::as_const(renderWindows)) {
-        // ###: maybe should use QGuiApplication::topLevelAt
-        if (window->geometry().contains(pos)) {
-            setCurrentRenderWindow(window);
-            break;
-        }
-    }
-}
-
-void WQuickCursorPrivate::setCurrentRenderWindow(WOutputRenderWindow *window)
-{
-    if (currentRenderWindow == window)
-        return;
-    currentRenderWindow = window;
-    q_func()->WCursor::setEventWindow(window);
-}
-
-void WQuickCursorPrivate::onRenderWindowAdded(WOutputRenderWindow *window)
-{
-    W_Q(WQuickCursor);
-    bool ok = QObject::connect(window, SIGNAL(xChanged(int)), q, SLOT(updateCurrentRenderWindow()));
-    ok = ok && QObject::connect(window, SIGNAL(yChanged(int)), q, SLOT(updateCurrentRenderWindow()));
-    ok = ok && QObject::connect(window, SIGNAL(widthChanged(int)), q, SLOT(updateCurrentRenderWindow()));
-    ok = ok && QObject::connect(window, SIGNAL(heightChanged(int)), q, SLOT(updateCurrentRenderWindow()));
-    Q_ASSERT(ok);
-}
-
-void WQuickCursorPrivate::onRenderWindowRemoved(WOutputRenderWindow *window)
-{
-    W_Q(WQuickCursor);
-    bool ok = QObject::disconnect(window, SIGNAL(xChanged(int)), q, SLOT(updateCurrentRenderWindow()));
-    ok = ok && QObject::disconnect(window, SIGNAL(yChanged(int)), q, SLOT(updateCurrentRenderWindow()));
-    ok = ok && QObject::disconnect(window, SIGNAL(widthChanged(int)), q, SLOT(updateCurrentRenderWindow()));
-    ok = ok && QObject::disconnect(window, SIGNAL(heightChanged(int)), q, SLOT(updateCurrentRenderWindow()));
-    Q_ASSERT(ok);
+    updateImplicitSize();
 }
 
 void WQuickCursorPrivate::updateXCursorManager()
 {
-    if (xcursor_manager) {
-        delete xcursor_manager;
-        xcursor_manager = nullptr;
-    }
-    const char *cursor_theme = xcursorThemeName.isEmpty() ? nullptr : qPrintable(xcursorThemeName);
-    auto xm = qw_xcursor_manager::create(cursor_theme, getCursorSize());
-    q_func()->setXCursorManager(xm);
+    cursorImage->setCursorTheme(xcursorThemeName.toLatin1(), getCursorSize());
+    cursorImage->setScale(window ? window->effectiveDevicePixelRatio() : 1.0);
 }
 
-WQuickCursor::WQuickCursor(QObject *parent)
-    : WCursor(*new WQuickCursorPrivate(this), parent)
+void WQuickCursorPrivate::updateTexture()
 {
-    connect(this, SIGNAL(positionChanged()), this, SLOT(updateCurrentRenderWindow()));
+    textureProvider->setImage(cursorImage->image(), window);
+    updateImplicitSize();
+
+    if (!cursorSurfaceItem) {
+        setHotSpot(cursorImage->hotSpot());
+        q_func()->update();
+    }
+}
+
+void WQuickCursorPrivate::updateCursor()
+{
+    auto cursor = this->cursor->cursor();
+    if (WGlobal::isClientResourceCursor(cursor)) {
+        // First try use cursor shape
+        auto shape = this->cursor->requestedCursorShape();
+        if (shape != WGlobal::CursorShape::Invalid) {
+            cursorImage->setCursor(WCursor::toQCursor(shape));
+            setHotSpot(cursorImage->hotSpot());
+        } else if (auto rs = this->cursor->requestedCursorSurface(); rs.first) { // Second use cursor surface
+            setSurface(rs.first);
+            setHotSpot(rs.second);
+        } else {
+            setSurface(nullptr);
+            cursorImage->setCursor(QCursor());
+        }
+    } else {
+        setSurface(nullptr);
+        cursorImage->setCursor(cursor);
+    }
+
+    Q_EMIT q_func()->validChanged();
+}
+
+void WQuickCursorPrivate::updateImplicitSize()
+{
+    W_Q(WQuickCursor);
+
+    if (cursorSurfaceItem) {
+        q->setImplicitSize(cursorSurfaceItem->implicitWidth(),
+                           cursorSurfaceItem->implicitHeight());
+    } else if (const QImage &i = cursorImage->image(); !i.isNull()) {
+        const auto size = i.deviceIndependentSize();
+        q->setImplicitSize(size.width(), size.height());
+    } else {
+        q->setImplicitSize(cursorSize.width(), cursorSize.height());
+    }
+
+    Q_EMIT q->hotSpotChanged();
+}
+
+WQuickCursor::WQuickCursor(QQuickItem *parent)
+    : QQuickItem(*new WQuickCursorPrivate(this), parent)
+{
+    W_D(WQuickCursor);
+    d->cursorImage = new WCursorImage(this);
+    setFlag(QQuickItem::ItemHasContents);
+    setImplicitSize(d->cursorSize.width(), d->cursorSize.height());
 }
 
 WQuickCursor::~WQuickCursor()
@@ -190,35 +316,72 @@ WQuickCursorAttached *WQuickCursor::qmlAttachedProperties(QObject *target)
     return new WQuickCursorAttached(qobject_cast<QQuickItem*>(target));
 }
 
-WQuickOutputLayout *WQuickCursor::layout() const
+QSGTextureProvider *WQuickCursor::textureProvider() const
 {
-    return static_cast<WQuickOutputLayout*>(WCursor::layout());
+    if (QQuickItem::isTextureProvider())
+        return QQuickItem::textureProvider();
+
+    W_DC(WQuickCursor);
+    return d->tp();
 }
 
-void WQuickCursor::setLayout(WQuickOutputLayout *layout)
+bool WQuickCursor::isTextureProvider() const
 {
-    if (auto layout = this->layout()) {
-        disconnect(layout, SIGNAL(outputsChanged()), this, SLOT(updateRenderWindows()));
-    }
-
-    WCursor::setLayout(layout);
-
-    if (layout) {
-        connect(layout, SIGNAL(outputsChanged()), this, SLOT(updateRenderWindows()));
-    }
-
-    W_D(WQuickCursor);
-
-    if (d->componentComplete) {
-        d->updateXCursorManager();
-        d->updateRenderWindows();
-    }
+    return true;
 }
 
-WOutputRenderWindow *WQuickCursor::currentRenderWindow() const
+bool WQuickCursor::valid() const
 {
     W_DC(WQuickCursor);
-    return d->currentRenderWindow;
+    if (!d->cursor || !d->cursorImage)
+        return false;
+
+    return d->cursorSurfaceItem
+           ||  !WGlobal::isInvalidCursor(d->cursorImage->cursor());
+}
+
+WCursor *WQuickCursor::cursor() const
+{
+    W_DC(WQuickCursor);
+    return d->cursor;
+}
+
+void WQuickCursor::setCursor(WCursor *cursor)
+{
+    W_D(WQuickCursor);
+
+    if (d->cursor == cursor)
+        return;
+
+    if (d->cursor) {
+        Q_ASSERT(d->cursor->eventWindow() == window());
+        d->cursor->setEventWindow(nullptr);
+        bool ok = QObject::disconnect(d->cursor, nullptr, this, nullptr);
+        Q_ASSERT(ok);
+    }
+    d->cursor = cursor;
+
+    if (d->cursor) {
+        bool ok = connect(d->cursor, SIGNAL(cursorChanged()), this, SLOT(updateCursor()));
+        Q_ASSERT(ok);
+
+        ok = QObject::connect(d->cursor, SIGNAL(requestedCursorShapeChanged()),
+                              this, SLOT(updateCursor()));
+        Q_ASSERT(ok);
+        ok = QObject::connect(d->cursor, SIGNAL(requestedCursorSurfaceChanged()),
+                              this, SLOT(updateCursor()));
+        Q_ASSERT(ok);
+
+        if (isComponentComplete()) {
+            Q_ASSERT(!d->cursor->eventWindow()
+                     || d->cursor->eventWindow() == window());
+            d->cursor->setEventWindow(window());
+            d->updateXCursorManager();
+            d->updateCursor();
+        }
+    }
+
+    Q_EMIT cursorChanged();
 }
 
 QString WQuickCursor::themeName() const
@@ -234,39 +397,136 @@ void WQuickCursor::setThemeName(const QString &name)
     if (d->xcursorThemeName == name)
         return;
     d->xcursorThemeName = name;
-    QMetaObject::invokeMethod(this, "updateXCursorManager", Qt::QueuedConnection);
+    if (isComponentComplete())
+        QMetaObject::invokeMethod(this, "updateXCursorManager", Qt::QueuedConnection);
 }
 
-QSize WQuickCursor::size() const
+QSize WQuickCursor::sourceSize() const
 {
     W_DC(WQuickCursor);
     return d->cursorSize;
 }
 
-void WQuickCursor::setSize(const QSize &size)
+void WQuickCursor::setSourceSize(const QSize &size)
 {
     W_D(WQuickCursor);
 
     if (d->cursorSize == size)
         return;
     d->cursorSize = size;
-    QMetaObject::invokeMethod(this, "updateXCursorManager", Qt::QueuedConnection);
+    if (isComponentComplete())
+        QMetaObject::invokeMethod(this, "updateXCursorManager", Qt::QueuedConnection);
 }
 
-void WQuickCursor::classBegin()
+QPointF WQuickCursor::hotSpot() const
 {
-    W_D(WQuickCursor);
-    d->componentComplete = false;
+    W_DC(WQuickCursor);
+
+    if (d->cursorSurfaceItem) {
+        return QPointF(d->hotSpot) * (width() / d->cursorSurfaceItem->implicitWidth());
+    } else if (d->cursorImage && !d->cursorImage->image().isNull()) {
+        return QPointF(d->hotSpot) * (width() / d->cursorImage->image().width());
+    }
+
+    return {};
 }
 
 void WQuickCursor::componentComplete()
 {
     W_D(WQuickCursor);
 
-    if (layout()) {
+    if (d->cursor) {
+        Q_ASSERT(!d->cursor->eventWindow()
+                 || d->cursor->eventWindow() == window());
+        d->cursor->setEventWindow(window());
         d->updateXCursorManager();
-        d->updateRenderWindows();
+        d->updateCursor();
     }
+
+    QQuickItem::componentComplete();
+}
+
+void WQuickCursor::itemChange(ItemChange change, const ItemChangeData &data)
+{
+    W_D(WQuickCursor);
+    if (change == ItemSceneChange) {
+        if (d->cursor)
+            d->cursor->setEventWindow(data.window);
+
+        if (data.window) {
+            auto rw = qobject_cast<WOutputRenderWindow*>(data.window);
+            Q_ASSERT(rw);
+            bool ok = QObject::connect(rw, SIGNAL(initialized()), this, SLOT(updateTexture()));
+            Q_ASSERT(ok);
+        }
+    } else if (change == ItemDevicePixelRatioHasChanged) {
+        d->updateXCursorManager();
+    }
+
+    QQuickItem::itemChange(change, data);
+}
+
+void WQuickCursor::geometryChange(const QRectF &newGeometry, const QRectF &oldGeometry)
+{
+    W_DC(WQuickCursor);
+    if (d->hotSpot.isNull() && newGeometry.size() != oldGeometry.size())
+        Q_EMIT hotSpotChanged();
+    QQuickItem::geometryChange(newGeometry, oldGeometry);
+}
+
+QSGNode *WQuickCursor::updatePaintNode(QSGNode *node, UpdatePaintNodeData *)
+{
+    W_DC(WQuickCursor);
+
+    auto tp = d->tp();
+    Q_ASSERT(tp);
+    // Ignore the tp->proxy, Don't use tp->qwBuffer()
+    if (!tp->buffer) {
+        delete node;
+        return nullptr;
+    }
+
+    auto texture = &tp->m_texture;
+    auto imageNode = static_cast<QSGImageNode*>(node);
+    if (!imageNode)
+        imageNode = window()->createImageNode();
+
+    imageNode->setTexture(texture);
+    imageNode->setOwnsTexture(false);
+    imageNode->setSourceRect(QRectF(QPointF(0, 0), texture->textureSize()));
+    imageNode->setRect(QRectF(QPointF(0, 0), QSizeF(width(), height())));
+    imageNode->setFiltering(smooth() ? QSGTexture::Linear : QSGTexture::Nearest);
+    imageNode->setMipmapFiltering(QSGTexture::None);
+    imageNode->setAnisotropyLevel(antialiasing() ? QSGTexture::Anisotropy4x : QSGTexture::AnisotropyNone);
+
+    return imageNode;
+}
+
+void WQuickCursor::releaseResources()
+{
+    W_D(WQuickCursor);
+
+    if (d->textureProvider) {
+        class WQuickCursorCleanupJob : public QRunnable
+        {
+        public:
+            WQuickCursorCleanupJob(QObject *object) : m_object(object) { }
+            void run() override {
+                delete m_object;
+            }
+            QObject *m_object;
+        };
+
+        // Delay clean the textures on the next render after.
+        window()->scheduleRenderJob(new WQuickCursorCleanupJob(d->textureProvider),
+                                    QQuickWindow::AfterRenderingStage);
+        d->textureProvider = nullptr;
+    }
+
+    d->invalidate();
+
+    // Force to update the contents, avoid to render the invalid textures
+    QQuickItemPrivate::get(this)->dirty(QQuickItemPrivate::Content);
 }
 
 WAYLIB_SERVER_END_NAMESPACE

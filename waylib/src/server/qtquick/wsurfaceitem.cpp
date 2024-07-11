@@ -63,6 +63,7 @@ public:
         setAcceptTouchEvents(true);
         setAcceptedMouseButtons(Qt::AllButtons);
         setFlag(QQuickItem::ItemClipsChildrenToShape, true);
+        setCursor(WCursor::toQCursor(WGlobal::CursorShape::ClientResource));
     }
 
     inline bool isValid() const {
