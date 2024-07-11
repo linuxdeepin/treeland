@@ -26,6 +26,7 @@ public:
 
     void newOutput(WAYLIB_SERVER_NAMESPACE::WOutput *output);
     void removeOutput(WAYLIB_SERVER_NAMESPACE::WOutput *output);
+    QByteArrayView interfaceName() const override;
 
 protected:
     void create(WServer *server) override;

@@ -53,3 +53,9 @@ wl_global *ShortcutV1::global() const
 {
     return m_manager->global;
 }
+
+
+QByteArrayView ShortcutV1::interfaceName() const
+{
+    return "treeland_shortcut_manager_v1";
+}
