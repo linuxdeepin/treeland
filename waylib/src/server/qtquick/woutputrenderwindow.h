@@ -50,7 +50,7 @@ public:
     WBufferRenderer *currentRenderer() const;
 
     template<typename UnaryFunc>
-    static QList<QQuickItem *> paintOrderItemList(QQuickItem *root, UnaryFunc filter);
+    static QList<QPointer<QQuickItem>> paintOrderItemList(QQuickItem *root, UnaryFunc filter);
 
 public Q_SLOTS:
     void render();

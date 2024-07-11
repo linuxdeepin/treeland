@@ -1302,10 +1302,10 @@ WBufferRenderer *WOutputRenderWindow::currentRenderer() const
 }
 
 template<typename UnaryFunc>
-QList<QQuickItem *> WOutputRenderWindow::paintOrderItemList(QQuickItem *root, UnaryFunc filter)
+QList<QPointer<QQuickItem>> WOutputRenderWindow::paintOrderItemList(QQuickItem *root, UnaryFunc filter)
 {
     QStack<QQuickItem *> nodes;
-    QList<QQuickItem *> result;
+    QList<QPointer<QQuickItem>> result;
     nodes.push(root);
     while (!nodes.isEmpty()){
         auto node = nodes.pop();
