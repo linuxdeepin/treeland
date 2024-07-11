@@ -387,3 +387,9 @@ wl_global *PersonalizationV1::global() const
 {
     return m_manager->global;
 }
+
+
+QByteArrayView PersonalizationV1::interfaceName() const
+{
+    return treeland_personalization_manager_v1_interface.name;
+}

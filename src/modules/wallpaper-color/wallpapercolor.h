@@ -17,6 +17,7 @@ class WallpaperColorV1 : public QObject, public Waylib::Server::WServerInterface
 public:
     explicit WallpaperColorV1(QObject *parent = nullptr);
     Q_INVOKABLE void updateWallpaperColor(const QString &output, bool isDarkType);
+    QByteArrayView interfaceName() const override;
 
 protected:
     void create(WServer *server) override;

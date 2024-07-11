@@ -19,6 +19,7 @@ class ShortcutV1 : public QObject, public Waylib::Server::WServerInterface
 
 public:
     explicit ShortcutV1(Helper *helper, QObject *parent = nullptr);
+    QByteArrayView interfaceName() const override;
 
 protected:
     void create(WServer *server) override;

@@ -69,3 +69,9 @@ wl_global *WindowManagementV1::global() const
 {
     return m_handle->global;
 }
+
+
+QByteArrayView WindowManagementV1::interfaceName() const
+{
+    return window_management_v1_interface.name;
+}
