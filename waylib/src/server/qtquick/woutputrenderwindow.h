@@ -49,6 +49,9 @@ public:
     qreal height() const;
     WBufferRenderer *currentRenderer() const;
 
+    template<typename UnaryFunc>
+    static QList<QQuickItem *> paintOrderItemList(QQuickItem *root, UnaryFunc filter);
+
 public Q_SLOTS:
     void render();
     void render(WOutputViewport *output, bool doCommit);

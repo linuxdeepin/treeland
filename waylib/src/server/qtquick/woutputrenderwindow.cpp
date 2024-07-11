@@ -53,6 +53,7 @@
 #include <private/qsgrenderer_p.h>
 #include <private/qpainter_p.h>
 #include <private/qsgdefaultrendercontext_p.h>
+#include <private/qquickitem_p.h>
 
 extern "C" {
 #define static
@@ -1298,6 +1299,25 @@ WBufferRenderer *WOutputRenderWindow::currentRenderer() const
 {
     Q_D(const WOutputRenderWindow);
     return d->rendererList.isEmpty() ? nullptr : d->rendererList.top();
+}
+
+template<typename UnaryFunc>
+QList<QQuickItem *> WOutputRenderWindow::paintOrderItemList(QQuickItem *root, UnaryFunc filter)
+{
+    QStack<QQuickItem *> nodes;
+    QList<QQuickItem *> result;
+    nodes.push(root);
+    while (!nodes.isEmpty()){
+        auto node = nodes.pop();
+        if (filter(node)) {
+            result.append(node);
+        }
+        auto childItems = QQuickItemPrivate::get(node)->paintOrderChildItems();
+        for (auto child = childItems.crbegin(); child != childItems.crend(); child++) {
+            nodes.push(*child);
+        }
+    }
+    return result;
 }
 
 void WOutputRenderWindow::render()
