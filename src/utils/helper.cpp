@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "helper.h"
+#include "inputdevice.h"
 
 #include "../modules/foreign-toplevel/foreigntoplevelmanagerv1.h"
 #include "../modules/primary-output/outputmanagement.h"
@@ -346,6 +347,9 @@ void Helper::initProtocols(WOutputRenderWindow *window)
 
     connect(backend, &WBackend::inputAdded, this, [this](WInputDevice *device) {
         m_seat->attachInputDevice(device);
+        if (device->qtDevice()->type() == QInputDevice::DeviceType::TouchPad) {
+            InputDevice::setTapEnabled(device->handle(), LIBINPUT_CONFIG_TAP_ENABLED);
+        }
     });
 
     connect(backend, &WBackend::inputRemoved, this, [this](WInputDevice *device) {
