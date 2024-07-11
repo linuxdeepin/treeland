@@ -298,6 +298,12 @@ QSGTextureProvider *WSurfaceItemContent::textureProvider() const
     return d->tp();
 }
 
+WBufferTextureProvider *WSurfaceItemContent::wTextureProvider() const
+{
+    W_DC(WSurfaceItemContent);
+    return d->tp();
+}
+
 bool WSurfaceItemContent::cacheLastBuffer() const
 {
     W_DC(WSurfaceItemContent);

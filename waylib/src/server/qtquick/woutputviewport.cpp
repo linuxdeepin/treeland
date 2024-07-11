@@ -9,6 +9,7 @@
 #include <qwswapchain.h>
 
 #include <QDebug>
+#include <wbuffertextureprovider.h>
 
 QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
@@ -127,6 +128,12 @@ QSGTextureProvider *WOutputViewport::textureProvider() const
         return tp;
 
     return d->bufferRenderer->textureProvider();
+}
+
+WBufferTextureProvider *WOutputViewport::wTextureProvider() const
+{
+    W_DC(WOutputViewport);
+    return qobject_cast<WBufferTextureProvider*>(d->bufferRenderer->textureProvider());
 }
 
 QQuickItem *WOutputViewport::input() const
