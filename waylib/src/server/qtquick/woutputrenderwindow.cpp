@@ -1301,8 +1301,7 @@ WBufferRenderer *WOutputRenderWindow::currentRenderer() const
     return d->rendererList.isEmpty() ? nullptr : d->rendererList.top();
 }
 
-template<typename UnaryFunc>
-QList<QPointer<QQuickItem>> WOutputRenderWindow::paintOrderItemList(QQuickItem *root, UnaryFunc filter)
+QList<QPointer<QQuickItem>> WOutputRenderWindow::paintOrderItemList(QQuickItem *root, std::function<bool(QQuickItem*)> filter)
 {
     QStack<QQuickItem *> nodes;
     QList<QPointer<QQuickItem>> result;
