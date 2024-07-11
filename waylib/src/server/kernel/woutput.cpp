@@ -544,11 +544,15 @@ WOutputLayout *WOutput::layout() const
 void WOutput::addCursor(WCursor *cursor)
 {
     static_cast<QWlrootsCursor*>(screen()->cursor())->addCursor(cursor);
+    Q_EMIT cursorAdded(cursor);
+    Q_EMIT cursorListChanged();
 }
 
 void WOutput::removeCursor(WCursor *cursor)
 {
     static_cast<QWlrootsCursor*>(screen()->cursor())->removeCursor(cursor);
+    Q_EMIT cursorRemoved(cursor);
+    Q_EMIT cursorListChanged();
 }
 
 const QList<WCursor *> &WOutput::cursorList() const

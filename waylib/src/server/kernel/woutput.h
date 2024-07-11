@@ -13,6 +13,8 @@
 #include <QQmlEngine>
 #include <QImage>
 
+Q_MOC_INCLUDE("wcursor.h")
+
 QT_BEGIN_NAMESPACE
 class QScreen;
 class QQuickWindow;
@@ -121,6 +123,9 @@ Q_SIGNALS:
     void scaleChanged();
     void forceSoftwareCursorChanged();
     void bufferCommitted();
+    void cursorAdded(WAYLIB_SERVER_NAMESPACE::WCursor *cursor);
+    void cursorRemoved(WAYLIB_SERVER_NAMESPACE::WCursor *cursor);
+    void cursorListChanged();
 
 private:
     friend class QWlrootsIntegration;
