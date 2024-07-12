@@ -89,10 +89,6 @@ Helper::Helper(QObject *parent)
 Helper::~Helper()
 {
     for (auto &info : m_outputExclusiveZoneInfo) {
-        if (info.first) {
-            delete info.first;
-            info.first = nullptr;
-        }
         if (info.second) {
             delete info.second;
             info.second = nullptr;
