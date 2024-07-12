@@ -826,6 +826,39 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *watched, QInputEvent *even
         seat->cursor()->setVisible(false);
     }
 
+    if (event->type() == QEvent::NativeGesture) {
+        auto e = static_cast<WGestureEvent*>(event);
+        switch (e->gestureType()) {
+        case Qt::BeginNativeGesture:
+            if (e->fingerCount() == 3)
+                moveReiszeState.threefingerMove = true;
+            break;
+        case Qt::EndNativeGesture: {
+            if (activatedSurface()
+                && e->fingerCount() == 3
+                && moveReiszeState.threefingerMove) {
+                activatedSurface()->requestMove(seat, 0);
+                moveReiszeState.threefingerMove = false;
+            }
+            break;
+        }
+        case Qt::PanNativeGesture: {
+            if (e->delta().y() < 0)
+                activatedSurface()->requestMaximize();
+            else
+                activatedSurface()->requestCancelMaximize();
+        }
+        case Qt::ZoomNativeGesture:
+        case Qt::SmartZoomNativeGesture:
+        case Qt::RotateNativeGesture:
+        case Qt::SwipeNativeGesture:
+        default:
+            if (e->fingerCount() == 3)
+                moveReiszeState.threefingerMove = false;
+            break;
+        }
+    }
+
     if (moveReiszeState.surfaceItem
         && (seat == moveReiszeState.seat || moveReiszeState.seat == nullptr)) {
         // for move resize
@@ -875,7 +908,9 @@ bool Helper::afterHandleEvent(
 {
     Q_UNUSED(seat)
 
-    if (event->type() == QEvent::MouseButtonPress || event->type() == QEvent::TouchBegin) {
+    if (event->type() == QEvent::MouseButtonRelease
+        || event->type() == QEvent::TouchBegin
+        || (event->type() == QEvent::NativeGesture && moveReiszeState.threefingerMove)) {
         // surfaceItem is qml type: XdgSurfaceItem or LayerSurfaceItem
         auto toplevelSurface = qobject_cast<WSurfaceItem *>(surfaceItem)->shellSurface();
         if (!toplevelSurface)
