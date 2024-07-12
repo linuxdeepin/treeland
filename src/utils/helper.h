@@ -220,6 +220,7 @@ protected:
         QPointF cursorStartMovePosition;
         QPointF surfacePosOfStartMoveResize;
         QSizeF surfaceSizeOfStartMoveResize;
+        bool threefingerMove = false;
         Qt::Edges resizeEdgets;
         WSurfaceItem *resizingItem = nullptr;
         WSurfaceItem *movingItem = nullptr;
