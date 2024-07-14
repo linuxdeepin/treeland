@@ -44,6 +44,7 @@ public:
         DontConfigureSwapchain = 1,
         DontTestSwapchain = 2,
         RedirectOpenGLContextDefaultFrameBufferObject = 4,
+        UseCursorFormats = 8,
     };
     Q_DECLARE_FLAGS(RenderFlags, RenderFlag)
 

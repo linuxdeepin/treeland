@@ -73,7 +73,6 @@ void Helper::initProtocols(WOutputRenderWindow *window, QQmlEngine *qmlEngine)
     connect(m_backend, &WBackend::outputAdded, this, [this, window, qmlEngine] (WOutput *output) {
         auto initProperties = qmlEngine->newObject();
         initProperties.setProperty("waylandOutput", qmlEngine->toScriptValue(output));
-        initProperties.setProperty("waylandCursor", qmlEngine->toScriptValue(m_cursor));
         initProperties.setProperty("layout", qmlEngine->toScriptValue(m_outputLayout));
         initProperties.setProperty("x", qmlEngine->toScriptValue(m_outputLayout->implicitWidth()));
 

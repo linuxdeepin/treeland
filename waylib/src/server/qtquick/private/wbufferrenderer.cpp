@@ -362,10 +362,13 @@ qw_buffer *WBufferRenderer::beginRender(const QSize &pixelSize, qreal devicePixe
                 delete m_swapchain;
             m_swapchain = qw_swapchain::create(m_output->allocator()->handle(), pixelSize.width(), pixelSize.height(), renderFormat);
         }
-        Q_ASSERT(m_textureProvider);
-
+    } else if (flags.testFlag(RenderFlag::UseCursorFormats)) {
+        bool ok = m_output->configureCursorSwapchain(pixelSize, format, &m_swapchain);
+        if (!ok)
+            return nullptr;
     } else {
-        bool ok = m_output->configureSwapchain(pixelSize, format, &m_swapchain, !flags.testFlag(DontTestSwapchain));
+        bool ok = m_output->configurePrimarySwapchain(pixelSize, format, &m_swapchain,
+                                                      !flags.testFlag(DontTestSwapchain));
         if (!ok)
             return nullptr;
         Q_ASSERT(m_textureProvider);

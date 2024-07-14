@@ -125,6 +125,7 @@ Item {
                         y: position.y - hotSpot.y
                         visible: valid && cursor.visible
                         OutputLayer.enabled: true
+                        OutputLayer.keepLayer: true
                         OutputLayer.outputs: [outputViewport]
                     }
 

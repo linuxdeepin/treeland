@@ -67,7 +67,6 @@ public:
     uint preserveColorContents:1;
     uint live:1;
     uint forceRender:1;
-    WOutputViewport::LayerFlags layerFlags;
 };
 
 WAYLIB_SERVER_END_NAMESPACE

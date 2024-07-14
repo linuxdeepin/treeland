@@ -266,21 +266,6 @@ void WOutputViewport::setLive(bool newLive)
     Q_EMIT liveChanged();
 }
 
-WOutputViewport::LayerFlags WOutputViewport::layerFlags() const
-{
-    W_DC(WOutputViewport);
-    return d->layerFlags;
-}
-
-void WOutputViewport::setLayerFlags(const LayerFlags &newLayerFlags)
-{
-    W_D(WOutputViewport);
-    if (d->layerFlags == newLayerFlags)
-        return;
-    d->layerFlags = newLayerFlags;
-    Q_EMIT layerFlagsChanged();
-}
-
 void WOutputViewport::setOutputScale(float scale)
 {
     W_D(WOutputViewport);

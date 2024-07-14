@@ -10,7 +10,6 @@ OutputItem {
     id: rootOutputItem
     required property WaylandOutput waylandOutput
     property OutputViewport onscreenViewport: outputViewport
-    property Cursor waylandCursor
 
     output: waylandOutput
     devicePixelRatio: waylandOutput.scale
@@ -24,7 +23,10 @@ OutputItem {
         y: position.y - hotSpot.y
         visible: valid && cursor.visible
         OutputLayer.enabled: true
+        OutputLayer.keepLayer: true
         OutputLayer.outputs: [onscreenViewport]
+        OutputLayer.flags: OutputLayer.Cursor
+        OutputLayer.cursorHotSpot: hotSpot
 
         SurfaceItem {
             id: dragIcon
@@ -103,7 +105,6 @@ OutputItem {
             input: this
             output: waylandOutput
             devicePixelRatio: outputViewport.devicePixelRatio
-            layerFlags: OutputViewport.AlwaysAccepted
 
             TextureProxy {
                 sourceItem: outputViewport
@@ -166,6 +167,20 @@ OutputItem {
         }
     }
 
+    Text {
+        anchors.bottom: parent.bottom
+        text: {
+            if (!lastActiveCursorItem)
+                return "";
+            let layer = lastActiveCursorItem.OutputLayer;
+            return layer.inOutputsByHardware.includes(onscreenViewport)
+                    ? "Hardware Cursor"
+                    : "Software Cursor";
+        }
+        color: "red"
+        font.pointSize: 20
+    }
+
     Column {
         anchors {
             bottom: parent.bottom
@@ -200,6 +215,15 @@ OutputItem {
             checked: true
             onCheckedChanged: {
                 Helper.setSocketEnabled(checked)
+            }
+        }
+
+        Switch {
+            text: "Hardware Cursor"
+            checkable: false
+            checked: lastActiveCursorItem ? lastActiveCursorItem.OutputLayer.enabled : false
+            onClicked: {
+                lastActiveCursorItem.OutputLayer.enabled = !checked
             }
         }
 

@@ -24,6 +24,7 @@ class WAYLIB_SERVER_EXPORT WOutputRenderWindow : public QQuickWindow, public QQm
     Q_DECLARE_PRIVATE(WOutputRenderWindow)
     Q_PROPERTY(qreal width READ width WRITE setWidth NOTIFY widthChanged)
     Q_PROPERTY(qreal height READ height WRITE setHeight NOTIFY heightChanged)
+    Q_PROPERTY(bool disableLayers READ disableLayers WRITE setDisableLayers NOTIFY disableLayersChanged FINAL)
     QML_NAMED_ELEMENT(OutputRenderWindow)
     Q_INTERFACES(QQmlParserStatus)
 
@@ -53,6 +54,9 @@ public:
 
     static QList<QPointer<QQuickItem>> paintOrderItemList(QQuickItem *root, std::function<bool(QQuickItem*)> filter);
 
+    bool disableLayers() const;
+    void setDisableLayers(bool newDisableLayers);
+
 public Q_SLOTS:
     void render();
     void render(WOutputViewport *output, bool doCommit);
@@ -66,6 +70,7 @@ Q_SIGNALS:
     void heightChanged();
     void outputViewportInitialized(WAYLIB_SERVER_NAMESPACE::WOutputViewport *output);
     void initialized();
+    void disableLayersChanged();
 
 private:
     void classBegin() override;

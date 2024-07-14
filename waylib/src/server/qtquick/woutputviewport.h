@@ -24,18 +24,9 @@ class WAYLIB_SERVER_EXPORT WOutputViewport : public QQuickItem
     Q_PROPERTY(bool cacheBuffer READ cacheBuffer WRITE setCacheBuffer NOTIFY cacheBufferChanged FINAL)
     Q_PROPERTY(bool preserveColorContents READ preserveColorContents WRITE setPreserveColorContents NOTIFY preserveColorContentsChanged FINAL)
     Q_PROPERTY(bool live READ live WRITE setLive NOTIFY liveChanged FINAL)
-    Q_PROPERTY(LayerFlags layerFlags READ layerFlags WRITE setLayerFlags NOTIFY layerFlagsChanged FINAL)
     QML_NAMED_ELEMENT(OutputViewport)
 
 public:
-    enum class LayerFlag {
-        AlwaysAccepted = 1,
-        AlwaysRejected = 2,
-        UsingShadowBufferOnComposite = 4,
-    };
-    Q_ENUM(LayerFlag)
-    Q_DECLARE_FLAGS(LayerFlags, LayerFlag)
-
     explicit WOutputViewport(QQuickItem *parent = nullptr);
     ~WOutputViewport();
 
@@ -67,9 +58,6 @@ public:
     bool live() const;
     void setLive(bool newLive);
 
-    LayerFlags layerFlags() const;
-    void setLayerFlags(const LayerFlags &newLayerFlags);
-
 public Q_SLOTS:
     void setOutputScale(float scale);
     void rotateOutput(WOutput::Transform t);
@@ -80,7 +68,6 @@ Q_SIGNALS:
     void offscreenChanged();
     void cacheBufferChanged();
     void preserveColorContentsChanged();
-    void layerFlagsChanged();
     void outputRenderInitialized();
     void inputChanged();
     void liveChanged();
@@ -93,4 +80,3 @@ private:
 };
 
 WAYLIB_SERVER_END_NAMESPACE
-Q_DECLARE_OPERATORS_FOR_FLAGS(WAYLIB_SERVER_NAMESPACE::WOutputViewport::LayerFlags)

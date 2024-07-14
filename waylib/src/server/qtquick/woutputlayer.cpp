@@ -15,24 +15,35 @@ WAYLIB_SERVER_BEGIN_NAMESPACE
 class Q_DECL_HIDDEN WOutputLayerPrivate : public QObjectPrivate
 {
 public:
-    WOutputLayerPrivate(WOutputLayer *qq)
-        : QObjectPrivate() {
+    WOutputLayerPrivate(WOutputLayer *)
+        : QObjectPrivate()
+        , enabled(false)
+        , force(false)
+        , keepLayer(false)
+        , actualEnabled(false)
+        , refItem(false)
+    {
 
     }
 
     void updateWindow();
     void doEnable(bool enable);
     void setRefItem(bool on);
+    void setInHardware(WOutputViewport *output, bool newInHardware);
 
     W_DECLARE_PUBLIC(WOutputLayer)
 
     WOutputRenderWindow *window = nullptr;
-    bool enabled = false;
-    bool actualEnabled = false;
-    bool refItem = false;
+    uint enabled:1;
+    uint force:1;
+    uint keepLayer:1;
+    uint actualEnabled:1;
+    uint refItem:1;
     WOutputLayer::Flags flags = {0};
     int z = 0;
+    QPointF cursorHotSpot;
     QList<WOutputViewport*> outputs;
+    QList<WOutputViewport*> inOutputsByHardware;
 };
 
 void WOutputLayerPrivate::updateWindow()
@@ -72,6 +83,11 @@ void WOutputLayerPrivate::doEnable(bool enable)
     }
 
     setRefItem(enable);
+
+    if (!enable && !inOutputsByHardware.isEmpty()) {
+        inOutputsByHardware.clear();
+        Q_EMIT q->inOutputsByHardwareChanged();
+    }
 }
 
 void WOutputLayerPrivate::setRefItem(bool on)
@@ -86,6 +102,18 @@ void WOutputLayerPrivate::setRefItem(bool on)
         d->refFromEffectItem(true);
     else
         d->derefFromEffectItem(true);
+}
+
+void WOutputLayerPrivate::setInHardware(WOutputViewport *output, bool newInHardware)
+{
+    const auto index = inOutputsByHardware.indexOf(output);
+    if ((index >= 0) == newInHardware)
+        return;
+    if (newInHardware)
+        inOutputsByHardware.append(output);
+    else
+        inOutputsByHardware.removeAt(index);
+    Q_EMIT q_func()->inOutputsByHardwareChanged();
 }
 
 WOutputLayer::WOutputLayer(QQuickItem *parent)
@@ -186,6 +214,12 @@ void WOutputLayer::setOutputs(const QList<WOutputViewport*> &newOutputList)
     Q_EMIT outputsChanged();
 }
 
+const QList<WOutputViewport *> &WOutputLayer::inOutputsByHardware() const
+{
+    W_DC(WOutputLayer);
+    return d->inOutputsByHardware;
+}
+
 int WOutputLayer::z() const
 {
     W_DC(WOutputLayer);
@@ -202,6 +236,51 @@ void WOutputLayer::setZ(int newZ)
     Q_EMIT zChanged();
 }
 
+bool WOutputLayer::keepLayer() const
+{
+    W_DC(WOutputLayer);
+    return d->keepLayer;
+}
+
+void WOutputLayer::setKeepLayer(bool newKeepLayer)
+{
+    W_D(WOutputLayer);
+    if (d->keepLayer == newKeepLayer)
+        return;
+    d->keepLayer = newKeepLayer;
+    Q_EMIT keepLayerChanged();
+}
+
+bool WOutputLayer::force() const
+{
+    W_DC(WOutputLayer);
+    return d->force;
+}
+
+void WOutputLayer::setForce(bool newForce)
+{
+    W_D(WOutputLayer);
+    if (d->force == newForce)
+        return;
+    d->force = newForce;
+    Q_EMIT forceChanged();
+}
+
+QPointF WOutputLayer::cursorHotSpot() const
+{
+    W_DC(WOutputLayer);
+    return d->cursorHotSpot;
+}
+
+void WOutputLayer::setCursorHotSpot(QPointF newCursorHotSpot)
+{
+    W_D(WOutputLayer);
+    if (d->cursorHotSpot == newCursorHotSpot)
+        return;
+    d->cursorHotSpot = newCursorHotSpot;
+    Q_EMIT cursorHotSpotChanged();
+}
+
 void WOutputLayer::setAccepted(bool accepted)
 {
     W_D(WOutputLayer);
@@ -212,6 +291,12 @@ bool WOutputLayer::isAccepted() const
 {
     W_DC(WOutputLayer);
     return d->refItem;
+}
+
+void WOutputLayer::setInHardware(WOutputViewport *output, bool isHardware)
+{
+    W_D(WOutputLayer);
+    d->setInHardware(output, isHardware);
 }
 
 WAYLIB_SERVER_END_NAMESPACE

@@ -98,13 +98,10 @@ void Helper::initProtocols(WOutputRenderWindow *window, QQmlEngine *qmlEngine)
     }
 
     connect(backend, &WBackend::outputAdded, this, [backend, this, window, qmlEngine] (WOutput *output) {
-        if (!backend->hasDrm())
-            output->setForceSoftwareCursor(true); // Test
         allowNonDrmOutputAutoChangeMode(output);
 
         auto initProperties = qmlEngine->newObject();
         initProperties.setProperty("waylandOutput", qmlEngine->toScriptValue(output));
-        initProperties.setProperty("waylandCursor", qmlEngine->toScriptValue(m_cursor));
         initProperties.setProperty("layout", qmlEngine->toScriptValue(outputLayout()));
         initProperties.setProperty("x", qmlEngine->toScriptValue(outputLayout()->implicitWidth()));
 

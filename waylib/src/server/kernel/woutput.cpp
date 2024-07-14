@@ -374,10 +374,29 @@ static bool wlr_output_configure_primary_swapchain(struct wlr_output *output, in
     *swapchain_ptr = swapchain;
     return true;
 }
+
+static bool output_pick_cursor_format(struct wlr_output *output,
+                                      struct wlr_drm_format *format,
+                                      uint32_t drm_format) {
+    struct wlr_allocator *allocator = output->allocator;
+    assert(allocator != NULL);
+
+    const struct wlr_drm_format_set *display_formats = NULL;
+    if (output->impl->get_cursor_formats) {
+        display_formats =
+            output->impl->get_cursor_formats(output, allocator->buffer_caps);
+        if (display_formats == NULL) {
+            qCDebug(qLcOutput, "Failed to get cursor display formats");
+            return false;
+        }
+    }
+
+    return output_pick_format(output, display_formats, format, drm_format);
+}
 // End
 
-bool WOutput::configureSwapchain(const QSize &size, uint32_t format,
-                                 qw_swapchain **swapchain, bool doTest)
+bool WOutput::configurePrimarySwapchain(const QSize &size, uint32_t format,
+                                        qw_swapchain **swapchain, bool doTest)
 {
     Q_ASSERT(!size.isEmpty());
     wlr_swapchain *sc = (*swapchain)->handle();
@@ -386,6 +405,30 @@ bool WOutput::configureSwapchain(const QSize &size, uint32_t format,
     if (!ok)
         return false;
     *swapchain = qw_swapchain::from(sc);
+    return true;
+}
+
+bool WOutput::configureCursorSwapchain(const QSize &size, uint32_t drmFormat, qw_swapchain **swapchain)
+{
+    Q_ASSERT(!size.isEmpty());
+    auto sc = *swapchain;
+    if (!sc || sc->handle()->width != size.width() || sc->handle()->height != size.height()) {
+        wlr_drm_format format = {0};
+        if (!output_pick_cursor_format(nativeHandle(), &format, drmFormat)) {
+            qCDebug(qLcOutput, "Failed to pick cursor format");
+            return false;
+        }
+
+        delete sc;
+        sc = qw_swapchain::create(*allocator(), size.width(), size.height(), &format);
+        wlr_drm_format_finish(&format);
+        if (!sc) {
+            qCDebug(qLcOutput, "Failed to create cursor swapchain");
+            return false;
+        }
+    }
+
+    *swapchain = sc;
     return true;
 }
 

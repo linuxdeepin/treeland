@@ -10,7 +10,7 @@
 #include <qpa/qplatformwindow.h>
 
 QW_BEGIN_NAMESPACE
-class QWBuffer;
+class qw_buffer;
 QW_END_NAMESPACE
 
 WAYLIB_SERVER_BEGIN_NAMESPACE

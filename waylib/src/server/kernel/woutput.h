@@ -70,9 +70,11 @@ public:
     QW_NAMESPACE::qw_renderer *renderer() const;
     QW_NAMESPACE::qw_swapchain *swapchain() const;
     QW_NAMESPACE::qw_allocator *allocator() const;
-    bool configureSwapchain(const QSize &size, uint32_t format,
-                            QW_NAMESPACE::qw_swapchain **swapchain,
-                            bool doTest = true);
+    bool configurePrimarySwapchain(const QSize &size, uint32_t format,
+                                   QW_NAMESPACE::qw_swapchain **swapchain,
+                                   bool doTest = true);
+    bool configureCursorSwapchain(const QSize &size, uint32_t format,
+                                  QW_NAMESPACE::qw_swapchain **swapchain);
 
     QW_NAMESPACE::qw_output *handle() const;
     wlr_output *nativeHandle() const;
