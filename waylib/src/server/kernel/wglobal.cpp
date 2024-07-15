@@ -138,9 +138,11 @@ void WWrapObjectPrivate::invalidate()
     for (const auto &connection : std::as_const(connectionsWithHandle)) {
         QObject::disconnect(connection);
     }
-    m_handle->disconnect(q);
+    if (m_handle) {
+        m_handle->disconnect(q);
+        m_handle = nullptr;
+    }
     connectionsWithHandle.clear();
-    m_handle = nullptr;
 
     Q_EMIT q->invalidated();
 }

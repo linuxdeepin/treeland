@@ -461,7 +461,8 @@ void WSurfacePrivate::instantRelease()
     if (handle()) {
         handle()->setData(nullptr, nullptr);
         handle()->disconnect(q);
-        subsurface->disconnect(q);
+        if (subsurface)
+            subsurface->disconnect(q);
         for (auto o : std::as_const(outputs))
             o->safeDisconnect(q);
     }
