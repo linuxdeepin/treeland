@@ -105,7 +105,7 @@ public:
         if (onEventObjectDestroy)
             QObject::disconnect(onEventObjectDestroy);
 
-        for (auto device : deviceList)
+        for (auto device : std::as_const(deviceList))
             detachInputDevice(device);
     }
 
@@ -536,7 +536,7 @@ void WSeatPrivate::updateCapabilities()
 {
     uint32_t caps = 0;
 
-    Q_FOREACH(auto device, deviceList) {
+    for (auto device : std::as_const(deviceList)) {
         if (device->type() == WInputDevice::Type::Keyboard) {
             caps |= WL_SEAT_CAPABILITY_KEYBOARD;
         } else if (device->type() == WInputDevice::Type::Pointer) {
@@ -626,7 +626,7 @@ void WSeat::setCursor(WCursor *cursor)
     Q_ASSERT(!cursor || !cursor->seat());
 
     if (d->cursor) {
-        Q_FOREACH(auto i, d->deviceList) {
+        for (auto i : std::as_const(d->deviceList)) {
             d->cursor->detachInputDevice(i);
         }
 
@@ -638,7 +638,7 @@ void WSeat::setCursor(WCursor *cursor)
     if (isValid() && cursor) {
         cursor->setSeat(this);
 
-        Q_FOREACH(auto i, d->deviceList) {
+        for (auto i : std::as_const(d->deviceList)) {
             cursor->attachInputDevice(i);
         }
     }
@@ -807,7 +807,7 @@ bool WSeat::sendEvent(WSurface *target, QObject *shellObject, QObject *eventObje
     case QEvent::TouchEnd:
     {
         auto e = static_cast<QTouchEvent*>(event);
-        for (const QEventPoint &touchPoint : e->points()) {
+        for (const QEventPoint &touchPoint : std::as_const(e->points())) {
             d->doNotifyFullTouchEvent(target, touchPoint.id(), touchPoint.position(), touchPoint.state(), e->timestamp());
         }
         break;
@@ -1227,7 +1227,7 @@ void WSeat::notifyTouchUp(WCursor *cursor, WInputDevice *device, int32_t touch_i
         // IF All Points has Released, Send a Frame event immediately
         // Ref: https://github.com/qt/qtbase/blob/6.5/src/platformsupport/input/libinput/qlibinputtouch.cpp#L150
         QEventPoint::States s;
-        for (auto point : state->m_points) {
+        for (auto point : std::as_const(state->m_points)) {
             s |= point.state;
         }
         qCDebug(qLcWlrTouchEvents) << "Touch up form device: " << qwDevice->name()
@@ -1290,7 +1290,7 @@ void WSeat::create(WServer *server)
     d->handle()->setData(this, this);
     d->connect();
 
-    Q_FOREACH(auto i, d->deviceList) {
+    for (auto i : std::as_const(d->deviceList)) {
         d->attachInputDevice(i);
 
         if (d->cursor)
@@ -1314,7 +1314,7 @@ void WSeat::destroy(WServer *)
 {
     W_D(WSeat);
 
-    Q_FOREACH(auto i, d->deviceList) {
+    for (auto i : std::as_const(d->deviceList)) {
         i->setSeat(nullptr);
     }
 

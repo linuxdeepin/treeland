@@ -440,7 +440,7 @@ void OutputHelper::cleanLayerCompositor()
     QList<QPointer<WQuickTextureProxy>> tmpList;
     std::swap(m_layerProxys, tmpList);
 
-    for (auto proxy : tmpList) {
+    for (auto proxy : std::as_const(tmpList)) {
         if (!proxy)
             continue;
 
@@ -488,10 +488,10 @@ void OutputHelper::beforeRender()
 {
     const auto layersFlags = output()->layerFlags();
     if (layersFlags.testFlag(WOutputViewport::LayerFlag::AlwaysRejected)) {
-        for (auto i : m_layers)
+        for (auto i : std::as_const(m_layers))
             i->layer->layer->setAccepted(false);
     } else if (layersFlags.testFlag(WOutputViewport::LayerFlag::AlwaysAccepted)) {
-        for (auto i : m_layers)
+        for (auto i : std::as_const(m_layers))
             i->layer->layer->setAccepted(true);
     }
 }
@@ -519,7 +519,7 @@ WBufferRenderer *OutputHelper::afterRender()
     layers.reserve(m_layers.size());
     datas.reserve(m_layers.size());
 
-    for (auto i : m_layers) {
+    for (auto i : std::as_const(m_layers)) {
         if (!i->layer->layer->parent()->isVisible())
             continue;
 
@@ -675,7 +675,7 @@ WBufferRenderer *OutputHelper::afterRender()
     }
 
     if (!layersFlags.testFlag(WOutputViewport::LayerFlag::AlwaysAccepted)) {
-        for (auto i : needsCompositeLayers)
+        for (auto i : std::as_const(needsCompositeLayers))
             i->layer->layer->setAccepted(false);
         return bufferRenderer();
     }
@@ -845,7 +845,7 @@ void WOutputRenderWindowPrivate::init()
     q->create();
     rc()->m_renderWindow = q;
 
-    for (auto output : outputs)
+    for (auto output : std::as_const(outputs))
         init(output);
     updateSceneDPR();
 
@@ -877,7 +877,7 @@ void WOutputRenderWindowPrivate::init(OutputHelper *helper)
     QMetaObject::invokeMethod(q, &WOutputRenderWindow::scheduleRender, Qt::QueuedConnection);
     helper->init();
 
-    for (auto layer : layers) {
+    for (auto layer : std::as_const(layers)) {
         if (layer->outputs.contains(helper->output())) {
             helper->attachLayer(layer);
         }
@@ -967,7 +967,7 @@ void WOutputRenderWindowPrivate::updateSceneDPR()
 
     qreal maxDPR = 0.0;
 
-    for (auto o : outputs) {
+    for (auto o : std::as_const(outputs)) {
         if (o->output()->output()->scale() > maxDPR)
             maxDPR = o->output()->output()->scale();
     }
@@ -980,7 +980,7 @@ WOutputRenderWindowPrivate::doRenderOutputs(const QList<OutputHelper*> &outputs,
 {
     QVector<OutputHelper*> renderResults;
     renderResults.reserve(outputs.size());
-    for (OutputHelper *helper : outputs) {
+    for (OutputHelper *helper : std::as_const(outputs)) {
         if (Q_LIKELY(!forceRender)) {
             if (!helper->renderable()
                 || Q_UNLIKELY(!WOutputViewportPrivate::get(helper->output())->renderable())
@@ -1042,7 +1042,7 @@ WOutputRenderWindowPrivate::doRenderOutputs(const QList<OutputHelper*> &outputs,
 
     QVector<std::pair<OutputHelper*, WBufferRenderer*>> needsCommit;
     needsCommit.reserve(renderResults.size());
-    for (auto helper : renderResults) {
+    for (auto helper : std::as_const(renderResults)) {
         auto bufferRenderer = helper->afterRender();
         if (bufferRenderer)
             needsCommit.append({helper, bufferRenderer});
@@ -1087,7 +1087,7 @@ void WOutputRenderWindowPrivate::doRender(const QList<OutputHelper *> &outputs,
     Q_EMIT q_func()->beforeRendering();
     runAndClearJobs(&beforeRenderingJobs);
 
-    for (OutputHelper *helper : outputs)
+    for (OutputHelper *helper : std::as_const(outputs))
         helper->beforeRender();
 
     auto needsCommit = doRenderOutputs(outputs, forceRender);
@@ -1099,7 +1099,7 @@ void WOutputRenderWindowPrivate::doRender(const QList<OutputHelper *> &outputs,
         rc()->endFrame();
 
     if (doCommit) {
-        for (auto i : needsCommit) {
+        for (auto i : std::as_const(needsCommit)) {
             bool ok = i.first->commit(i.second);
 
             if (i.second->currentBuffer()) {
@@ -1166,7 +1166,7 @@ void WOutputRenderWindow::attach(WOutputViewport *output)
     bool initialRenderable = false;
     bool initialContentIsDirty = false;
     bool initialNeedsFrame = false;
-    for (const auto &helper : d->outputs) {
+    for (const auto &helper : std::as_const(d->outputs)) {
         Q_ASSERT(helper->output() != output);
         if (helper->qwoutput() == output->output()->handle()) {
             // For a new viewport, it should initialize state from viewports with the same output.
@@ -1283,7 +1283,7 @@ void WOutputRenderWindow::init(QWRenderer *renderer, QWAllocator *allocator)
     d->m_renderer = renderer;
     d->m_allocator = allocator;
 
-    for (auto output : d->outputs) {
+    for (auto output : std::as_const(d->outputs)) {
         auto qwoutput = output->qwoutput();
         if (qwoutput->handle()->renderer != d->m_renderer->handle())
             qwoutput->initRender(d->m_allocator, d->m_renderer);
@@ -1343,7 +1343,7 @@ void WOutputRenderWindow::scheduleRender()
 void WOutputRenderWindow::update()
 {
     Q_D(WOutputRenderWindow);
-    for (auto o : d->outputs)
+    for (auto o : std::as_const(d->outputs))
         o->update(); // make contents to dirty
     d->scheduleDoRender();
 }

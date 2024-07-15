@@ -63,7 +63,7 @@ public:
     explicit WQmlCreator(QObject *parent = nullptr);
     ~WQmlCreator();
 
-    QList<WAbstractCreatorComponent *> delegates() const;
+    const QList<WAbstractCreatorComponent *> &delegates() const;
 
     int count() const;
 

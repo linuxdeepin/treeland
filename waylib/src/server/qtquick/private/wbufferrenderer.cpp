@@ -235,7 +235,7 @@ QList<QQuickItem*> WBufferRenderer::sourceList() const
     QList<QQuickItem*> list;
     list.reserve(m_sourceList.size());
 
-    for (const Data &i : m_sourceList)
+    for (const Data &i : std::as_const(m_sourceList))
         list.append(i.source);
 
     return list;
@@ -260,7 +260,7 @@ void WBufferRenderer::setSourceList(QList<QQuickItem*> sources, bool hideSource)
     m_sourceList.clear();
     m_hideSource = hideSource;
 
-    for (auto s : sources) {
+    for (auto s : std::as_const(sources)) {
         m_sourceList.append({s, nullptr});
 
         if (isRootItem(s))

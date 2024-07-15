@@ -86,7 +86,7 @@ public:
     QW_NAMESPACE::QWXWaylandSurface *handle() const;
     WXWaylandSurface *parentXWaylandSurface() const;
 
-    QList<WXWaylandSurface*> children() const;
+    const QList<WXWaylandSurface *> &children() const;
     bool isToplevel() const;
     bool hasChild() const;
     bool isMaximized() const override;

@@ -102,7 +102,7 @@ IME::ContentHints WTextInputV1::contentHints() const
     };
     auto convertToHints = [](WTextInputV1::ContentHints hints) -> IME::ContentHints {
         IME::ContentHints result;
-        for (auto hint : hintsMap) {
+        for (auto hint : std::as_const(hintsMap)) {
             result.setFlag(hint.second, hints.testFlag(hint.first));
         }
         return result;
@@ -466,7 +466,7 @@ void WTextInputManagerV1::destroy(WServer *server)
     Q_UNUSED(server);
     W_D(WTextInputManagerV1);
     wl_global_destroy(m_global);
-    for (auto textInput : d->textInputs) {
+    for (auto textInput : std::as_const(d->textInputs)) {
         wl_resource_destroy(textInput->d_func()->resource);
     }
 }

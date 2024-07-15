@@ -124,7 +124,7 @@ void WQuickCursorPrivate::updateCurrentRenderWindow()
     if (currentRenderWindow && currentRenderWindow->geometry().contains(pos))
         return;
 
-    for (auto window : renderWindows) {
+    for (auto window : std::as_const(renderWindows)) {
         // ###: maybe should use QGuiApplication::topLevelAt
         if (window->geometry().contains(pos)) {
             setCurrentRenderWindow(window);

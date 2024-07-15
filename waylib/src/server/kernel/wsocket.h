@@ -88,7 +88,7 @@ public:
     WClient *addClient(wl_client *client);
     bool removeClient(wl_client *client);
     bool removeClient(WClient *client);
-    QList<WClient*> clients() const;
+    const QList<WClient *> &clients() const;
 
     bool isEnabled() const;
     void setEnabled(bool on);

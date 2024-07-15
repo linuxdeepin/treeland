@@ -297,7 +297,7 @@ void WXWayland::destroy(WServer *server)
     auto list = d->surfaceList;
     d->surfaceList.clear();
 
-    for (auto surface : list) {
+    for (auto surface : std::as_const(list)) {
         removeSurface(surface);
         surface->safeDeleteLater();
     }

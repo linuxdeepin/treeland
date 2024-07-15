@@ -108,14 +108,14 @@ public:
     }
     bool detach(WServerInterface *interface);
 
-    QVector<WServerInterface*> interfaceList() const;
+    const QVector<WServerInterface *> &interfaceList() const;
     QVector<WServerInterface*> findInterfaces(void *handle) const;
     WServerInterface *findInterface(void *handle) const;
     WServerInterface *findInterface(const wl_global *global) const;
     template<typename Interface>
     QVector<Interface*> findInterfaces() const {
         QVector<Interface*> list;
-        Q_FOREACH(auto i, interfaceList()) {
+        for (auto i : interfaceList()) {
             if (auto ii = dynamic_cast<Interface*>(i))
                 list << ii;
         }
@@ -124,7 +124,7 @@ public:
     }
     template<typename Interface>
     Interface *findInterface() const {
-        Q_FOREACH(auto i, interfaceList()) {
+        for (auto i : interfaceList()) {
             if (auto ii = dynamic_cast<Interface*>(i))
                 return ii;
         }

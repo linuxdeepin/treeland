@@ -57,7 +57,7 @@ void WOutputLayerPrivate::doEnable(bool enable)
         return;
     actualEnabled = enable;
 
-    for (auto o : outputs) {
+    for (auto o : std::as_const(outputs)) {
         if (enable) {
             if (o->window() && o->window() != window) {
                 qWarning() << "OutputLayer: OutputViewport and OutputLayer's target item "
@@ -146,7 +146,7 @@ void WOutputLayer::setFlags(const Flags &newFlags)
     Q_EMIT flagsChanged();
 }
 
-QList<WOutputViewport *> WOutputLayer::outputs() const
+const QList<WOutputViewport *> &WOutputLayer::outputs() const
 {
     W_DC(WOutputLayer);
     return d->outputs;
@@ -159,7 +159,7 @@ void WOutputLayer::setOutputs(const QList<WOutputViewport*> &newOutputList)
         return;
 
     WOutput *output = nullptr;
-    for (auto viewport : newOutputList) {
+    for (auto viewport : std::as_const(newOutputList)) {
         if (d->window && viewport->window() != d->window) {
             qmlWarning(this) << "OutputViewport and OutputLayer's target item "
                                 "must both be children of the same window.";

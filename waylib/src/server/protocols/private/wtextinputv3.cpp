@@ -67,7 +67,7 @@ void WTextInputManagerV3::create(WServer *server)
 
 void WTextInputManagerV3::destroy(WServer *server)
 {
-    for (auto ti : d_func()->textInputs) {
+    for (auto ti : std::as_const(d_func()->textInputs)) {
         Q_EMIT ti->entityAboutToDestroy();
         ti->deleteLater();
     }

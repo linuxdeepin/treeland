@@ -561,7 +561,7 @@ void WOutput::removeCursor(WCursor *cursor)
     static_cast<QWlrootsCursor*>(screen()->cursor())->removeCursor(cursor);
 }
 
-QList<WCursor *> WOutput::cursorList() const
+const QList<WCursor *> &WOutput::cursorList() const
 {
     return static_cast<QWlrootsCursor*>(screen()->cursor())->cursors;
 }

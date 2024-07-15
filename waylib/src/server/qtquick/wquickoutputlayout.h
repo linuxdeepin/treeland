@@ -24,7 +24,7 @@ class WAYLIB_SERVER_EXPORT WQuickOutputLayout : public WOutputLayout
 public:
     explicit WQuickOutputLayout(QObject *parent = nullptr);
 
-    QList<WOutputItem*> outputs() const;
+    const QList<WOutputItem *> &outputs() const;
 
 public Q_SLOTS:
     void add(WOutputItem *output);

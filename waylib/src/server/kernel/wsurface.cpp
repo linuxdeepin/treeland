@@ -95,7 +95,7 @@ void WSurfacePrivate::connect()
         auto surface = ensureSubsurface(sub->handle());
         Q_EMIT q->newSubsurface(surface);
 
-        for (auto output : outputs)
+        for (auto output : std::as_const(outputs))
             surface->enterOutput(output);
     });
 }
@@ -164,7 +164,7 @@ void WSurfacePrivate::updatePreferredBufferScale()
         return;
 
     float maxScale = 1.0;
-    for (auto o : outputs)
+    for (auto o : std::as_const(outputs))
         maxScale = std::max(o->scale(), maxScale);
     if (handle())
         QWFractionalScaleManagerV1::notifyScale(handle(), maxScale);
@@ -462,7 +462,7 @@ void WSurfacePrivate::instantRelease()
         handle()->setData(nullptr, nullptr);
         handle()->disconnect(q);
         subsurface->disconnect(q);
-        for (auto o : outputs)
+        for (auto o : std::as_const(outputs))
             o->safeDisconnect(q);
     }
 }

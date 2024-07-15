@@ -135,7 +135,7 @@ void WServerPrivate::init()
     QAbstractEventDispatcher *dispatcher = QThread::currentThread()->eventDispatcher();
     QObject::connect(dispatcher, &QAbstractEventDispatcher::aboutToBlock, q, processWaylandEvents);
 
-    for (auto socket : sockets)
+    for (auto socket : std::as_const(sockets))
         initSocket(socket);
 
     Q_EMIT q->started();
@@ -237,7 +237,7 @@ bool WServer::detach(WServerInterface *interface)
     return true;
 }
 
-QVector<WServerInterface *> WServer::interfaceList() const
+const QVector<WServerInterface *> &WServer::interfaceList() const
 {
     W_DC(WServer);
     return d->interfaceList;
@@ -246,7 +246,7 @@ QVector<WServerInterface *> WServer::interfaceList() const
 QVector<WServerInterface *> WServer::findInterfaces(void *handle) const
 {
     QVector<WServerInterface*> list;
-    Q_FOREACH(auto i, interfaceList()) {
+    for (auto i : interfaceList()) {
         if (i->handle() == handle)
             list << i;
     }
@@ -256,7 +256,7 @@ QVector<WServerInterface *> WServer::findInterfaces(void *handle) const
 
 WServerInterface *WServer::findInterface(void *handle) const
 {
-    Q_FOREACH(auto i, interfaceList()) {
+    for (auto i : interfaceList()) {
         if (i->handle() == handle)
             return i;
     }
@@ -266,7 +266,7 @@ WServerInterface *WServer::findInterface(void *handle) const
 
 WServerInterface *WServer::findInterface(const wl_global *global) const
 {
-    Q_FOREACH (const auto &i, interfaceList()) {
+    for (const auto &i : interfaceList()) {
         if (i->global() == global)
             return i;
     }
@@ -355,7 +355,7 @@ void WServer::initializeProxyQPA(int &argc, char **argv, const QStringList &prox
 
     W_DC(WServer);
     QPlatformIntegration *proxy = nullptr;
-    for (const QString &name : proxyPlatformPlugins) {
+    for (const QString &name : std::as_const(proxyPlatformPlugins)) {
         if (name.isEmpty())
             continue;
         proxy = QPlatformIntegrationFactory::create(name, parameters, argc, argv);

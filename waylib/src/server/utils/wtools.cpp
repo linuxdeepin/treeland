@@ -228,7 +228,7 @@ bool WTools::toPixmanRegion(const QRegion &region, pixman_region32 *pixmanRegion
     rects.resize(region.rectCount());
 
     int i = 0;
-    for (const QRect &r : region) {
+    for (const QRect &r : std::as_const(region)) {
         pixman_box32_t &box = rects[i++];
         box.x1 = r.x();
         box.y1 = r.y();

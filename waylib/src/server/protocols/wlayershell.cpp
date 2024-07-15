@@ -108,7 +108,7 @@ void WLayerShell::destroy(WServer *server)
     auto list = d->surfaceList;
     d->surfaceList.clear();
 
-    for (auto surface : list) {
+    for (auto surface : std::as_const(list)) {
         surfaceRemoved(surface);
         surface->safeDeleteLater();
     }

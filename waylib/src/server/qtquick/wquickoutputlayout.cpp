@@ -35,7 +35,7 @@ WQuickOutputLayout::WQuickOutputLayout(QObject *parent)
 
 }
 
-QList<WOutputItem*> WQuickOutputLayout::outputs() const
+const QList<WOutputItem*> &WQuickOutputLayout::outputs() const
 {
     W_DC(WQuickOutputLayout);
     return d->outputs;

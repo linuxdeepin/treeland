@@ -97,7 +97,7 @@ const char *WCursorPrivate::checkTypeAndFallback(const char *name)
         {"hand1", "hand2", "pointer", "pointing_hand"},
     };
 
-    for (const auto &typeList : typeLists) {
+    for (const auto &typeList : std::as_const(typeLists)) {
         bool hasType = std::find_if(typeList.begin(), typeList.end(), [name](const char *type) {
             return std::strcmp(type, name) == 0;
         }) != typeList.end();
@@ -312,7 +312,8 @@ void WCursorPrivate::updateCursorImage()
 }
 
 const QPointingDevice *getDevice(const QString &seatName) {
-    for (auto i : QInputDevice::devices()) {
+    const auto devices = QInputDevice::devices();
+    for (auto i : devices) {
         if (i->seatName() == seatName && (i->type() == QInputDevice::DeviceType::Mouse
                                           || i->type() == QInputDevice::DeviceType::TouchPad))
             return static_cast<const QPointingDevice*>(i);

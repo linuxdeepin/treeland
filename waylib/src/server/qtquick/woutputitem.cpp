@@ -368,7 +368,7 @@ void WOutputItemPrivate::initForOutput()
 
 void WOutputItemPrivate::clearCursors()
 {
-    for (auto i : cursors)
+    for (auto i : std::as_const(cursors))
         i->deleteLater();
     cursors.clear();
 }
@@ -423,7 +423,7 @@ void WOutputItemPrivate::updateCursors()
 
     std::swap(tmpCursors, cursors);
     // clean needless cursors
-    for (auto cursor : tmpCursors) {
+    for (auto cursor : std::as_const(tmpCursors)) {
         if (cursors.contains(cursor))
             continue;
         if (cursor == lastActiveCursor) {
@@ -445,7 +445,7 @@ void WOutputItemPrivate::updateCursors()
 
 QuickOutputCursor *WOutputItemPrivate::getCursorBy(wlr_output_cursor *handle) const
 {
-    for (auto cursor : cursors)
+    for (auto cursor : std::as_const(cursors))
         if (cursor->m_handle == handle)
             return cursor;
     return nullptr;
@@ -587,7 +587,7 @@ QList<QQuickItem *> WOutputItem::cursorItems() const
     QList<QQuickItem *> items;
     items.reserve(d->cursors.size());
 
-    for (auto cursor : d->cursors)
+    for (auto cursor : std::as_const(d->cursors))
         items.append(cursor->delegateItem);
 
     return items;

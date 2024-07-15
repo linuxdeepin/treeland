@@ -88,10 +88,9 @@ Helper::Helper(QObject *parent)
 
 Helper::~Helper()
 {
-    for (auto &info : m_outputExclusiveZoneInfo) {
+    for (auto info : std::as_const(m_outputExclusiveZoneInfo)) {
         if (info.second) {
             delete info.second;
-            info.second = nullptr;
         }
     }
 }
@@ -249,7 +248,7 @@ void Helper::initProtocols(WOutputRenderWindow *window, QQmlEngine *qmlEngine)
             (QWOutputConfigurationV1 *config, bool onlyTest) {
         QList<WOutputState> states = m_wOutputManager->stateListPending();
         bool ok = true;
-        for (auto state : states) {
+        for (auto state : std::as_const(states)) {
             WOutput *output = state.output;
             output->enable(state.enabled);
             if (state.enabled) {

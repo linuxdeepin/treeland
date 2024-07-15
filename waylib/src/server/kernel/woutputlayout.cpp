@@ -46,7 +46,7 @@ WOutputLayout::WOutputLayout(QObject *parent)
 
 }
 
-QList<WOutput*> WOutputLayout::outputs() const
+const QList<WOutput*> &WOutputLayout::outputs() const
 {
     W_DC(WOutputLayout);
     return d->outputs;
@@ -103,7 +103,7 @@ QList<WOutput*> WOutputLayout::getIntersectedOutputs(const QRect &geometry) cons
 
     QList<WOutput*> outputs;
 
-    for (auto o : d->outputs) {
+    for (auto o : std::as_const(d->outputs)) {
         const QRect og = getBox(o->handle());
         if (og.intersects(geometry))
             outputs << o;

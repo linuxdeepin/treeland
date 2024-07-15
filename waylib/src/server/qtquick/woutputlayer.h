@@ -53,7 +53,7 @@ public:
     Flags flags() const;
     void setFlags(const Flags &newFlags);
 
-    QList<WOutputViewport*> outputs() const;
+    const QList<WOutputViewport *> &outputs() const;
     void setOutputs(const QList<WOutputViewport*> &newOutputList);
 
     int z() const;

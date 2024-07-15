@@ -45,7 +45,7 @@ WQuickCoordMapperHelper::WQuickCoordMapperHelper(QQuickItem *target)
 
 WQuickCoordMapper *WQuickCoordMapperHelper::get(WQuickObserver *target)
 {
-    for (auto i : list) {
+    for (auto i : std::as_const(list)) {
         if (WQuickCoordMapperPrivate::get(i)->target == target)
             return i;
     }

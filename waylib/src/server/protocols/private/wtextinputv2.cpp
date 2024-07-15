@@ -353,7 +353,7 @@ void WTextInputManagerV2::destroy(WServer *server)
     Q_UNUSED(server);
     W_D(WTextInputManagerV2);
     wl_global_destroy(m_global);
-    for (auto textInput : d->textInputs) {
+    for (auto textInput : std::as_const(d->textInputs)) {
         wl_resource_destroy(textInput->d_func()->resource);
     }
 }

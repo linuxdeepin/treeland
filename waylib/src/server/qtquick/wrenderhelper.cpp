@@ -685,7 +685,7 @@ QSGRendererInterface::GraphicsApi WRenderHelper::probe(QWBackend *testBackend, c
 {
     auto acceptApi = QSGRendererInterface::Unknown;
 
-    for (auto api : apiList) {
+    for (auto api : std::as_const(apiList)) {
         auto renderer = createRenderer(testBackend, api);
         if (!renderer) {
             qInfo() << GraphicsApiName(api) << " api failed to create wlr_renderer";

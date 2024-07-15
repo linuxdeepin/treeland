@@ -158,7 +158,7 @@ public:
         if (data)
             release(data);
 
-        for (auto data : dataList) {
+        for (auto data : std::as_const(dataList)) {
             if (get()->check(data->data, std::forward<DataKeys>(keys)...)) {
                 data->released = 0;
                 return data;
@@ -195,7 +195,7 @@ protected:
             std::swap(manager->dataList, tmp);
             manager->dataList.reserve(tmp.size());
 
-            for (Data *data : tmp) {
+            for (Data *data : std::as_const(tmp)) {
                 if (data->released > 2) {
                     manager->get()->destroy(data->data);
                     delete data;
@@ -235,7 +235,7 @@ protected:
 
     using QObject::deleteLater;
     ~DataManager() {
-        for (auto data : dataList) {
+        for (auto data : std::as_const(dataList)) {
             Derive::destroy(data->data);
             delete data;
         }

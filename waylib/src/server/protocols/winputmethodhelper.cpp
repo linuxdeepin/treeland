@@ -183,7 +183,7 @@ QWInputMethodKeyboardGrabV2 *WInputMethodHelper::activeKeyboardGrab() const
     return d->activeKeyboardGrab;
 }
 
-QList<WInputDevice *> WInputMethodHelper::virtualKeyboards() const
+const QList<WInputDevice *> &WInputMethodHelper::virtualKeyboards() const
 {
     W_DC(WInputMethodHelper);
     return d->virtualKeyboards;
@@ -312,7 +312,7 @@ void WInputMethodHelper::resendKeyboardFocus()
     if (!focus)
         return;
     qCDebug(qLcInputMethod) << "focus" << focus << "from client" << focus->waylandClient();
-    for (auto textInput : d->textInputs) {
+    for (auto textInput : std::as_const(d->textInputs)) {
         qCDebug(qLcInputMethod()) << "trying to send focus to" << textInput << "from client" << textInput->waylandClient();
         if (focus->waylandClient() == textInput->waylandClient()) {
             qCDebug(qLcInputMethod) << "focus sent to" << textInput;
@@ -448,7 +448,7 @@ void WInputMethodHelper::notifyLeave()
 
 void WInputMethodHelper::updateAllPopupSurfaces(QRect cursorRect)
 {
-    for (auto popup : d_func()->popupSurfaces) {
+    for (auto popup : std::as_const(d_func()->popupSurfaces)) {
         updatePopupSurface(popup, cursorRect);
     }
 }

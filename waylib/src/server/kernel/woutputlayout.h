@@ -30,7 +30,7 @@ public:
 
     explicit WOutputLayout(QObject *parent = nullptr);
 
-    QList<WOutput*> outputs() const;
+    const QList<WOutput *> &outputs() const;
 
     void add(WOutput *output, const QPoint &pos);
     void move(WOutput *output, const QPoint &pos);

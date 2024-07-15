@@ -40,7 +40,7 @@ public:
         }
 
         oldOutputs.removeAll(nullptr);
-        for (auto o : oldOutputs) {
+        for (auto o : std::as_const(oldOutputs)) {
             Q_EMIT q->leaveOutput(o);
             changed = true;
         }
@@ -97,7 +97,7 @@ QList<WOutput*> WOutputLayoutItem::outputs() const
 {
     W_DC(WOutputLayoutItem);
     QList<WOutput*> outputs;
-    for (const auto &output : d->outputs) {
+    for (const auto &output : std::as_const(d->outputs)) {
         outputs.append(output);
     }
     return outputs;

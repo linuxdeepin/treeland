@@ -689,7 +689,7 @@ void WSurfaceItem::setFlags(const Flags &newFlags)
     if (auto content = d->getItemContent())
         content->setCacheLastBuffer(!newFlags.testFlag(DontCacheLastBuffer));
 
-    for (auto sub : d->subsurfaces)
+    for (auto sub : std::as_const(d->subsurfaces))
         sub->setFlags(newFlags);
 
     Q_EMIT flagsChanged();
@@ -753,7 +753,7 @@ void WSurfaceItem::setDelegate(QQmlComponent *newDelegate)
     d->delegate = newDelegate;
     d->initForDelegate();
 
-    for (auto sub : d->subsurfaces)
+    for (auto sub : std::as_const(d->subsurfaces))
         sub->setDelegate(newDelegate);
 
     Q_EMIT delegateChanged();
@@ -892,7 +892,7 @@ void WSurfaceItem::releaseResources()
     }
 
     if (!d->surfaceFlags.testFlag(DontCacheLastBuffer)) {
-        for (auto item : d->subsurfaces) {
+        for (auto item : std::as_const(d->subsurfaces)) {
             item->releaseResources();
             // subsurface's contents at the last frame buffer.
             // AutoDestroy: disconnects (subsurfaceItem.surface, destroyed, this, lambda{deleteLater})
@@ -901,7 +901,7 @@ void WSurfaceItem::releaseResources()
             item->setProperty("_autoDestroyReleased", true);
         }
     } else {
-        for (auto item : d->subsurfaces)
+        for (auto item : std::as_const(d->subsurfaces))
             item->deleteLater();
     }
 
@@ -1057,7 +1057,7 @@ void WSurfaceItemPrivate::initForSurface()
 
     // clean subsurfaces, if cacheLastBuffer is enabled will cache
     // the previous WSurface's subsurfaces.
-    for (auto item : subsurfaces)
+    for (auto item : std::as_const(subsurfaces))
         item->deleteLater();
     subsurfaces.clear();
 

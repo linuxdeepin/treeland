@@ -299,7 +299,7 @@ WXWaylandSurface *WXWaylandSurface::parentXWaylandSurface() const
     return d->parent;
 }
 
-QList<WXWaylandSurface*> WXWaylandSurface::children() const
+const QList<WXWaylandSurface*> &WXWaylandSurface::children() const
 {
     W_DC(WXWaylandSurface);
 

@@ -41,7 +41,7 @@ Q_SIGNALS:
     void inputPopupSurfaceV2Removed(WInputPopupSurface *popupSurface);
 
 private:
-    QList<WInputDevice *> virtualKeyboards() const;
+    const QList<WInputDevice *> &virtualKeyboards() const;
     void handleNewTI(WTextInput *ti);
     void handleNewIMV2(QW_NAMESPACE::QWInputMethodV2 *imv2);
     void handleNewKGV2(QW_NAMESPACE::QWInputMethodKeyboardGrabV2 *kgv2);

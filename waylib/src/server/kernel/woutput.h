@@ -104,7 +104,7 @@ public:
 
     void addCursor(WCursor *cursor);
     void removeCursor(WCursor *cursor);
-    QList<WCursor*> cursorList() const;
+    const QList<WCursor *> &cursorList() const;
 
     Q_INVOKABLE bool setGammaLut(size_t ramp_size, uint16_t* r, uint16_t* g, uint16_t* b);
     Q_INVOKABLE bool enable(bool enabled);
