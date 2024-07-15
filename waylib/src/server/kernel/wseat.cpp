@@ -1227,7 +1227,7 @@ void WSeat::notifyTouchUp(WCursor *cursor, WInputDevice *device, int32_t touch_i
         // IF All Points has Released, Send a Frame event immediately
         // Ref: https://github.com/qt/qtbase/blob/6.5/src/platformsupport/input/libinput/qlibinputtouch.cpp#L150
         QEventPoint::States s;
-        for (auto point : std::as_const(state->m_points)) {
+        for (const auto &point : std::as_const(state->m_points)) {
             s |= point.state;
         }
         qCDebug(qLcWlrTouchEvents) << "Touch up form device: " << qwDevice->name()
@@ -1263,7 +1263,7 @@ void WSeat::notifyTouchFrame(WCursor *cursor)
 {
     W_D(WSeat);
     Q_UNUSED(cursor);
-    for (auto *device: d->touchDeviceList) {
+    for (auto *device: std::as_const(d->touchDeviceList)) {
         d->doNotifyTouchFrame(device);
     }
 }
