@@ -10,7 +10,7 @@ if(POLICY CMP0071)
     cmake_policy(SET CMP0071 NEW)
 endif()
 
-set(QML_IMPORT_PATH ${CMAKE_BINARY_DIR}/src/server/ CACHE STRING "" FORCE)
+set(QML_IMPORT_PATH "${PROJECT_BINARY_DIR}/src/server;${QML_IMPORT_PATH}" CACHE STRING "For LSP" FORCE)
 
 find_package(PkgConfig REQUIRED)
 pkg_search_module(PIXMAN REQUIRED IMPORTED_TARGET pixman-1)
