@@ -23,6 +23,7 @@ SurfaceItemFactory {
     property alias decoration: decoration
     readonly property XWaylandSurfaceItem asXwayland: {surfaceItem as XWaylandSurfaceItem}
     readonly property XdgSurfaceItem asXdg: {surfaceItem as XdgSurfaceItem}
+    readonly property bool hasDecoration: decoration.enable && !helper.isFullScreen
     z: {
         if (Helper.clientName(wSurface.surface) === "dde-desktop") {
             return -100 + 1
@@ -45,10 +46,10 @@ SurfaceItemFactory {
     surfaceItem {
         parent: root.parent
         shellSurface: wSurface
-        topPadding: decoration.visible ? decoration.topMargin : 0
-        bottomPadding: decoration.visible ? decoration.bottomMargin : 0
-        leftPadding: decoration.visible ? decoration.leftMargin : 0
-        rightPadding: decoration.visible ? decoration.rightMargin : 0
+        topPadding: hasDecoration ? decoration.topMargin : 0
+        bottomPadding: hasDecoration ? decoration.bottomMargin : 0
+        leftPadding: hasDecoration ? decoration.leftMargin : 0
+        rightPadding: hasDecoration ? decoration.rightMargin : 0
         focus: wSurface === Helper.activatedSurface
         resizeMode:
             if (!surfaceItem.effectiveVisible)
@@ -204,7 +205,7 @@ SurfaceItemFactory {
         anchors.fill: parent
         z: SurfaceItem.ZOrder.ContentItem - 1
         surface: wSurface
-        visible: enable && !helper.isFullScreen
+        visible: hasDecoration
         moveable: !helper.isMaximize && !helper.isFullScreen
         radius: helper.isMaximize ? 0 : 15
     }
