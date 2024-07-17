@@ -74,7 +74,7 @@ qreal QWlrootsScreen::refreshRate() const
 {
     if (!handle()->current_mode)
         return 60;
-    return handle()->current_mode->refresh;
+    return handle()->current_mode->refresh / 1000.f;
 }
 
 QDpi QWlrootsScreen::logicalBaseDpi() const
