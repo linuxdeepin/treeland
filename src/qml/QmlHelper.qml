@@ -125,7 +125,7 @@ Item {
             }
         }
         Component.onCompleted: {
-            createWs(),createWs()
+            createWs(),createWs(),createWs()
         }
     }
 
