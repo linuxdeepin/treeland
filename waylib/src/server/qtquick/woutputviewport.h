@@ -19,11 +19,15 @@ class WAYLIB_SERVER_EXPORT WOutputViewport : public QQuickItem
     Q_DECLARE_PRIVATE(WOutputViewport)
     Q_PROPERTY(QQuickItem* input READ input WRITE setInput NOTIFY inputChanged RESET resetInput FINAL)
     Q_PROPERTY(WOutput* output READ output WRITE setOutput NOTIFY outputChanged REQUIRED)
+    Q_PROPERTY(QQuickTransform* viewportTransform READ viewportTransform WRITE setViewportTransform NOTIFY viewportTransformChanged FINAL)
     Q_PROPERTY(qreal devicePixelRatio READ devicePixelRatio WRITE setDevicePixelRatio NOTIFY devicePixelRatioChanged)
     Q_PROPERTY(bool offscreen READ offscreen WRITE setOffscreen NOTIFY offscreenChanged)
     Q_PROPERTY(bool cacheBuffer READ cacheBuffer WRITE setCacheBuffer NOTIFY cacheBufferChanged FINAL)
     Q_PROPERTY(bool preserveColorContents READ preserveColorContents WRITE setPreserveColorContents NOTIFY preserveColorContentsChanged FINAL)
     Q_PROPERTY(bool live READ live WRITE setLive NOTIFY liveChanged FINAL)
+    Q_PROPERTY(QRectF sourceRect READ sourceRect WRITE setSourceRect RESET resetSourceRect NOTIFY sourceRectChanged FINAL)
+    Q_PROPERTY(QRectF targetRect READ targetRect WRITE setTargetRect RESET resetTargetRect NOTIFY targetRectChanged FINAL)
+    Q_PROPERTY(bool ignoreViewport READ ignoreViewport WRITE setIgnoreViewport NOTIFY ignoreViewportChanged FINAL)
     QML_NAMED_ELEMENT(OutputViewport)
 
 public:
@@ -43,6 +47,9 @@ public:
     WOutput *output() const;
     void setOutput(WOutput *newOutput);
 
+    QQuickTransform *viewportTransform() const;
+    void setViewportTransform(QQuickTransform *newViewportTransform);
+
     qreal devicePixelRatio() const;
     void setDevicePixelRatio(qreal newDevicePixelRatio);
 
@@ -58,6 +65,17 @@ public:
     bool live() const;
     void setLive(bool newLive);
 
+    QRectF sourceRect() const;
+    void setSourceRect(const QRectF &newSourceRect);
+    void resetSourceRect();
+
+    QRectF targetRect() const;
+    void setTargetRect(const QRectF &newTargetRect);
+    void resetTargetRect();
+
+    bool ignoreViewport() const;
+    void setIgnoreViewport(bool newIgnoreViewport);
+
 public Q_SLOTS:
     void setOutputScale(float scale);
     void rotateOutput(WOutput::Transform t);
@@ -72,6 +90,10 @@ Q_SIGNALS:
     void inputChanged();
     void liveChanged();
     void outputChanged();
+    void viewportTransformChanged();
+    void sourceRectChanged();
+    void targetRectChanged();
+    void ignoreViewportChanged();
 
 private:
     void componentComplete() override;

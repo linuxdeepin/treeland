@@ -72,6 +72,9 @@ public:
     bool isTextureProvider() const override;
     QSGTextureProvider *textureProvider() const override;
 
+    static QTransform inputMapToOutput(const QRectF &sourceRect, const QRectF &targetRect,
+                                       const QSize &pixelSize, const qreal devicePixelRatio);
+
 Q_SIGNALS:
     void sceneGraphChanged();
     void devicePixelRatioChanged();
@@ -82,7 +85,9 @@ Q_SIGNALS:
 protected:
     QW_NAMESPACE::qw_buffer *beginRender(const QSize &pixelSize, qreal devicePixelRatio,
                                         uint32_t format, RenderFlags flags = {});
-    void render(int sourceIndex, const QMatrix4x4 &renderMatrix, bool preserveColorContents = false);
+    void render(int sourceIndex, const QMatrix4x4 &renderMatrix,
+                const QRectF &sourceRect = {}, const QRectF &targetRect = {},
+                bool preserveColorContents = false);
     void endRender();
     void componentComplete() override;
 

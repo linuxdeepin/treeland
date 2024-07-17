@@ -26,6 +26,7 @@ public:
         , preserveColorContents(false)
         , live(true)
         , forceRender(false)
+        , ignoreViewport(false)
     {
 
     }
@@ -48,6 +49,7 @@ public:
     void init();
     void initForOutput();
     void invalidateSceneGraph();
+    void update();
 
     qreal getImplicitWidth() const override;
     qreal getImplicitHeight() const override;
@@ -59,14 +61,19 @@ public:
     W_DECLARE_PUBLIC(WOutputViewport)
     QQuickItem *input = nullptr;
     WOutput *output = nullptr;
+    QQuickTransform *viewportTransform = nullptr;
+
     qreal devicePixelRatio = 1.0;
     WBufferRenderer *bufferRenderer = nullptr;
     QPointer<QQuickItem> extraRenderSource;
+    QRectF sourceRect;
+    QRectF targetRect;
 
     uint offscreen:1;
     uint preserveColorContents:1;
     uint live:1;
     uint forceRender:1;
+    uint ignoreViewport:1;
 };
 
 WAYLIB_SERVER_END_NAMESPACE

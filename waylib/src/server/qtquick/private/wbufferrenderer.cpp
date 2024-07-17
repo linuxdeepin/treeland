@@ -332,6 +332,32 @@ QSGTextureProvider *WBufferRenderer::textureProvider() const
     return m_textureProvider.get();
 }
 
+QTransform WBufferRenderer::inputMapToOutput(const QRectF &sourceRect, const QRectF &targetRect,
+                                             const QSize &pixelSize, const qreal devicePixelRatio)
+{
+    Q_ASSERT(pixelSize.isValid());
+
+    QTransform t;
+    const auto outputSize = QSizeF(pixelSize) / devicePixelRatio;
+
+    if (sourceRect.isValid())
+        t.translate(-sourceRect.x(), -sourceRect.y());
+    if (targetRect.isValid())
+        t.translate(targetRect.x(), targetRect.y());
+
+    if (sourceRect.isValid()) {
+        t.scale(outputSize.width() / sourceRect.width(),
+                outputSize.height() / sourceRect.height());
+    }
+
+    if (targetRect.isValid()) {
+        t.scale(targetRect.width() / outputSize.width(),
+                targetRect.height() / outputSize.height());
+    }
+
+    return t;
+}
+
 qw_buffer *WBufferRenderer::beginRender(const QSize &pixelSize, qreal devicePixelRatio,
                                        uint32_t format, RenderFlags flags)
 {
@@ -437,7 +463,14 @@ qw_buffer *WBufferRenderer::beginRender(const QSize &pixelSize, qreal devicePixe
     return buffer;
 }
 
-void WBufferRenderer::render(int sourceIndex, const QMatrix4x4 &renderMatrix, bool preserveColorContents)
+inline static QRect scaleToRect(const QRectF &s, qreal scale) {
+    return QRect((s.topLeft() * scale).toPoint(),
+                 (s.size() * scale).toSize());
+}
+
+void WBufferRenderer::render(int sourceIndex, const QMatrix4x4 &renderMatrix,
+                             const QRectF &sourceRect, const QRectF &targetRect,
+                             bool preserveColorContents)
 {
     Q_ASSERT(state.buffer);
 
@@ -448,15 +481,21 @@ void WBufferRenderer::render(int sourceIndex, const QMatrix4x4 &renderMatrix, bo
     const qreal devicePixelRatio = state.devicePixelRatio;
     state.renderer = renderer;
     state.worldTransform = renderMatrix;
-    state.worldTransform.optimize();
     renderer->setDevicePixelRatio(devicePixelRatio);
     renderer->setDeviceRect(QRect(QPoint(0, 0), state.pixelSize));
-    renderer->setViewportRect(state.pixelSize);
     renderer->setRenderTarget(state.sgRenderTarget);
+    const auto viewportRect = scaleToRect(targetRect, devicePixelRatio);
 
     auto softwareRenderer = dynamic_cast<QSGSoftwareRenderer*>(renderer);
     { // before render
         if (softwareRenderer) {
+            // because software renderer don't supports viewportRect,
+            // so use transform to simulation.
+            const auto mapTransform = inputMapToOutput(sourceRect, targetRect,
+                                                       state.pixelSize, state.devicePixelRatio);
+            if (!mapTransform.isIdentity())
+                state.worldTransform = mapTransform * state.worldTransform;
+            state.worldTransform.optimize();
             auto image = getImageFrom(state.renderTarget);
             image->setDevicePixelRatio(devicePixelRatio);
 
@@ -476,11 +515,24 @@ void WBufferRenderer::render(int sourceIndex, const QMatrix4x4 &renderMatrix, bo
                 applyTransform(softwareRenderer, t);
             }
         } else {
+            state.worldTransform.optimize();
+
             bool flipY = wd->rhi ? !wd->rhi->isYUpInNDC() : false;
             if (state.renderTarget.mirrorVertically())
                 flipY = !flipY;
 
-            QRectF rect(QPointF(0, 0), QSizeF(state.pixelSize) / devicePixelRatio);
+            if (viewportRect.isValid()) {
+                QRect vr = viewportRect;
+                if (flipY)
+                    vr.moveTop(-vr.y() + state.pixelSize.height() - vr.height());
+                renderer->setViewportRect(vr);
+            } else {
+                renderer->setViewportRect(QRect(QPoint(0, 0), state.pixelSize));
+            }
+
+            QRectF rect = sourceRect;
+            if (!rect.isValid())
+                rect = QRectF(QPointF(0, 0), QSizeF(state.pixelSize) / devicePixelRatio);
 
             const float left = rect.x();
             const float right = rect.x() + rect.width();
@@ -544,6 +596,20 @@ void WBufferRenderer::render(int sourceIndex, const QMatrix4x4 &renderMatrix, bo
             {
                 PixmanRegion damage;
                 m_damageRing.get_buffer_damage(state.bufferAge, damage);
+
+                if (viewportRect.isValid()) {
+                    QRect imageRect = (currentImage->operator const QImage &()).rect();
+                    QRegion invalidRegion(imageRect);
+                    invalidRegion -= viewportRect;
+                    if (!scaledFlushRegion.isEmpty())
+                        invalidRegion &= scaledFlushRegion;
+
+                    if (!invalidRegion.isEmpty()) {
+                        QPainter pa(currentImage);
+                        for (const auto r : std::as_const(invalidRegion))
+                            pa.fillRect(r, softwareRenderer->clearColor());
+                    }
+                }
 
                 if (!damage.isEmpty() && state.lastRT.first != state.buffer && !state.lastRT.second.isNull()) {
                     auto image = getImageFrom(state.lastRT.second);

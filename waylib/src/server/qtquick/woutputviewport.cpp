@@ -44,6 +44,16 @@ void WOutputViewportPrivate::initForOutput()
     updateImplicitSize();
 }
 
+void WOutputViewportPrivate::update()
+{
+    if (Q_UNLIKELY(!componentComplete))
+        return;
+
+    auto window = outputWindow();
+    if (Q_LIKELY(window))
+        window->update(q_func());
+}
+
 qreal WOutputViewportPrivate::getImplicitWidth() const
 {
     return output->size().width() / devicePixelRatio;
@@ -56,12 +66,7 @@ qreal WOutputViewportPrivate::getImplicitHeight() const
 
 void WOutputViewportPrivate::updateImplicitSize()
 {
-    implicitWidthChanged();
-    implicitHeightChanged();
-
-    W_Q(WOutputViewport);
-    q->resetWidth();
-    q->resetHeight();
+    q_func()->setImplicitSize(getImplicitWidth(), getImplicitHeight());
 }
 
 void WOutputViewportPrivate::updateRenderBufferSource()
@@ -188,6 +193,22 @@ void WOutputViewport::setOutput(WOutput *newOutput)
     Q_EMIT outputChanged();
 }
 
+QQuickTransform *WOutputViewport::viewportTransform() const
+{
+    W_DC(WOutputViewport);
+    return d->viewportTransform;
+}
+
+void WOutputViewport::setViewportTransform(QQuickTransform *newViewportTransform)
+{
+    W_D(WOutputViewport);
+    if (d->viewportTransform == newViewportTransform)
+        return;
+    d->viewportTransform = newViewportTransform;
+    d->update();
+    Q_EMIT viewportTransformChanged();
+}
+
 qreal WOutputViewport::devicePixelRatio() const
 {
     W_DC(WOutputViewport);
@@ -264,6 +285,63 @@ void WOutputViewport::setLive(bool newLive)
 
     d->live = newLive;
     Q_EMIT liveChanged();
+}
+
+QRectF WOutputViewport::sourceRect() const
+{
+    W_DC(WOutputViewport);
+    return d->sourceRect;
+}
+
+void WOutputViewport::setSourceRect(const QRectF &newSourceRect)
+{
+    W_D(WOutputViewport);
+    if (d->sourceRect == newSourceRect)
+        return;
+    d->sourceRect = newSourceRect;
+    d->update();
+    Q_EMIT sourceRectChanged();
+}
+
+void WOutputViewport::resetSourceRect()
+{
+    setSourceRect({});
+}
+
+QRectF WOutputViewport::targetRect() const
+{
+    W_DC(WOutputViewport);
+    return d->targetRect;
+}
+
+void WOutputViewport::setTargetRect(const QRectF &newTargetRect)
+{
+    W_D(WOutputViewport);
+    if (d->targetRect == newTargetRect)
+        return;
+    d->targetRect = newTargetRect;
+    d->update();
+    Q_EMIT targetRectChanged();
+}
+
+void WOutputViewport::resetTargetRect()
+{
+    setTargetRect({});
+}
+
+bool WOutputViewport::ignoreViewport() const
+{
+    W_DC(WOutputViewport);
+    return d->ignoreViewport;
+}
+
+void WOutputViewport::setIgnoreViewport(bool newIgnoreViewport)
+{
+    W_D(WOutputViewport);
+    if (d->ignoreViewport == newIgnoreViewport)
+        return;
+    d->ignoreViewport = newIgnoreViewport;
+    Q_EMIT ignoreViewportChanged();
 }
 
 void WOutputViewport::setOutputScale(float scale)

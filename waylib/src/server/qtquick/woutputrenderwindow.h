@@ -38,6 +38,8 @@ public:
     void detach(WOutputViewport *output);
 
     void attach(WOutputLayer *layer, WOutputViewport *output);
+    void attach(WOutputLayer *layer, WOutputViewport *output,
+                WOutputViewport *mapFrom, QQuickItem *mapTo);
     void detach(WOutputLayer *layer, WOutputViewport *output);
 
     void setOutputScale(WOutputViewport *output, float scale);
@@ -62,6 +64,7 @@ public Q_SLOTS:
     void render(WOutputViewport *output, bool doCommit);
     void scheduleRender();
     void update();
+    void update(WOutputViewport *output);
     void setWidth(qreal arg);
     void setHeight(qreal arg);
 
