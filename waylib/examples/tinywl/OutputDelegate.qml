@@ -221,9 +221,9 @@ OutputItem {
         Switch {
             text: "Hardware Cursor"
             checkable: false
-            checked: lastActiveCursorItem ? lastActiveCursorItem.OutputLayer.enabled : false
+            checked: !onscreenViewport.disableHardwareLayers
             onClicked: {
-                lastActiveCursorItem.OutputLayer.enabled = !checked
+                onscreenViewport.disableHardwareLayers = !onscreenViewport.disableHardwareLayers
             }
         }
 

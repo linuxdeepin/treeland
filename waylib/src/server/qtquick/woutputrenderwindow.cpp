@@ -298,10 +298,10 @@ public:
             Q_ASSERT(layer->isAccepted());
         return layer->isAccepted();
     }
-    inline bool forceShadowBuffer() const {
+    inline bool forceLayer() const {
         return layer->force();
     }
-    inline bool forceLayer() const {
+    inline bool keepLayer() const {
         return layer->keepLayer();
     }
 
@@ -765,6 +765,15 @@ WBufferRenderer *OutputHelper::afterRender()
         if (layer->layer->flags().testFlag(WOutputLayer::Cursor))
             hasCursorLayer = true;
 
+        // If hardware layers is disabled on this output viewport
+        // and this layer doesn't want force layer, should fallback
+        // to software composite.
+        if (needsSoftwareCompositeEndIndex == -1
+            && output()->disableHardwareLayers()
+            && !layer->forceLayer()) {
+            needsSoftwareCompositeEndIndex = i;
+        }
+
         if (needsSoftwareCompositeEndIndex == -1) {
             if (ok && state.accepted) {
                 bool ok = layer->accept(output(), true);
@@ -786,17 +795,17 @@ WBufferRenderer *OutputHelper::afterRender()
             }
         }
 
-        if (layer->forceShadowBuffer() || layer->forceLayer()
+        if (layer->forceLayer() || layer->keepLayer()
             // current layer can't reject, because the layes behind current layer
             // requset force composite.
             || i >= firstCantRejectLayerIndex) {
             Q_ASSERT(layer->needsComposite());
             bool ok = layer->accept(output(), false);
             Q_ASSERT(ok);
-            if (layer->forceShadowBuffer())
+            if (layer->forceLayer())
                 forceShadowRender = true;
             needsSoftwareCompositeBeginIndex = i;
-        } else {
+        } else if (!output()->ignoreSoftwareLayers()) {
             bool ok = layer->reject(output());
             Q_ASSERT(ok);
         }
@@ -813,11 +822,14 @@ WBufferRenderer *OutputHelper::afterRender()
         m_cursorLayer.reset();
     }
 
+    if (needsSoftwareCompositeEndIndex == -1) // All layers need software composite
+        needsSoftwareCompositeEndIndex = needsCompositeLayers.size() - 1;
     const int needsCompositeCount = needsSoftwareCompositeBeginIndex >= 0
                                         ? needsSoftwareCompositeEndIndex - needsSoftwareCompositeBeginIndex + 1
                                         : 0;
     if (needsCompositeCount > 0) {
         Q_ASSERT(layers.size() == needsCompositeLayers.size());
+        // Don't use needsCompositeCount, rejected layers also should remove
         layers.remove(0, needsSoftwareCompositeEndIndex + 1);
 
         needsCompositeLayers = needsCompositeLayers.mid(needsSoftwareCompositeBeginIndex,
@@ -828,7 +840,9 @@ WBufferRenderer *OutputHelper::afterRender()
 
     setLayers(layers);
 
-    if (needsCompositeLayers.isEmpty()) {
+    if (needsCompositeLayers.isEmpty()
+        // Don't do anyting if this output viewport wants ignore software layers
+        || output()->ignoreSoftwareLayers()) {
         Q_ASSERT(!forceShadowRender);
         cleanLayerCompositor();
         return bufferRenderer();

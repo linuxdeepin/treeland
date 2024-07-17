@@ -308,6 +308,38 @@ void WOutputViewport::resetSourceRect()
     setSourceRect({});
 }
 
+bool WOutputViewport::disableHardwareLayers() const
+{
+    W_DC(WOutputViewport);
+    return d->disableHardwareLayers;
+}
+
+void WOutputViewport::setDisableHardwareLayers(bool newDisableHardwareLayers)
+{
+    W_D(WOutputViewport);
+    if (d->disableHardwareLayers == newDisableHardwareLayers)
+        return;
+    d->disableHardwareLayers = newDisableHardwareLayers;
+    d->update();
+    Q_EMIT disableHardwareLayersChanged();
+}
+
+bool WOutputViewport::ignoreSoftwareLayers() const
+{
+    W_DC(WOutputViewport);
+    return d->ignoreSoftwareLayers;
+}
+
+void WOutputViewport::setIgnoreSoftwareLayers(bool newIgnoreSoftwareLayers)
+{
+    W_D(WOutputViewport);
+    if (d->ignoreSoftwareLayers == newIgnoreSoftwareLayers)
+        return;
+    d->ignoreSoftwareLayers = newIgnoreSoftwareLayers;
+    d->update();
+    Q_EMIT ignoreSoftwareLayersChanged();
+}
+
 QRectF WOutputViewport::targetRect() const
 {
     W_DC(WOutputViewport);

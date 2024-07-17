@@ -28,6 +28,8 @@ class WAYLIB_SERVER_EXPORT WOutputViewport : public QQuickItem
     Q_PROPERTY(QRectF sourceRect READ sourceRect WRITE setSourceRect RESET resetSourceRect NOTIFY sourceRectChanged FINAL)
     Q_PROPERTY(QRectF targetRect READ targetRect WRITE setTargetRect RESET resetTargetRect NOTIFY targetRectChanged FINAL)
     Q_PROPERTY(bool ignoreViewport READ ignoreViewport WRITE setIgnoreViewport NOTIFY ignoreViewportChanged FINAL)
+    Q_PROPERTY(bool disableHardwareLayers READ disableHardwareLayers WRITE setDisableHardwareLayers NOTIFY disableHardwareLayersChanged FINAL)
+    Q_PROPERTY(bool ignoreSoftwareLayers READ ignoreSoftwareLayers WRITE setIgnoreSoftwareLayers NOTIFY ignoreSoftwareLayersChanged FINAL)
     QML_NAMED_ELEMENT(OutputViewport)
 
 public:
@@ -76,6 +78,12 @@ public:
     bool ignoreViewport() const;
     void setIgnoreViewport(bool newIgnoreViewport);
 
+    bool disableHardwareLayers() const;
+    void setDisableHardwareLayers(bool newDisableHardwareLayers);
+
+    bool ignoreSoftwareLayers() const;
+    void setIgnoreSoftwareLayers(bool newIgnoreSoftwareLayers);
+
 public Q_SLOTS:
     void setOutputScale(float scale);
     void rotateOutput(WOutput::Transform t);
@@ -94,6 +102,8 @@ Q_SIGNALS:
     void sourceRectChanged();
     void targetRectChanged();
     void ignoreViewportChanged();
+    void disableHardwareLayersChanged();
+    void ignoreSoftwareLayersChanged();
 
 private:
     void componentComplete() override;

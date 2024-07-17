@@ -27,6 +27,8 @@ public:
         , live(true)
         , forceRender(false)
         , ignoreViewport(false)
+        , disableHardwareLayers(false)
+        , ignoreSoftwareLayers(false)
     {
 
     }
@@ -74,6 +76,8 @@ public:
     uint live:1;
     uint forceRender:1;
     uint ignoreViewport:1;
+    uint disableHardwareLayers:1;
+    uint ignoreSoftwareLayers:1;
 };
 
 WAYLIB_SERVER_END_NAMESPACE
