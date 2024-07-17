@@ -290,7 +290,7 @@ Item {
                                             height: width * source.height / source.width
                                             clip: true
                                             z: drg.active ? 1 : 0   // dragged item should float
-                                            property bool highlighted: dragManager.item == this || (!dragManager.item && hvhdlr.hovered)
+                                            property bool highlighted: dragManager.item === this || (!dragManager.item && hvhdlr.hovered)
                                             HoverHandler {
                                                 id: hvhdlr
                                             }

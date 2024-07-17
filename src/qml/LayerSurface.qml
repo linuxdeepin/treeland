@@ -204,13 +204,13 @@ FocusScope {
     }
 
     onHeightChanged: {
-        if (waylandSurface.desiredSize.height === 0 && height != 0) {
+        if (waylandSurface.desiredSize.height === 0 && height !== 0) {
             configureSurfaceSize()
         }
     }
 
     onWidthChanged: {
-        if (waylandSurface.desiredSize.width === 0 && width != 0) {
+        if (waylandSurface.desiredSize.width === 0 && width !== 0) {
             configureSurfaceSize()
         }
     }

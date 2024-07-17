@@ -124,7 +124,7 @@ D.Menu {
                 hollow: true
             }
             color: powers.itemAt(powers.currentIndex)
-                   == item ? item.D.ColorSelector.highlightColor : "transparent"
+                   === item ? item.D.ColorSelector.highlightColor : "transparent"
         }
     }
 }
