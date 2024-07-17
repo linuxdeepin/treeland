@@ -180,7 +180,7 @@ D.Popup {
                         Layout.alignment: Qt.AlignVCenter
                         Text {
                             id: displayUserName
-                            text: model.realName.length == 0 ? model.name : model.realName
+                            text: model.realName.length === 0 ? model.name : model.realName
                             color: singleUser.ListView.isCurrentItem ? "white" : "black"
                             font.weight: Font.Medium
                             font.pixelSize: 13
