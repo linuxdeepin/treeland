@@ -127,7 +127,7 @@ SurfaceItemFactory {
                     target: toplevelSurfaceItem
                     x: helper.fullscreenRect.x
                     y: helper.fullscreenRect.y
-                    z: Helper.clientName(waylandSurface.surface) == "dde-launchpad" ? 25 : 100 + 1 // LayerType.Overlay + 1
+                    z: Helper.clientName(waylandSurface.surface) === "dde-launchpad" ? 25 : 100 + 1 // LayerType.Overlay + 1
                     width: helper.fullscreenRect.width
                     height: helper.fullscreenRect.height
                 }
@@ -152,7 +152,7 @@ SurfaceItemFactory {
         surfaceItem.state = ""
     }
     onIsMoveResizingChanged: if (!isMoveResizing) {
-        if (state == "")
+        if (state === "")
             saveState()
     }
     onStoreChanged: {
@@ -174,7 +174,7 @@ SurfaceItemFactory {
             Helper.onSurfaceEnterOutput(waylandSurface, toplevelSurfaceItem, output)
             outputCounter++
 
-            if (outputCounter == 1) {
+            if (outputCounter === 1) {
                 const pos = QmlHelper.winposManager.nextPos(waylandSurface.appId, toplevelSurfaceItem.parent, toplevelSurfaceItem)
                 let outputDelegate = output.OutputItem.item
                 move(pos)
@@ -226,5 +226,5 @@ SurfaceItemFactory {
     }
 
     property bool manualMoveResizing: false
-    property bool isMoveResizing: manualMoveResizing || Helper.resizingItem == surfaceItem || Helper.movingItem == surfaceItem
+    property bool isMoveResizing: manualMoveResizing || Helper.resizingItem === surfaceItem || Helper.movingItem === surfaceItem
 }

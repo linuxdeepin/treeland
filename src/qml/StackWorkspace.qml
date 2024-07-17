@@ -314,7 +314,7 @@ FocusScope {
                 id: blur
                 anchors.fill: parent
                 z: toplevelSurfaceItem.contentItem.z - 2
-                visible: personalizationMapper.backgroundType == 2
+                visible: personalizationMapper.backgroundType === 2
                 radius: 16
             }
         }

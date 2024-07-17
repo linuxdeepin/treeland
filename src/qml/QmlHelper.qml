@@ -209,7 +209,7 @@ Item {
                 Qt.rect(0, 0, w, h) // output rect
             ]
             // restart seq if: active output changed or spawning app changed
-            if (!(priv.seq.has(iden) && priv.seq.get(iden).output == outputDelegate && prevIden == iden )
+            if (!(priv.seq.has(iden) && priv.seq.get(iden).output === outputDelegate && prevIden === iden )
                 || ignoreGeneration) // ignore whether last activated window belongs to same spawing seq
                 priv.seq.set(iden, {cnt: -1, output: outputDelegate, pos: initialPos,
                     gen:

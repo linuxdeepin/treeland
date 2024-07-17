@@ -15,7 +15,7 @@ Item {
 
     function updateUser() {
         let currentUser = GreeterModel.userModel.get(GreeterModel.currentUser)
-        username.text = currentUser.realName.length == 0 ? currentUser.name : currentUser.realName
+        username.text = currentUser.realName.length === 0 ? currentUser.name : currentUser.realName
         passwordField.text = ''
         avatar.fallbackSource = currentUser.icon
         passwordField.visible = !currentUser.noPassword
@@ -131,10 +131,10 @@ Item {
             placeholderTextColor: "gray"
 
             Keys.onPressed: function (event) {
-                if (event.key == Qt.Key_CapsLock) {
+                if (event.key === Qt.Key_CapsLock) {
                     capsIndicatorVisible = !capsIndicatorVisible
                     event.accepted = true
-                } else if (event.key == Qt.Key_Return) {
+                } else if (event.key === Qt.Key_Return) {
                     userLogin()
                     event.accepted = true
                 }
