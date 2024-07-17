@@ -100,7 +100,7 @@ FocusScope {
                 workspaceId: wsid
                 workspaceRelativeId: index
                 visible: isCurrentWorkspace
-                focus: visible
+                focus: isCurrentWorkspace
                 anchors.fill: parent
                 Component.onCompleted: {
                     workspaceManager.workspacesById.set(workspaceId, this)
@@ -439,7 +439,11 @@ FocusScope {
     Connections {
         target: QmlHelper.shortcutManager
         function onMultitaskViewToggled() {
-            multitaskView.active = !multitaskView.active
+            if (!multitaskView.active) {
+                multitaskView.active = true
+            } else {
+                multitaskView.item.exit()
+            }
         }
         function onNextWorkspace() {
             const nWorkspaces = workspaceManager.layoutOrder.count

@@ -18,25 +18,45 @@ Item {
     property int spacing: 8
     property bool enterAnimationEnabled: false
     property bool enterAnimationFinished: false
+    property bool exited: false
 
     property var pos: []
 
     Repeater {
         model: root.model
         Loader {
+            id: surfaceLoader
             required property int index
             required property var modelData
             property var internalData: pos[index]
             property int globalIndex: index
-            property real displayWidth: modelData.width
+            property real displayWidth: modelData.item.width
             property bool initialized: false
             property bool actv: root.enterAnimationEnabled && !root.enterAnimationFinished && initialized && pos.length > index
             sourceComponent: root.delegate
-            function initialize() {
-                return mapFromItem(modelData, 0, 0)
-            }
-            x: { return initialize().x }
-            y: { return initialize().y }
+            readonly property point initialPos: mapToItem(parent, mapFromItem(modelData.item, 0, 0))
+            states: [
+                State {
+                    name: "exited"
+                    when: root.exited
+                    PropertyChanges {
+                        surfaceLoader {
+                            x: initialPos.x
+                            y: initialPos.y
+                            displayWidth: modelData.item.width
+                        }
+                    }
+                }
+            ]
+            transitions: [
+                Transition {
+                    from: ""
+                    to: "exited"
+                    NumberAnimation { properties: "x,y,displayWidth"; duration: 250; easing.type: Easing.OutCubic }
+                }
+            ]
+            x: initialPos.x
+            y: initialPos.y
             z: -index
             onInternalDataChanged: if (internalData && internalData.dw && initialized) {
                 x = internalData.dx
