@@ -191,7 +191,7 @@ FocusScope {
                             if (Helper.clientName(wSurface.surface) === "dde-desktop") {
                                 wrapper.decoration.enable = false
                             } else {
-                                wrapper.decoration.enable = mode !== XdgDecorationManager.Client
+                                wrapper.decoration.enable = mode === XdgDecorationManager.Server
                             }
                         }
                     }
@@ -201,7 +201,7 @@ FocusScope {
                     if (Helper.clientName(wSurface.surface) === "dde-desktop") {
                         wrapper.decoration.enable = false
                     } else {
-                        wrapper.decoration.enable = Helper.xdgDecorationManager.modeBySurface(wrapper.wSurface.surface) !== XdgDecorationManager.Client
+                        wrapper.decoration.enable = Helper.xdgDecorationManager.modeBySurface(wrapper.wSurface.surface) === XdgDecorationManager.Server
                     }
                 }
             }
