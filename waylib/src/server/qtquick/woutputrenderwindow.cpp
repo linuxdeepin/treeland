@@ -277,7 +277,11 @@ public:
                                 << (isHardware ? "hardware" : "software") << ") on"
                                 << output;
         }
-        layer->setInHardware(output, isHardware);
+
+        if (layer->setInHardware(output, isHardware)) {
+            WOutputViewportPrivate::get(output)->notifyHardwareLayersChanged();
+        }
+
         return true;
     }
     inline bool tryReject() const {
@@ -291,7 +295,11 @@ public:
             layer->setAccepted(false);
             qCInfo(wlcRenderer) << "Layer" << layer->parent() << "is rejected on" << output;
         }
-        layer->setInHardware(output, false);
+
+        if (layer->setInHardware(output, false)) {
+            WOutputViewportPrivate::get(output)->notifyHardwareLayersChanged();
+        }
+
         return true;
     }
     inline void reset() {
@@ -312,6 +320,7 @@ public:
     }
 
 private:
+    friend class WOutputRenderWindow;
     friend class WOutputRenderWindowPrivate;
     WOutputLayer *layer;
     bool enabled = true;
@@ -354,15 +363,15 @@ public:
         return qq->d_func();
     }
 
-    int indexOfOutputHelper(WOutputViewport *output) const;
-    inline OutputHelper *getOutputHelper(WOutputViewport *output) const {
+    int indexOfOutputHelper(const WOutputViewport *output) const;
+    inline OutputHelper *getOutputHelper(const WOutputViewport *output) const {
         int index = indexOfOutputHelper(output);
         if (index >= 0)
             return outputs.at(index);
         return nullptr;
     }
 
-    int indexOfOutputLayer(WOutputLayer *layer) const;
+    int indexOfOutputLayer(const WOutputLayer *layer) const;
     inline OutputLayer *ensureOutputLayer(WOutputLayer *layer) {
         int index = indexOfOutputLayer(layer);
         if (index >= 0)
@@ -388,6 +397,7 @@ public:
     void init(OutputHelper *helper);
     bool initRCWithRhi();
     void updateSceneDPR();
+    void sortOutputs();
 
     QVector<std::pair<OutputHelper *, WBufferRenderer *>>
     doRenderOutputs(const QList<OutputHelper *> &outputs, bool forceRender);
@@ -409,8 +419,6 @@ public:
 
         QCoreApplication::postEvent(q_func(), new QEvent(doRenderEventType));
     }
-
-    void sortLayers();
 
     Q_DECLARE_PUBLIC(WOutputRenderWindow)
 
@@ -1086,7 +1094,7 @@ bool OutputHelper::tryToHardwareCursor(LayerData *layer, wlr_buffer *buffer)
     return false;
 }
 
-int WOutputRenderWindowPrivate::indexOfOutputHelper(WOutputViewport *output) const
+int WOutputRenderWindowPrivate::indexOfOutputHelper(const WOutputViewport *output) const
 {
     for (int i = 0; i < outputs.size(); ++i) {
         if (outputs.at(i)->output() == output) {
@@ -1097,7 +1105,7 @@ int WOutputRenderWindowPrivate::indexOfOutputHelper(WOutputViewport *output) con
     return -1;
 }
 
-int WOutputRenderWindowPrivate::indexOfOutputLayer(WOutputLayer *layer) const
+int WOutputRenderWindowPrivate::indexOfOutputLayer(const WOutputLayer *layer) const
 {
     for (int i = 0; i < layers.size(); ++i) {
         if (layers.at(i)->layer == layer) {
@@ -1159,6 +1167,9 @@ void WOutputRenderWindowPrivate::init(OutputHelper *helper)
     W_Q(WOutputRenderWindow);
     QMetaObject::invokeMethod(q, &WOutputRenderWindow::scheduleRender, Qt::QueuedConnection);
     helper->init();
+    QObject::connect(helper->output(), &WOutputViewport::dependsChanged, helper, [this] {
+        sortOutputs();
+    });
 
     for (auto layer : std::as_const(layers)) {
         if (layer->outputs().contains(helper->output())) {
@@ -1258,6 +1269,14 @@ void WOutputRenderWindowPrivate::updateSceneDPR()
     setSceneDevicePixelRatio(maxDPR);
 }
 
+void WOutputRenderWindowPrivate::sortOutputs()
+{
+    std::stable_sort(outputs.begin(), outputs.end(),
+                     [] (const OutputHelper *o1, const OutputHelper *o2) {
+        return o2->output()->depends().contains(o1->output());
+    });
+}
+
 QVector<std::pair<OutputHelper*, WBufferRenderer*>>
 WOutputRenderWindowPrivate::doRenderOutputs(const QList<OutputHelper*> &outputs, bool forceRender)
 {
@@ -1282,8 +1301,12 @@ WOutputRenderWindowPrivate::doRenderOutputs(const QList<OutputHelper*> &outputs,
         const auto &format = helper->qwoutput()->handle()->render_format;
         const auto renderMatrix = helper->renderMatrix();
 
+        // maybe using the other WOutputViewport's QSGTextureProvider
+        if (!helper->output()->depends().isEmpty())
+            renderControl->sync();
+
         qw_buffer *buffer = helper->beginRender(helper->bufferRenderer(), helper->output()->output()->size(), format,
-                                               WBufferRenderer::RedirectOpenGLContextDefaultFrameBufferObject);
+                                                WBufferRenderer::RedirectOpenGLContextDefaultFrameBufferObject);
         Q_ASSERT(buffer == helper->bufferRenderer()->currentBuffer());
         if (buffer) {
             helper->render(helper->bufferRenderer(), 0, renderMatrix,
@@ -1430,14 +1453,16 @@ void WOutputRenderWindow::attach(WOutputViewport *output)
             initialNeedsFrame |= helper->needsFrame();
         }
     }
-    d->outputs << new OutputHelper(output,
-                                   this,
-                                   initialRenderable,
-                                   initialContentIsDirty,
-                                   initialNeedsFrame);
+    auto newOutput = new OutputHelper(output,
+                                      this,
+                                      initialRenderable,
+                                      initialContentIsDirty,
+                                      initialNeedsFrame);
+    d->outputs << newOutput;
+    d->sortOutputs();
 
     if (d->m_renderer) {
-        auto qwoutput = d->outputs.last()->qwoutput();
+        auto qwoutput = newOutput->qwoutput();
         if (qwoutput->handle()->renderer != d->m_renderer->handle())
             qwoutput->init_render(d->m_allocator->handle(), d->m_renderer->handle());
         Q_EMIT outputViewportInitialized(output);
@@ -1447,8 +1472,15 @@ void WOutputRenderWindow::attach(WOutputViewport *output)
         return;
 
     d->updateSceneDPR();
-    d->init(d->outputs.last());
+    d->init(newOutput);
     d->scheduleDoRender();
+
+    if (!newOutput->layers().isEmpty()) {
+        if (auto od = WOutputViewportPrivate::get(output)) {
+            od->notifyLayersChanged();
+            od->notifyHardwareLayersChanged();
+        }
+    }
 }
 
 void WOutputRenderWindow::detach(WOutputViewport *output)
@@ -1462,6 +1494,7 @@ void WOutputRenderWindow::detach(WOutputViewport *output)
     Q_ASSERT(index >= 0);
 
     auto outputHelper = d->outputs.takeAt(index);
+    const auto hasLayer = !outputHelper->layers().isEmpty();
     outputHelper->invalidate();
     outputHelper->deleteLater();
 
@@ -1469,6 +1502,13 @@ void WOutputRenderWindow::detach(WOutputViewport *output)
         return;
 
     d->updateSceneDPR();
+
+    if (hasLayer) {
+        if (auto od = WOutputViewportPrivate::get(output)) {
+            od->notifyLayersChanged();
+            od->notifyHardwareLayersChanged();
+        }
+    }
 }
 
 void WOutputRenderWindow::attach(WOutputLayer *layer, WOutputViewport *output)
@@ -1485,6 +1525,11 @@ void WOutputRenderWindow::attach(WOutputLayer *layer, WOutputViewport *output)
 
     connect(layer, &WOutputLayer::flagsChanged, this, &WOutputRenderWindow::scheduleRender);
     connect(layer, &WOutputLayer::zChanged, this, &WOutputRenderWindow::scheduleRender);
+
+    if (auto od = WOutputViewportPrivate::get(output)) {
+        od->notifyLayersChanged();
+        od->notifyHardwareLayersChanged();
+    }
 }
 
 void WOutputRenderWindow::attach(WOutputLayer *layer, WOutputViewport *output,
@@ -1529,6 +1574,44 @@ void WOutputRenderWindow::detach(WOutputLayer *layer, WOutputViewport *output)
 
     outputHelper->detachLayer(wapper);
     d->scheduleDoRender();
+
+    if (auto od = WOutputViewportPrivate::get(output)) {
+        od->notifyLayersChanged();
+        od->notifyHardwareLayersChanged();
+    }
+}
+
+QList<WOutputLayer *> WOutputRenderWindow::layers(const WOutputViewport *output) const
+{
+    Q_D(const WOutputRenderWindow);
+
+    QList<WOutputLayer*> list;
+
+    int index = d->indexOfOutputHelper(output);
+    Q_ASSERT(index >= 0);
+    OutputHelper *helper = d->outputs.at(index);
+
+    for (auto l : std::as_const(helper->layers()))
+        list << l->layer->layer;
+
+    return list;
+}
+
+QList<WOutputLayer *> WOutputRenderWindow::hardwareLayers(const WOutputViewport *output) const
+{
+    Q_D(const WOutputRenderWindow);
+
+    QList<WOutputLayer*> list;
+
+    int index = d->indexOfOutputHelper(output);
+    Q_ASSERT(index >= 0);
+    OutputHelper *helper = d->outputs.at(index);
+
+    for (auto l : std::as_const(helper->layers()))
+        if (l->layer->layer->inOutputsByHardware().contains(output))
+            list << l->layer->layer;
+
+    return list;
 }
 
 void WOutputRenderWindow::setOutputScale(WOutputViewport *output, float scale)

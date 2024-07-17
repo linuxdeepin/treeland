@@ -82,6 +82,8 @@ public Q_SLOTS:
     void itemStackToTop(QQuickItem *item);
     void setCursorShape(QQuickItem *item, WGlobal::CursorShape shape);
     Qt::Edges getEdges(const QRectF &rect, const QPointF &pos, qreal edgeSize);
+
+    QSizeF scaleSize(const QSizeF &from, const QSizeF &to, Qt::AspectRatioMode mode);
 };
 
 WAYLIB_SERVER_END_NAMESPACE

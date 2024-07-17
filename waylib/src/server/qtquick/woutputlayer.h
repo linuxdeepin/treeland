@@ -84,7 +84,7 @@ Q_SIGNALS:
 private:
     void setAccepted(bool accepted);
     bool isAccepted() const;
-    void setInHardware(WOutputViewport *output, bool isHardware);
+    bool setInHardware(WOutputViewport *output, bool isHardware);
 
     friend class OutputLayer;
 };

@@ -35,7 +35,10 @@ void WOutputViewportPrivate::initForOutput()
 
     updateRenderBufferSource();
     bufferRenderer->setOutput(output);
-    outputWindow()->attach(q);
+    if (window) {
+        outputWindow()->attach(q);
+        attached = true;
+    }
 
     output->safeConnect(&WOutput::modeChanged, q, [this] {
         updateImplicitSize();
@@ -46,7 +49,7 @@ void WOutputViewportPrivate::initForOutput()
 
 void WOutputViewportPrivate::update()
 {
-    if (Q_UNLIKELY(!componentComplete))
+    if (Q_UNLIKELY(!componentComplete || !output))
         return;
 
     auto window = outputWindow();
@@ -114,6 +117,7 @@ void WOutputViewport::invalidate()
     if (d->componentComplete && d->output && d->window) {
         d->outputWindow()->detach(this);
         d->output = nullptr;
+        d->attached = false;
     }
 }
 
@@ -322,6 +326,7 @@ void WOutputViewport::setDisableHardwareLayers(bool newDisableHardwareLayers)
     d->disableHardwareLayers = newDisableHardwareLayers;
     d->update();
     Q_EMIT disableHardwareLayersChanged();
+    Q_EMIT hardwareLayersChanged();
 }
 
 bool WOutputViewport::ignoreSoftwareLayers() const
@@ -376,6 +381,43 @@ void WOutputViewport::setIgnoreViewport(bool newIgnoreViewport)
     Q_EMIT ignoreViewportChanged();
 }
 
+QList<WOutputLayer *> WOutputViewport::layers() const
+{
+    W_DC(WOutputViewport);
+
+    if (!d->attached)
+        return {};
+
+    Q_ASSERT(d->window);
+    return d->outputWindow()->layers(this);
+}
+
+QList<WOutputLayer *> WOutputViewport::hardwareLayers() const
+{
+    W_DC(WOutputViewport);
+
+    if (d->disableHardwareLayers || !d->attached)
+        return {};
+
+    Q_ASSERT(d->window);
+    return d->outputWindow()->hardwareLayers(this);
+}
+
+QList<WOutputViewport *> WOutputViewport::depends() const
+{
+    W_DC(WOutputViewport);
+    return d->depends;
+}
+
+void WOutputViewport::setDepends(const QList<WOutputViewport *> &newDepends)
+{
+    W_D(WOutputViewport);
+    if (d->depends == newDepends)
+        return;
+    d->depends = newDepends;
+    Q_EMIT dependsChanged();
+}
+
 void WOutputViewport::setOutputScale(float scale)
 {
     W_D(WOutputViewport);
@@ -420,6 +462,12 @@ void WOutputViewport::itemChange(ItemChange change, const ItemChangeData &data)
     if (change == ItemSceneChange && data.window) {
         if (!qobject_cast<WOutputRenderWindow*>(data.window)) {
             qFatal() << "OutputViewport must using in OutputRenderWindow.";
+        }
+        W_D(WOutputViewport);
+
+        if (d->output && isComponentComplete()) {
+            d->outputWindow()->attach(this);
+            d->attached = true;
         }
     }
 }

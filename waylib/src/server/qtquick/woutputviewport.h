@@ -13,6 +13,7 @@ WAYLIB_SERVER_BEGIN_NAMESPACE
 
 class WOutputViewportPrivate;
 class WBufferTextureProvider;
+class WOutputLayer;
 class WAYLIB_SERVER_EXPORT WOutputViewport : public QQuickItem
 {
     Q_OBJECT
@@ -30,6 +31,9 @@ class WAYLIB_SERVER_EXPORT WOutputViewport : public QQuickItem
     Q_PROPERTY(bool ignoreViewport READ ignoreViewport WRITE setIgnoreViewport NOTIFY ignoreViewportChanged FINAL)
     Q_PROPERTY(bool disableHardwareLayers READ disableHardwareLayers WRITE setDisableHardwareLayers NOTIFY disableHardwareLayersChanged FINAL)
     Q_PROPERTY(bool ignoreSoftwareLayers READ ignoreSoftwareLayers WRITE setIgnoreSoftwareLayers NOTIFY ignoreSoftwareLayersChanged FINAL)
+    Q_PROPERTY(QList<WAYLIB_SERVER_NAMESPACE::WOutputLayer*> layers READ layers NOTIFY layersChanged FINAL)
+    Q_PROPERTY(QList<WAYLIB_SERVER_NAMESPACE::WOutputLayer*> hardwareLayers READ hardwareLayers NOTIFY hardwareLayersChanged FINAL)
+    Q_PROPERTY(QList<WAYLIB_SERVER_NAMESPACE::WOutputViewport*> depends READ depends WRITE setDepends NOTIFY dependsChanged FINAL)
     QML_NAMED_ELEMENT(OutputViewport)
 
 public:
@@ -84,6 +88,12 @@ public:
     bool ignoreSoftwareLayers() const;
     void setIgnoreSoftwareLayers(bool newIgnoreSoftwareLayers);
 
+    QList<WOutputLayer*> layers() const;
+    QList<WOutputLayer*> hardwareLayers() const;
+
+    QList<WOutputViewport *> depends() const;
+    void setDepends(const QList<WOutputViewport *> &newDepends);
+
 public Q_SLOTS:
     void setOutputScale(float scale);
     void rotateOutput(WOutput::Transform t);
@@ -104,6 +114,9 @@ Q_SIGNALS:
     void ignoreViewportChanged();
     void disableHardwareLayersChanged();
     void ignoreSoftwareLayersChanged();
+    void layersChanged();
+    void hardwareLayersChanged();
+    void dependsChanged();
 
 private:
     void componentComplete() override;

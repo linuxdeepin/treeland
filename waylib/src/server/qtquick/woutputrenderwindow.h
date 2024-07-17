@@ -80,6 +80,10 @@ private:
     void componentComplete() override;
 
     bool event(QEvent *event) override;
+
+    friend class WOutputViewport;
+    QList<WOutputLayer*> layers(const WOutputViewport *output) const;
+    QList<WOutputLayer*> hardwareLayers(const WOutputViewport *output) const;
 };
 
 WAYLIB_SERVER_END_NAMESPACE

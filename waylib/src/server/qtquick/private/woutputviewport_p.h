@@ -22,7 +22,8 @@ class Q_DECL_HIDDEN WOutputViewportPrivate : public QQuickItemPrivate
 {
 public:
     WOutputViewportPrivate()
-        : offscreen(false)
+        : attached(false)
+        , offscreen(false)
         , preserveColorContents(false)
         , live(true)
         , forceRender(false)
@@ -50,8 +51,17 @@ public:
 
     void init();
     void initForOutput();
-    void invalidateSceneGraph();
     void update();
+
+    // call in WOutputRenderWindow
+    inline void notifyLayersChanged() {
+        Q_EMIT q_func()->layersChanged();
+    }
+    inline void notifyHardwareLayersChanged() {
+        if (disableHardwareLayers)
+            return;
+        Q_EMIT q_func()->hardwareLayersChanged();
+    }
 
     qreal getImplicitWidth() const override;
     qreal getImplicitHeight() const override;
@@ -61,6 +71,8 @@ public:
     void setExtraRenderSource(QQuickItem *source);
 
     W_DECLARE_PUBLIC(WOutputViewport)
+    QList<WOutputViewport*> depends;
+
     QQuickItem *input = nullptr;
     WOutput *output = nullptr;
     QQuickTransform *viewportTransform = nullptr;
@@ -71,6 +83,7 @@ public:
     QRectF sourceRect;
     QRectF targetRect;
 
+    uint attached:1;
     uint offscreen:1;
     uint preserveColorContents:1;
     uint live:1;

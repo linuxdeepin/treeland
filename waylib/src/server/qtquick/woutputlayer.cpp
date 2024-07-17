@@ -29,7 +29,7 @@ public:
     void updateWindow();
     void doEnable(bool enable);
     void setRefItem(bool on);
-    void setInHardware(WOutputViewport *output, bool newInHardware);
+    bool setInHardware(WOutputViewport *output, bool newInHardware);
 
     W_DECLARE_PUBLIC(WOutputLayer)
 
@@ -104,16 +104,18 @@ void WOutputLayerPrivate::setRefItem(bool on)
         d->derefFromEffectItem(true);
 }
 
-void WOutputLayerPrivate::setInHardware(WOutputViewport *output, bool newInHardware)
+bool WOutputLayerPrivate::setInHardware(WOutputViewport *output, bool newInHardware)
 {
     const auto index = inOutputsByHardware.indexOf(output);
     if ((index >= 0) == newInHardware)
-        return;
+        return false;
     if (newInHardware)
         inOutputsByHardware.append(output);
     else
         inOutputsByHardware.removeAt(index);
     Q_EMIT q_func()->inOutputsByHardwareChanged();
+
+    return true;
 }
 
 WOutputLayer::WOutputLayer(QQuickItem *parent)
@@ -293,10 +295,10 @@ bool WOutputLayer::isAccepted() const
     return d->refItem;
 }
 
-void WOutputLayer::setInHardware(WOutputViewport *output, bool isHardware)
+bool WOutputLayer::setInHardware(WOutputViewport *output, bool isHardware)
 {
     W_D(WOutputLayer);
-    d->setInHardware(output, isHardware);
+    return d->setInHardware(output, isHardware);
 }
 
 WAYLIB_SERVER_END_NAMESPACE
