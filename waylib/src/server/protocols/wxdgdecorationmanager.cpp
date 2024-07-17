@@ -87,6 +87,7 @@ void WXdgDecorationManagerPrivate::updateDecorationMode(QWXdgToplevelDecorationV
             break;
     }
     if (mode == WXdgDecorationManager::None) {
+        mode = preferredMode;
         switch (preferredMode) {
             case WXdgDecorationManager::Client:
                 decorat->setMode(WLR_XDG_TOPLEVEL_DECORATION_V1_MODE_CLIENT_SIDE);
