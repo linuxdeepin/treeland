@@ -179,8 +179,8 @@ Item {
                     animation.item.start()
                 }
             }
-            workspace().surfaces.appendEnhanced({item: surface, wrapper: surfaceWrapper})
-            QmlHelper.workspaceManager.allSurfaces.append({item: surface, wrapper: surfaceWrapper})
+            workspace().surfaces.appendEnhanced({"item": surface, "wrapper": surfaceWrapper})
+            QmlHelper.workspaceManager.allSurfaces.append({"item": surface, "wrapper": surfaceWrapper})
         } else { // if not mapped
             if (!waylandSurface.WaylandSocket.rootSocket.enabled) {
                 surface.visible = false;
@@ -380,7 +380,7 @@ Item {
         function onParentChanged() {
             parentCached?.surfaces.removeIf((val) => val.item === surface)
             parentCached = target.parent
-            target.parent.surfaces.appendEnhanced({item: surface, wrapper: surfaceWrapper})
+            target.parent.surfaces.appendEnhanced({"item": surface, "wrapper": surfaceWrapper})
         }
     }
 }
