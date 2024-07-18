@@ -86,10 +86,7 @@ Helper::Helper(WServer *server)
     , m_cursor(new WQuickCursor(this))
     , m_seat(new WSeat())
     , m_outputCreator(new WQmlCreator(this))
-    , m_xdgShellCreator(new WQmlCreator(this))
-    , m_xwaylandCreator(new WQmlCreator(this))
-    , m_layerShellCreator(new WQmlCreator(this))
-    , m_inputPopupCreator(new WQmlCreator(this))
+    , m_surfaceCreator(new WQmlCreator(this))
 {
     m_seat->setEventFilter(this);
     m_seat->setCursor(m_cursor);
@@ -207,13 +204,15 @@ void Helper::initProtocols(WOutputRenderWindow *window)
             this,
             [this, engine](WInputPopupSurface *inputPopup) {
                 auto initProperties = engine->newObject();
-                initProperties.setProperty("popupSurface", engine->toScriptValue(inputPopup));
-                m_inputPopupCreator->add(inputPopup, initProperties);
+                initProperties.setProperty("type", "inputPopup");
+                initProperties.setProperty("wSurface", engine->toScriptValue(inputPopup));
+                initProperties.setProperty("wid", engine->toScriptValue(workspaceId(engine)));
+                m_surfaceCreator->add(inputPopup, initProperties);
             });
 
     connect(m_inputMethodHelper,
             &WInputMethodHelper::inputPopupSurfaceV2Removed,
-            m_inputPopupCreator,
+            m_surfaceCreator,
             &WQmlCreator::removeByOwner);
 
     connect(xwayland,
@@ -222,30 +221,14 @@ void Helper::initProtocols(WOutputRenderWindow *window)
             [this, engine, xwayland](WXWaylandSurface *surface) {
                 surface->safeConnect(&QWXWaylandSurface::associate, this, [this, surface, engine] {
                     auto initProperties = engine->newObject();
-                    initProperties.setProperty("waylandSurface", engine->toScriptValue(surface));
+                    initProperties.setProperty("type", "xwayland");
+                    initProperties.setProperty("wSurface", engine->toScriptValue(surface));
+                    initProperties.setProperty("wid", engine->toScriptValue(workspaceId(engine)));
 
-                    QObject *helper = engine->singletonInstance<QObject *>("TreeLand", "QmlHelper");
-
-                    QObject *workspaceManager =
-                        helper->property("workspaceManager").value<QObject *>();
-                    auto *layoutOrder =
-                        workspaceManager->property("layoutOrder").value<QAbstractListModel *>();
-                    QJSValue retValue;
-                    auto data = QMetaObject::invokeMethod(layoutOrder,
-                                                          "get",
-                                                          Qt::DirectConnection,
-                                                          Q_RETURN_ARG(QJSValue, retValue),
-                                                          Q_ARG(int, m_currentWorkspaceId));
-                    auto wid = retValue.toQObject()->property("wsid");
-
-                    qCDebug(HelperDebugLog) << "new xwayland surface, wid: " << wid;
-
-                    initProperties.setProperty("workspaceId", engine->toScriptValue(wid));
-
-                    m_xwaylandCreator->add(surface, initProperties);
+                    m_surfaceCreator->add(surface, initProperties);
                 });
                 surface->safeConnect(&QWXWaylandSurface::dissociate, this, [this, surface] {
-                    m_xwaylandCreator->removeByOwner(surface);
+                    m_surfaceCreator->removeByOwner(surface);
                 });
             });
 
@@ -256,33 +239,17 @@ void Helper::initProtocols(WOutputRenderWindow *window)
                 auto initProperties = engine->newObject();
                 auto type = surface->isPopup() ? "popup" : "toplevel";
                 initProperties.setProperty("type", type);
-                initProperties.setProperty("waylandSurface", engine->toScriptValue(surface));
+                initProperties.setProperty("wSurface", engine->toScriptValue(surface));
+                initProperties.setProperty("wid", engine->toScriptValue(workspaceId(engine)));
 
-                QObject *helper = engine->singletonInstance<QObject *>("TreeLand", "QmlHelper");
-
-                QObject *workspaceManager = helper->property("workspaceManager").value<QObject *>();
-                auto *layoutOrder =
-                    workspaceManager->property("layoutOrder").value<QAbstractListModel *>();
-                QJSValue retValue;
-                auto data = QMetaObject::invokeMethod(layoutOrder,
-                                                      "get",
-                                                      Qt::DirectConnection,
-                                                      Q_RETURN_ARG(QJSValue, retValue),
-                                                      Q_ARG(int, m_currentWorkspaceId));
-                auto wid = retValue.toQObject()->property("wsid");
-
-                qCDebug(HelperDebugLog)
-                    << "new xdg surface, wid: " << wid << " , surface type: " << type;
-
-                initProperties.setProperty("workspaceId", engine->toScriptValue(wid));
-                m_xdgShellCreator->add(surface, initProperties);
+                m_surfaceCreator->add(surface, initProperties);
 
                 if (!surface->isPopup()) {
                     foreignToplevel->addSurface(surface);
                     treelandForeignToplevel->add(surface);
                 }
             });
-    connect(xdgShell, &WXdgShell::surfaceRemoved, m_xdgShellCreator, &WQmlCreator::removeByOwner);
+    connect(xdgShell, &WXdgShell::surfaceRemoved, m_surfaceCreator, &WQmlCreator::removeByOwner);
     connect(xdgShell,
             &WXdgShell::surfaceRemoved,
             foreignToplevel,
@@ -295,13 +262,15 @@ void Helper::initProtocols(WOutputRenderWindow *window)
 
     connect(layerShell, &WLayerShell::surfaceAdded, this, [this, engine](WLayerSurface *surface) {
         auto initProperties = engine->newObject();
-        initProperties.setProperty("waylandSurface", engine->toScriptValue(surface));
-        m_layerShellCreator->add(surface, initProperties);
+        initProperties.setProperty("type", "layerShell");
+        initProperties.setProperty("wSurface", engine->toScriptValue(surface));
+        initProperties.setProperty("wid", engine->toScriptValue(workspaceId(engine)));
+        m_surfaceCreator->add(surface, initProperties);
     });
 
     connect(layerShell,
             &WLayerShell::surfaceRemoved,
-            m_layerShellCreator,
+            m_surfaceCreator,
             &WQmlCreator::removeByOwner);
 
     connect(backend,
@@ -408,24 +377,9 @@ WQmlCreator *Helper::outputCreator() const
     return m_outputCreator;
 }
 
-WQmlCreator *Helper::xdgShellCreator() const
+WQmlCreator *Helper::surfaceCreator() const
 {
-    return m_xdgShellCreator;
-}
-
-WQmlCreator *Helper::xwaylandCreator() const
-{
-    return m_xwaylandCreator;
-}
-
-WQmlCreator *Helper::layerShellCreator() const
-{
-    return m_layerShellCreator;
-}
-
-WQmlCreator *Helper::inputPopupCreator() const
-{
-    return m_inputPopupCreator;
+    return m_surfaceCreator;
 }
 
 WSurfaceItem *Helper::resizingItem() const
@@ -1085,6 +1039,21 @@ void Helper::setXWaylandSocket(const QString &socketFile)
     m_xwaylandSocket = socketFile;
 
     emit socketFileChanged();
+}
+
+QVariant Helper::workspaceId(QQmlApplicationEngine *engine) const
+{
+    QObject *helper = engine->singletonInstance<QObject *>("TreeLand", "QmlHelper");
+
+    QObject *workspaceManager = helper->property("workspaceManager").value<QObject *>();
+    auto *layoutOrder = workspaceManager->property("layoutOrder").value<QAbstractListModel *>();
+    QJSValue retValue;
+    auto data = QMetaObject::invokeMethod(layoutOrder,
+                                          "get",
+                                          Qt::DirectConnection,
+                                          Q_RETURN_ARG(QJSValue, retValue),
+                                          Q_ARG(int, m_currentWorkspaceId));
+    return retValue.toQObject()->property("wsid");
 }
 
 QString Helper::clientName(Waylib::Server::WSurface *surface) const
