@@ -18,7 +18,8 @@ FocusScope {
     property CoordMapper outputCoordMapper: output ? this.CoordMapper.helper.get(output) : null
     property bool mapped: waylandSurface.surface && waylandSurface.surface.mapped && waylandSurface.WaylandSocket.rootSocket.enabled
     property bool pendingDestroy: false
-    property bool showCloseAnimation: false
+    property bool showNewAnimation: true
+    property bool showCloseAnimation: true
 
     property alias surfaceItem: surfaceItem
 
@@ -64,16 +65,33 @@ FocusScope {
     }
 
     Loader {
-        id: closeAnimation
+        id: animation
     }
 
     Component {
-        id: closeAnimationComponent
+        id: newWindowAnimation
 
-        CloseAnimation {
+        LayerShellAnimation {
+            target: surfaceItem
+            direction: LayerShellAnimation.Direction.Show
+            position: waylandSurface.getExclusiveZoneEdge()
             onStopped: {
-                if (pendingDestroy)
+                animation.active = false
+            }
+        }
+    }
+
+    Component {
+        id: closeWindowAnimation
+        LayerShellAnimation {
+            target: surfaceItem
+            direction: LayerShellAnimation.Direction.Hide
+            position: waylandSurface.getExclusiveZoneEdge()
+            onStopped: {
+                if (pendingDestroy) {
                     creator.destroyObject(root)
+                }
+                animation.active = false
             }
         }
     }
@@ -87,18 +105,26 @@ FocusScope {
             visible = true
             if (surfaceItem.effectiveVisible)
                 Helper.activatedSurface = waylandSurface
+
+                if (showNewAnimation) {
+                    animation.active = true
+                    animation.parent = root.parent
+                    animation.anchors.fill = root
+                    animation.sourceComponent = newWindowAnimation
+                    animation.item.start()
+                }
         } else { // if not mapped
             Helper.unregisterExclusiveZone(waylandSurface)
             if (!waylandSurface.WaylandSocket.rootSocket.enabled) {
                 visible = false
             } else {
-                // if don't show CloseAnimation will destroyObject in doDestroy, here is too early
                 if (showCloseAnimation) {
                     // do animation for window close
-                    closeAnimation.parent = root.parent
-                    closeAnimation.anchors.fill = root
-                    closeAnimation.sourceComponent = closeAnimationComponent
-                    closeAnimation.item.start(root)
+                    animation.active = true
+                    animation.parent = root.parent
+                    animation.anchors.fill = root
+                    animation.sourceComponent = closeWindowAnimation
+                    animation.item.start()
                 }
             }
         }
@@ -107,17 +133,8 @@ FocusScope {
     function doDestroy() {
         pendingDestroy = true
 
-        if (!surfaceItem.visible || !closeAnimation.active) {
-            creator.destroyObject(root)
-            return
-        }
-
         // unbind some properties
         mapped = false
-
-        if (!showCloseAnimation) {
-            creator.destroyObject(root)
-        }
     }
 
     function getInitialOutputItem() {
