@@ -6,26 +6,28 @@ import QtQuick.Controls
 import Waylib.Server
 import TreeLand
 import TreeLand.Utils
+import TreeLand.Protocols
 
 SurfaceItemFactory {
     id: root
 
-    required property ToplevelSurface waylandSurface
-    property string type
+    required property DynamicCreatorComponent creatorCompoment
+    required property ToplevelSurface wSurface
+    required property string type
+    required property int wid
 
     property var doDestroy: helper.doDestroy
     property var cancelMinimize: helper.cancelMinimize
-    property var personalizationMapper: PersonalizationV1.Attach(waylandSurface)
+    property var personalizationMapper: PersonalizationV1.Attached(wSurface)
     property int outputCounter: 0
-    property alias toplevelSurfaceItem: root.surfaceItem
     property alias decoration: decoration
     readonly property XWaylandSurfaceItem asXwayland: {surfaceItem as XWaylandSurfaceItem}
     readonly property XdgSurfaceItem asXdg: {surfaceItem as XdgSurfaceItem}
     z: {
-        if (Helper.clientName(waylandSurface.surface) === "dde-desktop") {
+        if (Helper.clientName(wSurface.surface) === "dde-desktop") {
             return -100 + 1
         }
-        else if (Helper.clientName(waylandSurface.surface) === "dde-launchpad") {
+        else if (Helper.clientName(wSurface.surface) === "dde-launchpad") {
             return 25
         }
         else {
@@ -40,23 +42,22 @@ SurfaceItemFactory {
         manualMoveResizing = false
     }
 
-    required property int workspaceId
     // put here, otherwise may initialize late
-    parent: QmlHelper.workspaceManager.workspacesById.get(workspaceId)
+    parent: QmlHelper.workspaceManager.workspacesById.get(wid)
 
     surfaceItem {
         parent: root.parent
-        shellSurface: waylandSurface
+        shellSurface: wSurface
         topPadding: decoration.visible ? decoration.topMargin : 0
         bottomPadding: decoration.visible ? decoration.bottomMargin : 0
         leftPadding: decoration.visible ? decoration.leftMargin : 0
         rightPadding: decoration.visible ? decoration.rightMargin : 0
-        focus: toplevelSurfaceItem.shellSurface === Helper.activatedSurface
+        focus: wSurface === Helper.activatedSurface
         resizeMode:
             if (!surfaceItem.effectiveVisible)
                 SurfaceItem.ManualResize
             else if (stateTransition.running
-                    || waylandSurface.isMaximized)
+                    || wSurface.isMaximized)
                 SurfaceItem.SizeToSurface
             else
                 SurfaceItem.SizeFromSurface
@@ -89,7 +90,7 @@ SurfaceItemFactory {
                 PropertyChanges {
                     id: defulatState
                     restoreEntryValues: false
-                    target: toplevelSurfaceItem
+                    target: surfaceItem
                     x: store.normal.x
                     y: store.normal.y
                     width: store.normal.width
@@ -100,7 +101,7 @@ SurfaceItemFactory {
                 name: "intermediate"
                 PropertyChanges {
                     restoreEntryValues: false
-                    target: toplevelSurfaceItem
+                    target: surfaceItem
                     x: store.normal.x
                     y: store.normal.y
                     width: store.normal.width
@@ -112,7 +113,7 @@ SurfaceItemFactory {
                 when: helper.isMaximize
                 PropertyChanges {
                     restoreEntryValues: true
-                    target: toplevelSurfaceItem
+                    target: surfaceItem
                     x: helper.maximizeRect.x
                     y: helper.maximizeRect.y
                     width: helper.maximizeRect.width
@@ -124,10 +125,10 @@ SurfaceItemFactory {
                 when: helper.isFullScreen
                 PropertyChanges {
                     restoreEntryValues: true
-                    target: toplevelSurfaceItem
+                    target: surfaceItem
                     x: helper.fullscreenRect.x
                     y: helper.fullscreenRect.y
-                    z: Helper.clientName(waylandSurface.surface) === "dde-launchpad" ? 25 : 100 + 1 // LayerType.Overlay + 1
+                    z: Helper.clientName(wSurface.surface) === "dde-launchpad" ? 25 : 100 + 1 // LayerType.Overlay + 1
                     width: helper.fullscreenRect.width
                     height: helper.fullscreenRect.height
                 }
@@ -168,39 +169,39 @@ SurfaceItemFactory {
         layout: Helper.outputLayout
 
         onEnterOutput: function(output) {
-            if (waylandSurface.surface) {
-                waylandSurface.surface.enterOutput(output)
+            if (wSurface.surface) {
+                wSurface.surface.enterOutput(output)
             }
-            Helper.onSurfaceEnterOutput(waylandSurface, toplevelSurfaceItem, output)
+            Helper.onSurfaceEnterOutput(wSurface, surfaceItem, output)
             outputCounter++
 
             if (outputCounter === 1) {
-                const pos = QmlHelper.winposManager.nextPos(waylandSurface.appId, toplevelSurfaceItem.parent, toplevelSurfaceItem)
+                const pos = QmlHelper.winposManager.nextPos(wSurface.appId, surfaceItem.parent, surfaceItem)
                 let outputDelegate = output.OutputItem.item
                 move(pos)
 
-                if (Helper.clientName(waylandSurface.surface) === "dde-desktop") {
-                    toplevelSurfaceItem.x = outputDelegate.x
-                    toplevelSurfaceItem.y = outputDelegate.y
-                    toplevelSurfaceItem.width = outputDelegate.width
-                    toplevelSurfaceItem.height = outputDelegate.height
+                if (Helper.clientName(wSurface.surface) === "dde-desktop") {
+                    surfaceItem.x = outputDelegate.x
+                    surfaceItem.y = outputDelegate.y
+                    surfaceItem.width = outputDelegate.width
+                    surfaceItem.height = outputDelegate.height
                 }
 
-                if (Helper.clientName(waylandSurface.surface) === "dde-launchpad") {
-                    toplevelSurfaceItem.x = outputDelegate.x
-                    toplevelSurfaceItem.y = outputDelegate.y
+                if (Helper.clientName(wSurface.surface) === "dde-launchpad") {
+                    surfaceItem.x = outputDelegate.x
+                    surfaceItem.y = outputDelegate.y
                 }
             }
         }
         onLeaveOutput: function(output) {
-            waylandSurface.surface.leaveOutput(output)
-            Helper.onSurfaceLeaveOutput(waylandSurface, toplevelSurfaceItem, output)
+            if (wSurface && wSurface.surface)
+                wSurface.surface.leaveOutput(output)
+            Helper.onSurfaceLeaveOutput(wSurface, surfaceItem, output)
             outputCounter--
 
             if (outputCounter == 0 && helper.mapped) {
-                console.log(`nextPos when output=0 ${waylandSurface} ${toplevelSurfaceItem}`)
-                const pos = QmlHelper.winposManager.nextPos(waylandSurface.appId, toplevelSurfaceItem.parent, toplevelSurfaceItem)
-                toplevelSurfaceItem.move(pos)
+                const pos = QmlHelper.winposManager.nextPos(wSurface.appId, surfaceItem.parent, surfaceItem)
+                surfaceItem.move(pos)
             }
         }
     }
@@ -210,7 +211,7 @@ SurfaceItemFactory {
         parent: surfaceItem
         anchors.fill: parent
         z: SurfaceItem.ZOrder.ContentItem - 1
-        surface: toplevelSurfaceItem.shellSurface
+        surface: wSurface
         visible: enable && !helper.isFullScreen
         moveable: !helper.isMaximize && !helper.isFullScreen
         radius: helper.isMaximize ? 0 : 15
@@ -219,8 +220,8 @@ SurfaceItemFactory {
     StackToplevelHelper {
         id: helper
         surface: surfaceItem
-        waylandSurface: toplevelSurfaceItem.shellSurface
-        creator: toplevelComponent
+        waylandSurface: wSurface
+        creator: creatorCompoment
         decoration: decoration
         surfaceWrapper: root
     }

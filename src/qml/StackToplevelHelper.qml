@@ -134,7 +134,7 @@ Item {
         }
     }
 
-    function workspace() { return QmlHelper.workspaceManager.workspacesById.get(parent.workspaceId) }
+    function workspace() { return QmlHelper.workspaceManager.workspacesById.get(parent.wid) }
 
     function setAllSurfacesVisble(visible) {
         for (var i = 0; i < QmlHelper.workspaceManager.allSurfaces.count; ++i) {
