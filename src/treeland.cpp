@@ -465,7 +465,7 @@ int main(int argc, char *argv[])
 {
     WRenderHelper::setupRendererBackend();
 
-    QWLog::init();
+    QWLog::init(QWLRoots::QWLog::Importance::QWL_ERROR);
     WServer::initializeQPA();
     // QQuickStyle::setStyle("Material");
 

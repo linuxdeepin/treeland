@@ -68,10 +68,7 @@ class Helper : public WSeatEventFilter
     Q_PROPERTY(QW_NAMESPACE::QWCompositor* compositor READ compositor NOTIFY compositorChanged FINAL)
     Q_PROPERTY(WXdgDecorationManager *xdgDecorationManager READ xdgDecorationManager NOTIFY xdgDecorationManagerChanged)
     Q_PROPERTY(WQmlCreator* outputCreator READ outputCreator CONSTANT)
-    Q_PROPERTY(WQmlCreator* xdgShellCreator READ xdgShellCreator CONSTANT)
-    Q_PROPERTY(WQmlCreator* xwaylandCreator READ xwaylandCreator CONSTANT)
-    Q_PROPERTY(WQmlCreator* layerShellCreator READ layerShellCreator CONSTANT)
-    Q_PROPERTY(WQmlCreator* inputPopupCreator READ inputPopupCreator CONSTANT)
+    Q_PROPERTY(WQmlCreator* surfaceCreator READ surfaceCreator CONSTANT)
 
     // TODO: move to workspace
     Q_PROPERTY(int currentWorkspaceId READ currentWorkspaceId WRITE setCurrentWorkspaceId NOTIFY currentWorkspaceIdChanged FINAL)
@@ -95,10 +92,7 @@ public:
     WXdgDecorationManager *xdgDecorationManager() const;
 
     WQmlCreator *outputCreator() const;
-    WQmlCreator *xdgShellCreator() const;
-    WQmlCreator *xwaylandCreator() const;
-    WQmlCreator *layerShellCreator() const;
-    WQmlCreator *inputPopupCreator() const;
+    WQmlCreator *surfaceCreator() const;
 
     void setCurrentUser(const QString &currentUser);
 
@@ -200,10 +194,7 @@ protected:
     WXdgDecorationManager *m_xdgDecorationManager;
 
     WQmlCreator *m_outputCreator = nullptr;
-    WQmlCreator *m_xdgShellCreator = nullptr;
-    WQmlCreator *m_xwaylandCreator = nullptr;
-    WQmlCreator *m_layerShellCreator = nullptr;
-    WQmlCreator *m_inputPopupCreator = nullptr;
+    WQmlCreator *m_surfaceCreator = nullptr;
 
     QPointer<WSocket> m_socket;
 
@@ -229,6 +220,7 @@ protected:
 private:
     void setWaylandSocket(const QString &socketFile);
     void setXWaylandSocket(const QString &socketFile);
+    QVariant workspaceId(QQmlApplicationEngine *) const;
 
 private:
     QString m_waylandSocket;

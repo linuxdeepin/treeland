@@ -14,47 +14,31 @@ FocusScope {
     id: root
     function getSurfaceItemFromWaylandSurface(surface) {
         let finder = function(props) {
-            if (!props.waylandSurface)
+            if (!props.wSurface)
                 return false
             // surface is WToplevelSurface or WSurfce
-            if (props.waylandSurface === surface || props.waylandSurface.surface === surface)
+            if (props.wSurface === surface || props.wSurface.surface === surface)
                 return true
         }
 
-        let toplevel = Helper.xdgShellCreator.getIf(toplevelComponent, finder)
+        let toplevel = Helper.surfaceCreator.getIf(toplevelComponent, finder)
         if (toplevel) {
-            return {
-                shell: toplevel,
-                item: toplevel.asXdg,
-                type: "toplevel"
-            }
+            return toplevel.surfaceItem
         }
 
-        let popup = Helper.xdgShellCreator.getIf(popupComponent, finder)
+        let popup = Helper.surfaceCreator.getIf(popupComponent, finder)
         if (popup) {
-            return {
-                shell: popup,
-                item: popup.xdgSurface,
-                type: "popup"
-            }
+            return popup.popup
         }
 
-        let layer = Helper.layerShellCreator.getIf(layerComponent, finder)
+        let layer = Helper.surfaceCreator.getIf(layerComponent, finder)
         if (layer) {
-            return {
-                shell: layer,
-                item: layer.surfaceItem,
-                type: "layer"
-            }
+            return layer.layerSurface
         }
 
-        let xwayland = Helper.xwaylandCreator.getIf(xwaylandComponent, finder)
+        let xwayland = Helper.surfaceCreator.getIf(xwaylandComponent, finder)
         if (xwayland) {
-            return {
-                shell: xwayland,
-                item: xwayland.asXwayland,
-                type: "xwayland"
-            }
+            return xwayland.asXwayland
         }
 
         return null
@@ -82,7 +66,7 @@ FocusScope {
         if (activatedSurfaceItem?.parent?.workspaceRelativeId !== undefined)
             currentWorkspaceId = activatedSurfaceItem.parent.workspaceRelativeId
         if (Helper.activatedSurface) {
-            QmlHelper.winposManager.updateSeq(Helper.activatedSurface.appId, activatedSurfaceItem.surfaceItem)
+            QmlHelper.winposManager.updateSeq(Helper.activatedSurface.appId, activatedSurfaceItem)
         }
     }
 
@@ -137,7 +121,9 @@ FocusScope {
 
         DynamicCreatorComponent {
             id: layerComponent
-            creator: Helper.layerShellCreator
+            creator: Helper.surfaceCreator
+            chooserRole: "type"
+            chooserRoleValue: "layerShell"
             autoDestroy: false
 
             onObjectRemoved: function (obj) {
@@ -154,7 +140,9 @@ FocusScope {
 
         DynamicCreatorComponent {
             id: inputPopupComponent
-            creator: Helper.inputPopupCreator
+            creator: Helper.surfaceCreator
+            chooserRole: "type"
+            chooserRoleValue: "inputPopup"
 
             InputPopupSurface {
                 required property WaylandInputPopupSurface popupSurface
@@ -173,7 +161,7 @@ FocusScope {
 
         DynamicCreatorComponent {
             id: toplevelComponent
-            creator: Helper.xdgShellCreator
+            creator: Helper.surfaceCreator
             chooserRole: "type"
             chooserRoleValue: "toplevel"
             contextProperties: ({surfType: "xdg"}) // Object/QVariantMap type should use `({})`
@@ -185,24 +173,25 @@ FocusScope {
 
             SurfaceWrapper {
                 id: wrapper
+                creatorCompoment: toplevelComponent
                 ShaderEffectSource {
                     id: background
                     parent: wrapper.surfaceItem
-                    z: wrapper.toplevelSurfaceItem.contentItem.z - 2
+                    z: wrapper.surfaceItem.contentItem.z - 2
                     visible: false
                     anchors.fill: parent
-                    sourceRect: { Qt.rect(toplevelSurfaceItem.x, toplevelSurfaceItem.y, toplevelSurfaceItem.width, toplevelSurfaceItem.height) }
+                    sourceRect: { Qt.rect(surfaceItem.x, surfaceItem.y, surfaceItem.width, surfaceItem.height) }
                     sourceItem: wrapper.personalizationMapper.backgroundImage
                 }
 
                 Connections {
                     target: Helper.xdgDecorationManager
                     function onSurfaceModeChanged(surface,mode) {
-                        if (wrapper.waylandSurface.surface === surface) {
-                            if (Helper.clientName(waylandSurface.surface) === "dde-desktop") {
+                        if (wrapper.wSurface.surface === surface) {
+                            if (Helper.clientName(wSurface.surface) === "dde-desktop") {
                                 wrapper.decoration.enable = false
                             }
-                            else if (Helper.clientName(waylandSurface.surface) === "dde-launchpad") {
+                            else if (Helper.clientName(wSurface.surface) === "dde-launchpad") {
                                 wrapper.decoration.enable = false
                             } else {
                                 wrapper.decoration.enable = mode !== XdgDecorationManager.Client
@@ -212,13 +201,13 @@ FocusScope {
                 }
 
                 Component.onCompleted: {
-                    if (Helper.clientName(waylandSurface.surface) === "dde-desktop") {
+                    if (Helper.clientName(wSurface.surface) === "dde-desktop") {
                         wrapper.decoration.enable = false
                     }
-                    else if (Helper.clientName(waylandSurface.surface) === "dde-launchpad") {
+                    else if (Helper.clientName(wSurface.surface) === "dde-launchpad") {
                         wrapper.decoration.enable = false
                     } else {
-                        wrapper.decoration.enable = Helper.xdgDecorationManager.modeBySurface(wrapper.waylandSurface.surface) !== XdgDecorationManager.Client
+                        wrapper.decoration.enable = Helper.xdgDecorationManager.modeBySurface(wrapper.wSurface.surface) !== XdgDecorationManager.Client
                     }
                 }
             }
@@ -226,7 +215,7 @@ FocusScope {
 
         DynamicCreatorComponent {
             id: popupComponent
-            creator: Helper.xdgShellCreator
+            creator: Helper.surfaceCreator
             chooserRole: "type"
             chooserRoleValue: "popup"
             contextProperties: ({surfType: "xdg"})
@@ -234,19 +223,19 @@ FocusScope {
             Item {
                 id: popup
 
-                required property WaylandXdgSurface waylandSurface
+                required property WaylandXdgSurface wSurface
                 property string type
+                property int wid
 
-                property alias xdgSurface: popupSurfaceItem
-                property var parentItem: root.getSurfaceItemFromWaylandSurface(waylandSurface.parentSurface)?.item
+                property var parentItem: root.getSurfaceItemFromWaylandSurface(wSurface.parentSurface)
 
                 parent: parentItem ?? root
                 visible: parentItem?.effectiveVisible
-                        && waylandSurface.surface.mapped && waylandSurface.WaylandSocket.rootSocket.enabled
+                        && wSurface.surface.mapped && wSurface.WaylandSocket.rootSocket.enabled
                 x: {
                     let retX = 0 // X coordinate relative to parent
                     let minX = 0
-                    let maxX = root.width - xdgSurface.width
+                    let maxX = root.width - popupSurfaceItem.width
                     if (!parentItem) {
                         retX = popupSurfaceItem.implicitPosition.x
                         if (retX > maxX)
@@ -258,7 +247,7 @@ FocusScope {
                         let parentX = parent.mapToItem(root, 0, 0).x
                         if (retX + parentX > maxX) {
                             if (parentItem.type === "popup")
-                                retX = retX - xdgSurface.width - parent.width
+                                retX = retX - popupSurfaceItem.width - parent.width
                             else
                                 retX = maxX - parentX
                         }
@@ -270,7 +259,7 @@ FocusScope {
                 y: {
                     let retY = 0 // Y coordinate relative to parent
                     let minY = 0
-                    let maxY = root.height - xdgSurface.height
+                    let maxY = root.height - popupSurfaceItem.height
                     if (!parentItem) {
                         retY = popupSurfaceItem.implicitPosition.y
                         if (retY > maxY)
@@ -291,37 +280,32 @@ FocusScope {
 
                 XdgSurfaceItem {
                     id: popupSurfaceItem
-                    shellSurface: popup.waylandSurface
+                    shellSurface: popup.wSurface
 
                     OutputLayoutItem {
                         anchors.fill: parent
                         layout: Helper.outputLayout
 
                         onEnterOutput: function(output) {
-                            if (waylandSurface.surface) {
-                                waylandSurface.surface.enterOutput(output)
+                            if (wSurface.surface) {
+                                wSurface.surface.enterOutput(output)
                             }
-                            Helper.onSurfaceEnterOutput(waylandSurface, popupSurfaceItem, output)
+                            Helper.onSurfaceEnterOutput(wSurface, popupSurfaceItem, output)
                         }
                         onLeaveOutput: function(output) {
-                            waylandSurface.surface.leaveOutput(output)
-                            Helper.onSurfaceLeaveOutput(waylandSurface, popupSurfaceItem, output)
+                            wSurface.surface.leaveOutput(output)
+                            Helper.onSurfaceLeaveOutput(wSurface, popupSurfaceItem, output)
                         }
                     }
                 }
-            }
-            D.InWindowBlur {
-                id: blur
-                anchors.fill: parent
-                z: toplevelSurfaceItem.contentItem.z - 2
-                visible: personalizationMapper.backgroundType === 2
-                radius: 16
             }
         }
 
         DynamicCreatorComponent {
             id: xwaylandComponent
-            creator: Helper.xwaylandCreator
+            creator: Helper.surfaceCreator
+            chooserRole: "type"
+            chooserRoleValue: "xwayland"
             contextProperties: ({surfType: "xwayland"})
             autoDestroy: false
 
@@ -329,12 +313,15 @@ FocusScope {
                 obj.doDestroy()
             }
             SurfaceWrapper {
+                creatorCompoment: xwaylandComponent
                 property bool forcePositionToSurface: false
-                property var surfaceParent: root.getSurfaceItemFromWaylandSurface(waylandSurface.parentXWaylandSurface)
-                asXwayland.parentSurfaceItem: surfaceParent ? surfaceParent.item : null
-                z: waylandSurface.bypassManager ? 1 : 0 // TODO: make to enum type
-                decoration.enable: !waylandSurface.bypassManager
-                                        && waylandSurface.decorationsType !== XWaylandSurface.DecorationsNoBorder
+                readonly property XWaylandSurface asXSurface: {
+                    wSurface as XWaylandSurface;
+                }
+                asXwayland.parentSurfaceItem: root.getSurfaceItemFromWaylandSurface(wSurface.parentXWaylandSurface)
+                z: asXSurface.bypassManager ? 1 : 0 // TODO: make to enum type
+                decoration.enable: !asXSurface.bypassManager
+                                        && asXSurface.decorationsType !== XWaylandSurface.DecorationsNoBorder
                 asXwayland.positionMode: {
                     if (!surfaceItem.effectiveVisible)
                         return XWaylandSurfaceItem.ManualPosition
