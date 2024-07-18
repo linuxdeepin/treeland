@@ -14,6 +14,8 @@ Item {
     property OutputRenderWindow renderWindow: null
     property Cursor cursor: Helper.cursor
 
+    property var outputSet: new Set()
+
     function printStructureObject(obj) {
         var json = ""
         for (var prop in obj){
@@ -31,13 +33,29 @@ Item {
         return '{\n' + json + '}'
     }
 
+    Connections {
+        target: Helper.outputCreator
+        function onObjectAdded(delegate, obj, properties) {
+             console.info(`New output item ${obj} ${obj.waylandOutput.name} from delegate ${delegate} with initial properties:`,
+                          `\n${printStructureObject(properties)}`)
+             outputSet.add(obj.waylandOutput.name)
+             updateEnvHash()
+        }
+        function onObjectRemoved(delegate, obj, properties) {
+            console.info(`Output item ${obj} is removed, it's create from delegate ${delegate} with initial properties:`,
+                          `\n${printStructureObject(properties)}`)
+            outputSet.delete(obj.waylandOutput.name)
+            updateEnvHash()
+        }
+    }
+
     property string envHash: "" // outputs environment
-    property string prevEnvHash: undefined
+    property var prevEnvHash: undefined
     property var restoreStates: new Map() // Map<Env,Map<SurfaceKey,SurfaceState>>
     function updateEnvHash() {
-        console.log(outputManager.outputSet.size, JSON.stringify(outputManager.outputSet),Array.from(outputManager.outputSet))
+        console.log(outputSet.size, JSON.stringify(outputSet),Array.from(outputSet))
         prevEnvHash = envHash
-        envHash = JSON.stringify(Array.from(outputManager.outputSet))
+        envHash = JSON.stringify(Array.from(outputSet))
     }
     onEnvHashChanged: {
         console.log(`env changed  ${prevEnvHash}=>${envHash}, ${workspaceManager.allSurfaces.count} surfaces exist`)
@@ -231,5 +249,9 @@ Item {
             priv.prevSpawn = priv.spawn
             priv.spawn = [iden, item]
         }
+    }
+
+    Component.onCompleted: {
+        updateEnvHash();
     }
 }

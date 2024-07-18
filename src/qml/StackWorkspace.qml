@@ -61,7 +61,7 @@ FocusScope {
 
     // activated workspace driven by surface activation
     property Item activatedSurfaceItem:
-        getSurfaceItemFromWaylandSurface(Helper.activatedSurface)?.item || null // cannot assign [undefined] to QQuickItem*, need to assign null
+        getSurfaceItemFromWaylandSurface(Helper.activatedSurface) || null // cannot assign [undefined] to QQuickItem*, need to assign null
     onActivatedSurfaceItemChanged: {
         if (activatedSurfaceItem?.parent?.workspaceRelativeId !== undefined)
             currentWorkspaceId = activatedSurfaceItem.parent.workspaceRelativeId
