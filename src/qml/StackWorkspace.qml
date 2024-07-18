@@ -45,7 +45,7 @@ FocusScope {
     }
 
     required property OutputDelegate activeOutputDelegate
-    readonly property real switcherHideOpacity: 0.3
+    readonly property real switcherHideOpacity: 0
 
     property var workspaceManager: QmlHelper.workspaceManager
     property var currentWorkspaceId: Helper.currentWorkspaceId
@@ -345,7 +345,11 @@ FocusScope {
     WindowsSwitcher {
         id: switcher
         z: 100 + 1
-        anchors.fill: parent
+        anchors {
+            fill: parent
+            topMargin: 30
+            bottomMargin: 120
+        }
         enabled: !multitaskView.active
         model: workspaceManager.workspacesById.get(workspaceManager.layoutOrder.get(currentWorkspaceId).wsid).surfaces
         visible: false // dbgswtchr.checked

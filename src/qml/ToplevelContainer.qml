@@ -51,9 +51,9 @@ FocusScope {
             // ensure activated surface is on top, activatedSurfaceChanged may happen before model append
             if (data.item.shellSurface === Helper.activatedSurface) {
                 this.insert(0,data)
-            }
-            else
+            } else {
                 this.append(data)
+            }
         }
     }
 
