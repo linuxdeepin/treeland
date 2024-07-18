@@ -24,7 +24,7 @@ Item {
     property bool pendingDestroy: false
     property bool isMaximize: waylandSurface && waylandSurface.isMaximized && outputCoordMapper
     property bool isFullScreen: waylandSurface && waylandSurface.isFullScreen && outputCoordMapper
-    property bool showCloseAnimation: false
+    property bool showCloseAnimation: true
     property bool showNewAnimation: true
     onIsMaximizeChanged: console.log(`${surface} isMaximize changed, ${waylandSurface.isMaximized}, ${outputCoordMapper}`)
 
@@ -45,7 +45,7 @@ Item {
     ) : Qt.rect(0,0,0,0)
 
     Loader {
-        id: newAnimation
+        id: animation
     }
 
     Component {
@@ -53,20 +53,30 @@ Item {
 
         NewAnimation {
             target: surface
+            direction: NewAnimation.Direction.Show
+            onStopped: {
+                animation.active = false
+            }
         }
-    }
-
-    Loader {
-        id: closeAnimation
     }
 
     Component {
         id: closeAnimationComponent
 
-        CloseAnimation {
+        NewAnimation {
+            target: surface
+            direction: NewAnimation.Direction.Hide
             onStopped: {
-                if (pendingDestroy)
+                surface.visible = false;
+                if (pendingDestroy) {
+                    // may have been removed when unmapped?
+                    workspace().surfaces.removeIf((val) => val.item === surface)
+                    QmlHelper.workspaceManager.allSurfaces.removeIf((val) => val.item === surface)
+
                     creator.destroyObject(surfaceWrapper)
+                }
+
+                animation.active = true
             }
         }
     }
@@ -162,10 +172,11 @@ Item {
                     Helper.activatedSurface = waylandSurface
 
                 if (showNewAnimation) {
-                    newAnimation.parent = surface.parent
-                    newAnimation.anchors.fill = surface
-                    newAnimation.sourceComponent = newAnimationComponent
-                    newAnimation.item.start()
+                    animation.active = true
+                    animation.parent = surface.parent
+                    animation.anchors.fill = surface
+                    animation.sourceComponent = newAnimationComponent
+                    animation.item.start()
                 }
             }
             workspace().surfaces.appendEnhanced({item: surface, wrapper: surfaceWrapper})
@@ -177,14 +188,14 @@ Item {
                 // if don't show CloseAnimation will destroyObject in doDestroy, here is too early
                 if (showCloseAnimation) {
                     // do animation for window close
-                    closeAnimation.parent = surface.parent
-                    closeAnimation.anchors.fill = surface
-                    closeAnimation.sourceComponent = closeAnimationComponent
-                    closeAnimation.item.start(surface)
+                    animation.active = true
+                    animation.parent = surface.parent
+                    animation.anchors.fill = surface
+                    animation.sourceComponent = closeAnimationComponent
+                    animation.item.start()
                 }
             }
-            workspace()?.surfaces.removeIf((val) => val.item === surface)
-            QmlHelper.workspaceManager.allSurfaces.removeIf((val) => val.item === surface)
+
             if (Helper.activatedSurface === waylandSurface)
                 surface.parent.selectSurfaceToActivate()
         }
@@ -192,23 +203,12 @@ Item {
 
     function doDestroy() {
         pendingDestroy = true
-        // may have been removed when unmapped?
-        workspace().surfaces.removeIf((val) => val.item === surface)
-        QmlHelper.workspaceManager.allSurfaces.removeIf((val) => val.item === surface)
 
-        if (!surface.visible || !closeAnimation.active) {
-            creator.destroyObject(surfaceWrapper)
-            return
-        }
-
-        // unbind some properties
-        mapped = false
         surface.states = null
         surface.transitions = null
 
-        if (!showCloseAnimation) {
-            creator.destroyObject(surfaceWrapper)
-        }
+        // unbind some properties
+        mapped = false
     }
 
     function getPrimaryOutputItem() {

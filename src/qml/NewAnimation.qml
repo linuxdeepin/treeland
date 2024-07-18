@@ -3,17 +3,40 @@
 
 import QtQuick
 
-Item {
+ShaderEffectSource {
     id: root
+
+    enum Direction {
+        Show = 1,
+        Hide
+    }
 
     signal stopped
 
     visible: false
+    clip: true
 
     required property var target
+    required property var direction
 
     width: target.width
     height: target.height
+    live: direction === NewAnimation.Direction.Show
+    hideSource: true
+    sourceItem: root.target
+    transform: [
+        Rotation {
+            id: rotation
+            origin.x: width / 2
+            origin.y: height / 2
+            axis {
+                x: 1
+                y: 0
+                z: 0
+            }
+            angle: 0
+        }
+    ]
 
     function start() {
         visible = true;
@@ -22,46 +45,8 @@ Item {
 
     function stop() {
         visible = false;
-        effect.sourceItem = null;
+        sourceItem = null;
         stopped();
-    }
-
-    Item {
-        id: content
-
-        width: parent.width
-        height: parent.height
-        clip: true
-
-        transform: [
-            Rotation {
-                id: rotation
-                origin.x: width / 2
-                origin.y: height / 2
-                axis {
-                    x: 1
-                    y: 0
-                    z: 0
-                }
-                angle: 0
-            },
-            Scale {
-                id: scale
-                origin.x: width / 2
-                origin.y: height / 2
-                xScale: 1
-                yScale: 1
-            }
-        ]
-
-        ShaderEffectSource {
-            id: effect
-            live: true
-            hideSource: true
-            sourceItem: target
-            width: target.width
-            height: target.height
-        }
     }
 
     Connections {
@@ -78,33 +63,25 @@ Item {
             target: rotation
             property: "angle"
             duration: 400
-            from: 72
-            to: 0
-            easing.type: Easing.OutCubic
+            from: root.direction === NewAnimation.Direction.Show ? 75 : 0
+            to: root.direction !== NewAnimation.Direction.Show ? 75 : 0
+            easing.type: Easing.OutExpo
         }
         PropertyAnimation {
-            target: scale
-            property: "xScale"
+            target: root
+            property: "scale"
             duration: 400
-            from: 0.4
-            to: 1
-            easing.type: Easing.OutCubic
+            from: root.direction === NewAnimation.Direction.Show ? 0.3 : 1
+            to: root.direction !== NewAnimation.Direction.Show ? 0.3 : 1
+            easing.type: Easing.OutExpo
         }
         PropertyAnimation {
-            target: scale
-            property: "yScale"
-            duration: 400
-            from: 0.4
-            to: 1
-            easing.type: Easing.OutCubic
-        }
-        PropertyAnimation {
-            target: content
+            target: root
             property: "opacity"
             duration: 400
-            from: 0.2
-            to: 1
-            easing.type: Easing.InQuad
+            from: root.direction === NewAnimation.Direction.Show ? 0 : 1
+            to: root.direction !== NewAnimation.Direction.Show ? 0 : 1
+            easing.type: Easing.OutExpo
         }
     }
 }
