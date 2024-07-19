@@ -8,27 +8,29 @@ import TreeLand
 import TreeLand.Utils
 
 FocusScope {
-    property alias waylandSurface: surfaceItem.shellSurface
     property bool anchorWidth: false
     property bool anchorHeight: false
-    required property DynamicCreatorComponent creator
     // the output attached to, default is primary
     required property OutputItem activeOutputItem
     property OutputItem output: getInitialOutputItem()
     property CoordMapper outputCoordMapper: output ? this.CoordMapper.helper.get(output) : null
-    property bool mapped: waylandSurface.surface && waylandSurface.surface.mapped && waylandSurface.WaylandSocket.rootSocket.enabled
+    property bool mapped: wSurface.surface && wSurface.surface.mapped && wSurface.WaylandSocket.rootSocket.enabled
     property bool pendingDestroy: false
-    property bool showNewAnimation: true
-    property bool showCloseAnimation: true
 
     property alias surfaceItem: surfaceItem
 
+    required property DynamicCreatorComponent creatorCompoment
+    required property WaylandLayerSurface wSurface
+    required property string type
+    required property int wid
+
     id: root
-    z: zValueFormLayer(waylandSurface.layer)
+    z: zValueFormLayer(wSurface.layer)
 
     LayerSurfaceItem {
         anchors.centerIn: parent
         focus: true
+        shellSurface: wSurface
 
         id: surfaceItem
 
@@ -53,14 +55,14 @@ FocusScope {
         layout: Helper.outputLayout
 
         onEnterOutput: function(output) {
-            Helper.registerExclusiveZone(waylandSurface)
-            waylandSurface.surface.enterOutput(output)
-            Helper.onSurfaceEnterOutput(waylandSurface, surfaceItem, output)
+            Helper.registerExclusiveZone(wSurface)
+            wSurface.surface.enterOutput(output)
+            Helper.onSurfaceEnterOutput(wSurface, surfaceItem, output)
         }
         onLeaveOutput: function(output) {
-            Helper.unregisterExclusiveZone(waylandSurface)
-            waylandSurface.surface.leaveOutput(output)
-            Helper.onSurfaceLeaveOutput(waylandSurface, surfaceItem, output)
+            Helper.unregisterExclusiveZone(wSurface)
+            wSurface.surface.leaveOutput(output)
+            Helper.onSurfaceLeaveOutput(wSurface, surfaceItem, output)
         }
     }
 
@@ -74,7 +76,7 @@ FocusScope {
         LayerShellAnimation {
             target: surfaceItem
             direction: LayerShellAnimation.Direction.Show
-            position: waylandSurface.getExclusiveZoneEdge()
+            position: wSurface.getExclusiveZoneEdge()
             onStopped: {
                 animation.active = false
             }
@@ -86,11 +88,14 @@ FocusScope {
         LayerShellAnimation {
             target: surfaceItem
             direction: LayerShellAnimation.Direction.Hide
-            position: waylandSurface.getExclusiveZoneEdge()
+            position: wSurface.getExclusiveZoneEdge()
             onStopped: {
                 if (pendingDestroy) {
-                    creator.destroyObject(root)
+                    creatorCompoment.destroyObject(root)
+                } else {
+                    surfaceItem.visible = false
                 }
+
                 animation.active = false
             }
         }
@@ -100,32 +105,27 @@ FocusScope {
         // When Socket is enabled and mapped becomes false, set visible
         // after closeAnimation complete， Otherwise set visible directly.
         if (mapped) {
-            Helper.registerExclusiveZone(waylandSurface)
+            Helper.registerExclusiveZone(wSurface)
             refreshMargin()
             visible = true
             if (surfaceItem.effectiveVisible)
-                Helper.activatedSurface = waylandSurface
+                Helper.activatedSurface = wSurface
 
-                if (showNewAnimation) {
-                    animation.active = true
-                    animation.parent = root.parent
-                    animation.anchors.fill = root
-                    animation.sourceComponent = newWindowAnimation
-                    animation.item.start()
-                }
+                animation.active = true
+                animation.parent = root.parent
+                animation.anchors.fill = root
+                animation.sourceComponent = newWindowAnimation
+                animation.item.start()
         } else { // if not mapped
-            Helper.unregisterExclusiveZone(waylandSurface)
-            if (!waylandSurface.WaylandSocket.rootSocket.enabled) {
+            Helper.unregisterExclusiveZone(wSurface)
+            if (!wSurface.WaylandSocket.rootSocket.enabled) {
                 visible = false
             } else {
-                if (showCloseAnimation) {
-                    // do animation for window close
-                    animation.active = true
-                    animation.parent = root.parent
-                    animation.anchors.fill = root
-                    animation.sourceComponent = closeWindowAnimation
-                    animation.item.start()
-                }
+                animation.active = true
+                animation.parent = root.parent
+                animation.anchors.fill = root
+                animation.sourceComponent = closeWindowAnimation
+                animation.item.start()
             }
         }
     }
@@ -133,12 +133,17 @@ FocusScope {
     function doDestroy() {
         pendingDestroy = true
 
+       if (!surfaceItem.visible || !animation.active) {
+           creatorCompoment.destroyObject(root)
+           return
+       }
+
         // unbind some properties
         mapped = false
     }
 
     function getInitialOutputItem() {
-        const output = waylandSurface.output
+        const output = wSurface.output
         if (!output)
             return activeOutputItem
         return output.OutputItem.item
@@ -160,10 +165,10 @@ FocusScope {
     }
 
     function refreshAnchors() {
-        var top = waylandSurface.ancher & WaylandLayerSurface.AnchorType.Top
-        var bottom = waylandSurface.ancher & WaylandLayerSurface.AnchorType.Bottom
-        var left = waylandSurface.ancher & WaylandLayerSurface.AnchorType.Left
-        var right = waylandSurface.ancher & WaylandLayerSurface.AnchorType.Right
+        var top = wSurface.ancher & WaylandLayerSurface.AnchorType.Top
+        var bottom = wSurface.ancher & WaylandLayerSurface.AnchorType.Bottom
+        var left = wSurface.ancher & WaylandLayerSurface.AnchorType.Left
+        var right = wSurface.ancher & WaylandLayerSurface.AnchorType.Right
 
         anchorWidth = left && right
         anchorHeight = top && bottom
@@ -184,23 +189,23 @@ FocusScope {
         if (!anchorHeight)
             height = surfaceItem.height
         // Anchors also influence Edge of Exclusive Zone
-        if (waylandSurface.exclusiveZone > 0)
+        if (wSurface.exclusiveZone > 0)
             refreshExclusiveZone()
     }
 
     function refreshExclusiveZone() {
-        Helper.unregisterExclusiveZone(waylandSurface)
-        Helper.registerExclusiveZone(waylandSurface)
+        Helper.unregisterExclusiveZone(wSurface)
+        Helper.registerExclusiveZone(wSurface)
     }
 
     function refreshMargin() {
-        var accpectExclusive = waylandSurface.exclusiveZone >= 0 ? 1 : 0;
-        var exclusiveMargin = Helper.getExclusiveMargins(waylandSurface)
+        var accpectExclusive = wSurface.exclusiveZone >= 0 ? 1 : 0;
+        var exclusiveMargin = Helper.getExclusiveMargins(wSurface)
 
-        var topMargin = waylandSurface.topMargin + accpectExclusive * exclusiveMargin.top;
-        var bottomMargin = waylandSurface.bottomMargin + accpectExclusive * exclusiveMargin.bottom;
-        var leftMargin = waylandSurface.leftMargin + accpectExclusive * exclusiveMargin.left;
-        var rightMargin = waylandSurface.rightMargin + accpectExclusive * exclusiveMargin.right;
+        var topMargin = wSurface.topMargin + accpectExclusive * exclusiveMargin.top;
+        var bottomMargin = wSurface.bottomMargin + accpectExclusive * exclusiveMargin.bottom;
+        var leftMargin = wSurface.leftMargin + accpectExclusive * exclusiveMargin.left;
+        var rightMargin = wSurface.rightMargin + accpectExclusive * exclusiveMargin.right;
         anchors.topMargin = topMargin;
         anchors.bottomMargin = bottomMargin;
         anchors.leftMargin = leftMargin;
@@ -208,8 +213,8 @@ FocusScope {
     }
 
     function configureSurfaceSize() {
-        var surfaceWidth = waylandSurface.desiredSize.width
-        var surfaceHeight = waylandSurface.desiredSize.height
+        var surfaceWidth = wSurface.desiredSize.width
+        var surfaceHeight = wSurface.desiredSize.height
 
         if (surfaceWidth === 0)
             surfaceWidth = width
@@ -217,17 +222,18 @@ FocusScope {
             surfaceHeight = height
 
         if (surfaceWidth && surfaceHeight)
-            waylandSurface.configureSize(Qt.size(surfaceWidth, surfaceHeight))
+            wSurface.configureSize(Qt.size(surfaceWidth, surfaceHeight))
+
     }
 
     onHeightChanged: {
-        if (waylandSurface.desiredSize.height === 0 && height !== 0) {
+        if (wSurface.desiredSize.height === 0 && height !== 0) {
             configureSurfaceSize()
         }
     }
 
     onWidthChanged: {
-        if (waylandSurface.desiredSize.width === 0 && width !== 0) {
+        if (wSurface.desiredSize.width === 0 && width !== 0) {
             configureSurfaceSize()
         }
     }
@@ -235,7 +241,7 @@ FocusScope {
     Component.onCompleted: {
         if (!root.outputCoordMapper) {
             console.warn('No outputCoordMapper', root.output)
-            waylandSurface.closed()
+            wSurface.closed()
             return
         }
         refreshAnchors()
@@ -248,18 +254,18 @@ FocusScope {
     }
 
     Connections {
-        target: waylandSurface
+        target: wSurface
 
         function onLayerPropertiesChanged() {
-            Helper.unregisterExclusiveZone(waylandSurface)
-            Helper.registerExclusiveZone(waylandSurface)
+            Helper.unregisterExclusiveZone(wSurface)
+            Helper.registerExclusiveZone(wSurface)
             refreshAnchors()
             refreshMargin()
             configureSurfaceSize()
         }
 
         function onActivateChanged() {
-            if (waylandSurface.isActivated && surfaceItem.effectiveVisible) {
+            if (wSurface.isActivated && surfaceItem.effectiveVisible) {
                 surfaceItem.forceActiveFocus()
             }
         }
