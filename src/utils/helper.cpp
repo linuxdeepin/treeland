@@ -332,7 +332,8 @@ void Helper::initProtocols(WOutputRenderWindow *window)
 
     connect(backend, &WBackend::inputAdded, this, [this](WInputDevice *device) {
         m_seat->attachInputDevice(device);
-        if (device->qtDevice()->type() == QInputDevice::DeviceType::TouchPad) {
+        if (QWLibinputBackend::isLibinputDevice(device->handle()) &&
+            device->qtDevice()->type() == QInputDevice::DeviceType::TouchPad) {
             InputDevice::setTapEnabled(device->handle(), LIBINPUT_CONFIG_TAP_ENABLED);
         }
     });
