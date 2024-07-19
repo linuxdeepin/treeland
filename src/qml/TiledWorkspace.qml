@@ -276,7 +276,7 @@ Item {
 
         LayerSurface {
             id: layerSurface
-            creator: layerComponent
+            creatorCompoment: layerComponent
         }
     }
 

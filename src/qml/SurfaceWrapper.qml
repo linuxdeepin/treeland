@@ -27,9 +27,6 @@ SurfaceItemFactory {
         if (Helper.clientName(wSurface.surface) === "dde-desktop") {
             return -100 + 1
         }
-        else if (Helper.clientName(wSurface.surface) === "dde-launchpad") {
-            return 25
-        }
         else {
             return 0
         }
@@ -128,7 +125,7 @@ SurfaceItemFactory {
                     target: surfaceItem
                     x: helper.fullscreenRect.x
                     y: helper.fullscreenRect.y
-                    z: Helper.clientName(wSurface.surface) === "dde-launchpad" ? 25 : 100 + 1 // LayerType.Overlay + 1
+                    z: 100 + 1 // LayerType.Overlay + 1
                     width: helper.fullscreenRect.width
                     height: helper.fullscreenRect.height
                 }
@@ -185,11 +182,6 @@ SurfaceItemFactory {
                     surfaceItem.y = outputDelegate.y
                     surfaceItem.width = outputDelegate.width
                     surfaceItem.height = outputDelegate.height
-                }
-
-                if (Helper.clientName(wSurface.surface) === "dde-launchpad") {
-                    surfaceItem.x = outputDelegate.x
-                    surfaceItem.y = outputDelegate.y
                 }
             }
         }

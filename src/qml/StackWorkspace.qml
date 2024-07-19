@@ -28,12 +28,12 @@ FocusScope {
 
         let popup = Helper.surfaceCreator.getIf(popupComponent, finder)
         if (popup) {
-            return popup.popup
+            return popup.popupSurfaceItem
         }
 
         let layer = Helper.surfaceCreator.getIf(layerComponent, finder)
         if (layer) {
-            return layer.layerSurface
+            return layer.surfaceItem
         }
 
         let xwayland = Helper.surfaceCreator.getIf(xwaylandComponent, finder)
@@ -132,7 +132,7 @@ FocusScope {
 
             LayerSurface {
                 id: layerSurface
-                creator: layerComponent
+                creatorCompoment: layerComponent
                 activeOutputItem: activeOutputDelegate
                 focus: Helper.activatedSurface === this.waylandSurface
             }
@@ -190,9 +190,6 @@ FocusScope {
                         if (wrapper.wSurface.surface === surface) {
                             if (Helper.clientName(wSurface.surface) === "dde-desktop") {
                                 wrapper.decoration.enable = false
-                            }
-                            else if (Helper.clientName(wSurface.surface) === "dde-launchpad") {
-                                wrapper.decoration.enable = false
                             } else {
                                 wrapper.decoration.enable = mode !== XdgDecorationManager.Client
                             }
@@ -202,9 +199,6 @@ FocusScope {
 
                 Component.onCompleted: {
                     if (Helper.clientName(wSurface.surface) === "dde-desktop") {
-                        wrapper.decoration.enable = false
-                    }
-                    else if (Helper.clientName(wSurface.surface) === "dde-launchpad") {
                         wrapper.decoration.enable = false
                     } else {
                         wrapper.decoration.enable = Helper.xdgDecorationManager.modeBySurface(wrapper.wSurface.surface) !== XdgDecorationManager.Client
@@ -228,6 +222,8 @@ FocusScope {
                 property int wid
 
                 property var parentItem: root.getSurfaceItemFromWaylandSurface(wSurface.parentSurface)
+
+                property alias popupSurfaceItem: popupSurfaceItem
 
                 parent: parentItem ?? root
                 visible: parentItem?.effectiveVisible
