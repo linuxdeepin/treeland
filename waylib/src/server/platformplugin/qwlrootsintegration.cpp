@@ -410,7 +410,7 @@ QAbstractEventDispatcher *QWlrootsIntegration::createEventDispatcher() const
 
 QPlatformNativeInterface *QWlrootsIntegration::nativeInterface() const
 {
-    return CALL_PROXY(nativeInterface);
+    return CALL_PROXY2(nativeInterface, const_cast<QWlrootsIntegration*>(this));
 }
 
 QPlatformPixmap *QWlrootsIntegration::createPlatformPixmap(QPlatformPixmap::PixelType type) const
@@ -538,6 +538,15 @@ void QWlrootsIntegration::beep() const
 void QWlrootsIntegration::quit() const
 {
     CALL_PROXY(quit);
+}
+
+void *QWlrootsIntegration::nativeResourceForScreen(const QByteArray &resource, QScreen *screen)
+{
+    if (resource == QByteArrayView("antialiasingEnabled")) {
+        return reinterpret_cast<void*>(0x1);
+    }
+
+    return QPlatformNativeInterface::nativeResourceForScreen(resource, screen);
 }
 
 #if QT_CONFIG(vulkan)

@@ -12,6 +12,7 @@
 #include <qpa/qplatformintegration.h>
 #undef protected
 #include <qpa/qplatformvulkaninstance.h>
+#include <qpa/qplatformnativeinterface.h>
 
 QW_BEGIN_NAMESPACE
 class QWDisplay;
@@ -31,7 +32,7 @@ WAYLIB_SERVER_BEGIN_NAMESPACE
 class WOutput;
 class WInputDevice;
 class QWlrootsScreen;
-class Q_DECL_HIDDEN QWlrootsIntegration : public QPlatformIntegration
+class Q_DECL_HIDDEN QWlrootsIntegration : public QPlatformIntegration, public QPlatformNativeInterface
 {
 public:
     QWlrootsIntegration(bool master, const QStringList &parameters, std::function<void()> onInitialized);
@@ -112,6 +113,9 @@ public:
 #if QT_CONFIG(vulkan)
     QPlatformVulkanInstance *createPlatformVulkanInstance(QVulkanInstance *instance) const override;
 #endif
+
+    // native interfaces
+    void *nativeResourceForScreen(const QByteArray &resource, QScreen *screen) override;
 
 private:
     friend class QWlrootsScreen;

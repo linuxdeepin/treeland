@@ -235,6 +235,10 @@ set(HEADERS
 )
 
 set(PRIVATE_HEADERS
+    platformplugin/qwlrootsintegration.h
+    platformplugin/qwlrootscreen.h
+    platformplugin/qwlrootswindow.h
+    platformplugin/qwlrootscursor.h
     platformplugin/types.h
     kernel/private/wglobal_p.h
     kernel/private/wsurface_p.h
