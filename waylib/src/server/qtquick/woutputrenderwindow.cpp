@@ -55,6 +55,7 @@
 #include <private/qpainter_p.h>
 #include <private/qsgdefaultrendercontext_p.h>
 #include <private/qquickitem_p.h>
+#include <private/qquickrectangle_p.h>
 
 extern "C" {
 #ifdef ENABLE_VULKAN_RENDER
@@ -212,6 +213,11 @@ public:
                                  WBufferRenderer::RenderFlags flags);
     inline void render(WBufferRenderer *renderer, int sourceIndex, const QMatrix4x4 &renderMatrix,
                        const QRectF &sourceRect, const QRectF &viewportRect, bool preserveColorContents);
+
+    static bool visualizeLayers() {
+        static bool on = qEnvironmentVariableIsSet("WAYLIB_VISUALIZE_LAYERS");
+        return on;
+    }
 
     qw_buffer *renderLayer(LayerData *layer, bool *dontEndRenderAndReturnNeedsEndRender,
                           bool isCursor,
@@ -571,13 +577,33 @@ void OutputHelper::render(WBufferRenderer *renderer, int sourceIndex, const QMat
     renderer->render(sourceIndex, renderMatrix, sourceRect, targetRect, preserveColorContents);
 }
 
+static QQuickItem *createVisualRectangle(QQuickItem *target, const QColor &color) {
+    auto rectangle = new QQuickRectangle(target);
+    rectangle->border()->setColor(color);
+    rectangle->border()->setWidth(1);
+    rectangle->setColor(Qt::transparent);
+    QQuickItemPrivate::get(rectangle)->anchors()->setFill(target);
+
+    return rectangle;
+}
+
 qw_buffer *OutputHelper::renderLayer(LayerData *layer, bool *dontEndRenderAndReturnNeedsEndRender,
                                     bool isCursor, const QSize &forcePixelSize, const QRectF &targetRect)
 {
     auto source = layer->layer->layer->parent();
     if (!layer->renderer) {
         layer->renderer = new WBufferRenderer(source);
-        layer->renderer->setSourceList({source}, false);
+
+        QList<QQuickItem*> sourceList {source};
+        if (visualizeLayers()) {
+            auto rectangle = createVisualRectangle(source, Qt::green);
+            QQuickItemPrivate::get(rectangle)->refFromEffectItem(true);
+            // Ensure QSGRootNode for this item
+            renderWindowD()->updateDirtyNode(rectangle);
+            sourceList << rectangle;
+        }
+
+        layer->renderer->setSourceList(sourceList, false);
         layer->renderer->setOutput(output()->output());
 
         connect(layer->renderer, &WBufferRenderer::sceneGraphChanged, this, [layer] {
@@ -661,6 +687,10 @@ qw_buffer *OutputHelper::renderLayer(LayerData *layer, bool *dontEndRenderAndRet
         if (buffer) {
             render(layer->renderer, 0, renderMatrix, {}, targetRect,
                    layer->layer->layer->flags().testFlag(WOutputLayer::PreserveColorContents));
+
+            if (visualizeLayers())
+                render(layer->renderer, 1, renderMatrix, {}, targetRect, true);
+
             if (dontEndRenderAndReturnNeedsEndRender) {
                 *dontEndRenderAndReturnNeedsEndRender = true;
             } else {
@@ -906,6 +936,8 @@ WBufferRenderer *OutputHelper::compositeLayers(const QList<LayerData*> layers, b
             proxy = m_layerProxys.at(j);
         } else {
             proxy = new WQuickTextureProxy(m_layerPorxyContainer);
+            if (visualizeLayers())
+                createVisualRectangle(proxy, Qt::red);
             m_layerProxys.append(proxy);
         }
 
