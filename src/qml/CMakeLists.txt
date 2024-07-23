@@ -31,6 +31,7 @@ qt_add_qml_module(treeland-qml
         EQHGrid.qml
         ToplevelContainer.qml
         NewAnimation.qml
+        Wallpaper.qml
         Animations/LayerShellAnimation.qml
     RESOURCE_PREFIX
         /qt/qml

@@ -10,6 +10,7 @@ qt_add_qml_module(utils
         filterproxymodel.cpp
         surfaceitemfactory.cpp
         inputdevice.cpp
+        wallpapercontroller.cpp
     RESOURCE_PREFIX
         /qt/qml
     OUTPUT_DIRECTORY
@@ -22,6 +23,7 @@ FILES
     helper.h
     filterproxymodel.h
     inputdevice.h
+    wallpapercontroller.h
 )
 
 target_compile_definitions(utils
