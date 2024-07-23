@@ -1,6 +1,6 @@
 set(MODULE_NAME wallpaper-color)
 
-ws_generate_local(server ${CMAKE_CURRENT_SOURCE_DIR}/protocols/treeland-wallpaper-color-v1.xml server-protocol)
+ws_generate_local(server ${CMAKE_CURRENT_SOURCE_DIR}/protocols/treeland-wallpaper-color-v1.xml treeland-wallpaper-color-protocol)
 
 pkg_search_module(WLROOTS REQUIRED IMPORTED_TARGET wlroots)
 
@@ -16,7 +16,7 @@ FILES
 target_sources(${MODULE_NAME} PRIVATE
     wallpapercolor.cpp
     impl/wallpaper_color_impl.cpp
-    server-protocol.c
+    ${WAYLAND_PROTOCOLS_OUTPUTDIR}/treeland-wallpaper-color-protocol.c
 )
 
 target_include_directories(${MODULE_NAME} PUBLIC

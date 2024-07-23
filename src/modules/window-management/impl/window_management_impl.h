@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include "server-protocol.h"
+#include "treeland-window-management-protocol.h"
 #include <qwsignalconnector.h>
 #include <qwdisplay.h>
 
@@ -18,10 +18,10 @@ public:
     wl_list resources;
     uint32_t state = 0; //desktop_state 0: normal, 1: show, 2: preview;
 
-    static treeland_window_management_v1 *create(QW_NAMESPACE::QWDisplay *display);
+    static treeland_window_management_v1 *create(QW_NAMESPACE::qw_display *display);
     void set_desktop(uint32_t state);
 
 Q_SIGNALS:
     void requestShowDesktop(uint32_t state);
-    void beforeDestroy();
+    void before_destroy();
 };

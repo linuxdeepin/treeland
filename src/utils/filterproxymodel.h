@@ -25,7 +25,7 @@ public:
     Q_INVOKABLE QVariantMap get(const int index) const;
     Q_INVOKABLE void invalidate();
 
-signals:
+Q_SIGNALS:
     void filterAcceptsRowChanged();
     void countChanged();
 

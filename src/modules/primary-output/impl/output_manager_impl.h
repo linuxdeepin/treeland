@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include "server-protocol.h"
+#include "treeland-output-management-protocol.h"
 
 #include <qwsignalconnector.h>
 #include <qwdisplay.h>
@@ -21,10 +21,10 @@ public:
     wl_list resources;
     const char *primary_output_name{ nullptr };
 
-    static treeland_output_manager_v1 *create(QW_NAMESPACE::QWDisplay *display);
+    static treeland_output_manager_v1 *create(QW_NAMESPACE::qw_display *display);
     void set_primary_output(const char *name);
 
 Q_SIGNALS:
     void requestSetPrimaryOutput(const char *name);
-    void beforeDestroy();
+    void before_destroy();
 };

@@ -53,13 +53,6 @@
 #include <pwd.h>
 #include <sys/socket.h>
 
-extern "C" {
-#define class _class
-#include <wlr/xwayland/server.h>
-#include <wlr/xwayland/xwayland.h>
-#undef class
-}
-
 Q_LOGGING_CATEGORY(debug, "treeland.kernel.debug", QtDebugMsg);
 
 using namespace DDM;
@@ -458,7 +451,7 @@ int main(int argc, char *argv[])
 {
     WRenderHelper::setupRendererBackend();
 
-    QWLog::init(QWLRoots::QWLog::Importance::QWL_ERROR);
+    qw_log::init(WLR_ERROR);
     WServer::initializeQPA();
     // QQuickStyle::setStyle("Material");
 

@@ -21,7 +21,7 @@ Build-Depends: debhelper-compat (= 13),
                systemd [linux-any],
                libddm-dev,
                libwaylib-dev,
-               libqwlroots-dev,
+               qwlroots,
                libwlroots-dev (>=0.17.0)
 Standards-Version: 4.6.0
 Section: libs

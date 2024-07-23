@@ -35,6 +35,7 @@ set(QML_IMPORT_PATH "${PROJECT_BINARY_DIR}/qt/qml;${QML_IMPORT_PATH}" CACHE STRI
 
 if(WITH_SUBMODULE_WAYLIB)
     set(WITH_SUBMODULE_QWLROOTS ON)
+    include(${CMAKE_CURRENT_SOURCE_DIR}/waylib/qwlroots/cmake/WaylandScannerHelpers.cmake)
     add_subdirectory(waylib)
     set(QML_IMPORT_PATH "${PROJECT_BINARY_DIR}/src/server;${QML_IMPORT_PATH}" CACHE STRING "For LSP" FORCE)
 else()

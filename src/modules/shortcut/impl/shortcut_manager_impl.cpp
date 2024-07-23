@@ -3,13 +3,13 @@
 
 #include "shortcut_manager_impl.h"
 
-#include "server-protocol.h"
+#include "treeland-shortcut-manager-protocol.h"
 
 #include <QMetaObject>
 
 #define SHORTCUT_MANAGEMENT_V1_VERSION 1
 
-using QW_NAMESPACE::QWDisplay;
+using QW_NAMESPACE::qw_display;
 
 static void treeland_shortcut_context_v1_destroy(struct wl_resource *resource);
 static treeland_shortcut_manager_v1 *shortcut_manager_from_resource(struct wl_resource *resource);
@@ -62,7 +62,7 @@ void create_shortcut_context_listener(struct wl_client *client,
 
     manager->contexts.append(context);
     QObject::connect(context,
-                     &treeland_shortcut_context_v1::beforeDestroy,
+                     &treeland_shortcut_context_v1::before_destroy,
                      manager,
                      [context, manager]() {
                          manager->contexts.removeOne(context);
@@ -96,7 +96,7 @@ static void treeland_shortcut_context_v1_destroy(struct wl_resource *resource)
 
 treeland_shortcut_context_v1::~treeland_shortcut_context_v1()
 {
-    Q_EMIT beforeDestroy();
+    Q_EMIT before_destroy();
 }
 
 void treeland_shortcut_context_v1::send_shortcut()
@@ -135,7 +135,7 @@ static treeland_shortcut_context_v1 *shortcut_context_from_resource(struct wl_re
 
 treeland_shortcut_manager_v1::~treeland_shortcut_manager_v1()
 {
-    Q_EMIT beforeDestroy();
+    Q_EMIT before_destroy();
     if (global)
         wl_global_destroy(global);
 }
@@ -160,7 +160,7 @@ static void treeland_shortcut_manager_bind(struct wl_client *client,
     manager->clients.append(resource);
 }
 
-treeland_shortcut_manager_v1 *treeland_shortcut_manager_v1::create(QWDisplay *display)
+treeland_shortcut_manager_v1 *treeland_shortcut_manager_v1::create(qw_display *display)
 {
     auto *manager = new treeland_shortcut_manager_v1;
     if (!manager) {
@@ -178,7 +178,7 @@ treeland_shortcut_manager_v1 *treeland_shortcut_manager_v1::create(QWDisplay *di
         return nullptr;
     }
 
-    connect(display, &QWDisplay::beforeDestroy, manager, [manager]() {
+    connect(display, &qw_display::before_destroy, manager, [manager]() {
         delete manager;
     });
 

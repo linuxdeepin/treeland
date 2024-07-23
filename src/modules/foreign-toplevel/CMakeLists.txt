@@ -1,7 +1,6 @@
 set(MODULE_NAME foreign-toplevel)
 
-ws_generate_local(server ${CMAKE_CURRENT_SOURCE_DIR}/protocols/treeland-foreign-toplevel-manager-v1.xml server-protocol)
-ws_generate(server wayland-protocols stable/xdg-shell/xdg-shell.xml xdg-shell-protocol)
+ws_generate_local(server ${CMAKE_CURRENT_SOURCE_DIR}/protocols/treeland-foreign-toplevel-manager-v1.xml treeland-foreign-toplevel-manager-protocol)
 
 pkg_search_module(WLROOTS REQUIRED IMPORTED_TARGET wlroots)
 
@@ -17,8 +16,7 @@ FILES
 target_sources(${MODULE_NAME} PRIVATE
     foreigntoplevelmanagerv1.cpp
     impl/foreign_toplevel_manager_impl.cpp
-    server-protocol.c
-    xdg-shell-protocol.c
+    ${WAYLAND_PROTOCOLS_OUTPUTDIR}/treeland-foreign-toplevel-manager-protocol.c
 )
 
 target_include_directories(${MODULE_NAME} PUBLIC

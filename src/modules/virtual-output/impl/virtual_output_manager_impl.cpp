@@ -10,7 +10,7 @@
 
 #define TREELAND_VIRTUAL_OUTPUT_MANAGER_V1_VERSION 1
 
-using QW_NAMESPACE::QWDisplay;
+using QW_NAMESPACE::qw_display;
 
 static treeland_virtual_output_manager_v1 *virtual_output_manager_from_resource(wl_resource *resource);
 static void virtual_output_manager_bind(wl_client *client, void *data, uint32_t version, uint32_t id);
@@ -137,7 +137,7 @@ static void virtual_output_manager_handle_create_virtual_output([[maybe_unused]]
     wlarrayToStringList(outputs,virtual_output->outputList);
 
     manager->virtual_output.append(virtual_output);
-    QObject::connect(virtual_output, &treeland_virtual_output_v1::beforeDestroy, manager, [manager, virtual_output]() {
+    QObject::connect(virtual_output, &treeland_virtual_output_v1::before_destroy, manager, [manager, virtual_output]() {
         manager->virtual_output.removeOne(virtual_output);
     });
 
@@ -186,14 +186,14 @@ void treeland_virtual_output_v1::send_error(uint32_t code, const char *message)
 
 treeland_virtual_output_v1::~treeland_virtual_output_v1()
 {
-    Q_EMIT beforeDestroy();
+    Q_EMIT before_destroy();
     if (resource)
         wl_resource_set_user_data(resource,nullptr);
 }
 
 treeland_virtual_output_manager_v1::~treeland_virtual_output_manager_v1()
 {
-    Q_EMIT beforeDestroy();
+    Q_EMIT before_destroy();
     if (global)
         wl_global_destroy(global);
 }
@@ -216,7 +216,7 @@ static void virtual_output_manager_bind(wl_client *client, void *data, uint32_t 
     wl_list_insert(&manager->resources, wl_resource_get_link(resource));
 }
 
-treeland_virtual_output_manager_v1 *treeland_virtual_output_manager_v1::create(QWDisplay *display)
+treeland_virtual_output_manager_v1 *treeland_virtual_output_manager_v1::create(qw_display *display)
 {
     auto *manager = new treeland_virtual_output_manager_v1;
     if (!manager)
@@ -235,7 +235,7 @@ treeland_virtual_output_manager_v1 *treeland_virtual_output_manager_v1::create(Q
 
     wl_list_init(&manager->resources);
 
-    connect(display, &QWDisplay::beforeDestroy, manager, [manager] { delete manager; });
+    connect(display, &qw_display::before_destroy, manager, [manager] { delete manager; });
 
     return manager;
 }

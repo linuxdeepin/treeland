@@ -23,11 +23,11 @@ public:
 
     QList<treeland_shortcut_context_v1 *> contexts;
 
-    static treeland_shortcut_manager_v1 *create(QW_NAMESPACE::QWDisplay *display);
+    static treeland_shortcut_manager_v1 *create(QW_NAMESPACE::qw_display *display);
 
 Q_SIGNALS:
     void newContext(uid_t uid, treeland_shortcut_context_v1 *context);
-    void beforeDestroy();
+    void before_destroy();
 };
 
 struct treeland_shortcut_context_v1 : public QObject
@@ -42,5 +42,5 @@ public:
     void send_shortcut();
     void send_register_failed();
 Q_SIGNALS:
-    void beforeDestroy();
+    void before_destroy();
 };
