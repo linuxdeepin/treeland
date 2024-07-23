@@ -25,12 +25,12 @@ Item {
     height: target.height
 
     function start() {
-        if (position === WaylandLayerSurface.AnchorType.None) {
-            stop();
-            return;
-        }
         visible = true;
-        animation.start();
+        if (root.position === WaylandLayerSurface.AnchorType.None) {
+            fullscreenAnimation.start();
+        } else {
+            sideAnimation.start();
+        }
     }
 
     function stop() {
@@ -48,15 +48,11 @@ Item {
         height: root.target.height
     }
 
-    Connections {
-        target: animation
+    ParallelAnimation {
+        id: sideAnimation
         function onStopped() {
             stop();
         }
-    }
-
-    ParallelAnimation {
-        id: animation
         PropertyAnimation {
             target: effect
             property: "x"
@@ -119,6 +115,29 @@ Item {
             duration: 1000
             from: root.direction == LayerShellAnimation.Direction.Show ? 0.2 : 1
             to: root.direction == LayerShellAnimation.Direction.Show ? 1 : 0.2
+            easing.type: Easing.OutExpo
+        }
+    }
+
+    ParallelAnimation {
+        id: fullscreenAnimation
+        function onStopped() {
+            stop();
+        }
+        PropertyAnimation {
+            target: effect
+            property: "opacity"
+            duration: 400
+            from: root.direction == LayerShellAnimation.Direction.Show ? 0 : 1
+            to: root.direction == LayerShellAnimation.Direction.Show ? 1 : 0
+            easing.type: Easing.OutExpo
+        }
+        PropertyAnimation {
+            target: effect
+            property: "scale"
+            duration: 400
+            from: root.direction === LayerShellAnimation.Direction.Show ? 1.4 : 1
+            to: root.direction !== LayerShellAnimation.Direction.Show ? 1.4 : 1
             easing.type: Easing.OutExpo
         }
     }
