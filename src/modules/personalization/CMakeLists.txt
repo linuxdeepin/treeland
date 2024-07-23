@@ -1,7 +1,6 @@
 set(MODULE_NAME personalization)
 
-ws_generate_local(server ${CMAKE_CURRENT_SOURCE_DIR}/protocols/treeland-personalization-manager-v1.xml server-protocol)
-ws_generate(server wayland-protocols stable/xdg-shell/xdg-shell.xml xdg-shell-protocol)
+ws_generate_local(server ${CMAKE_CURRENT_SOURCE_DIR}/protocols/treeland-personalization-manager-v1.xml treeland-personalization-manager-protocol)
 
 pkg_search_module(WLROOTS REQUIRED IMPORTED_TARGET wlroots)
 find_package(Dtk6Core REQUIRED)
@@ -24,8 +23,7 @@ FILES
 target_sources(${MODULE_NAME} PRIVATE
     personalizationmanager.cpp
     impl/personalization_manager_impl.cpp
-    server-protocol.c
-    xdg-shell-protocol.c
+    ${WAYLAND_PROTOCOLS_OUTPUTDIR}/treeland-personalization-manager-protocol.c
 )
 
 target_include_directories(${MODULE_NAME} PUBLIC

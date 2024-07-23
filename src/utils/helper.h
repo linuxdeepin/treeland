@@ -31,7 +31,7 @@ class WInputMethodHelper;
 WAYLIB_SERVER_END_NAMESPACE
 
 QW_BEGIN_NAMESPACE
-class QWCompositor;
+class qw_compositor;
 QW_END_NAMESPACE
 
 struct wlr_output_event_request_state;
@@ -65,7 +65,7 @@ class Helper : public WSeatEventFilter
     Q_PROPERTY(WQuickOutputLayout* outputLayout READ outputLayout CONSTANT)
     Q_PROPERTY(WSeat* seat READ seat CONSTANT)
     Q_PROPERTY(WCursor* cursor READ cursor CONSTANT)
-    Q_PROPERTY(QW_NAMESPACE::QWCompositor* compositor READ compositor NOTIFY compositorChanged FINAL)
+    Q_PROPERTY(QW_NAMESPACE::qw_compositor* compositor READ compositor NOTIFY compositorChanged FINAL)
     Q_PROPERTY(WXdgDecorationManager *xdgDecorationManager READ xdgDecorationManager NOTIFY xdgDecorationManagerChanged)
     Q_PROPERTY(WQmlCreator* outputCreator READ outputCreator CONSTANT)
     Q_PROPERTY(WQmlCreator* surfaceCreator READ surfaceCreator CONSTANT)
@@ -93,7 +93,7 @@ public:
     void initProtocols(WOutputRenderWindow *window);
     WQuickOutputLayout *outputLayout() const;
     WSeat *seat() const;
-    QWCompositor *compositor() const;
+    qw_compositor *compositor() const;
 
     WCursor *cursor() const;
 
@@ -199,9 +199,9 @@ protected:
     OutputInfo *getOutputInfo(WOutput *output);
 
     WServer *m_server = nullptr;
-    QWRenderer *m_renderer = nullptr;
-    QWAllocator *m_allocator = nullptr;
-    QWCompositor *m_compositor = nullptr;
+    qw_renderer *m_renderer = nullptr;
+    qw_allocator *m_allocator = nullptr;
+    qw_compositor *m_compositor = nullptr;
     WQuickOutputLayout *m_outputLayout = nullptr;
     WQuickCursor *m_cursor = nullptr;
     QPointer<WSeat> m_seat;

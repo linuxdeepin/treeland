@@ -3,8 +3,6 @@
 
 #include "foreigntoplevelmanagerv1.h"
 
-#include "server-protocol.h"
-
 #include <wayland-server-core.h>
 #include <wayland-server.h>
 #include <wayland-util.h>
@@ -26,12 +24,6 @@
 
 #include <sys/socket.h>
 #include <unistd.h>
-
-extern "C" {
-#define static
-#include <wlr/types/wlr_xdg_shell.h>
-#undef static
-}
 
 static ForeignToplevelV1 *FOREIGN_TOPLEVEL_MANAGER = nullptr;
 
@@ -300,7 +292,7 @@ void ForeignToplevelV1::leaveDockPreview(WSurface *relative_surface)
 void ForeignToplevelV1::onDockPreviewContextCreated(treeland_dock_preview_context_v1 *context)
 {
     m_dockPreviews.push_back(context);
-    connect(context, &treeland_dock_preview_context_v1::beforeDestroy, this, [this, context] {
+    connect(context, &treeland_dock_preview_context_v1::before_destroy, this, [this, context] {
         std::erase_if(m_dockPreviews, [context](auto *p) {
             return p == context;
         });

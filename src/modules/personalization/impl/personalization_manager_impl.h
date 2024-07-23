@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include "treeland-personalization-manager-protocol.h"
+
 #include <wayland-server-core.h>
 
 #include <qwdisplay.h>
@@ -25,10 +27,10 @@ public:
     wl_global *global;
     wl_list resources; // wl_resource_get_link()
 
-    static treeland_personalization_manager_v1* create(QW_NAMESPACE::QWDisplay *display);
+    static treeland_personalization_manager_v1* create(QW_NAMESPACE::qw_display *display);
 
 Q_SIGNALS:
-    void beforeDestroy();
+    void before_destroy();
     void windowContextCreated(personalization_window_context_v1 *context);
     void wallpaperContextCreated(personalization_wallpaper_context_v1 *context);
     void cursorContextCreated(personalization_cursor_context_v1 *context);
@@ -44,7 +46,7 @@ public:
     uint32_t background_type;
 
 Q_SIGNALS:
-    void beforeDestroy();
+    void before_destroy();
     void backgroundTypeChanged(personalization_window_context_v1 *handle);
 };
 
@@ -67,7 +69,7 @@ public:
     void set_meta_data(const QString &data);
 
 Q_SIGNALS:
-    void beforeDestroy();
+    void before_destroy();
     void commit(personalization_wallpaper_context_v1 *handle);
     void getWallpapers(personalization_wallpaper_context_v1 *handle);
 };
@@ -88,7 +90,7 @@ public:
     void verfity(bool verfityed);
 
 Q_SIGNALS:
-    void beforeDestroy();
+    void before_destroy();
     void commit(personalization_cursor_context_v1 *handle);
     void get_size(personalization_cursor_context_v1 *handle);
     void get_theme(personalization_cursor_context_v1 *handle);

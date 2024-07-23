@@ -6,7 +6,7 @@
 #include <wayland-server-core.h>
 #include <cassert>
 
-using QW_NAMESPACE::QWDisplay;
+using QW_NAMESPACE::qw_display;
 
 static treeland_output_manager_v1 *output_manager_from_resource(wl_resource *resource);
 static void output_manager_bind(wl_client *client, void *data, uint32_t version, uint32_t id);
@@ -35,12 +35,12 @@ static const struct treeland_output_manager_v1_interface output_manager_impl
 // treeland output manager impl
 treeland_output_manager_v1::~treeland_output_manager_v1()
 {
-    Q_EMIT beforeDestroy();
+    Q_EMIT before_destroy();
     // TODO: send stop to all clients
     wl_global_destroy(global);
 }
 
-treeland_output_manager_v1 *treeland_output_manager_v1::create(QWDisplay *display)
+treeland_output_manager_v1 *treeland_output_manager_v1::create(qw_display *display)
 {
     auto *manager = new treeland_output_manager_v1;
     if (!manager) {
@@ -54,7 +54,7 @@ treeland_output_manager_v1 *treeland_output_manager_v1::create(QWDisplay *displa
 
     wl_list_init(&manager->resources);
 
-    connect(display, &QWDisplay::beforeDestroy, manager, [manager] { delete manager; });
+    connect(display, &qw_display::before_destroy, manager, [manager] { delete manager; });
 
     return manager;
 }
