@@ -3,8 +3,6 @@
 
 #include "personalization_manager_impl.h"
 
-#include "server-protocol.h"
-
 #include <cassert>
 
 extern "C" {
@@ -18,7 +16,7 @@ extern "C" {
 
 #define TREELAND_PERSONALIZATION_MANAGEMENT_V1_VERSION 1
 
-using QW_NAMESPACE::QWDisplay;
+using QW_NAMESPACE::qw_display;
 
 static void personalization_window_context_set_background_type(
     [[maybe_unused]] struct wl_client *client, struct wl_resource *resource, uint32_t type);
@@ -47,7 +45,7 @@ struct personalization_window_context_v1 *personalization_window_from_resource(
 
 personalization_window_context_v1::~personalization_window_context_v1()
 {
-    Q_EMIT beforeDestroy();
+    Q_EMIT before_destroy();
 }
 
 static void personalization_window_context_resource_destroy(struct wl_resource *resource)
@@ -115,7 +113,7 @@ struct personalization_wallpaper_context_v1 *personalization_wallpaper_from_reso
 
 personalization_wallpaper_context_v1::~personalization_wallpaper_context_v1()
 {
-    Q_EMIT beforeDestroy();
+    Q_EMIT before_destroy();
 }
 
 static void personalization_wallpaper_context_resource_destroy(struct wl_resource *resource)
@@ -161,7 +159,7 @@ struct personalization_cursor_context_v1 *personalization_cursor_from_resource(
 
 personalization_cursor_context_v1::~personalization_cursor_context_v1()
 {
-    Q_EMIT beforeDestroy();
+    Q_EMIT before_destroy();
 }
 
 static void personalization_cursor_context_resource_destroy(struct wl_resource *resource)
@@ -468,14 +466,14 @@ treeland_personalization_manager_v1::treeland_personalization_manager_v1()
 
 treeland_personalization_manager_v1::~treeland_personalization_manager_v1()
 {
-    Q_EMIT beforeDestroy();
+    Q_EMIT before_destroy();
     if (global)
         wl_global_destroy(global);
     // TODO: clear resources
 }
 
 treeland_personalization_manager_v1 *treeland_personalization_manager_v1::create(
-    QWLRoots::QWDisplay *display)
+    qw_display *display)
 {
     auto *manager = new treeland_personalization_manager_v1;
     if (!manager) {
@@ -493,7 +491,7 @@ treeland_personalization_manager_v1 *treeland_personalization_manager_v1::create
         return nullptr;
     }
 
-    connect(display, &QWDisplay::beforeDestroy, manager, [manager]() {
+    connect(display, &qw_display::before_destroy, manager, [manager]() {
         delete manager;
     });
 

@@ -28,10 +28,10 @@ public:
     QList<treeland_dock_preview_context_v1 *> dock_preview;
     QList<treeland_foreign_toplevel_handle_v1 *> toplevels;
 
-    static treeland_foreign_toplevel_manager_v1 *create(QW_NAMESPACE::QWDisplay *display);
+    static treeland_foreign_toplevel_manager_v1 *create(QW_NAMESPACE::qw_display *display);
 
 Q_SIGNALS:
-    void beforeDestroy();
+    void before_destroy();
     void dockPreviewContextCreated(treeland_dock_preview_context_v1 *context);
 };
 
@@ -46,7 +46,7 @@ struct treeland_foreign_toplevel_handle_v1;
 
 struct treeland_foreign_toplevel_handle_v1_output
 {
-    QW_NAMESPACE::QWOutput *output{ nullptr };
+    QW_NAMESPACE::qw_output *output{ nullptr };
     treeland_foreign_toplevel_handle_v1 *toplevel{ nullptr };
 };
 
@@ -64,7 +64,7 @@ public:
     void enter();
     void leave();
 Q_SIGNALS:
-    void beforeDestroy();
+    void before_destroy();
     void requestShow(treeland_dock_preview_context_v1_preview_event *event);
     void requestClose();
 };
@@ -99,8 +99,8 @@ public:
     void set_app_id(const QString &app_id);
     void set_pid(const pid_t pid);
     void set_identifier(uint32_t identifier);
-    void output_enter(QW_NAMESPACE::QWOutput *output);
-    void output_leave(QW_NAMESPACE::QWOutput *output);
+    void output_enter(QW_NAMESPACE::qw_output *output);
+    void output_leave(QW_NAMESPACE::qw_output *output);
 
     void set_maximized(bool maximized);
     void set_minimized(bool minimized);
@@ -112,7 +112,7 @@ public:
         treeland_foreign_toplevel_manager_v1 *manager);
 
 Q_SIGNALS:
-    void beforeDestroy();
+    void before_destroy();
     void requestMaximize(treeland_foreign_toplevel_handle_v1_maximized_event *event);
     void requestMinimize(treeland_foreign_toplevel_handle_v1_minimized_event *event);
     void requestActivate(treeland_foreign_toplevel_handle_v1_activated_event *event);
@@ -123,7 +123,7 @@ Q_SIGNALS:
 private:
     void update_idle_source();
     void send_state();
-    void send_output(QW_NAMESPACE::QWOutput *output, bool enter);
+    void send_output(QW_NAMESPACE::qw_output *output, bool enter);
 
     friend void toplevel_handle_output_bind(struct wl_listener *listener, void *data);
 };

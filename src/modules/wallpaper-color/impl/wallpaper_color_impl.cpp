@@ -11,7 +11,7 @@
 
 Q_LOGGING_CATEGORY(qlcWallpapercolor, "treeland.modules.wallpapercolor", QtWarningMsg)
 
-using QW_NAMESPACE::QWDisplay;
+using QW_NAMESPACE::qw_display;
 
 static void color_manager_bind(wl_client *client, void *data, uint32_t version, uint32_t id);
 static wallpaper_color_manager_v1 *output_manager_from_resource(wl_resource *resource);
@@ -61,12 +61,12 @@ static const struct wallpaper_color_manager_v1_interface color_manager_impl
 // treeland output manager impl
 wallpaper_color_manager_v1::~wallpaper_color_manager_v1()
 {
-    Q_EMIT beforeDestroy();
+    Q_EMIT before_destroy();
     if (global)
         wl_global_destroy(global);
 }
 
-wallpaper_color_manager_v1 *wallpaper_color_manager_v1::create(QWDisplay *display)
+wallpaper_color_manager_v1 *wallpaper_color_manager_v1::create(qw_display *display)
 {
     auto *manager = new wallpaper_color_manager_v1;
     if (!manager) {
@@ -78,7 +78,7 @@ wallpaper_color_manager_v1 *wallpaper_color_manager_v1::create(QWDisplay *displa
                                        manager,
                                        color_manager_bind);
 
-    QObject::connect(display, &QWDisplay::beforeDestroy, manager, [manager] {
+    QObject::connect(display, &qw_display::before_destroy, manager, [manager] {
         delete manager;
     });
 

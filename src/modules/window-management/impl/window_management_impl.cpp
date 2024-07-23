@@ -8,7 +8,7 @@
 
 #define TREELAND_WINDOW_MANAGEMENT_V1_VERSION 1
 
-using QW_NAMESPACE::QWDisplay;
+using QW_NAMESPACE::qw_display;
 
 static treeland_window_management_v1 *window_management_from_resource(wl_resource *resource);
 static void window_management_bind(wl_client *client, void *data, uint32_t version, uint32_t id);
@@ -33,12 +33,12 @@ static const struct window_management_v1_interface window_management_impl {
 
 treeland_window_management_v1::~treeland_window_management_v1()
 {
-    Q_EMIT beforeDestroy();
+    Q_EMIT before_destroy();
     if (global)
         wl_global_destroy(global);
 }
 
-treeland_window_management_v1 *treeland_window_management_v1::create(QWDisplay *display)
+treeland_window_management_v1 *treeland_window_management_v1::create(qw_display *display)
 {
     auto *manager = new treeland_window_management_v1;
     if (!manager)
@@ -56,7 +56,7 @@ treeland_window_management_v1 *treeland_window_management_v1::create(QWDisplay *
     }
     wl_list_init(&manager->resources);
 
-    connect(display, &QWDisplay::beforeDestroy, manager, [manager] { delete manager; });
+    connect(display, &qw_display::before_destroy, manager, [manager] { delete manager; });
     return manager;
 }
 

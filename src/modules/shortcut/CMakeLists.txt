@@ -1,6 +1,6 @@
 set(MODULE_NAME shortcut)
 
-ws_generate_local(server ${CMAKE_CURRENT_SOURCE_DIR}/protocols/treeland-shortcut-manager-v1.xml server-protocol)
+ws_generate_local(server ${CMAKE_CURRENT_SOURCE_DIR}/protocols/treeland-shortcut-manager-v1.xml treeland-shortcut-manager-protocol)
 
 pkg_search_module(WLROOTS REQUIRED IMPORTED_TARGET wlroots)
 
@@ -16,7 +16,7 @@ FILES
 target_sources(${MODULE_NAME} PRIVATE
     shortcutmanager.cpp
     impl/shortcut_manager_impl.cpp
-    server-protocol.c
+    ${WAYLAND_PROTOCOLS_OUTPUTDIR}/treeland-shortcut-manager-protocol.c
 )
 
 target_include_directories(${MODULE_NAME} PUBLIC

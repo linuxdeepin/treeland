@@ -3,8 +3,6 @@
 
 #include "personalizationmanager.h"
 
-#include "server-protocol.h"
-
 #include <wxdgshell.h>
 #include <wxdgsurface.h>
 
@@ -23,12 +21,6 @@
 
 #include <sys/socket.h>
 #include <unistd.h>
-
-extern "C" {
-#define static
-#include <wlr/types/wlr_xdg_shell.h>
-#undef static
-}
 
 DCORE_USE_NAMESPACE
 

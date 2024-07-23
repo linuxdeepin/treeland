@@ -34,7 +34,7 @@ void ShortcutV1::onNewContext(uid_t uid, treeland_shortcut_context_v1 *context)
         context->send_shortcut();
     });
 
-    connect(context, &treeland_shortcut_context_v1::beforeDestroy, this, [this, username, action] {
+    connect(context, &treeland_shortcut_context_v1::before_destroy, this, [this, username, action] {
         m_helper->removeAction(username, action);
     });
 

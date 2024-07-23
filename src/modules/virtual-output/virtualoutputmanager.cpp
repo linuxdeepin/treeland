@@ -107,7 +107,7 @@ VirtualOutputV1::VirtualOutputV1(QObject *parent)
 void VirtualOutputV1::onVirtualOutputCreated(treeland_virtual_output_v1 *virtual_output)
 {
     m_virtualOutputv1.append(virtual_output);
-    connect(virtual_output, &treeland_virtual_output_v1::beforeDestroy, this, [this, virtual_output] {
+    connect(virtual_output, &treeland_virtual_output_v1::before_destroy, this, [this, virtual_output] {
         m_virtualOutputv1.removeOne(virtual_output);
     });
 

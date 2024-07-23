@@ -3,7 +3,7 @@
 
 #include "foreign_toplevel_manager_impl.h"
 
-#include "server-protocol.h"
+#include "treeland-foreign-toplevel-manager-protocol.h"
 
 #include <cassert>
 
@@ -16,7 +16,7 @@ extern "C" {
 #undef static
 }
 
-using QW_NAMESPACE::QWDisplay, QW_NAMESPACE::QWOutput;
+using QW_NAMESPACE::qw_display, QW_NAMESPACE::qw_output;
 
 #define FOREIGN_TOPLEVEL_MANAGEMENT_V1_VERSION 1
 
@@ -387,7 +387,7 @@ static void send_output_to_resource(wl_resource *resource, wlr_output *output, b
     }
 }
 
-void treeland_foreign_toplevel_handle_v1::send_output(QWOutput *output, bool enter)
+void treeland_foreign_toplevel_handle_v1::send_output(qw_output *output, bool enter)
 {
     struct wl_resource *resource;
     wl_resource_for_each(resource, &this->resources)
@@ -398,7 +398,7 @@ void treeland_foreign_toplevel_handle_v1::send_output(QWOutput *output, bool ent
     update_idle_source();
 }
 
-void treeland_foreign_toplevel_handle_v1::output_enter(QWOutput *output)
+void treeland_foreign_toplevel_handle_v1::output_enter(qw_output *output)
 {
     if (std::any_of(outputs.begin(),
                     outputs.end(),
@@ -411,7 +411,7 @@ void treeland_foreign_toplevel_handle_v1::output_enter(QWOutput *output)
         treeland_foreign_toplevel_handle_v1_output{ .output = output, .toplevel = this };
     outputs.append(toplevel_output);
 
-    connect(output, &QWOutput::bind, this, [toplevel_output](wlr_output_event_bind *event) {
+    connect(output, &qw_output::notify_bind, this, [toplevel_output](wlr_output_event_bind *event) {
         struct wl_client *client = wl_resource_get_client(event->resource);
 
         struct wl_resource *resource;
@@ -425,13 +425,13 @@ void treeland_foreign_toplevel_handle_v1::output_enter(QWOutput *output)
         toplevel_output.toplevel->update_idle_source();
     });
 
-    connect(output, &QWOutput::beforeDestroy, this, [toplevel_output]() {
+    connect(output, &qw_output::before_destroy, this, [toplevel_output]() {
         toplevel_output.toplevel->output_leave(toplevel_output.output);
     });
     send_output(output, true);
 }
 
-void treeland_foreign_toplevel_handle_v1::output_leave(QWOutput *output)
+void treeland_foreign_toplevel_handle_v1::output_leave(qw_output *output)
 {
     outputs.removeIf([output](const treeland_foreign_toplevel_handle_v1_output &handle_output) {
         return handle_output.output == output;
@@ -597,7 +597,7 @@ void treeland_dock_preview_context_v1::leave()
 
 treeland_dock_preview_context_v1::~treeland_dock_preview_context_v1()
 {
-    Q_EMIT beforeDestroy();
+    Q_EMIT before_destroy();
 
     if (resource) {
         wl_resource_set_user_data(resource, nullptr);
@@ -606,7 +606,7 @@ treeland_dock_preview_context_v1::~treeland_dock_preview_context_v1()
 
 treeland_foreign_toplevel_handle_v1::~treeland_foreign_toplevel_handle_v1()
 {
-    Q_EMIT beforeDestroy();
+    Q_EMIT before_destroy();
 
     struct wl_resource *resource, *tmp;
     wl_resource_for_each_safe(resource, tmp, &this->resources)
@@ -704,7 +704,7 @@ treeland_foreign_toplevel_handle_v1 *treeland_foreign_toplevel_handle_v1::create
 
     manager->toplevels.append(toplevel);
     connect(toplevel,
-            &treeland_foreign_toplevel_handle_v1::beforeDestroy,
+            &treeland_foreign_toplevel_handle_v1::before_destroy,
             manager,
             [manager, toplevel]() {
                 manager->toplevels.removeOne(toplevel);
@@ -797,7 +797,7 @@ static void treeland_foreign_toplevel_manager_handle_get_dock_preview_context(
     context->resource = resource;
 
     manager->dock_preview.append(context);
-    QObject::connect(context, &treeland_dock_preview_context_v1::beforeDestroy, manager, [manager, context]() {
+    QObject::connect(context, &treeland_dock_preview_context_v1::before_destroy, manager, [manager, context]() {
         manager->dock_preview.removeOne(context);
     });
 
@@ -879,13 +879,13 @@ static void treeland_foreign_toplevel_manager_bind(struct wl_client *client,
 
 treeland_foreign_toplevel_manager_v1::~treeland_foreign_toplevel_manager_v1()
 {
-    Q_EMIT beforeDestroy();
+    Q_EMIT before_destroy();
     if (global)
         wl_global_destroy(global);
 }
 
 treeland_foreign_toplevel_manager_v1 *treeland_foreign_toplevel_manager_v1::create(
-    QW_NAMESPACE::QWDisplay *display)
+    QW_NAMESPACE::qw_display *display)
 {
     auto *manager = new treeland_foreign_toplevel_manager_v1;
     if (!manager) {
@@ -905,7 +905,7 @@ treeland_foreign_toplevel_manager_v1 *treeland_foreign_toplevel_manager_v1::crea
 
     wl_list_init(&manager->resources);
 
-    connect(display, &QWDisplay::beforeDestroy, manager, [manager]() {
+    connect(display, &qw_display::before_destroy, manager, [manager]() {
         delete manager;
     });
 

@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include "server-protocol.h"
+#include "treeland-virtual-output-manager-protocol.h"
 #include <wayland-server-core.h>
 #include <qwsignalconnector.h>
 #include <qwdisplay.h>
@@ -25,12 +25,12 @@ public:
     wl_event_loop *event_loop{ nullptr };
     QList<treeland_virtual_output_v1 *> virtual_output;
 
-    static treeland_virtual_output_manager_v1 *create(QW_NAMESPACE::QWDisplay *display);
+    static treeland_virtual_output_manager_v1 *create(QW_NAMESPACE::qw_display *display);
 
 Q_SIGNALS:
     void virtualOutputCreated(treeland_virtual_output_v1 *virtual_output);
     void virtualOutputDestroy(treeland_virtual_output_v1 *virtual_output);
-    void beforeDestroy();
+    void before_destroy();
 };
 
 struct treeland_virtual_output_v1 : public QObject
@@ -49,5 +49,5 @@ public:
     void send_error(uint32_t code, const char *message);  // tode: send err code and message
 
 Q_SIGNALS:
-    void beforeDestroy();
+    void before_destroy();
 };

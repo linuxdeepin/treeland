@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include "server-protocol.h"
+#include "treeland-wallpaper-color-protocol.h"
 
 #include <qwdisplay.h>
 
@@ -20,7 +20,7 @@ public:
     ~wallpaper_color_manager_v1();
     wl_global *global{ nullptr };
 
-    static wallpaper_color_manager_v1 *create(QW_NAMESPACE::QWDisplay *display);
+    static wallpaper_color_manager_v1 *create(QW_NAMESPACE::qw_display *display);
 
     QMap<wl_resource *, QList<QString>> watch_lists;
     QMap<QString, bool> color_map;
@@ -28,5 +28,5 @@ public:
     void updateWallpaperColor(const QString &output, bool isDarkType);
 
 Q_SIGNALS:
-    void beforeDestroy();
+    void before_destroy();
 };

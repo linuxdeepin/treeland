@@ -31,6 +31,7 @@
 #include <wxdgsurface.h>
 #include <wxwayland.h>
 #include <wxwaylandsurface.h>
+#include <wquickcursor.h>
 
 #include <qwallocator.h>
 #include <qwbackend.h>
@@ -43,6 +44,7 @@
 #include <qwsubcompositor.h>
 #include <qwxdgshell.h>
 #include <qwxwaylandsurface.h>
+#include <qwinputdevice.h>
 
 #include <QAbstractListModel>
 #include <QAction>
@@ -60,14 +62,6 @@
 #include <QRegularExpression>
 #include <qjsonvalue.h>
 #include <qobject.h>
-
-extern "C" {
-#define static
-#include <wlr/types/wlr_compositor.h>
-#include <wlr/types/wlr_output.h>
-#undef static
-#include <wlr/types/wlr_gamma_control_v1.h>
-}
 
 #define WLR_FRACTIONAL_SCALE_V1_VERSION 1
 
@@ -112,13 +106,13 @@ void Helper::initProtocols(WOutputRenderWindow *window)
         qFatal("Failed to create renderer");
     }
 
-    m_allocator = QWAllocator::autoCreate(backend->handle(), m_renderer);
-    m_renderer->initWlDisplay(m_server->handle());
+    m_allocator = qw_allocator::autocreate(*backend->handle(), *m_renderer);
+    m_renderer->init_wl_display(*m_server->handle());
 
     // free follow display
-    m_compositor = QWCompositor::create(m_server->handle(), m_renderer, 6);
-    QWSubcompositor::create(m_server->handle());
-    QWScreenCopyManagerV1::create(m_server->handle());
+    m_compositor = qw_compositor::create(*m_server->handle(), 6, *m_renderer);
+    qw_subcompositor::create(*m_server->handle());
+    qw_screencopy_manager_v1::create(*m_server->handle());
 
     auto *xdgShell = m_server->attach<WXdgShell>();
     auto *layerShell = m_server->attach<WLayerShell>();
@@ -160,7 +154,7 @@ void Helper::initProtocols(WOutputRenderWindow *window)
     connect(outputManager,
             &WOutputManagerV1::requestTestOrApply,
             this,
-            [this, outputManager](QWOutputConfigurationV1 *config, bool onlyTest) {
+            [this, outputManager](qw_output_configuration_v1 *config, bool onlyTest) {
                 QList<WOutputState> states = outputManager->stateListPending();
                 bool ok = true;
                 for (auto state : states) {
@@ -199,7 +193,7 @@ void Helper::initProtocols(WOutputRenderWindow *window)
             });
 
     m_server->attach<WCursorShapeManagerV1>();
-    QWFractionalScaleManagerV1::create(m_server->handle(), WLR_FRACTIONAL_SCALE_V1_VERSION);
+    qw_fractional_scale_manager_v1::create(*m_server->handle(), WLR_FRACTIONAL_SCALE_V1_VERSION);
 
     auto treelandForeignToplevel =
         engine->singletonInstance<ForeignToplevelV1 *>("TreeLand.Protocols", "ForeignToplevelV1");
@@ -226,7 +220,7 @@ void Helper::initProtocols(WOutputRenderWindow *window)
             &WXWayland::surfaceAdded,
             this,
             [this, engine, xwayland](WXWaylandSurface *surface) {
-                surface->safeConnect(&QWXWaylandSurface::associate, this, [this, surface, engine] {
+                surface->safeConnect(&qw_xwayland_surface::notify_associate, this, [this, surface, engine] {
                     auto initProperties = engine->newObject();
                     initProperties.setProperty("type", "xwayland");
                     initProperties.setProperty("wSurface", engine->toScriptValue(surface));
@@ -234,7 +228,7 @@ void Helper::initProtocols(WOutputRenderWindow *window)
 
                     m_surfaceCreator->add(surface, initProperties);
                 });
-                surface->safeConnect(&QWXWaylandSurface::dissociate, this, [this, surface] {
+                surface->safeConnect(&qw_xwayland_surface::notify_dissociate, this, [this, surface] {
                     m_surfaceCreator->removeByOwner(surface);
                 });
             });
@@ -342,7 +336,7 @@ void Helper::initProtocols(WOutputRenderWindow *window)
 
     connect(backend, &WBackend::inputAdded, this, [this](WInputDevice *device) {
         m_seat->attachInputDevice(device);
-        if (QWLibinputBackend::isLibinputDevice(device->handle()) &&
+        if (device->handle()->is_libinput() &&
             device->qtDevice()->type() == QInputDevice::DeviceType::TouchPad) {
             InputDevice::setTapEnabled(device->handle(), LIBINPUT_CONFIG_TAP_ENABLED);
         }
@@ -368,7 +362,7 @@ WSeat *Helper::seat() const
     return m_seat;
 }
 
-QWCompositor *Helper::compositor() const
+qw_compositor *Helper::compositor() const
 {
     return m_compositor;
 }
@@ -711,7 +705,7 @@ WSurface *Helper::getFocusSurfaceFrom(QObject *object)
 
 void Helper::allowNonDrmOutputAutoChangeMode(WOutput *output)
 {
-    connect(output->handle(), &QWOutput::requestState, this, &Helper::onOutputRequeseState);
+    connect(output->handle(), &qw_output::notify_request_state, this, &Helper::onOutputRequeseState);
 }
 
 void Helper::enableOutput(WOutput *output)
@@ -719,15 +713,15 @@ void Helper::enableOutput(WOutput *output)
     // Enable on default
     auto qwoutput = output->handle();
     // Don't care for WOutput::isEnabled, must do WOutput::commit here,
-    // In order to ensure trigger QWOutput::frame signal, WOutputRenderWindow
-    // needs this signal to render next frmae. Because QWOutput::frame signal
+    // In order to ensure trigger qw_output::frame signal, WOutputRenderWindow
+    // needs this signal to render next frmae. Because qw_output::frame signal
     // maybe emit before WOutputRenderWindow::attach, if no commit here,
     // WOutputRenderWindow will ignore this ouptut on render.
     if (!qwoutput->property("_Enabled").toBool()) {
         qwoutput->setProperty("_Enabled", true);
 
         if (!qwoutput->handle()->current_mode) {
-            auto mode = qwoutput->preferredMode();
+            auto mode = qwoutput->preferred_mode();
             if (mode)
                 output->setMode(mode);
         }
@@ -1014,14 +1008,14 @@ void Helper::setActivateSurface(WToplevelSurface *newActivate)
 void Helper::onOutputRequeseState(wlr_output_event_request_state *newState)
 {
     if (newState->state->committed & WLR_OUTPUT_STATE_MODE) {
-        auto output = qobject_cast<QWOutput *>(sender());
+        auto output = qobject_cast<qw_output *>(sender());
 
         if (newState->state->mode_type == WLR_OUTPUT_STATE_MODE_CUSTOM) {
             const QSize size(newState->state->custom_mode.width,
                              newState->state->custom_mode.height);
-            output->setCustomMode(size, newState->state->custom_mode.refresh);
+            output->set_custom_mode(size.width(), size.height(), newState->state->custom_mode.refresh);
         } else {
-            output->setMode(newState->state->mode);
+            output->set_mode(newState->state->mode);
         }
 
         output->commit();
@@ -1118,7 +1112,8 @@ void Helper::closeSurface(Waylib::Server::WSurface *surface)
 {
     if (auto s = Waylib::Server::WXdgSurface::fromSurface(surface)) {
         if (!s->isPopup()) {
-            s->handle()->topToplevel()->sendClose();
+            auto toplevel = qw_xdg_toplevel::from(s->handle()->handle()->toplevel);
+            toplevel->send_close();
         }
     } else if (auto s = Waylib::Server::WXWaylandSurface::fromSurface(surface)) {
         s->close();

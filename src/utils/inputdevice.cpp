@@ -12,11 +12,6 @@
 #include <QPointer>
 #include <QLoggingCategory>
 
-extern "C" {
-    #include <wlr/types/wlr_input_device.h>
-    #include <wlr/types/wlr_keyboard.h>
-}
-
 Q_LOGGING_CATEGORY(treelandInputDevice, "treeland.inputdevice", QtWarningMsg)
 
 static bool ensureStatus(libinput_config_status status)
@@ -295,97 +290,97 @@ static bool configCalibrationMatrix(libinput_device *device, float mat[])
     return changed && ensureStatus(status);
 }
 
-libinput_device *InputDevice::libinput_device_handle(QWInputDevice *handle)
+libinput_device *InputDevice::libinput_device_handle(qw_input_device *handle)
 {
-    return QWLibinputBackend::getDeviceHandle(handle);
+    return qw_libinput_backend::get_device_handle(*handle);
 }
 
-bool InputDevice::setSendEventsMode(QWInputDevice *handle, uint32_t mode)
+bool InputDevice::setSendEventsMode(qw_input_device *handle, uint32_t mode)
 {
     return configSendEventsMode(libinput_device_handle(handle), mode);
 }
 
-bool InputDevice::setTapButtonMap(QWInputDevice *handle, libinput_config_tap_button_map map)
+bool InputDevice::setTapButtonMap(qw_input_device *handle, libinput_config_tap_button_map map)
 {
     return configTapButtonMap(libinput_device_handle(handle), map);
 }
 
-bool InputDevice::setTapEnabled(QWInputDevice *handle, libinput_config_tap_state tap)
+bool InputDevice::setTapEnabled(qw_input_device *handle, libinput_config_tap_state tap)
 {
     return configTapEnabled(libinput_device_handle(handle), tap);
 }
 
-bool InputDevice::setTapDragEnabled(QWInputDevice *handle, libinput_config_drag_state drag)
+bool InputDevice::setTapDragEnabled(qw_input_device *handle, libinput_config_drag_state drag)
 {
     return configTapDragEnabled(libinput_device_handle(handle), drag);
 }
 
-bool InputDevice::setTapDragLock(QWInputDevice *handle, libinput_config_drag_lock_state lock)
+bool InputDevice::setTapDragLock(qw_input_device *handle, libinput_config_drag_lock_state lock)
 {
     return configTapDragLockEnabled(libinput_device_handle(handle), lock);
 }
 
-bool InputDevice::setAccelSpeed(QWInputDevice *handle, qreal speed)
+bool InputDevice::setAccelSpeed(qw_input_device *handle, qreal speed)
 {
     return configAccelSpeed(libinput_device_handle(handle), speed);
 }
 
-bool InputDevice::setRotationAngle(QWInputDevice *handle, qreal angle)
+bool InputDevice::setRotationAngle(qw_input_device *handle, qreal angle)
 {
     return configRotationAngle(libinput_device_handle(handle), angle);
 }
 
-bool InputDevice::setAccelProfile(QWInputDevice *handle, libinput_config_accel_profile profile)
+bool InputDevice::setAccelProfile(qw_input_device *handle, libinput_config_accel_profile profile)
 {
     return configAccelProfile(libinput_device_handle(handle), profile);
 }
 
-bool InputDevice::setNaturalScroll(QWInputDevice *handle, bool natural)
+bool InputDevice::setNaturalScroll(qw_input_device *handle, bool natural)
 {
     return configNaturalScroll(libinput_device_handle(handle), natural);
 }
 
-bool InputDevice::setLeftHanded(QWInputDevice *handle, bool left)
+bool InputDevice::setLeftHanded(qw_input_device *handle, bool left)
 {
     return configLeftHanded(libinput_device_handle(handle), left);
 }
 
-bool InputDevice::setClickMethod(QWInputDevice *handle, libinput_config_click_method method)
+bool InputDevice::setClickMethod(qw_input_device *handle, libinput_config_click_method method)
 {
     return configClickMethod(libinput_device_handle(handle), method);
 }
 
-bool InputDevice::setMiddleEmulation(QWInputDevice *handle, libinput_config_middle_emulation_state mid)
+bool InputDevice::setMiddleEmulation(qw_input_device *handle, libinput_config_middle_emulation_state mid)
 {
     return configMiddleEmulation(libinput_device_handle(handle), mid);
 }
 
-bool InputDevice::setScrollMethod(QWInputDevice *handle, libinput_config_scroll_method method)
+bool InputDevice::setScrollMethod(qw_input_device *handle, libinput_config_scroll_method method)
 {
     return configScrollMethod(libinput_device_handle(handle), method);
 }
 
-bool InputDevice::setScrollButton(QWInputDevice *handle, uint32_t button)
+bool InputDevice::setScrollButton(qw_input_device *handle, uint32_t button)
 {
     return configScrollButton(libinput_device_handle(handle), button);
 }
 
-bool InputDevice::setScrollButtonLock(QWInputDevice *handle, libinput_config_scroll_button_lock_state lock)
+bool InputDevice::setScrollButtonLock(qw_input_device *handle, libinput_config_scroll_button_lock_state lock)
 {
     return configScrollButtonLock(libinput_device_handle(handle), lock);
 }
 
-bool InputDevice::setDwt(QWInputDevice *handle, libinput_config_dwt_state enable)
+bool InputDevice::setDwt(qw_input_device *handle, libinput_config_dwt_state enable)
 {
     return configDwtEnabled(libinput_device_handle(handle), enable);
 }
 
-bool InputDevice::setDwtp(QWInputDevice *handle, libinput_config_dwtp_state enable)
+bool InputDevice::setDwtp(qw_input_device *handle, libinput_config_dwtp_state enable)
 {
     return configDwtpEnabled(libinput_device_handle(handle), enable);
 }
 
-bool InputDevice::setCalibrationMatrix(QWInputDevice *handle, float mat[])
+bool InputDevice::setCalibrationMatrix(qw_input_device *handle, float mat[])
 {
     return configCalibrationMatrix(libinput_device_handle(handle), mat);
 }

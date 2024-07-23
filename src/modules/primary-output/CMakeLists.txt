@@ -1,6 +1,6 @@
 set(MODULE_NAME primary-output)
 
-ws_generate_local(server ${CMAKE_CURRENT_SOURCE_DIR}/protocols/treeland-output-management.xml server-protocol)
+ws_generate_local(server ${CMAKE_CURRENT_SOURCE_DIR}/protocols/treeland-output-management.xml treeland-output-management-protocol)
 
 pkg_search_module(WLROOTS REQUIRED IMPORTED_TARGET wlroots)
 
@@ -16,7 +16,7 @@ FILES
 target_sources(${MODULE_NAME} PRIVATE
     outputmanagement.cpp
     impl/output_manager_impl.cpp
-    server-protocol.c
+    ${WAYLAND_PROTOCOLS_OUTPUTDIR}/treeland-output-management-protocol.c
 )
 
 target_include_directories(${MODULE_NAME} PUBLIC
