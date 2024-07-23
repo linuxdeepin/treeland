@@ -113,8 +113,8 @@ Item {
             target: effect
             property: "opacity"
             duration: 1000
-            from: root.direction == LayerShellAnimation.Direction.Show ? 0.2 : 1
-            to: root.direction == LayerShellAnimation.Direction.Show ? 1 : 0.2
+            from: root.direction === LayerShellAnimation.Direction.Show ? 0.2 : 1
+            to: root.direction !== LayerShellAnimation.Direction.Show ? 0.2 : 1
             easing.type: Easing.OutExpo
         }
     }
@@ -128,16 +128,16 @@ Item {
             target: effect
             property: "opacity"
             duration: 400
-            from: root.direction == LayerShellAnimation.Direction.Show ? 0 : 1
-            to: root.direction == LayerShellAnimation.Direction.Show ? 1 : 0
+            from: root.direction === LayerShellAnimation.Direction.Show ? 0 : 1
+            to: root.direction !== LayerShellAnimation.Direction.Show ? 0 : 1
             easing.type: Easing.OutExpo
         }
         PropertyAnimation {
             target: effect
             property: "scale"
             duration: 400
-            from: root.direction === LayerShellAnimation.Direction.Show ? 1.4 : 1
-            to: root.direction !== LayerShellAnimation.Direction.Show ? 1.4 : 1
+            from: root.direction === LayerShellAnimation.Direction.Show ? 0.2 : 1
+            to: root.direction !== LayerShellAnimation.Direction.Show ? 0.2 : 1
             easing.type: Easing.OutExpo
         }
     }

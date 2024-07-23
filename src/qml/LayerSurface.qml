@@ -6,6 +6,7 @@ import Waylib.Server
 import QtQuick.Particles
 import TreeLand
 import TreeLand.Utils
+import TreeLand.Protocols
 
 FocusScope {
     property bool anchorWidth: false
@@ -66,6 +67,10 @@ FocusScope {
         }
     }
 
+    WallpaperController {
+        id: wallpaperController
+    }
+
     Loader {
         id: animation
     }
@@ -116,6 +121,8 @@ FocusScope {
                 animation.anchors.fill = root
                 animation.sourceComponent = newWindowAnimation
                 animation.item.start()
+
+                wallpaperController.get(output.output).animationType = WallpaperController.Scale
         } else { // if not mapped
             Helper.unregisterExclusiveZone(wSurface)
             if (!wSurface.WaylandSocket.rootSocket.enabled) {
@@ -126,6 +133,8 @@ FocusScope {
                 animation.anchors.fill = root
                 animation.sourceComponent = closeWindowAnimation
                 animation.item.start()
+
+                wallpaperController.get(output.output).animationType = WallpaperController.Normal
             }
         }
     }
