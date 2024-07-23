@@ -4,6 +4,7 @@
 import QtQuick
 import QtQuick.Controls
 import Waylib.Server
+import TreeLand
 import TreeLand.Protocols
 
 OutputItem {
@@ -96,12 +97,10 @@ OutputItem {
         }
     }
 
-    Image {
+    Wallpaper {
         id: background
-
-        fillMode: Image.PreserveAspectCrop
         anchors.fill: parent
-        asynchronous: true
+        output: waylandOutput
 
         Component.onCompleted: {
             let name = PersonalizationV1.getOutputName(waylandOutput);
