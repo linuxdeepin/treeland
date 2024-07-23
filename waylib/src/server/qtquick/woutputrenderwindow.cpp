@@ -119,6 +119,7 @@ public:
         // end
 
         QRectF mapRect;
+        QRectF noClipMapRect;
         QRect mapToOutput;
         QSize pixelSize;
         QMatrix4x4 renderMatrix;
@@ -198,7 +199,7 @@ public:
                                                  m_output->output()->size(),
                                                  devicePixelRatio());
     }
-    inline QMatrix4x4 mapToOutput(QQuickItem *source) const;
+    inline QMatrix4x4 mapToViewport(QQuickItem *source) const;
 
     void updateSceneDPR();
 
@@ -221,8 +222,7 @@ public:
 
     qw_buffer *renderLayer(LayerData *layer, bool *dontEndRenderAndReturnNeedsEndRender,
                           bool isCursor,
-                          const QSize &forcePixelSize = QSize(),
-                          const QRectF &targetRect = {});
+                          const QSize &forcePixelSize = QSize());
     WBufferRenderer *afterRender();
     WBufferRenderer *compositeLayers(const QVector<LayerData*> layers, bool forceShadowRenderer);
     bool commit(WBufferRenderer *buffer);
@@ -458,7 +458,7 @@ QMatrix4x4 OutputHelper::renderMatrix() const
     return renderMatrix;
 }
 
-QMatrix4x4 OutputHelper::mapToOutput(QQuickItem *source) const
+QMatrix4x4 OutputHelper::mapToViewport(QQuickItem *source) const
 {
     if (source == m_output->input())
         return renderMatrix() * sourceMapToTargetTransfrom();
@@ -588,7 +588,7 @@ static QQuickItem *createVisualRectangle(QQuickItem *target, const QColor &color
 }
 
 qw_buffer *OutputHelper::renderLayer(LayerData *layer, bool *dontEndRenderAndReturnNeedsEndRender,
-                                    bool isCursor, const QSize &forcePixelSize, const QRectF &targetRect)
+                                    bool isCursor, const QSize &forcePixelSize)
 {
     auto source = layer->layer->layer->parent();
     if (!layer->renderer) {
@@ -611,13 +611,21 @@ qw_buffer *OutputHelper::renderLayer(LayerData *layer, bool *dontEndRenderAndRet
         });
     }
 
-    QRectF mapRect = QRectF(QPointF(0, 0), source->size());
-    QMatrix4x4 mapMatrix = layer->mapFrom ? layer->mapFrom->mapToOutput(source) : mapToOutput(source);
-    if (layer->mapTo)
-        mapMatrix = mapToOutput(layer->mapTo) * mapMatrix;
-    mapMatrix.optimize();
-    const qreal dpr = devicePixelRatio();
-    mapRect = mapMatrix.mapRect(mapRect);
+    layer->mapRect = QRectF(QPointF(0, 0), source->size());
+    const auto mapFrom = layer->mapFrom ? layer->mapFrom.get() : this;
+    QMatrix4x4 mapMatrix = mapFrom->mapToViewport(source);
+    // map to WOutputViewport
+    layer->mapRect = mapMatrix.mapRect(layer->mapRect);
+    layer->noClipMapRect = layer->mapRect;
+    // clip to WOutputViewport
+    layer->mapRect = layer->mapRect & QRectF(QPointF(0, 0), mapFrom->output()->size());
+
+    if (layer->mapTo) {
+        const auto tmpMatrix = mapToViewport(layer->mapTo);
+        layer->mapRect = tmpMatrix.mapRect(layer->mapRect);
+        layer->noClipMapRect = tmpMatrix.mapRect(layer->noClipMapRect);
+        mapMatrix = tmpMatrix * mapMatrix;
+    }
 
     if (!layer->mapFrom // If is a copy layer form the other viewport, should always follow transformation
         && !layer->layer->layer->flags().testFlag(WOutputLayer::SizeFollowTransformation)) {
@@ -632,24 +640,22 @@ qw_buffer *OutputHelper::renderLayer(LayerData *layer, bool *dontEndRenderAndRet
             std::swap(size.rwidth(), size.rheight());
         }
 
-        mapRect.setSize(size);
+        layer->mapRect.setSize(size);
     }
 
+    const qreal dpr = devicePixelRatio();
     QSize pixelSize = forcePixelSize;
     if (!pixelSize.isValid()) {
-        const auto tmpSize = mapRect.size() * dpr;
+        const auto tmpSize = layer->mapRect.size() * dpr;
         pixelSize.rwidth() = qCeil(tmpSize.width());
         pixelSize.rheight() = qCeil(tmpSize.height());
     }
 
-    std::swap(layer->mapRect, mapRect);
-    const QRectF viewportRect(QPointF(0, 0), output()->size());
-
-    if ((viewportRect & layer->mapRect).isEmpty()) {
+    layer->mapToOutput = QRect((layer->mapRect.topLeft() * dpr).toPoint(), pixelSize);
+    if (layer->mapRect.isEmpty()) {
         return nullptr;
     }
-
-    std::swap(layer->pixelSize, pixelSize);
+    Q_ASSERT(!pixelSize.isEmpty());
 
     auto mapToViewportMatrixData = mapMatrix.constData();
     const QMatrix4x4 renderMatrix {
@@ -676,20 +682,22 @@ qw_buffer *OutputHelper::renderLayer(LayerData *layer, bool *dontEndRenderAndRet
                                  || layer->renderMatrix != renderMatrix;
 
     if (!buffer || layer->contentsIsDirty || needsFullUpdate) {
-        layer->renderer->setSize(layer->pixelSize / dpr);
+        layer->renderer->setSize(pixelSize / dpr);
 
         const bool alpha = !layer->layer->layer->flags().testFlag(WOutputLayer::NoAlpha);
-        buffer = beginRender(layer->renderer, layer->pixelSize,
+        buffer = beginRender(layer->renderer, pixelSize,
                              // TODO: Allows control format by WOutputLayer
                              alpha ? DRM_FORMAT_ARGB8888 : DRM_FORMAT_XRGB8888,
                              isCursor ? WBufferRenderer::UseCursorFormats
                                       : WBufferRenderer::DontConfigureSwapchain);
         if (buffer) {
-            render(layer->renderer, 0, renderMatrix, {}, targetRect,
+            const QRectF sr = QRectF(layer->mapRect.topLeft() - layer->noClipMapRect.topLeft(), layer->mapRect.size());
+            const QRectF tr(QPointF(0, 0), layer->mapRect.size());
+            render(layer->renderer, 0, renderMatrix, sr, tr,
                    layer->layer->layer->flags().testFlag(WOutputLayer::PreserveColorContents));
 
             if (visualizeLayers())
-                render(layer->renderer, 1, renderMatrix, {}, targetRect, true);
+                render(layer->renderer, 1, renderMatrix, sr, tr, true);
 
             if (dontEndRenderAndReturnNeedsEndRender) {
                 *dontEndRenderAndReturnNeedsEndRender = true;
@@ -703,6 +711,7 @@ qw_buffer *OutputHelper::renderLayer(LayerData *layer, bool *dontEndRenderAndRet
 
     layer->contentsIsDirty = false;
     layer->renderMatrix = renderMatrix;
+    layer->pixelSize = pixelSize;
 
     return buffer;
 }
@@ -729,7 +738,6 @@ WBufferRenderer *OutputHelper::afterRender()
     layers.reserve(m_layers.size());
     needsCompositeLayers.reserve(m_layers.size());
     int firstCantRejectLayerIndex = m_layers.size();
-    const auto dpr = devicePixelRatio();
 
     for (LayerData *i : std::as_const(m_layers)) {
         if (!i->layer->isEnabled())
@@ -743,9 +751,6 @@ WBufferRenderer *OutputHelper::afterRender()
         auto buffer = renderLayer(i, &needsEndBuffer, false);
         if (!buffer)
             continue;
-
-        const auto pos = QPoint(qRound(i->mapRect.x() * dpr), qRound(i->mapRect.y() * dpr));
-        i->mapToOutput = QRect(pos, i->pixelSize);
 
         layers.append({
             .layer = i->wlrLayer->handle(),
@@ -1044,9 +1049,7 @@ bool OutputHelper::tryToHardwareCursor(LayerData *layer, wlr_buffer *buffer)
                 m_cursorLayer->layer = layer->layer;
             }
 
-            const auto dpr = devicePixelRatio();
-            const QRectF targetRect(0, 0, buffer->width / dpr, buffer->height / dpr);
-            auto newBuffer = renderLayer(m_cursorLayer.get(), nullptr, true, pixelSize, targetRect);
+            auto newBuffer = renderLayer(m_cursorLayer.get(), nullptr, true, pixelSize);
             if (!newBuffer)
                 break;
             Q_ASSERT(pixelSize.width() == newBuffer->handle()->width);
