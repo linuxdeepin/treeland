@@ -50,9 +50,11 @@ Item {
 
     ParallelAnimation {
         id: sideAnimation
-        function onStopped() {
+
+        onStopped: {
             stop();
         }
+
         PropertyAnimation {
             target: effect
             property: "x"
@@ -121,9 +123,11 @@ Item {
 
     ParallelAnimation {
         id: fullscreenAnimation
-        function onStopped() {
+
+        onStopped: {
             stop();
         }
+
         PropertyAnimation {
             target: effect
             property: "opacity"
