@@ -33,6 +33,11 @@ Files: debian/*
 Copyright: None
 License: CC0-1.0
 
+# C++ pch files
+Files: src/server/pch/pch.hxx
+Copyright: None
+License: CC0-1.0
+
 #
 Files: examples/tinywl/qml.qrc
        tests/manual/cursor/cursor.qrc
