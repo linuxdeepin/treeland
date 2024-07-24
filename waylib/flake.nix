@@ -37,7 +37,6 @@
             packages = with pkgs; [
               wayland-utils
               qt6.qtwayland
-              libinput
             ];
 
             inputsFrom = [
@@ -51,9 +50,6 @@
               echo "welcome to waylib"
               echo "wlroots: $(pkg-config --modversion wlroots)"
               echo "wayland-server: $(pkg-config --modversion wayland-server)"
-              # unexpected QT_NO_DEBUG form qt-base-hook
-              # https://github.com/NixOS/nixpkgs/issues/251918
-              export NIX_CFLAGS_COMPILE=$(echo $NIX_CFLAGS_COMPILE | sed 's/-DQT_NO_DEBUG//')
               #export QT_LOGGING_RULES="*.debug=true;qt.*.debug=false"
               #export MESA_DEBUG=1
               #export EGL_LOG_LEVEL=debug

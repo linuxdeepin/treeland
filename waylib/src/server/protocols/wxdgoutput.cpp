@@ -16,14 +16,8 @@
 
 #include <qwdisplay.h>
 #include <qwxdgoutputv1.h>
+#include <qwoutputlayout.h>
 #include <QQmlInfo>
-
-extern "C" {
-#define static
-#include <wlr/types/wlr_xdg_output_v1.h>
-#undef static
-#include <wlr/types/wlr_output_layout.h>
-}
 
 // Copy from wlroots
 #define OUTPUT_MANAGER_VERSION 3
@@ -357,7 +351,7 @@ static struct way_xdg_output_manager_v1 *way_xdg_output_manager_v1_create(
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
-using QW_NAMESPACE::QWXdgOutputManagerV1;
+using QW_NAMESPACE::qw_xdg_output_manager_v1;
 
 class WXdgOutputManagerPrivate : public WObjectPrivate
 {

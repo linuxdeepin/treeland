@@ -15,12 +15,6 @@
 #include <private/qguiapplication_p.h>
 #include <private/qhighdpiscaling_p.h>
 
-extern "C" {
-#define static
-#include <wlr/types/wlr_output.h>
-#undef static
-}
-
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
 QWlrootsScreen::QWlrootsScreen(WOutput *output)

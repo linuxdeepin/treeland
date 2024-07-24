@@ -7,7 +7,7 @@
 #include <wtoplevelsurface.h>
 
 QW_BEGIN_NAMESPACE
-class QWXWaylandSurface;
+class qw_xwayland_surface;
 QW_END_NAMESPACE
 
 struct wlr_xwayland_surface;
@@ -75,15 +75,15 @@ public:
     };
     Q_ENUM(DecorationsType)
 
-    explicit WXWaylandSurface(QW_NAMESPACE::QWXWaylandSurface *handle, WXWayland *xwayland, QObject *parent = nullptr);
+    explicit WXWaylandSurface(QW_NAMESPACE::qw_xwayland_surface *handle, WXWayland *xwayland, QObject *parent = nullptr);
     ~WXWaylandSurface();
 
-    static WXWaylandSurface *fromHandle(QW_NAMESPACE::QWXWaylandSurface *handle);
+    static WXWaylandSurface *fromHandle(QW_NAMESPACE::qw_xwayland_surface *handle);
     static WXWaylandSurface *fromHandle(wlr_xwayland_surface *handle);
     static WXWaylandSurface *fromSurface(WSurface *surface);
 
     WSurface *surface() const override;
-    QW_NAMESPACE::QWXWaylandSurface *handle() const;
+    QW_NAMESPACE::qw_xwayland_surface *handle() const;
     WXWaylandSurface *parentXWaylandSurface() const;
 
     const QList<WXWaylandSurface *> &children() const;

@@ -13,7 +13,7 @@ class QSocketNotifier;
 QT_END_NAMESPACE
 
 QW_BEGIN_NAMESPACE
-class QWDisplay;
+class qw_display;
 QW_END_NAMESPACE
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
@@ -35,7 +35,7 @@ public:
     QVector<WServerInterface*> interfaceList;
     WServerInterface *pendingInterface = nullptr;
 
-    QW_NAMESPACE::QWDisplay *display = nullptr;
+    std::unique_ptr<QW_NAMESPACE::qw_display> display;
     wl_event_loop *loop = nullptr;
 
     QList<WSocket*> sockets;

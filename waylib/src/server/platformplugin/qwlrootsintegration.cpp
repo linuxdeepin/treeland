@@ -16,7 +16,6 @@
 #include <qwoutput.h>
 #include <qwrenderer.h>
 #include <qwinputdevice.h>
-#include <qwdisplay.h>
 
 #include <QOffscreenSurface>
 #include <QGuiApplication>
@@ -49,12 +48,6 @@ extern "C" {
 }
 
 #endif // QT_NO_OPENGL
-
-extern "C" {
-#include <wlr/types/wlr_output.h>
-#include <wlr/types/wlr_input_device.h>
-#include <wlr/types/wlr_tablet_pad.h>
-}
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 

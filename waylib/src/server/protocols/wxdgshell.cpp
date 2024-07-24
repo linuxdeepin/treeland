@@ -7,15 +7,9 @@
 
 #include <qwxdgshell.h>
 #include <qwcompositor.h>
+#include <qwdisplay.h>
 
 #include <QPointer>
-
-extern "C" {
-#define static
-#include <wlr/types/wlr_xdg_shell.h>
-#undef static
-#include <wlr/util/edges.h>
-}
 
 QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
@@ -30,8 +24,8 @@ public:
     }
 
     // begin slot function
-    void onNewXdgSurface(QWXdgSurface *xdgSurface);
-    void onSurfaceDestroy(QWXdgSurface *xdgSurface);
+    void onNewXdgSurface(qw_xdg_surface *xdgSurface);
+    void onSurfaceDestroy(qw_xdg_surface *xdgSurface);
     // end slot function
 
     W_DECLARE_PUBLIC(WXdgShell)
@@ -39,21 +33,21 @@ public:
     QVector<WXdgSurface*> surfaceList;
 };
 
-void WXdgShellPrivate::onNewXdgSurface(QWXdgSurface *xdgSurface)
+void WXdgShellPrivate::onNewXdgSurface(qw_xdg_surface *xdgSurface)
 {
     auto server = q_func()->server();
-    // TODO: QWXdgSurface::from(wlr_surface)
+    // TODO: qw_xdg_surface::from(wlr_surface)
     auto surface = new WXdgSurface(xdgSurface, server);
     surface->setParent(server);
     Q_ASSERT(surface->parent() == server);
-    surface->safeConnect(&QWXdgSurface::beforeDestroy, q_func(), [this, xdgSurface] {
+    surface->safeConnect(&qw_xdg_surface::before_destroy, q_func(), [this, xdgSurface] {
         onSurfaceDestroy(xdgSurface);
     });
     surfaceList.append(surface);
     q_func()->surfaceAdded(surface);
 }
 
-void WXdgShellPrivate::onSurfaceDestroy(QWXdgSurface *xdgSurface)
+void WXdgShellPrivate::onSurfaceDestroy(qw_xdg_surface *xdgSurface)
 {
     auto surface = WXdgSurface::fromHandle(xdgSurface);
     Q_ASSERT(surface);
@@ -85,9 +79,9 @@ void WXdgShell::create(WServer *server)
     W_D(WXdgShell);
     // free follow display
 
-    auto xdg_shell = QWXdgShell::create(server->handle(), 2);
-    QObject::connect(xdg_shell, &QWXdgShell::newSurface, this, [this] (wlr_xdg_surface *xdg_surface) {
-        d_func()->onNewXdgSurface(QWXdgSurface::from(QWSurface::from(xdg_surface->surface)));
+    auto xdg_shell = qw_xdg_shell::create(*server->handle(), 2);
+    QObject::connect(xdg_shell, &qw_xdg_shell::notify_new_surface, this, [this] (wlr_xdg_surface *xdg_surface) {
+        d_func()->onNewXdgSurface(qw_xdg_surface::from(xdg_surface));
     });
     m_handle = xdg_shell;
 }
@@ -108,7 +102,7 @@ void WXdgShell::destroy(WServer *server)
 
 wl_global *WXdgShell::global() const
 {
-    auto handle = nativeInterface<QWXdgShell>();
+    auto handle = nativeInterface<qw_xdg_shell>();
     return handle->handle()->global;
 }
 

@@ -53,13 +53,6 @@
 #include <QQmlComponent>
 #include <QVariant>
 
-extern "C" {
-#define static
-#include <wlr/types/wlr_output.h>
-#undef static
-#include <wlr/types/wlr_gamma_control_v1.h>
-}
-
 #define WLR_FRACTIONAL_SCALE_V1_VERSION 1
 
 inline QPointF getItemGlobalPosition(QQuickItem *item)
@@ -131,13 +124,13 @@ void Helper::initProtocols(WOutputRenderWindow *window, QQmlEngine *qmlEngine)
         m_seat->detachInputDevice(device);
     });
 
-    m_allocator = QWAllocator::autoCreate(backend->handle(), m_renderer);
-    m_renderer->initWlDisplay(m_server->handle());
+    m_allocator = qw_allocator::autocreate(*backend->handle(), *m_renderer);
+    m_renderer->init_wl_display(*m_server->handle());
 
     // free follow display
-    m_compositor = QWCompositor::create(m_server->handle(), m_renderer, 6);
-    QWSubcompositor::create(m_server->handle());
-    QWScreenCopyManagerV1::create(m_server->handle());
+    m_compositor = qw_compositor::create(*m_server->handle(), 6, *m_renderer);
+    qw_subcompositor::create(*m_server->handle());
+    qw_screencopy_manager_v1::create(*m_server->handle());
 
     auto *xdgShell = m_server->attach<WXdgShell>();
     auto *foreignToplevel = m_server->attach<WForeignToplevel>(xdgShell);
@@ -181,13 +174,13 @@ void Helper::initProtocols(WOutputRenderWindow *window, QQmlEngine *qmlEngine)
     });
 
     connect(m_xwayland, &WXWayland::surfaceAdded, this, [this, qmlEngine] (WXWaylandSurface *surface) {
-        surface->safeConnect(&QWXWaylandSurface::associate, this, [this, surface, qmlEngine] {
+        surface->safeConnect(&qw_xwayland_surface::notify_associate, this, [this, surface, qmlEngine] {
             auto initProperties = qmlEngine->newObject();
             initProperties.setProperty("waylandSurface", qmlEngine->toScriptValue(surface));
 
             m_xwaylandCreator->add(surface, initProperties);
         });
-        surface->safeConnect(&QWXWaylandSurface::dissociate, this, [this, surface] {
+        surface->safeConnect(&qw_xwayland_surface::notify_dissociate, this, [this, surface] {
             m_xwaylandCreator->removeByOwner(surface);
         });
 
@@ -225,10 +218,10 @@ void Helper::initProtocols(WOutputRenderWindow *window, QQmlEngine *qmlEngine)
         qCritical("Failed to create socket");
     }
 
-    m_gammaControlManager = QWGammaControlManagerV1::create(m_server->handle());
-    connect(m_gammaControlManager, &QWGammaControlManagerV1::gammaChanged, this, [this]
+    m_gammaControlManager = qw_gamma_control_manager_v1::create(*m_server->handle());
+    connect(m_gammaControlManager, &qw_gamma_control_manager_v1::notify_set_gamma, this, [this]
             (wlr_gamma_control_manager_v1_set_gamma_event *event) {
-        auto *qwOutput = QWOutput::from(event->output);
+        auto *qwOutput = qw_output::from(event->output);
         auto *wOutput = WOutput::fromHandle(qwOutput);
         size_t ramp_size = 0;
         uint16_t *r = nullptr, *g = nullptr, *b = nullptr;
@@ -239,13 +232,13 @@ void Helper::initProtocols(WOutputRenderWindow *window, QQmlEngine *qmlEngine)
             g = gamma_control->table + gamma_control->ramp_size;
             b = gamma_control->table + 2 * gamma_control->ramp_size;
             if (!wOutput->setGammaLut(ramp_size, r, g, b)) {
-                QWGammaControl::from(gamma_control)->sendFailedAndDestroy();
+                qw_gamma_control_v1::from(gamma_control)->send_failed_and_destroy();
             }
         }
     });
     m_wOutputManager = m_server->attach<WOutputManagerV1>();
     connect(m_wOutputManager, &WOutputManagerV1::requestTestOrApply, this, [this]
-            (QWOutputConfigurationV1 *config, bool onlyTest) {
+            (qw_output_configuration_v1 *config, bool onlyTest) {
         QList<WOutputState> states = m_wOutputManager->stateListPending();
         bool ok = true;
         for (auto state : std::as_const(states)) {
@@ -281,7 +274,7 @@ void Helper::initProtocols(WOutputRenderWindow *window, QQmlEngine *qmlEngine)
     });
 
     m_cursorShapeManager = m_server->attach<WCursorShapeManagerV1>();
-    m_fractionalScaleManagerV1 = QWFractionalScaleManagerV1::create(m_server->handle(), WLR_FRACTIONAL_SCALE_V1_VERSION);
+    m_fractionalScaleManagerV1 = qw_fractional_scale_manager_v1::create(*m_server->handle(), WLR_FRACTIONAL_SCALE_V1_VERSION);
 
     backend->handle()->start();
 
@@ -299,7 +292,7 @@ WSeat *Helper::seat() const
     return m_seat;
 }
 
-QWCompositor *Helper::compositor() const
+qw_compositor *Helper::compositor() const
 {
     return m_compositor;
 }
@@ -625,7 +618,7 @@ WSurface *Helper::getFocusSurfaceFrom(QObject *object)
 
 void Helper::allowNonDrmOutputAutoChangeMode(WOutput *output)
 {
-    output->safeConnect(&QWOutput::requestState, this, &Helper::onOutputRequeseState);
+    output->safeConnect(&qw_output::notify_request_state, this, &Helper::onOutputRequeseState);
 }
 
 void Helper::enableOutput(WOutput *output)
@@ -641,7 +634,7 @@ void Helper::enableOutput(WOutput *output)
         qwoutput->setProperty("_Enabled", true);
 
         if (!qwoutput->handle()->current_mode) {
-            auto mode = qwoutput->preferredMode();
+            auto mode = qwoutput->preferred_mode();
             if (mode)
                 output->setMode(mode);
         }
@@ -779,13 +772,13 @@ void Helper::setActivateSurface(WToplevelSurface *newActivate)
 void Helper::onOutputRequeseState(wlr_output_event_request_state *newState)
 {
     if (newState->state->committed & WLR_OUTPUT_STATE_MODE) {
-        auto output = qobject_cast<QWOutput*>(sender());
+        auto output = qobject_cast<qw_output*>(sender());
 
         if (newState->state->mode_type == WLR_OUTPUT_STATE_MODE_CUSTOM) {
             const QSize size(newState->state->custom_mode.width, newState->state->custom_mode.height);
-            output->setCustomMode(size, newState->state->custom_mode.refresh);
+            output->set_custom_mode(size.width(), size.height(), newState->state->custom_mode.refresh);
         } else {
-            output->setMode(newState->state->mode);
+            output->set_mode(newState->state->mode);
         }
 
         output->commit();
@@ -805,7 +798,7 @@ OutputInfo* Helper::getOutputInfo(WOutput *output)
 int main(int argc, char *argv[]) {
     WRenderHelper::setupRendererBackend();
 
-    QWLog::init();
+    qw_log::init();
     WServer::initializeQPA();
 //    QQuickStyle::setStyle("Material");
 
@@ -816,11 +809,7 @@ int main(int argc, char *argv[]) {
 
     QQmlApplicationEngine waylandEngine;
 
-#if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
     waylandEngine.loadFromModule("Tinywl", "Main");
-#else
-    waylandEngine.load(QUrl(u"qrc:/Tinywl/Main.qml"_qs));
-#endif
 
     auto window = waylandEngine.rootObjects().first()->findChild<WOutputRenderWindow*>();
     Q_ASSERT(window);
@@ -829,12 +818,6 @@ int main(int argc, char *argv[]) {
     Q_ASSERT(helper);
 
     helper->initProtocols(window, &waylandEngine);
-
-    // multi output
-//    qobject_cast<QWMultiBackend*>(backend->backend())->forEachBackend([] (wlr_backend *backend, void *) {
-//        if (auto x11 = QWX11Backend::from(backend))
-//            x11->createOutput();
-//    }, nullptr);
 
     return app.exec();
 }

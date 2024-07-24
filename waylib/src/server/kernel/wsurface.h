@@ -11,14 +11,12 @@
 #include <QRect>
 #include <QQmlEngine>
 
-#include <any>
-
 struct wlr_surface;
 
 QW_BEGIN_NAMESPACE
-class QWTexture;
-class QWSurface;
-class QWBuffer;
+class qw_texture;
+class qw_surface;
+class qw_buffer;
 QW_END_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
@@ -39,11 +37,11 @@ class WAYLIB_SERVER_EXPORT WSurface : public WWrapObject
     QML_UNCREATABLE("Only create in C++")
 
 public:
-    explicit WSurface(QW_NAMESPACE::QWSurface *handle, QObject *parent = nullptr);
+    explicit WSurface(QW_NAMESPACE::qw_surface *handle, QObject *parent = nullptr);
 
-    QW_NAMESPACE::QWSurface *handle() const;
+    QW_NAMESPACE::qw_surface *handle() const;
 
-    static WSurface *fromHandle(QW_NAMESPACE::QWSurface *handle);
+    static WSurface *fromHandle(QW_NAMESPACE::qw_surface *handle);
     static WSurface *fromHandle(wlr_surface *handle);
 
     // for current state
@@ -53,7 +51,7 @@ public:
     WLR::Transform orientation() const;
     int bufferScale() const;
     QPoint bufferOffset() const;
-    QW_NAMESPACE::QWBuffer *buffer() const;
+    QW_NAMESPACE::qw_buffer *buffer() const;
 
     void notifyFrameDone();
     WOutput *primaryOutput() const;

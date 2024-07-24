@@ -8,7 +8,6 @@
 #include <qwtexture.h>
 
 extern "C" {
-#include <wlr/render/wlr_texture.h>
 #define static
 #include <wlr/render/gles2.h>
 #undef static
@@ -24,7 +23,7 @@ extern "C" {
 QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
-static void updateGLTexture(QWTexture *handle, QQuickWindow *window, QSGPlainTexture *texture) {
+static void updateGLTexture(qw_texture *handle, QQuickWindow *window, QSGPlainTexture *texture) {
     wlr_gles2_texture_attribs attribs;
     wlr_gles2_texture_get_attribs(handle->handle(), &attribs);
     QSize size(handle->handle()->width, handle->handle()->height);
@@ -50,7 +49,7 @@ static inline quint64 vkimage_cast(quint64 image) {
 }
 
 #ifdef ENABLE_VULKAN_RENDER
-void updateVKTexture(QWTexture *handle, QQuickWindow *window, QSGPlainTexture *texture) {
+void updateVKTexture(qw_texture *handle, QQuickWindow *window, QSGPlainTexture *texture) {
     wlr_vk_image_attribs attribs;
     wlr_vk_texture_get_image_attribs(handle->handle(), &attribs);
     QSize size(handle->handle()->width, handle->handle()->height);
@@ -64,14 +63,14 @@ void updateVKTexture(QWTexture *handle, QQuickWindow *window, QSGPlainTexture *t
 }
 #endif
 
-void updateImage(QWTexture *handle, QQuickWindow *, QSGPlainTexture *texture) {
+void updateImage(qw_texture *handle, QQuickWindow *, QSGPlainTexture *texture) {
     auto image = wlr_pixman_texture_get_image(handle->handle());
     texture->setImage(WTools::fromPixmanImage(image));
 }
 
-typedef void(*UpdateTextureFunction)(QWTexture *, QQuickWindow *, QSGPlainTexture *);
+typedef void(*UpdateTextureFunction)(qw_texture *, QQuickWindow *, QSGPlainTexture *);
 
-static UpdateTextureFunction getUpdateTextFunction(QWTexture *handle, WTexture::Type &type)
+static UpdateTextureFunction getUpdateTextFunction(qw_texture *handle, WTexture::Type &type)
 {
     if (wlr_texture_is_gles2(handle->handle())) {
         type = WTexture::Type::GLTexture;
@@ -95,18 +94,18 @@ static UpdateTextureFunction getUpdateTextFunction(QWTexture *handle, WTexture::
 
 class Q_DECL_HIDDEN WTexturePrivate : public WObjectPrivate {
 public:
-    WTexturePrivate(WTexture *qq, QWTexture *handle);
+    WTexturePrivate(WTexture *qq, qw_texture *handle);
 
     inline wlr_texture *nativeHandle() const {
         Q_ASSERT(handle);
         return handle->handle();
     }
 
-    void init(QWTexture *handle);
+    void init(qw_texture *handle);
 
     W_DECLARE_PUBLIC(WTexture)
 
-    QWTexture *handle;
+    qw_texture *handle;
     WTexture::Type type;
     bool ownsTexture = false;
 
@@ -116,7 +115,7 @@ public:
     QQuickWindow *window = nullptr;
 };
 
-WTexturePrivate::WTexturePrivate(WTexture *qq, QWTexture *handle)
+WTexturePrivate::WTexturePrivate(WTexture *qq, qw_texture *handle)
     : WObjectPrivate(qq)
     , handle(handle)
     , updateTexture(nullptr)
@@ -125,7 +124,7 @@ WTexturePrivate::WTexturePrivate(WTexture *qq, QWTexture *handle)
         init(handle);
 }
 
-void WTexturePrivate::init(QWTexture *new_handle)
+void WTexturePrivate::init(qw_texture *new_handle)
 {
     auto gpuTexture = new QSGPlainTexture();
     gpuTexture->setOwnsTexture(ownsTexture);
@@ -133,13 +132,13 @@ void WTexturePrivate::init(QWTexture *new_handle)
     updateTexture = getUpdateTextFunction(new_handle, type);
 }
 
-WTexture::WTexture(QWTexture *handle)
+WTexture::WTexture(qw_texture *handle)
     : WObject(*new WTexturePrivate(this, handle))
 {
 
 }
 
-bool WTexture::makeTexture(QWTexture *handle, QSGPlainTexture *texture, QQuickWindow *window)
+bool WTexture::makeTexture(qw_texture *handle, QSGPlainTexture *texture, QQuickWindow *window)
 {
     Type type;
     auto updateTexture = getUpdateTextFunction(handle, type);
@@ -149,17 +148,17 @@ bool WTexture::makeTexture(QWTexture *handle, QSGPlainTexture *texture, QQuickWi
     return true;
 }
 
-QWTexture *WTexture::handle() const
+qw_texture *WTexture::handle() const
 {
     W_DC(WTexture);
     return d->handle;
 }
 
-void WTexture::setHandle(QWTexture *handle)
+void WTexture::setHandle(qw_texture *handle)
 {
     W_D(WTexture);
 
-    auto new_handle = reinterpret_cast<QWTexture*>(handle);
+    auto new_handle = reinterpret_cast<qw_texture*>(handle);
 
     if (Q_UNLIKELY(!new_handle)) {
         d->handle = nullptr;

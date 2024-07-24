@@ -12,10 +12,10 @@
 Q_MOC_INCLUDE("winputpopupsurface.h")
 
 QW_BEGIN_NAMESPACE
-class QWInputMethodV2;
-class QWInputMethodKeyboardGrabV2;
-class QWInputPopupSurfaceV2;
-class QWVirtualKeyboardV1;
+class qw_input_method_v2;
+class qw_input_method_keyboard_grab_v2;
+class qw_input_popup_surface_v2;
+class qw_virtual_keyboard_v1;
 QW_END_NAMESPACE
 struct wlr_seat_keyboard_grab;
 struct wlr_keyboard_modifiers;
@@ -43,10 +43,10 @@ Q_SIGNALS:
 private:
     const QList<WInputDevice *> &virtualKeyboards() const;
     void handleNewTI(WTextInput *ti);
-    void handleNewIMV2(QW_NAMESPACE::QWInputMethodV2 *imv2);
-    void handleNewKGV2(QW_NAMESPACE::QWInputMethodKeyboardGrabV2 *kgv2);
-    void handleNewIPSV2(QW_NAMESPACE::QWInputPopupSurfaceV2 *ipsv2);
-    void handleNewVKV1(QW_NAMESPACE::QWVirtualKeyboardV1 *vkv1);
+    void handleNewIMV2(QW_NAMESPACE::qw_input_method_v2 *imv2);
+    void handleNewKGV2(QW_NAMESPACE::qw_input_method_keyboard_grab_v2 *kgv2);
+    void handleNewIPSV2(QW_NAMESPACE::qw_input_popup_surface_v2 *ipsv2);
+    void handleNewVKV1(QW_NAMESPACE::qw_virtual_keyboard_v1 *vkv1);
     void updateAllPopupSurfaces(QRect cursorRect);
     void updatePopupSurface(WInputPopupSurface *popup, QRect cursorRect);
     void notifyLeave();
@@ -61,7 +61,7 @@ private:
     void setFocusedTextInput(WTextInput *ti);
     WInputMethodV2 *inputMethod() const;
     void setInputMethod(WInputMethodV2 *im);
-    QW_NAMESPACE::QWInputMethodKeyboardGrabV2 *activeKeyboardGrab() const;
+    QW_NAMESPACE::qw_input_method_keyboard_grab_v2 *activeKeyboardGrab() const;
     friend void handleKey(struct wlr_seat_keyboard_grab *grab, uint32_t time_msec, uint32_t key, uint32_t state);
     friend void handleModifiers(struct wlr_seat_keyboard_grab *grab, const struct wlr_keyboard_modifiers *modifiers);
 };

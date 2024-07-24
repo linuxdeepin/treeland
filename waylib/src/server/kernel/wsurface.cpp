@@ -3,7 +3,6 @@
 
 #include "wsurface.h"
 #include "qwglobal.h"
-#include "wtexture.h"
 #include "wseat.h"
 #include "private/wsurface_p.h"
 #include "woutput.h"
@@ -17,17 +16,13 @@
 #include <QDebug>
 
 extern "C" {
-#define static
-#include <wlr/types/wlr_xdg_shell.h>
-#include <wlr/types/wlr_subcompositor.h>
-#undef static
 #include <wlr/util/edges.h>
 }
 
 QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
-WSurfacePrivate::WSurfacePrivate(WSurface *qq, QWSurface *handle)
+WSurfacePrivate::WSurfacePrivate(WSurface *qq, qw_surface *handle)
     : WWrapObjectPrivate(qq)
 {
     initHandle(handle);
@@ -53,20 +48,20 @@ void WSurfacePrivate::on_commit()
     if (nativeHandle()->current.committed & WLR_SURFACE_STATE_BUFFER)
         updateBuffer();
 
-    if (hasSubsurface) // Will make to true when QWSurface::newSubsurface
+    if (hasSubsurface) // Will make to true when qw_surface::newSubsurface
         updateHasSubsurface();
 }
 
 void WSurfacePrivate::init()
 {
     W_Q(WSurface);
-    handle()->setData(this, q);
+    handle()->set_data(this, q);
 
     connect();
     updateBuffer();
     updateHasSubsurface();
 
-    if (auto sub = QWSubsurface::tryFrom(handle()))
+    if (auto sub = qw_subsurface::try_from_wlr_surface(handle()->handle()))
         setSubsurface(sub);
 
     wlr_surface *surface = nativeHandle();
@@ -84,15 +79,15 @@ void WSurfacePrivate::connect()
 {
     W_Q(WSurface);
 
-    QObject::connect(handle(), &QWSurface::commit, q, [this] {
+    QObject::connect(handle(), &qw_surface::notify_commit, q, [this] {
         on_commit();
     });
-    QObject::connect(handle(), &QWSurface::mapped, q, &WSurface::mappedChanged);
-    QObject::connect(handle(), &QWSurface::unmapped, q, &WSurface::mappedChanged);
-    QObject::connect(handle(), &QWSurface::newSubsurface, q, [q, this] (QWSubsurface *sub) {
+    QObject::connect(handle(), &qw_surface::notify_map, q, &WSurface::mappedChanged);
+    QObject::connect(handle(), &qw_surface::notify_unmap, q, &WSurface::mappedChanged);
+    QObject::connect(handle(), &qw_surface::notify_new_subsurface, q, [q, this] (wlr_subsurface *sub) {
         setHasSubsurface(true);
 
-        auto surface = ensureSubsurface(sub->handle());
+        auto surface = ensureSubsurface(sub);
         Q_EMIT q->newSubsurface(surface);
 
         for (auto output : std::as_const(outputs))
@@ -105,7 +100,7 @@ void WSurfacePrivate::updateOutputs()
     outputs.clear();
     wlr_surface_output *output;
     wl_list_for_each(output, &nativeHandle()->current_outputs, link) {
-        auto qo = QWOutput::from(output->output);
+        auto qo = qw_output::from(output->output);
         if (!qo)
             continue;
         auto o = WOutput::fromHandle(qo);
@@ -125,10 +120,10 @@ void WSurfacePrivate::setPrimaryOutput(WOutput *output)
     Q_EMIT q->primaryOutputChanged();
 }
 
-void WSurfacePrivate::setBuffer(QWBuffer *newBuffer)
+void WSurfacePrivate::setBuffer(qw_buffer *newBuffer)
 {
     if (buffer) {
-        if (auto clientBuffer = QWClientBuffer::get(buffer)) {
+        if (auto clientBuffer = qw_client_buffer::get(*buffer)) {
             Q_ASSERT(clientBuffer->handle()->n_ignore_locks > 0);
             clientBuffer->handle()->n_ignore_locks--;
         }
@@ -136,7 +131,7 @@ void WSurfacePrivate::setBuffer(QWBuffer *newBuffer)
     }
 
     if (newBuffer) {
-        if (auto clientBuffer = QWClientBuffer::get(newBuffer)) {
+        if (auto clientBuffer = qw_client_buffer::get(*newBuffer)) {
             clientBuffer->handle()->n_ignore_locks++;
         }
 
@@ -151,9 +146,9 @@ void WSurfacePrivate::setBuffer(QWBuffer *newBuffer)
 
 void WSurfacePrivate::updateBuffer()
 {
-    QWBuffer *buffer = nullptr;
+    qw_buffer *buffer = nullptr;
     if (nativeHandle()->buffer)
-        buffer = QWBuffer::from(&nativeHandle()->buffer->base);
+        buffer = qw_buffer::from(&nativeHandle()->buffer->base);
 
     setBuffer(buffer);
 }
@@ -167,7 +162,7 @@ void WSurfacePrivate::updatePreferredBufferScale()
     for (auto o : std::as_const(outputs))
         maxScale = std::max(o->scale(), maxScale);
     if (handle())
-        QWFractionalScaleManagerV1::notifyScale(handle(), maxScale);
+        qw_fractional_scale_manager_v1::notify_scale(nativeHandle(), maxScale);
 
     preferredBufferScale = qCeil(maxScale);
     preferredBufferScaleChange();
@@ -177,7 +172,7 @@ void WSurfacePrivate::preferredBufferScaleChange()
 {
     W_Q(WSurface);
     if (handle())
-        handle()->setPreferredBufferScale(q->preferredBufferScale());
+        handle()->set_preferred_buffer_scale(q->preferredBufferScale());
     Q_EMIT q->preferredBufferScaleChanged();
 }
 
@@ -186,20 +181,20 @@ WSurface *WSurfacePrivate::ensureSubsurface(wlr_subsurface *subsurface)
     if (auto surface = WSurface::fromHandle(subsurface->surface))
         return surface;
 
-    auto qwsurface = QWSurface::from(subsurface->surface);
-    auto surface = new WSurface(qwsurface, q_func());
-    QObject::connect(surface->handle(), &QWSurface::beforeDestroy, surface, &WSurface::safeDeleteLater);
+    auto qw_surface = qw_surface::from(subsurface->surface);
+    auto surface = new WSurface(qw_surface, q_func());
+    QObject::connect(surface->handle(), &qw_surface::before_destroy, surface, &WSurface::safeDeleteLater);
 
     return surface;
 }
 
-void WSurfacePrivate::setSubsurface(QWSubsurface *newSubsurface)
+void WSurfacePrivate::setSubsurface(qw_subsurface *newSubsurface)
 {
     W_Q(WSurface);
     if (subsurface == newSubsurface)
         return;
     subsurface = newSubsurface;
-    QObject::connect(subsurface, &QWSubsurface::destroyed, q, &WSurface::isSubsurfaceChanged);
+    QObject::connect(subsurface, &qw_subsurface::destroyed, q, &WSurface::isSubsurfaceChanged);
 
     if (isSubsurface != !subsurface.isNull()){
         isSubsurface = !subsurface.isNull();
@@ -222,7 +217,7 @@ void WSurfacePrivate::updateHasSubsurface()
                                 || !wl_list_empty(&nativeHandle()->current.subsurfaces_below)));
 }
 
-WSurface::WSurface(QWSurface *handle, QObject *parent)
+WSurface::WSurface(qw_surface *handle, QObject *parent)
     : WSurface(*new WSurfacePrivate(this, handle), parent)
 {
 
@@ -234,20 +229,20 @@ WSurface::WSurface(WSurfacePrivate &dd, QObject *parent)
     dd.init();
 }
 
-QWSurface *WSurface::handle() const
+qw_surface *WSurface::handle() const
 {
     W_DC(WSurface);
     return d->handle();
 }
 
-WSurface *WSurface::fromHandle(QWSurface *handle)
+WSurface *WSurface::fromHandle(qw_surface *handle)
 {
-    return handle->getData<WSurface>();
+    return handle->get_data<WSurface>();
 }
 
 WSurface *WSurface::fromHandle(wlr_surface *handle)
 {
-    if (auto surface = QWSurface::get(handle))
+    if (auto surface = qw_surface::get(handle))
         return fromHandle(surface);
     return nullptr;
 }
@@ -255,7 +250,7 @@ WSurface *WSurface::fromHandle(wlr_surface *handle)
 bool WSurface::inputRegionContains(const QPointF &localPos) const
 {
     W_DC(WSurface);
-    return d->handle()->pointAcceptsInput(localPos);
+    return d->handle()->point_accepts_input(localPos.x(), localPos.y());
 }
 
 bool WSurface::mapped() const
@@ -295,7 +290,7 @@ QPoint WSurface::bufferOffset() const
     return QPoint(d->nativeHandle()->current.dx, d->nativeHandle()->current.dy);
 }
 
-QWBuffer *WSurface::buffer() const
+qw_buffer *WSurface::buffer() const
 {
     W_DC(WSurface);
     return d->buffer;
@@ -459,7 +454,7 @@ void WSurfacePrivate::instantRelease()
 {
     W_Q(WSurface);
     if (handle()) {
-        handle()->setData(nullptr, nullptr);
+        handle()->set_data(nullptr, nullptr);
         handle()->disconnect(q);
         if (subsurface)
             subsurface->disconnect(q);

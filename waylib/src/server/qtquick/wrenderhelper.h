@@ -16,9 +16,9 @@ class QSGTexture;
 QT_END_NAMESPACE
 
 QW_BEGIN_NAMESPACE
-class QWRenderer;
-class QWBackend;
-class QWBuffer;
+class qw_renderer;
+class qw_backend;
+class qw_buffer;
 QW_END_NAMESPACE
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
@@ -31,7 +31,7 @@ class WAYLIB_SERVER_EXPORT WRenderHelper : public QObject, public WObject
     W_DECLARE_PRIVATE(WRenderHelper)
 
 public:
-    explicit WRenderHelper(QW_NAMESPACE::QWRenderer *renderer, QObject *parent = nullptr);
+    explicit WRenderHelper(QW_NAMESPACE::qw_renderer *renderer, QObject *parent = nullptr);
 
     QSize size() const;
     void setSize(const QSize &size);
@@ -39,15 +39,15 @@ public:
     static QSGRendererInterface::GraphicsApi getGraphicsApi(QQuickRenderControl *rc);
     static QSGRendererInterface::GraphicsApi getGraphicsApi();
 
-    static QW_NAMESPACE::QWBuffer *toBuffer(QW_NAMESPACE::QWRenderer *renderer, QSGTexture *texture, QSGRendererInterface::GraphicsApi api);
+    static QW_NAMESPACE::qw_buffer *toBuffer(QW_NAMESPACE::qw_renderer *renderer, QSGTexture *texture, QSGRendererInterface::GraphicsApi api);
 
-    QQuickRenderTarget acquireRenderTarget(QQuickRenderControl *rc, QW_NAMESPACE::QWBuffer *buffer);
-    std::pair<QW_NAMESPACE::QWBuffer*, QQuickRenderTarget> lastRenderTarget() const;
-    static QW_NAMESPACE::QWRenderer *createRenderer(QW_NAMESPACE::QWBackend *backend);
-    static QW_NAMESPACE::QWRenderer *createRenderer(QW_NAMESPACE::QWBackend *backend, QSGRendererInterface::GraphicsApi api);
+    QQuickRenderTarget acquireRenderTarget(QQuickRenderControl *rc, QW_NAMESPACE::qw_buffer *buffer);
+    std::pair<QW_NAMESPACE::qw_buffer*, QQuickRenderTarget> lastRenderTarget() const;
+    static QW_NAMESPACE::qw_renderer *createRenderer(QW_NAMESPACE::qw_backend *backend);
+    static QW_NAMESPACE::qw_renderer *createRenderer(QW_NAMESPACE::qw_backend *backend, QSGRendererInterface::GraphicsApi api);
 
-    static void setupRendererBackend(QW_NAMESPACE::QWBackend *testBackend = nullptr);
-    static QSGRendererInterface::GraphicsApi probe(QW_NAMESPACE::QWBackend *testBackend, const QList<QSGRendererInterface::GraphicsApi> &apiList);
+    static void setupRendererBackend(QW_NAMESPACE::qw_backend *testBackend = nullptr);
+    static QSGRendererInterface::GraphicsApi probe(QW_NAMESPACE::qw_backend *testBackend, const QList<QSGRendererInterface::GraphicsApi> &apiList);
 
 Q_SIGNALS:
     void sizeChanged();

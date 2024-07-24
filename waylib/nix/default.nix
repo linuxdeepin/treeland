@@ -13,6 +13,7 @@
 , wlr-protocols
 , pixman
 , libdrm
+, libinput
 , nixos-artwork
 
 # only for test 
@@ -60,6 +61,7 @@ stdenv.mkDerivation (finalAttrs: {
     wlr-protocols
     pixman
     libdrm
+    libinput
   ];
 
   propagatedBuildInputs = [

@@ -8,17 +8,13 @@
 
 #include <qwcursorshapev1.h>
 #include <qwseat.h>
-
-extern "C" {
-#include <wlr/types/wlr_cursor_shape_v1.h>
-#include <wlr/types/wlr_seat.h>
-}
+#include <qwdisplay.h>
 
 #define CURSOR_SHAPE_MANAGER_V1_VERSION 1
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
-using QW_NAMESPACE::QWCursorShapeManagerV1;
+using QW_NAMESPACE::qw_cursor_shape_manager_v1;
 
 class WCursorShapeManagerV1Private : public WObjectPrivate
 {
@@ -29,8 +25,8 @@ public:
 
     }
 
-    inline QWCursorShapeManagerV1 *handle() const {
-        return q_func()->nativeInterface<QWCursorShapeManagerV1>();
+    inline qw_cursor_shape_manager_v1 *handle() const {
+        return q_func()->nativeInterface<qw_cursor_shape_manager_v1>();
     }
 
     inline wlr_cursor_shape_manager_v1 *nativeHandle() const {
@@ -121,9 +117,9 @@ WCursorShapeManagerV1::WCursorShapeManagerV1()
 
 }
 
-QWCursorShapeManagerV1 *WCursorShapeManagerV1::handle() const
+qw_cursor_shape_manager_v1 *WCursorShapeManagerV1::handle() const
 {
-    return nativeInterface<QWCursorShapeManagerV1>();
+    return nativeInterface<qw_cursor_shape_manager_v1>();
 }
 
 QByteArrayView WCursorShapeManagerV1::interfaceName() const
@@ -136,10 +132,10 @@ void WCursorShapeManagerV1::create(WServer *server)
     W_D(WCursorShapeManagerV1);
 
     if (!m_handle) {
-        m_handle = QWCursorShapeManagerV1::create(server->handle(), CURSOR_SHAPE_MANAGER_V1_VERSION);
-        QObject::connect(handle(), &QWCursorShapeManagerV1::requestSetShape, this, [this]
+        m_handle = qw_cursor_shape_manager_v1::create(*server->handle(), CURSOR_SHAPE_MANAGER_V1_VERSION);
+        QObject::connect(handle(), &qw_cursor_shape_manager_v1::notify_request_set_shape, this, [this]
                          (wlr_cursor_shape_manager_v1_request_set_shape_event *event) {
-            if (auto *seat = WSeat::fromHandle(QW_NAMESPACE::QWSeat::from(event->seat_client->seat))) {
+            if (auto *seat = WSeat::fromHandle(QW_NAMESPACE::qw_seat::from(event->seat_client->seat))) {
                 if (seat->cursor())
                     seat->cursor()->setCursorShape(wpToWCursorShape(event->shape));
             }

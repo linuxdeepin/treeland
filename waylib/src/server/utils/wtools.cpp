@@ -6,10 +6,6 @@
 #include <qcolorspace.h>
 #include <QDebug>
 
-extern "C" {
-#include <wlr/util/box.h>
-#include <wlr/util/edges.h>
-}
 #include <pixman.h>
 #include <drm_fourcc.h>
 

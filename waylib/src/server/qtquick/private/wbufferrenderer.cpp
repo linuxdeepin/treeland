@@ -12,6 +12,7 @@
 #include <qwrenderer.h>
 #include <qwswapchain.h>
 #include <qwoutput.h>
+#include <qwallocator.h>
 
 #include <QSGImageNode>
 #include <wbuffertextureprovider.h>
@@ -32,19 +33,6 @@
 #include <private/qrhigles2_p.h>
 #include <private/qopenglcontext_p.h>
 #endif
-
-extern "C" {
-#include <wlr/types/wlr_damage_ring.h>
-#include <wlr/render/drm_format_set.h>
-#define static
-#include <wlr/render/wlr_renderer.h>
-#include <wlr/render/interface.h>
-#undef static
-#ifdef slots
-#undef slots // using at swapchain.h
-#endif
-#include <wlr/render/swapchain.h>
-}
 
 #include <pixman.h>
 #include <drm_fourcc.h>
@@ -80,7 +68,7 @@ inline static WImageRenderTarget *getImageFrom(const QQuickRenderTarget &rt)
     return static_cast<WImageRenderTarget*>(d->u.paintDevice);
 }
 
-static const wlr_drm_format *pickFormat(QWRenderer *renderer, uint32_t format)
+static const wlr_drm_format *pickFormat(qw_renderer *renderer, uint32_t format)
 {
     auto r = renderer->handle();
     if (!r->impl->get_render_formats) {
@@ -114,7 +102,9 @@ class Q_DECL_HIDDEN TextureProvider : public WBufferTextureProvider
 {
 public:
     explicit TextureProvider(WBufferRenderer *item)
-        : item(item) {}
+        : item(item) {
+
+    }
     ~TextureProvider() {
         if (m_texture)
             cleanTexture();
@@ -124,15 +114,15 @@ public:
         return m_texture ? &m_texture->texture : nullptr;
     }
 
-    QWTexture *qwTexture() const override {
+    qw_texture *qwTexture() const override {
         return m_texture ? m_texture->qwtexture : nullptr;
     }
 
-    QWBuffer *qwBuffer() const override {
+    qw_buffer *qwBuffer() const override {
         return m_texture ? m_texture->buffer : nullptr;
     }
 
-    void setBuffer(QWBuffer *buffer) {
+    void setBuffer(qw_buffer *buffer) {
         Q_ASSERT(item);
 
         if (m_texture)
@@ -175,9 +165,9 @@ public:
     WBufferRenderer *item;
 
     struct Texture {
-        Texture(QQuickWindow *window, QWRenderer *renderer, QWBuffer *buffer)
+        Texture(QQuickWindow *window, qw_renderer *renderer, qw_buffer *buffer)
         {
-            qwtexture = QWTexture::fromBuffer(renderer, buffer);
+            qwtexture = qw_texture::from_buffer(*renderer, *buffer);
             this->buffer = buffer;
             WTexture::makeTexture(qwtexture, &texture, window);
             texture.setOwnsTexture(false);
@@ -187,8 +177,8 @@ public:
             delete qwtexture;
         }
 
-        QWTexture *qwtexture;
-        QWBuffer *buffer;
+        qw_texture *qwtexture;
+        qw_buffer *buffer;
         QSGPlainTexture texture;
     };
 
@@ -305,12 +295,12 @@ const QMatrix4x4 &WBufferRenderer::currentWorldTransform() const
     return state.worldTransform;
 }
 
-QWBuffer *WBufferRenderer::currentBuffer() const
+qw_buffer *WBufferRenderer::currentBuffer() const
 {
     return state.buffer;
 }
 
-QWBuffer *WBufferRenderer::lastBuffer() const
+qw_buffer *WBufferRenderer::lastBuffer() const
 {
     return m_lastBuffer;
 }
@@ -321,12 +311,12 @@ QRhiTexture *WBufferRenderer::currentRenderTarget() const
     return textureRT->description().colorAttachmentAt(0)->texture();
 }
 
-const QWDamageRing *WBufferRenderer::damageRing() const
+const qw_damage_ring *WBufferRenderer::damageRing() const
 {
     return &m_damageRing;
 }
 
-QWDamageRing *WBufferRenderer::damageRing()
+qw_damage_ring *WBufferRenderer::damageRing()
 {
     return &m_damageRing;
 }
@@ -341,18 +331,21 @@ QSGTextureProvider *WBufferRenderer::textureProvider() const
     return m_textureProvider.get();
 }
 
-QWBuffer *WBufferRenderer::beginRender(const QSize &pixelSize, qreal devicePixelRatio,
+qw_buffer *WBufferRenderer::beginRender(const QSize &pixelSize, qreal devicePixelRatio,
                                        uint32_t format, RenderFlags flags)
 {
     Q_ASSERT(!state.buffer);
     Q_ASSERT(m_output);
+    Q_ASSERT(m_textureProvider);
 
     if (pixelSize.isEmpty())
         return nullptr;
 
     Q_EMIT beforeRendering();
 
-    m_damageRing.setBounds(pixelSize);
+    m_damageRing.set_bounds(pixelSize.width(), pixelSize.height());
+    Q_ASSERT(m_textureProvider);
+
     // configure swapchain
     if (flags.testFlag(RenderFlag::DontConfigureSwapchain)) {
         auto renderFormat = pickFormat(m_output->renderer(), format);
@@ -360,16 +353,22 @@ QWBuffer *WBufferRenderer::beginRender(const QSize &pixelSize, qreal devicePixel
             qWarning("wlr_renderer doesn't support format 0x%s", drmGetFormatName(format));
             return nullptr;
         }
+        Q_ASSERT(m_textureProvider);
+
         if (!m_swapchain || QSize(m_swapchain->handle()->width, m_swapchain->handle()->height) != pixelSize
             || m_swapchain->handle()->format.format != renderFormat->format) {
             if (m_swapchain)
                 delete m_swapchain;
-            m_swapchain = QWSwapchain::create(m_output->allocator(), pixelSize, renderFormat);
+            m_swapchain = qw_swapchain::create(m_output->allocator()->handle(), pixelSize.width(), pixelSize.height(), renderFormat);
         }
+        Q_ASSERT(m_textureProvider);
+
     } else {
         bool ok = m_output->configureSwapchain(pixelSize, format, &m_swapchain, !flags.testFlag(DontTestSwapchain));
         if (!ok)
             return nullptr;
+        Q_ASSERT(m_textureProvider);
+
     }
 
     if (!shouldCacheBuffer())
@@ -377,9 +376,10 @@ QWBuffer *WBufferRenderer::beginRender(const QSize &pixelSize, qreal devicePixel
 
     // TODO: Support scanout buffer of wlr_surface(from WSurfaceItem)
     int bufferAge;
-    auto buffer = m_swapchain->acquire(&bufferAge);
-    if (!buffer)
+    auto wbuffer = m_swapchain->acquire(&bufferAge);
+    if (!wbuffer)
         return nullptr;
+    auto buffer = qw_buffer::from(wbuffer);
 
     if (!m_renderHelper)
         m_renderHelper = new WRenderHelper(m_output->renderer());
@@ -517,7 +517,7 @@ void WBufferRenderer::render(int sourceIndex, const QMatrix4x4 &renderMatrix, bo
     { // after render
         if (!softwareRenderer) {
             // TODO: get damage area from QRhi renderer
-            m_damageRing.addWhole();
+            m_damageRing.add_whole();
             // ###: maybe Qt bug? Before executing QRhi::endOffscreenFrame, we may
             // use the same QSGRenderer for multiple drawings. This can lead to
             // rendering the same content for different QSGRhiRenderTarget instances
@@ -539,7 +539,7 @@ void WBufferRenderer::render(int sourceIndex, const QMatrix4x4 &renderMatrix, bo
 
             {
                 PixmanRegion damage;
-                m_damageRing.getBufferDamage(state.bufferAge, damage);
+                m_damageRing.get_buffer_damage(state.bufferAge, damage);
 
                 if (!damage.isEmpty() && state.lastRT.first != state.buffer && !state.lastRT.second.isNull()) {
                     auto image = getImageFrom(state.lastRT.second);
@@ -547,7 +547,7 @@ void WBufferRenderer::render(int sourceIndex, const QMatrix4x4 &renderMatrix, bo
                     Q_ASSERT(image->size() == state.pixelSize);
 
                     // TODO: Don't use the previous render target, we can get the damage region of QtQuick
-                    // before QQuickRenderControl::render for QWDamageRing, and add dirty region to
+                    // before QQuickRenderControl::render for qw_damage_ring, and add dirty region to
                     // QSGAbstractSoftwareRenderer to force repaint the damage region of current render target.
                     QPainter pa(currentImage);
 
@@ -587,7 +587,7 @@ void WBufferRenderer::endRender()
 
     m_lastBuffer = buffer;
     m_damageRing.rotate();
-    m_swapchain->setBufferSubmitted(buffer);
+    m_swapchain->set_buffer_submitted(*buffer);
     buffer->unlock();
 
 #ifndef QT_NO_OPENGL

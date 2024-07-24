@@ -8,7 +8,7 @@
 #include <QObject>
 
 QW_BEGIN_NAMESPACE
-class QWCursorShapeManagerV1;
+class qw_cursor_shape_manager_v1;
 QW_END_NAMESPACE
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
@@ -24,7 +24,7 @@ class WCursorShapeManagerV1 : public QObject, public WObject,  public WServerInt
 public:
     explicit WCursorShapeManagerV1();
 
-    QW_NAMESPACE::QWCursorShapeManagerV1 *handle() const;
+    QW_NAMESPACE::qw_cursor_shape_manager_v1 *handle() const;
 
     QByteArrayView interfaceName() const override;
 

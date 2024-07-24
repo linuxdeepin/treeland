@@ -16,7 +16,7 @@ class QImage;
 QT_END_NAMESPACE
 
 QW_BEGIN_NAMESPACE
-class QWTexture;
+class qw_texture;
 QW_END_NAMESPACE
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
@@ -34,12 +34,12 @@ public:
         VKTexture
     };
 
-    explicit WTexture(QW_NAMESPACE::QWTexture *handle);
+    explicit WTexture(QW_NAMESPACE::qw_texture *handle);
 
-    static bool makeTexture(QW_NAMESPACE::QWTexture *handle, QSGPlainTexture *texture, QQuickWindow *window);
+    static bool makeTexture(QW_NAMESPACE::qw_texture *handle, QSGPlainTexture *texture, QQuickWindow *window);
 
-    QW_NAMESPACE::QWTexture *handle() const;
-    void setHandle(QW_NAMESPACE::QWTexture *handle);
+    QW_NAMESPACE::qw_texture *handle() const;
+    void setHandle(QW_NAMESPACE::qw_texture *handle);
     void setOwnsTexture(bool owns);
 
     Type type() const;

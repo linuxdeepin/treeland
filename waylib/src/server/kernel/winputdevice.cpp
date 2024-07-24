@@ -11,11 +11,6 @@
 #include <QInputDevice>
 #include <QPointer>
 
-extern "C" {
-#include <wlr/types/wlr_input_device.h>
-#include <wlr/types/wlr_keyboard.h>
-}
-
 QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
@@ -25,17 +20,17 @@ public:
     WInputDevicePrivate(WInputDevice *qq, void *handle)
         : WWrapObjectPrivate(qq)
     {
-        initHandle(reinterpret_cast<QWInputDevice*>(handle));
-        this->handle()->setData(this, qq);
+        initHandle(reinterpret_cast<qw_input_device*>(handle));
+        this->handle()->set_data(this, qq);
     }
 
     void instantRelease() override {
-        handle()->setData(nullptr, nullptr);
+        handle()->set_data(nullptr, nullptr);
         if (seat)
             seat->detachInputDevice(q_func());
     }
 
-    WWRAP_HANDLE_FUNCTIONS(QWInputDevice, wlr_input_device)
+    WWRAP_HANDLE_FUNCTIONS(qw_input_device, wlr_input_device)
 
     W_DECLARE_PUBLIC(WInputDevice);
 
@@ -43,21 +38,21 @@ public:
     WSeat *seat = nullptr;
 };
 
-WInputDevice::WInputDevice(QWInputDevice *handle)
+WInputDevice::WInputDevice(qw_input_device *handle)
     : WWrapObject(*new WInputDevicePrivate(this, handle))
 {
 
 }
 
-QWInputDevice *WInputDevice::handle() const
+qw_input_device *WInputDevice::handle() const
 {
     W_DC(WInputDevice);
     return d->handle();
 }
 
-WInputDevice *WInputDevice::fromHandle(const QWInputDevice *handle)
+WInputDevice *WInputDevice::fromHandle(const qw_input_device *handle)
 {
-    return handle->getData<WInputDevice>();
+    return handle->get_data<WInputDevice>();
 }
 
 WInputDevice *WInputDevice::from(const QInputDevice *device)

@@ -22,9 +22,8 @@ class QSGRenderContext;
 QT_END_NAMESPACE
 
 QW_BEGIN_NAMESPACE
-class QWBuffer;
-class QWTexture;
-class QWSwapchain;
+class qw_buffer;
+class qw_swapchain;
 QW_END_NAMESPACE
 
 struct pixman_region32;
@@ -63,11 +62,11 @@ public:
 
     QSGRenderer *currentRenderer() const;
     const QMatrix4x4 &currentWorldTransform() const;
-    QW_NAMESPACE::QWBuffer *currentBuffer() const;
-    QW_NAMESPACE::QWBuffer *lastBuffer() const;
+    QW_NAMESPACE::qw_buffer *currentBuffer() const;
+    QW_NAMESPACE::qw_buffer *lastBuffer() const;
     QRhiTexture *currentRenderTarget() const;
-    const QW_NAMESPACE::QWDamageRing *damageRing() const;
-    QW_NAMESPACE::QWDamageRing *damageRing();
+    const QW_NAMESPACE::qw_damage_ring *damageRing() const;
+    QW_NAMESPACE::qw_damage_ring *damageRing();
 
     bool isTextureProvider() const override;
     QSGTextureProvider *textureProvider() const override;
@@ -80,7 +79,7 @@ Q_SIGNALS:
     void afterRendering();
 
 protected:
-    QW_NAMESPACE::QWBuffer *beginRender(const QSize &pixelSize, qreal devicePixelRatio,
+    QW_NAMESPACE::qw_buffer *beginRender(const QSize &pixelSize, qreal devicePixelRatio,
                                         uint32_t format, RenderFlags flags = {});
     void render(int sourceIndex, const QMatrix4x4 &renderMatrix, bool preserveColorContents = false);
     void endRender();
@@ -112,9 +111,9 @@ private:
     int indexOfSource(QQuickItem *item);
     QSGRenderer *ensureRenderer(int sourceIndex, QSGRenderContext *rc);
 
-    QW_NAMESPACE::QWSwapchain *m_swapchain = nullptr;
+    QW_NAMESPACE::qw_swapchain *m_swapchain = nullptr;
     WRenderHelper *m_renderHelper = nullptr;
-    QPointer<QW_NAMESPACE::QWBuffer> m_lastBuffer;
+    QPointer<QW_NAMESPACE::qw_buffer> m_lastBuffer;
 
     struct RenderState {
         RenderFlags flags;
@@ -124,8 +123,8 @@ private:
         QSize pixelSize;
         qreal devicePixelRatio;
         int bufferAge;
-        std::pair<QW_NAMESPACE::QWBuffer*, QQuickRenderTarget> lastRT;
-        QW_NAMESPACE::QWBuffer *buffer = nullptr;
+        std::pair<QW_NAMESPACE::qw_buffer*, QQuickRenderTarget> lastRT;
+        QW_NAMESPACE::qw_buffer *buffer = nullptr;
         QQuickRenderTarget renderTarget;
         QSGRenderTarget sgRenderTarget;
     } state;
@@ -138,7 +137,7 @@ private:
     };
 
     QList<Data> m_sourceList;
-    QW_NAMESPACE::QWDamageRing m_damageRing;
+    QW_NAMESPACE::qw_damage_ring m_damageRing;
     std::unique_ptr<TextureProvider> m_textureProvider;
 
     uint m_cacheBuffer:1;

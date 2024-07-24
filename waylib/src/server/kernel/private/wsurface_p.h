@@ -14,17 +14,17 @@ struct wlr_surface;
 struct wlr_subsurface;
 
 QW_BEGIN_NAMESPACE
-class QWSubsurface;
+class qw_subsurface;
 QW_END_NAMESPACE
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
 class WSurfacePrivate : public WWrapObjectPrivate {
 public:
-    WSurfacePrivate(WSurface *qq, QW_NAMESPACE::QWSurface *handle);
+    WSurfacePrivate(WSurface *qq, QW_NAMESPACE::qw_surface *handle);
     ~WSurfacePrivate();
 
-    WWRAP_HANDLE_FUNCTIONS(QW_NAMESPACE::QWSurface, wlr_surface)
+    WWRAP_HANDLE_FUNCTIONS(QW_NAMESPACE::qw_surface, wlr_surface)
 
     wl_client *waylandClient() const override;
 
@@ -38,25 +38,25 @@ public:
     void instantRelease() override;    // release qwobject etc.
     void updateOutputs();
     void setPrimaryOutput(WOutput *output);
-    void setBuffer(QW_NAMESPACE::QWBuffer *newBuffer);
+    void setBuffer(QW_NAMESPACE::qw_buffer *newBuffer);
     void updateBuffer();
     void updatePreferredBufferScale();
     void preferredBufferScaleChange();
 
     WSurface *ensureSubsurface(wlr_subsurface *subsurface);
-    void setSubsurface(QW_NAMESPACE::QWSubsurface *newSubsurface);
+    void setSubsurface(QW_NAMESPACE::qw_subsurface *newSubsurface);
     void setHasSubsurface(bool newHasSubsurface);
     void updateHasSubsurface();
 
     W_DECLARE_PUBLIC(WSurface)
 
-    QPointer<QW_NAMESPACE::QWSubsurface> subsurface;
+    QPointer<QW_NAMESPACE::qw_subsurface> subsurface;
     bool hasSubsurface = false;
     bool isSubsurface = false;  // qpointer would be null due to qwsubsurface' destroy, cache here
     uint32_t preferredBufferScale = 1;
     uint32_t explicitPreferredBufferScale = 0;
 
-    QW_NAMESPACE::QWBuffer *buffer = nullptr;
+    QW_NAMESPACE::qw_buffer *buffer = nullptr;
     QVector<WOutput*> outputs;
     WOutput *primaryOutput = nullptr;
     QMetaObject::Connection frameDoneConnection;

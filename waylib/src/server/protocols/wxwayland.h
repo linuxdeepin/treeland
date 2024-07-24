@@ -6,8 +6,8 @@
 #include <WServer>
 
 QW_BEGIN_NAMESPACE
-class QWXWayland;
-class QWCompositor;
+class qw_xwayland;
+class qw_compositor;
 QW_END_NAMESPACE
 
 struct xcb_connection_t;
@@ -38,10 +38,10 @@ public:
         AtomCount
     };
 
-    WXWayland(QW_NAMESPACE::QWCompositor *compositor, bool lazy = true);
+    WXWayland(QW_NAMESPACE::qw_compositor *compositor, bool lazy = true);
 
-    inline QW_NAMESPACE::QWXWayland *handle() const {
-        return nativeInterface<QW_NAMESPACE::QWXWayland>();
+    inline QW_NAMESPACE::qw_xwayland *handle() const {
+        return nativeInterface<QW_NAMESPACE::qw_xwayland>();
     }
 
     QByteArray displayName() const;

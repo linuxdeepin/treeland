@@ -12,10 +12,6 @@
 #include <QObject>
 #include <QRect>
 
-extern "C" {
-#include <wayland-server.h>
-}
-
 WAYLIB_SERVER_BEGIN_NAMESPACE
 class WTextInputV2Private;
 namespace tiv2 {

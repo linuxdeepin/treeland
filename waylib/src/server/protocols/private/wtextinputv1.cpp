@@ -16,12 +16,7 @@
 #include <QRect>
 
 extern "C" {
-#include <wlr/types/wlr_seat.h>
-#define static
-#include <wlr/types/wlr_compositor.h>
-#undef static
-#include <wlr/util/box.h>
-#include <text-input-unstable-v1-protocol.h>
+#include "text-input-unstable-v1-protocol.h"
 }
 QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
@@ -233,7 +228,7 @@ void text_input_handle_activate(wl_client *client,
                                 wl_resource *surface)
 {
     wlr_seat_client *seat_client =  wlr_seat_client_from_resource(seat);
-    WSeat *wSeat = WSeat::fromHandle(QWSeat::from(seat_client->seat));
+    WSeat *wSeat = WSeat::fromHandle(qw_seat::from(seat_client->seat));
     Q_ASSERT(wSeat);
     WTextInputV1 *text_input = text_input_from_resource(resource);
     auto d = text_input->d_func();
@@ -249,7 +244,7 @@ void text_input_handle_activate(wl_client *client,
         if (text_input->focusedSurface())
             text_input->focusedSurface()->safeDisconnect(text_input);
         d->focusedSurface = wSurface;
-        wSurface->safeConnect(&QWSurface::beforeDestroy, text_input, [d, text_input]{
+        wSurface->safeConnect(&qw_surface::before_destroy, text_input, [d, text_input]{
             d->focusedSurface = nullptr;
         });
     }
@@ -264,7 +259,7 @@ void text_input_handle_deactivate(wl_client *client,
     WTextInputV1 *text_input = text_input_from_resource(resource);
     auto d = text_input->d_func();
     wlr_seat_client *seat_client = wlr_seat_client_from_resource(seat);
-    WSeat *wSeat = WSeat::fromHandle(QWSeat::from(seat_client->seat));
+    WSeat *wSeat = WSeat::fromHandle(qw_seat::from(seat_client->seat));
     if (!wSeat || wSeat != text_input->seat())
         return;
 

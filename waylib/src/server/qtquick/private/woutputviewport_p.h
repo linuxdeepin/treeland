@@ -14,12 +14,6 @@
 #include <QQuickTextureFactory>
 #include <private/qquickitem_p.h>
 
-extern "C" {
-#define static
-#include <wlr/types/wlr_output.h>
-#undef static
-}
-
 QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
 

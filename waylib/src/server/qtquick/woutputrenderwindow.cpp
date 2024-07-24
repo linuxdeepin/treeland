@@ -8,7 +8,6 @@
 #include "wbackend.h"
 #include "woutputviewport.h"
 #include "woutputviewport_p.h"
-#include "wtools.h"
 #include "wqmlhelper_p.h"
 #include "woutputlayer.h"
 #include "wbufferrenderer_p.h"
@@ -28,12 +27,11 @@
 #include <qwbuffer.h>
 #include <qwtexture.h>
 #include <qwswapchain.h>
-#include <qwsignalconnector.h>
+#include <qwoutputlayer.h>
 
 #include <QOffscreenSurface>
 #include <QQuickRenderControl>
 #include <QOpenGLFunctions>
-#include <memory>
 
 #define protected public
 #define private public
@@ -57,20 +55,12 @@
 
 extern "C" {
 #define static
-#include <wlr/render/wlr_renderer.h>
-#include <wlr/render/interface.h>
 #include <wlr/render/gles2.h>
-#include <wlr/types/wlr_output_layer.h>
 #undef static
-#include <wlr/render/pixman.h>
-#include <wlr/render/egl.h>
 #include <wlr/render/pixman.h>
 #ifdef ENABLE_VULKAN_RENDER
 #include <wlr/render/vulkan.h>
 #endif
-#include <wlr/util/region.h>
-#include <wlr/types/wlr_output.h>
-#include <wlr/types/wlr_damage_ring.h>
 }
 
 #include <drm_fourcc.h>
@@ -92,37 +82,13 @@ inline static void resetGlState()
 #endif
 }
 
-// TODO: move to qwlroots
-class QWOutputLayer : public QObject
-{
-    Q_OBJECT
-public:
-    ~QWOutputLayer();
-
-    inline wlr_output_layer *handle() const {
-        return m_handle;
-    }
-
-    static QWOutputLayer *create(QWOutput *output, QObject *parent = nullptr);
-
-Q_SIGNALS:
-    void feedback();
-
-private:
-    explicit QWOutputLayer(wlr_output_layer *handle, QWOutput *output, QObject *parent = nullptr);
-    void onFeedback(wlr_output_layer_feedback_event *event);
-
-    wlr_output_layer *m_handle;
-    QWSignalConnector sc;
-};
-
 class OutputLayer;
 class OutputHelper : public WOutputHelper
 {
     friend class WOutputRenderWindowPrivate;
 public:
     struct LayerData {
-        LayerData(OutputLayer *l, QWOutputLayer *layer)
+        LayerData(OutputLayer *l, qw_output_layer *layer)
             : layer(l)
             , wlrLayer(layer)
             , contentsIsDirty(true)
@@ -137,7 +103,7 @@ public:
         }
 
         OutputLayer *layer;
-        QWOutputLayer *wlrLayer;
+        qw_output_layer *wlrLayer;
         QPointer<WBufferRenderer> renderer;
 
         // dirty state
@@ -170,7 +136,7 @@ public:
         output()->output()->safeConnect(&WOutput::scaleChanged, this, &OutputHelper::updateSceneDPR);
     }
 
-    inline QWOutput *qwoutput() const {
+    inline qw_output *qwoutput() const {
         return output()->output()->handle();
     }
 
@@ -212,7 +178,7 @@ public:
     void sortLayers();
     void cleanLayerCompositor();
 
-    inline QWBuffer *beginRender(WBufferRenderer *renderer,
+    inline qw_buffer *beginRender(WBufferRenderer *renderer,
                                  const QSize &pixelSize, uint32_t format,
                                  WBufferRenderer::RenderFlags flags);
     inline void render(WBufferRenderer *renderer, int sourceIndex,
@@ -233,36 +199,6 @@ private:
     QPointer<QQuickItem> m_layerPorxyContainer;
     QList<QPointer<WQuickTextureProxy>> m_layerProxys;
 };
-
-QWOutputLayer::QWOutputLayer(wlr_output_layer *handle, QWOutput *output, QObject *parent)
-    : QObject(parent)
-    , m_handle(handle)
-{
-    // The layer will destroy in wlr_output_destroy()
-    connect(output, &QWOutput::beforeDestroy, this, [this] {
-        sc.invalidate();
-        m_handle = nullptr;
-    });
-
-    sc.connect(&handle->events.feedback, this, &QWOutputLayer::onFeedback);
-}
-
-void QWOutputLayer::onFeedback(wlr_output_layer_feedback_event *event)
-{
-    Q_UNUSED(event)
-    // TODO
-}
-
-QWOutputLayer::~QWOutputLayer()
-{
-    wlr_output_layer_destroy(m_handle);
-}
-
-QWOutputLayer *QWOutputLayer::create(QWOutput *output, QObject *parent)
-{
-    auto handle = wlr_output_layer_create(output->handle());
-    return handle ? new QWOutputLayer(handle, output, parent) : nullptr;
-}
 
 class OutputLayer
 {
@@ -368,8 +304,8 @@ public:
     bool componentCompleted = true;
     bool inRendering = false;
 
-    QPointer<QWRenderer> m_renderer;
-    QPointer<QWAllocator> m_allocator;
+    QPointer<qw_renderer> m_renderer;
+    QPointer<qw_allocator> m_allocator;
 
     QList<OutputHelper*> outputs;
     QList<OutputLayer*> layers;
@@ -404,9 +340,10 @@ int OutputHelper::indexOfLayer(OutputLayer *layer) const
 bool OutputHelper::attachLayer(OutputLayer *layer)
 {
     Q_ASSERT(indexOfLayer(layer) < 0);
-    auto qwlayer = QWOutputLayer::create(qwoutput(), this);
+    auto qwlayer = qw_output_layer::create(*qwoutput());
     if (!qwlayer)
         return false;
+    qwlayer->setParent(this);
 
     m_layers.append(new LayerData(layer, qwlayer));
     connect(layer->layer, &WOutputLayer::zChanged, this, &OutputHelper::sortLayers);
@@ -470,7 +407,7 @@ void OutputHelper::cleanLayerCompositor()
     }
 }
 
-QWBuffer *OutputHelper::beginRender(WBufferRenderer *renderer,
+qw_buffer *OutputHelper::beginRender(WBufferRenderer *renderer,
                                     const QSize &pixelSize, uint32_t format,
                                     WBufferRenderer::RenderFlags flags)
 {
@@ -1031,7 +968,7 @@ WOutputRenderWindowPrivate::doRenderOutputs(const QList<OutputHelper*> &outputs,
             renderMatrix = viewportMatrix * parentMatrix;
         }
 
-        QWBuffer *buffer = helper->beginRender(helper->bufferRenderer(), helper->output()->output()->size(), format,
+        qw_buffer *buffer = helper->beginRender(helper->bufferRenderer(), helper->output()->output()->size(), format,
                                                WBufferRenderer::RedirectOpenGLContextDefaultFrameBufferObject);
         Q_ASSERT(buffer == helper->bufferRenderer()->currentBuffer());
         if (buffer) {
@@ -1184,7 +1121,7 @@ void WOutputRenderWindow::attach(WOutputViewport *output)
     if (d->m_renderer) {
         auto qwoutput = d->outputs.last()->qwoutput();
         if (qwoutput->handle()->renderer != d->m_renderer->handle())
-            qwoutput->initRender(d->m_allocator, d->m_renderer);
+            qwoutput->init_render(d->m_allocator->handle(), d->m_renderer->handle());
         Q_EMIT outputViewportInitialized(output);
     }
 
@@ -1272,7 +1209,7 @@ void WOutputRenderWindow::rotateOutput(WOutputViewport *output, WOutput::Transfo
     }
 }
 
-void WOutputRenderWindow::init(QWRenderer *renderer, QWAllocator *allocator)
+void WOutputRenderWindow::init(qw_renderer *renderer, qw_allocator *allocator)
 {
     Q_D(WOutputRenderWindow);
     Q_ASSERT(!d->m_renderer);
@@ -1286,7 +1223,7 @@ void WOutputRenderWindow::init(QWRenderer *renderer, QWAllocator *allocator)
     for (auto output : std::as_const(d->outputs)) {
         auto qwoutput = output->qwoutput();
         if (qwoutput->handle()->renderer != d->m_renderer->handle())
-            qwoutput->initRender(d->m_allocator, d->m_renderer);
+            qwoutput->init_render(d->m_allocator->handle(), d->m_renderer->handle());
         Q_EMIT outputViewportInitialized(output->output());
     }
 

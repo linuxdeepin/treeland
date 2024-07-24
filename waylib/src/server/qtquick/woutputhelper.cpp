@@ -22,13 +22,6 @@
 #endif
 #include <private/qquickwindow_p.h>
 
-extern "C" {
-#define static
-#include <wlr/types/wlr_output.h>
-#undef static
-#include <wlr/types/wlr_output_layer.h>
-}
-
 QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
@@ -49,14 +42,14 @@ public:
         outputWindow->setScreen(QWlrootsIntegration::instance()->getScreenFrom(output)->screen());
         outputWindow->create();
 
-        output->safeConnect(&QWOutput::frame, qq, [this] {
+        output->safeConnect(&qw_output::notify_frame, qq, [this] {
             on_frame();
         });
-        output->safeConnect(&QWOutput::needsFrame, qq, [this] {
+        output->safeConnect(&qw_output::notify_needs_frame, qq, [this] {
             setNeedsFrame(true);
-            qwoutput()->QWOutput::scheduleFrame();
+            qwoutput()->qw_output::schedule_frame();
         });
-        output->safeConnect(&QWOutput::damage, qq, [this] {
+        output->safeConnect(&qw_output::notify_damage, qq, [this] {
             on_damage();
         });
         output->safeConnect(&WOutput::modeChanged, qq, [this] {
@@ -69,11 +62,11 @@ public:
         wlr_output_state_finish(&state);
     }
 
-    inline QWOutput *qwoutput() const {
+    inline qw_output *qwoutput() const {
         return output->handle();
     }
 
-    inline QWRenderer *renderer() const {
+    inline qw_renderer *renderer() const {
         return output->renderer();
     }
 
@@ -88,7 +81,7 @@ public:
     void on_frame();
     void on_damage();
 
-    QWBuffer *acquireBuffer(wlr_swapchain **sc, int *bufferAge);
+    qw_buffer *acquireBuffer(wlr_swapchain **sc, int *bufferAge);
 
     inline void update() {
         setContentIsDirty(true);
@@ -142,14 +135,14 @@ void WOutputHelperPrivate::on_damage()
     Q_EMIT q_func()->damaged();
 }
 
-QWBuffer *WOutputHelperPrivate::acquireBuffer(wlr_swapchain **sc, int *bufferAge)
+qw_buffer *WOutputHelperPrivate::acquireBuffer(wlr_swapchain **sc, int *bufferAge)
 {
     // TODO: Use a new wlr_output_state in WOutputHelper
-    bool ok = qwoutput()->configurePrimarySwapchain(&qwoutput()->handle()->pending, sc);
+    bool ok = qwoutput()->configure_primary_swapchain(&qwoutput()->handle()->pending, sc);
     if (!ok)
         return nullptr;
-    QWBuffer *newBuffer = QWSwapchain::from(*sc)->acquire(bufferAge);
-    return newBuffer;
+    auto newBuffer = qw_swapchain::from(*sc)->acquire(bufferAge);
+    return newBuffer ? qw_buffer::from(newBuffer) : nullptr;
 }
 
 WOutputHelper::WOutputHelper(WOutput *output, bool renderable, bool contentIsDirty, bool needsFrame, QObject *parent)
@@ -176,12 +169,12 @@ QWindow *WOutputHelper::outputWindow() const
     return d->outputWindow;
 }
 
-std::pair<QWBuffer *, QQuickRenderTarget> WOutputHelper::acquireRenderTarget(QQuickRenderControl *rc, int *bufferAge,
+std::pair<qw_buffer *, QQuickRenderTarget> WOutputHelper::acquireRenderTarget(QQuickRenderControl *rc, int *bufferAge,
                                                                              wlr_swapchain **swapchain)
 {
     W_D(WOutputHelper);
 
-    QWBuffer *buffer = d->acquireBuffer(swapchain ? swapchain : &d->qwoutput()->handle()->swapchain, bufferAge);
+    qw_buffer *buffer = d->acquireBuffer(swapchain ? swapchain : &d->qwoutput()->handle()->swapchain, bufferAge);
     if (!buffer)
         return {};
 
@@ -198,7 +191,7 @@ std::pair<QWBuffer *, QQuickRenderTarget> WOutputHelper::acquireRenderTarget(QQu
     return {buffer, rt};
 }
 
-std::pair<QWBuffer*, QQuickRenderTarget> WOutputHelper::lastRenderTarget()
+std::pair<qw_buffer*, QQuickRenderTarget> WOutputHelper::lastRenderTarget()
 {
     W_DC(WOutputHelper);
     if (!d->renderHelper)
@@ -207,16 +200,16 @@ std::pair<QWBuffer*, QQuickRenderTarget> WOutputHelper::lastRenderTarget()
     return d->renderHelper->lastRenderTarget();
 }
 
-void WOutputHelper::setBuffer(QWBuffer *buffer)
+void WOutputHelper::setBuffer(qw_buffer *buffer)
 {
     W_D(WOutputHelper);
     wlr_output_state_set_buffer(&d->state, buffer->handle());
 }
 
-QWBuffer *WOutputHelper::buffer() const
+qw_buffer *WOutputHelper::buffer() const
 {
     W_DC(WOutputHelper);
-    return d->state.buffer ? QWBuffer::from(d->state.buffer) : nullptr;
+    return d->state.buffer ? qw_buffer::from(d->state.buffer) : nullptr;
 }
 
 void WOutputHelper::setScale(float scale)
@@ -262,7 +255,7 @@ bool WOutputHelper::commit()
     W_D(WOutputHelper);
     wlr_output_state state = d->state;
     wlr_output_state_init(&d->state);
-    bool ok = d->qwoutput()->commitState(&state);
+    bool ok = d->qwoutput()->commit_state(&state);
     wlr_output_state_finish(&state);
 
     return ok;
@@ -271,10 +264,10 @@ bool WOutputHelper::commit()
 bool WOutputHelper::testCommit()
 {
     W_D(WOutputHelper);
-    return d->qwoutput()->testState(&d->state);
+    return d->qwoutput()->test_state(&d->state);
 }
 
-bool WOutputHelper::testCommit(QWBuffer *buffer, const wlr_output_layer_state_array &layers)
+bool WOutputHelper::testCommit(qw_buffer *buffer, const wlr_output_layer_state_array &layers)
 {
     W_D(WOutputHelper);
     wlr_output_state state = d->state;
@@ -284,7 +277,7 @@ bool WOutputHelper::testCommit(QWBuffer *buffer, const wlr_output_layer_state_ar
     if (!layers.isEmpty())
         wlr_output_state_set_layers(&state, const_cast<wlr_output_layer_state*>(layers.data()), layers.length());
 
-    bool ok = d->qwoutput()->testState(&state);
+    bool ok = d->qwoutput()->test_state(&state);
     if (state.committed & WLR_OUTPUT_STATE_BUFFER) {
         Q_ASSERT(buffer);
         buffer->unlock();

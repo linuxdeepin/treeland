@@ -104,7 +104,7 @@ WWrapObjectPrivate::~WWrapObjectPrivate()
     Q_ASSERT(invalidated);
 }
 
-void WWrapObjectPrivate::initHandle(QW_NAMESPACE::QWWrapObject *handle)
+void WWrapObjectPrivate::initHandle(QW_NAMESPACE::qw_object_basic *handle)
 {
     Q_ASSERT(!m_handle);
     Q_ASSERT(!invalidated);
@@ -192,7 +192,7 @@ void WWrapObject::safeDeleteLater()
     deleteLater();
 }
 
-QW_NAMESPACE::QWWrapObject *WWrapObject::handle() const
+QW_NAMESPACE::qw_object_basic *WWrapObject::handle() const
 {
     W_DC(WWrapObject);
     return d->m_handle;
@@ -210,7 +210,7 @@ void WWrapObject::invalidate()
     d->invalidate();
 }
 
-void WWrapObject::initHandle(QW_NAMESPACE::QWWrapObject *handle)
+void WWrapObject::initHandle(QW_NAMESPACE::qw_object_basic *handle)
 {
     W_D(WWrapObject);
     d->initHandle(handle);

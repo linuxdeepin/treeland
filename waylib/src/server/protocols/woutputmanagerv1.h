@@ -10,8 +10,8 @@
 #include <QObject>
 
 QW_BEGIN_NAMESPACE
-class QWOutputManagerV1;
-class QWOutputConfigurationV1;
+class qw_output_manager_v1;
+class qw_output_configuration_v1;
 QW_END_NAMESPACE
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
@@ -52,14 +52,14 @@ public:
 
     const QList<WOutputState> &stateListPending();
 
-    void sendResult(QW_NAMESPACE::QWOutputConfigurationV1 *config, bool ok);
+    void sendResult(QW_NAMESPACE::qw_output_configuration_v1 *config, bool ok);
     void newOutput(WOutput *output);
     void removeOutput(WOutput *output);
-    QW_NAMESPACE::QWOutputManagerV1 *handle() const;
+    QW_NAMESPACE::qw_output_manager_v1 *handle() const;
     QByteArrayView interfaceName() const override;
 
 Q_SIGNALS:
-    void requestTestOrApply(QW_NAMESPACE::QWOutputConfigurationV1 *config, bool onlyTest);
+    void requestTestOrApply(QW_NAMESPACE::qw_output_configuration_v1 *config, bool onlyTest);
 
 protected:
     void create(WServer *server) override;

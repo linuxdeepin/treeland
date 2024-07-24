@@ -43,7 +43,7 @@ public:
     void rotateOutput(WOutputViewport *output, WOutput::Transform t);
     void setOutputEnabled(WOutputViewport *output, bool enabled);
 
-    void init(QW_NAMESPACE::QWRenderer *renderer, QW_NAMESPACE::QWAllocator *allocator);
+    void init(QW_NAMESPACE::qw_renderer *renderer, QW_NAMESPACE::qw_allocator *allocator);
 
     qreal width() const;
     qreal height() const;

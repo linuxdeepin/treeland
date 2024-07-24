@@ -9,7 +9,6 @@
 #include "wseat.h"
 #include "wcursor.h"
 
-#include <qwbuffer.h>
 #include <qwrenderer.h>
 #include <qwoutput.h>
 
@@ -18,12 +17,6 @@
 #include <qpa/qwindowsysteminterface.h>
 #include <qpa/qwindowsysteminterface_p.h>
 #include <private/qguiapplication_p.h>
-
-extern "C" {
-#define static
-#include <wlr/types/wlr_output.h>
-#undef static
-}
 
 QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE

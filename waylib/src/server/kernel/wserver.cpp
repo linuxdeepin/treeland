@@ -34,22 +34,6 @@
 #include <qpa/qplatformintegrationfactory_p.h>
 #include <qpa/qplatformtheme.h>
 
-extern "C" {
-#include <wlr/backend.h>
-#define static
-#include <wlr/render/wlr_renderer.h>
-#undef static
-#include <wlr/types/wlr_compositor.h>
-#include <wlr/types/wlr_data_device.h>
-#include <wlr/types/wlr_output_layout.h>
-#include <wlr/types/wlr_xdg_shell.h>
-#include <wlr/types/wlr_cursor.h>
-#include <wlr/types/wlr_xcursor_manager.h>
-#ifndef DISABLE_XWAYLAND
-#include <wlr/xwayland/shell.h>
-#endif
-}
-
 QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
@@ -104,12 +88,12 @@ void WServerPrivate::init()
 {
     Q_ASSERT(!display);
 
-    display = new QWDisplay(q_func());
+    display.reset(new qw_display());
     wl_display_set_global_filter(display->handle(), globalFilter, this);
 
     // free follow display
-    Q_UNUSED(QWDataDeviceManager::create(display));
-    Q_UNUSED(QWPrimarySelectionV1DeviceManager::create(display));
+    Q_UNUSED(qw_data_device_manager::create(*display));
+    Q_UNUSED(qw_primary_selection_v1_device_manager::create(*display));
 
     W_Q(WServer);
 
@@ -157,8 +141,7 @@ void WServerPrivate::stop()
     QThread::currentThread()->eventDispatcher()->disconnect(q);
 
     if (display) {
-        display->deleteLater();
-        display = nullptr;
+        display.reset(nullptr);
     }
 }
 
@@ -180,10 +163,10 @@ WServer::WServer(WServerPrivate &dd, QObject *parent)
 {
 }
 
-QWDisplay *WServer::handle() const
+qw_display *WServer::handle() const
 {
     W_DC(WServer);
-    return d->display;
+    return d->display.get();
 }
 
 void WServer::stop()
@@ -363,12 +346,7 @@ void WServer::initializeProxyQPA(int &argc, char **argv, const QStringList &prox
             break;
     }
     if (!proxy) {
-        // QTBUG-8298(Make a stream version of qFatal), fix in 6.5.0
-#if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
         qFatal() << "Can't create the proxy platform plugin:" << proxyPlatformPlugins;
-#else
-        qFatal("Can't create the proxy platform plugin:%s", qPrintable(proxyPlatformPlugins.join(' ')));
-#endif
     }
     proxy->initialize();
     QWlrootsIntegration::instance()->setProxy(proxy);
@@ -377,7 +355,7 @@ void WServer::initializeProxyQPA(int &argc, char **argv, const QStringList &prox
 bool WServer::isRunning() const
 {
     W_DC(WServer);
-    return d->display;
+    return d->display.get();
 }
 
 void WServer::addSocket(WSocket *socket)

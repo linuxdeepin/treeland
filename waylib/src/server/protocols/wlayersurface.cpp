@@ -2,9 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "wlayersurface.h"
-#include "private/wsurface_p.h"
 #include "wseat.h"
-#include "wtools.h"
 #include "wsurface.h"
 #include "woutput.h"
 #include "private/wtoplevelsurface_p.h"
@@ -16,25 +14,15 @@
 
 #include <QDebug>
 
-extern "C" {
-// avoid replace namespace
-#include <math.h>
-#define namespace scope
-#define static
-#include <wlr/types/wlr_layer_shell_v1.h>
-#undef namespace
-#undef static
-}
-
 QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
 class Q_DECL_HIDDEN WLayerSurfacePrivate : public WToplevelSurfacePrivate {
 public:
-    WLayerSurfacePrivate(WLayerSurface *qq, QWLayerSurfaceV1 *handle);
+    WLayerSurfacePrivate(WLayerSurface *qq, qw_layer_surface_v1 *handle);
     ~WLayerSurfacePrivate();
 
-    WWRAP_HANDLE_FUNCTIONS(QWLayerSurfaceV1, wlr_layer_surface_v1)
+    WWRAP_HANDLE_FUNCTIONS(qw_layer_surface_v1, wlr_layer_surface_v1)
 
     wl_client *waylandClient() const {
         return nativeHandle()->resource->client;
@@ -73,7 +61,7 @@ public:
     WOutput *output = nullptr;
 };
 
-WLayerSurfacePrivate::WLayerSurfacePrivate(WLayerSurface *qq, QWLayerSurfaceV1 *hh)
+WLayerSurfacePrivate::WLayerSurfacePrivate(WLayerSurface *qq, qw_layer_surface_v1 *hh)
     : WToplevelSurfacePrivate(qq)
     , activated(false)
 {
@@ -88,9 +76,10 @@ WLayerSurfacePrivate::~WLayerSurfacePrivate()
 void WLayerSurfacePrivate::instantRelease()
 {
     W_Q(WLayerSurface);
-    handle()->setData(nullptr, nullptr);
+    handle()->set_data(nullptr, nullptr);
     handle()->disconnect(q);
-    handle()->surface()->disconnect(q);
+    auto qsurface = qw_surface::from((*handle())->surface);
+    qsurface->disconnect(q);
 
     if (!surface)
         return;
@@ -101,13 +90,14 @@ void WLayerSurfacePrivate::instantRelease()
 void WLayerSurfacePrivate::init()
 {
     W_Q(WLayerSurface);
-    handle()->setData(this, q);
+    handle()->set_data(this, q);
 
     Q_ASSERT(!q->surface());
-    surface = new WSurface(handle()->surface(), q);
+    auto qsurface = qw_surface::from((*handle())->surface);
+    surface = new WSurface(qsurface, q);
     surface->setAttachedData<WLayerSurface>(q);
     updateLayerProperty();
-    output = nativeHandle()->output ? WOutput::fromHandle(QWOutput::from(nativeHandle()->output)) : nullptr;
+    output = nativeHandle()->output ? WOutput::fromHandle(qw_output::from(nativeHandle()->output)) : nullptr;
 
     connect();
 }
@@ -116,7 +106,7 @@ void WLayerSurfacePrivate::connect()
 {
     W_Q(WLayerSurface);
 
-    surface->safeConnect(&QWSurface::commit, q, [this] () {
+    surface->safeConnect(&qw_surface::notify_commit, q, [this] () {
         updateLayerProperty();
     });
 }
@@ -251,7 +241,7 @@ bool WLayerSurfacePrivate::setKeyboardInteractivity(WLayerSurface::KeyboardInter
 
 // end set property
 
-WLayerSurface::WLayerSurface(QWLayerSurfaceV1 *handle, QObject *parent)
+WLayerSurface::WLayerSurface(qw_layer_surface_v1 *handle, QObject *parent)
     : WToplevelSurface(*new WLayerSurfacePrivate(this, handle), parent)
 {
     d_func()->init();
@@ -287,7 +277,7 @@ WSurface *WLayerSurface::surface() const
     return d->surface;
 }
 
-QWLayerSurfaceV1 *WLayerSurface::handle() const
+qw_layer_surface_v1 *WLayerSurface::handle() const
 {
     W_DC(WLayerSurface);
     return d->handle();
@@ -299,19 +289,18 @@ wlr_layer_surface_v1 *WLayerSurface::nativeHandle() const
     return d->nativeHandle();
 }
 
-QWSurface *WLayerSurface::inputTargetAt(QPointF &localPos) const
+qw_surface *WLayerSurface::inputTargetAt(QPointF &localPos) const
 {
     W_DC(WLayerSurface);
     // find a wlr_suface object who can receive the events
     const QPointF pos = localPos;
-    auto sur = d->handle()->surfaceAt(pos, &localPos);
-
-    return sur;
+    auto sur = d->handle()->surface_at(pos.x(), pos.y(), &localPos.rx(), &localPos.ry());
+    return sur ? qw_surface::from(sur) : nullptr;
 }
 
-WLayerSurface *WLayerSurface::fromHandle(QWLayerSurfaceV1 *handle)
+WLayerSurface *WLayerSurface::fromHandle(qw_layer_surface_v1 *handle)
 {
-    return handle->getData<WLayerSurface>();
+    return handle->get_data<WLayerSurface>();
 }
 
 WLayerSurface *WLayerSurface::fromSurface(WSurface *surface)

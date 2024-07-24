@@ -16,10 +16,6 @@ extern "C" {
 #include <wayland-server.h>
 }
 
-QW_BEGIN_NAMESPACE
-class QWDisplay;
-QW_END_NAMESPACE
-
 WAYLIB_SERVER_BEGIN_NAMESPACE
 class WSurface;
 class WSeat;

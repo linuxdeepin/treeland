@@ -7,12 +7,6 @@
 #include <QImage>
 #include <QColorSpace>
 
-extern "C" {
-#include <pixman.h>
-#include <wlr/types/wlr_buffer.h>
-#include <wlr/xcursor.h>
-}
-
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
 WImageBufferImpl::WImageBufferImpl(const QImage &bufferImage)
@@ -30,7 +24,7 @@ WImageBufferImpl::~WImageBufferImpl()
 
 }
 
-bool WImageBufferImpl::beginDataPtrAccess(uint32_t flags, void **data, uint32_t *format, size_t *stride)
+bool WImageBufferImpl::begin_data_ptr_access(uint32_t flags, void **data, uint32_t *format, size_t *stride)
 {
     if (!image.bits()) {
         return false;
@@ -44,7 +38,7 @@ bool WImageBufferImpl::beginDataPtrAccess(uint32_t flags, void **data, uint32_t 
     return true;
 }
 
-void WImageBufferImpl::endDataPtrAccess()
+void WImageBufferImpl::end_data_ptr_access()
 {
    // This space is intentionally left blank
 }

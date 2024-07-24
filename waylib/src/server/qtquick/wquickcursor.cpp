@@ -168,7 +168,7 @@ void WQuickCursorPrivate::updateXCursorManager()
         xcursor_manager = nullptr;
     }
     const char *cursor_theme = xcursorThemeName.isEmpty() ? nullptr : qPrintable(xcursorThemeName);
-    auto xm = QWXCursorManager::create(cursor_theme, getCursorSize());
+    auto xm = qw_xcursor_manager::create(cursor_theme, getCursorSize());
     q_func()->setXCursorManager(xm);
 }
 

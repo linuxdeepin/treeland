@@ -8,7 +8,7 @@
 #include <qwglobal.h>
 
 QW_BEGIN_NAMESPACE
-class QWInputDevice;
+class qw_input_device;
 QW_END_NAMESPACE
 
 QT_BEGIN_NAMESPACE
@@ -34,11 +34,11 @@ public:
     };
     Q_ENUM(Type)
 
-    WInputDevice(QW_NAMESPACE::QWInputDevice *handle);
+    WInputDevice(QW_NAMESPACE::qw_input_device *handle);
 
-    QW_NAMESPACE::QWInputDevice *handle() const;
+    QW_NAMESPACE::qw_input_device *handle() const;
 
-    static WInputDevice *fromHandle(const QW_NAMESPACE::QWInputDevice *handle);
+    static WInputDevice *fromHandle(const QW_NAMESPACE::qw_input_device *handle);
 
     template<class QInputDevice>
     inline QInputDevice *qtDevice() const {

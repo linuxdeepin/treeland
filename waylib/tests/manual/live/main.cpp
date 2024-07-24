@@ -93,12 +93,12 @@ void Helper::initProtocols(WOutputRenderWindow *window, QQmlEngine *qmlEngine)
         m_seat->detachInputDevice(device);
     });
 
-    m_allocator = QWAllocator::autoCreate(m_backend->handle(), m_renderer);
-    m_renderer->initWlDisplay(m_server->handle());
+    m_allocator = qw_allocator::autocreate(*m_backend->handle(), *m_renderer);
+    m_renderer->init_wl_display(*m_server->handle());
 
     // free follow display
-    m_compositor = QWCompositor::create(m_server->handle(), m_renderer, 6);
-    QWSubcompositor::create(m_server->handle());
+    m_compositor = qw_compositor::create(*m_server->handle(), 6, *m_renderer);
+    qw_subcompositor::create(*m_server->handle());
 
     connect(window, &WOutputRenderWindow::outputViewportInitialized, this, [] (WOutputViewport *viewport) {
         // Trigger QWOutput::frame signal in order to ensure WOutputHelper::renderable
@@ -117,7 +117,7 @@ void Helper::initProtocols(WOutputRenderWindow *window, QQmlEngine *qmlEngine)
                 qwoutput->setProperty("_Enabled", true);
 
                 if (!qwoutput->handle()->current_mode) {
-                    auto mode = qwoutput->preferredMode();
+                    auto mode = qwoutput->preferred_mode();
                     if (mode)
                         output->setMode(mode);
                 }
@@ -153,7 +153,7 @@ void Helper::initProtocols(WOutputRenderWindow *window, QQmlEngine *qmlEngine)
 }
 
 int main(int argc, char *argv[]) {
-    QWLog::init();
+    qw_log::init();
     WServer::initializeQPA();
     QQuickStyle::setStyle("Material");
 

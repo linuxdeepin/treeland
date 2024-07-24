@@ -13,8 +13,8 @@
 Q_MOC_INCLUDE(<wsurface.h>)
 
 QW_BEGIN_NAMESPACE
-class QWSeat;
-class QWSurface;
+class qw_seat;
+class qw_surface;
 QW_END_NAMESPACE
 
 QT_BEGIN_NAMESPACE
@@ -60,8 +60,8 @@ class WSeat : public WWrapObject, public WServerInterface
 public:
     WSeat(const QString &name = QStringLiteral("seat0"));
 
-    static WSeat *fromHandle(const QW_NAMESPACE::QWSeat *handle);
-    QW_NAMESPACE::QWSeat *handle() const;
+    static WSeat *fromHandle(const QW_NAMESPACE::qw_seat *handle);
+    QW_NAMESPACE::qw_seat *handle() const;
     wlr_seat *nativeHandle() const;
 
     QString name() const;

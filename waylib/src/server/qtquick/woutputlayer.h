@@ -7,10 +7,6 @@
 #include <wglobal.h>
 #include <QQuickItem>
 
-QW_BEGIN_NAMESPACE
-class QWBuffer;
-QW_END_NAMESPACE
-
 QT_BEGIN_NAMESPACE
 class QSGTexture;
 QT_END_NAMESPACE

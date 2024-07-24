@@ -20,7 +20,7 @@ QT_END_NAMESPACE
 QW_BEGIN_NAMESPACE
 class QWRenderer;
 class QWBackend;
-class QWBuffer;
+class qw_buffer;
 QW_END_NAMESPACE
 
 struct wlr_swapchain;
@@ -45,13 +45,13 @@ public:
     WOutput *output() const;
     QWindow *outputWindow() const;
 
-    std::pair<QW_NAMESPACE::QWBuffer*, QQuickRenderTarget> acquireRenderTarget(QQuickRenderControl *rc,
+    std::pair<QW_NAMESPACE::qw_buffer*, QQuickRenderTarget> acquireRenderTarget(QQuickRenderControl *rc,
                                                                                int *bufferAge = nullptr,
                                                                                wlr_swapchain **swapchain = nullptr);
-    std::pair<QW_NAMESPACE::QWBuffer*, QQuickRenderTarget> lastRenderTarget();
+    std::pair<QW_NAMESPACE::qw_buffer*, QQuickRenderTarget> lastRenderTarget();
 
-    void setBuffer(QW_NAMESPACE::QWBuffer *buffer);
-    QW_NAMESPACE::QWBuffer *buffer() const;
+    void setBuffer(QW_NAMESPACE::qw_buffer *buffer);
+    QW_NAMESPACE::qw_buffer *buffer() const;
 
     void setScale(float scale);
     void setTransform(WOutput::Transform t);
@@ -60,7 +60,7 @@ public:
     void setLayers(const wlr_output_layer_state_array &layers);
     bool commit();
     bool testCommit();
-    bool testCommit(QW_NAMESPACE::QWBuffer *buffer, const wlr_output_layer_state_array &layers);
+    bool testCommit(QW_NAMESPACE::qw_buffer *buffer, const wlr_output_layer_state_array &layers);
 
     bool renderable() const;
     bool contentIsDirty() const;

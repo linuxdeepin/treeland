@@ -6,10 +6,6 @@
 
 #include <QImage>
 
-extern "C" {
-#include <wlr/xcursor.h>
-}
-
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
 class WXCursorImagePrivate : public WObjectPrivate

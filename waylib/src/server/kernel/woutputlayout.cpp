@@ -6,6 +6,7 @@
 #include "woutput.h"
 
 #include <qwoutput.h>
+#include <qwbox.h>
 #include <QRect>
 
 QW_USE_NAMESPACE
@@ -21,7 +22,9 @@ void WOutputLayoutPrivate::updateImplicitSize()
 {
     W_Q(WOutputLayout);
 
-    const auto &newSize = q->getBox(nullptr);
+    wlr_box tmp_box;
+    q->get_box(nullptr, &tmp_box);
+    auto newSize = qw_box(tmp_box).toQRect();
 
     if (implicitWidth != newSize.x() + newSize.width()) {
         implicitWidth = newSize.x() + newSize.width();
@@ -34,7 +37,7 @@ void WOutputLayoutPrivate::updateImplicitSize()
 }
 
 WOutputLayout::WOutputLayout(WOutputLayoutPrivate &dd, QObject *parent)
-    : QWOutputLayout(parent)
+    : qw_output_layout(parent)
     , WObject(dd)
 {
 
@@ -58,7 +61,7 @@ void WOutputLayout::add(WOutput *output, const QPoint &pos)
     Q_ASSERT(!d->outputs.contains(output));
     d->outputs.append(output);
 
-    QWOutputLayout::add(output->handle(), pos);
+    qw_output_layout::add(output->nativeHandle(), pos.x(), pos.y());
     output->setLayout(this);
 
     output->safeConnect(&WOutput::effectiveSizeChanged, this, [d](){
@@ -78,7 +81,7 @@ void WOutputLayout::move(WOutput *output, const QPoint &pos)
     if (output->position() == pos)
         return;
 
-    QWOutputLayout::move(output->handle(), pos);
+    qw_output_layout::add(output->nativeHandle(), pos.x(), pos.y());
 
     d->updateImplicitSize();
 }
@@ -89,7 +92,7 @@ void WOutputLayout::remove(WOutput *output)
     Q_ASSERT(d->outputs.contains(output));
     d->outputs.removeOne(output);
 
-    QWOutputLayout::remove(output->handle());
+    qw_output_layout::remove(output->nativeHandle());
     output->setLayout(nullptr);
     output->safeDisconnect(this);
     d->updateImplicitSize();
@@ -104,7 +107,9 @@ QList<WOutput*> WOutputLayout::getIntersectedOutputs(const QRect &geometry) cons
     QList<WOutput*> outputs;
 
     for (auto o : std::as_const(d->outputs)) {
-        const QRect og = getBox(o->handle());
+        wlr_box tmp;
+        get_box(o->nativeHandle(), &tmp);
+        const QRect og = qw_box(tmp).toQRect();
         if (og.intersects(geometry))
             outputs << o;
     }

@@ -16,14 +16,6 @@
 
 #include <QDebug>
 
-extern "C" {
-#include <wlr/backend.h>
-#define static
-#include <wlr/types/wlr_output.h>
-#undef static
-#include <wlr/types/wlr_input_device.h>
-}
-
 QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
@@ -36,8 +28,8 @@ public:
 
     }
 
-    inline QWBackend *handle() const {
-        return q_func()->nativeInterface<QWBackend>();
+    inline qw_backend *handle() const {
+        return q_func()->nativeInterface<qw_backend>();
     }
 
     inline wlr_backend *nativeHandle() const {
@@ -46,10 +38,10 @@ public:
     }
 
     // begin slot function
-    void on_new_output(QWOutput *output);
-    void on_new_input(QWInputDevice *device);
-    void on_input_destroy(QWInputDevice *data);
-    void on_output_destroy(QWOutput *output);
+    void on_new_output(wlr_output *output);
+    void on_new_input(wlr_input_device *device);
+    void on_input_destroy(qw_input_device *data);
+    void on_output_destroy(qw_output *output);
     // end slot function
 
     void connect();
@@ -71,34 +63,36 @@ public:
     };
 };
 
-void WBackendPrivate::on_new_output(QWOutput *output)
+void WBackendPrivate::on_new_output(wlr_output *output)
 {
     W_Q(WBackend);
-    auto woutput = new WOutput(output, q);
+    auto qoutput = qw_output::from(output);
+    auto woutput = new WOutput(qoutput, q);
 
     outputList << woutput;
     QWlrootsIntegration::instance()->addScreen(woutput);
 
-    woutput->safeConnect(&QWOutput::beforeDestroy, q, [this, output] {
-        on_output_destroy(output);
+    woutput->safeConnect(&qw_output::before_destroy, q, [this, qoutput] {
+        on_output_destroy(qoutput);
     });
 
     Q_EMIT q->outputAdded(woutput);
 }
 
-void WBackendPrivate::on_new_input(QWInputDevice *device)
+void WBackendPrivate::on_new_input(wlr_input_device *device)
 {
     W_Q(WBackend);
-    auto input_device = new WInputDevice(device);
-    inputList << input_device;
-    input_device->safeConnect(&QWInputDevice::beforeDestroy, q, [this, device] {
-        on_input_destroy(device);
+    auto qinput_device = qw_input_device::from(device);
+    auto winput_device = new WInputDevice(qinput_device);
+    inputList << winput_device;
+    winput_device->safeConnect(&qw_input_device::before_destroy, q, [this, qinput_device] {
+        on_input_destroy(qinput_device);
     });
 
-    Q_EMIT q->inputAdded(input_device);
+    Q_EMIT q->inputAdded(winput_device);
 }
 
-void WBackendPrivate::on_input_destroy(QWInputDevice *data)
+void WBackendPrivate::on_input_destroy(qw_input_device *data)
 {
     for (int i = 0; i < inputList.count(); ++i) {
         if (inputList.at(i)->handle() == data) {
@@ -112,7 +106,7 @@ void WBackendPrivate::on_input_destroy(QWInputDevice *data)
     }
 }
 
-void WBackendPrivate::on_output_destroy(QWOutput *output)
+void WBackendPrivate::on_output_destroy(qw_output *output)
 {
     for (int i = 0; i < outputList.count(); ++i) {
         if (outputList.at(i)->handle() == output) {
@@ -129,10 +123,10 @@ void WBackendPrivate::on_output_destroy(QWOutput *output)
 
 void WBackendPrivate::connect()
 {
-    QObject::connect(handle(), &QWBackend::newOutput, q_func(), [this] (QWOutput *output) {
+    QObject::connect(handle(), &qw_backend::notify_new_output, q_func(), [this] (wlr_output *output) {
         on_new_output(output);
     });
-    QObject::connect(handle(), &QWBackend::newInput, q_func(), [this] (QWInputDevice *device) {
+    QObject::connect(handle(), &qw_backend::notify_new_input, q_func(), [this] (wlr_input_device *device) {
         on_new_input(device);
     });
 }
@@ -143,9 +137,9 @@ WBackend::WBackend()
 
 }
 
-QWBackend *WBackend::handle() const
+qw_backend *WBackend::handle() const
 {
-    return nativeInterface<QWBackend>();
+    return nativeInterface<qw_backend>();
 }
 
 QVector<WOutput*> WBackend::outputList() const
@@ -161,13 +155,13 @@ QVector<WInputDevice *> WBackend::inputDeviceList() const
 }
 
 template<class T>
-static bool hasBackend(QWBackend *handle)
+static bool hasBackend(qw_backend *handle)
 {
     if (qobject_cast<T*>(handle))
         return true;
-    if (auto multiBackend = qobject_cast<QWMultiBackend*>(handle)) {
+    if (auto multiBackend = qobject_cast<qw_multi_backend*>(handle)) {
         bool exists = false;
-        multiBackend->forEachBackend([] (wlr_backend *backend, void *userData) {
+        multiBackend->for_each_backend([] (wlr_backend *backend, void *userData) {
             bool &exists = *reinterpret_cast<bool*>(userData);
             if (T::from(backend))
                 exists = true;
@@ -181,17 +175,17 @@ static bool hasBackend(QWBackend *handle)
 
 bool WBackend::hasDrm() const
 {
-    return hasBackend<QWDrmBackend>(handle());
+    return hasBackend<qw_drm_backend>(handle());
 }
 
 bool WBackend::hasX11() const
 {
-    return hasBackend<QWX11Backend>(handle());
+    return hasBackend<qw_x11_backend>(handle());
 }
 
 bool WBackend::hasWayland() const
 {
-    return hasBackend<QWWaylandBackend>(handle());
+    return hasBackend<qw_wayland_backend>(handle());
 }
 
 void WBackend::create(WServer *server)
@@ -199,7 +193,7 @@ void WBackend::create(WServer *server)
     W_D(WBackend);
 
     if (!m_handle) {
-        m_handle = QWBackend::autoCreate(server->handle());
+        m_handle = qw_backend::autocreate(*server->handle(), nullptr);
         Q_ASSERT(m_handle);
     }
 

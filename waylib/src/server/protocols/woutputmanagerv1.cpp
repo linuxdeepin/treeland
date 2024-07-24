@@ -8,18 +8,13 @@
 
 #include <qwoutput.h>
 #include <qwoutputmanagementv1.h>
-
-extern "C" {
-#define static
-#include <wlr/types/wlr_output_management_v1.h>
-#undef static
-}
+#include <qwdisplay.h>
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
-using QW_NAMESPACE::QWOutputManagerV1;
-using QW_NAMESPACE::QWOutputConfigurationV1;
-using QW_NAMESPACE::QWOutputConfigurationHeadV1;
+using QW_NAMESPACE::qw_output_manager_v1;
+using QW_NAMESPACE::qw_output_configuration_v1;
+using QW_NAMESPACE::qw_output_configuration_head_v1;
 
 class WOutputManagerV1Private : public WObjectPrivate
 {
@@ -32,9 +27,9 @@ public:
 
     W_DECLARE_PUBLIC(WOutputManagerV1)
 
-    void outputMgrApplyOrTest(QWOutputConfigurationV1 *config, int test);
-    inline QWOutputManagerV1 *handle() const {
-        return q_func()->nativeInterface<QWOutputManagerV1>();
+    void outputMgrApplyOrTest(qw_output_configuration_v1 *config, int test);
+    inline qw_output_manager_v1 *handle() const {
+        return q_func()->nativeInterface<qw_output_manager_v1>();
     }
 
     inline wlr_output_manager_v1 *nativeHandle() const {
@@ -42,7 +37,7 @@ public:
         return handle()->handle();
     }
 
-    QWOutputManagerV1 *manager { nullptr };
+    qw_output_manager_v1 *manager { nullptr };
     QPointer<WBackend> backend;
     QList<WOutputState> stateList;
     QList<WOutputState> stateListPending;
@@ -54,7 +49,7 @@ WOutputManagerV1::WOutputManagerV1()
 
 }
 
-void WOutputManagerV1Private::outputMgrApplyOrTest(QWOutputConfigurationV1 *config, int onlyTest)
+void WOutputManagerV1Private::outputMgrApplyOrTest(qw_output_configuration_v1 *config, int onlyTest)
 {
     W_Q(WOutputManagerV1);
     wlr_output_configuration_head_v1 *config_head;
@@ -62,7 +57,7 @@ void WOutputManagerV1Private::outputMgrApplyOrTest(QWOutputConfigurationV1 *conf
     stateListPending.clear();
 
     wl_list_for_each(config_head, &config->handle()->heads, link) {
-        auto *output = QW_NAMESPACE::QWOutput::from(config_head->state.output);
+        auto *output = QW_NAMESPACE::qw_output::from(config_head->state.output);
         auto *woutput = WOutput::fromHandle(output);
 
         const auto &state = config_head->state;
@@ -94,26 +89,26 @@ void WOutputManagerV1::updateConfig()
 {
     W_D(WOutputManagerV1);
 
-    auto *config = QWOutputConfigurationV1::create();
+    auto *config = qw_output_configuration_v1::create();
 
     for (const WOutputState &state : std::as_const(d->stateList)) {
-        auto *configHead = QWOutputConfigurationHeadV1::create(config, state.output->handle());
+        auto *configHead = qw_output_configuration_head_v1::create(*config, state.output->nativeHandle());
         configHead->handle()->state.scale = state.scale;
         configHead->handle()->state.transform = static_cast<wl_output_transform>(state.transform);
         configHead->handle()->state.x = state.x;
         configHead->handle()->state.y = state.y;
     }
 
-    d->manager->setConfiguration(config);
+    d->manager->set_configuration(*config);
 }
 
-void WOutputManagerV1::sendResult(QWOutputConfigurationV1 *config, bool ok)
+void WOutputManagerV1::sendResult(qw_output_configuration_v1 *config, bool ok)
 {
     W_D(WOutputManagerV1);
     if (ok)
-        config->sendSucceeded();
+        config->send_succeeded();
     else
-        config->sendFailed();
+        config->send_failed();
     delete config;
 
     if (ok)
@@ -157,9 +152,9 @@ void WOutputManagerV1::removeOutput(WOutput *output)
     updateConfig();
 }
 
-QWOutputManagerV1 *WOutputManagerV1::handle() const
+qw_output_manager_v1 *WOutputManagerV1::handle() const
 {
-    return nativeInterface<QWOutputManagerV1>();
+    return nativeInterface<qw_output_manager_v1>();
 }
 
 QByteArrayView WOutputManagerV1::interfaceName() const
@@ -171,13 +166,13 @@ void WOutputManagerV1::create(WServer *server)
 {
     W_D(WOutputManagerV1);
 
-    d->manager = QWOutputManagerV1::create(server->handle());
-    connect(d->manager, &QWOutputManagerV1::test, this, [d](QWOutputConfigurationV1 *config) {
-        d->outputMgrApplyOrTest(config, true);
+    d->manager = qw_output_manager_v1::create(*server->handle());
+    connect(d->manager, &qw_output_manager_v1::notify_test, this, [d](wlr_output_configuration_v1 *config) {
+        d->outputMgrApplyOrTest(qw_output_configuration_v1::from(config), true);
     });
 
-    connect(d->manager, &QWOutputManagerV1::apply, this, [d](QWOutputConfigurationV1 *config) {
-        d->outputMgrApplyOrTest(config, false);
+    connect(d->manager, &qw_output_manager_v1::notify_apply, this, [d](wlr_output_configuration_v1 *config) {
+        d->outputMgrApplyOrTest(qw_output_configuration_v1::from(config), false);
     });
 }
 

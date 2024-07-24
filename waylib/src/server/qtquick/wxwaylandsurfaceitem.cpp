@@ -9,13 +9,6 @@
 #include <QQmlInfo>
 #include <private/qquickitem_p.h>
 
-extern "C" {
-#define class className
-#include <wlr/xwayland.h>
-#include <wlr/xwayland/shell.h>
-#undef class
-}
-
 QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
 

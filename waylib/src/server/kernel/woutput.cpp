@@ -15,20 +15,6 @@
 #include <qwswapchain.h>
 #include <qwallocator.h>
 
-extern "C" {
-#define static
-#include <wlr/types/wlr_output.h>
-#include <wlr/render/interface.h>
-#undef static
-#include <wlr/types/wlr_output_layout.h>
-#ifdef slots
-#undef slots // using at swapchain.h
-#endif
-#include <wlr/render/swapchain.h>
-#include <wlr/render/allocator.h>
-#include <wlr/render/wlr_renderer.h>
-}
-
 #include <QLoggingCategory>
 #include <QCoreApplication>
 #include <QQuickWindow>
@@ -45,20 +31,20 @@ Q_LOGGING_CATEGORY(qLcOutput, "waylib.server.output", QtWarningMsg)
 class Q_DECL_HIDDEN WOutputPrivate : public WWrapObjectPrivate
 {
 public:
-    WOutputPrivate(WOutput *qq, QWOutput *handle)
+    WOutputPrivate(WOutput *qq, qw_output *handle)
         : WWrapObjectPrivate(qq)
     {
         initHandle(handle);
-        this->handle()->setData(this, qq);
+        this->handle()->set_data(this, qq);
     }
 
     void instantRelease() override {
-        handle()->setData(nullptr, nullptr);
+        handle()->set_data(nullptr, nullptr);
         if (layout)
             layout->remove(q_func());
     }
 
-    WWRAP_HANDLE_FUNCTIONS(QWOutput, wlr_output)
+    WWRAP_HANDLE_FUNCTIONS(qw_output, wlr_output)
 
     inline QSize size() const {
         Q_ASSERT(handle());
@@ -79,11 +65,11 @@ public:
     WOutputLayout *layout = nullptr;
 };
 
-WOutput::WOutput(QWOutput *handle, WBackend *backend)
+WOutput::WOutput(qw_output *handle, WBackend *backend)
     : WWrapObject(*new WOutputPrivate(this, handle))
 {
     d_func()->backend = backend;
-    connect(handle, qOverload<wlr_output_event_commit*>(&QWOutput::commit),
+    connect(handle, qOverload<wlr_output_event_commit*>(&qw_output::notify_commit),
             this, [this] (wlr_output_event_commit *event) {
         if (event->state->committed & WLR_OUTPUT_STATE_SCALE) {
             Q_EMIT this->scaleChanged();
@@ -127,22 +113,22 @@ WServer *WOutput::server() const
     return d->backend->server();
 }
 
-QWRenderer *WOutput::renderer() const
+qw_renderer *WOutput::renderer() const
 {
     W_DC(WOutput);
-    return QWRenderer::from(d->nativeHandle()->renderer);
+    return qw_renderer::from(d->nativeHandle()->renderer);
 }
 
-QWSwapchain *WOutput::swapchain() const
+qw_swapchain *WOutput::swapchain() const
 {
     W_DC(WOutput);
-    return QWSwapchain::from(d->nativeHandle()->swapchain);
+    return qw_swapchain::from(d->nativeHandle()->swapchain);
 }
 
-QWAllocator *WOutput::allocator() const
+qw_allocator *WOutput::allocator() const
 {
     W_DC(WOutput);
-    return QWAllocator::from(d->nativeHandle()->allocator);
+    return qw_allocator::from(d->nativeHandle()->allocator);
 }
 
 // Copy from wlroots
@@ -390,7 +376,7 @@ static bool wlr_output_configure_primary_swapchain(struct wlr_output *output, in
 // End
 
 bool WOutput::configureSwapchain(const QSize &size, uint32_t format,
-                                 QWSwapchain **swapchain, bool doTest)
+                                 qw_swapchain **swapchain, bool doTest)
 {
     Q_ASSERT(!size.isEmpty());
     wlr_swapchain *sc = (*swapchain)->handle();
@@ -398,11 +384,11 @@ bool WOutput::configureSwapchain(const QSize &size, uint32_t format,
                                                      format, &sc, doTest);
     if (!ok)
         return false;
-    *swapchain = QWSwapchain::from(sc);
+    *swapchain = qw_swapchain::from(sc);
     return true;
 }
 
-QWOutput *WOutput::handle() const
+qw_output *WOutput::handle() const
 {
     W_DC(WOutput);
     return d->handle();
@@ -414,9 +400,9 @@ wlr_output *WOutput::nativeHandle() const
     return d->nativeHandle();
 }
 
-WOutput *WOutput::fromHandle(const QWOutput *handle)
+WOutput *WOutput::fromHandle(const qw_output *handle)
 {
-    return handle->getData<WOutput>();
+    return handle->get_data<WOutput>();
 }
 
 WOutput *WOutput::fromScreen(const QScreen *screen)
@@ -457,7 +443,7 @@ QPoint WOutput::position() const
     if (Q_UNLIKELY(!d->layout))
         return p;
 
-    auto l_output = d->layout->get(d->handle());
+    auto l_output = d->layout->get(d->nativeHandle());
 
     if (Q_UNLIKELY(!l_output))
         return p;
@@ -475,15 +461,18 @@ QSize WOutput::size() const
 QSize WOutput::transformedSize() const
 {
     W_DC(WOutput);
-
-    return d->handle()->transformedResolution();
+    int width, height;
+    d->handle()->transformed_resolution(&width, &height);
+    return QSize( width, height );
 }
 
 QSize WOutput::effectiveSize() const
 {
     W_DC(WOutput);
 
-    return d->handle()->effectiveResolution();
+    int width, height;
+    d->handle()->effective_resolution(&width, &height);
+    return QSize( width, height );
 }
 
 WOutput::Transform WOutput::orientation() const
@@ -519,7 +508,7 @@ QImage::Format WOutput::preferredReadFormat() const
         return WTools::toImageFormat(renderer->impl->preferred_read_format(renderer));
     }
 
-    return WTools::toImageFormat(d->handle()->preferredReadFormat());
+    return WTools::toImageFormat(d->handle()->preferred_read_format());
 }
 
 void WOutput::attach(QQuickWindow *window)
@@ -578,13 +567,13 @@ bool WOutput::setGammaLut(size_t ramp_size, uint16_t* r, uint16_t* g, uint16_t* 
         return false;
     }
 
-    if (!handle()->testState(&state)) {
+    if (!handle()->test_state(&state)) {
         wlr_output_state_finish(&state);
         qCWarning(qLcOutput) << "The gamma lut state can't accepted by the backend!";
         return false;
     }
 
-    bool ok = handle()->commitState(&state);
+    bool ok = handle()->commit_state(&state);
     wlr_output_state_finish(&state);
     if (!ok)
         qCWarning(qLcOutput) << "Output commitState failed!";
@@ -601,19 +590,19 @@ bool WOutput::enable(bool enabled)
 void WOutput::enableAdaptiveSync(bool enabled)
 {
     W_D(WOutput);
-    d->handle()->enableAdaptiveSync(enabled);
+    d->handle()->enable_adaptive_sync(enabled);
 }
 
 void WOutput::setMode(wlr_output_mode *mode)
 {
     W_D(WOutput);
-    d->handle()->setMode(mode);
+    d->handle()->set_mode(mode);
 }
 
 void WOutput::setCustomMode(const QSize &size, int32_t refresh)
 {
     W_D(WOutput);
-    d->handle()->setCustomMode(size, refresh);
+    d->handle()->set_custom_mode(size.width(), size.height(), refresh);
 }
 
 bool WOutput::test()
@@ -646,7 +635,7 @@ void WOutput::setForceSoftwareCursor(bool on)
     if (d->forceSoftwareCursor == on)
         return;
     d->forceSoftwareCursor = on;
-    d->handle()->lockSoftwareCursors(on);
+    d->handle()->lock_software_cursors(on);
 
     Q_EMIT forceSoftwareCursorChanged();
 }

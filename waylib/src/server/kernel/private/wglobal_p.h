@@ -3,7 +3,7 @@
 #pragma once
 
 #include "wglobal.h"
-
+#include <qwobject.h>
 #include <QPointer>
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
@@ -48,12 +48,12 @@ public:
 protected:
     W_DECLARE_PUBLIC(WWrapObject)
 
-    void initHandle(QW_NAMESPACE::QWWrapObject *handle);
+    void initHandle(QW_NAMESPACE::qw_object_basic *handle);
     void invalidate();
     virtual void instantRelease() {}
 
     QList<QMetaObject::Connection> connectionsWithHandle;
-    QPointer<QW_NAMESPACE::QWWrapObject> m_handle;
+    QPointer<QW_NAMESPACE::qw_object_basic> m_handle;
     uint invalidated:1;
 };
 

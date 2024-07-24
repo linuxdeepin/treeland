@@ -3,11 +3,9 @@
 
 #include "woutputitem.h"
 #include "woutputitem_p.h"
-#include "woutputrenderwindow.h"
 #include "woutput.h"
 #include "woutputlayout.h"
 #include "wquickoutputlayout.h"
-#include "wseat.h"
 #include "wtools.h"
 #include "wtexture.h"
 #include "wquickcursor.h"
@@ -20,7 +18,6 @@
 #include <private/qsgplaintexture_p.h>
 
 extern "C" {
-#include <wlr/render/wlr_texture.h>
 #define static
 #include <wlr/render/gles2.h>
 #undef static
@@ -55,7 +52,7 @@ void WOutputItemAttached::setItem(WOutputItem *positioner)
 class CursorTextureFactory : public QQuickTextureFactory
 {
 public:
-    CursorTextureFactory(QWTexture *texture)
+    CursorTextureFactory(qw_texture *texture)
         : QQuickTextureFactory()
         , texture(texture)
     {
@@ -74,7 +71,7 @@ public:
     QImage image() const override;
 
 private:
-    QWTexture *texture;
+    qw_texture *texture;
 };
 
 class CursorProvider : public QQuickImageProvider
@@ -217,7 +214,7 @@ void QuickOutputCursor::setTexture(wlr_texture *texture)
     if (texture) {
         url.setScheme("image");
         url.setHost(imageProviderId());
-        url.setPath(QString("/%1/%2").arg(quintptr(QWTexture::from(texture)), 0, 16));
+        url.setPath(QString("/%1/%2").arg(quintptr(qw_texture::from(texture)), 0, 16));
     }
 
     setImageSource(url);
@@ -286,7 +283,7 @@ QQuickTextureFactory *CursorProvider::requestTexture(const QString &id, QSize *s
     if (tmp.isEmpty())
         return nullptr;
     bool ok = false;
-    QWTexture *texture = QWTexture::from(reinterpret_cast<wlr_texture*>(tmp.first().toLongLong(&ok, 16)));
+    qw_texture *texture = qw_texture::from(reinterpret_cast<wlr_texture*>(tmp.first().toLongLong(&ok, 16)));
     if (!ok)
         return nullptr;
 

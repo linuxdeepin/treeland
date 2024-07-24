@@ -5,12 +5,9 @@
 #include "private/wglobal_p.h"
 
 #include <qwvirtualkeyboardv1.h>
+#include <qwdisplay.h>
 
 #include <QLoggingCategory>
-
-extern "C" {
-#include <wlr/types/wlr_virtual_keyboard_v1.h>
-}
 
 QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
@@ -37,15 +34,17 @@ QByteArrayView WVirtualKeyboardManagerV1::interfaceName() const
 void WVirtualKeyboardManagerV1::create(WServer *server)
 {
     W_D(WVirtualKeyboardManagerV1);
-    auto manager = QWVirtualKeyboardManagerV1::create(server->handle());
+    auto manager = qw_virtual_keyboard_manager_v1::create(*server->handle());
     Q_ASSERT(manager);
     m_handle = manager;
-    connect(manager, &QWVirtualKeyboardManagerV1::newVirtualKeyboard, this, &WVirtualKeyboardManagerV1::newVirtualKeyboard);
+    connect(manager, &qw_virtual_keyboard_manager_v1::notify_new_virtual_keyboard, this, [ this ] (wlr_virtual_keyboard_v1* keyboard) {
+        Q_EMIT newVirtualKeyboard(qw_virtual_keyboard_v1::from(keyboard));
+    });
 }
 
 wl_global *WVirtualKeyboardManagerV1::global() const
 {
-    return nativeInterface<QWVirtualKeyboardManagerV1>()->handle()->global;
+    return nativeInterface<qw_virtual_keyboard_manager_v1>()->handle()->global;
 }
 
 WAYLIB_SERVER_END_NAMESPACE

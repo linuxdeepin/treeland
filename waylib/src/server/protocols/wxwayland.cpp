@@ -11,13 +11,8 @@
 #include <qwxwayland.h>
 #include <qwxwaylandsurface.h>
 #include <qwxwaylandshellv1.h>
-
-extern "C" {
-#define class className
-#include <wlr/xwayland.h>
-#include <wlr/xwayland/shell.h>
-#undef class
-}
+#include <qwdisplay.h>
+#include <qwcompositor.h>
 
 #include <xcb/xcb.h>
 
@@ -27,7 +22,7 @@ WAYLIB_SERVER_BEGIN_NAMESPACE
 class WXWaylandPrivate : public WWrapObjectPrivate
 {
 public:
-    WXWaylandPrivate(WXWayland *qq, QWCompositor *compositor, bool lazy)
+    WXWaylandPrivate(WXWayland *qq, qw_compositor *compositor, bool lazy)
         : WWrapObjectPrivate(qq)
         , compositor(compositor)
         , lazy(lazy)
@@ -47,12 +42,12 @@ public:
 
     // begin slot function
     void on_new_surface(wlr_xwayland_surface *xwl_surface);
-    void on_surface_destroy(QWXWaylandSurface *xwl_surface);
+    void on_surface_destroy(qw_xwayland_surface *xwl_surface);
     // end slot function
 
     W_DECLARE_PUBLIC(WXWayland)
 
-    QWCompositor *compositor;
+    qw_compositor *compositor;
     bool lazy = true;
     QVector<WXWaylandSurface*> surfaceList;
     xcb_connection_t *xcbConnection = nullptr;
@@ -119,11 +114,11 @@ void WXWaylandPrivate::on_new_surface(wlr_xwayland_surface *xwl_surface)
     W_Q(WXWayland);
 
     auto server = q->server();
-    QWXWaylandSurface *xwlSurface = QWXWaylandSurface::from(xwl_surface);
+    qw_xwayland_surface *xwlSurface = qw_xwayland_surface::from(xwl_surface);
     auto surface = new WXWaylandSurface(xwlSurface, q, server);
     surface->setParent(server);
     Q_ASSERT(surface->parent() == server);
-    surface->safeConnect(&QWXWaylandSurface::beforeDestroy,
+    surface->safeConnect(&qw_xwayland_surface::before_destroy,
                      q, [this, xwlSurface] {
         on_surface_destroy(xwlSurface);
     });
@@ -132,7 +127,7 @@ void WXWaylandPrivate::on_new_surface(wlr_xwayland_surface *xwl_surface)
     q->addSurface(surface);
 }
 
-void WXWaylandPrivate::on_surface_destroy(QWXWaylandSurface *xwl_surface)
+void WXWaylandPrivate::on_surface_destroy(qw_xwayland_surface *xwl_surface)
 {
     W_Q(WXWayland);
 
@@ -144,7 +139,7 @@ void WXWaylandPrivate::on_surface_destroy(QWXWaylandSurface *xwl_surface)
     surface->safeDeleteLater();
 }
 
-WXWayland::WXWayland(QWCompositor *compositor, bool lazy)
+WXWayland::WXWayland(qw_compositor *compositor, bool lazy)
     : WWrapObject(*new WXWaylandPrivate(this, compositor, lazy))
 {
     W_D(WXWayland);
@@ -179,7 +174,7 @@ void WXWayland::setSeat(WSeat *seat)
 {
     W_D(WXWayland);
     if (auto handle = this->handle())
-        handle->setSeat(seat->handle());
+        handle->set_seat(*seat->handle());
 }
 
 WSeat *WXWayland::seat() const
@@ -189,7 +184,7 @@ WSeat *WXWayland::seat() const
         return nullptr;
     if (!handle()->handle()->seat)
         return nullptr;
-    auto seat = QWSeat::from(handle()->handle()->seat);
+    auto seat = qw_seat::from(handle()->handle()->seat);
     return WSeat::fromHandle(seat);
 }
 
@@ -275,15 +270,15 @@ void WXWayland::create(WServer *server)
     W_D(WXWayland);
     // free follow display
 
-    auto handle = QWXWayland::create(server->handle(), d->compositor, d->lazy);
+    auto handle = qw_xwayland::create(*server->handle(), *d->compositor, d->lazy);
     initHandle(handle);
     m_handle = handle;
     d->socket->bind(handle->handle()->server->x_fd[1]);
 
-    QObject::connect(handle, &QWXWayland::newSurface, this, [d] (wlr_xwayland_surface *surface) {
+    QObject::connect(handle, &qw_xwayland::notify_new_surface, this, [d] (wlr_xwayland_surface *surface) {
         d->on_new_surface(surface);
     });
-    QObject::connect(handle, &QWXWayland::ready, this, [this, d] {
+    QObject::connect(handle, &qw_xwayland::notify_ready, this, [this, d] {
         d->init();
         Q_EMIT ready();
     });

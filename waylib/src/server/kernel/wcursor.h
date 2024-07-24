@@ -15,11 +15,11 @@ class QWindow;
 QT_END_NAMESPACE
 
 QW_BEGIN_NAMESPACE
-class QWXCursorManager;
-class QWInputDevice;
-class QWCursor;
-class QWOutputCursor;
-class QWSurface;
+class qw_xcursor_manager;
+class qw_input_device;
+class qw_cursor;
+class qw_output_cursor;
+class qw_surface;
 QW_END_NAMESPACE
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
@@ -87,9 +87,9 @@ public:
 
     explicit WCursor(QObject *parent = nullptr);
 
-    QW_NAMESPACE::QWCursor *handle() const;
+    QW_NAMESPACE::qw_cursor *handle() const;
 
-    static WCursor *fromHandle(const QW_NAMESPACE::QWCursor *handle);
+    static WCursor *fromHandle(const QW_NAMESPACE::qw_cursor *handle);
 
     static Qt::MouseButton fromNativeButton(uint32_t code);
     static uint32_t toNativeButton(Qt::MouseButton button);
@@ -104,10 +104,10 @@ public:
 
     static Qt::CursorShape defaultCursor();
 
-    void setXCursorManager(QW_NAMESPACE::QWXCursorManager *manager);
+    void setXCursorManager(QW_NAMESPACE::qw_xcursor_manager *manager);
     QCursor cursor() const;
     void setCursor(const QCursor &cursor);
-    void setSurface(QW_NAMESPACE::QWSurface *surface, const QPoint &hotspot);
+    void setSurface(QW_NAMESPACE::qw_surface *surface, const QPoint &hotspot);
     void setCursorShape(CursorShape shape);
     void setDragSurface(WSurface *surface);
     WSurface* dragSurface() const;
@@ -132,10 +132,10 @@ protected:
     WCursor(WCursorPrivate &dd, QObject *parent = nullptr);
     ~WCursor() override = default;
 
-    virtual void move(QW_NAMESPACE::QWInputDevice *device, const QPointF &delta);
-    virtual void setPosition(QW_NAMESPACE::QWInputDevice *device, const QPointF &pos);
-    virtual bool setPositionWithChecker(QW_NAMESPACE::QWInputDevice *device, const QPointF &pos);
-    virtual void setScalePosition(QW_NAMESPACE::QWInputDevice *device, const QPointF &ratio);
+    virtual void move(QW_NAMESPACE::qw_input_device *device, const QPointF &delta);
+    virtual void setPosition(QW_NAMESPACE::qw_input_device *device, const QPointF &pos);
+    virtual bool setPositionWithChecker(QW_NAMESPACE::qw_input_device *device, const QPointF &pos);
+    virtual void setScalePosition(QW_NAMESPACE::qw_input_device *device, const QPointF &ratio);
 
 private:
     friend class WSeat;

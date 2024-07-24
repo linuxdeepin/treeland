@@ -12,13 +12,6 @@
 
 #include <QCoreApplication>
 
-extern "C" {
-#define static
-#include <wlr/types/wlr_xdg_shell.h>
-#undef static
-#include <wlr/util/edges.h>
-}
-
 QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
@@ -77,14 +70,14 @@ void WXdgSurfaceItem::onSurfaceCommit()
     Q_D(WXdgSurfaceItem);
 
     WSurfaceItem::onSurfaceCommit();
-    if (auto popup = xdgSurface()->handle()->toPopup()) {
+    if (auto popup = xdgSurface()->handle()->handle()->popup) {
         Q_UNUSED(popup);
         d->setImplicitPosition(xdgSurface()->getPopupPosition());
-    } else if (auto toplevel = xdgSurface()->handle()->topToplevel()) {
-        const QSize minSize(getValidSize(toplevel->handle()->current.min_width, 0),
-                            getValidSize(toplevel->handle()->current.min_height, 0));
-        const QSize maxSize(getValidSize(toplevel->handle()->current.max_width, INT_MAX),
-                            getValidSize(toplevel->handle()->current.max_height, INT_MAX));
+    } else if (auto toplevel = xdgSurface()->handle()->handle()->toplevel) {
+        const QSize minSize(getValidSize(toplevel->current.min_width, 0),
+                            getValidSize(toplevel->current.min_height, 0));
+        const QSize maxSize(getValidSize(toplevel->current.max_width, INT_MAX),
+                            getValidSize(toplevel->current.max_height, INT_MAX));
 
         if (d->minimumSize != minSize) {
             d->minimumSize = minSize;

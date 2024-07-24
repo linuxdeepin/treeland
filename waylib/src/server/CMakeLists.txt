@@ -19,7 +19,7 @@ if(QT_KNOWN_POLICY_QTP0001) # this policy was introduced in Qt 6.5
     # the RESOURCE_PREFIX argument for qt_add_qml_module() defaults to ":/qt/qml/"
 endif()
 
-find_package(PkgConfig)
+find_package(PkgConfig REQUIRED)
 pkg_search_module(LIBDRM REQUIRED IMPORTED_TARGET libdrm)
 pkg_search_module(WLROOTS REQUIRED IMPORTED_TARGET wlroots)
 pkg_search_module(WAYLAND REQUIRED IMPORTED_TARGET wayland-server)
@@ -30,24 +30,6 @@ pkg_search_module(XKBCOMMON REQUIRED IMPORTED_TARGET xkbcommon)
 pkg_search_module(XCB REQUIRED IMPORTED_TARGET xcb)
 pkg_search_module(EGL REQUIRED IMPORTED_TARGET egl)
 
-ws_generate(
-    server
-    wayland-protocols
-    stable/xdg-shell/xdg-shell.xml
-    xdg-shell-protocol
-)
-ws_generate(
-    server
-    wayland-protocols
-    staging/cursor-shape/cursor-shape-v1.xml
-    cursor-shape-v1-protocol
-)
-ws_generate(
-    server
-    wlr-protocols
-    unstable/wlr-layer-shell-unstable-v1.xml
-    wlr-layer-shell-unstable-v1-protocol
-)
 ws_generate(
     server
     wayland-protocols
@@ -114,9 +96,9 @@ set(SOURCES
     qtquick/private/wbufferrenderer.cpp
     qtquick/private/wrenderbuffernode.cpp
 
-    ${CMAKE_CURRENT_BINARY_DIR}/text-input-unstable-v1-protocol.c
-    ${CMAKE_CURRENT_BINARY_DIR}/text-input-unstable-v2-protocol.c
-    ${CMAKE_CURRENT_BINARY_DIR}/xdg-output-unstable-v1-protocol.c
+    ${WAYLAND_PROTOCOLS_OUTPUTDIR}/text-input-unstable-v1-protocol.c
+    ${WAYLAND_PROTOCOLS_OUTPUTDIR}/text-input-unstable-v2-protocol.c
+    ${WAYLAND_PROTOCOLS_OUTPUTDIR}/xdg-output-unstable-v1-protocol.c
 
     utils/wtools.cpp
     utils/wthreadutils.cpp
@@ -147,7 +129,7 @@ set(SOURCES
     protocols/wcursorshapemanagerv1.cpp
     protocols/woutputmanagerv1.cpp
 
-    ${CMAKE_CURRENT_BINARY_DIR}/text-input-unstable-v1-protocol.c
+    ${WAYLAND_PROTOCOLS_OUTPUTDIR}/text-input-unstable-v1-protocol.c
 )
 
 set(HEADERS
@@ -253,9 +235,9 @@ set(PRIVATE_HEADERS
     qtquick/private/wrenderbuffernode_p.h
     qtquick/private/wsurfaceitem_p.h
 
-    ${CMAKE_CURRENT_BINARY_DIR}/text-input-unstable-v1-protocol.h
-    ${CMAKE_CURRENT_BINARY_DIR}/text-input-unstable-v2-protocol.h
-    ${CMAKE_CURRENT_BINARY_DIR}/xdg-output-unstable-v1-protocol.h
+    ${WAYLAND_PROTOCOLS_OUTPUTDIR}/text-input-unstable-v1-protocol.h
+    ${WAYLAND_PROTOCOLS_OUTPUTDIR}/text-input-unstable-v2-protocol.h
+    ${WAYLAND_PROTOCOLS_OUTPUTDIR}/xdg-output-unstable-v1-protocol.h
 
     protocols/private/winputmethodv2_p.h
     protocols/private/wtextinput_p.h
@@ -309,18 +291,6 @@ set_target_properties(${TARGET}
 	# PRIVATE_HEADER "${PRIVATE_HEADERS}"
 	# CMake Warning has PRIVATE_HEADER files but no PRIVATE_HEADER DESTINATION
 )
-if(WITH_SUBMODULE_QWLROOTS)
-    target_link_libraries(${TARGET}
-        PUBLIC
-        qwlroots
-    )
-else()
-    find_package(QWlroots)
-    target_link_libraries(${TARGET}
-        PUBLIC
-        QWlroots::QWlroots
-    )
-endif()
 
 set(QT_LIBRARIES "")
 foreach(temp ${QT_COMPONENTS})
@@ -338,6 +308,11 @@ target_link_libraries(${TARGET}
     PkgConfig::XKBCOMMON
     PkgConfig::XCB
     PkgConfig::EGL
+)
+
+target_link_libraries(${TARGET}
+    PUBLIC
+        QWlroots::QWlroots
 )
 
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
@@ -362,6 +337,11 @@ target_link_directories(${TARGET}
     INTERFACE
         $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>
         $<INSTALL_INTERFACE:${CMAKE_INSTALL_LIBDIR}>
+)
+
+target_precompile_headers(${TARGET}
+    PRIVATE
+    "$<$<COMPILE_LANGUAGE:CXX>:pch/pch.hxx>"
 )
 
 install(TARGETS ${TARGET}

@@ -8,8 +8,8 @@
 #include <wtoplevelsurface.h>
 
 QW_BEGIN_NAMESPACE
-class QWSurface;
-class QWXdgSurface;
+class qw_surface;
+class qw_xdg_surface;
 QW_END_NAMESPACE
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
@@ -27,17 +27,17 @@ class WAYLIB_SERVER_EXPORT WXdgSurface : public WToplevelSurface
     QML_UNCREATABLE("Only create in C++")
 
 public:
-    explicit WXdgSurface(QW_NAMESPACE::QWXdgSurface *handle, QObject *parent = nullptr);
+    explicit WXdgSurface(QW_NAMESPACE::qw_xdg_surface *handle, QObject *parent = nullptr);
     ~WXdgSurface();
 
     bool isPopup() const;
     bool doesNotAcceptFocus() const override;
 
     WSurface *surface() const override;
-    QW_NAMESPACE::QWXdgSurface *handle() const;
-    QW_NAMESPACE::QWSurface *inputTargetAt(QPointF &localPos) const;
+    QW_NAMESPACE::qw_xdg_surface *handle() const;
+    QW_NAMESPACE::qw_surface *inputTargetAt(QPointF &localPos) const;
 
-    static WXdgSurface *fromHandle(QW_NAMESPACE::QWXdgSurface *handle);
+    static WXdgSurface *fromHandle(QW_NAMESPACE::qw_xdg_surface *handle);
     static WXdgSurface *fromSurface(WSurface *surface);
 
     WXdgSurface *parentXdgSurface() const;

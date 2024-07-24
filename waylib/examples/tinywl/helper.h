@@ -31,9 +31,9 @@ class WOutputManagerV1;
 WAYLIB_SERVER_END_NAMESPACE
 
 QW_BEGIN_NAMESPACE
-class QWCompositor;
-class QWGammaControlManagerV1;
-class QWFractionalScaleManagerV1;
+class qw_compositor;
+class qw_gamma_control_manager_v1;
+class qw_fractional_scale_manager_v1;
 QW_END_NAMESPACE
 
 struct wlr_output_event_request_state;
@@ -50,7 +50,7 @@ class Helper : public WSeatEventFilter {
     Q_PROPERTY(WQuickOutputLayout* outputLayout READ outputLayout CONSTANT)
     Q_PROPERTY(WSeat* seat READ seat CONSTANT)
     Q_PROPERTY(WXdgDecorationManager* xdgDecorationManager READ xdgDecorationManager NOTIFY xdgDecorationManagerChanged)
-    Q_PROPERTY(QW_NAMESPACE::QWCompositor* compositor READ compositor NOTIFY compositorChanged FINAL)
+    Q_PROPERTY(QW_NAMESPACE::qw_compositor* compositor READ compositor NOTIFY compositorChanged FINAL)
     Q_PROPERTY(WQmlCreator* outputCreator READ outputCreator CONSTANT)
     Q_PROPERTY(WQmlCreator* xdgShellCreator READ xdgShellCreator CONSTANT)
     Q_PROPERTY(WQmlCreator* xwaylandCreator READ xwaylandCreator CONSTANT)
@@ -66,7 +66,7 @@ public:
     void initProtocols(WOutputRenderWindow *window, QQmlEngine *qmlEngine);
     WQuickOutputLayout *outputLayout() const;
     WSeat *seat() const;
-    QWCompositor *compositor() const;
+    qw_compositor *compositor() const;
 
     WQmlCreator *outputCreator() const;
     WQmlCreator *xdgShellCreator() const;
@@ -106,7 +106,7 @@ public Q_SLOTS:
     void allowNonDrmOutputAutoChangeMode(WOutput *output);
     void enableOutput(WOutput *output);
 
-signals:
+Q_SIGNALS:
     void activatedSurfaceChanged();
     void resizingItemChanged();
     void movingItemChanged();
@@ -132,17 +132,17 @@ private:
     WQuickCursor *m_cursor = nullptr;
 
     WServer *m_server = nullptr;
-    QWRenderer *m_renderer = nullptr;
-    QWAllocator *m_allocator = nullptr;
-    QWCompositor *m_compositor = nullptr;
+    qw_renderer *m_renderer = nullptr;
+    qw_allocator *m_allocator = nullptr;
+    qw_compositor *m_compositor = nullptr;
     WSeat *m_seat = nullptr;
     WXWayland *m_xwayland = nullptr;
     WXdgDecorationManager *m_xdgDecorationManager = nullptr;
     WInputMethodHelper *m_inputMethodHelper = nullptr;
     WSocket *m_socket = nullptr;
-    QWFractionalScaleManagerV1 *m_fractionalScaleManagerV1 = nullptr;
+    qw_fractional_scale_manager_v1 *m_fractionalScaleManagerV1 = nullptr;
     WCursorShapeManagerV1 *m_cursorShapeManager = nullptr;
-    QWGammaControlManagerV1 *m_gammaControlManager = nullptr;
+    qw_gamma_control_manager_v1 *m_gammaControlManager = nullptr;
     WOutputManagerV1 *m_wOutputManager = nullptr;
 
     WQmlCreator *m_outputCreator = nullptr;
@@ -181,4 +181,4 @@ struct OutputInfo {
 
 Q_DECLARE_OPAQUE_POINTER(WAYLIB_SERVER_NAMESPACE::WOutputRenderWindow*)
 Q_DECLARE_OPAQUE_POINTER(WAYLIB_SERVER_NAMESPACE::WQmlCreator*)
-Q_DECLARE_OPAQUE_POINTER(QW_NAMESPACE::QWCompositor*)
+Q_DECLARE_OPAQUE_POINTER(QW_NAMESPACE::qw_compositor*)

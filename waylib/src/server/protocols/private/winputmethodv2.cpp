@@ -13,21 +13,11 @@
 #include <qwseat.h>
 #include <qwkeyboard.h>
 #include <qwvirtualkeyboardv1.h>
+#include <qwdisplay.h>
 
 #include <QKeySequence>
 #include <QLoggingCategory>
 #include <QRect>
-
-extern "C" {
-#define delete delete_c
-#include <wlr/types/wlr_input_method_v2.h>
-#undef delete
-#include <wlr/types/wlr_keyboard.h>
-#define static
-#include <wlr/types/wlr_compositor.h>
-#undef static
-#include <wlr/types/wlr_virtual_keyboard_v1.h>
-}
 
 QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
@@ -54,41 +44,47 @@ QByteArrayView WInputMethodManagerV2::interfaceName() const
 
 void WInputMethodManagerV2::create(WServer *server)
 {
-    auto handle = QWInputMethodManagerV2::create(server->handle());
+    auto handle = qw_input_method_manager_v2::create(*server->handle());
     Q_ASSERT(handle);
     m_handle = handle;
-    connect(handle, &QWInputMethodManagerV2::inputMethod, this, &WInputMethodManagerV2::newInputMethod);
+    connect(handle, &qw_input_method_manager_v2::notify_input_method, this, [this](wlr_input_method_v2* im) {
+        Q_EMIT newInputMethod(qw_input_method_v2::from(im));
+    });
 }
 
 wl_global *WInputMethodManagerV2::global() const
 {
-    return nativeInterface<QWInputMethodManagerV2>()->handle()->global;
+    return nativeInterface<qw_input_method_manager_v2>()->handle()->global;
 }
 
 class WInputMethodV2Private : public WWrapObjectPrivate
 {
 public:
-    WInputMethodV2Private(QWInputMethodV2 *h, WInputMethodV2 *qq)
+    WInputMethodV2Private(qw_input_method_v2 *h, WInputMethodV2 *qq)
         : WWrapObjectPrivate(qq)
     {
         initHandle(h);
     }
 
-    WWRAP_HANDLE_FUNCTIONS(QWInputMethodV2, wlr_input_method_v2)
+    WWRAP_HANDLE_FUNCTIONS(qw_input_method_v2, wlr_input_method_v2)
 
     W_DECLARE_PUBLIC(WInputMethodV2)
 };
 
-WInputMethodV2::WInputMethodV2(QWInputMethodV2 *h, QObject *parent) :
+WInputMethodV2::WInputMethodV2(qw_input_method_v2 *h, QObject *parent) :
     WWrapObject(*new WInputMethodV2Private(h, this), parent)
 {
     W_D(WInputMethodV2);
-    connect(handle(), &QWInputMethodV2::commit, this, &WInputMethodV2::committed);
-    connect(handle(), &QWInputMethodV2::grabKeybord, this, &WInputMethodV2::newKeyboardGrab);
-    connect(handle(), &QWInputMethodV2::newPopupSurface, this, &WInputMethodV2::newPopupSurface);
+    connect(handle(), &qw_input_method_v2::notify_commit, this, &WInputMethodV2::committed);
+    connect(handle(), &qw_input_method_v2::notify_grab_keyboard, this, [this](wlr_input_method_keyboard_grab_v2 *grab) {
+        Q_EMIT newKeyboardGrab(qw_input_method_keyboard_grab_v2::from(grab));
+    });
+    connect(handle(), &qw_input_method_v2::notify_new_popup_surface, this, [this](wlr_input_popup_surface_v2 *surface) {
+        Q_EMIT newPopupSurface(qw_input_popup_surface_v2::from(surface));
+    });
 }
 
-QWInputMethodV2 *WInputMethodV2::handle() const
+qw_input_method_v2 *WInputMethodV2::handle() const
 {
     return d_func()->handle();
 }
@@ -96,49 +92,49 @@ QWInputMethodV2 *WInputMethodV2::handle() const
 WSeat *WInputMethodV2::seat() const
 {
     W_DC(WInputMethodV2);
-    return WSeat::fromHandle(QWSeat::from(d->nativeHandle()->seat));
+    return WSeat::fromHandle(qw_seat::from(d->nativeHandle()->seat));
 }
 
 void WInputMethodV2::sendContentType(quint32 hint, quint32 purpose)
 {
     W_D(WInputMethodV2);
-    d->handle()->sendContentType(hint, purpose);
+    d->handle()->send_content_type(hint, purpose);
 }
 
 void WInputMethodV2::sendActivate()
 {
     W_D(WInputMethodV2);
-    d->handle()->sendActivate();
+    d->handle()->send_activate();
 }
 
 void WInputMethodV2::sendDeactivate()
 {
     W_D(WInputMethodV2);
-    d->handle()->sendDeactivate();
+    d->handle()->send_deactivate();
 }
 
 void WInputMethodV2::sendDone()
 {
     W_D(WInputMethodV2);
-    d->handle()->sendDone();
+    d->handle()->send_done();
 }
 
 void WInputMethodV2::sendSurroundingText(const QString &text, quint32 cursor, quint32 anchor)
 {
     W_D(WInputMethodV2);
-    d->handle()->sendSurroundingText(qPrintable(text), cursor, anchor);
+    d->handle()->send_surrounding_text(qPrintable(text), cursor, anchor);
 }
 
 void WInputMethodV2::sendTextChangeCause(quint32 cause)
 {
     W_D(WInputMethodV2);
-    d->handle()->sendTextChangeCause(cause);
+    d->handle()->send_text_change_cause(cause);
 }
 
 void WInputMethodV2::sendUnavailable()
 {
     W_D(WInputMethodV2);
-    d->handle()->sendUnavailable();
+    d->handle()->send_unavailable();
 }
 
 QString WInputMethodV2::commitString() const
