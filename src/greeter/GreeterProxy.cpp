@@ -249,9 +249,13 @@ void GreeterProxy::onSessionAdded(const QDBusObjectPath &session)
 
 void GreeterProxy::onSessionRemoved(const QDBusObjectPath &session)
 {
-    DisplaySession s(d->displayManager->service(), session.path(), QDBusConnection::systemBus());
+    // FIXME: Reset all user state, because we can't know which user was logout.
+    userModel()->clearUserLoginState();
 
-    userModel()->updateUserLoginState(s.userName(), false);
+    auto sessions = d->displayManager->sessions();
+    for (auto session : sessions) {
+        onSessionAdded(session);
+    }
 }
 
 void GreeterProxy::readyRead()

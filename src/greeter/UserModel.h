@@ -72,6 +72,7 @@ public:
     void updateUserLimits(const QString &userName, const QString &time) const noexcept;
     void setCurrentUserName(const QString &userName) noexcept;
     void updateUserLoginState(const QString &username, bool logined);
+    void clearUserLoginState();
     [[nodiscard]] static int disableAvatarsThreshold();
     [[nodiscard]] bool containsAllUsers() const;
 

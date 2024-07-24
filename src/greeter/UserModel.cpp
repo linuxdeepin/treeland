@@ -167,6 +167,15 @@ void UserModel::updateUserLoginState(const QString &username, bool logined)
     emit layoutChanged();
 }
 
+void UserModel::clearUserLoginState()
+{
+    for (auto &user : d->users) {
+        user->setLogined(false);
+    }
+
+    emit layoutChanged();
+}
+
 QVariant UserModel::data(const QModelIndex &index, int role) const
 {
     if (index.row() < 0 || index.row() > d->users.count()) {
