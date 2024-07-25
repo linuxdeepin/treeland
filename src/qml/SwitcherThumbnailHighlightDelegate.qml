@@ -23,6 +23,11 @@ Component {
             SpringAnimation {
                 spring: 1.1
                 damping: 0.2
+                easing {
+                    type: Easing.OutExpo
+                    amplitude: 2.0
+                    period: 1.5
+                }
             }
         }
     }

@@ -80,11 +80,12 @@ FocusScope {
         visible: !multitaskView.active && !WindowManagementV1.desktopState
         enabled: !switcher.visible && !multitaskView.active
         focus: enabled
-        opacity: if (switcher.visible || dockPreview.previewing) switcherHideOpacity
+        opacity: if (switcher.visible && !switcher.showAllSurface || dockPreview.previewing) switcherHideOpacity
             else 1
         z: 0
 
         Behavior on opacity {
+            enabled: !switcher.visible
             NumberAnimation { duration: 300 }
         }
 
@@ -371,7 +372,7 @@ FocusScope {
         Connections {
             target: Helper
             function onSwitcherOnChanged(on) {
-                if (!on) switcher.visible = false
+                if (!on) switcher.handleExit()
             }
         }
     }
