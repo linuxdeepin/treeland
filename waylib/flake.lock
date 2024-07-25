@@ -63,11 +63,11 @@
         "wlroots-master": "wlroots-master"
       },
       "locked": {
-        "lastModified": 1721720764,
-        "narHash": "sha256-ccpcDb+ZEqqghEji05lFgU4dAFQ0xqWGDs7Y6g32QGA=",
+        "lastModified": 1721888754,
+        "narHash": "sha256-/Hpx66Id67drQ1AyRea3NCHKEBLedMyQ62E7EOhkqnQ=",
         "owner": "vioken",
         "repo": "qwlroots",
-        "rev": "10a2f852f9a2fa9d0342424dfcbb3398c1cf1c6c",
+        "rev": "3cff523587b1ec92b1c95148edd2b4002a56aba8",
         "type": "github"
       },
       "original": {

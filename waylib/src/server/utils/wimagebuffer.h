@@ -9,14 +9,14 @@
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
-class WAYLIB_SERVER_EXPORT WImageBufferImpl : public QW_NAMESPACE::qw_buffer_interface<WImageBufferImpl>
+class WAYLIB_SERVER_EXPORT WImageBufferImpl : public QW_NAMESPACE::qw_buffer_interface
 {
 public:
     WImageBufferImpl(const QImage &bufferImage);
     ~WImageBufferImpl();
 
-    bool begin_data_ptr_access(uint32_t flags, void **data, uint32_t *format, size_t *stride);
-    void end_data_ptr_access();
+    QW_INTERFACE(begin_data_ptr_access, bool, uint32_t flags, void **data, uint32_t *format, size_t *stride);
+    QW_INTERFACE(end_data_ptr_access, void);
 
 private:
     QImage image;

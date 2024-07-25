@@ -304,12 +304,12 @@ QSGRendererInterface::GraphicsApi WRenderHelper::getGraphicsApi()
     return api;
 }
 
-class Q_DECL_HIDDEN GLTextureBuffer : public qw_buffer_interface<GLTextureBuffer>
+class Q_DECL_HIDDEN GLTextureBuffer : public qw_buffer_interface
 {
 public:
     explicit GLTextureBuffer(wlr_egl *egl, QSGTexture *texture);
 
-    bool get_dmabuf(wlr_dmabuf_attributes *attribs) const;
+    QW_INTERFACE(get_dmabuf, bool, wlr_dmabuf_attributes *attribs);
 
 private:
     wlr_egl *m_egl;
@@ -323,7 +323,7 @@ GLTextureBuffer::GLTextureBuffer(wlr_egl *egl, QSGTexture *texture)
 
 }
 
-bool GLTextureBuffer::get_dmabuf(wlr_dmabuf_attributes *attribs) const
+bool GLTextureBuffer::get_dmabuf(wlr_dmabuf_attributes *attribs)
 {
     auto rhiTexture = m_texture->rhiTexture();
     if (!rhiTexture)
@@ -371,12 +371,12 @@ bool GLTextureBuffer::get_dmabuf(wlr_dmabuf_attributes *attribs) const
 }
 
 #ifdef ENABLE_VULKAN_RENDER
-class Q_DECL_HIDDEN VkTextureBuffer : public qw_buffer_interface<VkTextureBuffer>
+class Q_DECL_HIDDEN VkTextureBuffer : public qw_buffer_interface
 {
 public:
     explicit VkTextureBuffer(VkInstance instance, VkDevice device, QSGTexture *texture);
 
-    bool get_dmabuf(wlr_dmabuf_attributes *attribs) const;
+    QW_INTERFACE(get_dmabuf, bool ,wlr_dmabuf_attributes *attribs);
 
 private:
     VkInstance m_instance;
@@ -392,8 +392,9 @@ VkTextureBuffer::VkTextureBuffer(VkInstance instance, VkDevice device, QSGTextur
 
 }
 
-bool VkTextureBuffer::get_dmabuf(wlr_dmabuf_attributes *attribs) const
+bool VkTextureBuffer::get_dmabuf(wlr_dmabuf_attributes *attribs)
 {
+    Q_UNUSED(attribs);
 //    static auto vkGetInstanceProcAddr =
 //        reinterpret_cast<PFN_vkGetInstanceProcAddr>(::dlsym(RTLD_DEFAULT, "vkGetInstanceProcAddr"));
 //    static auto vkGetMemoryFdKHR =
@@ -410,14 +411,14 @@ bool VkTextureBuffer::get_dmabuf(wlr_dmabuf_attributes *attribs) const
 }
 #endif
 
-class Q_DECL_HIDDEN QImageBuffer : public qw_buffer_interface<QImageBuffer>
+class Q_DECL_HIDDEN QImageBuffer : public qw_buffer_interface
 {
 public:
     explicit QImageBuffer(const QImage &image);
 
-    bool get_shm(wlr_shm_attributes *attribs) const;
-    bool begin_data_ptr_access(uint32_t flags, void **data, uint32_t *format, size_t *stride);
-    void end_data_ptr_access();
+    QW_INTERFACE(get_shm, bool, wlr_shm_attributes *attribs);
+    QW_INTERFACE(begin_data_ptr_access, bool, uint32_t flags, void **data, uint32_t *format, size_t *stride);
+    QW_INTERFACE(end_data_ptr_access, void);
 
 private:
     QImage m_image;
@@ -429,7 +430,7 @@ QImageBuffer::QImageBuffer(const QImage &image)
 
 }
 
-bool QImageBuffer::get_shm(wlr_shm_attributes *attribs) const
+bool QImageBuffer::get_shm(wlr_shm_attributes *attribs)
 {
     attribs->fd = 0;
     attribs->format = WTools::toDrmFormat(m_image.format());
