@@ -91,9 +91,7 @@ WQuickTextureProxy::WQuickTextureProxy(QQuickItem *parent)
 
 WQuickTextureProxy::~WQuickTextureProxy()
 {
-    if (window()) {
-        WQuickTextureProxy::releaseResources();
-    }
+
 }
 
 QQuickItem *WQuickTextureProxy::sourceItem() const

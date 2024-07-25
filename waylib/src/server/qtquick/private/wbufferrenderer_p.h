@@ -107,6 +107,7 @@ private:
 
     Q_SLOT void invalidateSceneGraph();
     void releaseResources() override;
+    void cleanTextureProvider();
 
     inline bool isRootItem(const QQuickItem *source) const {
         return nullptr == source;

@@ -197,6 +197,7 @@ WBufferRenderer::WBufferRenderer(QQuickItem *parent)
 
 WBufferRenderer::~WBufferRenderer()
 {
+    cleanTextureProvider();
     resetSources();
 
     delete m_renderHelper;
@@ -729,6 +730,11 @@ void WBufferRenderer::invalidateSceneGraph()
 }
 
 void WBufferRenderer::releaseResources()
+{
+    cleanTextureProvider();
+}
+
+void WBufferRenderer::cleanTextureProvider()
 {
     if (m_textureProvider) {
         class TextureProviderCleanupJob : public QRunnable

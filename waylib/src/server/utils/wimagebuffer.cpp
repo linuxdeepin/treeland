@@ -26,7 +26,7 @@ WImageBufferImpl::~WImageBufferImpl()
 
 bool WImageBufferImpl::begin_data_ptr_access(uint32_t flags, void **data, uint32_t *format, size_t *stride)
 {
-    if (!image.bits()) {
+    if (!image.constBits()) {
         return false;
     }
     if (flags & WLR_BUFFER_DATA_PTR_ACCESS_WRITE) {

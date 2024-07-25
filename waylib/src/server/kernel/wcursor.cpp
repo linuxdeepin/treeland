@@ -44,12 +44,11 @@ WCursorPrivate::WCursorPrivate(WCursor *qq)
 
 WCursorPrivate::~WCursorPrivate()
 {
-    delete handle();
+
 }
 
 void WCursorPrivate::instantRelease()
 {
-    handle()->set_data(nullptr, nullptr);
     if (seat)
         seat->setCursor(nullptr);
 
@@ -57,6 +56,8 @@ void WCursorPrivate::instantRelease()
         for (auto o : outputLayout->outputs())
             o->removeCursor(q_func());
     }
+
+    delete handle();
 }
 
 const QPointingDevice *getDevice(const QString &seatName) {

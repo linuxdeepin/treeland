@@ -137,17 +137,20 @@ class Q_DECL_HIDDEN WQuickCursorPrivate : public QQuickItemPrivate
 {
 public:
     WQuickCursorPrivate(WQuickCursor *qq);
+    ~WQuickCursorPrivate() {
+        cleanTextureProvider();
+    }
 
     inline static WQuickCursorPrivate *get(WQuickCursor *qq) {
         return qq->d_func();
     }
 
     CursorTextureProvider *tp() const;
+    void cleanTextureProvider();
 
     void invalidate() {
         QObject::disconnect(updateTextureConnection);
-        if (textureProvider)
-            textureProvider->reset();
+        cleanTextureProvider();
     }
 
     void setSurface(WSurface *surface);
@@ -209,6 +212,26 @@ CursorTextureProvider *WQuickCursorPrivate::tp() const
         }
     }
     return textureProvider;
+}
+
+void WQuickCursorPrivate::cleanTextureProvider()
+{
+    if (textureProvider) {
+        class WQuickCursorCleanupJob : public QRunnable
+        {
+        public:
+            WQuickCursorCleanupJob(QObject *object) : m_object(object) { }
+            void run() override {
+                delete m_object;
+            }
+            QObject *m_object;
+        };
+
+        // Delay clean the textures on the next render after.
+        window->scheduleRenderJob(new WQuickCursorCleanupJob(textureProvider),
+                                  QQuickWindow::AfterRenderingStage);
+        textureProvider = nullptr;
+    }
 }
 
 void WQuickCursorPrivate::setSurface(WSurface *surface)
@@ -505,23 +528,6 @@ QSGNode *WQuickCursor::updatePaintNode(QSGNode *node, UpdatePaintNodeData *)
 void WQuickCursor::releaseResources()
 {
     W_D(WQuickCursor);
-
-    if (d->textureProvider) {
-        class WQuickCursorCleanupJob : public QRunnable
-        {
-        public:
-            WQuickCursorCleanupJob(QObject *object) : m_object(object) { }
-            void run() override {
-                delete m_object;
-            }
-            QObject *m_object;
-        };
-
-        // Delay clean the textures on the next render after.
-        window()->scheduleRenderJob(new WQuickCursorCleanupJob(d->textureProvider),
-                                    QQuickWindow::AfterRenderingStage);
-        d->textureProvider = nullptr;
-    }
 
     d->invalidate();
 

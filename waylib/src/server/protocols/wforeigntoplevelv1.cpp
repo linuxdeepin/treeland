@@ -23,13 +23,19 @@ public:
     WForeignToplevelPrivate(WForeignToplevel *qq)
         : WObjectPrivate(qq) {}
     ~WForeignToplevelPrivate() {
-        for (auto pair : std::as_const(connections)) {
-            for (auto co : std::as_const(pair.second)) {
+        for (const auto &pair : std::as_const(connections)) {
+            for (const auto &co : std::as_const(pair.second)) {
                 QObject::disconnect(co);
             }
         }
 
         connections.clear();
+
+        for (const auto &i : std::as_const(surfaces)) {
+            if (i.second)
+                i.second->deleteLater();
+        }
+
         surfaces.clear();
     }
 

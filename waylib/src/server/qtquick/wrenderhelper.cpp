@@ -682,7 +682,7 @@ QSGRendererInterface::GraphicsApi WRenderHelper::probe(qw_backend *testBackend, 
     auto acceptApi = QSGRendererInterface::Unknown;
 
     for (auto api : std::as_const(apiList)) {
-        auto renderer = createRenderer(testBackend, api);
+        std::unique_ptr<qw_renderer> renderer(createRenderer(testBackend, api));
         if (!renderer) {
             qInfo() << GraphicsApiName(api) << " api failed to create wlr_renderer";
             continue;
@@ -697,33 +697,29 @@ QSGRendererInterface::GraphicsApi WRenderHelper::probe(qw_backend *testBackend, 
 
         // TODO: how to test when formats gets NULL
         if (formats && formats->len) {
-            auto allocDeleter = [](wlr_allocator *alloc) {
-                wlr_allocator_destroy(alloc);
-            };
-            std::unique_ptr<wlr_allocator, decltype(allocDeleter)> alloc {
-                wlr_allocator_autocreate(testBackend->handle(), renderer->handle())
-                , allocDeleter
-            };
-
-            auto swapchainDeleter = [](wlr_swapchain *swapchain) {
-                wlr_swapchain_destroy(swapchain);
-            };
+            std::unique_ptr<qw_allocator> alloc(qw_allocator::autocreate(*testBackend, *renderer.get()));
 
             bool hasSupportedFormat = false;
             for (int formatId = 0; formatId < formats->len; formatId++) {
                 auto *format = &formats->formats[formatId];
 
-                std::unique_ptr<wlr_swapchain, decltype(swapchainDeleter)> swapchain {
-                    wlr_swapchain_create(alloc.get(), 1000, 800, format)
-                    , swapchainDeleter
-                };
+                std::unique_ptr<qw_swapchain> swapchain(qw_swapchain::create(*alloc.get(), 1000, 800, format));
 
-                auto *buffer = wlr_swapchain_acquire(swapchain.get(), nullptr); // destroy follow swapchain
+                struct QWBufferUnlocker
+                {
+                    static inline void cleanup(wlr_buffer *pointer) {
+                        if (pointer) {
+                            wlr_buffer_unlock(pointer);
+                        }
+                    }
+                    void operator()(wlr_buffer *pointer) const { cleanup(pointer); }
+                };
+                std::unique_ptr<wlr_buffer, QWBufferUnlocker> buffer(swapchain->acquire(nullptr));
 
                 if (!buffer) {
                     continue;
                 } else {
-                    std::unique_ptr<qw_texture> texture { qw_texture::from_buffer(*renderer, buffer) };
+                    std::unique_ptr<qw_texture> texture { qw_texture::from_buffer(*renderer.get(), buffer.get()) };
                     if (!texture)
                         continue;
                     hasSupportedFormat = true;

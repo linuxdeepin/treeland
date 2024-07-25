@@ -41,6 +41,10 @@ public:
 
     }
 
+    ~WRenderBufferBlitterPrivate() {
+        cleanTextureProvider();
+    }
+
     static inline WRenderBufferBlitterPrivate *get(WRenderBufferBlitter *qq) {
         return qq->d_func();
     }
@@ -55,6 +59,7 @@ public:
     }
 
     BlitTextureProvider *ensureTextureProvider() const;
+    void cleanTextureProvider();
 
     W_DECLARE_PUBLIC(WRenderBufferBlitter)
     Content *content;
@@ -160,6 +165,14 @@ BlitTextureProvider *WRenderBufferBlitterPrivate::ensureTextureProvider() const
     return tp;
 }
 
+void WRenderBufferBlitterPrivate::cleanTextureProvider()
+{
+    if (tp) {
+        QQuickWindowQObjectCleanupJob::schedule(q_func()->window(), tp);
+        tp = nullptr;
+    }
+}
+
 WRenderBufferBlitter::WRenderBufferBlitter(QQuickItem *parent)
     : QQuickItem(parent)
     , WObject(*new WRenderBufferBlitterPrivate(this))
@@ -171,7 +184,7 @@ WRenderBufferBlitter::WRenderBufferBlitter(QQuickItem *parent)
 
 WRenderBufferBlitter::~WRenderBufferBlitter()
 {
-    WRenderBufferBlitter::releaseResources();
+
 }
 
 QQuickItem *WRenderBufferBlitter::content() const
@@ -269,10 +282,7 @@ void WRenderBufferBlitter::geometryChange(const QRectF &newGeometry, const QRect
 void WRenderBufferBlitter::releaseResources()
 {
     W_D(WRenderBufferBlitter);
-    if (d->tp) {
-        QQuickWindowQObjectCleanupJob::schedule(window(), d->tp);
-        d->tp = nullptr;
-    }
+    d->cleanTextureProvider();
 }
 
 WAYLIB_SERVER_END_NAMESPACE

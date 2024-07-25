@@ -29,6 +29,7 @@ WAYLIB_SERVER_BEGIN_NAMESPACE
 class Q_DECL_HIDDEN WSGTextureProvider : public WBufferTextureProvider
 {
     friend class WSurfaceItemContent;
+    friend class WSurfaceItemContentPrivate;
 public:
     WSGTextureProvider(WSurfaceItemContent *item);
     ~WSGTextureProvider();
@@ -143,10 +144,7 @@ public:
         if (frameDoneConnection)
             QObject::disconnect(frameDoneConnection);
 
-        if (textureProvider) {
-            delete textureProvider;
-            textureProvider = nullptr;
-        }
+        cleanTextureProvider();
     }
 
     inline WSGTextureProvider *tp() const {
@@ -159,6 +157,7 @@ public:
         }
         return textureProvider;
     }
+    void cleanTextureProvider();
 
     void invalidate() {
         if (surface) {
@@ -175,8 +174,8 @@ public:
 
         Q_ASSERT(!updateTextureConnection);
 
-        if (dontCacheLastBuffer && textureProvider)
-            textureProvider->reset();
+        if (dontCacheLastBuffer)
+            cleanTextureProvider();
     }
 
     void init() {
@@ -398,24 +397,7 @@ void WSurfaceItemContent::releaseResources()
 {
     W_D(WSurfaceItemContent);
 
-    if (d->textureProvider) {
-        class Q_DECL_HIDDEN WSurfaceItemContentCleanupJob : public QRunnable
-        {
-        public:
-            WSurfaceItemContentCleanupJob(QObject *object) : m_object(object) { }
-            void run() override {
-                delete m_object;
-            }
-            QObject *m_object;
-        };
-
-        // Delay clean the textures on the next render after.
-        window()->scheduleRenderJob(new WSurfaceItemContentCleanupJob(d->textureProvider),
-                                    QQuickWindow::AfterRenderingStage);
-        d->textureProvider->item = nullptr;
-        d->textureProvider = nullptr;
-    }
-
+    d->cleanTextureProvider();
     d->invalidate();
 
     // Force to update the contents, avoid to render the invalid textures
@@ -1351,6 +1333,27 @@ bool WSurfaceItem::setShellSurface(WToplevelSurface *surface)
     setSurface(surface ? surface->surface() : nullptr);
     Q_EMIT this->shellSurfaceChanged();
     return true;
+}
+
+void WSurfaceItemContentPrivate::cleanTextureProvider()
+{
+    if (textureProvider) {
+        class Q_DECL_HIDDEN WSurfaceItemContentCleanupJob : public QRunnable
+        {
+        public:
+            WSurfaceItemContentCleanupJob(QObject *object) : m_object(object) { }
+            void run() override {
+                delete m_object;
+            }
+            QObject *m_object;
+        };
+
+        // Delay clean the textures on the next render after.
+        window->scheduleRenderJob(new WSurfaceItemContentCleanupJob(textureProvider),
+                                  QQuickWindow::AfterRenderingStage);
+        textureProvider->item = nullptr;
+        textureProvider = nullptr;
+    }
 }
 
 WAYLIB_SERVER_END_NAMESPACE
