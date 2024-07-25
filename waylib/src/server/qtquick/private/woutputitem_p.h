@@ -15,7 +15,7 @@
 QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
-class WOutputItemAttached : public QObject
+class WAYLIB_SERVER_EXPORT WOutputItemAttached : public QObject
 {
     friend class WOutputItem;
     Q_OBJECT
@@ -37,7 +37,7 @@ private:
     WOutputItem *m_positioner = nullptr;
 };
 
-class QuickOutputCursor : public QObject
+class Q_DECL_HIDDEN QuickOutputCursor : public QObject
 {
     friend class WOutputItem;
     friend class WOutputItemPrivate;

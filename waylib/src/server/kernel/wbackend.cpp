@@ -19,7 +19,7 @@
 QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
-class WBackendPrivate : public WObjectPrivate
+class Q_DECL_HIDDEN WBackendPrivate : public WObjectPrivate
 {
 public:
     WBackendPrivate(WBackend *qq)

@@ -42,8 +42,8 @@ public:
     int implicitHeight() const;
 
 Q_SIGNALS:
-    void outputAdded(WOutput *output);
-    void outputRemoved(WOutput *output);
+    void outputAdded(WAYLIB_SERVER_NAMESPACE::WOutput *output);
+    void outputRemoved(WAYLIB_SERVER_NAMESPACE::WOutput *output);
     void implicitWidthChanged();
     void implicitHeightChanged();
 

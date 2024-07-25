@@ -6,7 +6,7 @@
 
 #include <QWidget>
 
-class Widget : public QWidget
+class Q_DECL_HIDDEN Widget : public QWidget
 {
     Q_OBJECT
 

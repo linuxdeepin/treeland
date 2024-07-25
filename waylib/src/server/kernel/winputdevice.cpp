@@ -14,7 +14,7 @@
 QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
-class WInputDevicePrivate : public WWrapObjectPrivate
+class Q_DECL_HIDDEN WInputDevicePrivate : public WWrapObjectPrivate
 {
 public:
     WInputDevicePrivate(WInputDevice *qq, void *handle)

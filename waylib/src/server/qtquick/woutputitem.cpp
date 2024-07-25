@@ -49,7 +49,7 @@ void WOutputItemAttached::setItem(WOutputItem *positioner)
     Q_EMIT itemChanged();
 }
 
-class CursorTextureFactory : public QQuickTextureFactory
+class Q_DECL_HIDDEN CursorTextureFactory : public QQuickTextureFactory
 {
 public:
     CursorTextureFactory(qw_texture *texture)
@@ -74,7 +74,7 @@ private:
     qw_texture *texture;
 };
 
-class CursorProvider : public QQuickImageProvider
+class Q_DECL_HIDDEN CursorProvider : public QQuickImageProvider
 {
 public:
     CursorProvider()
@@ -296,7 +296,7 @@ QQuickTextureFactory *CursorProvider::requestTexture(const QString &id, QSize *s
 }
 
 #define DATA_OF_WOUPTUT "_WOutputItem"
-class WOutputItemPrivate : public WObjectPrivate
+class Q_DECL_HIDDEN WOutputItemPrivate : public WObjectPrivate
 {
 public:
     WOutputItemPrivate(WOutputItem *qq)

@@ -26,7 +26,7 @@
 QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
-class WSGTextureProvider : public WBufferTextureProvider
+class Q_DECL_HIDDEN WSGTextureProvider : public WBufferTextureProvider
 {
     friend class WSurfaceItemContent;
 public:
@@ -53,7 +53,7 @@ private:
     bool textureDirty = false;
 };
 
-class EventItem : public QQuickItem
+class Q_DECL_HIDDEN EventItem : public QQuickItem
 {
     Q_OBJECT
 public:
@@ -128,7 +128,7 @@ private:
     }
 };
 
-class WSurfaceItemContentPrivate: public QQuickItemPrivate
+class Q_DECL_HIDDEN WSurfaceItemContentPrivate: public QQuickItemPrivate
 {
 public:
     WSurfaceItemContentPrivate(WSurfaceItemContent *qq){}
@@ -342,7 +342,7 @@ void WSurfaceItemContent::componentComplete()
         d->init();
 }
 
-class WSGRenderFootprintNode: public QSGRenderNode
+class Q_DECL_HIDDEN WSGRenderFootprintNode: public QSGRenderNode
 {
 public:
     WSGRenderFootprintNode(WSurfaceItemContent *owner)
@@ -398,7 +398,7 @@ void WSurfaceItemContent::releaseResources()
     W_D(WSurfaceItemContent);
 
     if (d->textureProvider) {
-        class WSurfaceItemContentCleanupJob : public QRunnable
+        class Q_DECL_HIDDEN WSurfaceItemContentCleanupJob : public QRunnable
         {
         public:
             WSurfaceItemContentCleanupJob(QObject *object) : m_object(object) { }

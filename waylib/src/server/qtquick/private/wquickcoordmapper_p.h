@@ -14,7 +14,7 @@ WAYLIB_SERVER_BEGIN_NAMESPACE
 
 class WQuickObserver;
 class WQuickCoordMapper;
-class WQuickCoordMapperHelper : public QObject
+class WAYLIB_SERVER_EXPORT WQuickCoordMapperHelper : public QObject
 {
     Q_OBJECT
     QML_ANONYMOUS
@@ -30,7 +30,7 @@ private:
     QList<WQuickCoordMapper*> list;
 };
 
-class WQuickCoordMapperAttached : public QObject
+class WAYLIB_SERVER_EXPORT WQuickCoordMapperAttached : public QObject
 {
     Q_OBJECT
     Q_PROPERTY(WAYLIB_SERVER_NAMESPACE::WQuickCoordMapperHelper* helper READ helper NOTIFY helperChanged FINAL)
@@ -49,7 +49,7 @@ private:
 };
 
 class WQuickCoordMapperPrivate;
-class WQuickCoordMapper : public QQuickItem
+class WAYLIB_SERVER_EXPORT WQuickCoordMapper : public QQuickItem
 {
     friend class WQuickCoordMapperHelper;
     Q_OBJECT

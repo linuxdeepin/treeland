@@ -16,7 +16,7 @@ WAYLIB_SERVER_BEGIN_NAMESPACE
 
 class WXdgSurface;
 class WForeignToplevelPrivate;
-class WForeignToplevel : public QObject, public WServerInterface, public WObject
+class WAYLIB_SERVER_EXPORT WForeignToplevel : public QObject, public WServerInterface, public WObject
 {
     Q_OBJECT
     W_DECLARE_PRIVATE(WForeignToplevel)

@@ -10,7 +10,7 @@
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
-class WLR {
+class WAYLIB_SERVER_EXPORT WLR {
 public:
     enum Transform {
         Normal = 0,

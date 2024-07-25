@@ -14,6 +14,7 @@
 #include <qwrenderer.h>
 #include <qwswapchain.h>
 #include <qwallocator.h>
+#include <qwrendererinterface.h>
 
 #include <QLoggingCategory>
 #include <QCoreApplication>

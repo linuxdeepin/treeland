@@ -54,7 +54,7 @@ WAYLIB_SERVER_BEGIN_NAMESPACE
 #define CALL_PROXY2(FunName, fallbackValue, ...) m_proxyIntegration ? m_proxyIntegration->FunName(__VA_ARGS__) : fallbackValue
 #define CALL_PROXY(FunName, ...) CALL_PROXY2(FunName, QPlatformIntegration::FunName(__VA_ARGS__), __VA_ARGS__)
 
-class OffscreenSurface : public QPlatformOffscreenSurface
+class Q_DECL_HIDDEN OffscreenSurface : public QPlatformOffscreenSurface
 {
 public:
     OffscreenSurface(QOffscreenSurface *surface)
@@ -543,7 +543,7 @@ void *QWlrootsIntegration::nativeResourceForScreen(const QByteArray &resource, Q
 }
 
 #if QT_CONFIG(vulkan)
-class VulkanInstance : public QBasicPlatformVulkanInstance
+class Q_DECL_HIDDEN VulkanInstance : public QBasicPlatformVulkanInstance
 {
 public:
     VulkanInstance(QVulkanInstance *instance)

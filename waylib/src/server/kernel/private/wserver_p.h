@@ -18,7 +18,7 @@ QW_END_NAMESPACE
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
-class WServerPrivate : public WObjectPrivate
+class Q_DECL_HIDDEN WServerPrivate : public WObjectPrivate
 {
 public:
     WServerPrivate(WServer *qq);

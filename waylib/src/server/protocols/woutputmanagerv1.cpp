@@ -16,7 +16,7 @@ using QW_NAMESPACE::qw_output_manager_v1;
 using QW_NAMESPACE::qw_output_configuration_v1;
 using QW_NAMESPACE::qw_output_configuration_head_v1;
 
-class WOutputManagerV1Private : public WObjectPrivate
+class Q_DECL_HIDDEN WOutputManagerV1Private : public WObjectPrivate
 {
 public:
     WOutputManagerV1Private(WOutputManagerV1 *qq)

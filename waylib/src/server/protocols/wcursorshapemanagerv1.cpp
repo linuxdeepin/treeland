@@ -16,7 +16,7 @@ WAYLIB_SERVER_BEGIN_NAMESPACE
 
 using QW_NAMESPACE::qw_cursor_shape_manager_v1;
 
-class WCursorShapeManagerV1Private : public WObjectPrivate
+class Q_DECL_HIDDEN WCursorShapeManagerV1Private : public WObjectPrivate
 {
 public:
     WCursorShapeManagerV1Private(WCursorShapeManagerV1 *qq)

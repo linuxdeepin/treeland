@@ -17,7 +17,7 @@ WAYLIB_SERVER_BEGIN_NAMESPACE
 using QW_NAMESPACE::qw_layer_shell_v1;
 using QW_NAMESPACE::qw_layer_surface_v1;
 
-class WLayerShellPrivate : public WWrapObjectPrivate
+class Q_DECL_HIDDEN WLayerShellPrivate : public WWrapObjectPrivate
 {
 public:
     WLayerShellPrivate(WLayerShell *qq)

@@ -3,7 +3,7 @@
 
 #include <QQuickItem>
 
-class EventItem : public QQuickItem
+class Q_DECL_HIDDEN EventItem : public QQuickItem
 {
     Q_OBJECT
     QML_NAMED_ELEMENT(EventItem)

@@ -107,7 +107,7 @@ static int wl_os_accept_cloexec(int sockfd, sockaddr *addr, socklen_t *addrlen)
 }
 // Copy end
 
-class WSocketPrivate : public WObjectPrivate
+class Q_DECL_HIDDEN WSocketPrivate : public WObjectPrivate
 {
 public:
     WSocketPrivate(WSocket *qq, bool freeze, WSocket *parent)
@@ -140,7 +140,7 @@ public:
     QList<WClient*> clients;
 };
 
-struct WlClientDestroyListener {
+struct Q_DECL_HIDDEN WlClientDestroyListener {
     WlClientDestroyListener(WClient *client)
         : client(client)
     {
@@ -219,7 +219,7 @@ void WSocketPrivate::addClient(WClient *client)
     Q_EMIT q->clientsChanged();
 }
 
-class WClientPrivate : public WObjectPrivate
+class Q_DECL_HIDDEN WClientPrivate : public WObjectPrivate
 {
 public:
     WClientPrivate(wl_client *handle, WSocket *socket, WClient *qq)

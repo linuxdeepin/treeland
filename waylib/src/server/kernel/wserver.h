@@ -29,7 +29,7 @@ typedef bool (*GlobalFilterFunc)(const wl_client *client,
 class WServer;
 class WSocket;
 class WClient;
-class WServerInterface
+class WAYLIB_SERVER_EXPORT WServerInterface
 {
 public:
     virtual ~WServerInterface() {}
@@ -78,7 +78,7 @@ protected:
 
 class WSocket;
 class WServerPrivate;
-class WServer : public QObject, public WObject
+class WAYLIB_SERVER_EXPORT WServer : public QObject, public WObject
 {
     Q_OBJECT
     W_DECLARE_PRIVATE(WServer)

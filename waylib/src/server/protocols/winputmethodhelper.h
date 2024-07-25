@@ -27,7 +27,7 @@ class WInputMethodV2;
 class WInputMethodHelperPrivate;
 class WInputPopupSurface;
 class WTextInput;
-class WInputMethodHelper : public QObject, public WObject
+class WAYLIB_SERVER_EXPORT WInputMethodHelper : public QObject, public WObject
 {
     Q_OBJECT
     W_DECLARE_PRIVATE(WInputMethodHelper)

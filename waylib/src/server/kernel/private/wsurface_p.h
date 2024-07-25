@@ -19,7 +19,7 @@ QW_END_NAMESPACE
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
-class WSurfacePrivate : public WWrapObjectPrivate {
+class Q_DECL_HIDDEN WSurfacePrivate : public WWrapObjectPrivate {
 public:
     WSurfacePrivate(WSurface *qq, QW_NAMESPACE::qw_surface *handle);
     ~WSurfacePrivate();

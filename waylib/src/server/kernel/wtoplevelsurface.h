@@ -10,7 +10,7 @@ WAYLIB_SERVER_BEGIN_NAMESPACE
 
 class WSeat;
 class WToplevelSurfacePrivate;
-class WToplevelSurface : public WWrapObject
+class WAYLIB_SERVER_EXPORT WToplevelSurface : public WWrapObject
 {
     Q_OBJECT
     W_DECLARE_PRIVATE(WToplevelSurface)

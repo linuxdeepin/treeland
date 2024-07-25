@@ -32,7 +32,7 @@ class WTextInputManagerV3Private;
  * , text change cause, content type and cursor rect should be
  * considered as changed when committed.
  */
-class WTextInputV3 : public WTextInput
+class WAYLIB_SERVER_EXPORT WTextInputV3 : public WTextInput
 {
     Q_OBJECT
     W_DECLARE_PRIVATE(WTextInputV3)

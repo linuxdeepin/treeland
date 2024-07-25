@@ -12,7 +12,7 @@ class qw_texture;
 class qw_buffer;
 QW_END_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
-class WBufferTextureProvider : public QSGTextureProvider
+class WAYLIB_SERVER_EXPORT WBufferTextureProvider : public QSGTextureProvider
 {
     Q_OBJECT
 public:

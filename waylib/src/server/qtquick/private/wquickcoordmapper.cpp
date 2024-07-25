@@ -8,7 +8,7 @@
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
-class WQuickCoordMapperPrivate : public QQuickItemPrivate
+class Q_DECL_HIDDEN WQuickCoordMapperPrivate : public QQuickItemPrivate
 {
 public:
     WQuickCoordMapperPrivate(WQuickObserver *target)

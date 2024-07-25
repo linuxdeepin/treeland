@@ -13,7 +13,7 @@ QW_END_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
 class WSurface;
 class WInputPopupSurfacePrivate;
-class WInputPopupSurface : public WToplevelSurface
+class WAYLIB_SERVER_EXPORT WInputPopupSurface : public WToplevelSurface
 {
     Q_OBJECT
     W_DECLARE_PRIVATE(WInputPopupSurface)

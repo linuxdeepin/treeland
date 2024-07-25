@@ -19,7 +19,7 @@ WAYLIB_SERVER_BEGIN_NAMESPACE
 
 class WSeat;
 class WInputDevicePrivate;
-class WInputDevice : public WWrapObject
+class WAYLIB_SERVER_EXPORT WInputDevice : public WWrapObject
 {
     W_DECLARE_PRIVATE(WInputDevice)
 public:

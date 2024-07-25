@@ -17,7 +17,7 @@ QT_END_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
 class WOutputRenderWindow;
-class WRenderBufferNode : public QSGRenderNode {
+class WAYLIB_SERVER_EXPORT WRenderBufferNode : public QSGRenderNode {
 public:
     inline QSizeF size() const {
         return m_size;

@@ -18,7 +18,7 @@ QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
 class OutputTextureProvider;
-class WOutputViewportPrivate : public QQuickItemPrivate
+class Q_DECL_HIDDEN WOutputViewportPrivate : public QQuickItemPrivate
 {
 public:
     WOutputViewportPrivate()

@@ -28,6 +28,7 @@
 #include <qwtexture.h>
 #include <qwswapchain.h>
 #include <qwoutputlayer.h>
+#include <qwegl.h>
 
 #include <QOffscreenSurface>
 #include <QQuickRenderControl>
@@ -83,11 +84,11 @@ inline static void resetGlState()
 }
 
 class OutputLayer;
-class OutputHelper : public WOutputHelper
+class Q_DECL_HIDDEN OutputHelper : public WOutputHelper
 {
     friend class WOutputRenderWindowPrivate;
 public:
-    struct LayerData {
+    struct Q_DECL_HIDDEN LayerData {
         LayerData(OutputLayer *l, qw_output_layer *layer)
             : layer(l)
             , wlrLayer(layer)
@@ -200,7 +201,7 @@ private:
     QList<QPointer<WQuickTextureProxy>> m_layerProxys;
 };
 
-class OutputLayer
+class Q_DECL_HIDDEN OutputLayer
 {
     friend class OutputHelper;
     friend class WOutputRenderWindow;
@@ -214,7 +215,7 @@ private:
     QList<WOutputViewport*> outputs;
 };
 
-class RenderControl : public QQuickRenderControl
+class Q_DECL_HIDDEN RenderControl : public QQuickRenderControl
 {
 public:
     RenderControl() = default;
@@ -227,7 +228,7 @@ public:
 };
 
 static QEvent::Type doRenderEventType = static_cast<QEvent::Type>(QEvent::registerEventType());
-class WOutputRenderWindowPrivate : public QQuickWindowPrivate
+class Q_DECL_HIDDEN WOutputRenderWindowPrivate : public QQuickWindowPrivate
 {
 public:
     WOutputRenderWindowPrivate(WOutputRenderWindow *)
@@ -1348,4 +1349,3 @@ bool WOutputRenderWindow::event(QEvent *event)
 WAYLIB_SERVER_END_NAMESPACE
 
 #include "moc_woutputrenderwindow.cpp"
-#include "woutputrenderwindow.moc"

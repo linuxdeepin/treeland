@@ -18,6 +18,7 @@
 #include <qwpointergesturesv1.h>
 #include <qwcompositor.h>
 #include <qwdisplay.h>
+#include <qwprimaryselection.h>
 
 #include <QQuickWindow>
 #include <QGuiApplication>
@@ -43,7 +44,7 @@ Q_LOGGING_CATEGORY(qLcWlrDragEvents, "waylib.server.seat.events.drag", QtWarning
 Q_LOGGING_CATEGORY(qLcWlrGestureEvents, "waylib.server.seat.events.gesture", QtWarningMsg)
 
 #if QT_CONFIG(wheelevent)
-class WSeatWheelEvent : public QWheelEvent {
+class Q_DECL_HIDDEN WSeatWheelEvent : public QWheelEvent {
 public:
     WSeatWheelEvent(wlr_axis_source_t wlr_source, double wlr_delta,
                     const QPointF &pos, const QPointF &globalPos, QPoint pixelDelta, QPoint angleDelta,
@@ -66,7 +67,7 @@ protected:
 };
 #endif
 
-class WSeatPrivate : public WWrapObjectPrivate
+class Q_DECL_HIDDEN WSeatPrivate : public WWrapObjectPrivate
 {
 public:
     WSeatPrivate(WSeat *qq, const QString &name)

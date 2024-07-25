@@ -26,7 +26,7 @@ WAYLIB_SERVER_BEGIN_NAMESPACE
 class WInputMethodV2Private;
 class WSeat;
 
-class WInputMethodV2 : public WWrapObject
+class WAYLIB_SERVER_EXPORT WInputMethodV2 : public WWrapObject
 {
     Q_OBJECT
     W_DECLARE_PRIVATE(WInputMethodV2)
@@ -60,7 +60,7 @@ private:
 };
 
 class WInputMethodManagerV2Private;
-class WInputMethodManagerV2 : public QObject, public WObject, public WServerInterface
+class WAYLIB_SERVER_EXPORT WInputMethodManagerV2 : public QObject, public WObject, public WServerInterface
 {
     Q_OBJECT
     W_DECLARE_PRIVATE(WInputMethodManagerV2)

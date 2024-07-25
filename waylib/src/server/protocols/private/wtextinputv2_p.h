@@ -42,7 +42,7 @@ void handle_text_input_update_state(wl_client *client,
                                     uint32_t reason);
 
 }
-class WTextInputV2 : public WTextInput
+class WAYLIB_SERVER_EXPORT WTextInputV2 : public WTextInput
 {
     Q_OBJECT
     W_DECLARE_PRIVATE(WTextInputV2)
@@ -124,7 +124,7 @@ private:
 
 class WTextInputManagerV2Private;
 
-class WTextInputManagerV2 : public QObject, public WObject, public WServerInterface
+class WAYLIB_SERVER_EXPORT WTextInputManagerV2 : public QObject, public WObject, public WServerInterface
 {
     Q_OBJECT
     W_DECLARE_PRIVATE(WTextInputManagerV2)

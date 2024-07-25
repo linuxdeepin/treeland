@@ -42,7 +42,7 @@ WAYLIB_SERVER_USE_NAMESPACE
 
 struct OutputInfo;
 
-class Helper : public WSeatEventFilter {
+class Q_DECL_HIDDEN Helper : public WSeatEventFilter {
     Q_OBJECT
     Q_PROPERTY(WToplevelSurface* activatedSurface READ activatedSurface WRITE setActivateSurface NOTIFY activatedSurfaceChanged FINAL)
     Q_PROPERTY(WSurfaceItem* resizingItem READ resizingItem NOTIFY resizingItemChanged FINAL)

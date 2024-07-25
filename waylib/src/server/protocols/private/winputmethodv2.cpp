@@ -22,7 +22,7 @@
 QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
 Q_DECLARE_LOGGING_CATEGORY(qLcInputMethod)
-class WInputMethodManagerV2Private : public WObjectPrivate
+class Q_DECL_HIDDEN WInputMethodManagerV2Private : public WObjectPrivate
 {
 public:
     explicit WInputMethodManagerV2Private(WInputMethodManagerV2 *qq)
@@ -57,7 +57,7 @@ wl_global *WInputMethodManagerV2::global() const
     return nativeInterface<qw_input_method_manager_v2>()->handle()->global;
 }
 
-class WInputMethodV2Private : public WWrapObjectPrivate
+class Q_DECL_HIDDEN WInputMethodV2Private : public WWrapObjectPrivate
 {
 public:
     WInputMethodV2Private(qw_input_method_v2 *h, WInputMethodV2 *qq)

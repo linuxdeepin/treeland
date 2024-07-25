@@ -3,6 +3,12 @@
 
 #include "wtools.h"
 
+#include <qwbox.h>
+
+extern "C" {
+#include <wlr/util/edges.h>
+}
+
 #include <qcolorspace.h>
 #include <QDebug>
 

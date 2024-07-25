@@ -18,7 +18,7 @@ QT_END_NAMESPACE
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
-class WImageRenderTarget : public QPaintDevice
+class WAYLIB_SERVER_EXPORT WImageRenderTarget : public QPaintDevice
 {
 public:
     explicit WImageRenderTarget();

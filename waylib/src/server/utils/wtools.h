@@ -13,7 +13,7 @@ struct pixman_region32;
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
-class WTools
+class WAYLIB_SERVER_EXPORT WTools
 {
 public:
     static QImage fromPixmanImage(void *image, void *data = nullptr);

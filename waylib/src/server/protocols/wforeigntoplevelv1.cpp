@@ -18,7 +18,7 @@ QW_USE_NAMESPACE
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
-class WForeignToplevelPrivate : public WObjectPrivate {
+class Q_DECL_HIDDEN WForeignToplevelPrivate : public WObjectPrivate {
 public:
     WForeignToplevelPrivate(WForeignToplevel *qq)
         : WObjectPrivate(qq) {}

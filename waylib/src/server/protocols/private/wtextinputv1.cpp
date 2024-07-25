@@ -20,7 +20,7 @@ extern "C" {
 }
 QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
-class WTextInputV1Private : public WTextInputPrivate
+class Q_DECL_HIDDEN WTextInputV1Private : public WTextInputPrivate
 {
 public:
     W_DECLARE_PUBLIC(WTextInputV1)
@@ -47,7 +47,7 @@ public:
     QRect cursorRectangle {};
 };
 
-class WTextInputManagerV1Private : public WObjectPrivate
+class Q_DECL_HIDDEN WTextInputManagerV1Private : public WObjectPrivate
 {
 public:
     W_DECLARE_PUBLIC(WTextInputManagerV1)

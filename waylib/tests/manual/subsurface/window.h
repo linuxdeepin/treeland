@@ -6,7 +6,7 @@
 
 #include <QQuickWindow>
 
-class CustomWindow : public QQuickWindow
+class Q_DECL_HIDDEN CustomWindow : public QQuickWindow
 {
     Q_OBJECT
     Q_PROPERTY(QWindow* parent READ parent WRITE setParent NOTIFY parentChanged FINAL)

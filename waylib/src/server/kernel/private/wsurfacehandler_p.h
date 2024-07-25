@@ -12,7 +12,7 @@
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
 class WSurface;
-class WSurfaceHandlerPrivate : public WObjectPrivate
+class Q_DECL_HIDDEN WSurfaceHandlerPrivate : public WObjectPrivate
 {
 public:
     WSurfaceHandlerPrivate(WSurface *surface, WSurfaceHandler *qq)

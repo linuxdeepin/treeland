@@ -6,7 +6,7 @@
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
-class WOutputLayoutPrivate : public WObjectPrivate
+class Q_DECL_HIDDEN WOutputLayoutPrivate : public WObjectPrivate
 {
 public:
     WOutputLayoutPrivate(WOutputLayout *qq);

@@ -4,11 +4,13 @@
 #include "wxcursorimage.h"
 #include "private/wglobal_p.h"
 
+#include <qwxcursormanager.h>
+
 #include <QImage>
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
-class WXCursorImagePrivate : public WObjectPrivate
+class Q_DECL_HIDDEN WXCursorImagePrivate : public WObjectPrivate
 {
 public:
     WXCursorImagePrivate(WXCursorImage *qq)

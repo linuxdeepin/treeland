@@ -16,6 +16,7 @@
 #include <qwdisplay.h>
 #include <qwdatadevice.h>
 #include <qwprimaryselectionv1.h>
+#include <qwxwaylandshellv1.h>
 
 #include <QVector>
 #include <QThread>

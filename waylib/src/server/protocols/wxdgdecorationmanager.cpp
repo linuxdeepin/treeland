@@ -14,7 +14,7 @@ using QW_NAMESPACE::qw_xdg_toplevel_decoration_v1;
 
 static WXdgDecorationManager *XDG_DECORATION_MANAGER = nullptr;
 
-class WXdgDecorationManagerPrivate : public WObjectPrivate
+class Q_DECL_HIDDEN WXdgDecorationManagerPrivate : public WObjectPrivate
 {
 public:
     WXdgDecorationManagerPrivate(WXdgDecorationManager *qq)

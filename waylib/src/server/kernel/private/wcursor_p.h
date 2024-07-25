@@ -36,7 +36,7 @@ struct wlr_touch_cancel_event;
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
-class WCursorPrivate : public WWrapObjectPrivate
+class Q_DECL_HIDDEN WCursorPrivate : public WWrapObjectPrivate
 {
 public:
     WCursorPrivate(WCursor *qq);

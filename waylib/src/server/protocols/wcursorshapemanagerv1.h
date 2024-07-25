@@ -16,7 +16,7 @@ WAYLIB_SERVER_BEGIN_NAMESPACE
 class WCursor;
 
 class WCursorShapeManagerV1Private;
-class WCursorShapeManagerV1 : public QObject, public WObject,  public WServerInterface
+class WAYLIB_SERVER_EXPORT WCursorShapeManagerV1 : public QObject, public WObject,  public WServerInterface
 {
     Q_OBJECT
     W_DECLARE_PRIVATE(WCursorShapeManagerV1)

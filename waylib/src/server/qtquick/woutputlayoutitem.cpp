@@ -9,7 +9,7 @@
 QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
-class WOutputLayoutItemPrivate : public WObjectPrivate
+class Q_DECL_HIDDEN WOutputLayoutItemPrivate : public WObjectPrivate
 {
 public:
     WOutputLayoutItemPrivate(WOutputLayoutItem *qq)

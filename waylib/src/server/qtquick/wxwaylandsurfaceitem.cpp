@@ -12,7 +12,7 @@
 QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
-class WXWaylandSurfaceItemPrivate : public WSurfaceItemPrivate
+class Q_DECL_HIDDEN WXWaylandSurfaceItemPrivate : public WSurfaceItemPrivate
 {
     Q_DECLARE_PUBLIC(WXWaylandSurfaceItem)
 public:

@@ -13,7 +13,7 @@ QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
 Q_DECLARE_LOGGING_CATEGORY(qLcInputMethod)
 
-class WVirtualKeyboardManagerV1Private : public WObjectPrivate
+class Q_DECL_HIDDEN WVirtualKeyboardManagerV1Private : public WObjectPrivate
 {
     W_DECLARE_PUBLIC(WVirtualKeyboardManagerV1)
 public:

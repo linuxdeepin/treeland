@@ -7,7 +7,7 @@
 #include <wsurfaceitem.h>
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
-class WInputPopupSurfaceItem : public WSurfaceItem
+class WAYLIB_SERVER_EXPORT WInputPopupSurfaceItem : public WSurfaceItem
 {
     Q_OBJECT
     QML_NAMED_ELEMENT(InputPopupSurfaceItem)

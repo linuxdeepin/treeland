@@ -14,7 +14,7 @@ WAYLIB_SERVER_BEGIN_NAMESPACE
 class WOutput;
 class WInputDevice;
 class WBackendPrivate;
-class WBackend : public QObject, public WObject,  public WServerInterface
+class WAYLIB_SERVER_EXPORT WBackend : public QObject, public WObject,  public WServerInterface
 {
     Q_OBJECT
     friend class WOutputPrivate;

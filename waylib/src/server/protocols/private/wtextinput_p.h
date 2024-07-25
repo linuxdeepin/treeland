@@ -83,7 +83,7 @@ class WSeat;
 class WSurface;
 class WInputMethodV2;
 class WTextInputPrivate;
-class WTextInput : public QObject, public WObject
+class WAYLIB_SERVER_EXPORT WTextInput : public QObject, public WObject
 {
     Q_OBJECT
     W_DECLARE_PRIVATE(WTextInput)
@@ -116,7 +116,7 @@ public Q_SLOTS:
     virtual void handleIMCommitted(WInputMethodV2 *im) = 0;
 };
 
-class WTextInputPrivate : public WObjectPrivate {
+class Q_DECL_HIDDEN WTextInputPrivate : public WObjectPrivate {
 public:
     W_DECLARE_PUBLIC(WTextInput)
     explicit WTextInputPrivate(WTextInput *qq)

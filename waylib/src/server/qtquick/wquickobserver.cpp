@@ -7,7 +7,7 @@
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
-class WQuickObserverPrivate : public QQuickItemPrivate
+class Q_DECL_HIDDEN WQuickObserverPrivate : public QQuickItemPrivate
 {
 public:
     WQuickObserverPrivate()

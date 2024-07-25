@@ -14,7 +14,7 @@
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
 namespace QW {
-class Window : public QWindow
+class WAYLIB_SERVER_EXPORT Window : public QWindow
 {
 public:
     static constexpr QAnyStringView id() {
@@ -32,7 +32,7 @@ public:
     }
 };
 
-class RenderWindow : public QWindow
+class Q_DECL_HIDDEN RenderWindow : public QWindow
 {
 public:
     static constexpr QAnyStringView id() {
@@ -53,7 +53,7 @@ public:
     static bool afterDisposeEventFilter(QWindow *window, QEvent *event);
 };
 
-class OffscreenSurface : public QOffscreenSurface
+class Q_DECL_HIDDEN OffscreenSurface : public QOffscreenSurface
 {
 public:
     static constexpr QAnyStringView id() {
@@ -72,7 +72,7 @@ public:
 };
 
 #ifndef QT_NO_OPENGL
-class OpenGLContext : public QOpenGLContext
+class Q_DECL_HIDDEN OpenGLContext : public QOpenGLContext
 {
     Q_OBJECT
 public:

@@ -37,7 +37,7 @@ void WQuickCursorAttached::setShape(WCursor::CursorShape shape)
     Q_EMIT shapeChanged();
 }
 
-class WQuickCursorPrivate : public WCursorPrivate
+class Q_DECL_HIDDEN WQuickCursorPrivate : public WCursorPrivate
 {
 public:
     WQuickCursorPrivate(WQuickCursor *qq);

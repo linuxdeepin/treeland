@@ -28,7 +28,7 @@ class WSeat;
 class WInputDevice;
 class WXCursorImage;
 class WCursorPrivate;
-class WCursor : public WWrapObject
+class WAYLIB_SERVER_EXPORT WCursor : public WWrapObject
 {
     Q_OBJECT
     W_DECLARE_PRIVATE(WCursor)

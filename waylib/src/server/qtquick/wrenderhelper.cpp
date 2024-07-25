@@ -14,6 +14,9 @@
 #include <qwtexture.h>
 #include <qwbufferinterface.h>
 #include <qwdisplay.h>
+#include <qwegl.h>
+#include <qwallocator.h>
+#include <qwrendererinterface.h>
 
 #include <QSGTexture>
 #include <private/qquickrendercontrol_p.h>
@@ -38,7 +41,7 @@ extern "C" {
 QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
-struct BufferData {
+struct Q_DECL_HIDDEN BufferData {
     BufferData() {
 
     }
@@ -191,7 +194,7 @@ bool createRhiRenderTarget(QRhi *rhi, const QQuickRenderTarget &source, QQuickWi
 }
 // Copy end
 
-class WRenderHelperPrivate : public WObjectPrivate
+class Q_DECL_HIDDEN WRenderHelperPrivate : public WObjectPrivate
 {
 public:
     WRenderHelperPrivate(WRenderHelper *qq, qw_renderer *renderer)

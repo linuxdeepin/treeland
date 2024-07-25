@@ -28,7 +28,7 @@ QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
 Q_LOGGING_CATEGORY(qLcInputMethod, "waylib.server.im", QtInfoMsg)
 
-struct GrabHandlerArg {
+struct Q_DECL_HIDDEN GrabHandlerArg {
     const WInputMethodHelper *const helper;
     qw_input_method_keyboard_grab_v2 *grab;
 };
@@ -57,7 +57,7 @@ void handleModifiers(struct wlr_seat_keyboard_grab *grab, const struct wlr_keybo
     arg->grab->send_modifiers(const_cast<struct wlr_keyboard_modifiers *>(modifiers));
 }
 
-class WInputMethodHelperPrivate : public WObjectPrivate
+class Q_DECL_HIDDEN WInputMethodHelperPrivate : public WObjectPrivate
 {
     W_DECLARE_PUBLIC(WInputMethodHelper)
 public:

@@ -15,7 +15,7 @@
 QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
-class WXWaylandSurfacePrivate : public WToplevelSurfacePrivate
+class Q_DECL_HIDDEN WXWaylandSurfacePrivate : public WToplevelSurfacePrivate
 {
 public:
     WXWaylandSurfacePrivate(WXWaylandSurface *qq, qw_xwayland_surface *handle, WXWayland *xwayland)

@@ -22,7 +22,7 @@ QW_END_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
 class WTexturePrivate;
-class WTexture : public WObject
+class WAYLIB_SERVER_EXPORT WTexture : public WObject
 {
     W_DECLARE_PRIVATE(WTexture)
 

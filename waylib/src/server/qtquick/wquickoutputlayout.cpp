@@ -15,7 +15,7 @@
 QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
-class WQuickOutputLayoutPrivate : public WOutputLayoutPrivate
+class Q_DECL_HIDDEN WQuickOutputLayoutPrivate : public WOutputLayoutPrivate
 {
 public:
     WQuickOutputLayoutPrivate(WQuickOutputLayout *qq)

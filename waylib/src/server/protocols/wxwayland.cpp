@@ -9,6 +9,7 @@
 
 #include <qwseat.h>
 #include <qwxwayland.h>
+#include <qwxwaylandserver.h>
 #include <qwxwaylandsurface.h>
 #include <qwxwaylandshellv1.h>
 #include <qwdisplay.h>
@@ -19,7 +20,7 @@
 QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
-class WXWaylandPrivate : public WWrapObjectPrivate
+class Q_DECL_HIDDEN WXWaylandPrivate : public WWrapObjectPrivate
 {
 public:
     WXWaylandPrivate(WXWayland *qq, qw_compositor *compositor, bool lazy)

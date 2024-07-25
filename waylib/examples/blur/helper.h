@@ -27,7 +27,7 @@ QW_END_NAMESPACE
 WAYLIB_SERVER_USE_NAMESPACE
 QW_USE_NAMESPACE
 
-class Helper : public QObject
+class Q_DECL_HIDDEN Helper : public QObject
 {
     Q_OBJECT
     Q_PROPERTY(WQmlCreator* outputCreator MEMBER m_outputCreator CONSTANT)

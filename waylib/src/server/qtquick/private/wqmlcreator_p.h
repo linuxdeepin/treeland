@@ -99,7 +99,7 @@ private:
     QList<QSharedPointer<WQmlCreatorDelegateData>> m_datas;
 };
 
-class WAbstractCreatorComponentPrivate : public WObjectPrivate
+class Q_DECL_HIDDEN WAbstractCreatorComponentPrivate : public WObjectPrivate
 {
 public:
     WAbstractCreatorComponentPrivate(WAbstractCreatorComponent *qq)
@@ -110,7 +110,7 @@ public:
     WQmlCreator *creator = nullptr;
 };
 
-class WQmlCreatorPrivate : public WObjectPrivate
+class Q_DECL_HIDDEN WQmlCreatorPrivate : public WObjectPrivate
 {
 public:
     WQmlCreatorPrivate(WQmlCreator *qq)

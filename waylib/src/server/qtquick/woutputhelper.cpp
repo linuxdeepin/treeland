@@ -11,6 +11,8 @@
 #include <qwrenderer.h>
 #include <qwswapchain.h>
 #include <qwbuffer.h>
+#include <qwoutputlayer.h>
+
 #include <platformplugin/qwlrootswindow.h>
 #include <platformplugin/qwlrootsintegration.h>
 #include <platformplugin/qwlrootscreen.h>
@@ -25,7 +27,7 @@
 QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
-class WOutputHelperPrivate : public WObjectPrivate
+class Q_DECL_HIDDEN WOutputHelperPrivate : public WObjectPrivate
 {
 public:
     WOutputHelperPrivate(WOutput *output, WOutputHelper *qq, bool r/* renderable */, bool c /*contentIsDirty*/, bool n/*needsFrame*/)

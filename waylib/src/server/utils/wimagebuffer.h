@@ -9,7 +9,7 @@
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
-class WImageBufferImpl : public QW_NAMESPACE::qw_buffer_interface<WImageBufferImpl>
+class WAYLIB_SERVER_EXPORT WImageBufferImpl : public QW_NAMESPACE::qw_buffer_interface<WImageBufferImpl>
 {
 public:
     WImageBufferImpl(const QImage &bufferImage);

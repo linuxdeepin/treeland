@@ -19,7 +19,7 @@
 QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
 Q_DECLARE_LOGGING_CATEGORY(qLcInputMethod)
-class WTextInputManagerV3Private : public WObjectPrivate
+class Q_DECL_HIDDEN WTextInputManagerV3Private : public WObjectPrivate
 {
 public:
     WTextInputManagerV3Private(WTextInputManagerV3 *qq)
@@ -74,7 +74,7 @@ wl_global *WTextInputManagerV3::global() const
     return nativeInterface<qw_text_input_manager_v3>()->handle()->global;
 }
 
-class WTextInputV3Private : public WTextInputPrivate
+class Q_DECL_HIDDEN WTextInputV3Private : public WTextInputPrivate
 {
 public:
     W_DECLARE_PUBLIC(WTextInputV3)

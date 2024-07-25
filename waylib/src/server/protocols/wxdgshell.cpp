@@ -14,7 +14,7 @@
 QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
-class WXdgShellPrivate : public WObjectPrivate
+class Q_DECL_HIDDEN WXdgShellPrivate : public WObjectPrivate
 {
 public:
     WXdgShellPrivate(WXdgShell *qq)

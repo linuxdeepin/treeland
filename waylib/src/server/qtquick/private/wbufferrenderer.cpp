@@ -6,6 +6,7 @@
 #include "wrenderhelper.h"
 #include "wqmlhelper_p.h"
 #include "wtools.h"
+#include "wbuffertextureprovider.h"
 
 #include <qwbuffer.h>
 #include <qwtexture.h>
@@ -13,9 +14,9 @@
 #include <qwswapchain.h>
 #include <qwoutput.h>
 #include <qwallocator.h>
+#include <qwrendererinterface.h>
 
 #include <QSGImageNode>
-#include <wbuffertextureprovider.h>
 
 #define protected public
 #define private public
@@ -41,7 +42,7 @@
 QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
-struct PixmanRegion
+struct Q_DECL_HIDDEN PixmanRegion
 {
     PixmanRegion() {
         pixman_region32_init(&data);

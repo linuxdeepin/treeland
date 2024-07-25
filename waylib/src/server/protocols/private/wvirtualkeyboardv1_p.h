@@ -16,7 +16,7 @@ QW_END_NAMESPACE
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 class WVirtualKeyboardManagerV1Private;
-class WVirtualKeyboardManagerV1 : public QObject, public WObject, public WServerInterface
+class WAYLIB_SERVER_EXPORT WVirtualKeyboardManagerV1 : public QObject, public WObject, public WServerInterface
 {
     Q_OBJECT
     W_DECLARE_PRIVATE(WVirtualKeyboardManagerV1)

@@ -31,7 +31,7 @@ WAYLIB_SERVER_BEGIN_NAMESPACE
 
 class WSurface;
 class WSeat;
-class WSeatEventFilter : public QObject
+class WAYLIB_SERVER_EXPORT WSeatEventFilter : public QObject
 {
     friend class WSeat;
     friend class WSeatPrivate;
@@ -50,7 +50,7 @@ protected:
 
 class WCursor;
 class WSeatPrivate;
-class WSeat : public WWrapObject, public WServerInterface
+class WAYLIB_SERVER_EXPORT WSeat : public WWrapObject, public WServerInterface
 {
     Q_OBJECT
     W_DECLARE_PRIVATE(WSeat)

@@ -11,7 +11,7 @@
 QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
-class WInputPopupSurfacePrivate : public WToplevelSurfacePrivate
+class Q_DECL_HIDDEN WInputPopupSurfacePrivate : public WToplevelSurfacePrivate
 {
 public:
     W_DECLARE_PUBLIC(WInputPopupSurface)

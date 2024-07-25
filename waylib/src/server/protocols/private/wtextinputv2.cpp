@@ -36,7 +36,7 @@ static struct zwp_text_input_v2_interface text_input_impl = {
     .set_preferred_language = handle_text_input_set_preferred_language,
     .update_state = handle_text_input_update_state
 };
-class WTextInputV2Private : public WTextInputPrivate
+class Q_DECL_HIDDEN WTextInputV2Private : public WTextInputPrivate
 {
 public:
     W_DECLARE_PUBLIC(WTextInputV2)
@@ -85,7 +85,7 @@ public:
     }
 };
 
-class WTextInputManagerV2Private : public WObjectPrivate
+class Q_DECL_HIDDEN WTextInputManagerV2Private : public WObjectPrivate
 {
 public:
     W_DECLARE_PUBLIC(WTextInputManagerV2)
