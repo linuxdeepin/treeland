@@ -1,3 +1,9 @@
+treeland (0.3) unstable; urgency=medium
+
+  * support windows animation
+
+ -- Dingyuan Zhang <zhangdingyuan@uniontech.com>  Thu, 25 Jul 2024 18:20:00 +0800
+
 treeland (0.2.3) unstable; urgency=medium
 
   * refactor protocol from qml to c++
