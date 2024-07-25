@@ -714,6 +714,47 @@ void Helper::enableOutput(WOutput *output)
     }
 }
 
+bool Helper::doGesture(WSeat *seat, QInputEvent *event)
+{
+    auto e = static_cast<WGestureEvent*>(event);
+    if (event->type() == QEvent::NativeGesture
+        && e->libInputGestureType() == WGestureEvent::WLibInputGestureType::SwipeGesture) {
+        switch (e->gestureType()) {
+        case Qt::BeginNativeGesture:
+            if (e->fingerCount() == 3)
+                moveReiszeState.threefingerMove = true;
+            break;
+        case Qt::EndNativeGesture: {
+            if (activatedSurface()
+                && !activatedSurface()->isMaximized()
+                && e->fingerCount() == 3
+                && moveReiszeState.threefingerMove) {
+                activatedSurface()->requestMove(seat, 0);
+                moveReiszeState.threefingerMove = false;
+            }
+            break;
+        }
+        case Qt::PanNativeGesture: {
+            if (e->fingerCount() == 3) {
+                if (e->delta().y() < 0)
+                    activatedSurface()->requestMaximize();
+                else
+                    activatedSurface()->requestCancelMaximize();
+                moveReiszeState.threefingerMove = false;
+            }
+        }
+        case Qt::ZoomNativeGesture:
+        case Qt::SmartZoomNativeGesture:
+        case Qt::RotateNativeGesture:
+        case Qt::SwipeNativeGesture:
+        default:
+            break;
+        }
+    }
+
+    return false;
+}
+
 bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *watched, QInputEvent *event)
 {
     if (event->type() == QEvent::KeyRelease) {
@@ -797,38 +838,7 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *watched, QInputEvent *even
         seat->cursor()->setVisible(false);
     }
 
-    if (event->type() == QEvent::NativeGesture) {
-        auto e = static_cast<WGestureEvent*>(event);
-        switch (e->gestureType()) {
-        case Qt::BeginNativeGesture:
-            if (e->fingerCount() == 3)
-                moveReiszeState.threefingerMove = true;
-            break;
-        case Qt::EndNativeGesture: {
-            if (activatedSurface()
-                && e->fingerCount() == 3
-                && moveReiszeState.threefingerMove) {
-                activatedSurface()->requestMove(seat, 0);
-                moveReiszeState.threefingerMove = false;
-            }
-            break;
-        }
-        case Qt::PanNativeGesture: {
-            if (e->delta().y() < 0)
-                activatedSurface()->requestMaximize();
-            else
-                activatedSurface()->requestCancelMaximize();
-        }
-        case Qt::ZoomNativeGesture:
-        case Qt::SmartZoomNativeGesture:
-        case Qt::RotateNativeGesture:
-        case Qt::SwipeNativeGesture:
-        default:
-            if (e->fingerCount() == 3)
-                moveReiszeState.threefingerMove = false;
-            break;
-        }
-    }
+    doGesture(seat, event);
 
     if (moveReiszeState.surfaceItem
         && (seat == moveReiszeState.seat || moveReiszeState.seat == nullptr)) {
