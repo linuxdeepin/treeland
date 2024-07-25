@@ -1257,8 +1257,11 @@ bool WOutputRenderWindowPrivate::initRCWithRhi()
 
 void WOutputRenderWindowPrivate::updateSceneDPR()
 {
-    if (outputs.isEmpty())
+    if (outputs.isEmpty()
+        // Maybe the platform window is destroyed
+        || !platformWindow) {
         return;
+    }
 
     qreal maxDPR = 0.0;
 
