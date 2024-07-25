@@ -150,6 +150,7 @@ public:
     bool lockScreen() const {
         return m_isLockScreen;
     }
+    Q_INVOKABLE void updateOutputsRegion();
 
 public Q_SLOTS:
     void startMove(WToplevelSurface *surface, WSurfaceItem *shell, WSeat *seat, int serial);
@@ -215,6 +216,8 @@ protected:
     QPointer<WToplevelSurface> m_activateSurface;
 
     QList<std::pair<WOutput *, OutputInfo *>> m_outputExclusiveZoneInfo;
+
+    QRegion m_region;
 
     // for move resize
     struct
