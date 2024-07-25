@@ -3,38 +3,20 @@
 
 #include "wallpapercontroller.h"
 
-static QMap<Waylib::Server::WOutput *, WallpaperController *> S_OUTPUTS;
+#include "wallpapermanager.h"
+#include "wallpaperproxy.h"
 
-WallpaperController::WallpaperController(QQuickItem *parent)
-    : QQuickItem(parent)
+WallpaperController::WallpaperController(QObject *parent)
+    : QObject(parent)
+    , m_output(nullptr)
 {
 }
 
-WallpaperController::~WallpaperController()
+void WallpaperController::setType(Helper::WallpaperType type)
 {
-    S_OUTPUTS.remove(m_output);
-}
+    m_type = type;
 
-void WallpaperController::setSource(const QString &source)
-{
-    if (m_source == source) {
-        return;
-    }
-
-    m_source = source;
-
-    Q_EMIT sourceChanged();
-}
-
-void WallpaperController::setAnimationType(AnimationType type)
-{
-    if (m_animationType == type) {
-        return;
-    }
-
-    m_animationType = type;
-
-    Q_EMIT animationTypeChanged();
+    updateState();
 }
 
 void WallpaperController::setOutput(Waylib::Server::WOutput *output)
@@ -47,18 +29,21 @@ void WallpaperController::setOutput(Waylib::Server::WOutput *output)
         return;
     }
 
-    if (S_OUTPUTS.contains(output)) {
-        return;
-    }
-
     m_output = output;
 
-    S_OUTPUTS[output] = this;
+    updateState();
 
     Q_EMIT outputChanged();
 }
 
-WallpaperController *WallpaperController::get(Waylib::Server::WOutput *output)
+void WallpaperController::updateState()
 {
-    return S_OUTPUTS[output];
+    if (!m_output) {
+        return;
+    }
+
+    auto *manager = WallpaperManager::instance();
+    auto *proxy = manager->get(m_output);
+    Q_ASSERT(proxy);
+    proxy->setType(m_type);
 }

@@ -10,6 +10,8 @@ qt_add_qml_module(utils
         filterproxymodel.cpp
         surfaceitemfactory.cpp
         inputdevice.cpp
+        wallpaperproxy.cpp
+        wallpapermanager.cpp
         wallpapercontroller.cpp
     RESOURCE_PREFIX
         /qt/qml
@@ -23,6 +25,8 @@ FILES
     helper.h
     filterproxymodel.h
     inputdevice.h
+    wallpaperproxy.h
+    wallpapermanager.h
     wallpapercontroller.h
 )
 

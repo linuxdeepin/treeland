@@ -5,45 +5,23 @@ import QtQuick.Controls
 import QtQuick.Layouts
 
 import TreeLand.Greeter
+import TreeLand.Utils
 
 FocusScope {
     id: root
     clip: true
 
+    required property var output
+
+    WallpaperController {
+        id: wallpaperController
+        output: root.output
+    }
+
     // prevent event passing through greeter
     MouseArea {
         anchors.fill: parent
         enabled: true
-    }
-
-    Image {
-        id: background
-        source: "file:///usr/share/wallpapers/deepin/desktop.jpg"
-        fillMode: Image.PreserveAspectCrop
-        anchors.fill: parent
-        ScaleAnimator on scale {
-            from: 1
-            to: 1.1
-            duration: 400
-        }
-    }
-
-    ParallelAnimation {
-        id: backgroundAni
-        ScaleAnimator {
-            target: background
-            from: 1.1
-            to: 1
-            duration: 400
-        }
-        PropertyAnimation {
-            target: background
-            property: "opacity"
-            duration: 600
-            from: 1
-            to: 0
-            easing.type: Easing.InQuad
-        }
     }
 
     Center {
@@ -56,7 +34,6 @@ FocusScope {
 
         focus: true
     }
-
 
     function checkUser(userName) {
         let user = GreeterModel.userModel.get(GreeterModel.currentUser)
@@ -92,11 +69,11 @@ FocusScope {
     Connections {
         target: GreeterModel
         function onAnimationPlayed() {
-            backgroundAni.start()
+            wallpaperController.type = Helper.Normal
         }
-        function onAnimationPlayFinished() {
-            background.scale = 1.1
-            background.opacity = 1
-        }
+    }
+
+    Component.onCompleted: {
+        wallpaperController.type = Helper.Scale
     }
 }

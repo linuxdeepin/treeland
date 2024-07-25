@@ -15,9 +15,9 @@
 #include "outputmanagement.h"
 #include "personalizationmanager.h"
 #include "shortcutmanager.h"
+#include "virtualoutputmanager.h"
 #include "wallpapercolor.h"
 #include "windowmanagement.h"
-#include "virtualoutputmanager.h"
 
 #include <WCursor>
 #include <WSeat>
@@ -164,8 +164,6 @@ TreeLand::TreeLand(TreeLandAppContext context)
     , m_context(context)
 {
     if (!context.socket.isEmpty()) {
-        qInstallMessageHandler(DDM::GreeterMessageHandler);
-
         new DDM::SignalHandler;
     }
 
@@ -285,10 +283,10 @@ void TreeLand::setup()
                                                      "WindowManagementV1",
                                                      m_server->attach<WindowManagementV1>());
     qmlRegisterSingletonInstance<VirtualOutputV1>("TreeLand.Protocols",
-                                                     1,
-                                                     0,
-                                                     "VirtualOutputV1",
-                                                     m_server->attach<VirtualOutputV1>());
+                                                  1,
+                                                  0,
+                                                  "VirtualOutputV1",
+                                                  m_server->attach<VirtualOutputV1>());
 
     m_engine->loadFromModule("TreeLand", "Main");
 
@@ -377,6 +375,7 @@ void TreeLand::readyRead()
             // log message
             qDebug() << "Message received from daemon: Capabilities";
         } break;
+        case DDM::DaemonMessages::LoginSucceeded:
         case DDM::DaemonMessages::UserActivateMessage: {
             QString user;
             input >> user;
@@ -410,27 +409,21 @@ bool TreeLand::ActivateWayland(QDBusUnixFileDescriptor _fd)
     auto fd = std::make_shared<QDBusUnixFileDescriptor>();
     fd->swap(_fd);
 
-    auto socket = std::make_shared<WSocket>(true);
-    socket->create(fd->fileDescriptor(), false);
-
-    m_server->addSocket(socket.get());
-
     auto uid = connection().interface()->serviceUid(message().service());
     struct passwd *pw;
     pw = getpwuid(uid);
     QString user{ pw->pw_name };
+
+    auto socket = std::make_shared<WSocket>(true);
+    socket->create(fd->fileDescriptor(), false);
+
+    Helper *helper = m_engine->singletonInstance<Helper *>("TreeLand.Utils", "Helper");
+    socket->setEnabled(helper->currentUser() == user);
+
+    m_server->addSocket(socket.get());
+
     m_userWaylandSocket[user] = socket;
     m_userDisplayFds[user] = fd;
-
-    DisplayManager manager("org.freedesktop.DisplayManager",
-                           "/org/freedesktop/DisplayManager",
-                           QDBusConnection::systemBus());
-
-    const auto sessionPath = manager.lastSession();
-    if (!sessionPath.path().isEmpty()) {
-        DisplaySession session(manager.service(), sessionPath.path(), QDBusConnection::systemBus());
-        socket->setEnabled(session.userName() == user);
-    }
 
     connect(connection().interface(),
             &QDBusConnectionInterface::serviceUnregistered,

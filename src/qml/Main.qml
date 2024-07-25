@@ -106,6 +106,7 @@ Item {
             id: workspaceLoader
             objectName: "workspaceLoader"
             anchors.fill: parent
+            visible: !Helper.lockScreen
             enabled: visible
             focus: enabled
             ColumnLayout {
@@ -138,20 +139,26 @@ Item {
         Loader {
             active: !TreeLand.testMode
             id: greeter
-            asynchronous: true
             sourceComponent: Repeater {
                 model: Helper.outputLayout.outputs
                 delegate: Greeter {
-                    property var output: modelData.output.OutputItem.item
-                    property CoordMapper outputCoordMapper: this.CoordMapper.helper.get(output)
+                    required property var modelData
+                    property CoordMapper outputCoordMapper: this.CoordMapper.helper.get(modelData.output.OutputItem.item)
+                    output: modelData.output
                     focus: true
                     anchors.fill: outputCoordMapper
                 }
+            }
+            onLoaded: {
+                Helper.lockScreen = true
             }
         }
 
         Connections {
             target: greeter.active ? GreeterModel : null
+            function onAnimationPlayed() {
+                Helper.lockScreen = false
+            }
             function onAnimationPlayFinished() {
                 greeter.active = false
             }

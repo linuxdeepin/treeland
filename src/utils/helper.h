@@ -73,6 +73,8 @@ class Helper : public WSeatEventFilter
     // TODO: move to workspace
     Q_PROPERTY(int currentWorkspaceId READ currentWorkspaceId WRITE setCurrentWorkspaceId NOTIFY currentWorkspaceIdChanged FINAL)
 
+    Q_PROPERTY(bool lockScreen READ lockScreen WRITE setLockScreen NOTIFY lockScreenChanged FINAL)
+
 public:
     explicit Helper(WServer *server);
 
@@ -81,6 +83,12 @@ public:
         Previous,
     };
     Q_ENUM(Switcher)
+
+    enum WallpaperType {
+        Normal,
+        Scale,
+    };
+    Q_ENUM(WallpaperType)
 
     void initProtocols(WOutputRenderWindow *window);
     WQuickOutputLayout *outputLayout() const;
@@ -138,6 +146,11 @@ public:
 
     Q_INVOKABLE bool selectSurfaceToActivate(WToplevelSurface *surface) const;
 
+    void setLockScreen(bool lockScreen);
+    bool lockScreen() const {
+        return m_isLockScreen;
+    }
+
 public Q_SLOTS:
     void startMove(WToplevelSurface *surface, WSurfaceItem *shell, WSeat *seat, int serial);
     void startResize(
@@ -167,6 +180,7 @@ Q_SIGNALS:
     void xdgDecorationManagerChanged();
     void currentWorkspaceIdChanged();
     void currentUserChanged(const QString &user);
+    void lockScreenChanged();
 
 protected:
     bool beforeDisposeEvent(WSeat *seat, QWindow *watched, QInputEvent *event) override;
@@ -230,6 +244,8 @@ private:
     std::map<QString, std::vector<QAction *>> m_actions;
     bool m_switcherOn = false;
     bool m_switcherEnabled = true;
+
+    bool m_isLockScreen{ false };
 
     int m_currentWorkspaceId{ 0 };
 };

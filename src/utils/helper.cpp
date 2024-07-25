@@ -603,6 +603,17 @@ bool Helper::selectSurfaceToActivate(WToplevelSurface *surface) const
     return true;
 }
 
+void Helper::setLockScreen(bool lockScreen)
+{
+    if (m_isLockScreen == lockScreen) {
+        return;
+    }
+
+    m_isLockScreen = lockScreen;
+
+    emit lockScreenChanged();
+}
+
 void Helper::setMovingItem(WSurfaceItem *newMovingItem)
 {
     if (moveReiszeState.movingItem == newMovingItem)
