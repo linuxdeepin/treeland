@@ -221,6 +221,7 @@ private:
     void setWaylandSocket(const QString &socketFile);
     void setXWaylandSocket(const QString &socketFile);
     QVariant workspaceId(QQmlApplicationEngine *) const;
+    bool doGesture(WSeat *seat, QInputEvent *event);
 
 private:
     QString m_waylandSocket;
