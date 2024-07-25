@@ -126,7 +126,7 @@ public:
     void add(WXdgSurface *surface) {
         W_Q(WForeignToplevel);
 
-        auto handle = std::shared_ptr<qw_foreign_toplevel_handle_v1>(qw_foreign_toplevel_handle_v1::create(*q->nativeInterface<qw_foreign_toplevel_manager_v1>()));
+        auto handle = qw_foreign_toplevel_handle_v1::create(*q->nativeInterface<qw_foreign_toplevel_manager_v1>());
         surfaces.insert({surface, handle});
         initSurface(surface);
     }
@@ -156,7 +156,7 @@ public:
 
     W_DECLARE_PUBLIC(WForeignToplevel)
 
-    std::map<WXdgSurface*, std::shared_ptr<qw_foreign_toplevel_handle_v1>> surfaces;
+    std::map<WXdgSurface*, QPointer<qw_foreign_toplevel_handle_v1>> surfaces;
     std::map<WXdgSurface*, std::vector<QMetaObject::Connection>> connections;
 };
 
