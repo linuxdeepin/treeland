@@ -11,6 +11,7 @@ import org.deepin.dtk 1.0 as D
 ColumnLayout {
     id: root
 
+    property bool showAllSurface: false
     property alias model: switchView.model
     required property OutputDelegate activeOutput
     // control all switch item
@@ -29,33 +30,98 @@ ColumnLayout {
 
     onVisibleChanged: {
         if (visible) {
+            root.showAllSurface = false
+            previewReductionAni.stop()
+            context.sourceComponent = undefined
             switchView.currentIndex = 0
-        } else {
-            stop()
+
+            if (!switchView.model)
+                return
+
+            const surfaceItem = switchView.model.get(switchView.currentIndex).item
+            if (!surfaceItem)
+                return
+
+            context.sourceSueface = surfaceItem
+            ensurePreView()
+        }
+    }
+
+    function ensurePreView() {
+        if (context.sourceComponent && root.enableAnimation) {
+            previewSwitchAni.stop()
+            previewSwitchAni.isShowAni = false
+            previewSwitchAni.start()
+        }
+
+        context.sourceComponent = previewComponent
+
+        if (root.enableAnimation) {
+            previewSwitchAni.stop()
+            previewSwitchAni.isShowAni = true
+            previewSwitchAni.start()
         }
     }
 
     function previous() {
-        switchView.currentIndex = switchView.currentIndex - 1
-        if (switchView.currentIndex < 0) {
+        if (switchView.count === 1)
+            return;
+
+        if (switchView.currentIndex === 0) {
             switchView.currentIndex = switchView.count - 1;
+            return
         }
+        switchView.currentIndex = switchView.currentIndex - 1
     }
 
     function next() {
-        switchView.currentIndex = switchView.currentIndex + 1
-        if (switchView.currentIndex >= switchView.count) {
+        if (switchView.count === 1)
+            return;
+
+        if (switchView.currentIndex === switchView.count - 1) {
             switchView.currentIndex = 0
+            return
+        }
+        switchView.currentIndex = switchView.currentIndex + 1
+    }
+
+    function activeAllSurfaces() {
+        const wrapper = model.get(switchView.currentIndex).wrapper
+        if (wrapper) {
+            surfaceActivated(wrapper)
         }
     }
 
-    function stop() {
-        context.sourceComponent = undefined
+    function handleExit() {
+        if (!root.visible)
+            return
 
-        const wrapper = model.get(switchView.currentIndex).wrapper
-        // activated window changed
-        if (wrapper) {
-            surfaceActivated(wrapper)
+        if (context.sourceComponent) {
+            if (root.enableAnimation) {
+                switchViewContentAni.stop()
+                switchViewContentAni.isInAni = false
+                switchViewContentAni.start()
+            }
+
+            if (root.enableAnimation) {
+                context.item.transformOrigin = Item.TopLeft
+                previewReductionAni.target = context.item
+                previewReductionAni.scaleTo = context.sourceSueface.width / context.width
+                context.item.scale = 1.0
+                context.item.x = 0
+                context.item.y = 0
+                previewReductionAni.xFrom = 0
+                previewReductionAni.yFrom = 0
+                var point = context.item.mapFromItem(root.model.get(switchView.currentIndex).item, 0, 0)
+                previewReductionAni.xTo = point.x
+                previewReductionAni.yTo = point.y
+                previewReductionAni.start()
+                activeAllSurfaces()
+            } else {
+                root.visible = false
+            }
+        } else {
+            root.visible = false
         }
     }
 
@@ -88,12 +154,13 @@ ColumnLayout {
 
             ShaderEffectSource {
                 sourceItem: sourceSueface
+                transformOrigin: Item.Center
 
                 MouseArea {
                     anchors.fill: parent
                     acceptedButtons: Qt.LeftButton
                     onClicked: function(mouse) {
-                        root.visible = false
+                        handleExit()
                     }
                 }
 
@@ -101,14 +168,75 @@ ColumnLayout {
                     acceptedButtons: Qt.NoButton
                     acceptedDevices: PointerDevice.TouchScreen
                     onDoubleTapped: function(eventPoint, button) {
-                        root.visible = false
+                        handleExit()
                     }
                 }
+            }
+        }
+
+        ParallelAnimation {
+            id: previewSwitchAni
+
+            property bool isShowAni: true
+
+            ScaleAnimator {
+                target: context.item;
+                from: previewSwitchAni.isShowAni ? 0.5 : 1.0;
+                to: previewSwitchAni.isShowAni ? 1.0 : 0.5;
+            }
+
+            OpacityAnimator {
+                target: context.item;
+                from: previewSwitchAni.isShowAni ? 0.0 : 1.0;
+                to: previewSwitchAni.isShowAni ? 1.0 : 0.0;
+            }
+
+            onFinished: context.item.scale = 1.0
+        }
+
+        ParallelAnimation {
+            id: previewReductionAni
+
+            readonly property int duration: 400
+            property real scaleTo
+            property real xFrom
+            property real yFrom
+            property real xTo
+            property real yTo
+            property Item target
+
+            ScaleAnimator {
+                target: previewReductionAni.target;
+                from: 1.0;
+                to: previewReductionAni.scaleTo
+                duration: previewReductionAni.duration
+            }
+
+            XAnimator {
+                target: previewReductionAni.target;
+                from: previewReductionAni.xFrom
+                to: previewReductionAni.xTo
+                duration: previewReductionAni.duration
+            }
+
+            YAnimator {
+                target: previewReductionAni.target;
+                from: previewReductionAni.yFrom
+                to: previewReductionAni.yTo
+                duration: previewReductionAni.duration
+            }
+
+            onFinished:  {
+                root.showAllSurface = true
+                root.visible = false
+                previewReductionAni.target.scale = 1.0
             }
         }
     }
 
     Item {
+        id: switchViewContent
+
         Layout.preferredHeight: 198
         Layout.preferredWidth: switchView.contentWidth + 2 * switchView.vSpacing
         Layout.maximumWidth: parent.width
@@ -235,8 +363,43 @@ ColumnLayout {
                     return
 
                 context.sourceSueface = surfaceItem
-                context.sourceComponent = previewComponent
+                ensurePreView()
             }
         }
+
+        onVisibleChanged: {
+            if (root.visible && root.enableAnimation) {
+                switchViewContentAni.fromeY = switchViewContent.y
+                switchViewContentAni.stop()
+                switchViewContentAni.isInAni = true
+                switchViewContentAni.start()
+            }
+        }
+    }
+
+    ParallelAnimation {
+        id: switchViewContentAni
+
+        property bool isInAni: true
+        readonly property int duration: 400
+        readonly property real toY: root.height - 60
+        property real fromeY
+
+        YAnimator {
+            target: switchViewContent
+            from: switchViewContentAni.isInAni ? switchViewContentAni.toY : switchViewContentAni.fromeY
+            to: switchViewContentAni.isInAni ? switchViewContentAni.fromeY : switchViewContentAni.toY
+            duration: switchViewContentAni.duration
+            running: true
+        }
+
+        OpacityAnimator {
+            target: switchViewContent
+            from: switchViewContentAni.isInAni ? 0.0 : 1.0
+            to: switchViewContentAni.isInAni ? 1.0 : 0.0
+            duration: switchViewContentAni.duration
+        }
+
+        onStopped: switchViewContent.y = switchViewContentAni.fromeY
     }
 }
