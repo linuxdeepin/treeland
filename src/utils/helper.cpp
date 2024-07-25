@@ -71,6 +71,9 @@ extern "C" {
 
 #define WLR_FRACTIONAL_SCALE_V1_VERSION 1
 
+// Foolproof reserved pixels
+#define FOOLPROOF_RESERVED_PIXELS 20
+
 Q_LOGGING_CATEGORY(HelperDebugLog, "TreeLand.Helper.Debug", QtDebugMsg);
 
 inline QPointF getItemGlobalPosition(QQuickItem *item)
@@ -189,6 +192,8 @@ void Helper::initProtocols(WOutputRenderWindow *window)
                         ok &= output->commit();
                 }
                 outputManager->sendResult(config, ok);
+
+                updateOutputsRegion();
             });
 
     m_server->attach<WCursorShapeManagerV1>();
@@ -304,6 +309,8 @@ void Helper::initProtocols(WOutputRenderWindow *window)
                 Q_ASSERT(virtualOutputV1);
 
                 virtualOutputV1->newOutput(output);
+
+                updateOutputsRegion();
             });
 
     connect(backend,
@@ -328,6 +335,8 @@ void Helper::initProtocols(WOutputRenderWindow *window)
                 primaryOutput->removeOutput(output);
 
                 outputManager->removeOutput(output);
+
+                updateOutputsRegion();
             });
 
     connect(backend, &WBackend::inputAdded, this, [this](WInputDevice *device) {
@@ -405,7 +414,7 @@ bool Helper::registerExclusiveZone(WLayerSurface *layerSurface)
 {
     auto [output, infoPtr] = getFirstOutputOfSurface(layerSurface);
     if (!output)
-        return 0;
+        return false;
 
     auto exclusiveZone = layerSurface->exclusiveZone();
     auto exclusiveEdge = layerSurface->getExclusiveZoneEdge();
@@ -443,6 +452,8 @@ bool Helper::registerExclusiveZone(WLayerSurface *layerSurface)
     default:
         Q_UNREACHABLE();
     }
+
+    updateOutputsRegion();
     return true;
 }
 
@@ -480,10 +491,10 @@ bool Helper::unregisterExclusiveZone(WLayerSurface *layerSurface)
             default:
                 Q_UNREACHABLE();
             }
+            updateOutputsRegion();
             return true;
         }
     }
-
     return false;
 }
 
@@ -845,6 +856,11 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *watched, QInputEvent *even
 
     if (event->type() == QEvent::MouseMove || event->type() == QEvent::MouseButtonPress) {
         seat->cursor()->setVisible(true);
+        auto mevent = static_cast<QMouseEvent *>(event);
+        if (mevent->buttons() & Qt::LeftButton) {
+            if (!m_region.isEmpty() && !m_region.contains(mevent->pos()))
+                return true;
+        }
     } else if (event->type() == QEvent::TouchBegin) {
         seat->cursor()->setVisible(false);
     }
@@ -1134,4 +1150,31 @@ void Helper::removeAction(const QString &user, QAction *action)
     std::erase_if(m_actions[user], [action](QAction *a) {
         return a == action;
     });
+}
+
+void Helper::updateOutputsRegion()
+{
+    m_region = QRegion();
+
+    WQuickOutputLayout *outlayout = outputLayout();
+    for (auto *output : outlayout->outputs()) {
+        Margins margins = getOutputExclusiveMargins(output->output());
+        QRect rect(output->x(), output->y(), output->width(), output->height());
+        if (margins.left) {
+            rect.setLeft(output->x() + margins.left + FOOLPROOF_RESERVED_PIXELS);
+        }
+
+        if(margins.top) {
+            rect.setTop(output->height() + margins.top + FOOLPROOF_RESERVED_PIXELS);
+        }
+
+        if (margins.right) {
+            rect.setRight(output->x() - margins.right - FOOLPROOF_RESERVED_PIXELS);
+        }
+
+        if (margins.bottom) {
+            rect.setHeight(output->height() - margins.bottom - FOOLPROOF_RESERVED_PIXELS);
+        }
+        m_region += rect;
+    }
 }
