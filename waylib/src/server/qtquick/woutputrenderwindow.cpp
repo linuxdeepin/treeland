@@ -1052,6 +1052,7 @@ bool OutputHelper::tryToHardwareCursor(LayerData *layer, wlr_buffer *buffer)
             || get_cursor_formsts) {
             // needs render cursor again
             if (!m_cursorLayer) {
+                // TODO: Direct rendr the buffer to a new wlr_buffer, maybe can use wlr_render_pass
                 m_cursorLayer.reset(new LayerData(layer->layer, nullptr));
             } else {
                 m_cursorLayer->layer = layer->layer;
