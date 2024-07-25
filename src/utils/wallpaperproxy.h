@@ -10,23 +10,29 @@
 #include <QQmlEngine>
 #include <QQuickItem>
 
-class WallpaperController : public QObject
+class WallpaperProxy : public QQuickItem
 {
     Q_OBJECT
     Q_PROPERTY(Waylib::Server::WOutput* output READ output WRITE setOutput NOTIFY outputChanged)
+    Q_PROPERTY(QString source READ source WRITE setSource NOTIFY sourceChanged)
     Q_PROPERTY(Helper::WallpaperType type READ type WRITE setType NOTIFY typeChanged)
 
     QML_ELEMENT
 
 public:
-    explicit WallpaperController(QObject *parent = nullptr);
+    explicit WallpaperProxy(QQuickItem *parent = nullptr);
+
+    WallpaperProxy *get(Waylib::Server::WOutput *output);
 
 Q_SIGNALS:
+    void sourceChanged();
     void typeChanged();
     void outputChanged();
 
 public:
-    void setType(Helper::WallpaperType type);
+    void setSource(const QString &source);
+
+    inline QString source() const { return m_source; }
 
     Helper::WallpaperType type() const { return m_type; }
 
@@ -35,9 +41,11 @@ public:
     inline Waylib::Server::WOutput *output() const { return m_output; }
 
 private:
-    void updateState();
+    friend class WallpaperController;
+    void setType(Helper::WallpaperType type);
 
 private:
     Waylib::Server::WOutput *m_output;
+    QString m_source;
     Helper::WallpaperType m_type{ Helper::WallpaperType::Normal };
 };

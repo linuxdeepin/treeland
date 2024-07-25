@@ -4,7 +4,7 @@
 import QtQuick
 import TreeLand.Utils
 
-WallpaperController {
+WallpaperProxy {
     Image {
         id: background
         source: parent.source
@@ -52,7 +52,7 @@ WallpaperController {
         ]
     }
 
-    onAnimationTypeChanged: {
-        background.state = animationType === WallpaperController.Normal ? "Normal" : "Scale"
+    onTypeChanged: {
+        background.state = type === Helper.Normal ? "Normal" : "Scale";
     }
 }

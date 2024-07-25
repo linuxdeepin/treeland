@@ -44,6 +44,7 @@ SurfaceItemFactory {
 
     surfaceItem {
         parent: root.parent
+        visible: false // NOTE: by default
         shellSurface: wSurface
         topPadding: decoration.visible ? decoration.topMargin : 0
         bottomPadding: decoration.visible ? decoration.bottomMargin : 0

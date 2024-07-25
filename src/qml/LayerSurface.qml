@@ -32,6 +32,7 @@ FocusScope {
         anchors.centerIn: parent
         focus: true
         shellSurface: wSurface
+        visible: false // by default
 
         id: surfaceItem
 
@@ -112,7 +113,7 @@ FocusScope {
         if (mapped) {
             Helper.registerExclusiveZone(wSurface)
             refreshMargin()
-            visible = true
+            surfaceItem.visible = true
             if (surfaceItem.effectiveVisible)
                 Helper.activatedSurface = wSurface
 
@@ -122,11 +123,12 @@ FocusScope {
                 animation.sourceComponent = newWindowAnimation
                 animation.item.start()
 
-                wallpaperController.get(output.output).animationType = WallpaperController.Scale
+                wallpaperController.output = output.output
+                wallpaperController.type = Helper.Scale
         } else { // if not mapped
             Helper.unregisterExclusiveZone(wSurface)
             if (!wSurface.WaylandSocket.rootSocket.enabled) {
-                visible = false
+                surfaceItem.visible = false
             } else {
                 animation.active = true
                 animation.parent = root.parent
@@ -134,7 +136,8 @@ FocusScope {
                 animation.sourceComponent = closeWindowAnimation
                 animation.item.start()
 
-                wallpaperController.get(output.output).animationType = WallpaperController.Normal
+                wallpaperController.output = output.output
+                wallpaperController.type = Helper.Normal
             }
         }
     }
