@@ -858,7 +858,7 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *watched, QInputEvent *even
     if (event->type() == QEvent::MouseMove || event->type() == QEvent::MouseButtonPress) {
         seat->cursor()->setVisible(true);
         auto mevent = static_cast<QMouseEvent *>(event);
-        if (mevent->buttons() & Qt::LeftButton) {
+        if (mevent->buttons() & Qt::LeftButton && event->type() == QEvent::MouseMove) {
             if (!m_region.isEmpty() && !m_region.contains(mevent->pos()))
                 return true;
         }
