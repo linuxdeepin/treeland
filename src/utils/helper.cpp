@@ -72,7 +72,9 @@ extern "C" {
 #define WLR_FRACTIONAL_SCALE_V1_VERSION 1
 
 // Foolproof reserved pixels
-#define FOOLPROOF_RESERVED_PIXELS 20
+#define LAYER_FOOLPROOF_RESERVED_PIXELS 20
+
+#define OUTPUTS_FOOLPROOF_RESERVED_PIXELS 5
 
 Q_LOGGING_CATEGORY(HelperDebugLog, "TreeLand.Helper.Debug", QtDebugMsg);
 
@@ -1159,22 +1161,31 @@ void Helper::updateOutputsRegion()
     WQuickOutputLayout *outlayout = outputLayout();
     for (auto *output : outlayout->outputs()) {
         Margins margins = getOutputExclusiveMargins(output->output());
-        QRect rect(output->x(), output->y(), output->width(), output->height());
+        QRect rect(output->x() + OUTPUTS_FOOLPROOF_RESERVED_PIXELS,
+                   output->y() + OUTPUTS_FOOLPROOF_RESERVED_PIXELS,
+                   output->width() - 2 * OUTPUTS_FOOLPROOF_RESERVED_PIXELS,
+                   output->height() - 2 * OUTPUTS_FOOLPROOF_RESERVED_PIXELS);
+
         if (margins.left) {
-            rect.setLeft(output->x() + margins.left + FOOLPROOF_RESERVED_PIXELS);
+            rect.setLeft(output->x() + margins.left + LAYER_FOOLPROOF_RESERVED_PIXELS);
         }
 
-        if(margins.top) {
-            rect.setTop(output->height() + margins.top + FOOLPROOF_RESERVED_PIXELS);
+        if (margins.top) {
+            rect.setTop(output->y() + margins.top + LAYER_FOOLPROOF_RESERVED_PIXELS);
         }
 
-        if (margins.right) {
-            rect.setRight(output->x() - margins.right - FOOLPROOF_RESERVED_PIXELS);
+        if (margins.right && margins.left) {
+            rect.setRight(output->width() - margins.right - margins.left - 2 * LAYER_FOOLPROOF_RESERVED_PIXELS );
+        } else if (margins.right){
+            rect.setRight(output->width() - margins.right - LAYER_FOOLPROOF_RESERVED_PIXELS);
         }
 
-        if (margins.bottom) {
-            rect.setHeight(output->height() - margins.bottom - FOOLPROOF_RESERVED_PIXELS);
+        if (margins.bottom && margins.top) {
+            rect.setHeight(output->height() - margins.bottom - margins.top - 2 * LAYER_FOOLPROOF_RESERVED_PIXELS);
+        } else if (margins.bottom) {
+            rect.setHeight(output->height() - margins.bottom - LAYER_FOOLPROOF_RESERVED_PIXELS);
         }
+
         m_region += rect;
     }
 }
