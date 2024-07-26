@@ -23,22 +23,22 @@ FocusScope {
 
         let toplevel = Helper.surfaceCreator.getIf(toplevelComponent, finder)
         if (toplevel) {
-            return toplevel.surfaceItem
+            return toplevel
         }
 
         let popup = Helper.surfaceCreator.getIf(popupComponent, finder)
         if (popup) {
-            return popup.popupSurfaceItem
+            return popup
         }
 
         let layer = Helper.surfaceCreator.getIf(layerComponent, finder)
         if (layer) {
-            return layer.surfaceItem
+            return layer
         }
 
         let xwayland = Helper.surfaceCreator.getIf(xwaylandComponent, finder)
         if (xwayland) {
-            return xwayland.asXwayland
+            return xwayland
         }
 
         return null
@@ -61,7 +61,7 @@ FocusScope {
 
     // activated workspace driven by surface activation
     property Item activatedSurfaceItem:
-        getSurfaceItemFromWaylandSurface(Helper.activatedSurface) || null // cannot assign [undefined] to QQuickItem*, need to assign null
+        getSurfaceItemFromWaylandSurface(Helper.activatedSurface)?.surfaceItem || null // cannot assign [undefined] to QQuickItem*, need to assign null
     onActivatedSurfaceItemChanged: {
         if (activatedSurfaceItem?.parent?.workspaceRelativeId !== undefined)
             currentWorkspaceId = activatedSurfaceItem.parent.workspaceRelativeId
@@ -147,7 +147,7 @@ FocusScope {
             InputPopupSurface {
                 required property WaylandInputPopupSurface popupSurface
 
-                parent: getSurfaceItemFromWaylandSurface(popupSurface.parentSurface)
+                parent: getSurfaceItemFromWaylandSurface(popupSurface.parentSurface)?.surfaceItem
                 id: inputPopupSurface
                 shellSurface: popupSurface
             }
@@ -221,9 +221,9 @@ FocusScope {
                 property string type
                 property int wid
 
-                property var parentItem: root.getSurfaceItemFromWaylandSurface(wSurface.parentSurface)
+                property var parentItem: root.getSurfaceItemFromWaylandSurface(wSurface.parentSurface)?.surfaceItem
 
-                property alias popupSurfaceItem: popupSurfaceItem
+                property alias surfaceItem: popupSurfaceItem
 
                 parent: parentItem ?? root
                 visible: parentItem?.effectiveVisible
@@ -314,7 +314,7 @@ FocusScope {
                 readonly property XWaylandSurface asXSurface: {
                     wSurface as XWaylandSurface;
                 }
-                asXwayland.parentSurfaceItem: root.getSurfaceItemFromWaylandSurface(wSurface.parentXWaylandSurface)
+                asXwayland.parentSurfaceItem: root.getSurfaceItemFromWaylandSurface(wSurface.parentXWaylandSurface)?.surfaceItem
                 z: asXSurface.bypassManager ? 1 : 0 // TODO: make to enum type
                 decoration.enable: !asXSurface.bypassManager
                                         && asXSurface.decorationsType !== XWaylandSurface.DecorationsNoBorder
