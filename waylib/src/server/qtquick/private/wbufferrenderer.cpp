@@ -808,7 +808,9 @@ QSGRenderer *WBufferRenderer::ensureRenderer(int sourceIndex, QSGRenderContext *
     QObject::connect(d.renderer, &QSGRenderer::sceneGraphChanged,
                      this, &WBufferRenderer::sceneGraphChanged);
 
-    d.renderer->setClearColor(Qt::transparent);
+#ifdef QT_DEBUG
+    d.renderer->setClearColor(Qt::yellow);
+#endif
 
     return d.renderer;
 }

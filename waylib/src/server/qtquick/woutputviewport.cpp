@@ -4,12 +4,14 @@
 #include "woutputviewport.h"
 #include "woutputviewport_p.h"
 #include "woutput.h"
+#include "wbuffertextureprovider.h"
+#include "wbufferrenderer_p.h"
 
 #include <qwbuffer.h>
 #include <qwswapchain.h>
 
 #include <QDebug>
-#include <wbuffertextureprovider.h>
+#include <private/qquickitem_p.h>
 
 QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
@@ -291,6 +293,16 @@ void WOutputViewport::setLive(bool newLive)
     Q_EMIT liveChanged();
 }
 
+QRectF WOutputViewport::effectiveSourceRect() const
+{
+    const auto s = sourceRect();
+    if (s.isValid())
+        return s;
+    if (ignoreViewport())
+        return {};
+    return QRectF(QPointF(0, 0), size());
+}
+
 QRectF WOutputViewport::sourceRect() const
 {
     W_DC(WOutputViewport);
@@ -364,6 +376,53 @@ void WOutputViewport::setTargetRect(const QRectF &newTargetRect)
 void WOutputViewport::resetTargetRect()
 {
     setTargetRect({});
+}
+
+QTransform WOutputViewport::sourceRectToTargetRectTransfrom() const
+{
+    return WBufferRenderer::inputMapToOutput(effectiveSourceRect(),
+                                             targetRect(),
+                                             output()->size(),
+                                             devicePixelRatio());
+}
+
+QMatrix4x4 WOutputViewport::renderMatrix() const
+{
+    QMatrix4x4 renderMatrix;
+
+    if (auto customTransform = viewportTransform()) {
+        customTransform->applyTo(&renderMatrix);
+    } else if (parentItem() && !ignoreViewport() && input() != this) {
+        auto d = QQuickItemPrivate::get(const_cast<WOutputViewport*>(this));
+        auto viewportMatrix = d->itemNode()->matrix().inverted();
+        if (auto inputItem = input()) {
+            QMatrix4x4 matrix = QQuickItemPrivate::get(parentItem())->itemToWindowTransform();
+            matrix *= QQuickItemPrivate::get(inputItem)->windowToItemTransform();
+            renderMatrix = viewportMatrix * matrix.inverted();
+        } else { // the input item is window's contentItem
+            auto pd = QQuickItemPrivate::get(parentItem());
+            QMatrix4x4 parentMatrix = pd->itemToWindowTransform().inverted();
+            renderMatrix = viewportMatrix * parentMatrix;
+        }
+    }
+
+    return renderMatrix;
+}
+
+QMatrix4x4 WOutputViewport::mapToViewport(QQuickItem *item) const
+{
+    if (item == input())
+        return renderMatrix();
+    auto sd = QQuickItemPrivate::get(item);
+    auto matrix = sd->itemToWindowTransform();
+
+    if (auto i = input()) {
+        matrix *= QQuickItemPrivate::get(i)->windowToItemTransform();
+        return renderMatrix() * matrix;
+    } else { // the input item is window's contentItem
+        matrix *= QQuickItemPrivate::get(this)->windowToItemTransform();
+        return matrix;
+    }
 }
 
 bool WOutputViewport::ignoreViewport() const

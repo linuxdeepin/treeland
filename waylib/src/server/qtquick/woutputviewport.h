@@ -71,6 +71,7 @@ public:
     bool live() const;
     void setLive(bool newLive);
 
+    QRectF effectiveSourceRect() const;
     QRectF sourceRect() const;
     void setSourceRect(const QRectF &newSourceRect);
     void resetSourceRect();
@@ -78,6 +79,10 @@ public:
     QRectF targetRect() const;
     void setTargetRect(const QRectF &newTargetRect);
     void resetTargetRect();
+
+    QTransform sourceRectToTargetRectTransfrom() const;
+    QMatrix4x4 renderMatrix() const;
+    QMatrix4x4 mapToViewport(QQuickItem *item) const;
 
     bool ignoreViewport() const;
     void setIgnoreViewport(bool newIgnoreViewport);

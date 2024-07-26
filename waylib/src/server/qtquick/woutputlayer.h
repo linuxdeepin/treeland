@@ -33,8 +33,8 @@ class WAYLIB_SERVER_EXPORT WOutputLayer : public QObject
 
 public:
     enum Flag {
-        SizeFollowTransformation = 1 << 0,
-        SizeFollowItemTransformation = 1 << 1,
+        SizeSensitive = 1 << 0,
+        DontClip = 1 << 1,
         PreserveColorContents = 1 << 2,
         NoAlpha = 1 << 3,
         Cursor = 1 << 4,

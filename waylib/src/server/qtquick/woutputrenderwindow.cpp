@@ -125,6 +125,7 @@ public:
         QMatrix4x4 renderMatrix;
 
         // for proxy
+        LayerData *mapFromLayer = nullptr; // check mapFrom before use
         QPointer<OutputHelper> mapFrom;
         QPointer<QQuickItem> mapTo;
     };
@@ -183,27 +184,10 @@ public:
         return m_output->devicePixelRatio();
     }
 
-    inline QRectF renderSourceRect() const {
-        const auto s = m_output->sourceRect();
-        if (s.isValid())
-            return s;
-        if (m_output->ignoreViewport())
-            return {};
-        return QRectF(QPointF(0, 0), m_output->size());
-    }
-
-    inline QMatrix4x4 renderMatrix() const;
-    inline QTransform sourceMapToTargetTransfrom() const {
-        return WBufferRenderer::inputMapToOutput(renderSourceRect(),
-                                                 m_output->targetRect(),
-                                                 m_output->output()->size(),
-                                                 devicePixelRatio());
-    }
-    inline QMatrix4x4 mapToViewport(QQuickItem *source) const;
-
     void updateSceneDPR();
 
     int indexOfLayer(OutputLayer *layer) const;
+    LayerData *getLayer(OutputLayer *layer) const;
     bool attachLayer(OutputLayer *layer);
     void detachLayer(OutputLayer *layer);
     void sortLayers();
@@ -366,16 +350,21 @@ public:
     int indexOfOutputHelper(const WOutputViewport *output) const;
     inline OutputHelper *getOutputHelper(const WOutputViewport *output) const {
         int index = indexOfOutputHelper(output);
-        if (index >= 0)
-            return outputs.at(index);
-        return nullptr;
+        if (index < 0)
+            return nullptr;
+        return outputs.at(index);
     }
 
     int indexOfOutputLayer(const WOutputLayer *layer) const;
-    inline OutputLayer *ensureOutputLayer(WOutputLayer *layer) {
+    inline OutputLayer *getOutputLayer(WOutputLayer *layer) const {
         int index = indexOfOutputLayer(layer);
-        if (index >= 0)
-            return layers.at(index);
+        if (index < 0)
+            return nullptr;
+        return layers.at(index);
+    }
+    inline OutputLayer *ensureOutputLayer(WOutputLayer *layer) {
+        if (auto l = getOutputLayer(layer))
+            return l;
         layers.append(new OutputLayer(layer));
         return layers.last();
     }
@@ -445,43 +434,6 @@ WOutputRenderWindowPrivate *OutputHelper::renderWindowD() const
     return WOutputRenderWindowPrivate::get(renderWindow());
 }
 
-QMatrix4x4 OutputHelper::renderMatrix() const
-{
-    QMatrix4x4 renderMatrix;
-
-    if (auto customTransform = output()->viewportTransform()) {
-        customTransform->applyTo(&renderMatrix);
-    } else if (!output()->ignoreViewport() && output()->input() != output()) {
-        auto viewportMatrix = QQuickItemPrivate::get(output())->itemNode()->matrix().inverted();
-        if (auto inputItem = output()->input()) {
-            QMatrix4x4 matrix = QQuickItemPrivate::get(output()->parentItem())->itemToWindowTransform();
-            matrix *= QQuickItemPrivate::get(inputItem)->windowToItemTransform();
-            renderMatrix = viewportMatrix * matrix.inverted();
-        } else { // the input item is window's contentItem
-            QMatrix4x4 parentMatrix = QQuickItemPrivate::get(output()->parentItem())->itemToWindowTransform().inverted();
-            renderMatrix = viewportMatrix * parentMatrix;
-        }
-    }
-
-    return renderMatrix;
-}
-
-QMatrix4x4 OutputHelper::mapToViewport(QQuickItem *source) const
-{
-    if (source == m_output->input())
-        return renderMatrix() * sourceMapToTargetTransfrom();
-    auto sd = QQuickItemPrivate::get(source);
-    auto matrix = sd->itemToWindowTransform();
-
-    if (m_output->input()) {
-        matrix *= QQuickItemPrivate::get(m_output->input())->windowToItemTransform();
-        return renderMatrix() * matrix * sourceMapToTargetTransfrom();
-    } else { // the input item is window's contentItem
-        matrix *= QQuickItemPrivate::get(m_output)->windowToItemTransform();
-        return matrix * sourceMapToTargetTransfrom();
-    }
-}
-
 void OutputHelper::updateSceneDPR()
 {
     WOutputRenderWindowPrivate::get(renderWindow())->updateSceneDPR();
@@ -494,6 +446,14 @@ int OutputHelper::indexOfLayer(OutputLayer *layer) const
             return i;
 
     return -1;
+}
+
+OutputHelper::LayerData *OutputHelper::getLayer(OutputLayer *layer) const
+{
+    const auto index = indexOfLayer(layer);
+    if (index < 0)
+        return nullptr;
+    return m_layers.at(index);
 }
 
 bool OutputHelper::attachLayer(OutputLayer *layer)
@@ -595,10 +555,19 @@ static QQuickItem *createVisualRectangle(QQuickItem *target, const QColor &color
     return rectangle;
 }
 
+static inline QRectF scaleRect(const QRectF &r, qreal xScale, qreal yScale) {
+    if (xScale == 1 && yScale == 1)
+        return r;
+    return QRectF(r.x() * xScale, r.y() * yScale, r.width() * xScale, r.height() * yScale);
+}
+
 qw_buffer *OutputHelper::renderLayer(LayerData *layer, bool *dontEndRenderAndReturnNeedsEndRender,
                                     bool isCursor, const QSize &forcePixelSize)
 {
     auto source = layer->layer->layer->parent();
+    if (!source->parentItem() || source->window() != renderWindow())
+        return nullptr;
+
     if (!layer->renderer) {
         layer->renderer = new WBufferRenderer(source);
 
@@ -620,93 +589,129 @@ qw_buffer *OutputHelper::renderLayer(LayerData *layer, bool *dontEndRenderAndRet
     }
 
     layer->bufferIsUpdatedOnLastRender = false;
-    layer->mapRect = QRectF(QPointF(0, 0), source->size());
-    const auto mapFrom = layer->mapFrom ? layer->mapFrom.get() : this;
-    QMatrix4x4 mapMatrix = mapFrom->mapToViewport(source);
-    // map to WOutputViewport
-    layer->mapRect = mapMatrix.mapRect(layer->mapRect);
-    layer->noClipMapRect = layer->mapRect;
-    // clip to WOutputViewport
-    layer->mapRect = layer->mapRect & QRectF(QPointF(0, 0), mapFrom->output()->size());
+    qreal dpr = devicePixelRatio();
 
-    if (layer->mapTo) {
-        const auto tmpMatrix = mapToViewport(layer->mapTo);
-        layer->mapRect = tmpMatrix.mapRect(layer->mapRect);
-        layer->noClipMapRect = tmpMatrix.mapRect(layer->noClipMapRect);
-        mapMatrix = tmpMatrix * mapMatrix;
-    }
+    {
+        QRectF mapRect, noClipMapRect;
+        // matrix function: map source to WOutputViewport
+        QMatrix4x4 viewportMatrix;
 
-    if (!layer->mapFrom // If is a copy layer form the other viewport, should always follow transformation
-        && !layer->layer->layer->flags().testFlag(WOutputLayer::SizeFollowTransformation)) {
-        QSizeF size = source->size();
+        const auto layerFlags = layer->layer->layer->flags();
+        const bool sizeSensitive = layerFlags & WOutputLayer::SizeSensitive;
+        const bool isRef = layer->mapFrom && layer->mapTo;
+        if (isRef) {
+            viewportMatrix = output()->mapToViewport(layer->mapTo);
+            const auto xScale = layer->mapTo->width() / layer->mapFrom->output()->width();
+            const auto yScale = layer->mapTo->height() / layer->mapFrom->output()->height();
 
-        if (layer->layer->layer->flags().testFlag(WOutputLayer::SizeFollowItemTransformation)) {
-            const auto sourceD = QQuickItemPrivate::get(source);
-            size = sourceD->itemNode()->matrix().mapRect(QRectF(QPointF(0, 0), size)).size();
+            // geometry relative the other output buffer
+            noClipMapRect = scaleRect(layer->mapFromLayer->noClipMapRect, xScale, yScale);
+            if (sizeSensitive) {
+                mapRect = scaleRect(layer->mapFromLayer->mapRect, xScale, yScale);
+            } else {
+                mapRect = noClipMapRect;
+            }
+        } else {
+            viewportMatrix = output()->mapToViewport(source->parentItem());
+
+            // geometry relative source's parent
+            noClipMapRect = QRectF(source->position(), source->size());
+            mapRect = noClipMapRect;
         }
 
-        if (output()->output()->orientation() % 2 != 0) {
-            std::swap(size.rwidth(), size.rheight());
+        // matrix function: map source to output buffer
+        const auto outputMatrix = viewportMatrix * output()->sourceRectToTargetRectTransfrom();
+        noClipMapRect = outputMatrix.mapRect(noClipMapRect);
+        mapRect = outputMatrix.mapRect(mapRect);
+
+        QTransform revertScaleTransform;
+        if (!sizeSensitive) {
+            const auto scaledPoint1 = viewportMatrix.map(QPointF(0, 0));
+            const auto scaledPoint2 = viewportMatrix.map(QPointF(1, 1)) - scaledPoint1;
+            const auto xScale = 1.0 / std::abs(scaledPoint2.x());
+            const auto yScale = 1.0 / std::abs(scaledPoint2.y());
+
+            if (xScale != 1 || yScale != 1) {
+                revertScaleTransform.scale(xScale, yScale);
+                noClipMapRect.setSize(revertScaleTransform.mapRect(noClipMapRect).size());
+                mapRect.setSize(revertScaleTransform.mapRect(mapRect).size());
+            }
+        } else if (layer->mapFrom) {
+            // This layer's size is strict mode, needs follow the map source's DPR.
+            dpr = layer->mapFrom->devicePixelRatio();
         }
 
-        layer->mapRect.setSize(size);
+        // clip to WOutputViewport
+        mapRect = mapRect & QRectF(QPointF(0, 0), output()->size());
+
+        QSize pixelSize = forcePixelSize;
+        if (!pixelSize.isValid()) {
+            const auto tmpSize = mapRect.size() * dpr;
+
+            if (layerFlags & WOutputLayer::DontClip) {
+                pixelSize.rwidth() = qCeil(tmpSize.width());
+                pixelSize.rheight() = qCeil(tmpSize.height());
+            } else {
+                // Limitation max buffer
+                const auto maxSize = qMax(source->width(), source->height()) * dpr;
+                pixelSize.rwidth() = qCeil(qMin(tmpSize.width(), maxSize));
+                pixelSize.rheight() = qCeil(qMin(tmpSize.height(), maxSize));
+            }
+        }
+
+        if (mapRect.isEmpty()) {
+            return nullptr;
+        }
+        Q_ASSERT(!pixelSize.isEmpty());
+
+        QMatrix4x4 renderMatrix = revertScaleTransform * viewportMatrix;
+        if (isRef) {
+            renderMatrix = layer->mapFromLayer->renderMatrix * renderMatrix;
+        }
+
+        // viewportMatrix is relative of the output buffer, but the layer
+        // render buffer's pixelSize is not same as the output buffer, so
+        // needs reset the x,y translate relative the render buffer of the layer.
+        if (!renderMatrix.isIdentity()) {
+            const auto tmp = renderMatrix.mapRect(QRectF(QPointF(0, 0), source->size()));
+            renderMatrix(0, 3) -= tmp.x();
+            renderMatrix(1, 3) -= tmp.y();
+        }
+
+        std::swap(mapRect, layer->mapRect);
+        std::swap(noClipMapRect, layer->noClipMapRect);
+        std::swap(pixelSize, layer->pixelSize);
+        std::swap(renderMatrix, layer->renderMatrix);
+
+        if (layer->pixelSize != pixelSize
+            || layer->mapRect.size() != mapRect.size()
+            || layer->renderMatrix != renderMatrix) {
+            layer->contentsIsDirty = true;
+        }
     }
 
-    const qreal dpr = devicePixelRatio();
-    QSize pixelSize = forcePixelSize;
-    if (!pixelSize.isValid()) {
-        const auto tmpSize = layer->mapRect.size() * dpr;
-        pixelSize.rwidth() = qCeil(tmpSize.width());
-        pixelSize.rheight() = qCeil(tmpSize.height());
-    }
-
-    layer->mapToOutput = QRect((layer->mapRect.topLeft() * dpr).toPoint(), pixelSize);
-    if (layer->mapRect.isEmpty()) {
-        return nullptr;
-    }
-    Q_ASSERT(!pixelSize.isEmpty());
-
-    auto mapToViewportMatrixData = mapMatrix.constData();
-    const QMatrix4x4 renderMatrix {
-        mapToViewportMatrixData[0],
-        mapToViewportMatrixData[1 * 4 + 0],
-        mapToViewportMatrixData[2 * 4 + 0],
-        mapToViewportMatrixData[3 * 4 + 0] - static_cast<float>(layer->mapRect.x()),
-        mapToViewportMatrixData[1],
-        mapToViewportMatrixData[1 * 4 + 1],
-        mapToViewportMatrixData[2 * 4 + 1],
-        mapToViewportMatrixData[3 * 4 + 1] - static_cast<float>(layer->mapRect.y()),
-        mapToViewportMatrixData[2],
-        mapToViewportMatrixData[1 * 4 + 2],
-        mapToViewportMatrixData[2 * 4 + 2],
-        mapToViewportMatrixData[3 * 4 + 2],
-        mapToViewportMatrixData[3],
-        mapToViewportMatrixData[1 * 4 + 3],
-        mapToViewportMatrixData[2 * 4 + 3],
-        mapToViewportMatrixData[3 * 4 + 3],
-    };
-
+    layer->mapToOutput = QRect((layer->mapRect.topLeft() * dpr).toPoint(), layer->pixelSize);
     auto buffer = layer->renderer->lastBuffer();
-    const bool needsFullUpdate = layer->pixelSize != pixelSize
-                                 || layer->renderMatrix != renderMatrix;
 
-    if (!buffer || layer->contentsIsDirty || needsFullUpdate) {
-        layer->renderer->setSize(pixelSize / dpr);
+    if (!buffer || layer->contentsIsDirty) {
+        layer->renderer->setSize(layer->pixelSize / dpr);
 
         const bool alpha = !layer->layer->layer->flags().testFlag(WOutputLayer::NoAlpha);
-        buffer = beginRender(layer->renderer, pixelSize,
-                             // TODO: Allows control format by WOutputLayer
-                             alpha ? DRM_FORMAT_ARGB8888 : DRM_FORMAT_XRGB8888,
-                             isCursor ? WBufferRenderer::UseCursorFormats
-                                      : WBufferRenderer::DontConfigureSwapchain);
+        // Don't use OutputHelper::beginRender, because the dpr maybe is from LayerData::mapFrom
+        buffer = layer->renderer->beginRender(layer->pixelSize, dpr,
+                                              // TODO: Allows control format by WOutputLayer
+                                              alpha ? DRM_FORMAT_ARGB8888 : DRM_FORMAT_XRGB8888,
+                                              isCursor ? WBufferRenderer::UseCursorFormats
+                                                       : WBufferRenderer::DontConfigureSwapchain);
         if (buffer) {
             const QRectF sr = QRectF(layer->mapRect.topLeft() - layer->noClipMapRect.topLeft(), layer->mapRect.size());
             const QRectF tr(QPointF(0, 0), layer->mapRect.size());
-            render(layer->renderer, 0, renderMatrix, sr, tr,
+
+            render(layer->renderer, 0, layer->renderMatrix, sr, tr,
                    layer->layer->layer->flags().testFlag(WOutputLayer::PreserveColorContents));
 
             if (visualizeLayers())
-                render(layer->renderer, 1, renderMatrix, sr, tr, true);
+                render(layer->renderer, 1, layer->renderMatrix, sr, tr, true);
 
             if (dontEndRenderAndReturnNeedsEndRender) {
                 *dontEndRenderAndReturnNeedsEndRender = true;
@@ -721,8 +726,6 @@ qw_buffer *OutputHelper::renderLayer(LayerData *layer, bool *dontEndRenderAndRet
     }
 
     layer->contentsIsDirty = false;
-    layer->renderMatrix = renderMatrix;
-    layer->pixelSize = pixelSize;
 
     return buffer;
 }
@@ -983,13 +986,13 @@ WBufferRenderer *OutputHelper::compositeLayers(const QList<LayerData*> layers, b
             // stop primary render
             if (bufferRenderer()->currentBuffer())
                 bufferRenderer()->endRender();
-            render(bufferRenderer2(), 0, {}, renderSourceRect(), m_output->targetRect(), true);
+            render(bufferRenderer2(), 0, {}, m_output->effectiveSourceRect(), m_output->targetRect(), true);
 
             return bufferRenderer2();
         }
     } else {
         if (bufferRenderer()->currentBuffer()) {
-            render(bufferRenderer(), 1, {}, renderSourceRect(), m_output->targetRect(), true);
+            render(bufferRenderer(), 1, {}, m_output->effectiveSourceRect(), m_output->targetRect(), true);
         } else {
             // ###(zccrs): Maybe because contents is not dirty, so not do render
             // in WOutputRenderWindowPrivate::doRenderOutputs, force mark the
@@ -1057,6 +1060,7 @@ bool OutputHelper::tryToHardwareCursor(LayerData *layer, wlr_buffer *buffer)
             if (!m_cursorLayer || m_cursorLayer->layer != layer->layer) {
                 // TODO: Direct rendr the buffer to a new wlr_buffer, maybe can use wlr_render_pass
                 m_cursorLayer.reset(new LayerData(layer->layer, nullptr));
+                m_cursorLayer->mapFromLayer = layer->mapFromLayer;
                 m_cursorLayer->mapFrom = layer->mapFrom;
                 m_cursorLayer->mapTo = layer->mapTo;
             }
@@ -1308,7 +1312,7 @@ WOutputRenderWindowPrivate::doRenderOutputs(const QList<OutputHelper*> &outputs,
         Q_ASSERT(helper->output()->output()->scale() <= helper->output()->devicePixelRatio());
 
         const auto &format = helper->qwoutput()->handle()->render_format;
-        const auto renderMatrix = helper->renderMatrix();
+        const auto renderMatrix = helper->output()->renderMatrix();
 
         // maybe using the other WOutputViewport's QSGTextureProvider
         if (!helper->output()->depends().isEmpty())
@@ -1319,7 +1323,8 @@ WOutputRenderWindowPrivate::doRenderOutputs(const QList<OutputHelper*> &outputs,
         Q_ASSERT(buffer == helper->bufferRenderer()->currentBuffer());
         if (buffer) {
             helper->render(helper->bufferRenderer(), 0, renderMatrix,
-                           helper->renderSourceRect(), helper->output()->targetRect(),
+                           helper->output()->effectiveSourceRect(),
+                           helper->output()->targetRect(),
                            helper->output()->preserveColorContents());
         }
         renderResults.append(helper);
@@ -1544,24 +1549,24 @@ void WOutputRenderWindow::attach(WOutputLayer *layer, WOutputViewport *output)
 void WOutputRenderWindow::attach(WOutputLayer *layer, WOutputViewport *output,
                                  WOutputViewport *mapFrom, QQuickItem *mapTo)
 {
+    Q_ASSERT(mapTo->window() == this);
+
     attach(layer, output);
     Q_D(WOutputRenderWindow);
 
-    auto index = d->indexOfOutputLayer(layer);
-    Q_ASSERT(index >= 0);
-    OutputLayer *wapper = d->layers.at(index);
+    OutputLayer *wapper = d->getOutputLayer(layer);
+    Q_ASSERT(wapper);
 
-    index = d->indexOfOutputHelper(output);
-    Q_ASSERT(index >= 0);
-    OutputHelper *helper = d->outputs.at(index);
+    OutputHelper *helper = d->getOutputHelper(output);
+    Q_ASSERT(helper);
 
-    index = helper->indexOfLayer(wapper);
-    Q_ASSERT(index >= 0);
-    OutputHelper::LayerData *layerData = helper->layers().at(index);
+    auto layerData = helper->getLayer(wapper);
+    Q_ASSERT(layerData);
 
-    index = d->indexOfOutputHelper(mapFrom);
-    Q_ASSERT(index >= 0);
-    layerData->mapFrom = d->outputs.at(index);
+    layerData->mapFrom = d->getOutputHelper(mapFrom);
+    Q_ASSERT(layerData->mapFrom);
+    layerData->mapFromLayer = layerData->mapFrom->getLayer(wapper);
+    Q_ASSERT(layerData->mapFromLayer);
     layerData->mapTo = mapTo;
 }
 
