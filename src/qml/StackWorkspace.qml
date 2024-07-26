@@ -120,25 +120,6 @@ FocusScope {
         }
 
         DynamicCreatorComponent {
-            id: layerComponent
-            creator: Helper.surfaceCreator
-            chooserRole: "type"
-            chooserRoleValue: "layerShell"
-            autoDestroy: false
-
-            onObjectRemoved: function (obj) {
-                obj.doDestroy()
-            }
-
-            LayerSurface {
-                id: layerSurface
-                creatorCompoment: layerComponent
-                activeOutputItem: activeOutputDelegate
-                focus: Helper.activatedSurface === this.waylandSurface
-            }
-        }
-
-        DynamicCreatorComponent {
             id: inputPopupComponent
             creator: Helper.surfaceCreator
             chooserRole: "type"
@@ -152,7 +133,25 @@ FocusScope {
                 shellSurface: popupSurface
             }
         }
+    }
 
+    DynamicCreatorComponent {
+        id: layerComponent
+        creator: Helper.surfaceCreator
+        chooserRole: "type"
+        chooserRoleValue: "layerShell"
+        autoDestroy: false
+
+        onObjectRemoved: function (obj) {
+            obj.doDestroy()
+        }
+
+        LayerSurface {
+            id: layerSurface
+            creatorCompoment: layerComponent
+            activeOutputItem: activeOutputDelegate
+            focus: Helper.activatedSurface === this.waylandSurface
+        }
     }
 
     Item {
