@@ -1,0 +1,4 @@
+usr/bin/treeland
+usr/lib/systemd/*
+usr/libexec/*
+usr/share/*

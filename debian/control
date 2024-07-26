@@ -56,3 +56,29 @@ Depends: ${shlibs:Depends},
 Recommends: libpam-systemd, xwayland
 Description: a modern display manager for Wayland sessions aiming to be fast, simple and beautiful.
 
+Package: treeland-examples
+Section: libdevel
+Architecture: any
+Multi-Arch: same
+Depends: ${shlibs:Depends},
+         ${misc:Depends},
+         qml6-module-qtquick,
+         qml6-module-qtquick-controls,
+         qml6-module-qtquick-layouts,
+         qml6-module-qtqml-workerscript,
+         qml6-module-qtquick-templates,
+         qml6-module-qtquick-particles,
+         qml6-module-qtquick-dialogs,
+         qml6-module-qtquick-window,
+         qml6-module-qt5compat-graphicaleffects,
+         qml6-module-qtquick-effects,
+         qml6-module-qt-labs-folderlistmodel,
+         adduser,
+         seatd,
+         qt6-wayland,
+         libqt6svg6,
+         libdtk6declarative,
+         libdtk6systemsettings
+Recommends: libpam-systemd, xwayland
+Description: examples for treeland.
+
