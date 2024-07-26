@@ -98,7 +98,7 @@ public:
             : layer(l)
             , wlrLayer(layer)
             , contentsIsDirty(true)
-            , needsFlush(false)
+            , bufferIsUpdatedOnLastRender(false)
         {
 
         }
@@ -115,7 +115,7 @@ public:
 
         // dirty state
         uint contentsIsDirty:1;
-        uint needsFlush:1;
+        uint bufferIsUpdatedOnLastRender:1;
         // end
 
         QRectF mapRect;
@@ -619,6 +619,7 @@ qw_buffer *OutputHelper::renderLayer(LayerData *layer, bool *dontEndRenderAndRet
         });
     }
 
+    layer->bufferIsUpdatedOnLastRender = false;
     layer->mapRect = QRectF(QPointF(0, 0), source->size());
     const auto mapFrom = layer->mapFrom ? layer->mapFrom.get() : this;
     QMatrix4x4 mapMatrix = mapFrom->mapToViewport(source);
@@ -712,6 +713,8 @@ qw_buffer *OutputHelper::renderLayer(LayerData *layer, bool *dontEndRenderAndRet
             } else {
                 layer->renderer->endRender();
             }
+
+            layer->bufferIsUpdatedOnLastRender = true;
         } else if (dontEndRenderAndReturnNeedsEndRender) {
             *dontEndRenderAndReturnNeedsEndRender = false;
         }
@@ -1051,14 +1054,14 @@ bool OutputHelper::tryToHardwareCursor(LayerData *layer, wlr_buffer *buffer)
         if (pixelSize != QSize(buffer->width, buffer->height)
             || get_cursor_formsts) {
             // needs render cursor again
-            if (!m_cursorLayer) {
+            if (!m_cursorLayer || m_cursorLayer->layer != layer->layer) {
                 // TODO: Direct rendr the buffer to a new wlr_buffer, maybe can use wlr_render_pass
                 m_cursorLayer.reset(new LayerData(layer->layer, nullptr));
                 m_cursorLayer->mapFrom = layer->mapFrom;
                 m_cursorLayer->mapTo = layer->mapTo;
-            } else {
-                m_cursorLayer->layer = layer->layer;
             }
+
+            m_cursorLayer->contentsIsDirty = layer->bufferIsUpdatedOnLastRender;
 
             auto newBuffer = renderLayer(m_cursorLayer.get(), nullptr, true, pixelSize);
             if (!newBuffer)
