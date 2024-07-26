@@ -1054,6 +1054,8 @@ bool OutputHelper::tryToHardwareCursor(LayerData *layer, wlr_buffer *buffer)
             if (!m_cursorLayer) {
                 // TODO: Direct rendr the buffer to a new wlr_buffer, maybe can use wlr_render_pass
                 m_cursorLayer.reset(new LayerData(layer->layer, nullptr));
+                m_cursorLayer->mapFrom = layer->mapFrom;
+                m_cursorLayer->mapTo = layer->mapTo;
             } else {
                 m_cursorLayer->layer = layer->layer;
             }
