@@ -271,7 +271,6 @@ void Helper::initProtocols(WOutputRenderWindow *window)
         auto initProperties = engine->newObject();
         initProperties.setProperty("type", "layerShell");
         initProperties.setProperty("wSurface", engine->toScriptValue(surface));
-        initProperties.setProperty("wid", engine->toScriptValue(workspaceId(engine)));
         m_surfaceCreator->add(surface, initProperties);
     });
 

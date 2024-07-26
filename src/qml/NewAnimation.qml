@@ -49,15 +49,12 @@ ShaderEffectSource {
         stopped();
     }
 
-    Connections {
-        target: animation
-        function onStopped() {
-            stop();
-        }
-    }
-
     ParallelAnimation {
         id: animation
+
+        onStopped: {
+            root.stop();
+        }
 
         PropertyAnimation {
             target: rotation
