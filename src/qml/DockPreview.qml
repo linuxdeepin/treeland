@@ -62,7 +62,7 @@ Item {
         id: exitedTimer
         interval: 100
         onTriggered: {
-            root.exited(root.target.item.shellSurface.surface);
+            root.exited(root.target.surfaceItem.shellSurface.surface);
             context.item.stop();
             root.close()
         }
@@ -81,15 +81,16 @@ Item {
     Item {
         id: box
 
-        x: root.direction === 0 ? root.target.shell.x + root.pos.x - width / 2 :
-           root.direction === 1 ? root.target.shell.x + root.pos.x - width :
-           root.direction === 2 ? root.target.shell.x + root.pos.x - width / 2 :
-           root.direction === 3 ? root.target.shell.x + root.target.shell.width : 0
+        x: root.direction === 0 ? root.target.x + root.pos.x - width / 2 :
+           root.direction === 1 ? root.target.x + root.pos.x - width :
+           root.direction === 2 ? root.target.x + root.pos.x - width / 2 :
+           root.direction === 3 ? root.target.x + root.target.width : 0
 
-        y: root.direction === 0 ? root.target.shell.y + root.target.shell.height :
-           root.direction === 1 ? root.target.shell.y + root.pos.y - height / 2 :
-           root.direction === 2 ? root.target.shell.y - height :
-           root.direction === 3 ? root.target.shell.y + root.pos.y - height / 2 : 0
+        y: root.direction === 0 ? root.target.y + root.target.height :
+           root.direction === 1 ? root.target.y + root.pos.y - height / 2 :
+           root.direction === 2 ? root.target.y - height :
+           root.direction === 3 ? root.target.y + root.pos.y - height / 2 : 0
+
 
         width: listView.width
         height: top.height + listView.height
@@ -99,7 +100,7 @@ Item {
             cursorShape: Qt.PointingHandCursor
             onHoveredChanged: {
                 if (hovered) {
-                    root.entered(root.target.item.shellSurface.surface);
+                    root.entered(root.target.surfaceItem.shellSurface.surface);
                 }
                 else {
                     exitedTimer.start();
