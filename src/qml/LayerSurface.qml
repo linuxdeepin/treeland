@@ -32,7 +32,6 @@ FocusScope {
         anchors.centerIn: parent
         focus: true
         shellSurface: wSurface
-        visible: false // by default
 
         id: surfaceItem
 
