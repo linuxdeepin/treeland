@@ -23,7 +23,6 @@ FocusScope {
     required property DynamicCreatorComponent creatorCompoment
     required property WaylandLayerSurface wSurface
     required property string type
-    required property int wid
 
     id: root
     z: zValueFormLayer(wSurface.layer)

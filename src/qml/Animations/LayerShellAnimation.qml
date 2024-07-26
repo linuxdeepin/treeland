@@ -52,7 +52,7 @@ Item {
         id: sideAnimation
 
         onStopped: {
-            stop();
+            root.stop();
         }
 
         PropertyAnimation {
@@ -125,7 +125,7 @@ Item {
         id: fullscreenAnimation
 
         onStopped: {
-            stop();
+            root.stop();
         }
 
         PropertyAnimation {
