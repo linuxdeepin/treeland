@@ -1,15 +1,17 @@
 find_package(Qt6 REQUIRED COMPONENTS WaylandClient Widgets)
 
-qt_add_executable(test-window-bg
+set(BIN_NAME test-window-bg)
+
+qt_add_executable(${BIN_NAME}
     main.cpp
 )
 
-qt_generate_wayland_protocol_client_sources(test-window-bg
+qt_generate_wayland_protocol_client_sources(${BIN_NAME}
     FILES
         ${CMAKE_CURRENT_SOURCE_DIR}/../../src/modules/personalization/protocols/treeland-personalization-manager-v1.xml
 )
 
-target_link_libraries(test-window-bg
+target_link_libraries(${BIN_NAME}
     PRIVATE
         Qt${QT_MAJOR_VERSION}::Gui
         Qt${QT_MAJOR_VERSION}::Widgets
@@ -17,3 +19,5 @@ target_link_libraries(test-window-bg
         Qt::GuiPrivate
         Qt::WaylandClientPrivate
 )
+
+install(TARGETS ${BIN_NAME} RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}")
