@@ -425,6 +425,16 @@ QMatrix4x4 WOutputViewport::mapToViewport(QQuickItem *item) const
     }
 }
 
+QRectF WOutputViewport::mapToOutput(QQuickItem *source, const QRectF &geometry) const
+{
+    return (mapToViewport(source) * sourceRectToTargetRectTransfrom()).mapRect(geometry);
+}
+
+QPointF WOutputViewport::mapToOutput(QQuickItem *source, const QPointF &position) const
+{
+    return (mapToViewport(source) * sourceRectToTargetRectTransfrom()).map(position);
+}
+
 bool WOutputViewport::ignoreViewport() const
 {
     W_DC(WOutputViewport);

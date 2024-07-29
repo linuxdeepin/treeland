@@ -83,6 +83,8 @@ public:
     QTransform sourceRectToTargetRectTransfrom() const;
     QMatrix4x4 renderMatrix() const;
     QMatrix4x4 mapToViewport(QQuickItem *item) const;
+    Q_INVOKABLE QRectF mapToOutput(QQuickItem *source, const QRectF &geometry) const;
+    Q_INVOKABLE QPointF mapToOutput(QQuickItem *source, const QPointF &position) const;
 
     bool ignoreViewport() const;
     void setIgnoreViewport(bool newIgnoreViewport);

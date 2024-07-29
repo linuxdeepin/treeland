@@ -66,7 +66,6 @@ public:
 
     void clearCursors();
     void updateCursors();
-    void onCursorItemPositionChanged();
     QQuickItem *getCursorItemBy(WCursor *cursor) const;
 
     W_DECLARE_PUBLIC(WOutputItem)
@@ -77,7 +76,6 @@ public:
     QQmlComponent *cursorDelegate = nullptr;
     QList<std::pair<WCursor*, QQuickItem*>> cursorItems;
     QMetaObject::Connection updateCursorsConnection;
-    QPointer<QQuickItem> lastActiveCursorItem;
 };
 
 void WOutputItemPrivate::initForOutput()
@@ -147,11 +145,6 @@ void WOutputItemPrivate::updateCursors()
             QQmlEngine::setObjectOwnership(item, QQmlEngine::CppOwnership);
             item->setZ(qreal(WOutputLayout::Layer::Cursor));
             cursorsChanged = true;
-
-            bool ok = QObject::connect(item, SIGNAL(xChanged()), q, SLOT(onCursorItemPositionChanged()));
-            Q_ASSERT(ok);
-            ok = QObject::connect(item, SIGNAL(yChanged()), q, SLOT(onCursorItemPositionChanged()));
-            Q_ASSERT(ok);
         }
 
         tmpCursors.append(std::make_pair(cursor, item));
@@ -169,17 +162,6 @@ void WOutputItemPrivate::updateCursors()
 
     if (cursorsChanged)
         Q_EMIT q->cursorItemsChanged();
-}
-
-void WOutputItemPrivate::onCursorItemPositionChanged()
-{
-    W_Q(WOutputItem);
-    auto item = qobject_cast<QQuickItem*>(q->sender());
-    Q_ASSERT(item);
-    if (lastActiveCursorItem == item)
-        return;
-    lastActiveCursorItem = item;
-    Q_EMIT q->lastActiveCursorItemChanged();
 }
 
 QQuickItem *WOutputItemPrivate::getCursorItemBy(WCursor *cursor) const
@@ -311,12 +293,6 @@ void WOutputItem::setCursorDelegate(QQmlComponent *delegate)
     d->clearCursors();
 
     Q_EMIT cursorDelegateChanged();
-}
-
-QQuickItem *WOutputItem::lastActiveCursorItem() const
-{
-    W_DC(WOutputItem);
-    return d->lastActiveCursorItem;
 }
 
 QList<QQuickItem *> WOutputItem::cursorItems() const

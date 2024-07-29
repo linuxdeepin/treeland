@@ -10,6 +10,7 @@ OutputItem {
     id: rootOutputItem
     required property WaylandOutput waylandOutput
     property OutputViewport onscreenViewport: outputViewport
+    property Cursor lastActiveCursorItem
 
     output: waylandOutput
     devicePixelRatio: waylandOutput.scale
@@ -27,6 +28,22 @@ OutputItem {
         OutputLayer.outputs: [onscreenViewport]
         OutputLayer.flags: OutputLayer.Cursor
         OutputLayer.cursorHotSpot: hotSpot
+
+        function updateActiveCursor() {
+            if (cursorItems.size === 1) {
+                lastActiveCursorItem = this;
+                return;
+            }
+
+            const pos = onscreenViewport.mapToOutput(this, Qt.point(0, 0));
+            if (pos.x >= 0 && pos.x < onscreenViewport.width
+                    && pos.y >= 0 && pos.y < onscreenViewport.height) {
+                lastActiveCursorItem = this;
+            }
+        }
+
+        onXChanged: updateActiveCursor()
+        onYChanged: updateActiveCursor()
 
         SurfaceItem {
             id: dragIcon

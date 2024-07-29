@@ -25,7 +25,6 @@ class WAYLIB_SERVER_EXPORT WOutputItem : public WQuickObserver, public WObject
     Q_PROPERTY(WQuickOutputLayout* layout READ layout WRITE setLayout NOTIFY layoutChanged)
     Q_PROPERTY(qreal devicePixelRatio READ devicePixelRatio WRITE setDevicePixelRatio NOTIFY devicePixelRatioChanged)
     Q_PROPERTY(QQmlComponent* cursorDelegate READ cursorDelegate WRITE setCursorDelegate NOTIFY cursorDelegateChanged)
-    Q_PROPERTY(QQuickItem* lastActiveCursorItem READ lastActiveCursorItem NOTIFY lastActiveCursorItemChanged)
     Q_PROPERTY(QList<QQuickItem*> cursorItems READ cursorItems NOTIFY cursorItemsChanged)
     QML_NAMED_ELEMENT(OutputItem)
     QML_ATTACHED(WOutputItemAttached)
@@ -49,7 +48,6 @@ public:
     QQmlComponent *cursorDelegate() const;
     void setCursorDelegate(QQmlComponent *delegate);
 
-    QQuickItem *lastActiveCursorItem() const;
     QList<QQuickItem*> cursorItems() const;
 
 Q_SIGNALS:
@@ -58,7 +56,6 @@ Q_SIGNALS:
     void devicePixelRatioChanged();
     void seatChanged();
     void cursorDelegateChanged();
-    void lastActiveCursorItemChanged();
     void cursorItemsChanged();
 
 private:
@@ -71,7 +68,6 @@ private:
     qreal getImplicitHeight() const override;
 
     W_PRIVATE_SLOT(void updateCursors())
-    W_PRIVATE_SLOT(void onCursorItemPositionChanged())
 };
 
 WAYLIB_SERVER_END_NAMESPACE
