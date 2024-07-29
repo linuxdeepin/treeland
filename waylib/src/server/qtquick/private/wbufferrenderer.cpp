@@ -287,6 +287,16 @@ void WBufferRenderer::setCacheBuffer(bool newCacheBuffer)
     Q_EMIT cacheBufferChanged();
 }
 
+QColor WBufferRenderer::clearColor() const
+{
+    return m_clearColor;
+}
+
+void WBufferRenderer::setClearColor(const QColor &clearColor)
+{
+    m_clearColor = clearColor;
+}
+
 QSGRenderer *WBufferRenderer::currentRenderer() const
 {
     return state.renderer;
@@ -808,9 +818,7 @@ QSGRenderer *WBufferRenderer::ensureRenderer(int sourceIndex, QSGRenderContext *
     QObject::connect(d.renderer, &QSGRenderer::sceneGraphChanged,
                      this, &WBufferRenderer::sceneGraphChanged);
 
-#ifdef QT_DEBUG
-    d.renderer->setClearColor(Qt::yellow);
-#endif
+    d.renderer->setClearColor(m_clearColor);
 
     return d.renderer;
 }

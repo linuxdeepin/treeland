@@ -61,6 +61,9 @@ public:
     bool cacheBuffer() const;
     void setCacheBuffer(bool newCacheBuffer);
 
+    QColor clearColor() const;
+    void setClearColor(const QColor &clearColor);
+
     QSGRenderer *currentRenderer() const;
     const QMatrix4x4 &currentWorldTransform() const;
     QW_NAMESPACE::qw_buffer *currentBuffer() const;
@@ -146,6 +149,7 @@ private:
     QList<Data> m_sourceList;
     QW_NAMESPACE::qw_damage_ring m_damageRing;
     std::unique_ptr<TextureProvider> m_textureProvider;
+    QColor m_clearColor = Qt::transparent;
 
     uint m_cacheBuffer:1;
     uint m_forceCacheBuffer:1;

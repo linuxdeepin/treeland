@@ -580,6 +580,8 @@ qw_buffer *OutputHelper::renderLayer(LayerData *layer, bool *dontEndRenderAndRet
 
     if (!layer->renderer) {
         layer->renderer = new WBufferRenderer(source);
+        if (visualizeLayers())
+            layer->renderer->setClearColor(Qt::yellow);
 
         QList<QQuickItem*> sourceList {source};
         if (visualizeLayers()) {
@@ -1067,6 +1069,8 @@ bool OutputHelper::tryToHardwareCursor(const LayerData *layer)
             // needs render cursor again
             if (!m_cursorRenderer) {
                 m_cursorRenderer = new WBufferRenderer(renderWindow()->contentItem());
+                if (visualizeLayers())
+                    m_cursorRenderer->setClearColor(Qt::cyan);
                 m_cursorLayerProxy = new WQuickTextureProxy(m_cursorRenderer);
                 m_cursorRenderer->setSourceList({m_cursorLayerProxy}, false);
                 m_cursorRenderer->setOutput(m_output->output());
