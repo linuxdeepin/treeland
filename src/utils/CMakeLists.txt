@@ -13,6 +13,7 @@ qt_add_qml_module(utils
         wallpaperproxy.cpp
         wallpapermanager.cpp
         wallpapercontroller.cpp
+        gestures.cpp
     RESOURCE_PREFIX
         /qt/qml
     OUTPUT_DIRECTORY
@@ -28,6 +29,7 @@ FILES
     wallpaperproxy.h
     wallpapermanager.h
     wallpapercontroller.h
+    gestures.h
 )
 
 target_compile_definitions(utils
