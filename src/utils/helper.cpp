@@ -331,9 +331,34 @@ void Helper::initProtocols(WOutputRenderWindow *window)
 
     connect(backend, &WBackend::inputAdded, this, [this](WInputDevice *device) {
         m_seat->attachInputDevice(device);
-        if (device->handle()->is_libinput() &&
-            device->qtDevice()->type() == QInputDevice::DeviceType::TouchPad) {
-            InputDevice::setTapEnabled(device->handle(), LIBINPUT_CONFIG_TAP_ENABLED);
+        if (InputDevice::instance()->initTouchPad(device)) {
+            InputDevice::instance()->registerTouchpadSwipe(
+                SwipeFeedBack { SwipeGesture::Up, 3, nullptr,
+                            [this](){
+                                if (activatedSurface() && !activatedSurface()->isMaximized())
+                                    activatedSurface()->requestMaximize();
+                            }});
+
+            InputDevice::instance()->registerTouchpadSwipe(
+                SwipeFeedBack { SwipeGesture::Down, 3, nullptr,
+                            [this](){
+                                if (activatedSurface() && activatedSurface()->isMaximized())
+                                    activatedSurface()->requestCancelMaximize();
+                            }});
+
+            InputDevice::instance()->registerTouchpadSwipe(
+                SwipeFeedBack { SwipeGesture::Up, 4, nullptr,
+                            [this](){
+                                if (activatedSurface())
+                                    activatedSurface()->requestMaximize();
+                            }});
+
+            InputDevice::instance()->registerTouchpadSwipe(
+                SwipeFeedBack { SwipeGesture::Up, 4, nullptr,
+                            [this](){
+                                if (activatedSurface())
+                                    activatedSurface()->requestMaximize();
+                            }});
         }
     });
 
@@ -726,35 +751,26 @@ void Helper::enableOutput(WOutput *output)
     }
 }
 
-bool Helper::doGesture(WSeat *seat, QInputEvent *event)
+bool Helper::doGesture(QInputEvent *event)
 {
-    auto e = static_cast<WGestureEvent*>(event);
-    if (event->type() == QEvent::NativeGesture
-        && e->libInputGestureType() == WGestureEvent::WLibInputGestureType::SwipeGesture) {
+    if (event->type() == QEvent::NativeGesture) {
+        auto e = static_cast<WGestureEvent*>(event);
         switch (e->gestureType()) {
         case Qt::BeginNativeGesture:
-            if (e->fingerCount() == 3)
-                moveReiszeState.threefingerMove = true;
+            if (e->libInputGestureType() == WGestureEvent::WLibInputGestureType::SwipeGesture)
+                InputDevice::instance()->processSwipeStart(e->fingerCount());
             break;
-        case Qt::EndNativeGesture: {
-            if (activatedSurface()
-                && !activatedSurface()->isMaximized()
-                && e->fingerCount() == 3
-                && moveReiszeState.threefingerMove) {
-                activatedSurface()->requestMove(seat, 0);
-                moveReiszeState.threefingerMove = false;
-            }
-            break;
-        }
-        case Qt::PanNativeGesture: {
-            if (e->fingerCount() == 3) {
-                if (e->delta().y() < 0)
-                    activatedSurface()->requestMaximize();
+        case Qt::EndNativeGesture:
+            if (e->libInputGestureType() == WGestureEvent::WLibInputGestureType::SwipeGesture) {
+                if (e->cancelled())
+                    InputDevice::instance()->processSwipeCancel();
                 else
-                    activatedSurface()->requestCancelMaximize();
-                moveReiszeState.threefingerMove = false;
+                    InputDevice::instance()->processSwipeEnd();
             }
-        }
+            break;
+        case Qt::PanNativeGesture:
+            if (e->libInputGestureType() == WGestureEvent::WLibInputGestureType::SwipeGesture)
+                InputDevice::instance()->processSwipeUpdate(e->delta());
         case Qt::ZoomNativeGesture:
         case Qt::SmartZoomNativeGesture:
         case Qt::RotateNativeGesture:
@@ -763,7 +779,6 @@ bool Helper::doGesture(WSeat *seat, QInputEvent *event)
             break;
         }
     }
-
     return false;
 }
 
@@ -864,7 +879,7 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *watched, QInputEvent *even
         seat->cursor()->setVisible(false);
     }
 
-    doGesture(seat, event);
+    doGesture(event);
 
     if (moveReiszeState.surfaceItem
         && (seat == moveReiszeState.seat || moveReiszeState.seat == nullptr)) {
@@ -917,7 +932,7 @@ bool Helper::afterHandleEvent(
 
     if (event->type() == QEvent::MouseButtonRelease
         || event->type() == QEvent::TouchBegin
-        || (event->type() == QEvent::NativeGesture && moveReiszeState.threefingerMove)) {
+        || (event->type() == QEvent::NativeGesture)) {
         // surfaceItem is qml type: XdgSurfaceItem or LayerSurfaceItem
         auto toplevelSurface = qobject_cast<WSurfaceItem *>(surfaceItem)->shellSurface();
         if (!toplevelSurface)

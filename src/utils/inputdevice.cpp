@@ -1,8 +1,9 @@
-// Copyright (C) 2023 JiDe Zhang <zhangjide@deepin.org>.
+// Copyright (C) 2024 WenHao Peng <pengwenhao@uniontech.com>.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "inputdevice.h"
 
+#include <functional>
 #include <qwinputdevice.h>
 #include <qwbackend.h>
 #include <winputdevice.h>
@@ -12,6 +13,12 @@
 #include <QPointer>
 #include <QLoggingCategory>
 
+extern "C" {
+    #include <wlr/types/wlr_input_device.h>
+    #include <wlr/types/wlr_keyboard.h>
+}
+
+QW_USE_NAMESPACE
 Q_LOGGING_CATEGORY(treelandInputDevice, "treeland.inputdevice", QtWarningMsg)
 
 static bool ensureStatus(libinput_config_status status)
@@ -71,13 +78,13 @@ static bool configTapDragEnabled(libinput_device *device, libinput_config_drag_s
     if (libinput_device_config_tap_get_finger_count(device) <= 0 ||
         libinput_device_config_tap_get_drag_enabled(device) == drag) {
         qCCritical(treelandInputDevice) << "libinput_device_config_tap_set_drag_enabled: " << drag <<" is invalid";
-    return false;
-        }
+        return false;
+    }
 
-        qCDebug(treelandInputDevice) << "libinput_device_config_tap_set_drag_enabled: " << drag;
-        enum libinput_config_status status = libinput_device_config_tap_set_drag_enabled(device, drag);
+    qCDebug(treelandInputDevice) << "libinput_device_config_tap_set_drag_enabled: " << drag;
+    enum libinput_config_status status = libinput_device_config_tap_set_drag_enabled(device, drag);
 
-        return ensureStatus(status);
+    return ensureStatus(status);
 }
 
 static bool configTapDragLockEnabled(libinput_device *device, libinput_config_drag_lock_state lock)
@@ -85,13 +92,13 @@ static bool configTapDragLockEnabled(libinput_device *device, libinput_config_dr
     if (libinput_device_config_tap_get_finger_count(device) <= 0 ||
         libinput_device_config_tap_get_drag_lock_enabled(device) == lock) {
         qCCritical(treelandInputDevice) << "libinput_device_config_tap_set_drag_enabled: " << lock <<" is invalid";
-    return false;
-        }
+        return false;
+    }
 
-        qCDebug(treelandInputDevice) << "libinput_device_config_tap_set_drag_lock_enabled: " << lock;
-        enum libinput_config_status status = libinput_device_config_tap_set_drag_lock_enabled(device, lock);
+    qCDebug(treelandInputDevice) << "libinput_device_config_tap_set_drag_lock_enabled: " << lock;
+    enum libinput_config_status status = libinput_device_config_tap_set_drag_lock_enabled(device, lock);
 
-        return ensureStatus(status);
+    return ensureStatus(status);
 }
 
 static bool configAccelSpeed(libinput_device *device, double speed)
@@ -290,97 +297,92 @@ static bool configCalibrationMatrix(libinput_device *device, float mat[])
     return changed && ensureStatus(status);
 }
 
-libinput_device *InputDevice::libinput_device_handle(qw_input_device *handle)
+libinput_device *libinput_device_handle(qw_input_device *handle)
 {
     return qw_libinput_backend::get_device_handle(*handle);
 }
 
-bool InputDevice::setSendEventsMode(qw_input_device *handle, uint32_t mode)
+InputDevice *InputDevice::m_instance = nullptr;
+InputDevice::InputDevice(QObject *parent)
+    : QObject(parent)
+    , m_touchpadRecognizer(new GestureRecognizer(this))
 {
-    return configSendEventsMode(libinput_device_handle(handle), mode);
+
 }
 
-bool InputDevice::setTapButtonMap(qw_input_device *handle, libinput_config_tap_button_map map)
+InputDevice::~InputDevice()
 {
-    return configTapButtonMap(libinput_device_handle(handle), map);
+    if (m_instance == this)
+        m_instance = nullptr;
+
+    if (!m_touchpadRecognizer)
+        m_touchpadRecognizer->deleteLater();
 }
 
-bool InputDevice::setTapEnabled(qw_input_device *handle, libinput_config_tap_state tap)
+InputDevice *InputDevice::instance()
 {
-    return configTapEnabled(libinput_device_handle(handle), tap);
+    if (m_instance == nullptr) {
+        m_instance = new InputDevice();
+    }
+
+    return m_instance;
 }
 
-bool InputDevice::setTapDragEnabled(qw_input_device *handle, libinput_config_drag_state drag)
+bool InputDevice::initTouchPad(WInputDevice *device)
 {
-    return configTapDragEnabled(libinput_device_handle(handle), drag);
+    if (device->handle()->is_libinput() &&
+        device->qtDevice()->type() == QInputDevice::DeviceType::TouchPad) {
+        configTapEnabled(libinput_device_handle(device->handle()), LIBINPUT_CONFIG_TAP_ENABLED);
+        return true;
+    }
+    return false;
 }
 
-bool InputDevice::setTapDragLock(qw_input_device *handle, libinput_config_drag_lock_state lock)
+void InputDevice::registerTouchpadSwipe(const SwipeFeedBack& feed_back)
 {
-    return configTapDragLockEnabled(libinput_device_handle(handle), lock);
+    auto swipe_gesture = new SwipeGesture();
+    swipe_gesture->setDirection(feed_back.direction);
+    swipe_gesture->setMinimumDelta(QPointF(200, 200));
+    swipe_gesture->setMaximumFingerCount(feed_back.fingerCount);
+    swipe_gesture->setMinimumFingerCount(feed_back.fingerCount);
+
+    if (feed_back.actionCallback) {
+        QObject::connect(swipe_gesture, &SwipeGesture::triggered, feed_back.actionCallback);
+        QObject::connect(swipe_gesture, &SwipeGesture::cancelled, feed_back.actionCallback);
+    }
+
+    if (feed_back.progressCallback) {
+        QObject::connect(swipe_gesture, &SwipeGesture::progress, feed_back.progressCallback);
+    }
+
+    m_touchpadRecognizer->registerSwipeGesture(swipe_gesture);
 }
 
-bool InputDevice::setAccelSpeed(qw_input_device *handle, qreal speed)
+void InputDevice::processSwipeStart(uint finger)
 {
-    return configAccelSpeed(libinput_device_handle(handle), speed);
+    m_touchpadFingerCount = finger;
+    if (m_touchpadFingerCount >= 3) {
+        m_touchpadRecognizer->startSwipeGesture(finger);
+    }
 }
 
-bool InputDevice::setRotationAngle(qw_input_device *handle, qreal angle)
+void InputDevice::processSwipeUpdate(const QPointF &delta)
 {
-    return configRotationAngle(libinput_device_handle(handle), angle);
+    if (m_touchpadFingerCount >= 3) {
+        m_touchpadRecognizer->updateSwipeGesture(delta);
+    }
 }
 
-bool InputDevice::setAccelProfile(qw_input_device *handle, libinput_config_accel_profile profile)
+void InputDevice::processSwipeCancel()
 {
-    return configAccelProfile(libinput_device_handle(handle), profile);
+    if (m_touchpadFingerCount >= 3) {
+        m_touchpadRecognizer->cancelSwipeGesture();
+    }
 }
 
-bool InputDevice::setNaturalScroll(qw_input_device *handle, bool natural)
+void InputDevice::processSwipeEnd()
 {
-    return configNaturalScroll(libinput_device_handle(handle), natural);
-}
-
-bool InputDevice::setLeftHanded(qw_input_device *handle, bool left)
-{
-    return configLeftHanded(libinput_device_handle(handle), left);
-}
-
-bool InputDevice::setClickMethod(qw_input_device *handle, libinput_config_click_method method)
-{
-    return configClickMethod(libinput_device_handle(handle), method);
-}
-
-bool InputDevice::setMiddleEmulation(qw_input_device *handle, libinput_config_middle_emulation_state mid)
-{
-    return configMiddleEmulation(libinput_device_handle(handle), mid);
-}
-
-bool InputDevice::setScrollMethod(qw_input_device *handle, libinput_config_scroll_method method)
-{
-    return configScrollMethod(libinput_device_handle(handle), method);
-}
-
-bool InputDevice::setScrollButton(qw_input_device *handle, uint32_t button)
-{
-    return configScrollButton(libinput_device_handle(handle), button);
-}
-
-bool InputDevice::setScrollButtonLock(qw_input_device *handle, libinput_config_scroll_button_lock_state lock)
-{
-    return configScrollButtonLock(libinput_device_handle(handle), lock);
-}
-
-bool InputDevice::setDwt(qw_input_device *handle, libinput_config_dwt_state enable)
-{
-    return configDwtEnabled(libinput_device_handle(handle), enable);
-}
-
-bool InputDevice::setDwtp(qw_input_device *handle, libinput_config_dwtp_state enable)
-{
-    return configDwtpEnabled(libinput_device_handle(handle), enable);
-}
-
-bool InputDevice::setCalibrationMatrix(qw_input_device *handle, float mat[])
-{
-    return configCalibrationMatrix(libinput_device_handle(handle), mat);
+    if (m_touchpadFingerCount >= 3) {
+        m_touchpadRecognizer->endSwipeGesture();
+    }
 }
