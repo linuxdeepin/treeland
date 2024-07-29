@@ -270,7 +270,13 @@ void WCursorImagePrivate::updateCursorImage()
     }
 
     auto cursorName = qcursorShapeToType(cursor.shape());
-    xcursor = getXCursorWithFallback(manager.get(), cursorName, scale);
+    if (cursorName) {
+        xcursor = getXCursorWithFallback(manager.get(), cursorName, scale);
+        if (!xcursor)
+            qCWarning(qLcCursorImage) << "Get empty cursor image for " << cursorName;
+    } else {
+        qCWarning(qLcCursorImage) << "Unknown cursor shape type!";
+    }
 
     if (!xcursor || xcursor->image_count == 0) {
         setImage(QImage(), {});
