@@ -31,6 +31,7 @@ public:
     ~WXdgSurface();
 
     bool isPopup() const;
+    bool isToplevel() const;
     bool doesNotAcceptFocus() const override;
 
     WSurface *surface() const override;
