@@ -11,35 +11,50 @@ OutputItem {
     id: rootOutputItem
     required property WaylandOutput waylandOutput
     property OutputViewport onscreenViewport: outputViewport
-    property Cursor waylandCursor
     property var attachVirtualOutput: VirtualOutputV1.Attach(outputViewport)
     property var attachViewport: attachVirtualOutput.outputViewport
+    property Cursor lastActiveCursorItem
 
     output: waylandOutput
     devicePixelRatio: waylandOutput.scale
-    cursorDelegate: Item {
-        required property OutputCursor cursor
+    cursorDelegate: Cursor {
+        id: cursorItem
 
-        visible: cursor.visible
+        readonly property point position: parent.mapFromGlobal(cursor.position.x, cursor.position.y)
 
-        Image {
-            id: cursorImage
-            visible: !cursor.isHardwareCursor
-            source: cursor.imageSource
-            x: -cursor.hotspot.x
-            y: -cursor.hotspot.y
-            cache: false
-            width: cursor.size.width
-            height: cursor.size.height
-            sourceClipRect: cursor.sourceRect
+        x: position.x - hotSpot.x
+        y: position.y - hotSpot.y
+        visible: valid && cursor.visible
+        OutputLayer.enabled: true
+        OutputLayer.keepLayer: true
+        OutputLayer.outputs: [onscreenViewport]
+        OutputLayer.flags: OutputLayer.Cursor
+        OutputLayer.cursorHotSpot: hotSpot
+
+        function updateActiveCursor() {
+            if (cursorItems.size === 1) {
+                lastActiveCursorItem = this;
+                return;
+            }
+
+            const pos = onscreenViewport.mapToOutput(this, Qt.point(0, 0));
+            if (pos.x >= 0 && pos.x < onscreenViewport.width
+                    && pos.y >= 0 && pos.y < onscreenViewport.height) {
+                lastActiveCursorItem = this;
+            }
         }
+        onXChanged: updateActiveCursor()
+        onYChanged: updateActiveCursor()
 
         SurfaceItem {
             id: dragIcon
-            z: cursorImage.z - 1
+            parent: cursorItem.parent
+            z: cursorItem.z - 1
             flags: SurfaceItem.DontCacheLastBuffer
-            visible: waylandCursor.dragSurface !== null
-            surface: waylandCursor.dragSurface
+            visible: surface !== null
+            surface: cursorItem.cursor.requestedDragSurface
+            x: cursorItem.position.x
+            y: cursorItem.position.y
         }
     }
 
@@ -130,6 +145,8 @@ OutputItem {
             input: this
             output: waylandOutput
             devicePixelRatio: outputViewport.devicePixelRatio
+            anchors.fill: outputViewport
+            rotation: outputViewport.rotation
 
             TextureProxy {
                 sourceItem: outputViewport

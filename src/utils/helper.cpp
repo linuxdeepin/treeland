@@ -31,7 +31,6 @@
 #include <wxdgsurface.h>
 #include <wxwayland.h>
 #include <wxwaylandsurface.h>
-#include <wquickcursor.h>
 
 #include <qwallocator.h>
 #include <qwbackend.h>
@@ -82,14 +81,13 @@ Helper::Helper(WServer *server)
     : WSeatEventFilter()
     , m_server(server)
     , m_outputLayout(new WQuickOutputLayout(this))
-    , m_cursor(new WQuickCursor(this))
+    , m_cursor(new WCursor(this))
     , m_seat(new WSeat())
     , m_outputCreator(new WQmlCreator(this))
     , m_surfaceCreator(new WQmlCreator(this))
 {
     m_seat->setEventFilter(this);
     m_seat->setCursor(m_cursor);
-    m_cursor->setThemeName(getenv("XCURSOR_THEME"));
     m_cursor->setLayout(m_outputLayout);
 }
 
@@ -277,13 +275,10 @@ void Helper::initProtocols(WOutputRenderWindow *window)
             &WBackend::outputAdded,
             this,
             [backend, this, window, engine, outputManager](WOutput *output) {
-                if (!backend->hasDrm())
-                    output->setForceSoftwareCursor(true); // Test
                 allowNonDrmOutputAutoChangeMode(output);
 
                 auto initProperties = engine->newObject();
                 initProperties.setProperty("waylandOutput", engine->toScriptValue(output));
-                initProperties.setProperty("waylandCursor", engine->toScriptValue(m_cursor));
                 initProperties.setProperty("layout", engine->toScriptValue(outputLayout()));
                 initProperties.setProperty("x",
                                            engine->toScriptValue(outputLayout()->implicitWidth()));
