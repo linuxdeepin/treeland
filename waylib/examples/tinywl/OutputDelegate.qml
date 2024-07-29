@@ -122,6 +122,8 @@ OutputItem {
             input: this
             output: waylandOutput
             devicePixelRatio: outputViewport.devicePixelRatio
+            anchors.fill: outputViewport
+            rotation: outputViewport.rotation
 
             TextureProxy {
                 sourceItem: outputViewport
