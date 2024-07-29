@@ -5,6 +5,7 @@ import QtQuick
 import TreeLand.Utils
 
 WallpaperProxy {
+    clip: true
     Image {
         id: background
         source: parent.source

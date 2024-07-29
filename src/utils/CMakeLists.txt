@@ -35,6 +35,11 @@ target_compile_definitions(utils
     WLR_USE_UNSTABLE
 )
 
+target_include_directories(utils
+    PRIVATE
+        ${Qt6Quick_PRIVATE_INCLUDE_DIRS}
+)
+
 target_link_libraries(utils
     PUBLIC
         PkgConfig::WLROOTS
