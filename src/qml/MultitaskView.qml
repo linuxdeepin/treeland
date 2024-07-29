@@ -215,7 +215,7 @@ Item {
 
                                 // D.RoundButton {
                                 //     id: wsDestroyBtn
-                                //     icon.name: "window_close"
+                                //     icon.name: "close"
                                 //     icon.width: 26
                                 //     icon.height: 26
                                 //     height: 26
@@ -235,8 +235,7 @@ Item {
                                 //     textColor: control.textColor
                                 //     background: Rectangle {
                                 //         anchors.fill: parent
-                                //         color: "white"
-                                //         radius: parent.height / 2
+                                //         color: "transparent"
                                 //     }
                                 //     onClicked: {
                                 //         workspaceManager.destroyWs(parent.index)
@@ -461,7 +460,7 @@ Item {
 
                                         D.RoundButton {
                                             id: surfaceCloseBtn
-                                            icon.name: "window_close"
+                                            icon.name: "close"
                                             icon.width: 26
                                             icon.height: 26
                                             height: 26
@@ -480,8 +479,7 @@ Item {
                                             textColor: surfaceCloseBtnControl.textColor
                                             background: Rectangle {
                                                 anchors.fill: parent
-                                                color: "white"
-                                                radius: parent.height / 2
+                                                color: "transparent"
                                             }
                                             onClicked: {
                                                 surfaceItemDelegate.visible = false
