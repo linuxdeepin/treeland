@@ -53,6 +53,7 @@ Item {
         id: dragManager
         property Item item  // current dragged item
         property var accept // accept callback func
+        property point destPoint
     }
 
     Item {
@@ -165,17 +166,16 @@ Item {
                                                             dragManager.item.source.parent = QmlHelper.workspaceManager.workspacesById.get(wsid)
                                                         }
                                                     } else {    // is dragging workspace
+                                                        dragManager.destPoint = Qt.point(wsThumbItem.x, wsThumbItem.y)
                                                         dragManager.accept = () => {
                                                             const draggedItem = dragManager.item
                                                             const draggedWs = QmlHelper.workspaceManager.workspacesById.get(draggedItem.wsid)
                                                             const destIndex = draggedItem.DelegateModel.itemsIndex
                                                             QmlHelper.workspaceManager.layoutOrder.move(draggedWs.workspaceRelativeId, destIndex, 1)
-                                                            // make curWorkspaceId follow the workspace
                                                             const newCurrentWorkspaceIndex = QmlHelper.workspaceManager.workspacesById.get(currentWsid).workspaceRelativeId
                                                             root.setCurrentWorkspaceId(newCurrentWorkspaceIndex)
-                                                            // reset dragged item's align
-                                                            visualModel.items.move(destIndex, destIndex)
-                                                            draggedItem.y = draggedItem.initialState.y  // y is not set by layout?
+                                                            draggedItem.x = dragManager.destPoint.x
+                                                            draggedItem.y = dragManager.destPoint.y
                                                         }
                                                         visualModel.items.move(dragManager.item.DelegateModel.itemsIndex, wsThumbItem.DelegateModel.itemsIndex)
                                                     }
@@ -302,6 +302,13 @@ Item {
                                 model.count * height * outputPlacementItem.width / outputPlacementItem.height)
                             anchors.horizontalCenter: parent.horizontalCenter
                             interactive: false
+                            moveDisplaced: Transition {
+                                NumberAnimation {
+                                    property: "x"
+                                    duration: 250
+                                    easing.type: Easing.OutCubic
+                                }
+                            }
                         }
                         // D.RoundButton {
                         //     id: wsCreateBtn
