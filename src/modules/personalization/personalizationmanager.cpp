@@ -307,7 +307,7 @@ QuickPersonalizationManagerAttached::QuickPersonalizationManagerAttached(WSurfac
             this,
             [this](WSurface *surface, uint32_t type) {
                 if (m_target == surface) {
-                    m_backgroundType = static_cast<BackgroundType>(type);
+                    m_backgroundType = static_cast<Personalization::BackgroundType>(type);
                     Q_EMIT backgroundTypeChanged();
                 }
             });

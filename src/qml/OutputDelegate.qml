@@ -117,7 +117,7 @@ OutputItem {
     Wallpaper {
         id: background
         anchors.fill: parent
-        output: waylandOutput
+        outputItem: rootOutputItem
 
         Component.onCompleted: {
             let name = PersonalizationV1.getOutputName(waylandOutput);

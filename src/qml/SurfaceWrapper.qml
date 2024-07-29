@@ -21,6 +21,7 @@ SurfaceItemFactory {
     property var cancelMinimize: helper.cancelMinimize
     property var personalizationMapper: PersonalizationV1.Attached(wSurface)
     property int outputCounter: 0
+    property alias outputs: outputs
     property alias decoration: decoration
     readonly property XWaylandSurfaceItem asXwayland: {surfaceItem as XWaylandSurfaceItem}
     readonly property XdgSurfaceItem asXdg: {surfaceItem as XdgSurfaceItem}
@@ -207,6 +208,10 @@ SurfaceItemFactory {
         saveState() // save initial state
     }
 
+    ListModel {
+        id: outputs
+    }
+
     OutputLayoutItem {
         parent: surfaceItem
         anchors.fill: parent
@@ -217,6 +222,7 @@ SurfaceItemFactory {
                 wSurface.surface.enterOutput(output)
             }
             Helper.onSurfaceEnterOutput(wSurface, surfaceItem, output)
+            outputs.append({'output': output})
             outputCounter++
 
             if (outputCounter === 1) {
@@ -236,6 +242,14 @@ SurfaceItemFactory {
             if (wSurface && wSurface.surface)
                 wSurface.surface.leaveOutput(output)
             Helper.onSurfaceLeaveOutput(wSurface, surfaceItem, output)
+
+            for (var i = 0; i < outputs.count; ++i) {
+                if (outputs.get(i).output === output) {
+                    outputs.remove(i);
+                    break;
+                }
+            }
+
             outputCounter--
 
             if (outputCounter == 0 && helper.mapped) {

@@ -19,21 +19,30 @@ WAYLIB_SERVER_USE_NAMESPACE
 
 class PersonalizationV1;
 
+class Personalization : public QObject
+{
+    Q_OBJECT
+    QML_NAMED_ELEMENT(Personalization)
+    QML_UNCREATABLE("Only use for the enums.")
+public:
+    using QObject::QObject;
+
+    enum BackgroundType { Normal, Wallpaper, Blend };
+    Q_ENUM(BackgroundType)
+};
+
 class QuickPersonalizationManagerAttached : public QObject
 {
     Q_OBJECT
-    Q_PROPERTY(BackgroundType backgroundType READ backgroundType NOTIFY backgroundTypeChanged FINAL)
+    Q_PROPERTY(Personalization::BackgroundType backgroundType READ backgroundType NOTIFY backgroundTypeChanged FINAL)
     Q_PROPERTY(QQuickItem* backgroundImage READ backgroundImage CONSTANT FINAL)
     QML_ANONYMOUS
 
 public:
-    enum BackgroundType { Normal, Wallpaper, Blend };
-    Q_ENUM(BackgroundType)
-
     QuickPersonalizationManagerAttached(WSurface *target, PersonalizationV1 *manager);
     QuickPersonalizationManagerAttached(QQuickItem *target, PersonalizationV1 *manager);
 
-    BackgroundType backgroundType() const { return m_backgroundType; };
+    Personalization::BackgroundType backgroundType() const { return m_backgroundType; };
 
     QQuickItem *backgroundImage() const;
 
@@ -43,7 +52,7 @@ Q_SIGNALS:
 private:
     QObject *m_target;
     PersonalizationV1 *m_manager;
-    BackgroundType m_backgroundType = Normal;
+    Personalization::BackgroundType m_backgroundType = Personalization::Normal;
 };
 
 class PersonalizationV1 : public QObject, public WServerInterface

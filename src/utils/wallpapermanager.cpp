@@ -6,6 +6,7 @@
 #include "wallpaperproxy.h"
 
 #include <woutput.h>
+#include <woutputitem.h>
 
 WallpaperManager::WallpaperManager(QQuickItem *parent)
     : QObject(parent)
@@ -20,10 +21,10 @@ WallpaperManager *WallpaperManager::instance()
     return instance;
 }
 
-void WallpaperManager::add(WallpaperProxy *proxy, Waylib::Server::WOutput *output)
+void WallpaperManager::add(WallpaperProxy *proxy, Waylib::Server::WOutputItem *outputItem)
 {
-    Q_ASSERT(m_proxys.find(output) == m_proxys.end());
-    m_proxys[output] = proxy;
+    Q_ASSERT(m_proxys.find(outputItem) == m_proxys.end());
+    m_proxys[outputItem] = proxy;
 
     connect(proxy, &WallpaperProxy::destroyed, [this, proxy] {
         remove(proxy);
@@ -35,12 +36,28 @@ void WallpaperManager::remove(WallpaperProxy *proxy)
     m_proxys.remove(m_proxys.key(proxy));
 }
 
-void WallpaperManager::remove(Waylib::Server::WOutput *output)
+void WallpaperManager::remove(Waylib::Server::WOutputItem *outputItem)
 {
-    m_proxys.remove(output);
+    m_proxys.remove(outputItem);
 }
 
-WallpaperProxy *WallpaperManager::get(Waylib::Server::WOutput *output)
+WallpaperProxy *WallpaperManager::get(Waylib::Server::WOutputItem *outputItem) const
 {
-    return m_proxys[output];
+    if (!outputItem) {
+        return nullptr;
+    }
+
+    return get(outputItem->output());
+}
+
+WallpaperProxy *WallpaperManager::get(Waylib::Server::WOutput *output) const
+{
+    for (auto *proxy : m_proxys.keys()) {
+        if (proxy->output() == output) {
+            return m_proxys[proxy];
+        }
+    }
+
+    qWarning() << "no wallpaper proxy for" << output;
+    return nullptr;
 }

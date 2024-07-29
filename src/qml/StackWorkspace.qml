@@ -4,6 +4,7 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
+import QtQuick.Effects
 import Waylib.Server
 import TreeLand
 import TreeLand.Protocols
@@ -188,14 +189,58 @@ FocusScope {
             SurfaceWrapper {
                 id: wrapper
                 creatorCompoment: toplevelComponent
-                ShaderEffectSource {
-                    id: background
+
+                Repeater {
+                    model: wrapper.outputs
+                    delegate: Loader {
+                        required property var modelData
+                        active: wrapper.personalizationMapper.backgroundType === Personalization.Wallpaper
+                        parent: wrapper.surfaceItem
+                        z: wrapper.surfaceItem.contentItem.z - 2
+                        anchors.fill: parent
+                        sourceComponent: ShaderEffectSource {
+                            WallpaperController {
+                                id: wallpaperProxy
+                                output: modelData
+                            }
+                            id: background
+                            live: true
+                            anchors.fill: parent
+                            // TODO: multi screen coordinate
+                            sourceRect: { Qt.rect(surfaceItem.x, surfaceItem.y, surfaceItem.width, surfaceItem.height) }
+                            sourceItem: wallpaperProxy.proxy
+                        }
+                    }
+                }
+
+                Loader {
+                    active: wrapper.personalizationMapper.backgroundType === Personalization.Blend
                     parent: wrapper.surfaceItem
-                    z: wrapper.surfaceItem.contentItem.z - 2
-                    visible: false
                     anchors.fill: parent
-                    sourceRect: { Qt.rect(surfaceItem.x, surfaceItem.y, surfaceItem.width, surfaceItem.height) }
-                    sourceItem: wrapper.personalizationMapper.backgroundImage
+                    z: wrapper.surfaceItem.contentItem.z - 2
+                    sourceComponent: RenderBufferBlitter {
+                        id: blitter
+                        anchors.fill: parent
+                        MultiEffect {
+                            id: blur
+
+                            anchors.fill: parent
+                            source: blitter.content
+                            autoPaddingEnabled: false
+                            blurEnabled: true
+                            blur: 1.0
+                            blurMax: 64
+                            saturation: 0.2
+                        }
+
+                        D.ItemViewport {
+                            anchors.fill: blur
+                            fixed: true
+                            sourceItem: blur
+                            radius: 16
+                            hideSource: true
+                        }
+                    }
                 }
 
                 Connections {

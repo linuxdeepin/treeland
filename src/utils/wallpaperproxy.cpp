@@ -33,7 +33,7 @@ void WallpaperProxy::setType(Helper::WallpaperType type)
     Q_EMIT typeChanged();
 }
 
-void WallpaperProxy::setOutput(Waylib::Server::WOutput *output)
+void WallpaperProxy::setOutputItem(Waylib::Server::WOutputItem *output)
 {
     if (!output) {
         return;
@@ -47,5 +47,5 @@ void WallpaperProxy::setOutput(Waylib::Server::WOutput *output)
 
     WallpaperManager::instance()->add(this, m_output);
 
-    Q_EMIT outputChanged();
+    Q_EMIT outputItemChanged();
 }
