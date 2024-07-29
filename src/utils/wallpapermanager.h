@@ -3,14 +3,13 @@
 
 #pragma once
 
-#include <woutput.h>
-
 #include <QQmlEngine>
 #include <QQuickItem>
 
 namespace Waylib::Server {
 class WOutput;
-}
+class WOutputItem;
+} // namespace Waylib::Server
 
 class WallpaperProxy;
 
@@ -25,14 +24,15 @@ public:
 
 private:
     friend class WallpaperProxy;
-    void add(WallpaperProxy *proxy, Waylib::Server::WOutput *output);
+    void add(WallpaperProxy *proxy, Waylib::Server::WOutputItem *outputItem);
     void remove(WallpaperProxy *proxy);
-    void remove(Waylib::Server::WOutput *output);
+    void remove(Waylib::Server::WOutputItem *outputItem);
 
 private:
     friend class WallpaperController;
-    WallpaperProxy *get(Waylib::Server::WOutput *output);
+    WallpaperProxy *get(Waylib::Server::WOutputItem *outputItem) const;
+    WallpaperProxy *get(Waylib::Server::WOutput *output) const;
 
 private:
-    QMap<Waylib::Server::WOutput *, WallpaperProxy *> m_proxys;
+    QMap<Waylib::Server::WOutputItem *, WallpaperProxy *> m_proxys;
 };

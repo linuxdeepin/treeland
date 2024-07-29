@@ -258,6 +258,12 @@ void TreeLand::setup()
                                                   "PrimaryOutputV1",
                                                   m_server->attach<PrimaryOutputV1>());
 
+    qmlRegisterUncreatableType<Personalization>("TreeLand.Protocols",
+                                                1,
+                                                0,
+                                                "Personalization",
+                                                "Only for Enum");
+
     qmlRegisterSingletonInstance<PersonalizationV1>("TreeLand.Protocols",
                                                     1,
                                                     0,

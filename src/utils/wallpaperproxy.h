@@ -5,7 +5,7 @@
 
 #include "helper.h"
 
-#include <woutput.h>
+#include <woutputitem.h>
 
 #include <QQmlEngine>
 #include <QQuickItem>
@@ -13,7 +13,7 @@
 class WallpaperProxy : public QQuickItem
 {
     Q_OBJECT
-    Q_PROPERTY(Waylib::Server::WOutput* output READ output WRITE setOutput NOTIFY outputChanged)
+    Q_PROPERTY(Waylib::Server::WOutputItem* outputItem READ outputItem WRITE setOutputItem NOTIFY outputItemChanged)
     Q_PROPERTY(QString source READ source WRITE setSource NOTIFY sourceChanged)
     Q_PROPERTY(Helper::WallpaperType type READ type WRITE setType NOTIFY typeChanged)
 
@@ -27,7 +27,7 @@ public:
 Q_SIGNALS:
     void sourceChanged();
     void typeChanged();
-    void outputChanged();
+    void outputItemChanged();
 
 public:
     void setSource(const QString &source);
@@ -36,16 +36,16 @@ public:
 
     Helper::WallpaperType type() const { return m_type; }
 
-    void setOutput(Waylib::Server::WOutput *output);
+    void setOutputItem(Waylib::Server::WOutputItem *output);
 
-    inline Waylib::Server::WOutput *output() const { return m_output; }
+    inline Waylib::Server::WOutputItem *outputItem() const { return m_output; }
 
 private:
     friend class WallpaperController;
     void setType(Helper::WallpaperType type);
 
 private:
-    Waylib::Server::WOutput *m_output;
+    Waylib::Server::WOutputItem *m_output;
     QString m_source;
     Helper::WallpaperType m_type{ Helper::WallpaperType::Normal };
 };

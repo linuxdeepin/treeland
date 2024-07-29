@@ -31,9 +31,8 @@ void WallpaperController::setOutput(Waylib::Server::WOutput *output)
 
     m_output = output;
 
-    updateState();
-
     Q_EMIT outputChanged();
+    Q_EMIT proxyChanged();
 }
 
 void WallpaperController::updateState()
@@ -46,4 +45,16 @@ void WallpaperController::updateState()
     auto *proxy = manager->get(m_output);
     Q_ASSERT(proxy);
     proxy->setType(m_type);
+
+    Q_EMIT proxyChanged();
+}
+
+WallpaperProxy *WallpaperController::proxy()
+{
+    if (!m_output) {
+        return nullptr;
+    }
+
+    auto *manager = WallpaperManager::instance();
+    return manager->get(m_output);
 }
