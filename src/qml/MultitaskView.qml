@@ -188,6 +188,7 @@ Item {
                                     }
                                     TapHandler {
                                         id: taphdlr
+                                        acceptedButtons: Qt.LeftButton
                                         enabled: !hdrg.active
                                         gesturePolicy: TapHandler.WithinBounds
                                         onTapped: {
@@ -197,6 +198,17 @@ Item {
                                                 root.setCurrentWorkspaceId(index)
                                         }
                                     }
+                                    TapHandler {
+                                        id: quickHdlr
+                                        acceptedButtons: Qt.RightButton
+                                        enabled: !hdrg.active
+                                        gesturePolicy: TapHandler.WithinBounds
+                                        onTapped: {
+                                            root.setCurrentWorkspaceId(index)
+                                            root.exit()
+                                        }
+                                    }
+
                                     DragHandler {
                                         id: hdrg
                                         target: wsThumbItem
