@@ -231,7 +231,7 @@ static void onTextureChanged(WRenderBufferNode *node, void *data) {
 
     auto notifer = new Notifer();
     notifer->tp = d->tp;
-    d->content->window()->scheduleRenderJob(notifer, QQuickWindow::BeforeSynchronizingStage);
+    d->content->window()->scheduleRenderJob(notifer, QQuickWindow::AfterRenderingStage);
 }
 
 QSGNode *WRenderBufferBlitter::updatePaintNode(QSGNode *oldNode, QQuickItem::UpdatePaintNodeData *oldData)

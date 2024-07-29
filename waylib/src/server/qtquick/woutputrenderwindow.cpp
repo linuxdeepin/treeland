@@ -590,13 +590,14 @@ qw_buffer *OutputHelper::renderLayer(LayerData *layer, bool *dontEndRenderAndRet
         if (visualizeLayers()) {
             auto rectangle = createVisualRectangle(source, Qt::green);
             QQuickItemPrivate::get(rectangle)->refFromEffectItem(true);
-            // Ensure QSGRootNode for this item
-            renderWindowD()->updateDirtyNode(rectangle);
             sourceList << rectangle;
         }
 
         layer->renderer->setSourceList(sourceList, false);
         layer->renderer->setOutput(output()->output());
+
+        // for the new WBufferRenderer and createVisualRectangle
+        renderWindowD()->updateDirtyNodes();
 
         connect(layer->renderer, &WBufferRenderer::sceneGraphChanged, this, [layer] {
             layer->contentsIsDirty = true;
@@ -988,7 +989,8 @@ WBufferRenderer *OutputHelper::compositeLayers(const QList<LayerData*> layers, b
         proxy->deleteLater();
     }
 
-    renderWindow()->renderControl()->sync();
+    // for the new QQuickItem
+    renderWindowD()->updateDirtyNodes();
 
     if (usingShadowRenderer) {
         const bool ok = beginRender(bufferRenderer2(), m_output->output()->size(),
@@ -1078,7 +1080,8 @@ bool OutputHelper::tryToHardwareCursor(const LayerData *layer)
                 m_cursorRenderer->setSourceList({m_cursorLayerProxy}, false);
                 m_cursorRenderer->setOutput(m_output->output());
                 m_cursorRenderer->setVisible(false);
-                renderWindowD()->updateDirtyNode(m_cursorLayerProxy);
+                // for the new WBufferRenderer and WQuickTextureProxy
+                renderWindowD()->updateDirtyNodes();
 
                 connect(m_cursorRenderer, &WBufferRenderer::sceneGraphChanged, this, [this] {
                     m_cursorDirty = true;
@@ -1202,7 +1205,11 @@ void WOutputRenderWindowPrivate::init()
     QObject::connect(rc(), &QQuickRenderControl::renderRequested,
                      q, qOverload<>(&WOutputRenderWindow::update));
     QObject::connect(rc(), &QQuickRenderControl::sceneChanged,
-                     q, qOverload<>(&WOutputRenderWindow::update));
+                     q, [q, this] {
+        if (inRendering)
+            return;
+        q->update();
+    });
 
     Q_EMIT q->initialized();
 }
@@ -1351,7 +1358,7 @@ WOutputRenderWindowPrivate::doRenderOutputs(const QList<OutputHelper*> &outputs,
 
         // maybe using the other WOutputViewport's QSGTextureProvider
         if (!helper->output()->depends().isEmpty())
-            renderControl->sync();
+            updateDirtyNodes();
 
         qw_buffer *buffer = helper->beginRender(helper->bufferRenderer(), helper->output()->output()->size(), format,
                                                 WBufferRenderer::RedirectOpenGLContextDefaultFrameBufferObject);
@@ -1409,6 +1416,7 @@ void WOutputRenderWindowPrivate::doRender(const QList<OutputHelper *> &outputs,
     }
 
     rc()->polishItems();
+
     if (QSGRendererInterface::isApiRhiBased(WRenderHelper::getGraphicsApi()))
         rc()->beginFrame();
     rc()->sync();
