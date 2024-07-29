@@ -109,7 +109,7 @@ public:
         }
 
         OutputLayer *layer;
-        qw_output_layer *wlrLayer;
+        QPointer<qw_output_layer> wlrLayer;
         QPointer<WBufferRenderer> renderer;
 
         // dirty state
@@ -462,7 +462,10 @@ bool OutputHelper::attachLayer(OutputLayer *layer)
     auto qwlayer = qw_output_layer::create(*qwoutput());
     if (!qwlayer)
         return false;
-    qwlayer->setParent(this);
+    // qw_output will destory the committed layers on qw_output destroy,
+    // but the wlr_output_layer does has a destroy wl_signal, so needs
+    // ensure the new qw_output_layer following the qw_output to destroy.
+    qwlayer->setParent(qwoutput());
 
     m_layers.append(new LayerData(layer, qwlayer));
     connect(layer->layer, &WOutputLayer::zChanged, this, &OutputHelper::sortLayers);
