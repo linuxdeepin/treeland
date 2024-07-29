@@ -48,7 +48,7 @@ FocusScope {
     readonly property real switcherHideOpacity: 0
 
     property var workspaceManager: QmlHelper.workspaceManager
-    property var currentWorkspaceId: Helper.currentWorkspaceId
+    property int currentWorkspaceId: Helper.currentWorkspaceId
 
     Connections {
         target: workspaceManager.layoutOrder
