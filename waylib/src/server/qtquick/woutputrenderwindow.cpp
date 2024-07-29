@@ -98,7 +98,6 @@ public:
             : layer(l)
             , wlrLayer(layer)
             , contentsIsDirty(true)
-            , bufferIsUpdatedOnLastRender(false)
         {
 
         }
@@ -115,7 +114,6 @@ public:
 
         // dirty state
         uint contentsIsDirty:1;
-        uint bufferIsUpdatedOnLastRender:1;
         // end
 
         QRectF mapRect;
@@ -140,6 +138,7 @@ public:
     ~OutputHelper()
     {
         cleanLayerCompositor();
+        cleanCursorRender();
         qDeleteAll(m_layers);
     }
 
@@ -192,6 +191,7 @@ public:
     void detachLayer(OutputLayer *layer);
     void sortLayers();
     void cleanLayerCompositor();
+    void cleanCursorRender();
 
     inline qw_buffer *beginRender(WBufferRenderer *renderer,
                                  const QSize &pixelSize, uint32_t format,
@@ -204,20 +204,20 @@ public:
         return on;
     }
 
-    qw_buffer *renderLayer(LayerData *layer, bool *dontEndRenderAndReturnNeedsEndRender,
-                          bool isCursor,
-                          const QSize &forcePixelSize = QSize());
+    qw_buffer *renderLayer(LayerData *layer, bool *dontEndRenderAndReturnNeedsEndRender);
     WBufferRenderer *afterRender();
     WBufferRenderer *compositeLayers(const QVector<LayerData*> layers, bool forceShadowRenderer);
     bool commit(WBufferRenderer *buffer);
-    bool tryToHardwareCursor(LayerData *layer, wlr_buffer *buffer);
+    bool tryToHardwareCursor(const LayerData *layer);
 
 private:
     WOutputViewport *m_output = nullptr;
     QList<LayerData*> m_layers;
     WBufferRenderer *m_lastCommitBuffer = nullptr;
     // only for render cursor
-    std::unique_ptr<LayerData> m_cursorLayer;
+    QPointer<WBufferRenderer> m_cursorRenderer;
+    WQuickTextureProxy *m_cursorLayerProxy = nullptr;
+    bool m_cursorDirty = false;
 
     // for compositeLayers
     QPointer<WOutputViewport> m_output2;
@@ -475,13 +475,15 @@ void OutputHelper::detachLayer(OutputLayer *layer)
 {
     int index = indexOfLayer(layer);
     Q_ASSERT(index >= 0);
-    delete m_layers.takeAt(index);
+    auto l = m_layers.takeAt(index);
 
-    if (m_cursorLayer && m_cursorLayer->layer == layer) {
+    if (m_cursorLayerProxy && m_cursorLayerProxy->sourceItem() == l->renderer) {
         // Clear hardware cursor
-        tryToHardwareCursor(nullptr, nullptr);
-        m_cursorLayer.reset();
+        tryToHardwareCursor(nullptr);
+        cleanCursorRender();
     }
+
+    delete l;
 }
 
 void OutputHelper::sortLayers()
@@ -531,6 +533,15 @@ void OutputHelper::cleanLayerCompositor()
     }
 }
 
+void OutputHelper::cleanCursorRender()
+{
+    if (m_cursorRenderer) {
+        m_cursorRenderer->deleteLater();
+        m_cursorRenderer = nullptr;
+        m_cursorLayerProxy = nullptr;
+    }
+}
+
 qw_buffer *OutputHelper::beginRender(WBufferRenderer *renderer,
                                     const QSize &pixelSize, uint32_t format,
                                     WBufferRenderer::RenderFlags flags)
@@ -561,8 +572,7 @@ static inline QRectF scaleRect(const QRectF &r, qreal xScale, qreal yScale) {
     return QRectF(r.x() * xScale, r.y() * yScale, r.width() * xScale, r.height() * yScale);
 }
 
-qw_buffer *OutputHelper::renderLayer(LayerData *layer, bool *dontEndRenderAndReturnNeedsEndRender,
-                                    bool isCursor, const QSize &forcePixelSize)
+qw_buffer *OutputHelper::renderLayer(LayerData *layer, bool *dontEndRenderAndReturnNeedsEndRender)
 {
     auto source = layer->layer->layer->parent();
     if (!source->parentItem() || source->window() != renderWindow())
@@ -588,7 +598,6 @@ qw_buffer *OutputHelper::renderLayer(LayerData *layer, bool *dontEndRenderAndRet
         });
     }
 
-    layer->bufferIsUpdatedOnLastRender = false;
     qreal dpr = devicePixelRatio();
 
     {
@@ -644,19 +653,17 @@ qw_buffer *OutputHelper::renderLayer(LayerData *layer, bool *dontEndRenderAndRet
         // clip to WOutputViewport
         mapRect = mapRect & QRectF(QPointF(0, 0), output()->size());
 
-        QSize pixelSize = forcePixelSize;
-        if (!pixelSize.isValid()) {
-            const auto tmpSize = mapRect.size() * dpr;
+        QSize pixelSize;
+        const auto tmpSize = mapRect.size() * dpr;
 
-            if (layerFlags & WOutputLayer::DontClip) {
-                pixelSize.rwidth() = qCeil(tmpSize.width());
-                pixelSize.rheight() = qCeil(tmpSize.height());
-            } else {
-                // Limitation max buffer
-                const auto maxSize = qMax(source->width(), source->height()) * dpr;
-                pixelSize.rwidth() = qCeil(qMin(tmpSize.width(), maxSize));
-                pixelSize.rheight() = qCeil(qMin(tmpSize.height(), maxSize));
-            }
+        if (layerFlags & WOutputLayer::DontClip) {
+            pixelSize.rwidth() = qCeil(tmpSize.width());
+            pixelSize.rheight() = qCeil(tmpSize.height());
+        } else {
+            // Limitation max buffer
+            const auto maxSize = qMax(source->width(), source->height()) * dpr;
+            pixelSize.rwidth() = qCeil(qMin(tmpSize.width(), maxSize));
+            pixelSize.rheight() = qCeil(qMin(tmpSize.height(), maxSize));
         }
 
         if (mapRect.isEmpty()) {
@@ -701,8 +708,7 @@ qw_buffer *OutputHelper::renderLayer(LayerData *layer, bool *dontEndRenderAndRet
         buffer = layer->renderer->beginRender(layer->pixelSize, dpr,
                                               // TODO: Allows control format by WOutputLayer
                                               alpha ? DRM_FORMAT_ARGB8888 : DRM_FORMAT_XRGB8888,
-                                              isCursor ? WBufferRenderer::UseCursorFormats
-                                                       : WBufferRenderer::DontConfigureSwapchain);
+                                              WBufferRenderer::DontConfigureSwapchain);
         if (buffer) {
             const QRectF sr = QRectF(layer->mapRect.topLeft() - layer->noClipMapRect.topLeft(), layer->mapRect.size());
             const QRectF tr(QPointF(0, 0), layer->mapRect.size());
@@ -718,8 +724,6 @@ qw_buffer *OutputHelper::renderLayer(LayerData *layer, bool *dontEndRenderAndRet
             } else {
                 layer->renderer->endRender();
             }
-
-            layer->bufferIsUpdatedOnLastRender = true;
         } else if (dontEndRenderAndReturnNeedsEndRender) {
             *dontEndRenderAndReturnNeedsEndRender = false;
         }
@@ -762,7 +766,7 @@ WBufferRenderer *OutputHelper::afterRender()
             continue;
 
         bool needsEndBuffer = false;
-        auto buffer = renderLayer(i, &needsEndBuffer, false);
+        auto buffer = renderLayer(i, &needsEndBuffer);
         if (!buffer)
             continue;
 
@@ -811,7 +815,8 @@ WBufferRenderer *OutputHelper::afterRender()
         const auto &state = layers.at(i);
         Q_ASSERT(state.buffer);
         OutputLayer *layer = needsCompositeLayers[i]->layer;
-        if (layer->layer->flags().testFlag(WOutputLayer::Cursor))
+        const bool isCursor = layer->layer->flags().testFlag(WOutputLayer::Cursor);
+        if (isCursor)
             hasCursorLayer = true;
 
         // If hardware layers is disabled on this output viewport
@@ -831,8 +836,11 @@ WBufferRenderer *OutputHelper::afterRender()
             } else {
                 // try fallback to cursor plane
                 Q_ASSERT(needsSoftwareCompositeEndIndex == -1);
-                if (!hasHardwareCursor
-                    && tryToHardwareCursor(needsCompositeLayers[i], layers.at(i).buffer)) {
+                const auto layerData = needsCompositeLayers.at(i);
+                layerData->renderer->setForceCacheBuffer(!hasHardwareCursor && isCursor);
+                if (!hasHardwareCursor && isCursor
+                    && tryToHardwareCursor(layerData)) {
+                    Q_ASSERT(layerData->renderer->lastBuffer()->handle() == state.buffer);
                     hasHardwareCursor = true;
                     bool ok = layer->accept(output(), true);
                     Q_ASSERT(ok);
@@ -860,15 +868,15 @@ WBufferRenderer *OutputHelper::afterRender()
         }
     }
 
-    if (!hasHardwareCursor && m_cursorLayer) {
+    if (!hasHardwareCursor && m_cursorRenderer) {
         // Clear hardware cursor
-        tryToHardwareCursor(nullptr, nullptr);
-        // Don't reset m_cursorLayer, maybe will use in next frame
+        tryToHardwareCursor(nullptr);
+        // Don't cleanCursorRender(), maybe will use in next frame
     }
 
     if (!hasCursorLayer) {
         Q_ASSERT(!hasHardwareCursor);
-        m_cursorLayer.reset();
+        cleanCursorRender();
     }
 
     if (needsSoftwareCompositeEndIndex == -1) // All layers need software composite
@@ -1026,18 +1034,18 @@ bool OutputHelper::commit(WBufferRenderer *buffer)
     return WOutputHelper::commit();
 }
 
-bool OutputHelper::tryToHardwareCursor(LayerData *layer, wlr_buffer *buffer)
+bool OutputHelper::tryToHardwareCursor(const LayerData *layer)
 {
     do {
         auto set_cursor = qwoutput()->handle()->impl->set_cursor;
+        auto buffer = layer && layer->renderer->lastBuffer()
+                          ? layer->renderer->lastBuffer()->handle()
+                          : nullptr;
         if (!buffer) {
             if (set_cursor)
                 set_cursor(qwoutput()->handle(), buffer, 0, 0);
             return true;
         }
-
-        if (!layer->layer->layer->flags().testFlag(WOutputLayer::Cursor))
-            break;
 
         if (qwoutput()->handle()->software_cursor_locks > 0)
             break;
@@ -1057,22 +1065,42 @@ bool OutputHelper::tryToHardwareCursor(LayerData *layer, wlr_buffer *buffer)
         if (pixelSize != QSize(buffer->width, buffer->height)
             || get_cursor_formsts) {
             // needs render cursor again
-            if (!m_cursorLayer || m_cursorLayer->layer != layer->layer) {
-                // TODO: Direct rendr the buffer to a new wlr_buffer, maybe can use wlr_render_pass
-                m_cursorLayer.reset(new LayerData(layer->layer, nullptr));
-                m_cursorLayer->mapFromLayer = layer->mapFromLayer;
-                m_cursorLayer->mapFrom = layer->mapFrom;
-                m_cursorLayer->mapTo = layer->mapTo;
+            if (!m_cursorRenderer) {
+                m_cursorRenderer = new WBufferRenderer(renderWindow()->contentItem());
+                m_cursorLayerProxy = new WQuickTextureProxy(m_cursorRenderer);
+                m_cursorRenderer->setSourceList({m_cursorLayerProxy}, false);
+                m_cursorRenderer->setOutput(m_output->output());
+                m_cursorRenderer->setVisible(false);
+                renderWindowD()->updateDirtyNode(m_cursorLayerProxy);
+
+                connect(m_cursorRenderer, &WBufferRenderer::sceneGraphChanged, this, [this] {
+                    m_cursorDirty = true;
+                });
+            }
+            m_cursorLayerProxy->setSourceItem(layer->renderer);
+            // Ensure render size same as source buffer size
+            m_cursorLayerProxy->setWidth(buffer->width);
+            m_cursorLayerProxy->setHeight(buffer->height);
+
+            auto newBuffer = m_cursorRenderer->lastBuffer();
+            if (m_cursorDirty || !newBuffer) {
+                newBuffer = m_cursorRenderer->beginRender(pixelSize, 1.0, DRM_FORMAT_ARGB8888,
+                                                          WBufferRenderer::UseCursorFormats);
+                if (newBuffer) {
+                    m_cursorRenderer->render(0, {});
+                    m_cursorRenderer->endRender();
+                }
+
+                m_cursorDirty = false;
             }
 
-            m_cursorLayer->contentsIsDirty = layer->bufferIsUpdatedOnLastRender;
-
-            auto newBuffer = renderLayer(m_cursorLayer.get(), nullptr, true, pixelSize);
-            if (!newBuffer)
-                break;
-            Q_ASSERT(pixelSize.width() == newBuffer->handle()->width);
-            Q_ASSERT(pixelSize.height() == newBuffer->handle()->height);
-            buffer = newBuffer->handle();
+            if (newBuffer) {
+                Q_ASSERT(pixelSize.width() == newBuffer->handle()->width);
+                Q_ASSERT(pixelSize.height() == newBuffer->handle()->height);
+                buffer = newBuffer->handle();
+            } else {
+                buffer = nullptr;
+            }
         }
 
         const auto hotSpot = layer->renderMatrix.map(layer->layer->layer->cursorHotSpot()
