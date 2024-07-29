@@ -118,8 +118,9 @@ void Helper::initProtocols(QQmlEngine *qmlEngine)
                 WOutputViewport *viewport = m_copyOutputs[i].first;
                 if (viewport->output() == output) {
                     m_copyOutputs.removeAt(i);
-                    viewport->setParent(nullptr);
-                    delete viewport;
+                    auto output = viewport->parent();
+                    output->setParent(nullptr);
+                    delete output;
                     break;
                 }
             }
