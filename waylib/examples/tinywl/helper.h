@@ -14,6 +14,7 @@
 #include <wxwayland.h>
 #include <winputmethodhelper.h>
 #include <wsocket.h>
+#include <wqmlcreator.h>
 
 #include <QList>
 
@@ -22,7 +23,6 @@ Q_DECLARE_OPAQUE_POINTER(QWindow*)
 WAYLIB_SERVER_BEGIN_NAMESPACE
 class WQuickCursor;
 class WOutputRenderWindow;
-class WQmlCreator;
 class WXdgOutputManager;
 class WXdgDecorationManager;
 class WInputMethodHelper;
@@ -180,5 +180,4 @@ struct OutputInfo {
 };
 
 Q_DECLARE_OPAQUE_POINTER(WAYLIB_SERVER_NAMESPACE::WOutputRenderWindow*)
-Q_DECLARE_OPAQUE_POINTER(WAYLIB_SERVER_NAMESPACE::WQmlCreator*)
 Q_DECLARE_OPAQUE_POINTER(QW_NAMESPACE::qw_compositor*)
