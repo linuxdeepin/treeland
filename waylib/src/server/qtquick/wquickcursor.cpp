@@ -138,7 +138,6 @@ class Q_DECL_HIDDEN WQuickCursorPrivate : public QQuickItemPrivate
 public:
     WQuickCursorPrivate(WQuickCursor *qq);
     ~WQuickCursorPrivate() {
-        cleanTextureProvider();
     }
 
     inline static WQuickCursorPrivate *get(WQuickCursor *qq) {
@@ -329,7 +328,9 @@ WQuickCursor::WQuickCursor(QQuickItem *parent)
 
 WQuickCursor::~WQuickCursor()
 {
-
+    // `d->window` will become nullptr in ~QQuickItem
+    // cleanTextureProvider in ~WQuickCursorPrivate is too late
+    d_func()->cleanTextureProvider();
 }
 
 WQuickCursorAttached *WQuickCursor::qmlAttachedProperties(QObject *target)
