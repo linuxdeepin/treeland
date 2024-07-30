@@ -70,7 +70,7 @@ public:
         connection.push_back(surface->safeConnect(&WXdgSurface::parentSurfaceChanged, surface, [this, surface, handle] {
             auto find = std::find_if(
                 surfaces.begin(), surfaces.end(),
-                [surface](auto pair) { return pair.first == surface; });
+                [surface](auto pair) { return pair.first->surface() == surface->parentSurface(); });
 
             handle->setParent(find != surfaces.end() ? find->second.get() : nullptr);
         }));
