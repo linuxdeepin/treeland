@@ -280,6 +280,7 @@ Item {
         if (waylandSurface.isMaximized)
             return
 
+        Helper.activatedSurface = waylandSurface
         Helper.startMove(waylandSurface, surface, seat, serial)
     }
 
@@ -290,6 +291,7 @@ Item {
         if (movecursor)
             Helper.moveCursor(surface, seat)
 
+        Helper.activatedSurface = waylandSurface
         Helper.startResize(waylandSurface, surface, seat, edges, serial)
     }
 

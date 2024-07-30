@@ -80,7 +80,6 @@ Item {
         onPressed: function (event) {
             // Maybe missing onPositionChanged when use touchscreen
             edges = WaylibHelper.getEdges(Qt.rect(0, 0, width, height), Qt.point(event.x, event.y), 10)
-            Helper.activatedSurface = surface
             if(edges)
                 root.requestResize(edges, false)
         }
@@ -212,6 +211,7 @@ Item {
                         height: titlebar.height
 
                         onClicked: {
+                            Helper.activatedSurface = surface
                             root.requestMaximize(!surface.isMaximized)
                         }
                     }
