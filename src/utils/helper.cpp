@@ -989,14 +989,15 @@ void Helper::setActivateSurface(WToplevelSurface *newActivate)
 
     qCDebug(HelperDebugLog) << "Surface: " << newActivate << " is activated";
 
-    invalidCheck =
-        connect(newActivate, &WToplevelSurface::aboutToBeInvalidated, this, [newActivate, this] {
-            newActivate->setActivate(false);
-            setActivateSurface(nullptr);
-        });
-
-    if (newActivate)
+    if (newActivate) {
+        invalidCheck =
+            connect(newActivate, &WToplevelSurface::aboutToBeInvalidated, this, [newActivate, this] {
+                newActivate->setActivate(false);
+                setActivateSurface(nullptr);
+            });
         newActivate->setActivate(true);
+    }
+
     Q_EMIT activatedSurfaceChanged();
 }
 
