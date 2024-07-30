@@ -176,7 +176,7 @@ void ForeignToplevelV1::add(WToplevelSurface *surface)
     connection.push_back(
         connect(surface, &WToplevelSurface::parentSurfaceChanged, this, [this, surface, handle] {
             auto find = std::find_if(m_surfaces.begin(), m_surfaces.end(), [surface](auto pair) {
-                return pair.first == surface;
+                return pair.first->surface() == surface->parent();
             });
 
             handle->setParent(find != m_surfaces.end() ? find->second.get() : nullptr);
