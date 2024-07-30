@@ -123,8 +123,14 @@ public:
         return m_texture ? m_texture->buffer : nullptr;
     }
 
-    void setBuffer(qw_buffer *buffer) {
+    void setBuffer(qw_buffer *buffer, const pixman_region32_t *damage = nullptr) {
         Q_ASSERT(item);
+
+        if (buffer && buffer == qwBuffer()) {
+            m_texture->qwtexture->update_from_buffer(*buffer, damage);
+            Q_EMIT textureChanged();
+            return;
+        }
 
         if (m_texture)
             cleanTexture();
@@ -412,9 +418,6 @@ qw_buffer *WBufferRenderer::beginRender(const QSize &pixelSize, qreal devicePixe
 
     }
 
-    if (!shouldCacheBuffer())
-        m_textureProvider->setBuffer(nullptr);
-
     // TODO: Support scanout buffer of wlr_surface(from WSurfaceItem)
     int bufferAge;
     auto wbuffer = m_swapchain->acquire(&bufferAge);
@@ -467,9 +470,6 @@ qw_buffer *WBufferRenderer::beginRender(const QSize &pixelSize, qreal devicePixe
     state.buffer = buffer;
     state.renderTarget = rt;
     state.sgRenderTarget = sgRT;
-
-    if (!shouldCacheBuffer())
-        m_textureProvider->setBuffer(buffer);
 
     return buffer;
 }
@@ -655,6 +655,9 @@ void WBufferRenderer::render(int sourceIndex, const QMatrix4x4 &renderMatrix,
         QRhiResourceUpdateBatch *resourceUpdates = wd->rhi->nextResourceUpdateBatch();
         dr->currentFrameCommandBuffer()->resourceUpdate(resourceUpdates);
     }
+
+    if (shouldCacheBuffer())
+        m_textureProvider->setBuffer(state.buffer, &m_damageRing.handle()->current);
 }
 
 void WBufferRenderer::endRender()
@@ -663,8 +666,6 @@ void WBufferRenderer::endRender()
     auto buffer = state.buffer;
     state.buffer = nullptr;
     state.renderer = nullptr;
-    if (shouldCacheBuffer())
-        m_textureProvider->setBuffer(buffer);
 
     m_lastBuffer = buffer;
     m_damageRing.rotate();
@@ -705,7 +706,7 @@ void WBufferRenderer::resetTextureProvider()
 
 void WBufferRenderer::updateTextureProvider()
 {
-    if (shouldCacheBuffer()) {
+    if (shouldCacheBuffer() && m_textureProvider->qwBuffer() != m_lastBuffer) {
         m_textureProvider->setBuffer(m_lastBuffer);
     } else {
         m_textureProvider->setBuffer(nullptr);
