@@ -49,5 +49,3 @@ private:
     Waylib::Server::WOutput *m_output;
     Helper::WallpaperType m_type{ Helper::WallpaperType::Normal };
 };
-
-
