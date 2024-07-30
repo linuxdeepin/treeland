@@ -219,19 +219,7 @@ static void onTextureChanged(WRenderBufferNode *node, void *data) {
         return;
 
     d->tp->setTexture(node->texture());
-
-    struct Notifer : public QRunnable {
-        void run() override {
-            if (tp)
-                Q_EMIT tp->textureChanged();
-        }
-
-        QPointer<QSGTextureProvider> tp;
-    };
-
-    auto notifer = new Notifer();
-    notifer->tp = d->tp;
-    d->content->window()->scheduleRenderJob(notifer, QQuickWindow::AfterRenderingStage);
+    Q_EMIT d->tp->textureChanged();
 }
 
 QSGNode *WRenderBufferBlitter::updatePaintNode(QSGNode *oldNode, QQuickItem::UpdatePaintNodeData *oldData)
