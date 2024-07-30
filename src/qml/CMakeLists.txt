@@ -33,6 +33,7 @@ qt_add_qml_module(treeland-qml
         NewAnimation.qml
         Wallpaper.qml
         Animations/LayerShellAnimation.qml
+        Animations/WorkspaceAnimation.qml
         WindowThumbnailDelegate.qml
         SwitcherThumbnailHighlightDelegate.qml
     RESOURCE_PREFIX
