@@ -88,6 +88,34 @@ inline static void resetGlState()
 #endif
 }
 
+class Q_DECL_HIDDEN BufferRendererProxy : public WQuickTextureProxy
+{
+public:
+    BufferRendererProxy(QQuickItem *parent = nullptr)
+        : WQuickTextureProxy(parent) {}
+
+    inline WBufferRenderer *renderer() const {
+        auto r = qobject_cast<WBufferRenderer*>(sourceItem());
+        if (sourceItem())
+            Q_ASSERT(r);
+        return r;
+    }
+
+    void setRenderer(WBufferRenderer *renderer) {
+        auto oldRenderer = this->renderer();
+        if (oldRenderer == renderer)
+            return;
+        if (oldRenderer)
+            oldRenderer->unlockCacheBuffer(this);
+        if (renderer)
+            renderer->lockCacheBuffer(this);
+        setSourceItem(renderer);
+    }
+
+private:
+    using WQuickTextureProxy::setSourceItem;
+};
+
 class OutputLayer;
 class Q_DECL_HIDDEN OutputHelper : public WOutputHelper
 {
@@ -216,13 +244,13 @@ private:
     WBufferRenderer *m_lastCommitBuffer = nullptr;
     // only for render cursor
     QPointer<WBufferRenderer> m_cursorRenderer;
-    WQuickTextureProxy *m_cursorLayerProxy = nullptr;
+    BufferRendererProxy *m_cursorLayerProxy = nullptr;
     bool m_cursorDirty = false;
 
     // for compositeLayers
     QPointer<WOutputViewport> m_output2;
     QPointer<QQuickItem> m_layerPorxyContainer;
-    QList<QPointer<WQuickTextureProxy>> m_layerProxys;
+    QList<QPointer<BufferRendererProxy>> m_layerProxys;
 };
 
 class Q_DECL_HIDDEN OutputLayer
@@ -503,7 +531,7 @@ void OutputHelper::sortLayers()
 
 void OutputHelper::cleanLayerCompositor()
 {
-    QList<QPointer<WQuickTextureProxy>> tmpList;
+    QList<QPointer<BufferRendererProxy>> tmpList;
     std::swap(m_layerProxys, tmpList);
 
     for (auto proxy : std::as_const(tmpList)) {
@@ -511,10 +539,9 @@ void OutputHelper::cleanLayerCompositor()
             continue;
 
         WBufferRenderer *source = qobject_cast<WBufferRenderer*>(proxy->sourceItem());
-        proxy->setSourceItem(nullptr);
+        proxy->setRenderer(nullptr);
 
         if (source) {
-            source->setForceCacheBuffer(false);
             source->resetTextureProvider();
         }
     }
@@ -843,7 +870,6 @@ WBufferRenderer *OutputHelper::afterRender()
                 // try fallback to cursor plane
                 Q_ASSERT(needsSoftwareCompositeEndIndex == -1);
                 const auto layerData = needsCompositeLayers.at(i);
-                layerData->renderer->setForceCacheBuffer(!hasHardwareCursor && isCursor);
                 if (!hasHardwareCursor && isCursor
                     && tryToHardwareCursor(layerData)) {
                     Q_ASSERT(layerData->renderer->lastBuffer()->handle() == state.buffer);
@@ -945,11 +971,10 @@ WBufferRenderer *OutputHelper::compositeLayers(const QList<LayerData*> layers, b
             m_layerProxys.reserve(layers.size() + 1);
 
         if (m_layerProxys.isEmpty())
-            m_layerProxys.append(new WQuickTextureProxy(m_layerPorxyContainer));
+            m_layerProxys.append(new BufferRendererProxy(m_layerPorxyContainer));
 
         auto outputProxy = m_layerProxys.first();
-        bufferRenderer()->setForceCacheBuffer(true);
-        outputProxy->setSourceItem(bufferRenderer());
+        outputProxy->setRenderer(bufferRenderer());
         outputProxy->setSize(output->size());
     } else {
         output = m_output;
@@ -964,19 +989,18 @@ WBufferRenderer *OutputHelper::compositeLayers(const QList<LayerData*> layers, b
 
     for (int i = 0; i < layers.count(); ++i) {
         const int j = i + (usingShadowRenderer ? 1 : 0);
-        WQuickTextureProxy *proxy = nullptr;
+        BufferRendererProxy *proxy = nullptr;
         if (j < m_layerProxys.size()) {
             proxy = m_layerProxys.at(j);
         } else {
-            proxy = new WQuickTextureProxy(m_layerPorxyContainer);
+            proxy = new BufferRendererProxy(m_layerPorxyContainer);
             if (visualizeLayers())
                 createVisualRectangle(proxy, Qt::red);
             m_layerProxys.append(proxy);
         }
 
         LayerData *layer = layers.at(i);
-        layer->renderer->setForceCacheBuffer(true);
-        proxy->setSourceItem(layer->renderer);
+        proxy->setRenderer(layer->renderer);
         proxy->setPosition(layer->mapRect.topLeft());
         proxy->setSize(layer->mapRect.size());
         proxy->setZ(layer->layer->layer->z());
@@ -1076,7 +1100,7 @@ bool OutputHelper::tryToHardwareCursor(const LayerData *layer)
                 m_cursorRenderer = new WBufferRenderer(renderWindow()->contentItem());
                 if (visualizeLayers())
                     m_cursorRenderer->setClearColor(Qt::cyan);
-                m_cursorLayerProxy = new WQuickTextureProxy(m_cursorRenderer);
+                m_cursorLayerProxy = new BufferRendererProxy(m_cursorRenderer);
                 m_cursorRenderer->setSourceList({m_cursorLayerProxy}, false);
                 m_cursorRenderer->setOutput(m_output->output());
                 m_cursorRenderer->setVisible(false);
@@ -1087,7 +1111,7 @@ bool OutputHelper::tryToHardwareCursor(const LayerData *layer)
                     m_cursorDirty = true;
                 });
             }
-            m_cursorLayerProxy->setSourceItem(layer->renderer);
+            m_cursorLayerProxy->setRenderer(layer->renderer);
             // Ensure render size same as source buffer size
             m_cursorLayerProxy->setWidth(buffer->width);
             m_cursorLayerProxy->setHeight(buffer->height);

@@ -61,6 +61,9 @@ public:
     bool cacheBuffer() const;
     void setCacheBuffer(bool newCacheBuffer);
 
+    void lockCacheBuffer(QObject *owner);
+    void unlockCacheBuffer(QObject *owner);
+
     QColor clearColor() const;
     void setClearColor(const QColor &clearColor);
 
@@ -100,10 +103,9 @@ private:
     }
 
     inline bool shouldCacheBuffer() const {
-        return m_cacheBuffer || m_forceCacheBuffer;
+        return m_cacheBuffer || !m_cacheBufferLocker.isEmpty();
     }
 
-    void setForceCacheBuffer(bool force);
     void resetTextureProvider();
     void updateTextureProvider();
     QSGNode *updatePaintNode(QSGNode *oldNode, UpdatePaintNodeData *data) override;
@@ -150,9 +152,9 @@ private:
     QW_NAMESPACE::qw_damage_ring m_damageRing;
     std::unique_ptr<TextureProvider> m_textureProvider;
     QColor m_clearColor = Qt::transparent;
+    QList<QObject*> m_cacheBufferLocker;
 
     uint m_cacheBuffer:1;
-    uint m_forceCacheBuffer:1;
     uint m_hideSource:1;
 };
 

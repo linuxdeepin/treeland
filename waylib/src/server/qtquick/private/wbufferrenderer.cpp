@@ -124,8 +124,6 @@ public:
     }
 
     void setBuffer(qw_buffer *buffer, const pixman_region32_t *damage = nullptr) {
-        Q_ASSERT(item);
-
         if (buffer && buffer == qwBuffer()) {
             m_texture->qwtexture->update_from_buffer(*buffer, damage);
             Q_EMIT textureChanged();
@@ -136,8 +134,10 @@ public:
             cleanTexture();
 
         Q_ASSERT(!m_texture);
-        if (buffer)
+        if (buffer) {
+            Q_ASSERT(item);
             m_texture = new Texture(item->window(), item->output()->renderer(), buffer);
+        }
 
         Q_EMIT textureChanged();
     }
@@ -195,7 +195,6 @@ public:
 WBufferRenderer::WBufferRenderer(QQuickItem *parent)
     : QQuickItem(parent)
     , m_cacheBuffer(false)
-    , m_forceCacheBuffer(false)
     , m_hideSource(false)
 {
     m_textureProvider.reset(new TextureProvider(this));
@@ -291,6 +290,26 @@ void WBufferRenderer::setCacheBuffer(bool newCacheBuffer)
     updateTextureProvider();
 
     Q_EMIT cacheBufferChanged();
+}
+
+void WBufferRenderer::lockCacheBuffer(QObject *owner)
+{
+    if (m_cacheBufferLocker.contains(owner))
+        return;
+    m_cacheBufferLocker.append(owner);
+    connect(owner, &QObject::destroyed, this, [this] {
+        unlockCacheBuffer(sender());
+    });
+    updateTextureProvider();
+}
+
+void WBufferRenderer::unlockCacheBuffer(QObject *owner)
+{
+    auto ok = m_cacheBufferLocker.removeOne(owner);
+    Q_ASSERT(ok);
+    ok = disconnect(owner, &QObject::destroyed, this, nullptr);
+    Q_ASSERT(ok);
+    updateTextureProvider();
 }
 
 QColor WBufferRenderer::clearColor() const
@@ -690,14 +709,6 @@ void WBufferRenderer::componentComplete()
     QQuickItem::componentComplete();
 }
 
-void WBufferRenderer::setForceCacheBuffer(bool force)
-{
-    if (m_forceCacheBuffer == force)
-        return;
-    m_forceCacheBuffer = force;
-    updateTextureProvider();
-}
-
 void WBufferRenderer::resetTextureProvider()
 {
     if (m_textureProvider)
@@ -706,6 +717,9 @@ void WBufferRenderer::resetTextureProvider()
 
 void WBufferRenderer::updateTextureProvider()
 {
+    if (!m_textureProvider)
+        return;
+
     if (shouldCacheBuffer() && m_textureProvider->qwBuffer() != m_lastBuffer) {
         m_textureProvider->setBuffer(m_lastBuffer);
     } else {
