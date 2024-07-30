@@ -842,15 +842,30 @@ WBufferRenderer *OutputHelper::afterRender()
     int needsSoftwareCompositeEndIndex = -1;
     bool forceShadowRender = false;
     bool hasHardwareCursor = false;
-    bool hasCursorLayer = false;
 
+    {
+        // try fallback to cursor plane for the top layer
+        auto topLayer = needsCompositeLayers.last();
+        if ((!output()->disableHardwareLayers() || topLayer->layer->forceLayer())
+            && !(ok && layers.last().accepted)
+            && (topLayer->layer->layer->flags() & WOutputLayer::Cursor)) {
+            if (tryToHardwareCursor(topLayer)) {
+                Q_ASSERT(topLayer->renderer->lastBuffer()->handle() == layers.last().buffer);
+                Q_ASSERT(!hasHardwareCursor);
+                hasHardwareCursor = true;
+                bool ok = topLayer->layer->accept(output(), true);
+                Q_ASSERT(ok);
+                needsCompositeLayers.removeLast();
+                layers.removeLast();
+            }
+        }
+    }
+
+    Q_ASSERT(needsCompositeLayers.size() == layers.size());
     for (int i = layers.length() - 1; i >= 0; --i) {
         const auto &state = layers.at(i);
         Q_ASSERT(state.buffer);
         OutputLayer *layer = needsCompositeLayers[i]->layer;
-        const bool isCursor = layer->layer->flags().testFlag(WOutputLayer::Cursor);
-        if (isCursor)
-            hasCursorLayer = true;
 
         // If hardware layers is disabled on this output viewport
         // and this layer doesn't want force layer, should fallback
@@ -867,20 +882,7 @@ WBufferRenderer *OutputHelper::afterRender()
                 Q_ASSERT(ok);
                 continue;
             } else {
-                // try fallback to cursor plane
-                Q_ASSERT(needsSoftwareCompositeEndIndex == -1);
-                const auto layerData = needsCompositeLayers.at(i);
-                if (!hasHardwareCursor && isCursor
-                    && tryToHardwareCursor(layerData)) {
-                    Q_ASSERT(layerData->renderer->lastBuffer()->handle() == state.buffer);
-                    hasHardwareCursor = true;
-                    bool ok = layer->accept(output(), true);
-                    Q_ASSERT(ok);
-                    needsSoftwareCompositeEndIndex = i - 1;
-                    continue;
-                } else {
-                    needsSoftwareCompositeEndIndex = i;
-                }
+                needsSoftwareCompositeEndIndex = i;
             }
         }
 
@@ -904,11 +906,6 @@ WBufferRenderer *OutputHelper::afterRender()
         // Clear hardware cursor
         tryToHardwareCursor(nullptr);
         // Don't cleanCursorRender(), maybe will use in next frame
-    }
-
-    if (!hasCursorLayer) {
-        Q_ASSERT(!hasHardwareCursor);
-        cleanCursorRender();
     }
 
     if (needsSoftwareCompositeEndIndex == -1) // All layers need software composite
