@@ -75,7 +75,7 @@ FocusScope {
         let temp = Array.from(children) // immutable when iterating
         for (let child of temp) {
             if(child instanceof SurfaceWrapper) {
-                child.workspaceId = moveTo
+                child.wid = moveTo
             }
         }
     }
