@@ -120,6 +120,20 @@ FocusScope {
             }
         }
 
+        Loader {
+            id: workspaceAnimation
+            active: false
+            anchors.fill: parent
+            sourceComponent: WorkspaceAnimation {
+                workspaceManager: root.workspaceManager
+                onVisibleChanged: {
+                    if (!visible) {
+                        workspaceAnimation.active = false
+                    }
+                }
+            }
+        }
+
         DynamicCreatorComponent {
             id: inputPopupComponent
             creator: Helper.surfaceCreator
@@ -448,11 +462,17 @@ FocusScope {
         }
         function onNextWorkspace() {
             const nWorkspaces = workspaceManager.layoutOrder.count
-            currentWorkspaceId = (currentWorkspaceId + 1) % nWorkspaces
+            const nextWorkspaceId = (currentWorkspaceId + 1) % nWorkspaces
+            workspaceAnimation.active = true
+            workspaceAnimation.item.startAnimation(nextWorkspaceId, currentWorkspaceId, WorkspaceAnimation.Direction.Right)
+            currentWorkspaceId = nextWorkspaceId
         }
         function onPrevWorkspace() {
             const nWorkspaces = workspaceManager.layoutOrder.count
-            currentWorkspaceId = (currentWorkspaceId - 1 + nWorkspaces) % nWorkspaces
+            const prevWorkspaceId = (currentWorkspaceId - 1 + nWorkspaces) % nWorkspaces
+            workspaceAnimation.active = true
+            workspaceAnimation.item.startAnimation(prevWorkspaceId, currentWorkspaceId, WorkspaceAnimation.Direction.Left)
+            currentWorkspaceId = prevWorkspaceId
         }
         function onMoveToNeighborWorkspace(d) {
             const nWorkspaces = workspaceManager.layoutOrder.count
