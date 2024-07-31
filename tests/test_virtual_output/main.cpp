@@ -36,7 +36,7 @@ public:
     explicit VirtualOutput(struct ::virtual_output_v1 *object);
 
     void virtual_output_v1_outputs(const QString &name, wl_array *outputs){
-        qInfo() << "-------Screen group name---- " << name;
+        qInfo() << "Screen group name: " << name;
     }
 
     void virtual_output_v1_error(uint32_t code, const QString &message){
@@ -52,7 +52,7 @@ VirtualOutput::VirtualOutput(struct ::virtual_output_v1 *object)
 {
 }
 
-// 至少两个屏幕，默认启动demo时将副屏设置为复制模式
+// ./test-virtual-output HDMI-A-1 VGA-1
 
 // 点击设置界面恢复按钮，恢复设置
 
@@ -62,7 +62,7 @@ int main(int argc, char *argv[])
     QApplication app(argc, argv);
     VirtualOutputManager manager;
 
-    QObject::connect(&manager, &VirtualOutputManager::activeChanged, &manager, [&manager] {
+    QObject::connect(&manager, &VirtualOutputManager::activeChanged, &manager, [&manager, argc, argv] {
         if (manager.isActive()) {
             QWidget *widget = new QWidget;
             widget->setAttribute(Qt::WA_TranslucentBackground);
@@ -78,27 +78,36 @@ int main(int argc, char *argv[])
             if (window && window->handle()) {
                 QtWaylandClient::QWaylandWindow *waylandWindow =
                     static_cast<QtWaylandClient::QWaylandWindow *>(window->handle());
-
-                qInfo() << "--------waylandWindow->waylandScreen()->name()---------" << waylandWindow->waylandScreen()->name();
-
-                struct wl_output *output = waylandWindow->waylandScreen()->output();
-
                 QList<QtWaylandClient::QWaylandScreen *> screens = waylandWindow->display()->screens();
-                qInfo() << "--------screens---------" << screens.size();
+
+                if (argc < 3) {
+                    qInfo() << "Please refer to the following input screen name: ";
+                    qInfo() << "  ./test-virtual-output HDMI-A-1 VGA-1  ";
+                    for(auto *screen : screens) {
+                        QString address = screen->name();
+                        qInfo() << "Screen name is: " << address;
+                    }
+                    exit(0);
+                }
+
+                QList<QString> screeNames;
+                for (int i = 1; i < argc; ++i) {
+                    screeNames.append(QString::fromUtf8(argv[i]));
+                }
 
                 // 实际使用需要判断主屏（被镜像的屏幕），将主屏放在wl_array的第一个,复制屏幕依次填充
                 if (!screens.isEmpty()){
-                    QByteArray screenNmaeArray;
-                    for(auto *screen : screens) {
-                        QString address = screen->name();
-                        screenNmaeArray.append(address.toUtf8());
-                        screenNmaeArray.append('\0');
+                    QByteArray screenNameArray;
+                    for(auto screen : screeNames) {
+                        screenNameArray.append(screen.toUtf8());
+                        screenNameArray.append('\0');
                     }
+
                     // screenNmaeArray.append("HDMI-test"); // test error
-                    screenNmaeArray.append('\0');
+                    screenNameArray.append('\0');
 
                     VirtualOutput *screen_output =
-                        new VirtualOutput(manager.create_virtual_output("copyscreen1",screenNmaeArray)); //"copyscreen1": 客户端自定义分组名称
+                        new VirtualOutput(manager.create_virtual_output("copyscreen1",screenNameArray)); //"copyscreen1": 客户端自定义分组名称
 
                     QObject::connect(button, &QPushButton::clicked, [screen_output]() {
                         screen_output->destroy();

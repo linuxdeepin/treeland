@@ -32,18 +32,9 @@ VirtualOutputManagerAttached::VirtualOutputManagerAttached(
             this,
             [this](QString name, QStringList outputList) {
                 if (outputList.contains(m_viewport->output()->name()) && m_viewport->output()->name() != outputList.at(0)) {
-                    // todo: Replication mode Enable the soft cursor and wait for the hard cursor to be reconstructed
-                    m_virtualoutput->m_viewports_list.at(0)->output()->setForceSoftwareCursor(true);
-
-                    WQuickOutputLayout *outputlayout = static_cast<WQuickOutputLayout*>(m_viewport->output()->layout());
-                    WOutputItem *item = WOutputItem::getOutputItem(m_viewport->output());
-                    outputlayout->remove(item);
-
-                    m_viewport = m_virtualoutput->m_viewports_list.at(0);
-
-                    Q_EMIT outputViewportChanged();
+                    removeItem(m_viewport);
+                    copyScreen(outputList);
                 }
-
             });
 
     connect(m_virtualoutput,
@@ -52,12 +43,8 @@ VirtualOutputManagerAttached::VirtualOutputManagerAttached(
             [this](QString name, QStringList outputList) {
                 if (outputList.contains(m_backviewport->output()->name()) && m_backviewport->output()->name() != outputList.at(0)) {
                     m_viewport->output()->setForceSoftwareCursor(false);
-
-                    WQuickOutputLayout *outputlayout = static_cast<WQuickOutputLayout*>(m_viewport->output()->layout());
-                    WOutputItem *item = WOutputItem::getOutputItem(m_backviewport->output());
-                    outputlayout->add(item);
+                    addItem(m_viewport, m_backviewport);
                     m_viewport = m_backviewport;
-
                     Q_EMIT outputViewportChanged();
                 }
 
@@ -67,32 +54,53 @@ VirtualOutputManagerAttached::VirtualOutputManagerAttached(
             &VirtualOutputV1::removeVirtualOutput,
             this,
             [this](QStringList outputList, WOutput *output) {
-                if (output->name() != m_backviewport->output()->name() && m_viewport == m_backviewport) {
-                    if (m_viewport == m_backviewport)
-                        return;
+                if (m_viewport == m_backviewport)
+                    return;
 
-                    m_viewport = m_backviewport;
-                    m_viewport->setInput(nullptr);
-                    Q_EMIT outputViewportChanged();
-                }
+                addItem(m_viewport, m_backviewport);
+                m_viewport = m_backviewport;
+                m_viewport->setInput(nullptr);
+                Q_EMIT outputViewportChanged();
+
             });
     connect(m_virtualoutput,
             &VirtualOutputV1::newVirtualOutput,
             this,
             [this](QStringList outputList, WOutput *output) {
-                if (m_viewport->output() == output) {
-                    if (m_viewport == m_virtualoutput->m_viewports_list.at(0))
-                        return;
-                    m_virtualoutput->m_viewports_list.at(0)->output()->setForceSoftwareCursor(true);
-
-                    WQuickOutputLayout *outputlayout = static_cast<WQuickOutputLayout*>(m_viewport->output()->layout());
-                    WOutputItem *item = WOutputItem::getOutputItem(m_viewport->output());
-                    outputlayout->remove(item);
-
-                    m_viewport = m_virtualoutput->m_viewports_list.at(0);
-                    Q_EMIT outputViewportChanged();
+                if (outputList.contains(output->name()) && m_viewport->output()->name() != outputList.at(0)) {
+                    m_viewport->output()->setForceSoftwareCursor(true);
+                    removeItem(m_viewport);
+                    copyScreen(outputList);
                 }
             });
+}
+
+void VirtualOutputManagerAttached::removeItem(WOutputViewport *viewport)
+{
+    WQuickOutputLayout *outputlayout = static_cast<WQuickOutputLayout*>(viewport->output()->layout());
+    WOutputItem *item = WOutputItem::getOutputItem(viewport->output());
+    outputlayout->remove(item);
+}
+
+void VirtualOutputManagerAttached::addItem(WOutputViewport *viewport, WOutputViewport *backviewport)
+{
+    WQuickOutputLayout *outputlayout = static_cast<WQuickOutputLayout*>(viewport->output()->layout());
+    WOutputItem *item = WOutputItem::getOutputItem(backviewport->output());
+    outputlayout->add(item);
+}
+
+void VirtualOutputManagerAttached::copyScreen(QStringList outputList)
+{
+    for (auto *outputviewport : m_virtualoutput->m_viewports_list) {
+        if (outputviewport->output()->name() == outputList.at(0)) {
+            //TODO: Replication mode Enable the soft cursor and wait for the hard cursor to be reconstructed
+            outputviewport->output()->setForceSoftwareCursor(true);
+
+            m_viewport = outputviewport;
+
+            Q_EMIT outputViewportChanged();
+        }
+    }
 }
 
 VirtualOutputV1::VirtualOutputV1(QObject *parent)
