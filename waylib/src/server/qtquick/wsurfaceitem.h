@@ -28,6 +28,7 @@ class WAYLIB_SERVER_EXPORT WSurfaceItemContent : public QQuickItem
 
 public:
     explicit WSurfaceItemContent(QQuickItem *parent = nullptr);
+    ~WSurfaceItemContent();
 
     WSurface *surface() const;
     void setSurface(WSurface *surface);

@@ -136,15 +136,6 @@ public:
     WSurfaceItemContentPrivate(WSurfaceItemContent *qq){}
 
     ~WSurfaceItemContentPrivate() {
-        if (updateTextureConnection) {
-            Q_ASSERT(surface);
-            surface->safeDisconnect(updateTextureConnection);
-        }
-
-        if (frameDoneConnection)
-            QObject::disconnect(frameDoneConnection);
-
-        cleanTextureProvider();
     }
 
     inline WSGTextureProvider *tp() const {
@@ -198,7 +189,10 @@ public:
 
         updateFrameDoneConnection();
         updateSurfaceState();
-        tp()->updateTexture();
+        // window maybe never set before WSurfaceItemContentPrivate::init
+        // also need try updateTexture when `ItemSceneChange`
+        if (window)
+            tp()->updateTexture();
         q->rendered = true;
     }
 
@@ -246,6 +240,22 @@ WSurfaceItemContent::WSurfaceItemContent(QQuickItem *parent)
     : QQuickItem(*new WSurfaceItemContentPrivate(this), parent)
 {
     setFlag(QQuickItem::ItemHasContents, true);
+}
+
+WSurfaceItemContent::~WSurfaceItemContent()
+{
+    W_D(WSurfaceItemContent);
+    if (d->updateTextureConnection) {
+        Q_ASSERT(d->surface);
+        d->surface->safeDisconnect(d->updateTextureConnection);
+    }
+
+    if (d->frameDoneConnection)
+        QObject::disconnect(d->frameDoneConnection);
+
+    //`d->window` will become nullptr in ~QQuickItem
+    // Don't move this to private class
+    d->cleanTextureProvider();
 }
 
 WSurface *WSurfaceItemContent::surface() const
@@ -410,6 +420,9 @@ void WSurfaceItemContent::itemChange(ItemChange change, const ItemChangeData &da
     W_D(WSurfaceItemContent);
     if (change == QQuickItem::ItemSceneChange) {
         d->updateFrameDoneConnection();
+        if (data.window) {
+            d->tp()->updateTexture();
+        }
     }
 }
 
