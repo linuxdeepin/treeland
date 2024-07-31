@@ -14,7 +14,7 @@ Item {
 
     visible: false
 
-    property bool previewing: context.item?.visible // TODO: use loader.active
+    property bool previewing: context.item?.visible ?? false // TODO: use loader.active
 
     property var target
     property var pos

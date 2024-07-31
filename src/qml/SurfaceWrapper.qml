@@ -133,7 +133,7 @@ SurfaceItemFactory {
         ]
     }
 
-    property var store: {}
+    property var store: ({})
     property int storeNormalWidth: undefined
     property bool isRestoring: false
     property bool aboutToRestore: false
@@ -154,7 +154,7 @@ SurfaceItemFactory {
             saveState()
     }
     onStoreChanged: {
-        storeNormalWidth = store.normal.width
+        storeNormalWidth = store.normal?.width ?? 0
     }
     Component.onCompleted: {
         saveState() // save initial state
@@ -193,7 +193,7 @@ SurfaceItemFactory {
 
             if (outputCounter == 0 && helper.mapped) {
                 const pos = QmlHelper.winposManager.nextPos(wSurface.appId, surfaceItem.parent, surfaceItem)
-                surfaceItem.move(pos)
+                move(pos)
             }
         }
     }
