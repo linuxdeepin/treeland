@@ -26,6 +26,10 @@ public:
 
     VirtualOutputManagerAttached(WOutputViewport *outputviewport, VirtualOutputV1 *virtualOutput);
 
+    void removeItem(WOutputViewport *viewport);
+    void addItem(WOutputViewport *viewport, WOutputViewport *backviewport);
+    void copyScreen(QStringList outputList);
+
 Q_SIGNALS:
 
     void outputViewportChanged();
