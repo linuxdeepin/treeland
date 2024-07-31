@@ -123,9 +123,8 @@ public:
         return m_texture ? m_texture->buffer : nullptr;
     }
 
-    void setBuffer(qw_buffer *buffer, const pixman_region32_t *damage = nullptr) {
+    void setBuffer(qw_buffer *buffer) {
         if (buffer && buffer == qwBuffer()) {
-            m_texture->qwtexture->update_from_buffer(*buffer, damage);
             Q_EMIT textureChanged();
             return;
         }
@@ -676,7 +675,7 @@ void WBufferRenderer::render(int sourceIndex, const QMatrix4x4 &renderMatrix,
     }
 
     if (shouldCacheBuffer())
-        m_textureProvider->setBuffer(state.buffer, &m_damageRing.handle()->current);
+        m_textureProvider->setBuffer(state.buffer);
 }
 
 void WBufferRenderer::endRender()
