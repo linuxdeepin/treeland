@@ -704,11 +704,11 @@ QSGRendererInterface::GraphicsApi WRenderHelper::probe(qw_backend *testBackend, 
                 auto *format = &formats->formats[formatId];
 
                 std::unique_ptr<qw_swapchain> swapchain(qw_swapchain::create(*alloc.get(), 1000, 800, format));
-                std::unique_ptr<qw_buffer, qw_buffer::unlocker> buffer(qw_buffer::from(swapchain->acquire(nullptr)));
-
-                if (!buffer) {
+                auto wbuffer = swapchain->acquire(nullptr);
+                if (!wbuffer) {
                     continue;
                 } else {
+                    std::unique_ptr<qw_buffer, qw_buffer::unlocker> buffer(qw_buffer::from(wbuffer));
                     std::unique_ptr<qw_texture> texture { qw_texture::from_buffer(*renderer.get(), *buffer.get()) };
                     if (!texture)
                         continue;
