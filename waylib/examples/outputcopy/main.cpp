@@ -76,6 +76,9 @@ void Helper::initProtocols(QQmlEngine *qmlEngine)
                 {"layout", QVariant::fromValue(m_outputLayout)},
             });
             m_primaryOutput = qobject_cast<WOutputItem*>(obj);
+            // ensure following this to destroy, because QQuickItem::setParentItem
+            // is not auto add the child item to QObject's children.
+            m_primaryOutput->setParent(this);
             Q_ASSERT(m_primaryOutput);
 
             m_primaryOutputViewport = m_primaryOutput->findChild<WOutputViewport*>({}, Qt::FindDirectChildrenOnly);
@@ -91,6 +94,9 @@ void Helper::initProtocols(QQmlEngine *qmlEngine)
                 {"targetOutputItem", QVariant::fromValue(m_primaryOutput)},
                 {"targetViewport", QVariant::fromValue(m_primaryOutputViewport.get())},
             });
+            // ensure following this to destroy, because QQuickItem::setParentItem
+            // is not auto add the child item to QObject's children.
+            obj->setParent(this);
             auto viewport = obj->findChild<WOutputViewport*>({}, Qt::FindDirectChildrenOnly);
             Q_ASSERT(viewport);
             auto textureProxy = obj->findChild<WQuickTextureProxy*>();

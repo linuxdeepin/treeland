@@ -1103,6 +1103,7 @@ void WSurfaceItemPrivate::initForDelegate()
             qFatal() << "SurfaceItem's delegate must is Item";
 
         QQmlEngine::setObjectOwnership(contentItem, QQmlEngine::CppOwnership);
+        contentItem->setParent(newContentContainer);
         contentItem->setParentItem(newContentContainer);
     }
 

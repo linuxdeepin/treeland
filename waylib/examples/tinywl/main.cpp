@@ -39,6 +39,7 @@
 #include <qwscreencopyv1.h>
 #include <qwfractionalscalemanagerv1.h>
 #include <qwgammacontorlv1.h>
+#include <qwbuffer.h>
 
 #include <QGuiApplication>
 #include <QQmlApplicationEngine>
@@ -793,27 +794,37 @@ OutputInfo* Helper::getOutputInfo(WOutput *output)
 
 int main(int argc, char *argv[]) {
     WRenderHelper::setupRendererBackend();
+    Q_ASSERT(qw_buffer::get_objects().isEmpty());
 
     qw_log::init();
     WServer::initializeQPA();
 //    QQuickStyle::setStyle("Material");
 
-    QGuiApplication::setAttribute(Qt::AA_UseOpenGLES);
-    QGuiApplication::setHighDpiScaleFactorRoundingPolicy(Qt::HighDpiScaleFactorRoundingPolicy::PassThrough);
-    QGuiApplication::setQuitOnLastWindowClosed(false);
-    QGuiApplication app(argc, argv);
+    QPointer<Helper> helper;
+    int quitCode = 0;
+    {
+        QGuiApplication::setAttribute(Qt::AA_UseOpenGLES);
+        QGuiApplication::setHighDpiScaleFactorRoundingPolicy(Qt::HighDpiScaleFactorRoundingPolicy::PassThrough);
+        QGuiApplication::setQuitOnLastWindowClosed(false);
+        QGuiApplication app(argc, argv);
 
-    QQmlApplicationEngine waylandEngine;
+        QQmlApplicationEngine waylandEngine;
 
-    waylandEngine.loadFromModule("Tinywl", "Main");
+        waylandEngine.loadFromModule("Tinywl", "Main");
 
-    auto window = waylandEngine.rootObjects().first()->findChild<WOutputRenderWindow*>();
-    Q_ASSERT(window);
+        auto window = waylandEngine.rootObjects().first()->findChild<WOutputRenderWindow*>();
+        Q_ASSERT(window);
 
-    Helper *helper = waylandEngine.singletonInstance<Helper*>("Tinywl", "Helper");
-    Q_ASSERT(helper);
+        helper = waylandEngine.singletonInstance<Helper*>("Tinywl", "Helper");
+        Q_ASSERT(helper);
 
-    helper->initProtocols(window, &waylandEngine);
+        helper->initProtocols(window, &waylandEngine);
 
-    return app.exec();
+        quitCode = app.exec();
+    }
+
+    Q_ASSERT(!helper);
+    Q_ASSERT(qw_buffer::get_objects().isEmpty());
+
+    return quitCode;
 }

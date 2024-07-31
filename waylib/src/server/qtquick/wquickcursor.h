@@ -76,6 +76,9 @@ Q_SIGNALS:
     void currentRenderWindowChanged();
     void hotSpotChanged();
 
+private Q_SLOTS:
+    void invalidateSceneGraph();
+
 private:
     void componentComplete() override;
     void itemChange(ItemChange change, const ItemChangeData &data) override;

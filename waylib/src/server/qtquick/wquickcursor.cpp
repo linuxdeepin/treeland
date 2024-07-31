@@ -39,6 +39,7 @@ public:
             return;
         }
 
+        // WImageBufferImpl destroy following qw_buffer
         auto buffer = qw_buffer::create(new WImageBufferImpl(image),
                                        image.width(), image.height());
         this->buffer.reset(buffer);
@@ -95,14 +96,7 @@ public:
         return buffer.get();
     }
 
-    struct QWBufferDeleter
-    {
-        static inline void cleanup(qw_buffer *pointer) {
-            if (pointer) pointer->drop(); }
-        void operator()(qw_buffer *pointer) const { cleanup(pointer); }
-    };
-
-    std::unique_ptr<qw_buffer, QWBufferDeleter> buffer;
+    std::unique_ptr<qw_buffer, qw_buffer::droper> buffer;
     std::unique_ptr<qw_texture> m_qwTexture;
     QSGPlainTexture m_texture;
 
@@ -453,6 +447,13 @@ QPointF WQuickCursor::hotSpot() const
     }
 
     return {};
+}
+
+void WQuickCursor::invalidateSceneGraph()
+{
+    W_D(WQuickCursor);
+    delete d->textureProvider;
+    d->textureProvider = nullptr;
 }
 
 void WQuickCursor::componentComplete()

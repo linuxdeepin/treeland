@@ -141,8 +141,11 @@ void WOutputItemPrivate::updateCursors()
             if (!item)
                 qFatal("Cursor delegate must is Item");
 
-            Q_ASSERT(item->parentItem() == q->window()->contentItem());
+            // ensure following this to destroy, because QQuickItem::setParentItem
+            // is not auto add the child item to QObject's children.
+            item->setParent(q_func());
             QQmlEngine::setObjectOwnership(item, QQmlEngine::CppOwnership);
+            Q_ASSERT(item->parentItem() == q->window()->contentItem());
             item->setZ(qreal(WOutputLayout::Layer::Cursor));
             cursorsChanged = true;
         }
