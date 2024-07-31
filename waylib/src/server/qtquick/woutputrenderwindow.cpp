@@ -487,13 +487,10 @@ OutputHelper::LayerData *OutputHelper::getLayer(OutputLayer *layer) const
 bool OutputHelper::attachLayer(OutputLayer *layer)
 {
     Q_ASSERT(indexOfLayer(layer) < 0);
+    // qw_output will destory this layer on qw_output destroy
     auto qwlayer = qw_output_layer::create(*qwoutput());
     if (!qwlayer)
         return false;
-    // qw_output will destory this layer on qw_output destroy,
-    // but the wlr_output_layer does has a destroy wl_signal, so needs
-    // ensure this qw_output_layer before wlr_output to destroy.
-    qwlayer->setParent(qwoutput());
 
     m_layers.append(new LayerData(layer, qwlayer));
     connect(layer->layer, &WOutputLayer::zChanged, this, &OutputHelper::sortLayers);
