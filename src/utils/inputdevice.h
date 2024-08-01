@@ -20,9 +20,8 @@ struct SwipeFeedBack
 {
     SwipeGesture::Direction direction;
     uint fingerCount;
-
+    std::function<void()> actionCallback;
     std::function<void(qreal)> progressCallback;
-    std::function<void(void)> actionCallback;
 };
 
 class InputDevice : public QObject

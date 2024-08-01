@@ -83,6 +83,7 @@ Helper::Helper(WServer *server)
     , m_outputLayout(new WQuickOutputLayout(this))
     , m_cursor(new WCursor(this))
     , m_seat(new WSeat())
+    , m_multiTaskViewGesture(new TogglableGesture(this))
     , m_outputCreator(new WQmlCreator(this))
     , m_surfaceCreator(new WQmlCreator(this))
 {
@@ -333,32 +334,25 @@ void Helper::initProtocols(WOutputRenderWindow *window)
         m_seat->attachInputDevice(device);
         if (InputDevice::instance()->initTouchPad(device)) {
             InputDevice::instance()->registerTouchpadSwipe(
-                SwipeFeedBack { SwipeGesture::Up, 3, nullptr,
-                            [this](){
-                                if (activatedSurface() && !activatedSurface()->isMaximized())
-                                    activatedSurface()->requestMaximize();
-                            }});
+                SwipeFeedBack {SwipeGesture::Up, 3,
+                               [this](){
+                                   if (activatedSurface() && !activatedSurface()->isMaximized())
+                                      activatedSurface()->requestMaximize();
+                               },
+                               nullptr
+                });
 
             InputDevice::instance()->registerTouchpadSwipe(
-                SwipeFeedBack { SwipeGesture::Down, 3, nullptr,
-                            [this](){
-                                if (activatedSurface() && activatedSurface()->isMaximized())
-                                    activatedSurface()->requestCancelMaximize();
-                            }});
+                SwipeFeedBack {SwipeGesture::Up, 3,
+                               [this](){
+                                   if (activatedSurface() && activatedSurface()->isMaximized())
+                                       activatedSurface()->requestCancelMaximize();
+                               },
+                               nullptr
+                });
 
-            InputDevice::instance()->registerTouchpadSwipe(
-                SwipeFeedBack { SwipeGesture::Up, 4, nullptr,
-                            [this](){
-                                if (activatedSurface())
-                                    activatedSurface()->requestMaximize();
-                            }});
-
-            InputDevice::instance()->registerTouchpadSwipe(
-                SwipeFeedBack { SwipeGesture::Up, 4, nullptr,
-                            [this](){
-                                if (activatedSurface())
-                                    activatedSurface()->requestMaximize();
-                            }});
+            if (m_multiTaskViewGesture)
+                m_multiTaskViewGesture->addTouchpadSwipeGesture(SwipeGesture::Down, 4);
         }
     });
 
@@ -385,6 +379,11 @@ WSeat *Helper::seat() const
 qw_compositor *Helper::compositor() const
 {
     return m_compositor;
+}
+
+TogglableGesture *Helper::multiTaskViewGesture() const
+{
+    return m_multiTaskViewGesture;
 }
 
 WCursor *Helper::cursor() const
