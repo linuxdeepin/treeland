@@ -1252,8 +1252,7 @@ void WSurfaceItemPrivate::resizeSurfaceToItemSize(const QSize &itemSize, const Q
 
 void WSurfaceItemPrivate::updateEventItem(bool forceDestroy)
 {
-    auto contentItem = getItemContent();
-    const bool needsEventItem = contentItem && !forceDestroy
+    const bool needsEventItem = contentContainer && !forceDestroy
                                 && !surfaceFlags.testFlag(WSurfaceItem::RejectEvent);
     if (bool(eventItem) == needsEventItem)
         return;
