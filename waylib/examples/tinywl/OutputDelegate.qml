@@ -50,7 +50,6 @@ OutputItem {
             parent: cursorItem.parent
             z: cursorItem.z - 1
             flags: SurfaceItem.DontCacheLastBuffer
-            visible: surface !== null
             surface: cursorItem.cursor.requestedDragSurface
             x: cursorItem.position.x
             y: cursorItem.position.y

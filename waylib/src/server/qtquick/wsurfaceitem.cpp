@@ -151,8 +151,8 @@ public:
     void cleanTextureProvider();
 
     void invalidate() {
+        W_Q(WSurfaceItemContent);
         if (surface) {
-            W_Q(WSurfaceItemContent);
             surface->safeDisconnect(q);
             if (textureProvider) {
                 surface->safeDisconnect(textureProvider);
@@ -165,8 +165,10 @@ public:
 
         Q_ASSERT(!updateTextureConnection);
 
-        if (dontCacheLastBuffer)
+        if (dontCacheLastBuffer) {
             cleanTextureProvider();
+            q->update();
+        }
     }
 
     void init() {
