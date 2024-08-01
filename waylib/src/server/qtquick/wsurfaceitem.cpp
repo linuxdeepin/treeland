@@ -744,7 +744,9 @@ void WSurfaceItem::setDelegate(QQmlComponent *newDelegate)
     if (d->delegate == newDelegate)
         return;
     d->delegate = newDelegate;
-    d->initForDelegate();
+    d->delegateIsDirty = true;
+    if (d->componentComplete)
+        d->initForDelegate();
 
     for (auto sub : std::as_const(d->subsurfaces))
         sub->setDelegate(newDelegate);
@@ -1074,9 +1076,12 @@ void WSurfaceItemPrivate::initForDelegate()
     std::unique_ptr<QQuickItem> newContentContainer;
 
     if (!delegate) {
-        if (getItemContent())
+        if (getItemContent()) {
+            Q_ASSERT(!delegateIsDirty);
             return;
+        }
 
+        delegateIsDirty = false;
         auto contentItem = new WSurfaceItemContent(q);
         if (surface)
             contentItem->setSurface(surface);
@@ -1084,7 +1089,7 @@ void WSurfaceItemPrivate::initForDelegate()
         contentItem->setSmooth(q->smooth());
         QObject::connect(q, &WSurfaceItem::smoothChanged, contentItem, &WSurfaceItemContent::setSmooth);
         newContentContainer.reset(contentItem);
-    } else {
+    } else if (delegateIsDirty) {
         auto obj = delegate->createWithInitialProperties({{"surface", QVariant::fromValue(q)}}, qmlContext(q));
         if (!obj) {
             qWarning() << "Failed on create surface item from delegate, error mssage:"
@@ -1092,6 +1097,7 @@ void WSurfaceItemPrivate::initForDelegate()
             return;
         }
 
+        delegateIsDirty = false;
         auto contentItem = qobject_cast<QQuickItem*>(obj);
         if (!contentItem)
             qFatal() << "SurfaceItem's delegate must is Item";

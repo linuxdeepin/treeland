@@ -65,6 +65,7 @@ public:
     std::unique_ptr<SurfaceState> surfaceState;
     QQuickItem *contentContainer = nullptr;
     QQmlComponent *delegate = nullptr;
+    bool delegateIsDirty = false;
     QQuickItem *eventItem = nullptr;
     WSurfaceItem::ResizeMode resizeMode = WSurfaceItem::SizeFromSurface;
     WSurfaceItem::Flags surfaceFlags;
