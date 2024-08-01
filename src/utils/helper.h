@@ -4,6 +4,7 @@
 #pragma once
 
 #include "wglobal.h"
+#include "togglablegesture.h"
 
 #include <WCursor>
 #include <WLayerSurface>
@@ -69,6 +70,7 @@ class Helper : public WSeatEventFilter
     Q_PROPERTY(WXdgDecorationManager *xdgDecorationManager READ xdgDecorationManager NOTIFY xdgDecorationManagerChanged)
     Q_PROPERTY(WQmlCreator* outputCreator READ outputCreator CONSTANT)
     Q_PROPERTY(WQmlCreator* surfaceCreator READ surfaceCreator CONSTANT)
+    Q_PROPERTY(TogglableGesture* multiTaskViewGesture READ multiTaskViewGesture CONSTANT)
 
     // TODO: move to workspace
     Q_PROPERTY(int currentWorkspaceId READ currentWorkspaceId WRITE setCurrentWorkspaceId NOTIFY currentWorkspaceIdChanged FINAL)
@@ -100,6 +102,7 @@ public:
     WQuickOutputLayout *outputLayout() const;
     WSeat *seat() const;
     qw_compositor *compositor() const;
+    TogglableGesture* multiTaskViewGesture() const;
 
     WCursor *cursor() const;
 
@@ -208,7 +211,8 @@ protected:
     qw_compositor *m_compositor = nullptr;
     WQuickOutputLayout *m_outputLayout = nullptr;
     WCursor *m_cursor = nullptr;
-    QPointer<WSeat> m_seat;
+    QPointer<WSeat> m_seat = nullptr;
+    TogglableGesture *m_multiTaskViewGesture = nullptr;
 
     WXdgDecorationManager *m_xdgDecorationManager;
 
