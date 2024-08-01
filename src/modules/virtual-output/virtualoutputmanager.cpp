@@ -41,6 +41,10 @@ VirtualOutputManagerAttached::VirtualOutputManagerAttached(
             &VirtualOutputV1::destroyVirtualOutput,
             this,
             [this](QString name, QStringList outputList) {
+                if (m_viewport->output()->name() == outputList.at(0)) {
+                    m_viewport->setCacheBuffer(false);
+                }
+
                 if (outputList.contains(m_backviewport->output()->name()) && m_backviewport->output()->name() != outputList.at(0)) {
                     m_viewport->output()->setForceSoftwareCursor(false);
                     addItem(m_viewport, m_backviewport);
@@ -93,6 +97,8 @@ void VirtualOutputManagerAttached::copyScreen(QStringList outputList)
 {
     for (auto *outputviewport : m_virtualoutput->m_viewports_list) {
         if (outputviewport->output()->name() == outputList.at(0)) {
+            outputviewport->setCacheBuffer(true);
+
             //TODO: Replication mode Enable the soft cursor and wait for the hard cursor to be reconstructed
             outputviewport->output()->setForceSoftwareCursor(true);
 
