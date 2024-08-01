@@ -14,6 +14,7 @@ qt_add_qml_module(utils
         wallpapermanager.cpp
         wallpapercontroller.cpp
         gestures.cpp
+        togglablegesture.cpp
     RESOURCE_PREFIX
         /qt/qml
     OUTPUT_DIRECTORY
@@ -30,6 +31,7 @@ FILES
     wallpapermanager.h
     wallpapercontroller.h
     gestures.h
+    togglablegesture.h
 )
 
 target_compile_definitions(utils
