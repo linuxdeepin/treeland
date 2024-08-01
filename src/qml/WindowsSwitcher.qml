@@ -20,6 +20,7 @@ ColumnLayout {
     property bool enableShadows: GraphicsInfo.api !== GraphicsInfo.Software
     property bool enableRadius: true
     property bool enableAnimation: GraphicsInfo.api !== GraphicsInfo.Software
+    property bool stopWork: true
     readonly property int leftpreferredMargin: 20
     readonly property int rightpreferredMargin: 20
     readonly property real radius: enableRadius ? 18 : 0
@@ -33,8 +34,9 @@ ColumnLayout {
             root.model = workspaceManager.workspacesById.get(workspaceManager.layoutOrder.get(currentWorkspaceId).wsid).surfaces
             root.showAllSurface = false
             previewReductionAni.stop()
-            context.sourceComponent = undefined
-            switchView.currentIndex = 0
+            preContext.sourceComponent = undefined
+            currentContext.sourceComponent = undefined
+            currentContext.loaderStatus = 0
 
             if (!switchView.model)
                 return
@@ -43,24 +45,28 @@ ColumnLayout {
             if (!surfaceItem)
                 return
 
-            context.sourceSueface = surfaceItem
-            ensurePreView()
+            preContext.sourceSueface = null
+            currentContext.sourceSueface = surfaceItem
+            switchView.currentIndex = 0
+            root.stopWork = false
         }
     }
 
     function ensurePreView() {
-        if (context.sourceComponent && root.enableAnimation) {
-            previewSwitchAni.stop()
-            previewSwitchAni.isShowAni = false
-            previewSwitchAni.start()
-        }
-
-        context.sourceComponent = previewComponent
+        if (!preContext.sourceComponent && root.enableAnimation)
+            preContext.sourceComponent = preContext.previewComponent
 
         if (root.enableAnimation) {
-            previewSwitchAni.stop()
-            previewSwitchAni.isShowAni = true
-            previewSwitchAni.start()
+            preContext.loaderStatus = 1
+            preContext.loaderStatus = 0
+        }
+
+        if (!currentContext.sourceComponent)
+            currentContext.sourceComponent = currentContext.previewComponent
+
+        if (root.enableAnimation) {
+            currentContext.loaderStatus = 0
+            currentContext.loaderStatus = 1
         }
     }
 
@@ -97,7 +103,7 @@ ColumnLayout {
         if (!root.visible)
             return
 
-        if (context.sourceComponent) {
+        if (currentContext.sourceComponent) {
             if (root.enableAnimation) {
                 switchViewContentAni.stop()
                 switchViewContentAni.isInAni = false
@@ -105,15 +111,17 @@ ColumnLayout {
             }
 
             if (root.enableAnimation) {
-                context.item.transformOrigin = Item.TopLeft
-                previewReductionAni.target = context.item
-                previewReductionAni.scaleTo = context.sourceSueface.width / context.width
-                context.item.scale = 1.0
-                context.item.x = 0
-                context.item.y = 0
+                root.stopWork = true
+                preContext.sourceComponent = undefined
+                currentContext.item.transformOrigin = Item.TopLeft
+                previewReductionAni.target = currentContext.item
+                previewReductionAni.scaleTo = currentContext.sourceSueface.width / currentContext.width
+                currentContext.item.scale = 1.0
+                currentContext.item.x = 0
+                currentContext.item.y = 0
                 previewReductionAni.xFrom = 0
                 previewReductionAni.yFrom = 0
-                var point = context.item.mapFromItem(root.model.get(switchView.currentIndex).item, 0, 0)
+                var point = currentContext.item.mapFromItem(root.model.get(switchView.currentIndex).item, 0, 0)
                 previewReductionAni.xTo = point.x
                 previewReductionAni.yTo = point.y
                 previewReductionAni.start()
@@ -132,67 +140,19 @@ ColumnLayout {
         Layout.leftMargin: leftpreferredMargin
         Layout.rightMargin: rightpreferredMargin
 
-        Loader {
-            id: context
-
-            readonly property real hSpacing: 20
-            readonly property real vSpacing: 20
-            property SurfaceItem sourceSueface
-            property real preferredHeight: sourceSueface.height < (parent.height - 2 * vSpacing) ?
-                                               sourceSueface.height : (parent.height - 2 * vSpacing)
-            property real preferredWidth: sourceSueface.width < (parent.width - 2 * hSpacing) ?
-                                              sourceSueface.width : (parent.width - 2 * hSpacing)
-            property bool refHeight: preferredHeight *  sourceSueface.width / sourceSueface.height < (parent.width - 2 * hSpacing)
+        WindowPreviewLoader {
+            id: preContext
 
             anchors.centerIn: parent
-            height: refHeight ? preferredHeight : preferredWidth * sourceSueface.height / sourceSueface.width
-            width: refHeight ? preferredHeight * sourceSueface.width / sourceSueface.height : preferredWidth
             sourceComponent: undefined
+            onClicked: handleExit()
         }
 
-        Component {
-            id: previewComponent
+        WindowPreviewLoader {
+            id: currentContext
 
-            ShaderEffectSource {
-                sourceItem: sourceSueface
-                transformOrigin: Item.Center
-
-                MouseArea {
-                    anchors.fill: parent
-                    acceptedButtons: Qt.LeftButton
-                    onClicked: function(mouse) {
-                        handleExit()
-                    }
-                }
-
-                TapHandler {
-                    acceptedButtons: Qt.NoButton
-                    acceptedDevices: PointerDevice.TouchScreen
-                    onDoubleTapped: function(eventPoint, button) {
-                        handleExit()
-                    }
-                }
-            }
-        }
-
-        ParallelAnimation {
-            id: previewSwitchAni
-
-            property bool isShowAni: true
-
-            ScaleAnimator {
-                target: context.item;
-                from: previewSwitchAni.isShowAni ? 0.5 : 1.0;
-                to: previewSwitchAni.isShowAni ? 1.0 : 0.5;
-            }
-
-            OpacityAnimator {
-                target: context.item;
-                from: previewSwitchAni.isShowAni ? 0.0 : 1.0;
-                to: previewSwitchAni.isShowAni ? 1.0 : 0.0;
-            }
-
-            onFinished: context.item.scale = 1.0
+            anchors.centerIn: parent
+            sourceComponent: undefined
         }
 
         ParallelAnimation {
@@ -211,6 +171,7 @@ ColumnLayout {
                 from: 1.0;
                 to: previewReductionAni.scaleTo
                 duration: previewReductionAni.duration
+                easing.type: Easing.OutExpo
             }
 
             XAnimator {
@@ -218,6 +179,7 @@ ColumnLayout {
                 from: previewReductionAni.xFrom
                 to: previewReductionAni.xTo
                 duration: previewReductionAni.duration
+                easing.type: Easing.OutExpo
             }
 
             YAnimator {
@@ -225,6 +187,7 @@ ColumnLayout {
                 from: previewReductionAni.yFrom
                 to: previewReductionAni.yTo
                 duration: previewReductionAni.duration
+                easing.type: Easing.OutExpo
             }
 
             onFinished:  {
@@ -354,16 +317,38 @@ ColumnLayout {
             currentIndex: 0
 
             onCurrentIndexChanged: {
+                if (root.stopWork)
+                    return
+
                 switchView.positionViewAtIndex(currentIndex, ListView.Center)
 
                 if (!switchView.model)
                     return
 
+                if (currentIndex > 0) {
+                    var preInidex
+
+                    if (switchView.count === 1) {
+                        preInidex = -1;
+                    } else if (switchView.currentIndex === 0) {
+                        preInidex = switchView.count - 1;
+                    } else {
+                        preInidex = currentIndex - 1
+                    }
+
+                    if (preInidex > -1) {
+                        const preSurfaceItem = switchView.model.get(preInidex).item
+                        if (preSurfaceItem) {
+                            preContext.sourceSueface = preSurfaceItem
+                        }
+                    }
+                }
+
                 const surfaceItem = switchView.model.get(currentIndex).item
                 if (!surfaceItem)
                     return
 
-                context.sourceSueface = surfaceItem
+                currentContext.sourceSueface = surfaceItem
                 ensurePreView()
             }
         }
@@ -391,7 +376,7 @@ ColumnLayout {
             from: switchViewContentAni.isInAni ? switchViewContentAni.toY : switchViewContentAni.fromeY
             to: switchViewContentAni.isInAni ? switchViewContentAni.fromeY : switchViewContentAni.toY
             duration: switchViewContentAni.duration
-            running: true
+            easing.type: Easing.OutExpo
         }
 
         OpacityAnimator {
@@ -399,6 +384,7 @@ ColumnLayout {
             from: switchViewContentAni.isInAni ? 0.0 : 1.0
             to: switchViewContentAni.isInAni ? 1.0 : 0.0
             duration: switchViewContentAni.duration
+            easing.type: Easing.OutExpo
         }
 
         onStopped: switchViewContent.y = switchViewContentAni.fromeY
