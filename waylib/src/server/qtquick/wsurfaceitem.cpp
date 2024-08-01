@@ -1264,11 +1264,10 @@ void WSurfaceItemPrivate::updateEventItem(bool forceDestroy)
         return;
 
     if (auto eventItemTmp = eventItem) {
-        // set evItem's parentItem to null will invoke clearFocusInScope then focusIn surfaceItem
-        // first clear eventItem to avoid forceActiveFocus on eventItem again
+        // maybe trigger QQuickDeliveryAgentPrivate::clearFocusInScope in later,
+        // first clear eventItem=nullptr to avoid forceActiveFocus on eventItem again.
         this->eventItem = nullptr;
         eventItemTmp->setVisible(false);
-        eventItemTmp->setParentItem(nullptr);
         eventItemTmp->setParent(nullptr);
         eventItemTmp->deleteLater();
     } else {
