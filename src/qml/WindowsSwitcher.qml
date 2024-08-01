@@ -30,6 +30,7 @@ ColumnLayout {
 
     onVisibleChanged: {
         if (visible) {
+            root.model = workspaceManager.workspacesById.get(workspaceManager.layoutOrder.get(currentWorkspaceId).wsid).surfaces
             root.showAllSurface = false
             previewReductionAni.stop()
             context.sourceComponent = undefined
