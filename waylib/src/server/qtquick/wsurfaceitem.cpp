@@ -1069,7 +1069,7 @@ void WSurfaceItemPrivate::initForDelegate()
 {
     Q_Q(WSurfaceItem);
 
-    QQuickItem *newContentContainer = nullptr;
+    std::unique_ptr<QQuickItem> newContentContainer;
 
     if (!delegate) {
         if (getItemContent())
@@ -1081,14 +1081,8 @@ void WSurfaceItemPrivate::initForDelegate()
         contentItem->setCacheLastBuffer(!surfaceFlags.testFlag(WSurfaceItem::DontCacheLastBuffer));
         contentItem->setSmooth(q->smooth());
         QObject::connect(q, &WSurfaceItem::smoothChanged, contentItem, &WSurfaceItemContent::setSmooth);
-        newContentContainer = contentItem;
+        newContentContainer.reset(contentItem);
     } else {
-        if (!contentContainer || getItemContent()) {
-            newContentContainer = new QQuickItem(q);
-        } else {
-            newContentContainer = contentContainer;
-        }
-
         auto obj = delegate->createWithInitialProperties({{"surface", QVariant::fromValue(q)}}, qmlContext(q));
         if (!obj) {
             qWarning() << "Failed on create surface item from delegate, error mssage:"
@@ -1100,12 +1094,13 @@ void WSurfaceItemPrivate::initForDelegate()
         if (!contentItem)
             qFatal() << "SurfaceItem's delegate must is Item";
 
+        newContentContainer.reset(new QQuickItem(q));
         QQmlEngine::setObjectOwnership(contentItem, QQmlEngine::CppOwnership);
-        contentItem->setParent(newContentContainer);
-        contentItem->setParentItem(newContentContainer);
+        contentItem->setParent(newContentContainer.get());
+        contentItem->setParentItem(newContentContainer.get());
     }
 
-    if (newContentContainer == contentContainer)
+    if (!newContentContainer)
         return;
 
     newContentContainer->setZ(qreal(WSurfaceItem::ZOrder::ContentItem));
@@ -1119,7 +1114,7 @@ void WSurfaceItemPrivate::initForDelegate()
         contentContainer->disconnect(q);
         contentContainer->deleteLater();
     }
-    contentContainer = newContentContainer;
+    contentContainer = newContentContainer.release();
     updateEventItem(false);
     if (eventItem)
         updateEventItemGeometry();
