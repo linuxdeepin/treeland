@@ -141,7 +141,9 @@ public:
     inline WSGTextureProvider *tp() const {
         if (!textureProvider) {
             Q_ASSERT(surface);
+            Q_ASSERT(window);
             textureProvider = new WSGTextureProvider(const_cast<WSurfaceItemContent*>(q_func()));
+            Q_ASSERT(!updateTextureConnection);
             updateTextureConnection = surface->safeConnect(&WSurface::bufferChanged,
                                                            textureProvider,
                                                            &WSGTextureProvider::updateTexture);
@@ -422,7 +424,7 @@ void WSurfaceItemContent::itemChange(ItemChange change, const ItemChangeData &da
     W_D(WSurfaceItemContent);
     if (change == QQuickItem::ItemSceneChange) {
         d->updateFrameDoneConnection();
-        if (data.window) {
+        if (data.window && d->surface) {
             d->tp()->updateTexture();
         }
     }
@@ -1357,6 +1359,7 @@ void WSurfaceItemContentPrivate::cleanTextureProvider()
         // Delay clean the textures on the next render after.
         window->scheduleRenderJob(new WSurfaceItemContentCleanupJob(textureProvider),
                                   QQuickWindow::AfterRenderingStage);
+        QObject::disconnect(updateTextureConnection);
         textureProvider->item = nullptr;
         textureProvider = nullptr;
     }
