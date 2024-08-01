@@ -225,35 +225,35 @@ Item {
                                     hideSource: true
                                 }
 
-                                // D.RoundButton {
-                                //     id: wsDestroyBtn
-                                //     icon.name: "close"
-                                //     icon.width: 26
-                                //     icon.height: 26
-                                //     height: 26
-                                //     width: height
-                                //     visible: (workspaceManager.layoutOrder.count > 1)
-                                //         && (hvrhdlr.hovered || hovered)
-                                //     anchors {
-                                //         top: parent.top
-                                //         right: parent.right
-                                //         topMargin: -8
-                                //         rightMargin: -8
-                                //     }
-                                //     Item {
-                                //         id: control
-                                //         property D.Palette textColor: DS.Style.button.text
-                                //     }
-                                //     textColor: control.textColor
-                                //     background: Rectangle {
-                                //         anchors.fill: parent
-                                //         color: "transparent"
-                                //     }
-                                //     onClicked: {
-                                //         workspaceManager.destroyWs(parent.index)
-                                //         root.model = QmlHelper.workspaceManager.workspacesById.get(QmlHelper.workspaceManager.layoutOrder.get(currentWorkspaceId).wsid).surfaces
-                                //     }
-                                // }
+                                D.RoundButton {
+                                    id: wsDestroyBtn
+                                    icon.name: "close"
+                                    icon.width: 26
+                                    icon.height: 26
+                                    height: 26
+                                    width: height
+                                    visible: false /*(workspaceManager.layoutOrder.count > 1)
+                                        && (hvrhdlr.hovered || hovered)*/ // FIXME: Fix destroy and add workspace logic
+                                    anchors {
+                                        top: parent.top
+                                        right: parent.right
+                                        topMargin: -8
+                                        rightMargin: -8
+                                    }
+                                    Item {
+                                        id: control
+                                        property D.Palette textColor: DS.Style.button.text
+                                    }
+                                    textColor: control.textColor
+                                    background: Rectangle {
+                                        anchors.fill: parent
+                                        color: "transparent"
+                                    }
+                                    onClicked: {
+                                        workspaceManager.destroyWs(parent.index)
+                                        root.model = QmlHelper.workspaceManager.workspacesById.get(QmlHelper.workspaceManager.layoutOrder.get(currentWorkspaceId).wsid).surfaces
+                                    }
+                                }
                             }
                         }
                     }
@@ -310,27 +310,28 @@ Item {
                                 }
                             }
                         }
-                        // D.RoundButton {
-                        //     id: wsCreateBtn
-                        //     anchors {
-                        //         right: parent.right
-                        //         verticalCenter: parent.verticalCenter
-                        //         margins: 20
-                        //     }
-                        //     height: 80
-                        //     width: 80
-                        //     icon.name: "list_add"
-                        //     icon.height: height
-                        //     icon.width: width
-                        //     background: Rectangle {
-                        //         color: Qt.rgba(255, 255, 255, .4)
-                        //         anchors.fill: parent
-                        //         radius: 20
-                        //     }
-                        //     onClicked: {
-                        //         workspaceManager.createWs()
-                        //     }
-                        // }
+                        D.RoundButton {
+                            id: wsCreateBtn
+                            visible: false // FIXME: Remove this line once adding and removement is ready
+                            anchors {
+                                right: parent.right
+                                verticalCenter: parent.verticalCenter
+                                margins: 20
+                            }
+                            height: 80
+                            width: 80
+                            icon.name: "list_add"
+                            icon.height: height
+                            icon.width: width
+                            background: Rectangle {
+                                color: Qt.rgba(255, 255, 255, .4)
+                                anchors.fill: parent
+                                radius: 20
+                            }
+                            onClicked: {
+                                workspaceManager.createWs()
+                            }
+                        }
                     }
                     Item {
                         y: outputPlacementItem.height * .2
