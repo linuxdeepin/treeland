@@ -30,8 +30,7 @@ WSurfacePrivate::WSurfacePrivate(WSurface *qq, qw_surface *handle)
 
 WSurfacePrivate::~WSurfacePrivate()
 {
-    if (buffer)
-        buffer->unlock();
+
 }
 
 wl_client *WSurfacePrivate::waylandClient() const
@@ -127,7 +126,6 @@ void WSurfacePrivate::setBuffer(qw_buffer *newBuffer)
             Q_ASSERT(clientBuffer->handle()->n_ignore_locks > 0);
             clientBuffer->handle()->n_ignore_locks--;
         }
-        buffer->unlock();
     }
 
     if (newBuffer) {
@@ -136,9 +134,9 @@ void WSurfacePrivate::setBuffer(qw_buffer *newBuffer)
         }
 
         newBuffer->lock();
-        buffer = newBuffer;
+        buffer.reset(newBuffer);
     } else {
-        buffer = nullptr;
+        buffer.reset(nullptr);
     }
 
     Q_EMIT q_func()->bufferChanged();
@@ -293,7 +291,7 @@ QPoint WSurface::bufferOffset() const
 qw_buffer *WSurface::buffer() const
 {
     W_DC(WSurface);
-    return d->buffer;
+    return d->buffer.get();
 }
 
 void WSurface::notifyFrameDone()

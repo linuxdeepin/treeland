@@ -48,7 +48,7 @@ public:
 private:
     void doUpdateTexture();
     WSurfaceItemContent *item;
-    qw_buffer *buffer = nullptr;
+    std::unique_ptr<qw_buffer, qw_buffer::unlocker> buffer;
     std::unique_ptr<qw_texture> qwtexture;
     std::unique_ptr<WTexture> dwtexture;
     bool textureDirty = false;
@@ -445,9 +445,7 @@ WSGTextureProvider::WSGTextureProvider(WSurfaceItemContent *item)
 
 WSGTextureProvider::~WSGTextureProvider()
 {
-    if (buffer)
-        buffer->unlock();
-    buffer = nullptr;
+
 }
 
 QSGTexture *WSGTextureProvider::texture() const
@@ -467,7 +465,7 @@ qw_texture *WSGTextureProvider::qwTexture() const
 
 qw_buffer *WSGTextureProvider::qwBuffer() const
 {
-    return buffer;
+    return buffer.get();
 }
 
 void WSGTextureProvider::updateTexture()
@@ -484,9 +482,7 @@ void WSGTextureProvider::doUpdateTexture()
     if (qwtexture)
         qwtexture.reset();
 
-    if (buffer)
-        buffer->unlock();
-    buffer = item->d_func()->surface->buffer();
+    buffer.reset(item->d_func()->surface->buffer());
     // lock buffer to ensure the WSurfaceItem can keep the last frame after WSurface destroyed.
     if (buffer)
         buffer->lock();

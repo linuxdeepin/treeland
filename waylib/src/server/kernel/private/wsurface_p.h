@@ -56,7 +56,7 @@ public:
     uint32_t preferredBufferScale = 1;
     uint32_t explicitPreferredBufferScale = 0;
 
-    QW_NAMESPACE::qw_buffer *buffer = nullptr;
+    std::unique_ptr<QW_NAMESPACE::qw_buffer, QW_NAMESPACE::qw_buffer::unlocker> buffer;
     QVector<WOutput*> outputs;
     WOutput *primaryOutput = nullptr;
     QMetaObject::Connection frameDoneConnection;

@@ -130,6 +130,9 @@ void WServerPrivate::stop()
 {
     W_Q(WServer);
 
+    if (display)
+        wl_display_destroy_clients(*display);
+
     auto list = interfaceList;
     interfaceList.clear();
     auto i = list.crbegin();
@@ -140,10 +143,7 @@ void WServerPrivate::stop()
 
     sockNot.reset();
     QThread::currentThread()->eventDispatcher()->disconnect(q);
-
-    if (display) {
-        display.reset(nullptr);
-    }
+    display.reset(nullptr);
 }
 
 void WServerPrivate::initSocket(WSocket *socketServer)
