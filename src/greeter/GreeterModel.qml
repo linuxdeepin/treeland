@@ -7,8 +7,16 @@ import QtQuick
 import TreeLand.Greeter
 
 Item {
+    enum GreeterState {
+        NotReady = 0,
+        AuthSucceeded = 1,
+        AuthFailed = 2,
+        Quit = 3
+    }
+
     property alias currentUser: userModel.currentUserName
     property int currentSession
+    property var state: GreeterModel.NotRady
     readonly property UserModel userModel: userModel
     readonly property SessionModel sessionModel: sessionModel
     readonly property Proxy proxy: proxy
@@ -24,6 +32,10 @@ Item {
 
     function emitAnimationPlayFinished() {
         animationPlayFinished()
+    }
+
+    function quit() {
+        state = GreeterModel.Quit
     }
 
     Connections {
@@ -47,6 +59,28 @@ Item {
         id: proxy
         sessionModel: sessionModel
         userModel: userModel
+
+        function checkUser(userName) {
+            let user = GreeterModel.userModel.get(GreeterModel.currentUser)
+            console.log("last activate user:",user.name,"current user:",userName)
+            return user.name === userName
+        }
+
+        onLoginSucceeded: function (userName) {
+            if (!checkUser(userName)) {
+                return
+            }
+
+            state = GreeterModel.AuthSucceeded
+        }
+
+        onLoginFailed: function () {
+            if (!checkUser(userName)) {
+                return
+            }
+
+            state = GreeterModel.AuthFailed
+        }
 
         Component.onCompleted: {
             proxy.init();

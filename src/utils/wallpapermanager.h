@@ -29,10 +29,17 @@ private:
     void remove(Waylib::Server::WOutputItem *outputItem);
 
 private:
+    friend class WallpaperProxy;
+    friend class WallpaperController;
+    bool isLocked(WallpaperProxy *proxy);
+
+private:
     friend class WallpaperController;
     WallpaperProxy *get(Waylib::Server::WOutputItem *outputItem) const;
     WallpaperProxy *get(Waylib::Server::WOutput *output) const;
+    void setLock(WallpaperProxy *proxy, bool lock);
 
 private:
     QMap<Waylib::Server::WOutputItem *, WallpaperProxy *> m_proxys;
+    QList<WallpaperProxy *> m_proxyLockList;
 };

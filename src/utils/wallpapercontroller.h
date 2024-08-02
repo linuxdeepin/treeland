@@ -20,16 +20,19 @@ class WallpaperController : public QObject
     Q_PROPERTY(Waylib::Server::WOutput* output READ output WRITE setOutput NOTIFY outputChanged)
     Q_PROPERTY(Helper::WallpaperType type READ type WRITE setType NOTIFY typeChanged)
     Q_PROPERTY(WallpaperProxy* proxy READ proxy NOTIFY proxyChanged)
+    Q_PROPERTY(bool lock READ lock WRITE setLock NOTIFY lockChanged)
 
     QML_ELEMENT
 
 public:
     explicit WallpaperController(QObject *parent = nullptr);
+    ~WallpaperController() override;
 
 Q_SIGNALS:
     void typeChanged();
     void outputChanged();
     void proxyChanged();
+    void lockChanged();
 
 public:
     void setType(Helper::WallpaperType type);
@@ -40,7 +43,10 @@ public:
 
     inline Waylib::Server::WOutput *output() const { return m_output; }
 
-    WallpaperProxy *proxy();
+    WallpaperProxy *proxy() const;
+
+    void setLock(bool state);
+    bool lock() const;
 
 private:
     void updateState();
