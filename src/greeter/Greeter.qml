@@ -43,6 +43,7 @@ FocusScope {
                 case GreeterModel.AuthSucceeded: {
                     center.loginGroup.userAuthSuccessed()
                     center.loginGroup.updateHintMsg(center.loginGroup.normalHint)
+                    GreeterModel.quit()
                 }
                 break
                 case GreeterModel.AuthFailed: {
