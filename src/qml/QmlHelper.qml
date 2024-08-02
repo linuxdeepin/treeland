@@ -84,6 +84,7 @@ Item {
         signal multitaskViewToggled
         signal nextWorkspace
         signal prevWorkspace
+        signal jumpWorkspace(d: int)
         signal moveToNeighborWorkspace(d: int)
     }
     QtObject {

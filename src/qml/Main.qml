@@ -187,17 +187,40 @@ Item {
             }
         }
         Shortcut {
-            sequences: ["Alt+Right"]
+            sequences: ["Meta+Right"]
             context: Qt.ApplicationShortcut
             onActivated: {
                 QmlHelper.shortcutManager.nextWorkspace()
             }
         }
         Shortcut {
-            sequences: ["Alt+Left"]
+            sequences: ["Meta+Left"]
             context: Qt.ApplicationShortcut
             onActivated: {
                 QmlHelper.shortcutManager.prevWorkspace()
+            }
+        }
+        ListModel {
+            id: jumpWSSequences
+            ListElement {shortcut: "Meta+1"}
+            ListElement {shortcut: "Meta+2"}
+            ListElement {shortcut: "Meta+3"}
+            ListElement {shortcut: "Meta+4"}
+            ListElement {shortcut: "Meta+5"}
+            ListElement {shortcut: "Meta+6"}
+        }
+        Repeater {
+            model: jumpWSSequences
+            Item {
+                required property string shortcut
+                required property int index
+                Shortcut {
+                    sequence: shortcut
+                    context: Qt.ApplicationShortcut
+                    onActivated: {
+                        QmlHelper.shortcutManager.jumpWorkspace(index)
+                    }
+                }
             }
         }
         Shortcut {
