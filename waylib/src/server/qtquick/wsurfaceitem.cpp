@@ -140,13 +140,13 @@ public:
 
     inline WSGTextureProvider *tp() const {
         if (!textureProvider) {
-            Q_ASSERT(surface);
-            Q_ASSERT(window);
             textureProvider = new WSGTextureProvider(const_cast<WSurfaceItemContent*>(q_func()));
             Q_ASSERT(!updateTextureConnection);
-            updateTextureConnection = surface->safeConnect(&WSurface::bufferChanged,
-                                                           textureProvider,
-                                                           &WSGTextureProvider::updateTexture);
+            if (surface) {
+                updateTextureConnection = surface->safeConnect(&WSurface::bufferChanged,
+                                                               textureProvider,
+                                                               &WSGTextureProvider::updateTexture);
+            }
         }
         return textureProvider;
     }
@@ -1351,19 +1351,26 @@ bool WSurfaceItem::setShellSurface(WToplevelSurface *surface)
 void WSurfaceItemContentPrivate::cleanTextureProvider()
 {
     if (textureProvider) {
-        class Q_DECL_HIDDEN WSurfaceItemContentCleanupJob : public QRunnable
-        {
-        public:
-            WSurfaceItemContentCleanupJob(QObject *object) : m_object(object) { }
-            void run() override {
-                delete m_object;
-            }
-            QObject *m_object;
-        };
+        // needs check window, because maybe this item's window always is nullptr,
+        // so not call WSurfaceItemContent::releaseResources before destroy.
+        if (window) {
+            class Q_DECL_HIDDEN WSurfaceItemContentCleanupJob : public QRunnable
+            {
+            public:
+                WSurfaceItemContentCleanupJob(QObject *object) : m_object(object) { }
+                void run() override {
+                    delete m_object;
+                }
+                QObject *m_object;
+            };
 
-        // Delay clean the textures on the next render after.
-        window->scheduleRenderJob(new WSurfaceItemContentCleanupJob(textureProvider),
-                                  QQuickWindow::AfterRenderingStage);
+                   // Delay clean the textures on the next render after.
+            window->scheduleRenderJob(new WSurfaceItemContentCleanupJob(textureProvider),
+                                      QQuickWindow::AfterRenderingStage);
+        } else {
+            delete textureProvider;
+        }
+
         QObject::disconnect(updateTextureConnection);
         textureProvider->item = nullptr;
         textureProvider = nullptr;
