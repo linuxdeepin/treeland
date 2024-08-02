@@ -3,6 +3,7 @@
 
 import QtQuick
 import QtQuick.Controls
+import QtQuick.Effects
 import Waylib.Server
 import TreeLand
 import TreeLand.Utils
@@ -132,12 +133,57 @@ SurfaceItemFactory {
                 }
             }
         ]
+
+        delegate: Item {
+            required property SurfaceItem surface
+
+            anchors.fill: parent
+            SurfaceItemContent {
+                id: content
+                surface: parent.surface.surface
+                anchors.fill: parent
+                visible: !effectLoader.active
+            }
+
+            Loader {
+                id: effectLoader
+                active: root.cornerRadius > 0 && decoration.enable
+                anchors.fill: parent
+                // TODO: Use QSGGeometry(like as Rectangle, Qt 6.8 supports topLeftRadius)
+                // to clip texture by vertex shader.
+                MultiEffect {
+                    anchors.fill: parent
+                    source: content
+                    maskSource: ShaderEffectSource {
+                        width: content.width
+                        height: content.height
+                        samples: 4
+                        sourceItem: Item {
+                            width: content.width
+                            height: content.height
+                            Rectangle {
+                                anchors {
+                                    fill: parent
+                                    topMargin: -radius
+                                }
+                                radius: Math.min(root.cornerRadius, content.width / 2, content.height)
+                                antialiasing: true
+                            }
+                        }
+                    }
+
+                    maskEnabled: true
+                }
+            }
+        }
     }
 
     property var store: ({})
     property int storeNormalWidth: undefined
     property bool isRestoring: false
     property bool aboutToRestore: false
+    readonly property real cornerRadius: helper.isMaximize  ? 0 : 15
+
     function saveState() {
         let nw = store ?? {}
         console.debug(`store = ${store} state = {x: ${surfaceItem.x}, y: ${surfaceItem.y}, width: ${surfaceItem.width}, height: ${surfaceItem.height}}`)
@@ -207,7 +253,7 @@ SurfaceItemFactory {
         surface: wSurface
         visible: hasDecoration
         moveable: !helper.isMaximize && !helper.isFullScreen
-        radius: helper.isMaximize ? 0 : 15
+        radius: cornerRadius
     }
 
     StackToplevelHelper {
