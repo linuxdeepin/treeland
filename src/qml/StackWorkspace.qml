@@ -109,7 +109,7 @@ FocusScope {
                 property bool isCurrentWorkspace: workspaceRelativeId === currentWorkspaceId
                 workspaceId: wsid
                 workspaceRelativeId: index
-                visible: isCurrentWorkspace
+                visible: isCurrentWorkspace && !workspaceAnimation.active
                 focus: isCurrentWorkspace
                 anchors.fill: parent
                 Behavior on opacity {
@@ -542,23 +542,25 @@ FocusScope {
         }
         function onNextWorkspace() {
             const nWorkspaces = workspaceManager.layoutOrder.count
-            const nextWorkspaceId = (currentWorkspaceId + 1) % nWorkspaces
+            const nextWorkspaceId = currentWorkspaceId + 1
+            if (nextWorkspaceId >= nWorkspaces) return
             workspaceAnimation.active = true
-            workspaceAnimation.item.startAnimation(nextWorkspaceId, currentWorkspaceId, WorkspaceAnimation.Direction.Right)
+            workspaceAnimation.item.addAnimation(currentWorkspaceId, nextWorkspaceId)
             Helper.currentWorkspaceId = nextWorkspaceId
         }
         function onPrevWorkspace() {
             const nWorkspaces = workspaceManager.layoutOrder.count
-            const prevWorkspaceId = (currentWorkspaceId - 1 + nWorkspaces) % nWorkspaces
+            const prevWorkspaceId = currentWorkspaceId - 1
+            if (prevWorkspaceId < 0) return
             workspaceAnimation.active = true
-            workspaceAnimation.item.startAnimation(prevWorkspaceId, currentWorkspaceId, WorkspaceAnimation.Direction.Left)
+            workspaceAnimation.item.addAnimation(currentWorkspaceId, prevWorkspaceId)
             Helper.currentWorkspaceId = prevWorkspaceId
         }
         function onJumpWorkspace(d) {
             const nWorkspaces = workspaceManager.layoutOrder.count
             if (d >= nWorkspaces) return
             workspaceAnimation.active = true
-            workspaceAnimation.item.startAnimation(d, currentWorkspaceId, WorkspaceAnimation.Direction.Right)
+            workspaceAnimation.item.addAnimation(currentWorkspaceId, d)
             Helper.currentWorkspaceId = d
         }
         function onMoveToNeighborWorkspace(d, surface) {
