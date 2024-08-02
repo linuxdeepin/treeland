@@ -12,6 +12,11 @@ WallpaperController::WallpaperController(QObject *parent)
 {
 }
 
+WallpaperController::~WallpaperController()
+{
+    setLock(false);
+}
+
 void WallpaperController::setType(Helper::WallpaperType type)
 {
     m_type = type;
@@ -49,7 +54,7 @@ void WallpaperController::updateState()
     Q_EMIT proxyChanged();
 }
 
-WallpaperProxy *WallpaperController::proxy()
+WallpaperProxy *WallpaperController::proxy() const
 {
     if (!m_output) {
         return nullptr;
@@ -57,4 +62,16 @@ WallpaperProxy *WallpaperController::proxy()
 
     auto *manager = WallpaperManager::instance();
     return manager->get(m_output);
+}
+
+void WallpaperController::setLock(bool lock)
+{
+    auto *manager = WallpaperManager::instance();
+    manager->setLock(proxy(), lock);
+}
+
+bool WallpaperController::lock() const
+{
+    auto *manager = WallpaperManager::instance();
+    return manager->isLocked(proxy());
 }

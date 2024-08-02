@@ -41,6 +41,15 @@ void WallpaperManager::remove(Waylib::Server::WOutputItem *outputItem)
     m_proxys.remove(outputItem);
 }
 
+bool WallpaperManager::isLocked(WallpaperProxy *proxy)
+{
+    if (!proxy) {
+        return false;
+    }
+
+    return m_proxyLockList.contains(proxy);
+}
+
 WallpaperProxy *WallpaperManager::get(Waylib::Server::WOutputItem *outputItem) const
 {
     if (!outputItem) {
@@ -60,4 +69,17 @@ WallpaperProxy *WallpaperManager::get(Waylib::Server::WOutput *output) const
 
     qWarning() << "no wallpaper proxy for" << output;
     return nullptr;
+}
+
+void WallpaperManager::setLock(WallpaperProxy *proxy, bool lock)
+{
+    if (!proxy) {
+        return;
+    }
+
+    if (lock && !m_proxyLockList.contains(proxy)) {
+        m_proxyLockList.append(proxy);
+    } else if (!lock) {
+        m_proxyLockList.removeOne(proxy);
+    }
 }
