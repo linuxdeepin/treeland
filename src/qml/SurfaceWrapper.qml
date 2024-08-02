@@ -142,7 +142,6 @@ SurfaceItemFactory {
                 id: content
                 surface: parent.surface.surface
                 anchors.fill: parent
-                visible: !effectLoader.active
             }
 
             Loader {
@@ -153,7 +152,14 @@ SurfaceItemFactory {
                 // to clip texture by vertex shader.
                 MultiEffect {
                     anchors.fill: parent
-                    source: content
+                    source: ShaderEffectSource {
+                        sourceItem: content
+                        width: content.width
+                        height: content.height
+                        live: true
+                        hideSource: true
+                    }
+
                     maskSource: ShaderEffectSource {
                         width: content.width
                         height: content.height
