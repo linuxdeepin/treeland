@@ -104,6 +104,11 @@ FocusScope {
                 visible: isCurrentWorkspace
                 focus: isCurrentWorkspace
                 anchors.fill: parent
+                Behavior on opacity {
+                    PropertyAnimation {
+                        duration: 400
+                    }
+                }
                 Component.onCompleted: {
                     workspaceManager.workspacesById.set(workspaceId, this)
                 }
@@ -116,6 +121,10 @@ FocusScope {
                         if (!Helper.activatedSurface && container.visible) {
                             container.forceActiveFocus()
                         }
+                    }
+
+                    function onlockScreenChanged() {
+                        container.opacity = Helper.lockScreen ? 0 : 1
                     }
                 }
             }
