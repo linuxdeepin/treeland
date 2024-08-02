@@ -342,10 +342,12 @@ target_link_directories(${TARGET}
         $<INSTALL_INTERFACE:${CMAKE_INSTALL_LIBDIR}>
 )
 
-target_precompile_headers(${TARGET}
-    PRIVATE
-    "$<$<COMPILE_LANGUAGE:CXX>:pch/pch.hxx>"
-)
+if (WAYLIB_USE_PERCOMPILE_HEADERS)
+    target_precompile_headers(${TARGET}
+        PRIVATE
+        "$<$<COMPILE_LANGUAGE:CXX>:pch/pch.hxx>"
+    )
+endif()
 
 install(TARGETS ${TARGET}
     EXPORT

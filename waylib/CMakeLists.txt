@@ -15,6 +15,7 @@ option(DISABLE_XWAYLAND "Disable the xwayland support" OFF)
 # Don't install tinywl by default, using for debug in local
 option(INSTALL_TINYWL "A minimum viable product Wayland compositor based on waylib" OFF)
 option(ADDRESS_SANITIZER "Enable address sanitize" OFF)
+option(WAYLIB_USE_PERCOMPILE_HEADERS "Use precompile headers to build waylib" ON)
 
 set(QT_COMPONENTS Core Gui Quick)
 find_package(Qt6 COMPONENTS ${QT_COMPONENTS} REQUIRED)
