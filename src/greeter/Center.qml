@@ -17,10 +17,13 @@ FocusScope {
         id: leftAnimation
     }
 
+    property var state: LoginAnimation.Show
+
     Component {
         id: leftAnimationComponent
 
         LoginAnimation {
+            state: root.state
             onStopped: {
             }
         }
@@ -34,8 +37,11 @@ FocusScope {
         id: rightAnimationComponent
 
         LoginAnimation {
+            state: root.state
             onStopped: {
-                GreeterModel.emitAnimationPlayFinished()
+                if (state === LoginAnimation.Hide) {
+                    GreeterModel.emitAnimationPlayFinished()
+                }
             }
         }
     }
@@ -43,6 +49,8 @@ FocusScope {
     Connections {
         target: GreeterModel
         function onAnimationPlayed() {
+            root.state = LoginAnimation.Hide
+
             leftAnimation.parent = quickActions.parent
             leftAnimation.anchors.fill = quickActions
             leftAnimation.sourceComponent = leftAnimationComponent
@@ -53,6 +61,18 @@ FocusScope {
             rightAnimation.sourceComponent = rightAnimationComponent
             rightAnimation.item.start(right, {x: 0}, {x: right.width})
         }
+    }
+
+    Component.onCompleted: {
+        leftAnimation.parent = quickActions.parent
+        leftAnimation.anchors.fill = quickActions
+        leftAnimation.sourceComponent = leftAnimationComponent
+        leftAnimation.item.start(quickActions, {x: -quickActions.width},{x: quickActions.x})
+
+        rightAnimation.parent = right.parent
+        rightAnimation.anchors.fill = right
+        rightAnimation.sourceComponent = rightAnimationComponent
+        rightAnimation.item.start(right, {x: right.width}, {x: 0})
     }
 
     Item {

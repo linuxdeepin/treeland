@@ -9,6 +9,14 @@ Item {
     signal stopped
 
     visible: false
+    clip: true
+
+    enum State {
+        Show = 1,
+        Hide = 2
+    }
+
+    property var state: LoginAnimation.Show
 
     function start(target, pos, to) {
         width = target.width
@@ -31,18 +39,12 @@ Item {
         stopped()
     }
 
-    Item {
-        id: content
-
+    ShaderEffectSource {
+        id: effect
+        live: true
+        hideSource: true
         width: parent.width
         height: parent.height
-        clip: true
-
-        ShaderEffectSource {
-            id: effect
-            live: false
-            hideSource: true
-        }
     }
 
     Connections {
@@ -57,17 +59,17 @@ Item {
 
         PropertyAnimation {
             id: xAni
-            target: content
+            target: effect
             property: "x"
             duration: 800
             easing.type: Easing.OutCubic
         }
         PropertyAnimation {
-            target: content
+            target: effect
             property: "opacity"
             duration: 600
-            from: 1
-            to: 0
+            from: root.state === LoginAnimation.Show ? 0 : 1
+            to: root.state === LoginAnimation.Show ? 1 : 0
             easing.type: Easing.InQuad
         }
     }
