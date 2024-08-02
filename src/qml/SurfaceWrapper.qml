@@ -281,11 +281,4 @@ SurfaceItemFactory {
 
     property bool manualMoveResizing: false
     property bool isMoveResizing: manualMoveResizing || Helper.resizingItem === surfaceItem || Helper.movingItem === surfaceItem
-
-    Connections {
-        target: Helper
-        function onlockScreenChanged() {
-            surfaceItem.opacity = Helper.lockScreen ? 0 : 1
-        }
-    }
 }
