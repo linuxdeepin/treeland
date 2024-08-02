@@ -299,5 +299,9 @@ FocusScope {
         function onRightExclusiveMarginChanged() {
             refreshMargin()
         }
+
+        function onlockScreenChanged() {
+            mapped = !Helper.lockScreen
+        }
     }
 }

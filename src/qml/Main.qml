@@ -94,7 +94,7 @@ Item {
             id: workspaceLoader
             objectName: "workspaceLoader"
             anchors.fill: parent
-            visible: !Helper.lockScreen
+            visible: true
             enabled: visible
             focus: enabled
             ColumnLayout {
