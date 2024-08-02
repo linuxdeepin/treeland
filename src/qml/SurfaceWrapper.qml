@@ -142,7 +142,7 @@ SurfaceItemFactory {
                 id: content
                 surface: parent.surface.surface
                 anchors.fill: parent
-                visible: !effectLoader.active
+                opacity: effectLoader.active ? 0 : 1
             }
 
             Loader {
