@@ -474,6 +474,13 @@ FocusScope {
             workspaceAnimation.item.startAnimation(prevWorkspaceId, currentWorkspaceId, WorkspaceAnimation.Direction.Left)
             currentWorkspaceId = prevWorkspaceId
         }
+        function onJumpWorkspace(d) {
+            const nWorkspaces = workspaceManager.layoutOrder.count
+            if (d >= nWorkspaces) return
+            workspaceAnimation.active = true
+            workspaceAnimation.item.startAnimation(d, currentWorkspaceId, WorkspaceAnimation.Direction.Right)
+            currentWorkspaceId = d
+        }
         function onMoveToNeighborWorkspace(d) {
             const nWorkspaces = workspaceManager.layoutOrder.count
             const surfaceItem = getSurfaceItemFromWaylandSurface(Helper.activatedSurface).item
