@@ -16,9 +16,10 @@ Item {
     
     property int itemVerticalPadding: 0
     property int spacing: 8
-    property bool enterAnimationEnabled: false
-    property bool enterAnimationFinished: false
-    property bool exited: false
+
+    property real partialGestureFactor: effect.partialGestureFactor
+    property bool inProgress: effect.inProgress
+    property var activeMethod: MultitaskView.ActiveMethod.ShortcutKey
 
     property var pos: []
 
@@ -32,56 +33,70 @@ Item {
             property int globalIndex: index
             property real displayWidth: modelData.item.width
             property bool initialized: false
-            property bool actv: root.enterAnimationEnabled && !root.enterAnimationFinished && initialized && pos.length > index
             sourceComponent: root.delegate
             readonly property point initialPos: mapToItem(parent, mapFromItem(modelData.item, 0, 0))
+            z: -index
+
             states: [
                 State {
-                    name: "exited"
-                    when: root.exited
+                    name: "initial"
                     PropertyChanges {
-                        surfaceLoader {
-                            x: initialPos.x
-                            y: initialPos.y
-                            displayWidth: modelData.item.width
-                        }
+                        target: surfaceLoader
+                        x: initialPos.x
+                        y: initialPos.y
+                        displayWidth: modelData.item.width
+                    }
+                },
+                State {
+                    name: "partial"
+                    PropertyChanges {
+                        target: surfaceLoader
+                        x: (internalData.dx - initialPos.x) * partialGestureFactor + initialPos.x
+                        y: (internalData.dy - initialPos.y) * partialGestureFactor + initialPos.y
+                        displayWidth: (internalData.dw - modelData.item.width) * partialGestureFactor + modelData.item.width
+                    }
+                },
+                State {
+                    name: "taskView"
+                    PropertyChanges {
+                        target: surfaceLoader
+                        x: internalData.dx
+                        y: internalData.dy
+                        displayWidth: internalData.dw
                     }
                 }
             ]
+            state: {
+                if (!(internalData && internalData.dw && initialized))
+                    return "initial";
+                    
+                if (activeMethod === MultitaskView.ActiveMethod.ShortcutKey){
+                    return "taskview";
+                } else {
+                    if (root.inProgress) return "partial";
+                    
+                    if (root.partialGestureFactor > 0.5) return "taskView";
+
+                    return "initial";
+                }
+            }
             transitions: [
                 Transition {
-                    from: ""
-                    to: "exited"
-                    NumberAnimation { properties: "x,y,displayWidth"; duration: 250; easing.type: Easing.OutCubic }
-                }
-            ]
-            x: initialPos.x
-            y: initialPos.y
-            z: -index
-            onInternalDataChanged: if (internalData && internalData.dw && initialized) {
-                x = internalData.dx
-                y = internalData.dy
-                displayWidth = internalData.dw
-            }
-            Behavior on x { enabled: actv; NumberAnimation { duration: 250; easing.type: Easing.OutCubic }}
-            Behavior on y { enabled: actv; NumberAnimation { duration: 250; easing.type: Easing.OutCubic }}
-            Behavior on displayWidth {
-                enabled: actv
-                SequentialAnimation {
-                    NumberAnimation { duration: 250; easing.type: Easing.OutCubic }
-                    ScriptAction {
-                        script: root.enterAnimationFinished = true
+                    to: "initial, taskView"
+                    NumberAnimation {
+                        properties: "x, y, displayWidth"
+                        duration: 250
+                        easing.type: Easing.OutCubic
                     }
                 }
-            }
+            ]
+
             Component.onCompleted: {
                 initialized = true
             }
         }
         // caution: repeater's remove may happen after calclayout, so last elem got null and some got wrong sourceitem
-        onItemAdded: {
-            calcLayout()
-        }
+        onItemAdded: calcLayout()
         onItemRemoved: calcLayout()
     }
     property var getRatio: (d)=>d.source.width / d.source.height

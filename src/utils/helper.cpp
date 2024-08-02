@@ -343,7 +343,7 @@ void Helper::initProtocols(WOutputRenderWindow *window)
                 });
 
             InputDevice::instance()->registerTouchpadSwipe(
-                SwipeFeedBack {SwipeGesture::Up, 3,
+                SwipeFeedBack {SwipeGesture::Down, 3,
                                [this](){
                                    if (activatedSurface() && activatedSurface()->isMaximized())
                                        activatedSurface()->requestCancelMaximize();
@@ -352,7 +352,7 @@ void Helper::initProtocols(WOutputRenderWindow *window)
                 });
 
             if (m_multiTaskViewGesture)
-                m_multiTaskViewGesture->addTouchpadSwipeGesture(SwipeGesture::Down, 4);
+                m_multiTaskViewGesture->addTouchpadSwipeGesture(SwipeGesture::Up, 4);
         }
     });
 
@@ -942,6 +942,10 @@ bool Helper::afterHandleEvent(
             if (xdgSurface->isPopup()) {
                 return false;
             }
+        }
+        if (auto e = static_cast<WGestureEvent*>(event)) {
+            if (e->gestureType() != Qt::BeginNativeGesture || e->fingerCount() != 3)
+                return false;
         }
         setActivateSurface(toplevelSurface);
     }

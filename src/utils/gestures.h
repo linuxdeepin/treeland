@@ -3,12 +3,10 @@
 
 #pragma once
 
-#include <QObject>
 #include <QList>
 #include <QMap>
+#include <QObject>
 #include <QPointF>
-
-static const qreal DEFAULT_UNIT_SCALE_DELTA = .2;
 
 class Gesture : public QObject
 {
@@ -66,7 +64,6 @@ public:
 
     QPointF minimumDelta() const;
     void setMinimumDelta(const QPointF &delta);
-    bool isMinimumDeltaRelevant() const;
 
     qreal deltaToProgress(const QPointF &delta) const;
     bool minimumDeltaReached(const QPointF &delta) const;
@@ -123,11 +120,13 @@ public:
 
 private:
     void cancelActiveGestures();
-    int startSwipeGesture(uint fingerCount, const QPointF &start_pos, StartPositionBehavior behavior);
+    int startSwipeGesture(uint fingerCount,
+                          const QPointF &start_pos,
+                          StartPositionBehavior behavior);
 
-    QList<SwipeGesture*> m_swipeGestures;
-    QList<SwipeGesture*> m_activeSwipeGestures;
-    QMap<Gesture*, QMetaObject::Connection> m_destroyConnections;
+    QList<SwipeGesture *> m_swipeGestures;
+    QList<SwipeGesture *> m_activeSwipeGestures;
+    QMap<Gesture *, QMetaObject::Connection> m_destroyConnections;
 
     QPointF m_currentDelta = QPointF(0, 0);
     uint m_currentFingerCount = 0;
