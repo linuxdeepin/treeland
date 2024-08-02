@@ -78,35 +78,35 @@ FocusScope {
                 opacity: 0.1
             }
         }
-    }
 
-    Rectangle {
-        width: logo.implicitWidth
-        height: logo.implicitHeight
-        anchors.left: parent.left
-        anchors.bottom: parent.bottom
-        color: "transparent"
+        Rectangle {
+            width: logo.implicitWidth
+            height: logo.implicitHeight
+            anchors.left: parent.left
+            anchors.bottom: parent.bottom
+            color: "transparent"
 
-        RowLayout {
-            id: logo
-            anchors.fill: parent
-            spacing: 5
+            RowLayout {
+                id: logo
+                anchors.fill: parent
+                spacing: 5
 
-            Image {
-                id: logoPic
-                Layout.alignment: Qt.AlignBottom | Qt.AlignLeft
-                source: GreeterModel.logoProvider.logo
-                Layout.maximumHeight: 132
-                Layout.maximumWidth: 128
-                fillMode: Image.PreserveAspectFit
-            }
+                Image {
+                    id: logoPic
+                    Layout.alignment: Qt.AlignBottom | Qt.AlignLeft
+                    source: GreeterModel.logoProvider.logo
+                    Layout.maximumHeight: 132
+                    Layout.maximumWidth: 128
+                    fillMode: Image.PreserveAspectFit
+                }
 
-            Text {
-                Layout.alignment: Qt.AlignLeft
-                text: GreeterModel.logoProvider.version
-                font.weight: Font.Normal
-                font.pixelSize: logoPic.height / 2
-                color: Qt.rgba(1, 1, 1, 153 / 255)
+                Text {
+                    Layout.alignment: Qt.AlignLeft
+                    text: GreeterModel.logoProvider.version
+                    font.weight: Font.Normal
+                    font.pixelSize: logoPic.height / 2
+                    color: Qt.rgba(1, 1, 1, 153 / 255)
+                }
             }
         }
     }
