@@ -89,6 +89,7 @@ private:
     W_PRIVATE_SLOT(void updateTexture())
     W_PRIVATE_SLOT(void updateCursor())
     W_PRIVATE_SLOT(void updateImplicitSize())
+    W_PRIVATE_SLOT(void updateXCursorManager())
 };
 
 WAYLIB_SERVER_END_NAMESPACE

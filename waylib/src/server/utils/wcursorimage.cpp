@@ -13,10 +13,6 @@
 
 #include <memory>
 
-extern "C" {
-#include <wlr/types/wlr_xcursor_manager.h>
-}
-
 Q_LOGGING_CATEGORY(qLcCursorImage, "waylib.server.cursor.image", QtWarningMsg)
 
 QW_USE_NAMESPACE
@@ -387,6 +383,7 @@ void WCursorImage::setCursorTheme(const QByteArray &name, uint32_t size)
         return;
     }
 
+    d->manager.reset();
     for (auto dd : std::as_const(WCursorImagePrivate::cursorImages)) {
         if (dd == d)
             continue;
@@ -396,10 +393,13 @@ void WCursorImage::setCursorTheme(const QByteArray &name, uint32_t size)
             break;
         }
     }
-
     if (!d->manager)
         d->manager.reset(qw_xcursor_manager::create(name.constData(), size));
-    d->manager->load(d->scale);
+
+    bool theme_loaded = d->manager->load(d->scale);
+    if (!theme_loaded)
+        qCCritical(qLcCursorImage) << "Can't load cursor theme:" << name << ", size:" << size;
+
     d->updateCursorImage();
 }
 
