@@ -12,42 +12,89 @@ import org.deepin.dtk.style 1.0 as DS
 
 Item {
     id: root
+
+    enum ActiveMethod {
+        ShortcutKey = 1,
+        Gesture
+    }
+
     required property int currentWorkspaceId
     required property var setCurrentWorkspaceId
     property ListModel model: QmlHelper.workspaceManager.workspacesById.get(QmlHelper.workspaceManager.layoutOrder.get(currentWorkspaceId).wsid).surfaces
     property int current: -1
-    property bool exited: false // flag controls exit animation
     property int fadeDuration: 250
+    property int currentWsid // Used to store real current workspace id temporarily
+    property bool exited: false
+    property var activeMethod: MultitaskView.ActiveMethod.ShortcutKey
+
+    property bool initialized: false
+    readonly property QtObject taskViewGesture: Helper.multiTaskViewGesture
+    property real taskviewVal: 0
+
+    function entry(method) {
+        activeMethod = method
+    }
+
     function exit(surfaceItem) {
         if (surfaceItem)
             Helper.activatedSurface = surfaceItem.shellSurface
         else if (current >= 0 && current < model.count)
             Helper.activatedSurface = model.get(current).item.shellSurface
+
         exited = true
     }
 
-    property int currentWsid // Used to store real current workspace id temporarily
     states: [
-        State {
-            name: "exited"
-            when: exited
+        State{
+            name: "initial"
             PropertyChanges {
-                root {
-                    visible: false
-                }
+                target: root
+                taskviewVal: 0
+            }
+        },
+        State {
+            name: "partial"
+            PropertyChanges {
+                target: root
+                taskviewVal: taskViewGesture.partialGestureFactor
+            }
+        },
+        State {
+            name: "taskview"
+            PropertyChanges {
+                target: root
+                taskviewVal: 1
             }
         }
     ]
-    transitions: [
-        Transition {
-            from: ""
-            to: "exited"
-            PropertyAnimation {
-                property: "visible"
-                duration: fadeDuration
-            }
+    state: {
+        if (!initialized) return "initial";
+
+        if (exited) {
+            if (taskviewVal === 0)
+                root.visible = false;
+
+            return "initial";
         }
-    ]
+
+        if (activeMethod === MultitaskView.ActiveMethod.ShortcutKey){
+            return "taskview";
+        } else {
+            if (taskViewGesture.inProgress) return "partial";
+
+            if (taskviewVal >=0.5) return "taskview";
+
+            return "initial";
+        }
+    }
+    transitions: Transition {
+        to: "initial, taskview"
+        NumberAnimation {
+            duration: fadeDuration
+            property: "taskviewVal"
+            easing.type: Easing.OutCubic
+        }
+    }
 
     QtObject {
         id: dragManager
@@ -261,34 +308,9 @@ Item {
                         height: outputPlacementItem.height * .2
                         width: parent.width
 
-                        NumberAnimation on y {
-                            from: -height
-                            to: 0
-                            duration: fadeDuration
-                            easing.type: Easing.OutCubic
-                        }
-
-                        states: [
-                            State {
-                                name: "exited"
-                                when: root.exited
-                                PropertyChanges {
-                                    workspacesListContainer {
-                                        y: -height
-                                    }
-                                }
-                            }
-                        ]
-
-                        transitions: [
-                            Transition {
-                                from: ""
-                                to: "exited"
-                                NumberAnimation {
-                                    property: "y"
-                                    duration: fadeDuration
-                                    easing.type: Easing.InCubic
-                                }
+                        transform: [
+                            Translate {
+                                y: height * (taskviewVal - 1.0)
                             }
                         ]
 
@@ -380,8 +402,9 @@ Item {
                                     availH: parent.height
                                     availW: parent.width
                                     getRatio: (d) => d.item.width / d.item.height
-                                    enterAnimationEnabled: true
-                                    exited: root.exited
+                                    inProgress: !Number.isInteger(taskviewVal)
+                                    partialGestureFactor: root.taskviewVal
+                                    activeMethod: root.activeMethod
                                     delegate: Item {
                                         id: surfaceItemDelegate
                                         property SurfaceItem source: modelData.item
@@ -535,5 +558,8 @@ Item {
                 }
             }
         }
+    }
+    Component.onCompleted: {
+        initialized = true
     }
 }
