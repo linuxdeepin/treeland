@@ -3,22 +3,19 @@
 
 #pragma once
 
-#include <QObject>
 #include "gestures.h"
+
+#include <QObject>
 
 class TogglableGesture : public QObject
 {
     Q_OBJECT
     Q_PROPERTY(bool inProgress READ inProgress WRITE setInProgress NOTIFY inProgressChanged FINAL)
     Q_PROPERTY(qreal partialGestureFactor READ partialGestureFactor WRITE setPartialGestureFactor NOTIFY partialGestureFactorChanged FINAL)
+    Q_PROPERTY(Status status READ status WRITE setStatus NOTIFY statusChanged FINAL)
 public:
-    enum Status {
-        Inactive,
-        Activating,
-        Deactivating,
-        Active,
-        Stopped
-    };
+    enum Status { Inactive, Activating, Deactivating, Active, Stopped };
+
     Q_ENUM(Status);
 
     TogglableGesture(QObject *parent = nullptr);
@@ -28,6 +25,7 @@ public:
     void setInProgress(bool gesture);
 
     qreal partialGestureFactor() const { return m_partialGestureFactor; }
+
     void setPartialGestureFactor(qreal factor);
 
     void activate();
@@ -35,10 +33,10 @@ public:
     void toggle();
     void stop();
     void setStatus(Status status);
+
     Status status() const { return m_status; }
 
     void addTouchpadSwipeGesture(SwipeGesture::Direction direction, uint fingerCount);
-
 Q_SIGNALS:
     void inProgressChanged();
     void partialGestureFactorChanged(qreal factor);
@@ -63,4 +61,4 @@ private:
     qreal m_partialGestureFactor;
 };
 
-Q_DECLARE_METATYPE(TogglableGesture*)
+Q_DECLARE_METATYPE(TogglableGesture *)

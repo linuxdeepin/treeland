@@ -6,16 +6,15 @@
 #include <QRect>
 
 Gesture::Gesture(QObject *parent)
-    :QObject(parent)
+    : QObject(parent)
 {
 }
 
 Gesture::~Gesture() = default;
 
 SwipeGesture::SwipeGesture(QObject *parent)
-    :Gesture(parent)
+    : Gesture(parent)
 {
-
 }
 
 SwipeGesture::~SwipeGesture() = default;
@@ -147,11 +146,12 @@ QPointF SwipeGesture::minimumDelta() const
 void SwipeGesture::setMinimumDelta(const QPointF &delta)
 {
     m_minimumDelta = delta;
+    m_minimumDeltaRelevant = true;
 }
 
 qreal SwipeGesture::deltaToProgress(const QPointF &delta) const
 {
-    if (m_minimumDelta.isNull()) {
+    if (!m_minimumDeltaRelevant && m_minimumDelta.isNull()) {
         return 1.0;
     }
 
@@ -175,7 +175,6 @@ bool SwipeGesture::minimumDeltaReached(const QPointF &delta) const
 GestureRecognizer::GestureRecognizer(QObject *parent)
     : QObject(parent)
 {
-
 }
 
 GestureRecognizer::~GestureRecognizer() = default;
@@ -183,7 +182,10 @@ GestureRecognizer::~GestureRecognizer() = default;
 void GestureRecognizer::registerSwipeGesture(SwipeGesture *gesture)
 {
     Q_ASSERT(!m_swipeGestures.contains(gesture));
-    auto connection = connect(gesture, &QObject::destroyed, this, std::bind(&GestureRecognizer::unregisterSwipeGesture, this, gesture));
+    auto connection = connect(gesture,
+                              &QObject::destroyed,
+                              this,
+                              std::bind(&GestureRecognizer::unregisterSwipeGesture, this, gesture));
     m_destroyConnections.insert(gesture, connection);
     m_swipeGestures << gesture;
 }
@@ -253,7 +255,8 @@ void GestureRecognizer::updateSwipeGesture(const QPointF &delta)
             auto g = static_cast<SwipeGesture *>(*it);
 
             if (g->direction() != direction) {
-                if (!g->minimumXIsRelevant() || !g->maximumXIsRelevant() || !g->minimumYIsRelevant() || !g->maximumYIsRelevant()) {
+                if (!g->minimumXIsRelevant() || !g->maximumXIsRelevant() || !g->minimumYIsRelevant()
+                    || !g->maximumYIsRelevant()) {
                     Q_EMIT g->cancelled();
                     it = m_activeSwipeGestures.erase(it);
                     continue;
@@ -303,7 +306,9 @@ void GestureRecognizer::cancelActiveGestures()
     m_currentSwipeAxis = Axis::None;
 }
 
-int GestureRecognizer::startSwipeGesture(uint fingerCount, const QPointF &start_pos, StartPositionBehavior behavior)
+int GestureRecognizer::startSwipeGesture(uint fingerCount,
+                                         const QPointF &start_pos,
+                                         StartPositionBehavior behavior)
 {
     m_currentFingerCount = fingerCount;
     if (!m_activeSwipeGestures.isEmpty()) {
