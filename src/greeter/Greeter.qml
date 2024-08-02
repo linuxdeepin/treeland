@@ -16,6 +16,7 @@ FocusScope {
     WallpaperController {
         id: wallpaperController
         output: root.output
+        lock: true
     }
 
     // prevent event passing through greeter
@@ -35,45 +36,34 @@ FocusScope {
         focus: true
     }
 
-    function checkUser(userName) {
-        let user = GreeterModel.userModel.get(GreeterModel.currentUser)
-        console.log("last activate user:",user.name,"current user:",userName)
-        return user.name === userName
-    }
-
-    Connections {
-        target: GreeterModel.proxy
-        function onLoginSucceeded(userName) {
-            if (!checkUser(userName)) {
-                return
-            }
-
-            center.loginGroup.userAuthSuccessed()
-            center.loginGroup.updateHintMsg(center.loginGroup.normalHint)
-            GreeterModel.emitAnimationPlayed()
-        }
-    }
-
-    Connections {
-        target: GreeterModel.proxy
-        function onLoginFailed(userName) {
-            if (!checkUser(userName)) {
-                return
-            }
-
-            center.loginGroup.userAuthFailed()
-            center.loginGroup.updateHintMsg(qsTr("Password is incorrect."))
-        }
-    }
-
     Connections {
         target: GreeterModel
-        function onAnimationPlayed() {
-            wallpaperController.type = Helper.Normal
+        function onStateChanged() {
+            switch (GreeterModel.state) {
+                case GreeterModel.AuthSucceeded: {
+                    center.loginGroup.userAuthSuccessed()
+                    center.loginGroup.updateHintMsg(center.loginGroup.normalHint)
+                }
+                break
+                case GreeterModel.AuthFailed: {
+                    center.loginGroup.userAuthFailed()
+                    center.loginGroup.updateHintMsg(qsTr("Password is incorrect."))
+                }
+                break
+                case GreeterModel.Quit: {
+                    GreeterModel.emitAnimationPlayed()
+                    wallpaperController.type = Helper.Normal
+                }
+                break
+            }
         }
     }
 
     Component.onCompleted: {
         wallpaperController.type = Helper.Scale
+    }
+
+    Component.onDestruction: {
+        wallpaperController.lock = false
     }
 }
