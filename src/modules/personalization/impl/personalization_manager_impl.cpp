@@ -8,9 +8,6 @@
 extern "C" {
 #define static
 #include <wlr/types/wlr_compositor.h>
-#include <wlr/types/wlr_output.h>
-#include <wlr/types/wlr_seat.h>
-#include <wlr/util/log.h>
 #undef static
 }
 
@@ -476,9 +473,6 @@ treeland_personalization_manager_v1 *treeland_personalization_manager_v1::create
     qw_display *display)
 {
     auto *manager = new treeland_personalization_manager_v1;
-    if (!manager) {
-        return nullptr;
-    }
 
     manager->event_loop = wl_display_get_event_loop(display->handle());
     manager->global = wl_global_create(display->handle(),

@@ -196,9 +196,6 @@ void PersonalizationV1::onWallpaperCommit(personalization_wallpaper_context_v1 *
 
 void PersonalizationV1::onCursorCommit(personalization_cursor_context_v1 *context)
 {
-    if (!context)
-        return;
-
     if (m_cursorConfig == nullptr || !m_cursorConfig->isValid()) {
         context->verfity(false);
         return;
@@ -215,9 +212,6 @@ void PersonalizationV1::onCursorCommit(personalization_cursor_context_v1 *contex
 
 void PersonalizationV1::onGetCursorTheme(personalization_cursor_context_v1 *context)
 {
-    if (!context)
-        return;
-
     if (m_cursorConfig == nullptr || !m_cursorConfig->isValid())
         return;
 
@@ -226,9 +220,6 @@ void PersonalizationV1::onGetCursorTheme(personalization_cursor_context_v1 *cont
 
 void PersonalizationV1::onGetCursorSize(personalization_cursor_context_v1 *context)
 {
-    if (!context)
-        return;
-
     if (m_cursorConfig == nullptr)
         return;
 
@@ -237,9 +228,6 @@ void PersonalizationV1::onGetCursorSize(personalization_cursor_context_v1 *conte
 
 void PersonalizationV1::onGetWallpapers(personalization_wallpaper_context_v1 *context)
 {
-    if (!context)
-        return;
-
     QDir dir(m_cacheDirectory);
     if (!dir.exists())
         return;
@@ -266,27 +254,25 @@ void PersonalizationV1::setUserId(uid_t uid)
 
 QString PersonalizationV1::cursorTheme()
 {
-    QString value = m_cursorConfig->value("CursorThemeName").toString();
+    QString value = m_cursorConfig->value("CursorThemeName", "default").toString();
     return value;
 }
 
 void PersonalizationV1::setCursorTheme(const QString &name)
 {
     m_cursorConfig->setValue("CursorThemeName", name);
-
     Q_EMIT cursorThemeChanged(name);
 }
 
 QSize PersonalizationV1::cursorSize()
 {
-    int size = m_cursorConfig->value("CursorSize").toInt();
+    int size = m_cursorConfig->value("CursorSize", 24).toInt();
     return QSize(size, size);
 }
 
 void PersonalizationV1::setCursorSize(const QSize &size)
 {
     m_cursorConfig->setValue("CursorSize", size.width());
-
     Q_EMIT cursorSizeChanged(size);
 }
 

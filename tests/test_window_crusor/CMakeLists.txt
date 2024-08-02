@@ -1,4 +1,4 @@
-find_package(Qt6 REQUIRED COMPONENTS WaylandClient Widgets)
+find_package(Qt6 REQUIRED COMPONENTS WaylandClient Gui Widgets)
 
 set(BIN_NAME test-window-cursor)
 
@@ -18,8 +18,6 @@ target_link_libraries(${BIN_NAME}
         Qt${QT_MAJOR_VERSION}::Gui
         Qt${QT_MAJOR_VERSION}::Widgets
         Qt::WaylandClient
-        Qt::GuiPrivate
-        Qt::WaylandClientPrivate
 )
 
 install(TARGETS ${BIN_NAME} RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}")

@@ -1,29 +1,25 @@
 // Copyright (C) 2024 rewine <luhongxu@deepin.com>.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
-#include <QGuiApplication>
-#include <QRasterWindow>
-#include <QPainter>
+#include <QApplication>
+#include <QMainWindow>
 #include <QMouseEvent>
-#include <QPlatformSurfaceEvent>
 #include <QDebug>
-#include <QTimer>
-#include <QSettings>
+#include <QBoxLayout>
+#include <QPushButton>
+#include <QLineEdit>
+#include <QLabel>
 
 #include "personalization_manager.h"
 
-class TestWindow : public QRasterWindow
+class TestWindow : public QWidget
 {
     Q_OBJECT
 public:
     TestWindow()
         : m_manager(new PersonalizationManager)
-        , rect1(50, 50, 200, 50)
-        , rect2(50, 200, 200, 50)
-        , rect3(50, 350, 200, 50)
-        , rect4(50, 500, 200, 50)
     {
-        setTitle(tr("C++ Client"));
+        setWindowTitle("Setting crusor Client");
 
         connect(m_manager, &PersonalizationManager::activeChanged, this, [this] {
             qDebug() << "personalization manager active changed";
@@ -32,6 +28,53 @@ public:
                 cursor_context = new PersonalizationCursor(m_manager->get_cursor_context());
             }
         });
+
+        QVBoxLayout *mainLayout = new QVBoxLayout;
+
+        QHBoxLayout *group1Layout = new QHBoxLayout;
+        QPushButton *button1 = new QPushButton("set cursor theme");
+        QLineEdit *lineEdit1 = new QLineEdit;
+        lineEdit1->setPlaceholderText("input theme name");
+        group1Layout->addWidget(button1);
+        group1Layout->addWidget(lineEdit1);
+        mainLayout->addLayout(group1Layout);
+        QObject::connect(button1, &QPushButton::clicked, this, [this, lineEdit1] {
+            QString theme = lineEdit1->text();
+            qDebug() << "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" << theme;
+            cursor_context->set_theme(theme);
+            cursor_context->commit();
+        });
+
+        QHBoxLayout *group2Layout = new QHBoxLayout;
+        QPushButton *button2 = new QPushButton("set cursor size");
+        QLineEdit *lineEdit2 = new QLineEdit;
+        lineEdit2->setPlaceholderText("input cursor size");
+        group2Layout->addWidget(button2);
+        group2Layout->addWidget(lineEdit2);
+        mainLayout->addLayout(group2Layout);
+        QObject::connect(button2, &QPushButton::clicked, this, [this, lineEdit2] {
+            int cursor_size = lineEdit2->text().toInt();
+            qDebug() << "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" << cursor_size;
+            cursor_context->set_size(cursor_size);
+            cursor_context->commit();
+        });
+
+        QHBoxLayout *group3Layout = new QHBoxLayout;
+        QPushButton *button3 = new QPushButton("get cursor theme");
+        QPushButton *button4 = new QPushButton("get cursor size(see log)");
+        group3Layout->addWidget(button3);
+        group3Layout->addWidget(button4);
+        mainLayout->addLayout(group3Layout);
+        QObject::connect(button3, &QPushButton::clicked, this, [this] {
+            cursor_context->get_theme();
+        });
+        QObject::connect(button4, &QPushButton::clicked, this, [this] {
+            cursor_context->get_size();
+        });
+
+        setLayout(mainLayout);
+
+        setMinimumSize(400, 300);
     }
 
     ~TestWindow()
@@ -43,63 +86,14 @@ public:
         }
     }
 
-    void mousePressEvent(QMouseEvent *ev) override
-    {
-        if (cursor_context == nullptr)
-            return;
-
-        if (rect1.contains(ev->position())) {
-            QString config = "test_config.ini";
-            QSettings settings(config, QSettings::IniFormat);
-            QString theme = settings.value("Cursor/theme", "Breeze_Light").toString();
-            qDebug() << "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" << theme;
-            cursor_context->set_theme(theme);
-            cursor_context->commit();
-        }
-        else if (rect2.contains(ev->position())) {
-            QString config = "test_config.ini";
-            QSettings settings(config, QSettings::IniFormat);
-            int cursor_size = settings.value("Cursor/size", 32).toInt();
-            qDebug() << "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" << cursor_size;
-            cursor_context->set_size(cursor_size);
-            cursor_context->commit();
-        }
-        else if (rect3.contains(ev->position()))
-            cursor_context->get_theme();
-        else if (rect4.contains(ev->position()))
-            cursor_context->get_size();
-    }
-
-protected:
-    void paintEvent(QPaintEvent *) override
-    {
-        QPainter p(this);
-        p.setFont(m_font);
-        p.fillRect(QRect(0, 0, width(), height()), Qt::gray);
-        p.fillRect(rect1, QColor::fromString("#C0FFEE"));
-        p.drawText(rect1, Qt::TextWordWrap, "set cursor theme");
-        p.fillRect(rect2, QColor::fromString("#decaff"));
-        p.drawText(rect2, Qt::TextWordWrap, "set cursor size");
-        p.fillRect(rect3, QColor::fromString("#7EA"));
-        p.drawText(rect3, Qt::TextWordWrap, "get cursor theme");
-        p.fillRect(rect4, QColor::fromString("#7EB"));
-        p.drawText(rect4, Qt::TextWordWrap, "get cursor size");
-    }
-
 private:
     PersonalizationManager *m_manager = nullptr;
     PersonalizationCursor* cursor_context = nullptr;
-
-    QRectF rect1;
-    QRectF rect2;
-    QRectF rect3;
-    QRectF rect4;
-    QFont m_font;
 };
 
 int main (int argc, char **argv)
 {
-    QGuiApplication app(argc, argv);
+    QApplication app(argc, argv);
 
     TestWindow window;
     window.show();

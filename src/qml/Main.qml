@@ -14,18 +14,6 @@ Item {
     id: root
 
     Binding {
-        target: Helper.cursor
-        property: "themeName"
-        value: PersonalizationV1.cursorTheme
-    }
-
-    Binding {
-        target: Helper.cursor
-        property: "size"
-        value: PersonalizationV1.cursorSize
-    }
-
-    Binding {
         target: Helper.seat
         property: "keyboardFocus"
         value: Helper.activatedSurface?.surface || null

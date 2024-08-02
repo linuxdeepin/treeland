@@ -31,6 +31,9 @@ OutputItem {
         OutputLayer.flags: OutputLayer.Cursor
         OutputLayer.cursorHotSpot: hotSpot
 
+        themeName: PersonalizationV1.cursorTheme
+        sourceSize: PersonalizationV1.cursorSize
+
         function updateActiveCursor() {
             if (cursorItems.size === 1) {
                 lastActiveCursorItem = this;
@@ -51,7 +54,6 @@ OutputItem {
             parent: cursorItem.parent
             z: cursorItem.z - 1
             flags: SurfaceItem.DontCacheLastBuffer
-            visible: surface !== null
             surface: cursorItem.cursor.requestedDragSurface
             x: cursorItem.position.x
             y: cursorItem.position.y
