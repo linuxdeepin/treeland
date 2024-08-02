@@ -23,4 +23,6 @@ void SurfaceItemFactory::classBegin()
     } else {
         m_surfaceItem = new Waylib::Server::WXWaylandSurfaceItem(this);
     }
+    // inherit qml context
+    qmlEngine(this)->setContextForObject(m_surfaceItem, qmlContext(this));
 }
