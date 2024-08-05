@@ -3,6 +3,7 @@
 
 #include "wallpapermanager.h"
 
+#include "wallpapercontroller.h"
 #include "wallpaperproxy.h"
 
 #include <woutput.h>
@@ -41,13 +42,28 @@ void WallpaperManager::remove(Waylib::Server::WOutputItem *outputItem)
     m_proxys.remove(outputItem);
 }
 
-bool WallpaperManager::isLocked(WallpaperProxy *proxy)
+bool WallpaperManager::isLocked(const WallpaperController *controller) const
 {
-    if (!proxy) {
+    if (!controller) {
         return false;
     }
 
-    return m_proxyLockList.contains(proxy);
+    for (const auto *c : m_proxyLockList) {
+        if (c->output() == controller->output()) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+bool WallpaperManager::isSelfLocked(const WallpaperController *controller) const
+{
+    if (!controller) {
+        return false;
+    }
+
+    return m_proxyLockList.contains(controller);
 }
 
 WallpaperProxy *WallpaperManager::get(Waylib::Server::WOutputItem *outputItem) const
@@ -71,15 +87,15 @@ WallpaperProxy *WallpaperManager::get(Waylib::Server::WOutput *output) const
     return nullptr;
 }
 
-void WallpaperManager::setLock(WallpaperProxy *proxy, bool lock)
+void WallpaperManager::setLock(WallpaperController *controller, bool lock)
 {
-    if (!proxy) {
+    if (!controller) {
         return;
     }
 
-    if (lock && !m_proxyLockList.contains(proxy)) {
-        m_proxyLockList.append(proxy);
+    if (lock && !m_proxyLockList.contains(controller)) {
+        m_proxyLockList.append(controller);
     } else if (!lock) {
-        m_proxyLockList.removeOne(proxy);
+        m_proxyLockList.removeOne(controller);
     }
 }
