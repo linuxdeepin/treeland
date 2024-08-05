@@ -11,7 +11,6 @@ import org.deepin.dtk 1.0 as D
 ColumnLayout {
     id: root
 
-    property bool showAllSurface: false
     property alias model: switchView.model
     required property OutputDelegate activeOutput
     // control all switch item
@@ -24,15 +23,17 @@ ColumnLayout {
     readonly property int leftpreferredMargin: 20
     readonly property int rightpreferredMargin: 20
     readonly property real radius: enableRadius ? 18 : 0
+    readonly property int windowsExpandLimit: 18
 
     signal surfaceActivated(surface: SurfaceWrapper)
+    signal previewClicked()
 
     spacing: 30
 
     onVisibleChanged: {
         if (visible) {
             root.model = workspaceManager.workspacesById.get(workspaceManager.layoutOrder.get(currentWorkspaceId).wsid).surfaces
-            root.showAllSurface = false
+            hideAllSurfaces()
             previewReductionAni.stop()
             preContext.sourceComponent = undefined
             currentContext.sourceComponent = undefined
@@ -45,10 +46,10 @@ ColumnLayout {
             if (!surfaceItem)
                 return
 
-            preContext.sourceSueface = null
             currentContext.sourceSueface = surfaceItem
             switchView.currentIndex = 0
             root.stopWork = false
+            ensurePreView()
         }
     }
 
@@ -71,19 +72,23 @@ ColumnLayout {
     }
 
     function previous() {
-        if (switchView.count === 1)
-            return;
+        if (switchView.count === 1) {
+            switchView.currentIndex = 0
+            return
+        }
 
         if (switchView.currentIndex === 0) {
-            switchView.currentIndex = switchView.count - 1;
+            switchView.currentIndex = switchView.count - 1
             return
         }
         switchView.currentIndex = switchView.currentIndex - 1
     }
 
     function next() {
-        if (switchView.count === 1)
-            return;
+        if (switchView.count === 1) {
+            switchView.currentIndex = 0
+            return
+        }
 
         if (switchView.currentIndex === switchView.count - 1) {
             switchView.currentIndex = 0
@@ -92,10 +97,32 @@ ColumnLayout {
         switchView.currentIndex = switchView.currentIndex + 1
     }
 
-    function activeAllSurfaces() {
+    function activeCurrentSurface() {
         const wrapper = model.get(switchView.currentIndex).wrapper
         if (wrapper) {
             surfaceActivated(wrapper)
+        }
+    }
+
+    function hideAllSurfaces() {
+        var sourceSuefaceItem
+        for (var i = 0; i < switchView.count; ++i) {
+            sourceSuefaceItem = root.model.get(i).item
+            if (!sourceSuefaceItem)
+                continue
+
+            sourceSuefaceItem.opacity = 0
+        }
+    }
+
+    function showAllInactiveSurfaces() {
+        var sourceSuefaceItem
+        for (var i = 0; i < switchView.count; ++i) {
+            sourceSuefaceItem = root.model.get(i).item
+            if (!sourceSuefaceItem)
+                continue
+
+            sourceSuefaceItem.opacity = 1.0
         }
     }
 
@@ -125,16 +152,67 @@ ColumnLayout {
                 previewReductionAni.xTo = point.x
                 previewReductionAni.yTo = point.y
                 previewReductionAni.start()
-                activeAllSurfaces()
+                if (root.model.count > root.windowsExpandLimit) {
+                    showAllInactiveSurfaces()
+                } else {
+                    inactiveWindowsExpand()
+                }
+                activeCurrentSurface()
             } else {
                 root.visible = false
+                activeCurrentSurface()
+                showAllInactiveSurfaces()
             }
         } else {
             root.visible = false
         }
     }
 
+    function inactiveWindowsExpand() {
+        var hSpacing = 20
+        var vSpacing = 20
+        var sourceSuefaceItem
+        var sourceWrapperItem
+        var preferredHeight , preferredWidth , refHeight , height , width, offsetPoint
+        for (var i = 0; i < switchView.count; ++i) {
+            if (i === switchView.currentIndex)
+                continue
+
+            sourceWrapperItem = root.model.get(i).wrapper
+            if (!sourceWrapperItem)
+                continue
+
+            sourceSuefaceItem = root.model.get(i).item
+            if (!sourceSuefaceItem)
+                continue
+
+            preferredHeight = sourceSuefaceItem.height < (previewContentItem.height - 2 * vSpacing) ?
+                        sourceSuefaceItem.height : (previewContentItem.height - 2 * vSpacing)
+            preferredWidth = sourceSuefaceItem.width < (previewContentItem.width - 2 * hSpacing) ?
+                        sourceSuefaceItem.width : (previewContentItem.width - 2 * hSpacing)
+            refHeight = preferredHeight *  sourceSuefaceItem.width / sourceSuefaceItem.height < (previewContentItem.width - 2 * hSpacing)
+            height = refHeight ? preferredHeight : preferredWidth * sourceSuefaceItem.height / sourceSuefaceItem.width
+            width = refHeight ? preferredHeight * sourceSuefaceItem.width / sourceSuefaceItem.height : preferredWidth
+            offsetPoint = sourceSuefaceItem.mapFromItem(currentContext.item, 0, 0)
+            sourceWrapperItem.xFrom = sourceSuefaceItem.x
+            sourceWrapperItem.yFrom = sourceSuefaceItem.y
+            sourceWrapperItem.xTo = sourceWrapperItem.xFrom + offsetPoint.x + currentContext.item.width / 2.0 - width / 2.0
+            sourceWrapperItem.yTo = sourceWrapperItem.yFrom + offsetPoint.y + currentContext.item.height / 2.0 - height / 2.0
+            sourceWrapperItem.scaleTo = width / sourceSuefaceItem.width
+
+            sourceSuefaceItem.x = sourceWrapperItem.xTo
+            sourceSuefaceItem.y = sourceWrapperItem.yTo
+            sourceSuefaceItem.opacity = 0
+            sourceSuefaceItem.scale = sourceWrapperItem.scaleTo
+
+            sourceWrapperItem.sacleStatus = 1
+            sourceWrapperItem.sacleStatus = 0
+        }
+    }
+
     Item {
+        id: previewContentItem
+
         Layout.fillWidth: true
         Layout.fillHeight: true
         Layout.leftMargin: leftpreferredMargin
@@ -145,7 +223,10 @@ ColumnLayout {
 
             anchors.centerIn: parent
             sourceComponent: undefined
-            onClicked: handleExit()
+            onClicked: {
+                previewClicked()
+                handleExit()
+            }
         }
 
         WindowPreviewLoader {
@@ -167,15 +248,15 @@ ColumnLayout {
             property Item target
 
             ScaleAnimator {
-                target: previewReductionAni.target;
-                from: 1.0;
+                target: previewReductionAni.target
+                from: 1.0
                 to: previewReductionAni.scaleTo
                 duration: previewReductionAni.duration
                 easing.type: Easing.OutExpo
             }
 
             XAnimator {
-                target: previewReductionAni.target;
+                target: previewReductionAni.target
                 from: previewReductionAni.xFrom
                 to: previewReductionAni.xTo
                 duration: previewReductionAni.duration
@@ -183,7 +264,7 @@ ColumnLayout {
             }
 
             YAnimator {
-                target: previewReductionAni.target;
+                target: previewReductionAni.target
                 from: previewReductionAni.yFrom
                 to: previewReductionAni.yTo
                 duration: previewReductionAni.duration
@@ -191,9 +272,12 @@ ColumnLayout {
             }
 
             onFinished:  {
-                root.showAllSurface = true
                 root.visible = false
                 previewReductionAni.target.scale = 1.0
+
+                var sourceSuefaceItem = model.get(switchView.currentIndex).item
+                if (sourceSuefaceItem)
+                    sourceSuefaceItem.opacity = 1
             }
         }
     }
@@ -317,6 +401,9 @@ ColumnLayout {
             currentIndex: 0
 
             onCurrentIndexChanged: {
+                if (switchView.currentIndex < 0)
+                    return
+
                 if (root.stopWork)
                     return
 
@@ -325,22 +412,20 @@ ColumnLayout {
                 if (!switchView.model)
                     return
 
-                if (currentIndex > 0) {
-                    var preInidex
+                var preInidex
 
-                    if (switchView.count === 1) {
-                        preInidex = -1;
-                    } else if (switchView.currentIndex === 0) {
-                        preInidex = switchView.count - 1;
-                    } else {
-                        preInidex = currentIndex - 1
-                    }
+                if (switchView.count === 1) {
+                    preInidex = -1
+                } else if (switchView.currentIndex === 0) {
+                    preInidex = switchView.count - 1
+                } else {
+                    preInidex = currentIndex - 1
+                }
 
-                    if (preInidex > -1) {
-                        const preSurfaceItem = switchView.model.get(preInidex).item
-                        if (preSurfaceItem) {
-                            preContext.sourceSueface = preSurfaceItem
-                        }
+                if (preInidex > -1) {
+                    const preSurfaceItem = switchView.model.get(preInidex).item
+                    if (preSurfaceItem) {
+                        preContext.sourceSueface = preSurfaceItem
                     }
                 }
 

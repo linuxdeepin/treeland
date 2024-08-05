@@ -185,6 +185,66 @@ SurfaceItemFactory {
     property bool aboutToRestore: false
     readonly property real cornerRadius: helper.isMaximize  ? 0 : 15
 
+    property int sacleStatus: 1
+    property real scaleTo
+    property real xFrom
+    property real xTo
+    property real yFrom
+    property real yTo
+
+    transitions: [
+        Transition {
+            from: "scaleToPreview"
+            to: "noScale"
+            ParallelAnimation {
+                id: parallelAnimation
+
+                readonly property int duration: 500
+                ScaleAnimator {
+                    target: surfaceItem;
+                    from: root.scaleTo;
+                    to: 1.0
+                    duration: parallelAnimation.duration
+                    easing.type: Easing.OutExpo
+                }
+
+                OpacityAnimator {
+                    target: surfaceItem;
+                    from: 0.0
+                    to: 1.0
+                    duration: parallelAnimation.duration
+                    easing.type: Easing.OutExpo
+                }
+
+                XAnimator {
+                    target: surfaceItem
+                    from: root.xTo
+                    to: root.xFrom
+                    duration: parallelAnimation.duration
+                    easing.type: Easing.OutExpo
+                }
+
+                YAnimator {
+                    target: surfaceItem
+                    from: root.yTo
+                    to: root.yFrom
+                    duration: parallelAnimation.duration
+                    easing.type: Easing.OutExpo
+                }
+            }
+        }
+    ]
+    states: [
+        State {
+            name: 'noScale'
+            when: root.sacleStatus === 0
+        },
+        State {
+            name: 'scaleToPreview'
+            when: root.sacleStatus === 1
+        }
+    ]
+
     function saveState() {
         let nw = store ?? {}
         console.debug(`store = ${store} state = {x: ${surfaceItem.x}, y: ${surfaceItem.y}, width: ${surfaceItem.width}, height: ${surfaceItem.height}}`)
