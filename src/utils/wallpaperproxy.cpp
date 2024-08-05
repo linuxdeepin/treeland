@@ -23,10 +23,6 @@ void WallpaperProxy::setSource(const QString &source)
 
 void WallpaperProxy::setType(Helper::WallpaperType type)
 {
-    if (WallpaperManager::instance()->isLocked(this)) {
-        return;
-    }
-
     if (m_type == type) {
         return;
     }
