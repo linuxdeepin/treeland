@@ -3,32 +3,35 @@
 
 import QtQuick
 
-Component {
-    Rectangle {
-        property ListView sourceView: ListView.view
 
-        x: sourceView.currentItem.x + sourceView.borderMargin
-        y: sourceView.currentItem.y + (sourceView.vMargin / 2 - 2 * sourceView.borderMargin)
-        height: sourceView.currentItem.height - 2 * (sourceView.vMargin / 2 - 2 * sourceView.borderMargin)
-        width: sourceView.currentItem.width - 2 * sourceView.vSpacing + 2 * sourceView.borderMargin
-        color: "transparent"
-        radius: sourceView.radius
-        border {
-            width: sourceView.borderWidth
-            color: "#0081FF"
+Rectangle {
+    property ListView sourceView: ListView.view
+    readonly property int aniDuration: 400
+
+    x: sourceView.currentItem.x + sourceView.borderMargin
+    y: sourceView.currentItem.y + (sourceView.vMargin / 2 - 2 * sourceView.borderMargin)
+    height: sourceView.currentItem.height - 2 * (sourceView.vMargin / 2 - 2 * sourceView.borderMargin)
+    width: sourceView.currentItem.width - 2 * sourceView.vSpacing + 2 * sourceView.borderMargin
+    color: "transparent"
+    radius: sourceView.radius
+    border {
+        width: sourceView.borderWidth
+        color: "#0081FF"
+    }
+
+    Behavior on x {
+        enabled: sourceView.enableDelegateAnimation
+        NumberAnimation {
+            duration: aniDuration
+            easing.type: Easing.OutExpo
         }
+    }
 
-        Behavior on x {
-            enabled: sourceView.enableDelegateAnimation
-            SpringAnimation {
-                spring: 1.1
-                damping: 0.2
-                easing {
-                    type: Easing.OutExpo
-                    amplitude: 2.0
-                    period: 1.5
-                }
-            }
+    Behavior on width {
+        enabled: sourceView.enableDelegateAnimation
+        NumberAnimation {
+            duration: aniDuration
+            easing.type: Easing.OutExpo
         }
     }
 }
