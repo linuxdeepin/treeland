@@ -45,8 +45,17 @@ FocusScope {
         return null
     }
 
+    function unloadMask() {
+        if (switcher.enableAnimation) {
+            mask.loaderStatus = 1
+            mask.loaderStatus = 0
+        } else {
+            mask.sourceComponent = undefined
+        }
+    }
+
     required property OutputDelegate activeOutputDelegate
-    readonly property real switcherHideOpacity: 0
+    readonly property real hideOpacity: 0
 
     property var workspaceManager: QmlHelper.workspaceManager
     property int currentWorkspaceId: Helper.currentWorkspaceId
@@ -81,8 +90,7 @@ FocusScope {
         visible: !multitaskView.active && !WindowManagementV1.desktopState
         enabled: !switcher.visible && !multitaskView.active
         focus: enabled
-        opacity: if (switcher.visible && !switcher.showAllSurface || dockPreview.previewing) switcherHideOpacity
-            else 1
+        opacity: dockPreview.previewing ? hideOpacity : 1
         z: 0
 
         Behavior on opacity {
@@ -402,6 +410,13 @@ FocusScope {
         }
     }
 
+    WorkspaceMask {
+        id: mask
+
+        anchors.fill: parent
+        z: -96
+    }
+
     WindowsSwitcher {
         id: switcher
         z: 100 + 1
@@ -415,10 +430,25 @@ FocusScope {
         visible: false // dbgswtchr.checked
         focus: false
         activeOutput: activeOutputDelegate
+        onVisibleChanged: {
+            if (switcher.visible) {
+                mask.sourceComponent = mask.blackComponent
+                if (switcher.enableAnimation) {
+                    mask.loaderStatus = 0
+                    mask.loaderStatus = 1
+                }
+            }
+        }
+
         onSurfaceActivated: (wrapper) => {
             wrapper.cancelMinimize()
             Helper.activatedSurface = wrapper.surfaceItem.shellSurface
         }
+
+        onPreviewClicked: {
+            unloadMask()
+        }
+
         Binding {
             target: Helper
             property: "switcherEnabled"
@@ -432,7 +462,10 @@ FocusScope {
         Connections {
             target: Helper
             function onSwitcherOnChanged(on) {
-                if (!on) switcher.handleExit()
+                if (!on) {
+                    switcher.handleExit()
+                    unloadMask()
+                }
             }
         }
     }

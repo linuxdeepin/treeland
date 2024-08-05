@@ -53,11 +53,9 @@ Loader {
                     target: root.item
                     from: 0.0
                     to: 1.0
-                    duration: 400
+                    duration: 100
                     easing.type: Easing.OutExpo
                 }
-
-                onFinished: root.loaderStatus = 1
             }
         },
         Transition {
@@ -79,11 +77,6 @@ Loader {
                     to: 0.0
                     duration: 400
                     easing.type: Easing.OutExpo
-                }
-
-                onFinished: {
-                    root.loaderStatus = 0
-                    root.sourceComponent = undefined
                 }
             }
         }
