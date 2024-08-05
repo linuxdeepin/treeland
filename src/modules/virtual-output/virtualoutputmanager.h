@@ -4,9 +4,12 @@
 #pragma once
 
 #include <woutputviewport.h>
+#include <wquicktextureproxy.h>
+#include <woutputrenderwindow.h>
 
 #include <wserver.h>
 #include <QObject>
+#include <QPair>
 
 struct treeland_virtual_output_v1;
 struct treeland_virtual_output_manager_v1;
@@ -24,11 +27,13 @@ class VirtualOutputManagerAttached : public QObject
 public:
     Q_INVOKABLE WOutputViewport *outputViewport() const { return m_viewport; };
 
-    VirtualOutputManagerAttached(WOutputViewport *outputviewport, VirtualOutputV1 *virtualOutput);
+    VirtualOutputManagerAttached(WOutputViewport *outputviewport, WQuickTextureProxy *proxy, VirtualOutputV1 *virtualOutput);
 
     void removeItem(WOutputViewport *viewport);
     void addItem(WOutputViewport *viewport, WOutputViewport *backviewport);
     void copyScreen(QStringList outputList);
+    void restoreScreen(QStringList outputList);
+    void updatePrimaryOutputHardwareLayers();
 
 Q_SIGNALS:
 
@@ -37,6 +42,7 @@ private:
     VirtualOutputV1 *m_virtualoutput;
     WOutputViewport *m_viewport;
     WOutputViewport *m_backviewport;
+    WQuickTextureProxy* m_textureproxy;
 };
 
 class VirtualOutputV1 : public QObject, public WServerInterface
@@ -46,15 +52,17 @@ class VirtualOutputV1 : public QObject, public WServerInterface
 public:
     explicit VirtualOutputV1(QObject *parent = nullptr);
 
-    Q_INVOKABLE VirtualOutputManagerAttached *Attach(WOutputViewport *outputviewport);
+    Q_INVOKABLE VirtualOutputManagerAttached *Attach(WOutputViewport *outputviewport, WQuickTextureProxy *proxy);
     void setVirtualOutput(QString name, QStringList outputList);
 
     void newOutput(WOutput *output);
     void removeOutput(WOutput *output);
     QByteArrayView interfaceName() const override;
 
-    QList<WOutputViewport *> m_viewports_list;
+    QList<QPair<WOutputViewport*, QQuickItem*>> m_viewports_list;
     QList<treeland_virtual_output_v1 *> m_virtualOutputv1;
+    QList<WOutputLayer*> m_hardwareLayersOfPrimaryOutput;
+    WOutputRenderWindow *m_renderWindow;
 
 Q_SIGNALS:
 

@@ -11,7 +11,7 @@ OutputItem {
     id: rootOutputItem
     required property WaylandOutput waylandOutput
     property OutputViewport onscreenViewport: outputViewport
-    property var attachVirtualOutput: VirtualOutputV1.Attach(outputViewport)
+    property var attachVirtualOutput: VirtualOutputV1.Attach(outputViewport, textureProxp)
     property var attachViewport: attachVirtualOutput.outputViewport
     property Cursor lastActiveCursorItem
 
@@ -63,15 +63,29 @@ OutputItem {
         }
     }
 
-    OutputViewport {
-        id: outputViewport
+    Item {
+        id: copyItem
+        anchors.fill: parent
 
-        input: (waylandOutput && (waylandOutput !== attachViewport.output)) ? textureProxp : null
         TextureProxy {
+            // TODO: Screen parameters in copy mode also support individual settings,
+            // such as resolution, rotation, zoom system refresh rate, etc.
             id: textureProxp
             sourceItem: attachViewport
             anchors.fill: parent
+            rotation: attachViewport.rotation
+            width: attachViewport.implicitWidth
+            height: attachViewport.implicitHeight
+            smooth: true
+            transformOrigin: Item.Center
+            scale: attachViewport.output.scale
         }
+    }
+
+    OutputViewport {
+        id: outputViewport
+
+        input: (waylandOutput && (waylandOutput !== attachViewport.output)) ? copyItem : null
 
         output: waylandOutput
         devicePixelRatio: parent.devicePixelRatio

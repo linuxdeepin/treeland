@@ -20,17 +20,29 @@ extern "C" {
 static VirtualOutputV1 *VIRTUAL_OUTPUT = nullptr;
 
 VirtualOutputManagerAttached::VirtualOutputManagerAttached(
-    WOutputViewport *outputviewport, VirtualOutputV1 *virtualOutput)
+    WOutputViewport *outputviewport, WQuickTextureProxy *proxy, VirtualOutputV1 *virtualOutput)
     : QObject(outputviewport)
     , m_viewport(outputviewport)
     , m_backviewport(outputviewport)
+    , m_textureproxy(proxy)
     , m_virtualoutput(virtualOutput)
 {
-    m_virtualoutput->m_viewports_list.append(outputviewport);
+    m_virtualoutput->m_viewports_list << qMakePair(outputviewport, proxy);
     connect(m_virtualoutput,
             &VirtualOutputV1::requestCreateVirtualOutput,
             this,
             [this](QString name, QStringList outputList) {
+
+                if (m_virtualoutput->m_renderWindow) {
+                    m_virtualoutput->m_renderWindow = qobject_cast<WOutputRenderWindow*>(m_viewport->window());
+                }
+
+                if (outputList.at(0) == m_viewport->output()->name()) {
+                    m_virtualoutput->m_hardwareLayersOfPrimaryOutput = m_viewport->hardwareLayers();
+                    connect(m_viewport, &WOutputViewport::hardwareLayersChanged,
+                            this, &VirtualOutputManagerAttached::updatePrimaryOutputHardwareLayers);
+                }
+
                 if (outputList.contains(m_viewport->output()->name()) && m_viewport->output()->name() != outputList.at(0)) {
                     removeItem(m_viewport);
                     copyScreen(outputList);
@@ -41,15 +53,9 @@ VirtualOutputManagerAttached::VirtualOutputManagerAttached(
             &VirtualOutputV1::destroyVirtualOutput,
             this,
             [this](QString name, QStringList outputList) {
-                if (m_viewport->output()->name() == outputList.at(0)) {
-                    m_viewport->setCacheBuffer(false);
-                }
-
                 if (outputList.contains(m_backviewport->output()->name()) && m_backviewport->output()->name() != outputList.at(0)) {
-                    m_viewport->output()->setForceSoftwareCursor(false);
                     addItem(m_viewport, m_backviewport);
-                    m_viewport = m_backviewport;
-                    Q_EMIT outputViewportChanged();
+                    restoreScreen(outputList);
                 }
 
             });
@@ -60,11 +66,8 @@ VirtualOutputManagerAttached::VirtualOutputManagerAttached(
             [this](QStringList outputList, WOutput *output) {
                 if (m_viewport == m_backviewport)
                     return;
-
                 addItem(m_viewport, m_backviewport);
-                m_viewport = m_backviewport;
-                m_viewport->setInput(nullptr);
-                Q_EMIT outputViewportChanged();
+                restoreScreen(outputList);
 
             });
     connect(m_virtualoutput,
@@ -72,7 +75,6 @@ VirtualOutputManagerAttached::VirtualOutputManagerAttached(
             this,
             [this](QStringList outputList, WOutput *output) {
                 if (outputList.contains(output->name()) && m_viewport->output()->name() != outputList.at(0)) {
-                    m_viewport->output()->setForceSoftwareCursor(true);
                     removeItem(m_viewport);
                     copyScreen(outputList);
                 }
@@ -95,18 +97,59 @@ void VirtualOutputManagerAttached::addItem(WOutputViewport *viewport, WOutputVie
 
 void VirtualOutputManagerAttached::copyScreen(QStringList outputList)
 {
-    for (auto *outputviewport : m_virtualoutput->m_viewports_list) {
-        if (outputviewport->output()->name() == outputList.at(0)) {
-            outputviewport->setCacheBuffer(true);
+    for (auto outputs : std::as_const(m_virtualoutput->m_viewports_list)) {
 
-            //TODO: Replication mode Enable the soft cursor and wait for the hard cursor to be reconstructed
-            outputviewport->output()->setForceSoftwareCursor(true);
+        auto outputviewport = outputs.first;
+        if (outputviewport->output()->name() == outputList.at(0)) {
+            for (auto layer : std::as_const(m_virtualoutput->m_hardwareLayersOfPrimaryOutput))
+                m_virtualoutput->m_renderWindow->attach(layer, m_viewport, outputviewport, m_textureproxy);
+
+            outputviewport->setCacheBuffer(true);
 
             m_viewport = outputviewport;
 
             Q_EMIT outputViewportChanged();
         }
     }
+}
+
+void VirtualOutputManagerAttached::restoreScreen(QStringList outputList)
+{
+    for (auto outputs : m_virtualoutput->m_viewports_list) {
+        auto outputviewport = outputs.first;
+        if (outputviewport->output()->name() == outputList.at(0)) {
+            for (auto layer : std::as_const(m_virtualoutput->m_hardwareLayersOfPrimaryOutput))
+                m_virtualoutput->m_renderWindow->detach(layer, m_backviewport);
+
+            outputviewport->setCacheBuffer(false);
+
+            m_viewport = m_backviewport;
+            Q_EMIT outputViewportChanged();
+        }
+    }
+}
+
+void VirtualOutputManagerAttached::updatePrimaryOutputHardwareLayers()
+{
+    const auto layers = m_viewport->hardwareLayers();
+    for (auto layer : layers) {
+        if (m_virtualoutput->m_hardwareLayersOfPrimaryOutput.removeOne(layer))
+            continue;
+
+        for (auto outputs : m_virtualoutput->m_viewports_list) {
+            if (outputs.first != m_viewport) {
+                m_virtualoutput->m_renderWindow->attach(layer, outputs.first, m_viewport, outputs.second);
+            }
+        }
+
+    }
+
+    for (auto oldLayer : std::as_const(m_virtualoutput->m_hardwareLayersOfPrimaryOutput)) {
+        for (auto copyOutput : std::as_const(m_virtualoutput->m_viewports_list))
+            m_virtualoutput->m_renderWindow->detach(oldLayer, copyOutput.first);
+    }
+
+    m_virtualoutput->m_hardwareLayersOfPrimaryOutput = layers;
 }
 
 VirtualOutputV1::VirtualOutputV1(QObject *parent)
@@ -135,8 +178,9 @@ void VirtualOutputV1::onVirtualOutputCreated(treeland_virtual_output_v1 *virtual
         return;
     } else {
         QStringList outputList;
-        for (auto *outputviewport : m_viewports_list) {
-            outputList.append(outputviewport->output()->name());
+
+        for (auto outputviewport : m_viewports_list) {
+            outputList.append(outputviewport.first->output()->name());
         }
 
         for (const QString& output : virtual_output->outputList) {
@@ -164,10 +208,10 @@ void VirtualOutputV1::onVirtualOutputDestroy(treeland_virtual_output_v1 *virtual
     }
 }
 
-VirtualOutputManagerAttached *VirtualOutputV1::Attach(WOutputViewport *outputviewport)
+VirtualOutputManagerAttached *VirtualOutputV1::Attach(WOutputViewport *outputviewport, WQuickTextureProxy *proxy)
 {
     if (outputviewport) {
-        return new VirtualOutputManagerAttached(outputviewport, VIRTUAL_OUTPUT);
+        return new VirtualOutputManagerAttached(outputviewport, proxy, VIRTUAL_OUTPUT);
     }
 
     return nullptr;
@@ -207,9 +251,11 @@ void VirtualOutputV1::removeOutput(WOutput *output)
         }
     }
 
-    for (auto *outputviewport : m_viewports_list) {
-        if (outputviewport->output() == output){
-            m_viewports_list.removeOne(outputviewport);
+    for (int i = 0; i < m_viewports_list.size(); ++i) {
+        WOutputViewport *viewport = m_viewports_list[i].first;
+        if (viewport->output() == output) {
+            m_viewports_list.removeAt(i);
+            break;
         }
     }
 }
