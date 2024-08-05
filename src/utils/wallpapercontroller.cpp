@@ -19,6 +19,11 @@ WallpaperController::~WallpaperController()
 
 void WallpaperController::setType(Helper::WallpaperType type)
 {
+    auto *manager = WallpaperManager::instance();
+    if (manager->isLocked(this) && !manager->isSelfLocked(this)) {
+        return;
+    }
+
     m_type = type;
 
     updateState();
@@ -48,6 +53,7 @@ void WallpaperController::updateState()
 
     auto *manager = WallpaperManager::instance();
     auto *proxy = manager->get(m_output);
+
     Q_ASSERT(proxy);
     proxy->setType(m_type);
 
@@ -67,11 +73,11 @@ WallpaperProxy *WallpaperController::proxy() const
 void WallpaperController::setLock(bool lock)
 {
     auto *manager = WallpaperManager::instance();
-    manager->setLock(proxy(), lock);
+    manager->setLock(this, lock);
 }
 
 bool WallpaperController::lock() const
 {
     auto *manager = WallpaperManager::instance();
-    return manager->isLocked(proxy());
+    return manager->isSelfLocked(this);
 }

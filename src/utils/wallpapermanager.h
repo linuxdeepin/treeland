@@ -12,6 +12,7 @@ class WOutputItem;
 } // namespace Waylib::Server
 
 class WallpaperProxy;
+class WallpaperController;
 
 class WallpaperManager : public QObject
 {
@@ -31,15 +32,16 @@ private:
 private:
     friend class WallpaperProxy;
     friend class WallpaperController;
-    bool isLocked(WallpaperProxy *proxy);
+    bool isLocked(const WallpaperController *controller) const;
+    bool isSelfLocked(const WallpaperController *controller) const;
 
 private:
     friend class WallpaperController;
     WallpaperProxy *get(Waylib::Server::WOutputItem *outputItem) const;
     WallpaperProxy *get(Waylib::Server::WOutput *output) const;
-    void setLock(WallpaperProxy *proxy, bool lock);
+    void setLock(WallpaperController *controller, bool lock);
 
 private:
     QMap<Waylib::Server::WOutputItem *, WallpaperProxy *> m_proxys;
-    QList<WallpaperProxy *> m_proxyLockList;
+    QList<WallpaperController *> m_proxyLockList;
 };
