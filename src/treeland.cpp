@@ -261,6 +261,7 @@ void TreeLand::setup()
                                                     0,
                                                     "ForeignToplevelV1",
                                                     m_server->attach<ForeignToplevelV1>());
+    qRegisterMetaType<ForeignToplevelV1::PreviewDirection>("ForeignToplevelV1.PreviewDirection");
 
     qmlRegisterSingletonInstance<PrimaryOutputV1>("TreeLand.Protocols",
                                                   1,

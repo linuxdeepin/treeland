@@ -159,6 +159,15 @@ Item {
                     }
                 }
             }
+            function filter(cond) {
+                var ret = [];
+                for (let i = 0; i < this.count; i++) {
+                    if (cond(this.get(i))) {
+                        ret.push(this.get(i))
+                    }
+                }
+                return ret;
+            }
         }
         Component.onCompleted: {
             createWs(),createWs(),createWs()
