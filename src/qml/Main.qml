@@ -41,7 +41,7 @@ Item {
         onActiveFocusItemChanged: {
             // Focus does not return to the workspace when a popup is closed from within QML
             if (activeFocusItem === renderWindow.contentItem) {
-                workspaceLoader.forceActiveFocus()
+                loaderContainer.forceActiveFocus()
             }
         }
 
@@ -91,54 +91,41 @@ Item {
         }
 
         FocusScope {
-            id: workspaceLoader
-            objectName: "workspaceLoader"
+            id: loaderContainer
             anchors.fill: parent
-            visible: true
-            enabled: visible
-            focus: enabled
-            ColumnLayout {
+            focus: true
+            Loader {
+                id: stackLayout
                 anchors.fill: parent
-                FocusScope {
-                    objectName: "loadercontainer"
-                    Layout.fillWidth: true
-                    Layout.fillHeight: true
-                    focus: true
-                    activeFocusOnTab: true
-                    Loader {
-                        id: stackLayout
-                        anchors.fill: parent
-                        focus: true
-                        sourceComponent: StackWorkspace {
-                            focus: stackLayout.active
-                            activeOutputDelegate: renderWindow.activeOutputDelegate
-                        }
-                    }
+                focus: !Helper.lockScreen
+                sourceComponent: StackWorkspace {
+                    focus: !Helper.lockScreen
+                    activeOutputDelegate: renderWindow.activeOutputDelegate
+                }
+            }
 
-                    Loader {
-                        active: !stackLayout.active
-                        anchors.fill: parent
-                        sourceComponent: TiledWorkspace { }
+            Loader {
+                active: !stackLayout.active
+                anchors.fill: parent
+                sourceComponent: TiledWorkspace { }
+            }
+            Loader {
+                id: greeter
+                active: Helper.lockScreen
+                focus: active
+                sourceComponent: Repeater {
+                    model: Helper.outputLayout.outputs
+                    delegate: Greeter {
+                        required property var modelData
+                        property CoordMapper outputCoordMapper: this.CoordMapper.helper.get(modelData.output.OutputItem.item)
+                        output: modelData.output
+                        focus: Helper.lockScreen
+                        anchors.fill: outputCoordMapper
                     }
                 }
             }
-        }
-
-        Loader {
-            active: !TreeLand.testMode
-            id: greeter
-            sourceComponent: Repeater {
-                model: Helper.outputLayout.outputs
-                delegate: Greeter {
-                    required property var modelData
-                    property CoordMapper outputCoordMapper: this.CoordMapper.helper.get(modelData.output.OutputItem.item)
-                    output: modelData.output
-                    focus: true
-                    anchors.fill: outputCoordMapper
-                }
-            }
-            onLoaded: {
-                Helper.lockScreen = true
+            Component.onCompleted: {
+                Helper.lockScreen = !TreeLand.testMode
             }
         }
 
@@ -155,7 +142,7 @@ Item {
         Connections {
             target: Helper
             function onGreeterVisibleChanged() {
-                greeter.active = !TreeLand.testMode
+                Helper.lockScreen = true
             }
         }
 
@@ -171,7 +158,7 @@ Item {
             autoRepeat: false
             context: Qt.ApplicationShortcut
             onActivated: {
-                QmlHelper.shortcutManager.screenLocked()
+                Helper.lockScreen = true
             }
         }
         Shortcut {
@@ -223,12 +210,6 @@ Item {
             context: Qt.ApplicationShortcut
             onActivated: {
                 QmlHelper.shortcutManager.moveToNeighborWorkspace(-1)
-            }
-        }
-        Connections {
-            target: QmlHelper.shortcutManager
-            function onScreenLocked() {
-                greeter.active = !TreeLand.testMode
             }
         }
 
