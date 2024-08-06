@@ -769,23 +769,32 @@ bool Helper::doGesture(WSeat *seat, QInputEvent *event)
 
 bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *watched, QInputEvent *event)
 {
-    if (event->type() == QEvent::KeyRelease) {
-        if (!m_actions.empty() && !m_currentUser.isEmpty()) {
-            auto e = static_cast<QKeyEvent *>(event);
-            QKeySequence sequence(e->modifiers() | e->key());
-            bool isFind = false;
-            for (QAction *action : m_actions[m_currentUser]) {
-                if (action->shortcut() == sequence) {
-                    isFind = true;
-                    action->activate(QAction::Trigger);
-                }
-            }
+    // FIXME: only one meta key
+    // QEvent::ShortcutOverride QKeySequence("Meta")
+    // QEvent::KeyPress QKeySequence("Meta+Meta")
+    // QEvent::KeyRelease QKeySequence("Meta")
+    static QFlags<MetaKeyCheck> metaKeyChecks;
+    if (auto e = static_cast<QKeyEvent *>(event)) {
+        if (e->type() == QKeyEvent::ShortcutOverride && e->key() == Qt::Key_Meta) {
+            metaKeyChecks |= MetaKeyCheck::ShortcutOverride;
+        } else if (metaKeyChecks.testFlags(MetaKeyCheck::ShortcutOverride)
+                   && e->type() == QKeyEvent::KeyPress && e->modifiers() == Qt::MetaModifier
+                   && e->key() == Qt::Key_Meta) {
+            metaKeyChecks |= MetaKeyCheck::KeyPress;
+        } else if (metaKeyChecks.testFlags(MetaKeyCheck::ShortcutOverride | MetaKeyCheck::KeyPress)
+                   && e->type() == QKeyEvent::KeyRelease && e->key() == Qt::Key_Meta) {
+            metaKeyChecks |= MetaKeyCheck::KeyRelease;
+        } else {
+            metaKeyChecks = {};
+        }
 
-            if (isFind) {
-                return true;
-            }
+        if (metaKeyChecks.testFlags(MetaKeyCheck::ShortcutOverride | MetaKeyCheck::KeyPress
+                                    | MetaKeyCheck::KeyRelease)) {
+            metaKeyChecks = {}; // reset
+            Q_EMIT metaKeyNotify();
         }
     }
+    // FIXME: end
 
     // Alt+Tab switcher
     // TODO: move to mid handle
@@ -1114,34 +1123,6 @@ void Helper::closeSurface(Waylib::Server::WSurface *surface)
     } else if (auto s = Waylib::Server::WXWaylandSurface::fromSurface(surface)) {
         s->close();
     }
-}
-
-bool Helper::addAction(const QString &user, QAction *action)
-{
-    if (!m_actions.count(user)) {
-        m_actions[user] = {};
-    }
-
-    auto find = std::ranges::find_if(m_actions[user], [action](QAction *a) {
-        return a->shortcut() == action->shortcut();
-    });
-
-    if (find == m_actions[user].end()) {
-        m_actions[user].push_back(action);
-    }
-
-    return find == m_actions[user].end();
-}
-
-void Helper::removeAction(const QString &user, QAction *action)
-{
-    if (!m_actions.count(user)) {
-        return;
-    }
-
-    std::erase_if(m_actions[user], [action](QAction *a) {
-        return a == action;
-    });
 }
 
 void Helper::updateOutputsRegion()

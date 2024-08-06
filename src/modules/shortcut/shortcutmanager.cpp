@@ -16,9 +16,9 @@
 #include <sys/socket.h>
 #include <unistd.h>
 
-ShortcutV1::ShortcutV1(Helper *helper, QObject *parent)
+ShortcutV1::ShortcutV1(QObject *parent)
     : QObject(parent)
-    , m_helper(helper)
+    , m_model(new ShortcutModel(this))
 {
 }
 
@@ -35,10 +35,10 @@ void ShortcutV1::onNewContext(uid_t uid, treeland_shortcut_context_v1 *context)
     });
 
     connect(context, &treeland_shortcut_context_v1::before_destroy, this, [this, username, action] {
-        m_helper->removeAction(username, action);
+        m_model->removeAction(username, action);
     });
 
-    m_helper->addAction(username, action);
+    m_model->addAction(username, action);
 }
 
 void ShortcutV1::create(WServer *server)
@@ -53,7 +53,6 @@ wl_global *ShortcutV1::global() const
 {
     return m_manager->global;
 }
-
 
 QByteArrayView ShortcutV1::interfaceName() const
 {

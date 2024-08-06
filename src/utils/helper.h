@@ -90,6 +90,12 @@ public:
     };
     Q_ENUM(WallpaperType)
 
+    enum MetaKeyCheck {
+        ShortcutOverride,
+        KeyPress,
+        KeyRelease,
+    };
+
     void initProtocols(WOutputRenderWindow *window);
     WQuickOutputLayout *outputLayout() const;
     WSeat *seat() const;
@@ -114,9 +120,6 @@ public:
     QString xwaylandSocket() const;
 
     Q_INVOKABLE QString clientName(Waylib::Server::WSurface *surface) const;
-
-    bool addAction(const QString &user, QAction *action);
-    void removeAction(const QString &user, QAction *action);
 
     Q_INVOKABLE void closeSurface(Waylib::Server::WSurface *surface);
 
@@ -147,9 +150,9 @@ public:
     Q_INVOKABLE bool selectSurfaceToActivate(WToplevelSurface *surface) const;
 
     void setLockScreen(bool lockScreen);
-    bool lockScreen() const {
-        return m_isLockScreen;
-    }
+
+    bool lockScreen() const { return m_isLockScreen; }
+
     Q_INVOKABLE void updateOutputsRegion();
 
 public Q_SLOTS:
@@ -182,6 +185,7 @@ Q_SIGNALS:
     void currentWorkspaceIdChanged();
     void currentUserChanged(const QString &user);
     void lockScreenChanged();
+    void metaKeyNotify();
 
 protected:
     bool beforeDisposeEvent(WSeat *seat, QWindow *watched, QInputEvent *event) override;
@@ -244,7 +248,6 @@ private:
     QString m_waylandSocket;
     QString m_xwaylandSocket;
     QString m_currentUser;
-    std::map<QString, std::vector<QAction *>> m_actions;
     bool m_switcherOn = false;
     bool m_switcherEnabled = true;
 
@@ -252,6 +255,9 @@ private:
 
     int m_currentWorkspaceId{ 0 };
 };
+
+Q_DECLARE_FLAGS(MetaKeyChecks, Helper::MetaKeyCheck)
+Q_DECLARE_OPERATORS_FOR_FLAGS(MetaKeyChecks)
 
 struct OutputInfo
 {
