@@ -1088,7 +1088,7 @@ bool OutputHelper::tryToHardwareCursor(const LayerData *layer)
         }
 
         if (pixelSize != QSize(buffer->width, buffer->height)
-            || get_cursor_formsts) {
+            || (get_cursor_formsts && get_cursor_size)) {
             // needs render cursor again
             if (!m_cursorRenderer) {
                 m_cursorRenderer = new WBufferRenderer(renderWindow()->contentItem());
@@ -1111,7 +1111,9 @@ bool OutputHelper::tryToHardwareCursor(const LayerData *layer)
             m_cursorLayerProxy->setHeight(buffer->height);
 
             auto newBuffer = m_cursorRenderer->lastBuffer();
-            if (m_cursorDirty || !newBuffer) {
+            const QSize newBufferSize(newBuffer->handle()->width,
+                                      newBuffer->handle()->height);
+            if (m_cursorDirty || !newBuffer || pixelSize != newBufferSize) {
                 newBuffer = m_cursorRenderer->beginRender(pixelSize, 1.0, DRM_FORMAT_ARGB8888,
                                                           WBufferRenderer::UseCursorFormats);
                 if (newBuffer) {
@@ -1123,8 +1125,7 @@ bool OutputHelper::tryToHardwareCursor(const LayerData *layer)
             }
 
             if (newBuffer) {
-                Q_ASSERT(pixelSize.width() == newBuffer->handle()->width);
-                Q_ASSERT(pixelSize.height() == newBuffer->handle()->height);
+                Q_ASSERT(pixelSize == newBufferSize);
                 buffer = newBuffer->handle();
             } else {
                 buffer = nullptr;
