@@ -4,6 +4,7 @@
 #pragma once
 
 #include "helper.h"
+#include "shortcutmodel.h"
 
 #include <wserver.h>
 
@@ -16,10 +17,13 @@ class treeland_shortcut_manager_v1;
 class ShortcutV1 : public QObject, public Waylib::Server::WServerInterface
 {
     Q_OBJECT
+    Q_PROPERTY(ShortcutModel *model READ model CONSTANT)
 
 public:
-    explicit ShortcutV1(Helper *helper, QObject *parent = nullptr);
+    explicit ShortcutV1(QObject *parent = nullptr);
     QByteArrayView interfaceName() const override;
+
+    ShortcutModel *model() const { return m_model; }
 
 protected:
     void create(WServer *server) override;
@@ -31,5 +35,5 @@ private Q_SLOTS:
 
 private:
     treeland_shortcut_manager_v1 *m_manager = nullptr;
-    Helper *m_helper = nullptr;
+    ShortcutModel *m_model = nullptr;
 };

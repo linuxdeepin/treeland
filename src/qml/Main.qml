@@ -144,6 +144,30 @@ Item {
             function onGreeterVisibleChanged() {
                 Helper.lockScreen = true
             }
+            function onCurrentUserChanged() {
+                ShortcutV1.model.user = Helper.currentUser
+            }
+            function onMetaKeyNotify() {
+                ShortcutV1.model.handleMetaKey()
+            }
+        }
+
+        Repeater {
+            model: Helper.lockScreen ? undefined : ShortcutV1.model
+            Item {
+                required property string shortcut
+                required property int index
+                Shortcut {
+                    sequence: shortcut
+                    context: Qt.ApplicationShortcut
+                    onActivated: {
+                        ShortcutV1.model.trigger(index)
+                    }
+                }
+            }
+            Component.onCompleted: {
+                ShortcutV1.model.user = Helper.currentUser
+            }
         }
 
         Shortcut {

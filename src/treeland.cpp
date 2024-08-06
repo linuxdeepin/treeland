@@ -287,6 +287,12 @@ void TreeLand::setup()
                                                   "VirtualOutputV1",
                                                   m_server->attach<VirtualOutputV1>());
 
+    qmlRegisterSingletonInstance<ShortcutV1>("TreeLand.Protocols",
+                                             1,
+                                             0,
+                                             "ShortcutV1",
+                                             m_server->attach<ShortcutV1>());
+
     m_engine->loadFromModule("TreeLand", "Main");
 
     auto window = m_engine->rootObjects().first()->findChild<WOutputRenderWindow *>();
@@ -296,8 +302,6 @@ void TreeLand::setup()
     Q_ASSERT(helper);
 
     helper->initProtocols(window);
-
-    m_server->attach<ShortcutV1>(helper);
 
     PersonalizationV1 *personalization =
         m_engine->singletonInstance<PersonalizationV1 *>("TreeLand.Protocols", "PersonalizationV1");
