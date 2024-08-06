@@ -4,6 +4,7 @@
 #pragma once
 
 #include "impl/foreign_toplevel_manager_impl.h"
+#include "treeland-foreign-toplevel-manager-protocol.h"
 
 #include <wserver.h>
 #include <wxdgsurface.h>
@@ -40,6 +41,14 @@ class ForeignToplevelV1 : public QObject, public WServerInterface
     Q_OBJECT
 
 public:
+    enum class PreviewDirection {
+        top = TREELAND_DOCK_PREVIEW_CONTEXT_V1_DIRECTION_TOP,
+        right = TREELAND_DOCK_PREVIEW_CONTEXT_V1_DIRECTION_RIGHT,
+        bottom = TREELAND_DOCK_PREVIEW_CONTEXT_V1_DIRECTION_BOTTOM,
+        left = TREELAND_DOCK_PREVIEW_CONTEXT_V1_DIRECTION_LEFT,
+    };
+    Q_ENUM(PreviewDirection);
+
     explicit ForeignToplevelV1(QObject *parent = nullptr);
 
     Q_INVOKABLE void add(WToplevelSurface *surface);
@@ -66,7 +75,11 @@ Q_SIGNALS:
     void requestDockPreview(std::vector<WSurface *> surfaces,
                             WSurface *target,
                             QPoint abs,
-                            int direction);
+                            PreviewDirection direction);
+    void requestDockPreviewTooltip(QString tooltip,
+                            WSurface *target,
+                            QPoint abs,
+                            PreviewDirection direction);
     void requestDockClose();
 
 protected:

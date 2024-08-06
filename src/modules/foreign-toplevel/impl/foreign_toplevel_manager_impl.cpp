@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "foreign_toplevel_manager_impl.h"
-
 #include "treeland-foreign-toplevel-manager-protocol.h"
 
 #include <cassert>
@@ -61,6 +60,12 @@ static void treeland_dock_preview_context_handle_show(struct wl_client *client,
                                                       int32_t x,
                                                       int32_t y,
                                                       uint32_t direction);
+static void treeland_dock_preview_context_handle_show_tooltip(struct wl_client *client,
+                     struct wl_resource *resource,
+                     const char *tooltip,
+                     int32_t x,
+                     int32_t y,
+                     uint32_t direction);
 static void treeland_dock_preview_context_handle_close(struct wl_client *client,
                                                        struct wl_resource *resource);
 
@@ -83,6 +88,7 @@ static const struct ztreeland_foreign_toplevel_handle_v1_interface treeland_topl
 static const struct treeland_dock_preview_context_v1_interface
     treeland_dock_preview_context_impl = {
         .show = treeland_dock_preview_context_handle_show,
+        .show_tooltip = treeland_dock_preview_context_handle_show_tooltip,
         .close = treeland_dock_preview_context_handle_close,
         .destroy = treeland_dock_preview_context_handle_destroy,
     };
@@ -179,36 +185,25 @@ static void toplevel_send_fullscreen_event(struct wl_resource *resource,
     Q_EMIT toplevel->requestFullscreen(&event);
 }
 
-static void dock_send_preview_event(struct wl_resource *resource,
-                                    struct wl_array *surfaces,
-                                    int32_t x,
-                                    int32_t y,
-                                    int32_t direction)
+static void treeland_dock_preview_context_handle_show_tooltip(struct wl_client *client,
+                                                              struct wl_resource *resource,
+                                                              const char *tooltip,
+                                                              int32_t x,
+                                                              int32_t y,
+                                                              uint32_t direction)
 {
     auto *dock_preview =
         toplevel_dock_preview_context_from_resource(resource);
-    if (!dock_preview) {
-        return;
-    }
 
-    std::vector<uint32_t> s;
-    const uint32_t *data = reinterpret_cast<const uint32_t *>(surfaces->data);
-    const size_t count = surfaces->size / sizeof(uint32_t);
-    for (int i = 0; i != count; ++i) {
-        s.push_back(data[i]);
-    }
-
-    Q_ASSERT(surfaces->size);
-
-    treeland_dock_preview_context_v1_preview_event event = {
+    treeland_dock_preview_tooltip_event event = {
         .toplevel = dock_preview,
-        .toplevels = s,
+        .tooltip = QString::fromUtf8(tooltip),
         .x = x,
         .y = y,
         .direction = static_cast<treeland_dock_preview_context_v1_direction>(direction),
     };
 
-    Q_EMIT dock_preview->requestShow(&event);
+    Q_EMIT dock_preview->requestShowTooltip(&event);
 }
 
 static void treeland_foreign_toplevel_handle_set_fullscreen(
@@ -648,7 +643,31 @@ static void treeland_dock_preview_context_handle_show([[maybe_unused]] struct wl
                                                       int32_t y,
                                                       uint32_t direction)
 {
-    dock_send_preview_event(resource, surfaces, x, y, direction);
+    auto *dock_preview =
+        toplevel_dock_preview_context_from_resource(resource);
+    if (!dock_preview) {
+        return;
+    }
+
+    std::vector<uint32_t> s;
+    const uint32_t *data = reinterpret_cast<const uint32_t *>(surfaces->data);
+    const size_t count = surfaces->size / sizeof(uint32_t);
+    for (int i = 0; i != count; ++i) {
+        s.push_back(data[i]);
+    }
+
+    if (!surfaces->size)
+        qCritical() << "get empty surface to dock preview!";
+
+    treeland_dock_preview_context_v1_preview_event event = {
+        .toplevel = dock_preview,
+        .toplevels = s,
+        .x = x,
+        .y = y,
+        .direction = static_cast<treeland_dock_preview_context_v1_direction>(direction),
+    };
+
+    Q_EMIT dock_preview->requestShow(&event);
 }
 
 static void treeland_dock_preview_context_handle_close([[maybe_unused]] struct wl_client *client,

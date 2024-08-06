@@ -51,6 +51,7 @@ struct treeland_foreign_toplevel_handle_v1_output
 };
 
 struct treeland_dock_preview_context_v1_preview_event;
+struct treeland_dock_preview_tooltip_event;
 
 struct treeland_dock_preview_context_v1 : public QObject
 {
@@ -66,6 +67,7 @@ public:
 Q_SIGNALS:
     void before_destroy();
     void requestShow(treeland_dock_preview_context_v1_preview_event *event);
+    void requestShowTooltip(treeland_dock_preview_tooltip_event *event);
     void requestClose();
 };
 
@@ -167,6 +169,14 @@ struct treeland_dock_preview_context_v1_preview_event
 {
     treeland_dock_preview_context_v1 *toplevel;
     std::vector<uint32_t> toplevels;
+    int32_t x, y;
+    int32_t direction;
+};
+
+struct treeland_dock_preview_tooltip_event
+{
+    treeland_dock_preview_context_v1 *toplevel;
+    QString tooltip;
     int32_t x, y;
     int32_t direction;
 };

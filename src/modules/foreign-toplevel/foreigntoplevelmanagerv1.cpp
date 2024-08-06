@@ -324,9 +324,18 @@ void ForeignToplevelV1::onDockPreviewContextCreated(treeland_dock_preview_contex
                                           WSurface::fromHandle(wlr_surface_from_resource(
                                               event->toplevel->relative_surface)),
                                           QPoint(event->x, event->y),
-                                          event->direction);
+                                          static_cast<PreviewDirection>(event->direction));
             });
-
+    connect(context,
+            &treeland_dock_preview_context_v1::requestShowTooltip,
+            this,
+            [this](treeland_dock_preview_tooltip_event *event) {
+                Q_EMIT requestDockPreviewTooltip(event->tooltip,
+                                          WSurface::fromHandle(wlr_surface_from_resource(
+                                              event->toplevel->relative_surface)),
+                                          QPoint(event->x, event->y),
+                                           static_cast<PreviewDirection>(event->direction));
+            });
     connect(context,
             &treeland_dock_preview_context_v1::requestClose,
             this,

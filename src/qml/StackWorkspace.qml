@@ -24,7 +24,6 @@ FocusScope {
     }
 
     required property OutputDelegate activeOutputDelegate
-    readonly property real hideOpacity: 0
 
     property var workspaceManager: QmlHelper.workspaceManager
     property int currentWorkspaceId: Helper.currentWorkspaceId
@@ -59,7 +58,6 @@ FocusScope {
         visible: !WindowManagementV1.desktopState
         enabled: !switcher.visible && !multitaskView.active
         focus: enabled
-        opacity: dockPreview.previewing ? hideOpacity : 1
         z: 0
 
         Behavior on opacity {
@@ -509,30 +507,22 @@ FocusScope {
         }
     }
 
-    Connections {
-        target: ForeignToplevelV1
-        function onRequestDockPreview(surfaces, target, abs, direction) {
-            dockPreview.show(surfaces, QmlHelper.getSurfaceItemFromWaylandSurface(target), abs, direction)
-        }
-        function onRequestDockClose() {
-            dockPreview.close()
-        }
-    }
-
     DockPreview {
         id: dockPreview
         z: 100 + 1
-        anchors.fill: parent
-        visible: false
-        onEntered: (relativeSurface) => {
-            ForeignToplevelV1.enterDockPreview(relativeSurface)
-        }
-        onExited: (relativeSurface) => {
-            ForeignToplevelV1.leaveDockPreview(relativeSurface)
-        }
-        onSurfaceActivated: (surfaceItem) => {
-            surfaceItem.cancelMinimize()
-            Helper.activatedSurface = surfaceItem.waylandSurface
+        spacing: 2
+
+        Connections {
+            target: ForeignToplevelV1
+            function onRequestDockPreview(surfaces, target, abs, direction) {
+                dockPreview.show(surfaces, QmlHelper.getSurfaceItemFromWaylandSurface(target), abs, direction)
+            }
+            function onRequestDockPreviewTooltip(tooltip, target, abs, direction) {
+                dockPreview.showTooltip(tooltip, QmlHelper.getSurfaceItemFromWaylandSurface(target), abs, direction)
+            }
+            function onRequestDockClose() {
+                dockPreview.close()
+            }
         }
     }
 
