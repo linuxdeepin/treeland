@@ -322,6 +322,13 @@
             <arg name="direction" type="uint" />
         </request>
 
+        <request name="show_tooltip">
+            <arg name="tooltip" type="string" />
+            <arg name="x" type="int" />
+            <arg name="y" type="int" />
+            <arg name="direction" type="uint" />
+        </request>
+
         <request name="close">
             <description summary="close preview box">
                 close preview box

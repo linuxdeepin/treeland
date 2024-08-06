@@ -25,7 +25,6 @@ qt_add_qml_module(treeland-qml
         InputPopupSurface.qml
         LayerSurface.qml
         WindowsSwitcher.qml
-        WindowsSwitcherPreview.qml
         DockPreview.qml
         MultitaskView.qml
         EQHGrid.qml

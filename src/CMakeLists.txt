@@ -27,6 +27,7 @@ FILES
 target_sources(treeland PRIVATE
     treeland.cpp
     ${DBUS_ADAPTOR}
+    treeland_assets.qrc
 )
 
 target_link_libraries(treeland
