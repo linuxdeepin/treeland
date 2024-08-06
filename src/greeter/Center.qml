@@ -3,10 +3,12 @@
 import QtQuick
 import QtQuick.Layouts
 import QtQuick.Controls
+import QtQuick.Effects
 import QtQuick.Dialogs
 import org.deepin.dtk 1.0 as D
 import TreeLand
 import TreeLand.Utils
+import Waylib.Server
 
 FocusScope {
     id: root
@@ -83,6 +85,7 @@ FocusScope {
         width: root.width * 0.4
 
         TimeDateWidget {
+            id: timedate
             currentLocale :{
                 let user = GreeterModel.userModel.get(GreeterModel.currentUser)
                 return user.locale
@@ -96,6 +99,23 @@ FocusScope {
                 radius: 8
                 color: "white"
                 opacity: 0.1
+            }
+        }
+
+        RenderBufferBlitter {
+            id: blitter
+            parent: timedate
+            z: parent.z - 1
+            anchors.fill: parent
+            MultiEffect {
+                id: blur
+                anchors.fill: parent
+                source: blitter.content
+                autoPaddingEnabled: false
+                blurEnabled: true
+                blur: 1.0
+                blurMax: 64
+                saturation: 0.2
             }
         }
 

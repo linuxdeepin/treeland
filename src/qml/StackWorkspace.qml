@@ -241,14 +241,6 @@ FocusScope {
                             blurMax: 64
                             saturation: 0.2
                         }
-
-                        D.ItemViewport {
-                            anchors.fill: blur
-                            fixed: true
-                            sourceItem: blur
-                            radius: 16
-                            hideSource: true
-                        }
                     }
                 }
 
