@@ -173,8 +173,6 @@ Q_SIGNALS:
     void activatedSurfaceChanged();
     void resizingItemChanged();
     void movingItemChanged();
-    void backToNormal();
-    void reboot();
     void greeterVisibleChanged();
     void topExclusiveMarginChanged();
     void bottomExclusiveMarginChanged();

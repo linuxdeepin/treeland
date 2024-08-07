@@ -837,14 +837,6 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *watched, QInputEvent *even
             }
         }
     } break;
-    case Qt::Key_BracketLeft:
-    case Qt::Key_Delete: {
-        if (e->modifiers() == Qt::MetaModifier) {
-            Q_EMIT backToNormal();
-            Q_EMIT reboot();
-            return true;
-        }
-    } break;
     case Qt::Key_Right: {
         if (event->type() == QEvent::KeyPress) {
             if (m_switcherEnabled) {
