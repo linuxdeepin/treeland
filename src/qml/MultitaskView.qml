@@ -405,6 +405,7 @@ Item {
                                     inProgress: !Number.isInteger(taskviewVal)
                                     partialGestureFactor: root.taskviewVal
                                     activeMethod: root.activeMethod
+                                    exited: root.exited
                                     delegate: Item {
                                         id: surfaceItemDelegate
                                         property SurfaceItem source: modelData.item
