@@ -3,6 +3,8 @@
 
 import QtQuick
 import Waylib.Server
+import QtQuick.Effects
+import TreeLand.Protocols
 
 Item {
     id: root
@@ -26,17 +28,35 @@ Item {
 
     function start() {
         visible = true;
-        if (root.position === WaylandLayerSurface.AnchorType.None) {
-            fullscreenAnimation.start();
-        } else {
-            sideAnimation.start();
-        }
+        sideAnimation.start();
     }
 
     function stop() {
         visible = false;
         effect.sourceItem = null;
         stopped();
+    }
+
+    property var personalizationMapper: PersonalizationV1.Attached(target.shellSurface)
+
+    Loader {
+        active: personalizationMapper.backgroundType === Personalization.Blend
+        anchors.fill: parent
+        sourceComponent: RenderBufferBlitter {
+            id: blitter
+            anchors.fill: parent
+            MultiEffect {
+                id: blur
+
+                anchors.fill: parent
+                source: blitter.content
+                autoPaddingEnabled: false
+                blurEnabled: true
+                blur: 1.0
+                blurMax: 64
+                saturation: 0.2
+            }
+        }
     }
 
     ShaderEffectSource {
@@ -117,31 +137,6 @@ Item {
             duration: 1000
             from: root.direction === LayerShellAnimation.Direction.Show ? 0.2 : 1
             to: root.direction !== LayerShellAnimation.Direction.Show ? 0.2 : 1
-            easing.type: Easing.OutExpo
-        }
-    }
-
-    ParallelAnimation {
-        id: fullscreenAnimation
-
-        onStopped: {
-            root.stop();
-        }
-
-        PropertyAnimation {
-            target: effect
-            property: "opacity"
-            duration: 400
-            from: root.direction === LayerShellAnimation.Direction.Show ? 0 : 1
-            to: root.direction !== LayerShellAnimation.Direction.Show ? 0 : 1
-            easing.type: Easing.OutExpo
-        }
-        PropertyAnimation {
-            target: effect
-            property: "scale"
-            duration: 400
-            from: root.direction === LayerShellAnimation.Direction.Show ? 0.3 : 1
-            to: root.direction !== LayerShellAnimation.Direction.Show ? 0.3 : 1
             easing.type: Easing.OutExpo
         }
     }
