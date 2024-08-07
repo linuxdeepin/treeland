@@ -53,6 +53,51 @@ WallpaperProxy {
         ]
     }
 
+    Rectangle {
+        id: cover
+        anchors.fill: parent
+        color: 'black'
+        opacity: 0.0
+        state: background.state
+        states: [
+            State {
+                name: "Normal"
+                PropertyChanges {
+                    target: cover
+                    opacity: 0.0
+                }
+            },
+            State {
+                name: "Scale"
+                PropertyChanges {
+                    target: cover
+                    opacity: 0.6
+                }
+            }
+        ]
+
+        transitions: [
+            Transition {
+                from: "*"
+                to: "Normal"
+                PropertyAnimation {
+                    property: "opacity"
+                    duration: 1000
+                    easing.type: Easing.OutExpo
+                }
+            },
+            Transition {
+                from: "*"
+                to: "Scale"
+                PropertyAnimation {
+                    property: "opacity"
+                    duration: 1000
+                    easing.type: Easing.OutExpo
+                }
+            }
+        ]
+    }
+
     onTypeChanged: {
         background.state = type === Helper.Normal ? "Normal" : "Scale";
     }
