@@ -392,7 +392,7 @@ public:
     wlr_seat_client *cursorClient = nullptr;
     QPointer<WSurface> cursorSurface;
     QPoint cursorSurfaceHotspot;
-    WGlobal::CursorShape cursorShape;
+    WGlobal::CursorShape cursorShape = WGlobal::CursorShape::Invalid;
 
     QPointer<WSurface> dragSurface;
 };
@@ -414,6 +414,7 @@ void WSeatPrivate::on_request_set_cursor(wlr_seat_pointer_request_set_cursor_eve
          * cursor moves between outputs. */
         auto *surface = event->surface ? qw_surface::from(event->surface) : nullptr;
         cursorClient = event->seat_client;
+        cursorShape = WGlobal::CursorShape::Invalid;
 
         if (cursorSurface)
             cursorSurface->safeDeleteLater();
@@ -1330,6 +1331,10 @@ void WSeat::setCursorShape(wlr_seat_client *client, WGlobal::CursorShape shape)
         return;
     d->cursorShape = shape;
     d->cursorClient = client;
+
+    if (d->cursorSurface)
+        d->cursorSurface->safeDeleteLater();
+
     Q_EMIT requestCursorShape(shape);
 }
 

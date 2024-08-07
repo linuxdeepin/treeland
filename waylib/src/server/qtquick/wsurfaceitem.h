@@ -24,6 +24,12 @@ class WAYLIB_SERVER_EXPORT WSurfaceItemContent : public QQuickItem
     Q_PROPERTY(WSurface* surface READ surface WRITE setSurface NOTIFY surfaceChanged FINAL)
     Q_PROPERTY(bool cacheLastBuffer READ cacheLastBuffer WRITE setCacheLastBuffer NOTIFY cacheLastBufferChanged FINAL)
     Q_PROPERTY(bool live READ live WRITE setLive NOTIFY liveChanged FINAL)
+    // override property to readonly
+    Q_PROPERTY(qreal implicitWidth READ implicitWidth NOTIFY implicitWidthChanged)
+    // override property to readonly
+    Q_PROPERTY(qreal implicitHeight READ implicitHeight NOTIFY implicitHeightChanged)
+    Q_PROPERTY(QPoint bufferOffset READ bufferOffset NOTIFY bufferOffsetChanged FINAL)
+    Q_PROPERTY(bool ignoreBufferOffset READ ignoreBufferOffset WRITE setIgnoreBufferOffset NOTIFY ignoreBufferOffsetChanged FINAL)
     QML_NAMED_ELEMENT(SurfaceItemContent)
 
 public:
@@ -43,10 +49,17 @@ public:
     bool live() const;
     void setLive(bool live);
 
+    QPoint bufferOffset() const;
+
+    bool ignoreBufferOffset() const;
+    void setIgnoreBufferOffset(bool newIgnoreBufferOffset);
+
 Q_SIGNALS:
     void surfaceChanged();
     void cacheLastBufferChanged();
     void liveChanged();
+    void bufferOffsetChanged();
+    void ignoreBufferOffsetChanged();
 
 private:
     friend class WSurfaceItem;

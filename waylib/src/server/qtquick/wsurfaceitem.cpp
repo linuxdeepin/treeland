@@ -224,7 +224,17 @@ public:
         qw_fbox tmp;
         surface->handle()->get_buffer_source_box(tmp);
         bufferSourceBox = tmp.toQRectF();
-        bufferOffset = surface->bufferOffset();
+
+        W_Q(WSurfaceItemContent);
+
+        const auto bOffset = surface->bufferOffset();
+        if (bOffset != bufferOffset) {
+            bufferOffset = surface->bufferOffset();
+            Q_EMIT q->bufferOffsetChanged();
+        }
+
+        const auto s = surface->size();
+        q->setImplicitSize(s.width(), s.height());
     }
 
     W_DECLARE_PUBLIC(WSurfaceItemContent)
@@ -237,6 +247,7 @@ public:
     mutable QMetaObject::Connection updateTextureConnection;
     bool dontCacheLastBuffer = false;
     bool live = true;
+    bool ignoreBufferOffset = false;
 };
 
 
@@ -289,8 +300,12 @@ void WSurfaceItemContent::setSurface(WSurface *surface)
             d->init();
     }
 
-    if (!d->surface)
+    if (!d->surface) {
         d->invalidate();
+    } else {
+        const auto s = surface->size();
+        setImplicitSize(s.width(), s.height());
+    }
 
     Q_EMIT surfaceChanged();
 }
@@ -347,6 +362,27 @@ void WSurfaceItemContent::setLive(bool live)
     Q_EMIT liveChanged();
 }
 
+QPoint WSurfaceItemContent::bufferOffset() const
+{
+    W_DC(WSurfaceItemContent);
+    return d->bufferOffset;
+}
+
+bool WSurfaceItemContent::ignoreBufferOffset() const
+{
+    W_DC(WSurfaceItemContent);
+    return d->ignoreBufferOffset;
+}
+
+void WSurfaceItemContent::setIgnoreBufferOffset(bool newIgnoreBufferOffset)
+{
+    W_D(WSurfaceItemContent);
+    if (d->ignoreBufferOffset == newIgnoreBufferOffset)
+        return;
+    d->ignoreBufferOffset = newIgnoreBufferOffset;
+    Q_EMIT ignoreBufferOffsetChanged();
+}
+
 void WSurfaceItemContent::componentComplete()
 {
     QQuickItem::componentComplete();
@@ -379,7 +415,6 @@ public:
 
 QSGNode *WSurfaceItemContent::updatePaintNode(QSGNode *oldNode, UpdatePaintNodeData *)
 {
-    auto privt = QQuickItemPrivate::get(this);
     W_D(WSurfaceItemContent);
     if (!d->textureProvider || !d->textureProvider->texture() || width() <= 0 || height() <= 0) {
         delete oldNode;
@@ -400,7 +435,7 @@ QSGNode *WSurfaceItemContent::updatePaintNode(QSGNode *oldNode, UpdatePaintNodeD
 
     const QRectF textureGeometry = d->bufferSourceBox;
     node->setSourceRect(textureGeometry);
-    const QRectF targetGeometry(d->bufferOffset, size());
+    const QRectF targetGeometry(d->ignoreBufferOffset ? QPointF() : d->bufferOffset, size());
     node->setRect(targetGeometry);
     node->setFiltering(smooth() ? QSGTexture::Linear : QSGTexture::Nearest);
 

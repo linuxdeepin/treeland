@@ -229,10 +229,12 @@ void WQuickCursorPrivate::cleanTextureProvider()
 
 void WQuickCursorPrivate::setSurface(WSurface *surface)
 {
+    W_Q(WQuickCursor);
+
     if (surface) {
         if (!cursorSurfaceItem) {
-            W_Q(WQuickCursor);
             cursorSurfaceItem = new WSurfaceItemContent(q);
+            cursorSurfaceItem->setIgnoreBufferOffset(true);
             QQuickItemPrivate::get(cursorSurfaceItem)->anchors()->setFill(q);
             bool ok = QObject::connect(cursorSurfaceItem, SIGNAL(implicitWidthChanged()),
                                        q, SLOT(updateImplicitSize()));
@@ -240,14 +242,24 @@ void WQuickCursorPrivate::setSurface(WSurface *surface)
             ok = QObject::connect(cursorSurfaceItem, SIGNAL(implicitHeightChanged()),
                                   q, SLOT(updateImplicitSize()));
             Q_ASSERT(ok);
+            QObject::connect(cursorSurfaceItem, &WSurfaceItemContent::bufferOffsetChanged,
+                             q, [this] {
+                setHotSpot(hotSpot -= cursorSurfaceItem->bufferOffset());
+            });
+
+            q->setFlag(QQuickItem::ItemHasContents, false);
+            q->update();
         }
 
         cursorSurfaceItem->setSurface(surface);
         if (textureProvider)
             textureProvider->setProxy(cursorSurfaceItem->wTextureProvider());
+        Q_ASSERT(!q->flags().testFlag(QQuickItem::ItemHasContents));
     } else if (cursorSurfaceItem) {
         cursorSurfaceItem->deleteLater();
         cursorSurfaceItem = nullptr;
+        q->setFlag(QQuickItem::ItemHasContents, true);
+        q->update();
     }
 
     updateImplicitSize();
@@ -284,10 +296,12 @@ void WQuickCursorPrivate::updateCursor()
             setHotSpot(rs.second);
         } else {
             setSurface(nullptr);
+            setHotSpot({});
             cursorImage->setCursor(QCursor());
         }
     } else {
         setSurface(nullptr);
+        setHotSpot(cursorImage->hotSpot());
         cursorImage->setCursor(cursor);
     }
 
@@ -503,6 +517,7 @@ QSGNode *WQuickCursor::updatePaintNode(QSGNode *node, UpdatePaintNodeData *)
 {
     W_DC(WQuickCursor);
 
+    Q_ASSERT(!d->cursorSurfaceItem);
     auto tp = d->tp();
     Q_ASSERT(tp);
     // Ignore the tp->proxy, Don't use tp->qwBuffer()
