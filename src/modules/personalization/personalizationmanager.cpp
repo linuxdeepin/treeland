@@ -105,6 +105,11 @@ PersonalizationV1::PersonalizationV1(QObject *parent)
 
 void PersonalizationV1::onWindowContextCreated(personalization_window_context_v1 *context)
 {
+    connect(context, &personalization_window_context_v1::before_destroy, this, [this, context] {
+        auto *surface = WSurface::fromHandle(context->surface);
+        m_surfaceBackgroundType.remove(surface);
+    });
+
     connect(context,
             &personalization_window_context_v1::backgroundTypeChanged,
             this,
@@ -237,7 +242,11 @@ void PersonalizationV1::onGetWallpapers(personalization_wallpaper_context_v1 *co
 
 void PersonalizationV1::onBackgroundTypeChanged(personalization_window_context_v1 *context)
 {
-    Q_EMIT backgroundTypeChanged(WSurface::fromHandle(context->surface), context->background_type);
+    auto *surface = WSurface::fromHandle(context->surface);
+    auto type = static_cast<Personalization::BackgroundType>(context->background_type);
+
+    m_surfaceBackgroundType[surface] = type;
+    Q_EMIT backgroundTypeChanged(surface, type);
 }
 
 uid_t PersonalizationV1::userId()
@@ -305,12 +314,14 @@ QuickPersonalizationManagerAttached::QuickPersonalizationManagerAttached(WSurfac
     connect(m_manager,
             &PersonalizationV1::backgroundTypeChanged,
             this,
-            [this](WSurface *surface, uint32_t type) {
+            [this](WSurface *surface, Personalization::BackgroundType type) {
                 if (m_target == surface) {
-                    m_backgroundType = static_cast<Personalization::BackgroundType>(type);
+                    m_backgroundType = type;
                     Q_EMIT backgroundTypeChanged();
                 }
             });
+
+    m_backgroundType = m_manager->backgroundType(target);
 }
 
 QuickPersonalizationManagerAttached::QuickPersonalizationManagerAttached(QQuickItem *target,
@@ -332,7 +343,7 @@ QQuickItem *QuickPersonalizationManagerAttached::backgroundImage() const
 
 QuickPersonalizationManagerAttached *PersonalizationV1::Attached(QObject *target)
 {
-    if (auto *surface = qobject_cast<WXdgSurface *>(target)) {
+    if (auto *surface = qobject_cast<WToplevelSurface *>(target)) {
         return new QuickPersonalizationManagerAttached(surface->surface(), PERSONALIZATION_MANAGER);
     }
 
@@ -366,8 +377,12 @@ wl_global *PersonalizationV1::global() const
     return m_manager->global;
 }
 
-
 QByteArrayView PersonalizationV1::interfaceName() const
 {
     return treeland_personalization_manager_v1_interface.name;
+}
+
+Personalization::BackgroundType PersonalizationV1::backgroundType(WSurface *surface)
+{
+    return m_surfaceBackgroundType.value(surface, Personalization::Normal);
 }

@@ -90,9 +90,10 @@ public:
     void setCursorSize(const QSize &size);
     Q_INVOKABLE QString getOutputName(const WOutput *w_output);
     QByteArrayView interfaceName() const override;
+    Personalization::BackgroundType backgroundType(WSurface *surface);
 
 Q_SIGNALS:
-    void backgroundTypeChanged(WSurface *surface, uint32_t type);
+    void backgroundTypeChanged(WSurface *surface, Personalization::BackgroundType type);
     void userIdChanged(uid_t uid);
     void backgroundChanged(const QString &output, bool isdark);
     void lockscreenChanged();
@@ -125,4 +126,5 @@ private:
     QString m_iniMetaData;
     QScopedPointer<DTK_CORE_NAMESPACE::DConfig> m_cursorConfig;
     treeland_personalization_manager_v1 *m_manager = nullptr;
+    QMap<WSurface *, Personalization::BackgroundType> m_surfaceBackgroundType;
 };

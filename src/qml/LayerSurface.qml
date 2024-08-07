@@ -4,6 +4,7 @@
 import QtQuick
 import Waylib.Server
 import QtQuick.Particles
+import QtQuick.Effects
 import TreeLand
 import TreeLand.Utils
 import TreeLand.Protocols
@@ -19,10 +20,14 @@ FocusScope {
     property bool pendingDestroy: false
 
     property alias surfaceItem: surfaceItem
+    property var personalizationMapper: PersonalizationV1.Attached(wSurface)
 
     required property DynamicCreatorComponent creatorCompoment
     required property WaylandLayerSurface wSurface
     required property string type
+
+    // TODO: should move to protocol?
+    property bool forceBlur: Helper.clientName(wSurface.surface) === "dde-launchpad"
 
     id: root
     z: zValueFormLayer(wSurface.layer)
@@ -50,6 +55,53 @@ FocusScope {
         }
     }
 
+    Loader {
+        active: personalizationMapper.backgroundType === Personalization.Blend || forceBlur
+        parent: surfaceItem
+        z: surfaceItem.z - 1
+        anchors.fill: parent
+        sourceComponent: RenderBufferBlitter {
+            id: blitter
+            anchors.fill: parent
+            MultiEffect {
+                id: blur
+
+                anchors.fill: parent
+                source: blitter.content
+                autoPaddingEnabled: false
+                blurEnabled: true
+                blur: 1.0
+                blurMax: 64
+                saturation: 0.2
+            }
+        }
+        opacity: mapped ? 1 : 0
+        Behavior on opacity {
+            NumberAnimation {
+                duration: 400
+                easing.type: Easing.OutExpo
+            }
+        }
+    }
+
+    Loader {
+        active: personalizationMapper.backgroundType === Personalization.Blend || forceBlur
+        z: surfaceItem.z - 2
+        anchors.fill: surfaceItem
+        sourceComponent: ShaderEffectSource {
+            sourceItem: wallpaperController.proxy
+            hideSource: false
+            live: true
+        }
+        opacity: mapped ? 1 : 0
+        Behavior on opacity {
+            NumberAnimation {
+                duration: 400
+                easing.type: Easing.OutExpo
+            }
+        }
+    }
+
     OutputLayoutItem {
         anchors.fill: parent
         layout: Helper.outputLayout
@@ -72,34 +124,45 @@ FocusScope {
 
     Loader {
         id: animation
+        parent: surfaceItem.parent
+        anchors.fill: surfaceItem
     }
 
     Component {
-        id: newWindowAnimation
+        id: windowAnimation
 
         LayerShellAnimation {
             target: surfaceItem
-            direction: LayerShellAnimation.Direction.Show
+            direction: mapped ? LayerShellAnimation.Direction.Show : LayerShellAnimation.Direction.Hide
             position: wSurface.getExclusiveZoneEdge()
             onStopped: {
+                if (!mapped) {
+                    if (pendingDestroy) {
+                        creatorCompoment.destroyObject(root)
+                    } else {
+                        surfaceItem.visible = false
+                    }
+                }
                 animation.active = false
             }
         }
     }
 
     Component {
-        id: closeWindowAnimation
-        LayerShellAnimation {
+        id: launchpadAnimation
+
+        LaunchpadAnimation {
             target: surfaceItem
-            direction: LayerShellAnimation.Direction.Hide
+            direction: mapped ? LaunchpadAnimation.Direction.Show : LaunchpadAnimation.Direction.Hide
             position: wSurface.getExclusiveZoneEdge()
             onStopped: {
-                if (pendingDestroy) {
-                    creatorCompoment.destroyObject(root)
-                } else {
-                    surfaceItem.visible = false
+                if (!mapped) {
+                    if (pendingDestroy) {
+                        creatorCompoment.destroyObject(root)
+                    } else {
+                        surfaceItem.visible = false
+                    }
                 }
-
                 animation.active = false
             }
         }
@@ -116,9 +179,13 @@ FocusScope {
                 Helper.activatedSurface = wSurface
 
                 animation.active = true
-                animation.parent = root.parent
-                animation.anchors.fill = root
-                animation.sourceComponent = newWindowAnimation
+
+                if (Helper.clientName(wSurface.surface) === "dde-launchpad") {
+                    animation.sourceComponent = launchpadAnimation
+                } else {
+                    animation.sourceComponent = windowAnimation
+                }
+
                 animation.item.start()
 
                 wallpaperController.output = output.output
@@ -129,9 +196,13 @@ FocusScope {
                 surfaceItem.visible = false
             } else {
                 animation.active = true
-                animation.parent = root.parent
-                animation.anchors.fill = root
-                animation.sourceComponent = closeWindowAnimation
+
+                if (Helper.clientName(wSurface.surface) === "dde-launchpad") {
+                    animation.sourceComponent = launchpadAnimation
+                } else {
+                    animation.sourceComponent = windowAnimation
+                }
+
                 animation.item.start()
 
                 wallpaperController.output = output.output
