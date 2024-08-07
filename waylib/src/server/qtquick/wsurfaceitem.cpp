@@ -210,7 +210,7 @@ public:
 
         // wayland protocol job should not run in rendering thread, so set context qobject to contentItem
         frameDoneConnection = QObject::connect(q->window(), &QQuickWindow::afterRendering, q, [this, q](){
-            if ((q->rendered || q->isVisible()) && live) {
+            if ((q->rendered || q->isVisible()) && live && surface) {
                 surface->notifyFrameDone();
                 q->rendered = false;
             }
