@@ -85,7 +85,7 @@ Item {
         signal nextWorkspace
         signal prevWorkspace
         signal jumpWorkspace(d: int)
-        signal moveToNeighborWorkspace(d: int)
+        signal moveToNeighborWorkspace(d: int, surface: ToplevelSurface)
     }
     QtObject {
         id: workspaceManager

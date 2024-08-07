@@ -64,7 +64,7 @@ FocusScope {
         target: workspaceManager.layoutOrder
         function onCountChanged() {
             if (currentWorkspaceId >= target.count) {
-                currentWorkspaceId = target.count - 1
+                Helper.currentWorkspaceId = target.count - 1
             }
         }
     }
@@ -74,7 +74,7 @@ FocusScope {
         getSurfaceItemFromWaylandSurface(Helper.activatedSurface)?.surfaceItem || null // cannot assign [undefined] to QQuickItem*, need to assign null
     onActivatedSurfaceItemChanged: {
         if (activatedSurfaceItem?.parent?.workspaceRelativeId !== undefined)
-            currentWorkspaceId = activatedSurfaceItem.parent.workspaceRelativeId
+            Helper.currentWorkspaceId = activatedSurfaceItem.parent.workspaceRelativeId
         if (Helper.activatedSurface) {
             QmlHelper.winposManager.updateSeq(Helper.activatedSurface.appId, activatedSurfaceItem)
         }
@@ -480,7 +480,7 @@ FocusScope {
                 anchors.fill: parent
                 focus: false
                 currentWorkspaceId: root.currentWorkspaceId
-                setCurrentWorkspaceId: (id) => root.currentWorkspaceId = id
+                setCurrentWorkspaceId: (id) => Helper.currentWorkspaceId = id
                 onVisibleChanged: {
                     console.assert(!visible,'should be exit')
                     multitaskView.active = false
@@ -544,30 +544,30 @@ FocusScope {
             const nextWorkspaceId = (currentWorkspaceId + 1) % nWorkspaces
             workspaceAnimation.active = true
             workspaceAnimation.item.startAnimation(nextWorkspaceId, currentWorkspaceId, WorkspaceAnimation.Direction.Right)
-            currentWorkspaceId = nextWorkspaceId
+            Helper.currentWorkspaceId = nextWorkspaceId
         }
         function onPrevWorkspace() {
             const nWorkspaces = workspaceManager.layoutOrder.count
             const prevWorkspaceId = (currentWorkspaceId - 1 + nWorkspaces) % nWorkspaces
             workspaceAnimation.active = true
             workspaceAnimation.item.startAnimation(prevWorkspaceId, currentWorkspaceId, WorkspaceAnimation.Direction.Left)
-            currentWorkspaceId = prevWorkspaceId
+            Helper.currentWorkspaceId = prevWorkspaceId
         }
         function onJumpWorkspace(d) {
             const nWorkspaces = workspaceManager.layoutOrder.count
             if (d >= nWorkspaces) return
             workspaceAnimation.active = true
             workspaceAnimation.item.startAnimation(d, currentWorkspaceId, WorkspaceAnimation.Direction.Right)
-            currentWorkspaceId = d
+            Helper.currentWorkspaceId = d
         }
-        function onMoveToNeighborWorkspace(d) {
+        function onMoveToNeighborWorkspace(d, surface) {
             const nWorkspaces = workspaceManager.layoutOrder.count
-            const surfaceItem = getSurfaceItemFromWaylandSurface(Helper.activatedSurface).item
-            let relId = workspaceManager.workspacesById.get(surfaceItem.workspaceId).workspaceRelativeId
+            const surfaceWrapper = getSurfaceItemFromWaylandSurface(surface ?? Helper.activatedSurface)
+            let relId = workspaceManager.workspacesById.get(surfaceWrapper.wid).workspaceRelativeId
             relId = (relId + d + nWorkspaces) % nWorkspaces
-            surfaceItem.workspaceId = workspaceManager.layoutOrder.get(relId).wsid
+            surfaceWrapper.wid = workspaceManager.layoutOrder.get(relId).wsid
             // change workspace since no activatedSurface change
-            currentWorkspaceId = relId
+            Helper.currentWorkspaceId = relId
         }
     }
 }
