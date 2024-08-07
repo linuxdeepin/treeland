@@ -152,7 +152,9 @@ Item {
                 ShortcutV1.model.user = Helper.currentUser
             }
             function onMetaKeyNotify() {
-                ShortcutV1.model.handleMetaKey()
+                if (!Helper.lockScreen) {
+                    ShortcutV1.model.handleMetaKey()
+                }
             }
         }
 
