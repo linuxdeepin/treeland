@@ -3,10 +3,12 @@
 
 import org.deepin.dtk 1.0 as D
 import org.deepin.dtk.style 1.0 as DS
+import Waylib.Server
 
 D.Menu {
     id: menu
 
+    required property ToplevelSurface surface
     signal requestMove
     signal requestMinimize
     signal requestMaximize(var max)
@@ -48,12 +50,12 @@ D.Menu {
 
     D.MenuItem {
         text: qsTr("Move to Work Space Left")
-        onTriggered: QmlHelper.shortcutManager.moveToNeighborWorkspace(-1)
+        onTriggered: QmlHelper.shortcutManager.moveToNeighborWorkspace(-1, surface)
     }
 
     D.MenuItem {
         text: qsTr("Move to Work Space Right")
-        onTriggered: QmlHelper.shortcutManager.moveToNeighborWorkspace(1)
+        onTriggered: QmlHelper.shortcutManager.moveToNeighborWorkspace(1, surface)
     }
 
     D.MenuItem {

@@ -88,6 +88,7 @@ Item {
     WindowMenu {
         id: menu
 
+        surface: root.surface
         onRequestClose: root.requestClose()
         onRequestMaximize: root.requestMaximize(max)
         onRequestMinimize: root.requestMinimize()

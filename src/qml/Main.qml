@@ -226,14 +226,14 @@ Item {
             sequences: ["Meta+Shift+Right"]
             context: Qt.ApplicationShortcut
             onActivated: {
-                QmlHelper.shortcutManager.moveToNeighborWorkspace(1)
+                QmlHelper.shortcutManager.moveToNeighborWorkspace(1, null)
             }
         }
         Shortcut {
             sequences: ["Meta+Shift+Left"]
             context: Qt.ApplicationShortcut
             onActivated: {
-                QmlHelper.shortcutManager.moveToNeighborWorkspace(-1)
+                QmlHelper.shortcutManager.moveToNeighborWorkspace(-1, null)
             }
         }
 
