@@ -25,18 +25,6 @@ FocusScope {
         enabled: true
     }
 
-    Rectangle {
-        id: cover
-        anchors.fill: parent
-        color: 'black'
-        opacity: 0.0
-        Behavior on opacity {
-            PropertyAnimation {
-                duration: 1000
-            }
-        }
-    }
-
     Center {
         id: center
         anchors.fill: parent
@@ -66,7 +54,6 @@ FocusScope {
                 case GreeterModel.Quit: {
                     GreeterModel.emitAnimationPlayed()
                     wallpaperController.type = Helper.Normal
-                    cover.opacity = 0.0
                 }
                 break
             }
@@ -75,7 +62,6 @@ FocusScope {
 
     Component.onCompleted: {
         wallpaperController.type = Helper.Scale
-        cover.opacity = 0.4
     }
 
     Component.onDestruction: {
