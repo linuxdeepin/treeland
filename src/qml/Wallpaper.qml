@@ -26,7 +26,7 @@ WallpaperProxy {
                 name: "Scale"
                 PropertyChanges {
                     target: background
-                    scale: 1.2
+                    scale: 1.4
                 }
             }
         ]
@@ -37,7 +37,7 @@ WallpaperProxy {
                 to: "Normal"
                 PropertyAnimation {
                     property: "scale"
-                    duration: 400
+                    duration: 1000
                     easing.type: Easing.OutExpo
                 }
             },
@@ -46,7 +46,7 @@ WallpaperProxy {
                 to: "Scale"
                 PropertyAnimation {
                     property: "scale"
-                    duration: 400
+                    duration: 1000
                     easing.type: Easing.OutExpo
                 }
             }

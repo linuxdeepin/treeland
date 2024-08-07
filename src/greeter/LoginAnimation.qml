@@ -29,6 +29,9 @@ Item {
         xAni.from = pos.x
         xAni.to = to.x
 
+        yAni.from = pos.y
+        yAni.to = to.y
+
         visible = true
         animation.start()
     }
@@ -61,16 +64,23 @@ Item {
             id: xAni
             target: effect
             property: "x"
-            duration: 800
+            duration: 1000
+            easing.type: Easing.OutCubic
+        }
+        PropertyAnimation {
+            id: yAni
+            target: effect
+            property: "y"
+            duration: 1000
             easing.type: Easing.OutCubic
         }
         PropertyAnimation {
             target: effect
             property: "opacity"
-            duration: 600
+            duration: 1000
             from: root.state === LoginAnimation.Show ? 0 : 1
             to: root.state === LoginAnimation.Show ? 1 : 0
-            easing.type: Easing.InQuad
+            easing.type: Easing.OutCubic
         }
     }
 }
