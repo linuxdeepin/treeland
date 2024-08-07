@@ -845,6 +845,22 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *watched, QInputEvent *even
             return true;
         }
     } break;
+    case Qt::Key_Right: {
+        if (event->type() == QEvent::KeyPress) {
+            if (m_switcherEnabled) {
+                Q_EMIT switcherChanged(Switcher::Next);
+                return true;
+            }
+        }
+    } break;
+    case Qt::Key_Left: {
+        if (event->type() == QEvent::KeyPress) {
+            if (m_switcherEnabled) {
+                Q_EMIT switcherChanged(Switcher::Previous);
+                return true;
+            }
+        }
+    } break;
     default: {
     } break;
     }
