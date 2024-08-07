@@ -40,6 +40,7 @@ class WAYLIB_SERVER_EXPORT WQuickCursor : public QQuickItem
     Q_DECLARE_PRIVATE(WQuickCursor)
     Q_PROPERTY(bool valid READ valid NOTIFY validChanged FINAL)
     Q_PROPERTY(WAYLIB_SERVER_NAMESPACE::WCursor* cursor READ cursor WRITE setCursor NOTIFY cursorChanged)
+    Q_PROPERTY(WAYLIB_SERVER_NAMESPACE::WOutput* output READ output WRITE setOutput NOTIFY outputChanged FINAL)
     Q_PROPERTY(QString themeName READ themeName WRITE setThemeName NOTIFY themeNameChanged)
     Q_PROPERTY(QSize sourceSize READ sourceSize WRITE setSourceSize NOTIFY sourceSizeChanged)
     Q_PROPERTY(QPointF hotSpot READ hotSpot NOTIFY hotSpotChanged FINAL)
@@ -68,6 +69,9 @@ public:
 
     QPointF hotSpot() const;
 
+    WOutput *output() const;
+    void setOutput(WOutput *newOutput);
+
 Q_SIGNALS:
     void validChanged();
     void cursorChanged();
@@ -75,6 +79,7 @@ Q_SIGNALS:
     void sourceSizeChanged();
     void currentRenderWindowChanged();
     void hotSpotChanged();
+    void outputChanged();
 
 private Q_SLOTS:
     void invalidateSceneGraph();

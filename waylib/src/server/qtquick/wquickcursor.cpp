@@ -147,6 +147,8 @@ public:
     }
 
     void setSurface(WSurface *surface);
+    void enterOutput(WOutput *output);
+    void leaveOutput(WOutput *output);
     void updateXCursorManager();
     void updateTexture();
     void updateCursor();
@@ -163,6 +165,7 @@ public:
     mutable QMetaObject::Connection updateTextureConnection;
 
     WCursor *cursor = nullptr;
+    QPointer<WOutput> output;
     WCursorImage *cursorImage = nullptr;
 
     WSurfaceItemContent *cursorSurfaceItem = nullptr;
@@ -255,7 +258,11 @@ void WQuickCursorPrivate::setSurface(WSurface *surface)
         if (textureProvider)
             textureProvider->setProxy(cursorSurfaceItem->wTextureProvider());
         Q_ASSERT(!q->flags().testFlag(QQuickItem::ItemHasContents));
+
+        if (q->isVisible())
+            enterOutput(output);
     } else if (cursorSurfaceItem) {
+        leaveOutput(output);
         cursorSurfaceItem->deleteLater();
         cursorSurfaceItem = nullptr;
         q->setFlag(QQuickItem::ItemHasContents, true);
@@ -263,6 +270,30 @@ void WQuickCursorPrivate::setSurface(WSurface *surface)
     }
 
     updateImplicitSize();
+}
+
+void WQuickCursorPrivate::enterOutput(WOutput *output)
+{
+    if (!output)
+        return;
+    if (!cursorSurfaceItem)
+        return;
+    auto surface = cursorSurfaceItem->surface();
+    if (!surface)
+        return;
+    surface->enterOutput(output);
+}
+
+void WQuickCursorPrivate::leaveOutput(WOutput *output)
+{
+    if (!output)
+        return;
+    if (!cursorSurfaceItem)
+        return;
+    auto surface = cursorSurfaceItem->surface();
+    if (!surface)
+        return;
+    surface->leaveOutput(output);
 }
 
 void WQuickCursorPrivate::updateXCursorManager()
@@ -463,6 +494,27 @@ QPointF WQuickCursor::hotSpot() const
     return {};
 }
 
+WOutput *WQuickCursor::output() const
+{
+    W_DC(WQuickCursor);
+    return d->output;
+}
+
+void WQuickCursor::setOutput(WOutput *newOutput)
+{
+    W_D(WQuickCursor);
+    if (d->output == newOutput)
+        return;
+
+    if (isVisible()) {
+        d->enterOutput(newOutput);
+        d->leaveOutput(d->output);
+    }
+
+    d->output = newOutput;
+    Q_EMIT outputChanged();
+}
+
 void WQuickCursor::invalidateSceneGraph()
 {
     W_D(WQuickCursor);
@@ -500,6 +552,13 @@ void WQuickCursor::itemChange(ItemChange change, const ItemChangeData &data)
         }
     } else if (change == ItemDevicePixelRatioHasChanged) {
         d->updateXCursorManager();
+    } else if (change == ItemVisibleHasChanged) {
+        // The visible state is set by compositor(following WOutputCursor::visible property on default)
+        if (data.boolValue) {
+            d->enterOutput(d->output);
+        } else {
+            d->leaveOutput(d->output);
+        }
     }
 
     QQuickItem::itemChange(change, data);

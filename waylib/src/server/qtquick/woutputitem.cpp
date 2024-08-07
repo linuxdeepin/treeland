@@ -66,7 +66,10 @@ public:
 
     void clearCursors();
     void updateCursors();
-    QQuickItem *getCursorItemBy(WCursor *cursor) const;
+    void updateCursorsVisible();
+    void updateCursorVisible(WOutputCursor *cursor);
+
+    WOutputCursor *getCursorItemBy(WCursor *cursor) const;
 
     W_DECLARE_PUBLIC(WOutputItem)
     QPointer<WOutput> output;
@@ -74,7 +77,7 @@ public:
     qreal devicePixelRatio = 1.0;
 
     QQmlComponent *cursorDelegate = nullptr;
-    QList<std::pair<WCursor*, QQuickItem*>> cursorItems;
+    QList<std::pair<WCursor*, WOutputCursor*>> cursors;
     QMetaObject::Connection updateCursorsConnection;
 };
 
@@ -111,9 +114,9 @@ void WOutputItemPrivate::initForOutput()
 
 void WOutputItemPrivate::clearCursors()
 {
-    for (auto i : std::as_const(cursorItems))
+    for (auto i : std::as_const(cursors))
         i.second->deleteLater();
-    cursorItems.clear();
+    cursors.clear();
 }
 
 void WOutputItemPrivate::updateCursors()
@@ -123,40 +126,49 @@ void WOutputItemPrivate::updateCursors()
 
     W_Q(WOutputItem);
 
-    QList<std::pair<WCursor*, QQuickItem*>> tmpCursors;
-    tmpCursors.reserve(cursorItems.size());
+    QList<std::pair<WCursor*, WOutputCursor*>> tmpCursors;
+    tmpCursors.reserve(cursors.size());
     bool cursorsChanged = false;
 
     const auto cursorList = output->cursorList();
     for (WCursor *cursor : cursorList) {
-        auto *item = getCursorItemBy(cursor);
-        if (!item) {
+        auto *oc = getCursorItemBy(cursor);
+        if (!oc) {
+            oc = new WOutputCursor(q);
+            oc->m_cursor = cursor;
+            oc->m_visible = cursor->isVisible();
+            updateCursorVisible(oc);
+
             Q_ASSERT(q->window());
             auto obj = cursorDelegate->createWithInitialProperties({
-                {"cursor", QVariant::fromValue(cursor)},
+                {"outputCurosr", QVariant::fromValue(oc)},
                 {"parent", QVariant::fromValue(q->window()->contentItem())},
             }, qmlContext(q));
-            item = qobject_cast<QQuickItem*>(obj);
+            oc->item = qobject_cast<QQuickItem*>(obj);
 
-            if (!item)
+            if (!oc->item)
                 qFatal("Cursor delegate must is Item");
 
             // ensure following this to destroy, because QQuickItem::setParentItem
             // is not auto add the child item to QObject's children.
-            item->setParent(q_func());
-            QQmlEngine::setObjectOwnership(item, QQmlEngine::CppOwnership);
-            Q_ASSERT(item->parentItem() == q->window()->contentItem());
-            item->setZ(qreal(WOutputLayout::Layer::Cursor));
+            oc->item->setParent(oc);
+            QQmlEngine::setObjectOwnership(oc->item, QQmlEngine::CppOwnership);
+            Q_ASSERT(oc->item->parentItem() == q->window()->contentItem());
+            oc->item->setZ(qreal(WOutputLayout::Layer::Cursor));
             cursorsChanged = true;
+
+            QObject::connect(cursor, &WCursor::positionChanged, oc, [this, oc] {
+                updateCursorVisible(oc);
+            });
         }
 
-        tmpCursors.append(std::make_pair(cursor, item));
+        tmpCursors.append(std::make_pair(cursor, oc));
     }
 
-    std::swap(tmpCursors, cursorItems);
+    std::swap(tmpCursors, cursors);
     // clean needless cursors
     for (auto i : std::as_const(tmpCursors)) {
-        if (cursorItems.contains(i))
+        if (cursors.contains(i))
             continue;
         i.second->setParent(nullptr);
         i.second->deleteLater();
@@ -167,19 +179,63 @@ void WOutputItemPrivate::updateCursors()
         Q_EMIT q->cursorItemsChanged();
 }
 
-QQuickItem *WOutputItemPrivate::getCursorItemBy(WCursor *cursor) const
+void WOutputItemPrivate::updateCursorsVisible()
 {
-    for (auto i : std::as_const(cursorItems))
+    for (const auto &i : std::as_const(cursors))
+        updateCursorVisible(i.second);
+}
+
+void WOutputItemPrivate::updateCursorVisible(WOutputCursor *cursor)
+{
+    if (!cursor->cursor()->isVisible()) {
+        cursor->setVisible(false);
+        return;
+    }
+
+    W_QC(WOutputItem);
+    const QRectF globalGeometry(q->globalPosition(), q->size());
+    cursor->setVisible(globalGeometry.contains(cursor->cursor()->position()));
+}
+
+WOutputCursor *WOutputItemPrivate::getCursorItemBy(WCursor *cursor) const
+{
+    for (auto i : std::as_const(cursors))
         if (i.first == cursor)
             return i.second;
     return nullptr;
+}
+
+WOutputCursor::WOutputCursor(WOutputItem *parent)
+    : QObject(parent)
+{
+
+}
+
+bool WOutputCursor::visible() const
+{
+    return m_visible;
+}
+
+void WOutputCursor::setVisible(bool newVisible)
+{
+    if (m_visible == newVisible)
+        return;
+    m_visible = newVisible;
+    Q_EMIT visibleChanged();
+}
+
+WCursor *WOutputCursor::cursor() const
+{
+    return m_cursor;
 }
 
 WOutputItem::WOutputItem(QQuickItem *parent)
     : WQuickObserver(parent)
     , WObject(*new WOutputItemPrivate(this))
 {
-
+    connect(this, &WOutputItem::maybeGlobalPositionChanged, this, [this] {
+        d_func()->updateCursorsVisible();
+    });
 }
 
 WOutputItem::~WOutputItem()
@@ -303,10 +359,10 @@ QList<QQuickItem *> WOutputItem::cursorItems() const
     W_DC(WOutputItem);
 
     QList<QQuickItem *> items;
-    items.reserve(d->cursorItems.size());
+    items.reserve(d->cursors.size());
 
-    for (auto i : std::as_const(d->cursorItems))
-        items.append(i.second);
+    for (auto i : std::as_const(d->cursors))
+        items.append(i.second->item);
 
     return items;
 }
