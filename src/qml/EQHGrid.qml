@@ -16,6 +16,8 @@ Item {
     
     property int itemVerticalPadding: 0
     property int spacing: 8
+    property bool exited: false
+    property bool animationFinished: false
 
     property real partialGestureFactor: effect.partialGestureFactor
     property bool inProgress: effect.inProgress
@@ -33,6 +35,7 @@ Item {
             property int globalIndex: index
             property real displayWidth: modelData.item.width
             property bool initialized: false
+            property bool activated: !animationFinished && initialized && pos.length > index && activeMethod === MultitaskView.ActiveMethod.ShortcutKey
             sourceComponent: root.delegate
             readonly property point initialPos: mapToItem(parent, mapFromItem(modelData.item, 0, 0))
             z: -index
@@ -57,7 +60,7 @@ Item {
                     }
                 },
                 State {
-                    name: "taskView"
+                    name: "taskview"
                     PropertyChanges {
                         target: surfaceLoader
                         x: internalData.dx
@@ -67,22 +70,22 @@ Item {
                 }
             ]
             state: {
-                if (!(internalData && internalData.dw && initialized))
+                if (exited)
                     return "initial";
-                    
+
                 if (activeMethod === MultitaskView.ActiveMethod.ShortcutKey){
-                    return "taskview";
+                    if (animationFinished)
+                        return "taskview";
                 } else {
                     if (root.inProgress) return "partial";
-                    
-                    if (root.partialGestureFactor > 0.5) return "taskView";
 
-                    return "initial";
+                    if (root.partialGestureFactor > 0.5) return "taskview";
                 }
+                return "initial";
             }
             transitions: [
                 Transition {
-                    to: "initial, taskView"
+                    to: "initial, taskview"
                     NumberAnimation {
                         properties: "x, y, displayWidth"
                         duration: 250
@@ -91,6 +94,22 @@ Item {
                 }
             ]
 
+            onInternalDataChanged: if (internalData && internalData.dw && initialized) {
+                x = internalData.dx
+                y = internalData.dy
+                displayWidth = internalData.dw
+            }
+            Behavior on x { enabled: activated; NumberAnimation { duration: 250; easing.type: Easing.OutCubic }}
+            Behavior on y { enabled: activated; NumberAnimation { duration: 250; easing.type: Easing.OutCubic }}
+            Behavior on displayWidth {
+                enabled: actv
+                SequentialAnimation {
+                    NumberAnimation { duration: 250; easing.type: Easing.OutCubic }
+                    ScriptAction {
+                        script: animationFinished = true
+                    }
+                }
+            }
             Component.onCompleted: {
                 initialized = true
             }
