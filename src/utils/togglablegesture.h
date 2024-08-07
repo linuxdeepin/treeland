@@ -24,17 +24,19 @@ public:
     bool inProgress() const;
     void setInProgress(bool gesture);
 
-    qreal partialGestureFactor() const { return m_partialGestureFactor; }
-
     void setPartialGestureFactor(qreal factor);
 
-    void activate();
-    void deactivate();
-    void toggle();
-    void stop();
+    qreal partialGestureFactor() const { return m_partialGestureFactor; }
+
     void setStatus(Status status);
 
     Status status() const { return m_status; }
+
+    void activate();
+    void deactivate();
+
+    Q_INVOKABLE void toggle();
+    Q_INVOKABLE void stop();
 
     void addTouchpadSwipeGesture(SwipeGesture::Direction direction, uint fingerCount);
 Q_SIGNALS:
