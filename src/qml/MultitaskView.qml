@@ -41,6 +41,9 @@ Item {
         else if (current >= 0 && current < model.count)
             Helper.activatedSurface = model.get(current).item.shellSurface
 
+        if (taskViewGesture.status === 3)
+            taskViewGesture.toggle()
+
         exited = true
     }
 
