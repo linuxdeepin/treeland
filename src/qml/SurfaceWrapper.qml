@@ -341,4 +341,20 @@ SurfaceItemFactory {
 
     property bool manualMoveResizing: false
     property bool isMoveResizing: manualMoveResizing || Helper.resizingItem === surfaceItem || Helper.movingItem === surfaceItem
+
+    Connections {
+        target: Helper.windowGesture
+
+        onActivated: {
+            if (root.wSurface === Helper.activatedSurface) {
+                helper.doMaximize()
+            }
+        }
+
+        onDeactivated: {
+            if (root.wSurface === Helper.activatedSurface) {
+                helper.cancelMaximize()
+            }
+        }
+    }
 }

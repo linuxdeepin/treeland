@@ -2,11 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "helper.h"
-#include "inputdevice.h"
 
 #include "../modules/foreign-toplevel/foreigntoplevelmanagerv1.h"
 #include "../modules/primary-output/outputmanagement.h"
 #include "../modules/virtual-output/virtualoutputmanager.h"
+#include "inputdevice.h"
 
 #include <WBackend>
 #include <WForeignToplevel>
@@ -37,13 +37,13 @@
 #include <qwcompositor.h>
 #include <qwdisplay.h>
 #include <qwfractionalscalemanagerv1.h>
+#include <qwinputdevice.h>
 #include <qwoutput.h>
 #include <qwrenderer.h>
 #include <qwscreencopyv1.h>
 #include <qwsubcompositor.h>
 #include <qwxdgshell.h>
 #include <qwxwaylandsurface.h>
-#include <qwinputdevice.h>
 
 #include <QAbstractListModel>
 #include <QAction>
@@ -84,6 +84,7 @@ Helper::Helper(WServer *server)
     , m_cursor(new WCursor(this))
     , m_seat(new WSeat())
     , m_multiTaskViewGesture(new TogglableGesture(this))
+    , m_windowGesture(new TogglableGesture(this))
     , m_outputCreator(new WQmlCreator(this))
     , m_surfaceCreator(new WQmlCreator(this))
 {
@@ -129,10 +130,10 @@ void Helper::initProtocols(WOutputRenderWindow *window)
     xwayland->setSeat(m_seat);
     setXWaylandSocket(xwayland->displayName());
 
-    xdgOutputManager->setFilter([xwayland](WClient *client){
+    xdgOutputManager->setFilter([xwayland](WClient *client) {
         return client != xwayland->waylandClient();
     });
-    xwaylandOutputManager->setFilter([xwayland](WClient *client){
+    xwaylandOutputManager->setFilter([xwayland](WClient *client) {
         return client == xwayland->waylandClient();
     });
 
@@ -215,11 +216,15 @@ void Helper::initProtocols(WOutputRenderWindow *window)
             m_surfaceCreator,
             &WQmlCreator::removeByOwner);
 
-    connect(xwayland,
-            &WXWayland::surfaceAdded,
-            this,
-            [this, engine, xwayland](WXWaylandSurface *surface) {
-                surface->safeConnect(&qw_xwayland_surface::notify_associate, this, [this, surface, engine] {
+    connect(
+        xwayland,
+        &WXWayland::surfaceAdded,
+        this,
+        [this, engine, xwayland](WXWaylandSurface *surface) {
+            surface->safeConnect(
+                &qw_xwayland_surface::notify_associate,
+                this,
+                [this, surface, engine] {
                     auto initProperties = engine->newObject();
                     initProperties.setProperty("type", "xwayland");
                     initProperties.setProperty("wSurface", engine->toScriptValue(surface));
@@ -227,10 +232,10 @@ void Helper::initProtocols(WOutputRenderWindow *window)
 
                     m_surfaceCreator->add(surface, initProperties);
                 });
-                surface->safeConnect(&qw_xwayland_surface::notify_dissociate, this, [this, surface] {
-                    m_surfaceCreator->removeByOwner(surface);
-                });
+            surface->safeConnect(&qw_xwayland_surface::notify_dissociate, this, [this, surface] {
+                m_surfaceCreator->removeByOwner(surface);
             });
+        });
 
     connect(xdgShell,
             &WXdgShell::surfaceAdded,
@@ -308,7 +313,6 @@ void Helper::initProtocols(WOutputRenderWindow *window)
             &WBackend::outputRemoved,
             this,
             [this, engine, outputManager](WOutput *output) {
-
                 VirtualOutputV1 *virtualOutputV1 =
                     engine->singletonInstance<VirtualOutputV1 *>("TreeLand.Protocols",
                                                                  "VirtualOutputV1");
@@ -333,23 +337,8 @@ void Helper::initProtocols(WOutputRenderWindow *window)
     connect(backend, &WBackend::inputAdded, this, [this](WInputDevice *device) {
         m_seat->attachInputDevice(device);
         if (InputDevice::instance()->initTouchPad(device)) {
-            InputDevice::instance()->registerTouchpadSwipe(
-                SwipeFeedBack {SwipeGesture::Up, 3,
-                               [this](){
-                                   if (activatedSurface() && !activatedSurface()->isMaximized())
-                                      activatedSurface()->requestMaximize();
-                               },
-                               nullptr
-                });
-
-            InputDevice::instance()->registerTouchpadSwipe(
-                SwipeFeedBack {SwipeGesture::Down, 3,
-                               [this](){
-                                   if (activatedSurface() && activatedSurface()->isMaximized())
-                                       activatedSurface()->requestCancelMaximize();
-                               },
-                               nullptr
-                });
+            if (m_windowGesture)
+                m_windowGesture->addTouchpadSwipeGesture(SwipeGesture::Up, 3);
 
             if (m_multiTaskViewGesture)
                 m_multiTaskViewGesture->addTouchpadSwipeGesture(SwipeGesture::Up, 4);
@@ -384,6 +373,11 @@ qw_compositor *Helper::compositor() const
 TogglableGesture *Helper::multiTaskViewGesture() const
 {
     return m_multiTaskViewGesture;
+}
+
+TogglableGesture *Helper::windowGesture() const
+{
+    return m_windowGesture;
 }
 
 WCursor *Helper::cursor() const
@@ -713,7 +707,8 @@ void Helper::moveCursor(WSurfaceItem *shell, WSeat *seat)
     QPointF position = getItemGlobalPosition(shell);
     QSizeF size = shell->size();
 
-    seat->setCursorPosition(QPointF(position.x() + size.width() + 5, position.y() + size.height() + 5));
+    seat->setCursorPosition(
+        QPointF(position.x() + size.width() + 5, position.y() + size.height() + 5));
 }
 
 WSurface *Helper::getFocusSurfaceFrom(QObject *object)
@@ -724,7 +719,10 @@ WSurface *Helper::getFocusSurfaceFrom(QObject *object)
 
 void Helper::allowNonDrmOutputAutoChangeMode(WOutput *output)
 {
-    connect(output->handle(), &qw_output::notify_request_state, this, &Helper::onOutputRequeseState);
+    connect(output->handle(),
+            &qw_output::notify_request_state,
+            this,
+            &Helper::onOutputRequeseState);
 }
 
 void Helper::enableOutput(WOutput *output)
@@ -753,7 +751,7 @@ void Helper::enableOutput(WOutput *output)
 bool Helper::doGesture(QInputEvent *event)
 {
     if (event->type() == QEvent::NativeGesture) {
-        auto e = static_cast<WGestureEvent*>(event);
+        auto e = static_cast<WGestureEvent *>(event);
         switch (e->gestureType()) {
         case Qt::BeginNativeGesture:
             if (e->libInputGestureType() == WGestureEvent::WLibInputGestureType::SwipeGesture)
@@ -897,8 +895,7 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *watched, QInputEvent *even
             QMouseEvent *ev = static_cast<QMouseEvent *>(event);
 
             if (moveReiszeState.resizeEdgets == 0) {
-                auto increment_pos =
-                    ev->globalPosition() - moveReiszeState.cursorStartMovePosition;
+                auto increment_pos = ev->globalPosition() - moveReiszeState.cursorStartMovePosition;
                 auto new_pos = moveReiszeState.surfacePosOfStartMoveResize
                     + moveReiszeState.surfaceItem->parentItem()->mapFromGlobal(increment_pos);
                 moveReiszeState.surfaceItem->setPosition(new_pos);
@@ -937,8 +934,7 @@ bool Helper::afterHandleEvent(
 {
     Q_UNUSED(seat)
 
-    if (event->type() == QEvent::MouseButtonRelease
-        || event->type() == QEvent::TouchBegin
+    if (event->type() == QEvent::MouseButtonRelease || event->type() == QEvent::TouchBegin
         || (event->type() == QEvent::NativeGesture)) {
         // surfaceItem is qml type: XdgSurfaceItem or LayerSurfaceItem
         auto toplevelSurface = qobject_cast<WSurfaceItem *>(surfaceItem)->shellSurface();
@@ -951,7 +947,7 @@ bool Helper::afterHandleEvent(
                 return false;
             }
         }
-        if (auto e = static_cast<WGestureEvent*>(event)) {
+        if (auto e = static_cast<WGestureEvent *>(event)) {
             if (e->gestureType() != Qt::BeginNativeGesture || e->fingerCount() != 3)
                 return false;
         }
@@ -1025,11 +1021,13 @@ void Helper::setActivateSurface(WToplevelSurface *newActivate)
     qCDebug(HelperDebugLog) << "Surface: " << newActivate << " is activated";
 
     if (newActivate) {
-        invalidCheck =
-            connect(newActivate, &WToplevelSurface::aboutToBeInvalidated, this, [newActivate, this] {
-                newActivate->setActivate(false);
-                setActivateSurface(nullptr);
-            });
+        invalidCheck = connect(newActivate,
+                               &WToplevelSurface::aboutToBeInvalidated,
+                               this,
+                               [newActivate, this] {
+                                   newActivate->setActivate(false);
+                                   setActivateSurface(nullptr);
+                               });
         newActivate->setActivate(true);
     }
 
@@ -1044,7 +1042,9 @@ void Helper::onOutputRequeseState(wlr_output_event_request_state *newState)
         if (newState->state->mode_type == WLR_OUTPUT_STATE_MODE_CUSTOM) {
             const QSize size(newState->state->custom_mode.width,
                              newState->state->custom_mode.height);
-            output->set_custom_mode(size.width(), size.height(), newState->state->custom_mode.refresh);
+            output->set_custom_mode(size.width(),
+                                    size.height(),
+                                    newState->state->custom_mode.refresh);
         } else {
             output->set_mode(newState->state->mode);
         }
@@ -1172,13 +1172,15 @@ void Helper::updateOutputsRegion()
         }
 
         if (margins.right && margins.left) {
-            rect.setRight(output->width() - margins.right - margins.left - 2 * LAYER_FOOLPROOF_RESERVED_PIXELS );
-        } else if (margins.right){
+            rect.setRight(output->width() - margins.right - margins.left
+                          - 2 * LAYER_FOOLPROOF_RESERVED_PIXELS);
+        } else if (margins.right) {
             rect.setRight(output->width() - margins.right - LAYER_FOOLPROOF_RESERVED_PIXELS);
         }
 
         if (margins.bottom && margins.top) {
-            rect.setHeight(output->height() - margins.bottom - margins.top - 2 * LAYER_FOOLPROOF_RESERVED_PIXELS);
+            rect.setHeight(output->height() - margins.bottom - margins.top
+                           - 2 * LAYER_FOOLPROOF_RESERVED_PIXELS);
         } else if (margins.bottom) {
             rect.setHeight(output->height() - margins.bottom - LAYER_FOOLPROOF_RESERVED_PIXELS);
         }
