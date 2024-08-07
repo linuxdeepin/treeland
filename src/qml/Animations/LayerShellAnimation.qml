@@ -140,8 +140,8 @@ Item {
             target: effect
             property: "scale"
             duration: 400
-            from: root.direction === LayerShellAnimation.Direction.Show ? 0.2 : 1
-            to: root.direction !== LayerShellAnimation.Direction.Show ? 0.2 : 1
+            from: root.direction === LayerShellAnimation.Direction.Show ? 0.3 : 1
+            to: root.direction !== LayerShellAnimation.Direction.Show ? 0.3 : 1
             easing.type: Easing.OutExpo
         }
     }
