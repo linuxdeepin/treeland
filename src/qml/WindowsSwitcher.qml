@@ -47,6 +47,7 @@ ColumnLayout {
                 return
 
             currentContext.sourceSueface = surfaceItem
+            currentContext.cornerRadius = switchView.model.get(switchView.currentIndex).wrapper.cornerRadius
             switchView.currentIndex = 0
             root.stopWork = false
             ensurePreView()
@@ -223,10 +224,6 @@ ColumnLayout {
 
             anchors.centerIn: parent
             sourceComponent: undefined
-            onClicked: {
-                previewClicked()
-                handleExit()
-            }
         }
 
         WindowPreviewLoader {
@@ -234,6 +231,10 @@ ColumnLayout {
 
             anchors.centerIn: parent
             sourceComponent: undefined
+            onClicked: {
+                previewClicked()
+                handleExit()
+            }
         }
 
         ParallelAnimation {
@@ -426,6 +427,7 @@ ColumnLayout {
                     const preSurfaceItem = switchView.model.get(preInidex).item
                     if (preSurfaceItem) {
                         preContext.sourceSueface = preSurfaceItem
+                        preContext.cornerRadius = switchView.model.get(preInidex).wrapper.cornerRadius
                     }
                 }
 
@@ -434,6 +436,7 @@ ColumnLayout {
                     return
 
                 currentContext.sourceSueface = surfaceItem
+                currentContext.cornerRadius = switchView.model.get(currentIndex).wrapper.cornerRadius
                 ensurePreView()
             }
         }
