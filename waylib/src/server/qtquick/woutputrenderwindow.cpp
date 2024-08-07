@@ -1111,9 +1111,13 @@ bool OutputHelper::tryToHardwareCursor(const LayerData *layer)
             m_cursorLayerProxy->setHeight(buffer->height);
 
             auto newBuffer = m_cursorRenderer->lastBuffer();
-            const QSize newBufferSize(newBuffer->handle()->width,
-                                      newBuffer->handle()->height);
-            if (m_cursorDirty || !newBuffer || pixelSize != newBufferSize) {
+
+            // When the cursor moves to the edge of the screen, it will be truncated by default,
+            // and the part beyond the screen will not be included in the pixelSize. In this case,
+            // the pixelSize is inconsistent with the newBuffer size, and it needs to be redrawn.
+            if (m_cursorDirty || !newBuffer ||
+                (pixelSize.width() != newBuffer->handle()->width) ||
+                (pixelSize.height() != newBuffer->handle()->height)) {
                 newBuffer = m_cursorRenderer->beginRender(pixelSize, 1.0, DRM_FORMAT_ARGB8888,
                                                           WBufferRenderer::UseCursorFormats);
                 if (newBuffer) {
@@ -1125,7 +1129,8 @@ bool OutputHelper::tryToHardwareCursor(const LayerData *layer)
             }
 
             if (newBuffer) {
-                Q_ASSERT(pixelSize == newBufferSize);
+                Q_ASSERT(pixelSize.width() == newBuffer->handle()->width);
+                Q_ASSERT(pixelSize.height() == newBuffer->handle()->height);
                 buffer = newBuffer->handle();
             } else {
                 buffer = nullptr;
