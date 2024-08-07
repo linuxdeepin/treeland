@@ -331,13 +331,6 @@ void TreeLand::connected()
     Helper *helper = m_engine->singletonInstance<Helper *>("TreeLand.Utils", "Helper");
     Q_ASSERT(helper);
 
-    connect(helper, &Helper::backToNormal, this, [this] {
-        DDM::SocketWriter(m_socket) << quint32(DDM::GreeterMessages::BackToNormal);
-    });
-    connect(helper, &Helper::reboot, this, [this] {
-        DDM::SocketWriter(m_socket) << quint32(DDM::GreeterMessages::Reboot);
-    });
-
     // send connected message
     DDM::SocketWriter(m_socket) << quint32(DDM::GreeterMessages::Connect);
 }
