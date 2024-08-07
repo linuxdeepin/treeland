@@ -56,12 +56,12 @@ FocusScope {
             leftAnimation.parent = quickActions.parent
             leftAnimation.anchors.fill = quickActions
             leftAnimation.sourceComponent = leftAnimationComponent
-            leftAnimation.item.start(quickActions,{x: quickActions.x}, {x: -quickActions.width})
+            leftAnimation.item.start(quickActions, {x: 0, y: 0}, {x: -quickActions.width, y: 0})
 
             rightAnimation.parent = right.parent
             rightAnimation.anchors.fill = right
             rightAnimation.sourceComponent = rightAnimationComponent
-            rightAnimation.item.start(right, {x: 0}, {x: right.width})
+            rightAnimation.item.start(right, {x: 0, y: 0}, {x: right.width, y: 0})
         }
     }
 

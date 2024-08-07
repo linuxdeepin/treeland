@@ -111,7 +111,7 @@ Item {
             }
             Loader {
                 id: greeter
-                active: Helper.lockScreen
+                active: !TreeLand.testMode
                 focus: active
                 sourceComponent: Repeater {
                     model: Helper.outputLayout.outputs
@@ -122,6 +122,10 @@ Item {
                         focus: Helper.lockScreen
                         anchors.fill: outputCoordMapper
                     }
+                }
+                onLoaded: {
+                    Helper.lockScreen = true
+                    greeter.forceActiveFocus()
                 }
             }
             Component.onCompleted: {
@@ -142,7 +146,7 @@ Item {
         Connections {
             target: Helper
             function onGreeterVisibleChanged() {
-                Helper.lockScreen = true
+                greeter.active = true
             }
             function onCurrentUserChanged() {
                 ShortcutV1.model.user = Helper.currentUser
@@ -182,7 +186,7 @@ Item {
             autoRepeat: false
             context: Qt.ApplicationShortcut
             onActivated: {
-                Helper.lockScreen = true
+                greeter.active = true
             }
         }
         Shortcut {
