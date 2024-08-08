@@ -38,6 +38,7 @@
 #include <qwdisplay.h>
 #include <qwfractionalscalemanagerv1.h>
 #include <qwinputdevice.h>
+#include <qwlayershellv1.h>
 #include <qwoutput.h>
 #include <qwrenderer.h>
 #include <qwscreencopyv1.h>
@@ -1187,4 +1188,28 @@ void Helper::updateOutputsRegion()
 
         m_region += rect;
     }
+}
+
+bool Helper::shouldForceBlur(WLayerSurface *surface) const
+{
+    if (!surface) {
+        return false;
+    }
+
+    auto scope = QString(surface->handle()->handle()->scope);
+
+    QStringList forceList{ "dde-shell/dock", "dde-shell/launchpad" };
+
+    return forceList.contains(scope);
+}
+
+bool Helper::isLaunchpad(WLayerSurface *surface) const
+{
+    if (!surface) {
+        return false;
+    }
+
+    auto scope = QString(surface->handle()->handle()->scope);
+
+    return scope == "dde-shell/launchpad";
 }
