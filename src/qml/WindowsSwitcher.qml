@@ -20,6 +20,7 @@ ColumnLayout {
     property bool enableRadius: true
     property bool enableAnimation: GraphicsInfo.api !== GraphicsInfo.Software
     property bool stopWork: true
+    property SurfaceWrapper activeSurface: null
     readonly property int leftpreferredMargin: 20
     readonly property int rightpreferredMargin: 20
     readonly property real radius: enableRadius ? 18 : 0
@@ -99,20 +100,27 @@ ColumnLayout {
     }
 
     function activeCurrentSurface() {
-        const wrapper = model.get(switchView.currentIndex).wrapper
-        if (wrapper) {
-            surfaceActivated(wrapper)
+        if (root.activeSurface) {
+            surfaceActivated(root.activeSurface)
         }
     }
 
     function hideAllSurfaces() {
         var sourceSuefaceItem
+        var sourceWrapperItem
         for (var i = 0; i < switchView.count; ++i) {
-            sourceSuefaceItem = root.model.get(i).item
-            if (!sourceSuefaceItem)
-                continue
+            if (root.enableAnimation) {
+                sourceWrapperItem = root.model.get(i).wrapper
+                if (sourceWrapperItem) {
+                    sourceWrapperItem.scaleStatus = -1
+                    sourceWrapperItem.inHomeAni = false
+                }
+            }
 
-            sourceSuefaceItem.opacity = 0
+            sourceSuefaceItem = root.model.get(i).item
+            if (sourceSuefaceItem) {
+                sourceSuefaceItem.opacity = 0.0
+            }
         }
     }
 
@@ -137,6 +145,8 @@ ColumnLayout {
                 switchViewContentAni.isInAni = false
                 switchViewContentAni.start()
             }
+
+            root.activeSurface = root.model.get(switchView.currentIndex).wrapper
 
             if (root.enableAnimation) {
                 root.stopWork = true
@@ -206,8 +216,9 @@ ColumnLayout {
             sourceSuefaceItem.opacity = 0
             sourceSuefaceItem.scale = sourceWrapperItem.scaleTo
 
-            sourceWrapperItem.sacleStatus = 1
-            sourceWrapperItem.sacleStatus = 0
+            sourceWrapperItem.inHomeAni = true
+            sourceWrapperItem.scaleStatus = 1
+            sourceWrapperItem.scaleStatus = 0
         }
     }
 
@@ -276,9 +287,9 @@ ColumnLayout {
                 root.visible = false
                 previewReductionAni.target.scale = 1.0
 
-                var sourceSuefaceItem = model.get(switchView.currentIndex).item
-                if (sourceSuefaceItem)
-                    sourceSuefaceItem.opacity = 1
+                if (root.activeSurface) {
+                    root.activeSurface.surfaceItem.opacity = 1
+                }
             }
         }
     }

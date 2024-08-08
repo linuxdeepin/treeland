@@ -185,12 +185,23 @@ SurfaceItemFactory {
     property bool aboutToRestore: false
     readonly property real cornerRadius: helper.isMaximize  ? 0 : 15
 
-    property int sacleStatus: 1
+    property int scaleStatus: 1
     property real scaleTo
     property real xFrom
     property real xTo
     property real yFrom
     property real yTo
+    property bool inHomeAni: false
+
+    onScaleStatusChanged: {
+        if (scaleStatus === -1 && transitions[0].running && inHomeAni) {
+            transitions[0].animations[0].stop()
+            surfaceItem.x = xFrom
+            surfaceItem.y = yFrom
+            surfaceItem.scale = 1.0
+            surfaceItem.opacity = 0.0
+        }
+    }
 
     transitions: [
         Transition {
@@ -237,11 +248,11 @@ SurfaceItemFactory {
     states: [
         State {
             name: 'noScale'
-            when: root.sacleStatus === 0
+            when: root.scaleStatus === 0
         },
         State {
             name: 'scaleToPreview'
-            when: root.sacleStatus === 1
+            when: root.scaleStatus === 1
         }
     ]
 
