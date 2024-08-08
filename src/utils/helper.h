@@ -182,6 +182,7 @@ Q_SIGNALS:
     void rightExclusiveMarginChanged();
     void socketFileChanged();
     void switcherChanged(Switcher action);
+    void switcherActiveSwitch(Switcher action);
     void switcherOnChanged(bool on);
     void compositorChanged();
     void xdgDecorationManagerChanged();
