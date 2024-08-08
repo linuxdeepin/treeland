@@ -26,10 +26,13 @@ Item {
 
     width: target.width
     height: target.height
+    state: {
+        return direction !== LaunchpadAnimation.Direction.Show ? "Show" : "Hide"
+    }
 
     function start() {
         visible = true;
-        fullscreenAnimation.start();
+        root.state = direction === LaunchpadAnimation.Direction.Show ? "Show" : "Hide"
     }
 
     function stop() {
@@ -37,6 +40,78 @@ Item {
         effect.sourceItem = null;
         stopped();
     }
+
+    states: [
+        State {
+            name: "None"
+        },
+        State {
+            name: "Show"
+            PropertyChanges {
+                target: cover
+                opacity: 0.6
+            }
+            PropertyChanges {
+                target: blur
+                opacity: 1
+            }
+            PropertyChanges {
+                target: effect
+                opacity: 1
+                scale: 1
+            }
+        },
+        State {
+            name: "Hide"
+            PropertyChanges {
+                target: cover
+                opacity: 0.0
+            }
+            PropertyChanges {
+                target: blur
+                opacity: 0
+            }
+            PropertyChanges {
+                target: effect
+                opacity: 0
+                scale: 0.3
+            }
+        }
+    ]
+
+    transitions: [
+        Transition {
+            PropertyAnimation {
+                target: cover
+                property: "opacity"
+                duration: root.duration
+                easing.type: Easing.OutExpo
+            }
+            PropertyAnimation {
+                target: blur
+                property: "opacity"
+                duration: root.duration
+                easing.type: Easing.OutExpo
+            }
+            PropertyAnimation {
+                target: effect
+                property: "opacity"
+                duration: root.duration
+                easing.type: Easing.OutExpo
+            }
+            PropertyAnimation {
+                target: effect
+                property: "scale"
+                duration: root.duration
+                easing.type: Easing.OutExpo
+            }
+            onRunningChanged: {
+                if (!running) {
+                    root.stop()
+                }
+            }
+        }
+    ]
 
     Rectangle {
         id: cover
@@ -62,51 +137,12 @@ Item {
 
     ShaderEffectSource {
         id: effect
-        live: root.direction === LayerShellAnimation.Direction.Show
+        live: root.direction === LaunchpadAnimation.Direction.Show
         hideSource: true
         sourceItem: root.target
         width: root.target.width
         height: root.target.height
-    }
-
-    ParallelAnimation {
-        id: fullscreenAnimation
-
-        onStopped: {
-            root.stop();
-        }
-
-        PropertyAnimation {
-            target: effect
-            property: "opacity"
-            duration: root.duration
-            from: root.direction === LayerShellAnimation.Direction.Show ? 0 : 1
-            to: root.direction !== LayerShellAnimation.Direction.Show ? 0 : 1
-            easing.type: Easing.OutExpo
-        }
-        PropertyAnimation {
-            target: blur
-            property: "opacity"
-            duration: root.duration
-            from: root.direction === LayerShellAnimation.Direction.Show ? 0 : 1
-            to: root.direction !== LayerShellAnimation.Direction.Show ? 0 : 1
-            easing.type: Easing.OutExpo
-        }
-        PropertyAnimation {
-            target: effect
-            property: "scale"
-            duration: root.duration
-            from: root.direction === LayerShellAnimation.Direction.Show ? 0.3 : 1
-            to: root.direction !== LayerShellAnimation.Direction.Show ? 0.3 : 1
-            easing.type: Easing.OutExpo
-        }
-        PropertyAnimation {
-            target: cover
-            property: "opacity"
-            duration: root.duration
-            from: root.direction === LayerShellAnimation.Direction.Show ? 0.0 : 0.6
-            to: root.direction !== LayerShellAnimation.Direction.Show ? 0.0 : 0.6
-            easing.type: Easing.OutExpo
-        }
+        scale: 0.3
+        opacity: 0
     }
 }

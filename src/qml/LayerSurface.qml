@@ -73,6 +73,7 @@ FocusScope {
 
     Loader {
         id: animation
+        active: false
         parent: surfaceItem.parent
         anchors.fill: surfaceItem
     }
@@ -182,16 +183,6 @@ FocusScope {
             if (surfaceItem.effectiveVisible)
                 Helper.activatedSurface = wSurface
 
-                animation.active = true
-
-                if (Helper.clientName(wSurface.surface) === "dde-launchpad") {
-                    animation.sourceComponent = launchpadAnimation
-                } else {
-                    animation.sourceComponent = windowAnimation
-                }
-
-                animation.item.start()
-
                 wallpaperController.output = output.output
                 wallpaperController.type = Helper.Scale
         } else { // if not mapped
@@ -199,20 +190,21 @@ FocusScope {
             if (!wSurface.WaylandSocket.rootSocket.enabled) {
                 surfaceItem.visible = false
             } else {
-                animation.active = true
-
-                if (Helper.clientName(wSurface.surface) === "dde-launchpad") {
-                    animation.sourceComponent = launchpadAnimation
-                } else {
-                    animation.sourceComponent = windowAnimation
-                }
-
-                animation.item.start()
-
                 wallpaperController.output = output.output
                 wallpaperController.type = Helper.Normal
             }
         }
+
+        if (!animation.active) {
+            animation.active = true
+            if (Helper.clientName(wSurface.surface) === "dde-launchpad") {
+                animation.sourceComponent = launchpadAnimation
+            } else {
+                animation.sourceComponent = windowAnimation
+            }
+        }
+
+        animation.item.start()
     }
 
     function doDestroy() {
