@@ -58,6 +58,7 @@ void WallpaperController::updateState()
     proxy->setType(m_type);
 
     Q_EMIT proxyChanged();
+    Q_EMIT typeChanged();
 }
 
 WallpaperProxy *WallpaperController::proxy() const

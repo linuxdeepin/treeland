@@ -130,10 +130,6 @@ FocusScope {
                             container.forceActiveFocus()
                         }
                     }
-
-                    function onlockScreenChanged() {
-                        container.opacity = Helper.lockScreen ? 0 : 1
-                    }
                 }
             }
         }
