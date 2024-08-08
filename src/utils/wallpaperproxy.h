@@ -5,7 +5,7 @@
 
 #include "helper.h"
 
-#include <woutputitem.h>
+Q_MOC_INCLUDE(<woutputitem.h>)
 
 #include <QQmlEngine>
 #include <QQuickItem>
