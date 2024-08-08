@@ -522,14 +522,16 @@ FocusScope {
     Connections {
         target: Helper
         function onSwitcherChanged(mode) {
-            switcher.visible = true // ensure, won't emit event if already visible
-            switch (mode) {
-            case (Helper.Next):
-                switcher.next()
-                break
-            case (Helper.Previous):
-                switcher.previous()
-                break
+            if (QmlHelper.workspaceManager.workspacesById.get(QmlHelper.workspaceManager.layoutOrder.get(Helper.currentWorkspaceId).wsid).surfaces.count > 0) {
+                switcher.visible = true // ensure, won't emit event if already visible
+                switch (mode) {
+                case (Helper.Next):
+                    switcher.next()
+                    break
+                case (Helper.Previous):
+                    switcher.previous()
+                    break
+                }
             }
         }
     }
