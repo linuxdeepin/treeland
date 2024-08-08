@@ -562,18 +562,24 @@ FocusScope {
         function onNextWorkspace() {
             const nWorkspaces = workspaceManager.layoutOrder.count
             const nextWorkspaceId = currentWorkspaceId + 1
-            if (nextWorkspaceId >= nWorkspaces) return
             workspaceAnimation.active = true
-            workspaceAnimation.item.addAnimation(currentWorkspaceId, nextWorkspaceId)
-            Helper.currentWorkspaceId = nextWorkspaceId
+            if (nextWorkspaceId >= nWorkspaces) {
+                workspaceAnimation.item.addBounce(currentWorkspaceId, WorkspaceAnimation.Direction.Right)
+            } else {
+                workspaceAnimation.item.addAnimation(currentWorkspaceId, nextWorkspaceId)
+                Helper.currentWorkspaceId = nextWorkspaceId
+            }
         }
         function onPrevWorkspace() {
             const nWorkspaces = workspaceManager.layoutOrder.count
             const prevWorkspaceId = currentWorkspaceId - 1
-            if (prevWorkspaceId < 0) return
             workspaceAnimation.active = true
-            workspaceAnimation.item.addAnimation(currentWorkspaceId, prevWorkspaceId)
-            Helper.currentWorkspaceId = prevWorkspaceId
+            if (prevWorkspaceId < 0) {
+                workspaceAnimation.item.addBounce(currentWorkspaceId, WorkspaceAnimation.Direction.Left)
+            } else {
+                workspaceAnimation.item.addAnimation(currentWorkspaceId, prevWorkspaceId)
+                Helper.currentWorkspaceId = prevWorkspaceId
+            }
         }
         function onJumpWorkspace(d) {
             const nWorkspaces = workspaceManager.layoutOrder.count
