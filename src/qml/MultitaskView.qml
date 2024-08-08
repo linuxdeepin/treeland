@@ -4,6 +4,7 @@
 import QtQuick
 import QtQuick.Layouts
 import QtQuick.Controls
+import QtQuick.Effects
 import Waylib.Server
 import TreeLand
 import TreeLand.Utils
@@ -26,6 +27,7 @@ Item {
     property int currentWsid // Used to store real current workspace id temporarily
     property bool exited: false
     property var activeMethod: MultitaskView.ActiveMethod.ShortcutKey
+    property D.Palette outerShadowColor: DS.Style.highlightPanel.dropShadow
 
     property bool initialized: false
     readonly property QtObject taskViewGesture: Helper.multiTaskViewGesture
@@ -126,6 +128,18 @@ Item {
                 y: displayRect.y
                 width: displayRect.width
                 height: displayRect.height
+                WallpaperController {
+                    id: wpCtrl
+                    output: modelData.output
+                }
+
+                ShaderEffectSource {
+                    live: true
+                    smooth: true
+                    sourceItem: wpCtrl.proxy
+                    anchors.fill: parent
+                }
+
                 HoverHandler {
                     id: rootHvrHdlr
                 }
@@ -493,15 +507,50 @@ Item {
                                             radius: wrapper.decoration.radius + border.width
                                         }
 
-                                        ShaderEffectSource {
+                                        Item {
+                                            id: surfaceShot
                                             anchors {
                                                 fill: parent
                                                 margins: 4
                                             }
-                                            live: true
-                                            // no hidesource, may conflict with workspace thumb
-                                            smooth: true
-                                            sourceItem: source
+
+                                            D.BoxShadow {
+                                                anchors.fill: parent
+                                                shadowColor: root.D.ColorSelector.outerShadowColor
+                                                shadowOffsetY: 4
+                                                shadowBlur: 16
+                                                cornerRadius: wrapper.decoration.radius
+                                                hollow: true
+                                            }
+
+                                            ShaderEffectSource {
+                                                id: preview
+                                                anchors.fill: parent
+                                                live: true
+                                                // no hidesource, may conflict with workspace thumb
+                                                smooth: true
+                                                sourceItem: source
+                                                visible: false
+                                            }
+
+                                            MultiEffect {
+                                                enabled: wrapper.decoration.radius > 0
+                                                anchors.fill: preview
+                                                source: preview
+                                                maskEnabled: true
+                                                maskSource: mask
+                                            }
+
+                                            Item {
+                                                id: mask
+                                                anchors.fill: preview
+                                                layer.enabled: true
+                                                visible: false
+                                                Rectangle {
+                                                    anchors.fill: parent
+                                                    radius: wrapper.decoration.radius
+                                                }
+                                            }
                                         }
 
                                         D.RoundButton {
