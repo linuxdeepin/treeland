@@ -22,6 +22,7 @@ Item {
     required property var target
     required property var direction
     required property var position
+    property var duration: 400
 
     width: target.width
     height: target.height
@@ -37,23 +38,25 @@ Item {
         stopped();
     }
 
-    Loader {
-        id: blur
+    Rectangle {
+        id: cover
         anchors.fill: parent
-        sourceComponent: RenderBufferBlitter {
-            id: blitter
-            anchors.fill: parent
-            MultiEffect {
-                id: blur
+        color: 'black'
+        opacity: 0.0
+    }
 
-                anchors.fill: parent
-                source: blitter.content
-                autoPaddingEnabled: false
-                blurEnabled: true
-                blur: 1.0
-                blurMax: 64
-                saturation: 0.2
-            }
+    RenderBufferBlitter {
+        id: blitter
+        anchors.fill: parent
+        MultiEffect {
+            id: blur
+            anchors.fill: parent
+            source: blitter.content
+            autoPaddingEnabled: false
+            blurEnabled: true
+            blur: 1.0
+            blurMax: 64
+            saturation: 0.2
         }
     }
 
@@ -76,7 +79,7 @@ Item {
         PropertyAnimation {
             target: effect
             property: "opacity"
-            duration: 400
+            duration: root.duration
             from: root.direction === LayerShellAnimation.Direction.Show ? 0 : 1
             to: root.direction !== LayerShellAnimation.Direction.Show ? 0 : 1
             easing.type: Easing.OutExpo
@@ -84,7 +87,7 @@ Item {
         PropertyAnimation {
             target: blur
             property: "opacity"
-            duration: 400
+            duration: root.duration
             from: root.direction === LayerShellAnimation.Direction.Show ? 0 : 1
             to: root.direction !== LayerShellAnimation.Direction.Show ? 0 : 1
             easing.type: Easing.OutExpo
@@ -92,11 +95,18 @@ Item {
         PropertyAnimation {
             target: effect
             property: "scale"
-            duration: 400
+            duration: root.duration
             from: root.direction === LayerShellAnimation.Direction.Show ? 0.3 : 1
             to: root.direction !== LayerShellAnimation.Direction.Show ? 0.3 : 1
             easing.type: Easing.OutExpo
         }
+        PropertyAnimation {
+            target: cover
+            property: "opacity"
+            duration: root.duration
+            from: root.direction === LayerShellAnimation.Direction.Show ? 0.0 : 0.6
+            to: root.direction !== LayerShellAnimation.Direction.Show ? 0.0 : 0.6
+            easing.type: Easing.OutExpo
+        }
     }
 }
-
