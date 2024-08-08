@@ -839,7 +839,7 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *watched, QInputEvent *even
         if (event->type() == QEvent::KeyPress) {
             if (m_switcherEnabled) {
                 Q_EMIT switcherActiveSwitch(Switcher::Next);
-                return true;
+                return false;
             }
         }
     } break;
@@ -847,7 +847,7 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *watched, QInputEvent *even
         if (event->type() == QEvent::KeyPress) {
             if (m_switcherEnabled) {
                 Q_EMIT switcherActiveSwitch(Switcher::Previous);
-                return true;
+                return false;
             }
         }
     } break;
