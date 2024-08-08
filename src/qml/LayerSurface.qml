@@ -27,7 +27,12 @@ FocusScope {
     required property string type
 
     // TODO: should move to protocol?
-    property bool forceBlur: Helper.clientName(wSurface.surface) === "dde-launchpad"
+    readonly property bool forceBlur: {
+        return Helper.shouldForceBlur(wSurface)
+    }
+    readonly property bool forceBackground: {
+        return Helper.isLaunchpad(wSurface)
+    }
 
     id: root
     z: zValueFormLayer(wSurface.layer)
@@ -146,16 +151,16 @@ FocusScope {
 
     Rectangle {
         id: cover
-        visible: forceBlur && !animation.active
+        visible: forceBackground && !animation.active
         parent: surfaceItem
         z: surfaceItem.z - 2
         anchors.fill: surfaceItem
         color: 'black'
-        opacity: forceBlur && animation.active ? 0 : 0.6
+        opacity: forceBackground && animation.active ? 0 : 0.6
     }
 
     Loader {
-        active: forceBlur
+        active: forceBackground
         z: surfaceItem.z - 1
         parent: surfaceItem.parent
         anchors.fill: surfaceItem
@@ -197,7 +202,7 @@ FocusScope {
 
         if (!animation.active) {
             animation.active = true
-            if (Helper.clientName(wSurface.surface) === "dde-launchpad") {
+            if (forceBackground) {
                 animation.sourceComponent = launchpadAnimation
             } else {
                 animation.sourceComponent = windowAnimation
@@ -233,6 +238,9 @@ FocusScope {
         case WaylandLayerSurface.LayerType.Bottom:
             return -50
         case WaylandLayerSurface.LayerType.Top:
+            if (wSurface.exclusiveZone > 0) {
+                return 51
+            }
             return 50
         case WaylandLayerSurface.LayerType.Overlay:
             return 100
