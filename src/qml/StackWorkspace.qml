@@ -87,7 +87,7 @@ FocusScope {
 
     FocusScope {
         anchors.fill: parent
-        visible: !multitaskView.active && !WindowManagementV1.desktopState
+        visible: !WindowManagementV1.desktopState
         enabled: !switcher.visible && !multitaskView.active
         focus: enabled
         opacity: dockPreview.previewing ? hideOpacity : 1
