@@ -137,6 +137,10 @@ Item {
                     live: true
                     smooth: true
                     sourceItem: wpCtrl.proxy
+                    sourceRect: {
+                        const margins = Helper.getOutputExclusiveMargins(modelData.output)
+                        return Qt.rect(margins.left, margins.top, width, height)
+                    }
                     anchors.fill: parent
                 }
 
