@@ -160,6 +160,9 @@ public:
 
     Q_INVOKABLE void updateOutputsRegion();
 
+    Q_INVOKABLE bool shouldForceBlur(WLayerSurface *surface) const;
+    Q_INVOKABLE bool isLaunchpad(WLayerSurface *surface) const;
+
 public Q_SLOTS:
     void startMove(WToplevelSurface *surface, WSurfaceItem *shell, WSeat *seat, int serial);
     void startResize(
