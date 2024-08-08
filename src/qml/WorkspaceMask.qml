@@ -10,6 +10,7 @@ Loader {
     property alias blackComponent: rectComponent
     readonly property int aniDuration: 400
     property int loaderStatus: 0 // 0 none ; 1 loaded
+    property real itemOpacity: 0.0
 
     Component {
         id: rectComponent
@@ -17,7 +18,7 @@ Loader {
         Rectangle {
             anchors.fill: parent
             color: "black"
-            opacity: 0.5
+            opacity: root.itemOpacity
 
             states: [
                 State {
