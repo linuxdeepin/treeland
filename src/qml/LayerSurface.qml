@@ -90,6 +90,7 @@ FocusScope {
             target: surfaceItem
             direction: mapped ? LayerShellAnimation.Direction.Show : LayerShellAnimation.Direction.Hide
             position: wSurface.getExclusiveZoneEdge()
+            enableBlur: personalizationMapper.backgroundType === Personalization.Blend || forceBlur
             onStopped: {
                 if (!mapped) {
                     if (pendingDestroy) {

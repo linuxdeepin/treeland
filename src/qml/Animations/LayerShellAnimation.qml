@@ -4,7 +4,6 @@
 import QtQuick
 import Waylib.Server
 import QtQuick.Effects
-import TreeLand.Protocols
 
 Item {
     id: root
@@ -22,6 +21,7 @@ Item {
     required property var target
     required property var direction
     required property var position
+    property var enableBlur: false
 
     width: target.width
     height: target.height
@@ -37,17 +37,14 @@ Item {
         stopped();
     }
 
-    property var personalizationMapper: PersonalizationV1.Attached(target.shellSurface)
-
     Loader {
-        active: personalizationMapper.backgroundType === Personalization.Blend
-        anchors.fill: parent
+        active: root.enableBlur
+        anchors.fill: effect
         sourceComponent: RenderBufferBlitter {
             id: blitter
             anchors.fill: parent
             MultiEffect {
                 id: blur
-
                 anchors.fill: parent
                 source: blitter.content
                 autoPaddingEnabled: false
