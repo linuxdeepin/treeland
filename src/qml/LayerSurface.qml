@@ -55,53 +55,6 @@ FocusScope {
         }
     }
 
-    Loader {
-        active: personalizationMapper.backgroundType === Personalization.Blend || forceBlur
-        parent: surfaceItem
-        z: surfaceItem.z - 1
-        anchors.fill: parent
-        sourceComponent: RenderBufferBlitter {
-            id: blitter
-            anchors.fill: parent
-            MultiEffect {
-                id: blur
-
-                anchors.fill: parent
-                source: blitter.content
-                autoPaddingEnabled: false
-                blurEnabled: true
-                blur: 1.0
-                blurMax: 64
-                saturation: 0.2
-            }
-        }
-        opacity: mapped ? 1 : 0
-        Behavior on opacity {
-            NumberAnimation {
-                duration: 400
-                easing.type: Easing.OutExpo
-            }
-        }
-    }
-
-    Loader {
-        active: personalizationMapper.backgroundType === Personalization.Blend || forceBlur
-        z: surfaceItem.z - 2
-        anchors.fill: surfaceItem
-        sourceComponent: ShaderEffectSource {
-            sourceItem: wallpaperController.proxy
-            hideSource: false
-            live: true
-        }
-        opacity: mapped ? 1 : 0
-        Behavior on opacity {
-            NumberAnimation {
-                duration: 400
-                easing.type: Easing.OutExpo
-            }
-        }
-    }
-
     OutputLayoutItem {
         anchors.fill: parent
         layout: Helper.outputLayout
@@ -116,10 +69,6 @@ FocusScope {
             wSurface.surface.leaveOutput(output)
             Helper.onSurfaceLeaveOutput(wSurface, surfaceItem, output)
         }
-    }
-
-    WallpaperController {
-        id: wallpaperController
     }
 
     Loader {
@@ -164,6 +113,61 @@ FocusScope {
                     }
                 }
                 animation.active = false
+            }
+        }
+    }
+
+    WallpaperController {
+        id: wallpaperController
+    }
+
+    Loader {
+        active: personalizationMapper.backgroundType === Personalization.Blend || forceBlur
+        parent: surfaceItem
+        z: surfaceItem.z - 1
+        anchors.fill: parent
+        sourceComponent: RenderBufferBlitter {
+            id: blitter
+            anchors.fill: parent
+            MultiEffect {
+                id: blur
+
+                anchors.fill: parent
+                source: blitter.content
+                autoPaddingEnabled: false
+                blurEnabled: true
+                blur: 1.0
+                blurMax: 64
+                saturation: 0.2
+            }
+        }
+    }
+
+    Rectangle {
+        id: cover
+        visible: forceBlur && !animation.active
+        parent: surfaceItem
+        z: surfaceItem.z - 2
+        anchors.fill: surfaceItem
+        color: 'black'
+        opacity: forceBlur && animation.active ? 0 : 0.6
+    }
+
+    Loader {
+        active: forceBlur
+        z: surfaceItem.z - 1
+        parent: surfaceItem.parent
+        anchors.fill: surfaceItem
+        sourceComponent: ShaderEffectSource {
+            sourceItem: wallpaperController.proxy
+            hideSource: false
+            live: true
+        }
+        opacity: mapped ? 1 : 0
+        Behavior on opacity {
+            PropertyAnimation {
+                duration: 400
+                easing.type: Easing.OutExpo
             }
         }
     }
@@ -371,7 +375,7 @@ FocusScope {
             refreshMargin()
         }
 
-        function onlockScreenChanged() {
+        function onLockScreenChanged() {
             mapped = !Helper.lockScreen
         }
     }
