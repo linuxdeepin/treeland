@@ -530,6 +530,24 @@ FocusScope {
             }
         }
     }
+
+    Connections {
+        target: Helper
+        function onSwitcherActiveSwitch(mode) {
+            if (!switcher.visible)
+                return
+
+            switch (mode) {
+            case (Helper.Next):
+                switcher.next()
+                break
+            case (Helper.Previous):
+                switcher.previous()
+                break
+            }
+        }
+    }
+
     Connections {
         target: QmlHelper.shortcutManager
         function onMultitaskViewToggled() {
