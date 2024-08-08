@@ -434,8 +434,11 @@ FocusScope {
             if (switcher.visible) {
                 mask.sourceComponent = mask.blackComponent
                 if (switcher.enableAnimation) {
+                    mask.itemOpacity = 0.0
                     mask.loaderStatus = 0
                     mask.loaderStatus = 1
+                } else {
+                    mask.itemOpacity = 0.5
                 }
             }
         }
