@@ -6,20 +6,23 @@ Item {
     visible: true
     required property var workspaceManager
     readonly property int animationDuration: 400
+    readonly property int bounceDuration: 400
     readonly property real refWidth: 1920
     readonly property real refGap: 30
     readonly property real refWrap: refWidth + refGap
+    readonly property real refBounce: 192
     property int s1Id: -1
     property int s2Id: -1
     property int currentDirection: WorkspaceAnimation.Direction.Left
     property bool s1ToS2: true // Property indicates that workspace s1(to hide) is switching to s2(to show)
-    property real animationInitial: 0 // Virtual scene slide initial value
-    property real animationProcess: 0 // Virtual scene slide progress
-    property real animationDestination: 0 // Virtual scene slide destination value
+    property int animationInitial: 0 // Virtual scene slide initial value
+    property int animationProcess: 0 // Virtual scene slide progress
+    property int animationDestination: 0 // Virtual scene slide destination value
     property int initialId: -1
     property int destinationId: -1
     property real s1X: 0
     property real s2X: 0
+    property bool needBounce: false
 
     enum Direction {
         Left,
@@ -38,6 +41,7 @@ Item {
         required property WallpaperProxy wpProxy
         width: parent.width
         height: parent.height
+        visible: ws.sourceItem !== null
 
         ShaderEffectSource {
             id: wp
@@ -96,20 +100,18 @@ Item {
         }
     }
 
-    property real lastMod: 0
+    property int lastMod: 0
     onAnimationProcessChanged: {
+        if (bounceAnimation.running) return
         // Check if wrap
         const currMod = animationProcess % refWrap
         if ((animationProcess > 0 && currMod < lastMod) || (animationProcess < 0 && currMod > lastMod)) {
             // Wrap
             var idGap = initialId < destinationId ? 1 : -1
-            if (s1ToS2 && s2Id !== destinationId) {
+            if (s1ToS2) {
                 s1Id = s2Id + idGap
-            } else if (!s1ToS2 && s1Id !== destinationId) {
-                s2Id = s1Id + idGap
             } else {
-                lastMod = currMod
-                return
+                s2Id = s1Id + idGap
             }
             s1ToS2 = !s1ToS2
         }
@@ -127,6 +129,35 @@ Item {
             duration: animationDuration
             easing.type: Easing.OutExpo
         }
+        ScriptAction {
+            script: {
+                if (needBounce) {
+                    bounceAnimation.start()
+                } else {
+                    root.visible = false
+                }
+            }
+        }
+    }
+    SequentialAnimation {
+        id: bounceAnimation
+        readonly property real bounceDestination: animationDestination + (currentDirection === WorkspaceAnimation.Direction.Left ? refBounce : -refBounce)
+        NumberAnimation {
+            target: root
+            property: "animationProcess"
+            from: animationDestination
+            to: bounceAnimation.bounceDestination
+            duration: bounceDuration / 2
+            easing.type: Easing.InOutExpo
+        }
+        NumberAnimation {
+            target: root
+            property: "animationProcess"
+            from: bounceAnimation.bounceDestination
+            to: animationDestination
+            duration: bounceDuration / 2
+            easing.type: Easing.InOutExpo
+        }
         PropertyAction {
             target: root
             property: "visible"
@@ -137,8 +168,10 @@ Item {
     function addAnimation(fromId, toId) {
         // Recalculate workspace id queue and restart animation if necessary
         var initialS1, initialS2
-        if (slideAnimation.running) {
+        needBounce = false
+        if (slideAnimation.running || bounceAnimation.running) {
             slideAnimation.stop() // Pause animation
+            bounceAnimation.stop()
             console.assert((s1X < s2X) === (s1Id < s2Id), "WorkspaceShot should be continuous")
             destinationId = toId
             if (s1Id < s2Id) {
@@ -194,5 +227,24 @@ Item {
         s1X = Qt.binding(function() { return (initialS1 + animationProcess + 3 * refWrap) % (2 * refWrap) - refWrap })
         s2X = Qt.binding(function() { return (initialS2 + animationProcess + 3 * refWrap) % (2 * refWrap) - refWrap })
         slideAnimation.start() // Restart animation
+    }
+
+    function addBounce(currentWorkspaceId, direction) {
+        if (bounceAnimation.running) return
+        if (!slideAnimation.running) {
+            const nWorkspaces = workspaceManager.layoutOrder.count
+            destinationId = currentWorkspaceId
+            currentDirection = direction
+            s1Id = destinationId
+            s2Id = (direction === WorkspaceAnimation.Direction.Left ? -1 : nWorkspaces)
+            s1X = Qt.binding(function () { return animationProcess})
+            s2X = Qt.binding(function () { return direction === WorkspaceAnimation.Direction.Left ? -refWrap + animationProcess : refWrap + animationProcess })
+            animationInitial = 0
+            animationProcess = 0
+            animationDestination = 0
+            bounceAnimation.start()
+        } else {
+            needBounce = true
+        }
     }
 }
