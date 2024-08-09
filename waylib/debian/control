@@ -34,6 +34,7 @@ Depends: ${shlibs:Depends},
   qt6-base-dev-tools (>= 6.6.0),
   qt6-declarative-private-dev (>= 6.6.0),
   libwlroots-dev (>= 0.17.0),
+  wlr-protocols
 Description: A devel package for libwaylib
  .
  This package contains the header files and static libraries of waylib.
