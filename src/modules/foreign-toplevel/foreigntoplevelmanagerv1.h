@@ -7,8 +7,7 @@
 
 #include <wserver.h>
 #include <wxdgsurface.h>
-
-#include <QObject>
+#include <wsurface.h>
 
 QW_USE_NAMESPACE
 WAYLIB_SERVER_USE_NAMESPACE
@@ -29,7 +28,7 @@ Q_SIGNALS:
     void requestActivate(bool activated);
     void requestFullscreen(bool fullscreen);
     void requestClose();
-    void rectangleChanged(const QRect &rect);
+    void rectangleChanged(WSurface *surface, const QRect &rect);
 
 private:
     WSurface *m_target;

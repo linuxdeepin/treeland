@@ -92,7 +92,9 @@ ForeignToplevelAttached::ForeignToplevelAttached(WSurface *target, ForeignToplev
                     return;
                 }
 
-                Q_EMIT rectangleChanged({ event->x, event->y, event->width, event->height });
+                auto wSurface = WSurface::fromHandle(event->surface);
+
+                Q_EMIT rectangleChanged(wSurface, QRect{ event->x, event->y, event->width, event->height });
             });
 }
 
