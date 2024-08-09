@@ -99,7 +99,7 @@ Loader {
                 shadowColor: root.D.ColorSelector.outerShadowColor
                 shadowOffsetY: 4
                 shadowBlur: 16
-                cornerRadius: root.cornerRadius
+                cornerRadius: root.cornerRadius *  root.width / root.sourceSueface.width
                 hollow: true
             }
 
@@ -132,7 +132,7 @@ Loader {
                 Rectangle {
                     width: preview.width
                     height: preview.height
-                    radius: root.cornerRadius
+                    radius: root.cornerRadius *  root.width / root.sourceSueface.width
                 }
             }
 
