@@ -652,6 +652,10 @@ void WCursor::setLayout(WOutputLayout *layout)
         o->addCursor(this);
     });
 
+    connect(d->outputLayout, &WOutputLayout::outputRemoved, this, [this, d] (WOutput *o) {
+        o->removeCursor(this);
+    });
+
     Q_EMIT layoutChanged();
 }
 
