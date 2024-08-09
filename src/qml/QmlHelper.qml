@@ -12,6 +12,11 @@ Item {
     property alias workspaceManager: workspaceManager
     property alias winposManager: winposManager
     property OutputRenderWindow renderWindow: null
+    property DynamicCreatorComponent toplevelComponentRef: null
+    property DynamicCreatorComponent popupComponentRef: null
+    property DynamicCreatorComponent layerComponentRef: null
+    property DynamicCreatorComponent xwaylandComponentRef: null
+
     property Cursor cursor: Helper.cursor
 
     property var outputSet: new Set()
@@ -31,6 +36,38 @@ Item {
         }
 
         return '{\n' + json + '}'
+    }
+
+    function getSurfaceItemFromWaylandSurface(surface) {
+        let finder = function(props) {
+            if (!props.wSurface)
+                return false
+            // surface is WToplevelSurface or WSurfce
+            if (props.wSurface === surface || props.wSurface.surface === surface)
+                return true
+        }
+
+        let toplevel = Helper.surfaceCreator.getIf(toplevelComponentRef, finder)
+        if (toplevel) {
+            return toplevel
+        }
+
+        let popup = Helper.surfaceCreator.getIf(popupComponentRef, finder)
+        if (popup) {
+            return popup
+        }
+
+        let layer = Helper.surfaceCreator.getIf(layerComponentRef, finder)
+        if (layer) {
+            return layer
+        }
+
+        let xwayland = Helper.surfaceCreator.getIf(xwaylandComponentRef, finder)
+        if (xwayland) {
+            return xwayland
+        }
+
+        return null
     }
 
     Connections {

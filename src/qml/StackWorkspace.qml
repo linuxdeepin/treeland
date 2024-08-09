@@ -13,37 +13,6 @@ import org.deepin.dtk 1.0 as D
 
 FocusScope {
     id: root
-    function getSurfaceItemFromWaylandSurface(surface) {
-        let finder = function(props) {
-            if (!props.wSurface)
-                return false
-            // surface is WToplevelSurface or WSurfce
-            if (props.wSurface === surface || props.wSurface.surface === surface)
-                return true
-        }
-
-        let toplevel = Helper.surfaceCreator.getIf(toplevelComponent, finder)
-        if (toplevel) {
-            return toplevel
-        }
-
-        let popup = Helper.surfaceCreator.getIf(popupComponent, finder)
-        if (popup) {
-            return popup
-        }
-
-        let layer = Helper.surfaceCreator.getIf(layerComponent, finder)
-        if (layer) {
-            return layer
-        }
-
-        let xwayland = Helper.surfaceCreator.getIf(xwaylandComponent, finder)
-        if (xwayland) {
-            return xwayland
-        }
-
-        return null
-    }
 
     function unloadMask() {
         if (switcher.enableAnimation) {
@@ -72,7 +41,7 @@ FocusScope {
 
     // activated workspace driven by surface activation
     property Item activatedSurfaceItem:
-        getSurfaceItemFromWaylandSurface(Helper.activatedSurface)?.surfaceItem || null // cannot assign [undefined] to QQuickItem*, need to assign null
+        QmlHelper.getSurfaceItemFromWaylandSurface(Helper.activatedSurface)?.surfaceItem || null // cannot assign [undefined] to QQuickItem*, need to assign null
     onActivatedSurfaceItemChanged: {
         if (activatedSurfaceItem?.parent?.workspaceRelativeId !== undefined)
             Helper.currentWorkspaceId = activatedSurfaceItem.parent.workspaceRelativeId
@@ -159,7 +128,7 @@ FocusScope {
             InputPopupSurface {
                 required property WaylandInputPopupSurface popupSurface
 
-                parent: getSurfaceItemFromWaylandSurface(popupSurface.parentSurface)?.surfaceItem
+                parent: QmlHelper.getSurfaceItemFromWaylandSurface(popupSurface.parentSurface)?.surfaceItem
                 id: inputPopupSurface
                 shellSurface: popupSurface
             }
@@ -287,7 +256,7 @@ FocusScope {
                 property string type
                 property int wid
 
-                property var parentItem: root.getSurfaceItemFromWaylandSurface(wSurface.parentSurface)?.surfaceItem
+                property var parentItem: QmlHelper.getSurfaceItemFromWaylandSurface(wSurface.parentSurface)?.surfaceItem
 
                 property alias surfaceItem: popupSurfaceItem
 
@@ -380,7 +349,7 @@ FocusScope {
                 readonly property XWaylandSurface asXSurface: {
                     wSurface as XWaylandSurface;
                 }
-                asXwayland.parentSurfaceItem: root.getSurfaceItemFromWaylandSurface(wSurface.parentXWaylandSurface)?.surfaceItem
+                asXwayland.parentSurfaceItem: QmlHelper.getSurfaceItemFromWaylandSurface(wSurface.parentXWaylandSurface)?.surfaceItem
                 z: asXSurface.bypassManager ? 1 : 0 // TODO: make to enum type
                 decoration.enable: !asXSurface.bypassManager
                                         && asXSurface.decorationsType !== XWaylandSurface.DecorationsNoBorder
@@ -442,7 +411,7 @@ FocusScope {
         }
 
         onSurfaceActivated: (wrapper) => {
-            wrapper.cancelMinimize()
+            wrapper.cancelMinimize(/*showAnimation: */ false)
             Helper.activatedSurface = wrapper.surfaceItem.shellSurface
         }
 
@@ -493,7 +462,7 @@ FocusScope {
     Connections {
         target: ForeignToplevelV1
         function onRequestDockPreview(surfaces, target, abs, direction) {
-            dockPreview.show(surfaces, getSurfaceItemFromWaylandSurface(target), abs, direction)
+            dockPreview.show(surfaces, QmlHelper.getSurfaceItemFromWaylandSurface(target), abs, direction)
         }
         function onRequestDockClose() {
             dockPreview.close()
@@ -601,7 +570,7 @@ FocusScope {
         }
         function onMoveToNeighborWorkspace(d, surface) {
             const nWorkspaces = workspaceManager.layoutOrder.count
-            const surfaceWrapper = getSurfaceItemFromWaylandSurface(surface ?? Helper.activatedSurface)
+            const surfaceWrapper = QmlHelper.getSurfaceItemFromWaylandSurface(surface ?? Helper.activatedSurface)
             let relId = workspaceManager.workspacesById.get(surfaceWrapper.wid).workspaceRelativeId
             relId = (relId + d + nWorkspaces) % nWorkspaces
             surfaceWrapper.wid = workspaceManager.layoutOrder.get(relId).wsid
@@ -620,5 +589,12 @@ FocusScope {
                 multitaskView.active = false
             }
         }
+    }
+
+    Component.onCompleted: {
+        QmlHelper.toplevelComponentRef = toplevelComponent;
+        QmlHelper.popupComponentRef = popupComponent;
+        QmlHelper.layerComponentRef = layerComponent;
+        QmlHelper.xwaylandComponentRef = xwaylandComponent;
     }
 }

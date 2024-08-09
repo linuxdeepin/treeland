@@ -27,6 +27,7 @@ Item {
     property bool showCloseAnimation: true
     property bool showNewAnimation: true
     onIsMaximizeChanged: console.log(`${surface} isMaximize changed, ${waylandSurface.isMaximized}, ${outputCoordMapper}`)
+    property rect iconGeometry: Qt.rect(0, 0, 0, 0) // a hint for some operations, e.g minimizing, set by foreign_toplevel_manager.
 
     // For Maximize
     property rect maximizeRect: outputCoordMapper ? Qt.rect(
@@ -81,6 +82,46 @@ Item {
         }
     }
 
+    Component {
+        id: minimizeAnimationComponent
+
+        MinimizeAnimation {
+            target: surface
+            direction: NewAnimation.Direction.Hide
+            position: root.iconGeometry
+            onStopped: {
+                surface.focus = false;
+                surface.visible = false;
+                waylandSurface.setMinimize(true)
+                if (Helper.activatedSurface === waylandSurface) {
+                    Helper.activatedSurface = null
+                    surface.parent.selectSurfaceToActivate()
+                }
+                animation.active = false
+                animation.sourceComponent = null
+            }
+        }
+    }
+
+    Component {
+        id: unMinimizeAnimationComponent
+
+        MinimizeAnimation {
+            target: surface
+            direction: NewAnimation.Direction.Show
+            position: root.iconGeometry
+            onStopped: {
+                surface.focus = true;
+                surface.visible = true;
+                waylandSurface.setMinimize(false)
+                Helper.activatedSurface = waylandSurface
+                animation.active = false
+                animation.sourceComponent = null
+            }
+        }
+    }
+
+
     Repeater {
         model: [ root.quickForeignToplevelManageMapper, root.decoration, ]
 
@@ -128,17 +169,21 @@ Item {
                     Helper.closeSurface(waylandSurface.surface);
                 }
 
-                function onRectangleChanged(edges) {
-                    // error
-                    doResize(null, edges, null, false)
-                }
-
                 function onRequestMove() {
                     doMove(null, 0)
                 }
 
                 function onRequestResize(edges, movecursor) {
                     doResize(Helper.seat, edges, null, movecursor)
+                }
+
+                function onRectangleChanged(wSurface, rectangle) {
+                    var item = QmlHelper.getSurfaceItemFromWaylandSurface(wSurface);
+                    if (!item) {
+                        console.warn("Can't found SurfaceItem of ", wSurface, " can't set icon geometry!");
+                        return;
+                    }
+                    iconGeometry = Qt.rect(item.x+rectangle.x, item.y+rectangle.y, rectangle.width, rectangle.height);
                 }
             }
         }
@@ -317,17 +362,14 @@ Item {
         if (waylandSurface.isMinimized)
             return
 
-        surface.focus = false;
-        surface.visible = false;
-        waylandSurface.setMinimize(true)
-
-        if (Helper.activatedSurface === waylandSurface) {
-            Helper.activatedSurface = null
-            surface.parent.selectSurfaceToActivate()
-        }
+        animation.parent = surface.parent
+        animation.anchors.fill = surface.parent
+        animation.sourceComponent = minimizeAnimationComponent
+        animation.active = true
+        animation.item.start()
     }
 
-    function cancelMinimize () {
+    function cancelMinimize (showAnimation = true) {
         if (waylandSurface.isResizeing)
             return
 
@@ -339,12 +381,18 @@ Item {
             setAllSurfacesVisble(false)
         }
 
-        Helper.activatedSurface = waylandSurface
-
-        surface.visible = true;
-        surface.focus = true;
-
-        waylandSurface.setMinimize(false)
+        if (showAnimation) {
+            animation.parent = surface.parent
+            animation.anchors.fill = surface.parent
+            animation.sourceComponent = unMinimizeAnimationComponent
+            animation.active = true
+            animation.item.start()
+        } else {
+            surface.focus = true;
+            surface.visible = true;
+            waylandSurface.setMinimize(false)
+            Helper.activatedSurface = waylandSurface
+        }
     }
 
     function doFullscreen() {
