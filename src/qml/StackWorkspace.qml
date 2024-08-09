@@ -59,6 +59,7 @@ FocusScope {
 
     property var workspaceManager: QmlHelper.workspaceManager
     property int currentWorkspaceId: Helper.currentWorkspaceId
+    property int pendingWorkspaceId
 
     Connections {
         target: workspaceManager.layoutOrder
@@ -142,6 +143,7 @@ FocusScope {
                 workspaceManager: root.workspaceManager
                 onVisibleChanged: {
                     if (!visible) {
+                        Helper.currentWorkspaceId = pendingWorkspaceId
                         workspaceAnimation.active = false
                     }
                 }
@@ -561,32 +563,41 @@ FocusScope {
         }
         function onNextWorkspace() {
             const nWorkspaces = workspaceManager.layoutOrder.count
-            const nextWorkspaceId = currentWorkspaceId + 1
+            if (!workspaceAnimation.active) {
+                pendingWorkspaceId = currentWorkspaceId
+            }
+            const nextWorkspaceId = pendingWorkspaceId + 1
             workspaceAnimation.active = true
             if (nextWorkspaceId >= nWorkspaces) {
-                workspaceAnimation.item.addBounce(currentWorkspaceId, WorkspaceAnimation.Direction.Right)
+                workspaceAnimation.item.addBounce(pendingWorkspaceId, WorkspaceAnimation.Direction.Right)
             } else {
-                workspaceAnimation.item.addAnimation(currentWorkspaceId, nextWorkspaceId)
-                Helper.currentWorkspaceId = nextWorkspaceId
+                workspaceAnimation.item.addAnimation(pendingWorkspaceId, nextWorkspaceId)
+                pendingWorkspaceId = nextWorkspaceId
             }
         }
         function onPrevWorkspace() {
             const nWorkspaces = workspaceManager.layoutOrder.count
-            const prevWorkspaceId = currentWorkspaceId - 1
+            if (!workspaceAnimation.active) {
+                pendingWorkspaceId = currentWorkspaceId
+            }
+            const prevWorkspaceId = pendingWorkspaceId - 1
             workspaceAnimation.active = true
             if (prevWorkspaceId < 0) {
-                workspaceAnimation.item.addBounce(currentWorkspaceId, WorkspaceAnimation.Direction.Left)
+                workspaceAnimation.item.addBounce(pendingWorkspaceId, WorkspaceAnimation.Direction.Left)
             } else {
-                workspaceAnimation.item.addAnimation(currentWorkspaceId, prevWorkspaceId)
-                Helper.currentWorkspaceId = prevWorkspaceId
+                workspaceAnimation.item.addAnimation(pendingWorkspaceId, prevWorkspaceId)
+                pendingWorkspaceId = prevWorkspaceId
             }
         }
         function onJumpWorkspace(d) {
             const nWorkspaces = workspaceManager.layoutOrder.count
             if (d >= nWorkspaces) return
+            if (!workspaceAnimation.active) {
+                pendingWorkspaceId = currentWorkspaceId
+            }
             workspaceAnimation.active = true
-            workspaceAnimation.item.addAnimation(currentWorkspaceId, d)
-            Helper.currentWorkspaceId = d
+            workspaceAnimation.item.addAnimation(pendingWorkspaceId, d)
+            pendingWorkspaceId = d
         }
         function onMoveToNeighborWorkspace(d, surface) {
             const nWorkspaces = workspaceManager.layoutOrder.count
