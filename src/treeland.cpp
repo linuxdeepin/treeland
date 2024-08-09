@@ -12,6 +12,7 @@
 #include "compositor1adaptor.h"
 #include "foreigntoplevelmanagerv1.h"
 #include "helper.h"
+#include "logstream.h"
 #include "outputmanagement.h"
 #include "personalizationmanager.h"
 #include "shortcutmanager.h"
@@ -49,6 +50,7 @@
 #include <QQuickView>
 #include <QTimer>
 #include <QtLogging>
+#include <qtenvironmentvariables.h>
 
 #include <pwd.h>
 #include <sys/socket.h>
@@ -245,6 +247,11 @@ void TreeLand::setup()
     m_server->start();
 
     qmlRegisterSingletonInstance<Helper>("TreeLand.Utils", 1, 0, "Helper", new Helper(m_server));
+    qmlRegisterSingletonInstance<LogStream>("TreeLand.Utils",
+                                            1,
+                                            0,
+                                            "LogStream",
+                                            new LogStream(DLogManager::getlogFilePath()));
 
     qmlRegisterSingletonInstance<ForeignToplevelV1>("TreeLand.Protocols",
                                                     1,
@@ -321,6 +328,15 @@ void TreeLand::setup()
 bool TreeLand::testMode() const
 {
     return m_context.socket.isEmpty();
+}
+
+bool TreeLand::debugMode() const
+{
+#ifdef QT_DEBUG
+    return true;
+#endif
+
+    return qEnvironmentVariableIsSet("TREELAND_ENABLE_DEBUG");
 }
 
 void TreeLand::connected()
