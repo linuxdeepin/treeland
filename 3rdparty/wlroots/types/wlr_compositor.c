@@ -882,11 +882,7 @@ void wlr_surface_reject_pending(struct wlr_surface *surface, struct wl_resource 
 	va_list args;
 	va_start(args, msg);
 
-	// XXX: libwayland could expose wl_resource_post_error_vargs() instead
-	char buffer[128]; // Matches the size of the buffer used in libwayland
-	vsnprintf(buffer, sizeof(buffer), msg, args);
-
-	wl_resource_post_error(resource, code, "%s", buffer);
+	wl_resource_post_error_vargs(resource, code, msg, args);
 	surface->pending_rejected = true;
 
 	va_end(args);
