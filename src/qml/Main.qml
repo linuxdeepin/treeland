@@ -4,6 +4,7 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
+import QtQuick.Effects
 import Waylib.Server
 import TreeLand
 import TreeLand.Utils
@@ -158,6 +159,65 @@ Item {
             }
         }
 
+        Loader {
+            id: logView
+            active: TreeLand.debugMode
+            x: renderWindow.activeOutputDelegate.x
+            y: renderWindow.activeOutputDelegate.y
+            width: renderWindow.activeOutputDelegate.width
+            height: renderWindow.activeOutputDelegate.height
+            property bool autoRefresh: false
+            sourceComponent: Rectangle {
+                anchors.fill: parent
+                color: Qt.rgba(1, 0.9, 0.9, 0.6)
+                visible: false
+
+                RenderBufferBlitter {
+                    anchors.fill: parent
+                    id: blitter
+                    MultiEffect {
+                        id: blur
+
+                        anchors.fill: parent
+                        source: blitter.content
+                        autoPaddingEnabled: false
+                        blurEnabled: true
+                        blur: 1.0
+                        blurMax: 64
+                        saturation: 0.2
+                    }
+                }
+
+                Flickable {
+                    id: flickable
+                    anchors.fill: parent
+                    focus: visible
+                    Keys.onUpPressed: scrollBar.decrease()
+                    Keys.onDownPressed: scrollBar.increase()
+                    ScrollBar.vertical: ScrollBar {
+                        id: scrollBar
+                        active: true
+                    }
+                    contentHeight: log.height
+                    contentWidth: log.width
+                    TextArea {
+                        id: log
+                        width: logView.width
+                        wrapMode: TextEdit.Wrap
+                        anchors.margins: 10
+                        font.family: "Noto Sans Mono"
+                        font.pixelSize: 14
+                        Connections {
+                            target: LogStream
+                            function onBufferChanged() {
+                                log.text += LogStream.buffer
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         Repeater {
             model: Helper.lockScreen ? undefined : ShortcutV1.model
             Item {
@@ -240,6 +300,20 @@ Item {
             context: Qt.ApplicationShortcut
             onActivated: {
                 QmlHelper.shortcutManager.moveToNeighborWorkspace(-1, null)
+            }
+        }
+
+        Loader {
+            active: TreeLand.debugMode
+            sourceComponent: Item {
+                Shortcut {
+                    sequences: ["Meta+Shift+L"]
+                    context: Qt.ApplicationShortcut
+                    onActivated: {
+                        logView.item.visible = !logView.item.visible
+                    }
+                }
+
             }
         }
 
