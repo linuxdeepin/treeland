@@ -179,7 +179,7 @@ FocusScope {
             id: layerSurface
             creatorCompoment: layerComponent
             activeOutputItem: activeOutputDelegate
-            focus: Helper.activatedSurface === this.waylandSurface
+            focus: Helper.activatedSurface === wSurface
         }
     }
 
