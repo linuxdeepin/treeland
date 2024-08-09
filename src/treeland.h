@@ -28,6 +28,7 @@ class TreeLand : public QObject, protected QDBusContext
 {
     Q_OBJECT
     Q_PROPERTY(bool testMode READ testMode CONSTANT)
+    Q_PROPERTY(bool debugMode READ debugMode CONSTANT FINAL)
 
 public:
     explicit TreeLand(TreeLandAppContext context);
@@ -35,6 +36,8 @@ public:
     Q_INVOKABLE void retranslate() noexcept;
 
     bool testMode() const;
+
+    bool debugMode() const;
 
 Q_SIGNALS:
     void socketDisconnected();
