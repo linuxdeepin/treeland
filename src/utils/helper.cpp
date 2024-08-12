@@ -935,8 +935,15 @@ bool Helper::afterHandleEvent(
 {
     Q_UNUSED(seat)
 
-    if (event->type() == QEvent::MouseButtonRelease || event->type() == QEvent::TouchBegin
+    if (event->type() == QEvent::MouseButtonRelease || event->type() == QEvent::TouchEnd
         || (event->type() == QEvent::NativeGesture)) {
+
+        if (auto e = static_cast<WGestureEvent *>(event)) {
+            if (!e->isEndEvent()) {
+                return false;
+            }
+        }
+
         // surfaceItem is qml type: XdgSurfaceItem or LayerSurfaceItem
         auto toplevelSurface = qobject_cast<WSurfaceItem *>(surfaceItem)->shellSurface();
         if (!toplevelSurface)
@@ -947,10 +954,6 @@ bool Helper::afterHandleEvent(
             if (xdgSurface->isPopup()) {
                 return false;
             }
-        }
-        if (auto e = static_cast<WGestureEvent *>(event)) {
-            if (e->gestureType() != Qt::BeginNativeGesture || e->fingerCount() != 3)
-                return false;
         }
         setActivateSurface(toplevelSurface);
     }
