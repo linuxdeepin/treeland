@@ -4,6 +4,7 @@
 #include "logstream.h"
 
 #include <QThread>
+#include <QTimer>
 
 class LogStreamPrivate : public QObject
 {
@@ -13,17 +14,28 @@ public:
         : QObject(parent)
         , m_file(path)
         , watcher(new QFileSystemWatcher(this))
+        , m_timer(new QTimer(this))
     {
         if (!m_file.open(QFile::ReadOnly | QFile::Text)) {
             qWarning() << "cannot open log file (" << path << ").";
             return;
         }
 
+        m_timer->setSingleShot(true);
+        m_timer->setInterval(500);
         m_lastPosition = m_file.size();
 
         watcher->addPath(path);
 
-        connect(watcher, &QFileSystemWatcher::fileChanged, this, &LogStreamPrivate::onFileChanged);
+        connect(watcher, &QFileSystemWatcher::fileChanged, this, [this] {
+            if (m_timer->isActive()) {
+                return;
+            }
+            m_timer->start();
+        });
+        connect(m_timer, &QTimer::timeout, this, [this] {
+            onFileChanged(m_file.fileName());
+        });
     }
 
 Q_SIGNALS:
@@ -35,6 +47,7 @@ private:
     qint64 m_lastPosition{ 0 };
     QFile m_file;
     QFileSystemWatcher *watcher;
+    QTimer *m_timer{ nullptr };
 };
 
 void LogStreamPrivate::onFileChanged(const QString &path)
