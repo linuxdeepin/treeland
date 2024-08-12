@@ -21,6 +21,7 @@ SurfaceItemFactory {
     property var cancelMinimize: helper.cancelMinimize
     property var personalizationMapper: PersonalizationV1.Attached(wSurface)
     property int outputCounter: 0
+    property bool isMinimized: helper.isMinimized
     property alias outputs: outputs
     property alias decoration: decoration
     readonly property XWaylandSurfaceItem asXwayland: {surfaceItem as XWaylandSurfaceItem}
