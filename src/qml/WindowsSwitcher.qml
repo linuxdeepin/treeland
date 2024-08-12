@@ -99,25 +99,34 @@ ColumnLayout {
         switchView.currentIndex = switchView.currentIndex + 1
     }
 
-    function activeCurrentSurface() {
+    function activeCurrentSurface(enableAni) {
         if (root.activeSurface) {
             surfaceActivated(root.activeSurface)
+            if (enableAni) {
+                root.activeSurface.surfaceItem.opacity = 0
+            }
         }
     }
 
     function hideAllSurfaces() {
-        var sourceSuefaceItem
         var sourceWrapperItem
+        var sourceSuefaceItem
         for (var i = 0; i < switchView.count; ++i) {
+            sourceWrapperItem = root.model.get(i).wrapper
             if (root.enableAnimation) {
-                sourceWrapperItem = root.model.get(i).wrapper
+                if (sourceWrapperItem.isMinimized)
+                    continue
+
                 if (sourceWrapperItem) {
                     sourceWrapperItem.scaleStatus = -1
                     sourceWrapperItem.inHomeAni = false
                 }
             }
 
-            sourceSuefaceItem = root.model.get(i).item
+            if (sourceWrapperItem.isMinimized)
+                continue
+
+            sourceSuefaceItem = sourceWrapperItem.surfaceItem
             if (sourceSuefaceItem) {
                 sourceSuefaceItem.opacity = 0.0
             }
@@ -126,8 +135,16 @@ ColumnLayout {
 
     function showAllInactiveSurfaces() {
         var sourceSuefaceItem
+        var sourceWrapperItem
         for (var i = 0; i < switchView.count; ++i) {
-            sourceSuefaceItem = root.model.get(i).item
+            sourceWrapperItem = root.model.get(i).wrapper
+            if (!sourceWrapperItem)
+                continue
+
+            if (sourceWrapperItem.isMinimized)
+                continue
+
+            sourceSuefaceItem = sourceWrapperItem.surfaceItem
             if (!sourceSuefaceItem)
                 continue
 
@@ -168,10 +185,10 @@ ColumnLayout {
                 } else {
                     inactiveWindowsExpand()
                 }
-                activeCurrentSurface()
+                activeCurrentSurface(true)
             } else {
                 root.visible = false
-                activeCurrentSurface()
+                activeCurrentSurface(false)
                 showAllInactiveSurfaces()
             }
         } else {
@@ -191,6 +208,9 @@ ColumnLayout {
 
             sourceWrapperItem = root.model.get(i).wrapper
             if (!sourceWrapperItem)
+                continue
+
+            if (sourceWrapperItem.isMinimized)
                 continue
 
             sourceSuefaceItem = root.model.get(i).item
