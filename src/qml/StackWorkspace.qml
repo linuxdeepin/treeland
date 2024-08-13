@@ -28,7 +28,6 @@ FocusScope {
 
     property var workspaceManager: QmlHelper.workspaceManager
     property int currentWorkspaceId: Helper.currentWorkspaceId
-    property int pendingWorkspaceId
 
     Connections {
         target: workspaceManager.layoutOrder
@@ -143,7 +142,6 @@ FocusScope {
                 workspaceManager: root.workspaceManager
                 onVisibleChanged: {
                     if (!visible) {
-                        Helper.currentWorkspaceId = pendingWorkspaceId
                         workspaceAnimation.active = false
                     }
                 }
@@ -563,41 +561,21 @@ FocusScope {
         }
         function onNextWorkspace() {
             const nWorkspaces = workspaceManager.layoutOrder.count
-            if (!workspaceAnimation.active) {
-                pendingWorkspaceId = currentWorkspaceId
-            }
-            const nextWorkspaceId = pendingWorkspaceId + 1
+            const nextWorkspaceId = currentWorkspaceId + 1
             workspaceAnimation.active = true
-            if (nextWorkspaceId >= nWorkspaces) {
-                workspaceAnimation.item.addBounce(pendingWorkspaceId, WorkspaceAnimation.Direction.Right)
-            } else {
-                workspaceAnimation.item.addAnimation(pendingWorkspaceId, nextWorkspaceId)
-                pendingWorkspaceId = nextWorkspaceId
-            }
+            workspaceAnimation.item.addAnimation(currentWorkspaceId, nextWorkspaceId)
         }
         function onPrevWorkspace() {
             const nWorkspaces = workspaceManager.layoutOrder.count
-            if (!workspaceAnimation.active) {
-                pendingWorkspaceId = currentWorkspaceId
-            }
-            const prevWorkspaceId = pendingWorkspaceId - 1
+            const prevWorkspaceId = currentWorkspaceId - 1
             workspaceAnimation.active = true
-            if (prevWorkspaceId < 0) {
-                workspaceAnimation.item.addBounce(pendingWorkspaceId, WorkspaceAnimation.Direction.Left)
-            } else {
-                workspaceAnimation.item.addAnimation(pendingWorkspaceId, prevWorkspaceId)
-                pendingWorkspaceId = prevWorkspaceId
-            }
+            workspaceAnimation.item.addAnimation(currentWorkspaceId, prevWorkspaceId)
         }
         function onJumpWorkspace(d) {
             const nWorkspaces = workspaceManager.layoutOrder.count
             if (d >= nWorkspaces) return
-            if (!workspaceAnimation.active) {
-                pendingWorkspaceId = currentWorkspaceId
-            }
             workspaceAnimation.active = true
-            workspaceAnimation.item.addAnimation(pendingWorkspaceId, d)
-            pendingWorkspaceId = d
+            workspaceAnimation.item.addAnimation(currentWorkspaceId, d)
         }
         function onMoveToNeighborWorkspace(d, surface) {
             const nWorkspaces = workspaceManager.layoutOrder.count
@@ -618,6 +596,26 @@ FocusScope {
                 multitaskView.item.entry(MultitaskView.ActiveMethod.Gesture)
             } else {
                 multitaskView.active = false
+            }
+        }
+
+        onDesktopOffsetChanged: {
+            if (!workspaceAnimation.active) {
+                var fromId, toId
+
+                fromId = Helper.currentWorkspaceId
+                if (target.desktopOffset > 0) {
+                    toId = fromId + 1
+                    if (toId >=  QmlHelper.workspaceManager.layoutOrder.count) {
+                        return
+                    }
+                } else if (target.desktopOffset < 0) {
+                    toId = fromId - 1
+                    if (toId < 0) {
+                        return
+                    }
+                }
+                workspaceAnimation.active = true
             }
         }
     }
