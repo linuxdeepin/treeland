@@ -17,20 +17,16 @@ Item {
     }
 
     property var state: LoginAnimation.Show
+    required property var target
 
-    function start(target, pos, to) {
-        width = target.width
-        height = target.height
-
-        effect.sourceItem = target
-        effect.width = target.width
-        effect.height = target.height
-
+    function start(pos, to) {
         xAni.from = pos.x
         xAni.to = to.x
 
         yAni.from = pos.y
         yAni.to = to.y
+
+        effect.sourceItem = root.target
 
         visible = true
         animation.start()
@@ -46,8 +42,11 @@ Item {
         id: effect
         live: true
         hideSource: true
-        width: parent.width
-        height: parent.height
+        sourceItem: root.target
+        width: root.target.width
+        height: root.target.height
+        x: root.target.x
+        y: root.target.y
     }
 
     Connections {
@@ -60,23 +59,20 @@ Item {
     ParallelAnimation {
         id: animation
 
-        PropertyAnimation {
+        XAnimator {
             id: xAni
             target: effect
-            property: "x"
             duration: 1000
             easing.type: Easing.OutCubic
         }
-        PropertyAnimation {
+        YAnimator {
             id: yAni
             target: effect
-            property: "y"
             duration: 1000
             easing.type: Easing.OutCubic
         }
-        PropertyAnimation {
+        OpacityAnimator {
             target: effect
-            property: "opacity"
             duration: 1000
             from: root.state === LoginAnimation.Show ? 0 : 1
             to: root.state === LoginAnimation.Show ? 1 : 0
@@ -84,4 +80,3 @@ Item {
         }
     }
 }
-
