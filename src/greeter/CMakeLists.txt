@@ -46,12 +46,13 @@ set(QML_FILES
     SessionList.qml
     UserInput.qml
     GreeterModel.qml
-    Center.qml
     LoginAnimation.qml
     RoundBlur.qml
     PowerList.qml
     TimeDateWidget.qml
     HintLabel.qml
+    QuickAction.qml
+    ControlAction.qml
 )
 
 qt_add_qml_module(greeterplugin
