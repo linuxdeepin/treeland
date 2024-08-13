@@ -260,7 +260,7 @@ void WCursorImagePrivate::updateCursorImage()
         return;
     }
 
-    if (!manager) {
+    if (!manager || cursor.shape() == Qt::BlankCursor) {
         setImage(QImage(), {});
         return;
     }

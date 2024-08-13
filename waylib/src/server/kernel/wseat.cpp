@@ -424,12 +424,13 @@ void WSeatPrivate::on_request_set_cursor(wlr_seat_pointer_request_set_cursor_eve
             cursorSurface = new WSurface(surface, q);
             QObject::connect(surface, &qw_surface::before_destroy,
                              cursorSurface, &WSurface::safeDeleteLater);
+        } else {
+            cursorSurface.clear();
         }
         cursorSurfaceHotspot.rx() = event->hotspot_x;
         cursorSurfaceHotspot.ry() = event->hotspot_y;
 
-        if (cursorSurface)
-            Q_EMIT q->requestCursorSurface(cursorSurface, cursorSurfaceHotspot);
+        Q_EMIT q->requestCursorSurface(cursorSurface, cursorSurfaceHotspot);
     }
 }
 

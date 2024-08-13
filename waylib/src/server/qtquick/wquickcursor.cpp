@@ -261,10 +261,12 @@ void WQuickCursorPrivate::setSurface(WSurface *surface)
 
         if (q->isVisible())
             enterOutput(output);
-    } else if (cursorSurfaceItem) {
-        leaveOutput(output);
-        cursorSurfaceItem->deleteLater();
-        cursorSurfaceItem = nullptr;
+    } else {
+        if (cursorSurfaceItem) {
+            leaveOutput(output);
+            cursorSurfaceItem->deleteLater();
+            cursorSurfaceItem = nullptr;
+        }
         q->setFlag(QQuickItem::ItemHasContents, true);
         q->update();
     }
@@ -320,20 +322,19 @@ void WQuickCursorPrivate::updateCursor()
         // First try use cursor shape
         auto shape = this->cursor->requestedCursorShape();
         if (shape != WGlobal::CursorShape::Invalid) {
+            setSurface(nullptr);
             cursorImage->setCursor(WCursor::toQCursor(shape));
             setHotSpot(cursorImage->hotSpot());
-        } else if (auto rs = this->cursor->requestedCursorSurface(); rs.first) { // Second use cursor surface
+        } else { // Second use cursor surface
+            auto rs = this->cursor->requestedCursorSurface();
+            cursorImage->setCursor(QCursor(Qt::BlankCursor));
             setSurface(rs.first);
             setHotSpot(rs.second);
-        } else {
-            setSurface(nullptr);
-            setHotSpot({});
-            cursorImage->setCursor(QCursor());
         }
     } else {
         setSurface(nullptr);
-        setHotSpot(cursorImage->hotSpot());
         cursorImage->setCursor(cursor);
+        setHotSpot(cursorImage->hotSpot());
     }
 
     Q_EMIT q_func()->validChanged();

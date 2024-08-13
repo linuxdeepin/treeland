@@ -176,6 +176,9 @@ public:
     void init() {
         W_Q(WSurfaceItemContent);
 
+        surface->safeConnect(&WSurface::aboutToBeInvalidated, q, [this] {
+            invalidate();
+        });
         surface->safeConnect(&qw_surface::notify_commit, q, [this] {
             updateSurfaceState();
         });
@@ -210,7 +213,7 @@ public:
 
         // wayland protocol job should not run in rendering thread, so set context qobject to contentItem
         frameDoneConnection = QObject::connect(q->window(), &QQuickWindow::afterRendering, q, [this, q](){
-            if ((q->rendered || q->isVisible()) && live && surface) {
+            if ((q->rendered || q->isVisible()) && live) {
                 surface->notifyFrameDone();
                 q->rendered = false;
             }
