@@ -134,10 +134,20 @@ Item {
             }
         }
 
+        Timer {
+            id: delayAnimation
+            interval: 300
+            running: false
+            repeat: false
+            onTriggered: {
+                Helper.lockScreen = false
+            }
+        }
+
         Connections {
             target: greeter.active ? GreeterModel : null
             function onAnimationPlayed() {
-                Helper.lockScreen = false
+                delayAnimation.start()
             }
             function onAnimationPlayFinished() {
                 greeter.active = false
