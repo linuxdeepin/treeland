@@ -18,23 +18,6 @@ FocusScope {
         lock: true
     }
 
-    Loader {
-        active: true
-        anchors.fill: parent
-        sourceComponent: ShaderEffectSource {
-            sourceItem: wallpaperController.proxy
-            hideSource: false
-            live: true
-        }
-        opacity: wallpaperController.type === Helper.Normal ? 0 : 1
-        Behavior on opacity {
-            PropertyAnimation {
-                duration: 1000
-                easing.type: Easing.OutExpo
-            }
-        }
-    }
-
     // prevent event passing through greeter
     MouseArea {
         anchors.fill: parent
@@ -54,15 +37,132 @@ FocusScope {
         }
     }
 
-    Center {
-        id: center
+    property var state: LoginAnimation.Show
+
+    Loader {
+        id: leftAnimation
         anchors.fill: parent
-        anchors.leftMargin: 50
-        anchors.topMargin: 50
-        anchors.rightMargin: 50
-        anchors.bottomMargin: 50
+        sourceComponent: LoginAnimation {
+            anchors.fill: parent
+            target: quickAction
+            state: root.state
+        }
+    }
+
+    Loader {
+        id: logoAnimation
+        anchors.fill: parent
+        sourceComponent: LoginAnimation {
+            anchors.fill: parent
+            target: logo
+            state: root.state
+        }
+    }
+
+    Loader {
+        id: rightAnimation
+        anchors.fill: parent
+        sourceComponent: LoginAnimation {
+            state: root.state
+            target: userInput
+            anchors.fill: parent
+            onStopped: {
+                if (state === LoginAnimation.Hide) {
+                    GreeterModel.emitAnimationPlayFinished()
+                }
+            }
+        }
+    }
+
+    Loader {
+        id: bottomAnimation
+        anchors.fill: parent
+        sourceComponent: LoginAnimation {
+            state: root.state
+            target: controlAction
+            anchors.fill: parent
+        }
+    }
+
+    Item {
+        id: leftComp
+        z: -1
+        width: parent.width * 0.4
+        anchors.left: parent.left
+        anchors.top: parent.top
+        anchors.bottom: parent.bottom
+        anchors.leftMargin: 30
+        anchors.topMargin: 30
+        anchors.bottomMargin: 30
+    }
+
+    Item {
+        id: rightComp
+        z: -1
+        anchors.left: leftComp.right
+        anchors.right: parent.right
+        anchors.top: parent.top
+        anchors.bottom: parent.bottom
+        anchors.rightMargin: 30
+        anchors.topMargin: 30
+        anchors.bottomMargin: 30
+    }
+
+    QuickAction {
+        id: quickAction
+        anchors.verticalCenter: parent.verticalCenter
+        anchors.right: leftComp.right
+        anchors.rightMargin: leftComp.width / 9
+    }
+
+    Row {
+        id: logo
+        anchors.bottom: leftComp.bottom
+        anchors.left: leftComp.left
+
+        Image {
+            id: logoPic
+            source: GreeterModel.logoProvider.logo
+            width: 120
+            height: 120
+            fillMode: Image.PreserveAspectFit
+        }
+
+        Text {
+            text: GreeterModel.logoProvider.version
+            font.weight: Font.Normal
+            font.pixelSize: logoPic.height / 2
+            color: Qt.rgba(1, 1, 1, 153 / 255)
+        }
+    }
+
+    UserInput {
+        id: userInput
+        anchors.verticalCenter: parent.verticalCenter
+        anchors.left: rightComp.left
+        anchors.leftMargin: rightComp.width / 5
 
         focus: true
+    }
+
+    ControlAction {
+        id: controlAction
+        anchors.bottom: rightComp.bottom
+        anchors.right: rightComp.right
+    }
+
+    Timer {
+        id: delayStart
+        interval: 100
+        running: true
+        repeat: false
+        onTriggered: {
+            wallpaperController.type = Helper.Scale
+            leftAnimation.item.start({x: root.x - quickAction.width, y: quickAction.y}, {x: quickAction.x, y: quickAction.y})
+            logoAnimation.item.start({x: root.x - logo.width, y: logo.y}, {x: logo.x, y: logo.y})
+            rightAnimation.item.start({x: root.width + userInput.width, y: userInput.y}, {x: userInput.x, y: userInput.y})
+            bottomAnimation.item.start({x: controlAction.x, y: controlAction.y + controlAction.height}, {x: controlAction.x, y: controlAction.y})
+        }
     }
 
     Connections {
@@ -70,27 +170,28 @@ FocusScope {
         function onStateChanged() {
             switch (GreeterModel.state) {
                 case GreeterModel.AuthSucceeded: {
-                    center.loginGroup.userAuthSuccessed()
-                    center.loginGroup.updateHintMsg(center.loginGroup.normalHint)
+                    userInput.userAuthSuccessed()
+                    userInput.updateHintMsg(userInput.normalHint)
                     GreeterModel.quit()
                 }
                 break
                 case GreeterModel.AuthFailed: {
-                    center.loginGroup.userAuthFailed()
-                    center.loginGroup.updateHintMsg(qsTr("Password is incorrect."))
+                    userInput.userAuthFailed()
+                    userInput.updateHintMsg(qsTr("Password is incorrect."))
                 }
                 break
                 case GreeterModel.Quit: {
-                    GreeterModel.emitAnimationPlayed()
                     wallpaperController.type = Helper.Normal
+                    root.state = LoginAnimation.Hide
+                    leftAnimation.item.start({x: quickAction.x, y: quickAction.y}, {x: root.x - quickAction.width, y: quickAction.y})
+                    logoAnimation.item.start({x: logo.x, y: logo.y}, {x: root.x - logo.width, y: logo.y})
+                    rightAnimation.item.start({x: userInput.x, y: userInput.y}, {x: root.width + userInput.width, y: userInput.y})
+                    bottomAnimation.item.start({x: controlAction.x, y: controlAction.y}, {x: controlAction.x, y: controlAction.y + controlAction.height})
+                    GreeterModel.emitAnimationPlayed()
                 }
                 break
             }
         }
-    }
-
-    Component.onCompleted: {
-        wallpaperController.type = Helper.Scale
     }
 
     Component.onDestruction: {
