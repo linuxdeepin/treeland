@@ -355,8 +355,10 @@ void Helper::initProtocols(WOutputRenderWindow *window)
             if (m_windowGesture)
                 m_windowGesture->addTouchpadSwipeGesture(SwipeGesture::Up, 3);
 
-            if (m_multiTaskViewGesture)
+            if (m_multiTaskViewGesture) {
                 m_multiTaskViewGesture->addTouchpadSwipeGesture(SwipeGesture::Up, 4);
+                m_multiTaskViewGesture->addTouchpadSwipeGesture(SwipeGesture::Right, 4);
+            }
         }
     });
 

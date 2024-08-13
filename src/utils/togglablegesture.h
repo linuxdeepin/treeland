@@ -13,6 +13,7 @@ class TogglableGesture : public QObject
     Q_PROPERTY(bool inProgress READ inProgress WRITE setInProgress NOTIFY inProgressChanged FINAL)
     Q_PROPERTY(qreal partialGestureFactor READ partialGestureFactor WRITE setPartialGestureFactor NOTIFY partialGestureFactorChanged FINAL)
     Q_PROPERTY(Status status READ status WRITE setStatus NOTIFY statusChanged FINAL)
+    Q_PROPERTY(qreal desktopOffset READ desktopOffset NOTIFY desktopOffsetChanged)
 public:
     enum Status { Inactive, Activating, Deactivating, Active, Stopped };
 
@@ -38,6 +39,10 @@ public:
     Q_INVOKABLE void toggle();
     Q_INVOKABLE void stop();
 
+    void setDesktopOffset(qreal offset);
+
+    qreal desktopOffset() const { return m_desktopOffset; }
+
     void addTouchpadSwipeGesture(SwipeGesture::Direction direction, uint fingerCount);
 Q_SIGNALS:
     void inProgressChanged();
@@ -45,6 +50,8 @@ Q_SIGNALS:
     void activated();
     void deactivated();
     void statusChanged(Status status);
+    void desktopOffsetChanged();
+    void desktopOffsetCancelled();
 
 protected:
     std::function<void(qreal progress)> progressCallback();
@@ -61,6 +68,8 @@ private:
     Status m_status = Status::Inactive;
     bool m_inProgress = false;
     qreal m_partialGestureFactor;
+    qreal m_desktopOffset;
+    bool m_desktopOffsetRelevant = false;
 };
 
 Q_DECLARE_METATYPE(TogglableGesture *)

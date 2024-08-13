@@ -102,7 +102,7 @@ Item {
             Behavior on x { enabled: activated; NumberAnimation { duration: 250; easing.type: Easing.OutCubic }}
             Behavior on y { enabled: activated; NumberAnimation { duration: 250; easing.type: Easing.OutCubic }}
             Behavior on displayWidth {
-                enabled: actv
+                enabled: activated
                 SequentialAnimation {
                     NumberAnimation { duration: 250; easing.type: Easing.OutCubic }
                     ScriptAction {

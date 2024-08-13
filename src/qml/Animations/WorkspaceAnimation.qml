@@ -1,4 +1,5 @@
 import QtQuick
+import TreeLand
 import TreeLand.Utils
 
 Item {
@@ -23,6 +24,11 @@ Item {
     property real s1X: 0
     property real s2X: 0
     property bool needBounce: false
+    property var initialS1
+    property var initialS2
+    property int pendingWorkspaceId : 0
+
+    readonly property real desktopOffset: Helper.multiTaskViewGesture.desktopOffset
 
     enum Direction {
         Left,
@@ -53,7 +59,6 @@ Item {
 
         ShaderEffectSource {
             id: ws
-            property int sourceX: 0
             visible: true
             anchors.fill: parent
             hideSource: visible
@@ -61,7 +66,6 @@ Item {
             sourceRect: wsShot.sourceRect
         }
     }
-
 
     Repeater {
         model: Helper.outputLayout.outputs
@@ -135,6 +139,7 @@ Item {
                     bounceAnimation.start()
                 } else {
                     root.visible = false
+                    Helper.currentWorkspaceId = pendingWorkspaceId
                 }
             }
         }
@@ -165,41 +170,48 @@ Item {
         }
     }
 
-    function addAnimation(fromId, toId) {
-        // Recalculate workspace id queue and restart animation if necessary
-        var initialS1, initialS2
+    function animationCalc(fromId, toId) {
         needBounce = false
         if (slideAnimation.running || bounceAnimation.running) {
-            slideAnimation.stop() // Pause animation
-            bounceAnimation.stop()
-            console.assert((s1X < s2X) === (s1Id < s2Id), "WorkspaceShot should be continuous")
-            destinationId = toId
-            if (s1Id < s2Id) {
-                if (toId <= s1Id) {
-                    initialId = s2Id
-                    currentDirection = WorkspaceAnimation.Direction.Left
-                    animationInitial = s2X
-                    s1ToS2 = false
-                } else {
-                    initialId = s1Id
-                    currentDirection = WorkspaceAnimation.Direction.Right
-                    animationInitial = s1X
-                    s1ToS2 = true
-                }
+            animationRunning(toId)
+        }
+        animationNormal(fromId, toId)
+    }
+
+    function animationRunning(toId) {
+        slideAnimation.stop() // Pause animation
+        bounceAnimation.stop()
+        console.assert((s1X < s2X) === (s1Id < s2Id), "WorkspaceShot should be continuous")
+        destinationId = toId
+        if (s1Id < s2Id) {
+            if (toId <= s1Id) {
+                initialId = s2Id
+                currentDirection = WorkspaceAnimation.Direction.Left
+                animationInitial = s2X
+                s1ToS2 = false
             } else {
-                if (toId <= s2Id) {
-                    initialId = s1Id
-                    currentDirection = WorkspaceAnimation.Direction.Left
-                    animationInitial = s1X
-                    s1ToS2 = true
-                } else {
-                    initialId = s2Id
-                    currentDirection = WorkspaceAnimation.Direction.Right
-                    animationInitial = s2X
-                    s1ToS2 = false
-                }
+                initialId = s1Id
+                currentDirection = WorkspaceAnimation.Direction.Right
+                animationInitial = s1X
+                s1ToS2 = true
             }
         } else {
+            if (toId <= s2Id) {
+                initialId = s1Id
+                currentDirection = WorkspaceAnimation.Direction.Left
+                animationInitial = s1X
+                s1ToS2 = true
+            } else {
+                initialId = s2Id
+                currentDirection = WorkspaceAnimation.Direction.Right
+                animationInitial = s2X
+                s1ToS2 = false
+            }
+        }
+    }
+
+    function animationNormal(fromId, toId) {
+        if (!(slideAnimation.running || bounceAnimation.running)) {
             initialId = fromId
             destinationId = toId
             animationInitial = 0
@@ -208,6 +220,10 @@ Item {
             s2Id = s1Id + (destinationId > initialId ? 1 : -1)
             currentDirection = (fromId < toId) ? WorkspaceAnimation.Direction.Right : WorkspaceAnimation.Direction.Left
         }
+        animationPosition()
+    }
+
+    function animationPosition() {
         animationDestination = -(destinationId - initialId) * refWrap
         lastMod = animationInitial % refWrap // Note: should modify last value first, otherwise modify animationProcess might cause an animation wrap
         animationProcess = animationInitial
@@ -224,9 +240,27 @@ Item {
             initialS2 = 0
             initialS1 = -refWrap
         }
+    }
+
+    function animationStart() {
         s1X = Qt.binding(function() { return (initialS1 + animationProcess + 3 * refWrap) % (2 * refWrap) - refWrap })
         s2X = Qt.binding(function() { return (initialS2 + animationProcess + 3 * refWrap) % (2 * refWrap) - refWrap })
         slideAnimation.start() // Restart animation
+    }
+
+    function addAnimation(fromId, toId) {
+        if (toId < 0 || toId >= QmlHelper.workspaceManager.layoutOrder.count) {
+            if (toId < 0) {
+                addBounce(fromId, WorkspaceAnimation.Direction.Left)
+            } else {
+                addBounce(fromId, WorkspaceAnimation.Direction.Right)
+            }
+        } else {
+            animationCalc(fromId, toId)
+            animationStart()
+            pendingWorkspaceId = toId
+            Helper.currentWorkspaceId = pendingWorkspaceId
+        }
     }
 
     function addBounce(currentWorkspaceId, direction) {
@@ -246,5 +280,78 @@ Item {
         } else {
             needBounce = true
         }
+    }
+
+    Connections {
+        target: Helper.multiTaskViewGesture
+        property bool enable: false
+        property int fromId: 0
+        property int toId: 0
+
+        onDesktopOffsetChanged: {
+            if (!enable) {
+                enable = true
+                fromId = Helper.currentWorkspaceId
+                if (target.desktopOffset > 0) {
+                    toId = fromId + 1
+                    if (toId >= QmlHelper.workspaceManager.layoutOrder.count) {
+                        enable = false
+                        return
+                    }
+                } else if (target.desktopOffset < 0) {
+                    toId = fromId - 1
+                    if (toId < 0) {
+                        enable = false
+                        return
+                    }
+                }
+                animationNormal(fromId, toId)
+            }
+
+            if (enable) {
+                s1X = initialS1 - desktopOffset * refWrap
+                s2X = initialS2 - desktopOffset * refWrap
+            }
+        }
+
+        onDesktopOffsetCancelled: {
+            if (!enable)
+                return
+
+            enable = false
+            if (desktopOffset === 1 || desktopOffset === -1) {
+                Helper.currentWorkspaceId = toId
+                return
+            }
+
+            fromId = Helper.currentWorkspaceId
+            if (desktopOffset > 0.25) {
+                toId = fromId + 1
+                if (toId >=  QmlHelper.workspaceManager.layoutOrder.count) {
+                    return
+                }
+            } else if (desktopOffset <= -0.25) {
+                toId = fromId - 1
+                if (toId < 0) {
+                    return;
+                }
+            } else {
+                var temp
+                temp = fromId
+                fromId = toId
+                toId = temp
+            }
+
+            animationRunning(toId)
+            animationPosition(fromId, toId)
+            animationStart()
+
+            Helper.currentWorkspaceId = toId
+            pendingWorkspaceId = toId
+        }
+    }
+
+    Component.onCompleted: {
+        pendingWorkspaceId = Helper.currentWorkspaceId
     }
 }

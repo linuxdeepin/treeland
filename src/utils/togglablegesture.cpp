@@ -181,16 +181,51 @@ static SwipeGesture::Direction opposite(SwipeGesture::Direction direction)
     return SwipeGesture::Invalid;
 }
 
+void TogglableGesture::setDesktopOffset(qreal offset)
+{
+    m_desktopOffset = offset;
+    Q_EMIT desktopOffsetChanged();
+}
+
 void TogglableGesture::addTouchpadSwipeGesture(SwipeGesture::Direction direction, uint finger)
 {
-    InputDevice::instance()->registerTouchpadSwipe(SwipeFeedBack{ direction,
-                                                                  finger,
-                                                                  this->activeTriggeredCallback(),
-                                                                  this->progressCallback() });
+    if (direction == SwipeGesture::Invalid)
+        return;
 
-    InputDevice::instance()->registerTouchpadSwipe(
-        SwipeFeedBack{ opposite(direction),
-                       finger,
-                       this->deactivateTriggeredCallback(),
-                       this->regressCallback() });
+    if (direction == SwipeGesture::Up || direction == SwipeGesture::Down) {
+        InputDevice::instance()->registerTouchpadSwipe(
+            SwipeFeedBack{ direction,
+                           finger,
+                           this->activeTriggeredCallback(),
+                           this->progressCallback() });
+
+        InputDevice::instance()->registerTouchpadSwipe(
+            SwipeFeedBack{ opposite(direction),
+                           finger,
+                           this->deactivateTriggeredCallback(),
+                           this->regressCallback() });
+    } else {
+        const auto left = [this](qreal cb) {
+            m_desktopOffsetRelevant = true;
+            setDesktopOffset(cb);
+        };
+
+        const auto right = [this](qreal cb) {
+            m_desktopOffsetRelevant = true;
+            setDesktopOffset(-cb);
+        };
+
+        const auto trigger = [this]() mutable {
+            if (m_desktopOffsetRelevant) {
+                m_desktopOffsetRelevant = false;
+                Q_EMIT desktopOffsetCancelled();
+            }
+        };
+
+        InputDevice::instance()->registerTouchpadSwipe(
+            SwipeFeedBack{ SwipeGesture::Left, finger, trigger, left });
+
+        InputDevice::instance()->registerTouchpadSwipe(
+            SwipeFeedBack{ SwipeGesture::Right, finger, trigger, right });
+    }
 }
