@@ -82,11 +82,42 @@ FocusScope {
                 visible: isCurrentWorkspace && !workspaceAnimation.active
                 focus: isCurrentWorkspace
                 anchors.fill: parent
-                Behavior on opacity {
-                    PropertyAnimation {
-                        duration: 400
+
+                states: [
+                    State {
+                        name: "normal"
+                        when: !Helper.lockScreen
+                        PropertyChanges {
+                            target: container
+                            scale: 1
+                            opacity: 1
+                        }
+                    },
+                    State {
+                        name: "scaleToLock"
+                        when: Helper.lockScreen
+                        PropertyChanges {
+                            target: container
+                            scale: 1.4
+                            opacity: 0
+                        }
                     }
-                }
+                ]
+                transitions: [
+                    Transition {
+                        ScaleAnimator {
+                            target: container
+                            duration: 1000
+                            easing.type: Easing.OutExpo
+                        }
+                        OpacityAnimator {
+                            target: container
+                            duration: 1000
+                            easing.type: Easing.OutExpo
+                        }
+                    }
+                ]
+
                 Component.onCompleted: {
                     workspaceManager.workspacesById.set(workspaceId, this)
                 }
