@@ -232,6 +232,12 @@ void ForeignToplevelV1::add(WToplevelSurface *surface)
                                  [surface, this] {
                                      Q_EMIT requestClose(surface);
                                  }));
+    connection.push_back(connect(handle.get(),
+                                 &treeland_foreign_toplevel_handle_v1::rectangleChanged,
+                                 this,
+                                 [surface, this] (treeland_foreign_toplevel_handle_v1_set_rectangle_event *event) {
+                                     Q_EMIT rectangleChanged(surface, event);
+                                 }));
 
     if (auto *xdgSurface = qobject_cast<WXdgSurface *>(surface)) {
         wl_client *client = xdgSurface->handle()->handle()->resource->client;
