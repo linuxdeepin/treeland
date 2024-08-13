@@ -17,8 +17,6 @@ Item {
     property DynamicCreatorComponent layerComponentRef: null
     property DynamicCreatorComponent xwaylandComponentRef: null
 
-    property Cursor cursor: Helper.cursor
-
     property var outputSet: new Set()
 
     function printStructureObject(obj) {
@@ -257,7 +255,7 @@ Item {
             const contW = Math.max(w - sw, 1) // spawned win may exceed screen size, ensure has region
             const contH = Math.max(h - sh, 1)
             const [prevIden, prevItem] = priv.prevSpawn
-            const initialPos = prevIden === iden ? Qt.point(prevItem.x, prevItem.y) : cursor.position
+            const initialPos = prevIden === iden ? Qt.point(prevItem.x, prevItem.y) : outputDelegate.lastActiveCursorItem.position
 
             const baseArgs = [
                 initialPos, // first spawned win's position for LineGen
