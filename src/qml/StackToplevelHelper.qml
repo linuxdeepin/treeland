@@ -342,15 +342,16 @@ Item {
     }
 
     function doMaximize() {
-        if (waylandSurface.isResizeing)
+        if (waylandSurface.isResizeing || isMaximize)
             return
 
         updateOutputCoordMapper()
+
         waylandSurface.setMaximize(true)
     }
 
     function cancelMaximize() {
-        if (waylandSurface.isResizeing)
+        if (waylandSurface.isResizeing || !isMaximize)
             return
 
         waylandSurface.setMaximize(false)

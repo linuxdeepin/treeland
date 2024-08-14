@@ -57,8 +57,7 @@ SurfaceItemFactory {
         resizeMode:
             if (!surfaceItem.effectiveVisible)
                 SurfaceItem.ManualResize
-            else if (stateTransition.running
-                    || wSurface.isMaximized)
+            else if (stateTransition.running || helper.isMaximize)
                 SurfaceItem.SizeToSurface
             else
                 SurfaceItem.SizeFromSurface
@@ -78,16 +77,18 @@ SurfaceItemFactory {
                 Helper.cancelMoveResize(surfaceItem)
             }
         }
+
         transitions: Transition {
             id: stateTransition
-            NumberAnimation {
+            PropertyAnimation {
                 properties: "x,y,width,height"
-                duration: 100
+                duration: 400
+                easing.type: Easing.OutExpo
             }
         }
         states: [
             State {
-                name: "" // avoid applying propertychange on initialize
+                name: "default" // avoid applying propertychange on initialize
                 PropertyChanges {
                     id: defulatState
                     restoreEntryValues: false
@@ -110,7 +111,7 @@ SurfaceItemFactory {
                 }
             },
             State {
-                name: "maximize"
+                name: "maxmize"
                 when: helper.isMaximize
                 PropertyChanges {
                     restoreEntryValues: true
@@ -153,7 +154,7 @@ SurfaceItemFactory {
                 anchors.fill: parent
                 // TODO: Use QSGGeometry(like as Rectangle, Qt 6.8 supports topLeftRadius)
                 // to clip texture by vertex shader.
-                MultiEffect {
+                sourceComponent: MultiEffect {
                     anchors.fill: parent
                     source: content
                     maskSource: ShaderEffectSource {
@@ -267,10 +268,10 @@ SurfaceItemFactory {
         console.debug(`restoring state to ${QmlHelper.printStructureObject(toStore.normal)}`)
         surfaceItem.state = "intermediate"
         store = toStore
-        surfaceItem.state = ""
+        surfaceItem.state = "default"
     }
     onIsMoveResizingChanged: if (!isMoveResizing) {
-        if (state === "")
+        if (state === "default")
             saveState()
     }
     onStoreChanged: {
