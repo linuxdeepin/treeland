@@ -186,18 +186,13 @@ FocusScope {
             Helper.registerExclusiveZone(wSurface)
             refreshMargin()
             surfaceItem.visible = true
-            if (surfaceItem.effectiveVisible)
+            if (surfaceItem.effectiveVisible) {
                 Helper.activatedSurface = wSurface
-
-                wallpaperController.output = output.output
-                wallpaperController.type = Helper.Scale
+            }
         } else { // if not mapped
             Helper.unregisterExclusiveZone(wSurface)
             if (!wSurface.WaylandSocket.rootSocket.enabled) {
                 surfaceItem.visible = false
-            } else {
-                wallpaperController.output = output.output
-                wallpaperController.type = Helper.Normal
             }
         }
 
@@ -205,6 +200,8 @@ FocusScope {
             animation.active = true
             if (forceBackground) {
                 animation.sourceComponent = launchpadAnimation
+                wallpaperController.output = output.output
+                wallpaperController.type = mapped ? Helper.Scale : Helper.Normal
             } else {
                 animation.sourceComponent = windowAnimation
             }
