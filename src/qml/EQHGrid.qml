@@ -21,7 +21,7 @@ Item {
 
     property real partialGestureFactor: effect.partialGestureFactor
     property bool inProgress: effect.inProgress
-    property var activeMethod: MultitaskView.ActiveMethod.ShortcutKey
+    property int activeMethod: MultitaskView.ActiveMethod.ShortcutKey
 
     property var pos: []
 
