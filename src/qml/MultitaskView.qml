@@ -19,14 +19,31 @@ Item {
         Gesture
     }
 
+    enum ZOrder {
+        Background = 0,
+        Overlay = 1,
+        FloatingItem = 2
+    }
+
+    readonly property int wsThumbMargin: 20
+    readonly property int wsThumbHeight: 144
+    readonly property int wsDelegateHeight: wsThumbHeight + wsThumbMargin * 2
+    readonly property int wsThumbCornerRadius: 8
+    readonly property int highlightBorderWidth: 4
+    readonly property real maskAlpha: 0.6
+    readonly property color maskColor: Qt.rgba(0, 0, 0, maskAlpha)
+    readonly property int surfacesViewMargin: 40
+    readonly property int maxWorkspace: 6
+
     required property int currentWorkspaceId
     required property var setCurrentWorkspaceId
+    required property SlideAnimationController animationController
     property ListModel model: QmlHelper.workspaceManager.workspacesById.get(QmlHelper.workspaceManager.layoutOrder.get(currentWorkspaceId).wsid).surfaces
     property int current: -1
     property int fadeDuration: 250
     property int currentWsid // Used to store real current workspace id temporarily
     property bool exited: false
-    property var activeMethod: MultitaskView.ActiveMethod.ShortcutKey
+    property int activeMethod: MultitaskView.ActiveMethod.ShortcutKey
     property D.Palette outerShadowColor: DS.Style.highlightPanel.dropShadow
 
     property bool initialized: false
@@ -128,21 +145,8 @@ Item {
                 y: displayRect.y
                 width: displayRect.width
                 height: displayRect.height
-                WallpaperController {
-                    id: wpCtrl
-                    output: modelData.output
-                }
-
-                ShaderEffectSource {
-                    live: true
-                    smooth: true
-                    sourceItem: wpCtrl.proxy
-                    sourceRect: {
-                        const margins = Helper.getOutputExclusiveMargins(modelData.output)
-                        return Qt.rect(margins.left, margins.top, width, height)
-                    }
-                    anchors.fill: parent
-                }
+                readonly property real whRatio: width / height
+                readonly property real localAnimationScaleFactor: width / animationController.refWidth
 
                 HoverHandler {
                     id: rootHvrHdlr
@@ -153,237 +157,296 @@ Item {
                     onTapped: root.exit()
                 }
 
-                Item {
-                    anchors.fill: parent
-                    DelegateModel {
-                        id: visualModel
-                        model: workspaceManager.layoutOrder
-                        delegate: Item {
-                            id: wsThumbItem
-                            required property int wsid
-                            required property int index
-                            height: workspacesList.height
-                            width: height * outputPlacementItem.width / outputPlacementItem.height
-                            z: Drag.active ? 1 : 0
-                            Drag.active: hdrg.active
-                            Drag.onActiveChanged: {
-                                if (Drag.active) {
-                                    dragManager.item = this
-                                    initialState = {x: x, y: y}
-                                    // Save current wsid here cause currentWorkspaceId should update after reordering
-                                    currentWsid = QmlHelper.workspaceManager.layoutOrder.get(currentWorkspaceId).wsid
+                DelegateModel {
+                    id: visualModel
+                    model: workspaceManager.layoutOrder
+                    delegate: Item {
+                        id: wsThumbItem
+                        required property int wsid
+                        required property int index
+                        height: wsDelegateHeight
+                        width: wsThumbHeight * outputPlacementItem.whRatio + 2 * wsThumbMargin
+                        z: Drag.active ? 1 : 0
+                        Drag.active: hdrg.active
+                        Drag.onActiveChanged: {
+                            if (Drag.active) {
+                                dragManager.item = this
+                                initialState = {x: x, y: y}
+                                // Save current wsid here cause currentWorkspaceId should update after reordering
+                                currentWsid = QmlHelper.workspaceManager.layoutOrder.get(currentWorkspaceId).wsid
+                            } else {
+                                if (dragManager.accept) {
+                                    dragManager.accept()
                                 } else {
-                                    if (dragManager.accept) {
-                                        dragManager.accept()
-                                    } else {
-                                        x = initialState.x
-                                        y = initialState.y
-                                        visualModel.items.move(DelegateModel.itemsIndex, index)
-                                    }
-                                    dragManager.item = null
+                                    x = initialState.x
+                                    y = initialState.y
+                                    visualModel.items.move(DelegateModel.itemsIndex, index)
                                 }
+                                dragManager.item = null
                             }
-                            DelegateModel.inPersistedItems: true
-                            property var initialState
-                            Rectangle {
+                        }
+                        DelegateModel.inPersistedItems: true
+                        property var initialState
+                        Rectangle {
+                            anchors {
+                                fill: parent
+                                margins: wsThumbMargin - highlightBorderWidth
+                            }
+                            border.width: (!animationController.running && workspaceManager.workspacesById.get(wsid).isCurrentWorkspace) ? highlightBorderWidth : 0
+                            border.color: "blue"
+                            color: "transparent"
+                            radius: wsThumbCornerRadius + highlightBorderWidth
+                            Item {
+                                id: content
                                 anchors {
                                     fill: parent
-                                    margins: 16
+                                    margins: highlightBorderWidth
                                 }
-                                border.width: workspaceManager.workspacesById.get(wsid).isCurrentWorkspace ? 4 : 0
-                                border.color: "blue"
-                                color: "transparent"
-                                radius: 12
-                                Item {
-                                    id: content
-                                    anchors {
-                                        fill: parent
-                                        margins: 4
-                                    }
-                                    clip: true
-                                    ShaderEffectSource {
-                                        sourceItem: activeOutputDelegate
-                                        anchors.fill: parent
-                                        recursive: true
-                                    }
-                                    ShaderEffectSource {
-                                        sourceItem: workspaceManager.workspacesById.get(wsid)
-                                        sourceRect: outputPlacementItem.displayRect
-                                        anchors.fill: parent
-                                        recursive: true
-                                    }
+                                clip: true
 
-                                    Rectangle {
-                                        anchors.fill: parent
-                                        color: hvrhdlr.hovered ? Qt.rgba(0, 0, 0, .2) : Qt.rgba(0, 0, 0, 0)
-                                        Text {
-                                            anchors.centerIn: parent
-                                            color: "white"
-                                            text: `No.${index}`
-                                        }
-                                    }
-                                    HoverHandler {
-                                        id: hvrhdlr
-                                        enabled: !hdrg.active
-                                        onHoveredChanged: {
-                                            if (hovered) {
-                                                if (dragManager.item) {
-                                                    if (dragManager.item.source) {  // is dragging surface
+                                ShaderEffectSource {
+                                    sourceItem: activeOutputDelegate
+                                    anchors.fill: parent
+                                    recursive: true
+                                    hideSource: visible
+                                }
+
+                                ShaderEffectSource {
+                                    sourceItem: workspaceManager.workspacesById.get(wsid)
+                                    sourceRect: outputPlacementItem.displayRect
+                                    anchors.fill: parent
+                                    hideSource: visible
+                                }
+
+                                HoverHandler {
+                                    id: hvrhdlr
+                                    enabled: !hdrg.active
+                                    onHoveredChanged: {
+                                        if (hovered) {
+                                            if (dragManager.item) {
+                                                if (dragManager.item.source) {  // is dragging surface
+                                                    if (dragManager.item.wrapper.wid !== wsid) {
                                                         dragManager.accept = () => {
                                                             dragManager.item.wrapper.wid = wsid
                                                         }
-                                                    } else {    // is dragging workspace
-                                                        dragManager.destPoint = Qt.point(wsThumbItem.x, wsThumbItem.y)
-                                                        dragManager.accept = () => {
-                                                            const draggedItem = dragManager.item
-                                                            const draggedWs = QmlHelper.workspaceManager.workspacesById.get(draggedItem.wsid)
-                                                            const destIndex = draggedItem.DelegateModel.itemsIndex
-                                                            QmlHelper.workspaceManager.layoutOrder.move(draggedWs.workspaceRelativeId, destIndex, 1)
-                                                            const newCurrentWorkspaceIndex = QmlHelper.workspaceManager.workspacesById.get(currentWsid).workspaceRelativeId
-                                                            root.setCurrentWorkspaceId(newCurrentWorkspaceIndex)
-                                                            draggedItem.x = dragManager.destPoint.x
-                                                            draggedItem.y = dragManager.destPoint.y
-                                                        }
-                                                        visualModel.items.move(dragManager.item.DelegateModel.itemsIndex, wsThumbItem.DelegateModel.itemsIndex)
                                                     }
+                                                } else {    // is dragging workspace
+                                                    dragManager.destPoint = Qt.point(wsThumbItem.x, wsThumbItem.y)
+                                                    dragManager.accept = () => {
+                                                        const draggedItem = dragManager.item
+                                                        const draggedWs = QmlHelper.workspaceManager.workspacesById.get(draggedItem.wsid)
+                                                        const destIndex = draggedItem.DelegateModel.itemsIndex
+                                                        QmlHelper.workspaceManager.layoutOrder.move(draggedWs.workspaceRelativeId, destIndex, 1)
+                                                        const newCurrentWorkspaceIndex = QmlHelper.workspaceManager.workspacesById.get(currentWsid).workspaceRelativeId
+                                                        root.setCurrentWorkspaceId(newCurrentWorkspaceIndex)
+                                                        draggedItem.x = dragManager.destPoint.x
+                                                        draggedItem.y = dragManager.destPoint.y
+                                                    }
+                                                    visualModel.items.move(dragManager.item.DelegateModel.itemsIndex, wsThumbItem.DelegateModel.itemsIndex)
                                                 }
-                                            } else {
-                                                if (dragManager.item?.source) // is dragging surface, workspace always lose hover
-                                                    dragManager.accept = null
                                             }
+                                        } else {
+                                            if (dragManager.item?.source) // is dragging surface, workspace always lose hover
+                                                dragManager.accept = null
                                         }
                                     }
-                                    TapHandler {
-                                        id: taphdlr
-                                        acceptedButtons: Qt.LeftButton
-                                        enabled: !hdrg.active
-                                        gesturePolicy: TapHandler.WithinBounds
-                                        onTapped: {
-                                            if (root.currentWorkspaceId === index)
-                                                root.exit()
-                                            else
-                                                root.setCurrentWorkspaceId(index)
-                                        }
-                                    }
-                                    TapHandler {
-                                        id: quickHdlr
-                                        acceptedButtons: Qt.RightButton
-                                        enabled: !hdrg.active
-                                        gesturePolicy: TapHandler.WithinBounds
-                                        onTapped: {
-                                            root.setCurrentWorkspaceId(index)
+                                }
+
+                                TapHandler {
+                                    id: taphdlr
+                                    acceptedButtons: Qt.LeftButton
+                                    enabled: !hdrg.active
+                                    gesturePolicy: TapHandler.WithinBounds
+                                    onTapped: {
+                                        if (root.currentWorkspaceId === index)
                                             root.exit()
-                                        }
-                                    }
-
-                                    DragHandler {
-                                        id: hdrg
-                                        target: wsThumbItem
-                                        yAxis.enabled: false
+                                        else
+                                            root.setCurrentWorkspaceId(index)
                                     }
                                 }
 
-                                D.ItemViewport {
-                                    sourceItem: content
-                                    radius: 8
-                                    anchors.fill: content
-                                    fixed: true
-                                    enabled: true
-                                    hideSource: true
+                                TapHandler {
+                                    id: quickHdlr
+                                    acceptedButtons: Qt.RightButton
+                                    enabled: !hdrg.active
+                                    gesturePolicy: TapHandler.WithinBounds
+                                    onTapped: {
+                                        root.setCurrentWorkspaceId(index)
+                                        root.exit()
+                                    }
                                 }
 
-                                D.RoundButton {
-                                    id: wsDestroyBtn
-                                    icon.name: "close"
-                                    icon.width: 26
-                                    icon.height: 26
-                                    height: 26
-                                    width: height
-                                    visible: false /*(workspaceManager.layoutOrder.count > 1)
-                                        && (hvrhdlr.hovered || hovered)*/ // FIXME: Fix destroy and add workspace logic
-                                    anchors {
-                                        top: parent.top
-                                        right: parent.right
-                                        topMargin: -8
-                                        rightMargin: -8
-                                    }
-                                    Item {
-                                        id: control
-                                        property D.Palette textColor: DS.Style.button.text
-                                    }
-                                    textColor: control.textColor
-                                    background: Rectangle {
-                                        anchors.fill: parent
-                                        color: "transparent"
-                                    }
-                                    onClicked: {
-                                        workspaceManager.destroyWs(parent.index)
-                                        root.model = QmlHelper.workspaceManager.workspacesById.get(QmlHelper.workspaceManager.layoutOrder.get(currentWorkspaceId).wsid).surfaces
-                                    }
+                                DragHandler {
+                                    id: hdrg
+                                    target: wsThumbItem
+                                    yAxis.enabled: false
+                                }
+                            }
+
+                            D.ItemViewport {
+                                sourceItem: content
+                                radius: wsThumbCornerRadius
+                                anchors.fill: content
+                                fixed: true
+                                enabled: true
+                                hideSource: true
+                            }
+
+                            D.RoundButton {
+                                id: wsDestroyBtn
+                                icon.name: "close"
+                                icon.width: 26
+                                icon.height: 26
+                                height: 26
+                                width: height
+                                visible: (workspaceManager.layoutOrder.count > 1)
+                                    && (hvrhdlr.hovered || hovered) && (dragManager.item === null) // FIXME: Fix destroy and add workspace logic
+                                anchors {
+                                    top: parent.top
+                                    right: parent.right
+                                    topMargin: -8
+                                    rightMargin: -8
+                                }
+                                Item {
+                                    id: control
+                                    property D.Palette textColor: DS.Style.button.text
+                                }
+                                textColor: control.textColor
+                                background: Rectangle {
+                                    anchors.fill: parent
+                                    color: "transparent"
+                                }
+                                onClicked: {
+                                    workspaceManager.destroyWs(wsThumbItem.index)
                                 }
                             }
                         }
                     }
-                    Item {
-                        id: workspacesListContainer
-                        height: outputPlacementItem.height * .2
-                        width: parent.width
+                }
 
-                        transform: [
-                            Translate {
-                                y: height * (taskviewVal - 1.0)
-                            }
-                        ]
-
-                        ListView {
-                            id: workspacesList
-                            orientation: ListView.Horizontal
-                            model: visualModel
-                            height: parent.height
-                            width: Math.min(parent.width,
-                                model.count * height * outputPlacementItem.width / outputPlacementItem.height)
-                            anchors.horizontalCenter: parent.horizontalCenter
-                            interactive: false
-                            moveDisplaced: Transition {
-                                NumberAnimation {
-                                    property: "x"
-                                    duration: 250
-                                    easing.type: Easing.OutCubic
-                                }
-                            }
+                Item {
+                    id: workspacesListContainer
+                    height: wsDelegateHeight
+                    width: parent.width
+                    z: MultitaskView.ZOrder.Overlay
+                    transform: [
+                        Translate {
+                            y: height * (taskviewVal - 1.0)
                         }
-                        D.RoundButton {
-                            id: wsCreateBtn
-                            visible: false // FIXME: Remove this line once adding and removement is ready
-                            anchors {
-                                right: parent.right
-                                verticalCenter: parent.verticalCenter
-                                margins: 20
-                            }
-                            height: 80
-                            width: 80
-                            icon.name: "list_add"
-                            icon.height: height
-                            icon.width: width
-                            background: Rectangle {
-                                color: Qt.rgba(255, 255, 255, .4)
-                                anchors.fill: parent
-                                radius: 20
-                            }
-                            onClicked: {
-                                workspaceManager.createWs()
+                    ]
+
+                    Item {
+                        id: animationMask
+                        property real localAnimationFactor: (wsThumbHeight * outputPlacementItem.whRatio+ 2 * wsThumbMargin) / animationController.refWrap
+                        visible: animationController.running
+                        anchors.fill: workspacesList
+                        anchors.margins: wsThumbMargin - highlightBorderWidth
+                        Rectangle {
+                            width: wsThumbHeight * outputPlacementItem.whRatio + 2 * highlightBorderWidth
+                            height: wsThumbHeight + 2 * highlightBorderWidth
+                            border.width: highlightBorderWidth
+                            border.color: "blue"
+                            color: "transparent"
+                            radius: wsThumbCornerRadius + highlightBorderWidth
+                            x: animationController.viewportPos * animationMask.localAnimationFactor
+                        }
+                    }
+
+                    ListView {
+                        id: workspacesList
+                        orientation: ListView.Horizontal
+                        model: visualModel
+                        height: parent.height
+                        width: Math.min(parent.width,
+                               model.count * (wsThumbHeight * outputPlacementItem.whRatio + 2 * wsThumbMargin))
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        interactive: false
+                        displaced: Transition {
+                            NumberAnimation {
+                                property: "x"
+                                duration: fadeDuration
+                                easing.type: Easing.OutExpo
                             }
                         }
                     }
+
+                    D.RoundButton {
+                        id: wsCreateBtn
+                        visible: workspaceManager.layoutOrder.count < maxWorkspace
+                        anchors {
+                            right: parent.right
+                            verticalCenter: parent.verticalCenter
+                            margins: 20
+                        }
+                        height: 80
+                        width: 80
+                        icon.name: "list_add"
+                        icon.height: height
+                        icon.width: width
+                        background: Rectangle {
+                            color: Qt.rgba(255, 255, 255, .4)
+                            anchors.fill: parent
+                            radius: 20
+                        }
+                        onClicked: {
+                            workspaceManager.createWs()
+                        }
+                    }
+                }
+
+                WallpaperController {
+                    id: wpCtrl
+                    output: modelData.output
+                }
+
+                ShaderEffectSource {
+                    z: MultitaskView.ZOrder.Background
+                    id: wallpaper
+                    live: true
+                    smooth: true
+                    sourceItem: wpCtrl.proxy
+                    sourceRect: {
+                        const margins = Helper.getOutputExclusiveMargins(modelData.output)
+                        return Qt.rect(margins.left, margins.top, width, height)
+                    }
+                    anchors.fill: parent
+                }
+
+                RenderBufferBlitter {
+                    z: MultitaskView.ZOrder.Background
+                    id: blitter
+                    anchors.fill: parent
+                    MultiEffect {
+                        id: blur
+                        anchors.fill: parent
+                        source: blitter.content
+                        autoPaddingEnabled: false
+                        blurEnabled: true
+                        blur: 1.0
+                        blurMax: 64
+                        saturation: 0.2
+                    }
+                }
+
+                Repeater {
+                    id: wsDelegates
+                    model: QmlHelper.workspaceManager.layoutOrder
                     Item {
-                        y: outputPlacementItem.height * .2
-                        width: parent.width
-                        height: outputPlacementItem.height * .8
+                        id: wsDelegate
+                        required property int index
+                        required property int wsid
+                        anchors.fill: parent
+                        readonly property bool isCurrentWorkspace: index === currentWorkspaceId
+                        visible: isCurrentWorkspace
+                        z: MultitaskView.ZOrder.Background
                         Loader {
                             id: surfacesGridView
                             anchors {
                                 fill: parent
-                                margins: 30
+                                topMargin: surfacesViewMargin + wsDelegateHeight
+                                leftMargin: surfacesViewMargin
+                                rightMargin: surfacesViewMargin
+                                bottomMargin: surfacesViewMargin
                             }
                             active: false
                             Component.onCompleted: {
@@ -394,7 +457,7 @@ Item {
                             sourceComponent: Item {
                                 FilterProxyModel {
                                     id: outputProxy
-                                    sourceModel: root.model
+                                    sourceModel: QmlHelper.workspaceManager.workspacesById.get(wsDelegate.wsid).surfaces
                                     property bool initialized: false
                                     filterAcceptsRow: (d) => {
                                                           const item = d.item
@@ -435,9 +498,22 @@ Item {
                                         onRatioChanged: {
                                             grid.calcLayout()
                                         }
+                                        states: [
+                                            State {
+                                                name: "dragging"
+                                                when: drg.active
+                                                PropertyChanges {
+                                                    surfaceItemDelegate {
+                                                        parent: outputPlacementItem
+                                                        x: mapToItem(outputPlacementItem, 0, 0).x
+                                                        y: mapToItem(outputPlacementItem, 0, 0).y
+                                                        z: MultitaskView.ZOrder.FloatingItem
+                                                    }
+                                                }
+                                            }
+                                        ]
 
                                         property var initialState
-                                        property real animRatio: 1
                                         property point animationAnchor
                                         property real invariantXRatio
                                         property real invariantYRatio
@@ -456,14 +532,12 @@ Item {
                                                     const destW = 100
                                                     const cursor = mapToItem(surfaceItemDelegate.parent, mapFromItem(outputPlacementItem, mX, mY))
                                                     const deltY = Math.max(Math.min(mY - destY, fullY), 0)
-                                                    animRatio = (((fullY - deltY) / fullY) * (destW - initialState.width) + initialState.width) / initialState.width
-                                                    surfaceItemDelegate.x = cursor.x - width * invariantXRatio
-                                                    surfaceItemDelegate.y = cursor.y - height * invariantYRatio
+                                                    scale = (((fullY - deltY) / fullY) * (destW - initialState.width) + initialState.width) / initialState.width
                                                 }
                                             }
                                         }
 
-                                        width: displayWidth * animRatio
+                                        width: displayWidth
                                         height: width * source.height / source.width
                                         // clip: true
                                         z: drg.active ? 1 : 0   // dragged item should float
@@ -487,7 +561,7 @@ Item {
                                                                  } else {
                                                                      parent.x = initialState.x
                                                                      parent.y = initialState.y
-                                                                     parent.animRatio = 1
+                                                                     scale = 1
                                                                  }
                                                                  dragManager.item = null
                                                              }
@@ -506,16 +580,17 @@ Item {
                                         Rectangle {
                                             anchors.fill: parent
                                             color: "transparent"
-                                            border.width: highlighted ? 4 : 0
+                                            border.width: highlighted ? highlightBorderWidth : 0
                                             border.color: "blue"
-                                            radius: wrapper.decoration.radius + border.width
+                                            radius: surfaceShot.cornerRadius + highlightBorderWidth
                                         }
 
                                         Item {
                                             id: surfaceShot
+                                            readonly property real cornerRadius: wrapper.decoration.radius * width / source.width
                                             anchors {
                                                 fill: parent
-                                                margins: 4
+                                                margins: highlightBorderWidth
                                             }
 
                                             D.BoxShadow {
@@ -523,7 +598,7 @@ Item {
                                                 shadowColor: root.D.ColorSelector.outerShadowColor
                                                 shadowOffsetY: 4
                                                 shadowBlur: 16
-                                                cornerRadius: wrapper.decoration.radius
+                                                cornerRadius: surfaceShot.cornerRadius
                                                 hollow: true
                                             }
 
@@ -538,7 +613,7 @@ Item {
                                             }
 
                                             MultiEffect {
-                                                enabled: wrapper.decoration.radius > 0
+                                                enabled: surfaceShot.cornerRadius > 0
                                                 anchors.fill: preview
                                                 source: preview
                                                 maskEnabled: true
@@ -552,7 +627,7 @@ Item {
                                                 visible: false
                                                 Rectangle {
                                                     anchors.fill: parent
-                                                    radius: wrapper.decoration.radius
+                                                    radius: surfaceShot.cornerRadius
                                                 }
                                             }
                                         }
@@ -607,6 +682,84 @@ Item {
                                                 radius: 5
                                             }
                                         }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                Loader {
+                    id: workspaceAnimationLoader
+                    active: false
+                    Connections {
+                        target: animationController
+                        function onRunningChanged() {
+                            if (animationController.running) workspaceAnimationLoader.active = true
+                        }
+                    }
+                    z: MultitaskView.ZOrder.Background
+                    anchors.fill: parent
+                    sourceComponent: Item {
+                        id: animationDelegate
+                        visible: animationController.running
+                        onVisibleChanged: {
+                            if (!visible) {
+                                workspaceAnimationLoader.active = false
+                            }
+                        }
+                        property real localFactor: width / animationController.refWidth
+
+                        Rectangle {
+                            anchors.fill: parent
+                            color: "black"
+                        }
+                        Row {
+                            visible: true
+                            spacing: animationController.refGap * animationDelegate.localFactor
+                            x: -animationController.viewportPos * animationDelegate.localFactor
+                            Repeater {
+                                model: QmlHelper.workspaceManager.layoutOrder
+                                Item {
+                                    id: wsShot
+                                    required property int index
+                                    width: animationDelegate.width
+                                    height: animationDelegate.height
+                                    ShaderEffectSource {
+                                        z: MultitaskView.ZOrder.Background
+                                        id: wallpaperShot
+                                        live: true
+                                        smooth: true
+                                        sourceItem: wpCtrl.proxy
+                                        sourceRect: {
+                                            const margins = Helper.getOutputExclusiveMargins(modelData.output)
+                                            return Qt.rect(margins.left, margins.top, width, height)
+                                        }
+                                        anchors.fill: parent
+                                    }
+
+                                    RenderBufferBlitter {
+                                        z: MultitaskView.ZOrder.Background
+                                        id: shotBlitter
+                                        anchors.fill: parent
+                                        MultiEffect {
+                                            id: shotBlur
+                                            anchors.fill: parent
+                                            source: shotBlitter.content
+                                            autoPaddingEnabled: false
+                                            blurEnabled: true
+                                            blur: 1.0
+                                            blurMax: 64
+                                            saturation: 0.2
+                                        }
+                                    }
+
+                                    ShaderEffectSource {
+                                        id: ws
+                                        visible: true
+                                        anchors.fill: parent
+                                        hideSource: visible
+                                        sourceItem: wsDelegates.itemAt(index) ?? null
                                     }
                                 }
                             }

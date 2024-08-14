@@ -53,6 +53,33 @@ FocusScope {
         if (activatedSurfaceItem?.parent?.workspaceRelativeId !== currentWorkspaceId)
             workspaceManager.workspacesById.get(workspaceManager.layoutOrder.get(currentWorkspaceId).wsid)?.selectSurfaceToActivate()
 
+    component WorkspaceShot: Item {
+        id: wsShot
+        property int workspaceId: -1
+        required property rect sourceRect
+        required property WallpaperProxy wpProxy
+        visible: ws.sourceItem !== null
+
+        ShaderEffectSource {
+            id: wp
+            sourceItem: wpProxy
+            width: parent.width
+            height: parent.height
+            hideSource: false
+            visible: true
+        }
+
+        ShaderEffectSource {
+            id: ws
+            visible: true
+            width: parent.width
+            height: parent.height
+            hideSource: visible
+            sourceItem: workspaceManager.workspacesById.get(workspaceManager.layoutOrder.get(workspaceId)?.wsid) ?? null
+            sourceRect: wsShot.sourceRect
+        }
+    }
+
     FocusScope {
         anchors.fill: parent
         visible: !WindowManagementV1.desktopState
@@ -76,7 +103,7 @@ FocusScope {
                 property bool isCurrentWorkspace: workspaceRelativeId === currentWorkspaceId
                 workspaceId: wsid
                 workspaceRelativeId: index
-                visible: isCurrentWorkspace && !workspaceAnimation.active
+                visible: isCurrentWorkspace
                 focus: isCurrentWorkspace
                 anchors.fill: parent
 
@@ -132,15 +159,76 @@ FocusScope {
             }
         }
 
+        SlideAnimationController {
+            id: workspaceAnimationController
+            commitWorkspaceId: (workspaceId) => {
+                Helper.currentWorkspaceId = workspaceId
+            }
+            onRunningChanged: {
+                if (running && !multitaskView.active) {
+                    workspaceAnimationLoader.active = true
+                }
+            }
+            refGap: multitaskView.active ? 0 : 30
+        }
+
         Loader {
-            id: workspaceAnimation
+            id: workspaceAnimationLoader
             active: false
-            anchors.fill: parent
-            sourceComponent: WorkspaceAnimation {
-                workspaceManager: root.workspaceManager
+            width: parent.width
+            height: parent.height
+            sourceComponent: Item {
+                visible: workspaceAnimationController.running
+                Rectangle {
+                    anchors.fill: parent
+                    color: "black"
+                }
                 onVisibleChanged: {
                     if (!visible) {
-                        workspaceAnimation.active = false
+                        workspaceAnimationLoader.active = false
+                    }
+                }
+
+                Repeater {
+                    model: Helper.outputLayout.outputs
+                    Item {
+                        id: animationDelegate
+                        visible: true
+                        required property var modelData
+                        readonly property real localAnimationScaleFactor: width / workspaceAnimationController.refWidth
+                        clip: true
+                        property rect displayRect: Qt.rect(modelData.x, modelData.y, modelData.width, modelData.height)
+                        x: displayRect.x
+                        y: displayRect.y
+                        width: displayRect.width
+                        height: displayRect.height
+
+                        // Wallpaper here
+                        WallpaperController {
+                            output: modelData.output
+                            id: wpCtrl
+                        }
+
+
+
+                        Row {
+                            x: - workspaceAnimationController.viewportPos * animationDelegate.localAnimationScaleFactor
+                            spacing: workspaceAnimationController.refGap * animationDelegate.localAnimationScaleFactor
+                            Repeater {
+                                model: workspaceManager.layoutOrder
+                                delegate: WorkspaceShot {
+                                    required property int wsid
+                                    required property int index
+                                    sourceRect: animationDelegate.displayRect
+                                    width: animationDelegate.width
+                                    height: animationDelegate.height
+                                    workspaceId: index
+                                    wpProxy: wpCtrl.proxy
+                                }
+                            }
+                        }
+
+
                     }
                 }
             }
@@ -499,6 +587,7 @@ FocusScope {
                 focus: false
                 currentWorkspaceId: root.currentWorkspaceId
                 setCurrentWorkspaceId: (id) => Helper.currentWorkspaceId = id
+                animationController: workspaceAnimationController
                 onVisibleChanged: {
                     console.assert(!visible,'should be exit')
                     multitaskView.active = false
@@ -572,21 +661,35 @@ FocusScope {
         }
         function onNextWorkspace() {
             const nWorkspaces = workspaceManager.layoutOrder.count
-            const nextWorkspaceId = currentWorkspaceId + 1
-            workspaceAnimation.active = true
-            workspaceAnimation.item.addAnimation(currentWorkspaceId, nextWorkspaceId)
+            const baseWorkspaceId = workspaceAnimationController.running ?
+                                    workspaceAnimationController.pendingWorkspaceId :
+                                    currentWorkspaceId
+            const nextWorkspaceId = baseWorkspaceId + 1
+            if (nextWorkspaceId >= nWorkspaces) {
+                workspaceAnimationController.bounce(baseWorkspaceId, SlideAnimationController.Direction.Right)
+            } else {
+                workspaceAnimationController.slide(baseWorkspaceId, nextWorkspaceId)
+            }
         }
         function onPrevWorkspace() {
             const nWorkspaces = workspaceManager.layoutOrder.count
-            const prevWorkspaceId = currentWorkspaceId - 1
-            workspaceAnimation.active = true
-            workspaceAnimation.item.addAnimation(currentWorkspaceId, prevWorkspaceId)
+            const baseWorkspaceId = workspaceAnimationController.running ?
+                                    workspaceAnimationController.pendingWorkspaceId :
+                                    currentWorkspaceId
+            const prevWorkspaceId = baseWorkspaceId - 1
+            if (prevWorkspaceId < 0) {
+                workspaceAnimationController.bounce(baseWorkspaceId, SlideAnimationController.Direction.Left)
+            } else {
+                workspaceAnimationController.slide(baseWorkspaceId, prevWorkspaceId)
+            }
         }
         function onJumpWorkspace(d) {
             const nWorkspaces = workspaceManager.layoutOrder.count
-            if (d >= nWorkspaces) return
-            workspaceAnimation.active = true
-            workspaceAnimation.item.addAnimation(currentWorkspaceId, d)
+            const baseWorkspaceId = workspaceAnimationController.running ?
+                                    workspaceAnimationController.pendingWorkspaceId :
+                                    currentWorkspaceId
+            if (d >= nWorkspaces || d < 0 || d === baseWorkspaceId) return
+            workspaceAnimationController.slide(baseWorkspaceId, d)
         }
         function onMoveToNeighborWorkspace(d, surface) {
             const nWorkspaces = workspaceManager.layoutOrder.count
@@ -607,26 +710,6 @@ FocusScope {
                 multitaskView.item.entry(MultitaskView.ActiveMethod.Gesture)
             } else {
                 multitaskView.active = false
-            }
-        }
-
-        onDesktopOffsetChanged: {
-            if (!workspaceAnimation.active) {
-                var fromId, toId
-
-                fromId = Helper.currentWorkspaceId
-                if (target.desktopOffset > 0) {
-                    toId = fromId + 1
-                    if (toId >=  QmlHelper.workspaceManager.layoutOrder.count) {
-                        return
-                    }
-                } else if (target.desktopOffset < 0) {
-                    toId = fromId - 1
-                    if (toId < 0) {
-                        return
-                    }
-                }
-                workspaceAnimation.active = true
             }
         }
     }

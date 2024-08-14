@@ -32,10 +32,10 @@ qt_add_qml_module(treeland-qml
         NewAnimation.qml
         Wallpaper.qml
         Animations/LayerShellAnimation.qml
-        Animations/WorkspaceAnimation.qml
         Animations/LaunchpadAnimation.qml
         Animations/MinimizeAnimation.qml
         Animations/MaximizeAnimation.qml
+        Animations/SlideAnimationController.qml
         WindowThumbnailDelegate.qml
         SwitcherThumbnailHighlightDelegate.qml
         WindowPreviewLoader.qml
