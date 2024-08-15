@@ -314,6 +314,20 @@ void Helper::initProtocols(WOutputRenderWindow *window)
             &WBackend::outputRemoved,
             this,
             [this, engine, outputManager](WOutput *output) {
+
+                WQuickOutputLayout *outlayout = outputLayout();
+                for (auto *outputitem : outlayout->outputs()) {
+                    // TODO: When there are more than three screens, the mouse should follow the primary screen
+                    if(outputitem->output() != output) {
+                        if (cursor()->position().x() < outputitem->position().x() || cursor()->position().y() < outputitem->position().y()) {
+                            m_seat->setCursorPosition(cursor()->position() + outputitem->position());
+                        } else {
+                            WOutputItem *item = WOutputItem::getOutputItem(output);
+                            m_seat->setCursorPosition(cursor()->position() - item->position());
+                        }
+                    }
+                }
+
                 VirtualOutputV1 *virtualOutputV1 =
                     engine->singletonInstance<VirtualOutputV1 *>("TreeLand.Protocols",
                                                                  "VirtualOutputV1");
