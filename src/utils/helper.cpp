@@ -122,21 +122,31 @@ void Helper::initProtocols(WOutputRenderWindow *window)
     m_server->attach(m_seat);
     m_seat->setKeyboardFocusWindow(window);
 
-    auto *xdgOutputManager = m_server->attach<WXdgOutputManager>(m_outputLayout);
-    auto *xwaylandOutputManager = m_server->attach<WXdgOutputManager>(m_outputLayout);
+    m_xdgOutputManager = m_server->attach<WXdgOutputManager>(m_outputLayout);
+    m_xwaylandOutputManager = m_server->attach<WXdgOutputManager>(m_outputLayout);
+    m_xwaylandOutputManager->setScaleOverride(1.0);
 
-    xwaylandOutputManager->setScaleOverride(1.0);
-    auto xwayland_lazy = true;
-    auto *xwayland = m_server->attach<WXWayland>(m_compositor, xwayland_lazy);
-    xwayland->setSeat(m_seat);
+    // default xwayland server
+    auto *xwayland = createXWayland();
     setXWaylandSocket(xwayland->displayName());
 
-    xdgOutputManager->setFilter([xwayland](WClient *client) {
-        return client != xwayland->waylandClient();
-    });
-    xwaylandOutputManager->setFilter([xwayland](WClient *client) {
-        return client == xwayland->waylandClient();
-    });
+    // m_xdgOutputManager->setFilter([this](WClient *client) {
+    //     for (auto *xwayland : m_xwaylands) {
+    //         if (client == xwayland->waylandClient()) {
+    //             return false;
+    //         }
+    //     }
+    //     return true;
+    // });
+    //
+    // m_xwaylandOutputManager->setFilter([this](WClient *client) {
+    //     for (auto *xwayland : m_xwaylands) {
+    //         if (client == xwayland->waylandClient()) {
+    //             return true;
+    //         }
+    //     }
+    //     return false;
+    // });
 
     m_xdgDecorationManager = m_server->attach<WXdgDecorationManager>();
     Q_EMIT xdgDecorationManagerChanged();
@@ -217,27 +227,6 @@ void Helper::initProtocols(WOutputRenderWindow *window)
             m_surfaceCreator,
             &WQmlCreator::removeByOwner);
 
-    connect(
-        xwayland,
-        &WXWayland::surfaceAdded,
-        this,
-        [this, engine, xwayland](WXWaylandSurface *surface) {
-            surface->safeConnect(
-                &qw_xwayland_surface::notify_associate,
-                this,
-                [this, surface, engine] {
-                    auto initProperties = engine->newObject();
-                    initProperties.setProperty("type", "xwayland");
-                    initProperties.setProperty("wSurface", engine->toScriptValue(surface));
-                    initProperties.setProperty("wid", engine->toScriptValue(workspaceId(engine)));
-
-                    m_surfaceCreator->add(surface, initProperties);
-                });
-            surface->safeConnect(&qw_xwayland_surface::notify_dissociate, this, [this, surface] {
-                m_surfaceCreator->removeByOwner(surface);
-            });
-        });
-
     connect(xdgShell,
             &WXdgShell::surfaceAdded,
             this,
@@ -314,13 +303,15 @@ void Helper::initProtocols(WOutputRenderWindow *window)
             &WBackend::outputRemoved,
             this,
             [this, engine, outputManager](WOutput *output) {
-
                 WQuickOutputLayout *outlayout = outputLayout();
                 for (auto *outputitem : outlayout->outputs()) {
-                    // TODO: When there are more than three screens, the mouse should follow the primary screen
-                    if(outputitem->output() != output) {
-                        if (cursor()->position().x() < outputitem->position().x() || cursor()->position().y() < outputitem->position().y()) {
-                            m_seat->setCursorPosition(cursor()->position() + outputitem->position());
+                    // TODO: When there are more than three screens, the mouse should follow the
+                    // primary screen
+                    if (outputitem->output() != output) {
+                        if (cursor()->position().x() < outputitem->position().x()
+                            || cursor()->position().y() < outputitem->position().y()) {
+                            m_seat->setCursorPosition(cursor()->position()
+                                                      + outputitem->position());
                         } else {
                             WOutputItem *item = WOutputItem::getOutputItem(output);
                             m_seat->setCursorPosition(cursor()->position() - item->position());
@@ -1123,8 +1114,37 @@ void Helper::setWaylandSocket(const QString &socketFile)
 void Helper::setXWaylandSocket(const QString &socketFile)
 {
     m_xwaylandSocket = socketFile;
-
     emit socketFileChanged();
+}
+
+WXWayland *Helper::createXWayland()
+{
+    auto *xwayland = m_server->attach<WXWayland>(m_compositor, false);
+    m_xwaylands.append(xwayland);
+    xwayland->setSeat(m_seat);
+
+    connect(xwayland, &WXWayland::surfaceAdded, this, [this, xwayland](WXWaylandSurface *surface) {
+        QQmlApplicationEngine *engine = qobject_cast<QQmlApplicationEngine *>(qmlEngine(this));
+        surface->safeConnect(&qw_xwayland_surface::notify_associate, this, [this, surface, engine] {
+            auto initProperties = engine->newObject();
+            initProperties.setProperty("type", "xwayland");
+            initProperties.setProperty("wSurface", engine->toScriptValue(surface));
+            initProperties.setProperty("wid", engine->toScriptValue(workspaceId(engine)));
+
+            m_surfaceCreator->add(surface, initProperties);
+        });
+        surface->safeConnect(&qw_xwayland_surface::notify_dissociate, this, [this, surface] {
+            m_surfaceCreator->removeByOwner(surface);
+        });
+    });
+
+    return xwayland;
+}
+
+void Helper::removeXWayland(WXWayland *xwayland)
+{
+    m_xwaylands.removeOne(xwayland);
+    xwayland->safeDeleteLater();
 }
 
 QVariant Helper::workspaceId(QQmlApplicationEngine *engine) const

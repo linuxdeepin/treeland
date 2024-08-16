@@ -27,6 +27,7 @@
 #include <woutputrenderwindow.h>
 #include <wrenderhelper.h>
 #include <wsocket.h>
+#include <wxwayland.h>
 
 #include <qwbackend.h>
 #include <qwcompositor.h>
@@ -450,6 +451,8 @@ bool TreeLand::ActivateWayland(QDBusUnixFileDescriptor _fd)
 
 QString TreeLand::XWaylandName()
 {
+    setDelayedReply(true);
+
     auto uid = connection().interface()->serviceUid(message().service());
     struct passwd *pw;
     pw = getpwuid(uid);
@@ -458,10 +461,29 @@ QString TreeLand::XWaylandName()
     Helper *helper = m_engine->singletonInstance<Helper *>("TreeLand.Utils", "Helper");
     Q_ASSERT(helper);
 
-    const QString &display = helper->xwaylandSocket();
-    qCDebug(debug) << QString("user %1 got xwayland display %2.").arg(user).arg(display);
+    auto *xwayland = helper->createXWayland();
+    const QString &display = xwayland->displayName();
 
-    return display;
+    auto m = message();
+    auto conn = connection();
+
+    QProcess *process = new QProcess(this);
+    connect(process, &QProcess::finished, [process, m, conn, user, display] {
+        qCDebug(debug) << process->exitCode() << " " << process->readAllStandardOutput() << process->readAllStandardError();
+        qCDebug(debug) << QString("user %1 got xwayland display %2.").arg(user).arg(display);
+        auto reply = m.createReply(display);
+        conn.send(reply);
+        process->deleteLater();
+    });
+
+    auto env = QProcessEnvironment::systemEnvironment();
+    env.insert("DISPLAY", display);
+    process->setProcessEnvironment(env);
+    process->setProgram("xhost");
+    process->setArguments({ QString("+si:localuser:%1").arg(user) });
+    process->start();
+
+    return {};
 }
 
 } // namespace TreeLand
