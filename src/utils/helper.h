@@ -29,6 +29,8 @@ class WQuickCursor;
 class WQmlCreator;
 class WOutputRenderWindow;
 class WInputMethodHelper;
+class WXdgOutputManager;
+class WXWayland;
 WAYLIB_SERVER_END_NAMESPACE
 
 QW_BEGIN_NAMESPACE
@@ -163,6 +165,9 @@ public:
     Q_INVOKABLE bool shouldForceBlur(WLayerSurface *surface) const;
     Q_INVOKABLE bool isLaunchpad(WLayerSurface *surface) const;
 
+    WXWayland *createXWayland();
+    void removeXWayland(WXWayland *xwayland);
+
 public Q_SLOTS:
     void startMove(WToplevelSurface *surface, WSurfaceItem *shell, WSeat *seat, int serial);
     void startResize(
@@ -221,6 +226,8 @@ protected:
     TogglableGesture *m_windowGesture = nullptr;
 
     WXdgDecorationManager *m_xdgDecorationManager;
+    WXdgOutputManager *m_xdgOutputManager = nullptr;
+    WXdgOutputManager *m_xwaylandOutputManager = nullptr;
 
     WQmlCreator *m_outputCreator = nullptr;
     WQmlCreator *m_surfaceCreator = nullptr;
@@ -263,6 +270,7 @@ private:
     bool m_isLockScreen{ false };
 
     int m_currentWorkspaceId{ 0 };
+    QList<WXWayland*> m_xwaylands;
 };
 
 Q_DECLARE_FLAGS(MetaKeyChecks, Helper::MetaKeyCheck)

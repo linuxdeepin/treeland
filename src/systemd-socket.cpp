@@ -28,17 +28,14 @@ int main(int argc, char *argv[])
     parser.addHelpOption();
     parser.addVersionOption();
 
-    QCommandLineOption typeOption(QStringList() << "t"
-                                                << "type",
-                                  "xwayland",
-                                  "wayland");
+    QCommandLineOption typeOption(QStringList() << "t" << "type", "xwayland", "wayland");
     parser.addOption(typeOption);
 
     parser.process(app);
 
     const QString &type = parser.value(typeOption);
 
-    if (sd_listen_fds(0) > 1) {
+    if (type == "wayland" && sd_listen_fds(0) > 1) {
         fprintf(stderr, "Too many file descriptors received.\n");
         exit(1);
     }
@@ -55,6 +52,7 @@ int main(int argc, char *argv[])
             if (updateFd.isValid()) {
                 if (type == "wayland") {
                     updateFd.call("ActivateWayland", QVariant::fromValue(unixFileDescriptor));
+                    sd_notify(0, "READY=1");
                 } else if (type == "xwayland") {
                     QDBusReply<QString> reply = updateFd.call("XWaylandName");
                     if (reply.isValid()) {
@@ -66,6 +64,7 @@ int main(int argc, char *argv[])
                                                QDBusConnection::sessionBus());
                         systemd.call("SetEnvironment",
                                      QStringList() << QString("DISPLAY=%1").arg(xwaylandName));
+                        sd_notify(0, "READY=1");
                     }
                 }
             }
@@ -86,8 +85,6 @@ int main(int argc, char *argv[])
 
     active(QDBusConnection::sessionBus());
     active(QDBusConnection::systemBus());
-
-    sd_notify(0, "READY=1");
 
     return app.exec();
 }
