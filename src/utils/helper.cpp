@@ -894,8 +894,10 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *watched, QInputEvent *even
         seat->cursor()->setVisible(true);
         auto mevent = static_cast<QMouseEvent *>(event);
         if (mevent->buttons() & Qt::LeftButton && event->type() == QEvent::MouseMove) {
-            if (!m_region.isEmpty() && !m_region.contains(mevent->pos()))
+            if (m_activateSurface && !static_cast<WLayerSurface *>(m_activateSurface.get())
+                && !m_region.isEmpty() && !m_region.contains(mevent->pos())) {
                 return true;
+            }
         }
     } else if (event->type() == QEvent::TouchBegin) {
         seat->cursor()->setVisible(false);
