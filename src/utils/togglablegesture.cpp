@@ -207,12 +207,15 @@ void TogglableGesture::addTouchpadSwipeGesture(SwipeGesture::Direction direction
     } else {
         const auto left = [this](qreal cb) {
             m_desktopOffsetRelevant = true;
-            setDesktopOffset(cb);
+
+            if (desktopOffset() != cb)
+                setDesktopOffset(cb);
         };
 
         const auto right = [this](qreal cb) {
             m_desktopOffsetRelevant = true;
-            setDesktopOffset(-cb);
+            if (desktopOffset() != cb)
+                setDesktopOffset(-cb);
         };
 
         const auto trigger = [this]() mutable {
