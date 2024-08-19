@@ -211,7 +211,7 @@ Item {
     }
 
     function animationNormal(fromId, toId) {
-        if (!(slideAnimation.running || bounceAnimation.running)) {
+        if (gestureConnection.enable || !(slideAnimation.running || bounceAnimation.running)) {
             initialId = fromId
             destinationId = toId
             animationInitial = 0
@@ -283,6 +283,7 @@ Item {
     }
 
     Connections {
+        id: gestureConnection
         target: Helper.multiTaskViewGesture
         property bool enable: false
         property int fromId: 0
@@ -292,6 +293,7 @@ Item {
             if (!enable) {
                 enable = true
                 fromId = Helper.currentWorkspaceId
+                toId = 0
                 if (target.desktopOffset > 0) {
                     toId = fromId + 1
                     if (toId >= QmlHelper.workspaceManager.layoutOrder.count) {
@@ -307,6 +309,9 @@ Item {
                 }
                 animationNormal(fromId, toId)
             }
+
+            if (fromId === toId)
+                return
 
             if (enable) {
                 s1X = initialS1 - desktopOffset * refWrap
@@ -325,6 +330,7 @@ Item {
             }
 
             fromId = Helper.currentWorkspaceId
+            toId = 0
             if (desktopOffset > 0.25) {
                 toId = fromId + 1
                 if (toId >=  QmlHelper.workspaceManager.layoutOrder.count) {
@@ -341,6 +347,9 @@ Item {
                 fromId = toId
                 toId = temp
             }
+
+            if (fromId === toId)
+                return
 
             animationRunning(toId)
             animationPosition(fromId, toId)
