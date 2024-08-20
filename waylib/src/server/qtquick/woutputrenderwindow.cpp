@@ -246,6 +246,7 @@ private:
     QPointer<WBufferRenderer> m_cursorRenderer;
     BufferRendererProxy *m_cursorLayerProxy = nullptr;
     bool m_cursorDirty = false;
+    bool m_hardwareCursorRenderComplete = false;
 
     // for compositeLayers
     QPointer<WOutputViewport> m_output2;
@@ -826,6 +827,10 @@ WBufferRenderer *OutputHelper::afterRender()
 
     if (layers.isEmpty()) {
         cleanLayerCompositor();
+        cleanCursorRender();
+        if (m_hardwareCursorRenderComplete) {
+            tryToHardwareCursor(nullptr);
+        }
         return bufferRenderer();
     }
 
@@ -1067,8 +1072,12 @@ bool OutputHelper::tryToHardwareCursor(const LayerData *layer)
                           ? layer->renderer->lastBuffer()->handle()
                           : nullptr;
         if (!buffer) {
+            if (!m_hardwareCursorRenderComplete)
+                return true;
+
             if (set_cursor)
                 set_cursor(qwoutput()->handle(), buffer, 0, 0);
+            m_hardwareCursorRenderComplete = false;
             return true;
         }
 
@@ -1142,6 +1151,7 @@ bool OutputHelper::tryToHardwareCursor(const LayerData *layer)
         if (!set_cursor(qwoutput()->handle(), buffer, hotSpot.x(), hotSpot.y())) {
             break;
         } else {
+            m_hardwareCursorRenderComplete = true;
             resetGlState();
         }
 
