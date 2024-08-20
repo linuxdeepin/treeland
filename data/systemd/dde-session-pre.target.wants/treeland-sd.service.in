@@ -24,8 +24,10 @@ ExecStart=@CMAKE_INSTALL_FULL_LIBEXECDIR@/treeland-sd --type wayland
 ExecStartPost=-/usr/bin/systemctl --user set-environment WAYLAND_DISPLAY=%t/treeland.socket
 ExecStartPost=-/usr/bin/systemctl --user set-environment QT_WAYLAND_RECONNECT=1
 ExecStartPost=-/usr/bin/systemctl --user set-environment QT_QPA_PLATFORM=wayland
+ExecStartPost=-/usr/bin/systemctl --user set-environment QT_IM_MODULE=fcitx
 ExecStop=-/usr/bin/systemctl --user unset-environment WAYLAND_DISPLAY
 ExecStop=-/usr/bin/systemctl --user unset-environment QT_WAYLAND_RECONNECT
 ExecStop=-/usr/bin/systemctl --user unset-environment QT_QPA_PLATFORM
+ExecStop=-/usr/bin/systemctl --user unset-environment QT_IM_MODULE
 Slice=session.slice
 RestartSec=1s
