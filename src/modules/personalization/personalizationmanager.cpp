@@ -25,10 +25,18 @@
 DCORE_USE_NAMESPACE
 
 static PersonalizationV1 *PERSONALIZATION_MANAGER = nullptr;
-static QQuickItem *PERSONALIZATION_IMAGE = nullptr;
 
 #define DEFAULT_WALLPAPER "qrc:/desktop.webp"
 #define DEFAULT_WALLPAPER_ISDARK false
+
+QuickPersonalizationManagerAttached *Personalization::qmlAttachedProperties(QObject *target)
+{
+    if (auto *surface = qobject_cast<WToplevelSurface *>(target)) {
+        return new QuickPersonalizationManagerAttached(surface->surface(), PERSONALIZATION_MANAGER);
+    }
+
+    return nullptr;
+}
 
 QString PersonalizationV1::getOutputName(const WOutput *w_output)
 {
@@ -106,14 +114,32 @@ PersonalizationV1::PersonalizationV1(QObject *parent)
 void PersonalizationV1::onWindowContextCreated(personalization_window_context_v1 *context)
 {
     connect(context, &personalization_window_context_v1::before_destroy, this, [this, context] {
-        auto *surface = WSurface::fromHandle(context->surface);
-        m_surfaceBackgroundType.remove(surface);
+        m_windowContexts.removeAll(context);
     });
 
     connect(context,
             &personalization_window_context_v1::backgroundTypeChanged,
             this,
-            &PersonalizationV1::onBackgroundTypeChanged);
+            [this, context] {
+                Q_EMIT backgroundTypeChanged(WSurface::fromHandle(context->surface),
+                                             context->background_type);
+            });
+    connect(context,
+            &personalization_window_context_v1::cornerRadiusChanged,
+            this,
+            [this, context] {
+                Q_EMIT cornerRadiusChanged(WSurface::fromHandle(context->surface),
+                                           context->corner_radius);
+            });
+    connect(context, &personalization_window_context_v1::shadowChanged, this, [this, context] {
+        Q_EMIT shadowChanged(WSurface::fromHandle(context->surface), context->shadow);
+    });
+    connect(context, &personalization_window_context_v1::borderChanged, this, [this, context] {
+        Q_EMIT borderChanged(WSurface::fromHandle(context->surface), context->border);
+    });
+    connect(context, &personalization_window_context_v1::windowStateChanged, this, [this, context] {
+        Q_EMIT windowStateChanged(WSurface::fromHandle(context->surface), context->states);
+    });
 }
 
 void PersonalizationV1::onWallpaperContextCreated(personalization_wallpaper_context_v1 *context)
@@ -240,15 +266,6 @@ void PersonalizationV1::onGetWallpapers(personalization_wallpaper_context_v1 *co
     context->set_meta_data(m_iniMetaData);
 }
 
-void PersonalizationV1::onBackgroundTypeChanged(personalization_window_context_v1 *context)
-{
-    auto *surface = WSurface::fromHandle(context->surface);
-    auto type = static_cast<Personalization::BackgroundType>(context->background_type);
-
-    m_surfaceBackgroundType[surface] = type;
-    Q_EMIT backgroundTypeChanged(surface, type);
-}
-
 uid_t PersonalizationV1::userId()
 {
     return m_userId;
@@ -314,43 +331,50 @@ QuickPersonalizationManagerAttached::QuickPersonalizationManagerAttached(WSurfac
     connect(m_manager,
             &PersonalizationV1::backgroundTypeChanged,
             this,
-            [this](WSurface *surface, Personalization::BackgroundType type) {
-                if (m_target == surface) {
-                    m_backgroundType = type;
+            [this, target](WSurface *surface, int32_t backgroundType) {
+                if (surface == m_target) {
+                    m_backgroundType = backgroundType;
                     Q_EMIT backgroundTypeChanged();
                 }
             });
 
-    m_backgroundType = m_manager->backgroundType(target);
-}
-
-QuickPersonalizationManagerAttached::QuickPersonalizationManagerAttached(QQuickItem *target,
-                                                                         PersonalizationV1 *manager)
-    : QObject(manager)
-    , m_target(target)
-    , m_manager(manager)
-{
-    if (PERSONALIZATION_IMAGE != nullptr) {
-        qFatal("Must set image once!");
-    }
-    PERSONALIZATION_IMAGE = target;
-}
-
-QQuickItem *QuickPersonalizationManagerAttached::backgroundImage() const
-{
-    return PERSONALIZATION_IMAGE;
-}
-
-QuickPersonalizationManagerAttached *PersonalizationV1::Attached(QObject *target)
-{
-    if (auto *surface = qobject_cast<WToplevelSurface *>(target)) {
-        return new QuickPersonalizationManagerAttached(surface->surface(), PERSONALIZATION_MANAGER);
-    }
-
-    if (auto *image = qobject_cast<QQuickItem *>(target)) {
-        return new QuickPersonalizationManagerAttached(image, PERSONALIZATION_MANAGER);
-    }
-    return nullptr;
+    connect(m_manager,
+            &PersonalizationV1::cornerRadiusChanged,
+            this,
+            [this, target](WSurface *surface, int32_t cornerRadius) {
+                if (surface == m_target) {
+                    m_cornerRadius = cornerRadius;
+                    Q_EMIT cornerRadiusChanged();
+                }
+            });
+    connect(m_manager,
+            &PersonalizationV1::shadowChanged,
+            this,
+            [this, target](WSurface *surface, const Shadow &shadow) {
+                if (surface == m_target) {
+                    m_shadow = shadow;
+                    Q_EMIT shadowChanged();
+                }
+            });
+    connect(m_manager,
+            &PersonalizationV1::borderChanged,
+            this,
+            [this, target](WSurface *surface, const Border &border) {
+                if (surface == m_target) {
+                    m_border = border;
+                    Q_EMIT borderChanged();
+                }
+            });
+    connect(
+        m_manager,
+        &PersonalizationV1::windowStateChanged,
+        this,
+        [this, target](WSurface *surface, personalization_window_context_v1::WindowStates states) {
+            if (surface == m_target) {
+                m_states = states;
+                Q_EMIT windowStateChanged();
+            }
+        });
 }
 
 void PersonalizationV1::create(WServer *server)
@@ -382,7 +406,13 @@ QByteArrayView PersonalizationV1::interfaceName() const
     return treeland_personalization_manager_v1_interface.name;
 }
 
-Personalization::BackgroundType PersonalizationV1::backgroundType(WSurface *surface)
+personalization_window_context_v1 *PersonalizationV1::getWindowContext(WSurface *surface)
 {
-    return m_surfaceBackgroundType.value(surface, Personalization::Normal);
+    for (auto *context : m_windowContexts) {
+        if (context->surface == surface->handle()->handle()) {
+            return context;
+        }
+    }
+
+    return nullptr;
 }
