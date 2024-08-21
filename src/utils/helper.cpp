@@ -1231,19 +1231,6 @@ void Helper::updateOutputsRegion()
     }
 }
 
-bool Helper::shouldForceBlur(WLayerSurface *surface) const
-{
-    if (!surface) {
-        return false;
-    }
-
-    auto scope = QString(surface->handle()->handle()->scope);
-
-    QStringList forceList{ "dde-shell/dock", "dde-shell/launchpad" };
-
-    return forceList.contains(scope);
-}
-
 bool Helper::isLaunchpad(WLayerSurface *surface) const
 {
     if (!surface) {

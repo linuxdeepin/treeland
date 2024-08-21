@@ -26,9 +26,7 @@ Item {
 
     width: target.width
     height: target.height
-    state: {
-        return direction !== LaunchpadAnimation.Direction.Show ? "Show" : "Hide"
-    }
+    state: "None"
 
     function start() {
         visible = true;
@@ -48,14 +46,6 @@ Item {
         State {
             name: "Show"
             PropertyChanges {
-                target: cover
-                opacity: 0.6
-            }
-            PropertyChanges {
-                target: blur
-                opacity: 1
-            }
-            PropertyChanges {
                 target: effect
                 opacity: 1
                 scale: 1
@@ -63,14 +53,6 @@ Item {
         },
         State {
             name: "Hide"
-            PropertyChanges {
-                target: cover
-                opacity: 0.0
-            }
-            PropertyChanges {
-                target: blur
-                opacity: 0
-            }
             PropertyChanges {
                 target: effect
                 opacity: 0
@@ -81,18 +63,6 @@ Item {
 
     transitions: [
         Transition {
-            PropertyAnimation {
-                target: cover
-                property: "opacity"
-                duration: root.duration
-                easing.type: Easing.OutExpo
-            }
-            PropertyAnimation {
-                target: blur
-                property: "opacity"
-                duration: root.duration
-                easing.type: Easing.OutExpo
-            }
             PropertyAnimation {
                 target: effect
                 property: "opacity"
@@ -113,28 +83,6 @@ Item {
         }
     ]
 
-    Rectangle {
-        id: cover
-        anchors.fill: parent
-        color: 'black'
-        opacity: 0.0
-    }
-
-    RenderBufferBlitter {
-        id: blitter
-        anchors.fill: parent
-        MultiEffect {
-            id: blur
-            anchors.fill: parent
-            source: blitter.content
-            autoPaddingEnabled: false
-            blurEnabled: true
-            blur: 1.0
-            blurMax: 64
-            saturation: 0.2
-        }
-    }
-
     ShaderEffectSource {
         id: effect
         live: root.direction === LaunchpadAnimation.Direction.Show
@@ -142,7 +90,7 @@ Item {
         sourceItem: root.target
         width: root.target.width
         height: root.target.height
-        scale: 0.3
-        opacity: 0
+        scale: root.direction === LaunchpadAnimation.Direction.Show ? 0.3 : 1
+        opacity: root.direction === LaunchpadAnimation.Direction.Show ? 0 : 1
     }
 }
