@@ -211,17 +211,29 @@ FocusScope {
                         parent: wrapper.surfaceItem
                         z: wrapper.surfaceItem.contentItem.z - 2
                         anchors.fill: parent
-                        sourceComponent: ShaderEffectSource {
-                            WallpaperController {
-                                id: wallpaperProxy
-                                output: modelData
-                            }
-                            id: background
-                            live: true
+                        sourceComponent: Item {
                             anchors.fill: parent
-                            // TODO: multi screen coordinate
-                            sourceRect: { Qt.rect(surfaceItem.x, surfaceItem.y, surfaceItem.width, surfaceItem.height) }
-                            sourceItem: wallpaperProxy.proxy
+                            ShaderEffectSource {
+                                WallpaperController {
+                                    id: wallpaperProxy
+                                    output: modelData
+                                }
+                                id: background
+                                live: true
+                                anchors.fill: parent
+                                // TODO: multi screen coordinate
+                                sourceRect: { Qt.rect(surfaceItem.x, surfaceItem.y, surfaceItem.width, surfaceItem.height) }
+                                sourceItem: wallpaperProxy.proxy
+                            }
+
+                            D.ItemViewport {
+                                anchors.fill: parent
+                                fixed: true
+                                enabled: wrapper.decoration.radius > 0
+                                sourceItem: background
+                                radius: wrapper.decoration.radius
+                                hideSource: true
+                            }
                         }
                     }
                 }
@@ -244,6 +256,15 @@ FocusScope {
                             blur: 1.0
                             blurMax: 64
                             saturation: 0.2
+                        }
+
+                        D.ItemViewport {
+                            anchors.fill: parent
+                            fixed: true
+                            enabled: wrapper.decoration.radius > 0
+                            sourceItem: blur
+                            radius: wrapper.decoration.radius
+                            hideSource: true
                         }
                     }
                 }

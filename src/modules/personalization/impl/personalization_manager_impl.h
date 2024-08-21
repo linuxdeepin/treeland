@@ -4,12 +4,16 @@
 #pragma once
 
 #include "treeland-personalization-manager-protocol.h"
+#include "types.h"
 
 #include <wayland-server-core.h>
 
 #include <qwdisplay.h>
+
 #include <QObject>
 #include <QStringList>
+
+#include <optional>
 
 struct personalization_window_context_v1;
 struct personalization_wallpaper_context_v1;
@@ -27,7 +31,7 @@ public:
     wl_global *global;
     wl_list resources; // wl_resource_get_link()
 
-    static treeland_personalization_manager_v1* create(QW_NAMESPACE::qw_display *display);
+    static treeland_personalization_manager_v1 *create(QW_NAMESPACE::qw_display *display);
 
 Q_SIGNALS:
     void before_destroy();
@@ -43,12 +47,30 @@ public:
     ~personalization_window_context_v1();
     treeland_personalization_manager_v1 *manager;
     wlr_surface *surface;
-    uint32_t background_type;
+    int32_t background_type;
+    int32_t corner_radius;
+    Shadow shadow;
+    Border border;
+
+    enum WindowState {
+        resizable,
+        movable,
+        noTitlebar,
+    };
+    Q_ENUM(WindowState)
+    Q_DECLARE_FLAGS(WindowStates, WindowState)
+
+    WindowStates states;
 
 Q_SIGNALS:
     void before_destroy();
-    void backgroundTypeChanged(personalization_window_context_v1 *handle);
+    void backgroundTypeChanged();
+    void cornerRadiusChanged();
+    void shadowChanged();
+    void borderChanged();
+    void windowStateChanged();
 };
+Q_DECLARE_OPERATORS_FOR_FLAGS(personalization_window_context_v1::WindowStates)
 
 struct personalization_wallpaper_context_v1 : public QObject
 {
@@ -63,7 +85,7 @@ public:
     bool isdark;
 
     QString meta_data;
-    QString identifier ;
+    QString identifier;
     QString output_name;
 
     void set_meta_data(const QString &data);

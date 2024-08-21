@@ -20,7 +20,7 @@ FocusScope {
     property bool pendingDestroy: false
 
     property alias surfaceItem: surfaceItem
-    property var personalizationMapper: PersonalizationV1.Attached(wSurface)
+    property var personalizationMapper: wSurface.Personalization
 
     required property DynamicCreatorComponent creatorCompoment
     required property WaylandLayerSurface wSurface

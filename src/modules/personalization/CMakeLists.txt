@@ -18,6 +18,7 @@ FILE_SET HEADERS
 FILES
     personalizationmanager.h
     impl/personalization_manager_impl.h
+    impl/types.h
 )
 
 target_sources(${MODULE_NAME} PRIVATE

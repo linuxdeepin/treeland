@@ -3,6 +3,8 @@
 
 #include "personalization_manager_impl.h"
 
+#include "treeland-personalization-manager-protocol.h"
+
 #include <cassert>
 
 extern "C" {
@@ -15,19 +17,57 @@ extern "C" {
 
 using QW_NAMESPACE::qw_display;
 
-static void personalization_window_context_set_background_type(
-    [[maybe_unused]] struct wl_client *client, struct wl_resource *resource, uint32_t type);
+namespace Personalization {
+namespace WindowContext {
 
-static void personalization_window_context_destroy([[maybe_unused]] struct wl_client *client,
-                                                   struct wl_resource *resource)
+static void set_background_type([[maybe_unused]] struct wl_client *client,
+                                struct wl_resource *resource,
+                                int32_t type);
+
+static void set_round_corner_radius(struct wl_client *client,
+                                    struct wl_resource *resource,
+                                    int32_t radius);
+
+static void set_shadow(struct wl_client *client,
+                       struct wl_resource *resource,
+                       int32_t radius,
+                       int32_t offset_x,
+                       int32_t offset_y,
+                       int32_t r,
+                       int32_t g,
+                       int32_t b,
+                       int32_t a);
+
+static void set_border(struct wl_client *client,
+                       struct wl_resource *resource,
+                       int32_t width,
+                       int32_t r,
+                       int32_t g,
+                       int32_t b,
+                       int32_t a);
+
+static void resizable(struct wl_client *client, struct wl_resource *resource, int32_t mode);
+static void movable(struct wl_client *client, struct wl_resource *resource, int32_t mode);
+static void no_titlebar(struct wl_client *client, struct wl_resource *resource, int32_t mode);
+
+static void on_destroy([[maybe_unused]] struct wl_client *client, struct wl_resource *resource)
 {
     wl_resource_destroy(resource);
 }
+} // namespace WindowContext
+
+} // namespace Personalization
 
 static const struct personalization_window_context_v1_interface
     personalization_window_context_impl = {
-        .set_background_type = personalization_window_context_set_background_type,
-        .destroy = personalization_window_context_destroy,
+        .set_blend_mode = Personalization::WindowContext::set_background_type,
+        .set_round_corner_radius = Personalization::WindowContext::set_round_corner_radius,
+        .set_shadow = Personalization::WindowContext::set_shadow,
+        .set_border = Personalization::WindowContext::set_border,
+        .resizable = Personalization::WindowContext::resizable,
+        .movable = Personalization::WindowContext::movable,
+        .no_titlebar = Personalization::WindowContext::no_titlebar,
+        .destroy = Personalization::WindowContext::on_destroy,
     };
 
 struct personalization_window_context_v1 *personalization_window_from_resource(
@@ -50,18 +90,90 @@ static void personalization_window_context_resource_destroy(struct wl_resource *
     wl_list_remove(wl_resource_get_link(resource));
 }
 
-static void personalization_window_context_set_background_type(
-    [[maybe_unused]] struct wl_client *client, struct wl_resource *resource, uint32_t type)
-{
-    struct personalization_window_context_v1 *window =
-        personalization_window_from_resource(resource);
-    if (!window) {
-        return;
-    }
+namespace Personalization {
+namespace WindowContext {
 
-    window->background_type = type;
-    Q_EMIT window->backgroundTypeChanged(window);
+static void set_background_type([[maybe_unused]] struct wl_client *client,
+                                struct wl_resource *resource,
+                                int32_t type)
+
+{
+    if (auto *window = personalization_window_from_resource(resource)) {
+        window->background_type = type;
+        Q_EMIT window->backgroundTypeChanged();
+    }
 }
+
+static void set_round_corner_radius(struct wl_client *client,
+                                    struct wl_resource *resource,
+                                    int32_t radius)
+{
+    if (auto *window = personalization_window_from_resource(resource)) {
+        window->corner_radius = radius;
+        Q_EMIT window->cornerRadiusChanged();
+    }
+}
+
+static void set_shadow(struct wl_client *client,
+                       struct wl_resource *resource,
+                       int32_t radius,
+                       int32_t offset_x,
+                       int32_t offset_y,
+                       int32_t r,
+                       int32_t g,
+                       int32_t b,
+                       int32_t a)
+{
+    if (auto *window = personalization_window_from_resource(resource)) {
+        window->shadow = Shadow{ radius, QPoint{ offset_x, offset_y }, QColor{ r, g, b, a } };
+        Q_EMIT window->shadowChanged();
+    }
+}
+
+static void set_border(struct wl_client *client,
+                       struct wl_resource *resource,
+                       int32_t width,
+                       int32_t r,
+                       int32_t g,
+                       int32_t b,
+                       int32_t a)
+{
+    if (auto *window = personalization_window_from_resource(resource)) {
+        window->border = Border{ width, QColor{ r, g, b, a } };
+        Q_EMIT window->borderChanged();
+    }
+}
+
+static void resizable(struct wl_client *client, struct wl_resource *resource, int32_t mode)
+{
+    if (auto *window = personalization_window_from_resource(resource)) {
+        window->states.setFlag(personalization_window_context_v1::WindowState::resizable,
+                               mode == PERSONALIZATION_WINDOW_CONTEXT_V1_ENABLE_MODE_ENABLE);
+        Q_EMIT window->windowStateChanged();
+    }
+}
+
+static void movable(struct wl_client *client, struct wl_resource *resource, int32_t mode)
+{
+    if (auto *window = personalization_window_from_resource(resource)) {
+        window->states.setFlag(personalization_window_context_v1::WindowState::movable,
+                               mode == PERSONALIZATION_WINDOW_CONTEXT_V1_ENABLE_MODE_ENABLE);
+        Q_EMIT window->windowStateChanged();
+    }
+}
+
+static void no_titlebar(struct wl_client *client, struct wl_resource *resource, int32_t mode)
+{
+    if (auto *window = personalization_window_from_resource(resource)) {
+        window->states.setFlag(personalization_window_context_v1::WindowState::noTitlebar,
+                               mode == PERSONALIZATION_WINDOW_CONTEXT_V1_ENABLE_MODE_ENABLE);
+        Q_EMIT window->windowStateChanged();
+    }
+}
+
+} // namespace WindowContext
+
+} // namespace Personalization
 
 void get_metadata(struct wl_client *client, struct wl_resource *manager_resource);
 

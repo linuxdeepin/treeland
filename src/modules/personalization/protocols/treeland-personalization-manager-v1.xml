@@ -168,20 +168,75 @@
         corresponding interface version bump. Backward incompatible changes can
         only be done by creating a new major version of the extension.
         </description>
-        <enum name="background_type">
-            <description summary="Windows will have different background effects">
-                This will instruct the compositor how to set the background
-                for the window, desktop.
+        <enum name="blend_mode">
+            <description summary="window blend mode">
+            Window blend mode defines how compositor composite window's surface over other surfaces.
             </description>
-            <entry name="normal" value="0" summary="not draw the background image"/>
-            <entry name="wallpaper" value="1" summary="draw the background image"/>
-            <entry name="blend" value="2" summary="draw the blend background image"/>
+            <entry name="transparent" value="0" summary="Normal blend mode, just composite over background with alpha channel"/>
+            <entry name="wallpaper" value="1" summary="Composite window over wallpaper"/>
+            <entry name="blur" value="2" summary="Blur the content of the window background"/>
         </enum>
-        <request name="set_background_type">
-            <description summary="set window background type">
-                Destroy the context object.
+        <request name="set_blend_mode">
+            <description summary="set window background blend mode">
+            Set window background blend mode
             </description>
-            <arg name="type" type="uint" summary="background enum"/>
+            <arg name="mode" type="int" enum="window_blend_mode"/>
+        </request>
+        <request name="set_round_corner_radius">
+            <description summary="set window round corner radius">
+            This request will set window round corner radius, invoking this request means user want to
+            manage window round corner radius by itself. If not invoked, window round corner radius will
+            be decided by compositor.
+            </description>
+            <arg name="radius" type="int"/>
+        </request>
+        <request name="set_shadow">
+            <description summary="set window shadow">
+            Set window shadow's radius, offset and color, invoking this request indicates that client want to manage
+            the window shadow by itself. If not invoked, window shadow will be decided by the compositor
+            </description>
+            <arg name="radius" type="int"/>
+            <arg name="offset_x" type="int"/>
+            <arg name="offset_y" type="int"/>
+            <arg name="r" type="int"/>
+            <arg name="g" type="int"/>
+            <arg name="b" type="int"/>
+            <arg name="a" type="int"/>
+        </request>
+        <request name="set_border">
+            <description summary="set window border">
+            Set window border width and color
+            </description>
+            <arg name="width" type="int"/>
+            <arg name="r" type="int"/>
+            <arg name="g" type="int"/>
+            <arg name="b" type="int"/>
+            <arg name="a" type="int"/>
+        </request>
+        <enum name="enable_mode">
+            <description summary="window enable mode">
+                Set window enable mode
+            </description>
+            <entry name="enable" value="0" summary="force enable titlebar"/>
+            <entry name="disable" value="1" summary="force disable titlebar"/>
+        </enum>
+        <request name="resizable">
+            <description summary="set if enable system resize">
+                Set if this window can be resized by system
+            </description>
+            <arg name="mode" type="int" enum="enable_mode"/>
+        </request>
+        <request name="movable">
+            <description summary="set if this window can be moved by system">
+                Set if this window can be moved by system
+            </description>
+            <arg name="mode" type="int" enum="enable_mode"/>
+        </request>
+        <request name="no_titlebar">
+            <description summary="set if system titlebar is enabled">
+            Set if system titlebar is enabled
+            </description>
+            <arg name="mode" type="int" enum="enable_mode"/>
         </request>
         <request name="destroy" type="destructor">
             <description summary="destroy the context object">

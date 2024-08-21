@@ -19,14 +19,14 @@ SurfaceItemFactory {
 
     property var doDestroy: helper.doDestroy
     property var cancelMinimize: helper.cancelMinimize
-    property var personalizationMapper: PersonalizationV1.Attached(wSurface)
+    property var personalizationMapper: wSurface.Personalization
     property int outputCounter: 0
     property bool isMinimized: helper.isMinimized
     property alias outputs: outputs
     property alias decoration: decoration
     readonly property XWaylandSurfaceItem asXwayland: {surfaceItem as XWaylandSurfaceItem}
     readonly property XdgSurfaceItem asXdg: {surfaceItem as XdgSurfaceItem}
-    readonly property bool hasDecoration: decoration.enable && !helper.isFullScreen
+    readonly property bool hasDecoration: personalizationMapper.noTitlebar || (decoration.enable && !helper.isFullScreen)
     z: {
         if (Helper.clientName(wSurface.surface) === "dde-desktop") {
             return -100 + 1
@@ -150,7 +150,7 @@ SurfaceItemFactory {
 
             Loader {
                 id: effectLoader
-                active: root.cornerRadius > 0 && decoration.enable
+                active: root.cornerRadius > 0 && hasDecoration
                 anchors.fill: parent
                 // TODO: Use QSGGeometry(like as Rectangle, Qt 6.8 supports topLeftRadius)
                 // to clip texture by vertex shader.
@@ -167,7 +167,7 @@ SurfaceItemFactory {
                             Rectangle {
                                 anchors {
                                     fill: parent
-                                    topMargin: -radius
+                                    topMargin: personalizationMapper.noTitlebar ? 0 : -radius
                                 }
                                 radius: Math.min(root.cornerRadius, content.width / 2, content.height)
                                 antialiasing: true
@@ -341,6 +341,7 @@ SurfaceItemFactory {
         visible: hasDecoration
         moveable: !helper.isMaximize && !helper.isFullScreen
         radius: cornerRadius
+        noTitlebar: personalizationMapper.noTitlebar
     }
 
     StackToplevelHelper {
