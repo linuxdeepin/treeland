@@ -48,12 +48,9 @@ class QuickPersonalizationManagerAttached : public QObject
     Q_PROPERTY(bool noTitlebar READ noTitlebar NOTIFY windowStateChanged)
 
 public:
-    QuickPersonalizationManagerAttached(WSurface *target, PersonalizationV1 *manager);
+    QuickPersonalizationManagerAttached(WToplevelSurface *target, PersonalizationV1 *manager);
 
-    Personalization::BackgroundType backgroundType() const
-    {
-        return static_cast<Personalization::BackgroundType>(m_backgroundType);
-    }
+    Personalization::BackgroundType backgroundType() const;
 
     int32_t cornerRadius() const { return m_cornerRadius; }
 
@@ -81,7 +78,7 @@ Q_SIGNALS:
     void windowStateChanged();
 
 private:
-    QObject *m_target;
+    WToplevelSurface *m_target;
     PersonalizationV1 *m_manager;
     int32_t m_backgroundType;
     int32_t m_cornerRadius;

@@ -3,11 +3,13 @@
 
 #include "personalizationmanager.h"
 
+#include <wlayersurface.h>
 #include <wxdgshell.h>
 #include <wxdgsurface.h>
 
 #include <qwcompositor.h>
 #include <qwdisplay.h>
+#include <qwlayershellv1.h>
 #include <qwsignalconnector.h>
 #include <qwxdgshell.h>
 
@@ -32,7 +34,7 @@ static PersonalizationV1 *PERSONALIZATION_MANAGER = nullptr;
 QuickPersonalizationManagerAttached *Personalization::qmlAttachedProperties(QObject *target)
 {
     if (auto *surface = qobject_cast<WToplevelSurface *>(target)) {
-        return new QuickPersonalizationManagerAttached(surface->surface(), PERSONALIZATION_MANAGER);
+        return new QuickPersonalizationManagerAttached(surface, PERSONALIZATION_MANAGER);
     }
 
     return nullptr;
@@ -322,17 +324,18 @@ bool PersonalizationV1::backgroundIsDark(const QString &output)
         .toBool();
 }
 
-QuickPersonalizationManagerAttached::QuickPersonalizationManagerAttached(WSurface *target,
+QuickPersonalizationManagerAttached::QuickPersonalizationManagerAttached(WToplevelSurface *target,
                                                                          PersonalizationV1 *manager)
     : QObject(manager)
     , m_target(target)
     , m_manager(manager)
 {
+    auto *wSurface = target->surface();
     connect(m_manager,
             &PersonalizationV1::backgroundTypeChanged,
             this,
-            [this, target](WSurface *surface, int32_t backgroundType) {
-                if (surface == m_target) {
+            [this, wSurface](WSurface *surface, int32_t backgroundType) {
+                if (surface == wSurface) {
                     m_backgroundType = backgroundType;
                     Q_EMIT backgroundTypeChanged();
                 }
@@ -341,8 +344,8 @@ QuickPersonalizationManagerAttached::QuickPersonalizationManagerAttached(WSurfac
     connect(m_manager,
             &PersonalizationV1::cornerRadiusChanged,
             this,
-            [this, target](WSurface *surface, int32_t cornerRadius) {
-                if (surface == m_target) {
+            [this, wSurface](WSurface *surface, int32_t cornerRadius) {
+                if (surface == wSurface) {
                     m_cornerRadius = cornerRadius;
                     Q_EMIT cornerRadiusChanged();
                 }
@@ -350,8 +353,8 @@ QuickPersonalizationManagerAttached::QuickPersonalizationManagerAttached(WSurfac
     connect(m_manager,
             &PersonalizationV1::shadowChanged,
             this,
-            [this, target](WSurface *surface, const Shadow &shadow) {
-                if (surface == m_target) {
+            [this, wSurface](WSurface *surface, const Shadow &shadow) {
+                if (surface == wSurface) {
                     m_shadow = shadow;
                     Q_EMIT shadowChanged();
                 }
@@ -359,22 +362,34 @@ QuickPersonalizationManagerAttached::QuickPersonalizationManagerAttached(WSurfac
     connect(m_manager,
             &PersonalizationV1::borderChanged,
             this,
-            [this, target](WSurface *surface, const Border &border) {
-                if (surface == m_target) {
+            [this, wSurface](WSurface *surface, const Border &border) {
+                if (surface == wSurface) {
                     m_border = border;
                     Q_EMIT borderChanged();
                 }
             });
-    connect(
-        m_manager,
-        &PersonalizationV1::windowStateChanged,
-        this,
-        [this, target](WSurface *surface, personalization_window_context_v1::WindowStates states) {
-            if (surface == m_target) {
-                m_states = states;
-                Q_EMIT windowStateChanged();
-            }
-        });
+    connect(m_manager,
+            &PersonalizationV1::windowStateChanged,
+            this,
+            [this, wSurface](WSurface *surface,
+                             personalization_window_context_v1::WindowStates states) {
+                if (surface == wSurface) {
+                    m_states = states;
+                    Q_EMIT windowStateChanged();
+                }
+            });
+}
+
+Personalization::BackgroundType QuickPersonalizationManagerAttached::backgroundType() const
+{
+    if (auto *target = qobject_cast<WLayerSurface *>(m_target)) {
+        auto scope = QString(target->handle()->handle()->scope);
+        QStringList forceList{ "dde-shell/dock", "dde-shell/launchpad" };
+        if (forceList.contains(scope)) {
+            return Personalization::Blend;
+        }
+    }
+    return static_cast<Personalization::BackgroundType>(m_backgroundType);
 }
 
 void PersonalizationV1::create(WServer *server)
