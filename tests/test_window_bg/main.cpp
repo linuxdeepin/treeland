@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "qwayland-treeland-personalization-manager-v1.h"
+#include "treeland-personalization-manager-protocol.h"
 
 #include <private/qwaylandwindow_p.h>
 
@@ -52,8 +53,11 @@ int main(int argc, char *argv[])
             // widget->setWindowFlags(Qt::FramelessWindowHint); // 可选，去除窗口边框
             widget->resize(640, 480);
 
-            QPushButton *button = new QPushButton("Click Me", widget);
+            QPushButton *button = new QPushButton("Change background", widget);
             button->setGeometry(0, 0, 100, 50); // 设置按钮的位置和大小
+
+            QPushButton *titlebar = new QPushButton("Change titlebar", widget);
+            titlebar->setGeometry(0, 55, 100, 50); // 设置按钮的位置和大小
 
             widget->show();
 
@@ -69,13 +73,25 @@ int main(int argc, char *argv[])
                         new PersonalizationWindow(manager.get_window_context(surface));
 
                     QObject::connect(button, &QPushButton::clicked, [context]() {
-                        static int state = 0;
-                        if (state > 2) {
+                        static int state = PersonalizationWindow::blend_mode_wallpaper;
+                        if (state > PersonalizationWindow::blend_mode_blur) {
                             state = 0;
                         }
-                        context->set_background_type(state);
+                        context->set_blend_mode(state);
                         qDebug() << "===========background state: ==========" << state;
                         state++;
+                    });
+
+                    QObject::connect(titlebar, &QPushButton::clicked, [context]() {
+                        static bool disableTitlebar = false;
+                        if (disableTitlebar) {
+                            context->no_titlebar(
+                                PERSONALIZATION_WINDOW_CONTEXT_V1_ENABLE_MODE_DISABLE);
+                        } else {
+                            context->no_titlebar(
+                                PERSONALIZATION_WINDOW_CONTEXT_V1_ENABLE_MODE_ENABLE);
+                        }
+                        disableTitlebar = !disableTitlebar;
                     });
                 }
             }

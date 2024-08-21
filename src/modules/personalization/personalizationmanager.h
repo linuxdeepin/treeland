@@ -18,41 +18,76 @@ QW_USE_NAMESPACE
 WAYLIB_SERVER_USE_NAMESPACE
 
 class PersonalizationV1;
+class QuickPersonalizationManagerAttached;
 
 class Personalization : public QObject
 {
     Q_OBJECT
     QML_NAMED_ELEMENT(Personalization)
     QML_UNCREATABLE("Only use for the enums.")
+    QML_ATTACHED(QuickPersonalizationManagerAttached)
 public:
     using QObject::QObject;
 
     enum BackgroundType { Normal, Wallpaper, Blend };
     Q_ENUM(BackgroundType)
+
+    static QuickPersonalizationManagerAttached *qmlAttachedProperties(QObject *target);
 };
 
 class QuickPersonalizationManagerAttached : public QObject
 {
     Q_OBJECT
-    Q_PROPERTY(Personalization::BackgroundType backgroundType READ backgroundType NOTIFY backgroundTypeChanged FINAL)
-    Q_PROPERTY(QQuickItem* backgroundImage READ backgroundImage CONSTANT FINAL)
     QML_ANONYMOUS
+    Q_PROPERTY(int32_t backgroundType READ backgroundType NOTIFY backgroundTypeChanged)
+    Q_PROPERTY(int32_t cornerRadius READ cornerRadius NOTIFY cornerRadiusChanged)
+    Q_PROPERTY(Shadow shadow READ shadow NOTIFY shadowChanged)
+    Q_PROPERTY(Border border READ border NOTIFY borderChanged)
+    Q_PROPERTY(bool resiable READ resiable NOTIFY windowStateChanged)
+    Q_PROPERTY(bool movable READ movable NOTIFY windowStateChanged)
+    Q_PROPERTY(bool noTitlebar READ noTitlebar NOTIFY windowStateChanged)
 
 public:
     QuickPersonalizationManagerAttached(WSurface *target, PersonalizationV1 *manager);
-    QuickPersonalizationManagerAttached(QQuickItem *target, PersonalizationV1 *manager);
 
-    Personalization::BackgroundType backgroundType() const { return m_backgroundType; };
+    Personalization::BackgroundType backgroundType() const
+    {
+        return static_cast<Personalization::BackgroundType>(m_backgroundType);
+    }
 
-    QQuickItem *backgroundImage() const;
+    int32_t cornerRadius() const { return m_cornerRadius; }
+
+    Shadow shadow() const { return m_shadow; }
+
+    Border border() const { return m_border; }
+
+    bool resiable() const
+    {
+        return m_states.testFlag(personalization_window_context_v1::resizable);
+    }
+
+    bool movable() const { return m_states.testFlag(personalization_window_context_v1::movable); }
+
+    bool noTitlebar() const
+    {
+        return m_states.testFlag(personalization_window_context_v1::noTitlebar);
+    }
 
 Q_SIGNALS:
     void backgroundTypeChanged();
+    void cornerRadiusChanged();
+    void shadowChanged();
+    void borderChanged();
+    void windowStateChanged();
 
 private:
     QObject *m_target;
     PersonalizationV1 *m_manager;
-    Personalization::BackgroundType m_backgroundType = Personalization::Normal;
+    int32_t m_backgroundType;
+    int32_t m_cornerRadius;
+    Shadow m_shadow;
+    Border m_border;
+    personalization_window_context_v1::WindowStates m_states;
 };
 
 class PersonalizationV1 : public QObject, public WServerInterface
@@ -70,15 +105,13 @@ public:
     void onWallpaperContextCreated(personalization_wallpaper_context_v1 *context);
     void onCursorContextCreated(personalization_cursor_context_v1 *context);
 
-    void onBackgroundTypeChanged(personalization_window_context_v1 *context);
+    void onWindowPersonalizationChanged();
     void onWallpaperCommit(personalization_wallpaper_context_v1 *context);
     void onGetWallpapers(personalization_wallpaper_context_v1 *context);
 
     void onCursorCommit(personalization_cursor_context_v1 *context);
     void onGetCursorTheme(personalization_cursor_context_v1 *context);
     void onGetCursorSize(personalization_cursor_context_v1 *context);
-
-    Q_INVOKABLE QuickPersonalizationManagerAttached *Attached(QObject *target);
 
     uid_t userId();
     void setUserId(uid_t uid);
@@ -90,15 +123,21 @@ public:
     void setCursorSize(const QSize &size);
     Q_INVOKABLE QString getOutputName(const WOutput *w_output);
     QByteArrayView interfaceName() const override;
-    Personalization::BackgroundType backgroundType(WSurface *surface);
+
+    personalization_window_context_v1 *getWindowContext(WSurface *surface);
 
 Q_SIGNALS:
-    void backgroundTypeChanged(WSurface *surface, Personalization::BackgroundType type);
     void userIdChanged(uid_t uid);
     void backgroundChanged(const QString &output, bool isdark);
     void lockscreenChanged();
     void cursorThemeChanged(const QString &name);
     void cursorSizeChanged(const QSize &size);
+    void backgroundTypeChanged(WSurface *surface, int32_t type);
+    void cornerRadiusChanged(WSurface *surface, int32_t radius);
+    void shadowChanged(WSurface *surface, const Shadow &shadow);
+    void borderChanged(WSurface *surface, const Border &border);
+    void windowStateChanged(WSurface *surface,
+                            const personalization_window_context_v1::WindowStates &states);
 
 public Q_SLOTS:
     QString background(const QString &output);
@@ -126,5 +165,5 @@ private:
     QString m_iniMetaData;
     QScopedPointer<DTK_CORE_NAMESPACE::DConfig> m_cursorConfig;
     treeland_personalization_manager_v1 *m_manager = nullptr;
-    QMap<WSurface *, Personalization::BackgroundType> m_surfaceBackgroundType;
+    QList<personalization_window_context_v1 *> m_windowContexts;
 };

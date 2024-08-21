@@ -17,13 +17,14 @@ Item {
     signal requestClose
     signal requestResize(var edges, bool movecursor)
 
-    readonly property real topMargin: titlebar.height
+    readonly property real topMargin: noTitlebar ? 0 : titlebar.height
     readonly property real bottomMargin: 0
     readonly property real leftMargin: 0
     readonly property real rightMargin: 0
     readonly property real titlebarHeight: 30
     property bool moveable: true
     property bool enable: true
+    property bool noTitlebar: false
     property D.Palette backgroundColor: DS.Style.highlightPanel.background
     property D.Palette outerShadowColor: DS.Style.highlightPanel.dropShadow
     property D.Palette innerShadowColor: DS.Style.highlightPanel.innerShadow
@@ -46,7 +47,7 @@ Item {
 
         anchors {
             fill: parent
-            margins: -10
+            margins: noTitlebar ? 0 : -10
         }
 
         hoverEnabled: true
@@ -102,6 +103,7 @@ Item {
         width: parent.width
         height: root.titlebarHeight
         clip: true
+        visible: !noTitlebar
 
         D.RoundRectangle {
             id: titlebarContent
