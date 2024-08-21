@@ -26,10 +26,6 @@ FocusScope {
     required property WaylandLayerSurface wSurface
     required property string type
 
-    // TODO: should move to protocol?
-    readonly property bool forceBlur: {
-        return Helper.shouldForceBlur(wSurface)
-    }
     readonly property bool forceBackground: {
         return Helper.isLaunchpad(wSurface)
     }
@@ -124,12 +120,8 @@ FocusScope {
         }
     }
 
-    WallpaperController {
-        id: wallpaperController
-    }
-
     Loader {
-        active: personalizationMapper.backgroundType === Personalization.Blend || forceBlur
+        active: surfaceItem && personalizationMapper.backgroundType === Personalization.Blend && !forceBackground
         parent: surfaceItem
         z: surfaceItem.z - 1
         anchors.fill: parent
@@ -150,25 +142,34 @@ FocusScope {
         }
     }
 
-    Rectangle {
-        id: cover
-        visible: forceBackground && !animation.active
-        parent: surfaceItem
-        z: surfaceItem.z - 2
-        anchors.fill: surfaceItem
-        color: 'black'
-        opacity: forceBackground && animation.active ? 0 : 0.6
+    WallpaperController {
+        id: wallpaperController
     }
 
     Loader {
-        active: forceBackground
-        z: surfaceItem.z - 1
+        active: surfaceItem && personalizationMapper.backgroundType === Personalization.Blend && forceBackground
         parent: surfaceItem.parent
+        z: surfaceItem.z - 1
         anchors.fill: surfaceItem
-        sourceComponent: ShaderEffectSource {
-            sourceItem: wallpaperController.proxy
-            hideSource: false
-            live: true
+        sourceComponent: Item {
+            anchors.fill: parent
+            MultiEffect {
+                id: blur
+                anchors.fill: parent
+                source: wallpaperController.proxy
+                autoPaddingEnabled: false
+                blurEnabled: true
+                blur: 1.0
+                blurMax: 64
+                saturation: 0.2
+            }
+            Rectangle {
+                id: cover
+                anchors.fill: parent
+                color: 'black'
+                opacity: 0.6
+                visible: forceBackground
+            }
         }
         opacity: mapped ? 1 : 0
         Behavior on opacity {
@@ -196,6 +197,7 @@ FocusScope {
             }
         }
 
+        animation.active = false
         if (!animation.active) {
             animation.active = true
             if (forceBackground) {
