@@ -121,7 +121,7 @@ public Q_SLOTS:
     void setMinimize(bool on) override;
     void setFullScreen(bool on) override;
     void setActivate(bool on) override;
-    void close();
+    void close() override;
     void restack(WXWaylandSurface *sibling, StackMode mode);
 
 Q_SIGNALS:

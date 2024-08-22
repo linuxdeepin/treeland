@@ -94,6 +94,8 @@ public Q_SLOTS:
     virtual void resize(const QSize &size) {
         Q_UNUSED(size)
     }
+    virtual void close() {
+    }
 
 Q_SIGNALS:
     void activateChanged();

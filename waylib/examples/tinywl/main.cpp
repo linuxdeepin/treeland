@@ -40,6 +40,7 @@
 #include <qwfractionalscalemanagerv1.h>
 #include <qwgammacontorlv1.h>
 #include <qwbuffer.h>
+#include <qwxdgshell.h>
 
 #include <QGuiApplication>
 #include <QQmlApplicationEngine>
@@ -170,17 +171,18 @@ void Helper::initProtocols(WOutputRenderWindow *window, QQmlEngine *qmlEngine)
         return client == m_xwayland->waylandClient();
     });
 
-    connect(m_xwayland, &WXWayland::surfaceAdded, this, [this, qmlEngine] (WXWaylandSurface *surface) {
-        surface->safeConnect(&qw_xwayland_surface::notify_associate, this, [this, surface, qmlEngine] {
+    connect(m_xwayland, &WXWayland::surfaceAdded, this, [this, qmlEngine, foreignToplevel] (WXWaylandSurface *surface) {
+        surface->safeConnect(&qw_xwayland_surface::notify_associate, this, [this, surface, qmlEngine, foreignToplevel] {
             auto initProperties = qmlEngine->newObject();
             initProperties.setProperty("waylandSurface", qmlEngine->toScriptValue(surface));
 
             m_xwaylandCreator->add(surface, initProperties);
+            foreignToplevel->addSurface(surface);
         });
-        surface->safeConnect(&qw_xwayland_surface::notify_dissociate, this, [this, surface] {
+        surface->safeConnect(&qw_xwayland_surface::notify_dissociate, this, [this, surface, foreignToplevel] {
             m_xwaylandCreator->removeByOwner(surface);
+            foreignToplevel->removeSurface(surface);
         });
-
     });
 
     connect(layerShell, &WLayerShell::surfaceAdded, this, [this, qmlEngine](WLayerSurface *surface) {

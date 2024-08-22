@@ -68,6 +68,7 @@ public Q_SLOTS:
 
     bool checkNewSize(const QSize &size) override;
     void resize(const QSize &size) override;
+    void close() override;
 
 Q_SIGNALS:
     void parentXdgSurfaceChanged();

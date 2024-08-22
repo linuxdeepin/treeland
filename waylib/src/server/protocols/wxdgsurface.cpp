@@ -259,6 +259,20 @@ void WXdgSurface::resize(const QSize &size)
     }
 }
 
+void WXdgSurface::close()
+{
+    W_D(WXdgSurface);
+
+    if (Q_LIKELY(isToplevel())) {
+        auto toplevel = qw_xdg_toplevel::from(d->nativeHandle()->toplevel);
+        toplevel->send_close();
+    } else if (Q_LIKELY(isPopup())) {
+        // wlr_xdg_popup_destroy will send popup_done to the client
+        // can't use delete qw_xdg_popup, which is not owner of wlr_xdg_popup
+        wlr_xdg_popup_destroy(d->nativeHandle()->popup);
+    }
+}
+
 bool WXdgSurface::isResizeing() const
 {
     W_DC(WXdgSurface);

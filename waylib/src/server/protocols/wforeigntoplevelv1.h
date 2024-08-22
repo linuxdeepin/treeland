@@ -14,7 +14,7 @@ Q_MOC_INCLUDE("wsurface.h")
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
-class WXdgSurface;
+class WToplevelSurface;
 class WForeignToplevelPrivate;
 class WAYLIB_SERVER_EXPORT WForeignToplevel : public QObject, public WServerInterface, public WObject
 {
@@ -24,18 +24,18 @@ class WAYLIB_SERVER_EXPORT WForeignToplevel : public QObject, public WServerInte
 public:
     explicit WForeignToplevel(QObject *parent = nullptr);
 
-    void addSurface(WXdgSurface *surface);
-    void removeSurface(WXdgSurface *surface);
+    void addSurface(WToplevelSurface *surface);
+    void removeSurface(WToplevelSurface *surface);
 
     QByteArrayView interfaceName() const override;
 
 Q_SIGNALS:
-    void requestMaximize(WXdgSurface *surface, bool isMaximized);
-    void requestMinimize(WXdgSurface *surface, bool isMinimized);
-    void requestActivate(WXdgSurface *surface);
-    void requestFullscreen(WXdgSurface *surface, bool isFullscreen);
-    void requestClose(WXdgSurface *surface);
-    void rectangleChanged(WXdgSurface *surface, const QRect &rect);
+    void requestMaximize(WToplevelSurface *surface, bool isMaximized);
+    void requestMinimize(WToplevelSurface *surface, bool isMinimized);
+    void requestActivate(WToplevelSurface *surface);
+    void requestFullscreen(WToplevelSurface *surface, bool isFullscreen);
+    void requestClose(WToplevelSurface *surface);
+    void rectangleChanged(WToplevelSurface *surface, const QRect &rect);
 
 private:
     void create(WServer *server) override;
