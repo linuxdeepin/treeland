@@ -46,9 +46,9 @@ static void set_border(struct wl_client *client,
                        int32_t b,
                        int32_t a);
 
-static void resizable(struct wl_client *client, struct wl_resource *resource, int32_t mode);
-static void movable(struct wl_client *client, struct wl_resource *resource, int32_t mode);
-static void no_titlebar(struct wl_client *client, struct wl_resource *resource, int32_t mode);
+static void set_resizable(struct wl_client *client, struct wl_resource *resource, int32_t mode);
+static void set_movable(struct wl_client *client, struct wl_resource *resource, int32_t mode);
+static void set_no_titlebar(struct wl_client *client, struct wl_resource *resource, int32_t mode);
 
 static void on_destroy([[maybe_unused]] struct wl_client *client, struct wl_resource *resource)
 {
@@ -64,9 +64,9 @@ static const struct personalization_window_context_v1_interface
         .set_round_corner_radius = Personalization::WindowContext::set_round_corner_radius,
         .set_shadow = Personalization::WindowContext::set_shadow,
         .set_border = Personalization::WindowContext::set_border,
-        .resizable = Personalization::WindowContext::resizable,
-        .movable = Personalization::WindowContext::movable,
-        .no_titlebar = Personalization::WindowContext::no_titlebar,
+        .set_resizable = Personalization::WindowContext::set_resizable,
+        .set_movable = Personalization::WindowContext::set_movable,
+        .set_no_titlebar = Personalization::WindowContext::set_no_titlebar,
         .destroy = Personalization::WindowContext::on_destroy,
     };
 
@@ -144,7 +144,7 @@ static void set_border(struct wl_client *client,
     }
 }
 
-static void resizable(struct wl_client *client, struct wl_resource *resource, int32_t mode)
+static void set_resizable(struct wl_client *client, struct wl_resource *resource, int32_t mode)
 {
     if (auto *window = personalization_window_from_resource(resource)) {
         window->states.setFlag(personalization_window_context_v1::WindowState::resizable,
@@ -153,7 +153,7 @@ static void resizable(struct wl_client *client, struct wl_resource *resource, in
     }
 }
 
-static void movable(struct wl_client *client, struct wl_resource *resource, int32_t mode)
+static void set_movable(struct wl_client *client, struct wl_resource *resource, int32_t mode)
 {
     if (auto *window = personalization_window_from_resource(resource)) {
         window->states.setFlag(personalization_window_context_v1::WindowState::movable,
@@ -162,7 +162,7 @@ static void movable(struct wl_client *client, struct wl_resource *resource, int3
     }
 }
 
-static void no_titlebar(struct wl_client *client, struct wl_resource *resource, int32_t mode)
+static void set_no_titlebar(struct wl_client *client, struct wl_resource *resource, int32_t mode)
 {
     if (auto *window = personalization_window_from_resource(resource)) {
         window->states.setFlag(personalization_window_context_v1::WindowState::noTitlebar,
