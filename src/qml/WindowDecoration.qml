@@ -36,8 +36,8 @@ Item {
     D.BoxShadow {
         anchors.fill: root
         shadowColor: root.D.ColorSelector.outerShadowColor
-        shadowOffsetY: 4
-        shadowBlur: 16
+        shadowOffsetY: 2
+        shadowBlur: 10
         cornerRadius: root.radius
         hollow: true
     }
