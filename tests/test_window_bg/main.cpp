@@ -85,10 +85,10 @@ int main(int argc, char *argv[])
                     QObject::connect(titlebar, &QPushButton::clicked, [context]() {
                         static bool disableTitlebar = false;
                         if (disableTitlebar) {
-                            context->no_titlebar(
+                            context->set_no_titlebar(
                                 PERSONALIZATION_WINDOW_CONTEXT_V1_ENABLE_MODE_DISABLE);
                         } else {
-                            context->no_titlebar(
+                            context->set_no_titlebar(
                                 PERSONALIZATION_WINDOW_CONTEXT_V1_ENABLE_MODE_ENABLE);
                         }
                         disableTitlebar = !disableTitlebar;

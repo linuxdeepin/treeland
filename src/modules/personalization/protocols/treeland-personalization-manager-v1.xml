@@ -220,19 +220,19 @@
             <entry name="enable" value="0" summary="force enable titlebar"/>
             <entry name="disable" value="1" summary="force disable titlebar"/>
         </enum>
-        <request name="resizable">
+        <request name="set_resizable">
             <description summary="set if enable system resize">
                 Set if this window can be resized by system
             </description>
             <arg name="mode" type="int" enum="enable_mode"/>
         </request>
-        <request name="movable">
+        <request name="set_movable">
             <description summary="set if this window can be moved by system">
                 Set if this window can be moved by system
             </description>
             <arg name="mode" type="int" enum="enable_mode"/>
         </request>
-        <request name="no_titlebar">
+        <request name="set_no_titlebar">
             <description summary="set if system titlebar is enabled">
             Set if system titlebar is enabled
             </description>
