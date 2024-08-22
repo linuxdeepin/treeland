@@ -54,6 +54,9 @@ WQuickCoordMapper *WQuickCoordMapperHelper::get(WQuickObserver *target)
     connect(mapper, &WQuickCoordMapper::destroyed, this, [this] {
         list.removeOne(qobject_cast<WQuickCoordMapper*>(QObject::sender()));
     });
+
+    connect(target, &WQuickCoordMapper::destroyed, mapper, &WQuickCoordMapper::deleteLater);
+
     list.append(mapper);
 
     return mapper;
