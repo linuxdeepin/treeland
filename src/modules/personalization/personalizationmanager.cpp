@@ -3,6 +3,8 @@
 
 #include "personalizationmanager.h"
 
+#include "impl/personalization_manager_impl.h"
+
 #include <wlayersurface.h>
 #include <wxdgshell.h>
 #include <wxdgsurface.h>
@@ -119,29 +121,9 @@ void PersonalizationV1::onWindowContextCreated(personalization_window_context_v1
         m_windowContexts.removeAll(context);
     });
 
-    connect(context,
-            &personalization_window_context_v1::backgroundTypeChanged,
-            this,
-            [this, context] {
-                Q_EMIT backgroundTypeChanged(WSurface::fromHandle(context->surface),
-                                             context->background_type);
-            });
-    connect(context,
-            &personalization_window_context_v1::cornerRadiusChanged,
-            this,
-            [this, context] {
-                Q_EMIT cornerRadiusChanged(WSurface::fromHandle(context->surface),
-                                           context->corner_radius);
-            });
-    connect(context, &personalization_window_context_v1::shadowChanged, this, [this, context] {
-        Q_EMIT shadowChanged(WSurface::fromHandle(context->surface), context->shadow);
-    });
-    connect(context, &personalization_window_context_v1::borderChanged, this, [this, context] {
-        Q_EMIT borderChanged(WSurface::fromHandle(context->surface), context->border);
-    });
-    connect(context, &personalization_window_context_v1::windowStateChanged, this, [this, context] {
-        Q_EMIT windowStateChanged(WSurface::fromHandle(context->surface), context->states);
-    });
+    m_windowContexts.append(context);
+
+    Q_EMIT windowContextCreated(context);
 }
 
 void PersonalizationV1::onWallpaperContextCreated(personalization_wallpaper_context_v1 *context)
@@ -330,54 +312,49 @@ QuickPersonalizationManagerAttached::QuickPersonalizationManagerAttached(WToplev
     , m_target(target)
     , m_manager(manager)
 {
-    auto *wSurface = target->surface();
-    connect(m_manager,
-            &PersonalizationV1::backgroundTypeChanged,
-            this,
-            [this, wSurface](WSurface *surface, int32_t backgroundType) {
-                if (surface == wSurface) {
-                    m_backgroundType = backgroundType;
+    auto update = [this](personalization_window_context_v1 *context) {
+        if (!context) {
+            return;
+        }
+        connect(context,
+                &personalization_window_context_v1::backgroundTypeChanged,
+                this,
+                [this, context] {
+                    m_backgroundType = context->background_type;
                     Q_EMIT backgroundTypeChanged();
-                }
-            });
-
-    connect(m_manager,
-            &PersonalizationV1::cornerRadiusChanged,
-            this,
-            [this, wSurface](WSurface *surface, int32_t cornerRadius) {
-                if (surface == wSurface) {
-                    m_cornerRadius = cornerRadius;
+                });
+        connect(context,
+                &personalization_window_context_v1::cornerRadiusChanged,
+                this,
+                [this, context] {
+                    m_cornerRadius = context->corner_radius;
                     Q_EMIT cornerRadiusChanged();
-                }
-            });
-    connect(m_manager,
-            &PersonalizationV1::shadowChanged,
-            this,
-            [this, wSurface](WSurface *surface, const Shadow &shadow) {
-                if (surface == wSurface) {
-                    m_shadow = shadow;
-                    Q_EMIT shadowChanged();
-                }
-            });
-    connect(m_manager,
-            &PersonalizationV1::borderChanged,
-            this,
-            [this, wSurface](WSurface *surface, const Border &border) {
-                if (surface == wSurface) {
-                    m_border = border;
-                    Q_EMIT borderChanged();
-                }
-            });
-    connect(m_manager,
-            &PersonalizationV1::windowStateChanged,
-            this,
-            [this, wSurface](WSurface *surface,
-                             personalization_window_context_v1::WindowStates states) {
-                if (surface == wSurface) {
-                    m_states = states;
+                });
+
+        connect(context, &personalization_window_context_v1::shadowChanged, this, [this, context] {
+            m_shadow = context->shadow;
+            Q_EMIT shadowChanged();
+        });
+
+        connect(context, &personalization_window_context_v1::borderChanged, this, [this, context] {
+            m_border = context->border;
+            Q_EMIT borderChanged();
+        });
+
+        connect(context,
+                &personalization_window_context_v1::windowStateChanged,
+                this,
+                [this, context] {
+                    m_states = context->states;
                     Q_EMIT windowStateChanged();
-                }
-            });
+                });
+    };
+
+    connect(m_manager, &PersonalizationV1::windowContextCreated, this, update);
+
+    if (auto *context = m_manager->getWindowContext(target->surface())) {
+        update(context);
+    }
 }
 
 Personalization::BackgroundType QuickPersonalizationManagerAttached::backgroundType() const
