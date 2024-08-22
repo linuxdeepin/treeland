@@ -14,7 +14,7 @@ import org.deepin.dtk.style 1.0 as DS
 Item {
     id: root
 
-    enum ActiveMethod {
+    enum ActiveReason {
         ShortcutKey = 1,
         Gesture
     }
@@ -30,35 +30,32 @@ Item {
     readonly property int wsDelegateHeight: wsThumbHeight + wsThumbMargin * 2
     readonly property int wsThumbCornerRadius: 8
     readonly property int highlightBorderWidth: 4
-    readonly property real maskAlpha: 0.6
-    readonly property color maskColor: Qt.rgba(0, 0, 0, maskAlpha)
-    readonly property int surfacesViewMargin: 40
     readonly property int maxWorkspace: 6
+    readonly property int minWindowHeight: 232
+    readonly property real titleBoxCornerRadius: 5
 
     required property int currentWorkspaceId
     required property var setCurrentWorkspaceId
     required property SlideAnimationController animationController
     property ListModel model: QmlHelper.workspaceManager.workspacesById.get(QmlHelper.workspaceManager.layoutOrder.get(currentWorkspaceId).wsid).surfaces
-    property int current: -1
-    property int fadeDuration: 250
+    property int animationDuration: 250
+    property int animationEasing: Easing.OutExpo
     property int currentWsid // Used to store real current workspace id temporarily
     property bool exited: false
-    property int activeMethod: MultitaskView.ActiveMethod.ShortcutKey
+    property int activeReason: MultitaskView.ActiveReason.ShortcutKey
     property D.Palette outerShadowColor: DS.Style.highlightPanel.dropShadow
 
     property bool initialized: false
     readonly property QtObject taskViewGesture: Helper.multiTaskViewGesture
     property real taskviewVal: 0
 
-    function entry(method) {
-        activeMethod = method
+    function enter(reason) {
+        activeReason = reason
     }
 
     function exit(surfaceItem) {
         if (surfaceItem)
             Helper.activatedSurface = surfaceItem.shellSurface
-        else if (current >= 0 && current < model.count)
-            Helper.activatedSurface = model.get(current).item.shellSurface
 
         if (taskViewGesture.status === 3)
             taskViewGesture.toggle()
@@ -99,7 +96,7 @@ Item {
             return "initial";
         }
 
-        if (activeMethod === MultitaskView.ActiveMethod.ShortcutKey){
+        if (activeReason === MultitaskView.ActiveReason.ShortcutKey){
             return "taskview";
         } else {
             if (taskViewGesture.inProgress) return "partial";
@@ -112,9 +109,9 @@ Item {
     transitions: Transition {
         to: "initial, taskview"
         NumberAnimation {
-            duration: fadeDuration
+            duration: animationDuration
             property: "taskviewVal"
-            easing.type: Easing.OutCubic
+            easing.type: animationEasing
         }
     }
 
@@ -146,11 +143,6 @@ Item {
                 width: displayRect.width
                 height: displayRect.height
                 readonly property real whRatio: width / height
-                readonly property real localAnimationScaleFactor: width / animationController.refWidth
-
-                HoverHandler {
-                    id: rootHvrHdlr
-                }
 
                 TapHandler {
                     gesturePolicy: TapHandler.WithinBounds
@@ -185,6 +177,7 @@ Item {
                                 dragManager.item = null
                             }
                         }
+
                         DelegateModel.inPersistedItems: true
                         property var initialState
                         Rectangle {
@@ -294,7 +287,7 @@ Item {
 
                             D.RoundButton {
                                 id: wsDestroyBtn
-                                icon.name: "close"
+                                icon.name: "multitaskview_close"
                                 icon.width: 26
                                 icon.height: 26
                                 height: 26
@@ -364,8 +357,8 @@ Item {
                         displaced: Transition {
                             NumberAnimation {
                                 property: "x"
-                                duration: fadeDuration
-                                easing.type: Easing.OutExpo
+                                duration: animationDuration
+                                easing.type: animationEasing
                             }
                         }
                     }
@@ -416,6 +409,7 @@ Item {
                     z: MultitaskView.ZOrder.Background
                     id: blitter
                     anchors.fill: parent
+                    opacity: taskviewVal
                     MultiEffect {
                         id: blur
                         anchors.fill: parent
@@ -443,10 +437,7 @@ Item {
                             id: surfacesGridView
                             anchors {
                                 fill: parent
-                                topMargin: surfacesViewMargin + wsDelegateHeight
-                                leftMargin: surfacesViewMargin
-                                rightMargin: surfacesViewMargin
-                                bottomMargin: surfacesViewMargin
+                                topMargin: wsDelegateHeight
                             }
                             active: false
                             Component.onCompleted: {
@@ -465,11 +456,6 @@ Item {
                                                           return false
                                                           return item.shellSurface.surface.primaryOutput === modelData.output
                                                       }
-                                    Component.onCompleted: {
-                                        initialized = true  // TODO better initialize timing
-                                        invalidate()
-                                        grid.calcLayout()
-                                    }
                                     onSourceModelChanged: {
                                         invalidate()
                                         if (initialized) grid.calcLayout()
@@ -478,24 +464,45 @@ Item {
 
                                 EQHGrid {
                                     id: grid
-                                    anchors.fill: parent
+                                    width: parent.width
+                                    height: parent.height
                                     model: outputProxy
-                                    minH: 100
-                                    maxH: parent.height
-                                    maxW: parent.width
-                                    availH: parent.height
-                                    availW: parent.width
                                     getRatio: (d) => d.item.width / d.item.height
                                     inProgress: !Number.isInteger(taskviewVal)
                                     partialGestureFactor: root.taskviewVal
-                                    activeMethod: root.activeMethod
+                                    activeReason: root.activeReason
+                                    animationDuration: root.animationDuration
+                                    animationEasing: root.animationEasing
                                     exited: root.exited
+                                    onRequestExit: {
+                                        root.exit()
+                                    }
                                     delegate: Item {
                                         id: surfaceItemDelegate
+                                        property bool shouldPadding: needPadding
+                                        D.BoxShadow {
+                                            anchors.fill: paddingRect
+                                            visible: paddingRect.visible
+                                            shadowColor: root.D.ColorSelector.outerShadowColor
+                                            shadowOffsetY: 2
+                                            shadowBlur: 10
+                                            cornerRadius: grid.delegateCornerRadius
+                                            hollow: true
+                                        }
+                                        Rectangle {
+                                            id: paddingRect
+                                            visible: shouldPadding
+                                            radius: grid.delegateCornerRadius
+                                            anchors.fill: parent
+                                            color: "white"
+                                            opacity: paddingOpacity
+                                        }
                                         property SurfaceItem source: modelData.item
                                         property SurfaceWrapper wrapper: modelData.wrapper
                                         property real ratio: source.width / source.height
-                                        onRatioChanged: {
+                                        property real fullY
+                                        clip: false
+                                        onRatioChanged: if (grid.windowLoaded) {
                                             grid.calcLayout()
                                         }
                                         states: [
@@ -503,45 +510,25 @@ Item {
                                                 name: "dragging"
                                                 when: drg.active
                                                 PropertyChanges {
+                                                    restoreEntryValues: true // FIXME: does this restore propery binding?
                                                     surfaceItemDelegate {
                                                         parent: outputPlacementItem
                                                         x: mapToItem(outputPlacementItem, 0, 0).x
                                                         y: mapToItem(outputPlacementItem, 0, 0).y
                                                         z: MultitaskView.ZOrder.FloatingItem
+                                                        scale: (Math.max(0, Math.min(drg.activeTranslation.y / fullY, 1)) * (100 - width) + width) / width
+                                                        transformOrigin: Item.Center
+                                                        shouldPadding: false
                                                     }
                                                 }
                                             }
                                         ]
 
-                                        property var initialState
-                                        property point animationAnchor
-                                        property real invariantXRatio
-                                        property real invariantYRatio
-                                        property real destY
-                                        property real fullY
                                         function conv(y, item = parent) { // convert to outputPlacementItem's coord
                                             return mapToItem(outputPlacementItem, mapFromItem(item, 0, y)).y
                                         }
 
-                                        Connections {
-                                            target: rootHvrHdlr
-                                            function onPointChanged() {
-                                                if (drg.active) {
-                                                    const mX = rootHvrHdlr.point.position.x
-                                                    const mY = rootHvrHdlr.point.position.y
-                                                    const destW = 100
-                                                    const cursor = mapToItem(surfaceItemDelegate.parent, mapFromItem(outputPlacementItem, mX, mY))
-                                                    const deltY = Math.max(Math.min(mY - destY, fullY), 0)
-                                                    scale = (((fullY - deltY) / fullY) * (destW - initialState.width) + initialState.width) / initialState.width
-                                                }
-                                            }
-                                        }
-
-                                        width: displayWidth
-                                        height: width * source.height / source.width
-                                        // clip: true
-                                        z: drg.active ? 1 : 0   // dragged item should float
-                                        property bool highlighted: dragManager.item !== this && (hvhdlr.hovered || surfaceCloseBtn.hovered) && !root.exited
+                                        property bool highlighted: dragManager.item === null && (hvhdlr.hovered || surfaceCloseBtn.hovered) && !root.exited
                                         HoverHandler {
                                             id: hvhdlr
                                             enabled: !drg.active
@@ -552,89 +539,92 @@ Item {
                                         }
                                         DragHandler {
                                             id: drg
-                                            onActiveChanged: if (active) {
-                                                                 dragManager.item = parent
-                                                                 initialState = {x: parent.x, y: parent.y, width: parent.width}
-                                                             } else {
-                                                                 if (dragManager.accept) {
-                                                                     dragManager.accept()
-                                                                 } else {
-                                                                     parent.x = initialState.x
-                                                                     parent.y = initialState.y
-                                                                     scale = 1
-                                                                 }
-                                                                 dragManager.item = null
-                                                             }
+                                            onActiveChanged: {
+                                                if (active) {
+                                                    dragManager.item = parent
+                                                } else {
+                                                    if (dragManager.accept) {
+                                                        dragManager.accept()
+                                                    }
+                                                    dragManager.item = null
+                                                }
+                                            }
                                             onGrabChanged: (transition, eventPoint) => {
                                                                switch (transition) {
                                                                    case PointerDevice.GrabExclusive:
-                                                                   animationAnchor = mapToItem(surfaceItemDelegate, eventPoint.position)
-                                                                   invariantXRatio = animationAnchor.x / surfaceItemDelegate.width
-                                                                   invariantYRatio = animationAnchor.y / surfaceItemDelegate.height
-                                                                   destY = conv(workspacesList.height, workspacesList)
-                                                                   fullY = conv(animationAnchor.y, surfaceItemDelegate) - destY
+                                                                   fullY = conv(workspacesList.height, workspacesList) - conv(mapToItem(surfaceItemDelegate, eventPoint.position).y, surfaceItemDelegate)
                                                                    break
                                                                }
                                                            }
                                         }
-                                        Rectangle {
-                                            anchors.fill: parent
-                                            color: "transparent"
-                                            border.width: highlighted ? highlightBorderWidth : 0
-                                            border.color: "blue"
-                                            radius: surfaceShot.cornerRadius + highlightBorderWidth
-                                        }
 
                                         Item {
-                                            id: surfaceShot
-                                            readonly property real cornerRadius: wrapper.decoration.radius * width / source.width
-                                            anchors {
-                                                fill: parent
-                                                margins: highlightBorderWidth
-                                            }
-
-                                            D.BoxShadow {
-                                                anchors.fill: parent
-                                                shadowColor: root.D.ColorSelector.outerShadowColor
-                                                shadowOffsetY: 4
-                                                shadowBlur: 16
-                                                cornerRadius: surfaceShot.cornerRadius
-                                                hollow: true
-                                            }
-
-                                            ShaderEffectSource {
-                                                id: preview
-                                                anchors.fill: parent
-                                                live: true
-                                                // no hidesource, may conflict with workspace thumb
-                                                smooth: true
-                                                sourceItem: source
-                                                visible: false
-                                            }
-
-                                            MultiEffect {
-                                                enabled: surfaceShot.cornerRadius > 0
-                                                anchors.fill: preview
-                                                source: preview
-                                                maskEnabled: true
-                                                maskSource: mask
-                                            }
-
+                                            anchors.fill: parent
+                                            clip: shouldPadding
                                             Item {
-                                                id: mask
-                                                anchors.fill: preview
-                                                layer.enabled: true
-                                                visible: false
-                                                Rectangle {
+                                                id: surfaceShot
+                                                width: parent.width
+                                                height: width / ratio
+                                                anchors.centerIn: parent
+
+                                                D.BoxShadow {
                                                     anchors.fill: parent
-                                                    radius: surfaceShot.cornerRadius
+                                                    shadowColor: root.D.ColorSelector.outerShadowColor
+                                                    shadowOffsetY: 2
+                                                    shadowBlur: 10
+                                                    cornerRadius: grid.delegateCornerRadius
+                                                    hollow: true
+                                                }
+
+                                                ShaderEffectSource {
+                                                    id: preview
+                                                    anchors.fill: parent
+                                                    live: true
+                                                    // no hidesource, may conflict with workspace thumb
+                                                    smooth: true
+                                                    sourceItem: source
+                                                    visible: false
+                                                }
+
+                                                MultiEffect {
+                                                    enabled: grid.delegateCornerRadius > 0
+                                                    anchors.fill: preview
+                                                    source: preview
+                                                    maskEnabled: true
+                                                    maskSource: mask
+                                                }
+
+                                                Item {
+                                                    id: mask
+                                                    anchors.fill: preview
+                                                    layer.enabled: true
+                                                    visible: false
+                                                    Rectangle {
+                                                        anchors.fill: parent
+                                                        radius: grid.delegateCornerRadius
+                                                    }
                                                 }
                                             }
                                         }
 
+                                        Rectangle {
+                                            anchors {
+                                                fill: parent
+                                                topMargin: -highlightBorderWidth
+                                                bottomMargin: -highlightBorderWidth
+                                                leftMargin: -highlightBorderWidth
+                                                rightMargin: -highlightBorderWidth
+                                            }
+
+                                            color: "transparent"
+                                            border.width: highlighted ? highlightBorderWidth : 0
+                                            border.color: "blue"
+                                            radius: grid.delegateCornerRadius + highlightBorderWidth
+                                        }
+
                                         D.RoundButton {
                                             id: surfaceCloseBtn
-                                            icon.name: "close"
+                                            icon.name: "multitaskview_close"
                                             icon.width: 26
                                             icon.height: 26
                                             height: 26
@@ -679,7 +669,7 @@ Item {
                                             }
                                             background: Rectangle {
                                                 color: Qt.rgba(255, 255, 255, .2)
-                                                radius: 5
+                                                radius: titleBoxCornerRadius
                                             }
                                         }
                                     }
