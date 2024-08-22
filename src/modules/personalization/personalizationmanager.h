@@ -129,12 +129,7 @@ Q_SIGNALS:
     void lockscreenChanged();
     void cursorThemeChanged(const QString &name);
     void cursorSizeChanged(const QSize &size);
-    void backgroundTypeChanged(WSurface *surface, int32_t type);
-    void cornerRadiusChanged(WSurface *surface, int32_t radius);
-    void shadowChanged(WSurface *surface, const Shadow &shadow);
-    void borderChanged(WSurface *surface, const Border &border);
-    void windowStateChanged(WSurface *surface,
-                            const personalization_window_context_v1::WindowStates &states);
+    void windowContextCreated(personalization_window_context_v1 *context);
 
 public Q_SLOTS:
     QString background(const QString &output);
