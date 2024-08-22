@@ -52,7 +52,7 @@ WQuickCoordMapper *WQuickCoordMapperHelper::get(WQuickObserver *target)
 
     auto mapper = new WQuickCoordMapper(target, m_target);
     connect(mapper, &WQuickCoordMapper::destroyed, this, [this] {
-        list.removeOne(qobject_cast<WQuickCoordMapper*>(QObject::sender()));
+        list.removeOne(static_cast<WQuickCoordMapper*>(QObject::sender()));
     });
 
     connect(target, &WQuickCoordMapper::destroyed, mapper, &WQuickCoordMapper::deleteLater);
