@@ -192,11 +192,6 @@ void Helper::initProtocols(WOutputRenderWindow *window)
                             }
                         }
                     }
-
-                    if (onlyTest)
-                        ok &= output->test();
-                    else
-                        ok &= output->commit();
                 }
                 outputManager->sendResult(config, ok);
 
