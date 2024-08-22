@@ -654,7 +654,7 @@ FocusScope {
         function onMultitaskViewToggled() {
             if (!multitaskView.active) {
                 multitaskView.active = true
-                multitaskView.item.entry(MultitaskView.ActiveMethod.ShortcutKey)
+                multitaskView.item.enter(MultitaskView.ActiveReason.ShortcutKey)
             } else {
                 multitaskView.item.exit()
             }
@@ -707,7 +707,7 @@ FocusScope {
         onStatusChanged: (status) => {
             if (status === 1 || status === 2 || status ===3) {
                 multitaskView.active = true
-                multitaskView.item.entry(MultitaskView.ActiveMethod.Gesture)
+                multitaskView.item.enter(MultitaskView.ActiveReason.Gesture)
             } else {
                 multitaskView.active = false
             }
