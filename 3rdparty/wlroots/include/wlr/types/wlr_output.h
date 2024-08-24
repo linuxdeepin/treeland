@@ -74,6 +74,7 @@ enum wlr_output_state_field {
 	WLR_OUTPUT_STATE_LAYERS = 1 << 10,
 	WLR_OUTPUT_STATE_WAIT_TIMELINE = 1 << 11,
 	WLR_OUTPUT_STATE_SIGNAL_TIMELINE = 1 << 12,
+	WLR_OUTPUT_STATE_COLOR_TRANSFORM = 1 << 13,
 };
 
 enum wlr_output_state_mode_type {
@@ -132,6 +133,8 @@ struct wlr_output_state {
 	uint64_t wait_point;
 	struct wlr_drm_syncobj_timeline *signal_timeline;
 	uint64_t signal_point;
+
+	struct wlr_color_transform *color_transform;
 };
 
 struct wlr_output_impl;
@@ -586,6 +589,13 @@ void wlr_output_state_set_wait_timeline(struct wlr_output_state *state,
  */
 void wlr_output_state_set_signal_timeline(struct wlr_output_state *state,
 	struct wlr_drm_syncobj_timeline *timeline, uint64_t dst_point);
+/**
+ * Set the color transform for an output.
+ *
+ * The color transform is applied after blending output layers.
+ */
+void wlr_output_state_set_color_transform(struct wlr_output_state *state,
+	struct wlr_color_transform *tr);
 
 /**
  * Copies the output state from src to dst. It is safe to then

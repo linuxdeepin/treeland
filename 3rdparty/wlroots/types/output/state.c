@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <wlr/render/drm_syncobj.h>
+#include <wlr/render/color.h>
 #include <wlr/util/log.h>
 #include "types/wlr_output.h"
 
@@ -133,6 +134,17 @@ void wlr_output_state_set_signal_timeline(struct wlr_output_state *state,
 	state->signal_point = dst_point;
 }
 
+void wlr_output_state_set_color_transform(struct wlr_output_state *state,
+		struct wlr_color_transform *tr) {
+	state->committed |= WLR_OUTPUT_STATE_COLOR_TRANSFORM;
+	wlr_color_transform_unref(state->color_transform);
+	if (tr) {
+		state->color_transform = wlr_color_transform_ref(tr);
+	} else {
+		state->color_transform = NULL;
+	}
+}
+
 bool wlr_output_state_copy(struct wlr_output_state *dst,
 		const struct wlr_output_state *src) {
 	struct wlr_output_state copy = *src;
@@ -140,7 +152,8 @@ bool wlr_output_state_copy(struct wlr_output_state *dst,
 		WLR_OUTPUT_STATE_DAMAGE |
 		WLR_OUTPUT_STATE_GAMMA_LUT |
 		WLR_OUTPUT_STATE_WAIT_TIMELINE |
-		WLR_OUTPUT_STATE_SIGNAL_TIMELINE);
+		WLR_OUTPUT_STATE_SIGNAL_TIMELINE |
+		WLR_OUTPUT_STATE_COLOR_TRANSFORM);
 	copy.buffer = NULL;
 	copy.buffer_src_box = (struct wlr_fbox){0};
 	copy.buffer_dst_box = (struct wlr_box){0};
@@ -149,6 +162,7 @@ bool wlr_output_state_copy(struct wlr_output_state *dst,
 	copy.gamma_lut_size = 0;
 	copy.wait_timeline = NULL;
 	copy.signal_timeline = NULL;
+	copy.color_transform = NULL;
 
 	if (src->committed & WLR_OUTPUT_STATE_BUFFER) {
 		wlr_output_state_set_buffer(&copy, src->buffer);
@@ -176,6 +190,10 @@ bool wlr_output_state_copy(struct wlr_output_state *dst,
 	if (src->committed & WLR_OUTPUT_STATE_SIGNAL_TIMELINE) {
 		wlr_output_state_set_signal_timeline(&copy, src->signal_timeline,
 			src->signal_point);
+	}
+
+	if (src->committed & WLR_OUTPUT_STATE_COLOR_TRANSFORM) {
+		wlr_output_state_set_color_transform(&copy, src->color_transform);
 	}
 
 	wlr_output_state_finish(dst);

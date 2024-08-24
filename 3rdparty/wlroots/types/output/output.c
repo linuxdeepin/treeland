@@ -651,6 +651,10 @@ static bool output_basic_test(struct wlr_output *output,
 		wlr_log(WLR_DEBUG, "Tried to set the subpixel layout on a disabled output");
 		return false;
 	}
+	if (!enabled && state->committed & WLR_OUTPUT_STATE_COLOR_TRANSFORM) {
+		wlr_log(WLR_DEBUG, "Tried to set a color transform on a disabled output");
+		return false;
+	}
 
 	if (state->committed & WLR_OUTPUT_STATE_LAYERS) {
 		if (state->layers_len != (size_t)wl_list_length(&output->layers)) {
