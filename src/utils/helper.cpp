@@ -878,13 +878,6 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *watched, QInputEvent *even
 
     if (event->type() == QEvent::MouseMove || event->type() == QEvent::MouseButtonPress) {
         seat->cursor()->setVisible(true);
-        auto mevent = static_cast<QMouseEvent *>(event);
-        if (mevent->buttons() & Qt::LeftButton && event->type() == QEvent::MouseMove) {
-            if (m_activateSurface && !static_cast<WLayerSurface *>(m_activateSurface.get())
-                && !m_region.isEmpty() && !m_region.contains(mevent->pos())) {
-                return true;
-            }
-        }
     } else if (event->type() == QEvent::TouchBegin) {
         seat->cursor()->setVisible(false);
     }
@@ -898,6 +891,12 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *watched, QInputEvent *even
             auto cursor = seat->cursor();
             Q_ASSERT(cursor);
             QMouseEvent *ev = static_cast<QMouseEvent *>(event);
+
+            if (ev->buttons() & Qt::LeftButton && event->type() == QEvent::MouseMove) {
+                if (!m_region.isEmpty() && !m_region.contains(ev->pos())) {
+                    return true;
+                }
+            }
 
             if (moveReiszeState.resizeEdgets == 0) {
                 auto increment_pos = ev->globalPosition() - moveReiszeState.cursorStartMovePosition;
