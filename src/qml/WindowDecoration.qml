@@ -115,6 +115,7 @@ Item {
                 cursorShape: Qt.ArrowCursor
             }
 
+            //Normal mouse click
             TapHandler {
                 acceptedButtons: Qt.LeftButton | Qt.RightButton
                 onTapped: (eventPoint, button) => {
@@ -125,6 +126,11 @@ Item {
                                   Helper.activatedSurface = surface
                               }
                           }
+                onPressedChanged: {
+                    if (pressed)
+                        root.requestMove()
+                }
+
                 onDoubleTapped: (_, button) => {
                                     if (button === Qt.LeftButton) {
                                         root.requestMaximize(!surface.isMaximized)
@@ -132,6 +138,7 @@ Item {
                                 }
             }
 
+            //Touch screen click
             TapHandler {
                 acceptedButtons: Qt.NoButton
                 acceptedDevices: PointerDevice.TouchScreen
@@ -141,18 +148,6 @@ Item {
                 onLongPressed: function() {
                     menu.popup(point.position.x, point.position.y)
                 }
-            }
-
-            DragHandler {
-                enabled: moveable
-                target: root.parent
-                onActiveChanged: if (active) {
-                                     Helper.activatedSurface = surface
-                                     Helper.movingItem = root.parent
-                                 } else {
-                                     Helper.movingItem = null
-                                 }
-                cursorShape: active ? Qt.DragMoveCursor : Qt.ArrowCursor
             }
 
             Label {

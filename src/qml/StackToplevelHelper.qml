@@ -171,7 +171,7 @@ Item {
                 }
 
                 function onRequestMove() {
-                    doMove(null, 0)
+                    doMove(Helper.seat, 0)
                 }
 
                 function onRequestResize(edges, movecursor) {
