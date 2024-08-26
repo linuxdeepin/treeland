@@ -11,6 +11,7 @@
 #include <QFileDialog>
 #include <QFileSystemWatcher>
 #include <QStandardPaths>
+#include <QRegularExpression>
 
 static const QMap<QString, QString> SpecialKeyMap = {
     { "minus", "-" },      { "equal", "=" },     { "brackertleft", "[" }, { "breckertright", "]" },
@@ -26,6 +27,49 @@ static const QMap<QString, QString> SpecialRequireShiftKeyMap = {
     { "quotedbl", "\"" }, { "less", "<" },        { "greater", ">" },    { "question", "?" },
     { "asciitilde", "~" }
 };
+
+// from dtkcore util
+QString getAppIdFromAbsolutePath(const QString &path)
+{
+    static QString desktopSuffix{ u8".desktop" };
+    const auto &appDirs = QStandardPaths::standardLocations(QStandardPaths::ApplicationsLocation);
+    if (!path.endsWith(desktopSuffix)
+        || !std::any_of(appDirs.cbegin(), appDirs.constEnd(), [&path](const QString &dir) {
+               return path.startsWith(dir);
+           })) {
+        return {};
+    }
+
+    auto tmp = path.chopped(desktopSuffix.size());
+    auto components = tmp.split(QDir::separator(), Qt::SkipEmptyParts);
+    auto location = std::find(components.cbegin(), components.cend(), "applications");
+    if (location == components.cend()) {
+        return {};
+    }
+
+    auto appId = QStringList{ location + 1, components.cend() }.join('-');
+    return appId;
+}
+
+QString escapeToObjectPath(const QString &str)
+{
+    if (str.isEmpty()) {
+        return "_";
+    }
+
+    auto ret = str;
+    QRegularExpression re{R"([^a-zA-Z0-9])"};
+    auto matcher = re.globalMatch(ret);
+    while (matcher.hasNext()) {
+        auto replaceList = matcher.next().capturedTexts();
+        replaceList.removeDuplicates();
+        for (const auto &c : replaceList) {
+            auto hexStr = QString::number(static_cast<uint>(c.front().toLatin1()), 16);
+            ret.replace(c, QString{R"(_%1)"}.arg(hexStr));
+        }
+    }
+    return ret;
+}
 
 QString transFromDaemonAccelStr(const QString &accelStr)
 {
@@ -155,6 +199,19 @@ void Shortcut::exec()
     }
 
     if (type == "Action") { }
+
+    if (type == "Application") {
+        const QString &service = u8"org.desktopspec.ApplicationManager1";
+        const QString &prefixPath = u8"/org/desktopspec/ApplicationManager1/";
+        const QString &interface = u8"org.desktopspec.ApplicationManager1.Application";
+        const QString &appPath = m_settings.value("Type.Application/App").toString();
+        const QString &appId = getAppIdFromAbsolutePath(appPath);
+        const QString &objectPath = prefixPath + escapeToObjectPath(appId);
+
+        qInfo() << "Launch" << appId << objectPath;
+        QDBusInterface dbus(service, objectPath, interface);
+        dbus.asyncCall(u8"Launch", "", QStringList{}, QVariantMap{});
+    }
 }
 
 QString Shortcut::shortcut()
