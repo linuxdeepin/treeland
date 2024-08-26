@@ -31,12 +31,14 @@ class WOutputRenderWindow;
 class WInputMethodHelper;
 class WXdgOutputManager;
 class WXWayland;
+class WForeignToplevel;
 WAYLIB_SERVER_END_NAMESPACE
 
 QW_BEGIN_NAMESPACE
 class qw_compositor;
 QW_END_NAMESPACE
 
+class ForeignToplevelV1;
 struct wlr_output_event_request_state;
 QW_USE_NAMESPACE
 WAYLIB_SERVER_USE_NAMESPACE
@@ -127,8 +129,6 @@ public:
     QString xwaylandSocket() const;
 
     Q_INVOKABLE QString clientName(Waylib::Server::WSurface *surface) const;
-
-    Q_INVOKABLE void closeSurface(Waylib::Server::WSurface *surface);
 
     void stopMoveResize();
 
@@ -227,6 +227,9 @@ protected:
     WXdgDecorationManager *m_xdgDecorationManager;
     WXdgOutputManager *m_xdgOutputManager = nullptr;
     WXdgOutputManager *m_xwaylandOutputManager = nullptr;
+
+    WForeignToplevel *m_foreignToplevel = nullptr;
+    ForeignToplevelV1 *m_treelandForeignToplevel = nullptr;
 
     WQmlCreator *m_outputCreator = nullptr;
     WQmlCreator *m_surfaceCreator = nullptr;

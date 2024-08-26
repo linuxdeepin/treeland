@@ -117,7 +117,7 @@ void Helper::initProtocols(WOutputRenderWindow *window)
 
     auto *xdgShell = m_server->attach<WXdgShell>();
     auto *layerShell = m_server->attach<WLayerShell>();
-    auto *foreignToplevel = m_server->attach<WForeignToplevel>(xdgShell);
+    m_foreignToplevel = m_server->attach<WForeignToplevel>(xdgShell);
 
     m_server->attach(m_seat);
     m_seat->setKeyboardFocusWindow(window);
@@ -201,9 +201,9 @@ void Helper::initProtocols(WOutputRenderWindow *window)
     m_server->attach<WCursorShapeManagerV1>();
     qw_fractional_scale_manager_v1::create(*m_server->handle(), WLR_FRACTIONAL_SCALE_V1_VERSION);
 
-    auto treelandForeignToplevel =
+    m_treelandForeignToplevel =
         engine->singletonInstance<ForeignToplevelV1 *>("TreeLand.Protocols", "ForeignToplevelV1");
-    Q_ASSERT(treelandForeignToplevel);
+    Q_ASSERT(m_treelandForeignToplevel);
 
     auto m_inputMethodHelper = new WInputMethodHelper(m_server, m_seat);
     connect(m_inputMethodHelper,
@@ -225,7 +225,7 @@ void Helper::initProtocols(WOutputRenderWindow *window)
     connect(xdgShell,
             &WXdgShell::surfaceAdded,
             this,
-            [this, engine, foreignToplevel, treelandForeignToplevel](WXdgSurface *surface) {
+            [this, engine](WXdgSurface *surface) {
                 auto initProperties = engine->newObject();
                 auto type = surface->isPopup() ? "popup" : "toplevel";
                 initProperties.setProperty("type", type);
@@ -235,18 +235,18 @@ void Helper::initProtocols(WOutputRenderWindow *window)
                 m_surfaceCreator->add(surface, initProperties);
 
                 if (!surface->isPopup()) {
-                    foreignToplevel->addSurface(surface);
-                    treelandForeignToplevel->add(surface);
+                    m_foreignToplevel->addSurface(surface);
+                    m_treelandForeignToplevel->add(surface);
                 }
             });
     connect(xdgShell, &WXdgShell::surfaceRemoved, m_surfaceCreator, &WQmlCreator::removeByOwner);
     connect(xdgShell,
             &WXdgShell::surfaceRemoved,
-            foreignToplevel,
-            [foreignToplevel, treelandForeignToplevel](WXdgSurface *surface) {
+            m_foreignToplevel,
+            [this](WXdgSurface *surface) {
                 if (!surface->isPopup()) {
-                    foreignToplevel->removeSurface(surface);
-                    treelandForeignToplevel->remove(surface);
+                    m_foreignToplevel->removeSurface(surface);
+                    m_treelandForeignToplevel->remove(surface);
                 }
             });
 
@@ -1117,20 +1117,32 @@ WXWayland *Helper::createXWayland()
     m_xwaylands.append(xwayland);
     xwayland->setSeat(m_seat);
 
-    connect(xwayland, &WXWayland::surfaceAdded, this, [this, xwayland](WXWaylandSurface *surface) {
-        QQmlApplicationEngine *engine = qobject_cast<QQmlApplicationEngine *>(qmlEngine(this));
-        surface->safeConnect(&qw_xwayland_surface::notify_associate, this, [this, surface, engine] {
-            auto initProperties = engine->newObject();
-            initProperties.setProperty("type", "xwayland");
-            initProperties.setProperty("wSurface", engine->toScriptValue(surface));
-            initProperties.setProperty("wid", engine->toScriptValue(workspaceId(engine)));
+    connect(
+        xwayland,
+        &WXWayland::surfaceAdded,
+        this,
+        [this, xwayland](WXWaylandSurface *surface) {
+            QQmlApplicationEngine *engine = qobject_cast<QQmlApplicationEngine *>(qmlEngine(this));
+            surface->safeConnect(
+                &qw_xwayland_surface::notify_associate,
+                this,
+                [this, surface, engine] {
+                    auto initProperties = engine->newObject();
+                    initProperties.setProperty("type", "xwayland");
+                    initProperties.setProperty("wSurface", engine->toScriptValue(surface));
+                    initProperties.setProperty("wid", engine->toScriptValue(workspaceId(engine)));
 
-            m_surfaceCreator->add(surface, initProperties);
-        });
-        surface->safeConnect(&qw_xwayland_surface::notify_dissociate, this, [this, surface] {
-            m_surfaceCreator->removeByOwner(surface);
-        });
-    });
+                    m_surfaceCreator->add(surface, initProperties);
+                    m_foreignToplevel->addSurface(surface);
+                    m_treelandForeignToplevel->add(surface);
+                });
+            surface->safeConnect(&qw_xwayland_surface::notify_dissociate, this, [this, surface] {
+                m_surfaceCreator->removeByOwner(surface);
+                m_foreignToplevel->removeSurface(surface);
+                m_treelandForeignToplevel->remove(surface);
+            });
+        }
+    );
 
     return xwayland;
 }
@@ -1173,18 +1185,6 @@ QString Helper::clientName(Waylib::Server::WSurface *surface) const
 
     qDebug() << "Program name for PID" << pid << "is" << programName;
     return programName;
-}
-
-void Helper::closeSurface(Waylib::Server::WSurface *surface)
-{
-    if (auto s = Waylib::Server::WXdgSurface::fromSurface(surface)) {
-        if (!s->isPopup()) {
-            auto toplevel = qw_xdg_toplevel::from(s->handle()->handle()->toplevel);
-            toplevel->send_close();
-        }
-    } else if (auto s = Waylib::Server::WXWaylandSurface::fromSurface(surface)) {
-        s->close();
-    }
 }
 
 void Helper::updateOutputsRegion()

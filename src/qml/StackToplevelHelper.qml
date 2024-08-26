@@ -166,8 +166,7 @@ Item {
                 }
 
                 function onRequestClose() {
-                    //quickForeignToplevelManageMapper.onRequestActivate(false) // TODO: @rewine
-                    Helper.closeSurface(waylandSurface.surface);
+                    waylandSurface.close();
                 }
 
                 function onRequestMove() {
