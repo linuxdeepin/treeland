@@ -3,27 +3,25 @@
 
 #include "foreigntoplevelmanagerv1.h"
 
-#include <wayland-server-core.h>
-#include <wayland-server.h>
-#include <wayland-util.h>
 #include <woutput.h>
-#include <wxdgshell.h>
+#include <wtoplevelsurface.h>
 #include <wxdgsurface.h>
 #include <wxwaylandsurface.h>
+#include <wsocket.h>
 
 #include <qwcompositor.h>
 #include <qwdisplay.h>
 #include <qwoutput.h>
-#include <qwsignalconnector.h>
 #include <qwxdgshell.h>
 
 #include <QDebug>
 #include <QFile>
 #include <QRegularExpression>
-#include <QTimer>
 
 #include <sys/socket.h>
 #include <unistd.h>
+
+Q_LOGGING_CATEGORY(qLcTreelandForeignToplevel, "treeland.protocols.foreigntoplevel", QtWarningMsg)
 
 static ForeignToplevelV1 *FOREIGN_TOPLEVEL_MANAGER = nullptr;
 
@@ -127,7 +125,7 @@ wl_global *ForeignToplevelV1::global() const
 
 void ForeignToplevelV1::add(WToplevelSurface *surface)
 {
-    /* TODO: dde-desktop and dde-launchpad are not supported yet */
+    /* TODO: dde-desktop are not supported yet */
     wl_client *client = surface->surface()->handle()->handle()->resource->client;
     pid_t pid;
     wl_client_get_credentials(client, &pid, nullptr, nullptr);
@@ -139,14 +137,13 @@ void ForeignToplevelV1::add(WToplevelSurface *surface)
             QString(file.readLine()).section(QRegularExpression("([\\t ]*:[\\t ]*|\\n)"), 1, 1);
     }
 
-    if (programName == "dde-desktop" || programName == "dde-launchpad") {
+    if (programName == "dde-desktop") {
         return;
     }
     /* TODO: end */
 
-    auto handle = std::shared_ptr<treeland_foreign_toplevel_handle_v1>(
-        treeland_foreign_toplevel_handle_v1::create(m_manager));
-    m_surfaces.insert({ surface, handle });
+    auto handle = treeland_foreign_toplevel_handle_v1::create(m_manager);
+    m_surfaces.insert({ surface, std::unique_ptr<treeland_foreign_toplevel_handle_v1>(handle) });
 
     // initSurface
     std::vector<QMetaObject::Connection> connection;
@@ -175,14 +172,24 @@ void ForeignToplevelV1::add(WToplevelSurface *surface)
         handle->set_activated(surface->isActivated());
     }));
 
-    connection.push_back(
-        connect(surface, &WToplevelSurface::parentSurfaceChanged, this, [this, surface, handle] {
-            auto find = std::find_if(m_surfaces.begin(), m_surfaces.end(), [surface](auto pair) {
-                return pair.first->surface() == surface->parent();
+    auto updateSurfaceParent = [this, surface, handle] {
+        if (surface->parentSurface()) {
+            auto find = std::find_if(m_surfaces.begin(), m_surfaces.end(), [surface](const auto &pair) {
+                return pair.first->surface() == surface->parentSurface();
             });
-
-            handle->setParent(find != m_surfaces.end() ? find->second.get() : nullptr);
-        }));
+            if (find == m_surfaces.end()) {
+                qCCritical(qLcTreelandForeignToplevel) << "Toplevel surface " << surface
+                                                  << "has set parent surface, but foreign_toplevel_handle for parent surface not found!";
+                return;
+            }
+            handle->set_parent(find->second.get());
+        }
+        else
+            handle->set_parent(nullptr);
+    };
+    connection.push_back(
+        connect(surface, &WToplevelSurface::parentSurfaceChanged, this, updateSurfaceParent)
+        );
 
     connection.push_back(
         connect(surface->surface(), &WSurface::outputEntered, this, [handle](WOutput *output) {
@@ -195,7 +202,7 @@ void ForeignToplevelV1::add(WToplevelSurface *surface)
         }));
 
     connection.push_back(connect(
-        handle.get(),
+        handle,
         &treeland_foreign_toplevel_handle_v1::requestActivate,
         this,
         [surface, this, handle](treeland_foreign_toplevel_handle_v1_activated_event *event) {
@@ -203,7 +210,7 @@ void ForeignToplevelV1::add(WToplevelSurface *surface)
         }));
 
     connection.push_back(
-        connect(handle.get(),
+        connect(handle,
                 &treeland_foreign_toplevel_handle_v1::requestMaximize,
                 this,
                 [surface, this](treeland_foreign_toplevel_handle_v1_maximized_event *event) {
@@ -211,7 +218,7 @@ void ForeignToplevelV1::add(WToplevelSurface *surface)
                 }));
 
     connection.push_back(connect(
-        handle.get(),
+        handle,
         &treeland_foreign_toplevel_handle_v1::requestMinimize,
         this,
         [surface, this, handle](treeland_foreign_toplevel_handle_v1_minimized_event *event) {
@@ -219,20 +226,20 @@ void ForeignToplevelV1::add(WToplevelSurface *surface)
         }));
 
     connection.push_back(
-        connect(handle.get(),
+        connect(handle,
                 &treeland_foreign_toplevel_handle_v1::requestFullscreen,
                 this,
                 [surface, this](treeland_foreign_toplevel_handle_v1_fullscreen_event *event) {
                     Q_EMIT requestFullscreen(surface, event);
                 }));
 
-    connection.push_back(connect(handle.get(),
+    connection.push_back(connect(handle,
                                  &treeland_foreign_toplevel_handle_v1::requestClose,
                                  this,
                                  [surface, this] {
                                      Q_EMIT requestClose(surface);
                                  }));
-    connection.push_back(connect(handle.get(),
+    connection.push_back(connect(handle,
                                  &treeland_foreign_toplevel_handle_v1::rectangleChanged,
                                  this,
                                  [surface, this] (treeland_foreign_toplevel_handle_v1_set_rectangle_event *event) {
@@ -240,14 +247,12 @@ void ForeignToplevelV1::add(WToplevelSurface *surface)
                                  }));
 
     if (auto *xdgSurface = qobject_cast<WXdgSurface *>(surface)) {
-        wl_client *client = xdgSurface->handle()->handle()->resource->client;
-        pid_t pid;
-        wl_client_get_credentials(client, &pid, nullptr, nullptr);
-        handle->set_pid(pid);
+        auto client = WClient::get(xdgSurface->handle()->handle()->resource->client);
+        handle->set_pid(client->credentials().get()->pid);
     } else if (auto *xwaylandSurface = qobject_cast<WXWaylandSurface *>(surface)) {
         handle->set_pid(xwaylandSurface->pid());
     } else {
-        qFatal("TreelandForeignToplevelManager only support WXdgSurface or WXWaylandSurface");
+        qCFatal(qLcTreelandForeignToplevel) << "TreelandForeignToplevelManager only support WXdgSurface or WXWaylandSurface";
     }
 
     handle->set_identifier(
@@ -259,6 +264,7 @@ void ForeignToplevelV1::add(WToplevelSurface *surface)
     handle->set_maximized(surface->isMaximized());
     handle->set_fullscreen(surface->isFullScreen());
     handle->set_activated(surface->isActivated());
+    updateSurfaceParent();
 
     m_connections.insert({ surface, connection });
 }
@@ -279,7 +285,7 @@ void ForeignToplevelV1::remove(WToplevelSurface *surface)
 
 void ForeignToplevelV1::enterDockPreview(WSurface *relative_surface)
 {
-    for (auto *context : m_dockPreviews) {
+    for (auto *context : m_manager->dock_preview) {
         if (context->relative_surface == relative_surface->handle()->handle()->resource) {
             context->enter();
             break;
@@ -289,7 +295,7 @@ void ForeignToplevelV1::enterDockPreview(WSurface *relative_surface)
 
 void ForeignToplevelV1::leaveDockPreview(WSurface *relative_surface)
 {
-    for (auto *context : m_dockPreviews) {
+    for (auto *context : m_manager->dock_preview) {
         if (context->relative_surface == relative_surface->handle()->handle()->resource) {
             context->leave();
             break;
@@ -299,12 +305,6 @@ void ForeignToplevelV1::leaveDockPreview(WSurface *relative_surface)
 
 void ForeignToplevelV1::onDockPreviewContextCreated(treeland_dock_preview_context_v1 *context)
 {
-    m_dockPreviews.push_back(context);
-    connect(context, &treeland_dock_preview_context_v1::before_destroy, this, [this, context] {
-        std::erase_if(m_dockPreviews, [context](auto *p) {
-            return p == context;
-        });
-    });
     connect(context,
             &treeland_dock_preview_context_v1::requestShow,
             this,
