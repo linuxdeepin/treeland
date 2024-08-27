@@ -53,8 +53,6 @@ public:
     Border border;
 
     enum WindowState {
-        resizable,
-        movable,
         noTitlebar,
     };
     Q_ENUM(WindowState)
