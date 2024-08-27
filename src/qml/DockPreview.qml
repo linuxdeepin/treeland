@@ -34,6 +34,12 @@ Item {
     property bool isShowing: false
     visible: false
 
+    LoggingCategory {
+        id: qLcDockPreview
+        name: "treeland.qml.dockpreview"
+        defaultLogLevel: LoggingCategory.Warning
+    }
+
     /* --- root function begin --- */
 
     function activateSurface(surfaceWrapper) {
@@ -64,24 +70,6 @@ Item {
     /* --- root function end --- */
 
     /* --- model begin --- */
-
-    Timer {
-        id: delayModelTimer
-        property var filtedList : []
-        onTriggered: function() {
-            var newSize = filtedList.length;
-            var oldSize = filterSurfaceModel.count;
-            if (newSize > oldSize) {
-                for (let index = oldSize; index < newSize; index++) {
-                    filterSurfaceModel.append(filtedList[index]);
-                }
-            }
-            if (newSize < oldSize) {
-                filterSurfaceModel.remove(newSize, oldSize-newSize)
-            }
-        }
-    }
-
     ListModel {
         id: filterSurfaceModel
         property int lastSize: 0
@@ -104,26 +92,37 @@ Item {
             for (let i = 0; i < Math.min(newSize, oldSize); i++) {
                 filterSurfaceModel.set(i, filtedList[i])
             }
-            delayModelTimer.filtedList = filtedList;
-            delayModelTimer.interval = (newSize&&oldSize) ? 0 : 0;
-            delayModelTimer.start();
+            if (newSize > oldSize) {
+                for (let index = oldSize; index < newSize; index++) {
+                    filterSurfaceModel.append(filtedList[index]);
+                }
+            }
+            if (newSize < oldSize) {
+                filterSurfaceModel.remove(newSize, oldSize-newSize)
+                if (!newSize)
+                    filterSurfaceModel.clear();
+            }
         }
 
         function activateWindow(surfaceItem) {
+            console.debug(qLcDockPreview, "activate preview window: ", surfaceItem)
             root.activateSurface(surfaceItem);
             ForeignToplevelV1.leaveDockPreview(root.target.surfaceItem.shellSurface.surface)
             root.close();
         }
 
         function previewWindow(surfaceItem) {
+            console.debug(qLcDockPreview, "start preview window: ", surfaceItem)
             hideAllSurfacesExceptPreviewing(surfaceItem);
         }
 
         function stopPreviewWindow() {
+            console.debug(qLcDockPreview, "stop preview window")
             showAllSurfaces();
         }
 
         function closeAllWindow() {
+            console.debug(qLcDockPreview, "close all preview windows")
             var tmp = filterSurfaceModel.desiredSurfaces;
             filterSurfaceModel.desiredSurfaces = [ ];
             for (let surface of tmp) {
@@ -133,12 +132,14 @@ Item {
         }
 
         function closeSpecialWindow(surfaceItem) {
+            console.debug(qLcDockPreview, "close a special window: ", surfaceItem)
             Helper.closeSurface(surfaceItem.shellSurface.surface);
             updateModel();
         }
     }
 
     function show(surfaces, target, pos, direction) {
+        console.info(qLcDockPreview, "start show windows: ", surfaces)
         filterSurfaceModel.desiredSurfaces = surfaces
         root.pos = pos;
         root.direction = direction;
@@ -147,6 +148,7 @@ Item {
     }
 
     function showTooltip(tooltip, target, pos, direction) {
+        console.info(qLcDockPreview, "start show tooltip: ", tooltip)
         root.tooltip = tooltip;
         filterSurfaceModel.desiredSurfaces = [ ];
 
@@ -157,6 +159,7 @@ Item {
     }
 
     function close() {
+        console.info(qLcDockPreview, "stop dock preview")
         root.isShowing = false;
     }
     /* --- model end --- */
@@ -215,6 +218,11 @@ Item {
                 isHorizontal: true
                 restoreEntryValues: false
             }
+            PropertyChanges {
+                target: scaleTransform
+                origin.x: background.implicitWidth / 2
+                origin.y: background.implicitHeight
+            }
         },
         State {
             name: "dock_left"
@@ -235,6 +243,11 @@ Item {
                 anchors.leftMargin: root.pos.x
                 isHorizontal: false
                 restoreEntryValues: false
+            }
+            PropertyChanges {
+                target: scaleTransform
+                origin.x: 0
+                origin.y: background.implicitHeight / 2
             }
         },
         State {
@@ -257,6 +270,11 @@ Item {
                 isHorizontal: true
                 restoreEntryValues: false
             }
+            PropertyChanges {
+                target: scaleTransform
+                origin.x: background.implicitWidth / 2
+                origin.y: 0
+            }
         },
         State {
             name: "dock_right"
@@ -277,6 +295,11 @@ Item {
                 anchors.rightMargin: -root.pos.x
                 isHorizontal: false
                 restoreEntryValues: false
+            }
+            PropertyChanges {
+                target: scaleTransform
+                origin.x: background.implicitWidth
+                origin.y: background.implicitHeight / 2
             }
         }
     ]
@@ -486,18 +509,11 @@ Item {
                 smooth: true
                 sourceItem: surfaceItem
             }
-
-            Behavior on implicitHeight {
-                NumberAnimation { duration: delayModelTimer.interval }
-            }
-
-            Behavior on implicitWidth {
-                NumberAnimation { duration: delayModelTimer.interval }
-            }
         }
 
         add: Transition {
             id: addTransition
+
             ParallelAnimation {
                 NumberAnimation { property: "opacity"; from: 0.3; to: 1; duration: root.aniDuration }
 
@@ -685,8 +701,6 @@ Item {
 
         transform: Scale {
             id: scaleTransform
-            origin.x: background.implicitWidth / 2
-            origin.y: background.implicitHeight + (root.target?.height || 0)
             xScale: 0.5
             yScale: xScale
 
@@ -708,6 +722,7 @@ Item {
                 }
                 NumberAnimation {
                     duration: root.aniDuration
+                    easing.type: root.isShowing ? Easing.OutExpo : Easing.InExpo
                 }
                 ScriptAction {
                     script: {
