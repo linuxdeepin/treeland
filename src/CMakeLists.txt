@@ -5,6 +5,7 @@ endif()
 pkg_search_module(WLROOTS REQUIRED IMPORTED_TARGET wlroots)
 find_package(Dtk6 REQUIRED COMPONENTS Declarative)
 find_package(DDM REQUIRED COMPONENTS Common)
+find_package(Qt6 CONFIG REQUIRED ShaderTools)
 # qt_finalize_target will collect all executable's private dependencies that are CMake targets
 
 add_subdirectory(utils)
@@ -51,6 +52,16 @@ target_link_libraries(treeland
 target_compile_definitions(treeland
     PRIVATE
     WLR_USE_UNSTABLE
+)
+
+qt_add_shaders(treeland "_shaders_ng"
+    BATCHABLE
+    PRECOMPILE
+    PREFIX
+        "/"
+    FILES
+        "shaders/radiussmoothtexture.vert"
+        "shaders/radiussmoothtexture.frag"
 )
 
 if(JOURNALD_FOUND)

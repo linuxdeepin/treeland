@@ -145,38 +145,23 @@ SurfaceItemFactory {
                 id: content
                 surface: parent.surface.surface
                 anchors.fill: parent
-                opacity: effectLoader.active ? 0 : 1
+            }
+
+            Component {
+                id: radiusCom
+                TRadiusEffect {
+                    property real contentRadius: Math.min(root.cornerRadius, content.width / 2, content.height / 2)
+                    sourceItem: content
+                    hideSource: true
+                    bottomRightRadius: contentRadius
+                    bottomLeftRadius: contentRadius
+                }
             }
 
             Loader {
                 id: effectLoader
-                active: root.cornerRadius > 0 && hasDecoration
                 anchors.fill: parent
-                // TODO: Use QSGGeometry(like as Rectangle, Qt 6.8 supports topLeftRadius)
-                // to clip texture by vertex shader.
-                sourceComponent: MultiEffect {
-                    anchors.fill: parent
-                    source: content
-                    maskSource: ShaderEffectSource {
-                        width: content.width
-                        height: content.height
-                        samples: 4
-                        sourceItem: Item {
-                            width: content.width
-                            height: content.height
-                            Rectangle {
-                                anchors {
-                                    fill: parent
-                                    topMargin: personalizationMapper.noTitlebar ? 0 : -radius
-                                }
-                                radius: Math.min(root.cornerRadius, content.width / 2, content.height)
-                                antialiasing: true
-                            }
-                        }
-                    }
-
-                    maskEnabled: true
-                }
+                sourceComponent: GraphicsInfo.api !== GraphicsInfo.Software && root.cornerRadius > 0 ? radiusCom : undefined;
             }
         }
     }
