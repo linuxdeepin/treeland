@@ -17,11 +17,13 @@ Item {
     signal requestClose
     signal requestResize(var edges, bool movecursor)
 
-    readonly property real topMargin: noTitlebar ? 0 : titlebar.height
+    readonly property real topMargin: noTitlebar ? 0 : titlebarHeight
     readonly property real bottomMargin: 0
     readonly property real leftMargin: 0
     readonly property real rightMargin: 0
     readonly property real titlebarHeight: 30
+    readonly property bool cornerCutRadius: GraphicsInfo.api !== GraphicsInfo.Software && !root.noTitlebar &&
+                                            root.radius > 0 && root.radius < root.titlebarHeight
     property bool moveable: true
     property bool enable: true
     property bool noTitlebar: false
@@ -97,146 +99,153 @@ Item {
         onRequestResize: root.requestResize(edges, movecursor)
     }
 
-    Item {
-        id: titlebar
-        anchors.top: parent.top
+    Rectangle {
+        id: titlebarContent
+
         width: parent.width
         height: root.titlebarHeight
-        clip: true
-        visible: !noTitlebar
+        layer.enabled: root.cornerCutRadius
+        // if set the titlebarContent visible false, button will not respond.
+        opacity: root.cornerCutRadius ? 0 : root.opacity
 
-        D.RoundRectangle {
-            id: titlebarContent
-            width: parent.width
-            height: parent.height + root.radius
+        HoverHandler {
+            // block hover events to resizing mouse area, avoid cursor change
+            cursorShape: Qt.ArrowCursor
+        }
 
-            HoverHandler {
-                // block hover events to resizing mouse area, avoid cursor change
-                cursorShape: Qt.ArrowCursor
-            }
-
-            //Normal mouse click
-            TapHandler {
-                acceptedButtons: Qt.LeftButton | Qt.RightButton
-                onTapped: (eventPoint, button) => {
-                              if (button === Qt.RightButton) {
-                                  menu.popup(eventPoint.position.x, eventPoint.position.y)
-                              }
-                              else {
-                                  Helper.activatedSurface = surface
-                              }
+        //Normal mouse click
+        TapHandler {
+            acceptedButtons: Qt.LeftButton | Qt.RightButton
+            onTapped: (eventPoint, button) => {
+                          if (button === Qt.RightButton) {
+                              menu.popup(eventPoint.position.x, eventPoint.position.y)
                           }
-                onPressedChanged: {
-                    if (pressed)
-                        root.requestMove()
-                }
+                          else {
+                              Helper.activatedSurface = surface
+                          }
+                      }
+            onPressedChanged: {
+                if (pressed)
+                    root.requestMove()
+            }
 
-                onDoubleTapped: (_, button) => {
-                                    if (button === Qt.LeftButton) {
-                                        root.requestMaximize(!surface.isMaximized)
-                                    }
+            onDoubleTapped: (_, button) => {
+                                if (button === Qt.LeftButton) {
+                                    root.requestMaximize(!surface.isMaximized)
                                 }
-            }
+                            }
+        }
 
-            //Touch screen click
-            TapHandler {
-                acceptedButtons: Qt.NoButton
-                acceptedDevices: PointerDevice.TouchScreen
-                onDoubleTapped: function(eventPoint, button) {
-                    root.requestMaximize(!surface.isMaximized)
-                }
-                onLongPressed: function() {
-                    menu.popup(point.position.x, point.position.y)
-                }
+        //Touch screen click
+        TapHandler {
+            acceptedButtons: Qt.NoButton
+            acceptedDevices: PointerDevice.TouchScreen
+            onDoubleTapped: function(eventPoint, button) {
+                root.requestMaximize(!surface.isMaximized)
             }
+            onLongPressed: function() {
+                menu.popup(point.position.x, point.position.y)
+            }
+        }
 
-            Label {
-                anchors.centerIn: buttonContainer
-                clip: true
-                text: surface.title
+        Label {
+            anchors.centerIn: buttonContainer
+            clip: true
+            text: surface.title
+        }
+
+        Item {
+            id: buttonContainer
+            width: parent.width
+            height: titlebarContent.height
+        }
+
+        Row {
+            anchors {
+                verticalCenter: buttonContainer.verticalCenter
+                right: buttonContainer.right
             }
 
             Item {
-                id: buttonContainer
-                width: parent.width
-                height: titlebar.height
+                id: control
+
+                property D.Palette textColor: DS.Style.button.text
+                property D.Palette backgroundColor: DS.Style.windowButton.background
             }
 
-            Row {
-                anchors {
-                    verticalCenter: buttonContainer.verticalCenter
-                    right: buttonContainer.right
-                }
+            Loader {
+                objectName: "minimizeBtn"
+                sourceComponent: D.WindowButton {
+                    icon.name: "window_minimize"
+                    textColor: control.textColor
+                    height: titlebarContent.height
 
-                Item {
-                    id: control
-                    property D.Palette textColor: DS.Style.button.text
-                    property D.Palette backgroundColor: DS.Style.windowButton.background
-                }
-
-                Loader {
-                    objectName: "minimizeBtn"
-                    sourceComponent: D.WindowButton {
-                        icon.name: "window_minimize"
-                        textColor: control.textColor
-                        height: titlebar.height
-
-                        onClicked: {
-                            root.requestMinimize()
-                        }
+                    onClicked: {
+                        root.requestMinimize()
                     }
                 }
+            }
 
-                Loader {
-                    objectName: "quitFullBtn"
-                    visible: false
-                    sourceComponent: D.WindowButton {
-                        icon.name: "window_quit_full"
-                        textColor: control.textColor
-                        height: titlebar.height
+            Loader {
+                objectName: "quitFullBtn"
+                visible: false
+                sourceComponent: D.WindowButton {
+                    icon.name: "window_quit_full"
+                    textColor: control.textColor
+                    height: titlebarContent.height
 
-                        onClicked: {
-                        }
+                    onClicked: {
                     }
                 }
+            }
 
-                Loader {
-                    id: maxOrWindedBtn
-                    objectName: "maxOrWindedBtn"
-                    sourceComponent: D.WindowButton {
-                        icon.name: surface.isMaximized ? "window_restore" : "window_maximize"
-                        textColor: control.textColor
-                        height: titlebar.height
+            Loader {
+                id: maxOrWindedBtn
 
-                        onClicked: {
-                            Helper.activatedSurface = surface
-                            root.requestMaximize(!surface.isMaximized)
-                        }
+                objectName: "maxOrWindedBtn"
+                sourceComponent: D.WindowButton {
+                    icon.name: surface.isMaximized ? "window_restore" : "window_maximize"
+                    textColor: control.textColor
+                    height: titlebarContent.height
+
+                    onClicked: {
+                        Helper.activatedSurface = surface
+                        root.requestMaximize(!surface.isMaximized)
                     }
                 }
+            }
 
-                Loader {
-                    objectName: "closeBtn"
-                    sourceComponent: D.WindowButton {
-                        icon.name: "window_close"
-                        textColor: control.textColor
-                        height: titlebar.height
+            Loader {
+                objectName: "closeBtn"
+                sourceComponent: D.WindowButton {
+                    icon.name: "window_close"
+                    textColor: control.textColor
+                    height: titlebarContent.height
 
-                        onClicked: {
-                            root.requestClose()
-                        }
+                    onClicked: {
+                        root.requestClose()
                     }
                 }
             }
         }
+    }
 
-        D.ItemViewport {
-            anchors.fill: titlebarContent
-            fixed: true
-            enabled: root.radius > 0
+    Component {
+        id: radiusCom
+
+        TRadiusEffect {
+            anchors.fill: parent
             sourceItem: titlebarContent
-            radius: root.radius * 2 > root.titlebarHeight ? 0 : root.radius
             hideSource: true
+            topLeftRadius:  root.radius
+            topRightRadius:  root.radius
         }
+    }
+
+    Loader {
+        id: effectLoader
+
+        anchors.fill: titlebarContent
+        sourceComponent: root.cornerCutRadius ? radiusCom : undefined;
     }
 }

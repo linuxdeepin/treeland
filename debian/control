@@ -22,7 +22,8 @@ Build-Depends: debhelper-compat (= 13),
                libddm-dev,
                libwaylib-dev,
                qwlroots,
-               libwlroots-dev (>=0.17.0)
+               libwlroots-dev (>=0.17.0),
+               qt6-shadertools-dev
 Standards-Version: 4.6.0
 Section: libs
 Homepage: https://github.com/linuxdeepin/treeland.git

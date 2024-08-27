@@ -16,6 +16,8 @@ qt_add_qml_module(utils
         gestures.cpp
         togglablegesture.cpp
         logstream.cpp
+        tquickradiuseffect.cpp
+        tsgradiusimagenode.cpp
     RESOURCE_PREFIX
         /qt/qml
     OUTPUT_DIRECTORY
@@ -34,6 +36,9 @@ FILES
     gestures.h
     togglablegesture.h
     logstream.h
+    tquickradiuseffect.h
+    tquickradiuseffect_p.h
+    tsgradiusimagenode.h
 )
 
 target_compile_definitions(utils
