@@ -43,8 +43,6 @@ class QuickPersonalizationManagerAttached : public QObject
     Q_PROPERTY(int32_t cornerRadius READ cornerRadius NOTIFY cornerRadiusChanged)
     Q_PROPERTY(Shadow shadow READ shadow NOTIFY shadowChanged)
     Q_PROPERTY(Border border READ border NOTIFY borderChanged)
-    Q_PROPERTY(bool resiable READ resiable NOTIFY windowStateChanged)
-    Q_PROPERTY(bool movable READ movable NOTIFY windowStateChanged)
     Q_PROPERTY(bool noTitlebar READ noTitlebar NOTIFY windowStateChanged)
 
 public:
@@ -57,13 +55,6 @@ public:
     Shadow shadow() const { return m_shadow; }
 
     Border border() const { return m_border; }
-
-    bool resiable() const
-    {
-        return m_states.testFlag(personalization_window_context_v1::resizable);
-    }
-
-    bool movable() const { return m_states.testFlag(personalization_window_context_v1::movable); }
 
     bool noTitlebar() const
     {
