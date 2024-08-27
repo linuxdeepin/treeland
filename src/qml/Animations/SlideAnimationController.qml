@@ -9,7 +9,8 @@ Item {
     readonly property int bounceDuration: 400
     property real refWidth: 1920
     property real refGap: 30
-    property real refBounce: 192
+    property real refBounce: 384
+    property real bounceFactor: 0.4
     readonly property real refWrap: refWidth + refGap
     readonly property alias running: aniState.running
     readonly property alias viewportPos: aniState.pos
@@ -121,31 +122,36 @@ Item {
             aniState.needBounce = true
         }
     }
+    function obstructionGesture (x) {
+        var k = 10.0 // control curve bending
+        return (bounceFactor / Math.PI) * Math.atan(k * x);
+    }
 
     Connections {
         id: gestureConnection
         target: Helper.multiTaskViewGesture
         property bool running: false
         property bool enable: false
+        property bool bounce: false
+        property real offset : 0
         property int fromId: 0
         property int toId: 0
 
         onDesktopOffsetChanged: {
             if (!enable) {
                 enable = true
+                bounce = false
                 fromId = Helper.currentWorkspaceId
                 toId = 0
                 if (target.desktopOffset > 0) {
                     toId = fromId + 1
                     if (toId >= QmlHelper.workspaceManager.layoutOrder.count) {
-                        enable = false
-                        return
+                        bounce = true
                     }
                 } else if (target.desktopOffset < 0) {
                     toId = fromId - 1
                     if (toId < 0) {
-                        enable = false
-                        return
+                        bounce = true
                     }
                 }
 
@@ -154,7 +160,8 @@ Item {
             }
 
             if (enable) {
-                aniState.pos = aniState.animationInitial + refWrap * desktopOffset
+                offset = bounce ? obstructionGesture(desktopOffset) : desktopOffset
+                aniState.pos = aniState.animationInitial + refWrap * offset
             }
         }
 
@@ -163,35 +170,29 @@ Item {
                 return
 
             enable = false
-            if (desktopOffset === 1 || desktopOffset === -1) {
+            if (offset === 1 || offset === -1) {
                 Helper.currentWorkspaceId = toId
                 return
             }
 
             fromId = Helper.currentWorkspaceId
             toId = 0
-            if (desktopOffset > 0.25) {
+            if (offset > bounceFactor / 2) {
                 toId = fromId + 1
-                if (toId >=  QmlHelper.workspaceManager.layoutOrder.count) {
-                    return
-                }
-            } else if (desktopOffset <= -0.25) {
+            } else if (offset <= -bounceFactor / 2) {
                 toId = fromId - 1
                 if (toId < 0) {
                     return;
                 }
             } else {
                 [fromId, toId] = [toId, fromId]
-                var temp
-                temp = fromId
-                fromId = toId
-                toId = temp
             }
 
-            slideRunning(toId)
-            slideAnimation.start()
-
-            Helper.currentWorkspaceId = toId
+            if (toId < QmlHelper.workspaceManager.layoutOrder.count || toId >= 0) {
+                slideRunning(toId)
+                slideAnimation.start()
+                Helper.currentWorkspaceId = toId
+            }
             running = false
         }
     }
