@@ -47,6 +47,9 @@ void WSurfacePrivate::on_commit()
     if (nativeHandle()->current.committed & WLR_SURFACE_STATE_BUFFER)
         updateBuffer();
 
+    if (nativeHandle()->current.committed & WLR_SURFACE_STATE_OFFSET)
+        updateBufferOffset();
+
     if (hasSubsurface) // Will make to true when qw_surface::newSubsurface
         updateHasSubsurface();
 }
@@ -149,6 +152,16 @@ void WSurfacePrivate::updateBuffer()
         buffer = qw_buffer::from(&nativeHandle()->buffer->base);
 
     setBuffer(buffer);
+}
+
+void WSurfacePrivate::updateBufferOffset()
+{
+    W_Q(WSurface);
+    auto dBufferOffset = QPoint(nativeHandle()->current.dx, nativeHandle()->current.dy);
+    if (!dBufferOffset.isNull()) {
+        bufferOffset += dBufferOffset;
+        Q_EMIT q->bufferOffsetChanged();
+    }
 }
 
 void WSurfacePrivate::updatePreferredBufferScale()
@@ -285,7 +298,7 @@ int WSurface::bufferScale() const
 QPoint WSurface::bufferOffset() const
 {
     W_DC(WSurface);
-    return QPoint(d->nativeHandle()->current.dx, d->nativeHandle()->current.dy);
+    return d->bufferOffset;
 }
 
 qw_buffer *WSurface::buffer() const

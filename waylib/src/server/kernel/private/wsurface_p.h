@@ -40,6 +40,7 @@ public:
     void setPrimaryOutput(WOutput *output);
     void setBuffer(QW_NAMESPACE::qw_buffer *newBuffer);
     void updateBuffer();
+    void updateBufferOffset();
     void updatePreferredBufferScale();
     void preferredBufferScaleChange();
 
@@ -60,6 +61,7 @@ public:
     QVector<WOutput*> outputs;
     WOutput *primaryOutput = nullptr;
     QMetaObject::Connection frameDoneConnection;
+    QPoint bufferOffset;
 };
 
 WAYLIB_SERVER_END_NAMESPACE

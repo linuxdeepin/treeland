@@ -215,7 +215,8 @@ void WQuickCursorPrivate::setSurface(WSurface *surface)
             Q_ASSERT(ok);
             QObject::connect(cursorSurfaceItem, &WSurfaceItemContent::bufferOffsetChanged,
                              q, [this] {
-                setHotSpot(hotSpot -= cursorSurfaceItem->bufferOffset());
+                auto rs = this->cursor->requestedCursorSurface();
+                setHotSpot(rs.second - cursorSurfaceItem->bufferOffset());
             });
 
             q->setFlag(QQuickItem::ItemHasContents, false);

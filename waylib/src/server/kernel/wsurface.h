@@ -77,6 +77,7 @@ Q_SIGNALS:
     void primaryOutputChanged();
     void mappedChanged();
     void bufferChanged();
+    void bufferOffsetChanged();
     void isSubsurfaceChanged();
     void hasSubsurfaceChanged();
     void newSubsurface(WSurface *subsurface);
