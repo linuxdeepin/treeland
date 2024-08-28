@@ -53,7 +53,7 @@ public:
     Border border;
 
     enum WindowState {
-        noTitlebar,
+        noTitlebar = 1,
     };
     Q_ENUM(WindowState)
     Q_DECLARE_FLAGS(WindowStates, WindowState)
