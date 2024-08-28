@@ -100,7 +100,7 @@ Item {
         let prevStateStore = restoreStates.get(prevEnvHash)
         for (let i = 0; i < workspaceManager.allSurfaces.count; i++) {
             const surf = workspaceManager.allSurfaces.get(i).wrapper
-            const surfKey = surf.waylandSurface
+            const surfKey = surf.wSurface
             console.debug(`restoring ${surfKey} ${printStructureObject(surf.store?.normal)} => ${printStructureObject(curStateStore.get(surfKey)?.store?.normal)}`)
             let prevStore={t:Date.now()}
             Object.assign(prevStore,surf.store)

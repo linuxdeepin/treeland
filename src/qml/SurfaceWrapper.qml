@@ -271,14 +271,10 @@ SurfaceItemFactory {
         surfaceItem.state = "default"
     }
     onIsMoveResizingChanged: if (!isMoveResizing) {
-        if (state === "default")
-            saveState()
+        saveState()
     }
     onStoreChanged: {
         storeNormalWidth = store.normal?.width ?? 0
-    }
-    Component.onCompleted: {
-        saveState() // save initial state
     }
 
     ListModel {
