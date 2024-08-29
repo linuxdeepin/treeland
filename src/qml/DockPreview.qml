@@ -13,7 +13,6 @@ Item {
     id: root
 
     property int aniDuration: 350
-    property int moveDuration: 350
     property alias spacing: listview.spacing
     property bool enableBlur: true
     // set by States
@@ -32,6 +31,10 @@ Item {
     // handle by workspace
 
     property bool isShowing: false
+    property bool isTooltip: false
+    property bool isNewDockPreview: false
+    property bool listviewPinToLeft: true
+
     visible: false
 
     LoggingCategory {
@@ -89,6 +92,7 @@ Item {
 
             var newSize = filtedList.length;
             var oldSize = filterSurfaceModel.count;
+            root.isNewDockPreview = oldSize === 0 && newSize !== 0;
             for (let i = 0; i < Math.min(newSize, oldSize); i++) {
                 filterSurfaceModel.set(i, filtedList[i])
             }
@@ -99,8 +103,6 @@ Item {
             }
             if (newSize < oldSize) {
                 filterSurfaceModel.remove(newSize, oldSize-newSize)
-                if (!newSize)
-                    filterSurfaceModel.clear();
             }
         }
 
@@ -140,21 +142,35 @@ Item {
 
     function show(surfaces, target, pos, direction) {
         console.info(qLcDockPreview, "start show windows: ", surfaces)
+        // We want keep listview ancher to left as possible, many animations rely on it
+        // Only when show `dock preview` <-> 'tooltip' animation ancher to right
+        if (root.isShowing && root.isTooltip)
+            root.listviewPinToLeft = root.pos?.x - pos?.x <= 0;
+        else
+            root.listviewPinToLeft = true
         filterSurfaceModel.desiredSurfaces = surfaces
         root.pos = pos;
         root.direction = direction;
         root.target = target;
+        if (root.isShowing && root.isTooltip)
+            tooltip2PreViewAnimation.start();
+        root.isTooltip = false;
         root.isShowing = true;
     }
 
     function showTooltip(tooltip, target, pos, direction) {
         console.info(qLcDockPreview, "start show tooltip: ", tooltip)
+        if (root.isShowing && !root.isTooltip)
+            root.listviewPinToLeft = root.pos?.x - pos?.x >= 0;
+        else
+            root.listviewPinToLeft = true
         root.tooltip = tooltip;
-        filterSurfaceModel.desiredSurfaces = [ ];
-
         root.pos = pos;
         root.direction = direction;
         root.target = target;
+        if (root.isShowing && !root.isTooltip)
+            preView2TooltipAnimation.start();
+        root.isTooltip = true;
         root.isShowing = true;
     }
 
@@ -304,34 +320,36 @@ Item {
         }
     ]
 
-
     Behavior on anchors.horizontalCenterOffset {
         enabled: root.visible
         NumberAnimation {
-            duration: root.moveDuration
+            duration: root.aniDuration
         }
     }
 
     Behavior on anchors.verticalCenterOffset {
         enabled: root.visible
         NumberAnimation {
-            duration: root.moveDuration
+            duration: root.aniDuration
         }
     }
     /* --- global position end --- */
 
     TextMetrics {
-        id: textMetrics
-        font.pointSize: 13
+        id: tooltipMetrics
+        font.pointSize: 12
         text: root.tooltip
     }
 
     function getWidth(removing) {
-        let tooltipWidth = Math.min(textMetrics.width + 10, root.outPutSize.width);
+        let tooltipWidth = Math.min(tooltipMetrics.width + 10, root.outPutSize.width);
         let width = 0
         var reseverWidth = listview.orientation === ListView.Horizontal ? -listview.spacing : 0
 
         let onlyRemove = false;
+
+        if (removing && root.isTooltip)
+            return tooltipWidth;
 
         for (let child of listview.contentItem.visibleChildren) {
             if (child.objectName === "highlight" || (removing && child.isRemoving)) continue
@@ -357,6 +375,8 @@ Item {
     function getHeight(removing) {
         let height = 0
         let reseverHeight = headLayout.implicitHeight + (listview.orientation === ListView.Vertical ? 0 : listview.spacing)
+        if (removing && root.isTooltip)
+            return tooltipMetrics.height;
         for (let child of listview.contentItem.visibleChildren) {
             if (child.objectName === "highlight" || (removing && child.isRemoving)) continue
             if (listview.orientation === ListView.Vertical) {
@@ -373,6 +393,14 @@ Item {
         return height + reseverHeight + listview.spacing
     }
 
+    onListviewPinToLeftChanged: {
+        // We must clear all left/right anchors then reset them
+        listview.anchors.left = undefined
+        listview.anchors.right = undefined
+        listview.anchors.left = root.listviewPinToLeft ? listview.parent.left : undefined
+        listview.anchors.right = root.listviewPinToLeft ? undefined : listview.parent.right
+    }
+
     ListView {
         id: listview
         model: filterSurfaceModel
@@ -380,13 +408,12 @@ Item {
 
         property size lastSize: Qt.size(0, 0)
         property int radius: 5
-
-        clip: true
-
-        anchors.left: parent.left
-        anchors.top: parent.top
+        clip: false
+        anchors.left: parent.left // Maybe changed in `onListviewPinToLeftChanged`
         anchors.leftMargin: listview.spacing
-        anchors.topMargin: headLayout.implicitHeight + listview.spacing
+        anchors.rightMargin: listview.spacing
+        anchors.bottom: parent.bottom
+        transformOrigin: root.listviewPinToLeft ? Item.BottomLeft : Item.BottomRight
 
         orientation: root.isHorizontal ? ListView.Horizontal : ListView.Vertical
         layoutDirection: Qt.LeftToRight
@@ -394,7 +421,7 @@ Item {
         boundsBehavior: Flickable.StopAtBounds
         interactive: true
         highlightFollowsCurrentItem: true
-        implicitHeight: root.implicitHeight
+        implicitHeight: root.implicitHeight - headLayout.implicitHeight
         implicitWidth: root.implicitWidth
         highlightMoveDuration: 200
         spacing: 5
@@ -404,7 +431,6 @@ Item {
             visible: false
             z: listview.z + 2
             anchors {
-                verticalCenterOffset: -(headLayout.implicitHeight) / 2 - 3
                 verticalCenter: listview.orientation === ListView.Horizontal && parent ? parent.verticalCenter : undefined
                 horizontalCenter: listview.orientation === ListView.Vertical && parent ? parent.horizontalCenter : undefined
             }
@@ -513,9 +539,15 @@ Item {
 
         add: Transition {
             id: addTransition
+            enabled: !root.isNewDockPreview
 
             ParallelAnimation {
-                NumberAnimation { property: "opacity"; from: 0.3; to: 1; duration: root.aniDuration }
+                NumberAnimation {
+                    property: "opacity"
+                    from: 0.3
+                    to: 1
+                    duration: root.aniDuration
+                }
 
                 NumberAnimation {
                     property:"x"
@@ -539,6 +571,39 @@ Item {
         }
     }
 
+    SequentialAnimation {
+        id: preView2TooltipAnimation
+        ParallelAnimation {
+            NumberAnimation {
+                target: listview
+                property: "scale"
+                from: 1
+                to: 0
+                duration: root.aniDuration
+            }
+        }
+        ScriptAction {
+            script: {
+                filterSurfaceModel.desiredSurfaces = [ ];
+                listview.scale = 1 // restore scale property after animation
+            }
+        }
+    }
+
+    SequentialAnimation {
+        id: tooltip2PreViewAnimation
+        ParallelAnimation {
+            NumberAnimation {
+                target: listview
+                property: "scale"
+                from: 0
+                to: 1
+                duration: root.aniDuration
+            }
+        }
+        PropertyAction { target: root; property: "tooltip"; value: "" }
+    }
+
     Rectangle {
         id: background
         z: root.z
@@ -546,7 +611,7 @@ Item {
         implicitWidth: getWidth(true) + 2 * listview.spacing
         implicitHeight: getHeight(true) + 2 * listview.spacing
         radius: listview.radius
-        clip: true
+        clip: false
         parent: root.parent
         visible: root.visible
         anchors.horizontalCenterOffset: root.horizontalCenterOffset
@@ -604,58 +669,120 @@ Item {
                 topMargin: 4
             }
 
-            // Image {
-            //     id: icon
-            //     visible: filterSurfaceModel.count !== 0
-            //     source: null
-            //     sourceSize: Qt.size(24, 24)
-            //     Layout.alignment: Qt.AlignVCenter
-            //     asynchronous: true
-            // }
-
-            // We can't get app icon now, use Rectangle as fallback!
             Rectangle {
-                visible: filterSurfaceModel.count !== 0
-                width: 24
-                height: 24
-                color: "yellow"
-                Layout.alignment: Qt.AlignVCenter
-            }
-
-            Control {
+                id: titleOrTooltipRect
                 Layout.alignment: Qt.AlignVCenter
                 Layout.fillWidth: true
+                Layout.fillHeight: true
+                implicitWidth: root.isTooltip ?  tooltipText.implicitWidth : titleIconText.implicitWidth
+                implicitHeight: root.isTooltip ?  tooltipText.implicitHeight : titleIconText.implicitHeight
+                color: "transparent"
 
-                contentItem: Text {
-                    id: title
-                    text:  filterSurfaceModel.count !== 0 ?
-                               filterSurfaceModel.get(Math.max(listview.currentIndex, 0)).item.shellSurface.title :
-                               root.tooltip
-                    font.pointSize: 13
-                    elide: Text.ElideRight
-                    horizontalAlignment: filterSurfaceModel.count===0 ?
-                                             Text.AlignHCenter : Text.AlignLeft
-                    verticalAlignment: Text.AlignVCenter
-                    color: root.Window.window.palette.windowText
-                    Behavior on text {
-                        enabled: background.visible
-                        SequentialAnimation {
-                            NumberAnimation {
-                                target: title
-                                property: "opacity"
-                                to: 0
-                                easing.type: Easing.InQuad
-                                duration: root.visible ? root.aniDuration / 2 : 0
+                states: [
+                    State {
+                        name: "tooltip_visible"
+                        when: root.isShowing && root.isTooltip
+                        PropertyChanges {
+                            restoreEntryValues: false // don't restore visible
+                            tooltipText {
+                                visible: true
+                                scale: 1
+                                opacity: 1
                             }
-                            PropertyAction { }
-                            NumberAnimation {
-                                target: title
-                                property: "opacity"
-                                to: 1
-                                easing.type: Easing.OutQuad
-                                duration: root.aniDuration / 2
+                            titleIconText {
+                                scale: 0.2
+                                opacity: 0
                             }
                         }
+                    },
+                    State {
+                        name: "title_visible"
+                        when: root.isShowing && !root.isTooltip
+                        PropertyChanges {
+                            restoreEntryValues: false
+                            tooltipText {
+                                scale: 0.2
+                                opacity: 0
+                            }
+                            titleIconText {
+                                visible: true
+                                scale: 1
+                                opacity: 1
+                            }
+                        }
+                    },
+                    State {
+                        name: "all_hide"
+                        when: !root.isShowing
+                        PropertyChanges {
+                            restoreEntryValues: false
+                            tooltipText {
+                                visible: false
+                                scale: 1
+                                opacity: 1
+                            }
+                            titleIconText {
+                                visible: false
+                                scale: 1
+                                opacity: 1
+                            }
+                        }
+                    }
+                ]
+
+                Text {
+                    id: tooltipText
+                    anchors.fill: parent
+                    text: root.tooltip
+                    font.pointSize: 12  // FIXME: D.DTK.fontManager.t6 can't work under waylib qpa
+                    elide: Text.ElideRight
+                    horizontalAlignment: Text.AlignLeft
+                    leftPadding: Math.min((width - tooltipMetrics.width) / 2, 5)
+                    // Here need AlignHCenter, but it will cause the position suddenly change on preview to tooltip animation
+                    verticalAlignment: Text.AlignVCenter
+                    transformOrigin: Item.BottomLeft
+                    Behavior on opacity {
+                        enabled: root.isShowing
+                        SequentialAnimation {
+                            NumberAnimation { duration: root.aniDuration }
+                            PropertyAction { target: tooltipText; property: "visible"; value: root.isTooltip }
+                        }
+                    }
+                    Behavior on scale {
+                        enabled: root.isShowing
+                        NumberAnimation { duration: root.aniDuration }
+                    }
+                }
+
+                Row {
+                    id: titleIconText
+                    anchors.fill: parent
+                    spacing: 2
+                    transformOrigin: Item.BottomLeft
+                    Rectangle { // TODO: We can't get app icon now, use Rectangle as fallback!
+                        width: 24
+                        height: 24
+                        color: "yellow"
+                    }
+                    Text {
+                        text: filterSurfaceModel.count ?
+                                  filterSurfaceModel.get(Math.max(listview.currentIndex, 0)).item.shellSurface.title : ""
+                        font.pointSize: 14  // FIXME: D.DTK.fontManager can't work under waylib qpa
+                        elide: Text.ElideRight
+                        horizontalAlignment: Text.AlignLeft
+                        verticalAlignment: Text.AlignVCenter
+                    }
+
+                    Behavior on opacity {
+                        enabled: root.isShowing
+                        SequentialAnimation {
+                            NumberAnimation { duration: root.aniDuration }
+                            PropertyAction { target: titleIconText; property: "visible"; value: !root.isTooltip }
+                        }
+                    }
+                    Behavior on scale {
+                        enabled: root.isShowing
+                        NumberAnimation { duration: root.aniDuration }
                     }
                 }
             }
@@ -676,26 +803,26 @@ Item {
         }
 
         Behavior on implicitHeight {
-            enabled: background.visible && filterSurfaceModel.lastSize
+            enabled: background.visible
             NumberAnimation { duration: root.aniDuration }
         }
 
         Behavior on implicitWidth {
-            enabled: background.visible && filterSurfaceModel.lastSize
+            enabled: background.visible
             NumberAnimation { duration: root.aniDuration }
         }
 
         Behavior on anchors.horizontalCenterOffset {
             enabled: root.visible
             NumberAnimation {
-                duration: root.moveDuration
+                duration: root.aniDuration
             }
         }
 
         Behavior on anchors.verticalCenterOffset {
             enabled: root.visible
             NumberAnimation {
-                duration: root.moveDuration
+                duration: root.aniDuration
             }
         }
 
