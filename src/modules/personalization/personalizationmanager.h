@@ -109,7 +109,6 @@ public:
 
     QSize cursorSize();
     void setCursorSize(const QSize &size);
-    Q_INVOKABLE QString getOutputName(const WOutput *w_output);
     QByteArrayView interfaceName() const override;
 
     personalization_window_context_v1 *getWindowContext(WSurface *surface);

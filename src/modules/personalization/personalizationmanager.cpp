@@ -42,19 +42,6 @@ QuickPersonalizationManagerAttached *Personalization::qmlAttachedProperties(QObj
     return nullptr;
 }
 
-QString PersonalizationV1::getOutputName(const WOutput *w_output)
-{
-    // TODO: remove if https://github.com/vioken/waylib/pull/386 merged
-    if (!w_output)
-        return QString();
-
-    wlr_output *output = w_output->nativeHandle();
-    if (!output)
-        return QString();
-
-    return output->name;
-}
-
 void PersonalizationV1::updateCacheWallpaperPath(uid_t uid)
 {
     QString cache_location = QStandardPaths::writableLocation(QStandardPaths::CacheLocation);
