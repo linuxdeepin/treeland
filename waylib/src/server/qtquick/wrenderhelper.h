@@ -13,12 +13,15 @@
 QT_BEGIN_NAMESPACE
 class QQuickRenderControl;
 class QSGTexture;
+class QSGPlainTexture;
+class QRhi;
 QT_END_NAMESPACE
 
 QW_BEGIN_NAMESPACE
 class qw_renderer;
 class qw_backend;
 class qw_buffer;
+class qw_texture;
 QW_END_NAMESPACE
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
@@ -48,6 +51,8 @@ public:
 
     static void setupRendererBackend(QW_NAMESPACE::qw_backend *testBackend = nullptr);
     static QSGRendererInterface::GraphicsApi probe(QW_NAMESPACE::qw_backend *testBackend, const QList<QSGRendererInterface::GraphicsApi> &apiList);
+
+    static bool makeTexture(QRhi *rhi, QW_NAMESPACE::qw_texture *handle, QSGPlainTexture *texture);
 
 Q_SIGNALS:
     void sizeChanged();

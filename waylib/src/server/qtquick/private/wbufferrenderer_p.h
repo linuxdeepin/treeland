@@ -31,7 +31,7 @@ struct wlr_swapchain;
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
 class WRenderHelper;
-class TextureProvider;
+class WSGTextureProvider;
 class WAYLIB_SERVER_EXPORT WBufferRenderer : public QQuickItem
 {
     friend class WOutputRenderWindow;
@@ -77,6 +77,7 @@ public:
 
     bool isTextureProvider() const override;
     QSGTextureProvider *textureProvider() const override;
+    WSGTextureProvider *wTextureProvider() const;
 
     static QTransform inputMapToOutput(const QRectF &sourceRect, const QRectF &targetRect,
                                        const QSize &pixelSize, const qreal devicePixelRatio);
@@ -150,7 +151,7 @@ private:
 
     QList<Data> m_sourceList;
     QW_NAMESPACE::qw_damage_ring m_damageRing;
-    std::unique_ptr<TextureProvider> m_textureProvider;
+    mutable std::unique_ptr<WSGTextureProvider> m_textureProvider;
     QColor m_clearColor = Qt::transparent;
     QList<QObject*> m_cacheBufferLocker;
 

@@ -223,7 +223,7 @@ public:
 
     W_DECLARE_PUBLIC(WCursorImage)
 
-    QImage image;
+    QImage image;// TODO: supports multi threads
     QPoint hotSpot;
 
     QCursor cursor;

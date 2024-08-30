@@ -2,11 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "wbufferrenderer_p.h"
-#include "wtexture.h"
 #include "wrenderhelper.h"
 #include "wqmlhelper_p.h"
 #include "wtools.h"
-#include "wbuffertextureprovider.h"
+#include "wsgtextureprovider.h"
 
 #include <qwbuffer.h>
 #include <qwtexture.h>
@@ -99,104 +98,12 @@ static void applyTransform(QSGSoftwareRenderer *renderer, const QTransform &t)
     }
 }
 
-class Q_DECL_HIDDEN TextureProvider : public WBufferTextureProvider
-{
-public:
-    explicit TextureProvider(WBufferRenderer *item)
-        : item(item) {
-
-    }
-    ~TextureProvider() {
-        if (m_texture)
-            cleanTexture();
-    }
-
-    QSGTexture *texture() const override {
-        return m_texture ? &m_texture->texture : nullptr;
-    }
-
-    qw_texture *qwTexture() const override {
-        return m_texture ? m_texture->qwtexture : nullptr;
-    }
-
-    qw_buffer *qwBuffer() const override {
-        return m_texture ? m_texture->buffer : nullptr;
-    }
-
-    void setBuffer(qw_buffer *buffer) {
-        if (buffer && buffer == qwBuffer()) {
-            Q_EMIT textureChanged();
-            return;
-        }
-
-        if (m_texture)
-            cleanTexture();
-
-        Q_ASSERT(!m_texture);
-        if (buffer) {
-            Q_ASSERT(item);
-            m_texture = new Texture(item->window(), item->output()->renderer(), buffer);
-        }
-
-        Q_EMIT textureChanged();
-    }
-
-    void cleanTexture() {
-        Q_ASSERT(item);
-
-        class TextureCleanupJob : public QRunnable
-        {
-        public:
-            TextureCleanupJob(Texture *texture)
-                : texture(texture) { }
-            void run() override {
-                delete texture;
-            }
-            Texture *texture;
-        };
-
-        // Delay clean the textures on the next render after.
-        item->window()->scheduleRenderJob(new TextureCleanupJob(m_texture),
-                                          QQuickWindow::AfterSynchronizingStage);
-        m_texture = nullptr;
-    }
-
-    void invalidate() {
-        cleanTexture();
-        item = nullptr;
-
-        Q_EMIT textureChanged();
-    }
-
-    WBufferRenderer *item;
-
-    struct Texture {
-        Texture(QQuickWindow *window, qw_renderer *renderer, qw_buffer *buffer)
-        {
-            qwtexture = qw_texture::from_buffer(*renderer, *buffer);
-            this->buffer = buffer;
-            WTexture::makeTexture(qwtexture, &texture, window);
-            texture.setOwnsTexture(false);
-        }
-
-        ~Texture() {
-            delete qwtexture;
-        }
-
-        qw_texture *qwtexture;
-        qw_buffer *buffer;
-        QSGPlainTexture texture;
-    };
-
-    Texture *m_texture = nullptr;
-};
-
 WBufferRenderer::WBufferRenderer(QQuickItem *parent)
     : QQuickItem(parent)
     , m_cacheBuffer(false)
     , m_hideSource(false)
 {
-    m_textureProvider.reset(new TextureProvider(this));
+
 }
 
 WBufferRenderer::~WBufferRenderer()
@@ -364,6 +271,23 @@ bool WBufferRenderer::isTextureProvider() const
 
 QSGTextureProvider *WBufferRenderer::textureProvider() const
 {
+    return wTextureProvider();
+}
+
+WSGTextureProvider *WBufferRenderer::wTextureProvider() const
+{
+    auto w = qobject_cast<WOutputRenderWindow*>(window());
+    auto d = QQuickItemPrivate::get(this);
+    if (!w || !d->sceneGraphRenderContext() || QThread::currentThread() != d->sceneGraphRenderContext()->thread()) {
+        qWarning("WBufferRenderer::textureProvider: can only be queried on the rendering thread of an WOutputRenderWindow");
+        return nullptr;
+    }
+
+    if (!m_textureProvider) {
+        m_textureProvider.reset(new WSGTextureProvider(w));
+        m_textureProvider->setBuffer(m_lastBuffer);
+    }
+
     return m_textureProvider.get();
 }
 
@@ -394,11 +318,10 @@ QTransform WBufferRenderer::inputMapToOutput(const QRectF &sourceRect, const QRe
 }
 
 qw_buffer *WBufferRenderer::beginRender(const QSize &pixelSize, qreal devicePixelRatio,
-                                       uint32_t format, RenderFlags flags)
+                                        uint32_t format, RenderFlags flags)
 {
     Q_ASSERT(!state.buffer);
     Q_ASSERT(m_output);
-    Q_ASSERT(m_textureProvider);
 
     if (pixelSize.isEmpty())
         return nullptr;
@@ -406,7 +329,6 @@ qw_buffer *WBufferRenderer::beginRender(const QSize &pixelSize, qreal devicePixe
     Q_EMIT beforeRendering();
 
     m_damageRing.set_bounds(pixelSize.width(), pixelSize.height());
-    Q_ASSERT(m_textureProvider);
 
     // configure swapchain
     if (flags.testFlag(RenderFlag::DontConfigureSwapchain)) {
@@ -415,7 +337,6 @@ qw_buffer *WBufferRenderer::beginRender(const QSize &pixelSize, qreal devicePixe
             qWarning("wlr_renderer doesn't support format 0x%s", drmGetFormatName(format));
             return nullptr;
         }
-        Q_ASSERT(m_textureProvider);
 
         if (!m_swapchain || QSize(m_swapchain->handle()->width, m_swapchain->handle()->height) != pixelSize
             || m_swapchain->handle()->format.format != renderFormat->format) {
@@ -432,8 +353,6 @@ qw_buffer *WBufferRenderer::beginRender(const QSize &pixelSize, qreal devicePixe
                                                       !flags.testFlag(DontTestSwapchain));
         if (!ok)
             return nullptr;
-        Q_ASSERT(m_textureProvider);
-
     }
 
     // TODO: Support scanout buffer of wlr_surface(from WSurfaceItem)
@@ -675,7 +594,7 @@ void WBufferRenderer::render(int sourceIndex, const QMatrix4x4 &renderMatrix,
     }
 
     if (shouldCacheBuffer())
-        m_textureProvider->setBuffer(state.buffer);
+        wTextureProvider()->setBuffer(state.buffer);
 }
 
 void WBufferRenderer::endRender()

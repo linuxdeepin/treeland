@@ -4,7 +4,7 @@
 #include "woutputviewport.h"
 #include "woutputviewport_p.h"
 #include "woutput.h"
-#include "wbuffertextureprovider.h"
+#include "wsgtextureprovider.h"
 #include "wbufferrenderer_p.h"
 
 #include <qwbuffer.h>
@@ -141,10 +141,10 @@ QSGTextureProvider *WOutputViewport::textureProvider() const
     return d->bufferRenderer->textureProvider();
 }
 
-WBufferTextureProvider *WOutputViewport::wTextureProvider() const
+WSGTextureProvider *WOutputViewport::wTextureProvider() const
 {
     W_DC(WOutputViewport);
-    return qobject_cast<WBufferTextureProvider*>(d->bufferRenderer->textureProvider());
+    return qobject_cast<WSGTextureProvider*>(d->bufferRenderer->textureProvider());
 }
 
 QQuickItem *WOutputViewport::input() const

@@ -33,6 +33,7 @@ Q_SIGNALS:
 };
 
 class WQuickOutputLayout;
+class WSGTextureProvider;
 class WQuickCursorPrivate;
 class WAYLIB_SERVER_EXPORT WQuickCursor : public QQuickItem
 {
@@ -54,6 +55,7 @@ public:
     static WQuickCursorAttached *qmlAttachedProperties(QObject *target);
 
     QSGTextureProvider *textureProvider() const override;
+    WSGTextureProvider *wTextureProvider() const;
     bool isTextureProvider() const override;
 
     bool valid() const;
@@ -91,7 +93,7 @@ private:
     QSGNode *updatePaintNode(QSGNode *node, UpdatePaintNodeData *data) override;
     void releaseResources() override;
 
-    W_PRIVATE_SLOT(void updateTexture())
+    W_PRIVATE_SLOT(void onImageChanged())
     W_PRIVATE_SLOT(void updateCursor())
     W_PRIVATE_SLOT(void updateImplicitSize())
     W_PRIVATE_SLOT(void updateXCursorManager())

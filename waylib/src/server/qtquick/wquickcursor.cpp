@@ -5,11 +5,11 @@
 #include "woutputrenderwindow.h"
 #include "woutputitem.h"
 #include "wcursorimage.h"
-#include "wbuffertextureprovider.h"
+#include "wsgtextureprovider.h"
 #include "wimagebuffer.h"
-#include "wtexture.h"
 #include "wseat.h"
 #include "wsurfaceitem.h"
+#include "wrenderhelper.h"
 
 #include <qwxcursormanager.h>
 #include <qwbuffer.h>
@@ -23,18 +23,17 @@
 QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
-class Q_DECL_HIDDEN CursorTextureProvider : public WBufferTextureProvider
+class Q_DECL_HIDDEN CursorTextureProvider : public WSGTextureProvider
 {
 public:
-    CursorTextureProvider() {
-        m_texture.setOwnsTexture(false);
+    CursorTextureProvider(WOutputRenderWindow *window)
+        : WSGTextureProvider(window)
+    {
+
     }
 
-    void setImage(const QImage &image, QQuickWindow *window) {
-        WOutputRenderWindow* rw = qobject_cast<WOutputRenderWindow*>(window);
-        Q_ASSERT(rw);
-
-        if (image.isNull() || !rw->renderer()) {
+    void setImage(const QImage &image) {
+        if (image.isNull()) {
             resetBuffer();
             return;
         }
@@ -43,13 +42,10 @@ public:
         auto buffer = qw_buffer::create(new WImageBufferImpl(image),
                                        image.width(), image.height());
         this->buffer.reset(buffer);
-        m_qwTexture.reset(qw_texture::from_buffer(*rw->renderer(), *buffer));
-        WTexture::makeTexture(m_qwTexture.get(), &m_texture, window);
-
-        Q_EMIT textureChanged();
+        setBuffer(this->buffer.get());
     }
 
-    void setProxy(WBufferTextureProvider *proxy) {
+    void setProxy(WSGTextureProvider *proxy) {
         if (this->proxy == proxy)
             return;
 
@@ -61,7 +57,7 @@ public:
         this->proxy = proxy;
 
         if (this->proxy) {
-            connect(proxy, &WBufferTextureProvider::textureChanged,
+            connect(proxy, &WSGTextureProvider::textureChanged,
                     this, &CursorTextureProvider::textureChanged);
         }
 
@@ -69,11 +65,8 @@ public:
     }
 
     void resetBuffer() {
-        if (buffer) {
-            this->buffer.reset();
-            this->m_qwTexture.reset();
-            Q_EMIT textureChanged();
-        }
+        setBuffer(nullptr);
+        buffer.reset();
     }
     void reset() {
         resetBuffer();
@@ -83,24 +76,21 @@ public:
     QSGTexture *texture() const override {
         if (proxy)
             return proxy->texture();
-        return buffer ? const_cast<QSGPlainTexture*>(&m_texture) : nullptr;
+        return WSGTextureProvider::texture();
     }
     qw_texture *qwTexture() const override {
         if (proxy)
             return proxy->qwTexture();
-        return m_qwTexture.get();
+        return WSGTextureProvider::qwTexture();
     }
     qw_buffer *qwBuffer() const override {
         if (proxy)
             return proxy->qwBuffer();
-        return buffer.get();
+        return WSGTextureProvider::qwBuffer();
     }
 
     std::unique_ptr<qw_buffer, qw_buffer::droper> buffer;
-    std::unique_ptr<qw_texture> m_qwTexture;
-    QSGPlainTexture m_texture;
-
-    QPointer<WBufferTextureProvider> proxy;
+    QPointer<WSGTextureProvider> proxy;
 };
 
 WQuickCursorAttached::WQuickCursorAttached(QQuickItem *parent)
@@ -138,11 +128,9 @@ public:
         return qq->d_func();
     }
 
-    CursorTextureProvider *tp() const;
     void cleanTextureProvider();
 
     void invalidate() {
-        QObject::disconnect(updateTextureConnection);
         cleanTextureProvider();
     }
 
@@ -150,7 +138,7 @@ public:
     void enterOutput(WOutput *output);
     void leaveOutput(WOutput *output);
     void updateXCursorManager();
-    void updateTexture();
+    void onImageChanged();
     void updateCursor();
     void updateImplicitSize();
     void setHotSpot(const QPoint &newHotSpot);
@@ -162,13 +150,12 @@ public:
     Q_DECLARE_PUBLIC(WQuickCursor)
 
     mutable CursorTextureProvider *textureProvider = nullptr;
-    mutable QMetaObject::Connection updateTextureConnection;
 
     WCursor *cursor = nullptr;
     QPointer<WOutput> output;
     WCursorImage *cursorImage = nullptr;
 
-    WSurfaceItemContent *cursorSurfaceItem = nullptr;
+    QPointer<WSurfaceItemContent> cursorSurfaceItem;
 
     QString xcursorThemeName;
     QSize cursorSize = QSize(24, 24);
@@ -185,29 +172,10 @@ void WQuickCursorPrivate::setHotSpot(const QPoint &newHotSpot)
     Q_EMIT q->hotSpotChanged();
 }
 
-WQuickCursorPrivate::WQuickCursorPrivate(WQuickCursor *qq)
+WQuickCursorPrivate::WQuickCursorPrivate(WQuickCursor *)
     : QQuickItemPrivate()
 {
 
-}
-
-CursorTextureProvider *WQuickCursorPrivate::tp() const
-{
-    if (!textureProvider) {
-        Q_ASSERT(cursorImage);
-        textureProvider = new CursorTextureProvider;
-        updateTextureConnection = QObject::connect(cursorImage, SIGNAL(imageChanged()),
-                                                   q_func(), SLOT(updateTexture()));
-        Q_ASSERT(updateTextureConnection);
-
-        if (cursorSurfaceItem) {
-            Q_ASSERT(cursorSurfaceItem->surface());
-            textureProvider->setProxy(cursorSurfaceItem->wTextureProvider());
-        } else {
-            const_cast<WQuickCursorPrivate*>(this)->updateTexture();
-        }
-    }
-    return textureProvider;
 }
 
 void WQuickCursorPrivate::cleanTextureProvider()
@@ -251,7 +219,6 @@ void WQuickCursorPrivate::setSurface(WSurface *surface)
             });
 
             q->setFlag(QQuickItem::ItemHasContents, false);
-            q->update();
         }
 
         cursorSurfaceItem->setSurface(surface);
@@ -268,10 +235,10 @@ void WQuickCursorPrivate::setSurface(WSurface *surface)
             cursorSurfaceItem = nullptr;
         }
         q->setFlag(QQuickItem::ItemHasContents, true);
-        q->update();
     }
 
     updateImplicitSize();
+    q->update();
 }
 
 void WQuickCursorPrivate::enterOutput(WOutput *output)
@@ -304,9 +271,8 @@ void WQuickCursorPrivate::updateXCursorManager()
     cursorImage->setScale(window ? window->effectiveDevicePixelRatio() : 1.0);
 }
 
-void WQuickCursorPrivate::updateTexture()
+void WQuickCursorPrivate::onImageChanged()
 {
-    textureProvider->setImage(cursorImage->image(), window);
     updateImplicitSize();
 
     if (!cursorSurfaceItem) {
@@ -364,6 +330,8 @@ WQuickCursor::WQuickCursor(QQuickItem *parent)
     d->cursorImage = new WCursorImage(this);
     setFlag(QQuickItem::ItemHasContents);
     setImplicitSize(d->cursorSize.width(), d->cursorSize.height());
+
+    connect(d->cursorImage, SIGNAL(imageChanged()), this, SLOT(onImageChanged()));
 }
 
 WQuickCursor::~WQuickCursor()
@@ -385,8 +353,28 @@ QSGTextureProvider *WQuickCursor::textureProvider() const
     if (QQuickItem::isTextureProvider())
         return QQuickItem::textureProvider();
 
+    return wTextureProvider();
+}
+
+WSGTextureProvider *WQuickCursor::wTextureProvider() const
+{
     W_DC(WQuickCursor);
-    return d->tp();
+
+    auto w = qobject_cast<WOutputRenderWindow*>(d->window);
+    if (!w || !d->sceneGraphRenderContext() || QThread::currentThread() != d->sceneGraphRenderContext()->thread()) {
+        qWarning("WQuickCursor::textureProvider: can only be queried on the rendering thread of an WOutputRenderWindow");
+        return nullptr;
+    }
+
+    if (!d->textureProvider) {
+        Q_ASSERT(d->cursorImage);
+        d->textureProvider = new CursorTextureProvider(w);
+        if (d->cursorSurfaceItem && d->cursorSurfaceItem->surface())
+            d->textureProvider->setProxy(d->cursorSurfaceItem->wTextureProvider());
+        else
+            d->textureProvider->setImage(d->cursorImage->image());
+    }
+    return d->textureProvider;
 }
 
 bool WQuickCursor::isTextureProvider() const
@@ -544,13 +532,6 @@ void WQuickCursor::itemChange(ItemChange change, const ItemChangeData &data)
     if (change == ItemSceneChange) {
         if (d->cursor)
             d->cursor->setEventWindow(data.window);
-
-        if (data.window) {
-            auto rw = qobject_cast<WOutputRenderWindow*>(data.window);
-            Q_ASSERT(rw);
-            bool ok = QObject::connect(rw, SIGNAL(initialized()), this, SLOT(updateTexture()));
-            Q_ASSERT(ok);
-        }
     } else if (change == ItemDevicePixelRatioHasChanged) {
         d->updateXCursorManager();
     } else if (change == ItemVisibleHasChanged) {
@@ -578,15 +559,23 @@ QSGNode *WQuickCursor::updatePaintNode(QSGNode *node, UpdatePaintNodeData *)
     W_DC(WQuickCursor);
 
     Q_ASSERT(!d->cursorSurfaceItem);
-    auto tp = d->tp();
+    auto tp = static_cast<CursorTextureProvider*>(wTextureProvider());
     Q_ASSERT(tp);
+    Q_ASSERT(QThread::currentThread() == thread());
+
+    if (d->cursorSurfaceItem && d->cursorSurfaceItem->surface()) {
+        tp->setProxy(d->cursorSurfaceItem->wTextureProvider());
+    } else {
+        tp->setImage(d->cursorImage->image());
+    }
+
     // Ignore the tp->proxy, Don't use tp->qwBuffer()
     if (!tp->buffer) {
         delete node;
         return nullptr;
     }
 
-    auto texture = &tp->m_texture;
+    auto texture = tp->WSGTextureProvider::texture();
     auto imageNode = static_cast<QSGImageNode*>(node);
     if (!imageNode)
         imageNode = window()->createImageNode();

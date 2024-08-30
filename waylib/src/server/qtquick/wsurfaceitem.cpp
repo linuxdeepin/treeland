@@ -4,12 +4,12 @@
 #include "wsurfaceitem.h"
 #include "wsurfaceitem_p.h"
 #include "wsurface.h"
-#include "wtexture.h"
 #include "wseat.h"
 #include "wcursor.h"
 #include "woutput.h"
 #include "woutputviewport.h"
-#include "wbuffertextureprovider.h"
+#include "wsgtextureprovider.h"
+#include "woutputrenderwindow.h"
 
 #include <qwcompositor.h>
 #include <qwsubcompositor.h>
@@ -25,34 +25,6 @@
 
 QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
-
-class Q_DECL_HIDDEN WSGTextureProvider : public WBufferTextureProvider
-{
-    friend class WSurfaceItemContent;
-    friend class WSurfaceItemContentPrivate;
-public:
-    WSGTextureProvider(WSurfaceItemContent *item);
-    ~WSGTextureProvider();
-
-public:
-    QSGTexture *texture() const override;
-    qw_texture *qwTexture() const override;
-    qw_buffer *qwBuffer() const override;
-    void updateTexture(); // in render thread
-    void tryUpdateTexture();
-    void maybeUpdateTextureOnSurfacePrrimaryOutputChanged();
-    void reset();
-
-    qw_texture *ensureTexture();
-
-private:
-    void doUpdateTexture();
-    WSurfaceItemContent *item;
-    std::unique_ptr<qw_buffer, qw_buffer::unlocker> buffer;
-    std::unique_ptr<qw_texture> qwtexture;
-    std::unique_ptr<WTexture> dwtexture;
-    bool textureDirty = false;
-};
 
 class Q_DECL_HIDDEN EventItem : public QQuickItem
 {
@@ -138,18 +110,6 @@ public:
     ~WSurfaceItemContentPrivate() {
     }
 
-    inline WSGTextureProvider *tp() const {
-        if (!textureProvider) {
-            textureProvider = new WSGTextureProvider(const_cast<WSurfaceItemContent*>(q_func()));
-            Q_ASSERT(!updateTextureConnection);
-            if (surface) {
-                updateTextureConnection = surface->safeConnect(&WSurface::bufferChanged,
-                                                               textureProvider,
-                                                               &WSGTextureProvider::updateTexture);
-            }
-        }
-        return textureProvider;
-    }
     void cleanTextureProvider();
 
     void invalidate() {
@@ -168,6 +128,7 @@ public:
         Q_ASSERT(!updateTextureConnection);
 
         if (dontCacheLastBuffer) {
+            buffer.reset();
             cleanTextureProvider();
             q->update();
         }
@@ -182,24 +143,19 @@ public:
         surface->safeConnect(&qw_surface::notify_commit, q, [this] {
             updateSurfaceState();
         });
-        surface->safeConnect(&WSurface::primaryOutputChanged, q, [this] {
-            if (textureProvider)
-                textureProvider->maybeUpdateTextureOnSurfacePrrimaryOutputChanged();
-        });
 
-        if (textureProvider) {
-            Q_ASSERT(!updateTextureConnection);
-            updateTextureConnection = surface->safeConnect(&WSurface::bufferChanged,
-                                                           textureProvider,
-                                                           &WSGTextureProvider::updateTexture);
-        }
+        Q_ASSERT(!updateTextureConnection);
+        updateTextureConnection = surface->safeConnect(&WSurface::bufferChanged, q, [q, this] {
+            buffer.reset(surface->buffer());
+            // lock buffer to ensure the WSurfaceItem can keep the last frame after WSurface destroyed.
+            if (buffer)
+                buffer->lock();
+            q->update();
+        });
 
         updateFrameDoneConnection();
         updateSurfaceState();
-        // window maybe never set before WSurfaceItemContentPrivate::init
-        // also need try updateTexture when `ItemSceneChange`
-        if (window)
-            tp()->updateTexture();
+
         q->rendered = true;
     }
 
@@ -247,6 +203,7 @@ public:
 
     QMetaObject::Connection frameDoneConnection;
     mutable WSGTextureProvider *textureProvider = nullptr;
+    std::unique_ptr<qw_buffer, qw_buffer::unlocker> buffer;
     mutable QMetaObject::Connection updateTextureConnection;
     bool dontCacheLastBuffer = false;
     bool live = true;
@@ -323,14 +280,30 @@ QSGTextureProvider *WSurfaceItemContent::textureProvider() const
     if (QQuickItem::isTextureProvider())
         return QQuickItem::textureProvider();
 
-    W_DC(WSurfaceItemContent);
-    return d->tp();
+    return wTextureProvider();
 }
 
-WBufferTextureProvider *WSurfaceItemContent::wTextureProvider() const
+WSGTextureProvider *WSurfaceItemContent::wTextureProvider() const
 {
     W_DC(WSurfaceItemContent);
-    return d->tp();
+
+    auto w = qobject_cast<WOutputRenderWindow*>(d->window);
+    if (!w || !d->sceneGraphRenderContext() || QThread::currentThread() != d->sceneGraphRenderContext()->thread()) {
+        qWarning("WQuickCursor::textureProvider: can only be queried on the rendering thread of an WOutputRenderWindow");
+        return nullptr;
+    }
+
+    if (!d->textureProvider) {
+        d->textureProvider = new WSGTextureProvider(w);
+        if (d->surface) {
+            if (auto texture = d->surface->handle()->get_texture()) {
+                d->textureProvider->setTexture(qw_texture::from(texture));
+            } else {
+                d->textureProvider->setBuffer(d->buffer.get());
+            }
+        }
+    }
+    return d->textureProvider;
 }
 
 bool WSurfaceItemContent::cacheLastBuffer() const
@@ -360,8 +333,8 @@ void WSurfaceItemContent::setLive(bool live)
     if (d->live == live)
         return;
     d->live = live;
-    if (live && d->textureProvider)
-        d->textureProvider->tryUpdateTexture();
+    if (live)
+        update();
     Q_EMIT liveChanged();
 }
 
@@ -419,23 +392,32 @@ public:
 QSGNode *WSurfaceItemContent::updatePaintNode(QSGNode *oldNode, UpdatePaintNodeData *)
 {
     W_D(WSurfaceItemContent);
-    if (!d->textureProvider || !d->textureProvider->texture() || width() <= 0 || height() <= 0) {
+
+    auto tp = wTextureProvider();
+    if (d->live || !tp->texture()) {
+        auto texture = d->surface ? d->surface->handle()->get_texture() : nullptr;
+        if (texture) {
+            tp->setTexture(qw_texture::from(texture));
+        } else {
+            tp->setBuffer(d->buffer.get());
+        }
+    }
+
+    if (!tp->texture() || width() <= 0 || height() <= 0) {
         delete oldNode;
         return nullptr;
     }
 
     auto node = static_cast<QSGImageNode*>(oldNode);
     if (Q_UNLIKELY(!node)) {
-        auto texture = d->textureProvider->texture();
         node = window()->createImageNode();
         node->setOwnsTexture(false);
-        node->setTexture(texture);
         QSGNode *fpnode = new WSGRenderFootprintNode(this);
         node->appendChildNode(fpnode);
-    } else {
-        node->markDirty(QSGNode::DirtyMaterial);
     }
 
+    auto texture = tp->texture();
+    node->setTexture(texture);
     const QRectF textureGeometry = d->bufferSourceBox;
     node->setSourceRect(textureGeometry);
     const QRectF targetGeometry(d->ignoreBufferOffset ? QPointF() : d->bufferOffset, size());
@@ -462,9 +444,6 @@ void WSurfaceItemContent::itemChange(ItemChange change, const ItemChangeData &da
     W_D(WSurfaceItemContent);
     if (change == QQuickItem::ItemSceneChange) {
         d->updateFrameDoneConnection();
-        if (data.window && d->surface) {
-            d->tp()->updateTexture();
-        }
     }
 }
 
@@ -474,119 +453,6 @@ void WSurfaceItemContent::invalidateSceneGraph()
     if (d->textureProvider)
         delete d->textureProvider;
     d->textureProvider = nullptr;
-}
-
-WSGTextureProvider::WSGTextureProvider(WSurfaceItemContent *item)
-    : item(item)
-{
-    dwtexture.reset(new WTexture(nullptr));
-    dwtexture->setOwnsTexture(false);
-}
-
-WSGTextureProvider::~WSGTextureProvider()
-{
-
-}
-
-QSGTexture *WSGTextureProvider::texture() const
-{
-    if (!buffer)
-        return nullptr;
-
-    return dwtexture->getSGTexture(item->window());
-}
-
-qw_texture *WSGTextureProvider::qwTexture() const
-{
-    if (!buffer)
-        return nullptr;
-    return qwtexture.get();
-}
-
-qw_buffer *WSGTextureProvider::qwBuffer() const
-{
-    return buffer.get();
-}
-
-void WSGTextureProvider::updateTexture()
-{
-    if (!item->live()) {
-        textureDirty = true;
-        return;
-    }
-    doUpdateTexture();
-}
-
-void WSGTextureProvider::doUpdateTexture()
-{
-    if (qwtexture)
-        qwtexture.reset();
-
-    buffer.reset(item->d_func()->surface->buffer());
-    // lock buffer to ensure the WSurfaceItem can keep the last frame after WSurface destroyed.
-    if (buffer)
-        buffer->lock();
-
-    dwtexture->setHandle(ensureTexture());
-    Q_EMIT textureChanged();
-    item->update();
-}
-
-void WSGTextureProvider::tryUpdateTexture()
-{
-    if (textureDirty) {
-        textureDirty = false;
-        doUpdateTexture();
-    }
-}
-
-void WSGTextureProvider::maybeUpdateTextureOnSurfacePrrimaryOutputChanged()
-{
-    // Maybe the last failure of WSGTextureProvider::ensureTexture() cause is
-    // because the surface's primary output is nullptr.
-    if (!dwtexture->handle()) {
-        dwtexture->setHandle(ensureTexture());
-        if (!dwtexture->handle()) {
-            Q_EMIT textureChanged();
-            item->update();
-        }
-    }
-}
-
-void WSGTextureProvider::reset()
-{
-    if (qwtexture)
-        qwtexture.reset();
-    if (buffer)
-        buffer->unlock();
-    buffer = nullptr;
-    dwtexture->setHandle(nullptr);
-    Q_EMIT textureChanged();
-    item->update();
-}
-
-qw_texture *WSGTextureProvider::ensureTexture()
-{
-    auto textureHandle = item->d_func()->surface->handle()->get_texture();
-    if (textureHandle)
-        return qw_texture::from(textureHandle);
-
-    if (qwtexture)
-        return qwtexture.get();
-
-    if (!buffer)
-        return nullptr;
-
-    auto output = item->d_func()->surface->primaryOutput();
-    if (!output)
-        return nullptr;
-
-    auto renderer = output->renderer();
-    if (!renderer)
-        return nullptr;
-
-    qwtexture.reset(qw_texture::from_buffer(*renderer, *buffer));
-    return qwtexture.get();
 }
 
 WSurfaceItem::WSurfaceItem(QQuickItem *parent)
@@ -1409,8 +1275,6 @@ void WSurfaceItemContentPrivate::cleanTextureProvider()
             delete textureProvider;
         }
 
-        QObject::disconnect(updateTextureConnection);
-        textureProvider->item = nullptr;
         textureProvider = nullptr;
     }
 }

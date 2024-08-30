@@ -5,7 +5,6 @@
 #include "woutputitem_p.h"
 #include "woutput.h"
 #include "wquickoutputlayout.h"
-#include "wtexture.h"
 #include "wquickcursor.h"
 #include "private/wglobal_p.h"
 

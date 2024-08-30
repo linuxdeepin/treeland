@@ -62,7 +62,7 @@ set(SOURCES
     kernel/wsurface.cpp
     kernel/wtoplevelsurface.cpp
 
-    kernel/wtexture.cpp
+
     kernel/wtypes.cpp
 
     kernel/woutputlayout.cpp
@@ -89,6 +89,7 @@ set(SOURCES
     qtquick/wxwaylandsurfaceitem.cpp
     qtquick/wqmlcreator.cpp
     qtquick/winputpopupsurfaceitem.cpp
+    qtquick/wsgtextureprovider.cpp
 
     qtquick/private/wquickcoordmapper.cpp
     qtquick/private/wquicksocketattached.cpp
@@ -143,7 +144,6 @@ set(HEADERS
     kernel/wevent.h
     kernel/wserver.h
     kernel/wsurface.h
-    kernel/wtexture.h
     kernel/wtypes.h
     kernel/woutputlayout.h
     kernel/wxcursorimage.h
@@ -159,7 +159,6 @@ set(HEADERS
     kernel/WSeat
     kernel/WEvent
     kernel/WInputEvent
-    kernel/WTexture
     kernel/WSurface
 
     qtquick/wsurfaceitem.h
@@ -182,7 +181,7 @@ set(HEADERS
     qtquick/wxwaylandsurfaceitem.h
     qtquick/winputpopupsurfaceitem.h
     qtquick/wqmlcreator.h
-    qtquick/wbuffertextureprovider.h
+    qtquick/wsgtextureprovider.h
 
     utils/wtools.h
     utils/wthreadutils.h

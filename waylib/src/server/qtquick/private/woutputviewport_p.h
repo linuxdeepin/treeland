@@ -5,7 +5,6 @@
 
 #include "woutputviewport.h"
 #include "woutputrenderwindow.h"
-#include "wtexture.h"
 #include "wbufferrenderer_p.h"
 
 #include <qwoutput.h>
