@@ -22,11 +22,6 @@ void WQuickTextureProxyPrivate::initSourceItem(QQuickItem *old, QQuickItem *item
     W_Q(WQuickTextureProxy);
 
     if (old) {
-        if (auto tp = old->textureProvider()) {
-            bool ok = tp->disconnect(q);
-            Q_ASSERT(ok);
-        }
-
         old->disconnect(q);
         QQuickItemPrivate *sd = QQuickItemPrivate::get(old);
         sd->derefFromEffectItem(hideSource);
@@ -37,8 +32,6 @@ void WQuickTextureProxyPrivate::initSourceItem(QQuickItem *old, QQuickItem *item
         }
     }
 
-    textureSize = QSize();
-
     if (item) {
         QQuickItemPrivate *sd = QQuickItemPrivate::get(item);
         sd->refFromEffectItem(hideSource);
@@ -48,37 +41,17 @@ void WQuickTextureProxyPrivate::initSourceItem(QQuickItem *old, QQuickItem *item
             sd->layer()->setEnabled(true);
         }
 
-        auto tp = item->textureProvider();
-        QObject::connect(tp, &QSGTextureProvider::destroyed, q, &WQuickTextureProxy::update);
-        QObject::connect(tp, SIGNAL(textureChanged()), q, SLOT(onTextureChanged()));
         QObject::connect(item, &QQuickItem::destroyed, q, &WQuickTextureProxy::update);
-
-        if (auto texture = tp->texture())
-            textureSize = texture->textureSize();
     }
 
     updateImplicitSize();
 }
 
-void WQuickTextureProxyPrivate::onTextureChanged()
-{
-    W_Q(WQuickTextureProxy);
-
-    const auto texture = sourceItem->textureProvider()->texture();
-    QSize newTextureSize = texture ? texture->textureSize() : QSize();
-    if (textureSize != newTextureSize) {
-        textureSize = newTextureSize;
-        updateImplicitSize();
-    }
-    q->update();
-}
-
 void WQuickTextureProxyPrivate::updateImplicitSize()
 {
-    if (!textureSize.isEmpty()) {
+    if (sourceItem) {
         W_Q(WQuickTextureProxy);
-        const qreal dpr = q->window() ? q->window()->effectiveDevicePixelRatio() : qApp->devicePixelRatio();
-        q->setImplicitSize(textureSize.width() / dpr, textureSize.height() / dpr);
+        q->setImplicitSize(sourceItem->implicitWidth(), sourceItem->implicitHeight());
     }
 }
 
@@ -190,6 +163,70 @@ void WQuickTextureProxy::setSourceRect(const QRectF &sourceRect)
     update();
 }
 
+class Q_DECL_HIDDEN SGTextureProviderNode : public QObject, public QSGNode
+{
+    Q_OBJECT
+public:
+    SGTextureProviderNode()
+        : m_tp(nullptr)
+        , m_image(nullptr)
+    {
+
+    }
+
+    void setTextureProvider(QSGTextureProvider *tp) {
+        if (m_tp == tp)
+            return;
+
+        if (m_tp) {
+            disconnect(m_tp, &QSGTextureProvider::textureChanged,
+                       this, &SGTextureProviderNode::onTextureChanged);
+        }
+
+        m_tp = tp;
+        onTextureChanged();
+        connect(tp, &QSGTextureProvider::textureChanged,
+                this, &SGTextureProviderNode::onTextureChanged, Qt::DirectConnection);
+    }
+
+    inline QSGTextureProvider *textureProvider() const {
+        return m_tp;
+    }
+
+    void setImageNode(QSGImageNode *image) {
+        m_image = image;
+        image->setOwnsTexture(false);
+        appendChildNode(image);
+        image->setFlag(QSGNode::OwnedByParent);
+        if (m_tp) {
+            m_image->setTexture(m_tp->texture());
+            Q_ASSERT(m_image->texture());
+        }
+    }
+
+    inline QSGImageNode *image() const {
+        return m_image;
+    }
+
+private:
+    void onTextureChanged() {
+        if (!m_image)
+            return;
+
+        auto texture = m_tp ? m_tp->texture() : nullptr;
+
+        if (texture) {
+            m_image->setTexture(m_tp->texture());
+        } else {
+            delete m_image;
+            m_image = nullptr;
+        }
+    }
+
+    QPointer<QSGTextureProvider> m_tp;
+    QSGImageNode *m_image;
+};
+
 QSGNode *WQuickTextureProxy::updatePaintNode(QSGNode *old, QQuickItem::UpdatePaintNodeData *)
 {
     W_D(WQuickTextureProxy);
@@ -205,25 +242,31 @@ QSGNode *WQuickTextureProxy::updatePaintNode(QSGNode *old, QQuickItem::UpdatePai
         return nullptr;
     }
 
-    auto node = static_cast<QSGImageNode*>(old);
+    auto node = static_cast<SGTextureProviderNode*>(old);
+    QSGImageNode *imageNode = nullptr;
     if (Q_UNLIKELY(!node)) {
-        node = window()->createImageNode();
-        node->setOwnsTexture(false);
+        node = new SGTextureProviderNode();
+        imageNode = window()->createImageNode();
+        node->setImageNode(imageNode);
+    } else if (Q_UNLIKELY(!node->image())) {
+        imageNode = window()->createImageNode();
+        node->setImageNode(imageNode);
+    } else {
+        imageNode = node->image();
     }
 
-    auto texture = tp->texture();
-    Q_ASSERT(d->textureSize == texture->textureSize());
-    node->setTexture(texture);
+    Q_ASSERT(imageNode);
+    node->setTextureProvider(tp);
 
     QRectF sourceRect = d->sourceRect;
     if (!sourceRect.isValid())
-        sourceRect = QRectF(QPointF(0, 0), texture->textureSize());
+        sourceRect = QRectF(QPointF(0, 0), tp->texture()->textureSize());
 
-    node->setSourceRect(sourceRect);
-    node->setRect(QRectF(QPointF(0, 0), size()));
-    node->setFiltering(smooth() ? QSGTexture::Linear : QSGTexture::Nearest);
-    node->setMipmapFiltering(d->mipmap ? node->filtering() : QSGTexture::None);
-    node->setAnisotropyLevel(antialiasing() ? QSGTexture::Anisotropy4x : QSGTexture::AnisotropyNone);
+    imageNode->setSourceRect(sourceRect);
+    imageNode->setRect(QRectF(QPointF(0, 0), size()));
+    imageNode->setFiltering(smooth() ? QSGTexture::Linear : QSGTexture::Nearest);
+    imageNode->setMipmapFiltering(d->mipmap ? imageNode->filtering() : QSGTexture::None);
+    imageNode->setAnisotropyLevel(antialiasing() ? QSGTexture::Anisotropy4x : QSGTexture::AnisotropyNone);
 
     return node;
 }
@@ -248,4 +291,4 @@ void WQuickTextureProxy::itemChange(ItemChange change, const ItemChangeData &dat
 
 WAYLIB_SERVER_END_NAMESPACE
 
-#include "moc_wquicktextureproxy.cpp"
+#include "wquicktextureproxy.moc"

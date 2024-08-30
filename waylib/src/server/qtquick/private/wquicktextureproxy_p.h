@@ -20,13 +20,11 @@ public:
     ~WQuickTextureProxyPrivate() override;
 
     void initSourceItem(QQuickItem *old, QQuickItem *item);
-    void onTextureChanged();
     void updateImplicitSize();
 
     W_DECLARE_PUBLIC(WQuickTextureProxy)
 
     QPointer<QQuickItem> sourceItem;
-    QSize textureSize;
     QRectF sourceRect;
     bool hideSource = false;
     bool mipmap = false;

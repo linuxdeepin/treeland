@@ -62,8 +62,8 @@ public:
         Q_EMIT q_func()->hardwareLayersChanged();
     }
 
-    qreal getImplicitWidth() const override;
-    qreal getImplicitHeight() const override;
+    qreal calculateImplicitWidth() const;
+    qreal calculateImplicitHeight() const;
 
     void updateImplicitSize();
     void updateRenderBufferSource();

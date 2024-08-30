@@ -51,8 +51,6 @@ protected:
     QSGNode *updatePaintNode(QSGNode *old, UpdatePaintNodeData *) override;
     void componentComplete() override;
     void itemChange(ItemChange change, const ItemChangeData &data) override;
-
-    W_PRIVATE_SLOT(void onTextureChanged())
 };
 
 WAYLIB_SERVER_END_NAMESPACE

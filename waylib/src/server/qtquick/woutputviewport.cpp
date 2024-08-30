@@ -59,19 +59,20 @@ void WOutputViewportPrivate::update()
         window->update(q_func());
 }
 
-qreal WOutputViewportPrivate::getImplicitWidth() const
+qreal WOutputViewportPrivate::calculateImplicitWidth() const
 {
     return output->size().width() / devicePixelRatio;
 }
 
-qreal WOutputViewportPrivate::getImplicitHeight() const
+qreal WOutputViewportPrivate::calculateImplicitHeight() const
 {
     return output->size().height() / devicePixelRatio;
 }
 
 void WOutputViewportPrivate::updateImplicitSize()
 {
-    q_func()->setImplicitSize(getImplicitWidth(), getImplicitHeight());
+    q_func()->setImplicitSize(calculateImplicitWidth(),
+                              calculateImplicitHeight());
 }
 
 void WOutputViewportPrivate::updateRenderBufferSource()
