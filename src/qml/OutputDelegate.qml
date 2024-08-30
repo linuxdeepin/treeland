@@ -137,7 +137,7 @@ OutputItem {
         outputItem: rootOutputItem
 
         Component.onCompleted: {
-            let name = PersonalizationV1.getOutputName(waylandOutput);
+            let name = waylandOutput.name;
             background.source = PersonalizationV1.background(name) + "?" + new Date().getTime()
             WallpaperColorV1.updateWallpaperColor(name, PersonalizationV1.backgroundIsDark(name));
         }
@@ -145,7 +145,7 @@ OutputItem {
         Connections {
             target: PersonalizationV1
             function onBackgroundChanged(outputName, isdark) {
-                let name = PersonalizationV1.getOutputName(waylandOutput);
+                let name = waylandOutput.name;
                 if (outputName === name) {
                     background.source = PersonalizationV1.background(outputName) + "?" + new Date().getTime()
                     WallpaperColorV1.updateWallpaperColor(outputName, isdark);
