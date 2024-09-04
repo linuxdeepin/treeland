@@ -41,6 +41,7 @@
 #include <qwgammacontorlv1.h>
 #include <qwbuffer.h>
 #include <qwxdgshell.h>
+#include <qwdatacontrolv1.h>
 
 #include <QGuiApplication>
 #include <QQmlApplicationEngine>
@@ -274,6 +275,7 @@ void Helper::initProtocols(WOutputRenderWindow *window, QQmlEngine *qmlEngine)
 
     m_cursorShapeManager = m_server->attach<WCursorShapeManagerV1>();
     m_fractionalScaleManagerV1 = qw_fractional_scale_manager_v1::create(*m_server->handle(), WLR_FRACTIONAL_SCALE_V1_VERSION);
+    qw_data_control_manager_v1::create(*m_server->handle());
 
     backend->handle()->start();
 
