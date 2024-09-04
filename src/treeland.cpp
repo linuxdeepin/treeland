@@ -32,6 +32,7 @@
 #include <qwlogging.h>
 #include <qwoutput.h>
 #include <qwxwayland.h>
+#include <qwdatacontrolv1.h>
 
 #include <DLog>
 
@@ -300,7 +301,7 @@ void TreeLand::setup()
                                              0,
                                              "ShortcutV1",
                                              m_server->attach<ShortcutV1>());
-
+    qw_data_control_manager_v1::create(*m_server->handle());
     m_engine->loadFromModule("TreeLand", "Main");
 
     auto window = m_engine->rootObjects().first()->findChild<WOutputRenderWindow *>();
