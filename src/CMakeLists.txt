@@ -35,7 +35,7 @@ target_link_libraries(treeland
     PRIVATE
         DDM::Common
         greeterplugin
-        Qt${QT_MAJOR_VERSION}::DBus
+        Qt6::DBus
         Waylib::WaylibServer
         Dtk6::Declarative
         utilsplugin
@@ -64,10 +64,6 @@ qt_add_shaders(treeland "_shaders_ng"
         "shaders/radiussmoothtexture.frag"
 )
 
-if(JOURNALD_FOUND)
-    target_link_libraries(treeland PRIVATE ${JOURNALD_LIBRARIES})
-endif()
-
 install(TARGETS treeland RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}")
 
 ## systemd socket
@@ -80,7 +76,7 @@ qt_add_executable(treeland-sd
 
 target_link_libraries(treeland-sd
     PRIVATE
-        Qt${QT_MAJOR_VERSION}::DBus
+        Qt6::DBus
         PkgConfig::Systemd
 )
 

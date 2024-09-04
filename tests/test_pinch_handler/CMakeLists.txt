@@ -1,7 +1,6 @@
 set(BIN_NAME test-pinch-handler)
 
-find_package(QT NAMES Qt6 REQUIRED COMPONENTS Core)
-find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Quick)
+find_package(Qt6 REQUIRED COMPONENTS Quick)
 
 qt_add_executable(${BIN_NAME}
     main.cpp
@@ -19,7 +18,6 @@ target_link_libraries(${BIN_NAME}
 )
 
 install(TARGETS ${BIN_NAME}
-    BUNDLE DESTINATION .
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
 )

@@ -393,4 +393,3 @@ TQuickRadiusEffect::TQuickRadiusEffect(TQuickRadiusEffectPrivate &dd, QQuickItem
 {
 }
 
-#include "tquickradiuseffect.moc"

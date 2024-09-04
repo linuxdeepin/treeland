@@ -1,7 +1,7 @@
 pkg_search_module(WAYLAND_SERVER REQUIRED IMPORTED_TARGET wayland-server)
 
 function(ws_generate_local type input_file output_name)
-    find_package(PkgConfig)
+    find_package(PkgConfig REQUIRED)
     pkg_get_variable(WAYLAND_SCANNER wayland-scanner wayland_scanner)
     execute_process(COMMAND ${WAYLAND_SCANNER}
         ${type}-header

@@ -665,4 +665,3 @@ void TSGRadiusImageNode::updateTexturedRadiusGeometry(const QRectF &rect, const 
     }
 }
 
-#include "tsgradiusimagenode.moc"
