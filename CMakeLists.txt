@@ -6,7 +6,6 @@ project(TreeLand
 
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
-set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 SET(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 set(CMAKE_CXX_STANDARD 20)
@@ -43,7 +42,7 @@ else()
 endif()
 
 # PKG-CONFIG
-find_package(PkgConfig)
+find_package(PkgConfig REQUIRED)
 
 find_package(Qt6 CONFIG REQUIRED Core DBus Gui Qml Quick QuickControls2 LinguistTools Test QuickTest)
 qt_standard_project_setup(REQUIRES 6.6)

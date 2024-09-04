@@ -34,7 +34,7 @@ target_link_libraries(${MODULE_NAME}
         utils
         PkgConfig::WLROOTS
         Waylib::WaylibServer
-        Qt${QT_MAJOR_VERSION}::Core
-        Qt${QT_MAJOR_VERSION}::Gui
-        Qt${QT_MAJOR_VERSION}::Quick
+        Qt6::Core
+        Qt6::Gui
+        Qt6::Quick
 )

@@ -56,7 +56,7 @@ target_link_libraries(utils
         PkgConfig::WLROOTS
         PkgConfig::LIBINPUT
         Waylib::WaylibServer
-        Qt${QT_MAJOR_VERSION}::Core
-        Qt${QT_MAJOR_VERSION}::Quick
-        Qt${QT_MAJOR_VERSION}::QuickControls2
+        Qt6::Core
+        Qt6::Quick
+        Qt6::QuickControls2
 )
