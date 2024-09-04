@@ -18,6 +18,7 @@ class qw_input_popup_surface_v2;
 class qw_virtual_keyboard_v1;
 QW_END_NAMESPACE
 struct wlr_seat_keyboard_grab;
+struct wlr_virtual_keyboard_v1;
 struct wlr_keyboard_modifiers;
 WAYLIB_SERVER_BEGIN_NAMESPACE
 class WServer;
@@ -46,7 +47,7 @@ private:
     void handleNewIMV2(QW_NAMESPACE::qw_input_method_v2 *imv2);
     void handleNewKGV2(QW_NAMESPACE::qw_input_method_keyboard_grab_v2 *kgv2);
     void handleNewIPSV2(QW_NAMESPACE::qw_input_popup_surface_v2 *ipsv2);
-    void handleNewVKV1(QW_NAMESPACE::qw_virtual_keyboard_v1 *vkv1);
+    void handleNewVKV1(wlr_virtual_keyboard_v1 *vkv1);
     void updateAllPopupSurfaces(QRect cursorRect);
     void updatePopupSurface(WInputPopupSurface *popup, QRect cursorRect);
     void notifyLeave();

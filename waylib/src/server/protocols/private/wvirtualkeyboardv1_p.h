@@ -8,12 +8,7 @@
 
 #include <qwglobal.h>
 
-Q_MOC_INCLUDE(<qwvirtualkeyboardv1.h>)
-
-QW_BEGIN_NAMESPACE
-class qw_virtual_keyboard_v1;
-QW_END_NAMESPACE
-
+struct wlr_virtual_keyboard_v1;
 WAYLIB_SERVER_BEGIN_NAMESPACE
 class WVirtualKeyboardManagerV1Private;
 class WAYLIB_SERVER_EXPORT WVirtualKeyboardManagerV1 : public QObject, public WObject, public WServerInterface
@@ -26,7 +21,7 @@ public:
     QByteArrayView interfaceName() const override;
 
 Q_SIGNALS:
-    void newVirtualKeyboard(QW_NAMESPACE::qw_virtual_keyboard_v1 *virtualKeyboard);
+    void newVirtualKeyboard(wlr_virtual_keyboard_v1 *virtualKeyboard);
 
 private:
     void create(WServer *server) override;

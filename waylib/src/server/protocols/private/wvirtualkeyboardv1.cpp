@@ -37,9 +37,7 @@ void WVirtualKeyboardManagerV1::create(WServer *server)
     auto manager = qw_virtual_keyboard_manager_v1::create(*server->handle());
     Q_ASSERT(manager);
     m_handle = manager;
-    connect(manager, &qw_virtual_keyboard_manager_v1::notify_new_virtual_keyboard, this, [ this ] (wlr_virtual_keyboard_v1* keyboard) {
-        Q_EMIT newVirtualKeyboard(qw_virtual_keyboard_v1::from(keyboard));
-    });
+    connect(manager, &qw_virtual_keyboard_manager_v1::notify_new_virtual_keyboard, this, &WVirtualKeyboardManagerV1::newVirtualKeyboard);
 }
 
 wl_global *WVirtualKeyboardManagerV1::global() const

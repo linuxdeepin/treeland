@@ -221,16 +221,15 @@ void WInputMethodHelper::handleNewKGV2(qw_input_method_keyboard_grab_v2 *kgv2)
     };
     auto setKeyboard = [this, d](qw_input_method_keyboard_grab_v2 *kgv2, WInputDevice *keyboard) {
         if (keyboard) {
-            auto qwKeyboard = qobject_cast<qw_keyboard *>(keyboard->handle());
-            auto *virtualKeyboard = qobject_cast<qw_virtual_keyboard_v1 *>(qwKeyboard);
+            auto *virtualKeyboard = wlr_input_device_get_virtual_keyboard(*keyboard->handle());
             // refer to:
             // https://github.com/swaywm/sway/blob/master/sway/input/keyboard.c#L391
             if (virtualKeyboard
-                && wl_resource_get_client(virtualKeyboard->handle()->resource)
+                && wl_resource_get_client(virtualKeyboard->resource)
                     == wl_resource_get_client(kgv2->handle()->resource)) {
                 return;
             }
-            kgv2->set_keyboard(*qwKeyboard);
+            kgv2->set_keyboard(wlr_keyboard_from_input_device(*keyboard->handle()));
         } else {
             kgv2->set_keyboard(nullptr);
         }
@@ -280,13 +279,13 @@ void WInputMethodHelper::handleNewIPSV2(qw_input_popup_surface_v2 *ipsv2)
     }
 }
 
-void WInputMethodHelper::handleNewVKV1(qw_virtual_keyboard_v1 *vkv1)
+void WInputMethodHelper::handleNewVKV1(wlr_virtual_keyboard_v1 *vkv1)
 {
     W_D(WInputMethodHelper);
-    WInputDevice *keyboard = new WInputDevice(qw_input_device::from(&(*vkv1)->keyboard.base));
+    WInputDevice *keyboard = new WInputDevice(qw_input_device::from(&vkv1->keyboard.base));
     d->virtualKeyboards.append(keyboard);
     d->seat->attachInputDevice(keyboard);
-    connect(vkv1, &qw_virtual_keyboard_v1::before_destroy, this, [d, this, keyboard] () {
+    keyboard->safeConnect(&qw_input_device::before_destroy, this, [d, this, keyboard] () {
         if (d->seat) d->seat->detachInputDevice(keyboard);
         d->virtualKeyboards.removeOne(keyboard);
         keyboard->safeDeleteLater();
