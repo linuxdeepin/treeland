@@ -14,8 +14,6 @@ export DEB_LDFLAGS_MAINT_APPEND = -Wl,--as-needed
 
 TREELAND_CMAKE_ARGS = -DBUILD_TEST_CLIENTS=on
 
-include /usr/share/dpkg/architecture.mk
-
 %:
 	dh $@
 

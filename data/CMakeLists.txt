@@ -4,8 +4,8 @@ install(FILES
 )
 
 install(FILES
-    "dconfig/org.deepin.Treeland.json"
-    DESTINATION "${CMAKE_INSTALL_DATADIR}/dsg/configs/org.deepin.Treeland"
+    "dconfig/org.deepin.treeland.json"
+    DESTINATION "${CMAKE_INSTALL_DATADIR}/dsg/configs/org.deepin.treeland"
 )
 
 add_subdirectory(systemd)
