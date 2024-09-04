@@ -3,9 +3,6 @@
 
 #include "treeland.h"
 
-#include "DisplayManager.h"
-#include "DisplayManagerSession.h"
-#include "MessageHandler.h"
 #include "Messages.h"
 #include "SignalHandler.h"
 #include "SocketWriter.h"
