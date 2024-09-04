@@ -2,18 +2,18 @@
     "magic": "dsg.config.meta",
     "version": "1.0",
     "contents": {
-        "ShowOnLock": {
+        "showOnLock": {
             "value": false,
             "serial": 0,
             "flags": ["user-public"],
-            "name": "ShowOnLock",
+            "name": "Show on lock screen",
             "name[zh_CN]": "显示在锁屏之上",
             "description": "Allow show context on lock screen",
             "description[zh_CN]": "允许在锁屏界面上显示内容",
             "permissions": "readwrite",
             "visibility": "private"
         },
-        "LostScreen": {
+        "lostScreen": {
             "value": "MoveToPrimary",
             "serial": 0,
             "flags": ["user-public"],
@@ -24,7 +24,7 @@
             "permissions": "readwrite",
             "visibility": "private"
         },
-        "Font": {
+        "font": {
             "value": "",
             "serial": 0,
             "flags": ["user-public"],
@@ -35,7 +35,7 @@
             "permissions": "readwrite",
             "visibility": "private"
         },
-        "FontSize": {
+        "fontSize": {
             "value": 14,
             "serial": 0,
             "flags": ["user-public"],
@@ -46,7 +46,7 @@
             "permissions": "readwrite",
             "visibility": "private"
         },
-        "PreferDark": {
+        "preferDark": {
             "value": false,
             "serial": 0,
             "flags": ["user-public"],
@@ -57,7 +57,7 @@
             "permissions": "readwrite",
             "visibility": "private"
         },
-        "ThemeName": {
+        "themeName": {
             "value": "",
             "serial": 0,
             "flags": ["user-public"],
@@ -68,7 +68,7 @@
             "permissions": "readwrite",
             "visibility": "private"
         },
-        "IconThemeName": {
+        "iconThemeName": {
             "value": "",
             "serial": 0,
             "flags": ["user-public"],
@@ -79,7 +79,7 @@
             "permissions": "readwrite",
             "visibility": "private"
         },
-        "CursorThemeName": {
+        "cursorThemeName": {
             "value": "",
             "serial": 0,
             "flags": ["user-public"],
@@ -90,7 +90,7 @@
             "permissions": "readwrite",
             "visibility": "private"
         },
-        "CursorSize": {
+        "cursorSize": {
             "value": "",
             "serial": 0,
             "flags": ["user-public"],
@@ -101,7 +101,7 @@
             "permissions": "readwrite",
             "visibility": "private"
         },
-        "CursorBlink": {
+        "cursorBlink": {
             "value": true,
             "serial": 0,
             "flags": ["user-public"],
@@ -112,7 +112,7 @@
             "permissions": "readwrite",
             "visibility": "private"
         },
-        "CursorBlinkTime": {
+        "cursorBlinkTime": {
             "value": 1200,
             "serial": 0,
             "flags": ["user-public"],
@@ -123,7 +123,7 @@
             "permissions": "readwrite",
             "visibility": "private"
         },
-        "DoubleClickTime": {
+        "doubleClickTime": {
             "value": 250,
             "serial": 0,
             "flags": ["user-public"],
@@ -134,7 +134,7 @@
             "permissions": "readwrite",
             "visibility": "private"
         },
-        "DoubleClickDistance": {
+        "doubleClickDistance": {
             "value": 5,
             "serial": 0,
             "flags": ["user-public"],
@@ -145,7 +145,7 @@
             "permissions": "readwrite",
             "visibility": "private"
         },
-        "DndDragThreshold": {
+        "dndDragThreshold": {
             "value": 8,
             "serial": 0,
             "flags": ["user-public"],

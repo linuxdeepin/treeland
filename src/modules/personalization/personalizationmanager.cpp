@@ -88,7 +88,7 @@ void PersonalizationV1::saveWallpaperSettings(const QString &current,
 
 PersonalizationV1::PersonalizationV1(QObject *parent)
     : QObject(parent)
-    , m_cursorConfig(DConfig::create("org.deepin.Treeland", "org.deepin.Treeland", QString()))
+    , m_cursorConfig(DConfig::create("org.deepin.treeland", "org.deepin.treeland", QString()))
 {
     if (PERSONALIZATION_MANAGER) {
         qFatal("There are multiple instances of QuickPersonalizationManager");
@@ -251,25 +251,25 @@ void PersonalizationV1::setUserId(uid_t uid)
 
 QString PersonalizationV1::cursorTheme()
 {
-    QString value = m_cursorConfig->value("CursorThemeName", "default").toString();
+    QString value = m_cursorConfig->value("cursorThemeName", "default").toString();
     return value;
 }
 
 void PersonalizationV1::setCursorTheme(const QString &name)
 {
-    m_cursorConfig->setValue("CursorThemeName", name);
+    m_cursorConfig->setValue("cursorThemeName", name);
     Q_EMIT cursorThemeChanged(name);
 }
 
 QSize PersonalizationV1::cursorSize()
 {
-    int size = m_cursorConfig->value("CursorSize", 24).toInt();
+    int size = m_cursorConfig->value("cursorSize", 24).toInt();
     return QSize(size, size);
 }
 
 void PersonalizationV1::setCursorSize(const QSize &size)
 {
-    m_cursorConfig->setValue("CursorSize", size.width());
+    m_cursorConfig->setValue("cursorSize", size.width());
     Q_EMIT cursorSizeChanged(size);
 }
 
