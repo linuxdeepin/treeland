@@ -39,3 +39,13 @@ CMakeLists.txt.user
 *.autosave
 
 .qmlls.ini
+
+# dpkg-buildpackage
+debian/.debhelper/
+debian/tmp/
+debian/treeland*/
+debian/debhelper-build-stamp
+debian/files
+debian/*.substvars
+debian/*.debhelper.log
+obj-*-linux-gnu/
