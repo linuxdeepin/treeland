@@ -8,7 +8,7 @@ qt_add_executable(${BIN_NAME}
 
 target_link_libraries(${BIN_NAME}
     PRIVATE
-        Qt${QT_MAJOR_VERSION}::Widgets
+        Qt6::Widgets
 )
 
 install(TARGETS ${BIN_NAME} RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}")

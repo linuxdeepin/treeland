@@ -1,3 +1,5 @@
+set(MODULE_PATH ${PROJECT_SOURCE_DIR}/src/modules)
+
 add_subdirectory(test_window_bg)
 add_subdirectory(test_wallpaper_color)
 add_subdirectory(test_show_desktop)

@@ -75,7 +75,7 @@ qt_add_qml_module(greeterplugin
 )
 
 set(TRANSLATED_FILES)
-if ((${QT_VERSION_MAJOR} EQUAL 6) AND (${QT_VERSION_MINOR} LESS 7))
+if (${QT_VERSION_MINOR} LESS 7)
     qt_add_lupdate(greeterplugin
         TS_FILES
             translations/greeter.zh_CN.ts
@@ -89,7 +89,7 @@ if ((${QT_VERSION_MAJOR} EQUAL 6) AND (${QT_VERSION_MINOR} LESS 7))
             translations/greeter.en_US.ts
         QM_FILES_OUTPUT_VARIABLE TRANSLATED_FILES
     )
-elseif ((${QT_VERSION_MAJOR} EQUAL 6) AND (${QT_VERSION_MINOR} GREATER_EQUAL 7))
+elseif (${QT_VERSION_MINOR} GREATER_EQUAL 7)
     qt_add_lupdate(
         SOURCE_TARGETS greeterplugin
         TS_FILES
@@ -117,12 +117,9 @@ target_link_libraries(greeterplugin
     PRIVATE
         DDM::Auth
     PUBLIC
-        Qt${QT_MAJOR_VERSION}::Gui
-        Qt${QT_MAJOR_VERSION}::Qml
+        Qt6::Gui
+        Qt6::Qml
         Dtk6::Declarative
         Dtk6::SystemSettings
 )
 
-if(JOURNALD_FOUND)
-    target_link_libraries(greeterplugin PUBLIC ${JOURNALD_LIBRARIES})
-endif()
