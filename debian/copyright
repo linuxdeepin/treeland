@@ -60,7 +60,7 @@ License: CC-BY-4.0
 Files: *.cmake
   CMakeLists.txt
   *.in *.qrc
-  data/*
+  misc/*
   services/*
   releng/create_changelog.pl
 Copyright: None
