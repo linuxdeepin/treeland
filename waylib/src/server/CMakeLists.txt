@@ -90,6 +90,7 @@ set(SOURCES
     qtquick/wqmlcreator.cpp
     qtquick/winputpopupsurfaceitem.cpp
     qtquick/wsgtextureprovider.cpp
+    qtquick/wtextureproviderprovider.cpp
 
     qtquick/private/wquickcoordmapper.cpp
     qtquick/private/wquicksocketattached.cpp
@@ -182,6 +183,7 @@ set(HEADERS
     qtquick/winputpopupsurfaceitem.h
     qtquick/wqmlcreator.h
     qtquick/wsgtextureprovider.h
+    qtquick/wtextureproviderprovider.h
 
     utils/wtools.h
     utils/wthreadutils.h

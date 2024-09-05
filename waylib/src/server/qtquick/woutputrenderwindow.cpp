@@ -1490,6 +1490,7 @@ void WOutputRenderWindowPrivate::doRender(const QList<OutputHelper *> &outputs,
         glContext->doneCurrent();
 
     inRendering = false;
+    Q_EMIT q->renderEnd();
 }
 
 // TODO: Support QWindow::setCursor
@@ -1764,6 +1765,12 @@ WBufferRenderer *WOutputRenderWindow::currentRenderer() const
 {
     Q_D(const WOutputRenderWindow);
     return d->rendererList.isEmpty() ? nullptr : d->rendererList.top();
+}
+
+bool WOutputRenderWindow::inRendering() const
+{
+    Q_D(const WOutputRenderWindow);
+    return d->inRendering;
 }
 
 QList<QPointer<QQuickItem>> WOutputRenderWindow::paintOrderItemList(QQuickItem *root, std::function<bool(QQuickItem*)> filter)

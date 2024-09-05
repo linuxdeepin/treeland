@@ -6,6 +6,7 @@
 #include <wglobal.h>
 #include <WSurface>
 #include <wtoplevelsurface.h>
+#include <wtextureproviderprovider.h>
 
 #include <QQuickItem>
 
@@ -17,7 +18,7 @@ WAYLIB_SERVER_BEGIN_NAMESPACE
 
 class WSurfaceItemContentPrivate;
 class WSGTextureProvider;
-class WAYLIB_SERVER_EXPORT WSurfaceItemContent : public QQuickItem
+class WAYLIB_SERVER_EXPORT WSurfaceItemContent : public QQuickItem, public virtual WTextureProviderProvider
 {
     Q_OBJECT
     Q_DECLARE_PRIVATE(WSurfaceItemContent)
@@ -41,7 +42,8 @@ public:
 
     bool isTextureProvider() const override;
     QSGTextureProvider *textureProvider() const override;
-    WSGTextureProvider *wTextureProvider() const;
+    WSGTextureProvider *wTextureProvider() const override;
+    WOutputRenderWindow *outputRenderWindow() const override;
 
     bool cacheLastBuffer() const;
     void setCacheLastBuffer(bool newCacheLastBuffer);

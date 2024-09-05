@@ -105,6 +105,7 @@ void WSGTextureProvider::setBuffer(qw_buffer *buffer)
     W_D(WSGTextureProvider);
     d->cleanTexture();
     d->ownsTexture = true;
+    d->buffer = buffer;
 
     if (buffer) {
         Q_ASSERT(d->window);
@@ -122,11 +123,12 @@ void WSGTextureProvider::setBuffer(qw_buffer *buffer)
     Q_EMIT textureChanged();
 }
 
-void WSGTextureProvider::setTexture(qw_texture *texture)
+void WSGTextureProvider::setTexture(qw_texture *texture, qw_buffer *srcBuffer)
 {
     W_D(WSGTextureProvider);
     d->cleanTexture();
     d->texture = texture;
+    d->buffer = srcBuffer;
     d->ownsTexture = false;
     if (texture)
         d->updateRhiTexture();

@@ -53,6 +53,7 @@ public:
     qreal width() const;
     qreal height() const;
     WBufferRenderer *currentRenderer() const;
+    bool inRendering() const;
 
     static QList<QPointer<QQuickItem>> paintOrderItemList(QQuickItem *root, std::function<bool(QQuickItem*)> filter);
 
@@ -74,6 +75,7 @@ Q_SIGNALS:
     void outputViewportInitialized(WAYLIB_SERVER_NAMESPACE::WOutputViewport *output);
     void initialized();
     void disableLayersChanged();
+    void renderEnd();
 
 private:
     void classBegin() override;

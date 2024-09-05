@@ -148,6 +148,11 @@ WSGTextureProvider *WOutputViewport::wTextureProvider() const
     return qobject_cast<WSGTextureProvider*>(d->bufferRenderer->textureProvider());
 }
 
+WOutputRenderWindow *WOutputViewport::outputRenderWindow() const
+{
+    return qobject_cast<WOutputRenderWindow*>(window());
+}
+
 QQuickItem *WOutputViewport::input() const
 {
     W_DC(WOutputViewport);

@@ -100,7 +100,7 @@ static void applyTransform(QSGSoftwareRenderer *renderer, const QTransform &t)
 
 WBufferRenderer::WBufferRenderer(QQuickItem *parent)
     : QQuickItem(parent)
-    , m_cacheBuffer(false)
+    , m_cacheBuffer(true)
     , m_hideSource(false)
 {
 

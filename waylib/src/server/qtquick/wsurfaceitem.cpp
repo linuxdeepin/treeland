@@ -297,13 +297,18 @@ WSGTextureProvider *WSurfaceItemContent::wTextureProvider() const
         d->textureProvider = new WSGTextureProvider(w);
         if (d->surface) {
             if (auto texture = d->surface->handle()->get_texture()) {
-                d->textureProvider->setTexture(qw_texture::from(texture));
+                d->textureProvider->setTexture(qw_texture::from(texture), d->buffer.get());
             } else {
                 d->textureProvider->setBuffer(d->buffer.get());
             }
         }
     }
     return d->textureProvider;
+}
+
+WOutputRenderWindow *WSurfaceItemContent::outputRenderWindow() const
+{
+    return qobject_cast<WOutputRenderWindow*>(window());
 }
 
 bool WSurfaceItemContent::cacheLastBuffer() const
@@ -397,7 +402,7 @@ QSGNode *WSurfaceItemContent::updatePaintNode(QSGNode *oldNode, UpdatePaintNodeD
     if (d->live || !tp->texture()) {
         auto texture = d->surface ? d->surface->handle()->get_texture() : nullptr;
         if (texture) {
-            tp->setTexture(qw_texture::from(texture));
+            tp->setTexture(qw_texture::from(texture), d->buffer.get());
         } else {
             tp->setBuffer(d->buffer.get());
         }
