@@ -176,7 +176,7 @@ Item {
 
     QtObject {
         id: winposManager
-        readonly property string spawnPolicy: "Line"
+        property string spawnPolicy: "Center"
         readonly property bool ignoreGeneration: true
         property var __: QtObject {
             id: priv
@@ -251,6 +251,7 @@ Item {
                         case 3: rt = Qt.point(w - sw - bx, h - sh - by); break
                         default:  rt =Qt.point(w/2 - sw/2, h/2 - sh/2)
                     }
+                    winposManager.spawnPolicy = "Line"
                     return rt
                 }
             }
@@ -264,8 +265,7 @@ Item {
             const contW = Math.max(w - sw, 1) // spawned win may exceed screen size, ensure has region
             const contH = Math.max(h - sh, 1)
             const [prevIden, prevItem] = priv.prevSpawn
-            const initialPos = prevIden === iden ? Qt.point(prevItem.x, prevItem.y) : outputDelegate.lastActiveCursorItem.position
-
+            const initialPos = prevItem ? Qt.point(prevItem.x, prevItem.y) : outputDelegate.lastActiveCursorItem.position
             const baseArgs = [
                 initialPos, // first spawned win's position for LineGen
                 Qt.rect(0, 0, contW, contH), // region to ensure spawned win wholely in screen
