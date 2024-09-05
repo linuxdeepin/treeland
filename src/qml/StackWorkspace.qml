@@ -241,11 +241,13 @@ FocusScope {
             chooserRoleValue: "inputPopup"
 
             InputPopupSurface {
-                required property WaylandInputPopupSurface popupSurface
+                required property WaylandInputPopupSurface wSurface
+                required property string type
+                required property int wid
 
-                parent: QmlHelper.getSurfaceItemFromWaylandSurface(popupSurface.parentSurface)?.surfaceItem
+                parent: QmlHelper.getSurfaceItemFromWaylandSurface(wSurface.parentSurface)?.surfaceItem.contentItem
                 id: inputPopupSurface
-                shellSurface: popupSurface
+                shellSurface: wSurface
             }
         }
     }
