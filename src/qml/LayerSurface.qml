@@ -195,6 +195,9 @@ FocusScope {
             if (!wSurface.WaylandSocket.rootSocket.enabled) {
                 surfaceItem.visible = false
             }
+            const toplevel = QmlHelper.workspaceManager.workspacesById.get(Helper.currentWorkspaceId)
+            toplevel.selectSurfaceToActivate()
+            toplevel.forceActiveFocus()
         }
 
         animation.active = false
