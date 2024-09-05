@@ -19,7 +19,7 @@ qt_add_dbus_adaptor(DBUS_ADAPTOR "${CMAKE_SOURCE_DIR}/misc/dbus/org.deepin.compo
 
 set(BIN_NAME treeland)
 
-qt_add_executable(${BIN_NAME} override_dtkdeclarative_qml.qrc)
+qt_add_executable(${BIN_NAME})
 
 target_sources(${BIN_NAME} PUBLIC
 FILE_SET HEADERS
