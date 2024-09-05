@@ -300,16 +300,18 @@ void Helper::initProtocols(WOutputRenderWindow *window)
             [this, engine, outputManager](WOutput *output) {
                 WQuickOutputLayout *outlayout = outputLayout();
                 for (auto *outputitem : outlayout->outputs()) {
-                    // TODO: When there are more than three screens, the mouse should follow the
-                    // primary screen
+
+                    // TODO: Screen position restoration;
+                    // TODO: Continue to improve this algorithm after formulating layout rules
                     if (outputitem->output() != output) {
-                        if (cursor()->position().x() < outputitem->position().x()
-                            || cursor()->position().y() < outputitem->position().y()) {
-                            m_seat->setCursorPosition(cursor()->position()
-                                                      + outputitem->position());
-                        } else {
-                            WOutputItem *item = WOutputItem::getOutputItem(output);
-                            m_seat->setCursorPosition(cursor()->position() - item->position());
+                        if (outputitem->x() > output->position().x() && outputitem->y() == output->position().y()) {
+                            outputitem->setX(outputitem->x() -
+                                            WOutputItem::getOutputItem(output)->width());
+                        }
+
+                        if (outputitem->y() > output->position().y() && outputitem->x() == output->position().x()) {
+                            outputitem->setY(outputitem->y() -
+                                            WOutputItem::getOutputItem(output)->height());
                         }
                     }
                 }
