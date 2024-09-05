@@ -3,6 +3,7 @@
 
 import QtQuick
 import Waylib.Server
+import TreeLand.Utils
 
 InputPopupSurfaceItem {
 
@@ -31,10 +32,10 @@ InputPopupSurfaceItem {
         layout: Helper.outputLayout
 
         onEnterOutput: function(output) {
-            surface.surface.enterOutput(output);
+            shellSurface.surface.enterOutput(output);
         }
         onLeaveOutput: function(output) {
-            surface.surface.leaveOutput(output);
+            shellSurface.surface.leaveOutput(output);
         }
     }
 }
