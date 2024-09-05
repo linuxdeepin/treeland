@@ -40,3 +40,5 @@ target_link_libraries(${MODULE_NAME}
         Qt6::Gui
         Qt6::Quick
 )
+
+install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/protocols/treeland-shortcut-manager-v1.xml DESTINATION ${CMAKE_INSTALL_DATADIR}/treeland-protocols)
