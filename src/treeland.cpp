@@ -216,32 +216,10 @@ TreeLand::TreeLand(TreeLandAppContext context)
     }
 }
 
-class DtkInterceptor : public QObject, public QQmlAbstractUrlInterceptor
-{
-public:
-    DtkInterceptor(QObject *parent = nullptr)
-        : QObject(parent)
-    {
-    }
-
-    QUrl intercept(const QUrl &path, DataType type)
-    {
-        if (type != DataType::QmlFile)
-            return path;
-        if (path.path().endsWith("overridable/InWindowBlur.qml")) {
-            qDebug() << "Override dtk's InWindowBlur";
-            return QStringLiteral("qrc:/treeland/override/dtk/InWindowBlur.qml");
-        }
-
-        return path;
-    }
-};
-
 void TreeLand::setup()
 {
     WRenderHelper::setupRendererBackend();
     m_engine = new QQmlApplicationEngine(this);
-    m_engine->addUrlInterceptor(new DtkInterceptor(this));
     m_engine->rootContext()->setContextProperty("TreeLand", this);
 
     m_server = new WServer(this);
