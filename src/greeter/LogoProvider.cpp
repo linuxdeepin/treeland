@@ -14,7 +14,7 @@ DCORE_USE_NAMESPACE
 {
     auto url = QUrl::fromUserInput(DSysInfo::distributionOrgLogo(DSysInfo::Distribution,
                                                                  DSysInfo::Transparent,
-                                                                 "qrc:/dsg/icons/logo.svg"));
+                                                                 ":/dsg/logo.svg"));
     return url.toString();
 }
 

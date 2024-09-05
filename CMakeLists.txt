@@ -6,8 +6,6 @@ project(TreeLand
 
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
-set(CMAKE_AUTORCC ON)
-SET(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
@@ -53,8 +51,10 @@ set(COMPONENTS_TRANSLATION_DIR  "${TREELAND_DATA_DIR}/translations"             
 
 add_compile_definitions("TREELAND_DATA_DIR=\"${TREELAND_DATA_DIR}\"")
 
+set(PROJECT_RESOURCES_DIR "${CMAKE_SOURCE_DIR}/misc")
+
 add_subdirectory(src)
-add_subdirectory(data)
+add_subdirectory(misc)
 
 if (BUILD_TEST_CLIENTS)
     add_subdirectory(tests)
