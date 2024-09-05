@@ -46,3 +46,5 @@ target_link_libraries(${MODULE_NAME}
         Qt6::Quick
         Dtk6::Core
 )
+
+install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/protocols/treeland-personalization-manager-v1.xml DESTINATION ${CMAKE_INSTALL_DATADIR}/treeland-protocols)
