@@ -1,6 +1,0 @@
-<RCC>
-    <qresource prefix="/dsg">
-        <file>icons/close.dci</file>
-        <file>icons/multitaskview_close.dci</file>
-    </qresource>
-</RCC>

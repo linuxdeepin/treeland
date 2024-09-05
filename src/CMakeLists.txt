@@ -15,23 +15,35 @@ add_subdirectory(greeter)
 add_subdirectory(treeland-wallpaper)
 add_subdirectory(treeland-shortcut)
 
-qt_add_dbus_adaptor(DBUS_ADAPTOR "${CMAKE_SOURCE_DIR}/data/dbus/org.deepin.compositor1.xml" "treeland.h" TreeLand::TreeLand)
+qt_add_dbus_adaptor(DBUS_ADAPTOR "${CMAKE_SOURCE_DIR}/misc/dbus/org.deepin.compositor1.xml" "treeland.h" TreeLand::TreeLand)
 
-qt_add_executable(treeland override_dtkdeclarative_qml.qrc)
+set(BIN_NAME treeland)
 
-target_sources(treeland PUBLIC
+qt_add_executable(${BIN_NAME} override_dtkdeclarative_qml.qrc)
+
+target_sources(${BIN_NAME} PUBLIC
 FILE_SET HEADERS
 FILES
     treeland.h
 )
 
-target_sources(treeland PRIVATE
-    treeland.cpp
-    ${DBUS_ADAPTOR}
-    treeland_assets.qrc
+set(RESOURCES
 )
 
-target_link_libraries(treeland
+qt_add_resources(${BIN_NAME} "treeland_assets"
+    PREFIX "/dsg"
+    BASE ${PROJECT_RESOURCES_DIR}/icons
+    FILES
+        ${PROJECT_RESOURCES_DIR}/icons/close.dci
+        ${PROJECT_RESOURCES_DIR}/icons/multitaskview_close.dci
+)
+
+target_sources(${BIN_NAME} PRIVATE
+    treeland.cpp
+    ${DBUS_ADAPTOR}
+)
+
+target_link_libraries(${BIN_NAME}
     PRIVATE
         DDM::Common
         greeterplugin
@@ -49,22 +61,24 @@ target_link_libraries(treeland
         virtual-output
 )
 
-target_compile_definitions(treeland
+target_compile_definitions(${BIN_NAME}
     PRIVATE
     WLR_USE_UNSTABLE
 )
 
-qt_add_shaders(treeland "_shaders_ng"
+qt_add_shaders(${BIN_NAME} "_shaders_ng"
     BATCHABLE
     PRECOMPILE
     PREFIX
-        "/"
+        "/shaders"
+    BASE
+        ${PROJECT_RESOURCES_DIR}/shaders
     FILES
-        "shaders/radiussmoothtexture.vert"
-        "shaders/radiussmoothtexture.frag"
+        ${PROJECT_RESOURCES_DIR}/shaders/radiussmoothtexture.vert
+        ${PROJECT_RESOURCES_DIR}/shaders/radiussmoothtexture.frag
 )
 
-install(TARGETS treeland RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}")
+install(TARGETS ${BIN_NAME} RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}")
 
 ## systemd socket
 

@@ -1,0 +1,4 @@
+add_subdirectory(dbus)
+add_subdirectory(dconfig)
+add_subdirectory(systemd)
+add_subdirectory(wayland-sessions)
