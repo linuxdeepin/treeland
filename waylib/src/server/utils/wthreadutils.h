@@ -140,10 +140,8 @@ private:
             static_assert(QtPrivate::CheckCompatibleArguments<QtPrivate::List<Args...>, typename FunInfo::Arguments>::value,
                           "The args and function are not compatible.");
         } else {
-#if QT_VERSION_MAJOR >= 6 && QT_VERSION_MIJOR > 5
             using Prototype = ReturnType(*)(Args...);
             QtPrivate::AssertCompatibleFunctions<Prototype, Func>();
-#endif
         }
 
         QPromise<ReturnType> promise;
