@@ -32,7 +32,7 @@ set(RESOURCES
 
 qt_add_resources(${BIN_NAME} "treeland_assets"
     PREFIX "/dsg"
-    BASE ${PROJECT_RESOURCES_DIR}/icons
+    BASE ${PROJECT_RESOURCES_DIR}
     FILES
         ${PROJECT_RESOURCES_DIR}/icons/close.dci
         ${PROJECT_RESOURCES_DIR}/icons/multitaskview_close.dci

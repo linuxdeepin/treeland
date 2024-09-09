@@ -77,7 +77,7 @@ qt_add_qml_module(${LIB_NAME}
 
 qt_add_resources(${LIB_NAME} "greeter_assets"
     PREFIX "/dsg"
-    BASE ${PROJECT_RESOURCES_DIR}/icons
+    BASE ${PROJECT_RESOURCES_DIR}
     FILES
         ${PROJECT_RESOURCES_DIR}/icons/login_capslock.dci
         ${PROJECT_RESOURCES_DIR}/icons/login_display_password.dci
