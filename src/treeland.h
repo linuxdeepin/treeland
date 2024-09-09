@@ -15,6 +15,7 @@
 #include <memory>
 
 class QQmlApplicationEngine;
+class Helper;
 
 namespace TreeLand {
 
@@ -59,6 +60,7 @@ private:
     TreeLandAppContext m_context;
     QLocalSocket *m_socket;
     QLocalSocket *m_helperSocket;
+    Helper *m_helper;
     Waylib::Server::WServer *m_server;
     QQmlApplicationEngine *m_engine;
     QMap<QString, std::shared_ptr<Waylib::Server::WSocket>> m_userWaylandSocket;
