@@ -28,11 +28,11 @@
 
 #include <qwbackend.h>
 #include <qwcompositor.h>
+#include <qwdatacontrolv1.h>
 #include <qwdisplay.h>
 #include <qwlogging.h>
 #include <qwoutput.h>
 #include <qwxwayland.h>
-#include <qwdatacontrolv1.h>
 
 #include <DLog>
 
@@ -54,7 +54,7 @@
 #include <pwd.h>
 #include <sys/socket.h>
 
-Q_LOGGING_CATEGORY(debug, "treeland.kernel.debug", QtDebugMsg);
+Q_LOGGING_CATEGORY(treelandMain, "treeland.main", QtDebugMsg);
 
 using namespace DDM;
 DCORE_USE_NAMESPACE;
@@ -107,7 +107,7 @@ std::optional<QStringList> unescapeExecArgs(const QString &str) noexcept
 {
     auto unescapedStr = unescape(str);
     if (unescapedStr.isEmpty()) {
-        qWarning() << "unescape Exec failed.";
+        qCWarning(treelandMain) << "unescape Exec failed.";
         return std::nullopt;
     }
 
@@ -140,7 +140,7 @@ std::optional<QStringList> unescapeExecArgs(const QString &str) noexcept
         default:
             errMessage = "unknown";
         }
-        qWarning() << "wordexp error: " << errMessage;
+        qCWarning(treelandMain) << "wordexp error: " << errMessage;
         return std::nullopt;
     }
 
@@ -169,33 +169,32 @@ TreeLand::TreeLand(TreeLandAppContext context)
     connect(m_socket, &QLocalSocket::errorOccurred, this, &TreeLand::error);
 
     setup();
-    Helper *helper = m_engine->singletonInstance<Helper *>("TreeLand.Utils", "Helper");
 
     if (!context.socket.isEmpty()) {
-        Q_ASSERT(helper);
+        Q_ASSERT(m_helper);
         auto connectToServer = [this, context] {
             m_socket->connectToServer(context.socket);
         };
 
-        connect(helper, &Helper::socketFileChanged, this, connectToServer);
+        connect(m_helper, &Helper::socketFileChanged, this, connectToServer);
 
-        if (!helper->waylandSocket().isEmpty()) {
+        if (!m_helper->waylandSocket().isEmpty()) {
             connectToServer();
         }
     } else {
         struct passwd *pw = getpwuid(getuid());
-        helper->setCurrentUser(pw->pw_name);
+        m_helper->setCurrentUser(pw->pw_name);
     }
 
     if (!context.run.isEmpty()) {
-        qInfo() << "run cmd:" << context.run;
-        auto exec = [runCmd = context.run, helper] {
+        qCInfo(treelandMain) << "run cmd:" << context.run;
+        auto exec = [runCmd = context.run, this] {
             if (auto cmdline = unescapeExecArgs(runCmd); cmdline) {
                 auto cmdArgs = cmdline.value();
 
                 auto envs = QProcessEnvironment::systemEnvironment();
-                envs.insert("WAYLAND_DISPLAY", helper->waylandSocket());
-                envs.insert("DISPLAY", helper->xwaylandSocket());
+                envs.insert("WAYLAND_DISPLAY", m_helper->waylandSocket());
+                envs.insert("DISPLAY", m_helper->xwaylandSocket());
                 envs.insert("DDE_CURRENT_COMPOSITOR", "TreeLand");
                 envs.insert("QT_IM_MODULE", "fcitx");
 
@@ -207,9 +206,9 @@ TreeLand::TreeLand(TreeLandAppContext context)
             }
         };
         auto con =
-            connect(helper, &Helper::socketFileChanged, this, exec, Qt::SingleShotConnection);
+            connect(m_helper, &Helper::socketFileChanged, this, exec, Qt::SingleShotConnection);
 
-        if (!helper->waylandSocket().isEmpty()) {
+        if (!m_helper->waylandSocket().isEmpty()) {
             QObject::disconnect(con);
             exec();
         }
@@ -285,17 +284,17 @@ void TreeLand::setup()
     auto window = m_engine->rootObjects().first()->findChild<WOutputRenderWindow *>();
     Q_ASSERT(window);
 
-    Helper *helper = m_engine->singletonInstance<Helper *>("TreeLand.Utils", "Helper");
-    Q_ASSERT(helper);
+    m_helper = m_engine->singletonInstance<Helper *>("TreeLand.Utils", "Helper");
+    Q_ASSERT(m_helper);
 
-    helper->initProtocols(window);
+    m_helper->initProtocols(window);
 
     PersonalizationV1 *personalization =
         m_engine->singletonInstance<PersonalizationV1 *>("TreeLand.Protocols", "PersonalizationV1");
     Q_ASSERT(personalization);
 
     connect(
-        helper,
+        m_helper,
         &Helper::currentUserChanged,
         personalization,
         [personalization](const QString &user) {
@@ -322,10 +321,7 @@ bool TreeLand::debugMode() const
 void TreeLand::connected()
 {
     // log connection
-    qDebug() << "Connected to the daemon.";
-
-    Helper *helper = m_engine->singletonInstance<Helper *>("TreeLand.Utils", "Helper");
-    Q_ASSERT(helper);
+    qCDebug(treelandMain) << "Connected to the daemon.";
 
     // send connected message
     DDM::SocketWriter(m_socket) << quint32(DDM::GreeterMessages::Connect);
@@ -339,11 +335,11 @@ void TreeLand::retranslate() noexcept
 void TreeLand::disconnected()
 {
     // log disconnection
-    qDebug() << "Disconnected from the daemon.";
+    qCDebug(treelandMain) << "Disconnected from the daemon.";
 
     Q_EMIT socketDisconnected();
 
-    qDebug() << "Display Manager is closed socket connect, quiting treeland.";
+    qCDebug(treelandMain) << "Display Manager is closed socket connect, quiting treeland.";
     qApp->exit();
 }
 
@@ -365,7 +361,7 @@ void TreeLand::readyRead()
         switch (DDM::DaemonMessages(message)) {
         case DDM::DaemonMessages::Capabilities: {
             // log message
-            qDebug() << "Message received from daemon: Capabilities";
+            qCDebug(treelandMain) << "Message received from daemon: Capabilities";
         } break;
         case DDM::DaemonMessages::LoginSucceeded:
         case DDM::DaemonMessages::UserActivateMessage: {
@@ -377,14 +373,10 @@ void TreeLand::readyRead()
             }
 
             struct passwd *pwd = getpwnam(user.toUtf8());
-            Helper *helper = m_engine->singletonInstance<Helper *>("TreeLand.Utils", "Helper");
-            helper->setCurrentUser(pwd->pw_name);
+            m_helper->setCurrentUser(pwd->pw_name);
         } break;
         case DDM::DaemonMessages::SwitchToGreeter: {
-            Helper *helper = m_engine->singletonInstance<Helper *>("TreeLand.Utils", "Helper");
-
-            Q_ASSERT(helper);
-            Q_EMIT helper->greeterVisibleChanged();
+            Q_EMIT m_helper->greeterVisibleChanged();
         } break;
         default:
             break;
@@ -409,8 +401,7 @@ bool TreeLand::ActivateWayland(QDBusUnixFileDescriptor _fd)
     auto socket = std::make_shared<WSocket>(true);
     socket->create(fd->fileDescriptor(), false);
 
-    Helper *helper = m_engine->singletonInstance<Helper *>("TreeLand.Utils", "Helper");
-    socket->setEnabled(helper->currentUser() == user);
+    socket->setEnabled(m_helper->currentUser() == user);
 
     m_server->addSocket(socket.get());
 
@@ -437,10 +428,7 @@ QString TreeLand::XWaylandName()
     pw = getpwuid(uid);
     QString user{ pw->pw_name };
 
-    Helper *helper = m_engine->singletonInstance<Helper *>("TreeLand.Utils", "Helper");
-    Q_ASSERT(helper);
-
-    auto *xwayland = helper->createXWayland();
+    auto *xwayland = m_helper->createXWayland();
     const QString &display = xwayland->displayName();
 
     auto m = message();
@@ -448,11 +436,27 @@ QString TreeLand::XWaylandName()
 
     QProcess *process = new QProcess(this);
     connect(process, &QProcess::finished, [process, m, conn, user, display] {
-        qCDebug(debug) << process->exitCode() << " " << process->readAllStandardOutput() << process->readAllStandardError();
-        qCDebug(debug) << QString("user %1 got xwayland display %2.").arg(user).arg(display);
-        auto reply = m.createReply(display);
-        conn.send(reply);
+        if (process->exitCode() != 0) {
+            qCWarning(treelandMain)
+                << "xhost command failed with exit code" << process->exitCode()
+                << process->readAllStandardOutput() << process->readAllStandardError();
+            auto reply =
+                m.createErrorReply(QDBusError::InternalError, "Failed to set xhost permissions");
+            conn.send(reply);
+        } else {
+            qCDebug(treelandMain) << process->exitCode() << " " << process->readAllStandardOutput()
+                                  << process->readAllStandardError();
+            qCDebug(treelandMain)
+                << QString("user %1 got xwayland display %2.").arg(user).arg(display);
+            auto reply = m.createReply(display);
+            conn.send(reply);
+        }
         process->deleteLater();
+    });
+
+    connect(process, &QProcess::errorOccurred, [this, m, conn] {
+        auto reply = m.createErrorReply(QDBusError::InternalError, "Failed to set xhost permissions");
+        conn.send(reply);
     });
 
     auto env = QProcessEnvironment::systemEnvironment();
@@ -484,9 +488,10 @@ int main(int argc, char *argv[])
     app.setOrganizationName("deepin");
     app.setApplicationName("treeland");
 
+#ifdef QT_DEBUG
     DLogManager::registerConsoleAppender();
+#endif
     DLogManager::registerJournalAppender();
-    DLogManager::registerFileAppender();
 
     QCommandLineOption socket({ "s", "socket" }, "set ddm socket", "socket");
     QCommandLineOption run({ "r", "run" }, "run a process", "run");
