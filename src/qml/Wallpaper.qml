@@ -6,7 +6,7 @@ import TreeLand.Utils
 
 WallpaperProxy {
     clip: true
-    Image {
+    AnimatedImage {
         id: background
         source: parent.source
 
