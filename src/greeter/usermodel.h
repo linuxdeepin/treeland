@@ -20,7 +20,7 @@
 #ifndef SDDM_USERMODEL_H
 #define SDDM_USERMODEL_H
 
-#include "User.h"
+#include "user.h"
 
 #include <QAbstractListModel>
 #include <QHash>

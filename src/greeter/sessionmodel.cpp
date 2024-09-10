@@ -18,9 +18,9 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  ***************************************************************************/
 
-#include "SessionModel.h"
+#include "sessionmodel.h"
 
-#include "Configuration.h"
+#include <Configuration.h>
 
 #include <QFileInfo>
 #include <QFileSystemWatcher>
