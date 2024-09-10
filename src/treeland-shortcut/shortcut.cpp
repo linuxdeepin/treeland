@@ -10,8 +10,11 @@
 #include <QDir>
 #include <QFileDialog>
 #include <QFileSystemWatcher>
-#include <QStandardPaths>
+#include <QLoggingCategory>
 #include <QRegularExpression>
+#include <QStandardPaths>
+
+Q_LOGGING_CATEGORY(treelandShortcut, "daemon.shortcut", QtDebugMsg);
 
 static const QMap<QString, QString> SpecialKeyMap = {
     { "minus", "-" },      { "equal", "=" },     { "brackertleft", "[" }, { "breckertright", "]" },
@@ -58,14 +61,14 @@ QString escapeToObjectPath(const QString &str)
     }
 
     auto ret = str;
-    QRegularExpression re{R"([^a-zA-Z0-9])"};
+    QRegularExpression re{ R"([^a-zA-Z0-9])" };
     auto matcher = re.globalMatch(ret);
     while (matcher.hasNext()) {
         auto replaceList = matcher.next().capturedTexts();
         replaceList.removeDuplicates();
         for (const auto &c : replaceList) {
             auto hexStr = QString::number(static_cast<uint>(c.front().toLatin1()), 16);
-            ret.replace(c, QString{R"(_%1)"}.arg(hexStr));
+            ret.replace(c, QString{ R"(_%1)" }.arg(hexStr));
         }
     }
     return ret;
@@ -106,7 +109,7 @@ ShortcutV1::ShortcutV1()
     : QWaylandClientExtensionTemplate<ShortcutV1>(1)
 {
     connect(this, &ShortcutV1::activeChanged, this, [this] {
-        qDebug() << isActive();
+        qCDebug(treelandShortcut) << "isActive:" << isActive();
 
         if (isActive()) {
             // TODO: Use a converter
@@ -146,10 +149,12 @@ ShortcutV1::ShortcutV1()
 
             QDir dir(TREELAND_DATA_DIR "/shortcuts");
             for (auto d : dir.entryInfoList(QDir::Filter::Files)) {
+                qCInfo(treelandShortcut) << "Load shortcut:" << d.filePath();
                 auto shortcut = new Shortcut(d.filePath());
                 ShortcutContext *context =
                     new ShortcutContext(register_shortcut_context(shortcut->shortcut()));
                 connect(context, &ShortcutContext::shortcutHappended, this, [shortcut] {
+                    qCInfo(treelandShortcut) << "Shortcut happended: " << shortcut->shortcut();
                     shortcut->exec();
                 });
             }
@@ -208,7 +213,6 @@ void Shortcut::exec()
         const QString &appId = getAppIdFromAbsolutePath(appPath);
         const QString &objectPath = prefixPath + escapeToObjectPath(appId);
 
-        qInfo() << "Launch" << appId << objectPath;
         QDBusInterface dbus(service, objectPath, interface);
         dbus.asyncCall(u8"Launch", "", QStringList{}, QVariantMap{});
     }
