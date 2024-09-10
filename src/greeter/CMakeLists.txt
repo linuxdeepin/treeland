@@ -1,16 +1,16 @@
 set(GREETER_SOURCES
-    GreeterApp.h
-    GreeterProxy.h
-    SessionModel.h
-    UserModel.h
-    User.h
-    LogoProvider.h
-    GreeterApp.cpp
-    GreeterProxy.cpp
-    SessionModel.cpp
-    UserModel.cpp
-    User.cpp
-    LogoProvider.cpp
+    greeterapp.h
+    greeterapp.cpp
+    greeterproxy.h
+    sessionmodel.h
+    usermodel.h
+    user.h
+    logoprovider.h
+    greeterproxy.cpp
+    sessionmodel.cpp
+    usermodel.cpp
+    user.cpp
+    logoprovider.cpp
 )
 
 find_package(QT NAMES Qt6 REQUIRED COMPONENTS Core)
@@ -35,23 +35,23 @@ qt_add_dbus_interface(DDM_DBUS_SOURCES "${CMAKE_SOURCE_DIR}/misc/interfaces/org.
 qt_add_dbus_interface(DDM_DBUS_SOURCES "${CMAKE_SOURCE_DIR}/misc/interfaces/org.freedesktop.DisplayManager.Seat.xml"     DisplayManagerSeat)
 qt_add_dbus_interface(DDM_DBUS_SOURCES "${CMAKE_SOURCE_DIR}/misc/interfaces/org.freedesktop.DisplayManager.Session.xml"  DisplayManagerSession)
 
-set_source_files_properties(GreeterModel.qml PROPERTIES
+set_source_files_properties(qml/GreeterModel.qml PROPERTIES
     QT_QML_SINGLETON_TYPE TRUE
 )
 
 set(QML_FILES
-    Greeter.qml
-    UserList.qml
-    SessionList.qml
-    UserInput.qml
-    GreeterModel.qml
-    LoginAnimation.qml
-    RoundBlur.qml
-    PowerList.qml
-    TimeDateWidget.qml
-    HintLabel.qml
-    QuickAction.qml
-    ControlAction.qml
+    qml/Greeter.qml
+    qml/UserList.qml
+    qml/SessionList.qml
+    qml/UserInput.qml
+    qml/GreeterModel.qml
+    qml/LoginAnimation.qml
+    qml/RoundBlur.qml
+    qml/PowerList.qml
+    qml/TimeDateWidget.qml
+    qml/HintLabel.qml
+    qml/QuickAction.qml
+    qml/ControlAction.qml
 )
 
 set(LIB_NAME greeterplugin)

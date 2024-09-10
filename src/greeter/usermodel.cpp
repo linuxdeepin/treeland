@@ -17,9 +17,9 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  ***************************************************************************/
 
-#include "UserModel.h"
+#include "usermodel.h"
 
-#include "Configuration.h"
+#include <Configuration.h>
 
 #include <DDBusInterface>
 
