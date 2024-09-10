@@ -21,17 +21,14 @@
 #ifndef GREETERAPP_H
 #define GREETERAPP_H
 
-#include "GreeterProxy.h"
-#include "LogoProvider.h"
-#include "SessionModel.h"
-#include "UserModel.h"
+#include "greeterproxy.h"
+#include "logoprovider.h"
+#include "sessionmodel.h"
+#include "usermodel.h"
 
 #include <QQmlEngine>
 #include <QQmlExtensionPlugin>
 #include <QTranslator>
-#include <qqml.h>
-#include <qqmlextensionplugin.h>
-#include <qscopedpointer.h>
 
 class GreeterExtensionPlugin : public QQmlEngineExtensionPlugin
 {

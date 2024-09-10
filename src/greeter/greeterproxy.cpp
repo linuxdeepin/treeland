@@ -18,14 +18,15 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  ***************************************************************************/
 
-#include "GreeterProxy.h"
+#include "greeterproxy.h"
 
-#include "DisplayManager.h"
-#include "DisplayManagerSession.h"
-#include "Messages.h"
-#include "SessionModel.h"
-#include "SocketWriter.h"
-#include "UserModel.h"
+#include "sessionmodel.h"
+#include "usermodel.h"
+
+#include <DisplayManager.h>
+#include <DisplayManagerSession.h>
+#include <Messages.h>
+#include <SocketWriter.h>
 
 #include <QCommandLineOption>
 #include <QCommandLineParser>
