@@ -272,7 +272,7 @@ private:
     bool m_isLockScreen{ false };
 
     int m_currentWorkspaceId{ 0 };
-    QList<WXWayland*> m_xwaylands;
+    QList<WXWayland *> m_xwaylands;
 };
 
 Q_DECLARE_FLAGS(MetaKeyChecks, Helper::MetaKeyCheck)

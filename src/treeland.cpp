@@ -7,6 +7,7 @@
 #include "SignalHandler.h"
 #include "SocketWriter.h"
 #include "compositor1adaptor.h"
+#include "ddeshell.h"
 #include "foreigntoplevelmanagerv1.h"
 #include "helper.h"
 #include "logstream.h"
@@ -49,6 +50,7 @@
 #include <QQuickView>
 #include <QTimer>
 #include <QtLogging>
+#include <qqml.h>
 #include <qtenvironmentvariables.h>
 
 #include <pwd.h>
@@ -202,6 +204,9 @@ TreeLand::TreeLand(TreeLandAppContext context)
                 process.setProgram(cmdArgs.constFirst());
                 process.setArguments(cmdArgs.mid(1));
                 process.setProcessEnvironment(envs);
+                process.setStandardInputFile(QProcess::nullDevice());
+                process.setStandardOutputFile(QProcess::nullDevice());
+                process.setStandardErrorFile(QProcess::nullDevice());
                 process.startDetached();
             }
         };
@@ -278,6 +283,19 @@ void TreeLand::setup()
                                              0,
                                              "ShortcutV1",
                                              m_server->attach<ShortcutV1>());
+
+    qmlRegisterUncreatableType<DDEShell>("TreeLand.Protocols",
+                                         1,
+                                         0,
+                                         "DDEShell",
+                                         "Only for attached");
+
+    qmlRegisterSingletonInstance<DDEShellV1>("TreeLand.Protocols",
+                                             1,
+                                             0,
+                                             "DDEShellV1",
+                                             m_server->attach<DDEShellV1>());
+
     qw_data_control_manager_v1::create(*m_server->handle());
     m_engine->loadFromModule("TreeLand", "Main");
 
@@ -455,7 +473,8 @@ QString TreeLand::XWaylandName()
     });
 
     connect(process, &QProcess::errorOccurred, [this, m, conn] {
-        auto reply = m.createErrorReply(QDBusError::InternalError, "Failed to set xhost permissions");
+        auto reply =
+            m.createErrorReply(QDBusError::InternalError, "Failed to set xhost permissions");
         conn.send(reply);
     });
 
