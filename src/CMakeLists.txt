@@ -59,6 +59,7 @@ target_link_libraries(${BIN_NAME}
         wallpaper-color
         window-management
         virtual-output
+        dde-shell
 )
 
 target_compile_definitions(${BIN_NAME}

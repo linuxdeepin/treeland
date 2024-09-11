@@ -222,33 +222,27 @@ void Helper::initProtocols(WOutputRenderWindow *window)
             m_surfaceCreator,
             &WQmlCreator::removeByOwner);
 
-    connect(xdgShell,
-            &WXdgShell::surfaceAdded,
-            this,
-            [this, engine](WXdgSurface *surface) {
-                auto initProperties = engine->newObject();
-                auto type = surface->isPopup() ? "popup" : "toplevel";
-                initProperties.setProperty("type", type);
-                initProperties.setProperty("wSurface", engine->toScriptValue(surface));
-                initProperties.setProperty("wid", engine->toScriptValue(workspaceId(engine)));
+    connect(xdgShell, &WXdgShell::surfaceAdded, this, [this, engine](WXdgSurface *surface) {
+        auto initProperties = engine->newObject();
+        auto type = surface->isPopup() ? "popup" : "toplevel";
+        initProperties.setProperty("type", type);
+        initProperties.setProperty("wSurface", engine->toScriptValue(surface));
+        initProperties.setProperty("wid", engine->toScriptValue(workspaceId(engine)));
 
-                m_surfaceCreator->add(surface, initProperties);
+        m_surfaceCreator->add(surface, initProperties);
 
-                if (!surface->isPopup()) {
-                    m_foreignToplevel->addSurface(surface);
-                    m_treelandForeignToplevel->add(surface);
-                }
-            });
+        if (!surface->isPopup()) {
+            m_foreignToplevel->addSurface(surface);
+            m_treelandForeignToplevel->add(surface);
+        }
+    });
     connect(xdgShell, &WXdgShell::surfaceRemoved, m_surfaceCreator, &WQmlCreator::removeByOwner);
-    connect(xdgShell,
-            &WXdgShell::surfaceRemoved,
-            m_foreignToplevel,
-            [this](WXdgSurface *surface) {
-                if (!surface->isPopup()) {
-                    m_foreignToplevel->removeSurface(surface);
-                    m_treelandForeignToplevel->remove(surface);
-                }
-            });
+    connect(xdgShell, &WXdgShell::surfaceRemoved, m_foreignToplevel, [this](WXdgSurface *surface) {
+        if (!surface->isPopup()) {
+            m_foreignToplevel->removeSurface(surface);
+            m_treelandForeignToplevel->remove(surface);
+        }
+    });
 
     connect(layerShell, &WLayerShell::surfaceAdded, this, [this, engine](WLayerSurface *surface) {
         auto initProperties = engine->newObject();
@@ -304,14 +298,16 @@ void Helper::initProtocols(WOutputRenderWindow *window)
                     // TODO: Screen position restoration;
                     // TODO: Continue to improve this algorithm after formulating layout rules
                     if (outputitem->output() != output) {
-                        if (outputitem->x() > output->position().x() && outputitem->y() == output->position().y()) {
-                            outputitem->setX(outputitem->x() -
-                                            WOutputItem::getOutputItem(output)->width());
+                        if (outputitem->x() > output->position().x()
+                            && outputitem->y() == output->position().y()) {
+                            outputitem->setX(outputitem->x()
+                                             - WOutputItem::getOutputItem(output)->width());
                         }
 
-                        if (outputitem->y() > output->position().y() && outputitem->x() == output->position().x()) {
-                            outputitem->setY(outputitem->y() -
-                                            WOutputItem::getOutputItem(output)->height());
+                        if (outputitem->y() > output->position().y()
+                            && outputitem->x() == output->position().x()) {
+                            outputitem->setY(outputitem->y()
+                                             - WOutputItem::getOutputItem(output)->height());
                         }
                     }
                 }
@@ -1118,32 +1114,24 @@ WXWayland *Helper::createXWayland()
     m_xwaylands.append(xwayland);
     xwayland->setSeat(m_seat);
 
-    connect(
-        xwayland,
-        &WXWayland::surfaceAdded,
-        this,
-        [this, xwayland](WXWaylandSurface *surface) {
-            QQmlApplicationEngine *engine = qobject_cast<QQmlApplicationEngine *>(qmlEngine(this));
-            surface->safeConnect(
-                &qw_xwayland_surface::notify_associate,
-                this,
-                [this, surface, engine] {
-                    auto initProperties = engine->newObject();
-                    initProperties.setProperty("type", "xwayland");
-                    initProperties.setProperty("wSurface", engine->toScriptValue(surface));
-                    initProperties.setProperty("wid", engine->toScriptValue(workspaceId(engine)));
+    connect(xwayland, &WXWayland::surfaceAdded, this, [this, xwayland](WXWaylandSurface *surface) {
+        QQmlApplicationEngine *engine = qobject_cast<QQmlApplicationEngine *>(qmlEngine(this));
+        surface->safeConnect(&qw_xwayland_surface::notify_associate, this, [this, surface, engine] {
+            auto initProperties = engine->newObject();
+            initProperties.setProperty("type", "xwayland");
+            initProperties.setProperty("wSurface", engine->toScriptValue(surface));
+            initProperties.setProperty("wid", engine->toScriptValue(workspaceId(engine)));
 
-                    m_surfaceCreator->add(surface, initProperties);
-                    m_foreignToplevel->addSurface(surface);
-                    m_treelandForeignToplevel->add(surface);
-                });
-            surface->safeConnect(&qw_xwayland_surface::notify_dissociate, this, [this, surface] {
-                m_surfaceCreator->removeByOwner(surface);
-                m_foreignToplevel->removeSurface(surface);
-                m_treelandForeignToplevel->remove(surface);
-            });
-        }
-    );
+            m_surfaceCreator->add(surface, initProperties);
+            m_foreignToplevel->addSurface(surface);
+            m_treelandForeignToplevel->add(surface);
+        });
+        surface->safeConnect(&qw_xwayland_surface::notify_dissociate, this, [this, surface] {
+            m_surfaceCreator->removeByOwner(surface);
+            m_foreignToplevel->removeSurface(surface);
+            m_treelandForeignToplevel->remove(surface);
+        });
+    });
 
     return xwayland;
 }

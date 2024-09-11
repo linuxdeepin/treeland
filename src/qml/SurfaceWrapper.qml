@@ -20,6 +20,7 @@ SurfaceItemFactory {
     property var doDestroy: helper.doDestroy
     property var cancelMinimize: helper.cancelMinimize
     property var personalizationMapper: wSurface.Personalization
+    property var ddeshellMapper: root.surfaceItem.DDEShell
     property int outputCounter: 0
     property bool isMinimized: helper.isMinimized
     property alias outputs: outputs
