@@ -710,7 +710,9 @@ void WBufferRenderer::removeSource(int index)
     if (isRootItem(s.source))
         return;
 
-    s.renderer->deleteLater();
+    // Renderer of source is delay initialized in ensureRenderer. It might be null here.
+    if (s.renderer)
+        s.renderer->deleteLater();
     auto d = QQuickItemPrivate::get(s.source);
     if (d->inDestructor)
         return;
