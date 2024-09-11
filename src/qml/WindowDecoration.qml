@@ -105,6 +105,7 @@ Item {
         width: parent.width
         height: root.titlebarHeight
         layer.enabled: root.cornerCutRadius
+        layer.smooth: root.cornerCutRadius
         // if set the titlebarContent visible false, button will not respond.
         opacity: root.cornerCutRadius ? 0 : root.opacity
 
