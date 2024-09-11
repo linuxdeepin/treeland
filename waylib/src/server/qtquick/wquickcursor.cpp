@@ -234,9 +234,9 @@ void WQuickCursorPrivate::setSurface(WSurface *surface)
             cursorSurfaceItem = nullptr;
         }
     }
-
     updateImplicitSize();
-    q->update();
+    if (q->flags().testFlag(QQuickItem::ItemHasContents))
+        q->update();
 }
 
 void WQuickCursorPrivate::enterOutput(WOutput *output)
