@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<protocol name="treeland_dde_shell_v1">
+    <copyright><![CDATA[
+    SPDX-FileCopyrightText: 2024 Uniontech <zhangdingyuanuniontech.com>.
+    SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
+    ]]></copyright>
+    <interface name="treeland_dde_shell_manager_v1" version="1">
+        <description summary="dde shell manager">
+            This interface allows DDE change some treeland function.
+
+            Warning! The protocol described in this file is currently in the testing
+            phase. Backward compatible changes may be added together with the
+            corresponding interface version bump. Backward incompatible changes can
+            only be done by creating a new major version of the extension.
+        </description>
+        <request name="get_window_overlap_checker">
+            <arg name="id" type="new_id" interface="treeland_window_overlap_checker" />
+        </request>
+    </interface>
+    <interface name="treeland_window_overlap_checker" version="1">
+        <description summary="An opened toplevel">
+            A treeland_dde_shell_handle_v1 object represents an opened toplevel window. Each
+            app may have multiple opened toplevels.
+
+            Warning! The protocol described in this file is currently in the testing
+            phase. Backward compatible changes may be added together with the
+            corresponding interface version bump. Backward incompatible changes can
+            only be done by creating a new major version of the extension.
+        </description>
+
+        <event name="enter">
+            <description summary="Window has overlapped">
+                This event is sent when windows overlapped.
+                This event is sent only once.
+            </description>
+        </event>
+
+        <event name="leave">
+            <description summary="Window not has overlapped">
+                This event is sent when windows not overlapped.
+                This event is sent only once.
+            </description>
+        </event>
+
+        <enum name="anchor" bitfield="true">
+            <description summary="same layershell">
+                same layershell
+            </description>
+            <entry name="top" value="1" summary="the top edge of the anchor rectangle"/>
+            <entry name="bottom" value="2" summary="the bottom edge of the anchor rectangle"/>
+            <entry name="left" value="4" summary="the left edge of the anchor rectangle"/>
+            <entry name="right" value="8" summary="the right edge of the anchor rectangle"/>
+        </enum>
+
+        <request name="update">
+            <description summary="Register the detected surface">
+                This interface is used to receive the detected surface.
+                When the xdgshell window in the workspace overlaps with the detected window,
+                an event will be sent to notify the client to process it.
+                The window position will only be recorded when this interface is called.
+                If the window moves, this interface needs to be called again.
+            </description>
+            <arg name="width" type="int" />
+            <arg name="height" type="int" />
+            <arg name="anchor" type="uint" enum="anchor" />
+            <arg name="output" type="object" interface="wl_output" allow-null="false" />
+        </request>
+
+        <request name="destroy" type="destructor">
+            <description summary="destroy the treeland_window_overlap_checker object">
+                Destroys the treeland_window_overlap_check_handl oebject.
+
+                This request should be called either when the client does not want to
+                use the toplevel anymore or after the closed event to finalize the
+                destruction of the object.
+            </description>
+        </request>
+    </interface>
+</protocol>
