@@ -138,7 +138,10 @@ OutputItem {
 
         Component.onCompleted: {
             let name = waylandOutput.name;
-            background.source = PersonalizationV1.background(name) + "?" + new Date().getTime()
+            var source = PersonalizationV1.background(name) + "?" + new Date().getTime()
+
+            background.isAnimated = PersonalizationV1.isAnimagedImage(source)
+            background.source = source
             WallpaperColorV1.updateWallpaperColor(name, PersonalizationV1.backgroundIsDark(name));
         }
 
@@ -147,7 +150,10 @@ OutputItem {
             function onBackgroundChanged(outputName, isdark) {
                 let name = waylandOutput.name;
                 if (outputName === name) {
-                    background.source = PersonalizationV1.background(outputName) + "?" + new Date().getTime()
+                    var source = PersonalizationV1.background(outputName) + "?" + new Date().getTime()
+
+                    background.isAnimated = PersonalizationV1.isAnimagedImage(source)
+                    background.source = source
                     WallpaperColorV1.updateWallpaperColor(outputName, isdark);
                 }
             }

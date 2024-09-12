@@ -23,6 +23,7 @@
 #include <QJsonObject>
 #include <QSettings>
 #include <QStandardPaths>
+#include <QImageReader>
 
 #include <sys/socket.h>
 #include <unistd.h>
@@ -343,6 +344,12 @@ bool PersonalizationV1::backgroundIsDark(const QString &output)
     QSettings settings(m_settingFile, QSettings::IniFormat);
     return settings.value(QString("background/%1/isdark").arg(output), DEFAULT_WALLPAPER_ISDARK)
         .toBool();
+}
+
+bool PersonalizationV1::isAnimagedImage(const QString &source)
+{
+    QImageReader reader(source);
+    return reader.imageCount() > 1;
 }
 
 QuickPersonalizationManagerAttached::QuickPersonalizationManagerAttached(WToplevelSurface *target,

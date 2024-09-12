@@ -40,6 +40,7 @@ qt_add_qml_module(treeland-qml
         SwitcherThumbnailHighlightDelegate.qml
         WindowPreviewLoader.qml
         WorkspaceMask.qml
+        FadeBehavior.qml
     RESOURCE_PREFIX
         /qt/qml
     OUTPUT_DIRECTORY
