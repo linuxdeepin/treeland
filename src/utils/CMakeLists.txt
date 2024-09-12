@@ -13,12 +13,14 @@ qt_add_qml_module(utils
         wallpaperproxy.cpp
         wallpapermanager.cpp
         wallpapercontroller.cpp
+        wallpaperprovider.cpp
         gestures.cpp
         togglablegesture.cpp
         logstream.cpp
         tquickradiuseffect.cpp
         tsgradiusimagenode.cpp
         global.cpp
+        wwallpaperimage.cpp
     RESOURCE_PREFIX
         /qt/qml
     OUTPUT_DIRECTORY
@@ -34,6 +36,7 @@ FILES
     wallpaperproxy.h
     wallpapermanager.h
     wallpapercontroller.h
+    wallpaperprovider.h
     gestures.h
     togglablegesture.h
     logstream.h
@@ -41,6 +44,7 @@ FILES
     tquickradiuseffect_p.h
     tsgradiusimagenode.h
     global.h
+    wwallpaperimage.h
 )
 
 target_compile_definitions(utils
@@ -63,4 +67,5 @@ target_link_libraries(utils
         Qt6::Quick
         Qt6::QuickControls2
         capture
+        Qt6::QuickPrivate
 )
