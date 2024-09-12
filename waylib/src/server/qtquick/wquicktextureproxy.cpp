@@ -243,20 +243,16 @@ QSGNode *WQuickTextureProxy::updatePaintNode(QSGNode *old, QQuickItem::UpdatePai
     }
 
     auto node = static_cast<SGTextureProviderNode*>(old);
-    QSGImageNode *imageNode = nullptr;
     if (Q_UNLIKELY(!node)) {
         node = new SGTextureProviderNode();
-        imageNode = window()->createImageNode();
-        node->setImageNode(imageNode);
+        node->setImageNode(window()->createImageNode());
     } else if (Q_UNLIKELY(!node->image())) {
-        imageNode = window()->createImageNode();
-        node->setImageNode(imageNode);
-    } else {
-        imageNode = node->image();
+        node->setImageNode(window()->createImageNode());
     }
 
-    Q_ASSERT(imageNode);
     node->setTextureProvider(tp);
+    QSGImageNode *imageNode = node->image();
+    Q_ASSERT(imageNode);
 
     QRectF sourceRect = d->sourceRect;
     if (!sourceRect.isValid())
