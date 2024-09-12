@@ -138,6 +138,7 @@ public Q_SLOTS:
     QString background(const QString &output);
     QString lockscreen(const QString &output);
     bool backgroundIsDark(const QString &output);
+    bool isAnimagedImage(const QString &source);
 
 protected:
     void create(WServer *server) override;

@@ -36,6 +36,7 @@ qt_add_resources(${BIN_NAME} "treeland_assets"
     FILES
         ${PROJECT_RESOURCES_DIR}/icons/close.dci
         ${PROJECT_RESOURCES_DIR}/icons/multitaskview_close.dci
+        ${PROJECT_RESOURCES_DIR}/icons/gezi.png
 )
 
 target_sources(${BIN_NAME} PRIVATE
