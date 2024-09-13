@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include "impl/capturev1impl.h"
+
 #include <wglobal.h>
 #include <woutput.h>
 #include <wserver.h>
@@ -11,11 +13,10 @@
 
 #include <QAbstractListModel>
 #include <QPainter>
+#include <QPointer>
 #include <QQuickPaintedItem>
 #include <QRect>
-struct treeland_capture_context_v1;
-struct treeland_capture_manager_v1;
-Q_MOC_INCLUDE(<woutputrenderwindow.h>)
+
 WAYLIB_SERVER_BEGIN_NAMESPACE
 class WOutputRenderWindow;
 class WOutputViewport;
@@ -94,8 +95,6 @@ public:
 private:
     QList<CaptureContextV1 *> m_captureContexts;
 };
-
-class treeland_capture_frame_v1;
 
 class CaptureContextV1 : public QObject
 {
