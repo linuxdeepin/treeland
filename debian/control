@@ -36,6 +36,7 @@ Section: dde
 Architecture: any
 Multi-Arch: same
 Depends: ${shlibs:Depends},
+         treeland-data (= ${source:Version}),
          qml6-module-qtquick-layouts,
          qml6-module-qtquick-particles,
          qml6-module-qtquick-dialogs,
