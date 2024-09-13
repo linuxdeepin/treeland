@@ -122,8 +122,10 @@ void handle_treeland_capture_manager_v1_create_session(struct wl_client *client,
     session->resource = capture_session_resource;
 
     if (!manager->enterSelectionMode(session)) {
-        wl_client_post_implementation_error(client, "Another session or context in selection,
-        could not create session."); wl_client_post_no_memory(client); delete session;
+        wl_client_post_implementation_error(client, "Another session or context in selection,"
+                                                    "could not create session.");
+        wl_client_post_no_memory(client);
+        delete session;
         manager->leaveSelectionMode();
         return;
     }

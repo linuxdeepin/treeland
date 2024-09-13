@@ -68,7 +68,7 @@ target_compile_definitions(${BIN_NAME}
     WLR_USE_UNSTABLE
 )
 
-qt_add_shaders(${BIN_NAME} "_shaders_ng"
+qt_add_shaders(${BIN_NAME} "treeland_shaders_ng"
     BATCHABLE
     PRECOMPILE
     PREFIX
