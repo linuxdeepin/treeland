@@ -46,7 +46,7 @@ public:
     };
     Q_ENUM(SessionRole)
 
-    SessionModel(QObject *parent = 0);
+    SessionModel(QObject *parent = nullptr);
     ~SessionModel();
 
     QHash<int, QByteArray> roleNames() const override;

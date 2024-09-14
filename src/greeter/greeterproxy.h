@@ -64,7 +64,7 @@ public:
     UserModel *userModel() const;
     void setUserModel(UserModel *model);
 
-public slots:
+public Q_SLOTS:
     void powerOff();
     void reboot();
     void suspend();
@@ -76,7 +76,7 @@ public slots:
     void activateUser(const QString &user);
     void unlock(const QString &user, const QString &password);
 
-private slots:
+private Q_SLOTS:
     void connected();
     void disconnected();
     void readyRead();
@@ -84,7 +84,7 @@ private slots:
     void onSessionAdded(const QDBusObjectPath &session);
     void onSessionRemoved(const QDBusObjectPath &session);
 
-signals:
+Q_SIGNALS:
     void informationMessage(const QString &message);
     void hostNameChanged(const QString &hostName);
     void canPowerOffChanged(bool canPowerOff);

@@ -19,6 +19,8 @@
 
 #include "usermodel.h"
 
+#include "global.h"
+
 #include <Configuration.h>
 
 #include <DDBusInterface>
@@ -57,12 +59,12 @@ UserModel::UserModel(QObject *parent)
     connect(this, &UserModel::currentUserNameChanged, [this] {
         auto user = getUser(d->currentUserName);
         if (!user) {
-            qWarning() << "couldn't find user:" << d->currentUserName;
+            qCWarning(greeter) << "couldn't find user:" << d->currentUserName;
             return;
         }
 
         auto locale = user->locale();
-        qInfo() << "current locale:" << locale.language();
+        qCInfo(greeter) << "current locale:" << locale.language();
         auto *newTrans = new QTranslator{ this };
         auto dirs = QStandardPaths::standardLocations(QStandardPaths::GenericDataLocation);
         for (const auto &dir : dirs) {
@@ -80,7 +82,7 @@ UserModel::UserModel(QObject *parent)
         }
 
         newTrans->deleteLater();
-        qWarning() << "failed to load new translator under" << dirs.last();
+        qCWarning(greeter) << "failed to load new translator under" << dirs.last();
     });
 
     auto userList = d->manager.userList();
@@ -130,10 +132,10 @@ QHash<int, QByteArray> UserModel::roleNames() const
     names[HomeDirRole] = QByteArrayLiteral("homeDir");
     names[IconRole] = QByteArrayLiteral("icon");
     names[NoPasswordRole] = QByteArrayLiteral("noPassword");
-    names[LoginedRole] = QByteArray("logined");
-    names[IdentityRole] = QByteArray("identity");
-    names[PasswordHintRole] = QByteArray("passwordHint");
-    names[LocaleRole] = QByteArray("LocaleRole");
+    names[LoginedRole] = QByteArrayLiteral("logined");
+    names[IdentityRole] = QByteArrayLiteral("identity");
+    names[PasswordHintRole] = QByteArrayLiteral("passwordHint");
+    names[LocaleRole] = QByteArrayLiteral("LocaleRole");
     return names;
 }
 
@@ -208,8 +210,6 @@ QVariant UserModel::data(const QModelIndex &index, int role) const
     default:
         return {};
     }
-
-    Q_UNREACHABLE();
 }
 
 int UserModel::disableAvatarsThreshold()
@@ -281,12 +281,11 @@ QString UserModel::currentUserName() const noexcept
 
 void UserModel::updateUserLimits(const QString &userName, const QString &time) const noexcept
 {
-    auto user = std::find_if(d->users.begin(), d->users.end(), [&userName](const UserPtr &user) {
-        return user->userName() == userName;
-    });
-
-    if (user != d->users.end()) {
-        (*user)->updateLimitTime(time);
+    for (const auto &user : d->users) {
+        if (user->userName() == userName) {
+            user->updateLimitTime(time);
+            break;
+        }
     }
 }
 
@@ -300,7 +299,7 @@ void UserModel::onUserAdded(quint64 uid)
 {
     auto newUser = d->manager.findUserById(uid);
     if (!newUser) {
-        qWarning() << "user " << uid << " has been added but couldn't find it.";
+        qCWarning(greeter) << "user " << uid << " has been added but couldn't find it.";
         return;
     }
 
