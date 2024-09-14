@@ -26,14 +26,6 @@ Item {
     signal animationPlayed
     signal animationPlayFinished
 
-    function emitAnimationPlayed() {
-        animationPlayed()
-    }
-
-    function emitAnimationPlayFinished() {
-        animationPlayFinished()
-    }
-
     function quit() {
         state = GreeterModel.Quit
     }
@@ -41,7 +33,7 @@ Item {
     Connections {
         target: userModel
         function onUpdateTranslations(locale) {
-            console.log("translation updated");
+            console.log("translation updated")
             logoProvider.updateLocale(locale)
             TreeLand.retranslate()
         }
@@ -74,7 +66,7 @@ Item {
             state = GreeterModel.AuthSucceeded
         }
 
-        onLoginFailed: function () {
+        onLoginFailed: {
             if (!checkUser(userName)) {
                 return
             }
@@ -83,7 +75,7 @@ Item {
         }
 
         Component.onCompleted: {
-            proxy.init();
+            proxy.init()
         }
     }
 

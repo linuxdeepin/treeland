@@ -37,7 +37,7 @@ FocusScope {
         }
     }
 
-    property var state: LoginAnimation.Show
+    property int state: LoginAnimation.Show
 
     Loader {
         id: leftAnimation
@@ -68,7 +68,7 @@ FocusScope {
             anchors.fill: parent
             onStopped: {
                 if (state === LoginAnimation.Hide) {
-                    GreeterModel.emitAnimationPlayFinished()
+                    GreeterModel.animationPlayFinished()
                 }
             }
         }
@@ -88,37 +88,46 @@ FocusScope {
         id: leftComp
         z: -1
         width: parent.width * 0.4
-        anchors.left: parent.left
-        anchors.top: parent.top
-        anchors.bottom: parent.bottom
-        anchors.leftMargin: 30
-        anchors.topMargin: 30
-        anchors.bottomMargin: 30
+        anchors {
+            left: parent.left
+            top: parent.top
+            bottom: parent.bottom
+            leftMargin: 30
+            topMargin: 30
+            bottomMargin: 30
+        }
     }
 
     Item {
         id: rightComp
         z: -1
-        anchors.left: leftComp.right
-        anchors.right: parent.right
-        anchors.top: parent.top
-        anchors.bottom: parent.bottom
-        anchors.rightMargin: 30
-        anchors.topMargin: 30
-        anchors.bottomMargin: 30
+        anchors {
+            left: leftComp.right
+            right: parent.right
+            top: parent.top
+            bottom: parent.bottom
+            leftMargin: 30
+            rightMargin: 30
+            topMargin: 30
+            bottomMargin: 30
+        }
     }
 
     QuickAction {
         id: quickAction
-        anchors.verticalCenter: parent.verticalCenter
-        anchors.right: leftComp.right
-        anchors.rightMargin: leftComp.width / 9
+        anchors {
+            verticalCenter : parent.verticalCenter
+            right: leftComp.right
+            rightMargin: leftComp.width / 9
+        }
     }
 
     Row {
         id: logo
-        anchors.bottom: leftComp.bottom
-        anchors.left: leftComp.left
+        anchors {
+            bottom: leftComp.bottom
+            left: leftComp.left
+        }
 
         Image {
             id: logoPic
@@ -138,19 +147,24 @@ FocusScope {
 
     UserInput {
         id: userInput
-        anchors.verticalCenter: parent.verticalCenter
-        anchors.left: rightComp.left
-        anchors.leftMargin: rightComp.width / 5
+        anchors {
+            verticalCenter: parent.verticalCenter
+            left: rightComp.left
+            leftMargin: rightComp.width / 5
+        }
 
         focus: true
     }
 
     ControlAction {
         id: controlAction
-        anchors.bottom: rightComp.bottom
-        anchors.right: rightComp.right
+        anchors {
+            bottom: rightComp.bottom
+            right: rightComp.right
+        }
     }
 
+    // Delay start animation, Because when the Qt control plays animation during initialization, the effect cannot be seen.
     Timer {
         id: delayStart
         interval: 100
@@ -187,7 +201,7 @@ FocusScope {
                     logoAnimation.item.start({x: logo.x, y: logo.y}, {x: root.x - logo.width, y: logo.y})
                     rightAnimation.item.start({x: userInput.x, y: userInput.y}, {x: root.width + userInput.width, y: userInput.y})
                     bottomAnimation.item.start({x: controlAction.x, y: controlAction.y}, {x: controlAction.x, y: controlAction.y + controlAction.height})
-                    GreeterModel.emitAnimationPlayed()
+                    GreeterModel.animationPlayed()
                 }
                 break
             }
