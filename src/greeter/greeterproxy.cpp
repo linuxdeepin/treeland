@@ -20,6 +20,7 @@
 
 #include "greeterproxy.h"
 
+#include "global.h"
 #include "sessionmodel.h"
 #include "usermodel.h"
 
@@ -190,10 +191,8 @@ void GreeterProxy::init()
 void GreeterProxy::login(const QString &user, const QString &password, const int sessionIndex) const
 {
     if (!d->sessionModel) {
-        // log error
-        qCritical() << "Session model is not set.";
+        qCCritical(greeter) << "Session model is not set.";
 
-        // return
         return;
     }
 
@@ -211,7 +210,9 @@ void GreeterProxy::login(const QString &user, const QString &password, const int
 void GreeterProxy::unlock(const QString &user, const QString &password)
 {
     auto userInfo = userModel()->get(user);
-    SocketWriter(d->socket) << quint32(GreeterMessages::Unlock) << user << password;
+    if (userInfo.isValid()) {
+        SocketWriter(d->socket) << quint32(GreeterMessages::Unlock) << user << password;
+    }
 }
 
 void GreeterProxy::activateUser(const QString &user)
@@ -222,23 +223,21 @@ void GreeterProxy::activateUser(const QString &user)
 
 void GreeterProxy::connected()
 {
-    // log connection
-    qDebug() << "Connected to the daemon.";
+    qCDebug(greeter) << "Connected to the daemon.";
 
     SocketWriter(d->socket) << quint32(GreeterMessages::Connect);
 }
 
 void GreeterProxy::disconnected()
 {
-    // log disconnection
-    qDebug() << "Disconnected from the daemon.";
+    qCDebug(greeter) << "Disconnected from the daemon.";
 
     Q_EMIT socketDisconnected();
 }
 
 void GreeterProxy::error()
 {
-    qCritical() << "Socket error: " << d->socket->errorString();
+    qCCritical(greeter) << "Socket error: " << d->socket->errorString();
 }
 
 void GreeterProxy::onSessionAdded(const QDBusObjectPath &session)
@@ -272,7 +271,7 @@ void GreeterProxy::readyRead()
         switch (DaemonMessages(message)) {
         case DaemonMessages::Capabilities: {
             // log message
-            qDebug() << "Message received from daemon: Capabilities";
+            qCDebug(greeter) << "Message received from daemon: Capabilities";
 
             // read capabilities
             quint32 capabilities;
@@ -293,8 +292,7 @@ void GreeterProxy::readyRead()
             emit canHybridSleepChanged(d->canHybridSleep);
         } break;
         case DaemonMessages::HostName: {
-            // log message
-            qDebug() << "Message received from daemon: HostName";
+            qCDebug(greeter) << "Message received from daemon: HostName";
 
             // read host name
             input >> d->hostName;
@@ -306,42 +304,37 @@ void GreeterProxy::readyRead()
             QString user;
             input >> user;
 
-            // log message
-            qDebug() << "Message received from daemon: LoginSucceeded:" << user;
+            qCDebug(greeter) << "Message received from daemon: LoginSucceeded:" << user;
 
-            // emit signal
             emit loginSucceeded(user);
         } break;
         case DaemonMessages::LoginFailed: {
             QString user;
             input >> user;
 
-            // log message
-            qDebug() << "Message received from daemon: LoginFailed" << user;
+            qCDebug(greeter) << "Message received from daemon: LoginFailed" << user;
 
-            // emit signal
             emit loginFailed(user);
         } break;
         case DaemonMessages::InformationMessage: {
             QString message;
             input >> message;
 
-            qDebug() << "Information Message received from daemon: " << message;
+            qCDebug(greeter) << "Information Message received from daemon: " << message;
             emit informationMessage(message);
         } break;
         case DaemonMessages::SwitchToGreeter: {
-            qInfo() << "switch to greeter";
+            qCInfo(greeter) << "switch to greeter";
             emit switchToGreeter();
         } break;
         case DaemonMessages::UserActivateMessage: {
             QString user;
             input >> user;
 
-            qInfo() << "activate successfully: " << user;
+            qCInfo(greeter) << "activate successfully: " << user;
         } break;
         default: {
-            // log message
-            qWarning() << "Unknown message received from daemon." << message;
+            qCWarning(greeter) << "Unknown message received from daemon." << message;
         }
         }
     }

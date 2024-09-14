@@ -10,7 +10,7 @@
 
 DCORE_USE_NAMESPACE
 
-[[nodiscard]] QString logoProvider::logo() noexcept
+[[nodiscard]] QString LogoProvider::logo() noexcept
 {
     auto url = QUrl::fromUserInput(DSysInfo::distributionOrgLogo(DSysInfo::Distribution,
                                                                  DSysInfo::Transparent,
@@ -18,7 +18,7 @@ DCORE_USE_NAMESPACE
     return url.toString();
 }
 
-[[nodiscard]] QString logoProvider::version() const noexcept
+[[nodiscard]] QString LogoProvider::version() const noexcept
 {
     if (DSysInfo::uosEditionType() == DSysInfo::UosEdition::UosEducation) {
         return {};
@@ -36,7 +36,7 @@ DCORE_USE_NAMESPACE
     return version;
 }
 
-void logoProvider::updateLocale(const QLocale &newLocale) noexcept
+void LogoProvider::updateLocale(const QLocale &newLocale) noexcept
 {
     if (newLocale == locale) {
         return;

@@ -7,12 +7,12 @@
 
 #include <QQmlEngine>
 
-class logoProvider : public QObject
+class LogoProvider : public QObject
 {
     Q_OBJECT
     QML_ELEMENT
 public:
-    explicit logoProvider(QObject *parent = nullptr)
+    explicit LogoProvider(QObject *parent = nullptr)
         : QObject(parent){};
 
     Q_PROPERTY(QString logo READ logo CONSTANT)
