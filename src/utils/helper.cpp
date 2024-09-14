@@ -3,10 +3,11 @@
 
 #include "helper.h"
 
-#include "../modules/foreign-toplevel/foreigntoplevelmanagerv1.h"
-#include "../modules/primary-output/outputmanagement.h"
-#include "../modules/virtual-output/virtualoutputmanager.h"
+#include "foreign-toplevel/foreigntoplevelmanagerv1.h"
+#include "global.h"
 #include "inputdevice.h"
+#include "primary-output/outputmanagement.h"
+#include "virtual-output/virtualoutputmanager.h"
 
 #include <WBackend>
 #include <WForeignToplevel>
@@ -50,6 +51,7 @@
 #include <QAction>
 #include <QFile>
 #include <QGuiApplication>
+#include <QJsonValue>
 #include <QLoggingCategory>
 #include <QMouseEvent>
 #include <QProcess>
@@ -60,8 +62,6 @@
 #include <QQuickStyle>
 #include <QQuickWindow>
 #include <QRegularExpression>
-#include <qjsonvalue.h>
-#include <qobject.h>
 
 #define WLR_FRACTIONAL_SCALE_V1_VERSION 1
 
@@ -70,9 +70,7 @@
 
 #define OUTPUTS_FOOLPROOF_RESERVED_PIXELS 5
 
-Q_LOGGING_CATEGORY(HelperDebugLog, "TreeLand.Helper.Debug", QtDebugMsg);
-
-inline QPointF getItemGlobalPosition(QQuickItem *item)
+static QPointF getItemGlobalPosition(QQuickItem *item)
 {
     auto parent = item->parentItem();
     return parent ? parent->mapToGlobal(item->position()) : item->position();
@@ -104,7 +102,7 @@ void Helper::initProtocols(WOutputRenderWindow *window)
     m_renderer = WRenderHelper::createRenderer(backend->handle());
 
     if (!m_renderer) {
-        qFatal("Failed to create renderer");
+        qCFatal(utils) << "Failed to create renderer";
     }
 
     m_allocator = qw_allocator::autocreate(*backend->handle(), *m_renderer);
@@ -158,7 +156,7 @@ void Helper::initProtocols(WOutputRenderWindow *window)
         setWaylandSocket(m_socket->fullServerName());
     } else {
         delete m_socket;
-        qCritical("Failed to create socket");
+        qCFatal(utils) << "Failed to create socket";
     }
 
     auto *outputManager = m_server->attach<WOutputManagerV1>();
@@ -698,8 +696,10 @@ void Helper::startResize(
 
 void Helper::cancelMoveResize(WSurfaceItem *shell)
 {
-    if (moveReiszeState.surfaceItem != shell)
+    if (moveReiszeState.surfaceItem != shell) {
+        qCWarning(utils) << "cancelMoveResize: surfaceItem is not the same";
         return;
+    }
     stopMoveResize();
 }
 
@@ -906,15 +906,12 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *watched, QInputEvent *even
                 QRectF geo(moveReiszeState.surfacePosOfStartMoveResize,
                            moveReiszeState.surfaceSizeOfStartMoveResize);
 
-                if (moveReiszeState.resizeEdgets & Qt::LeftEdge)
-                    geo.setLeft(geo.left() + increment_pos.x());
-                if (moveReiszeState.resizeEdgets & Qt::TopEdge)
-                    geo.setTop(geo.top() + increment_pos.y());
-
-                if (moveReiszeState.resizeEdgets & Qt::RightEdge)
-                    geo.setRight(geo.right() + increment_pos.x());
-                if (moveReiszeState.resizeEdgets & Qt::BottomEdge)
-                    geo.setBottom(geo.bottom() + increment_pos.y());
+                geo.adjust(
+                    (moveReiszeState.resizeEdgets & Qt::LeftEdge) ? increment_pos.x() : 0,
+                    (moveReiszeState.resizeEdgets & Qt::TopEdge) ? increment_pos.y() : 0,
+                    (moveReiszeState.resizeEdgets & Qt::RightEdge) ? increment_pos.x() : 0,
+                    (moveReiszeState.resizeEdgets & Qt::BottomEdge) ? increment_pos.y() : 0
+                );
 
                 if (moveReiszeState.surfaceItem->resizeSurface(geo.size().toSize()))
                     moveReiszeState.surfaceItem->setPosition(geo.topLeft());
@@ -978,7 +975,6 @@ WToplevelSurface *Helper::activatedSurface() const
 
 void Helper::setActivateSurface(WToplevelSurface *newActivate)
 {
-    qCDebug(HelperDebugLog) << newActivate;
     if (newActivate) {
         wl_client *client = newActivate->surface()->handle()->handle()->resource->client;
         pid_t pid;
@@ -1004,10 +1000,11 @@ void Helper::setActivateSurface(WToplevelSurface *newActivate)
     if (newActivate && newActivate->doesNotAcceptFocus())
         return;
 
+    qCDebug(utils) << "set activate surface" << newActivate;
     if (m_activateSurface && m_activateSurface->isActivated()) {
         if (newActivate) {
-            qCDebug(HelperDebugLog)
-                << "newActivate keyboardFocusPriority " << newActivate->keyboardFocusPriority();
+            qCDebug(utils) << "newActivate keyboardFocusPriority "
+                           << newActivate->keyboardFocusPriority();
             if (m_activateSurface->keyboardFocusPriority() > newActivate->keyboardFocusPriority())
                 return;
         } else {
@@ -1022,7 +1019,7 @@ void Helper::setActivateSurface(WToplevelSurface *newActivate)
 
     m_activateSurface = newActivate;
 
-    qCDebug(HelperDebugLog) << "Surface: " << newActivate << " is activated";
+    qCDebug(utils) << "Surface: " << newActivate << " is activated";
 
     if (newActivate) {
         invalidCheck = connect(newActivate,
@@ -1172,7 +1169,7 @@ QString Helper::clientName(Waylib::Server::WSurface *surface) const
             QString(file.readLine()).section(QRegularExpression("([\\t ]*:[\\t ]*|\\n)"), 1, 1);
     }
 
-    qDebug() << "Program name for PID" << pid << "is" << programName;
+    qCDebug(utils) << "Program name for PID" << pid << "is" << programName;
     return programName;
 }
 

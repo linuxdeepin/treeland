@@ -13,7 +13,6 @@ class Gesture : public QObject
     Q_OBJECT
 public:
     Gesture(QObject *parent = nullptr);
-    ~Gesture() override;
 
 Q_SIGNALS:
     void started();
@@ -26,7 +25,6 @@ class SwipeGesture : public Gesture
     Q_OBJECT
 public:
     explicit SwipeGesture(QObject *parent = nullptr);
-    ~SwipeGesture() override;
 
     enum Direction {
         Invalid,
@@ -95,7 +93,6 @@ class GestureRecognizer : public QObject
     Q_OBJECT
 public:
     explicit GestureRecognizer(QObject *parent = nullptr);
-    ~GestureRecognizer() override;
 
     enum StartPositionBehavior {
         Relevant,
@@ -107,6 +104,9 @@ public:
         Vertical,
         None,
     };
+
+    Q_ENUM(StartPositionBehavior)
+    Q_ENUM(Axis)
 
     void registerSwipeGesture(SwipeGesture *gesture);
     void unregisterSwipeGesture(SwipeGesture *gesture);

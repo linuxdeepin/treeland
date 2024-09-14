@@ -98,9 +98,9 @@ public:
     Q_ENUM(WallpaperType)
 
     enum MetaKeyCheck {
-        ShortcutOverride,
-        KeyPress,
-        KeyRelease,
+        ShortcutOverride = 0x1,
+        KeyPress = 0x2,
+        KeyRelease = 0x4,
     };
 
     void initProtocols(WOutputRenderWindow *window);
@@ -128,7 +128,7 @@ public:
     QString waylandSocket() const;
     QString xwaylandSocket() const;
 
-    Q_INVOKABLE QString clientName(Waylib::Server::WSurface *surface) const;
+    Q_INVOKABLE QString clientName(WAYLIB_SERVER_NAMESPACE::WSurface *surface) const;
 
     void stopMoveResize();
 

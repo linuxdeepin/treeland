@@ -18,6 +18,7 @@ qt_add_qml_module(utils
         logstream.cpp
         tquickradiuseffect.cpp
         tsgradiusimagenode.cpp
+        global.cpp
     RESOURCE_PREFIX
         /qt/qml
     OUTPUT_DIRECTORY
@@ -39,6 +40,7 @@ FILES
     tquickradiuseffect.h
     tquickradiuseffect_p.h
     tsgradiusimagenode.h
+    global.h
 )
 
 target_compile_definitions(utils
@@ -49,6 +51,7 @@ target_compile_definitions(utils
 target_include_directories(utils
     PRIVATE
         ${Qt6Quick_PRIVATE_INCLUDE_DIRS}
+        ${PROJECT_SOURCE_DIR}/src/modules
 )
 
 target_link_libraries(utils
