@@ -396,8 +396,9 @@ QString WXWaylandSurface::title() const
 QString WXWaylandSurface::appId() const
 {
     W_DC(WXWaylandSurface);
-
-    return QString::fromLocal8Bit(d->nativeHandle()->_class);
+    // https://www.x.org/releases/X11R7.7/doc/xproto/x11protocol.html#requests:InternAtom
+    // The string should use the ISO Latin-1 encoding.
+    return QString::fromLatin1(d->nativeHandle()->instance);
 }
 
 pid_t WXWaylandSurface::pid() const
