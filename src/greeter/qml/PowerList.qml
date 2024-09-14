@@ -1,3 +1,5 @@
+// Copyright (C) 2023 ComixHe <heyuming@uniontech.com>.
+// SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 import QtQuick
 import TreeLand.Greeter
 import org.deepin.dtk 1.0 as D
@@ -9,22 +11,8 @@ D.Menu {
     padding: 6
     width: 122
 
-    background: D.FloatingPanel {
-        anchors.fill: parent
+    background: RoundBlur {
         radius: 12
-        blurRadius: 30
-        backgroundColor: D.Palette {
-            normal: Qt.rgba(238 / 255, 238 / 255, 238 / 255, 0.8)
-        }
-        insideBorderColor: D.Palette {
-            normal: Qt.rgba(1, 1, 1, 0.1)
-        }
-        outsideBorderColor: D.Palette {
-            normal: Qt.rgba(0, 0, 0, 0.06)
-        }
-        dropShadowColor: D.Palette {
-            normal: Qt.rgba(0, 0, 0, 0.2)
-        }
     }
 
     D.Action {
@@ -68,9 +56,7 @@ D.Menu {
         id: item
         height: enabled ? 26 : 0
         display: D.IconLabel.IconBesideText
-        font.weight: Font.Medium
-        font.pixelSize: 13
-        font.family: "Source Han Sans CN"
+        font: D.fontManager.t9
         visible: enabled
 
         property D.Palette highlightColor: D.Palette {

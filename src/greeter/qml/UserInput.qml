@@ -40,22 +40,14 @@ Item {
         }
     }
 
-    Connections {
-        target: Greeter
-        function onVisibleChanged(visible) {
-            if (!visible) {
-                passwordField.text = ''
-            }
-        }
-    }
-
-    Rectangle {
-        anchors.horizontalCenter: parent.horizontalCenter
+    Item {
         width: 32
         height: 32
-        color: "transparent"
-        anchors.bottom: parent.top
-        anchors.bottomMargin: 56
+        anchors {
+            horizontalCenter: parent.horizontalCenter
+            bottom: parent.top
+            bottomMargin: 56
+        }
         D.DciIcon {
             name: "login_lock"
             anchors.centerIn: parent
@@ -77,8 +69,10 @@ Item {
             anchors.horizontalCenter: parent.horizontalCenter
             color: "transparent"
             radius: 20
-            border.width: 2
-            border.color: Qt.rgba(1, 1, 1, 0.1)
+            border {
+                width: 2
+                color: Qt.rgba(1, 1, 1, 0.1)
+            }
 
             D.QtIcon {
                 id: avatar
@@ -102,8 +96,10 @@ Item {
                 radius: 20
                 anchors.fill: avatar
                 color: "transparent"
-                border.width: 1
-                border.color: Qt.rgba(0, 0, 0, 0.2)
+                border {
+                    width: 1
+                    color: Qt.rgba(0, 0, 0, 0.2)
+                }
             }
         }
 
@@ -142,15 +138,19 @@ Item {
 
             RowLayout {
                 height: parent.height
-                anchors.right: parent.right
-                anchors.rightMargin: 3
+                anchors {
+                    right: parent.right
+                    rightMargin: 3
+                }
 
                 D.ActionButton {
                     visible: passwordField.capsIndicatorVisible
                     palette.windowText: undefined
-                    icon.name: "login_capslock"
-                    icon.height: 10
-                    icon.width: 10
+                    icon {
+                        name: "login_capslock"
+                        height: 10
+                        width: 10
+                    }
                     Layout.alignment: Qt.AlignHCenter
                     implicitWidth: 16
                     implicitHeight: 16
@@ -160,9 +160,11 @@ Item {
                     id: showPasswordBtn
                     palette.windowText: undefined
                     property bool hiddenPWD: true
-                    icon.name: hiddenPWD ? "login_hidden_password" : "login_display_password"
-                    icon.height: 10
-                    icon.width: 10
+                    icon {
+                        name: hiddenPWD ? "login_hidden_password" : "login_display_password"
+                        height: 10
+                        width: 10
+                    }
                     Layout.alignment: Qt.AlignHCenter
                     implicitWidth: 16
                     implicitHeight: 16
@@ -191,14 +193,18 @@ Item {
 
     D.RoundButton {
         id: loginBtn
-        icon.name: "login_open"
-        icon.width: 16
-        icon.height: 16
+        icon {
+            name: "login_open"
+            width: 16
+            height: 16
+        }
         height: passwordField.height
         width: height
-        anchors.left: userCol.right
-        anchors.bottom: userCol.bottom
-        anchors.leftMargin: 20
+        anchors {
+            left: userCol.right
+            bottom: userCol.bottom
+            leftMargin: 20
+        }
         enabled: passwordField.length != 0
         background: Rectangle {
             anchors.fill: parent
@@ -211,14 +217,16 @@ Item {
 
     RowLayout {
         spacing: 10
-        anchors.right: userCol.left
-        anchors.bottom: userCol.bottom
-        anchors.rightMargin: 10
+        anchors {
+            right: userCol.left
+            bottom: userCol.bottom
+            rightMargin: 10
+        }
         height: passwordField.height
 
         D.RoundButton {
             id: langBtn
-            text: 'L'
+            text: 'L' // TODO: replace with icon
             visible: false
             Layout.fillHeight: true
             Layout.preferredWidth: passwordField.height
@@ -229,15 +237,18 @@ Item {
             }
 
             onClicked: {
+                // TODO: impl language switch
                 console.log("need impl langBtn")
             }
         }
 
         D.RoundButton {
             id: hintBtn
-            icon.name: "login_hint"
-            icon.width: 16
-            icon.height: 16
+            icon {
+                name: "login_hint"
+                width: 16
+                height: 16
+            }
             visible: hintLabel.hintText.length != 0
             Layout.fillHeight: true
             Layout.preferredWidth: passwordField.height
@@ -266,9 +277,11 @@ Item {
         id: hintText
         font.pointSize: 10
         color: "gray"
-        anchors.horizontalCenter: parent.horizontalCenter
-        anchors.top: userCol.bottom
-        anchors.topMargin: 16
+        anchors {
+            horizontalCenter: parent.horizontalCenter
+            top: userCol.bottom
+            topMargin: 16
+        }
     }
 
     Component.onCompleted: {
@@ -289,7 +302,8 @@ Item {
 
     function userAuthFailed() {
         passwordField.selectAll()
-        if (loginGroup.activeFocus)
+        if (loginGroup.activeFocus) {
             passwordField.forceActiveFocus()
+        }
     }
 }

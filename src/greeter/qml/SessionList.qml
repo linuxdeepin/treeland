@@ -11,15 +11,8 @@ Popup {
     modal: true
     width: 220
     height: 140
-    background: Rectangle {
-        color: "white"
-        opacity: 0
-    }
-
-    Rectangle {
-        color: Qt.rgba(255, 255, 255, 0.3)
-        anchors.fill: parent
-        radius: 15
+    background: RoundBlur {
+        radius: 12
     }
 
     function updateCurrentSession(index) {

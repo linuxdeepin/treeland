@@ -1,3 +1,5 @@
+// Copyright (C) 2023 ComixHe <heyuming@uniontech.com>.
+// SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 import QtQuick
 import QtQuick.Controls
 import TreeLand.Greeter
@@ -24,25 +26,26 @@ Control {
         text: currentDate.toLocaleTimeString(currentLocale, "HH:mm")
         font.weight: Font.Light
         font.pixelSize: 80
-        font.family: "Source Han Sans CN"
         color: "white"
 
-        anchors.left: parent.left
-        anchors.leftMargin: 20
-        anchors.top: parent.top
-        // anchors.topMargin: 10
+        anchors {
+            left: parent.left
+            leftMargin: 20
+            top: parent.top
+        }
     }
 
     Text {
         id: dateText
         text: currentDate.toLocaleDateString(currentLocale)
-        font.family: "Source Han Sans CN"
         font.weight: Font.Normal
         font.pixelSize: 20
         color: "white"
 
-        anchors.left: parent.left
-        anchors.leftMargin: 20
-        anchors.top: timeText.bottom
+        anchors {
+            left: parent.left
+            leftMargin: 20
+            top: timeText.bottom
+        }
     }
 }

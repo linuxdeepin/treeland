@@ -21,22 +21,8 @@ D.Popup {
     width: 232
     height: useScrollBar ? maxListHeight : listv.contentHeight + padding * 2
 
-    background: D.FloatingPanel {
-        anchors.fill: parent
+    background: RoundBlur {
         radius: 12
-        blurRadius: 30
-        backgroundColor: D.Palette {
-            normal: Qt.rgba(238 / 255, 238 / 255, 238 / 255, 0.8)
-        }
-        insideBorderColor: D.Palette {
-            normal: Qt.rgba(1, 1, 1, 0.1)
-        }
-        outsideBorderColor: D.Palette {
-            normal: Qt.rgba(0, 0, 0, 0.06)
-        }
-        dropShadowColor: D.Palette {
-            normal: Qt.rgba(0, 0, 0, 0.2)
-        }
     }
 
     function selectCurrentUser(userName, index) {
@@ -55,172 +41,166 @@ D.Popup {
         listv.positionViewAtIndex(listv.currentIndex, ListView.Beginning)
     }
 
-    D.ScrollView {
-        id: scrollv
+    ListView {
+        id: listv
         anchors.fill: parent
-        clip: true
-        ScrollBar.vertical.active: users.useScrollBar
+        model: GreeterModel.userModel
+        width: parent.width
         focus: true
-        D.ColorSelector.family: D.Palette.CrystalColor
+        clip: true
+        keyNavigationWraps: true
+        highlightMoveDuration: 0
+        Keys.onTabPressed: listv.incrementCurrentIndex()
+        Keys.onReturnPressed: selectCurrentUser(model.name, model.index)
 
-        ListView {
-            id: listv
-            model: GreeterModel.userModel
-            width: parent.width
+        property D.Palette highlightColor: D.Palette {
+            normal: D.DTK.makeColor(D.Color.Highlight)
+        }
+
+        delegate: D.CheckDelegate {
+            id: singleUser
+            height: 44
+            width: 220
+            padding: 4
             focus: true
-            keyNavigationWraps: true
-            highlightMoveDuration: 0
-            Keys.onTabPressed: listv.incrementCurrentIndex()
-            Keys.onReturnPressed: selectCurrentUser(model.name, model.index)
 
-            property D.Palette highlightColor: D.Palette {
-                normal: D.DTK.makeColor(D.Color.Highlight)
+            onHoveredChanged: {
+                if (hovered) {
+                    listv.currentIndex = index
+                }
             }
 
-            delegate: D.CheckDelegate {
-                id: singleUser
-                height: 44
-                width: 220
-                padding: 4
-                focus: true
-
-                onHoveredChanged: {
-                    if (hovered) {
-                        listv.currentIndex = index
+            contentItem: RowLayout {
+                Control {
+                    Layout.preferredHeight: 36
+                    Layout.preferredWidth: 36
+                    Layout.alignment: Qt.AlignVCenter
+                    background: Item {
+                        D.QtIcon {
+                            id: source
+                            anchors.fill: parent
+                            fallbackSource: model.icon
+                            visible: false
+                        }
+                        Rectangle {
+                            id: maskSource
+                            radius: 2
+                            anchors.fill: source
+                            visible: false
+                        }
+                        D.OpacityMask {
+                            anchors.fill: source
+                            source: source
+                            maskSource: maskSource
+                            invert: false
+                        }
+                        Rectangle {
+                            radius: 2
+                            anchors.fill: source
+                            color: "transparent"
+                            border {
+                                width: 1
+                                color: Qt.rgba(0, 0, 0, 0.2)
+                            }
+                        }
                     }
-                }
 
-                contentItem: RowLayout {
-                    Control {
-                        Layout.preferredHeight: 36
-                        Layout.preferredWidth: 36
-                        Layout.alignment: Qt.AlignVCenter
-                        background: Item {
-                            D.QtIcon {
-                                id: source
+                    Item {
+                        width: 8
+                        height: 8
+                        anchors {
+                            right: parent.right
+                            bottom: parent.bottom
+                        }
+                        visible: model.logined
+
+                        Rectangle {
+                            anchors.centerIn: parent
+                            color: Qt.rgba(0, 1, 2 / 250, 1)
+                            height: 7
+                            width: 7
+                            radius: 4
+                            border {
+                                width: 1
+                                color: Qt.rgba(1, 1, 1, 0.8)
+                            }
+                            z: 1
+
+                            D.BoxShadow {
                                 anchors.fill: parent
-                                fallbackSource: model.icon
-                                visible: false
-                            }
-                            Rectangle {
-                                id: maskSource
-                                radius: 2
-                                anchors.fill: source
-                                visible: false
-                            }
-                            D.OpacityMask {
-                                anchors.fill: source
-                                source: source
-                                maskSource: maskSource
-                                invert: false
-                            }
-                            Rectangle {
-                                radius: 2
-                                anchors.fill: source
-                                color: "transparent"
-                                border.width: 1
-                                border.color: Qt.rgba(0, 0, 0, 0.2)
+                                shadowBlur: 4
+                                shadowColor: Qt.rgba(0, 180 / 255,
+                                                     38 / 255, 0.21)
+                                shadowOffsetX: 0
+                                shadowOffsetY: 2
+                                cornerRadius: parent.radius
+                                hollow: true
                             }
                         }
 
-                        Item {
-                            width: 8
-                            height: 8
-                            anchors.right: parent.right
-                            anchors.bottom: parent.bottom
-                            visible: model.logined
-
-                            Rectangle {
-                                anchors.centerIn: parent
-                                color: Qt.rgba(0, 1, 2 / 250, 1)
-                                height: 7
-                                width: 7
-                                radius: 4
-                                border.width: 1
-                                border.color: Qt.rgba(1, 1, 1, 0.8)
-                                z: 1
-
-                                D.BoxShadow {
-                                    anchors.fill: parent
-                                    shadowBlur: 4
-                                    shadowColor: Qt.rgba(0, 180 / 255,
-                                                         38 / 255, 0.21)
-                                    shadowOffsetX: 0
-                                    shadowOffsetY: 2
-                                    cornerRadius: parent.radius
-                                    hollow: true
-                                }
+                        Rectangle {
+                            anchors.centerIn: parent
+                            color: "transparent"
+                            height: 6
+                            width: 6
+                            radius: 4
+                            border {
+                                width: 1
+                                color: Qt.rgba(0, 0, 0, 0.05)
                             }
+                            z: 2
 
-                            Rectangle {
-                                anchors.centerIn: parent
-                                color: "transparent"
-                                height: 6
-                                width: 6
-                                radius: 4
-                                border.width: 1
-                                border.color: Qt.rgba(0, 0, 0, 0.05)
-                                z: 2
-
-                                D.BoxShadow {
-                                    anchors.fill: parent
-                                    shadowBlur: 3
-                                    shadowColor: Qt.rgba(0, 0, 0, 0.2)
-                                    shadowOffsetX: 0
-                                    shadowOffsetY: 0
-                                    cornerRadius: parent.radius
-                                }
+                            D.BoxShadow {
+                                anchors.fill: parent
+                                shadowBlur: 3
+                                shadowColor: Qt.rgba(0, 0, 0, 0.2)
+                                shadowOffsetX: 0
+                                shadowOffsetY: 0
+                                cornerRadius: parent.radius
                             }
-                        }
-                    }
-
-                    Column {
-                        Layout.fillWidth: true
-                        Layout.preferredHeight: 36
-                        Layout.alignment: Qt.AlignVCenter
-                        Text {
-                            id: displayUserName
-                            text: model.realName.length === 0 ? model.name : model.realName
-                            color: singleUser.ListView.isCurrentItem ? "white" : "black"
-                            font.weight: Font.Medium
-                            font.pixelSize: 13
-                            font.family: "Source Han Sans CN"
-                        }
-                        Text {
-                            text: model.identity
-                            color: singleUser.ListView.isCurrentItem ? Qt.rgba(
-                                                                     1, 1, 1,
-                                                                     0.7) : Qt.rgba(
-                                                                     0,
-                                                                     0, 0, 0.6)
-                            font.weight: Font.Medium
-                            font.pixelSize: 10
-                            font.family: "Source Han Sans CN"
                         }
                     }
                 }
 
-                background: Rectangle {
-                    id: userBackground
-                    anchors.fill: parent
-                    radius: 6
-                    color: singleUser.ListView.isCurrentItem ? listv.D.ColorSelector.highlightColor : "transparent"
-
-                    D.BoxShadow {
-                        anchors.fill: parent
-                        shadowBlur: 0
-                        shadowColor: Qt.rgba(17 / 255, 47 / 255, 251 / 255, 0.5)
-                        shadowOffsetX: 0
-                        shadowOffsetY: -1
-                        cornerRadius: parent.radius
-                        hollow: true
+                Column {
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: 36
+                    Layout.alignment: Qt.AlignVCenter
+                    Text {
+                        id: displayUserName
+                        text: model.realName.length === 0 ? model.name : model.realName
+                        color: singleUser.ListView.isCurrentItem ? "white" : "black"
+                        font: D.fontManager.t9
+                    }
+                    Text {
+                        text: model.identity
+                        color: singleUser.ListView.isCurrentItem ? Qt.rgba(1, 1, 1,0.7)
+                                                                 : Qt.rgba(0, 0, 0, 0.6)
+                        font: D.fontManager.t10
                     }
                 }
-
-                onClicked: selectCurrentUser(model.name, index)
-
-                checked: GreeterModel.currentUser === model.name
             }
+
+            background: Rectangle {
+                id: userBackground
+                anchors.fill: parent
+                radius: 6
+                color: singleUser.ListView.isCurrentItem ? listv.D.ColorSelector.highlightColor : "transparent"
+
+                D.BoxShadow {
+                    anchors.fill: parent
+                    shadowBlur: 0
+                    shadowColor: Qt.rgba(17 / 255, 47 / 255, 251 / 255, 0.5)
+                    shadowOffsetX: 0
+                    shadowOffsetY: -1
+                    cornerRadius: parent.radius
+                    hollow: true
+                }
+            }
+
+            onClicked: selectCurrentUser(model.name, index)
+
+            checked: GreeterModel.currentUser === model.name
         }
     }
 }

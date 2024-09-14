@@ -16,7 +16,7 @@ Item {
         Hide = 2
     }
 
-    property var state: LoginAnimation.Show
+    property int state: LoginAnimation.Show
     required property var target
 
     function start(pos, to) {
@@ -63,20 +63,20 @@ Item {
             id: xAni
             target: effect
             duration: 1000
-            easing.type: Easing.OutCubic
+            easing.type: Easing.OutExpo
         }
         YAnimator {
             id: yAni
             target: effect
             duration: 1000
-            easing.type: Easing.OutCubic
+            easing.type: Easing.OutExpo
         }
         OpacityAnimator {
             target: effect
             duration: 1000
             from: root.state === LoginAnimation.Show ? 0 : 1
             to: root.state === LoginAnimation.Show ? 1 : 0
-            easing.type: Easing.OutCubic
+            easing.type: Easing.OutExpo
         }
     }
 }
