@@ -110,6 +110,7 @@ QVariant SessionModel::data(const QModelIndex &index, int role) const
 
     // get session
     Session *session = d->sessions[index.row()];
+    Q_ASSERT(session);
 
     // return correct value
     switch (role) {
