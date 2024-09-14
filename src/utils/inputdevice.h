@@ -3,19 +3,23 @@
 
 #pragma once
 
-#include <wglobal.h>
-#include <QObject>
-#include <qwglobal.h>
-#include <QInputDevice>
+#include "gestures.h"
 
 #include <libinput.h>
-#include "gestures.h"
+
+#include <wglobal.h>
+
+#include <qwglobal.h>
+
+#include <QInputDevice>
+#include <QObject>
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 class WInputDevice;
 WAYLIB_SERVER_END_NAMESPACE
 
 WAYLIB_SERVER_USE_NAMESPACE
+
 struct SwipeFeedBack
 {
     SwipeGesture::Direction direction;
@@ -27,14 +31,14 @@ struct SwipeFeedBack
 class InputDevice : public QObject
 {
 public:
-    static InputDevice* instance();
+    static InputDevice *instance();
 
-    InputDevice(const InputDevice&) = delete;
-    InputDevice& operator=(const InputDevice&) = delete;
+    InputDevice(const InputDevice &) = delete;
+    InputDevice &operator=(const InputDevice &) = delete;
 
     bool initTouchPad(WInputDevice *handle);
 
-    void registerTouchpadSwipe(const SwipeFeedBack& feed);
+    void registerTouchpadSwipe(const SwipeFeedBack &feed);
 
     void processSwipeStart(uint finger);
     void processSwipeUpdate(const QPointF &delta);
@@ -45,7 +49,7 @@ private:
     InputDevice(QObject *parent = nullptr);
     ~InputDevice();
 
-    static InputDevice* m_instance;
-    GestureRecognizer* m_touchpadRecognizer;
+    static InputDevice *m_instance;
+    GestureRecognizer *m_touchpadRecognizer;
     uint m_touchpadFingerCount = 0;
 };
