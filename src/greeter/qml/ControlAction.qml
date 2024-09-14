@@ -16,10 +16,9 @@ RowLayout {
     property var buttonSize: 30
     spacing: 15
 
-    Rectangle {
+    Item {
         implicitWidth: bottomGroup.buttonSize + 6
         implicitHeight: bottomGroup.buttonSize + 6
-        color: "transparent"
         Layout.alignment: Qt.AlignHCenter
         visible: userList.count > 1
 
@@ -50,14 +49,15 @@ RowLayout {
                 userList.open()
             }
 
-            background: RoundBlur {}
+            background: RoundBlur {
+                radius: usersBtn.width / 2
+            }
         }
     }
 
-    Rectangle {
+    Item {
         implicitWidth: bottomGroup.buttonSize + 6
         implicitHeight: bottomGroup.buttonSize + 6
-        color: "transparent"
         Layout.alignment: Qt.AlignHCenter
         D.RoundButton {
             id: powerBtn
@@ -82,7 +82,9 @@ RowLayout {
                 powerList.open()
             }
 
-            background: RoundBlur {}
+            background: RoundBlur {
+                radius: powerBtn.width / 2
+            }
         }
     }
 }

@@ -21,16 +21,12 @@ D.Popup {
         Text {
             text: qsTr("Password Hint")
             color: Qt.rgba(1, 1, 1, 0.7)
-            font.weight: Font.Medium
-            font.pixelSize: 10
-            font.family: "Source Han Sans CN"
+            font: D.fontManager.t10
         }
         Text {
             text: hintText
             color: "white"
-            font.weight: Font.Medium
-            font.pixelSize: 12
-            font.family: "Source Han Sans CN"
+            font: D.fontManager.t10
         }
     }
 }

@@ -1,38 +1,31 @@
 import QtQuick
+import QtQuick.Effects
+import Waylib.Server
 import org.deepin.dtk 1.0 as D
 
-D.BoxPanel {
-    width: parent.width
-    height: parent.height
-    radius: width / 2
-    color1: D.Palette {
-        normal: Qt.rgba(1, 1, 1, 0.3)
+Item {
+    id: root
+    property int radius
+    anchors.fill: parent
+    Rectangle {
+        anchors.fill: parent
+        radius: root.radius
+        color: "white"
+        opacity: 0.1
     }
-
-    color2: D.Palette {
-        normal: Qt.rgba(1, 1, 1, 0.3)
-    }
-    boxShadowBlur: 12
-    backgroundFlowsHovered: false
-    boxShadowOffsetY: 0
-    innerShadowOffsetY1: 0
-    insideBorderColor: D.Palette {
-        normal: Qt.rgba(1, 1, 1, 0)
-    }
-
-    outsideBorderColor: D.Palette {
-        normal: Qt.rgba(1, 1, 1, 0)
-    }
-
-    dropShadowColor: D.Palette {
-        normal: Qt.rgba(1, 1, 1, 0)
-    }
-
-    innerShadowColor1: D.Palette {
-        normal: Qt.rgba(1, 1, 1, 0)
-    }
-
-    innerShadowColor2: D.Palette {
-        normal: Qt.rgba(1, 1, 1, 0)
+    RenderBufferBlitter {
+        id: blitter
+        z: root.parent.z - 1
+        anchors.fill: parent
+        MultiEffect {
+            id: blur
+            anchors.fill: parent
+            source: blitter.content
+            autoPaddingEnabled: false
+            blurEnabled: true
+            blur: 1.0
+            blurMax: 64
+            saturation: 0.2
+        }
     }
 }

@@ -21,27 +21,9 @@ Column {
             return user.locale
         }
         width: 400
-        height: 156
-        background: Rectangle {
+        height: 157
+        background: RoundBlur {
             radius: 8
-            color: "white"
-            opacity: 0.1
-        }
-        RenderBufferBlitter {
-            id: blitter
-            parent: timedate
-            z: parent.z - 1
-            anchors.fill: parent
-            MultiEffect {
-                id: blur
-                anchors.fill: parent
-                source: blitter.content
-                autoPaddingEnabled: false
-                blurEnabled: true
-                blur: 1.0
-                blurMax: 64
-                saturation: 0.2
-            }
         }
     }
 }
