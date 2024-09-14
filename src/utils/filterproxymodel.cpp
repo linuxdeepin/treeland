@@ -38,6 +38,7 @@ void FilterProxyModel::setFilterAcceptsRow(const QJSValue &val)
 {
     if (val.equals(m_filterAcceptsRow))
         return;
+
     m_filterAcceptsRow = val;
     emit filterAcceptsRowChanged();
 }
@@ -55,7 +56,3 @@ void FilterProxyModel::invalidate()
     invalidateFilter();
 }
 
-int FilterProxyModel::count() const
-{
-    return rowCount();
-}
