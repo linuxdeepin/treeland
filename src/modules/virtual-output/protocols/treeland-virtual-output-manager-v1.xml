@@ -4,7 +4,7 @@
         SPDX-FileCopyrightText: 2024 Lu YaNing <luyaning@uniontech.com>.
         SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
     ]]></copyright>
-    <interface name="virtual_output_manager_v1" version="1">
+    <interface name="treeland_virtual_output_manager_v1" version="1">
         <description summary="Manager creates virtual output">
             This interface is a manager that allows the creation of copied output.
         </description>
@@ -22,7 +22,7 @@
                 The client calling this interface will not generate an additional wl_output
                 object on the client.
             </description>
-            <arg name="id" type="new_id" interface="virtual_output_v1" />
+            <arg name="id" type="new_id" interface="treeland_virtual_output_v1" />
             <arg name="name" type="string" summary="The name of the user readable virtual output" />
             <arg name="outputs" type="array" summary="Screen name array" />
         </request>
@@ -43,12 +43,12 @@
                 through the virtual output name.
             </description>
             <arg name="name" type="string" summary="The name of the user readable virtual output" />
-            <arg name="id" type="new_id" interface="virtual_output_v1" />
+            <arg name="id" type="new_id" interface="treeland_virtual_output_v1" />
         </request>
     </interface>
-    <interface name="virtual_output_v1" version="1">
+    <interface name="treeland_virtual_output_v1" version="1">
         <description summary="screen output object">
-            A virtual_output_v1 represents a set virtual screen output object.
+            A treeland_virtual_output_v1 represents a set virtual screen output object.
         </description>
         <event name="outputs">
             <description summary="screen output changes">

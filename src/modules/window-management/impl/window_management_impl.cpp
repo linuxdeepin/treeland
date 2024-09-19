@@ -26,7 +26,7 @@ void window_management_handle_set_desktop([[maybe_unused]]struct wl_client *clie
     Q_EMIT manager->requestShowDesktop(state);
 }
 
-static const struct window_management_v1_interface window_management_impl {
+static const struct treeland_window_management_v1_interface window_management_impl {
     .set_desktop = window_management_handle_set_desktop,
     .destroy = window_management_handle_destroy,
 };
@@ -45,7 +45,7 @@ treeland_window_management_v1 *treeland_window_management_v1::create(qw_display 
         return nullptr;
 
     manager->global = wl_global_create(display->handle(),
-                                       &window_management_v1_interface,
+                                       &treeland_window_management_v1_interface,
                                        TREELAND_WINDOW_MANAGEMENT_V1_VERSION,
                                        manager,
                                        window_management_bind);
@@ -66,14 +66,14 @@ void treeland_window_management_v1::set_desktop(uint32_t state)
     wl_resource *resource;
     wl_list_for_each(resource, &this->resources, link)
     {
-        window_management_v1_send_show_desktop(resource, state);
+        treeland_window_management_v1_send_show_desktop(resource, state);
     }
 }
 
 static treeland_window_management_v1 *window_management_from_resource(wl_resource *resource)
 {
     assert(wl_resource_instance_of(resource,
-                                   &window_management_v1_interface,
+                                   &treeland_window_management_v1_interface,
                                    &window_management_impl));
     auto *manager = static_cast<treeland_window_management_v1 *>(wl_resource_get_user_data(resource));
     assert(manager != nullptr);
@@ -90,7 +90,7 @@ static void window_management_bind(wl_client *client, void *data, uint32_t versi
     auto *manager = static_cast<treeland_window_management_v1 *>(data);
 
     struct wl_resource *resource =
-        wl_resource_create(client, &window_management_v1_interface, version, id);
+        wl_resource_create(client, &treeland_window_management_v1_interface, version, id);
     if (!resource) {
         wl_client_post_no_memory(client);
         return;
@@ -102,5 +102,5 @@ static void window_management_bind(wl_client *client, void *data, uint32_t versi
                                    window_management_resource_destroy);
     wl_list_insert(&manager->resources, wl_resource_get_link(resource));
 
-    window_management_v1_send_show_desktop(resource, manager->state);
+    treeland_window_management_v1_send_show_desktop(resource, manager->state);
 }

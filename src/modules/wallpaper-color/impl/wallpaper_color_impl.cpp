@@ -39,7 +39,7 @@ static void wallpaper_color_manager_handle_watch([[maybe_unused]] wl_client *cli
     auto isDark = manager->color_map[op];
     qCDebug(qlcWallpapercolor) << QString("New watch requset for output:(%1), it's wallpaper is %2")
                                       .arg(op, isDark ? "dark" : "light");
-    wallpaper_color_manager_v1_send_output_color(resource, output, isDark);
+    treeland_wallpaper_color_manager_v1_send_output_color(resource, output, isDark);
     manager->watch_lists[resource].append(output);
 }
 
@@ -51,7 +51,7 @@ static void wallpaper_color_manager_handle_unwatch([[maybe_unused]] wl_client *c
     manager->watch_lists[resource].removeOne(QString::fromLocal8Bit(output));
 }
 
-static const struct wallpaper_color_manager_v1_interface color_manager_impl
+static const struct treeland_wallpaper_color_manager_v1_interface color_manager_impl
 {
     .watch = wallpaper_color_manager_handle_watch,
     .unwatch = wallpaper_color_manager_handle_unwatch,
@@ -73,7 +73,7 @@ wallpaper_color_manager_v1 *wallpaper_color_manager_v1::create(qw_display *displ
         return nullptr;
     }
     manager->global = wl_global_create(display->handle(),
-                                       &wallpaper_color_manager_v1_interface,
+                                       &treeland_wallpaper_color_manager_v1_interface,
                                        TREELAND_COLOR_MANAGER_V1_VERSION,
                                        manager,
                                        color_manager_bind);
@@ -98,7 +98,7 @@ void wallpaper_color_manager_v1::updateWallpaperColor(const QString &output, boo
     color_map[output] = isDarkType;
     for (auto i = watch_lists.cbegin(), end = watch_lists.cend(); i != end; ++i)
         if (i.value().contains(output))
-            wallpaper_color_manager_v1_send_output_color(i.key(), output.toLocal8Bit(), isDarkType);
+            treeland_wallpaper_color_manager_v1_send_output_color(i.key(), output.toLocal8Bit(), isDarkType);
 }
 
 static void treeland_color_manager_resource_destroy(struct wl_resource *resource)
@@ -114,7 +114,7 @@ static void color_manager_bind(wl_client *client, void *data, uint32_t version, 
     auto *manager = static_cast<wallpaper_color_manager_v1 *>(data);
 
     struct wl_resource *resource =
-        wl_resource_create(client, &wallpaper_color_manager_v1_interface, version, id);
+        wl_resource_create(client, &treeland_wallpaper_color_manager_v1_interface, version, id);
     if (!resource) {
         wl_client_post_no_memory(client);
         return;
@@ -128,7 +128,7 @@ static void color_manager_bind(wl_client *client, void *data, uint32_t version, 
 static wallpaper_color_manager_v1 *output_manager_from_resource(wl_resource *resource)
 {
     assert(wl_resource_instance_of(resource,
-                                   &wallpaper_color_manager_v1_interface,
+                                   &treeland_wallpaper_color_manager_v1_interface,
                                    &color_manager_impl));
     auto *manager = static_cast<wallpaper_color_manager_v1 *>(wl_resource_get_user_data(resource));
     assert(manager != nullptr);

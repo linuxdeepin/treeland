@@ -169,12 +169,12 @@ void VirtualOutputV1::onVirtualOutputCreated(treeland_virtual_output_v1 *virtual
     });
 
     if (virtual_output->name.isEmpty()) {
-        virtual_output->send_error(VIRTUAL_OUTPUT_V1_ERROR_INVALID_GROUP_NAME,"Group name is empty!");
+        virtual_output->send_error(TREELAND_VIRTUAL_OUTPUT_V1_ERROR_INVALID_GROUP_NAME,"Group name is empty!");
         return;
     }
 
     if (virtual_output->outputList.count() < 2) {
-        virtual_output->send_error(VIRTUAL_OUTPUT_V1_ERROR_INVALID_SCREEN_NUMBER,"The number of screens applying for copy mode is less than 2!");
+        virtual_output->send_error(TREELAND_VIRTUAL_OUTPUT_V1_ERROR_INVALID_SCREEN_NUMBER,"The number of screens applying for copy mode is less than 2!");
         return;
     } else {
         QStringList outputList;
@@ -186,7 +186,7 @@ void VirtualOutputV1::onVirtualOutputCreated(treeland_virtual_output_v1 *virtual
         for (const QString& output : virtual_output->outputList) {
             if (!outputList.contains(output)) {
                 QString screen = output + " does not exist!";
-                virtual_output->send_error(VIRTUAL_OUTPUT_V1_ERROR_INVALID_OUTPUT,screen.toLocal8Bit().data());
+                virtual_output->send_error(TREELAND_VIRTUAL_OUTPUT_V1_ERROR_INVALID_OUTPUT,screen.toLocal8Bit().data());
                 return;
             }
         }
@@ -262,7 +262,7 @@ void VirtualOutputV1::removeOutput(WOutput *output)
 
 QByteArrayView VirtualOutputV1::interfaceName() const
 {
-    return virtual_output_manager_v1_interface.name;
+    return treeland_virtual_output_manager_v1_interface.name;
 }
 
 void VirtualOutputV1::create(WServer *server)

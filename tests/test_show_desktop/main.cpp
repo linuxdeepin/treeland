@@ -7,7 +7,7 @@
 #include <QtWaylandClient/QWaylandClientExtension>
 
 class WindowManager : public QWaylandClientExtensionTemplate<WindowManager>,
-                              public QtWayland::window_management_v1
+                              public QtWayland::treeland_window_management_v1
 {
     Q_OBJECT
 public:

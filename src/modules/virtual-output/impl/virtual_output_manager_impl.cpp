@@ -30,12 +30,12 @@ static void virtual_output_manager_handle_get_virtual_output([[maybe_unused]]str
 
 static void virtual_output_handle_destroy([[maybe_unused]]struct wl_client *client,
                                                    struct wl_resource *resource);
-static const struct virtual_output_v1_interface virtual_output_impl {
+static const struct treeland_virtual_output_v1_interface virtual_output_impl {
     .destroy = virtual_output_handle_destroy,
 };
 
 
-static const struct virtual_output_manager_v1_interface virtual_output_manager_impl {
+static const struct treeland_virtual_output_manager_v1_interface virtual_output_manager_impl {
     .create_virtual_output = virtual_output_manager_handle_create_virtual_output,
     .get_virtual_output_list = virtual_output_manager_handle_get_virtual_output_list,
     .get_virtual_output = virtual_output_manager_handle_get_virtual_output,
@@ -44,7 +44,7 @@ static const struct virtual_output_manager_v1_interface virtual_output_manager_i
 static struct treeland_virtual_output_v1 *virtual_output_from_resource(wl_resource *resource)
 {
     assert(wl_resource_instance_of(resource,
-                                   &virtual_output_v1_interface,
+                                   &treeland_virtual_output_v1_interface,
                                    &virtual_output_impl));
     auto *manager = static_cast<treeland_virtual_output_v1 *>(wl_resource_get_user_data(resource));
     assert(manager != nullptr);
@@ -54,7 +54,7 @@ static struct treeland_virtual_output_v1 *virtual_output_from_resource(wl_resour
 static treeland_virtual_output_manager_v1 *virtual_output_manager_from_resource(wl_resource *resource)
 {
     assert(wl_resource_instance_of(resource,
-                                   &virtual_output_manager_v1_interface,
+                                   &treeland_virtual_output_manager_v1_interface,
                                    &virtual_output_manager_impl));
     auto *manager = static_cast<treeland_virtual_output_manager_v1 *>(wl_resource_get_user_data(resource));
     assert(manager != nullptr);
@@ -116,7 +116,7 @@ static void virtual_output_manager_handle_create_virtual_output([[maybe_unused]]
 
     uint32_t version = wl_resource_get_version(manager_resource);
     struct wl_resource *resource =
-        wl_resource_create(client, &virtual_output_v1_interface, version, id);
+        wl_resource_create(client, &treeland_virtual_output_v1_interface, version, id);
     if (resource == nullptr) {
         delete virtual_output;
         wl_resource_post_no_memory(manager_resource);
@@ -157,7 +157,7 @@ static void virtual_output_manager_handle_get_virtual_output_list([[maybe_unused
         strncpy(dest, virtual_output->name.toLatin1().data(), static_cast<uint>(virtual_output->name.length()));
     }
 
-    virtual_output_manager_v1_send_virtual_output_list(resource,&arr);
+    treeland_virtual_output_manager_v1_send_virtual_output_list(resource,&arr);
 }
 
 static void virtual_output_manager_handle_get_virtual_output([[maybe_unused]]struct wl_client *client,
@@ -176,12 +176,12 @@ static void virtual_output_manager_handle_get_virtual_output([[maybe_unused]]str
 
 void treeland_virtual_output_v1::send_outputs(QString name, struct wl_array *outputs)
 {
-    virtual_output_v1_send_outputs(resource, name.toLocal8Bit().data(), outputs);
+    treeland_virtual_output_v1_send_outputs(resource, name.toLocal8Bit().data(), outputs);
 }
 
 void treeland_virtual_output_v1::send_error(uint32_t code, const char *message)
 {
-    virtual_output_v1_send_error(resource, code, message);
+    treeland_virtual_output_v1_send_error(resource, code, message);
 }
 
 treeland_virtual_output_v1::~treeland_virtual_output_v1()
@@ -203,7 +203,7 @@ static void virtual_output_manager_bind(wl_client *client, void *data, uint32_t 
     auto *manager = static_cast<treeland_virtual_output_manager_v1 *>(data);
 
     struct wl_resource *resource =
-        wl_resource_create(client, &virtual_output_manager_v1_interface, version, id);
+        wl_resource_create(client, &treeland_virtual_output_manager_v1_interface, version, id);
     if (!resource) {
         wl_client_post_no_memory(client);
         return;
@@ -224,7 +224,7 @@ treeland_virtual_output_manager_v1 *treeland_virtual_output_manager_v1::create(q
 
     manager->event_loop = wl_display_get_event_loop(display->handle());
     manager->global = wl_global_create(display->handle(),
-                                       &virtual_output_manager_v1_interface,
+                                       &treeland_virtual_output_manager_v1_interface,
                                        TREELAND_VIRTUAL_OUTPUT_MANAGER_V1_VERSION,
                                        manager,
                                        virtual_output_manager_bind);

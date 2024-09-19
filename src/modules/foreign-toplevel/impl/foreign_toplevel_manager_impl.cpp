@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "foreign_toplevel_manager_impl.h"
+
 #include "treeland-foreign-toplevel-manager-protocol.h"
 
 #include <cassert>
@@ -61,18 +62,18 @@ static void treeland_dock_preview_context_handle_show(struct wl_client *client,
                                                       int32_t y,
                                                       uint32_t direction);
 static void treeland_dock_preview_context_handle_show_tooltip(struct wl_client *client,
-                     struct wl_resource *resource,
-                     const char *tooltip,
-                     int32_t x,
-                     int32_t y,
-                     uint32_t direction);
+                                                              struct wl_resource *resource,
+                                                              const char *tooltip,
+                                                              int32_t x,
+                                                              int32_t y,
+                                                              uint32_t direction);
 static void treeland_dock_preview_context_handle_close(struct wl_client *client,
                                                        struct wl_resource *resource);
 
 static void treeland_dock_preview_context_handle_destroy(struct wl_client *client,
                                                          struct wl_resource *resource);
 
-static const struct ztreeland_foreign_toplevel_handle_v1_interface treeland_toplevel_handle_impl = {
+static const struct treeland_foreign_toplevel_handle_v1_interface treeland_toplevel_handle_impl = {
     .set_maximized = treeland_foreign_toplevel_handle_set_maximized,
     .unset_maximized = treeland_foreign_toplevel_handle_unset_maximized,
     .set_minimized = treeland_foreign_toplevel_handle_set_minimized,
@@ -97,7 +98,7 @@ static struct treeland_foreign_toplevel_handle_v1 *toplevel_handle_from_resource
     struct wl_resource *resource)
 {
     assert(wl_resource_instance_of(resource,
-                                   &ztreeland_foreign_toplevel_handle_v1_interface,
+                                   &treeland_foreign_toplevel_handle_v1_interface,
                                    &treeland_toplevel_handle_impl));
     return static_cast<struct treeland_foreign_toplevel_handle_v1 *>(
         wl_resource_get_user_data(resource));
@@ -192,8 +193,7 @@ static void treeland_dock_preview_context_handle_show_tooltip(struct wl_client *
                                                               int32_t y,
                                                               uint32_t direction)
 {
-    auto *dock_preview =
-        toplevel_dock_preview_context_from_resource(resource);
+    auto *dock_preview = toplevel_dock_preview_context_from_resource(resource);
 
     treeland_dock_preview_tooltip_event event = {
         .toplevel = dock_preview,
@@ -266,7 +266,7 @@ static void treeland_foreign_toplevel_handle_set_rectangle(
 
     if (width < 0 || height < 0) {
         wl_resource_post_error(resource,
-                               ZTREELAND_FOREIGN_TOPLEVEL_HANDLE_V1_ERROR_INVALID_RECTANGLE,
+                               TREELAND_FOREIGN_TOPLEVEL_HANDLE_V1_ERROR_INVALID_RECTANGLE,
                                "invalid rectangle passed to set_rectangle: width/height < 0");
         return;
     }
@@ -294,7 +294,7 @@ static void toplevel_idle_send_done(void *data)
     struct wl_resource *resource;
     wl_resource_for_each(resource, &toplevel->resources)
     {
-        ztreeland_foreign_toplevel_handle_v1_send_done(resource);
+        treeland_foreign_toplevel_handle_v1_send_done(resource);
     }
 
     toplevel->idle_source = nullptr;
@@ -318,7 +318,7 @@ void treeland_foreign_toplevel_handle_v1::set_title(const QString &title)
     struct wl_resource *resource;
     wl_resource_for_each(resource, &this->resources)
     {
-        ztreeland_foreign_toplevel_handle_v1_send_title(resource, title.toUtf8());
+        treeland_foreign_toplevel_handle_v1_send_title(resource, title.toUtf8());
     }
 
     update_idle_source();
@@ -333,7 +333,7 @@ void treeland_foreign_toplevel_handle_v1::set_app_id(const QString &app_id)
     struct wl_resource *resource;
     wl_resource_for_each(resource, &this->resources)
     {
-        ztreeland_foreign_toplevel_handle_v1_send_app_id(resource, app_id.toLocal8Bit());
+        treeland_foreign_toplevel_handle_v1_send_app_id(resource, app_id.toLocal8Bit());
     }
 
     update_idle_source();
@@ -346,7 +346,7 @@ void treeland_foreign_toplevel_handle_v1::set_pid(const pid_t pid)
     struct wl_resource *resource;
     wl_resource_for_each(resource, &this->resources)
     {
-        ztreeland_foreign_toplevel_handle_v1_send_pid(resource, pid);
+        treeland_foreign_toplevel_handle_v1_send_pid(resource, pid);
     }
 
     update_idle_source();
@@ -359,7 +359,7 @@ void treeland_foreign_toplevel_handle_v1::set_identifier(uint32_t identifier)
     struct wl_resource *resource;
     wl_resource_for_each(resource, &this->resources)
     {
-        ztreeland_foreign_toplevel_handle_v1_send_identifier(resource, identifier);
+        treeland_foreign_toplevel_handle_v1_send_identifier(resource, identifier);
     }
 
     update_idle_source();
@@ -374,9 +374,9 @@ static void send_output_to_resource(wl_resource *resource, wlr_output *output, b
     {
         if (wl_resource_get_client(output_resource) == client) {
             if (enter) {
-                ztreeland_foreign_toplevel_handle_v1_send_output_enter(resource, output_resource);
+                treeland_foreign_toplevel_handle_v1_send_output_enter(resource, output_resource);
             } else {
-                ztreeland_foreign_toplevel_handle_v1_send_output_leave(resource, output_resource);
+                treeland_foreign_toplevel_handle_v1_send_output_leave(resource, output_resource);
             }
         }
     }
@@ -441,28 +441,28 @@ static bool fill_array_from_toplevel_state(struct wl_array *array, uint32_t stat
         if (index == NULL) {
             return false;
         }
-        *index = ZTREELAND_FOREIGN_TOPLEVEL_HANDLE_V1_STATE_MAXIMIZED;
+        *index = TREELAND_FOREIGN_TOPLEVEL_HANDLE_V1_STATE_MAXIMIZED;
     }
     if (state & TREELAND_FOREIGN_TOPLEVEL_HANDLE_V1_STATE_MINIMIZED) {
         uint32_t *index = static_cast<uint32_t *>(wl_array_add(array, sizeof(uint32_t)));
         if (index == NULL) {
             return false;
         }
-        *index = ZTREELAND_FOREIGN_TOPLEVEL_HANDLE_V1_STATE_MINIMIZED;
+        *index = TREELAND_FOREIGN_TOPLEVEL_HANDLE_V1_STATE_MINIMIZED;
     }
     if (state & TREELAND_FOREIGN_TOPLEVEL_HANDLE_V1_STATE_ACTIVATED) {
         uint32_t *index = static_cast<uint32_t *>(wl_array_add(array, sizeof(uint32_t)));
         if (index == NULL) {
             return false;
         }
-        *index = ZTREELAND_FOREIGN_TOPLEVEL_HANDLE_V1_STATE_ACTIVATED;
+        *index = TREELAND_FOREIGN_TOPLEVEL_HANDLE_V1_STATE_ACTIVATED;
     }
     if (state & TREELAND_FOREIGN_TOPLEVEL_HANDLE_V1_STATE_FULLSCREEN) {
         uint32_t *index = static_cast<uint32_t *>(wl_array_add(array, sizeof(uint32_t)));
         if (index == NULL) {
             return false;
         }
-        *index = ZTREELAND_FOREIGN_TOPLEVEL_HANDLE_V1_STATE_FULLSCREEN;
+        *index = TREELAND_FOREIGN_TOPLEVEL_HANDLE_V1_STATE_FULLSCREEN;
     }
 
     return true;
@@ -487,7 +487,7 @@ void treeland_foreign_toplevel_handle_v1::send_state()
     struct wl_resource *resource;
     wl_resource_for_each(resource, &this->resources)
     {
-        ztreeland_foreign_toplevel_handle_v1_send_state(resource, &states);
+        treeland_foreign_toplevel_handle_v1_send_state(resource, &states);
     }
 
     wl_array_release(&states);
@@ -550,7 +550,7 @@ static void toplevel_resource_send_parent(struct wl_resource *toplevel_resource,
                                           struct treeland_foreign_toplevel_handle_v1 *parent)
 {
     if (wl_resource_get_version(toplevel_resource)
-        < ZTREELAND_FOREIGN_TOPLEVEL_HANDLE_V1_PARENT_SINCE_VERSION) {
+        < TREELAND_FOREIGN_TOPLEVEL_HANDLE_V1_PARENT_SINCE_VERSION) {
         return;
     }
     struct wl_client *client = wl_resource_get_client(toplevel_resource);
@@ -562,7 +562,7 @@ static void toplevel_resource_send_parent(struct wl_resource *toplevel_resource,
             return;
         }
     }
-    ztreeland_foreign_toplevel_handle_v1_send_parent(toplevel_resource, parent_resource);
+    treeland_foreign_toplevel_handle_v1_send_parent(toplevel_resource, parent_resource);
 }
 
 void treeland_foreign_toplevel_handle_v1::set_parent(treeland_foreign_toplevel_handle_v1 *parent)
@@ -606,7 +606,7 @@ treeland_foreign_toplevel_handle_v1::~treeland_foreign_toplevel_handle_v1()
     struct wl_resource *resource, *tmp;
     wl_resource_for_each_safe(resource, tmp, &this->resources)
     {
-        ztreeland_foreign_toplevel_handle_v1_send_closed(resource);
+        treeland_foreign_toplevel_handle_v1_send_closed(resource);
         wl_resource_set_user_data(resource, NULL);
         wl_list_remove(wl_resource_get_link(resource));
         wl_list_init(wl_resource_get_link(resource));
@@ -643,8 +643,7 @@ static void treeland_dock_preview_context_handle_show([[maybe_unused]] struct wl
                                                       int32_t y,
                                                       uint32_t direction)
 {
-    auto *dock_preview =
-        toplevel_dock_preview_context_from_resource(resource);
+    auto *dock_preview = toplevel_dock_preview_context_from_resource(resource);
     if (!dock_preview) {
         return;
     }
@@ -673,8 +672,7 @@ static void treeland_dock_preview_context_handle_show([[maybe_unused]] struct wl
 static void treeland_dock_preview_context_handle_close([[maybe_unused]] struct wl_client *client,
                                                        struct wl_resource *resource)
 {
-    auto *dock_preview =
-        toplevel_dock_preview_context_from_resource(resource);
+    auto *dock_preview = toplevel_dock_preview_context_from_resource(resource);
     if (!dock_preview) {
         return;
     }
@@ -694,7 +692,7 @@ static struct wl_resource *create_toplevel_resource_for_resource(
     struct wl_client *client = wl_resource_get_client(manager_resource);
     struct wl_resource *resource =
         wl_resource_create(client,
-                           &ztreeland_foreign_toplevel_handle_v1_interface,
+                           &treeland_foreign_toplevel_handle_v1_interface,
                            wl_resource_get_version(manager_resource),
                            0);
     if (!resource) {
@@ -709,7 +707,7 @@ static struct wl_resource *create_toplevel_resource_for_resource(
     wl_resource_set_user_data(resource, toplevel);
 
     wl_list_insert(&toplevel->resources, wl_resource_get_link(resource));
-    ztreeland_foreign_toplevel_manager_v1_send_toplevel(manager_resource, resource);
+    treeland_foreign_toplevel_manager_v1_send_toplevel(manager_resource, resource);
     return resource;
 }
 
@@ -742,7 +740,7 @@ treeland_foreign_toplevel_handle_v1 *treeland_foreign_toplevel_handle_v1::create
     return toplevel;
 }
 
-static const struct ztreeland_foreign_toplevel_manager_v1_interface
+static const struct treeland_foreign_toplevel_manager_v1_interface
     treeland_foreign_toplevel_manager_impl = {
         .stop = treeland_foreign_toplevel_manager_handle_stop,
         .get_dock_preview_context =
@@ -753,7 +751,7 @@ struct treeland_foreign_toplevel_manager_v1 *foreign_toplevel_manager_from_resou
     struct wl_resource *resource)
 {
     assert(wl_resource_instance_of(resource,
-                                   &ztreeland_foreign_toplevel_manager_v1_interface,
+                                   &treeland_foreign_toplevel_manager_v1_interface,
                                    &treeland_foreign_toplevel_manager_impl));
     struct treeland_foreign_toplevel_manager_v1 *manager =
         static_cast<treeland_foreign_toplevel_manager_v1 *>(wl_resource_get_user_data(resource));
@@ -765,10 +763,10 @@ static void treeland_foreign_toplevel_manager_handle_stop([[maybe_unused]] struc
                                                           struct wl_resource *resource)
 {
     assert(wl_resource_instance_of(resource,
-                                   &ztreeland_foreign_toplevel_manager_v1_interface,
+                                   &treeland_foreign_toplevel_manager_v1_interface,
                                    &treeland_foreign_toplevel_manager_impl));
 
-    ztreeland_foreign_toplevel_manager_v1_send_finished(resource);
+    treeland_foreign_toplevel_manager_v1_send_finished(resource);
     wl_resource_destroy(resource);
 }
 
@@ -816,9 +814,12 @@ static void treeland_foreign_toplevel_manager_handle_get_dock_preview_context(
     context->resource = resource;
 
     manager->dock_preview.append(context);
-    QObject::connect(context, &treeland_dock_preview_context_v1::before_destroy, manager, [manager, context]() {
-        manager->dock_preview.removeOne(context);
-    });
+    QObject::connect(context,
+                     &treeland_dock_preview_context_v1::before_destroy,
+                     manager,
+                     [manager, context]() {
+                         manager->dock_preview.removeOne(context);
+                     });
 
     Q_EMIT context->manager->dockPreviewContextCreated(context);
 }
@@ -832,14 +833,14 @@ static void toplevel_send_details_to_toplevel_resource(
     struct treeland_foreign_toplevel_handle_v1 *toplevel, struct wl_resource *resource)
 {
     if (!toplevel->title.isEmpty()) {
-        ztreeland_foreign_toplevel_handle_v1_send_title(resource, toplevel->title.toUtf8());
+        treeland_foreign_toplevel_handle_v1_send_title(resource, toplevel->title.toUtf8());
     }
     if (!toplevel->app_id.isEmpty()) {
-        ztreeland_foreign_toplevel_handle_v1_send_app_id(resource, toplevel->app_id.toLocal8Bit());
+        treeland_foreign_toplevel_handle_v1_send_app_id(resource, toplevel->app_id.toLocal8Bit());
     }
 
-    ztreeland_foreign_toplevel_handle_v1_send_pid(resource, toplevel->pid);
-    ztreeland_foreign_toplevel_handle_v1_send_identifier(resource, toplevel->identifier);
+    treeland_foreign_toplevel_handle_v1_send_pid(resource, toplevel->pid);
+    treeland_foreign_toplevel_handle_v1_send_identifier(resource, toplevel->identifier);
 
     for (const auto &output : toplevel->outputs) {
         send_output_to_resource(resource, output.output->handle(), true);
@@ -854,12 +855,12 @@ static void toplevel_send_details_to_toplevel_resource(
         return;
     }
 
-    ztreeland_foreign_toplevel_handle_v1_send_state(resource, &states);
+    treeland_foreign_toplevel_handle_v1_send_state(resource, &states);
     wl_array_release(&states);
 
     toplevel_resource_send_parent(resource, toplevel->parent);
 
-    ztreeland_foreign_toplevel_handle_v1_send_done(resource);
+    treeland_foreign_toplevel_handle_v1_send_done(resource);
 }
 
 static void treeland_foreign_toplevel_manager_bind(struct wl_client *client,
@@ -869,7 +870,7 @@ static void treeland_foreign_toplevel_manager_bind(struct wl_client *client,
 {
     auto *manager = static_cast<struct treeland_foreign_toplevel_manager_v1 *>(data);
     struct wl_resource *resource =
-        wl_resource_create(client, &ztreeland_foreign_toplevel_manager_v1_interface, version, id);
+        wl_resource_create(client, &treeland_foreign_toplevel_manager_v1_interface, version, id);
     if (!resource) {
         wl_client_post_no_memory(client);
         return;
@@ -913,7 +914,7 @@ treeland_foreign_toplevel_manager_v1 *treeland_foreign_toplevel_manager_v1::crea
 
     manager->event_loop = wl_display_get_event_loop(display->handle());
     manager->global = wl_global_create(display->handle(),
-                                       &ztreeland_foreign_toplevel_manager_v1_interface,
+                                       &treeland_foreign_toplevel_manager_v1_interface,
                                        FOREIGN_TOPLEVEL_MANAGEMENT_V1_VERSION,
                                        manager,
                                        treeland_foreign_toplevel_manager_bind);
