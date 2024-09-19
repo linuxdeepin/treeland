@@ -1,1 +1,3 @@
-/usr/share/treeland-protocols/*
+usr/share/treeland-protocols/*
+usr/lib/*/cmake/TreeLandProtocols/*
+usr/share/pkgconfig/treeland-protocols.pc
