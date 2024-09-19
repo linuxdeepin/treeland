@@ -56,3 +56,7 @@ void FilterProxyModel::invalidate()
     invalidateFilter();
 }
 
+int FilterProxyModel::count() const
+{
+    return rowCount();
+}
