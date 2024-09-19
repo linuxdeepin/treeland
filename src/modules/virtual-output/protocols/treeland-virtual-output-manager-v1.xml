@@ -23,8 +23,8 @@
                 object on the client.
             </description>
             <arg name="id" type="new_id" interface="virtual_output_v1" />
-            <arg name="name" type="string" summary="The name of the user readable virtual output"/>
-            <arg name="outputs" type="array" summary="Screen name array"/>
+            <arg name="name" type="string" summary="The name of the user readable virtual output" />
+            <arg name="outputs" type="array" summary="Screen name array" />
         </request>
         <request name="get_virtual_output_list">
             <description summary="Gets a list of virtual output names">
@@ -35,14 +35,14 @@
             <description summary="Send a list of virtual output names">
                 Sends a list of virtual output names to the client.
             </description>
-            <arg name="names" type="array" summary="List of virtual output names"/>
+            <arg name="names" type="array" summary="List of virtual output names" />
         </event>
         <request name="get_virtual_output">
             <description summary="Get virtual output">
                 The client obtains the corresponding virtual_output_v1 object
                 through the virtual output name.
             </description>
-            <arg name="name" type="string" summary="The name of the user readable virtual output"/>
+            <arg name="name" type="string" summary="The name of the user readable virtual output" />
             <arg name="id" type="new_id" interface="virtual_output_v1" />
         </request>
     </interface>
@@ -63,7 +63,7 @@
                 is selected from the queue as the primary screen, and the queue information
                 is updated.
             </description>
-            <arg name="name" type="string" summary="The name of the user readable virtual output"/>
+            <arg name="name" type="string" summary="The name of the user readable virtual output" />
             <arg name="outputs" type="array" summary="Screen name array" />
         </event>
         <event name="error">
@@ -71,13 +71,14 @@
                 When an error occurs, an error event is emitted, terminating the replication
                 mode request issued by the client.
             </description>
-            <arg name="code" type="uint" summary="error code"/>
-            <arg name="message" type="string" summary="error description"/>
+            <arg name="code" type="uint" summary="error code" />
+            <arg name="message" type="string" summary="error description" />
         </event>
         <enum name="error">
-            <entry name="invalid_group_name" value="0" summary="Group name is empty"/>
-            <entry name="invalid_screen_number" value="1" summary="The number of screens applying for copy mode is less than 2"/>
-            <entry name="invalid_output" value="2" summary="Output does not exist"/>
+            <entry name="invalid_group_name" value="0" summary="Group name is empty" />
+            <entry name="invalid_screen_number" value="1"
+                summary="The number of screens applying for copy mode is less than 2" />
+            <entry name="invalid_output" value="2" summary="Output does not exist" />
         </enum>
         <request name="destroy" type="destructor">
             <description summary="destroy the output">

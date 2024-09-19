@@ -101,7 +101,8 @@
                 Two different top layers cannot have the same identifier.
                 This identifier is only valid as long as the top level is mapped.
                 Identifiers must not be reused if the top level is not mapped.
-                The compositor must not reuse identifiers to ensure there are no races when identifiers are shared between processes.
+                The compositor must not reuse identifiers to ensure there are no races when
+                identifiers are shared between processes.
             </description>
             <arg name="identifier" type="uint" />
         </event>
