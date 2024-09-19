@@ -285,20 +285,20 @@ void PersonalizationV1::onMetadataChanged(const QString &metadata)
     Q_EMIT wallpaperChanged(meta->imagePath);
 }
 
-PersonalizationWindow::PersonalizationWindow(struct ::personalization_window_context_v1 *object)
+PersonalizationWindow::PersonalizationWindow(struct ::treeland_personalization_window_context_v1 *object)
     : QWaylandClientExtensionTemplate<PersonalizationWindow>(1)
-    , QtWayland::personalization_window_context_v1(object)
+    , QtWayland::treeland_personalization_window_context_v1(object)
 {
 }
 
 PersonalizationWallpaper::PersonalizationWallpaper(
-    struct ::personalization_wallpaper_context_v1 *object)
+    struct ::treeland_personalization_wallpaper_context_v1 *object)
     : QWaylandClientExtensionTemplate<PersonalizationWallpaper>(1)
-    , QtWayland::personalization_wallpaper_context_v1(object)
+    , QtWayland::treeland_personalization_wallpaper_context_v1(object)
 {
 }
 
-void PersonalizationWallpaper::personalization_wallpaper_context_v1_metadata(
+void PersonalizationWallpaper::treeland_personalization_wallpaper_context_v1_metadata(
     const QString &metadata)
 {
     Q_EMIT metadataChanged(metadata);

@@ -70,13 +70,13 @@ void PersonalizationV1::saveWallpaperSettings(const QString &current,
 
     QSettings settings(m_settingFile, QSettings::IniFormat);
 
-    if (context->options & PERSONALIZATION_WALLPAPER_CONTEXT_V1_OPTIONS_BACKGROUND) {
+    if (context->options & TREELAND_PERSONALIZATION_WALLPAPER_CONTEXT_V1_OPTIONS_BACKGROUND) {
         settings.setValue(QString("background/%1").arg(context->output_name), current);
         settings.setValue(QString("background/%1/isdark").arg(context->output_name),
                           context->isdark);
     }
 
-    if (context->options & PERSONALIZATION_WALLPAPER_CONTEXT_V1_OPTIONS_LOCKSCREEN) {
+    if (context->options & TREELAND_PERSONALIZATION_WALLPAPER_CONTEXT_V1_OPTIONS_LOCKSCREEN) {
         settings.setValue(QString("lockscreen/%1").arg(context->output_name), current);
         settings.setValue(QString("background/%1/isdark").arg(context->output_name),
                           context->isdark);
@@ -187,11 +187,11 @@ void PersonalizationV1::saveImage(personalization_wallpaper_context_v1 *context,
 
 void PersonalizationV1::onWallpaperCommit(personalization_wallpaper_context_v1 *context)
 {
-    if (context->options & PERSONALIZATION_WALLPAPER_CONTEXT_V1_OPTIONS_BACKGROUND) {
+    if (context->options & TREELAND_PERSONALIZATION_WALLPAPER_CONTEXT_V1_OPTIONS_BACKGROUND) {
         saveImage(context, "background");
     }
 
-    if (context->options & PERSONALIZATION_WALLPAPER_CONTEXT_V1_OPTIONS_LOCKSCREEN) {
+    if (context->options & TREELAND_PERSONALIZATION_WALLPAPER_CONTEXT_V1_OPTIONS_LOCKSCREEN) {
         saveImage(context, "lockscreen");
     }
 }

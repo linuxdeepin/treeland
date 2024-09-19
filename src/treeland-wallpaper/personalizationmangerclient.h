@@ -80,23 +80,23 @@ private:
 };
 
 class PersonalizationWindow : public QWaylandClientExtensionTemplate<PersonalizationWindow>,
-                              public QtWayland::personalization_window_context_v1
+                              public QtWayland::treeland_personalization_window_context_v1
 {
     Q_OBJECT
 public:
-    explicit PersonalizationWindow(struct ::personalization_window_context_v1 *object);
+    explicit PersonalizationWindow(struct ::treeland_personalization_window_context_v1 *object);
 };
 
 class PersonalizationWallpaper : public QWaylandClientExtensionTemplate<PersonalizationWallpaper>,
-                                 public QtWayland::personalization_wallpaper_context_v1
+                                 public QtWayland::treeland_personalization_wallpaper_context_v1
 {
     Q_OBJECT
 public:
-    explicit PersonalizationWallpaper(struct ::personalization_wallpaper_context_v1 *object);
+    explicit PersonalizationWallpaper(struct ::treeland_personalization_wallpaper_context_v1 *object);
 
 signals:
     void metadataChanged(const QString &meta);
 
 protected:
-    void personalization_wallpaper_context_v1_metadata(const QString &metadata) override;
+    void treeland_personalization_wallpaper_context_v1_metadata(const QString &metadata) override;
 };

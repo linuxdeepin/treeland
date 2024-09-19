@@ -35,13 +35,6 @@ Q_SIGNALS:
     void dockPreviewContextCreated(treeland_dock_preview_context_v1 *context);
 };
 
-enum treeland_foreign_toplevel_handle_v1_state {
-    TREELAND_FOREIGN_TOPLEVEL_HANDLE_V1_STATE_MAXIMIZED = (1 << 0),
-    TREELAND_FOREIGN_TOPLEVEL_HANDLE_V1_STATE_MINIMIZED = (1 << 1),
-    TREELAND_FOREIGN_TOPLEVEL_HANDLE_V1_STATE_ACTIVATED = (1 << 2),
-    TREELAND_FOREIGN_TOPLEVEL_HANDLE_V1_STATE_FULLSCREEN = (1 << 3),
-};
-
 struct treeland_foreign_toplevel_handle_v1;
 
 struct treeland_foreign_toplevel_handle_v1_output

@@ -35,23 +35,23 @@
             <description summary="get personalization window context">
                 set window background, shadow based on context
             </description>
-            <arg name="id" type="new_id" interface="personalization_window_context_v1" />
+            <arg name="id" type="new_id" interface="treeland_personalization_window_context_v1" />
             <arg name="surface" type="object" interface="wl_surface" />
         </request>
         <request name="get_wallpaper_context">
             <description summary="custom wallpaper context">
                 custom user wallpaper
             </description>
-            <arg name="id" type="new_id" interface="personalization_wallpaper_context_v1" />
+            <arg name="id" type="new_id" interface="treeland_personalization_wallpaper_context_v1" />
         </request>
         <request name="get_cursor_context">
             <description summary="custom wallpaper context">
                 custom user cursor
             </description>
-            <arg name="id" type="new_id" interface="personalization_cursor_context_v1" />
+            <arg name="id" type="new_id" interface="treeland_personalization_cursor_context_v1" />
         </request>
     </interface>
-    <interface name="personalization_wallpaper_context_v1" version="1">
+    <interface name="treeland_personalization_wallpaper_context_v1" version="1">
         <description summary="client custom wallpaper context">
             This interface allows a client personalization wallpaper.
 
@@ -107,7 +107,7 @@
             <arg name="metadata" type="string" summary="user meta data" />
         </event>
     </interface>
-    <interface name="personalization_cursor_context_v1" version="1">
+    <interface name="treeland_personalization_cursor_context_v1" version="1">
         <description summary="client custom cursor context">
             This interface allows a client personalization cursor.
 
@@ -159,7 +159,7 @@
             <arg name="size" type="uint" summary="cursor size" />
         </event>
     </interface>
-    <interface name="personalization_window_context_v1" version="1">
+    <interface name="treeland_personalization_window_context_v1" version="1">
         <description summary="client custom window context">
             This interface allows a client personalization window.
 

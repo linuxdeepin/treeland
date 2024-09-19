@@ -12,7 +12,7 @@
 #include <QtWaylandClient/QWaylandClientExtension>
 
 class VirtualOutputManager : public QWaylandClientExtensionTemplate<VirtualOutputManager>,
-                              public QtWayland::virtual_output_manager_v1
+                              public QtWayland::treeland_virtual_output_manager_v1
 {
     Q_OBJECT
 public:
@@ -29,11 +29,11 @@ VirtualOutputManager::VirtualOutputManager()
 }
 
 class VirtualOutput : public QWaylandClientExtensionTemplate<VirtualOutput>,
-                              public QtWayland::virtual_output_v1
+                              public QtWayland::treeland_virtual_output_v1
 {
     Q_OBJECT
 public:
-    explicit VirtualOutput(struct ::virtual_output_v1 *object);
+    explicit VirtualOutput(struct ::treeland_virtual_output_v1 *object);
 
     void virtual_output_v1_outputs(const QString &name, wl_array *outputs){
         qInfo() << "Screen group name: " << name;
@@ -46,9 +46,9 @@ public:
     }
 };
 
-VirtualOutput::VirtualOutput(struct ::virtual_output_v1 *object)
+VirtualOutput::VirtualOutput(struct ::treeland_virtual_output_v1 *object)
     : QWaylandClientExtensionTemplate<VirtualOutput>(1)
-    , QtWayland::virtual_output_v1(object)
+    , QtWayland::treeland_virtual_output_v1(object)
 {
 }
 

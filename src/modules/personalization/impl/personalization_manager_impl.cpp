@@ -56,7 +56,7 @@ static void on_destroy([[maybe_unused]] struct wl_client *client, struct wl_reso
 
 } // namespace Personalization
 
-static const struct personalization_window_context_v1_interface
+static const struct treeland_personalization_window_context_v1_interface
     personalization_window_context_impl = {
         .set_blend_mode = Personalization::WindowContext::set_background_type,
         .set_round_corner_radius = Personalization::WindowContext::set_round_corner_radius,
@@ -70,7 +70,7 @@ struct personalization_window_context_v1 *personalization_window_from_resource(
     struct wl_resource *resource)
 {
     assert(wl_resource_instance_of(resource,
-                                   &personalization_window_context_v1_interface,
+                                   &treeland_personalization_window_context_v1_interface,
                                    &personalization_window_context_impl));
     return static_cast<struct personalization_window_context_v1 *>(
         wl_resource_get_user_data(resource));
@@ -144,7 +144,7 @@ static void set_no_titlebar(struct wl_client *client, struct wl_resource *resour
 {
     if (auto *window = personalization_window_from_resource(resource)) {
         window->states.setFlag(personalization_window_context_v1::WindowState::noTitlebar,
-                               mode == PERSONALIZATION_WINDOW_CONTEXT_V1_ENABLE_MODE_ENABLE);
+                               mode == TREELAND_PERSONALIZATION_WINDOW_CONTEXT_V1_ENABLE_MODE_ENABLE);
         Q_EMIT window->windowStateChanged();
     }
 }
@@ -176,7 +176,7 @@ static void personalization_wallpaper_context_destroy([[maybe_unused]] struct wl
     wl_resource_destroy(resource);
 }
 
-static const struct personalization_wallpaper_context_v1_interface
+static const struct treeland_personalization_wallpaper_context_v1_interface
     personalization_wallpaper_context_impl = {
         .set_fd = set_fd,
         .set_identifier = set_identifier,
@@ -192,7 +192,7 @@ struct personalization_wallpaper_context_v1 *personalization_wallpaper_from_reso
     struct wl_resource *resource)
 {
     assert(wl_resource_instance_of(resource,
-                                   &personalization_wallpaper_context_v1_interface,
+                                   &treeland_personalization_wallpaper_context_v1_interface,
                                    &personalization_wallpaper_context_impl));
     return static_cast<struct personalization_wallpaper_context_v1 *>(
         wl_resource_get_user_data(resource));
@@ -224,7 +224,7 @@ static void personalization_cursor_context_destroy([[maybe_unused]] struct wl_cl
     wl_resource_destroy(resource);
 }
 
-static const struct personalization_cursor_context_v1_interface
+static const struct treeland_personalization_cursor_context_v1_interface
     personalization_cursor_context_impl = {
         .set_theme = set_cursor_theme,
         .get_theme = get_cursor_theme,
@@ -238,7 +238,7 @@ struct personalization_cursor_context_v1 *personalization_cursor_from_resource(
     struct wl_resource *resource)
 {
     assert(wl_resource_instance_of(resource,
-                                   &personalization_cursor_context_v1_interface,
+                                   &treeland_personalization_cursor_context_v1_interface,
                                    &personalization_cursor_context_impl));
     return static_cast<struct personalization_cursor_context_v1 *>(
         wl_resource_get_user_data(resource));
@@ -312,7 +312,7 @@ void create_personalization_window_context_listener(struct wl_client *client,
 
     uint32_t version = wl_resource_get_version(manager_resource);
     struct wl_resource *resource =
-        wl_resource_create(client, &personalization_window_context_v1_interface, version, id);
+        wl_resource_create(client, &treeland_personalization_window_context_v1_interface, version, id);
     if (!resource) {
         delete context;
         wl_resource_post_no_memory(manager_resource);
@@ -350,7 +350,7 @@ void create_personalization_wallpaper_context_listener(struct wl_client *client,
 
     uint32_t version = wl_resource_get_version(manager_resource);
     struct wl_resource *resource =
-        wl_resource_create(client, &personalization_wallpaper_context_v1_interface, version, id);
+        wl_resource_create(client, &treeland_personalization_wallpaper_context_v1_interface, version, id);
     if (resource == NULL) {
         delete context;
         wl_resource_post_no_memory(manager_resource);
@@ -390,7 +390,7 @@ void create_personalization_cursor_context_listener(struct wl_client *client,
 
     uint32_t version = wl_resource_get_version(manager_resource);
     struct wl_resource *resource =
-        wl_resource_create(client, &personalization_cursor_context_v1_interface, version, id);
+        wl_resource_create(client, &treeland_personalization_cursor_context_v1_interface, version, id);
     if (resource == NULL) {
         delete context;
         wl_resource_post_no_memory(manager_resource);
@@ -586,7 +586,7 @@ void personalization_wallpaper_context_v1::set_meta_data(const QString &data)
 {
     meta_data = data;
 
-    personalization_wallpaper_context_v1_send_metadata(resource, meta_data.toLocal8Bit());
+    treeland_personalization_wallpaper_context_v1_send_metadata(resource, meta_data.toLocal8Bit());
 }
 
 void personalization_cursor_context_v1::set_theme(const QString &theme)
@@ -594,7 +594,7 @@ void personalization_cursor_context_v1::set_theme(const QString &theme)
     if (this->theme == theme)
         return;
     this->theme = theme;
-    personalization_cursor_context_v1_send_theme(resource, theme.toLocal8Bit());
+    treeland_personalization_cursor_context_v1_send_theme(resource, theme.toLocal8Bit());
 }
 
 void personalization_cursor_context_v1::set_size(uint32_t size)
@@ -602,10 +602,10 @@ void personalization_cursor_context_v1::set_size(uint32_t size)
     if (this->size == size)
         return;
     this->size = size;
-    personalization_cursor_context_v1_send_size(resource, size);
+    treeland_personalization_cursor_context_v1_send_size(resource, size);
 }
 
 void personalization_cursor_context_v1::verfity(bool verfityed)
 {
-    personalization_cursor_context_v1_send_verfity(resource, verfityed);
+    treeland_personalization_cursor_context_v1_send_verfity(resource, verfityed);
 }

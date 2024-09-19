@@ -13,28 +13,28 @@ PersonalizationManager::PersonalizationManager()
 
 }
 
-PersonalizationWindow::PersonalizationWindow(struct ::personalization_window_context_v1 *object)
+PersonalizationWindow::PersonalizationWindow(struct ::treeland_personalization_window_context_v1 *object)
     : QWaylandClientExtensionTemplate<PersonalizationWindow>(1)
-    , QtWayland::personalization_window_context_v1(object)
+    , QtWayland::treeland_personalization_window_context_v1(object)
 {
 
 }
 
-PersonalizationWallpaper::PersonalizationWallpaper(struct ::personalization_wallpaper_context_v1 *object)
+PersonalizationWallpaper::PersonalizationWallpaper(struct ::treeland_personalization_wallpaper_context_v1 *object)
     : QWaylandClientExtensionTemplate<PersonalizationWallpaper>(1)
-    , QtWayland::personalization_wallpaper_context_v1(object)
+    , QtWayland::treeland_personalization_wallpaper_context_v1(object)
 {
 
 }
 
-void PersonalizationWallpaper::personalization_wallpaper_context_v1_metadata(const QString &metadata)
+void PersonalizationWallpaper::treeland_personalization_wallpaper_context_v1_metadata(const QString &metadata)
 {
     qDebug() << "=========================================== metadata" << metadata;
 }
 
-PersonalizationCursor::PersonalizationCursor(struct ::personalization_cursor_context_v1 *object)
+PersonalizationCursor::PersonalizationCursor(struct ::treeland_personalization_cursor_context_v1 *object)
     : QWaylandClientExtensionTemplate<PersonalizationCursor>(1)
-    , QtWayland::personalization_cursor_context_v1(object)
+    , QtWayland::treeland_personalization_cursor_context_v1(object)
 {
 }
 
