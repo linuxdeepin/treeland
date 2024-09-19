@@ -14,6 +14,8 @@ class FilterProxyModel : public QSortFilterProxyModel
 public:
     explicit FilterProxyModel(QObject *parent = nullptr);
     Q_PROPERTY(QJSValue filterAcceptsRow READ filterAcceptsRow WRITE setFilterAcceptsRow NOTIFY filterAcceptsRowChanged)
+    Q_PROPERTY(int count READ count NOTIFY countChanged)
+    int count() const;
 
     void setFilterAcceptsRow(const QJSValue &val);
     QJSValue filterAcceptsRow() const {
