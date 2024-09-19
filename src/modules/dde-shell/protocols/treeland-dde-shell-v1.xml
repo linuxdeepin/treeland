@@ -46,10 +46,10 @@
             <description summary="same layershell">
                 same layershell
             </description>
-            <entry name="top" value="1" summary="the top edge of the anchor rectangle"/>
-            <entry name="bottom" value="2" summary="the bottom edge of the anchor rectangle"/>
-            <entry name="left" value="4" summary="the left edge of the anchor rectangle"/>
-            <entry name="right" value="8" summary="the right edge of the anchor rectangle"/>
+            <entry name="top" value="1" summary="the top edge of the anchor rectangle" />
+            <entry name="bottom" value="2" summary="the bottom edge of the anchor rectangle" />
+            <entry name="left" value="4" summary="the left edge of the anchor rectangle" />
+            <entry name="right" value="8" summary="the right edge of the anchor rectangle" />
         </enum>
 
         <request name="update">
