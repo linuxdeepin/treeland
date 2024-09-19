@@ -5,7 +5,7 @@
     SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
     ]]></copyright>
 
-    <interface name="wallpaper_color_manager_v1" version="1">
+    <interface name="treeland_wallpaper_color_manager_v1" version="1">
         <request name="watch">
             <description summary="watch wallpaper color">
                 Monitor the wallpaper color of a given screen.

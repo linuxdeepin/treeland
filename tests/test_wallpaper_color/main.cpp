@@ -12,7 +12,7 @@
 #include <QtWaylandClient/QWaylandClientExtension>
 
 class WallpaperColorManager : public QWaylandClientExtensionTemplate<WallpaperColorManager>,
-                              public QtWayland::wallpaper_color_manager_v1
+                              public QtWayland::treeland_wallpaper_color_manager_v1
 {
     Q_OBJECT
 public:

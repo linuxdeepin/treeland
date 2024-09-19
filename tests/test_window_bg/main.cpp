@@ -26,16 +26,16 @@ PersonalizationManager::PersonalizationManager()
 }
 
 class PersonalizationWindow : public QWaylandClientExtensionTemplate<PersonalizationWindow>,
-                              public QtWayland::personalization_window_context_v1
+                              public QtWayland::treeland_personalization_window_context_v1
 {
     Q_OBJECT
 public:
-    explicit PersonalizationWindow(struct ::personalization_window_context_v1 *object);
+    explicit PersonalizationWindow(struct ::treeland_personalization_window_context_v1 *object);
 };
 
-PersonalizationWindow::PersonalizationWindow(struct ::personalization_window_context_v1 *object)
+PersonalizationWindow::PersonalizationWindow(struct ::treeland_personalization_window_context_v1 *object)
     : QWaylandClientExtensionTemplate<PersonalizationWindow>(1)
-    , QtWayland::personalization_window_context_v1(object)
+    , QtWayland::treeland_personalization_window_context_v1(object)
 {
 }
 
@@ -86,10 +86,10 @@ int main(int argc, char *argv[])
                         static bool disableTitlebar = false;
                         if (disableTitlebar) {
                             context->set_no_titlebar(
-                                PERSONALIZATION_WINDOW_CONTEXT_V1_ENABLE_MODE_DISABLE);
+                                TREELAND_PERSONALIZATION_WINDOW_CONTEXT_V1_ENABLE_MODE_DISABLE);
                         } else {
                             context->set_no_titlebar(
-                                PERSONALIZATION_WINDOW_CONTEXT_V1_ENABLE_MODE_ENABLE);
+                                TREELAND_PERSONALIZATION_WINDOW_CONTEXT_V1_ENABLE_MODE_ENABLE);
                         }
                         disableTitlebar = !disableTitlebar;
                     });

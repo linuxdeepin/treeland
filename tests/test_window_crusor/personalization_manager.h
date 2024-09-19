@@ -18,28 +18,28 @@ public:
     explicit PersonalizationManager();
 };
 
-class PersonalizationWindow : public QWaylandClientExtensionTemplate<PersonalizationWindow>, public QtWayland::personalization_window_context_v1
+class PersonalizationWindow : public QWaylandClientExtensionTemplate<PersonalizationWindow>, public QtWayland::treeland_personalization_window_context_v1
 {
     Q_OBJECT
 public:
-    explicit PersonalizationWindow(struct ::personalization_window_context_v1 *object);
+    explicit PersonalizationWindow(struct ::treeland_personalization_window_context_v1 *object);
 };
 
-class PersonalizationWallpaper : public QWaylandClientExtensionTemplate<PersonalizationWallpaper>, public QtWayland::personalization_wallpaper_context_v1
+class PersonalizationWallpaper : public QWaylandClientExtensionTemplate<PersonalizationWallpaper>, public QtWayland::treeland_personalization_wallpaper_context_v1
 {
     Q_OBJECT
 public:
-    explicit PersonalizationWallpaper(struct ::personalization_wallpaper_context_v1 *object);
+    explicit PersonalizationWallpaper(struct ::treeland_personalization_wallpaper_context_v1 *object);
 
 protected:
-    void personalization_wallpaper_context_v1_metadata(const QString &metadata) override;
+    void treeland_personalization_wallpaper_context_v1_metadata(const QString &metadata) override;
 };
 
-class PersonalizationCursor : public QWaylandClientExtensionTemplate<PersonalizationCursor>, public QtWayland::personalization_cursor_context_v1
+class PersonalizationCursor : public QWaylandClientExtensionTemplate<PersonalizationCursor>, public QtWayland::treeland_personalization_cursor_context_v1
 {
     Q_OBJECT
 public:
-    explicit PersonalizationCursor(struct ::personalization_cursor_context_v1 *object);
+    explicit PersonalizationCursor(struct ::treeland_personalization_cursor_context_v1 *object);
 
 protected:
     void personalization_cursor_context_v1_verfity(int32_t success);

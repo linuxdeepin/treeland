@@ -34,13 +34,13 @@ void WindowManagementV1::setDesktopState(DesktopState state)
     uint32_t s = 0;
     switch (state) {
     case DesktopState::Normal:
-        s = WINDOW_MANAGEMENT_V1_DESKTOP_STATE_NORMAL;
+        s = TREELAND_WINDOW_MANAGEMENT_V1_DESKTOP_STATE_NORMAL;
         break;
     case DesktopState::Show:
-        s = WINDOW_MANAGEMENT_V1_DESKTOP_STATE_SHOW;
+        s = TREELAND_WINDOW_MANAGEMENT_V1_DESKTOP_STATE_SHOW;
         break;
     case DesktopState::Preview:
-        s = WINDOW_MANAGEMENT_V1_DESKTOP_STATE_PREVIEW_SHOW;
+        s = TREELAND_WINDOW_MANAGEMENT_V1_DESKTOP_STATE_PREVIEW_SHOW;
         break;
     default:
         Q_UNREACHABLE();
@@ -73,5 +73,5 @@ wl_global *WindowManagementV1::global() const
 
 QByteArrayView WindowManagementV1::interfaceName() const
 {
-    return window_management_v1_interface.name;
+    return treeland_window_management_v1_interface.name;
 }
