@@ -9,6 +9,7 @@ import org.deepin.dtk.style 1.0 as DS
 import TreeLand.Utils
 
 Item {
+    objectName: "treeland_decoration"
     id: root
 
     signal requestMove
@@ -102,6 +103,7 @@ Item {
     Rectangle {
         id: titlebarContent
 
+        objectName: "treeland_decoration_titlebar"
         width: parent.width
         height: root.titlebarHeight
         layer.enabled: root.cornerCutRadius

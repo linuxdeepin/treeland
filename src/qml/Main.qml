@@ -10,6 +10,7 @@ import TreeLand
 import TreeLand.Utils
 import TreeLand.Greeter
 import TreeLand.Protocols
+import org.deepin.dtk as D
 
 Item {
     id: root
@@ -139,6 +140,37 @@ Item {
             repeat: false
             onTriggered: {
                 Helper.lockScreen = false
+            }
+        }
+
+        Loader {
+            id: captureLayer
+            active: CaptureManagerV1.contextInSelection !== null
+            anchors.fill: parent
+            sourceComponent: CaptureSourceSelector {
+                id: selector
+                captureManager: CaptureManagerV1
+                Rectangle {
+                    color: Qt.rgba(0, 0, 0, 0.5) // Use color alpha instead opacity cause children items will be affected.
+                    anchors.fill: parent
+                    layer.enabled: true
+                    D.ItemViewport {
+                        anchors.fill: mask
+                        fixed: true
+                        sourceItem: selector
+                        compositionMode: D.DTK.CompositionMode.Clear
+                    }
+                    Rectangle {
+                        id: mask
+                        color: "transparent"
+                        border.width: 2
+                        border.color: "red"
+                        x: selectionRegion.x
+                        y: selectionRegion.y
+                        width: selectionRegion.width
+                        height: selectionRegion.height
+                    }
+                }
             }
         }
 
