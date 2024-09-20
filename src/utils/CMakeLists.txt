@@ -62,4 +62,5 @@ target_link_libraries(utils
         Qt6::Core
         Qt6::Quick
         Qt6::QuickControls2
+        capture
 )

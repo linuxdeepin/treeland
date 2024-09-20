@@ -60,6 +60,7 @@ target_link_libraries(${BIN_NAME}
         window-management
         virtual-output
         dde-shell
+        capture
 )
 
 target_compile_definitions(${BIN_NAME}

@@ -3,6 +3,7 @@
 
 #include "helper.h"
 
+#include "capture/capture.h"
 #include "foreign-toplevel/foreigntoplevelmanagerv1.h"
 #include "global.h"
 #include "inputdevice.h"
@@ -347,6 +348,11 @@ void Helper::initProtocols(WOutputRenderWindow *window)
     connect(backend, &WBackend::inputRemoved, this, [this](WInputDevice *device) {
         m_seat->detachInputDevice(device);
     });
+
+    auto captureManager =
+        engine->singletonInstance<CaptureManagerV1 *>("TreeLand.Protocols", "CaptureManagerV1");
+    Q_ASSERT(captureManager);
+    captureManager->setOutputRenderWindow(window);
 
     Q_EMIT compositorChanged();
 
@@ -906,12 +912,10 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *watched, QInputEvent *even
                 QRectF geo(moveReiszeState.surfacePosOfStartMoveResize,
                            moveReiszeState.surfaceSizeOfStartMoveResize);
 
-                geo.adjust(
-                    (moveReiszeState.resizeEdgets & Qt::LeftEdge) ? increment_pos.x() : 0,
-                    (moveReiszeState.resizeEdgets & Qt::TopEdge) ? increment_pos.y() : 0,
-                    (moveReiszeState.resizeEdgets & Qt::RightEdge) ? increment_pos.x() : 0,
-                    (moveReiszeState.resizeEdgets & Qt::BottomEdge) ? increment_pos.y() : 0
-                );
+                geo.adjust((moveReiszeState.resizeEdgets & Qt::LeftEdge) ? increment_pos.x() : 0,
+                           (moveReiszeState.resizeEdgets & Qt::TopEdge) ? increment_pos.y() : 0,
+                           (moveReiszeState.resizeEdgets & Qt::RightEdge) ? increment_pos.x() : 0,
+                           (moveReiszeState.resizeEdgets & Qt::BottomEdge) ? increment_pos.y() : 0);
 
                 if (moveReiszeState.surfaceItem->resizeSurface(geo.size().toSize()))
                     moveReiszeState.surfaceItem->setPosition(geo.topLeft());

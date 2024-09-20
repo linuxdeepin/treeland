@@ -6,6 +6,7 @@
 #include "Messages.h"
 #include "SignalHandler.h"
 #include "SocketWriter.h"
+#include "capture.h"
 #include "compositor1adaptor.h"
 #include "ddeshell.h"
 #include "foreigntoplevelmanagerv1.h"
@@ -297,6 +298,19 @@ void TreeLand::setup()
                                              m_server->attach<DDEShellV1>());
 
     qw_data_control_manager_v1::create(*m_server->handle());
+    qmlRegisterSingletonInstance<CaptureManagerV1>("TreeLand.Protocols",
+                                                   1,
+                                                   0,
+                                                   "CaptureManagerV1",
+                                                   m_server->attach<CaptureManagerV1>());
+    qmlRegisterType<CaptureContextV1>("TreeLand.Protocols", 1, 0, "CaptureContextV1");
+    qmlRegisterUncreatableType<CaptureSource>("TreeLand.Protocols",
+                                              1,
+                                              0,
+                                              "CaptureSource",
+                                              "An abstract class");
+    qmlRegisterType<CaptureSourceSelector>("TreeLand.Protocols", 1, 0, "CaptureSourceSelector");
+
     m_engine->loadFromModule("TreeLand", "Main");
 
     auto window = m_engine->rootObjects().first()->findChild<WOutputRenderWindow *>();
