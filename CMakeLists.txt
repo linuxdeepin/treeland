@@ -48,10 +48,11 @@ find_package(Qt6 CONFIG REQUIRED Core DBus Gui Qml Quick QuickControls2 Linguist
 qt_standard_project_setup(REQUIRES 6.6)
 
 # Set constants
-set(TREELAND_DATA_DIR           "${CMAKE_INSTALL_FULL_DATADIR}/treeland/"               CACHE PATH      "treeland data install directory")
+set(TREELAND_DATA_DIR           "${CMAKE_INSTALL_DATADIR}/treeland/"               CACHE PATH      "treeland data install directory")
 set(COMPONENTS_TRANSLATION_DIR  "${TREELAND_DATA_DIR}/translations"                  CACHE PATH      "Components translations directory")
+GNUInstallDirs_get_absolute_install_dir(TREELAND_FULL_DATA_DIR TREELAND_DATA_DIR DATADIR)
 
-add_compile_definitions("TREELAND_DATA_DIR=\"${TREELAND_DATA_DIR}\"")
+add_compile_definitions("TREELAND_DATA_DIR=\"${TREELAND_FULL_DATA_DIR}\"")
 
 set(PROJECT_RESOURCES_DIR "${CMAKE_SOURCE_DIR}/misc")
 
