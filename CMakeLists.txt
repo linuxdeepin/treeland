@@ -28,16 +28,18 @@ if (ADDRESS_SANITIZER)
     add_link_options(-fsanitize=address)
 endif()
 
-set(QML_IMPORT_PATH "${PROJECT_BINARY_DIR}/qt/qml;${QML_IMPORT_PATH}" CACHE STRING "For LSP" FORCE)
+set(LOCAL_QML_IMPORT_PATH "${PROJECT_BINARY_DIR}/qt/qml")
 
 if(WITH_SUBMODULE_WAYLIB)
     set(WITH_SUBMODULE_QWLROOTS ON)
     include(${CMAKE_CURRENT_SOURCE_DIR}/waylib/qwlroots/cmake/WaylandScannerHelpers.cmake)
     add_subdirectory(waylib)
-    set(QML_IMPORT_PATH "${PROJECT_BINARY_DIR}/src/server;${QML_IMPORT_PATH}" CACHE STRING "For LSP" FORCE)
+    list(APPEND LOCAL_QML_IMPORT_PATH "${PROJECT_BINARY_DIR}/waylib/src/server")
 else()
     find_package(Waylib REQUIRED Server)
 endif()
+
+set(QML_IMPORT_PATH "${LOCAL_QML_IMPORT_PATH}" CACHE STRING "For LSP" FORCE)
 
 # PKG-CONFIG
 find_package(PkgConfig REQUIRED)
