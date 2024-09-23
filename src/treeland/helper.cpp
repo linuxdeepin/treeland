@@ -4,7 +4,7 @@
 #include "helper.h"
 
 #include "capture.h"
-#include "ddeshell.h"
+#include "ddeshellmanagerv1.h"
 #include "layersurfacecontainer.h"
 #include "lockscreen.h"
 #include "output.h"
@@ -200,6 +200,11 @@ void Helper::onXdgSurfaceAdded(WXdgSurface *surface)
         wrapper = new SurfaceWrapper(qmlEngine(), surface, SurfaceWrapper::Type::XdgToplevel);
         m_foreignToplevel->addSurface(surface);
         m_treelandForeignToplevel->addSurface(wrapper);
+
+        auto wSurface = surface->surface();
+        if (m_ddeShellV1->isDdeShellSurface(wSurface)) {
+            handleDdeShellSurfaceAdded(wSurface, wrapper);
+        }
     } else {
         wrapper = new SurfaceWrapper(qmlEngine(), surface, SurfaceWrapper::Type::XdgPopup);
     }
@@ -255,6 +260,11 @@ void Helper::onXdgSurfaceRemoved(WXdgSurface *surface)
     if (surface->isToplevel()) {
         m_foreignToplevel->removeSurface(surface);
         m_treelandForeignToplevel->removeSurface(m_rootSurfaceContainer->getSurface(surface));
+
+        auto wSurface =  surface->surface();
+        if (m_ddeShellV1->isDdeShellSurface(wSurface)) {
+            m_ddeShellV1->ddeShellSurfaceFromWSurface(wSurface)->destroy();
+        }
     }
 
     m_rootSurfaceContainer->destroyForSurface(surface->surface());
@@ -264,6 +274,9 @@ void Helper::onLayerSurfaceAdded(WLayerSurface *surface)
 {
     auto wrapper = new SurfaceWrapper(qmlEngine(), surface, SurfaceWrapper::Type::Layer);
     wrapper->setNoDecoration(true);
+    wrapper->setSkipSwitcher(true);
+    wrapper->setSkipDockPreView(true);
+    wrapper->setSkipMutiTaskView(true);
     updateLayerSurfaceContainer(wrapper);
 
     connect(surface, &WLayerSurface::layerChanged, this, [this, wrapper] {
@@ -459,7 +472,7 @@ void Helper::init()
     m_windowManagement = m_server->attach<WindowManagementV1>();
     m_server->attach<VirtualOutputV1>();
     m_shortcut = m_server->attach<ShortcutV1>();
-    m_server->attach<DDEShellV1>();
+    m_ddeShellV1 = m_server->attach<DDEShellManagerV1>();
     m_server->attach<CaptureManagerV1>();
     m_personalization = m_server->attach<PersonalizationV1>();
     m_personalization->setUserId(m_currentUserId);
@@ -487,10 +500,11 @@ void Helper::init()
                                                 0,
                                                 "Personalization",
                                                 "Only for Enum");
-    qmlRegisterUncreatableType<DDEShell>("Treeland.Protocols",
+
+    qmlRegisterUncreatableType<DDEShellHelper>("TreeLand.Protocols",
                                          1,
                                          0,
-                                         "DDEShell",
+                                         "DDEShellHelper",
                                          "Only for attached");
     qmlRegisterUncreatableType<CaptureSource>("Treeland.Protocols",
                                               1,
@@ -737,6 +751,15 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *, QInputEvent *event)
 
     if (event->type() == QEvent::MouseButtonPress) {
         destoryTaskSwitcher();
+    }
+
+    if (event->type() == QEvent::MouseButtonPress ||
+        event->type() == QEvent::MouseButtonRelease) {
+        handleLeftButtonStateChanged(event);
+    }
+
+    if (event->type() == QEvent::Wheel) {
+        handleWhellValueChanged(event);
     }
 
     if (event->type() == QEvent::KeyRelease) {
@@ -1133,10 +1156,103 @@ void Helper::toggleOutputMenuBar(bool show)
 #endif
 }
 
+void Helper::seatSendStartDrag(WSeat *seat)
+{
+    Q_ASSERT(m_ddeShellV1 && seat);
+    m_ddeShellV1->sendStartDrag(seat);
+}
+
+WSeat *Helper::seat() const
+{
+    return m_seat;
+}
+
 void Helper::destoryTaskSwitcher()
 {
     if (!m_taskSwitch.isNull()) {
         m_taskSwitch->setVisible(false);
         m_taskSwitch->deleteLater();
     }
+}
+
+void Helper::handleLeftButtonStateChanged(const QInputEvent *event)
+{
+    Q_ASSERT(m_ddeShellV1 && m_seat);
+    const QMouseEvent *me = static_cast<const QMouseEvent *>(event);
+    if (me->button() == Qt::LeftButton) {
+        if (event->type() == QEvent::MouseButtonPress) {
+            m_ddeShellV1->sendActiveIn(TREELAND_DDE_ACTIVE_V1_REASON_MOUSE, m_seat);
+        } else {
+            m_ddeShellV1->sendActiveOut(TREELAND_DDE_ACTIVE_V1_REASON_MOUSE, m_seat);
+        }
+    }
+}
+
+void Helper::handleWhellValueChanged(const QInputEvent *event)
+{
+    Q_ASSERT(m_ddeShellV1 && m_seat);
+    const QWheelEvent *we = static_cast<const QWheelEvent *>(event);
+    QPoint delta = we->angleDelta();
+    if (delta.x() + delta.y() < 0) {
+        m_ddeShellV1->sendActiveOut(TREELAND_DDE_ACTIVE_V1_REASON_WHEEL, m_seat);
+    }
+    if (delta.x() + delta.y() > 0) {
+        m_ddeShellV1->sendActiveIn(TREELAND_DDE_ACTIVE_V1_REASON_WHEEL, m_seat);
+    }
+}
+
+void Helper::handleDdeShellSurfaceAdded(WSurface *surface, SurfaceWrapper *wrapper)
+{
+    wrapper->setIsDdeShellSurface(true);
+    auto ddeShellSurface = m_ddeShellV1->ddeShellSurfaceFromWSurface(surface);
+    Q_ASSERT(ddeShellSurface);
+    auto updateLayer = [ddeShellSurface, wrapper]{
+        if (ddeShellSurface->m_role.value() == treeland_dde_shell_surface::Role::OVERLAY)
+            wrapper->setSurfaceRole(SurfaceWrapper::SurfaceRole::Overlay);
+    };
+
+    if (ddeShellSurface->m_role.has_value())
+        updateLayer();
+
+    connect(ddeShellSurface, &treeland_dde_shell_surface::roleChanged, this, [updateLayer]{
+        updateLayer();
+    });
+
+    if (ddeShellSurface->m_yOffset.has_value())
+        wrapper->setAutoPlaceYOffset(ddeShellSurface->m_yOffset.value());
+
+    connect(ddeShellSurface, &treeland_dde_shell_surface::yOffsetChanged,
+            this, [wrapper](uint32_t offset){
+                wrapper->setAutoPlaceYOffset(offset);
+            });
+
+    if (ddeShellSurface->m_surfacePos.has_value())
+        wrapper->setClientRequstPos(ddeShellSurface->m_surfacePos.value());
+
+    connect(ddeShellSurface, &treeland_dde_shell_surface::positionChanged,
+            this, [wrapper](QPoint pos){
+                wrapper->setClientRequstPos(pos);
+            });
+
+    if (ddeShellSurface->m_skipSwitcher.has_value())
+        wrapper->setSkipSwitcher(ddeShellSurface->m_skipSwitcher.value());
+
+    if (ddeShellSurface->m_skipDockPreView.has_value())
+        wrapper->setSkipDockPreView(ddeShellSurface->m_skipDockPreView.value());
+
+    if (ddeShellSurface->m_skipMutiTaskView.has_value())
+        wrapper->setSkipMutiTaskView(ddeShellSurface->m_skipMutiTaskView.value());
+
+    connect(ddeShellSurface, &treeland_dde_shell_surface::skipSwitcherChanged,
+            this,[wrapper](bool skip){
+                wrapper->setSkipSwitcher(skip);
+            });
+    connect(ddeShellSurface, &treeland_dde_shell_surface::skipDockPreViewChanged,
+            this, [wrapper](bool skip){
+                wrapper->setSkipDockPreView(skip);
+            });
+    connect(ddeShellSurface, &treeland_dde_shell_surface::skipMutiTaskViewChanged,
+            this, [wrapper](bool skip){
+                wrapper->setSkipMutiTaskView(skip);
+            });
 }

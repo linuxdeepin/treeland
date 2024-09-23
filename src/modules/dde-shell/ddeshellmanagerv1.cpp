@@ -1,19 +1,17 @@
 // Copyright (C) 2023 Dingyuan Zhang <lxz@mkacg.com>.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
-#include "ddeshell.h"
-
-#include "impl/ddeshellv1.h"
+#include "ddeshellmanagerv1.h"
 
 #include <woutput.h>
 #include <wtoplevelsurface.h>
 #include <wxdgsurfaceitem.h>
 
-static DDEShellV1 *DDE_SHELL_INSTANCE = nullptr;
+static DDEShellManagerV1 *DDE_SHELL_INSTANCE = nullptr;
 
 Q_LOGGING_CATEGORY(ddeshell, "treeland.protocols.ddeshell", QtDebugMsg);
 
-DDEShellAttached *DDEShell::qmlAttachedProperties(QObject *target)
+DDEShellAttached *DDEShellHelper::qmlAttachedProperties(QObject *target)
 {
     if (auto *item = qobject_cast<WSurfaceItem *>(target)) {
         return new WindowOverlapChecker(item);
@@ -75,18 +73,18 @@ void WindowOverlapChecker::setOverlapped(bool overlapped)
     Q_EMIT overlappedChanged();
 }
 
-DDEShellV1::DDEShellV1(QObject *parent)
+DDEShellManagerV1::DDEShellManagerV1(QObject *parent)
     : QObject(parent)
 {
     if (DDE_SHELL_INSTANCE) {
-        qFatal("There are multiple instances of DDEShellV1");
+        qFatal("There are multiple instances of DDEShellManagerV1");
         return;
     }
 
     DDE_SHELL_INSTANCE = this;
 }
 
-void DDEShellV1::create(WServer *server)
+void DDEShellManagerV1::create(WServer *server)
 {
     m_manager = treeland_dde_shell_manager_v1::create(server->handle());
     connect(
@@ -126,7 +124,7 @@ void DDEShellV1::create(WServer *server)
         });
 }
 
-void DDEShellV1::checkRegionalConflict(WSurfaceItem *target)
+void DDEShellManagerV1::checkRegionalConflict(WSurfaceItem *target)
 {
     QMapIterator<treeland_window_overlap_checker *, QRect> i(m_conflictList);
     while (i.hasNext()) {
@@ -141,17 +139,87 @@ void DDEShellV1::checkRegionalConflict(WSurfaceItem *target)
     }
 }
 
-void DDEShellV1::destroy(WServer *server)
+void DDEShellManagerV1::sendActiveIn(uint32_t reason, WSeat *seat)
+{
+    if (!m_manager)
+        return;
+
+    for (auto handle : m_manager->m_ddeActiveHandles) {
+        if (handle->treeland_dde_active_is_mapped_to_wseat(seat)) {
+            handle->send_active_in(reason);
+        }
+    }
+}
+
+void DDEShellManagerV1::sendActiveOut(uint32_t reason, WSeat *seat)
+{
+    if (!m_manager)
+        return;
+
+    for (auto handle : m_manager->m_ddeActiveHandles) {
+        if (handle->treeland_dde_active_is_mapped_to_wseat(seat)) {
+            handle->send_active_out(reason);
+        }
+    }
+}
+
+void DDEShellManagerV1::sendStartDrag(WSeat *seat)
+{
+    if (!m_manager)
+        return;
+
+    for (auto handle : m_manager->m_ddeActiveHandles) {
+        if (handle->treeland_dde_active_is_mapped_to_wseat(seat)) {
+            handle->send_start_drag();
+        }
+    }
+}
+
+bool DDEShellManagerV1::isDdeShellSurface(WSurface *surface)
+{
+    if (m_manager) {
+        for (auto handle : m_manager->m_surfaceHandles) {
+            if (!handle->m_surface_resource) {
+                continue;
+            }
+
+            if (handle->treeland_dde_shell_surface_is_mapped_to_wsurface(surface)) {
+                return true;
+            }
+        }
+    }
+
+    return false;
+}
+
+treeland_dde_shell_surface *DDEShellManagerV1::ddeShellSurfaceFromWSurface(WSurface *surface) const
+{
+    if (m_manager) {
+        for (auto handle : m_manager->m_surfaceHandles) {
+            if (!handle->m_surface_resource) {
+                continue;
+            }
+
+            if (handle->treeland_dde_shell_surface_is_mapped_to_wsurface(surface)) {
+                return handle;
+            }
+        }
+    }
+
+    return nullptr;
+}
+
+void DDEShellManagerV1::destroy(WServer *server)
 {
     m_manager->deleteLater();
 }
 
-wl_global *DDEShellV1::global() const
+wl_global *DDEShellManagerV1::global() const
 {
     return m_manager->global;
 }
 
-QByteArrayView DDEShellV1::interfaceName() const
+QByteArrayView DDEShellManagerV1::interfaceName() const
 {
     return "treeland_dde_shell_manager_v1";
 }

@@ -67,6 +67,8 @@ RootSurfaceContainer::RootSurfaceContainer(QQuickItem *parent)
 
     m_cursor->safeConnect(&WCursor::requestedDragSurfaceChanged, this, [this] {
         m_dargSurfaceItem->setSurface(m_cursor->requestedDragSurface());
+        // TODO(lbwtw): XToWlDrag is not supported
+        Helper::instance()->seatSendStartDrag(m_cursor->seat());
     });
 }
 

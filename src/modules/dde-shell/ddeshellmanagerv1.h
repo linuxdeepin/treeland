@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include "impl/ddeshellmanagerv1impl.h"
+
 #include <wserver.h>
 #include <wsurfaceitem.h>
 
@@ -11,9 +13,7 @@
 
 WAYLIB_SERVER_USE_NAMESPACE
 
-class treeland_dde_shell_manager_v1;
-class treeland_window_overlap_checker;
-class DDEShellV1;
+class DDEShellManagerV1;
 
 class DDEShellAttached : public QObject
 {
@@ -46,7 +46,7 @@ private:
     bool m_overlapped{ false };
 };
 
-class DDEShell : public QObject
+class DDEShellHelper : public QObject
 {
     Q_OBJECT
     QML_NAMED_ELEMENT(DDEShell)
@@ -55,21 +55,27 @@ class DDEShell : public QObject
 
 public:
     using QObject::QObject;
-    ~DDEShell() override = default;
+    ~DDEShellHelper() override = default;
 
     static DDEShellAttached *qmlAttachedProperties(QObject *target);
 };
 
-class DDEShellV1
+class DDEShellManagerV1
     : public QObject
     , public WServerInterface
 {
     Q_OBJECT
 public:
-    explicit DDEShellV1(QObject *parent = nullptr);
-    ~DDEShellV1() override = default;
+    explicit DDEShellManagerV1(QObject *parent = nullptr);
+    ~DDEShellManagerV1() override = default;
 
     void checkRegionalConflict(WSurfaceItem *target);
+    void sendActiveIn(uint32_t reason, WSeat *seat);
+    void sendActiveOut(uint32_t reason, WSeat *seat);
+    void sendStartDrag(WSeat *seat);
+
+    bool isDdeShellSurface(WSurface *surface);
+    treeland_dde_shell_surface *ddeShellSurfaceFromWSurface(WSurface *surface) const;
 
 protected:
     void create(WServer *server) override;

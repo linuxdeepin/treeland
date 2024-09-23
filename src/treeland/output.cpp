@@ -15,6 +15,7 @@
 #include <wxdgsurface.h>
 #include <woutputlayout.h>
 #include <wquicktextureproxy.h>
+#include <wcursor.h>
 
 #include <QQmlEngine>
 
@@ -415,6 +416,24 @@ void Output::arrangeNonLayerSurface(SurfaceWrapper *surface, const QSizeF &sizeD
             normalGeo.moveTop(normalGeo.y() * yScale);
             surface->moveNormalGeometryInOutput(normalGeo.topLeft());
         } else {
+            QPoint clientRequstPos = surface->clientRequstPos();
+            if (!clientRequstPos.isNull()) {
+                normalGeo.moveLeft(clientRequstPos.x());
+                normalGeo.moveTop(clientRequstPos.y());
+                surface->moveNormalGeometryInOutput(normalGeo.topLeft());
+            }
+
+            quint32 yOffset = surface->autoPlaceYOffset();
+            if (yOffset > 0) {
+                QSizeF cursorSize;
+                WCursor *wCursor = Helper::instance()->seat()->cursor();
+                if (!surface->ownsOutput()->outputItem()->cursorItems().isEmpty())
+                    cursorSize = surface->ownsOutput()->outputItem()->cursorItems()[0]->size();
+
+                normalGeo.moveLeft(wCursor->position().x() + (cursorSize.width() - surface->width()) / 2);
+                normalGeo.moveTop(wCursor->position().y() + cursorSize.height() + yOffset);
+                surface->moveNormalGeometryInOutput(normalGeo.topLeft());
+            }
             break;
         }
     } while (false);

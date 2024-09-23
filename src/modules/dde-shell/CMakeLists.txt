@@ -10,11 +10,11 @@ target_sources(${MODULE_NAME}
 PUBLIC
 FILE_SET HEADERS
 FILES
-    ddeshell.h
-    impl/ddeshellv1.h
+    ddeshellmanagerv1.h
+    impl/ddeshellmanagerv1impl.h
 PRIVATE
-    ddeshell.cpp
-    impl/ddeshellv1.cpp
+    ddeshellmanagerv1.cpp
+    impl/ddeshellmanagerv1impl.cpp
     ${WAYLAND_PROTOCOLS_OUTPUTDIR}/dde-shell-protocol.c
 )
 

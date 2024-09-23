@@ -51,6 +51,16 @@ class SurfaceWrapper : public QQuickItem
     Q_PROPERTY(int workspaceId READ workspaceId NOTIFY workspaceIdChanged FINAL)
     Q_PROPERTY(bool alwaysOnTop READ alwaysOnTop WRITE setAlwaysOnTop NOTIFY alwaysOnTopChanged FINAL)
     Q_PROPERTY(bool showOnAllWorkspace READ showOnAllWorkspace NOTIFY showOnAllWorkspaceChanged FINAL)
+    Q_PROPERTY(bool skipSwitcher READ skipSwitcher WRITE setSkipSwitcher NOTIFY skipSwitcherChanged FINAL)
+    Q_PROPERTY(bool skipDockPreView READ skipDockPreView WRITE setSkipDockPreView NOTIFY skipDockPreViewChanged FINAL)
+    Q_PROPERTY(bool skipMutiTaskView READ skipMutiTaskView WRITE setSkipMutiTaskView NOTIFY skipMutiTaskViewChanged FINAL)
+    Q_PROPERTY(bool isDdeShellSurface READ isDdeShellSurface WRITE setIsDdeShellSurface NOTIFY isDdeShellSurfaceChanged FINAL)
+    Q_PROPERTY(SurfaceWrapper::SurfaceRole surfaceRole READ surfaceRole WRITE setSurfaceRole NOTIFY surfaceRoleChanged FINAL)
+    // y-axis offset distance, set the vertical alignment of the surface within the cursor width. if autoPlaceYOffset > 0,
+    // preventing SurfaceWrapper from being displayed beyond the edge of the output.
+    Q_PROPERTY(quint32 autoPlaceYOffset READ autoPlaceYOffset WRITE setAutoPlaceYOffset NOTIFY autoPlaceYOffsetChanged FINAL)
+    // wayland client can control the position of SurfaceWrapper on the output through treeland_dde_shell_surface_v1.set_surface_position
+    Q_PROPERTY(QPoint clientRequstPos READ clientRequstPos WRITE setClientRequstPos NOTIFY clientRequstPosChanged FINAL)
 
 public:
     enum class Type {
@@ -79,6 +89,12 @@ public:
     };
     Q_ENUM(ActiveControlState);
     Q_DECLARE_FLAGS(ActiveControlStates, ActiveControlState);
+
+    enum class SurfaceRole {
+        Normal,
+        Overlay,
+    };
+    Q_ENUM(SurfaceRole)
 
     explicit SurfaceWrapper(QmlEngine *qmlEngine,
                             WToplevelSurface *shellSurface,
@@ -175,6 +191,27 @@ public:
 
     bool hasActiveCapability() const;
 
+    bool skipSwitcher() const;
+    void setSkipSwitcher(bool skip);
+
+    bool skipDockPreView() const;
+    void setSkipDockPreView(bool skip);
+
+    bool skipMutiTaskView() const;
+    void setSkipMutiTaskView(bool skip);
+
+    bool isDdeShellSurface() const;
+    void setIsDdeShellSurface(bool value);
+
+    enum SurfaceRole surfaceRole() const;
+    void setSurfaceRole(enum SurfaceRole role);
+
+    quint32 autoPlaceYOffset() const;
+    void setAutoPlaceYOffset(quint32 offset);
+
+    QPoint clientRequstPos() const;
+    void setClientRequstPos(QPoint pos);
+
 public Q_SLOTS:
     // for titlebar
     void requestMinimize();
@@ -218,6 +255,13 @@ Q_SIGNALS:
     void showOnAllWorkspaceChanged();
     void requestActive();
     void requestDeactive();
+    void skipSwitcherChanged();
+    void skipDockPreViewChanged();
+    void skipMutiTaskViewChanged();
+    void isDdeShellSurfaceChanged();
+    void surfaceRoleChanged();
+    void autoPlaceYOffsetChanged();
+    void clientRequstPosChanged();
 
 private:
     using QQuickItem::setParentItem;
@@ -303,6 +347,13 @@ private:
     uint m_titleBarState : 2;
     uint m_noCornerRadius : 1;
     uint m_alwaysOnTop : 1;
+    bool m_skipSwitcher = false;
+    bool m_skipDockPreView = false;
+    bool m_skipMutiTaskView = false;
+    bool m_isDdeShellSurface = false;
+    SurfaceRole m_surfaceRole = SurfaceRole::Normal;
+    quint32 m_autoPlaceYOffset = 0;
+    QPoint m_clientRequstPos;
 };
 
 Q_DECLARE_OPERATORS_FOR_FLAGS(SurfaceWrapper::ActiveControlStates)

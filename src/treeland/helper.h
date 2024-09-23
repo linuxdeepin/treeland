@@ -48,7 +48,6 @@ class WToplevelSurface;
 class WSurfaceItem;
 class WForeignToplevel;
 class WOutputManagerV1;
-class WXdgSurface;
 class WLayerSurface;
 class WInputPopupSurface;
 WAYLIB_SERVER_END_NAMESPACE
@@ -75,6 +74,7 @@ class PersonalizationV1;
 class WallpaperColorV1;
 class WindowManagementV1;
 class Multitaskview;
+class DDEShellManagerV1;
 
 class Helper : public WSeatEventFilter
 {
@@ -129,6 +129,9 @@ public:
     WXWayland *defaultXWaylandSocket() const;
 
     PersonalizationV1 *personalization() const;
+    void seatSendStartDrag(WSeat *seat);
+
+    WSeat *seat() const;
 
     void toggleOutputMenuBar(bool show);
 
@@ -195,6 +198,9 @@ private:
     bool unacceptedEvent(WSeat *, QWindow *, QInputEvent *event) override;
     void destoryTaskSwitcher();
     void toggleMultitaskview();
+    void handleLeftButtonStateChanged(const QInputEvent *event);
+    void handleWhellValueChanged(const QInputEvent *event);
+    void handleDdeShellSurfaceAdded(WSurface *surface, SurfaceWrapper *wrapper);
 
     static Helper *m_instance;
 
@@ -224,6 +230,7 @@ private:
     WOutputManagerV1 *m_outputManager = nullptr;
     WindowManagementV1 *m_windowManagement = nullptr;
     WindowManagementV1::DesktopState m_showDesktop = WindowManagementV1::DesktopState::Normal;
+    DDEShellManagerV1 *m_ddeShellV1 = nullptr;
 
     // private data
     QList<Output *> m_outputList;
