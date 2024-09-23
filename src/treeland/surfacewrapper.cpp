@@ -18,6 +18,7 @@
 
 #define OPEN_ANIMATION 1
 #define CLOSE_ANIMATION 2
+#define ALWAYSONTOPLAYER 1
 
 SurfaceWrapper::SurfaceWrapper(QmlEngine *qmlEngine,
                                WToplevelSurface *shellSurface,
@@ -1105,7 +1106,7 @@ void SurfaceWrapper::updateExplicitAlwaysOnTop()
         return;
 
     m_explicitAlwaysOnTop = newExplicitAlwaysOnTop;
-    setZ(m_explicitAlwaysOnTop ? 1 : 0);
+    setZ(m_explicitAlwaysOnTop ? ALWAYSONTOPLAYER : 0);
     for (const auto &sub : std::as_const(m_subSurfaces))
         sub->updateExplicitAlwaysOnTop();
 }
@@ -1125,4 +1126,114 @@ void SurfaceWrapper::updateHasActiveCapability(ActiveControlState state, bool va
 bool SurfaceWrapper::hasActiveCapability() const
 {
     return m_hasActiveCapability == ActiveControlState::Full;
+}
+
+bool SurfaceWrapper::skipSwitcher() const
+{
+    return m_skipSwitcher;
+}
+
+void SurfaceWrapper::setSkipSwitcher(bool skip)
+{
+    if (m_skipSwitcher == skip)
+        return;
+
+    m_skipSwitcher = skip;
+    Q_EMIT skipSwitcherChanged();
+}
+
+bool SurfaceWrapper::skipDockPreView() const
+{
+    return m_skipDockPreView;
+}
+
+void SurfaceWrapper::setSkipDockPreView(bool skip)
+{
+    if (m_skipDockPreView == skip)
+        return;
+
+    m_skipDockPreView = skip;
+    Q_EMIT skipDockPreViewChanged();
+}
+
+bool SurfaceWrapper::skipMutiTaskView() const
+{
+    return m_skipMutiTaskView;
+}
+
+void SurfaceWrapper::setSkipMutiTaskView(bool skip)
+{
+    if (m_skipMutiTaskView == skip)
+        return;
+
+    m_skipMutiTaskView = skip;
+    Q_EMIT skipMutiTaskViewChanged();
+}
+
+bool SurfaceWrapper::isDdeShellSurface() const
+{
+    return m_isDdeShellSurface;
+}
+
+void SurfaceWrapper::setIsDdeShellSurface(bool value)
+{
+    if (m_isDdeShellSurface == value)
+        return;
+
+    m_isDdeShellSurface = value;
+    Q_EMIT isDdeShellSurfaceChanged();
+}
+
+SurfaceWrapper::SurfaceRole SurfaceWrapper::surfaceRole() const
+{
+    return m_surfaceRole;
+}
+
+void SurfaceWrapper::setSurfaceRole(SurfaceRole role)
+{
+    if (m_surfaceRole == role)
+        return;
+
+    m_surfaceRole = role;
+    if (role != SurfaceRole::Normal) {
+        setZ(ALWAYSONTOPLAYER + static_cast<int>(role));
+        for (const auto &sub : std::as_const(m_subSurfaces))
+            setZ(ALWAYSONTOPLAYER + static_cast<int>(role));
+    } else {
+        setZ(0);
+        for (const auto &sub : std::as_const(m_subSurfaces))
+            setZ(0);
+    }
+
+    Q_EMIT surfaceRoleChanged();
+}
+
+quint32 SurfaceWrapper::autoPlaceYOffset() const
+{
+    return m_autoPlaceYOffset;
+}
+
+void SurfaceWrapper::setAutoPlaceYOffset(quint32 offset)
+{
+    if (m_autoPlaceYOffset == offset)
+        return;
+
+    m_autoPlaceYOffset = offset;
+    setPositionAutomatic(offset == 0);
+    Q_EMIT autoPlaceYOffsetChanged();
+}
+
+QPoint SurfaceWrapper::clientRequstPos() const
+{
+    return m_clientRequstPos;
+}
+
+void SurfaceWrapper::setClientRequstPos(QPoint pos)
+{
+    if (m_clientRequstPos == pos)
+        return;
+
+    m_clientRequstPos = pos;
+    setPositionAutomatic(pos.isNull());
+    Q_EMIT clientRequstPosChanged();
 }
