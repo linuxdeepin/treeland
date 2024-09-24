@@ -1,0 +1,2435 @@
+SPDXVersion: SPDX-2.1
+DataLicense: CC0-1.0
+SPDXID: SPDXRef-DOCUMENT
+DocumentName: qwlroots
+DocumentNamespace: http://spdx.org/spdxdocs/spdx-v2.1-0e1f9904-96a3-47d1-9b95-a860a4128b5d
+Creator: Person: Anonymous ()
+Creator: Organization: Anonymous ()
+Creator: Tool: reuse-2.1.0
+Created: 2023-07-19T07:10:12Z
+CreatorComment: <text>This document was created automatically using available reuse information consistent with REUSE.</text>
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-88bc564ddf855fb33544748b50ce357e
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-431dbc914ef67123b6f0dc95124db9a1
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-8b67a3d6691d85fc128cd2294f98d8de
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-05a2b963024d7d9e4c9fe8f27a29da56
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-9a4ba4951fd31004c7f37be1552a50ce
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-b992905257fdb75eb48fcaeda2b952bb
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-de841a533bd20f6d4532156c00f0902b
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-2222782062aa1dc53204b7da5eacafa0
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-0716915bf831bd1c42ee607660776519
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-cb568c8bd45e829b0a06568364a5ba01
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-d656078fbe0929938c263b16f37ef50d
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-0b65a91e74304e4874def134e7687675
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-655df2770e61a99494145e1c044a1090
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-8eec80c67b13f5d05006683774b6f43c
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-b48ef04790549a84b47fc93ec8b05b1d
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-991653ff4e9091f6bdb0dc8c788e62d6
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-2ed6d4b5688cde69057c340c6e8dbb8e
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-3ad59f2fc758c6a0d84b3ea530c58a9a
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-b38a066d0c9d7836880164ad4086b155
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-8143c2e389006365ae78b3ad8925b05e
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-bd8be6500c59af6b1075a337fc811a73
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-bee8497a2ac00143ce32ef67d8e509db
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-1fbc8956c9790ccb9eb02597eccb6e10
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-53b17d1703915f1907c7f4ff389f166a
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-c3d4bec5d3a51252770982e5a5037c9a
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-552872054d6e4364371c72a58b81a5cf
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-2720ffa9b031305d2222cce8075c29f3
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-f3dbbe0e3904f681d14ba32cb0c48e16
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-651af180be76a59f60e40efad579eed3
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-c6b0d3c3d8fb4d95e2cca4ebef8f2415
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-9ed6f847b91d1abe3be6905c62dcb6c8
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-83e5ce5f6967db8ee5edbba2c70b6ca7
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-d60b9d2ae23829637ec29c49cf0b47d9
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-82ba8309578ffc52f3f5f3845674d193
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-bdf1be5c3cf435f1d0dba62870adbfc1
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-b42798fac913a9a88beacd74df66408a
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-513755ce6e4aa1c97b71e515c2dd93d0
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-f88d8065b4e0b4f78c859f704fc5b5a6
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-e2a893937118ac02eef8ea5b2dc27ada
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-ce4a8d23d14f653886c09fd6d329abe5
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-280b033f9bc0f034dba3033ca36435a9
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-6ac1add41fdffa2e92db1c6cee9ccfa4
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-2a4e7c942aa8f00a437ab5ee9094eef8
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-49b368c28106a36b20753aa5aa1eff60
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-f3f69a9d286592b3ab784235efc9ac60
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-72d554c334661e34ae8990f0aeebeab5
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-a8dd2daf25ee0d68ff69ece44e53e8e2
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-452f8749933fc3fbde42e4cfebf90155
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-2d933a120c053ea16991eca29c34ea09
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-554d4afab59d1e8f43483dca64311795
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-803040ae2a2aaa4c8f0fabac5ea36803
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-e92d0309c4da48fc46ac903eaa7ed319
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-cc5eb98dc1306e6e2824f34a841f2044
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-71e81baa2d7b421dde70b2192147826b
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-ae812a2ac9304acc44aafaccecfa698d
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-a921096e2d086ac53db4395729a5a917
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-20ae5235edd7e0aab692fd42a55eabbb
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-bf8bebaf2de3114733f5ea47b3c43154
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-3ac2e6205258248974760675a4c7bf01
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-28b29a96f37f7e5741fdc82036004df7
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-33c9d1aeb6ee4ef5ed21461d715b5124
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-c32f9193154645890e1f346f9e5b6a27
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-c6abcb9e8072604b7313fc17ee35e916
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-24bfceff775a27c15a518f33575df2fc
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-d7df1679e80450a4ef6b9adc2b1c397a
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-93ced7e50a5e879c48743d125164fb01
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-5d0ae31a67489dfb4549dddb9910c050
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-fa4081b4454aa25fac9a93e06ff62681
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-1179d7a42443c3d5942f71cc166dabab
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-9edbef0cf117747e93df9e3efa983d7f
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-f59f78f3a3319d6d52447e0e7cca7d63
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-fabbf29349b6faf0a3f4148584a01f55
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-0ef1b89e78c23c0f92b3e5f5efd20d1a
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-f29006b43dba442463cb1ec22f1a624f
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-24c7775093bf88138fb4f6297d8efee1
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-94fbb45cd633f60dcbe16fda381ce68f
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-b1959c1ef61b2e877e54a60a21710ed9
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-28ad944757eabc6bdeacbfd02f0dd1e6
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-b2327c67f33b94128767abfee34f38d1
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-1942871ded798f880920b763cb6be4e2
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-1e312d65c152fc335e69702c411a76c8
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-bfb474aeb8a3dceeae4ea23c088f2627
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-b56db92e81f5aae36e07671fd302d539
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-e948a8f0187f3bd38856550011d4bd8f
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-b1070a0b5c28b3cabf01801802741fd1
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-470a736cd06b51e82048482e4c275581
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-6bc7dc32c841bc1bb2acf5ff6e4f15f4
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-d40207a128311c2744160ae3e441a298
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-bbe276e7bf6baa4e29a8b46add5b58f8
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-322c3ae12c3dd1299103b8ecb5111b1c
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-d373cc74fbd5ac38a689e4a8ef8d0b22
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-a9d873efa4c7477205934294092dc1ee
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-636695bc2d7c0226d8cf4f28ceddcb46
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-fe1f800d785a03af7581a703af27014c
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-4829d469607e1966433ac9c65e17af10
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-dce99bbad787b1bb50b245499decf2dd
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-528509b0236bc7b0bda177f144102e57
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-d76b704eb960e864ac5229be5a079808
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-301a80a42f23a0c13dc12e14d0fbcfcc
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-36197016e38b479f0fd7987de5aea3c4
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-de020595eb5ee8966b15f380401d8110
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-f6235571f3c2f66937a94ad45434e4ee
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-90914ef2156d8ec4d964ad8a49319a4a
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-fecf7d7292a122563f5deb49e7f91255
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-6baccc32759b306343deddcbd4acafd9
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-c8ce4b58832cf635467aff640e8d10f9
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-71b04e06612fb411aa512297a68b701a
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-f69daedc6de9bad5e48cf4ba41f33a9c
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-9ed45b3f22ed6319f757173ec43b594b
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-0dcd6b8cf1d953f0cab8e8ecca890ecb
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-505bc793ba6e38eba594cfb695bdfd6d
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-7cf7d9f0de48942538f04aebfe59c13e
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-4d798d718409b5450622b157321b94e7
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-c84e9d907374dd85fa83e0efb8f25ef6
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-aa798905e1db17036056ebf8c00ef17a
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-aa6760c7f8d3d984931007de36db90c6
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-1133a33c2dca18c719d2e789f3544b86
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-2cfa3eeb62c9bb04c05a2b8b83c9add3
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-f97ced38eb823c3bae7febbc04414928
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-4a58ff69f93192a411bc9ac62d112f13
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-fffd605031d93317445bee5f8628b21e
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-4c19e8b34ab1f2128d515671c2b4ac39
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-2dc2a80bb8eb668d3f7f198fd7903403
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-8b6adfaa03a49d15fca18e018cd430d3
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-c71cf9eb66e16d1a300cf407633500e4
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-ee6e91944d2005337a7feafbfd9dde5c
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-35365d93a64fd0c913c45c48a55c87aa
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-88cbf5cecb363b1a448a4d8942ad05c5
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-061b86f2eed036dcbc7a90f4d8a90273
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-801b61dde915298fb990df1fdf24b49d
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-f5b317a0f30776a23cf702260a9af7d3
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-bdc14569772e1696d648656c3dec0515
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-e4eafcc29072bfd6a97ded4c928a2884
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-ad2d35708d7bbd666a778b3c14ee6218
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-af815020846265a69fbbf847ecb6f3eb
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-3f0faf81c303e031db1792111906d1b0
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-53cb4cefe156153ac7ae6b8022ac6daf
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-87df89eac6c3fa57978b6e665aefb1ba
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-ac6977d61168afe4c3adb3924e2874a5
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-466a83c105153a02bb96596cb83caa5b
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-5379798db2e7d8e6cfeeb152150ac802
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-f844ba3915c854340ec287eb9b51bbae
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-1228a1664931c4d5425c543d1d3c135c
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-688862ffeb60c54b9880afff5020b027
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-ea60a1553c16e996f7e78a58c8834ad1
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-1c059d5bea801b20be9a7c5e046b9050
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-b754db839a7ca8adf9c8ae8f669a4b06
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-7b61b724e645a604fc75bb6145391dd1
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-12552e1974f1a6d14da9e23f3ad96e75
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-d8218e452b6bf34e06bf9766830c9a6c
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-49460e3f80d2263081501559aa631482
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-a4ff96a677494c68b1909944b4fc8679
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-9f07159b6b7f3b7feb1407dfc3795086
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-5eb59c30f52bdfa3153c0fea98b04a89
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-6b235fd0addc816951344254a9aff3b9
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-8ed5b482a87e1151c437c9438e015c1d
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-30897f6539bd7bb6f87426b4b8b78a96
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-9c820089e93800cc1d812df7bc9f8f70
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-f20ec6819e8ed64b13017b26a4dc4ae7
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-0a55e6fee438f3bdfd6eb33c5c86b406
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-5de9c94d3482f28a07866e045d997394
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-b031b1d3e1e16fd2aa098098ebfd27ec
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-25b0dbbde6695d612874917f69de8a5c
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-13064e3c1506aa7fec9dc7a7a9385293
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-91bd7f1e959cb93e298bb0979ae6675e
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-147fae78b55f08f33bbd689c0585c2a9
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-55a455e4a54d901c10cbeb4cfd5dc349
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-6a742fb2bf2ddc3d1e0cabb6cbb6b319
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-5d5fb2e29e3f128331bc7f1f74276978
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-e2687137e3466ba0df2c9e1c3489ef41
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-011b8302a83777c55c2bd158c079229c
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-194b8155d2b913f797534dd2e01159b2
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-5f2ae2baf9b8d7dc56b3541377f7ebbf
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-9cf6dcd38588fabed1580e8e73a19091
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-e7d18f1728c3553310c7f1dc07e684fe
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-eae637131347cf7c8d3243d29649d6e3
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-c6ca313f4e5bbbdcce54fb07d602c57e
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-f4e9c3dc439ddae92bec3bdd5ddbb87c
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-983a00c159f97635b4795cc0c5553391
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-5a1899953be2f22cdf00a42fb190c8b8
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-4e7a5bea6a2ba32aee0f9591d8b90dbe
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-5a8238afd047fc8224b6a03926c94cf7
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-f8eb14e1d29aadfe5aa42a8febca3936
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-c5c47ace40d202345a091696f0418061
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-2f7d3f003db42a55d2f77e1e0a05b439
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-fa9c076d0c9abd56d661cb6152673aa1
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-bff9bf8f85893be0c675ee21733d103d
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-df094b0727c851c133ec2fc6be3ea029
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-c6b84651f13f97ffbde82bb380a7bd67
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-40d210003fcf735ea7b76ddd97d75720
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-6a0340c15dc1425f85447c6cb9df68c2
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-3989500f3e64feff6f368f4253bc9bc5
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-8fc29ec153472204d3f16daf846b9d6c
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-c86898118cdd1d0606924598d5bc2a03
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-5409e46bc8637d154f12dd1b412b84f9
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-063c26e6b360fe66ab9f91e3181a05a8
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-8c2b2c69ad2ec0d53415a9c5cf3be08f
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-59437d6a9df7595a767a12d9e0040357
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-8338e8c41e1e149495fe7727f5d3915a
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-2b9a8bc1a610333777b06a8b13e4d9e1
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-ea372f45e8e6e718a7f9370ced595932
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-4d3c1bd1786a2a12ec39a56688bb43ae
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-f7ba9698771e8bb50184382a20c50b8d
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-7411179422df9d855712e5943fc43e0b
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-59833c7fe644cef8b37e075a8c59a939
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-15e8cb1bffa575517806f32c91581f3e
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-aa91f14222390db10abaceb48c4cd8de
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-bf8accb6e32311e9896d725ea4d6a993
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-795ffa4e7014b14ca935b2ed3d118963
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-86926b00716b20e98e95681ac8e31f2d
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-f045bab4c323007dd550f41c8b4cd5ef
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-a36a6080aef1aea7211f47704e164d60
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-31080083c51019ef16fda148609aa514
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-1a99e9f086c59228e06940b14913f99b
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-7ca20261672c261db930b74f68b96fb1
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-5cbc0a546092a0aaa6032ab860403425
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-79d6ad3ca59b4c2f80b89a617a070b82
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-524fcc0b8d290da860e2351ab5a01178
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-ea0b5ca72d9dbc6205b9d2d708e69722
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-d77172c9f63108bf19c64c22b7469ae1
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-02769ebeb3063f0898f9df45a8b7fc8d
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-c5bff1b228a880e2db6e52f1a9e581fd
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-6764d2227d56a49a6e4e308836032299
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-9afbec2f08c14f99581f14f291902b65
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-d4ac897d64f66699e6838b5266a1744f
+Relationship: SPDXRef-DOCUMENT describes SPDXRef-1bafaf980327856b84dbf11323f10896
+
+FileName: ./.envrc
+SPDXID: SPDXRef-88bc564ddf855fb33544748b50ce357e
+FileChecksum: SHA1: 83b258da9c1ca4eb15ce27fbb558c55c1c308e51
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: CC0-1.0
+FileCopyrightText: <text>None</text>
+
+FileName: ./.github/workflows/archlinux-build.yaml
+SPDXID: SPDXRef-431dbc914ef67123b6f0dc95124db9a1
+FileChecksum: SHA1: 80413521316f9e09676769551fc95dd54e2eacac
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: CC0-1.0
+FileCopyrightText: <text>None</text>
+
+FileName: ./.gitignore
+SPDXID: SPDXRef-8b67a3d6691d85fc128cd2294f98d8de
+FileChecksum: SHA1: 6aa0d5aaa5c711131b4a0afc0cb9003ac24cd5b7
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: CC0-1.0
+FileCopyrightText: <text>None</text>
+
+FileName: ./.obs/workflows.yml
+SPDXID: SPDXRef-05a2b963024d7d9e4c9fe8f27a29da56
+FileChecksum: SHA1: 55a85150f40997a545bcf58e45d99b612ffcf1b4
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: CC0-1.0
+FileCopyrightText: <text>None</text>
+
+FileName: ./CMakeLists.txt
+SPDXID: SPDXRef-9a4ba4951fd31004c7f37be1552a50ce
+FileChecksum: SHA1: 93242077da78a2268047d18892f9385cd8b6ebf2
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: CC0-1.0
+FileCopyrightText: <text>None</text>
+
+FileName: ./README.md
+SPDXID: SPDXRef-b992905257fdb75eb48fcaeda2b952bb
+FileChecksum: SHA1: 00a54535affe81e56d871e4da646122ba86572cd
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: CC-BY-4.0
+FileCopyrightText: <text>JiDe Zhang</text>
+
+FileName: ./README.zh_CN.md
+SPDXID: SPDXRef-de841a533bd20f6d4532156c00f0902b
+FileChecksum: SHA1: e5d91361af0dd5c54ceb6f7331021d34622ea1b1
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: CC-BY-4.0
+FileCopyrightText: <text>JiDe Zhang</text>
+
+FileName: ./cmake/Helpers.cmake
+SPDXID: SPDXRef-2222782062aa1dc53204b7da5eacafa0
+FileChecksum: SHA1: 69caa0d508c86cb8d0d9a2054235063af4c90c67
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: CC0-1.0
+FileCopyrightText: <text>None</text>
+
+FileName: ./cmake/PackageVersionHelper.cmake
+SPDXID: SPDXRef-0716915bf831bd1c42ee607660776519
+FileChecksum: SHA1: bb2f77a8bcc17fc583d2739b8abcf0aa699135fb
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: CC0-1.0
+FileCopyrightText: <text>None</text>
+
+FileName: ./cmake/WaylandScannerHelpers.cmake
+SPDXID: SPDXRef-cb568c8bd45e829b0a06568364a5ba01
+FileChecksum: SHA1: f9a4871949eda5c16a327410b9d1f29079bc6a4f
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: CC0-1.0
+FileCopyrightText: <text>None</text>
+
+FileName: ./debian/changelog
+SPDXID: SPDXRef-d656078fbe0929938c263b16f37ef50d
+FileChecksum: SHA1: 7528340a1189766cb7b2490d6518c2288253d7bc
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>2023 rewine <luhongxu@outlook.com></text>
+
+FileName: ./debian/control
+SPDXID: SPDXRef-0b65a91e74304e4874def134e7687675
+FileChecksum: SHA1: 8eaa2fd8957c7d914ed60d5197bc9b69d812a55f
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>2023 rewine <luhongxu@outlook.com></text>
+
+FileName: ./debian/postinst.ex
+SPDXID: SPDXRef-655df2770e61a99494145e1c044a1090
+FileChecksum: SHA1: 90f1ed18ad916fc246f05ce86dd9085015244c8b
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>2023 rewine <luhongxu@outlook.com></text>
+
+FileName: ./debian/postrm.ex
+SPDXID: SPDXRef-8eec80c67b13f5d05006683774b6f43c
+FileChecksum: SHA1: ff2e618fbdd49fb9bd787f0fb19e3d791a0d80cf
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>2023 rewine <luhongxu@outlook.com></text>
+
+FileName: ./debian/preinst.ex
+SPDXID: SPDXRef-b48ef04790549a84b47fc93ec8b05b1d
+FileChecksum: SHA1: 717f456198eb400dc58991de84f8070a3bdcd0c9
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>2023 rewine <luhongxu@outlook.com></text>
+
+FileName: ./debian/prerm.ex
+SPDXID: SPDXRef-991653ff4e9091f6bdb0dc8c788e62d6
+FileChecksum: SHA1: 204075dfe4844ce26b8a2b5960d2b511ed298047
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>2023 rewine <luhongxu@outlook.com></text>
+
+FileName: ./debian/qwlroots-dev.dirs
+SPDXID: SPDXRef-2ed6d4b5688cde69057c340c6e8dbb8e
+FileChecksum: SHA1: d43a01d72cbb9e74877e19e70423d61ee3a866be
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>2023 rewine <luhongxu@outlook.com></text>
+
+FileName: ./debian/qwlroots-dev.install
+SPDXID: SPDXRef-3ad59f2fc758c6a0d84b3ea530c58a9a
+FileChecksum: SHA1: 7069ca636db1525a8e03bdfa03791e19d98bf1e9
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>2023 rewine <luhongxu@outlook.com></text>
+
+FileName: ./debian/qwlroots1.dirs
+SPDXID: SPDXRef-b38a066d0c9d7836880164ad4086b155
+FileChecksum: SHA1: 98a74fe8ac00cd1860e6db3b06ff1c50daa07286
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>2023 rewine <luhongxu@outlook.com></text>
+
+FileName: ./debian/qwlroots1.install
+SPDXID: SPDXRef-8143c2e389006365ae78b3ad8925b05e
+FileChecksum: SHA1: e167a649cb4e3b59442f0597753d4110e95e8209
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>2023 rewine <luhongxu@outlook.com></text>
+
+FileName: ./debian/rules
+SPDXID: SPDXRef-bd8be6500c59af6b1075a337fc811a73
+FileChecksum: SHA1: 7c7b5786d0ce1003ec028d5f5bd6a2bbe940d00d
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>2023 rewine <luhongxu@outlook.com></text>
+
+FileName: ./debian/shlibs.local.ex
+SPDXID: SPDXRef-bee8497a2ac00143ce32ef67d8e509db
+FileChecksum: SHA1: 24197e5c6c27f2f8e08369ae601b1a5c7d7b8be9
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>2023 rewine <luhongxu@outlook.com></text>
+
+FileName: ./debian/source/format
+SPDXID: SPDXRef-1fbc8956c9790ccb9eb02597eccb6e10
+FileChecksum: SHA1: 1064dc0ce263680c076a1005f35ec906a5cf5a32
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>2023 rewine <luhongxu@outlook.com></text>
+
+FileName: ./debian/watch.ex
+SPDXID: SPDXRef-53b17d1703915f1907c7f4ff389f166a
+FileChecksum: SHA1: 1e63cac1ce8676d342f9260fd235f4fc13062c4a
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>2023 rewine <luhongxu@outlook.com></text>
+
+FileName: ./default.nix
+SPDXID: SPDXRef-c3d4bec5d3a51252770982e5a5037c9a
+FileChecksum: SHA1: bb83cd162794b5054418d58ac83feb660eb30cce
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: CC0-1.0
+FileCopyrightText: <text>None</text>
+
+FileName: ./examples/CMakeLists.txt
+SPDXID: SPDXRef-552872054d6e4364371c72a58b81a5cf
+FileChecksum: SHA1: 51e1b5eb3e72ed062cb7af55552d126a310dfa8b
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: CC0-1.0
+FileCopyrightText: <text>None</text>
+
+FileName: ./examples/tinywl/CMakeLists.txt
+SPDXID: SPDXRef-2720ffa9b031305d2222cce8075c29f3
+FileChecksum: SHA1: 5c58dff8ab6dbfbdfb15449feca59c569138053e
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: CC0-1.0
+FileCopyrightText: <text>None</text>
+
+FileName: ./examples/tinywl/main.cpp
+SPDXID: SPDXRef-f3dbbe0e3904f681d14ba32cb0c48e16
+FileChecksum: SHA1: 3b4d9c2bf75625aaf3aa184df961142d0c20929a
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2022 JiDe Zhang <zccrs@live.com>.</text>
+
+FileName: ./flake.lock
+SPDXID: SPDXRef-651af180be76a59f60e40efad579eed3
+FileChecksum: SHA1: cacb6aabf9336d9052db309a23c99fa6078ec4c8
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: CC0-1.0
+FileCopyrightText: <text>None</text>
+
+FileName: ./flake.nix
+SPDXID: SPDXRef-c6b0d3c3d8fb4d95e2cca4ebef8f2415
+FileChecksum: SHA1: ac85dfdc6c4da54df45e5b503ac1f5f9a7f0b028
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: CC0-1.0
+FileCopyrightText: <text>None</text>
+
+FileName: ./garnix.yaml
+SPDXID: SPDXRef-9ed6f847b91d1abe3be6905c62dcb6c8
+FileChecksum: SHA1: b23fe12ef74a981a0ffb5d6af06bcbe904c562ea
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: CC0-1.0
+FileCopyrightText: <text>None</text>
+
+FileName: ./nix/default.nix
+SPDXID: SPDXRef-83e5ce5f6967db8ee5edbba2c70b6ca7
+FileChecksum: SHA1: 5f8b51cbf38040c7d2e0b7a2b5d6d18c76d4adea
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: CC0-1.0
+FileCopyrightText: <text>None</text>
+
+FileName: ./src/CMakeLists.txt
+SPDXID: SPDXRef-d60b9d2ae23829637ec29c49cf0b47d9
+FileChecksum: SHA1: ef96d5a6d323291fa1974f5740d55e8098b223cf
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: CC0-1.0
+FileCopyrightText: <text>None</text>
+
+FileName: ./src/class_template.txt
+SPDXID: SPDXRef-82ba8309578ffc52f3f5f3845674d193
+FileChecksum: SHA1: 817f1a6fda8530fcbab6d83cf18312d747c74281
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2022 JiDe Zhang <zccrs@live.com>.</text>
+
+FileName: ./src/cmake/CMakeConfig.cmake.in
+SPDXID: SPDXRef-bdf1be5c3cf435f1d0dba62870adbfc1
+FileChecksum: SHA1: 8a80e3a1624cff0e433593900223ff2fae36a924
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: CC0-1.0
+FileCopyrightText: <text>None</text>
+
+FileName: ./src/cmake/pkgconfig.pc.in
+SPDXID: SPDXRef-b42798fac913a9a88beacd74df66408a
+FileChecksum: SHA1: 3ae0fcbc5377fbdcba886b5ade3a4771a1eeba6a
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: CC0-1.0
+FileCopyrightText: <text>None</text>
+
+FileName: ./src/cmake/qwconfig.h.in
+SPDXID: SPDXRef-513755ce6e4aa1c97b71e515c2dd93d0
+FileChecksum: SHA1: 70ac4e0aad40f26e2cd4c3405eca94b51eee9cc6
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2023 JiDe Zhang <zccrs@live.com>.</text>
+
+FileName: ./src/interfaces/qwbackendinterface.cpp
+SPDXID: SPDXRef-f88d8065b4e0b4f78c859f704fc5b5a6
+FileChecksum: SHA1: 0bd791a46f28ed07dadc49df104aa2a9569d0ac1
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2023 JiDe Zhang <zccrs@live.com>.</text>
+
+FileName: ./src/interfaces/qwbackendinterface.h
+SPDXID: SPDXRef-e2a893937118ac02eef8ea5b2dc27ada
+FileChecksum: SHA1: 40b86d0c151df574c7a31bceae6a1fd6a8a15ae9
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2023 JiDe Zhang <zccrs@live.com>.</text>
+
+FileName: ./src/interfaces/qwbufferinterface.cpp
+SPDXID: SPDXRef-ce4a8d23d14f653886c09fd6d329abe5
+FileChecksum: SHA1: a25f43f190c25b4ddba1116fcc422888da27d9a4
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2023 Dingyuan Zhang <zhangdingyuan@uniontech.com>.</text>
+
+FileName: ./src/interfaces/qwbufferinterface.h
+SPDXID: SPDXRef-280b033f9bc0f034dba3033ca36435a9
+FileChecksum: SHA1: 9f849d488e8c66b6fe7558e687b42f8910402a54
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2023 Dingyuan Zhang <zhangdingyuan@uniontech.com>.</text>
+
+FileName: ./src/interfaces/qwinterface.h
+SPDXID: SPDXRef-6ac1add41fdffa2e92db1c6cee9ccfa4
+FileChecksum: SHA1: 8c643b6a3fcee30b23dc75084825356309ce0042
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2023 JiDe Zhang <zccrs@live.com>.</text>
+
+FileName: ./src/interfaces/qwkeyboardinterface.cpp
+SPDXID: SPDXRef-2a4e7c942aa8f00a437ab5ee9094eef8
+FileChecksum: SHA1: 72d096fc75a08e0dd409b502b0da1aa9a33a4ef2
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2023 rewine <luhongxu@deepin.org>.</text>
+
+FileName: ./src/interfaces/qwkeyboardinterface.h
+SPDXID: SPDXRef-49b368c28106a36b20753aa5aa1eff60
+FileChecksum: SHA1: 65eab7743c8d94cb45ad95c38270b30420f52a67
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2023 rewine <luhongxu@deepin.org>.</text>
+
+FileName: ./src/interfaces/qwoutputinterface.cpp
+SPDXID: SPDXRef-f3f69a9d286592b3ab784235efc9ac60
+FileChecksum: SHA1: f004027ad5a4e6ed9522e76461df8416748343e3
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2023 JiDe Zhang <zccrs@live.com>.</text>
+
+FileName: ./src/interfaces/qwoutputinterface.h
+SPDXID: SPDXRef-72d554c334661e34ae8990f0aeebeab5
+FileChecksum: SHA1: 99f2eb6f621e0a5446e83ccb6c987e2f96df6f2b
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2023 JiDe Zhang <zccrs@live.com>.</text>
+
+FileName: ./src/interfaces/qwpointerinterface.cpp
+SPDXID: SPDXRef-a8dd2daf25ee0d68ff69ece44e53e8e2
+FileChecksum: SHA1: c413219a45497a4d7a74cbb3ee3d2df118bd3e2d
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2023 Dingyuan Zhang <zhangdingyuan@uniontech.com>.</text>
+
+FileName: ./src/interfaces/qwpointerinterface.h
+SPDXID: SPDXRef-452f8749933fc3fbde42e4cfebf90155
+FileChecksum: SHA1: 46f378a96fced1e2c9a189ca590dd943f445a56f
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2023 Dingyuan Zhang <zhangdingyuan@uniontech.com>.</text>
+
+FileName: ./src/interfaces/qwrendererinterface.cpp
+SPDXID: SPDXRef-2d933a120c053ea16991eca29c34ea09
+FileChecksum: SHA1: 118888e642bb2760654a0d51eb2fd1284d4ba723
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2023 Dingyuan Zhang <zhangdingyuan@uniontech.com>.</text>
+
+FileName: ./src/interfaces/qwrendererinterface.h
+SPDXID: SPDXRef-554d4afab59d1e8f43483dca64311795
+FileChecksum: SHA1: 52913b269fcabdb145d0c604171bb821e3cdf691
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2023 Dingyuan Zhang <zhangdingyuan@uniontech.com>.</text>
+
+FileName: ./src/interfaces/qwswitchinterface.cpp
+SPDXID: SPDXRef-803040ae2a2aaa4c8f0fabac5ea36803
+FileChecksum: SHA1: 256d23865e51b2d04a0457e144bbd1acf5f75680
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2023 Dingyuan Zhang <zhangdingyuan@uniontech.com>.</text>
+
+FileName: ./src/interfaces/qwswitchinterface.h
+SPDXID: SPDXRef-e92d0309c4da48fc46ac903eaa7ed319
+FileChecksum: SHA1: 31c15b09f91d9b4449647343f39033dd53f93d47
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2023 Dingyuan Zhang <zhangdingyuan@uniontech.com>.</text>
+
+FileName: ./src/interfaces/qwtabletpadinterface.cpp
+SPDXID: SPDXRef-cc5eb98dc1306e6e2824f34a841f2044
+FileChecksum: SHA1: 8251f1ce2a89b598c3b242b70b7dd69d1f92de24
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2023 Dingyuan Zhang <zhangdingyuan@uniontech.com>.</text>
+
+FileName: ./src/interfaces/qwtabletpadinterface.h
+SPDXID: SPDXRef-71e81baa2d7b421dde70b2192147826b
+FileChecksum: SHA1: d88f79978f750bef32ed2805e58a0d88b9e0ddc9
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2023 Dingyuan Zhang <zhangdingyuan@uniontech.com>.</text>
+
+FileName: ./src/qwbackend.cpp
+SPDXID: SPDXRef-ae812a2ac9304acc44aafaccecfa698d
+FileChecksum: SHA1: 0192658d5fb11c7cd2a0697e224494297828f4d3
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2022 JiDe Zhang <zccrs@live.com>.</text>
+
+FileName: ./src/qwbackend.h
+SPDXID: SPDXRef-a921096e2d086ac53db4395729a5a917
+FileChecksum: SHA1: 9561e363028113201dcb58f34674f80fabde322f
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2022 JiDe Zhang <zccrs@live.com>.</text>
+
+FileName: ./src/qwdisplay.cpp
+SPDXID: SPDXRef-20ae5235edd7e0aab692fd42a55eabbb
+FileChecksum: SHA1: 277b4cfa1e4d55bb0caae4afd64cfeb0a391be5b
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2022 JiDe Zhang <zccrs@live.com>.</text>
+
+FileName: ./src/qwdisplay.h
+SPDXID: SPDXRef-bf8bebaf2de3114733f5ea47b3c43154
+FileChecksum: SHA1: 07926fd910c2b191a089ee24ed6a39e4cd4b66a4
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2022 JiDe Zhang <zccrs@live.com>.</text>
+
+FileName: ./src/qwglobal.cpp
+SPDXID: SPDXRef-3ac2e6205258248974760675a4c7bf01
+FileChecksum: SHA1: ad1a817d2b31a1d1957e4d3e3bdb8d252c5cfd4c
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2022 JiDe Zhang <zccrs@live.com>.</text>
+
+FileName: ./src/qwglobal.h
+SPDXID: SPDXRef-28b29a96f37f7e5741fdc82036004df7
+FileChecksum: SHA1: db5e190fe16b31f1fedd6bb2d2ca01760cb70ebc
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2022 JiDe Zhang <zccrs@live.com>.</text>
+
+FileName: ./src/render/qwallocator.cpp
+SPDXID: SPDXRef-33c9d1aeb6ee4ef5ed21461d715b5124
+FileChecksum: SHA1: dd649b696ed64ebe4e608b41fefdb51c7847c6db
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2022 JiDe Zhang <zccrs@live.com>.</text>
+
+FileName: ./src/render/qwallocator.h
+SPDXID: SPDXRef-c32f9193154645890e1f346f9e5b6a27
+FileChecksum: SHA1: b639a108716dd0dba4dbb55a56918c569ad464f9
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2022 JiDe Zhang <zccrs@live.com>.</text>
+
+FileName: ./src/render/qwegl.cpp
+SPDXID: SPDXRef-c6abcb9e8072604b7313fc17ee35e916
+FileChecksum: SHA1: 74e6f48c364f65db01b66879b70fd4bb5b13c399
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2023 Dingyuan Zhang <zhangdingyuan@uniontech.com>.</text>
+
+FileName: ./src/render/qwegl.h
+SPDXID: SPDXRef-24bfceff775a27c15a518f33575df2fc
+FileChecksum: SHA1: e8fab25bdaa162a0efd82bd11291333749df72b8
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2023 Dingyuan Zhang <zhangdingyuan@uniontech.com>.</text>
+
+FileName: ./src/render/qwrenderer.cpp
+SPDXID: SPDXRef-d7df1679e80450a4ef6b9adc2b1c397a
+FileChecksum: SHA1: 72005c28856bc234d51800ac318109cb62d10c19
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2022 JiDe Zhang <zccrs@live.com>.</text>
+
+FileName: ./src/render/qwrenderer.h
+SPDXID: SPDXRef-93ced7e50a5e879c48743d125164fb01
+FileChecksum: SHA1: b93aa9d6ef46d536bdd8a4ce846892d0d7a7bd2d
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2022 JiDe Zhang <zccrs@live.com>.</text>
+
+FileName: ./src/render/qwswapchain.cpp
+SPDXID: SPDXRef-5d0ae31a67489dfb4549dddb9910c050
+FileChecksum: SHA1: cecb7e2969eda9a01bb96134652a11f613f8ec4e
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2023 Dingyuan Zhang <zhangdingyuan@uniontech.com>.</text>
+
+FileName: ./src/render/qwswapchain.h
+SPDXID: SPDXRef-fa4081b4454aa25fac9a93e06ff62681
+FileChecksum: SHA1: 09cdb4017882d521c374f0619faa90ad42cebfbd
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2023 Dingyuan Zhang <zhangdingyuan@uniontech.com>.</text>
+
+FileName: ./src/render/qwtexture.cpp
+SPDXID: SPDXRef-1179d7a42443c3d5942f71cc166dabab
+FileChecksum: SHA1: d3d17810efc3f285b1f731f1e124178c43b8d163
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2022 JiDe Zhang <zccrs@live.com>.</text>
+
+FileName: ./src/render/qwtexture.h
+SPDXID: SPDXRef-9edbef0cf117747e93df9e3efa983d7f
+FileChecksum: SHA1: 8f9d920c471e7e57a0311bdda14ad5aff2dabef1
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2022 JiDe Zhang <zccrs@live.com>.</text>
+
+FileName: ./src/types/qwbuffer.cpp
+SPDXID: SPDXRef-f59f78f3a3319d6d52447e0e7cca7d63
+FileChecksum: SHA1: d7eec5b859cbd91d9288aeffb155e440e5a17f77
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2022 JiDe Zhang <zccrs@live.com>.</text>
+
+FileName: ./src/types/qwbuffer.h
+SPDXID: SPDXRef-fabbf29349b6faf0a3f4148584a01f55
+FileChecksum: SHA1: cab3e1296178a4ba236333d7d6d3e8e5ea3d464b
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2022 JiDe Zhang <zccrs@live.com>.</text>
+
+FileName: ./src/types/qwclientbuffer.cpp
+SPDXID: SPDXRef-0ef1b89e78c23c0f92b3e5f5efd20d1a
+FileChecksum: SHA1: d36172239d624a05ed759f8ce95fbbc21e8f7d23
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2023 rewine <luhongxu@deepin.org>.</text>
+
+FileName: ./src/types/qwcompositor.cpp
+SPDXID: SPDXRef-f29006b43dba442463cb1ec22f1a624f
+FileChecksum: SHA1: e1d5c87e32b220dbe144653af44d96a330a169ce
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2022 JiDe Zhang <zccrs@live.com>.</text>
+
+FileName: ./src/types/qwcompositor.h
+SPDXID: SPDXRef-24c7775093bf88138fb4f6297d8efee1
+FileChecksum: SHA1: dc547ff5e238e92ad0004f512f95a5e0de766a2f
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2022 JiDe Zhang <zccrs@live.com>.</text>
+
+FileName: ./src/types/qwcontenttypev1.cpp
+SPDXID: SPDXRef-94fbb45cd633f60dcbe16fda381ce68f
+FileChecksum: SHA1: c749b06df35ff2587891b2374e9f964ecb4f944a
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2023 rewine <luhongxu@deepin.org>.</text>
+
+FileName: ./src/types/qwcontenttypev1.h
+SPDXID: SPDXRef-b1959c1ef61b2e877e54a60a21710ed9
+FileChecksum: SHA1: 1112cae388c797dc26534b49445c73cee137c48f
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2023 rewine <luhongxu@deepin.org>.</text>
+
+FileName: ./src/types/qwcursor.cpp
+SPDXID: SPDXRef-28ad944757eabc6bdeacbfd02f0dd1e6
+FileChecksum: SHA1: 08b7b355cc7cf209f9d042265b40b9208a90ed5f
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2022 JiDe Zhang <zccrs@live.com>.</text>
+
+FileName: ./src/types/qwcursor.h
+SPDXID: SPDXRef-b2327c67f33b94128767abfee34f38d1
+FileChecksum: SHA1: 2bb82b532cd45d5c1ce1c1817a485bbda954271f
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2022 JiDe Zhang <zccrs@live.com>.</text>
+
+FileName: ./src/types/qwdamagering.cpp
+SPDXID: SPDXRef-1942871ded798f880920b763cb6be4e2
+FileChecksum: SHA1: febda27ceeadf835aa752fcac32c8e22bf61e5fd
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2023 rewine <luhongxu@deepin.org>.</text>
+
+FileName: ./src/types/qwdamagering.h
+SPDXID: SPDXRef-1e312d65c152fc335e69702c411a76c8
+FileChecksum: SHA1: 89b456713ba1277bb643448a16254155500f89fa
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2023 rewine <luhongxu@deepin.org>.</text>
+
+FileName: ./src/types/qwdatacontrolmanagerv1.cpp
+SPDXID: SPDXRef-bfb474aeb8a3dceeae4ea23c088f2627
+FileChecksum: SHA1: df40050c0b530a9fdebfbdbd4c15ea80e4696d11
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2023 rewine <luhongxu@deepin.org>.</text>
+
+FileName: ./src/types/qwdatacontrolv1.h
+SPDXID: SPDXRef-b56db92e81f5aae36e07671fd302d539
+FileChecksum: SHA1: e2dd4cc442d4117c8551b46e5e0ee33737d3e216
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2023 rewine <luhongxu@deepin.org>.</text>
+
+FileName: ./src/types/qwdatadevice.cpp
+SPDXID: SPDXRef-e948a8f0187f3bd38856550011d4bd8f
+FileChecksum: SHA1: 3b53812f6043e257bdd9e641d06db8951a7010ea
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2022 JiDe Zhang <zccrs@live.com>.</text>
+
+FileName: ./src/types/qwdatadevice.h
+SPDXID: SPDXRef-b1070a0b5c28b3cabf01801802741fd1
+FileChecksum: SHA1: b21ddff9f3ecd68c96fbfadbba6b294827656f85
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2022 JiDe Zhang <zccrs@live.com>.</text>
+
+FileName: ./src/types/qwdatadevicev1.cpp
+SPDXID: SPDXRef-470a736cd06b51e82048482e4c275581
+FileChecksum: SHA1: 27236d6b20dd1c0c45650dadaa292b0f74abd4d6
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2023 rewine <luhongxu@deepin.org>.</text>
+
+FileName: ./src/types/qwdatasource.cpp
+SPDXID: SPDXRef-6bc7dc32c841bc1bb2acf5ff6e4f15f4
+FileChecksum: SHA1: f6d7069a4506351ac06fc3bc780a0f7157b647d2
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2023 rewine <luhongxu@deepin.org>.</text>
+
+FileName: ./src/types/qwdrm.cpp
+SPDXID: SPDXRef-d40207a128311c2744160ae3e441a298
+FileChecksum: SHA1: f8696f5cf53bcc27288a82c16216a7759b2425a2
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2023 rewine <luhongxu@deepin.org>.</text>
+
+FileName: ./src/types/qwdrm.h
+SPDXID: SPDXRef-bbe276e7bf6baa4e29a8b46add5b58f8
+FileChecksum: SHA1: 441c4ae439a26802dd18209b9ea27708fcdf130a
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2023 rewine <luhongxu@deepin.org>.</text>
+
+FileName: ./src/types/qwdrmleaserequestv1.cpp
+SPDXID: SPDXRef-322c3ae12c3dd1299103b8ecb5111b1c
+FileChecksum: SHA1: b26efe498021a70242e883ec23299d7c79961dfd
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2023 rewine <luhongxu@deepin.org>.</text>
+
+FileName: ./src/types/qwdrmleasev1.cpp
+SPDXID: SPDXRef-d373cc74fbd5ac38a689e4a8ef8d0b22
+FileChecksum: SHA1: ad4a245588468a995b6742adb12fe4afa777a518
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2023 rewine <luhongxu@deepin.org>.</text>
+
+FileName: ./src/types/qwdrmleasev1.h
+SPDXID: SPDXRef-a9d873efa4c7477205934294092dc1ee
+FileChecksum: SHA1: 6ffdbde87600d8ce84e239b8d300fdb771ce7c94
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2023 rewine <luhongxu@deepin.org>.</text>
+
+FileName: ./src/types/qwdrmleasev1manager.cpp
+SPDXID: SPDXRef-636695bc2d7c0226d8cf4f28ceddcb46
+FileChecksum: SHA1: 2fdd925fb76a0aa6c4f24ff18f93f687dc2d73d7
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2023 rewine <luhongxu@deepin.org>.</text>
+
+FileName: ./src/types/qwexportdmabufmanagerv1.cpp
+SPDXID: SPDXRef-fe1f800d785a03af7581a703af27014c
+FileChecksum: SHA1: db5453a87659d1e833397e831ba4ba30e5c8310a
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2023 rewine <luhongxu@deepin.org>.</text>
+
+FileName: ./src/types/qwexportdmabufv1.h
+SPDXID: SPDXRef-4829d469607e1966433ac9c65e17af10
+FileChecksum: SHA1: ce8f0b337593fab9915bd08a36e95ebe9a0e50fc
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2023 rewine <luhongxu@deepin.org>.</text>
+
+FileName: ./src/types/qwforeigntoplevelhandlev1.cpp
+SPDXID: SPDXRef-dce99bbad787b1bb50b245499decf2dd
+FileChecksum: SHA1: 047bc7fce0707865d0dd748ed784a9a5a5cc10e9
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2023 rewine <luhongxu@deepin.org>.</text>
+
+FileName: ./src/types/qwforeigntoplevelhandlev1.h
+SPDXID: SPDXRef-528509b0236bc7b0bda177f144102e57
+FileChecksum: SHA1: 5661729664de9228499ed62f5303e82534117c94
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2023 rewine <luhongxu@deepin.org>.</text>
+
+FileName: ./src/types/qwforeigntoplevelmanagerv1.cpp
+SPDXID: SPDXRef-d76b704eb960e864ac5229be5a079808
+FileChecksum: SHA1: 3767ea4d465093a421ae7e1d347a1a44e3d42f05
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2023 rewine <luhongxu@deepin.org>.</text>
+
+FileName: ./src/types/qwfractionalscalev1.cpp
+SPDXID: SPDXRef-301a80a42f23a0c13dc12e14d0fbcfcc
+FileChecksum: SHA1: e0a4c82518ddbd29d74a34602e58dd34714b0800
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2023 rewine <luhongxu@deepin.org>.</text>
+
+FileName: ./src/types/qwfractionalscalev1.h
+SPDXID: SPDXRef-36197016e38b479f0fd7987de5aea3c4
+FileChecksum: SHA1: 834177ed85d3e5589bdaf5aa1405a43afb2ba676
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2023 rewine <luhongxu@deepin.org>.</text>
+
+FileName: ./src/types/qwfullscreenshellv1.cpp
+SPDXID: SPDXRef-de020595eb5ee8966b15f380401d8110
+FileChecksum: SHA1: 899dbcf735bc5bd7422c88697fca88a90714340b
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2023 rewine <luhongxu@deepin.org>.</text>
+
+FileName: ./src/types/qwfullscreenshellv1.h
+SPDXID: SPDXRef-f6235571f3c2f66937a94ad45434e4ee
+FileChecksum: SHA1: 13d8dd5676a1537fde748fbd3a4dba29cebbb98d
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2023 rewine <luhongxu@deepin.org>.</text>
+
+FileName: ./src/types/qwgammacontorlv1.cpp
+SPDXID: SPDXRef-90914ef2156d8ec4d964ad8a49319a4a
+FileChecksum: SHA1: 7ab089a3567840c9753bce2fe8fe6c3cfa07beab
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2023 rewine <luhongxu@deepin.org>.</text>
+
+FileName: ./src/types/qwgammacontorlv1.h
+SPDXID: SPDXRef-fecf7d7292a122563f5deb49e7f91255
+FileChecksum: SHA1: 254ef7eccd5be6cf07e69e8162ad1f6a4081d22a
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2023 rewine <luhongxu@deepin.org>.</text>
+
+FileName: ./src/types/qwidle.cpp
+SPDXID: SPDXRef-6baccc32759b306343deddcbd4acafd9
+FileChecksum: SHA1: 20f20b88d0724dd98ddfef5f12b7337586f5dac7
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2023 rewine <luhongxu@deepin.org>.</text>
+
+FileName: ./src/types/qwidle.h
+SPDXID: SPDXRef-c8ce4b58832cf635467aff640e8d10f9
+FileChecksum: SHA1: 5ddd551a5c34ee3b98e5eaa1707de702350fd960
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2023 rewine <luhongxu@deepin.org>.</text>
+
+FileName: ./src/types/qwidleinhibitv1.cpp
+SPDXID: SPDXRef-71b04e06612fb411aa512297a68b701a
+FileChecksum: SHA1: 997748a2e030af65d353508ff580d61d5e45e518
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2023 rewine <luhongxu@deepin.org>.</text>
+
+FileName: ./src/types/qwidleinhibitv1.h
+SPDXID: SPDXRef-f69daedc6de9bad5e48cf4ba41f33a9c
+FileChecksum: SHA1: f823643c4bda2d248e58efcab36823f4ec5456c2
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2023 rewine <luhongxu@deepin.org>.</text>
+
+FileName: ./src/types/qwidlenotifyv1.cpp
+SPDXID: SPDXRef-9ed45b3f22ed6319f757173ec43b594b
+FileChecksum: SHA1: 223744d61a4d543f97c2ba29a7446311ad33fdad
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2023 rewine <luhongxu@deepin.org>.</text>
+
+FileName: ./src/types/qwidlenotifyv1.h
+SPDXID: SPDXRef-0dcd6b8cf1d953f0cab8e8ecca890ecb
+FileChecksum: SHA1: 1df2b1521c755f1a0c0352bb796df4608982957c
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2023 rewine <luhongxu@deepin.org>.</text>
+
+FileName: ./src/types/qwinputdevice.cpp
+SPDXID: SPDXRef-505bc793ba6e38eba594cfb695bdfd6d
+FileChecksum: SHA1: 3ad9c51c73470af84c8723f9d0f1d88f8f099e7f
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2023 rewine <luhongxu@deepin.org>.</text>
+
+FileName: ./src/types/qwinputdevice.h
+SPDXID: SPDXRef-7cf7d9f0de48942538f04aebfe59c13e
+FileChecksum: SHA1: 50cd5b7634f27f4f704a4e37e935da2466ba8ac6
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2023 rewine <luhongxu@deepin.org>.</text>
+
+FileName: ./src/types/qwinputdevice_p.h
+SPDXID: SPDXRef-4d798d718409b5450622b157321b94e7
+FileChecksum: SHA1: 45f8ba5cc91ba2f3fd798e34d901f472dcf6c0f5
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2023 rewine <luhongxu@deepin.org>.</text>
+
+FileName: ./src/types/qwinputinhibitmanager.cpp
+SPDXID: SPDXRef-c84e9d907374dd85fa83e0efb8f25ef6
+FileChecksum: SHA1: 13d163a7e410244b96988edfbecfcd7534ba7f07
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2023 rewine <luhongxu@deepin.org>.</text>
+
+FileName: ./src/types/qwinputinhibitmanager.h
+SPDXID: SPDXRef-aa798905e1db17036056ebf8c00ef17a
+FileChecksum: SHA1: 92f136349ae6683239751219286d1638fab79ac5
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2023 rewine <luhongxu@deepin.org>.</text>
+
+FileName: ./src/types/qwinputmethodkeyboardgrabv2.cpp
+SPDXID: SPDXRef-aa6760c7f8d3d984931007de36db90c6
+FileChecksum: SHA1: 4214b1e4480be61d56be17bae3364af50b1e27fe
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2023 rewine <luhongxu@deepin.org>.</text>
+
+FileName: ./src/types/qwinputmethodv2.cpp
+SPDXID: SPDXRef-1133a33c2dca18c719d2e789f3544b86
+FileChecksum: SHA1: d5d47d2dfffd652427040211ed4c322b7beceb9d
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2023 rewine <luhongxu@deepin.org>.</text>
+
+FileName: ./src/types/qwinputmethodv2.h
+SPDXID: SPDXRef-2cfa3eeb62c9bb04c05a2b8b83c9add3
+FileChecksum: SHA1: 61eb4af00979f2c9db5b33f137f034c82405da51
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2023 rewine <luhongxu@deepin.org>.</text>
+
+FileName: ./src/types/qwinputpopupsurfacev2.cpp
+SPDXID: SPDXRef-f97ced38eb823c3bae7febbc04414928
+FileChecksum: SHA1: d811da5994b8121c790dfcb28405d3e1188660d0
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2023 rewine <luhongxu@deepin.org>.</text>
+
+FileName: ./src/types/qwkeyboard.cpp
+SPDXID: SPDXRef-4a58ff69f93192a411bc9ac62d112f13
+FileChecksum: SHA1: f8a154bd9a1bda94a1b99412e823256d9287bc94
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2023 rewine <luhongxu@deepin.org>.</text>
+
+FileName: ./src/types/qwkeyboard.h
+SPDXID: SPDXRef-fffd605031d93317445bee5f8628b21e
+FileChecksum: SHA1: 6d5708f79d912df77ee21fe5feb42b654b09f8c2
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2023 rewine <luhongxu@deepin.org>.</text>
+
+FileName: ./src/types/qwkeyboardgroup.cpp
+SPDXID: SPDXRef-4c19e8b34ab1f2128d515671c2b4ac39
+FileChecksum: SHA1: 297400ae11ffc537e5571804f7d620355b9398b6
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2023 rewine <luhongxu@deepin.org>.</text>
+
+FileName: ./src/types/qwkeyboardgroup.h
+SPDXID: SPDXRef-2dc2a80bb8eb668d3f7f198fd7903403
+FileChecksum: SHA1: 445d02f14d4ac71be79533b6167dcc26878de46e
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2023 rewine <luhongxu@deepin.org>.</text>
+
+FileName: ./src/types/qwkeyboardshortcutsinhibitmanagerv1.cpp
+SPDXID: SPDXRef-8b6adfaa03a49d15fca18e018cd430d3
+FileChecksum: SHA1: 8870914977fff50334e2a65736728ba1bf4b737c
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2023 rewine <luhongxu@deepin.org>.</text>
+
+FileName: ./src/types/qwkeyboardshortcutsinhibitv1.cpp
+SPDXID: SPDXRef-c71cf9eb66e16d1a300cf407633500e4
+FileChecksum: SHA1: 3549f606ef938360a9e3248a564031a7d6cb3a44
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2023 rewine <luhongxu@deepin.org>.</text>
+
+FileName: ./src/types/qwkeyboardshortcutsinhibitv1.h
+SPDXID: SPDXRef-ee6e91944d2005337a7feafbfd9dde5c
+FileChecksum: SHA1: 8593884a0796b88692ca3492049f645ba1454329
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2023 rewine <luhongxu@deepin.org>.</text>
+
+FileName: ./src/types/qwlayershellv1.cpp
+SPDXID: SPDXRef-35365d93a64fd0c913c45c48a55c87aa
+FileChecksum: SHA1: 2927d7be4036680d5cbb4e70c99413ffc8a33cc2
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2023 rewine <luhongxu@deepin.org>.</text>
+
+FileName: ./src/types/qwlayershellv1.h
+SPDXID: SPDXRef-88cbf5cecb363b1a448a4d8942ad05c5
+FileChecksum: SHA1: 90bcc2108a23b2ba7df6de95cc97cb6e09aaaa50
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2023 rewine <luhongxu@deepin.org>.</text>
+
+FileName: ./src/types/qwlinuxdmabuffeedbackv1.cpp
+SPDXID: SPDXRef-061b86f2eed036dcbc7a90f4d8a90273
+FileChecksum: SHA1: caf936333eaab7f890cf6c0c3ed529c0d2088032
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2023 rewine <luhongxu@deepin.org>.</text>
+
+FileName: ./src/types/qwlinuxdmabufv1.cpp
+SPDXID: SPDXRef-801b61dde915298fb990df1fdf24b49d
+FileChecksum: SHA1: 1a948e95375e58ff56624d1a31930db28cdc4eda
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2023 rewine <luhongxu@deepin.org>.</text>
+
+FileName: ./src/types/qwlinuxdmabufv1.h
+SPDXID: SPDXRef-f5b317a0f30776a23cf702260a9af7d3
+FileChecksum: SHA1: fbb545934b4f6bc859caaa94a2963d6424c8e351
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2023 rewine <luhongxu@deepin.org>.</text>
+
+FileName: ./src/types/qwoutput.cpp
+SPDXID: SPDXRef-bdc14569772e1696d648656c3dec0515
+FileChecksum: SHA1: 2aaa2f249e48fd2c6760b443b061239d28b962df
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2022 JiDe Zhang <zccrs@live.com>.</text>
+
+FileName: ./src/types/qwoutput.h
+SPDXID: SPDXRef-e4eafcc29072bfd6a97ded4c928a2884
+FileChecksum: SHA1: 91e0d99280ccb82f25b7ef30a9c7d56fbb6bf39a
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2022 JiDe Zhang <zccrs@live.com>.</text>
+
+FileName: ./src/types/qwoutputconfigurationheadv1.cpp
+SPDXID: SPDXRef-ad2d35708d7bbd666a778b3c14ee6218
+FileChecksum: SHA1: 98e6bf8cc0f9cad2fabe6b96cf5af2ab80833420
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2023 rewine <luhongxu@deepin.org>.</text>
+
+FileName: ./src/types/qwoutputconfigurationv1.cpp
+SPDXID: SPDXRef-af815020846265a69fbbf847ecb6f3eb
+FileChecksum: SHA1: d2bac39d93a3a5a397b2e6eb62b78818f0d3e5bc
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2023 rewine <luhongxu@deepin.org>.</text>
+
+FileName: ./src/types/qwoutputlayout.cpp
+SPDXID: SPDXRef-3f0faf81c303e031db1792111906d1b0
+FileChecksum: SHA1: 6e40b8a1f0ce8e0deecde7ab264cf467bbac4503
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2022 JiDe Zhang <zccrs@live.com>.</text>
+
+FileName: ./src/types/qwoutputlayout.h
+SPDXID: SPDXRef-53cb4cefe156153ac7ae6b8022ac6daf
+FileChecksum: SHA1: 5610c081dda4e8d01c8927a00c8c6bb2ee405288
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2022 JiDe Zhang <zccrs@live.com>.</text>
+
+FileName: ./src/types/qwoutputmanagementv1.h
+SPDXID: SPDXRef-87df89eac6c3fa57978b6e665aefb1ba
+FileChecksum: SHA1: d77c5745005cd7be1790280bba0789cc59b31b0f
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2023 rewine <luhongxu@deepin.org>.</text>
+
+FileName: ./src/types/qwoutputmanagerv1.cpp
+SPDXID: SPDXRef-ac6977d61168afe4c3adb3924e2874a5
+FileChecksum: SHA1: 0cbc2e89580573eb6175ec88868ff559ee42f5a1
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2023 rewine <luhongxu@deepin.org>.</text>
+
+FileName: ./src/types/qwoutputpowermanagementv1.cpp
+SPDXID: SPDXRef-466a83c105153a02bb96596cb83caa5b
+FileChecksum: SHA1: 30a86ef04fe6a2a309e6874849cf545e6b0fb65d
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2023 rewine <luhongxu@deepin.org>.</text>
+
+FileName: ./src/types/qwoutputpowermanagementv1.h
+SPDXID: SPDXRef-5379798db2e7d8e6cfeeb152150ac802
+FileChecksum: SHA1: 35e4d7b1d298c4d7ac91cf33f27ec49b5f041786
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2023 rewine <luhongxu@deepin.org>.</text>
+
+FileName: ./src/types/qwpointer.cpp
+SPDXID: SPDXRef-f844ba3915c854340ec287eb9b51bbae
+FileChecksum: SHA1: 8ab890d6c9f3131951a0a43d85aa46f4bdf9aedc
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2023 rewine <luhongxu@deepin.org>.</text>
+
+FileName: ./src/types/qwpointer.h
+SPDXID: SPDXRef-1228a1664931c4d5425c543d1d3c135c
+FileChecksum: SHA1: 9f9bd11c30e234dc761e9a85f7cb695c873cb6ac
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2023 rewine <luhongxu@deepin.org>.</text>
+
+FileName: ./src/types/qwpointerconstraintsv1.cpp
+SPDXID: SPDXRef-688862ffeb60c54b9880afff5020b027
+FileChecksum: SHA1: d1ef65d87f72c5416f6949f6bd71f5f1f248ff33
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2023 Dingyuan Zhang <zhangdingyuan@uniontech.com>.</text>
+
+FileName: ./src/types/qwpointerconstraintsv1.h
+SPDXID: SPDXRef-ea60a1553c16e996f7e78a58c8834ad1
+FileChecksum: SHA1: f8e98291f25f8faedeb72b248fa7d7de281b6ac5
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2023 Dingyuan Zhang <zhangdingyuan@uniontech.com>.</text>
+
+FileName: ./src/types/qwpointerconstraintv1.cpp
+SPDXID: SPDXRef-1c059d5bea801b20be9a7c5e046b9050
+FileChecksum: SHA1: 0371d45475d0a6b86236957f30d97fece83d2455
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2023 Dingyuan Zhang <zhangdingyuan@uniontech.com>.</text>
+
+FileName: ./src/types/qwpointergesturesv1.cpp
+SPDXID: SPDXRef-b754db839a7ca8adf9c8ae8f669a4b06
+FileChecksum: SHA1: 0dca401825f9b12779e07fba41b35ef59e5eb4a0
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2023 Dingyuan Zhang <zhangdingyuan@uniontech.com>.</text>
+
+FileName: ./src/types/qwpointergesturesv1.h
+SPDXID: SPDXRef-7b61b724e645a604fc75bb6145391dd1
+FileChecksum: SHA1: 702c6e55f5c30980692d52e72cb1fa9bba85ce44
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2023 Dingyuan Zhang <zhangdingyuan@uniontech.com>.</text>
+
+FileName: ./src/types/qwpresentation.cpp
+SPDXID: SPDXRef-12552e1974f1a6d14da9e23f3ad96e75
+FileChecksum: SHA1: 2150d9977c22a680c252420868e44622f9dfaea5
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2023 rewine <luhongxu@deepin.org>.</text>
+
+FileName: ./src/types/qwpresentation.h
+SPDXID: SPDXRef-d8218e452b6bf34e06bf9766830c9a6c
+FileChecksum: SHA1: 9a80b80a9194631f2b25fcfd1e55861f683591ff
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2023 rewine <luhongxu@deepin.org>.</text>
+
+FileName: ./src/types/qwprimaryselection.cpp
+SPDXID: SPDXRef-49460e3f80d2263081501559aa631482
+FileChecksum: SHA1: 991962a0b89d12430a127b0fe2c14369d180fa95
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2023 Dingyuan Zhang <zhangdingyuan@uniontech.com>.</text>
+
+FileName: ./src/types/qwprimaryselection.h
+SPDXID: SPDXRef-a4ff96a677494c68b1909944b4fc8679
+FileChecksum: SHA1: 9c6d6db603605ecfef9c02f4e58e8eefd5232383
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2023 Dingyuan Zhang <zhangdingyuan@uniontech.com>.</text>
+
+FileName: ./src/types/qwprimaryselectionv1.cpp
+SPDXID: SPDXRef-9f07159b6b7f3b7feb1407dfc3795086
+FileChecksum: SHA1: 3df8e8a47ea3a9b9ae1c7c2230c3c868cf62c7ba
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2023 Dingyuan Zhang <zhangdingyuan@uniontech.com>.</text>
+
+FileName: ./src/types/qwprimaryselectionv1.h
+SPDXID: SPDXRef-5eb59c30f52bdfa3153c0fea98b04a89
+FileChecksum: SHA1: e6031b357ec65cfeb5379c69ea7b25a530459952
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2023 Dingyuan Zhang <zhangdingyuan@uniontech.com>.</text>
+
+FileName: ./src/types/qwrelativepointermanagerv1.cpp
+SPDXID: SPDXRef-6b235fd0addc816951344254a9aff3b9
+FileChecksum: SHA1: b0ff3551bdd15329327752471c05b13d3a15b3b2
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2023 Dingyuan Zhang <zhangdingyuan@uniontech.com>.</text>
+
+FileName: ./src/types/qwrelativepointerv1.cpp
+SPDXID: SPDXRef-8ed5b482a87e1151c437c9438e015c1d
+FileChecksum: SHA1: 700e6f1c6b7622d03b2de667eff7d2d4319fd5c8
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2023 Dingyuan Zhang <zhangdingyuan@uniontech.com>.</text>
+
+FileName: ./src/types/qwrelativepointerv1.h
+SPDXID: SPDXRef-30897f6539bd7bb6f87426b4b8b78a96
+FileChecksum: SHA1: 559cd86cea45c4f9ebf52e297086b0ba77c44971
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2023 Dingyuan Zhang <zhangdingyuan@uniontech.com>.</text>
+
+FileName: ./src/types/qwscene.cpp
+SPDXID: SPDXRef-9c820089e93800cc1d812df7bc9f8f70
+FileChecksum: SHA1: 35e7b56f338346a04fca2a030c7a9494f90298d2
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2022 JiDe Zhang <zccrs@live.com>.</text>
+
+FileName: ./src/types/qwscene.h
+SPDXID: SPDXRef-f20ec6819e8ed64b13017b26a4dc4ae7
+FileChecksum: SHA1: a5d207389d92fbbab6d7a824e6a19b47e33ca7ed
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2022 JiDe Zhang <zccrs@live.com>.</text>
+
+FileName: ./src/types/qwscreencopyv1.cpp
+SPDXID: SPDXRef-0a55e6fee438f3bdfd6eb33c5c86b406
+FileChecksum: SHA1: a0da45f7ecdf4013d9d36e2115b61db67cfb534d
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2023 Dingyuan Zhang <zhangdingyuan@uniontech.com>.</text>
+
+FileName: ./src/types/qwscreencopyv1.h
+SPDXID: SPDXRef-5de9c94d3482f28a07866e045d997394
+FileChecksum: SHA1: e8a7bb0d205ea42359b6bfc6349a11b0b2b9e3d9
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2023 Dingyuan Zhang <zhangdingyuan@uniontech.com>.</text>
+
+FileName: ./src/types/qwseat.cpp
+SPDXID: SPDXRef-b031b1d3e1e16fd2aa098098ebfd27ec
+FileChecksum: SHA1: bb24bad5c5f3d06365f1e78bea08c109bcc8b636
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2023 rewine <luhongxu@deepin.org>.</text>
+
+FileName: ./src/types/qwseat.h
+SPDXID: SPDXRef-25b0dbbde6695d612874917f69de8a5c
+FileChecksum: SHA1: 689224fb5efb640597f1dae469cb7233fe796043
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2023 rewine <luhongxu@deepin.org>.</text>
+
+FileName: ./src/types/qwsessionlockmanagerv1.cpp
+SPDXID: SPDXRef-13064e3c1506aa7fec9dc7a7a9385293
+FileChecksum: SHA1: 1d551635002cc08192c9acf81e8ead5cde73d473
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2023 Dingyuan Zhang <zhangdingyuan@uniontech.com>.</text>
+
+FileName: ./src/types/qwsessionlocksurfacev1.cpp
+SPDXID: SPDXRef-91bd7f1e959cb93e298bb0979ae6675e
+FileChecksum: SHA1: 850208296de653da08c63ab0149245522e055ed0
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2023 Dingyuan Zhang <zhangdingyuan@uniontech.com>.</text>
+
+FileName: ./src/types/qwsessionlockv1.cpp
+SPDXID: SPDXRef-147fae78b55f08f33bbd689c0585c2a9
+FileChecksum: SHA1: 9925dfea7f6a7e669e03944c96d5027a4146f872
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2023 Dingyuan Zhang <zhangdingyuan@uniontech.com>.</text>
+
+FileName: ./src/types/qwsessionlockv1.h
+SPDXID: SPDXRef-55a455e4a54d901c10cbeb4cfd5dc349
+FileChecksum: SHA1: 23aeab90c96a1546c971806cfa3ff474e63a9290
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2023 Dingyuan Zhang <zhangdingyuan@uniontech.com>.</text>
+
+FileName: ./src/types/qwshm.cpp
+SPDXID: SPDXRef-6a742fb2bf2ddc3d1e0cabb6cbb6b319
+FileChecksum: SHA1: 741b1c16f6df9f73a91f3f013eab25e1d8ba1d2e
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2023 rewine <luhongxu@deepin.org>.</text>
+
+FileName: ./src/types/qwshm.h
+SPDXID: SPDXRef-5d5fb2e29e3f128331bc7f1f74276978
+FileChecksum: SHA1: 6b3e587eb4645f82c4e8bd9e9aac04caa961e76f
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2023 rewine <luhongxu@deepin.org>.</text>
+
+FileName: ./src/types/qwsinglepixelbufferv1.cpp
+SPDXID: SPDXRef-e2687137e3466ba0df2c9e1c3489ef41
+FileChecksum: SHA1: 52f5ecd14cd26cbd3c1917547d6e2ab796c45f0e
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2023 Dingyuan Zhang <zhangdingyuan@uniontech.com>.</text>
+
+FileName: ./src/types/qwsinglepixelbufferv1.h
+SPDXID: SPDXRef-011b8302a83777c55c2bd158c079229c
+FileChecksum: SHA1: bfb562b9cef0fdaf6806f6830c20466b134f5b06
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2023 Dingyuan Zhang <zhangdingyuan@uniontech.com>.</text>
+
+FileName: ./src/types/qwsubcompositor.cpp
+SPDXID: SPDXRef-194b8155d2b913f797534dd2e01159b2
+FileChecksum: SHA1: 3c8af5d85aec87e182046ffa3fb904f0ecd82e80
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2022 JiDe Zhang <zccrs@live.com>.</text>
+
+FileName: ./src/types/qwsubcompositor.h
+SPDXID: SPDXRef-5f2ae2baf9b8d7dc56b3541377f7ebbf
+FileChecksum: SHA1: cf75d451b30fc0f4bdbfa608e013e23f35a40fdb
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2022 JiDe Zhang <zccrs@live.com>.</text>
+
+FileName: ./src/types/qwswitch.cpp
+SPDXID: SPDXRef-9cf6dcd38588fabed1580e8e73a19091
+FileChecksum: SHA1: 95c4318fe8fbe324e0340ee8b6adbbddce5be0f4
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2023 Dingyuan Zhang <zhangdingyuan@uniontech.com>.</text>
+
+FileName: ./src/types/qwswitch.h
+SPDXID: SPDXRef-e7d18f1728c3553310c7f1dc07e684fe
+FileChecksum: SHA1: 5869f4157bd45da82dfe716c452b7e4df7387c06
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2023 Dingyuan Zhang <zhangdingyuan@uniontech.com>.</text>
+
+FileName: ./src/types/qwtablet.cpp
+SPDXID: SPDXRef-eae637131347cf7c8d3243d29649d6e3
+FileChecksum: SHA1: 5e0858af06d70908f4972a014467a05012e237b2
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2023 rewine <luhongxu@deepin.org>.</text>
+
+FileName: ./src/types/qwtablet.h
+SPDXID: SPDXRef-c6ca313f4e5bbbdcce54fb07d602c57e
+FileChecksum: SHA1: 389ed8868f16d32ecf6a3d49a8f1a7077a712503
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2023 rewine <luhongxu@deepin.org>.</text>
+
+FileName: ./src/types/qwtabletmanagerv2.cpp
+SPDXID: SPDXRef-f4e9c3dc439ddae92bec3bdd5ddbb87c
+FileChecksum: SHA1: 1eea7d321cc2ec85ace4718fdd32fb7059d06b03
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2023 Dingyuan Zhang <zhangdingyuan@uniontech.com>.</text>
+
+FileName: ./src/types/qwtabletpad.cpp
+SPDXID: SPDXRef-983a00c159f97635b4795cc0c5553391
+FileChecksum: SHA1: a5c8e6fa458db96009ab6aa4a9fd64823b92b674
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2023 rewine <luhongxu@deepin.org>.</text>
+
+FileName: ./src/types/qwtabletpad.h
+SPDXID: SPDXRef-5a1899953be2f22cdf00a42fb190c8b8
+FileChecksum: SHA1: 02aa4d2abd07abb3510796848ef0c6ac94129418
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2023 rewine <luhongxu@deepin.org>.</text>
+
+FileName: ./src/types/qwtablettool.cpp
+SPDXID: SPDXRef-4e7a5bea6a2ba32aee0f9591d8b90dbe
+FileChecksum: SHA1: 2d96be39004a77c7511b38b01a9ac26b9e8647ab
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2023 rewine <luhongxu@deepin.org>.</text>
+
+FileName: ./src/types/qwtabletv2.cpp
+SPDXID: SPDXRef-5a8238afd047fc8224b6a03926c94cf7
+FileChecksum: SHA1: 96670e395d90732a1b2bc5f943e57d8ed85c46a2
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2023 Dingyuan Zhang <zhangdingyuan@uniontech.com>.</text>
+
+FileName: ./src/types/qwtabletv2.h
+SPDXID: SPDXRef-f8eb14e1d29aadfe5aa42a8febca3936
+FileChecksum: SHA1: 2457c29d97cf8ad9b79097880585278be5528bf7
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2023 Dingyuan Zhang <zhangdingyuan@uniontech.com>.</text>
+
+FileName: ./src/types/qwtabletv2tablepad.cpp
+SPDXID: SPDXRef-c5c47ace40d202345a091696f0418061
+FileChecksum: SHA1: ed6738e83f9baed9a7fb4db80c55c4142dfc8d0b
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2023 Dingyuan Zhang <zhangdingyuan@uniontech.com>.</text>
+
+FileName: ./src/types/qwtabletv2tablet.cpp
+SPDXID: SPDXRef-2f7d3f003db42a55d2f77e1e0a05b439
+FileChecksum: SHA1: 82e0cb8261e2dcae4751ebb9d38f25a9b6c900c9
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2023 Dingyuan Zhang <zhangdingyuan@uniontech.com>.</text>
+
+FileName: ./src/types/qwtabletv2tabletool.cpp
+SPDXID: SPDXRef-fa9c076d0c9abd56d661cb6152673aa1
+FileChecksum: SHA1: 20ce17cee8343e04e6a04452cb45b90bf06832ac
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2023 Dingyuan Zhang <zhangdingyuan@uniontech.com>.</text>
+
+FileName: ./src/types/qwtextinputmanagerv3.cpp
+SPDXID: SPDXRef-bff9bf8f85893be0c675ee21733d103d
+FileChecksum: SHA1: bf53c4429a3e37d48dfafbdd8894abd8e6b97627
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2023 Dingyuan Zhang <zhangdingyuan@uniontech.com>.</text>
+
+FileName: ./src/types/qwtextinputv3.cpp
+SPDXID: SPDXRef-df094b0727c851c133ec2fc6be3ea029
+FileChecksum: SHA1: 4e1f376692e2aed45524d24457dd661e31649101
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2023 Dingyuan Zhang <zhangdingyuan@uniontech.com>.</text>
+
+FileName: ./src/types/qwtextinputv3.h
+SPDXID: SPDXRef-c6b84651f13f97ffbde82bb380a7bd67
+FileChecksum: SHA1: 9c35235a97304afe7a2fc759d7bb075961893170
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2023 Dingyuan Zhang <zhangdingyuan@uniontech.com>.</text>
+
+FileName: ./src/types/qwtouch.cpp
+SPDXID: SPDXRef-40d210003fcf735ea7b76ddd97d75720
+FileChecksum: SHA1: a84ecce7d9c4feba0323127ef9294ef2c90c1a20
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2023 rewine <luhongxu@deepin.org>.</text>
+
+FileName: ./src/types/qwtouch.h
+SPDXID: SPDXRef-6a0340c15dc1425f85447c6cb9df68c2
+FileChecksum: SHA1: 3e1eca7890e1435fcf25d8b2e9566f2b2a0a1631
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2023 rewine <luhongxu@deepin.org>.</text>
+
+FileName: ./src/types/qwviewporter.cpp
+SPDXID: SPDXRef-3989500f3e64feff6f368f4253bc9bc5
+FileChecksum: SHA1: aa5b41cc6a67ce4dc430d1b88b26cddb350c6572
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2023 rewine <luhongxu@deepin.org>.</text>
+
+FileName: ./src/types/qwviewporter.h
+SPDXID: SPDXRef-8fc29ec153472204d3f16daf846b9d6c
+FileChecksum: SHA1: a0e855d257d80366e93d21526b7102accb6acc1d
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2023 rewine <luhongxu@deepin.org>.</text>
+
+FileName: ./src/types/qwvirtualkeyboardmanagerv1.cpp
+SPDXID: SPDXRef-c86898118cdd1d0606924598d5bc2a03
+FileChecksum: SHA1: 5ec85423cfbb7adce1462056a4d5f0b3a03afa1f
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2023 Dingyuan Zhang <zhangdingyuan@uniontech.com>.</text>
+
+FileName: ./src/types/qwvirtualkeyboardv1.cpp
+SPDXID: SPDXRef-5409e46bc8637d154f12dd1b412b84f9
+FileChecksum: SHA1: d2056d103cdb4a5e5a9057391ea37488e4023c80
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2023 Dingyuan Zhang <zhangdingyuan@uniontech.com>.</text>
+
+FileName: ./src/types/qwvirtualkeyboardv1.h
+SPDXID: SPDXRef-063c26e6b360fe66ab9f91e3181a05a8
+FileChecksum: SHA1: dc8ebd7cf6cd55752dc7cfa724e4ceabbed2f494
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2023 Dingyuan Zhang <zhangdingyuan@uniontech.com>.</text>
+
+FileName: ./src/types/qwvirtualpointerv1.cpp
+SPDXID: SPDXRef-8c2b2c69ad2ec0d53415a9c5cf3be08f
+FileChecksum: SHA1: b35b754e459c71995f20af5a2fc37765376300d9
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2023 Dingyuan Zhang <zhangdingyuan@uniontech.com>.</text>
+
+FileName: ./src/types/qwvirtualpointerv1.h
+SPDXID: SPDXRef-59437d6a9df7595a767a12d9e0040357
+FileChecksum: SHA1: 805e70cd5a082a3b139da616f4d0577697dd821d
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2023 Dingyuan Zhang <zhangdingyuan@uniontech.com>.</text>
+
+FileName: ./src/types/qwxcursormanager.cpp
+SPDXID: SPDXRef-8338e8c41e1e149495fe7727f5d3915a
+FileChecksum: SHA1: 5642ef9d867d17c1e6b242c75d19faa0f158f2ac
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2022 JiDe Zhang <zccrs@live.com>.</text>
+
+FileName: ./src/types/qwxcursormanager.h
+SPDXID: SPDXRef-2b9a8bc1a610333777b06a8b13e4d9e1
+FileChecksum: SHA1: 0c4ea730d0c8c7d228f6155233a25b0487c0c792
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2022 JiDe Zhang <zccrs@live.com>.</text>
+
+FileName: ./src/types/qwxdgactivationtokenv1.cpp
+SPDXID: SPDXRef-ea372f45e8e6e718a7f9370ced595932
+FileChecksum: SHA1: 685be38c813d1187a927894e97917c50a22ae9be
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2023 Dingyuan Zhang <zhangdingyuan@uniontech.com>.</text>
+
+FileName: ./src/types/qwxdgactivationv1.cpp
+SPDXID: SPDXRef-4d3c1bd1786a2a12ec39a56688bb43ae
+FileChecksum: SHA1: 12fa738fd353afbcc0525c037340c08f34143fa2
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2023 Dingyuan Zhang <zhangdingyuan@uniontech.com>.</text>
+
+FileName: ./src/types/qwxdgactivationv1.h
+SPDXID: SPDXRef-f7ba9698771e8bb50184382a20c50b8d
+FileChecksum: SHA1: 7886a453a347890d04139343d86128563510142f
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2023 Dingyuan Zhang <zhangdingyuan@uniontech.com>.</text>
+
+FileName: ./src/types/qwxdgdecorationmanagerv1.cpp
+SPDXID: SPDXRef-7411179422df9d855712e5943fc43e0b
+FileChecksum: SHA1: e19152a74f82c04a857eea11a1b025cd86c8793e
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2023 rewine <luhongxu@deepin.org>.</text>
+
+FileName: ./src/types/qwxdgdecorationmanagerv1.h
+SPDXID: SPDXRef-59833c7fe644cef8b37e075a8c59a939
+FileChecksum: SHA1: 721e3780b0308573b794350d87120532d9344979
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2023 rewine <luhongxu@deepin.org>.</text>
+
+FileName: ./src/types/qwxdgforeignregistry.cpp
+SPDXID: SPDXRef-15e8cb1bffa575517806f32c91581f3e
+FileChecksum: SHA1: 52c9ed950edf9c9b14a876e344008f55605f63fb
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2023 Dingyuan Zhang <zhangdingyuan@uniontech.com>.</text>
+
+FileName: ./src/types/qwxdgforeignregistry.h
+SPDXID: SPDXRef-aa91f14222390db10abaceb48c4cd8de
+FileChecksum: SHA1: 072f56d977fc1b41666ca90d83bb0594cf3cc51c
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2023 Dingyuan Zhang <zhangdingyuan@uniontech.com>.</text>
+
+FileName: ./src/types/qwxdgforeignregistry_p.h
+SPDXID: SPDXRef-bf8accb6e32311e9896d725ea4d6a993
+FileChecksum: SHA1: e39b647de5b04125cbff5d7ebee4aa16f9733d87
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2023 Dingyuan Zhang <zhangdingyuan@uniontech.com>.</text>
+
+FileName: ./src/types/qwxdgforeignv1.cpp
+SPDXID: SPDXRef-795ffa4e7014b14ca935b2ed3d118963
+FileChecksum: SHA1: f246e017724d9819f3306dd0e239a716d3bc70c5
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2023 Dingyuan Zhang <zhangdingyuan@uniontech.com>.</text>
+
+FileName: ./src/types/qwxdgforeignv1.h
+SPDXID: SPDXRef-86926b00716b20e98e95681ac8e31f2d
+FileChecksum: SHA1: 6bde7cef6c926922e2878cf9a8ad2f1a6d50ba23
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2023 Dingyuan Zhang <zhangdingyuan@uniontech.com>.</text>
+
+FileName: ./src/types/qwxdgforeignv2.cpp
+SPDXID: SPDXRef-f045bab4c323007dd550f41c8b4cd5ef
+FileChecksum: SHA1: 9eef2e0c74d9d47b58eef8f09576cbc2e7e89bc8
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2023 Dingyuan Zhang <zhangdingyuan@uniontech.com>.</text>
+
+FileName: ./src/types/qwxdgforeignv2.h
+SPDXID: SPDXRef-a36a6080aef1aea7211f47704e164d60
+FileChecksum: SHA1: fb0cfa2c0505d0b663b2ecba690e92d9b4737d3a
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2023 Dingyuan Zhang <zhangdingyuan@uniontech.com>.</text>
+
+FileName: ./src/types/qwxdgoutputv1.cpp
+SPDXID: SPDXRef-31080083c51019ef16fda148609aa514
+FileChecksum: SHA1: cee8cc9bf4887daaff05fdb03af55ee7a88b1c6d
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2023 Dingyuan Zhang <zhangdingyuan@uniontech.com>.</text>
+
+FileName: ./src/types/qwxdgoutputv1.h
+SPDXID: SPDXRef-1a99e9f086c59228e06940b14913f99b
+FileChecksum: SHA1: c812609fc2f7a328c2d6c9e9cc2293a45ac02879
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2023 Dingyuan Zhang <zhangdingyuan@uniontech.com>.</text>
+
+FileName: ./src/types/qwxdgshell.cpp
+SPDXID: SPDXRef-7ca20261672c261db930b74f68b96fb1
+FileChecksum: SHA1: 57a57aeeb74c2bae739c13f18a7060e474f83fed
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2022 JiDe Zhang <zccrs@live.com>.</text>
+
+FileName: ./src/types/qwxdgshell.h
+SPDXID: SPDXRef-5cbc0a546092a0aaa6032ab860403425
+FileChecksum: SHA1: 1a134adb2b103d1931f35c007f52a50574923777
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2022 JiDe Zhang <zccrs@live.com>.</text>
+
+FileName: ./src/types/qwxwayland.cpp
+SPDXID: SPDXRef-79d6ad3ca59b4c2f80b89a617a070b82
+FileChecksum: SHA1: a3a196e9c51b159733fe973deca8aeaa32cdefdc
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2023 Dingyuan Zhang <zhangdingyuan@uniontech.com>.</text>
+
+FileName: ./src/types/qwxwayland.h
+SPDXID: SPDXRef-524fcc0b8d290da860e2351ab5a01178
+FileChecksum: SHA1: c05bb3dbffbb8e956943d5cb6071fcfc1265cdf0
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2023 Dingyuan Zhang <zhangdingyuan@uniontech.com>.</text>
+
+FileName: ./src/types/qwxwaylandserver.cpp
+SPDXID: SPDXRef-ea0b5ca72d9dbc6205b9d2d708e69722
+FileChecksum: SHA1: 3d96abda16fa8b46bd628d759b24144e633f3d9f
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2023 Dingyuan Zhang <zhangdingyuan@uniontech.com>.</text>
+
+FileName: ./src/types/qwxwaylandserver.h
+SPDXID: SPDXRef-d77172c9f63108bf19c64c22b7469ae1
+FileChecksum: SHA1: ba766712cad210ca138ac15a1ee1d0ce41d36587
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2023 Dingyuan Zhang <zhangdingyuan@uniontech.com>.</text>
+
+FileName: ./src/types/qwxwaylandshellv1.cpp
+SPDXID: SPDXRef-02769ebeb3063f0898f9df45a8b7fc8d
+FileChecksum: SHA1: 05486e268c1a0f2e74281b9ac1a5d6af3db89abb
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2023 Dingyuan Zhang <zhangdingyuan@uniontech.com>.</text>
+
+FileName: ./src/types/qwxwaylandshellv1.h
+SPDXID: SPDXRef-c5bff1b228a880e2db6e52f1a9e581fd
+FileChecksum: SHA1: 0978048f13e723229d98e14969b17ec400fb1251
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2023 Dingyuan Zhang <zhangdingyuan@uniontech.com>.</text>
+
+FileName: ./src/types/qwxwaylandsurface.cpp
+SPDXID: SPDXRef-6764d2227d56a49a6e4e308836032299
+FileChecksum: SHA1: 1d0780f34685bdefbc235d7e02ca07149e5f14e9
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2023 Dingyuan Zhang <zhangdingyuan@uniontech.com>.</text>
+
+FileName: ./src/types/qwxwaylandsurface.h
+SPDXID: SPDXRef-9afbec2f08c14f99581f14f291902b65
+FileChecksum: SHA1: 1c8ca9d1c8e56e185f31b0f2f1b54b2f35eaff2a
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2023 Dingyuan Zhang <zhangdingyuan@uniontech.com>.</text>
+
+FileName: ./src/util/qwsignalconnector.cpp
+SPDXID: SPDXRef-d4ac897d64f66699e6838b5266a1744f
+FileChecksum: SHA1: fa283004066a757c3e2e883e48c0f875b8d56bde
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2022 JiDe Zhang <zccrs@live.com>.</text>
+
+FileName: ./src/util/qwsignalconnector.h
+SPDXID: SPDXRef-1bafaf980327856b84dbf11323f10896
+FileChecksum: SHA1: f79236434a14c38e318218df1cb902559cf27bb7
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: Apache-2.0
+LicenseInfoInFile: GPL-2.0-only
+LicenseInfoInFile: GPL-3.0-only
+LicenseInfoInFile: LGPL-3.0-only
+FileCopyrightText: <text>Copyright (C) 2022 JiDe Zhang <zccrs@live.com>.</text>

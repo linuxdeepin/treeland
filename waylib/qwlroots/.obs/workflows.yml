@@ -1,0 +1,41 @@
+test_build:
+  steps:
+    - link_package:
+        source_project: home:rewine:vioken
+        source_package: %{SCM_REPOSITORY_NAME}
+        target_project: home:rewine:vioken:CI
+
+    - configure_repositories:
+        project: home:rewine:vioken:CI
+        repositories:
+          - name: Arch
+            paths:
+              - target_project: home:rewine:vioken
+                target_repository: Arch
+            architectures:
+              - x86_64
+
+          #- name: Fedora_Rawhide
+          #  paths:
+          #    - target_project: home:rewine:vioken
+          #      target_repository: Fedora_Rawhide
+          #  architectures:
+          #    - x86_64
+
+          - name: openSUSE_Tumbleweed
+            paths:
+              - target_project: home:rewine:vioken
+                target_repository: openSUSE_Tumbleweed
+            architectures:
+              - x86_64
+              - aarch64
+  filters:
+    event: pull_request
+
+commit_build:
+  steps:
+    - trigger_services:
+        project: home:rewine:vioken
+        package: %{SCM_REPOSITORY_NAME}
+  filters:
+    event: push

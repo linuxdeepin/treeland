@@ -1,0 +1,41 @@
+Source: waylib
+Section: libdevel
+Priority: optional
+Maintainer: JiDe Zhang <zhangjide@deepin.org>
+Build-Depends: debhelper (>= 9),
+ cmake,
+ pkg-config,
+ qt6-base-private-dev (>= 6.4.0),
+ qt6-base-dev-tools (>= 6.4.0),
+ qt6-declarative-private-dev (>= 6.4.0),
+ qml6-module-qtquick-templates,
+ qwlroots,
+ libwlroots-dev (>= 0.17.0),
+ libpixman-1-dev,
+ libxcb-ewmh-dev,
+ wayland-protocols,
+ wlr-protocols
+Standards-Version: 3.9.8
+
+Package: libwaylib
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Multi-Arch: same
+Description:  A wrapper for wlroots based on Qt
+ .
+ This package contains the shared libraries.
+
+Package: libwaylib-dev
+Architecture: any
+Depends: ${shlibs:Depends},
+  ${misc:Depends},
+  libwaylib (=${binary:Version}),
+  qt6-base-private-dev (>= 6.6.0),
+  qt6-base-dev-tools (>= 6.6.0),
+  qt6-declarative-private-dev (>= 6.6.0),
+  libwlroots-dev (>= 0.17.0),
+  wlr-protocols
+Description: A devel package for libwaylib
+ .
+ This package contains the header files and static libraries of waylib.
+

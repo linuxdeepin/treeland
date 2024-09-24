@@ -1,0 +1,9 @@
+@PACKAGE_INIT@
+
+include(CMakeFindDependencyMacro)
+find_dependency(QWlroots)
+
+include(${CMAKE_CURRENT_LIST_DIR}/WaylibServerTargets.cmake)
+
+check_required_components(WaylibServer)
+

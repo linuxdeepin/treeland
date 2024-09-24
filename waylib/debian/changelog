@@ -1,0 +1,11 @@
+waylib (0.1.1) UNRELEASED; urgency=medium
+
+  * Exclude client self when request grab keyboard on virtual keyboard.
+
+ -- JiDe Zhang <zhangjide@deepin.org>  Fri, 19 Jan 2023 10:10:03 +0800
+
+waylib (0.0.1) UNRELEASED; urgency=medium
+
+  * Initial
+
+ -- zkyd <zkyd@zjide.org>  Sat, 17 Jul 2021 16:09:03 +0800

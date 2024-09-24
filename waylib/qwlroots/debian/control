@@ -1,0 +1,36 @@
+Source: qwlroots
+Priority: optional
+Maintainer: rewine <lhongxu@outlook.com>
+Build-Depends: debhelper-compat (= 13),
+               pkg-config,
+               cmake,
+               qt6-base-private-dev,
+               qt6-base-dev-tools,
+               wayland-protocols,
+	       wlr-protocols,
+               libwlroots-dev (>=0.17.0),
+               libpixman-1-dev,
+               libxcb-ewmh-dev,
+	       libdrm-dev
+Standards-Version: 4.6.0
+Section: libs
+Homepage: https://github.com/vioken/qwlroots.git
+#Vcs-Browser: https://salsa.debian.org/debian/qwlroots
+#Vcs-Git: https://salsa.debian.org/debian/qwlroots.git
+Rules-Requires-Root: no
+
+Package: qwlroots
+Section: libdevel
+Architecture: any
+Multi-Arch: same
+Depends:
+  ${misc:Depends},
+  libwlroots-dev
+Replaces: libqwlroots1
+Description: Qt and QML bindings for wlroots
+  qwlroots is a binding of wlroots, which provides a Qt style development interface.
+ It aims to simplify wlroots API calling methods with Qt, and serve the needs of
+ calling wlroots within Qt projects.
+ .
+ This package contains the development headers and static library.
+
