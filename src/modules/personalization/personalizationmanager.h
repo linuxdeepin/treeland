@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include "impl/appearance_impl.h"
 #include "impl/personalization_manager_impl.h"
 
 #include <wserver.h>
@@ -92,6 +93,7 @@ public:
     void onWindowContextCreated(personalization_window_context_v1 *context);
     void onWallpaperContextCreated(personalization_wallpaper_context_v1 *context);
     void onCursorContextCreated(personalization_cursor_context_v1 *context);
+    void onAppearanceContextCreated(personalization_appearance_context_v1 *context);
 
     void onWindowPersonalizationChanged();
     void onWallpaperCommit(personalization_wallpaper_context_v1 *context);
@@ -109,6 +111,15 @@ public:
 
     QSize cursorSize();
     void setCursorSize(const QSize &size);
+
+    int32_t windowRadius() const;
+
+    QString fontName() const;
+
+    QString monoFontName() const;
+
+    QString iconTheme() const;
+
     QByteArrayView interfaceName() const override;
 
     personalization_window_context_v1 *getWindowContext(WSurface *surface);
@@ -145,7 +156,7 @@ private:
     QString m_cacheDirectory;
     QString m_settingFile;
     QString m_iniMetaData;
-    QScopedPointer<DTK_CORE_NAMESPACE::DConfig> m_cursorConfig;
+    QScopedPointer<DTK_CORE_NAMESPACE::DConfig> m_dconfig;
     treeland_personalization_manager_v1 *m_manager = nullptr;
     QList<personalization_window_context_v1 *> m_windowContexts;
 };

@@ -3,6 +3,7 @@
 
 #include "personalizationmanager.h"
 
+#include "impl/appearance_impl.h"
 #include "impl/personalization_manager_impl.h"
 
 #include <wlayersurface.h>
@@ -88,7 +89,7 @@ void PersonalizationV1::saveWallpaperSettings(const QString &current,
 
 PersonalizationV1::PersonalizationV1(QObject *parent)
     : QObject(parent)
-    , m_cursorConfig(DConfig::create("org.deepin.treeland", "org.deepin.treeland", QString()))
+    , m_dconfig(DConfig::create("org.deepin.treeland", "org.deepin.treeland", QString()))
 {
     if (PERSONALIZATION_MANAGER) {
         qFatal("There are multiple instances of QuickPersonalizationManager");
@@ -139,6 +140,37 @@ void PersonalizationV1::onCursorContextCreated(personalization_cursor_context_v1
             &personalization_cursor_context_v1::get_size,
             this,
             &PersonalizationV1::onGetCursorSize);
+}
+
+void PersonalizationV1::onAppearanceContextCreated(personalization_appearance_context_v1 *context)
+{
+    using Appearance = personalization_appearance_context_v1;
+
+    connect(context, &Appearance::roundCornerRadiusChanged, this, [this, context] {
+        m_dconfig->setValue("roundCornerRadius", context->cursorTheme());
+    });
+    connect(context, &Appearance::fontChanged, this, [this, context] {
+        m_dconfig->setValue("font", context->cursorTheme());
+    });
+    connect(context, &Appearance::monoFontChanged, this, [this, context] {
+        m_dconfig->setValue("monoFont", context->cursorTheme());
+    });
+    connect(context, &Appearance::cursorThemeChanged, this, [this, context] {
+        m_dconfig->setValue("cursorThemeName", context->cursorTheme());
+    });
+    connect(context, &Appearance::iconThemeChanged, this, [this, context] {
+        m_dconfig->setValue("iconThemeName", context->cursorTheme());
+    });
+
+    context->blockSignals(true);
+
+    context->setRoundCornerRadius(windowRadius());
+    context->setFont(fontName().toUtf8());
+    context->setMonospaceFont(monoFontName().toUtf8());
+    context->setCursorTheme(cursorTheme().toUtf8());
+    context->setIconTheme(iconTheme().toUtf8());
+
+    context->blockSignals(false);
 }
 
 void PersonalizationV1::writeContext(personalization_wallpaper_context_v1 *context,
@@ -198,7 +230,7 @@ void PersonalizationV1::onWallpaperCommit(personalization_wallpaper_context_v1 *
 
 void PersonalizationV1::onCursorCommit(personalization_cursor_context_v1 *context)
 {
-    if (m_cursorConfig == nullptr || !m_cursorConfig->isValid()) {
+    if (m_dconfig == nullptr || !m_dconfig->isValid()) {
         context->verfity(false);
         return;
     }
@@ -214,7 +246,7 @@ void PersonalizationV1::onCursorCommit(personalization_cursor_context_v1 *contex
 
 void PersonalizationV1::onGetCursorTheme(personalization_cursor_context_v1 *context)
 {
-    if (m_cursorConfig == nullptr || !m_cursorConfig->isValid())
+    if (m_dconfig == nullptr || !m_dconfig->isValid())
         return;
 
     context->set_theme(cursorTheme());
@@ -222,7 +254,7 @@ void PersonalizationV1::onGetCursorTheme(personalization_cursor_context_v1 *cont
 
 void PersonalizationV1::onGetCursorSize(personalization_cursor_context_v1 *context)
 {
-    if (m_cursorConfig == nullptr)
+    if (m_dconfig == nullptr)
         return;
 
     context->set_size(cursorSize().width());
@@ -251,26 +283,46 @@ void PersonalizationV1::setUserId(uid_t uid)
 
 QString PersonalizationV1::cursorTheme()
 {
-    QString value = m_cursorConfig->value("cursorThemeName", "default").toString();
+    QString value = m_dconfig->value("cursorThemeName", "default").toString();
     return value;
 }
 
 void PersonalizationV1::setCursorTheme(const QString &name)
 {
-    m_cursorConfig->setValue("cursorThemeName", name);
+    m_dconfig->setValue("cursorThemeName", name);
     Q_EMIT cursorThemeChanged(name);
 }
 
 QSize PersonalizationV1::cursorSize()
 {
-    int size = m_cursorConfig->value("cursorSize", 24).toInt();
+    int size = m_dconfig->value("cursorSize", 24).toInt();
     return QSize(size, size);
 }
 
 void PersonalizationV1::setCursorSize(const QSize &size)
 {
-    m_cursorConfig->setValue("cursorSize", size.width());
+    m_dconfig->setValue("cursorSize", size.width());
     Q_EMIT cursorSizeChanged(size);
+}
+
+int32_t PersonalizationV1::windowRadius() const
+{
+    return m_dconfig->value("roundCornerRadius", 18).toInt();
+}
+
+QString PersonalizationV1::fontName() const
+{
+    return m_dconfig->value("font", 18).toString();
+}
+
+QString PersonalizationV1::monoFontName() const
+{
+    return m_dconfig->value("monoFont", 18).toString();
+}
+
+QString PersonalizationV1::iconTheme() const
+{
+    return m_dconfig->value("iconThemeName", 18).toString();
 }
 
 QString PersonalizationV1::background(const QString &output)
@@ -371,6 +423,10 @@ void PersonalizationV1::create(WServer *server)
             &treeland_personalization_manager_v1::cursorContextCreated,
             this,
             &PersonalizationV1::onCursorContextCreated);
+    connect(m_manager,
+            &treeland_personalization_manager_v1::appearanceContextCreated,
+            this,
+            &PersonalizationV1::onAppearanceContextCreated);
 }
 
 void PersonalizationV1::destroy(WServer *server) { }
