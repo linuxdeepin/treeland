@@ -144,7 +144,10 @@ IME::Features WTextInputV1::features() const
 
 void WTextInputV1::sendEnter(WSurface *surface)
 {
-    zwp_text_input_v1_send_enter(d_func()->resource, surface->handle()->handle()->resource);
+    // Note: For text input v1, activation and surface focus is managed by client.
+    // Do not send focus to text input unless it's activated.
+    if (d_func()->active)
+        zwp_text_input_v1_send_enter(d_func()->resource, surface->handle()->handle()->resource);
     Q_EMIT this->enabled();
 }
 
@@ -264,6 +267,7 @@ void text_input_handle_deactivate(wl_client *client,
         return;
 
     d->seat = nullptr;
+    d->active = false;
     Q_EMIT text_input->deactivate();
 }
 
