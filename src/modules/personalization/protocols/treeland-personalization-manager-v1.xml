@@ -50,6 +50,12 @@
             </description>
             <arg name="id" type="new_id" interface="treeland_personalization_cursor_context_v1" />
         </request>
+        <request name="get_appearance_context">
+            <description summary="custom treeland window global settings context">
+                custom user treeland window appearance global
+            </description>
+            <arg name="id" type="new_id" interface="treeland_personalization_appearance_context_v1" />
+        </request>
     </interface>
     <interface name="treeland_personalization_wallpaper_context_v1" version="1">
         <description summary="client custom wallpaper context">
@@ -231,6 +237,106 @@
                 Set if system titlebar is enabled
             </description>
             <arg name="mode" type="int" enum="enable_mode" />
+        </request>
+        <request name="destroy" type="destructor">
+            <description summary="destroy the context object">
+                Destroy the context object.
+            </description>
+        </request>
+    </interface>
+    <interface name="treeland_personalization_appearance_context_v1" version="1">
+        <description summary="treeland window global appearance settings">
+            This interface allows set treeland window global appearance settings.
+
+            Warning! The protocol described in this file is currently in the testing
+            phase. Backward compatible changes may be added together with the
+            corresponding interface version bump. Backward incompatible changes can
+            only be done by creating a new major version of the extension.
+        </description>
+        <event name="round_corner_radius">
+            <description summary="round corner radius event">
+                Send this signal after setting the round corner radius.
+            </description>
+            <arg name="radius" type="int" summary="round corner radius" />
+        </event>
+        <event name="font">
+            <description summary="font event">
+                Send this signal after setting the system font.
+            </description>
+            <arg name="font_name" type="string" summary="font name" />
+        </event>
+        <event name="monospace_font">
+            <description summary="monospace font event">
+                Send this signal after setting the system monospace font.
+            </description>
+            <arg name="font_name" type="string" summary="monospace font name" />
+        </event>
+        <event name="cursor_theme">
+            <description summary="cursor theme event">
+                Send this signal after setting the system cursor theme.
+            </description>
+            <arg name="theme_name" type="string" summary="cursor theme name" />
+        </event>
+        <event name="icon_theme">
+            <description summary="icon theme event">
+                Send this signal after setting the system icon theme.
+            </description>
+            <arg name="theme_name" type="string" summary="icon theme name" />
+        </event>
+        <request name="set_round_corner_radius">
+            <description summary="set window round corner radius">
+                Set window round corner radius
+            </description>
+            <arg name="radius" type="int" />
+        </request>
+        <request name="set_font">
+            <description summary="set system font">
+                Set the system font
+            </description>
+            <arg name="font_name" type="string" summary="font name" />
+        </request>
+        <request name="set_monospace_font">
+            <description summary="set system monospace font">
+                Set the system monospace font
+            </description>
+            <arg name="font_name" type="string" summary="monospace font name" />
+        </request>
+        <request name="set_cursor_theme">
+            <description summary="set system cursor theme">
+                Set the system cursor theme
+            </description>
+            <arg name="theme_name" type="string" summary="cursor theme name" />
+        </request>
+        <request name="set_icon_theme">
+            <description summary="set system icon theme">
+                Set the system icon theme
+            </description>
+            <arg name="theme_name" type="string" summary="icon theme name" />
+        </request>
+        <request name="get_round_corner_radius">
+            <description summary="get window round corner radius">
+                Get window round corner radius
+            </description>
+        </request>
+        <request name="get_font">
+            <description summary="get system font">
+                Get the system font
+            </description>
+        </request>
+        <request name="get_monospace_font">
+            <description summary="get system monospace font">
+                Get the system monospace font
+            </description>
+        </request>
+        <request name="get_cursor_theme">
+            <description summary="get system cursor theme">
+                Get the system cursor theme
+            </description>
+        </request>
+        <request name="get_icon_theme">
+            <description summary="get system icon theme">
+                Get the system icon theme
+            </description>
         </request>
         <request name="destroy" type="destructor">
             <description summary="destroy the context object">
