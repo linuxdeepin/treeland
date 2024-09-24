@@ -35,6 +35,17 @@
             "permissions": "readwrite",
             "visibility": "private"
         },
+        "monoFont": {
+            "value": "",
+            "serial": 0,
+            "flags": ["user-public"],
+            "name": "Mono Font",
+            "name[zh_CN]": "等宽字体",
+            "description": "Mono Font Family",
+            "description[zh_CN]": "等宽字体",
+            "permissions": "readwrite",
+            "visibility": "private"
+        },
         "fontSize": {
             "value": 14,
             "serial": 0,
@@ -43,6 +54,17 @@
             "name[zh_CN]": "字体大小",
             "description": "Font Size",
             "description[zh_CN]": "字体大小",
+            "permissions": "readwrite",
+            "visibility": "private"
+        },
+        "roundCornerRadius": {
+            "value": 18,
+            "serial": 0,
+            "flags": ["user-public"],
+            "name": "Round Corner Radius",
+            "name[zh_CN]": "窗口圆角大小",
+            "description": "Window Corner Round Radius",
+            "description[zh_CN]": "设置窗口圆角大小",
             "permissions": "readwrite",
             "visibility": "private"
         },

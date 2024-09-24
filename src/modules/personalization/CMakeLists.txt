@@ -18,12 +18,14 @@ FILE_SET HEADERS
 FILES
     personalizationmanager.h
     impl/personalization_manager_impl.h
+    impl/appearance_impl.h
     impl/types.h
 )
 
 target_sources(${MODULE_NAME} PRIVATE
     personalizationmanager.cpp
     impl/personalization_manager_impl.cpp
+    impl/appearance_impl.cpp
     ${WAYLAND_PROTOCOLS_OUTPUTDIR}/treeland-personalization-manager-protocol.c
 )
 

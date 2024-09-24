@@ -19,6 +19,7 @@ struct personalization_window_context_v1;
 struct personalization_wallpaper_context_v1;
 struct personalization_cursor_context_v1;
 struct wlr_surface;
+class personalization_appearance_context_v1;
 
 struct treeland_personalization_manager_v1 : public QObject
 {
@@ -26,6 +27,8 @@ struct treeland_personalization_manager_v1 : public QObject
 public:
     explicit treeland_personalization_manager_v1();
     ~treeland_personalization_manager_v1();
+
+    static treeland_personalization_manager_v1 *from_resource(wl_resource *resource);
 
     wl_event_loop *event_loop;
     wl_global *global;
@@ -38,6 +41,7 @@ Q_SIGNALS:
     void windowContextCreated(personalization_window_context_v1 *context);
     void wallpaperContextCreated(personalization_wallpaper_context_v1 *context);
     void cursorContextCreated(personalization_cursor_context_v1 *context);
+    void appearanceContextCreated(personalization_appearance_context_v1 *context);
 };
 
 struct personalization_window_context_v1 : public QObject
