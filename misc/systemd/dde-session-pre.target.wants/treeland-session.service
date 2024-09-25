@@ -1,0 +1,24 @@
+[Unit]
+Description=TreeLand start session service
+StartLimitBurst=60
+
+Wants=treeland-sd.socket
+Before=treeland-sd.socket
+
+Wants=treeland-sd.service
+Before=treeland-sd.service
+
+Wants=treeland-xwayland.service
+Before=treeland-xwayland.service
+
+Wants=treeland-shortcut.service
+Before=treeland-shortcut.service
+
+Requisite=dde-session-pre.target
+PartOf=dde-session-pre.target
+Before=dde-session-pre.target
+
+[Service]
+ExecCondition=/bin/sh -c 'test "$XDG_SESSION_DESKTOP" = "treeland" || exit 2'
+Type=oneshot
+ExecStart=/usr/bin/systemctl --user set-environment DDE_CURRENT_COMPOSITOR=TreeLand
