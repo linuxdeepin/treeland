@@ -218,8 +218,6 @@ void WQuickCursorPrivate::setSurface(WSurface *surface)
                 auto rs = this->cursor->requestedCursorSurface();
                 setHotSpot(rs.second - cursorSurfaceItem->bufferOffset());
             });
-
-            q->setFlag(QQuickItem::ItemHasContents, false);
         }
 
         cursorSurfaceItem->setSurface(surface);
@@ -235,7 +233,6 @@ void WQuickCursorPrivate::setSurface(WSurface *surface)
             cursorSurfaceItem->deleteLater();
             cursorSurfaceItem = nullptr;
         }
-        q->setFlag(QQuickItem::ItemHasContents, true);
     }
 
     updateImplicitSize();
@@ -284,21 +281,27 @@ void WQuickCursorPrivate::onImageChanged()
 
 void WQuickCursorPrivate::updateCursor()
 {
+    W_Q(WQuickCursor);
+
     auto cursor = this->cursor->cursor();
     if (WGlobal::isClientResourceCursor(cursor)) {
         // First try use cursor shape
         auto shape = this->cursor->requestedCursorShape();
         if (shape != WGlobal::CursorShape::Invalid) {
+            q->setFlag(QQuickItem::ItemHasContents, true);
             setSurface(nullptr);
             cursorImage->setCursor(WCursor::toQCursor(shape));
             setHotSpot(cursorImage->hotSpot());
         } else { // Second use cursor surface
             auto rs = this->cursor->requestedCursorSurface();
-            cursorImage->setCursor(QCursor(Qt::BlankCursor));
+            q->setFlag(QQuickItem::ItemHasContents, false);
+            dirty(QQuickItemPrivate::Content);
+
             setSurface(rs.first);
             setHotSpot(rs.second);
         }
     } else {
+        q->setFlag(QQuickItem::ItemHasContents, true);
         setSurface(nullptr);
         cursorImage->setCursor(cursor);
         setHotSpot(cursorImage->hotSpot());
