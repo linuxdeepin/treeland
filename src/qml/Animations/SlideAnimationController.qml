@@ -13,7 +13,7 @@ Item {
     property real refWidth: 1920
     property real refGap: 30
     property real refBounce: 384
-    property real bounceFactor: 0.4
+    property real bounceFactor: 0.3
     readonly property real refWrap: refWidth + refGap
     readonly property alias running: aniState.running
     readonly property alias viewportPos: aniState.pos
@@ -55,7 +55,8 @@ Item {
                 if (aniState.needBounce) {
                     bounceAnimation.start()
                 } else {
-                    commitWorkspaceId(aniState.destinationId)
+                    if (aniState.destinationId >=0 && aniState.destinationId < QmlHelper.workspaceManager.layoutOrder.count)
+                        commitWorkspaceId(aniState.destinationId)
                 }
             }
         }
@@ -80,7 +81,10 @@ Item {
             easing.type: Easing.InOutExpo
         }
         ScriptAction {
-            script: commitWorkspaceId(aniState.destinationId)
+            script: {
+                if (aniState.destinationId >=0 && aniState.destinationId < QmlHelper.workspaceManager.layoutOrder.count)
+                    commitWorkspaceId(aniState.destinationId)
+            }
         }
     }
 
@@ -148,12 +152,18 @@ Item {
                 toId = 0
                 if (target.desktopOffset > 0) {
                     toId = fromId + 1
-                    if (toId >= QmlHelper.workspaceManager.layoutOrder.count) {
+                    if (toId > QmlHelper.workspaceManager.layoutOrder.count)
+                        return
+
+                    if (toId == QmlHelper.workspaceManager.layoutOrder.count) {
                         bounce = true
                     }
                 } else if (target.desktopOffset < 0) {
                     toId = fromId - 1
-                    if (toId < 0) {
+                    if (toId < -1)
+                        return
+
+                    if (toId == -1) {
                         bounce = true
                     }
                 }
@@ -173,28 +183,33 @@ Item {
                 return
 
             enable = false
-            if (offset === 1 || offset === -1) {
-                Helper.currentWorkspaceId = toId
+            // precision control. if it is infinitely close to 0, resetting the current index will cause flickering
+            const epison = Math.floor(Math.abs(offset) * 100) / 100
+            if (epison < 0.01)
                 return
-            }
 
+            if (offset === 1 || offset === -1) {
+                if (toId >=0 && toId < QmlHelper.workspaceManager.layoutOrder.count)
+                    Helper.currentWorkspaceId = toId
+            }
             fromId = Helper.currentWorkspaceId
             toId = 0
-            if (offset > bounceFactor / 2) {
+            if (offset > bounceFactor) {
                 toId = fromId + 1
-            } else if (offset <= -bounceFactor / 2) {
+                if (toId >= QmlHelper.workspaceManager.layoutOrder.count)
+                    return
+            } else if (offset <= -bounceFactor) {
                 toId = fromId - 1
                 if (toId < 0) {
-                    return;
+                    return
                 }
             } else {
                 [fromId, toId] = [toId, fromId]
             }
 
-            if (toId < QmlHelper.workspaceManager.layoutOrder.count || toId >= 0) {
+            if (toId >=0 && toId < QmlHelper.workspaceManager.layoutOrder.count) {
                 slideRunning(toId)
                 slideAnimation.start()
-                Helper.currentWorkspaceId = toId
             }
             running = false
         }
