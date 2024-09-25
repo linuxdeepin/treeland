@@ -98,7 +98,9 @@ void wallpaper_color_manager_v1::updateWallpaperColor(const QString &output, boo
     color_map[output] = isDarkType;
     for (auto i = watch_lists.cbegin(), end = watch_lists.cend(); i != end; ++i)
         if (i.value().contains(output))
-            treeland_wallpaper_color_manager_v1_send_output_color(i.key(), output.toLocal8Bit(), isDarkType);
+            treeland_wallpaper_color_manager_v1_send_output_color(i.key(),
+                                                                  output.toLocal8Bit(),
+                                                                  isDarkType);
 }
 
 static void treeland_color_manager_resource_destroy(struct wl_resource *resource)

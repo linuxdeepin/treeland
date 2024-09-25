@@ -79,7 +79,9 @@ private:
     personalization_window_context_v1::WindowStates m_states;
 };
 
-class PersonalizationV1 : public QObject, public WServerInterface
+class PersonalizationV1
+    : public QObject
+    , public WServerInterface
 {
     Q_OBJECT
 

@@ -9,8 +9,9 @@
 
 #include <qtmetamacros.h>
 
-class DDEShell : public QWaylandClientExtensionTemplate<DDEShell>,
-                 public QtWayland::treeland_dde_shell_manager_v1
+class DDEShell
+    : public QWaylandClientExtensionTemplate<DDEShell>
+    , public QtWayland::treeland_dde_shell_manager_v1
 {
     Q_OBJECT
 public:
@@ -18,8 +19,8 @@ public:
 };
 
 class DDEShellWindowOverlapChecker
-    : public QWaylandClientExtensionTemplate<DDEShellWindowOverlapChecker>,
-      public QtWayland::treeland_window_overlap_checker
+    : public QWaylandClientExtensionTemplate<DDEShellWindowOverlapChecker>
+    , public QtWayland::treeland_window_overlap_checker
 {
     Q_OBJECT
     Q_PROPERTY(bool overlapped READ overlapped NOTIFY overlappedChanged)

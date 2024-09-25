@@ -3,14 +3,16 @@
 
 #pragma once
 
+#include <wserver.h>
 
 #include <QQmlEngine>
-#include <wserver.h>
 
 struct wallpaper_color_manager_v1;
 WAYLIB_SERVER_USE_NAMESPACE
 
-class WallpaperColorV1 : public QObject, public Waylib::Server::WServerInterface
+class WallpaperColorV1
+    : public QObject
+    , public Waylib::Server::WServerInterface
 {
     Q_OBJECT
 

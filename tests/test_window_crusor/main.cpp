@@ -1,16 +1,16 @@
 // Copyright (C) 2024 rewine <luhongxu@deepin.com>.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
+#include "personalization_manager.h"
+
 #include <QApplication>
+#include <QBoxLayout>
+#include <QDebug>
+#include <QLabel>
+#include <QLineEdit>
 #include <QMainWindow>
 #include <QMouseEvent>
-#include <QDebug>
-#include <QBoxLayout>
 #include <QPushButton>
-#include <QLineEdit>
-#include <QLabel>
-
-#include "personalization_manager.h"
 
 class TestWindow : public QWidget
 {
@@ -79,8 +79,7 @@ public:
 
     ~TestWindow()
     {
-        if (m_manager != nullptr)
-        {
+        if (m_manager != nullptr) {
             delete m_manager;
             m_manager = nullptr;
         }
@@ -88,10 +87,10 @@ public:
 
 private:
     PersonalizationManager *m_manager = nullptr;
-    PersonalizationCursor* cursor_context = nullptr;
+    PersonalizationCursor *cursor_context = nullptr;
 };
 
-int main (int argc, char **argv)
+int main(int argc, char **argv)
 {
     QApplication app(argc, argv);
 

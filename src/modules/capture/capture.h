@@ -144,7 +144,9 @@ private:
     QPointer<treeland_capture_frame_v1> m_frame = nullptr;
 };
 
-class CaptureManagerV1 : public QObject, public WServerInterface
+class CaptureManagerV1
+    : public QObject
+    , public WServerInterface
 {
     Q_OBJECT
     Q_PROPERTY(CaptureContextV1 *contextInSelection READ contextInSelection NOTIFY contextInSelectionChanged FINAL)

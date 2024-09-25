@@ -14,7 +14,9 @@
 class treeland_shortcut_context_v1;
 class treeland_shortcut_manager_v1;
 
-class ShortcutV1 : public QObject, public Waylib::Server::WServerInterface
+class ShortcutV1
+    : public QObject
+    , public Waylib::Server::WServerInterface
 {
     Q_OBJECT
     Q_PROPERTY(ShortcutModel *model READ model CONSTANT)

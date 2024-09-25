@@ -119,7 +119,8 @@ void DataControlOfferV1::zwlr_data_control_offer_v1_offer(const QString &mime_ty
     m_receivedFormats << mime_type;
 
     QVariant data = retrieveData(mime_type);
-    qWarning() << "------------------- offer changed---" << "type:=" << mime_type << "data:= " << data;
+    qWarning() << "------------------- offer changed---" << "type:=" << mime_type
+               << "data:= " << data;
 }
 
 QVariant DataControlOfferV1::retrieveData(const QString &mimeType) const
@@ -170,7 +171,9 @@ QVariant DataControlOfferV1::retrieveData(const QString &mimeType) const
             close(pipeFds[0]);
 
             if (mimeType == QtXImageLiteral) {
-                QImage img = QImage::fromData(data, mime.mid(mime.indexOf(QLatin1Char('/')) + 1).toLatin1().toUpper().data());
+                QImage img = QImage::fromData(
+                    data,
+                    mime.mid(mime.indexOf(QLatin1Char('/')) + 1).toLatin1().toUpper().data());
                 if (!img.isNull()) {
                     return img;
                 }
@@ -214,7 +217,8 @@ bool DataControlOfferV1::readData(int fd, QByteArray &data)
     }
 }
 
-DataControlSourceV1::DataControlSourceV1(struct ::zwlr_data_control_source_v1 *id, QMimeData *mimeData)
+DataControlSourceV1::DataControlSourceV1(struct ::zwlr_data_control_source_v1 *id,
+                                         QMimeData *mimeData)
     : QtWayland::zwlr_data_control_source_v1(id)
     , m_mimeData(mimeData)
 {
@@ -270,7 +274,9 @@ void DataControlSourceV1::zwlr_data_control_source_v1_send(const QString &mime_t
             QImage image = qvariant_cast<QImage>(m_mimeData->imageData());
             QBuffer buf(&ba);
             buf.open(QBuffer::WriteOnly);
-            image.save(&buf, mime_type.mid(mime_type.indexOf(QLatin1Char('/')) + 1).toLatin1().toUpper().data());
+            image.save(
+                &buf,
+                mime_type.mid(mime_type.indexOf(QLatin1Char('/')) + 1).toLatin1().toUpper().data());
         }
     } else {
         ba = m_mimeData->data(send_mime_type);
@@ -329,8 +335,8 @@ void DataControlDeviceV1::setPrimarySelection(std::unique_ptr<DataControlSourceV
         m_primarySelection.reset();
     });
 
-    if (zwlr_data_control_device_v1_get_version(object()) >=
-        ZWLR_DATA_CONTROL_DEVICE_V1_SET_PRIMARY_SELECTION_SINCE_VERSION) {
+    if (zwlr_data_control_device_v1_get_version(object())
+        >= ZWLR_DATA_CONTROL_DEVICE_V1_SET_PRIMARY_SELECTION_SINCE_VERSION) {
         set_primary_selection(m_primarySelection->object());
         Q_EMIT primarySelectionChanged();
     }
@@ -364,7 +370,8 @@ void DataControlDeviceV1::zwlr_data_control_device_v1_selection(zwlr_data_contro
     Q_EMIT receivedSelectionChanged();
 }
 
-void DataControlDeviceV1::zwlr_data_control_device_v1_primary_selection(zwlr_data_control_offer_v1 *id)
+void DataControlDeviceV1::zwlr_data_control_device_v1_primary_selection(
+    zwlr_data_control_offer_v1 *id)
 {
     if (!id) {
         m_receivedPrimarySelection.reset();

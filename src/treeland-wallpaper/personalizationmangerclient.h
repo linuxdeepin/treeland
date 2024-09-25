@@ -13,8 +13,9 @@
 class PersonalizationWindow;
 class PersonalizationWallpaper;
 
-class PersonalizationV1 : public QWaylandClientExtensionTemplate<PersonalizationV1>,
-                               public QtWayland::treeland_personalization_manager_v1
+class PersonalizationV1
+    : public QWaylandClientExtensionTemplate<PersonalizationV1>
+    , public QtWayland::treeland_personalization_manager_v1
 {
     Q_OBJECT
     Q_PROPERTY(QString output READ output WRITE setOutput NOTIFY outputChanged FINAL)
@@ -79,20 +80,23 @@ private:
     QString m_currentOutput;
 };
 
-class PersonalizationWindow : public QWaylandClientExtensionTemplate<PersonalizationWindow>,
-                              public QtWayland::treeland_personalization_window_context_v1
+class PersonalizationWindow
+    : public QWaylandClientExtensionTemplate<PersonalizationWindow>
+    , public QtWayland::treeland_personalization_window_context_v1
 {
     Q_OBJECT
 public:
     explicit PersonalizationWindow(struct ::treeland_personalization_window_context_v1 *object);
 };
 
-class PersonalizationWallpaper : public QWaylandClientExtensionTemplate<PersonalizationWallpaper>,
-                                 public QtWayland::treeland_personalization_wallpaper_context_v1
+class PersonalizationWallpaper
+    : public QWaylandClientExtensionTemplate<PersonalizationWallpaper>
+    , public QtWayland::treeland_personalization_wallpaper_context_v1
 {
     Q_OBJECT
 public:
-    explicit PersonalizationWallpaper(struct ::treeland_personalization_wallpaper_context_v1 *object);
+    explicit PersonalizationWallpaper(
+        struct ::treeland_personalization_wallpaper_context_v1 *object);
 
 signals:
     void metadataChanged(const QString &meta);

@@ -3,11 +3,11 @@
 
 #pragma once
 
+#include <woutputrenderwindow.h>
 #include <woutputviewport.h>
 #include <wquicktextureproxy.h>
-#include <woutputrenderwindow.h>
-
 #include <wserver.h>
+
 #include <QObject>
 #include <QPair>
 
@@ -16,8 +16,8 @@ struct treeland_virtual_output_manager_v1;
 QW_USE_NAMESPACE
 WAYLIB_SERVER_USE_NAMESPACE
 
-
 class VirtualOutputV1;
+
 class VirtualOutputManagerAttached : public QObject
 {
     Q_OBJECT
@@ -27,7 +27,9 @@ class VirtualOutputManagerAttached : public QObject
 public:
     Q_INVOKABLE WOutputViewport *outputViewport() const { return m_viewport; };
 
-    VirtualOutputManagerAttached(WOutputViewport *outputviewport, WQuickTextureProxy *proxy, VirtualOutputV1 *virtualOutput);
+    VirtualOutputManagerAttached(WOutputViewport *outputviewport,
+                                 WQuickTextureProxy *proxy,
+                                 VirtualOutputV1 *virtualOutput);
 
     void removeItem(WOutputViewport *viewport);
     void addItem(WOutputViewport *viewport, WOutputViewport *backviewport);
@@ -38,30 +40,34 @@ public:
 Q_SIGNALS:
 
     void outputViewportChanged();
+
 private:
     VirtualOutputV1 *m_virtualoutput;
     WOutputViewport *m_viewport;
     WOutputViewport *m_backviewport;
-    WQuickTextureProxy* m_textureproxy;
+    WQuickTextureProxy *m_textureproxy;
 };
 
-class VirtualOutputV1 : public QObject, public WServerInterface
+class VirtualOutputV1
+    : public QObject
+    , public WServerInterface
 {
     Q_OBJECT
 
 public:
     explicit VirtualOutputV1(QObject *parent = nullptr);
 
-    Q_INVOKABLE VirtualOutputManagerAttached *Attach(WOutputViewport *outputviewport, WQuickTextureProxy *proxy);
+    Q_INVOKABLE VirtualOutputManagerAttached *Attach(WOutputViewport *outputviewport,
+                                                     WQuickTextureProxy *proxy);
     void setVirtualOutput(QString name, QStringList outputList);
 
     void newOutput(WOutput *output);
     void removeOutput(WOutput *output);
     QByteArrayView interfaceName() const override;
 
-    QList<QPair<WOutputViewport*, QQuickItem*>> m_viewports_list;
+    QList<QPair<WOutputViewport *, QQuickItem *>> m_viewports_list;
     QList<treeland_virtual_output_v1 *> m_virtualOutputv1;
-    QList<WOutputLayer*> m_hardwareLayersOfPrimaryOutput;
+    QList<WOutputLayer *> m_hardwareLayersOfPrimaryOutput;
     WOutputRenderWindow *m_renderWindow;
 
 Q_SIGNALS:

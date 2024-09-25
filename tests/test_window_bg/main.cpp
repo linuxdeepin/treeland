@@ -12,8 +12,9 @@
 #include <QPushButton>
 #include <QtWaylandClient/QWaylandClientExtension>
 
-class PersonalizationManager : public QWaylandClientExtensionTemplate<PersonalizationManager>,
-                               public QtWayland::treeland_personalization_manager_v1
+class PersonalizationManager
+    : public QWaylandClientExtensionTemplate<PersonalizationManager>
+    , public QtWayland::treeland_personalization_manager_v1
 {
     Q_OBJECT
 public:
@@ -25,15 +26,17 @@ PersonalizationManager::PersonalizationManager()
 {
 }
 
-class PersonalizationWindow : public QWaylandClientExtensionTemplate<PersonalizationWindow>,
-                              public QtWayland::treeland_personalization_window_context_v1
+class PersonalizationWindow
+    : public QWaylandClientExtensionTemplate<PersonalizationWindow>
+    , public QtWayland::treeland_personalization_window_context_v1
 {
     Q_OBJECT
 public:
     explicit PersonalizationWindow(struct ::treeland_personalization_window_context_v1 *object);
 };
 
-PersonalizationWindow::PersonalizationWindow(struct ::treeland_personalization_window_context_v1 *object)
+PersonalizationWindow::PersonalizationWindow(
+    struct ::treeland_personalization_window_context_v1 *object)
     : QWaylandClientExtensionTemplate<PersonalizationWindow>(1)
     , QtWayland::treeland_personalization_window_context_v1(object)
 {

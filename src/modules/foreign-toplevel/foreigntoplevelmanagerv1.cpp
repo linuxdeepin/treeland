@@ -4,10 +4,10 @@
 #include "foreigntoplevelmanagerv1.h"
 
 #include <woutput.h>
+#include <wsocket.h>
 #include <wtoplevelsurface.h>
 #include <wxdgsurface.h>
 #include <wxwaylandsurface.h>
-#include <wsocket.h>
 
 #include <qwcompositor.h>
 #include <qwdisplay.h>
@@ -92,7 +92,8 @@ ForeignToplevelAttached::ForeignToplevelAttached(WSurface *target, ForeignToplev
 
                 auto wSurface = WSurface::fromHandle(event->surface);
 
-                Q_EMIT rectangleChanged(wSurface, QRect{ event->x, event->y, event->width, event->height });
+                Q_EMIT rectangleChanged(wSurface,
+                                        QRect{ event->x, event->y, event->width, event->height });
             });
 }
 
@@ -174,22 +175,23 @@ void ForeignToplevelV1::add(WToplevelSurface *surface)
 
     auto updateSurfaceParent = [this, surface, handle] {
         if (surface->parentSurface()) {
-            auto find = std::find_if(m_surfaces.begin(), m_surfaces.end(), [surface](const auto &pair) {
-                return pair.first->surface() == surface->parentSurface();
-            });
+            auto find =
+                std::find_if(m_surfaces.begin(), m_surfaces.end(), [surface](const auto &pair) {
+                    return pair.first->surface() == surface->parentSurface();
+                });
             if (find == m_surfaces.end()) {
-                qCCritical(qLcTreelandForeignToplevel) << "Toplevel surface " << surface
-                                                  << "has set parent surface, but foreign_toplevel_handle for parent surface not found!";
+                qCCritical(qLcTreelandForeignToplevel)
+                    << "Toplevel surface " << surface
+                    << "has set parent surface, but foreign_toplevel_handle for parent surface not "
+                       "found!";
                 return;
             }
             handle->set_parent(find->second.get());
-        }
-        else
+        } else
             handle->set_parent(nullptr);
     };
     connection.push_back(
-        connect(surface, &WToplevelSurface::parentSurfaceChanged, this, updateSurfaceParent)
-        );
+        connect(surface, &WToplevelSurface::parentSurfaceChanged, this, updateSurfaceParent));
 
     connection.push_back(
         connect(surface->surface(), &WSurface::outputEntered, this, [handle](WOutput *output) {
@@ -233,18 +235,17 @@ void ForeignToplevelV1::add(WToplevelSurface *surface)
                     Q_EMIT requestFullscreen(surface, event);
                 }));
 
-    connection.push_back(connect(handle,
-                                 &treeland_foreign_toplevel_handle_v1::requestClose,
-                                 this,
-                                 [surface, this] {
-                                     Q_EMIT requestClose(surface);
-                                 }));
-    connection.push_back(connect(handle,
-                                 &treeland_foreign_toplevel_handle_v1::rectangleChanged,
-                                 this,
-                                 [surface, this] (treeland_foreign_toplevel_handle_v1_set_rectangle_event *event) {
-                                     Q_EMIT rectangleChanged(surface, event);
-                                 }));
+    connection.push_back(
+        connect(handle, &treeland_foreign_toplevel_handle_v1::requestClose, this, [surface, this] {
+            Q_EMIT requestClose(surface);
+        }));
+    connection.push_back(
+        connect(handle,
+                &treeland_foreign_toplevel_handle_v1::rectangleChanged,
+                this,
+                [surface, this](treeland_foreign_toplevel_handle_v1_set_rectangle_event *event) {
+                    Q_EMIT rectangleChanged(surface, event);
+                }));
 
     if (auto *xdgSurface = qobject_cast<WXdgSurface *>(surface)) {
         auto client = WClient::get(xdgSurface->handle()->handle()->resource->client);
@@ -252,7 +253,8 @@ void ForeignToplevelV1::add(WToplevelSurface *surface)
     } else if (auto *xwaylandSurface = qobject_cast<WXWaylandSurface *>(surface)) {
         handle->set_pid(xwaylandSurface->pid());
     } else {
-        qCFatal(qLcTreelandForeignToplevel) << "TreelandForeignToplevelManager only support WXdgSurface or WXWaylandSurface";
+        qCFatal(qLcTreelandForeignToplevel)
+            << "TreelandForeignToplevelManager only support WXdgSurface or WXWaylandSurface";
     }
 
     handle->set_identifier(
@@ -331,10 +333,10 @@ void ForeignToplevelV1::onDockPreviewContextCreated(treeland_dock_preview_contex
             this,
             [this](treeland_dock_preview_tooltip_event *event) {
                 Q_EMIT requestDockPreviewTooltip(event->tooltip,
-                                          WSurface::fromHandle(wlr_surface_from_resource(
-                                              event->toplevel->relative_surface)),
-                                          QPoint(event->x, event->y),
-                                           static_cast<PreviewDirection>(event->direction));
+                                                 WSurface::fromHandle(wlr_surface_from_resource(
+                                                     event->toplevel->relative_surface)),
+                                                 QPoint(event->x, event->y),
+                                                 static_cast<PreviewDirection>(event->direction));
             });
     connect(context,
             &treeland_dock_preview_context_v1::requestClose,

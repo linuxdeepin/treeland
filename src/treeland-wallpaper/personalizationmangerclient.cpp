@@ -22,10 +22,7 @@
 PersonalizationV1::PersonalizationV1()
     : QWaylandClientExtensionTemplate<PersonalizationV1>(1)
 {
-    connect(this,
-            &PersonalizationV1::activeChanged,
-            this,
-            &PersonalizationV1::onActiveChanged);
+    connect(this, &PersonalizationV1::activeChanged, this, &PersonalizationV1::onActiveChanged);
     m_cacheDirectory =
         QStandardPaths::writableLocation(QStandardPaths::CacheLocation) + "/wallpaper/";
 
@@ -107,11 +104,11 @@ void PersonalizationV1::removeWallpaper(const QString &path, const QString &grou
 }
 
 void PersonalizationV1::changeWallpaper(const QString &path,
-                                             const QString &output,
-                                             const QString &group,
-                                             int index,
-                                             quint32 op,
-                                             bool isdark)
+                                        const QString &output,
+                                        const QString &group,
+                                        int index,
+                                        quint32 op,
+                                        bool isdark)
 {
     if (!m_wallpaperContext)
         return;
@@ -145,9 +142,9 @@ void PersonalizationV1::changeWallpaper(const QString &path,
 }
 
 void PersonalizationV1::setBackground(const QString &path,
-                                           const QString &group,
-                                           int index,
-                                           bool isdark)
+                                      const QString &group,
+                                      int index,
+                                      bool isdark)
 {
     changeWallpaper(path,
                     m_currentOutput,
@@ -158,9 +155,9 @@ void PersonalizationV1::setBackground(const QString &path,
 }
 
 void PersonalizationV1::setLockscreen(const QString &path,
-                                           const QString &group,
-                                           int index,
-                                           bool isdark)
+                                      const QString &group,
+                                      int index,
+                                      bool isdark)
 {
     changeWallpaper(path,
                     m_currentOutput,
@@ -285,7 +282,8 @@ void PersonalizationV1::onMetadataChanged(const QString &metadata)
     Q_EMIT wallpaperChanged(meta->imagePath);
 }
 
-PersonalizationWindow::PersonalizationWindow(struct ::treeland_personalization_window_context_v1 *object)
+PersonalizationWindow::PersonalizationWindow(
+    struct ::treeland_personalization_window_context_v1 *object)
     : QWaylandClientExtensionTemplate<PersonalizationWindow>(1)
     , QtWayland::treeland_personalization_window_context_v1(object)
 {

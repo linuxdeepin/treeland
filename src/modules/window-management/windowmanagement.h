@@ -10,7 +10,9 @@
 struct treeland_window_management_v1;
 WAYLIB_SERVER_USE_NAMESPACE
 
-class WindowManagementV1 : public QObject, public Waylib::Server::WServerInterface
+class WindowManagementV1
+    : public QObject
+    , public Waylib::Server::WServerInterface
 {
     Q_OBJECT
     Q_PROPERTY(DesktopState desktopState READ desktopState WRITE setDesktopState NOTIFY desktopStateChanged)
@@ -23,7 +25,6 @@ public:
 
     DesktopState desktopState();
     void setDesktopState(DesktopState state);
-
 
 protected:
     void create(WServer *server) override;

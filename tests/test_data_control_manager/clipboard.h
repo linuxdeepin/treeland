@@ -4,8 +4,8 @@
 
 #include "datacontrolmanagerv1.h"
 
-#include <QObject>
 #include <QClipboard>
+#include <QObject>
 
 class Clipboard : public QObject
 {

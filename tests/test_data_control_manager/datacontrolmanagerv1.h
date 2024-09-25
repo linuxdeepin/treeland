@@ -4,9 +4,9 @@
 
 #include "qwayland-wlr-data-control-unstable-v1.h"
 
+#include <QMimeData>
 #include <QObject>
 #include <QWaylandClientExtension>
-#include <QMimeData>
 
 class Clipboard;
 
@@ -22,7 +22,9 @@ public:
     void instantiate();
 };
 
-class DataControlOfferV1 : public QMimeData, public QtWayland::zwlr_data_control_offer_v1
+class DataControlOfferV1
+    : public QMimeData
+    , public QtWayland::zwlr_data_control_offer_v1
 {
     Q_OBJECT
 public:
@@ -44,7 +46,9 @@ private:
     friend class DataControlDeviceV1;
 };
 
-class DataControlSourceV1 : public QObject, public QtWayland::zwlr_data_control_source_v1
+class DataControlSourceV1
+    : public QObject
+    , public QtWayland::zwlr_data_control_source_v1
 {
     Q_OBJECT
 public:
@@ -66,7 +70,9 @@ private:
     std::unique_ptr<QMimeData> m_mimeData;
 };
 
-class DataControlDeviceV1 : public QObject, public QtWayland::zwlr_data_control_device_v1
+class DataControlDeviceV1
+    : public QObject
+    , public QtWayland::zwlr_data_control_device_v1
 {
     Q_OBJECT
 public:
@@ -91,7 +97,8 @@ Q_SIGNALS:
 protected:
     void zwlr_data_control_device_v1_data_offer(struct ::zwlr_data_control_offer_v1 *id) override;
     void zwlr_data_control_device_v1_selection(struct ::zwlr_data_control_offer_v1 *id) override;
-    void zwlr_data_control_device_v1_primary_selection(struct ::zwlr_data_control_offer_v1 *id) override;
+    void zwlr_data_control_device_v1_primary_selection(
+        struct ::zwlr_data_control_offer_v1 *id) override;
 
 private:
     std::unique_ptr<DataControlSourceV1> m_selection;

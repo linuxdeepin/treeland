@@ -6,8 +6,9 @@
 #include <QApplication>
 #include <QtWaylandClient/QWaylandClientExtension>
 
-class WindowManager : public QWaylandClientExtensionTemplate<WindowManager>,
-                              public QtWayland::treeland_window_management_v1
+class WindowManager
+    : public QWaylandClientExtensionTemplate<WindowManager>
+    , public QtWayland::treeland_window_management_v1
 {
     Q_OBJECT
 public:
@@ -24,11 +25,11 @@ WindowManager::WindowManager()
 {
 }
 
-//显示桌面: ./test-show-desktop 1
+// 显示桌面: ./test-show-desktop 1
 
-//预览桌面: ./test-show-desktop 2
+// 预览桌面: ./test-show-desktop 2
 
-//恢复显示: ./test-show-desktop 0
+// 恢复显示: ./test-show-desktop 0
 
 int main(int argc, char *argv[])
 {

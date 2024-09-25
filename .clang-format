@@ -117,6 +117,7 @@ ForEachMacros:   [ foreach, Q_FOREACH, BOOST_FOREACH, forever, Q_FOREVER, QBENCH
 
 # Break constructor initializers before the colon and after the commas.
 BreakConstructorInitializers: BeforeComma
+BreakInheritanceList: BeforeComma
 
 # Add "// namespace <namespace>" comments on closing brace for a namespace
 # Ignored for namespaces that qualify as a short namespace,

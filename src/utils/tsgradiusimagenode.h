@@ -19,7 +19,9 @@ protected:
     QSGMaterialShader *createShader(QSGRendererInterface::RenderMode renderMode) const override;
 };
 
-class TSGRadiusImageNode : public QObject, public QSGNode
+class TSGRadiusImageNode
+    : public QObject
+    , public QSGNode
 {
     Q_OBJECT
 public:
