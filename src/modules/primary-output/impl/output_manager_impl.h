@@ -5,8 +5,8 @@
 
 #include "treeland-output-management-protocol.h"
 
-#include <qwsignalconnector.h>
 #include <qwdisplay.h>
+#include <qwsignalconnector.h>
 
 #include <QObject>
 

@@ -14,7 +14,9 @@
 struct treeland_output_manager_v1;
 WAYLIB_SERVER_USE_NAMESPACE
 
-class PrimaryOutputV1 : public QObject, public Waylib::Server::WServerInterface
+class PrimaryOutputV1
+    : public QObject
+    , public Waylib::Server::WServerInterface
 {
     Q_OBJECT
     Q_PROPERTY(const char *primaryOutput READ primaryOutput WRITE setPrimaryOutput NOTIFY primaryOutputChanged)

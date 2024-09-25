@@ -13,8 +13,9 @@
 
 class ShortcutContext;
 
-class ShortcutV1 : public QWaylandClientExtensionTemplate<ShortcutV1>,
-                        public QtWayland::treeland_shortcut_manager_v1
+class ShortcutV1
+    : public QWaylandClientExtensionTemplate<ShortcutV1>
+    , public QtWayland::treeland_shortcut_manager_v1
 {
     Q_OBJECT
 public:
@@ -24,8 +25,9 @@ private:
     std::vector<ShortcutContext *> m_customShortcuts;
 };
 
-class ShortcutContext : public QWaylandClientExtensionTemplate<ShortcutContext>,
-                        public QtWayland::treeland_shortcut_context_v1
+class ShortcutContext
+    : public QWaylandClientExtensionTemplate<ShortcutContext>
+    , public QtWayland::treeland_shortcut_context_v1
 {
     Q_OBJECT
 public:

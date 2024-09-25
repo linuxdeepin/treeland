@@ -89,7 +89,6 @@ wl_global *PrimaryOutputV1::global() const
     return m_handle->global;
 }
 
-
 QByteArrayView PrimaryOutputV1::interfaceName() const
 {
     return treeland_output_manager_v1_interface.name;

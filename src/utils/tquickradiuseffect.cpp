@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "tquickradiuseffect.h"
+
 #include "tquickradiuseffect_p.h"
 #include "tsgradiusimagenode.h"
 
@@ -120,7 +121,7 @@ qreal TQuickRadiusEffect::topRightRadius() const
 {
     Q_D(const TQuickRadiusEffect);
 
-    if (d->extraRadius.isAllocated()  && d->extraRadius->topRightRadius >= 0.)
+    if (d->extraRadius.isAllocated() && d->extraRadius->topRightRadius >= 0.)
         return d->extraRadius.value().topRightRadius;
 
     return d->radius;
@@ -265,7 +266,10 @@ void TQuickRadiusEffect::setSourceItem(QQuickItem *item)
     if (d->sourceItem) {
         QQuickItemPrivate *sourceItemPrivate = QQuickItemPrivate::get(d->sourceItem);
         sourceItemPrivate->derefFromEffectItem(d->hideSource);
-        disconnect(d->sourceItem, SIGNAL(destroyed(QObject*)), this, SLOT(sourceItemDestroyed(QObject*)));
+        disconnect(d->sourceItem,
+                   SIGNAL(destroyed(QObject *)),
+                   this,
+                   SLOT(sourceItemDestroyed(QObject *)));
 
         if (window())
             sourceItemPrivate->derefWindow();
@@ -274,8 +278,7 @@ void TQuickRadiusEffect::setSourceItem(QQuickItem *item)
     d->sourceItem = item;
 
     if (d->sourceItem) {
-        if (window() == d->sourceItem->window()
-            || (window() == nullptr && d->sourceItem->window())
+        if (window() == d->sourceItem->window() || (window() == nullptr && d->sourceItem->window())
             || (d->sourceItem->window() == nullptr && window())) {
             QQuickItemPrivate *sourceItemPrivate = QQuickItemPrivate::get(d->sourceItem);
             if (window())
@@ -283,9 +286,13 @@ void TQuickRadiusEffect::setSourceItem(QQuickItem *item)
             else if (d->sourceItem->window())
                 sourceItemPrivate->refWindow(d->sourceItem->window());
             sourceItemPrivate->refFromEffectItem(d->hideSource);
-            connect(d->sourceItem, SIGNAL(destroyed(QObject*)), this, SLOT(sourceItemDestroyed(QObject*)));
+            connect(d->sourceItem,
+                    SIGNAL(destroyed(QObject *)),
+                    this,
+                    SLOT(sourceItemDestroyed(QObject *)));
         } else {
-            qWarning("TRadiusEffect: sourceItem and TRadiusEffect must both be children of the same window.");
+            qWarning("TRadiusEffect: sourceItem and TRadiusEffect must both be children of the "
+                     "same window.");
             d->sourceItem = nullptr;
         }
     }
@@ -346,7 +353,8 @@ QSGNode *TQuickRadiusEffect::updatePaintNode(QSGNode *oldNode, UpdatePaintNodeDa
     }
 
     auto sgRendererInterface = d->window->rendererInterface();
-    if (sgRendererInterface && sgRendererInterface->graphicsApi() == QSGRendererInterface::Software) {
+    if (sgRendererInterface
+        && sgRendererInterface->graphicsApi() == QSGRendererInterface::Software) {
         // TODO: Software is not currently supported
         return nullptr;
     } else {
@@ -392,4 +400,3 @@ TQuickRadiusEffect::TQuickRadiusEffect(TQuickRadiusEffectPrivate &dd, QQuickItem
     : QQuickItem(dd, parent)
 {
 }
-

@@ -4,12 +4,14 @@
 #pragma once
 
 #include "treeland-virtual-output-manager-protocol.h"
+
 #include <wayland-server-core.h>
-#include <qwsignalconnector.h>
+
 #include <qwdisplay.h>
-#include <QObject>
+#include <qwsignalconnector.h>
 
 #include <QList>
+#include <QObject>
 #include <QString>
 
 struct treeland_virtual_output_v1;
@@ -40,13 +42,13 @@ public:
     ~treeland_virtual_output_v1();
     treeland_virtual_output_manager_v1 *manager{ nullptr };
     wl_resource *resource{ nullptr };
-    QString name; //Client-defined group name
+    QString name; // Client-defined group name
     struct wl_array *screen_outputs;
 
     QStringList outputList;
 
     void send_outputs(QString name, struct wl_array *outputs);
-    void send_error(uint32_t code, const char *message);  // tode: send err code and message
+    void send_error(uint32_t code, const char *message); // tode: send err code and message
 
 Q_SIGNALS:
     void before_destroy();

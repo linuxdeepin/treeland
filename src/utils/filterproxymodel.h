@@ -3,9 +3,9 @@
 
 #pragma once
 
+#include <QJSValue>
 #include <QQuickItem>
 #include <QSortFilterProxyModel>
-#include <QJSValue>
 
 class FilterProxyModel : public QSortFilterProxyModel
 {
@@ -18,9 +18,8 @@ public:
     int count() const;
 
     void setFilterAcceptsRow(const QJSValue &val);
-    QJSValue filterAcceptsRow() const {
-        return m_filterAcceptsRow;
-    }
+
+    QJSValue filterAcceptsRow() const { return m_filterAcceptsRow; }
 
     Q_INVOKABLE QVariantMap get(const int index) const;
     Q_INVOKABLE void invalidate();

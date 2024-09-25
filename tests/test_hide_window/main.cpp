@@ -6,28 +6,32 @@
 #include <QPushButton>
 #include <QTimer>
 
-class MainWindow : public QMainWindow {
+class MainWindow : public QMainWindow
+{
     Q_OBJECT
 
 public:
-    MainWindow(QWidget *parent = nullptr) : QMainWindow(parent) {
+    MainWindow(QWidget *parent = nullptr)
+        : QMainWindow(parent)
+    {
         QPushButton *button = new QPushButton("hide", this);
         setCentralWidget(button);
         connect(button, &QPushButton::clicked, this, &MainWindow::hideWindow);
     }
 
 private slots:
-    void hideWindow() {
+
+    void hideWindow()
+    {
         this->hide();
         QTimer::singleShot(3000, this, &MainWindow::showWindow);
     }
 
-    void showWindow() {
-        this->show();
-    }
+    void showWindow() { this->show(); }
 };
 
-int main(int argc, char **argv) {
+int main(int argc, char **argv)
+{
     QApplication app(argc, argv);
 
     MainWindow window;

@@ -48,11 +48,11 @@ Q_SIGNALS:
     void iconThemeChanged();
 
 private:
-    void sendState(std::function<void(struct wl_resource*)> func);
+    void sendState(std::function<void(struct wl_resource *)> func);
 
 private:
-    treeland_personalization_manager_v1 *m_manager {nullptr};
-    struct wl_resource *m_resource {nullptr};
+    treeland_personalization_manager_v1 *m_manager{ nullptr };
+    struct wl_resource *m_resource{ nullptr };
 
     // TODO: move to settings
     int32_t m_radius{ 0 };
