@@ -1,0 +1,9 @@
+[Unit]
+Description=TreeLand shutdown session service
+
+[Service]
+ExecCondition=/bin/sh -c 'test "$DDE_CURRENT_COMPOSITOR" = "TreeLand" || exit 2'
+Type=oneshot
+ExecStart=/usr/bin/systemctl --user unset-environment DDE_CURRENT_COMPOSITOR
+ExecStart=/usr/bin/systemctl --user unset-environment DESKTOP_SESSION
+ExecStart=/usr/bin/systemctl --user unset-environment XDG_SESSION_TYPE
