@@ -8,7 +8,9 @@
 #include <private/qwaylandclientextension_p.h>
 #include <private/qwaylandshmbackingstore_p.h>
 
-class TreeLandCaptureFrame : public QObject, public QtWayland::treeland_capture_frame_v1
+class TreeLandCaptureFrame
+    : public QObject
+    , public QtWayland::treeland_capture_frame_v1
 {
     Q_OBJECT
 public:
@@ -48,7 +50,9 @@ private:
     uint m_flags;
 };
 
-class TreeLandCaptureContext : public QObject, public QtWayland::treeland_capture_context_v1
+class TreeLandCaptureContext
+    : public QObject
+    , public QtWayland::treeland_capture_context_v1
 {
     Q_OBJECT
 public:
@@ -94,8 +98,8 @@ void destruct_treeland_capture_manager(TreeLandCaptureManager *manager);
 
 class TreeLandCaptureManager
     : public QWaylandClientExtensionTemplate<TreeLandCaptureManager,
-                                             destruct_treeland_capture_manager>,
-      public QtWayland::treeland_capture_manager_v1
+                                             destruct_treeland_capture_manager>
+    , public QtWayland::treeland_capture_manager_v1
 {
     Q_OBJECT
 public:

@@ -14,7 +14,8 @@ class Q_DECL_HIDDEN TQuickRadiusEffectPrivate : public QQuickItemPrivate
     Q_DECLARE_PUBLIC(TQuickRadiusEffect)
 
 public:
-    struct ExtraData {
+    struct ExtraData
+    {
         ExtraData()
             : topLeftRadius(-1.)
             , topRightRadius(-1.)
@@ -36,9 +37,7 @@ public:
     {
     }
 
-    ~TQuickRadiusEffectPrivate()
-    {
-    }
+    ~TQuickRadiusEffectPrivate() { }
 
     void maybeSetImplicitAntialiasing();
 

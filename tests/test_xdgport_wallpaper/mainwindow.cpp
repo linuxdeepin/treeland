@@ -2,13 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "mainwindow.h"
+
 #include "ui_mainwindow.h"
-#include <QDebug>
-#include <QDBusMessage>
-#include <QDBusConnection>
+
 #include <QDBusArgument>
-#include <QVariantMap>
+#include <QDBusConnection>
+#include <QDBusMessage>
+#include <QDebug>
 #include <QSettings>
+#include <QVariantMap>
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -35,25 +37,24 @@ void MainWindow::setWallpaper()
     QString parent_window = "";
     QString config = "test_config.ini";
     QSettings settings(config, QSettings::IniFormat);
-    QString uri = settings.value("Wallpaper/path", "/home/uos/Pictures/Wallpapers/abc-123.jpg").toString();
+    QString uri =
+        settings.value("Wallpaper/path", "/home/uos/Pictures/Wallpapers/abc-123.jpg").toString();
     qDebug() << "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx=========" << uri;
 
     QVariantMap options;
     options.insert("output", "X11-2");
     options.insert("set-on", "background");
 
-    QDBusMessage reply = interface->call("SetWallpaperURI",
-                                         parent_window,
-                                         uri,
-                                         QVariant::fromValue(options));
+    QDBusMessage reply =
+        interface->call("SetWallpaperURI", parent_window, uri, QVariant::fromValue(options));
 
-           // 检查返回值
+    // 检查返回值
     if (reply.type() == QDBusMessage::ErrorMessage) {
         qWarning() << "Failed to set wallpaper:" << reply.errorMessage();
-        return ;
+        return;
     }
 
-           // 处理返回值
+    // 处理返回值
     uint response = reply.arguments().at(0).toUInt();
     qDebug() << "Wallpaper set with response code:" << response;
 }

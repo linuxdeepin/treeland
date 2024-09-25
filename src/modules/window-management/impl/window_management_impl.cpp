@@ -4,6 +4,7 @@
 #include "window_management_impl.h"
 
 #include <wayland-server-core.h>
+
 #include <cassert>
 
 #define TREELAND_WINDOW_MANAGEMENT_V1_VERSION 1
@@ -19,14 +20,16 @@ static void window_management_handle_destroy(struct wl_client *, struct wl_resou
     wl_resource_destroy(resource);
 }
 
-void window_management_handle_set_desktop([[maybe_unused]]struct wl_client *client,
-                                              struct wl_resource *resource,
-                                              uint32_t state) {
+void window_management_handle_set_desktop([[maybe_unused]] struct wl_client *client,
+                                          struct wl_resource *resource,
+                                          uint32_t state)
+{
     auto *manager = window_management_from_resource(resource);
     Q_EMIT manager->requestShowDesktop(state);
 }
 
-static const struct treeland_window_management_v1_interface window_management_impl {
+static const struct treeland_window_management_v1_interface window_management_impl
+{
     .set_desktop = window_management_handle_set_desktop,
     .destroy = window_management_handle_destroy,
 };
@@ -56,7 +59,9 @@ treeland_window_management_v1 *treeland_window_management_v1::create(qw_display 
     }
     wl_list_init(&manager->resources);
 
-    connect(display, &qw_display::before_destroy, manager, [manager] { delete manager; });
+    connect(display, &qw_display::before_destroy, manager, [manager] {
+        delete manager;
+    });
     return manager;
 }
 
@@ -75,7 +80,8 @@ static treeland_window_management_v1 *window_management_from_resource(wl_resourc
     assert(wl_resource_instance_of(resource,
                                    &treeland_window_management_v1_interface,
                                    &window_management_impl));
-    auto *manager = static_cast<treeland_window_management_v1 *>(wl_resource_get_user_data(resource));
+    auto *manager =
+        static_cast<treeland_window_management_v1 *>(wl_resource_get_user_data(resource));
     assert(manager != nullptr);
     return manager;
 }

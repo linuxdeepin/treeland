@@ -3,17 +3,20 @@
 
 #include "surfaceitemfactory.h"
 
-#include <QQmlContext>
-#include <wxwaylandsurface.h>
 #include <wxdgsurface.h>
-#include <wxwaylandsurfaceitem.h>
 #include <wxdgsurfaceitem.h>
+#include <wxwaylandsurface.h>
+#include <wxwaylandsurfaceitem.h>
+
+#include <QQmlContext>
 
 SurfaceItemFactory::SurfaceItemFactory(QQuickItem *parent)
     : QQuickItem(parent)
 {
 }
+
 constexpr auto typePropName = "surfType";
+
 void SurfaceItemFactory::classBegin()
 {
     Q_ASSERT(qmlContext(this));

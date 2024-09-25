@@ -11,8 +11,9 @@
 #include <QScreen>
 #include <QtWaylandClient/QWaylandClientExtension>
 
-class WallpaperColorManager : public QWaylandClientExtensionTemplate<WallpaperColorManager>,
-                              public QtWayland::treeland_wallpaper_color_manager_v1
+class WallpaperColorManager
+    : public QWaylandClientExtensionTemplate<WallpaperColorManager>
+    , public QtWayland::treeland_wallpaper_color_manager_v1
 {
     Q_OBJECT
 public:

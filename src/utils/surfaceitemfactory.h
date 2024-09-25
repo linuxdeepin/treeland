@@ -3,16 +3,19 @@
 
 #pragma once
 
-#include <QQuickItem>
-
 #include <wsurfaceitem.h>
 
+#include <QQuickItem>
+
 using Waylib::Server::WSurfaceItem;
-class SurfaceItemFactory: public QQuickItem {
+
+class SurfaceItemFactory : public QQuickItem
+{
     Q_OBJECT
     QML_NAMED_ELEMENT(SurfaceItemFactory)
     Q_PROPERTY(WSurfaceItem* surfaceItem MEMBER m_surfaceItem CONSTANT)
     WSurfaceItem *m_surfaceItem;
+
 public:
     explicit SurfaceItemFactory(QQuickItem *parent = nullptr);
     void classBegin() override;

@@ -60,7 +60,9 @@ public:
     static DDEShellAttached *qmlAttachedProperties(QObject *target);
 };
 
-class DDEShellV1 : public QObject, public WServerInterface
+class DDEShellV1
+    : public QObject
+    , public WServerInterface
 {
     Q_OBJECT
 public:

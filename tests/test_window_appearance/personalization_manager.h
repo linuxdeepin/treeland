@@ -12,16 +12,18 @@
 
 QT_BEGIN_NAMESPACE
 
-class PersonalizationManager : public QWaylandClientExtensionTemplate<PersonalizationManager>,
-                               public QtWayland::treeland_personalization_manager_v1
+class PersonalizationManager
+    : public QWaylandClientExtensionTemplate<PersonalizationManager>
+    , public QtWayland::treeland_personalization_manager_v1
 {
     Q_OBJECT
 public:
     explicit PersonalizationManager();
 };
 
-class Appearance : public QWaylandClientExtensionTemplate<Appearance>,
-                   public QtWayland::treeland_personalization_appearance_context_v1
+class Appearance
+    : public QWaylandClientExtensionTemplate<Appearance>
+    , public QtWayland::treeland_personalization_appearance_context_v1
 {
     Q_OBJECT
 public:

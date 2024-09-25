@@ -7,8 +7,8 @@
 #include "treeland-foreign-toplevel-manager-protocol.h"
 
 #include <wserver.h>
-#include <wxdgsurface.h>
 #include <wsurface.h>
+#include <wxdgsurface.h>
 
 QW_USE_NAMESPACE
 WAYLIB_SERVER_USE_NAMESPACE
@@ -36,7 +36,9 @@ private:
     ForeignToplevelV1 *m_manager;
 };
 
-class ForeignToplevelV1 : public QObject, public WServerInterface
+class ForeignToplevelV1
+    : public QObject
+    , public WServerInterface
 {
     Q_OBJECT
 
@@ -77,9 +79,9 @@ Q_SIGNALS:
                             QPoint abs,
                             PreviewDirection direction);
     void requestDockPreviewTooltip(QString tooltip,
-                            WSurface *target,
-                            QPoint abs,
-                            PreviewDirection direction);
+                                   WSurface *target,
+                                   QPoint abs,
+                                   PreviewDirection direction);
     void requestDockClose();
 
 protected:

@@ -7,7 +7,7 @@
 #include <QGuiApplication>
 
 Clipboard::Clipboard(QObject *parent)
-    : QObject{parent}
+    : QObject{ parent }
 {
     m_manager.reset(new DataControlDeviceV1ManagerV1);
     QObject::connect(m_manager.get(), &DataControlDeviceV1ManagerV1::activeChanged, this, [this]() {
@@ -29,9 +29,10 @@ Clipboard::Clipboard(QObject *parent)
 
                     if (m_device->m_receivedSelection) {
                         DataControlOfferV1 *offer = m_device->m_receivedSelection.get();
-                        for(auto type : offer->formats()) {
+                        for (auto type : offer->formats()) {
                             QVariant data = offer->retrieveData(type);
-                            qWarning() << "----------receivedSelectionChanged---" << "type:=" << type << "data:= " << data;
+                            qWarning() << "----------receivedSelectionChanged---"
+                                       << "type:=" << type << "data:= " << data;
                         }
                     }
                 }
@@ -40,19 +41,24 @@ Clipboard::Clipboard(QObject *parent)
                 Q_EMIT changed(QClipboard::Clipboard);
             });
 
-            connect(m_device.get(), &DataControlDeviceV1::receivedPrimarySelectionChanged, this, [this]() {
-                if (!m_device->primarySelection()) {
-                    Q_EMIT changed(QClipboard::Selection);
+            connect(m_device.get(),
+                    &DataControlDeviceV1::receivedPrimarySelectionChanged,
+                    this,
+                    [this]() {
+                        if (!m_device->primarySelection()) {
+                            Q_EMIT changed(QClipboard::Selection);
 
-                    if (m_device->m_receivedPrimarySelection) {
-                        DataControlOfferV1 *offer = m_device->m_receivedPrimarySelection.get();
-                        for(auto type : offer->formats()) {
-                            QVariant data = offer->retrieveData(type);
-                            qWarning() << "----------receivedPrimarySelectionChanged" << "type:=" << type << "data:= " << data;
+                            if (m_device->m_receivedPrimarySelection) {
+                                DataControlOfferV1 *offer =
+                                    m_device->m_receivedPrimarySelection.get();
+                                for (auto type : offer->formats()) {
+                                    QVariant data = offer->retrieveData(type);
+                                    qWarning() << "----------receivedPrimarySelectionChanged"
+                                               << "type:=" << type << "data:= " << data;
+                                }
+                            }
                         }
-                    }
-                }
-            });
+                    });
             connect(m_device.get(), &DataControlDeviceV1::primarySelectionChanged, this, [this]() {
                 Q_EMIT changed(QClipboard::Selection);
             });

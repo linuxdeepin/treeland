@@ -5,20 +5,28 @@
 
 #include <private/qsgtexturematerial_p.h>
 
-namespace
+namespace {
+struct ImageVertex
 {
-struct ImageVertex {
     float x, y;
     float tx, ty;
+
     // for vertex geometry
-    void set(float nx, float ny, float ntx, float nty) {
-        x = ny; y = nx; tx = nty; ty = ntx;
+    void set(float nx, float ny, float ntx, float nty)
+    {
+        x = ny;
+        y = nx;
+        tx = nty;
+        ty = ntx;
     }
 };
+
 struct RadiusImageVertex : public ImageVertex
 {
     float alpha;
-    void set(float nx, float ny, float ntx, float nty, float nalpha) {
+
+    void set(float nx, float ny, float ntx, float nty, float nalpha)
+    {
         ImageVertex::set(nx, ny, ntx, nty);
         alpha = nalpha;
     }
@@ -27,9 +35,18 @@ struct RadiusImageVertex : public ImageVertex
 const QSGGeometry::AttributeSet &radiusImageAttributeSet()
 {
     static QSGGeometry::Attribute data[] = {
-        QSGGeometry::Attribute::createWithAttributeType(0, 2, QSGGeometry::FloatType, QSGGeometry::PositionAttribute),
-        QSGGeometry::Attribute::createWithAttributeType(1, 2, QSGGeometry::FloatType, QSGGeometry::TexCoordAttribute),
-        QSGGeometry::Attribute::createWithAttributeType(2, 1, QSGGeometry::FloatType, QSGGeometry::UnknownAttribute),
+        QSGGeometry::Attribute::createWithAttributeType(0,
+                                                        2,
+                                                        QSGGeometry::FloatType,
+                                                        QSGGeometry::PositionAttribute),
+        QSGGeometry::Attribute::createWithAttributeType(1,
+                                                        2,
+                                                        QSGGeometry::FloatType,
+                                                        QSGGeometry::TexCoordAttribute),
+        QSGGeometry::Attribute::createWithAttributeType(2,
+                                                        1,
+                                                        QSGGeometry::FloatType,
+                                                        QSGGeometry::UnknownAttribute),
     };
     static QSGGeometry::AttributeSet attrs = { 3, sizeof(RadiusImageVertex), data };
     return attrs;
@@ -44,25 +61,38 @@ struct SmoothImageVertex
 const QSGGeometry::AttributeSet &smoothImageAttributeSet()
 {
     static QSGGeometry::Attribute data[] = {
-        QSGGeometry::Attribute::createWithAttributeType(0, 2, QSGGeometry::FloatType, QSGGeometry::PositionAttribute),
-        QSGGeometry::Attribute::createWithAttributeType(1, 2, QSGGeometry::FloatType, QSGGeometry::TexCoordAttribute),
-        QSGGeometry::Attribute::createWithAttributeType(2, 2, QSGGeometry::FloatType, QSGGeometry::TexCoord1Attribute),
-        QSGGeometry::Attribute::createWithAttributeType(3, 2, QSGGeometry::FloatType, QSGGeometry::TexCoord2Attribute)
+        QSGGeometry::Attribute::createWithAttributeType(0,
+                                                        2,
+                                                        QSGGeometry::FloatType,
+                                                        QSGGeometry::PositionAttribute),
+        QSGGeometry::Attribute::createWithAttributeType(1,
+                                                        2,
+                                                        QSGGeometry::FloatType,
+                                                        QSGGeometry::TexCoordAttribute),
+        QSGGeometry::Attribute::createWithAttributeType(2,
+                                                        2,
+                                                        QSGGeometry::FloatType,
+                                                        QSGGeometry::TexCoord1Attribute),
+        QSGGeometry::Attribute::createWithAttributeType(3,
+                                                        2,
+                                                        QSGGeometry::FloatType,
+                                                        QSGGeometry::TexCoord2Attribute)
     };
     static QSGGeometry::AttributeSet attrs = { 4, sizeof(SmoothImageVertex), data };
     return attrs;
 }
 
-}
+} // namespace
 
 class TSmoothTextureMaterialRhiShader : public QSGOpaqueTextureMaterialRhiShader
 {
 public:
     TSmoothTextureMaterialRhiShader();
 
-    bool updateUniformData(RenderState &state, QSGMaterial *newMaterial, QSGMaterial *oldMaterial) override;
+    bool updateUniformData(RenderState &state,
+                           QSGMaterial *newMaterial,
+                           QSGMaterial *oldMaterial) override;
 };
-
 
 TSmoothTextureMaterialRhiShader::TSmoothTextureMaterialRhiShader()
 {
@@ -70,7 +100,9 @@ TSmoothTextureMaterialRhiShader::TSmoothTextureMaterialRhiShader()
     setShaderFileName(FragmentStage, QStringLiteral(":/shaders/radiussmoothtexture.frag.qsb"));
 }
 
-bool TSmoothTextureMaterialRhiShader::updateUniformData(RenderState &state, QSGMaterial *newMaterial, QSGMaterial *oldMaterial)
+bool TSmoothTextureMaterialRhiShader::updateUniformData(RenderState &state,
+                                                        QSGMaterial *newMaterial,
+                                                        QSGMaterial *oldMaterial)
 {
     bool changed = false;
     QByteArray *buf = state.uniformData();
@@ -81,7 +113,8 @@ bool TSmoothTextureMaterialRhiShader::updateUniformData(RenderState &state, QSGM
         changed = true;
     }
 
-    changed |= QSGOpaqueTextureMaterialRhiShader::updateUniformData(state, newMaterial, oldMaterial);
+    changed |=
+        QSGOpaqueTextureMaterialRhiShader::updateUniformData(state, newMaterial, oldMaterial);
 
     return changed;
 }
@@ -104,7 +137,8 @@ QSGMaterialType *TSGRadiusSmoothTextureMaterial::type() const
     return &type;
 }
 
-QSGMaterialShader *TSGRadiusSmoothTextureMaterial::createShader(QSGRendererInterface::RenderMode renderMode) const
+QSGMaterialShader *TSGRadiusSmoothTextureMaterial::createShader(
+    QSGRendererInterface::RenderMode renderMode) const
 {
     Q_UNUSED(renderMode);
     return new TSmoothTextureMaterialRhiShader();
@@ -252,7 +286,7 @@ void TSGRadiusImageNode::setRadius(qreal radius)
 
 void TSGRadiusImageNode::setTopLeftRadius(qreal radius)
 {
-    if (radius != m_topLeftRadius)  {
+    if (radius != m_topLeftRadius) {
         m_topLeftRadius = radius;
         m_dirtyGeometry = true;
     }
@@ -288,10 +322,7 @@ void TSGRadiusImageNode::setAntialiasing(bool antialiasing)
         return;
 
     m_antialiasing = antialiasing;
-    if (m_radius > 0
-        || m_topLeftRadius > 0
-        || m_topRightRadius > 0
-        || m_bottomLeftRadius > 0
+    if (m_radius > 0 || m_topLeftRadius > 0 || m_topRightRadius > 0 || m_bottomLeftRadius > 0
         || m_bottomRightRadius > 0) {
         m_node.setGeometry(new QSGGeometry(radiusImageAttributeSet(), 0));
     } else {
@@ -307,11 +338,18 @@ void TSGRadiusImageNode::setTextureProvider(QSGTextureProvider *p)
 {
     if (p != m_provider) {
         if (m_provider) {
-            disconnect(m_provider.data(), &QSGTextureProvider::textureChanged, this, &TSGRadiusImageNode::handleTextureChange);
+            disconnect(m_provider.data(),
+                       &QSGTextureProvider::textureChanged,
+                       this,
+                       &TSGRadiusImageNode::handleTextureChange);
         }
 
         m_provider = p;
-        connect(m_provider.data(), &QSGTextureProvider::textureChanged, this, &TSGRadiusImageNode::handleTextureChange, Qt::DirectConnection);
+        connect(m_provider.data(),
+                &QSGTextureProvider::textureChanged,
+                this,
+                &TSGRadiusImageNode::handleTextureChange,
+                Qt::DirectConnection);
     }
 }
 
@@ -322,10 +360,7 @@ void TSGRadiusImageNode::handleTextureChange()
 
 void TSGRadiusImageNode::updateMaterialAntialiasing()
 {
-    if (m_radius > 0
-        || m_topLeftRadius > 0
-        || m_topRightRadius > 0
-        || m_bottomLeftRadius > 0
+    if (m_radius > 0 || m_topLeftRadius > 0 || m_topRightRadius > 0 || m_bottomLeftRadius > 0
         || m_bottomRightRadius > 0) {
         m_node.setMaterial(&m_radiusMaterial);
         m_node.setOpaqueMaterial(nullptr);
@@ -361,10 +396,7 @@ bool TSGRadiusImageNode::updateMaterialBlending()
 void TSGRadiusImageNode::updateGeometry()
 {
     QRectF textRect = QRectF(0, 0, 1, 1);
-    if (m_radius > 0
-        || m_topLeftRadius > 0
-        || m_topRightRadius > 0
-        || m_bottomLeftRadius > 0
+    if (m_radius > 0 || m_topLeftRadius > 0 || m_topRightRadius > 0 || m_bottomLeftRadius > 0
         || m_bottomRightRadius > 0) {
         updateTexturedRadiusGeometry(m_targetRect, textRect);
     } else {
@@ -387,10 +419,14 @@ void TSGRadiusImageNode::updateTexturedRadiusGeometry(const QRectF &rect, const 
         RadiusImageVertex *smoothVertices;
     };
 
-    float radiusTL = qMin(qMin(width, height) * 0.4999f, float(m_topLeftRadius < 0 ? m_radius : m_topLeftRadius));
-    float radiusTR = qMin(qMin(width, height) * 0.4999f, float(m_topRightRadius < 0 ? m_radius : m_topRightRadius));
-    float radiusBL = qMin(qMin(width, height) * 0.4999f, float(m_bottomLeftRadius < 0 ? m_radius : m_bottomLeftRadius));
-    float radiusBR = qMin(qMin(width, height) * 0.4999f, float(m_bottomRightRadius < 0 ? m_radius : m_bottomRightRadius));
+    float radiusTL = qMin(qMin(width, height) * 0.4999f,
+                          float(m_topLeftRadius < 0 ? m_radius : m_topLeftRadius));
+    float radiusTR = qMin(qMin(width, height) * 0.4999f,
+                          float(m_topRightRadius < 0 ? m_radius : m_topRightRadius));
+    float radiusBL = qMin(qMin(width, height) * 0.4999f,
+                          float(m_bottomLeftRadius < 0 ? m_radius : m_bottomLeftRadius));
+    float radiusBR = qMin(qMin(width, height) * 0.4999f,
+                          float(m_bottomRightRadius < 0 ? m_radius : m_bottomRightRadius));
 
     if (radiusTL <= 0.5)
         radiusTL = 0;
@@ -421,7 +457,7 @@ void TSGRadiusImageNode::updateTexturedRadiusGeometry(const QRectF &rect, const 
         else
             segmentsTR = 0;
     }
-    if (innerRadiusBL == innerRadiusBR){
+    if (innerRadiusBL == innerRadiusBR) {
         if (segmentsBL <= segmentsBR)
             segmentsBL = 0;
         else
@@ -471,19 +507,29 @@ void TSGRadiusImageNode::updateTexturedRadiusGeometry(const QRectF &rect, const 
     const float cosStepBR = qFastCos(angleBR);
     const float sinStepBR = qFastSin(angleBR);
 
-    const float outerXCenter[][2] = {{float(rect.top()  + radiusTL), float(rect.top() + radiusTR)},
-                                      {float(rect.bottom() - radiusBL), float(rect.bottom() - radiusBR)}};
-    const float outerYCenter[][2] = {{float(rect.left() + outerRadiusTL), float(rect.right() - outerRadiusTR)},
-                                      {float(rect.left() + outerRadiusBL), float(rect.right() - outerRadiusBR)}};
-    const float innerXCenter[][2] = {{float(rect.top()  + innerRadiusTL), float(rect.top() + innerRadiusTR)},
-                                      {float(rect.bottom() - innerRadiusBL), float(rect.bottom() - innerRadiusBR)}};
-    const float innerYCenter[][2] = {{float(rect.left() + innerRadiusTL), float(rect.right() - innerRadiusTR)},
-                                      {float(rect.left() + innerRadiusBL), float(rect.right() - innerRadiusBR)}};
-    const float innerRadius[][2] = {{innerRadiusTL, innerRadiusTR}, {innerRadiusBL, innerRadiusBR}};
-    const float outerRadius[][2] = {{outerRadiusTL, outerRadiusTR}, {outerRadiusBL, outerRadiusBR}};
-    const int segments[][2] = {{segmentsTL, segmentsTR}, {segmentsBL, segmentsBR}};
-    const float cosStep[][2] = {{cosStepTL, cosStepTR}, {cosStepBL, cosStepBR}};
-    const float sinStep[][2] = {{sinStepTL, sinStepTR}, {sinStepBL, sinStepBR}};
+    const float outerXCenter[][2] = {
+        { float(rect.top() + radiusTL), float(rect.top() + radiusTR) },
+        { float(rect.bottom() - radiusBL), float(rect.bottom() - radiusBR) }
+    };
+    const float outerYCenter[][2] = {
+        { float(rect.left() + outerRadiusTL), float(rect.right() - outerRadiusTR) },
+        { float(rect.left() + outerRadiusBL), float(rect.right() - outerRadiusBR) }
+    };
+    const float innerXCenter[][2] = {
+        { float(rect.top() + innerRadiusTL), float(rect.top() + innerRadiusTR) },
+        { float(rect.bottom() - innerRadiusBL), float(rect.bottom() - innerRadiusBR) }
+    };
+    const float innerYCenter[][2] = {
+        { float(rect.left() + innerRadiusTL), float(rect.right() - innerRadiusTR) },
+        { float(rect.left() + innerRadiusBL), float(rect.right() - innerRadiusBR) }
+    };
+    const float innerRadius[][2] = { { innerRadiusTL, innerRadiusTR },
+                                     { innerRadiusBL, innerRadiusBR } };
+    const float outerRadius[][2] = { { outerRadiusTL, outerRadiusTR },
+                                     { outerRadiusBL, outerRadiusBR } };
+    const int segments[][2] = { { segmentsTL, segmentsTR }, { segmentsBL, segmentsBR } };
+    const float cosStep[][2] = { { cosStepTL, cosStepTR }, { cosStepBL, cosStepBR } };
+    const float sinStep[][2] = { { sinStepTL, sinStepTR }, { sinStepBL, sinStepBR } };
 
     float cosSegmentAngleLeft;
     float sinSegmentAngleLeft;
@@ -504,7 +550,8 @@ void TSGRadiusImageNode::updateTexturedRadiusGeometry(const QRectF &rect, const 
         sinSegmentAngleRight = part;
         advanceLeft = true;
 
-        for (int iLeft = 0, iRight = 0; iLeft <= segments[part][0] || iRight <= segments[part][1]; ) {
+        for (int iLeft = 0, iRight = 0;
+             iLeft <= segments[part][0] || iRight <= segments[part][1];) {
             xLeft = innerXCenter[part][0] - innerRadius[part][0] * cosSegmentAngleLeft;
             xRight = innerXCenter[part][1] - innerRadius[part][1] * cosSegmentAngleRight;
 
@@ -609,7 +656,7 @@ void TSGRadiusImageNode::updateTexturedRadiusGeometry(const QRectF &rect, const 
                 }
             }
 
-            outerXLeft = outerXCenter[part][0]  - outerRadius[part][0] * cosAngleLeft;
+            outerXLeft = outerXCenter[part][0] - outerRadius[part][0] * cosAngleLeft;
             outerYLeft = outerYCenter[part][0] - outerRadius[part][0] * sinAngleLeft;
             outerXRight = outerXCenter[part][1] - outerRadius[part][1] * cosAngleRight;
             outerYRight = outerYCenter[part][1] + outerRadius[part][1] * sinAngleRight;
@@ -625,14 +672,30 @@ void TSGRadiusImageNode::updateTexturedRadiusGeometry(const QRectF &rect, const 
                 indices[innerAATail++] = index + 1;
                 indices[innerAATail++] = index + 3;
 
-                smoothVertices[index++].set(outerXRight, outerYRight, outerXRight / height, outerYRight / width, 1.0f);
-                smoothVertices[index++].set(outerXLeft, outerYLeft, outerXLeft / height, outerYLeft / width, 1.0f);
+                smoothVertices[index++].set(outerXRight,
+                                            outerYRight,
+                                            outerXRight / height,
+                                            outerYRight / width,
+                                            1.0f);
+                smoothVertices[index++].set(outerXLeft,
+                                            outerYLeft,
+                                            outerXLeft / height,
+                                            outerYLeft / width,
+                                            1.0f);
                 antiOuterXRight = xRight - m_antialiasingWidth * cosAngleRight;
                 antiOuterYRight = yRight + m_antialiasingWidth * sinAngleRight;
                 antiOuterXLeft = xLeft - m_antialiasingWidth * cosAngleLeft;
-                antiOuterYLeft = yLeft- m_antialiasingWidth * sinAngleLeft;
-                smoothVertices[index++].set(antiOuterXRight, antiOuterYRight, antiOuterXRight / height, antiOuterYRight / width, 0.0f);
-                smoothVertices[index++].set(antiOuterXLeft, antiOuterYLeft, antiOuterXLeft / height, antiOuterYLeft / width, 0.0f);
+                antiOuterYLeft = yLeft - m_antialiasingWidth * sinAngleLeft;
+                smoothVertices[index++].set(antiOuterXRight,
+                                            antiOuterYRight,
+                                            antiOuterXRight / height,
+                                            antiOuterYRight / width,
+                                            0.0f);
+                smoothVertices[index++].set(antiOuterXLeft,
+                                            antiOuterYLeft,
+                                            antiOuterXLeft / height,
+                                            antiOuterYLeft / width,
+                                            0.0f);
             } else {
                 vertices[index++].set(xRight, yRight, xRight / height, yRight / width);
                 vertices[index++].set(xLeft, yLeft, xLeft / height, yLeft / width);
@@ -645,13 +708,17 @@ void TSGRadiusImageNode::updateTexturedRadiusGeometry(const QRectF &rect, const 
             if (advanceLeft) {
                 iLeft++;
                 tmpLeft = cosSegmentAngleLeft;
-                cosSegmentAngleLeft = cosSegmentAngleLeft * cosStep[part][0] - sinSegmentAngleLeft * sinStep[part][0];
-                sinSegmentAngleLeft = sinSegmentAngleLeft * cosStep[part][0] + tmpLeft * sinStep[part][0];
+                cosSegmentAngleLeft =
+                    cosSegmentAngleLeft * cosStep[part][0] - sinSegmentAngleLeft * sinStep[part][0];
+                sinSegmentAngleLeft =
+                    sinSegmentAngleLeft * cosStep[part][0] + tmpLeft * sinStep[part][0];
             } else {
                 iRight++;
                 tmpRight = cosSegmentAngleRight;
-                cosSegmentAngleRight = cosSegmentAngleRight * cosStep[part][1] - sinSegmentAngleRight * sinStep[part][1];
-                sinSegmentAngleRight = sinSegmentAngleRight * cosStep[part][1] + tmpRight * sinStep[part][1];
+                cosSegmentAngleRight = cosSegmentAngleRight * cosStep[part][1]
+                    - sinSegmentAngleRight * sinStep[part][1];
+                sinSegmentAngleRight =
+                    sinSegmentAngleRight * cosStep[part][1] + tmpRight * sinStep[part][1];
             }
         }
     }
@@ -664,4 +731,3 @@ void TSGRadiusImageNode::updateTexturedRadiusGeometry(const QRectF &rect, const 
         Q_ASSERT(innerAATail <= indexCount);
     }
 }
-

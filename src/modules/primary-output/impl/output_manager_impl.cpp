@@ -4,6 +4,7 @@
 #include "output_manager_impl.h"
 
 #include <wayland-server-core.h>
+
 #include <cassert>
 
 using QW_NAMESPACE::qw_display;
@@ -19,8 +20,8 @@ static void output_manager_interface_handle_destroy(wl_client *, wl_resource *re
 }
 
 static void output_manager_handle_set_primary_output([[maybe_unused]] wl_client *client,
-                                              wl_resource *resource,
-                                              const char *output)
+                                                     wl_resource *resource,
+                                                     const char *output)
 {
     auto *manager = output_manager_from_resource(resource);
     Q_EMIT manager->requestSetPrimaryOutput(output);
@@ -54,7 +55,9 @@ treeland_output_manager_v1 *treeland_output_manager_v1::create(qw_display *displ
 
     wl_list_init(&manager->resources);
 
-    connect(display, &qw_display::before_destroy, manager, [manager] { delete manager; });
+    connect(display, &qw_display::before_destroy, manager, [manager] {
+        delete manager;
+    });
 
     return manager;
 }

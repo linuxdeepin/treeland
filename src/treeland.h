@@ -25,7 +25,9 @@ struct TreeLandAppContext
     QString run;
 };
 
-class TreeLand : public QObject, protected QDBusContext
+class TreeLand
+    : public QObject
+    , protected QDBusContext
 {
     Q_OBJECT
     Q_PROPERTY(bool testMode READ testMode CONSTANT)
