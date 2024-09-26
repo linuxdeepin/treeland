@@ -128,6 +128,7 @@ Item {
             model: Helper.outputLayout.outputs
             Item {
                 id: outputPlacementItem
+                required property OutputDelegate modelData
                 function calcDisplayRect(item, output) {
                     // margins on this output
                     const margins = Helper.getOutputExclusiveMargins(output)
