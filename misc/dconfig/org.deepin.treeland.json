@@ -91,7 +91,7 @@
             "visibility": "private"
         },
         "iconThemeName": {
-            "value": "",
+            "value": "bloom",
             "serial": 0,
             "flags": ["user-public"],
             "name": "Icon Theme Name",
@@ -102,7 +102,7 @@
             "visibility": "private"
         },
         "cursorThemeName": {
-            "value": "",
+            "value": "bloom",
             "serial": 0,
             "flags": ["user-public"],
             "name": "Cursor Theme Name",
