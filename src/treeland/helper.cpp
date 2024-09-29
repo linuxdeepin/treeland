@@ -163,10 +163,10 @@ void Helper::init()
         o->outputItem()->setParentItem(m_renderWindow->contentItem());
         o->outputItem()->stackBefore(m_surfaceContainer);
         m_outputList.append(o);
-        wOutputManager->newOutput(output);
 
         m_surfaceContainer->addOutput(o);
         enableOutput(output);
+        wOutputManager->newOutput(output);
     });
 
     connect(m_backend, &WBackend::outputRemoved, this, [this, wOutputManager](WOutput *output) {
