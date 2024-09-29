@@ -54,13 +54,11 @@ Description: examples for treeland.
 Package: treeland-data
 Section: dde
 Architecture: all
-Multi-Arch: same
 Depends: ${misc:Depends},
 Description: data files of treeland.
 
 Package: treeland-protocols
 Section: dde
 Architecture: all
-Multi-Arch: same
 Depends: ${misc:Depends},
 Description: wayland protocols of treeland.
