@@ -19,11 +19,11 @@
 #include <QDebug>
 #include <QDir>
 #include <QGuiApplication>
+#include <QImageReader>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QSettings>
 #include <QStandardPaths>
-#include <QImageReader>
 
 #include <sys/socket.h>
 #include <unistd.h>
