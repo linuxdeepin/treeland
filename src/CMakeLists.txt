@@ -16,7 +16,7 @@ pkg_search_module(PIXMAN REQUIRED IMPORTED_TARGET pixman-1)
 pkg_search_module(WAYLAND REQUIRED IMPORTED_TARGET wayland-server)
 # qt_finalize_target will collect all executable's private dependencies that are CMake targets
 
-# add_subdirectory(modules)
+add_subdirectory(modules)
 # add_subdirectory(greeter)
 # add_subdirectory(treeland-wallpaper)
 # add_subdirectory(treeland-shortcut)
