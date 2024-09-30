@@ -3,7 +3,6 @@
 
 #include "capture.h"
 
-#include "helper.h"
 #include "impl/capturev1impl.h"
 
 #include <woutputitem.h>
