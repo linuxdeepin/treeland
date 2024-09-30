@@ -17,7 +17,7 @@ include(GNUInstallDirs)
 # Macros
 include(FeatureSummary)
 
-option(WITH_SUBMODULE_WAYLIB "Use the waylib from git submodule" OFF)
+option(WITH_SUBMODULE_WAYLIB "Use the waylib from git submodule" ON)
 add_feature_info(submodule_waylib WITH_SUBMODULE_WAYLIB "Use waylib from submodule")
 
 option(ADDRESS_SANITIZER "Enable address sanitize" OFF)

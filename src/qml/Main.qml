@@ -120,6 +120,7 @@ Item {
                         id: stackLayout
                         anchors.fill: parent
                         focus: true
+                        active: true
                         sourceComponent: StackWorkspace {
                             focus: stackLayout.active
                             activeOutputDelegate: renderWindow.activeOutputDelegate
@@ -129,6 +130,7 @@ Item {
                     Loader {
                         active: !stackLayout.active
                         anchors.fill: parent
+                        focus: true
                         sourceComponent: TiledWorkspace { }
                     }
                 }

@@ -1,5 +1,6 @@
 .vscode/
 .cache/
+.gdb_history
 build*/
 
 *.user
