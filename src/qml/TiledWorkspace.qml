@@ -11,7 +11,6 @@ import TreeLand.Utils
 
 Item {
     id: root
-
     function getSurfaceItemFromWaylandSurface(surface) {
         let finder = function(props) {
             if (!props.waylandSurface)
@@ -25,7 +24,7 @@ Item {
         if (toplevel) {
             return {
                 shell: toplevel,
-                item: toplevel.asXdg,
+                item: toplevel,
                 type: "toplevel"
             }
         }
@@ -48,219 +47,173 @@ Item {
             }
         }
 
-        let xwayland = Helper.xwaylandCreator.getIf(xwaylandComponent, finder)
-        if (xwayland) {
-            return {
-                shell: xwayland,
-                item: xwayland.asXwayland,
-                type: "xwayland"
-            }
-        }
+        // let xwayland = Helper.xwaylandCreator.getIf(xwaylandComponent, finder)
+        // if (xwayland) {
+        //     return {
+        //         shell: xwayland,
+        //         item: xwayland,
+        //         type: "xwayland"
+        //     }
+        // }
 
         return null
     }
 
-    GridLayout {
+    LoggingCategory {
+        id: category
+        name: "treeland.tiledlayout"
+        defaultLogLevel: LoggingCategory.Info
+    }
+
+    WorkspaceManager {
+        id: workspaceManager
         anchors.fill: parent
-        columns: Math.floor(root.width / 1920 * 4)
+    }
 
-        DynamicCreatorComponent {
-            id: toplevelComponent
-            creator: Helper.xdgShellCreator
-            chooserRole: "type"
-            chooserRoleValue: "toplevel"
-            autoDestroy: false
 
-            onObjectRemoved: function (obj) {
-                obj.doDestroy()
+    SlideLayout {
+        id: slideLayout
+        // objectName: "slideLayout"
+        anchors.fill: parent
+    }
+
+    HorizontalLayout {
+        id: horizontalLayout
+        anchors.fill: parent
+    }
+
+    VerticalLayout {
+        id: verticalLayout
+        anchors.fill: parent
+    }
+
+    TallLayout {
+        id : tallLayout
+        anchors.fill: parent
+    }
+
+    function getPanes(wsId) {
+        return workspaceManager.wsPanesById.get(wsId)
+    }
+
+    property list <XdgSurfaceItem> panes: [] // Manage all panels.
+    property list <int> paneByWs: [] // Which WS does the i-th pane belong to.
+    property Item currentLayout: verticalLayout // Initialize default layout.
+    property int currentWsId: -1 // currentWorkSpace id.
+    property list <int> deleteFlag: [] // This flag is used to indicate whether this pane has been removed by removePane() function.
+    property list <Item> layouts: [slideLayout, verticalLayout, horizontalLayout, tallLayout]
+
+
+    Connections {
+        target: Helper
+        function onResizePane(size, direction) {
+            console.info(category, "the move size is", size, ", and the move direction is", direction)
+            if (currentLayout === slideLayout) {
+                console.log(category, "This Layout don't have resizePane() function!")
+                return
             }
-
-            XdgSurfaceItem {
-                id: toplevelSurfaceItem
-
-                property var doDestroy: helper.doDestroy
-
-                shellSurface: waylandSurface
-                resizeMode: SurfaceItem.SizeToSurface
-                z: (waylandSurface && waylandSurface.isActivated) ? 1 : 0
-
-                Layout.fillWidth: true
-                Layout.fillHeight: true
-                Layout.minimumWidth: Math.max(toplevelSurfaceItem.minimumSize.width, 100)
-                Layout.minimumHeight: Math.max(toplevelSurfaceItem.minimumSize.height, 50)
-                Layout.maximumWidth: toplevelSurfaceItem.maximumSize.width
-                Layout.maximumHeight: toplevelSurfaceItem.maximumSize.height
-                Layout.horizontalStretchFactor: 1
-                Layout.verticalStretchFactor: 1
-
-                OutputLayoutItem {
-                    anchors.fill: parent
-                    layout: Helper.outputLayout
-
-                    onEnterOutput: function(output) {
-                        if (waylandSurface.surface) {
-                            waylandSurface.surface.enterOutput(output)
-                        }
-                        Helper.onSurfaceEnterOutput(waylandSurface, toplevelSurfaceItem, output)
-                    }
-                    onLeaveOutput: function(output) {
-                        waylandSurface.surface.leaveOutput(output)
-                        Helper.onSurfaceLeaveOutput(waylandSurface, toplevelSurfaceItem, output)
-                    }
-                }
-
-                TiledToplevelHelper {
-                    id: helper
-
-                    surface: toplevelSurfaceItem
-                    waylandSurface: toplevelSurfaceItem.waylandSurface
-                    creator: toplevelComponent
-                }
+            if (currentLayout === verticalLayout && (direction === 1 || direction === 2)) {
+                console.log(category, "This Layout cannot left or right anymore!")
+                return
             }
+            if (currentLayout === horizontalLayout && (direction === 3 || direction === 4)) {
+                console.log(category, "This Layout cannot up or down anymore!")
+                return
+            }
+            currentLayout.resizePane(size, direction)
+        }
+        function onSwapPane() { currentLayout.swapPane() }
+        function onRemovePane(removeSurfaceIf) { currentLayout.removePane(removeSurfaceIf) }
+        function onChoosePane(id) { currentLayout.choosePane(id) }
+        function onSwitchLayout() { switchLayout() }
+
+        function onCreateWs() { workspaceManager.createWs() }
+        function onDestoryWs() { workspaceManager.destoryWs() }
+        function onSwitchNextWs() { workspaceManager.switchNextWs() }
+        function onMoveWs(wsId) { --wsId; workspaceManager.moveWs(currentWsId, wsId) }
+    }
+
+    function switchLayout() {
+        console.info(category, "switchLayout")
+        let wsPanes = workspaceManager.wsPanesById.get(currentWsId)
+        let index = layouts.indexOf(currentLayout)
+        let len = wsPanes.length
+        index += 1
+        if (index === layouts.length) {
+            index = 0
+        }
+        let oldLayout = currentLayout
+        let tempPanes = []
+        for (let i = 0; i < len; ++i) {
+            tempPanes.push(wsPanes[i])
+        }
+        currentLayout = layouts[index]
+        for (let i = 0; i < len; ++i) {
+            Helper.activatedSurface = wsPanes[0].shellSurface
+            oldLayout.removePane(0)
+        }
+        for (let i = 0; i < tempPanes.length; ++i) {
+            currentLayout.addPane(tempPanes[i])
+        }
+        workspaceManager.wsLayoutById.set(currentWsId, currentLayout)
+
+    }
+
+    DynamicCreatorComponent {
+        id: toplevelComponent
+        creator: Helper.xdgShellCreator
+        chooserRole: "type"
+        chooserRoleValue: "toplevel"
+        autoDestroy: false
+
+        onObjectRemoved: function (obj) {
+            obj.doDestroy()
         }
 
-        DynamicCreatorComponent {
-            id: popupComponent
-            creator: Helper.xdgShellCreator
-            chooserRole: "type"
-            chooserRoleValue: "popup"
+        XdgSurfaceItem {
+            id: toplevelVerticalSurfaceItem
+            resizeMode: SurfaceItem.SizeToSurface
+            property var doDestroy: helper.doDestroy
 
-            Popup {
-                id: popup
+            required property WaylandXdgSurface waylandSurface
+            property string type
+            shellSurface: waylandSurface
 
-                required property WaylandXdgSurface waylandSurface
-                property string type
-
-                property alias xdgSurface: popupSurfaceItem
-                property var parentItem: root.getSurfaceItemFromWaylandSurface(waylandSurface.parentSurface)
-
-                parent: parentItem ? parentItem.item : root
-                visible: parentItem && parentItem.item.effectiveVisible
-                        && waylandSurface.surface.mapped && waylandSurface.WaylandSocket.rootSocket.enabled
-                x: {
-                    let retX = 0 // X coordinate relative to parent
-                    let minX = 0
-                    let maxX = root.width - xdgSurface.width
-                    if (!parentItem) {
-                        retX = popupSurfaceItem.implicitPosition.x
-                        if (retX > maxX)
-                            retX = maxX
-                        if (retX < minX)
-                            retX = minX
-                    } else {
-                        retX = popupSurfaceItem.implicitPosition.x / parentItem.item.surfaceSizeRatio + parentItem.item.contentItem.x
-                        let parentX = parent.mapToItem(root, 0, 0).x
-                        if (retX + parentX > maxX) {
-                            if (parentItem.type === "popup")
-                                retX = retX - xdgSurface.width - parent.width
-                            else
-                                retX = maxX - parentX
-                        }
-                        if (retX + parentX < minX)
-                            retX = minX - parentX
-                    }
-                    return retX
+            Component.onCompleted: {
+                if (currentWsId === -1) {
+                    workspaceManager.createWs(currentLayout)
                 }
-                y: {
-                    let retY = 0 // Y coordinate relative to parent
-                    let minY = 0
-                    let maxY = root.height - xdgSurface.height
-                    if (!parentItem) {
-                        retY = popupSurfaceItem.implicitPosition.y
-                        if (retY > maxY)
-                            retY = maxY
-                        if (retY < minY)
-                            retY = minY
-                    } else {
-                        retY = popupSurfaceItem.implicitPosition.y / parentItem.item.surfaceSizeRatio + parentItem.item.contentItem.y
-                        let parentY = parent.mapToItem(root, 0, 0).y
-                        if (retY + parentY > maxY)
-                            retY = maxY - parentY
-                        if (retY + parentY < minY)
-                            retY = minY - parentY
-                    }
-                    return retY
-                }
-                padding: 0
-                background: null
-                closePolicy: Popup.NoAutoClose
-
-                XdgSurfaceItem {
-                    id: popupSurfaceItem
-                    shellSurface: popup.waylandSurface
-
-                    OutputLayoutItem {
-                        anchors.fill: parent
-                        layout: Helper.outputLayout
-
-                        onEnterOutput: function(output) {
-                            if (waylandSurface.surface) {
-                                waylandSurface.surface.enterOutput(output)
-                            }
-                            Helper.onSurfaceEnterOutput(waylandSurface, popupSurfaceItem, output)
-                        }
-                        onLeaveOutput: function(output) {
-                            waylandSurface.surface.leaveOutput(output)
-                            Helper.onSurfaceLeaveOutput(waylandSurface, popupSurfaceItem, output)
-                        }
-                    }
-                }
-            }
-        }
-
-        DynamicCreatorComponent {
-            id: xwaylandComponent
-            creator: Helper.xwaylandCreator
-            autoDestroy: false
-
-            onObjectRemoved: function (obj) {
-                obj.doDestroy()
+                // paneByWs.push(currentWsId)
+                currentLayout.addPane(toplevelVerticalSurfaceItem)
             }
 
-            XWaylandSurfaceItem {
-                id: xwaylandSurfaceItem
-
-                required property XWaylandSurface waylandSurface
-                property var doDestroy: helper.doDestroy
-
-                surface: waylandSurface
-                resizeMode: SurfaceItem.SizeToSurface
-                // TODO: Support popup/menu
-                positionMode: xwaylandSurfaceItem.effectiveVisible ? XWaylandSurfaceItem.PositionToSurface : XWaylandSurfaceItem.ManualPosition
-                z: (waylandSurface && waylandSurface.isActivated) ? 1 : 0
-
-                Layout.fillWidth: true
-                Layout.fillHeight: true
-                Layout.minimumWidth: Math.max(xwaylandSurfaceItem.minimumSize.width, 100)
-                Layout.minimumHeight: Math.max(xwaylandSurfaceItem.minimumSize.height, 50)
-                Layout.maximumWidth: xwaylandSurfaceItem.maximumSize.width
-                Layout.maximumHeight: xwaylandSurfaceItem.maximumSize.height
-                Layout.horizontalStretchFactor: 1
-                Layout.verticalStretchFactor: 1
-
-                OutputLayoutItem {
-                    anchors.fill: parent
-                    layout: Helper.outputLayout
-
-                    onEnterOutput: function(output) {
-                        if (xwaylandSurfaceItem.waylandSurface.surface)
-                            xwaylandSurfaceItem.waylandSurface.surface.enterOutput(output);
-                        Helper.onSurfaceEnterOutput(waylandSurface, xwaylandSurfaceItem, output)
-                    }
-                    onLeaveOutput: function(output) {
-                        if (xwaylandSurfaceItem.waylandSurface.surface)
-                            xwaylandSurfaceItem.waylandSurface.surface.leaveOutput(output);
-                        Helper.onSurfaceLeaveOutput(waylandSurface, xwaylandSurfaceItem, output)
-                    }
+            Component.onDestruction: {
+                if (deleteFlag.indexOf(1) != -1) {
+                    deleteFlag.splice(0, 1)
+                    return
                 }
+                currentLayout.reLayout(toplevelVerticalSurfaceItem)
+            }
 
-                TiledToplevelHelper {
-                    id: helper
+            OutputLayoutItem {
+                anchors.fill: parent
+                layout: Helper.outputLayout
 
-                    surface: xwaylandSurfaceItem
-                    waylandSurface: surface.waylandSurface
-                    creator: xwaylandComponent
+                onEnterOutput: function(output) {
+                    waylandSurface.surface.enterOutput(output)
+                    Helper.onSurfaceEnterOutput(waylandSurface, toplevelVerticalSurfaceItem, output)
                 }
+                onLeaveOutput: function(output) {
+                    waylandSurface.surface.leaveOutput(output)
+                    Helper.onSurfaceLeaveOutput(waylandSurface, toplevelVerticalSurfaceItem, output)
+                }
+            }
+
+            TiledToplevelHelper {
+                id: helper
+                surface: toplevelVerticalSurfaceItem
+                waylandSurface: toplevelVerticalSurfaceItem.waylandSurface
+                creator: toplevelComponent
             }
         }
     }
@@ -289,7 +242,7 @@ Item {
 
             parent: getSurfaceItemFromWaylandSurface(popupSurface.parentSurface)
             id: inputPopupSurface
-            surface: popupSurface
+            shellSurface: popupSurface
         }
     }
 }

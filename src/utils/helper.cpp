@@ -731,70 +731,75 @@ void Helper::enableOutput(WOutput *output)
 
 bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *watched, QInputEvent *event)
 {
-    if (event->type() == QEvent::KeyRelease) {
-        if (!m_actions.empty() && !m_currentUser.isEmpty()) {
-            auto e = static_cast<QKeyEvent *>(event);
-            QKeySequence sequence(e->modifiers() | e->key());
-            bool isFind = false;
-            for (QAction *action : m_actions[m_currentUser]) {
-                if (action->shortcut() == sequence) {
-                    isFind = true;
-                    action->activate(QAction::Trigger);
-                }
+    if (event->type() == QEvent::KeyPress) {
+        auto kevent = static_cast<QKeyEvent*>(event);
+        auto modifiers = kevent->modifiers();
+        auto key = kevent->key();
+        // printf("modifiers: %d, key: %d\n", modifiers, key);
+        if (modifiers.testFlag(Qt::MetaModifier)) {
+            switch (key) {
+            case Qt::Key_Q:
+                qApp->quit();
+                return true;
+            case Qt::Key_Space:
+                Q_EMIT switchLayout();
+                return true;
+            case Qt::Key_H:
+                Q_EMIT resizePane(10, 1); // 左
+                return true;
+            case Qt::Key_J:
+                Q_EMIT resizePane(10, 4); // 下
+                return true;
+            case Qt::Key_K:
+                Q_EMIT resizePane(10, 3); // 上
+                return true;
+            case Qt::Key_L:
+                Q_EMIT resizePane(10, 2); // 右
+                return true;
+            case Qt::Key_T: // This is because the <Meta + S> has been used by stack layout.
+                Q_EMIT swapPane();
+                return true;
+            case Qt::Key_1:
+                Q_EMIT choosePane(1);
+                return true;
+            case Qt::Key_2:
+                Q_EMIT choosePane(2);
+                return true;
+            case Qt::Key_D:
+                Q_EMIT removePane(1);
+                return true;
+            case Qt::Key_M:
+                return true;
+            case Qt::Key_Tab:
+                Q_EMIT swapPane();
+                return true;
+            default:
+                // printf("undefined modifiers: %d, key: %d\n", modifiers, key);
+                return false;
             }
+        }
 
-            if (isFind) {
+        if (modifiers.testFlag(Qt::AltModifier)) {
+            switch (key) {
+            case Qt::Key_C:
+                Q_EMIT createWs();
+                return true;
+            case Qt::Key_D:
+                Q_EMIT destoryWs();
+                return true;
+            case Qt::Key_M:
+                return true;
+            case Qt::Key_S:
+                Q_EMIT switchNextWs();
                 return true;
             }
         }
     }
 
-    // Alt+Tab switcher
-    // TODO: move to mid handle
-    auto e = static_cast<QKeyEvent *>(event);
-
-    switch (e->key()) {
-    case Qt::Key_Alt: {
-        if (m_switcherOn && event->type() == QKeyEvent::KeyRelease) {
-            m_switcherOn = false;
-            Q_EMIT switcherOnChanged(false);
-            return false;
-        }
-    } break;
-    case Qt::Key_Tab:
-    case Qt::Key_Backtab: {
-        if (event->type() == QEvent::KeyPress) {
-            // switcher would be exclusively disabled when multitask etc is on
-            if (e->modifiers().testFlag(Qt::AltModifier) && m_switcherEnabled) {
-                if (e->modifiers() == Qt::AltModifier) {
-                    Q_EMIT switcherChanged(Switcher::Next);
-                    return true;
-                } else if (e->modifiers() == (Qt::AltModifier | Qt::ShiftModifier)) {
-                    Q_EMIT switcherChanged(Switcher::Previous);
-                    return true;
-                }
-            }
-        }
-    } break;
-    case Qt::Key_BracketLeft:
-    case Qt::Key_Delete: {
-        if (e->modifiers() == Qt::MetaModifier) {
-            Q_EMIT backToNormal();
-            Q_EMIT reboot();
-            return true;
-        }
-    } break;
-    default: {
-    } break;
-    }
-
-    if (event->type() == QEvent::KeyPress) {
-        auto kevent = static_cast<QKeyEvent *>(event);
-        if (QKeySequence(kevent->keyCombination()) == QKeySequence::Quit) {
-            // NOTE: 133 exitcode is reset DDM restart limit.
-            qApp->exit(133);
-            return true;
-        }
+    if (event->type() == QEvent::MouseMove || event->type() == QEvent::MouseButtonPress) {
+            seat->cursor()->setVisible(true);
+        } else if (event->type() == QEvent::TouchBegin) {
+            seat->cursor()->setVisible(false);
     }
 
     if (watched) {
