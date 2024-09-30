@@ -13,6 +13,8 @@
 
 #include <QQuickItem>
 
+Q_LOGGING_CATEGORY(qLcTreelandEngine, "treeland.qml.engine", QtWarningMsg)
+
 QmlEngine::QmlEngine(QObject *parent)
     : QQmlApplicationEngine(parent)
     , titleBarComponent(this, "Treeland", "TitleBar")
@@ -26,6 +28,7 @@ QmlEngine::QmlEngine(QObject *parent)
     , workspaceSwitcher(this, "Treeland", "WorkspaceSwitcher")
     , newAnimationComponent(this, "Treeland", "NewAnimation")
     , lockScreenComponent(this, "Treeland.Greeter", "Greeter")
+    , dockPreviewComponent(this, "Treeland", "DockPreview")
 {
 }
 
@@ -189,7 +192,19 @@ QQuickItem *QmlEngine::createNewAnimation(SurfaceWrapper *surface,
     item->setParent(parent);
     item->setParentItem(parent);
     newAnimationComponent.completeCreate();
+    return item;
+}
 
+QQuickItem *QmlEngine::createDockPreview(QObject *parent)
+{
+    auto context = qmlContext(parent);
+    auto obj = dockPreviewComponent.beginCreate(context);
+    auto item = qobject_cast<QQuickItem *>(obj);
+    if (!item)
+        qCFatal(qLcTreelandEngine) << "Can't create DockPreview:"
+                                   << dockPreviewComponent.errorString();
+    item->setParent(parent);
+    dockPreviewComponent.completeCreate();
     return item;
 }
 

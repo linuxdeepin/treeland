@@ -47,6 +47,8 @@ public:
     QQuickItem *createNewAnimation(SurfaceWrapper *surface, QQuickItem *parent, uint direction);
     QQuickItem *createLockScreen(Output *output, QQuickItem *parent);
 
+    QQuickItem *createDockPreview(QObject *parent);
+
     QQmlComponent *surfaceContentComponent() { return &surfaceContent; }
 
     WallpaperImageProvider *wallpaperImageProvider();
@@ -64,5 +66,6 @@ private:
     QQmlComponent workspaceSwitcher;
     QQmlComponent newAnimationComponent;
     QQmlComponent lockScreenComponent;
+    QQmlComponent dockPreviewComponent;
     WallpaperImageProvider *wallpaperProvider = nullptr;
 };

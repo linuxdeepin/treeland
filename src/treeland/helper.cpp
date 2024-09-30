@@ -201,6 +201,16 @@ void Helper::init()
 
     auto *xdgShell = m_server->attach<WXdgShell>();
     m_foreignToplevel = m_server->attach<WForeignToplevel>(xdgShell);
+
+    m_treelandForeignToplevel = m_server->attach<ForeignToplevelV1>();
+    Q_ASSERT(m_treelandForeignToplevel);
+    qmlRegisterSingletonInstance<ForeignToplevelV1>("TreeLand.Protocols",
+                                                    1,
+                                                    0,
+                                                    "ForeignToplevelV1",
+                                                    m_treelandForeignToplevel);
+    qRegisterMetaType<ForeignToplevelV1::PreviewDirection>();
+
     auto *layerShell = m_server->attach<WLayerShell>();
     auto *xdgOutputManager =
         m_server->attach<WXdgOutputManager>(m_surfaceContainer->outputLayout());
@@ -211,7 +221,7 @@ void Helper::init()
         if (surface->isToplevel()) {
             wrapper = new SurfaceWrapper(qmlEngine(), surface, SurfaceWrapper::Type::XdgToplevel);
             m_foreignToplevel->addSurface(surface);
-            m_treelandForeignToplevel->add(surface);
+            m_treelandForeignToplevel->addSurface(wrapper);
         } else {
             wrapper = new SurfaceWrapper(qmlEngine(), surface, SurfaceWrapper::Type::XdgPopup);
         }
@@ -255,7 +265,7 @@ void Helper::init()
     connect(xdgShell, &WXdgShell::surfaceRemoved, this, [this](WXdgSurface *surface) {
         if (surface->isToplevel()) {
             m_foreignToplevel->removeSurface(surface);
-            m_treelandForeignToplevel->remove(surface);
+            m_treelandForeignToplevel->removeSurface(m_surfaceContainer->getSurface(surface));
         }
 
         m_surfaceContainer->destroyForSurface(surface->surface());
@@ -275,9 +285,6 @@ void Helper::init()
     connect(layerShell, &WLayerShell::surfaceRemoved, this, [this](WLayerSurface *surface) {
         m_surfaceContainer->destroyForSurface(surface->surface());
     });
-
-    m_treelandForeignToplevel = m_server->attach<ForeignToplevelV1>();
-    qRegisterMetaType<ForeignToplevelV1::PreviewDirection>("ForeignToplevelV1.PreviewDirection");
 
     m_server->attach<PrimaryOutputV1>();
     m_server->attach<WallpaperColorV1>();
@@ -339,13 +346,6 @@ void Helper::init()
     xwaylandOutputManager->setScaleOverride(1.0);
 
     m_xwayland = createXWayland();
-
-    // xdgOutputManager->setFilter([this](WClient *client) {
-    //     return client != m_xwayland->waylandClient();
-    // });
-    // xwaylandOutputManager->setFilter([this](WClient *client) {
-    //     return client == m_xwayland->waylandClient();
-    // });
 
     m_inputMethodHelper = new WInputMethodHelper(m_server, m_seat);
 
@@ -453,6 +453,49 @@ void Helper::init()
     qw_fractional_scale_manager_v1::create(*m_server->handle(), WLR_FRACTIONAL_SCALE_V1_VERSION);
     qw_data_control_manager_v1::create(*m_server->handle());
 
+    m_dockPreview = engine->createDockPreview(m_renderWindow->contentItem());
+
+    connect(m_treelandForeignToplevel,
+            &ForeignToplevelV1::requestDockPreview,
+            m_dockPreview,
+            [this](std::vector<SurfaceWrapper *> surfaces,
+                   WSurface *target,
+                   QPoint pos,
+                   ForeignToplevelV1::PreviewDirection direction) {
+                SurfaceWrapper *dockWrapper = m_surfaceContainer->getSurface(target);
+                Q_ASSERT(dockWrapper);
+
+                QMetaObject::invokeMethod(m_dockPreview,
+                                          "show",
+                                          QVariant::fromValue(surfaces),
+                                          QVariant::fromValue(dockWrapper),
+                                          QVariant::fromValue(pos),
+                                          QVariant::fromValue(direction));
+            });
+    connect(m_treelandForeignToplevel,
+            &ForeignToplevelV1::requestDockPreviewTooltip,
+            m_dockPreview,
+            [this](QString tooltip,
+                   WSurface *target,
+                   QPoint pos,
+                   ForeignToplevelV1::PreviewDirection direction) {
+                SurfaceWrapper *dockWrapper = m_surfaceContainer->getSurface(target);
+                Q_ASSERT(dockWrapper);
+                QMetaObject::invokeMethod(m_dockPreview,
+                                          "showTooltip",
+                                          QVariant::fromValue(tooltip),
+                                          QVariant::fromValue(dockWrapper),
+                                          QVariant::fromValue(pos),
+                                          QVariant::fromValue(direction));
+            });
+
+    connect(m_treelandForeignToplevel,
+            &ForeignToplevelV1::requestDockClose,
+            m_dockPreview,
+            [this]() {
+                QMetaObject::invokeMethod(m_dockPreview, "close");
+            });
+
     m_backend->handle()->start();
 
     qInfo() << "Listing on:" << m_socket->fullServerName();
@@ -553,7 +596,7 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *, QInputEvent *event)
     }
 
     if (event->type() == QEvent::KeyRelease) {
-        auto kevent = static_cast<QKeyEvent*>(event);
+        auto kevent = static_cast<QKeyEvent *>(event);
         if (kevent->key() == Qt::Key_Alt) {
             destoryTaskSwitcher();
         }
@@ -675,8 +718,19 @@ void Helper::setActivatedSurface(SurfaceWrapper *newActivateSurface)
 
     if (m_activatedSurface)
         m_activatedSurface->setActivate(false);
-    if (newActivateSurface)
+    static QMetaObject::Connection invalidCheck;
+    disconnect(invalidCheck);
+    if (newActivateSurface) {
         newActivateSurface->setActivate(true);
+        invalidCheck =
+            connect(newActivateSurface,
+                    &SurfaceWrapper::surfaceStateChanged,
+                    this,
+                    [newActivateSurface, this] {
+                        if (newActivateSurface->surfaceState() == SurfaceWrapper::State::Minimized)
+                            activeSurface(nullptr); // TODO: select next surface to activate
+                    });
+    }
     m_activatedSurface = newActivateSurface;
     Q_EMIT activatedSurfaceChanged();
 }
@@ -858,13 +912,13 @@ WXWayland *Helper::createXWayland()
             auto wrapper = new SurfaceWrapper(qmlEngine(), surface, SurfaceWrapper::Type::XWayland);
             wrapper->setNoDecoration(false);
             m_foreignToplevel->addSurface(surface);
-            m_treelandForeignToplevel->add(surface);
+            m_treelandForeignToplevel->addSurface(wrapper);
             m_workspace->addSurface(wrapper);
             Q_ASSERT(wrapper->parentItem());
         });
         surface->safeConnect(&qw_xwayland_surface::notify_dissociate, this, [this, surface] {
             m_foreignToplevel->removeSurface(surface);
-            m_treelandForeignToplevel->remove(surface);
+            m_treelandForeignToplevel->removeSurface(m_surfaceContainer->getSurface(surface));
             m_surfaceContainer->destroyForSurface(surface->surface());
         });
     });
