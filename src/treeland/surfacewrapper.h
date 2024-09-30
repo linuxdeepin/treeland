@@ -149,6 +149,9 @@ public:
     bool noCornerRadius() const;
     void setNoCornerRadius(bool newNoCornerRadius);
 
+    QRect iconGeometry() const;
+    void setIconGeometry(QRect newIconGeometry);
+
 public Q_SLOTS:
     // for titlebar
     void requestMinimize();
@@ -185,6 +188,7 @@ signals:
     void noDecorationChanged();
     void noTitleBarChanged();
     void noCornerRadiusChanged();
+    void iconGeometryChanged();
 
 private:
     using QQuickItem::setParentItem;
@@ -243,6 +247,7 @@ private:
                                          State::Normal,
                                          &SurfaceWrapper::surfaceStateChanged)
     qreal m_radius = 18.0;
+    QRect m_iconGeometry;
 
     struct TitleBarState
     {
