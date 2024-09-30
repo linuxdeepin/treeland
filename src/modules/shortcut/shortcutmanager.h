@@ -3,7 +3,6 @@
 
 #pragma once
 
-#include "helper.h"
 #include "shortcutmodel.h"
 
 #include <wserver.h>
@@ -13,6 +12,12 @@
 
 class treeland_shortcut_context_v1;
 class treeland_shortcut_manager_v1;
+
+WAYLIB_SERVER_BEGIN_NAMESPACE
+class WServer;
+WAYLIB_SERVER_END_NAMESPACE
+
+WAYLIB_SERVER_USE_NAMESPACE
 
 class ShortcutV1
     : public QObject
