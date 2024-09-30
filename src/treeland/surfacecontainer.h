@@ -115,7 +115,7 @@ public:
     QMap<int, QVariant> itemData(const QModelIndex &index) const override;
     QVariant data(const QModelIndex &index, int role) const override;
 
-    inline const QList<SurfaceWrapper *> &surfaces() const { return objects(); }
+    Q_INVOKABLE inline const QList<SurfaceWrapper *> &surfaces() const { return objects(); }
 
     inline bool hasSurface(SurfaceWrapper *surface) const { return hasObject(surface); }
 

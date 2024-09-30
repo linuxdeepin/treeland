@@ -6,15 +6,8 @@
 #include "treeland-foreign-toplevel-manager-protocol.h"
 
 #include <cassert>
-
-extern "C" {
-#define static
-#include <wlr/types/wlr_compositor.h>
-#include <wlr/types/wlr_output.h>
-#include <wlr/types/wlr_seat.h>
-#include <wlr/util/log.h>
-#undef static
-}
+#include <qwcompositor.h>
+#include <qwseat.h>
 
 using QW_NAMESPACE::qw_display, QW_NAMESPACE::qw_output;
 

@@ -10,37 +10,17 @@
 #include <wsurface.h>
 #include <wxdgsurface.h>
 
+class SurfaceWrapper;
+
 QW_USE_NAMESPACE
 WAYLIB_SERVER_USE_NAMESPACE
-
-class ForeignToplevelV1;
-
-class ForeignToplevelAttached : public QObject
-{
-    Q_OBJECT
-    QML_ANONYMOUS
-
-public:
-    ForeignToplevelAttached(WSurface *target, ForeignToplevelV1 *manager);
-
-Q_SIGNALS:
-    void requestMaximize(bool maximized);
-    void requestMinimize(bool minimized);
-    void requestActivate(bool activated);
-    void requestFullscreen(bool fullscreen);
-    void requestClose();
-    void rectangleChanged(WSurface *surface, const QRect &rect);
-
-private:
-    WSurface *m_target;
-    ForeignToplevelV1 *m_manager;
-};
 
 class ForeignToplevelV1
     : public QObject
     , public WServerInterface
 {
     Q_OBJECT
+    Q_CLASSINFO("RegisterEnumClassesUnscoped", "false")
 
 public:
     enum class PreviewDirection {
@@ -53,28 +33,16 @@ public:
 
     explicit ForeignToplevelV1(QObject *parent = nullptr);
 
-    Q_INVOKABLE void add(WToplevelSurface *surface);
-    Q_INVOKABLE void remove(WToplevelSurface *surface);
+    void addSurface(SurfaceWrapper *wrapper);
+    void removeSurface(SurfaceWrapper *wrapper);
 
     Q_INVOKABLE void enterDockPreview(WSurface *relative_surface);
     Q_INVOKABLE void leaveDockPreview(WSurface *relative_surface);
 
-    Q_INVOKABLE ForeignToplevelAttached *Attached(QObject *target);
     QByteArrayView interfaceName() const override;
 
 Q_SIGNALS:
-    void requestMaximize(WToplevelSurface *surface,
-                         treeland_foreign_toplevel_handle_v1_maximized_event *event);
-    void requestMinimize(WToplevelSurface *surface,
-                         treeland_foreign_toplevel_handle_v1_minimized_event *event);
-    void requestActivate(WToplevelSurface *surface,
-                         treeland_foreign_toplevel_handle_v1_activated_event *event);
-    void requestFullscreen(WToplevelSurface *surface,
-                           treeland_foreign_toplevel_handle_v1_fullscreen_event *event);
-    void requestClose(WToplevelSurface *surface);
-    void rectangleChanged(WToplevelSurface *surface,
-                          treeland_foreign_toplevel_handle_v1_set_rectangle_event *event);
-    void requestDockPreview(std::vector<WSurface *> surfaces,
+    void requestDockPreview(std::vector<SurfaceWrapper *> surfaces,
                             WSurface *target,
                             QPoint abs,
                             PreviewDirection direction);
@@ -86,7 +54,6 @@ Q_SIGNALS:
 
 protected:
     void create(WServer *server) override;
-    void destroy(WServer *server) override;
     wl_global *global() const override;
 
 private Q_SLOTS:
@@ -94,8 +61,8 @@ private Q_SLOTS:
 
 private:
     treeland_foreign_toplevel_manager_v1 *m_manager = nullptr;
-    std::map<WToplevelSurface *, std::unique_ptr<treeland_foreign_toplevel_handle_v1>> m_surfaces;
-    std::map<WToplevelSurface *, std::vector<QMetaObject::Connection>> m_connections;
+    std::map<SurfaceWrapper *, std::unique_ptr<treeland_foreign_toplevel_handle_v1>> m_surfaces;
+    std::map<SurfaceWrapper *, std::vector<QMetaObject::Connection>> m_connections;
 };
 
 Q_DECLARE_OPAQUE_POINTER(treeland_foreign_toplevel_handle_v1_maximized_event *);

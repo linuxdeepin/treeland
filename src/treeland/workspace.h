@@ -60,6 +60,9 @@ public:
     WorkspaceContainer *current() const;
     void setCurrent(WorkspaceContainer *container);
 
+    Q_INVOKABLE void hideAllSurfacesExceptPreviewing(SurfaceWrapper *previewingItem);
+    Q_INVOKABLE void showAllSurfaces();
+
 signals:
     void currentChanged();
 

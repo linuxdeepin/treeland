@@ -140,6 +140,8 @@ void SurfaceWrapper::setActivate(bool activate)
         parent->setActivate(activate);
         parent = parent->parentSurface();
     }
+    if (activate && isMinimized()) // activate surface shouldn't minimize
+        requestCancelMinimize();
 }
 
 void SurfaceWrapper::setFocus(bool focus, Qt::FocusReason reason)
@@ -539,7 +541,7 @@ void SurfaceWrapper::createNewOrClose(uint direction)
 {
     if (m_NewAnimation)
         return;
-
+    
     if (m_type != Type::XdgToplevel && m_type != Type::XWayland)
         return;
 
@@ -972,4 +974,17 @@ void SurfaceWrapper::setNoCornerRadius(bool newNoCornerRadius)
         return;
     m_noCornerRadius = newNoCornerRadius;
     emit noCornerRadiusChanged();
+}
+
+QRect SurfaceWrapper::iconGeometry() const
+{
+    return m_iconGeometry;
+}
+
+void SurfaceWrapper::setIconGeometry(QRect newIconGeometry)
+{
+    if (m_iconGeometry == newIconGeometry)
+        return;
+    m_iconGeometry = newIconGeometry;
+    Q_EMIT iconGeometryChanged();
 }

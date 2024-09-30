@@ -237,3 +237,20 @@ void WorkspaceContainer::setIndex(int newIndex)
     m_index = newIndex;
     emit indexChanged();
 }
+
+void Workspace::hideAllSurfacesExceptPreviewing(SurfaceWrapper *previewingItem)
+{
+    const auto &surfaceList = surfaces();
+    for (auto surface : surfaceList) {
+        if (surface != previewingItem)
+            surface->setOpacity(0);
+    }
+}
+
+void Workspace::showAllSurfaces()
+{
+    const auto &surfaceList = surfaces();
+    for (auto surface : surfaceList) {
+        surface->setOpacity(1);
+    }
+}
