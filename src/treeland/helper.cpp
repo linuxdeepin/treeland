@@ -3,12 +3,21 @@
 
 #include "helper.h"
 
+#include "capture.h"
+#include "ddeshell.h"
+#include "foreigntoplevelmanagerv1.h"
 #include "layersurfacecontainer.h"
 #include "output.h"
+#include "outputmanagement.h"
+#include "personalizationmanager.h"
 #include "qmlengine.h"
 #include "rootsurfacecontainer.h"
+#include "shortcutmanager.h"
 #include "surfacecontainer.h"
 #include "surfacewrapper.h"
+#include "virtualoutputmanager.h"
+#include "wallpapercolor.h"
+#include "windowmanagement.h"
 #include "workspace.h"
 
 #include <WBackend>
@@ -68,6 +77,8 @@
 #include <QQuickWindow>
 #include <QVariant>
 #include <qqmlengine.h>
+
+#include <pwd.h>
 
 #define WLR_FRACTIONAL_SCALE_V1_VERSION 1
 
@@ -190,6 +201,7 @@ void Helper::init()
         if (surface->isToplevel()) {
             wrapper = new SurfaceWrapper(qmlEngine(), surface, SurfaceWrapper::Type::XdgToplevel);
             m_foreignToplevel->addSurface(surface);
+            m_treelandForeignToplevel->add(surface);
         } else {
             wrapper = new SurfaceWrapper(qmlEngine(), surface, SurfaceWrapper::Type::XdgPopup);
         }
@@ -233,6 +245,7 @@ void Helper::init()
     connect(xdgShell, &WXdgShell::surfaceRemoved, this, [this](WXdgSurface *surface) {
         if (surface->isToplevel()) {
             m_foreignToplevel->removeSurface(surface);
+            m_treelandForeignToplevel->remove(surface);
         }
 
         m_surfaceContainer->destroyForSurface(surface->surface());
@@ -253,6 +266,45 @@ void Helper::init()
         m_surfaceContainer->destroyForSurface(surface->surface());
     });
 
+    m_treelandForeignToplevel = m_server->attach<ForeignToplevelV1>();
+    qRegisterMetaType<ForeignToplevelV1::PreviewDirection>("ForeignToplevelV1.PreviewDirection");
+
+    m_server->attach<PrimaryOutputV1>();
+    m_server->attach<WallpaperColorV1>();
+    m_server->attach<WindowManagementV1>();
+    m_server->attach<VirtualOutputV1>();
+    m_server->attach<ShortcutV1>();
+    m_server->attach<DDEShellV1>();
+    m_server->attach<CaptureManagerV1>();
+    PersonalizationV1 *personalization = m_server->attach<PersonalizationV1>();
+
+    connect(
+        this,
+        &Helper::currentUserIdChanged,
+        personalization,
+        [this, personalization]() {
+            personalization->setUserId(m_currentUserId);
+        },
+        Qt::QueuedConnection);
+
+    qmlRegisterUncreatableType<Personalization>("TreeLand.Protocols",
+                                                1,
+                                                0,
+                                                "Personalization",
+                                                "Only for Enum");
+    qmlRegisterUncreatableType<DDEShell>("TreeLand.Protocols",
+                                         1,
+                                         0,
+                                         "DDEShell",
+                                         "Only for attached");
+    qmlRegisterUncreatableType<CaptureSource>("TreeLand.Protocols",
+                                              1,
+                                              0,
+                                              "CaptureSource",
+                                              "An abstract class");
+    qmlRegisterType<CaptureContextV1>("TreeLand.Protocols", 1, 0, "CaptureContextV1");
+    qmlRegisterType<CaptureSourceSelector>("TreeLand.Protocols", 1, 0, "CaptureSourceSelector");
+
     m_server->start();
     m_renderer = WRenderHelper::createRenderer(m_backend->handle());
     if (!m_renderer) {
@@ -268,35 +320,22 @@ void Helper::init()
     qw_screencopy_manager_v1::create(*m_server->handle());
     m_renderWindow->init(m_renderer, m_allocator);
 
+    // for capture
+    qw_data_control_manager_v1::create(*m_server->handle());
+
     // for xwayland
     auto *xwaylandOutputManager =
         m_server->attach<WXdgOutputManager>(m_surfaceContainer->outputLayout());
     xwaylandOutputManager->setScaleOverride(1.0);
 
-    auto xwayland_lazy = true;
-    m_xwayland = m_server->attach<WXWayland>(m_compositor, xwayland_lazy);
-    m_xwayland->setSeat(m_seat);
+    m_xwayland = createXWayland();
 
-    xdgOutputManager->setFilter([this](WClient *client) {
-        return client != m_xwayland->waylandClient();
-    });
-    xwaylandOutputManager->setFilter([this](WClient *client) {
-        return client == m_xwayland->waylandClient();
-    });
-
-    connect(m_xwayland, &WXWayland::surfaceAdded, this, [this](WXWaylandSurface *surface) {
-        surface->safeConnect(&qw_xwayland_surface::notify_associate, this, [this, surface] {
-            auto wrapper = new SurfaceWrapper(qmlEngine(), surface, SurfaceWrapper::Type::XWayland);
-            wrapper->setNoDecoration(false);
-            m_foreignToplevel->addSurface(surface);
-            m_workspace->addSurface(wrapper);
-            Q_ASSERT(wrapper->parentItem());
-        });
-        surface->safeConnect(&qw_xwayland_surface::notify_dissociate, this, [this, surface] {
-            m_foreignToplevel->removeSurface(surface);
-            m_surfaceContainer->destroyForSurface(surface->surface());
-        });
-    });
+    // xdgOutputManager->setFilter([this](WClient *client) {
+    //     return client != m_xwayland->waylandClient();
+    // });
+    // xwaylandOutputManager->setFilter([this](WClient *client) {
+    //     return client == m_xwayland->waylandClient();
+    // });
 
     m_inputMethodHelper = new WInputMethodHelper(m_server, m_seat);
 
@@ -337,6 +376,7 @@ void Helper::init()
     m_socket = new WSocket(freezeClientWhenDisable);
     if (m_socket->autoCreate()) {
         m_server->addSocket(m_socket);
+        Q_EMIT socketFileChanged();
     } else {
         delete m_socket;
         qCritical("Failed to create socket");
@@ -721,4 +761,50 @@ void Helper::setAnimationSpeed(float newAnimationSpeed)
         return;
     m_animationSpeed = newAnimationSpeed;
     emit animationSpeedChanged();
+}
+
+void Helper::addSocket(WSocket *socket)
+{
+    m_server->addSocket(socket);
+}
+
+WXWayland *Helper::createXWayland()
+{
+    auto *xwayland = m_server->attach<WXWayland>(m_compositor, false);
+    m_xwaylands.append(xwayland);
+    xwayland->setSeat(m_seat);
+
+    connect(xwayland, &WXWayland::surfaceAdded, this, [this, xwayland](WXWaylandSurface *surface) {
+        surface->safeConnect(&qw_xwayland_surface::notify_associate, this, [this, surface] {
+            auto wrapper = new SurfaceWrapper(qmlEngine(), surface, SurfaceWrapper::Type::XWayland);
+            wrapper->setNoDecoration(false);
+            m_foreignToplevel->addSurface(surface);
+            m_treelandForeignToplevel->add(surface);
+            m_workspace->addSurface(wrapper);
+            Q_ASSERT(wrapper->parentItem());
+        });
+        surface->safeConnect(&qw_xwayland_surface::notify_dissociate, this, [this, surface] {
+            m_foreignToplevel->removeSurface(surface);
+            m_treelandForeignToplevel->remove(surface);
+            m_surfaceContainer->destroyForSurface(surface->surface());
+        });
+    });
+
+    return xwayland;
+}
+
+void Helper::removeXWayland(WXWayland *xwayland)
+{
+    m_xwaylands.removeOne(xwayland);
+    xwayland->safeDeleteLater();
+}
+
+WSocket *Helper::defaultWaylandSocket() const
+{
+    return m_socket;
+}
+
+WXWayland *Helper::defaultXWaylandSocket() const
+{
+    return m_xwayland;
 }

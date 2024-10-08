@@ -31,7 +31,6 @@ target_compile_definitions(${MODULE_NAME}
 
 target_link_libraries(${MODULE_NAME}
     PUBLIC
-        utils
         PkgConfig::WLROOTS
         Waylib::WaylibServer
         Qt6::Core
