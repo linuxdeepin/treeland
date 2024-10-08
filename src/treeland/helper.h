@@ -54,6 +54,7 @@ class SurfaceWrapper;
 class Workspace;
 class RootSurfaceContainer;
 class LayerSurfaceContainer;
+class ForeignToplevelV1;
 
 class Helper : public WSeatEventFilter
 {
@@ -94,6 +95,14 @@ public:
     float animationSpeed() const;
     void setAnimationSpeed(float newAnimationSpeed);
 
+    void addSocket(WSocket *socket);
+
+    WXWayland *createXWayland();
+    void removeXWayland(WXWayland *xwayland);
+
+    WSocket *defaultWaylandSocket() const;
+    WXWayland *defaultXWaylandSocket() const;
+
 public Q_SLOTS:
     void activeSurface(SurfaceWrapper *wrapper);
 
@@ -105,6 +114,7 @@ signals:
     void currentUserIdChanged();
 
     void animationSpeedChanged();
+    void socketFileChanged();
 
 private:
     void allowNonDrmOutputAutoChangeMode(WOutput *output);
@@ -152,6 +162,7 @@ private:
     WInputMethodHelper *m_inputMethodHelper = nullptr;
     WXdgDecorationManager *m_xdgDecorationManager = nullptr;
     WForeignToplevel *m_foreignToplevel = nullptr;
+    ForeignToplevelV1 *m_treelandForeignToplevel = nullptr;
 
     // privaet data
     QList<Output *> m_outputList;
@@ -168,6 +179,8 @@ private:
     SurfaceContainer *m_popupContainer = nullptr;
     int m_currentUserId = -1;
     float m_animationSpeed = 1.0;
+
+    QList<WXWayland *> m_xwaylands;
 };
 
 Q_DECLARE_OPAQUE_POINTER(RootSurfaceContainer *)

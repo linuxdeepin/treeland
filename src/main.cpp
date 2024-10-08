@@ -1,16 +1,20 @@
 // Copyright (C) 2024 JiDe Zhang <zhangjide@deepin.org>.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
-#include "treeland/helper.h"
+#include "helper.h"
+#include "treeland/treeland.h"
 
 #include <wrenderhelper.h>
 
 #include <qwbuffer.h>
 #include <qwlogging.h>
 
+#include <DLog>
+
 #include <QGuiApplication>
 
 WAYLIB_SERVER_USE_NAMESPACE
+DCORE_USE_NAMESPACE;
 
 int main(int argc, char *argv[])
 {
@@ -21,29 +25,42 @@ int main(int argc, char *argv[])
     WServer::initializeQPA();
     //    QQuickStyle::setStyle("Material");
 
-    QPointer<Helper> helper;
-    int quitCode = 0;
-    {
-        QGuiApplication::setAttribute(Qt::AA_UseOpenGLES);
-        QGuiApplication::setHighDpiScaleFactorRoundingPolicy(
-            Qt::HighDpiScaleFactorRoundingPolicy::PassThrough);
-        QGuiApplication::setQuitOnLastWindowClosed(false);
-        QGuiApplication app(argc, argv);
+    QGuiApplication::setAttribute(Qt::AA_UseOpenGLES);
+    QGuiApplication::setHighDpiScaleFactorRoundingPolicy(
+        Qt::HighDpiScaleFactorRoundingPolicy::PassThrough);
+    QGuiApplication::setQuitOnLastWindowClosed(false);
 
-        QmlEngine qmlEngine;
+    QGuiApplication app(argc, argv);
+    app.setOrganizationName("deepin");
+    app.setApplicationName("treeland");
 
-        QObject::connect(&qmlEngine, &QQmlEngine::quit, &app, &QGuiApplication::quit);
-        QObject::connect(&qmlEngine, &QQmlEngine::exit, &app, [](int code) {
-            qApp->exit(code);
-        });
+#ifdef QT_DEBUG
+    DLogManager::registerConsoleAppender();
+#endif
+    DLogManager::registerJournalAppender();
 
-        Helper *helper = qmlEngine.singletonInstance<Helper *>("Treeland", "Helper");
-        helper->init();
+    QCommandLineOption socket({ "s", "socket" }, "set ddm socket", "socket");
+    QCommandLineOption run({ "r", "run" }, "run a process", "run");
 
-        quitCode = app.exec();
-    }
+    QCommandLineParser parser;
+    parser.addHelpOption();
+    parser.addOptions({ socket, run });
 
-    Q_ASSERT(!helper);
+    parser.process(app);
+
+    QmlEngine qmlEngine;
+
+    QObject::connect(&qmlEngine, &QQmlEngine::quit, &app, &QGuiApplication::quit);
+    QObject::connect(&qmlEngine, &QQmlEngine::exit, &app, [](int code) {
+        qApp->exit(code);
+    });
+
+    Helper *helper = qmlEngine.singletonInstance<Helper *>("Treeland", "Helper");
+    TreeLand::TreeLand treeland(helper, { parser.value(socket), parser.value(run) });
+    helper->init();
+
+    int quitCode = app.exec();
+
     Q_ASSERT(qw_buffer::get_objects().isEmpty());
 
     return quitCode;

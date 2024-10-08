@@ -8,7 +8,7 @@ if(POLICY CMP0071)
 endif()
 
 pkg_search_module(WLROOTS REQUIRED IMPORTED_TARGET wlroots)
-find_package(Dtk6 REQUIRED COMPONENTS Declarative)
+find_package(Dtk6 REQUIRED COMPONENTS Core Declarative)
 find_package(DDM REQUIRED COMPONENTS Common)
 find_package(Qt6 CONFIG REQUIRED ShaderTools)
 find_package(Qt6 COMPONENTS Quick QuickControls2 REQUIRED)
@@ -21,7 +21,7 @@ add_subdirectory(modules)
 # add_subdirectory(treeland-wallpaper)
 # add_subdirectory(treeland-shortcut)
 
-# qt_add_dbus_adaptor(DBUS_ADAPTOR "${CMAKE_SOURCE_DIR}/misc/dbus/org.deepin.compositor1.xml" "treeland.h" TreeLand::TreeLand)
+qt_add_dbus_adaptor(DBUS_ADAPTOR "${CMAKE_SOURCE_DIR}/misc/dbus/org.deepin.compositor1.xml" "treeland.h" TreeLand::TreeLand)
 
 set(BIN_NAME treeland)
 
@@ -66,10 +66,14 @@ qt_add_qml_module(${BIN_NAME}
         treeland/rootsurfacecontainer.cpp
         treeland/surfaceproxy.h
         treeland/surfaceproxy.cpp
+        treeland/treeland.h
+        treeland/treeland.cpp
         treeland/wallpaperprovider.h
         treeland/wallpaperprovider.cpp
         treeland/wallpaperimage.h
         treeland/wallpaperimage.cpp
+
+        ${DBUS_ADAPTOR}
     QML_FILES
         qml/PrimaryOutput.qml
         qml/CopyOutput.qml
@@ -91,24 +95,27 @@ qt_add_qml_module(${BIN_NAME}
 
 target_link_libraries(${BIN_NAME}
     PRIVATE
-        # DDM::Common
+        DDM::Common
         # greeterplugin
         Qt6::Quick
         Qt6::QuickControls2
         Qt6::QuickPrivate
+        Qt6::DBus
         Waylib::WaylibServer
         PkgConfig::PIXMAN
         PkgConfig::WAYLAND
+        Dtk6::Core
+        Dtk6::Declarative
 
-        # foreign-toplevel
-        # primary-output
-        # personalization
-        # shortcut
-        # wallpaper-color
-        # window-management
-        # virtual-output
-        # dde-shell
-        # capture
+        foreign-toplevel
+        primary-output
+        personalization
+        shortcut
+        wallpaper-color
+        window-management
+        virtual-output
+        dde-shell
+        capture
 )
 
 target_compile_definitions(${BIN_NAME}
