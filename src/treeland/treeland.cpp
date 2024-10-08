@@ -3,13 +3,12 @@
 
 #include "treeland.h"
 
-#include "Messages.h"
-#include "SignalHandler.h"
-#include "SocketWriter.h"
-#include "capture.h"
 #include "compositor1adaptor.h"
 #include "helper.h"
-#include "personalizationmanager.h"
+
+#include <Messages.h>
+#include <SignalHandler.h>
+#include <SocketWriter.h>
 
 #include <WCursor>
 #include <WSeat>
@@ -43,14 +42,12 @@
 #include <QQuickView>
 #include <QTimer>
 #include <QtLogging>
-#include <qqml.h>
-#include <qtenvironmentvariables.h>
 
 #include <pwd.h>
 #include <sys/socket.h>
 #include <unistd.h>
 
-Q_LOGGING_CATEGORY(treelandMain, "treeland.main", QtDebugMsg);
+Q_LOGGING_CATEGORY(treelandMain, "treeland.dbus", QtDebugMsg);
 
 using namespace DDM;
 DCORE_USE_NAMESPACE;
@@ -221,11 +218,6 @@ TreeLand::TreeLand(Helper *helper, TreeLandAppContext context)
 
     QDBusConnection::sessionBus().registerService("org.deepin.Compositor1");
     QDBusConnection::sessionBus().registerObject("/org/deepin/Compositor1", this);
-}
-
-void TreeLand::setup()
-{
-    m_helper->init();
 }
 
 bool TreeLand::testMode() const

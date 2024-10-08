@@ -56,8 +56,9 @@ int main(int argc, char *argv[])
     });
 
     Helper *helper = qmlEngine.singletonInstance<Helper *>("Treeland", "Helper");
-    TreeLand::TreeLand treeland(helper, { parser.value(socket), parser.value(run) });
     helper->init();
+
+    TreeLand::TreeLand treeland(helper, { parser.value(socket), parser.value(run) });
 
     int quitCode = app.exec();
 

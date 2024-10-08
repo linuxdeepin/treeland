@@ -41,7 +41,6 @@ public:
     bool testMode() const;
 
     bool debugMode() const;
-    void setup();
 
 Q_SIGNALS:
     void socketDisconnected();
@@ -57,12 +56,10 @@ private Q_SLOTS:
     void error();
 
 private:
-
-private:
     TreeLandAppContext m_context;
-    QLocalSocket *m_socket;
-    QLocalSocket *m_helperSocket;
-    Helper *m_helper;
+    QLocalSocket *m_socket{ nullptr };
+    QLocalSocket *m_helperSocket{ nullptr };
+    Helper *m_helper{ nullptr };
     QMap<QString, std::shared_ptr<Waylib::Server::WSocket>> m_userWaylandSocket;
     QMap<QString, std::shared_ptr<QDBusUnixFileDescriptor>> m_userDisplayFds;
 };
