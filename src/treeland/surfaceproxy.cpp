@@ -34,8 +34,8 @@ void SurfaceProxy::setSurface(SurfaceWrapper *newSurface)
                                             this);
         m_proxySurface->setTransformOrigin(QQuickItem::TransformOrigin::TopLeft);
         if (!m_fullProxy) {
-            Q_ASSERT(!m_shadow);
-            m_shadow = m_sourceSurface->m_engine->createShadow(this);
+            if(!m_shadow)
+                m_shadow = m_sourceSurface->m_engine->createShadow(this);
             m_shadow->setProperty("radius", radius());
             m_shadow->stackBefore(m_proxySurface);
         }
