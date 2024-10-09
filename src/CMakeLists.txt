@@ -89,6 +89,10 @@ qt_add_qml_module(${BIN_NAME}
         qml/WorkspaceSwitcher.qml
         qml/WorkspaceProxy.qml
         qml/Animations/NewAnimation.qml
+        qml/TaskSwitcher.qml
+        qml/WorkSpaceMask.qml
+        qml/SwitchViewDelegate.qml
+        qml/SwitchViewHighlightDelegate.qml
 
     RESOURCES
         "res/xx.jpg"

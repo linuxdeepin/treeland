@@ -78,13 +78,10 @@ public:
     QmlEngine *qmlEngine() const;
     WOutputRenderWindow *window() const;
     Workspace *workspace() const;
-    Output *output() const;
     void init();
 
     bool socketEnabled() const;
     void setSocketEnabled(bool newSocketEnabled);
-
-    void activeSurface(SurfaceWrapper *wrapper, Qt::FocusReason reason);
 
     RootSurfaceContainer *rootContainer() const;
     Output *getOutput(WOutput *output) const;
@@ -105,6 +102,7 @@ public:
 
 public Q_SLOTS:
     void activeSurface(SurfaceWrapper *wrapper);
+    void activeSurface(SurfaceWrapper *wrapper, Qt::FocusReason reason);
 
 signals:
     void socketEnabledChanged();
@@ -142,6 +140,7 @@ private:
                           QObject *,
                           QInputEvent *event) override;
     bool unacceptedEvent(WSeat *, QWindow *, QInputEvent *event) override;
+    void destoryTaskSwitcher();
 
     static Helper *m_instance;
 
@@ -169,6 +168,7 @@ private:
 
     QPointer<SurfaceWrapper> m_keyboardFocusSurface;
     QPointer<SurfaceWrapper> m_activatedSurface;
+    QPointer<QQuickItem> m_taskSwitch;
 
     RootSurfaceContainer *m_surfaceContainer = nullptr;
     LayerSurfaceContainer *m_backgroundContainer = nullptr;
