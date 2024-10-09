@@ -159,6 +159,7 @@ public Q_SLOTS:
     void requestFullscreen();
     void requestCancelFullscreen();
     void requestClose();
+    void startNewAnimation();
 
     bool stackBefore(QQuickItem *item);
     bool stackAfter(QQuickItem *item);
@@ -202,11 +203,13 @@ private:
     void updateSubSurfaceStacking();
     void updateClipRect();
     void geometryChange(const QRectF &newGeo, const QRectF &oldGeometry) override;
+    void createNewOrClose(uint direction);
 
     void doSetSurfaceState(State newSurfaceState);
     Q_SLOT void onAnimationReady();
     Q_SLOT void onAnimationFinished();
     bool startStateChangeAnimation(SurfaceWrapper::State targetState, const QRectF &targetGeometry);
+    Q_SLOT void onNewAnimationFinished();
 
     QmlEngine *m_engine;
     QPointer<SurfaceContainer> m_container;
@@ -228,6 +231,7 @@ private:
     QPointF m_positionInOwnsOutput;
     SurfaceWrapper::State m_pendingState;
     QRectF m_pendingGeometry;
+    QPointer<QQuickItem> m_NewAnimation;
     Q_OBJECT_BINDABLE_PROPERTY_WITH_ARGS(SurfaceWrapper,
                                          SurfaceWrapper::State,
                                          m_previousSurfaceState,

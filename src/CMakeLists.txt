@@ -88,6 +88,7 @@ qt_add_qml_module(${BIN_NAME}
         qml/OutputMenuBar.qml
         qml/WorkspaceSwitcher.qml
         qml/WorkspaceProxy.qml
+        qml/Animations/NewAnimation.qml
 
     RESOURCES
         "res/xx.jpg"

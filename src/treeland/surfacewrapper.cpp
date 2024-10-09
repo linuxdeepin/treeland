@@ -15,6 +15,9 @@
 #include <wxwaylandsurface.h>
 #include <wxwaylandsurfaceitem.h>
 
+#define OPEN_ANIMATION 1
+#define CLOSE_ANIMATION 2
+
 SurfaceWrapper::SurfaceWrapper(QmlEngine *qmlEngine,
                                WToplevelSurface *shellSurface,
                                Type type,
@@ -73,6 +76,9 @@ SurfaceWrapper::SurfaceWrapper(QmlEngine *qmlEngine,
     shellSurface->safeConnect(&WToplevelSurface::requestCancelFullscreen,
                               this,
                               &SurfaceWrapper::requestCancelFullscreen);
+    shellSurface->surface()->safeConnect(&WSurface::mappedChanged,
+                              this,
+                              &SurfaceWrapper::startNewAnimation);
 
     connect(m_surfaceItem,
             &WSurfaceItem::boundingRectChanged,
@@ -529,6 +535,20 @@ void SurfaceWrapper::geometryChange(const QRectF &newGeo, const QRectF &oldGeome
     updateClipRect();
 }
 
+void SurfaceWrapper::createNewOrClose(uint direction)
+{
+    if (m_NewAnimation)
+        return;
+
+    m_NewAnimation =
+        m_engine->createNewAnimation(this, container(), direction);
+
+    bool ok = connect(m_NewAnimation, SIGNAL(finished()), this, SLOT(onNewAnimationFinished()));
+    Q_ASSERT(ok);
+    ok = QMetaObject::invokeMethod(m_NewAnimation, "start");
+    Q_ASSERT(ok);
+}
+
 void SurfaceWrapper::doSetSurfaceState(State newSurfaceState)
 {
     setVisibleDecoration(newSurfaceState == State::Normal);
@@ -618,6 +638,18 @@ bool SurfaceWrapper::startStateChangeAnimation(State targetState, const QRectF &
     return ok;
 }
 
+void SurfaceWrapper::onNewAnimationFinished()
+{
+    Q_ASSERT(m_NewAnimation);
+    m_NewAnimation->deleteLater();
+}
+
+void SurfaceWrapper::startNewAnimation()
+{
+    if (surface()->mapped())
+        createNewOrClose(OPEN_ANIMATION);
+}
+
 qreal SurfaceWrapper::radius() const
 {
     return m_radius;
@@ -686,6 +718,7 @@ void SurfaceWrapper::requestCancelFullscreen()
 
 void SurfaceWrapper::requestClose()
 {
+    createNewOrClose(CLOSE_ANIMATION);
     m_shellSurface->close();
     updateVisible();
 }
