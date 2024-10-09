@@ -43,6 +43,7 @@ public:
     QQuickItem *createWorkspaceSwitcher(Workspace *parent,
                                         WorkspaceContainer *from,
                                         WorkspaceContainer *to);
+    QQuickItem *createNewAnimation(SurfaceWrapper *surface, QQuickItem *parent, uint direction);
 
     QQmlComponent *surfaceContentComponent() { return &surfaceContent; }
 
@@ -58,5 +59,6 @@ private:
     QQmlComponent geometryAnimationComponent;
     QQmlComponent menuBarComponent;
     QQmlComponent workspaceSwitcher;
+    QQmlComponent newAnimationComponent;
     WallpaperImageProvider *wallpaperProvider = nullptr;
 };

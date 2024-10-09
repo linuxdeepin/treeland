@@ -22,6 +22,7 @@ QmlEngine::QmlEngine(QObject *parent)
     , geometryAnimationComponent(this, "Treeland", "GeometryAnimation")
     , menuBarComponent(this, "Treeland", "OutputMenuBar")
     , workspaceSwitcher(this, "Treeland", "WorkspaceSwitcher")
+    , newAnimationComponent(this, "Treeland", "NewAnimation")
 {
 }
 
@@ -149,6 +150,24 @@ QQuickItem *QmlEngine::createWorkspaceSwitcher(Workspace *parent,
     item->setParent(parent);
     item->setParentItem(parent);
     workspaceSwitcher.completeCreate();
+
+    return item;
+}
+
+QQuickItem *QmlEngine::createNewAnimation(SurfaceWrapper *surface, QQuickItem *parent, uint direction)
+{
+    auto context = qmlContext(parent);
+    auto obj = newAnimationComponent.beginCreate(context);
+    newAnimationComponent.setInitialProperties(obj,
+                                               {
+                                                   { "target", QVariant::fromValue(surface) },
+                                                   { "direction", QVariant::fromValue(direction) },
+                                               });
+    auto item = qobject_cast<QQuickItem *>(obj);
+    Q_ASSERT(item);
+    item->setParent(parent);
+    item->setParentItem(parent);
+    newAnimationComponent.completeCreate();
 
     return item;
 }
