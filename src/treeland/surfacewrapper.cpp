@@ -663,6 +663,26 @@ void SurfaceWrapper::startNewAnimation()
         createNewOrClose(OPEN_ANIMATION);
 }
 
+void SurfaceWrapper::onMinimizeAnimationFinished()
+{
+    Q_ASSERT(m_MinimizeAnimation);
+    m_MinimizeAnimation->deleteLater();
+}
+
+void SurfaceWrapper::startMinimizeAnimation(const QRectF &iconGeometry, uint direction)
+{
+    if (m_MinimizeAnimation)
+        return;
+
+    m_MinimizeAnimation =
+        m_engine->createMinimizeAnimation(this, container(), iconGeometry, direction);
+
+    bool ok = connect(m_MinimizeAnimation, SIGNAL(finished()), this, SLOT(onMinimizeAnimationFinished()));
+    Q_ASSERT(ok);
+    ok = QMetaObject::invokeMethod(m_MinimizeAnimation, "start");
+    Q_ASSERT(ok);
+}
+
 qreal SurfaceWrapper::radius() const
 {
     return m_radius;
@@ -679,6 +699,7 @@ void SurfaceWrapper::setRadius(qreal newRadius)
 void SurfaceWrapper::requestMinimize()
 {
     setSurfaceState(State::Minimized);
+    startMinimizeAnimation(iconGeometry(), CLOSE_ANIMATION);
 }
 
 void SurfaceWrapper::requestCancelMinimize()
@@ -686,7 +707,8 @@ void SurfaceWrapper::requestCancelMinimize()
     if (m_surfaceState != State::Minimized)
         return;
 
-    setSurfaceState(m_previousSurfaceState);
+    doSetSurfaceState(m_previousSurfaceState);
+    startMinimizeAnimation(iconGeometry(), OPEN_ANIMATION);
 }
 
 void SurfaceWrapper::requestMaximize()
@@ -733,7 +755,7 @@ void SurfaceWrapper::requestClose()
 {
     createNewOrClose(CLOSE_ANIMATION);
     m_shellSurface->close();
-    updateVisible();
+    setVisible(false);
 }
 
 SurfaceWrapper *SurfaceWrapper::stackFirstSurface() const

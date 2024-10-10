@@ -100,6 +100,7 @@ qt_add_qml_module(${BIN_NAME}
         qml/WorkspaceSwitcher.qml
         qml/WorkspaceProxy.qml
         qml/Animations/NewAnimation.qml
+        qml/Animations/MinimizeAnimation.qml
         qml/TaskSwitcher.qml
         qml/WorkSpaceMask.qml
         qml/SwitchViewDelegate.qml
