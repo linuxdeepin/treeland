@@ -17,7 +17,7 @@ pkg_search_module(WAYLAND REQUIRED IMPORTED_TARGET wayland-server)
 # qt_finalize_target will collect all executable's private dependencies that are CMake targets
 
 add_subdirectory(modules)
-# add_subdirectory(greeter)
+add_subdirectory(greeter)
 # add_subdirectory(treeland-wallpaper)
 # add_subdirectory(treeland-shortcut)
 
@@ -62,6 +62,8 @@ qt_add_qml_module(${BIN_NAME}
         treeland/surfacecontainer.cpp
         treeland/layersurfacecontainer.h
         treeland/layersurfacecontainer.cpp
+        treeland/lockscreen.h
+        treeland/lockscreen.cpp
         treeland/rootsurfacecontainer.h
         treeland/rootsurfacecontainer.cpp
         treeland/surfaceproxy.h
@@ -72,6 +74,10 @@ qt_add_qml_module(${BIN_NAME}
         treeland/wallpaperprovider.cpp
         treeland/wallpaperimage.h
         treeland/wallpaperimage.cpp
+        treeland/wallpapercontroller.h
+        treeland/wallpapercontroller.cpp
+        treeland/wallpapermanager.h
+        treeland/wallpapermanager.cpp
 
         ${DBUS_ADAPTOR}
     QML_FILES
@@ -101,7 +107,7 @@ qt_add_qml_module(${BIN_NAME}
 target_link_libraries(${BIN_NAME}
     PRIVATE
         DDM::Common
-        # greeterplugin
+        greeterplugin
         Qt6::Quick
         Qt6::QuickControls2
         Qt6::QuickPrivate

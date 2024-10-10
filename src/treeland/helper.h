@@ -55,6 +55,7 @@ class Workspace;
 class RootSurfaceContainer;
 class LayerSurfaceContainer;
 class ForeignToplevelV1;
+class LockScreen;
 
 class Helper : public WSeatEventFilter
 {
@@ -174,6 +175,7 @@ private:
     LayerSurfaceContainer *m_backgroundContainer = nullptr;
     LayerSurfaceContainer *m_bottomContainer = nullptr;
     Workspace *m_workspace = nullptr;
+    LockScreen *m_lockScreen = nullptr;
     LayerSurfaceContainer *m_topContainer = nullptr;
     LayerSurfaceContainer *m_overlayContainer = nullptr;
     SurfaceContainer *m_popupContainer = nullptr;

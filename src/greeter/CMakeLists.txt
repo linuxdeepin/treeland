@@ -2,14 +2,14 @@ set(GREETER_SOURCES
     greeterapp.h
     greeterapp.cpp
     greeterproxy.h
-    sessionmodel.h
-    usermodel.h
-    user.h
-    logoprovider.h
     greeterproxy.cpp
+    sessionmodel.h
     sessionmodel.cpp
+    usermodel.h
     usermodel.cpp
+    user.h
     user.cpp
+    logoprovider.h
     logoprovider.cpp
 )
 
@@ -57,7 +57,7 @@ set(QML_FILES
 set(LIB_NAME greeterplugin)
 
 qt_add_qml_module(${LIB_NAME}
-    URI TreeLand.Greeter
+    URI Treeland.Greeter
     STATIC
     VERSION 1.0
     PLUGIN_TARGET ${LIB_NAME}
@@ -72,7 +72,7 @@ qt_add_qml_module(${LIB_NAME}
         /qt/qml
     QML_FILES ${QML_FILES}
     OUTPUT_DIRECTORY
-        ${PROJECT_BINARY_DIR}/qt/qml/TreeLand/Greeter
+        ${PROJECT_BINARY_DIR}/qt/qml/Treeland.Greeter
 )
 
 qt_add_resources(${LIB_NAME} "greeter_assets"
