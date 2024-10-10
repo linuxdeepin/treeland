@@ -8,6 +8,7 @@
 #include "wallpaperprovider.h"
 #include "workspace.h"
 
+#include <woutput.h>
 #include <woutputitem.h>
 
 #include <QQuickItem>
@@ -24,6 +25,7 @@ QmlEngine::QmlEngine(QObject *parent)
     , menuBarComponent(this, "Treeland", "OutputMenuBar")
     , workspaceSwitcher(this, "Treeland", "WorkspaceSwitcher")
     , newAnimationComponent(this, "Treeland", "NewAnimation")
+    , lockScreenComponent(this, "Treeland.Greeter", "Greeter")
 {
 }
 
@@ -101,11 +103,9 @@ QQuickItem *QmlEngine::createTaskSwitcher(Output *output, QQuickItem *parent)
 {
     auto context = qmlContext(parent);
     auto obj = taskSwitchComponent.beginCreate(context);
-    taskSwitchComponent.setInitialProperties(obj, {
-        {"output", QVariant::fromValue(output)}
-    });
+    taskSwitchComponent.setInitialProperties(obj, { { "output", QVariant::fromValue(output) } });
 
-    auto item = qobject_cast<QQuickItem*>(obj);
+    auto item = qobject_cast<QQuickItem *>(obj);
     qDebug() << taskSwitchComponent.errorString();
     Q_ASSERT(item);
     item->setParent(parent);
@@ -173,7 +173,9 @@ QQuickItem *QmlEngine::createWorkspaceSwitcher(Workspace *parent,
     return item;
 }
 
-QQuickItem *QmlEngine::createNewAnimation(SurfaceWrapper *surface, QQuickItem *parent, uint direction)
+QQuickItem *QmlEngine::createNewAnimation(SurfaceWrapper *surface,
+                                          QQuickItem *parent,
+                                          uint direction)
 {
     auto context = qmlContext(parent);
     auto obj = newAnimationComponent.beginCreate(context);
@@ -187,6 +189,23 @@ QQuickItem *QmlEngine::createNewAnimation(SurfaceWrapper *surface, QQuickItem *p
     item->setParent(parent);
     item->setParentItem(parent);
     newAnimationComponent.completeCreate();
+
+    return item;
+}
+
+QQuickItem *QmlEngine::createLockScreen(Output *output, QQuickItem *parent)
+{
+    auto context = qmlContext(parent);
+    auto obj = lockScreenComponent.beginCreate(context);
+    lockScreenComponent.setInitialProperties(
+        obj,
+        { { "output", QVariant::fromValue(output->output()) },
+          { "outputItem", QVariant::fromValue(output->outputItem()) } });
+    auto item = qobject_cast<QQuickItem *>(obj);
+    Q_ASSERT_X(item, "", lockScreenComponent.errorString().toUtf8());
+    item->setParent(parent);
+    item->setParentItem(parent);
+    lockScreenComponent.completeCreate();
 
     return item;
 }

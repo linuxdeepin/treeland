@@ -7,6 +7,7 @@
 #include "ddeshell.h"
 #include "foreigntoplevelmanagerv1.h"
 #include "layersurfacecontainer.h"
+#include "lockscreen.h"
 #include "output.h"
 #include "outputmanagement.h"
 #include "personalizationmanager.h"
@@ -76,7 +77,6 @@
 #include <QQuickStyle>
 #include <QQuickWindow>
 #include <QVariant>
-#include <qqmlengine.h>
 
 #include <pwd.h>
 
@@ -92,6 +92,7 @@ Helper::Helper(QObject *parent)
     , m_backgroundContainer(new LayerSurfaceContainer(m_surfaceContainer))
     , m_bottomContainer(new LayerSurfaceContainer(m_surfaceContainer))
     , m_workspace(new Workspace(m_surfaceContainer))
+    , m_lockScreen(new LockScreen(m_surfaceContainer))
     , m_topContainer(new LayerSurfaceContainer(m_surfaceContainer))
     , m_overlayContainer(new LayerSurfaceContainer(m_surfaceContainer))
     , m_popupContainer(new SurfaceContainer(m_surfaceContainer))
@@ -112,6 +113,7 @@ Helper::Helper(QObject *parent)
     m_topContainer->setZ(RootSurfaceContainer::TopZOrder);
     m_overlayContainer->setZ(RootSurfaceContainer::OverlayZOrder);
     m_popupContainer->setZ(RootSurfaceContainer::PopupZOrder);
+    m_lockScreen->setZ(RootSurfaceContainer::LockScreenZOrder);
 }
 
 Helper::~Helper()
@@ -175,9 +177,12 @@ void Helper::init()
         o->outputItem()->stackBefore(m_surfaceContainer);
         m_outputList.append(o);
 
-        m_surfaceContainer->addOutput(o);
         enableOutput(output);
         wOutputManager->newOutput(output);
+
+        // TODO: 应该让helper发出Output的信号，每个需要output的单元单独connect。
+        m_surfaceContainer->addOutput(o);
+        m_lockScreen->addOutput(o);
     });
 
     connect(m_backend, &WBackend::outputRemoved, this, [this, wOutputManager](WOutput *output) {
@@ -186,6 +191,7 @@ void Helper::init()
         const auto o = m_outputList.takeAt(index);
         wOutputManager->removeOutput(output);
         m_surfaceContainer->removeOutput(o);
+        m_lockScreen->removeOutput(o);
         delete o;
     });
 
@@ -320,7 +326,7 @@ void Helper::init()
     qw_screencopy_manager_v1::create(*m_server->handle());
     m_renderWindow->init(m_renderer, m_allocator);
 
-    // for capture
+    // for clipboard
     qw_data_control_manager_v1::create(*m_server->handle());
 
     // for xwayland
@@ -514,6 +520,11 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *, QInputEvent *event)
                 return true;
             } else if (kevent->key() == Qt::Key_Left) {
                 m_workspace->switchToPrev();
+                return true;
+            } else if (kevent->key() == Qt::Key_L) {
+                for (auto &&output : m_surfaceContainer->outputs()) {
+                    m_lockScreen->addOutput(output);
+                }
                 return true;
             }
         } else if (event->modifiers() == Qt::AltModifier) {

@@ -45,6 +45,7 @@ public:
                                         WorkspaceContainer *from,
                                         WorkspaceContainer *to);
     QQuickItem *createNewAnimation(SurfaceWrapper *surface, QQuickItem *parent, uint direction);
+    QQuickItem *createLockScreen(Output *output, QQuickItem *parent);
 
     QQmlComponent *surfaceContentComponent() { return &surfaceContent; }
 
@@ -62,5 +63,6 @@ private:
     QQmlComponent menuBarComponent;
     QQmlComponent workspaceSwitcher;
     QQmlComponent newAnimationComponent;
+    QQmlComponent lockScreenComponent;
     WallpaperImageProvider *wallpaperProvider = nullptr;
 };
