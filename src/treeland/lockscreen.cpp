@@ -6,6 +6,9 @@
 #include "helper.h"
 #include "output.h"
 
+// FIXME: greeter should support auth self.
+bool IS_ENABLED = false;
+
 LockScreen::LockScreen(SurfaceContainer *parent)
     : SurfaceContainer(parent)
     , m_delayTimer(std::make_unique<QTimer>(new QTimer))
@@ -14,10 +17,21 @@ LockScreen::LockScreen(SurfaceContainer *parent)
 
     m_delayTimer->setSingleShot(true);
     m_delayTimer->setInterval(300);
+
+    // TODO: Use CommandLineOptions class to parse command line arguments
+    QCommandLineOption socket({ "s", "socket" }, "set ddm socket", "socket");
+    QCommandLineParser parser;
+    parser.addOptions({ socket });
+    parser.process(*qApp);
+    IS_ENABLED = parser.isSet(socket);
 }
 
 void LockScreen::addOutput(Output *output)
 {
+    if (!IS_ENABLED) {
+        return;
+    }
+
     if (m_components.contains(output)) {
         return;
     }
