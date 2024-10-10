@@ -48,6 +48,9 @@ int main(int argc, char *argv[])
 
     parser.process(app);
 
+    qmlRegisterModule("Treeland.Greeter", 1, 0);
+    qmlRegisterModule("Treeland.Protocols", 1, 0);
+
     QmlEngine qmlEngine;
 
     QObject::connect(&qmlEngine, &QQmlEngine::quit, &app, &QGuiApplication::quit);

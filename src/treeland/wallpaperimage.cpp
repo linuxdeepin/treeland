@@ -4,8 +4,10 @@
 #include "wallpaperimage.h"
 
 #include "helper.h"
+#include "wallpapermanager.h"
 #include "wallpaperprovider.h"
 #include "workspace.h"
+#include "woutputitem.h"
 
 #include <woutput.h>
 
@@ -76,6 +78,10 @@ void WallpaperImage::setOutput(WOutput *output)
             connect(output, &WOutput::transformedSizeChanged, this, [this] {
                 setSourceSize(m_output->transformedSize());
             });
+
+            WallpaperManager::instance()->add(this, WOutputItem::getOutputItem(output));
+        } else {
+            WallpaperManager::instance()->remove(this);
         }
         updateSource();
     }

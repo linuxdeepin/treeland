@@ -67,10 +67,6 @@ GreeterProxy::GreeterProxy(QObject *parent)
         server = args[pos + 1];
     }
 
-    if (server.isEmpty()) {
-        return;
-    }
-
     d->displayManager = new DisplayManager("org.freedesktop.DisplayManager",
                                            "/org/freedesktop/DisplayManager",
                                            QDBusConnection::systemBus(),
