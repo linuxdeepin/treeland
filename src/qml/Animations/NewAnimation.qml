@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 import QtQuick
+import Treeland
 
 ShaderEffectSource {
     id: root
@@ -17,6 +18,7 @@ ShaderEffectSource {
 
     required property var target
     required property var direction
+    property int duration: 400 * Helper.animationSpeed
 
     x: target.x
     y: target.y
@@ -53,7 +55,7 @@ ShaderEffectSource {
         PropertyAnimation {
             target: rotation
             property: "angle"
-            duration: 400
+            duration: duration
             from: root.direction === NewAnimation.Direction.Show ? 75 : 0
             to: root.direction !== NewAnimation.Direction.Show ? 75 : 0
             easing.type: Easing.OutExpo
@@ -61,7 +63,7 @@ ShaderEffectSource {
         PropertyAnimation {
             target: root
             property: "scale"
-            duration: 400
+            duration: duration
             from: root.direction === NewAnimation.Direction.Show ? 0.3 : 1
             to: root.direction !== NewAnimation.Direction.Show ? 0.3 : 1
             easing.type: Easing.OutExpo
@@ -69,7 +71,7 @@ ShaderEffectSource {
         PropertyAnimation {
             target: root
             property: "opacity"
-            duration: 400
+            duration: duration
             from: root.direction === NewAnimation.Direction.Show ? 0 : 1
             to: root.direction !== NewAnimation.Direction.Show ? 0 : 1
             easing.type: Easing.OutExpo
