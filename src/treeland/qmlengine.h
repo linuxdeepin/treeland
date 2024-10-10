@@ -47,6 +47,10 @@ public:
                                         WorkspaceModel *to);
     QQuickItem *createNewAnimation(SurfaceWrapper *surface, QQuickItem *parent, uint direction);
     QQuickItem *createLockScreen(Output *output, QQuickItem *parent);
+    QQuickItem *createMinimizeAnimation(SurfaceWrapper *surface,
+                                        QQuickItem *parent,
+                                        const QRectF &iconGeometry,
+                                        uint direction);
 
     QQuickItem *createDockPreview(QObject *parent);
 
@@ -69,5 +73,6 @@ private:
     QQmlComponent newAnimationComponent;
     QQmlComponent lockScreenComponent;
     QQmlComponent dockPreviewComponent;
+    QQmlComponent minimizeAnimationComponent;
     WallpaperImageProvider *wallpaperProvider = nullptr;
 };

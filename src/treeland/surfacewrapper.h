@@ -231,6 +231,8 @@ private:
     bool startStateChangeAnimation(SurfaceWrapper::State targetState, const QRectF &targetGeometry);
     Q_SLOT void onNewAnimationFinished();
     void updateExplicitAlwaysOnTop();
+    void startMinimizeAnimation(const QRectF &iconGeometry, uint direction);
+    Q_SLOT void onMinimizeAnimationFinished();
 
     QmlEngine *m_engine;
     QPointer<SurfaceContainer> m_container;
@@ -253,6 +255,7 @@ private:
     SurfaceWrapper::State m_pendingState;
     QRectF m_pendingGeometry;
     QPointer<QQuickItem> m_NewAnimation;
+    QPointer<QQuickItem> m_MinimizeAnimation;
     Q_OBJECT_BINDABLE_PROPERTY_WITH_ARGS(SurfaceWrapper,
                                          SurfaceWrapper::State,
                                          m_previousSurfaceState,

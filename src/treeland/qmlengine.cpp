@@ -30,6 +30,7 @@ QmlEngine::QmlEngine(QObject *parent)
     , newAnimationComponent(this, "Treeland", "NewAnimation")
     , lockScreenComponent(this, "Treeland.Greeter", "Greeter")
     , dockPreviewComponent(this, "Treeland", "DockPreview")
+    , minimizeAnimationComponent(this, "Treeland", "MinimizeAnimation")
 {
 }
 
@@ -235,6 +236,28 @@ QQuickItem *QmlEngine::createLockScreen(Output *output, QQuickItem *parent)
     item->setParent(parent);
     item->setParentItem(parent);
     lockScreenComponent.completeCreate();
+
+    return item;
+}
+
+QQuickItem *QmlEngine::createMinimizeAnimation(SurfaceWrapper *surface,
+                                    QQuickItem *parent,
+                                    const QRectF &iconGeometry,
+                                    uint direction)
+{
+    auto context = qmlContext(parent);
+    auto obj = minimizeAnimationComponent.beginCreate(context);
+    minimizeAnimationComponent.setInitialProperties(obj,
+                                                    {
+                                                        { "target", QVariant::fromValue(surface) },
+                                                        { "position", QVariant::fromValue(iconGeometry) },
+                                                        { "direction", QVariant::fromValue(direction) },
+                                                    });
+    auto item = qobject_cast<QQuickItem *>(obj);
+    Q_ASSERT(item);
+    item->setParent(parent);
+    item->setParentItem(parent);
+    minimizeAnimationComponent.completeCreate();
 
     return item;
 }
