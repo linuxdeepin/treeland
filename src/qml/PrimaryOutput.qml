@@ -16,14 +16,14 @@ OutputItem {
     cursorDelegate: Cursor {
         id: cursorItem
 
-        required property QtObject outputCurosr
+        required property QtObject outputCursor
         readonly property point position: parent.mapFromGlobal(cursor.position.x, cursor.position.y)
 
-        cursor: outputCurosr.cursor
-        output: outputCurosr.output.output
+        cursor: outputCursor.cursor
+        output: outputCursor.output.output
         x: position.x - hotSpot.x
         y: position.y - hotSpot.y
-        visible: valid && outputCurosr.visible
+        visible: valid && outputCursor.visible
         OutputLayer.enabled: true
         OutputLayer.keepLayer: true
         OutputLayer.outputs: [onscreenViewport]
