@@ -646,7 +646,7 @@ void SurfaceWrapper::onNewAnimationFinished()
 
 void SurfaceWrapper::startNewAnimation()
 {
-    if (surface()->mapped())
+    if (surface()->mapped() && (m_type == Type::XdgToplevel || m_type == Type::XWayland))
         createNewOrClose(OPEN_ANIMATION);
 }
 
@@ -718,7 +718,8 @@ void SurfaceWrapper::requestCancelFullscreen()
 
 void SurfaceWrapper::requestClose()
 {
-    createNewOrClose(CLOSE_ANIMATION);
+    if (m_type == Type::XdgToplevel || m_type == Type::XWayland)
+        createNewOrClose(CLOSE_ANIMATION);
     m_shellSurface->close();
     updateVisible();
 }
