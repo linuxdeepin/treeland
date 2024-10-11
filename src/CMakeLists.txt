@@ -89,6 +89,7 @@ qt_add_qml_module(${BIN_NAME}
         qml/CopyOutput.qml
         qml/TitleBar.qml
         qml/Decoration.qml
+        qml/WindowMenu.qml
         qml/TaskBar.qml
         qml/RoundedClipEffect.qml
         qml/SurfaceContent.qml

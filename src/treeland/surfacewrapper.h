@@ -193,6 +193,7 @@ Q_SIGNALS:
     void radiusChanged();
     void requestMove(); // for titlebar
     void requestResize(Qt::Edges edges);
+    void requestShowWindowMenu(QPoint pos);
     void geometryChanged();
     void containerChanged();
     void visibleDecorationChanged();
