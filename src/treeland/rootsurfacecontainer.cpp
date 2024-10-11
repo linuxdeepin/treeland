@@ -44,6 +44,9 @@ RootSurfaceContainer::RootSurfaceContainer(QQuickItem *parent)
     });
 
     connect(m_outputLayout, &WOutputLayout::notify_change, this, [this] {
+        for (auto output : std::as_const(outputs())) {
+            output->updatePositionFromLayout();
+        }
         ensureCursorVisible();
 
         // for (auto s : m_surfaceContainer->surfaces()) {

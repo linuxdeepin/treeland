@@ -67,12 +67,19 @@ class Helper : public WSeatEventFilter
     Q_PROPERTY(Workspace* workspace READ workspace CONSTANT FINAL)
     Q_PROPERTY(int currentUserId READ currentUserId WRITE setCurrentUserId NOTIFY currentUserIdChanged FINAL)
     Q_PROPERTY(float animationSpeed READ animationSpeed WRITE setAnimationSpeed NOTIFY animationSpeedChanged FINAL)
+    Q_PROPERTY(OutputMode outputMode READ outputMode WRITE setOutputMode NOTIFY outputModeChanged FINAL)
     QML_ELEMENT
     QML_SINGLETON
 
 public:
     explicit Helper(QObject *parent = nullptr);
     ~Helper();
+
+    enum class OutputMode {
+        Copy,
+        Extension
+    };
+    Q_ENUM(OutputMode)
 
     static Helper *instance();
 
@@ -92,6 +99,10 @@ public:
 
     float animationSpeed() const;
     void setAnimationSpeed(float newAnimationSpeed);
+
+    OutputMode outputMode() const;
+    void setOutputMode(OutputMode mode);
+    Q_INVOKABLE void addOutput();
 
     void addSocket(WSocket *socket);
 
@@ -114,6 +125,7 @@ signals:
 
     void animationSpeedChanged();
     void socketFileChanged();
+    void outputModeChanged();
 
 private:
     void allowNonDrmOutputAutoChangeMode(WOutput *output);
@@ -181,6 +193,7 @@ private:
     SurfaceContainer *m_popupContainer = nullptr;
     int m_currentUserId = -1;
     float m_animationSpeed = 1.0;
+    OutputMode m_mode = OutputMode::Extension;
 
     QList<WXWayland *> m_xwaylands;
 };
