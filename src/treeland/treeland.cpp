@@ -3,6 +3,7 @@
 
 #include "treeland.h"
 
+#include "cmdline.h"
 #include "compositor1adaptor.h"
 #include "helper.h"
 
@@ -29,7 +30,6 @@
 
 #include <DLog>
 
-#include <QCommandLineParser>
 #include <QDebug>
 #include <QEventLoop>
 #include <QGuiApplication>
@@ -146,15 +146,10 @@ std::optional<QStringList> unescapeExecArgs(const QString &str) noexcept
 }
 
 namespace TreeLand {
-TreeLand::TreeLand(Helper *helper, TreeLandAppContext context)
+TreeLand::TreeLand(Helper *helper)
     : QObject()
-    , m_context(context)
     , m_helper(helper)
 {
-    if (!context.socket.isEmpty()) {
-        new DDM::SignalHandler;
-    }
-
     m_socket = new QLocalSocket(this);
 
     connect(m_socket, &QLocalSocket::connected, this, &TreeLand::connected);
@@ -162,10 +157,11 @@ TreeLand::TreeLand(Helper *helper, TreeLandAppContext context)
     connect(m_socket, &QLocalSocket::readyRead, this, &TreeLand::readyRead);
     connect(m_socket, &QLocalSocket::errorOccurred, this, &TreeLand::error);
 
-    if (!context.socket.isEmpty()) {
+    if (CmdLine::ref().socket().has_value()) {
+        new DDM::SignalHandler;
         Q_ASSERT(m_helper);
-        auto connectToServer = [this, context] {
-            m_socket->connectToServer(context.socket);
+        auto connectToServer = [this] {
+            m_socket->connectToServer(CmdLine::ref().socket().value());
         };
 
         connect(m_helper, &Helper::socketFileChanged, this, connectToServer);
@@ -178,9 +174,9 @@ TreeLand::TreeLand(Helper *helper, TreeLandAppContext context)
         m_helper->setCurrentUserId(getuid());
     }
 
-    if (!context.run.isEmpty()) {
-        qCInfo(treelandMain) << "run cmd:" << context.run;
-        auto exec = [runCmd = context.run, this] {
+    if (CmdLine::ref().run().has_value()) {
+        auto exec = [runCmd = CmdLine::ref().run().value(), this] {
+            qCInfo(treelandMain) << "run cmd:" << runCmd;
             if (auto cmdline = unescapeExecArgs(runCmd); cmdline) {
                 auto cmdArgs = cmdline.value();
 
@@ -222,7 +218,7 @@ TreeLand::TreeLand(Helper *helper, TreeLandAppContext context)
 
 bool TreeLand::testMode() const
 {
-    return m_context.socket.isEmpty();
+    return !CmdLine::ref().socket().has_value();
 }
 
 bool TreeLand::debugMode() const

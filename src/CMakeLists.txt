@@ -48,6 +48,8 @@ qt_add_qml_module(${BIN_NAME}
     VERSION "2.0"
 
     SOURCES
+        treeland/cmdline.h
+        treeland/cmdline.cpp
         treeland/helper.h
         treeland/helper.cpp
         treeland/surfacewrapper.h
