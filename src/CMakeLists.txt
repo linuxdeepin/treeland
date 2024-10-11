@@ -104,10 +104,6 @@ qt_add_qml_module(${BIN_NAME}
         qml/SwitchViewDelegate.qml
         qml/SwitchViewHighlightDelegate.qml
         qml/DockPreview.qml
-
-    RESOURCES
-        "res/xx.jpg"
-
     RESOURCE_PREFIX
         /qt/qml
     OUTPUT_DIRECTORY
