@@ -204,7 +204,7 @@ void Helper::init()
 
     m_treelandForeignToplevel = m_server->attach<ForeignToplevelV1>();
     Q_ASSERT(m_treelandForeignToplevel);
-    qmlRegisterSingletonInstance<ForeignToplevelV1>("TreeLand.Protocols",
+    qmlRegisterSingletonInstance<ForeignToplevelV1>("Treeland.Protocols",
                                                     1,
                                                     0,
                                                     "ForeignToplevelV1",
@@ -304,23 +304,23 @@ void Helper::init()
         },
         Qt::QueuedConnection);
 
-    qmlRegisterUncreatableType<Personalization>("TreeLand.Protocols",
+    qmlRegisterUncreatableType<Personalization>("Treeland.Protocols",
                                                 1,
                                                 0,
                                                 "Personalization",
                                                 "Only for Enum");
-    qmlRegisterUncreatableType<DDEShell>("TreeLand.Protocols",
+    qmlRegisterUncreatableType<DDEShell>("Treeland.Protocols",
                                          1,
                                          0,
                                          "DDEShell",
                                          "Only for attached");
-    qmlRegisterUncreatableType<CaptureSource>("TreeLand.Protocols",
+    qmlRegisterUncreatableType<CaptureSource>("Treeland.Protocols",
                                               1,
                                               0,
                                               "CaptureSource",
                                               "An abstract class");
-    qmlRegisterType<CaptureContextV1>("TreeLand.Protocols", 1, 0, "CaptureContextV1");
-    qmlRegisterType<CaptureSourceSelector>("TreeLand.Protocols", 1, 0, "CaptureSourceSelector");
+    qmlRegisterType<CaptureContextV1>("Treeland.Protocols", 1, 0, "CaptureContextV1");
+    qmlRegisterType<CaptureSourceSelector>("Treeland.Protocols", 1, 0, "CaptureSourceSelector");
 
     m_server->start();
     m_renderer = WRenderHelper::createRenderer(m_backend->handle());

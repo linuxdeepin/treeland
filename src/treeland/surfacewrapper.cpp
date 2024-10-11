@@ -541,7 +541,7 @@ void SurfaceWrapper::createNewOrClose(uint direction)
 {
     if (m_NewAnimation)
         return;
-    
+
     if (m_type != Type::XdgToplevel && m_type != Type::XWayland)
         return;
 

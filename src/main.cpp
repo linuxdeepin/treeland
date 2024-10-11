@@ -42,8 +42,8 @@ int main(int argc, char *argv[])
     WRenderHelper::setupRendererBackend();
     Q_ASSERT(qw_buffer::get_objects().isEmpty());
 
-    qmlRegisterModule("Treeland.Protocols", 1, 0);
     qmlRegisterModule("Treeland.Greeter", 1, 0);
+    qmlRegisterModule("Treeland.Protocols", 1, 0);
 
     QmlEngine qmlEngine;
 
