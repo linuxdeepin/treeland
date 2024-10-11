@@ -7,15 +7,15 @@ import Treeland
 Item {
     id: root
 
-    required property Item from
-    required property Item to
+    required property WorkspaceModel from
+    required property WorkspaceModel to
     readonly property Item workspace: parent
-    readonly property Item leftWorkspace: {
+    readonly property WorkspaceModel leftWorkspace: {
         if (!from || !to)
             return null;
         return from.index > to.index ? to : from;
     }
-    readonly property Item rightWorkspace: {
+    readonly property WorkspaceModel rightWorkspace: {
         if (!from || !to)
             return null;
         return from.index > to.index ? from : to;
@@ -107,6 +107,7 @@ Item {
 
                 onFinished: {
                     rootItem.outputItem.wallpaperVisible = true;
+                    Helper.workspace.showOnAllWorkspaceModel.visible = true;
                     root.workspace.current = root.to;
                 }
             }

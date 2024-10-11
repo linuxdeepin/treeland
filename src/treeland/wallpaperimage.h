@@ -16,13 +16,13 @@ WAYLIB_SERVER_END_NAMESPACE
 
 WAYLIB_SERVER_USE_NAMESPACE
 
-class WorkspaceContainer;
+class WorkspaceModel;
 
 class WallpaperImage : public QQuickImage
 {
     Q_OBJECT
     Q_PROPERTY(int userId READ userId WRITE setUserId NOTIFY userIdChanged FINAL)
-    Q_PROPERTY(WorkspaceContainer* workspace READ workspace WRITE setWorkspace NOTIFY workspaceChanged FINAL)
+    Q_PROPERTY(WorkspaceModel* workspace READ workspace WRITE setWorkspace NOTIFY workspaceChanged FINAL)
     Q_PROPERTY(WAYLIB_SERVER_NAMESPACE::WOutput* output READ output WRITE setOutput NOTIFY outputChanged FINAL)
 
     QML_NAMED_ELEMENT(Wallpaper)
@@ -35,8 +35,8 @@ public:
     int userId();
     void setUserId(const int id);
 
-    WorkspaceContainer *workspace();
-    void setWorkspace(WorkspaceContainer *workspace);
+    WorkspaceModel *workspace();
+    void setWorkspace(WorkspaceModel *workspace);
 
     WOutput *output();
     void setOutput(WOutput *output);
@@ -52,6 +52,6 @@ protected:
 
 private:
     int m_userId = -1;
-    QPointer<WorkspaceContainer> m_workspace;
+    QPointer<WorkspaceModel> m_workspace;
     QPointer<WOutput> m_output;
 };

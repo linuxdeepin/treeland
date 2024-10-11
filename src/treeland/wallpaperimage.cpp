@@ -45,12 +45,12 @@ void WallpaperImage::setUserId(const int id)
     }
 }
 
-WorkspaceContainer *WallpaperImage::workspace()
+WorkspaceModel *WallpaperImage::workspace()
 {
     return m_workspace;
 }
 
-void WallpaperImage::setWorkspace(WorkspaceContainer *workspace)
+void WallpaperImage::setWorkspace(WorkspaceModel *workspace)
 {
     if (m_workspace != workspace) {
         m_workspace = workspace;

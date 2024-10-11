@@ -80,6 +80,8 @@ qt_add_qml_module(${BIN_NAME}
         treeland/wallpapercontroller.cpp
         treeland/wallpapermanager.h
         treeland/wallpapermanager.cpp
+        treeland/workspacemodel.h
+        treeland/workspacemodel.cpp
 
         ${DBUS_ADAPTOR}
     QML_FILES
