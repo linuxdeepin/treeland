@@ -56,6 +56,7 @@ class RootSurfaceContainer;
 class LayerSurfaceContainer;
 class ForeignToplevelV1;
 class LockScreen;
+class ShortcutV1;
 
 class Helper : public WSeatEventFilter
 {
@@ -176,6 +177,7 @@ private:
     WXdgDecorationManager *m_xdgDecorationManager = nullptr;
     WForeignToplevel *m_foreignToplevel = nullptr;
     ForeignToplevelV1 *m_treelandForeignToplevel = nullptr;
+    ShortcutV1 *m_shortcut = nullptr;
 
     // privaet data
     QList<Output *> m_outputList;
