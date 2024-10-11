@@ -8,7 +8,7 @@ import QtQuick.Effects
 
 import Waylib.Server
 import Treeland
-import TreeLand.Protocols
+import Treeland.Protocols
 import org.deepin.dtk 1.0 as D
 
 Item {

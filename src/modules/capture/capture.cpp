@@ -484,7 +484,7 @@ QDebug operator<<(QDebug debug, CaptureSource &captureSource)
 
 void CaptureSourceSelector::componentComplete()
 {
-    m_captureManager = qmlEngine(this)->singletonInstance<CaptureManagerV1 *>("TreeLand.Protocols",
+    m_captureManager = qmlEngine(this)->singletonInstance<CaptureManagerV1 *>("Treeland.Protocols",
                                                                               "CaptureManagerV1");
     Q_ASSERT(window());
     auto renderWindow = qobject_cast<WOutputRenderWindow *>(window());
