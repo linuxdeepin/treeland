@@ -8,8 +8,9 @@ import Treeland
 
 OutputItem {
     id: rootOutputItem
-    readonly property OutputViewport onscreenViewport: outputViewport
+    readonly property OutputViewport screenViewport: outputViewport
     property alias wallpaperVisible: wallpaper.visible
+    property bool forceSoftwareCursor: false
 
     devicePixelRatio: output?.scale ?? devicePixelRatio
 
@@ -24,9 +25,9 @@ OutputItem {
         x: position.x - hotSpot.x
         y: position.y - hotSpot.y
         visible: valid && outputCursor.visible
-        OutputLayer.enabled: true
+        OutputLayer.enabled: !outputCursor.output.forceSoftwareCursor
         OutputLayer.keepLayer: true
-        OutputLayer.outputs: [onscreenViewport]
+        OutputLayer.outputs: [screenViewport]
         OutputLayer.flags: OutputLayer.Cursor
         OutputLayer.cursorHotSpot: hotSpot
     }
@@ -50,7 +51,7 @@ OutputItem {
             id: setTransform
 
             property var scheduleTransform
-            onTriggered: onscreenViewport.rotateOutput(scheduleTransform)
+            onTriggered: screenViewport.rotateOutput(scheduleTransform)
             interval: rotationAnimator.duration / 2
         }
 
@@ -140,14 +141,14 @@ OutputItem {
     }
 
     function setTransform(transform) {
-        onscreenViewport.rotationOutput(transform)
+        screenViewport.rotationOutput(transform)
     }
 
     function setScale(scale) {
-        onscreenViewport.setOutputScale(scale)
+        screenViewport.setOutputScale(scale)
     }
 
     function invalidate() {
-        onscreenViewport.invalidate()
+        screenViewport.invalidate()
     }
 }

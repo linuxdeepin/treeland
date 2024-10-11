@@ -111,6 +111,33 @@ Item {
                 text: "Next Workspace"
                 onClicked: Helper.workspace.switchToNext();
             }
+
+            ToolButton {
+                text: "Output"
+
+                onClicked: outputMenu.popup()
+
+                Menu {
+                    id: outputMenu
+
+                    MenuItem {
+                        text: "Add Output"
+                        onClicked: {
+                            Helper.addOutput()
+                        }
+                    }
+
+                    MenuItem {
+                        text: (Helper.outputMode === Helper.OutputMode.Copy) ? "Extension Mode" : "Copy Mode"
+                        onClicked: {
+                            if (Helper.outputMode === Helper.OutputMode.Copy)
+                                Helper.outputMode = Helper.OutputMode.Extension
+                            else
+                                Helper.outputMode = Helper.OutputMode.Copy
+                        }
+                    }
+                }
+            }
         }
     }
 }

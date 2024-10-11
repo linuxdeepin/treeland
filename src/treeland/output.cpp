@@ -13,6 +13,8 @@
 #include <woutputrenderwindow.h>
 #include <wsurfaceitem.h>
 #include <wxdgsurface.h>
+#include <woutputlayout.h>
+#include <wquicktextureproxy.h>
 
 #include <QQmlEngine>
 
@@ -21,7 +23,11 @@ Q_LOGGING_CATEGORY(qLcLayerShell, "Treeland.shell.layer", QtWarningMsg)
 Output *Output::createPrimary(WOutput *output, QQmlEngine *engine, QObject *parent)
 {
     QQmlComponent delegate(engine, "Treeland", "PrimaryOutput");
-    QObject *obj = delegate.create(engine->rootContext());
+    QObject *obj = delegate.beginCreate(engine->rootContext());
+    delegate.setInitialProperties(obj, {
+                                           {"forceSoftwareCursor", output->handle()->is_x11()}
+                                       });
+    delegate.completeCreate();
     WOutputItem *outputItem = qobject_cast<WOutputItem *>(obj);
     Q_ASSERT(outputItem);
     QQmlEngine::setObjectOwnership(outputItem, QQmlEngine::CppOwnership);
@@ -38,6 +44,7 @@ Output *Output::createPrimary(WOutput *output, QQmlEngine *engine, QObject *pare
     o->connect(outputItem, &WOutputItem::geometryChanged, o, &Output::layoutAllSurfaces);
 
     auto contentItem = Helper::instance()->window()->contentItem();
+    outputItem->setParentItem(contentItem);
     o->m_taskBar = Helper::instance()->qmlEngine()->createTaskBar(o, contentItem);
     o->m_taskBar->setZ(RootSurfaceContainer::TaskBarZOrder);
 
@@ -51,7 +58,9 @@ Output *Output::createPrimary(WOutput *output, QQmlEngine *engine, QObject *pare
 Output *Output::createCopy(WOutput *output, Output *proxy, QQmlEngine *engine, QObject *parent)
 {
     QQmlComponent delegate(engine, "Treeland", "CopyOutput");
-    QObject *obj = delegate.create(engine->rootContext());
+    QObject *obj = delegate.createWithInitialProperties({
+                                                            {"targetOutputItem", QVariant::fromValue(proxy->outputItem())},
+                                                        }, engine->rootContext());
     WOutputItem *outputItem = qobject_cast<WOutputItem *>(obj);
     Q_ASSERT(outputItem);
     QQmlEngine::setObjectOwnership(outputItem, QQmlEngine::CppOwnership);
@@ -62,6 +71,12 @@ Output *Output::createCopy(WOutput *output, Output *proxy, QQmlEngine *engine, Q
     o->m_proxy = proxy;
     obj->setParent(o);
 
+    auto contentItem = Helper::instance()->window()->contentItem();
+    outputItem->setParentItem(contentItem);
+    o->updatePrimaryOutputHardwareLayers();
+    connect(o->m_outputViewport, &WOutputViewport::hardwareLayersChanged,
+            o, &Output::updatePrimaryOutputHardwareLayers);
+
     return o;
 }
 
@@ -70,6 +85,7 @@ Output::Output(WOutputItem *output, QObject *parent)
     , m_item(output)
     , minimizedSurfaces(new SurfaceFilterModel(this))
 {
+    m_outputViewport = output->property("screenViewport").value<WOutputViewport *>();
 }
 
 Output::~Output()
@@ -83,11 +99,48 @@ Output::~Output()
         delete m_menuBar;
         m_menuBar = nullptr;
     }
+
+    if (m_item) {
+        delete m_item;
+        m_item = nullptr;
+    }
 }
 
 bool Output::isPrimary() const
 {
     return m_type == Type::Primary;
+}
+
+void Output::updatePositionFromLayout()
+{
+    WOutputLayout * layout = output()->layout();
+    Q_ASSERT(layout);
+    auto *layoutOutput = layout->get(output()->nativeHandle());
+    QPointF pos(layoutOutput->x, layoutOutput->y);
+    m_item->setPosition(pos);
+}
+std::pair<WOutputViewport*, QQuickItem*> Output::getOutputItemProperty()
+{
+    WOutputViewport *viewportCopy = outputItem()->findChild<WOutputViewport*>({}, Qt::FindDirectChildrenOnly);
+    Q_ASSERT(viewportCopy);
+    auto textureProxy = outputItem()->findChild<WQuickTextureProxy*>();
+    Q_ASSERT(textureProxy);
+    return std::make_pair(viewportCopy, textureProxy);
+}
+void Output::updatePrimaryOutputHardwareLayers()
+{
+    WOutputViewport *viewportPrimary = screenViewport();
+    std::pair<WOutputViewport*, QQuickItem*> copyOutput = getOutputItemProperty();
+    const auto layers = viewportPrimary->hardwareLayers();
+    for (auto layer : layers) {
+        if (m_hardwareLayersOfPrimaryOutput.removeOne(layer))
+            continue;
+        Helper::instance()->window()->attach(layer, copyOutput.first, viewportPrimary, copyOutput.second);
+    }
+    for (auto oldLayer : std::as_const(m_hardwareLayersOfPrimaryOutput)) {
+        Helper::instance()->window()->detach(oldLayer, copyOutput.first);
+    }
+    m_hardwareLayersOfPrimaryOutput = layers;
 }
 
 void Output::addSurface(SurfaceWrapper *surface)
@@ -396,6 +449,11 @@ QRectF Output::geometry() const
 QRectF Output::validRect() const
 {
     return rect().marginsRemoved(m_exclusiveZone);
+}
+
+WOutputViewport *Output::screenViewport() const
+{
+    return m_outputViewport;
 }
 
 QRectF Output::validGeometry() const
