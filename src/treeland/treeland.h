@@ -19,12 +19,6 @@ class Helper;
 
 namespace TreeLand {
 
-struct TreeLandAppContext
-{
-    QString socket;
-    QString run;
-};
-
 class TreeLand
     : public QObject
     , protected QDBusContext
@@ -34,7 +28,7 @@ class TreeLand
     Q_PROPERTY(bool debugMode READ debugMode CONSTANT FINAL)
 
 public:
-    explicit TreeLand(Helper *helper, TreeLandAppContext context);
+    explicit TreeLand(Helper *helper);
 
     Q_INVOKABLE void retranslate() noexcept;
 
@@ -56,7 +50,6 @@ private Q_SLOTS:
     void error();
 
 private:
-    TreeLandAppContext m_context;
     QLocalSocket *m_socket{ nullptr };
     QLocalSocket *m_helperSocket{ nullptr };
     Helper *m_helper{ nullptr };

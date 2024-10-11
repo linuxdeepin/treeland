@@ -1,6 +1,7 @@
 // Copyright (C) 2024 JiDe Zhang <zhangjide@deepin.org>.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
+#include "cmdline.h"
 #include "helper.h"
 #include "treeland/treeland.h"
 
@@ -18,9 +19,6 @@ DCORE_USE_NAMESPACE;
 
 int main(int argc, char *argv[])
 {
-    WRenderHelper::setupRendererBackend();
-    Q_ASSERT(qw_buffer::get_objects().isEmpty());
-
     qw_log::init();
     WServer::initializeQPA();
     //    QQuickStyle::setStyle("Material");
@@ -34,19 +32,15 @@ int main(int argc, char *argv[])
     app.setOrganizationName("deepin");
     app.setApplicationName("treeland");
 
+    CmdLine::ref();
+
 #ifdef QT_DEBUG
     DLogManager::registerConsoleAppender();
 #endif
     DLogManager::registerJournalAppender();
 
-    QCommandLineOption socket({ "s", "socket" }, "set ddm socket", "socket");
-    QCommandLineOption run({ "r", "run" }, "run a process", "run");
-
-    QCommandLineParser parser;
-    parser.addHelpOption();
-    parser.addOptions({ socket, run });
-
-    parser.process(app);
+    WRenderHelper::setupRendererBackend();
+    Q_ASSERT(qw_buffer::get_objects().isEmpty());
 
     qmlRegisterModule("Treeland.Greeter", 1, 0);
     qmlRegisterModule("Treeland.Protocols", 1, 0);
@@ -61,7 +55,7 @@ int main(int argc, char *argv[])
     Helper *helper = qmlEngine.singletonInstance<Helper *>("Treeland", "Helper");
     helper->init();
 
-    TreeLand::TreeLand treeland(helper, { parser.value(socket), parser.value(run) });
+    TreeLand::TreeLand treeland(helper);
 
     int quitCode = app.exec();
 

@@ -3,6 +3,7 @@
 
 #include "lockscreen.h"
 
+#include "cmdline.h"
 #include "helper.h"
 #include "output.h"
 
@@ -18,12 +19,7 @@ LockScreen::LockScreen(SurfaceContainer *parent)
     m_delayTimer->setSingleShot(true);
     m_delayTimer->setInterval(300);
 
-    // TODO: Use CommandLineOptions class to parse command line arguments
-    QCommandLineOption socket({ "s", "socket" }, "set ddm socket", "socket");
-    QCommandLineParser parser;
-    parser.addOptions({ socket });
-    parser.process(*qApp);
-    IS_ENABLED = parser.isSet(socket);
+    IS_ENABLED = CmdLine::ref().useLockScreen();
 }
 
 void LockScreen::addOutput(Output *output)
