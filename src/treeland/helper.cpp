@@ -65,6 +65,7 @@
 #include <qwsubcompositor.h>
 #include <qwxwaylandsurface.h>
 
+#include <QAction>
 #include <QGuiApplication>
 #include <QKeySequence>
 #include <QLoggingCategory>
@@ -79,6 +80,7 @@
 #include <QVariant>
 
 #include <pwd.h>
+#include <utility>
 
 #define WLR_FRACTIONAL_SCALE_V1_VERSION 1
 
@@ -290,7 +292,7 @@ void Helper::init()
     m_server->attach<WallpaperColorV1>();
     m_server->attach<WindowManagementV1>();
     m_server->attach<VirtualOutputV1>();
-    m_server->attach<ShortcutV1>();
+    m_shortcut = m_server->attach<ShortcutV1>();
     m_server->attach<DDEShellV1>();
     m_server->attach<CaptureManagerV1>();
     PersonalizationV1 *personalization = m_server->attach<PersonalizationV1>();
@@ -591,6 +593,53 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *, QInputEvent *event)
         }
     }
 
+    // handle shortcut
+    if (event->type() == QEvent::KeyRelease) {
+        if (m_currentUserId != -1) {
+            auto kevent = static_cast<QKeyEvent *>(event);
+            QKeySequence sequence(kevent->modifiers() | kevent->key());
+            bool isFind = false;
+            for (auto *action : m_shortcut->actions(m_currentUserId)) {
+                if (action->shortcut() == sequence) {
+                    isFind = true;
+                    action->activate(QAction::Trigger);
+                }
+            }
+            if (isFind) {
+                return true;
+            }
+        }
+    }
+
+    // FIXME: only one meta key
+    // QEvent::ShortcutOverride QKeySequence("Meta")
+    // QEvent::KeyPress QKeySequence("Meta+Meta")
+    // QEvent::KeyRelease QKeySequence("Meta")
+    static QFlags<ShortcutV1::MetaKeyCheck> metaKeyChecks;
+    if (auto e = static_cast<QKeyEvent *>(event)) {
+        if (e->type() == QKeyEvent::ShortcutOverride && e->key() == Qt::Key_Meta) {
+            metaKeyChecks |= ShortcutV1::MetaKeyCheck::ShortcutOverride;
+        } else if (metaKeyChecks.testFlags(ShortcutV1::MetaKeyCheck::ShortcutOverride)
+                   && e->type() == QKeyEvent::KeyPress && e->modifiers() == Qt::MetaModifier
+                   && e->key() == Qt::Key_Meta) {
+            metaKeyChecks |= ShortcutV1::MetaKeyCheck::KeyPress;
+        } else if (metaKeyChecks.testFlags(ShortcutV1::MetaKeyCheck::ShortcutOverride
+                                           | ShortcutV1::MetaKeyCheck::KeyPress)
+                   && e->type() == QKeyEvent::KeyRelease && e->key() == Qt::Key_Meta) {
+            metaKeyChecks |= ShortcutV1::MetaKeyCheck::KeyRelease;
+        } else {
+            metaKeyChecks = {};
+        }
+
+        if (metaKeyChecks.testFlags(ShortcutV1::MetaKeyCheck::ShortcutOverride
+                                    | ShortcutV1::MetaKeyCheck::KeyPress
+                                    | ShortcutV1::MetaKeyCheck::KeyRelease)) {
+            metaKeyChecks = {}; // reset
+            m_shortcut->triggerMetaKey(m_currentUserId);
+        }
+    }
+    // FIXME: end
+
     if (event->type() == QEvent::MouseButtonPress) {
         destoryTaskSwitcher();
     }
@@ -805,14 +854,18 @@ Output *Helper::getOutput(WOutput *output) const
 
 void Helper::addOutput()
 {
-    qobject_cast<qw_multi_backend*>(m_backend->handle())->for_each_backend([] (wlr_backend *backend, void *) {
-        if (auto x11 = qw_x11_backend::from(backend)) {
-            qw_output::from(x11->output_create());
-        } else if (auto wayland = qw_wayland_backend::from(backend)) {
-            qw_output::from(wayland->output_create());
-        }
-    }, nullptr);
+    qobject_cast<qw_multi_backend *>(m_backend->handle())
+        ->for_each_backend(
+            [](wlr_backend *backend, void *) {
+                if (auto x11 = qw_x11_backend::from(backend)) {
+                    qw_output::from(x11->output_create());
+                } else if (auto wayland = qw_wayland_backend::from(backend)) {
+                    qw_output::from(wayland->output_create());
+                }
+            },
+            nullptr);
 }
+
 void Helper::setOutputMode(OutputMode mode)
 {
     if (m_outputList.length() < 2 || m_mode == mode)
@@ -824,16 +877,19 @@ void Helper::setOutputMode(OutputMode mode)
             continue;
         Output *o;
         if (mode == OutputMode::Copy) {
-            o = Output::createCopy(m_outputList.at(i)->output(), m_surfaceContainer->primaryOutput(), qmlEngine(), this);
+            o = Output::createCopy(m_outputList.at(i)->output(),
+                                   m_surfaceContainer->primaryOutput(),
+                                   qmlEngine(),
+                                   this);
             m_surfaceContainer->removeOutput(m_outputList.at(i));
-        } else if(mode == OutputMode::Extension) {
+        } else if (mode == OutputMode::Extension) {
             o = Output::createPrimary(m_outputList.at(i)->output(), qmlEngine(), this);
             o->outputItem()->stackBefore(m_surfaceContainer);
             m_surfaceContainer->addOutput(o);
             enableOutput(o->output());
         }
         m_outputList.at(i)->deleteLater();
-        m_outputList.replace(i,o);
+        m_outputList.replace(i, o);
     }
 }
 
