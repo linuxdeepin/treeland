@@ -15,13 +15,39 @@ Item {
     height: 30
     width: surfaceItem.width
 
-    MouseArea {
-        anchors.fill: parent
-        Cursor.shape: pressed ? Waylib.CursorShape.Grabbing : Qt.ArrowCursor
+    HoverHandler {
+        // block hover events to resizing mouse area, avoid cursor change
+        cursorShape: Qt.ArrowCursor
+    }
 
-        onPressed: {
-            surface.requestMove();
+    // Normal mouse click
+    TapHandler {
+        acceptedButtons: Qt.LeftButton | Qt.RightButton
+        onTapped: (eventPoint, button) => {
+            if (button === Qt.RightButton) {
+                surface.requestShowWindowMenu(eventPoint.position)
+            } else {
+                Helper.activeSurface(surface)
+            }
         }
+        onPressedChanged: {
+            if (pressed)
+                surface.requestMove()
+        }
+
+        onDoubleTapped: (_, button) => {
+            if (button === Qt.LeftButton) {
+                surface.requestToggleMaximize()
+            }
+        }
+    }
+
+    // Touch screen click
+    TapHandler {
+        acceptedButtons: Qt.NoButton
+        acceptedDevices: PointerDevice.TouchScreen
+        onDoubleTapped: surface.requestToggleMaximize()
+        onLongPressed: surface.requestShowWindowMenu(point.position)
     }
 
     Rectangle {

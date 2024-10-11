@@ -32,6 +32,7 @@ public:
 
     QQuickItem *createTitleBar(SurfaceWrapper *surface, QQuickItem *parent);
     QQuickItem *createDecoration(SurfaceWrapper *surface, QQuickItem *parent);
+    QObject *createWindowMenu(QObject *parent);
     QQuickItem *createBorder(SurfaceWrapper *surface, QQuickItem *parent);
     QQuickItem *createTaskBar(Output *output, QQuickItem *parent);
     QQuickItem *createShadow(QQuickItem *parent);
@@ -56,6 +57,7 @@ public:
 private:
     QQmlComponent titleBarComponent;
     QQmlComponent decorationComponent;
+    QQmlComponent windowMenuComponent;
     QQmlComponent borderComponent;
     QQmlComponent taskBarComponent;
     QQmlComponent surfaceContent;

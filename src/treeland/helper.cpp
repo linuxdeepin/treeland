@@ -260,6 +260,9 @@ void Helper::init()
                                  this,
                                  updateSurfaceWithParentContainer);
             updateSurfaceWithParentContainer();
+            connect(wrapper, &SurfaceWrapper::requestShowWindowMenu, m_windowMenu, [this, wrapper] (QPoint pos) {
+                QMetaObject::invokeMethod(m_windowMenu, "showWindowMenu", QVariant::fromValue(wrapper), QVariant::fromValue(pos));
+            });
         }
 
         Q_ASSERT(wrapper->parentItem());
@@ -455,6 +458,7 @@ void Helper::init()
     qw_fractional_scale_manager_v1::create(*m_server->handle(), WLR_FRACTIONAL_SCALE_V1_VERSION);
     qw_data_control_manager_v1::create(*m_server->handle());
 
+    m_windowMenu = engine->createWindowMenu(this);
     m_dockPreview = engine->createDockPreview(m_renderWindow->contentItem());
 
     connect(m_treelandForeignToplevel,
@@ -535,6 +539,14 @@ void Helper::activeSurface(SurfaceWrapper *wrapper)
     activeSurface(wrapper, Qt::OtherFocusReason);
 }
 
+void Helper::fakePressSurfaceBottomRightToReszie(SurfaceWrapper *surface)
+{
+    auto position = surface->geometry().bottomRight();
+    m_fakelastPressedPosition = position;
+    m_seat->setCursorPosition(position);
+    Q_EMIT surface->requestResize(Qt::BottomEdge | Qt::RightEdge);
+}
+
 bool Helper::startDemoClient()
 {
 #ifdef START_DEMO
@@ -588,6 +600,10 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *, QInputEvent *event)
                 if (!m_taskSwitch.isNull()) {
                     QMetaObject::invokeMethod(m_taskSwitch, "previous");
                     return true;
+                }
+            } else if (kevent->key() == Qt::Key_Space) {
+                if (m_activatedSurface) {
+                    Q_EMIT m_activatedSurface->requestShowWindowMenu({0, 0});
                 }
             }
         }
@@ -670,13 +686,15 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *, QInputEvent *event)
                 return false;
             }
 
-            auto increment_pos = ev->globalPosition() - cursor->lastPressedOrTouchDownPosition();
+            auto lastPosition = m_fakelastPressedPosition.value_or(cursor->lastPressedOrTouchDownPosition());
+            auto increment_pos = ev->globalPosition() - lastPosition;
             m_surfaceContainer->doMoveResize(increment_pos);
 
             return true;
         } else if (event->type() == QEvent::MouseButtonRelease
                    || event->type() == QEvent::TouchEnd) {
             m_surfaceContainer->endMoveResize();
+            m_fakelastPressedPosition.reset();
         }
     }
 
@@ -971,6 +989,9 @@ WXWayland *Helper::createXWayland()
             m_treelandForeignToplevel->addSurface(wrapper);
             m_workspace->addSurface(wrapper);
             Q_ASSERT(wrapper->parentItem());
+            connect(wrapper, &SurfaceWrapper::requestShowWindowMenu, m_windowMenu, [this, wrapper] (QPoint pos) {
+                QMetaObject::invokeMethod(m_windowMenu, "showWindowMenu", QVariant::fromValue(wrapper), QVariant::fromValue(pos));
+            });
         });
         surface->safeConnect(&qw_xwayland_surface::notify_dissociate, this, [this, surface] {
             m_foreignToplevel->removeSurface(surface);

@@ -103,6 +103,16 @@ Item {
             }
 
             ToolButton {
+                text: "New Workspace"
+                onClicked: Helper.workspace.createModel("Workspace"+Math.random());
+            }
+
+            ToolButton {
+                text: "Delete Workspace"
+                onClicked: Helper.workspace.removeModel(Helper.workspace.currentIndex);
+            }
+
+            ToolButton {
                 text: "Prev Workspace"
                 onClicked: Helper.workspace.switchToPrev();
             }
@@ -110,6 +120,11 @@ Item {
             ToolButton {
                 text: "Next Workspace"
                 onClicked: Helper.workspace.switchToNext();
+            }
+
+            Label {
+                text: Helper.workspace.currentIndex
+                color: "red"
             }
 
             ToolButton {
