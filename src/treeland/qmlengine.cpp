@@ -156,8 +156,8 @@ QQuickItem *QmlEngine::createMenuBar(WOutputItem *output, QQuickItem *parent)
 }
 
 QQuickItem *QmlEngine::createWorkspaceSwitcher(Workspace *parent,
-                                               WorkspaceContainer *from,
-                                               WorkspaceContainer *to)
+                                               WorkspaceModel *from,
+                                               WorkspaceModel *to)
 {
     auto context = qmlContext(parent);
     auto obj = workspaceSwitcher.beginCreate(context);
