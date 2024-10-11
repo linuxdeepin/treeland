@@ -107,6 +107,11 @@ qt_add_qml_module(${BIN_NAME}
 
     RESOURCES
         "res/xx.jpg"
+
+    RESOURCE_PREFIX
+        /qt/qml
+    OUTPUT_DIRECTORY
+        ${PROJECT_BINARY_DIR}/qt/qml/Treeland
 )
 
 target_link_libraries(${BIN_NAME}
