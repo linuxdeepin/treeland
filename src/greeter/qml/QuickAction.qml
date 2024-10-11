@@ -4,11 +4,7 @@
 import QtQuick
 import QtQuick.Layouts
 import QtQuick.Controls
-import QtQuick.Effects
-import QtQuick.Dialogs
-import org.deepin.dtk 1.0 as D
 import Treeland
-import Waylib.Server
 
 Column {
     id: root
