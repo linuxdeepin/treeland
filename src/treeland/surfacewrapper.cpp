@@ -79,8 +79,15 @@ SurfaceWrapper::SurfaceWrapper(QmlEngine *qmlEngine,
                               this,
                               &SurfaceWrapper::requestCancelFullscreen);
     shellSurface->surface()->safeConnect(&WSurface::mappedChanged,
-                              this,
-                              &SurfaceWrapper::startNewAnimation);
+                                         this,
+                                         &SurfaceWrapper::startNewAnimation);
+    if (type == Type::XdgToplevel) {
+        shellSurface->safeConnect(&WToplevelSurface::requestShowWindowMenu,
+                                  this,
+                                  [this](WSeat *, QPoint pos, quint32) {
+                                      Q_EMIT requestShowWindowMenu(pos);
+                                  });
+    }
 
     connect(m_surfaceItem,
             &WSurfaceItem::boundingRectChanged,
@@ -547,8 +554,7 @@ void SurfaceWrapper::createNewOrClose(uint direction)
     if (m_type != Type::XdgToplevel && m_type != Type::XWayland)
         return;
 
-    m_NewAnimation =
-        m_engine->createNewAnimation(this, container(), direction);
+    m_NewAnimation = m_engine->createNewAnimation(this, container(), direction);
 
     bool ok = connect(m_NewAnimation, SIGNAL(finished()), this, SLOT(onNewAnimationFinished()));
     Q_ASSERT(ok);

@@ -19,6 +19,7 @@ QmlEngine::QmlEngine(QObject *parent)
     : QQmlApplicationEngine(parent)
     , titleBarComponent(this, "Treeland", "TitleBar")
     , decorationComponent(this, "Treeland", "Decoration")
+    , windowMenuComponent(this, "Treeland", "WindowMenu")
     , taskBarComponent(this, "Treeland", "TaskBar")
     , surfaceContent(this, "Treeland", "SurfaceContent")
     , shadowComponent(this, "Treeland", "Shadow")
@@ -58,6 +59,19 @@ QQuickItem *QmlEngine::createDecoration(SurfaceWrapper *surface, QQuickItem *par
     decorationComponent.completeCreate();
 
     return item;
+}
+
+QObject *QmlEngine::createWindowMenu(QObject *parent)
+{
+    auto context = qmlContext(parent);
+    auto obj = windowMenuComponent.beginCreate(context);
+    if (!obj)
+        qCFatal(qLcTreelandEngine) << "Can't create WindowMenu:"
+                                   << dockPreviewComponent.errorString();
+    obj->setParent(parent);
+    windowMenuComponent.completeCreate();
+
+    return obj;
 }
 
 QQuickItem *QmlEngine::createBorder(SurfaceWrapper *surface, QQuickItem *parent)
