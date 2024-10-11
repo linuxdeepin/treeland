@@ -22,7 +22,7 @@ class WallpaperImageProvider;
 class SurfaceWrapper;
 class Output;
 class Workspace;
-class WorkspaceContainer;
+class WorkspaceModel;
 
 class QmlEngine : public QQmlApplicationEngine
 {
@@ -42,8 +42,8 @@ public:
                                         QQuickItem *parent);
     QQuickItem *createMenuBar(WOutputItem *output, QQuickItem *parent);
     QQuickItem *createWorkspaceSwitcher(Workspace *parent,
-                                        WorkspaceContainer *from,
-                                        WorkspaceContainer *to);
+                                        WorkspaceModel *from,
+                                        WorkspaceModel *to);
     QQuickItem *createNewAnimation(SurfaceWrapper *surface, QQuickItem *parent, uint direction);
     QQuickItem *createLockScreen(Output *output, QQuickItem *parent);
 

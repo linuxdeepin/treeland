@@ -48,6 +48,9 @@ class SurfaceWrapper : public QQuickItem
     Q_PROPERTY(bool clipInOutput READ clipInOutput WRITE setClipInOutput NOTIFY clipInOutputChanged FINAL)
     Q_PROPERTY(bool noTitleBar READ noTitleBar RESET resetNoTitleBar NOTIFY noTitleBarChanged FINAL)
     Q_PROPERTY(bool noCornerRadius READ noCornerRadius NOTIFY noCornerRadiusChanged FINAL)
+    Q_PROPERTY(int workspaceId READ workspaceId NOTIFY workspaceIdChanged FINAL)
+    Q_PROPERTY(bool alwaysOnTop READ alwaysOnTop WRITE setAlwaysOnTop NOTIFY alwaysOnTopChanged FINAL)
+    Q_PROPERTY(bool showOnAllWorkspace READ showOnAllWorkspace NOTIFY showOnAllWorkspaceChanged FINAL)
 
 public:
     enum class Type {
@@ -152,6 +155,15 @@ public:
     QRect iconGeometry() const;
     void setIconGeometry(QRect newIconGeometry);
 
+    int workspaceId() const;
+    void setWorkspaceId(int newWorkspaceId);
+
+    bool alwaysOnTop() const;
+    void setAlwaysOnTop(bool alwaysOnTop);
+
+    bool showOnAllWorkspace() const;
+    void setShowOnAllWorkspace(bool showOnAllWorkspace);
+
 public Q_SLOTS:
     // for titlebar
     void requestMinimize();
@@ -168,7 +180,7 @@ public Q_SLOTS:
     bool stackAfter(QQuickItem *item);
     void stackToLast();
 
-signals:
+Q_SIGNALS:
     void boundingRectChanged();
     void ownsOutputChanged();
     void normalGeometryChanged();
@@ -189,6 +201,9 @@ signals:
     void noTitleBarChanged();
     void noCornerRadiusChanged();
     void iconGeometryChanged();
+    void workspaceIdChanged();
+    void alwaysOnTopChanged();
+    void showOnAllWorkspaceChanged();
 
 private:
     using QQuickItem::setParentItem;
@@ -214,6 +229,7 @@ private:
     Q_SLOT void onAnimationFinished();
     bool startStateChangeAnimation(SurfaceWrapper::State targetState, const QRectF &targetGeometry);
     Q_SLOT void onNewAnimationFinished();
+    void updateExplicitAlwaysOnTop();
 
     QmlEngine *m_engine;
     QPointer<SurfaceContainer> m_container;
@@ -246,6 +262,8 @@ private:
                                          m_surfaceState,
                                          State::Normal,
                                          &SurfaceWrapper::surfaceStateChanged)
+    int m_workspaceId = -1;
+    int m_explicitAlwaysOnTop = 0;
     qreal m_radius = 18.0;
     QRect m_iconGeometry;
 
@@ -262,4 +280,5 @@ private:
     uint m_noDecoration : 1;
     uint m_titleBarState : 2;
     uint m_noCornerRadius : 1;
+    uint m_alwaysOnTop : 1;
 };

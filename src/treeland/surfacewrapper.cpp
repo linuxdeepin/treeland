@@ -5,6 +5,7 @@
 
 #include "output.h"
 #include "qmlengine.h"
+#include "workspace.h"
 
 #include <winputpopupsurfaceitem.h>
 #include <wlayersurfaceitem.h>
@@ -32,6 +33,7 @@ SurfaceWrapper::SurfaceWrapper(QmlEngine *qmlEngine,
     , m_noDecoration(true)
     , m_titleBarState(TitleBarState::Default)
     , m_noCornerRadius(false)
+    , m_alwaysOnTop(false)
 {
     QQmlEngine::setContextForObject(this, qmlEngine->rootContext());
 
@@ -68,7 +70,7 @@ SurfaceWrapper::SurfaceWrapper(QmlEngine *qmlEngine,
     shellSurface->safeConnect(&WToplevelSurface::requestResize,
                               this,
                               [this](WSeat *, Qt::Edges edge, quint32) {
-                                  requestResize(edge);
+                                  Q_EMIT requestResize(edge);
                               });
     shellSurface->safeConnect(&WToplevelSurface::requestFullscreen,
                               this,
@@ -857,6 +859,7 @@ void SurfaceWrapper::addSubSurface(SurfaceWrapper *surface)
 {
     Q_ASSERT(!surface->m_parentSurface);
     surface->m_parentSurface = this;
+    surface->updateExplicitAlwaysOnTop();
     m_subSurfaces.append(surface);
 }
 
@@ -864,6 +867,7 @@ void SurfaceWrapper::removeSubSurface(SurfaceWrapper *surface)
 {
     Q_ASSERT(surface->m_parentSurface == this);
     surface->m_parentSurface = nullptr;
+    surface->updateExplicitAlwaysOnTop();
     m_subSurfaces.removeOne(surface);
 }
 
@@ -987,4 +991,57 @@ void SurfaceWrapper::setIconGeometry(QRect newIconGeometry)
         return;
     m_iconGeometry = newIconGeometry;
     Q_EMIT iconGeometryChanged();
+}
+
+int SurfaceWrapper::workspaceId() const
+{
+    return m_workspaceId;
+}
+
+void SurfaceWrapper::setWorkspaceId(int newWorkspaceId)
+{
+    if (m_workspaceId == newWorkspaceId)
+        return;
+
+    bool onAllWorkspaceHasChanged = m_workspaceId == 0 || newWorkspaceId == 0;
+    m_workspaceId = newWorkspaceId;
+
+    if (onAllWorkspaceHasChanged)
+        Q_EMIT showOnAllWorkspaceChanged();
+    Q_EMIT workspaceIdChanged();
+}
+
+bool SurfaceWrapper::alwaysOnTop() const
+{
+    return m_alwaysOnTop;
+}
+
+void SurfaceWrapper::setAlwaysOnTop(bool alwaysOnTop)
+{
+    if (m_alwaysOnTop == alwaysOnTop)
+        return;
+    m_alwaysOnTop = alwaysOnTop;
+    updateExplicitAlwaysOnTop();
+
+    Q_EMIT alwaysOnTopChanged();
+}
+
+bool SurfaceWrapper::showOnAllWorkspace() const
+{
+    return m_workspaceId == Workspace::ShowOnAllWorkspaceIndex;
+}
+
+void SurfaceWrapper::updateExplicitAlwaysOnTop()
+{
+    int newExplicitAlwaysOnTop = m_alwaysOnTop;
+    if (m_parentSurface)
+        newExplicitAlwaysOnTop += m_parentSurface->m_explicitAlwaysOnTop;
+
+    if (m_explicitAlwaysOnTop == newExplicitAlwaysOnTop)
+        return;
+
+    m_explicitAlwaysOnTop = newExplicitAlwaysOnTop;
+    setZ(m_explicitAlwaysOnTop ? 1 : 0);
+    for (const auto &sub : std::as_const(m_subSurfaces))
+        sub->updateExplicitAlwaysOnTop();
 }
