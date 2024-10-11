@@ -172,16 +172,20 @@ void Helper::init()
     auto wOutputManager = m_server->attach<WOutputManagerV1>();
     connect(m_backend, &WBackend::outputAdded, this, [this, wOutputManager](WOutput *output) {
         allowNonDrmOutputAutoChangeMode(output);
-        auto o = Output::createPrimary(output, qmlEngine(), this);
-        o->outputItem()->setParentItem(m_renderWindow->contentItem());
-        o->outputItem()->stackBefore(m_surfaceContainer);
-        m_outputList.append(o);
+        Output *o;
+        if (m_mode == OutputMode::Extension || !m_surfaceContainer->primaryOutput()) {
+            o = Output::createPrimary(output, qmlEngine(), this);
+            o->outputItem()->stackBefore(m_surfaceContainer);
+            // TODO: 应该让helper发出Output的信号，每个需要output的单元单独connect。
+            m_surfaceContainer->addOutput(o);
+        } else if (m_mode == OutputMode::Copy) {
+            o = Output::createCopy(output, m_surfaceContainer->primaryOutput(), qmlEngine(), this);
+        }
 
+        m_outputList.append(o);
         enableOutput(output);
         wOutputManager->newOutput(output);
 
-        // TODO: 应该让helper发出Output的信号，每个需要output的单元单独connect。
-        m_surfaceContainer->addOutput(o);
         m_lockScreen->addOutput(o);
     });
 
@@ -427,16 +431,12 @@ void Helper::init()
 
                         output->enableAdaptiveSync(state.adaptiveSyncEnabled);
                         if (!onlyTest) {
-                            WOutputItem *item = getOutput(output)->outputItem();
-                            if (item) {
-                                WOutputViewport *viewport =
-                                    item->property("onscreenViewport").value<WOutputViewport *>();
-                                if (viewport) {
-                                    viewport->rotateOutput(state.transform);
-                                    viewport->setOutputScale(state.scale);
-                                    viewport->setX(state.x);
-                                    viewport->setY(state.y);
-                                }
+                            WOutputViewport *viewport = getOutput(output)->screenViewport();
+                            if (viewport) {
+                                viewport->rotateOutput(state.transform);
+                                viewport->setOutputScale(state.scale);
+                                viewport->setX(state.x);
+                                viewport->setY(state.y);
                             }
                         }
                     }
@@ -749,6 +749,40 @@ Output *Helper::getOutput(WOutput *output) const
     return nullptr;
 }
 
+void Helper::addOutput()
+{
+    qobject_cast<qw_multi_backend*>(m_backend->handle())->for_each_backend([] (wlr_backend *backend, void *) {
+        if (auto x11 = qw_x11_backend::from(backend)) {
+            qw_output::from(x11->output_create());
+        } else if (auto wayland = qw_wayland_backend::from(backend)) {
+            qw_output::from(wayland->output_create());
+        }
+    }, nullptr);
+}
+void Helper::setOutputMode(OutputMode mode)
+{
+    if (m_outputList.length() < 2 || m_mode == mode)
+        return;
+    m_mode = mode;
+    Q_EMIT outputModeChanged();
+    for (int i = 0; i < m_outputList.size(); i++) {
+        if (m_outputList.at(i) == m_surfaceContainer->primaryOutput())
+            continue;
+        Output *o;
+        if (mode == OutputMode::Copy) {
+            o = Output::createCopy(m_outputList.at(i)->output(), m_surfaceContainer->primaryOutput(), qmlEngine(), this);
+            m_surfaceContainer->removeOutput(m_outputList.at(i));
+        } else if(mode == OutputMode::Extension) {
+            o = Output::createPrimary(m_outputList.at(i)->output(), qmlEngine(), this);
+            o->outputItem()->stackBefore(m_surfaceContainer);
+            m_surfaceContainer->addOutput(o);
+            enableOutput(o->output());
+        }
+        m_outputList.at(i)->deleteLater();
+        m_outputList.replace(i,o);
+    }
+}
+
 void Helper::setOutputProxy(Output *output) { }
 
 void Helper::updateLayerSurfaceContainer(SurfaceWrapper *surface)
@@ -801,6 +835,11 @@ void Helper::setAnimationSpeed(float newAnimationSpeed)
         return;
     m_animationSpeed = newAnimationSpeed;
     emit animationSpeedChanged();
+}
+
+Helper::OutputMode Helper::outputMode() const
+{
+    return m_mode;
 }
 
 void Helper::addSocket(WSocket *socket)
