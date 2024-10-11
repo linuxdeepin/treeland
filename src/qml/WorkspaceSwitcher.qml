@@ -45,32 +45,23 @@ Item {
                 parent: rootItem.outputItem.parent
                 z: rootItem.outputItem.z - 1
 
-                Wallpaper {
-                    userId: Helper.currentUserId
+                WallpaperController {
+                    id: wpCtrl
                     output: rootItem.outputItem.output
-                    workspace: root.leftWorkspace
-                    width: rootItem.outputItem.width
-                    height: rootItem.outputItem.height
-
-                    Rectangle {
-                        anchors.fill: parent
-                        color: "red"
-                        opacity: 0.3
-                    }
+                    lock: true
+                    type: WallpaperController.Normal
                 }
 
-                Wallpaper {
-                    userId: Helper.currentUserId
-                    output: rootItem.outputItem.output
-                    workspace: root.rightWorkspace
+                ShaderEffectSource {
+                    sourceItem: wpCtrl.proxy
                     width: rootItem.outputItem.width
                     height: rootItem.outputItem.height
+                }
 
-                    Rectangle {
-                        anchors.fill: parent
-                        color: "blue"
-                        opacity: 0.3
-                    }
+                ShaderEffectSource {
+                    sourceItem: wpCtrl.proxy
+                    width: rootItem.outputItem.width
+                    height: rootItem.outputItem.height
                 }
             }
 
