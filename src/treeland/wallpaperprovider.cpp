@@ -10,6 +10,8 @@
 #include <QSGTexture>
 #include <QStandardPaths>
 
+#define DEFAULT_WALLPAPER "qrc:/desktop.webp"
+
 WallpaperTextureFactory::WallpaperTextureFactory(WallpaperImageProvider *provider,
                                                  const QImage &image)
     : m_wallpaperProvider(provider)
@@ -99,7 +101,7 @@ QString WallpaperImageProvider::parseFilePath(const QString &id)
     }
 
     if (!(fi.exists() && fi.isFile())) {
-        img_path = ":/qt/qml/Treeland/res/xx.jpg";
+        img_path = DEFAULT_WALLPAPER;
     }
 
     return img_path;

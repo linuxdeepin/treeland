@@ -32,6 +32,7 @@ DCORE_USE_NAMESPACE
 
 static PersonalizationV1 *PERSONALIZATION_MANAGER = nullptr;
 
+// TODO: from wallpaper provider or treeland settings
 #define DEFAULT_WALLPAPER "qrc:/desktop.webp"
 #define DEFAULT_WALLPAPER_ISDARK false
 
