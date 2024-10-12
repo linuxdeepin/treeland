@@ -36,7 +36,7 @@ public:
     bool fullProxy() const;
     void setFullProxy(bool newFullProxy);
 
-signals:
+Q_SIGNALS:
     void surfaceChanged();
     void radiusChanged();
     void liveChanged();

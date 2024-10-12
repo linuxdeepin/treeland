@@ -101,7 +101,7 @@ SessionModel *GreeterProxy::sessionModel() const
 void GreeterProxy::setSessionModel(SessionModel *model)
 {
     d->sessionModel = model;
-    emit sessionModelChanged(model);
+    Q_EMIT sessionModelChanged(model);
 }
 
 UserModel *GreeterProxy::userModel() const
@@ -112,7 +112,7 @@ UserModel *GreeterProxy::userModel() const
 void GreeterProxy::setUserModel(UserModel *model)
 {
     d->userModel = model;
-    emit userModelChanged(model);
+    Q_EMIT userModelChanged(model);
 }
 
 bool GreeterProxy::canPowerOff() const
@@ -281,11 +281,11 @@ void GreeterProxy::readyRead()
             d->canHybridSleep = capabilities & Capability::HybridSleep;
 
             // emit signals
-            emit canPowerOffChanged(d->canPowerOff);
-            emit canRebootChanged(d->canReboot);
-            emit canSuspendChanged(d->canSuspend);
-            emit canHibernateChanged(d->canHibernate);
-            emit canHybridSleepChanged(d->canHybridSleep);
+            Q_EMIT canPowerOffChanged(d->canPowerOff);
+            Q_EMIT canRebootChanged(d->canReboot);
+            Q_EMIT canSuspendChanged(d->canSuspend);
+            Q_EMIT canHibernateChanged(d->canHibernate);
+            Q_EMIT canHybridSleepChanged(d->canHybridSleep);
         } break;
         case DaemonMessages::HostName: {
             qCDebug(greeter) << "Message received from daemon: HostName";
@@ -294,7 +294,7 @@ void GreeterProxy::readyRead()
             input >> d->hostName;
 
             // emit signal
-            emit hostNameChanged(d->hostName);
+            Q_EMIT hostNameChanged(d->hostName);
         } break;
         case DaemonMessages::LoginSucceeded: {
             QString user;
@@ -302,7 +302,7 @@ void GreeterProxy::readyRead()
 
             qCDebug(greeter) << "Message received from daemon: LoginSucceeded:" << user;
 
-            emit loginSucceeded(user);
+            Q_EMIT loginSucceeded(user);
         } break;
         case DaemonMessages::LoginFailed: {
             QString user;
@@ -310,18 +310,18 @@ void GreeterProxy::readyRead()
 
             qCDebug(greeter) << "Message received from daemon: LoginFailed" << user;
 
-            emit loginFailed(user);
+            Q_EMIT loginFailed(user);
         } break;
         case DaemonMessages::InformationMessage: {
             QString message;
             input >> message;
 
             qCDebug(greeter) << "Information Message received from daemon: " << message;
-            emit informationMessage(message);
+            Q_EMIT informationMessage(message);
         } break;
         case DaemonMessages::SwitchToGreeter: {
             qCInfo(greeter) << "switch to greeter";
-            emit switchToGreeter();
+            Q_EMIT switchToGreeter();
         } break;
         case DaemonMessages::UserActivateMessage: {
             QString user;

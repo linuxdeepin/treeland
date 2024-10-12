@@ -74,10 +74,8 @@
 #include <QQmlApplicationEngine>
 #include <QQmlComponent>
 #include <QQmlContext>
-#include <QQuickItem>
 #include <QQuickStyle>
 #include <QQuickWindow>
-#include <QVariant>
 
 #include <pwd.h>
 #include <utility>
@@ -90,14 +88,14 @@ Helper::Helper(QObject *parent)
     : WSeatEventFilter(parent)
     , m_renderWindow(new WOutputRenderWindow(this))
     , m_server(new WServer(this))
-    , m_surfaceContainer(new RootSurfaceContainer(m_renderWindow->contentItem()))
-    , m_backgroundContainer(new LayerSurfaceContainer(m_surfaceContainer))
-    , m_bottomContainer(new LayerSurfaceContainer(m_surfaceContainer))
-    , m_workspace(new Workspace(m_surfaceContainer))
-    , m_lockScreen(new LockScreen(m_surfaceContainer))
-    , m_topContainer(new LayerSurfaceContainer(m_surfaceContainer))
-    , m_overlayContainer(new LayerSurfaceContainer(m_surfaceContainer))
-    , m_popupContainer(new SurfaceContainer(m_surfaceContainer))
+    , m_rootSurfaceContainer(new RootSurfaceContainer(m_renderWindow->contentItem()))
+    , m_backgroundContainer(new LayerSurfaceContainer(m_rootSurfaceContainer))
+    , m_bottomContainer(new LayerSurfaceContainer(m_rootSurfaceContainer))
+    , m_workspace(new Workspace(m_rootSurfaceContainer))
+    , m_lockScreen(new LockScreen(m_rootSurfaceContainer))
+    , m_topContainer(new LayerSurfaceContainer(m_rootSurfaceContainer))
+    , m_overlayContainer(new LayerSurfaceContainer(m_rootSurfaceContainer))
+    , m_popupContainer(new SurfaceContainer(m_rootSurfaceContainer))
 {
     setCurrentUserId(getuid());
 
@@ -105,7 +103,7 @@ Helper::Helper(QObject *parent)
     m_instance = this;
 
     m_renderWindow->setColor(Qt::black);
-    m_surfaceContainer->setFlag(QQuickItem::ItemIsFocusScope, true);
+    m_rootSurfaceContainer->setFlag(QQuickItem::ItemIsFocusScope, true);
 #if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0)
     m_surfaceContainer->setFocusPolicy(Qt::StrongFocus);
 #endif
@@ -120,12 +118,12 @@ Helper::Helper(QObject *parent)
 
 Helper::~Helper()
 {
-    for (auto s : m_surfaceContainer->surfaces()) {
+    for (auto s : m_rootSurfaceContainer->surfaces()) {
         if (auto c = s->container())
             c->removeSurface(s);
     }
 
-    delete m_surfaceContainer;
+    delete m_rootSurfaceContainer;
     Q_ASSERT(m_instance == this);
     m_instance = nullptr;
 }
@@ -155,11 +153,11 @@ void Helper::init()
     auto engine = qmlEngine();
     engine->setContextForObject(m_renderWindow, engine->rootContext());
     engine->setContextForObject(m_renderWindow->contentItem(), engine->rootContext());
-    m_surfaceContainer->setQmlEngine(engine);
+    m_rootSurfaceContainer->setQmlEngine(engine);
 
     m_seat = m_server->attach<WSeat>();
     m_seat->setEventFilter(this);
-    m_seat->setCursor(m_surfaceContainer->cursor());
+    m_seat->setCursor(m_rootSurfaceContainer->cursor());
     m_seat->setKeyboardFocusWindow(m_renderWindow);
 
     m_backend = m_server->attach<WBackend>();
@@ -175,13 +173,16 @@ void Helper::init()
     connect(m_backend, &WBackend::outputAdded, this, [this, wOutputManager](WOutput *output) {
         allowNonDrmOutputAutoChangeMode(output);
         Output *o;
-        if (m_mode == OutputMode::Extension || !m_surfaceContainer->primaryOutput()) {
-            o = Output::createPrimary(output, qmlEngine(), this);
-            o->outputItem()->stackBefore(m_surfaceContainer);
+        if (m_mode == OutputMode::Extension || !m_rootSurfaceContainer->primaryOutput()) {
+            o = Output::create(output, qmlEngine(), this);
+            o->outputItem()->stackBefore(m_rootSurfaceContainer);
             // TODO: 应该让helper发出Output的信号，每个需要output的单元单独connect。
-            m_surfaceContainer->addOutput(o);
+            m_rootSurfaceContainer->addOutput(o);
         } else if (m_mode == OutputMode::Copy) {
-            o = Output::createCopy(output, m_surfaceContainer->primaryOutput(), qmlEngine(), this);
+            o = Output::createCopy(output,
+                                   m_rootSurfaceContainer->primaryOutput(),
+                                   qmlEngine(),
+                                   this);
         }
 
         m_outputList.append(o);
@@ -196,7 +197,7 @@ void Helper::init()
         Q_ASSERT(index >= 0);
         const auto o = m_outputList.takeAt(index);
         wOutputManager->removeOutput(output);
-        m_surfaceContainer->removeOutput(o);
+        m_rootSurfaceContainer->removeOutput(o);
         m_lockScreen->removeOutput(o);
         delete o;
     });
@@ -215,7 +216,7 @@ void Helper::init()
 
     auto *layerShell = m_server->attach<WLayerShell>();
     auto *xdgOutputManager =
-        m_server->attach<WXdgOutputManager>(m_surfaceContainer->outputLayout());
+        m_server->attach<WXdgOutputManager>(m_rootSurfaceContainer->outputLayout());
 
     connect(xdgShell, &WXdgShell::surfaceAdded, this, [this](WXdgSurface *surface) {
         SurfaceWrapper *wrapper = nullptr;
@@ -233,8 +234,7 @@ void Helper::init()
 
         if (surface->isPopup()) {
             auto parent = surface->parentSurface();
-            ;
-            auto parentWrapper = m_surfaceContainer->getSurface(parent);
+            auto parentWrapper = m_rootSurfaceContainer->getSurface(parent);
             parentWrapper->addSubSurface(wrapper);
             m_popupContainer->addSurface(wrapper);
             wrapper->setOwnsOutput(parentWrapper->ownsOutput());
@@ -246,7 +246,7 @@ void Helper::init()
                     wrapper->container()->removeSurface(wrapper);
 
                 if (auto parent = surface->parentSurface()) {
-                    auto parentWrapper = m_surfaceContainer->getSurface(parent);
+                    auto parentWrapper = m_rootSurfaceContainer->getSurface(parent);
                     auto container = parentWrapper->container();
                     Q_ASSERT(container);
                     parentWrapper->addSubSurface(wrapper);
@@ -260,9 +260,15 @@ void Helper::init()
                                  this,
                                  updateSurfaceWithParentContainer);
             updateSurfaceWithParentContainer();
-            connect(wrapper, &SurfaceWrapper::requestShowWindowMenu, m_windowMenu, [this, wrapper] (QPoint pos) {
-                QMetaObject::invokeMethod(m_windowMenu, "showWindowMenu", QVariant::fromValue(wrapper), QVariant::fromValue(pos));
-            });
+            connect(wrapper,
+                    &SurfaceWrapper::requestShowWindowMenu,
+                    m_windowMenu,
+                    [this, wrapper](QPoint pos) {
+                        QMetaObject::invokeMethod(m_windowMenu,
+                                                  "showWindowMenu",
+                                                  QVariant::fromValue(wrapper),
+                                                  QVariant::fromValue(pos));
+                    });
         }
 
         Q_ASSERT(wrapper->parentItem());
@@ -270,10 +276,10 @@ void Helper::init()
     connect(xdgShell, &WXdgShell::surfaceRemoved, this, [this](WXdgSurface *surface) {
         if (surface->isToplevel()) {
             m_foreignToplevel->removeSurface(surface);
-            m_treelandForeignToplevel->removeSurface(m_surfaceContainer->getSurface(surface));
+            m_treelandForeignToplevel->removeSurface(m_rootSurfaceContainer->getSurface(surface));
         }
 
-        m_surfaceContainer->destroyForSurface(surface->surface());
+        m_rootSurfaceContainer->destroyForSurface(surface->surface());
     });
 
     connect(layerShell, &WLayerShell::surfaceAdded, this, [this](WLayerSurface *surface) {
@@ -288,7 +294,7 @@ void Helper::init()
     });
 
     connect(layerShell, &WLayerShell::surfaceRemoved, this, [this](WLayerSurface *surface) {
-        m_surfaceContainer->destroyForSurface(surface->surface());
+        m_rootSurfaceContainer->destroyForSurface(surface->surface());
     });
 
     m_server->attach<PrimaryOutputV1>();
@@ -347,7 +353,7 @@ void Helper::init()
 
     // for xwayland
     auto *xwaylandOutputManager =
-        m_server->attach<WXdgOutputManager>(m_surfaceContainer->outputLayout());
+        m_server->attach<WXdgOutputManager>(m_rootSurfaceContainer->outputLayout());
     xwaylandOutputManager->setScaleOverride(1.0);
 
     m_xwayland = createXWayland();
@@ -361,8 +367,7 @@ void Helper::init()
                 auto wrapper =
                     new SurfaceWrapper(qmlEngine(), inputPopup, SurfaceWrapper::Type::InputPopup);
                 auto parent = inputPopup->parentSurface();
-                ;
-                auto parentWrapper = m_surfaceContainer->getSurface(parent);
+                auto parentWrapper = m_rootSurfaceContainer->getSurface(parent);
                 parentWrapper->addSubSurface(wrapper);
                 m_popupContainer->addSurface(wrapper);
                 wrapper->setOwnsOutput(parentWrapper->ownsOutput());
@@ -373,7 +378,7 @@ void Helper::init()
             &WInputMethodHelper::inputPopupSurfaceV2Removed,
             this,
             [this](WInputPopupSurface *inputPopup) {
-                m_surfaceContainer->destroyForSurface(inputPopup->surface());
+                m_rootSurfaceContainer->destroyForSurface(inputPopup->surface());
             });
 
     m_xdgDecorationManager = m_server->attach<WXdgDecorationManager>();
@@ -381,7 +386,7 @@ void Helper::init()
             &WXdgDecorationManager::surfaceModeChanged,
             this,
             [this](WSurface *surface, WXdgDecorationManager::DecorationMode mode) {
-                auto s = m_surfaceContainer->getSurface(surface);
+                auto s = m_rootSurfaceContainer->getSurface(surface);
                 if (!s)
                     return;
                 s->setNoDecoration(mode != WXdgDecorationManager::Server);
@@ -415,6 +420,8 @@ void Helper::init()
                     b = gamma_control->table + 2 * gamma_control->ramp_size;
                 }
                 if (!wOutput->setGammaLut(ramp_size, r, g, b)) {
+                    qWarning() << "Failed to set gamma lut!";
+                    // TODO: use software impl it.
                     qw_gamma_control_v1::from(gamma_control)->send_failed_and_destroy();
                 }
             });
@@ -468,7 +475,7 @@ void Helper::init()
                    WSurface *target,
                    QPoint pos,
                    ForeignToplevelV1::PreviewDirection direction) {
-                SurfaceWrapper *dockWrapper = m_surfaceContainer->getSurface(target);
+                SurfaceWrapper *dockWrapper = m_rootSurfaceContainer->getSurface(target);
                 Q_ASSERT(dockWrapper);
 
                 QMetaObject::invokeMethod(m_dockPreview,
@@ -485,7 +492,7 @@ void Helper::init()
                    WSurface *target,
                    QPoint pos,
                    ForeignToplevelV1::PreviewDirection direction) {
-                SurfaceWrapper *dockWrapper = m_surfaceContainer->getSurface(target);
+                SurfaceWrapper *dockWrapper = m_rootSurfaceContainer->getSurface(target);
                 Q_ASSERT(dockWrapper);
                 QMetaObject::invokeMethod(m_dockPreview,
                                           "showTooltip",
@@ -505,7 +512,6 @@ void Helper::init()
     m_backend->handle()->start();
 
     qInfo() << "Listing on:" << m_socket->fullServerName();
-    startDemoClient();
 }
 
 bool Helper::socketEnabled() const
@@ -521,7 +527,7 @@ void Helper::setSocketEnabled(bool newEnabled)
         qWarning() << "Can't set enabled for empty socket!";
 }
 
-void Helper::activeSurface(SurfaceWrapper *wrapper, Qt::FocusReason reason)
+void Helper::activateSurface(SurfaceWrapper *wrapper, Qt::FocusReason reason)
 {
     if (!wrapper || wrapper->shellSurface()->hasCapability(WToplevelSurface::Capability::Activate))
         setActivatedSurface(wrapper);
@@ -531,12 +537,7 @@ void Helper::activeSurface(SurfaceWrapper *wrapper, Qt::FocusReason reason)
 
 RootSurfaceContainer *Helper::rootContainer() const
 {
-    return m_surfaceContainer;
-}
-
-void Helper::activeSurface(SurfaceWrapper *wrapper)
-{
-    activeSurface(wrapper, Qt::OtherFocusReason);
+    return m_rootSurfaceContainer;
 }
 
 void Helper::fakePressSurfaceBottomRightToReszie(SurfaceWrapper *surface)
@@ -545,23 +546,6 @@ void Helper::fakePressSurfaceBottomRightToReszie(SurfaceWrapper *surface)
     m_fakelastPressedPosition = position;
     m_seat->setCursorPosition(position);
     Q_EMIT surface->requestResize(Qt::BottomEdge | Qt::RightEdge);
-}
-
-bool Helper::startDemoClient()
-{
-#ifdef START_DEMO
-    QProcess waylandClientDemo;
-
-    waylandClientDemo.setProgram(PROJECT_BINARY_DIR "/examples/animationclient/animationclient");
-    waylandClientDemo.setArguments({ "-platform", "wayland" });
-    QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
-    env.insert("WAYLAND_DISPLAY", m_socket->fullServerName());
-
-    waylandClientDemo.setProcessEnvironment(env);
-    return waylandClientDemo.startDetached();
-#else
-    return false;
-#endif
 }
 
 bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *, QInputEvent *event)
@@ -579,7 +563,7 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *, QInputEvent *event)
                 m_workspace->switchToPrev();
                 return true;
             } else if (kevent->key() == Qt::Key_L) {
-                for (auto &&output : m_surfaceContainer->outputs()) {
+                for (auto &&output : m_rootSurfaceContainer->outputs()) {
                     m_lockScreen->addOutput(output);
                 }
                 return true;
@@ -603,7 +587,7 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *, QInputEvent *event)
                 }
             } else if (kevent->key() == Qt::Key_Space) {
                 if (m_activatedSurface) {
-                    Q_EMIT m_activatedSurface->requestShowWindowMenu({0, 0});
+                    Q_EMIT m_activatedSurface->requestShowWindowMenu({ 0, 0 });
                 }
             }
         }
@@ -673,7 +657,7 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *, QInputEvent *event)
         seat->cursor()->setVisible(false);
     }
 
-    if (auto surface = m_surfaceContainer->moveResizeSurface()) {
+    if (auto surface = m_rootSurfaceContainer->moveResizeSurface()) {
         // for move resize
         if (Q_LIKELY(event->type() == QEvent::MouseMove || event->type() == QEvent::TouchUpdate)) {
             auto cursor = seat->cursor();
@@ -682,18 +666,19 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *, QInputEvent *event)
 
             auto ownsOutput = surface->ownsOutput();
             if (!ownsOutput) {
-                m_surfaceContainer->endMoveResize();
+                m_rootSurfaceContainer->endMoveResize();
                 return false;
             }
 
-            auto lastPosition = m_fakelastPressedPosition.value_or(cursor->lastPressedOrTouchDownPosition());
+            auto lastPosition =
+                m_fakelastPressedPosition.value_or(cursor->lastPressedOrTouchDownPosition());
             auto increment_pos = ev->globalPosition() - lastPosition;
-            m_surfaceContainer->doMoveResize(increment_pos);
+            m_rootSurfaceContainer->doMoveResize(increment_pos);
 
             return true;
         } else if (event->type() == QEvent::MouseButtonRelease
                    || event->type() == QEvent::TouchEnd) {
-            m_surfaceContainer->endMoveResize();
+            m_rootSurfaceContainer->endMoveResize();
             m_fakelastPressedPosition.reset();
         }
     }
@@ -701,11 +686,12 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *, QInputEvent *event)
     return false;
 }
 
-bool Helper::afterHandleEvent(
-    WSeat *seat, WSurface *watched, QObject *surfaceItem, QObject *, QInputEvent *event)
+bool Helper::afterHandleEvent([[maybe_unused]] WSeat *seat,
+                              WSurface *watched,
+                              QObject *surfaceItem,
+                              QObject *,
+                              QInputEvent *event)
 {
-    Q_UNUSED(seat)
-
     if (event->isSinglePointEvent() && static_cast<QSinglePointEvent *>(event)->isBeginEvent()) {
         // surfaceItem is qml type: XdgSurfaceItem or LayerSurfaceItem
         auto toplevelSurface = qobject_cast<WSurfaceItem *>(surfaceItem)->shellSurface();
@@ -713,8 +699,8 @@ bool Helper::afterHandleEvent(
             return false;
         Q_ASSERT(toplevelSurface->surface() == watched);
 
-        auto surface = m_surfaceContainer->getSurface(watched);
-        activeSurface(surface, Qt::MouseFocusReason);
+        auto surface = m_rootSurfaceContainer->getSurface(watched);
+        activateSurface(surface, Qt::MouseFocusReason);
     }
 
     return false;
@@ -724,7 +710,7 @@ bool Helper::unacceptedEvent(WSeat *, QWindow *, QInputEvent *event)
 {
     if (event->isSinglePointEvent()) {
         if (static_cast<QSinglePointEvent *>(event)->isBeginEvent()) {
-            activeSurface(nullptr, Qt::OtherFocusReason);
+            activateSurface(nullptr, Qt::OtherFocusReason);
         }
     }
 
@@ -795,7 +781,7 @@ void Helper::setActivatedSurface(SurfaceWrapper *newActivateSurface)
                     this,
                     [newActivateSurface, this] {
                         if (newActivateSurface->surfaceState() == SurfaceWrapper::State::Minimized)
-                            activeSurface(nullptr); // TODO: select next surface to activate
+                            activateSurface(nullptr); // TODO: select next surface to activate
                     });
     }
     m_activatedSurface = newActivateSurface;
@@ -804,7 +790,7 @@ void Helper::setActivatedSurface(SurfaceWrapper *newActivateSurface)
 
 void Helper::setCursorPosition(const QPointF &position)
 {
-    m_surfaceContainer->endMoveResize();
+    m_rootSurfaceContainer->endMoveResize();
     m_seat->setCursorPosition(position);
 }
 
@@ -891,19 +877,19 @@ void Helper::setOutputMode(OutputMode mode)
     m_mode = mode;
     Q_EMIT outputModeChanged();
     for (int i = 0; i < m_outputList.size(); i++) {
-        if (m_outputList.at(i) == m_surfaceContainer->primaryOutput())
+        if (m_outputList.at(i) == m_rootSurfaceContainer->primaryOutput())
             continue;
         Output *o;
         if (mode == OutputMode::Copy) {
             o = Output::createCopy(m_outputList.at(i)->output(),
-                                   m_surfaceContainer->primaryOutput(),
+                                   m_rootSurfaceContainer->primaryOutput(),
                                    qmlEngine(),
                                    this);
-            m_surfaceContainer->removeOutput(m_outputList.at(i));
+            m_rootSurfaceContainer->removeOutput(m_outputList.at(i));
         } else if (mode == OutputMode::Extension) {
-            o = Output::createPrimary(m_outputList.at(i)->output(), qmlEngine(), this);
-            o->outputItem()->stackBefore(m_surfaceContainer);
-            m_surfaceContainer->addOutput(o);
+            o = Output::create(m_outputList.at(i)->output(), qmlEngine(), this);
+            o->outputItem()->stackBefore(m_rootSurfaceContainer);
+            m_rootSurfaceContainer->addOutput(o);
             enableOutput(o->output());
         }
         m_outputList.at(i)->deleteLater();
@@ -962,7 +948,7 @@ void Helper::setAnimationSpeed(float newAnimationSpeed)
     if (qFuzzyCompare(m_animationSpeed, newAnimationSpeed))
         return;
     m_animationSpeed = newAnimationSpeed;
-    emit animationSpeedChanged();
+    Q_EMIT animationSpeedChanged();
 }
 
 Helper::OutputMode Helper::outputMode() const
@@ -989,14 +975,20 @@ WXWayland *Helper::createXWayland()
             m_treelandForeignToplevel->addSurface(wrapper);
             m_workspace->addSurface(wrapper);
             Q_ASSERT(wrapper->parentItem());
-            connect(wrapper, &SurfaceWrapper::requestShowWindowMenu, m_windowMenu, [this, wrapper] (QPoint pos) {
-                QMetaObject::invokeMethod(m_windowMenu, "showWindowMenu", QVariant::fromValue(wrapper), QVariant::fromValue(pos));
-            });
+            connect(wrapper,
+                    &SurfaceWrapper::requestShowWindowMenu,
+                    m_windowMenu,
+                    [this, wrapper](QPoint pos) {
+                        QMetaObject::invokeMethod(m_windowMenu,
+                                                  "showWindowMenu",
+                                                  QVariant::fromValue(wrapper),
+                                                  QVariant::fromValue(pos));
+                    });
         });
         surface->safeConnect(&qw_xwayland_surface::notify_dissociate, this, [this, surface] {
             m_foreignToplevel->removeSurface(surface);
-            m_treelandForeignToplevel->removeSurface(m_surfaceContainer->getSurface(surface));
-            m_surfaceContainer->destroyForSurface(surface->surface());
+            m_treelandForeignToplevel->removeSurface(m_rootSurfaceContainer->getSurface(surface));
+            m_rootSurfaceContainer->destroyForSurface(surface->surface());
         });
     });
 

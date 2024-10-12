@@ -91,7 +91,7 @@ void SurfaceProxy::setSurface(SurfaceWrapper *newSurface)
         m_shadow = nullptr;
     }
 
-    emit surfaceChanged();
+    Q_EMIT surfaceChanged();
 }
 
 void SurfaceProxy::geometryChange(const QRectF &newGeo, const QRectF &oldGeo)
@@ -157,7 +157,7 @@ void SurfaceProxy::onSourceRadiusChanged()
     if (m_shadow)
         m_shadow->setProperty("radius", radius());
     if (m_radius < 0)
-        emit radiusChanged();
+        Q_EMIT radiusChanged();
 }
 
 qreal SurfaceProxy::radius() const
@@ -178,7 +178,7 @@ void SurfaceProxy::setRadius(qreal newRadius)
             m_shadow->setProperty("radius", radius());
     }
 
-    emit radiusChanged();
+    Q_EMIT radiusChanged();
 }
 
 void SurfaceProxy::resetRadius()
@@ -205,7 +205,7 @@ void SurfaceProxy::setLive(bool newLive)
         }
     }
 
-    emit liveChanged();
+    Q_EMIT liveChanged();
 }
 
 QSizeF SurfaceProxy::maxSize() const
@@ -220,7 +220,7 @@ void SurfaceProxy::setMaxSize(const QSizeF &newMaxSize)
     m_maxSize = newMaxSize;
     updateImplicitSize();
 
-    emit maxSizeChanged();
+    Q_EMIT maxSizeChanged();
 }
 
 bool SurfaceProxy::fullProxy() const
@@ -248,5 +248,5 @@ void SurfaceProxy::setFullProxy(bool newFullProxy)
         updateProxySurfaceTitleBarAndDecoration();
     }
 
-    emit fullProxyChanged();
+    Q_EMIT fullProxyChanged();
 }

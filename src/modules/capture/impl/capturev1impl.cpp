@@ -39,17 +39,16 @@ static const struct treeland_capture_frame_v1_interface frame_impl = {
     .copy = handle_treeland_capture_frame_v1_copy
 };
 
-void handle_treeland_capture_context_v1_destroy(wl_client *client, wl_resource *resource)
+void handle_treeland_capture_context_v1_destroy([[maybe_unused]] wl_client *client,
+                                                wl_resource *resource)
 {
-    Q_UNUSED(client);
     wl_resource_destroy(resource);
 }
 struct treeland_capture_context_v1 *capture_context_from_resource(struct wl_resource *resource);
 
-void handle_treeland_capture_manager_v1_destroy(struct wl_client *client,
+void handle_treeland_capture_manager_v1_destroy([[maybe_unused]] struct wl_client *client,
                                                 struct wl_resource *resource)
 {
-    Q_UNUSED(client);
     wl_resource_destroy(resource);
 }
 
@@ -201,9 +200,9 @@ void handle_treeland_capture_session_v1_destroy(wl_client *client, wl_resource *
     wl_resource_destroy(resource);
 }
 
-void handle_treeland_capture_session_v1_start(wl_client *client, wl_resource *resource)
+void handle_treeland_capture_session_v1_start([[maybe_unused]] wl_client *client,
+                                              wl_resource *resource)
 {
-    Q_UNUSED(client);
     struct treeland_capture_session_v1 *session = capture_session_from_resource(resource);
     Q_ASSERT(session);
     Q_EMIT session->start();
@@ -353,9 +352,9 @@ void treeland_capture_context_v1::setResource(wl_client *client, wl_resource *re
     this->resource = resource;
 }
 
-void handle_treeland_capture_frame_v1_destroy(wl_client *client, wl_resource *resource)
+void handle_treeland_capture_frame_v1_destroy([[maybe_unused]] wl_client *client,
+                                              wl_resource *resource)
 {
-    Q_UNUSED(client);
     wl_resource_destroy(resource);
 }
 
