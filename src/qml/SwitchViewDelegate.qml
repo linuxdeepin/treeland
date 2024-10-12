@@ -21,6 +21,8 @@ Item {
 
     Item {
         id: contentItem
+        layer.enabled: true
+        opacity: 0
 
         anchors.centerIn: parent
         height: sourceView.thumbnailheight
@@ -122,9 +124,8 @@ Item {
         }
     }
 
-    D.ItemViewport {
+    TRadiusEffect {
         anchors.fill: contentItem
-        fixed: true
         sourceItem: contentItem
         radius: sourceView.radius
         hideSource: true

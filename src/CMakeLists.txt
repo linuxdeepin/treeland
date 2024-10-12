@@ -121,13 +121,14 @@ qt_add_qml_module(${BIN_NAME}
         qml/Animations/MinimizeAnimation.qml
         qml/Animations/ShowDesktopAnimation.qml
         qml/TaskSwitcher.qml
-        qml/WorkSpaceMask.qml
+        qml/TaskWindowPreview.qml
         qml/SwitchViewDelegate.qml
         qml/SwitchViewHighlightDelegate.qml
         qml/DockPreview.qml
         qml/MultitaskviewProxy.qml
         qml/SurfaceGridProxy.qml
         qml/WorkspaceThumbDelegate.qml
+        qml/FadeBehavior.qml
     RESOURCE_PREFIX
         /qt/qml
     OUTPUT_DIRECTORY

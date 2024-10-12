@@ -20,8 +20,13 @@ void SurfaceProxy::setSurface(SurfaceWrapper *newSurface)
 {
     if (m_sourceSurface == newSurface)
         return;
-    m_sourceSurface = newSurface;
 
+    foreach (const QMetaObject::Connection &connection, m_sourceConnections) {
+        QObject::disconnect(connection);
+    }
+    m_sourceConnections.clear();
+
+    m_sourceSurface = newSurface;
     if (m_proxySurface) {
         m_proxySurface->deleteLater();
         m_proxySurface = nullptr;
@@ -48,37 +53,37 @@ void SurfaceProxy::setSurface(SurfaceWrapper *newSurface)
         }
         item->setDelegate(m_sourceSurface->surfaceItem()->delegate());
 
-        connect(m_sourceSurface, &SurfaceWrapper::destroyed, this, [this] {
+        m_sourceConnections << connect(m_sourceSurface, &SurfaceWrapper::destroyed, this, [this] {
             Q_ASSERT(m_proxySurface);
             setSurface(nullptr);
         });
-        connect(m_sourceSurface->surfaceItem(), &WSurfaceItem::delegateChanged, this, [this] {
+        m_sourceConnections << connect(m_sourceSurface->surfaceItem(), &WSurfaceItem::delegateChanged, this, [this] {
             Q_ASSERT(m_proxySurface);
             auto sender = m_sourceSurface->surfaceItem();
             m_proxySurface->surfaceItem()->setDelegate(sender->delegate());
         });
-        connect(m_sourceSurface,
+        m_sourceConnections << connect(m_sourceSurface,
                 &SurfaceWrapper::noTitleBarChanged,
                 this,
                 &SurfaceProxy::updateProxySurfaceTitleBarAndDecoration);
-        connect(m_sourceSurface,
+        m_sourceConnections << connect(m_sourceSurface,
                 &SurfaceWrapper::radiusChanged,
                 this,
                 &SurfaceProxy::onSourceRadiusChanged);
-        connect(m_sourceSurface,
+        m_sourceConnections << connect(m_sourceSurface,
                 &SurfaceWrapper::noDecorationChanged,
                 this,
                 &SurfaceProxy::updateProxySurfaceTitleBarAndDecoration);
-        connect(m_sourceSurface,
+        m_sourceConnections << connect(m_sourceSurface,
                 &SurfaceWrapper::noCornerRadiusChanged,
                 this,
                 &SurfaceProxy::updateProxySurfaceTitleBarAndDecoration);
 
-        connect(m_proxySurface,
+        m_sourceConnections << connect(m_proxySurface,
                 &SurfaceWrapper::widthChanged,
                 this,
                 &SurfaceProxy::updateImplicitSize);
-        connect(m_proxySurface,
+        m_sourceConnections << connect(m_proxySurface,
                 &SurfaceWrapper::heightChanged,
                 this,
                 &SurfaceProxy::updateImplicitSize);

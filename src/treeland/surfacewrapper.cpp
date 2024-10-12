@@ -556,6 +556,9 @@ void SurfaceWrapper::createNewOrClose(uint direction)
     if (m_type != Type::XdgToplevel && m_type != Type::XWayland)
         return;
 
+    if (m_container.isNull())
+        return;
+
     m_NewAnimation = m_engine->createNewAnimation(this, container(), direction);
 
     bool ok = connect(m_NewAnimation, SIGNAL(finished()), this, SLOT(onNewAnimationFinished()));
