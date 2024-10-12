@@ -6,10 +6,12 @@
 #include "helper.h"
 #include "surfacewrapper.h"
 
-WorkspaceModel::WorkspaceModel(QObject *parent, int index)
+WorkspaceModel::WorkspaceModel(QObject *parent, int index, std::list<SurfaceWrapper *> activedSurfaceHistory)
     : SurfaceListModel(parent)
     , m_index(index)
+    , m_activedSurfaceHistory(activedSurfaceHistory)
 {
+
 }
 
 QString WorkspaceModel::name() const
@@ -64,4 +66,22 @@ void WorkspaceModel::removeSurface(SurfaceWrapper *surface)
 {
     SurfaceListModel::removeSurface(surface);
     surface->setWorkspaceId(-1);
+    m_activedSurfaceHistory.remove(surface);
+}
+
+SurfaceWrapper *WorkspaceModel::latestActivedSurface() const
+{
+    if (m_activedSurfaceHistory.empty())
+        return nullptr;
+    return m_activedSurfaceHistory.front();
+}
+
+void WorkspaceModel::pushActivedSurface(SurfaceWrapper *surface)
+{
+    m_activedSurfaceHistory.push_front(surface);
+}
+
+void WorkspaceModel::removeActivedSurface(SurfaceWrapper *surface)
+{
+    m_activedSurfaceHistory.remove(surface);
 }

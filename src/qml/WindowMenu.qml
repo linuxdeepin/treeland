@@ -46,10 +46,10 @@ Menu {
         onTriggered: {
             if (surface.showOnAllWorkspace) {
                 // Move to current workspace
-                Helper.workspace.addSurface(surface, Helper.workspace.currentIndex)
+                Helper.workspace.moveSurfaceTo(surface, Helper.workspace.currentIndex)
             } else {
                 // Move to workspace 0, which is always visible
-                Helper.workspace.addSurface(surface, -2)
+                Helper.workspace.moveSurfaceTo(surface, -2)
             }
         }
     }
@@ -57,13 +57,13 @@ Menu {
     MenuItem {
         text: qsTr("Move to Left Work Space")
         enabled: surface.workspaceId !== 0 && !surface.showOnAllWorkspace
-        onTriggered: Helper.workspace.addSurface(surface, surface.workspaceId - 1)
+        onTriggered: Helper.workspace.moveSurfaceTo(surface, surface.workspaceId - 1)
     }
 
     MenuItem {
         text: qsTr("Move to Right Work Space")
         enabled: surface.workspaceId !== Helper.workspace.count - 1 && !surface.showOnAllWorkspace
-        onTriggered: Helper.workspace.addSurface(surface, surface.workspaceId + 1)
+        onTriggered: Helper.workspace.moveSurfaceTo(surface, surface.workspaceId + 1)
     }
 
     MenuItem {
