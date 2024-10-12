@@ -53,7 +53,7 @@ User::User(AccountsUserPtr ptr)
 
     connect(d->inter.data(), &DAccountsUser::userDataChanged, [this] {
         d->updateUserData();
-        emit userDataChanged();
+        Q_EMIT userDataChanged();
     });
 
     d->updateUserData();
@@ -127,7 +127,7 @@ void User::setLogined(bool newState) const noexcept
 void User::updateLimitTime(const QString &time) noexcept
 {
     d->limitTime = time;
-    emit limitTimeChanged(time);
+    Q_EMIT limitTimeChanged(time);
 }
 
 QString User::toString(AccountTypes type) noexcept

@@ -70,12 +70,12 @@ public:
 
     OutputListModel *outputModel() const;
 
-public slots:
+public Q_SLOTS:
     void startMove(SurfaceWrapper *surface);
     void startResize(SurfaceWrapper *surface, Qt::Edges edges);
     void cancelMoveResize(SurfaceWrapper *surface);
 
-signals:
+Q_SIGNALS:
     void primaryOutputChanged();
     void moveResizeFinised();
 
@@ -90,8 +90,8 @@ private:
                                       QRectF &newGeometry,
                                       const QRectF &oldGeometry) override;
     bool filterSurfaceStateChange(SurfaceWrapper *surface,
-                                  SurfaceWrapper::State newState,
-                                  SurfaceWrapper::State oldState) override;
+                                  [[maybe_unused]] SurfaceWrapper::State newState,
+                                  [[maybe_unused]] SurfaceWrapper::State oldState) override;
 
     void ensureCursorVisible();
     void updateSurfaceOutputs(SurfaceWrapper *surface);

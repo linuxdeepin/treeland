@@ -214,7 +214,7 @@ void RootSurfaceContainer::startMove(SurfaceWrapper *surface)
     endMoveResize();
     beginMoveResize(surface, Qt::Edges{ 0 });
 
-    Helper::instance()->activeSurface(surface);
+    Helper::instance()->activateSurface(surface);
 }
 
 void RootSurfaceContainer::startResize(SurfaceWrapper *surface, Qt::Edges edges)
@@ -224,7 +224,7 @@ void RootSurfaceContainer::startResize(SurfaceWrapper *surface, Qt::Edges edges)
 
     beginMoveResize(surface, edges);
     surface->shellSurface()->setResizeing(true);
-    Helper::instance()->activeSurface(surface);
+    Helper::instance()->activateSurface(surface);
 }
 
 void RootSurfaceContainer::addSurface(SurfaceWrapper *)
@@ -255,7 +255,7 @@ void RootSurfaceContainer::addBySubContainer(SurfaceContainer *sub, SurfaceWrapp
         if (surface->surfaceState() == SurfaceWrapper::State::Minimized
             || surface->surfaceState() == SurfaceWrapper::State::Tiling)
             return;
-        Helper::instance()->activeSurface(surface);
+        Helper::instance()->activateSurface(surface);
     });
 
     if (!surface->ownsOutput()) {
@@ -279,7 +279,7 @@ void RootSurfaceContainer::addBySubContainer(SurfaceContainer *sub, SurfaceWrapp
     });
 
     updateSurfaceOutputs(surface);
-    Helper::instance()->activeSurface(surface, Qt::OtherFocusReason);
+    Helper::instance()->activateSurface(surface, Qt::OtherFocusReason);
 }
 
 void RootSurfaceContainer::removeBySubContainer(SurfaceContainer *sub, SurfaceWrapper *surface)
@@ -324,11 +324,9 @@ bool RootSurfaceContainer::filterSurfaceGeometryChanged(SurfaceWrapper *surface,
 }
 
 bool RootSurfaceContainer::filterSurfaceStateChange(SurfaceWrapper *surface,
-                                                    SurfaceWrapper::State newState,
-                                                    SurfaceWrapper::State oldState)
+                                                    [[maybe_unused]] SurfaceWrapper::State newState,
+                                                    [[maybe_unused]] SurfaceWrapper::State oldState)
 {
-    Q_UNUSED(oldState);
-    Q_UNUSED(newState);
     return surface == moveResizeState.surface;
 }
 
@@ -363,7 +361,7 @@ void RootSurfaceContainer::setPrimaryOutput(Output *newPrimaryOutput)
     if (m_primaryOutput == newPrimaryOutput)
         return;
     m_primaryOutput = newPrimaryOutput;
-    emit primaryOutputChanged();
+    Q_EMIT primaryOutputChanged();
 }
 
 const QList<Output *> &RootSurfaceContainer::outputs() const

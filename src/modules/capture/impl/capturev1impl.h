@@ -17,7 +17,8 @@ class WSurface;
 class WClient;
 WAYLIB_SERVER_END_NAMESPACE
 
-void handle_treeland_capture_context_v1_destroy(wl_client *client, wl_resource *resource);
+void handle_treeland_capture_context_v1_destroy([[maybe_unused]] wl_client *client,
+                                                wl_resource *resource);
 
 void handle_treeland_capture_context_v1_capture(wl_client *client,
                                                 wl_resource *resource,
@@ -55,7 +56,8 @@ Q_SIGNALS:
     void capture(treeland_capture_frame_v1 *frame);
 };
 
-void handle_treeland_capture_frame_v1_destroy(wl_client *client, wl_resource *resource);
+void handle_treeland_capture_frame_v1_destroy([[maybe_unused]] wl_client *client,
+                                              wl_resource *resource);
 void handle_treeland_capture_frame_v1_copy(wl_client *client,
                                            wl_resource *resource,
                                            wl_resource *buffer);
@@ -78,7 +80,7 @@ Q_SIGNALS:
 
 void handle_treeland_capture_session_v1_destroy(struct wl_client *client,
                                                 struct wl_resource *resource);
-void handle_treeland_capture_session_v1_start(struct wl_client *client,
+void handle_treeland_capture_session_v1_start([[maybe_unused]] struct wl_client *client,
                                               struct wl_resource *resource);
 
 struct treeland_capture_session_v1 : public QObject
@@ -93,7 +95,8 @@ Q_SIGNALS:
     void start();
 };
 
-void handle_treeland_capture_manager_v1_destroy(wl_client *client, wl_resource *resource);
+void handle_treeland_capture_manager_v1_destroy([[maybe_unused]] wl_client *client,
+                                                wl_resource *resource);
 void handle_treeland_capture_manager_v1_get_context(wl_client *client,
                                                     wl_resource *resource,
                                                     uint32_t context);
