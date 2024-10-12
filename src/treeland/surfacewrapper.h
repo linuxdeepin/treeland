@@ -71,6 +71,15 @@ public:
     };
     Q_ENUM(State)
 
+    enum class ActiveControlState : quint16 {
+        Mapped = 1,
+        UnMinimized = 2,
+        HasInitializeContainer = 8, // when not in Container, we can't stackToLast
+        Full = Mapped | UnMinimized | HasInitializeContainer,
+    };
+    Q_ENUM(ActiveControlState);
+    Q_DECLARE_FLAGS(ActiveControlStates, ActiveControlState);
+
     explicit SurfaceWrapper(QmlEngine *qmlEngine,
                             WToplevelSurface *shellSurface,
                             Type type,
@@ -163,6 +172,9 @@ public:
 
     bool showOnAllWorkspace() const;
     void setShowOnAllWorkspace(bool showOnAllWorkspace);
+    bool showOnWorkspace(int workspaceIndex) const;
+
+    bool hasActiveCapability() const;
 
 public Q_SLOTS:
     // for titlebar
@@ -174,7 +186,7 @@ public Q_SLOTS:
     void requestFullscreen();
     void requestCancelFullscreen();
     void requestClose();
-    void startNewAnimation();
+    void onMappedChanged();
 
     bool stackBefore(QQuickItem *item);
     bool stackAfter(QQuickItem *item);
@@ -205,6 +217,8 @@ Q_SIGNALS:
     void workspaceIdChanged();
     void alwaysOnTopChanged();
     void showOnAllWorkspaceChanged();
+    void requestActive();
+    void requestDeactive();
 
 private:
     using QQuickItem::setParentItem;
@@ -235,6 +249,7 @@ private:
     Q_SLOT void onMinimizeAnimationFinished();
     void startShowAnimation(bool show);
     Q_SLOT void onShowAnimationFinished();
+    void updateHasActiveCapability(ActiveControlState state, bool value);
 
     QmlEngine *m_engine;
     QPointer<SurfaceContainer> m_container;
@@ -273,6 +288,7 @@ private:
     int m_explicitAlwaysOnTop = 0;
     qreal m_radius = 18.0;
     QRect m_iconGeometry;
+    ActiveControlStates m_hasActiveCapability = ActiveControlState::UnMinimized;
 
     struct TitleBarState
     {
@@ -289,3 +305,6 @@ private:
     uint m_noCornerRadius : 1;
     uint m_alwaysOnTop : 1;
 };
+
+Q_DECLARE_OPERATORS_FOR_FLAGS(SurfaceWrapper::ActiveControlStates)
+

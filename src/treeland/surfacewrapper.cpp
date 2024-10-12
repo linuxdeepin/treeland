@@ -79,8 +79,9 @@ SurfaceWrapper::SurfaceWrapper(QmlEngine *qmlEngine,
                               this,
                               &SurfaceWrapper::requestCancelFullscreen);
     shellSurface->surface()->safeConnect(&WSurface::mappedChanged,
-                                         this,
-                                         &SurfaceWrapper::startNewAnimation);
+                                        this,
+                                        &SurfaceWrapper::onMappedChanged);
+
     if (type == Type::XdgToplevel) {
         shellSurface->safeConnect(&WToplevelSurface::requestShowWindowMenu,
                                   this,
@@ -576,6 +577,7 @@ void SurfaceWrapper::doSetSurfaceState(State newSurfaceState)
         break;
     case State::Minimized:
         m_shellSurface->setMinimize(false);
+        updateHasActiveCapability(ActiveControlState::UnMinimized, true);
         break;
     case State::Fullscreen:
         m_shellSurface->setFullScreen(false);
@@ -595,6 +597,7 @@ void SurfaceWrapper::doSetSurfaceState(State newSurfaceState)
         break;
     case State::Minimized:
         m_shellSurface->setMinimize(true);
+        updateHasActiveCapability(ActiveControlState::UnMinimized, false);
         break;
     case State::Fullscreen:
         m_shellSurface->setFullScreen(true);
@@ -657,10 +660,13 @@ void SurfaceWrapper::onNewAnimationFinished()
     m_NewAnimation->deleteLater();
 }
 
-void SurfaceWrapper::startNewAnimation()
+void SurfaceWrapper::onMappedChanged()
 {
-    if (surface()->mapped())
+    if (surface()->mapped()) {
         createNewOrClose(OPEN_ANIMATION);
+    }
+
+    updateHasActiveCapability(ActiveControlState::Mapped, surface()->mapped());
 }
 
 void SurfaceWrapper::onMinimizeAnimationFinished()
@@ -934,6 +940,7 @@ void SurfaceWrapper::setContainer(SurfaceContainer *newContainer)
     if (m_container == newContainer)
         return;
     m_container = newContainer;
+    updateHasActiveCapability(ActiveControlState::HasInitializeContainer, m_container != nullptr);
     Q_EMIT containerChanged();
 }
 
@@ -1076,7 +1083,16 @@ void SurfaceWrapper::setAlwaysOnTop(bool alwaysOnTop)
 
 bool SurfaceWrapper::showOnAllWorkspace() const
 {
+    if (m_type == Type::Layer) [[unlikely]]
+        return true;
     return m_workspaceId == Workspace::ShowOnAllWorkspaceIndex;
+}
+
+bool SurfaceWrapper::showOnWorkspace(int workspaceIndex) const
+{
+    if (m_workspaceId == workspaceIndex)
+        return true;
+    return showOnAllWorkspace();
 }
 
 void SurfaceWrapper::updateExplicitAlwaysOnTop()
@@ -1092,4 +1108,21 @@ void SurfaceWrapper::updateExplicitAlwaysOnTop()
     setZ(m_explicitAlwaysOnTop ? 1 : 0);
     for (const auto &sub : std::as_const(m_subSurfaces))
         sub->updateExplicitAlwaysOnTop();
+}
+
+void SurfaceWrapper::updateHasActiveCapability(ActiveControlState state, bool value)
+{
+    bool oldValue = hasActiveCapability();
+    m_hasActiveCapability.setFlag(state, value);
+    if (oldValue != hasActiveCapability()) {
+        if (hasActiveCapability())
+            Q_EMIT requestActive();
+        else
+            Q_EMIT requestDeactive();
+    }
+}
+
+bool SurfaceWrapper::hasActiveCapability() const
+{
+    return m_hasActiveCapability == ActiveControlState::Full;
 }

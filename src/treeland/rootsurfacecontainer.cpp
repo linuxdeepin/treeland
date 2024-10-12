@@ -279,7 +279,6 @@ void RootSurfaceContainer::addBySubContainer(SurfaceContainer *sub, SurfaceWrapp
     });
 
     updateSurfaceOutputs(surface);
-    Helper::instance()->activateSurface(surface, Qt::OtherFocusReason);
 }
 
 void RootSurfaceContainer::removeBySubContainer(SurfaceContainer *sub, SurfaceWrapper *surface)

@@ -21,7 +21,9 @@ class Workspace : public SurfaceContainer
 public:
     explicit Workspace(SurfaceContainer *parent);
 
-    Q_INVOKABLE void addSurface(SurfaceWrapper *surface, int workspaceIndex = -1);
+    Q_INVOKABLE void moveSurfaceTo(SurfaceWrapper *surface, int workspaceIndex = -1);
+    // When workspaceIndex is -1 will move to current workspace
+    void addSurface(SurfaceWrapper *surface, int workspaceIndex = -1);
     void removeSurface(SurfaceWrapper *surface) override;
     int modelIndexOfSurface(SurfaceWrapper *surface) const;
 
@@ -45,6 +47,9 @@ public:
 
     Q_INVOKABLE void hideAllSurfacesExceptPreviewing(SurfaceWrapper *previewingItem);
     Q_INVOKABLE void showAllSurfaces();
+
+    void pushActivedSurface(SurfaceWrapper *surface);
+    void removeActivedSurface(SurfaceWrapper *surface);
 
 Q_SIGNALS:
     void currentChanged();

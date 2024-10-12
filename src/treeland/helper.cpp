@@ -111,6 +111,11 @@ Helper::Helper(QObject *parent)
     m_overlayContainer->setZ(RootSurfaceContainer::OverlayZOrder);
     m_popupContainer->setZ(RootSurfaceContainer::PopupZOrder);
     m_lockScreen->setZ(RootSurfaceContainer::LockScreenZOrder);
+
+    connect(m_renderWindow, &QQuickWindow::activeFocusItemChanged, this, [this]() {
+        auto wrapper = keyboardFocusSurface();
+        m_seat->setKeyboardFocusSurface(wrapper ? wrapper->surface() : nullptr);
+    });
 }
 
 Helper::~Helper()
@@ -174,6 +179,18 @@ void Helper::onOutputRemoved(WOutput *output)
     delete o;
 }
 
+void Helper::setupSurfaceActiveWatcher(SurfaceWrapper *wrapper)
+{
+    connect(wrapper, &SurfaceWrapper::requestActive, this, [this, wrapper]() {
+        activateSurface(wrapper);
+    });
+
+    connect(wrapper, &SurfaceWrapper::requestDeactive, this, [this, wrapper]() {
+        m_workspace->removeActivedSurface(wrapper);
+        activateSurface(m_workspace->current()->latestActivedSurface());
+    });
+}
+
 void Helper::onXdgSurfaceAdded(WXdgSurface *surface)
 {
     SurfaceWrapper *wrapper = nullptr;
@@ -228,6 +245,7 @@ void Helper::onXdgSurfaceAdded(WXdgSurface *surface)
                 });
     }
 
+    setupSurfaceActiveWatcher(wrapper);
     Q_ASSERT(wrapper->parentItem());
 }
 
@@ -250,6 +268,8 @@ void Helper::onLayerSurfaceAdded(WLayerSurface *surface)
     connect(surface, &WLayerSurface::layerChanged, this, [this, wrapper] {
         updateLayerSurfaceContainer(wrapper);
     });
+
+    setupSurfaceActiveWatcher(wrapper);
     Q_ASSERT(wrapper->parentItem());
 }
 
@@ -586,10 +606,12 @@ void Helper::setSocketEnabled(bool newEnabled)
 
 void Helper::activateSurface(SurfaceWrapper *wrapper, Qt::FocusReason reason)
 {
+    Q_ASSERT(!wrapper || wrapper->showOnWorkspace(m_workspace->currentIndex()));
+
     if (!wrapper || wrapper->shellSurface()->hasCapability(WToplevelSurface::Capability::Activate))
         setActivatedSurface(wrapper);
     if (!wrapper || wrapper->shellSurface()->hasCapability(WToplevelSurface::Capability::Focus))
-        setKeyboardFocusSurface(wrapper, reason);
+        reuqestKeyboardFocusForSurface(wrapper, reason);
 }
 
 RootSurfaceContainer *Helper::rootContainer() const
@@ -788,40 +810,40 @@ bool Helper::unacceptedEvent(WSeat *, QWindow *, QInputEvent *event)
 
 SurfaceWrapper *Helper::keyboardFocusSurface() const
 {
-    return m_keyboardFocusSurface;
+    auto item = m_renderWindow->activeFocusItem();
+    if (!item)
+        return nullptr;
+    auto surface = qobject_cast<WSurfaceItem *>(item->parent());
+    if (!surface)
+        return nullptr;
+    return qobject_cast<SurfaceWrapper *>(surface->parent());
 }
 
-void Helper::setKeyboardFocusSurface(SurfaceWrapper *newActivate, Qt::FocusReason reason)
+void Helper::reuqestKeyboardFocusForSurface(SurfaceWrapper *newActivate, Qt::FocusReason reason)
 {
-    if (m_keyboardFocusSurface == newActivate)
+    auto *nowKeyboardFocusSurface = keyboardFocusSurface();
+    if (nowKeyboardFocusSurface == newActivate)
         return;
 
-    if (newActivate
-        && !newActivate->shellSurface()->hasCapability(WToplevelSurface::Capability::Focus))
-        return;
+    Q_ASSERT(!newActivate
+             || newActivate->shellSurface()->hasCapability(WToplevelSurface::Capability::Focus));
 
-    if (m_keyboardFocusSurface) {
+    if (nowKeyboardFocusSurface && nowKeyboardFocusSurface->hasActiveCapability()) {
         if (newActivate) {
-            if (m_keyboardFocusSurface->shellSurface()->keyboardFocusPriority()
+            if (nowKeyboardFocusSurface->shellSurface()->keyboardFocusPriority()
                 > newActivate->shellSurface()->keyboardFocusPriority())
                 return;
         } else {
-            if (m_keyboardFocusSurface->shellSurface()->keyboardFocusPriority() > 0)
+            if (nowKeyboardFocusSurface->shellSurface()->keyboardFocusPriority() > 0)
                 return;
         }
     }
 
-    if (newActivate) {
+    if (nowKeyboardFocusSurface)
+        nowKeyboardFocusSurface->setFocus(false, reason);
+
+    if (newActivate)
         newActivate->setFocus(true, reason);
-        m_seat->setKeyboardFocusSurface(newActivate->surface());
-    } else if (m_keyboardFocusSurface) {
-        m_keyboardFocusSurface->setFocus(false, reason);
-        m_seat->setKeyboardFocusSurface(nullptr);
-    }
-
-    m_keyboardFocusSurface = newActivate;
-
-    Q_EMIT keyboardFocusSurfaceChanged();
 }
 
 SurfaceWrapper *Helper::activatedSurface() const
@@ -840,20 +862,13 @@ void Helper::setActivatedSurface(SurfaceWrapper *newActivateSurface)
 
     if (m_activatedSurface)
         m_activatedSurface->setActivate(false);
-    static QMetaObject::Connection invalidCheck;
-    disconnect(invalidCheck);
+
     if (newActivateSurface) {
         if (m_showDesktop == WindowManagementV1::DesktopState::Show)
             m_showDesktop = WindowManagementV1::DesktopState::Normal;
+
         newActivateSurface->setActivate(true);
-        invalidCheck =
-            connect(newActivateSurface,
-                    &SurfaceWrapper::surfaceStateChanged,
-                    this,
-                    [newActivateSurface, this] {
-                        if (newActivateSurface->surfaceState() == SurfaceWrapper::State::Minimized)
-                            activateSurface(nullptr); // TODO: select next surface to activate
-                    });
+        m_workspace->pushActivedSurface(newActivateSurface);
     }
     m_activatedSurface = newActivateSurface;
     Q_EMIT activatedSurfaceChanged();
@@ -1055,6 +1070,7 @@ WXWayland *Helper::createXWayland()
                                                   QVariant::fromValue(wrapper),
                                                   QVariant::fromValue(pos));
                     });
+            setupSurfaceActiveWatcher(wrapper);
         });
         surface->safeConnect(&qw_xwayland_surface::notify_dissociate, this, [this, surface] {
             m_foreignToplevel->removeSurface(surface);
