@@ -91,6 +91,7 @@ class PersonalizationV1
 
 public:
     explicit PersonalizationV1(QObject *parent = nullptr);
+    ~PersonalizationV1();
 
     void onWindowContextCreated(personalization_window_context_v1 *context);
     void onWallpaperContextCreated(personalization_wallpaper_context_v1 *context);

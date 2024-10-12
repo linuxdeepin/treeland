@@ -3,14 +3,15 @@
 
 #include "wallpaperprovider.h"
 
+#include "helper.h"
+#include "personalizationmanager.h"
+
 #include <QDir>
 #include <QFileInfo>
 #include <QImageReader>
 #include <QQuickWindow>
 #include <QSGTexture>
 #include <QStandardPaths>
-
-#define DEFAULT_WALLPAPER "qrc:/desktop.webp"
 
 WallpaperTextureFactory::WallpaperTextureFactory(WallpaperImageProvider *provider,
                                                  const QImage &image)
@@ -101,7 +102,8 @@ QString WallpaperImageProvider::parseFilePath(const QString &id)
     }
 
     if (!(fi.exists() && fi.isFile())) {
-        img_path = DEFAULT_WALLPAPER;
+        auto *personalization = Helper::instance()->personalization();
+        img_path = personalization->background("");
     }
 
     return img_path;
