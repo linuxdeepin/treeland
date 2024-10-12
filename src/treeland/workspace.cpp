@@ -14,7 +14,7 @@ Workspace::Workspace(SurfaceContainer *parent)
     // TODO: save and restore from local storage
     static int workspaceGlobalIndex = 0;
 
-    m_showOnAllWorkspaceModel = new WorkspaceModel(this, ShowOnAllWorkspaceIndex);
+    m_showOnAllWorkspaceModel = new WorkspaceModel(this, ShowOnAllWorkspaceIndex, {});
     m_showOnAllWorkspaceModel->setName("show-on-all-workspace");
     m_showOnAllWorkspaceModel->setVisible(true);
     // TODO: save and restore workspace's name from local storage
@@ -22,28 +22,50 @@ Workspace::Workspace(SurfaceContainer *parent)
     createModel(QStringLiteral("workspace-%1").arg(++workspaceGlobalIndex));
 }
 
+void Workspace::moveSurfaceTo(SurfaceWrapper *surface, int workspaceIndex)
+{
+    if (workspaceIndex == -1)
+        workspaceIndex = m_currentIndex;
+
+    if (surface->workspaceId() == workspaceIndex)
+        return;
+
+    WorkspaceModel *from = nullptr;
+    Q_ASSERT(surface->workspaceId() != -1);
+    if (surface->showOnAllWorkspace())
+        from = m_showOnAllWorkspaceModel;
+    else
+        from = model(surface->workspaceId());
+
+    WorkspaceModel *to = nullptr;
+    if (workspaceIndex == ShowOnAllWorkspaceIndex)
+        to = m_showOnAllWorkspaceModel;
+    else
+        to = model(workspaceIndex);
+    Q_ASSERT(to);
+
+    from->removeSurface(surface);
+    if (surface->shellSurface()->isActivated())
+        Helper::instance()->activateSurface(current()->latestActivedSurface());
+
+    to->addSurface(surface);
+    if (surface->hasActiveCapability()
+        && surface->shellSurface()->hasCapability(WToplevelSurface::Capability::Activate))
+        pushActivedSurface(surface);
+}
+
 void Workspace::addSurface(SurfaceWrapper *surface, int workspaceIndex)
 {
+    Q_ASSERT(!surface->container() && surface->workspaceId() == -1);
+
     doAddSurface(surface, true);
 
     if (workspaceIndex < 0)
         workspaceIndex = m_currentIndex;
 
-    auto container = m_models.at(workspaceIndex);
+    auto model = m_models.at(workspaceIndex);
+    model->addSurface(surface);
 
-    if (container->hasSurface(surface))
-        return;
-
-    for (auto c : std::as_const(m_models)) {
-        if (c == container)
-            continue;
-        if (c->surfaces().contains(surface)) {
-            c->removeSurface(surface);
-            break;
-        }
-    }
-
-    container->addSurface(surface);
     if (!surface->ownsOutput())
         surface->setOwnsOutput(rootContainer()->primaryOutput());
 }
@@ -53,12 +75,14 @@ void Workspace::removeSurface(SurfaceWrapper *surface)
     if (!doRemoveSurface(surface, false))
         return;
 
-    for (auto container : std::as_const(m_models)) {
-        if (container->surfaces().contains(surface)) {
-            container->removeSurface(surface);
-            break;
-        }
-    }
+    WorkspaceModel *from = nullptr;
+    if (surface->showOnAllWorkspace())
+        from = m_showOnAllWorkspaceModel;
+    else
+        from = model(surface->workspaceId());
+    Q_ASSERT(from);
+
+    from->removeSurface(surface);
 }
 
 int Workspace::modelIndexOfSurface(SurfaceWrapper *surface) const
@@ -68,15 +92,21 @@ int Workspace::modelIndexOfSurface(SurfaceWrapper *surface) const
             return i;
     }
 
+    if (m_showOnAllWorkspaceModel->hasSurface(surface))
+        return ShowOnAllWorkspaceIndex;
+
     return -1;
 }
 
 int Workspace::createModel(const QString &name, bool visible)
 {
-    m_models.append(new WorkspaceModel(this, m_models.size()));
+    m_models.append(new WorkspaceModel(this,
+                                       m_models.size(),
+                                       m_showOnAllWorkspaceModel->m_activedSurfaceHistory));
     auto newContainer = m_models.last();
     newContainer->setName(name);
     newContainer->setVisible(visible);
+
     return newContainer->index();
 }
 
@@ -239,5 +269,29 @@ void Workspace::showAllSurfaces()
     const auto &surfaceList = surfaces();
     for (auto surface : surfaceList) {
         surface->setOpacity(1);
+    }
+}
+
+void Workspace::pushActivedSurface(SurfaceWrapper *surface)
+{
+    if (surface->showOnAllWorkspace()) [[unlikely]] {
+        for (auto wpModle : m_models)
+            wpModle->pushActivedSurface(surface);
+        m_showOnAllWorkspaceModel->pushActivedSurface(surface);
+    } else {
+        auto wpModle = model(surface->workspaceId());
+        wpModle->pushActivedSurface(surface);
+    }
+}
+
+void Workspace::removeActivedSurface(SurfaceWrapper *surface)
+{
+    if (surface->showOnAllWorkspace()) [[unlikely]] {
+        for (auto wpModle : m_models)
+            wpModle->removeActivedSurface(surface);
+        m_showOnAllWorkspaceModel->removeActivedSurface(surface);
+    } else {
+        auto wpModle = model(surface->workspaceId());
+        wpModle->removeActivedSurface(surface);
     }
 }

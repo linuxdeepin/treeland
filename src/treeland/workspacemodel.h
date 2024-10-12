@@ -18,7 +18,7 @@ class WorkspaceModel : public SurfaceListModel
     QML_ELEMENT
 
 public:
-    explicit WorkspaceModel(QObject *parent, int index);
+    explicit WorkspaceModel(QObject *parent, int index, std::list<SurfaceWrapper *> activedSurfaceHistory);
 
     QString name() const;
     void setName(const QString &newName);
@@ -32,6 +32,10 @@ public:
     void addSurface(SurfaceWrapper *surface) override;
     void removeSurface(SurfaceWrapper *surface) override;
 
+    Q_INVOKABLE SurfaceWrapper *latestActivedSurface() const;
+    void pushActivedSurface(SurfaceWrapper *surface);
+    void removeActivedSurface(SurfaceWrapper *surface);
+
 Q_SIGNALS:
     void nameChanged();
     void indexChanged();
@@ -41,4 +45,5 @@ private:
     QString m_name;
     int m_index = -1;
     bool m_visible = false;
+    std::list<SurfaceWrapper *> m_activedSurfaceHistory;
 };
