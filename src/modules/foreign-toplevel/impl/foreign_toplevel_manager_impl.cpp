@@ -427,30 +427,30 @@ void treeland_foreign_toplevel_handle_v1::output_leave(qw_output *output)
     send_output(output, false);
 }
 
-static bool fill_array_from_toplevel_state(struct wl_array *array, uint32_t state)
+static bool fill_array_from_toplevel_state(struct wl_array *array, treeland_foreign_toplevel_handle_v1::States state)
 {
-    if (state & TREELAND_FOREIGN_TOPLEVEL_HANDLE_V1_STATE_MAXIMIZED) {
+    if (state.testFlag(treeland_foreign_toplevel_handle_v1::State::Maximized)) {
         uint32_t *index = static_cast<uint32_t *>(wl_array_add(array, sizeof(uint32_t)));
         if (index == NULL) {
             return false;
         }
         *index = TREELAND_FOREIGN_TOPLEVEL_HANDLE_V1_STATE_MAXIMIZED;
     }
-    if (state & TREELAND_FOREIGN_TOPLEVEL_HANDLE_V1_STATE_MINIMIZED) {
+    if (state.testFlag(treeland_foreign_toplevel_handle_v1::State::Minimized)) {
         uint32_t *index = static_cast<uint32_t *>(wl_array_add(array, sizeof(uint32_t)));
         if (index == NULL) {
             return false;
         }
         *index = TREELAND_FOREIGN_TOPLEVEL_HANDLE_V1_STATE_MINIMIZED;
     }
-    if (state & TREELAND_FOREIGN_TOPLEVEL_HANDLE_V1_STATE_ACTIVATED) {
+    if (state.testFlag(treeland_foreign_toplevel_handle_v1::State::Activated)) {
         uint32_t *index = static_cast<uint32_t *>(wl_array_add(array, sizeof(uint32_t)));
         if (index == NULL) {
             return false;
         }
         *index = TREELAND_FOREIGN_TOPLEVEL_HANDLE_V1_STATE_ACTIVATED;
     }
-    if (state & TREELAND_FOREIGN_TOPLEVEL_HANDLE_V1_STATE_FULLSCREEN) {
+    if (state.testFlag(treeland_foreign_toplevel_handle_v1::State::Fullscreen)) {
         uint32_t *index = static_cast<uint32_t *>(wl_array_add(array, sizeof(uint32_t)));
         if (index == NULL) {
             return false;
@@ -489,53 +489,37 @@ void treeland_foreign_toplevel_handle_v1::send_state()
 
 void treeland_foreign_toplevel_handle_v1::set_maximized(bool maximized)
 {
-    if (maximized == !!(this->state & TREELAND_FOREIGN_TOPLEVEL_HANDLE_V1_STATE_MAXIMIZED)) {
+    if (state.testFlag(State::Maximized) == maximized) {
         return;
     }
-    if (maximized) {
-        this->state |= TREELAND_FOREIGN_TOPLEVEL_HANDLE_V1_STATE_MAXIMIZED;
-    } else {
-        this->state &= ~TREELAND_FOREIGN_TOPLEVEL_HANDLE_V1_STATE_MAXIMIZED;
-    }
+    state.setFlag(State::Maximized, maximized);
     send_state();
 }
 
 void treeland_foreign_toplevel_handle_v1::set_minimized(bool minimized)
 {
-    if (minimized == !!(this->state & TREELAND_FOREIGN_TOPLEVEL_HANDLE_V1_STATE_MINIMIZED)) {
+    if (state.testFlag(State::Minimized) == minimized) {
         return;
     }
-    if (minimized) {
-        this->state |= TREELAND_FOREIGN_TOPLEVEL_HANDLE_V1_STATE_MINIMIZED;
-    } else {
-        this->state &= ~TREELAND_FOREIGN_TOPLEVEL_HANDLE_V1_STATE_MINIMIZED;
-    }
+    state.setFlag(State::Minimized, minimized);
     send_state();
 }
 
 void treeland_foreign_toplevel_handle_v1::set_activated(bool activated)
 {
-    if (activated == !!(this->state & TREELAND_FOREIGN_TOPLEVEL_HANDLE_V1_STATE_ACTIVATED)) {
+    if (state.testFlag(State::Activated) == activated) {
         return;
     }
-    if (activated) {
-        this->state |= TREELAND_FOREIGN_TOPLEVEL_HANDLE_V1_STATE_ACTIVATED;
-    } else {
-        this->state &= ~TREELAND_FOREIGN_TOPLEVEL_HANDLE_V1_STATE_ACTIVATED;
-    }
+    state.setFlag(State::Activated, activated);
     send_state();
 }
 
 void treeland_foreign_toplevel_handle_v1::set_fullscreen(bool fullscreen)
 {
-    if (fullscreen == !!(this->state & TREELAND_FOREIGN_TOPLEVEL_HANDLE_V1_STATE_FULLSCREEN)) {
+    if (state.testFlag(State::Fullscreen) == fullscreen) {
         return;
     }
-    if (fullscreen) {
-        this->state |= TREELAND_FOREIGN_TOPLEVEL_HANDLE_V1_STATE_FULLSCREEN;
-    } else {
-        this->state &= ~TREELAND_FOREIGN_TOPLEVEL_HANDLE_V1_STATE_FULLSCREEN;
-    }
+    state.setFlag(State::Fullscreen, fullscreen);
     send_state();
 }
 

@@ -75,6 +75,15 @@ struct treeland_foreign_toplevel_handle_v1 : public QObject
 {
     Q_OBJECT
 public:
+    enum class State {
+        Maximized = 1,
+        Minimized = 2,
+        Activated = 4,
+        Fullscreen = 8,
+    };
+    Q_ENUM(State);
+    Q_DECLARE_FLAGS(States, State)
+
     ~treeland_foreign_toplevel_handle_v1();
     treeland_foreign_toplevel_manager_v1 *manager{ nullptr };
     wl_list resources;
@@ -88,7 +97,7 @@ public:
     treeland_foreign_toplevel_handle_v1 *parent{ nullptr };
     QList<treeland_foreign_toplevel_handle_v1_output>
         outputs;    // treeland_foreign_toplevel_v1_output.link
-    uint32_t state; // enum treeland_foreign_toplevel_v1_state
+    States state;
 
     void set_title(const QString &title);
     void set_app_id(const QString &app_id);
@@ -173,3 +182,5 @@ struct treeland_dock_preview_tooltip_event
     int32_t x, y;
     int32_t direction;
 };
+
+Q_DECLARE_OPERATORS_FOR_FLAGS(treeland_foreign_toplevel_handle_v1::States)
