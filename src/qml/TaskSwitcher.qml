@@ -13,6 +13,7 @@ Item {
 
     required property QtObject output
     readonly property OutputItem outputItem: output.outputItem
+    readonly property QtObject model: Helper.workspace.current
 
     // control all switch item
     property bool enableBlur: GraphicsInfo.api !== GraphicsInfo.Software
@@ -23,38 +24,75 @@ Item {
 
     readonly property int leftpreferredMargin: 20
     readonly property int rightpreferredMargin: 20
+    readonly property real radius: enableRadius ? 18 : 0
 
     width: outputItem.width
     height: outputItem.height
 
-    WorkSpaceMask {
-        id: mask
+    onVisibleChanged: {
+        if (visible) {
+            mask.opacity = 0.5
+            currentContext.loaderStatus = 0
 
-        anchors.fill: parent
+            switchItemAnimation.stop()
+            switchItemAnimation.isInAni = true
+            switchItemAnimation.start()
+        }
     }
 
-    MouseArea {
+    Rectangle {
+        id: mask
         anchors.fill: parent
+        color: "black"
+        opacity: 0.0
+
+        Behavior on opacity {
+            enabled: root.enableAnimation
+
+            NumberAnimation {
+                duration: 400
+                easing.type: Easing.OutExpo
+            }
+        }
+
+        Component.onCompleted: {
+            Qt.callLater(() => {
+                mask.opacity = 0.5
+            })
+        }
     }
 
     ColumnLayout {
         anchors.fill: parent
-        spacing: 20
+        anchors.margins: 20
+        spacing: 30
 
         Item {
             id: previewItem
 
             Layout.fillWidth: true
             Layout.fillHeight: true
-            Layout.leftMargin: leftpreferredMargin
-            Layout.rightMargin: rightpreferredMargin
+            Layout.topMargin: 30
 
-            SurfaceProxy {
-                id: activeSurface
-                live: true
+            TaskWindowPreview {
+                id: previewContext
+                visible: previewWindows.count === 0
+
                 anchors.centerIn: previewItem
-                surface: Helper.activatedSurface
-                maxSize: Qt.size(640, 480)
+                transformOrigin: Item.Center
+                width: previewPostion(sourceSueface, previewItem).width
+                height: previewPostion(sourceSueface, previewItem).height
+            }
+
+            TaskWindowPreview {
+                id: currentContext
+                visible: previewWindows.count === 0
+
+                sourceSueface: Helper.activatedSurface
+                anchors.centerIn: previewItem
+                transformOrigin: Item.Center
+                width: previewPostion(sourceSueface, previewItem).width
+                height: previewPostion(sourceSueface, previewItem).height
             }
         }
 
@@ -120,9 +158,8 @@ Item {
                     saturation: 0.2
                 }
 
-                D.ItemViewport {
+                TRadiusEffect {
                     anchors.fill: blur
-                    fixed: true
                     sourceItem: blur
                     radius: root.radius
                     hideSource: true
@@ -165,29 +202,261 @@ Item {
                 property bool enableDelegateAnimation: root.enableAnimation
 
                 orientation: ListView.Horizontal
+                clip: true
+                currentIndex: switchView.count > 1 ? 1 : 0
+
                 anchors {
                     fill: parent
                     leftMargin: vSpacing
                     rightMargin: vSpacing
                 }
 
-                model: Helper.workspace.current.model
+                model: root.model
                 delegate: SwitchViewDelegate {}
                 highlight: SwitchViewHighlightDelegate {}
                 highlightFollowsCurrentItem: false
+
+                onCurrentIndexChanged: {
+                    if (switchView.currentItem)
+                        Helper.activateSurface(switchView.currentItem.surface)
+
+                   ensurePreview()
+                }
+            }
+        }
+
+        Component.onCompleted: {
+            if (root.enableAnimation) {
+                switchItemAnimation.fromeY = switchItem.y
+                switchItemAnimation.stop()
+                switchItemAnimation.isInAni = true
+                switchItemAnimation.start()
             }
         }
     }
 
+    ParallelAnimation {
+        id: switchItemAnimation
+
+        property bool isInAni: true
+        property real fromeY
+        readonly property int duration: 400
+        readonly property real toY: root.height - 60
+
+        YAnimator {
+            target: switchItem
+            from: switchItemAnimation.isInAni ? switchItemAnimation.toY : switchItemAnimation.fromeY
+            to: switchItemAnimation.isInAni ? switchItemAnimation.fromeY : switchItemAnimation.toY
+            duration: switchItemAnimation.duration
+            easing.type: Easing.OutExpo
+        }
+
+        OpacityAnimator {
+            target: switchItem
+            from: switchItemAnimation.isInAni ? 0.0 : 1.0
+            to: switchItemAnimation.isInAni ? 1.0 : 0.0
+            duration: switchItemAnimation.duration
+            easing.type: Easing.OutExpo
+        }
+
+        onStopped: switchItem.y = switchItemAnimation.fromeY
+    }
+
+    MouseArea {
+        anchors.fill: parent
+
+        onClicked: {
+            root.exit()
+        }
+    }
+
+    Repeater {
+        id: previewWindows
+
+        property int finishedAnimations: 0
+        property int totalAnimations: previewWindows.count
+        signal animationsFinished
+
+        delegate: Item {
+            id: windowItem
+            required property SurfaceWrapper surface
+
+            ParallelAnimation {
+                id: previewAnimation
+
+                property real scaleFrom
+                property int  opacityFrom: 0.0
+                property real xFrom
+                property real yFrom
+                property real xTo
+                property real yTo
+                property int duration: 400
+                property Item target
+
+                ScaleAnimator {
+                    target: previewAnimation.target
+                    from: previewAnimation.scaleFrom
+                    to: 1.0
+                    duration: previewAnimation.duration
+                    easing.type: Easing.OutExpo
+                }
+
+                OpacityAnimator {
+                    target: previewAnimation.target;
+                    from: previewAnimation.opacityFrom
+                    to: 1.0
+                    duration: previewAnimation.duration
+                    easing.type: Easing.OutExpo
+                }
+
+                XAnimator {
+                    target: previewAnimation.target
+                    from: previewAnimation.xFrom
+                    to: previewAnimation.xTo
+                    duration: previewAnimation.duration
+                    easing.type: Easing.OutExpo
+                }
+
+                YAnimator {
+                    target: previewAnimation.target
+                    from: previewAnimation.yFrom
+                    to: previewAnimation.yTo
+                    duration: previewAnimation.duration
+                    easing.type: Easing.OutExpo
+                }
+
+                onFinished: {
+                    previewWindows.finishedAnimations += 1
+
+                    if (previewWindows.finishedAnimations === previewWindows.totalAnimations) {
+                        previewWindows.animationsFinished()
+
+                        previewWindows.finishedAnimations = 0
+                        previewWindows.model = []
+                    }
+                }
+            }
+
+            Component.onCompleted: {
+                if (!surface)
+                    return
+
+                let point = surface.mapFromItem(previewItem, 0, 0)
+                var wh = previewPostion(surface, previewItem)
+
+                previewAnimation.target = surface
+                previewAnimation.xFrom = (previewItem.width - wh.width) / 2.0
+                previewAnimation.yFrom = (previewItem.height - wh.height) / 2.0
+                previewAnimation.xTo = surface.x
+                previewAnimation.yTo = surface.y
+
+                previewAnimation.scaleFrom = surface.width / wh.width
+
+                if (surface === Helper.activatedSurface) {
+                    surface.transformOrigin = Item.TopLeft
+                    previewAnimation.opacityFrom = 1.0
+                    surface.opacity = 1.0
+                } else {
+                    previewAnimation.duration = 500
+                    surface.x = previewAnimation.xFrom
+                    surface.opacity = 0.0
+                    surface.y = previewAnimation.yFrom
+                    surface.scale = previewAnimation.scaleFrom
+                }
+
+                previewAnimation.start()
+            }
+        }
+
+        onAnimationsFinished: {
+            showTask(false)
+        }
+    }
+
+    function previewPostion(surface, content) {
+        const hSpacing = 20
+        const vSpacing = 20
+        let preferredHeight = surface.height < (content.height - 2 * vSpacing) ?
+                                           surface.height : (content.height - 2 * vSpacing)
+        let preferredWidth = surface.width < (content.width - 2 * hSpacing) ?
+                                          surface.width : (content.width - 2 * hSpacing)
+        let refHeight = preferredHeight *  surface.width / surface.height < (content.width - 2 * hSpacing)
+
+        return {
+            width: refHeight ? preferredHeight * surface.width / surface.height : preferredWidth,
+            height: refHeight ? preferredHeight : preferredWidth * surface.height / surface.width
+        }
+    }
+
+    function ensurePreview() {
+        previewContext.visible = true
+        currentContext.visible = true
+
+        if (root.enableAnimation) {
+            previewContext.loaderStatus = 1
+            previewContext.loaderStatus = 0
+
+            currentContext.loaderStatus = 0
+            currentContext.loaderStatus = 1
+        }
+    }
+
     function previous() {
-        var previousIndex = (switchView.currentIndex - 1 + switchView.count) % switchView.count
-        switchView.currentIndex = previousIndex
-        Helper.activateSurface(switchView.currentItem.surface, Qt.BacktabFocusReason)
+        if (showTask(true)) {
+            previewContext.sourceSueface = switchView.currentItem.surface
+            var previousIndex = (switchView.currentIndex - 1 + switchView.count) % switchView.count
+            switchView.currentIndex = previousIndex
+            Helper.activateSurface(switchView.currentItem.surface)
+        }
     }
 
     function next() {
-        var nextIndex = (switchView.currentIndex + 1) % switchView.count
-        switchView.currentIndex = nextIndex
-        Helper.activateSurface(switchView.currentItem.surface, Qt.TabFocusReason)
+        if (showTask(true)) {
+            previewContext.sourceSueface = switchView.currentItem.surface
+            var nextIndex = (switchView.currentIndex + 1) % switchView.count
+            switchView.currentIndex = nextIndex
+            Helper.activateSurface(switchView.currentItem.surface)
+        }
+    }
+
+    function showTask(visible) {
+        if (switchView.count === 0) {
+            root.visible = false
+            return false
+        }
+
+        Helper.showAllWindows(root.model, !visible)
+        root.visible = visible
+
+        return true
+    }
+
+    function exit() {
+        if (!root.visible)
+            return
+
+        previewContext.visible = false
+        currentContext.visible = false
+
+        if (root.enableAnimation) {
+            previewContext.loaderStatus = 0
+            currentContext.loaderStatus = 0
+        }
+
+        if (root.enableAnimation) {
+            mask.opacity = 0.0
+
+            switchItemAnimation.stop()
+            switchItemAnimation.isInAni = false
+            switchItemAnimation.start()
+        }
+
+        if (root.enableAnimation && switchView.count <= 18) {
+            previewWindows.model = root.model
+        } else {
+            previewWindows.finishedAnimations = 0
+            previewWindows.model = []
+            showTask(false)
+        }
     }
 }
