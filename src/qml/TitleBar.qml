@@ -5,12 +5,17 @@ import QtQuick
 import QtQuick.Controls
 import Waylib.Server
 import Treeland
+import org.deepin.dtk 1.0 as D
+import org.deepin.dtk.style 1.0 as DS
 
 Item {
     id: root
 
     required property SurfaceWrapper surface
     readonly property SurfaceItem surfaceItem: surface.surfaceItem
+    property D.Palette backgroundColor: DS.Style.highlightPanel.background
+    property D.Palette outerShadowColor: DS.Style.highlightPanel.dropShadow
+    property D.Palette innerShadowColor: DS.Style.highlightPanel.innerShadow
 
     height: 30
     width: surfaceItem.width
@@ -59,23 +64,77 @@ Item {
             anchors {
                 verticalCenter: parent.verticalCenter
                 right: parent.right
-                rightMargin: 8
             }
 
-            Button {
-                width: titlebar.height
-                text: "-"
-                onClicked: surface.requestMinimize()
+            Item {
+                id: control
+
+                property D.Palette textColor: DS.Style.button.text
+                property D.Palette backgroundColor: DS.Style.windowButton.background
             }
-            Button {
-                width: titlebar.height
-                text: "O"
-                onClicked: surface.requestToggleMaximize()
+
+            Loader {
+                objectName: "minimizeBtn"
+                sourceComponent: D.WindowButton {
+                    icon.name: "window_minimize"
+                    textColor: control.textColor
+                    height: root.height
+
+                    onClicked: {
+                        surface.requestMinimize()
+                    }
+                }
             }
-            Button {
-                width: titlebar.height
-                text: "X"
-                onClicked: surface.requestClose()
+
+            Loader {
+                objectName: "quitFullBtn"
+                visible: false
+                sourceComponent: D.WindowButton {
+                    icon.name: "window_quit_full"
+                    textColor: control.textColor
+                    height: root.height
+
+                    onClicked: {
+                    }
+                }
+            }
+
+            Loader {
+                id: maxOrWindedBtn
+
+                objectName: "maxOrWindedBtn"
+                sourceComponent: D.WindowButton {
+                    icon.name: surface.isMaximized ? "window_restore" : "window_maximize"
+                    textColor: control.textColor
+                    height: root.height
+
+                    onClicked: {
+                        Helper.activatedSurface = surface
+                        surface.requestMaximize(!surface.isMaximized)
+                    }
+                }
+            }
+
+            Loader {
+                objectName: "closeBtn"
+                sourceComponent: Item {
+                    height: root.height
+                    width: closeBtn.implicitWidth
+                    Rectangle {
+                        anchors.fill: closeBtn
+                        color: closeBtn.hovered ? "red" : "transparent"
+                    }
+                    D.WindowButton {
+                        id: closeBtn
+                        icon.name: "window_close"
+                        textColor: control.textColor
+                        height: parent.height
+
+                        onClicked: {
+                            surface.requestClose()
+                        }
+                    }
+                }
             }
         }
     }
