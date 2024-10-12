@@ -182,7 +182,7 @@ TreeLand::TreeLand(Helper *helper)
 
                 auto envs = QProcessEnvironment::systemEnvironment();
                 envs.insert("WAYLAND_DISPLAY", m_helper->defaultWaylandSocket()->fullServerName());
-                envs.insert("DISPLAY", m_helper->defaultWaylandSocket()->fullServerName());
+                envs.insert("DISPLAY", m_helper->defaultXWaylandSocket()->displayName());
                 envs.insert("DDE_CURRENT_COMPOSITOR", "TreeLand");
                 envs.insert("QT_IM_MODULE", "fcitx");
 
