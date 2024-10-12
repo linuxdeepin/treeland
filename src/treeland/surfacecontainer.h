@@ -52,9 +52,8 @@ public:
         return data;
     }
 
-    Qt::ItemFlags flags(const QModelIndex &index) const override
+    Qt::ItemFlags flags([[maybe_unused]] const QModelIndex &index) const override
     {
-        Q_UNUSED(index);
         return Qt::ItemIsSelectable | Qt::ItemIsEnabled;
     }
 
@@ -102,13 +101,13 @@ public:
     virtual void addSurface(SurfaceWrapper *surface)
     {
         if (addObject(surface))
-            emit surfaceAdded(surface);
+            Q_EMIT surfaceAdded(surface);
     }
 
     virtual void removeSurface(SurfaceWrapper *surface)
     {
         if (removeObject(surface))
-            emit surfaceRemoved(surface);
+            Q_EMIT surfaceRemoved(surface);
     }
 
     QHash<int, QByteArray> roleNames() const override;
@@ -119,7 +118,7 @@ public:
 
     inline bool hasSurface(SurfaceWrapper *surface) const { return hasObject(surface); }
 
-signals:
+Q_SIGNALS:
     void surfaceAdded(SurfaceWrapper *surface);
     void surfaceRemoved(SurfaceWrapper *surface);
 
@@ -208,7 +207,7 @@ public:
 
     SurfaceListModel *model() const { return m_model; }
 
-signals:
+Q_SIGNALS:
     void surfaceAdded(SurfaceWrapper *surface);
     void surfaceRemoved(SurfaceWrapper *surface);
 
@@ -220,8 +219,9 @@ protected:
     bool doAddSurface(SurfaceWrapper *surface, bool setContainer);
     bool doRemoveSurface(SurfaceWrapper *surface, bool setContainer);
 
-    virtual void addBySubContainer(SurfaceContainer *sub, SurfaceWrapper *surface);
-    virtual void removeBySubContainer(SurfaceContainer *sub, SurfaceWrapper *surface);
+    virtual void addBySubContainer([[maybe_unused]] SurfaceContainer *sub, SurfaceWrapper *surface);
+    virtual void removeBySubContainer([[maybe_unused]] SurfaceContainer *sub,
+                                      SurfaceWrapper *surface);
 
     virtual bool filterSurfaceGeometryChanged(SurfaceWrapper *surface,
                                               QRectF &newGeometry,

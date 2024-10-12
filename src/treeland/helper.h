@@ -4,7 +4,6 @@
 #pragma once
 
 #include "qmlengine.h"
-#include "workspace.h"
 
 #include <wglobal.h>
 #include <wqmlcreator.h>
@@ -15,6 +14,7 @@
 
 Q_MOC_INCLUDE(<wtoplevelsurface.h>)
 Q_MOC_INCLUDE("surfacewrapper.h")
+Q_MOC_INCLUDE("workspace.h")
 
 QT_BEGIN_NAMESPACE
 class QQuickItem;
@@ -51,7 +51,7 @@ QW_USE_NAMESPACE
 
 class Output;
 class SurfaceWrapper;
-class Workspace;
+class SurfaceContainer;
 class RootSurfaceContainer;
 class LayerSurfaceContainer;
 class ForeignToplevelV1;
@@ -77,10 +77,7 @@ public:
     explicit Helper(QObject *parent = nullptr);
     ~Helper();
 
-    enum class OutputMode {
-        Copy,
-        Extension
-    };
+    enum class OutputMode { Copy, Extension };
     Q_ENUM(OutputMode)
 
     static Helper *instance();
@@ -117,11 +114,10 @@ public:
     PersonalizationV1 *personalization() const;
 
 public Q_SLOTS:
-    void activeSurface(SurfaceWrapper *wrapper);
-    void activeSurface(SurfaceWrapper *wrapper, Qt::FocusReason reason);
+    void activateSurface(SurfaceWrapper *wrapper, Qt::FocusReason reason = Qt::OtherFocusReason);
     void fakePressSurfaceBottomRightToReszie(SurfaceWrapper *surface);
 
-signals:
+Q_SIGNALS:
     void socketEnabledChanged();
     void keyboardFocusSurfaceChanged();
     void activatedSurfaceChanged();
@@ -149,10 +145,8 @@ private:
 
     void setCursorPosition(const QPointF &position);
 
-    bool startDemoClient();
-
     bool beforeDisposeEvent(WSeat *seat, QWindow *watched, QInputEvent *event) override;
-    bool afterHandleEvent(WSeat *seat,
+    bool afterHandleEvent([[maybe_unused]] WSeat *seat,
                           WSurface *watched,
                           QObject *surfaceItem,
                           QObject *,
@@ -185,14 +179,14 @@ private:
     ShortcutV1 *m_shortcut = nullptr;
     PersonalizationV1 *m_personalization = nullptr;
 
-    // privaet data
+    // private data
     QList<Output *> m_outputList;
 
     QPointer<SurfaceWrapper> m_keyboardFocusSurface;
     QPointer<SurfaceWrapper> m_activatedSurface;
     QPointer<QQuickItem> m_taskSwitch;
 
-    RootSurfaceContainer *m_surfaceContainer = nullptr;
+    RootSurfaceContainer *m_rootSurfaceContainer = nullptr;
     LayerSurfaceContainer *m_backgroundContainer = nullptr;
     LayerSurfaceContainer *m_bottomContainer = nullptr;
     Workspace *m_workspace = nullptr;

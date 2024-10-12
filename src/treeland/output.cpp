@@ -20,7 +20,7 @@
 
 Q_LOGGING_CATEGORY(qLcLayerShell, "Treeland.shell.layer", QtWarningMsg)
 
-Output *Output::createPrimary(WOutput *output, QQmlEngine *engine, QObject *parent)
+Output *Output::create(WOutput *output, QQmlEngine *engine, QObject *parent)
 {
     QQmlComponent delegate(engine, "Treeland", "PrimaryOutput");
     QObject *obj = delegate.beginCreate(engine->rootContext());
@@ -41,7 +41,7 @@ Output *Output::createPrimary(WOutput *output, QQmlEngine *engine, QObject *pare
         return s->isMinimized();
     });
 
-    o->connect(outputItem, &WOutputItem::geometryChanged, o, &Output::layoutAllSurfaces);
+    o->connect(outputItem, &WOutputItem::geometryChanged, o, &Output::arrangeAllSurfaces);
 
     auto contentItem = Helper::instance()->window()->contentItem();
     outputItem->setParentItem(contentItem);
@@ -73,9 +73,9 @@ Output *Output::createCopy(WOutput *output, Output *proxy, QQmlEngine *engine, Q
 
     auto contentItem = Helper::instance()->window()->contentItem();
     outputItem->setParentItem(contentItem);
-    o->updatePrimaryOutputHardwareLayers();
+    o->updateOutputHardwareLayers();
     connect(o->m_outputViewport, &WOutputViewport::hardwareLayersChanged,
-            o, &Output::updatePrimaryOutputHardwareLayers);
+            o, &Output::updateOutputHardwareLayers);
 
     return o;
 }
@@ -127,7 +127,7 @@ std::pair<WOutputViewport*, QQuickItem*> Output::getOutputItemProperty()
     Q_ASSERT(textureProxy);
     return std::make_pair(viewportCopy, textureProxy);
 }
-void Output::updatePrimaryOutputHardwareLayers()
+void Output::updateOutputHardwareLayers()
 {
     WOutputViewport *viewportPrimary = screenViewport();
     std::pair<WOutputViewport*, QQuickItem*> copyOutput = getOutputItemProperty();
@@ -152,12 +152,12 @@ void Output::addSurface(SurfaceWrapper *surface)
         auto layer = qobject_cast<WLayerSurface *>(surface->shellSurface());
         layer->safeConnect(&WLayerSurface::layerPropertiesChanged,
                            this,
-                           &Output::layoutLayerSurfaces);
+                           &Output::arrangeLayerSurfaces);
 
-        layoutLayerSurfaces();
+        arrangeLayerSurfaces();
     } else {
         auto layoutSurface = [surface, this] {
-            layoutNonLayerSurface(surface, {});
+            arrangeNonLayerSurface(surface, {});
         };
 
         connect(surface, &SurfaceWrapper::widthChanged, this, layoutSurface);
@@ -177,7 +177,7 @@ void Output::removeSurface(SurfaceWrapper *surface)
             ss->safeDisconnect(this);
             removeExclusiveZone(ss);
         }
-        layoutLayerSurfaces();
+        arrangeLayerSurfaces();
     }
 }
 
@@ -259,7 +259,7 @@ bool Output::removeExclusiveZone(QObject *object)
     return false;
 }
 
-void Output::layoutLayerSurface(SurfaceWrapper *surface)
+void Output::arrangeLayerSurface(SurfaceWrapper *surface)
 {
     WLayerSurface *layer = qobject_cast<WLayerSurface *>(surface->shellSurface());
     Q_ASSERT(layer);
@@ -321,7 +321,7 @@ void Output::layoutLayerSurface(SurfaceWrapper *surface)
     surface->setPosition(surfaceGeo.topLeft());
 }
 
-void Output::layoutLayerSurfaces()
+void Output::arrangeLayerSurfaces()
 {
     auto oldExclusiveZone = m_exclusiveZone;
 
@@ -334,16 +334,16 @@ void Output::layoutLayerSurfaces()
     for (auto *s : surfaces()) {
         if (s->type() != SurfaceWrapper::Type::Layer)
             continue;
-        layoutLayerSurface(s);
+        arrangeLayerSurface(s);
     }
 
     if (oldExclusiveZone != m_exclusiveZone) {
-        layoutNonLayerSurfaces();
-        emit exclusiveZoneChanged();
+        arrangeNonLayerSurfaces();
+        Q_EMIT exclusiveZoneChanged();
     }
 }
 
-void Output::layoutNonLayerSurface(SurfaceWrapper *surface, const QSizeF &sizeDiff)
+void Output::arrangeNonLayerSurface(SurfaceWrapper *surface, const QSizeF &sizeDiff)
 {
     Q_ASSERT(surface->type() != SurfaceWrapper::Type::Layer);
     surface->setFullscreenGeometry(geometry());
@@ -410,7 +410,7 @@ void Output::layoutNonLayerSurface(SurfaceWrapper *surface, const QSizeF &sizeDi
     } while (false);
 }
 
-void Output::layoutNonLayerSurfaces()
+void Output::arrangeNonLayerSurfaces()
 {
     const auto currentSize = validRect().size();
     const auto sizeDiff = m_lastSizeOnLayoutNonLayerSurfaces.isValid()
@@ -421,14 +421,14 @@ void Output::layoutNonLayerSurfaces()
     for (SurfaceWrapper *surface : surfaces()) {
         if (surface->type() == SurfaceWrapper::Type::Layer)
             continue;
-        layoutNonLayerSurface(surface, sizeDiff);
+        arrangeNonLayerSurface(surface, sizeDiff);
     }
 }
 
-void Output::layoutAllSurfaces()
+void Output::arrangeAllSurfaces()
 {
-    layoutLayerSurfaces();
-    layoutNonLayerSurfaces();
+    arrangeLayerSurfaces();
+    arrangeNonLayerSurfaces();
 }
 
 QMargins Output::exclusiveZone() const

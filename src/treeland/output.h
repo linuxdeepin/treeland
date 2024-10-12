@@ -42,7 +42,7 @@ class Output : public SurfaceListModel
 public:
     enum class Type { Primary, Proxy };
 
-    static Output *createPrimary(WOutput *output, QQmlEngine *engine, QObject *parent = nullptr);
+    static Output *create(WOutput *output, QQmlEngine *engine, QObject *parent = nullptr);
     static Output *createCopy(WOutput *output,
                               Output *proxy,
                               QQmlEngine *engine,
@@ -67,23 +67,23 @@ public:
     WOutputViewport *screenViewport() const;
     void updatePositionFromLayout();
 
-signals:
+Q_SIGNALS:
     void exclusiveZoneChanged();
     void moveResizeFinised();
 
 public Q_SLOTS:
-    void updatePrimaryOutputHardwareLayers();
+    void updateOutputHardwareLayers();
 
 private:
     friend class SurfaceWrapper;
 
     void setExclusiveZone(Qt::Edge edge, QObject *object, int value);
     bool removeExclusiveZone(QObject *object);
-    void layoutLayerSurface(SurfaceWrapper *surface);
-    void layoutLayerSurfaces();
-    void layoutNonLayerSurface(SurfaceWrapper *surface, const QSizeF &sizeDiff);
-    void layoutNonLayerSurfaces();
-    void layoutAllSurfaces();
+    void arrangeLayerSurface(SurfaceWrapper *surface);
+    void arrangeLayerSurfaces();
+    void arrangeNonLayerSurface(SurfaceWrapper *surface, const QSizeF &sizeDiff);
+    void arrangeNonLayerSurfaces();
+    void arrangeAllSurfaces();
     std::pair<WOutputViewport*, QQuickItem*> getOutputItemProperty();
 
     Type m_type;

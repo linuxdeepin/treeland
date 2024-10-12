@@ -46,7 +46,7 @@ public:
     Q_INVOKABLE void hideAllSurfacesExceptPreviewing(SurfaceWrapper *previewingItem);
     Q_INVOKABLE void showAllSurfaces();
 
-signals:
+Q_SIGNALS:
     void currentChanged();
     void countChanged();
     void modelsChanged();
