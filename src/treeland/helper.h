@@ -154,6 +154,7 @@ public:
 public Q_SLOTS:
     void activateSurface(SurfaceWrapper *wrapper, Qt::FocusReason reason = Qt::OtherFocusReason);
     void fakePressSurfaceBottomRightToReszie(SurfaceWrapper *surface);
+    void showAllWindows(WorkspaceModel* model, bool show = true);
 
 Q_SIGNALS:
     void socketEnabledChanged();
@@ -214,7 +215,6 @@ private:
                           QObject *,
                           QInputEvent *event) override;
     bool unacceptedEvent(WSeat *, QWindow *, QInputEvent *event) override;
-    void destoryTaskSwitcher();
     void toggleMultitaskview();
     void handleLeftButtonStateChanged(const QInputEvent *event);
     void handleWhellValueChanged(const QInputEvent *event);

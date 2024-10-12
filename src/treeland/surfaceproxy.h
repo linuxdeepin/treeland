@@ -52,6 +52,7 @@ private:
 
     SurfaceWrapper *m_sourceSurface = nullptr;
     SurfaceWrapper *m_proxySurface = nullptr;
+    QList<QMetaObject::Connection> m_sourceConnections;
     QQuickItem *m_shadow = nullptr;
     qreal m_radius = -1;
     bool m_live = true;

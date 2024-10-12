@@ -712,27 +712,26 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *, QInputEvent *event)
                 }
                 return true;
             }
-        } else if (event->modifiers() == Qt::AltModifier) {
-            if (kevent->key() == Qt::Key_Tab) {
-                if (m_taskSwitch.isNull()) {
-                    auto contentItem = window()->contentItem();
-                    auto output = rootContainer()->primaryOutput();
-                    m_taskSwitch = qmlEngine()->createTaskSwitcher(output, contentItem);
-                    m_taskSwitch->setZ(RootSurfaceContainer::OverlayZOrder);
-                    return true;
-                } else {
+        } else if (kevent->key() == Qt::Key_Alt) {
+            if (m_taskSwitch.isNull()) {
+                auto contentItem = window()->contentItem();
+                auto output = rootContainer()->primaryOutput();
+                m_taskSwitch = qmlEngine()->createTaskSwitcher(output, contentItem);
+                m_taskSwitch->setZ(RootSurfaceContainer::OverlayZOrder);
+            }
+        } else if (kevent->key() == Qt::Key_Tab || kevent->key() == Qt::Key_Backtab) {
+            if (event->modifiers().testFlag(Qt::AltModifier)) {
+                if (event->modifiers() == Qt::AltModifier) {
                     QMetaObject::invokeMethod(m_taskSwitch, "next");
                     return true;
-                }
-            } else if (kevent->key() == Qt::Key_Backtab) {
-                if (!m_taskSwitch.isNull()) {
+                } else if (event->modifiers() == (Qt::AltModifier | Qt::ShiftModifier)) {
                     QMetaObject::invokeMethod(m_taskSwitch, "previous");
                     return true;
                 }
-            } else if (kevent->key() == Qt::Key_Space) {
-                if (m_activatedSurface) {
-                    Q_EMIT m_activatedSurface->requestShowWindowMenu({ 0, 0 });
-                }
+            }
+        } else if (kevent->key() == Qt::Key_Space) {
+            if (event->modifiers().testFlag(Qt::AltModifier)) {
+                Q_EMIT m_activatedSurface->requestShowWindowMenu({ 0, 0 });
             }
         }
     }
@@ -796,10 +795,6 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *, QInputEvent *event)
     }
     // FIXME: end
 
-    if (event->type() == QEvent::MouseButtonPress) {
-        destoryTaskSwitcher();
-    }
-
     if (event->type() == QEvent::MouseButtonPress ||
         event->type() == QEvent::MouseButtonRelease) {
         handleLeftButtonStateChanged(event);
@@ -812,7 +807,7 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *, QInputEvent *event)
     if (event->type() == QEvent::KeyRelease) {
         auto kevent = static_cast<QKeyEvent *>(event);
         if (kevent->key() == Qt::Key_Alt) {
-            destoryTaskSwitcher();
+            QMetaObject::invokeMethod(m_taskSwitch, "exit");
         }
     }
 
@@ -1260,11 +1255,12 @@ WSeat *Helper::seat() const
     return m_seat;
 }
 
-void Helper::destoryTaskSwitcher()
+void Helper::showAllWindows(WorkspaceModel* model, bool show)
 {
-    if (!m_taskSwitch.isNull()) {
-        m_taskSwitch->setVisible(false);
-        m_taskSwitch->deleteLater();
+    auto surfaces = model->surfaces();
+
+    foreach (auto window, surfaces) {
+        window->setOpacity(show ? 1.0 : 0.0);
     }
 }
 
@@ -1349,3 +1345,4 @@ void Helper::handleDdeShellSurfaceAdded(WSurface *surface, SurfaceWrapper *wrapp
                 wrapper->setSkipMutiTaskView(skip);
             });
 }
+
