@@ -298,14 +298,14 @@ void Helper::init()
     m_shortcut = m_server->attach<ShortcutV1>();
     m_server->attach<DDEShellV1>();
     m_server->attach<CaptureManagerV1>();
-    PersonalizationV1 *personalization = m_server->attach<PersonalizationV1>();
+    m_personalization = m_server->attach<PersonalizationV1>();
 
     connect(
         this,
         &Helper::currentUserIdChanged,
-        personalization,
-        [this, personalization]() {
-            personalization->setUserId(m_currentUserId);
+        m_personalization,
+        [this]() {
+            m_personalization->setUserId(m_currentUserId);
         },
         Qt::QueuedConnection);
 
@@ -1017,6 +1017,11 @@ WSocket *Helper::defaultWaylandSocket() const
 WXWayland *Helper::defaultXWaylandSocket() const
 {
     return m_xwayland;
+}
+
+PersonalizationV1 *Helper::personalization() const
+{
+    return m_personalization;
 }
 
 void Helper::destoryTaskSwitcher()
