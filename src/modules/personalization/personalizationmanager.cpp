@@ -32,8 +32,7 @@ DCORE_USE_NAMESPACE
 
 static PersonalizationV1 *PERSONALIZATION_MANAGER = nullptr;
 
-// TODO: from wallpaper provider or treeland settings
-#define DEFAULT_WALLPAPER "qrc:/desktop.webp"
+#define DEFAULT_WALLPAPER ":/desktop.webp"
 #define DEFAULT_WALLPAPER_ISDARK false
 
 QuickPersonalizationManagerAttached *Personalization::qmlAttachedProperties(QObject *target)
@@ -57,7 +56,7 @@ void PersonalizationV1::updateCacheWallpaperPath(uid_t uid)
 
 QString PersonalizationV1::readWallpaperSettings(const QString &group, const QString &output)
 {
-    if (m_settingFile.isEmpty())
+    if (m_settingFile.isEmpty() || output.isEmpty())
         return DEFAULT_WALLPAPER;
 
     QSettings settings(m_settingFile, QSettings::IniFormat);
@@ -97,12 +96,21 @@ PersonalizationV1::PersonalizationV1(QObject *parent)
         qFatal("There are multiple instances of QuickPersonalizationManager");
     }
 
+    Q_INIT_RESOURCE(default_background);
+
     PERSONALIZATION_MANAGER = this;
 
     // When not use ddm, set uid by self
     if (qgetenv("XDG_SESSION_DESKTOP") == "treeland-user") {
         setUserId(getgid());
     }
+}
+
+PersonalizationV1::~PersonalizationV1()
+{
+    PERSONALIZATION_MANAGER = nullptr;
+
+    Q_CLEANUP_RESOURCE(default_background);
 }
 
 void PersonalizationV1::onWindowContextCreated(personalization_window_context_v1 *context)

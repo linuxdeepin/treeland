@@ -57,6 +57,7 @@ class LayerSurfaceContainer;
 class ForeignToplevelV1;
 class LockScreen;
 class ShortcutV1;
+class PersonalizationV1;
 
 class Helper : public WSeatEventFilter
 {
@@ -112,6 +113,8 @@ public:
 
     WSocket *defaultWaylandSocket() const;
     WXWayland *defaultXWaylandSocket() const;
+
+    PersonalizationV1 *personalization() const;
 
 public Q_SLOTS:
     void activeSurface(SurfaceWrapper *wrapper);
@@ -180,6 +183,7 @@ private:
     WForeignToplevel *m_foreignToplevel = nullptr;
     ForeignToplevelV1 *m_treelandForeignToplevel = nullptr;
     ShortcutV1 *m_shortcut = nullptr;
+    PersonalizationV1 *m_personalization = nullptr;
 
     // privaet data
     QList<Output *> m_outputList;
