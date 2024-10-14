@@ -3,16 +3,23 @@
 
 #pragma once
 
+#include "foreigntoplevelmanagerv1.h"
 #include "qmlengine.h"
 
 #include <wglobal.h>
 #include <wqmlcreator.h>
 #include <wseat.h>
+#include <wxdgdecorationmanager.h>
 
 #include <QObject>
 #include <QQmlApplicationEngine>
 
 Q_MOC_INCLUDE(<wtoplevelsurface.h>)
+Q_MOC_INCLUDE(<wxdgsurface.h>)
+Q_MOC_INCLUDE(<wlayersurface.h>)
+Q_MOC_INCLUDE(<winputpopupsurface.h>)
+Q_MOC_INCLUDE(<qwgammacontorlv1.h>)
+Q_MOC_INCLUDE(<qwoutputmanagementv1.h>)
 Q_MOC_INCLUDE("surfacewrapper.h")
 Q_MOC_INCLUDE("workspace.h")
 
@@ -38,12 +45,17 @@ class WSurface;
 class WToplevelSurface;
 class WSurfaceItem;
 class WForeignToplevel;
+class WOutputManagerV1;
+class WXdgSurface;
+class WLayerSurface;
+class WInputPopupSurface;
 WAYLIB_SERVER_END_NAMESPACE
 
 QW_BEGIN_NAMESPACE
 class qw_renderer;
 class qw_allocator;
 class qw_compositor;
+class qw_output_configuration_v1;
 QW_END_NAMESPACE
 
 WAYLIB_SERVER_USE_NAMESPACE
@@ -129,6 +141,27 @@ Q_SIGNALS:
     void socketFileChanged();
     void outputModeChanged();
 
+private Q_SLOTS:
+    void onOutputAdded(WOutput *output);
+    void onOutputRemoved(WOutput *output);
+    void onXdgSurfaceAdded(WXdgSurface *surface);
+    void onXdgSurfaceRemoved(WXdgSurface *surface);
+    void onLayerSurfaceAdded(WLayerSurface *surface);
+    void onLayerSurfaceRemoved(WLayerSurface *surface);
+    void onInputPopupSurfaceV2Added(WInputPopupSurface *surface);
+    void onInputPopupSurfaceV2Removed(WInputPopupSurface *surface);
+    void onSurfaceModeChanged(WSurface *surface, WXdgDecorationManager::DecorationMode mode);
+    void setGamma(struct wlr_gamma_control_manager_v1_set_gamma_event *event);
+    void onOutputTestOrApply(qw_output_configuration_v1 *config, bool onlyTest);
+    void onDockPreview(std::vector<SurfaceWrapper *> surfaces,
+                       WSurface *target,
+                       QPoint pos,
+                       ForeignToplevelV1::PreviewDirection direction);
+    void onDockPreviewTooltip(QString tooltip,
+                              WSurface *target,
+                              QPoint pos,
+                              ForeignToplevelV1::PreviewDirection direction);
+
 private:
     void allowNonDrmOutputAutoChangeMode(WOutput *output);
     void enableOutput(WOutput *output);
@@ -180,6 +213,7 @@ private:
     ShortcutV1 *m_shortcut = nullptr;
     PersonalizationV1 *m_personalization = nullptr;
     WallpaperColorV1 *m_wallpaperColorV1 = nullptr;
+    WOutputManagerV1 *m_outputManager = nullptr;
 
     // private data
     QList<Output *> m_outputList;

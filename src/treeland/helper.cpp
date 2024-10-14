@@ -5,7 +5,6 @@
 
 #include "capture.h"
 #include "ddeshell.h"
-#include "foreigntoplevelmanagerv1.h"
 #include "layersurfacecontainer.h"
 #include "lockscreen.h"
 #include "output.h"
@@ -43,7 +42,6 @@
 #include <wseat.h>
 #include <wsocket.h>
 #include <wtoplevelsurface.h>
-#include <wxdgdecorationmanager.h>
 #include <wxdgshell.h>
 #include <wxdgsurface.h>
 #include <wxwayland.h>
@@ -148,6 +146,227 @@ Workspace *Helper::workspace() const
     return m_workspace;
 }
 
+void Helper::onOutputAdded(WOutput *output)
+{
+    allowNonDrmOutputAutoChangeMode(output);
+    Output *o;
+    if (m_mode == OutputMode::Extension || !m_rootSurfaceContainer->primaryOutput()) {
+        o = Output::create(output, qmlEngine(), this);
+        o->outputItem()->stackBefore(m_rootSurfaceContainer);
+        // TODO: 应该让helper发出Output的信号，每个需要output的单元单独connect。
+        m_rootSurfaceContainer->addOutput(o);
+    } else if (m_mode == OutputMode::Copy) {
+        o = Output::createCopy(output, m_rootSurfaceContainer->primaryOutput(), qmlEngine(), this);
+    }
+    m_outputList.append(o);
+    enableOutput(output);
+    m_outputManager->newOutput(output);
+    m_lockScreen->addOutput(o);
+}
+
+void Helper::onOutputRemoved(WOutput *output)
+{
+    auto index = indexOfOutput(output);
+    Q_ASSERT(index >= 0);
+    const auto o = m_outputList.takeAt(index);
+    m_outputManager->removeOutput(output);
+    m_rootSurfaceContainer->removeOutput(o);
+    m_lockScreen->removeOutput(o);
+    delete o;
+}
+
+void Helper::onXdgSurfaceAdded(WXdgSurface *surface)
+{
+    SurfaceWrapper *wrapper = nullptr;
+
+    if (surface->isToplevel()) {
+        wrapper = new SurfaceWrapper(qmlEngine(), surface, SurfaceWrapper::Type::XdgToplevel);
+        m_foreignToplevel->addSurface(surface);
+        m_treelandForeignToplevel->addSurface(wrapper);
+    } else {
+        wrapper = new SurfaceWrapper(qmlEngine(), surface, SurfaceWrapper::Type::XdgPopup);
+    }
+
+    wrapper->setNoDecoration(m_xdgDecorationManager->modeBySurface(surface->surface())
+                             != WXdgDecorationManager::Server);
+
+    if (surface->isPopup()) {
+        auto parent = surface->parentSurface();
+        auto parentWrapper = m_rootSurfaceContainer->getSurface(parent);
+        parentWrapper->addSubSurface(wrapper);
+        m_popupContainer->addSurface(wrapper);
+        wrapper->setOwnsOutput(parentWrapper->ownsOutput());
+    } else {
+        auto updateSurfaceWithParentContainer = [this, wrapper, surface] {
+            if (wrapper->parentSurface())
+                wrapper->parentSurface()->removeSubSurface(wrapper);
+            if (wrapper->container())
+                wrapper->container()->removeSurface(wrapper);
+
+            if (auto parent = surface->parentSurface()) {
+                auto parentWrapper = m_rootSurfaceContainer->getSurface(parent);
+                auto container = parentWrapper->container();
+                Q_ASSERT(container);
+                parentWrapper->addSubSurface(wrapper);
+                container->addSurface(wrapper);
+            } else {
+                m_workspace->addSurface(wrapper);
+            }
+        };
+
+        surface->safeConnect(&WXdgSurface::parentXdgSurfaceChanged,
+                             this,
+                             updateSurfaceWithParentContainer);
+        updateSurfaceWithParentContainer();
+        connect(wrapper,
+                &SurfaceWrapper::requestShowWindowMenu,
+                m_windowMenu,
+                [this, wrapper](QPoint pos) {
+                    QMetaObject::invokeMethod(m_windowMenu,
+                                              "showWindowMenu",
+                                              QVariant::fromValue(wrapper),
+                                              QVariant::fromValue(pos));
+                });
+    }
+
+    Q_ASSERT(wrapper->parentItem());
+}
+
+void Helper::onXdgSurfaceRemoved(WXdgSurface *surface)
+{
+    if (surface->isToplevel()) {
+        m_foreignToplevel->removeSurface(surface);
+        m_treelandForeignToplevel->removeSurface(m_rootSurfaceContainer->getSurface(surface));
+    }
+
+    m_rootSurfaceContainer->destroyForSurface(surface->surface());
+}
+
+void Helper::onLayerSurfaceAdded(WLayerSurface *surface)
+{
+    auto wrapper = new SurfaceWrapper(qmlEngine(), surface, SurfaceWrapper::Type::Layer);
+    wrapper->setNoDecoration(true);
+    updateLayerSurfaceContainer(wrapper);
+
+    connect(surface, &WLayerSurface::layerChanged, this, [this, wrapper] {
+        updateLayerSurfaceContainer(wrapper);
+    });
+    Q_ASSERT(wrapper->parentItem());
+}
+
+void Helper::onLayerSurfaceRemoved(WLayerSurface *surface)
+{
+    m_rootSurfaceContainer->destroyForSurface(surface->surface());
+}
+
+void Helper::onInputPopupSurfaceV2Added(WInputPopupSurface *surface)
+{
+    auto wrapper = new SurfaceWrapper(qmlEngine(), surface, SurfaceWrapper::Type::InputPopup);
+    auto parent = surface->parentSurface();
+    auto parentWrapper = m_rootSurfaceContainer->getSurface(parent);
+    parentWrapper->addSubSurface(wrapper);
+    m_popupContainer->addSurface(wrapper);
+    wrapper->setOwnsOutput(parentWrapper->ownsOutput());
+    Q_ASSERT(wrapper->parentItem());
+}
+
+void Helper::onInputPopupSurfaceV2Removed(WInputPopupSurface *surface)
+{
+    m_rootSurfaceContainer->destroyForSurface(surface->surface());
+}
+
+void Helper::onSurfaceModeChanged(WSurface *surface, WXdgDecorationManager::DecorationMode mode)
+{
+    auto s = m_rootSurfaceContainer->getSurface(surface);
+    if (!s)
+        return;
+    s->setNoDecoration(mode != WXdgDecorationManager::Server);
+}
+
+void Helper::setGamma(struct wlr_gamma_control_manager_v1_set_gamma_event *event)
+{
+    auto *qwOutput = qw_output::from(event->output);
+    auto *wOutput = WOutput::fromHandle(qwOutput);
+    size_t ramp_size = 0;
+    uint16_t *r = nullptr, *g = nullptr, *b = nullptr;
+    wlr_gamma_control_v1 *gamma_control = event->control;
+    if (gamma_control) {
+        ramp_size = gamma_control->ramp_size;
+        r = gamma_control->table;
+        g = gamma_control->table + gamma_control->ramp_size;
+        b = gamma_control->table + 2 * gamma_control->ramp_size;
+    }
+    if (!wOutput->setGammaLut(ramp_size, r, g, b)) {
+        qWarning() << "Failed to set gamma lut!";
+        // TODO: use software impl it.
+        qw_gamma_control_v1::from(gamma_control)->send_failed_and_destroy();
+    }
+}
+
+void Helper::onOutputTestOrApply(qw_output_configuration_v1 *config, bool onlyTest)
+{
+    QList<WOutputState> states = m_outputManager->stateListPending();
+    bool ok = true;
+    for (auto state : std::as_const(states)) {
+        WOutput *output = state.output;
+        output->enable(state.enabled);
+        if (state.enabled) {
+            if (state.mode)
+                output->setMode(state.mode);
+            else
+                output->setCustomMode(state.customModeSize, state.customModeRefresh);
+
+            output->enableAdaptiveSync(state.adaptiveSyncEnabled);
+            if (!onlyTest) {
+                WOutputViewport *viewport = getOutput(output)->screenViewport();
+                if (viewport) {
+                    viewport->rotateOutput(state.transform);
+                    viewport->setOutputScale(state.scale);
+                    viewport->setX(state.x);
+                    viewport->setY(state.y);
+                }
+            }
+        }
+
+        if (onlyTest)
+            ok &= output->test();
+        else
+            ok &= output->commit();
+    }
+    m_outputManager->sendResult(config, ok);
+}
+
+void Helper::onDockPreview(std::vector<SurfaceWrapper *> surfaces,
+                           WSurface *target,
+                           QPoint pos,
+                           ForeignToplevelV1::PreviewDirection direction)
+{
+    SurfaceWrapper *dockWrapper = m_rootSurfaceContainer->getSurface(target);
+    Q_ASSERT(dockWrapper);
+
+    QMetaObject::invokeMethod(m_dockPreview,
+                              "show",
+                              QVariant::fromValue(surfaces),
+                              QVariant::fromValue(dockWrapper),
+                              QVariant::fromValue(pos),
+                              QVariant::fromValue(direction));
+}
+
+void Helper::onDockPreviewTooltip(QString tooltip,
+                                  WSurface *target,
+                                  QPoint pos,
+                                  ForeignToplevelV1::PreviewDirection direction)
+{
+    SurfaceWrapper *dockWrapper = m_rootSurfaceContainer->getSurface(target);
+    Q_ASSERT(dockWrapper);
+    QMetaObject::invokeMethod(m_dockPreview,
+                              "showTooltip",
+                              QVariant::fromValue(tooltip),
+                              QVariant::fromValue(dockWrapper),
+                              QVariant::fromValue(pos),
+                              QVariant::fromValue(direction));
+}
+
 void Helper::init()
 {
     auto engine = qmlEngine();
@@ -169,38 +388,9 @@ void Helper::init()
         m_seat->detachInputDevice(device);
     });
 
-    auto wOutputManager = m_server->attach<WOutputManagerV1>();
-    connect(m_backend, &WBackend::outputAdded, this, [this, wOutputManager](WOutput *output) {
-        allowNonDrmOutputAutoChangeMode(output);
-        Output *o;
-        if (m_mode == OutputMode::Extension || !m_rootSurfaceContainer->primaryOutput()) {
-            o = Output::create(output, qmlEngine(), this);
-            o->outputItem()->stackBefore(m_rootSurfaceContainer);
-            // TODO: 应该让helper发出Output的信号，每个需要output的单元单独connect。
-            m_rootSurfaceContainer->addOutput(o);
-        } else if (m_mode == OutputMode::Copy) {
-            o = Output::createCopy(output,
-                                   m_rootSurfaceContainer->primaryOutput(),
-                                   qmlEngine(),
-                                   this);
-        }
-
-        m_outputList.append(o);
-        enableOutput(output);
-        wOutputManager->newOutput(output);
-
-        m_lockScreen->addOutput(o);
-    });
-
-    connect(m_backend, &WBackend::outputRemoved, this, [this, wOutputManager](WOutput *output) {
-        auto index = indexOfOutput(output);
-        Q_ASSERT(index >= 0);
-        const auto o = m_outputList.takeAt(index);
-        wOutputManager->removeOutput(output);
-        m_rootSurfaceContainer->removeOutput(o);
-        m_lockScreen->removeOutput(o);
-        delete o;
-    });
+    m_outputManager = m_server->attach<WOutputManagerV1>();
+    connect(m_backend, &WBackend::outputAdded, this, &Helper::onOutputAdded);
+    connect(m_backend, &WBackend::outputRemoved, this, &Helper::onOutputRemoved);
 
     auto *xdgShell = m_server->attach<WXdgShell>();
     m_foreignToplevel = m_server->attach<WForeignToplevel>(xdgShell);
@@ -218,84 +408,10 @@ void Helper::init()
     auto *xdgOutputManager =
         m_server->attach<WXdgOutputManager>(m_rootSurfaceContainer->outputLayout());
 
-    connect(xdgShell, &WXdgShell::surfaceAdded, this, [this](WXdgSurface *surface) {
-        SurfaceWrapper *wrapper = nullptr;
-
-        if (surface->isToplevel()) {
-            wrapper = new SurfaceWrapper(qmlEngine(), surface, SurfaceWrapper::Type::XdgToplevel);
-            m_foreignToplevel->addSurface(surface);
-            m_treelandForeignToplevel->addSurface(wrapper);
-        } else {
-            wrapper = new SurfaceWrapper(qmlEngine(), surface, SurfaceWrapper::Type::XdgPopup);
-        }
-
-        wrapper->setNoDecoration(m_xdgDecorationManager->modeBySurface(surface->surface())
-                                 != WXdgDecorationManager::Server);
-
-        if (surface->isPopup()) {
-            auto parent = surface->parentSurface();
-            auto parentWrapper = m_rootSurfaceContainer->getSurface(parent);
-            parentWrapper->addSubSurface(wrapper);
-            m_popupContainer->addSurface(wrapper);
-            wrapper->setOwnsOutput(parentWrapper->ownsOutput());
-        } else {
-            auto updateSurfaceWithParentContainer = [this, wrapper, surface] {
-                if (wrapper->parentSurface())
-                    wrapper->parentSurface()->removeSubSurface(wrapper);
-                if (wrapper->container())
-                    wrapper->container()->removeSurface(wrapper);
-
-                if (auto parent = surface->parentSurface()) {
-                    auto parentWrapper = m_rootSurfaceContainer->getSurface(parent);
-                    auto container = parentWrapper->container();
-                    Q_ASSERT(container);
-                    parentWrapper->addSubSurface(wrapper);
-                    container->addSurface(wrapper);
-                } else {
-                    m_workspace->addSurface(wrapper);
-                }
-            };
-
-            surface->safeConnect(&WXdgSurface::parentXdgSurfaceChanged,
-                                 this,
-                                 updateSurfaceWithParentContainer);
-            updateSurfaceWithParentContainer();
-            connect(wrapper,
-                    &SurfaceWrapper::requestShowWindowMenu,
-                    m_windowMenu,
-                    [this, wrapper](QPoint pos) {
-                        QMetaObject::invokeMethod(m_windowMenu,
-                                                  "showWindowMenu",
-                                                  QVariant::fromValue(wrapper),
-                                                  QVariant::fromValue(pos));
-                    });
-        }
-
-        Q_ASSERT(wrapper->parentItem());
-    });
-    connect(xdgShell, &WXdgShell::surfaceRemoved, this, [this](WXdgSurface *surface) {
-        if (surface->isToplevel()) {
-            m_foreignToplevel->removeSurface(surface);
-            m_treelandForeignToplevel->removeSurface(m_rootSurfaceContainer->getSurface(surface));
-        }
-
-        m_rootSurfaceContainer->destroyForSurface(surface->surface());
-    });
-
-    connect(layerShell, &WLayerShell::surfaceAdded, this, [this](WLayerSurface *surface) {
-        auto wrapper = new SurfaceWrapper(qmlEngine(), surface, SurfaceWrapper::Type::Layer);
-        wrapper->setNoDecoration(true);
-        updateLayerSurfaceContainer(wrapper);
-
-        connect(surface, &WLayerSurface::layerChanged, this, [this, wrapper] {
-            updateLayerSurfaceContainer(wrapper);
-        });
-        Q_ASSERT(wrapper->parentItem());
-    });
-
-    connect(layerShell, &WLayerShell::surfaceRemoved, this, [this](WLayerSurface *surface) {
-        m_rootSurfaceContainer->destroyForSurface(surface->surface());
-    });
+    connect(xdgShell, &WXdgShell::surfaceAdded, this, &Helper::onXdgSurfaceAdded);
+    connect(xdgShell, &WXdgShell::surfaceRemoved, this, &Helper::onXdgSurfaceRemoved);
+    connect(layerShell, &WLayerShell::surfaceAdded, this, &Helper::onLayerSurfaceAdded);
+    connect(layerShell, &WLayerShell::surfaceRemoved, this, &Helper::onLayerSurfaceRemoved);
 
     m_server->attach<PrimaryOutputV1>();
     m_wallpaperColorV1 = m_server->attach<WallpaperColorV1>();
@@ -371,34 +487,17 @@ void Helper::init()
     connect(m_inputMethodHelper,
             &WInputMethodHelper::inputPopupSurfaceV2Added,
             this,
-            [this](WInputPopupSurface *inputPopup) {
-                auto wrapper =
-                    new SurfaceWrapper(qmlEngine(), inputPopup, SurfaceWrapper::Type::InputPopup);
-                auto parent = inputPopup->parentSurface();
-                auto parentWrapper = m_rootSurfaceContainer->getSurface(parent);
-                parentWrapper->addSubSurface(wrapper);
-                m_popupContainer->addSurface(wrapper);
-                wrapper->setOwnsOutput(parentWrapper->ownsOutput());
-                Q_ASSERT(wrapper->parentItem());
-            });
-
+            &Helper::onInputPopupSurfaceV2Added);
     connect(m_inputMethodHelper,
             &WInputMethodHelper::inputPopupSurfaceV2Removed,
             this,
-            [this](WInputPopupSurface *inputPopup) {
-                m_rootSurfaceContainer->destroyForSurface(inputPopup->surface());
-            });
+            &Helper::onInputPopupSurfaceV2Removed);
 
     m_xdgDecorationManager = m_server->attach<WXdgDecorationManager>();
     connect(m_xdgDecorationManager,
             &WXdgDecorationManager::surfaceModeChanged,
             this,
-            [this](WSurface *surface, WXdgDecorationManager::DecorationMode mode) {
-                auto s = m_rootSurfaceContainer->getSurface(surface);
-                if (!s)
-                    return;
-                s->setNoDecoration(mode != WXdgDecorationManager::Server);
-            });
+            &Helper::onSurfaceModeChanged);
 
     bool freezeClientWhenDisable = false;
     m_socket = new WSocket(freezeClientWhenDisable);
@@ -415,59 +514,12 @@ void Helper::init()
     connect(gammaControlManager,
             &qw_gamma_control_manager_v1::notify_set_gamma,
             this,
-            [this](wlr_gamma_control_manager_v1_set_gamma_event *event) {
-                auto *qwOutput = qw_output::from(event->output);
-                auto *wOutput = WOutput::fromHandle(qwOutput);
-                size_t ramp_size = 0;
-                uint16_t *r = nullptr, *g = nullptr, *b = nullptr;
-                wlr_gamma_control_v1 *gamma_control = event->control;
-                if (gamma_control) {
-                    ramp_size = gamma_control->ramp_size;
-                    r = gamma_control->table;
-                    g = gamma_control->table + gamma_control->ramp_size;
-                    b = gamma_control->table + 2 * gamma_control->ramp_size;
-                }
-                if (!wOutput->setGammaLut(ramp_size, r, g, b)) {
-                    qWarning() << "Failed to set gamma lut!";
-                    // TODO: use software impl it.
-                    qw_gamma_control_v1::from(gamma_control)->send_failed_and_destroy();
-                }
-            });
+            &Helper::setGamma);
 
-    connect(wOutputManager,
+    connect(m_outputManager,
             &WOutputManagerV1::requestTestOrApply,
             this,
-            [this, wOutputManager](qw_output_configuration_v1 *config, bool onlyTest) {
-                QList<WOutputState> states = wOutputManager->stateListPending();
-                bool ok = true;
-                for (auto state : std::as_const(states)) {
-                    WOutput *output = state.output;
-                    output->enable(state.enabled);
-                    if (state.enabled) {
-                        if (state.mode)
-                            output->setMode(state.mode);
-                        else
-                            output->setCustomMode(state.customModeSize, state.customModeRefresh);
-
-                        output->enableAdaptiveSync(state.adaptiveSyncEnabled);
-                        if (!onlyTest) {
-                            WOutputViewport *viewport = getOutput(output)->screenViewport();
-                            if (viewport) {
-                                viewport->rotateOutput(state.transform);
-                                viewport->setOutputScale(state.scale);
-                                viewport->setX(state.x);
-                                viewport->setY(state.y);
-                            }
-                        }
-                    }
-
-                    if (onlyTest)
-                        ok &= output->test();
-                    else
-                        ok &= output->commit();
-                }
-                wOutputManager->sendResult(config, ok);
-            });
+            &Helper::onOutputTestOrApply);
 
     m_server->attach<WCursorShapeManagerV1>();
     qw_fractional_scale_manager_v1::create(*m_server->handle(), WLR_FRACTIONAL_SCALE_V1_VERSION);
@@ -478,37 +530,12 @@ void Helper::init()
 
     connect(m_treelandForeignToplevel,
             &ForeignToplevelV1::requestDockPreview,
-            m_dockPreview,
-            [this](std::vector<SurfaceWrapper *> surfaces,
-                   WSurface *target,
-                   QPoint pos,
-                   ForeignToplevelV1::PreviewDirection direction) {
-                SurfaceWrapper *dockWrapper = m_rootSurfaceContainer->getSurface(target);
-                Q_ASSERT(dockWrapper);
-
-                QMetaObject::invokeMethod(m_dockPreview,
-                                          "show",
-                                          QVariant::fromValue(surfaces),
-                                          QVariant::fromValue(dockWrapper),
-                                          QVariant::fromValue(pos),
-                                          QVariant::fromValue(direction));
-            });
+            this,
+            &Helper::onDockPreview);
     connect(m_treelandForeignToplevel,
             &ForeignToplevelV1::requestDockPreviewTooltip,
-            m_dockPreview,
-            [this](QString tooltip,
-                   WSurface *target,
-                   QPoint pos,
-                   ForeignToplevelV1::PreviewDirection direction) {
-                SurfaceWrapper *dockWrapper = m_rootSurfaceContainer->getSurface(target);
-                Q_ASSERT(dockWrapper);
-                QMetaObject::invokeMethod(m_dockPreview,
-                                          "showTooltip",
-                                          QVariant::fromValue(tooltip),
-                                          QVariant::fromValue(dockWrapper),
-                                          QVariant::fromValue(pos),
-                                          QVariant::fromValue(direction));
-            });
+            this,
+            &Helper::onDockPreviewTooltip);
 
     connect(m_treelandForeignToplevel,
             &ForeignToplevelV1::requestDockClose,
@@ -694,8 +721,11 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *, QInputEvent *event)
     return false;
 }
 
-bool Helper::afterHandleEvent(
-    [[maybe_unused]]WSeat *seat, WSurface *watched, QObject *surfaceItem, QObject *, QInputEvent *event)
+bool Helper::afterHandleEvent([[maybe_unused]] WSeat *seat,
+                              WSurface *watched,
+                              QObject *surfaceItem,
+                              QObject *,
+                              QInputEvent *event)
 {
     if (event->isSinglePointEvent() && static_cast<QSinglePointEvent *>(event)->isBeginEvent()) {
         // surfaceItem is qml type: XdgSurfaceItem or LayerSurfaceItem
