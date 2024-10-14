@@ -182,12 +182,12 @@ Item {
     function previous() {
         var previousIndex = (switchView.currentIndex - 1 + switchView.count) % switchView.count
         switchView.currentIndex = previousIndex
-        Helper.activeSurface(switchView.currentItem.surface, Qt.BacktabFocusReason)
+        Helper.activateSurface(switchView.currentItem.surface, Qt.BacktabFocusReason)
     }
 
     function next() {
         var nextIndex = (switchView.currentIndex + 1) % switchView.count
         switchView.currentIndex = nextIndex
-        Helper.activeSurface(switchView.currentItem.surface, Qt.TabFocusReason)
+        Helper.activateSurface(switchView.currentItem.surface, Qt.TabFocusReason)
     }
 }

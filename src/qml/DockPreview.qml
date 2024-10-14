@@ -76,7 +76,7 @@ Item {
 
         function activateWindow(surfaceWrapper) {
             console.debug(qLcDockPreview, "activate preview window: ", surfaceWrapper)
-            Helper.activeSurface(surfaceWrapper)
+            Helper.activateSurface(surfaceWrapper)
             ForeignToplevelV1.leaveDockPreview(root.target.shellSurface.surface)
             root.close();
         }
