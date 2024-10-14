@@ -71,6 +71,7 @@ class LockScreen;
 class ShortcutV1;
 class PersonalizationV1;
 class WallpaperColorV1;
+class WindowManagementV1;
 
 class Helper : public WSeatEventFilter
 {
@@ -161,6 +162,7 @@ private Q_SLOTS:
                               WSurface *target,
                               QPoint pos,
                               ForeignToplevelV1::PreviewDirection direction);
+    void onShowDesktop();
 
 private:
     void allowNonDrmOutputAutoChangeMode(WOutput *output);
@@ -214,6 +216,7 @@ private:
     PersonalizationV1 *m_personalization = nullptr;
     WallpaperColorV1 *m_wallpaperColorV1 = nullptr;
     WOutputManagerV1 *m_outputManager = nullptr;
+    WindowManagementV1 *m_windowManagement = nullptr;
 
     // private data
     QList<Output *> m_outputList;
