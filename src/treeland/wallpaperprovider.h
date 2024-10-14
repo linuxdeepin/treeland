@@ -2,7 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #pragma once
+
+#include <wglobal.h>
+
 #include <QQuickImageProvider>
+
+WAYLIB_SERVER_BEGIN_NAMESPACE
+class WOutput;
+WAYLIB_SERVER_END_NAMESPACE
 
 class WallpaperImageProvider;
 
@@ -32,6 +39,8 @@ private:
     WallpaperImageProvider *m_wallpaperProvider = nullptr;
 };
 
+class WorkspaceModel;
+
 class WallpaperImageProvider : public QQuickImageProvider
 {
     Q_OBJECT
@@ -44,12 +53,15 @@ public:
                                          const QSize &requestedSize) override;
     QSGTexture *getExistTexture(const QString &id) const;
 
+    QString source(WAYLIB_SERVER_NAMESPACE::WOutput *output, WorkspaceModel *workspace);
+
 private:
     QImage loadFile(const QString &path, const QSize &requestedSize);
     QString parseFilePath(const QString &id);
+    QString source(const QString &output, const QString &workspace);
 
 Q_SIGNALS:
-    void wallpaperTextureUpdate(const QString &id, int size);
+    void wallpaperTextureUpdate(const QString &id);
 
 private:
     QHash<QString, QPointer<QQuickTextureFactory>> textureCache;

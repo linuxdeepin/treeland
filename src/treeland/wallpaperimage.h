@@ -48,7 +48,7 @@ Q_SIGNALS:
 
 protected:
     void updateSource();
-    void updateWallpaperTexture(const QString &id, int size);
+    void updateWallpaperTexture(const QString &id);
 
 private:
     int m_userId = -1;
