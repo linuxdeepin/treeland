@@ -13,10 +13,6 @@
 #include <QDebug>
 #include <QQmlInfo>
 
-extern "C" {
-#include <wayland-server-core.h>
-}
-
 WallpaperColorV1::WallpaperColorV1(QObject *parent)
     : QObject(parent)
 {
