@@ -5,6 +5,10 @@
 
 #include "helper.h"
 #include "personalizationmanager.h"
+#include "workspace.h"
+#include "workspacemodel.h"
+
+#include <woutput.h>
 
 #include <QDir>
 #include <QFileInfo>
@@ -12,6 +16,29 @@
 #include <QQuickWindow>
 #include <QSGTexture>
 #include <QStandardPaths>
+
+struct WallpaperData
+{
+    QString uid;
+    QString output;
+    QString workspace;
+
+    static WallpaperData fromString(const QString &id)
+    {
+        const QStringList components = id.split("/");
+        if (components.size() != 3) {
+            return WallpaperData{};
+        }
+
+        return WallpaperData{
+            .uid = components[0],
+            .output = components[1],
+            .workspace = components[2],
+        };
+    }
+
+    QString toString() { return uid + "/" + output + "/" + workspace; }
+};
 
 WallpaperTextureFactory::WallpaperTextureFactory(WallpaperImageProvider *provider,
                                                  const QImage &image)
@@ -50,6 +77,14 @@ QSGTexture *WallpaperTextureFactory::createTexture(QQuickWindow *window) const
 WallpaperImageProvider::WallpaperImageProvider()
     : QQuickImageProvider(QQuickImageProvider::Texture)
 {
+    auto *personalization = Helper::instance()->personalization();
+    connect(personalization,
+            &PersonalizationV1::backgroundChanged,
+            this,
+            [this](const QString &output) {
+                auto *workspace = Helper::instance()->workspace();
+                Q_EMIT wallpaperTextureUpdate(source(output, workspace->current()->name()));
+            });
 }
 
 WallpaperImageProvider::~WallpaperImageProvider()
@@ -80,33 +115,32 @@ QSGTexture *WallpaperImageProvider::getExistTexture(const QString &id) const
     return nullptr;
 }
 
+QString WallpaperImageProvider::source(WAYLIB_SERVER_NAMESPACE::WOutput *output,
+                                       WorkspaceModel *workspace)
+{
+    if (output && workspace) {
+        return source(output->name(), workspace->name());
+    }
+
+    return {};
+}
+
+QString WallpaperImageProvider::source(const QString &output, const QString &workspace)
+{
+    WallpaperData data{
+        .uid = QString::number(Helper::instance()->currentUserId()),
+        .output = output,
+        .workspace = workspace,
+    };
+
+    return "image://wallpaper/" + data.toString();
+}
+
 QString WallpaperImageProvider::parseFilePath(const QString &id)
 {
-    QStringList components = id.split("/");
-    QString home = QStandardPaths::writableLocation(QStandardPaths::HomeLocation);
-    QString local_path = QString("%1/.cache/treeland/wallpaper/%2/%3/%4/")
-                             .arg(home)
-                             .arg(components[0])
-                             .arg(components[1])
-                             .arg(components[2]);
-
-    QDir dir(local_path);
-    QFileInfo fi;
-    QString img_path;
-    if (dir.exists()) {
-        dir.setFilter(QDir::Files | QDir::NoDotAndDotDot);
-        QFileInfoList filelist = dir.entryInfoList();
-
-        fi = filelist.first();
-        img_path = fi.absoluteFilePath();
-    }
-
-    if (!(fi.exists() && fi.isFile())) {
-        auto *personalization = Helper::instance()->personalization();
-        img_path = personalization->background("");
-    }
-
-    return img_path;
+    // NOTE: Query the actual wallpaper data from the protocol implementation
+    auto *personalization = Helper::instance()->personalization();
+    return personalization->background(WallpaperData::fromString(id).output);
 }
 
 QQuickTextureFactory *WallpaperImageProvider::requestTexture(const QString &id,
@@ -146,7 +180,7 @@ QQuickTextureFactory *WallpaperImageProvider::requestTexture(const QString &id,
 
     if (factory) {
         textureCache.insert(img_path, factory);
-        Q_EMIT wallpaperTextureUpdate(img_path, readSize.width() * readSize.height());
+        Q_EMIT wallpaperTextureUpdate(id);
     }
 
     return factory;

@@ -173,7 +173,7 @@ void PersonalizationV1::setBoth(const QString &path, const QString &group, int i
                     m_currentOutput,
                     group,
                     index,
-                    PersonalizationWallpaper::options_lockscreen
+                    PersonalizationWallpaper::options_background
                         | PersonalizationWallpaper::options_lockscreen);
 }
 

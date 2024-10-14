@@ -433,6 +433,7 @@ void Helper::init()
     m_server->attach<DDEShellV1>();
     m_server->attach<CaptureManagerV1>();
     m_personalization = m_server->attach<PersonalizationV1>();
+    m_personalization->setUserId(m_currentUserId);
 
     connect(
         this,
@@ -443,14 +444,12 @@ void Helper::init()
         },
         Qt::QueuedConnection);
 
-    connect(
-        m_personalization,
-        &PersonalizationV1::backgroundChanged,
-        this,
-        [this](const QString &output, bool isdark) {
-            m_wallpaperColorV1->updateWallpaperColor(output, isdark);
-        });
-    connect(m_windowManagement, &WindowManagementV1::desktopStateChanged, this, &Helper::onShowDesktop);
+    connect(m_personalization,
+            &PersonalizationV1::backgroundChanged,
+            this,
+            [this](const QString &output, bool isdark) {
+                m_wallpaperColorV1->updateWallpaperColor(output, isdark);
+            });
 
     qmlRegisterUncreatableType<Personalization>("Treeland.Protocols",
                                                 1,
