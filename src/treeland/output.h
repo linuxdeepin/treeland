@@ -91,7 +91,9 @@ private:
     Output *m_proxy = nullptr;
     SurfaceFilterModel *minimizedSurfaces;
     QPointer<QQuickItem> m_taskBar;
+#ifdef QT_DEBUG
     QPointer<QQuickItem> m_menuBar;
+#endif
     WOutputViewport *m_outputViewport = nullptr;
 
     QMargins m_exclusiveZone;

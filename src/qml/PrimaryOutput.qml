@@ -125,21 +125,6 @@ OutputItem {
         ]
     }
 
-    Text {
-        anchors.centerIn: parent
-        text: "'Ctrl+Q' quit"
-        font.pointSize: 40
-        color: "white"
-
-        SequentialAnimation on rotation {
-            id: ani
-            running: true
-            PauseAnimation { duration: 1500 }
-            NumberAnimation { from: 0; to: 360; duration: 5000; easing.type: Easing.InOutCubic }
-            loops: Animation.Infinite
-        }
-    }
-
     function setTransform(transform) {
         screenViewport.rotationOutput(transform)
     }
