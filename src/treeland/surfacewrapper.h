@@ -24,7 +24,7 @@ class SurfaceWrapper : public QQuickItem
     QML_ELEMENT
     QML_UNCREATABLE("SurfaceWrapper objects are created by c++")
     Q_PROPERTY(Type type READ type CONSTANT)
-    // make to readonly
+    // make to read only
     Q_PROPERTY(qreal implicitWidth READ implicitWidth NOTIFY implicitWidthChanged FINAL)
     Q_PROPERTY(qreal implicitHeight READ implicitHeight NOTIFY implicitHeightChanged FINAL)
     Q_PROPERTY(WAYLIB_SERVER_NAMESPACE::WSurface* surface READ surface CONSTANT)
