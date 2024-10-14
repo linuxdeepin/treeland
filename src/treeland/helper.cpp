@@ -367,6 +367,18 @@ void Helper::onDockPreviewTooltip(QString tooltip,
                               QVariant::fromValue(direction));
 }
 
+void Helper::onShowDesktop()
+{
+    WindowManagementV1::DesktopState s = m_windowManagement->desktopState();
+    if (s == WindowManagementV1::DesktopState::Normal || s == WindowManagementV1::DesktopState::Show) {
+        const auto &surfaceList = workspace()->surfaces();
+        for (auto surface : surfaceList) {
+            surface->setOpacity(s == WindowManagementV1::DesktopState::Normal);
+            surface->startShowAnimation(s == WindowManagementV1::DesktopState::Normal);
+        }
+    }
+}
+
 void Helper::init()
 {
     auto engine = qmlEngine();
@@ -415,7 +427,7 @@ void Helper::init()
 
     m_server->attach<PrimaryOutputV1>();
     m_wallpaperColorV1 = m_server->attach<WallpaperColorV1>();
-    m_server->attach<WindowManagementV1>();
+    m_windowManagement = m_server->attach<WindowManagementV1>();
     m_server->attach<VirtualOutputV1>();
     m_shortcut = m_server->attach<ShortcutV1>();
     m_server->attach<DDEShellV1>();
@@ -438,6 +450,7 @@ void Helper::init()
         [this](const QString &output, bool isdark) {
             m_wallpaperColorV1->updateWallpaperColor(output, isdark);
         });
+    connect(m_windowManagement, &WindowManagementV1::desktopStateChanged, this, &Helper::onShowDesktop);
 
     qmlRegisterUncreatableType<Personalization>("Treeland.Protocols",
                                                 1,

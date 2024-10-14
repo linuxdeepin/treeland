@@ -683,6 +683,26 @@ void SurfaceWrapper::startMinimizeAnimation(const QRectF &iconGeometry, uint dir
     Q_ASSERT(ok);
 }
 
+void SurfaceWrapper::onShowAnimationFinished()
+{
+    Q_ASSERT(m_ShowAnimation);
+    m_ShowAnimation->deleteLater();
+}
+
+void SurfaceWrapper::startShowAnimation(bool show)
+{
+    if (m_ShowAnimation)
+        return;
+
+    m_ShowAnimation =
+        m_engine->createShowDesktopAnimation(this, container(), show);
+
+    bool ok = connect(m_ShowAnimation, SIGNAL(finished()), this, SLOT(onShowAnimationFinished()));
+    Q_ASSERT(ok);
+    ok = QMetaObject::invokeMethod(m_ShowAnimation, "start");
+    Q_ASSERT(ok);
+}
+
 qreal SurfaceWrapper::radius() const
 {
     return m_radius;
