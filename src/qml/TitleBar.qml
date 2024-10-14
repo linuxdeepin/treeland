@@ -32,7 +32,7 @@ Item {
             if (button === Qt.RightButton) {
                 surface.requestShowWindowMenu(eventPoint.position)
             } else {
-                Helper.activeSurface(surface)
+                Helper.activateSurface(surface)
             }
         }
         onPressedChanged: {
