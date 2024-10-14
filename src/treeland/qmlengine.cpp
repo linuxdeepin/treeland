@@ -31,6 +31,7 @@ QmlEngine::QmlEngine(QObject *parent)
     , lockScreenComponent(this, "Treeland.Greeter", "Greeter")
     , dockPreviewComponent(this, "Treeland", "DockPreview")
     , minimizeAnimationComponent(this, "Treeland", "MinimizeAnimation")
+    , showDesktopAnimatioComponentn(this, "Treeland", "ShowDesktopAnimation")
 {
 }
 
@@ -258,6 +259,24 @@ QQuickItem *QmlEngine::createMinimizeAnimation(SurfaceWrapper *surface,
     item->setParent(parent);
     item->setParentItem(parent);
     minimizeAnimationComponent.completeCreate();
+
+    return item;
+}
+
+QQuickItem *QmlEngine::createShowDesktopAnimation(SurfaceWrapper *surface, QQuickItem *parent, bool show)
+{
+    auto context = qmlContext(parent);
+    auto obj = showDesktopAnimatioComponentn.beginCreate(context);
+    showDesktopAnimatioComponentn.setInitialProperties(obj,
+                                                       {
+                                                           { "target", QVariant::fromValue(surface) },
+                                                           { "showDesktop", QVariant::fromValue(show) },
+                                                       });
+    auto item = qobject_cast<QQuickItem *>(obj);
+    Q_ASSERT(item);
+    item->setParent(parent);
+    item->setParentItem(parent);
+    showDesktopAnimatioComponentn.completeCreate();
 
     return item;
 }

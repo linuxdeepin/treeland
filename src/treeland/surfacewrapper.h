@@ -233,6 +233,8 @@ private:
     void updateExplicitAlwaysOnTop();
     void startMinimizeAnimation(const QRectF &iconGeometry, uint direction);
     Q_SLOT void onMinimizeAnimationFinished();
+    void startShowAnimation(bool show);
+    Q_SLOT void onShowAnimationFinished();
 
     QmlEngine *m_engine;
     QPointer<SurfaceContainer> m_container;
@@ -256,6 +258,7 @@ private:
     QRectF m_pendingGeometry;
     QPointer<QQuickItem> m_NewAnimation;
     QPointer<QQuickItem> m_MinimizeAnimation;
+    QPointer<QQuickItem> m_ShowAnimation;
     Q_OBJECT_BINDABLE_PROPERTY_WITH_ARGS(SurfaceWrapper,
                                          SurfaceWrapper::State,
                                          m_previousSurfaceState,

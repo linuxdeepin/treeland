@@ -51,8 +51,8 @@ public:
                                         QQuickItem *parent,
                                         const QRectF &iconGeometry,
                                         uint direction);
-
     QQuickItem *createDockPreview(QObject *parent);
+    QQuickItem *createShowDesktopAnimation(SurfaceWrapper *surface, QQuickItem *parent, bool show);
 
     QQmlComponent *surfaceContentComponent() { return &surfaceContent; }
 
@@ -74,5 +74,6 @@ private:
     QQmlComponent lockScreenComponent;
     QQmlComponent dockPreviewComponent;
     QQmlComponent minimizeAnimationComponent;
+    QQmlComponent showDesktopAnimatioComponentn;
     WallpaperImageProvider *wallpaperProvider = nullptr;
 };
