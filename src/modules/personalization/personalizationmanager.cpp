@@ -66,30 +66,6 @@ QString PersonalizationV1::readWallpaperSettings(const QString &group, const QSt
     return settings.value(group + "/" + output, DEFAULT_WALLPAPER).toString();
 }
 
-void PersonalizationV1::saveWallpaperSettings(const QString &current,
-                                              personalization_wallpaper_context_v1 *context)
-{
-    if (m_settingFile.isEmpty() || context == nullptr)
-        return;
-
-    QSettings settings(m_settingFile, QSettings::IniFormat);
-
-    if (context->options & TREELAND_PERSONALIZATION_WALLPAPER_CONTEXT_V1_OPTIONS_BACKGROUND) {
-        settings.setValue(QString("background/%1").arg(context->output_name), current);
-        settings.setValue(QString("background/%1/isdark").arg(context->output_name),
-                          context->isdark);
-    }
-
-    if (context->options & TREELAND_PERSONALIZATION_WALLPAPER_CONTEXT_V1_OPTIONS_LOCKSCREEN) {
-        settings.setValue(QString("lockscreen/%1").arg(context->output_name), current);
-        settings.setValue(QString("lockscreen/%1/isdark").arg(context->output_name),
-                          context->isdark);
-    }
-
-    settings.setValue("metadata", context->meta_data);
-    m_iniMetaData = context->meta_data;
-}
-
 PersonalizationV1::PersonalizationV1(QObject *parent)
     : QObject(parent)
     , m_dconfig(DConfig::create("org.deepin.treeland", "org.deepin.treeland", QString()))
@@ -185,24 +161,27 @@ void PersonalizationV1::onAppearanceContextCreated(personalization_appearance_co
     context->blockSignals(false);
 }
 
-void PersonalizationV1::writeContext(personalization_wallpaper_context_v1 *context,
-                                     const QByteArray &data,
-                                     const QString &dest)
-{
-    QFile dest_file(dest);
-    if (dest_file.open(QIODevice::WriteOnly)) {
-        dest_file.write(data);
-        dest_file.close();
-
-        saveWallpaperSettings(dest, context);
-    }
-}
-
 void PersonalizationV1::saveImage(personalization_wallpaper_context_v1 *context,
                                   const QString &prefix)
 {
-    if (!context || context->fd == -1)
+    if (!context || context->fd == -1 || m_settingFile.isEmpty()) {
         return;
+    }
+
+    QDir dir(m_cacheDirectory);
+    if (!dir.exists()) {
+        dir.mkpath(m_cacheDirectory);
+    }
+
+    QString output = context->output_name;
+    if (output.isEmpty()) {
+        for (QScreen *screen : QGuiApplication::screens()) {
+            output = screen->name();
+            break;
+        }
+    }
+
+    QString dest = m_cacheDirectory + prefix + "_" + output;
 
     QFile src_file;
     if (!src_file.open(context->fd, QIODevice::ReadOnly))
@@ -211,21 +190,20 @@ void PersonalizationV1::saveImage(personalization_wallpaper_context_v1 *context,
     QByteArray data = src_file.readAll();
     src_file.close();
 
-    QDir dir(m_cacheDirectory);
-    if (!dir.exists()) {
-        dir.mkpath(m_cacheDirectory);
+    QFile dest_file(dest);
+    if (dest_file.open(QIODevice::WriteOnly)) {
+        dest_file.write(data);
+        dest_file.close();
     }
 
-    QString dest = m_cacheDirectory + prefix + "_" + context->output_name;
-    if (context->output_name.isEmpty()) {
-        for (QScreen *screen : QGuiApplication::screens()) {
-            context->output_name = screen->name();
-            dest = m_cacheDirectory + prefix + "_" + screen->name();
-            writeContext(context, data, dest);
-        }
-    } else {
-        writeContext(context, data, dest);
-    }
+    QSettings settings(m_settingFile, QSettings::IniFormat);
+
+    settings.setValue(QString("%1/%2").arg(prefix).arg(context->output_name), dest);
+    settings.setValue(QString("%1/%2/isdark").arg(prefix).arg(context->output_name),
+                      context->isdark);
+
+    settings.setValue("metadata", context->meta_data);
+    m_iniMetaData = context->meta_data;
 }
 
 void PersonalizationV1::onWallpaperCommit(personalization_wallpaper_context_v1 *context)
