@@ -1,4 +1,4 @@
-find_package(Qt6 REQUIRED COMPONENTS Core WaylandClient)
+find_package(Qt6 REQUIRED COMPONENTS Core Gui WaylandClient)
 
 set(BIN_NAME test-wallpaper-color)
 
@@ -15,8 +15,6 @@ target_link_libraries(${BIN_NAME}
     PRIVATE
         Qt6::Gui
         Qt6::WaylandClient
-        Qt6::GuiPrivate
-        Qt6::WaylandClientPrivate
 )
 
 install(TARGETS ${BIN_NAME} RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}")

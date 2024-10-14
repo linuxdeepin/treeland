@@ -298,7 +298,7 @@ void Helper::init()
     });
 
     m_server->attach<PrimaryOutputV1>();
-    m_server->attach<WallpaperColorV1>();
+    m_wallpaperColorV1 = m_server->attach<WallpaperColorV1>();
     m_server->attach<WindowManagementV1>();
     m_server->attach<VirtualOutputV1>();
     m_shortcut = m_server->attach<ShortcutV1>();
@@ -314,6 +314,14 @@ void Helper::init()
             m_personalization->setUserId(m_currentUserId);
         },
         Qt::QueuedConnection);
+
+    connect(
+        m_personalization,
+        &PersonalizationV1::backgroundChanged,
+        this,
+        [this](const QString &output, bool isdark) {
+            m_wallpaperColorV1->updateWallpaperColor(output, isdark);
+        });
 
     qmlRegisterUncreatableType<Personalization>("Treeland.Protocols",
                                                 1,
