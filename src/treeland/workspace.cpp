@@ -17,7 +17,7 @@ Workspace::Workspace(SurfaceContainer *parent)
     m_showOnAllWorkspaceModel = new WorkspaceModel(this, ShowOnAllWorkspaceIndex);
     m_showOnAllWorkspaceModel->setName("show-on-all-workspace");
     m_showOnAllWorkspaceModel->setVisible(true);
-    // TODO: save and restore workpsace's name from local storage
+    // TODO: save and restore workspace's name from local storage
     createModel(QStringLiteral("workspace-%1").arg(++workspaceGlobalIndex), true);
     createModel(QStringLiteral("workspace-%1").arg(++workspaceGlobalIndex));
 }

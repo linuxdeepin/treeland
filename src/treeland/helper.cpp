@@ -686,11 +686,8 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *, QInputEvent *event)
     return false;
 }
 
-bool Helper::afterHandleEvent([[maybe_unused]] WSeat *seat,
-                              WSurface *watched,
-                              QObject *surfaceItem,
-                              QObject *,
-                              QInputEvent *event)
+bool Helper::afterHandleEvent(
+    [[maybe_unused]]WSeat *seat, WSurface *watched, QObject *surfaceItem, QObject *, QInputEvent *event)
 {
     if (event->isSinglePointEvent() && static_cast<QSinglePointEvent *>(event)->isBeginEvent()) {
         // surfaceItem is qml type: XdgSurfaceItem or LayerSurfaceItem
@@ -821,9 +818,9 @@ void Helper::enableOutput(WOutput *output)
     auto qwoutput = output->handle();
     // Don't care for WOutput::isEnabled, must do WOutput::commit here,
     // In order to ensure trigger QWOutput::frame signal, WOutputRenderWindow
-    // needs this signal to render next frmae. Because QWOutput::frame signal
+    // needs this signal to render next frame. Because QWOutput::frame signal
     // maybe emit before WOutputRenderWindow::attach, if no commit here,
-    // WOutputRenderWindow will ignore this ouptut on render.
+    // WOutputRenderWindow will ignore this output on render.
     if (!qwoutput->property("_Enabled").toBool()) {
         qwoutput->setProperty("_Enabled", true);
 
