@@ -109,8 +109,7 @@ Item {
                     height: root.height
 
                     onClicked: {
-                        Helper.activatedSurface = surface
-                        surface.requestMaximize(!surface.isMaximized)
+                        surface.requestToggleMaximize()
                     }
                 }
             }
