@@ -18,7 +18,7 @@ pkg_search_module(WAYLAND REQUIRED IMPORTED_TARGET wayland-server)
 
 add_subdirectory(modules)
 add_subdirectory(greeter)
-# add_subdirectory(treeland-wallpaper)
+add_subdirectory(treeland-wallpaper)
 add_subdirectory(treeland-shortcut)
 
 qt_add_dbus_adaptor(DBUS_ADAPTOR "${CMAKE_SOURCE_DIR}/misc/dbus/org.deepin.compositor1.xml" "treeland.h" TreeLand::TreeLand)

@@ -47,6 +47,9 @@ QuickPersonalizationManagerAttached *Personalization::qmlAttachedProperties(QObj
 void PersonalizationV1::updateCacheWallpaperPath(uid_t uid)
 {
     QString cache_location = QStandardPaths::writableLocation(QStandardPaths::CacheLocation);
+    if (!QDir(cache_location).exists()) {
+        cache_location = "/tmp/";
+    }
     m_cacheDirectory = cache_location + QString("/wallpaper/%1/").arg(uid);
     m_settingFile = m_cacheDirectory + "wallpaper.ini";
 
@@ -60,8 +63,7 @@ QString PersonalizationV1::readWallpaperSettings(const QString &group, const QSt
         return DEFAULT_WALLPAPER;
 
     QSettings settings(m_settingFile, QSettings::IniFormat);
-    QString value = settings.value(group + "/" + output, DEFAULT_WALLPAPER).toString();
-    return value == DEFAULT_WALLPAPER ? value : QString("file://%1").arg(value);
+    return settings.value(group + "/" + output, DEFAULT_WALLPAPER).toString();
 }
 
 void PersonalizationV1::saveWallpaperSettings(const QString &current,
@@ -80,7 +82,7 @@ void PersonalizationV1::saveWallpaperSettings(const QString &current,
 
     if (context->options & TREELAND_PERSONALIZATION_WALLPAPER_CONTEXT_V1_OPTIONS_LOCKSCREEN) {
         settings.setValue(QString("lockscreen/%1").arg(context->output_name), current);
-        settings.setValue(QString("background/%1/isdark").arg(context->output_name),
+        settings.setValue(QString("lockscreen/%1/isdark").arg(context->output_name),
                           context->isdark);
     }
 
@@ -193,7 +195,6 @@ void PersonalizationV1::writeContext(personalization_wallpaper_context_v1 *conte
         dest_file.close();
 
         saveWallpaperSettings(dest, context);
-        Q_EMIT backgroundChanged(context->output_name, context->isdark);
     }
 }
 
@@ -231,10 +232,12 @@ void PersonalizationV1::onWallpaperCommit(personalization_wallpaper_context_v1 *
 {
     if (context->options & TREELAND_PERSONALIZATION_WALLPAPER_CONTEXT_V1_OPTIONS_BACKGROUND) {
         saveImage(context, "background");
+        Q_EMIT backgroundChanged(context->output_name, context->isdark);
     }
 
     if (context->options & TREELAND_PERSONALIZATION_WALLPAPER_CONTEXT_V1_OPTIONS_LOCKSCREEN) {
         saveImage(context, "lockscreen");
+        Q_EMIT lockscreenChanged();
     }
 }
 

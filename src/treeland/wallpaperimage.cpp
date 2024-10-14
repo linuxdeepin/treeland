@@ -93,17 +93,13 @@ void WallpaperImage::updateSource()
         return;
     }
 
-    QStringList paras;
-    paras << QString::number(m_userId) << m_output->name() << m_workspace->name();
-    QString source = "image://wallpaper/" + paras.join("/");
-    setSource(source);
+    auto *provider = Helper::instance()->qmlEngine()->wallpaperImageProvider();
+    setSource(provider->source(m_output, m_workspace));
 }
 
-void WallpaperImage::updateWallpaperTexture(const QString &id, int size)
+void WallpaperImage::updateWallpaperTexture(const QString &id)
 {
-    QString item_id = source().toString().remove("image://wallpaper/");
-    int item_size = sourceSize().width() * sourceSize().height();
-    if (item_size < size && item_id == id) {
+    if (source().toString() == id) {
         load();
         update();
     }
