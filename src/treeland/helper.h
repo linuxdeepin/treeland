@@ -58,6 +58,7 @@ class ForeignToplevelV1;
 class LockScreen;
 class ShortcutV1;
 class PersonalizationV1;
+class WallpaperColorV1;
 
 class Helper : public WSeatEventFilter
 {
@@ -178,6 +179,7 @@ private:
     ForeignToplevelV1 *m_treelandForeignToplevel = nullptr;
     ShortcutV1 *m_shortcut = nullptr;
     PersonalizationV1 *m_personalization = nullptr;
+    WallpaperColorV1 *m_wallpaperColorV1 = nullptr;
 
     // private data
     QList<Output *> m_outputList;
