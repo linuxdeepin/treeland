@@ -48,9 +48,11 @@ Output *Output::create(WOutput *output, QQmlEngine *engine, QObject *parent)
     // o->m_taskBar = Helper::instance()->qmlEngine()->createTaskBar(o, contentItem);
     // o->m_taskBar->setZ(RootSurfaceContainer::TaskBarZOrder);
 
+#ifdef QT_DEBUG
     o->m_menuBar = Helper::instance()->qmlEngine()->createMenuBar(outputItem, contentItem);
     o->m_menuBar->setZ(RootSurfaceContainer::MenuBarZOrder);
     o->setExclusiveZone(Qt::TopEdge, o->m_menuBar, o->m_menuBar->height());
+#endif
 
     return o;
 }
@@ -95,10 +97,12 @@ Output::~Output()
         m_taskBar = nullptr;
     }
 
+#ifdef QT_DEBUG
     if (m_menuBar) {
         delete m_menuBar;
         m_menuBar = nullptr;
     }
+#endif
 
     if (m_item) {
         delete m_item;
