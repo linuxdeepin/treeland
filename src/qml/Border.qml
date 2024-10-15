@@ -17,7 +17,7 @@ Item {
 
         color: "transparent"
         border {
-            color: "yellow"
+            color: Qt.rgba(0, 0, 0, 0.1)
             width: 1
         }
         radius: root.radius + border.width
@@ -28,7 +28,7 @@ Item {
         anchors.fill: parent
         color: "transparent"
         border {
-            color: "green"
+            color: Qt.rgba(255, 255, 255, 0.1)
             width: 1
         }
         radius: root.radius
