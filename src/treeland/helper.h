@@ -5,6 +5,7 @@
 
 #include "foreigntoplevelmanagerv1.h"
 #include "qmlengine.h"
+#include "windowmanagement.h"
 
 #include <wglobal.h>
 #include <wqmlcreator.h>
@@ -217,6 +218,7 @@ private:
     WallpaperColorV1 *m_wallpaperColorV1 = nullptr;
     WOutputManagerV1 *m_outputManager = nullptr;
     WindowManagementV1 *m_windowManagement = nullptr;
+    WindowManagementV1::DesktopState m_showDesktop = WindowManagementV1::DesktopState::Normal;
 
     // private data
     QList<Output *> m_outputList;

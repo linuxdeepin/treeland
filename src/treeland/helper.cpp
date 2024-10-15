@@ -17,7 +17,6 @@
 #include "surfacewrapper.h"
 #include "virtualoutputmanager.h"
 #include "wallpapercolor.h"
-#include "windowmanagement.h"
 #include "workspace.h"
 
 #include <WBackend>
@@ -370,11 +369,20 @@ void Helper::onDockPreviewTooltip(QString tooltip,
 void Helper::onShowDesktop()
 {
     WindowManagementV1::DesktopState s = m_windowManagement->desktopState();
-    if (s == WindowManagementV1::DesktopState::Normal || s == WindowManagementV1::DesktopState::Show) {
-        const auto &surfaceList = workspace()->surfaces();
-        for (auto surface : surfaceList) {
-            surface->setOpacity(s == WindowManagementV1::DesktopState::Normal);
-            surface->startShowAnimation(s == WindowManagementV1::DesktopState::Normal);
+    if (m_showDesktop == s ||
+        (s !=WindowManagementV1::DesktopState::Normal
+         && s != WindowManagementV1::DesktopState::Show))
+        return;
+
+    m_showDesktop = s;
+    const auto &surfaceList = workspace()->surfaces();
+    for (auto surface : surfaceList) {
+        if (s == WindowManagementV1::DesktopState::Normal && !surface->opacity()) {
+            surface->setOpacity(1);
+            surface->startShowAnimation(true);
+        } else if (s == WindowManagementV1::DesktopState::Show && surface->opacity()) {
+            surface->setOpacity(0);
+            surface->startShowAnimation(false);
         }
     }
 }
@@ -450,6 +458,8 @@ void Helper::init()
             [this](const QString &output, bool isdark) {
                 m_wallpaperColorV1->updateWallpaperColor(output, isdark);
             });
+
+    connect(m_windowManagement, &WindowManagementV1::desktopStateChanged, this, &Helper::onShowDesktop);
 
     qmlRegisterUncreatableType<Personalization>("Treeland.Protocols",
                                                 1,
@@ -684,6 +694,15 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *, QInputEvent *event)
             metaKeyChecks = {}; // reset
             m_shortcut->triggerMetaKey(m_currentUserId);
         }
+
+        // ShowDesktop : Meta + D
+        if (e->type() == QKeyEvent::KeyRelease && e->key() == Qt::Key_D
+            && e->modifiers() == Qt::MetaModifier) {
+            if(m_showDesktop == WindowManagementV1::DesktopState::Normal)
+                m_windowManagement->setDesktopState(WindowManagementV1::DesktopState::Show);
+            else if (m_showDesktop == WindowManagementV1::DesktopState::Show)
+                m_windowManagement->setDesktopState(WindowManagementV1::DesktopState::Normal);
+        }
     }
     // FIXME: end
 
@@ -821,6 +840,8 @@ void Helper::setActivatedSurface(SurfaceWrapper *newActivateSurface)
     static QMetaObject::Connection invalidCheck;
     disconnect(invalidCheck);
     if (newActivateSurface) {
+        if (m_showDesktop == WindowManagementV1::DesktopState::Show)
+            m_showDesktop = WindowManagementV1::DesktopState::Normal;
         newActivateSurface->setActivate(true);
         invalidCheck =
             connect(newActivateSurface,
