@@ -668,6 +668,17 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *, QInputEvent *event)
         }
     }
 
+    // ShowDesktop : Meta + D
+    if (auto e = static_cast<QKeyEvent *>(event)) {
+        if (e->type() == QKeyEvent::KeyRelease && e->key() == Qt::Key_D
+            && e->modifiers() == Qt::MetaModifier) {
+            if(m_showDesktop == WindowManagementV1::DesktopState::Normal)
+                m_windowManagement->setDesktopState(WindowManagementV1::DesktopState::Show);
+            else if (m_showDesktop == WindowManagementV1::DesktopState::Show)
+                m_windowManagement->setDesktopState(WindowManagementV1::DesktopState::Normal);
+        }
+    }
+
     // FIXME: only one meta key
     // QEvent::ShortcutOverride QKeySequence("Meta")
     // QEvent::KeyPress QKeySequence("Meta+Meta")
@@ -693,15 +704,6 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *, QInputEvent *event)
                                     | ShortcutV1::MetaKeyCheck::KeyRelease)) {
             metaKeyChecks = {}; // reset
             m_shortcut->triggerMetaKey(m_currentUserId);
-        }
-
-        // ShowDesktop : Meta + D
-        if (e->type() == QKeyEvent::KeyRelease && e->key() == Qt::Key_D
-            && e->modifiers() == Qt::MetaModifier) {
-            if(m_showDesktop == WindowManagementV1::DesktopState::Normal)
-                m_windowManagement->setDesktopState(WindowManagementV1::DesktopState::Show);
-            else if (m_showDesktop == WindowManagementV1::DesktopState::Show)
-                m_windowManagement->setDesktopState(WindowManagementV1::DesktopState::Normal);
         }
     }
     // FIXME: end
