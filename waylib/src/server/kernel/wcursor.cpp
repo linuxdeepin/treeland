@@ -511,7 +511,7 @@ void WCursor::setSeat(WSeat *seat)
         connect(d->seat, &WSeat::requestCursorSurface, this, &WCursor::requestedCursorSurfaceChanged);
         connect(d->seat, &WSeat::requestDrag, this, &WCursor::requestedDragSurfaceChanged);
 
-        if (d->eventWindow) {
+        if (d->eventWindow && !d->deviceList.isEmpty()) {
             d->sendEnterEvent();
         }
     }

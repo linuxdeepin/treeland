@@ -114,14 +114,6 @@ void WSurfacePrivate::updateOutputs()
     updatePreferredBufferScale();
 }
 
-void WSurfacePrivate::setPrimaryOutput(WOutput *output)
-{
-    W_Q(WSurface);
-
-    primaryOutput = output;
-    Q_EMIT q->primaryOutputChanged();
-}
-
 void WSurfacePrivate::setBuffer(qw_buffer *newBuffer)
 {
     if (buffer) {
@@ -333,11 +325,6 @@ void WSurface::enterOutput(WOutput *output)
 
     d->updateOutputs();
 
-    if (!d->primaryOutput) {
-        d->primaryOutput = output;
-        Q_EMIT primaryOutputChanged();
-    }
-
     // for subsurface
     auto surface = d->nativeHandle();
     wlr_subsurface *subsurface;
@@ -362,11 +349,6 @@ void WSurface::leaveOutput(WOutput *output)
     output->safeDisconnect(this);
     d->updateOutputs();
 
-    if (d->primaryOutput == output) {
-        d->primaryOutput = d->outputs.isEmpty() ? nullptr : d->outputs.last();
-        Q_EMIT primaryOutputChanged();
-    }
-
     // for subsurface
     auto surface = d->nativeHandle();
     wlr_subsurface *subsurface;
@@ -381,16 +363,10 @@ void WSurface::leaveOutput(WOutput *output)
     Q_EMIT outputLeft(output);
 }
 
-QVector<WOutput *> WSurface::outputs() const
+const QVector<WOutput *> &WSurface::outputs() const
 {
     W_DC(WSurface);
     return d->outputs;
-}
-
-WOutput *WSurface::primaryOutput() const
-{
-    W_DC(WSurface);
-    return d->primaryOutput;
 }
 
 bool WSurface::isSubsurface() const

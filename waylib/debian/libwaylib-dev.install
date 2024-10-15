@@ -1,4 +1,4 @@
-usr/lib/*/lib*.so
 usr/include
-usr/lib/*/pkgconfig
 usr/lib/*/cmake
+usr/lib/*/lib*.so
+usr/lib/*/pkgconfig

@@ -70,8 +70,7 @@ void WXdgSurfaceItem::onSurfaceCommit()
     Q_D(WXdgSurfaceItem);
 
     WSurfaceItem::onSurfaceCommit();
-    if (auto popup = xdgSurface()->handle()->handle()->popup) {
-        Q_UNUSED(popup);
+    if (xdgSurface()->isPopup()) {
         d->setImplicitPosition(xdgSurface()->getPopupPosition());
     } else if (auto toplevel = xdgSurface()->handle()->handle()->toplevel) {
         const QSize minSize(getValidSize(toplevel->current.min_width, 0),

@@ -164,10 +164,9 @@ void WXdgSurfacePrivate::connect()
             }
         });
         QObject::connect(toplevel, &qw_xdg_toplevel::notify_request_minimize, q, [q, toplevel] () {
+            // Wayland clients can't request unset minimization on this surface
             if ((*toplevel)->requested.minimized) {
                 Q_EMIT q->requestMinimize();
-            } else {
-                Q_EMIT q->requestCancelMinimize();
             }
         });
         QObject::connect(toplevel, &qw_xdg_toplevel::notify_request_fullscreen, q, [q, toplevel] () {
@@ -212,10 +211,22 @@ bool WXdgSurface::isToplevel() const
     return d->isToplevel();
 }
 
-bool WXdgSurface::doesNotAcceptFocus() const
+bool WXdgSurface::hasCapability(Capability cap) const
 {
     W_DC(WXdgSurface);
-    return d->nativeHandle()->role == WLR_XDG_SURFACE_ROLE_NONE;
+    switch (cap) {
+        using enum Capability;
+    case Resize:
+        return d->nativeHandle()->role != WLR_XDG_SURFACE_ROLE_NONE;
+    case Focus:
+    case Activate:
+    case Maximized:
+    case FullScreen:
+        return isToplevel();
+    default:
+        break;
+    }
+    Q_UNREACHABLE();
 }
 
 WSurface *WXdgSurface::surface() const
@@ -370,8 +381,7 @@ WSurface *WXdgSurface::parentSurface() const
         return WSurface::fromHandle(parent->base->surface);
     } else if (isPopup()) {
         auto parent = d->nativeHandle()->popup->parent;
-        if (!parent)
-            return nullptr;
+        Q_ASSERT(parent);
         return WSurface::fromHandle(parent);
     }
     return nullptr;

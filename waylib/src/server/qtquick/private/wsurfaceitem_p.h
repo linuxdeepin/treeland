@@ -48,8 +48,10 @@ public:
                       paddings.top() + paddings.bottom());
     }
 
-    qreal getImplicitWidth() const override;
-    qreal getImplicitHeight() const override;
+    qreal calculateImplicitWidth() const;
+    qreal calculateImplicitHeight() const;
+    QRectF calculateBoundingRect() const;
+    void updateBoundingRect();
 
     inline WSurfaceItemContent *getItemContent() const {
         if (delegate || !contentContainer)
@@ -75,6 +77,7 @@ public:
     bool live = true;
 
     uint32_t beforeRequestResizeSurfaceStateSeq = 0;
+    QRectF boundingRect;
 };
 
 WAYLIB_SERVER_END_NAMESPACE

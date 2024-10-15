@@ -4,43 +4,12 @@
 #pragma once
 
 #include "woutputitem.h"
-
-#include <qwoutput.h>
-#include <qwtexture.h>
-
-#include <QQmlEngine>
-#include <QQuickTextureFactory>
-#include <private/qquickitem_p.h>
-
-Q_MOC_INCLUDE(<wcursor.h>)
+#include "wcursor.h"
 
 QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
-class WAYLIB_SERVER_EXPORT WOutputItemAttached : public QObject
-{
-    friend class WOutputItem;
-    Q_OBJECT
-    Q_PROPERTY(WAYLIB_SERVER_NAMESPACE::WOutputItem* item READ item NOTIFY itemChanged FINAL)
-    QML_ANONYMOUS
-
-public:
-    explicit WOutputItemAttached(QObject *parent = nullptr);
-
-    WOutputItem *item() const;
-
-Q_SIGNALS:
-    void itemChanged();
-
-private:
-    void setItem(WOutputItem *positioner);
-
-private:
-    WOutputItem *m_positioner = nullptr;
-};
-
-class WCursor;
-class Q_DECL_HIDDEN WOutputCursor : public QObject
+class WAYLIB_SERVER_EXPORT WOutputCursor : public QObject
 {
     friend class WOutputItem;
     friend class WOutputItemPrivate;

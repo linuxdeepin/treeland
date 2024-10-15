@@ -10,6 +10,9 @@ class Q_DECL_HIDDEN WOutputLayoutPrivate : public WObjectPrivate
 {
 public:
     WOutputLayoutPrivate(WOutputLayout *qq);
+    ~WOutputLayoutPrivate();
+
+    void doAdd(WOutput *output);
 
     W_DECLARE_PUBLIC(WOutputLayout)
 

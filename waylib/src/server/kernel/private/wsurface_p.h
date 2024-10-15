@@ -37,7 +37,6 @@ public:
     void connect();
     void instantRelease() override;    // release qwobject etc.
     void updateOutputs();
-    void setPrimaryOutput(WOutput *output);
     void setBuffer(QW_NAMESPACE::qw_buffer *newBuffer);
     void updateBuffer();
     void updateBufferOffset();
@@ -59,7 +58,6 @@ public:
 
     std::unique_ptr<QW_NAMESPACE::qw_buffer, QW_NAMESPACE::qw_buffer::unlocker> buffer;
     QVector<WOutput*> outputs;
-    WOutput *primaryOutput = nullptr;
     QMetaObject::Connection frameDoneConnection;
     QPoint bufferOffset;
 };

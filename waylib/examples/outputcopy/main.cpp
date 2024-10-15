@@ -210,7 +210,6 @@ int main(int argc, char *argv[]) {
     QGuiApplication app(argc, argv);
 
     QQmlApplicationEngine waylandEngine;
-    waylandEngine.loadFromModule("OutputCopy", "Main");
 
     Helper *helper = waylandEngine.singletonInstance<Helper*>("OutputCopy", "Helper");
     Q_ASSERT(helper);
@@ -222,7 +221,7 @@ int main(int argc, char *argv[]) {
         qw_output *newOutput = nullptr;
 
        if (auto x11 = qw_x11_backend::from(backend)) {
-            newOutput = qw_output::from(x11->output_create());
+           newOutput = qw_output::from(x11->output_create());
        } else if (auto wayland = qw_wayland_backend::from(backend)) {
            newOutput = qw_output::from(wayland->output_create());
        }

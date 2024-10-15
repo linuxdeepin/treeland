@@ -16,7 +16,7 @@
 , libinput
 , nixos-artwork
 
-# only for test 
+# only for test
 , makeTest ? null
 , pkgs ? null
 , waylib ? null
@@ -40,12 +40,6 @@ stdenv.mkDerivation (finalAttrs: {
     ];
   };
 
-  postPatch = ''
-    substituteInPlace examples/tinywl/OutputDelegate.qml \
-      --replace "/usr/share/wallpapers/deepin/desktop.jpg" \
-                "${nixos-artwork.wallpapers.simple-blue}/share/backgrounds/nixos/nix-wallpaper-simple-blue.png"
-  '';
-
   depsBuildBuild = [ pkg-config ];
 
   nativeBuildInputs = [
@@ -58,16 +52,13 @@ stdenv.mkDerivation (finalAttrs: {
   buildInputs = [
     qtbase
     qtquick3d
+    qwlroots
     wayland
     wayland-protocols
     wlr-protocols
     pixman
     libdrm
     libinput
-  ];
-
-  propagatedBuildInputs = [
-    qwlroots
   ];
 
   cmakeBuildType = if debug then "Debug" else "Release";

@@ -1,183 +1,185 @@
-// Copyright (C) 2023 JiDe Zhang <zhangjide@deepin.org>.
+// Copyright (C) 2024 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #pragma once
 
-#include <WSeat>
-#include <wxdgdecorationmanager.h>
-#include <WCursor>
-#include <WSurfaceItem>
-#include <WOutput>
-#include <WLayerSurface>
-#include <wtoplevelsurface.h>
-#include <wquickoutputlayout.h>
-#include <wxwayland.h>
-#include <winputmethodhelper.h>
-#include <wsocket.h>
+#include "qmlengine.h"
+#include "workspace.h"
+
+#include <wglobal.h>
 #include <wqmlcreator.h>
+#include <wseat.h>
 
-#include <QList>
+#include <QObject>
+#include <QQmlApplicationEngine>
 
-Q_DECLARE_OPAQUE_POINTER(QWindow*)
+Q_MOC_INCLUDE(<wtoplevelsurface.h>)
+Q_MOC_INCLUDE("surfacewrapper.h")
+
+QT_BEGIN_NAMESPACE
+class QQuickItem;
+QT_END_NAMESPACE
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
-class WQuickCursor;
+class WServer;
 class WOutputRenderWindow;
-class WXdgOutputManager;
-class WXdgDecorationManager;
+class WOutputLayout;
+class WCursor;
+class WBackend;
+class WOutputItem;
+class WOutputViewport;
+class WOutputLayer;
+class WOutput;
+class WXWayland;
 class WInputMethodHelper;
-class WCursorShapeManagerV1;
-class WOutputManagerV1;
+class WXdgDecorationManager;
+class WSocket;
+class WSurface;
+class WToplevelSurface;
+class WSurfaceItem;
+class WForeignToplevel;
 WAYLIB_SERVER_END_NAMESPACE
 
 QW_BEGIN_NAMESPACE
+class qw_renderer;
+class qw_allocator;
 class qw_compositor;
-class qw_gamma_control_manager_v1;
-class qw_fractional_scale_manager_v1;
 QW_END_NAMESPACE
 
-struct wlr_output_event_request_state;
-QW_USE_NAMESPACE
 WAYLIB_SERVER_USE_NAMESPACE
+QW_USE_NAMESPACE
 
-struct OutputInfo;
-
-class Q_DECL_HIDDEN Helper : public WSeatEventFilter {
+class Output;
+class SurfaceWrapper;
+class Workspace;
+class RootSurfaceContainer;
+class LayerSurfaceContainer;
+class Helper : public WSeatEventFilter
+{
+    friend class RootSurfaceContainer;
     Q_OBJECT
-    Q_PROPERTY(WToplevelSurface* activatedSurface READ activatedSurface WRITE setActivateSurface NOTIFY activatedSurfaceChanged FINAL)
-    Q_PROPERTY(WSurfaceItem* resizingItem READ resizingItem NOTIFY resizingItemChanged FINAL)
-    Q_PROPERTY(WSurfaceItem* movingItem READ movingItem NOTIFY movingItemChanged)
-    Q_PROPERTY(WQuickOutputLayout* outputLayout READ outputLayout CONSTANT)
-    Q_PROPERTY(WSeat* seat READ seat CONSTANT)
-    Q_PROPERTY(WXdgDecorationManager* xdgDecorationManager READ xdgDecorationManager NOTIFY xdgDecorationManagerChanged)
-    Q_PROPERTY(QW_NAMESPACE::qw_compositor* compositor READ compositor NOTIFY compositorChanged FINAL)
-    Q_PROPERTY(WQmlCreator* outputCreator READ outputCreator CONSTANT)
-    Q_PROPERTY(WQmlCreator* xdgShellCreator READ xdgShellCreator CONSTANT)
-    Q_PROPERTY(WQmlCreator* xwaylandCreator READ xwaylandCreator CONSTANT)
-    Q_PROPERTY(WQmlCreator* layerShellCreator READ layerShellCreator CONSTANT)
-    Q_PROPERTY(WQmlCreator* inputPopupCreator READ inputPopupCreator CONSTANT)
+    Q_PROPERTY(bool socketEnabled READ socketEnabled WRITE setSocketEnabled NOTIFY socketEnabledChanged FINAL)
+    Q_PROPERTY(SurfaceWrapper* activatedSurface READ activatedSurface NOTIFY activatedSurfaceChanged FINAL)
+    Q_PROPERTY(RootSurfaceContainer* rootContainer READ rootContainer CONSTANT FINAL)
+    Q_PROPERTY(Workspace* workspace READ workspace CONSTANT FINAL)
+    Q_PROPERTY(int currentUserId READ currentUserId WRITE setCurrentUserId NOTIFY currentUserIdChanged FINAL)
+    Q_PROPERTY(float animationSpeed READ animationSpeed WRITE setAnimationSpeed NOTIFY animationSpeedChanged FINAL)
+    Q_PROPERTY(OutputMode outputMode READ outputMode WRITE setOutputMode NOTIFY outputModeChanged FINAL)
     QML_ELEMENT
     QML_SINGLETON
 
 public:
     explicit Helper(QObject *parent = nullptr);
-    ~Helper() override;
+    ~Helper();
 
-    void initProtocols(WOutputRenderWindow *window, QQmlEngine *qmlEngine);
-    WQuickOutputLayout *outputLayout() const;
-    WSeat *seat() const;
-    qw_compositor *compositor() const;
+    enum class OutputMode {
+        Copy,
+        Extension
+    };
+    Q_ENUM(OutputMode)
 
-    WQmlCreator *outputCreator() const;
-    WQmlCreator *xdgShellCreator() const;
-    WQmlCreator *xwaylandCreator() const;
-    WQmlCreator *layerShellCreator() const;
-    WQmlCreator *inputPopupCreator() const;
+    static Helper *instance();
 
-    void stopMoveResize();
+    QmlEngine *qmlEngine() const;
+    WOutputRenderWindow *window() const;
+    Workspace* workspace() const;
+    Output* output() const;
+    void init();
 
-    WToplevelSurface *activatedSurface() const;
-    WSurfaceItem *resizingItem() const;
-    WSurfaceItem *movingItem() const;
-    WXdgDecorationManager *xdgDecorationManager() const;
+    bool socketEnabled() const;
+    void setSocketEnabled(bool newSocketEnabled);
 
-    Q_INVOKABLE bool registerExclusiveZone(WLayerSurface *layerSurface);
-    Q_INVOKABLE bool unregisterExclusiveZone(WLayerSurface *layerSurface);
-    Q_INVOKABLE QJSValue getExclusiveMargins(WLayerSurface *layerSurface);
-    Q_INVOKABLE quint32 getTopExclusiveMargin(WToplevelSurface *layerSurface);
-    Q_INVOKABLE quint32 getBottomExclusiveMargin(WToplevelSurface *layerSurface);
-    Q_INVOKABLE quint32 getLeftExclusiveMargin(WToplevelSurface *layerSurface);
-    Q_INVOKABLE quint32 getRightExclusiveMargin(WToplevelSurface *layerSurface);
+    void activeSurface(SurfaceWrapper *wrapper, Qt::FocusReason reason);
 
-    // Output
-    Q_INVOKABLE void onSurfaceEnterOutput(WToplevelSurface *surface, WSurfaceItem *surfaceItem, WOutput *output);
-    Q_INVOKABLE void onSurfaceLeaveOutput(WToplevelSurface *surface, WSurfaceItem *surfaceItem, WOutput *output);
-    std::pair<WOutput*,OutputInfo*> getFirstOutputOfSurface(WToplevelSurface *surface);
+    RootSurfaceContainer *rootContainer() const;
+    Output *getOutput(WOutput *output) const;
 
-    // Socket
-    Q_INVOKABLE void setSocketEnabled(bool newEnabled);
+    int currentUserId() const;
+    void setCurrentUserId(int uid);
+
+    float animationSpeed() const;
+    void setAnimationSpeed(float newAnimationSpeed);
+
+    OutputMode outputMode() const;
+    void setOutputMode(OutputMode mode);
+
+    Q_INVOKABLE void addOutput();
+
 public Q_SLOTS:
-    void startMove(WToplevelSurface *surface, WSurfaceItem *shell, WSeat *seat, int serial);
-    void startResize(WToplevelSurface *surface, WSurfaceItem *shell, WSeat *seat, Qt::Edges edge, int serial);
-    void cancelMoveResize(WSurfaceItem *shell);
-    bool startDemoClient(const QString &socket);
-    WSurface *getFocusSurfaceFrom(QObject *object);
+    void activeSurface(SurfaceWrapper *wrapper);
+    void fakePressSurfaceBottomRightToReszie(SurfaceWrapper *surface);
 
+signals:
+    void socketEnabledChanged();
+    void keyboardFocusSurfaceChanged();
+    void activatedSurfaceChanged();
+    void primaryOutputChanged();
+    void currentUserIdChanged();
+
+    void animationSpeedChanged();
+    void outputModeChanged();
+
+private:
     void allowNonDrmOutputAutoChangeMode(WOutput *output);
     void enableOutput(WOutput *output);
 
-Q_SIGNALS:
-    void activatedSurfaceChanged();
-    void resizingItemChanged();
-    void movingItemChanged();
-    void topExclusiveMarginChanged();
-    void bottomExclusiveMarginChanged();
-    void leftExclusiveMarginChanged();
-    void rightExclusiveMarginChanged();
-    void compositorChanged();
-    void xdgDecorationManagerChanged();
+    int indexOfOutput(WOutput *output) const;
 
-private:
+    void setOutputProxy(Output *output);
+
+    void updateLayerSurfaceContainer(SurfaceWrapper *surface);
+
+    SurfaceWrapper *keyboardFocusSurface() const;
+    void setKeyboardFocusSurface(SurfaceWrapper *newActivateSurface, Qt::FocusReason reason);
+    SurfaceWrapper *activatedSurface() const;
+    void setActivatedSurface(SurfaceWrapper *newActivateSurface);
+
+    void setCursorPosition(const QPointF &position);
+
+    bool startDemoClient();
+
     bool beforeDisposeEvent(WSeat *seat, QWindow *watched, QInputEvent *event) override;
     bool afterHandleEvent(WSeat *seat, WSurface *watched, QObject *surfaceItem, QObject *, QInputEvent *event) override;
-    bool unacceptedEvent(WSeat *seat, QWindow *watched, QInputEvent *event) override;
+    bool unacceptedEvent(WSeat *, QWindow *, QInputEvent *event) override;
 
-    void setActivateSurface(WToplevelSurface *newActivate);
-    void setResizingItem(WSurfaceItem *newResizingItem);
-    void setMovingItem(WSurfaceItem *newMovingItem);
-    void onOutputRequeseState(wlr_output_event_request_state *newState);
-    OutputInfo* getOutputInfo(WOutput *output);
+    static Helper *m_instance;
 
-    WQuickOutputLayout *m_outputLayout = nullptr;
-    WCursor *m_cursor = nullptr;
+    // qtquick helper
+    WOutputRenderWindow *m_renderWindow = nullptr;
+    QObject *m_windowMenu = nullptr;
 
+    // wayland helper
     WServer *m_server = nullptr;
+    WSocket *m_socket = nullptr;
+    WSeat *m_seat = nullptr;
+    WBackend *m_backend = nullptr;
     qw_renderer *m_renderer = nullptr;
     qw_allocator *m_allocator = nullptr;
+
+    // protocols
     qw_compositor *m_compositor = nullptr;
-    WSeat *m_seat = nullptr;
     WXWayland *m_xwayland = nullptr;
-    WXdgDecorationManager *m_xdgDecorationManager = nullptr;
     WInputMethodHelper *m_inputMethodHelper = nullptr;
-    WSocket *m_socket = nullptr;
-    qw_fractional_scale_manager_v1 *m_fractionalScaleManagerV1 = nullptr;
-    WCursorShapeManagerV1 *m_cursorShapeManager = nullptr;
-    qw_gamma_control_manager_v1 *m_gammaControlManager = nullptr;
-    WOutputManagerV1 *m_wOutputManager = nullptr;
+    WXdgDecorationManager *m_xdgDecorationManager = nullptr;
+    WForeignToplevel *m_foreignToplevel = nullptr;
 
-    WQmlCreator *m_outputCreator = nullptr;
-    WQmlCreator *m_xdgShellCreator = nullptr;
-    WQmlCreator *m_xwaylandCreator = nullptr;
-    WQmlCreator *m_layerShellCreator = nullptr;
-    WQmlCreator *m_inputPopupCreator = nullptr;
+    // privaet data
+    QList<Output*> m_outputList;
 
-    QPointer<WToplevelSurface> m_activateSurface;
-    QList<std::pair<WOutput*,OutputInfo*>> m_outputExclusiveZoneInfo;
+    QPointer<SurfaceWrapper> m_keyboardFocusSurface;
+    QPointer<SurfaceWrapper> m_activatedSurface;
 
-    // for move resize
-    struct {
-        QPointer<WToplevelSurface> surface;
-        QPointer<WSurfaceItem> surfaceItem;
-        WSeat *seat = nullptr;
-        QPointF surfacePosOfStartMoveResize;
-        QSizeF surfaceSizeOfStartMoveResize;
-        Qt::Edges resizeEdgets;
-        WSurfaceItem *resizingItem = nullptr;
-        WSurfaceItem *movingItem = nullptr;
-    } moveReiszeState;
+    RootSurfaceContainer *m_surfaceContainer = nullptr;
+    LayerSurfaceContainer *m_backgroundContainer = nullptr;
+    LayerSurfaceContainer *m_bottomContainer = nullptr;
+    Workspace *m_workspace = nullptr;
+    LayerSurfaceContainer *m_topContainer = nullptr;
+    LayerSurfaceContainer *m_overlayContainer = nullptr;
+    SurfaceContainer *m_popupContainer = nullptr;
+    int m_currentUserId = -1;
+    float m_animationSpeed = 1.0;
+    OutputMode m_mode = OutputMode::Extension;
+    std::optional<QPointF> m_fakelastPressedPosition;
 };
 
-struct OutputInfo {
-    QList<WToplevelSurface*> surfaceList;
-    QList<WSurfaceItem*> surfaceItemList;
-
-    // for Exclusive Zone
-    quint32 m_topExclusiveMargin = 0;
-    quint32 m_bottomExclusiveMargin = 0;
-    quint32 m_leftExclusiveMargin = 0;
-    quint32 m_rightExclusiveMargin = 0;
-    QList<std::tuple<WLayerSurface*, uint32_t, WLayerSurface::AnchorType>> registeredSurfaceList;
-};
-
-Q_DECLARE_OPAQUE_POINTER(WAYLIB_SERVER_NAMESPACE::WOutputRenderWindow*)
-Q_DECLARE_OPAQUE_POINTER(QW_NAMESPACE::qw_compositor*)
+Q_DECLARE_OPAQUE_POINTER(RootSurfaceContainer*)

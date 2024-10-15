@@ -11,6 +11,7 @@ extern "C" {
 
 #include <qcolorspace.h>
 #include <QDebug>
+#include <QQuickItem>
 
 #include <pixman.h>
 #include <drm_fourcc.h>

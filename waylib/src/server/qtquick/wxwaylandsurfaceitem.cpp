@@ -139,6 +139,11 @@ WXWaylandSurfaceItem::~WXWaylandSurfaceItem()
 
 }
 
+WXWaylandSurface *WXWaylandSurfaceItem::xwaylandSurface() const
+{
+    return qobject_cast<WXWaylandSurface*>(shellSurface());
+}
+
 bool WXWaylandSurfaceItem::setShellSurface(WToplevelSurface *surface)
 {
     Q_D(WXWaylandSurfaceItem);

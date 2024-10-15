@@ -105,6 +105,7 @@ class WAYLIB_SERVER_EXPORT WSurfaceItem : public QQuickItem
     Q_PROPERTY(qreal surfaceSizeRatio READ surfaceSizeRatio WRITE setSurfaceSizeRatio NOTIFY surfaceSizeRatioChanged)
     Q_PROPERTY(qreal bufferScale READ bufferScale NOTIFY bufferScaleChanged)
     Q_PROPERTY(QQmlComponent* delegate READ delegate WRITE setDelegate NOTIFY delegateChanged FINAL)
+    Q_PROPERTY(QRectF boundingRect READ boundingRect NOTIFY boundingRectChanged)
     QML_NAMED_ELEMENT(SurfaceItem)
 
 public:
@@ -117,7 +118,9 @@ public:
 
     enum Flag {
         DontCacheLastBuffer = 0x1,
-        RejectEvent = 0x2
+        RejectEvent = 0x2,
+        NonLive = 0x4,
+        DelegateForSubsurface = 0x8,
     };
     Q_ENUM(Flag)
     Q_DECLARE_FLAGS(Flags, Flag)
@@ -132,6 +135,8 @@ public:
 
     explicit WSurfaceItem(QQuickItem *parent = nullptr);
     ~WSurfaceItem();
+
+    QRectF boundingRect() const override;
 
     static WSurfaceItem *fromFocusObject(QObject *focusObject);
 
@@ -178,8 +183,8 @@ public:
 
 Q_SIGNALS:
     void surfaceChanged();
-    void subsurfaceAdded(WSurfaceItem *item);
-    void subsurfaceRemoved(WSurfaceItem *item);
+    void subsurfaceAdded(WAYLIB_SERVER_NAMESPACE::WSurfaceItem *item);
+    void subsurfaceRemoved(WAYLIB_SERVER_NAMESPACE::WSurfaceItem *item);
     void resizeModeChanged();
     void effectiveVisibleChanged();
     void eventItemChanged();
@@ -193,6 +198,7 @@ Q_SIGNALS:
     void contentItemChanged();
     void delegateChanged();
     void shellSurfaceChanged();
+    void boundingRectChanged();
 
 protected:
     explicit WSurfaceItem(WSurfaceItemPrivate &dd, QQuickItem *parent = nullptr);

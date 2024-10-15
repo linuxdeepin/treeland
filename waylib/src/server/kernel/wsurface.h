@@ -31,7 +31,6 @@ class WAYLIB_SERVER_EXPORT WSurface : public WWrapObject
     Q_PROPERTY(bool isSubsurface READ isSubsurface NOTIFY isSubsurfaceChanged)
     Q_PROPERTY(bool hasSubsurface READ hasSubsurface NOTIFY hasSubsurfaceChanged)
     Q_PROPERTY(QList<WSurface*> subsurfaces READ subsurfaces NOTIFY newSubsurface)
-    Q_PROPERTY(WOutput* primaryOutput READ primaryOutput NOTIFY primaryOutputChanged)
     Q_PROPERTY(uint32_t preferredBufferScale READ preferredBufferScale WRITE setPreferredBufferScale RESET resetPreferredBufferScale NOTIFY preferredBufferScaleChanged FINAL)
     QML_NAMED_ELEMENT(WaylandSurface)
     QML_UNCREATABLE("Only create in C++")
@@ -54,7 +53,6 @@ public:
     QW_NAMESPACE::qw_buffer *buffer() const;
 
     void notifyFrameDone();
-    WOutput *primaryOutput() const;
 
     bool isSubsurface() const;
     bool hasSubsurface() const;
@@ -67,14 +65,13 @@ public:
 public Q_SLOTS:
     void enterOutput(WOutput *output);
     void leaveOutput(WOutput *output);
-    QVector<WOutput*> outputs() const;
+    const QVector<WOutput *> &outputs() const;
     bool inputRegionContains(const QPointF &localPos) const;
 
     void map();
     void unmap();
 
 Q_SIGNALS:
-    void primaryOutputChanged();
     void mappedChanged();
     void bufferChanged();
     void bufferOffsetChanged();

@@ -32,7 +32,7 @@ public:
 
     bool isPopup() const;
     bool isToplevel() const;
-    bool doesNotAcceptFocus() const override;
+    bool hasCapability(Capability cap) const override;
 
     WSurface *surface() const override;
     QW_NAMESPACE::qw_xdg_surface *handle() const;

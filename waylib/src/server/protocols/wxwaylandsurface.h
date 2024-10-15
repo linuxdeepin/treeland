@@ -94,7 +94,7 @@ public:
     bool isFullScreen() const override;
     bool isActivated() const override;
 
-    bool doesNotAcceptFocus() const override;
+    bool hasCapability(Capability cap) const override;
 
     QSize minSize() const override;
     QSize maxSize() const override;

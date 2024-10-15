@@ -68,6 +68,7 @@ public Q_SLOTS:
     void update(WOutputViewport *output);
     void setWidth(qreal arg);
     void setHeight(qreal arg);
+    void markItemClipRectDirty(QQuickItem *item);
 
 Q_SIGNALS:
     void widthChanged();

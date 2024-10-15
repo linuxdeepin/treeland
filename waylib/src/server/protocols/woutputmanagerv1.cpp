@@ -3,7 +3,6 @@
 
 #include "woutputmanagerv1.h"
 #include "woutputitem.h"
-#include "woutputitem_p.h"
 #include "private/wglobal_p.h"
 
 #include <qwoutput.h>
@@ -122,16 +121,14 @@ void WOutputManagerV1::newOutput(WOutput *output)
     W_D(WOutputManagerV1);
     const auto *wlr_output = output->nativeHandle();
 
-    auto *attached = output->findChild<WOutputItemAttached*>(QString(), Qt::FindDirectChildrenOnly);
-    if (!attached)
-        attached = WOutputItem::qmlAttachedProperties(output);
+    auto outputItem = WOutputItem::getOutputItem(output);
 
     WOutputState state {
         .output = output,
         .enabled = wlr_output->enabled,
         .mode = wlr_output->current_mode,
-        .x = attached ? static_cast<int32_t>(attached->item()->x()) : 0,
-        .y = attached ? static_cast<int32_t>(attached->item()->y()) : 0,
+        .x = outputItem ? static_cast<int32_t>(outputItem->x()) : 0,
+        .y = outputItem ? static_cast<int32_t>(outputItem->y()) : 0,
         .customModeSize = {  wlr_output->width,  wlr_output->height },
         .customModeRefresh =  wlr_output->refresh,
         .transform = static_cast<WOutput::Transform>(wlr_output->transform),

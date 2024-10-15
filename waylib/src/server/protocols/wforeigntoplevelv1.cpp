@@ -6,6 +6,8 @@
 #include "private/wglobal_p.h"
 #include "wforeigntoplevelv1.h"
 #include "wtoplevelsurface.h"
+#include "wxdgsurface.h"
+#include "wxwaylandsurface.h"
 
 #include <qwforeigntoplevelhandlev1.h>
 #include <qwxdgshell.h>
@@ -60,23 +62,37 @@ public:
             handle->set_activated(surface->isActivated());
         }));
 
-        auto updateSurfaceParent = [this, surface, handle] {
-            if (surface->parentSurface()) {
-                auto find = std::find_if(surfaces.begin(), surfaces.end(), [surface](const auto &pair) {
-                    return pair.first->surface() == surface->parentSurface();
-                });
-                if (find == surfaces.end()) {
-                    qCCritical(qLcWlrForeignToplevel) << "Toplevel surface " << surface
-                        << "has set parent surface, but foreign_toplevel_handle for parent surface not found!";
+        if (auto *xdgSurface = qobject_cast<WXdgSurface *>(surface)) {
+            auto updateSurfaceParent = [this, handle, xdgSurface] {
+                WToplevelSurface* p = xdgSurface->parentXdgSurface();
+                if (!p) {
+                    handle->set_parent(nullptr);
                     return;
                 }
-
-                handle->set_parent(*find->second.get());
-            }
-            else
-                handle->set_parent(nullptr);
-        };
-        connection.push_back(surface->safeConnect(&WToplevelSurface::parentSurfaceChanged, surface, updateSurfaceParent));
+                if (!surfaces.contains(p)) {
+                    qCCritical(qLcWlrForeignToplevel) << "Xdg toplevel surface " << xdgSurface
+                                                      << "has set parent surface, but foreign_toplevel_handle for parent surface not found!";
+                }
+                handle->set_parent(*surfaces[p]);
+            };
+            connection.push_back(xdgSurface->safeConnect(&WXdgSurface::parentXdgSurfaceChanged, surface, updateSurfaceParent));
+            updateSurfaceParent();
+        } else if (auto *xwaylandSurface = qobject_cast<WXWaylandSurface *>(surface)) {
+            auto updateSurfaceParent = [this, handle, xwaylandSurface] {
+                WToplevelSurface* p = xwaylandSurface->parentXWaylandSurface();
+                if (!p) {
+                    handle->set_parent(nullptr);
+                    return;
+                }
+                if (!surfaces.contains(p)) {
+                    qCCritical(qLcWlrForeignToplevel) << "X11 surface " << xwaylandSurface
+                                                      << "has set parent surface, but foreign_toplevel_handle for parent surface not found!";
+                }
+                handle->set_parent(*surfaces[p]);
+            };
+            connection.push_back(xwaylandSurface->safeConnect(&WXWaylandSurface::parentXWaylandSurface, surface, updateSurfaceParent));
+            updateSurfaceParent();
+        }
 
         connection.push_back(surface->surface()->safeConnect(&WSurface::outputEntered, surface, [this, handle](WOutput *output) {
             handle->output_enter(output->nativeHandle());
@@ -128,7 +144,6 @@ public:
         handle->set_maximized(surface->isMaximized());
         handle->set_fullscreen(surface->isFullScreen());
         handle->set_activated(surface->isActivated());
-        updateSurfaceParent();
 
         connections.insert({surface, connection});
     }

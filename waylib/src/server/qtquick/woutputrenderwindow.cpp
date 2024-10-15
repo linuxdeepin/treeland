@@ -12,6 +12,7 @@
 #include "woutputlayer.h"
 #include "wbufferrenderer_p.h"
 #include "wquicktextureproxy.h"
+#include "weventjunkman.h"
 
 #include "platformplugin/qwlrootsintegration.h"
 #include "platformplugin/qwlrootscreen.h"
@@ -34,6 +35,7 @@
 #include <QQuickRenderControl>
 #include <QOpenGLFunctions>
 #include <QLoggingCategory>
+#include <QRunnable>
 #include <memory>
 
 #define protected public
@@ -65,6 +67,7 @@ extern "C" {
 }
 
 #include <drm_fourcc.h>
+#include <limits>
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
@@ -1245,6 +1248,11 @@ void WOutputRenderWindowPrivate::init()
         q->update();
     });
 
+    // for WSeat::filterUnacceptedEvent
+    auto eventJunkman = new WEventJunkman(contentItem);
+    QQuickItemPrivate::get(eventJunkman)->anchors()->setFill(contentItem);
+    eventJunkman->setZ(std::numeric_limits<qreal>::lowest());
+
     Q_EMIT q->initialized();
 }
 
@@ -1865,6 +1873,30 @@ void WOutputRenderWindow::setHeight(qreal arg)
 {
     QQuickWindow::setHeight(arg);
     contentItem()->setHeight(arg);
+}
+
+void WOutputRenderWindow::markItemClipRectDirty(QQuickItem *item)
+{
+    class MarkItemClipRectDirtyJob : public QRunnable
+    {
+    public:
+        MarkItemClipRectDirtyJob(QQuickItem *item)
+            : item(item) { }
+        void run() override {
+            if (!item)
+                return;
+            auto d = QQuickItemPrivate::get(item);
+            if (auto clip = d->clipNode()) {
+                clip->setClipRect(item->clipRect());
+                clip->update();
+            }
+        }
+        QPointer<QQuickItem> item;
+    };
+
+    // Delay clean the qt rhi textures.
+    scheduleRenderJob(new MarkItemClipRectDirtyJob(item),
+                      QQuickWindow::AfterSynchronizingStage);
 }
 
 void WOutputRenderWindow::classBegin()

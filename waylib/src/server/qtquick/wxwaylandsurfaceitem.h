@@ -36,7 +36,7 @@ public:
     explicit WXWaylandSurfaceItem(QQuickItem *parent = nullptr);
     ~WXWaylandSurfaceItem();
 
-    inline WXWaylandSurface* xwaylandSurface() const { return qobject_cast<WXWaylandSurface*>(shellSurface()); }
+    WXWaylandSurface* xwaylandSurface() const;
     bool setShellSurface(WToplevelSurface *surface) override;
 
     WXWaylandSurfaceItem *parentSurfaceItem() const;

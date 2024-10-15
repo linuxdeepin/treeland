@@ -37,3 +37,5 @@ compile_commands.json
 # qtcreator
 *.autosave
 
+# vscode
+.vscode

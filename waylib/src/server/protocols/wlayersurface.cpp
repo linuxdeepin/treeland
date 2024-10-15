@@ -50,7 +50,6 @@ public:
     W_DECLARE_PUBLIC(WLayerSurface)
 
     WSurface *surface = nullptr;
-    uint activated:1;
     QSize desiredSize;
     WLayerSurface::LayerType layer = WLayerSurface::LayerType::Bottom;
     WLayerSurface::AnchorTypes ancher =  WLayerSurface::AnchorType::None;
@@ -63,7 +62,6 @@ public:
 
 WLayerSurfacePrivate::WLayerSurfacePrivate(WLayerSurface *qq, qw_layer_surface_v1 *hh)
     : WToplevelSurfacePrivate(qq)
-    , activated(false)
 {
     initHandle(hh);
 }
@@ -252,24 +250,25 @@ WLayerSurface::~WLayerSurface()
 
 }
 
-bool WLayerSurface::isPopup() const
-{
-    return false;
-}
-
-bool WLayerSurface::doesNotAcceptFocus() const
+bool WLayerSurface::hasCapability(Capability cap) const
 {
     W_DC(WLayerSurface);
-    if (d->keyboardInteractivity == WLayerSurface::KeyboardInteractivity::None)
+    switch (cap) {
+        using enum Capability;
+    case Focus:
+        return d->keyboardInteractivity != WLayerSurface::KeyboardInteractivity::None;
+    case Activate:
+    case Maximized:
+    case FullScreen:
+        return false;
+    case Resize:
         return true;
-    return false;
+    default:
+        break;
+    }
+    Q_UNREACHABLE();
 }
 
-bool WLayerSurface::isActivated() const
-{
-    W_D(const WLayerSurface);
-    return d->activated;
-}
 
 WSurface *WLayerSurface::surface() const
 {
@@ -425,15 +424,6 @@ void WLayerSurface::closed()
     // 1. Notify the client that the surface has been closed
     // 2. Destroy the struct wlr_layer_surface_v1
     wlr_layer_surface_v1_destroy(nativeHandle());
-}
-
-void WLayerSurface::setActivate(bool on)
-{
-    W_D(WLayerSurface);
-    if (d->activated != on) {
-        d->activated = on;
-        Q_EMIT activateChanged();
-    }
 }
 
 bool WLayerSurface::checkNewSize(const QSize &size)

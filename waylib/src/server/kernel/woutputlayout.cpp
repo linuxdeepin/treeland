@@ -18,6 +18,30 @@ WOutputLayoutPrivate::WOutputLayoutPrivate(WOutputLayout *qq)
 
 }
 
+WOutputLayoutPrivate::~WOutputLayoutPrivate()
+{
+    for (auto o : std::as_const(outputs)) {
+        o->setLayout(nullptr);
+    }
+}
+
+void WOutputLayoutPrivate::doAdd(WOutput *output)
+{
+    Q_ASSERT(!outputs.contains(output));
+    outputs.append(output);
+
+    W_Q(WOutputLayout);
+    Q_ASSERT(output->layout() == q);
+
+    output->safeConnect(&WOutput::effectiveSizeChanged, q, [this] {
+        updateImplicitSize();
+    });
+    updateImplicitSize();
+
+    Q_EMIT q->outputAdded(output);
+    Q_EMIT q->outputsChanged();
+}
+
 void WOutputLayoutPrivate::updateImplicitSize()
 {
     W_Q(WOutputLayout);
@@ -58,19 +82,17 @@ const QList<WOutput*> &WOutputLayout::outputs() const
 void WOutputLayout::add(WOutput *output, const QPoint &pos)
 {
     W_D(WOutputLayout);
-    Q_ASSERT(!d->outputs.contains(output));
-    d->outputs.append(output);
-
-    qw_output_layout::add(output->nativeHandle(), pos.x(), pos.y());
     output->setLayout(this);
+    qw_output_layout::add(output->nativeHandle(), pos.x(), pos.y());
+    d->doAdd(output);
+}
 
-    output->safeConnect(&WOutput::effectiveSizeChanged, this, [d](){
-        d->updateImplicitSize();
-    });
-    d->updateImplicitSize();
-
-    Q_EMIT outputAdded(output);
-    Q_EMIT outputsChanged();
+void WOutputLayout::autoAdd(WOutput *output)
+{
+    W_D(WOutputLayout);
+    output->setLayout(this);
+    qw_output_layout::add_auto(output->nativeHandle());
+    d->doAdd(output);
 }
 
 void WOutputLayout::move(WOutput *output, const QPoint &pos)

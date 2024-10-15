@@ -38,9 +38,21 @@ WInputPopupSurface::WInputPopupSurface(qw_input_popup_surface_v2 *surface, WSurf
     : WToplevelSurface(*new WInputPopupSurfacePrivate(surface, parentSurface, this), parent)
 { }
 
-bool WInputPopupSurface::doesNotAcceptFocus() const
+bool WInputPopupSurface::hasCapability(Capability cap) const
 {
-    return true;
+    W_DC(WInputPopupSurface);
+    switch (cap) {
+        using enum Capability;
+    case Focus:
+    case Activate:
+    case Maximized:
+    case FullScreen:
+    case Resize:
+        return false;
+    default:
+        break;
+    }
+    Q_UNREACHABLE();
 }
 
 WSurface *WInputPopupSurface::surface() const

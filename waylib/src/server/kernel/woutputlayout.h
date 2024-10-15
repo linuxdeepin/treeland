@@ -33,6 +33,7 @@ public:
     const QList<WOutput *> &outputs() const;
 
     void add(WOutput *output, const QPoint &pos);
+    void autoAdd(WOutput *output);
     void move(WOutput *output, const QPoint &pos);
     void remove(WOutput *output);
 

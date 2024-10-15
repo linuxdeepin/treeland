@@ -333,12 +333,24 @@ bool WXWaylandSurface::isActivated() const
     return d->activated;
 }
 
-bool WXWaylandSurface::doesNotAcceptFocus() const
+bool WXWaylandSurface::hasCapability(Capability cap) const
 {
     W_DC(WXWaylandSurface);
-
-    return !wlr_xwayland_or_surface_wants_focus(d->nativeHandle())
-           || wlr_xwayland_icccm_input_model(d->nativeHandle()) == WLR_ICCCM_INPUT_MODEL_NONE;
+    switch (cap) {
+        using enum Capability;
+    case Focus:
+        return !wlr_xwayland_or_surface_wants_focus(d->nativeHandle())
+            || wlr_xwayland_icccm_input_model(d->nativeHandle()) == WLR_ICCCM_INPUT_MODEL_NONE;
+    case Activate:
+    case Maximized:
+    case FullScreen:
+    case Resize:
+        // TODO: should check WindowType
+        return !isBypassManager();
+    default:
+        break;
+    }
+    Q_UNREACHABLE();
 }
 
 QSize WXWaylandSurface::minSize() const
