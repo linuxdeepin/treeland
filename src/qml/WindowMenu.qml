@@ -1,11 +1,11 @@
 // Copyright (C) 2024 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
-import org.deepin.dtk 1.0 as D
+import QtQuick.Controls
 import Waylib.Server
 import Treeland
 
-D.Menu {
+Menu {
     id: menu
 
     property SurfaceWrapper surface: null
@@ -16,32 +16,32 @@ D.Menu {
         menu.popup(pos)
     }
 
-    D.MenuItem {
+    MenuItem {
         text: qsTr("Minimize")
         onTriggered: surface.requestMinimize()
     }
 
-    D.MenuItem {
+    MenuItem {
         text: surface.surfaceState === SurfaceWrapper.State.Maximized ? qsTr("Unmaximize") : qsTr("Maximize")
         onTriggered: surface.requestToggleMaximize()
     }
 
-    D.MenuItem {
+    MenuItem {
         text: qsTr("Move")
         onTriggered: surface.requestMove()
     }
 
-    D.MenuItem {
+    MenuItem {
         text: qsTr("Resize")
         onTriggered: Helper.fakePressSurfaceBottomRightToReszie(surface)
     }
 
-    D.MenuItem {
+    MenuItem {
         text: surface.alwaysOnTop ? qsTr("Not always on Top") : qsTr("Always on Top")
         onTriggered: surface.alwaysOnTop = !surface.alwaysOnTop;
     }
 
-    D.MenuItem {
+    MenuItem {
         text: surface.showOnAllWorkspace ? qsTr("Only on Current Workspace") : qsTr("Always on Visible Workspace")
         onTriggered: {
             if (surface.showOnAllWorkspace) {
@@ -54,19 +54,19 @@ D.Menu {
         }
     }
 
-    D.MenuItem {
+    MenuItem {
         text: qsTr("Move to Left Work Space")
         enabled: surface.workspaceId !== 0 && !surface.showOnAllWorkspace
         onTriggered: Helper.workspace.addSurface(surface, surface.workspaceId - 1)
     }
 
-    D.MenuItem {
+    MenuItem {
         text: qsTr("Move to Right Work Space")
         enabled: surface.workspaceId !== Helper.workspace.count - 1 && !surface.showOnAllWorkspace
         onTriggered: Helper.workspace.addSurface(surface, surface.workspaceId + 1)
     }
 
-    D.MenuItem {
+    MenuItem {
         text: qsTr("Close")
         onTriggered: surface.shellSurface.close()
     }
