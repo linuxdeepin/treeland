@@ -103,7 +103,7 @@ Helper::Helper(QObject *parent)
     m_renderWindow->setColor(Qt::black);
     m_rootSurfaceContainer->setFlag(QQuickItem::ItemIsFocusScope, true);
 #if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0)
-    m_surfaceContainer->setFocusPolicy(Qt::StrongFocus);
+    m_rootSurfaceContainer->setFocusPolicy(Qt::StrongFocus);
 #endif
     m_backgroundContainer->setZ(RootSurfaceContainer::BackgroundZOrder);
     m_bottomContainer->setZ(RootSurfaceContainer::BottomZOrder);
