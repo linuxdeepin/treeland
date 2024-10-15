@@ -8,7 +8,7 @@ import Treeland
 import org.deepin.dtk 1.0 as D
 import org.deepin.dtk.style 1.0 as DS
 
-Item {
+Control {
     id: root
 
     required property SurfaceWrapper surface
@@ -39,7 +39,6 @@ Item {
             if (pressed)
                 surface.requestMove()
         }
-
         onDoubleTapped: (_, button) => {
             if (button === Qt.LeftButton) {
                 surface.requestToggleMaximize()
