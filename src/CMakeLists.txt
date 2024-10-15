@@ -93,7 +93,7 @@ qt_add_qml_module(${BIN_NAME}
         qml/TaskBar.qml
         qml/RoundedClipEffect.qml
         qml/SurfaceContent.qml
-        qml/Shadow.qml
+        qml/XdgShadow.qml
         qml/Border.qml
         qml/GeometryAnimation.qml
         qml/OutputMenuBar.qml

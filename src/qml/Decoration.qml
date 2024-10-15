@@ -62,12 +62,9 @@ Item {
         }
     }
 
-    Shadow {
+    XdgShadow {
         id: shadow
-        width: surface.width
-        height: surface.height
-        radius: surface.radius
-        anchors.centerIn: parent
+        surface: root.surface
     }
 
     Border {
