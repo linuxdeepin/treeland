@@ -171,7 +171,6 @@ public:
     void setAlwaysOnTop(bool alwaysOnTop);
 
     bool showOnAllWorkspace() const;
-    void setShowOnAllWorkspace(bool showOnAllWorkspace);
     bool showOnWorkspace(int workspaceIndex) const;
 
     bool hasActiveCapability() const;

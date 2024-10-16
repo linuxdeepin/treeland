@@ -8,13 +8,22 @@
 class SurfaceWrapper;
 class Workspace;
 
+class WorkspaceListModel : public ObjectListModel<WorkspaceModel>
+{
+    Q_OBJECT
+    QML_ANONYMOUS
+public:
+    explicit WorkspaceListModel(QObject *parent = nullptr);
+    void moveModelTo(int workspaceIndex, int destinationIndex);
+};
+
 class Workspace : public SurfaceContainer
 {
     Q_OBJECT
-    Q_PROPERTY(int currentIndex READ currentIndex WRITE setCurrentIndex NOTIFY currentChanged FINAL)
-    Q_PROPERTY(WorkspaceModel* current READ current WRITE setCurrent NOTIFY currentChanged FINAL)
+    Q_PROPERTY(int currentIndex READ currentIndex WRITE setCurrentIndex NOTIFY currentIndexChanged FINAL)
+    Q_PROPERTY(WorkspaceModel* current READ current NOTIFY currentChanged FINAL)
     Q_PROPERTY(WorkspaceModel* showOnAllWorkspaceModel READ showOnAllWorkspaceModel CONSTANT)
-    Q_PROPERTY(QQmlListProperty<WorkspaceModel> models READ models NOTIFY modelsChanged FINAL)
+    Q_PROPERTY(WorkspaceListModel *models READ models CONSTANT FINAL)
     Q_PROPERTY(int count READ count NOTIFY countChanged FINAL)
     QML_ELEMENT
 
@@ -24,6 +33,8 @@ public:
     Q_INVOKABLE void moveSurfaceTo(SurfaceWrapper *surface, int workspaceIndex = -1);
     // When workspaceIndex is -1 will move to current workspace
     void addSurface(SurfaceWrapper *surface, int workspaceIndex = -1);
+    Q_INVOKABLE void moveModelTo(int workspaceIndex, int destinationIndex);
+
     void removeSurface(SurfaceWrapper *surface) override;
     int modelIndexOfSurface(SurfaceWrapper *surface) const;
 
@@ -34,15 +45,16 @@ public:
     int count() const;
     int currentIndex() const;
     WorkspaceModel *showOnAllWorkspaceModel() const;
+    void doSetCurrentIndex(int newCurrentIndex);
     void setCurrentIndex(int newCurrentIndex);
     Q_INVOKABLE void switchToNext();
     Q_INVOKABLE void switchToPrev();
-    void switchTo(int index);
+    Q_INVOKABLE void switchTo(int index);
 
     WorkspaceModel *current() const;
     void setCurrent(WorkspaceModel *container);
 
-    QQmlListProperty<WorkspaceModel> models();
+    WorkspaceListModel *models();
     static inline constexpr int ShowOnAllWorkspaceIndex = -2;
 
     Q_INVOKABLE void hideAllSurfacesExceptPreviewing(SurfaceWrapper *previewingItem);
@@ -53,15 +65,17 @@ public:
 
 Q_SIGNALS:
     void currentChanged();
+    void currentIndexChanged();
     void countChanged();
-    void modelsChanged();
 
 private:
+    int doCreateModel(const QString &name, bool visible = false);
+    void doRemoveModel(int index);
     void updateSurfaceOwnsOutput(SurfaceWrapper *surface);
     void updateSurfacesOwnsOutput();
 
-    int m_currentIndex = 0;
-    QList<WorkspaceModel *> m_models;
+    uint m_currentIndex;
+    WorkspaceListModel *m_models;
     WorkspaceModel *m_showOnAllWorkspaceModel;
     QPointer<QQuickItem> m_switcher;
 };
