@@ -85,6 +85,7 @@ OutputItem {
         output: rootOutputItem.output
         workspace: Helper.workspace.current
         anchors.fill: parent
+        asynchronous: false
 
         states: [
             State {
