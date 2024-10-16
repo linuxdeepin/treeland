@@ -142,7 +142,6 @@ Multitaskview {
                     required property WorkspaceModel modelData
                     workspace: modelData
                     visible: modelData.visible
-                    taskviewVal: root.taskviewVal
                     state: root.state
                     output: outputPlacementItem.output
                     workspaceListPadding: TreelandConfig.workspaceDelegateHeight
