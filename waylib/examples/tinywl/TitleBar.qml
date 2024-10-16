@@ -6,7 +6,7 @@ import QtQuick.Controls
 import Waylib.Server
 import Tinywl
 
-Item {
+Control {
     id: root
 
     required property SurfaceWrapper surface
