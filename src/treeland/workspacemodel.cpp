@@ -69,7 +69,7 @@ void WorkspaceModel::removeSurface(SurfaceWrapper *surface)
     m_activedSurfaceHistory.remove(surface);
 }
 
-SurfaceWrapper *WorkspaceModel::latestActivedSurface() const
+SurfaceWrapper *WorkspaceModel::latestActiveSurface() const
 {
     if (m_activedSurfaceHistory.empty())
         return nullptr;

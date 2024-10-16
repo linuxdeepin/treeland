@@ -47,7 +47,7 @@ void Workspace::moveSurfaceTo(SurfaceWrapper *surface, int workspaceIndex)
 
     from->removeSurface(surface);
     if (surface->shellSurface()->isActivated())
-        Helper::instance()->activateSurface(current()->latestActivedSurface());
+        Helper::instance()->activateSurface(current()->latestActiveSurface());
 
     to->addSurface(surface);
     if (surface->hasActiveCapability()
@@ -176,6 +176,8 @@ void Workspace::switchTo(int index)
     Q_ASSERT(index != currentIndex());
     Q_ASSERT(index >= 0 && index < m_models->rowCount());
     setCurrentIndex(index);
+    Helper::instance()->activateSurface(current()->latestActiveSurface());
+
     // TODO new switch animation here
     // auto from = current();
     // auto to = model(index);

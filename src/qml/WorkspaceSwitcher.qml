@@ -100,7 +100,7 @@ Item {
                     rootItem.outputItem.wallpaperVisible = true;
                     Helper.workspace.showOnAllWorkspaceModel.visible = true;
                     root.workspace.current = root.to;
-                    Helper.activateSurface(to.latestActivedSurface());
+                    Helper.activateSurface(to.latestActiveSurface());
                 }
             }
 
