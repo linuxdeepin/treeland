@@ -58,6 +58,8 @@ Control {
         id: titlebar
         anchors.fill: parent
         color: surface.shellSurface.isActivated ? "white" : "gray"
+        layer.enabled: surface.radius
+        opacity: surface.radius ? 0 : root.opacity
 
         Row {
             anchors {
@@ -140,11 +142,11 @@ Control {
     Loader {
         anchors.fill: parent
         active: surface.radius > 0 && !surface.noCornerRadius
-        sourceComponent: RoundedClipEffect {
+        sourceComponent: TRadiusEffect {
             anchors.fill: parent
             sourceItem: titlebar
-            radius: surface.radius
-            targetRect: Qt.rect(-root.x, -root.y, surfaceItem.width, surfaceItem.height)
+            topLeftRadius: surface.radius
+            topRightRadius: surface.radius
         }
     }
 }
