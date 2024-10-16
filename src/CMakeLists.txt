@@ -84,6 +84,8 @@ qt_add_qml_module(${BIN_NAME}
         treeland/workspacemodel.cpp
         treeland/treelandconfig.h
         treeland/treelandconfig.cpp
+        treeland/propertymonitor.h
+        treeland/propertymonitor.cpp
 
         ${DBUS_ADAPTOR}
     QML_FILES
