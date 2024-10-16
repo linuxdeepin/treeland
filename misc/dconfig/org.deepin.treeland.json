@@ -57,7 +57,7 @@
             "permissions": "readwrite",
             "visibility": "private"
         },
-        "roundCornerRadius": {
+        "windowRadius": {
             "value": 18,
             "serial": 0,
             "flags": ["user-public"],

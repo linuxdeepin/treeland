@@ -61,6 +61,7 @@ class SurfaceWrapper : public QQuickItem
     Q_PROPERTY(quint32 autoPlaceYOffset READ autoPlaceYOffset WRITE setAutoPlaceYOffset NOTIFY autoPlaceYOffsetChanged FINAL)
     // wayland client can control the position of SurfaceWrapper on the output through treeland_dde_shell_surface_v1.set_surface_position
     Q_PROPERTY(QPoint clientRequstPos READ clientRequstPos WRITE setClientRequstPos NOTIFY clientRequstPosChanged FINAL)
+    Q_PROPERTY(bool blur READ blur NOTIFY blurChanged FINAL)
 
 public:
     enum class Type {
@@ -211,6 +212,8 @@ public:
 
     QPoint clientRequstPos() const;
     void setClientRequstPos(QPoint pos);
+    bool blur() const;
+    void setBlur(bool blur);
 
 public Q_SLOTS:
     // for titlebar
@@ -263,6 +266,7 @@ Q_SIGNALS:
     void surfaceRoleChanged();
     void autoPlaceYOffsetChanged();
     void clientRequstPosChanged();
+    void blurChanged();
 
 private:
     using QQuickItem::setParentItem;
@@ -304,6 +308,7 @@ private:
     WSurfaceItem *m_surfaceItem = nullptr;
     QPointer<QQuickItem> m_titleBar;
     QPointer<QQuickItem> m_decoration;
+    QPointer<QQuickItem> m_blurContent;
     QPointer<QQuickItem> m_geometryAnimation;
     QRectF m_boundedRect;
     QRectF m_normalGeometry;
@@ -330,7 +335,7 @@ private:
                                          &SurfaceWrapper::surfaceStateChanged)
     int m_workspaceId = -1;
     int m_explicitAlwaysOnTop = 0;
-    qreal m_radius = 18.0;
+    qreal m_radius = 0.0;
     QRect m_iconGeometry;
     ActiveControlStates m_hasActiveCapability = ActiveControlState::UnMinimized;
 

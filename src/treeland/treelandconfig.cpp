@@ -225,3 +225,8 @@ QSize TreelandConfig::cursorSize() const
     int size = m_dconfig->value("cursorSize", 24).toInt();
     return { size, size };
 }
+
+qreal TreelandConfig::windowRadius() const
+{
+    return m_dconfig->value("windowRadius", 18.0).toFloat();
+}

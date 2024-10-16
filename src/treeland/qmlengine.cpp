@@ -33,6 +33,7 @@ QmlEngine::QmlEngine(QObject *parent)
     , minimizeAnimationComponent(this, "Treeland", "MinimizeAnimation")
     , showDesktopAnimatioComponentn(this, "Treeland", "ShowDesktopAnimation")
     , multitaskViewComponent(this, "Treeland", "MultitaskviewProxy")
+    , blurComponent(this, "Treeland", "Blur")
 {
 }
 
@@ -115,6 +116,20 @@ QQuickItem *QmlEngine::createXdgShadow(QQuickItem *parent)
     item->setParent(parent);
     item->setParentItem(parent);
     xdgShadowComponent.completeCreate();
+
+    return item;
+}
+
+QQuickItem *QmlEngine::createBlur(SurfaceWrapper *surface, QQuickItem *parent)
+{
+    auto context = qmlContext(parent);
+    auto obj = blurComponent.beginCreate(context);
+    blurComponent.setInitialProperties(obj, { { "surface", QVariant::fromValue(surface) } });
+    auto item = qobject_cast<QQuickItem *>(obj);
+    Q_ASSERT(item);
+    item->setParent(parent);
+    item->setParentItem(parent);
+    blurComponent.completeCreate();
 
     return item;
 }

@@ -36,6 +36,7 @@ public:
     QQuickItem *createBorder(SurfaceWrapper *surface, QQuickItem *parent);
     QQuickItem *createTaskBar(Output *output, QQuickItem *parent);
     QQuickItem *createXdgShadow(QQuickItem *parent);
+    QQuickItem *createBlur(SurfaceWrapper *surface, QQuickItem *parent);
     QQuickItem *createTaskSwitcher(Output *output, QQuickItem *parent);
     QQuickItem *createGeometryAnimation(SurfaceWrapper *surface,
                                         const QRectF &startGeo,
@@ -77,5 +78,6 @@ private:
     QQmlComponent minimizeAnimationComponent;
     QQmlComponent showDesktopAnimatioComponentn;
     QQmlComponent multitaskViewComponent;
+    QQmlComponent blurComponent;
     WallpaperImageProvider *wallpaperProvider = nullptr;
 };

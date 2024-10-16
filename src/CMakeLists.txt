@@ -103,6 +103,7 @@ qt_add_qml_module(${BIN_NAME}
 
         ${DBUS_ADAPTOR}
     QML_FILES
+        qml/Blur.qml
         qml/PrimaryOutput.qml
         qml/CopyOutput.qml
         qml/TitleBar.qml

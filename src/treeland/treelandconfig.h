@@ -31,6 +31,7 @@ class TreelandConfig
     Q_PROPERTY(QEasingCurve::Type multitaskviewEasingCurveType READ multitaskviewEasingCurveType WRITE setMultitaskviewEasingCurveType NOTIFY multitaskviewEasingCurveTypeChanged FINAL)
     Q_PROPERTY(QString cursorThemeName READ cursorThemeName NOTIFY cursorThemeNameChanged FINAL)
     Q_PROPERTY(QSize cursorSize READ cursorSize NOTIFY cursorSizeChanged FINAL)
+    Q_PROPERTY(qreal windowRadius READ windowRadius NOTIFY windowRadiusChanged FINAL)
 
 public:
     TreelandConfig();
@@ -83,6 +84,8 @@ public:
 
     QSize cursorSize() const;
 
+    qreal windowRadius() const;
+
 Q_SIGNALS:
     void workspaceThumbMarginChanged();
     void workspaceThumbHeightChanged();
@@ -101,18 +104,22 @@ Q_SIGNALS:
     void multitaskviewEasingCurveTypeChanged();
     void cursorThemeNameChanged();
     void cursorSizeChanged();
+    void windowRadiusChanged();
 
 private:
     void onDConfigChanged(const QString &key);
 
+    // DConfig
     std::unique_ptr<DTK_CORE_NAMESPACE::DConfig> m_dconfig;
+    uint m_maxWorkspace;
+    uint m_numWorkspace;
+    uint m_currentWorkspace;
+
+    // Local
     uint m_workspaceThumbHeight = 144;
     uint m_workspaceThumbMargin = 20;
     uint m_workspaceThumbCornerRadius = 8;
     uint m_highlightBorderWidth = 4;
-    uint m_maxWorkspace;
-    uint m_numWorkspace;
-    uint m_currentWorkspace;
     uint m_minMultitaskviewSurfaceHeight = 232;
     uint m_titleBoxCornerRadius = 5;
     uint m_normalWindowHeight = 720;
