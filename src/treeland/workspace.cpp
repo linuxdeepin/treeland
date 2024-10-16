@@ -6,20 +6,23 @@
 #include "helper.h"
 #include "output.h"
 #include "rootsurfacecontainer.h"
+#include "surfacecontainer.h"
 #include "surfacewrapper.h"
 #include "treelandconfig.h"
-#include "surfacecontainer.h"
+#include "workspaceanimationcontroller.h"
 
 Workspace::Workspace(SurfaceContainer *parent)
     : SurfaceContainer(parent)
     , m_currentIndex(TreelandConfig::ref().currentWorkspace())
     , m_models(new WorkspaceListModel(this))
+    , m_animationController(new WorkspaceAnimationController(this))
 {
     m_showOnAllWorkspaceModel = new WorkspaceModel(this, ShowOnAllWorkspaceIndex, {});
     m_showOnAllWorkspaceModel->setName("show-on-all-workspace");
     m_showOnAllWorkspaceModel->setVisible(true);
     for (auto index = 0; index < TreelandConfig::ref().numWorkspace(); index++) {
-        doCreateModel(QStringLiteral("workspace-%1").arg(index), index == TreelandConfig::ref().currentWorkspace());
+        doCreateModel(QStringLiteral("workspace-%1").arg(index),
+                      index == TreelandConfig::ref().currentWorkspace());
     }
 }
 
@@ -71,10 +74,7 @@ void Workspace::addSurface(SurfaceWrapper *surface, int workspaceIndex)
         surface->setOwnsOutput(rootContainer()->primaryOutput());
 }
 
-void Workspace::moveModelTo(int workspaceIndex, int destinationIndex)
-{
-
-}
+void Workspace::moveModelTo(int workspaceIndex, int destinationIndex) { }
 
 void Workspace::removeSurface(SurfaceWrapper *surface)
 {
@@ -158,14 +158,20 @@ void Workspace::setCurrentIndex(int newCurrentIndex)
 
 void Workspace::switchToNext()
 {
-    if (currentIndex() < m_models->rowCount() - 1)
+    if (currentIndex() < m_models->rowCount() - 1) {
         switchTo(currentIndex() + 1);
+    } else {
+        m_animationController->bounce(currentIndex(), WorkspaceAnimationController::Right);
+    }
 }
 
 void Workspace::switchToPrev()
 {
-    if (currentIndex() > 0)
+    if (currentIndex() > 0) {
         switchTo(currentIndex() - 1);
+    } else {
+        m_animationController->bounce(currentIndex(), WorkspaceAnimationController::Left);
+    }
 }
 
 void Workspace::switchTo(int index)
@@ -175,16 +181,19 @@ void Workspace::switchTo(int index)
 
     Q_ASSERT(index != currentIndex());
     Q_ASSERT(index >= 0 && index < m_models->rowCount());
+    auto oldCurrentIndex = currentIndex();
     setCurrentIndex(index);
     Helper::instance()->activateSurface(current()->latestActiveSurface());
-
-    // TODO new switch animation here
-    // auto from = current();
-    // auto to = model(index);
-    // auto engine = Helper::instance()->qmlEngine();
-    // from->setVisible(false);
-    // to->setVisible(false);
-    // m_switcher = engine->createWorkspaceSwitcher(this, from, to);
+    if (m_switcherEnabled) {
+        auto engine = Helper::instance()->qmlEngine();
+        m_switcher = engine->createWorkspaceSwitcher(this);
+        connect(m_switcher, &QQuickItem::visibleChanged, m_switcher, [this] {
+            if (!m_switcher->isVisible()) {
+                m_switcher->deleteLater();
+            }
+        });
+    }
+    m_animationController->slide(oldCurrentIndex, currentIndex());
 }
 
 WorkspaceModel *Workspace::current() const
@@ -289,9 +298,15 @@ void Workspace::removeActivedSurface(SurfaceWrapper *surface)
     }
 }
 
+void Workspace::setSwitcherEnabled(bool enabled)
+{
+    m_switcherEnabled = enabled;
+}
+
 int Workspace::doCreateModel(const QString &name, bool visible)
 {
-    auto newContainer = new WorkspaceModel(this, count(), m_showOnAllWorkspaceModel->m_activedSurfaceHistory);
+    auto newContainer =
+        new WorkspaceModel(this, count(), m_showOnAllWorkspaceModel->m_activedSurfaceHistory);
     newContainer->setName(name);
     newContainer->setVisible(visible);
     m_models->addObject(newContainer);
@@ -347,7 +362,16 @@ void WorkspaceListModel::moveModelTo(int workspaceIndex, int destinationIndex)
     // Does not influence current but currentIndex
     if (workspaceIndex == destinationIndex)
         return;
-    beginMoveRows({}, workspaceIndex, workspaceIndex, QModelIndex(), destinationIndex > workspaceIndex ? (destinationIndex + 1) : destinationIndex);
+    beginMoveRows({},
+                  workspaceIndex,
+                  workspaceIndex,
+                  QModelIndex(),
+                  destinationIndex > workspaceIndex ? (destinationIndex + 1) : destinationIndex);
     m_objects.move(workspaceIndex, destinationIndex);
     endMoveRows();
+}
+
+WorkspaceAnimationController *Workspace::animationController() const
+{
+    return m_animationController;
 }

@@ -187,20 +187,13 @@ QQuickItem *QmlEngine::createMenuBar(WOutputItem *output, QQuickItem *parent)
     return item;
 }
 
-QQuickItem *QmlEngine::createWorkspaceSwitcher(Workspace *parent,
-                                               WorkspaceModel *from,
-                                               WorkspaceModel *to)
+QQuickItem *QmlEngine::createWorkspaceSwitcher(Workspace *parent)
 {
     auto context = qmlContext(parent);
     auto obj = workspaceSwitcher.beginCreate(context);
-    workspaceSwitcher.setInitialProperties(obj,
-                                           {
-                                               { "parent", QVariant::fromValue(parent) },
-                                               { "from", QVariant::fromValue(from) },
-                                               { "to", QVariant::fromValue(to) },
-                                           });
+    workspaceSwitcher.setInitialProperties(obj, { { "parent", QVariant::fromValue(parent) } });
     auto item = qobject_cast<QQuickItem *>(obj);
-    Q_ASSERT(item);
+    Q_ASSERT_X(item, __func__, workspaceSwitcher.errorString().toStdString().c_str());
     item->setParent(parent);
     item->setParentItem(parent);
     workspaceSwitcher.completeCreate();
@@ -307,8 +300,8 @@ QQuickItem *QmlEngine::createMultitaskview(QQuickItem *parent)
     auto obj = multitaskViewComponent.beginCreate(context);
     auto item = qobject_cast<QQuickItem *>(obj);
     if (!item) {
-        qCFatal(qLcTreelandEngine) << "Cannot create MultitaskviewProxy:"
-                                   << multitaskViewComponent.errorString();
+        qCFatal(qLcTreelandEngine)
+            << "Cannot create MultitaskviewProxy:" << multitaskViewComponent.errorString();
     }
     item->setParent(parent);
     item->setParentItem(parent);
