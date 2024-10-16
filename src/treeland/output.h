@@ -66,6 +66,9 @@ public:
     QRectF validGeometry() const;
     WOutputViewport *screenViewport() const;
     void updatePositionFromLayout();
+#ifdef QT_DEBUG
+    QQuickItem *outputMenuBar() const;
+#endif
 
 Q_SIGNALS:
     void exclusiveZoneChanged();

@@ -18,6 +18,7 @@
 #include "virtualoutputmanager.h"
 #include "wallpapercolor.h"
 #include "workspace.h"
+#include "multitaskview.h"
 
 #include <WBackend>
 #include <WForeignToplevel>
@@ -641,6 +642,9 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *, QInputEvent *event)
             } else if (kevent->key() == Qt::Key_Left) {
                 m_workspace->switchToPrev();
                 return true;
+            } else if (kevent->key() == Qt::Key_S) {
+                toggleMultitaskview();
+                return true;
             } else if (kevent->key() == Qt::Key_L) {
                 for (auto &&output : m_rootSurfaceContainer->outputs()) {
                     m_lockScreen->addOutput(output);
@@ -806,6 +810,23 @@ bool Helper::unacceptedEvent(WSeat *, QWindow *, QInputEvent *event)
     }
 
     return false;
+}
+
+void Helper::toggleMultitaskview()
+{
+    if (!m_multitaskview) {
+        toggleOutputMenuBar(false);
+        m_multitaskview =  qobject_cast<Multitaskview *>(qmlEngine()->createMultitaskview(rootContainer()));
+        connect(m_multitaskview.data(), &Multitaskview::visibleChanged, this, [this] {
+            if (!m_multitaskview->isVisible()) {
+                m_multitaskview->deleteLater();
+                toggleOutputMenuBar(true);
+            }
+        });
+        m_multitaskview->enter(Multitaskview::ShortcutKey);
+    } else {
+        m_multitaskview->exit(nullptr);
+    }
 }
 
 SurfaceWrapper *Helper::keyboardFocusSurface() const
@@ -1101,6 +1122,15 @@ WXWayland *Helper::defaultXWaylandSocket() const
 PersonalizationV1 *Helper::personalization() const
 {
     return m_personalization;
+}
+
+void Helper::toggleOutputMenuBar(bool show)
+{
+#ifdef QT_DEBUG
+    for (const auto &output : rootContainer()->outputs()) {
+        output->outputMenuBar()->setVisible(show);
+    }
+#endif
 }
 
 void Helper::destoryTaskSwitcher()

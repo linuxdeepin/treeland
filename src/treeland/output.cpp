@@ -123,6 +123,12 @@ void Output::updatePositionFromLayout()
     QPointF pos(layoutOutput->x, layoutOutput->y);
     m_item->setPosition(pos);
 }
+#ifdef QT_DEBUG
+QQuickItem *Output::outputMenuBar() const
+{
+    return m_menuBar;
+}
+#endif
 std::pair<WOutputViewport*, QQuickItem*> Output::getOutputItemProperty()
 {
     WOutputViewport *viewportCopy = outputItem()->findChild<WOutputViewport*>({}, Qt::FindDirectChildrenOnly);
