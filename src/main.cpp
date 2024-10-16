@@ -4,6 +4,7 @@
 #include "cmdline.h"
 #include "helper.h"
 #include "treeland/treeland.h"
+#include "treelandconfig.h"
 
 #include <wrenderhelper.h>
 
@@ -54,6 +55,8 @@ int main(int argc, char *argv[])
 
     Helper *helper = qmlEngine.singletonInstance<Helper *>("Treeland", "Helper");
     helper->init();
+
+    qmlRegisterSingletonInstance("Treeland", 1, 0, "TreelandConfig", &TreelandConfig::ref()); // Inject treeland config singleton.
 
     TreeLand::TreeLand treeland(helper);
 
