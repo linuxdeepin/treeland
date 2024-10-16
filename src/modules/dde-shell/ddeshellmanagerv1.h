@@ -84,6 +84,6 @@ protected:
     QByteArrayView interfaceName() const override;
 
 private:
-    treeland_dde_shell_manager_v1 *m_manager;
+    treeland_dde_shell_manager_v1 *m_manager = nullptr;
     QMap<treeland_window_overlap_checker *, QRect> m_conflictList;
 };
