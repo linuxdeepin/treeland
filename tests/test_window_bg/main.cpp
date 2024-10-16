@@ -76,7 +76,7 @@ int main(int argc, char *argv[])
                         new PersonalizationWindow(manager.get_window_context(surface));
 
                     QObject::connect(button, &QPushButton::clicked, [context]() {
-                        static int state = PersonalizationWindow::blend_mode_wallpaper;
+                        static int state = PersonalizationWindow::blend_mode_transparent;
                         if (state > PersonalizationWindow::blend_mode_blur) {
                             state = 0;
                         }
