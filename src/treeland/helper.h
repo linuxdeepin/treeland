@@ -23,6 +23,7 @@ Q_MOC_INCLUDE(<qwgammacontorlv1.h>)
 Q_MOC_INCLUDE(<qwoutputmanagementv1.h>)
 Q_MOC_INCLUDE("surfacewrapper.h")
 Q_MOC_INCLUDE("workspace.h")
+Q_MOC_INCLUDE("rootsurfacecontainer.h")
 
 QT_BEGIN_NAMESPACE
 class QQuickItem;
@@ -242,5 +243,3 @@ private:
 
     QList<WXWayland *> m_xwaylands;
 };
-
-Q_DECLARE_OPAQUE_POINTER(RootSurfaceContainer *)
