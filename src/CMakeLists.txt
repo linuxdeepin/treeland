@@ -100,6 +100,8 @@ qt_add_qml_module(${BIN_NAME}
         treeland/togglablegesture.cpp
         treeland/inputdevice.h
         treeland/inputdevice.cpp
+        treeland/workspaceanimationcontroller.h
+        treeland/workspaceanimationcontroller.cpp
 
         ${DBUS_ADAPTOR}
     QML_FILES

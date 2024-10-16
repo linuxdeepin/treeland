@@ -7,6 +7,7 @@
 #include "ddeshellmanagerv1.h"
 #include "layersurfacecontainer.h"
 #include "lockscreen.h"
+#include "multitaskview.h"
 #include "output.h"
 #include "outputmanagement.h"
 #include "personalizationmanager.h"
@@ -19,7 +20,6 @@
 #include "virtualoutputmanager.h"
 #include "wallpapercolor.h"
 #include "workspace.h"
-#include "multitaskview.h"
 #include "inputdevice.h"
 
 #include <WBackend>
@@ -120,8 +120,14 @@ Helper::Helper(QObject *parent)
         m_seat->setKeyboardFocusSurface(wrapper ? wrapper->surface() : nullptr);
     });
 
-    connect(&TreelandConfig::ref(), &TreelandConfig::cursorThemeNameChanged, this, &Helper::cursorThemeChanged);
-    connect(&TreelandConfig::ref(), &TreelandConfig::cursorSizeChanged, this, &Helper::cursorSizeChanged);
+    connect(&TreelandConfig::ref(),
+            &TreelandConfig::cursorThemeNameChanged,
+            this,
+            &Helper::cursorThemeChanged);
+    connect(&TreelandConfig::ref(),
+            &TreelandConfig::cursorSizeChanged,
+            this,
+            &Helper::cursorSizeChanged);
 }
 
 Helper::~Helper()
@@ -259,7 +265,7 @@ void Helper::onXdgSurfaceAdded(WXdgSurface *surface)
 
             if (auto parent = surface->parentSurface()) {
                 auto parentWrapper = m_rootSurfaceContainer->getSurface(parent);
-                auto container = qobject_cast<Workspace*>(parentWrapper->container());
+                auto container = qobject_cast<Workspace *>(parentWrapper->container());
                 Q_ASSERT(container);
                 parentWrapper->addSubSurface(wrapper);
                 container->addSurface(wrapper, parentWrapper->workspaceId());
@@ -443,9 +449,9 @@ void Helper::onDockPreviewTooltip(QString tooltip,
 void Helper::onShowDesktop()
 {
     WindowManagementV1::DesktopState s = m_windowManagement->desktopState();
-    if (m_showDesktop == s ||
-        (s !=WindowManagementV1::DesktopState::Normal
-         && s != WindowManagementV1::DesktopState::Show))
+    if (m_showDesktop == s
+        || (s != WindowManagementV1::DesktopState::Normal
+            && s != WindowManagementV1::DesktopState::Show))
         return;
 
     m_showDesktop = s;
@@ -542,7 +548,10 @@ void Helper::init()
                 m_wallpaperColorV1->updateWallpaperColor(output, isdark);
             });
 
-    connect(m_windowManagement, &WindowManagementV1::desktopStateChanged, this, &Helper::onShowDesktop);
+    connect(m_windowManagement,
+            &WindowManagementV1::desktopStateChanged,
+            this,
+            &Helper::onShowDesktop);
 
     qmlRegisterUncreatableType<Personalization>("Treeland.Protocols",
                                                 1,
@@ -551,10 +560,10 @@ void Helper::init()
                                                 "Only for Enum");
 
     qmlRegisterUncreatableType<DDEShellHelper>("TreeLand.Protocols",
-                                         1,
-                                         0,
-                                         "DDEShellHelper",
-                                         "Only for attached");
+                                               1,
+                                               0,
+                                               "DDEShellHelper",
+                                               "Only for attached");
     qmlRegisterUncreatableType<CaptureSource>("Treeland.Protocols",
                                               1,
                                               0,
@@ -758,7 +767,7 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *, QInputEvent *event)
     if (auto e = static_cast<QKeyEvent *>(event)) {
         if (e->type() == QKeyEvent::KeyPress && e->key() == Qt::Key_D
             && e->modifiers() == Qt::MetaModifier) {
-            if(m_showDesktop == WindowManagementV1::DesktopState::Normal)
+            if (m_showDesktop == WindowManagementV1::DesktopState::Normal)
                 m_windowManagement->setDesktopState(WindowManagementV1::DesktopState::Show);
             else if (m_showDesktop == WindowManagementV1::DesktopState::Show)
                 m_windowManagement->setDesktopState(WindowManagementV1::DesktopState::Normal);
@@ -915,11 +924,14 @@ void Helper::toggleMultitaskview()
 {
     if (!m_multitaskview) {
         toggleOutputMenuBar(false);
-        m_multitaskview =  qobject_cast<Multitaskview *>(qmlEngine()->createMultitaskview(rootContainer()));
+        m_workspace->setSwitcherEnabled(false);
+        m_multitaskview =
+            qobject_cast<Multitaskview *>(qmlEngine()->createMultitaskview(rootContainer()));
         connect(m_multitaskview.data(), &Multitaskview::visibleChanged, this, [this] {
             if (!m_multitaskview->isVisible()) {
                 m_multitaskview->deleteLater();
                 toggleOutputMenuBar(true);
+                m_workspace->setSwitcherEnabled(true);
             }
         });
         m_multitaskview->enter(Multitaskview::ShortcutKey);
@@ -1295,7 +1307,7 @@ void Helper::handleDdeShellSurfaceAdded(WSurface *surface, SurfaceWrapper *wrapp
     wrapper->setIsDdeShellSurface(true);
     auto ddeShellSurface = m_ddeShellV1->ddeShellSurfaceFromWSurface(surface);
     Q_ASSERT(ddeShellSurface);
-    auto updateLayer = [ddeShellSurface, wrapper]{
+    auto updateLayer = [ddeShellSurface, wrapper] {
         if (ddeShellSurface->m_role.value() == treeland_dde_shell_surface::Role::OVERLAY)
             wrapper->setSurfaceRole(SurfaceWrapper::SurfaceRole::Overlay);
     };
@@ -1303,23 +1315,27 @@ void Helper::handleDdeShellSurfaceAdded(WSurface *surface, SurfaceWrapper *wrapp
     if (ddeShellSurface->m_role.has_value())
         updateLayer();
 
-    connect(ddeShellSurface, &treeland_dde_shell_surface::roleChanged, this, [updateLayer]{
+    connect(ddeShellSurface, &treeland_dde_shell_surface::roleChanged, this, [updateLayer] {
         updateLayer();
     });
 
     if (ddeShellSurface->m_yOffset.has_value())
         wrapper->setAutoPlaceYOffset(ddeShellSurface->m_yOffset.value());
 
-    connect(ddeShellSurface, &treeland_dde_shell_surface::yOffsetChanged,
-            this, [wrapper](uint32_t offset){
+    connect(ddeShellSurface,
+            &treeland_dde_shell_surface::yOffsetChanged,
+            this,
+            [wrapper](uint32_t offset) {
                 wrapper->setAutoPlaceYOffset(offset);
             });
 
     if (ddeShellSurface->m_surfacePos.has_value())
         wrapper->setClientRequstPos(ddeShellSurface->m_surfacePos.value());
 
-    connect(ddeShellSurface, &treeland_dde_shell_surface::positionChanged,
-            this, [wrapper](QPoint pos){
+    connect(ddeShellSurface,
+            &treeland_dde_shell_surface::positionChanged,
+            this,
+            [wrapper](QPoint pos) {
                 wrapper->setClientRequstPos(pos);
             });
 
@@ -1332,16 +1348,22 @@ void Helper::handleDdeShellSurfaceAdded(WSurface *surface, SurfaceWrapper *wrapp
     if (ddeShellSurface->m_skipMutiTaskView.has_value())
         wrapper->setSkipMutiTaskView(ddeShellSurface->m_skipMutiTaskView.value());
 
-    connect(ddeShellSurface, &treeland_dde_shell_surface::skipSwitcherChanged,
-            this,[wrapper](bool skip){
+    connect(ddeShellSurface,
+            &treeland_dde_shell_surface::skipSwitcherChanged,
+            this,
+            [wrapper](bool skip) {
                 wrapper->setSkipSwitcher(skip);
             });
-    connect(ddeShellSurface, &treeland_dde_shell_surface::skipDockPreViewChanged,
-            this, [wrapper](bool skip){
+    connect(ddeShellSurface,
+            &treeland_dde_shell_surface::skipDockPreViewChanged,
+            this,
+            [wrapper](bool skip) {
                 wrapper->setSkipDockPreView(skip);
             });
-    connect(ddeShellSurface, &treeland_dde_shell_surface::skipMutiTaskViewChanged,
-            this, [wrapper](bool skip){
+    connect(ddeShellSurface,
+            &treeland_dde_shell_surface::skipMutiTaskViewChanged,
+            this,
+            [wrapper](bool skip) {
                 wrapper->setSkipMutiTaskView(skip);
             });
 }

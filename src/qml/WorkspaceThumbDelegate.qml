@@ -30,7 +30,7 @@ Item {
             fill: parent
             margins: TreelandConfig.workspaceThumbMargin - TreelandConfig.highlightBorderWidth
         }
-        border.width: workspace.visible ? TreelandConfig.highlightBorderWidth : 0
+        border.width: (!Helper.workspace.animationController.running && workspace.visible) ? TreelandConfig.highlightBorderWidth : 0
         border.color: "blue"
         color: "transparent"
         radius: TreelandConfig.workspaceThumbCornerRadius + TreelandConfig.highlightBorderWidth

@@ -133,6 +133,7 @@ Multitaskview {
                 }
             }
             Repeater {
+                id: wsDelegates
                 model: Helper.workspace.models
                 SurfaceGridProxy {
                     id: grid
@@ -293,6 +294,24 @@ Multitaskview {
                         y: height * (taskviewVal - 1.0)
                     }
                 ]
+
+                Item {
+                    id: animationMask
+                    property real localAnimationFactor: (TreelandConfig.workspaceThumbHeight * outputPlacementItem.whRatio+ 2 * TreelandConfig.workspaceThumbMargin)
+                                                        / Helper.workspace.animationController.refWrap
+                    visible: Helper.workspace.animationController.running
+                    anchors.fill: workspaceList
+                    anchors.margins: TreelandConfig.workspaceThumbMargin - TreelandConfig.highlightBorderWidth
+                    Rectangle {
+                        width: TreelandConfig.workspaceThumbHeight * outputPlacementItem.whRatio + 2 * TreelandConfig.highlightBorderWidth
+                        height: TreelandConfig.workspaceThumbHeight + 2 * TreelandConfig.highlightBorderWidth
+                        border.width: TreelandConfig.highlightBorderWidth
+                        border.color: "blue"
+                        color: "transparent"
+                        radius: TreelandConfig.workspaceThumbCornerRadius + TreelandConfig.highlightBorderWidth
+                        x: Helper.workspace.animationController.viewportPos * animationMask.localAnimationFactor
+                    }
+                }
                 ListView {
                     id: workspaceList
                     anchors {
@@ -368,6 +387,79 @@ Multitaskview {
                     }
                     onClicked: {
                         Helper.workspace.createModel(`workspace-${Helper.workspace.count}`, false)
+                    }
+                }
+            }
+
+            Loader {
+                id: workspaceAnimationLoader
+                active: false
+                Connections {
+                    target: Helper.workspace.animationController
+                    function onRunningChanged() {
+                        if (Helper.workspace.animationController.running) workspaceAnimationLoader.active = true
+                    }
+                }
+                anchors.fill: parent
+                sourceComponent: Item {
+                    id: animationDelegate
+                    visible: Helper.workspace.animationController.running
+                    onVisibleChanged: {
+                        if (!visible) {
+                            workspaceAnimationLoader.active = false
+                        }
+                    }
+                    property real localFactor: width / Helper.workspace.animationController.refWidth
+
+                    Rectangle {
+                        anchors.fill: parent
+                        color: "black"
+                    }
+                    Row {
+                        visible: true
+                        spacing: Helper.workspace.animationController.refGap * animationDelegate.localFactor
+                        x: -Helper.workspace.animationController.viewportPos * animationDelegate.localFactor
+                        Repeater {
+                            model: Helper.workspace.models
+                            Item {
+                                id: wsShot
+                                required property int index
+                                width: animationDelegate.width
+                                height: animationDelegate.height
+                                ShaderEffectSource {
+                                    z: Multitaskview.Background
+                                    id: wallpaperShot
+                                    live: true
+                                    smooth: true
+                                    sourceItem: wallpaperController.proxy
+                                    anchors.fill: parent
+                                }
+
+                                RenderBufferBlitter {
+                                    z: Multitaskview.Background
+                                    id: shotBlitter
+                                    anchors.fill: parent
+                                    MultiEffect {
+                                        id: shotBlur
+                                        anchors.fill: parent
+                                        source: shotBlitter.content
+                                        autoPaddingEnabled: false
+                                        blurEnabled: true
+                                        blur: 1.0
+                                        blurMax: 64
+                                        saturation: 0.2
+                                    }
+                                }
+
+                                ShaderEffectSource {
+                                    id: ws
+                                    visible: true
+                                    anchors.fill: parent
+                                    hideSource: visible
+                                    sourceItem: wsDelegates.itemAt(index) ?? null
+                                }
+                            }
+                        }
                     }
                 }
             }
