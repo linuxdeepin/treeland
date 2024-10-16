@@ -35,10 +35,10 @@ static PersonalizationV1 *PERSONALIZATION_MANAGER = nullptr;
 #define DEFAULT_WALLPAPER ":/desktop.webp"
 #define DEFAULT_WALLPAPER_ISDARK false
 
-QuickPersonalizationManagerAttached *Personalization::qmlAttachedProperties(QObject *target)
+PersonalizationAttached *Personalization::qmlAttachedProperties(QObject *target)
 {
     if (auto *surface = qobject_cast<WToplevelSurface *>(target)) {
-        return new QuickPersonalizationManagerAttached(surface, PERSONALIZATION_MANAGER);
+        return new PersonalizationAttached(surface, PERSONALIZATION_MANAGER);
     }
 
     return nullptr;
@@ -135,7 +135,7 @@ void PersonalizationV1::onAppearanceContextCreated(personalization_appearance_co
     using Appearance = personalization_appearance_context_v1;
 
     connect(context, &Appearance::roundCornerRadiusChanged, this, [this, context] {
-        m_dconfig->setValue("roundCornerRadius", context->cursorTheme());
+        m_dconfig->setValue("windowRadius", context->cursorTheme());
     });
     connect(context, &Appearance::fontChanged, this, [this, context] {
         m_dconfig->setValue("font", context->cursorTheme());
@@ -298,7 +298,7 @@ void PersonalizationV1::setCursorSize(const QSize &size)
 
 int32_t PersonalizationV1::windowRadius() const
 {
-    return m_dconfig->value("roundCornerRadius", 18).toInt();
+    return m_dconfig->value("windowRadius", 18).toInt();
 }
 
 QString PersonalizationV1::fontName() const
@@ -342,9 +342,10 @@ bool PersonalizationV1::isAnimagedImage(const QString &source)
     return reader.imageCount() > 1;
 }
 
-QuickPersonalizationManagerAttached::QuickPersonalizationManagerAttached(WToplevelSurface *target,
-                                                                         PersonalizationV1 *manager)
-    : QObject(manager)
+PersonalizationAttached::PersonalizationAttached(WToplevelSurface *target,
+                                                                         PersonalizationV1 *manager,
+                                                                         QObject *parent)
+    : QObject(parent)
     , m_target(target)
     , m_manager(manager)
 {
@@ -393,13 +394,13 @@ QuickPersonalizationManagerAttached::QuickPersonalizationManagerAttached(WToplev
     }
 }
 
-Personalization::BackgroundType QuickPersonalizationManagerAttached::backgroundType() const
+Personalization::BackgroundType PersonalizationAttached::backgroundType() const
 {
     if (auto *target = qobject_cast<WLayerSurface *>(m_target)) {
         auto scope = QString(target->handle()->handle()->scope);
         QStringList forceList{ "dde-shell/dock", "dde-shell/launchpad" };
         if (forceList.contains(scope)) {
-            return Personalization::Blend;
+            return Personalization::Blur;
         }
     }
     return static_cast<Personalization::BackgroundType>(m_backgroundType);

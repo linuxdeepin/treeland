@@ -5,6 +5,7 @@
 
 #include "output.h"
 #include "qmlengine.h"
+#include "treelandconfig.h"
 #include "workspace.h"
 
 #include <winputpopupsurfaceitem.h>
@@ -80,8 +81,8 @@ SurfaceWrapper::SurfaceWrapper(QmlEngine *qmlEngine,
                               this,
                               &SurfaceWrapper::requestCancelFullscreen);
     shellSurface->surface()->safeConnect(&WSurface::mappedChanged,
-                                        this,
-                                        &SurfaceWrapper::onMappedChanged);
+                                         this,
+                                         &SurfaceWrapper::onMappedChanged);
 
     if (type == Type::XdgToplevel) {
         shellSurface->safeConnect(&WToplevelSurface::requestShowWindowMenu,
@@ -683,7 +684,8 @@ void SurfaceWrapper::startMinimizeAnimation(const QRectF &iconGeometry, uint dir
     m_MinimizeAnimation =
         m_engine->createMinimizeAnimation(this, container(), iconGeometry, direction);
 
-    bool ok = connect(m_MinimizeAnimation, SIGNAL(finished()), this, SLOT(onMinimizeAnimationFinished()));
+    bool ok =
+        connect(m_MinimizeAnimation, SIGNAL(finished()), this, SLOT(onMinimizeAnimationFinished()));
     Q_ASSERT(ok);
     ok = QMetaObject::invokeMethod(m_MinimizeAnimation, "start");
     Q_ASSERT(ok);
@@ -700,8 +702,7 @@ void SurfaceWrapper::startShowAnimation(bool show)
     if (m_ShowAnimation)
         return;
 
-    m_ShowAnimation =
-        m_engine->createShowDesktopAnimation(this, container(), show);
+    m_ShowAnimation = m_engine->createShowDesktopAnimation(this, container(), show);
 
     bool ok = connect(m_ShowAnimation, SIGNAL(finished()), this, SLOT(onShowAnimationFinished()));
     Q_ASSERT(ok);
@@ -711,6 +712,10 @@ void SurfaceWrapper::startShowAnimation(bool show)
 
 qreal SurfaceWrapper::radius() const
 {
+    if (m_radius < 1 && m_type != Type::Layer) {
+        return TreelandConfig::ref().windowRadius();
+    }
+
     return m_radius;
 }
 
@@ -1093,6 +1098,24 @@ bool SurfaceWrapper::showOnWorkspace(int workspaceIndex) const
     if (m_workspaceId == workspaceIndex)
         return true;
     return showOnAllWorkspace();
+}
+
+bool SurfaceWrapper::blur() const
+{
+    return m_blurContent.isNull();
+}
+
+void SurfaceWrapper::setBlur(bool blur)
+{
+    if (blur && !m_blurContent) {
+        m_blurContent = m_engine->createBlur(this, this);
+        m_blurContent->setVisible(isVisible());
+    } else if (!blur && m_blurContent) {
+        m_blurContent->setVisible(false);
+        m_blurContent->deleteLater();
+    }
+
+    Q_EMIT blurChanged();
 }
 
 void SurfaceWrapper::updateExplicitAlwaysOnTop()
