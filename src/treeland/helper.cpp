@@ -670,12 +670,13 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *, QInputEvent *event)
 
     // ShowDesktop : Meta + D
     if (auto e = static_cast<QKeyEvent *>(event)) {
-        if (e->type() == QKeyEvent::KeyRelease && e->key() == Qt::Key_D
+        if (e->type() == QKeyEvent::KeyPress && e->key() == Qt::Key_D
             && e->modifiers() == Qt::MetaModifier) {
             if(m_showDesktop == WindowManagementV1::DesktopState::Normal)
                 m_windowManagement->setDesktopState(WindowManagementV1::DesktopState::Show);
             else if (m_showDesktop == WindowManagementV1::DesktopState::Show)
                 m_windowManagement->setDesktopState(WindowManagementV1::DesktopState::Normal);
+            return true;
         }
     }
 
