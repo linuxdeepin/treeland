@@ -30,9 +30,9 @@ public:
     };
     Q_ENUM(ActiveReason)
     enum ZOrder {
-        Background = 0,
-        Overlay,
-        FloatingItem
+        Background = -1,
+        Overlay = 1,
+        FloatingItem = 2
     };
     Q_ENUM(ZOrder)
 

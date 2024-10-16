@@ -1,50 +1,16 @@
 import QtQuick
 import Treeland
 import QtQuick.Effects
-import Waylib.Server
+
 
 Item {
     id: root
     required property QtObject output
     required property WorkspaceModel workspace
-    required property real taskviewVal
     required property int workspaceListPadding
     required property Component delegate
 
     readonly property real delegateCornerRadius: (ros.rows >= 1 && ros.rows <= 3) ? ros.cornerRadiusList[ros.rows - 1] : ros.cornerRadiusList[2]
-
-    WallpaperController {
-        id: wallpaperController
-        output: root.output.outputItem.output
-        lock: true
-        type: WallpaperController.Normal
-    }
-
-    ShaderEffectSource {
-        sourceItem: wallpaperController.proxy
-        recursive: true
-        live: true
-        smooth: true
-        anchors.fill: parent
-        hideSource: false
-    }
-
-    RenderBufferBlitter {
-        z: Multitaskview.Background
-        id: blitter
-        anchors.fill: parent
-        opacity: taskviewVal
-        MultiEffect {
-            id: blur
-            anchors.fill: parent
-            source: blitter.content
-            autoPaddingEnabled: false
-            blurEnabled: true
-            blur: 1.0
-            blurMax: 64
-            saturation: 0.2
-        }
-    }
 
     QtObject {
         id: ros // readonly state

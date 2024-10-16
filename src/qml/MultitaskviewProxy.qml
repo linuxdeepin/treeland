@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Effects
+import Waylib.Server
 import Treeland
 import org.deepin.dtk as D
 import org.deepin.dtk.style as DS
@@ -99,8 +100,38 @@ Multitaskview {
             y: output.outputItem.y
             width: output.outputItem.width
             height: output.outputItem.height
-            z: 1
+            WallpaperController {
+                id: wallpaperController
+                output: outputPlacementItem.output.outputItem.output
+                lock: true
+                type: WallpaperController.Normal
+            }
 
+            ShaderEffectSource {
+                sourceItem: wallpaperController.proxy
+                recursive: true
+                live: true
+                smooth: true
+                anchors.fill: parent
+                hideSource: false
+            }
+
+            RenderBufferBlitter {
+                z: Multitaskview.Background
+                id: blitter
+                anchors.fill: parent
+                opacity: taskviewVal
+                MultiEffect {
+                    id: blur
+                    anchors.fill: parent
+                    source: blitter.content
+                    autoPaddingEnabled: false
+                    blurEnabled: true
+                    blur: 1.0
+                    blurMax: 64
+                    saturation: 0.2
+                }
+            }
             Repeater {
                 model: Helper.workspace.models
                 SurfaceGridProxy {
@@ -124,10 +155,10 @@ Multitaskview {
                         D.BoxShadow {
                             anchors.fill: paddingRect
                             visible: shouldPadding
-                            shadowColor: root.D.ColorSelector.outerShadowColor
-                            shadowOffsetY: 2
-                            shadowBlur: 10
                             cornerRadius: grid.delegateCornerRadius
+                            shadowColor: Qt.rgba(0, 0, 0, 0.3)
+                            shadowOffsetY: 16
+                            shadowBlur: 32
                             hollow: true
                         }
                         Rectangle {
@@ -138,7 +169,6 @@ Multitaskview {
                             color: "white"
                             opacity: paddingOpacity
                         }
-
                         clip: false
                         states: [
                             State {
@@ -158,63 +188,12 @@ Multitaskview {
                                 }
                             }
                         ]
-
                         function conv(y, item = parent) { // convert to outputPlacementItem's coord
                             return mapToItem(outputPlacementItem, mapFromItem(item, 0, y)).y
                         }
-
-                        property bool highlighted: dragManager.item === null && (hvhdlr.hovered || surfaceCloseBtn.hovered)
-
-                        // Item {
-                        //     anchors.fill: parent
-                        //     clip: shouldPadding
-                        //     Item {
-                        //         id: surfaceShot
-                        //         width: parent.width
-                        //         height: width / ratio
-                        //         anchors.centerIn: parent
-
-                        //         D.BoxShadow {
-                        //             anchors.fill: parent
-                        //             shadowColor: root.D.ColorSelector.outerShadowColor
-                        //             shadowOffsetY: 2
-                        //             shadowBlur: 10
-                        //             cornerRadius: grid.delegateCornerRadius
-                        //             hollow: true
-                        //         }
-
-                        //         ShaderEffectSource {
-                        //             id: preview
-                        //             anchors.fill: parent
-                        //             live: true
-                        //             // no hidesource, may conflict with workspace thumb
-                        //             smooth: true
-                        //             sourceItem: wrapper
-                        //             visible: false
-                        //         }
-
-                        //         MultiEffect {
-                        //             enabled: grid.delegateCornerRadius > 0
-                        //             anchors.fill: preview
-                        //             source: preview
-                        //             maskEnabled: true
-                        //             maskSource: mask
-                        //         }
-
-                        //         Item {
-                        //             id: mask
-                        //             anchors.fill: preview
-                        //             layer.enabled: true
-                        //             visible: false
-                        //             Rectangle {
-                        //                 anchors.fill: parent
-                        //                 radius: grid.delegateCornerRadius
-                        //             }
-                        //         }
-                        //     }
-                        // }
-
+                        property bool highlighted: dragManager.item === null && (hvhdlr.hovered || surfaceCloseBtn.hovered) && root.state === "taskview"
                         SurfaceProxy {
+                            enabled: false
                             id: surfaceProxy
                             surface: wrapper
                             live: true
@@ -223,41 +202,34 @@ Multitaskview {
                             height: width / surfaceItemDelegate.ratio
                             anchors.centerIn: parent
                         }
-
-                        Item {
-                            z: 1
-                            id: eventItem
-                            anchors.fill: parent
-                            HoverHandler {
-                                id: hvhdlr
-                                enabled: !drg.active
-                            }
-                            TapHandler {
-                                gesturePolicy: TapHandler.WithinBounds
-                                onTapped: root.exit(wrapper)
-                            }
-                            DragHandler {
-                                id: drg
-                                onActiveChanged: {
-                                    if (active) {
-                                        dragManager.item = surfaceItemDelegate
-                                    } else {
-                                        if (dragManager.accept) {
-                                            dragManager.accept()
-                                        }
-                                        dragManager.item = null
-                                    }
-                                }
-                                onGrabChanged: (transition, eventPoint) => {
-                                                   switch (transition) {
-                                                       case PointerDevice.GrabExclusive:
-                                                       fullY = conv(workspacePreviewArea.height, workspacePreviewArea) - conv(mapToItem(surfaceItemDelegate, eventPoint.position).y, surfaceItemDelegate)
-                                                       break
-                                                   }
-                                               }
-                            }
+                        HoverHandler {
+                            id: hvhdlr
+                            enabled: !drg.active
                         }
-
+                        TapHandler {
+                            gesturePolicy: TapHandler.WithinBounds
+                            onTapped: root.exit(wrapper)
+                        }
+                        DragHandler {
+                            id: drg
+                            onActiveChanged: {
+                                if (active) {
+                                    dragManager.item = surfaceItemDelegate
+                                } else {
+                                    if (dragManager.accept) {
+                                        dragManager.accept()
+                                    }
+                                    dragManager.item = null
+                                }
+                            }
+                            onGrabChanged: (transition, eventPoint) => {
+                                               switch (transition) {
+                                                   case PointerDevice.GrabExclusive:
+                                                   fullY = conv(workspacePreviewArea.height, workspacePreviewArea) - conv(mapToItem(surfaceItemDelegate, eventPoint.position).y, surfaceItemDelegate)
+                                                   break
+                                               }
+                                           }
+                        }
                         D.RoundButton {
                             id: surfaceCloseBtn
                             icon.name: "multitaskview_close"
