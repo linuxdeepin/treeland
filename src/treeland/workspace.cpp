@@ -271,6 +271,7 @@ void Workspace::pushActivedSurface(SurfaceWrapper *surface)
         m_showOnAllWorkspaceModel->pushActivedSurface(surface);
     } else {
         auto wpModle = model(surface->workspaceId());
+        Q_ASSERT(wpModle);
         wpModle->pushActivedSurface(surface);
     }
 }
@@ -283,6 +284,7 @@ void Workspace::removeActivedSurface(SurfaceWrapper *surface)
         m_showOnAllWorkspaceModel->removeActivedSurface(surface);
     } else {
         auto wpModle = model(surface->workspaceId());
+        Q_ASSERT(wpModle);
         wpModle->removeActivedSurface(surface);
     }
 }

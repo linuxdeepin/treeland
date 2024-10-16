@@ -99,7 +99,7 @@ void ForeignToplevelV1::addSurface(SurfaceWrapper *wrapper)
                 &treeland_foreign_toplevel_handle_v1::requestActivate,
                 this,
                 [wrapper, this](treeland_foreign_toplevel_handle_v1_activated_event *event) {
-                    Helper::instance()->activateSurface(wrapper);
+                    Q_EMIT wrapper->requestForceActive();
                 }));
 
     connection.push_back(
