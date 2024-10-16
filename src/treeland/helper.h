@@ -5,8 +5,9 @@
 
 #include "foreigntoplevelmanagerv1.h"
 #include "qmlengine.h"
-#include "windowmanagement.h"
 #include "togglablegesture.h"
+#include "virtualoutputmanager.h"
+#include "windowmanagement.h"
 
 #include <wglobal.h>
 #include <wqmlcreator.h>
@@ -76,6 +77,7 @@ class WallpaperColorV1;
 class WindowManagementV1;
 class Multitaskview;
 class DDEShellManagerV1;
+class VirtualOutputV1;
 
 class Helper : public WSeatEventFilter
 {
@@ -189,6 +191,8 @@ private Q_SLOTS:
                               QPoint pos,
                               ForeignToplevelV1::PreviewDirection direction);
     void onShowDesktop();
+    void onSetCopyOutput(treeland_virtual_output_v1 *virtual_output);
+    void onRestoreCopyOutput(treeland_virtual_output_v1 *virtual_output);
 
 private:
     void setupSurfaceActiveWatcher(SurfaceWrapper *wrapper);
@@ -220,6 +224,8 @@ private:
     void handleWhellValueChanged(const QInputEvent *event);
     void handleDdeShellSurfaceAdded(WSurface *surface, SurfaceWrapper *wrapper);
     bool doGesture(QInputEvent *event);
+    Output *createNormalOutput(WOutput *output);
+    Output *createCopyOutput(WOutput *output, Output *proxy);
 
     static Helper *m_instance;
 
@@ -254,6 +260,7 @@ private:
     WindowManagementV1 *m_windowManagement = nullptr;
     WindowManagementV1::DesktopState m_showDesktop = WindowManagementV1::DesktopState::Normal;
     DDEShellManagerV1 *m_ddeShellV1 = nullptr;
+    VirtualOutputV1 *m_virtualOutput = nullptr;
 
     // private data
     QList<Output *> m_outputList;

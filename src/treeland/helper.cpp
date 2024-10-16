@@ -18,7 +18,6 @@
 #include "surfacecontainer.h"
 #include "surfacewrapper.h"
 #include "treelandconfig.h"
-#include "virtualoutputmanager.h"
 #include "wallpapercolor.h"
 #include "workspace.h"
 
@@ -164,15 +163,13 @@ Workspace *Helper::workspace() const
 
 void Helper::onOutputAdded(WOutput *output)
 {
+    // TODO: 应该让helper发出Output的信号，每个需要output的单元单独connect。
     allowNonDrmOutputAutoChangeMode(output);
     Output *o;
     if (m_mode == OutputMode::Extension || !m_rootSurfaceContainer->primaryOutput()) {
-        o = Output::create(output, qmlEngine(), this);
-        o->outputItem()->stackBefore(m_rootSurfaceContainer);
-        // TODO: 应该让helper发出Output的信号，每个需要output的单元单独connect。
-        m_rootSurfaceContainer->addOutput(o);
+        o = createNormalOutput(output);
     } else if (m_mode == OutputMode::Copy) {
-        o = Output::createCopy(output, m_rootSurfaceContainer->primaryOutput(), qmlEngine(), this);
+        o = createCopyOutput(output, m_rootSurfaceContainer->primaryOutput());
     }
     m_outputList.append(o);
     enableOutput(output);
@@ -185,8 +182,25 @@ void Helper::onOutputRemoved(WOutput *output)
     auto index = indexOfOutput(output);
     Q_ASSERT(index >= 0);
     const auto o = m_outputList.takeAt(index);
+
+    if (m_mode == OutputMode::Extension) {
+        m_rootSurfaceContainer->removeOutput(o);
+    } else if (m_mode == OutputMode::Copy) {
+        m_mode = OutputMode::Extension;
+        if (output == m_rootSurfaceContainer->primaryOutput()->output())
+            m_rootSurfaceContainer->removeOutput(o);
+
+        for (int i = 0; i < m_outputList.size(); i++) {
+            if (m_outputList.at(i) == m_rootSurfaceContainer->primaryOutput())
+                continue;
+            Output *o1 = createNormalOutput(m_outputList.at(i)->output());
+            enableOutput(o1->output());
+            m_outputList.at(i)->deleteLater();
+            m_outputList.replace(i, o1);
+        }
+    }
+
     m_outputManager->removeOutput(output);
-    m_rootSurfaceContainer->removeOutput(o);
     m_lockScreen->removeOutput(o);
     delete o;
 }
@@ -474,6 +488,54 @@ void Helper::onShowDesktop()
     }
 }
 
+void Helper::onSetCopyOutput(treeland_virtual_output_v1 *virtual_output)
+{
+    Output *mirrorOutput = nullptr;
+    for (Output *output : m_outputList) {
+        if (!virtual_output->outputList.contains(output->output()->name())) {
+            QString screen = output->output()->name() + " does not exist!";
+            virtual_output->send_error(TREELAND_VIRTUAL_OUTPUT_V1_ERROR_INVALID_OUTPUT,
+                                       screen.toLocal8Bit().data());
+            return;
+        }
+
+        if (output->output()->name() == virtual_output->outputList.at(0))
+            mirrorOutput = output;
+    }
+
+    for (int i = 0; i < m_outputList.size(); i++) {
+        Output *currentOutput = m_outputList.at(i);
+        if (currentOutput == mirrorOutput)
+            continue;
+
+        // When setting the primaryOutput as a copy screen, set the mirrorOutput as the home screen.
+        if (m_rootSurfaceContainer->primaryOutput() == currentOutput)
+            m_rootSurfaceContainer->setPrimaryOutput(mirrorOutput);
+
+        Output *o = createCopyOutput(currentOutput->output(), mirrorOutput);
+        m_rootSurfaceContainer->removeOutput(currentOutput);
+        currentOutput->deleteLater();
+        m_outputList.replace(i, o);
+    }
+
+    m_mode = OutputMode::Copy;
+}
+
+void Helper::onRestoreCopyOutput(treeland_virtual_output_v1 *virtual_output)
+{
+    for (int i = 0; i < m_outputList.size(); i++) {
+        Output *currentOutput = m_outputList.at(i);
+        if (currentOutput->output()->name() == virtual_output->outputList.at(0))
+            continue;
+
+        Output *o = createNormalOutput(m_outputList.at(i)->output());
+        enableOutput(o->output());
+        m_outputList.at(i)->deleteLater();
+        m_outputList.replace(i, o);
+    }
+    m_mode = OutputMode::Extension;
+}
+
 void Helper::init()
 {
     auto engine = qmlEngine();
@@ -532,7 +594,7 @@ void Helper::init()
     m_server->attach<PrimaryOutputV1>();
     m_wallpaperColorV1 = m_server->attach<WallpaperColorV1>();
     m_windowManagement = m_server->attach<WindowManagementV1>();
-    m_server->attach<VirtualOutputV1>();
+    m_virtualOutput = m_server->attach<VirtualOutputV1>();
     m_shortcut = m_server->attach<ShortcutV1>();
     m_ddeShellV1 = m_server->attach<DDEShellManagerV1>();
     m_server->attach<CaptureManagerV1>();
@@ -559,6 +621,16 @@ void Helper::init()
             &WindowManagementV1::desktopStateChanged,
             this,
             &Helper::onShowDesktop);
+
+    connect(m_virtualOutput,
+            &VirtualOutputV1::requestCreateVirtualOutput,
+            this,
+            &Helper::onSetCopyOutput);
+
+    connect(m_virtualOutput,
+            &VirtualOutputV1::destroyVirtualOutput,
+            this,
+            &Helper::onRestoreCopyOutput);
 
     qmlRegisterUncreatableType<Personalization>("Treeland.Protocols",
                                                 1,
@@ -932,6 +1004,19 @@ bool Helper::doGesture(QInputEvent *event)
     return false;
 }
 
+Output *Helper::createNormalOutput(WOutput *output)
+{
+    Output *o = Output::create(output, qmlEngine(), this);
+    o->outputItem()->stackBefore(m_rootSurfaceContainer);
+    m_rootSurfaceContainer->addOutput(o);
+    return o;
+}
+
+Output *Helper::createCopyOutput(WOutput *output, Output *proxy)
+{
+    return Output::createCopy(output, proxy, qmlEngine(), this);
+}
+
 void Helper::toggleMultitaskview()
 {
     if (!m_multitaskview) {
@@ -1115,15 +1200,11 @@ void Helper::setOutputMode(OutputMode mode)
             continue;
         Output *o;
         if (mode == OutputMode::Copy) {
-            o = Output::createCopy(m_outputList.at(i)->output(),
-                                   m_rootSurfaceContainer->primaryOutput(),
-                                   qmlEngine(),
-                                   this);
+            o = createCopyOutput(m_outputList.at(i)->output(),
+                                 m_rootSurfaceContainer->primaryOutput());
             m_rootSurfaceContainer->removeOutput(m_outputList.at(i));
         } else if (mode == OutputMode::Extension) {
-            o = Output::create(m_outputList.at(i)->output(), qmlEngine(), this);
-            o->outputItem()->stackBefore(m_rootSurfaceContainer);
-            m_rootSurfaceContainer->addOutput(o);
+            o = createNormalOutput(m_outputList.at(i)->output());
             enableOutput(o->output());
         }
         m_outputList.at(i)->deleteLater();

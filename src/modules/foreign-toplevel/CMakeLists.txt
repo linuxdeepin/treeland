@@ -25,6 +25,7 @@ target_include_directories(${MODULE_NAME} PUBLIC
     # TODO: Temporary addition, subsequent custom protocol to remove helper dependencies
     $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/src/treeland>
     $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/src/modules/window-management>
+    $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/src/modules/virtual-output>
 )
 
 target_compile_definitions(${MODULE_NAME}
