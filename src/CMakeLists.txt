@@ -88,6 +88,11 @@ qt_add_qml_module(${BIN_NAME}
         treeland/multitaskview.cpp
         treeland/propertymonitor.h
         treeland/propertymonitor.cpp
+        treeland/tsgradiusimagenode.h
+        treeland/tsgradiusimagenode.cpp
+        treeland/tquickradiuseffect_p.h
+        treeland/tquickradiuseffect.h
+        treeland/tquickradiuseffect.cpp
 
         ${DBUS_ADAPTOR}
     QML_FILES
@@ -97,7 +102,6 @@ qt_add_qml_module(${BIN_NAME}
         qml/Decoration.qml
         qml/WindowMenu.qml
         qml/TaskBar.qml
-        qml/RoundedClipEffect.qml
         qml/SurfaceContent.qml
         qml/XdgShadow.qml
         qml/Border.qml
@@ -153,17 +157,17 @@ target_compile_definitions(${BIN_NAME}
     WLR_USE_UNSTABLE
 )
 
-# qt_add_shaders(${BIN_NAME} "treeland_shaders_ng"
-#     BATCHABLE
-#     PRECOMPILE
-#     PREFIX
-#         "/shaders"
-#     BASE
-#         ${PROJECT_RESOURCES_DIR}/shaders
-#     FILES
-#         ${PROJECT_RESOURCES_DIR}/shaders/radiussmoothtexture.vert
-#         ${PROJECT_RESOURCES_DIR}/shaders/radiussmoothtexture.frag
-# )
+qt_add_shaders(${BIN_NAME} "treeland_shaders_ng"
+    BATCHABLE
+    PRECOMPILE
+    PREFIX
+        "/shaders"
+    BASE
+        ${PROJECT_RESOURCES_DIR}/shaders
+    FILES
+        ${PROJECT_RESOURCES_DIR}/shaders/radiussmoothtexture.vert
+        ${PROJECT_RESOURCES_DIR}/shaders/radiussmoothtexture.frag
+)
 
 install(TARGETS ${BIN_NAME} RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}")
 

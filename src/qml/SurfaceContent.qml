@@ -32,11 +32,11 @@ Item {
             return cornerRadius > 0 && !root.wrapper.noCornerRadius;
         }
 
-        sourceComponent: RoundedClipEffect {
+        sourceComponent: TRadiusEffect {
+            anchors.fill: parent
             sourceItem: content
-            radius: cornerRadius
-            targetRect: Qt.rect(-surface?.leftPadding ?? 0, -surface?.topPadding ?? 0,
-                                root.surface?.width ?? 0, root.surface?.height ?? 0)
+            bottomLeftRadius: cornerRadius
+            bottomRightRadius: cornerRadius
         }
     }
 }
