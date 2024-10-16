@@ -255,6 +255,7 @@ Q_SIGNALS:
     void showOnAllWorkspaceChanged();
     void requestActive();
     void requestDeactive();
+    void requestForceActive();
     void skipSwitcherChanged();
     void skipDockPreViewChanged();
     void skipMutiTaskViewChanged();
