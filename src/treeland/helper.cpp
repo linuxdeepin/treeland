@@ -188,7 +188,7 @@ void Helper::setupSurfaceActiveWatcher(SurfaceWrapper *wrapper)
 
     connect(wrapper, &SurfaceWrapper::requestDeactive, this, [this, wrapper]() {
         m_workspace->removeActivedSurface(wrapper);
-        activateSurface(m_workspace->current()->latestActivedSurface());
+        activateSurface(m_workspace->current()->latestActiveSurface());
     });
 }
 

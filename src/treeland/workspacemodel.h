@@ -32,7 +32,7 @@ public:
     void addSurface(SurfaceWrapper *surface) override;
     void removeSurface(SurfaceWrapper *surface) override;
 
-    Q_INVOKABLE SurfaceWrapper *latestActivedSurface() const;
+    Q_INVOKABLE SurfaceWrapper *latestActiveSurface() const;
     void pushActivedSurface(SurfaceWrapper *surface);
     void removeActivedSurface(SurfaceWrapper *surface);
 
