@@ -7,6 +7,8 @@
 
 class SurfaceWrapper;
 class Workspace;
+class WorkspaceAnimationController;
+Q_MOC_INCLUDE("workspaceanimationcontroller.h")
 
 class WorkspaceListModel : public ObjectListModel<WorkspaceModel>
 {
@@ -24,6 +26,7 @@ class Workspace : public SurfaceContainer
     Q_PROPERTY(WorkspaceModel* current READ current NOTIFY currentChanged FINAL)
     Q_PROPERTY(WorkspaceModel* showOnAllWorkspaceModel READ showOnAllWorkspaceModel CONSTANT)
     Q_PROPERTY(WorkspaceListModel *models READ models CONSTANT FINAL)
+    Q_PROPERTY(WorkspaceAnimationController* animationController READ animationController CONSTANT FINAL)
     Q_PROPERTY(int count READ count NOTIFY countChanged FINAL)
     QML_ELEMENT
 
@@ -62,6 +65,9 @@ public:
 
     void pushActivedSurface(SurfaceWrapper *surface);
     void removeActivedSurface(SurfaceWrapper *surface);
+    void setSwitcherEnabled(bool enabled);
+
+    WorkspaceAnimationController *animationController() const;
 
 Q_SIGNALS:
     void currentChanged();
@@ -78,4 +84,6 @@ private:
     WorkspaceListModel *m_models;
     WorkspaceModel *m_showOnAllWorkspaceModel;
     QPointer<QQuickItem> m_switcher;
+    WorkspaceAnimationController *m_animationController;
+    bool m_switcherEnabled = true;
 };

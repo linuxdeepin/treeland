@@ -43,9 +43,7 @@ public:
                                         const QRectF &endGeo,
                                         QQuickItem *parent);
     QQuickItem *createMenuBar(WOutputItem *output, QQuickItem *parent);
-    QQuickItem *createWorkspaceSwitcher(Workspace *parent,
-                                        WorkspaceModel *from,
-                                        WorkspaceModel *to);
+    QQuickItem *createWorkspaceSwitcher(Workspace *parent);
     QQuickItem *createNewAnimation(SurfaceWrapper *surface, QQuickItem *parent, uint direction);
     QQuickItem *createLockScreen(Output *output, QQuickItem *parent);
     QQuickItem *createMinimizeAnimation(SurfaceWrapper *surface,

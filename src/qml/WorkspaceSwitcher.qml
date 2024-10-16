@@ -6,118 +6,56 @@ import Treeland
 
 Item {
     id: root
-
-    required property WorkspaceModel from
-    required property WorkspaceModel to
-    readonly property Item workspace: parent
-    readonly property WorkspaceModel leftWorkspace: {
-        if (!from || !to)
-            return null;
-        return from.index > to.index ? to : from;
-    }
-    readonly property WorkspaceModel rightWorkspace: {
-        if (!from || !to)
-            return null;
-        return from.index > to.index ? from : to;
-    }
-    property int duration: 200 * Helper.animationSpeed
-
     anchors.fill: parent
-    z: 1
+    visible: Helper.workspace.animationController.running
+    Rectangle {
+        anchors.fill: parent
+        color: "black"
+    }
 
     Repeater {
-        model: workspace.root.outputModel
-        delegate: Item {
-            id: rootItem
+        model: Helper.rootContainer.outputModel
+        Item {
+            id: animationDelegate
 
+            required property int index
             required property QtObject output
-            readonly property PrimaryOutput outputItem: output.outputItem
+            readonly property real localAnimationScaleFactor: width / Helper.workspace.animationController.refWidth
+            clip: true
+            x: output.outputItem.x
+            y: output.outputItem.y
+            width: output.outputItem.width
+            height: output.outputItem.height
 
-            x: outputItem.x
-            y: outputItem.y
-            width: outputItem.width
-            height: outputItem.height
-
-            Row {
-                id: wallpapers
-                spacing: workspaces.spacing
-                x: workspaces.x
-                parent: rootItem.outputItem.parent
-                z: rootItem.outputItem.z - 1
-
-                WallpaperController {
-                    id: wpCtrl
-                    output: rootItem.outputItem.output
-                    lock: true
-                    type: WallpaperController.Normal
-                }
-
-                ShaderEffectSource {
-                    sourceItem: wpCtrl.proxy
-                    width: rootItem.outputItem.width
-                    height: rootItem.outputItem.height
-                }
-
-                ShaderEffectSource {
-                    sourceItem: wpCtrl.proxy
-                    width: rootItem.outputItem.width
-                    height: rootItem.outputItem.height
-                }
+            WallpaperController {
+                id: wpCtrl
+                output: animationDelegate.output.outputItem.output
+                type: WallpaperController.Normal
+                lock: true
             }
 
             Row {
-                id: workspaces
-
-                spacing: 30
-
-                WorkspaceProxy {
-                    workspace: root.leftWorkspace
-                    output: rootItem.output
+                x: - Helper.workspace.animationController.viewportPos * animationDelegate.localAnimationScaleFactor
+                spacing: Helper.workspace.animationController.refGap * animationDelegate.localAnimationScaleFactor
+                Repeater {
+                    model: Helper.workspace.models
+                    delegate: Item {
+                        width: animationDelegate.output.outputItem.width
+                        height: animationDelegate.output.outputItem.height
+                        id: workspaceDelegate
+                        required property WorkspaceModel workspace
+                        ShaderEffectSource {
+                            id: wallpaperShot
+                            sourceItem: wpCtrl.proxy
+                            hideSource: false
+                            anchors.fill: parent
+                        }
+                        WorkspaceProxy {
+                            workspace: workspaceDelegate.workspace
+                            output: animationDelegate.output
+                        }
+                    }
                 }
-
-                WorkspaceProxy {
-                    workspace: root.rightWorkspace
-                    output: rootItem.output
-                }
-            }
-
-            ParallelAnimation {
-                id: animation
-
-                XAnimator {
-                    id: wallpapersAnimation
-                    target: wallpapers
-                    duration: root.duration
-                }
-
-                XAnimator {
-                    id: workspacesAnimation
-                    target: workspaces
-                    duration: root.duration
-                }
-
-                onFinished: {
-                    rootItem.outputItem.wallpaperVisible = true;
-                    Helper.workspace.showOnAllWorkspaceModel.visible = true;
-                    root.workspace.current = root.to;
-                    Helper.activateSurface(to.latestActiveSurface());
-                }
-            }
-
-            Component.onCompleted: {
-                if (root.from === root.leftWorkspace) {
-                    wallpapersAnimation.from = 0;
-                    wallpapersAnimation.to = -workspaces.width + outputItem.width;
-                } else {
-                    wallpapersAnimation.from = -workspaces.width + outputItem.width;
-                    wallpapersAnimation.to = 0;
-                }
-
-                workspacesAnimation.from = wallpapersAnimation.from;
-                workspacesAnimation.to = wallpapersAnimation.to;
-
-                rootItem.outputItem.wallpaperVisible = false;
-                animation.start();
             }
         }
     }
