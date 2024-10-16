@@ -339,8 +339,8 @@ bool WXWaylandSurface::hasCapability(Capability cap) const
     switch (cap) {
         using enum Capability;
     case Focus:
-        return !wlr_xwayland_or_surface_wants_focus(d->nativeHandle())
-            || wlr_xwayland_icccm_input_model(d->nativeHandle()) == WLR_ICCCM_INPUT_MODEL_NONE;
+        return wlr_xwayland_or_surface_wants_focus(d->nativeHandle())
+            && wlr_xwayland_icccm_input_model(d->nativeHandle()) != WLR_ICCCM_INPUT_MODEL_NONE;
     case Activate:
     case Maximized:
     case FullScreen:
