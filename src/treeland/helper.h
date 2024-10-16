@@ -87,6 +87,8 @@ class Helper : public WSeatEventFilter
     Q_PROPERTY(int currentUserId READ currentUserId WRITE setCurrentUserId NOTIFY currentUserIdChanged FINAL)
     Q_PROPERTY(float animationSpeed READ animationSpeed WRITE setAnimationSpeed NOTIFY animationSpeedChanged FINAL)
     Q_PROPERTY(OutputMode outputMode READ outputMode WRITE setOutputMode NOTIFY outputModeChanged FINAL)
+    Q_PROPERTY(QString cursorTheme READ cursorTheme NOTIFY cursorThemeChanged FINAL)
+    Q_PROPERTY(QSize cursorSize READ cursorSize NOTIFY cursorSizeChanged FINAL)
     QML_ELEMENT
     QML_SINGLETON
 
@@ -135,6 +137,9 @@ public:
 
     void toggleOutputMenuBar(bool show);
 
+    QString cursorTheme() const;
+    QSize cursorSize() const;
+
 public Q_SLOTS:
     void activateSurface(SurfaceWrapper *wrapper, Qt::FocusReason reason = Qt::OtherFocusReason);
     void fakePressSurfaceBottomRightToReszie(SurfaceWrapper *surface);
@@ -148,6 +153,8 @@ Q_SIGNALS:
     void animationSpeedChanged();
     void socketFileChanged();
     void outputModeChanged();
+    void cursorThemeChanged();
+    void cursorSizeChanged();
 
 private Q_SLOTS:
     void onOutputAdded(WOutput *output);

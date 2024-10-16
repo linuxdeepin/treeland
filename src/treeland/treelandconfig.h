@@ -2,12 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #pragma once
-#include <QObject>
-#include <DSingleton>
 #include <DConfig>
-#include <QEasingCurve>
+#include <DSingleton>
 
-class TreelandConfig : public QObject, public DTK_CORE_NAMESPACE::DSingleton<TreelandConfig>
+#include <QEasingCurve>
+#include <QObject>
+#include <QSize>
+
+class TreelandConfig
+    : public QObject
+    , public DTK_CORE_NAMESPACE::DSingleton<TreelandConfig>
 {
     Q_OBJECT
     Q_PROPERTY(uint workspaceThumbHeight READ workspaceThumbHeight WRITE setWorkspaceThumbHeight NOTIFY workspaceThumbHeightChanged FINAL)
@@ -25,6 +29,8 @@ class TreelandConfig : public QObject, public DTK_CORE_NAMESPACE::DSingleton<Tre
     Q_PROPERTY(qreal multitaskviewPaddingOpacity READ multitaskviewPaddingOpacity WRITE setMultitaskviewPaddingOpacity NOTIFY multitaskviewPaddingOpacityChanged FINAL)
     Q_PROPERTY(uint multitaskviewAnimationDuration READ multitaskviewAnimationDuration WRITE setMultitaskviewAnimationDuration NOTIFY multitaskviewAnimationDurationChanged FINAL)
     Q_PROPERTY(QEasingCurve::Type multitaskviewEasingCurveType READ multitaskviewEasingCurveType WRITE setMultitaskviewEasingCurveType NOTIFY multitaskviewEasingCurveTypeChanged FINAL)
+    Q_PROPERTY(QString cursorThemeName READ cursorThemeName NOTIFY cursorThemeNameChanged FINAL)
+    Q_PROPERTY(QSize cursorSize READ cursorSize NOTIFY cursorSizeChanged FINAL)
 
 public:
     TreelandConfig();
@@ -73,6 +79,10 @@ public:
     QEasingCurve::Type multitaskviewEasingCurveType() const;
     void setMultitaskviewEasingCurveType(const QEasingCurve::Type &newMultitaskviewEasingCurveType);
 
+    QString cursorThemeName() const;
+
+    QSize cursorSize() const;
+
 Q_SIGNALS:
     void workspaceThumbMarginChanged();
     void workspaceThumbHeightChanged();
@@ -89,6 +99,8 @@ Q_SIGNALS:
     void multitaskviewPaddingOpacityChanged();
     void multitaskviewAnimationDurationChanged();
     void multitaskviewEasingCurveTypeChanged();
+    void cursorThemeNameChanged();
+    void cursorSizeChanged();
 
 private:
     void onDConfigChanged(const QString &key);
@@ -107,5 +119,6 @@ private:
     uint m_windowHeightStep = 15;
     qreal m_multitaskviewPaddingOpacity = 0.1;
     uint m_multitaskviewAnimationDuration = 300;
-    QEasingCurve::Type m_multitaskviewEasingCurveType = QEasingCurve::OutQuad; // TODO: move to dconfig
+    QEasingCurve::Type m_multitaskviewEasingCurveType =
+        QEasingCurve::OutQuad; // TODO: move to dconfig
 };
