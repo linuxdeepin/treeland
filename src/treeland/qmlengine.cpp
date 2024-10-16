@@ -22,7 +22,7 @@ QmlEngine::QmlEngine(QObject *parent)
     , windowMenuComponent(this, "Treeland", "WindowMenu")
     , taskBarComponent(this, "Treeland", "TaskBar")
     , surfaceContent(this, "Treeland", "SurfaceContent")
-    , shadowComponent(this, "Treeland", "Shadow")
+    , xdgShadowComponent(this, "Treeland", "XdgShadow")
     , taskSwitchComponent(this, "Treeland", "TaskSwitcher")
     , geometryAnimationComponent(this, "Treeland", "GeometryAnimation")
     , menuBarComponent(this, "Treeland", "OutputMenuBar")
@@ -68,8 +68,8 @@ QObject *QmlEngine::createWindowMenu(QObject *parent)
     auto context = qmlContext(parent);
     auto obj = windowMenuComponent.beginCreate(context);
     if (!obj)
-        qCFatal(qLcTreelandEngine) << "Can't create WindowMenu:"
-                                   << dockPreviewComponent.errorString();
+        qCFatal(qLcTreelandEngine)
+            << "Can't create WindowMenu:" << dockPreviewComponent.errorString();
     obj->setParent(parent);
     windowMenuComponent.completeCreate();
 
@@ -105,15 +105,15 @@ QQuickItem *QmlEngine::createTaskBar(Output *output, QQuickItem *parent)
     return item;
 }
 
-QQuickItem *QmlEngine::createShadow(QQuickItem *parent)
+QQuickItem *QmlEngine::createXdgShadow(QQuickItem *parent)
 {
     auto context = qmlContext(parent);
-    auto obj = shadowComponent.beginCreate(context);
+    auto obj = xdgShadowComponent.beginCreate(context);
     auto item = qobject_cast<QQuickItem *>(obj);
     Q_ASSERT(item);
     item->setParent(parent);
     item->setParentItem(parent);
-    shadowComponent.completeCreate();
+    xdgShadowComponent.completeCreate();
 
     return item;
 }
@@ -217,8 +217,8 @@ QQuickItem *QmlEngine::createDockPreview(QObject *parent)
     auto obj = dockPreviewComponent.beginCreate(context);
     auto item = qobject_cast<QQuickItem *>(obj);
     if (!item)
-        qCFatal(qLcTreelandEngine) << "Can't create DockPreview:"
-                                   << dockPreviewComponent.errorString();
+        qCFatal(qLcTreelandEngine)
+            << "Can't create DockPreview:" << dockPreviewComponent.errorString();
     item->setParent(parent);
     dockPreviewComponent.completeCreate();
     return item;
@@ -242,18 +242,19 @@ QQuickItem *QmlEngine::createLockScreen(Output *output, QQuickItem *parent)
 }
 
 QQuickItem *QmlEngine::createMinimizeAnimation(SurfaceWrapper *surface,
-                                    QQuickItem *parent,
-                                    const QRectF &iconGeometry,
-                                    uint direction)
+                                               QQuickItem *parent,
+                                               const QRectF &iconGeometry,
+                                               uint direction)
 {
     auto context = qmlContext(parent);
     auto obj = minimizeAnimationComponent.beginCreate(context);
-    minimizeAnimationComponent.setInitialProperties(obj,
-                                                    {
-                                                        { "target", QVariant::fromValue(surface) },
-                                                        { "position", QVariant::fromValue(iconGeometry) },
-                                                        { "direction", QVariant::fromValue(direction) },
-                                                    });
+    minimizeAnimationComponent.setInitialProperties(
+        obj,
+        {
+            { "target", QVariant::fromValue(surface) },
+            { "position", QVariant::fromValue(iconGeometry) },
+            { "direction", QVariant::fromValue(direction) },
+        });
     auto item = qobject_cast<QQuickItem *>(obj);
     Q_ASSERT(item);
     item->setParent(parent);
@@ -263,15 +264,18 @@ QQuickItem *QmlEngine::createMinimizeAnimation(SurfaceWrapper *surface,
     return item;
 }
 
-QQuickItem *QmlEngine::createShowDesktopAnimation(SurfaceWrapper *surface, QQuickItem *parent, bool show)
+QQuickItem *QmlEngine::createShowDesktopAnimation(SurfaceWrapper *surface,
+                                                  QQuickItem *parent,
+                                                  bool show)
 {
     auto context = qmlContext(parent);
     auto obj = showDesktopAnimatioComponentn.beginCreate(context);
-    showDesktopAnimatioComponentn.setInitialProperties(obj,
-                                                       {
-                                                           { "target", QVariant::fromValue(surface) },
-                                                           { "showDesktop", QVariant::fromValue(show) },
-                                                       });
+    showDesktopAnimatioComponentn.setInitialProperties(
+        obj,
+        {
+            { "target", QVariant::fromValue(surface) },
+            { "showDesktop", QVariant::fromValue(show) },
+        });
     auto item = qobject_cast<QQuickItem *>(obj);
     Q_ASSERT(item);
     item->setParent(parent);
