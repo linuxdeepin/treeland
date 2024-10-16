@@ -4,6 +4,8 @@
 #pragma once
 
 #include "surfacecontainer.h"
+#include <forward_list>
+
 class SurfaceWrapper;
 class Workspace;
 
@@ -18,7 +20,7 @@ class WorkspaceModel : public SurfaceListModel
     QML_ELEMENT
 
 public:
-    explicit WorkspaceModel(QObject *parent, int index, std::list<SurfaceWrapper *> activedSurfaceHistory);
+    explicit WorkspaceModel(QObject *parent, int index, std::forward_list<SurfaceWrapper *> activedSurfaceHistory);
 
     QString name() const;
     void setName(const QString &newName);
@@ -45,5 +47,5 @@ private:
     QString m_name;
     int m_index = -1;
     bool m_visible = false;
-    std::list<SurfaceWrapper *> m_activedSurfaceHistory;
+    std::forward_list<SurfaceWrapper *> m_activedSurfaceHistory;
 };

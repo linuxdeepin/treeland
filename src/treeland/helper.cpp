@@ -182,13 +182,32 @@ void Helper::onOutputRemoved(WOutput *output)
 
 void Helper::setupSurfaceActiveWatcher(SurfaceWrapper *wrapper)
 {
+    Q_ASSERT_X(wrapper->container(), Q_FUNC_INFO, "Must setContainer at first!");
+
     connect(wrapper, &SurfaceWrapper::requestActive, this, [this, wrapper]() {
-        activateSurface(wrapper);
+        if (wrapper->showOnWorkspace(m_workspace->currentIndex()))
+            activateSurface(wrapper);
+        else
+            m_workspace->current()->pushActivedSurface(wrapper);
     });
 
     connect(wrapper, &SurfaceWrapper::requestDeactive, this, [this, wrapper]() {
         m_workspace->removeActivedSurface(wrapper);
         activateSurface(m_workspace->current()->latestActiveSurface());
+    });
+
+    connect(wrapper, &SurfaceWrapper::requestForceActive, this, [this, wrapper]() {
+        if (wrapper->isMinimized())
+            wrapper->requestCancelMinimize();
+
+        if (!wrapper->surface()->mapped()) {
+            qWarning() << "Can't activate unmapped surface: " << wrapper;
+            return;
+        }
+
+        if (!wrapper->showOnWorkspace(m_workspace->currentIndex()))
+            m_workspace->switchTo(wrapper->workspaceId());
+        activateSurface(wrapper);
     });
 }
 
@@ -227,10 +246,10 @@ void Helper::onXdgSurfaceAdded(WXdgSurface *surface)
 
             if (auto parent = surface->parentSurface()) {
                 auto parentWrapper = m_rootSurfaceContainer->getSurface(parent);
-                auto container = parentWrapper->container();
+                auto container = qobject_cast<Workspace*>(parentWrapper->container());
                 Q_ASSERT(container);
                 parentWrapper->addSubSurface(wrapper);
-                container->addSurface(wrapper);
+                container->addSurface(wrapper, parentWrapper->workspaceId());
             } else {
                 m_workspace->addSurface(wrapper);
             }
@@ -249,9 +268,9 @@ void Helper::onXdgSurfaceAdded(WXdgSurface *surface)
                                               QVariant::fromValue(wrapper),
                                               QVariant::fromValue(pos));
                 });
+        setupSurfaceActiveWatcher(wrapper);
     }
 
-    setupSurfaceActiveWatcher(wrapper);
     Q_ASSERT(wrapper->parentItem());
 }
 
@@ -621,8 +640,6 @@ void Helper::setSocketEnabled(bool newEnabled)
 
 void Helper::activateSurface(SurfaceWrapper *wrapper, Qt::FocusReason reason)
 {
-    Q_ASSERT(!wrapper || wrapper->showOnWorkspace(m_workspace->currentIndex()));
-
     if (!wrapper || wrapper->shellSurface()->hasCapability(WToplevelSurface::Capability::Activate))
         setActivatedSurface(wrapper);
     if (!wrapper || wrapper->shellSurface()->hasCapability(WToplevelSurface::Capability::Focus))
@@ -901,6 +918,8 @@ void Helper::setActivatedSurface(SurfaceWrapper *newActivateSurface)
         return;
 
     if (newActivateSurface) {
+        Q_ASSERT(newActivateSurface->showOnWorkspace(m_workspace->currentIndex()));
+
         newActivateSurface->stackToLast();
     }
 

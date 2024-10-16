@@ -145,14 +145,13 @@ void SurfaceWrapper::setParent(QQuickItem *item)
 
 void SurfaceWrapper::setActivate(bool activate)
 {
+    Q_ASSERT(!activate || hasActiveCapability());
     m_shellSurface->setActivate(activate);
     auto parent = parentSurface();
     while (parent) {
         parent->setActivate(activate);
         parent = parent->parentSurface();
     }
-    if (activate && isMinimized()) // activate surface shouldn't minimize
-        requestCancelMinimize();
 }
 
 void SurfaceWrapper::setFocus(bool focus, Qt::FocusReason reason)
