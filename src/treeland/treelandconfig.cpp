@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 #include "treelandconfig.h"
 
+#include <qcoreevent.h>
+
 DCORE_USE_NAMESPACE
 TreelandConfig::TreelandConfig()
     : m_dconfig(DConfig::create("org.deepin.treeland", "org.deepin.treeland", QString()))
@@ -204,10 +206,22 @@ QEasingCurve::Type TreelandConfig::multitaskviewEasingCurveType() const
     return m_multitaskviewEasingCurveType;
 }
 
-void TreelandConfig::setMultitaskviewEasingCurveType(const QEasingCurve::Type &newMultitaskviewEasingCurveType)
+void TreelandConfig::setMultitaskviewEasingCurveType(
+    const QEasingCurve::Type &newMultitaskviewEasingCurveType)
 {
     if (m_multitaskviewEasingCurveType == newMultitaskviewEasingCurveType)
         return;
     m_multitaskviewEasingCurveType = newMultitaskviewEasingCurveType;
     emit multitaskviewEasingCurveTypeChanged();
+}
+
+QString TreelandConfig::cursorThemeName() const
+{
+    return m_dconfig->value("cursorThemeName", "default").toString();
+}
+
+QSize TreelandConfig::cursorSize() const
+{
+    int size = m_dconfig->value("cursorSize", 24).toInt();
+    return { size, size };
 }

@@ -30,6 +30,9 @@ OutputItem {
         OutputLayer.outputs: [screenViewport]
         OutputLayer.flags: OutputLayer.Cursor
         OutputLayer.cursorHotSpot: hotSpot
+
+        themeName: Helper.cursorTheme
+        sourceSize: Helper.cursorSize
     }
 
     OutputViewport {

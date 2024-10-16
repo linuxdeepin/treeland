@@ -15,6 +15,7 @@
 #include "shortcutmanager.h"
 #include "surfacecontainer.h"
 #include "surfacewrapper.h"
+#include "treelandconfig.h"
 #include "virtualoutputmanager.h"
 #include "wallpapercolor.h"
 #include "workspace.h"
@@ -117,6 +118,9 @@ Helper::Helper(QObject *parent)
         auto wrapper = keyboardFocusSurface();
         m_seat->setKeyboardFocusSurface(wrapper ? wrapper->surface() : nullptr);
     });
+
+    connect(&TreelandConfig::ref(), &TreelandConfig::cursorThemeNameChanged, this, &Helper::cursorThemeChanged);
+    connect(&TreelandConfig::ref(), &TreelandConfig::cursorSizeChanged, this, &Helper::cursorSizeChanged);
 }
 
 Helper::~Helper()
@@ -1173,6 +1177,16 @@ void Helper::toggleOutputMenuBar(bool show)
         output->outputMenuBar()->setVisible(show);
     }
 #endif
+}
+
+QString Helper::cursorTheme() const
+{
+    return TreelandConfig::ref().cursorThemeName();
+}
+
+QSize Helper::cursorSize() const
+{
+    return TreelandConfig::ref().cursorSize();
 }
 
 void Helper::seatSendStartDrag(WSeat *seat)
