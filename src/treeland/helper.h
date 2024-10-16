@@ -74,6 +74,7 @@ class ShortcutV1;
 class PersonalizationV1;
 class WallpaperColorV1;
 class WindowManagementV1;
+class Multitaskview;
 
 class Helper : public WSeatEventFilter
 {
@@ -128,6 +129,8 @@ public:
     WXWayland *defaultXWaylandSocket() const;
 
     PersonalizationV1 *personalization() const;
+
+    void toggleOutputMenuBar(bool show);
 
 public Q_SLOTS:
     void activateSurface(SurfaceWrapper *wrapper, Qt::FocusReason reason = Qt::OtherFocusReason);
@@ -191,6 +194,7 @@ private:
                           QInputEvent *event) override;
     bool unacceptedEvent(WSeat *, QWindow *, QInputEvent *event) override;
     void destoryTaskSwitcher();
+    void toggleMultitaskview();
 
     static Helper *m_instance;
 
@@ -239,6 +243,8 @@ private:
     float m_animationSpeed = 1.0;
     OutputMode m_mode = OutputMode::Extension;
     std::optional<QPointF> m_fakelastPressedPosition;
+
+    QPointer<Multitaskview> m_multitaskview;
 
     QList<WXWayland *> m_xwaylands;
 };

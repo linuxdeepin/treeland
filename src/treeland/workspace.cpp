@@ -7,19 +7,20 @@
 #include "output.h"
 #include "rootsurfacecontainer.h"
 #include "surfacewrapper.h"
+#include "treelandconfig.h"
+#include "surfacecontainer.h"
 
 Workspace::Workspace(SurfaceContainer *parent)
     : SurfaceContainer(parent)
+    , m_currentIndex(TreelandConfig::ref().currentWorkspace())
+    , m_models(new WorkspaceListModel(this))
 {
-    // TODO: save and restore from local storage
-    static int workspaceGlobalIndex = 0;
-
     m_showOnAllWorkspaceModel = new WorkspaceModel(this, ShowOnAllWorkspaceIndex, {});
     m_showOnAllWorkspaceModel->setName("show-on-all-workspace");
     m_showOnAllWorkspaceModel->setVisible(true);
-    // TODO: save and restore workspace's name from local storage
-    createModel(QStringLiteral("workspace-%1").arg(++workspaceGlobalIndex), true);
-    createModel(QStringLiteral("workspace-%1").arg(++workspaceGlobalIndex));
+    for (auto index = 0; index < TreelandConfig::ref().numWorkspace(); index++) {
+        doCreateModel(QStringLiteral("workspace-%1").arg(index), index == TreelandConfig::ref().currentWorkspace());
+    }
 }
 
 void Workspace::moveSurfaceTo(SurfaceWrapper *surface, int workspaceIndex)
@@ -63,11 +64,16 @@ void Workspace::addSurface(SurfaceWrapper *surface, int workspaceIndex)
     if (workspaceIndex < 0)
         workspaceIndex = m_currentIndex;
 
-    auto model = m_models.at(workspaceIndex);
+    auto model = this->model(workspaceIndex);
     model->addSurface(surface);
 
     if (!surface->ownsOutput())
         surface->setOwnsOutput(rootContainer()->primaryOutput());
+}
+
+void Workspace::moveModelTo(int workspaceIndex, int destinationIndex)
+{
+
 }
 
 void Workspace::removeSurface(SurfaceWrapper *surface)
@@ -87,8 +93,8 @@ void Workspace::removeSurface(SurfaceWrapper *surface)
 
 int Workspace::modelIndexOfSurface(SurfaceWrapper *surface) const
 {
-    for (int i = 0; i < m_models.size(); ++i) {
-        if (m_models.at(i)->hasSurface(surface))
+    for (int i = 0; i < m_models->rowCount(); ++i) {
+        if (model(i)->hasSurface(surface))
             return i;
     }
 
@@ -100,51 +106,26 @@ int Workspace::modelIndexOfSurface(SurfaceWrapper *surface) const
 
 int Workspace::createModel(const QString &name, bool visible)
 {
-    m_models.append(new WorkspaceModel(this,
-                                       m_models.size(),
-                                       m_showOnAllWorkspaceModel->m_activedSurfaceHistory));
-    auto newContainer = m_models.last();
-    newContainer->setName(name);
-    newContainer->setVisible(visible);
-
-    return newContainer->index();
+    auto index = doCreateModel(name, visible);
+    TreelandConfig::ref().setNumWorkspace(TreelandConfig::ref().numWorkspace() + 1);
+    Q_EMIT countChanged();
+    return index;
 }
 
 void Workspace::removeModel(int index)
 {
-    if (index < 0 || index >= m_models.size())
-        return;
-
-    auto model = m_models.at(index);
-    m_models.removeAt(index);
-
-    // reset index
-    for (int i = index; i < m_models.size(); ++i) {
-        m_models.at(i)->setIndex(i);
-    }
-
-    auto oldCurrent = this->current();
-    m_currentIndex = qMin(m_currentIndex, m_models.size() - 1);
-    auto current = this->current();
-
-    const auto tmp = model->surfaces();
-    for (auto s : tmp) {
-        model->removeSurface(s);
-        if (current)
-            current->addSurface(s);
-    }
-
-    model->deleteLater();
-
-    if (oldCurrent != current)
-        Q_EMIT currentChanged();
+    Q_ASSERT(m_models->rowCount() >= 1); // At least one workspace
+    Q_ASSERT(index >= 0 && index < m_models->rowCount());
+    doRemoveModel(index);
+    Q_EMIT countChanged();
+    TreelandConfig::ref().setNumWorkspace(TreelandConfig::ref().numWorkspace() - 1);
 }
 
 WorkspaceModel *Workspace::model(int index) const
 {
-    if (index < 0 || index >= m_models.size())
+    if (index < 0 || index >= m_models->rowCount())
         return nullptr;
-    return m_models.at(index);
+    return m_models->objects().at(index);
 }
 
 int Workspace::currentIndex() const
@@ -154,34 +135,37 @@ int Workspace::currentIndex() const
 
 void Workspace::setCurrentIndex(int newCurrentIndex)
 {
-    if (newCurrentIndex < 0 || newCurrentIndex >= m_models.size())
+    if (newCurrentIndex < 0 || newCurrentIndex >= m_models->rowCount())
         return;
 
-    if (m_currentIndex == newCurrentIndex)
+    if (currentIndex() == newCurrentIndex)
         return;
-    m_currentIndex = newCurrentIndex;
+
+    doSetCurrentIndex(newCurrentIndex);
 
     if (m_switcher) {
         m_switcher->deleteLater();
     }
 
-    for (int i = 0; i < m_models.size(); ++i) {
-        m_models.at(i)->setVisible(i == m_currentIndex);
+    for (int i = 0; i < m_models->rowCount(); ++i) {
+        model(i)->setVisible(i == currentIndex());
     }
 
+    // Both changed
+    Q_EMIT currentIndexChanged();
     Q_EMIT currentChanged();
 }
 
 void Workspace::switchToNext()
 {
-    if (m_currentIndex < m_models.size() - 1)
-        switchTo(m_currentIndex + 1);
+    if (currentIndex() < m_models->rowCount() - 1)
+        switchTo(currentIndex() + 1);
 }
 
 void Workspace::switchToPrev()
 {
-    if (m_currentIndex > 0)
-        switchTo(m_currentIndex - 1);
+    if (currentIndex() > 0)
+        switchTo(currentIndex() - 1);
 }
 
 void Workspace::switchTo(int index)
@@ -189,35 +173,34 @@ void Workspace::switchTo(int index)
     if (m_switcher)
         return;
 
-    Q_ASSERT(index != m_currentIndex);
-    Q_ASSERT(index >= 0 && index < m_models.size());
-    auto from = current();
-    auto to = m_models.at(index);
-    auto engine = Helper::instance()->qmlEngine();
-    from->setVisible(false);
-    to->setVisible(false);
-    m_switcher = engine->createWorkspaceSwitcher(this, from, to);
+    Q_ASSERT(index != currentIndex());
+    Q_ASSERT(index >= 0 && index < m_models->rowCount());
+    setCurrentIndex(index);
+    // TODO new switch animation here
+    // auto from = current();
+    // auto to = model(index);
+    // auto engine = Helper::instance()->qmlEngine();
+    // from->setVisible(false);
+    // to->setVisible(false);
+    // m_switcher = engine->createWorkspaceSwitcher(this, from, to);
 }
 
 WorkspaceModel *Workspace::current() const
 {
-    if (m_currentIndex < 0 || m_currentIndex >= m_models.size())
-        return nullptr;
-
-    return m_models.at(m_currentIndex);
+    return model(currentIndex());
 }
 
 void Workspace::setCurrent(WorkspaceModel *model)
 {
-    int index = m_models.indexOf(model);
+    int index = m_models->objects().indexOf(model);
     if (index < 0)
         return;
     setCurrentIndex(index);
 }
 
-QQmlListProperty<WorkspaceModel> Workspace::models()
+WorkspaceListModel *Workspace::models()
 {
-    return QQmlListProperty<WorkspaceModel>(this, &m_models);
+    return m_models;
 }
 
 void Workspace::updateSurfaceOwnsOutput(SurfaceWrapper *surface)
@@ -247,12 +230,18 @@ void Workspace::updateSurfacesOwnsOutput()
 
 int Workspace::count() const
 {
-    return m_models.size();
+    return m_models->rowCount();
 }
 
 WorkspaceModel *Workspace::showOnAllWorkspaceModel() const
 {
     return m_showOnAllWorkspaceModel;
+}
+
+void Workspace::doSetCurrentIndex(int newCurrentIndex)
+{
+    m_currentIndex = newCurrentIndex;
+    TreelandConfig::ref().setCurrentWorkspace(newCurrentIndex);
 }
 
 void Workspace::hideAllSurfacesExceptPreviewing(SurfaceWrapper *previewingItem)
@@ -275,7 +264,7 @@ void Workspace::showAllSurfaces()
 void Workspace::pushActivedSurface(SurfaceWrapper *surface)
 {
     if (surface->showOnAllWorkspace()) [[unlikely]] {
-        for (auto wpModle : m_models)
+        for (auto wpModle : m_models->objects())
             wpModle->pushActivedSurface(surface);
         m_showOnAllWorkspaceModel->pushActivedSurface(surface);
     } else {
@@ -287,11 +276,74 @@ void Workspace::pushActivedSurface(SurfaceWrapper *surface)
 void Workspace::removeActivedSurface(SurfaceWrapper *surface)
 {
     if (surface->showOnAllWorkspace()) [[unlikely]] {
-        for (auto wpModle : m_models)
+        for (auto wpModle : m_models->objects())
             wpModle->removeActivedSurface(surface);
         m_showOnAllWorkspaceModel->removeActivedSurface(surface);
     } else {
         auto wpModle = model(surface->workspaceId());
         wpModle->removeActivedSurface(surface);
     }
+}
+
+int Workspace::doCreateModel(const QString &name, bool visible)
+{
+    auto newContainer = new WorkspaceModel(this, count(), m_showOnAllWorkspaceModel->m_activedSurfaceHistory);
+    newContainer->setName(name);
+    newContainer->setVisible(visible);
+    m_models->addObject(newContainer);
+    return newContainer->index();
+}
+
+void Workspace::doRemoveModel(int index)
+{
+    auto oldCurrent = this->current();
+    auto oldCurrentIndex = this->currentIndex();
+    auto model = this->model(index);
+    m_models->removeObject(model);
+
+    // reset index
+    for (int i = index; i < count(); ++i) {
+        this->model(i)->setIndex(i);
+    }
+
+    doSetCurrentIndex(std::min(currentIndex(), count() - 1));
+    auto current = this->current();
+
+    // TODO delete animation here
+    const auto tmp = model->surfaces();
+    for (auto s : tmp) {
+        model->removeSurface(s);
+        if (current)
+            current->addSurface(s);
+    }
+
+    if (m_switcher) {
+        m_switcher->deleteLater();
+    }
+
+    for (int i = 0; i < count(); ++i) {
+        this->model(i)->setVisible(i == currentIndex());
+    }
+
+    model->deleteLater();
+
+    if (oldCurrentIndex != currentIndex())
+        Q_EMIT currentIndexChanged();
+    if (oldCurrent != current)
+        emit currentChanged();
+}
+
+WorkspaceListModel::WorkspaceListModel(QObject *parent)
+    : ObjectListModel<WorkspaceModel>("workspace", parent)
+{
+}
+
+void WorkspaceListModel::moveModelTo(int workspaceIndex, int destinationIndex)
+{
+    // Does not influence current but currentIndex
+    if (workspaceIndex == destinationIndex)
+        return;
+    beginMoveRows({}, workspaceIndex, workspaceIndex, QModelIndex(), destinationIndex > workspaceIndex ? (destinationIndex + 1) : destinationIndex);
+    m_objects.move(workspaceIndex, destinationIndex);
+    endMoveRows();
 }

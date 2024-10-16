@@ -32,6 +32,7 @@ QmlEngine::QmlEngine(QObject *parent)
     , dockPreviewComponent(this, "Treeland", "DockPreview")
     , minimizeAnimationComponent(this, "Treeland", "MinimizeAnimation")
     , showDesktopAnimatioComponentn(this, "Treeland", "ShowDesktopAnimation")
+    , multitaskViewComponent(this, "Treeland", "MultitaskviewProxy")
 {
 }
 
@@ -282,6 +283,27 @@ QQuickItem *QmlEngine::createShowDesktopAnimation(SurfaceWrapper *surface,
     item->setParentItem(parent);
     showDesktopAnimatioComponentn.completeCreate();
 
+    return item;
+}
+
+QQuickItem *QmlEngine::createMultitaskview(QQuickItem *parent)
+{
+    auto context = qmlContext(parent);
+    auto obj = multitaskViewComponent.beginCreate(context);
+    auto item = qobject_cast<QQuickItem *>(obj);
+    if (!item) {
+        qCFatal(qLcTreelandEngine) << "Cannot create MultitaskviewProxy:"
+                                   << multitaskViewComponent.errorString();
+    }
+    item->setParent(parent);
+    item->setParentItem(parent);
+    // Multitaskview should occupy parent and clip children.
+    item->setX(0);
+    item->setY(0);
+    item->setWidth(parent->width());
+    item->setHeight(parent->height());
+    item->setClip(true);
+    multitaskViewComponent.completeCreate();
     return item;
 }
 

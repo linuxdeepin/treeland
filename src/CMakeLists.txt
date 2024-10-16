@@ -10,7 +10,7 @@ endif()
 pkg_search_module(WLROOTS REQUIRED IMPORTED_TARGET wlroots)
 find_package(Dtk6 REQUIRED COMPONENTS Core Declarative)
 find_package(DDM REQUIRED COMPONENTS Common)
-find_package(Qt6 CONFIG REQUIRED ShaderTools)
+find_package(Qt6 CONFIG REQUIRED ShaderTools Concurrent)
 find_package(Qt6 COMPONENTS Quick QuickControls2 REQUIRED)
 pkg_search_module(PIXMAN REQUIRED IMPORTED_TARGET pixman-1)
 pkg_search_module(WAYLAND REQUIRED IMPORTED_TARGET wayland-server)
@@ -30,13 +30,13 @@ qt_add_executable(${BIN_NAME}
     # ${DBUS_ADAPTOR}
 )
 
-# qt_add_resources(${BIN_NAME} "treeland_assets"
-#     PREFIX "/dsg"
-#     BASE ${PROJECT_RESOURCES_DIR}
-#     FILES
-#         ${PROJECT_RESOURCES_DIR}/icons/close.dci
-#         ${PROJECT_RESOURCES_DIR}/icons/multitaskview_close.dci
-# )
+qt_add_resources(${BIN_NAME} "treeland_assets"
+    PREFIX "/dsg/icons"
+    BASE ${PROJECT_RESOURCES_DIR}/icons
+    FILES
+        ${PROJECT_RESOURCES_DIR}/icons/multitaskview_close.dci
+        ${PROJECT_RESOURCES_DIR}/icons/close.dci
+)
 
 target_include_directories(${BIN_NAME}
     PRIVATE
@@ -84,6 +84,8 @@ qt_add_qml_module(${BIN_NAME}
         treeland/workspacemodel.cpp
         treeland/treelandconfig.h
         treeland/treelandconfig.cpp
+        treeland/multitaskview.h
+        treeland/multitaskview.cpp
         treeland/propertymonitor.h
         treeland/propertymonitor.cpp
 
@@ -111,6 +113,9 @@ qt_add_qml_module(${BIN_NAME}
         qml/SwitchViewDelegate.qml
         qml/SwitchViewHighlightDelegate.qml
         qml/DockPreview.qml
+        qml/MultitaskviewProxy.qml
+        qml/SurfaceGridProxy.qml
+        qml/WorkspaceThumbDelegate.qml
     RESOURCE_PREFIX
         /qt/qml
     OUTPUT_DIRECTORY
@@ -125,6 +130,7 @@ target_link_libraries(${BIN_NAME}
         Qt6::QuickControls2
         Qt6::QuickPrivate
         Qt6::DBus
+        Qt6::Concurrent
         Waylib::WaylibServer
         PkgConfig::PIXMAN
         PkgConfig::WAYLAND

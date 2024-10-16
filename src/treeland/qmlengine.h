@@ -53,6 +53,7 @@ public:
                                         uint direction);
     QQuickItem *createDockPreview(QObject *parent);
     QQuickItem *createShowDesktopAnimation(SurfaceWrapper *surface, QQuickItem *parent, bool show);
+    QQuickItem *createMultitaskview(QQuickItem *parent);
 
     QQmlComponent *surfaceContentComponent() { return &surfaceContent; }
 
@@ -75,5 +76,6 @@ private:
     QQmlComponent dockPreviewComponent;
     QQmlComponent minimizeAnimationComponent;
     QQmlComponent showDesktopAnimatioComponentn;
+    QQmlComponent multitaskViewComponent;
     WallpaperImageProvider *wallpaperProvider = nullptr;
 };
