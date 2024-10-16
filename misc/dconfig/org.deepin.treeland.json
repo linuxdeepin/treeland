@@ -113,7 +113,7 @@
             "visibility": "private"
         },
         "cursorSize": {
-            "value": "",
+            "value": 24,
             "serial": 0,
             "flags": ["user-public"],
             "name": "Cursor Size",
