@@ -25,9 +25,7 @@ Output *Output::create(WOutput *output, QQmlEngine *engine, QObject *parent)
 {
     QQmlComponent delegate(engine, "Treeland", "PrimaryOutput");
     QObject *obj = delegate.beginCreate(engine->rootContext());
-    delegate.setInitialProperties(obj, {
-                                           {"forceSoftwareCursor", output->handle()->is_x11()}
-                                       });
+    delegate.setInitialProperties(obj, { { "forceSoftwareCursor", output->handle()->is_x11() } });
     delegate.completeCreate();
     WOutputItem *outputItem = qobject_cast<WOutputItem *>(obj);
     Q_ASSERT(outputItem);
