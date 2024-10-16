@@ -72,7 +72,7 @@ qt_add_qml_module(${LIB_NAME}
         /qt/qml
     QML_FILES ${QML_FILES}
     OUTPUT_DIRECTORY
-        ${PROJECT_BINARY_DIR}/qt/qml/Treeland.Greeter
+        ${PROJECT_BINARY_DIR}/qt/qml/Treeland/Greeter
 )
 
 qt_add_resources(${LIB_NAME} "greeter_assets"
