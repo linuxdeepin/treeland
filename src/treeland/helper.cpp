@@ -5,6 +5,7 @@
 
 #include "capture.h"
 #include "ddeshellmanagerv1.h"
+#include "inputdevice.h"
 #include "layersurfacecontainer.h"
 #include "lockscreen.h"
 #include "multitaskview.h"
@@ -20,7 +21,6 @@
 #include "virtualoutputmanager.h"
 #include "wallpapercolor.h"
 #include "workspace.h"
-#include "inputdevice.h"
 
 #include <WBackend>
 #include <WForeignToplevel>
@@ -742,6 +742,12 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *, QInputEvent *event)
             if (event->modifiers().testFlag(Qt::AltModifier)) {
                 Q_EMIT m_activatedSurface->requestShowWindowMenu({ 0, 0 });
             }
+        } else if (event->modifiers() == Qt::NoModifier) {
+            if (kevent->key() == Qt::Key_Escape) {
+                if (m_multitaskview) {
+                    m_multitaskview->exit(nullptr);
+                }
+            }
         }
     }
 
@@ -919,7 +925,6 @@ bool Helper::doGesture(QInputEvent *event)
     return false;
 }
 
-
 void Helper::toggleMultitaskview()
 {
     if (!m_multitaskview) {
@@ -934,6 +939,8 @@ void Helper::toggleMultitaskview()
                 m_workspace->setSwitcherEnabled(true);
             }
         });
+        m_multitaskview->enter(Multitaskview::ShortcutKey);
+    } else if (m_multitaskview && m_multitaskview->status() == Multitaskview::Exited) {
         m_multitaskview->enter(Multitaskview::ShortcutKey);
     } else {
         m_multitaskview->exit(nullptr);
