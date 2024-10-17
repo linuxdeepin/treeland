@@ -343,16 +343,21 @@ bool PersonalizationV1::isAnimagedImage(const QString &source)
 }
 
 PersonalizationAttached::PersonalizationAttached(WToplevelSurface *target,
-                                                                         PersonalizationV1 *manager,
-                                                                         QObject *parent)
+                                                 PersonalizationV1 *manager,
+                                                 QObject *parent)
     : QObject(parent)
     , m_target(target)
     , m_manager(manager)
 {
-    auto update = [this](personalization_window_context_v1 *context) {
+    auto update = [this] {
+        auto *context = m_manager->getWindowContext(m_target->surface());
+
         if (!context) {
             return;
         }
+
+        disconnect(m_connection);
+
         connect(context,
                 &personalization_window_context_v1::backgroundTypeChanged,
                 this,
@@ -385,13 +390,18 @@ PersonalizationAttached::PersonalizationAttached(WToplevelSurface *target,
                     m_states = context->states;
                     Q_EMIT windowStateChanged();
                 });
+
+        m_backgroundType = context->background_type;
+        m_cornerRadius = context->corner_radius;
+        m_shadow = context->shadow;
+        m_border = context->border;
+        m_states = context->states;
     };
 
-    connect(m_manager, &PersonalizationV1::windowContextCreated, this, update);
+    // TODO: disconnect
+    m_connection = connect(m_manager, &PersonalizationV1::windowContextCreated, this, update);
 
-    if (auto *context = m_manager->getWindowContext(target->surface())) {
-        update(context);
-    }
+    update();
 }
 
 Personalization::BackgroundType PersonalizationAttached::backgroundType() const
