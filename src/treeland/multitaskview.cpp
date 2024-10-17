@@ -2,9 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "multitaskview.h"
+
 #include "helper.h"
 #include "surfacecontainer.h"
 #include "treelandconfig.h"
+
 #include <QtConcurrentMap>
 
 Multitaskview::Multitaskview(QQuickItem *parent)
@@ -15,7 +17,10 @@ Multitaskview::Multitaskview(QQuickItem *parent)
 {
 }
 
-Multitaskview::Status Multitaskview::status() const { return m_status; }
+Multitaskview::Status Multitaskview::status() const
+{
+    return m_status;
+}
 
 void Multitaskview::setStatus(Status status)
 {
@@ -25,7 +30,10 @@ void Multitaskview::setStatus(Status status)
     Q_EMIT statusChanged();
 }
 
-Multitaskview::ActiveReason Multitaskview::activeReason() const { return m_activeReason; }
+Multitaskview::ActiveReason Multitaskview::activeReason() const
+{
+    return m_activeReason;
+}
 
 void Multitaskview::setActiveReason(ActiveReason activeReason)
 {
@@ -35,7 +43,10 @@ void Multitaskview::setActiveReason(ActiveReason activeReason)
     Q_EMIT activeReasonChanged();
 }
 
-qreal Multitaskview::taskviewVal() const { return m_taskviewVal; }
+qreal Multitaskview::taskviewVal() const
+{
+    return m_taskviewVal;
+}
 
 void Multitaskview::setTaskviewVal(qreal taskviewVal)
 {
@@ -48,7 +59,7 @@ void Multitaskview::setTaskviewVal(qreal taskviewVal)
 void Multitaskview::exit(SurfaceWrapper *surface)
 {
     if (surface)
-        Helper::instance()->activateSurface(surface);
+        Q_EMIT surface->requestForceActive();
     // TODO: handle taskview gesture
     setStatus(Exited);
 }
@@ -61,7 +72,8 @@ void Multitaskview::enter(ActiveReason reason)
 
 MultitaskviewSurfaceModel::MultitaskviewSurfaceModel(QObject *parent)
     : QAbstractListModel(parent)
-{}
+{
+}
 
 void MultitaskviewSurfaceModel::initializeModel()
 {
@@ -69,12 +81,13 @@ void MultitaskviewSurfaceModel::initializeModel()
         return;
     beginResetModel();
     m_data.clear();
-    std::transform(m_surfaceListModel->surfaces().begin(),
-                   m_surfaceListModel->surfaces().end(),
-                   std::back_inserter(m_data),
-                   [this](SurfaceWrapper *wrapper) -> SurfaceModelData {
-                       return {wrapper, wrapper->geometry().translated(-layoutArea().topLeft()), false};
-                   });
+    std::transform(
+        m_surfaceListModel->surfaces().begin(),
+        m_surfaceListModel->surfaces().end(),
+        std::back_inserter(m_data),
+        [this](SurfaceWrapper *wrapper) -> SurfaceModelData {
+            return { wrapper, wrapper->geometry().translated(-layoutArea().topLeft()), false };
+        });
     endResetModel();
     m_modelReady = true;
     Q_EMIT modelReadyChanged();
@@ -85,10 +98,17 @@ void MultitaskviewSurfaceModel::setSurfaceListModel(SurfaceListModel *surfaceLis
     if (surfaceListModel == m_surfaceListModel)
         return;
     if (m_surfaceListModel)
-        disconnect(m_surfaceListModel, &SurfaceListModel::dataChanged, this, &MultitaskviewSurfaceModel::calcLayout);
+        disconnect(m_surfaceListModel,
+                   &SurfaceListModel::dataChanged,
+                   this,
+                   &MultitaskviewSurfaceModel::calcLayout);
     m_surfaceListModel = surfaceListModel;
     if (m_surfaceListModel)
-        connect(m_surfaceListModel,  &SurfaceListModel::dataChanged, this, &MultitaskviewSurfaceModel::calcLayout, Qt::UniqueConnection);
+        connect(m_surfaceListModel,
+                &SurfaceListModel::dataChanged,
+                this,
+                &MultitaskviewSurfaceModel::calcLayout,
+                Qt::UniqueConnection);
     initializeModel();
     Q_EMIT surfaceListModelChanged();
 }
@@ -122,11 +142,9 @@ QVariant MultitaskviewSurfaceModel::data(const QModelIndex &index, int role) con
 
 QHash<int, QByteArray> MultitaskviewSurfaceModel::roleNames() const
 {
-    return QHash<int, QByteArray> {
-        {SurfaceWrapperRole, "wrapper"},
-        {GeometryRole, "geometry"},
-        {PaddingRole, "padding"}
-    };
+    return QHash<int, QByteArray>{ { SurfaceWrapperRole, "wrapper" },
+                                   { GeometryRole, "geometry" },
+                                   { PaddingRole, "padding" } };
 }
 
 QModelIndex MultitaskviewSurfaceModel::index(int row, int column, const QModelIndex &parent) const
@@ -143,12 +161,12 @@ bool MultitaskviewSurfaceModel::modelReady() const
 
 void MultitaskviewSurfaceModel::calcLayout()
 {
-    auto maxWindowHeight = std::min(layoutArea().height(), static_cast<qreal>(TreelandConfig::ref().normalWindowHeight()));
+    auto maxWindowHeight = std::min(layoutArea().height(),
+                                    static_cast<qreal>(TreelandConfig::ref().normalWindowHeight()));
     auto minWindowHeight = TreelandConfig::ref().minMultitaskviewSurfaceHeight();
     auto windowHeightStep = TreelandConfig::ref().windowHeightStep();
     auto rowH = maxWindowHeight;
-    while (rowH > minWindowHeight)
-    {
+    while (rowH > minWindowHeight) {
         if (tryLayout(rowH)) {
             break;
         }
@@ -157,8 +175,8 @@ void MultitaskviewSurfaceModel::calcLayout()
     if (rowH < minWindowHeight) {
         tryLayout(minWindowHeight, true);
     }
-    calcDisplayPos(); 
-    Q_EMIT dataChanged(index(0), index(rowCount() - 1), {GeometryRole, PaddingRole});
+    calcDisplayPos();
+    Q_EMIT dataChanged(index(0), index(rowCount() - 1), { GeometryRole, PaddingRole });
     Q_EMIT rowsChanged();
 }
 
@@ -182,14 +200,17 @@ bool MultitaskviewSurfaceModel::tryLayout(qreal rowH, bool ignoreOverlap)
     qreal acc = 0;
     auto availWidth = layoutArea().width();
     auto availHeight = layoutArea().height();
-    if (availWidth <= 0) return false;
+    if (availWidth <= 0)
+        return false;
     QList<QList<SurfaceModelData *>> rowstmp;
     QList<SurfaceModelData *> currow;
     for (auto &data : m_data) {
         auto surface = data.wrapper;
         auto whRatio = surface->width() / surface->height();
         data.padding = surface->height() < (rowH - 2 * CellPadding);
-        auto curW = std::min(availWidth, whRatio * std::min(rowH - 2 * CellPadding, surface->height()) + 2 * CellPadding);
+        auto curW = std::min(availWidth,
+                             whRatio * std::min(rowH - 2 * CellPadding, surface->height())
+                                 + 2 * CellPadding);
         data.geometry.setWidth(curW - 2 * CellPadding);
         auto newAcc = acc + curW;
         if (newAcc <= availWidth) {
@@ -199,7 +220,7 @@ bool MultitaskviewSurfaceModel::tryLayout(qreal rowH, bool ignoreOverlap)
             acc = curW;
             nrows++;
             rowstmp.append(currow);
-            currow = {&data};
+            currow = { &data };
         } else {
             // Just scale the last element
             curW = availWidth - acc;
@@ -227,14 +248,14 @@ void MultitaskviewSurfaceModel::calcDisplayPos()
     auto curY = std::max(availHeight - contentHeight, 0.0) / 2 + TopContentMargin;
     const auto hCenter = availWidth / 2;
     for (const auto &row : std::as_const(m_rows)) {
-        const auto totW = QtConcurrent::blockingMappedReduced(row,
-                                                              [](SurfaceModelData *data){
-                                                                  return data->geometry.width() + 2 * CellPadding;
-                                                              },
-                                                              [](qreal &acc, const qreal &cur) {
-                                                                  acc += cur;
-                                                              }
-                                                              );
+        const auto totW = QtConcurrent::blockingMappedReduced(
+            row,
+            [](SurfaceModelData *data) {
+                return data->geometry.width() + 2 * CellPadding;
+            },
+            [](qreal &acc, const qreal &cur) {
+                acc += cur;
+            });
         auto curX = hCenter - totW / 2 + CellPadding;
         for (auto window : row) {
             window->geometry.moveLeft(curX);
@@ -246,7 +267,6 @@ void MultitaskviewSurfaceModel::calcDisplayPos()
     }
     m_contentHeight = curY;
 }
-
 
 uint MultitaskviewSurfaceModel::rows() const
 {
