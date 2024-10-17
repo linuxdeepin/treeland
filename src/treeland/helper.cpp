@@ -20,6 +20,7 @@
 #include "wallpapercolor.h"
 #include "workspace.h"
 #include "multitaskview.h"
+#include "inputdevice.h"
 
 #include <WBackend>
 #include <WForeignToplevel>
@@ -459,6 +460,15 @@ void Helper::init()
     m_backend = m_server->attach<WBackend>();
     connect(m_backend, &WBackend::inputAdded, this, [this](WInputDevice *device) {
         m_seat->attachInputDevice(device);
+        if (InputDevice::instance()->initTouchPad(device)) {
+            if (m_windowGesture)
+                m_windowGesture->addTouchpadSwipeGesture(SwipeGesture::Up, 3);
+
+            if (m_multiTaskViewGesture) {
+                m_multiTaskViewGesture->addTouchpadSwipeGesture(SwipeGesture::Up, 4);
+                m_multiTaskViewGesture->addTouchpadSwipeGesture(SwipeGesture::Right, 4);
+            }
+        }
     });
 
     connect(m_backend, &WBackend::inputRemoved, this, [this](WInputDevice *device) {
@@ -796,6 +806,8 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *, QInputEvent *event)
         seat->cursor()->setVisible(false);
     }
 
+    doGesture(event);
+
     if (auto surface = m_rootSurfaceContainer->moveResizeSurface()) {
         // for move resize
         if (Q_LIKELY(event->type() == QEvent::MouseMove || event->type() == QEvent::TouchUpdate)) {
@@ -855,6 +867,38 @@ bool Helper::unacceptedEvent(WSeat *, QWindow *, QInputEvent *event)
 
     return false;
 }
+
+bool Helper::doGesture(QInputEvent *event)
+{
+    if (event->type() == QEvent::NativeGesture) {
+        auto e = static_cast<WGestureEvent *>(event);
+        switch (e->gestureType()) {
+        case Qt::BeginNativeGesture:
+            if (e->libInputGestureType() == WGestureEvent::WLibInputGestureType::SwipeGesture)
+                InputDevice::instance()->processSwipeStart(e->fingerCount());
+            break;
+        case Qt::EndNativeGesture:
+            if (e->libInputGestureType() == WGestureEvent::WLibInputGestureType::SwipeGesture) {
+                if (e->cancelled())
+                    InputDevice::instance()->processSwipeCancel();
+                else
+                    InputDevice::instance()->processSwipeEnd();
+            }
+            break;
+        case Qt::PanNativeGesture:
+            if (e->libInputGestureType() == WGestureEvent::WLibInputGestureType::SwipeGesture)
+                InputDevice::instance()->processSwipeUpdate(e->delta());
+        case Qt::ZoomNativeGesture:
+        case Qt::SmartZoomNativeGesture:
+        case Qt::RotateNativeGesture:
+        case Qt::SwipeNativeGesture:
+        default:
+            break;
+        }
+    }
+    return false;
+}
+
 
 void Helper::toggleMultitaskview()
 {
