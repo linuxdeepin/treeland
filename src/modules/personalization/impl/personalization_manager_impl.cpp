@@ -53,7 +53,7 @@ static void set_border(struct wl_client *client,
                        int32_t b,
                        int32_t a);
 
-static void set_no_titlebar(struct wl_client *client, struct wl_resource *resource, int32_t mode);
+static void set_titlebar(struct wl_client *client, struct wl_resource *resource, int32_t mode);
 
 static void on_destroy([[maybe_unused]] struct wl_client *client, struct wl_resource *resource)
 {
@@ -69,7 +69,7 @@ static const struct treeland_personalization_window_context_v1_interface
         .set_round_corner_radius = Personalization::WindowContext::set_round_corner_radius,
         .set_shadow = Personalization::WindowContext::set_shadow,
         .set_border = Personalization::WindowContext::set_border,
-        .set_no_titlebar = Personalization::WindowContext::set_no_titlebar,
+        .set_titlebar = Personalization::WindowContext::set_titlebar,
         .destroy = Personalization::WindowContext::on_destroy,
     };
 
@@ -147,12 +147,12 @@ static void set_border(struct wl_client *client,
     }
 }
 
-static void set_no_titlebar(struct wl_client *client, struct wl_resource *resource, int32_t mode)
+static void set_titlebar(struct wl_client *client, struct wl_resource *resource, int32_t mode)
 {
     if (auto *window = personalization_window_from_resource(resource)) {
         window->states.setFlag(
-            personalization_window_context_v1::WindowState::noTitlebar,
-            mode == TREELAND_PERSONALIZATION_WINDOW_CONTEXT_V1_ENABLE_MODE_ENABLE);
+            personalization_window_context_v1::WindowState::NoTitleBar,
+            mode == TREELAND_PERSONALIZATION_WINDOW_CONTEXT_V1_ENABLE_MODE_DISABLE);
         Q_EMIT window->windowStateChanged();
     }
 }

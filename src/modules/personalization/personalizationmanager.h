@@ -48,8 +48,8 @@ class PersonalizationAttached : public QObject
 
 public:
     PersonalizationAttached(WToplevelSurface *target,
-                                        PersonalizationV1 *manager,
-                                        QObject *parent = nullptr);
+                            PersonalizationV1 *manager,
+                            QObject *parent = nullptr);
 
     Personalization::BackgroundType backgroundType() const;
 
@@ -61,7 +61,7 @@ public:
 
     bool noTitlebar() const
     {
-        return m_states.testFlag(personalization_window_context_v1::noTitlebar);
+        return m_states.testFlag(personalization_window_context_v1::NoTitleBar);
     }
 
 Q_SIGNALS:
@@ -79,6 +79,7 @@ private:
     Shadow m_shadow;
     Border m_border;
     personalization_window_context_v1::WindowStates m_states;
+    QMetaObject::Connection m_connection;
 };
 
 class PersonalizationV1

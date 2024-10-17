@@ -35,6 +35,8 @@ Item {
         sourceComponent: TRadiusEffect {
             anchors.fill: parent
             sourceItem: content
+            topLeftRadius: wrapper.noTitleBar ? cornerRadius : 0
+            topRightRadius: wrapper.noTitleBar ? cornerRadius : 0
             bottomLeftRadius: cornerRadius
             bottomRightRadius: cornerRadius
         }
