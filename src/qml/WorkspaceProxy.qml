@@ -5,6 +5,7 @@ import QtQuick
 import Treeland
 
 Item {
+    id: root
     required property WorkspaceModel workspace
     required property QtObject output
 

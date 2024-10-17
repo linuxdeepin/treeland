@@ -80,6 +80,9 @@ Multitaskview {
         acceptedButtons: Qt.AllButtons
         hoverEnabled: true
         preventStealing: true
+        onClicked: {
+            root.exit()
+        }
     }
 
     Rectangle {
@@ -140,13 +143,13 @@ Multitaskview {
                     width: parent.width
                     height: parent.height
                     required property int index
-                    required property WorkspaceModel modelData
-                    workspace: modelData
-                    visible: modelData.visible
+                    visible: workspace.visible
                     state: root.state
                     output: outputPlacementItem.output
                     workspaceListPadding: TreelandConfig.workspaceDelegateHeight
-
+                    onRequestExit: function(surface){
+                        root.exit(surface)
+                    }
                     delegate: Item {
                         id: surfaceItemDelegate
                         property bool shouldPadding: needPadding
@@ -340,6 +343,10 @@ Multitaskview {
                         workspace: modelData
                         workspaceManager: Helper.workspace
                         dm: dragManager
+                        onRequestExit: {
+                            root.exit()
+                        }
+
                         Drag.onActiveChanged: {
                             if (Drag.active) {
                                 dragManager.item = this

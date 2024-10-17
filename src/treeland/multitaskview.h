@@ -2,12 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 #pragma once
 
-#include <QQuickItem>
 #include <QAbstractListModel>
+#include <QQuickItem>
 Q_MOC_INCLUDE("surfacecontainer.h")
 
 class SurfaceListModel;
 class SurfaceWrapper;
+
 class Multitaskview : public QQuickItem
 {
     Q_OBJECT
@@ -17,23 +18,13 @@ class Multitaskview : public QQuickItem
     Q_PROPERTY(qreal taskviewVal READ taskviewVal WRITE setTaskviewVal NOTIFY taskviewValChanged FINAL)
 
 public:
-    enum Status {
-        Uninitialized,
-        Initialized,
-        Active,
-        Exited
-    };
+    enum Status { Uninitialized, Initialized, Active, Exited };
     Q_ENUM(Status)
-    enum ActiveReason {
-        ShortcutKey = 1,
-        Gesture
-    };
+
+    enum ActiveReason { ShortcutKey = 1, Gesture };
     Q_ENUM(ActiveReason)
-    enum ZOrder {
-        Background = -1,
-        Overlay = 1,
-        FloatingItem = 2
-    };
+
+    enum ZOrder { Background = -1, Overlay = 1, FloatingItem = 2 };
     Q_ENUM(ZOrder)
 
     Multitaskview(QQuickItem *parent = nullptr);
@@ -51,7 +42,7 @@ Q_SIGNALS:
     void taskviewValChanged();
 
 public Q_SLOTS:
-    void exit(SurfaceWrapper *surface);
+    void exit(SurfaceWrapper *surface = nullptr);
     void enter(ActiveReason reason);
 
 private:
@@ -72,21 +63,19 @@ class MultitaskviewSurfaceModel : public QAbstractListModel
     static inline constexpr qreal LoadFactor = 0.6;
     static inline constexpr qreal CellPadding = 12;
     static inline constexpr qreal TopContentMargin = 40;
-    struct SurfaceModelData {
-        SurfaceWrapper *wrapper {nullptr};
-        QRectF geometry {};
-        bool padding {false};
+
+    struct SurfaceModelData
+    {
+        SurfaceWrapper *wrapper{ nullptr };
+        QRectF geometry{};
+        bool padding{ false };
     };
 
 public:
     MultitaskviewSurfaceModel(QObject *parent = nullptr);
     void initializeModel();
 
-    enum SurfaceModelRole {
-        SurfaceWrapperRole = Qt::UserRole + 1,
-        GeometryRole,
-        PaddingRole
-    };
+    enum SurfaceModelRole { SurfaceWrapperRole = Qt::UserRole + 1, GeometryRole, PaddingRole };
     Q_ENUM(SurfaceModelRole)
 
     void setSurfaceListModel(SurfaceListModel *surfaceListModel);
@@ -95,7 +84,9 @@ public:
     int rowCount(const QModelIndex &parent = QModelIndex()) const override;
     QVariant data(const QModelIndex &index, int role) const override;
     QHash<int, QByteArray> roleNames() const override;
-    QModelIndex index(int row, int column = 0, const QModelIndex &parent = QModelIndex()) const override;
+    QModelIndex index(int row,
+                      int column = 0,
+                      const QModelIndex &parent = QModelIndex()) const override;
     bool modelReady() const;
 
     Q_INVOKABLE void calcLayout();
@@ -117,11 +108,11 @@ private:
     bool tryLayout(qreal rowH, bool ignoreOverlap = false);
     void calcDisplayPos();
 
-    SurfaceListModel *m_surfaceListModel {nullptr};
-    QList<SurfaceModelData> m_data {};
-    QRectF m_layoutArea {};
-    QList<QList<SurfaceModelData*>> m_rows {};
-    qreal m_rowHeight {0};
-    qreal m_contentHeight {0};
+    SurfaceListModel *m_surfaceListModel{ nullptr };
+    QList<SurfaceModelData> m_data{};
+    QRectF m_layoutArea{};
+    QList<QList<SurfaceModelData *>> m_rows{};
+    qreal m_rowHeight{ 0 };
+    qreal m_contentHeight{ 0 };
     bool m_modelReady;
 };

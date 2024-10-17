@@ -5,6 +5,7 @@ import org.deepin.dtk.style as DS
 
 Item {
     id: root
+    signal requestExit()
     required property Workspace workspaceManager
     required property WorkspaceModel workspace
     required property QtObject dm // Drag manager
@@ -16,12 +17,6 @@ Item {
     height: TreelandConfig.workspaceDelegateHeight
     width: TreelandConfig.workspaceThumbHeight * root.whRatio + 2 * TreelandConfig.workspaceThumbMargin
     Drag.active: hdrg.active
-
-    WorkspaceProxy {
-        id: wp
-        workspace: root.workspace
-        output: root.output
-    }
 
     DelegateModel.inPersistedItems: true
     property var initialState
@@ -56,12 +51,17 @@ Item {
                 hideSource: false
             }
 
+            WorkspaceProxy {
+                id: wp
+                workspace: root.workspace
+                output: root.output
+            }
+
             ShaderEffectSource {
                 sourceItem: wp
-                sourceRect: Qt.rect(0,0,wp.width, wp.height)
                 anchors.fill: parent
-                hideSource: true
                 recursive: true
+                hideSource: true
             }
 
             HoverHandler {
@@ -105,9 +105,9 @@ Item {
                 gesturePolicy: TapHandler.WithinBounds
                 onTapped: {
                     if (workspace.index === workspaceManager.currentIndex) {
-                        // TODO: exit multitaskview
+                        requestExit()
                     } else {
-                        workspaceManager.switchTo(index)
+                        Helper.workspace.switchTo(index)
                     }
                 }
             }
@@ -118,8 +118,8 @@ Item {
                 enabled: !hdrg.active
                 gesturePolicy: TapHandler.WithinBounds
                 onTapped: {
-                    workspaceManager.switchTo(index)
-                    // TODO: exit multitaskview
+                    Helper.workspace.switchTo(index)
+                    requestExit()
                 }
             }
 
