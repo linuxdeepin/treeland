@@ -265,7 +265,11 @@ void Helper::onXdgSurfaceAdded(WXdgSurface *surface)
         wrapper->setBlur(attached->backgroundType() == Personalization::BackgroundType::Blur);
     };
     auto updateNoTitlebar = [wrapper, attached] {
-        wrapper->setNoTitleBar(attached->noTitlebar());
+        if (attached->noTitlebar()) {
+            wrapper->setNoTitleBar(true);
+        } else {
+            wrapper->resetNoTitleBar();
+        }
     };
 
     connect(attached, &PersonalizationAttached::backgroundTypeChanged, wrapper, updateBlur);
