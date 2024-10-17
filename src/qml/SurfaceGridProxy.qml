@@ -5,6 +5,7 @@ import QtQuick.Effects
 
 Item {
     id: root
+    signal requestExit(surface: SurfaceWrapper)
     required property QtObject output
     required property WorkspaceModel workspace
     required property int workspaceListPadding
@@ -107,6 +108,12 @@ Item {
                         }
                     }
                 ]
+            }
+        }
+        TapHandler {
+            acceptedButtons: Qt.LeftButton
+            onTapped: {
+                requestExit(null)
             }
         }
     }
