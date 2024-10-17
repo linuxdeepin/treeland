@@ -104,6 +104,9 @@ public:
     enum class OutputMode { Copy, Extension };
     Q_ENUM(OutputMode)
 
+    enum class CurrentMode { Normal, LockScreen, WindowSwitch, Multitaskview };
+    Q_ENUM(CurrentMode)
+
     static Helper *instance();
 
     QmlEngine *qmlEngine() const;
@@ -228,6 +231,8 @@ private:
     Output *createCopyOutput(WOutput *output, Output *proxy);
 
     static Helper *m_instance;
+
+    CurrentMode m_currentMode{ CurrentMode::Normal };
 
     // qtquick helper
     WOutputRenderWindow *m_renderWindow = nullptr;
