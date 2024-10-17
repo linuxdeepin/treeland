@@ -10,6 +10,7 @@ import org.deepin.dtk 1.0 as D
 
 Item {
     id: root
+    visible: false
 
     required property QtObject output
     readonly property OutputItem outputItem: output.outputItem
@@ -218,7 +219,7 @@ Item {
 
                 onCurrentIndexChanged: {
                     if (switchView.currentItem)
-                        Helper.activateSurface(switchView.currentItem.surface)
+                        switchView.currentItem.surface?.requestForceActive()
 
                    ensurePreview()
                 }
@@ -403,19 +404,38 @@ Item {
 
     function previous() {
         if (showTask(true)) {
+            if (switchView.count === 1) {
+                previewContext.visible = true
+                currentContext.visible = true
+
+                currentContext.loaderStatus = 0
+                currentContext.loaderStatus = 1
+                switchView.currentItem.surface?.requestForceActive()
+                return
+            }
+
             previewContext.sourceSueface = switchView.currentItem.surface
             var previousIndex = (switchView.currentIndex - 1 + switchView.count) % switchView.count
             switchView.currentIndex = previousIndex
-            Helper.activateSurface(switchView.currentItem.surface)
+            switchView.currentItem.surface?.requestForceActive()
         }
     }
 
     function next() {
         if (showTask(true)) {
+            if (switchView.count === 1) {
+                previewContext.visible = true
+                currentContext.visible = true
+
+                currentContext.loaderStatus = 0
+                currentContext.loaderStatus = 1
+                Helper.activateSurface(switchView.currentItem.surface)
+                return
+            }
+
             previewContext.sourceSueface = switchView.currentItem.surface
             var nextIndex = (switchView.currentIndex + 1) % switchView.count
             switchView.currentIndex = nextIndex
-            Helper.activateSurface(switchView.currentItem.surface)
         }
     }
 
