@@ -95,6 +95,9 @@ public:
 };
 
 TSmoothTextureMaterialRhiShader::TSmoothTextureMaterialRhiShader()
+#if QT_VERSION >= QT_VERSION_CHECK(6, 8, 0)
+    : QSGOpaqueTextureMaterialRhiShader(1) // TODO: support multiview
+#endif
 {
     setShaderFileName(VertexStage, QStringLiteral(":/shaders/radiussmoothtexture.vert.qsb"));
     setShaderFileName(FragmentStage, QStringLiteral(":/shaders/radiussmoothtexture.frag.qsb"));
@@ -141,6 +144,9 @@ QSGMaterialShader *TSGRadiusSmoothTextureMaterial::createShader(
     QSGRendererInterface::RenderMode renderMode) const
 {
     Q_UNUSED(renderMode);
+#if QT_VERSION >= QT_VERSION_CHECK(6, 8, 0)
+    Q_ASSERT_X(viewCount() == 1, __func__, "Multiview not supported now.");
+#endif
     return new TSmoothTextureMaterialRhiShader();
 }
 
