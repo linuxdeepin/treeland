@@ -14,6 +14,7 @@ find_package(Qt6 CONFIG REQUIRED ShaderTools Concurrent)
 find_package(Qt6 COMPONENTS Quick QuickControls2 REQUIRED)
 pkg_search_module(PIXMAN REQUIRED IMPORTED_TARGET pixman-1)
 pkg_search_module(WAYLAND REQUIRED IMPORTED_TARGET wayland-server)
+pkg_search_module(LIBINPUT REQUIRED IMPORTED_TARGET libinput)
 # qt_finalize_target will collect all executable's private dependencies that are CMake targets
 
 add_subdirectory(modules)
@@ -93,6 +94,12 @@ qt_add_qml_module(${BIN_NAME}
         treeland/tquickradiuseffect_p.h
         treeland/tquickradiuseffect.h
         treeland/tquickradiuseffect.cpp
+        treeland/gestures.h
+        treeland/gestures.cpp
+        treeland/togglablegesture.h
+        treeland/togglablegesture.cpp
+        treeland/inputdevice.h
+        treeland/inputdevice.cpp
 
         ${DBUS_ADAPTOR}
     QML_FILES
@@ -138,6 +145,7 @@ target_link_libraries(${BIN_NAME}
         Waylib::WaylibServer
         PkgConfig::PIXMAN
         PkgConfig::WAYLAND
+        PkgConfig::LIBINPUT
         Dtk6::Core
         Dtk6::Declarative
 
