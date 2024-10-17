@@ -247,8 +247,15 @@ void Helper::onXdgSurfaceAdded(WXdgSurface *surface)
     auto updateBlur = [wrapper, attached] {
         wrapper->setBlur(attached->backgroundType() == Personalization::BackgroundType::Blur);
     };
+    auto updateNoTitlebar = [wrapper, attached] {
+        wrapper->setNoTitleBar(attached->noTitlebar());
+    };
+
     connect(attached, &PersonalizationAttached::backgroundTypeChanged, wrapper, updateBlur);
+    connect(attached, &PersonalizationAttached::windowStateChanged, wrapper, updateNoTitlebar);
+
     updateBlur();
+    updateNoTitlebar();
 
     if (surface->isPopup()) {
         auto parent = surface->parentSurface();
