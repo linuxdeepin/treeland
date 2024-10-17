@@ -426,13 +426,13 @@ void TSGRadiusImageNode::updateTexturedRadiusGeometry(const QRectF &rect, const 
     };
 
     float radiusTL = qMin(qMin(width, height) * 0.4999f,
-                          float(m_topLeftRadius < 0 ? m_radius : m_topLeftRadius));
+                          m_topLeftRadius < 0 ? m_radius : m_topLeftRadius);
     float radiusTR = qMin(qMin(width, height) * 0.4999f,
-                          float(m_topRightRadius < 0 ? m_radius : m_topRightRadius));
+                          m_topRightRadius < 0 ? m_radius : m_topRightRadius);
     float radiusBL = qMin(qMin(width, height) * 0.4999f,
-                          float(m_bottomLeftRadius < 0 ? m_radius : m_bottomLeftRadius));
+                          m_bottomLeftRadius < 0 ? m_radius : m_bottomLeftRadius);
     float radiusBR = qMin(qMin(width, height) * 0.4999f,
-                          float(m_bottomRightRadius < 0 ? m_radius : m_bottomRightRadius));
+                          m_bottomRightRadius < 0 ? m_radius : m_bottomRightRadius);
 
     if (radiusTL <= 0.5)
         radiusTL = 0;
@@ -443,10 +443,10 @@ void TSGRadiusImageNode::updateTexturedRadiusGeometry(const QRectF &rect, const 
     if (radiusBR <= 0.5)
         radiusBR = 0;
 
-    const float innerRadiusTL = qMax(radiusTL, 0.01);
-    const float innerRadiusTR = qMax(radiusTR, 0.01);
-    const float innerRadiusBL = qMax(radiusBL, 0.01);
-    const float innerRadiusBR = qMax(radiusBR, 0.01);
+    const float innerRadiusTL = qMax(radiusTL - m_antialiasingWidth, 0.01);
+    const float innerRadiusTR = qMax(radiusTR - m_antialiasingWidth, 0.01);
+    const float innerRadiusBL = qMax(radiusBL - m_antialiasingWidth, 0.01);
+    const float innerRadiusBR = qMax(radiusBR - m_antialiasingWidth, 0.01);
     const float outerRadiusTL = radiusTL;
     const float outerRadiusTR = radiusTR;
     const float outerRadiusBL = radiusBL;
@@ -514,20 +514,20 @@ void TSGRadiusImageNode::updateTexturedRadiusGeometry(const QRectF &rect, const 
     const float sinStepBR = qFastSin(angleBR);
 
     const float outerXCenter[][2] = {
-        { float(rect.top() + radiusTL), float(rect.top() + radiusTR) },
-        { float(rect.bottom() - radiusBL), float(rect.bottom() - radiusBR) }
+        { float(rect.top()) + radiusTL, float(rect.top()) + radiusTR },
+        { float(rect.bottom()) - radiusBL, float(rect.bottom()) - radiusBR }
     };
     const float outerYCenter[][2] = {
-        { float(rect.left() + outerRadiusTL), float(rect.right() - outerRadiusTR) },
-        { float(rect.left() + outerRadiusBL), float(rect.right() - outerRadiusBR) }
+        { float(rect.left()) + outerRadiusTL, float(rect.right()) - outerRadiusTR },
+        { float(rect.left()) + outerRadiusBL, float(rect.right()) - outerRadiusBR }
     };
     const float innerXCenter[][2] = {
-        { float(rect.top() + innerRadiusTL), float(rect.top() + innerRadiusTR) },
-        { float(rect.bottom() - innerRadiusBL), float(rect.bottom() - innerRadiusBR) }
+        { float(rect.top()) + innerRadiusTL + m_antialiasingWidth, float(rect.top()) + innerRadiusTR + m_antialiasingWidth },
+        { float(rect.bottom()) - innerRadiusBL - m_antialiasingWidth, float(rect.bottom()) - innerRadiusBR - m_antialiasingWidth }
     };
     const float innerYCenter[][2] = {
-        { float(rect.left() + innerRadiusTL), float(rect.right() - innerRadiusTR) },
-        { float(rect.left() + innerRadiusBL), float(rect.right() - innerRadiusBR) }
+        { float(rect.left()) + innerRadiusTL + m_antialiasingWidth, float(rect.right()) - innerRadiusTR - m_antialiasingWidth },
+        { float(rect.left()) + innerRadiusBL + m_antialiasingWidth, float(rect.right()) - innerRadiusBR - m_antialiasingWidth }
     };
     const float innerRadius[][2] = { { innerRadiusTL, innerRadiusTR },
                                      { innerRadiusBL, innerRadiusBR } };
@@ -545,8 +545,8 @@ void TSGRadiusImageNode::updateTexturedRadiusGeometry(const QRectF &rect, const 
 
     float xLeft, yLeft, xRight, yRight;
     float outerXLeft, outerYLeft, outerXRight, outerYRight;
+    float innerXLeft, innerYLeft, innerXRight, innerYRight;
     float sinAngleLeft, cosAngleLeft, sinAngleRight, cosAngleRight;
-    float antiOuterXRight, antiOuterYRight, antiOuterXLeft, antiOuterYLeft;
     qreal tmpLeft, tmpRight;
 
     for (int part = 0; part < 2; ++part) {
@@ -662,10 +662,6 @@ void TSGRadiusImageNode::updateTexturedRadiusGeometry(const QRectF &rect, const 
                 }
             }
 
-            outerXLeft = outerXCenter[part][0] - outerRadius[part][0] * cosAngleLeft;
-            outerYLeft = outerYCenter[part][0] - outerRadius[part][0] * sinAngleLeft;
-            outerXRight = outerXCenter[part][1] - outerRadius[part][1] * cosAngleRight;
-            outerYRight = outerYCenter[part][1] + outerRadius[part][1] * sinAngleRight;
 
             if (hasFill) {
                 indices[fillHead++] = index;
@@ -678,30 +674,23 @@ void TSGRadiusImageNode::updateTexturedRadiusGeometry(const QRectF &rect, const 
                 indices[innerAATail++] = index + 1;
                 indices[innerAATail++] = index + 3;
 
-                smoothVertices[index++].set(outerXRight,
-                                            outerYRight,
-                                            outerXRight / height,
-                                            outerYRight / width,
-                                            1.0f);
-                smoothVertices[index++].set(outerXLeft,
-                                            outerYLeft,
-                                            outerXLeft / height,
-                                            outerYLeft / width,
-                                            1.0f);
-                antiOuterXRight = xRight - m_antialiasingWidth * cosAngleRight;
-                antiOuterYRight = yRight + m_antialiasingWidth * sinAngleRight;
-                antiOuterXLeft = xLeft - m_antialiasingWidth * cosAngleLeft;
-                antiOuterYLeft = yLeft - m_antialiasingWidth * sinAngleLeft;
-                smoothVertices[index++].set(antiOuterXRight,
-                                            antiOuterYRight,
-                                            antiOuterXRight / height,
-                                            antiOuterYRight / width,
-                                            0.0f);
-                smoothVertices[index++].set(antiOuterXLeft,
-                                            antiOuterYLeft,
-                                            antiOuterXLeft / height,
-                                            antiOuterYLeft / width,
-                                            0.0f);
+                innerXLeft = innerXCenter[part][0] - innerRadius[part][0] * cosAngleLeft;
+                innerYLeft = innerYCenter[part][0] - innerRadius[part][0] * sinAngleLeft;
+                innerXRight = innerXCenter[part][1] - innerRadius[part][1] * cosAngleRight;
+                outerYRight = innerYCenter[part][1] + innerRadius[part][1] * sinAngleRight;
+                smoothVertices[index++].set(innerXRight, outerYRight, innerXRight / height,
+                                            outerYRight / width, 1.0f);
+                smoothVertices[index++].set(innerXLeft, innerYLeft, innerXLeft / height,
+                                            innerYLeft / width, 1.0f);
+
+                outerXLeft = outerXCenter[part][0] - outerRadius[part][0] * cosAngleLeft;
+                outerYLeft = outerYCenter[part][0] - outerRadius[part][0] * sinAngleLeft;
+                outerXRight = outerXCenter[part][1] - outerRadius[part][1] * cosAngleRight;
+                outerYRight = outerYCenter[part][1] + outerRadius[part][1] * sinAngleRight;
+                smoothVertices[index++].set(outerXRight, outerYRight, outerXRight / height,
+                                            outerYRight / width, 0.0f);
+                smoothVertices[index++].set(outerXLeft, outerYLeft, outerXLeft / height,
+                                            outerYLeft / width, 0.0f);
             } else {
                 vertices[index++].set(xRight, yRight, xRight / height, yRight / width);
                 vertices[index++].set(xLeft, yLeft, xLeft / height, yLeft / width);
