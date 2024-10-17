@@ -13,6 +13,7 @@ Control {
 
     required property SurfaceWrapper surface
     readonly property SurfaceItem surfaceItem: surface.surfaceItem
+    readonly property bool noRadius: surface.radius === 0 || surface.noCornerRadius
     property D.Palette backgroundColor: DS.Style.highlightPanel.background
     property D.Palette outerShadowColor: DS.Style.highlightPanel.dropShadow
     property D.Palette innerShadowColor: DS.Style.highlightPanel.innerShadow
@@ -58,8 +59,8 @@ Control {
         id: titlebar
         anchors.fill: parent
         color: surface.shellSurface.isActivated ? "white" : "gray"
-        layer.enabled: surface.radius
-        opacity: surface.radius ? 0 : root.opacity
+        layer.enabled: !root.noRadius
+        opacity: !root.noRadius ? 0 : parent.opacity
 
         Row {
             anchors {
@@ -141,7 +142,7 @@ Control {
 
     Loader {
         anchors.fill: parent
-        active: surface.radius > 0 && !surface.noCornerRadius
+        active: !root.noRadius
         sourceComponent: TRadiusEffect {
             anchors.fill: parent
             sourceItem: titlebar
