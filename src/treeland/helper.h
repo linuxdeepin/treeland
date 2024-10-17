@@ -6,6 +6,7 @@
 #include "foreigntoplevelmanagerv1.h"
 #include "qmlengine.h"
 #include "windowmanagement.h"
+#include "togglablegesture.h"
 
 #include <wglobal.h>
 #include <wqmlcreator.h>
@@ -89,6 +90,8 @@ class Helper : public WSeatEventFilter
     Q_PROPERTY(OutputMode outputMode READ outputMode WRITE setOutputMode NOTIFY outputModeChanged FINAL)
     Q_PROPERTY(QString cursorTheme READ cursorTheme NOTIFY cursorThemeChanged FINAL)
     Q_PROPERTY(QSize cursorSize READ cursorSize NOTIFY cursorSizeChanged FINAL)
+    Q_PROPERTY(TogglableGesture* multiTaskViewGesture READ multiTaskViewGesture CONSTANT)
+    Q_PROPERTY(TogglableGesture* windowGesture READ windowGesture CONSTANT)
     QML_ELEMENT
     QML_SINGLETON
 
@@ -105,6 +108,14 @@ public:
     WOutputRenderWindow *window() const;
     Workspace *workspace() const;
     void init();
+
+    TogglableGesture *multiTaskViewGesture() const {
+        return m_multiTaskViewGesture;
+    }
+
+    TogglableGesture *windowGesture() const {
+        return m_windowGesture;
+    }
 
     bool socketEnabled() const;
     void setSocketEnabled(bool newSocketEnabled);
@@ -208,6 +219,7 @@ private:
     void handleLeftButtonStateChanged(const QInputEvent *event);
     void handleWhellValueChanged(const QInputEvent *event);
     void handleDdeShellSurfaceAdded(WSurface *surface, SurfaceWrapper *wrapper);
+    bool doGesture(QInputEvent *event);
 
     static Helper *m_instance;
 
@@ -215,6 +227,10 @@ private:
     WOutputRenderWindow *m_renderWindow = nullptr;
     QQuickItem *m_dockPreview = nullptr;
     QObject *m_windowMenu = nullptr;
+
+    //gesture
+    TogglableGesture *m_multiTaskViewGesture = nullptr;
+    TogglableGesture *m_windowGesture = nullptr;
 
     // wayland helper
     WServer *m_server = nullptr;
