@@ -60,6 +60,7 @@ Control {
         anchors.fill: parent
         color: surface.shellSurface.isActivated ? "white" : "gray"
         layer.enabled: !root.noRadius
+        layer.smooth: !root.noRadius
         opacity: !root.noRadius ? 0 : parent.opacity
 
         Row {
