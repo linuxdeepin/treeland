@@ -36,6 +36,9 @@ Item {
                 margins: TreelandConfig.highlightBorderWidth
             }
             clip: true
+            // For TRadiusEffect
+            layer.enabled: true
+            opacity: 0
 
             WallpaperController {
                 id: wpCtrl
@@ -130,12 +133,10 @@ Item {
             }
         }
 
-        D.ItemViewport {
+        TRadiusEffect {
             sourceItem: content
             radius: TreelandConfig.workspaceThumbCornerRadius
             anchors.fill: content
-            fixed: true
-            enabled: true
             hideSource: true
         }
 
