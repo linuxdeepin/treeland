@@ -148,6 +148,8 @@ public:
     bool isMinimized() const;
     bool isTiling() const;
     bool isAnimationRunning() const;
+    bool isCloseAnimationRunning() const;
+    void setRemoveWrapper(bool remove);
 
     qreal radius() const;
     void setRadius(qreal newRadius);
@@ -320,9 +322,9 @@ private:
     QPointF m_positionInOwnsOutput;
     SurfaceWrapper::State m_pendingState;
     QRectF m_pendingGeometry;
-    QPointer<QQuickItem> m_NewAnimation;
-    QPointer<QQuickItem> m_MinimizeAnimation;
-    QPointer<QQuickItem> m_ShowAnimation;
+    QPointer<QQuickItem> m_newAnimation;
+    QPointer<QQuickItem> m_minimizeAnimation;
+    QPointer<QQuickItem> m_showAnimation;
     Q_OBJECT_BINDABLE_PROPERTY_WITH_ARGS(SurfaceWrapper,
                                          SurfaceWrapper::State,
                                          m_previousSurfaceState,
@@ -353,10 +355,11 @@ private:
     uint m_titleBarState : 2;
     uint m_noCornerRadius : 1;
     uint m_alwaysOnTop : 1;
-    bool m_skipSwitcher = false;
-    bool m_skipDockPreView = false;
-    bool m_skipMutiTaskView = false;
-    bool m_isDdeShellSurface = false;
+    uint m_removeWrapperEndOfAnimation : 1;
+    uint m_skipSwitcher : 1;
+    uint m_skipDockPreView : 1;
+    uint m_skipMutiTaskView : 1;
+    uint m_isDdeShellSurface : 1;
     SurfaceRole m_surfaceRole = SurfaceRole::Normal;
     quint32 m_autoPlaceYOffset = 0;
     QPoint m_clientRequstPos;

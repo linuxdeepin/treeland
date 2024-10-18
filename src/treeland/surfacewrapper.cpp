@@ -36,6 +36,11 @@ SurfaceWrapper::SurfaceWrapper(QmlEngine *qmlEngine,
     , m_titleBarState(TitleBarState::Default)
     , m_noCornerRadius(false)
     , m_alwaysOnTop(false)
+    , m_skipSwitcher(false)
+    , m_skipDockPreView(false)
+    , m_skipMutiTaskView(false)
+    , m_isDdeShellSurface(false)
+    , m_removeWrapperEndOfAnimation(false)
 {
     QQmlEngine::setContextForObject(this, qmlEngine->rootContext());
 
@@ -430,6 +435,16 @@ bool SurfaceWrapper::isAnimationRunning() const
     return m_geometryAnimation;
 }
 
+bool SurfaceWrapper::isCloseAnimationRunning() const
+{
+    return m_newAnimation;
+}
+
+void SurfaceWrapper::setRemoveWrapper(bool remove)
+{
+    m_removeWrapperEndOfAnimation = remove;
+}
+
 void SurfaceWrapper::setNoDecoration(bool newNoDecoration)
 {
     setNoCornerRadius(newNoDecoration);
@@ -550,7 +565,7 @@ void SurfaceWrapper::geometryChange(const QRectF &newGeo, const QRectF &oldGeome
 
 void SurfaceWrapper::createNewOrClose(uint direction)
 {
-    if (m_NewAnimation)
+    if (m_newAnimation)
         return;
 
     if (m_type != Type::XdgToplevel && m_type != Type::XWayland)
@@ -559,11 +574,11 @@ void SurfaceWrapper::createNewOrClose(uint direction)
     if (m_container.isNull())
         return;
 
-    m_NewAnimation = m_engine->createNewAnimation(this, container(), direction);
+    m_newAnimation = m_engine->createNewAnimation(this, container(), direction);
 
-    bool ok = connect(m_NewAnimation, SIGNAL(finished()), this, SLOT(onNewAnimationFinished()));
+    bool ok = connect(m_newAnimation, SIGNAL(finished()), this, SLOT(onNewAnimationFinished()));
     Q_ASSERT(ok);
-    ok = QMetaObject::invokeMethod(m_NewAnimation, "start");
+    ok = QMetaObject::invokeMethod(m_newAnimation, "start");
     Q_ASSERT(ok);
 }
 
@@ -660,14 +675,21 @@ bool SurfaceWrapper::startStateChangeAnimation(State targetState, const QRectF &
 
 void SurfaceWrapper::onNewAnimationFinished()
 {
-    Q_ASSERT(m_NewAnimation);
-    m_NewAnimation->deleteLater();
+    Q_ASSERT(m_newAnimation);
+    m_newAnimation->deleteLater();
+
+    if (m_removeWrapperEndOfAnimation) {
+        m_removeWrapperEndOfAnimation = false;
+        delete this;
+    }
 }
 
 void SurfaceWrapper::onMappedChanged()
 {
     if (surface()->mapped()) {
         createNewOrClose(OPEN_ANIMATION);
+    } else {
+        createNewOrClose(CLOSE_ANIMATION);
     }
 
     updateHasActiveCapability(ActiveControlState::Mapped, surface()->mapped());
@@ -675,41 +697,41 @@ void SurfaceWrapper::onMappedChanged()
 
 void SurfaceWrapper::onMinimizeAnimationFinished()
 {
-    Q_ASSERT(m_MinimizeAnimation);
-    m_MinimizeAnimation->deleteLater();
+    Q_ASSERT(m_minimizeAnimation);
+    m_minimizeAnimation->deleteLater();
 }
 
 void SurfaceWrapper::startMinimizeAnimation(const QRectF &iconGeometry, uint direction)
 {
-    if (m_MinimizeAnimation)
+    if (m_minimizeAnimation)
         return;
 
-    m_MinimizeAnimation =
+    m_minimizeAnimation =
         m_engine->createMinimizeAnimation(this, container(), iconGeometry, direction);
 
     bool ok =
-        connect(m_MinimizeAnimation, SIGNAL(finished()), this, SLOT(onMinimizeAnimationFinished()));
+        connect(m_minimizeAnimation, SIGNAL(finished()), this, SLOT(onMinimizeAnimationFinished()));
     Q_ASSERT(ok);
-    ok = QMetaObject::invokeMethod(m_MinimizeAnimation, "start");
+    ok = QMetaObject::invokeMethod(m_minimizeAnimation, "start");
     Q_ASSERT(ok);
 }
 
 void SurfaceWrapper::onShowAnimationFinished()
 {
-    Q_ASSERT(m_ShowAnimation);
-    m_ShowAnimation->deleteLater();
+    Q_ASSERT(m_showAnimation);
+    m_showAnimation->deleteLater();
 }
 
 void SurfaceWrapper::startShowAnimation(bool show)
 {
-    if (m_ShowAnimation)
+    if (m_showAnimation)
         return;
 
-    m_ShowAnimation = m_engine->createShowDesktopAnimation(this, container(), show);
+    m_showAnimation = m_engine->createShowDesktopAnimation(this, container(), show);
 
-    bool ok = connect(m_ShowAnimation, SIGNAL(finished()), this, SLOT(onShowAnimationFinished()));
+    bool ok = connect(m_showAnimation, SIGNAL(finished()), this, SLOT(onShowAnimationFinished()));
     Q_ASSERT(ok);
-    ok = QMetaObject::invokeMethod(m_ShowAnimation, "start");
+    ok = QMetaObject::invokeMethod(m_showAnimation, "start");
     Q_ASSERT(ok);
 }
 
@@ -787,9 +809,7 @@ void SurfaceWrapper::requestCancelFullscreen()
 
 void SurfaceWrapper::requestClose()
 {
-    createNewOrClose(CLOSE_ANIMATION);
     m_shellSurface->close();
-    setVisible(false);
 }
 
 SurfaceWrapper *SurfaceWrapper::stackFirstSurface() const
