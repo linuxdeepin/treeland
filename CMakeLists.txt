@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.25.0)
 
-project(TreeLand
+project(Treeland
     VERSION 0.2.2
     LANGUAGES CXX C)
 

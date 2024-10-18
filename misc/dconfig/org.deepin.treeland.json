@@ -57,7 +57,7 @@
             "permissions": "readwrite",
             "visibility": "private"
         },
-        "roundCornerRadius": {
+        "windowRadius": {
             "value": 18,
             "serial": 0,
             "flags": ["user-public"],
@@ -91,7 +91,7 @@
             "visibility": "private"
         },
         "iconThemeName": {
-            "value": "",
+            "value": "bloom",
             "serial": 0,
             "flags": ["user-public"],
             "name": "Icon Theme Name",
@@ -102,7 +102,7 @@
             "visibility": "private"
         },
         "cursorThemeName": {
-            "value": "",
+            "value": "bloom",
             "serial": 0,
             "flags": ["user-public"],
             "name": "Cursor Theme Name",
@@ -113,7 +113,7 @@
             "visibility": "private"
         },
         "cursorSize": {
-            "value": "",
+            "value": 24,
             "serial": 0,
             "flags": ["user-public"],
             "name": "Cursor Size",
@@ -175,6 +175,39 @@
             "name[zh_CN]": "拖动阈值",
             "description": "Number of pixels the cursor can move before dragging",
             "description[zh_CN]": "拖动之前光标可以移动的像素数",
+            "permissions": "readwrite",
+            "visibility": "private"
+        },
+        "maxWorkspace": {
+            "value": 6,
+            "serial": 0,
+            "flags": ["user-public"],
+            "name": "Max Workspace Count",
+            "name[zh_CN]": "工作区最大数量",
+            "description": "Maximum number of workspaces",
+            "description[zh_CN]": "工作区最大数量",
+            "permissions": "readwrite",
+            "visibility": "private"
+        },
+        "numWorkspace": {
+            "value": 4,
+            "serial": 0,
+            "flags": ["user-public"],
+            "name": "Number of workspaces",
+            "name[zh_CN]": "工作区数量",
+            "description": "Current number of workspaces",
+            "description[zh_CN]": "当前工作区数量",
+            "permissions": "readwrite",
+            "visibility": "private"
+        },
+	"currentWorkspace": {
+            "value": 0,
+            "serial": 0,
+            "flags": ["user-public"],
+            "name": "Current workspace",
+            "name[zh_CN]": "当前工作区",
+            "description": "Current index of workspace",
+            "description[zh_CN]": "当前工作区索引",
             "permissions": "readwrite",
             "visibility": "private"
         }

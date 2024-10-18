@@ -4,7 +4,7 @@ pragma Singleton
 
 import QtQuick
 
-import TreeLand.Greeter
+import Treeland.Greeter
 
 Item {
     enum GreeterState {
@@ -22,10 +22,6 @@ Item {
     readonly property Proxy proxy: proxy
     readonly property LogoProvider logoProvider: logoProvider
 
-    // TODO: use group to wait all animation
-    signal animationPlayed
-    signal animationPlayFinished
-
     function quit() {
         state = GreeterModel.Quit
     }
@@ -35,7 +31,7 @@ Item {
         function onUpdateTranslations(locale) {
             console.log("translation updated")
             logoProvider.updateLocale(locale)
-            TreeLand.retranslate()
+            Treeland.retranslate()
         }
     }
 
@@ -58,7 +54,7 @@ Item {
             return user.name === userName
         }
 
-        onLoginSucceeded: function (userName) {
+        onLoginSucceeded: function(userName) {
             if (!checkUser(userName)) {
                 return
             }
@@ -66,7 +62,7 @@ Item {
             state = GreeterModel.AuthSucceeded
         }
 
-        onLoginFailed: {
+        onLoginFailed: function(userName) {
             if (!checkUser(userName)) {
                 return
             }

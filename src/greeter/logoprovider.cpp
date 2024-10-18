@@ -43,5 +43,5 @@ void LogoProvider::updateLocale(const QLocale &newLocale) noexcept
     }
 
     locale = newLocale;
-    emit versionChanged();
+    Q_EMIT versionChanged();
 }

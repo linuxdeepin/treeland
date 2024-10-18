@@ -19,7 +19,7 @@ public:
         connect(button, &QPushButton::clicked, this, &MainWindow::hideWindow);
     }
 
-private slots:
+private Q_SLOTS:
 
     void hideWindow()
     {

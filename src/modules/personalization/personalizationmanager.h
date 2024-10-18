@@ -19,24 +19,24 @@ QW_USE_NAMESPACE
 WAYLIB_SERVER_USE_NAMESPACE
 
 class PersonalizationV1;
-class QuickPersonalizationManagerAttached;
+class PersonalizationAttached;
 
 class Personalization : public QObject
 {
     Q_OBJECT
     QML_NAMED_ELEMENT(Personalization)
     QML_UNCREATABLE("Only use for the enums.")
-    QML_ATTACHED(QuickPersonalizationManagerAttached)
+    QML_ATTACHED(PersonalizationAttached)
 public:
     using QObject::QObject;
 
-    enum BackgroundType { Normal, Wallpaper, Blend };
+    enum BackgroundType { Normal, Wallpaper, Blur };
     Q_ENUM(BackgroundType)
 
-    static QuickPersonalizationManagerAttached *qmlAttachedProperties(QObject *target);
+    static PersonalizationAttached *qmlAttachedProperties(QObject *target);
 };
 
-class QuickPersonalizationManagerAttached : public QObject
+class PersonalizationAttached : public QObject
 {
     Q_OBJECT
     QML_ANONYMOUS
@@ -47,7 +47,9 @@ class QuickPersonalizationManagerAttached : public QObject
     Q_PROPERTY(bool noTitlebar READ noTitlebar NOTIFY windowStateChanged)
 
 public:
-    QuickPersonalizationManagerAttached(WToplevelSurface *target, PersonalizationV1 *manager);
+    PersonalizationAttached(WToplevelSurface *target,
+                            PersonalizationV1 *manager,
+                            QObject *parent = nullptr);
 
     Personalization::BackgroundType backgroundType() const;
 
@@ -59,7 +61,7 @@ public:
 
     bool noTitlebar() const
     {
-        return m_states.testFlag(personalization_window_context_v1::noTitlebar);
+        return m_states.testFlag(personalization_window_context_v1::NoTitleBar);
     }
 
 Q_SIGNALS:
@@ -77,6 +79,7 @@ private:
     Shadow m_shadow;
     Border m_border;
     personalization_window_context_v1::WindowStates m_states;
+    QMetaObject::Connection m_connection;
 };
 
 class PersonalizationV1
@@ -91,6 +94,7 @@ class PersonalizationV1
 
 public:
     explicit PersonalizationV1(QObject *parent = nullptr);
+    ~PersonalizationV1();
 
     void onWindowContextCreated(personalization_window_context_v1 *context);
     void onWallpaperContextCreated(personalization_wallpaper_context_v1 *context);
@@ -138,6 +142,7 @@ public Q_SLOTS:
     QString background(const QString &output);
     QString lockscreen(const QString &output);
     bool backgroundIsDark(const QString &output);
+    bool isAnimagedImage(const QString &source);
 
 protected:
     void create(WServer *server) override;
@@ -145,14 +150,9 @@ protected:
     wl_global *global() const override;
 
 private:
-    void writeContext(personalization_wallpaper_context_v1 *context,
-                      const QByteArray &data,
-                      const QString &dest);
     void saveImage(personalization_wallpaper_context_v1 *context, const QString &prefix);
     void updateCacheWallpaperPath(uid_t uid);
     QString readWallpaperSettings(const QString &group, const QString &output);
-    void saveWallpaperSettings(const QString &current,
-                               personalization_wallpaper_context_v1 *context);
 
     uid_t m_userId = 0;
     QString m_cacheDirectory;

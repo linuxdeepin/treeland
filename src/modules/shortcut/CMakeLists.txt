@@ -10,13 +10,11 @@ target_sources(${MODULE_NAME} PUBLIC
 FILE_SET HEADERS
 FILES
     shortcutmanager.h
-    shortcutmodel.h
     impl/shortcut_manager_impl.h
 )
 
 target_sources(${MODULE_NAME} PRIVATE
     shortcutmanager.cpp
-    shortcutmodel.cpp
     impl/shortcut_manager_impl.cpp
     ${WAYLAND_PROTOCOLS_OUTPUTDIR}/treeland-shortcut-manager-protocol.c
 )
@@ -33,7 +31,6 @@ target_compile_definitions(${MODULE_NAME}
 
 target_link_libraries(${MODULE_NAME}
     PUBLIC
-        utils
         PkgConfig::WLROOTS
         Waylib::WaylibServer
         Qt6::Core

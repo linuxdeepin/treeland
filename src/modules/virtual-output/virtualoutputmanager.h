@@ -2,51 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #pragma once
+#include "impl/virtual_output_manager_impl.h"
 
-#include <woutputrenderwindow.h>
-#include <woutputviewport.h>
-#include <wquicktextureproxy.h>
 #include <wserver.h>
-
-#include <QObject>
-#include <QPair>
 
 struct treeland_virtual_output_v1;
 struct treeland_virtual_output_manager_v1;
 QW_USE_NAMESPACE
 WAYLIB_SERVER_USE_NAMESPACE
-
-class VirtualOutputV1;
-
-class VirtualOutputManagerAttached : public QObject
-{
-    Q_OBJECT
-    Q_PROPERTY(WOutputViewport *outputViewport READ outputViewport NOTIFY outputViewportChanged FINAL)
-    QML_ANONYMOUS
-
-public:
-    Q_INVOKABLE WOutputViewport *outputViewport() const { return m_viewport; };
-
-    VirtualOutputManagerAttached(WOutputViewport *outputviewport,
-                                 WQuickTextureProxy *proxy,
-                                 VirtualOutputV1 *virtualOutput);
-
-    void removeItem(WOutputViewport *viewport);
-    void addItem(WOutputViewport *viewport, WOutputViewport *backviewport);
-    void copyScreen(QStringList outputList);
-    void restoreScreen(QStringList outputList);
-    void updatePrimaryOutputHardwareLayers();
-
-Q_SIGNALS:
-
-    void outputViewportChanged();
-
-private:
-    VirtualOutputV1 *m_virtualoutput;
-    WOutputViewport *m_viewport;
-    WOutputViewport *m_backviewport;
-    WQuickTextureProxy *m_textureproxy;
-};
 
 class VirtualOutputV1
     : public QObject
@@ -57,25 +20,14 @@ class VirtualOutputV1
 public:
     explicit VirtualOutputV1(QObject *parent = nullptr);
 
-    Q_INVOKABLE VirtualOutputManagerAttached *Attach(WOutputViewport *outputviewport,
-                                                     WQuickTextureProxy *proxy);
-    void setVirtualOutput(QString name, QStringList outputList);
-
-    void newOutput(WOutput *output);
-    void removeOutput(WOutput *output);
     QByteArrayView interfaceName() const override;
 
-    QList<QPair<WOutputViewport *, QQuickItem *>> m_viewports_list;
     QList<treeland_virtual_output_v1 *> m_virtualOutputv1;
-    QList<WOutputLayer *> m_hardwareLayersOfPrimaryOutput;
-    WOutputRenderWindow *m_renderWindow;
 
 Q_SIGNALS:
 
-    void requestCreateVirtualOutput(QString name, QStringList outputList);
-    void destroyVirtualOutput(QString name, QStringList outputList);
-    void removeVirtualOutput(QStringList outputList, WOutput *output);
-    void newVirtualOutput(QStringList outputList, WOutput *output);
+    void requestCreateVirtualOutput(treeland_virtual_output_v1 *virtual_output);
+    void destroyVirtualOutput(treeland_virtual_output_v1 *virtual_output);
 
 private Q_SLOTS:
     void onVirtualOutputCreated(treeland_virtual_output_v1 *virtual_output);
