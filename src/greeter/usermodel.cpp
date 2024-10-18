@@ -75,8 +75,8 @@ UserModel::UserModel(QObject *parent)
                 d->lastTrans->deleteLater();
                 d->lastTrans = newTrans;
                 QGuiApplication::installTranslator(d->lastTrans);
-                emit updateTranslations(locale);
-                emit dataChanged(createIndex(0, 0), createIndex(rowCount(), 0));
+                Q_EMIT updateTranslations(locale);
+                Q_EMIT dataChanged(createIndex(0, 0), createIndex(rowCount(), 0));
                 return;
             }
         }
@@ -163,10 +163,10 @@ void UserModel::updateUserLoginState(const QString &username, bool logined)
     if (user != d->users.end()) {
         (*user)->setLogined(logined);
         auto pos = std::distance(d->users.end(), user);
-        emit dataChanged(index(0, pos - 1), index(0, pos));
+        Q_EMIT dataChanged(index(0, pos - 1), index(0, pos));
     }
 
-    emit layoutChanged();
+    Q_EMIT layoutChanged();
 }
 
 void UserModel::clearUserLoginState()
@@ -175,7 +175,7 @@ void UserModel::clearUserLoginState()
         user->setLogined(false);
     }
 
-    emit layoutChanged();
+    Q_EMIT layoutChanged();
 }
 
 QVariant UserModel::data(const QModelIndex &index, int role) const
@@ -292,7 +292,7 @@ void UserModel::updateUserLimits(const QString &userName, const QString &time) c
 void UserModel::setCurrentUserName(const QString &userName) noexcept
 {
     d->currentUserName = userName;
-    emit currentUserNameChanged();
+    Q_EMIT currentUserNameChanged();
 }
 
 void UserModel::onUserAdded(quint64 uid)
@@ -310,7 +310,7 @@ void UserModel::onUserAdded(quint64 uid)
     });
     endResetModel();
 
-    emit countChanged();
+    Q_EMIT countChanged();
 }
 
 void UserModel::onUserDeleted(quint64 uid)
@@ -325,5 +325,5 @@ void UserModel::onUserDeleted(quint64 uid)
     });
     endResetModel();
 
-    emit countChanged();
+    Q_EMIT countChanged();
 }

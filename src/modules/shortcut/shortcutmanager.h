@@ -3,29 +3,41 @@
 
 #pragma once
 
-#include "helper.h"
-#include "shortcutmodel.h"
-
 #include <wserver.h>
 
 #include <QObject>
 #include <QQmlEngine>
 
+class QAction;
+
 class treeland_shortcut_context_v1;
 class treeland_shortcut_manager_v1;
+
+WAYLIB_SERVER_BEGIN_NAMESPACE
+class WServer;
+WAYLIB_SERVER_END_NAMESPACE
+
+WAYLIB_SERVER_USE_NAMESPACE
 
 class ShortcutV1
     : public QObject
     , public Waylib::Server::WServerInterface
 {
     Q_OBJECT
-    Q_PROPERTY(ShortcutModel *model READ model CONSTANT)
 
 public:
+    enum MetaKeyCheck {
+        ShortcutOverride = 0x1,
+        KeyPress = 0x2,
+        KeyRelease = 0x4,
+    };
+
     explicit ShortcutV1(QObject *parent = nullptr);
     QByteArrayView interfaceName() const override;
 
-    ShortcutModel *model() const { return m_model; }
+    void triggerMetaKey(uid_t uid);
+
+    std::vector<QAction *> actions(uid_t uid) const;
 
 protected:
     void create(WServer *server) override;
@@ -37,5 +49,8 @@ private Q_SLOTS:
 
 private:
     treeland_shortcut_manager_v1 *m_manager = nullptr;
-    ShortcutModel *m_model = nullptr;
+    QMap<uid_t, std::vector<QAction *>> m_actions;
 };
+
+Q_DECLARE_FLAGS(MetaKeyChecks, ShortcutV1::MetaKeyCheck)
+Q_DECLARE_OPERATORS_FOR_FLAGS(MetaKeyChecks)

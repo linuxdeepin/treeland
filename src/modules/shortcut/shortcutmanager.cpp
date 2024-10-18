@@ -18,7 +18,6 @@
 
 ShortcutV1::ShortcutV1(QObject *parent)
     : QObject(parent)
-    , m_model(new ShortcutModel(this))
 {
 }
 
@@ -27,18 +26,41 @@ void ShortcutV1::onNewContext(uid_t uid, treeland_shortcut_context_v1 *context)
     QAction *action = new QAction(context);
     action->setShortcut(QString(context->key));
 
-    passwd *pw = getpwuid(uid);
-    const QString username(pw->pw_name);
-
     connect(action, &QAction::triggered, this, [context] {
         context->send_shortcut();
     });
 
-    connect(context, &treeland_shortcut_context_v1::before_destroy, this, [this, username, action] {
-        m_model->removeAction(username, action);
+    connect(context, &treeland_shortcut_context_v1::before_destroy, this, [this, uid, action] {
+        m_actions.remove(uid);
+        action->deleteLater();
     });
 
-    m_model->addAction(username, action);
+    if (!m_actions.count(uid)) {
+        m_actions[uid] = {};
+    }
+
+    auto find = std::ranges::find_if(m_actions[uid], [action](QAction *a) {
+        return a->shortcut() == action->shortcut();
+    });
+
+    if (find == m_actions[uid].end()) {
+        m_actions[uid].push_back(action);
+    }
+}
+
+std::vector<QAction *> ShortcutV1::actions(uid_t uid) const
+{
+    return m_actions[uid];
+}
+
+void ShortcutV1::triggerMetaKey(uid_t uid)
+{
+    for (auto *action : m_actions[uid]) {
+        if (action->shortcut().toString() == "Meta") {
+            action->trigger();
+            break;
+        }
+    }
 }
 
 void ShortcutV1::create(WServer *server)
