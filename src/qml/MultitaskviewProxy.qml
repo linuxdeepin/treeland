@@ -328,9 +328,7 @@ Multitaskview {
                     model: Helper.workspace.models
                     delegate: WorkspaceThumbDelegate {
                         id: workspaceThumbDelegate
-                        required property WorkspaceModel modelData
                         output: outputPlacementItem.output
-                        workspace: modelData
                         workspaceManager: Helper.workspace
                         dm: dragManager
                         onRequestExit: {
