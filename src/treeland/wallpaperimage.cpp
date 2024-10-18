@@ -16,7 +16,7 @@
 WAYLIB_SERVER_USE_NAMESPACE
 
 WallpaperImage::WallpaperImage(QQuickItem *parent)
-    : QQuickImage(parent)
+    : QQuickAnimatedImage(parent)
 {
     auto provider = Helper::instance()->qmlEngine()->wallpaperImageProvider();
     connect(provider,
@@ -99,8 +99,12 @@ void WallpaperImage::updateSource()
 
 void WallpaperImage::updateWallpaperTexture(const QString &id)
 {
-    if (source().toString() == id) {
-        load();
-        update();
+    // TODO: optimize this
+    if (!source().toString().isEmpty()) {
+        QFile::remove(source().toString().remove("file://"));
     }
+    updateSource();
+    load();
+    update();
+    setPlaying(true);
 }

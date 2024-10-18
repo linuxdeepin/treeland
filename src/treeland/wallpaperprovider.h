@@ -57,7 +57,6 @@ public:
 
 private:
     QImage loadFile(const QString &path, const QSize &requestedSize);
-    QString parseFilePath(const QString &id);
     QString source(const QString &output, const QString &workspace);
 
 Q_SIGNALS:
