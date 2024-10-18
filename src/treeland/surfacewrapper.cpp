@@ -1155,7 +1155,7 @@ bool SurfaceWrapper::showOnAllWorkspace() const
 {
     if (m_type == Type::Layer) [[unlikely]]
         return true;
-    return m_workspaceId == Workspace::ShowOnAllWorkspaceIndex;
+    return m_workspaceId == Workspace::ShowOnAllWorkspaceId;
 }
 
 bool SurfaceWrapper::showOnWorkspace(int workspaceIndex) const
