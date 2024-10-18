@@ -130,6 +130,8 @@ public:
 
     personalization_window_context_v1 *getWindowContext(WSurface *surface);
 
+    QString defaultWallpaper() const;
+
 Q_SIGNALS:
     void userIdChanged(uid_t uid);
     void backgroundChanged(const QString &output, bool isdark);
