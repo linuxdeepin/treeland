@@ -57,6 +57,8 @@ qt_add_qml_module(${BIN_NAME}
         treeland/surfacewrapper.cpp
         treeland/workspace.h
         treeland/workspace.cpp
+        treeland/shellhandler.h
+        treeland/shellhandler.cpp
         treeland/output.h
         treeland/output.cpp
         treeland/qmlengine.h

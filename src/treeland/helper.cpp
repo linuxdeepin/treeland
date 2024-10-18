@@ -7,6 +7,7 @@
 #include "ddeshellmanagerv1.h"
 #include "inputdevice.h"
 #include "layersurfacecontainer.h"
+
 #include "lockscreen.h"
 #include "multitaskview.h"
 #include "output.h"
@@ -20,6 +21,8 @@
 #include "treelandconfig.h"
 #include "wallpapercolor.h"
 #include "workspace.h"
+#include "multitaskview.h"
+#include "shellhandler.h"
 
 #include <WBackend>
 #include <WForeignToplevel>
@@ -28,10 +31,6 @@
 #include <WSurfaceItem>
 #include <WXdgOutput>
 #include <wcursorshapemanagerv1.h>
-#include <winputmethodhelper.h>
-#include <winputpopupsurface.h>
-#include <wlayershell.h>
-#include <wlayersurface.h>
 #include <woutputitem.h>
 #include <woutputlayout.h>
 #include <woutputmanagerv1.h>
@@ -56,7 +55,6 @@
 #include <qwdisplay.h>
 #include <qwfractionalscalemanagerv1.h>
 #include <qwgammacontorlv1.h>
-#include <qwlayershellv1.h>
 #include <qwlogging.h>
 #include <qwoutput.h>
 #include <qwrenderer.h>
@@ -88,13 +86,7 @@ Helper::Helper(QObject *parent)
     , m_renderWindow(new WOutputRenderWindow(this))
     , m_server(new WServer(this))
     , m_rootSurfaceContainer(new RootSurfaceContainer(m_renderWindow->contentItem()))
-    , m_backgroundContainer(new LayerSurfaceContainer(m_rootSurfaceContainer))
-    , m_bottomContainer(new LayerSurfaceContainer(m_rootSurfaceContainer))
-    , m_workspace(new Workspace(m_rootSurfaceContainer))
     , m_lockScreen(new LockScreen(m_rootSurfaceContainer))
-    , m_topContainer(new LayerSurfaceContainer(m_rootSurfaceContainer))
-    , m_overlayContainer(new LayerSurfaceContainer(m_rootSurfaceContainer))
-    , m_popupContainer(new SurfaceContainer(m_rootSurfaceContainer))
 {
     setCurrentUserId(getuid());
 
@@ -106,17 +98,13 @@ Helper::Helper(QObject *parent)
 #if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0)
     m_rootSurfaceContainer->setFocusPolicy(Qt::StrongFocus);
 #endif
-    m_backgroundContainer->setZ(RootSurfaceContainer::BackgroundZOrder);
-    m_bottomContainer->setZ(RootSurfaceContainer::BottomZOrder);
-    m_workspace->setZ(RootSurfaceContainer::NormalZOrder);
-    m_topContainer->setZ(RootSurfaceContainer::TopZOrder);
-    m_overlayContainer->setZ(RootSurfaceContainer::OverlayZOrder);
-    m_popupContainer->setZ(RootSurfaceContainer::PopupZOrder);
     m_lockScreen->setZ(RootSurfaceContainer::LockScreenZOrder);
 
     connect(m_lockScreen, &LockScreen::unlock, this, [this] {
         m_currentMode = CurrentMode::Normal;
     });
+
+    m_shellHandler = new ShellHandler(m_rootSurfaceContainer);
 
     connect(m_renderWindow, &QQuickWindow::activeFocusItemChanged, this, [this]() {
         auto wrapper = keyboardFocusSurface();
@@ -160,9 +148,14 @@ WOutputRenderWindow *Helper::window() const
     return m_renderWindow;
 }
 
+ShellHandler *Helper::shellHandler() const
+{
+    return m_shellHandler;
+}
+
 Workspace *Helper::workspace() const
 {
-    return m_workspace;
+    return m_shellHandler->workspace();
 }
 
 void Helper::onOutputAdded(WOutput *output)
@@ -210,180 +203,6 @@ void Helper::onOutputRemoved(WOutput *output)
     m_outputManager->removeOutput(output);
     m_lockScreen->removeOutput(o);
     delete o;
-}
-
-void Helper::setupSurfaceActiveWatcher(SurfaceWrapper *wrapper)
-{
-    Q_ASSERT_X(wrapper->container(), Q_FUNC_INFO, "Must setContainer at first!");
-
-    connect(wrapper, &SurfaceWrapper::requestActive, this, [this, wrapper]() {
-        if (wrapper->showOnWorkspace(m_workspace->currentIndex()))
-            activateSurface(wrapper);
-        else
-            m_workspace->current()->pushActivedSurface(wrapper);
-    });
-
-    connect(wrapper, &SurfaceWrapper::requestDeactive, this, [this, wrapper]() {
-        m_workspace->removeActivedSurface(wrapper);
-        activateSurface(m_workspace->current()->latestActiveSurface());
-    });
-
-    connect(wrapper, &SurfaceWrapper::requestForceActive, this, [this, wrapper]() {
-        if (wrapper->isMinimized())
-            wrapper->requestCancelMinimize();
-
-        if (!wrapper->surface()->mapped()) {
-            qWarning() << "Can't activate unmapped surface: " << wrapper;
-            return;
-        }
-
-        if (!wrapper->showOnWorkspace(m_workspace->currentIndex()))
-            m_workspace->switchTo(wrapper->workspaceId());
-        activateSurface(wrapper);
-    });
-}
-
-void Helper::onXdgSurfaceAdded(WXdgSurface *surface)
-{
-    SurfaceWrapper *wrapper = nullptr;
-
-    if (surface->isToplevel()) {
-        wrapper = new SurfaceWrapper(qmlEngine(), surface, SurfaceWrapper::Type::XdgToplevel);
-        m_foreignToplevel->addSurface(surface);
-        m_treelandForeignToplevel->addSurface(wrapper);
-
-        auto wSurface = surface->surface();
-        if (m_ddeShellV1->isDdeShellSurface(wSurface)) {
-            handleDdeShellSurfaceAdded(wSurface, wrapper);
-        }
-    } else {
-        wrapper = new SurfaceWrapper(qmlEngine(), surface, SurfaceWrapper::Type::XdgPopup);
-    }
-
-    onSurfaceModeChanged(wrapper->surface(),
-                         m_xdgDecorationManager->modeBySurface(surface->surface()));
-
-    auto *attached =
-        new PersonalizationAttached(wrapper->shellSurface(), m_personalization, wrapper);
-    auto updateBlur = [wrapper, attached] {
-        wrapper->setBlur(attached->backgroundType() == Personalization::BackgroundType::Blur);
-    };
-    auto updateNoTitlebar = [wrapper, attached] {
-        if (attached->noTitlebar()) {
-            wrapper->setNoTitleBar(true);
-        } else {
-            wrapper->resetNoTitleBar();
-        }
-    };
-
-    connect(attached, &PersonalizationAttached::backgroundTypeChanged, wrapper, updateBlur);
-    connect(attached, &PersonalizationAttached::windowStateChanged, wrapper, updateNoTitlebar);
-
-    updateBlur();
-    updateNoTitlebar();
-
-    if (surface->isPopup()) {
-        auto parent = surface->parentSurface();
-        auto parentWrapper = m_rootSurfaceContainer->getSurface(parent);
-        parentWrapper->addSubSurface(wrapper);
-        m_popupContainer->addSurface(wrapper);
-        wrapper->setOwnsOutput(parentWrapper->ownsOutput());
-    } else {
-        auto updateSurfaceWithParentContainer = [this, wrapper, surface] {
-            if (wrapper->parentSurface())
-                wrapper->parentSurface()->removeSubSurface(wrapper);
-            if (wrapper->container())
-                wrapper->container()->removeSurface(wrapper);
-
-            if (auto parent = surface->parentSurface()) {
-                auto parentWrapper = m_rootSurfaceContainer->getSurface(parent);
-                auto container = qobject_cast<Workspace *>(parentWrapper->container());
-                Q_ASSERT(container);
-                parentWrapper->addSubSurface(wrapper);
-                container->addSurface(wrapper, parentWrapper->workspaceId());
-            } else {
-                m_workspace->addSurface(wrapper);
-            }
-        };
-
-        surface->safeConnect(&WXdgSurface::parentXdgSurfaceChanged,
-                             this,
-                             updateSurfaceWithParentContainer);
-        updateSurfaceWithParentContainer();
-        connect(wrapper,
-                &SurfaceWrapper::requestShowWindowMenu,
-                m_windowMenu,
-                [this, wrapper](QPoint pos) {
-                    QMetaObject::invokeMethod(m_windowMenu,
-                                              "showWindowMenu",
-                                              QVariant::fromValue(wrapper),
-                                              QVariant::fromValue(pos));
-                });
-        setupSurfaceActiveWatcher(wrapper);
-    }
-
-    Q_ASSERT(wrapper->parentItem());
-}
-
-void Helper::onXdgSurfaceRemoved(WXdgSurface *surface)
-{
-    if (surface->isToplevel()) {
-        m_foreignToplevel->removeSurface(surface);
-        m_treelandForeignToplevel->removeSurface(m_rootSurfaceContainer->getSurface(surface));
-
-        auto wSurface = surface->surface();
-        if (m_ddeShellV1->isDdeShellSurface(wSurface)) {
-            m_ddeShellV1->ddeShellSurfaceFromWSurface(wSurface)->destroy();
-        }
-    }
-
-    m_rootSurfaceContainer->destroyForSurface(surface->surface());
-}
-
-void Helper::onLayerSurfaceAdded(WLayerSurface *surface)
-{
-    auto wrapper = new SurfaceWrapper(qmlEngine(), surface, SurfaceWrapper::Type::Layer);
-    wrapper->setNoDecoration(true);
-    wrapper->setSkipSwitcher(true);
-    wrapper->setSkipDockPreView(true);
-    wrapper->setSkipMutiTaskView(true);
-    updateLayerSurfaceContainer(wrapper);
-
-    auto *attached =
-        new PersonalizationAttached(wrapper->shellSurface(), m_personalization, wrapper);
-    auto updateBlur = [wrapper, attached] {
-        wrapper->setBlur(attached->backgroundType() == Personalization::BackgroundType::Blur);
-    };
-    connect(attached, &PersonalizationAttached::backgroundTypeChanged, wrapper, updateBlur);
-    updateBlur();
-
-    connect(surface, &WLayerSurface::layerChanged, this, [this, wrapper] {
-        updateLayerSurfaceContainer(wrapper);
-    });
-
-    setupSurfaceActiveWatcher(wrapper);
-    Q_ASSERT(wrapper->parentItem());
-}
-
-void Helper::onLayerSurfaceRemoved(WLayerSurface *surface)
-{
-    m_rootSurfaceContainer->destroyForSurface(surface->surface());
-}
-
-void Helper::onInputPopupSurfaceV2Added(WInputPopupSurface *surface)
-{
-    auto wrapper = new SurfaceWrapper(qmlEngine(), surface, SurfaceWrapper::Type::InputPopup);
-    auto parent = surface->parentSurface();
-    auto parentWrapper = m_rootSurfaceContainer->getSurface(parent);
-    parentWrapper->addSubSurface(wrapper);
-    m_popupContainer->addSurface(wrapper);
-    wrapper->setOwnsOutput(parentWrapper->ownsOutput());
-    Q_ASSERT(wrapper->parentItem());
-}
-
-void Helper::onInputPopupSurfaceV2Removed(WInputPopupSurface *surface)
-{
-    m_rootSurfaceContainer->destroyForSurface(surface->surface());
 }
 
 void Helper::onSurfaceModeChanged(WSurface *surface, WXdgDecorationManager::DecorationMode mode)
@@ -581,9 +400,13 @@ void Helper::init()
     connect(m_backend, &WBackend::outputAdded, this, &Helper::onOutputAdded);
     connect(m_backend, &WBackend::outputRemoved, this, &Helper::onOutputRemoved);
 
-    auto *xdgShell = m_server->attach<WXdgShell>();
-    m_foreignToplevel = m_server->attach<WForeignToplevel>(xdgShell);
+    m_ddeShellV1 = m_server->attach<DDEShellManagerV1>();
+    m_shellHandler->createComponent(engine);
+    m_shellHandler->initXdgShell(m_server, m_ddeShellV1);
+    m_shellHandler->initLayerShell(m_server);
+    m_shellHandler->initInputMethodHelper(m_server, m_seat);
 
+    m_foreignToplevel = m_server->attach<WForeignToplevel>();
     m_treelandForeignToplevel = m_server->attach<ForeignToplevelV1>();
     Q_ASSERT(m_treelandForeignToplevel);
     qmlRegisterSingletonInstance<ForeignToplevelV1>("Treeland.Protocols",
@@ -593,21 +416,60 @@ void Helper::init()
                                                     m_treelandForeignToplevel);
     qRegisterMetaType<ForeignToplevelV1::PreviewDirection>();
 
-    auto *layerShell = m_server->attach<WLayerShell>();
+    connect(m_shellHandler, &ShellHandler::surfaceWrapperAdded, this, [this] (SurfaceWrapper *wrapper) {
+        bool isXdgToplevel = wrapper->type() == SurfaceWrapper::Type::XdgToplevel;
+        bool isXdgPopup = wrapper->type() == SurfaceWrapper::Type::XdgPopup;
+        bool isXwayland = wrapper->type() == SurfaceWrapper::Type::XWayland;
+        bool isLayer = wrapper->type() == SurfaceWrapper::Type::Layer;
+
+        if (isXdgToplevel || isXdgPopup || isLayer) {
+            auto *attached =
+                new PersonalizationAttached(wrapper->shellSurface(), m_personalization, wrapper);
+            wrapper->setNoDecoration(m_xdgDecorationManager->modeBySurface(wrapper->surface()) != WXdgDecorationManager::Server);
+
+            if (isXdgToplevel) {
+                auto updateNoTitlebar = [wrapper, attached] {
+                    if (attached->noTitlebar()) {
+                        wrapper->setNoTitleBar(true);
+                    } else {
+                        wrapper->resetNoTitleBar();
+                    }
+                };
+                connect(attached, &PersonalizationAttached::windowStateChanged, wrapper, updateNoTitlebar);
+                updateNoTitlebar();
+            }
+
+            auto updateBlur = [wrapper, attached] {
+                wrapper->setBlur(attached->backgroundType() == Personalization::BackgroundType::Blur);
+            };
+            connect(attached, &PersonalizationAttached::backgroundTypeChanged, wrapper, updateBlur);
+            updateBlur();
+        }
+
+        if (isXwayland)
+            wrapper->setNoTitleBar(false);
+
+        if (isXdgToplevel || isXwayland) {
+            m_foreignToplevel->addSurface(wrapper->shellSurface());
+            m_treelandForeignToplevel->addSurface(wrapper);
+        }
+    });
+
+    connect(m_shellHandler, &ShellHandler::surfaceWrapperAboutToRemove, this, [this] (SurfaceWrapper *wrapper) {
+        if (wrapper->type() == SurfaceWrapper::Type::XdgToplevel || wrapper->type() == SurfaceWrapper::Type::XWayland) {
+            m_foreignToplevel->removeSurface(wrapper->shellSurface());
+            m_treelandForeignToplevel->removeSurface(wrapper);
+        }
+    });
+
     auto *xdgOutputManager =
         m_server->attach<WXdgOutputManager>(m_rootSurfaceContainer->outputLayout());
-
-    connect(xdgShell, &WXdgShell::surfaceAdded, this, &Helper::onXdgSurfaceAdded);
-    connect(xdgShell, &WXdgShell::surfaceRemoved, this, &Helper::onXdgSurfaceRemoved);
-    connect(layerShell, &WLayerShell::surfaceAdded, this, &Helper::onLayerSurfaceAdded);
-    connect(layerShell, &WLayerShell::surfaceRemoved, this, &Helper::onLayerSurfaceRemoved);
 
     m_server->attach<PrimaryOutputV1>();
     m_wallpaperColorV1 = m_server->attach<WallpaperColorV1>();
     m_windowManagement = m_server->attach<WindowManagementV1>();
     m_virtualOutput = m_server->attach<VirtualOutputV1>();
     m_shortcut = m_server->attach<ShortcutV1>();
-    m_ddeShellV1 = m_server->attach<DDEShellManagerV1>();
     m_server->attach<CaptureManagerV1>();
     m_personalization = m_server->attach<PersonalizationV1>();
     m_personalization->setUserId(m_currentUserId);
@@ -690,19 +552,7 @@ void Helper::init()
     auto *xwaylandOutputManager =
         m_server->attach<WXdgOutputManager>(m_rootSurfaceContainer->outputLayout());
     xwaylandOutputManager->setScaleOverride(1.0);
-
-    m_xwayland = createXWayland();
-
-    m_inputMethodHelper = new WInputMethodHelper(m_server, m_seat);
-
-    connect(m_inputMethodHelper,
-            &WInputMethodHelper::inputPopupSurfaceV2Added,
-            this,
-            &Helper::onInputPopupSurfaceV2Added);
-    connect(m_inputMethodHelper,
-            &WInputMethodHelper::inputPopupSurfaceV2Removed,
-            this,
-            &Helper::onInputPopupSurfaceV2Removed);
+    m_defaultXWayland = m_shellHandler->createXWayland(m_server, m_seat, m_compositor, false);
 
     m_xdgDecorationManager = m_server->attach<WXdgDecorationManager>();
     connect(m_xdgDecorationManager,
@@ -736,7 +586,6 @@ void Helper::init()
     qw_fractional_scale_manager_v1::create(*m_server->handle(), WLR_FRACTIONAL_SCALE_V1_VERSION);
     qw_data_control_manager_v1::create(*m_server->handle());
 
-    m_windowMenu = engine->createWindowMenu(this);
     m_dockPreview = engine->createDockPreview(m_renderWindow->contentItem());
 
     connect(m_treelandForeignToplevel,
@@ -781,6 +630,21 @@ void Helper::activateSurface(SurfaceWrapper *wrapper, Qt::FocusReason reason)
         reuqestKeyboardFocusForSurface(wrapper, reason);
 }
 
+void Helper::forceActivateSurface(SurfaceWrapper *wrapper, Qt::FocusReason reason)
+{
+    if (wrapper->isMinimized())
+        wrapper->requestCancelMinimize();
+
+    if (!wrapper->surface()->mapped()) {
+        qWarning() << "Can't activate unmapped surface: " << wrapper;
+        return;
+    }
+
+    if (!wrapper->showOnWorkspace(workspace()->currentIndex()))
+        workspace()->switchTo(wrapper->workspaceId());
+    Helper::instance()->activateSurface(wrapper, reason);
+}
+
 RootSurfaceContainer *Helper::rootContainer() const
 {
     return m_rootSurfaceContainer;
@@ -803,10 +667,10 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *, QInputEvent *event)
             return true;
         } else if (event->modifiers() == Qt::MetaModifier) {
             if (kevent->key() == Qt::Key_Right) {
-                m_workspace->switchToNext();
+                workspace()->switchToNext();
                 return true;
             } else if (kevent->key() == Qt::Key_Left) {
-                m_workspace->switchToPrev();
+                workspace()->switchToPrev();
                 return true;
             } else if (kevent->key() == Qt::Key_S) {
                 toggleMultitaskview();
@@ -1081,14 +945,14 @@ void Helper::toggleMultitaskview()
 {
     if (!m_multitaskview) {
         toggleOutputMenuBar(false);
-        m_workspace->setSwitcherEnabled(false);
+        workspace()->setSwitcherEnabled(false);
         m_multitaskview =
             qobject_cast<Multitaskview *>(qmlEngine()->createMultitaskview(rootContainer()));
         connect(m_multitaskview.data(), &Multitaskview::visibleChanged, this, [this] {
             if (!m_multitaskview->isVisible()) {
                 m_multitaskview->deleteLater();
                 toggleOutputMenuBar(true);
-                m_workspace->setSwitcherEnabled(true);
+                workspace()->setSwitcherEnabled(true);
             }
         });
         m_multitaskview->enter(Multitaskview::ShortcutKey);
@@ -1151,8 +1015,7 @@ void Helper::setActivatedSurface(SurfaceWrapper *newActivateSurface)
         return;
 
     if (newActivateSurface) {
-        Q_ASSERT(newActivateSurface->showOnWorkspace(m_workspace->currentIndex()));
-
+        Q_ASSERT(newActivateSurface->showOnWorkspace(workspace()->currentIndex()));
         newActivateSurface->stackToLast();
     }
 
@@ -1164,7 +1027,7 @@ void Helper::setActivatedSurface(SurfaceWrapper *newActivateSurface)
             m_showDesktop = WindowManagementV1::DesktopState::Normal;
 
         newActivateSurface->setActivate(true);
-        m_workspace->pushActivedSurface(newActivateSurface);
+        workspace()->pushActivedSurface(newActivateSurface);
     }
     m_activatedSurface = newActivateSurface;
     Q_EMIT activatedSurfaceChanged();
@@ -1277,32 +1140,6 @@ void Helper::setOutputMode(OutputMode mode)
 
 void Helper::setOutputProxy(Output *output) { }
 
-void Helper::updateLayerSurfaceContainer(SurfaceWrapper *surface)
-{
-    auto layer = qobject_cast<WLayerSurface *>(surface->shellSurface());
-    Q_ASSERT(layer);
-
-    if (auto oldContainer = surface->container())
-        oldContainer->removeSurface(surface);
-
-    switch (layer->layer()) {
-    case WLayerSurface::LayerType::Background:
-        m_backgroundContainer->addSurface(surface);
-        break;
-    case WLayerSurface::LayerType::Bottom:
-        m_bottomContainer->addSurface(surface);
-        break;
-    case WLayerSurface::LayerType::Top:
-        m_topContainer->addSurface(surface);
-        break;
-    case WLayerSurface::LayerType::Overlay:
-        m_overlayContainer->addSurface(surface);
-        break;
-    default:
-        Q_UNREACHABLE_RETURN();
-    }
-}
-
 int Helper::currentUserId() const
 {
     return m_currentUserId;
@@ -1341,43 +1178,12 @@ void Helper::addSocket(WSocket *socket)
 
 WXWayland *Helper::createXWayland()
 {
-    auto *xwayland = m_server->attach<WXWayland>(m_compositor, false);
-    m_xwaylands.append(xwayland);
-    xwayland->setSeat(m_seat);
-
-    connect(xwayland, &WXWayland::surfaceAdded, this, [this, xwayland](WXWaylandSurface *surface) {
-        surface->safeConnect(&qw_xwayland_surface::notify_associate, this, [this, surface] {
-            auto wrapper = new SurfaceWrapper(qmlEngine(), surface, SurfaceWrapper::Type::XWayland);
-            wrapper->setNoDecoration(false);
-            m_foreignToplevel->addSurface(surface);
-            m_treelandForeignToplevel->addSurface(wrapper);
-            m_workspace->addSurface(wrapper);
-            Q_ASSERT(wrapper->parentItem());
-            connect(wrapper,
-                    &SurfaceWrapper::requestShowWindowMenu,
-                    m_windowMenu,
-                    [this, wrapper](QPoint pos) {
-                        QMetaObject::invokeMethod(m_windowMenu,
-                                                  "showWindowMenu",
-                                                  QVariant::fromValue(wrapper),
-                                                  QVariant::fromValue(pos));
-                    });
-            setupSurfaceActiveWatcher(wrapper);
-        });
-        surface->safeConnect(&qw_xwayland_surface::notify_dissociate, this, [this, surface] {
-            m_foreignToplevel->removeSurface(surface);
-            m_treelandForeignToplevel->removeSurface(m_rootSurfaceContainer->getSurface(surface));
-            m_rootSurfaceContainer->destroyForSurface(surface->surface());
-        });
-    });
-
-    return xwayland;
+    return m_shellHandler->createXWayland(m_server, m_seat, m_compositor, false);
 }
 
 void Helper::removeXWayland(WXWayland *xwayland)
 {
-    m_xwaylands.removeOne(xwayland);
-    xwayland->safeDeleteLater();
+    m_shellHandler->removeXWayland(xwayland);
 }
 
 WSocket *Helper::defaultWaylandSocket() const
@@ -1387,7 +1193,7 @@ WSocket *Helper::defaultWaylandSocket() const
 
 WXWayland *Helper::defaultXWaylandSocket() const
 {
-    return m_xwayland;
+    return m_defaultXWayland;
 }
 
 PersonalizationV1 *Helper::personalization() const
@@ -1449,70 +1255,4 @@ void Helper::handleWhellValueChanged(const QInputEvent *event)
     if (delta.x() + delta.y() > 0) {
         m_ddeShellV1->sendActiveIn(TREELAND_DDE_ACTIVE_V1_REASON_WHEEL, m_seat);
     }
-}
-
-void Helper::handleDdeShellSurfaceAdded(WSurface *surface, SurfaceWrapper *wrapper)
-{
-    wrapper->setIsDdeShellSurface(true);
-    auto ddeShellSurface = m_ddeShellV1->ddeShellSurfaceFromWSurface(surface);
-    Q_ASSERT(ddeShellSurface);
-    auto updateLayer = [ddeShellSurface, wrapper] {
-        if (ddeShellSurface->m_role.value() == treeland_dde_shell_surface::Role::OVERLAY)
-            wrapper->setSurfaceRole(SurfaceWrapper::SurfaceRole::Overlay);
-    };
-
-    if (ddeShellSurface->m_role.has_value())
-        updateLayer();
-
-    connect(ddeShellSurface, &treeland_dde_shell_surface::roleChanged, this, [updateLayer] {
-        updateLayer();
-    });
-
-    if (ddeShellSurface->m_yOffset.has_value())
-        wrapper->setAutoPlaceYOffset(ddeShellSurface->m_yOffset.value());
-
-    connect(ddeShellSurface,
-            &treeland_dde_shell_surface::yOffsetChanged,
-            this,
-            [wrapper](uint32_t offset) {
-                wrapper->setAutoPlaceYOffset(offset);
-            });
-
-    if (ddeShellSurface->m_surfacePos.has_value())
-        wrapper->setClientRequstPos(ddeShellSurface->m_surfacePos.value());
-
-    connect(ddeShellSurface,
-            &treeland_dde_shell_surface::positionChanged,
-            this,
-            [wrapper](QPoint pos) {
-                wrapper->setClientRequstPos(pos);
-            });
-
-    if (ddeShellSurface->m_skipSwitcher.has_value())
-        wrapper->setSkipSwitcher(ddeShellSurface->m_skipSwitcher.value());
-
-    if (ddeShellSurface->m_skipDockPreView.has_value())
-        wrapper->setSkipDockPreView(ddeShellSurface->m_skipDockPreView.value());
-
-    if (ddeShellSurface->m_skipMutiTaskView.has_value())
-        wrapper->setSkipMutiTaskView(ddeShellSurface->m_skipMutiTaskView.value());
-
-    connect(ddeShellSurface,
-            &treeland_dde_shell_surface::skipSwitcherChanged,
-            this,
-            [wrapper](bool skip) {
-                wrapper->setSkipSwitcher(skip);
-            });
-    connect(ddeShellSurface,
-            &treeland_dde_shell_surface::skipDockPreViewChanged,
-            this,
-            [wrapper](bool skip) {
-                wrapper->setSkipDockPreView(skip);
-            });
-    connect(ddeShellSurface,
-            &treeland_dde_shell_surface::skipMutiTaskViewChanged,
-            this,
-            [wrapper](bool skip) {
-                wrapper->setSkipMutiTaskView(skip);
-            });
 }
