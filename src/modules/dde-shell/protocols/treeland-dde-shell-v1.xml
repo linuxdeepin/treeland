@@ -217,5 +217,9 @@
         <event name="start_drag" since="1">
             <description summary="sent when the compositor starts a drag operation"/>
         </event>
+
+        <event name="drop" since="1">
+            <description summary="sent when the compositor drop operation"/>
+        </event>
     </interface>
 </protocol>
