@@ -127,20 +127,9 @@ QString WallpaperImageProvider::source(WAYLIB_SERVER_NAMESPACE::WOutput *output,
 
 QString WallpaperImageProvider::source(const QString &output, const QString &workspace)
 {
-    WallpaperData data{
-        .uid = QString::number(Helper::instance()->currentUserId()),
-        .output = output,
-        .workspace = workspace,
-    };
-
-    return "image://wallpaper/" + data.toString();
-}
-
-QString WallpaperImageProvider::parseFilePath(const QString &id)
-{
     // NOTE: Query the actual wallpaper data from the protocol implementation
     auto *personalization = Helper::instance()->personalization();
-    return personalization->background(WallpaperData::fromString(id).output);
+    return personalization->background(output);
 }
 
 QQuickTextureFactory *WallpaperImageProvider::requestTexture(const QString &id,
@@ -150,7 +139,7 @@ QQuickTextureFactory *WallpaperImageProvider::requestTexture(const QString &id,
     QQuickTextureFactory *factory = nullptr;
     QSize readSize;
 
-    QString img_path = parseFilePath(id);
+    QString img_path = id;
     if (textureCache.contains(img_path)) {
         auto cache_factory = textureCache[img_path];
 
