@@ -15,6 +15,12 @@ Item {
     property alias sourceSueface : preview.surface
     property D.Palette outerShadowColor: DS.Style.highlightPanel.dropShadow
 
+    onLoaderStatusChanged: {
+        if (loaderStatus === -1) {
+            enterAnimation.stop()
+            exitAnimation.stop()
+        }
+    }
     states: [
         State {
             name: 'none'
@@ -31,16 +37,19 @@ Item {
             to: "loaded"
 
             ParallelAnimation {
-                ScaleAnimator {
+                id: enterAnimation
+                NumberAnimation {
                     target: root
+                    property: "scale"
                     from: 0.5
                     to: 1.0
                     duration: 400
                     easing.type: Easing.OutExpo
                 }
 
-                OpacityAnimator {
+                NumberAnimation {
                     target: root
+                    property: "opacity"
                     from: 0.0
                     to: 1.0
                     duration: 100
@@ -53,16 +62,19 @@ Item {
             to: "none"
 
             ParallelAnimation {
-                ScaleAnimator {
+                id: exitAnimation
+                NumberAnimation {
                     target: root
+                    property: "scale"
                     from: 1.0
                     to: 0.5
                     duration: 400
                     easing.type: Easing.OutExpo
                 }
 
-                OpacityAnimator {
+                NumberAnimation {
                     target: root
+                    property: "opacity"
                     from: 1.0
                     to: 0.0
                     duration: 400

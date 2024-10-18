@@ -216,13 +216,6 @@ Item {
                 delegate: SwitchViewDelegate {}
                 highlight: SwitchViewHighlightDelegate {}
                 highlightFollowsCurrentItem: false
-
-                onCurrentIndexChanged: {
-                    if (switchView.currentItem)
-                        switchView.currentItem.surface?.requestForceActive()
-
-                   ensurePreview()
-                }
             }
         }
 
@@ -390,9 +383,6 @@ Item {
     }
 
     function ensurePreview() {
-        previewContext.visible = true
-        currentContext.visible = true
-
         if (root.enableAnimation) {
             previewContext.loaderStatus = 1
             previewContext.loaderStatus = 0
@@ -404,38 +394,23 @@ Item {
 
     function previous() {
         if (showTask(true)) {
-            if (switchView.count === 1) {
-                previewContext.visible = true
-                currentContext.visible = true
-
-                currentContext.loaderStatus = 0
-                currentContext.loaderStatus = 1
-                switchView.currentItem.surface?.requestForceActive()
-                return
-            }
-
             previewContext.sourceSueface = switchView.currentItem.surface
             var previousIndex = (switchView.currentIndex - 1 + switchView.count) % switchView.count
             switchView.currentIndex = previousIndex
+
             switchView.currentItem.surface?.requestForceActive()
+            ensurePreview()
         }
     }
 
     function next() {
         if (showTask(true)) {
-            if (switchView.count === 1) {
-                previewContext.visible = true
-                currentContext.visible = true
-
-                currentContext.loaderStatus = 0
-                currentContext.loaderStatus = 1
-                Helper.activateSurface(switchView.currentItem.surface)
-                return
-            }
-
             previewContext.sourceSueface = switchView.currentItem.surface
             var nextIndex = (switchView.currentIndex + 1) % switchView.count
             switchView.currentIndex = nextIndex
+
+            switchView.currentItem.surface?.requestForceActive()
+            ensurePreview()
         }
     }
 
@@ -448,19 +423,16 @@ Item {
         Helper.showAllWindows(root.model, !visible)
         root.visible = visible
 
-        return true
+        return switchView.currentItem && switchView.visible
     }
 
     function exit() {
         if (!root.visible)
             return
 
-        previewContext.visible = false
-        currentContext.visible = false
-
         if (root.enableAnimation) {
-            previewContext.loaderStatus = 0
-            currentContext.loaderStatus = 0
+            previewContext.loaderStatus = -1
+            currentContext.loaderStatus = -1
         }
 
         if (root.enableAnimation) {
