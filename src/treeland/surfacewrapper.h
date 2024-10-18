@@ -20,6 +20,7 @@ class SurfaceWrapper : public QQuickItem
     friend class Helper;
     friend class SurfaceContainer;
     friend class SurfaceProxy;
+    friend class ShellHandler;
     Q_OBJECT
     QML_ELEMENT
     QML_UNCREATABLE("SurfaceWrapper objects are created by c++")
@@ -260,7 +261,6 @@ Q_SIGNALS:
     void showOnAllWorkspaceChanged();
     void requestActive();
     void requestDeactive();
-    void requestForceActive();
     void skipSwitcherChanged();
     void skipDockPreViewChanged();
     void skipMutiTaskViewChanged();

@@ -92,9 +92,8 @@ SurfaceWrapper *RootSurfaceContainer::getSurface(WToplevelSurface *surface) cons
     return nullptr;
 }
 
-void RootSurfaceContainer::destroyForSurface(WSurface *surface)
+void RootSurfaceContainer::destroyForSurface(SurfaceWrapper *wrapper)
 {
-    auto wrapper = getSurface(surface);
     if (wrapper == moveResizeState.surface)
         endMoveResize();
 

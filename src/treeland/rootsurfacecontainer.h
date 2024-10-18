@@ -51,7 +51,7 @@ public:
 
     SurfaceWrapper *getSurface(WSurface *surface) const;
     SurfaceWrapper *getSurface(WToplevelSurface *surface) const;
-    void destroyForSurface(WSurface *surface);
+    void destroyForSurface(SurfaceWrapper *wrapper);
 
     WOutputLayout *outputLayout() const;
     WCursor *cursor() const;
