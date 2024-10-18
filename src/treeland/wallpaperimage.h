@@ -6,7 +6,7 @@
 #include "qmlengine.h"
 #include "wglobal.h"
 
-#include <private/qquickimage_p.h>
+#include <private/qquickanimatedimage_p.h>
 
 Q_MOC_INCLUDE("workspace.h")
 
@@ -18,7 +18,7 @@ WAYLIB_SERVER_USE_NAMESPACE
 
 class WorkspaceModel;
 
-class WallpaperImage : public QQuickImage
+class WallpaperImage : public QQuickAnimatedImage
 {
     Q_OBJECT
     Q_PROPERTY(int userId READ userId WRITE setUserId NOTIFY userIdChanged FINAL)

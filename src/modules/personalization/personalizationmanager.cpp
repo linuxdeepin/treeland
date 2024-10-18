@@ -63,7 +63,7 @@ QString PersonalizationV1::readWallpaperSettings(const QString &group, const QSt
         return DEFAULT_WALLPAPER;
 
     QSettings settings(m_settingFile, QSettings::IniFormat);
-    return settings.value(group + "/" + output, DEFAULT_WALLPAPER).toString();
+    return "file://" + settings.value(group + "/" + output, DEFAULT_WALLPAPER).toString();
 }
 
 PersonalizationV1::PersonalizationV1(QObject *parent)
@@ -181,7 +181,8 @@ void PersonalizationV1::saveImage(personalization_wallpaper_context_v1 *context,
         }
     }
 
-    QString dest = m_cacheDirectory + prefix + "_" + output;
+    QString dest = m_cacheDirectory + prefix + "_" + output + "_"
+        + QDateTime::currentDateTime().toString("yyyyMMddhhmmss");
 
     QFile src_file;
     if (!src_file.open(context->fd, QIODevice::ReadOnly))
