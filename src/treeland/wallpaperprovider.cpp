@@ -122,14 +122,18 @@ QString WallpaperImageProvider::source(WAYLIB_SERVER_NAMESPACE::WOutput *output,
         return source(output->name(), workspace->name());
     }
 
-    return {};
+    auto *personalization = Helper::instance()->personalization();
+    return personalization->defaultWallpaper();
 }
 
 QString WallpaperImageProvider::source(const QString &output, const QString &workspace)
 {
     // NOTE: Query the actual wallpaper data from the protocol implementation
     auto *personalization = Helper::instance()->personalization();
-    return personalization->background(output);
+    const QString bg = personalization->background(output);
+
+    // NOTE: bg maybe is default qrc resource. So we don't need file://
+    return QFile::exists(bg) ? "file://" + bg : bg;
 }
 
 QQuickTextureFactory *WallpaperImageProvider::requestTexture(const QString &id,

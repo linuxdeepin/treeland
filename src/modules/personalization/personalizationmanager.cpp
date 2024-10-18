@@ -32,7 +32,7 @@ DCORE_USE_NAMESPACE
 
 static PersonalizationV1 *PERSONALIZATION_MANAGER = nullptr;
 
-#define DEFAULT_WALLPAPER ":/desktop.webp"
+#define DEFAULT_WALLPAPER "qrc:/desktop.webp"
 #define DEFAULT_WALLPAPER_ISDARK false
 
 PersonalizationAttached *Personalization::qmlAttachedProperties(QObject *target)
@@ -63,7 +63,7 @@ QString PersonalizationV1::readWallpaperSettings(const QString &group, const QSt
         return DEFAULT_WALLPAPER;
 
     QSettings settings(m_settingFile, QSettings::IniFormat);
-    return "file://" + settings.value(group + "/" + output, DEFAULT_WALLPAPER).toString();
+    return settings.value(group + "/" + output, DEFAULT_WALLPAPER).toString();
 }
 
 PersonalizationV1::PersonalizationV1(QObject *parent)
@@ -459,4 +459,9 @@ personalization_window_context_v1 *PersonalizationV1::getWindowContext(WSurface 
     }
 
     return nullptr;
+}
+
+QString PersonalizationV1::defaultWallpaper() const
+{
+    return DEFAULT_WALLPAPER;
 }
