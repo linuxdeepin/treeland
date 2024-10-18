@@ -32,7 +32,6 @@ protected:
     wl_global *global() const override;
 
 Q_SIGNALS:
-    void requestShowDesktop(uint32_t state);
     void desktopStateChanged();
 
 private:

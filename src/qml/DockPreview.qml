@@ -7,14 +7,12 @@ import QtQuick.Layouts
 import QtQuick.Effects
 
 import Waylib.Server
-import TreeLand
-import TreeLand.Protocols
-import TreeLand.Utils
+import Treeland
+import Treeland.Protocols
 import org.deepin.dtk 1.0 as D
 
 Item {
     id: root
-
     property int aniDuration: 350
     property alias spacing: listview.spacing
     property bool enableBlur: true
@@ -22,8 +20,8 @@ Item {
     property bool isHorizontal
     // set by show()
     property var target
-    property var pos
-    property var direction
+    property point pos
+    property int direction
     // auto update by binding
     property size outPutSize: Qt.size(target?.output?.width || 9999, target?.output?.height || 9999)
     property point outPutPos: Qt.point(target?.output?.x || 0, target?.output?.y || 0)
@@ -43,37 +41,8 @@ Item {
     LoggingCategory {
         id: qLcDockPreview
         name: "treeland.qml.dockpreview"
-        defaultLogLevel: LoggingCategory.Warning
+        defaultLogLevel: LoggingCategory.Info
     }
-
-    /* --- root function begin --- */
-
-    function activateSurface(surfaceWrapper) {
-        surfaceWrapper.cancelMinimize(/*showAnimation: */ false)
-        Helper.activatedSurface = surfaceWrapper.surfaceItem.shellSurface
-    }
-
-    function hideAllSurfacesExceptPreviewing(previewingItem) {
-        let model = QmlHelper.workspaceManager.allSurfaces
-        for (let i = 0; i < model.count; ++i) {
-            let sourceSuefaceItem = model.get(i).item
-            if (sourceSuefaceItem) {
-                sourceSuefaceItem.opacity = sourceSuefaceItem !== previewingItem ? 0 : 1;
-            }
-        }
-    }
-
-    function showAllSurfaces() {
-        let model = QmlHelper.workspaceManager.allSurfaces
-        for (let i = 0; i < model.count; ++i) {
-            let sourceSuefaceItem = model.get(i).item
-            if (sourceSuefaceItem) {
-                sourceSuefaceItem.opacity = 1;
-            }
-        }
-    }
-
-    /* --- root function end --- */
 
     /* --- model begin --- */
     ListModel {
@@ -89,41 +58,37 @@ Item {
         }
 
         function updateModel() {
-            var filtedList = QmlHelper.workspaceManager.allSurfaces.filter((data) => {
-                return desiredSurfaces.some(surface => data.item.shellSurface.surface === surface);
-            })
-
-            var newSize = filtedList.length;
+            var newSize = desiredSurfaces.length;
             var oldSize = filterSurfaceModel.count;
             root.isNewDockPreview = oldSize === 0 && newSize !== 0;
             for (let i = 0; i < Math.min(newSize, oldSize); i++) {
-                filterSurfaceModel.set(i, filtedList[i])
+                filterSurfaceModel.set(i, {"wrapper": desiredSurfaces[i]})
             }
             if (newSize > oldSize) {
                 for (let index = oldSize; index < newSize; index++) {
-                    filterSurfaceModel.append(filtedList[index]);
+                    filterSurfaceModel.append({"wrapper": desiredSurfaces[index]});
                 }
             }
             if (newSize < oldSize) {
-                filterSurfaceModel.remove(newSize, oldSize-newSize)
+                filterSurfaceModel.remove(newSize, oldSize - newSize)
             }
         }
 
-        function activateWindow(surfaceItem) {
-            console.debug(qLcDockPreview, "activate preview window: ", surfaceItem)
-            root.activateSurface(surfaceItem);
-            ForeignToplevelV1.leaveDockPreview(root.target.surfaceItem.shellSurface.surface)
+        function activateWindow(surfaceWrapper) {
+            console.debug(qLcDockPreview, "activate preview window: ", surfaceWrapper)
+            Helper.activateSurface(surfaceWrapper)
+            ForeignToplevelV1.leaveDockPreview(root.target.shellSurface.surface)
             root.close();
         }
 
-        function previewWindow(surfaceItem) {
-            console.debug(qLcDockPreview, "start preview window: ", surfaceItem)
-            hideAllSurfacesExceptPreviewing(surfaceItem);
+        function previewWindow(surfaceWrapper) {
+            console.debug(qLcDockPreview, "start preview window: ", surfaceWrapper)
+            Helper.workspace.hideAllSurfacesExceptPreviewing(surfaceWrapper);
         }
 
         function stopPreviewWindow() {
             console.debug(qLcDockPreview, "stop preview window")
-            showAllSurfaces();
+            Helper.workspace.showAllSurfaces();
         }
 
         function closeAllWindow() {
@@ -131,20 +96,22 @@ Item {
             var tmp = filterSurfaceModel.desiredSurfaces;
             filterSurfaceModel.desiredSurfaces = [ ];
             for (let surface of tmp) {
-                Helper.closeSurface(surface);
+                surface.shellSurface.close();
             }
             root.close();
         }
 
-        function closeSpecialWindow(surfaceItem) {
-            console.debug(qLcDockPreview, "close a special window: ", surfaceItem)
-            Helper.closeSurface(surfaceItem.shellSurface.surface);
+        function closeSpecialWindow(surfaceWrapper) {
+            console.debug(qLcDockPreview, "close a special window: ", surfaceWrapper)
+            surfaceWrapper.shellSurface.close();
             updateModel();
         }
     }
 
     function show(surfaces, target, pos, direction) {
         console.info(qLcDockPreview, "start show windows: ", surfaces)
+        root.parent = target.parent;
+
         // We want keep listview ancher to left as possible, many animations rely on it
         // Only when show `dock preview` <-> 'tooltip' animation ancher to right
         if (root.isShowing && root.isTooltip)
@@ -162,7 +129,8 @@ Item {
     }
 
     function showTooltip(tooltip, target, pos, direction) {
-        console.info(qLcDockPreview, "start show tooltip: ", tooltip)
+        console.info(qLcDockPreview, "start show tooltip: ", tooltip, target, pos, direction)
+        root.parent = target.parent;
         if (root.isShowing && !root.isTooltip)
             root.listviewPinToLeft = root.pos?.x - pos?.x >= 0;
         else
@@ -420,7 +388,7 @@ Item {
 
         orientation: root.isHorizontal ? ListView.Horizontal : ListView.Vertical
         layoutDirection: Qt.LeftToRight
-        verticalLayoutDirection: Qt.TopToBottom
+        verticalLayoutDirection: ListView.TopToBottom
         boundsBehavior: Flickable.StopAtBounds
         interactive: true
         highlightFollowsCurrentItem: true
@@ -467,7 +435,7 @@ Item {
                     icon.height: 16
                     onClicked: {
                         listview.highlightItem.visible = false
-                        Qt.callLater(()=>listview.model.closeSpecialWindow(listview.currentItem.item))
+                        Qt.callLater(()=>listview.model.closeSpecialWindow(listview.currentItem.wrapper))
                     }
                 }
             }
@@ -481,13 +449,11 @@ Item {
             color: Qt.rgba(0, 0, 0, 0.05) // TODO: dark mode
 
             required property var index
-            required property var item // from filterSurfaceModel
-            required property var wrapper
-            property alias surfaceItem: delegate.item
+            required property var wrapper // from filterSurfaceModel
             property bool isRemoving: false
 
-            implicitHeight: root.isHorizontal ? 120 : Math.max(80, Math.min(120, 240 * surfaceItem.height / surfaceItem.width))
-            implicitWidth: root.isHorizontal ? Math.max(80, Math.min(240, 120 * surfaceItem.width / surfaceItem.height)) : 240
+            implicitHeight: root.isHorizontal ? 120 : Math.max(80, Math.min(120, 240 * wrapper.height / wrapper.width))
+            implicitWidth: root.isHorizontal ? Math.max(80, Math.min(240, 120 * wrapper.width / wrapper.height)) : 240
 
             ListView.onRemove: {
                 if (filterSurfaceModel.count) {
@@ -514,7 +480,7 @@ Item {
             HoverHandler {
                 onHoveredChanged: {
                     if (hovered) {
-                        listview.model.previewWindow(surfaceItem)
+                        listview.model.previewWindow(wrapper)
                         listview.currentIndex = index
                         if (listview.highlightItem)
                             listview.highlightItem.visible = true
@@ -524,19 +490,19 @@ Item {
 
             TapHandler {
                 onTapped: {
-                    listview.model.activateWindow(delegate.wrapper)
+                    listview.model.activateWindow(wrapper)
                 }
             }
 
             ShaderEffectSource {
                 id: effect
                 anchors.centerIn: parent
-                implicitHeight: Math.min(parent.implicitHeight, surfaceItem.height * parent.implicitWidth / surfaceItem.width) - 4
-                implicitWidth: Math.min(parent.implicitWidth, surfaceItem.width * parent.implicitHeight / surfaceItem.height) - 4
+                implicitHeight: Math.min(parent.implicitHeight, wrapper.height * parent.implicitWidth / wrapper.width) - 4
+                implicitWidth: Math.min(parent.implicitWidth, wrapper.width * parent.implicitHeight / wrapper.height) - 4
                 live: true
                 hideSource: false
                 smooth: true
-                sourceItem: surfaceItem
+                sourceItem: wrapper
             }
         }
 
@@ -617,8 +583,6 @@ Item {
         clip: false
         parent: root.parent
         visible: root.visible
-        anchors.horizontalCenterOffset: root.horizontalCenterOffset
-        anchors.verticalCenterOffset: root.verticalCenterOffset
 
         RenderBufferBlitter {
             id: blitter
@@ -651,9 +615,9 @@ Item {
             enabled: listview.count !== 0
             onHoveredChanged: {
                 if (!hovered) {
-                    ForeignToplevelV1.leaveDockPreview(root.target.surfaceItem.shellSurface.surface)
+                    ForeignToplevelV1.leaveDockPreview(root.target.shellSurface.surface)
                 } else {
-                    ForeignToplevelV1.enterDockPreview(root.target.surfaceItem.shellSurface.surface)
+                    ForeignToplevelV1.enterDockPreview(root.target.shellSurface.surface)
                 }
             }
         }
@@ -769,7 +733,7 @@ Item {
                     }
                     Text {
                         text: filterSurfaceModel.count ?
-                                  filterSurfaceModel.get(Math.max(listview.currentIndex, 0)).item.shellSurface.title : ""
+                                  filterSurfaceModel.get(Math.max(listview.currentIndex, 0)).wrapper.shellSurface.title : ""
                         font.pointSize: 14  // FIXME: D.DTK.fontManager can't work under waylib qpa
                         elide: Text.ElideRight
                         horizontalAlignment: Text.AlignLeft

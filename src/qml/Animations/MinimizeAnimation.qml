@@ -3,6 +3,7 @@
 
 import QtQuick
 import QtQuick.Effects
+import Treeland
 
 Item {
     id: root
@@ -12,26 +13,17 @@ Item {
         Hide      // Minimize
     }
 
-    signal stopped
+    signal finished
 
-    visible: false
     clip: false
 
     required property var target
     required property rect position
     required property var direction
-
-    property int duration: 400
+    property int duration: 400 * Helper.animationSpeed
 
     function start() {
-        visible = true;
         mainAnimation.start();
-    }
-
-    function stop() {
-        visible = false;
-        effect.sourceItem = null;
-        stopped();
     }
 
     ShaderEffectSource {
@@ -47,8 +39,8 @@ Item {
 
     ParallelAnimation {
         id: mainAnimation
-        onStopped: {
-            root.stop();
+        onFinished: {
+            root.finished();
         }
         XAnimator {
             target: effect

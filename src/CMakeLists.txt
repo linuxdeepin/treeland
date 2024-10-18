@@ -1,15 +1,22 @@
-if (QT_KNOWN_POLICY_QTP0001)
+if(QT_KNOWN_POLICY_QTP0001) # this policy was introduced in Qt 6.5
     qt_policy(SET QTP0001 NEW)
+    # the RESOURCE_PREFIX argument for qt_add_qml_module() defaults to ":/qt/qml/"
+endif()
+if(POLICY CMP0071)
+    # https://cmake.org/cmake/help/latest/policy/CMP0071.html
+    cmake_policy(SET CMP0071 NEW)
 endif()
 
 pkg_search_module(WLROOTS REQUIRED IMPORTED_TARGET wlroots)
-find_package(Dtk6 REQUIRED COMPONENTS Declarative)
+find_package(Dtk6 REQUIRED COMPONENTS Core Declarative)
 find_package(DDM REQUIRED COMPONENTS Common)
-find_package(Qt6 CONFIG REQUIRED ShaderTools)
+find_package(Qt6 CONFIG REQUIRED ShaderTools Concurrent)
+find_package(Qt6 COMPONENTS Quick QuickControls2 REQUIRED)
+pkg_search_module(PIXMAN REQUIRED IMPORTED_TARGET pixman-1)
+pkg_search_module(WAYLAND REQUIRED IMPORTED_TARGET wayland-server)
+pkg_search_module(LIBINPUT REQUIRED IMPORTED_TARGET libinput)
 # qt_finalize_target will collect all executable's private dependencies that are CMake targets
 
-add_subdirectory(utils)
-add_subdirectory(qml)
 add_subdirectory(modules)
 add_subdirectory(greeter)
 add_subdirectory(treeland-wallpaper)
@@ -19,39 +26,133 @@ qt_add_dbus_adaptor(DBUS_ADAPTOR "${CMAKE_SOURCE_DIR}/misc/dbus/org.deepin.compo
 
 set(BIN_NAME treeland)
 
-qt_add_executable(${BIN_NAME})
-
-target_sources(${BIN_NAME} PUBLIC
-FILE_SET HEADERS
-FILES
-    treeland.h
-)
-
-set(RESOURCES
+qt_add_executable(${BIN_NAME}
+    main.cpp
+    # ${DBUS_ADAPTOR}
 )
 
 qt_add_resources(${BIN_NAME} "treeland_assets"
-    PREFIX "/dsg"
-    BASE ${PROJECT_RESOURCES_DIR}
+    PREFIX "/dsg/icons"
+    BASE ${PROJECT_RESOURCES_DIR}/icons
     FILES
-        ${PROJECT_RESOURCES_DIR}/icons/close.dci
         ${PROJECT_RESOURCES_DIR}/icons/multitaskview_close.dci
+        ${PROJECT_RESOURCES_DIR}/icons/close.dci
 )
 
-target_sources(${BIN_NAME} PRIVATE
-    treeland.cpp
-    ${DBUS_ADAPTOR}
+target_include_directories(${BIN_NAME}
+    PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/treeland
+)
+
+qt_add_qml_module(${BIN_NAME}
+    URI Treeland
+    VERSION "2.0"
+
+    SOURCES
+        treeland/cmdline.h
+        treeland/cmdline.cpp
+        treeland/helper.h
+        treeland/helper.cpp
+        treeland/surfacewrapper.h
+        treeland/surfacewrapper.cpp
+        treeland/workspace.h
+        treeland/workspace.cpp
+        treeland/output.h
+        treeland/output.cpp
+        treeland/qmlengine.h
+        treeland/qmlengine.cpp
+        treeland/surfacecontainer.h
+        treeland/surfacecontainer.cpp
+        treeland/layersurfacecontainer.h
+        treeland/layersurfacecontainer.cpp
+        treeland/lockscreen.h
+        treeland/lockscreen.cpp
+        treeland/rootsurfacecontainer.h
+        treeland/rootsurfacecontainer.cpp
+        treeland/surfaceproxy.h
+        treeland/surfaceproxy.cpp
+        treeland/treeland.h
+        treeland/treeland.cpp
+        treeland/wallpaperprovider.h
+        treeland/wallpaperprovider.cpp
+        treeland/wallpaperimage.h
+        treeland/wallpaperimage.cpp
+        treeland/wallpapercontroller.h
+        treeland/wallpapercontroller.cpp
+        treeland/wallpapermanager.h
+        treeland/wallpapermanager.cpp
+        treeland/workspacemodel.h
+        treeland/workspacemodel.cpp
+        treeland/treelandconfig.h
+        treeland/treelandconfig.cpp
+        treeland/multitaskview.h
+        treeland/multitaskview.cpp
+        treeland/propertymonitor.h
+        treeland/propertymonitor.cpp
+        treeland/tsgradiusimagenode.h
+        treeland/tsgradiusimagenode.cpp
+        treeland/tquickradiuseffect_p.h
+        treeland/tquickradiuseffect.h
+        treeland/tquickradiuseffect.cpp
+        treeland/gestures.h
+        treeland/gestures.cpp
+        treeland/togglablegesture.h
+        treeland/togglablegesture.cpp
+        treeland/inputdevice.h
+        treeland/inputdevice.cpp
+        treeland/workspaceanimationcontroller.h
+        treeland/workspaceanimationcontroller.cpp
+
+        ${DBUS_ADAPTOR}
+    QML_FILES
+        qml/Blur.qml
+        qml/PrimaryOutput.qml
+        qml/CopyOutput.qml
+        qml/TitleBar.qml
+        qml/Decoration.qml
+        qml/WindowMenu.qml
+        qml/TaskBar.qml
+        qml/SurfaceContent.qml
+        qml/XdgShadow.qml
+        qml/Border.qml
+        qml/GeometryAnimation.qml
+        qml/OutputMenuBar.qml
+        qml/WorkspaceSwitcher.qml
+        qml/WorkspaceProxy.qml
+        qml/Animations/NewAnimation.qml
+        qml/Animations/MinimizeAnimation.qml
+        qml/Animations/ShowDesktopAnimation.qml
+        qml/TaskSwitcher.qml
+        qml/TaskWindowPreview.qml
+        qml/SwitchViewDelegate.qml
+        qml/SwitchViewHighlightDelegate.qml
+        qml/DockPreview.qml
+        qml/MultitaskviewProxy.qml
+        qml/SurfaceGridProxy.qml
+        qml/WorkspaceThumbDelegate.qml
+        qml/FadeBehavior.qml
+    RESOURCE_PREFIX
+        /qt/qml
+    OUTPUT_DIRECTORY
+        ${PROJECT_BINARY_DIR}/qt/qml/Treeland
 )
 
 target_link_libraries(${BIN_NAME}
     PRIVATE
         DDM::Common
         greeterplugin
+        Qt6::Quick
+        Qt6::QuickControls2
+        Qt6::QuickPrivate
         Qt6::DBus
+        Qt6::Concurrent
         Waylib::WaylibServer
+        PkgConfig::PIXMAN
+        PkgConfig::WAYLAND
+        PkgConfig::LIBINPUT
+        Dtk6::Core
         Dtk6::Declarative
-        utilsplugin
-        treeland-qmlplugin
+
         foreign-toplevel
         primary-output
         personalization

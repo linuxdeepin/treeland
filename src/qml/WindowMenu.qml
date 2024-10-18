@@ -1,66 +1,73 @@
-// Copyright (C) 2024 pengwenhao <pengwenhao@uniontech.com>.
+// Copyright (C) 2024 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
-import org.deepin.dtk 1.0 as D
-import org.deepin.dtk.style 1.0 as DS
+import QtQuick.Controls
 import Waylib.Server
+import Treeland
 
-D.Menu {
+Menu {
     id: menu
 
-    required property ToplevelSurface surface
-    signal requestMove
-    signal requestMinimize
-    signal requestMaximize(var max)
-    signal requestClose
-    signal requestResize(var edges, bool movecursor)
+    property SurfaceWrapper surface: null
 
-    D.MenuItem {
+    function showWindowMenu(surface, pos) {
+        menu.surface = surface
+        menu.parent = surface
+        menu.popup(pos)
+    }
+
+    MenuItem {
         text: qsTr("Minimize")
-        onTriggered: requestMinimize()
+        onTriggered: surface.requestMinimize()
     }
 
-    D.MenuItem {
-        text: qsTr("Maximize")
-        onTriggered: requestMaximize(true)
+    MenuItem {
+        text: surface.surfaceState === SurfaceWrapper.State.Maximized ? qsTr("Unmaximize") : qsTr("Maximize")
+        onTriggered: surface.requestToggleMaximize()
     }
 
-    D.MenuItem {
-        text: qsTr("Unmaximize")
-        onTriggered: requestMaximize(false)
-    }
-
-    D.MenuItem {
+    MenuItem {
         text: qsTr("Move")
-        onTriggered: requestMove()
+        onTriggered: surface.requestMove()
     }
 
-    D.MenuItem {
+    MenuItem {
         text: qsTr("Resize")
-        onTriggered: requestResize(Qt.BottomEdge | Qt.RightEdge, true)
+        onTriggered: Helper.fakePressSurfaceBottomRightToReszie(surface)
     }
 
-    D.MenuItem {
-        text: qsTr("Alway's on Top")
+    MenuItem {
+        text: surface.alwaysOnTop ? qsTr("Not always on Top") : qsTr("Always on Top")
+        onTriggered: surface.alwaysOnTop = !surface.alwaysOnTop;
     }
 
-    D.MenuItem {
-        text: qsTr("Alway's on Visible Workspace")
+    MenuItem {
+        text: surface.showOnAllWorkspace ? qsTr("Only on Current Workspace") : qsTr("Always on Visible Workspace")
+        onTriggered: {
+            if (surface.showOnAllWorkspace) {
+                // Move to current workspace
+                Helper.workspace.moveSurfaceTo(surface, Helper.workspace.currentIndex)
+            } else {
+                // Move to workspace 0, which is always visible
+                Helper.workspace.moveSurfaceTo(surface, -2)
+            }
+        }
     }
 
-    D.MenuItem {
-        text: qsTr("Move to Work Space Left")
-        onTriggered: QmlHelper.shortcutManager.moveToNeighborWorkspace(-1, surface)
+    MenuItem {
+        text: qsTr("Move to Left Work Space")
+        enabled: surface.workspaceId !== 0 && !surface.showOnAllWorkspace
+        onTriggered: Helper.workspace.moveSurfaceTo(surface, surface.workspaceId - 1)
     }
 
-    D.MenuItem {
-        text: qsTr("Move to Work Space Right")
-        onTriggered: QmlHelper.shortcutManager.moveToNeighborWorkspace(1, surface)
+    MenuItem {
+        text: qsTr("Move to Right Work Space")
+        enabled: surface.workspaceId !== Helper.workspace.count - 1 && !surface.showOnAllWorkspace
+        onTriggered: Helper.workspace.moveSurfaceTo(surface, surface.workspaceId + 1)
     }
 
-    D.MenuItem {
+    MenuItem {
         text: qsTr("Close")
-        onTriggered: requestClose()
+        onTriggered: surface.shellSurface.close()
     }
 }
-
