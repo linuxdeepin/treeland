@@ -6,6 +6,7 @@
 #include "cmdline.h"
 #include "compositor1adaptor.h"
 #include "helper.h"
+#include "shellhandler.h"
 
 #include <Messages.h>
 #include <SignalHandler.h>

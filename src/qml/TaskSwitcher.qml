@@ -409,7 +409,7 @@ Item {
             previewContext.sourceSueface = switchView.currentItem.surface
             switchView.currentIndex = next
 
-            switchView.currentItem.surface?.requestForceActive()
+            Helper.forceActivateSurface(switchView.currentItem.surface)
             ensurePreview()
         }
     }

@@ -58,8 +58,7 @@ void Multitaskview::setTaskviewVal(qreal taskviewVal)
 
 void Multitaskview::exit(SurfaceWrapper *surface)
 {
-    if (surface)
-        Q_EMIT surface->requestForceActive();
+    Helper::instance()->forceActivateSurface(surface);
     // TODO: handle taskview gesture
     setStatus(Exited);
 }

@@ -19,8 +19,6 @@
 
 Q_MOC_INCLUDE(<wtoplevelsurface.h>)
 Q_MOC_INCLUDE(<wxdgsurface.h>)
-Q_MOC_INCLUDE(<wlayersurface.h>)
-Q_MOC_INCLUDE(<winputpopupsurface.h>)
 Q_MOC_INCLUDE(<qwgammacontorlv1.h>)
 Q_MOC_INCLUDE(<qwoutputmanagementv1.h>)
 Q_MOC_INCLUDE("surfacewrapper.h")
@@ -42,7 +40,6 @@ class WOutputViewport;
 class WOutputLayer;
 class WOutput;
 class WXWayland;
-class WInputMethodHelper;
 class WXdgDecorationManager;
 class WSocket;
 class WSurface;
@@ -50,8 +47,6 @@ class WToplevelSurface;
 class WSurfaceItem;
 class WForeignToplevel;
 class WOutputManagerV1;
-class WLayerSurface;
-class WInputPopupSurface;
 WAYLIB_SERVER_END_NAMESPACE
 
 QW_BEGIN_NAMESPACE
@@ -68,7 +63,6 @@ class Output;
 class SurfaceWrapper;
 class SurfaceContainer;
 class RootSurfaceContainer;
-class LayerSurfaceContainer;
 class ForeignToplevelV1;
 class LockScreen;
 class ShortcutV1;
@@ -78,15 +72,14 @@ class WindowManagementV1;
 class Multitaskview;
 class DDEShellManagerV1;
 class VirtualOutputV1;
+class ShellHandler;
 
 class Helper : public WSeatEventFilter
 {
     friend class RootSurfaceContainer;
     Q_OBJECT
     Q_PROPERTY(bool socketEnabled READ socketEnabled WRITE setSocketEnabled NOTIFY socketEnabledChanged FINAL)
-    Q_PROPERTY(SurfaceWrapper* activatedSurface READ activatedSurface NOTIFY activatedSurfaceChanged FINAL)
     Q_PROPERTY(RootSurfaceContainer* rootContainer READ rootContainer CONSTANT FINAL)
-    Q_PROPERTY(Workspace* workspace READ workspace CONSTANT FINAL)
     Q_PROPERTY(int currentUserId READ currentUserId WRITE setCurrentUserId NOTIFY currentUserIdChanged FINAL)
     Q_PROPERTY(float animationSpeed READ animationSpeed WRITE setAnimationSpeed NOTIFY animationSpeedChanged FINAL)
     Q_PROPERTY(OutputMode outputMode READ outputMode WRITE setOutputMode NOTIFY outputModeChanged FINAL)
@@ -94,6 +87,8 @@ class Helper : public WSeatEventFilter
     Q_PROPERTY(QSize cursorSize READ cursorSize NOTIFY cursorSizeChanged FINAL)
     Q_PROPERTY(TogglableGesture* multiTaskViewGesture READ multiTaskViewGesture CONSTANT)
     Q_PROPERTY(TogglableGesture* windowGesture READ windowGesture CONSTANT)
+    Q_PROPERTY(SurfaceWrapper* activatedSurface READ activatedSurface NOTIFY activatedSurfaceChanged FINAL)
+    Q_PROPERTY(Workspace* workspace READ workspace CONSTANT FINAL)
     QML_ELEMENT
     QML_SINGLETON
 
@@ -111,7 +106,8 @@ public:
 
     QmlEngine *qmlEngine() const;
     WOutputRenderWindow *window() const;
-    Workspace *workspace() const;
+    ShellHandler* shellHandler() const;
+    Workspace* workspace() const;
     void init();
 
     TogglableGesture *multiTaskViewGesture() const {
@@ -139,7 +135,6 @@ public:
     Q_INVOKABLE void addOutput();
 
     void addSocket(WSocket *socket);
-
     WXWayland *createXWayland();
     void removeXWayland(WXWayland *xwayland);
 
@@ -158,13 +153,14 @@ public:
 
 public Q_SLOTS:
     void activateSurface(SurfaceWrapper *wrapper, Qt::FocusReason reason = Qt::OtherFocusReason);
+    void forceActivateSurface(SurfaceWrapper *wrapper, Qt::FocusReason reason = Qt::OtherFocusReason);
     void fakePressSurfaceBottomRightToReszie(SurfaceWrapper *surface);
 
 Q_SIGNALS:
     void socketEnabledChanged();
-    void activatedSurfaceChanged();
     void primaryOutputChanged();
     void currentUserIdChanged();
+    void activatedSurfaceChanged();
 
     void animationSpeedChanged();
     void socketFileChanged();
@@ -175,12 +171,6 @@ Q_SIGNALS:
 private Q_SLOTS:
     void onOutputAdded(WOutput *output);
     void onOutputRemoved(WOutput *output);
-    void onXdgSurfaceAdded(WXdgSurface *surface);
-    void onXdgSurfaceRemoved(WXdgSurface *surface);
-    void onLayerSurfaceAdded(WLayerSurface *surface);
-    void onLayerSurfaceRemoved(WLayerSurface *surface);
-    void onInputPopupSurfaceV2Added(WInputPopupSurface *surface);
-    void onInputPopupSurfaceV2Removed(WInputPopupSurface *surface);
     void onSurfaceModeChanged(WSurface *surface, WXdgDecorationManager::DecorationMode mode);
     void setGamma(struct wlr_gamma_control_manager_v1_set_gamma_event *event);
     void onOutputTestOrApply(qw_output_configuration_v1 *config, bool onlyTest);
@@ -197,15 +187,12 @@ private Q_SLOTS:
     void onRestoreCopyOutput(treeland_virtual_output_v1 *virtual_output);
 
 private:
-    void setupSurfaceActiveWatcher(SurfaceWrapper *wrapper);
     void allowNonDrmOutputAutoChangeMode(WOutput *output);
     void enableOutput(WOutput *output);
 
     int indexOfOutput(WOutput *output) const;
 
     void setOutputProxy(Output *output);
-
-    void updateLayerSurfaceContainer(SurfaceWrapper *surface);
 
     SurfaceWrapper *keyboardFocusSurface() const;
     void reuqestKeyboardFocusForSurface(SurfaceWrapper *newActivateSurface, Qt::FocusReason reason);
@@ -224,7 +211,6 @@ private:
     void toggleMultitaskview();
     void handleLeftButtonStateChanged(const QInputEvent *event);
     void handleWhellValueChanged(const QInputEvent *event);
-    void handleDdeShellSurfaceAdded(WSurface *surface, SurfaceWrapper *wrapper);
     bool doGesture(QInputEvent *event);
     Output *createNormalOutput(WOutput *output);
     Output *createCopyOutput(WOutput *output, Output *proxy);
@@ -236,7 +222,6 @@ private:
     // qtquick helper
     WOutputRenderWindow *m_renderWindow = nullptr;
     QQuickItem *m_dockPreview = nullptr;
-    QObject *m_windowMenu = nullptr;
 
     //gesture
     TogglableGesture *m_multiTaskViewGesture = nullptr;
@@ -252,8 +237,8 @@ private:
 
     // protocols
     qw_compositor *m_compositor = nullptr;
-    WXWayland *m_xwayland = nullptr;
-    WInputMethodHelper *m_inputMethodHelper = nullptr;
+    ShellHandler* m_shellHandler = nullptr;
+    WXWayland *m_defaultXWayland = nullptr;
     WXdgDecorationManager *m_xdgDecorationManager = nullptr;
     WForeignToplevel *m_foreignToplevel = nullptr;
     ForeignToplevelV1 *m_treelandForeignToplevel = nullptr;
@@ -268,24 +253,15 @@ private:
 
     // private data
     QList<Output *> m_outputList;
-
-    QPointer<SurfaceWrapper> m_activatedSurface;
     QPointer<QQuickItem> m_taskSwitch;
 
+    SurfaceWrapper* m_activatedSurface = nullptr;
     RootSurfaceContainer *m_rootSurfaceContainer = nullptr;
-    LayerSurfaceContainer *m_backgroundContainer = nullptr;
-    LayerSurfaceContainer *m_bottomContainer = nullptr;
-    Workspace *m_workspace = nullptr;
     LockScreen *m_lockScreen = nullptr;
-    LayerSurfaceContainer *m_topContainer = nullptr;
-    LayerSurfaceContainer *m_overlayContainer = nullptr;
-    SurfaceContainer *m_popupContainer = nullptr;
     int m_currentUserId = -1;
     float m_animationSpeed = 1.0;
     OutputMode m_mode = OutputMode::Extension;
     std::optional<QPointF> m_fakelastPressedPosition;
 
     QPointer<Multitaskview> m_multitaskview;
-
-    QList<WXWayland *> m_xwaylands;
 };
