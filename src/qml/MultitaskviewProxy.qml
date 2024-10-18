@@ -374,9 +374,9 @@ Multitaskview {
                     }
                     height: 80
                     width: 80
-                    icon.name: "list_add"
-                    icon.height: height
-                    icon.width: width
+                    icon.name: "button_add"
+                    icon.height: 26
+                    icon.width: 26
                     background: Rectangle {
                         color: Qt.rgba(255, 255, 255, .4)
                         anchors.fill: parent
