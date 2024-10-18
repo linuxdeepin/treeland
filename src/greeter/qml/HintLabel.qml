@@ -3,7 +3,7 @@
 
 import QtQuick
 import QtQuick.Layouts
-import TreeLand.Greeter
+import Treeland.Greeter
 import org.deepin.dtk 1.0 as D
 import QtQuick.Controls
 

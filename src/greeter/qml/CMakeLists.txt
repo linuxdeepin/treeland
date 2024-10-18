@@ -21,14 +21,14 @@ set(QML_FILES
 )
 
 qt_add_qml_module(${LIB_NAME}-qml
-    URI TreeLand.Greeter
+    URI Treeland.Greeter
     STATIC
     VERSION 1.0
     RESOURCE_PREFIX
         /qt/qml
     QML_FILES ${QML_FILES}
     OUTPUT_DIRECTORY
-        ${PROJECT_BINARY_DIR}/qt/qml/TreeLand/Greeter
+        ${PROJECT_BINARY_DIR}/qt/qml/Treeland.Greeter
 )
 
 target_link_libraries(${LIB_NAME}-qml

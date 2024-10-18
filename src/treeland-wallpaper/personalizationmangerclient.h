@@ -47,12 +47,12 @@ public:
     QString output();
     void setOutput(const QString &name);
 
-signals:
+Q_SIGNALS:
     void wallpaperChanged(const QString &path);
     void currentGroupChanged(const QString &path);
     void outputChanged(const QString &name);
 
-public slots:
+public Q_SLOTS:
     void addWallpaper(const QString &path);
     void setBackground(const QString &path, const QString &group, int index, bool isdark);
     void setLockscreen(const QString &path, const QString &group, int index, bool isdark);
@@ -98,7 +98,7 @@ public:
     explicit PersonalizationWallpaper(
         struct ::treeland_personalization_wallpaper_context_v1 *object);
 
-signals:
+Q_SIGNALS:
     void metadataChanged(const QString &meta);
 
 protected:

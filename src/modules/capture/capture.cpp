@@ -3,7 +3,6 @@
 
 #include "capture.h"
 
-#include "helper.h"
 #include "impl/capturev1impl.h"
 
 #include <woutputitem.h>
@@ -346,7 +345,7 @@ void CaptureSourceSelector::setHoveredItem(QQuickItem *newHoveredItem)
     if (m_hoveredItem == newHoveredItem)
         return;
     m_hoveredItem = newHoveredItem;
-    emit hoveredItemChanged();
+    Q_EMIT hoveredItemChanged();
 }
 
 bool CaptureSourceSelector::itemSelectionMode() const
@@ -407,7 +406,7 @@ void CaptureSourceSelector::setCaptureManager(CaptureManagerV1 *newCaptureManage
     if (m_captureManager == newCaptureManager)
         return;
     m_captureManager = newCaptureManager;
-    emit captureManagerChanged();
+    Q_EMIT captureManagerChanged();
 }
 
 void CaptureSourceSelector::mouseMoveEvent(QMouseEvent *event)
@@ -474,7 +473,7 @@ void CaptureSourceSelector::setSelectedSource(CaptureSource *newSelectedSource)
     if (m_selectedSource) {
         m_captureManager->contextInSelection()->setSource(m_selectedSource);
     }
-    emit selectedSourceChanged();
+    Q_EMIT selectedSourceChanged();
 }
 
 QDebug operator<<(QDebug debug, CaptureSource &captureSource)
@@ -485,7 +484,7 @@ QDebug operator<<(QDebug debug, CaptureSource &captureSource)
 
 void CaptureSourceSelector::componentComplete()
 {
-    m_captureManager = qmlEngine(this)->singletonInstance<CaptureManagerV1 *>("TreeLand.Protocols",
+    m_captureManager = qmlEngine(this)->singletonInstance<CaptureManagerV1 *>("Treeland.Protocols",
                                                                               "CaptureManagerV1");
     Q_ASSERT(window());
     auto renderWindow = qobject_cast<WOutputRenderWindow *>(window());
@@ -540,7 +539,7 @@ void CaptureSourceSelector::setSelectionRegion(const QRectF &newSelectionRegion)
     if (m_selectionRegion == newSelectionRegion)
         return;
     m_selectionRegion = newSelectionRegion;
-    emit selectionRegionChanged();
+    Q_EMIT selectionRegionChanged();
 }
 
 CaptureSource::CaptureSource(WTextureProviderProvider *textureProvider, QObject *parent)

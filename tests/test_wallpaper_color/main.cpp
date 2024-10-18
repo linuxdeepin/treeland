@@ -3,10 +3,6 @@
 
 #include "qwayland-treeland-wallpaper-color-v1.h"
 
-#include <private/qwaylandwindow_p.h>
-
-#include <qwindow.h>
-
 #include <QGuiApplication>
 #include <QScreen>
 #include <QtWaylandClient/QWaylandClientExtension>
@@ -19,7 +15,7 @@ class WallpaperColorManager
 public:
     explicit WallpaperColorManager();
 
-    void wallpaper_color_manager_v1_output_color(const QString &output, uint32_t isdark)
+    void treeland_wallpaper_color_manager_v1_output_color(const QString &output, uint32_t isdark) override
     {
         qInfo() << "Output(" << output << ") wallpaper is dark type: " << isdark;
     }

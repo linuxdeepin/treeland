@@ -36,8 +36,7 @@ Package: treeland
 Section: dde
 Architecture: any
 Multi-Arch: same
-Depends: qml6-module-qtquick-dialogs,
-         qml6-module-qtquick-layouts,
+Depends: qml6-module-qtquick-layouts,
          qml6-module-qtquick-particles,
          treeland-data (= ${source:Version}),
          xwayland,

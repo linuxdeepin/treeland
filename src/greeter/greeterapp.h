@@ -39,10 +39,10 @@ public:
         : QQmlEngineExtensionPlugin()
     {
         Q_INIT_RESOURCE(greeter_assets);
-        qmlRegisterType<SessionModel>("TreeLand.Greeter", 1, 0, "SessionModel");
-        qmlRegisterType<UserModel>("TreeLand.Greeter", 1, 0, "UserModel");
-        qmlRegisterType<GreeterProxy>("TreeLand.Greeter", 1, 0, "Proxy");
-        qmlRegisterType<LogoProvider>("TreeLand.Greeter", 1, 0, "LogoProvider");
+        qmlRegisterType<SessionModel>("Treeland.Greeter", 1, 0, "SessionModel");
+        qmlRegisterType<UserModel>("Treeland.Greeter", 1, 0, "UserModel");
+        qmlRegisterType<GreeterProxy>("Treeland.Greeter", 1, 0, "Proxy");
+        qmlRegisterType<LogoProvider>("Treeland.Greeter", 1, 0, "LogoProvider");
     }
 
     void initializeEngine([[maybe_unused]] QQmlEngine *engine,

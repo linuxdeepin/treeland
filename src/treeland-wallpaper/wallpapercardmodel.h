@@ -36,7 +36,8 @@ public:
     [[nodiscard]] bool showAll() const;
     void setShowAll(bool enable);
     [[nodiscard]] int dataCount() const;
-    [[nodiscard]] int rowCount(const QModelIndex &parent = QModelIndex()) const override;
+    [[nodiscard]] int rowCount(
+        [[maybe_unused]] const QModelIndex &parent = QModelIndex()) const override;
     [[nodiscard]] QVariant data(const QModelIndex &index,
                                 int role = Qt::DisplayRole) const override;
     Q_INVOKABLE void append(const QString &path);
