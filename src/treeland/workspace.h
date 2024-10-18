@@ -4,6 +4,7 @@
 
 #include "surfacecontainer.h"
 #include "workspacemodel.h"
+#include "surfacefilterproxymodel.h"
 
 class SurfaceWrapper;
 class Workspace;
@@ -24,6 +25,7 @@ class Workspace : public SurfaceContainer
     Q_OBJECT
     Q_PROPERTY(int currentIndex READ currentIndex WRITE setCurrentIndex NOTIFY currentIndexChanged FINAL)
     Q_PROPERTY(WorkspaceModel* current READ current NOTIFY currentChanged FINAL)
+    Q_PROPERTY(SurfaceFilterProxyModel* currentFilter READ currentFilter NOTIFY currentFilterChanged FINAL)
     Q_PROPERTY(WorkspaceModel* showOnAllWorkspaceModel READ showOnAllWorkspaceModel CONSTANT)
     Q_PROPERTY(WorkspaceListModel *models READ models CONSTANT FINAL)
     Q_PROPERTY(WorkspaceAnimationController* animationController READ animationController CONSTANT FINAL)
@@ -37,6 +39,7 @@ public:
     // When workspaceIndex is -1 will move to current workspace
     void addSurface(SurfaceWrapper *surface, int workspaceIndex = -1);
     Q_INVOKABLE void moveModelTo(int workspaceIndex, int destinationIndex);
+    Q_INVOKABLE void showCurrentWindows(bool show = true);
 
     void removeSurface(SurfaceWrapper *surface) override;
     int modelIndexOfSurface(SurfaceWrapper *surface) const;
@@ -57,6 +60,8 @@ public:
     WorkspaceModel *current() const;
     void setCurrent(WorkspaceModel *container);
 
+    SurfaceFilterProxyModel *currentFilter();
+
     WorkspaceListModel *models();
     static inline constexpr int ShowOnAllWorkspaceIndex = -2;
 
@@ -71,6 +76,7 @@ public:
 
 Q_SIGNALS:
     void currentChanged();
+    void currentFilterChanged();
     void currentIndexChanged();
     void countChanged();
 
@@ -84,6 +90,7 @@ private:
     WorkspaceListModel *m_models;
     WorkspaceModel *m_showOnAllWorkspaceModel;
     QPointer<QQuickItem> m_switcher;
+    SurfaceFilterProxyModel *m_currentFilter;
     WorkspaceAnimationController *m_animationController;
     bool m_switcherEnabled = true;
 };

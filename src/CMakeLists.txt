@@ -102,6 +102,8 @@ qt_add_qml_module(${BIN_NAME}
         treeland/inputdevice.cpp
         treeland/workspaceanimationcontroller.h
         treeland/workspaceanimationcontroller.cpp
+        treeland/surfacefilterproxymodel.h
+        treeland/surfacefilterproxymodel.cpp
 
         ${DBUS_ADAPTOR}
     QML_FILES

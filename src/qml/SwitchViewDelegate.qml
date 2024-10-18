@@ -77,11 +77,11 @@ Item {
                     Text {
                         Layout.fillWidth: true
                         Layout.alignment: Qt.AlignVCenter | Qt.AlignHCenter
-                        // text: {
-                        //     const xdg = item.shellSurface
-                        //     const wholeTitle = xdg.appId?.length ? `${xdg.title} - ${xdg.appId}` : xdg.title
-                        //     wholeTitle
-                        // }
+                        text: {
+                            const xdg = windowItem.surface.shellSurface
+                            const wholeTitle = xdg.title
+                            wholeTitle
+                        }
                         elide: Qt.ElideRight
                     }
                 }

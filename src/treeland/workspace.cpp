@@ -15,6 +15,7 @@ Workspace::Workspace(SurfaceContainer *parent)
     : SurfaceContainer(parent)
     , m_currentIndex(TreelandConfig::ref().currentWorkspace())
     , m_models(new WorkspaceListModel(this))
+    , m_currentFilter(new SurfaceFilterProxyModel(this))
     , m_animationController(new WorkspaceAnimationController(this))
 {
     m_showOnAllWorkspaceModel = new WorkspaceModel(this, ShowOnAllWorkspaceIndex, {});
@@ -75,6 +76,15 @@ void Workspace::addSurface(SurfaceWrapper *surface, int workspaceIndex)
 }
 
 void Workspace::moveModelTo(int workspaceIndex, int destinationIndex) { }
+
+void Workspace::showCurrentWindows(bool show)
+{
+    auto surfaces = current()->surfaces();
+
+    foreach (auto window, surfaces) {
+        window->setOpacity(show ? 1.0 : 0.0);
+    }
+}
 
 void Workspace::removeSurface(SurfaceWrapper *surface)
 {
@@ -199,6 +209,13 @@ void Workspace::switchTo(int index)
 WorkspaceModel *Workspace::current() const
 {
     return model(currentIndex());
+}
+
+SurfaceFilterProxyModel *Workspace::currentFilter()
+{
+    WorkspaceModel *wmodel = current();
+    m_currentFilter->setSourceModel(wmodel);
+    return m_currentFilter;
 }
 
 void Workspace::setCurrent(WorkspaceModel *model)
