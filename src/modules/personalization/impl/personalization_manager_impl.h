@@ -49,6 +49,9 @@ struct personalization_window_context_v1 : public QObject
     Q_OBJECT
 public:
     ~personalization_window_context_v1();
+
+    static personalization_window_context_v1 *from_resource(struct wl_resource *resource);
+
     treeland_personalization_manager_v1 *manager;
     wlr_surface *surface;
     int32_t background_type;
@@ -79,6 +82,9 @@ struct personalization_wallpaper_context_v1 : public QObject
     Q_OBJECT
 public:
     ~personalization_wallpaper_context_v1();
+
+    static personalization_wallpaper_context_v1 *from_resource(struct wl_resource *resource);
+
     treeland_personalization_manager_v1 *manager;
     wl_resource *resource;
     int32_t fd;
@@ -103,6 +109,9 @@ struct personalization_cursor_context_v1 : public QObject
     Q_OBJECT
 public:
     ~personalization_cursor_context_v1();
+
+    static personalization_cursor_context_v1 *from_resource(struct wl_resource *resource);
+
     treeland_personalization_manager_v1 *manager;
     wl_resource *resource;
 

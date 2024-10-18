@@ -73,8 +73,8 @@ static const struct treeland_personalization_window_context_v1_interface
         .destroy = Personalization::WindowContext::on_destroy,
     };
 
-struct personalization_window_context_v1 *personalization_window_from_resource(
-    struct wl_resource *resource)
+personalization_window_context_v1 *personalization_window_context_v1::
+    from_resource(wl_resource *resource)
 {
     assert(wl_resource_instance_of(resource,
                                    &treeland_personalization_window_context_v1_interface,
@@ -90,7 +90,16 @@ personalization_window_context_v1::~personalization_window_context_v1()
 
 static void personalization_window_context_resource_destroy(struct wl_resource *resource)
 {
+    if (resource)
+        return;
+
     wl_list_remove(wl_resource_get_link(resource));
+    auto window_context = personalization_window_context_v1::from_resource(resource);
+    if (!window_context) {
+        return;
+    }
+
+    delete window_context;
 }
 
 namespace Personalization {
@@ -101,7 +110,7 @@ static void set_background_type([[maybe_unused]] struct wl_client *client,
                                 int32_t type)
 
 {
-    if (auto *window = personalization_window_from_resource(resource)) {
+    if (auto *window = personalization_window_context_v1::from_resource(resource)) {
         window->background_type = type;
         Q_EMIT window->backgroundTypeChanged();
     }
@@ -111,7 +120,7 @@ static void set_round_corner_radius(struct wl_client *client,
                                     struct wl_resource *resource,
                                     int32_t radius)
 {
-    if (auto *window = personalization_window_from_resource(resource)) {
+    if (auto *window = personalization_window_context_v1::from_resource(resource)) {
         window->corner_radius = radius;
         Q_EMIT window->cornerRadiusChanged();
     }
@@ -127,7 +136,7 @@ static void set_shadow(struct wl_client *client,
                        int32_t b,
                        int32_t a)
 {
-    if (auto *window = personalization_window_from_resource(resource)) {
+    if (auto *window = personalization_window_context_v1::from_resource(resource)) {
         window->shadow = Shadow{ radius, QPoint{ offset_x, offset_y }, QColor{ r, g, b, a } };
         Q_EMIT window->shadowChanged();
     }
@@ -141,7 +150,7 @@ static void set_border(struct wl_client *client,
                        int32_t b,
                        int32_t a)
 {
-    if (auto *window = personalization_window_from_resource(resource)) {
+    if (auto *window = personalization_window_context_v1::from_resource(resource)) {
         window->border = Border{ width, QColor{ r, g, b, a } };
         Q_EMIT window->borderChanged();
     }
@@ -149,7 +158,7 @@ static void set_border(struct wl_client *client,
 
 static void set_titlebar(struct wl_client *client, struct wl_resource *resource, int32_t mode)
 {
-    if (auto *window = personalization_window_from_resource(resource)) {
+    if (auto *window = personalization_window_context_v1::from_resource(resource)) {
         window->states.setFlag(
             personalization_window_context_v1::WindowState::NoTitleBar,
             mode == TREELAND_PERSONALIZATION_WINDOW_CONTEXT_V1_ENABLE_MODE_DISABLE);
@@ -196,8 +205,8 @@ static const struct treeland_personalization_wallpaper_context_v1_interface
         .destroy = personalization_wallpaper_context_destroy,
     };
 
-struct personalization_wallpaper_context_v1 *personalization_wallpaper_from_resource(
-    struct wl_resource *resource)
+personalization_wallpaper_context_v1 *personalization_wallpaper_context_v1::from_resource(
+    wl_resource *resource)
 {
     assert(wl_resource_instance_of(resource,
                                    &treeland_personalization_wallpaper_context_v1_interface,
@@ -213,7 +222,16 @@ personalization_wallpaper_context_v1::~personalization_wallpaper_context_v1()
 
 static void personalization_wallpaper_context_resource_destroy(struct wl_resource *resource)
 {
+    if (resource)
+        return;
+
     wl_list_remove(wl_resource_get_link(resource));
+    auto wallpaper_context = personalization_wallpaper_context_v1::from_resource(resource);
+    if (!wallpaper_context) {
+        return;
+    }
+
+    delete wallpaper_context;
 }
 
 void set_cursor_theme(struct wl_client *client, struct wl_resource *resource, const char *name);
@@ -242,8 +260,8 @@ static const struct treeland_personalization_cursor_context_v1_interface
         .destroy = personalization_cursor_context_destroy,
     };
 
-struct personalization_cursor_context_v1 *personalization_cursor_from_resource(
-    struct wl_resource *resource)
+personalization_cursor_context_v1 *personalization_cursor_context_v1::from_resource(
+    wl_resource *resource)
 {
     assert(wl_resource_instance_of(resource,
                                    &treeland_personalization_cursor_context_v1_interface,
@@ -259,7 +277,16 @@ personalization_cursor_context_v1::~personalization_cursor_context_v1()
 
 static void personalization_cursor_context_resource_destroy(struct wl_resource *resource)
 {
+    if (resource)
+        return;
+
     wl_list_remove(wl_resource_get_link(resource));
+    auto cursor_context = personalization_cursor_context_v1::from_resource(resource);
+    if (!cursor_context) {
+        return;
+    }
+
+    delete cursor_context;
 }
 
 void create_personalization_window_context_listener(struct wl_client *client,
@@ -283,7 +310,7 @@ static const struct treeland_personalization_manager_v1_interface
         .get_appearance_context = createHandle<personalization_appearance_context_v1>,
     };
 
-struct treeland_personalization_manager_v1 *treeland_personalization_manager_v1::from_resource(
+treeland_personalization_manager_v1 *treeland_personalization_manager_v1::from_resource(
     struct wl_resource *resource)
 {
     assert(wl_resource_instance_of(resource,
@@ -297,7 +324,16 @@ struct treeland_personalization_manager_v1 *treeland_personalization_manager_v1:
 
 static void treeland_personalization_manager_resource_destroy(struct wl_resource *resource)
 {
+    if (resource)
+        return;
+
     wl_list_remove(wl_resource_get_link(resource));
+    auto manager = treeland_personalization_manager_v1::from_resource(resource);
+    if (!manager) {
+        return;
+    }
+
+    delete manager;
 }
 
 void create_personalization_window_context_listener(struct wl_client *client,
@@ -305,7 +341,6 @@ void create_personalization_window_context_listener(struct wl_client *client,
                                                     uint32_t id,
                                                     struct wl_resource *surface)
 {
-
     auto *manager = treeland_personalization_manager_v1::from_resource(manager_resource);
     if (!manager)
         return;
@@ -470,7 +505,7 @@ void set_fd(struct wl_client *client [[maybe_unused]],
             const char *metadata)
 {
     struct personalization_wallpaper_context_v1 *wallpaper =
-        personalization_wallpaper_from_resource(resource);
+        personalization_wallpaper_context_v1::from_resource(resource);
     if (wallpaper == NULL || fd == -1)
         return;
 
@@ -482,7 +517,7 @@ void set_identifier(struct wl_client *client [[maybe_unused]],
                     struct wl_resource *resource,
                     const char *identifier)
 {
-    auto *wallpaper = personalization_wallpaper_from_resource(resource);
+    auto *wallpaper = personalization_wallpaper_context_v1::from_resource(resource);
     if (!wallpaper)
         return;
 
@@ -491,7 +526,7 @@ void set_identifier(struct wl_client *client [[maybe_unused]],
 
 void set_output(struct wl_client *client, struct wl_resource *resource, const char *output)
 {
-    auto *wallpaper = personalization_wallpaper_from_resource(resource);
+    auto *wallpaper = personalization_wallpaper_context_v1::from_resource(resource);
     if (!wallpaper)
         return;
 
@@ -502,7 +537,7 @@ void set_on(struct wl_client *client [[maybe_unused]],
             struct wl_resource *resource,
             uint32_t options)
 {
-    auto *wallpaper = personalization_wallpaper_from_resource(resource);
+    auto *wallpaper = personalization_wallpaper_context_v1::from_resource(resource);
     if (!wallpaper)
         return;
 
@@ -511,7 +546,7 @@ void set_on(struct wl_client *client [[maybe_unused]],
 
 void wallpaper_commit(struct wl_client *client [[maybe_unused]], struct wl_resource *resource)
 {
-    auto *wallpaper = personalization_wallpaper_from_resource(resource);
+    auto *wallpaper = personalization_wallpaper_context_v1::from_resource(resource);
     if (!wallpaper || wallpaper->fd == -1)
         return;
 
@@ -520,7 +555,7 @@ void wallpaper_commit(struct wl_client *client [[maybe_unused]], struct wl_resou
 
 void get_metadata(struct wl_client *client [[maybe_unused]], struct wl_resource *resource)
 {
-    auto *wallpaper = personalization_wallpaper_from_resource(resource);
+    auto *wallpaper = personalization_wallpaper_context_v1::from_resource(resource);
     if (!wallpaper)
         return;
 
@@ -531,7 +566,7 @@ void set_isdark(struct wl_client *client [[maybe_unused]],
                 struct wl_resource *resource,
                 uint32_t isdark)
 {
-    auto *wallpaper = personalization_wallpaper_from_resource(resource);
+    auto *wallpaper = personalization_wallpaper_context_v1::from_resource(resource);
     if (!wallpaper)
         return;
 
@@ -540,7 +575,7 @@ void set_isdark(struct wl_client *client [[maybe_unused]],
 
 void set_cursor_theme(struct wl_client *client, struct wl_resource *resource, const char *name)
 {
-    auto *cursor = personalization_cursor_from_resource(resource);
+    auto *cursor = personalization_cursor_context_v1::from_resource(resource);
     if (!cursor)
         return;
 
@@ -549,7 +584,7 @@ void set_cursor_theme(struct wl_client *client, struct wl_resource *resource, co
 
 void get_cursor_theme(struct wl_client *client, struct wl_resource *resource)
 {
-    auto *cursor = personalization_cursor_from_resource(resource);
+    auto *cursor = personalization_cursor_context_v1::from_resource(resource);
     if (!cursor)
         return;
 
@@ -558,7 +593,7 @@ void get_cursor_theme(struct wl_client *client, struct wl_resource *resource)
 
 void set_cursor_size(struct wl_client *client, struct wl_resource *resource, uint32_t size)
 {
-    auto *cursor = personalization_cursor_from_resource(resource);
+    auto *cursor = personalization_cursor_context_v1::from_resource(resource);
     if (!cursor)
         return;
 
@@ -567,7 +602,7 @@ void set_cursor_size(struct wl_client *client, struct wl_resource *resource, uin
 
 void get_cursor_size(struct wl_client *client, struct wl_resource *resource)
 {
-    auto *cursor = personalization_cursor_from_resource(resource);
+    auto *cursor = personalization_cursor_context_v1::from_resource(resource);
     if (!cursor)
         return;
 
@@ -576,7 +611,7 @@ void get_cursor_size(struct wl_client *client, struct wl_resource *resource)
 
 void cursor_commit(struct wl_client *client, struct wl_resource *resource)
 {
-    auto *cursor = personalization_cursor_from_resource(resource);
+    auto *cursor = personalization_cursor_context_v1::from_resource(resource);
     if (!cursor)
         return;
 
@@ -613,7 +648,8 @@ treeland_personalization_manager_v1::~treeland_personalization_manager_v1()
     Q_EMIT before_destroy();
     if (global)
         wl_global_destroy(global);
-    // TODO: clear resources
+
+    wl_list_remove(&resources);
 }
 
 treeland_personalization_manager_v1 *treeland_personalization_manager_v1::create(
