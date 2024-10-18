@@ -12,9 +12,10 @@ Item {
     id: root
     visible: false
 
+    property bool switchOn: false
     required property QtObject output
     readonly property OutputItem outputItem: output.outputItem
-    readonly property QtObject model: Helper.workspace.current
+    readonly property QtObject model: Helper.workspace.currentFilter
 
     // control all switch item
     property bool enableBlur: GraphicsInfo.api !== GraphicsInfo.Software
@@ -389,25 +390,24 @@ Item {
 
             currentContext.loaderStatus = 0
             currentContext.loaderStatus = 1
+
         }
     }
 
     function previous() {
-        if (showTask(true)) {
-            previewContext.sourceSueface = switchView.currentItem.surface
-            var previousIndex = (switchView.currentIndex - 1 + switchView.count) % switchView.count
-            switchView.currentIndex = previousIndex
-
-            switchView.currentItem.surface?.requestForceActive()
-            ensurePreview()
-        }
+        var nextIndex = (switchView.currentIndex - 1 + switchView.count) % switchView.count
+        switchIndex(nextIndex)
     }
 
     function next() {
+        var nextIndex = (switchView.currentIndex + 1) % switchView.count
+        switchIndex(nextIndex)
+    }
+
+    function switchIndex(next) {
         if (showTask(true)) {
             previewContext.sourceSueface = switchView.currentItem.surface
-            var nextIndex = (switchView.currentIndex + 1) % switchView.count
-            switchView.currentIndex = nextIndex
+            switchView.currentIndex = next
 
             switchView.currentItem.surface?.requestForceActive()
             ensurePreview()
@@ -420,7 +420,7 @@ Item {
             return false
         }
 
-        Helper.showAllWindows(root.model, !visible)
+        Helper.workspace.showCurrentWindows(!visible)
         root.visible = visible
 
         return switchView.currentItem && switchView.visible
@@ -430,6 +430,7 @@ Item {
         if (!root.visible)
             return
 
+        switchOn = false
         if (root.enableAnimation) {
             previewContext.loaderStatus = -1
             currentContext.loaderStatus = -1
