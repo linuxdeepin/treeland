@@ -175,7 +175,7 @@ ShortcutContext::~ShortcutContext()
 
 void ShortcutContext::treeland_shortcut_context_v1_shortcut()
 {
-    emit shortcutHappended();
+    Q_EMIT shortcutHappended();
 }
 
 Shortcut::Shortcut(const QString &path)

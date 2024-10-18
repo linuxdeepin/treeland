@@ -68,9 +68,8 @@ int WallpaperCardModel::dataCount() const
     return static_cast<int>(d->wallpapers.length());
 }
 
-int WallpaperCardModel::rowCount(const QModelIndex &parent) const
+int WallpaperCardModel::rowCount([[maybe_unused]] const QModelIndex &parent) const
 {
-    Q_UNUSED(parent)
     if (!d->m_toggleShowAll && dataCount() > 10) {
         return 10;
     }

@@ -22,6 +22,10 @@ target_sources(${MODULE_NAME} PRIVATE
 target_include_directories(${MODULE_NAME} PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
+    # TODO: Temporary addition, subsequent custom protocol to remove helper dependencies
+    $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/src/treeland>
+    $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/src/modules/window-management>
+    $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/src/modules/virtual-output>
 )
 
 target_compile_definitions(${MODULE_NAME}

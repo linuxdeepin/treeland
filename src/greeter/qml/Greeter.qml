@@ -3,19 +3,29 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
-import TreeLand.Greeter
-import TreeLand.Utils
+import Treeland
+import Treeland.Greeter
 
 FocusScope {
     id: root
     clip: true
 
-    required property var output
+    signal animationPlayed
+    signal animationPlayFinished
+
+    required property QtObject output
+    required property QtObject outputItem
+
+    x: outputItem.x
+    y: outputItem.y
+    width: outputItem.width
+    height: outputItem.height
 
     WallpaperController {
         id: wallpaperController
         output: root.output
         lock: true
+        type: WallpaperController.Normal
     }
 
     // prevent event passing through greeter
@@ -28,7 +38,7 @@ FocusScope {
         id: cover
         anchors.fill: parent
         color: 'black'
-        opacity: wallpaperController.type === Helper.Normal ? 0 : 0.6
+        opacity: wallpaperController.type === WallpaperController.Normal ? 0 : 0.9
         Behavior on opacity {
             PropertyAnimation {
                 duration: 1000
@@ -68,7 +78,7 @@ FocusScope {
             anchors.fill: parent
             onStopped: {
                 if (state === LoginAnimation.Hide) {
-                    GreeterModel.animationPlayFinished()
+                    animationPlayFinished()
                 }
             }
         }
@@ -171,7 +181,7 @@ FocusScope {
         running: true
         repeat: false
         onTriggered: {
-            wallpaperController.type = Helper.Scale
+            wallpaperController.type = WallpaperController.Scale
             leftAnimation.item.start({x: root.x - quickAction.width, y: quickAction.y}, {x: quickAction.x, y: quickAction.y})
             logoAnimation.item.start({x: root.x - logo.width, y: logo.y}, {x: logo.x, y: logo.y})
             rightAnimation.item.start({x: root.width + userInput.width, y: userInput.y}, {x: userInput.x, y: userInput.y})
@@ -195,13 +205,13 @@ FocusScope {
                 }
                 break
                 case GreeterModel.Quit: {
-                    wallpaperController.type = Helper.Normal
+                    wallpaperController.type = WallpaperController.Normal
                     root.state = LoginAnimation.Hide
                     leftAnimation.item.start({x: quickAction.x, y: quickAction.y}, {x: root.x - quickAction.width, y: quickAction.y})
                     logoAnimation.item.start({x: logo.x, y: logo.y}, {x: root.x - logo.width, y: logo.y})
                     rightAnimation.item.start({x: userInput.x, y: userInput.y}, {x: root.width + userInput.width, y: userInput.y})
                     bottomAnimation.item.start({x: controlAction.x, y: controlAction.y}, {x: controlAction.x, y: controlAction.y + controlAction.height})
-                    GreeterModel.animationPlayed()
+                    animationPlayed()
                 }
                 break
             }
