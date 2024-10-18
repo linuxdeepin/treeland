@@ -7,10 +7,10 @@
 #include "surfacewrapper.h"
 
 WorkspaceModel::WorkspaceModel(QObject *parent,
-                               int index,
+                               int id,
                                std::forward_list<SurfaceWrapper *> activedSurfaceHistory)
     : SurfaceListModel(parent)
-    , m_index(index)
+    , m_id(id)
     , m_activedSurfaceHistory(activedSurfaceHistory)
 {
 }
@@ -28,17 +28,9 @@ void WorkspaceModel::setName(const QString &newName)
     Q_EMIT nameChanged();
 }
 
-int WorkspaceModel::index() const
+int WorkspaceModel::id() const
 {
-    return m_index;
-}
-
-void WorkspaceModel::setIndex(int newIndex)
-{
-    if (m_index == newIndex)
-        return;
-    m_index = newIndex;
-    Q_EMIT indexChanged();
+    return m_id;
 }
 
 bool WorkspaceModel::visible() const
@@ -60,7 +52,7 @@ void WorkspaceModel::addSurface(SurfaceWrapper *surface)
 {
     SurfaceListModel::addSurface(surface);
     surface->setVisible(m_visible);
-    surface->setWorkspaceId(m_index);
+    surface->setWorkspaceId(m_id);
 }
 
 void WorkspaceModel::removeSurface(SurfaceWrapper *surface)
