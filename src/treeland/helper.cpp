@@ -1083,7 +1083,7 @@ void Helper::setActivatedSurface(SurfaceWrapper *newActivateSurface)
         return;
 
     if (newActivateSurface) {
-        Q_ASSERT(newActivateSurface->showOnWorkspace(workspace()->currentIndex()));
+        Q_ASSERT(newActivateSurface->showOnWorkspace(workspace()->current()->id()));
         newActivateSurface->stackToLast();
     }
 
