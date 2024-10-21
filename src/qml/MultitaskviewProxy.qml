@@ -119,21 +119,11 @@ Multitaskview {
                 hideSource: false
             }
 
-            RenderBufferBlitter {
+            Blur {
                 z: Multitaskview.Background
-                id: blitter
                 anchors.fill: parent
                 opacity: taskviewVal
-                MultiEffect {
-                    id: blur
-                    anchors.fill: parent
-                    source: blitter.content
-                    autoPaddingEnabled: false
-                    blurEnabled: true
-                    blur: 1.0
-                    blurMax: 64
-                    saturation: 0.2
-                }
+                radiusEnabled: false
             }
             Repeater {
                 id: wsDelegates
@@ -442,20 +432,10 @@ Multitaskview {
                                     anchors.fill: parent
                                 }
 
-                                RenderBufferBlitter {
+                                Blur {
                                     z: Multitaskview.Background
-                                    id: shotBlitter
                                     anchors.fill: parent
-                                    MultiEffect {
-                                        id: shotBlur
-                                        anchors.fill: parent
-                                        source: shotBlitter.content
-                                        autoPaddingEnabled: false
-                                        blurEnabled: true
-                                        blur: 1.0
-                                        blurMax: 64
-                                        saturation: 0.2
-                                    }
+                                    radiusEnabled: false
                                 }
 
                                 ShaderEffectSource {
