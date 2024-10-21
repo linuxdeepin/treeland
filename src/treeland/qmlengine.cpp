@@ -124,7 +124,11 @@ QQuickItem *QmlEngine::createBlur(SurfaceWrapper *surface, QQuickItem *parent)
 {
     auto context = qmlContext(parent);
     auto obj = blurComponent.beginCreate(context);
-    blurComponent.setInitialProperties(obj, { { "surface", QVariant::fromValue(surface) } });
+    blurComponent.setInitialProperties(
+        obj,
+        { { "radius", QVariant::fromValue(surface->radius()) },
+          { "radiusEnabled",
+            QVariant::fromValue(surface->radius() > 0 || !surface->noCornerRadius()) } });
     auto item = qobject_cast<QQuickItem *>(obj);
     Q_ASSERT(item);
     item->setParent(parent);
