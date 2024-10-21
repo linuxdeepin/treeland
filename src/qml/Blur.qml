@@ -3,23 +3,24 @@
 
 import QtQuick
 import QtQuick.Effects
-import Treeland
 import Waylib.Server
-import org.deepin.dtk 1.0 as D
+import Treeland
 
 RenderBufferBlitter {
-    required property SurfaceWrapper surface
-    readonly property bool noRadius: surface.radius === 0 || surface.noCornerRadius
+    property real radius: 0
+    property bool radiusEnabled: radius > 0
+    property alias blurMax: blur.blurMax
+    property alias blurEnabled: blur.blurEnabled
+    property alias multiplier: blur.blurMultiplier
 
     id: blitter
-    z: surface.z - 1
+    z: parent.z ? parent.z - 1 : -1
     anchors.fill: parent
-    parent: surface
     MultiEffect {
         id: blur
         anchors.fill: parent
-        layer.enabled: !blitter.noRadius
-        opacity: !blitter.noRadius ? 0 : parent.opacity
+        layer.enabled: blitter.radiusEnabled
+        opacity: blitter.radiusEnabled ? 0 : parent.opacity
         source: blitter.content
         autoPaddingEnabled: false
         blurEnabled: true
@@ -30,11 +31,11 @@ RenderBufferBlitter {
 
     Loader {
         anchors.fill: parent
-        active: !blitter.noRadius
+        active: blitter.radiusEnabled
         sourceComponent: TRadiusEffect {
             anchors.fill: parent
             sourceItem: blur
-            radius: surface.radius
+            radius: blitter.radius
         }
     }
 }
