@@ -142,30 +142,11 @@ Item {
                 }
             }
 
-            RenderBufferBlitter {
-                id: blitter
-
+            Blur {
                 anchors.fill: parent
                 visible: root.enableBlur
-
-                MultiEffect {
-                    id: blur
-
-                    anchors.fill: parent
-                    source: blitter.content
-                    autoPaddingEnabled: false
-                    blurEnabled: root.enableBlur
-                    blur: 1.0
-                    blurMax: 64
-                    saturation: 0.2
-                }
-
-                TRadiusEffect {
-                    anchors.fill: blur
-                    sourceItem: blur
-                    radius: root.radius
-                    hideSource: true
-                }
+                radius: root.radius
+                blurEnabled: root.enableBlur
             }
 
             Rectangle {
