@@ -584,30 +584,11 @@ Item {
         parent: root.parent
         visible: root.visible
 
-        RenderBufferBlitter {
-            id: blitter
-
+        Blur {
             anchors.fill: parent
             visible: root.enableBlur
-
-            MultiEffect {
-                id: blur
-                anchors.fill: parent
-                source: blitter.content
-                autoPaddingEnabled: false
-                blurEnabled: root.enableBlur
-                blur: 1.0
-                blurMax: 64
-                saturation: 0.2
-            }
-
-            D.ItemViewport {
-                anchors.fill: blur
-                fixed: true
-                sourceItem: blur
-                radius: listview.radius
-                hideSource: true
-            }
+            radius: listview.radius
+            blurEnabled: root.enableBlur
         }
 
         HoverHandler {
