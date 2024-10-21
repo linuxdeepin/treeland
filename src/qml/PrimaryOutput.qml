@@ -88,7 +88,9 @@ OutputItem {
         output: rootOutputItem.output
         workspace: Helper.workspace.current
         anchors.fill: parent
+        fillMode: Image.PreserveAspectCrop
         asynchronous: false
+        clip: true
 
         states: [
             State {
