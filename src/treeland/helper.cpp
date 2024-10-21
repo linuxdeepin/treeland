@@ -7,7 +7,6 @@
 #include "ddeshellmanagerv1.h"
 #include "inputdevice.h"
 #include "layersurfacecontainer.h"
-
 #include "lockscreen.h"
 #include "multitaskview.h"
 #include "output.h"
@@ -15,14 +14,13 @@
 #include "personalizationmanager.h"
 #include "qmlengine.h"
 #include "rootsurfacecontainer.h"
+#include "shellhandler.h"
 #include "shortcutmanager.h"
 #include "surfacecontainer.h"
 #include "surfacewrapper.h"
 #include "treelandconfig.h"
 #include "wallpapercolor.h"
 #include "workspace.h"
-#include "multitaskview.h"
-#include "shellhandler.h"
 
 #include <WBackend>
 #include <WForeignToplevel>
@@ -63,15 +61,9 @@
 #include <qwxwaylandsurface.h>
 
 #include <QAction>
-#include <QGuiApplication>
 #include <QKeySequence>
 #include <QLoggingCategory>
 #include <QMouseEvent>
-#include <QProcess>
-#include <QQmlApplicationEngine>
-#include <QQmlComponent>
-#include <QQmlContext>
-#include <QQuickStyle>
 #include <QQuickWindow>
 
 #include <pwd.h>
@@ -416,51 +408,68 @@ void Helper::init()
                                                     m_treelandForeignToplevel);
     qRegisterMetaType<ForeignToplevelV1::PreviewDirection>();
 
-    connect(m_shellHandler, &ShellHandler::surfaceWrapperAdded, this, [this] (SurfaceWrapper *wrapper) {
-        bool isXdgToplevel = wrapper->type() == SurfaceWrapper::Type::XdgToplevel;
-        bool isXdgPopup = wrapper->type() == SurfaceWrapper::Type::XdgPopup;
-        bool isXwayland = wrapper->type() == SurfaceWrapper::Type::XWayland;
-        bool isLayer = wrapper->type() == SurfaceWrapper::Type::Layer;
+    connect(m_shellHandler,
+            &ShellHandler::surfaceWrapperAdded,
+            this,
+            [this](SurfaceWrapper *wrapper) {
+                bool isXdgToplevel = wrapper->type() == SurfaceWrapper::Type::XdgToplevel;
+                bool isXdgPopup = wrapper->type() == SurfaceWrapper::Type::XdgPopup;
+                bool isXwayland = wrapper->type() == SurfaceWrapper::Type::XWayland;
+                bool isLayer = wrapper->type() == SurfaceWrapper::Type::Layer;
 
-        if (isXdgToplevel || isXdgPopup || isLayer) {
-            auto *attached =
-                new PersonalizationAttached(wrapper->shellSurface(), m_personalization, wrapper);
-            wrapper->setNoDecoration(m_xdgDecorationManager->modeBySurface(wrapper->surface()) != WXdgDecorationManager::Server);
+                if (isXdgToplevel || isXdgPopup || isLayer) {
+                    auto *attached = new PersonalizationAttached(wrapper->shellSurface(),
+                                                                 m_personalization,
+                                                                 wrapper);
+                    wrapper->setNoDecoration(
+                        m_xdgDecorationManager->modeBySurface(wrapper->surface())
+                        != WXdgDecorationManager::Server);
 
-            if (isXdgToplevel) {
-                auto updateNoTitlebar = [wrapper, attached] {
-                    if (attached->noTitlebar()) {
-                        wrapper->setNoTitleBar(true);
-                    } else {
-                        wrapper->resetNoTitleBar();
+                    if (isXdgToplevel) {
+                        auto updateNoTitlebar = [wrapper, attached] {
+                            if (attached->noTitlebar()) {
+                                wrapper->setNoTitleBar(true);
+                            } else {
+                                wrapper->resetNoTitleBar();
+                            }
+                        };
+                        connect(attached,
+                                &PersonalizationAttached::windowStateChanged,
+                                wrapper,
+                                updateNoTitlebar);
+                        updateNoTitlebar();
                     }
-                };
-                connect(attached, &PersonalizationAttached::windowStateChanged, wrapper, updateNoTitlebar);
-                updateNoTitlebar();
-            }
 
-            auto updateBlur = [wrapper, attached] {
-                wrapper->setBlur(attached->backgroundType() == Personalization::BackgroundType::Blur);
-            };
-            connect(attached, &PersonalizationAttached::backgroundTypeChanged, wrapper, updateBlur);
-            updateBlur();
-        }
+                    auto updateBlur = [wrapper, attached] {
+                        wrapper->setBlur(attached->backgroundType()
+                                         == Personalization::BackgroundType::Blur);
+                    };
+                    connect(attached,
+                            &PersonalizationAttached::backgroundTypeChanged,
+                            wrapper,
+                            updateBlur);
+                    updateBlur();
+                }
 
-        if (isXwayland)
-            wrapper->setNoTitleBar(false);
+                if (isXwayland)
+                    wrapper->setNoTitleBar(false);
 
-        if (isXdgToplevel || isXwayland) {
-            m_foreignToplevel->addSurface(wrapper->shellSurface());
-            m_treelandForeignToplevel->addSurface(wrapper);
-        }
-    });
+                if (isXdgToplevel || isXwayland) {
+                    m_foreignToplevel->addSurface(wrapper->shellSurface());
+                    m_treelandForeignToplevel->addSurface(wrapper);
+                }
+            });
 
-    connect(m_shellHandler, &ShellHandler::surfaceWrapperAboutToRemove, this, [this] (SurfaceWrapper *wrapper) {
-        if (wrapper->type() == SurfaceWrapper::Type::XdgToplevel || wrapper->type() == SurfaceWrapper::Type::XWayland) {
-            m_foreignToplevel->removeSurface(wrapper->shellSurface());
-            m_treelandForeignToplevel->removeSurface(wrapper);
-        }
-    });
+    connect(m_shellHandler,
+            &ShellHandler::surfaceWrapperAboutToRemove,
+            this,
+            [this](SurfaceWrapper *wrapper) {
+                if (wrapper->type() == SurfaceWrapper::Type::XdgToplevel
+                    || wrapper->type() == SurfaceWrapper::Type::XWayland) {
+                    m_foreignToplevel->removeSurface(wrapper->shellSurface());
+                    m_treelandForeignToplevel->removeSurface(wrapper);
+                }
+            });
 
     auto *xdgOutputManager =
         m_server->attach<WXdgOutputManager>(m_rootSurfaceContainer->outputLayout());
@@ -692,8 +701,10 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *, QInputEvent *event)
             }
 
             m_taskSwitch->setProperty("switchOn", true);
-        } else if (kevent->key() == Qt::Key_Tab || kevent->key() == Qt::Key_Backtab || kevent->key() == Qt::Key_QuoteLeft) {
-            if (m_taskSwitch && m_taskSwitch->property("switchOn").toBool() && event->modifiers().testFlag(Qt::AltModifier)) {
+        } else if (kevent->key() == Qt::Key_Tab || kevent->key() == Qt::Key_Backtab
+                   || kevent->key() == Qt::Key_QuoteLeft) {
+            if (m_taskSwitch && m_taskSwitch->property("switchOn").toBool()
+                && event->modifiers().testFlag(Qt::AltModifier)) {
                 if (event->modifiers() == Qt::AltModifier) {
                     QString appid;
                     if (kevent->key() == Qt::Key_QuoteLeft) {

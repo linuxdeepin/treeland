@@ -14,9 +14,6 @@
 #include <wseat.h>
 #include <wxdgdecorationmanager.h>
 
-#include <QObject>
-#include <QQmlApplicationEngine>
-
 Q_MOC_INCLUDE(<wtoplevelsurface.h>)
 Q_MOC_INCLUDE(<wxdgsurface.h>)
 Q_MOC_INCLUDE(<qwgammacontorlv1.h>)
@@ -106,17 +103,13 @@ public:
 
     QmlEngine *qmlEngine() const;
     WOutputRenderWindow *window() const;
-    ShellHandler* shellHandler() const;
-    Workspace* workspace() const;
+    ShellHandler *shellHandler() const;
+    Workspace *workspace() const;
     void init();
 
-    TogglableGesture *multiTaskViewGesture() const {
-        return m_multiTaskViewGesture;
-    }
+    TogglableGesture *multiTaskViewGesture() const { return m_multiTaskViewGesture; }
 
-    TogglableGesture *windowGesture() const {
-        return m_windowGesture;
-    }
+    TogglableGesture *windowGesture() const { return m_windowGesture; }
 
     bool socketEnabled() const;
     void setSocketEnabled(bool newSocketEnabled);
@@ -153,7 +146,8 @@ public:
 
 public Q_SLOTS:
     void activateSurface(SurfaceWrapper *wrapper, Qt::FocusReason reason = Qt::OtherFocusReason);
-    void forceActivateSurface(SurfaceWrapper *wrapper, Qt::FocusReason reason = Qt::OtherFocusReason);
+    void forceActivateSurface(SurfaceWrapper *wrapper,
+                              Qt::FocusReason reason = Qt::OtherFocusReason);
     void fakePressSurfaceBottomRightToReszie(SurfaceWrapper *surface);
 
 Q_SIGNALS:
@@ -223,7 +217,7 @@ private:
     WOutputRenderWindow *m_renderWindow = nullptr;
     QQuickItem *m_dockPreview = nullptr;
 
-    //gesture
+    // gesture
     TogglableGesture *m_multiTaskViewGesture = nullptr;
     TogglableGesture *m_windowGesture = nullptr;
 
@@ -237,7 +231,7 @@ private:
 
     // protocols
     qw_compositor *m_compositor = nullptr;
-    ShellHandler* m_shellHandler = nullptr;
+    ShellHandler *m_shellHandler = nullptr;
     WXWayland *m_defaultXWayland = nullptr;
     WXdgDecorationManager *m_xdgDecorationManager = nullptr;
     WForeignToplevel *m_foreignToplevel = nullptr;
@@ -255,7 +249,7 @@ private:
     QList<Output *> m_outputList;
     QPointer<QQuickItem> m_taskSwitch;
 
-    SurfaceWrapper* m_activatedSurface = nullptr;
+    SurfaceWrapper *m_activatedSurface = nullptr;
     RootSurfaceContainer *m_rootSurfaceContainer = nullptr;
     LockScreen *m_lockScreen = nullptr;
     int m_currentUserId = -1;
