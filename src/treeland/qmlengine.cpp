@@ -37,32 +37,38 @@ QmlEngine::QmlEngine(QObject *parent)
 {
 }
 
-QQuickItem *QmlEngine::createTitleBar(SurfaceWrapper *surface, QQuickItem *parent)
+QQuickItem *QmlEngine::createComponent(QQmlComponent &component,
+                                       QQuickItem *parent,
+                                       const QVariantMap &properties)
 {
     auto context = qmlContext(parent);
-    auto obj = titleBarComponent.beginCreate(context);
-    titleBarComponent.setInitialProperties(obj, { { "surface", QVariant::fromValue(surface) } });
+    auto obj = component.beginCreate(context);
+    if (!properties.isEmpty()) {
+        component.setInitialProperties(obj, properties);
+    }
     auto item = qobject_cast<QQuickItem *>(obj);
-    Q_ASSERT(item);
+    Q_ASSERT_X(item, __func__, component.errorString().toStdString().c_str());
+    if (!item)
+        qCFatal(qLcTreelandEngine) << "Can't create component:" << component.errorString();
     item->setParent(parent);
     item->setParentItem(parent);
-    titleBarComponent.completeCreate();
+    component.completeCreate();
 
     return item;
 }
 
+QQuickItem *QmlEngine::createTitleBar(SurfaceWrapper *surface, QQuickItem *parent)
+{
+    return createComponent(titleBarComponent,
+                           parent,
+                           { { "surface", QVariant::fromValue(surface) } });
+}
+
 QQuickItem *QmlEngine::createDecoration(SurfaceWrapper *surface, QQuickItem *parent)
 {
-    auto context = qmlContext(parent);
-    auto obj = decorationComponent.beginCreate(context);
-    decorationComponent.setInitialProperties(obj, { { "surface", QVariant::fromValue(surface) } });
-    auto item = qobject_cast<QQuickItem *>(obj);
-    Q_ASSERT(item);
-    item->setParent(parent);
-    item->setParentItem(parent);
-    decorationComponent.completeCreate();
-
-    return item;
+    return createComponent(decorationComponent,
+                           parent,
+                           { { "surface", QVariant::fromValue(surface) } });
 }
 
 QObject *QmlEngine::createWindowMenu(QObject *parent)
@@ -80,78 +86,38 @@ QObject *QmlEngine::createWindowMenu(QObject *parent)
 
 QQuickItem *QmlEngine::createBorder(SurfaceWrapper *surface, QQuickItem *parent)
 {
-    auto context = qmlContext(parent);
-    auto obj = borderComponent.beginCreate(context);
-    borderComponent.setInitialProperties(obj, { { "surface", QVariant::fromValue(surface) } });
-    auto item = qobject_cast<QQuickItem *>(obj);
-    Q_ASSERT(item);
-    item->setParent(parent);
-    item->setParentItem(parent);
-    borderComponent.completeCreate();
-
-    return item;
+    return createComponent(borderComponent,
+                           parent,
+                           { { "surface", QVariant::fromValue(surface) } });
 }
 
 QQuickItem *QmlEngine::createTaskBar(Output *output, QQuickItem *parent)
 {
-    auto context = qmlContext(parent);
-    auto obj = taskBarComponent.beginCreate(context);
-    taskBarComponent.setInitialProperties(obj, { { "output", QVariant::fromValue(output) } });
-    auto item = qobject_cast<QQuickItem *>(obj);
-    qDebug() << taskBarComponent.errorString();
-    Q_ASSERT(item);
-    item->setParent(parent);
-    item->setParentItem(parent);
-    taskBarComponent.completeCreate();
-
-    return item;
+    return createComponent(taskBarComponent, parent, { { "output", QVariant::fromValue(output) } });
 }
 
 QQuickItem *QmlEngine::createXdgShadow(QQuickItem *parent)
 {
-    auto context = qmlContext(parent);
-    auto obj = xdgShadowComponent.beginCreate(context);
-    auto item = qobject_cast<QQuickItem *>(obj);
-    Q_ASSERT(item);
-    item->setParent(parent);
-    item->setParentItem(parent);
-    xdgShadowComponent.completeCreate();
-
-    return item;
+    return createComponent(xdgShadowComponent, parent);
 }
 
 QQuickItem *QmlEngine::createBlur(SurfaceWrapper *surface, QQuickItem *parent)
 {
-    auto context = qmlContext(parent);
-    auto obj = blurComponent.beginCreate(context);
-    blurComponent.setInitialProperties(
-        obj,
-        { { "radius", QVariant::fromValue(surface->radius()) },
-          { "radiusEnabled",
-            QVariant::fromValue(surface->radius() > 0 || !surface->noCornerRadius()) } });
-    auto item = qobject_cast<QQuickItem *>(obj);
-    Q_ASSERT(item);
-    item->setParent(parent);
-    item->setParentItem(parent);
-    blurComponent.completeCreate();
-
-    return item;
+    return createComponent(
+        blurComponent,
+        parent,
+        {
+            { "radius", QVariant::fromValue(surface->radius()) },
+            { "radiusEnabled",
+              QVariant::fromValue(surface->radius() > 0 || !surface->noCornerRadius()) },
+        });
 }
 
 QQuickItem *QmlEngine::createTaskSwitcher(Output *output, QQuickItem *parent)
 {
-    auto context = qmlContext(parent);
-    auto obj = taskSwitchComponent.beginCreate(context);
-    taskSwitchComponent.setInitialProperties(obj, { { "output", QVariant::fromValue(output) } });
-
-    auto item = qobject_cast<QQuickItem *>(obj);
-    qDebug() << taskSwitchComponent.errorString();
-    Q_ASSERT(item);
-    item->setParent(parent);
-    item->setParentItem(parent);
-    taskSwitchComponent.completeCreate();
-
-    return item;
+    return createComponent(taskSwitchComponent,
+                           parent,
+                           { { "output", QVariant::fromValue(output) } });
 }
 
 QQuickItem *QmlEngine::createGeometryAnimation(SurfaceWrapper *surface,
@@ -159,99 +125,48 @@ QQuickItem *QmlEngine::createGeometryAnimation(SurfaceWrapper *surface,
                                                const QRectF &endGeo,
                                                QQuickItem *parent)
 {
-    auto context = qmlContext(parent);
-    auto obj = geometryAnimationComponent.beginCreate(context);
-    geometryAnimationComponent.setInitialProperties(
-        obj,
-        {
-            { "surface", QVariant::fromValue(surface) },
-            { "fromGeometry", QVariant::fromValue(startGeo) },
-            { "toGeometry", QVariant::fromValue(endGeo) },
-        });
-    auto item = qobject_cast<QQuickItem *>(obj);
-    Q_ASSERT(item);
-    item->setParent(parent);
-    item->setParentItem(parent);
-    geometryAnimationComponent.completeCreate();
-
-    return item;
+    return createComponent(geometryAnimationComponent,
+                           parent,
+                           {
+                               { "surface", QVariant::fromValue(surface) },
+                               { "fromGeometry", QVariant::fromValue(startGeo) },
+                               { "toGeometry", QVariant::fromValue(endGeo) },
+                           });
 }
 
 QQuickItem *QmlEngine::createMenuBar(WOutputItem *output, QQuickItem *parent)
 {
-    auto context = qmlContext(parent);
-    auto obj = menuBarComponent.beginCreate(context);
-    menuBarComponent.setInitialProperties(obj, { { "output", QVariant::fromValue(output) } });
-    auto item = qobject_cast<QQuickItem *>(obj);
-    Q_ASSERT(item);
-    item->setParent(parent);
-    item->setParentItem(parent);
-    menuBarComponent.completeCreate();
-
-    return item;
+    return createComponent(menuBarComponent, parent, { { "output", QVariant::fromValue(output) } });
 }
 
 QQuickItem *QmlEngine::createWorkspaceSwitcher(Workspace *parent)
 {
-    auto context = qmlContext(parent);
-    auto obj = workspaceSwitcher.beginCreate(context);
-    workspaceSwitcher.setInitialProperties(obj, { { "parent", QVariant::fromValue(parent) } });
-    auto item = qobject_cast<QQuickItem *>(obj);
-    Q_ASSERT_X(item, __func__, workspaceSwitcher.errorString().toStdString().c_str());
-    item->setParent(parent);
-    item->setParentItem(parent);
-    workspaceSwitcher.completeCreate();
-
-    return item;
+    return createComponent(workspaceSwitcher, parent);
 }
 
 QQuickItem *QmlEngine::createNewAnimation(SurfaceWrapper *surface,
                                           QQuickItem *parent,
                                           uint direction)
 {
-    auto context = qmlContext(parent);
-    auto obj = newAnimationComponent.beginCreate(context);
-    newAnimationComponent.setInitialProperties(obj,
-                                               {
-                                                   { "target", QVariant::fromValue(surface) },
-                                                   { "direction", QVariant::fromValue(direction) },
-                                               });
-    auto item = qobject_cast<QQuickItem *>(obj);
-    Q_ASSERT(item);
-    item->setParent(parent);
-    item->setParentItem(parent);
-    newAnimationComponent.completeCreate();
-    return item;
+    return createComponent(newAnimationComponent,
+                           parent,
+                           {
+                               { "target", QVariant::fromValue(surface) },
+                               { "direction", QVariant::fromValue(direction) },
+                           });
 }
 
-QQuickItem *QmlEngine::createDockPreview(QObject *parent)
+QQuickItem *QmlEngine::createDockPreview(QQuickItem *parent)
 {
-    auto context = qmlContext(parent);
-    auto obj = dockPreviewComponent.beginCreate(context);
-    auto item = qobject_cast<QQuickItem *>(obj);
-    if (!item)
-        qCFatal(qLcTreelandEngine)
-            << "Can't create DockPreview:" << dockPreviewComponent.errorString();
-    item->setParent(parent);
-    dockPreviewComponent.completeCreate();
-    return item;
+    return createComponent(dockPreviewComponent, parent);
 }
 
 QQuickItem *QmlEngine::createLockScreen(Output *output, QQuickItem *parent)
 {
-    auto context = qmlContext(parent);
-    auto obj = lockScreenComponent.beginCreate(context);
-    lockScreenComponent.setInitialProperties(
-        obj,
-        { { "output", QVariant::fromValue(output->output()) },
-          { "outputItem", QVariant::fromValue(output->outputItem()) } });
-    auto item = qobject_cast<QQuickItem *>(obj);
-    Q_ASSERT_X(item, "", lockScreenComponent.errorString().toUtf8());
-    item->setParent(parent);
-    item->setParentItem(parent);
-    lockScreenComponent.completeCreate();
-
-    return item;
+    return createComponent(lockScreenComponent,
+                           parent,
+                           { { "output", QVariant::fromValue(output->output()) },
+                             { "outputItem", QVariant::fromValue(output->outputItem()) } });
 }
 
 QQuickItem *QmlEngine::createMinimizeAnimation(SurfaceWrapper *surface,
@@ -259,63 +174,36 @@ QQuickItem *QmlEngine::createMinimizeAnimation(SurfaceWrapper *surface,
                                                const QRectF &iconGeometry,
                                                uint direction)
 {
-    auto context = qmlContext(parent);
-    auto obj = minimizeAnimationComponent.beginCreate(context);
-    minimizeAnimationComponent.setInitialProperties(
-        obj,
-        {
-            { "target", QVariant::fromValue(surface) },
-            { "position", QVariant::fromValue(iconGeometry) },
-            { "direction", QVariant::fromValue(direction) },
-        });
-    auto item = qobject_cast<QQuickItem *>(obj);
-    Q_ASSERT(item);
-    item->setParent(parent);
-    item->setParentItem(parent);
-    minimizeAnimationComponent.completeCreate();
-
-    return item;
+    return createComponent(minimizeAnimationComponent,
+                           parent,
+                           {
+                               { "target", QVariant::fromValue(surface) },
+                               { "position", QVariant::fromValue(iconGeometry) },
+                               { "direction", QVariant::fromValue(direction) },
+                           });
 }
 
 QQuickItem *QmlEngine::createShowDesktopAnimation(SurfaceWrapper *surface,
                                                   QQuickItem *parent,
                                                   bool show)
 {
-    auto context = qmlContext(parent);
-    auto obj = showDesktopAnimatioComponentn.beginCreate(context);
-    showDesktopAnimatioComponentn.setInitialProperties(
-        obj,
-        {
-            { "target", QVariant::fromValue(surface) },
-            { "showDesktop", QVariant::fromValue(show) },
-        });
-    auto item = qobject_cast<QQuickItem *>(obj);
-    Q_ASSERT(item);
-    item->setParent(parent);
-    item->setParentItem(parent);
-    showDesktopAnimatioComponentn.completeCreate();
-
-    return item;
+    return createComponent(showDesktopAnimatioComponentn,
+                           parent,
+                           {
+                               { "target", QVariant::fromValue(surface) },
+                               { "showDesktop", QVariant::fromValue(show) },
+                           });
 }
 
 QQuickItem *QmlEngine::createMultitaskview(QQuickItem *parent)
 {
-    auto context = qmlContext(parent);
-    auto obj = multitaskViewComponent.beginCreate(context);
-    auto item = qobject_cast<QQuickItem *>(obj);
-    if (!item) {
-        qCFatal(qLcTreelandEngine)
-            << "Cannot create MultitaskviewProxy:" << multitaskViewComponent.errorString();
-    }
-    item->setParent(parent);
-    item->setParentItem(parent);
+    auto item = createComponent(multitaskViewComponent, parent);
     // Multitaskview should occupy parent and clip children.
     item->setX(0);
     item->setY(0);
     item->setWidth(parent->width());
     item->setHeight(parent->height());
     item->setClip(true);
-    multitaskViewComponent.completeCreate();
     return item;
 }
 
