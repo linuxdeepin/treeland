@@ -126,6 +126,8 @@ qt_add_qml_module(${BIN_NAME}
         qml/Animations/NewAnimation.qml
         qml/Animations/MinimizeAnimation.qml
         qml/Animations/ShowDesktopAnimation.qml
+        qml/Animations/LaunchpadAnimation.qml
+        qml/Effects/LaunchpadCover.qml
         qml/TaskSwitcher.qml
         qml/TaskWindowPreview.qml
         qml/SwitchViewDelegate.qml
