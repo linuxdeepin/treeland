@@ -33,25 +33,6 @@ Item {
             opacity: 0.8
         }
 
-        Loader {
-            enabled: sourceView.enableDelegateBorders
-            anchors.fill: parent
-            sourceComponent: sourceView.enableDelegateShadows ? shadow : undefined
-        }
-
-        Component {
-            id: shadow
-
-            D.BoxShadow {
-                shadowColor: "#000000"
-                opacity: 0.2
-                shadowOffsetY: 2
-                shadowBlur: 6
-                cornerRadius: sourceView.radius
-                hollow: true
-            }
-        }
-
         ColumnLayout {
             anchors.fill: parent
             spacing: 0
@@ -127,7 +108,7 @@ Item {
     TRadiusEffect {
         anchors.fill: contentItem
         sourceItem: contentItem
-        radius: sourceView.radius
+        radius: sourceView.enableDelegateRadius ? surface.radius : 0
         hideSource: true
     }
 }
