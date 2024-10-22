@@ -30,6 +30,7 @@ public:
         : QtWayland::treeland_dde_shell_surface_v1(id)
     {
     }
+
     ~DDEShellSurface()
     {
         destroy();
@@ -166,8 +167,14 @@ void DDEShellWayland::platformSurfaceCreated(QWindow *window)
     if (!waylandWindow) {
         return;
     }
-    connect(waylandWindow, &QNativeInterface::Private::QWaylandWindow::surfaceCreated, this, &DDEShellWayland::surfaceCreated);
-    connect(waylandWindow, &QNativeInterface::Private::QWaylandWindow::surfaceDestroyed, this, &DDEShellWayland::surfaceDestroyed);
+    connect(waylandWindow,
+            &QNativeInterface::Private::QWaylandWindow::surfaceCreated,
+            this,
+            &DDEShellWayland::surfaceCreated);
+    connect(waylandWindow,
+            &QNativeInterface::Private::QWaylandWindow::surfaceDestroyed,
+            this,
+            &DDEShellWayland::surfaceDestroyed);
     if (waylandWindow->surface()) {
         surfaceCreated();
     }
@@ -180,7 +187,8 @@ void DDEShellWayland::surfaceCreated()
         return;
     }
 
-    if (auto waylandWindow = m_window->nativeInterface<QNativeInterface::Private::QWaylandWindow>()) {
+    if (auto waylandWindow =
+            m_window->nativeInterface<QNativeInterface::Private::QWaylandWindow>()) {
         surface = waylandWindow->surface();
     }
 
@@ -188,7 +196,8 @@ void DDEShellWayland::surfaceCreated()
         return;
     }
 
-    m_shellSurface = std::make_unique<DDEShellSurface>(s_waylandIntegration->shellManager->get_shell_surface(surface));
+    m_shellSurface = std::make_unique<DDEShellSurface>(
+        s_waylandIntegration->shellManager->get_shell_surface(surface));
     if (m_shellSurface) {
         m_shellSurface->set_role(m_role);
 

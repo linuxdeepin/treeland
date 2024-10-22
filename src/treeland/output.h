@@ -5,11 +5,11 @@
 #include "surfacecontainer.h"
 
 #include <wglobal.h>
+#include <woutputviewport.h>
 
 #include <QMargins>
 #include <QObject>
 #include <QQmlComponent>
-#include <woutputviewport.h>
 
 Q_MOC_INCLUDE(<woutputitem.h>)
 
@@ -40,7 +40,11 @@ class Output : public SurfaceListModel
     Q_PROPERTY(WOutputViewport* screenViewport MEMBER m_outputViewport CONSTANT)
 
 public:
-    enum class Type { Primary, Proxy };
+    enum class Type
+    {
+        Primary,
+        Proxy
+    };
 
     static Output *create(WOutput *output, QQmlEngine *engine, QObject *parent = nullptr);
     static Output *createCopy(WOutput *output,
@@ -87,7 +91,7 @@ private:
     void arrangeNonLayerSurface(SurfaceWrapper *surface, const QSizeF &sizeDiff);
     void arrangeNonLayerSurfaces();
     void arrangeAllSurfaces();
-    std::pair<WOutputViewport*, QQuickItem*> getOutputItemProperty();
+    std::pair<WOutputViewport *, QQuickItem *> getOutputItemProperty();
 
     Type m_type;
     WOutputItem *m_item;

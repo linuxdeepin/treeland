@@ -330,7 +330,8 @@ void Helper::onSetCopyOutput(treeland_virtual_output_v1 *virtual_output)
         if (currentOutput == mirrorOutput)
             continue;
 
-        // When setting the primaryOutput as a copy screen, set the mirrorOutput as the home screen.
+        // When setting the primaryOutput as a copy screen, set the mirrorOutput
+        // as the home screen.
         if (m_rootSurfaceContainer->primaryOutput() == currentOutput)
             m_rootSurfaceContainer->setPrimaryOutput(mirrorOutput);
 

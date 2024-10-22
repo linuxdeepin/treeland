@@ -6,12 +6,13 @@
 #include "helper.h"
 #include "surfacewrapper.h"
 
-WorkspaceModel::WorkspaceModel(QObject *parent, int index, std::forward_list<SurfaceWrapper *> activedSurfaceHistory)
+WorkspaceModel::WorkspaceModel(QObject *parent,
+                               int index,
+                               std::forward_list<SurfaceWrapper *> activedSurfaceHistory)
     : SurfaceListModel(parent)
     , m_index(index)
     , m_activedSurfaceHistory(activedSurfaceHistory)
 {
-
 }
 
 QString WorkspaceModel::name() const

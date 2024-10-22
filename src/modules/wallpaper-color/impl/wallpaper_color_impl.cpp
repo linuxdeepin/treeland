@@ -32,7 +32,8 @@ static void wallpaper_color_manager_handle_watch([[maybe_unused]] wl_client *cli
 
     if (!manager->color_map.contains(op)) {
         qCWarning(qlcWallpapercolor)
-            << QString("Wallpaper info for output:(%1) never set, will ignore this requset!")
+            << QString("Wallpaper info for output:(%1) never set, will ignore "
+                       "this requset!")
                    .arg(op);
         return;
     }

@@ -3,12 +3,12 @@
 
 #include "ddeshelsurfacewindow.h"
 
-#include <QLabel>
-#include <QWidget>
-#include <QVBoxLayout>
 #include <QApplication>
-#include <QCommandLineParser>
 #include <QCommandLineOption>
+#include <QCommandLineParser>
+#include <QLabel>
+#include <QVBoxLayout>
+#include <QWidget>
 
 int main(int argc, char *argv[])
 {
@@ -16,8 +16,9 @@ int main(int argc, char *argv[])
     QApplication app(argc, argv);
 
     QCommandLineParser parser;
-    QCommandLineOption autoPlaceOption(QStringList{QStringLiteral("auto_place"), QStringLiteral("auto")},
-                                       ("Set the vertical alignment of the surface within the cursor width"));
+    QCommandLineOption autoPlaceOption(
+        QStringList{ QStringLiteral("auto_place"), QStringLiteral("auto") },
+        ("Set the vertical alignment of the surface within the cursor width"));
     parser.setApplicationDescription("default is TestSetPosition, add --auto is TestSetAutoPlace");
     parser.addHelpOption();
     parser.addOption(autoPlaceOption);

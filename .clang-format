@@ -38,12 +38,12 @@ BreakBeforeBraces: Custom
 BraceWrapping:
   AfterClass: true
   AfterControlStatement: false
-  AfterEnum: false
+  AfterEnum: true
   AfterFunction: true
   AfterNamespace: false
   AfterObjCDeclaration: false
   AfterStruct: true
-  AfterUnion: false
+  AfterUnion: true
   BeforeCatch: false
   BeforeElse: false
   IndentBraces: false
@@ -67,10 +67,6 @@ PPIndentWidth: 2
 # results closest to the existing code.
 AlignAfterOpenBracket: Align
 AlwaysBreakTemplateDeclarations: true
-
-# Ideally we should also allow less short function in a single line, but
-# clang-format does not handle that.
-AllowShortFunctionsOnASingleLine: Inline
 
 # As clang-format 13 can regroup includes we enable this feature.
 # basically according to https://wiki.qt.io/Coding_Conventions#Including_headers
@@ -140,6 +136,8 @@ SpaceBeforeCpp11BracedList: false
 
 AllowAllArgumentsOnNextLine: false
 AllowShortLambdasOnASingleLine: Empty
+AllowShortFunctionsOnASingleLine: Empty
+AllowAllParametersOfDeclarationOnNextLine: false
 AlignTrailingComments: true
 BinPackArguments: false
 BinPackParameters: false

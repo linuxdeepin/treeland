@@ -86,7 +86,8 @@ void TreeLandCaptureFrame::treeland_capture_frame_v1_buffer(uint32_t format,
                                                             uint32_t stride)
 {
     if (stride != width * 4) {
-        qDebug() << "Receive a buffer format which is not compatible with QWaylandShmBuffer."
+        qDebug() << "Receive a buffer format which is not compatible with "
+                    "QWaylandShmBuffer."
                  << "format:" << format << "width:" << width << "height:" << height
                  << "stride:" << stride;
         return;

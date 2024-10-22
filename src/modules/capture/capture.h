@@ -28,7 +28,8 @@ class CaptureSource : public QObject
 {
     Q_OBJECT
 public:
-    enum CaptureSourceType {
+    enum CaptureSourceType
+    {
         Output = 0x1,
         Window = 0x2,
         Region = 0x4,
@@ -84,7 +85,10 @@ class CaptureContextModel : public QAbstractListModel
 public:
     CaptureContextModel(QObject *parent = nullptr);
 
-    enum CaptureContextRole { ContextRole = Qt::UserRole + 1 };
+    enum CaptureContextRole
+    {
+        ContextRole = Qt::UserRole + 1
+    };
     Q_ENUM(CaptureContextRole)
     int rowCount(const QModelIndex &parent) const override;
     QVariant data(const QModelIndex &index, int role) const override;
@@ -115,7 +119,8 @@ public:
     CaptureSource::CaptureSourceHint sourceHint() const;
 
 public:
-    enum SourceFailure {
+    enum SourceFailure
+    {
         SelectorBusy,
         Other,
     };
@@ -154,9 +159,15 @@ class CaptureManagerV1
 public:
     explicit CaptureManagerV1(QObject *parent = nullptr);
 
-    CaptureContextModel *contextModel() const { return m_captureContextModel; }
+    CaptureContextModel *contextModel() const
+    {
+        return m_captureContextModel;
+    }
 
-    CaptureContextV1 *contextInSelection() const { return m_contextInSelection; }
+    CaptureContextV1 *contextInSelection() const
+    {
+        return m_contextInSelection;
+    }
 
     WOutputRenderWindow *outputRenderWindow() const;
     void setOutputRenderWindow(WOutputRenderWindow *renderWindow);

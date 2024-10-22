@@ -11,8 +11,9 @@
 CmdLine::CmdLine()
     : QObject()
     , m_parser(std::make_unique<QCommandLineParser>())
-    , m_socket(std::make_unique<QCommandLineOption>(
-          QStringList{ "s", "socket" }, "set ddm socket", "socket"))
+    , m_socket(std::make_unique<QCommandLineOption>(QStringList{ "s", "socket" },
+                                                    "set ddm socket",
+                                                    "socket"))
     , m_run(std::make_unique<QCommandLineOption>(QStringList{ "r", "run" }, "run a process", "run"))
     , m_lockScreen(std::make_unique<QCommandLineOption>("lockscreen",
                                                         "use lockscreen, need DDM auth socket"))

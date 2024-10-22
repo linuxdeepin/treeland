@@ -30,7 +30,12 @@ class Personalization : public QObject
 public:
     using QObject::QObject;
 
-    enum BackgroundType { Normal, Wallpaper, Blur };
+    enum BackgroundType
+    {
+        Normal,
+        Wallpaper,
+        Blur
+    };
     Q_ENUM(BackgroundType)
 
     static PersonalizationAttached *qmlAttachedProperties(QObject *target);
@@ -53,11 +58,20 @@ public:
 
     Personalization::BackgroundType backgroundType() const;
 
-    int32_t cornerRadius() const { return m_cornerRadius; }
+    int32_t cornerRadius() const
+    {
+        return m_cornerRadius;
+    }
 
-    Shadow shadow() const { return m_shadow; }
+    Shadow shadow() const
+    {
+        return m_shadow;
+    }
 
-    Border border() const { return m_border; }
+    Border border() const
+    {
+        return m_border;
+    }
 
     bool noTitlebar() const
     {

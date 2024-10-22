@@ -36,7 +36,8 @@ class RootSurfaceContainer : public SurfaceContainer
 public:
     explicit RootSurfaceContainer(QQuickItem *parent);
 
-    enum ContainerZOrder {
+    enum ContainerZOrder
+    {
         BackgroundZOrder = -2,
         BottomZOrder = -1,
         NormalZOrder = 0,

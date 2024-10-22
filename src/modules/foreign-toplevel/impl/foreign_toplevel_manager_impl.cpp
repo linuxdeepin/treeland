@@ -5,9 +5,10 @@
 
 #include "treeland-foreign-toplevel-manager-protocol.h"
 
-#include <cassert>
 #include <qwcompositor.h>
 #include <qwseat.h>
+
+#include <cassert>
 
 using QW_NAMESPACE::qw_display, QW_NAMESPACE::qw_output;
 
@@ -121,13 +122,15 @@ static void toplevel_handle_send_maximized_event(struct wl_resource *resource, b
 }
 
 static void treeland_foreign_toplevel_handle_set_maximized(
-    [[maybe_unused]] struct wl_client *client, struct wl_resource *resource)
+    [[maybe_unused]] struct wl_client *client,
+    struct wl_resource *resource)
 {
     toplevel_handle_send_maximized_event(resource, true);
 }
 
 static void treeland_foreign_toplevel_handle_unset_maximized(
-    [[maybe_unused]] struct wl_client *client, struct wl_resource *resource)
+    [[maybe_unused]] struct wl_client *client,
+    struct wl_resource *resource)
 {
     toplevel_handle_send_maximized_event(resource, false);
 }
@@ -147,13 +150,15 @@ static void treeland_toplevel_send_minimized_event(struct wl_resource *resource,
 }
 
 static void treeland_foreign_toplevel_handle_set_minimized(
-    [[maybe_unused]] struct wl_client *client, struct wl_resource *resource)
+    [[maybe_unused]] struct wl_client *client,
+    struct wl_resource *resource)
 {
     treeland_toplevel_send_minimized_event(resource, true);
 }
 
 static void treeland_foreign_toplevel_handle_unset_minimized(
-    [[maybe_unused]] struct wl_client *client, struct wl_resource *resource)
+    [[maybe_unused]] struct wl_client *client,
+    struct wl_resource *resource)
 {
     treeland_toplevel_send_minimized_event(resource, false);
 }
@@ -208,7 +213,8 @@ static void treeland_foreign_toplevel_handle_set_fullscreen(
 }
 
 static void treeland_foreign_toplevel_handle_unset_fullscreen(
-    [[maybe_unused]] struct wl_client *client, struct wl_resource *resource)
+    [[maybe_unused]] struct wl_client *client,
+    struct wl_resource *resource)
 {
     toplevel_send_fullscreen_event(resource, false, NULL);
 }
@@ -427,7 +433,8 @@ void treeland_foreign_toplevel_handle_v1::output_leave(qw_output *output)
     send_output(output, false);
 }
 
-static bool fill_array_from_toplevel_state(struct wl_array *array, treeland_foreign_toplevel_handle_v1::States state)
+static bool fill_array_from_toplevel_state(struct wl_array *array,
+                                           treeland_foreign_toplevel_handle_v1::States state)
 {
     if (state.testFlag(treeland_foreign_toplevel_handle_v1::State::Maximized)) {
         uint32_t *index = static_cast<uint32_t *>(wl_array_add(array, sizeof(uint32_t)));
@@ -664,7 +671,8 @@ static void treeland_dock_preview_context_handle_destroy([[maybe_unused]] struct
 }
 
 static struct wl_resource *create_toplevel_resource_for_resource(
-    struct treeland_foreign_toplevel_handle_v1 *toplevel, struct wl_resource *manager_resource)
+    struct treeland_foreign_toplevel_handle_v1 *toplevel,
+    struct wl_resource *manager_resource)
 {
     struct wl_client *client = wl_resource_get_client(manager_resource);
     struct wl_resource *resource =
@@ -807,7 +815,8 @@ static void treeland_foreign_toplevel_manager_resource_destroy(struct wl_resourc
 }
 
 static void toplevel_send_details_to_toplevel_resource(
-    struct treeland_foreign_toplevel_handle_v1 *toplevel, struct wl_resource *resource)
+    struct treeland_foreign_toplevel_handle_v1 *toplevel,
+    struct wl_resource *resource)
 {
     if (!toplevel->title.isEmpty()) {
         treeland_foreign_toplevel_handle_v1_send_title(resource, toplevel->title.toUtf8());

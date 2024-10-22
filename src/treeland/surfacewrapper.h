@@ -57,15 +57,18 @@ class SurfaceWrapper : public QQuickItem
     Q_PROPERTY(bool skipMutiTaskView READ skipMutiTaskView WRITE setSkipMutiTaskView NOTIFY skipMutiTaskViewChanged FINAL)
     Q_PROPERTY(bool isDdeShellSurface READ isDdeShellSurface WRITE setIsDdeShellSurface NOTIFY isDdeShellSurfaceChanged FINAL)
     Q_PROPERTY(SurfaceWrapper::SurfaceRole surfaceRole READ surfaceRole WRITE setSurfaceRole NOTIFY surfaceRoleChanged FINAL)
-    // y-axis offset distance, set the vertical alignment of the surface within the cursor width. if autoPlaceYOffset > 0,
-    // preventing SurfaceWrapper from being displayed beyond the edge of the output.
+    // y-axis offset distance, set the vertical alignment of the surface within
+    // the cursor width. if autoPlaceYOffset > 0, preventing SurfaceWrapper from
+    // being displayed beyond the edge of the output.
     Q_PROPERTY(quint32 autoPlaceYOffset READ autoPlaceYOffset WRITE setAutoPlaceYOffset NOTIFY autoPlaceYOffsetChanged FINAL)
-    // wayland client can control the position of SurfaceWrapper on the output through treeland_dde_shell_surface_v1.set_surface_position
+    // wayland client can control the position of SurfaceWrapper on the output
+    // through treeland_dde_shell_surface_v1.set_surface_position
     Q_PROPERTY(QPoint clientRequstPos READ clientRequstPos WRITE setClientRequstPos NOTIFY clientRequstPosChanged FINAL)
     Q_PROPERTY(bool blur READ blur NOTIFY blurChanged FINAL)
 
 public:
-    enum class Type {
+    enum class Type
+    {
         XdgToplevel,
         XdgPopup,
         XWayland,
@@ -74,7 +77,8 @@ public:
     };
     Q_ENUM(Type)
 
-    enum class State {
+    enum class State
+    {
         Normal,
         Maximized,
         Minimized,
@@ -83,7 +87,8 @@ public:
     };
     Q_ENUM(State)
 
-    enum class ActiveControlState : quint16 {
+    enum class ActiveControlState : quint16
+    {
         Mapped = 1,
         UnMinimized = 2,
         HasInitializeContainer = 8, // when not in Container, we can't stackToLast
@@ -92,7 +97,8 @@ public:
     Q_ENUM(ActiveControlState);
     Q_DECLARE_FLAGS(ActiveControlStates, ActiveControlState);
 
-    enum class SurfaceRole {
+    enum class SurfaceRole
+    {
         Normal,
         Overlay,
     };
@@ -366,4 +372,3 @@ private:
 };
 
 Q_DECLARE_OPERATORS_FOR_FLAGS(SurfaceWrapper::ActiveControlStates)
-

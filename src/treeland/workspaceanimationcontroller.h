@@ -35,7 +35,11 @@ public:
     void setViewportPos(qreal newViewportPos);
     uint pendingWorkspaceIndex() const;
 
-    enum Direction { Left, Right };
+    enum Direction
+    {
+        Left,
+        Right
+    };
     Q_ENUM(Direction)
 
 Q_SIGNALS:

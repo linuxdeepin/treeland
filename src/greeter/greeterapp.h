@@ -50,7 +50,10 @@ public:
     {
     }
 
-    ~GreeterExtensionPlugin() { Q_CLEANUP_RESOURCE(greeter_assets); }
+    ~GreeterExtensionPlugin()
+    {
+        Q_CLEANUP_RESOURCE(greeter_assets);
+    }
 };
 
 #endif // GREETERAPP_H

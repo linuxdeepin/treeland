@@ -22,13 +22,25 @@ public:
 
     QSGTexture *createTexture(QQuickWindow *window) const override;
 
-    QSGTexture *texture() const { return m_texture; }
+    QSGTexture *texture() const
+    {
+        return m_texture;
+    }
 
-    QSize textureSize() const override { return size; }
+    QSize textureSize() const override
+    {
+        return size;
+    }
 
-    int textureByteCount() const override { return size.width() * size.height() * 4; }
+    int textureByteCount() const override
+    {
+        return size.width() * size.height() * 4;
+    }
 
-    QImage image() const override { return im; }
+    QImage image() const override
+    {
+        return im;
+    }
 
 private:
     QImage im;

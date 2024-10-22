@@ -29,7 +29,10 @@ public:
         destroy();
     }
 
-    inline uint flags() const { return m_flags; }
+    inline uint flags() const
+    {
+        return m_flags;
+    }
 
 Q_SIGNALS:
     void ready(QImage image);
@@ -64,7 +67,10 @@ public:
         destroy();
     }
 
-    inline QRect captureRegion() const { return m_captureRegion; }
+    inline QRect captureRegion() const
+    {
+        return m_captureRegion;
+    }
 
     inline QtWayland::treeland_capture_context_v1::source_type sourceType() const
     {
@@ -110,7 +116,10 @@ public:
     {
     }
 
-    ~TreeLandCaptureManager() override { destroy(); }
+    ~TreeLandCaptureManager() override
+    {
+        destroy();
+    }
 
     QPointer<TreeLandCaptureContext> getContext();
     void releaseCaptureContext(QPointer<TreeLandCaptureContext> context);

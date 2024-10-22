@@ -10,7 +10,10 @@ class Q_DECL_HIDDEN EventItem : public QQuickItem
 public:
     explicit EventItem(QQuickItem *parent = nullptr);
 
-    inline bool isValid() const { return parent(); }
+    inline bool isValid() const
+    {
+        return parent();
+    }
 
 private:
     bool event(QEvent *event) override;
