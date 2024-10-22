@@ -375,6 +375,7 @@ void Output::arrangeNonLayerSurface(SurfaceWrapper *surface, const QSizeF &sizeD
             if (normalGeo.size().isEmpty())
                 return;
 
+            // NOTE: Xwayland's popup don't has parent
             SurfaceWrapper *parentSurfaceWrapper = surface->parentSurface();
             if (parentSurfaceWrapper) {
                 auto xdgSurface = qobject_cast<WXdgSurface *>(surface->shellSurface());

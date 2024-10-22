@@ -17,6 +17,7 @@
 #include <wxdgsurface.h>
 #include <wxwayland.h>
 #include <wxwaylandsurface.h>
+#include <wxwaylandsurfaceitem.h>
 
 #include <qwcompositor.h>
 #include <qwxwaylandsurface.h>
@@ -81,7 +82,28 @@ WXWayland *ShellHandler::createXWayland(WServer *server,
             auto wrapper = new SurfaceWrapper(Helper::instance()->qmlEngine(),
                                               surface,
                                               SurfaceWrapper::Type::XWayland);
-            m_workspace->addSurface(wrapper);
+            auto updateSurfaceWithParentContainer = [this, wrapper, surface] {
+                if (wrapper->parentSurface())
+                    wrapper->parentSurface()->removeSubSurface(wrapper);
+                if (wrapper->container())
+                    wrapper->container()->removeSurface(wrapper);
+
+                if (auto parent = surface->parentXWaylandSurface()) {
+                    auto parentWrapper = m_rootSurfaceContainer->getSurface(parent);
+                    auto container = qobject_cast<Workspace *>(parentWrapper->container());
+                    Q_ASSERT(container);
+                    parentWrapper->addSubSurface(wrapper);
+                    container->addSurface(wrapper, parentWrapper->workspaceId());
+                } else {
+                    m_workspace->addSurface(wrapper);
+                }
+            };
+
+            surface->safeConnect(&WXWaylandSurface::parentXWaylandSurfaceChanged,
+                                 this,
+                                 updateSurfaceWithParentContainer);
+            updateSurfaceWithParentContainer();
+
             Q_ASSERT(wrapper->parentItem());
             setupSurfaceWindowMenu(wrapper);
             setupSurfaceActiveWatcher(wrapper);

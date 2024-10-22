@@ -208,7 +208,7 @@ void ForeignToplevelV1::addSurface(SurfaceWrapper *wrapper)
                    "parent surface not "
                    "found!";
         };
-        connection.push_back(xwaylandSurface->safeConnect(&WXWaylandSurface::parentXWaylandSurface,
+        connection.push_back(xwaylandSurface->safeConnect(&WXWaylandSurface::parentXWaylandSurfaceChanged,
                                                           surface,
                                                           updateSurfaceParent));
         updateSurfaceParent();
