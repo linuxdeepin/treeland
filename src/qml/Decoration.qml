@@ -13,10 +13,10 @@ Item {
     readonly property SurfaceItem surfaceItem: surface.surfaceItem
 
     visible: surface && surface.visibleDecoration
-    x: surface.boundingRect.x
-    y: surface.boundingRect.y
-    width: surface.boundingRect.width
-    height: surface.boundingRect.height
+    x: shadow.boundingRect.x
+    y: shadow.boundingRect.y
+    width: shadow.boundingRect.width
+    height: shadow.boundingRect.height
 
     MouseArea {
         property int edges: 0
@@ -64,7 +64,10 @@ Item {
 
     XdgShadow {
         id: shadow
+        width: surface.width
+        height: surface.height
         cornerRadius: surface.radius
+        anchors.centerIn: parent
     }
 
     Border {
