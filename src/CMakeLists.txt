@@ -134,8 +134,8 @@ qt_add_qml_module(${BIN_NAME}
         qml/SwitchViewHighlightDelegate.qml
         qml/DockPreview.qml
         qml/MultitaskviewProxy.qml
-        qml/SurfaceGridProxy.qml
-        qml/WorkspaceThumbDelegate.qml
+        qml/WindowSelectionGrid.qml
+        qml/WorkspaceSelectionList.qml
         qml/FadeBehavior.qml
     RESOURCE_PREFIX
         /qt/qml
