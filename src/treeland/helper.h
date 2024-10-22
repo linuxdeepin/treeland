@@ -160,6 +160,8 @@ public:
     QString cursorTheme() const;
     QSize cursorSize() const;
 
+    Q_INVOKABLE bool isLaunchpad(WLayerSurface *surface) const;
+
 public Q_SLOTS:
     void activateSurface(SurfaceWrapper *wrapper, Qt::FocusReason reason = Qt::OtherFocusReason);
     void forceActivateSurface(SurfaceWrapper *wrapper,

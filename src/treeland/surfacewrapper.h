@@ -65,6 +65,8 @@ class SurfaceWrapper : public QQuickItem
     // through treeland_dde_shell_surface_v1.set_surface_position
     Q_PROPERTY(QPoint clientRequstPos READ clientRequstPos WRITE setClientRequstPos NOTIFY clientRequstPosChanged FINAL)
     Q_PROPERTY(bool blur READ blur NOTIFY blurChanged FINAL)
+    Q_PROPERTY(bool isWindowAnimationRunning READ isWindowAnimationRunning NOTIFY windowAnimationRunningChanged FINAL)
+    Q_PROPERTY(bool coverEnabled READ coverEnabled WRITE setCoverEnabled NOTIFY coverEnabledChanged FINAL)
 
 public:
     enum class Type
@@ -155,7 +157,7 @@ public:
     bool isMinimized() const;
     bool isTiling() const;
     bool isAnimationRunning() const;
-    bool isCloseAnimationRunning() const;
+    bool isWindowAnimationRunning() const;
     void setRemoveWrapper(bool remove);
 
     qreal radius() const;
@@ -221,8 +223,12 @@ public:
 
     QPoint clientRequstPos() const;
     void setClientRequstPos(QPoint pos);
+
     bool blur() const;
     void setBlur(bool blur);
+
+    bool coverEnabled() const;
+    void setCoverEnabled(bool enabled);
 
 public Q_SLOTS:
     // for titlebar
@@ -275,6 +281,8 @@ Q_SIGNALS:
     void autoPlaceYOffsetChanged();
     void clientRequstPosChanged();
     void blurChanged();
+    void windowAnimationRunningChanged();
+    void coverEnabledChanged();
 
 private:
     using QQuickItem::setParentItem;
@@ -299,7 +307,7 @@ private:
     Q_SLOT void onAnimationReady();
     Q_SLOT void onAnimationFinished();
     bool startStateChangeAnimation(SurfaceWrapper::State targetState, const QRectF &targetGeometry);
-    Q_SLOT void onNewAnimationFinished();
+    Q_SLOT void onWindowAnimationFinished();
     void updateExplicitAlwaysOnTop();
     void startMinimizeAnimation(const QRectF &iconGeometry, uint direction);
     Q_SLOT void onMinimizeAnimationFinished();
@@ -318,6 +326,7 @@ private:
     QPointer<QQuickItem> m_decoration;
     QPointer<QQuickItem> m_blurContent;
     QPointer<QQuickItem> m_geometryAnimation;
+    QPointer<QQuickItem> m_coverContent;
     QRectF m_boundedRect;
     QRectF m_normalGeometry;
     QRectF m_maximizedGeometry;
@@ -328,7 +337,7 @@ private:
     QPointF m_positionInOwnsOutput;
     SurfaceWrapper::State m_pendingState;
     QRectF m_pendingGeometry;
-    QPointer<QQuickItem> m_newAnimation;
+    QPointer<QQuickItem> m_windowAnimation;
     QPointer<QQuickItem> m_minimizeAnimation;
     QPointer<QQuickItem> m_showAnimation;
     Q_OBJECT_BINDABLE_PROPERTY_WITH_ARGS(SurfaceWrapper,

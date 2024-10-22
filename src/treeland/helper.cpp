@@ -53,6 +53,7 @@
 #include <qwdisplay.h>
 #include <qwfractionalscalemanagerv1.h>
 #include <qwgammacontorlv1.h>
+#include <qwlayershellv1.h>
 #include <qwlogging.h>
 #include <qwoutput.h>
 #include <qwrenderer.h>
@@ -1245,6 +1246,17 @@ QString Helper::cursorTheme() const
 QSize Helper::cursorSize() const
 {
     return TreelandConfig::ref().cursorSize();
+}
+
+bool Helper::isLaunchpad(WLayerSurface *surface) const
+{
+    if (!surface) {
+        return false;
+    }
+
+    auto scope = QString(surface->handle()->handle()->scope);
+
+    return scope == "dde-shell/launchpad";
 }
 
 void Helper::seatSendStartDrag(WSeat *seat)

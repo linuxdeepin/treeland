@@ -9,6 +9,7 @@
 #include "workspace.h"
 
 #include <winputpopupsurfaceitem.h>
+#include <wlayersurface.h>
 #include <wlayersurfaceitem.h>
 #include <woutput.h>
 #include <woutputitem.h>
@@ -16,6 +17,8 @@
 #include <wxdgsurfaceitem.h>
 #include <wxwaylandsurface.h>
 #include <wxwaylandsurfaceitem.h>
+
+#include <qwlayershellv1.h>
 
 #define OPEN_ANIMATION 1
 #define CLOSE_ANIMATION 2
@@ -124,6 +127,12 @@ SurfaceWrapper::~SurfaceWrapper()
         delete m_decoration;
     if (m_geometryAnimation)
         delete m_geometryAnimation;
+    if (m_blurContent)
+        delete m_blurContent;
+    if (m_windowAnimation)
+        delete m_windowAnimation;
+    if (m_coverContent)
+        delete m_coverContent;
 
     if (m_ownsOutput) {
         m_ownsOutput->removeSurface(this);
@@ -435,9 +444,9 @@ bool SurfaceWrapper::isAnimationRunning() const
     return m_geometryAnimation;
 }
 
-bool SurfaceWrapper::isCloseAnimationRunning() const
+bool SurfaceWrapper::isWindowAnimationRunning() const
 {
-    return m_newAnimation;
+    return !m_windowAnimation.isNull();
 }
 
 void SurfaceWrapper::setRemoveWrapper(bool remove)
@@ -565,21 +574,42 @@ void SurfaceWrapper::geometryChange(const QRectF &newGeo, const QRectF &oldGeome
 
 void SurfaceWrapper::createNewOrClose(uint direction)
 {
-    if (m_newAnimation)
-        return;
-
-    if (m_type != Type::XdgToplevel && m_type != Type::XWayland)
+    if (m_windowAnimation)
         return;
 
     if (m_container.isNull())
         return;
 
-    m_newAnimation = m_engine->createNewAnimation(this, container(), direction);
+    switch (m_type) {
+    case Type::XdgToplevel:
+    case Type::XWayland:
+    case Type::XdgPopup: {
+        m_windowAnimation = m_engine->createNewAnimation(this, container(), direction);
 
-    bool ok = connect(m_newAnimation, SIGNAL(finished()), this, SLOT(onNewAnimationFinished()));
-    Q_ASSERT(ok);
-    ok = QMetaObject::invokeMethod(m_newAnimation, "start");
-    Q_ASSERT(ok);
+    } break;
+    case Type::Layer: {
+        auto scope = QString(static_cast<WLayerSurfaceItem *>(m_surfaceItem)
+                                 ->layerSurface()
+                                 ->handle()
+                                 ->handle()
+                                 ->scope);
+        if (scope == "dde-shell/launchpad") {
+            m_windowAnimation = m_engine->createLaunchpadAnimation(this, direction, m_container);
+        }
+    }; break;
+    default:
+        break;
+    }
+
+    if (m_windowAnimation) {
+        bool ok =
+            connect(m_windowAnimation, SIGNAL(finished()), this, SLOT(onWindowAnimationFinished()));
+        Q_ASSERT(ok);
+        ok = QMetaObject::invokeMethod(m_windowAnimation, "start");
+        Q_ASSERT(ok);
+
+        Q_EMIT windowAnimationRunningChanged();
+    }
 }
 
 void SurfaceWrapper::doSetSurfaceState(State newSurfaceState)
@@ -673,10 +703,13 @@ bool SurfaceWrapper::startStateChangeAnimation(State targetState, const QRectF &
     return ok;
 }
 
-void SurfaceWrapper::onNewAnimationFinished()
+void SurfaceWrapper::onWindowAnimationFinished()
 {
-    Q_ASSERT(m_newAnimation);
-    m_newAnimation->deleteLater();
+    Q_ASSERT(m_windowAnimation);
+    m_windowAnimation->deleteLater();
+    m_windowAnimation = nullptr;
+
+    Q_EMIT windowAnimationRunningChanged();
 
     if (m_removeWrapperEndOfAnimation) {
         m_removeWrapperEndOfAnimation = false;
@@ -690,6 +723,15 @@ void SurfaceWrapper::onMappedChanged()
         createNewOrClose(OPEN_ANIMATION);
     } else {
         createNewOrClose(CLOSE_ANIMATION);
+    }
+
+    if (m_blurContent) {
+        m_blurContent->setVisible(surface()->mapped());
+    }
+
+    if (m_coverContent) {
+        m_coverContent->setVisible(surface()->mapped());
+        m_coverContent->setProperty("mapped", surface()->mapped());
     }
 
     updateHasActiveCapability(ActiveControlState::Mapped, surface()->mapped());
@@ -1136,9 +1178,29 @@ void SurfaceWrapper::setBlur(bool blur)
     } else if (!blur && m_blurContent) {
         m_blurContent->setVisible(false);
         m_blurContent->deleteLater();
+        m_blurContent = nullptr;
     }
 
     Q_EMIT blurChanged();
+}
+
+bool SurfaceWrapper::coverEnabled() const
+{
+    return m_coverContent;
+}
+
+void SurfaceWrapper::setCoverEnabled(bool coverEnabled)
+{
+    if (m_coverContent && !coverEnabled) {
+        m_coverContent->setVisible(false);
+        m_coverContent->deleteLater();
+        m_coverContent = nullptr;
+    } else if (coverEnabled && !m_coverContent) {
+        m_coverContent = m_engine->createLaunchpadCover(this, m_ownsOutput, container());
+        m_coverContent->setVisible(isVisible());
+    }
+
+    Q_EMIT coverEnabledChanged();
 }
 
 void SurfaceWrapper::updateExplicitAlwaysOnTop()

@@ -350,10 +350,14 @@ PersonalizationAttached::PersonalizationAttached(WToplevelSurface *target,
     , m_target(target)
     , m_manager(manager)
 {
-    auto update = [this] {
-        auto *context = m_manager->getWindowContext(m_target->surface());
+    connect(target, &WToplevelSurface::aboutToBeInvalidated, this, [this] {
+        disconnect(m_connection);
+    });
 
-        if (!context) {
+    auto update = [this](personalization_window_context_v1 *context) {
+        assert(context);
+
+        if (WSurface::fromHandle(context->surface) != m_target->surface()) {
             return;
         }
 
@@ -399,17 +403,18 @@ PersonalizationAttached::PersonalizationAttached(WToplevelSurface *target,
         m_states = context->states;
     };
 
-    // TODO: disconnect
     m_connection = connect(m_manager, &PersonalizationV1::windowContextCreated, this, update);
 
-    update();
+    if (auto *context = m_manager->getWindowContext(m_target->surface())) {
+        update(context);
+    }
 }
 
 Personalization::BackgroundType PersonalizationAttached::backgroundType() const
 {
     if (auto *target = qobject_cast<WLayerSurface *>(m_target)) {
         auto scope = QString(target->handle()->handle()->scope);
-        QStringList forceList{ "dde-shell/dock", "dde-shell/launchpad" };
+        QStringList forceList{ "dde-shell/dock" };
         if (forceList.contains(scope)) {
             return Personalization::Blur;
         }
