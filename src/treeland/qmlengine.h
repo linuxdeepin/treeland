@@ -30,6 +30,9 @@ class QmlEngine : public QQmlApplicationEngine
 public:
     explicit QmlEngine(QObject *parent = nullptr);
 
+    QQuickItem *createComponent(QQmlComponent &component,
+                                QQuickItem *parent,
+                                const QVariantMap &properties = QVariantMap());
     QQuickItem *createTitleBar(SurfaceWrapper *surface, QQuickItem *parent);
     QQuickItem *createDecoration(SurfaceWrapper *surface, QQuickItem *parent);
     QObject *createWindowMenu(QObject *parent);
@@ -50,7 +53,7 @@ public:
                                         QQuickItem *parent,
                                         const QRectF &iconGeometry,
                                         uint direction);
-    QQuickItem *createDockPreview(QObject *parent);
+    QQuickItem *createDockPreview(QQuickItem *parent);
     QQuickItem *createShowDesktopAnimation(SurfaceWrapper *surface, QQuickItem *parent, bool show);
     QQuickItem *createMultitaskview(QQuickItem *parent);
 
