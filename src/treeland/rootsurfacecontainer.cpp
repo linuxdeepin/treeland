@@ -101,6 +101,7 @@ void RootSurfaceContainer::destroyForSurface(SurfaceWrapper *wrapper)
         delete wrapper;
     } else {
         wrapper->setRemoveWrapper(true);
+        wrapper->container()->removeSurface(wrapper);
     }
 }
 

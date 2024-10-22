@@ -126,6 +126,9 @@ SurfaceContainer::SurfaceContainer(QQuickItem *parent)
 SurfaceContainer::SurfaceContainer(SurfaceContainer *parent)
     : SurfaceContainer(static_cast<QQuickItem *>(parent))
 {
+    if (QQmlEngine *engine = qmlEngine(parent)) {
+        parent->setQmlEngine(engine);
+    }
 }
 
 SurfaceContainer::~SurfaceContainer()
