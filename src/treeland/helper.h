@@ -8,6 +8,7 @@
 #include "togglablegesture.h"
 #include "virtualoutputmanager.h"
 #include "windowmanagement.h"
+#include "multitaskview.h"
 
 #include <wglobal.h>
 #include <wqmlcreator.h>
@@ -222,7 +223,7 @@ private:
                           QObject *,
                           QInputEvent *event) override;
     bool unacceptedEvent(WSeat *, QWindow *, QInputEvent *event) override;
-    void toggleMultitaskview();
+    void toggleMultitaskview(Multitaskview::ActiveReason reason);
     void handleLeftButtonStateChanged(const QInputEvent *event);
     void handleWhellValueChanged(const QInputEvent *event);
     bool doGesture(QInputEvent *event);

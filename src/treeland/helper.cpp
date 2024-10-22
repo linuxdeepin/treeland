@@ -8,7 +8,6 @@
 #include "inputdevice.h"
 #include "layersurfacecontainer.h"
 #include "lockscreen.h"
-#include "multitaskview.h"
 #include "output.h"
 #include "outputmanagement.h"
 #include "personalizationmanager.h"
@@ -80,6 +79,8 @@ Helper::Helper(QObject *parent)
     , m_server(new WServer(this))
     , m_rootSurfaceContainer(new RootSurfaceContainer(m_renderWindow->contentItem()))
     , m_lockScreen(new LockScreen(m_rootSurfaceContainer))
+    , m_windowGesture(new TogglableGesture(this))
+    , m_multiTaskViewGesture(new TogglableGesture(this))
 {
     setCurrentUserId(getuid());
 
@@ -102,6 +103,39 @@ Helper::Helper(QObject *parent)
     connect(m_renderWindow, &QQuickWindow::activeFocusItemChanged, this, [this]() {
         auto wrapper = keyboardFocusSurface();
         m_seat->setKeyboardFocusSurface(wrapper ? wrapper->surface() : nullptr);
+    });
+
+    connect(m_multiTaskViewGesture, &TogglableGesture::statusChanged, this, [this](TogglableGesture::Status status){
+        if (status == TogglableGesture::Activating ||
+            status == TogglableGesture::Deactivating ||
+            status == TogglableGesture::Active) {
+            toggleMultitaskview(Multitaskview::Gesture);
+        } else {
+            m_multitaskview->exit(nullptr);
+            m_currentMode = CurrentMode::Normal;
+        }
+    });
+
+    connect(m_multiTaskViewGesture, &TogglableGesture::partialGestureFactorChanged, this, [this](qreal factor){
+        if (m_multitaskview &&
+            m_multitaskview->isVisible() &&
+            m_multitaskview->activeReason() ) {
+            m_multitaskview->setTaskviewVal(factor);
+        }
+    });
+
+    connect(m_windowGesture, &TogglableGesture::activated, this, [this](){
+        auto surface = Helper::instance()->activatedSurface();
+        if (surface && !surface->isMaximized()) {
+            surface->requestMaximize();
+        }
+    });
+
+    connect(m_windowGesture, &TogglableGesture::deactivated, this, [this](){
+        auto surface = Helper::instance()->activatedSurface();
+        if (surface && surface->isMaximized()) {
+            surface->requestCancelMaximize();
+        }
     });
 
     connect(&TreelandConfig::ref(),
@@ -450,6 +484,7 @@ void Helper::init()
             if (m_multiTaskViewGesture) {
                 m_multiTaskViewGesture->addTouchpadSwipeGesture(SwipeGesture::Up, 4);
                 m_multiTaskViewGesture->addTouchpadSwipeGesture(SwipeGesture::Right, 4);
+
             }
         }
     });
@@ -699,7 +734,17 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *, QInputEvent *event)
                 workspace()->switchToPrev();
                 return true;
             } else if (kevent->key() == Qt::Key_S) {
-                toggleMultitaskview();
+                if (!m_multitaskview) {
+                    toggleMultitaskview(Multitaskview::ShortcutKey);
+                } else {
+                    if (m_multitaskview->status() == Multitaskview::Exited) {
+                        m_multitaskview->enter(Multitaskview::ShortcutKey);
+                        m_currentMode = CurrentMode::Multitaskview;
+                    } else {
+                        m_multitaskview->exit(nullptr);
+                        m_currentMode = CurrentMode::Normal;
+                    }
+                }
                 return true;
             } else if (kevent->key() == Qt::Key_L) {
                 for (auto &&output : m_rootSurfaceContainer->outputs()) {
@@ -970,7 +1015,7 @@ Output *Helper::createCopyOutput(WOutput *output, Output *proxy)
     return Output::createCopy(output, proxy, qmlEngine(), this);
 }
 
-void Helper::toggleMultitaskview()
+void Helper::toggleMultitaskview(Multitaskview::ActiveReason reason)
 {
     if (!m_multitaskview) {
         toggleOutputMenuBar(false);
@@ -984,14 +1029,8 @@ void Helper::toggleMultitaskview()
                 workspace()->setSwitcherEnabled(true);
             }
         });
-        m_multitaskview->enter(Multitaskview::ShortcutKey);
+        m_multitaskview->enter(reason);
         m_currentMode = CurrentMode::Multitaskview;
-    } else if (m_multitaskview && m_multitaskview->status() == Multitaskview::Exited) {
-        m_multitaskview->enter(Multitaskview::ShortcutKey);
-        m_currentMode = CurrentMode::Multitaskview;
-    } else {
-        m_multitaskview->exit(nullptr);
-        m_currentMode = CurrentMode::Normal;
     }
 }
 
