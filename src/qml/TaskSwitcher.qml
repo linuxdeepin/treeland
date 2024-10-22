@@ -195,6 +195,8 @@ Item {
                 property bool enableDelegateBorders: root.enableBorders
                 property bool enableDelegateShadows: root.enableShadows
                 property bool enableDelegateAnimation: root.enableAnimation
+                property bool enableDelegateRadius: root.enableRadius
+
 
                 orientation: ListView.Horizontal
                 clip: true
