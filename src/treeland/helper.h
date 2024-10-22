@@ -195,6 +195,8 @@ private Q_SLOTS:
     void onShowDesktop();
     void onSetCopyOutput(treeland_virtual_output_v1 *virtual_output);
     void onRestoreCopyOutput(treeland_virtual_output_v1 *virtual_output);
+    void onSurfaceWrapperAdded(SurfaceWrapper *wrapper);
+    void onSurfaceWrapperAboutToRemove(SurfaceWrapper *wrapper);
 
 private:
     void allowNonDrmOutputAutoChangeMode(WOutput *output);
