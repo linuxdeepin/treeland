@@ -22,7 +22,7 @@ Menu {
     }
 
     MenuItem {
-        text: surface.surfaceState === SurfaceWrapper.State.Maximized ? qsTr("Unmaximize") : qsTr("Maximize")
+        text: surface?.surfaceState === SurfaceWrapper.State.Maximized ? qsTr("Unmaximize") : qsTr("Maximize")
         onTriggered: surface.requestToggleMaximize()
     }
 
@@ -37,12 +37,12 @@ Menu {
     }
 
     MenuItem {
-        text: surface.alwaysOnTop ? qsTr("Not always on Top") : qsTr("Always on Top")
+        text: surface?.alwaysOnTop ? qsTr("Not always on Top") : qsTr("Always on Top")
         onTriggered: surface.alwaysOnTop = !surface.alwaysOnTop;
     }
 
     MenuItem {
-        text: surface.showOnAllWorkspace ? qsTr("Only on Current Workspace") : qsTr("Always on Visible Workspace")
+        text: surface?.showOnAllWorkspace ? qsTr("Only on Current Workspace") : qsTr("Always on Visible Workspace")
         onTriggered: {
             if (surface.showOnAllWorkspace) {
                 // Move to current workspace
@@ -56,13 +56,13 @@ Menu {
 
     MenuItem {
         text: qsTr("Move to Left Work Space")
-        enabled: surface.workspaceId !== 0 && !surface.showOnAllWorkspace
+        enabled: surface?.workspaceId !== 0 && !surface?.showOnAllWorkspace
         onTriggered: Helper.workspace.moveSurfaceTo(surface, surface.workspaceId - 1)
     }
 
     MenuItem {
         text: qsTr("Move to Right Work Space")
-        enabled: surface.workspaceId !== Helper.workspace.count - 1 && !surface.showOnAllWorkspace
+        enabled: surface?.workspaceId !== Helper.workspace.count - 1 && !surface?.showOnAllWorkspace
         onTriggered: Helper.workspace.moveSurfaceTo(surface, surface.workspaceId + 1)
     }
 
