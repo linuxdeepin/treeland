@@ -57,36 +57,40 @@ void SurfaceProxy::setSurface(SurfaceWrapper *newSurface)
             Q_ASSERT(m_proxySurface);
             setSurface(nullptr);
         });
-        m_sourceConnections << connect(m_sourceSurface->surfaceItem(), &WSurfaceItem::delegateChanged, this, [this] {
-            Q_ASSERT(m_proxySurface);
-            auto sender = m_sourceSurface->surfaceItem();
-            m_proxySurface->surfaceItem()->setDelegate(sender->delegate());
-        });
+        m_sourceConnections << connect(m_sourceSurface->surfaceItem(),
+                                       &WSurfaceItem::delegateChanged,
+                                       this,
+                                       [this] {
+                                           Q_ASSERT(m_proxySurface);
+                                           auto sender = m_sourceSurface->surfaceItem();
+                                           m_proxySurface->surfaceItem()->setDelegate(
+                                               sender->delegate());
+                                       });
         m_sourceConnections << connect(m_sourceSurface,
-                &SurfaceWrapper::noTitleBarChanged,
-                this,
-                &SurfaceProxy::updateProxySurfaceTitleBarAndDecoration);
+                                       &SurfaceWrapper::noTitleBarChanged,
+                                       this,
+                                       &SurfaceProxy::updateProxySurfaceTitleBarAndDecoration);
         m_sourceConnections << connect(m_sourceSurface,
-                &SurfaceWrapper::radiusChanged,
-                this,
-                &SurfaceProxy::onSourceRadiusChanged);
+                                       &SurfaceWrapper::radiusChanged,
+                                       this,
+                                       &SurfaceProxy::onSourceRadiusChanged);
         m_sourceConnections << connect(m_sourceSurface,
-                &SurfaceWrapper::noDecorationChanged,
-                this,
-                &SurfaceProxy::updateProxySurfaceTitleBarAndDecoration);
+                                       &SurfaceWrapper::noDecorationChanged,
+                                       this,
+                                       &SurfaceProxy::updateProxySurfaceTitleBarAndDecoration);
         m_sourceConnections << connect(m_sourceSurface,
-                &SurfaceWrapper::noCornerRadiusChanged,
-                this,
-                &SurfaceProxy::updateProxySurfaceTitleBarAndDecoration);
+                                       &SurfaceWrapper::noCornerRadiusChanged,
+                                       this,
+                                       &SurfaceProxy::updateProxySurfaceTitleBarAndDecoration);
 
         m_sourceConnections << connect(m_proxySurface,
-                &SurfaceWrapper::widthChanged,
-                this,
-                &SurfaceProxy::updateImplicitSize);
+                                       &SurfaceWrapper::widthChanged,
+                                       this,
+                                       &SurfaceProxy::updateImplicitSize);
         m_sourceConnections << connect(m_proxySurface,
-                &SurfaceWrapper::heightChanged,
-                this,
-                &SurfaceProxy::updateImplicitSize);
+                                       &SurfaceWrapper::heightChanged,
+                                       this,
+                                       &SurfaceProxy::updateImplicitSize);
 
         updateImplicitSize();
         updateProxySurfaceScale();

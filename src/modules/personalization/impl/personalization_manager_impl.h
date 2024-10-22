@@ -59,7 +59,8 @@ public:
     Shadow shadow;
     Border border;
 
-    enum WindowState {
+    enum WindowState
+    {
         NoTitleBar = 1,
     };
     Q_ENUM(WindowState)

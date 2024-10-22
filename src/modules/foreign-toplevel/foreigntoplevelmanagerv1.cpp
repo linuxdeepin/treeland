@@ -175,7 +175,8 @@ void ForeignToplevelV1::addSurface(SurfaceWrapper *wrapper)
             }
             qCCritical(qLcTreelandForeignToplevel)
                 << "Xdg toplevel surface " << xdgSurface
-                << "has set parent surface, but foreign_toplevel_handle for parent surface not "
+                << "has set parent surface, but foreign_toplevel_handle for "
+                   "parent surface not "
                    "found!";
         };
         connection.push_back(xdgSurface->safeConnect(&WXdgSurface::parentXdgSurfaceChanged,
@@ -203,7 +204,8 @@ void ForeignToplevelV1::addSurface(SurfaceWrapper *wrapper)
             }
             qCCritical(qLcTreelandForeignToplevel)
                 << "X11 surface " << xwaylandSurface
-                << "has set parent surface, but foreign_toplevel_handle for parent surface not "
+                << "has set parent surface, but foreign_toplevel_handle for "
+                   "parent surface not "
                    "found!";
         };
         connection.push_back(xwaylandSurface->safeConnect(&WXWaylandSurface::parentXWaylandSurface,
@@ -212,7 +214,8 @@ void ForeignToplevelV1::addSurface(SurfaceWrapper *wrapper)
         updateSurfaceParent();
     } else {
         qCFatal(qLcTreelandForeignToplevel)
-            << "TreelandForeignToplevelManager only support WXdgSurface or WXWaylandSurface";
+            << "TreelandForeignToplevelManager only support WXdgSurface or "
+               "WXWaylandSurface";
     }
 
     handle->set_identifier(

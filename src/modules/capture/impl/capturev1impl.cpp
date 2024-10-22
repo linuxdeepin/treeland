@@ -176,8 +176,11 @@ void treeland_capture_manager_bind(wl_client *client, void *data, uint32_t versi
 
 treeland_capture_manager_v1::treeland_capture_manager_v1(wl_display *display, QObject *parent)
     : QObject(parent)
-    , global(wl_global_create(
-          display, &treeland_capture_manager_v1_interface, 1, this, treeland_capture_manager_bind))
+    , global(wl_global_create(display,
+                              &treeland_capture_manager_v1_interface,
+                              1,
+                              this,
+                              treeland_capture_manager_bind))
 {
 }
 

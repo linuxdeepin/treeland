@@ -15,7 +15,14 @@ class TogglableGesture : public QObject
     Q_PROPERTY(Status status READ status WRITE setStatus NOTIFY statusChanged FINAL)
     Q_PROPERTY(qreal desktopOffset READ desktopOffset NOTIFY desktopOffsetChanged)
 public:
-    enum Status { Inactive, Activating, Deactivating, Active, Stopped };
+    enum Status
+    {
+        Inactive,
+        Activating,
+        Deactivating,
+        Active,
+        Stopped
+    };
 
     Q_ENUM(Status);
 
@@ -27,11 +34,17 @@ public:
 
     void setPartialGestureFactor(qreal factor);
 
-    qreal partialGestureFactor() const { return m_partialGestureFactor; }
+    qreal partialGestureFactor() const
+    {
+        return m_partialGestureFactor;
+    }
 
     void setStatus(Status status);
 
-    Status status() const { return m_status; }
+    Status status() const
+    {
+        return m_status;
+    }
 
     void activate();
     void deactivate();
@@ -41,7 +54,10 @@ public:
 
     void setDesktopOffset(qreal offset);
 
-    qreal desktopOffset() const { return m_desktopOffset; }
+    qreal desktopOffset() const
+    {
+        return m_desktopOffset;
+    }
 
     void addTouchpadSwipeGesture(SwipeGesture::Direction direction, uint fingerCount);
 Q_SIGNALS:

@@ -41,7 +41,8 @@ class UserModel : public QAbstractListModel
     Q_PROPERTY(bool containsAllUsers READ containsAllUsers CONSTANT)
     QML_ELEMENT
 public:
-    enum UserRoles {
+    enum UserRoles
+    {
         NameRole = Qt::UserRole + 1,
         RealNameRole,
         HomeDirRole,

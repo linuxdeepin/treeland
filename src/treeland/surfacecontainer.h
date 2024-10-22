@@ -57,7 +57,10 @@ public:
         return Qt::ItemIsSelectable | Qt::ItemIsEnabled;
     }
 
-    QHash<int, QByteArray> roleNames() const override { return { { Qt::DisplayRole, m_name } }; }
+    QHash<int, QByteArray> roleNames() const override
+    {
+        return { { Qt::DisplayRole, m_name } };
+    }
 
     bool addObject(T *object)
     {
@@ -81,9 +84,15 @@ public:
         return true;
     }
 
-    bool hasObject(T *object) const { return m_objects.contains(object); }
+    bool hasObject(T *object) const
+    {
+        return m_objects.contains(object);
+    }
 
-    const QList<T *> &objects() const { return m_objects; }
+    const QList<T *> &objects() const
+    {
+        return m_objects;
+    }
 
 protected:
     QByteArray m_name;
@@ -114,9 +123,15 @@ public:
     QMap<int, QVariant> itemData(const QModelIndex &index) const override;
     QVariant data(const QModelIndex &index, int role) const override;
 
-    Q_INVOKABLE inline const QList<SurfaceWrapper *> &surfaces() const { return objects(); }
+    Q_INVOKABLE inline const QList<SurfaceWrapper *> &surfaces() const
+    {
+        return objects();
+    }
 
-    inline bool hasSurface(SurfaceWrapper *surface) const { return hasObject(surface); }
+    inline bool hasSurface(SurfaceWrapper *surface) const
+    {
+        return hasObject(surface);
+    }
 
 Q_SIGNALS:
     void surfaceAdded(SurfaceWrapper *surface);
@@ -203,9 +218,15 @@ public:
     virtual void addOutput(Output *output);
     virtual void removeOutput(Output *output);
 
-    const QList<SurfaceWrapper *> &surfaces() const { return m_model->surfaces(); }
+    const QList<SurfaceWrapper *> &surfaces() const
+    {
+        return m_model->surfaces();
+    }
 
-    SurfaceListModel *model() const { return m_model; }
+    SurfaceListModel *model() const
+    {
+        return m_model;
+    }
 
 Q_SIGNALS:
     void surfaceAdded(SurfaceWrapper *surface);

@@ -53,7 +53,8 @@ int main(int argc, char *argv[])
         if (manager.isActive()) {
             QWidget *widget = new QWidget;
             widget->setAttribute(Qt::WA_TranslucentBackground);
-            // widget->setWindowFlags(Qt::FramelessWindowHint); // 可选，去除窗口边框
+            // widget->setWindowFlags(Qt::FramelessWindowHint); //
+            // 可选，去除窗口边框
             widget->resize(640, 480);
 
             QPushButton *button = new QPushButton("Change background", widget);

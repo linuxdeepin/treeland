@@ -75,7 +75,8 @@ struct treeland_foreign_toplevel_handle_v1 : public QObject
 {
     Q_OBJECT
 public:
-    enum class State {
+    enum class State
+    {
         Maximized = 1,
         Minimized = 2,
         Activated = 4,
@@ -96,7 +97,7 @@ public:
 
     treeland_foreign_toplevel_handle_v1 *parent{ nullptr };
     QList<treeland_foreign_toplevel_handle_v1_output>
-        outputs;    // treeland_foreign_toplevel_v1_output.link
+        outputs; // treeland_foreign_toplevel_v1_output.link
     States state;
 
     void set_title(const QString &title);

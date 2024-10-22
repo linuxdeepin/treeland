@@ -15,7 +15,8 @@ class WallpaperColorManager
 public:
     explicit WallpaperColorManager();
 
-    void treeland_wallpaper_color_manager_v1_output_color(const QString &output, uint32_t isdark) override
+    void treeland_wallpaper_color_manager_v1_output_color(const QString &output,
+                                                          uint32_t isdark) override
     {
         qInfo() << "Output(" << output << ") wallpaper is dark type: " << isdark;
     }

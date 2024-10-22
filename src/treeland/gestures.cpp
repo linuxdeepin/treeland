@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "gestures.h"
-#include <QRect>
+
 #include <QLoggingCategory>
+#include <QRect>
 
 // The minimum delta required to recognize a swipe gesture
 #define SWIPE_MINIMUM_DELTA 5
@@ -248,7 +249,7 @@ void GestureRecognizer::updateSwipeGesture(const QPointF &delta)
         return;
     }
 
-           // Eliminating wrong gestures requires two iterations
+    // Eliminating wrong gestures requires two iterations
     for (int i = 0; i < 2; i++) {
         if (m_activeSwipeGestures.isEmpty()) {
             startSwipeGesture(m_currentFingerCount);

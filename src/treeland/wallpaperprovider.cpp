@@ -37,7 +37,10 @@ struct WallpaperData
         };
     }
 
-    QString toString() { return uid + "/" + output + "/" + workspace; }
+    QString toString()
+    {
+        return uid + "/" + output + "/" + workspace;
+    }
 };
 
 WallpaperTextureFactory::WallpaperTextureFactory(WallpaperImageProvider *provider,

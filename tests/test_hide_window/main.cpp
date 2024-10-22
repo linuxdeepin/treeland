@@ -27,7 +27,10 @@ private Q_SLOTS:
         QTimer::singleShot(3000, this, &MainWindow::showWindow);
     }
 
-    void showWindow() { this->show(); }
+    void showWindow()
+    {
+        this->show();
+    }
 };
 
 int main(int argc, char **argv)

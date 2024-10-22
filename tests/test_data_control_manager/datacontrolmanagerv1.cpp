@@ -119,8 +119,8 @@ void DataControlOfferV1::zwlr_data_control_offer_v1_offer(const QString &mime_ty
     m_receivedFormats << mime_type;
 
     QVariant data = retrieveData(mime_type);
-    qWarning() << "------------------- offer changed---" << "type:=" << mime_type
-               << "data:= " << data;
+    qWarning() << "------------------- offer changed---"
+               << "type:=" << mime_type << "data:= " << data;
 }
 
 QVariant DataControlOfferV1::retrieveData(const QString &mimeType) const

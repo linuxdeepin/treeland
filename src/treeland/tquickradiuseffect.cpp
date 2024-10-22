@@ -291,7 +291,8 @@ void TQuickRadiusEffect::setSourceItem(QQuickItem *item)
                     this,
                     SLOT(sourceItemDestroyed(QObject *)));
         } else {
-            qWarning("TRadiusEffect: sourceItem and TRadiusEffect must both be children of the "
+            qWarning("TRadiusEffect: sourceItem and TRadiusEffect must both be "
+                     "children of the "
                      "same window.");
             d->sourceItem = nullptr;
         }

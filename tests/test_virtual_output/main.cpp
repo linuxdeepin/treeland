@@ -88,7 +88,8 @@ int main(int argc, char *argv[])
                         waylandWindow->display()->screens();
 
                     if (argc < 3) {
-                        qInfo() << "Please refer to the following input screen name: ";
+                        qInfo() << "Please refer to the following input screen "
+                                   "name: ";
                         qInfo() << "  ./test-virtual-output HDMI-A-1 VGA-1  ";
                         for (auto *screen : screens) {
                             QString address = screen->name();
@@ -113,10 +114,10 @@ int main(int argc, char *argv[])
                         // screenNmaeArray.append("HDMI-test"); // test error
                         screenNameArray.append('\0');
 
-                        VirtualOutput *screen_output =
-                            new VirtualOutput(manager.create_virtual_output(
-                                "copyscreen1",
-                                screenNameArray)); //"copyscreen1": 客户端自定义分组名称
+                        VirtualOutput *screen_output = new VirtualOutput(
+                            manager.create_virtual_output("copyscreen1",
+                                                          screenNameArray)); //"copyscreen1":
+                                                                             // 客户端自定义分组名称
 
                         QObject::connect(button, &QPushButton::clicked, [screen_output]() {
                             screen_output->destroy();

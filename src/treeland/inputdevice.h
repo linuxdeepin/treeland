@@ -14,7 +14,7 @@
 #include <QInputDevice>
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
-    class WInputDevice;
+class WInputDevice;
 WAYLIB_SERVER_END_NAMESPACE
 
 WAYLIB_SERVER_USE_NAMESPACE

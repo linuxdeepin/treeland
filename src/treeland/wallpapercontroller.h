@@ -28,7 +28,8 @@ public:
     explicit WallpaperController(QObject *parent = nullptr);
     ~WallpaperController() override;
 
-    enum WallpaperType {
+    enum WallpaperType
+    {
         Normal,
         Scale,
     };
@@ -43,11 +44,17 @@ Q_SIGNALS:
 public:
     void setType(WallpaperType type);
 
-    WallpaperType type() const { return m_type; }
+    WallpaperType type() const
+    {
+        return m_type;
+    }
 
     void setOutput(Waylib::Server::WOutput *output);
 
-    inline Waylib::Server::WOutput *output() const { return m_output; }
+    inline Waylib::Server::WOutput *output() const
+    {
+        return m_output;
+    }
 
     WallpaperImage *proxy() const;
 
