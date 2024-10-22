@@ -41,7 +41,7 @@ void SurfaceProxy::setSurface(SurfaceWrapper *newSurface)
         if (!m_fullProxy) {
             if (!m_shadow)
                 m_shadow = m_sourceSurface->m_engine->createXdgShadow(this);
-            m_shadow->setProperty("radius", radius());
+            m_shadow->setProperty("cornerRadius", radius());
             m_shadow->stackBefore(m_proxySurface);
         }
 
@@ -251,7 +251,7 @@ void SurfaceProxy::setFullProxy(bool newFullProxy)
             }
         } else if (!m_shadow) {
             m_shadow = m_sourceSurface->m_engine->createXdgShadow(this);
-            m_shadow->setProperty("radius", radius());
+            m_shadow->setProperty("cornerRadius", radius());
             m_shadow->stackBefore(m_proxySurface);
         }
         updateProxySurfaceTitleBarAndDecoration();
