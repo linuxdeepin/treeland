@@ -83,6 +83,7 @@ private:
     void componentComplete() override;
 
     bool event(QEvent *event) override;
+    bool eventFilter(QObject *watched, QEvent *event) override;
 
     friend class WOutputViewport;
     QList<WOutputLayer*> layers(const WOutputViewport *output) const;
