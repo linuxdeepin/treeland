@@ -34,6 +34,8 @@ QmlEngine::QmlEngine(QObject *parent)
     , showDesktopAnimatioComponentn(this, "Treeland", "ShowDesktopAnimation")
     , multitaskViewComponent(this, "Treeland", "MultitaskviewProxy")
     , blurComponent(this, "Treeland", "Blur")
+    , launchpadAnimationComponent(this, "Treeland", "LaunchpadAnimation")
+    , launchpadCoverComponent(this, "Treeland", "LaunchpadCover")
 {
 }
 
@@ -154,6 +156,28 @@ QQuickItem *QmlEngine::createNewAnimation(SurfaceWrapper *surface,
                                { "target", QVariant::fromValue(surface) },
                                { "direction", QVariant::fromValue(direction) },
                            });
+}
+
+QQuickItem *QmlEngine::createLaunchpadAnimation(SurfaceWrapper *surface,
+                                                uint direction,
+                                                QQuickItem *parent)
+{
+    return createComponent(launchpadAnimationComponent,
+                           parent,
+                           {
+                               { "target", QVariant::fromValue(surface) },
+                               { "direction", QVariant::fromValue(direction) },
+                           });
+}
+
+QQuickItem *QmlEngine::createLaunchpadCover(SurfaceWrapper *surface,
+                                            Output *output,
+                                            QQuickItem *parent)
+{
+    return createComponent(launchpadCoverComponent,
+                           parent,
+                           { { "wrapper", QVariant::fromValue(surface) },
+                             { "output", QVariant::fromValue(output->output()) } });
 }
 
 QQuickItem *QmlEngine::createDockPreview(QQuickItem *parent)

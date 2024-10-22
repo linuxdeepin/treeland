@@ -48,6 +48,10 @@ public:
     QQuickItem *createMenuBar(WOutputItem *output, QQuickItem *parent);
     QQuickItem *createWorkspaceSwitcher(Workspace *parent);
     QQuickItem *createNewAnimation(SurfaceWrapper *surface, QQuickItem *parent, uint direction);
+    QQuickItem *createLaunchpadAnimation(SurfaceWrapper *surface,
+                                         uint direction,
+                                         QQuickItem *parent);
+    QQuickItem *createLaunchpadCover(SurfaceWrapper *surface, Output *output, QQuickItem *parent);
     QQuickItem *createLockScreen(Output *output, QQuickItem *parent);
     QQuickItem *createMinimizeAnimation(SurfaceWrapper *surface,
                                         QQuickItem *parent,
@@ -83,5 +87,7 @@ private:
     QQmlComponent showDesktopAnimatioComponentn;
     QQmlComponent multitaskViewComponent;
     QQmlComponent blurComponent;
+    QQmlComponent launchpadAnimationComponent;
+    QQmlComponent launchpadCoverComponent;
     WallpaperImageProvider *wallpaperProvider = nullptr;
 };
