@@ -96,8 +96,10 @@ void SurfaceProxy::setSurface(SurfaceWrapper *newSurface)
         updateProxySurfaceScale();
         updateProxySurfaceTitleBarAndDecoration();
     } else {
-        m_shadow->deleteLater();
-        m_shadow = nullptr;
+        if (m_shadow) {
+            m_shadow->deleteLater();
+            m_shadow = nullptr;
+        }
     }
 
     Q_EMIT surfaceChanged();
