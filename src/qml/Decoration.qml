@@ -11,6 +11,7 @@ Item {
 
     required property SurfaceWrapper surface
     readonly property SurfaceItem surfaceItem: surface.surfaceItem
+    property alias shadowOpacity: shadow.opacity
 
     visible: surface && surface.visibleDecoration
     x: shadow.boundingRect.x

@@ -314,6 +314,7 @@ private:
     void startShowAnimation(bool show);
     Q_SLOT void onShowAnimationFinished();
     void updateHasActiveCapability(ActiveControlState state, bool value);
+    void setDecorationShadowOpacity(qreal opacity);
 
     QmlEngine *m_engine;
     QPointer<SurfaceContainer> m_container;
@@ -378,6 +379,8 @@ private:
     SurfaceRole m_surfaceRole = SurfaceRole::Normal;
     quint32 m_autoPlaceYOffset = 0;
     QPoint m_clientRequstPos;
+
+    qreal m_decorationShadowOpacity;
 };
 
 Q_DECLARE_OPERATORS_FOR_FLAGS(SurfaceWrapper::ActiveControlStates)
