@@ -90,7 +90,7 @@ public:
                 }
                 handle->set_parent(*surfaces[p]);
             };
-            connection.push_back(xwaylandSurface->safeConnect(&WXWaylandSurface::parentXWaylandSurface, surface, updateSurfaceParent));
+            connection.push_back(xwaylandSurface->safeConnect(&WXWaylandSurface::parentXWaylandSurfaceChanged, surface, updateSurfaceParent));
             updateSurfaceParent();
         }
 
