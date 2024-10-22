@@ -762,6 +762,7 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *, QInputEvent *event)
             if (kevent->key() == Qt::Key_Alt) {
                 auto filter = Helper::instance()->workspace()->currentFilter();
                 filter->setFilterAppId("");
+                m_taskSwitch->setProperty("switchOn", false);
                 QMetaObject::invokeMethod(m_taskSwitch, "exit");
             }
         }

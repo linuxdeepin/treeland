@@ -64,6 +64,14 @@ Item {
         }
     }
 
+    MouseArea {
+        anchors.fill: parent
+
+        onClicked: {
+            root.exit()
+        }
+    }
+
     ColumnLayout {
         anchors.fill: parent
         anchors.margins: 20
@@ -95,6 +103,10 @@ Item {
                 transformOrigin: Item.Center
                 width: previewPostion(sourceSueface, previewItem).width
                 height: previewPostion(sourceSueface, previewItem).height
+
+                onClicked: {
+                    root.exit()
+                }
             }
         }
 
@@ -195,7 +207,16 @@ Item {
                 }
 
                 model: root.model
-                delegate: SwitchViewDelegate {}
+                delegate: SwitchViewDelegate {
+                    MouseArea {
+                        anchors.fill: parent
+                        onClicked: {
+                            let pos = mapToItem(switchView.contentItem, mouse.x, mouse.y)
+                            let index = switchView.indexAt(pos.x, pos.y)
+                            switchIndex(index)
+                        }
+                    }
+                }
                 highlight: SwitchViewHighlightDelegate {}
                 highlightFollowsCurrentItem: false
             }
@@ -236,14 +257,6 @@ Item {
         }
 
         onStopped: switchItem.y = switchItemAnimation.fromeY
-    }
-
-    MouseArea {
-        anchors.fill: parent
-
-        onClicked: {
-            root.exit()
-        }
     }
 
     Repeater {
@@ -411,7 +424,6 @@ Item {
         if (!root.visible)
             return
 
-        switchOn = false
         if (root.enableAnimation) {
             previewContext.loaderStatus = -1
             currentContext.loaderStatus = -1
