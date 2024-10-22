@@ -7,6 +7,10 @@ import org.deepin.dtk 1.0 as D
 
 D.BoxShadow {
     id: shadow
+    readonly property rect boundingRect: Qt.rect(-shadow.shadowBlur, -shadow.shadowBlur,
+                                             width + 2 * shadow.shadowBlur,
+                                             height + 2 * shadow.shadowBlur)
+
     width: parent.width
     height: parent.height
     shadowColor: Qt.rgba(0, 0, 0, 0.4)
