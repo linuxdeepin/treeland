@@ -359,6 +359,74 @@ void Helper::onRestoreCopyOutput(treeland_virtual_output_v1 *virtual_output)
     m_mode = OutputMode::Extension;
 }
 
+void Helper::onSurfaceWrapperAdded(SurfaceWrapper *wrapper)
+{
+    bool isXdgToplevel = wrapper->type() == SurfaceWrapper::Type::XdgToplevel;
+    bool isXdgPopup = wrapper->type() == SurfaceWrapper::Type::XdgPopup;
+    bool isXwayland = wrapper->type() == SurfaceWrapper::Type::XWayland;
+    bool isLayer = wrapper->type() == SurfaceWrapper::Type::Layer;
+
+    if (isXdgToplevel || isXdgPopup || isLayer) {
+        auto *attached =
+            new PersonalizationAttached(wrapper->shellSurface(), m_personalization, wrapper);
+        wrapper->setNoDecoration(m_xdgDecorationManager->modeBySurface(wrapper->surface())
+                                 != WXdgDecorationManager::Server);
+
+        if (isXdgToplevel) {
+            auto updateNoTitlebar = [wrapper, attached] {
+                if (attached->noTitlebar()) {
+                    wrapper->setNoTitleBar(true);
+                } else {
+                    wrapper->resetNoTitleBar();
+                }
+            };
+            connect(attached,
+                    &PersonalizationAttached::windowStateChanged,
+                    wrapper,
+                    updateNoTitlebar);
+            updateNoTitlebar();
+        }
+
+        auto updateBlur = [wrapper, attached] {
+            wrapper->setBlur(attached->backgroundType() == Personalization::BackgroundType::Blur);
+        };
+        connect(attached, &PersonalizationAttached::backgroundTypeChanged, wrapper, updateBlur);
+        updateBlur();
+    }
+
+    if (isXwayland) {
+        auto xwayland = qobject_cast<WXWaylandSurface *>(wrapper->shellSurface());
+        auto updateDecorationTitleBar = [this, wrapper, xwayland]() {
+            if (!xwayland->isBypassManager()) {
+                if (xwayland->decorationsType() != WXWaylandSurface::DecorationsNoTitle)
+                    wrapper->setNoTitleBar(false);
+                if (xwayland->decorationsType() != WXWaylandSurface::DecorationsNoBorder)
+                    wrapper->setNoDecoration(false);
+            }
+        };
+        connect(xwayland, &WXWaylandSurface::bypassManagerChanged, this, updateDecorationTitleBar);
+        connect(xwayland,
+                &WXWaylandSurface::decorationsTypeChanged,
+                this,
+                updateDecorationTitleBar);
+        updateDecorationTitleBar();
+    }
+
+    if (isXdgToplevel || isXwayland) {
+        m_foreignToplevel->addSurface(wrapper->shellSurface());
+        m_treelandForeignToplevel->addSurface(wrapper);
+    }
+}
+
+void Helper::onSurfaceWrapperAboutToRemove(SurfaceWrapper *wrapper)
+{
+    if (wrapper->type() == SurfaceWrapper::Type::XdgToplevel
+        || wrapper->type() == SurfaceWrapper::Type::XWayland) {
+        m_foreignToplevel->removeSurface(wrapper->shellSurface());
+        m_treelandForeignToplevel->removeSurface(wrapper);
+    }
+}
+
 void Helper::init()
 {
     auto engine = qmlEngine();
@@ -412,65 +480,12 @@ void Helper::init()
     connect(m_shellHandler,
             &ShellHandler::surfaceWrapperAdded,
             this,
-            [this](SurfaceWrapper *wrapper) {
-                bool isXdgToplevel = wrapper->type() == SurfaceWrapper::Type::XdgToplevel;
-                bool isXdgPopup = wrapper->type() == SurfaceWrapper::Type::XdgPopup;
-                bool isXwayland = wrapper->type() == SurfaceWrapper::Type::XWayland;
-                bool isLayer = wrapper->type() == SurfaceWrapper::Type::Layer;
-
-                if (isXdgToplevel || isXdgPopup || isLayer) {
-                    auto *attached = new PersonalizationAttached(wrapper->shellSurface(),
-                                                                 m_personalization,
-                                                                 wrapper);
-                    wrapper->setNoDecoration(
-                        m_xdgDecorationManager->modeBySurface(wrapper->surface())
-                        != WXdgDecorationManager::Server);
-
-                    if (isXdgToplevel) {
-                        auto updateNoTitlebar = [wrapper, attached] {
-                            if (attached->noTitlebar()) {
-                                wrapper->setNoTitleBar(true);
-                            } else {
-                                wrapper->resetNoTitleBar();
-                            }
-                        };
-                        connect(attached,
-                                &PersonalizationAttached::windowStateChanged,
-                                wrapper,
-                                updateNoTitlebar);
-                        updateNoTitlebar();
-                    }
-
-                    auto updateBlur = [wrapper, attached] {
-                        wrapper->setBlur(attached->backgroundType()
-                                         == Personalization::BackgroundType::Blur);
-                    };
-                    connect(attached,
-                            &PersonalizationAttached::backgroundTypeChanged,
-                            wrapper,
-                            updateBlur);
-                    updateBlur();
-                }
-
-                if (isXwayland)
-                    wrapper->setNoTitleBar(false);
-
-                if (isXdgToplevel || isXwayland) {
-                    m_foreignToplevel->addSurface(wrapper->shellSurface());
-                    m_treelandForeignToplevel->addSurface(wrapper);
-                }
-            });
+            &Helper::onSurfaceWrapperAdded);
 
     connect(m_shellHandler,
             &ShellHandler::surfaceWrapperAboutToRemove,
             this,
-            [this](SurfaceWrapper *wrapper) {
-                if (wrapper->type() == SurfaceWrapper::Type::XdgToplevel
-                    || wrapper->type() == SurfaceWrapper::Type::XWayland) {
-                    m_foreignToplevel->removeSurface(wrapper->shellSurface());
-                    m_treelandForeignToplevel->removeSurface(wrapper);
-                }
-            });
+            &Helper::onSurfaceWrapperAboutToRemove);
 
     auto *xdgOutputManager =
         m_server->attach<WXdgOutputManager>(m_rootSurfaceContainer->outputLayout());
