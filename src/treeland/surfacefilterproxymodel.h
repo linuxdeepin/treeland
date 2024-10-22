@@ -19,4 +19,3 @@ protected:
 private:
     QString m_filterAppId;
 };
-

@@ -19,7 +19,10 @@ class WallpaperCardModel : public QAbstractListModel
     Q_PROPERTY(int count READ dataCount NOTIFY dataCountChanged FINAL)
     QML_ELEMENT
 public:
-    enum WallpaperCardRoles { ImageSourceRole = Qt::UserRole + 1 };
+    enum WallpaperCardRoles
+    {
+        ImageSourceRole = Qt::UserRole + 1
+    };
     Q_ENUM(WallpaperCardRoles)
 
     WallpaperCardModel(const WallpaperCardModel &) = delete;

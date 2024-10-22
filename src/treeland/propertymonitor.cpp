@@ -1,6 +1,7 @@
 // Copyright (C) 2024 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 #include "propertymonitor.h"
+
 #include <QEvent>
 
 PropertyMonitor::PropertyMonitor(QObject *parent)
@@ -24,7 +25,6 @@ void PropertyMonitor::setTarget(QObject *newTarget)
     connectToTarget();
     emit targetChanged();
 }
-
 
 QString PropertyMonitor::properties() const
 {
@@ -61,7 +61,8 @@ void PropertyMonitor::connectToTarget()
     m_metaProps.clear();
     auto propertyList = m_properties.split(",");
     for (const auto &property : std::as_const(propertyList)) {
-        auto index = m_target->metaObject()->indexOfProperty(property.trimmed().toStdString().c_str());
+        auto index =
+            m_target->metaObject()->indexOfProperty(property.trimmed().toStdString().c_str());
         if (index != -1) {
             auto mProp = m_target->metaObject()->property(index);
             m_metaProps.append(mProp);
@@ -71,4 +72,3 @@ void PropertyMonitor::connectToTarget()
         }
     }
 }
-

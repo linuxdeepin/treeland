@@ -2,13 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "ddeshelsurfacewindow.h"
+
 #include "ddeshellwayland.h"
 
 DDEShelSurfaceWindow::DDEShelSurfaceWindow(TestMode mode, QWidget *parent)
     : QWidget{ parent }
     , m_mode(mode)
 {
-
 }
 
 void DDEShelSurfaceWindow::showEvent(QShowEvent *event)
@@ -31,15 +31,17 @@ void DDEShelSurfaceWindow::apply()
         // y offset is 30 relative to the cursor bottom.-------------------
         DDEShellWayland::get(windowHandle())->setAutoPlacement(30);
 
-        // Setting this bit will indicate that the window prefers not to be listed
-        // in a switcher/dock-preview/mutitask-view
+        // Setting this bit will indicate that the window prefers not to be
+        // listed in a switcher/dock-preview/mutitask-view
         DDEShellWayland::get(windowHandle())->setSkipDockPreview(true);
         DDEShellWayland::get(windowHandle())->setSkipMutiTaskView(true);
         DDEShellWayland::get(windowHandle())->setSkipSwitcher(true);
         // ---------------------------------------------------------------
     }
 
-    // Do not use setPosition and setAutoPlacement at the same time, there will be conflicts !!!
+    // Do not use setPosition and setAutoPlacement at the same time, there will
+    // be conflicts !!!
 
-    DDEShellWayland::get(windowHandle())->setRole(QtWayland::treeland_dde_shell_surface_v1::role_overlay);
+    DDEShellWayland::get(windowHandle())
+        ->setRole(QtWayland::treeland_dde_shell_surface_v1::role_overlay);
 }

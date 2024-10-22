@@ -90,7 +90,9 @@ personalization_appearance_context_v1 *personalization_appearance_context_v1::fr
 }
 
 personalization_appearance_context_v1::personalization_appearance_context_v1(
-    struct wl_client *client, struct wl_resource *manager_resource, uint32_t id)
+    struct wl_client *client,
+    struct wl_resource *manager_resource,
+    uint32_t id)
     : QObject()
 {
     auto *manager = treeland_personalization_manager_v1::from_resource(manager_resource);

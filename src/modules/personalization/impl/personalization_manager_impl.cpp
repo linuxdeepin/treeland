@@ -73,8 +73,8 @@ static const struct treeland_personalization_window_context_v1_interface
         .destroy = Personalization::WindowContext::on_destroy,
     };
 
-personalization_window_context_v1 *personalization_window_context_v1::
-    from_resource(wl_resource *resource)
+personalization_window_context_v1 *personalization_window_context_v1::from_resource(
+    wl_resource *resource)
 {
     assert(wl_resource_instance_of(resource,
                                    &treeland_personalization_window_context_v1_interface,

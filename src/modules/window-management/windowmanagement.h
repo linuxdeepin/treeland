@@ -18,7 +18,12 @@ class WindowManagementV1
     Q_PROPERTY(DesktopState desktopState READ desktopState WRITE setDesktopState NOTIFY desktopStateChanged)
 
 public:
-    enum class DesktopState { Normal, Show, Preview };
+    enum class DesktopState
+    {
+        Normal,
+        Show,
+        Preview
+    };
     Q_ENUM(DesktopState)
 
     explicit WindowManagementV1(QObject *parent = nullptr);

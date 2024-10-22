@@ -27,7 +27,10 @@ class DDEShellWindowOverlapChecker
 public:
     explicit DDEShellWindowOverlapChecker(struct ::treeland_window_overlap_checker *object);
 
-    bool overlapped() const { return m_overlapped; }
+    bool overlapped() const
+    {
+        return m_overlapped;
+    }
 
 Q_SIGNALS:
     void overlappedChanged();

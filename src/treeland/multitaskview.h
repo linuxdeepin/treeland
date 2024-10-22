@@ -18,13 +18,28 @@ class Multitaskview : public QQuickItem
     Q_PROPERTY(qreal taskviewVal READ taskviewVal WRITE setTaskviewVal NOTIFY taskviewValChanged FINAL)
 
 public:
-    enum Status { Uninitialized, Initialized, Active, Exited };
+    enum Status
+    {
+        Uninitialized,
+        Initialized,
+        Active,
+        Exited
+    };
     Q_ENUM(Status)
 
-    enum ActiveReason { ShortcutKey = 1, Gesture };
+    enum ActiveReason
+    {
+        ShortcutKey = 1,
+        Gesture
+    };
     Q_ENUM(ActiveReason)
 
-    enum ZOrder { Background = -1, Overlay = 1, FloatingItem = 2 };
+    enum ZOrder
+    {
+        Background = -1,
+        Overlay = 1,
+        FloatingItem = 2
+    };
     Q_ENUM(ZOrder)
 
     Multitaskview(QQuickItem *parent = nullptr);
@@ -75,7 +90,12 @@ public:
     MultitaskviewSurfaceModel(QObject *parent = nullptr);
     void initializeModel();
 
-    enum SurfaceModelRole { SurfaceWrapperRole = Qt::UserRole + 1, GeometryRole, PaddingRole };
+    enum SurfaceModelRole
+    {
+        SurfaceWrapperRole = Qt::UserRole + 1,
+        GeometryRole,
+        PaddingRole
+    };
     Q_ENUM(SurfaceModelRole)
 
     void setSurfaceListModel(SurfaceListModel *surfaceListModel);

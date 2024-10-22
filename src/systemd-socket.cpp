@@ -28,7 +28,10 @@ int main(int argc, char *argv[])
     parser.addHelpOption();
     parser.addVersionOption();
 
-    QCommandLineOption typeOption(QStringList() << "t" << "type", "xwayland", "wayland");
+    QCommandLineOption typeOption(QStringList() << "t"
+                                                << "type",
+                                  "xwayland",
+                                  "wayland");
     parser.addOption(typeOption);
 
     parser.process(app);

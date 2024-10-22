@@ -30,15 +30,30 @@ public:
     void sendCursorTheme() const;
     void sendIconTheme() const;
 
-    inline int32_t roundCornerRadius() const { return m_radius; }
+    inline int32_t roundCornerRadius() const
+    {
+        return m_radius;
+    }
 
-    inline QString font() const { return m_fontName; }
+    inline QString font() const
+    {
+        return m_fontName;
+    }
 
-    inline QString monoFont() const { return m_monoFontName; }
+    inline QString monoFont() const
+    {
+        return m_monoFontName;
+    }
 
-    inline QString cursorTheme() const { return m_cursorTheme; }
+    inline QString cursorTheme() const
+    {
+        return m_cursorTheme;
+    }
 
-    inline QString iconTheme() const { return m_iconTheme; }
+    inline QString iconTheme() const
+    {
+        return m_iconTheme;
+    }
 
 Q_SIGNALS:
     void roundCornerRadiusChanged();

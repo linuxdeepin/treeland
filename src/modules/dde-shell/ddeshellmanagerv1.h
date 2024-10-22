@@ -35,7 +35,10 @@ class WindowOverlapChecker : public DDEShellAttached
 public:
     WindowOverlapChecker(WSurfaceItem *target, QObject *parent = nullptr);
 
-    inline bool overlapped() const { return m_overlapped; }
+    inline bool overlapped() const
+    {
+        return m_overlapped;
+    }
 
 Q_SIGNALS:
     void overlappedChanged();

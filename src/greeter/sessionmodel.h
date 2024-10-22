@@ -36,7 +36,8 @@ class SessionModel : public QAbstractListModel
     Q_PROPERTY(int lastIndex READ lastIndex CONSTANT)
     QML_ELEMENT
 public:
-    enum SessionRole {
+    enum SessionRole
+    {
         DirectoryRole = Qt::UserRole + 1,
         FileRole,
         TypeRole,

@@ -93,10 +93,20 @@ public:
     explicit Helper(QObject *parent = nullptr);
     ~Helper();
 
-    enum class OutputMode { Copy, Extension };
+    enum class OutputMode
+    {
+        Copy,
+        Extension
+    };
     Q_ENUM(OutputMode)
 
-    enum class CurrentMode { Normal, LockScreen, WindowSwitch, Multitaskview };
+    enum class CurrentMode
+    {
+        Normal,
+        LockScreen,
+        WindowSwitch,
+        Multitaskview
+    };
     Q_ENUM(CurrentMode)
 
     static Helper *instance();
@@ -107,9 +117,15 @@ public:
     Workspace *workspace() const;
     void init();
 
-    TogglableGesture *multiTaskViewGesture() const { return m_multiTaskViewGesture; }
+    TogglableGesture *multiTaskViewGesture() const
+    {
+        return m_multiTaskViewGesture;
+    }
 
-    TogglableGesture *windowGesture() const { return m_windowGesture; }
+    TogglableGesture *windowGesture() const
+    {
+        return m_windowGesture;
+    }
 
     bool socketEnabled() const;
     void setSocketEnabled(bool newSocketEnabled);

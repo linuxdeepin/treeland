@@ -3,8 +3,8 @@
 
 #include "qwayland-treeland-dde-shell-v1.h"
 
-#include <QObject>
 #include <QGuiApplication>
+#include <QObject>
 #include <QWaylandClientExtension>
 
 #define TREELANDDDESHELLMANAGERV1VERSION 1
@@ -89,7 +89,8 @@ int main(int argc, char *argv[])
             if (!seat)
                 qFatal("Failed to get wl_seat from QtWayland QPA!");
 
-            TreelandDDEActiveV1 *active = new TreelandDDEActiveV1(manager->get_treeland_dde_active(seat));
+            TreelandDDEActiveV1 *active =
+                new TreelandDDEActiveV1(manager->get_treeland_dde_active(seat));
         }
     });
 

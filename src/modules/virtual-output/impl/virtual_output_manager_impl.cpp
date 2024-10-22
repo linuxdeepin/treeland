@@ -28,7 +28,8 @@ static void virtual_output_manager_handle_create_virtual_output(
     struct wl_array *outputs);
 
 static void virtual_output_manager_handle_get_virtual_output_list(
-    [[maybe_unused]] struct wl_client *client, struct wl_resource *resource);
+    [[maybe_unused]] struct wl_client *client,
+    struct wl_resource *resource);
 
 static void virtual_output_manager_handle_get_virtual_output(
     [[maybe_unused]] struct wl_client *client,
@@ -162,7 +163,8 @@ static void virtual_output_manager_handle_create_virtual_output(
 }
 
 static void virtual_output_manager_handle_get_virtual_output_list(
-    [[maybe_unused]] struct wl_client *client, struct wl_resource *resource)
+    [[maybe_unused]] struct wl_client *client,
+    struct wl_resource *resource)
 {
     auto *manager = virtual_output_manager_from_resource(resource);
 

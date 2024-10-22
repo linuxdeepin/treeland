@@ -7,15 +7,15 @@
 #include "rootsurfacecontainer.h"
 #include "surfacewrapper.h"
 
+#include <wcursor.h>
 #include <winputpopupsurface.h>
 #include <wlayersurface.h>
 #include <woutputitem.h>
+#include <woutputlayout.h>
 #include <woutputrenderwindow.h>
+#include <wquicktextureproxy.h>
 #include <wsurfaceitem.h>
 #include <wxdgsurface.h>
-#include <woutputlayout.h>
-#include <wquicktextureproxy.h>
-#include <wcursor.h>
 
 #include <QQmlEngine>
 
@@ -44,8 +44,8 @@ Output *Output::create(WOutput *output, QQmlEngine *engine, QObject *parent)
 
     auto contentItem = Helper::instance()->window()->contentItem();
     outputItem->setParentItem(contentItem);
-    // o->m_taskBar = Helper::instance()->qmlEngine()->createTaskBar(o, contentItem);
-    // o->m_taskBar->setZ(RootSurfaceContainer::TaskBarZOrder);
+    // o->m_taskBar = Helper::instance()->qmlEngine()->createTaskBar(o,
+    // contentItem); o->m_taskBar->setZ(RootSurfaceContainer::TaskBarZOrder);
 
 #ifdef QT_DEBUG
     o->m_menuBar = Helper::instance()->qmlEngine()->createMenuBar(outputItem, contentItem);
@@ -59,9 +59,11 @@ Output *Output::create(WOutput *output, QQmlEngine *engine, QObject *parent)
 Output *Output::createCopy(WOutput *output, Output *proxy, QQmlEngine *engine, QObject *parent)
 {
     QQmlComponent delegate(engine, "Treeland", "CopyOutput");
-    QObject *obj = delegate.createWithInitialProperties({
-                                                            {"targetOutputItem", QVariant::fromValue(proxy->outputItem())},
-                                                        }, engine->rootContext());
+    QObject *obj = delegate.createWithInitialProperties(
+        {
+            { "targetOutputItem", QVariant::fromValue(proxy->outputItem()) },
+        },
+        engine->rootContext());
     WOutputItem *outputItem = qobject_cast<WOutputItem *>(obj);
     Q_ASSERT(outputItem);
     QQmlEngine::setObjectOwnership(outputItem, QQmlEngine::CppOwnership);
@@ -75,8 +77,10 @@ Output *Output::createCopy(WOutput *output, Output *proxy, QQmlEngine *engine, Q
     auto contentItem = Helper::instance()->window()->contentItem();
     outputItem->setParentItem(contentItem);
     o->updateOutputHardwareLayers();
-    connect(o->m_outputViewport, &WOutputViewport::hardwareLayersChanged,
-            o, &Output::updateOutputHardwareLayers);
+    connect(o->m_outputViewport,
+            &WOutputViewport::hardwareLayersChanged,
+            o,
+            &Output::updateOutputHardwareLayers);
 
     return o;
 }
@@ -116,7 +120,7 @@ bool Output::isPrimary() const
 
 void Output::updatePositionFromLayout()
 {
-    WOutputLayout * layout = output()->layout();
+    WOutputLayout *layout = output()->layout();
     Q_ASSERT(layout);
     auto *layoutOutput = layout->get(output()->nativeHandle());
     QPointF pos(layoutOutput->x, layoutOutput->y);
@@ -128,23 +132,28 @@ QQuickItem *Output::outputMenuBar() const
     return m_menuBar;
 }
 #endif
-std::pair<WOutputViewport*, QQuickItem*> Output::getOutputItemProperty()
+std::pair<WOutputViewport *, QQuickItem *> Output::getOutputItemProperty()
 {
-    WOutputViewport *viewportCopy = outputItem()->findChild<WOutputViewport*>({}, Qt::FindDirectChildrenOnly);
+    WOutputViewport *viewportCopy =
+        outputItem()->findChild<WOutputViewport *>({}, Qt::FindDirectChildrenOnly);
     Q_ASSERT(viewportCopy);
-    auto textureProxy = outputItem()->findChild<WQuickTextureProxy*>();
+    auto textureProxy = outputItem()->findChild<WQuickTextureProxy *>();
     Q_ASSERT(textureProxy);
     return std::make_pair(viewportCopy, textureProxy);
 }
+
 void Output::updateOutputHardwareLayers()
 {
     WOutputViewport *viewportPrimary = screenViewport();
-    std::pair<WOutputViewport*, QQuickItem*> copyOutput = getOutputItemProperty();
+    std::pair<WOutputViewport *, QQuickItem *> copyOutput = getOutputItemProperty();
     const auto layers = viewportPrimary->hardwareLayers();
     for (auto layer : layers) {
         if (m_hardwareLayersOfPrimaryOutput.removeOne(layer))
             continue;
-        Helper::instance()->window()->attach(layer, copyOutput.first, viewportPrimary, copyOutput.second);
+        Helper::instance()->window()->attach(layer,
+                                             copyOutput.first,
+                                             viewportPrimary,
+                                             copyOutput.second);
     }
     for (auto oldLayer : std::as_const(m_hardwareLayersOfPrimaryOutput)) {
         Helper::instance()->window()->detach(oldLayer, copyOutput.first);
@@ -304,7 +313,8 @@ void Output::arrangeLayerSurface(SurfaceWrapper *surface)
     }
 
     if (layer->exclusiveZone() > 0) {
-        // TODO:: support `set_exclusive_edge` in layer-shell v5, need wlroots 0.19
+        // TODO:: support `set_exclusive_edge` in layer-shell v5, need wlroots
+        // 0.19
         switch (layer->getExclusiveZoneEdge()) {
             using enum WLayerSurface::AnchorType;
         case Top:
@@ -428,7 +438,8 @@ void Output::arrangeNonLayerSurface(SurfaceWrapper *surface, const QSizeF &sizeD
                 if (!surface->ownsOutput()->outputItem()->cursorItems().isEmpty())
                     cursorSize = surface->ownsOutput()->outputItem()->cursorItems()[0]->size();
 
-                normalGeo.moveLeft(wCursor->position().x() + (cursorSize.width() - surface->width()) / 2);
+                normalGeo.moveLeft(wCursor->position().x()
+                                   + (cursorSize.width() - surface->width()) / 2);
                 normalGeo.moveTop(wCursor->position().y() + cursorSize.height() + yOffset);
                 surface->moveNormalGeometryInOutput(normalGeo.topLeft());
             }

@@ -23,7 +23,8 @@ class ForeignToplevelV1
     Q_CLASSINFO("RegisterEnumClassesUnscoped", "false")
 
 public:
-    enum class PreviewDirection {
+    enum class PreviewDirection
+    {
         top = TREELAND_DOCK_PREVIEW_CONTEXT_V1_DIRECTION_TOP,
         right = TREELAND_DOCK_PREVIEW_CONTEXT_V1_DIRECTION_RIGHT,
         bottom = TREELAND_DOCK_PREVIEW_CONTEXT_V1_DIRECTION_BOTTOM,

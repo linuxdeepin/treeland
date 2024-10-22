@@ -3,8 +3,8 @@
 #pragma once
 
 #include "surfacecontainer.h"
-#include "workspacemodel.h"
 #include "surfacefilterproxymodel.h"
+#include "workspacemodel.h"
 
 class SurfaceWrapper;
 class Workspace;

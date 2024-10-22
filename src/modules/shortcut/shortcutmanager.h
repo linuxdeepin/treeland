@@ -26,7 +26,8 @@ class ShortcutV1
     Q_OBJECT
 
 public:
-    enum MetaKeyCheck {
+    enum MetaKeyCheck
+    {
         ShortcutOverride = 0x1,
         KeyPress = 0x2,
         KeyRelease = 0x4,

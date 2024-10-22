@@ -48,7 +48,8 @@ public:
     QStringList outputList;
 
     void send_outputs(QString name, struct wl_array *outputs);
-    void send_error(uint32_t code, const char *message); // tode: send err code and message
+    void send_error(uint32_t code,
+                    const char *message); // tode: send err code and message
 
 Q_SIGNALS:
     void before_destroy();

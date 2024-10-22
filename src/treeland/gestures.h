@@ -1,4 +1,4 @@
- 
+
 // Copyright (C) 2024 WenHao Peng <pengwenhao@uniontech.com>.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
@@ -27,7 +27,8 @@ class SwipeGesture : public Gesture
 public:
     explicit SwipeGesture(QObject *parent = nullptr);
 
-    enum Direction {
+    enum Direction
+    {
         Invalid,
         Down,
         Left,
@@ -95,12 +96,14 @@ class GestureRecognizer : public QObject
 public:
     explicit GestureRecognizer(QObject *parent = nullptr);
 
-    enum StartPositionBehavior {
+    enum StartPositionBehavior
+    {
         Relevant,
         Irrelevant,
     };
 
-    enum Axis {
+    enum Axis
+    {
         Horizontal,
         Vertical,
         None,

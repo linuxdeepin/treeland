@@ -31,7 +31,8 @@ Clipboard::Clipboard(QObject *parent)
                         DataControlOfferV1 *offer = m_device->m_receivedSelection.get();
                         for (auto type : offer->formats()) {
                             QVariant data = offer->retrieveData(type);
-                            qWarning() << "----------receivedSelectionChanged---"
+                            qWarning() << "----------"
+                                          "receivedSelectionChanged---"
                                        << "type:=" << type << "data:= " << data;
                         }
                     }
@@ -53,7 +54,8 @@ Clipboard::Clipboard(QObject *parent)
                                     m_device->m_receivedPrimarySelection.get();
                                 for (auto type : offer->formats()) {
                                     QVariant data = offer->retrieveData(type);
-                                    qWarning() << "----------receivedPrimarySelectionChanged"
+                                    qWarning() << "----------"
+                                                  "receivedPrimarySelectionChanged"
                                                << "type:=" << type << "data:= " << data;
                                 }
                             }

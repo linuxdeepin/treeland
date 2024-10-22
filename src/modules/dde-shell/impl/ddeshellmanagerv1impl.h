@@ -6,9 +6,8 @@
 #include "dde-shell-protocol.h"
 
 #include <wayland-server-core.h>
-
-#include <wsurface.h>
 #include <wseat.h>
+#include <wsurface.h>
 
 #include <qwdisplay.h>
 
@@ -20,7 +19,8 @@ class treeland_dde_shell_surface : public QObject
 {
     Q_OBJECT
 public:
-    enum Role {
+    enum Role
+    {
         OVERLAY,
     };
 
@@ -34,7 +34,8 @@ public:
 
     std::optional<QPoint> m_surfacePos;
     std::optional<Role> m_role;
-    // if m_yOffset has_value, preventing surface from being displayed beyond the edge of the output.
+    // if m_yOffset has_value, preventing surface from being displayed beyond
+    // the edge of the output.
     std::optional<uint32_t> m_yOffset;
     std::optional<bool> m_skipSwitcher;
     std::optional<bool> m_skipDockPreView;
@@ -89,7 +90,8 @@ class treeland_window_overlap_checker : public QObject
 public:
     ~treeland_window_overlap_checker();
 
-    enum Anchor {
+    enum Anchor
+    {
         TOP = TREELAND_WINDOW_OVERLAP_CHECKER_ANCHOR_TOP,
         RIGHT = TREELAND_WINDOW_OVERLAP_CHECKER_ANCHOR_RIGHT,
         BOTTOM = TREELAND_WINDOW_OVERLAP_CHECKER_ANCHOR_BOTTOM,

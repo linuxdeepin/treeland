@@ -9,10 +9,12 @@ class DDEShelSurfaceWindow : public QWidget
 {
     Q_OBJECT
 public:
-    enum TestMode {
+    enum TestMode
+    {
         TestSetPosition,
         TestSetAutoPlace
     };
+
     explicit DDEShelSurfaceWindow(TestMode mode, QWidget *parent = nullptr);
 
 protected:
