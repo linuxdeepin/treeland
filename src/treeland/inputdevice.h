@@ -9,8 +9,6 @@
 
 #include <wglobal.h>
 
-#include <qwglobal.h>
-
 #include <QInputDevice>
 
 WAYLIB_SERVER_BEGIN_NAMESPACE

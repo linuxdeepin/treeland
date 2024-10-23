@@ -74,9 +74,7 @@ SurfaceWrapper::SurfaceWrapper(QmlEngine *qmlEngine,
     shellSurface->safeConnect(&WToplevelSurface::requestCancelMaximize,
                               this,
                               &SurfaceWrapper::requestCancelMaximize);
-    shellSurface->safeConnect(&WToplevelSurface::requestMove, this, [this](WSeat *, quint32) {
-        Q_EMIT requestMove();
-    });
+    shellSurface->safeConnect(&WToplevelSurface::requestMove, this, &SurfaceWrapper::requestMove);
     shellSurface->safeConnect(&WToplevelSurface::requestResize,
                               this,
                               [this](WSeat *, Qt::Edges edge, quint32) {
@@ -218,7 +216,7 @@ void SurfaceWrapper::moveNormalGeometryInOutput(const QPointF &position)
     if (isNormal()) {
         setPosition(position);
     } else if (m_pendingState == State::Normal && m_geometryAnimation) {
-        m_geometryAnimation->setProperty("targetGeometry", m_normalGeometry);
+        m_geometryAnimation->setProperty("toGeometry", m_normalGeometry);
     }
 }
 
@@ -779,6 +777,7 @@ void SurfaceWrapper::startShowAnimation(bool show)
 
 qreal SurfaceWrapper::radius() const
 {
+    // TODO: XdgToplevel、popup、InputPopup、XWayland(bypass、widnowtype(menu、normal、popup))
     if (m_radius < 1 && m_type != Type::Layer) {
         return TreelandConfig::ref().windowRadius();
     }
@@ -1128,7 +1127,8 @@ void SurfaceWrapper::setWorkspaceId(int newWorkspaceId)
     if (m_workspaceId == newWorkspaceId)
         return;
 
-    bool onAllWorkspaceHasChanged = m_workspaceId == 0 || newWorkspaceId == 0;
+    bool onAllWorkspaceHasChanged = m_workspaceId == Workspace::ShowOnAllWorkspaceId
+        || newWorkspaceId == Workspace::ShowOnAllWorkspaceId;
     m_workspaceId = newWorkspaceId;
 
     if (onAllWorkspaceHasChanged)
@@ -1226,7 +1226,7 @@ void SurfaceWrapper::updateHasActiveCapability(ActiveControlState state, bool va
         if (hasActiveCapability())
             Q_EMIT requestActive();
         else
-            Q_EMIT requestDeactive();
+            Q_EMIT requestInactive();
     }
 }
 
@@ -1277,18 +1277,18 @@ void SurfaceWrapper::setSkipMutiTaskView(bool skip)
     Q_EMIT skipMutiTaskViewChanged();
 }
 
-bool SurfaceWrapper::isDdeShellSurface() const
+bool SurfaceWrapper::isDDEShellSurface() const
 {
     return m_isDdeShellSurface;
 }
 
-void SurfaceWrapper::setIsDdeShellSurface(bool value)
+void SurfaceWrapper::setIsDDEShellSurface(bool value)
 {
     if (m_isDdeShellSurface == value)
         return;
 
     m_isDdeShellSurface = value;
-    Q_EMIT isDdeShellSurfaceChanged();
+    Q_EMIT isDDEShellSurfaceChanged();
 }
 
 SurfaceWrapper::SurfaceRole SurfaceWrapper::surfaceRole() const

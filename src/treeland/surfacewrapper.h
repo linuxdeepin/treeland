@@ -38,35 +38,35 @@ class SurfaceWrapper : public QQuickItem
     Q_PROPERTY(QRectF fullscreenGeometry READ fullscreenGeometry NOTIFY fullscreenGeometryChanged FINAL)
     Q_PROPERTY(QRectF tilingGeometry READ tilingGeometry NOTIFY tilingGeometryChanged FINAL)
     Q_PROPERTY(Output* ownsOutput READ ownsOutput NOTIFY ownsOutputChanged FINAL)
-    Q_PROPERTY(bool positionAutomatic READ positionAutomatic WRITE setPositionAutomatic NOTIFY positionAutomaticChanged FINAL)
+    Q_PROPERTY(bool positionAutomatic READ positionAutomatic NOTIFY positionAutomaticChanged FINAL)
     Q_PROPERTY(State previousSurfaceState READ previousSurfaceState NOTIFY previousSurfaceStateChanged FINAL)
     Q_PROPERTY(State surfaceState READ surfaceState NOTIFY surfaceStateChanged BINDABLE bindableSurfaceState FINAL)
-    Q_PROPERTY(qreal radius READ radius WRITE setRadius NOTIFY radiusChanged FINAL)
+    Q_PROPERTY(qreal radius READ radius NOTIFY radiusChanged FINAL)
     Q_PROPERTY(SurfaceContainer* container READ container NOTIFY containerChanged FINAL)
     Q_PROPERTY(QQuickItem* titleBar READ titleBar NOTIFY noTitleBarChanged FINAL)
     Q_PROPERTY(QQuickItem* decoration READ decoration NOTIFY noDecorationChanged FINAL)
     Q_PROPERTY(bool visibleDecoration READ visibleDecoration NOTIFY visibleDecorationChanged FINAL)
-    Q_PROPERTY(bool clipInOutput READ clipInOutput WRITE setClipInOutput NOTIFY clipInOutputChanged FINAL)
+    Q_PROPERTY(bool clipInOutput READ clipInOutput NOTIFY clipInOutputChanged FINAL)
     Q_PROPERTY(bool noTitleBar READ noTitleBar RESET resetNoTitleBar NOTIFY noTitleBarChanged FINAL)
     Q_PROPERTY(bool noCornerRadius READ noCornerRadius NOTIFY noCornerRadiusChanged FINAL)
     Q_PROPERTY(int workspaceId READ workspaceId NOTIFY workspaceIdChanged FINAL)
     Q_PROPERTY(bool alwaysOnTop READ alwaysOnTop WRITE setAlwaysOnTop NOTIFY alwaysOnTopChanged FINAL)
     Q_PROPERTY(bool showOnAllWorkspace READ showOnAllWorkspace NOTIFY showOnAllWorkspaceChanged FINAL)
-    Q_PROPERTY(bool skipSwitcher READ skipSwitcher WRITE setSkipSwitcher NOTIFY skipSwitcherChanged FINAL)
-    Q_PROPERTY(bool skipDockPreView READ skipDockPreView WRITE setSkipDockPreView NOTIFY skipDockPreViewChanged FINAL)
-    Q_PROPERTY(bool skipMutiTaskView READ skipMutiTaskView WRITE setSkipMutiTaskView NOTIFY skipMutiTaskViewChanged FINAL)
-    Q_PROPERTY(bool isDdeShellSurface READ isDdeShellSurface WRITE setIsDdeShellSurface NOTIFY isDdeShellSurfaceChanged FINAL)
-    Q_PROPERTY(SurfaceWrapper::SurfaceRole surfaceRole READ surfaceRole WRITE setSurfaceRole NOTIFY surfaceRoleChanged FINAL)
+    Q_PROPERTY(bool skipSwitcher READ skipSwitcher NOTIFY skipSwitcherChanged FINAL)
+    Q_PROPERTY(bool skipDockPreView READ skipDockPreView NOTIFY skipDockPreViewChanged FINAL)
+    Q_PROPERTY(bool skipMutiTaskView READ skipMutiTaskView NOTIFY skipMutiTaskViewChanged FINAL)
+    Q_PROPERTY(bool isDDEShellSurface READ isDDEShellSurface NOTIFY isDDEShellSurfaceChanged FINAL)
+    Q_PROPERTY(SurfaceWrapper::SurfaceRole surfaceRole READ surfaceRole NOTIFY surfaceRoleChanged FINAL)
     // y-axis offset distance, set the vertical alignment of the surface within
     // the cursor width. if autoPlaceYOffset > 0, preventing SurfaceWrapper from
     // being displayed beyond the edge of the output.
-    Q_PROPERTY(quint32 autoPlaceYOffset READ autoPlaceYOffset WRITE setAutoPlaceYOffset NOTIFY autoPlaceYOffsetChanged FINAL)
+    Q_PROPERTY(quint32 autoPlaceYOffset READ autoPlaceYOffset NOTIFY autoPlaceYOffsetChanged FINAL)
     // wayland client can control the position of SurfaceWrapper on the output
     // through treeland_dde_shell_surface_v1.set_surface_position
-    Q_PROPERTY(QPoint clientRequstPos READ clientRequstPos WRITE setClientRequstPos NOTIFY clientRequstPosChanged FINAL)
+    Q_PROPERTY(QPoint clientRequstPos READ clientRequstPos NOTIFY clientRequstPosChanged FINAL)
     Q_PROPERTY(bool blur READ blur NOTIFY blurChanged FINAL)
     Q_PROPERTY(bool isWindowAnimationRunning READ isWindowAnimationRunning NOTIFY windowAnimationRunningChanged FINAL)
-    Q_PROPERTY(bool coverEnabled READ coverEnabled WRITE setCoverEnabled NOTIFY coverEnabledChanged FINAL)
+    Q_PROPERTY(bool coverEnabled READ coverEnabled NOTIFY coverEnabledChanged FINAL)
 
 public:
     enum class Type
@@ -212,8 +212,8 @@ public:
     bool skipMutiTaskView() const;
     void setSkipMutiTaskView(bool skip);
 
-    bool isDdeShellSurface() const;
-    void setIsDdeShellSurface(bool value);
+    bool isDDEShellSurface() const;
+    void setIsDDEShellSurface(bool value);
 
     enum SurfaceRole surfaceRole() const;
     void setSurfaceRole(enum SurfaceRole role);
@@ -272,11 +272,11 @@ Q_SIGNALS:
     void alwaysOnTopChanged();
     void showOnAllWorkspaceChanged();
     void requestActive();
-    void requestDeactive();
+    void requestInactive();
     void skipSwitcherChanged();
     void skipDockPreViewChanged();
     void skipMutiTaskViewChanged();
-    void isDdeShellSurfaceChanged();
+    void isDDEShellSurfaceChanged();
     void surfaceRoleChanged();
     void autoPlaceYOffsetChanged();
     void clientRequstPosChanged();
