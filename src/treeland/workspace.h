@@ -45,7 +45,6 @@ public:
     Q_INVOKABLE void moveSurfaceToPrevWorkspace(SurfaceWrapper *surface);
     void addSurface(SurfaceWrapper *surface, int workspaceId = -1);
     Q_INVOKABLE void moveModelTo(int workspaceId, int destinationIndex);
-    Q_INVOKABLE void showCurrentWindows(bool show = true);
 
     void removeSurface(SurfaceWrapper *surface) override;
     int modelIndexOfSurface(SurfaceWrapper *surface) const;

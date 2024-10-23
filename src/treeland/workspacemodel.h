@@ -13,11 +13,13 @@ class Workspace;
 class WorkspaceModel : public SurfaceListModel
 {
     friend class Workspace;
+    friend class MultitaskviewSurfaceModel;
     Q_OBJECT
     Q_PROPERTY(int id READ id CONSTANT FINAL)
     Q_PROPERTY(QString name READ name WRITE setName NOTIFY nameChanged FINAL)
     Q_PROPERTY(bool visible READ visible WRITE setVisible NOTIFY visibleChanged FINAL)
-    friend class MultitaskviewSurfaceModel;
+    Q_PROPERTY(bool opaque READ opaque WRITE setOpaque NOTIFY opaqueChanged FINAL)
+
     QML_ELEMENT
 
 public:
@@ -33,6 +35,9 @@ public:
     bool visible() const;
     void setVisible(bool visible);
 
+    bool opaque() const;
+    void setOpaque(bool opaque);
+
     void addSurface(SurfaceWrapper *surface) override;
     void removeSurface(SurfaceWrapper *surface) override;
 
@@ -44,10 +49,12 @@ Q_SIGNALS:
     void nameChanged();
     void indexChanged();
     void visibleChanged();
+    void opaqueChanged();
 
 private:
     QString m_name;
     int m_id = -1;
     bool m_visible = false;
+    bool m_opaque = true;
     std::forward_list<SurfaceWrapper *> m_activedSurfaceHistory;
 };

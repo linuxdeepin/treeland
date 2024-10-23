@@ -48,10 +48,29 @@ void WorkspaceModel::setVisible(bool visible)
     Q_EMIT visibleChanged();
 }
 
+bool WorkspaceModel::opaque() const
+{
+    return m_opaque;
+}
+
+void WorkspaceModel::setOpaque(bool opaque)
+{
+    if (m_opaque == opaque)
+        return;
+    m_opaque = opaque;
+    for (auto surface : surfaces())
+        surface->setOpacity(opaque ? 1.0 : 0.0);
+    Q_EMIT opaqueChanged();
+}
+
 void WorkspaceModel::addSurface(SurfaceWrapper *surface)
 {
     SurfaceListModel::addSurface(surface);
-    surface->setVisible(m_visible);
+    if (!m_opaque) {
+        surface->setOpacity(m_opaque ? 1.0 : 0.0);
+    } else {
+        surface->setVisible(m_visible);
+    }
     surface->setWorkspaceId(m_id);
 }
 
