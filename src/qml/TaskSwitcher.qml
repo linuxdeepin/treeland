@@ -42,6 +42,16 @@ Item {
         }
     }
 
+    Connections {
+        target: Helper.workspace.current
+
+        onSurfaceAdded: function(surface) {
+            if (root.visible && currentContext.visible) {
+                surface.opacity = 0.0
+            }
+        }
+    }
+
     Rectangle {
         id: mask
         anchors.fill: parent
@@ -416,7 +426,7 @@ Item {
             return false
         }
 
-        Helper.workspace.showCurrentWindows(!visible)
+        Helper.workspace.current.opaque = !visible
         root.visible = visible
 
         return switchView.currentItem && switchView.visible
