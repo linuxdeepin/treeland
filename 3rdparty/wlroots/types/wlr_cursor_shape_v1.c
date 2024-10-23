@@ -46,7 +46,8 @@ static void device_handle_set_shape(struct wl_client *client, struct wl_resource
 		return;
 	}
 
-	if (shape == 0 || shape > WP_CURSOR_SHAPE_DEVICE_V1_SHAPE_ZOOM_OUT) {
+	uint32_t version = wl_resource_get_version(device_resource);
+	if (!wp_cursor_shape_device_v1_shape_is_valid(shape, version)) {
 		wl_resource_post_error(device_resource, WP_CURSOR_SHAPE_DEVICE_V1_ERROR_INVALID_SHAPE,
 			"Invalid shape %"PRIu32, shape);
 		return;
