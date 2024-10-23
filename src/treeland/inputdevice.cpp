@@ -3,9 +3,6 @@
 
 #include "inputdevice.h"
 
-#include "global.h"
-#include "togglablegesture.h"
-
 #include <winputdevice.h>
 
 #include <qwbackend.h>
@@ -19,7 +16,6 @@ QW_USE_NAMESPACE
 
 #define MIN_SWIPE_FINGERS 3
 
-Q_DECLARE_LOGGING_CATEGORY(inputdevice);
 Q_LOGGING_CATEGORY(inputdevice, "treeland.inputdevice", QtDebugMsg);
 
 static bool ensureStatus(libinput_config_status status)

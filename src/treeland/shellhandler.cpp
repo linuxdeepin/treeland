@@ -216,7 +216,7 @@ void ShellHandler::setupSurfaceActiveWatcher(SurfaceWrapper *wrapper)
             m_workspace->current()->pushActivedSurface(wrapper);
     });
 
-    connect(wrapper, &SurfaceWrapper::requestDeactive, this, [this, wrapper]() {
+    connect(wrapper, &SurfaceWrapper::requestInactive, this, [this, wrapper]() {
         m_workspace->removeActivedSurface(wrapper);
         Helper::instance()->activateSurface(m_workspace->current()->latestActiveSurface());
     });
@@ -310,7 +310,7 @@ void ShellHandler::setupSurfaceWindowMenu(SurfaceWrapper *wrapper)
 
 void ShellHandler::handleDdeShellSurfaceAdded(WSurface *surface, SurfaceWrapper *wrapper)
 {
-    wrapper->setIsDdeShellSurface(true);
+    wrapper->setIsDDEShellSurface(true);
     auto ddeShellSurface = m_refDDEShellV1->ddeShellSurfaceFromWSurface(surface);
     Q_ASSERT(ddeShellSurface);
     auto updateLayer = [ddeShellSurface, wrapper] {

@@ -50,8 +50,9 @@ QQuickItem *QmlEngine::createComponent(QQmlComponent &component,
     }
     auto item = qobject_cast<QQuickItem *>(obj);
     Q_ASSERT_X(item, __func__, component.errorString().toStdString().c_str());
-    if (!item)
+    if (!item) {
         qCFatal(qLcTreelandEngine) << "Can't create component:" << component.errorString();
+    }
     item->setParent(parent);
     item->setParentItem(parent);
     component.completeCreate();
@@ -77,9 +78,10 @@ QObject *QmlEngine::createWindowMenu(QObject *parent)
 {
     auto context = qmlContext(parent);
     auto obj = windowMenuComponent.beginCreate(context);
-    if (!obj)
+    if (!obj) {
         qCFatal(qLcTreelandEngine)
-            << "Can't create WindowMenu:" << dockPreviewComponent.errorString();
+            << "Can't create WindowMenu:" << windowMenuComponent.errorString();
+    }
     obj->setParent(parent);
     windowMenuComponent.completeCreate();
 

@@ -17,6 +17,7 @@ LockScreen::LockScreen(SurfaceContainer *parent)
     connect(m_delayTimer.get(), &QTimer::timeout, this, &LockScreen::unlock);
 
     m_delayTimer->setSingleShot(true);
+    // Display desktop animation after lock screen animation with a delay of 300ms
     m_delayTimer->setInterval(300);
 
     IS_ENABLED = CmdLine::ref().useLockScreen();
@@ -60,6 +61,7 @@ void LockScreen::onAnimationPlayed()
 void LockScreen::onAnimationPlayFinished()
 {
     auto *item = qobject_cast<QQuickItem *>(sender());
+    Q_ASSERT(item);
     item->setVisible(false);
 
     m_components.clear();
