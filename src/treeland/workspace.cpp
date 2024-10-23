@@ -118,15 +118,6 @@ void Workspace::moveModelTo(int workspaceId, int destinationIndex)
     Q_EMIT currentIndexChanged();
 }
 
-void Workspace::showCurrentWindows(bool show)
-{
-    auto surfaces = current()->surfaces();
-
-    foreach (auto window, surfaces) {
-        window->setOpacity(show ? 1.0 : 0.0);
-    }
-}
-
 void Workspace::removeSurface(SurfaceWrapper *surface)
 {
     if (!doRemoveSurface(surface, false))
