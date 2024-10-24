@@ -773,21 +773,21 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *, QInputEvent *event)
             }
 
             m_taskSwitch->setProperty("switchOn", true);
-        } else if (kevent->key() == Qt::Key_Tab || kevent->key() == Qt::Key_Backtab
-                   || kevent->key() == Qt::Key_QuoteLeft) {
+        } else if (kevent->key() == Qt::Key_Tab || kevent->key() == Qt::Key_Backtab ||
+                   kevent->key() == Qt::Key_QuoteLeft || kevent->key() == Qt::Key_AsciiTilde ) {
             if (m_taskSwitch && m_taskSwitch->property("switchOn").toBool()
                 && event->modifiers().testFlag(Qt::AltModifier)) {
-                if (event->modifiers() == Qt::AltModifier) {
+                if (kevent->key() == Qt::Key_QuoteLeft || Qt::Key_AsciiTilde) {
+                    auto activeSurface = Helper::instance()->activatedSurface();
                     QString appid;
-                    if (kevent->key() == Qt::Key_QuoteLeft) {
-                        auto activeSurface = Helper::instance()->activatedSurface();
-                        if (activeSurface) {
-                            appid = activeSurface->shellSurface()->appId();
-                        }
+                    if (activeSurface) {
+                        appid = activeSurface->shellSurface()->appId();
                     }
-
                     auto filter = Helper::instance()->workspace()->currentFilter();
                     filter->setFilterAppId(appid);
+                }
+
+                if (event->modifiers() == Qt::AltModifier) {
                     QMetaObject::invokeMethod(m_taskSwitch, "next");
                     return true;
                 } else if (event->modifiers() == (Qt::AltModifier | Qt::ShiftModifier)) {
