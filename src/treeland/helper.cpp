@@ -105,33 +105,38 @@ Helper::Helper(QObject *parent)
         m_seat->setKeyboardFocusSurface(wrapper ? wrapper->surface() : nullptr);
     });
 
-    connect(m_multiTaskViewGesture, &TogglableGesture::statusChanged, this, [this](TogglableGesture::Status status){
-        if (status == TogglableGesture::Activating ||
-            status == TogglableGesture::Deactivating ||
-            status == TogglableGesture::Active) {
-            toggleMultitaskview(Multitaskview::Gesture);
-        } else {
-            m_multitaskview->exit(nullptr);
-            m_currentMode = CurrentMode::Normal;
-        }
-    });
+    connect(m_multiTaskViewGesture,
+            &TogglableGesture::statusChanged,
+            this,
+            [this](TogglableGesture::Status status) {
+                if (status == TogglableGesture::Activating
+                    || status == TogglableGesture::Deactivating
+                    || status == TogglableGesture::Active) {
+                    toggleMultitaskview(Multitaskview::Gesture);
+                } else {
+                    m_multitaskview->exit(nullptr);
+                    m_currentMode = CurrentMode::Normal;
+                }
+            });
 
-    connect(m_multiTaskViewGesture, &TogglableGesture::partialGestureFactorChanged, this, [this](qreal factor){
-        if (m_multitaskview &&
-            m_multitaskview->isVisible() &&
-            m_multitaskview->activeReason() ) {
-            m_multitaskview->setTaskviewVal(factor);
-        }
-    });
+    connect(m_multiTaskViewGesture,
+            &TogglableGesture::partialGestureFactorChanged,
+            this,
+            [this](qreal factor) {
+                if (m_multitaskview && m_multitaskview->isVisible()
+                    && m_multitaskview->activeReason()) {
+                    m_multitaskview->setTaskviewVal(factor);
+                }
+            });
 
-    connect(m_windowGesture, &TogglableGesture::activated, this, [this](){
+    connect(m_windowGesture, &TogglableGesture::activated, this, [this]() {
         auto surface = Helper::instance()->activatedSurface();
         if (surface && !surface->isMaximized()) {
             surface->requestMaximize();
         }
     });
 
-    connect(m_windowGesture, &TogglableGesture::deactivated, this, [this](){
+    connect(m_windowGesture, &TogglableGesture::deactivated, this, [this]() {
         auto surface = Helper::instance()->activatedSurface();
         if (surface && surface->isMaximized()) {
             surface->requestCancelMaximize();
@@ -484,7 +489,6 @@ void Helper::init()
             if (m_multiTaskViewGesture) {
                 m_multiTaskViewGesture->addTouchpadSwipeGesture(SwipeGesture::Up, 4);
                 m_multiTaskViewGesture->addTouchpadSwipeGesture(SwipeGesture::Right, 4);
-
             }
         }
     });
@@ -758,6 +762,12 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *, QInputEvent *event)
                 auto contentItem = window()->contentItem();
                 auto output = rootContainer()->primaryOutput();
                 m_taskSwitch = qmlEngine()->createTaskSwitcher(output, contentItem);
+                connect(m_taskSwitch, &QQuickItem::visibleChanged, m_taskSwitch, [this] {
+                    if (!m_taskSwitch->isVisible()) {
+                        m_taskSwitch->deleteLater();
+                        m_taskSwitch = nullptr;
+                    }
+                });
                 m_taskSwitch->setZ(RootSurfaceContainer::OverlayZOrder);
                 m_currentMode = CurrentMode::WindowSwitch;
             }
