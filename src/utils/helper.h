@@ -173,6 +173,19 @@ Q_SIGNALS:
     void currentWorkspaceIdChanged();
     void currentUserChanged(const QString &user);
 
+
+    // 键盘信号
+    void resizePane(int size, int direction);
+    void choosePane(int id);
+    void swapPane();
+    void removePane(int flag);
+    void switchLayout();
+    void createWs();
+    void destoryWs();
+    void switchNextWs();
+    // void switchBackWs();
+    void moveWs(int wsId);
+
 protected:
     bool beforeDisposeEvent(WSeat *seat, QWindow *watched, QInputEvent *event) override;
     bool afterHandleEvent(WSeat *seat,
