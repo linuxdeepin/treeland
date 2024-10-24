@@ -44,6 +44,7 @@ SurfaceWrapper::SurfaceWrapper(QmlEngine *qmlEngine,
     , m_skipDockPreView(false)
     , m_skipMutiTaskView(false)
     , m_isDdeShellSurface(false)
+    , m_xwaylandPositionFromSurface(true)
     , m_removeWrapperEndOfAnimation(false)
 {
     QQmlEngine::setContextForObject(this, qmlEngine->rootContext());
@@ -123,6 +124,31 @@ SurfaceWrapper::SurfaceWrapper(QmlEngine *qmlEngine,
 #if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0)
         m_surfaceItem->setFocusPolicy(Qt::NoFocus);
 #endif
+    }
+
+    if (type == Type::XWayland) {
+        auto xwaylandSurface = qobject_cast<WXWaylandSurface *>(shellSurface);
+        auto xwaylandSurfaceItem = qobject_cast<WXWaylandSurfaceItem*>(m_surfaceItem);
+
+        connect(xwaylandSurfaceItem, &WXWaylandSurfaceItem::implicitPositionChanged, this, [this, xwaylandSurfaceItem]() {
+            if (m_xwaylandPositionFromSurface)
+                moveNormalGeometryInOutput(xwaylandSurfaceItem->implicitPosition());
+        });
+
+        connect(this, &QQuickItem::xChanged, xwaylandSurface, [this, xwaylandSurfaceItem]() {
+            xwaylandSurfaceItem->moveTo(position(), !m_xwaylandPositionFromSurface);
+        });
+
+        connect(this, &QQuickItem::yChanged, xwaylandSurface, [this, xwaylandSurfaceItem]() {
+            xwaylandSurfaceItem->moveTo(position(), !m_xwaylandPositionFromSurface);
+        });
+
+        auto requestPos = xwaylandSurface->requestConfigureGeometry().topLeft();
+        if (!requestPos.isNull()) {
+            // NOTE: need a better check whether set positionAutomatic, WindowTypes?
+            m_positionAutomatic = false;
+            moveNormalGeometryInOutput(xwaylandSurfaceItem->implicitPosition());
+        }
     }
 }
 
@@ -691,6 +717,7 @@ void SurfaceWrapper::onAnimationReady()
 
 void SurfaceWrapper::onAnimationFinished()
 {
+    setXwaylandPositionFromSurface(true);
     Q_ASSERT(m_geometryAnimation);
     m_geometryAnimation->deleteLater();
 }
@@ -709,6 +736,7 @@ bool SurfaceWrapper::startStateChangeAnimation(State targetState, const QRectF &
     ok = connect(m_geometryAnimation, SIGNAL(finished()), this, SLOT(onAnimationFinished()));
     Q_ASSERT(ok);
 
+    setXwaylandPositionFromSurface(false);
     ok = QMetaObject::invokeMethod(m_geometryAnimation, "start");
     Q_ASSERT(ok);
     return ok;
@@ -1234,6 +1262,11 @@ void SurfaceWrapper::setCoverEnabled(bool coverEnabled)
 bool SurfaceWrapper::socketEnabled() const
 {
     return m_socketEnabled;
+}
+
+void SurfaceWrapper::setXwaylandPositionFromSurface(bool value)
+{
+    m_xwaylandPositionFromSurface = value;
 }
 
 void SurfaceWrapper::updateExplicitAlwaysOnTop()
