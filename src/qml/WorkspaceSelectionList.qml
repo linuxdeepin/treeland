@@ -209,13 +209,12 @@ Item {
                         color: "transparent"
                     }
                     onClicked: {
-                        Helper.workspace.removeModel(workspace.index)
+                        Helper.workspace.removeModel(workspaceThumbDelegate.index)
                     }
                 }
             }
         }
     }
-
 
     ListView {
         id: workspaceList
@@ -226,8 +225,7 @@ Item {
         }
 
         interactive: false
-        currentIndex: Helper.workspace.currentIndex
-        highlightFollowsCurrentItem: true
+        highlightFollowsCurrentItem: false
         displaced: Transition {
             NumberAnimation {
                 property: "x"
@@ -240,6 +238,17 @@ Item {
         orientation: ListView.Horizontal
         height: TreelandConfig.workspaceDelegateHeight
         model: visualModel
+        WheelHandler {
+            acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
+            onWheel: function (event) {
+                const directionDelta = event.inverted ? -event.angleDelta.y: event.angleDelta.y
+                if (directionDelta < 0) {
+                    Helper.workspace.switchToNext()
+                } else {
+                    Helper.workspace.switchToPrev()
+                }
+            }
+        }
     }
     Item {
         id: newWorkspaceDropArea
@@ -251,7 +260,18 @@ Item {
         }
         HoverHandler {
             onHoveredChanged: {
-                // TODO: add workspace if needed
+                if (hovered) {
+                    if (dragManager.item?.wrapper) {
+                        dragManager.accept = () => {
+                            const wid = Helper.workspace.createModel()
+                            Helper.workspace.switchTo(Helper.workspace.count - 1)
+                            Helper.workspace.moveSurfaceTo(dragManager.item.wrapper, wid)
+                        }
+                    }
+                } else {
+                    if (dragManager.item?.wrapper)
+                        dragManager.accept = null
+                }
             }
         }
     }
@@ -275,7 +295,8 @@ Item {
             radius: 20
         }
         onClicked: {
-            Helper.workspace.createModel(`workspace-${Helper.workspace.count}`, false)
+            Helper.workspace.createModel()
+            Helper.workspace.switchTo(Helper.workspace.count - 1)
         }
     }
 }

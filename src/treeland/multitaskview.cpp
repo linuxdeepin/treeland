@@ -4,6 +4,7 @@
 #include "multitaskview.h"
 
 #include "helper.h"
+#include "output.h"
 #include "surfacecontainer.h"
 #include "treelandconfig.h"
 #include "workspace.h"
@@ -67,6 +68,7 @@ void Multitaskview::exit(SurfaceWrapper *surface)
         Helper::instance()->forceActivateSurface(surface);
     }
     // TODO: handle taskview gesture
+    Q_EMIT aboutToExit();
     setStatus(Exited);
 }
 
@@ -83,22 +85,44 @@ MultitaskviewSurfaceModel::MultitaskviewSurfaceModel(QObject *parent)
 
 void MultitaskviewSurfaceModel::initializeModel()
 {
-    if (!workspace() || m_layoutArea.isEmpty())
+    if (!workspace() || !output() || m_layoutArea.isEmpty())
         return;
     beginResetModel();
     m_data.clear();
-    std::transform(workspace()->surfaces().begin(),
-                   workspace()->surfaces().end(),
-                   std::back_inserter(m_data),
-                   [this](SurfaceWrapper *wrapper) -> ModelDataPtr {
-                       return std::make_shared<SurfaceModelData>(
-                           wrapper,
-                           wrapper->geometry().translated(-layoutArea().topLeft()),
-                           false);
-                   });
+    for (const auto &surface : workspace()->surfaces()) {
+        if (!Helper::instance()->surfaceBelongsToCurrentUser(surface))
+            continue;
+        if (surface->ownsOutput() == output()) {
+            if (surfaceReady(surface)) {
+                m_data.push_back(std::make_shared<SurfaceModelData>(
+                    surface,
+                    surfaceGeometry(surface).translated(-layoutArea().topLeft()),
+                    false,
+                    surface->isMinimized()));
+            } else {
+                monitorUnreadySurface(surface);
+            }
+        }
+        connect(surface,
+                &SurfaceWrapper::ownsOutputChanged,
+                this,
+                &MultitaskviewSurfaceModel::handleWrapperOutputChanged,
+                Qt::UniqueConnection);
+        connect(surface,
+                &SurfaceWrapper::surfaceStateChanged,
+                this,
+                &MultitaskviewSurfaceModel::handleSurfaceStateChanged,
+                Qt::UniqueConnection);
+    }
+    std::sort(m_data.begin(),
+              m_data.end(),
+              [this](const ModelDataPtr &lhs, const ModelDataPtr &rhs) -> bool {
+                  return laterActiveThan(lhs->wrapper, rhs->wrapper);
+              });
     doUpdateZOrder(m_data);
     endResetModel();
     m_modelReady = true;
+    Q_EMIT countChanged();
     Q_EMIT modelReadyChanged();
 }
 
@@ -121,6 +145,8 @@ QVariant MultitaskviewSurfaceModel::data(const QModelIndex &index, int role) con
         return QVariant::fromValue(m_data[r]->padding);
     case ZOrderRole:
         return QVariant::fromValue(m_data[r]->zorder);
+    case MinimizedRole:
+        return QVariant::fromValue(m_data[r]->minimized);
     default:
         return QVariant();
     }
@@ -131,7 +157,8 @@ QHash<int, QByteArray> MultitaskviewSurfaceModel::roleNames() const
     return QHash<int, QByteArray>{ { SurfaceWrapperRole, "wrapper" },
                                    { GeometryRole, "geometry" },
                                    { PaddingRole, "padding" },
-                                   { ZOrderRole, "zorder" } };
+                                   { ZOrderRole, "zorder" },
+                                   { MinimizedRole, "minimized" } };
 }
 
 QModelIndex MultitaskviewSurfaceModel::index(int row, int column, const QModelIndex &parent) const
@@ -154,6 +181,7 @@ void MultitaskviewSurfaceModel::calcLayout()
         Q_EMIT dataChanged(index(beginIndex), index(endIndex), { GeometryRole, PaddingRole });
     }
     Q_EMIT rowsChanged();
+    Q_EMIT contentHeightChanged();
 }
 
 void MultitaskviewSurfaceModel::updateZOrder()
@@ -314,16 +342,45 @@ std::pair<int, int> MultitaskviewSurfaceModel::commitAndGetUpdateRange(
 void MultitaskviewSurfaceModel::handleWrapperGeometryChanged()
 {
     auto wrapper = qobject_cast<SurfaceWrapper *>(sender());
-    qDebug() << "wrapper" << wrapper << "geometry change to" << wrapper->geometry();
-    if (wrapper->geometry().isValid() && wrapper->surface()->mapped()) {
+    Q_ASSERT(wrapper);
+    if (surfaceReady(wrapper)) {
         addReadySurface(wrapper);
+    }
+}
+
+void MultitaskviewSurfaceModel::handleWrapperOutputChanged()
+{
+    auto wrapper = qobject_cast<SurfaceWrapper *>(sender());
+    Q_ASSERT(wrapper);
+    if (wrapper->ownsOutput() == output()) {
+        if (surfaceReady(wrapper)) {
+            addReadySurface(wrapper);
+        } else {
+            monitorUnreadySurface(wrapper);
+        }
+    }
+}
+
+void MultitaskviewSurfaceModel::handleSurfaceStateChanged()
+{
+    auto surface = qobject_cast<SurfaceWrapper *>(sender());
+    Q_ASSERT(surface);
+    auto dataPtr =
+        std::find_if(m_data.begin(), m_data.end(), [this, surface](const ModelDataPtr &modelData) {
+            return modelData->wrapper == surface;
+        });
+    if (dataPtr == m_data.end())
+        return;
+    if (surface->isMinimized() != (*dataPtr)->minimized) {
+        (*dataPtr)->minimized = surface->isMinimized();
+        int i = std::distance(m_data.begin(), dataPtr);
+        Q_EMIT dataChanged(index(i), index(i), { MinimizedRole });
     }
 }
 
 void MultitaskviewSurfaceModel::handleSurfaceMappedChanged()
 {
     auto surface = qobject_cast<WSurface *>(sender());
-    qDebug() << "surface" << surface << "mapped" << surface->mapped();
     auto it = std::find_if(workspace()->surfaces().begin(),
                            workspace()->surfaces().end(),
                            [surface](SurfaceWrapper *wrapper) {
@@ -332,29 +389,38 @@ void MultitaskviewSurfaceModel::handleSurfaceMappedChanged()
     Q_ASSERT_X(it != workspace()->surfaces().end(),
                __func__,
                "Monitoring mapped of a removed surface wrapper.");
-    if ((*it)->geometry().isValid() && surface->mapped()) {
+    if (surfaceReady(*it)) {
         addReadySurface(*it);
     }
 }
 
 void MultitaskviewSurfaceModel::handleSurfaceAdded(SurfaceWrapper *surface)
 {
-    if (!surface->surface()->mapped() || !surface->geometry().isValid()) {
-        connect(surface,
-                &SurfaceWrapper::geometryChanged,
-                this,
-                &MultitaskviewSurfaceModel::handleWrapperGeometryChanged);
-        connect(surface->surface(),
-                &WSurface::mappedChanged,
-                this,
-                &MultitaskviewSurfaceModel::handleSurfaceMappedChanged);
+    if (!Helper::instance()->surfaceBelongsToCurrentUser(surface))
         return;
+    connect(surface,
+            &SurfaceWrapper::ownsOutputChanged,
+            this,
+            &MultitaskviewSurfaceModel::handleWrapperOutputChanged,
+            Qt::UniqueConnection);
+    connect(surface,
+            &SurfaceWrapper::surfaceStateChanged,
+            this,
+            &MultitaskviewSurfaceModel::handleSurfaceStateChanged,
+            Qt::UniqueConnection);
+    if (surface->ownsOutput() == output()) {
+        if (surfaceReady(surface)) {
+            addReadySurface(surface);
+        } else {
+            monitorUnreadySurface(surface);
+        }
     }
-    addReadySurface(surface);
 }
 
 void MultitaskviewSurfaceModel::handleSurfaceRemoved(SurfaceWrapper *surface)
 {
+    if (!Helper::instance()->surfaceBelongsToCurrentUser(surface))
+        return;
     auto toBeRemovedIt =
         std::find_if(m_data.begin(), m_data.end(), [surface](ModelDataPtr modelData) {
             return modelData->wrapper == surface;
@@ -364,6 +430,14 @@ void MultitaskviewSurfaceModel::handleSurfaceRemoved(SurfaceWrapper *surface)
     int toRemove = std::distance(m_data.begin(), toBeRemovedIt);
     beginRemoveRows({}, toRemove, toRemove);
     m_data.remove(toRemove);
+    disconnect(surface,
+               &SurfaceWrapper::ownsOutputChanged,
+               this,
+               &MultitaskviewSurfaceModel::handleWrapperOutputChanged);
+    disconnect(surface,
+               &SurfaceWrapper::surfaceStateChanged,
+               this,
+               &MultitaskviewSurfaceModel::handleSurfaceStateChanged);
     endRemoveRows();
     doCalculateLayout(m_data);
     auto [beginIndex, endIndex] = commitAndGetUpdateRange(m_data);
@@ -371,10 +445,20 @@ void MultitaskviewSurfaceModel::handleSurfaceRemoved(SurfaceWrapper *surface)
         Q_ASSERT(beginIndex < m_data.size());
         Q_EMIT dataChanged(index(beginIndex), index(endIndex), { GeometryRole, PaddingRole });
     }
+    Q_EMIT rowsChanged();
+    Q_EMIT countChanged();
+    Q_EMIT contentHeightChanged();
 }
 
 void MultitaskviewSurfaceModel::addReadySurface(SurfaceWrapper *surface)
 {
+    Q_ASSERT_X(surfaceReady(surface),
+               __func__,
+               "Surface wrapper should be ready before adding to multitaskview model.");
+    disconnect(surface,
+               &SurfaceWrapper::normalGeometryChanged,
+               this,
+               &MultitaskviewSurfaceModel::handleWrapperGeometryChanged);
     disconnect(surface,
                &SurfaceWrapper::geometryChanged,
                this,
@@ -383,13 +467,11 @@ void MultitaskviewSurfaceModel::addReadySurface(SurfaceWrapper *surface)
                &WSurface::mappedChanged,
                this,
                &MultitaskviewSurfaceModel::handleSurfaceMappedChanged);
-    Q_ASSERT_X(surface->surface()->mapped() && surface->geometry().isValid(),
-               __func__,
-               "Surface wrapper should be ready before adding to multitaskview model.");
-    auto toBeInserted =
-        std::make_shared<SurfaceModelData>(surface,
-                                           surface->geometry().translated(-layoutArea().topLeft()),
-                                           false);
+    auto toBeInserted = std::make_shared<SurfaceModelData>(
+        surface,
+        surfaceGeometry(surface).translated(-layoutArea().topLeft()),
+        false,
+        surface->isMinimized());
     QList<ModelDataPtr> pendingData{ m_data };
     auto it = pendingData.begin();
     for (; it != pendingData.end() && laterActiveThan((*it)->wrapper, surface); ++it)
@@ -408,6 +490,43 @@ void MultitaskviewSurfaceModel::addReadySurface(SurfaceWrapper *surface)
     m_data = pendingData;
     pendingData.clear();
     endInsertRows();
+    Q_EMIT rowsChanged();
+    Q_EMIT countChanged();
+    Q_EMIT contentHeightChanged();
+}
+
+void MultitaskviewSurfaceModel::monitorUnreadySurface(SurfaceWrapper *surface)
+{
+    Q_ASSERT_X(!surfaceReady(surface), __func__, "Surface is ready.");
+    connect(surface,
+            &SurfaceWrapper::normalGeometryChanged,
+            this,
+            &MultitaskviewSurfaceModel::handleWrapperGeometryChanged,
+            Qt::UniqueConnection);
+    connect(surface,
+            &SurfaceWrapper::geometryChanged,
+            this,
+            &MultitaskviewSurfaceModel::handleWrapperGeometryChanged,
+            Qt::UniqueConnection);
+    connect(surface->surface(),
+            &WSurface::mappedChanged,
+            this,
+            &MultitaskviewSurfaceModel::handleSurfaceMappedChanged,
+            Qt::UniqueConnection);
+}
+
+bool MultitaskviewSurfaceModel::surfaceReady(SurfaceWrapper *surface)
+{
+    return surface->surface()->mapped() && surfaceGeometry(surface).isValid();
+}
+
+QRectF MultitaskviewSurfaceModel::surfaceGeometry(SurfaceWrapper *surface)
+{
+    if (surface->isMinimized()) {
+        return surface->normalGeometry();
+    } else {
+        return surface->geometry();
+    }
 }
 
 bool MultitaskviewSurfaceModel::laterActiveThan(SurfaceWrapper *a, SurfaceWrapper *b)
@@ -466,4 +585,28 @@ void MultitaskviewSurfaceModel::setWorkspace(WorkspaceModel *newWorkspace)
         connectWorkspace(m_workspace);
     initializeModel();
     emit workspaceChanged();
+}
+
+qreal MultitaskviewSurfaceModel::contentHeight() const
+{
+    return m_contentHeight;
+}
+
+Output *MultitaskviewSurfaceModel::output() const
+{
+    return m_output;
+}
+
+void MultitaskviewSurfaceModel::setOutput(Output *newOutput)
+{
+    if (m_output == newOutput)
+        return;
+    m_output = newOutput;
+    initializeModel();
+    emit outputChanged();
+}
+
+uint MultitaskviewSurfaceModel::count() const
+{
+    return rowCount();
 }

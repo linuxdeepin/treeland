@@ -6,9 +6,11 @@
 #include <QQuickItem>
 Q_MOC_INCLUDE("surfacecontainer.h")
 Q_MOC_INCLUDE("workspacemodel.h")
+Q_MOC_INCLUDE("output.h")
 class SurfaceListModel;
 class SurfaceWrapper;
 class WorkspaceModel;
+class Output;
 
 class Multitaskview : public QQuickItem
 {
@@ -56,6 +58,7 @@ Q_SIGNALS:
     void statusChanged();
     void activeReasonChanged();
     void taskviewValChanged();
+    void aboutToExit(); // Focus has been updated, waiting for exit
 
 public Q_SLOTS:
     void exit(SurfaceWrapper *surface = nullptr);
@@ -75,6 +78,9 @@ class MultitaskviewSurfaceModel : public QAbstractListModel
     Q_PROPERTY(QRectF layoutArea READ layoutArea WRITE setLayoutArea NOTIFY layoutAreaChanged REQUIRED FINAL)
     Q_PROPERTY(bool modelReady READ modelReady NOTIFY modelReadyChanged FINAL)
     Q_PROPERTY(uint rows READ rows NOTIFY rowsChanged FINAL)
+    Q_PROPERTY(qreal contentHeight READ contentHeight NOTIFY contentHeightChanged FINAL)
+    Q_PROPERTY(Output *output READ output WRITE setOutput NOTIFY outputChanged FINAL)
+    Q_PROPERTY(uint count READ count NOTIFY countChanged FINAL)
 
     static inline constexpr qreal LoadFactor = 0.6;
     static inline constexpr qreal CellPadding = 12;
@@ -85,6 +91,8 @@ class MultitaskviewSurfaceModel : public QAbstractListModel
         SurfaceWrapper *wrapper{ nullptr };
         QRectF geometry{};
         bool padding{ false };
+        bool minimized{ false };
+
         QRectF pendingGeometry{};
         bool pendingPadding{ false };
         int zorder{ 0 };
@@ -108,7 +116,8 @@ public:
         SurfaceWrapperRole = Qt::UserRole + 1,
         GeometryRole,
         PaddingRole,
-        ZOrderRole
+        ZOrderRole,
+        MinimizedRole
     };
     Q_ENUM(SurfaceModelRole)
 
@@ -132,12 +141,22 @@ public:
     WorkspaceModel *workspace() const;
     void setWorkspace(WorkspaceModel *newWorkspace);
 
+    qreal contentHeight() const;
+
+    Output *output() const;
+    void setOutput(Output *newOutput);
+
+    uint count() const;
+
 Q_SIGNALS:
     void surfaceListModelChanged();
     void layoutAreaChanged();
     void modelReadyChanged();
     void rowsChanged();
     void workspaceChanged();
+    void contentHeightChanged();
+    void outputChanged();
+    void countChanged();
 
 private:
     bool tryLayout(const QList<ModelDataPtr> &rawData, qreal rowH, bool ignoreOverlap = false);
@@ -146,10 +165,15 @@ private:
     void doUpdateZOrder(const QList<ModelDataPtr> &rawData);
     std::pair<int, int> commitAndGetUpdateRange(const QList<ModelDataPtr> &rawData);
     void handleWrapperGeometryChanged();
+    void handleWrapperOutputChanged();
+    void handleSurfaceStateChanged();
     void handleSurfaceMappedChanged();
     void handleSurfaceAdded(SurfaceWrapper *surface);
     void handleSurfaceRemoved(SurfaceWrapper *surface);
     void addReadySurface(SurfaceWrapper *surface);
+    void monitorUnreadySurface(SurfaceWrapper *surface);
+    bool surfaceReady(SurfaceWrapper *surface);
+    QRectF surfaceGeometry(SurfaceWrapper *surface);
     bool laterActiveThan(SurfaceWrapper *a, SurfaceWrapper *b);
     void connectWorkspace(WorkspaceModel *workspace);
     void disconnectWorkspace(WorkspaceModel *workspace);
@@ -162,4 +186,5 @@ private:
     bool m_modelReady;
     QList<ModelDataPtr> m_toBeInserted;
     WorkspaceModel *m_workspace = nullptr;
+    Output *m_output = nullptr;
 };
