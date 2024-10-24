@@ -1788,7 +1788,9 @@ QList<QPointer<QQuickItem>> WOutputRenderWindow::paintOrderItemList(QQuickItem *
     nodes.push(root);
     while (!nodes.isEmpty()){
         auto node = nodes.pop();
-        if (filter(node)) {
+        if (!node)
+            continue;
+        if (!filter || filter(node)) {
             result.append(node);
         }
         auto childItems = QQuickItemPrivate::get(node)->paintOrderChildItems();
