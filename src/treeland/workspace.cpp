@@ -228,8 +228,8 @@ void Workspace::switchToPrev()
 
 void Workspace::switchTo(int index)
 {
-    Q_ASSERT(index != currentIndex());
-    Q_ASSERT(index >= 0 && index < m_models->rowCount());
+    if (index < 0 || index >= m_models->rowCount() || index == currentIndex())
+        return;
     auto oldCurrentIndex = currentIndex();
     setCurrentIndex(index);
     Helper::instance()->activateSurface(current()->latestActiveSurface());
@@ -375,7 +375,11 @@ int Workspace::doCreateModel(const QString &name, bool visible)
     auto newContainer = new WorkspaceModel(this,
                                            nextWorkspaceId(),
                                            m_showOnAllWorkspaceModel->m_activedSurfaceHistory);
-    newContainer->setName(name);
+    if (name.isEmpty()) {
+        newContainer->setName(QString("workspace-%1").arg(newContainer->id()));
+    } else {
+        newContainer->setName(name);
+    }
     newContainer->setVisible(visible);
     m_models->addObject(newContainer);
     return newContainer->id();

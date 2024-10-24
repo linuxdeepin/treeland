@@ -52,15 +52,60 @@ Item {
     MultitaskviewSurfaceModel {
         id: surfaceModel
         workspace: root.workspace
+        output: root.output
         layoutArea: root.mapToItem(output.outputItem, Qt.rect(surfaceGridView.x, surfaceGridView.y, surfaceGridView.width, surfaceGridView.height))
+    }
+
+    Connections {
+        target: multitaskview
+        function onAboutToExit() {
+            surfaceModel.updateZOrder()
+        }
     }
 
     Flickable {
         id: surfaceGridView
         // Do not use anchors here, geometry should be stable as soon as the item is created
         y: workspaceListPadding
+        contentHeight: Math.max(height, surfaceModel.contentHeight)
         width: parent.width
         height: parent.height - workspaceListPadding
+        states: [
+            State {
+                name: "initial"
+                PropertyChanges {
+                    surfaceGridView {
+                        clip: false
+                    }
+                }
+            },
+            State {
+                name: "partial"
+                PropertyChanges {
+                    surfaceGridView {
+                        clip: false
+                    }
+                }
+            },
+            State {
+                name: "taskview"
+                PropertyChanges {
+                    surfaceGridView {
+                        clip: true
+                    }
+                }
+            }
+        ]
+        transitions: [
+            Transition {
+                to: "taskview"
+                SequentialAnimation {
+                    PauseAnimation { duration: TreelandConfig.multitaskviewAnimationDuration }
+                    PropertyAction { target: surfaceGridView; property: "clip" }
+                }
+            }
+        ]
+        state: multitaskview.state
         visible: surfaceModel.modelReady
         Repeater {
             model: surfaceModel
@@ -72,13 +117,14 @@ Item {
                 required property rect geometry
                 required property bool padding
                 required property int zorder
+                required property bool minimized
                 property bool needPadding
                 property real paddingOpacity
                 readonly property rect initialGeometry: surfaceGridView.mapFromItem(output.outputItem, wrapper.geometry)
                 property real ratio: wrapper.width / wrapper.height
                 property real fullY
 
-                visible: true
+                visible: multitaskview.status == Multitaskview.Exited ? !minimized : true
                 clip: false
                 state: drg.active ? "dragging" : multitaskview.state
                 x: geometry.x
@@ -170,6 +216,16 @@ Item {
                     opacity: paddingOpacity
                 }
 
+                Rectangle {
+                    border.color: "blue"
+                    border.width: TreelandConfig.highlightBorderWidth
+                    visible: highlighted
+                    anchors.margins: -TreelandConfig.highlightBorderWidth
+                    anchors.fill: parent
+                    color: "transparent"
+                    radius: delegateCornerRadius + TreelandConfig.highlightBorderWidth
+                }
+
                 function conv(y, item = parent) { // convert to draggedParent's coord
                     return mapToItem(draggedParent, mapFromItem(item, 0, y)).y
                 }
@@ -190,7 +246,10 @@ Item {
                 }
                 TapHandler {
                     gesturePolicy: TapHandler.WithinBounds
-                    onTapped: multitaskview.exit(wrapper)
+                    onTapped: {
+                        surfaceModel.updateZOrder()
+                        multitaskview.exit(wrapper)
+                    }
                 }
                 DragHandler {
                     id: drg
@@ -263,6 +322,29 @@ Item {
                 }
             }
         }
+
+        Control {
+            id: emptyWindowHint
+            anchors.centerIn: parent
+            width: 200
+            height: 50
+            padding: 10
+            visible: surfaceModel.count === 0
+            opacity: multitaskview.taskviewVal
+            contentItem: Text {
+                text: qsTr("No open windows")
+                font.pixelSize: 20
+                elide: Qt.ElideRight
+                anchors.fill: parent
+                horizontalAlignment: Qt.AlignHCenter
+                verticalAlignment: Qt.AlignVCenter
+            }
+            background: Rectangle {
+                color: Qt.rgba(255, 255, 255, .6)
+                radius: TreelandConfig.titleBoxCornerRadius
+            }
+        }
+
         TapHandler {
             acceptedButtons: Qt.LeftButton
             onTapped: {
