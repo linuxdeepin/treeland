@@ -108,7 +108,7 @@ Item {
                 id: currentContext
                 visible: previewWindows.count === 0
 
-                sourceSueface: Helper.activatedSurface
+                sourceSueface: switchView.currentItem.surface
                 anchors.centerIn: previewItem
                 transformOrigin: Item.Center
                 width: previewPostion(sourceSueface, previewItem).width
@@ -415,7 +415,6 @@ Item {
             previewContext.sourceSueface = switchView.currentItem.surface
             switchView.currentIndex = next
 
-            Helper.forceActivateSurface(switchView.currentItem.surface)
             ensurePreview()
         }
     }
@@ -449,6 +448,7 @@ Item {
             switchItemAnimation.start()
         }
 
+        Helper.forceActivateSurface(switchView.currentItem.surface)
         if (root.enableAnimation && switchView.count <= 18) {
             previewWindows.model = root.model
         } else {
