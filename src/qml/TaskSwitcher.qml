@@ -16,6 +16,7 @@ Item {
     required property QtObject output
     readonly property OutputItem outputItem: output.outputItem
     readonly property QtObject model: Helper.workspace.currentFilter
+    readonly property QtObject currentSurface: switchView.currentItem.surface
 
     // control all switch item
     property bool enableBlur: GraphicsInfo.api !== GraphicsInfo.Software
