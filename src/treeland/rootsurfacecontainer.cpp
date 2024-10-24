@@ -156,6 +156,7 @@ void RootSurfaceContainer::beginMoveResize(SurfaceWrapper *surface, Qt::Edges ed
     moveResizeState.surface = surface;
     moveResizeState.startGeometry = surface->geometry();
     moveResizeState.resizeEdges = edges;
+    surface->setXwaylandPositionFromSurface(false);
     surface->setPositionAutomatic(false);
 }
 
@@ -206,6 +207,7 @@ void RootSurfaceContainer::endMoveResize()
 
     ensureSurfaceNormalPositionValid(moveResizeState.surface);
 
+    moveResizeState.surface->setXwaylandPositionFromSurface(true);
     moveResizeState.surface = nullptr;
     Q_EMIT moveResizeFinised();
 }
