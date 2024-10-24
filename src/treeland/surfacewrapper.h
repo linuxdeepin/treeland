@@ -231,6 +231,7 @@ public:
     void setCoverEnabled(bool enabled);
 
     bool socketEnabled() const;
+    void setXwaylandPositionFromSurface(bool value);
 
 public Q_SLOTS:
     // for titlebar
@@ -379,6 +380,7 @@ private:
     uint m_skipDockPreView : 1;
     uint m_skipMutiTaskView : 1;
     uint m_isDdeShellSurface : 1;
+    uint m_xwaylandPositionFromSurface : 1;
     SurfaceRole m_surfaceRole = SurfaceRole::Normal;
     quint32 m_autoPlaceYOffset = 0;
     QPoint m_clientRequstPos;
