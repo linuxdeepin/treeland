@@ -4,11 +4,11 @@
 #pragma once
 
 #include "foreigntoplevelmanagerv1.h"
+#include "multitaskview.h"
 #include "qmlengine.h"
 #include "togglablegesture.h"
 #include "virtualoutputmanager.h"
 #include "windowmanagement.h"
-#include "multitaskview.h"
 
 #include <wglobal.h>
 #include <wqmlcreator.h>
@@ -168,6 +168,7 @@ public Q_SLOTS:
     void forceActivateSurface(SurfaceWrapper *wrapper,
                               Qt::FocusReason reason = Qt::OtherFocusReason);
     void fakePressSurfaceBottomRightToReszie(SurfaceWrapper *surface);
+    bool surfaceBelongsToCurrentUser(SurfaceWrapper *wrapper);
 
 Q_SIGNALS:
     void socketEnabledChanged();

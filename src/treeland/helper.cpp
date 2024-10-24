@@ -472,6 +472,12 @@ void Helper::onSurfaceWrapperAboutToRemove(SurfaceWrapper *wrapper)
     }
 }
 
+bool Helper::surfaceBelongsToCurrentUser(SurfaceWrapper *wrapper)
+{
+    auto credentials = WClient::getCredentials(wrapper->surface()->waylandClient()->handle());
+    return credentials->uid == currentUserId();
+}
+
 void Helper::init()
 {
     auto engine = qmlEngine();
@@ -736,12 +742,16 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *, QInputEvent *event)
             qApp->quit();
             return true;
         } else if (event->modifiers() == Qt::MetaModifier) {
+            const QList<Qt::Key> switchWorkspaceNums = { Qt::Key_1, Qt::Key_2, Qt::Key_3,
+                                                         Qt::Key_4, Qt::Key_5, Qt::Key_6 };
             if (kevent->key() == Qt::Key_Right) {
                 workspace()->switchToNext();
                 return true;
             } else if (kevent->key() == Qt::Key_Left) {
                 workspace()->switchToPrev();
                 return true;
+            } else if (switchWorkspaceNums.contains(kevent->key())) {
+                workspace()->switchTo(switchWorkspaceNums.indexOf(kevent->key()));
             } else if (kevent->key() == Qt::Key_S) {
                 if (!m_multitaskview) {
                     toggleMultitaskview(Multitaskview::ShortcutKey);

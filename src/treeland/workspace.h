@@ -49,7 +49,7 @@ public:
     void removeSurface(SurfaceWrapper *surface) override;
     int modelIndexOfSurface(SurfaceWrapper *surface) const;
 
-    Q_INVOKABLE int createModel(const QString &name, bool visible = false);
+    Q_INVOKABLE int createModel(const QString &name = QLatin1String(""), bool visible = false);
     Q_INVOKABLE void removeModel(int index);
     WorkspaceModel *model(int index) const;
     WorkspaceModel *modelFromId(int id) const;
