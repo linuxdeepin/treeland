@@ -6,6 +6,8 @@
 #include "qmlengine.h"
 #include "surfacewrapper.h"
 
+#include <private/qquickitem_p.h>
+
 SurfaceProxy::SurfaceProxy(QQuickItem *parent)
     : QQuickItem(parent)
 {
@@ -38,11 +40,15 @@ void SurfaceProxy::setSurface(SurfaceWrapper *newSurface)
                                             m_sourceSurface->type(),
                                             this);
         m_proxySurface->setTransformOrigin(QQuickItem::TransformOrigin::TopLeft);
+        m_proxySurface->setFlag(ItemIsFocusScope);
+        m_proxySurface->QQuickItem::setFocus(false);
+        QQuickItemPrivate::get(m_proxySurface)->culled = true;
         if (!m_fullProxy) {
             if (!m_shadow)
                 m_shadow = m_sourceSurface->m_engine->createXdgShadow(this);
             m_shadow->setProperty("cornerRadius", radius());
             m_shadow->stackBefore(m_proxySurface);
+            QQuickItemPrivate::get(m_shadow)->culled = true;
         }
 
         auto item = m_proxySurface->surfaceItem();
@@ -255,6 +261,7 @@ void SurfaceProxy::setFullProxy(bool newFullProxy)
             m_shadow = m_sourceSurface->m_engine->createXdgShadow(this);
             m_shadow->setProperty("cornerRadius", radius());
             m_shadow->stackBefore(m_proxySurface);
+            QQuickItemPrivate::get(m_shadow)->culled = true;
         }
         updateProxySurfaceTitleBarAndDecoration();
     }
