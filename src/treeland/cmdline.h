@@ -25,9 +25,11 @@ public:
     std::optional<QString> socket() const;
     std::optional<QString> run() const;
     bool useLockScreen() const;
+    std::optional<QStringList> unescapeExecArgs(const QString &str) noexcept;
 
 private:
     CmdLine();
+    QString unescape(const QString &str) noexcept;
 
 private:
     std::unique_ptr<QCommandLineParser> m_parser;
