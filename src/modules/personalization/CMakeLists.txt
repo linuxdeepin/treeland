@@ -1,6 +1,6 @@
 set(MODULE_NAME personalization)
 
-find_package(TreeLandProtocols REQUIRED)
+find_package(TreelandProtocols REQUIRED)
 
 ws_generate_local(server ${TREELAND_PROTOCOLS_DATA_DIR}/treeland-personalization-manager-v1.xml treeland-personalization-manager-protocol)
 

@@ -1,6 +1,6 @@
 set(MODULE_NAME virtual-output)
 
-find_package(TreeLandProtocols REQUIRED)
+find_package(TreelandProtocols REQUIRED)
 
 ws_generate_local(server ${TREELAND_PROTOCOLS_DATA_DIR}/treeland-virtual-output-manager-v1.xml treeland-virtual-output-manager-protocol)
 

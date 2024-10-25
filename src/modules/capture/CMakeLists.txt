@@ -1,6 +1,6 @@
 set(MODULE_NAME capture)
 
-find_package(TreeLandProtocols REQUIRED)
+find_package(TreelandProtocols REQUIRED)
 
 ws_generate_local(server ${TREELAND_PROTOCOLS_DATA_DIR}/treeland-capture-unstable-v1.xml treeland-capture-unstable-v1-protocol)
 
