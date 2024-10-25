@@ -290,13 +290,51 @@ void Helper::init()
     connect(m_xwayland, &WXWayland::surfaceAdded, this, [this] (WXWaylandSurface *surface) {
         surface->safeConnect(&qw_xwayland_surface::notify_associate, this, [this, surface] {
             auto wrapper = new SurfaceWrapper(qmlEngine(), surface, SurfaceWrapper::Type::XWayland);
-            wrapper->setNoDecoration(false);
-            m_foreignToplevel->addSurface(surface);
-            m_workspace->addSurface(wrapper);
+
+            // Setup title and decoration
+            auto xwayland = qobject_cast<WXWaylandSurface *>(wrapper->shellSurface());
+            auto updateDecorationTitleBar = [this, wrapper, xwayland]() {
+                if (!xwayland->isBypassManager()) {
+                    if (xwayland->decorationsType() != WXWaylandSurface::DecorationsNoTitle)
+                        wrapper->setNoTitleBar(false);
+                    if (xwayland->decorationsType() != WXWaylandSurface::DecorationsNoBorder)
+                        wrapper->setNoDecoration(false);
+                }
+            };
+            connect(xwayland, &WXWaylandSurface::bypassManagerChanged, this, updateDecorationTitleBar);
+            connect(xwayland,
+                    &WXWaylandSurface::decorationsTypeChanged,
+                    this,
+                    updateDecorationTitleBar);
+            updateDecorationTitleBar();
+
+            // Setup container
+            auto updateSurfaceWithParentContainer = [this, wrapper, surface] {
+                if (wrapper->parentSurface())
+                    wrapper->parentSurface()->removeSubSurface(wrapper);
+                if (wrapper->container())
+                    wrapper->container()->removeSurface(wrapper);
+                if (auto parent = surface->parentXWaylandSurface()) {
+                    auto parentWrapper = m_surfaceContainer->getSurface(parent);
+                    auto container = qobject_cast<Workspace *>(parentWrapper->container());
+                    Q_ASSERT(container);
+                    parentWrapper->addSubSurface(wrapper);
+                    container->addSurface(wrapper, parentWrapper->workspaceId());
+                } else {
+                    m_workspace->addSurface(wrapper);
+                }
+            };
+            surface->safeConnect(&WXWaylandSurface::parentXWaylandSurfaceChanged,
+                                 this,
+                                 updateSurfaceWithParentContainer);
+            updateSurfaceWithParentContainer();
+
             Q_ASSERT(wrapper->parentItem());
             connect(wrapper, &SurfaceWrapper::requestShowWindowMenu, m_windowMenu, [this, wrapper] (QPoint pos) {
                 QMetaObject::invokeMethod(m_windowMenu, "showWindowMenu", QVariant::fromValue(wrapper), QVariant::fromValue(pos));
             });
+
+            m_foreignToplevel->addSurface(surface);
         });
         surface->safeConnect(&qw_xwayland_surface::notify_dissociate, this, [this, surface] {
             m_foreignToplevel->removeSurface(surface);
