@@ -7,8 +7,6 @@
 #include "helper.h"
 #include "output.h"
 
-// FIXME: greeter should support auth self.
-bool IS_ENABLED = false;
 
 LockScreen::LockScreen(SurfaceContainer *parent)
     : SurfaceContainer(parent)
@@ -19,23 +17,30 @@ LockScreen::LockScreen(SurfaceContainer *parent)
     m_delayTimer->setSingleShot(true);
     // Display desktop animation after lock screen animation with a delay of 300ms
     m_delayTimer->setInterval(300);
+}
 
-    IS_ENABLED = CmdLine::ref().useLockScreen();
+void LockScreen::lock()
+{
+    if (isVisible()) {
+        return;
+    }
+
+    setVisible(true);
+
+    for (const auto &[k, v] : m_components) {
+        QMetaObject::invokeMethod(v.get(), "start");
+    }
 }
 
 void LockScreen::addOutput(Output *output)
 {
-    if (!IS_ENABLED) {
-        return;
-    }
-
-    if (m_components.contains(output)) {
-        return;
-    }
+    SurfaceContainer::addOutput(output);
 
     auto engine = Helper::instance()->qmlEngine();
     auto *item = engine->createLockScreen(output, this);
-    item->forceActiveFocus();
+    if (isVisible()) {
+        QMetaObject::invokeMethod(item, "start");
+    }
 
     connect(item, SIGNAL(animationPlayed()), this, SLOT(onAnimationPlayed()));
     connect(item, SIGNAL(animationPlayFinished()), this, SLOT(onAnimationPlayFinished()));
@@ -44,10 +49,18 @@ void LockScreen::addOutput(Output *output)
         { output, std::unique_ptr<QQuickItem, void (*)(QQuickItem *)>(item, [](QQuickItem *item) {
               item->deleteLater();
           }) });
+
+}
+
+bool LockScreen::isLocked() const
+{
+    return isVisible();
 }
 
 void LockScreen::removeOutput(Output *output)
 {
+    SurfaceContainer::removeOutput(output);
+
     m_components.erase(output);
 }
 
@@ -62,7 +75,6 @@ void LockScreen::onAnimationPlayFinished()
 {
     auto *item = qobject_cast<QQuickItem *>(sender());
     Q_ASSERT(item);
-    item->setVisible(false);
 
-    m_components.clear();
+    setVisible(false);
 }

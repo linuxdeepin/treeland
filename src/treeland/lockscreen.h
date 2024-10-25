@@ -19,11 +19,13 @@ class LockScreen : public SurfaceContainer
 public:
     explicit LockScreen(SurfaceContainer *parent);
 
+    bool isLocked() const;
+    void lock();
+
 Q_SIGNALS:
     void unlock();
 
 public Q_SLOTS:
-
     void onAnimationPlayed();
     void onAnimationPlayFinished();
 
