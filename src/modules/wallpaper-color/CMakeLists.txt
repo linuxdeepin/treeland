@@ -1,6 +1,6 @@
 set(MODULE_NAME wallpaper-color)
 
-find_package(TreeLandProtocols REQUIRED)
+find_package(TreelandProtocols REQUIRED)
 
 ws_generate_local(server ${TREELAND_PROTOCOLS_DATA_DIR}/treeland-wallpaper-color-v1.xml treeland-wallpaper-color-protocol)
 
