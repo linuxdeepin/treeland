@@ -109,7 +109,6 @@ qt_add_qml_module(${BIN_NAME}
 
         ${DBUS_ADAPTOR}
     QML_FILES
-        qml/Blur.qml
         qml/PrimaryOutput.qml
         qml/CopyOutput.qml
         qml/TitleBar.qml
@@ -119,14 +118,15 @@ qt_add_qml_module(${BIN_NAME}
         qml/SurfaceContent.qml
         qml/XdgShadow.qml
         qml/Border.qml
-        qml/GeometryAnimation.qml
         qml/OutputMenuBar.qml
         qml/WorkspaceSwitcher.qml
         qml/WorkspaceProxy.qml
+        qml/Animations/GeometryAnimation.qml
         qml/Animations/NewAnimation.qml
         qml/Animations/MinimizeAnimation.qml
         qml/Animations/ShowDesktopAnimation.qml
         qml/Animations/LaunchpadAnimation.qml
+        qml/Effects/Blur.qml
         qml/Effects/LaunchpadCover.qml
         qml/TaskSwitcher.qml
         qml/TaskWindowPreview.qml
