@@ -14,7 +14,6 @@ Item {
 
     property bool switchOn: false
     required property QtObject output
-    readonly property OutputItem outputItem: output.outputItem
     readonly property QtObject model: Helper.workspace.currentFilter
     readonly property QtObject currentSurface: switchView.currentItem.surface
 
@@ -29,8 +28,8 @@ Item {
     readonly property int rightpreferredMargin: 20
     readonly property real radius: enableRadius ? 18 : 0
 
-    width: outputItem.width
-    height: outputItem.height
+    width: output.validRect.width
+    height: output.validRect.height
 
     onVisibleChanged: {
         if (visible) {
@@ -85,8 +84,11 @@ Item {
 
     ColumnLayout {
         anchors.fill: parent
-        anchors.margins: 20
-        spacing: 30
+        anchors.topMargin: 20
+        anchors.leftMargin: 20
+        anchors.rightMargin: 20
+        anchors.bottomMargin: 54
+        spacing: 20
 
         Item {
             id: previewItem
