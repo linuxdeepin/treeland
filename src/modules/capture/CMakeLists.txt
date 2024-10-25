@@ -1,6 +1,8 @@
 set(MODULE_NAME capture)
 
-ws_generate_local(server ${CMAKE_CURRENT_LIST_DIR}/protocols/treeland-capture-unstable-v1.xml treeland-capture-unstable-v1-protocol)
+find_package(TreeLandProtocols REQUIRED)
+
+ws_generate_local(server ${TREELAND_PROTOCOLS_DATA_DIR}/treeland-capture-unstable-v1.xml treeland-capture-unstable-v1-protocol)
 
 pkg_search_module(WLROOTS REQUIRED IMPORTED_TARGET wlroots)
 
@@ -37,4 +39,3 @@ target_link_libraries(${MODULE_NAME}
         Qt6::Gui
         Qt6::Quick
 )
-install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/protocols/treeland-capture-unstable-v1.xml DESTINATION ${CMAKE_INSTALL_DATADIR}/treeland-protocols)

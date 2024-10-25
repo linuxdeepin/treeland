@@ -1,6 +1,7 @@
 set(BIN_NAME test-capture)
 
 find_package(Qt6 REQUIRED COMPONENTS Core Gui WaylandClient)
+find_package(TreelandProtocols REQUIRED)
 
 qt_add_executable(${BIN_NAME}
     main.cpp
@@ -10,7 +11,7 @@ qt_add_executable(${BIN_NAME}
 
 qt6_generate_wayland_protocol_client_sources(${BIN_NAME}
     FILES
-        ${PROJECT_SOURCE_DIR}/src/modules/capture/protocols/treeland-capture-unstable-v1.xml
+        ${TREELAND_PROTOCOLS_DATA_DIR}/treeland-capture-unstable-v1.xml
 )
 
 target_link_libraries(${BIN_NAME}

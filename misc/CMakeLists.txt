@@ -1,4 +1,3 @@
-add_subdirectory(cmake)
 add_subdirectory(dbus)
 add_subdirectory(dconfig)
 add_subdirectory(systemd)
