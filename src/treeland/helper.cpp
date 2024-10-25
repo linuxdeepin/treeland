@@ -432,6 +432,11 @@ void Helper::onSurfaceWrapperAdded(SurfaceWrapper *wrapper)
         };
         connect(attached, &PersonalizationAttached::backgroundTypeChanged, wrapper, updateBlur);
         updateBlur();
+        if (isLayer) {
+            auto layer = qobject_cast<WLayerSurface *>(wrapper->shellSurface());
+            if (isLaunchpad(layer))
+                wrapper->setCoverEnabled(true);
+        }
     }
 
     if (isXwayland) {
@@ -773,14 +778,15 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *, QInputEvent *event)
             }
 
             m_taskSwitch->setProperty("switchOn", true);
-        } else if (kevent->key() == Qt::Key_Tab || kevent->key() == Qt::Key_Backtab ||
-                   kevent->key() == Qt::Key_QuoteLeft || kevent->key() == Qt::Key_AsciiTilde ||
-                   kevent->key() == Qt::Key_Left || kevent->key() == Qt::Key_Right) {
+        } else if (kevent->key() == Qt::Key_Tab || kevent->key() == Qt::Key_Backtab
+                   || kevent->key() == Qt::Key_QuoteLeft || kevent->key() == Qt::Key_AsciiTilde
+                   || kevent->key() == Qt::Key_Left || kevent->key() == Qt::Key_Right) {
             if (m_taskSwitch && m_taskSwitch->property("switchOn").toBool()
                 && event->modifiers().testFlag(Qt::AltModifier)) {
                 QString appid;
                 if (kevent->key() == Qt::Key_QuoteLeft || kevent->key() == Qt::Key_AsciiTilde) {
-                    auto surface = m_taskSwitch->property("currentSurface").value<SurfaceWrapper*>();
+                    auto surface =
+                        m_taskSwitch->property("currentSurface").value<SurfaceWrapper *>();
                     if (surface) {
                         appid = surface->shellSurface()->appId();
                     }
