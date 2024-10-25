@@ -4,6 +4,7 @@
 #include "helper.h"
 
 #include "capture.h"
+#include "cmdline.h"
 #include "ddeshellmanagerv1.h"
 #include "inputdevice.h"
 #include "layersurfacecontainer.h"
@@ -96,9 +97,28 @@ Helper::Helper(QObject *parent)
 
     connect(m_lockScreen, &LockScreen::unlock, this, [this] {
         m_currentMode = CurrentMode::Normal;
+
+        m_workspaceScaleAnimation->stop();
+        m_workspaceScaleAnimation->setStartValue(m_shellHandler->workspace()->scale());
+        m_workspaceScaleAnimation->setEndValue(1.0);
+        m_workspaceScaleAnimation->start();
+
+        m_workspaceOpacityAnimation->stop();
+        m_workspaceOpacityAnimation->setStartValue(m_shellHandler->workspace()->opacity());
+        m_workspaceOpacityAnimation->setEndValue(1.0);
+        m_workspaceOpacityAnimation->start();
     });
 
     m_shellHandler = new ShellHandler(m_rootSurfaceContainer);
+
+    m_workspaceScaleAnimation = new QPropertyAnimation(m_shellHandler->workspace(), "scale", this);
+    m_workspaceOpacityAnimation =
+        new QPropertyAnimation(m_shellHandler->workspace(), "opacity", this);
+
+    m_workspaceScaleAnimation->setDuration(1000);
+    m_workspaceOpacityAnimation->setDuration(1000);
+    m_workspaceScaleAnimation->setEasingCurve(QEasingCurve::OutExpo);
+    m_workspaceOpacityAnimation->setEasingCurve(QEasingCurve::OutExpo);
 
     connect(m_renderWindow, &QQuickWindow::activeFocusItemChanged, this, [this]() {
         auto wrapper = keyboardFocusSurface();
@@ -203,7 +223,6 @@ void Helper::onOutputAdded(WOutput *output)
     m_outputList.append(o);
     enableOutput(output);
     m_outputManager->newOutput(output);
-    m_lockScreen->addOutput(o);
 
     m_wallpaperColorV1->updateWallpaperColor(output->name(),
                                              m_personalization->backgroundIsDark(output->name()));
@@ -233,7 +252,6 @@ void Helper::onOutputRemoved(WOutput *output)
     }
 
     m_outputManager->removeOutput(output);
-    m_lockScreen->removeOutput(o);
     delete o;
 }
 
@@ -701,6 +719,20 @@ void Helper::init()
     m_backend->handle()->start();
 
     qInfo() << "Listing on:" << m_socket->fullServerName();
+
+    if (CmdLine::ref().useLockScreen()) {
+        m_lockScreen->lock();
+
+        m_workspaceScaleAnimation->stop();
+        m_workspaceScaleAnimation->setStartValue(m_shellHandler->workspace()->scale());
+        m_workspaceScaleAnimation->setEndValue(1.4);
+        m_workspaceScaleAnimation->start();
+
+        m_workspaceOpacityAnimation->stop();
+        m_workspaceOpacityAnimation->setStartValue(m_shellHandler->workspace()->opacity());
+        m_workspaceOpacityAnimation->setEndValue(0.0);
+        m_workspaceOpacityAnimation->start();
+    }
 }
 
 bool Helper::socketEnabled() const
@@ -784,10 +816,24 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *, QInputEvent *event)
                 }
                 return true;
             } else if (kevent->key() == Qt::Key_L) {
-                for (auto &&output : m_rootSurfaceContainer->outputs()) {
-                    m_lockScreen->addOutput(output);
+                if (m_lockScreen->isLocked()) {
+                    return true;
                 }
+
+                m_lockScreen->lock();
+
+                m_workspaceScaleAnimation->stop();
+                m_workspaceScaleAnimation->setStartValue(m_shellHandler->workspace()->scale());
+                m_workspaceScaleAnimation->setEndValue(1.4);
+                m_workspaceScaleAnimation->start();
+
+                m_workspaceOpacityAnimation->stop();
+                m_workspaceOpacityAnimation->setStartValue(m_shellHandler->workspace()->opacity());
+                m_workspaceOpacityAnimation->setEndValue(0.0);
+                m_workspaceOpacityAnimation->start();
+
                 m_currentMode = CurrentMode::LockScreen;
+
                 return true;
             }
         } else if (kevent->key() == Qt::Key_Alt) {

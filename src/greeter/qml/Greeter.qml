@@ -174,21 +174,6 @@ FocusScope {
         }
     }
 
-    // Delay start animation, Because when the Qt control plays animation during initialization, the effect cannot be seen.
-    Timer {
-        id: delayStart
-        interval: 100
-        running: true
-        repeat: false
-        onTriggered: {
-            wallpaperController.type = WallpaperController.Scale
-            leftAnimation.item.start({x: root.x - quickAction.width, y: quickAction.y}, {x: quickAction.x, y: quickAction.y})
-            logoAnimation.item.start({x: root.x - logo.width, y: logo.y}, {x: logo.x, y: logo.y})
-            rightAnimation.item.start({x: root.width + userInput.width, y: userInput.y}, {x: userInput.x, y: userInput.y})
-            bottomAnimation.item.start({x: controlAction.x, y: controlAction.y + controlAction.height}, {x: controlAction.x, y: controlAction.y})
-        }
-    }
-
     Connections {
         target: GreeterModel
         function onStateChanged() {
@@ -216,6 +201,16 @@ FocusScope {
                 break
             }
         }
+    }
+
+    function start() {
+        root.state = LoginAnimation.Show
+        wallpaperController.type = WallpaperController.Scale
+        leftAnimation.item.start({x: root.x - quickAction.width, y: quickAction.y}, {x: quickAction.x, y: quickAction.y})
+        logoAnimation.item.start({x: root.x - logo.width, y: logo.y}, {x: logo.x, y: logo.y})
+        rightAnimation.item.start({x: root.width + userInput.width, y: userInput.y}, {x: userInput.x, y: userInput.y})
+        bottomAnimation.item.start({x: controlAction.x, y: controlAction.y + controlAction.height}, {x: controlAction.x, y: controlAction.y})
+        userInput.forceActiveFocus()
     }
 
     Component.onDestruction: {

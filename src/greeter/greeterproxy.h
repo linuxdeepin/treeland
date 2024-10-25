@@ -101,6 +101,9 @@ Q_SIGNALS:
     void switchToGreeter();
 
 private:
+    bool localValidation(const QString &user, const QString &password) const;
+
+private:
     GreeterProxyPrivate *d{ nullptr };
 };
 

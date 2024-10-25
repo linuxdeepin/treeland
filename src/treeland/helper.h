@@ -282,4 +282,7 @@ private:
     std::optional<QPointF> m_fakelastPressedPosition;
 
     QPointer<Multitaskview> m_multitaskview;
+
+    QPropertyAnimation *m_workspaceScaleAnimation{ nullptr };
+    QPropertyAnimation *m_workspaceOpacityAnimation{ nullptr };
 };

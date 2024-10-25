@@ -28,6 +28,8 @@
 #include <DisplayManagerSession.h>
 #include <Messages.h>
 #include <SocketWriter.h>
+#include <_pam_types.h>
+#include <security/pam_appl.h>
 
 #include <QCommandLineOption>
 #include <QCommandLineParser>
@@ -186,9 +188,18 @@ void GreeterProxy::init()
 
 void GreeterProxy::login(const QString &user, const QString &password, const int sessionIndex) const
 {
+    if (!d->socket->isValid()) {
+        qCDebug(greeter) << "Socket is not valid. Local password check.";
+        if (localValidation(user, password)) {
+            Q_EMIT const_cast<GreeterProxy *>(this)->loginSucceeded(user);
+        } else {
+            Q_EMIT const_cast<GreeterProxy *>(this)->loginFailed(user);
+        }
+        return;
+    }
+
     if (!d->sessionModel) {
         qCCritical(greeter) << "Session model is not set.";
-
         return;
     }
 
@@ -205,6 +216,16 @@ void GreeterProxy::login(const QString &user, const QString &password, const int
 
 void GreeterProxy::unlock(const QString &user, const QString &password)
 {
+    if (!d->socket->isValid()) {
+        qCDebug(greeter) << "Socket is not valid. Local password check.";
+        if (localValidation(user, password)) {
+            Q_EMIT loginSucceeded(user);
+        } else {
+            Q_EMIT loginFailed(user);
+        }
+        return;
+    }
+
     auto userInfo = userModel()->get(user);
     if (userInfo.isValid()) {
         SocketWriter(d->socket) << quint32(GreeterMessages::Unlock) << user << password;
@@ -334,4 +355,33 @@ void GreeterProxy::readyRead()
         }
         }
     }
+}
+
+bool GreeterProxy::localValidation(const QString &user, const QString &password) const
+{
+    struct pam_conv conv = {
+        [](int num_msg,
+           const struct pam_message **msg,
+           struct pam_response **resp,
+           void *appdata_ptr) {
+            auto *reply = new pam_response;
+            reply->resp = strdup(static_cast<const char *>(appdata_ptr)); // 将密码传递给PAM
+            reply->resp_retcode = 0;
+            *resp = reply;
+            return PAM_SUCCESS;
+        },
+        static_cast<void *>(password.toUtf8().data()),
+    };
+
+    pam_handle_t *pamh = nullptr;
+
+    int retval = pam_start("login", user.toUtf8().data(), &conv, &pamh);
+    if (retval != PAM_SUCCESS) {
+        return false;
+    }
+
+    retval = pam_authenticate(pamh, 0);
+    pam_end(pamh, retval);
+
+    return retval == PAM_SUCCESS;
 }

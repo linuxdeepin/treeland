@@ -16,6 +16,8 @@ set(GREETER_SOURCES
 find_package(QT NAMES Qt6 REQUIRED COMPONENTS Core)
 find_package(Dtk6 REQUIRED COMPONENTS SystemSettings Declarative)
 find_package(DDM REQUIRED COMPONENTS Auth)
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(PAM REQUIRED IMPORTED_TARGET pam)
 
 set_source_files_properties("${CMAKE_SOURCE_DIR}/misc/interfaces/org.freedesktop.DisplayManager.xml" PROPERTIES
     NO_NAMESPACE ON
@@ -139,6 +141,7 @@ target_include_directories(${LIB_NAME}
 target_link_libraries(${LIB_NAME}
     PRIVATE
         DDM::Auth
+        PkgConfig::PAM
     PUBLIC
         Qt6::Gui
         Qt6::Qml
