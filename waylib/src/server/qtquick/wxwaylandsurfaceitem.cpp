@@ -6,9 +6,6 @@
 #include "wxwaylandsurface.h"
 #include "wxwayland.h"
 
-#include <QQmlInfo>
-#include <private/qquickitem_p.h>
-
 QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
@@ -16,61 +13,19 @@ class Q_DECL_HIDDEN WXWaylandSurfaceItemPrivate : public WSurfaceItemPrivate
 {
     Q_DECLARE_PUBLIC(WXWaylandSurfaceItem)
 public:
-    void setImplicitPosition(const QPointF &newImplicitPosition);
-    void checkMove(WXWaylandSurfaceItem::PositionMode mode);
-    void doMove(WXWaylandSurfaceItem::PositionMode mode);
     void configureSurface(const QRect &newGeometry);
-    // get xwayland surface's position of specified mode
-    QPoint expectSurfacePosition(WXWaylandSurfaceItem::PositionMode mode) const;
-    // get xwayland surface's size of specified mode
-    QSize expectSurfaceSize(WXWaylandSurfaceItem::ResizeMode mode) const;
+    QSize expectSurfaceSize() const;
+    QPoint explicitSurfacePosition() const;
     static inline WXWaylandSurfaceItemPrivate *get(WXWaylandSurfaceItem *qq) {
         return qq->d_func();
     }
 
 public:
+    QPointF surfacePosition;
     QPointer<WXWaylandSurfaceItem> parentSurfaceItem;
     QSize minimumSize;
     QSize maximumSize;
-    WXWaylandSurfaceItem::PositionMode positionMode = WXWaylandSurfaceItem::PositionFromSurface;
-    QPointF positionOffset;
-    bool ignoreConfigureRequest = false;
 };
-
-void WXWaylandSurfaceItemPrivate::checkMove(WXWaylandSurfaceItem::PositionMode mode)
-{
-    Q_Q(WXWaylandSurfaceItem);
-    using enum WXWaylandSurfaceItem::PositionMode;
-
-    if (!q->xwaylandSurface() || mode == ManualPosition || !q->isVisible())
-        return;
-    doMove(mode);
-}
-
-void WXWaylandSurfaceItemPrivate::doMove(WXWaylandSurfaceItem::PositionMode mode)
-{
-    Q_Q(WXWaylandSurfaceItem);
-    using enum WXWaylandSurfaceItem::PositionMode;
-    Q_ASSERT(mode != WXWaylandSurfaceItem::ManualPosition);
-    Q_ASSERT(q->isVisible());
-
-    if (mode == PositionFromSurface) {
-        const QPoint epos = expectSurfacePosition(mode);
-        QPointF pos = epos;
-
-        const qreal ssr = parentSurfaceItem ? parentSurfaceItem->surfaceSizeRatio() : 1.0;
-        const auto pt = q->parentItem();
-        if (pt && !qFuzzyCompare(ssr, 1.0)) {
-            auto *pd = WXWaylandSurfaceItemPrivate::get(parentSurfaceItem);
-            const QPoint pepos = pd->expectSurfacePosition(mode);
-            pos = pepos + (epos - pepos) / ssr;
-        }
-
-        q->setPosition(pos - positionOffset);
-    } else if (mode == PositionToSurface) {
-        configureSurface(QRect(expectSurfacePosition(mode), expectSurfaceSize(q->resizeMode())));
-    }
-}
 
 void WXWaylandSurfaceItemPrivate::configureSurface(const QRect &newGeometry)
 {
@@ -81,51 +36,39 @@ void WXWaylandSurfaceItemPrivate::configureSurface(const QRect &newGeometry)
     q->updateSurfaceState();
 }
 
-QSize WXWaylandSurfaceItemPrivate::expectSurfaceSize(WXWaylandSurfaceItem::ResizeMode mode) const
+QSize WXWaylandSurfaceItemPrivate::expectSurfaceSize() const
 {
     const Q_Q(WXWaylandSurfaceItem);
     using enum WXWaylandSurfaceItem::ResizeMode;
 
-    if (mode == SizeFromSurface) {
+    if (q->resizeMode() == SizeFromSurface) {
         const bool useRequestSize = !q->xwaylandSurface()->isBypassManager()
             && q->xwaylandSurface()->requestConfigureFlags()
                    .testAnyFlags(WXWaylandSurface::XCB_CONFIG_WINDOW_SIZE);
         return useRequestSize
             ? q->xwaylandSurface()->requestConfigureGeometry().size()
             : q->xwaylandSurface()->geometry().size();
-    } else if (mode == SizeToSurface) {
+    } else if (q->resizeMode() == SizeToSurface) {
         return q->getContentSize().toSize();
     }
 
     return q->xwaylandSurface()->geometry().size();
 }
 
-QPoint WXWaylandSurfaceItemPrivate::expectSurfacePosition(WXWaylandSurfaceItem::PositionMode mode) const
+QPoint WXWaylandSurfaceItemPrivate::explicitSurfacePosition() const
 {
     const Q_Q(WXWaylandSurfaceItem);
-    using enum WXWaylandSurfaceItem::PositionMode;
 
-    if (mode == PositionFromSurface) {
-        const bool useRequestPositon = !q->xwaylandSurface()->isBypassManager()
-            && q->xwaylandSurface()->requestConfigureFlags()
-                   .testAnyFlags(WXWaylandSurface::XCB_CONFIG_WINDOW_POSITION);
-        return useRequestPositon
-            ? q->xwaylandSurface()->requestConfigureGeometry().topLeft()
-            : q->xwaylandSurface()->geometry().topLeft();
-    } else if (mode == PositionToSurface) {
-        QPointF pos = q->position();
-        const qreal ssr = parentSurfaceItem ? parentSurfaceItem->surfaceSizeRatio() : 1.0;
-        const auto pt = q->parentItem();
-        if (pt && !qFuzzyCompare(ssr, 1.0)) {
-            const QPointF poffset(parentSurfaceItem->leftPadding(), parentSurfaceItem->topPadding());
-            pos = pt->mapToItem(parentSurfaceItem, pos) - poffset;
-            pos = pt->mapFromItem(parentSurfaceItem, pos * ssr + poffset);
-        }
-
-        return (pos + positionOffset + QPointF(q->leftPadding(), q->topPadding())).toPoint();
+    QPointF pos = surfacePosition;
+    const qreal ssr = parentSurfaceItem ? parentSurfaceItem->surfaceSizeRatio() : 1.0;
+    const auto pt = q->parentItem();
+    if (pt && !qFuzzyCompare(ssr, 1.0)) {
+        const QPointF poffset(parentSurfaceItem->leftPadding(), parentSurfaceItem->topPadding());
+        pos = pt->mapToItem(parentSurfaceItem, pos) - poffset;
+        pos = pt->mapFromItem(parentSurfaceItem, pos * ssr + poffset);
     }
 
-    return q->xwaylandSurface()->geometry().topLeft();
+    return (pos + QPointF(q->leftPadding(), q->topPadding())).toPoint();
 }
 
 WXWaylandSurfaceItem::WXWaylandSurfaceItem(QQuickItem *parent)
@@ -159,7 +102,7 @@ bool WXWaylandSurfaceItem::setShellSurface(WToplevelSurface *surface)
 
         auto updateGeometry = [this, d] {
             const auto rm = resizeMode();
-            if (rm != SizeFromSurface && d->positionMode != PositionFromSurface)
+            if (rm != SizeFromSurface)
                 return;
             if (!isVisible())
                 return;
@@ -169,29 +112,18 @@ bool WXWaylandSurfaceItem::setShellSurface(WToplevelSurface *surface)
             if (rm == SizeFromSurface) {
                 resize(rm);
             }
-            if (d->positionMode == PositionFromSurface) {
-                d->doMove(d->positionMode);
-            }
         };
-
-        xwaylandSurface()->safeConnect(&WXWaylandSurface::requestConfigure,
-                this, [updateGeometry, this, d] {
-            if (d->ignoreConfigureRequest)
-                return;
-            const QRect geometry(d->expectSurfacePosition(d->positionMode),
-                                 d->expectSurfaceSize(resizeMode()));
-            d->configureSurface(geometry);
-            updateGeometry();
+        xwaylandSurface()->safeConnect(&WXWaylandSurface::requestConfigure, this, [this] {
+            if (xwaylandSurface()->requestConfigureFlags().testAnyFlags(
+                    WXWaylandSurface::ConfigureFlag::XCB_CONFIG_WINDOW_POSITION)) {
+                Q_EMIT implicitPositionChanged();
+            }
         });
         xwaylandSurface()->safeConnect(&WXWaylandSurface::geometryChanged, this, updateGeometry);
         connect(this, &WXWaylandSurfaceItem::topPaddingChanged,
-                this, &WXWaylandSurfaceItem::updatePosition, Qt::UniqueConnection);
+               this, &WXWaylandSurfaceItem::updatePosition, Qt::UniqueConnection);
         connect(this, &WXWaylandSurfaceItem::leftPaddingChanged,
-                this, &WXWaylandSurfaceItem::updatePosition, Qt::UniqueConnection);
-        // TODO: Maybe we shouldn't think about the effectiveVisible for surface/item's position
-        // This behovior can control by compositor using PositionMode::ManualPosition
-        connect(this, &WXWaylandSurfaceItem::effectiveVisibleChanged,
-                this, &WXWaylandSurfaceItem::updatePosition, Qt::UniqueConnection);
+               this, &WXWaylandSurfaceItem::updatePosition, Qt::UniqueConnection);
     }
     return true;
 }
@@ -218,7 +150,7 @@ void WXWaylandSurfaceItem::setParentSurfaceItem(WXWaylandSurfaceItem *newParentS
 
     if (d->parentSurfaceItem)
         connect(d->parentSurfaceItem, &WSurfaceItem::surfaceSizeRatioChanged, this, &WXWaylandSurfaceItem::updatePosition);
-    d->checkMove(d->positionMode);
+    updatePosition();
 }
 
 QSize WXWaylandSurfaceItem::maximumSize() const
@@ -235,72 +167,36 @@ QSize WXWaylandSurfaceItem::minimumSize() const
     return d->minimumSize;
 }
 
-WXWaylandSurfaceItem::PositionMode WXWaylandSurfaceItem::positionMode() const
+void WXWaylandSurfaceItem::moveTo(const QPointF &pos, bool configSurface)
+{
+    Q_D(WXWaylandSurfaceItem);
+    if (d->surfacePosition == pos)
+        return;
+    d->surfacePosition = pos;
+    if (configSurface)
+        updatePosition();
+}
+
+QPointF WXWaylandSurfaceItem::implicitPosition() const
 {
     const Q_D(WXWaylandSurfaceItem);
 
-    return d->positionMode;
-}
+    auto xwaylandSurface = qobject_cast<WXWaylandSurface *>(d->shellSurface);
 
-void WXWaylandSurfaceItem::setPositionMode(PositionMode newPositionMode)
-{
-    Q_D(WXWaylandSurfaceItem);
+    const QPoint epos = xwaylandSurface->requestConfigureGeometry().topLeft();
+    QPointF pos = epos;
 
-    if (d->positionMode == newPositionMode)
-        return;
-    d->positionMode = newPositionMode;
-    Q_EMIT positionModeChanged();
-}
-
-void WXWaylandSurfaceItem::move(PositionMode mode)
-{
-    Q_D(WXWaylandSurfaceItem);
-
-    if (mode == ManualPosition) {
-        qmlWarning(this) << "Can't move WXWaylandSurfaceItem for ManualPosition mode.";
-        return;
+    const qreal ssr = d->parentSurfaceItem ? d->parentSurfaceItem->surfaceSizeRatio() : 1.0;
+    const auto pt = parentItem();
+    if (pt && !qFuzzyCompare(ssr, 1.0)) {
+        auto *pd = WXWaylandSurfaceItemPrivate::get(d->parentSurfaceItem);
+        const auto pepos = pd->surfacePosition;
+        pos = pepos + (epos - pepos) / ssr;
     }
 
-    if (!isVisible())
-        return;
-
-    d->doMove(mode);
+    return pos - QPointF(leftPadding(), topPadding());
 }
 
-QPointF WXWaylandSurfaceItem::positionOffset() const
-{
-    const Q_D(WXWaylandSurfaceItem);
-
-    return d->positionOffset;
-}
-
-void WXWaylandSurfaceItem::setPositionOffset(QPointF newPositionOffset)
-{
-    Q_D(WXWaylandSurfaceItem);
-    if (d->positionOffset == newPositionOffset)
-        return;
-    d->positionOffset = newPositionOffset;
-    Q_EMIT positionOffsetChanged();
-
-    updatePosition();
-}
-
-bool WXWaylandSurfaceItem::ignoreConfigureRequest() const
-{
-    const Q_D(WXWaylandSurfaceItem);
-
-    return d->ignoreConfigureRequest;
-}
-
-void WXWaylandSurfaceItem::setIgnoreConfigureRequest(bool newIgnoreConfigureRequest)
-{
-    Q_D(WXWaylandSurfaceItem);
-
-    if (d->ignoreConfigureRequest == newIgnoreConfigureRequest)
-        return;
-    d->ignoreConfigureRequest = newIgnoreConfigureRequest;
-    Q_EMIT ignoreConfigureRequestChanged();
-}
 
 void WXWaylandSurfaceItem::onSurfaceCommit()
 {
@@ -333,13 +229,12 @@ void WXWaylandSurfaceItem::initSurface()
     Q_ASSERT(xwaylandSurface());
     connect(xwaylandSurface(), &WWrapObject::aboutToBeInvalidated,
             this, &WXWaylandSurfaceItem::releaseResources);
-    updatePosition();
 }
 
 bool WXWaylandSurfaceItem::doResizeSurface(const QSize &newSize)
 {
     Q_D(WXWaylandSurfaceItem);
-    d->configureSurface(QRect(d->expectSurfacePosition(d->positionMode), newSize));
+    d->configureSurface(QRect(d->surfacePosition.toPoint(), newSize));
     return true;
 }
 
@@ -353,22 +248,11 @@ QSizeF WXWaylandSurfaceItem::getContentSize() const
     return (size() - QSizeF(leftPadding() + rightPadding(), topPadding() + bottomPadding())) * surfaceSizeRatio();
 }
 
-void WXWaylandSurfaceItem::geometryChange(const QRectF &newGeometry, const QRectF &oldGeometry)
-{
-    Q_D(WXWaylandSurfaceItem);
-    WSurfaceItem::geometryChange(newGeometry, oldGeometry);
-
-    if (newGeometry.topLeft() != oldGeometry.topLeft()
-        && d->positionMode == PositionToSurface && xwaylandSurface()) {
-        d->configureSurface(QRect(d->expectSurfacePosition(d->positionMode),
-                                  d->expectSurfaceSize(resizeMode())));
-    }
-}
-
 void WXWaylandSurfaceItem::updatePosition()
 {
     Q_D(WXWaylandSurfaceItem);
-    d->checkMove(d->positionMode);
+    d->configureSurface(QRect(d->explicitSurfacePosition(),
+                              d->expectSurfaceSize()));
 }
 
 WAYLIB_SERVER_END_NAMESPACE

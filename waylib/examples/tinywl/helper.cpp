@@ -299,6 +299,9 @@ void Helper::init()
                         wrapper->setNoTitleBar(false);
                     if (xwayland->decorationsType() != WXWaylandSurface::DecorationsNoBorder)
                         wrapper->setNoDecoration(false);
+                } else {
+                    wrapper->setNoTitleBar(true);
+                    wrapper->setNoDecoration(true);
                 }
             };
             connect(xwayland, &WXWaylandSurface::bypassManagerChanged, this, updateDecorationTitleBar);

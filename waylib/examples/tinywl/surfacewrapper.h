@@ -159,6 +159,8 @@ public:
     bool showOnAllWorkspace() const;
     void setShowOnAllWorkspace(bool showOnAllWorkspace);
 
+    void setXwaylandPositionFromSurface(bool value);
+
 public Q_SLOTS:
     // for titlebar
     void requestMinimize();
@@ -262,4 +264,5 @@ private:
     uint m_titleBarState:2;
     uint m_noCornerRadius:1;
     uint m_alwaysOnTop:1;
+    uint m_xwaylandPositionFromSurface:1;
 };
