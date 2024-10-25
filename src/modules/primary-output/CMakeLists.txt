@@ -1,6 +1,6 @@
 set(MODULE_NAME primary-output)
 
-find_package(TreeLandProtocols REQUIRED)
+find_package(TreelandProtocols REQUIRED)
 
 ws_generate_local(server ${TREELAND_PROTOCOLS_DATA_DIR}/treeland-output-management.xml treeland-output-management-protocol)
 
