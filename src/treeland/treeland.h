@@ -8,13 +8,10 @@
 
 #include <QDBusContext>
 #include <QDBusUnixFileDescriptor>
-#include <QGuiApplication>
-#include <QLocalSocket>
-#include <QtWaylandCompositor/QWaylandCompositor>
 
 #include <memory>
 
-class QQmlApplicationEngine;
+class QLocalSocket;
 class Helper;
 
 namespace TreeLand {
@@ -24,8 +21,6 @@ class TreeLand
     , protected QDBusContext
 {
     Q_OBJECT
-    Q_PROPERTY(bool testMode READ testMode CONSTANT)
-    Q_PROPERTY(bool debugMode READ debugMode CONSTANT FINAL)
 
 public:
     explicit TreeLand(Helper *helper);
@@ -53,7 +48,7 @@ private:
     QLocalSocket *m_socket{ nullptr };
     QLocalSocket *m_helperSocket{ nullptr };
     Helper *m_helper{ nullptr };
-    QMap<QString, std::shared_ptr<Waylib::Server::WSocket>> m_userWaylandSocket;
+    QMap<QString, std::shared_ptr<WAYLIB_SERVER_NAMESPACE::WSocket>> m_userWaylandSocket;
     QMap<QString, std::shared_ptr<QDBusUnixFileDescriptor>> m_userDisplayFds;
 };
 } // namespace TreeLand

@@ -12,7 +12,7 @@ WAYLIB_SERVER_USE_NAMESPACE
 
 class WallpaperColorV1
     : public QObject
-    , public Waylib::Server::WServerInterface
+    , public WAYLIB_SERVER_NAMESPACE::WServerInterface
 {
     Q_OBJECT
 

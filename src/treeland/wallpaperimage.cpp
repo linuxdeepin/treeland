@@ -6,12 +6,14 @@
 #include "helper.h"
 #include "wallpapermanager.h"
 #include "wallpaperprovider.h"
-#include "workspace.h"
+#include "workspacemodel.h"
 #include "woutputitem.h"
 
 #include <woutput.h>
 
-#include <QDir>
+#include <QLoggingCategory>
+
+Q_LOGGING_CATEGORY(wallpaperImage, "treeland.wallpaperimage")
 
 WAYLIB_SERVER_USE_NAMESPACE
 
@@ -90,6 +92,7 @@ void WallpaperImage::setOutput(WOutput *output)
 void WallpaperImage::updateSource()
 {
     if (m_userId == -1 || !m_output || !m_workspace) {
+        qCWarning(wallpaperImage) << "Cannot update source:" << m_userId << m_output << m_workspace;
         return;
     }
 
