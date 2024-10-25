@@ -1,6 +1,8 @@
 set(MODULE_NAME primary-output)
 
-ws_generate_local(server ${CMAKE_CURRENT_SOURCE_DIR}/protocols/treeland-output-management.xml treeland-output-management-protocol)
+find_package(TreeLandProtocols REQUIRED)
+
+ws_generate_local(server ${TREELAND_PROTOCOLS_DATA_DIR}/treeland-output-management.xml treeland-output-management-protocol)
 
 pkg_search_module(WLROOTS REQUIRED IMPORTED_TARGET wlroots)
 
@@ -37,5 +39,3 @@ target_link_libraries(${MODULE_NAME}
         Qt6::Gui
         Qt6::Quick
 )
-
-install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/protocols/treeland-output-management.xml DESTINATION ${CMAKE_INSTALL_DATADIR}/treeland-protocols)

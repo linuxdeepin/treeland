@@ -25,6 +25,7 @@ Build-Depends: cmake (>= 3.4~),
                qt6-wayland-private-dev,
                qwlroots,
                wlr-protocols,
+               treeland-protocols,
 Standards-Version: 4.6.0
 Section: dde
 Homepage: https://github.com/linuxdeepin/treeland.git
@@ -55,9 +56,3 @@ Section: dde
 Architecture: all
 Depends: ${misc:Depends},
 Description: data files of treeland.
-
-Package: treeland-protocols
-Section: dde
-Architecture: all
-Depends: ${misc:Depends},
-Description: wayland protocols of treeland.

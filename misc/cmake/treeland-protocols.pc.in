@@ -1,7 +1,0 @@
-prefix=@CMAKE_INSTALL_PREFIX@
-datarootdir=@CMAKE_INSTALL_FULL_DATAROOTDIR@
-pkgdatadir=${pc_sysrootdir}${datarootdir}/treeland-protocols/
-
-Name: TreeLand Protocols
-Description: TreeLand protocol files
-Version: @PROJECT_VERSION@

@@ -1,6 +1,8 @@
 set(MODULE_NAME virtual-output)
 
-ws_generate_local(server ${CMAKE_CURRENT_SOURCE_DIR}/protocols/treeland-virtual-output-manager-v1.xml treeland-virtual-output-manager-protocol)
+find_package(TreeLandProtocols REQUIRED)
+
+ws_generate_local(server ${TREELAND_PROTOCOLS_DATA_DIR}/treeland-virtual-output-manager-v1.xml treeland-virtual-output-manager-protocol)
 
 pkg_search_module(WLROOTS REQUIRED IMPORTED_TARGET wlroots)
 
@@ -37,5 +39,3 @@ target_link_libraries(${MODULE_NAME}
         Qt6::Gui
         Qt6::Quick
 )
-
-install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/protocols/treeland-virtual-output-manager-v1.xml DESTINATION ${CMAKE_INSTALL_DATADIR}/treeland-protocols)
