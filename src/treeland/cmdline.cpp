@@ -3,10 +3,15 @@
 
 #include "cmdline.h"
 
+#include <wordexp.h>
+
 #include <QCommandLineOption>
 #include <QCommandLineParser>
+#include <QLoggingCategory>
 
 #include <optional>
+
+Q_LOGGING_CATEGORY(cmdline, "treeland.cmdline", QtDebugMsg);
 
 CmdLine::CmdLine()
     : QObject()
@@ -21,6 +26,99 @@ CmdLine::CmdLine()
     m_parser->addHelpOption();
     m_parser->addOptions({ *m_socket.get(), *m_run.get(), *m_lockScreen.get() });
     m_parser->process(*QCoreApplication::instance());
+}
+
+QString CmdLine::unescape(const QString &str) noexcept
+{
+    QString unescapedStr;
+    for (qsizetype i = 0; i < str.size(); ++i) {
+        auto c = str.at(i);
+        if (c != '\\') {
+            unescapedStr.append(c);
+            continue;
+        }
+
+        switch (str.at(i + 1).toLatin1()) {
+        default:
+            unescapedStr.append(c);
+            break;
+        case 'n':
+            unescapedStr.append('\n');
+            ++i;
+            break;
+        case 't':
+            unescapedStr.append('\t');
+            ++i;
+            break;
+        case 'r':
+            unescapedStr.append('\r');
+            ++i;
+            break;
+        case '\\':
+            unescapedStr.append('\\');
+            ++i;
+            break;
+        case ';':
+            unescapedStr.append(';');
+            ++i;
+            break;
+        case 's': {
+            unescapedStr.append(R"(\ )");
+            ++i;
+        } break;
+        }
+    }
+
+    return unescapedStr;
+}
+
+std::optional<QStringList> CmdLine::unescapeExecArgs(const QString &str) noexcept
+{
+    auto unescapedStr = unescape(str);
+    if (unescapedStr.isEmpty()) {
+        qCWarning(cmdline) << "unescape Exec failed.";
+        return std::nullopt;
+    }
+
+    auto deleter = [](wordexp_t *word) {
+        wordfree(word);
+        delete word;
+    };
+    std::unique_ptr<wordexp_t, decltype(deleter)> words{ new (std::nothrow)
+                                                             wordexp_t{ 0, nullptr, 0 },
+                                                         deleter };
+
+    if (auto ret = wordexp(unescapedStr.toLocal8Bit(), words.get(), WRDE_SHOWERR); ret != 0) {
+        QString errMessage;
+        switch (ret) {
+        case WRDE_BADCHAR:
+            errMessage = "BADCHAR";
+            break;
+        case WRDE_BADVAL:
+            errMessage = "BADVAL";
+            break;
+        case WRDE_CMDSUB:
+            errMessage = "CMDSUB";
+            break;
+        case WRDE_NOSPACE:
+            errMessage = "NOSPACE";
+            break;
+        case WRDE_SYNTAX:
+            errMessage = "SYNTAX";
+            break;
+        default:
+            errMessage = "unknown";
+        }
+        qCWarning(cmdline) << "wordexp error: " << errMessage;
+        return std::nullopt;
+    }
+
+    QStringList execList;
+    for (std::size_t i = 0; i < words->we_wordc; ++i) {
+        execList.emplace_back(words->we_wordv[i]);
+    }
+
+    return execList;
 }
 
 std::optional<QString> CmdLine::socket() const

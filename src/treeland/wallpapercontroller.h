@@ -17,7 +17,7 @@ class WallpaperImage;
 class WallpaperController : public QObject
 {
     Q_OBJECT
-    Q_PROPERTY(Waylib::Server::WOutput* output READ output WRITE setOutput NOTIFY outputChanged REQUIRED)
+    Q_PROPERTY(WAYLIB_SERVER_NAMESPACE::WOutput* output READ output WRITE setOutput NOTIFY outputChanged REQUIRED)
     Q_PROPERTY(WallpaperType type READ type WRITE setType NOTIFY typeChanged)
     Q_PROPERTY(WallpaperImage* proxy READ proxy NOTIFY proxyChanged)
     Q_PROPERTY(bool lock READ lock WRITE setLock NOTIFY lockChanged)
@@ -49,9 +49,9 @@ public:
         return m_type;
     }
 
-    void setOutput(Waylib::Server::WOutput *output);
+    void setOutput(WAYLIB_SERVER_NAMESPACE::WOutput *output);
 
-    inline Waylib::Server::WOutput *output() const
+    inline WAYLIB_SERVER_NAMESPACE::WOutput *output() const
     {
         return m_output;
     }
@@ -65,6 +65,6 @@ private:
     void updateState();
 
 private:
-    Waylib::Server::WOutput *m_output;
+    WAYLIB_SERVER_NAMESPACE::WOutput *m_output;
     WallpaperType m_type{ WallpaperType::Normal };
 };

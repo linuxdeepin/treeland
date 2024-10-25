@@ -3,13 +3,15 @@
 
 #pragma once
 
+#include <wglobal.h>
+
 #include <QQmlEngine>
 #include <QQuickItem>
 
-namespace Waylib::Server {
+namespace WAYLIB_SERVER_NAMESPACE {
 class WOutput;
 class WOutputItem;
-} // namespace Waylib::Server
+} // namespace WAYLIB_SERVER_NAMESPACE
 
 class WallpaperImage;
 class WallpaperController;
@@ -25,9 +27,9 @@ public:
 
 private:
     friend class WallpaperImage;
-    void add(WallpaperImage *proxy, Waylib::Server::WOutputItem *outputItem);
+    void add(WallpaperImage *proxy, WAYLIB_SERVER_NAMESPACE::WOutputItem *outputItem);
     void remove(WallpaperImage *proxy);
-    void remove(Waylib::Server::WOutputItem *outputItem);
+    void remove(WAYLIB_SERVER_NAMESPACE::WOutputItem *outputItem);
 
 private:
     friend class WallpaperImage;
@@ -37,11 +39,11 @@ private:
 
 private:
     friend class WallpaperController;
-    WallpaperImage *get(Waylib::Server::WOutputItem *outputItem) const;
-    WallpaperImage *get(Waylib::Server::WOutput *output) const;
+    WallpaperImage *get(WAYLIB_SERVER_NAMESPACE::WOutputItem *outputItem) const;
+    WallpaperImage *get(WAYLIB_SERVER_NAMESPACE::WOutput *output) const;
     void setLock(WallpaperController *controller, bool lock);
 
 private:
-    QMap<Waylib::Server::WOutputItem *, WallpaperImage *> m_proxys;
+    QMap<WAYLIB_SERVER_NAMESPACE::WOutputItem *, WallpaperImage *> m_proxys;
     QList<WallpaperController *> m_proxyLockList;
 };

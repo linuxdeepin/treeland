@@ -29,7 +29,7 @@ void WallpaperController::setType(WallpaperType type)
     updateState();
 }
 
-void WallpaperController::setOutput(Waylib::Server::WOutput *output)
+void WallpaperController::setOutput(WAYLIB_SERVER_NAMESPACE::WOutput *output)
 {
     if (!output) {
         return;
