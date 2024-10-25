@@ -187,7 +187,7 @@ Item {
             ListView {
                 id: switchView
 
-                readonly property real titleheight: 40
+                readonly property real titleheight: 38
                 readonly property real fullheight: switchView.height
                 readonly property real vMargin: 40
                 readonly property real thumbnailheight: fullheight - titleheight
