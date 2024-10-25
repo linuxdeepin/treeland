@@ -1,6 +1,7 @@
 find_package(QT NAMES Qt6 REQUIRED COMPONENTS Core)
 find_package(Qt6 REQUIRED COMPONENTS WaylandClient Quick Core Gui)
 find_package(Dtk6 REQUIRED COMPONENTS Declarative)
+find_package(TreeLandProtocols REQUIRED)
 find_package(PkgConfig REQUIRED)
 pkg_get_variable(WAYLAND_PROTOCOLS wayland-protocols pkgdatadir)
 
@@ -10,7 +11,7 @@ qt_add_executable(treeland-wallpaper
 
 qt_generate_wayland_protocol_client_sources(treeland-wallpaper
     FILES
-        ${CMAKE_SOURCE_DIR}/src/modules/personalization/protocols/treeland-personalization-manager-v1.xml
+        ${TREELAND_PROTOCOLS_DATA_DIR}/treeland-personalization-manager-v1.xml
 )
 
 set(QML_FILES

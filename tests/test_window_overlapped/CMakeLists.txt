@@ -1,4 +1,5 @@
 find_package(Qt6 REQUIRED COMPONENTS WaylandClient Gui Widgets)
+find_package(TreelandProtocols REQUIRED)
 
 set(BIN_NAME test-window-overlapped)
 
@@ -10,7 +11,7 @@ qt_add_executable(${BIN_NAME}
 
 qt_generate_wayland_protocol_client_sources(${BIN_NAME}
     FILES
-    ${MODULE_PATH}/dde-shell/protocols/treeland-dde-shell-v1.xml
+        ${TREELAND_PROTOCOLS_DATA_DIR}/treeland-dde-shell-v1.xml
 )
 
 target_link_libraries(${BIN_NAME}

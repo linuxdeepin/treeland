@@ -1,6 +1,8 @@
 set(MODULE_NAME personalization)
 
-ws_generate_local(server ${CMAKE_CURRENT_SOURCE_DIR}/protocols/treeland-personalization-manager-v1.xml treeland-personalization-manager-protocol)
+find_package(TreeLandProtocols REQUIRED)
+
+ws_generate_local(server ${TREELAND_PROTOCOLS_DATA_DIR}/treeland-personalization-manager-v1.xml treeland-personalization-manager-protocol)
 
 pkg_search_module(WLROOTS REQUIRED IMPORTED_TARGET wlroots)
 find_package(Dtk6Core REQUIRED)
@@ -48,5 +50,3 @@ target_link_libraries(${MODULE_NAME}
         Qt6::Quick
         Dtk6::Core
 )
-
-install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/protocols/treeland-personalization-manager-v1.xml DESTINATION ${CMAKE_INSTALL_DATADIR}/treeland-protocols)
