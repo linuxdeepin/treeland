@@ -12,7 +12,7 @@ Item {
     id: root
     visible: false
 
-    property bool switchOn: false
+    property bool switchOn: true
     required property QtObject output
     readonly property QtObject model: Helper.workspace.currentFilter
     readonly property QtObject currentSurface: switchView.currentItem.surface
@@ -374,6 +374,7 @@ Item {
 
         onAnimationsFinished: {
             showTask(false)
+            root.switchOn = false
         }
     }
 
@@ -435,8 +436,10 @@ Item {
     }
 
     function exit() {
-        if (!root.visible)
+        if (!root.visible) {
+            root.switchOn = false
             return
+        }
 
         if (root.enableAnimation) {
             previewContext.loaderStatus = -1
@@ -458,6 +461,7 @@ Item {
             previewWindows.finishedAnimations = 0
             previewWindows.model = []
             showTask(false)
+            root.switchOn = false
         }
     }
 }
