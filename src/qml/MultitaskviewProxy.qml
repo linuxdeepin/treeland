@@ -123,21 +123,33 @@ Multitaskview {
                     visible: workspace.visible
                     multitaskview: root
                     output: outputPlacementItem.output
-                    draggedParent: outputPlacementItem
+                    draggedParent: root
                     workspaceListPadding: TreelandConfig.workspaceDelegateHeight
                     dragManager: multitaskviewDragManager
                 }
             }
 
+            Connections {
+                target: Helper.workspace.animationController
+                function onRunningChanged() {
+                    if (Helper.workspace.animationController.running)
+                        workspaceAnimation.active = true
+                }
+            }
+
             Loader {
                 id: workspaceAnimation
-                active: Helper.workspace.animationController.running
+                active: false
                 readonly property real localFactor: outputPlacementItem.width / Helper.workspace.animationController.refWidth
                 anchors.fill: parent
                 sourceComponent: Item {
                     id: animationDelegate
                     clip: true
                     visible: Helper.workspace.animationController.running
+                    onVisibleChanged: {
+                        if (!visible)
+                            workspaceAnimation.active = false
+                    }
                     Row {
                         spacing: Helper.workspace.animationController.refGap * workspaceAnimation.localFactor
                         x: -Helper.workspace.animationController.viewportPos * workspaceAnimation.localFactor
