@@ -541,7 +541,7 @@ void Helper::init()
     auto *xdgOutputManager =
         m_server->attach<WXdgOutputManager>(m_rootSurfaceContainer->outputLayout());
 
-    m_server->attach<PrimaryOutputV1>();
+    m_primaryOutputV1 = m_server->attach<PrimaryOutputV1>();
     m_wallpaperColorV1 = m_server->attach<WallpaperColorV1>();
     m_windowManagement = m_server->attach<WindowManagementV1>();
     m_virtualOutput = m_server->attach<VirtualOutputV1>();
@@ -586,6 +586,24 @@ void Helper::init()
             &VirtualOutputV1::destroyVirtualOutput,
             this,
             &Helper::onRestoreCopyOutput);
+
+    connect(m_primaryOutputV1,
+            &PrimaryOutputV1::requestSetPrimaryOutput,
+            this,
+            [this](const char *name) {
+                for (auto &&output : m_rootSurfaceContainer->outputs()) {
+                    if (strcmp(output->output()->nativeHandle()->name, name) == 0) {
+                        m_rootSurfaceContainer->setPrimaryOutput(output);
+                    }
+                }
+            });
+
+    connect(m_rootSurfaceContainer, &RootSurfaceContainer::primaryOutputChanged, this, [this]() {
+        if (m_rootSurfaceContainer->primaryOutput()) {
+            m_primaryOutputV1->sendPrimaryOutput(
+                m_rootSurfaceContainer->primaryOutput()->output()->nativeHandle()->name);
+        }
+    });
 
     qmlRegisterUncreatableType<Personalization>("Treeland.Protocols",
                                                 1,

@@ -2,7 +2,7 @@ set(MODULE_NAME primary-output)
 
 find_package(TreelandProtocols REQUIRED)
 
-ws_generate_local(server ${TREELAND_PROTOCOLS_DATA_DIR}/treeland-output-management.xml treeland-output-management-protocol)
+ws_generate_local(server ${TREELAND_PROTOCOLS_DATA_DIR}/treeland-output-manager-v1.xml treeland-output-management-protocol)
 
 pkg_search_module(WLROOTS REQUIRED IMPORTED_TARGET wlroots)
 
