@@ -10,6 +10,7 @@ TreelandConfig::TreelandConfig()
     , m_maxWorkspace(m_dconfig->value("maxWorkspace", 6).toUInt())
     , m_numWorkspace(m_dconfig->value("numWorkspace", 4).toUInt())
     , m_currentWorkspace(m_dconfig->value("currentWorkspace", 0).toUInt())
+    , m_forceSoftwareCursor(m_dconfig->value("forceSoftwareCursor", false).toBool())
 {
     connect(m_dconfig.get(), &DConfig::valueChanged, this, &TreelandConfig::onDConfigChanged);
 }
@@ -173,6 +174,23 @@ void TreelandConfig::setCurrentWorkspace(uint newCurrentWorkspace)
         return;
     m_currentWorkspace = newCurrentWorkspace;
     m_dconfig->setValue("currentWorkspace", QVariant::fromValue(m_currentWorkspace));
+}
+
+bool TreelandConfig::forceSoftwareCursor()
+{
+    auto enable = m_dconfig->value("forceSoftwareCursor", false).toBool();
+    if (m_forceSoftwareCursor != enable)
+        m_forceSoftwareCursor = enable;
+    return m_forceSoftwareCursor;
+}
+
+void TreelandConfig::setForceSoftwareCursor(bool enable)
+{
+    if (m_forceSoftwareCursor == enable)
+        return;
+    m_forceSoftwareCursor = enable;
+    m_dconfig->setValue("forceSoftwareCursor", QVariant::fromValue(m_forceSoftwareCursor));
+    emit forceSoftwareCursorChanged();
 }
 
 qreal TreelandConfig::multitaskviewPaddingOpacity() const
