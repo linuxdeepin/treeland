@@ -101,10 +101,11 @@ Item {
             root.close();
         }
 
-        function closeSpecialWindow(surfaceWrapper) {
+        function closeSpecialWindow(surfaceId) {
+            let surfaceWrapper = filterSurfaceModel.get(surfaceId)?.wrapper
             console.debug(qLcDockPreview, "close a special window: ", surfaceWrapper)
+            filterSurfaceModel.remove(surfaceId)
             surfaceWrapper.shellSurface.close();
-            updateModel();
         }
     }
 
@@ -435,7 +436,7 @@ Item {
                     icon.height: 16
                     onClicked: {
                         listview.highlightItem.visible = false
-                        Qt.callLater(()=>listview.model.closeSpecialWindow(listview.currentItem.wrapper))
+                        Qt.callLater(()=>listview.model.closeSpecialWindow(listview.currentIndex))
                     }
                 }
             }
@@ -702,7 +703,7 @@ Item {
                     }
                 }
 
-                Row {
+                RowLayout {
                     id: titleIconText
                     anchors.fill: parent
                     spacing: 2
@@ -719,6 +720,7 @@ Item {
                         elide: Text.ElideRight
                         horizontalAlignment: Text.AlignLeft
                         verticalAlignment: Text.AlignVCenter
+                        Layout.fillWidth: true
                     }
 
                     Behavior on opacity {
