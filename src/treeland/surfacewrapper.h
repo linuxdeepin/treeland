@@ -230,6 +230,8 @@ public:
     bool coverEnabled() const;
     void setCoverEnabled(bool enabled);
 
+    bool socketEnabled() const;
+
 public Q_SLOTS:
     // for titlebar
     void requestMinimize();
@@ -241,6 +243,7 @@ public Q_SLOTS:
     void requestCancelFullscreen();
     void requestClose();
     void onMappedChanged();
+    void onSocketEnabledChanged();
 
     bool stackBefore(QQuickItem *item);
     bool stackAfter(QQuickItem *item);
@@ -381,6 +384,8 @@ private:
     QPoint m_clientRequstPos;
 
     qreal m_decorationShadowOpacity;
+
+    bool m_socketEnabled{ false };
 };
 
 Q_DECLARE_OPERATORS_FOR_FLAGS(SurfaceWrapper::ActiveControlStates)
