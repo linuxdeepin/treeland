@@ -6,6 +6,7 @@
 #include "helper.h"
 #include "rootsurfacecontainer.h"
 #include "surfacewrapper.h"
+#include "treelandconfig.h"
 
 #include <wcursor.h>
 #include <winputpopupsurface.h>
@@ -23,14 +24,26 @@ Q_LOGGING_CATEGORY(qLcLayerShell, "Treeland.shell.layer", QtWarningMsg)
 
 Output *Output::create(WOutput *output, QQmlEngine *engine, QObject *parent)
 {
+    auto isSoftwareCursor = [](WOutput *output) -> bool {
+        return output->handle()->is_x11() || TreelandConfig::ref().forceSoftwareCursor();
+    };
     QQmlComponent delegate(engine, "Treeland", "PrimaryOutput");
     QObject *obj = delegate.beginCreate(engine->rootContext());
-    delegate.setInitialProperties(obj, { { "forceSoftwareCursor", output->handle()->is_x11() } });
+    delegate.setInitialProperties(obj, { { "forceSoftwareCursor", isSoftwareCursor(output) } });
     delegate.completeCreate();
     WOutputItem *outputItem = qobject_cast<WOutputItem *>(obj);
     Q_ASSERT(outputItem);
     QQmlEngine::setObjectOwnership(outputItem, QQmlEngine::CppOwnership);
     outputItem->setOutput(output);
+
+    connect(&TreelandConfig::ref(),
+            &TreelandConfig::forceSoftwareCursorChanged,
+            obj,
+            [obj, output, isSoftwareCursor]() {
+                auto forceSoftwareCursor = isSoftwareCursor(output);
+                qCInfo(qLcLayerShell) << "forceSoftwareCursor changed to" << forceSoftwareCursor;
+                obj->setProperty("forceSoftwareCursor", forceSoftwareCursor);
+            });
 
     auto o = new Output(outputItem, parent);
     o->m_type = Type::Primary;

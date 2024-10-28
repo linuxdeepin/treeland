@@ -22,6 +22,7 @@ class TreelandConfig
     Q_PROPERTY(uint maxWorkspace READ maxWorkspace WRITE setMaxWorkspace NOTIFY maxWorkspaceChanged FINAL)
     Q_PROPERTY(uint numWorkspace READ numWorkspace WRITE setNumWorkspace NOTIFY numWorkspaceChanged FINAL)
     Q_PROPERTY(uint currentWorkspace READ currentWorkspace WRITE setCurrentWorkspace NOTIFY currentWorkspaceChanged FINAL)
+    Q_PROPERTY(bool forceSoftwareCursor READ forceSoftwareCursor WRITE setForceSoftwareCursor NOTIFY forceSoftwareCursorChanged FINAL)
     Q_PROPERTY(uint minMultitaskviewSurfaceHeight READ minMultitaskviewSurfaceHeight WRITE setMinMultitaskviewSurfaceHeight NOTIFY minMultitaskviewSurfaceHeightChanged FINAL)
     Q_PROPERTY(uint titleBoxCornerRadius READ titleBoxCornerRadius WRITE setTitleBoxCornerRadius NOTIFY titleBoxCornerRadiusChanged FINAL)
     Q_PROPERTY(uint normalWindowHeight READ normalWindowHeight WRITE setNormalWindowHeight NOTIFY normalWindowHeightChanged FINAL)
@@ -71,6 +72,9 @@ public:
     uint currentWorkspace() const;
     void setCurrentWorkspace(uint newCurrentWorkspace);
 
+    bool forceSoftwareCursor();
+    void setForceSoftwareCursor(bool enable);
+
     qreal multitaskviewPaddingOpacity() const;
     void setMultitaskviewPaddingOpacity(qreal newMultitaskviewPaddingOpacity);
 
@@ -99,6 +103,7 @@ Q_SIGNALS:
     void windowHeightStepChanged();
     void numWorkspaceChanged();
     void currentWorkspaceChanged();
+    void forceSoftwareCursorChanged();
     void multitaskviewPaddingOpacityChanged();
     void multitaskviewAnimationDurationChanged();
     void multitaskviewEasingCurveTypeChanged();
@@ -114,6 +119,7 @@ private:
     uint m_maxWorkspace;
     uint m_numWorkspace;
     uint m_currentWorkspace;
+    bool m_forceSoftwareCursor;
 
     // Local
     uint m_workspaceThumbHeight = 144;
