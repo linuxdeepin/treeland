@@ -94,6 +94,7 @@ Helper::Helper(QObject *parent)
     m_rootSurfaceContainer->setFocusPolicy(Qt::StrongFocus);
 #endif
     m_lockScreen->setZ(RootSurfaceContainer::LockScreenZOrder);
+    m_lockScreen->setVisible(false);
 
     connect(m_lockScreen, &LockScreen::unlock, this, [this] {
         m_currentMode = CurrentMode::Normal;
@@ -722,6 +723,7 @@ void Helper::init()
 
     if (CmdLine::ref().useLockScreen()) {
         m_lockScreen->lock();
+        m_currentMode = CurrentMode::LockScreen;
 
         m_workspaceScaleAnimation->stop();
         m_workspaceScaleAnimation->setStartValue(m_shellHandler->workspace()->scale());
@@ -848,7 +850,6 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *, QInputEvent *event)
                     }
                 });
                 m_taskSwitch->setZ(RootSurfaceContainer::OverlayZOrder);
-                m_currentMode = CurrentMode::WindowSwitch;
             }
 
             m_taskSwitch->setProperty("switchOn", true);
@@ -857,6 +858,7 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *, QInputEvent *event)
                    || kevent->key() == Qt::Key_Left || kevent->key() == Qt::Key_Right) {
             if (m_taskSwitch && m_taskSwitch->property("switchOn").toBool()
                 && event->modifiers().testFlag(Qt::AltModifier)) {
+                m_currentMode = CurrentMode::WindowSwitch;
                 QString appid;
                 if (kevent->key() == Qt::Key_QuoteLeft || kevent->key() == Qt::Key_AsciiTilde) {
                     auto surface =
@@ -894,35 +896,6 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *, QInputEvent *event)
                     m_multitaskview->exit(nullptr);
                     m_currentMode = CurrentMode::Normal;
                 }
-            }
-        }
-    }
-
-    // handle shortcut
-    if (event->type() == QEvent::KeyRelease) {
-        if (m_taskSwitch && m_taskSwitch->property("switchOn").toBool()) {
-            auto kevent = static_cast<QKeyEvent *>(event);
-
-            if (kevent->key() == Qt::Key_Alt) {
-                auto filter = Helper::instance()->workspace()->currentFilter();
-                filter->setFilterAppId("");
-                m_taskSwitch->setProperty("switchOn", false);
-                QMetaObject::invokeMethod(m_taskSwitch, "exit");
-            }
-        }
-
-        if (m_currentUserId != -1) {
-            auto kevent = static_cast<QKeyEvent *>(event);
-            QKeySequence sequence(kevent->modifiers() | kevent->key());
-            bool isFind = false;
-            for (auto *action : m_shortcut->actions(m_currentUserId)) {
-                if (action->shortcut() == sequence) {
-                    isFind = true;
-                    action->activate(QAction::Trigger);
-                }
-            }
-            if (isFind) {
-                return true;
             }
         }
     }
@@ -982,29 +955,25 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *, QInputEvent *event)
     }
 
     // handle shortcut
-    if (m_currentMode == CurrentMode::Normal) {
-        if (event->type() == QEvent::KeyRelease) {
-            if (m_currentUserId != -1) {
-                auto kevent = static_cast<QKeyEvent *>(event);
-                // SKIP Meta+Meta
-                if (kevent->key() == Qt::Key_Meta && kevent->modifiers() == Qt::NoModifier) {
-                    goto skip_shortcut;
-                }
-                QKeySequence sequence(kevent->modifiers() | kevent->key());
-                bool isFind = false;
-                for (auto *action : m_shortcut->actions(m_currentUserId)) {
-                    if (action->shortcut() == sequence) {
-                        isFind = true;
-                        action->activate(QAction::Trigger);
-                    }
-                }
-                if (isFind) {
-                    return true;
+    if (m_currentMode == CurrentMode::Normal && event->type() == QEvent::KeyRelease) {
+        do {
+            auto kevent = static_cast<QKeyEvent *>(event);
+            // SKIP Meta+Meta
+            if (kevent->key() == Qt::Key_Meta && kevent->modifiers() == Qt::NoModifier) {
+                break;
+            }
+            bool isFind = false;
+            QKeySequence sequence(kevent->modifiers() | kevent->key());
+            for (auto *action : m_shortcut->actions(m_currentUserId)) {
+                if (action->shortcut() == sequence) {
+                    isFind = true;
+                    action->activate(QAction::Trigger);
                 }
             }
-        }
-
-    skip_shortcut:
+            if (isFind) {
+                return true;
+            }
+        } while (false);
 
         // FIXME: only one meta key
         // QEvent::ShortcutOverride QKeySequence("Meta")
