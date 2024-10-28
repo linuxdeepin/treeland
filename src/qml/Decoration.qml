@@ -13,7 +13,7 @@ Item {
     readonly property SurfaceItem surfaceItem: surface.surfaceItem
     property alias shadowOpacity: shadow.opacity
 
-    visible: surface && surface.visibleDecoration
+    visible: surface && surface.visibleDecoration && surface.visible
     x: shadow.boundingRect.x
     y: shadow.boundingRect.y
     width: shadow.boundingRect.width
