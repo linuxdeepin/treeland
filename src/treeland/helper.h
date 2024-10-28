@@ -71,6 +71,7 @@ class Multitaskview;
 class DDEShellManagerV1;
 class VirtualOutputV1;
 class ShellHandler;
+class PrimaryOutputV1;
 
 class Helper : public WSeatEventFilter
 {
@@ -266,6 +267,7 @@ private:
     WindowManagementV1::DesktopState m_showDesktop = WindowManagementV1::DesktopState::Normal;
     DDEShellManagerV1 *m_ddeShellV1 = nullptr;
     VirtualOutputV1 *m_virtualOutput = nullptr;
+    PrimaryOutputV1 *m_primaryOutputV1 = nullptr;
 
     // private data
     QList<Output *> m_outputList;
