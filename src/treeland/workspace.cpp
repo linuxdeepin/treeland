@@ -320,8 +320,7 @@ void Workspace::hideAllSurfacesExceptPreviewing(SurfaceWrapper *previewingItem)
 {
     const auto &surfaceList = surfaces();
     for (auto surface : surfaceList) {
-        if (surface != previewingItem)
-            surface->setOpacity(0);
+        surface->setOpacity(surface == previewingItem ? 1 : 0);
     }
 }
 
