@@ -613,8 +613,9 @@ void SurfaceWrapper::createNewOrClose(uint direction)
 
 void SurfaceWrapper::doSetSurfaceState(State newSurfaceState)
 {
-    setVisibleDecoration(newSurfaceState == State::Normal);
-    setNoCornerRadius(newSurfaceState != State::Normal);
+    setVisibleDecoration(newSurfaceState == State::Minimized || newSurfaceState == State::Normal);
+    setNoCornerRadius(newSurfaceState == State::Maximized || newSurfaceState == State::Fullscreen
+                      || newSurfaceState == State::Tiling);
 
     m_previousSurfaceState.setValueBypassingBindings(m_surfaceState);
     m_surfaceState.setValueBypassingBindings(newSurfaceState);
