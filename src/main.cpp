@@ -20,6 +20,11 @@ DCORE_USE_NAMESPACE;
 
 int main(int argc, char *argv[])
 {
+#ifdef QT_DEBUG
+    DLogManager::registerConsoleAppender();
+#endif
+    DLogManager::registerJournalAppender();
+
     qw_log::init();
     WServer::initializeQPA();
     //    QQuickStyle::setStyle("Material");
@@ -34,11 +39,6 @@ int main(int argc, char *argv[])
     app.setApplicationName("treeland");
 
     CmdLine::ref();
-
-#ifdef QT_DEBUG
-    DLogManager::registerConsoleAppender();
-#endif
-    DLogManager::registerJournalAppender();
 
     WRenderHelper::setupRendererBackend();
     Q_ASSERT(qw_buffer::get_objects().isEmpty());
