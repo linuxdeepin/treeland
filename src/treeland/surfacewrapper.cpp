@@ -14,6 +14,7 @@
 #include <woutput.h>
 #include <woutputitem.h>
 #include <woutputrenderwindow.h>
+#include <wsocket.h>
 #include <wxdgsurfaceitem.h>
 #include <wxwaylandsurface.h>
 #include <wxwaylandsurfaceitem.h>
@@ -109,6 +110,14 @@ SurfaceWrapper::SurfaceWrapper(QmlEngine *qmlEngine,
         setImplicitHeight(m_surfaceItem->implicitHeight());
     });
     setImplicitSize(m_surfaceItem->implicitWidth(), m_surfaceItem->implicitHeight());
+
+    if (auto client = shellSurface->waylandClient()) {
+        connect(client->socket(),
+                &WSocket::enabledChanged,
+                this,
+                &SurfaceWrapper::onSocketEnabledChanged);
+        onSocketEnabledChanged();
+    }
 
     if (!shellSurface->hasCapability(WToplevelSurface::Capability::Focus)) {
 #if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0)
@@ -529,7 +538,7 @@ void SurfaceWrapper::updateBoundingRect()
 
 void SurfaceWrapper::updateVisible()
 {
-    setVisible(!isMinimized() && surface()->mapped());
+    setVisible(!isMinimized() && surface()->mapped() && m_socketEnabled);
 }
 
 void SurfaceWrapper::updateSubSurfaceStacking()
@@ -737,6 +746,16 @@ void SurfaceWrapper::onMappedChanged()
     }
 
     updateHasActiveCapability(ActiveControlState::Mapped, surface()->mapped());
+
+    updateVisible();
+}
+
+void SurfaceWrapper::onSocketEnabledChanged()
+{
+    if (auto client = shellSurface()->waylandClient()) {
+        m_socketEnabled = client->socket()->isEnabled();
+        updateVisible();
+    }
 }
 
 void SurfaceWrapper::onMinimizeAnimationFinished()
@@ -1208,6 +1227,11 @@ void SurfaceWrapper::setCoverEnabled(bool coverEnabled)
     }
 
     Q_EMIT coverEnabledChanged();
+}
+
+bool SurfaceWrapper::socketEnabled() const
+{
+    return m_socketEnabled;
 }
 
 void SurfaceWrapper::updateExplicitAlwaysOnTop()
