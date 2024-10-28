@@ -72,7 +72,7 @@ public Q_SLOTS:
     void hybridSleep();
     void init();
 
-    void login(const QString &user, const QString &password, int sessionIndex) const;
+    void login(const QString &user, const QString &password, int sessionIndex);
     void activateUser(const QString &user);
     void unlock(const QString &user, const QString &password);
 
