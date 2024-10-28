@@ -497,6 +497,14 @@ bool Helper::surfaceBelongsToCurrentUser(SurfaceWrapper *wrapper)
     return credentials->uid == currentUserId();
 }
 
+void Helper::deleteTaskSwitch()
+{
+    if (m_taskSwitch) {
+        m_taskSwitch->deleteLater();
+        m_taskSwitch = nullptr;
+    }
+}
+
 void Helper::init()
 {
     auto engine = qmlEngine();
@@ -843,16 +851,9 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *, QInputEvent *event)
                 auto contentItem = window()->contentItem();
                 auto output = rootContainer()->primaryOutput();
                 m_taskSwitch = qmlEngine()->createTaskSwitcher(output, contentItem);
-                connect(m_taskSwitch, &QQuickItem::visibleChanged, m_taskSwitch, [this] {
-                    if (!m_taskSwitch->isVisible()) {
-                        m_taskSwitch->deleteLater();
-                        m_taskSwitch = nullptr;
-                    }
-                });
+                connect(m_taskSwitch, SIGNAL(switchOnChanged()), this, SLOT(deleteTaskSwitch()));
                 m_taskSwitch->setZ(RootSurfaceContainer::OverlayZOrder);
             }
-
-            m_taskSwitch->setProperty("switchOn", true);
         } else if (kevent->key() == Qt::Key_Tab || kevent->key() == Qt::Key_Backtab
                    || kevent->key() == Qt::Key_QuoteLeft || kevent->key() == Qt::Key_AsciiTilde
                    || kevent->key() == Qt::Key_Left || kevent->key() == Qt::Key_Right) {
