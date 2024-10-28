@@ -3,31 +3,22 @@
 
 #pragma once
 
-#include <woutput.h>
 #include <wserver.h>
 
-#include <qwsignalconnector.h>
-
-#include <QList>
-#include <QQmlEngine>
-
 struct treeland_output_manager_v1;
+QW_USE_NAMESPACE
 WAYLIB_SERVER_USE_NAMESPACE
 
 class PrimaryOutputV1
     : public QObject
-    , public WAYLIB_SERVER_NAMESPACE::WServerInterface
+    , public WServerInterface
 {
     Q_OBJECT
-    Q_PROPERTY(const char *primaryOutput READ primaryOutput WRITE setPrimaryOutput NOTIFY primaryOutputChanged)
 
 public:
     explicit PrimaryOutputV1(QObject *parent = nullptr);
 
-    const char *primaryOutput();
-
-    void newOutput(WAYLIB_SERVER_NAMESPACE::WOutput *output);
-    void removeOutput(WAYLIB_SERVER_NAMESPACE::WOutput *output);
+    void sendPrimaryOutput(const char *name);
     QByteArrayView interfaceName() const override;
 
 protected:
@@ -36,13 +27,8 @@ protected:
     wl_global *global() const override;
 
 Q_SIGNALS:
-    void requestSetPrimaryOutput(const char *);
-    void primaryOutputChanged();
-
-public Q_SLOTS:
-    bool setPrimaryOutput(const char *name);
+    void requestSetPrimaryOutput(const char *name);
 
 private:
     treeland_output_manager_v1 *m_handle{ nullptr };
-    QList<WAYLIB_SERVER_NAMESPACE::WOutput *> m_outputs;
 };
