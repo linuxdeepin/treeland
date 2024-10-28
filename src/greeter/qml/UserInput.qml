@@ -40,6 +40,13 @@ Item {
         }
     }
 
+    Connections {
+        target: GreeterModel
+        function onCurrentUserChanged() {
+            updateUser()
+        }
+    }
+
     Item {
         width: 32
         height: 32

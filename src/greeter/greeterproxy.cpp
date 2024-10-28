@@ -186,14 +186,14 @@ void GreeterProxy::init()
     }
 }
 
-void GreeterProxy::login(const QString &user, const QString &password, const int sessionIndex) const
+void GreeterProxy::login(const QString &user, const QString &password, const int sessionIndex)
 {
     if (!d->socket->isValid()) {
         qCDebug(greeter) << "Socket is not valid. Local password check.";
         if (localValidation(user, password)) {
-            Q_EMIT const_cast<GreeterProxy *>(this)->loginSucceeded(user);
+            Q_EMIT loginSucceeded(user);
         } else {
-            Q_EMIT const_cast<GreeterProxy *>(this)->loginFailed(user);
+            Q_EMIT loginFailed(user);
         }
         return;
     }
