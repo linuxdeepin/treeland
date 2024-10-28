@@ -120,7 +120,7 @@ Item {
                 required property bool minimized
                 property bool needPadding
                 property real paddingOpacity
-                readonly property rect initialGeometry: surfaceGridView.mapFromItem(output.outputItem, wrapper.geometry)
+                readonly property rect initialGeometry: surfaceGridView.mapFromItem(multitaskview, wrapper.geometry)
                 property real ratio: wrapper.width / wrapper.height
                 property real fullY
 

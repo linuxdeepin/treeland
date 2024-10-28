@@ -96,7 +96,9 @@ void MultitaskviewSurfaceModel::initializeModel()
             if (surfaceReady(surface)) {
                 m_data.push_back(std::make_shared<SurfaceModelData>(
                     surface,
-                    surfaceGeometry(surface).translated(-layoutArea().topLeft()),
+                    surfaceGeometry(surface)
+                        .translated(-output()->geometry().topLeft())
+                        .translated(-layoutArea().topLeft()),
                     false,
                     surface->isMinimized()));
             } else {
@@ -467,11 +469,13 @@ void MultitaskviewSurfaceModel::addReadySurface(SurfaceWrapper *surface)
                &WSurface::mappedChanged,
                this,
                &MultitaskviewSurfaceModel::handleSurfaceMappedChanged);
-    auto toBeInserted = std::make_shared<SurfaceModelData>(
-        surface,
-        surfaceGeometry(surface).translated(-layoutArea().topLeft()),
-        false,
-        surface->isMinimized());
+    auto toBeInserted =
+        std::make_shared<SurfaceModelData>(surface,
+                                           surfaceGeometry(surface)
+                                               .translated(-output()->geometry().topLeft())
+                                               .translated(-layoutArea().topLeft()),
+                                           false,
+                                           surface->isMinimized());
     QList<ModelDataPtr> pendingData{ m_data };
     auto it = pendingData.begin();
     for (; it != pendingData.end() && laterActiveThan((*it)->wrapper, surface); ++it)
