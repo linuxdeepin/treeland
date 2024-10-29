@@ -923,7 +923,6 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *, QInputEvent *event)
     }
 
     // maximize: Meta + up  ;
-    void requestCancelMaximize();
     if (auto e = static_cast<QKeyEvent *>(event)) {
         if (e->type() == QKeyEvent::KeyPress && e->key() == Qt::Key_Up
             && e->modifiers() == Qt::MetaModifier) {
