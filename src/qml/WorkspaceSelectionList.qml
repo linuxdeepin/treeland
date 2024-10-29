@@ -65,6 +65,7 @@ Item {
                     x = dragManager.destPoint.x
                     y = dragManager.destPoint.y
                     dragManager.item = null
+                    dragManager.doNotRestoreAccept = false
                 }
             }
 
@@ -116,6 +117,16 @@ Item {
                         hideSource: true
                     }
 
+                    Timer {
+                        id: switchTmr
+                        interval: 500
+                        onTriggered: {
+                            dragManager.doNotRestoreAccept = true
+                            Helper.workspace.switchTo(workspaceThumbDelegate.index)
+
+                        }
+                    }
+
                     HoverHandler {
                         id: hvrhdlr
                         enabled: !hdrg.active
@@ -132,6 +143,7 @@ Item {
                                         }
                                     } else {    // is dragging surface
                                         if (workspace.id !== dragManager.item.wrapper.workspaceId) {
+                                            switchTmr.restart()
                                             dragManager.accept = () => {
                                                 Helper.workspace.moveSurfaceTo(dragManager.item.wrapper, workspace.id)
                                             }
@@ -139,7 +151,8 @@ Item {
                                     }
                                 }
                             } else {
-                                if (dragManager.item?.wrapper) // is dragging surface, workspace always lose hover
+                                switchTmr.stop()
+                                if (dragManager.item?.wrapper && !dragManager.doNotRestoreAccept) // is dragging surface, workspace always lose hover
                                     dragManager.accept = null
                             }
                         }

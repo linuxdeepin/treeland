@@ -136,7 +136,7 @@ void Workspace::removeSurface(SurfaceWrapper *surface)
 int Workspace::modelIndexOfSurface(SurfaceWrapper *surface) const
 {
     for (int i = 0; i < m_models->rowCount(); ++i) {
-        if (model(i)->hasSurface(surface))
+        if (modelAt(i)->hasSurface(surface))
             return i;
     }
 
@@ -163,7 +163,7 @@ void Workspace::removeModel(int index)
     TreelandConfig::ref().setNumWorkspace(TreelandConfig::ref().numWorkspace() - 1);
 }
 
-WorkspaceModel *Workspace::model(int index) const
+WorkspaceModel *Workspace::modelAt(int index) const
 {
     if (index < 0 || index >= m_models->rowCount())
         return nullptr;
@@ -198,7 +198,7 @@ void Workspace::setCurrentIndex(int newCurrentIndex)
     doSetCurrentIndex(newCurrentIndex);
 
     for (int i = 0; i < m_models->rowCount(); ++i) {
-        model(i)->setVisible(i == currentIndex());
+        modelAt(i)->setVisible(i == currentIndex());
     }
 
     // Both changed
@@ -239,7 +239,7 @@ void Workspace::switchTo(int index)
 
 WorkspaceModel *Workspace::current() const
 {
-    return model(currentIndex());
+    return modelAt(currentIndex());
 }
 
 SurfaceFilterProxyModel *Workspace::currentFilter()
@@ -388,10 +388,17 @@ void Workspace::doRemoveModel(int index)
 {
     auto oldCurrent = this->current();
     auto oldCurrentIndex = this->currentIndex();
-    auto model = this->model(index);
+    auto model = this->modelAt(index);
     m_models->removeObject(model);
 
-    doSetCurrentIndex(std::min(currentIndex(), count() - 1));
+    if (oldCurrent == model) {
+        // current change, current index might change
+        doSetCurrentIndex(std::min(currentIndex(), count() - 1));
+    } else {
+        // current do not change, current index might change
+        doSetCurrentIndex(m_models->objects().indexOf(oldCurrent));
+    }
+
     auto current = this->current();
 
     // TODO delete animation here
@@ -407,7 +414,7 @@ void Workspace::doRemoveModel(int index)
     }
 
     for (int i = 0; i < count(); ++i) {
-        this->model(i)->setVisible(i == currentIndex());
+        this->modelAt(i)->setVisible(i == currentIndex());
     }
 
     model->deleteLater();
