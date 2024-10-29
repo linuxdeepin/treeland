@@ -36,8 +36,6 @@ public:
     explicit ShortcutV1(QObject *parent = nullptr);
     QByteArrayView interfaceName() const override;
 
-    void triggerMetaKey(uid_t uid);
-
     std::vector<QAction *> actions(uid_t uid) const;
 
 protected:

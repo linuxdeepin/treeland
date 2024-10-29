@@ -286,4 +286,6 @@ private:
 
     QPropertyAnimation *m_workspaceScaleAnimation{ nullptr };
     QPropertyAnimation *m_workspaceOpacityAnimation{ nullptr };
+
+    bool m_singleMetaKeyPendingPressed{ false };
 };
