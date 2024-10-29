@@ -126,7 +126,6 @@ Item {
 
                 visible: multitaskview.status == Multitaskview.Exited ? !minimized : true
                 clip: false
-                state: drg.active ? "dragging" : multitaskview.state
                 x: geometry.x
                 y: geometry.y
                 z: zorder
@@ -141,6 +140,7 @@ Item {
                                 y: initialGeometry.y
                                 width: initialGeometry.width
                                 height: initialGeometry.height
+                                scale: 1.0
                                 paddingOpacity: 0
                                 needPadding: false
                             }
@@ -150,11 +150,12 @@ Item {
                         name: "partial"
                         PropertyChanges {
                             surfaceItemDelegate {
-                                x: (geometry.x - initialGeometry.x) * partialGestureFactor + initialGeometry.x
-                                y: (geometry.y - initialGeometry.y) * partialGestureFactor + initialGeometry.y
-                                width: (geometry.width - initialGeometry.width) * partialGestureFactor + initialGeometry.width
-                                height: (geometry.height - initialGeometry.height) * partialGestureFactor + initialGeometry.height
-                                paddingOpacity: TreelandConfig.multitaskviewPaddingOpacity * partialGestureFactor
+                                x: (geometry.x - initialGeometry.x) * multitaskview.taskviewVal + initialGeometry.x
+                                y: (geometry.y - initialGeometry.y) * multitaskview.taskviewVal + initialGeometry.y
+                                width: (geometry.width - initialGeometry.width) * multitaskview.taskviewVal + initialGeometry.width
+                                height: (geometry.height - initialGeometry.height) * multitaskview.taskviewVal + initialGeometry.height
+                                scale: 1.0
+                                paddingOpacity: TreelandConfig.multitaskviewPaddingOpacity * multitaskview.taskviewVal
                                 needPadding: true
                             }
                         }
@@ -168,6 +169,7 @@ Item {
                                 width: geometry.width
                                 height: geometry.height
                                 needPadding: padding
+                                scale: 1.0
                                 paddingOpacity: TreelandConfig.multitaskviewPaddingOpacity
                             }
                         }
@@ -182,19 +184,34 @@ Item {
                                 y: mapToItem(draggedParent, 0, 0).y
                                 z: Multitaskview.FloatingItem
                                 scale: (Math.max(0, Math.min(drg.activeTranslation.y / fullY, 1)) * (100 - width) + width) / width
+                                paddingOpacity: TreelandConfig.multitaskviewPaddingOpacity
                                 transformOrigin: Item.Center
                                 needPadding: false
                             }
                         }
                     }
                 ]
-
-                Behavior on x {enabled:state !== "dragging"; NumberAnimation {duration: TreelandConfig.multitaskviewAnimationDuration; easing.type: TreelandConfig.multitaskviewEasingCurveType} }
-                Behavior on y {enabled:state !== "dragging"; NumberAnimation {duration: TreelandConfig.multitaskviewAnimationDuration; easing.type: TreelandConfig.multitaskviewEasingCurveType} }
-                Behavior on width {enabled:state !== "dragging"; NumberAnimation {duration: TreelandConfig.multitaskviewAnimationDuration; easing.type: TreelandConfig.multitaskviewEasingCurveType} }
-                Behavior on height {enabled:state !== "dragging"; NumberAnimation {duration: TreelandConfig.multitaskviewAnimationDuration; easing.type: TreelandConfig.multitaskviewEasingCurveType} }
-                Behavior on paddingOpacity {enabled:state !== "dragging"; NumberAnimation {duration: TreelandConfig.multitaskviewAnimationDuration; easing.type: TreelandConfig.multitaskviewEasingCurveType} }
-                Behavior on scale {enabled:state !== "dragging"; NumberAnimation {duration: TreelandConfig.multitaskviewAnimationDuration; easing.type: TreelandConfig.multitaskviewEasingCurveType} }
+                state: {
+                    if (drg.active)
+                        return "dragging"
+                    return multitaskview.state
+                }
+                transitions: [
+                    Transition {
+                        to: "initial, taskview"
+                        ParallelAnimation {
+                            NumberAnimation {
+                                properties: "x, y, width, height, scale, paddingOpacity"
+                                duration: TreelandConfig.multitaskviewAnimationDuration
+                                easing.type: TreelandConfig.multitaskviewEasingCurveType
+                            }
+                            PropertyAction {
+                                target: surfaceItemDelegate
+                                property: "needPadding"
+                            }
+                        }
+                    }
+                ]
 
                 D.BoxShadow {
                     id: paddingRectShadow
@@ -233,7 +250,7 @@ Item {
                 property bool highlighted: dragManager.item === null && (hvhdlr.hovered || surfaceCloseBtn.hovered) && surfaceItemDelegate.state === "taskview"
                 SurfaceProxy {
                     id: surfaceProxy
-                    surface: wrapper
+                    surface: surfaceItemDelegate.wrapper
                     live: true
                     fullProxy: true
                     width: parent.width
@@ -296,7 +313,7 @@ Item {
                     }
                     onClicked: {
                         surfaceItemDelegate.visible = false
-                        wrapper.requestClose()
+                        surfaceItemDelegate.wrapper.requestClose()
                     }
                 }
 
