@@ -935,6 +935,19 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *, QInputEvent *event)
         }
     }
 
+    if (event->type() == QEvent::KeyRelease) {
+        if (m_taskSwitch && m_taskSwitch->property("switchOn").toBool()) {
+            auto kevent = static_cast<QKeyEvent *>(event);
+
+            if (kevent->key() == Qt::Key_Alt) {
+                auto filter = Helper::instance()->workspace()->currentFilter();
+                filter->setFilterAppId("");
+                QMetaObject::invokeMethod(m_taskSwitch, "exit");
+                m_currentMode = CurrentMode::Normal;
+            }
+        }
+    }
+
     if (event->type() == QEvent::MouseButtonPress || event->type() == QEvent::MouseButtonRelease) {
         handleLeftButtonStateChanged(event);
     }
