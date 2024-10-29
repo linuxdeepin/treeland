@@ -135,31 +135,22 @@ Helper::Helper(QObject *parent)
                     || status == TogglableGesture::Active) {
                     toggleMultitaskview(Multitaskview::Gesture);
                 } else {
-                    m_multitaskview->exit(nullptr);
+                    if (m_multitaskview)
+                        m_multitaskview->exit(nullptr);
                     m_currentMode = CurrentMode::Normal;
-                }
-            });
-
-    connect(m_multiTaskViewGesture,
-            &TogglableGesture::partialGestureFactorChanged,
-            this,
-            [this](qreal factor) {
-                if (m_multitaskview && m_multitaskview->isVisible()
-                    && m_multitaskview->activeReason()) {
-                    m_multitaskview->setTaskviewVal(factor);
                 }
             });
 
     connect(m_windowGesture, &TogglableGesture::activated, this, [this]() {
         auto surface = Helper::instance()->activatedSurface();
-        if (surface && !surface->isMaximized()) {
+        if (m_currentMode == CurrentMode::Normal && surface && !surface->isMaximized()) {
             surface->requestMaximize();
         }
     });
 
     connect(m_windowGesture, &TogglableGesture::deactivated, this, [this]() {
         auto surface = Helper::instance()->activatedSurface();
-        if (surface && surface->isMaximized()) {
+        if (m_currentMode == CurrentMode::Normal && surface && surface->isMaximized()) {
             surface->requestCancelMaximize();
         }
     });
@@ -1105,9 +1096,10 @@ void Helper::toggleMultitaskview(Multitaskview::ActiveReason reason)
                 workspace()->setSwitcherEnabled(true);
             }
         });
-        m_multitaskview->enter(reason);
         m_currentMode = CurrentMode::Multitaskview;
     }
+
+    m_multitaskview->enter(reason);
 }
 
 SurfaceWrapper *Helper::keyboardFocusSurface() const

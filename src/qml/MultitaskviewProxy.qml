@@ -15,43 +15,50 @@ Multitaskview {
     property D.Palette outerShadowColor: DS.Style.highlightPanel.dropShadow
     clip: true
 
+    property bool initialized: false
+    property bool exited: false
+    readonly property QtObject taskViewGesture: Helper.multiTaskViewGesture
+    property real taskviewVal: 0
+
+    onStatusChanged: {
+        if (root.status === Multitaskview.Exited)
+            exited = true
+    }
+
     states: [
         State{
             name: "initial"
             PropertyChanges {
-                root {
-                    taskviewVal: 0
-                }
+                target: root
+                taskviewVal: 0
             }
         },
-        // State {
-        //     name: "partial"
-        //     PropertyChanges {
-        //         target: root
-        //         taskviewVal: taskViewGesture.partialGestureFactor
-        //     }
-        // },
+        State {
+            name: "partial"
+            PropertyChanges {
+                target: root
+                taskviewVal: taskViewGesture.partialGestureFactor
+            }
+        },
         State {
             name: "taskview"
             PropertyChanges {
-                root {
-                    taskviewVal: 1
-                }
+                target: root
+                taskviewVal: 1
             }
         }
     ]
-
     state: {
-        if (status === Multitaskview.Uninitialized) return "initial";
+        if (!initialized) return "initial";
 
-        if (status === Multitaskview.Exited) {
+        if (exited) {
             if (taskviewVal === 0)
                 root.visible = false;
 
             return "initial";
         }
 
-        if (activeReason === Multitaskview.ShortcutKey){
+        if (activeReason === Multitaskview.ShortcutKey) {
             return "taskview";
         } else {
             if (taskViewGesture.inProgress) return "partial";
@@ -167,5 +174,9 @@ Multitaskview {
                 }
             }
         }
+    }
+
+    Component.onCompleted: {
+        initialized = true
     }
 }
