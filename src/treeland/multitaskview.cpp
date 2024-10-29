@@ -19,7 +19,6 @@ Multitaskview::Multitaskview(QQuickItem *parent)
     : QQuickItem(parent)
     , m_status(Uninitialized)
     , m_activeReason(ShortcutKey)
-    , m_taskviewVal(0.0)
 {
 }
 
@@ -47,19 +46,6 @@ void Multitaskview::setActiveReason(ActiveReason activeReason)
         return;
     m_activeReason = activeReason;
     Q_EMIT activeReasonChanged();
-}
-
-qreal Multitaskview::taskviewVal() const
-{
-    return m_taskviewVal;
-}
-
-void Multitaskview::setTaskviewVal(qreal taskviewVal)
-{
-    if (taskviewVal == m_taskviewVal)
-        return;
-    m_taskviewVal = taskviewVal;
-    Q_EMIT taskviewValChanged();
 }
 
 void Multitaskview::exit(SurfaceWrapper *surface)
