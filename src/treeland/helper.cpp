@@ -913,6 +913,34 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *, QInputEvent *event)
         }
     }
 
+    // close window : Alt + F4
+    if (auto e = static_cast<QKeyEvent *>(event)) {
+        if (e->type() == QKeyEvent::KeyPress && e->key() == Qt::Key_F4
+            && e->modifiers() == Qt::AltModifier) {
+            m_activatedSurface->requestClose();
+            return true;
+        }
+    }
+
+    // maximize: Meta + up  ;
+    void requestCancelMaximize();
+    if (auto e = static_cast<QKeyEvent *>(event)) {
+        if (e->type() == QKeyEvent::KeyPress && e->key() == Qt::Key_Up
+            && e->modifiers() == Qt::MetaModifier) {
+            m_activatedSurface->requestMaximize();
+            return true;
+        }
+    }
+
+    // cancelMaximize : Meta + down
+    if (auto e = static_cast<QKeyEvent *>(event)) {
+        if (e->type() == QKeyEvent::KeyPress && e->key() == Qt::Key_Down
+            && e->modifiers() == Qt::MetaModifier) {
+            m_activatedSurface->requestCancelMaximize();
+            return true;
+        }
+    }
+
     if (event->type() == QEvent::MouseButtonPress || event->type() == QEvent::MouseButtonRelease) {
         handleLeftButtonStateChanged(event);
     }
