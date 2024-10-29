@@ -50,6 +50,8 @@ public:
     void setStatus(Status status);
     ActiveReason activeReason() const;
     void setActiveReason(ActiveReason activeReason);
+    bool blockActiveSurface() const;
+    void setBlockActiveSurface(bool block);
 
 Q_SIGNALS:
     void statusChanged();
@@ -63,6 +65,7 @@ public Q_SLOTS:
 private:
     Status m_status;
     ActiveReason m_activeReason;
+    bool m_blockActiveSurface{ true };
 };
 
 class MultitaskviewSurfaceModel : public QAbstractListModel
@@ -87,16 +90,27 @@ class MultitaskviewSurfaceModel : public QAbstractListModel
         QRectF geometry{};
         bool padding{ false };
         bool minimized{ false };
+        int upIndex{ 0 };
+        int downIndex{ 0 };
+        int leftIndex{ 0 };
+        int rightIndex{ 0 };
 
         QRectF pendingGeometry{};
         bool pendingPadding{ false };
         int zorder{ 0 };
-        int pendingZOrder{ 0 };
+        int pendingUpIndex;
+        int pendingDownIndex;
+        int pendingLeftIndex;
+        int pendingRightIndex;
 
         void commit()
         {
             geometry = pendingGeometry;
             padding = pendingPadding;
+            upIndex = pendingUpIndex;
+            downIndex = pendingDownIndex;
+            leftIndex = pendingLeftIndex;
+            rightIndex = pendingRightIndex;
         }
     };
 
@@ -112,7 +126,11 @@ public:
         GeometryRole,
         PaddingRole,
         ZOrderRole,
-        MinimizedRole
+        MinimizedRole,
+        UpIndexRole,
+        DownIndexRole,
+        LeftIndexRole,
+        RightIndexRole
     };
     Q_ENUM(SurfaceModelRole)
 
@@ -126,6 +144,8 @@ public:
 
     Q_INVOKABLE void calcLayout();
     Q_INVOKABLE void updateZOrder();
+    Q_INVOKABLE int prevSameAppIndex(int index);
+    Q_INVOKABLE int nextSameAppIndex(int index);
 
     QRectF layoutArea() const;
     void setLayoutArea(const QRectF &newLayoutArea);
@@ -155,7 +175,7 @@ Q_SIGNALS:
 
 private:
     bool tryLayout(const QList<ModelDataPtr> &rawData, qreal rowH, bool ignoreOverlap = false);
-    void calcDisplayPos();
+    void calcDisplayPos(const QList<ModelDataPtr> &rawData);
     void doCalculateLayout(const QList<ModelDataPtr> &rawData);
     void doUpdateZOrder(const QList<ModelDataPtr> &rawData);
     std::pair<int, int> commitAndGetUpdateRange(const QList<ModelDataPtr> &rawData);

@@ -51,8 +51,8 @@ public:
 
     Q_INVOKABLE int createModel(const QString &name = QLatin1String(""), bool visible = false);
     Q_INVOKABLE void removeModel(int index);
-    WorkspaceModel *model(int index) const;
-    WorkspaceModel *modelFromId(int id) const;
+    Q_INVOKABLE WorkspaceModel *modelAt(int index) const;
+    Q_INVOKABLE WorkspaceModel *modelFromId(int id) const;
 
     int count() const;
     int currentIndex() const;

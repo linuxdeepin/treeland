@@ -213,7 +213,7 @@ void ShellHandler::setupSurfaceActiveWatcher(SurfaceWrapper *wrapper)
         if (wrapper->showOnWorkspace(m_workspace->currentIndex()))
             Helper::instance()->activateSurface(wrapper);
         else
-            m_workspace->current()->pushActivedSurface(wrapper);
+            m_workspace->pushActivedSurface(wrapper);
     });
 
     connect(wrapper, &SurfaceWrapper::requestInactive, this, [this, wrapper]() {
