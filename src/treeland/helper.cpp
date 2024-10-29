@@ -796,6 +796,23 @@ void Helper::fakePressSurfaceBottomRightToReszie(SurfaceWrapper *surface)
 
 bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *, QInputEvent *event)
 {
+    // NOTE: Unable to distinguish meta from other key combinations
+    //       For example, Meta+S will still receive Meta release after
+    //       fully releasing the key, actively detect whether there are
+    //       other keys, and reset the state.
+    if (event->type() == QEvent::KeyPress) {
+        auto kevent = static_cast<QKeyEvent *>(event);
+        switch (kevent->key()) {
+        case Qt::Key_Meta:
+        case Qt::Key_Super_L:
+            m_singleMetaKeyPendingPressed = true;
+            break;
+        default:
+            m_singleMetaKeyPendingPressed = false;
+            break;
+        }
+    }
+
     if (event->type() == QEvent::KeyPress) {
         auto kevent = static_cast<QKeyEvent *>(event);
         if (QKeySequence(kevent->keyCombination()) == QKeySequence::Quit) {
@@ -965,7 +982,8 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *, QInputEvent *event)
         do {
             auto kevent = static_cast<QKeyEvent *>(event);
             // SKIP Meta+Meta
-            if (kevent->key() == Qt::Key_Meta && kevent->modifiers() == Qt::NoModifier) {
+            if (kevent->key() == Qt::Key_Meta && kevent->modifiers() == Qt::NoModifier
+                && !m_singleMetaKeyPendingPressed) {
                 break;
             }
             bool isFind = false;
@@ -980,35 +998,6 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *, QInputEvent *event)
                 return true;
             }
         } while (false);
-
-        // FIXME: only one meta key
-        // QEvent::ShortcutOverride QKeySequence("Meta")
-        // QEvent::KeyPress QKeySequence("Meta+Meta")
-        // QEvent::KeyRelease QKeySequence("Meta")
-        static QFlags<ShortcutV1::MetaKeyCheck> metaKeyChecks;
-        if (auto e = static_cast<QKeyEvent *>(event)) {
-            if (e->type() == QKeyEvent::ShortcutOverride && e->key() == Qt::Key_Meta) {
-                metaKeyChecks |= ShortcutV1::MetaKeyCheck::ShortcutOverride;
-            } else if (metaKeyChecks.testFlags(ShortcutV1::MetaKeyCheck::ShortcutOverride)
-                       && e->type() == QKeyEvent::KeyPress && e->modifiers() == Qt::MetaModifier
-                       && e->key() == Qt::Key_Meta) {
-                metaKeyChecks |= ShortcutV1::MetaKeyCheck::KeyPress;
-            } else if (metaKeyChecks.testFlags(ShortcutV1::MetaKeyCheck::ShortcutOverride
-                                               | ShortcutV1::MetaKeyCheck::KeyPress)
-                       && e->type() == QKeyEvent::KeyRelease && e->key() == Qt::Key_Meta) {
-                metaKeyChecks |= ShortcutV1::MetaKeyCheck::KeyRelease;
-            } else {
-                metaKeyChecks = {};
-            }
-
-            if (metaKeyChecks.testFlags(ShortcutV1::MetaKeyCheck::ShortcutOverride
-                                        | ShortcutV1::MetaKeyCheck::KeyPress
-                                        | ShortcutV1::MetaKeyCheck::KeyRelease)) {
-                metaKeyChecks = {}; // reset
-                m_shortcut->triggerMetaKey(m_currentUserId);
-            }
-        }
-        // FIXME: end
     }
 
     return false;

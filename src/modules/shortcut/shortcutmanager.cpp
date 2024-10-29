@@ -53,16 +53,6 @@ std::vector<QAction *> ShortcutV1::actions(uid_t uid) const
     return m_actions[uid];
 }
 
-void ShortcutV1::triggerMetaKey(uid_t uid)
-{
-    for (auto *action : m_actions[uid]) {
-        if (action->shortcut().toString() == "Meta") {
-            action->trigger();
-            break;
-        }
-    }
-}
-
 void ShortcutV1::create(WServer *server)
 {
     m_manager = treeland_shortcut_manager_v1::create(server->handle());
