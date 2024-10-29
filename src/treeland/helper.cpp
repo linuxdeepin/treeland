@@ -845,6 +845,18 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *, QInputEvent *event)
                 m_currentMode = CurrentMode::LockScreen;
 
                 return true;
+            } else if (kevent->key() == Qt::Key_D) { // ShowDesktop : Meta + D
+                if (m_showDesktop == WindowManagementV1::DesktopState::Normal)
+                    m_windowManagement->setDesktopState(WindowManagementV1::DesktopState::Show);
+                else if (m_showDesktop == WindowManagementV1::DesktopState::Show)
+                    m_windowManagement->setDesktopState(WindowManagementV1::DesktopState::Normal);
+                return true;
+            } else if (kevent->key() == Qt::Key_Up) { // maximize: Meta + up
+                m_activatedSurface->requestMaximize();
+                return true;
+            } else if (kevent->key() == Qt::Key_Down) { // cancelMaximize : Meta + down
+                m_activatedSurface->requestCancelMaximize();
+                return true;
             }
         } else if (kevent->key() == Qt::Key_Alt) {
             if (m_taskSwitch.isNull()) {
@@ -853,6 +865,11 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *, QInputEvent *event)
                 m_taskSwitch = qmlEngine()->createTaskSwitcher(output, contentItem);
                 connect(m_taskSwitch, SIGNAL(switchOnChanged()), this, SLOT(deleteTaskSwitch()));
                 m_taskSwitch->setZ(RootSurfaceContainer::OverlayZOrder);
+            }
+
+            if (kevent->key() == Qt::Key_F4) { // close window : Alt + F4
+                m_activatedSurface->requestClose();
+                return true;
             }
         } else if (kevent->key() == Qt::Key_Tab || kevent->key() == Qt::Key_Backtab
                    || kevent->key() == Qt::Key_QuoteLeft || kevent->key() == Qt::Key_AsciiTilde
@@ -898,45 +915,6 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *, QInputEvent *event)
                     m_currentMode = CurrentMode::Normal;
                 }
             }
-        }
-    }
-
-    // ShowDesktop : Meta + D
-    if (auto e = static_cast<QKeyEvent *>(event)) {
-        if (e->type() == QKeyEvent::KeyPress && e->key() == Qt::Key_D
-            && e->modifiers() == Qt::MetaModifier) {
-            if (m_showDesktop == WindowManagementV1::DesktopState::Normal)
-                m_windowManagement->setDesktopState(WindowManagementV1::DesktopState::Show);
-            else if (m_showDesktop == WindowManagementV1::DesktopState::Show)
-                m_windowManagement->setDesktopState(WindowManagementV1::DesktopState::Normal);
-            return true;
-        }
-    }
-
-    // close window : Alt + F4
-    if (auto e = static_cast<QKeyEvent *>(event)) {
-        if (e->type() == QKeyEvent::KeyPress && e->key() == Qt::Key_F4
-            && e->modifiers() == Qt::AltModifier) {
-            m_activatedSurface->requestClose();
-            return true;
-        }
-    }
-
-    // maximize: Meta + up  ;
-    if (auto e = static_cast<QKeyEvent *>(event)) {
-        if (e->type() == QKeyEvent::KeyPress && e->key() == Qt::Key_Up
-            && e->modifiers() == Qt::MetaModifier) {
-            m_activatedSurface->requestMaximize();
-            return true;
-        }
-    }
-
-    // cancelMaximize : Meta + down
-    if (auto e = static_cast<QKeyEvent *>(event)) {
-        if (e->type() == QKeyEvent::KeyPress && e->key() == Qt::Key_Down
-            && e->modifiers() == Qt::MetaModifier) {
-            m_activatedSurface->requestCancelMaximize();
-            return true;
         }
     }
 
