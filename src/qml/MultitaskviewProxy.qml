@@ -83,6 +83,7 @@ Multitaskview {
         property Item item  // current dragged item
         property var accept // accept callback func
         property point destPoint
+        property bool doNotRestoreAccept: false
     }
 
     MouseArea {

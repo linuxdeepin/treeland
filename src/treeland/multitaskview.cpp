@@ -48,10 +48,25 @@ void Multitaskview::setActiveReason(ActiveReason activeReason)
     Q_EMIT activeReasonChanged();
 }
 
+bool Multitaskview::blockActiveSurface() const
+{
+    return m_blockActiveSurface;
+}
+
+void Multitaskview::setBlockActiveSurface(bool block)
+{
+    m_blockActiveSurface = block;
+}
+
 void Multitaskview::exit(SurfaceWrapper *surface)
 {
+    setBlockActiveSurface(false);
     if (surface) {
         Helper::instance()->forceActivateSurface(surface);
+    } else if (Helper::instance()->workspace()->current()->latestActiveSurface()) {
+        // Should force activate latest active surface if there is.
+        Helper::instance()->forceActivateSurface(
+            Helper::instance()->workspace()->current()->latestActiveSurface());
     }
     // TODO: handle taskview gesture
     Q_EMIT aboutToExit();
@@ -60,6 +75,7 @@ void Multitaskview::exit(SurfaceWrapper *surface)
 
 void Multitaskview::enter(ActiveReason reason)
 {
+    Helper::instance()->activateSurface(nullptr);
     setStatus(Active);
     setActiveReason(reason);
 }
@@ -135,6 +151,14 @@ QVariant MultitaskviewSurfaceModel::data(const QModelIndex &index, int role) con
         return QVariant::fromValue(m_data[r]->zorder);
     case MinimizedRole:
         return QVariant::fromValue(m_data[r]->minimized);
+    case UpIndexRole:
+        return QVariant::fromValue(m_data[r]->upIndex);
+    case DownIndexRole:
+        return QVariant::fromValue(m_data[r]->downIndex);
+    case LeftIndexRole:
+        return QVariant::fromValue(m_data[r]->leftIndex);
+    case RightIndexRole:
+        return QVariant::fromValue(m_data[r]->rightIndex);
     default:
         return QVariant();
     }
@@ -142,11 +166,13 @@ QVariant MultitaskviewSurfaceModel::data(const QModelIndex &index, int role) con
 
 QHash<int, QByteArray> MultitaskviewSurfaceModel::roleNames() const
 {
-    return QHash<int, QByteArray>{ { SurfaceWrapperRole, "wrapper" },
-                                   { GeometryRole, "geometry" },
-                                   { PaddingRole, "padding" },
-                                   { ZOrderRole, "zorder" },
-                                   { MinimizedRole, "minimized" } };
+    return QHash<int, QByteArray>{
+        { SurfaceWrapperRole, "wrapper" }, { GeometryRole, "geometry" },
+        { PaddingRole, "padding" },        { ZOrderRole, "zorder" },
+        { MinimizedRole, "minimized" },    { UpIndexRole, "upIndex" },
+        { DownIndexRole, "downIndex" },    { LeftIndexRole, "leftIndex" },
+        { RightIndexRole, "rightIndex" }
+    };
 }
 
 QModelIndex MultitaskviewSurfaceModel::index(int row, int column, const QModelIndex &parent) const
@@ -166,7 +192,14 @@ void MultitaskviewSurfaceModel::calcLayout()
     doCalculateLayout(m_data);
     auto [beginIndex, endIndex] = commitAndGetUpdateRange(m_data);
     if (beginIndex <= endIndex) {
-        Q_EMIT dataChanged(index(beginIndex), index(endIndex), { GeometryRole, PaddingRole });
+        Q_EMIT dataChanged(index(beginIndex),
+                           index(endIndex),
+                           { GeometryRole,
+                             PaddingRole,
+                             UpIndexRole,
+                             DownIndexRole,
+                             LeftIndexRole,
+                             RightIndexRole });
     }
     Q_EMIT rowsChanged();
     Q_EMIT contentHeightChanged();
@@ -176,6 +209,40 @@ void MultitaskviewSurfaceModel::updateZOrder()
 {
     doUpdateZOrder(m_data);
     Q_EMIT dataChanged(index(0), index(rowCount() - 1), { ZOrderRole });
+}
+
+int MultitaskviewSurfaceModel::prevSameAppIndex(int index)
+{
+    if (index < 0 || index >= count())
+        return -1;
+    auto circularPrev = [this](int i) {
+        return (i + count() - 1) % count();
+    };
+    auto i = circularPrev(index);
+    for (; i != index; i = circularPrev(i)) {
+        if (m_data[i]->wrapper->shellSurface()->appId()
+            == m_data[index]->wrapper->shellSurface()->appId()) {
+            break;
+        }
+    }
+    return i;
+}
+
+int MultitaskviewSurfaceModel::nextSameAppIndex(int index)
+{
+    if (index < 0 || index >= count())
+        return -1;
+    auto circularNext = [this](int i) {
+        return (i + 1) % count();
+    };
+    auto i = circularNext(index);
+    for (; i != index; i = circularNext(i)) {
+        if (m_data[i]->wrapper->shellSurface()->appId()
+            == m_data[index]->wrapper->shellSurface()->appId()) {
+            break;
+        }
+    }
+    return i;
 }
 
 QRectF MultitaskviewSurfaceModel::layoutArea() const
@@ -240,14 +307,15 @@ bool MultitaskviewSurfaceModel::tryLayout(const QList<ModelDataPtr> &rawData,
     return false;
 }
 
-void MultitaskviewSurfaceModel::calcDisplayPos()
+void MultitaskviewSurfaceModel::calcDisplayPos(const QList<ModelDataPtr> &rawData)
 {
     auto availHeight = layoutArea().height();
     auto availWidth = layoutArea().width();
     auto contentHeight = m_rows.length() * m_rowHeight;
     auto curY = std::max(availHeight - contentHeight, 0.0) / 2 + TopContentMargin;
     const auto hCenter = availWidth / 2;
-    for (const auto &row : std::as_const(m_rows)) {
+    for (auto i = 0; i < m_rows.size(); ++i) {
+        auto row = m_rows[i];
         const auto totW = QtConcurrent::blockingMappedReduced(
             row,
             [](ModelDataPtr data) {
@@ -257,10 +325,19 @@ void MultitaskviewSurfaceModel::calcDisplayPos()
                 acc += cur;
             });
         auto curX = hCenter - totW / 2 + CellPadding;
-        for (auto &window : row) {
+        for (auto j = 0; j < row.size(); ++j) {
+            auto window = row[j];
             window->pendingGeometry.moveLeft(curX);
             window->pendingGeometry.moveTop(curY);
             window->pendingGeometry.setHeight(m_rowHeight - 2 * CellPadding);
+            window->pendingLeftIndex = rawData.indexOf(row[(j - 1 + row.size()) % row.size()]);
+            window->pendingRightIndex = rawData.indexOf(row[(j + 1) % row.size()]);
+            auto lastRow = m_rows[std::max(0, i - 1)];
+            auto lastRowIndex = std::min(static_cast<int>(lastRow.size()), j);
+            window->pendingUpIndex = rawData.indexOf(lastRow[lastRowIndex]);
+            auto nextRow = m_rows[std::min(static_cast<int>(m_rows.size() - 1), i + 1)];
+            auto nextRowIndex = std::min(static_cast<int>(nextRow.size() - 1), j);
+            window->pendingDownIndex = rawData.indexOf(nextRow[nextRowIndex]);
             curX += window->pendingGeometry.width() + 2 * CellPadding;
         }
         curY += m_rowHeight;
@@ -284,7 +361,7 @@ void MultitaskviewSurfaceModel::doCalculateLayout(const QList<ModelDataPtr> &raw
     if (rowH < minWindowHeight) {
         tryLayout(rawData, minWindowHeight, true);
     }
-    calcDisplayPos();
+    calcDisplayPos(rawData);
 }
 
 void MultitaskviewSurfaceModel::doUpdateZOrder(const QList<ModelDataPtr> &rawData)
@@ -314,7 +391,11 @@ std::pair<int, int> MultitaskviewSurfaceModel::commitAndGetUpdateRange(
     bool unchanged = true;
     for (int i = 0; i < m_data.size(); ++i) {
         if (m_data[i]->padding != m_data[i]->pendingPadding
-            || m_data[i]->geometry != m_data[i]->pendingGeometry) {
+            || m_data[i]->geometry != m_data[i]->pendingGeometry
+            || m_data[i]->upIndex != m_data[i]->pendingUpIndex
+            || m_data[i]->downIndex != m_data[i]->pendingDownIndex
+            || m_data[i]->leftIndex != m_data[i]->pendingLeftIndex
+            || m_data[i]->rightIndex != m_data[i]->pendingRightIndex) {
             endIndex = i;
             unchanged = false;
         } else {
@@ -431,7 +512,14 @@ void MultitaskviewSurfaceModel::handleSurfaceRemoved(SurfaceWrapper *surface)
     auto [beginIndex, endIndex] = commitAndGetUpdateRange(m_data);
     if (beginIndex <= endIndex) {
         Q_ASSERT(beginIndex < m_data.size());
-        Q_EMIT dataChanged(index(beginIndex), index(endIndex), { GeometryRole, PaddingRole });
+        Q_EMIT dataChanged(index(beginIndex),
+                           index(endIndex),
+                           { GeometryRole,
+                             PaddingRole,
+                             UpIndexRole,
+                             DownIndexRole,
+                             LeftIndexRole,
+                             RightIndexRole });
     }
     Q_EMIT rowsChanged();
     Q_EMIT countChanged();
@@ -473,7 +561,14 @@ void MultitaskviewSurfaceModel::addReadySurface(SurfaceWrapper *surface)
     auto [beginIndex, endIndex] = commitAndGetUpdateRange(m_data);
     if (beginIndex <= endIndex) {
         Q_ASSERT(beginIndex < m_data.size());
-        Q_EMIT dataChanged(index(beginIndex), index(endIndex), { GeometryRole, PaddingRole });
+        Q_EMIT dataChanged(index(beginIndex),
+                           index(endIndex),
+                           { GeometryRole,
+                             PaddingRole,
+                             UpIndexRole,
+                             DownIndexRole,
+                             LeftIndexRole,
+                             RightIndexRole });
     }
     toBeInserted->commit();
     beginInsertRows({}, insertedIndex, insertedIndex);
