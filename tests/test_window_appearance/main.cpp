@@ -24,41 +24,72 @@ public:
         QVBoxLayout *mainLayout = new QVBoxLayout;
 
         QHBoxLayout *group1Layout = new QHBoxLayout;
-        QPushButton *button1 = new QPushButton("set cursor theme");
-        QLineEdit *lineEdit1 = new QLineEdit;
-        lineEdit1->setPlaceholderText("input theme name");
+        QPushButton *button1 = new QPushButton("set window light theme");
+        QPushButton *button2 = new QPushButton("set window dark theme");
         group1Layout->addWidget(button1);
-        group1Layout->addWidget(lineEdit1);
+        group1Layout->addWidget(button2);
         mainLayout->addLayout(group1Layout);
-        connect(button1, &QPushButton::clicked, this, [this, lineEdit1] {
-            QString theme = lineEdit1->text();
-            qDebug() << "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" << theme;
-            context->set_cursor_theme(theme);
+        connect(button1, &QPushButton::clicked, this, [this, button1] {
+            context->set_window_theme_type(
+                TREELAND_PERSONALIZATION_APPEARANCE_CONTEXT_V1_THEME_TYPE_LIGHT);
+        });
+        connect(button2, &QPushButton::clicked, this, [this, button1] {
+            context->set_window_theme_type(
+                TREELAND_PERSONALIZATION_APPEARANCE_CONTEXT_V1_THEME_TYPE_DARK);
         });
 
+        QLabel *currentWindowTheme = new QLabel;
+        mainLayout->addWidget(currentWindowTheme);
+
+        QLabel *titlebarLabel = new QLabel("titlebar height:");
+        QLineEdit *titlebarEdit = new QLineEdit;
         QHBoxLayout *group2Layout = new QHBoxLayout;
-        QLabel *label = new QLabel("current cursor");
-        QLabel *label2 = new QLabel;
-        group2Layout->addWidget(label);
-        group2Layout->addWidget(label2);
+        QPushButton *button3 = new QPushButton("set titlebar height");
+        group2Layout->addWidget(titlebarLabel);
+        group2Layout->addWidget(titlebarEdit);
+        group2Layout->addWidget(button3);
         mainLayout->addLayout(group2Layout);
 
-        QHBoxLayout *group3Layout = new QHBoxLayout;
-        QPushButton *button3 = new QPushButton("get cursor theme");
-        group3Layout->addWidget(button3);
-        mainLayout->addLayout(group3Layout);
-        QObject::connect(button3, &QPushButton::clicked, this, [this] {
-            context->get_cursor_theme();
+        connect(button3, &QPushButton::clicked, this, [this, titlebarEdit] {
+            context->set_window_titlebar_height(titlebarEdit->text().toUInt());
         });
 
-        connect(m_manager, &PersonalizationManager::activeChanged, this, [this, label2] {
-            qDebug() << "personalization manager active changed";
+        mainLayout->addStretch();
 
-            if (m_manager->isActive()) {
-                context = new Appearance(m_manager->get_appearance_context());
-                connect(context, &Appearance::cursorThemeChanged, label2, &QLabel::setText);
-            }
-        });
+        connect(m_manager,
+                &PersonalizationManager::activeChanged,
+                this,
+                [this, currentWindowTheme, titlebarEdit] {
+                    qDebug() << "personalization manager active changed";
+
+                    if (m_manager->isActive()) {
+                        context = new Appearance(m_manager->get_appearance_context());
+                        cursor = new Cursor(m_manager->get_cursor_context());
+                        font = new Font(m_manager->get_font_context());
+
+                        connect(context,
+                                &Appearance::windowThemeTypeChanged,
+                                this,
+                                [currentWindowTheme](uint32_t type) {
+                                    currentWindowTheme->setText(
+                                        QString("current window theme type: %1").arg(type));
+                                });
+                        context->get_window_theme_type();
+
+                        connect(context,
+                                &Appearance::windowTitlebarHeightChanged,
+                                this,
+                                [titlebarEdit](uint32_t height) {
+                                    titlebarEdit->setText(QString::number(height));
+                                });
+
+                        context->get_window_titlebar_height();
+                        font->get_font();
+                        font->get_font_size();
+                        font->get_monospace_font();
+                    }
+                });
+
         setLayout(mainLayout);
 
         setMinimumSize(400, 300);
@@ -75,6 +106,8 @@ public:
 private:
     PersonalizationManager *m_manager = nullptr;
     Appearance *context = nullptr;
+    Font *font = nullptr;
+    Cursor *cursor = nullptr;
 };
 
 int main(int argc, char **argv)

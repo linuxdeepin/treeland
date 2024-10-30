@@ -4,6 +4,7 @@
 #include "personalization_manager_impl.h"
 
 #include "impl/appearance_impl.h"
+#include "impl/font_impl.h"
 #include "treeland-personalization-manager-protocol.h"
 
 #include <cassert>
@@ -307,6 +308,7 @@ static const struct treeland_personalization_manager_v1_interface
         .get_window_context = create_personalization_window_context_listener,
         .get_wallpaper_context = create_personalization_wallpaper_context_listener,
         .get_cursor_context = create_personalization_cursor_context_listener,
+        .get_font_context = createHandle<personalization_font_context_v1>,
         .get_appearance_context = createHandle<personalization_appearance_context_v1>,
     };
 

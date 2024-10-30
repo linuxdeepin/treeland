@@ -5,6 +5,7 @@
 
 #include "impl/appearance_impl.h"
 #include "impl/personalization_manager_impl.h"
+#include "impl/types.h"
 
 #include <wserver.h>
 #include <wxdgsurface.h>
@@ -93,6 +94,7 @@ private:
     Shadow m_shadow;
     Border m_border;
     personalization_window_context_v1::WindowStates m_states;
+
     QMetaObject::Connection m_connection;
 };
 
@@ -114,6 +116,7 @@ public:
     void onWallpaperContextCreated(personalization_wallpaper_context_v1 *context);
     void onCursorContextCreated(personalization_cursor_context_v1 *context);
     void onAppearanceContextCreated(personalization_appearance_context_v1 *context);
+    void onFontContextCreated(personalization_font_context_v1 *context);
 
     void onWindowPersonalizationChanged();
     void onWallpaperCommit(personalization_wallpaper_context_v1 *context);
@@ -137,6 +140,8 @@ public:
     QString fontName() const;
 
     QString monoFontName() const;
+
+    uint32_t fontSize() const;
 
     QString iconTheme() const;
 

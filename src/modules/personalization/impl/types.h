@@ -18,3 +18,11 @@ struct Border
     int32_t width;
     QColor color;
 };
+
+enum ThemeType
+{
+    Auto = 0,
+    Light = 1,
+    Dark = 2,
+};
+

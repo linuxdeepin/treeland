@@ -20,6 +20,7 @@ struct personalization_wallpaper_context_v1;
 struct personalization_cursor_context_v1;
 struct wlr_surface;
 class personalization_appearance_context_v1;
+class personalization_font_context_v1;
 
 struct treeland_personalization_manager_v1 : public QObject
 {
@@ -42,6 +43,7 @@ Q_SIGNALS:
     void wallpaperContextCreated(personalization_wallpaper_context_v1 *context);
     void cursorContextCreated(personalization_cursor_context_v1 *context);
     void appearanceContextCreated(personalization_appearance_context_v1 *context);
+    void fontContextCreated(personalization_font_context_v1 *context);
 };
 
 struct personalization_window_context_v1 : public QObject

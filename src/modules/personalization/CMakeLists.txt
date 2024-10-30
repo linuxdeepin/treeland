@@ -22,12 +22,14 @@ FILES
     impl/personalization_manager_impl.h
     impl/appearance_impl.h
     impl/types.h
+    impl/font_impl.h
 )
 
 target_sources(${MODULE_NAME} PRIVATE
     personalizationmanager.cpp
     impl/personalization_manager_impl.cpp
     impl/appearance_impl.cpp
+    impl/font_impl.cpp
     ${WAYLAND_PROTOCOLS_OUTPUTDIR}/treeland-personalization-manager-protocol.c
 )
 
@@ -49,4 +51,5 @@ target_link_libraries(${MODULE_NAME}
         Qt6::Gui
         Qt6::Quick
         Dtk6::Core
+        config
 )
