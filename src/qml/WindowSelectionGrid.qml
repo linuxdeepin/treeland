@@ -373,12 +373,12 @@ Item {
                             horizontalCenter: parent.horizontalCenter
                             margins: 10
                         }
-                        width: Math.min(implicitContentWidth + 2 * padding, parent.width * .7)
+                        width: Math.min(implicitContentWidth + 2 * padding, parent.width)
                         padding: 10
                         visible: highlighted && wrapper.shellSurface.title !== ""
 
                         contentItem: Text {
-                            text: wrapper.shellSurface.title
+                            text: wrapper.shellSurface.appId !== "" ? wrapper.shellSurface.appId + " - " + wrapper.shellSurface.title : wrapper.shellSurface.title
                             elide: Qt.ElideRight
                         }
                         background: Rectangle {
