@@ -1,11 +1,11 @@
 // Copyright (C) 2024 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
-import QtQuick.Controls
 import Waylib.Server
 import Treeland
+import org.deepin.dtk 1.0 as D
 
-Menu {
+D.Menu {
     id: menu
 
     property SurfaceWrapper surface: null
@@ -16,33 +16,35 @@ Menu {
         menu.popup(pos)
     }
 
-    MenuItem {
+    D.MenuItem {
         text: qsTr("Minimize")
         onTriggered: surface.requestMinimize()
     }
 
-    MenuItem {
+    D.MenuItem {
         text: surface?.surfaceState === SurfaceWrapper.State.Maximized ? qsTr("Unmaximize") : qsTr("Maximize")
         onTriggered: surface.requestToggleMaximize()
     }
 
-    MenuItem {
+    D.MenuItem {
         text: qsTr("Move")
         onTriggered: surface.requestMove()
     }
 
-    MenuItem {
+    D.MenuItem {
         text: qsTr("Resize")
         onTriggered: Helper.fakePressSurfaceBottomRightToReszie(surface)
     }
 
-    MenuItem {
-        text: surface?.alwaysOnTop ? qsTr("Not always on Top") : qsTr("Always on Top")
+    D.MenuItem {
+        checked: surface?.alwaysOnTop
+        text: qsTr("Always on Top")
         onTriggered: surface.alwaysOnTop = !surface.alwaysOnTop;
     }
 
-    MenuItem {
-        text: surface?.showOnAllWorkspace ? qsTr("Only on Current Workspace") : qsTr("Always on Visible Workspace")
+    D.MenuItem {
+        checked: surface?.showOnAllWorkspace
+        text: qsTr("Always on Visible Workspace")
         onTriggered: {
             if (surface.showOnAllWorkspace) {
                 // Move to current workspace
@@ -54,19 +56,19 @@ Menu {
         }
     }
 
-    MenuItem {
+    D.MenuItem {
         text: qsTr("Move to Left Work Space")
         enabled: surface?.workspaceId !== 0 && !surface?.showOnAllWorkspace
         onTriggered: Helper.workspace.moveSurfaceToPrevWorkspace(surface)
     }
 
-    MenuItem {
+    D.MenuItem {
         text: qsTr("Move to Right Work Space")
         enabled: surface?.workspaceId !== Helper.workspace.count - 1 && !surface?.showOnAllWorkspace
         onTriggered: Helper.workspace.moveSurfaceToNextWorkspace(surface)
     }
 
-    MenuItem {
+    D.MenuItem {
         text: qsTr("Close")
         onTriggered: surface.shellSurface.close()
     }
