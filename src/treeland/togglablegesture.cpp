@@ -3,7 +3,10 @@
 
 #include "togglablegesture.h"
 
+#include "helper.h"
 #include "inputdevice.h"
+#include "workspace.h"
+#include "workspaceanimationcontroller.h"
 
 TogglableGesture::TogglableGesture(QObject *parent)
     : QObject(parent)
@@ -181,10 +184,80 @@ static SwipeGesture::Direction opposite(SwipeGesture::Direction direction)
     return SwipeGesture::Invalid;
 }
 
-void TogglableGesture::setDesktopOffset(qreal offset)
+void TogglableGesture::moveSlide(qreal cb)
 {
-    m_desktopOffset = offset;
-    Q_EMIT desktopOffsetChanged();
+    Workspace *workspace = Helper::instance()->workspace();
+    Q_ASSERT(workspace);
+
+    WorkspaceAnimationController *controller = workspace->animationController();
+    Q_ASSERT(controller);
+
+    m_desktopOffset = cb;
+    if (!m_slideEnable) {
+        m_slideEnable = true;
+        m_slideBounce = false;
+
+        m_fromId = workspace->currentIndex();
+        if (cb > 0) {
+            m_toId = m_fromId + 1;
+            if (m_toId > workspace->count())
+                return;
+
+            if (m_toId == workspace->count())
+                m_slideBounce = true;
+        } else if (cb < 0) {
+            m_toId = m_fromId - 1;
+            if (m_toId < -1)
+                return;
+
+            if (m_toId == -1)
+                m_slideBounce = true;
+        }
+
+        controller->slideNormal(m_fromId, m_toId);
+        workspace->createSwitcher();
+        controller->setRunning(true);
+    }
+
+    if (m_slideEnable) {
+        controller->startGestureSlide(m_desktopOffset, m_slideBounce);
+    }
+}
+
+void TogglableGesture::moveDischarge()
+{
+    if (!m_slideEnable)
+        return;
+
+    m_slideEnable = false;
+    // precision control. if it is infinitely close to 0, resetting the current index will cause
+    // flickering
+    qreal epison = std::floor(std::abs(m_desktopOffset) * 100) / 100;
+    if (epison < 0.01)
+        return;
+
+    Workspace *workspace = Helper::instance()->workspace();
+    m_fromId = workspace->currentIndex();
+    m_toId = 0;
+
+    if (m_desktopOffset > 0.3) {
+        m_toId = m_slideBounce ? m_fromId : m_fromId + 1;
+        if (m_toId >= workspace->count())
+            return;
+    } else if (m_desktopOffset <= -0.3) {
+        m_toId = m_slideBounce ? m_fromId : m_fromId - 1;
+        if (m_toId < 0)
+            return;
+    } else {
+        m_toId = m_fromId;
+    }
+
+    auto controller = workspace->animationController();
+    if (m_toId >= 0 && m_toId < workspace->count()) {
+        workspace->setCurrentIndex(m_toId);
+        controller->slideRunning(m_toId);
+        controller->startSlideAnimation();
+    }
 }
 
 void TogglableGesture::addTouchpadSwipeGesture(SwipeGesture::Direction direction, uint finger)
@@ -206,23 +279,15 @@ void TogglableGesture::addTouchpadSwipeGesture(SwipeGesture::Direction direction
                            this->regressCallback() });
     } else {
         const auto left = [this](qreal cb) {
-            m_desktopOffsetRelevant = true;
-
-            if (desktopOffset() != cb)
-                setDesktopOffset(cb);
+            moveSlide(cb);
         };
 
         const auto right = [this](qreal cb) {
-            m_desktopOffsetRelevant = true;
-            if (desktopOffset() != cb)
-                setDesktopOffset(-cb);
+            moveSlide(-cb);
         };
 
         const auto trigger = [this]() mutable {
-            if (m_desktopOffsetRelevant) {
-                m_desktopOffsetRelevant = false;
-                Q_EMIT desktopOffsetCancelled();
-            }
+            moveDischarge();
         };
 
         InputDevice::instance()->registerTouchpadSwipe(
