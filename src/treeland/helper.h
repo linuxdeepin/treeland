@@ -161,6 +161,7 @@ public:
 
     QString cursorTheme() const;
     QSize cursorSize() const;
+    WindowManagementV1::DesktopState showDesktopState() const;
 
     Q_INVOKABLE bool isLaunchpad(WLayerSurface *surface) const;
 
