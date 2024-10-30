@@ -590,8 +590,8 @@ void SurfaceWrapper::createNewOrClose(uint direction)
 
     switch (m_type) {
     case Type::XdgToplevel:
-    case Type::XWayland:
-    case Type::XdgPopup: {
+        [[fallthrough]];
+    case Type::XWayland: {
         m_windowAnimation = m_engine->createNewAnimation(this, container(), direction);
     } break;
     case Type::Layer: {
@@ -604,6 +604,8 @@ void SurfaceWrapper::createNewOrClose(uint direction)
             m_windowAnimation = m_engine->createLaunchpadAnimation(this, direction, m_container);
         }
     }; break;
+    case Type::XdgPopup: // NOTE: check z order for XdgToplevel parent/child after support popup animation
+        [[fallthrough]];
     default:
         break;
     }
