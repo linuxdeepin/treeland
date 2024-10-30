@@ -58,13 +58,14 @@ public Q_SLOTS:
     void slideNormal(uint fromWorkspaceIndex, uint toWorkspaceIndex);
     void slide(uint fromWorkspaceIndex, uint toWorkspaceIndex);
     void bounce(uint currentWorkspaceIndex, Direction direction);
-    qreal gestureObstruction(qreal gestureValue);
+    void setRunning(bool running);
+    void startSlideAnimation();
+    void startGestureSlide(qreal cb, bool bounce = false);
 
 private:
-    void startSlideAnimation();
     void startBounceAnimation();
-    void setRunning(bool running);
     void finishAnimation();
+    qreal gestureObstruction(qreal gestureValue);
 
     qreal m_refWidth = 1920;
     qreal m_refGap = 30;

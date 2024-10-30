@@ -13,7 +13,6 @@ class TogglableGesture : public QObject
     Q_PROPERTY(bool inProgress READ inProgress WRITE setInProgress NOTIFY inProgressChanged FINAL)
     Q_PROPERTY(qreal partialGestureFactor READ partialGestureFactor WRITE setPartialGestureFactor NOTIFY partialGestureFactorChanged FINAL)
     Q_PROPERTY(Status status READ status WRITE setStatus NOTIFY statusChanged FINAL)
-    Q_PROPERTY(qreal desktopOffset READ desktopOffset NOTIFY desktopOffsetChanged)
 public:
     enum Status
     {
@@ -52,13 +51,6 @@ public:
     Q_INVOKABLE void toggle();
     Q_INVOKABLE void stop();
 
-    void setDesktopOffset(qreal offset);
-
-    qreal desktopOffset() const
-    {
-        return m_desktopOffset;
-    }
-
     void addTouchpadSwipeGesture(SwipeGesture::Direction direction, uint fingerCount);
 Q_SIGNALS:
     void inProgressChanged();
@@ -66,14 +58,14 @@ Q_SIGNALS:
     void activated();
     void deactivated();
     void statusChanged(Status status);
-    void desktopOffsetChanged();
-    void desktopOffsetCancelled();
 
 protected:
     std::function<void(qreal progress)> progressCallback();
     std::function<void(qreal progress)> regressCallback();
     void setProgress(qreal progress);
     void setRegress(qreal regress);
+    void moveSlide(qreal cb);
+    void moveDischarge();
 
     std::function<void()> activeTriggeredCallback();
     std::function<void()> deactivateTriggeredCallback();
@@ -85,7 +77,10 @@ private:
     bool m_inProgress = false;
     qreal m_partialGestureFactor;
     qreal m_desktopOffset;
-    bool m_desktopOffsetRelevant = false;
+    int m_fromId = 0;
+    int m_toId = 0;
+    bool m_slideEnable = false;
+    bool m_slideBounce = false;
 };
 
 Q_DECLARE_METATYPE(TogglableGesture *)
