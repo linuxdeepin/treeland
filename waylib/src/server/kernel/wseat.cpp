@@ -715,9 +715,12 @@ WGlobal::CursorShape WSeat::requestedCursorShape() const
 {
     W_DC(WSeat);
 
-    if (d->cursorClient == d->nativeHandle()->pointer_state.focused_client)
-        return d->cursorShape;
-    return WGlobal::CursorShape::Invalid;
+    if (d->cursorClient != d->nativeHandle()->pointer_state.focused_client) {
+        qCritical("Focused client never set cursor shape nor surface, will fallback to `Default`");
+        return WGlobal::CursorShape::Default;
+    }
+
+    return d->cursorShape;
 }
 
 WSurface *WSeat::requestedCursorSurface() const
