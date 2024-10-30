@@ -4,7 +4,9 @@
 #include "personalizationmanager.h"
 
 #include "impl/appearance_impl.h"
+#include "impl/font_impl.h"
 #include "impl/personalization_manager_impl.h"
+#include "treelandconfig.h"
 
 #include <wlayersurface.h>
 #include <wxdgshell.h>
@@ -135,28 +137,56 @@ void PersonalizationV1::onAppearanceContextCreated(personalization_appearance_co
     using Appearance = personalization_appearance_context_v1;
 
     connect(context, &Appearance::roundCornerRadiusChanged, this, [this, context] {
-        m_dconfig->setValue("windowRadius", context->cursorTheme());
-    });
-    connect(context, &Appearance::fontChanged, this, [this, context] {
-        m_dconfig->setValue("font", context->cursorTheme());
-    });
-    connect(context, &Appearance::monoFontChanged, this, [this, context] {
-        m_dconfig->setValue("monoFont", context->cursorTheme());
-    });
-    connect(context, &Appearance::cursorThemeChanged, this, [this, context] {
-        m_dconfig->setValue("cursorThemeName", context->cursorTheme());
+        m_dconfig->setValue("windowRadius", context->roundCornerRadius());
     });
     connect(context, &Appearance::iconThemeChanged, this, [this, context] {
-        m_dconfig->setValue("iconThemeName", context->cursorTheme());
+        m_dconfig->setValue("iconThemeName", context->iconTheme());
+    });
+    connect(context, &Appearance::activeColorChanged, this, [this, context] {
+        TreelandConfig::ref().setActiveColor(context->activeColor());
+    });
+    connect(context, &Appearance::windowOpacityChanged, this, [this, context] {
+        TreelandConfig::ref().setWindowOpacity(context->windowOpacity());
+    });
+    connect(context, &Appearance::windowThemeTypeChanged, this, [this, context] {
+        TreelandConfig::ref().setWindowThemeType(context->windowThemeType());
+    });
+    connect(context, &Appearance::titlebarHeightChanged, this, [this, context] {
+        TreelandConfig::ref().setWindowTitlebarHeight(context->titlebarHeight());
     });
 
     context->blockSignals(true);
 
     context->setRoundCornerRadius(windowRadius());
+    context->setIconTheme(iconTheme().toUtf8());
+    context->setActiveColor(TreelandConfig::ref().activeColor().toUtf8());
+    context->setWindowOpacity(TreelandConfig::ref().windowOpacity());
+    context->setWindowThemeType(TreelandConfig::ref().windowThemeType());
+    context->setWindowTitlebarHeight(TreelandConfig::ref().windowTitlebarHeight());
+
+    context->blockSignals(false);
+}
+
+void PersonalizationV1::onFontContextCreated(personalization_font_context_v1 *context)
+{
+    using Font = personalization_font_context_v1;
+
+    // TODO: move to TreelandConfig
+    connect(context, &Font::fontChanged, this, [this, context] {
+        m_dconfig->setValue("font", context->font());
+    });
+    connect(context, &Font::monoFontChanged, this, [this, context] {
+        m_dconfig->setValue("monoFont", context->monoFont());
+    });
+    connect(context, &Font::fontSizeChanged, this, [this, context] {
+        m_dconfig->setValue("fontSize", context->fontSize());
+    });
+
+    context->blockSignals(true);
+
     context->setFont(fontName().toUtf8());
     context->setMonospaceFont(monoFontName().toUtf8());
-    context->setCursorTheme(cursorTheme().toUtf8());
-    context->setIconTheme(iconTheme().toUtf8());
+    context->setFontSize(fontSize());
 
     context->blockSignals(false);
 }
@@ -310,6 +340,11 @@ QString PersonalizationV1::fontName() const
 QString PersonalizationV1::monoFontName() const
 {
     return m_dconfig->value("monoFont", 18).toString();
+}
+
+uint32_t PersonalizationV1::fontSize() const
+{
+    return m_dconfig->value("fontSize", 18).value<uint32_t>();
 }
 
 QString PersonalizationV1::iconTheme() const

@@ -24,6 +24,30 @@ add_subdirectory(treeland-shortcut)
 
 qt_add_dbus_adaptor(DBUS_ADAPTOR "${CMAKE_SOURCE_DIR}/misc/dbus/org.deepin.compositor1.xml" "treeland.h" TreeLand::TreeLand)
 
+qt_add_library(config
+    STATIC
+)
+
+target_sources(config PUBLIC
+FILE_SET HEADERS
+FILES
+    treeland/treelandconfig.h
+)
+
+target_include_directories(config PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/treeland/>
+)
+
+target_sources(config PRIVATE
+    treeland/treelandconfig.cpp
+)
+
+target_link_libraries(config
+    PUBLIC
+        Dtk6::Core
+        Qt6::Quick
+)
+
 set(BIN_NAME treeland)
 
 qt_add_executable(${BIN_NAME}
@@ -85,8 +109,6 @@ qt_add_qml_module(${BIN_NAME}
         treeland/wallpapermanager.cpp
         treeland/workspacemodel.h
         treeland/workspacemodel.cpp
-        treeland/treelandconfig.h
-        treeland/treelandconfig.cpp
         treeland/multitaskview.h
         treeland/multitaskview.cpp
         treeland/propertymonitor.h
@@ -168,6 +190,7 @@ target_link_libraries(${BIN_NAME}
         virtual-output
         dde-shell
         capture
+        config
 )
 
 target_compile_definitions(${BIN_NAME}

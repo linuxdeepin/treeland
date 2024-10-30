@@ -11,6 +11,10 @@ TreelandConfig::TreelandConfig()
     , m_numWorkspace(m_dconfig->value("numWorkspace", 4).toUInt())
     , m_currentWorkspace(m_dconfig->value("currentWorkspace", 0).toUInt())
     , m_forceSoftwareCursor(m_dconfig->value("forceSoftwareCursor", false).toBool())
+    , m_activeColor(m_dconfig->value("activeColor").toString())
+    , m_windowOpacity(m_dconfig->value("windowOpacity", 100).toUInt())
+    , m_windowThemeType(m_dconfig->value("windowThemeType", 0).toUInt())
+    , m_windowTitlebarHeight(m_dconfig->value("titlebarHeight", 30).toUInt())
 {
     connect(m_dconfig.get(), &DConfig::valueChanged, this, &TreelandConfig::onDConfigChanged);
 }
@@ -247,4 +251,92 @@ QSize TreelandConfig::cursorSize() const
 qreal TreelandConfig::windowRadius() const
 {
     return m_dconfig->value("windowRadius", 18.0).toFloat();
+}
+
+void TreelandConfig::setActiveColor(const QString &color)
+{
+    if (m_activeColor == color) {
+        return;
+    }
+    m_activeColor = color;
+    emit activeColorChanged();
+}
+
+QString TreelandConfig::activeColor()
+{
+    auto color = m_dconfig->value("activeColor").toString();
+    if (m_activeColor != color) {
+        m_activeColor = color;
+    }
+
+    return m_activeColor;
+}
+
+void TreelandConfig::setWindowOpacity(uint32_t opacity)
+{
+    if (m_windowOpacity == opacity) {
+        return;
+    }
+
+    m_dconfig->setValue("windowOpacity", opacity);
+
+    m_windowOpacity = opacity;
+
+    emit windowOpacityChanged();
+}
+
+uint32_t TreelandConfig::windowOpacity()
+{
+    auto opacity = m_dconfig->value("windowOpacity", 100).toUInt();
+    if (m_windowOpacity != opacity) {
+        m_windowOpacity = opacity;
+    }
+
+    return m_windowOpacity;
+}
+
+void TreelandConfig::setWindowThemeType(uint32_t type)
+{
+    if (m_windowThemeType == type) {
+        return;
+    }
+
+    m_dconfig->setValue("windowThemeType", type);
+
+    m_windowThemeType = type;
+
+    emit windowThemeTypeChanged();
+}
+
+uint32_t TreelandConfig::windowThemeType()
+{
+    auto type = m_dconfig->value("windowThemeType", 0).toUInt();
+    if (m_windowThemeType != type) {
+        m_windowThemeType = type;
+    }
+
+    return m_windowThemeType;
+}
+
+void TreelandConfig::setWindowTitlebarHeight(uint32_t height)
+{
+    if (m_windowTitlebarHeight == height) {
+        return;
+    }
+
+    m_dconfig->setValue("windowTitlebarHeight", height);
+
+    m_windowTitlebarHeight = height;
+
+    emit windowTitlebarHeightChanged();
+}
+
+uint32_t TreelandConfig::windowTitlebarHeight()
+{
+    auto height = m_dconfig->value("windowTitlebarHeight", 30).toUInt();
+    if (m_windowTitlebarHeight != height) {
+        m_windowTitlebarHeight = height;
+    }
+
+    return m_windowTitlebarHeight;
 }
