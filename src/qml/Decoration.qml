@@ -20,6 +20,7 @@ Item {
     height: shadow.boundingRect.height
 
     MouseArea {
+        enabled: surface.type !== SurfaceWrapper.Type.XdgPopup
         property int edges: 0
 
         anchors {

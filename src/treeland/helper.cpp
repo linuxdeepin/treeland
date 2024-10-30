@@ -421,10 +421,10 @@ void Helper::onSurfaceWrapperAdded(SurfaceWrapper *wrapper)
     if (isXdgToplevel || isXdgPopup || isLayer) {
         auto *attached =
             new PersonalizationAttached(wrapper->shellSurface(), m_personalization, wrapper);
-        wrapper->setNoDecoration(m_xdgDecorationManager->modeBySurface(wrapper->surface())
-                                 != WXdgDecorationManager::Server);
 
         if (isXdgToplevel) {
+            wrapper->setNoDecoration(m_xdgDecorationManager->modeBySurface(wrapper->surface())
+                                     != WXdgDecorationManager::Server);
             auto updateNoTitlebar = [wrapper, attached] {
                 if (attached->noTitlebar()) {
                     wrapper->setNoTitleBar(true);
@@ -437,6 +437,9 @@ void Helper::onSurfaceWrapperAdded(SurfaceWrapper *wrapper)
                     wrapper,
                     updateNoTitlebar);
             updateNoTitlebar();
+        } else if (isXdgPopup) {
+            wrapper->setNoTitleBar(true);
+            wrapper->setNoDecoration(false);
         }
 
         auto updateBlur = [wrapper, attached] {
