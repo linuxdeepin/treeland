@@ -53,7 +53,6 @@ Item {
             width: TreelandConfig.workspaceThumbHeight * root.whRatio + 2 * TreelandConfig.workspaceThumbMargin
             Drag.active: hdrg.active
             z: Drag.active ? 1 : 0
-            property point restorePos
             Drag.onActiveChanged: {
                 if (Drag.active) {
                     dragManager.item = this
@@ -69,8 +68,19 @@ Item {
                 }
             }
 
+            Text {
+                id: deleteHint
+                text: qsTr("Release to delete")
+                anchors.fill: parent
+                horizontalAlignment: Qt.AlignHCenter
+                verticalAlignment: Qt.AlignVCenter
+                font.pixelSize: 30
+                visible: -vdrg.activeTranslation.y > (height / 2)
+            }
+
             DelegateModel.inPersistedItems: true
             Rectangle {
+                id: container
                 anchors {
                     fill: parent
                     margins: TreelandConfig.workspaceThumbMargin - TreelandConfig.highlightBorderWidth
@@ -79,6 +89,18 @@ Item {
                 border.color: "blue"
                 color: "transparent"
                 radius: TreelandConfig.workspaceThumbCornerRadius + TreelandConfig.highlightBorderWidth
+                states: [
+                    State {
+                        name: "dragging"
+                        when: vdrg.active || hdrg.active
+                        PropertyChanges {
+                            container {
+                                anchors.fill: undefined
+                            }
+                        }
+                    }
+                ]
+
                 Item {
                     id: content
                     anchors {
@@ -185,8 +207,26 @@ Item {
 
                     DragHandler {
                         id: hdrg
+                        enabled: !vdrg.active
                         target: workspaceThumbDelegate
                         yAxis.enabled: false
+                    }
+
+                    DragHandler {
+                        id: vdrg
+                        enabled: !hdrg.active
+                        property bool commitDeletion: deleteHint.visible
+                        target: container
+                        xAxis.enabled: false
+                        yAxis {
+                            maximum: TreelandConfig.workspaceThumbMargin - TreelandConfig.highlightBorderWidth
+                            minimum: -container.height
+                        }
+                        onActiveChanged: {
+                            if (!active && commitDeletion) {
+                                Helper.workspace.removeModel(workspaceThumbDelegate.index)
+                            }
+                        }
                     }
                 }
 
@@ -205,7 +245,7 @@ Item {
                     height: 26
                     width: height
                     visible: (Helper.workspace.count > 1)
-                             && (hvrhdlr.hovered || hovered) && dragManager.item === null
+                             && (hvrhdlr.hovered || hovered) && dragManager.item === null && !vdrg.active
                     anchors {
                         top: parent.top
                         right: parent.right
