@@ -350,10 +350,12 @@ void Helper::onShowDesktop()
     m_showDesktop = s;
     const auto &surfaceList = workspace()->surfaces();
     for (auto surface : surfaceList) {
-        if (s == WindowManagementV1::DesktopState::Normal && !surface->opacity()) {
+        if (s == WindowManagementV1::DesktopState::Normal && !surface->opacity()
+            && !surface->isMinimized()) {
             surface->setOpacity(1);
             surface->startShowAnimation(true);
-        } else if (s == WindowManagementV1::DesktopState::Show && surface->opacity()) {
+        } else if (s == WindowManagementV1::DesktopState::Show && surface->opacity()
+                   && !surface->isMinimized()) {
             surface->setOpacity(0);
             surface->startShowAnimation(false);
         }
@@ -763,8 +765,14 @@ void Helper::activateSurface(SurfaceWrapper *wrapper, Qt::FocusReason reason)
 
 void Helper::forceActivateSurface(SurfaceWrapper *wrapper, Qt::FocusReason reason)
 {
-    if (wrapper->isMinimized())
+    if (wrapper->isMinimized()) {
         wrapper->requestCancelMinimize();
+    }
+
+    if (m_showDesktop == WindowManagementV1::DesktopState::Show || !wrapper->opacity()) {
+        wrapper->setOpacity(1);
+        wrapper->startShowAnimation(true);
+    }
 
     if (!wrapper->surface()->mapped()) {
         qWarning() << "Can't activate unmapped surface: " << wrapper;
@@ -1358,6 +1366,11 @@ QString Helper::cursorTheme() const
 QSize Helper::cursorSize() const
 {
     return TreelandConfig::ref().cursorSize();
+}
+
+WindowManagementV1::DesktopState Helper::showDesktopState() const
+{
+    return m_showDesktop;
 }
 
 bool Helper::isLaunchpad(WLayerSurface *surface) const
