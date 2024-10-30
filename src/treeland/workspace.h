@@ -78,6 +78,7 @@ public:
     void setSwitcherEnabled(bool enabled);
 
     WorkspaceAnimationController *animationController() const;
+    void createSwitcher();
 
 Q_SIGNALS:
     void currentChanged();
@@ -92,7 +93,6 @@ private:
     void doSetCurrentIndex(int newCurrentIndex);
     void updateSurfaceOwnsOutput(SurfaceWrapper *surface);
     void updateSurfacesOwnsOutput();
-    void createSwitcher();
 
     uint m_currentIndex;
     WorkspaceListModel *m_models;

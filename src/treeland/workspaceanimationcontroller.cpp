@@ -169,6 +169,14 @@ qreal WorkspaceAnimationController::gestureObstruction(qreal gestureValue)
     return (bounceFactor() / M_PI) * std::atan(k * gestureValue);
 }
 
+void WorkspaceAnimationController::startGestureSlide(qreal cb, bool bounce)
+{
+    qreal offset = bounce ? gestureObstruction(cb) : cb;
+    qreal pos = m_animationInitial + refWrap() * offset;
+
+    setViewportPos(pos);
+}
+
 void WorkspaceAnimationController::startSlideAnimation()
 {
     m_posAnimation->setStartValue(m_animationInitial);
