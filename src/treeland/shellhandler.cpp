@@ -210,7 +210,7 @@ void ShellHandler::setupSurfaceActiveWatcher(SurfaceWrapper *wrapper)
     Q_ASSERT_X(wrapper->container(), Q_FUNC_INFO, "Must setContainer at first!");
 
     connect(wrapper, &SurfaceWrapper::requestActive, this, [this, wrapper]() {
-        if (wrapper->showOnWorkspace(m_workspace->currentIndex()))
+        if (wrapper->showOnWorkspace(m_workspace->current()->id()))
             Helper::instance()->activateSurface(wrapper);
         else
             m_workspace->pushActivedSurface(wrapper);
