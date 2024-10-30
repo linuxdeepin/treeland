@@ -783,7 +783,7 @@ void Helper::forceActivateSurface(SurfaceWrapper *wrapper, Qt::FocusReason reaso
         return;
     }
 
-    if (!wrapper->showOnWorkspace(workspace()->currentIndex()))
+    if (!wrapper->showOnWorkspace(workspace()->current()->id()))
         workspace()->switchTo(wrapper->workspaceId());
     Helper::instance()->activateSurface(wrapper, reason);
 }
