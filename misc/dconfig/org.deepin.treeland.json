@@ -221,6 +221,50 @@
             "description[zh_CN]": "强制使用软光标进行渲染",
             "permissions": "readwrite",
             "visibility": "public"
+        },
+        "activeColor": {
+            "value": "",
+            "serial": 0,
+            "flags": ["global"],
+            "name": "Global Window Active Color",
+            "name[zh_CN]": "全局窗口活动色",
+            "description": "Set window active color",
+            "description[zh_CN]": "设置窗口活动色",
+            "permissions": "readwrite",
+            "visibility": "public"
+        },
+        "windowOpacity": {
+            "value": 100,
+            "serial": 0,
+            "flags": ["global"],
+            "name": "Global Window Opacity",
+            "name[zh_CN]": "全局窗口不透明度",
+            "description": "Set all window opacity",
+            "description[zh_CN]": "设置所有窗口的不透明度",
+            "permissions": "readwrite",
+            "visibility": "public"
+        },
+        "windowThemeType": {
+            "value": 0,
+            "serial": 0,
+            "flags": ["global"],
+            "name": "Global Window Theme Type",
+            "name[zh_CN]": "全局窗口主题类型",
+            "description": "Set all window theme type",
+            "description[zh_CN]": "设置所有窗口的主题类型",
+            "permissions": "readwrite",
+            "visibility": "public"
+        },
+        "windowTitlebarHeight": {
+            "value": 30,
+            "serial": 0,
+            "flags": ["global"],
+            "name": "Global Window titlebar height",
+            "name[zh_CN]": "全局标题栏高度",
+            "description": "Set all window default titlebar height",
+            "description[zh_CN]": "设置所有窗口默认的标题栏高度",
+            "permissions": "readwrite",
+            "visibility": "public"
         }
     }
 }

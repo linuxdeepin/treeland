@@ -18,7 +18,7 @@ Control {
     property D.Palette outerShadowColor: DS.Style.highlightPanel.dropShadow
     property D.Palette innerShadowColor: DS.Style.highlightPanel.innerShadow
 
-    height: 30
+    height: TreelandConfig.windowTitlebarHeight
     width: surfaceItem.width
 
     HoverHandler {

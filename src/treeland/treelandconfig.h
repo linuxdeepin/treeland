@@ -7,6 +7,7 @@
 
 #include <QEasingCurve>
 #include <QObject>
+#include <QQmlEngine>
 #include <QSize>
 
 class TreelandConfig
@@ -14,6 +15,8 @@ class TreelandConfig
     , public DTK_CORE_NAMESPACE::DSingleton<TreelandConfig>
 {
     Q_OBJECT
+    QML_ELEMENT
+    QML_SINGLETON
     Q_PROPERTY(uint workspaceThumbHeight READ workspaceThumbHeight WRITE setWorkspaceThumbHeight NOTIFY workspaceThumbHeightChanged FINAL)
     Q_PROPERTY(uint workspaceThumbMargin READ workspaceThumbMargin WRITE setWorkspaceThumbMargin NOTIFY workspaceThumbMarginChanged FINAL)
     Q_PROPERTY(uint workspaceDelegateHeight READ workspaceDelegateHeight NOTIFY workspaceDelegateHeightChanged FINAL)
@@ -33,6 +36,10 @@ class TreelandConfig
     Q_PROPERTY(QString cursorThemeName READ cursorThemeName NOTIFY cursorThemeNameChanged FINAL)
     Q_PROPERTY(QSize cursorSize READ cursorSize NOTIFY cursorSizeChanged FINAL)
     Q_PROPERTY(qreal windowRadius READ windowRadius NOTIFY windowRadiusChanged FINAL)
+    Q_PROPERTY(QString activeColor READ activeColor WRITE setActiveColor NOTIFY activeColorChanged FINAL)
+    Q_PROPERTY(uint windowOpacity READ windowOpacity WRITE setWindowOpacity NOTIFY windowOpacityChanged FINAL)
+    Q_PROPERTY(uint windowThemeType READ windowThemeType WRITE setWindowThemeType NOTIFY windowThemeTypeChanged FINAL)
+    Q_PROPERTY(uint windowTitlebarHeight READ windowTitlebarHeight WRITE setWindowTitlebarHeight NOTIFY windowTitlebarHeightChanged FINAL)
 
 public:
     TreelandConfig();
@@ -90,6 +97,18 @@ public:
 
     qreal windowRadius() const;
 
+    void setActiveColor(const QString &color);
+    QString activeColor();
+
+    void setWindowOpacity(uint32_t opacity);
+    uint32_t windowOpacity();
+
+    void setWindowThemeType(uint32_t type);
+    uint32_t windowThemeType();
+
+    void setWindowTitlebarHeight(uint titlebarHeight);
+    uint32_t windowTitlebarHeight();
+
 Q_SIGNALS:
     void workspaceThumbMarginChanged();
     void workspaceThumbHeightChanged();
@@ -110,6 +129,10 @@ Q_SIGNALS:
     void cursorThemeNameChanged();
     void cursorSizeChanged();
     void windowRadiusChanged();
+    void activeColorChanged();
+    void windowOpacityChanged();
+    void windowThemeTypeChanged();
+    void windowTitlebarHeightChanged();
 
 private:
     void onDConfigChanged(const QString &key);
@@ -120,6 +143,10 @@ private:
     uint m_numWorkspace;
     uint m_currentWorkspace;
     bool m_forceSoftwareCursor;
+    QString m_activeColor;
+    uint32_t m_windowOpacity;
+    uint32_t m_windowThemeType;
+    uint32_t m_windowTitlebarHeight;
 
     // Local
     uint m_workspaceThumbHeight = 144;
