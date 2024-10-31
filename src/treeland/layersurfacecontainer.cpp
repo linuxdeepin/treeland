@@ -62,8 +62,10 @@ void LayerSurfaceContainer::removeOutput(Output *output)
         auto layerSurface = qobject_cast<WLayerSurface *>(surface->shellSurface());
         Q_ASSERT(layerSurface);
         // Needs to be moved to the new primary output
-        if (!layerSurface->output())
+        if (!layerSurface->output() && rootContainer()->primaryOutput())
             addSurfaceToContainer(surface);
+        else
+            layerSurface->closed();
     }
 
     container->deleteLater();

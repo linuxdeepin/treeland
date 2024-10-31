@@ -249,6 +249,12 @@ void RootSurfaceContainer::addBySubContainer(SurfaceContainer *sub, SurfaceWrapp
 {
     SurfaceContainer::addBySubContainer(sub, surface);
 
+    if (surface->type() == SurfaceWrapper::Type::Layer) {
+        // RootSurfaceContainer does not have control over layer surface's position and ownsOutput
+        // All things are done in LayerSurfaceContainer
+        return;
+    }
+
     connect(surface, &SurfaceWrapper::requestMove, this, [this] {
         auto surface = qobject_cast<SurfaceWrapper *>(sender());
         Q_ASSERT(surface);
@@ -259,12 +265,6 @@ void RootSurfaceContainer::addBySubContainer(SurfaceContainer *sub, SurfaceWrapp
         Q_ASSERT(surface);
         startResize(surface, edges);
     });
-    connect(surface, &SurfaceWrapper::surfaceStateChanged, this, [surface, this] {
-        if (surface->surfaceState() == SurfaceWrapper::State::Minimized
-            || surface->surfaceState() == SurfaceWrapper::State::Tiling)
-            return;
-        Helper::instance()->activateSurface(surface);
-    });
 
     if (!surface->ownsOutput()) {
         auto parentSurface = surface->parentSurface();
@@ -272,6 +272,7 @@ void RootSurfaceContainer::addBySubContainer(SurfaceContainer *sub, SurfaceWrapp
 
         if (auto xdgSurface = qobject_cast<WXdgSurface *>(surface->shellSurface())) {
             if (xdgSurface->isPopup() && parentSurface->type() != SurfaceWrapper::Type::Layer) {
+                // If parentSurface is Layer surface, follow parentSurface->ownsOutput
                 auto pos = parentSurface->position() + parentSurface->surfaceItem()->position()
                     + xdgSurface->getPopupPosition();
                 if (auto op = m_outputLayout->output_at(pos.x(), pos.y()))
