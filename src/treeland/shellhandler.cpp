@@ -224,8 +224,14 @@ void ShellHandler::setupSurfaceActiveWatcher(SurfaceWrapper *wrapper)
 
 void ShellHandler::onLayerSurfaceAdded(WLayerSurface *surface)
 {
+    if (!surface->output() && !m_rootSurfaceContainer->primaryOutput()) {
+        qWarning() << "No output, will close layer surface!";
+        surface->closed();
+        return;
+    }
     auto wrapper =
         new SurfaceWrapper(Helper::instance()->qmlEngine(), surface, SurfaceWrapper::Type::Layer);
+
     wrapper->setSkipSwitcher(true);
     wrapper->setSkipDockPreView(true);
     wrapper->setSkipMutiTaskView(true);
@@ -243,6 +249,10 @@ void ShellHandler::onLayerSurfaceAdded(WLayerSurface *surface)
 void ShellHandler::onLayerSurfaceRemoved(WLayerSurface *surface)
 {
     auto wrapper = m_rootSurfaceContainer->getSurface(surface->surface());
+    if (!wrapper) {
+        qWarning() << "A layerSurface that not in any Container is removing!";
+        return;
+    }
     Q_EMIT surfaceWrapperAboutToRemove(wrapper);
     m_rootSurfaceContainer->destroyForSurface(wrapper);
 }
