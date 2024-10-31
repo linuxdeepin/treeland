@@ -295,7 +295,7 @@ void Output::arrangeLayerSurface(SurfaceWrapper *surface)
     WLayerSurface *layer = qobject_cast<WLayerSurface *>(surface->shellSurface());
     Q_ASSERT(layer);
 
-    auto validGeo = layer->exclusiveZone() == -1 ? this->rect() : validRect();
+    auto validGeo = layer->exclusiveZone() == -1 ? geometry() : validGeometry();
     validGeo = validGeo.marginsRemoved(QMargins(layer->leftMargin(),
                                                 layer->topMargin(),
                                                 layer->rightMargin(),
@@ -326,8 +326,7 @@ void Output::arrangeLayerSurface(SurfaceWrapper *surface)
     }
 
     if (layer->exclusiveZone() > 0) {
-        // TODO:: support `set_exclusive_edge` in layer-shell v5, need wlroots
-        // 0.19
+        // TODO: support set_exclusive_edge in layer-shell v5/wlroots 0.19
         switch (layer->getExclusiveZoneEdge()) {
             using enum WLayerSurface::AnchorType;
         case Top:
