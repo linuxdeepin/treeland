@@ -875,10 +875,11 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *, QInputEvent *event)
                 else if (m_showDesktop == WindowManagementV1::DesktopState::Show)
                     m_windowManagement->setDesktopState(WindowManagementV1::DesktopState::Normal);
                 return true;
-            } else if (kevent->key() == Qt::Key_Up) { // maximize: Meta + up
+            } else if (kevent->key() == Qt::Key_Up && m_activatedSurface) { // maximize: Meta + up
                 m_activatedSurface->requestMaximize();
                 return true;
-            } else if (kevent->key() == Qt::Key_Down) { // cancelMaximize : Meta + down
+            } else if (kevent->key() == Qt::Key_Down
+                       && m_activatedSurface) { // cancelMaximize : Meta + down
                 m_activatedSurface->requestCancelMaximize();
                 return true;
             }
@@ -889,11 +890,6 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *, QInputEvent *event)
                 m_taskSwitch = qmlEngine()->createTaskSwitcher(output, contentItem);
                 connect(m_taskSwitch, SIGNAL(switchOnChanged()), this, SLOT(deleteTaskSwitch()));
                 m_taskSwitch->setZ(RootSurfaceContainer::OverlayZOrder);
-            }
-
-            if (kevent->key() == Qt::Key_F4) { // close window : Alt + F4
-                m_activatedSurface->requestClose();
-                return true;
             }
         } else if (kevent->key() == Qt::Key_Tab || kevent->key() == Qt::Key_Backtab
                    || kevent->key() == Qt::Key_QuoteLeft || kevent->key() == Qt::Key_AsciiTilde
@@ -928,16 +924,21 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *, QInputEvent *event)
                     return true;
                 }
             }
-        } else if (kevent->key() == Qt::Key_Space) {
-            if (event->modifiers().testFlag(Qt::AltModifier)) {
-                Q_EMIT m_activatedSurface->requestShowWindowMenu({ 0, 0 });
-            }
         } else if (event->modifiers() == Qt::NoModifier) {
             if (kevent->key() == Qt::Key_Escape) {
                 if (m_multitaskview) {
                     m_multitaskview->exit(nullptr);
                     m_currentMode = CurrentMode::Normal;
                 }
+            }
+        } else if (event->modifiers() == Qt::AltModifier) {
+            if (kevent->key() == Qt::Key_F4 && m_activatedSurface) { // close window : Alt + F4
+                m_activatedSurface->requestClose();
+                return true;
+            }
+            if (kevent->key() == Qt::Key_Space && m_activatedSurface) {
+                Q_EMIT m_activatedSurface->requestShowWindowMenu({ 0, 0 });
+                return true;
             }
         }
     }
