@@ -289,11 +289,11 @@ Item {
                             if (active) {
                                 dragManager.item = surfaceItemDelegate
                             } else {
+                                dragManager.doNotRestoreAccept = false
                                 if (dragManager.accept) {
                                     dragManager.accept()
                                 }
                                 dragManager.item = null
-                                dragManager.doNotRestoreAccept = false
                             }
                         }
                         onGrabChanged: (transition, eventPoint) => {
