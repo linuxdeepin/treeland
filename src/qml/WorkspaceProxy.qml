@@ -46,7 +46,7 @@ Item {
             active: surface.ownsOutput === output
                     && surface.surfaceState !== SurfaceWrapper.State.Minimized
             sourceComponent: SurfaceProxy {
-                surface: loader.surface
+                surface: allLoader.surface
                 fullProxy: true
             }
         }
