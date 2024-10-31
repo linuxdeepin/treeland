@@ -52,8 +52,13 @@ void Workspace::moveSurfaceTo(SurfaceWrapper *surface, int workspaceId)
 
     to->addSurface(surface);
     if (surface->hasActiveCapability()
-        && surface->shellSurface()->hasCapability(WToplevelSurface::Capability::Activate))
-        pushActivedSurface(surface);
+        && surface->shellSurface()->hasCapability(WToplevelSurface::Capability::Activate)) {
+        if (surface->showOnWorkspace(current()->id())) {
+            Helper::instance()->activateSurface(surface);
+        } else {
+            pushActivedSurface(surface);
+        }
+    }
 }
 
 void Workspace::moveSurfaceToNextWorkspace(SurfaceWrapper *surface)
