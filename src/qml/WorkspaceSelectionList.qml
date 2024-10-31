@@ -42,6 +42,31 @@ Item {
         }
     }
 
+    Timer {
+        id: switchTimer
+        interval: 500
+        property int switchToIndex: -1
+        property WorkspaceModel switchToModel: null
+        onTriggered: {
+            if (dragManager.doNotRestoreAccept) {
+                // Substitute switch workspace
+                dragManager.accept = () => {
+                    switchTimer.stop()
+                    Helper.workspace.moveSurfaceTo(dragManager.item.wrapper, switchTimer.switchToModel.id)
+                }
+            } else {
+                dragManager.doNotRestoreAccept = true
+            }
+            Helper.workspace.switchTo(switchTimer.switchToIndex)
+        }
+    }
+
+    function restartSwitchTimer(index: int, workspace: WorkspaceModel) {
+        switchTimer.switchToIndex = index
+        switchTimer.switchToModel = workspace
+        switchTimer.restart()
+    }
+
     DelegateModel {
         id: visualModel
         model: Helper.workspace.models
@@ -139,16 +164,6 @@ Item {
                         hideSource: true
                     }
 
-                    Timer {
-                        id: switchTmr
-                        interval: 500
-                        onTriggered: {
-                            dragManager.doNotRestoreAccept = true
-                            Helper.workspace.switchTo(workspaceThumbDelegate.index)
-
-                        }
-                    }
-
                     HoverHandler {
                         id: hvrhdlr
                         enabled: !hdrg.active
@@ -164,16 +179,17 @@ Item {
                                             Helper.workspace.moveModelTo(dragManager.item.workspace.id, destIndex)
                                         }
                                     } else {    // is dragging surface
-                                        if (workspace.id !== dragManager.item.wrapper.workspaceId) {
-                                            switchTmr.restart()
+                                        restartSwitchTimer(workspaceThumbDelegate.index, workspaceThumbDelegate.workspace)
+                                        if (workspace.id !== dragManager.item.wrapper.workspaceId && !dragManager.doNotRestoreAccept) {
                                             dragManager.accept = () => {
+                                                switchTimer.stop()
                                                 Helper.workspace.moveSurfaceTo(dragManager.item.wrapper, workspace.id)
                                             }
                                         }
                                     }
                                 }
                             } else {
-                                switchTmr.stop()
+                                switchTimer.stop()
                                 if (dragManager.item?.wrapper && !dragManager.doNotRestoreAccept) // is dragging surface, workspace always lose hover
                                     dragManager.accept = null
                             }
@@ -303,31 +319,6 @@ Item {
             }
         }
     }
-    Item {
-        id: newWorkspaceDropArea
-        anchors {
-            left: workspaceList.right
-            right: root.right
-            top: root.top
-            bottom: root.bottom
-        }
-        HoverHandler {
-            onHoveredChanged: {
-                if (hovered) {
-                    if (dragManager.item?.wrapper) {
-                        dragManager.accept = () => {
-                            const wid = Helper.workspace.createModel()
-                            Helper.workspace.switchTo(Helper.workspace.count - 1)
-                            Helper.workspace.moveSurfaceTo(dragManager.item.wrapper, wid)
-                        }
-                    }
-                } else {
-                    if (dragManager.item?.wrapper)
-                        dragManager.accept = null
-                }
-            }
-        }
-    }
 
     D.RoundButton {
         id: wsCreateBtn
@@ -350,6 +341,32 @@ Item {
         onClicked: {
             Helper.workspace.createModel()
             Helper.workspace.switchTo(Helper.workspace.count - 1)
+        }
+    }
+
+    Item {
+        id: newWorkspaceDropArea
+        anchors {
+            left: workspaceList.right
+            right: root.right
+            top: root.top
+            bottom: root.bottom
+        }
+        HoverHandler {
+            onHoveredChanged: {
+                if (hovered) {
+                    if (dragManager.item?.wrapper && !dragManager.doNotRestoreAccept) {
+                        dragManager.accept = () => {
+                            const wid = Helper.workspace.createModel()
+                            Helper.workspace.switchTo(Helper.workspace.count - 1)
+                            Helper.workspace.moveSurfaceTo(dragManager.item.wrapper, wid)
+                        }
+                    }
+                } else {
+                    if (dragManager.item?.wrapper && !dragManager.doNotRestoreAccept)
+                        dragManager.accept = null
+                }
+            }
         }
     }
 }
