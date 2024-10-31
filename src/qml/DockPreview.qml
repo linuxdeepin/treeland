@@ -487,6 +487,7 @@ Item {
                             listview.highlightItem.visible = true
                     }
                 }
+                cursorShape: Qt.ArrowCursor
             }
 
             TapHandler {
@@ -538,6 +539,7 @@ Item {
                     listview.model.stopPreviewWindow()
                 }
             }
+            cursorShape: Qt.ArrowCursor
         }
     }
 
@@ -602,6 +604,7 @@ Item {
                     ForeignToplevelV1.enterDockPreview(root.target.shellSurface.surface)
                 }
             }
+            cursorShape: Qt.ArrowCursor
         }
 
         RowLayout {
