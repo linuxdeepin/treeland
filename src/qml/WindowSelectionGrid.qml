@@ -464,15 +464,6 @@ Item {
                 windowLoader.item.itemAt(0)?.forceActiveFocus()
             } else if (event.key === Qt.Key_End) {
                 windowLoader.item.itemAt(windowLoader.item.count - 1)?.forceActiveFocus()
-            } else if (event.key === Qt.Key_P) {
-                for (var i = 0; i < windowLoader.item.count; ++i) {
-                    console.log(windowLoader.item.itemAt(i).KeyNavigation.right, windowLoader.item.itemAt(i).rightIndex)
-                    console.log(windowLoader.item.itemAt(i).KeyNavigation.left, windowLoader.item.itemAt(i).leftIndex)
-                    console.log(windowLoader.item.itemAt(i).KeyNavigation.up, windowLoader.item.itemAt(i).upIndex)
-                    console.log(windowLoader.item.itemAt(i).KeyNavigation.down, windowLoader.item.itemAt(i).downIndex)
-                    // console.log(windowLoader.item.itemAt(i).KeyNavigation.right)
-                    // console.log(windowLoader.item.itemAt(i).KeyNavigation.right)
-                }
             }
         } else if (event.modifiers === Qt.AltModifier) {
             if (event.key === Qt.Key_Minus && Helper.workspace.count > 1) {
