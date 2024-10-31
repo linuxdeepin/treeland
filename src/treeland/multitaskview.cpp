@@ -83,6 +83,10 @@ void Multitaskview::enter(ActiveReason reason)
 MultitaskviewSurfaceModel::MultitaskviewSurfaceModel(QObject *parent)
     : QAbstractListModel(parent)
 {
+    connect(Helper::instance()->workspace()->showOnAllWorkspaceModel(),
+            &WorkspaceModel::surfaceRemoved,
+            this,
+            &MultitaskviewSurfaceModel::handleSurfaceRemoved);
 }
 
 void MultitaskviewSurfaceModel::initializeModel()
@@ -91,7 +95,9 @@ void MultitaskviewSurfaceModel::initializeModel()
         return;
     beginResetModel();
     m_data.clear();
-    for (const auto &surface : workspace()->surfaces()) {
+    QList<SurfaceWrapper *> surfaces(workspace()->surfaces());
+    surfaces << Helper::instance()->workspace()->showOnAllWorkspaceModel()->surfaces();
+    for (const auto &surface : std::as_const(surfaces)) {
         if (!Helper::instance()->surfaceBelongsToCurrentUser(surface))
             continue;
         if (surface->ownsOutput() == output()) {
