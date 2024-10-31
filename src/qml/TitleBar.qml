@@ -24,26 +24,29 @@ Control {
     HoverHandler {
         // block hover events to resizing mouse area, avoid cursor change
         cursorShape: Qt.ArrowCursor
+        blocking: true
     }
 
-    // Normal mouse click
+    // Left mouse button handler
     TapHandler {
-        acceptedButtons: Qt.LeftButton | Qt.RightButton
-        onTapped: (eventPoint, button) => {
-            if (button === Qt.RightButton) {
-                surface.requestShowWindowMenu(eventPoint.position)
-            } else {
-                Helper.activateSurface(surface)
-            }
+        acceptedButtons: Qt.LeftButton
+        onTapped: {
+            Helper.activateSurface(surface)
         }
         onPressedChanged: {
             if (pressed)
                 surface.requestMove()
         }
-        onDoubleTapped: (_, button) => {
-            if (button === Qt.LeftButton) {
-                surface.requestToggleMaximize()
-            }
+        onDoubleTapped: {
+            surface.requestToggleMaximize()
+        }
+    }
+
+    // Right mouse button handler
+    TapHandler {
+        acceptedButtons: Qt.RightButton
+        onTapped: {
+            surface.requestShowWindowMenu(eventPoint.position)
         }
     }
 
