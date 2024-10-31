@@ -186,6 +186,9 @@ static SwipeGesture::Direction opposite(SwipeGesture::Direction direction)
 
 void TogglableGesture::moveSlide(qreal cb)
 {
+    if (qFuzzyCompare(cb, m_desktopOffset))
+        return;
+
     Workspace *workspace = Helper::instance()->workspace();
     Q_ASSERT(workspace);
 
@@ -230,6 +233,7 @@ void TogglableGesture::moveDischarge()
         return;
 
     m_slideEnable = false;
+
     // precision control. if it is infinitely close to 0, resetting the current index will cause
     // flickering
     qreal epison = std::floor(std::abs(m_desktopOffset) * 100) / 100;
@@ -237,6 +241,11 @@ void TogglableGesture::moveDischarge()
         return;
 
     Workspace *workspace = Helper::instance()->workspace();
+    if (!m_slideBounce && (m_desktopOffset > 0.98 || m_desktopOffset < -0.98)) {
+        workspace->setCurrentIndex(m_toId);
+        return;
+    }
+
     m_fromId = workspace->currentIndex();
     m_toId = 0;
 
