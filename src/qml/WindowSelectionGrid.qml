@@ -45,6 +45,7 @@ Item {
     }
 
     ShaderEffectSource {
+        z: Multitaskview.Background
         sourceItem: wallpaperController.proxy
         recursive: true
         live: true
