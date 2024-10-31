@@ -474,6 +474,13 @@ Item {
                     // console.log(windowLoader.item.itemAt(i).KeyNavigation.right)
                 }
             }
+        } else if (event.modifiers === Qt.AltModifier) {
+            if (event.key === Qt.Key_Minus && Helper.workspace.count > 1) {
+                Helper.workspace.removeModel(Helper.workspace.currentIndex)
+            } else if (event.key === Qt.Key_Equal && Helper.workspace.count < TreelandConfig.maxWorkspace) {
+                Helper.workspace.createModel()
+                Helper.workspace.switchTo(Helper.workspace.count - 1)
+            }
         }
     }
     KeyNavigation.tab: (loaderFinished && loadedWindowCount > 0) ? windowLoader.item.itemAt(0) : null
