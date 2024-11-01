@@ -46,7 +46,7 @@ Q_LOGGING_CATEGORY(qLcWlrGestureEvents, "waylib.server.seat.events.gesture", QtW
 #if QT_CONFIG(wheelevent)
 class Q_DECL_HIDDEN WSeatWheelEvent : public QWheelEvent {
 public:
-    WSeatWheelEvent(wlr_axis_source_t wlr_source, double wlr_delta,
+    WSeatWheelEvent(wlr_axis_source_t wlr_source, double wlr_delta, Qt::Orientation orientation,
                     const QPointF &pos, const QPointF &globalPos, QPoint pixelDelta, QPoint angleDelta,
                     Qt::MouseButtons buttons, Qt::KeyboardModifiers modifiers, Qt::ScrollPhase phase,
                     bool inverted, Qt::MouseEventSource source = Qt::MouseEventNotSynthesized,
@@ -54,16 +54,18 @@ public:
         : QWheelEvent(pos, globalPos, pixelDelta, angleDelta, buttons, modifiers, phase, inverted, source, device)
         , m_wlrSource(wlr_source)
         , m_wlrDelta(wlr_delta)
+        , m_orientation(orientation)
     {
 
     }
 
     inline wlr_axis_source_t wlrSource() const { return m_wlrSource; }
     inline double wlrDelta() const { return m_wlrDelta; }
-
+    inline Qt::Orientation orientation() const { return m_orientation; }
 protected:
     wlr_axis_source_t m_wlrSource;
     double m_wlrDelta;
+    Qt::Orientation m_orientation;
 };
 #endif
 
@@ -848,12 +850,11 @@ bool WSeat::sendEvent(WSurface *target, QObject *shellObject, QObject *eventObje
     }
     case QEvent::Wheel: {
         if (auto we = dynamic_cast<WSeatWheelEvent*>(event)) {
-            Qt::Orientation orientation = we->angleDelta().x() == 0 ? Qt::Vertical : Qt::Horizontal;
             d->doNotifyAxis(static_cast<wlr_axis_source>(we->wlrSource()),
-                        orientation,
-                        we->wlrDelta(),
-                        -(we->angleDelta().x()+we->angleDelta().y()), // one of them must be 0, restore to wayland direction here.
-                        we->timestamp());
+                            we->orientation(),
+                            we->wlrDelta(),
+                            -(we->angleDelta().x() + we->angleDelta().y()), // one of them must be 0, restore to wayland direction here.
+                            we->timestamp());
         } else {
             qWarning("An Wheel event was received that was not sent by wlroot and will be ignored");
         }
@@ -1086,7 +1087,7 @@ void WSeat::notifyAxis(WCursor *cursor, WInputDevice *device, wlr_axis_source_t 
     // Refer to https://github.com/qt/qtwayland/blob/774c0be247bd04362fc7713919ac151c44e34ced/src/client/qwaylandinputdevice.cpp#L1089
     // The direction in Qt event is in the opposite direction of wayland one, generate a event identical to Qt's direction.
     QPoint angleDelta = orientation == Qt::Horizontal ? QPoint(-delta_discrete, 0) : QPoint(0, -delta_discrete);
-    WSeatWheelEvent e(source, delta, local, global, QPoint(), angleDelta, Qt::NoButton, d->keyModifiers,
+    WSeatWheelEvent e(source, delta, orientation, local, global, QPoint(), angleDelta, Qt::NoButton, d->keyModifiers,
                   Qt::NoScrollPhase, false, Qt::MouseEventNotSynthesized, qwDevice);
     e.setTimestamp(timestamp);
 
