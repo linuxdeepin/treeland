@@ -326,17 +326,29 @@ Item {
         anchors {
             right: parent.right
             verticalCenter: parent.verticalCenter
-            margins: 20
+            margins: 40
         }
-        height: 80
-        width: 80
-        icon.name: "button_add"
-        icon.height: 26
-        icon.width: 26
-        background: Rectangle {
-            color: Qt.rgba(255, 255, 255, .4)
-            anchors.fill: parent
-            radius: 20
+        height: 64
+        width: 64
+        icon.name: "add"
+        icon.height: 22
+        icon.width: 22
+        background: Item {
+            Rectangle {
+                id: bgRect
+                color: Qt.rgba(16, 16, 16, .1)
+                anchors.fill: parent
+                radius: 10
+            }
+            Blur {
+                anchors.fill: bgRect
+                radius: 10
+            }
+            Border {
+                anchors.fill: parent
+                radius: 10
+                insideColor: Qt.rgba(255, 255, 255, 0.05)
+            }
         }
         onClicked: {
             Helper.workspace.createModel()

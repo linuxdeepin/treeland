@@ -23,12 +23,9 @@ Item {
     property int loadedWindowCount: 0
     property bool loaderFinished: windowLoader.status === Loader.Ready
     focus: true
-    HoverHandler {
-        onHoveredChanged: {
-            if (hovered)
-                forceActiveFocus()
-        }
-        blocking: true
+    onVisibleChanged: {
+        if (visible)
+            forceActiveFocus()
     }
 
     QtObject {
@@ -256,6 +253,15 @@ Item {
                         return mapToItem(draggedParent, mapFromItem(item, 0, y)).y
                     }
 
+                    property bool hovered: hvhdlr.hovered || surfaceCloseBtn.hovered
+                    onHoveredChanged: {
+                        if (hovered) {
+                            surfaceItemDelegate.forceActiveFocus()
+                        } else {
+                            root.forceActiveFocus()
+                        }
+                    }
+
                     property bool highlighted: dragManager.item === null && activeFocus && surfaceItemDelegate.state === "taskview"
                     SurfaceProxy {
                         id: surfaceProxy
@@ -270,11 +276,6 @@ Item {
                     HoverHandler {
                         id: hvhdlr
                         enabled: !drg.active
-                        onHoveredChanged: {
-                            if (hovered) {
-                                surfaceItemDelegate.forceActiveFocus()
-                            }
-                        }
                         blocking: true
                     }
                     TapHandler {
@@ -312,6 +313,7 @@ Item {
                         icon.height: 26
                         height: 26
                         width: height
+                        focusPolicy: Qt.NoFocus // Should not steal focus from delegate
                         visible: surfaceItemDelegate.highlighted
                         anchors {
                             top: parent.top
@@ -334,7 +336,6 @@ Item {
                         }
                     }
                     Keys.onPressed: function (event) {
-                        console.log(event.key)
                         if (event.modifiers === Qt.NoModifier) {
                             if (event.key === Qt.Key_Enter || event.key === Qt.Key_Return) {
                                 multitaskview.exit(wrapper)
@@ -382,9 +383,22 @@ Item {
                             text: wrapper.shellSurface.appId !== "" ? wrapper.shellSurface.appId + " - " + wrapper.shellSurface.title : wrapper.shellSurface.title
                             elide: Qt.ElideRight
                         }
-                        background: Rectangle {
-                            color: Qt.rgba(255, 255, 255, .2)
-                            radius: TreelandConfig.titleBoxCornerRadius
+                        background: Item {
+                            Rectangle {
+                                id: bgRect
+                                anchors.fill: parent
+                                color: Qt.rgba(16, 16, 16, .1)
+                                radius: TreelandConfig.titleBoxCornerRadius
+                            }
+                            Blur {
+                                anchors.fill: bgRect
+                                radius: TreelandConfig.titleBoxCornerRadius
+                            }
+                            Border {
+                                anchors.fill: parent
+                                radius: TreelandConfig.titleBoxCornerRadius
+                                insideColor: Qt.rgba(255, 255, 255, 0.05)
+                            }
                         }
                     }
                 }
@@ -444,9 +458,31 @@ Item {
                     horizontalAlignment: Qt.AlignHCenter
                     verticalAlignment: Qt.AlignVCenter
                 }
-                background: Rectangle {
-                    color: Qt.rgba(255, 255, 255, .6)
-                    radius: TreelandConfig.titleBoxCornerRadius
+                background: Item {
+                    Rectangle {
+                        id: hintBgRect
+                        anchors.fill: parent
+                        color: Qt.rgba(16, 16, 16, .1)
+                        radius: TreelandConfig.titleBoxCornerRadius
+                    }
+                    Blur {
+                        anchors.fill: hintBgRect
+                        radius: TreelandConfig.titleBoxCornerRadius
+                    }
+                    D.BoxShadow {
+                        anchors.fill: parent
+                        visible: true
+                        cornerRadius: TreelandConfig.titleBoxCornerRadius
+                        shadowColor: Qt.rgba(0, 0, 0, 0.15)
+                        shadowOffsetY: 8
+                        shadowBlur: 20
+                        hollow: true
+                    }
+                    Border {
+                        anchors.fill: parent
+                        radius: TreelandConfig.titleBoxCornerRadius
+                        insideColor: Qt.rgba(255, 255, 255, 0.05)
+                    }
                 }
             }
         }
@@ -483,5 +519,6 @@ Item {
 
     Component.onCompleted: {
         surfaceModel.calcLayout()
+        forceActiveFocus()
     }
 }
