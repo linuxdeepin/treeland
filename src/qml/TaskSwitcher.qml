@@ -213,8 +213,6 @@ Item {
 
                 orientation: ListView.Horizontal
                 clip: true
-                currentIndex: switchView.count > 1 ? 1 : 0
-
                 anchors {
                     fill: parent
                     leftMargin: vSpacing
@@ -234,6 +232,13 @@ Item {
                 }
                 highlight: SwitchViewHighlightDelegate {}
                 highlightFollowsCurrentItem: false
+
+                Component.onCompleted: {
+                    if (root.model.activeIndex === -1)
+                        switchView.currentIndex = switchView.count > 1 ? 1 : 0
+                    else
+                        switchView.currentIndex = root.model.activeIndex;
+                }
             }
         }
 
@@ -418,6 +423,7 @@ Item {
         if (showTask(true)) {
             previewContext.sourceSueface = switchView.currentItem.surface
             switchView.currentIndex = next
+            root.model.activeIndex = switchView.currentIndex
 
             ensurePreview()
         }

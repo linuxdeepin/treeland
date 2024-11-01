@@ -16,19 +16,32 @@ void SurfaceFilterProxyModel::setFilterAppId(const QString &appid)
     invalidateFilter();
 }
 
+int SurfaceFilterProxyModel::activeIndex()
+{
+    return m_activeIndex;
+}
+
+void SurfaceFilterProxyModel::setActiveIndex(int index)
+{
+    if (m_activeIndex != index) {
+        m_activeIndex = index;
+        Q_EMIT m_activeIndex;
+    }
+}
+
 bool SurfaceFilterProxyModel::filterAcceptsRow(int source_row,
                                                const QModelIndex &source_parent) const
 {
     QModelIndex index = sourceModel()->index(source_row, 0, source_parent);
     SurfaceWrapper *surface = sourceModel()->data(index).value<SurfaceWrapper *>();
+    auto wsurface = surface->shellSurface();
+    Q_ASSERT(wsurface);
 
     if (m_filterAppId.isEmpty()) {
         return true;
     }
 
     if (surface) {
-        auto wsurface = surface->shellSurface();
-        Q_ASSERT(wsurface);
         return wsurface->appId() == m_filterAppId;
     }
 
