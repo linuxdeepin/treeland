@@ -69,17 +69,20 @@ public:
     void addWindowOverlapChecker(treeland_window_overlap_checker *handle);
     void addShellSurface(treeland_dde_shell_surface *handle);
     void addDdeActive(treeland_dde_active *handle);
+    void addMultitaskview(treeland_multitaskview_v1 *handle);
 
 Q_SIGNALS:
     void before_destroy();
     void windowOverlapCheckerCreated(treeland_window_overlap_checker *handle);
     void shellSurfaceCreated(treeland_dde_shell_surface *handle);
     void ddeActiveCreated(treeland_dde_active *handle);
+    void multitaskviewCreated(treeland_multitaskview_v1 *handle);
 
 private:
     QList<treeland_window_overlap_checker *> m_checkHandles;
     QList<treeland_dde_shell_surface *> m_surfaceHandles;
     QList<treeland_dde_active *> m_ddeActiveHandles;
+    QList<treeland_multitaskview_v1 *> m_multitaskviewHandles;
 
     friend class DDEShellManagerV1;
 };
@@ -133,4 +136,15 @@ public:
 
 Q_SIGNALS:
     void before_destroy();
+};
+
+class treeland_multitaskview_v1 : public QObject
+{
+    Q_OBJECT
+Q_SIGNALS:
+    void toggle();
+    void before_destroy();
+
+public:
+    wl_resource *m_resource{ nullptr };
 };

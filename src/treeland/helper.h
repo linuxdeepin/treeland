@@ -227,6 +227,12 @@ private:
                           QObject *,
                           QInputEvent *event) override;
     bool unacceptedEvent(WSeat *, QWindow *, QInputEvent *event) override;
+
+    void toggleMultitaskview()
+    {
+        toggleMultitaskview(Multitaskview::ShortcutKey);
+    }
+
     void toggleMultitaskview(Multitaskview::ActiveReason reason);
     void handleLeftButtonStateChanged(const QInputEvent *event);
     void handleWhellValueChanged(const QInputEvent *event);
