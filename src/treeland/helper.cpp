@@ -500,6 +500,7 @@ void Helper::deleteTaskSwitch()
         m_taskSwitch->deleteLater();
         m_taskSwitch = nullptr;
     }
+    m_currentMode = CurrentMode::Normal;
 }
 
 void Helper::init()
@@ -773,7 +774,8 @@ void Helper::forceActivateSurface(SurfaceWrapper *wrapper, Qt::FocusReason reaso
         wrapper->requestCancelMinimize();
     }
 
-    if (m_showDesktop == WindowManagementV1::DesktopState::Show || !wrapper->opacity()) {
+    if (m_currentMode != CurrentMode::WindowSwitch &&
+        (m_showDesktop == WindowManagementV1::DesktopState::Show || !wrapper->opacity())) {
         wrapper->setOpacity(1);
         wrapper->startShowAnimation(true);
     }
@@ -951,7 +953,6 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *, QInputEvent *event)
                 auto filter = Helper::instance()->workspace()->currentFilter();
                 filter->setFilterAppId("");
                 QMetaObject::invokeMethod(m_taskSwitch, "exit");
-                m_currentMode = CurrentMode::Normal;
             }
         }
     }
