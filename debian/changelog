@@ -1,3 +1,15 @@
+treeland (0.4.1) unstable; urgency=medium
+
+  * update appearance protocol
+
+ -- Dingyuan Zhang <zhangdingyuan@uniontech.com>  Thu, 01 Nov 2024 11:20:00 +0800
+
+treeland (0.4) unstable; urgency=medium
+
+  * update workspace
+
+ -- Dingyuan Zhang <zhangdingyuan@uniontech.com>  Thu, 01 Nov 2024 11:20:00 +0800
+
 treeland (0.3) unstable; urgency=medium
 
   * support windows animation
