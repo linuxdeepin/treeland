@@ -154,7 +154,7 @@ private:
     uint m_workspaceThumbCornerRadius = 8;
     uint m_highlightBorderWidth = 4;
     uint m_minMultitaskviewSurfaceHeight = 232;
-    uint m_titleBoxCornerRadius = 5;
+    uint m_titleBoxCornerRadius = 8;
     uint m_normalWindowHeight = 720;
     uint m_windowHeightStep = 15;
     qreal m_multitaskviewPaddingOpacity = 0.1;
