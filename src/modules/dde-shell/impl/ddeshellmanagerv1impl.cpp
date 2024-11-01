@@ -33,10 +33,15 @@ static void handle_get_treeland_dde_active(struct wl_client *client,
                                            uint32_t id,
                                            struct wl_resource *seat);
 
+static void handle_get_treeland_multitaskview(struct wl_client *client,
+                                              struct wl_resource *manager_resource,
+                                              uint32_t id);
+
 static const struct treeland_dde_shell_manager_v1_interface treeland_dde_shell_manager_v1_impl = {
     .get_window_overlap_checker = handle_get_window_overlap_checker,
     .get_shell_surface = handle_get_shell_surface,
     .get_treeland_dde_active = handle_get_treeland_dde_active,
+    .get_treeland_multitaskview = handle_get_treeland_multitaskview
 };
 
 static treeland_dde_shell_manager_v1 *manager_from_resource(struct wl_resource *resource)
@@ -329,9 +334,42 @@ static void handle_treeland_dde_active_v1_destroy(struct wl_client *client,
     wl_resource_destroy(resource);
 }
 
+static void handle_treeland_multitaskview_v1_destroy(struct wl_client *client,
+                                                     struct wl_resource *resource)
+{
+    wl_resource_destroy(resource);
+}
+
+static treeland_multitaskview_v1 *multitaskview_from_resource(struct wl_resource *resource);
+
+static void handle_treeland_multitaskview_v1_toggle(struct wl_client *client,
+                                                    struct wl_resource *resource)
+{
+    auto multitaskview = multitaskview_from_resource(resource);
+    Q_ASSERT(multitaskview);
+    Q_EMIT multitaskview->toggle();
+}
+
 static const struct treeland_dde_active_v1_interface treeland_dde_active_v1_interface_impl = {
     .destroy = handle_treeland_dde_active_v1_destroy,
 };
+
+static const struct treeland_multitaskview_v1_interface treeland_multitaskview_v1_interface_impl = {
+    .destroy = handle_treeland_multitaskview_v1_destroy,
+    .toggle = handle_treeland_multitaskview_v1_toggle
+};
+
+static treeland_multitaskview_v1 *multitaskview_from_resource(struct wl_resource *resource)
+{
+    assert(wl_resource_instance_of(resource,
+                                   &treeland_multitaskview_v1_interface,
+                                   &treeland_multitaskview_v1_interface_impl));
+
+    treeland_multitaskview_v1 *multitaskview =
+        static_cast<treeland_multitaskview_v1 *>(wl_resource_get_user_data(resource));
+    assert(multitaskview);
+    return multitaskview;
+}
 
 static void treeland_dde_active_v1_resource_destroy(struct wl_resource *resource)
 {
@@ -345,6 +383,21 @@ static void treeland_dde_active_v1_resource_destroy(struct wl_resource *resource
     }
 
     delete dde_active;
+}
+
+static void treeland_multitaskview_v1_resource_destroy(struct wl_resource *resource)
+{
+    assert(wl_resource_instance_of(resource,
+                                   &treeland_multitaskview_v1_interface,
+                                   &treeland_multitaskview_v1_interface_impl));
+
+    auto *multitaskview =
+        static_cast<treeland_multitaskview_v1 *>(wl_resource_get_user_data(resource));
+    if (!multitaskview) {
+        return;
+    }
+    Q_EMIT multitaskview->before_destroy();
+    delete multitaskview;
 }
 
 static void handle_get_treeland_dde_active(struct wl_client *client,
@@ -386,6 +439,39 @@ static void handle_get_treeland_dde_active(struct wl_client *client,
                                    treeland_dde_active_v1_resource_destroy);
     wl_resource_set_user_data(resource, dde_active);
     manager->addDdeActive(dde_active);
+}
+
+static void handle_get_treeland_multitaskview(struct wl_client *client,
+                                              struct wl_resource *manager_resource,
+                                              uint32_t id)
+{
+    auto *manager = manager_from_resource(manager_resource);
+    if (!manager) {
+        qCCritical(ddeShellImpl) << "Failed to get treeland_dde_shell_manager_v1";
+        return;
+    }
+    auto multitaskview = new treeland_multitaskview_v1;
+    if (!multitaskview) {
+        wl_resource_post_no_memory(manager_resource);
+        return;
+    }
+
+    uint32_t version = wl_resource_get_version(manager_resource);
+    struct wl_resource *resource =
+        wl_resource_create(client, &treeland_multitaskview_v1_interface, version, id);
+    if (!resource) {
+        delete multitaskview;
+        wl_resource_post_no_memory(manager_resource);
+        return;
+    }
+
+    multitaskview->m_resource = resource;
+    wl_resource_set_implementation(resource,
+                                   &treeland_multitaskview_v1_interface_impl,
+                                   multitaskview,
+                                   treeland_multitaskview_v1_resource_destroy);
+    wl_resource_set_user_data(resource, multitaskview);
+    manager->addMultitaskview(multitaskview);
 }
 
 static void treeland_dde_shell_manager_v1_bind(struct wl_client *client,
@@ -521,6 +607,17 @@ void treeland_dde_shell_manager_v1::addDdeActive(treeland_dde_active *handle)
     wl_list_insert(&resources, wl_resource_get_link(handle->m_resource));
 
     Q_EMIT ddeActiveCreated(handle);
+}
+
+void treeland_dde_shell_manager_v1::addMultitaskview(treeland_multitaskview_v1 *handle)
+{
+    connect(handle, &treeland_multitaskview_v1::before_destroy, this, [this, handle] {
+        m_multitaskviewHandles.removeOne(handle);
+    });
+    m_multitaskviewHandles.append(handle);
+    wl_list_insert(&resources, wl_resource_get_link(handle->m_resource));
+
+    Q_EMIT multitaskviewCreated(handle);
 }
 
 treeland_dde_shell_manager_v1 *treeland_dde_shell_manager_v1::create(

@@ -80,6 +80,9 @@ public:
     bool isDdeShellSurface(WSurface *surface);
     treeland_dde_shell_surface *ddeShellSurfaceFromWSurface(WSurface *surface) const;
 
+Q_SIGNALS:
+    void toggleMultitaskview();
+
 protected:
     void create(WServer *server) override;
     void destroy(WServer *server) override;

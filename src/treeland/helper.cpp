@@ -458,8 +458,10 @@ void Helper::onSurfaceWrapperAdded(SurfaceWrapper *wrapper)
         auto xwayland = qobject_cast<WXWaylandSurface *>(wrapper->shellSurface());
         auto updateDecorationTitleBar = [this, wrapper, xwayland]() {
             if (!xwayland->isBypassManager()) {
-                wrapper->setNoTitleBar(xwayland->decorationsType() == WXWaylandSurface::DecorationsNoTitle);
-                wrapper->setNoDecoration(xwayland->decorationsType() == WXWaylandSurface::DecorationsNoBorder);
+                wrapper->setNoTitleBar(xwayland->decorationsType()
+                                       == WXWaylandSurface::DecorationsNoTitle);
+                wrapper->setNoDecoration(xwayland->decorationsType()
+                                         == WXWaylandSurface::DecorationsNoBorder);
             } else {
                 wrapper->setNoTitleBar(true);
                 wrapper->setNoDecoration(true);
@@ -549,6 +551,10 @@ void Helper::init()
     connect(m_backend, &WBackend::outputRemoved, this, &Helper::onOutputRemoved);
 
     m_ddeShellV1 = m_server->attach<DDEShellManagerV1>();
+    connect(m_ddeShellV1,
+            &DDEShellManagerV1::toggleMultitaskview,
+            this,
+            qOverload<>(&Helper::toggleMultitaskview));
     m_shellHandler->createComponent(engine);
     m_shellHandler->initXdgShell(m_server, m_ddeShellV1);
     m_shellHandler->initLayerShell(m_server);
@@ -785,8 +791,8 @@ void Helper::forceActivateSurface(SurfaceWrapper *wrapper, Qt::FocusReason reaso
         wrapper->requestCancelMinimize();
     }
 
-    if (m_currentMode != CurrentMode::WindowSwitch &&
-        (m_showDesktop == WindowManagementV1::DesktopState::Show || !wrapper->opacity())) {
+    if (m_currentMode != CurrentMode::WindowSwitch
+        && (m_showDesktop == WindowManagementV1::DesktopState::Show || !wrapper->opacity())) {
         wrapper->setOpacity(1);
         wrapper->startShowAnimation(true);
     }
@@ -849,18 +855,9 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *, QInputEvent *event)
                 return true;
             } else if (switchWorkspaceNums.contains(kevent->key())) {
                 workspace()->switchTo(switchWorkspaceNums.indexOf(kevent->key()));
+                return true;
             } else if (kevent->key() == Qt::Key_S) {
-                if (!m_multitaskview) {
-                    toggleMultitaskview(Multitaskview::ShortcutKey);
-                } else {
-                    if (m_multitaskview->status() == Multitaskview::Exited) {
-                        m_multitaskview->enter(Multitaskview::ShortcutKey);
-                        m_currentMode = CurrentMode::Multitaskview;
-                    } else {
-                        m_multitaskview->exit(nullptr);
-                        m_currentMode = CurrentMode::Normal;
-                    }
-                }
+                toggleMultitaskview(Multitaskview::ShortcutKey);
                 return true;
             } else if (kevent->key() == Qt::Key_L) {
                 if (m_lockScreen->isLocked()) {
@@ -1126,9 +1123,16 @@ void Helper::toggleMultitaskview(Multitaskview::ActiveReason reason)
             }
         });
         m_currentMode = CurrentMode::Multitaskview;
+        m_multitaskview->enter(reason);
+    } else {
+        if (m_multitaskview->status() == Multitaskview::Exited) {
+            m_multitaskview->enter(Multitaskview::ShortcutKey);
+            m_currentMode = CurrentMode::Multitaskview;
+        } else {
+            m_multitaskview->exit(nullptr);
+            m_currentMode = CurrentMode::Normal;
+        }
     }
-
-    m_multitaskview->enter(reason);
 }
 
 SurfaceWrapper *Helper::keyboardFocusSurface() const
