@@ -122,6 +122,15 @@ void DDEShellManagerV1::create(WServer *server)
                 m_conflictList.remove(handle);
             });
         });
+    connect(m_manager,
+            &treeland_dde_shell_manager_v1::multitaskviewCreated,
+            this,
+            [this](treeland_multitaskview_v1 *multitaskview) {
+                connect(multitaskview,
+                        &treeland_multitaskview_v1::toggle,
+                        this,
+                        &DDEShellManagerV1::toggleMultitaskview);
+            });
 }
 
 void DDEShellManagerV1::checkRegionalConflict(WSurfaceItem *target)
