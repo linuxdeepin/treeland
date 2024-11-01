@@ -465,15 +465,20 @@ void Helper::onSurfaceWrapperAdded(SurfaceWrapper *wrapper)
                 wrapper->setNoDecoration(true);
             }
         };
-        connect(xwayland, &WXWaylandSurface::bypassManagerChanged, this, updateDecorationTitleBar);
-        connect(xwayland,
+        xwayland->safeConnect(&WXWaylandSurface::bypassManagerChanged, this, updateDecorationTitleBar);
+        xwayland->safeConnect(
                 &WXWaylandSurface::decorationsTypeChanged,
                 this,
                 updateDecorationTitleBar);
         updateDecorationTitleBar();
+
+        if (!xwayland->isBypassManager() && xwayland->windowTypes() == WXWaylandSurface::WindowType::NET_WM_WINDOW_TYPE_NORMAL) {
+            m_foreignToplevel->addSurface(wrapper->shellSurface());
+            m_treelandForeignToplevel->addSurface(wrapper);
+        }
     }
 
-    if (isXdgToplevel || isXwayland) {
+    if (isXdgToplevel) {
         m_foreignToplevel->addSurface(wrapper->shellSurface());
         m_treelandForeignToplevel->addSurface(wrapper);
     }
@@ -481,8 +486,14 @@ void Helper::onSurfaceWrapperAdded(SurfaceWrapper *wrapper)
 
 void Helper::onSurfaceWrapperAboutToRemove(SurfaceWrapper *wrapper)
 {
-    if (wrapper->type() == SurfaceWrapper::Type::XdgToplevel
-        || wrapper->type() == SurfaceWrapper::Type::XWayland) {
+    if (wrapper->type() == SurfaceWrapper::Type::XWayland) {
+        auto xwayland = qobject_cast<WXWaylandSurface *>(wrapper->shellSurface());
+        if (!xwayland->isBypassManager() && xwayland->windowTypes() == WXWaylandSurface::WindowType::NET_WM_WINDOW_TYPE_NORMAL) {
+            m_foreignToplevel->removeSurface(wrapper->shellSurface());
+            m_treelandForeignToplevel->removeSurface(wrapper);
+        }
+    }
+    if (wrapper->type() == SurfaceWrapper::Type::XdgToplevel) {
         m_foreignToplevel->removeSurface(wrapper->shellSurface());
         m_treelandForeignToplevel->removeSurface(wrapper);
     }
