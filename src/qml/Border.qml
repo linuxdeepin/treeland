@@ -7,6 +7,8 @@ Item {
     id: root
 
     property real radius: 0
+    property color outsideColor: Qt.rgba(0, 0, 0, 0.1)
+    property color insideColor: Qt.rgba(255, 255, 255, 0.1)
 
     Rectangle {
         id: outsideBorder
@@ -17,7 +19,7 @@ Item {
 
         color: "transparent"
         border {
-            color: Qt.rgba(0, 0, 0, 0.1)
+            color: outsideColor
             width: 1
         }
         radius: root.radius + border.width
@@ -28,7 +30,7 @@ Item {
         anchors.fill: parent
         color: "transparent"
         border {
-            color: Qt.rgba(255, 255, 255, 0.1)
+            color: insideColor
             width: 1
         }
         radius: root.radius
