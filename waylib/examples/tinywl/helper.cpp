@@ -55,6 +55,7 @@
 #include <qwgammacontorlv1.h>
 #include <qwbuffer.h>
 #include <qwdatacontrolv1.h>
+#include <qwviewporter.h>
 
 #include <QGuiApplication>
 #include <QQmlApplicationEngine>
@@ -270,6 +271,7 @@ void Helper::init()
     m_compositor = qw_compositor::create(*m_server->handle(), 6, *m_renderer);
     qw_subcompositor::create(*m_server->handle());
     qw_screencopy_manager_v1::create(*m_server->handle());
+    qw_viewporter::create(*m_server->handle());
     m_renderWindow->init(m_renderer, m_allocator);
 
     // for xwayland
