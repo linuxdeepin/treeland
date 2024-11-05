@@ -455,7 +455,9 @@ bool WorkspaceListModel::moveRows(const QModelIndex &sourceParent,
                       sourceRow,
                       {},
                       destinationChild > sourceRow ? (destinationChild + 1) : destinationChild);
+    if (!beginSuccess)
+        return false;
     m_objects.move(sourceRow, destinationChild);
     endMoveRows();
-    return beginSuccess;
+    return true;
 }
