@@ -23,6 +23,7 @@ class SurfaceWrapper;
 class Output;
 class Workspace;
 class WorkspaceModel;
+class CaptureManagerV1;
 
 class QmlEngine : public QQmlApplicationEngine
 {
@@ -61,6 +62,7 @@ public:
     QQuickItem *createDockPreview(QQuickItem *parent);
     QQuickItem *createShowDesktopAnimation(SurfaceWrapper *surface, QQuickItem *parent, bool show);
     QQuickItem *createMultitaskview(QQuickItem *parent);
+    QQuickItem *createCaptureSelector(QQuickItem *parent, CaptureManagerV1 *captureManager);
 
     QQmlComponent *surfaceContentComponent()
     {
@@ -87,6 +89,7 @@ private:
     QQmlComponent minimizeAnimationComponent;
     QQmlComponent showDesktopAnimatioComponentn;
     QQmlComponent multitaskViewComponent;
+    QQmlComponent captureSelectorComponent;
     QQmlComponent blurComponent;
     QQmlComponent launchpadAnimationComponent;
     QQmlComponent launchpadCoverComponent;

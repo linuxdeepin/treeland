@@ -20,9 +20,12 @@
 WAYLIB_SERVER_BEGIN_NAMESPACE
 class WOutputRenderWindow;
 class WOutputViewport;
+class WToplevelSurface;
 WAYLIB_SERVER_END_NAMESPACE
 
 WAYLIB_SERVER_USE_NAMESPACE
+
+class ItemSelector;
 
 class CaptureSource : public QObject
 {
@@ -172,6 +175,7 @@ public:
     WOutputRenderWindow *outputRenderWindow() const;
     void setOutputRenderWindow(WOutputRenderWindow *renderWindow);
     QByteArrayView interfaceName() const override;
+    QPointer<WToplevelSurface> maskShellSurface() const;
 
 Q_SIGNALS:
     void contextInSelectionChanged();
@@ -185,13 +189,15 @@ protected:
 private Q_SLOTS:
     void onCaptureContextSelectSource();
     void clearContextInSelection(CaptureContextV1 *context);
-    void toggleFreezeAllSurfaceItems(bool freeze);
+    void freezeAllCapturedSurface(bool freeze, WSurface *maskItem);
 
 private:
     treeland_capture_manager_v1 *m_manager;
     CaptureContextModel *m_captureContextModel;
     CaptureContextV1 *m_contextInSelection;
     WOutputRenderWindow *m_outputRenderWindow;
+    QPointF m_frozenCursorPos;
+    QPointer<WToplevelSurface> m_maskShellSurface;
 };
 
 class CaptureSourceSurface : public CaptureSource
@@ -239,51 +245,43 @@ class CaptureSourceSelector : public QQuickItem
     Q_OBJECT
     Q_PROPERTY(CaptureManagerV1* captureManager READ captureManager WRITE setCaptureManager NOTIFY captureManagerChanged REQUIRED FINAL)
     Q_PROPERTY(QRectF selectionRegion READ selectionRegion NOTIFY selectionRegionChanged FINAL)
+    QML_ELEMENT
 
 public:
     CaptureSourceSelector(QQuickItem *parent = nullptr);
-
-    CaptureSource *selectedSource() const;
-    void setSelectedSource(CaptureSource *newSelectedSource);
-    void componentComplete() override;
-    void doneSelection();
-
     CaptureManagerV1 *captureManager() const;
     void setCaptureManager(CaptureManagerV1 *newCaptureManager);
 
-    QRectF selectionRegion() const;
-    void setSelectionRegion(const QRectF &newSelectionRegion);
-    WOutputRenderWindow *renderWindow() const;
-
 Q_SIGNALS:
     void hoveredItemChanged();
-    void selectingRegionChanged();
-    void hoveredRectChanged();
     void selectedSourceChanged();
     void captureManagerChanged();
     void selectionRegionChanged();
-    void itemSelectionModeChanged();
 
 protected:
-    void hoverMoveEvent(QHoverEvent *event) override;
+    void componentComplete() override;
     void mouseMoveEvent(QMouseEvent *event) override;
     void mousePressEvent(QMouseEvent *event) override;
     void mouseReleaseEvent(QMouseEvent *event) override;
-    void releaseResources() override;
+    void geometryChange(const QRectF &newGeometry, const QRectF &oldGeometry) override;
 
 private:
-    void onRenderWindowReady(QQuickWindow *w);
     QQuickItem *hoveredItem() const;
-    void setHoveredItem(QQuickItem *newHoveredItem);
+    QRectF selectionRegion() const;
+    void setSelectionRegion(const QRectF &newSelectionRegion);
     bool itemSelectionMode() const;
     void setItemSelectionMode(bool itemSelection);
-    void checkHoveredItem(QPointF pos);
+    CaptureSource *selectedSource() const;
+    void setSelectedSource(CaptureSource *newSelectedSource);
+    void handleItemSelectorSelectionRegionChanged();
+    WOutputRenderWindow *renderWindow() const;
+    void doneSelection();
 
     CaptureSource *m_selectedSource{ nullptr };
     QList<QPointer<QQuickItem>> m_selectableItems{};
-    QPointer<QQuickItem> m_hoveredItem{ nullptr };
     QPointer<CaptureManagerV1> m_captureManager{ nullptr };
     QRectF m_selectionRegion{};
     QPointF m_selectionAnchor{};
     bool m_itemSelectionMode{ true };
+    ItemSelector *m_itemSelector{ nullptr };
 };
