@@ -78,24 +78,21 @@
     "qwlroots": {
       "inputs": {
         "flake-utils": [
-          "waylib",
           "flake-utils"
         ],
         "nix-filter": [
-          "waylib",
           "nix-filter"
         ],
         "nixpkgs": [
-          "waylib",
           "nixpkgs"
         ]
       },
       "locked": {
-        "lastModified": 1725502313,
-        "narHash": "sha256-bJlLbetH3r2gIKjEbNLD/jes6NoZFWv7OH/FRNTnaWg=",
+        "lastModified": 1727335993,
+        "narHash": "sha256-qhMkTto8ZXN9AQXCUU+PPtkLa5XRzs3Idb/ZmQFb3kk=",
         "owner": "vioken",
         "repo": "qwlroots",
-        "rev": "0474dbf801a47613b78851cbb90b150538883e57",
+        "rev": "0d2d144566776314639a549d68514fe6fd7b466d",
         "type": "github"
       },
       "original": {
@@ -110,6 +107,8 @@
         "flake-utils": "flake-utils",
         "nix-filter": "nix-filter",
         "nixpkgs": "nixpkgs",
+        "qwlroots": "qwlroots",
+        "treeland-protocols": "treeland-protocols",
         "waylib": "waylib"
       }
     },
@@ -128,6 +127,32 @@
         "type": "github"
       }
     },
+    "treeland-protocols": {
+      "inputs": {
+        "flake-utils": [
+          "flake-utils"
+        ],
+        "nix-filter": [
+          "nix-filter"
+        ],
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1730776673,
+        "narHash": "sha256-ahYjULncM4t0V6PyiP9GOJt9fVPwQvzguDnlyt2vtTM=",
+        "owner": "linuxdeepin",
+        "repo": "treeland-protocols",
+        "rev": "3386d96393dc0595a290d024f622a51948722482",
+        "type": "github"
+      },
+      "original": {
+        "owner": "linuxdeepin",
+        "repo": "treeland-protocols",
+        "type": "github"
+      }
+    },
     "waylib": {
       "inputs": {
         "flake-utils": [
@@ -139,7 +164,9 @@
         "nixpkgs": [
           "nixpkgs"
         ],
-        "qwlroots": "qwlroots"
+        "qwlroots": [
+          "qwlroots"
+        ]
       },
       "locked": {
         "lastModified": 1729601283,

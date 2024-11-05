@@ -12,15 +12,18 @@
 , qtimageformats
 , qtwayland
 , qtsvg
+, qwlroots
 , ddm
 , deepin
 , waylib
 , wayland
 , wayland-protocols
 , wlr-protocols
+, treeland-protocols
 , pixman
 , pam
 , libxcrypt
+, libinput
 , nixos-artwork
 }:
 
@@ -65,6 +68,7 @@ stdenv.mkDerivation (finalAttrs: {
     qtimageformats
     qtwayland
     qtsvg
+    qwlroots
     ddm
     deepin.dtk6declarative
     deepin.dtk6systemsettings
@@ -72,9 +76,11 @@ stdenv.mkDerivation (finalAttrs: {
     wayland
     wayland-protocols
     wlr-protocols
+    treeland-protocols
     pixman
     pam
     libxcrypt
+    libinput
   ];
 
    cmakeFlags = [
