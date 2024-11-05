@@ -198,6 +198,10 @@ void SurfaceWrapper::setActivate(bool activate)
     m_shellSurface->setActivate(activate);
     auto parent = parentSurface();
     while (parent) {
+        if (!parent->hasActiveCapability()) {
+            // Maybe it's parent is Minimized or Unmapped
+            break;
+        }
         parent->setActivate(activate);
         parent = parent->parentSurface();
     }

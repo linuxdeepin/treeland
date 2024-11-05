@@ -95,16 +95,20 @@ void Workspace::addSurface(SurfaceWrapper *surface, int workspaceId)
 {
     Q_ASSERT(surface && !surface->container() && surface->workspaceId() == -1);
 
-    doAddSurface(surface, true);
-
-    if (workspaceId == -1)
-        workspaceId = current()->id();
-
     auto model = modelFromId(workspaceId);
+    Q_ASSERT(model);
+
     model->addSurface(surface);
 
     if (!surface->ownsOutput())
         surface->setOwnsOutput(rootContainer()->primaryOutput());
+
+    SurfaceContainer::addSurface(surface);
+}
+
+void Workspace::addSurface(SurfaceWrapper *surface)
+{
+    addSurface(surface, current()->id());
 }
 
 void Workspace::moveModelTo(int workspaceId, int destinationIndex)
@@ -125,8 +129,7 @@ void Workspace::moveModelTo(int workspaceId, int destinationIndex)
 
 void Workspace::removeSurface(SurfaceWrapper *surface)
 {
-    if (!doRemoveSurface(surface, false))
-        return;
+    SurfaceContainer::removeSurface(surface);
 
     WorkspaceModel *from = nullptr;
     if (surface->showOnAllWorkspace())
