@@ -653,7 +653,7 @@ void Helper::init()
                                                 "Personalization",
                                                 "Only for Enum");
 
-    qmlRegisterUncreatableType<DDEShellHelper>("TreeLand.Protocols",
+    qmlRegisterUncreatableType<DDEShellHelper>("Treeland.Protocols",
                                                1,
                                                0,
                                                "DDEShellHelper",

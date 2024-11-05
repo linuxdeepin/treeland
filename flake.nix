@@ -112,7 +112,7 @@
                   '';
                 };
 
-                # services.xserver.displayManager.defaultSession =  "TreeLand";
+                # services.xserver.displayManager.defaultSession =  "Treeland";
                 # services.xserver.displayManager.sessionPackages = [ treeland ];
                 environment.etc."ddm.conf".text = ''
                   [General]

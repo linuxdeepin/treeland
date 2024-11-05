@@ -8,13 +8,13 @@
 #include <private/qwaylandclientextension_p.h>
 #include <private/qwaylandshmbackingstore_p.h>
 
-class TreeLandCaptureFrame
+class TreelandCaptureFrame
     : public QObject
     , public QtWayland::treeland_capture_frame_v1
 {
     Q_OBJECT
 public:
-    TreeLandCaptureFrame(struct ::treeland_capture_frame_v1 *object)
+    TreelandCaptureFrame(struct ::treeland_capture_frame_v1 *object)
         : QObject()
         , QtWayland::treeland_capture_frame_v1(object)
         , m_shmBuffer(nullptr)
@@ -22,7 +22,7 @@ public:
     {
     }
 
-    ~TreeLandCaptureFrame() override
+    ~TreelandCaptureFrame() override
     {
         delete m_shmBuffer;
         delete m_pendingShmBuffer;
@@ -53,15 +53,15 @@ private:
     uint m_flags;
 };
 
-class TreeLandCaptureContext
+class TreelandCaptureContext
     : public QObject
     , public QtWayland::treeland_capture_context_v1
 {
     Q_OBJECT
 public:
-    explicit TreeLandCaptureContext(struct ::treeland_capture_context_v1 *object);
+    explicit TreelandCaptureContext(struct ::treeland_capture_context_v1 *object);
 
-    ~TreeLandCaptureContext() override
+    ~TreelandCaptureContext() override
     {
         releaseCaptureFrame();
         destroy();
@@ -77,7 +77,7 @@ public:
         return m_sourceType;
     }
 
-    QPointer<TreeLandCaptureFrame> frame();
+    QPointer<TreelandCaptureFrame> frame();
     void selectSource(uint32_t sourceHint, bool freeze, bool withCursor, ::wl_surface *mask);
     void releaseCaptureFrame();
 
@@ -95,36 +95,36 @@ protected:
 
 private:
     QRect m_captureRegion;
-    TreeLandCaptureFrame *m_captureFrame;
+    TreelandCaptureFrame *m_captureFrame;
     QtWayland::treeland_capture_context_v1::source_type m_sourceType;
 };
 
-class TreeLandCaptureManager;
-void destruct_treeland_capture_manager(TreeLandCaptureManager *manager);
+class TreelandCaptureManager;
+void destruct_treeland_capture_manager(TreelandCaptureManager *manager);
 
-class TreeLandCaptureManager
-    : public QWaylandClientExtensionTemplate<TreeLandCaptureManager,
+class TreelandCaptureManager
+    : public QWaylandClientExtensionTemplate<TreelandCaptureManager,
                                              destruct_treeland_capture_manager>
     , public QtWayland::treeland_capture_manager_v1
 {
     Q_OBJECT
 public:
-    TreeLandCaptureManager(QObject *parent = nullptr)
-        : QWaylandClientExtensionTemplate<TreeLandCaptureManager,
+    TreelandCaptureManager(QObject *parent = nullptr)
+        : QWaylandClientExtensionTemplate<TreelandCaptureManager,
                                           destruct_treeland_capture_manager>(1)
         , QtWayland::treeland_capture_manager_v1()
     {
     }
 
-    ~TreeLandCaptureManager() override
+    ~TreelandCaptureManager() override
     {
         destroy();
     }
 
-    QPointer<TreeLandCaptureContext> getContext();
-    void releaseCaptureContext(QPointer<TreeLandCaptureContext> context);
+    QPointer<TreelandCaptureContext> getContext();
+    void releaseCaptureContext(QPointer<TreelandCaptureContext> context);
 
 private:
-    QList<TreeLandCaptureContext *> captureContexts;
-    friend void destruct_treeland_capture_manager(TreeLandCaptureManager *manager);
+    QList<TreelandCaptureContext *> captureContexts;
+    friend void destruct_treeland_capture_manager(TreelandCaptureManager *manager);
 };
