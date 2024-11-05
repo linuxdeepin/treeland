@@ -13,7 +13,7 @@ PartOf=dde-session-pre.target
 Before=dde-session-pre.target
 
 [Service]
-ExecCondition=/bin/sh -c 'test "$DDE_CURRENT_COMPOSITOR" = "Treeland" || exit 2'
+ExecCondition=/bin/sh -c 'test "$XDG_SESSION_DESKTOP" = "Treeland" || exit 2'
 Type=notify
 Sockets=treeland-xwayland.socket
 UnsetEnvironment=DISPLAY
