@@ -28,7 +28,8 @@
 SurfaceWrapper::SurfaceWrapper(QmlEngine *qmlEngine,
                                WToplevelSurface *shellSurface,
                                Type type,
-                               QQuickItem *parent)
+                               QQuickItem *parent,
+                               bool isProxy)
     : QQuickItem(parent)
     , m_engine(qmlEngine)
     , m_shellSurface(shellSurface)
@@ -126,7 +127,7 @@ SurfaceWrapper::SurfaceWrapper(QmlEngine *qmlEngine,
 #endif
     }
 
-    if (type == Type::XWayland) {
+    if (type == Type::XWayland && !isProxy) {
         auto xwaylandSurface = qobject_cast<WXWaylandSurface *>(shellSurface);
         auto xwaylandSurfaceItem = qobject_cast<WXWaylandSurfaceItem*>(m_surfaceItem);
 
