@@ -38,7 +38,8 @@ void SurfaceProxy::setSurface(SurfaceWrapper *newSurface)
         m_proxySurface = new SurfaceWrapper(m_sourceSurface->m_engine,
                                             m_sourceSurface->m_shellSurface,
                                             m_sourceSurface->type(),
-                                            this);
+                                            this,
+                                            true);
         m_proxySurface->setTransformOrigin(QQuickItem::TransformOrigin::TopLeft);
         m_proxySurface->setFlag(ItemIsFocusScope);
         m_proxySurface->setContainer(newSurface->container());
