@@ -5,8 +5,15 @@
     nixpkgs.url = "github:NixOS/nixpkgs/master";
     flake-utils.url = "github:numtide/flake-utils";
     nix-filter.url = "github:numtide/nix-filter";
+    qwlroots = {
+      url = "github:vioken/qwlroots";
+      inputs.nixpkgs.follows = "nixpkgs";
+      inputs.flake-utils.follows = "flake-utils";
+      inputs.nix-filter.follows = "nix-filter";
+    };
     waylib = {
       url = "github:vioken/waylib";
+      inputs.qwlroots.follows = "qwlroots";
       inputs.nixpkgs.follows = "nixpkgs";
       inputs.flake-utils.follows = "flake-utils";
       inputs.nix-filter.follows = "nix-filter";
@@ -17,9 +24,15 @@
       inputs.flake-utils.follows = "flake-utils";
       inputs.nix-filter.follows = "nix-filter";
     };
+    treeland-protocols = {
+      url = "github:linuxdeepin/treeland-protocols";
+      inputs.nixpkgs.follows = "nixpkgs";
+      inputs.flake-utils.follows = "flake-utils";
+      inputs.nix-filter.follows = "nix-filter";
+    };
   };
 
-  outputs = { self, nixpkgs, flake-utils, nix-filter, waylib, ddm }@input:
+  outputs = { self, nixpkgs, flake-utils, nix-filter, waylib, ddm, qwlroots, treeland-protocols }@input:
     flake-utils.lib.eachSystem [ "x86_64-linux" "aarch64-linux" "riscv64-linux" ]
       (system:
         let
@@ -27,8 +40,10 @@
 
           treeland = pkgs.qt6Packages.callPackage ./nix {
             nix-filter = nix-filter.lib;
+            qwlroots = qwlroots.packages.${system}.default;
             waylib = waylib.packages.${system}.default;
             ddm = ddm.packages.${system}.default;
+            treeland-protocols = treeland-protocols.packages.${system}.default;
           };
         in
         {
