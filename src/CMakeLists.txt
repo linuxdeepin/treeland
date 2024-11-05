@@ -161,6 +161,7 @@ qt_add_qml_module(${BIN_NAME}
         qml/WindowSelectionGrid.qml
         qml/WorkspaceSelectionList.qml
         qml/FadeBehavior.qml
+        qml/CaptureSelectorLayer.qml
     RESOURCE_PREFIX
         /qt/qml
     OUTPUT_DIRECTORY
@@ -192,6 +193,7 @@ target_link_libraries(${BIN_NAME}
         virtual-output
         dde-shell
         capture
+        captureplugin
         config
 )
 

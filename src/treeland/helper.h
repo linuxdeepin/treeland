@@ -22,6 +22,7 @@ Q_MOC_INCLUDE(<qwoutputmanagementv1.h>)
 Q_MOC_INCLUDE("surfacewrapper.h")
 Q_MOC_INCLUDE("workspace.h")
 Q_MOC_INCLUDE("rootsurfacecontainer.h")
+Q_MOC_INCLUDE("capture.h")
 
 QT_BEGIN_NAMESPACE
 class QQuickItem;
@@ -72,6 +73,7 @@ class DDEShellManagerV1;
 class VirtualOutputV1;
 class ShellHandler;
 class PrimaryOutputV1;
+class CaptureSourceSelector;
 
 class Helper : public WSeatEventFilter
 {
@@ -290,6 +292,7 @@ private:
     std::optional<QPointF> m_fakelastPressedPosition;
 
     QPointer<Multitaskview> m_multitaskview;
+    QPointer<CaptureSourceSelector> m_captureSelector;
 
     QPropertyAnimation *m_workspaceScaleAnimation{ nullptr };
     QPropertyAnimation *m_workspaceOpacityAnimation{ nullptr };

@@ -5,9 +5,12 @@
 
 #include "impl/capturev1impl.h"
 
+#include <itemselector.h>
+
 #include <woutputitem.h>
 #include <woutputrenderwindow.h>
 #include <woutputviewport.h>
+#include <wquickcursor.h>
 #include <wquicktextureproxy.h>
 #include <wsgtextureprovider.h>
 #include <wtools.h>
@@ -173,6 +176,11 @@ QByteArrayView CaptureManagerV1::interfaceName() const
     return treeland_capture_manager_v1_interface.name;
 }
 
+QPointer<WToplevelSurface> CaptureManagerV1::maskShellSurface() const
+{
+    return m_maskShellSurface;
+}
+
 void CaptureManagerV1::create(WServer *server)
 {
     m_manager = new treeland_capture_manager_v1(server->handle()->handle(), this);
@@ -217,7 +225,7 @@ void CaptureManagerV1::onCaptureContextSelectSource()
     });
     m_contextInSelection = context;
     if (context->freeze()) {
-        toggleFreezeAllSurfaceItems(true);
+        freezeAllCapturedSurface(true, context->mask());
     }
     Q_EMIT contextInSelectionChanged();
 }
@@ -226,24 +234,35 @@ void CaptureManagerV1::clearContextInSelection(CaptureContextV1 *context)
 {
     if (m_contextInSelection == context) {
         if (m_contextInSelection->freeze()) {
-            toggleFreezeAllSurfaceItems(false);
+            freezeAllCapturedSurface(false, context->mask());
         }
         m_contextInSelection = nullptr;
         Q_EMIT contextInSelectionChanged();
     }
 }
 
-void CaptureManagerV1::toggleFreezeAllSurfaceItems(bool freeze)
+void CaptureManagerV1::freezeAllCapturedSurface(bool freeze, WSurface *mask)
 {
+    // Exclude cursor surface item and the mask
     Q_ASSERT(m_outputRenderWindow);
-    QQueue<QObject *> nodes;
-    nodes.enqueue(m_outputRenderWindow);
+    QQueue<QQuickItem *> nodes;
+    nodes.enqueue(m_outputRenderWindow->contentItem());
     while (!nodes.isEmpty()) {
         auto node = nodes.dequeue();
         if (auto content = qobject_cast<WSurfaceItemContent *>(node)) {
-            content->setLive(!freeze);
+            if (auto cursor = qobject_cast<WQuickCursor *>(node->parentItem())) {
+                if (freeze)
+                    m_frozenCursorPos = cursor->position(); // Just store position for cursor
+            } else if (!mask
+                       || (content->surface() != mask
+                           && !mask->subsurfaces().contains(content->surface()))) {
+                content->setLive(!freeze);
+            } else if (content->surface() == mask) {
+                m_maskShellSurface =
+                    qobject_cast<WSurfaceItem *>(content->parentItem())->shellSurface();
+            }
         }
-        for (auto child : node->children()) {
+        for (auto child : node->childItems()) {
             nodes.enqueue(child);
         }
     }
@@ -292,12 +311,21 @@ void CaptureContextModel::removeContext(CaptureContextV1 *context)
 
 CaptureSourceSelector::CaptureSourceSelector(QQuickItem *parent)
     : QQuickItem(parent)
+    , m_itemSelector(new ItemSelector(this))
 {
-    setAcceptHoverEvents(true);
     setAcceptedMouseButtons(Qt::LeftButton);
-    setKeepMouseGrab(true);
     setActiveFocusOnTab(false);
     setCursor(Qt::CrossCursor);
+    connect(m_itemSelector,
+            &ItemSelector::hoveredItemChanged,
+            this,
+            &CaptureSourceSelector::hoveredItemChanged,
+            Qt::UniqueConnection);
+    connect(m_itemSelector,
+            &ItemSelector::selectionRegionChanged,
+            this,
+            &CaptureSourceSelector::handleItemSelectorSelectionRegionChanged,
+            Qt::UniqueConnection);
 }
 
 void CaptureSourceSelector::doneSelection()
@@ -309,14 +337,14 @@ void CaptureSourceSelector::doneSelection()
         if (auto surfaceItem = qobject_cast<WSurfaceItem *>(hoveredItem())) {
             setSelectedSource(new CaptureSourceSurface(surfaceItem));
         } else if (auto outputItem = qobject_cast<WOutputItem *>(hoveredItem())) {
-            auto viewport = outputItem->property("onscreenViewport").value<WOutputViewport *>();
+            auto viewport = outputItem->property("screenViewport").value<WOutputViewport *>();
             if (viewport) {
                 setSelectedSource(new CaptureSourceOutput(viewport));
             }
         }
     } else {
         auto outputItem = qobject_cast<WOutputItem *>(hoveredItem());
-        auto viewport = outputItem->property("onscreenViewport").value<WOutputViewport *>();
+        auto viewport = outputItem->property("screenViewport").value<WOutputViewport *>();
         if (viewport) {
             setSelectedSource(
                 new CaptureSourceRegion(viewport,
@@ -330,22 +358,9 @@ wl_global *CaptureManagerV1::global() const
     return m_manager->global;
 }
 
-void CaptureSourceSelector::hoverMoveEvent(QHoverEvent *event)
-{
-    checkHoveredItem(event->position());
-}
-
 QQuickItem *CaptureSourceSelector::hoveredItem() const
 {
-    return m_hoveredItem;
-}
-
-void CaptureSourceSelector::setHoveredItem(QQuickItem *newHoveredItem)
-{
-    if (m_hoveredItem == newHoveredItem)
-        return;
-    m_hoveredItem = newHoveredItem;
-    Q_EMIT hoveredItemChanged();
+    return m_itemSelector->hoveredItem();
 }
 
 bool CaptureSourceSelector::itemSelectionMode() const
@@ -358,36 +373,21 @@ void CaptureSourceSelector::setItemSelectionMode(bool itemSelection)
     if (m_itemSelectionMode == itemSelection)
         return;
     m_itemSelectionMode = itemSelection;
-    Q_EMIT itemSelectionModeChanged();
-}
-
-void CaptureSourceSelector::checkHoveredItem(QPointF pos)
-{
-    for (auto it = m_selectableItems.crbegin(); it != m_selectableItems.crend(); it++) {
-        if (!itemSelectionMode() && !qobject_cast<WOutputItem *>(*it))
-            continue;
-        auto itemRect = (*it)->mapRectToItem(this, (*it)->boundingRect());
-        auto detectionRect = itemRect;
-        if (qobject_cast<WSurfaceItem *>((*it)->parentItem())
-            && (*it)->objectName() == DECORATION) {
-            for (const auto &child : (*it)->childItems()) {
-                if (child->objectName() == TITLEBAR) {
-                    detectionRect = child->mapRectToItem(this, child->boundingRect());
-                }
-            }
-        } else if (auto surfaceItem = qobject_cast<WSurfaceItem *>(*it)) {
-            if (surfaceItem->contentItem()) {
-                detectionRect = surfaceItem->contentItem()->mapRectToItem(
-                    this,
-                    surfaceItem->contentItem()->boundingRect());
-                itemRect = detectionRect;
-            }
-        }
-        if (detectionRect.contains(pos)) {
-            setHoveredItem(*it);
-            setSelectionRegion(itemRect);
-            break;
-        }
+    if (m_itemSelectionMode) {
+        // Let item selector do the job
+        m_itemSelector->setSelectionTypeHint(ItemSelector::Output | ItemSelector::Window
+                                             | ItemSelector::Surface);
+        connect(m_itemSelector,
+                &ItemSelector::selectionRegionChanged,
+                this,
+                &CaptureSourceSelector::handleItemSelectorSelectionRegionChanged,
+                Qt::UniqueConnection);
+    } else {
+        disconnect(m_itemSelector,
+                   &ItemSelector::selectionRegionChanged,
+                   this,
+                   &CaptureSourceSelector::handleItemSelectorSelectionRegionChanged);
+        m_itemSelector->setSelectionTypeHint(ItemSelector::Output);
     }
 }
 
@@ -484,29 +484,11 @@ QDebug operator<<(QDebug debug, CaptureSource &captureSource)
 
 void CaptureSourceSelector::componentComplete()
 {
-    m_captureManager = qmlEngine(this)->singletonInstance<CaptureManagerV1 *>("Treeland.Protocols",
-                                                                              "CaptureManagerV1");
-    Q_ASSERT(window());
-    auto renderWindow = qobject_cast<WOutputRenderWindow *>(window());
-    m_selectableItems = WOutputRenderWindow::paintOrderItemList(
-        renderWindow->contentItem(),
-        [this](QQuickItem *item) {
-            auto context = m_captureManager->contextInSelection();
-            auto sourceHint = context->sourceHint();
-            if (auto viewport = qobject_cast<WOutputItem *>(item)
-                    && sourceHint.testFlag(CaptureSource::Output)) {
-                return true;
-            } else if (auto surfaceItem = qobject_cast<WSurfaceItem *>(item)
-                           && sourceHint.testFlag(CaptureSource::Window)) {
-                return true;
-            } else if (qobject_cast<WSurfaceItem *>(item->parentItem())
-                       && item->objectName() == DECORATION
-                       && sourceHint.testFlag(CaptureSource::Window)) {
-                return true;
-            } else {
-                return false;
-            }
-        });
+    // Notify mask size now
+    if (m_captureManager->maskShellSurface()) {
+        // TODO: reparent to capture source selector
+        m_captureManager->maskShellSurface()->resize(size().toSize());
+    }
     QQuickItem::componentComplete();
 }
 
@@ -527,8 +509,6 @@ void CaptureSourceSelector::mouseReleaseEvent(QMouseEvent *event)
     doneSelection();
 }
 
-void CaptureSourceSelector::releaseResources() { }
-
 QRectF CaptureSourceSelector::selectionRegion() const
 {
     return m_selectionRegion;
@@ -540,6 +520,11 @@ void CaptureSourceSelector::setSelectionRegion(const QRectF &newSelectionRegion)
         return;
     m_selectionRegion = newSelectionRegion;
     Q_EMIT selectionRegionChanged();
+}
+
+void CaptureSourceSelector::handleItemSelectorSelectionRegionChanged()
+{
+    setSelectionRegion(m_itemSelector->selectionRegion());
 }
 
 CaptureSource::CaptureSource(WTextureProviderProvider *textureProvider, QObject *parent)
@@ -630,4 +615,12 @@ QRect CaptureSourceRegion::captureRegion()
 CaptureSource::CaptureSourceType CaptureSourceRegion::sourceType()
 {
     return CaptureSource::Region;
+}
+
+void CaptureSourceSelector::geometryChange(const QRectF &newGeometry, const QRectF &oldGeometry)
+{
+    if (m_captureManager->maskShellSurface()) {
+        m_captureManager->maskShellSurface()->resize(newGeometry.size().toSize());
+    }
+    QQuickItem::geometryChange(newGeometry, oldGeometry);
 }
