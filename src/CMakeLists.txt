@@ -22,7 +22,7 @@ add_subdirectory(greeter)
 add_subdirectory(treeland-wallpaper)
 add_subdirectory(treeland-shortcut)
 
-qt_add_dbus_adaptor(DBUS_ADAPTOR "${CMAKE_SOURCE_DIR}/misc/dbus/org.deepin.compositor1.xml" "treeland.h" TreeLand::TreeLand)
+qt_add_dbus_adaptor(DBUS_ADAPTOR "${CMAKE_SOURCE_DIR}/misc/dbus/org.deepin.compositor1.xml" "treeland.h" Treeland::Treeland)
 
 qt_add_library(config
     STATIC

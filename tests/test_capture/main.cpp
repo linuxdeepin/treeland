@@ -9,8 +9,8 @@
 int main(int argc, char *argv[])
 {
     QGuiApplication app(argc, argv);
-    TreeLandCaptureManager manager;
-    QObject::connect(&manager, &TreeLandCaptureManager::activeChanged, &manager, [&app, &manager] {
+    TreelandCaptureManager manager;
+    QObject::connect(&manager, &TreelandCaptureManager::activeChanged, &manager, [&app, &manager] {
         auto captureContext = manager.getContext();
         if (!captureContext) {
             app.exit(-1);
@@ -18,17 +18,17 @@ int main(int argc, char *argv[])
         captureContext->selectSource(0x1 | 0x2 | 0x4, true, false, nullptr);
         QEventLoop loop;
         QObject::connect(captureContext,
-                         &TreeLandCaptureContext::sourceReady,
+                         &TreelandCaptureContext::sourceReady,
                          &loop,
                          &QEventLoop::quit);
         loop.exec();
         auto frame = captureContext->frame();
         QImage result;
-        QObject::connect(frame, &TreeLandCaptureFrame::ready, &app, [&result, &loop](QImage image) {
+        QObject::connect(frame, &TreelandCaptureFrame::ready, &app, [&result, &loop](QImage image) {
             result = image;
             loop.quit();
         });
-        QObject::connect(frame, &TreeLandCaptureFrame::failed, &app, [&loop] {
+        QObject::connect(frame, &TreelandCaptureFrame::failed, &app, [&loop] {
             loop.quit();
         });
         loop.exec();

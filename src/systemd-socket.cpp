@@ -24,7 +24,7 @@ int main(int argc, char *argv[])
     QCoreApplication app(argc, argv);
 
     QCommandLineParser parser;
-    parser.setApplicationDescription("TreeLand socket helper");
+    parser.setApplicationDescription("Treeland socket helper");
     parser.addHelpOption();
     parser.addVersionOption();
 

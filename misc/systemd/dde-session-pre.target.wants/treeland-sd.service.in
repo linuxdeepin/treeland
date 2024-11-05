@@ -1,5 +1,5 @@
 [Unit]
-Description=TreeLand socket helper service
+Description=Treeland socket helper service
 CollectMode=inactive-or-failed
 
 Requires=treeland.service
@@ -15,7 +15,7 @@ PartOf=dde-session-pre.target
 Before=dde-session-pre.target
 
 [Service]
-ExecCondition=/bin/sh -c 'test "$DDE_CURRENT_COMPOSITOR" = "TreeLand" || exit 2'
+ExecCondition=/bin/sh -c 'test "$DDE_CURRENT_COMPOSITOR" = "Treeland" || exit 2'
 Type=notify
 Sockets=treeland-sd.socket
 UnsetEnvironment=DISPLAY

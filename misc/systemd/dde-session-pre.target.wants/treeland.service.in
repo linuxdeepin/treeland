@@ -1,5 +1,5 @@
 [Unit]
-Description=TreeLand session service
+Description=Treeland session service
 StartLimitBurst=60
 CollectMode=inactive-or-failed
 
@@ -26,7 +26,7 @@ BusName=org.deepin.Compositor1
 UnsetEnvironment=DISPLAY
 UnsetEnvironment=WAYLAND_DISPLAY
 ExecStart=@CMAKE_INSTALL_FULL_BINDIR@/treeland
-ExecStartPost=-/usr/bin/systemctl --user set-environment DDE_CURRENT_COMPOSITOR=TreeLand
+ExecStartPost=-/usr/bin/systemctl --user set-environment DDE_CURRENT_COMPOSITOR=Treeland
 ExecStop=-/usr/bin/systemctl --user unset-environment DDE_CURRENT_COMPOSITOR
 Slice=session.slice
 Restart=on-failure
