@@ -20,28 +20,28 @@ inline QPointer<QtWaylandClient::QWaylandDisplay> waylandDisplay()
     return waylandIntegration()->display();
 }
 
-void destruct_treeland_capture_manager(TreeLandCaptureManager *manager)
+void destruct_treeland_capture_manager(TreelandCaptureManager *manager)
 {
     qDeleteAll(manager->captureContexts);
     manager->captureContexts.clear();
 }
 
-QPointer<TreeLandCaptureContext> TreeLandCaptureManager::getContext()
+QPointer<TreelandCaptureContext> TreelandCaptureManager::getContext()
 {
     auto context = get_context();
-    auto captureContext = new TreeLandCaptureContext(context);
+    auto captureContext = new TreelandCaptureContext(context);
     captureContexts.append(captureContext);
     return captureContext;
 }
 
-TreeLandCaptureContext::TreeLandCaptureContext(struct ::treeland_capture_context_v1 *object)
+TreelandCaptureContext::TreelandCaptureContext(struct ::treeland_capture_context_v1 *object)
     : QObject()
     , QtWayland::treeland_capture_context_v1(object)
     , m_captureFrame(nullptr)
 {
 }
 
-void TreeLandCaptureContext::treeland_capture_context_v1_source_ready(int32_t region_x,
+void TreelandCaptureContext::treeland_capture_context_v1_source_ready(int32_t region_x,
                                                                       int32_t region_y,
                                                                       uint32_t region_width,
                                                                       uint32_t region_height,
@@ -50,21 +50,21 @@ void TreeLandCaptureContext::treeland_capture_context_v1_source_ready(int32_t re
     Q_EMIT sourceReady(QRect(region_x, region_y, region_width, region_height), source_type);
 }
 
-void TreeLandCaptureContext::treeland_capture_context_v1_source_failed(uint32_t reason)
+void TreelandCaptureContext::treeland_capture_context_v1_source_failed(uint32_t reason)
 {
     Q_EMIT sourceFailed(reason);
 }
 
-QPointer<TreeLandCaptureFrame> TreeLandCaptureContext::frame()
+QPointer<TreelandCaptureFrame> TreelandCaptureContext::frame()
 {
     if (m_captureFrame)
         return m_captureFrame;
     auto capture_frame = capture();
-    m_captureFrame = new TreeLandCaptureFrame(capture_frame);
+    m_captureFrame = new TreelandCaptureFrame(capture_frame);
     return m_captureFrame;
 }
 
-void TreeLandCaptureContext::selectSource(uint32_t sourceHint,
+void TreelandCaptureContext::selectSource(uint32_t sourceHint,
                                           bool freeze,
                                           bool withCursor,
                                           ::wl_surface *mask)
@@ -72,7 +72,7 @@ void TreeLandCaptureContext::selectSource(uint32_t sourceHint,
     select_source(sourceHint, freeze, withCursor, mask);
 }
 
-void TreeLandCaptureContext::releaseCaptureFrame()
+void TreelandCaptureContext::releaseCaptureFrame()
 {
     if (m_captureFrame) {
         delete m_captureFrame;
@@ -80,7 +80,7 @@ void TreeLandCaptureContext::releaseCaptureFrame()
     }
 }
 
-void TreeLandCaptureFrame::treeland_capture_frame_v1_buffer(uint32_t format,
+void TreelandCaptureFrame::treeland_capture_frame_v1_buffer(uint32_t format,
                                                             uint32_t width,
                                                             uint32_t height,
                                                             uint32_t stride)
@@ -101,12 +101,12 @@ void TreeLandCaptureFrame::treeland_capture_frame_v1_buffer(uint32_t format,
     copy(m_pendingShmBuffer->buffer());
 }
 
-void TreeLandCaptureFrame::treeland_capture_frame_v1_flags(uint32_t flags)
+void TreelandCaptureFrame::treeland_capture_frame_v1_flags(uint32_t flags)
 {
     m_flags = flags;
 }
 
-void TreeLandCaptureFrame::treeland_capture_frame_v1_ready()
+void TreelandCaptureFrame::treeland_capture_frame_v1_ready()
 {
     if (m_shmBuffer)
         delete m_shmBuffer;
@@ -115,12 +115,12 @@ void TreeLandCaptureFrame::treeland_capture_frame_v1_ready()
     Q_EMIT ready(*m_shmBuffer->image());
 }
 
-void TreeLandCaptureFrame::treeland_capture_frame_v1_failed()
+void TreelandCaptureFrame::treeland_capture_frame_v1_failed()
 {
     Q_EMIT failed();
 }
 
-void TreeLandCaptureManager::releaseCaptureContext(QPointer<TreeLandCaptureContext> context)
+void TreelandCaptureManager::releaseCaptureContext(QPointer<TreelandCaptureContext> context)
 {
     for (const auto &entry : captureContexts) {
         if (entry == context.data()) {

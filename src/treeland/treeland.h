@@ -14,16 +14,16 @@
 class QLocalSocket;
 class Helper;
 
-namespace TreeLand {
+namespace Treeland {
 
-class TreeLand
+class Treeland
     : public QObject
     , protected QDBusContext
 {
     Q_OBJECT
 
 public:
-    explicit TreeLand(Helper *helper);
+    explicit Treeland(Helper *helper);
 
     Q_INVOKABLE void retranslate() noexcept;
 
@@ -51,4 +51,4 @@ private:
     QMap<QString, std::shared_ptr<WAYLIB_SERVER_NAMESPACE::WSocket>> m_userWaylandSocket;
     QMap<QString, std::shared_ptr<QDBusUnixFileDescriptor>> m_userDisplayFds;
 };
-} // namespace TreeLand
+} // namespace Treeland

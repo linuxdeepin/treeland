@@ -27,16 +27,16 @@ Q_LOGGING_CATEGORY(dbus, "treeland.dbus", QtDebugMsg);
 using namespace DDM;
 DCORE_USE_NAMESPACE;
 
-namespace TreeLand {
-TreeLand::TreeLand(Helper *helper)
+namespace Treeland {
+Treeland::Treeland(Helper *helper)
     : QObject()
     , m_helper(helper)
     , m_socket(new QLocalSocket(this))
 {
-    connect(m_socket, &QLocalSocket::connected, this, &TreeLand::connected);
-    connect(m_socket, &QLocalSocket::disconnected, this, &TreeLand::disconnected);
-    connect(m_socket, &QLocalSocket::readyRead, this, &TreeLand::readyRead);
-    connect(m_socket, &QLocalSocket::errorOccurred, this, &TreeLand::error);
+    connect(m_socket, &QLocalSocket::connected, this, &Treeland::connected);
+    connect(m_socket, &QLocalSocket::disconnected, this, &Treeland::disconnected);
+    connect(m_socket, &QLocalSocket::readyRead, this, &Treeland::readyRead);
+    connect(m_socket, &QLocalSocket::errorOccurred, this, &Treeland::error);
 
     if (CmdLine::ref().socket().has_value()) {
         new DDM::SignalHandler(this);
@@ -64,7 +64,7 @@ TreeLand::TreeLand(Helper *helper)
                 auto envs = QProcessEnvironment::systemEnvironment();
                 envs.insert("WAYLAND_DISPLAY", m_helper->defaultWaylandSocket()->fullServerName());
                 envs.insert("DISPLAY", m_helper->defaultXWaylandSocket()->displayName());
-                envs.insert("DDE_CURRENT_COMPOSITOR", "TreeLand");
+                envs.insert("DDE_CURRENT_COMPOSITOR", "Treeland");
 
                 QProcess process;
                 process.setProgram(cmdArgs.constFirst());
@@ -96,12 +96,12 @@ TreeLand::TreeLand(Helper *helper)
     QDBusConnection::sessionBus().registerObject("/org/deepin/Compositor1", this);
 }
 
-bool TreeLand::testMode() const
+bool Treeland::testMode() const
 {
     return !CmdLine::ref().socket().has_value();
 }
 
-bool TreeLand::debugMode() const
+bool Treeland::debugMode() const
 {
 #ifdef QT_DEBUG
     return true;
@@ -110,7 +110,7 @@ bool TreeLand::debugMode() const
     return qEnvironmentVariableIsSet("TREELAND_ENABLE_DEBUG");
 }
 
-void TreeLand::connected()
+void Treeland::connected()
 {
     // log connection
     qCDebug(dbus) << "Connected to the daemon.";
@@ -119,12 +119,12 @@ void TreeLand::connected()
     DDM::SocketWriter(m_socket) << quint32(DDM::GreeterMessages::Connect);
 }
 
-void TreeLand::retranslate() noexcept
+void Treeland::retranslate() noexcept
 {
     // m_engine->retranslate();
 }
 
-void TreeLand::disconnected()
+void Treeland::disconnected()
 {
     // log disconnection
     qCDebug(dbus) << "Disconnected from the daemon.";
@@ -135,12 +135,12 @@ void TreeLand::disconnected()
     qApp->exit();
 }
 
-void TreeLand::error()
+void Treeland::error()
 {
     qCritical() << "Socket error: " << m_socket->errorString();
 }
 
-void TreeLand::readyRead()
+void Treeland::readyRead()
 {
     // input stream
     QDataStream input(m_socket);
@@ -176,7 +176,7 @@ void TreeLand::readyRead()
     }
 }
 
-bool TreeLand::ActivateWayland(QDBusUnixFileDescriptor _fd)
+bool Treeland::ActivateWayland(QDBusUnixFileDescriptor _fd)
 {
     if (!_fd.isValid()) {
         return false;
@@ -211,7 +211,7 @@ bool TreeLand::ActivateWayland(QDBusUnixFileDescriptor _fd)
     return true;
 }
 
-QString TreeLand::XWaylandName()
+QString Treeland::XWaylandName()
 {
     setDelayedReply(true);
 
@@ -260,4 +260,4 @@ QString TreeLand::XWaylandName()
     return {};
 }
 
-} // namespace TreeLand
+} // namespace Treeland

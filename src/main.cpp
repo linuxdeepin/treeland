@@ -62,7 +62,7 @@ int main(int argc, char *argv[])
                                  "TreelandConfig",
                                  &TreelandConfig::ref()); // Inject treeland config singleton.
 
-    TreeLand::TreeLand treeland(helper);
+    Treeland::Treeland treeland(helper);
 
     int quitCode = app.exec();
 

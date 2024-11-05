@@ -1,5 +1,5 @@
 [Unit]
-Description=TreeLand shortcut service
+Description=Treeland shortcut service
 CollectMode=inactive-or-failed
 
 Requires=treeland-sd.service
@@ -11,7 +11,7 @@ PartOf=dde-session-pre.target
 Before=dde-session-pre.target
 
 [Service]
-ExecCondition=/bin/sh -c 'test "$DDE_CURRENT_COMPOSITOR" = "TreeLand" || exit 2'
+ExecCondition=/bin/sh -c 'test "$DDE_CURRENT_COMPOSITOR" = "Treeland" || exit 2'
 Type=notify
 ExecStart=@CMAKE_INSTALL_FULL_LIBEXECDIR@/treeland-shortcut
 Slice=session.slice
