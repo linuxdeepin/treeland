@@ -608,7 +608,21 @@ void Helper::init()
     m_windowManagement = m_server->attach<WindowManagementV1>();
     m_virtualOutput = m_server->attach<VirtualOutputV1>();
     m_shortcut = m_server->attach<ShortcutV1>();
-    m_server->attach<CaptureManagerV1>();
+    auto captureManagerV1 = m_server->attach<CaptureManagerV1>();
+    captureManagerV1->setOutputRenderWindow(m_renderWindow);
+
+    connect(
+        captureManagerV1,
+        &CaptureManagerV1::contextInSelectionChanged,
+        this,
+        [this, captureManagerV1] {
+            if (captureManagerV1->contextInSelection()) {
+                m_captureSelector = qobject_cast<CaptureSourceSelector *>(
+                    qmlEngine()->createCaptureSelector(m_rootSurfaceContainer, captureManagerV1));
+            } else if (m_captureSelector) {
+                m_captureSelector->deleteLater();
+            }
+        });
     m_personalization = m_server->attach<PersonalizationV1>();
     m_personalization->setUserId(m_currentUserId);
 

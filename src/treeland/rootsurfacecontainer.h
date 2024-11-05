@@ -47,7 +47,8 @@ public:
         TaskBarZOrder = 4,
         MenuBarZOrder = 4,
         PopupZOrder = 5,
-        LockScreenZOrder = 6,
+        CaptureLayerZOrder = 6,
+        LockScreenZOrder = 7,
     };
 
     SurfaceWrapper *getSurface(WSurface *surface) const;

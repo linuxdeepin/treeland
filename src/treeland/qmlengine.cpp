@@ -3,6 +3,7 @@
 
 #include "qmlengine.h"
 
+#include "capture.h"
 #include "output.h"
 #include "surfacewrapper.h"
 #include "wallpaperprovider.h"
@@ -33,6 +34,7 @@ QmlEngine::QmlEngine(QObject *parent)
     , minimizeAnimationComponent(this, "Treeland", "MinimizeAnimation")
     , showDesktopAnimatioComponentn(this, "Treeland", "ShowDesktopAnimation")
     , multitaskViewComponent(this, "Treeland", "MultitaskviewProxy")
+    , captureSelectorComponent(this, "Treeland", "CaptureSelectorLayer")
     , blurComponent(this, "Treeland", "Blur")
     , launchpadAnimationComponent(this, "Treeland", "LaunchpadAnimation")
     , launchpadCoverComponent(this, "Treeland", "LaunchpadCover")
@@ -244,6 +246,13 @@ QQuickItem *QmlEngine::createMultitaskview(QQuickItem *parent)
     item->setHeight(parent->height());
     item->setClip(true);
     return item;
+}
+
+QQuickItem *QmlEngine::createCaptureSelector(QQuickItem *parent, CaptureManagerV1 *captureManager)
+{
+    return createComponent(captureSelectorComponent,
+                           parent,
+                           { { "captureManager", QVariant::fromValue(captureManager) } });
 }
 
 WallpaperImageProvider *QmlEngine::wallpaperImageProvider()
