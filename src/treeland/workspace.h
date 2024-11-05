@@ -43,7 +43,8 @@ public:
     Q_INVOKABLE void moveSurfaceTo(SurfaceWrapper *surface, int workspaceId = -1);
     Q_INVOKABLE void moveSurfaceToNextWorkspace(SurfaceWrapper *surface);
     Q_INVOKABLE void moveSurfaceToPrevWorkspace(SurfaceWrapper *surface);
-    void addSurface(SurfaceWrapper *surface, int workspaceId = -1);
+    void addSurface(SurfaceWrapper *surface, int workspaceId);
+    void addSurface(SurfaceWrapper *surface) override;
     Q_INVOKABLE void moveModelTo(int workspaceId, int destinationIndex);
 
     void removeSurface(SurfaceWrapper *surface) override;
