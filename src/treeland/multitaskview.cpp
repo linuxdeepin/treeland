@@ -494,8 +494,6 @@ void MultitaskviewSurfaceModel::handleSurfaceAdded(SurfaceWrapper *surface)
 
 void MultitaskviewSurfaceModel::handleSurfaceRemoved(SurfaceWrapper *surface)
 {
-    if (!Helper::instance()->surfaceBelongsToCurrentUser(surface))
-        return;
     auto toBeRemovedIt =
         std::find_if(m_data.begin(), m_data.end(), [surface](ModelDataPtr modelData) {
             return modelData->wrapper == surface;
