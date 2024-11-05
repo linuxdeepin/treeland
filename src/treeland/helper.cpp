@@ -893,7 +893,7 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *, QInputEvent *event)
                 m_activatedSurface->requestCancelMaximize();
                 return true;
             }
-        } else if (kevent->key() == Qt::Key_Alt) {
+        } else if (kevent->key() == Qt::Key_Alt || kevent->key() == Qt::Key_Meta) {
             if (m_taskSwitch.isNull()) {
                 auto contentItem = window()->contentItem();
                 auto output = rootContainer()->primaryOutput();
@@ -929,7 +929,8 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *, QInputEvent *event)
                 if (event->modifiers() == Qt::AltModifier) {
                     QMetaObject::invokeMethod(m_taskSwitch, "next");
                     return true;
-                } else if (event->modifiers() == (Qt::AltModifier | Qt::ShiftModifier)) {
+                } else if (event->modifiers() == (Qt::AltModifier | Qt::ShiftModifier) ||
+                           event->modifiers() == (Qt::AltModifier | Qt::MetaModifier | Qt::ShiftModifier)) {
                     QMetaObject::invokeMethod(m_taskSwitch, "previous");
                     return true;
                 }
@@ -957,7 +958,7 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *, QInputEvent *event)
         if (m_taskSwitch && m_taskSwitch->property("switchOn").toBool()) {
             auto kevent = static_cast<QKeyEvent *>(event);
 
-            if (kevent->key() == Qt::Key_Alt) {
+            if (kevent->key() == Qt::Key_Alt || kevent->key() == Qt::Key_Meta) {
                 auto filter = Helper::instance()->workspace()->currentFilter();
                 filter->setFilterAppId("");
                 QMetaObject::invokeMethod(m_taskSwitch, "exit");
