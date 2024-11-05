@@ -109,7 +109,8 @@ public:
     explicit SurfaceWrapper(QmlEngine *qmlEngine,
                             WToplevelSurface *shellSurface,
                             Type type,
-                            QQuickItem *parent = nullptr);
+                            QQuickItem *parent = nullptr,
+                            bool isProxy = false);
     ~SurfaceWrapper();
 
     void setFocus(bool focus, Qt::FocusReason reason);
