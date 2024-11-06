@@ -65,7 +65,8 @@ void ItemSelector::setSelectionTypeHint(ItemTypes newSelectionTypeHint)
 
 void ItemSelector::updateSelectableItems()
 {
-    Q_ASSERT(window());
+    if (!window())
+        return;
     auto renderWindow = qobject_cast<WOutputRenderWindow *>(window());
     m_selectableItems = WOutputRenderWindow::paintOrderItemList(
         renderWindow->contentItem(),
@@ -92,13 +93,18 @@ void ItemSelector::hoverMoveEvent(QHoverEvent *event)
 
 void ItemSelector::checkHoveredItem(QPointF pos)
 {
-    for (auto it = m_selectableItems.crbegin(); it != m_selectableItems.crend(); it++) {
+    decltype(m_selectableItems.crbegin()) it;
+    for (it = m_selectableItems.crbegin(); it != m_selectableItems.crend(); it++) {
         auto itemRect = (*it)->mapRectToItem(this, (*it)->boundingRect());
         if (itemRect.contains(pos)) {
             setHoveredItem(*it);
             setSelectionRegion(itemRect);
             break;
         }
+    }
+    if (it == m_selectableItems.crend()) {
+        setHoveredItem(nullptr);
+        setSelectionRegion({});
     }
 }
 

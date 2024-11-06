@@ -20,6 +20,7 @@
 #include "surfacewrapper.h"
 #include "treelandconfig.h"
 #include "wallpapercolor.h"
+#include "windowpicker.h"
 #include "workspace.h"
 
 #include <WBackend>
@@ -575,6 +576,7 @@ void Helper::init()
             &DDEShellManagerV1::toggleMultitaskview,
             this,
             qOverload<>(&Helper::toggleMultitaskview));
+    connect(m_ddeShellV1, &DDEShellManagerV1::requestPickWindow, this, &Helper::handleWindowPicker);
     m_shellHandler->createComponent(engine);
     m_shellHandler->initXdgShell(m_server, m_ddeShellV1);
     m_shellHandler->initLayerShell(m_server);
@@ -1471,6 +1473,30 @@ bool Helper::isLaunchpad(WLayerSurface *surface) const
     auto scope = QString(surface->handle()->handle()->scope);
 
     return scope == "dde-shell/launchpad";
+}
+
+void Helper::handleWindowPicker(treeland_window_picker_v1 *picker)
+{
+    connect(picker, &treeland_window_picker_v1::pick, this, [this, picker](const QString &hint) {
+        auto windowPicker =
+            qobject_cast<WindowPicker *>(qmlEngine()->createWindowPicker(m_rootSurfaceContainer));
+        windowPicker->setHint(hint);
+        connect(windowPicker,
+                &WindowPicker::windowPicked,
+                this,
+                [this, picker, windowPicker](WSurfaceItem *surfaceItem) {
+                    if (surfaceItem) {
+                        auto credentials = WClient::getCredentials(
+                            surfaceItem->surface()->waylandClient()->handle());
+                        picker->send_window(credentials->pid);
+                        windowPicker->deleteLater();
+                    }
+                });
+        connect(picker,
+                &treeland_window_picker_v1::before_destroy,
+                windowPicker,
+                &WindowPicker::deleteLater);
+    });
 }
 
 WSeat *Helper::seat() const

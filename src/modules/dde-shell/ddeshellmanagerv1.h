@@ -89,6 +89,7 @@ public:
 
 Q_SIGNALS:
     void toggleMultitaskview();
+    void requestPickWindow(treeland_window_picker_v1 *picker);
 
 protected:
     void create(WServer *server) override;

@@ -133,6 +133,10 @@ void DDEShellManagerV1::create(WServer *server)
                         this,
                         &DDEShellManagerV1::toggleMultitaskview);
             });
+    connect(m_manager,
+            &treeland_dde_shell_manager_v1::windowPickerCreated,
+            this,
+            &DDEShellManagerV1::requestPickWindow);
 }
 
 void DDEShellManagerV1::checkRegionalConflict(const QRegion &region)
