@@ -98,7 +98,10 @@ SurfaceWrapper::SurfaceWrapper(QmlEngine *qmlEngine,
             shellSurface->safeConnect(&WToplevelSurface::requestShowWindowMenu,
                                       this,
                                       [this](WSeat *, QPoint pos, quint32) {
-                                          Q_EMIT requestShowWindowMenu(pos);
+                                          Q_EMIT requestShowWindowMenu({
+                                            pos.x() + m_surfaceItem->leftPadding(),
+                                            pos.y() + m_surfaceItem->topPadding()
+                                          });
                                       });
         }
     }

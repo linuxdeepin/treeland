@@ -310,7 +310,7 @@ void ShellHandler::setupSurfaceWindowMenu(SurfaceWrapper *wrapper)
     connect(wrapper,
             &SurfaceWrapper::requestShowWindowMenu,
             m_windowMenu,
-            [this, wrapper](QPoint pos) {
+            [this, wrapper](QPointF pos) {
                 QMetaObject::invokeMethod(m_windowMenu,
                                           "showWindowMenu",
                                           QVariant::fromValue(wrapper),
