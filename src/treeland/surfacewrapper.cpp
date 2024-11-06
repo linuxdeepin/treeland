@@ -661,8 +661,18 @@ void SurfaceWrapper::createNewOrClose(uint direction)
     }
 
     if (m_windowAnimation) {
-        bool ok =
-            connect(m_windowAnimation, SIGNAL(finished()), this, SLOT(onWindowAnimationFinished()));
+        bool ok = false;
+        if (direction == OPEN_ANIMATION) {
+            ok = connect(m_windowAnimation,
+                         SIGNAL(finished()),
+                         this,
+                         SLOT(onShowAnimationFinished()));
+        } else {
+            ok = connect(m_windowAnimation,
+                         SIGNAL(finished()),
+                         this,
+                         SLOT(onHideAnimationFinished()));
+        }
         Q_ASSERT(ok);
         setDecorationShadowOpacity(0);
         ok = QMetaObject::invokeMethod(m_windowAnimation, "start");
@@ -774,12 +784,30 @@ void SurfaceWrapper::onWindowAnimationFinished()
 
     Q_EMIT windowAnimationRunningChanged();
 
+    setDecorationShadowOpacity(m_decorationShadowOpacity);
+}
+
+void SurfaceWrapper::onShowAnimationFinished()
+{
+    onWindowAnimationFinished();
+}
+
+void SurfaceWrapper::onHideAnimationFinished()
+{
+    if (m_blurContent) {
+        m_blurContent->setVisible(false);
+    }
+
+    if (m_coverContent) {
+        m_coverContent->setVisible(false);
+    }
+
+    onWindowAnimationFinished();
+
     if (m_removeWrapperEndOfAnimation) {
         m_removeWrapperEndOfAnimation = false;
         delete this;
     }
-
-    setDecorationShadowOpacity(m_decorationShadowOpacity);
 }
 
 void SurfaceWrapper::onMappedChanged()
@@ -787,17 +815,18 @@ void SurfaceWrapper::onMappedChanged()
     if (!m_isProxy) {
         if (surface()->mapped()) {
             createNewOrClose(OPEN_ANIMATION);
+            if (m_blurContent) {
+                m_blurContent->setVisible(true);
+            }
+            if (m_coverContent) {
+                m_coverContent->setVisible(true);
+            }
         } else {
             createNewOrClose(CLOSE_ANIMATION);
         }
     }
 
-    if (m_blurContent) {
-        m_blurContent->setVisible(surface()->mapped());
-    }
-
     if (m_coverContent) {
-        m_coverContent->setVisible(surface()->mapped());
         m_coverContent->setProperty("mapped", surface()->mapped());
     }
 
@@ -850,7 +879,10 @@ void SurfaceWrapper::startShowDesktopAnimation(bool show)
         return;
 
     m_showDesktopAnimation = m_engine->createShowDesktopAnimation(this, container(), show);
-    bool ok = connect(m_showDesktopAnimation, SIGNAL(finished()), this, SLOT(onShowDesktopAnimationFinished()));
+    bool ok = connect(m_showDesktopAnimation,
+                      SIGNAL(finished()),
+                      this,
+                      SLOT(onShowDesktopAnimationFinished()));
     Q_ASSERT(ok);
     ok = QMetaObject::invokeMethod(m_showDesktopAnimation, "start");
     Q_ASSERT(ok);
