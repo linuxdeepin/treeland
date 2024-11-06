@@ -314,14 +314,12 @@ Item {
     }
 
     function getWidth(removing) {
-        let tooltipWidth = Math.min(tooltipMetrics.width + 10, root.outPutSize.width);
-        let width = 0
-        var reseverWidth = listview.orientation === ListView.Horizontal ? -listview.spacing : 0
-
-        let onlyRemove = false;
-
+        let tooltipWidth = Math.min(tooltipMetrics.width + listview.spacing * 2, root.outPutSize.width);
         if (removing && root.isTooltip)
             return tooltipWidth;
+
+        let width = 0
+        var reseverWidth = listview.orientation === ListView.Horizontal ? -listview.spacing : 0
 
         for (let child of listview.contentItem.visibleChildren) {
             if (child.objectName === "highlight" || (removing && child.isRemoving)) continue
@@ -345,10 +343,12 @@ Item {
     }
 
     function getHeight(removing) {
-        let height = 0
-        let reseverHeight = headLayout.implicitHeight + (listview.orientation === ListView.Vertical ? 0 : listview.spacing)
         if (removing && root.isTooltip)
             return tooltipMetrics.height;
+
+        let height = 0
+        let reseverHeight = headLayout.implicitHeight + (listview.orientation === ListView.Vertical ? 0 : listview.spacing)
+
         for (let child of listview.contentItem.visibleChildren) {
             if (child.objectName === "highlight" || (removing && child.isRemoving)) continue
             if (listview.orientation === ListView.Vertical) {
@@ -362,7 +362,8 @@ Item {
                 height = Math.max(height, child.implicitHeight)
             }
         }
-        return height + reseverHeight + listview.spacing
+        height += reseverHeight + listview.spacing
+        return height;
     }
 
     onListviewPinToLeftChanged: {
@@ -394,7 +395,7 @@ Item {
         interactive: true
         highlightFollowsCurrentItem: true
         implicitHeight: root.implicitHeight - headLayout.implicitHeight
-        implicitWidth: root.implicitWidth
+        implicitWidth: root.implicitWidth - listview.spacing * 2
         highlightMoveDuration: 200
         spacing: 5
         highlight: Control {
@@ -580,7 +581,7 @@ Item {
         id: background
         z: root.z
         color: "transparent"
-        implicitWidth: getWidth(true) + 2 * listview.spacing
+        implicitWidth: getWidth(true)
         implicitHeight: getHeight(true) + 2 * listview.spacing
         radius: listview.radius
         clip: false
@@ -616,9 +617,9 @@ Item {
                 left: background.left
                 right: background.right
                 top: background.top
-                leftMargin: 4
-                rightMargin: 4
-                topMargin: 4
+                leftMargin: listview.spacing
+                rightMargin: listview.spacing
+                topMargin: listview.spacing
             }
 
             Rectangle {
