@@ -238,14 +238,7 @@ QQuickItem *QmlEngine::createShowDesktopAnimation(SurfaceWrapper *surface,
 
 QQuickItem *QmlEngine::createMultitaskview(QQuickItem *parent)
 {
-    auto item = createComponent(multitaskViewComponent, parent);
-    // Multitaskview should occupy parent and clip children.
-    item->setX(0);
-    item->setY(0);
-    item->setWidth(parent->width());
-    item->setHeight(parent->height());
-    item->setClip(true);
-    return item;
+    return createComponent(multitaskViewComponent, parent);
 }
 
 QQuickItem *QmlEngine::createCaptureSelector(QQuickItem *parent, CaptureManagerV1 *captureManager)
