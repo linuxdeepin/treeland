@@ -14,6 +14,8 @@ Multitaskview {
 
     property D.Palette outerShadowColor: DS.Style.highlightPanel.dropShadow
     clip: true
+    width: parent.width
+    height: parent.height
 
     property bool initialized: false
     property bool exited: false
