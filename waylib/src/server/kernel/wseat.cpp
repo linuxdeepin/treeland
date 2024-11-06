@@ -1083,17 +1083,11 @@ void WSeat::notifyAxis(WCursor *cursor, WInputDevice *device, wlr_axis_source_t 
     const QPointF &global = cursor->position();
     const QPointF local = w ? global - QPointF(w->position()) : QPointF();
 
-    QPoint angleDelta, pixelDelta;
-    if (Qt::Horizontal == orientation) {
-        angleDelta = QPoint(-delta, 0);
-        pixelDelta = QPoint(-delta_discrete, 0);
-    } else {
-        angleDelta = QPoint(0, -delta);
-        pixelDelta = QPoint(0, -delta_discrete);
-    }
-
-    WSeatWheelEvent e(source, delta, local, global, pixelDelta, angleDelta, Qt::NoButton, d->keyModifiers,
-                      Qt::NoScrollPhase, false, Qt::MouseEventNotSynthesized, qwDevice);
+    // Refer to https://github.com/qt/qtwayland/blob/774c0be247bd04362fc7713919ac151c44e34ced/src/client/qwaylandinputdevice.cpp#L1089
+    // The direction in Qt event is in the opposite direction of wayland one, generate a event identical to Qt's direction.
+    QPoint angleDelta = orientation == Qt::Horizontal ? QPoint(-delta_discrete, 0) : QPoint(0, -delta_discrete);
+    WSeatWheelEvent e(source, delta, local, global, QPoint(), angleDelta, Qt::NoButton, d->keyModifiers,
+                  Qt::NoScrollPhase, false, Qt::MouseEventNotSynthesized, qwDevice);
     e.setTimestamp(timestamp);
 
     if (w) {
