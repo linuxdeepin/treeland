@@ -42,7 +42,6 @@ void SurfaceProxy::setSurface(SurfaceWrapper *newSurface)
                                             true);
         m_proxySurface->setTransformOrigin(QQuickItem::TransformOrigin::TopLeft);
         m_proxySurface->setFlag(ItemIsFocusScope);
-        m_proxySurface->setContainer(newSurface->container());
         m_proxySurface->QQuickItem::setFocus(false);
         QQuickItemPrivate::get(m_proxySurface)->culled = true;
         if (!m_fullProxy) {

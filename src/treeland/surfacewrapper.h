@@ -382,6 +382,7 @@ private:
     uint m_skipMutiTaskView : 1;
     uint m_isDdeShellSurface : 1;
     uint m_xwaylandPositionFromSurface : 1;
+    uint m_isProxy : 1;
     SurfaceRole m_surfaceRole = SurfaceRole::Normal;
     quint32 m_autoPlaceYOffset = 0;
     QPoint m_clientRequstPos;

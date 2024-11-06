@@ -47,6 +47,7 @@ SurfaceWrapper::SurfaceWrapper(QmlEngine *qmlEngine,
     , m_isDdeShellSurface(false)
     , m_xwaylandPositionFromSurface(true)
     , m_removeWrapperEndOfAnimation(false)
+    , m_isProxy(isProxy)
 {
     QQmlEngine::setContextForObject(this, qmlEngine->rootContext());
 
@@ -65,41 +66,45 @@ SurfaceWrapper::SurfaceWrapper(QmlEngine *qmlEngine,
     m_surfaceItem->setResizeMode(WSurfaceItem::ManualResize);
     m_surfaceItem->setShellSurface(shellSurface);
 
-    shellSurface->safeConnect(&WToplevelSurface::requestMinimize,
-                              this,
-                              &SurfaceWrapper::requestMinimize);
-    shellSurface->safeConnect(&WToplevelSurface::requestCancelMinimize,
-                              this,
-                              &SurfaceWrapper::requestCancelMinimize);
-    shellSurface->safeConnect(&WToplevelSurface::requestMaximize,
-                              this,
-                              &SurfaceWrapper::requestMaximize);
-    shellSurface->safeConnect(&WToplevelSurface::requestCancelMaximize,
-                              this,
-                              &SurfaceWrapper::requestCancelMaximize);
-    shellSurface->safeConnect(&WToplevelSurface::requestMove, this, &SurfaceWrapper::requestMove);
-    shellSurface->safeConnect(&WToplevelSurface::requestResize,
-                              this,
-                              [this](WSeat *, Qt::Edges edge, quint32) {
-                                  Q_EMIT requestResize(edge);
-                              });
-    shellSurface->safeConnect(&WToplevelSurface::requestFullscreen,
-                              this,
-                              &SurfaceWrapper::requestFullscreen);
-    shellSurface->safeConnect(&WToplevelSurface::requestCancelFullscreen,
-                              this,
-                              &SurfaceWrapper::requestCancelFullscreen);
+    if (!isProxy) {
+        shellSurface->safeConnect(&WToplevelSurface::requestMinimize,
+                                  this,
+                                  &SurfaceWrapper::requestMinimize);
+        shellSurface->safeConnect(&WToplevelSurface::requestCancelMinimize,
+                                  this,
+                                  &SurfaceWrapper::requestCancelMinimize);
+        shellSurface->safeConnect(&WToplevelSurface::requestMaximize,
+                                  this,
+                                  &SurfaceWrapper::requestMaximize);
+        shellSurface->safeConnect(&WToplevelSurface::requestCancelMaximize,
+                                  this,
+                                  &SurfaceWrapper::requestCancelMaximize);
+        shellSurface->safeConnect(&WToplevelSurface::requestMove,
+                                  this,
+                                  &SurfaceWrapper::requestMove);
+        shellSurface->safeConnect(&WToplevelSurface::requestResize,
+                                  this,
+                                  [this](WSeat *, Qt::Edges edge, quint32) {
+                                      Q_EMIT requestResize(edge);
+                                  });
+        shellSurface->safeConnect(&WToplevelSurface::requestFullscreen,
+                                  this,
+                                  &SurfaceWrapper::requestFullscreen);
+        shellSurface->safeConnect(&WToplevelSurface::requestCancelFullscreen,
+                                  this,
+                                  &SurfaceWrapper::requestCancelFullscreen);
+
+        if (type == Type::XdgToplevel) {
+            shellSurface->safeConnect(&WToplevelSurface::requestShowWindowMenu,
+                                      this,
+                                      [this](WSeat *, QPoint pos, quint32) {
+                                          Q_EMIT requestShowWindowMenu(pos);
+                                      });
+        }
+    }
     shellSurface->surface()->safeConnect(&WSurface::mappedChanged,
                                          this,
                                          &SurfaceWrapper::onMappedChanged);
-
-    if (type == Type::XdgToplevel) {
-        shellSurface->safeConnect(&WToplevelSurface::requestShowWindowMenu,
-                                  this,
-                                  [this](WSeat *, QPoint pos, quint32) {
-                                      Q_EMIT requestShowWindowMenu(pos);
-                                  });
-    }
 
     connect(m_surfaceItem,
             &WSurfaceItem::boundingRectChanged,
@@ -129,12 +134,15 @@ SurfaceWrapper::SurfaceWrapper(QmlEngine *qmlEngine,
 
     if (type == Type::XWayland && !isProxy) {
         auto xwaylandSurface = qobject_cast<WXWaylandSurface *>(shellSurface);
-        auto xwaylandSurfaceItem = qobject_cast<WXWaylandSurfaceItem*>(m_surfaceItem);
+        auto xwaylandSurfaceItem = qobject_cast<WXWaylandSurfaceItem *>(m_surfaceItem);
 
-        connect(xwaylandSurfaceItem, &WXWaylandSurfaceItem::implicitPositionChanged, this, [this, xwaylandSurfaceItem]() {
-            if (m_xwaylandPositionFromSurface)
-                moveNormalGeometryInOutput(xwaylandSurfaceItem->implicitPosition());
-        });
+        connect(xwaylandSurfaceItem,
+                &WXWaylandSurfaceItem::implicitPositionChanged,
+                this,
+                [this, xwaylandSurfaceItem]() {
+                    if (m_xwaylandPositionFromSurface)
+                        moveNormalGeometryInOutput(xwaylandSurfaceItem->implicitPosition());
+                });
 
         connect(this, &QQuickItem::xChanged, xwaylandSurface, [this, xwaylandSurfaceItem]() {
             xwaylandSurfaceItem->moveTo(position(), !m_xwaylandPositionFromSurface);
@@ -635,7 +643,8 @@ void SurfaceWrapper::createNewOrClose(uint direction)
             m_windowAnimation = m_engine->createLaunchpadAnimation(this, direction, m_container);
         }
     }; break;
-    case Type::XdgPopup: // NOTE: check z order for XdgToplevel parent/child after support popup animation
+    case Type::XdgPopup:
+        // NOTE: check z order for XdgToplevel parent/child after support popup animation
         [[fallthrough]];
     default:
         break;
@@ -765,10 +774,12 @@ void SurfaceWrapper::onWindowAnimationFinished()
 
 void SurfaceWrapper::onMappedChanged()
 {
-    if (surface()->mapped()) {
-        createNewOrClose(OPEN_ANIMATION);
-    } else {
-        createNewOrClose(CLOSE_ANIMATION);
+    if (!m_isProxy) {
+        if (surface()->mapped()) {
+            createNewOrClose(OPEN_ANIMATION);
+        } else {
+            createNewOrClose(CLOSE_ANIMATION);
+        }
     }
 
     if (m_blurContent) {
