@@ -60,6 +60,7 @@
 #include <qwscreencopyv1.h>
 #include <qwsubcompositor.h>
 #include <qwxwaylandsurface.h>
+#include <qwviewporter.h>
 
 #include <QAction>
 #include <QKeySequence>
@@ -679,6 +680,7 @@ void Helper::init()
     m_compositor = qw_compositor::create(*m_server->handle(), 6, *m_renderer);
     qw_subcompositor::create(*m_server->handle());
     qw_screencopy_manager_v1::create(*m_server->handle());
+    qw_viewporter::create(*m_server->handle());
     m_renderWindow->init(m_renderer, m_allocator);
 
     // for clipboard
