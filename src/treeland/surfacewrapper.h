@@ -313,7 +313,9 @@ private:
     Q_SLOT void onAnimationReady();
     Q_SLOT void onAnimationFinished();
     bool startStateChangeAnimation(SurfaceWrapper::State targetState, const QRectF &targetGeometry);
-    Q_SLOT void onWindowAnimationFinished();
+    void onWindowAnimationFinished();
+    Q_SLOT void onShowAnimationFinished();
+    Q_SLOT void onHideAnimationFinished();
     void updateExplicitAlwaysOnTop();
     void startMinimizeAnimation(const QRectF &iconGeometry, uint direction);
     Q_SLOT void onMinimizeAnimationFinished();
