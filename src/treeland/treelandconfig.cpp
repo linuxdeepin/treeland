@@ -14,7 +14,7 @@ TreelandConfig::TreelandConfig()
     , m_activeColor(m_dconfig->value("activeColor").toString())
     , m_windowOpacity(m_dconfig->value("windowOpacity", 100).toUInt())
     , m_windowThemeType(m_dconfig->value("windowThemeType", 0).toUInt())
-    , m_windowTitlebarHeight(m_dconfig->value("titlebarHeight", 30).toUInt())
+    , m_windowTitlebarHeight(m_dconfig->value("windowTitlebarHeight", 30).toUInt())
 {
     connect(m_dconfig.get(), &DConfig::valueChanged, this, &TreelandConfig::onDConfigChanged);
 }
