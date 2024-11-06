@@ -37,11 +37,16 @@ static void handle_get_treeland_multitaskview(struct wl_client *client,
                                               struct wl_resource *manager_resource,
                                               uint32_t id);
 
+static void handle_get_treeland_window_picker(struct wl_client *client,
+                                              struct wl_resource *manager_resource,
+                                              uint32_t id);
+
 static const struct treeland_dde_shell_manager_v1_interface treeland_dde_shell_manager_v1_impl = {
     .get_window_overlap_checker = handle_get_window_overlap_checker,
     .get_shell_surface = handle_get_shell_surface,
     .get_treeland_dde_active = handle_get_treeland_dde_active,
-    .get_treeland_multitaskview = handle_get_treeland_multitaskview
+    .get_treeland_multitaskview = handle_get_treeland_multitaskview,
+    .get_treeland_window_picker = handle_get_treeland_window_picker
 };
 
 static treeland_dde_shell_manager_v1 *manager_from_resource(struct wl_resource *resource)
@@ -344,7 +349,14 @@ static void handle_treeland_multitaskview_v1_destroy(struct wl_client *client,
     wl_resource_destroy(resource);
 }
 
+static void handle_treeland_window_picker_v1_destroy(struct wl_client *client,
+                                                     struct wl_resource *resource)
+{
+    wl_resource_destroy(resource);
+}
+
 static treeland_multitaskview_v1 *multitaskview_from_resource(struct wl_resource *resource);
+static treeland_window_picker_v1 *window_picker_from_resource(struct wl_resource *resource);
 
 static void handle_treeland_multitaskview_v1_toggle(struct wl_client *client,
                                                     struct wl_resource *resource)
@@ -354,6 +366,15 @@ static void handle_treeland_multitaskview_v1_toggle(struct wl_client *client,
     Q_EMIT multitaskview->toggle();
 }
 
+static void handle_treeland_window_picker_v1_pick(struct wl_client *client,
+                                                  struct wl_resource *resource,
+                                                  const char *hint)
+{
+    auto window_picker = window_picker_from_resource(resource);
+    Q_ASSERT(window_picker);
+    Q_EMIT window_picker->pick(hint);
+}
+
 static const struct treeland_dde_active_v1_interface treeland_dde_active_v1_interface_impl = {
     .destroy = handle_treeland_dde_active_v1_destroy,
 };
@@ -361,6 +382,11 @@ static const struct treeland_dde_active_v1_interface treeland_dde_active_v1_inte
 static const struct treeland_multitaskview_v1_interface treeland_multitaskview_v1_interface_impl = {
     .destroy = handle_treeland_multitaskview_v1_destroy,
     .toggle = handle_treeland_multitaskview_v1_toggle
+};
+
+static const struct treeland_window_picker_v1_interface treeland_window_picker_v1_interface_impl = {
+    .destroy = handle_treeland_window_picker_v1_destroy,
+    .pick = handle_treeland_window_picker_v1_pick
 };
 
 static treeland_multitaskview_v1 *multitaskview_from_resource(struct wl_resource *resource)
@@ -373,6 +399,18 @@ static treeland_multitaskview_v1 *multitaskview_from_resource(struct wl_resource
         static_cast<treeland_multitaskview_v1 *>(wl_resource_get_user_data(resource));
     assert(multitaskview);
     return multitaskview;
+}
+
+static treeland_window_picker_v1 *window_picker_from_resource(struct wl_resource *resource)
+{
+    assert(wl_resource_instance_of(resource,
+                                   &treeland_window_picker_v1_interface,
+                                   &treeland_window_picker_v1_interface_impl));
+
+    treeland_window_picker_v1 *window_picker =
+        static_cast<treeland_window_picker_v1 *>(wl_resource_get_user_data(resource));
+    assert(window_picker);
+    return window_picker;
 }
 
 static void treeland_dde_active_v1_resource_destroy(struct wl_resource *resource)
@@ -402,6 +440,21 @@ static void treeland_multitaskview_v1_resource_destroy(struct wl_resource *resou
     }
     Q_EMIT multitaskview->before_destroy();
     delete multitaskview;
+}
+
+static void treeland_window_picker_v1_resource_destroy(struct wl_resource *resource)
+{
+    assert(wl_resource_instance_of(resource,
+                                   &treeland_window_picker_v1_interface,
+                                   &treeland_window_picker_v1_interface_impl));
+
+    auto *window_picker =
+        static_cast<treeland_window_picker_v1 *>(wl_resource_get_user_data(resource));
+    if (!window_picker) {
+        return;
+    }
+    Q_EMIT window_picker->before_destroy();
+    delete window_picker;
 }
 
 static void handle_get_treeland_dde_active(struct wl_client *client,
@@ -476,6 +529,39 @@ static void handle_get_treeland_multitaskview(struct wl_client *client,
                                    treeland_multitaskview_v1_resource_destroy);
     wl_resource_set_user_data(resource, multitaskview);
     manager->addMultitaskview(multitaskview);
+}
+
+static void handle_get_treeland_window_picker(struct wl_client *client,
+                                              struct wl_resource *manager_resource,
+                                              uint32_t id)
+{
+    auto *manager = manager_from_resource(manager_resource);
+    if (!manager) {
+        qCCritical(ddeShellImpl) << "Failed to get treeland_dde_shell_manager_v1";
+        return;
+    }
+    auto window_picker = new treeland_window_picker_v1;
+    if (!window_picker) {
+        wl_resource_post_no_memory(manager_resource);
+        return;
+    }
+
+    uint32_t version = wl_resource_get_version(manager_resource);
+    struct wl_resource *resource =
+        wl_resource_create(client, &treeland_window_picker_v1_interface, version, id);
+    if (!resource) {
+        delete window_picker;
+        wl_resource_post_no_memory(manager_resource);
+        return;
+    }
+
+    window_picker->m_resource = resource;
+    wl_resource_set_implementation(resource,
+                                   &treeland_window_picker_v1_interface_impl,
+                                   window_picker,
+                                   treeland_window_picker_v1_resource_destroy);
+    wl_resource_set_user_data(resource, window_picker);
+    manager->addWindowPicker(window_picker);
 }
 
 static void treeland_dde_shell_manager_v1_bind(struct wl_client *client,
@@ -629,6 +715,17 @@ void treeland_dde_shell_manager_v1::addMultitaskview(treeland_multitaskview_v1 *
     Q_EMIT multitaskviewCreated(handle);
 }
 
+void treeland_dde_shell_manager_v1::addWindowPicker(treeland_window_picker_v1 *handle)
+{
+    connect(handle, &treeland_window_picker_v1::before_destroy, this, [this, handle] {
+        m_windowPickerHandles.removeOne(handle);
+    });
+    m_windowPickerHandles.append(handle);
+    wl_list_insert(&resources, wl_resource_get_link(handle->m_resource));
+
+    Q_EMIT windowPickerCreated(handle);
+}
+
 treeland_dde_shell_manager_v1 *treeland_dde_shell_manager_v1::create(
     QW_NAMESPACE::qw_display *display)
 {
@@ -657,4 +754,9 @@ void treeland_window_overlap_checker::sendOverlapped(bool overlapped)
     } else {
         treeland_window_overlap_checker_send_leave(m_resource);
     }
+}
+
+void treeland_window_picker_v1::send_window(int pid)
+{
+    treeland_window_picker_v1_send_window(m_resource, pid);
 }

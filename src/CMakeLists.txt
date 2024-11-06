@@ -129,6 +129,8 @@ qt_add_qml_module(${BIN_NAME}
         treeland/workspaceanimationcontroller.cpp
         treeland/surfacefilterproxymodel.h
         treeland/surfacefilterproxymodel.cpp
+        treeland/windowpicker.h
+        treeland/windowpicker.cpp
 
         ${DBUS_ADAPTOR}
     QML_FILES
@@ -162,6 +164,7 @@ qt_add_qml_module(${BIN_NAME}
         qml/WorkspaceSelectionList.qml
         qml/FadeBehavior.qml
         qml/CaptureSelectorLayer.qml
+        qml/WindowPickerLayer.qml
     RESOURCE_PREFIX
         /qt/qml
     OUTPUT_DIRECTORY

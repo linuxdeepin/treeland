@@ -35,6 +35,7 @@ QmlEngine::QmlEngine(QObject *parent)
     , showDesktopAnimatioComponentn(this, "Treeland", "ShowDesktopAnimation")
     , multitaskViewComponent(this, "Treeland", "MultitaskviewProxy")
     , captureSelectorComponent(this, "Treeland", "CaptureSelectorLayer")
+    , windowPickerComponent(this, "Treeland", "WindowPickerLayer")
     , blurComponent(this, "Treeland", "Blur")
     , launchpadAnimationComponent(this, "Treeland", "LaunchpadAnimation")
     , launchpadCoverComponent(this, "Treeland", "LaunchpadCover")
@@ -246,6 +247,11 @@ QQuickItem *QmlEngine::createCaptureSelector(QQuickItem *parent, CaptureManagerV
     return createComponent(captureSelectorComponent,
                            parent,
                            { { "captureManager", QVariant::fromValue(captureManager) } });
+}
+
+QQuickItem *QmlEngine::createWindowPicker(QQuickItem *parent)
+{
+    return createComponent(windowPickerComponent, parent);
 }
 
 WallpaperImageProvider *QmlEngine::wallpaperImageProvider()

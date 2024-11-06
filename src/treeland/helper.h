@@ -74,6 +74,7 @@ class VirtualOutputV1;
 class ShellHandler;
 class PrimaryOutputV1;
 class CaptureSourceSelector;
+class treeland_window_picker_v1;
 
 class Helper : public WSeatEventFilter
 {
@@ -165,6 +166,8 @@ public:
     WindowManagementV1::DesktopState showDesktopState() const;
 
     Q_INVOKABLE bool isLaunchpad(WLayerSurface *surface) const;
+
+    void handleWindowPicker(treeland_window_picker_v1 *picker);
 
 public Q_SLOTS:
     void activateSurface(SurfaceWrapper *wrapper, Qt::FocusReason reason = Qt::OtherFocusReason);

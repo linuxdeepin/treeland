@@ -70,6 +70,7 @@ public:
     void addShellSurface(treeland_dde_shell_surface *handle);
     void addDdeActive(treeland_dde_active *handle);
     void addMultitaskview(treeland_multitaskview_v1 *handle);
+    void addWindowPicker(treeland_window_picker_v1 *handle);
 
 Q_SIGNALS:
     void before_destroy();
@@ -77,12 +78,14 @@ Q_SIGNALS:
     void shellSurfaceCreated(treeland_dde_shell_surface *handle);
     void ddeActiveCreated(treeland_dde_active *handle);
     void multitaskviewCreated(treeland_multitaskview_v1 *handle);
+    void windowPickerCreated(treeland_window_picker_v1 *handle);
 
 private:
     QList<treeland_window_overlap_checker *> m_checkHandles;
     QList<treeland_dde_shell_surface *> m_surfaceHandles;
     QList<treeland_dde_active *> m_ddeActiveHandles;
     QList<treeland_multitaskview_v1 *> m_multitaskviewHandles;
+    QList<treeland_window_picker_v1 *> m_windowPickerHandles;
 
     friend class DDEShellManagerV1;
 };
@@ -147,5 +150,18 @@ Q_SIGNALS:
     void before_destroy();
 
 public:
+    wl_resource *m_resource{ nullptr };
+};
+
+class treeland_window_picker_v1 : public QObject
+{
+    Q_OBJECT
+Q_SIGNALS:
+    void pick(const QString &hint);
+    void before_destroy();
+
+public:
+    void send_window(int pid);
+
     wl_resource *m_resource{ nullptr };
 };
