@@ -34,36 +34,20 @@ WindowOverlapChecker::WindowOverlapChecker(QQuickItem *target, QObject *parent)
     timer->setInterval(300);
 
     connect(timer, &QTimer::timeout, this, [this] {
-        QRectF rect{
-            m_target->x(),
-            m_target->y(),
-            m_target->width(),
-            m_target->height()
-        };
+        QRectF rect{ m_target->x(), m_target->y(), m_target->width(), m_target->height() };
         DDE_SHELL_INSTANCE->checkRegionalConflict(rect.toRect());
     });
 
-    connect(target, &QQuickItem::xChanged, [timer] {
-        qDebug() << Q_FUNC_INFO << "x changed";
-    });
-    connect(target, &QQuickItem::yChanged, [timer] {
-        if (timer->isActive()) {
-            return;
+    auto update = [timer] {
+        if (!timer->isActive()) {
+            timer->start();
         }
-        timer->start();
-    });
-    connect(target, &QQuickItem::widthChanged, [timer] {
-        if (timer->isActive()) {
-            return;
-        }
-        timer->start();
-    });
-    connect(target, &QQuickItem::heightChanged, [timer] {
-        if (timer->isActive()) {
-            return;
-        }
-        timer->start();
-    });
+    };
+
+    connect(target, &QQuickItem::xChanged, update);
+    connect(target, &QQuickItem::yChanged, update);
+    connect(target, &QQuickItem::heightChanged, update);
+    connect(target, &QQuickItem::widthChanged, update);
 }
 
 void WindowOverlapChecker::setOverlapped(bool overlapped)
@@ -137,7 +121,6 @@ void DDEShellManagerV1::create(WServer *server)
 
 void DDEShellManagerV1::checkRegionalConflict(const QRect &rect)
 {
-    qDebug() << Q_FUNC_INFO;
     QMapIterator<treeland_window_overlap_checker *, QRect> i(m_conflictList);
     while (i.hasNext()) {
         i.next();
