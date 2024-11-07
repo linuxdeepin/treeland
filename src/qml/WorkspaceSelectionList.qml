@@ -230,7 +230,7 @@ Item {
 
                     DragHandler {
                         id: vdrg
-                        enabled: !hdrg.active
+                        enabled: !hdrg.active && Helper.workspace.count > 1
                         property bool commitDeletion: deleteHint.visible
                         target: container
                         xAxis.enabled: false
@@ -364,6 +364,7 @@ Item {
             top: root.top
             bottom: root.bottom
         }
+        visible: Helper.workspace.count < TreelandConfig.maxWorkspace
         HoverHandler {
             onHoveredChanged: {
                 if (hovered) {
