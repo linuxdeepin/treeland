@@ -13,50 +13,52 @@ Q_LOGGING_CATEGORY(ddeshell, "treeland.protocols.ddeshell", QtDebugMsg);
 
 DDEShellAttached *DDEShellHelper::qmlAttachedProperties(QObject *target)
 {
-    if (auto *item = qobject_cast<WSurfaceItem *>(target)) {
+    if (auto *item = qobject_cast<QQuickItem *>(target)) {
         return new WindowOverlapChecker(item);
     }
 
     return nullptr;
 }
 
-DDEShellAttached::DDEShellAttached(WSurfaceItem *target, QObject *parent)
+DDEShellAttached::DDEShellAttached(QQuickItem *target, QObject *parent)
     : QObject(parent)
     , m_target(target)
 {
 }
 
-WindowOverlapChecker::WindowOverlapChecker(WSurfaceItem *target, QObject *parent)
+WindowOverlapChecker::WindowOverlapChecker(QQuickItem *target, QObject *parent)
     : DDEShellAttached(target, parent)
 {
-    WXdgSurfaceItem *xdgSurfaceItem = qobject_cast<WXdgSurfaceItem *>(target);
     QTimer *timer = new QTimer(this);
     timer->setSingleShot(true);
     timer->setInterval(300);
 
     connect(timer, &QTimer::timeout, this, [this] {
-        DDE_SHELL_INSTANCE->checkRegionalConflict(m_target);
+        QRectF rect{
+            m_target->x(),
+            m_target->y(),
+            m_target->width(),
+            m_target->height()
+        };
+        DDE_SHELL_INSTANCE->checkRegionalConflict(rect.toRect());
     });
 
-    connect(target, &WSurfaceItem::xChanged, [timer] {
+    connect(target, &QQuickItem::xChanged, [timer] {
+        qDebug() << Q_FUNC_INFO << "x changed";
+    });
+    connect(target, &QQuickItem::yChanged, [timer] {
         if (timer->isActive()) {
             return;
         }
         timer->start();
     });
-    connect(target, &WSurfaceItem::yChanged, [timer] {
+    connect(target, &QQuickItem::widthChanged, [timer] {
         if (timer->isActive()) {
             return;
         }
         timer->start();
     });
-    connect(target, &WSurfaceItem::widthChanged, [timer] {
-        if (timer->isActive()) {
-            return;
-        }
-        timer->start();
-    });
-    connect(target, &WSurfaceItem::heightChanged, [timer] {
+    connect(target, &QQuickItem::heightChanged, [timer] {
         if (timer->isActive()) {
             return;
         }
@@ -133,13 +135,13 @@ void DDEShellManagerV1::create(WServer *server)
             });
 }
 
-void DDEShellManagerV1::checkRegionalConflict(WSurfaceItem *target)
+void DDEShellManagerV1::checkRegionalConflict(const QRect &rect)
 {
+    qDebug() << Q_FUNC_INFO;
     QMapIterator<treeland_window_overlap_checker *, QRect> i(m_conflictList);
     while (i.hasNext()) {
         i.next();
-        if (i.value().intersects(
-                QRect(target->x(), target->y(), target->width(), target->height()))) {
+        if (i.value().intersects(rect)) {
             i.key()->sendOverlapped(true);
             break;
         } else {
