@@ -91,9 +91,9 @@ public:
 
     enum class ActiveControlState : quint16
     {
-        Mapped = 1,
-        UnMinimized = 2,
-        HasInitializeContainer = 8, // when not in Container, we can't stackToLast
+        Mapped = 1 << 0,
+        UnMinimized = 1 << 1,
+        HasInitializeContainer = 1 << 2, // when not in Container, we can't stackToLast
         Full = Mapped | UnMinimized | HasInitializeContainer,
     };
     Q_ENUM(ActiveControlState);
@@ -195,6 +195,7 @@ public:
 
     int workspaceId() const;
     void setWorkspaceId(int newWorkspaceId);
+    void setHideByWorkspace(bool hide);
 
     bool alwaysOnTop() const;
     void setAlwaysOnTop(bool alwaysOnTop);
@@ -383,6 +384,7 @@ private:
     uint m_isDdeShellSurface : 1;
     uint m_xwaylandPositionFromSurface : 1;
     uint m_isProxy : 1;
+    uint m_hideByWorkspace : 1;
     SurfaceRole m_surfaceRole = SurfaceRole::Normal;
     quint32 m_autoPlaceYOffset = 0;
     QPoint m_clientRequstPos;

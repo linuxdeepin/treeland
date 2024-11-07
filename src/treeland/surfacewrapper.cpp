@@ -48,6 +48,7 @@ SurfaceWrapper::SurfaceWrapper(QmlEngine *qmlEngine,
     , m_xwaylandPositionFromSurface(true)
     , m_removeWrapperEndOfAnimation(false)
     , m_isProxy(isProxy)
+    , m_hideByWorkspace(false)
 {
     QQmlEngine::setContextForObject(this, qmlEngine->rootContext());
 
@@ -580,7 +581,7 @@ void SurfaceWrapper::updateBoundingRect()
 
 void SurfaceWrapper::updateVisible()
 {
-    setVisible(!isMinimized() && surface()->mapped() && m_socketEnabled);
+    setVisible(!m_hideByWorkspace && !isMinimized() && surface()->mapped() && m_socketEnabled);
 }
 
 void SurfaceWrapper::updateSubSurfaceStacking()
@@ -1215,6 +1216,15 @@ void SurfaceWrapper::setWorkspaceId(int newWorkspaceId)
     if (onAllWorkspaceHasChanged)
         Q_EMIT showOnAllWorkspaceChanged();
     Q_EMIT workspaceIdChanged();
+}
+
+void SurfaceWrapper::setHideByWorkspace(bool hide)
+{
+    if (m_hideByWorkspace == hide)
+        return;
+
+    m_hideByWorkspace = hide;
+    updateVisible();
 }
 
 bool SurfaceWrapper::alwaysOnTop() const
