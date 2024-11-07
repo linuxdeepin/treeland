@@ -34,6 +34,7 @@ protected:
     void treeland_dde_active_v1_active_in(uint32_t reason) override;
     void treeland_dde_active_v1_active_out(uint32_t reason) override;
     void treeland_dde_active_v1_start_drag() override;
+    void treeland_dde_active_v1_drop() override;
 };
 
 TreelandDDEShellManageV1::TreelandDDEShellManageV1()
@@ -70,6 +71,11 @@ void TreelandDDEActiveV1::treeland_dde_active_v1_active_out(uint32_t reason)
 void TreelandDDEActiveV1::treeland_dde_active_v1_start_drag()
 {
     qWarning() << "------------start_drag";
+}
+
+void TreelandDDEActiveV1::treeland_dde_active_v1_drop()
+{
+    qWarning() << "------------drop";
 }
 
 int main(int argc, char *argv[])

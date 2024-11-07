@@ -150,7 +150,7 @@ void DDEShellManagerV1::checkRegionalConflict(const QRect &rect)
     }
 }
 
-void DDEShellManagerV1::sendActiveIn(uint32_t reason, WSeat *seat)
+void DDEShellManagerV1::sendActiveIn(uint32_t reason, const WSeat *seat)
 {
     if (!m_manager)
         return;
@@ -162,7 +162,7 @@ void DDEShellManagerV1::sendActiveIn(uint32_t reason, WSeat *seat)
     }
 }
 
-void DDEShellManagerV1::sendActiveOut(uint32_t reason, WSeat *seat)
+void DDEShellManagerV1::sendActiveOut(uint32_t reason, const WSeat *seat)
 {
     if (!m_manager)
         return;
@@ -174,7 +174,7 @@ void DDEShellManagerV1::sendActiveOut(uint32_t reason, WSeat *seat)
     }
 }
 
-void DDEShellManagerV1::sendStartDrag(WSeat *seat)
+void DDEShellManagerV1::sendStartDrag(const WSeat *seat)
 {
     if (!m_manager)
         return;
@@ -186,7 +186,19 @@ void DDEShellManagerV1::sendStartDrag(WSeat *seat)
     }
 }
 
-bool DDEShellManagerV1::isDdeShellSurface(WSurface *surface)
+void DDEShellManagerV1::sendDrop(const WSeat *seat)
+{
+    if (!m_manager)
+        return;
+
+    for (auto handle : m_manager->m_ddeActiveHandles) {
+        if (handle->treeland_dde_active_is_mapped_to_wseat(seat)) {
+            handle->send_drop();
+        }
+    }
+}
+
+bool DDEShellManagerV1::isDdeShellSurface(const WSurface *surface)
 {
     if (m_manager) {
         for (auto handle : m_manager->m_surfaceHandles) {
@@ -203,7 +215,7 @@ bool DDEShellManagerV1::isDdeShellSurface(WSurface *surface)
     return false;
 }
 
-treeland_dde_shell_surface *DDEShellManagerV1::ddeShellSurfaceFromWSurface(WSurface *surface) const
+treeland_dde_shell_surface *DDEShellManagerV1::ddeShellSurfaceFromWSurface(const WSurface *surface) const
 {
     if (m_manager) {
         for (auto handle : m_manager->m_surfaceHandles) {

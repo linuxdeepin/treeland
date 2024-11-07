@@ -503,7 +503,7 @@ treeland_dde_shell_surface::~treeland_dde_shell_surface()
     Q_EMIT before_destroy();
 }
 
-bool treeland_dde_shell_surface::treeland_dde_shell_surface_is_mapped_to_wsurface(WSurface *surface)
+bool treeland_dde_shell_surface::treeland_dde_shell_surface_is_mapped_to_wsurface(const WSurface *surface)
 {
     return surface->handle()->handle() == wlr_surface_from_resource(m_surface_resource);
 }
@@ -533,7 +533,12 @@ void treeland_dde_active::send_start_drag()
     treeland_dde_active_v1_send_start_drag(m_resource);
 }
 
-bool treeland_dde_active::treeland_dde_active_is_mapped_to_wseat(WSeat *seat)
+void treeland_dde_active::send_drop()
+{
+    treeland_dde_active_v1_send_drop(m_resource);
+}
+
+bool treeland_dde_active::treeland_dde_active_is_mapped_to_wseat(const WSeat *seat)
 {
     if (!m_seat_resource)
         return false;

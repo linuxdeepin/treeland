@@ -25,7 +25,7 @@ public:
     };
 
     ~treeland_dde_shell_surface();
-    bool treeland_dde_shell_surface_is_mapped_to_wsurface(WSurface *surface);
+    bool treeland_dde_shell_surface_is_mapped_to_wsurface(const WSurface *surface);
     void destroy();
 
     treeland_dde_shell_manager_v1 *m_manager{ nullptr };
@@ -129,7 +129,8 @@ public:
     void send_active_in(uint32_t reason);
     void send_active_out(uint32_t reason);
     void send_start_drag();
-    bool treeland_dde_active_is_mapped_to_wseat(WSeat *seat);
+    void send_drop();
+    bool treeland_dde_active_is_mapped_to_wseat(const WSeat *seat);
 
     wl_resource *m_resource{ nullptr };
     wl_resource *m_seat_resource{ nullptr };
