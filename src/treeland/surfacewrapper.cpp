@@ -849,11 +849,11 @@ void SurfaceWrapper::startShowDesktopAnimation(bool show)
         return;
 
     m_showDesktopAnimation = m_engine->createShowDesktopAnimation(this, container(), show);
-
     bool ok = connect(m_showDesktopAnimation, SIGNAL(finished()), this, SLOT(onShowDesktopAnimationFinished()));
     Q_ASSERT(ok);
     ok = QMetaObject::invokeMethod(m_showDesktopAnimation, "start");
     Q_ASSERT(ok);
+    setVisible(show);
 }
 
 qreal SurfaceWrapper::radius() const
