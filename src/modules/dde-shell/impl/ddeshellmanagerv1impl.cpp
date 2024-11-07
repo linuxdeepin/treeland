@@ -76,6 +76,10 @@ static void handle_treeland_window_overlap_checker_update(struct wl_client *clie
 static const struct treeland_window_overlap_checker_interface
     treeland_window_overlap_checker_impl = {
         .update = handle_treeland_window_overlap_checker_update,
+        .destroy =
+            [](struct wl_client *client, struct wl_resource *resource) {
+                wl_resource_destroy(resource);
+            },
     };
 
 static void treeland_window_overlap_checker_resource_destroy(struct wl_resource *resource)
@@ -633,6 +637,8 @@ treeland_dde_shell_manager_v1 *treeland_dde_shell_manager_v1::create(
 
 treeland_window_overlap_checker::~treeland_window_overlap_checker()
 {
+    wl_list_remove(wl_resource_get_link(m_resource));
+
     Q_EMIT before_destroy();
 }
 
