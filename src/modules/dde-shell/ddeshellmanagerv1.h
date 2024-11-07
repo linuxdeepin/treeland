@@ -73,12 +73,13 @@ public:
     ~DDEShellManagerV1() override = default;
 
     void checkRegionalConflict(const QRect &rect);
-    void sendActiveIn(uint32_t reason, WSeat *seat);
-    void sendActiveOut(uint32_t reason, WSeat *seat);
-    void sendStartDrag(WSeat *seat);
+    void sendActiveIn(uint32_t reason, const WSeat *seat);
+    void sendActiveOut(uint32_t reason, const WSeat *seat);
+    void sendStartDrag(const WSeat *seat);
+    void sendDrop(const WSeat *seat);
 
-    bool isDdeShellSurface(WSurface *surface);
-    treeland_dde_shell_surface *ddeShellSurfaceFromWSurface(WSurface *surface) const;
+    bool isDdeShellSurface(const WSurface *surface);
+    treeland_dde_shell_surface *ddeShellSurfaceFromWSurface(const WSurface *surface) const;
 
 Q_SIGNALS:
     void toggleMultitaskview();

@@ -153,7 +153,6 @@ public:
     WXWayland *defaultXWaylandSocket() const;
 
     PersonalizationV1 *personalization() const;
-    void seatSendStartDrag(WSeat *seat);
 
     WSeat *seat() const;
 
@@ -204,6 +203,7 @@ private Q_SLOTS:
     void onSurfaceWrapperAdded(SurfaceWrapper *wrapper);
     void onSurfaceWrapperAboutToRemove(SurfaceWrapper *wrapper);
     void deleteTaskSwitch();
+    void handleRequestDrag(WSurface *surface);
 
 private:
     void allowNonDrmOutputAutoChangeMode(WOutput *output);

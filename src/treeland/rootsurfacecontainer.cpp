@@ -55,20 +55,18 @@ RootSurfaceContainer::RootSurfaceContainer(QQuickItem *parent)
         // }
     });
 
-    m_dargSurfaceItem = new WSurfaceItem(window()->contentItem());
-    m_dargSurfaceItem->setZ(
+    m_dragSurfaceItem = new WSurfaceItem(window()->contentItem());
+    m_dragSurfaceItem->setZ(
         static_cast<std::underlying_type_t<WOutputLayout::Layer>>(WOutputLayout::Layer::Cursor)
         - 1);
-    m_dargSurfaceItem->setFlags(WSurfaceItem::DontCacheLastBuffer);
+    m_dragSurfaceItem->setFlags(WSurfaceItem::DontCacheLastBuffer);
 
     m_cursor->safeConnect(&WCursor::positionChanged, this, [this] {
-        m_dargSurfaceItem->setPosition(m_cursor->position());
+        m_dragSurfaceItem->setPosition(m_cursor->position());
     });
 
     m_cursor->safeConnect(&WCursor::requestedDragSurfaceChanged, this, [this] {
-        m_dargSurfaceItem->setSurface(m_cursor->requestedDragSurface());
-        // TODO(lbwtw): XToWlDrag is not supported
-        Helper::instance()->seatSendStartDrag(m_cursor->seat());
+        m_dragSurfaceItem->setSurface(m_cursor->requestedDragSurface());
     });
 }
 
