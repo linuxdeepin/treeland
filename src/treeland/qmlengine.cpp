@@ -36,6 +36,7 @@ QmlEngine::QmlEngine(QObject *parent)
     , blurComponent(this, "Treeland", "Blur")
     , launchpadAnimationComponent(this, "Treeland", "LaunchpadAnimation")
     , launchpadCoverComponent(this, "Treeland", "LaunchpadCover")
+    , layershellAnimationComponent(this, "Treeland", "LayerShellAnimation")
 {
 }
 
@@ -180,6 +181,18 @@ QQuickItem *QmlEngine::createLaunchpadCover(SurfaceWrapper *surface,
                            parent,
                            { { "wrapper", QVariant::fromValue(surface) },
                              { "output", QVariant::fromValue(output->output()) } });
+}
+
+QQuickItem *QmlEngine::createLayerShellAnimation(SurfaceWrapper *surface,
+                                                 QQuickItem *parent,
+                                                 uint direction)
+{
+    return createComponent(layershellAnimationComponent,
+                           parent,
+                           {
+                               { "target", QVariant::fromValue(surface) },
+                               { "direction", QVariant::fromValue(direction) },
+                           });
 }
 
 QQuickItem *QmlEngine::createDockPreview(QQuickItem *parent)
