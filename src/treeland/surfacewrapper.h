@@ -316,8 +316,8 @@ private:
     void updateExplicitAlwaysOnTop();
     void startMinimizeAnimation(const QRectF &iconGeometry, uint direction);
     Q_SLOT void onMinimizeAnimationFinished();
-    void startShowAnimation(bool show);
-    Q_SLOT void onShowAnimationFinished();
+    void startShowDesktopAnimation(bool show);
+    Q_SLOT void onShowDesktopAnimationFinished();
     void updateHasActiveCapability(ActiveControlState state, bool value);
     void setDecorationShadowOpacity(qreal opacity);
 
@@ -345,7 +345,7 @@ private:
     QRectF m_pendingGeometry;
     QPointer<QQuickItem> m_windowAnimation;
     QPointer<QQuickItem> m_minimizeAnimation;
-    QPointer<QQuickItem> m_showAnimation;
+    QPointer<QQuickItem> m_showDesktopAnimation;
     Q_OBJECT_BINDABLE_PROPERTY_WITH_ARGS(SurfaceWrapper,
                                          SurfaceWrapper::State,
                                          m_previousSurfaceState,
