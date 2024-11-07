@@ -410,17 +410,23 @@ Item {
     }
 
     function previous() {
+        if (switchView.count <= 0)
+            return;
+
         var nextIndex = (switchView.currentIndex - 1 + switchView.count) % switchView.count
         switchIndex(nextIndex)
     }
 
     function next() {
+        if (switchView.count <= 0)
+            return;
+
         var nextIndex = (switchView.currentIndex + 1) % switchView.count
         switchIndex(nextIndex)
     }
 
     function switchIndex(next) {
-        if (showTask(true)) {
+        if ((next >= 0 && next < switchView.count) && showTask(true)) {
             previewContext.sourceSueface = switchView.currentItem.surface
             switchView.currentIndex = next
             root.model.activeIndex = switchView.currentIndex
@@ -460,7 +466,7 @@ Item {
             switchItemAnimation.start()
         }
 
-        if (switchView.currentItem.surface)
+        if (switchView.currentItem)
             Helper.forceActivateSurface(switchView.currentItem.surface)
 
         if (root.enableAnimation && switchView.count <= 18) {
