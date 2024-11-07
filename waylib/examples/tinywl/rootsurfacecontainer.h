@@ -96,7 +96,7 @@ private:
     OutputListModel *m_outputModel = nullptr;
     QPointer<Output> m_primaryOutput;
     WCursor *m_cursor = nullptr;
-    WSurfaceItem *m_dargSurfaceItem = nullptr;
+    WSurfaceItem *m_dragSurfaceItem = nullptr;
 
     // for move resize
     struct {
