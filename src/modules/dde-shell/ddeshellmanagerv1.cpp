@@ -35,7 +35,10 @@ WindowOverlapChecker::WindowOverlapChecker(QQuickItem *target, QObject *parent)
 
     connect(timer, &QTimer::timeout, this, [this] {
         QRectF rect{ m_target->x(), m_target->y(), m_target->width(), m_target->height() };
-        DDE_SHELL_INSTANCE->checkRegionalConflict(rect.toRect());
+        region -= m_lastRect;
+        m_lastRect = rect.toRect();
+        region += m_lastRect;
+        DDE_SHELL_INSTANCE->checkRegionalConflict(region);
     });
 
     auto update = [timer] {
@@ -48,6 +51,17 @@ WindowOverlapChecker::WindowOverlapChecker(QQuickItem *target, QObject *parent)
     connect(target, &QQuickItem::yChanged, update);
     connect(target, &QQuickItem::heightChanged, update);
     connect(target, &QQuickItem::widthChanged, update);
+    connect(target, &QQuickItem::destroyed, this, [this] {
+        region -= m_lastRect;
+        DDE_SHELL_INSTANCE->checkRegionalConflict(region);
+    });
+
+    timer->start();
+}
+
+WindowOverlapChecker::~WindowOverlapChecker()
+{
+    region -= m_lastRect;
 }
 
 void WindowOverlapChecker::setOverlapped(bool overlapped)
@@ -107,6 +121,8 @@ void DDEShellManagerV1::create(WServer *server)
             connect(handle, &treeland_window_overlap_checker::before_destroy, this, [this, handle] {
                 m_conflictList.remove(handle);
             });
+
+            checkRegionalConflict(WindowOverlapChecker::region);
         });
     connect(m_manager,
             &treeland_dde_shell_manager_v1::multitaskviewCreated,
@@ -119,16 +135,14 @@ void DDEShellManagerV1::create(WServer *server)
             });
 }
 
-void DDEShellManagerV1::checkRegionalConflict(const QRect &rect)
+void DDEShellManagerV1::checkRegionalConflict(const QRegion &region)
 {
-    QMapIterator<treeland_window_overlap_checker *, QRect> i(m_conflictList);
-    while (i.hasNext()) {
-        i.next();
-        if (i.value().intersects(rect)) {
-            i.key()->sendOverlapped(true);
-            break;
+    for (auto &&[handle, checkRect] : m_conflictList.asKeyValueRange()) {
+        if (region.intersects(checkRect)) {
+            handle->sendOverlapped(true);
+            continue;
         } else {
-            i.key()->sendOverlapped(false);
+            handle->sendOverlapped(false);
         }
     }
 }

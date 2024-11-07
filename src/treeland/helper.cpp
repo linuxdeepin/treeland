@@ -454,10 +454,6 @@ void Helper::onSurfaceWrapperAdded(SurfaceWrapper *wrapper)
             if (isLaunchpad(layer))
                 wrapper->setCoverEnabled(true);
         }
-
-        if (!isLayer) {
-            auto windowOverlapChecker = new WindowOverlapChecker(wrapper, wrapper);
-        }
     }
 
     if (isXwayland) {
@@ -491,6 +487,10 @@ void Helper::onSurfaceWrapperAdded(SurfaceWrapper *wrapper)
     if (isXdgToplevel) {
         m_foreignToplevel->addSurface(wrapper->shellSurface());
         m_treelandForeignToplevel->addSurface(wrapper);
+    }
+
+    if (!isLayer) {
+        auto windowOverlapChecker = new WindowOverlapChecker(wrapper, wrapper);
     }
 }
 
