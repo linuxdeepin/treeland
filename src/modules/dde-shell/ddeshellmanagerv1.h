@@ -20,10 +20,10 @@ class DDEShellAttached : public QObject
     Q_OBJECT
     QML_ANONYMOUS
 public:
-    DDEShellAttached(WSurfaceItem *target, QObject *parent = nullptr);
+    DDEShellAttached(QQuickItem *target, QObject *parent = nullptr);
 
 protected:
-    WSurfaceItem *m_target;
+    QQuickItem *m_target;
 };
 
 class WindowOverlapChecker : public DDEShellAttached
@@ -33,7 +33,7 @@ class WindowOverlapChecker : public DDEShellAttached
     Q_PROPERTY(bool overlapped READ overlapped WRITE setOverlapped NOTIFY overlappedChanged)
 
 public:
-    WindowOverlapChecker(WSurfaceItem *target, QObject *parent = nullptr);
+    WindowOverlapChecker(QQuickItem *target, QObject *parent = nullptr);
 
     inline bool overlapped() const
     {
@@ -72,7 +72,7 @@ public:
     explicit DDEShellManagerV1(QObject *parent = nullptr);
     ~DDEShellManagerV1() override = default;
 
-    void checkRegionalConflict(WSurfaceItem *target);
+    void checkRegionalConflict(const QRect &rect);
     void sendActiveIn(uint32_t reason, WSeat *seat);
     void sendActiveOut(uint32_t reason, WSeat *seat);
     void sendStartDrag(WSeat *seat);
