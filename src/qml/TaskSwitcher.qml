@@ -198,7 +198,7 @@ Item {
                 readonly property real vSpacing: 8
                 readonly property size iconSize: Qt.size(24, 24)
                 readonly property real borderWidth: borderMargin
-                readonly property real delegateMinWidth: 80
+                readonly property real delegateMinWidth: 128
                 readonly property real delegateMaxWidth: 260
                 readonly property real separatorHeight: 1
                 readonly property real radius: root.enableRadius ? 12 : 0
@@ -460,7 +460,9 @@ Item {
             switchItemAnimation.start()
         }
 
-        Helper.forceActivateSurface(switchView.currentItem.surface)
+        if (switchView.currentItem.surface)
+            Helper.forceActivateSurface(switchView.currentItem.surface)
+
         if (root.enableAnimation && switchView.count <= 18) {
             previewWindows.model = root.model
         } else {
