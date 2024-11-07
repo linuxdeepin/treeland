@@ -349,7 +349,7 @@ void Helper::onShowDesktop()
         return;
 
     m_showDesktop = s;
-    const auto &surfaceList = workspace()->surfaces();
+    const auto &surfaceList = workspace()->current()->surfaces();
     for (auto surface : surfaceList) {
         if (s == WindowManagementV1::DesktopState::Normal && !surface->opacity()
             && !surface->isMinimized()) {
@@ -793,10 +793,10 @@ void Helper::forceActivateSurface(SurfaceWrapper *wrapper, Qt::FocusReason reaso
         wrapper->requestCancelMinimize();
     }
 
-    if (m_currentMode != CurrentMode::WindowSwitch
-        && (m_showDesktop == WindowManagementV1::DesktopState::Show || !wrapper->opacity())) {
+    if (m_showDesktop == WindowManagementV1::DesktopState::Show || !wrapper->opacity()) {
         wrapper->setOpacity(1);
-        wrapper->startShowDesktopAnimation(true);
+        if (m_currentMode != CurrentMode::WindowSwitch)
+            wrapper->startShowDesktopAnimation(true);
     }
 
     if (!wrapper->surface()->mapped()) {
@@ -882,6 +882,8 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *, QInputEvent *event)
 
                 return true;
             } else if (kevent->key() == Qt::Key_D) { // ShowDesktop : Meta + D
+                if (m_multitaskview)
+                    return true;
                 if (m_showDesktop == WindowManagementV1::DesktopState::Normal)
                     m_windowManagement->setDesktopState(WindowManagementV1::DesktopState::Show);
                 else if (m_showDesktop == WindowManagementV1::DesktopState::Show)
