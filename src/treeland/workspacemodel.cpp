@@ -44,7 +44,7 @@ void WorkspaceModel::setVisible(bool visible)
         return;
     m_visible = visible;
     for (auto surface : surfaces())
-        surface->setVisible(visible);
+        surface->setHideByWorkspace(!visible);
     Q_EMIT visibleChanged();
 }
 
@@ -68,16 +68,16 @@ void WorkspaceModel::addSurface(SurfaceWrapper *surface)
     SurfaceListModel::addSurface(surface);
     if (!m_opaque) {
         surface->setOpacity(m_opaque ? 1.0 : 0.0);
-    } else {
-        surface->setVisible(m_visible);
     }
     surface->setWorkspaceId(m_id);
+    surface->setHideByWorkspace(!m_visible);
 }
 
 void WorkspaceModel::removeSurface(SurfaceWrapper *surface)
 {
     SurfaceListModel::removeSurface(surface);
     surface->setWorkspaceId(-1);
+    surface->setHideByWorkspace(false);
     m_activedSurfaceHistory.remove(surface);
 }
 
