@@ -61,6 +61,7 @@
 #include <qwsubcompositor.h>
 #include <qwviewporter.h>
 #include <qwxwaylandsurface.h>
+#include <qwdatadevice.h>
 
 #include <QAction>
 #include <QKeySequence>
@@ -535,6 +536,8 @@ void Helper::init()
     m_seat->setEventFilter(this);
     m_seat->setCursor(m_rootSurfaceContainer->cursor());
     m_seat->setKeyboardFocusWindow(m_renderWindow);
+
+    connect(m_seat, &WSeat::requestDrag, this, &Helper::handleRequestDrag);
 
     m_backend = m_server->attach<WBackend>();
     connect(m_backend, &WBackend::inputAdded, this, [this](WInputDevice *device) {
@@ -1221,6 +1224,29 @@ void Helper::setCursorPosition(const QPointF &position)
     m_seat->setCursorPosition(position);
 }
 
+void Helper::handleRequestDrag(WSurface *surface)
+{
+    m_seat->setAlwaysUpdateHoverTarget(true);
+
+    struct wlr_drag *drag = m_seat->nativeHandle()->drag;
+    Q_ASSERT(drag);
+    QObject::connect(qw_drag::from(drag), &qw_drag::notify_drop, this, [this]{
+        if (m_ddeShellV1)
+            m_ddeShellV1->sendDrop(m_seat);
+    });
+
+    QObject::connect(qw_drag::from(drag), &qw_drag::before_destroy, this, [this, surface, drag]{
+        if (surface)
+            surface->safeDeleteLater();
+
+        drag->data = NULL;
+        m_seat->setAlwaysUpdateHoverTarget(false);
+    });
+
+    if (m_ddeShellV1)
+        m_ddeShellV1->sendStartDrag(m_seat);
+}
+
 void Helper::allowNonDrmOutputAutoChangeMode(WOutput *output)
 {
     output->safeConnect(&qw_output::notify_request_state,
@@ -1416,12 +1442,6 @@ bool Helper::isLaunchpad(WLayerSurface *surface) const
     auto scope = QString(surface->handle()->handle()->scope);
 
     return scope == "dde-shell/launchpad";
-}
-
-void Helper::seatSendStartDrag(WSeat *seat)
-{
-    Q_ASSERT(m_ddeShellV1 && seat);
-    m_ddeShellV1->sendStartDrag(seat);
 }
 
 WSeat *Helper::seat() const
