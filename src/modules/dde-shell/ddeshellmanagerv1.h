@@ -10,6 +10,7 @@
 
 #include <QObject>
 #include <QQmlEngine>
+#include <QRegion>
 
 WAYLIB_SERVER_USE_NAMESPACE
 
@@ -34,6 +35,7 @@ class WindowOverlapChecker : public DDEShellAttached
 
 public:
     WindowOverlapChecker(QQuickItem *target, QObject *parent = nullptr);
+    ~WindowOverlapChecker();
 
     inline bool overlapped() const
     {
@@ -47,6 +49,10 @@ private:
     void setOverlapped(bool overlapped);
 
     bool m_overlapped{ false };
+    QRect m_lastRect;
+
+    friend class DDEShellManagerV1;
+    inline static QRegion region;
 };
 
 class DDEShellHelper : public QObject
@@ -72,7 +78,7 @@ public:
     explicit DDEShellManagerV1(QObject *parent = nullptr);
     ~DDEShellManagerV1() override = default;
 
-    void checkRegionalConflict(const QRect &rect);
+    void checkRegionalConflict(const QRegion &region);
     void sendActiveIn(uint32_t reason, const WSeat *seat);
     void sendActiveOut(uint32_t reason, const WSeat *seat);
     void sendStartDrag(const WSeat *seat);
