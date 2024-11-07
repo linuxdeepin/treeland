@@ -52,6 +52,7 @@ public:
                                          uint direction,
                                          QQuickItem *parent);
     QQuickItem *createLaunchpadCover(SurfaceWrapper *surface, Output *output, QQuickItem *parent);
+    QQuickItem *createLayerShellAnimation(SurfaceWrapper *surface, QQuickItem *parent, uint direction);
     QQuickItem *createLockScreen(Output *output, QQuickItem *parent);
     QQuickItem *createMinimizeAnimation(SurfaceWrapper *surface,
                                         QQuickItem *parent,
@@ -89,5 +90,6 @@ private:
     QQmlComponent blurComponent;
     QQmlComponent launchpadAnimationComponent;
     QQmlComponent launchpadCoverComponent;
+    QQmlComponent layershellAnimationComponent;
     WallpaperImageProvider *wallpaperProvider = nullptr;
 };

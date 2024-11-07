@@ -149,6 +149,7 @@ qt_add_qml_module(${BIN_NAME}
         qml/Animations/MinimizeAnimation.qml
         qml/Animations/ShowDesktopAnimation.qml
         qml/Animations/LaunchpadAnimation.qml
+        qml/Animations/LayerShellAnimation.qml
         qml/Effects/Blur.qml
         qml/Effects/LaunchpadCover.qml
         qml/TaskSwitcher.qml
