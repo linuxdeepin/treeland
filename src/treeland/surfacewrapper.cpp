@@ -834,22 +834,22 @@ void SurfaceWrapper::startMinimizeAnimation(const QRectF &iconGeometry, uint dir
     Q_ASSERT(ok);
 }
 
-void SurfaceWrapper::onShowAnimationFinished()
+void SurfaceWrapper::onShowDesktopAnimationFinished()
 {
-    Q_ASSERT(m_showAnimation);
-    m_showAnimation->deleteLater();
+    Q_ASSERT(m_showDesktopAnimation);
+    m_showDesktopAnimation->deleteLater();
 }
 
-void SurfaceWrapper::startShowAnimation(bool show)
+void SurfaceWrapper::startShowDesktopAnimation(bool show)
 {
-    if (m_showAnimation)
+    if (m_showDesktopAnimation)
         return;
 
-    m_showAnimation = m_engine->createShowDesktopAnimation(this, container(), show);
+    m_showDesktopAnimation = m_engine->createShowDesktopAnimation(this, container(), show);
 
-    bool ok = connect(m_showAnimation, SIGNAL(finished()), this, SLOT(onShowAnimationFinished()));
+    bool ok = connect(m_showDesktopAnimation, SIGNAL(finished()), this, SLOT(onShowDesktopAnimationFinished()));
     Q_ASSERT(ok);
-    ok = QMetaObject::invokeMethod(m_showAnimation, "start");
+    ok = QMetaObject::invokeMethod(m_showDesktopAnimation, "start");
     Q_ASSERT(ok);
 }
 

@@ -354,11 +354,11 @@ void Helper::onShowDesktop()
         if (s == WindowManagementV1::DesktopState::Normal && !surface->opacity()
             && !surface->isMinimized()) {
             surface->setOpacity(1);
-            surface->startShowAnimation(true);
+            surface->startShowDesktopAnimation(true);
         } else if (s == WindowManagementV1::DesktopState::Show && surface->opacity()
                    && !surface->isMinimized()) {
             surface->setOpacity(0);
-            surface->startShowAnimation(false);
+            surface->startShowDesktopAnimation(false);
         }
     }
 }
@@ -796,7 +796,7 @@ void Helper::forceActivateSurface(SurfaceWrapper *wrapper, Qt::FocusReason reaso
     if (m_currentMode != CurrentMode::WindowSwitch
         && (m_showDesktop == WindowManagementV1::DesktopState::Show || !wrapper->opacity())) {
         wrapper->setOpacity(1);
-        wrapper->startShowAnimation(true);
+        wrapper->startShowDesktopAnimation(true);
     }
 
     if (!wrapper->surface()->mapped()) {
