@@ -235,6 +235,8 @@ public:
     bool socketEnabled() const;
     void setXwaylandPositionFromSurface(bool value);
 
+    void setHasInitializeContainer(bool value);
+
 public Q_SLOTS:
     // for titlebar
     void requestMinimize();

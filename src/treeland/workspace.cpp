@@ -92,16 +92,16 @@ int Workspace::getRightWorkspaceId(int workspaceId)
 void Workspace::addSurface(SurfaceWrapper *surface, int workspaceId)
 {
     Q_ASSERT(surface && !surface->container() && surface->workspaceId() == -1);
+    SurfaceContainer::addSurface(surface);
 
     auto model = modelFromId(workspaceId);
     Q_ASSERT(model);
 
-    model->addSurface(surface);
-
     if (!surface->ownsOutput())
         surface->setOwnsOutput(rootContainer()->primaryOutput());
 
-    SurfaceContainer::addSurface(surface);
+    model->addSurface(surface);
+    surface->setHasInitializeContainer(true);
 }
 
 void Workspace::addSurface(SurfaceWrapper *surface)
@@ -127,7 +127,7 @@ void Workspace::moveModelTo(int workspaceId, int destinationIndex)
 
 void Workspace::removeSurface(SurfaceWrapper *surface)
 {
-    SurfaceContainer::removeSurface(surface);
+    surface->setHasInitializeContainer(false);
 
     WorkspaceModel *from = nullptr;
     if (surface->showOnAllWorkspace())
@@ -137,6 +137,7 @@ void Workspace::removeSurface(SurfaceWrapper *surface)
     Q_ASSERT(from);
 
     from->removeSurface(surface);
+    SurfaceContainer::removeSurface(surface);
 }
 
 int Workspace::modelIndexOfSurface(SurfaceWrapper *surface) const
