@@ -385,6 +385,21 @@ void InputDevice::registerTouchpadSwipe(const SwipeFeedBack &feed_back)
     m_touchpadRecognizer->registerSwipeGesture(swipe_gesture);
 }
 
+void InputDevice::registerTouchpadHold(const HoldFeedBack &feed)
+{
+    auto hold_gesture = new HoldGesture();
+
+    if (feed.actionCallback) {
+        QObject::connect(hold_gesture, &HoldGesture::cancelled, feed.actionCallback);
+    }
+
+    if (feed.longProcessCallback) {
+        QObject::connect(hold_gesture, &HoldGesture::longPressed, feed.longProcessCallback);
+    }
+
+    m_touchpadRecognizer->registerHoldGesture(hold_gesture);
+}
+
 void InputDevice::processSwipeStart(uint finger)
 {
     m_touchpadFingerCount = finger;
@@ -411,5 +426,20 @@ void InputDevice::processSwipeEnd()
 {
     if (m_touchpadFingerCount >= MIN_SWIPE_FINGERS) {
         m_touchpadRecognizer->endSwipeGesture();
+    }
+}
+
+void InputDevice::processHoldStart(uint finger)
+{
+    m_touchpadFingerCount = finger;
+    if (m_touchpadFingerCount >= MIN_SWIPE_FINGERS) {
+        m_touchpadRecognizer->startHoldGesture(finger);
+    }
+}
+
+void InputDevice::processHoldEnd()
+{
+    if (m_touchpadFingerCount >= MIN_SWIPE_FINGERS) {
+        m_touchpadRecognizer->endHoldGesture();
     }
 }

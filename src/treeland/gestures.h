@@ -8,6 +8,7 @@
 #include <QMap>
 #include <QObject>
 #include <QPointF>
+#include <QTimer>
 
 class Gesture : public QObject
 {
@@ -19,6 +20,7 @@ Q_SIGNALS:
     void started();
     void triggered();
     void cancelled();
+    void longPressed();
 };
 
 class SwipeGesture : public Gesture
@@ -90,6 +92,22 @@ private:
     QPointF m_minimumDelta;
 };
 
+class HoldGesture : public Gesture
+{
+    Q_OBJECT
+public:
+    explicit HoldGesture(QObject *parent = nullptr);
+    ~HoldGesture();
+
+    void setInterval(int msec);
+    void startTimer();
+    void stopTimer();
+    bool isActive() const;
+
+private:
+    QTimer *m_holdTimer;
+};
+
 class GestureRecognizer : public QObject
 {
     Q_OBJECT
@@ -115,6 +133,9 @@ public:
     void registerSwipeGesture(SwipeGesture *gesture);
     void unregisterSwipeGesture(SwipeGesture *gesture);
 
+    void registerHoldGesture(HoldGesture *gesture);
+    void unregisterHoldGesture(HoldGesture *gesture);
+
     int startSwipeGesture(uint fingerCount);
     int startSwipeGesture(const QPointF &startPos);
 
@@ -122,14 +143,19 @@ public:
     void cancelSwipeGesture();
     void endSwipeGesture();
 
+    void startHoldGesture(uint fingerCount);
+    void endHoldGesture();
+
 private:
-    void cancelActiveGestures();
+    void cancelSwipeActiveGestures();
     int startSwipeGesture(uint fingerCount,
                           const QPointF &start_pos,
                           StartPositionBehavior behavior);
 
     QList<SwipeGesture *> m_swipeGestures;
     QList<SwipeGesture *> m_activeSwipeGestures;
+    QList<HoldGesture *> m_holdGestures;
+    QList<HoldGesture *> m_activeHoldGestures;
     QMap<Gesture *, QMetaObject::Connection> m_destroyConnections;
 
     QPointF m_currentDelta = QPointF(0, 0);
