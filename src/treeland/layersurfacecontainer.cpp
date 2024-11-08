@@ -95,6 +95,7 @@ void LayerSurfaceContainer::addSurface(SurfaceWrapper *surface)
     if (!SurfaceContainer::doAddSurface(surface, false))
         return;
     addSurfaceToContainer(surface);
+    surface->setHasInitializeContainer(true);
 }
 
 void LayerSurfaceContainer::removeSurface(SurfaceWrapper *surface)
@@ -107,6 +108,7 @@ void LayerSurfaceContainer::removeSurface(SurfaceWrapper *surface)
     Q_ASSERT(container);
     Q_ASSERT(container->surfaces().contains(surface));
     container->removeSurface(surface);
+    surface->setHasInitializeContainer(false);
 }
 
 void LayerSurfaceContainer::addSurfaceToContainer(SurfaceWrapper *surface)

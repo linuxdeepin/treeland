@@ -1123,7 +1123,6 @@ void SurfaceWrapper::setContainer(SurfaceContainer *newContainer)
     if (m_container == newContainer)
         return;
     m_container = newContainer;
-    updateHasActiveCapability(ActiveControlState::HasInitializeContainer, m_container != nullptr);
     Q_EMIT containerChanged();
 }
 
@@ -1334,6 +1333,12 @@ bool SurfaceWrapper::socketEnabled() const
 void SurfaceWrapper::setXwaylandPositionFromSurface(bool value)
 {
     m_xwaylandPositionFromSurface = value;
+}
+
+void SurfaceWrapper::setHasInitializeContainer(bool value)
+{
+    Q_ASSERT(!value || m_container != nullptr);
+    updateHasActiveCapability(ActiveControlState::HasInitializeContainer, value);
 }
 
 void SurfaceWrapper::updateExplicitAlwaysOnTop()
