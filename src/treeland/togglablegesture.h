@@ -52,11 +52,15 @@ public:
     Q_INVOKABLE void stop();
 
     void addTouchpadSwipeGesture(SwipeGesture::Direction direction, uint fingerCount);
+    void addTouchpadHoldGesture(uint fingerCount);
+
 Q_SIGNALS:
     void inProgressChanged();
     void partialGestureFactorChanged(qreal factor);
     void activated();
     void deactivated();
+    void hold();
+    void longPressed();
     void statusChanged(Status status);
 
 protected:

@@ -279,7 +279,7 @@ void GestureRecognizer::updateSwipeGesture(const QPointF &delta)
 
 void GestureRecognizer::cancelSwipeGesture()
 {
-    cancelActiveGestures();
+    cancelSwipeActiveGestures();
     m_currentFingerCount = 0;
     m_currentDelta = QPointF(0, 0);
     m_currentSwipeAxis = Axis::None;
@@ -301,7 +301,7 @@ void GestureRecognizer::endSwipeGesture()
     m_currentSwipeAxis = Axis::None;
 }
 
-void GestureRecognizer::cancelActiveGestures()
+void GestureRecognizer::cancelSwipeActiveGestures()
 {
     for (auto &&gesture : std::as_const(m_activeSwipeGestures)) {
         Q_EMIT gesture->cancelled();
@@ -359,4 +359,88 @@ int GestureRecognizer::startSwipeGesture(uint fingerCount,
         Q_EMIT gesture->started();
     }
     return count;
+}
+
+HoldGesture::HoldGesture(QObject *parent)
+    : Gesture(parent)
+    , m_holdTimer(new QTimer(this))
+{
+    m_holdTimer->setSingleShot(true);
+    m_holdTimer->setInterval(1000);
+    connect(m_holdTimer, &QTimer::timeout, this, &HoldGesture::longPressed);
+}
+
+HoldGesture::~HoldGesture()
+{
+    if (m_holdTimer != nullptr) {
+        m_holdTimer->stop();
+        m_holdTimer->deleteLater();
+    }
+}
+
+void HoldGesture::startTimer()
+{
+    m_holdTimer->start();
+}
+
+void HoldGesture::setInterval(int msec)
+{
+    m_holdTimer->setInterval(msec);
+}
+
+void HoldGesture::stopTimer()
+{
+    m_holdTimer->stop();
+}
+
+bool HoldGesture::isActive() const
+{
+    return m_holdTimer->isActive();
+}
+
+void GestureRecognizer::registerHoldGesture(HoldGesture *gesture)
+{
+    Q_ASSERT(!m_holdGestures.contains(gesture));
+    auto connection = connect(gesture,
+                              &QObject::destroyed,
+                              this,
+                              std::bind(&GestureRecognizer::unregisterHoldGesture, this, gesture));
+    m_destroyConnections.insert(gesture, connection);
+    m_holdGestures << gesture;
+}
+
+void GestureRecognizer::unregisterHoldGesture(HoldGesture *gesture)
+{
+    auto it = m_destroyConnections.find(gesture);
+    if (it != m_destroyConnections.end()) {
+        disconnect(it.value());
+        m_destroyConnections.erase(it);
+    }
+    if (m_holdGestures.removeOne(gesture)) {
+        Q_EMIT gesture->cancelled();
+    }
+    gesture->deleteLater();
+}
+
+void GestureRecognizer::startHoldGesture(uint fingerCount)
+{
+    m_currentFingerCount = fingerCount;
+    for (auto &&gesture : std::as_const(m_holdGestures)) {
+        if (!gesture->isActive()) {
+            gesture->startTimer();
+            m_activeHoldGestures << gesture;
+        }
+    }
+}
+
+void GestureRecognizer::endHoldGesture()
+{
+    for (auto &&gesture : std::as_const(m_activeHoldGestures)) {
+        if (gesture->isActive()) {
+            gesture->stopTimer();
+        }
+        Q_EMIT gesture->cancelled();
+    }
+    m_activeHoldGestures.clear();
+    m_currentFingerCount = 0;
 }

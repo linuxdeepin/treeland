@@ -25,6 +25,13 @@ struct SwipeFeedBack
     std::function<void(qreal)> progressCallback;
 };
 
+struct HoldFeedBack
+{
+    uint fingerCount;
+    std::function<void()> actionCallback;
+    std::function<void()> longProcessCallback;
+};
+
 class InputDevice : public QObject
 {
 public:
@@ -36,11 +43,15 @@ public:
     bool initTouchPad(WInputDevice *handle);
 
     void registerTouchpadSwipe(const SwipeFeedBack &feed);
+    void registerTouchpadHold(const HoldFeedBack &feed);
 
     void processSwipeStart(uint finger);
     void processSwipeUpdate(const QPointF &delta);
     void processSwipeCancel();
     void processSwipeEnd();
+
+    void processHoldStart(uint finger);
+    void processHoldEnd();
 
 private:
     InputDevice(QObject *parent = nullptr);
