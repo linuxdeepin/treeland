@@ -41,8 +41,9 @@ public:
 
     // When workspaceId is -1 will move to current workspace
     Q_INVOKABLE void moveSurfaceTo(SurfaceWrapper *surface, int workspaceId = -1);
-    Q_INVOKABLE void moveSurfaceToNextWorkspace(SurfaceWrapper *surface);
-    Q_INVOKABLE void moveSurfaceToPrevWorkspace(SurfaceWrapper *surface);
+    Q_INVOKABLE int getLeftWorkspaceId(int workspaceId);
+    Q_INVOKABLE int getRightWorkspaceId(int workspaceId);
+
     void addSurface(SurfaceWrapper *surface, int workspaceId);
     void addSurface(SurfaceWrapper *surface) override;
     Q_INVOKABLE void moveModelTo(int workspaceId, int destinationIndex);

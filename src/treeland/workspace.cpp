@@ -61,34 +61,32 @@ void Workspace::moveSurfaceTo(SurfaceWrapper *surface, int workspaceId)
     }
 }
 
-void Workspace::moveSurfaceToNextWorkspace(SurfaceWrapper *surface)
+int Workspace::getLeftWorkspaceId(int workspaceId)
 {
-    Q_ASSERT(surface);
-    if (surface->showOnAllWorkspace() || surface->workspaceId() == -1)
-        return;
+    if (workspaceId == ShowOnAllWorkspaceId || workspaceId < 0)
+        return -1;
 
-    auto model = modelFromId(surface->workspaceId());
-    Q_ASSERT(model);
-
-    auto index = m_models->objects().indexOf(model);
-    if (index == count() - 1)
-        return;
-    moveSurfaceTo(surface, modelAt(index + 1)->id());
-}
-
-void Workspace::moveSurfaceToPrevWorkspace(SurfaceWrapper *surface)
-{
-    Q_ASSERT(surface);
-    if (surface->showOnAllWorkspace() || surface->workspaceId() == -1)
-        return;
-
-    auto model = modelFromId(surface->workspaceId());
+    auto model = modelFromId(workspaceId);
     Q_ASSERT(model);
 
     auto index = m_models->objects().indexOf(model);
     if (index == 0)
-        return;
-    moveSurfaceTo(surface, modelAt(index - 1)->id());
+        return -1;
+    return modelAt(index - 1)->id();
+}
+
+int Workspace::getRightWorkspaceId(int workspaceId)
+{
+    if (workspaceId == ShowOnAllWorkspaceId || workspaceId < 0)
+        return -1;
+
+    auto model = modelFromId(workspaceId);
+    Q_ASSERT(model);
+
+    auto index = m_models->objects().indexOf(model);
+    if (index == count() - 1)
+        return -1;
+    return modelAt(index + 1)->id();
 }
 
 void Workspace::addSurface(SurfaceWrapper *surface, int workspaceId)

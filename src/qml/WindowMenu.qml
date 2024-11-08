@@ -37,13 +37,13 @@ D.Menu {
     }
 
     D.MenuItem {
-        checked: surface?.alwaysOnTop
+        checked: surface ? surface.alwaysOnTop : false
         text: qsTr("Always on Top")
         onTriggered: surface.alwaysOnTop = !surface.alwaysOnTop;
     }
 
     D.MenuItem {
-        checked: surface?.showOnAllWorkspace
+        checked: surface ? surface.showOnAllWorkspace : false
         text: qsTr("Always on Visible Workspace")
         onTriggered: {
             if (surface.showOnAllWorkspace) {
@@ -57,15 +57,17 @@ D.Menu {
     }
 
     D.MenuItem {
+        property int leftWorkspaceId: surface ? Helper.workspace.getLeftWorkspaceId(surface.workspaceId) : -1
         text: qsTr("Move to Left Work Space")
-        enabled: surface?.workspaceId !== 0 && !surface?.showOnAllWorkspace
-        onTriggered: Helper.workspace.moveSurfaceToPrevWorkspace(surface)
+        enabled: leftWorkspaceId >= 0
+        onTriggered: Helper.workspace.moveSurfaceTo(surface, leftWorkspaceId)
     }
 
     D.MenuItem {
+        property int rightWorkspaceId: surface ? Helper.workspace.getRightWorkspaceId(surface.workspaceId) : -1
         text: qsTr("Move to Right Work Space")
-        enabled: surface?.workspaceId !== Helper.workspace.count - 1 && !surface?.showOnAllWorkspace
-        onTriggered: Helper.workspace.moveSurfaceToNextWorkspace(surface)
+        enabled: rightWorkspaceId >= 0
+        onTriggered: Helper.workspace.moveSurfaceTo(surface, rightWorkspaceId)
     }
 
     D.MenuItem {
