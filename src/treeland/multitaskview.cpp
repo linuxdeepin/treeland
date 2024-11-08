@@ -339,10 +339,10 @@ void MultitaskviewSurfaceModel::calcDisplayPos(const QList<ModelDataPtr> &rawDat
             window->pendingLeftIndex = rawData.indexOf(row[(j - 1 + row.size()) % row.size()]);
             window->pendingRightIndex = rawData.indexOf(row[(j + 1) % row.size()]);
             auto lastRow = m_rows[std::max(0, i - 1)];
-            auto lastRowIndex = std::min(static_cast<int>(lastRow.size()), j);
+            auto lastRowIndex = std::min(static_cast<int>(lastRow.size()) - 1, j);
             window->pendingUpIndex = rawData.indexOf(lastRow[lastRowIndex]);
-            auto nextRow = m_rows[std::min(static_cast<int>(m_rows.size() - 1), i + 1)];
-            auto nextRowIndex = std::min(static_cast<int>(nextRow.size() - 1), j);
+            auto nextRow = m_rows[std::min(static_cast<int>(m_rows.size()) - 1, i + 1)];
+            auto nextRowIndex = std::min(static_cast<int>(nextRow.size()) - 1, j);
             window->pendingDownIndex = rawData.indexOf(nextRow[nextRowIndex]);
             curX += window->pendingGeometry.width() + 2 * CellPadding;
         }
