@@ -323,19 +323,27 @@ void Workspace::doSetCurrentIndex(int newCurrentIndex)
     TreelandConfig::ref().setCurrentWorkspace(newCurrentIndex);
 }
 
-void Workspace::hideAllSurfacesExceptPreviewing(SurfaceWrapper *previewingItem)
+void Workspace::startPreviewing(SurfaceWrapper *previewingItem)
 {
-    const auto &surfaceList = surfaces();
-    for (auto surface : surfaceList) {
-        surface->setOpacity(surface == previewingItem ? 1 : 0);
+    if (m_previewingItem) {
+        auto modle = modelFromId(m_previewingItem->workspaceId());
+        m_previewingItem->setOpacity(modle->opaque() ? 1.0 : 0.0);
+        m_previewingItem->setHideByWorkspace(!modle->visible());
     }
+    m_previewingItem = previewingItem;
+    current()->setOpaque(false);
+    previewingItem->setOpacity(1);
+    previewingItem->setHideByWorkspace(false);
 }
 
-void Workspace::showAllSurfaces()
+void Workspace::stopPreviewing()
 {
-    const auto &surfaceList = surfaces();
-    for (auto surface : surfaceList) {
-        surface->setOpacity(1);
+    current()->setOpaque(true);
+    if (m_previewingItem) {
+        auto modle = modelFromId(m_previewingItem->workspaceId());
+        m_previewingItem->setOpacity(modle->opaque() ? 1.0 : 0.0);
+        m_previewingItem->setHideByWorkspace(!modle->visible());
+        m_previewingItem = nullptr;
     }
 }
 
