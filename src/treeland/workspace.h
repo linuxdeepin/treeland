@@ -72,8 +72,8 @@ public:
     WorkspaceListModel *models();
     static inline constexpr int ShowOnAllWorkspaceId = -2;
 
-    Q_INVOKABLE void hideAllSurfacesExceptPreviewing(SurfaceWrapper *previewingItem);
-    Q_INVOKABLE void showAllSurfaces();
+    Q_INVOKABLE void startPreviewing(SurfaceWrapper *previewingItem);
+    Q_INVOKABLE void stopPreviewing();
 
     void pushActivedSurface(SurfaceWrapper *surface);
     void removeActivedSurface(SurfaceWrapper *surface);
@@ -103,4 +103,5 @@ private:
     SurfaceFilterProxyModel *m_currentFilter;
     WorkspaceAnimationController *m_animationController;
     bool m_switcherEnabled = true;
+    QPointer<SurfaceWrapper> m_previewingItem;
 };
