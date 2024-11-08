@@ -53,6 +53,8 @@ set(COMPONENTS_TRANSLATION_DIR  "${TREELAND_DATA_DIR}/translations"             
 GNUInstallDirs_get_absolute_install_dir(TREELAND_FULL_DATA_DIR TREELAND_DATA_DIR DATADIR)
 
 add_compile_definitions("TREELAND_DATA_DIR=\"${TREELAND_FULL_DATA_DIR}\"")
+# NOTE:: remove force assert before stable version
+add_compile_definitions("QT_FORCE_ASSERTS")
 
 set(PROJECT_RESOURCES_DIR "${CMAKE_SOURCE_DIR}/misc")
 
