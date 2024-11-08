@@ -29,6 +29,44 @@ Item {
         smooth: true
         anchors.fill: parent
         hideSource: false
+        state: mapped ? "Scale" : "Normal"
+        states: [
+            State {
+                name: "Normal"
+                PropertyChanges {
+                    target: wallpaper
+                    scale: 1
+                }
+            },
+            State {
+                name: "Scale"
+                PropertyChanges {
+                    target: wallpaper
+                    scale: 1.4
+                }
+            }
+        ]
+
+        transitions: [
+            Transition {
+                from: "*"
+                to: "Normal"
+                PropertyAnimation {
+                    property: "scale"
+                    duration: 1000
+                    easing.type: Easing.OutExpo
+                }
+            },
+            Transition {
+                from: "*"
+                to: "Scale"
+                PropertyAnimation {
+                    property: "scale"
+                    duration: 1000
+                    easing.type: Easing.OutExpo
+                }
+            }
+        ]
     }
 
     Blur {
