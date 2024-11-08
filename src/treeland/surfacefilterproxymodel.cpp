@@ -25,7 +25,7 @@ void SurfaceFilterProxyModel::setActiveIndex(int index)
 {
     if (m_activeIndex != index) {
         m_activeIndex = index;
-        Q_EMIT m_activeIndex;
+        Q_EMIT activeIndexChanged();
     }
 }
 

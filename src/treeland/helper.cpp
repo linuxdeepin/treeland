@@ -932,8 +932,7 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *, QInputEvent *event)
                 m_currentMode = CurrentMode::WindowSwitch;
                 QString appid;
                 if (kevent->key() == Qt::Key_QuoteLeft || kevent->key() == Qt::Key_AsciiTilde) {
-                    auto surface =
-                        m_taskSwitch->property("currentSurface").value<SurfaceWrapper *>();
+                    auto surface = Helper::instance()->activatedSurface();
                     if (surface) {
                         appid = surface->shellSurface()->appId();
                     }
@@ -942,10 +941,10 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *, QInputEvent *event)
                 filter->setFilterAppId(appid);
 
                 if (kevent->key() == Qt::Key_Left) {
-                    QMetaObject::invokeMethod(m_taskSwitch, "next");
+                    QMetaObject::invokeMethod(m_taskSwitch, "previous");
                     return true;
                 } else if (kevent->key() == Qt::Key_Right) {
-                    QMetaObject::invokeMethod(m_taskSwitch, "previous");
+                    QMetaObject::invokeMethod(m_taskSwitch, "next");
                     return true;
                 }
 
