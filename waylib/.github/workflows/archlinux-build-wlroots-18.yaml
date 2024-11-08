@@ -1,4 +1,4 @@
-name: Build on archlinux with wlroots-17
+name: Build on archlinux with wlroots-18
 
 on:
   push:
@@ -21,7 +21,7 @@ jobs:
           pacman --noconfirm --noprogressbar -Syu
       - name: Install dep
         run: |
-          pacman -Syu --noconfirm --noprogressbar base-devel qt6-base qt6-declarative cmake pkgconfig pixman wlroots0.17 wayland-protocols wlr-protocols git
+          pacman -Syu --noconfirm --noprogressbar base-devel qt6-base qt6-declarative cmake pkgconfig pixman wlroots wayland-protocols wlr-protocols git
           pacman -Syu --noconfirm --noprogressbar clang ninja make
           pacman -Syu --noconfirm --noprogressbar fakeroot meson sudo
       - uses: actions/checkout@v4
@@ -29,7 +29,6 @@ jobs:
           submodules: true
       - name: Configure CMake
         run: |
-          export PKG_CONFIG_PATH=/usr/lib/wlroots0.17/pkgconfig/
           mkdir -p ${{github.workspace}}/build
           cmake -B ${{github.workspace}}/build -G Ninja -DWITH_SUBMODULE_QWLROOTS=ON
       - name: Build

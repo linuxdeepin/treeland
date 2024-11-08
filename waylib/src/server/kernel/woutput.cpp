@@ -487,7 +487,7 @@ QPoint WOutput::position() const
     if (Q_UNLIKELY(!d->layout))
         return p;
 
-    auto l_output = d->layout->get(d->nativeHandle());
+    auto l_output = d->layout->handle()->get(d->nativeHandle());
 
     if (Q_UNLIKELY(!l_output))
         return p;
@@ -531,28 +531,6 @@ float WOutput::scale() const
     W_DC(WOutput);
 
     return d->nativeHandle()->scale;
-}
-
-QImage::Format WOutput::preferredReadFormat() const
-{
-    W_DC(WOutput);
-
-    auto renderer = d->nativeHandle()->renderer;
-    // ###: The wlr_output_preferred_read_format force request
-    // attach the renderer to wlr_output, but maybe the renderer
-    // is rendering, you will get a crash at renderer_bind_buffer.
-    // So, if it's rendering, we direct get the preferred read
-    // format of current buffer by renderer->impl->preferred_read_format.
-    if (renderer && renderer->rendering) {
-        if (!renderer->impl->preferred_read_format
-            || !renderer->impl->read_pixels) {
-            return QImage::Format_Invalid;
-        }
-
-        return WTools::toImageFormat(renderer->impl->preferred_read_format(renderer));
-    }
-
-    return WTools::toImageFormat(d->handle()->preferred_read_format());
 }
 
 void WOutput::attach(QQuickWindow *window)
@@ -601,74 +579,6 @@ void WOutput::removeCursor(WCursor *cursor)
 const QList<WCursor *> &WOutput::cursorList() const
 {
     return static_cast<QWlrootsCursor*>(screen()->cursor())->cursors;
-}
-
-bool WOutput::setGammaLut(size_t ramp_size, uint16_t* r, uint16_t* g, uint16_t* b)
-{
-    W_D(WOutput);
-    wlr_output_state state;
-
-    wlr_output_state_init(&state);
-    if (!wlr_output_state_set_gamma_lut(&state, ramp_size, r, g, b)) {
-        wlr_output_state_finish(&state);
-        qCWarning(qLcOutput) << "Gamma lut can't set to state!";
-        return false;
-    }
-
-    if (!handle()->test_state(&state)) {
-        wlr_output_state_finish(&state);
-        qCWarning(qLcOutput) << "The gamma lut state can't accepted by the backend!";
-        return false;
-    }
-
-    bool ok = handle()->commit_state(&state);
-    wlr_output_state_finish(&state);
-    if (!ok)
-        qCWarning(qLcOutput) << "Output commitState failed!";
-    return ok;
-}
-
-bool WOutput::enable(bool enabled)
-{
-    W_D(WOutput);
-    d->handle()->enable(enabled);
-    return true;
-}
-
-void WOutput::enableAdaptiveSync(bool enabled)
-{
-    W_D(WOutput);
-    d->handle()->enable_adaptive_sync(enabled);
-}
-
-void WOutput::setMode(wlr_output_mode *mode)
-{
-    W_D(WOutput);
-    d->handle()->set_mode(mode);
-}
-
-void WOutput::setCustomMode(const QSize &size, int32_t refresh)
-{
-    W_D(WOutput);
-    d->handle()->set_custom_mode(size.width(), size.height(), refresh);
-}
-
-bool WOutput::test()
-{
-    W_D(WOutput);
-    return d->handle()->test();
-}
-
-bool WOutput::commit()
-{
-    W_D(WOutput);
-    return d->handle()->commit();
-}
-
-void WOutput::rollback()
-{
-    W_D(WOutput);
-    d->handle()->rollback();
 }
 
 bool WOutput::forceSoftwareCursor() const

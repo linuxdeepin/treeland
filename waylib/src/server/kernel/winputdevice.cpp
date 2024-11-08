@@ -73,7 +73,7 @@ WInputDevice::Type WInputDevice::type() const
     case WLR_INPUT_DEVICE_KEYBOARD: return Type::Keyboard;
     case WLR_INPUT_DEVICE_POINTER: return Type::Pointer;
     case WLR_INPUT_DEVICE_TOUCH: return Type::Touch;
-    case WLR_INPUT_DEVICE_TABLET_TOOL: return Type::Tablet;
+    case WLR_INPUT_DEVICE_TABLET: return Type::Tablet;
     case WLR_INPUT_DEVICE_TABLET_PAD: return Type::TabletPad;
     case WLR_INPUT_DEVICE_SWITCH: return Type::Switch;
     }

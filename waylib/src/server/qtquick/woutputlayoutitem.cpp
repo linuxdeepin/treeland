@@ -75,7 +75,7 @@ void WOutputLayoutItem::setLayout(WQuickOutputLayout *newLayout)
         return;
 
     if (d->layout)
-        d->layout->disconnect(this);
+        d->layout->safeDisconnect(this);
 
     d->layout = newLayout;
 

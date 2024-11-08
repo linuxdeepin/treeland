@@ -125,7 +125,7 @@ void WCursorPrivate::on_button(wlr_pointer_button_event *event)
     auto device = qw_pointer::from(event->pointer);
     button = WCursor::fromNativeButton(event->button);
 
-    if (event->state == WLR_BUTTON_RELEASED) {
+    if (event->state == WL_POINTER_BUTTON_STATE_RELEASED) {
         state &= ~button;
     } else {
         state |= button;
@@ -144,9 +144,9 @@ void WCursorPrivate::on_axis(wlr_pointer_axis_event *event)
 
     if (Q_LIKELY(seat)) {
         seat->notifyAxis(q_func(), WInputDevice::fromHandle(device), event->source,
-                         event->orientation == WLR_AXIS_ORIENTATION_HORIZONTAL
-                         ? Qt::Horizontal : Qt::Vertical, event->delta, event->delta_discrete,
-                         event->time_msec);
+                         event->orientation == WL_POINTER_AXIS_HORIZONTAL_SCROLL
+                         ? Qt::Horizontal : Qt::Vertical, event->relative_direction,
+                         event->delta, event->delta_discrete, event->time_msec);
     }
 }
 
@@ -386,6 +386,7 @@ bool WCursor::setPositionWithChecker(qw_input_device *device, const QPointF &pos
 
 void WCursor::setScalePosition(qw_input_device *device, const QPointF &ratio)
 {
+    Q_ASSERT(layout());
     const QPointF oldPos = position();
     d_func()->handle()->warp_absolute(*device, ratio.x(), ratio.y());
 
@@ -641,7 +642,7 @@ void WCursor::setLayout(WOutputLayout *layout)
         return;
 
     d->outputLayout = layout;
-    d->handle()->attach_output_layout(*d->outputLayout);
+    d->handle()->attach_output_layout(*d->outputLayout->handle());
 
     if (d->outputLayout) {
         for (auto o : d->outputLayout->outputs())

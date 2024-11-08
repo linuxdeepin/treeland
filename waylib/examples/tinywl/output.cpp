@@ -15,6 +15,8 @@
 #include <woutputlayout.h>
 #include <wquicktextureproxy.h>
 
+#include <qwoutputlayout.h>
+
 #include <QQmlEngine>
 
 Q_LOGGING_CATEGORY(qLcLayerShell, "tinywl.shell.layer", QtWarningMsg)
@@ -398,7 +400,7 @@ void Output::updatePositionFromLayout()
     WOutputLayout * layout = output()->layout();
     Q_ASSERT(layout);
 
-    auto *layoutOutput = layout->get(output()->nativeHandle());
+    auto *layoutOutput = layout->handle()->get(output()->nativeHandle());
     QPointF pos(layoutOutput->x, layoutOutput->y);
     m_item->setPosition(pos);
 }

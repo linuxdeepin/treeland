@@ -1095,14 +1095,33 @@ bool OutputHelper::tryToHardwareCursor(const LayerData *layer)
             break;
 
         QSize pixelSize = QSize(buffer->width, buffer->height);
-        auto get_cursor_size = qwoutput()->handle()->impl->get_cursor_size;
+        auto get_cursor_sizes = qwoutput()->handle()->impl->get_cursor_sizes;
         auto get_cursor_formsts = qwoutput()->handle()->impl->get_cursor_formats;
-        if (get_cursor_size) {
-            get_cursor_size(qwoutput()->handle(), &pixelSize.rwidth(), &pixelSize.rheight());
+        bool needsRepaintCursor = get_cursor_sizes && get_cursor_formsts;
+
+        if (get_cursor_sizes) {
+            bool foundTargetSize = false;
+            size_t sizes_len = 0;
+            const auto sizes = get_cursor_sizes(qwoutput()->handle(), &sizes_len);
+            for (size_t i = 0; i < sizes_len; ++i) {
+                if (sizes[i].width == pixelSize.width()
+                    && sizes[i].height == pixelSize.height()) {
+                    foundTargetSize = true;
+                    break;
+                }
+            }
+
+            if (!foundTargetSize && sizes_len > 0) {
+                // Use the request size wlroots's backend to render the cursor
+                pixelSize.rwidth() = sizes[0].width;
+                pixelSize.rheight() = sizes[0].height;
+                needsRepaintCursor = true;
+            } else {
+                needsRepaintCursor = false;
+            }
         }
 
-        if (pixelSize != QSize(buffer->width, buffer->height)
-            || (get_cursor_formsts && get_cursor_size)) {
+        if (needsRepaintCursor) {
             // needs render cursor again
             if (!m_cursorRenderer) {
                 m_cursorRenderer = new WBufferRenderer(renderWindow()->contentItem());

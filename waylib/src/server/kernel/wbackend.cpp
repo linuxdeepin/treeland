@@ -193,7 +193,7 @@ void WBackend::create(WServer *server)
     W_D(WBackend);
 
     if (!m_handle) {
-        m_handle = qw_backend::autocreate(*server->handle(), nullptr);
+        m_handle = qw_backend::autocreate(server->handle()->get_event_loop(), nullptr);
         Q_ASSERT(m_handle);
     }
 

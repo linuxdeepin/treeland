@@ -86,6 +86,7 @@ class WAYLIB_SERVER_EXPORT WServer : public QObject, public WObject
 
 public:
     explicit WServer(QObject *parent = nullptr);
+    ~WServer();
 
     QW_NAMESPACE::qw_display *handle() const;
 

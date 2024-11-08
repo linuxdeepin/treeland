@@ -47,6 +47,8 @@ public:
         PopupZOrder = 4,
     };
 
+    void init(WServer *server);
+
     SurfaceWrapper *getSurface(WSurface *surface) const;
     SurfaceWrapper *getSurface(WToplevelSurface *surface) const;
     void destroyForSurface(WSurface *surface);

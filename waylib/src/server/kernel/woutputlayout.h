@@ -4,14 +4,18 @@
 #pragma once
 
 #include <wglobal.h>
-#include <qwoutputlayout.h>
+#include <WServer>
 #include <limits.h>
+
+QW_BEGIN_NAMESPACE
+class qw_output_layout;
+QW_END_NAMESPACE
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
 class WOutput;
 class WOutputLayoutPrivate;
-class WAYLIB_SERVER_EXPORT WOutputLayout : public QW_NAMESPACE::qw_output_layout, public WObject
+class WAYLIB_SERVER_EXPORT WOutputLayout : public WWrapObject
 {
     Q_OBJECT
     W_DECLARE_PRIVATE(WOutputLayout)
@@ -28,7 +32,9 @@ public:
     };
     Q_ENUM(Layer)
 
-    explicit WOutputLayout(QObject *parent = nullptr);
+    explicit WOutputLayout(WServer *server);
+
+    qw_output_layout *handle() const;
 
     const QList<WOutput *> &outputs() const;
 
@@ -50,13 +56,8 @@ Q_SIGNALS:
     void implicitHeightChanged();
 
 protected:
-    WOutputLayout(WOutputLayoutPrivate &dd, QObject *parent = nullptr);
+    WOutputLayout(WOutputLayoutPrivate &dd, WServer *server);
     ~WOutputLayout() override = default;
-
-protected:
-    using QW_NAMESPACE::qw_output_layout::add;
-    using QW_NAMESPACE::qw_output_layout::add_auto;
-    using QW_NAMESPACE::qw_output_layout::remove;
 };
 
 WAYLIB_SERVER_END_NAMESPACE

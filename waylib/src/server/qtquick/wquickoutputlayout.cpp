@@ -29,8 +29,8 @@ public:
     QList<WOutputItem*> outputs;
 };
 
-WQuickOutputLayout::WQuickOutputLayout(QObject *parent)
-    : WOutputLayout(*new WQuickOutputLayoutPrivate(this), parent)
+WQuickOutputLayout::WQuickOutputLayout(WServer *server)
+    : WOutputLayout(*new WQuickOutputLayoutPrivate(this), server)
 {
 
 }

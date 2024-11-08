@@ -172,7 +172,7 @@ QPointer<QInputDevice> QWlrootsIntegration::addInputDevice(WInputDevice *device,
                                     10, 32, seatName, QPointingDeviceUniqueId());
         break;
     }
-    case WLR_INPUT_DEVICE_TABLET_TOOL: {
+    case WLR_INPUT_DEVICE_TABLET: {
         qtdev = new QPointingDevice(name, systemId, QInputDevice::DeviceType::Stylus, QPointingDevice::PointerType::Pen,
                                     QInputDevice::Capability::XTilt | QInputDevice::Capability::YTilt | QInputDevice::Capability::Pressure,
                                     1, 32, seatName, QPointingDeviceUniqueId());

@@ -22,7 +22,7 @@ class WAYLIB_SERVER_EXPORT WQuickOutputLayout : public WOutputLayout
     Q_PROPERTY(QList<WOutputItem*> outputs READ outputs NOTIFY outputsChanged)
 
 public:
-    explicit WQuickOutputLayout(QObject *parent = nullptr);
+    explicit WQuickOutputLayout(WServer *server);
 
     const QList<WOutputItem *> &outputs() const;
 

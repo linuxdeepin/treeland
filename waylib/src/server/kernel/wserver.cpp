@@ -76,21 +76,18 @@ static bool globalFilter(const wl_client *client,
 WServerPrivate::WServerPrivate(WServer *qq)
     : WObjectPrivate(qq)
 {
-
+    display.reset(new qw_display());
+    wl_display_set_global_filter(display->handle(), globalFilter, this);
 }
 
 WServerPrivate::~WServerPrivate()
 {
-    if (display)
-        stop();
+
 }
 
 void WServerPrivate::init()
 {
-    Q_ASSERT(!display);
-
-    display.reset(new qw_display());
-    wl_display_set_global_filter(display->handle(), globalFilter, this);
+    Q_ASSERT(display);
 
     // free follow display
     Q_UNUSED(qw_data_device_manager::create(*display));
@@ -143,7 +140,6 @@ void WServerPrivate::stop()
 
     sockNot.reset();
     QThread::currentThread()->eventDispatcher()->disconnect(q);
-    display.reset(nullptr);
 }
 
 void WServerPrivate::initSocket(WSocket *socketServer)
@@ -156,6 +152,12 @@ WServer::WServer(QObject *parent)
     : WServer(*new WServerPrivate(this), parent)
 {
 
+}
+
+WServer::~WServer()
+{
+    if (isRunning())
+        stop();
 }
 
 WServer::WServer(WServerPrivate &dd, QObject *parent)
@@ -356,7 +358,7 @@ void WServer::initializeProxyQPA(int &argc, char **argv, const QStringList &prox
 bool WServer::isRunning() const
 {
     W_DC(WServer);
-    return d->display.get();
+    return d->sockNot.get();
 }
 
 void WServer::addSocket(WSocket *socket)

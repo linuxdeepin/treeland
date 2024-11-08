@@ -654,7 +654,7 @@ void WRenderHelper::setupRendererBackend(qw_backend *testBackend)
         std::unique_ptr<qw_display> display { nullptr };
         if (!testBackend) {
             display.reset(new qw_display());
-            testBackend = qw_backend::autocreate(*display.get(), nullptr);
+            testBackend = qw_backend::autocreate(display->get_event_loop(), nullptr);
 
             if (!testBackend)
                 qFatal("Failed to create wlr_backend");
@@ -688,7 +688,8 @@ QSGRendererInterface::GraphicsApi WRenderHelper::probe(qw_backend *testBackend, 
             continue;
         }
 
-        const auto *formats = renderer->get_dmabuf_texture_formats();
+        auto fun_get_formats = renderer->handle()->impl->get_texture_formats;
+        const wlr_drm_format_set *formats = fun_get_formats ? fun_get_formats(*renderer, WLR_BUFFER_CAP_DMABUF) : nullptr;
 
         if (formats && formats->len == 0) {
             qInfo() << GraphicsApiName(api) << " api don't support any format";

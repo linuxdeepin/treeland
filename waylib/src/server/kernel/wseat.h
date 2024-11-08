@@ -24,8 +24,9 @@ class QPointingDevice;
 class QQuickItem;
 QT_END_NAMESPACE
 
-typedef uint wlr_axis_source_t;
-typedef uint wlr_button_state_t;
+typedef uint wl_pointer_axis_source_t;
+typedef uint wl_pointer_axis_relative_direction_t;
+typedef uint wl_pointer_button_state_t;
 struct wlr_seat;
 struct wlr_seat_client;
 
@@ -136,10 +137,10 @@ protected:
     // pointer
     void notifyMotion(WCursor *cursor, WInputDevice *device, uint32_t timestamp);
     void notifyButton(WCursor *cursor, WInputDevice *device,
-                      Qt::MouseButton button, wlr_button_state_t state,
+                      Qt::MouseButton button, wl_pointer_button_state_t state,
                       uint32_t timestamp);
-    void notifyAxis(WCursor *cursor, WInputDevice *device, wlr_axis_source_t source,
-                    Qt::Orientation orientation,
+    void notifyAxis(WCursor *cursor, WInputDevice *device, wl_pointer_axis_source_t source,
+                    Qt::Orientation orientation, wl_pointer_axis_relative_direction_t rd,
                     double delta, int32_t delta_discrete, uint32_t timestamp);
     void notifyFrame(WCursor *cursor);
 

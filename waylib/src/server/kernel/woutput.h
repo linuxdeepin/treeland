@@ -91,7 +91,6 @@ public:
     QSize effectiveSize() const;
     Transform orientation() const;
     float scale() const;
-    QImage::Format preferredReadFormat() const;
 
     void attach(QQuickWindow *window);
     QQuickWindow *attachedWindow() const;
@@ -102,15 +101,6 @@ public:
     void addCursor(WCursor *cursor);
     void removeCursor(WCursor *cursor);
     const QList<WCursor *> &cursorList() const;
-
-    Q_INVOKABLE bool setGammaLut(size_t ramp_size, uint16_t* r, uint16_t* g, uint16_t* b);
-    Q_INVOKABLE bool enable(bool enabled);
-    Q_INVOKABLE void enableAdaptiveSync(bool enabled);
-    Q_INVOKABLE void setMode(wlr_output_mode *mode);
-    Q_INVOKABLE void setCustomMode(const QSize &size, int32_t refresh);
-    Q_INVOKABLE bool test();
-    Q_INVOKABLE bool commit();
-    Q_INVOKABLE void rollback();
 
     bool forceSoftwareCursor() const;
     void setForceSoftwareCursor(bool on);

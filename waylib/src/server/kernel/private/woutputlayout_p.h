@@ -6,13 +6,20 @@
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
-class Q_DECL_HIDDEN WOutputLayoutPrivate : public WObjectPrivate
+class Q_DECL_HIDDEN WOutputLayoutPrivate : public WWrapObjectPrivate
 {
 public:
     WOutputLayoutPrivate(WOutputLayout *qq);
     ~WOutputLayoutPrivate();
 
+    WWRAP_HANDLE_FUNCTIONS(qw_output_layout, wlr_output_layout)
+
     void doAdd(WOutput *output);
+
+    void instantRelease() override {
+        if (handle())
+            handle()->set_data(nullptr, nullptr);
+    }
 
     W_DECLARE_PUBLIC(WOutputLayout)
 

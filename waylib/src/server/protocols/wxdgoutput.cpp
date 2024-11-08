@@ -376,6 +376,7 @@ WXdgOutputManager::WXdgOutputManager(WOutputLayout *layout)
 {
     W_D(WXdgOutputManager);
 
+    Q_ASSERT(layout);
     d->layout = layout;
 }
 
@@ -434,9 +435,9 @@ void WXdgOutputManager::create(WServer *wserver)
     Q_UNUSED(wserver)
     W_D(WXdgOutputManager);
     if (d->layout) {
-        m_handle = way_xdg_output_manager_v1_create(server()->handle()->handle(),
-                                                      d->layout->handle(),
-                                                      d->scaleOverride);
+        m_handle = way_xdg_output_manager_v1_create(*server()->handle(),
+                                                    *d->layout->handle(),
+                                                    d->scaleOverride);
     } else {
         qWarning() << "Output layout not set, xdg output manager will never be created!";
     }

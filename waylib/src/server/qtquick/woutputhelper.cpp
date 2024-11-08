@@ -140,8 +140,7 @@ void WOutputHelperPrivate::on_damage()
 
 qw_buffer *WOutputHelperPrivate::acquireBuffer(wlr_swapchain **sc, int *bufferAge)
 {
-    // TODO: Use a new wlr_output_state in WOutputHelper
-    bool ok = qwoutput()->configure_primary_swapchain(&qwoutput()->handle()->pending, sc);
+    bool ok = qwoutput()->configure_primary_swapchain(&state, sc);
     if (!ok)
         return nullptr;
     auto newBuffer = qw_swapchain::from(*sc)->acquire(bufferAge);

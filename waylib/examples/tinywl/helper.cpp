@@ -142,6 +142,7 @@ void Helper::init()
     engine->setContextForObject(m_renderWindow->contentItem(), engine->rootContext());
     m_surfaceContainer->setQmlEngine(engine);
 
+    m_surfaceContainer->init(m_server);
     m_seat = m_server->attach<WSeat>();
     m_seat->setEventFilter(this);
     m_seat->setCursor(m_surfaceContainer->cursor());
@@ -259,6 +260,7 @@ void Helper::init()
     });
 
     m_server->start();
+
     m_renderer = WRenderHelper::createRenderer(m_backend->handle());
     if (!m_renderer) {
         qFatal("Failed to create renderer");
@@ -386,7 +388,6 @@ void Helper::init()
     connect(gammaControlManager, &qw_gamma_control_manager_v1::notify_set_gamma, this, [this]
             (wlr_gamma_control_manager_v1_set_gamma_event *event) {
         auto *qwOutput = qw_output::from(event->output);
-        auto *wOutput = WOutput::fromHandle(qwOutput);
         size_t ramp_size = 0;
         uint16_t *r = nullptr, *g = nullptr, *b = nullptr;
         wlr_gamma_control_v1 *gamma_control = event->control;
@@ -396,7 +397,10 @@ void Helper::init()
             g = gamma_control->table + gamma_control->ramp_size;
             b = gamma_control->table + 2 * gamma_control->ramp_size;
         }
-        if (!wOutput->setGammaLut(ramp_size, r, g, b)) {
+        qw_output_state newState;
+        newState.set_gamma_lut(ramp_size, r, g, b);
+
+        if (!qwOutput->commit_state(newState)) {
             qw_gamma_control_v1::from(gamma_control)->send_failed_and_destroy();
         }
     });
@@ -407,19 +411,24 @@ void Helper::init()
         bool ok = true;
         for (auto state : std::as_const(states)) {
             WOutput *output = state.output;
-            output->enable(state.enabled);
+            qw_output_state newState;
+
+            newState.set_enabled(state.enabled);
             if (state.enabled) {
                 if (state.mode)
-                    output->setMode(state.mode);
+                    newState.set_mode(state.mode);
                 else
-                    output->setCustomMode(state.customModeSize, state.customModeRefresh);
+                    newState.set_custom_mode(state.customModeSize.width(),
+                                             state.customModeSize.height(),
+                                             state.customModeRefresh);
 
-                output->enableAdaptiveSync(state.adaptiveSyncEnabled);
+                newState.set_adaptive_sync_enabled(state.adaptiveSyncEnabled);
                 if (!onlyTest) {
+                    newState.set_transform(static_cast<wl_output_transform>(state.transform));
+                    newState.set_scale(state.scale);
+
                     WOutputViewport *viewport = getOutput(output)->screenViewport();
                     if (viewport) {
-                        viewport->rotateOutput(state.transform);
-                        viewport->setOutputScale(state.scale);
                         viewport->setX(state.x);
                         viewport->setY(state.y);
                     }
@@ -427,9 +436,9 @@ void Helper::init()
             }
 
             if (onlyTest)
-                ok &= output->test();
+                ok &= output->handle()->test_state(newState);
             else
-                ok &= output->commit();
+                ok &= output->handle()->commit_state(newState);
         }
         wOutputManager->sendResult(config, ok);
     });
@@ -651,16 +660,7 @@ void Helper::allowNonDrmOutputAutoChangeMode(WOutput *output)
         this, [this] (wlr_output_event_request_state *newState) {
         if (newState->state->committed & WLR_OUTPUT_STATE_MODE) {
             auto output = qobject_cast<qw_output*>(sender());
-
-            if (newState->state->mode_type == WLR_OUTPUT_STATE_MODE_CUSTOM) {
-                output->set_custom_mode(newState->state->custom_mode.width,
-                                        newState->state->custom_mode.height,
-                                        newState->state->custom_mode.refresh);
-            } else {
-                output->set_mode(newState->state->mode);
-            }
-
-            output->commit();
+            output->commit_state(newState->state);
         }
     });
 }
@@ -676,14 +676,15 @@ void Helper::enableOutput(WOutput *output)
     // WOutputRenderWindow will ignore this ouptut on render.
     if (!qwoutput->property("_Enabled").toBool()) {
         qwoutput->setProperty("_Enabled", true);
+        qw_output_state newState;
 
         if (!qwoutput->handle()->current_mode) {
             auto mode = qwoutput->preferred_mode();
             if (mode)
-                output->setMode(mode);
+                newState.set_mode(mode);
         }
-        output->enable(true);
-        bool ok = output->commit();
+        newState.set_enabled(true);
+        bool ok = qwoutput->commit_state(newState);
         Q_ASSERT(ok);
     }
 }

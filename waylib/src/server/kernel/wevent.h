@@ -30,5 +30,10 @@ private:
     bool m_cancelled;
 };
 
+namespace WEvent {
+enum PointState {
+    PointCancelled = QEventPoint::State::Released << 1,
+};
+}
 
 WAYLIB_SERVER_END_NAMESPACE

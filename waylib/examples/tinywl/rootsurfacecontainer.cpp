@@ -12,6 +12,8 @@
 #include <woutput.h>
 #include <wxdgsurface.h>
 
+#include <qwoutputlayout.h>
+
 #include <QQuickWindow>
 
 WAYLIB_SERVER_USE_NAMESPACE
@@ -24,12 +26,16 @@ OutputListModel::OutputListModel(QObject *parent)
 
 RootSurfaceContainer::RootSurfaceContainer(QQuickItem *parent)
     : SurfaceContainer(parent)
-    , m_outputLayout(new WOutputLayout(this))
     , m_outputModel(new OutputListModel(this))
     , m_cursor(new WCursor(this))
 {
-    m_cursor->setLayout(m_outputLayout);
     m_cursor->setEventWindow(window());
+}
+
+void RootSurfaceContainer::init(WServer *server)
+{
+    m_outputLayout = new WOutputLayout(server);
+    m_cursor->setLayout(m_outputLayout);
 
     connect(m_outputLayout, &WOutputLayout::implicitWidthChanged, this, [this] {
         const auto width = m_outputLayout->implicitWidth();
@@ -43,7 +49,7 @@ RootSurfaceContainer::RootSurfaceContainer(QQuickItem *parent)
         setHeight(height);
     });
 
-    connect(m_outputLayout, &WOutputLayout::notify_change, this, [this] {
+    m_outputLayout->safeConnect(&qw_output_layout::notify_change, this, [this] {
         for (auto output : std::as_const(outputs())) {
             output->updatePositionFromLayout();
         }
@@ -266,7 +272,7 @@ void RootSurfaceContainer::addBySubContainer(SurfaceContainer *sub, SurfaceWrapp
         if (auto xdgSurface = qobject_cast<WXdgSurface*>(surface->shellSurface())) {
             if (xdgSurface->isPopup() && parentSurface->type() != SurfaceWrapper::Type::Layer) {
                 auto pos = parentSurface->position() + parentSurface->surfaceItem()->position() + xdgSurface->getPopupPosition();
-                if (auto op = m_outputLayout->output_at(pos.x(), pos.y()))
+                if (auto op = m_outputLayout->handle()->output_at(pos.x(), pos.y()))
                     output = Helper::instance()->getOutput(WOutput::fromHandle(qw_output::from(op)));
             }
         }
@@ -341,7 +347,7 @@ Output *RootSurfaceContainer::cursorOutput() const
 {
     Q_ASSERT(m_cursor->layout() == m_outputLayout);
     const auto &pos = m_cursor->position();
-    auto o = m_outputLayout->output_at(pos.x(), pos.y());
+    auto o = m_outputLayout->handle()->output_at(pos.x(), pos.y());
     if (!o)
         return nullptr;
 
@@ -369,7 +375,7 @@ const QList<Output*> &RootSurfaceContainer::outputs() const
 void RootSurfaceContainer::ensureCursorVisible()
 {
     const auto cursorPos = m_cursor->position();
-    if (m_outputLayout->output_at(cursorPos.x(), cursorPos.y()))
+    if (m_outputLayout->handle()->output_at(cursorPos.x(), cursorPos.y()))
         return;
 
     if (m_primaryOutput) {
