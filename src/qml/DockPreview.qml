@@ -83,12 +83,12 @@ Item {
 
         function previewWindow(surfaceWrapper) {
             console.debug(qLcDockPreview, "start preview window: ", surfaceWrapper)
-            Helper.workspace.hideAllSurfacesExceptPreviewing(surfaceWrapper);
+            Helper.workspace.startPreviewing(surfaceWrapper);
         }
 
         function stopPreviewWindow() {
             console.debug(qLcDockPreview, "stop preview window")
-            Helper.workspace.showAllSurfaces();
+            Helper.workspace.stopPreviewing();
         }
 
         function closeAllWindow() {
