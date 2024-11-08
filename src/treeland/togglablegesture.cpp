@@ -241,11 +241,6 @@ void TogglableGesture::moveDischarge()
         return;
 
     Workspace *workspace = Helper::instance()->workspace();
-    if (!m_slideBounce && (m_desktopOffset > 0.98 || m_desktopOffset < -0.98)) {
-        workspace->setCurrentIndex(m_toId);
-        return;
-    }
-
     m_fromId = workspace->currentIndex();
     m_toId = 0;
 
@@ -263,10 +258,11 @@ void TogglableGesture::moveDischarge()
 
     auto controller = workspace->animationController();
     if (m_toId >= 0 && m_toId < workspace->count()) {
-        workspace->setCurrentIndex(m_toId);
         controller->slideRunning(m_toId);
         controller->startSlideAnimation();
+        workspace->setCurrentIndex(m_toId);
     }
+    controller->setRunning(false);
 }
 
 void TogglableGesture::addTouchpadSwipeGesture(SwipeGesture::Direction direction, uint finger)
@@ -305,4 +301,17 @@ void TogglableGesture::addTouchpadSwipeGesture(SwipeGesture::Direction direction
         InputDevice::instance()->registerTouchpadSwipe(
             SwipeFeedBack{ SwipeGesture::Right, finger, trigger, right });
     }
+}
+
+void TogglableGesture::addTouchpadHoldGesture(uint finger)
+{
+    const auto pressed = [this]() {
+        Q_EMIT longPressed();
+    };
+
+    const auto trigger = [this]() {
+        Q_EMIT hold();
+    };
+
+    InputDevice::instance()->registerTouchpadHold(HoldFeedBack{ finger, trigger, pressed });
 }

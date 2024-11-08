@@ -50,6 +50,7 @@
 #include <qwbuffer.h>
 #include <qwcompositor.h>
 #include <qwdatacontrolv1.h>
+#include <qwdatadevice.h>
 #include <qwdisplay.h>
 #include <qwfractionalscalemanagerv1.h>
 #include <qwgammacontorlv1.h>
@@ -61,7 +62,6 @@
 #include <qwsubcompositor.h>
 #include <qwviewporter.h>
 #include <qwxwaylandsurface.h>
-#include <qwdatadevice.h>
 
 #include <QAction>
 #include <QKeySequence>
@@ -154,6 +154,13 @@ Helper::Helper(QObject *parent)
         auto surface = Helper::instance()->activatedSurface();
         if (m_currentMode == CurrentMode::Normal && surface && surface->isMaximized()) {
             surface->requestCancelMaximize();
+        }
+    });
+
+    connect(m_windowGesture, &TogglableGesture::longPressed, this, [this]() {
+        auto surface = Helper::instance()->activatedSurface();
+        if (m_currentMode == CurrentMode::Normal && surface && surface->isNormal()) {
+            surface->requestMove();
         }
     });
 
@@ -543,8 +550,10 @@ void Helper::init()
     connect(m_backend, &WBackend::inputAdded, this, [this](WInputDevice *device) {
         m_seat->attachInputDevice(device);
         if (InputDevice::instance()->initTouchPad(device)) {
-            if (m_windowGesture)
+            if (m_windowGesture) {
                 m_windowGesture->addTouchpadSwipeGesture(SwipeGesture::Up, 3);
+                m_windowGesture->addTouchpadHoldGesture(3);
+            }
 
             if (m_multiTaskViewGesture) {
                 m_multiTaskViewGesture->addTouchpadSwipeGesture(SwipeGesture::Up, 4);
@@ -1088,6 +1097,9 @@ bool Helper::doGesture(QInputEvent *event)
         case Qt::BeginNativeGesture:
             if (e->libInputGestureType() == WGestureEvent::WLibInputGestureType::SwipeGesture)
                 InputDevice::instance()->processSwipeStart(e->fingerCount());
+
+            if (e->libInputGestureType() == WGestureEvent::WLibInputGestureType::HoldGesture)
+                InputDevice::instance()->processHoldStart(e->fingerCount());
             break;
         case Qt::EndNativeGesture:
             if (e->libInputGestureType() == WGestureEvent::WLibInputGestureType::SwipeGesture) {
@@ -1096,6 +1108,8 @@ bool Helper::doGesture(QInputEvent *event)
                 else
                     InputDevice::instance()->processSwipeEnd();
             }
+            if (e->libInputGestureType() == WGestureEvent::WLibInputGestureType::HoldGesture)
+                InputDevice::instance()->processHoldEnd();
             break;
         case Qt::PanNativeGesture:
             if (e->libInputGestureType() == WGestureEvent::WLibInputGestureType::SwipeGesture)
@@ -1230,12 +1244,12 @@ void Helper::handleRequestDrag(WSurface *surface)
 
     struct wlr_drag *drag = m_seat->nativeHandle()->drag;
     Q_ASSERT(drag);
-    QObject::connect(qw_drag::from(drag), &qw_drag::notify_drop, this, [this]{
+    QObject::connect(qw_drag::from(drag), &qw_drag::notify_drop, this, [this] {
         if (m_ddeShellV1)
             m_ddeShellV1->sendDrop(m_seat);
     });
 
-    QObject::connect(qw_drag::from(drag), &qw_drag::before_destroy, this, [this, surface, drag]{
+    QObject::connect(qw_drag::from(drag), &qw_drag::before_destroy, this, [this, surface, drag] {
         if (surface)
             surface->safeDeleteLater();
 
