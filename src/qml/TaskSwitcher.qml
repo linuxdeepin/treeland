@@ -15,7 +15,6 @@ Item {
     property bool switchOn: true
     required property QtObject output
     readonly property QtObject model: Helper.workspace.currentFilter
-    readonly property QtObject currentSurface: switchView.currentItem.surface
 
     // control all switch item
     property bool enableBlur: GraphicsInfo.api !== GraphicsInfo.Software
@@ -410,16 +409,20 @@ Item {
     }
 
     function previous() {
-        if (switchView.count <= 0)
+        if (switchView.count <= 1) {
+            if (switchView.count === 1) showTask(true);
             return;
+        }
 
         var nextIndex = (switchView.currentIndex - 1 + switchView.count) % switchView.count
         switchIndex(nextIndex)
     }
 
     function next() {
-        if (switchView.count <= 0)
+        if (switchView.count <= 1) {
+            if (switchView.count === 1) showTask(true);
             return;
+        }
 
         var nextIndex = (switchView.currentIndex + 1) % switchView.count
         switchIndex(nextIndex)
