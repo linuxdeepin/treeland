@@ -10,6 +10,15 @@ D.Menu {
 
     property SurfaceWrapper surface: null
 
+    onActiveFocusChanged: {
+        if (!activeFocus)
+            close()
+    }
+
+    onClosed: {
+        surface = null
+    }
+
     function showWindowMenu(surface, pos) {
         menu.surface = surface
         menu.parent = surface
