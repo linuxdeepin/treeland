@@ -73,7 +73,7 @@ void Workspace::moveSurfaceToNextWorkspace(SurfaceWrapper *surface)
     auto index = m_models->objects().indexOf(model);
     if (index == count() - 1)
         return;
-    moveSurfaceTo(surface, index + 1);
+    moveSurfaceTo(surface, modelAt(index + 1)->id());
 }
 
 void Workspace::moveSurfaceToPrevWorkspace(SurfaceWrapper *surface)
@@ -88,7 +88,7 @@ void Workspace::moveSurfaceToPrevWorkspace(SurfaceWrapper *surface)
     auto index = m_models->objects().indexOf(model);
     if (index == 0)
         return;
-    moveSurfaceTo(surface, index - 1);
+    moveSurfaceTo(surface, modelAt(index - 1)->id());
 }
 
 void Workspace::addSurface(SurfaceWrapper *surface, int workspaceId)
