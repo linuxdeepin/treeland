@@ -126,9 +126,7 @@ SurfaceContainer::SurfaceContainer(QQuickItem *parent)
 SurfaceContainer::SurfaceContainer(SurfaceContainer *parent)
     : SurfaceContainer(static_cast<QQuickItem *>(parent))
 {
-    if (QQmlEngine *engine = qmlEngine(parent)) {
-        parent->setQmlEngine(engine);
-    }
+    ensureQmlContext();
 }
 
 SurfaceContainer::~SurfaceContainer()
@@ -195,6 +193,13 @@ void SurfaceContainer::removeOutput(Output *output)
     const auto subContainers = this->subContainers();
     for (auto sub : subContainers) {
         sub->removeOutput(output);
+    }
+}
+
+void SurfaceContainer::ensureQmlContext()
+{
+    if (QQmlEngine *engine = qmlEngine(parentContainer())) {
+        parentContainer()->setQmlEngine(engine);
     }
 }
 

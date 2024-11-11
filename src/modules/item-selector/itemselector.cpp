@@ -19,6 +19,18 @@ ItemSelector::ItemSelector(QQuickItem *parent)
     setFocusPolicy(Qt::NoFocus);
     setKeepMouseGrab(true);
     QQuickItemPrivate::get(this)->anchors()->setFill(parentItem());
+    m_defaultFilter = [this](QQuickItem *item, ItemSelector::ItemTypes selectionHint) {
+        if (qobject_cast<WOutputItem *>(item) && selectionHint.testFlag(ItemType::Output)) {
+            return true;
+        } else if (qobject_cast<WSurfaceItemContent *>(item)
+                   && selectionHint.testFlag(ItemType::Surface)) {
+            return true;
+        } else if (qobject_cast<WSurfaceItem *>(item) && selectionHint.testFlag(ItemType::Window)) {
+            return true;
+        } else {
+            return false;
+        }
+    };
 }
 
 ItemSelector::~ItemSelector() { }
@@ -59,6 +71,27 @@ ItemSelector::ItemTypes ItemSelector::selectionTypeHint() const
     return m_selectionTypeHint;
 }
 
+void ItemSelector::disableDefaultFilter(bool disable)
+{
+    if (m_defaultFilterEnabled != disable)
+        return;
+    m_defaultFilterEnabled = !disable;
+    updateSelectableItems();
+}
+
+void ItemSelector::addCustomFilter(
+    std::function<bool(QQuickItem *, ItemSelector::ItemTypes)> filter)
+{
+    m_customFilters.append(filter);
+    updateSelectableItems();
+}
+
+void ItemSelector::clearCustomFilter()
+{
+    m_customFilters.clear();
+    updateSelectableItems();
+}
+
 void ItemSelector::setSelectionTypeHint(ItemTypes newSelectionTypeHint)
 {
     if (m_selectionTypeHint == newSelectionTypeHint)
@@ -75,23 +108,20 @@ void ItemSelector::updateSelectableItems()
     auto renderWindow = qobject_cast<WOutputRenderWindow *>(window());
     m_selectableItems = WOutputRenderWindow::paintOrderItemList(
         renderWindow->contentItem(),
-        [this](QQuickItem *item) {
+        [this](QQuickItem *item) -> bool {
             if (auto viewport = qobject_cast<WOutputItem *>(item)) {
                 m_outputItems.append(viewport);
             }
-            if (auto viewport = qobject_cast<WOutputItem *>(item)
-                    && m_selectionTypeHint.testFlag(ItemType::Output)) {
-                return true;
-            } else if (auto surfaceItem = qobject_cast<WSurfaceItemContent *>(item)
-                           && m_selectionTypeHint.testFlag(ItemType::Surface)) {
-                return true;
-            } else if (auto surfaceWrapper = qobject_cast<WSurfaceItem *>(item)
-                           && m_selectionTypeHint.testFlag(ItemType::Window)) {
-                return true;
-            } else {
+            if (m_defaultFilterEnabled && !m_defaultFilter(item, m_selectionTypeHint)) {
                 return false;
             }
+            for (const auto &filter : std::as_const(m_customFilters)) {
+                if (filter && !filter(item, m_selectionTypeHint))
+                    return false;
+            }
+            return true;
         });
+    checkHoveredItem(mapFromScene(QCursor::pos()));
 }
 
 void ItemSelector::hoverMoveEvent(QHoverEvent *event)

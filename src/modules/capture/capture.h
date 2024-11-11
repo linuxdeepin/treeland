@@ -5,6 +5,7 @@
 
 #include "impl/capturev1impl.h"
 #include "itemselector.h"
+#include "surfacecontainer.h"
 
 #include <wglobal.h>
 #include <woutput.h>
@@ -25,7 +26,7 @@ class WToplevelSurface;
 WAYLIB_SERVER_END_NAMESPACE
 
 WAYLIB_SERVER_USE_NAMESPACE
-
+class SurfaceWrapper;
 class ItemSelector;
 
 class CaptureSource : public QObject
@@ -177,6 +178,7 @@ public:
     void setOutputRenderWindow(WOutputRenderWindow *renderWindow);
     QByteArrayView interfaceName() const override;
     QPointer<WToplevelSurface> maskShellSurface() const;
+    QPointer<SurfaceWrapper> maskSurfaceWrapper() const;
 
 Q_SIGNALS:
     void contextInSelectionChanged();
@@ -190,7 +192,8 @@ protected:
 private Q_SLOTS:
     void onCaptureContextSelectSource();
     void clearContextInSelection(CaptureContextV1 *context);
-    void freezeAllCapturedSurface(bool freeze, WSurface *maskItem);
+    void freezeAllCapturedSurface(bool freeze, WAYLIB_SERVER_NAMESPACE::WSurface *maskItem);
+    void handleContextBeforeDestroy(CaptureContextV1 *context);
 
 private:
     treeland_capture_manager_v1 *m_manager;
@@ -199,6 +202,7 @@ private:
     WOutputRenderWindow *m_outputRenderWindow;
     QPointF m_frozenCursorPos;
     QPointer<WToplevelSurface> m_maskShellSurface;
+    QPointer<SurfaceWrapper> m_maskSurfaceWrapper;
 };
 
 class CaptureSourceSurface : public CaptureSource
@@ -241,12 +245,14 @@ private:
     QRect m_region;
 };
 
-class CaptureSourceSelector : public QQuickItem
+class CaptureSourceSelector : public SurfaceContainer
 {
     Q_OBJECT
     Q_PROPERTY(CaptureManagerV1* captureManager READ captureManager WRITE setCaptureManager NOTIFY captureManagerChanged REQUIRED FINAL)
     Q_PROPERTY(QRectF selectionRegion READ selectionRegion NOTIFY selectionRegionChanged FINAL)
     Q_PROPERTY(SelectionMode selectionMode READ selectionMode WRITE setSelectionMode NOTIFY selectionModeChanged FINAL)
+    Q_PROPERTY(QQmlListProperty<QObject> contents READ contents CONSTANT DESIGNABLE false)
+    Q_CLASSINFO("DefaultProperty", "contents")
     QML_ELEMENT
 
 public:
@@ -258,6 +264,7 @@ public:
     };
     Q_ENUM(SelectionMode);
     CaptureSourceSelector(QQuickItem *parent = nullptr);
+    ~CaptureSourceSelector() override;
     CaptureManagerV1 *captureManager() const;
     void setCaptureManager(CaptureManagerV1 *newCaptureManager);
 
@@ -266,6 +273,7 @@ public:
     void doSetSelectionMode(const SelectionMode &newSelectionMode);
     CaptureSource::CaptureSourceHint selectionModeHint(const SelectionMode &selectionMode);
     ItemSelector::ItemTypes selectionModeToItemTypes(const SelectionMode &selectionMode) const;
+    QQmlListProperty<QObject> contents() const;
 
 Q_SIGNALS:
     void hoveredItemChanged();
@@ -280,6 +288,7 @@ protected:
     void mousePressEvent(QMouseEvent *event) override;
     void mouseReleaseEvent(QMouseEvent *event) override;
     void geometryChange(const QRectF &newGeometry, const QRectF &oldGeometry) override;
+    void itemChange(ItemChange change, const ItemChangeData &data) override;
 
 private:
     QQuickItem *hoveredItem() const;
@@ -299,13 +308,17 @@ private:
                                 : CaptureSource::CaptureSourceHint();
     }
 
+    QPointer<QQuickItem> m_internalContentItem{};
+    QPointer<ItemSelector> m_itemSelector{};
+    QPointer<SurfaceContainer> m_canvasContainer{};
     CaptureSource *m_selectedSource{ nullptr };
     QList<QPointer<QQuickItem>> m_selectableItems{};
     QPointer<CaptureManagerV1> m_captureManager{ nullptr };
     QRectF m_selectionRegion{};
     QPointF m_selectionAnchor{};
     bool m_itemSelectionMode{ true };
-    ItemSelector *m_itemSelector{ nullptr };
     SelectionMode m_selectionMode;
     bool m_doNotFinish{ false };
+    QPointer<SurfaceContainer> m_savedContainer{};
+    QPointer<SurfaceWrapper> m_canvas{};
 };

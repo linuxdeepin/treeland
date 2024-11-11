@@ -20,12 +20,6 @@ inline QPointer<QtWaylandClient::QWaylandDisplay> waylandDisplay()
     return waylandIntegration()->display();
 }
 
-void destruct_treeland_capture_manager(TreelandCaptureManager *manager)
-{
-    qDeleteAll(manager->captureContexts);
-    manager->captureContexts.clear();
-}
-
 QPointer<TreelandCaptureContext> TreelandCaptureManager::getContext()
 {
     auto context = get_context();
@@ -122,10 +116,10 @@ void TreelandCaptureFrame::treeland_capture_frame_v1_failed()
 
 void TreelandCaptureManager::releaseCaptureContext(QPointer<TreelandCaptureContext> context)
 {
-    for (const auto &entry : captureContexts) {
+    for (const auto &entry : std::as_const(captureContexts)) {
         if (entry == context.data()) {
-            entry->deleteLater();
             captureContexts.removeOne(entry);
+            entry->deleteLater();
         }
     }
 }
