@@ -99,10 +99,9 @@ SurfaceWrapper::SurfaceWrapper(QmlEngine *qmlEngine,
             shellSurface->safeConnect(&WToplevelSurface::requestShowWindowMenu,
                                       this,
                                       [this](WSeat *, QPoint pos, quint32) {
-                                          Q_EMIT requestShowWindowMenu({
-                                            pos.x() + m_surfaceItem->leftPadding(),
-                                            pos.y() + m_surfaceItem->topPadding()
-                                          });
+                                          Q_EMIT requestShowWindowMenu(
+                                              { pos.x() + m_surfaceItem->leftPadding(),
+                                                pos.y() + m_surfaceItem->topPadding() });
                                       });
         }
     }
@@ -625,6 +624,9 @@ void SurfaceWrapper::geometryChange(const QRectF &newGeo, const QRectF &oldGeome
 
 void SurfaceWrapper::createNewOrClose(uint direction)
 {
+    if (!m_windowAnimationEnabled)
+        return;
+
     if (m_windowAnimation)
         return;
 
@@ -1339,6 +1341,11 @@ void SurfaceWrapper::setHasInitializeContainer(bool value)
 {
     Q_ASSERT(!value || m_container != nullptr);
     updateHasActiveCapability(ActiveControlState::HasInitializeContainer, value);
+}
+
+void SurfaceWrapper::disableWindowAnimation(bool disable)
+{
+    m_windowAnimationEnabled = !disable;
 }
 
 void SurfaceWrapper::updateExplicitAlwaysOnTop()

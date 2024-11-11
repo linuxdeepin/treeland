@@ -24,6 +24,11 @@ qt_add_qml_module(${MODULE_NAME} STATIC
 target_include_directories(${MODULE_NAME} PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
+    PRIVATE
+    ${CMAKE_SOURCE_DIR}/src/treeland
+    ${CMAKE_SOURCE_DIR}/src/modules/foreign-toplevel
+    ${CMAKE_SOURCE_DIR}/src/modules/virtual-output
+    ${CMAKE_SOURCE_DIR}/src/modules/window-management
 )
 
 target_compile_definitions(${MODULE_NAME}

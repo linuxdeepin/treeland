@@ -178,6 +178,7 @@ public:
 
     bool noDecoration() const;
     bool visibleDecoration() const;
+    void setNoDecoration(bool newNoDecoration);
 
     bool clipInOutput() const;
     void setClipInOutput(bool newClipInOutput);
@@ -236,6 +237,7 @@ public:
     void setXwaylandPositionFromSurface(bool value);
 
     void setHasInitializeContainer(bool value);
+    void disableWindowAnimation(bool disable = true);
 
 public Q_SLOTS:
     // for titlebar
@@ -299,7 +301,6 @@ private:
     void setParent(QQuickItem *item);
     void setActivate(bool activate);
     void setNormalGeometry(const QRectF &newNormalGeometry);
-    void setNoDecoration(bool newNoDecoration);
     void updateTitleBar();
     void setBoundedRect(const QRectF &newBoundedRect);
     void setContainer(SurfaceContainer *newContainer);
@@ -396,6 +397,7 @@ private:
     qreal m_decorationShadowOpacity;
 
     bool m_socketEnabled{ false };
+    bool m_windowAnimationEnabled{ true };
 };
 
 Q_DECLARE_OPERATORS_FOR_FLAGS(SurfaceWrapper::ActiveControlStates)

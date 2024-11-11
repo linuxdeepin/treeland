@@ -99,21 +99,22 @@ private:
     QtWayland::treeland_capture_context_v1::source_type m_sourceType;
 };
 
-class TreelandCaptureManager;
-void destruct_treeland_capture_manager(TreelandCaptureManager *manager);
-
 class TreelandCaptureManager
-    : public QWaylandClientExtensionTemplate<TreelandCaptureManager,
-                                             destruct_treeland_capture_manager>
+    : public QWaylandClientExtensionTemplate<TreelandCaptureManager>
     , public QtWayland::treeland_capture_manager_v1
 {
     Q_OBJECT
 public:
     TreelandCaptureManager(QObject *parent = nullptr)
-        : QWaylandClientExtensionTemplate<TreelandCaptureManager,
-                                          destruct_treeland_capture_manager>(1)
+        : QWaylandClientExtensionTemplate<TreelandCaptureManager>(1)
         , QtWayland::treeland_capture_manager_v1()
     {
+        connect(this, &TreelandCaptureManager::activeChanged, this, [this] {
+            if (!isActive()) {
+                qDeleteAll(captureContexts);
+                captureContexts.clear();
+            }
+        });
     }
 
     ~TreelandCaptureManager() override
@@ -126,5 +127,4 @@ public:
 
 private:
     QList<TreelandCaptureContext *> captureContexts;
-    friend void destruct_treeland_capture_manager(TreelandCaptureManager *manager);
 };
