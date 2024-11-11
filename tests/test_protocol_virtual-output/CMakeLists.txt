@@ -1,0 +1,16 @@
+find_package(Qt6 REQUIRED COMPONENTS Test)
+
+add_executable(test_protocol_virtual-output main.cpp)
+
+target_link_libraries(test_protocol_virtual-output
+    PRIVATE
+        Waylib::WaylibServer
+        virtual-output
+        Qt::Test
+)
+
+add_test(NAME test_protocol_virtual-output COMMAND test_protocol_virtual-output)
+
+set_property(TEST test_protocol_virtual-output PROPERTY
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
+)

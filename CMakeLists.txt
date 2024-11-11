@@ -58,11 +58,14 @@ add_compile_definitions("QT_FORCE_ASSERTS")
 
 set(PROJECT_RESOURCES_DIR "${CMAKE_SOURCE_DIR}/misc")
 
+enable_testing(true)
+
 add_subdirectory(src)
 add_subdirectory(misc)
+add_subdirectory(tests)
 
-if (BUILD_TEST_CLIENTS)
-    add_subdirectory(tests)
+if (BUILD_TEST_EXAMPLES)
+    add_subdirectory(examples)
 endif()
 
 # Display feature summary
