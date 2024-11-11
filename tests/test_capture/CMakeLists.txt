@@ -1,7 +1,10 @@
 set(BIN_NAME test-capture)
 
+find_package(PkgConfig REQUIRED)
 find_package(Qt6 REQUIRED COMPONENTS Core Gui WaylandClient Quick)
 find_package(TreelandProtocols REQUIRED)
+pkg_get_variable(WaylandProtocols_DATA_DIR wayland-protocols pkgdatadir)
+
 list(APPEND QML_IMPORT_PATH ${CMAKE_CURRENT_BINARY_DIR})
 qt_add_executable(${BIN_NAME}
     main.cpp
@@ -9,6 +12,8 @@ qt_add_executable(${BIN_NAME}
     capture.cpp
     canvaswindow.cpp
     canvaswindow.h
+    toolwindow.h
+    toolwindow.cpp
 )
 qt_add_qml_module(${BIN_NAME}
     URI capture
@@ -27,6 +32,8 @@ qt_add_resources(${BIN_NAME} "test_capture_assets"
 qt6_generate_wayland_protocol_client_sources(${BIN_NAME}
     FILES
         ${TREELAND_PROTOCOLS_DATA_DIR}/treeland-capture-unstable-v1.xml
+        ${WaylandProtocols_DATA_DIR}/unstable/xdg-decoration/xdg-decoration-unstable-v1.xml
+        ${WaylandProtocols_DATA_DIR}/stable/xdg-shell/xdg-shell.xml
 )
 
 target_link_libraries(${BIN_NAME}
@@ -37,6 +44,7 @@ target_link_libraries(${BIN_NAME}
         Qt6::WaylandClientPrivate
         Qt6::Quick
         Qt6::QuickPrivate
+        Qt6::QWaylandXdgShellIntegrationPlugin
 )
 
 install(TARGETS ${BIN_NAME} RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}")

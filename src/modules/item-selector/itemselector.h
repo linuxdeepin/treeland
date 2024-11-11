@@ -10,6 +10,8 @@ WAYLIB_SERVER_BEGIN_NAMESPACE
 class WOutputItem;
 WAYLIB_SERVER_END_NAMESPACE
 
+class ItemFilter;
+
 class ItemSelector : public QQuickItem
 {
     Q_OBJECT
@@ -38,6 +40,10 @@ public:
     void setSelectionTypeHint(ItemTypes newSelectionTypeHint);
     ItemTypes selectionTypeHint() const;
 
+    void disableDefaultFilter(bool disable = true);
+    // Note: filter is managed by selector.
+    void addCustomFilter(std::function<bool(QQuickItem *, ItemSelector::ItemTypes)> filter);
+    void clearCustomFilter();
 Q_SIGNALS:
     void selectionRegionChanged();
     void hoveredItemChanged();
@@ -59,6 +65,9 @@ private:
     ItemTypes m_selectionTypeHint{ ItemType::Window | ItemType::Output | ItemType::Surface };
     QList<QPointer<WAYLIB_SERVER_NAMESPACE::WOutputItem>> m_outputItems;
     QPointer<Waylib::Server::WOutputItem> m_outputItem;
+    bool m_defaultFilterEnabled{ true };
+    std::function<bool(QQuickItem *, ItemSelector::ItemTypes)> m_defaultFilter;
+    QList<std::function<bool(QQuickItem *, ItemSelector::ItemTypes)>> m_customFilters;
 };
 
 Q_DECLARE_OPERATORS_FOR_FLAGS(ItemSelector::ItemTypes)

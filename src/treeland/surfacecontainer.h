@@ -235,6 +235,7 @@ Q_SIGNALS:
 protected:
     friend class SurfaceWrapper;
 
+    void ensureQmlContext();
     void geometryChange(const QRectF &newGeo, const QRectF &oldGeo) override;
 
     bool doAddSurface(SurfaceWrapper *surface, bool setContainer);

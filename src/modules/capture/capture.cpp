@@ -3,9 +3,13 @@
 
 #include "capture.h"
 
+#include "helper.h"
 #include "impl/capturev1impl.h"
+#include "surfacewrapper.h"
+#include "workspace.h"
 
 #include <itemselector.h>
+#include <private/qquickitem_p.h>
 
 #include <woutputitem.h>
 #include <woutputrenderwindow.h>
@@ -22,6 +26,8 @@
 #include <QQueue>
 #include <QQuickItemGrabResult>
 #include <QSGTextureProvider>
+
+#include <utility>
 
 extern "C" {
 #include <wlr/types/wlr_compositor.h>
@@ -181,6 +187,11 @@ QPointer<WToplevelSurface> CaptureManagerV1::maskShellSurface() const
     return m_maskShellSurface;
 }
 
+QPointer<SurfaceWrapper> CaptureManagerV1::maskSurfaceWrapper() const
+{
+    return m_maskSurfaceWrapper;
+}
+
 void CaptureManagerV1::create(WServer *server)
 {
     m_manager = new treeland_capture_manager_v1(server->handle()->handle(), this);
@@ -195,6 +206,7 @@ void CaptureManagerV1::create(WServer *server)
                         quickContext,
                         [this, quickContext] {
                             m_captureContextModel->removeContext(quickContext);
+                            handleContextBeforeDestroy(quickContext);
                             quickContext->deleteLater();
                         });
                 connect(quickContext,
@@ -217,9 +229,6 @@ void CaptureManagerV1::onCaptureContextSelectSource()
         context->sendSourceFailed(CaptureContextV1::SelectorBusy);
         return;
     }
-    connect(context, &CaptureContextV1::destroyed, this, [this, context] {
-        clearContextInSelection(context);
-    });
     connect(context, &CaptureContextV1::finishSelect, this, [this, context] {
         clearContextInSelection(context);
     });
@@ -241,6 +250,17 @@ void CaptureManagerV1::clearContextInSelection(CaptureContextV1 *context)
     }
 }
 
+WSurfaceItem *closestSurfaceItem(QQuickItem *content)
+{
+    while (content) {
+        auto item = qobject_cast<WSurfaceItem *>(content);
+        if (item)
+            return item;
+        content = content->parentItem();
+    }
+    return nullptr;
+}
+
 void CaptureManagerV1::freezeAllCapturedSurface(bool freeze, WSurface *mask)
 {
     // Exclude cursor surface item and the mask
@@ -258,14 +278,27 @@ void CaptureManagerV1::freezeAllCapturedSurface(bool freeze, WSurface *mask)
                            && !mask->subsurfaces().contains(content->surface()))) {
                 content->setLive(!freeze);
             } else if (content->surface() == mask) {
-                m_maskShellSurface =
-                    qobject_cast<WSurfaceItem *>(content->parentItem())->shellSurface();
+                auto surfaceItem = closestSurfaceItem(content);
+                m_maskSurfaceWrapper = qobject_cast<SurfaceWrapper *>(surfaceItem->parentItem());
+                if (m_maskSurfaceWrapper) {
+                    m_maskSurfaceWrapper->setNoTitleBar(true);
+                    m_maskSurfaceWrapper->setNoCornerRadius(true);
+                    m_maskSurfaceWrapper->setNoDecoration(true);
+                    m_maskSurfaceWrapper->disableWindowAnimation();
+                }
+                m_maskShellSurface = surfaceItem->shellSurface();
             }
         }
-        for (auto child : node->childItems()) {
+        auto childItems = node->childItems();
+        for (const auto &child : std::as_const(childItems)) {
             nodes.enqueue(child);
         }
     }
+}
+
+void CaptureManagerV1::handleContextBeforeDestroy(CaptureContextV1 *context)
+{
+    clearContextInSelection(context);
 }
 
 CaptureContextModel::CaptureContextModel(QObject *parent)
@@ -310,9 +343,14 @@ void CaptureContextModel::removeContext(CaptureContextV1 *context)
 }
 
 CaptureSourceSelector::CaptureSourceSelector(QQuickItem *parent)
-    : QQuickItem(parent)
-    , m_itemSelector(new ItemSelector(this))
+    : SurfaceContainer(parent)
+    , m_internalContentItem(new QQuickItem(this))
+    , m_itemSelector(new ItemSelector(m_internalContentItem))
+    , m_canvasContainer(new SurfaceContainer(this))
 {
+    QQuickItemPrivate::get(m_internalContentItem)->anchors()->setFill(this);
+    m_internalContentItem->setZ(-1);
+    QQuickItemPrivate::get(m_canvasContainer)->anchors()->setFill(this);
     setAcceptedMouseButtons(Qt::LeftButton);
     setActiveFocusOnTab(false);
     setCursor(Qt::CrossCursor);
@@ -326,12 +364,33 @@ CaptureSourceSelector::CaptureSourceSelector(QQuickItem *parent)
             this,
             &CaptureSourceSelector::handleItemSelectorSelectionRegionChanged,
             Qt::UniqueConnection);
+    m_itemSelector->addCustomFilter([this](QQuickItem *item,
+                                           ItemSelector::ItemTypes selectionHint) -> bool {
+        if (auto surfaceItemContent = qobject_cast<WSurfaceItemContent *>(item)) {
+            return surfaceItemContent->surface() != captureManager()->contextInSelection()->mask();
+        } else if (auto surfaceItem = qobject_cast<WSurfaceItem *>(item)) {
+            return surfaceItem->surface() != captureManager()->contextInSelection()->mask();
+        } else {
+            return true;
+        }
+    });
+}
+
+CaptureSourceSelector::~CaptureSourceSelector()
+{
+    if (m_canvas) {
+        m_canvasContainer->removeSurface(m_canvas);
+        m_canvas->setWorkspaceId(-1);
+        if (m_savedContainer)
+            m_savedContainer->addSurface(m_canvas);
+    }
 }
 
 void CaptureSourceSelector::doneSelection()
 {
     // Selection is done, begin to construct selection source
-    setVisible(false);
+    m_internalContentItem->setVisible(false);
+    m_canvas->surfaceItem()->setSubsurfacesVisible(false);
     renderWindow()->render(); // Flush frame to hide capture selector mask
     switch (selectionMode()) {
     case SelectionMode::SelectRegion: {
@@ -507,9 +566,20 @@ QDebug operator<<(QDebug debug, CaptureSource &captureSource)
 void CaptureSourceSelector::componentComplete()
 {
     // Notify mask size now
-    if (m_captureManager->maskShellSurface()) {
+    if (captureManager()->maskShellSurface() && captureManager()->maskSurfaceWrapper()) {
         // TODO: reparent to capture source selector
+        m_canvas = captureManager()->maskSurfaceWrapper();
         m_captureManager->maskShellSurface()->resize(size().toSize());
+        if (m_captureManager->maskSurfaceWrapper()->container()) {
+            m_savedContainer = m_captureManager->maskSurfaceWrapper()->container();
+            m_captureManager->maskSurfaceWrapper()->container()->removeSurface(
+                m_captureManager->maskSurfaceWrapper());
+        }
+        m_canvasContainer->addSurface(m_captureManager->maskSurfaceWrapper());
+        m_canvas->setX(0);
+        m_canvas->setY(0);
+        m_captureManager->maskSurfaceWrapper()->setWorkspaceId(
+            Workspace::ShowOnAllWorkspaceId); // TODO: use a more reasonable id
     }
     QQuickItem::componentComplete();
 }
@@ -695,4 +765,25 @@ ItemSelector::ItemTypes CaptureSourceSelector::selectionModeToItemTypes(
     case SelectionMode::SelectWindow:
         return ItemSelector::Window | ItemSelector::Surface;
     }
+}
+
+QQmlListProperty<QObject> CaptureSourceSelector::contents() const
+{
+    return QQuickItemPrivate::get(m_internalContentItem)->data();
+}
+
+void CaptureSourceSelector::itemChange(ItemChange change, const ItemChangeData &data)
+{
+    switch (change) {
+    case QQuickItem::ItemChange::ItemParentHasChanged:
+        Q_ASSERT_X(parentContainer(),
+                   __func__,
+                   "CaptureSourceSelector must be attached to a SurfaceContainer.");
+        ensureQmlContext();
+        break;
+    default:
+        break;
+    }
+
+    QQuickItem::itemChange(change, data);
 }

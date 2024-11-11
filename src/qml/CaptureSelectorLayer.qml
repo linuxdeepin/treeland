@@ -3,6 +3,7 @@
 
 import QtQuick
 import QtQuick.Controls
+import QtQuick.Shapes
 import Waylib.Server
 import Treeland.Capture
 import Treeland
@@ -98,13 +99,23 @@ CaptureSourceSelector {
         }
     }
 
-    Rectangle {
-        x: selectionRegion.x
-        y: selectionRegion.y
+    Shape {
         width: selectionRegion.width
         height: selectionRegion.height
-        color: "transparent"
-        border.color: "red"
-        border.width: 1
+        x: selectionRegion.x
+        y: selectionRegion.y
+        ShapePath {
+            strokeWidth: 2
+            strokeColor: "white"
+            fillColor: "transparent"
+            strokeStyle: ShapePath.DashLine
+            dashPattern: [ 1, 4 ]
+            startX: 0
+            startY: 0
+            PathLine { x: selectionRegion.width; y: 0 }
+            PathLine { x: selectionRegion.width; y: selectionRegion.height }
+            PathLine { x: 0; y: selectionRegion.height }
+            PathLine { x: 0; y: 0}
+        }
     }
 }
