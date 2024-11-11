@@ -6,6 +6,7 @@
 static VirtualOutputV1 *VIRTUAL_OUTPUT = nullptr;
 
 VirtualOutputV1::VirtualOutputV1(QObject *parent)
+    : QObject(parent)
 {
     if (VIRTUAL_OUTPUT) {
         qFatal("There are multiple instances of VirtualOutputV1");
