@@ -87,6 +87,7 @@ public:
 
     inline void update() {
         setContentIsDirty(true);
+        qwoutput()->schedule_frame();
     }
 
     W_DECLARE_PUBLIC(WOutputHelper)

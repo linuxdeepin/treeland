@@ -1848,8 +1848,7 @@ void WOutputRenderWindow::update()
 {
     Q_D(WOutputRenderWindow);
     for (auto o : std::as_const(d->outputs))
-        o->update(); // make contents to dirty
-    d->scheduleDoRender();
+        o->update(); // will scheduleDoRender
 }
 
 void WOutputRenderWindow::update(WOutputViewport *output)
