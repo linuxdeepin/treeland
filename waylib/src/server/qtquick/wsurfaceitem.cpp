@@ -155,7 +155,7 @@ public:
 
         updateFrameDoneConnection();
         updateSurfaceState();
-        q->rendered = true;
+        rendered = true;
     }
 
     void updateFrameDoneConnection() {
@@ -168,9 +168,9 @@ public:
 
         // wayland protocol job should not run in rendering thread, so set context qobject to contentItem
         frameDoneConnection = QObject::connect(q->window(), &QQuickWindow::afterRendering, q, [this, q](){
-            if ((q->rendered || q->isVisible()) && live) {
+            if ((rendered || q->isVisible()) && live) {
                 surface->notifyFrameDone();
-                q->rendered = false;
+                rendered = false;
             }
         }); // if signal is emitted from seperated rendering thread, default QueuedConnection is used
     }
@@ -207,6 +207,7 @@ public:
     bool dontCacheLastBuffer = false;
     bool live = true;
     bool ignoreBufferOffset = false;
+    QAtomicInteger<bool> rendered = false;
 };
 
 
@@ -387,7 +388,7 @@ public:
     void render(const RenderState*) override
     {
         if (Q_LIKELY(m_owner))
-            m_owner->rendered = true;
+            m_owner->d_func()->rendered = true;
     }
 
     QPointer<WSurfaceItemContent> m_owner;
