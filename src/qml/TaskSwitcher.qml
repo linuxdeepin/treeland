@@ -102,19 +102,19 @@ Item {
 
                 anchors.centerIn: previewItem
                 transformOrigin: Item.Center
-                width: previewPostion(sourceSueface, previewItem).width
-                height: previewPostion(sourceSueface, previewItem).height
+                width: previewPostion(sourceSurface, previewItem).width
+                height: previewPostion(sourceSurface, previewItem).height
             }
 
             TaskWindowPreview {
                 id: currentContext
                 visible: previewWindows.count === 0
 
-                sourceSueface: switchView.currentItem.surface
+                sourceSurface: switchView.currentItem.surface
                 anchors.centerIn: previewItem
                 transformOrigin: Item.Center
-                width: previewPostion(sourceSueface, previewItem).width
-                height: previewPostion(sourceSueface, previewItem).height
+                width: previewPostion(sourceSurface, previewItem).width
+                height: previewPostion(sourceSurface, previewItem).height
 
                 onClicked: {
                     root.exit()
@@ -430,7 +430,7 @@ Item {
 
     function switchIndex(next) {
         if ((next >= 0 && next < switchView.count) && showTask(true)) {
-            previewContext.sourceSueface = switchView.currentItem.surface
+            previewContext.sourceSurface = switchView.currentItem.surface
             switchView.currentIndex = next
             root.model.activeIndex = switchView.currentIndex
 
