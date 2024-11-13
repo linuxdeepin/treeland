@@ -362,12 +362,10 @@ void Helper::onShowDesktop()
         workspace()->current()->setVisible(true);
         workspace()->current()->setOpaque(true);
         workspace()->showOnAllWorkspaceModel()->setVisible(true);
-        workspace()->showOnAllWorkspaceModel()->setOpaque(true);
     } else if (s == WindowManagementV1::DesktopState::Show) {
         workspace()->current()->setVisible(false);
         workspace()->current()->setOpaque(false);
         workspace()->showOnAllWorkspaceModel()->setVisible(false);
-        workspace()->showOnAllWorkspaceModel()->setOpaque(false);
     }
     const auto &surfaceList = workspace()->current()->surfaces();
     for (auto surface : surfaceList) {
@@ -381,11 +379,9 @@ void Helper::onShowDesktop()
     }
     const auto &OnAllWorkspacesurfaceList = workspace()->showOnAllWorkspaceModel()->surfaces();
     for (auto surface : OnAllWorkspacesurfaceList) {
-        if (s == WindowManagementV1::DesktopState::Normal && !surface->opacity()
-            && !surface->isMinimized()) {
+        if (s == WindowManagementV1::DesktopState::Normal && !surface->isMinimized()) {
             surface->startShowDesktopAnimation(true);
-        } else if (s == WindowManagementV1::DesktopState::Show && surface->opacity()
-                   && !surface->isMinimized()) {
+        } else if (s == WindowManagementV1::DesktopState::Show && !surface->isMinimized()) {
             surface->startShowDesktopAnimation(false);
         }
     }
@@ -1259,7 +1255,7 @@ void Helper::setActivatedSurface(SurfaceWrapper *newActivateSurface)
     if (m_activatedSurface)
         m_activatedSurface->setActivate(false);
 
-    if (newActivateSurface) {
+    if (m_currentMode != CurrentMode::WindowSwitch && newActivateSurface) {
         if (m_showDesktop == WindowManagementV1::DesktopState::Show)
             m_showDesktop = WindowManagementV1::DesktopState::Normal;
 
