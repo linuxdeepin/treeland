@@ -55,7 +55,7 @@ ShaderEffectSource {
         PropertyAnimation {
             target: rotation
             property: "angle"
-            duration: duration
+            duration: root.duration
             from: root.direction === NewAnimation.Direction.Show ? 75 : 0
             to: root.direction !== NewAnimation.Direction.Show ? 75 : 0
             easing.type: Easing.OutExpo
@@ -63,7 +63,7 @@ ShaderEffectSource {
         PropertyAnimation {
             target: root
             property: "scale"
-            duration: duration
+            duration: root.duration
             from: root.direction === NewAnimation.Direction.Show ? 0.3 : 1
             to: root.direction !== NewAnimation.Direction.Show ? 0.3 : 1
             easing.type: Easing.OutExpo
@@ -71,7 +71,7 @@ ShaderEffectSource {
         PropertyAnimation {
             target: root
             property: "opacity"
-            duration: duration
+            duration: root.duration
             from: root.direction === NewAnimation.Direction.Show ? 0 : 1
             to: root.direction !== NewAnimation.Direction.Show ? 0 : 1
             easing.type: Easing.OutExpo
