@@ -62,6 +62,9 @@ qt_add_resources(${BIN_NAME} "treeland_assets"
         ${PROJECT_RESOURCES_DIR}/icons/multitaskview_close.dci
         ${PROJECT_RESOURCES_DIR}/icons/close.dci
         ${PROJECT_RESOURCES_DIR}/icons/add.dci
+        ${PROJECT_RESOURCES_DIR}/icons/select_output.dci
+        ${PROJECT_RESOURCES_DIR}/icons/select_window.dci
+        ${PROJECT_RESOURCES_DIR}/icons/select_region.dci
 )
 
 target_include_directories(${BIN_NAME}
