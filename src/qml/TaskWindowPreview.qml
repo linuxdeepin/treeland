@@ -12,7 +12,7 @@ Item {
 
     signal clicked()
     property int loaderStatus: 0
-    property alias sourceSueface : preview.surface
+    property alias sourceSurface : preview.surface
 
     onLoaderStatusChanged: {
         if (loaderStatus === -1) {
