@@ -310,6 +310,7 @@ Item {
                 }
 
                 OpacityAnimator {
+                    loops: Helper.activatedSurface === surface || surface.visible ? 1 : 0
                     target: previewAnimation.target;
                     from: previewAnimation.opacityFrom
                     to: 1.0
