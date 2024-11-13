@@ -333,23 +333,32 @@ void CaptureSourceSelector::doneSelection()
     // Selection is done, begin to construct selection source
     setVisible(false);
     renderWindow()->render(); // Flush frame to hide capture selector mask
-    if (itemSelectionMode()) {
-        if (auto surfaceItem = qobject_cast<WSurfaceItem *>(hoveredItem())) {
-            setSelectedSource(new CaptureSourceSurface(surfaceItem));
-        } else if (auto outputItem = qobject_cast<WOutputItem *>(hoveredItem())) {
-            auto viewport = outputItem->property("screenViewport").value<WOutputViewport *>();
-            if (viewport) {
-                setSelectedSource(new CaptureSourceOutput(viewport));
-            }
-        }
-    } else {
-        auto outputItem = qobject_cast<WOutputItem *>(hoveredItem());
-        auto viewport = outputItem->property("screenViewport").value<WOutputViewport *>();
+    switch (selectionMode()) {
+    case SelectionMode::SelectRegion: {
+        auto viewport =
+            m_itemSelector->outputItem()->property("screenViewport").value<WOutputViewport *>();
         if (viewport) {
             setSelectedSource(
                 new CaptureSourceRegion(viewport,
                                         mapRectToItem(viewport, selectionRegion()).toRect()));
         }
+        break;
+    }
+    case SelectionMode::SelectWindow: {
+        if (auto surfaceItemContent = qobject_cast<WSurfaceItemContent *>(hoveredItem())) {
+            setSelectedSource(new CaptureSourceSurface(surfaceItemContent));
+        }
+        break;
+    }
+    case SelectionMode::SelectOutput: {
+        if (auto outputItem = qobject_cast<WOutputItem *>(hoveredItem())) {
+            auto viewport = outputItem->property("screenViewport").value<WOutputViewport *>();
+            if (viewport) {
+                setSelectedSource(new CaptureSourceOutput(viewport));
+            }
+        }
+        break;
+    }
     }
 }
 
@@ -406,6 +415,15 @@ void CaptureSourceSelector::setCaptureManager(CaptureManagerV1 *newCaptureManage
     if (m_captureManager == newCaptureManager)
         return;
     m_captureManager = newCaptureManager;
+    if (captureSourceHint().toInt() == 0 || captureSourceHint().testFlag(CaptureSource::Region)) {
+        // Default case, no hint means all hint internally.
+        doSetSelectionMode(SelectionMode::SelectRegion);
+    } else if (captureSourceHint().testAnyFlags(
+                   { CaptureSource::Window | CaptureSource::Surface })) {
+        doSetSelectionMode(SelectionMode::SelectWindow);
+    } else {
+        doSetSelectionMode(SelectionMode::SelectOutput);
+    }
     Q_EMIT captureManagerChanged();
 }
 
@@ -415,7 +433,8 @@ void CaptureSourceSelector::mouseMoveEvent(QMouseEvent *event)
     auto distance = pos - m_selectionAnchor;
     if (distance.manhattanLength() > 2) {
         setItemSelectionMode(false);
-        QRect newRegion;
+        m_doNotFinish = true;
+        QRectF newRegion;
         newRegion.setLeft(qMin(m_selectionAnchor.x(), pos.x()));
         newRegion.setRight(qMax(m_selectionAnchor.x(), pos.x()));
         newRegion.setTop(qMin(m_selectionAnchor.y(), pos.y()));
@@ -437,21 +456,24 @@ static inline WSurfaceItemContent *findItemContent(QQuickItem *item)
     return nullptr;
 }
 
-CaptureSourceSurface::CaptureSourceSurface(WSurfaceItem *surfaceItem)
-    : CaptureSource(findItemContent(surfaceItem->contentItem()), nullptr)
-    , m_surfaceItem(surfaceItem)
+CaptureSourceSurface::CaptureSourceSurface(WSurfaceItemContent *surfaceItemContent)
+    : CaptureSource(surfaceItemContent, nullptr)
+    , m_surfaceItemContent(surfaceItemContent)
 {
 }
 
 qw_buffer *CaptureSourceSurface::sourceDMABuffer()
 {
-    // TODO Get correct DMA buffer
-    return nullptr;
+    if (auto clientBuffer = wlr_client_buffer_get(*m_surfaceItemContent->surface()->buffer())) {
+        return qw_buffer::from(clientBuffer->source);
+    } else {
+        return m_surfaceItemContent->surface()->buffer();
+    }
 }
 
 QRect CaptureSourceSurface::captureRegion()
 {
-    return m_surfaceItem->contentItem()->boundingRect().toRect();
+    return m_surfaceItemContent->boundingRect().toRect();
 }
 
 CaptureSource::CaptureSourceType CaptureSourceSurface::sourceType()
@@ -494,19 +516,18 @@ void CaptureSourceSelector::componentComplete()
 
 void CaptureSourceSelector::mousePressEvent(QMouseEvent *event)
 {
-    switch (event->button()) {
-    case Qt::LeftButton: {
+    // Only handle pressed event in SelectRegion selection.
+    if (selectionMode() == SelectionMode::SelectRegion && event->button() == Qt::LeftButton) {
         m_selectionAnchor = event->position();
-        break;
-    }
-    default:
-        break;
     }
 }
 
 void CaptureSourceSelector::mouseReleaseEvent(QMouseEvent *event)
 {
-    doneSelection();
+    if (!m_doNotFinish) {
+        doneSelection();
+    }
+    m_doNotFinish = false;
 }
 
 QRectF CaptureSourceSelector::selectionRegion() const
@@ -623,4 +644,55 @@ void CaptureSourceSelector::geometryChange(const QRectF &newGeometry, const QRec
         m_captureManager->maskShellSurface()->resize(newGeometry.size().toSize());
     }
     QQuickItem::geometryChange(newGeometry, oldGeometry);
+}
+
+CaptureSourceSelector::SelectionMode CaptureSourceSelector::selectionMode() const
+{
+    return m_selectionMode;
+}
+
+void CaptureSourceSelector::setSelectionMode(const SelectionMode &newSelectionMode)
+{
+    if (captureSourceHint().toInt() == 0
+        || captureSourceHint().testAnyFlags(selectionModeHint(newSelectionMode))) {
+        doSetSelectionMode(newSelectionMode);
+    } else {
+        qCWarning(qLcCapture()) << "Trying to set selection mode not support, discarded.";
+    }
+}
+
+void CaptureSourceSelector::doSetSelectionMode(const SelectionMode &newSelectionMode)
+{
+    if (m_selectionMode == newSelectionMode)
+        return;
+    m_selectionMode = newSelectionMode;
+    m_itemSelector->setSelectionTypeHint(selectionModeToItemTypes(m_selectionMode));
+    setItemSelectionMode(true);
+    emit selectionModeChanged();
+}
+
+CaptureSource::CaptureSourceHint CaptureSourceSelector::selectionModeHint(
+    const SelectionMode &selectionMode)
+{
+    switch (selectionMode) {
+    case SelectionMode::SelectOutput:
+        return CaptureSource::Output;
+    case SelectionMode::SelectRegion:
+        return CaptureSource::Region;
+    case SelectionMode::SelectWindow:
+        return { CaptureSource::Window | CaptureSource::Surface };
+    }
+}
+
+ItemSelector::ItemTypes CaptureSourceSelector::selectionModeToItemTypes(
+    const SelectionMode &selectionMode) const
+{
+    switch (selectionMode) {
+    case SelectionMode::SelectOutput:
+        return ItemSelector::Output;
+    case SelectionMode::SelectRegion:
+        return ItemSelector::Output | ItemSelector::Window | ItemSelector::Surface;
+    case SelectionMode::SelectWindow:
+        return ItemSelector::Window | ItemSelector::Surface;
+    }
 }

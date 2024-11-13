@@ -4,6 +4,7 @@
 #pragma once
 
 #include "impl/capturev1impl.h"
+#include "itemselector.h"
 
 #include <wglobal.h>
 #include <woutput.h>
@@ -204,13 +205,13 @@ class CaptureSourceSurface : public CaptureSource
 {
     Q_OBJECT
 public:
-    CaptureSourceSurface(WSurfaceItem *surfaceItem);
+    CaptureSourceSurface(WSurfaceItemContent *surfaceItemContent);
     QW_NAMESPACE::qw_buffer *sourceDMABuffer() override;
     QRect captureRegion() override;
     CaptureSourceType sourceType() override;
 
 private:
-    WSurfaceItem *const m_surfaceItem;
+    WSurfaceItemContent *const m_surfaceItemContent;
 };
 
 class CaptureSourceOutput : public CaptureSource
@@ -245,18 +246,33 @@ class CaptureSourceSelector : public QQuickItem
     Q_OBJECT
     Q_PROPERTY(CaptureManagerV1* captureManager READ captureManager WRITE setCaptureManager NOTIFY captureManagerChanged REQUIRED FINAL)
     Q_PROPERTY(QRectF selectionRegion READ selectionRegion NOTIFY selectionRegionChanged FINAL)
+    Q_PROPERTY(SelectionMode selectionMode READ selectionMode WRITE setSelectionMode NOTIFY selectionModeChanged FINAL)
     QML_ELEMENT
 
 public:
+    enum class SelectionMode
+    {
+        SelectOutput,
+        SelectWindow,
+        SelectRegion
+    };
+    Q_ENUM(SelectionMode);
     CaptureSourceSelector(QQuickItem *parent = nullptr);
     CaptureManagerV1 *captureManager() const;
     void setCaptureManager(CaptureManagerV1 *newCaptureManager);
+
+    SelectionMode selectionMode() const;
+    void setSelectionMode(const SelectionMode &newSelectionMode);
+    void doSetSelectionMode(const SelectionMode &newSelectionMode);
+    CaptureSource::CaptureSourceHint selectionModeHint(const SelectionMode &selectionMode);
+    ItemSelector::ItemTypes selectionModeToItemTypes(const SelectionMode &selectionMode) const;
 
 Q_SIGNALS:
     void hoveredItemChanged();
     void selectedSourceChanged();
     void captureManagerChanged();
     void selectionRegionChanged();
+    void selectionModeChanged();
 
 protected:
     void componentComplete() override;
@@ -277,6 +293,12 @@ private:
     WOutputRenderWindow *renderWindow() const;
     void doneSelection();
 
+    inline CaptureSource::CaptureSourceHint captureSourceHint() const
+    {
+        return captureManager() ? captureManager()->contextInSelection()->sourceHint()
+                                : CaptureSource::CaptureSourceHint();
+    }
+
     CaptureSource *m_selectedSource{ nullptr };
     QList<QPointer<QQuickItem>> m_selectableItems{};
     QPointer<CaptureManagerV1> m_captureManager{ nullptr };
@@ -284,4 +306,6 @@ private:
     QPointF m_selectionAnchor{};
     bool m_itemSelectionMode{ true };
     ItemSelector *m_itemSelector{ nullptr };
+    SelectionMode m_selectionMode;
+    bool m_doNotFinish{ false };
 };

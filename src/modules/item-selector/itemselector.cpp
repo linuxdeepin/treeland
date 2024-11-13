@@ -41,6 +41,11 @@ QQuickItem *ItemSelector::hoveredItem() const
     return m_hoveredItem;
 }
 
+WOutputItem *ItemSelector::outputItem() const
+{
+    return m_outputItem;
+}
+
 void ItemSelector::setHoveredItem(QQuickItem *newHoveredItem)
 {
     if (m_hoveredItem == newHoveredItem)
@@ -71,6 +76,9 @@ void ItemSelector::updateSelectableItems()
     m_selectableItems = WOutputRenderWindow::paintOrderItemList(
         renderWindow->contentItem(),
         [this](QQuickItem *item) {
+            if (auto viewport = qobject_cast<WOutputItem *>(item)) {
+                m_outputItems.append(viewport);
+            }
             if (auto viewport = qobject_cast<WOutputItem *>(item)
                     && m_selectionTypeHint.testFlag(ItemType::Output)) {
                 return true;
@@ -105,6 +113,13 @@ void ItemSelector::checkHoveredItem(QPointF pos)
     if (it == m_selectableItems.crend()) {
         setHoveredItem(nullptr);
         setSelectionRegion({});
+    }
+    for (const auto &item : std::as_const(m_outputItems)) {
+        auto itemRect = item->mapRectToItem(this, item->boundingRect());
+        if (itemRect.contains(pos)) {
+            m_outputItem = item;
+            break;
+        }
     }
 }
 

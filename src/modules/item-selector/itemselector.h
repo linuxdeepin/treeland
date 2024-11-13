@@ -2,8 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #pragma once
+#include <wglobal.h>
+
 #include <QQmlEngine>
 #include <QQuickItem>
+WAYLIB_SERVER_BEGIN_NAMESPACE
+class WOutputItem;
+WAYLIB_SERVER_END_NAMESPACE
 
 class ItemSelector : public QQuickItem
 {
@@ -29,6 +34,7 @@ public:
 
     QRectF selectionRegion() const;
     QQuickItem *hoveredItem() const;
+    WAYLIB_SERVER_NAMESPACE::WOutputItem *outputItem() const;
     void setSelectionTypeHint(ItemTypes newSelectionTypeHint);
     ItemTypes selectionTypeHint() const;
 
@@ -51,6 +57,8 @@ private:
     QRectF m_selectionRegion{};
     QList<QPointer<QQuickItem>> m_selectableItems{};
     ItemTypes m_selectionTypeHint{ ItemType::Window | ItemType::Output | ItemType::Surface };
+    QList<QPointer<WAYLIB_SERVER_NAMESPACE::WOutputItem>> m_outputItems;
+    QPointer<Waylib::Server::WOutputItem> m_outputItem;
 };
 
 Q_DECLARE_OPERATORS_FOR_FLAGS(ItemSelector::ItemTypes)
