@@ -918,19 +918,18 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *, QInputEvent *event)
                 m_activatedSurface->requestCancelMaximize();
                 return true;
             }
-        } else if (kevent->key() == Qt::Key_Alt || kevent->key() == Qt::Key_Meta) {
-            if (m_taskSwitch.isNull()) {
-                auto contentItem = window()->contentItem();
-                auto output = rootContainer()->primaryOutput();
-                m_taskSwitch = qmlEngine()->createTaskSwitcher(output, contentItem);
-                connect(m_taskSwitch, SIGNAL(switchOnChanged()), this, SLOT(deleteTaskSwitch()));
-                m_taskSwitch->setZ(RootSurfaceContainer::OverlayZOrder);
-            }
-        } else if (kevent->key() == Qt::Key_Tab || kevent->key() == Qt::Key_Backtab
-                   || kevent->key() == Qt::Key_QuoteLeft || kevent->key() == Qt::Key_AsciiTilde
-                   || kevent->key() == Qt::Key_Left || kevent->key() == Qt::Key_Right) {
-            if (m_taskSwitch && m_taskSwitch->property("switchOn").toBool()
-                && event->modifiers().testFlag(Qt::AltModifier)) {
+        } else if ((m_currentMode == CurrentMode::Normal  || m_currentMode == CurrentMode::WindowSwitch) &&
+                   (kevent->key() == Qt::Key_Tab || kevent->key() == Qt::Key_Backtab ||
+                    kevent->key() == Qt::Key_QuoteLeft || kevent->key() == Qt::Key_AsciiTilde)) {
+            if (event->modifiers().testFlag(Qt::AltModifier)) {
+                if (m_taskSwitch.isNull()) {
+                    auto contentItem = window()->contentItem();
+                    auto output = rootContainer()->primaryOutput();
+                    m_taskSwitch = qmlEngine()->createTaskSwitcher(output, contentItem);
+                    connect(m_taskSwitch, SIGNAL(switchOnChanged()), this, SLOT(deleteTaskSwitch()));
+                    m_taskSwitch->setZ(RootSurfaceContainer::OverlayZOrder);
+                }
+
                 m_currentMode = CurrentMode::WindowSwitch;
                 QString appid;
                 if (kevent->key() == Qt::Key_QuoteLeft || kevent->key() == Qt::Key_AsciiTilde) {
@@ -941,14 +940,6 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *, QInputEvent *event)
                 }
                 auto filter = Helper::instance()->workspace()->currentFilter();
                 filter->setFilterAppId(appid);
-
-                if (kevent->key() == Qt::Key_Left) {
-                    QMetaObject::invokeMethod(m_taskSwitch, "previous");
-                    return true;
-                } else if (kevent->key() == Qt::Key_Right) {
-                    QMetaObject::invokeMethod(m_taskSwitch, "next");
-                    return true;
-                }
 
                 if (event->modifiers() == Qt::AltModifier) {
                     QMetaObject::invokeMethod(m_taskSwitch, "next");
@@ -976,10 +967,19 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *, QInputEvent *event)
                 Q_EMIT m_activatedSurface->requestShowWindowMenu({ 0, 0 });
                 return true;
             }
+            if (m_taskSwitch) {
+                if (kevent->key() == Qt::Key_Left) {
+                    QMetaObject::invokeMethod(m_taskSwitch, "previous");
+                    return true;
+                } else if (kevent->key() == Qt::Key_Right) {
+                    QMetaObject::invokeMethod(m_taskSwitch, "next");
+                    return true;
+                }
+            }
         }
     }
 
-    if (event->type() == QEvent::KeyRelease) {
+    if (m_currentMode == CurrentMode::WindowSwitch && event->type() == QEvent::KeyRelease) {
         if (m_taskSwitch && m_taskSwitch->property("switchOn").toBool()) {
             auto kevent = static_cast<QKeyEvent *>(event);
 
