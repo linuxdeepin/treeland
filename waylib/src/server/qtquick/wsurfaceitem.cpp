@@ -26,6 +26,55 @@
 QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
+class Q_DECL_HIDDEN SubsurfaceContainer : public QQuickItem
+{
+    Q_OBJECT
+public:
+    explicit SubsurfaceContainer(WSurfaceItem *mainSurface)
+        : QQuickItem(mainSurface)
+    {
+    }
+
+    bool isEmpty() const {
+        return m_subsurfaces.empty();
+    }
+
+    void deleteAfterEmpty() {
+        m_deleteAfterEmpty = true;
+    }
+Q_SIGNALS:
+    void subsurfaceRemoved(WAYLIB_SERVER_NAMESPACE::WSurfaceItem *item);
+
+protected:
+    void itemChange(ItemChange change, const ItemChangeData &data) override
+    {
+        switch (change) {
+        case QQuickItem::ItemChildAddedChange: {
+            auto surfaceItem = static_cast<WSurfaceItem *>(data.item);
+            Q_ASSERT(surfaceItem); // TODO: check isSubsurface, may segmentation fault now.
+            m_subsurfaces.append(surfaceItem);
+            m_deleteAfterEmpty = false;
+            break;
+        }
+        case QQuickItem::ItemChildRemovedChange: {
+            auto surfaceItem = static_cast<WSurfaceItem *>(data.item);
+            Q_ASSERT(surfaceItem && m_subsurfaces.contains(surfaceItem));
+            m_subsurfaces.removeOne(surfaceItem);
+            Q_EMIT subsurfaceRemoved(surfaceItem);
+            if (m_deleteAfterEmpty)
+                deleteLater();
+            break;
+        }
+        default:
+            break;
+        }
+    }
+
+private:
+    QList<WSurfaceItem *> m_subsurfaces;
+    bool m_deleteAfterEmpty {false};
+};
+
 class Q_DECL_HIDDEN EventItem : public QQuickItem
 {
     Q_OBJECT
@@ -780,14 +829,6 @@ void WSurfaceItem::itemChange(ItemChange change, const ItemChangeData &data)
         }
 
         Q_EMIT effectiveVisibleChanged();
-    } else if (change == ItemChildRemovedChange) {
-        // Don't use qobject_cast, because this item is in destroy,
-        // Use static_cast to avoid convert failed.
-        auto item = static_cast<WSurfaceItem*>(data.item);
-        if (item && d->subsurfaces.removeOne(item)) {
-            d->updateBoundingRect();
-            Q_EMIT subsurfaceRemoved(item);
-        }
     }
 }
 
@@ -1068,43 +1109,28 @@ void WSurfaceItemPrivate::updateSubsurfaceItem()
     auto surface = this->surface->handle()->handle();
     Q_ASSERT(surface);
     Q_ASSERT(contentContainer);
-
-    QQuickItem *prev = nullptr;
-    wlr_subsurface *subsurface;
-    wl_list_for_each(subsurface, &surface->current.subsurfaces_below, current.link) {
-        WSurface *surface = WSurface::fromHandle(subsurface->surface);
-        if (!surface)
-            continue;
-        WSurfaceItem *item = ensureSubsurfaceItem(surface);
-        item->setZ(qreal(WSurfaceItem::ZOrder::BelowSubsurface));
-        item->setSurfaceSizeRatio(surfaceSizeRatio);
-        Q_ASSERT(item->parentItem() == q);
-        if (prev) {
-            Q_ASSERT(prev->parentItem() == item->parentItem());
-            item->stackAfter(prev);
+    updateSubsurfaceContainers();
+    auto updateForContainer = [this](wl_list *subsurfaceList, QQuickItem *container) {
+        wlr_subsurface *subsurface;
+        QQuickItem *prev = nullptr;
+        wl_list_for_each(subsurface, subsurfaceList, current.link) {
+            WSurface *surface = WSurface::fromHandle(subsurface->surface);
+            if (!surface)
+                continue;
+            WSurfaceItem *item = ensureSubsurfaceItem(surface, container);
+            item->setSurfaceSizeRatio(surfaceSizeRatio);
+            Q_ASSERT(item->parentItem() == container);
+            if (prev) {
+                Q_ASSERT(prev->parentItem() == item->parentItem());
+                item->stackAfter(prev);
+            }
+            prev = item;
+            const QPointF pos = contentContainer->position() + QPointF(subsurface->current.x, subsurface->current.y) / surfaceSizeRatio;
+            item->setPosition(pos);
         }
-        prev = item;
-        const QPointF pos = contentContainer->position() + QPointF(subsurface->current.x, subsurface->current.y) / surfaceSizeRatio;
-        item->setPosition(pos);
-    }
-
-    wl_list_for_each(subsurface, &surface->current.subsurfaces_above, current.link) {
-        WSurface *surface = WSurface::fromHandle(subsurface->surface);
-        if (!surface)
-            continue;
-        WSurfaceItem *item = ensureSubsurfaceItem(surface);
-        item->setZ(qreal(WSurfaceItem::ZOrder::AboveSubsurface));
-        item->setSurfaceSizeRatio(surfaceSizeRatio);
-        Q_ASSERT(item->parentItem() == q);
-        if (prev) {
-            Q_ASSERT(prev->parentItem() == item->parentItem());
-            item->stackAfter(prev);
-        }
-        prev = item;
-        const QPointF pos = contentContainer->position() + QPointF(subsurface->current.x, subsurface->current.y) / surfaceSizeRatio;
-        item->setPosition(pos);
-    }
-
+    };
+    updateForContainer(&surface->current.subsurfaces_below, belowSubsurfaceContainer);
+    updateForContainer(&surface->current.subsurfaces_above, aboveSubsurfaceContainer);
     updateBoundingRect();
 }
 
@@ -1131,19 +1157,25 @@ void WSurfaceItemPrivate::updateContentPosition()
     updateBoundingRect();
 }
 
-WSurfaceItem *WSurfaceItemPrivate::ensureSubsurfaceItem(WSurface *subsurfaceSurface)
+WSurfaceItem *WSurfaceItemPrivate::ensureSubsurfaceItem(WSurface *subsurfaceSurface, QQuickItem *parent)
 {
     for (int i = 0; i < subsurfaces.count(); ++i) {
         auto surfaceItem = subsurfaces.at(i);
         WSurface *surface = surfaceItem->d_func()->surface.get();
 
-        if (surface && surface == subsurfaceSurface)
-            return surfaceItem;
+        if (surface && surface == subsurfaceSurface) {
+            if (surfaceItem->parent() == parent) {
+                return surfaceItem;
+            } else {
+                subsurfaces.removeOne(surfaceItem);
+                break;
+            }
+        }
     }
 
     Q_Q(WSurfaceItem);
     Q_ASSERT(subsurfaceSurface);
-    auto surfaceItem = new WSurfaceItem(q);
+    auto surfaceItem = new WSurfaceItem(parent);
     // Delay destroy WSurfaceItem, because if the cause of destroy is because the parent
     // surface destroy, and the parent WSurfaceItem::cacheLastBuffer maybe enabled,
     // will disable this connection at parent WSurfaceItem::releaseResources to save the
@@ -1151,8 +1183,10 @@ WSurfaceItem *WSurfaceItemPrivate::ensureSubsurfaceItem(WSurface *subsurfaceSurf
     // contents.
     // AutoDestroy: Connect to this(parent)'s lambda since the autodestroy is managed by parent,
     // avoids disconnected with all slots on subsurfaceItem in subsurface's releaseResources
-    subsurfaceSurface->safeConnect(&WSurface::destroyed,
-                             q, [this,surfaceItem]{ surfaceItem->deleteLater(); }, Qt::QueuedConnection);
+    subsurfaceSurface->safeConnect(&WSurface::destroyed, q, [this,surfaceItem] {
+        subsurfaces.removeOne(surfaceItem);
+        surfaceItem->deleteLater();
+    }, Qt::QueuedConnection);
     surfaceItem->setDelegate(delegate);
     surfaceItem->setFlags(surfaceFlags);
     surfaceItem->setSurface(subsurfaceSurface);
@@ -1166,6 +1200,43 @@ WSurfaceItem *WSurfaceItemPrivate::ensureSubsurfaceItem(WSurface *subsurfaceSurf
     Q_EMIT q->subsurfaceAdded(surfaceItem);
 
     return surfaceItem;
+}
+
+void WSurfaceItemPrivate::updateSubsurfaceContainers()
+{
+    Q_Q(WSurfaceItem);
+    if (wl_list_empty(&surface->handle()->handle()->current.subsurfaces_below) && belowSubsurfaceContainer) {
+        if (belowSubsurfaceContainer->isEmpty()) {
+            delete belowSubsurfaceContainer;
+        } else {
+            belowSubsurfaceContainer->deleteAfterEmpty();
+        }
+    } else if (!wl_list_empty(&surface->handle()->handle()->current.subsurfaces_below) && !belowSubsurfaceContainer) {
+        belowSubsurfaceContainer = new SubsurfaceContainer(q);
+        belowSubsurfaceContainer->setZ(static_cast<qreal>(WSurfaceItem::ZOrder::BelowSubsurface));
+        belowSubsurfaceContainer->setVisible(subsurfacesVisible);
+        QQuickItemPrivate::get(belowSubsurfaceContainer)->anchors()->setFill(q);
+        QObject::connect(belowSubsurfaceContainer, &SubsurfaceContainer::subsurfaceRemoved, q, [this, q](WSurfaceItem *item) {
+            updateBoundingRect();
+            Q_EMIT q->subsurfaceRemoved(item);
+        });
+    }
+    if (wl_list_empty(&surface->handle()->handle()->current.subsurfaces_above) && aboveSubsurfaceContainer) {
+        if (aboveSubsurfaceContainer->isEmpty()) {
+            delete aboveSubsurfaceContainer;
+        } else {
+            aboveSubsurfaceContainer->deleteAfterEmpty();
+        }
+    } else if (!wl_list_empty(&surface->handle()->handle()->current.subsurfaces_above)  && !aboveSubsurfaceContainer) {
+        aboveSubsurfaceContainer = new SubsurfaceContainer(q);
+        aboveSubsurfaceContainer->setZ(static_cast<qreal>(WSurfaceItem::ZOrder::AboveSubsurface));
+        aboveSubsurfaceContainer->setVisible(subsurfacesVisible);
+        QQuickItemPrivate::get(aboveSubsurfaceContainer)->anchors()->setFill(q);
+        QObject::connect(aboveSubsurfaceContainer, &SubsurfaceContainer::subsurfaceRemoved, q, [this, q](WSurfaceItem *item) {
+            updateBoundingRect();
+            Q_EMIT q->subsurfaceRemoved(item);
+        });
+    }
 }
 
 void WSurfaceItemPrivate::resizeSurfaceToItemSize(const QSize &itemSize, const QSize &sizeDiff)
@@ -1330,6 +1401,25 @@ void WSurfaceItemContentPrivate::cleanTextureProvider()
 
         textureProvider = nullptr;
     }
+}
+
+bool WSurfaceItem::subsurfacesVisible() const
+{
+    Q_D(const WSurfaceItem);
+    return d->subsurfacesVisible;
+}
+
+void WSurfaceItem::setSubsurfacesVisible(bool newSubsurfacesVisible)
+{
+    Q_D(WSurfaceItem);
+    if (d->subsurfacesVisible == newSubsurfacesVisible)
+        return;
+    d->subsurfacesVisible = newSubsurfacesVisible;
+    if (d->belowSubsurfaceContainer)
+        d->belowSubsurfaceContainer->setVisible(d->subsurfacesVisible);
+    if (d->aboveSubsurfaceContainer)
+        d->aboveSubsurfaceContainer->setVisible(d->subsurfacesVisible);
+    Q_EMIT subsurfacesVisibleChanged();
 }
 
 WAYLIB_SERVER_END_NAMESPACE

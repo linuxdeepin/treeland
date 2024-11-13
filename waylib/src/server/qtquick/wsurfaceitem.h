@@ -105,6 +105,7 @@ class WAYLIB_SERVER_EXPORT WSurfaceItem : public QQuickItem
     Q_PROPERTY(qreal bufferScale READ bufferScale NOTIFY bufferScaleChanged)
     Q_PROPERTY(QQmlComponent* delegate READ delegate WRITE setDelegate NOTIFY delegateChanged FINAL)
     Q_PROPERTY(QRectF boundingRect READ boundingRect NOTIFY boundingRectChanged)
+    Q_PROPERTY(bool subsurfacesVisible READ subsurfacesVisible WRITE setSubsurfacesVisible NOTIFY subsurfacesVisibleChanged FINAL)
     QML_NAMED_ELEMENT(SurfaceItem)
 
 public:
@@ -179,6 +180,8 @@ public:
     
     // resize internal surface, should be in SizeFromSurface mode
     bool resizeSurface(const QSizeF &newSize);
+    bool subsurfacesVisible() const;
+    void setSubsurfacesVisible(bool newSubsurfacesVisible);
 
 Q_SIGNALS:
     void surfaceChanged();
@@ -198,6 +201,7 @@ Q_SIGNALS:
     void delegateChanged();
     void shellSurfaceChanged();
     void boundingRectChanged();
+    void subsurfacesVisibleChanged();
 
 protected:
     explicit WSurfaceItem(WSurfaceItemPrivate &dd, QQuickItem *parent = nullptr);
