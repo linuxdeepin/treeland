@@ -797,7 +797,9 @@ void Helper::setSocketEnabled(bool newEnabled)
 void Helper::activateSurface(SurfaceWrapper *wrapper, Qt::FocusReason reason)
 {
     if (m_multitaskview && m_multitaskview->blockActiveSurface() && wrapper) {
-        workspace()->pushActivedSurface(wrapper);
+        if (wrapper->shellSurface()->hasCapability(WToplevelSurface::Capability::Activate)) {
+            workspace()->pushActivedSurface(wrapper);
+        }
         return;
     }
     if (!wrapper || wrapper->shellSurface()->hasCapability(WToplevelSurface::Capability::Activate))
