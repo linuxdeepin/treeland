@@ -53,10 +53,13 @@ public:
     ~treeland_dock_preview_context_v1();
     treeland_foreign_toplevel_manager_v1 *manager{ nullptr };
     wl_resource *resource{ nullptr };
-    wl_resource *relative_surface{ nullptr };
+    wlr_surface *relative_surface{ nullptr };
+    struct wl_listener destroy_listener;
+    struct wl_client *client{ nullptr };
 
     void enter();
     void leave();
+
 Q_SIGNALS:
     void before_destroy();
     void requestShow(treeland_dock_preview_context_v1_preview_event *event);
