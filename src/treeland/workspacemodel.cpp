@@ -88,6 +88,20 @@ SurfaceWrapper *WorkspaceModel::latestActiveSurface() const
     return m_activedSurfaceHistory.front();
 }
 
+SurfaceWrapper *WorkspaceModel::activePenultimateWindow() const
+{
+    if (m_activedSurfaceHistory.empty())
+        return nullptr;
+
+    auto first = m_activedSurfaceHistory.begin();
+    auto second = std::next(first);
+    if (second == m_activedSurfaceHistory.end()) {
+        return nullptr;
+    }
+
+    return *second; 
+}
+
 void WorkspaceModel::pushActivedSurface(SurfaceWrapper *surface)
 {
     m_activedSurfaceHistory.push_front(surface);

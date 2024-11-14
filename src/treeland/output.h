@@ -46,6 +46,12 @@ public:
         Proxy
     };
 
+    enum class PlaceDirection
+    {
+        TopLeft,
+        BottomRight,
+    };
+
     static Output *create(WOutput *output, QQmlEngine *engine, QObject *parent = nullptr);
     static Output *createCopy(WOutput *output,
                               Output *proxy,
@@ -92,6 +98,14 @@ private:
     void arrangeNonLayerSurfaces();
     void arrangeAllSurfaces();
     std::pair<WOutputViewport *, QQuickItem *> getOutputItemProperty();
+    void placeUnderCursor(SurfaceWrapper *surface, quint32 yOffset);
+    void placeClientRequstPos(SurfaceWrapper *surface, QPoint clientRequstPos);
+    void placeCentered(SurfaceWrapper *surface);
+    void placeSmart(SurfaceWrapper *surface);
+    QPointF calculateBottomRightPosition(const QRectF &activeGeo, const QRectF &normalGeo,
+                                       const QRectF &validGeo, const QSizeF &offset);
+    QPointF calculateTopLeftPosition(const QRectF &activeGeo, const QRectF &normalGeo,
+                                     const QRectF &validGeo, const QSizeF &offset);
 
     Type m_type;
     WOutputItem *m_item;
@@ -111,6 +125,7 @@ private:
 
     QSizeF m_lastSizeOnLayoutNonLayerSurfaces;
     QList<WOutputLayer *> m_hardwareLayersOfPrimaryOutput;
+    PlaceDirection m_nextPlaceDirection = PlaceDirection::BottomRight;
 };
 
 Q_DECLARE_OPAQUE_POINTER(WAYLIB_SERVER_NAMESPACE::WOutputItem *)
