@@ -358,15 +358,20 @@ void Helper::onShowDesktop()
         return;
 
     m_showDesktop = s;
+    if (s == WindowManagementV1::DesktopState::Normal) {
+        workspace()->current()->setVisible(true);
+        workspace()->current()->setOpaque(true);
+    } else if (s == WindowManagementV1::DesktopState::Show) {
+        workspace()->current()->setVisible(false);
+        workspace()->current()->setOpaque(false);
+    }
     const auto &surfaceList = workspace()->current()->surfaces();
     for (auto surface : surfaceList) {
         if (s == WindowManagementV1::DesktopState::Normal && !surface->opacity()
             && !surface->isMinimized()) {
-            surface->setOpacity(1);
             surface->startShowDesktopAnimation(true);
         } else if (s == WindowManagementV1::DesktopState::Show && surface->opacity()
                    && !surface->isMinimized()) {
-            surface->setOpacity(0);
             surface->startShowDesktopAnimation(false);
         }
     }
