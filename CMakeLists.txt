@@ -64,7 +64,7 @@ add_subdirectory(src)
 add_subdirectory(misc)
 add_subdirectory(tests)
 
-if (BUILD_TEST_EXAMPLES)
+if (BUILD_EXAMPLES)
     add_subdirectory(examples)
 endif()
 
