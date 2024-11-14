@@ -361,12 +361,26 @@ void Helper::onShowDesktop()
     if (s == WindowManagementV1::DesktopState::Normal) {
         workspace()->current()->setVisible(true);
         workspace()->current()->setOpaque(true);
+        workspace()->showOnAllWorkspaceModel()->setVisible(true);
+        workspace()->showOnAllWorkspaceModel()->setOpaque(true);
     } else if (s == WindowManagementV1::DesktopState::Show) {
         workspace()->current()->setVisible(false);
         workspace()->current()->setOpaque(false);
+        workspace()->showOnAllWorkspaceModel()->setVisible(false);
+        workspace()->showOnAllWorkspaceModel()->setOpaque(false);
     }
     const auto &surfaceList = workspace()->current()->surfaces();
     for (auto surface : surfaceList) {
+        if (s == WindowManagementV1::DesktopState::Normal && !surface->opacity()
+            && !surface->isMinimized()) {
+            surface->startShowDesktopAnimation(true);
+        } else if (s == WindowManagementV1::DesktopState::Show && surface->opacity()
+                   && !surface->isMinimized()) {
+            surface->startShowDesktopAnimation(false);
+        }
+    }
+    const auto &OnAllWorkspacesurfaceList = workspace()->showOnAllWorkspaceModel()->surfaces();
+    for (auto surface : OnAllWorkspacesurfaceList) {
         if (s == WindowManagementV1::DesktopState::Normal && !surface->opacity()
             && !surface->isMinimized()) {
             surface->startShowDesktopAnimation(true);
