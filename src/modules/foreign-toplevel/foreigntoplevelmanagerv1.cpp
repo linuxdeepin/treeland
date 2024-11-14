@@ -215,9 +215,10 @@ void ForeignToplevelV1::addSurface(SurfaceWrapper *wrapper)
                    "parent surface not "
                    "found!";
         };
-        connection.push_back(xwaylandSurface->safeConnect(&WXWaylandSurface::parentXWaylandSurfaceChanged,
-                                                          surface,
-                                                          updateSurfaceParent));
+        connection.push_back(
+            xwaylandSurface->safeConnect(&WXWaylandSurface::parentXWaylandSurfaceChanged,
+                                         surface,
+                                         updateSurfaceParent));
         updateSurfaceParent();
     } else {
         qCFatal(qLcTreelandForeignToplevel)
@@ -255,7 +256,7 @@ void ForeignToplevelV1::removeSurface(SurfaceWrapper *wrapper)
 void ForeignToplevelV1::enterDockPreview(WSurface *relative_surface)
 {
     for (auto *context : m_manager->dock_preview) {
-        if (context->relative_surface == relative_surface->handle()->handle()->resource) {
+        if (context->relative_surface == relative_surface->handle()->handle()) {
             context->enter();
             break;
         }
@@ -265,7 +266,7 @@ void ForeignToplevelV1::enterDockPreview(WSurface *relative_surface)
 void ForeignToplevelV1::leaveDockPreview(WSurface *relative_surface)
 {
     for (auto *context : m_manager->dock_preview) {
-        if (context->relative_surface == relative_surface->handle()->handle()->resource) {
+        if (context->relative_surface == relative_surface->handle()->handle()) {
             context->leave();
             break;
         }
@@ -290,8 +291,7 @@ void ForeignToplevelV1::onDockPreviewContextCreated(treeland_dock_preview_contex
                 };
 
                 Q_EMIT requestDockPreview(surfaces,
-                                          WSurface::fromHandle(wlr_surface_from_resource(
-                                              event->toplevel->relative_surface)),
+                                          WSurface::fromHandle(event->toplevel->relative_surface),
                                           QPoint(event->x, event->y),
                                           static_cast<PreviewDirection>(event->direction));
             });
@@ -299,14 +299,18 @@ void ForeignToplevelV1::onDockPreviewContextCreated(treeland_dock_preview_contex
             &treeland_dock_preview_context_v1::requestShowTooltip,
             this,
             [this](treeland_dock_preview_tooltip_event *event) {
-                Q_EMIT requestDockPreviewTooltip(event->tooltip,
-                                                 WSurface::fromHandle(wlr_surface_from_resource(
-                                                     event->toplevel->relative_surface)),
-                                                 QPoint(event->x, event->y),
-                                                 static_cast<PreviewDirection>(event->direction));
+                Q_EMIT requestDockPreviewTooltip(
+                    event->tooltip,
+                    WSurface::fromHandle(event->toplevel->relative_surface),
+                    QPoint(event->x, event->y),
+                    static_cast<PreviewDirection>(event->direction));
             });
     connect(context,
             &treeland_dock_preview_context_v1::requestClose,
+            this,
+            &ForeignToplevelV1::requestDockClose);
+    connect(context,
+            &treeland_dock_preview_context_v1::before_destroy,
             this,
             &ForeignToplevelV1::requestDockClose);
 }
