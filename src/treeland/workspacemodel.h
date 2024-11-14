@@ -42,6 +42,7 @@ public:
     void removeSurface(SurfaceWrapper *surface) override;
 
     Q_INVOKABLE SurfaceWrapper *latestActiveSurface() const;
+    Q_INVOKABLE SurfaceWrapper *activePenultimateWindow() const;
     void pushActivedSurface(SurfaceWrapper *surface);
     void removeActivedSurface(SurfaceWrapper *surface);
 
