@@ -12,7 +12,7 @@ export DEB_CFLAGS_MAINT_APPEND  = -Wall -pedantic
 # package maintainers to append LDFLAGS
 export DEB_LDFLAGS_MAINT_APPEND = -Wl,--as-needed
 
-TREELAND_CMAKE_ARGS = -DBUILD_TEST_EXAMPLES=ON
+TREELAND_CMAKE_ARGS = -DBUILD_EXAMPLES=ON
 
 %:
 	dh $@
