@@ -190,7 +190,7 @@
             "visibility": "private"
         },
         "numWorkspace": {
-            "value": 4,
+            "value": 2,
             "serial": 0,
             "flags": ["user-public"],
             "name": "Number of workspaces",
