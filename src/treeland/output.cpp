@@ -7,6 +7,7 @@
 #include "rootsurfacecontainer.h"
 #include "surfacewrapper.h"
 #include "treelandconfig.h"
+#include "workspace.h"
 
 #include <wcursor.h>
 #include <winputpopupsurface.h>
@@ -19,6 +20,9 @@
 #include <wxdgsurface.h>
 
 #include <QQmlEngine>
+
+#define SAME_APP_OFFSET_FACTOR 1.0
+#define DIFF_APP_OFFSET_FACTOR 2.0
 
 Q_LOGGING_CATEGORY(qLcLayerShell, "Treeland.shell.layer", QtWarningMsg)
 
@@ -153,6 +157,88 @@ std::pair<WOutputViewport *, QQuickItem *> Output::getOutputItemProperty()
     auto textureProxy = outputItem()->findChild<WQuickTextureProxy *>();
     Q_ASSERT(textureProxy);
     return std::make_pair(viewportCopy, textureProxy);
+}
+
+void Output::placeUnderCursor(SurfaceWrapper *surface, quint32 yOffset)
+{
+    QSizeF cursorSize;
+    QRectF normalGeo = surface->normalGeometry();
+    WCursor *wCursor = Helper::instance()->seat()->cursor();
+    if (!surface->ownsOutput()->outputItem()->cursorItems().isEmpty())
+        cursorSize = surface->ownsOutput()->outputItem()->cursorItems()[0]->size();
+
+    normalGeo.moveLeft(wCursor->position().x()
+                       + (cursorSize.width() - surface->width()) / 2);
+    normalGeo.moveTop(wCursor->position().y() + cursorSize.height() + yOffset);
+    surface->moveNormalGeometryInOutput(normalGeo.topLeft());
+}
+
+void Output::placeClientRequstPos(SurfaceWrapper *surface, QPoint clientRequstPos)
+{
+    QRectF normalGeo = surface->normalGeometry();
+    normalGeo.moveLeft(clientRequstPos.x());
+    normalGeo.moveTop(clientRequstPos.y());
+    surface->moveNormalGeometryInOutput(normalGeo.topLeft());
+}
+
+void Output::placeCentered(SurfaceWrapper *surface)
+{
+    const auto validGeo = validGeometry();
+    QRectF normalGeo = surface->normalGeometry();
+    normalGeo.moveCenter(validGeo.center());
+    normalGeo.moveTop(qMax(normalGeo.top(), validGeo.top()));
+    normalGeo.moveLeft(qMax(normalGeo.left(), validGeo.left()));
+    surface->moveNormalGeometryInOutput(normalGeo.topLeft());
+}
+
+void Output::placeSmart(SurfaceWrapper *surface)
+{
+    auto wpModle = Helper::instance()->workspace()->modelFromId(surface->workspaceId());
+    Q_ASSERT(wpModle);
+    auto latestActiveSurface = wpModle->activePenultimateWindow();
+    if (!latestActiveSurface || latestActiveSurface == surface) {
+        placeCentered(surface);
+        return;
+    }
+
+    const auto validGeo = validGeometry();
+    QRectF normalGeo = surface->normalGeometry();
+    QRectF latestActiveSurfaceGeo = latestActiveSurface->normalGeometry();
+
+    qreal factor = (latestActiveSurface->shellSurface()->appId() != surface->shellSurface()->appId()) ?
+        DIFF_APP_OFFSET_FACTOR : SAME_APP_OFFSET_FACTOR;
+    qreal offset = latestActiveSurface->titlebarGeometry().height() * factor;
+
+    QPointF newPos;
+    if (m_nextPlaceDirection == PlaceDirection::BottomRight) {
+        newPos = calculateBottomRightPosition(latestActiveSurfaceGeo, normalGeo, validGeo, QSizeF(offset, offset));
+    } else {
+        newPos = calculateTopLeftPosition(latestActiveSurfaceGeo, normalGeo, validGeo, QSizeF(offset, offset));
+    }
+
+    surface->moveNormalGeometryInOutput(newPos);
+}
+
+QPointF Output::calculateBottomRightPosition(const QRectF &activeGeo, const QRectF &normalGeo, const QRectF &validGeo, const QSizeF &offset)
+{
+    if (activeGeo.bottom() + offset.height() < validGeo.bottom() &&
+        activeGeo.left() + offset.width() + normalGeo.width() < validGeo.right()) {
+        return QPointF(activeGeo.left() + offset.width(), activeGeo.top() + offset.height());
+    }
+
+    m_nextPlaceDirection = PlaceDirection::TopLeft;
+    return QPointF(activeGeo.left() - offset.width(), activeGeo.top() - offset.height());
+}
+
+QPointF Output::calculateTopLeftPosition(const QRectF &activeGeo, const QRectF &normalGeo, const QRectF &validGeo, const QSizeF &offset)
+{
+    if (activeGeo.top() - offset.height() > validGeo.top() &&
+        activeGeo.left() - offset.width() > validGeo.left()) {
+        return QPointF(activeGeo.left() - offset.width(), activeGeo.top() - offset.height());
+    }
+
+    m_nextPlaceDirection = PlaceDirection::BottomRight;
+    return QPointF(activeGeo.left() + offset.width(), activeGeo.top() + offset.height());
 }
 
 void Output::updateOutputHardwareLayers()
@@ -424,10 +510,7 @@ void Output::arrangeNonLayerSurface(SurfaceWrapper *surface, const QSizeF &sizeD
                     surface->moveNormalGeometryInOutput(normalGeo.topLeft());
                 }
             } else {
-                normalGeo.moveCenter(validGeo.center());
-                normalGeo.moveTop(qMax(normalGeo.top(), validGeo.top()));
-                normalGeo.moveLeft(qMax(normalGeo.left(), validGeo.left()));
-                surface->moveNormalGeometryInOutput(normalGeo.topLeft());
+                placeSmart(surface);
             }
         } else if (!sizeDiff.isNull() && sizeDiff.isValid()) {
             const QSizeF outputSize = m_item->size();
@@ -439,22 +522,12 @@ void Output::arrangeNonLayerSurface(SurfaceWrapper *surface, const QSizeF &sizeD
         } else {
             QPoint clientRequstPos = surface->clientRequstPos();
             if (!clientRequstPos.isNull()) {
-                normalGeo.moveLeft(clientRequstPos.x());
-                normalGeo.moveTop(clientRequstPos.y());
-                surface->moveNormalGeometryInOutput(normalGeo.topLeft());
+                placeClientRequstPos(surface, clientRequstPos);
             }
 
             quint32 yOffset = surface->autoPlaceYOffset();
             if (yOffset > 0) {
-                QSizeF cursorSize;
-                WCursor *wCursor = Helper::instance()->seat()->cursor();
-                if (!surface->ownsOutput()->outputItem()->cursorItems().isEmpty())
-                    cursorSize = surface->ownsOutput()->outputItem()->cursorItems()[0]->size();
-
-                normalGeo.moveLeft(wCursor->position().x()
-                                   + (cursorSize.width() - surface->width()) / 2);
-                normalGeo.moveTop(wCursor->position().y() + cursorSize.height() + yOffset);
-                surface->moveNormalGeometryInOutput(normalGeo.topLeft());
+                placeUnderCursor(surface, yOffset);
             }
             break;
         }
