@@ -12,11 +12,6 @@ import org.deepin.dtk as D
 CaptureSourceSelector {
     id: captureSourceSelector
     anchors.fill: parent
-    Rectangle {
-        anchors.fill: parent
-        color: "black"
-        opacity: 0.1
-    }
     component SourceToolButton: Item {
         required property string iconName
         required property int selectionMode
@@ -47,11 +42,31 @@ CaptureSourceSelector {
         }
     }
 
-    ListModel {
-        id: sourceToolButtonModel
-        ListElement { iconName: "select_region"; selectionMode: CaptureSourceSelector.SelectRegion }
-        ListElement { iconName: "select_window"; selectionMode: CaptureSourceSelector.SelectWindow }
-        ListElement { iconName: "select_output"; selectionMode: CaptureSourceSelector.SelectOutput }
+    Shape {
+        id: bgShape
+        anchors.fill: parent
+        ShapePath {
+            strokeWidth: 0
+            fillColor: Qt.rgba(0, 0, 0, 0.3)
+            startX: 0
+            startY: 0
+            PathRectangle {
+                x: 0
+                y: 0
+                width: bgShape.width
+                height: bgShape.height
+            }
+            PathMove {
+                x: selectionRegion.x
+                y: selectionRegion.y
+            }
+            PathRectangle {
+                x: selectionRegion.x
+                y: selectionRegion.y
+                width: selectionRegion.width
+                height: selectionRegion.height
+            }
+        }
     }
 
     Control {
@@ -59,6 +74,7 @@ CaptureSourceSelector {
         anchors.bottom: parent.bottom
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.margins: 10
+        visible: toolBarModel.count > 1
         OpacityAnimator on opacity {
             from: 0.0
             to: 1.0
@@ -67,7 +83,7 @@ CaptureSourceSelector {
         }
         contentItem: Row {
             Repeater {
-                model: sourceToolButtonModel
+                model: toolBarModel
                 SourceToolButton { }
             }
         }
@@ -77,6 +93,10 @@ CaptureSourceSelector {
                 anchors.fill: parent
                 color: Qt.rgba(16, 16, 16, .1)
                 radius: 8
+                HoverHandler {
+                    cursorShape: Qt.ArrowCursor
+                    blocking: true
+                }
             }
             Blur {
                 anchors.fill: bgRect

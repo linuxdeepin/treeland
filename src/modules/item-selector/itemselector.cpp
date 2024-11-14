@@ -135,6 +135,8 @@ void ItemSelector::checkHoveredItem(QPointF pos)
 {
     decltype(m_selectableItems.crbegin()) it;
     for (it = m_selectableItems.crbegin(); it != m_selectableItems.crend(); it++) {
+        if (!*it)
+            continue;
         auto itemRect = (*it)->mapRectToItem(this, (*it)->boundingRect());
         if (itemRect.contains(pos)) {
             setHoveredItem(*it);
