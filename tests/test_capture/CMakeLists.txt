@@ -44,7 +44,6 @@ target_link_libraries(${BIN_NAME}
         Qt6::WaylandClientPrivate
         Qt6::Quick
         Qt6::QuickPrivate
-        Qt6::QWaylandXdgShellIntegrationPlugin
 )
 
 install(TARGETS ${BIN_NAME} RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}")
