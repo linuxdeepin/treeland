@@ -19,6 +19,10 @@
 #include <QQuickPaintedItem>
 #include <QRect>
 
+extern "C" {
+#include <wlr/types/wlr_buffer.h>
+}
+
 WAYLIB_SERVER_BEGIN_NAMESPACE
 class WOutputRenderWindow;
 class WOutputViewport;
@@ -52,6 +56,8 @@ public:
     bool valid() const;
     QImage image() const;
 
+    void createImage();
+
     /**
      * @brief DMA buffer of source, there are three cases
      * 1. output - output's dma buffer
@@ -73,7 +79,7 @@ public:
 
     virtual CaptureSourceType sourceType() = 0;
 
-private:
+protected:
     friend QDebug operator<<(QDebug debug, CaptureSource &captureSource);
     QImage m_image;
     WTextureProviderProvider *const m_provider;
@@ -122,6 +128,9 @@ public:
     bool freeze() const;
     bool withCursor() const;
     CaptureSource::CaptureSourceHint sourceHint() const;
+    QPointer<treeland_capture_session_v1> session() const;
+    QPointer<CaptureSource> captureSource() const;
+    QPointer<WOutputRenderWindow> outputRenderWindow() const;
 
 public:
     enum SourceFailure
@@ -131,7 +140,9 @@ public:
     };
     Q_ENUM(SourceFailure)
 
-    CaptureContextV1(treeland_capture_context_v1 *h, QObject *parent = nullptr);
+    CaptureContextV1(treeland_capture_context_v1 *h,
+                     WOutputRenderWindow *outputRenderWindow,
+                     QObject *parent = nullptr);
     void sendSourceFailed(SourceFailure failure);
 
     inline bool hintType(CaptureSource::CaptureSourceType type)
@@ -147,12 +158,18 @@ Q_SIGNALS:
 private:
     void onSelectSource();
     void onCapture(treeland_capture_frame_v1 *frame);
+    void onCreateSession(treeland_capture_session_v1 *session);
     void handleFrameCopy(QW_NAMESPACE::qw_buffer *buffer);
+    void handleSessionStart();
+    void handleRenderEnd();
 
     treeland_capture_context_v1 *const m_handle;
-    CaptureSource *m_captureSource;
-    QPointer<treeland_capture_frame_v1> m_frame = nullptr;
+    CaptureSource *m_captureSource{ nullptr };
+    QPointer<treeland_capture_frame_v1> m_frame{ nullptr };
+    QPointer<treeland_capture_session_v1> m_session{ nullptr };
+    const QPointer<WOutputRenderWindow> m_outputRenderWindow;
 };
+class CaptureSourceSelector;
 
 class CaptureManagerV1
     : public QObject
@@ -174,6 +191,13 @@ public:
         return m_contextInSelection;
     }
 
+    CaptureSourceSelector *selector() const
+    {
+        return m_selector;
+    }
+
+    void setSelector(CaptureSourceSelector *selector);
+
     WOutputRenderWindow *outputRenderWindow() const;
     void setOutputRenderWindow(WOutputRenderWindow *renderWindow);
     QByteArrayView interfaceName() const override;
@@ -183,6 +207,7 @@ public:
 Q_SIGNALS:
     void contextInSelectionChanged();
     void newCaptureContext(CaptureContextV1 *context);
+    void selectorChanged();
 
 protected:
     void create(WServer *server) override;
@@ -203,6 +228,7 @@ private:
     QPointF m_frozenCursorPos;
     QPointer<WToplevelSurface> m_maskShellSurface;
     QPointer<SurfaceWrapper> m_maskSurfaceWrapper;
+    CaptureSourceSelector *m_selector;
 };
 
 class CaptureSourceSurface : public CaptureSource
@@ -244,6 +270,7 @@ private:
     WOutputViewport *const m_outputViewport;
     QRect m_region;
 };
+class ToolBarModel;
 
 class CaptureSourceSelector : public SurfaceContainer
 {
@@ -252,6 +279,7 @@ class CaptureSourceSelector : public SurfaceContainer
     Q_PROPERTY(QRectF selectionRegion READ selectionRegion NOTIFY selectionRegionChanged FINAL)
     Q_PROPERTY(SelectionMode selectionMode READ selectionMode WRITE setSelectionMode NOTIFY selectionModeChanged FINAL)
     Q_PROPERTY(QQmlListProperty<QObject> contents READ contents CONSTANT DESIGNABLE false)
+    Q_PROPERTY(ToolBarModel* toolBarModel READ toolBarModel CONSTANT FINAL)
     Q_CLASSINFO("DefaultProperty", "contents")
     QML_ELEMENT
 
@@ -271,9 +299,18 @@ public:
     SelectionMode selectionMode() const;
     void setSelectionMode(const SelectionMode &newSelectionMode);
     void doSetSelectionMode(const SelectionMode &newSelectionMode);
-    CaptureSource::CaptureSourceHint selectionModeHint(const SelectionMode &selectionMode);
+    static CaptureSource::CaptureSourceHint selectionModeHint(const SelectionMode &selectionMode);
     ItemSelector::ItemTypes selectionModeToItemTypes(const SelectionMode &selectionMode) const;
     QQmlListProperty<QObject> contents() const;
+
+    inline CaptureSource::CaptureSourceHint captureSourceHint() const
+    {
+        return captureManager() ? captureManager()->contextInSelection()->sourceHint()
+                                : CaptureSource::CaptureSourceHint();
+    }
+
+    ToolBarModel *toolBarModel() const;
+    void doneSelection();
 
 Q_SIGNALS:
     void hoveredItemChanged();
@@ -300,13 +337,8 @@ private:
     void setSelectedSource(CaptureSource *newSelectedSource);
     void handleItemSelectorSelectionRegionChanged();
     WOutputRenderWindow *renderWindow() const;
-    void doneSelection();
 
-    inline CaptureSource::CaptureSourceHint captureSourceHint() const
-    {
-        return captureManager() ? captureManager()->contextInSelection()->sourceHint()
-                                : CaptureSource::CaptureSourceHint();
-    }
+    void updateCursorShape();
 
     QPointer<QQuickItem> m_internalContentItem{};
     QPointer<ItemSelector> m_itemSelector{};
@@ -317,8 +349,33 @@ private:
     QRectF m_selectionRegion{};
     QPointF m_selectionAnchor{};
     bool m_itemSelectionMode{ true };
-    SelectionMode m_selectionMode;
+    SelectionMode m_selectionMode = SelectionMode::SelectRegion;
     bool m_doNotFinish{ false };
     QPointer<SurfaceContainer> m_savedContainer{};
     QPointer<SurfaceWrapper> m_canvas{};
+    ToolBarModel *m_toolBarModel{ nullptr };
+};
+
+class ToolBarModel : public QAbstractListModel
+{
+    Q_OBJECT
+    Q_PROPERTY(uint count READ rowCount NOTIFY countChanged FINAL)
+public:
+    enum ToolBarRole
+    {
+        IconNameRole,
+        SelectionModeRole
+    };
+    Q_ENUM(ToolBarRole)
+    explicit ToolBarModel(CaptureSourceSelector *selector);
+    void updateModel();
+    CaptureSourceSelector *selector() const;
+    int rowCount(const QModelIndex &parent = QModelIndex()) const override;
+    QVariant data(const QModelIndex &index, int role) const override;
+    QHash<int, QByteArray> roleNames() const override;
+Q_SIGNALS:
+    void countChanged();
+
+private:
+    QList<QPair<QString, CaptureSourceSelector::SelectionMode>> m_data;
 };
