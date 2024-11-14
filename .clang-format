@@ -66,7 +66,7 @@ PPIndentWidth: 2
 # The coding style does not specify the following, but this is what gives
 # results closest to the existing code.
 AlignAfterOpenBracket: Align
-AlwaysBreakTemplateDeclarations: true
+BreakTemplateDeclarations: Yes
 
 # As clang-format 13 can regroup includes we enable this feature.
 # basically according to https://wiki.qt.io/Coding_Conventions#Including_headers
@@ -106,7 +106,7 @@ IncludeCategories:
   - Regex: '^<'
     Priority: 3
 IncludeIsMainRegex: '((T|t)est)?$'
-SortIncludes: true
+SortIncludes: CaseSensitive
 
 # macros for which the opening brace stays attached.
 ForEachMacros:   [ foreach, Q_FOREACH, BOOST_FOREACH, forever, Q_FOREVER, QBENCHMARK, QBENCHMARK_ONCE ]
