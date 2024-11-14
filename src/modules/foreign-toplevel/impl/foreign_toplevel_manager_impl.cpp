@@ -193,6 +193,10 @@ static void treeland_dock_preview_context_handle_show_tooltip(struct wl_client *
 {
     auto *dock_preview = toplevel_dock_preview_context_from_resource(resource);
 
+    if (!dock_preview->relative_surface) {
+        return;
+    }
+
     treeland_dock_preview_tooltip_event event = {
         .toplevel = dock_preview,
         .tooltip = QString::fromUtf8(tooltip),
@@ -632,6 +636,10 @@ static void treeland_dock_preview_context_handle_show([[maybe_unused]] struct wl
         return;
     }
 
+    if (!dock_preview->relative_surface) {
+        return;
+    }
+
     std::vector<uint32_t> s;
     const uint32_t *data = reinterpret_cast<const uint32_t *>(surfaces->data);
     const size_t count = surfaces->size / sizeof(uint32_t);
@@ -658,6 +666,10 @@ static void treeland_dock_preview_context_handle_close([[maybe_unused]] struct w
 {
     auto *dock_preview = toplevel_dock_preview_context_from_resource(resource);
     if (!dock_preview) {
+        return;
+    }
+
+    if (!dock_preview->relative_surface) {
         return;
     }
 
@@ -762,6 +774,8 @@ static void treeland_dock_preview_context_resource_destroy(struct wl_resource *r
         return;
     }
 
+    wl_list_remove(&context->destroy_listener.link);
+
     delete context;
 }
 
@@ -795,8 +809,19 @@ static void treeland_foreign_toplevel_manager_handle_get_dock_preview_context(
     wl_resource_set_user_data(resource, context);
 
     context->manager = manager;
-    context->relative_surface = relative_surface;
+    context->relative_surface = wlr_surface_from_resource(relative_surface);
     context->resource = resource;
+    context->client = client;
+
+    context->destroy_listener.notify = [](struct wl_listener *listener, void *data) {
+        treeland_dock_preview_context_v1 *context =
+            wl_container_of(listener, context, destroy_listener);
+
+        wl_list_remove(&context->destroy_listener.link);
+        context->relative_surface = nullptr;
+    };
+
+    wl_signal_add(&context->relative_surface->events.destroy, &context->destroy_listener);
 
     manager->dock_preview.append(context);
     QObject::connect(context,
