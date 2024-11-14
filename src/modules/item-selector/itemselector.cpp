@@ -16,7 +16,9 @@ ItemSelector::ItemSelector(QQuickItem *parent)
 {
     setAcceptHoverEvents(true);
     setFocus(false);
+#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0)
     setFocusPolicy(Qt::NoFocus);
+#endif
     setKeepMouseGrab(true);
     QQuickItemPrivate::get(this)->anchors()->setFill(parentItem());
     m_defaultFilter = [this](QQuickItem *item, ItemSelector::ItemTypes selectionHint) {
