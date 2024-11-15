@@ -20,6 +20,7 @@ link_libraries(
     PkgConfig::WAYLAND_SERVER
 )
 
+add_subdirectory(tools)
 add_subdirectory("foreign-toplevel")
 add_subdirectory("primary-output")
 add_subdirectory("personalization")
