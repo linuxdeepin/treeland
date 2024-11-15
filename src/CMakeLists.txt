@@ -31,15 +31,15 @@ qt_add_library(config
 target_sources(config PUBLIC
 FILE_SET HEADERS
 FILES
-    treeland/treelandconfig.h
+    core/treelandconfig.h
 )
 
 target_include_directories(config PUBLIC
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/treeland/>
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/core/>
 )
 
 target_sources(config PRIVATE
-    treeland/treelandconfig.cpp
+    core/treelandconfig.cpp
 )
 
 target_link_libraries(config
@@ -77,63 +77,63 @@ qt_add_qml_module(${BIN_NAME}
     VERSION "2.0"
 
     SOURCES
-        treeland/cmdline.h
-        treeland/cmdline.cpp
-        treeland/helper.h
-        treeland/helper.cpp
-        treeland/surfacewrapper.h
-        treeland/surfacewrapper.cpp
-        treeland/workspace.h
-        treeland/workspace.cpp
-        treeland/shellhandler.h
-        treeland/shellhandler.cpp
-        treeland/output.h
-        treeland/output.cpp
-        treeland/qmlengine.h
-        treeland/qmlengine.cpp
-        treeland/surfacecontainer.h
-        treeland/surfacecontainer.cpp
-        treeland/layersurfacecontainer.h
-        treeland/layersurfacecontainer.cpp
-        treeland/lockscreen.h
-        treeland/lockscreen.cpp
-        treeland/rootsurfacecontainer.h
-        treeland/rootsurfacecontainer.cpp
-        treeland/surfaceproxy.h
-        treeland/surfaceproxy.cpp
-        treeland/treeland.h
-        treeland/treeland.cpp
-        treeland/wallpaperprovider.h
-        treeland/wallpaperprovider.cpp
-        treeland/wallpaperimage.h
-        treeland/wallpaperimage.cpp
-        treeland/wallpapercontroller.h
-        treeland/wallpapercontroller.cpp
-        treeland/wallpapermanager.h
-        treeland/wallpapermanager.cpp
-        treeland/workspacemodel.h
-        treeland/workspacemodel.cpp
-        treeland/multitaskview.h
-        treeland/multitaskview.cpp
-        treeland/propertymonitor.h
-        treeland/propertymonitor.cpp
-        treeland/tsgradiusimagenode.h
-        treeland/tsgradiusimagenode.cpp
-        treeland/tquickradiuseffect_p.h
-        treeland/tquickradiuseffect.h
-        treeland/tquickradiuseffect.cpp
-        treeland/gestures.h
-        treeland/gestures.cpp
-        treeland/togglablegesture.h
-        treeland/togglablegesture.cpp
-        treeland/inputdevice.h
-        treeland/inputdevice.cpp
-        treeland/workspaceanimationcontroller.h
-        treeland/workspaceanimationcontroller.cpp
-        treeland/surfacefilterproxymodel.h
-        treeland/surfacefilterproxymodel.cpp
-        treeland/windowpicker.h
-        treeland/windowpicker.cpp
+        core/cmdline.h
+        core/cmdline.cpp
+        core/helper.h
+        core/helper.cpp
+        core/surfacewrapper.h
+        core/surfacewrapper.cpp
+        core/workspace.h
+        core/workspace.cpp
+        core/shellhandler.h
+        core/shellhandler.cpp
+        core/output.h
+        core/output.cpp
+        core/qmlengine.h
+        core/qmlengine.cpp
+        core/surfacecontainer.h
+        core/surfacecontainer.cpp
+        core/layersurfacecontainer.h
+        core/layersurfacecontainer.cpp
+        core/lockscreen.h
+        core/lockscreen.cpp
+        core/rootsurfacecontainer.h
+        core/rootsurfacecontainer.cpp
+        core/surfaceproxy.h
+        core/surfaceproxy.cpp
+        core/treeland.h
+        core/treeland.cpp
+        core/wallpaperprovider.h
+        core/wallpaperprovider.cpp
+        core/wallpaperimage.h
+        core/wallpaperimage.cpp
+        core/wallpapercontroller.h
+        core/wallpapercontroller.cpp
+        core/wallpapermanager.h
+        core/wallpapermanager.cpp
+        core/workspacemodel.h
+        core/workspacemodel.cpp
+        core/multitaskview.h
+        core/multitaskview.cpp
+        core/propertymonitor.h
+        core/propertymonitor.cpp
+        core/tsgradiusimagenode.h
+        core/tsgradiusimagenode.cpp
+        core/tquickradiuseffect_p.h
+        core/tquickradiuseffect.h
+        core/tquickradiuseffect.cpp
+        core/gestures.h
+        core/gestures.cpp
+        core/togglablegesture.h
+        core/togglablegesture.cpp
+        core/inputdevice.h
+        core/inputdevice.cpp
+        core/workspaceanimationcontroller.h
+        core/workspaceanimationcontroller.cpp
+        core/surfacefilterproxymodel.h
+        core/surfacefilterproxymodel.cpp
+        core/windowpicker.h
+        core/windowpicker.cpp
 
         ${DBUS_ADAPTOR}
     QML_FILES
