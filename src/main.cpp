@@ -3,7 +3,7 @@
 
 #include "cmdline.h"
 #include "helper.h"
-#include "treeland/treeland.h"
+#include "treeland.h"
 #include "treelandconfig.h"
 
 #include <wrenderhelper.h>
