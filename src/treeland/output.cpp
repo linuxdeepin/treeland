@@ -529,7 +529,11 @@ void Output::arrangeNonLayerSurface(SurfaceWrapper *surface, const QSizeF &sizeD
                     surface->moveNormalGeometryInOutput(normalGeo.topLeft());
                 }
             } else {
-                placeSmartCascaded(surface);
+                if (surface->type() == SurfaceWrapper::Type::XdgToplevel) {
+                    placeSmartCascaded(surface);
+                } else {
+                    placeCentered(surface);
+                }
             }
         } else if (!sizeDiff.isNull() && sizeDiff.isValid()) {
             const QSizeF outputSize = m_item->size();
