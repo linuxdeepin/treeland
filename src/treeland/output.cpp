@@ -191,7 +191,7 @@ void Output::placeCentered(SurfaceWrapper *surface)
     surface->moveNormalGeometryInOutput(normalGeo.topLeft());
 }
 
-void Output::placeSmart(SurfaceWrapper *surface)
+void Output::placeSmartCascaded(SurfaceWrapper *surface)
 {
     auto wpModle = Helper::instance()->workspace()->modelFromId(surface->workspaceId());
     Q_ASSERT(wpModle);
@@ -206,7 +206,7 @@ void Output::placeSmart(SurfaceWrapper *surface)
     QRectF latestActiveSurfaceGeo = latestActiveSurface->normalGeometry();
 
     qreal factor = (latestActiveSurface->shellSurface()->appId() != surface->shellSurface()->appId()) ?
-        DIFF_APP_OFFSET_FACTOR : SAME_APP_OFFSET_FACTOR;
+                       DIFF_APP_OFFSET_FACTOR : SAME_APP_OFFSET_FACTOR;
     qreal offset = latestActiveSurface->titlebarGeometry().height() * factor;
 
     QPointF newPos;
@@ -216,29 +216,48 @@ void Output::placeSmart(SurfaceWrapper *surface)
         newPos = calculateTopLeftPosition(latestActiveSurfaceGeo, normalGeo, validGeo, QSizeF(offset, offset));
     }
 
+    newPos = constrainToValidArea(newPos, normalGeo.size(), validGeo);
     surface->moveNormalGeometryInOutput(newPos);
 }
 
 QPointF Output::calculateBottomRightPosition(const QRectF &activeGeo, const QRectF &normalGeo, const QRectF &validGeo, const QSizeF &offset)
 {
-    if (activeGeo.bottom() + offset.height() < validGeo.bottom() &&
-        activeGeo.left() + offset.width() + normalGeo.width() < validGeo.right()) {
-        return QPointF(activeGeo.left() + offset.width(), activeGeo.top() + offset.height());
+    QPointF bottomRight(activeGeo.left() + offset.width(), activeGeo.top() + offset.height());
+
+    if (bottomRight.x() + normalGeo.width() <= validGeo.right() &&
+        bottomRight.y() + normalGeo.height() <= validGeo.bottom()) {
+        return bottomRight;
     }
 
     m_nextPlaceDirection = PlaceDirection::TopLeft;
-    return QPointF(activeGeo.left() - offset.width(), activeGeo.top() - offset.height());
+    return QPointF(qMax(validGeo.left(), activeGeo.right() - normalGeo.width() - offset.width()),
+                  qMax(validGeo.top(), activeGeo.bottom() - normalGeo.height() - offset.height()));
 }
 
-QPointF Output::calculateTopLeftPosition(const QRectF &activeGeo, const QRectF &normalGeo, const QRectF &validGeo, const QSizeF &offset)
+QPointF Output::calculateTopLeftPosition(const QRectF &activeGeo, const QRectF &normalGeo, const QRectF &validGeo, const QSizeF &offset) 
 {
-    if (activeGeo.top() - offset.height() > validGeo.top() &&
-        activeGeo.left() - offset.width() > validGeo.left()) {
-        return QPointF(activeGeo.left() - offset.width(), activeGeo.top() - offset.height());
+    QPointF topLeft(activeGeo.right() - normalGeo.width() - offset.width(),
+                   activeGeo.bottom() - normalGeo.height() - offset.height());
+
+    if (topLeft.x() >= validGeo.left() && topLeft.y() >= validGeo.top()) {
+        return topLeft;
     }
 
     m_nextPlaceDirection = PlaceDirection::BottomRight;
-    return QPointF(activeGeo.left() + offset.width(), activeGeo.top() + offset.height());
+    return QPointF(qMin(validGeo.right() - normalGeo.width(), activeGeo.left() + offset.width()),
+                  qMin(validGeo.bottom() - normalGeo.height(), activeGeo.top() + offset.height()));
+}
+
+QPointF Output::constrainToValidArea(const QPointF &pos, const QSizeF &windowSize, const QRectF &validGeo)
+{
+    QPointF newPos = pos;
+
+    newPos.setX(qMax(newPos.x(), validGeo.left()));
+    newPos.setX(qMin(newPos.x(), validGeo.right() - windowSize.width()));
+    newPos.setY(qMax(newPos.y(), validGeo.top()));
+    newPos.setY(qMin(newPos.y(), validGeo.bottom() - windowSize.height()));
+
+    return newPos;
 }
 
 void Output::updateOutputHardwareLayers()
@@ -510,7 +529,7 @@ void Output::arrangeNonLayerSurface(SurfaceWrapper *surface, const QSizeF &sizeD
                     surface->moveNormalGeometryInOutput(normalGeo.topLeft());
                 }
             } else {
-                placeSmart(surface);
+                placeSmartCascaded(surface);
             }
         } else if (!sizeDiff.isNull() && sizeDiff.isValid()) {
             const QSizeF outputSize = m_item->size();
