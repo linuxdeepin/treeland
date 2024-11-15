@@ -25,7 +25,7 @@ target_include_directories(${MODULE_NAME} PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
     PRIVATE
-    ${CMAKE_SOURCE_DIR}/src/treeland
+    ${CMAKE_SOURCE_DIR}/src/core
     ${CMAKE_SOURCE_DIR}/src/modules/foreign-toplevel
     ${CMAKE_SOURCE_DIR}/src/modules/virtual-output
     ${CMAKE_SOURCE_DIR}/src/modules/window-management
