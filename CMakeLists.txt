@@ -20,7 +20,7 @@ add_feature_info(submodule_waylib WITH_SUBMODULE_WAYLIB "Use waylib from submodu
 option(ADDRESS_SANITIZER "Enable address sanitize" OFF)
 add_feature_info(ASanSupport ADDRESS_SANITIZER "https://github.com/google/sanitizers/wiki/AddressSanitizer")
 
-option(BUILD_TEST_CLIENTS "Build clients demo to test treeland" OFF)
+option(BUILD_TREELAND_EXAMPLES "Build clients demo to test treeland" OFF)
 add_feature_info(DemoClents BUILD_TEST_CLIENTS "clients demo for testing")
 
 if (ADDRESS_SANITIZER)
@@ -64,7 +64,7 @@ add_subdirectory(src)
 add_subdirectory(misc)
 add_subdirectory(tests)
 
-if (BUILD_EXAMPLES)
+if (BUILD_TREELAND_EXAMPLES)
     add_subdirectory(examples)
 endif()
 
