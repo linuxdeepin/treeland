@@ -53,3 +53,5 @@ target_link_libraries(${MODULE_NAME}
         Dtk6::Core
         config
 )
+
+install(TARGETS ${MODULE_NAME} DESTINATION ${CMAKE_INSTALL_LIBDIR}/treeland)

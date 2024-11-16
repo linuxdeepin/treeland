@@ -128,8 +128,6 @@ elseif (${QT_VERSION_MINOR} GREATER_EQUAL 7)
     )
 endif()
 
-install(FILES ${TRANSLATED_FILES} DESTINATION ${COMPONENTS_TRANSLATION_DIR})
-
 target_include_directories(${LIB_NAME}
     PUBLIC
         ${CMAKE_SOURCE_DIR}/src/greeter/
@@ -146,3 +144,5 @@ target_link_libraries(${LIB_NAME}
         Dtk6::SystemSettings
 )
 
+install(FILES ${TRANSLATED_FILES} DESTINATION ${COMPONENTS_TRANSLATION_DIR})
+install(TARGETS ${LIB_NAME} DESTINATION ${CMAKE_INSTALL_LIBDIR}/treeland)
