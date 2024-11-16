@@ -6,19 +6,14 @@ ws_generate_local(server ${TREELAND_PROTOCOLS_DATA_DIR}/treeland-capture-unstabl
 
 pkg_search_module(WLROOTS REQUIRED IMPORTED_TARGET wlroots)
 
-qt_add_qml_module(${MODULE_NAME} STATIC
-    URI Treeland.Capture
-    VERSION 2.0
-    SOURCES
+qt_add_library(${MODULE_NAME} SHARED)
+
+target_sources(${MODULE_NAME} PUBLIC
     capture.h
     capture.cpp
     impl/capturev1impl.h
     impl/capturev1impl.cpp
     ${WAYLAND_PROTOCOLS_OUTPUTDIR}/treeland-capture-unstable-v1-protocol.c
-    RESOURCE_PREFIX
-        /qt/qml
-    OUTPUT_DIRECTORY
-        ${PROJECT_BINARY_DIR}/qt/qml/Treeland/Capture
 )
 
 target_include_directories(${MODULE_NAME} PUBLIC

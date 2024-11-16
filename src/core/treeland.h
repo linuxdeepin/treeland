@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include "proxyinterface.h"
+
 #include <WServer>
 #include <wsocket.h>
 
@@ -11,6 +13,7 @@
 
 #include <memory>
 
+class QmlEngine;
 class QLocalSocket;
 class Helper;
 
@@ -23,7 +26,7 @@ class Treeland
     Q_OBJECT
 
 public:
-    explicit Treeland(Helper *helper);
+    explicit Treeland();
 
     Q_INVOKABLE void retranslate() noexcept;
 
@@ -48,6 +51,7 @@ private:
     QLocalSocket *m_socket{ nullptr };
     QLocalSocket *m_helperSocket{ nullptr };
     Helper *m_helper{ nullptr };
+    std::unique_ptr<QmlEngine> m_qmlEngine;
     QMap<QString, std::shared_ptr<WAYLIB_SERVER_NAMESPACE::WSocket>> m_userWaylandSocket;
     QMap<QString, std::shared_ptr<QDBusUnixFileDescriptor>> m_userDisplayFds;
 };
