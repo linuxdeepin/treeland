@@ -4,7 +4,7 @@
 #pragma once
 
 #include "foreigntoplevelmanagerv1.h"
-#include "multitaskview.h"
+// #include "multitaskview.h"
 #include "qmlengine.h"
 #include "togglablegesture.h"
 #include "virtualoutputmanager.h"
@@ -233,12 +233,12 @@ private:
                           QInputEvent *event) override;
     bool unacceptedEvent(WSeat *, QWindow *, QInputEvent *event) override;
 
-    void toggleMultitaskview()
-    {
-        toggleMultitaskview(Multitaskview::ShortcutKey);
-    }
-
-    void toggleMultitaskview(Multitaskview::ActiveReason reason);
+    // void toggleMultitaskview()
+    // {
+    //     toggleMultitaskview(Multitaskview::ShortcutKey);
+    // }
+    //
+    // void toggleMultitaskview(Multitaskview::ActiveReason reason);
     void handleLeftButtonStateChanged(const QInputEvent *event);
     void handleWhellValueChanged(const QInputEvent *event);
     bool doGesture(QInputEvent *event);

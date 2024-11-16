@@ -17,6 +17,8 @@ pkg_search_module(WAYLAND REQUIRED IMPORTED_TARGET wayland-server)
 pkg_search_module(LIBINPUT REQUIRED IMPORTED_TARGET libinput)
 # qt_finalize_target will collect all executable's private dependencies that are CMake targets
 
+add_subdirectory(plugins)
+
 add_subdirectory(modules)
 add_subdirectory(greeter)
 add_subdirectory(treeland-wallpaper)
@@ -24,26 +26,19 @@ add_subdirectory(treeland-shortcut)
 
 qt_add_dbus_adaptor(DBUS_ADAPTOR "${CMAKE_SOURCE_DIR}/misc/dbus/org.deepin.compositor1.xml" "treeland.h" Treeland::Treeland)
 
-qt_add_library(config
-    STATIC
-)
+qt_add_library(config INTERFACE)
 
-target_sources(config PUBLIC
-FILE_SET HEADERS
-FILES
+target_sources(config INTERFACE
     core/treelandconfig.h
-)
-
-target_include_directories(config PUBLIC
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/core/>
-)
-
-target_sources(config PRIVATE
     core/treelandconfig.cpp
 )
 
+target_include_directories(config INTERFACE
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/core/>
+)
+
 target_link_libraries(config
-    PUBLIC
+    INTERFACE
         Dtk6::Core
         Qt6::Quick
 )
@@ -52,10 +47,20 @@ set(BIN_NAME treeland)
 
 qt_add_executable(${BIN_NAME}
     main.cpp
-    # ${DBUS_ADAPTOR}
 )
 
-qt_add_resources(${BIN_NAME} "treeland_assets"
+target_include_directories(${BIN_NAME} PRIVATE
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/core/>
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/interfaces/>
+)
+
+target_link_libraries(${BIN_NAME} PRIVATE
+    treeland_core
+)
+
+qt_add_library(treeland_core SHARED)
+
+qt_add_resources(treeland_core "treeland_assets"
     PREFIX "/dsg/icons"
     BASE ${PROJECT_RESOURCES_DIR}/icons
     FILES
@@ -67,12 +72,12 @@ qt_add_resources(${BIN_NAME} "treeland_assets"
         ${PROJECT_RESOURCES_DIR}/icons/select_region.dci
 )
 
-target_include_directories(${BIN_NAME}
+target_include_directories(treeland_core
     PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/treeland
 )
 
-qt_add_qml_module(${BIN_NAME}
+qt_add_qml_module(treeland_core
     URI Treeland
     VERSION "2.0"
 
@@ -113,8 +118,6 @@ qt_add_qml_module(${BIN_NAME}
         core/wallpapermanager.cpp
         core/workspacemodel.h
         core/workspacemodel.cpp
-        core/multitaskview.h
-        core/multitaskview.cpp
         core/propertymonitor.h
         core/propertymonitor.cpp
         core/tsgradiusimagenode.h
@@ -174,21 +177,24 @@ qt_add_qml_module(${BIN_NAME}
         ${PROJECT_BINARY_DIR}/qt/qml/Treeland
 )
 
-target_link_libraries(${BIN_NAME}
+target_link_libraries(treeland_core
+    PUBLIC
+        Dtk6::Core
+        Dtk6::Declarative
+        Waylib::WaylibServer
     PRIVATE
         DDM::Common
-        greeterplugin
+        greeter
         Qt6::Quick
         Qt6::QuickControls2
         Qt6::QuickPrivate
         Qt6::DBus
         Qt6::Concurrent
-        Waylib::WaylibServer
         PkgConfig::PIXMAN
         PkgConfig::WAYLAND
         PkgConfig::LIBINPUT
-        Dtk6::Core
-        Dtk6::Declarative
+
+        treeland_interface
 
         foreign-toplevel
         primary-output
@@ -199,16 +205,15 @@ target_link_libraries(${BIN_NAME}
         virtual-output
         dde-shell
         capture
-        captureplugin
         config
 )
 
-target_compile_definitions(${BIN_NAME}
+target_compile_definitions(treeland_core
     PRIVATE
     WLR_USE_UNSTABLE
 )
 
-qt_add_shaders(${BIN_NAME} "treeland_shaders_ng"
+qt_add_shaders(treeland_core "treeland_shaders_ng"
     BATCHABLE
     PRECOMPILE
     PREFIX

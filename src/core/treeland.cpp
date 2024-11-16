@@ -5,7 +5,12 @@
 
 #include "cmdline.h"
 #include "compositor1adaptor.h"
+#include "greeterproxy.h"
 #include "helper.h"
+#include "logoprovider.h"
+#include "sessionmodel.h"
+#include "treelandconfig.h"
+#include "usermodel.h"
 
 #include <Messages.h>
 #include <SignalHandler.h>
@@ -28,11 +33,29 @@ using namespace DDM;
 DCORE_USE_NAMESPACE;
 
 namespace Treeland {
-Treeland::Treeland(Helper *helper)
+Treeland::Treeland()
     : QObject()
-    , m_helper(helper)
     , m_socket(new QLocalSocket(this))
 {
+    qmlRegisterModule("Treeland.Greeter", 1, 0);
+    qmlRegisterModule("Treeland.Protocols", 1, 0);
+    qmlRegisterType<SessionModel>("Treeland.Greeter", 1, 0, "SessionModel");
+    qmlRegisterType<UserModel>("Treeland.Greeter", 1, 0, "UserModel");
+    qmlRegisterType<GreeterProxy>("Treeland.Greeter", 1, 0, "Proxy");
+    qmlRegisterType<LogoProvider>("Treeland.Greeter", 1, 0, "LogoProvider");
+    qmlRegisterSingletonInstance("Treeland",
+                                 1,
+                                 0,
+                                 "TreelandConfig",
+                                 &TreelandConfig::ref()); // Inject treeland config singleton.
+
+    m_qmlEngine = std::make_unique<QmlEngine>(this);
+
+    QObject::connect(m_qmlEngine.get(), &QQmlEngine::quit, qApp, &QGuiApplication::quit);
+
+    m_helper = m_qmlEngine->singletonInstance<Helper *>("Treeland", "Helper");
+    m_helper->init();
+
     connect(m_socket, &QLocalSocket::connected, this, &Treeland::connected);
     connect(m_socket, &QLocalSocket::disconnected, this, &Treeland::disconnected);
     connect(m_socket, &QLocalSocket::readyRead, this, &Treeland::readyRead);

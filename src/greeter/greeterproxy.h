@@ -20,13 +20,13 @@
 #ifndef SDDM_GREETERPROXY_H
 #define SDDM_GREETERPROXY_H
 
+#include "sessionmodel.h"
+#include "usermodel.h"
+
 #include <QDBusObjectPath>
 #include <QObject>
 
 class QLocalSocket;
-
-class SessionModel;
-class UserModel;
 
 class GreeterProxyPrivate;
 

@@ -6,7 +6,7 @@ ws_generate_local(server ${TREELAND_PROTOCOLS_DATA_DIR}/treeland-shortcut-manage
 
 pkg_search_module(WLROOTS REQUIRED IMPORTED_TARGET wlroots)
 
-qt_add_library(${MODULE_NAME} STATIC)
+qt_add_library(${MODULE_NAME} SHARED)
 
 target_sources(${MODULE_NAME} PUBLIC
 FILE_SET HEADERS

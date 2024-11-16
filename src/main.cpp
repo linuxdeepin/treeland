@@ -2,9 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "cmdline.h"
-#include "helper.h"
 #include "treeland.h"
-#include "treelandconfig.h"
 
 #include <wrenderhelper.h>
 
@@ -43,26 +41,7 @@ int main(int argc, char *argv[])
     WRenderHelper::setupRendererBackend();
     Q_ASSERT(qw_buffer::get_objects().isEmpty());
 
-    qmlRegisterModule("Treeland.Greeter", 1, 0);
-    qmlRegisterModule("Treeland.Protocols", 1, 0);
-
-    QmlEngine qmlEngine;
-
-    QObject::connect(&qmlEngine, &QQmlEngine::quit, &app, &QGuiApplication::quit);
-    QObject::connect(&qmlEngine, &QQmlEngine::exit, &app, [](int code) {
-        qApp->exit(code);
-    });
-
-    Helper *helper = qmlEngine.singletonInstance<Helper *>("Treeland", "Helper");
-    helper->init();
-
-    qmlRegisterSingletonInstance("Treeland",
-                                 1,
-                                 0,
-                                 "TreelandConfig",
-                                 &TreelandConfig::ref()); // Inject treeland config singleton.
-
-    Treeland::Treeland treeland(helper);
+    Treeland::Treeland treeland;
 
     int quitCode = app.exec();
 

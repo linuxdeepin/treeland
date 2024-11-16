@@ -1,6 +1,6 @@
 set(MODULE_NAME item-selector)
 
-qt_add_library(${MODULE_NAME} STATIC
+qt_add_library(${MODULE_NAME} SHARED
     itemselector.h
     itemselector.cpp
 )

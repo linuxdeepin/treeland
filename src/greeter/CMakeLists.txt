@@ -56,15 +56,12 @@ set(QML_FILES
     qml/ControlAction.qml
 )
 
-set(LIB_NAME greeterplugin)
+set(LIB_NAME greeter)
 
 qt_add_qml_module(${LIB_NAME}
     URI Treeland.Greeter
-    STATIC
+    SHARED
     VERSION 1.0
-    PLUGIN_TARGET ${LIB_NAME}
-    NO_PLUGIN_OPTIONAL
-    NO_GENERATE_PLUGIN_SOURCE
     CLASS_NAME
         GreeterExtensionPlugin
     SOURCES
