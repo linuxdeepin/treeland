@@ -233,10 +233,11 @@ Item {
                 highlightFollowsCurrentItem: false
 
                 Component.onCompleted: {
-                    if (root.model.activeIndex === -1)
-                        switchView.currentIndex = switchView.count > 1 ? 1 : 0
-                    else
+                    if (root.model.activeIndex >= 0 && root.model.activeIndex < switchView.count)
                         switchView.currentIndex = root.model.activeIndex;
+                    else {
+                        switchView.currentIndex = switchView.count > 1 ? 1 : 0
+                    }
                 }
             }
         }
