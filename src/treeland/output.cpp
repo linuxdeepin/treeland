@@ -207,7 +207,8 @@ void Output::placeSmartCascaded(SurfaceWrapper *surface)
 
     qreal factor = (latestActiveSurface->shellSurface()->appId() != surface->shellSurface()->appId()) ?
                        DIFF_APP_OFFSET_FACTOR : SAME_APP_OFFSET_FACTOR;
-    qreal offset = latestActiveSurface->titlebarGeometry().height() * factor;
+    const QRectF titleBarGeometry = latestActiveSurface->titlebarGeometry();
+    qreal offset = (titleBarGeometry.isNull() ? TreelandConfig::ref().windowTitlebarHeight() : titleBarGeometry.height()) * factor;
 
     QPointF newPos;
     if (m_nextPlaceDirection == PlaceDirection::BottomRight) {
