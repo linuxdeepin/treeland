@@ -238,11 +238,12 @@ public:
 
     void setHasInitializeContainer(bool value);
     void disableWindowAnimation(bool disable = true);
+    void setHideByShowDesk(bool show);
 
 public Q_SLOTS:
     // for titlebar
-    void requestMinimize();
-    void requestCancelMinimize();
+    void requestMinimize(bool onAnimation = true);
+    void requestCancelMinimize(bool onAnimation = true);
     void requestMaximize();
     void requestCancelMaximize();
     void requestToggleMaximize();
@@ -390,6 +391,7 @@ private:
     uint m_xwaylandPositionFromSurface : 1;
     uint m_isProxy : 1;
     uint m_hideByWorkspace : 1;
+    uint m_hideByshowDesk : 1;
     SurfaceRole m_surfaceRole = SurfaceRole::Normal;
     quint32 m_autoPlaceYOffset = 0;
     QPoint m_clientRequstPos;

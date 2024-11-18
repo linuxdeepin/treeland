@@ -49,6 +49,7 @@ SurfaceWrapper::SurfaceWrapper(QmlEngine *qmlEngine,
     , m_removeWrapperEndOfAnimation(false)
     , m_isProxy(isProxy)
     , m_hideByWorkspace(false)
+    , m_hideByshowDesk(true)
 {
     QQmlEngine::setContextForObject(this, qmlEngine->rootContext());
 
@@ -68,12 +69,12 @@ SurfaceWrapper::SurfaceWrapper(QmlEngine *qmlEngine,
     m_surfaceItem->setShellSurface(shellSurface);
 
     if (!isProxy) {
-        shellSurface->safeConnect(&WToplevelSurface::requestMinimize,
-                                  this,
-                                  &SurfaceWrapper::requestMinimize);
-        shellSurface->safeConnect(&WToplevelSurface::requestCancelMinimize,
-                                  this,
-                                  &SurfaceWrapper::requestCancelMinimize);
+        shellSurface->safeConnect(&WToplevelSurface::requestMinimize, this, [this]() {
+            requestMinimize();
+        });
+        shellSurface->safeConnect(&WToplevelSurface::requestCancelMinimize, this, [this]() {
+            requestCancelMinimize();
+        });
         shellSurface->safeConnect(&WToplevelSurface::requestMaximize,
                                   this,
                                   &SurfaceWrapper::requestMaximize);
@@ -580,7 +581,8 @@ void SurfaceWrapper::updateBoundingRect()
 
 void SurfaceWrapper::updateVisible()
 {
-    setVisible(!m_hideByWorkspace && !isMinimized() && surface()->mapped() && m_socketEnabled);
+    setVisible(!m_hideByWorkspace && !isMinimized() && surface()->mapped() && m_socketEnabled
+               && m_hideByshowDesk);
 }
 
 void SurfaceWrapper::updateSubSurfaceStacking()
@@ -869,17 +871,29 @@ void SurfaceWrapper::startMinimizeAnimation(const QRectF &iconGeometry, uint dir
     Q_ASSERT(ok);
 }
 
+void SurfaceWrapper::setHideByShowDesk(bool show)
+{
+    if (m_hideByshowDesk == show)
+        return;
+
+    m_hideByshowDesk = show;
+}
+
 void SurfaceWrapper::onShowDesktopAnimationFinished()
 {
     Q_ASSERT(m_showDesktopAnimation);
     m_showDesktopAnimation->deleteLater();
+    updateVisible();
 }
 
 void SurfaceWrapper::startShowDesktopAnimation(bool show)
 {
-    if (m_showDesktopAnimation)
-        return;
 
+    if (m_showDesktopAnimation) {
+        m_showDesktopAnimation->deleteLater();
+    }
+
+    setHideByShowDesk(show);
     m_showDesktopAnimation = m_engine->createShowDesktopAnimation(this, container(), show);
     bool ok = connect(m_showDesktopAnimation,
                       SIGNAL(finished()),
@@ -908,19 +922,23 @@ void SurfaceWrapper::setRadius(qreal newRadius)
     Q_EMIT radiusChanged();
 }
 
-void SurfaceWrapper::requestMinimize()
+void SurfaceWrapper::requestMinimize(bool onAnimation)
 {
     setSurfaceState(State::Minimized);
-    startMinimizeAnimation(iconGeometry(), CLOSE_ANIMATION);
+    if (onAnimation)
+        startMinimizeAnimation(iconGeometry(), CLOSE_ANIMATION);
 }
 
-void SurfaceWrapper::requestCancelMinimize()
+void SurfaceWrapper::requestCancelMinimize(bool onAnimation)
 {
-    if (m_surfaceState != State::Minimized)
+    if (m_surfaceState != State::Minimized && m_hideByshowDesk)
         return;
+    if (!m_hideByshowDesk)
+        setHideByShowDesk(true);
 
     doSetSurfaceState(m_previousSurfaceState);
-    startMinimizeAnimation(iconGeometry(), OPEN_ANIMATION);
+    if (onAnimation)
+        startMinimizeAnimation(iconGeometry(), OPEN_ANIMATION);
 }
 
 void SurfaceWrapper::requestMaximize()

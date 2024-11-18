@@ -14,7 +14,7 @@ Item {
 
     required property var target
     required property bool showDesktop
-    property int duration: 400 * Helper.animationSpeed
+    property int duration: 500 * Helper.animationSpeed //500: Initial design requirements
 
     function start() {
         animation.start();

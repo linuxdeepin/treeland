@@ -114,22 +114,22 @@ void ForeignToplevelV1::addSurface(SurfaceWrapper *wrapper)
                         wrapper->requestCancelMaximize();
                 }));
 
-    connection.push_back(connect(
-        handle,
-        &treeland_foreign_toplevel_handle_v1::requestMinimize,
-        this,
-        [wrapper, this](treeland_foreign_toplevel_handle_v1_minimized_event *event) {
-            if ((Helper::instance()->showDesktopState() == WindowManagementV1::DesktopState::Show
-                 || !wrapper->opacity())) {
-                Helper::instance()->forceActivateSurface(wrapper);
-                return;
-            }
+    connection.push_back(
+        connect(handle,
+                &treeland_foreign_toplevel_handle_v1::requestMinimize,
+                this,
+                [wrapper, this](treeland_foreign_toplevel_handle_v1_minimized_event *event) {
+                    if ((Helper::instance()->showDesktopState()
+                         == WindowManagementV1::DesktopState::Show)) {
+                        Helper::instance()->forceActivateSurface(wrapper);
+                        return;
+                    }
 
-            if (event->minimized)
-                wrapper->requestMinimize();
-            else
-                wrapper->requestCancelMinimize();
-        }));
+                    if (event->minimized)
+                        wrapper->requestMinimize();
+                    else
+                        wrapper->requestCancelMinimize();
+                }));
 
     connection.push_back(
         connect(handle,

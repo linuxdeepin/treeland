@@ -251,6 +251,7 @@ private:
     bool doGesture(QInputEvent *event);
     Output *createNormalOutput(WOutput *output);
     Output *createCopyOutput(WOutput *output, Output *proxy);
+    QList<SurfaceWrapper *> getWorkspaceSurfaces();
 
     static Helper *m_instance;
 
