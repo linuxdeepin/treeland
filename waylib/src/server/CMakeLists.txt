@@ -84,7 +84,8 @@ set(SOURCES
     qtquick/wquicktextureproxy.cpp
     qtquick/woutputlayer.cpp
     qtquick/wrenderbufferblitter.cpp
-    qtquick/wxdgsurfaceitem.cpp
+    qtquick/wxdgtoplevelsurfaceitem.cpp
+    qtquick/wxdgpopupsurfaceitem.cpp
     qtquick/wlayersurfaceitem.cpp
     qtquick/wxwaylandsurfaceitem.cpp
     qtquick/wqmlcreator.cpp
@@ -115,6 +116,9 @@ set(SOURCES
 
     protocols/wxdgshell.cpp
     protocols/wxdgsurface.cpp
+    protocols/wxdgtoplevelsurface.cpp
+    protocols/wxdgpopupsurface.cpp
+
     protocols/wxwayland.cpp
     protocols/wxwaylandsurface.cpp
     protocols/wlayersurface.cpp
@@ -177,7 +181,8 @@ set(HEADERS
     qtquick/wquicktextureproxy.h
     qtquick/woutputlayer.h
     qtquick/wrenderbufferblitter.h
-    qtquick/wxdgsurfaceitem.h
+    qtquick/wxdgtoplevelsurfaceitem.h
+    qtquick/wxdgpopupsurfaceitem.h
     qtquick/wlayersurfaceitem.h
     qtquick/wxwaylandsurfaceitem.h
     qtquick/winputpopupsurfaceitem.h
@@ -196,6 +201,8 @@ set(HEADERS
     protocols/WXdgShell
     protocols/wxdgsurface.h
     protocols/WXdgSurface
+    protocols/wxdgtoplevelsurface.h
+    protocols/wxdgpopupsurface.h
     protocols/wlayersurface.h
     protocols/wxdgdecorationmanager.h
     protocols/WXdgDecorationManager

@@ -11,6 +11,7 @@
 #include <woutputitem.h>
 #include <woutput.h>
 #include <wxdgsurface.h>
+#include <wxdgpopupsurface.h>
 
 #include <qwoutputlayout.h>
 
@@ -269,9 +270,9 @@ void RootSurfaceContainer::addBySubContainer(SurfaceContainer *sub, SurfaceWrapp
         auto parentSurface = surface->parentSurface();
         auto output = parentSurface ? parentSurface->ownsOutput() : primaryOutput();
 
-        if (auto xdgSurface = qobject_cast<WXdgSurface*>(surface->shellSurface())) {
-            if (xdgSurface->isPopup() && parentSurface->type() != SurfaceWrapper::Type::Layer) {
-                auto pos = parentSurface->position() + parentSurface->surfaceItem()->position() + xdgSurface->getPopupPosition();
+        if (auto xdgPopupSurface = qobject_cast<WXdgPopupSurface*>(surface->shellSurface())) {
+            if (parentSurface->type() != SurfaceWrapper::Type::Layer) {
+                auto pos = parentSurface->position() + parentSurface->surfaceItem()->position() + xdgPopupSurface->getPopupPosition();
                 if (auto op = m_outputLayout->handle()->output_at(pos.x(), pos.y()))
                     output = Helper::instance()->getOutput(WOutput::fromHandle(qw_output::from(op)));
             }
@@ -284,7 +285,8 @@ void RootSurfaceContainer::addBySubContainer(SurfaceContainer *sub, SurfaceWrapp
     });
 
     updateSurfaceOutputs(surface);
-    Helper::instance()->activeSurface(surface, Qt::OtherFocusReason);
+    if (surface->shellSurface()->surface()->mapped())
+        Helper::instance()->activeSurface(surface, Qt::OtherFocusReason);
 }
 
 void RootSurfaceContainer::removeBySubContainer(SurfaceContainer *sub, SurfaceWrapper *surface)

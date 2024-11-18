@@ -5,8 +5,7 @@
 #include "woutput.h"
 #include "private/wglobal_p.h"
 #include "wforeigntoplevelv1.h"
-#include "wtoplevelsurface.h"
-#include "wxdgsurface.h"
+#include "wxdgtoplevelsurface.h"
 #include "wxwaylandsurface.h"
 
 #include <qwforeigntoplevelhandlev1.h>
@@ -62,7 +61,7 @@ public:
             handle->set_activated(surface->isActivated());
         }));
 
-        if (auto *xdgSurface = qobject_cast<WXdgSurface *>(surface)) {
+        if (auto *xdgSurface = qobject_cast<WXdgToplevelSurface *>(surface)) {
             auto updateSurfaceParent = [this, handle, xdgSurface] {
                 WToplevelSurface* p = xdgSurface->parentXdgSurface();
                 if (!p) {
@@ -75,7 +74,7 @@ public:
                 }
                 handle->set_parent(*surfaces[p]);
             };
-            connection.push_back(xdgSurface->safeConnect(&WXdgSurface::parentXdgSurfaceChanged, surface, updateSurfaceParent));
+            connection.push_back(xdgSurface->safeConnect(&WXdgToplevelSurface::parentXdgSurfaceChanged, surface, updateSurfaceParent));
             updateSurfaceParent();
         } else if (auto *xwaylandSurface = qobject_cast<WXWaylandSurface *>(surface)) {
             auto updateSurfaceParent = [this, handle, xwaylandSurface] {

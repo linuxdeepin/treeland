@@ -4,7 +4,6 @@
 #pragma once
 
 #include <wtoplevelsurface.h>
-#include <qwbox.h>
 
 QW_BEGIN_NAMESPACE
 class qw_input_popup_surface_v2;

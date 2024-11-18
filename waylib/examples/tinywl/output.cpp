@@ -10,6 +10,7 @@
 #include <wsurfaceitem.h>
 #include <woutputrenderwindow.h>
 #include <wxdgsurface.h>
+#include <wxdgpopupsurface.h>
 #include <wlayersurface.h>
 #include <winputpopupsurface.h>
 #include <woutputlayout.h>
@@ -324,10 +325,10 @@ void Output::layoutNonLayerSurface(SurfaceWrapper *surface, const QSizeF &sizeDi
 
             SurfaceWrapper* parentSurfaceWrapper = surface->parentSurface();
             if (parentSurfaceWrapper) {
-                auto xdgSurface = qobject_cast<WXdgSurface*>(surface->shellSurface());
+                auto xdgPopupSurface = qobject_cast<WXdgPopupSurface*>(surface->shellSurface());
                 auto inputPopupSurface = qobject_cast<WInputPopupSurface*>(surface->shellSurface());
-                if ((xdgSurface && xdgSurface->isPopup()) || inputPopupSurface) {
-                    QPointF dPos = xdgSurface ? xdgSurface->getPopupPosition() : inputPopupSurface->cursorRect().topLeft();
+                if (xdgPopupSurface || inputPopupSurface) {
+                    QPointF dPos = xdgPopupSurface ? xdgPopupSurface->getPopupPosition() : inputPopupSurface->cursorRect().topLeft();
                     QPointF topLeft;
                     // TODO: remove parentSurfaceWrapper->surfaceItem()->x()
                     topLeft.setX(parentSurfaceWrapper->x() + parentSurfaceWrapper->surfaceItem()->x() + dPos.x());

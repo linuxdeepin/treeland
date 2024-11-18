@@ -12,10 +12,11 @@
 WAYLIB_SERVER_USE_NAMESPACE
 
 int main(int argc, char *argv[]) {
+    qw_log::init();
+
     WRenderHelper::setupRendererBackend();
     Q_ASSERT(qw_buffer::get_objects().isEmpty());
 
-    qw_log::init();
     WServer::initializeQPA();
     //    QQuickStyle::setStyle("Material");
 

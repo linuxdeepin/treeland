@@ -14,29 +14,26 @@ QT_END_NAMESPACE
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
-class WXdgSurface;
-class WXdgSurfaceItemPrivate;
+class WXdgToplevelSurface;
+class WXdgToplevelSurfaceItemPrivate;
 
-class WAYLIB_SERVER_EXPORT WXdgSurfaceItem : public WSurfaceItem
+class WAYLIB_SERVER_EXPORT WXdgToplevelSurfaceItem : public WSurfaceItem
 {
     Q_OBJECT
-    Q_DECLARE_PRIVATE(WXdgSurfaceItem)
-    Q_PROPERTY(QPointF implicitPosition READ implicitPosition NOTIFY implicitPositionChanged)
+    Q_DECLARE_PRIVATE(WXdgToplevelSurfaceItem)
     Q_PROPERTY(QSize minimumSize READ minimumSize NOTIFY minimumSizeChanged FINAL)
     Q_PROPERTY(QSize maximumSize READ maximumSize NOTIFY maximumSizeChanged FINAL)
-    QML_NAMED_ELEMENT(XdgSurfaceItem)
+    QML_NAMED_ELEMENT(XdgToplevelSurfaceItem)
 
 public:
-    explicit WXdgSurfaceItem(QQuickItem *parent = nullptr);
-    ~WXdgSurfaceItem();
+    explicit WXdgToplevelSurfaceItem(QQuickItem *parent = nullptr);
+    ~WXdgToplevelSurfaceItem();
 
-    WXdgSurface* xdgSurface() const;
-    QPointF implicitPosition() const;
+    WXdgToplevelSurface *toplevelSurface() const;
     QSize minimumSize() const;
     QSize maximumSize() const;
 
 Q_SIGNALS:
-    void implicitPositionChanged();
     void minimumSizeChanged();
     void maximumSizeChanged();
 

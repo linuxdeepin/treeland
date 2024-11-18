@@ -14,7 +14,8 @@
 #include <wrenderhelper.h>
 #include <woutputrenderwindow.h>
 #include <woutputviewport.h>
-#include <WXdgSurface>
+#include <wxdgtoplevelsurface.h>
+#include <wxdgpopupsurface.h>
 #include <wqmlcreator_p.h>
 
 #include <qwbackend.h>
@@ -130,14 +131,22 @@ void Helper::initProtocols(WOutputRenderWindow *window, QQmlEngine *qmlEngine)
 
     auto *xdgShell = m_server->attach<WXdgShell>();
 
-    connect(xdgShell, &WXdgShell::surfaceAdded, this, [this, qmlEngine](WXdgSurface *surface) {
+    connect(xdgShell, &WXdgShell::toplevelSurfaceAdded, this, [this, qmlEngine](WXdgToplevelSurface *surface) {
         auto initProperties = qmlEngine->newObject();
-        initProperties.setProperty("type", surface->isPopup() ? "popup" : "toplevel");
+        initProperties.setProperty("type", "toplevel");
         initProperties.setProperty("waylandSurface", qmlEngine->toScriptValue(surface));
         m_xdgShellCreator->add(surface, initProperties);
 
     });
-    connect(xdgShell, &WXdgShell::surfaceRemoved, m_xdgShellCreator, &WQmlCreator::removeByOwner);
+    connect(xdgShell, &WXdgShell::toplevelSurfaceRemoved, m_xdgShellCreator, &WQmlCreator::removeByOwner);
+    connect(xdgShell, &WXdgShell::popupSurfaceAdded, this, [this, qmlEngine](WXdgPopupSurface *surface) {
+        auto initProperties = qmlEngine->newObject();
+        initProperties.setProperty("type", "popup");
+        initProperties.setProperty("waylandSurface", qmlEngine->toScriptValue(surface));
+        m_xdgShellCreator->add(surface, initProperties);
+
+    });
+    connect(xdgShell, &WXdgShell::popupSurfaceRemoved, m_xdgShellCreator, &WQmlCreator::removeByOwner);
 
     m_backend->handle()->start();
     QProcess waylandClientDemo;

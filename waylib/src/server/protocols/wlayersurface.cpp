@@ -34,7 +34,6 @@ public:
 
     void init();
     void connect();
-    void updatePosition();
     void instantRelease();
 
     bool setDesiredSize(QSize newSize);

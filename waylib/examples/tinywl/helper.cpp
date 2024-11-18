@@ -14,7 +14,8 @@
 #include <WOutput>
 #include <WSurfaceItem>
 #include <qqmlengine.h>
-#include <wxdgsurface.h>
+#include <wxdgpopupsurface.h>
+#include <wxdgtoplevelsurface.h>
 #include <winputpopupsurface.h>
 #include <wrenderhelper.h>
 #include <WBackend>
@@ -189,58 +190,57 @@ void Helper::init()
     auto *xdgOutputManager = m_server->attach<WXdgOutputManager>(m_surfaceContainer->outputLayout());
     m_windowMenu = engine->createWindowMenu(this);
 
-    connect(xdgShell, &WXdgShell::surfaceAdded, this, [this] (WXdgSurface *surface) {
-        SurfaceWrapper *wrapper = nullptr;
-
-        if (surface->isToplevel()) {
-            wrapper = new SurfaceWrapper(qmlEngine(), surface, SurfaceWrapper::Type::XdgToplevel);
-            m_foreignToplevel->addSurface(surface);
-        } else {
-            wrapper = new SurfaceWrapper(qmlEngine(), surface, SurfaceWrapper::Type::XdgPopup);
-        }
+    connect(xdgShell, &WXdgShell::toplevelSurfaceAdded, this, [this] (WXdgToplevelSurface *surface) {
+        auto wrapper = new SurfaceWrapper(qmlEngine(), surface, SurfaceWrapper::Type::XdgToplevel);
+        m_foreignToplevel->addSurface(surface);
 
         wrapper->setNoDecoration(m_xdgDecorationManager->modeBySurface(surface->surface())
                                  != WXdgDecorationManager::Server);
 
-        if (surface->isPopup()) {
-            auto parent = surface->parentSurface();
-            auto parentWrapper = m_surfaceContainer->getSurface(parent);
-            parentWrapper->addSubSurface(wrapper);
-            m_popupContainer->addSurface(wrapper);
-            wrapper->setOwnsOutput(parentWrapper->ownsOutput());
-        } else {
-            auto updateSurfaceWithParentContainer = [this, wrapper, surface] {
-                if (wrapper->parentSurface())
-                    wrapper->parentSurface()->removeSubSurface(wrapper);
-                if (wrapper->container())
-                    wrapper->container()->removeSurface(wrapper);
+        auto updateSurfaceWithParentContainer = [this, wrapper, surface] {
+            if (wrapper->parentSurface())
+                wrapper->parentSurface()->removeSubSurface(wrapper);
+            if (wrapper->container())
+                wrapper->container()->removeSurface(wrapper);
 
-                if (auto parent = surface->parentSurface()) {
-                    auto parentWrapper = m_surfaceContainer->getSurface(parent);
-                    auto container = parentWrapper->container();
-                    Q_ASSERT(container);
-                    parentWrapper->addSubSurface(wrapper);
-                    container->addSurface(wrapper);
-                } else {
-                    m_workspace->addSurface(wrapper);
-                }
-            };
+            if (auto parent = surface->parentSurface()) {
+                auto parentWrapper = m_surfaceContainer->getSurface(parent);
+                auto container = parentWrapper->container();
+                Q_ASSERT(container);
+                parentWrapper->addSubSurface(wrapper);
+                container->addSurface(wrapper);
+            } else {
+                m_workspace->addSurface(wrapper);
+            }
+        };
 
-            surface->safeConnect(&WXdgSurface::parentXdgSurfaceChanged, this, updateSurfaceWithParentContainer);
-            updateSurfaceWithParentContainer();
+        surface->safeConnect(&WXdgToplevelSurface::parentXdgSurfaceChanged, this, updateSurfaceWithParentContainer);
+        updateSurfaceWithParentContainer();
 
-            connect(wrapper, &SurfaceWrapper::requestShowWindowMenu, m_windowMenu, [this, wrapper] (QPoint pos) {
-                QMetaObject::invokeMethod(m_windowMenu, "showWindowMenu", QVariant::fromValue(wrapper), QVariant::fromValue(pos));
-            });
-        }
+        connect(wrapper, &SurfaceWrapper::requestShowWindowMenu, m_windowMenu, [this, wrapper] (QPoint pos) {
+            QMetaObject::invokeMethod(m_windowMenu, "showWindowMenu", QVariant::fromValue(wrapper), QVariant::fromValue(pos));
+        });
 
         Q_ASSERT(wrapper->parentItem());
     });
-    connect(xdgShell, &WXdgShell::surfaceRemoved, this, [this] (WXdgSurface *surface) {
-        if (surface->isToplevel()) {
-            m_foreignToplevel->removeSurface(surface);
-        }
+    connect(xdgShell, &WXdgShell::toplevelSurfaceRemoved, this, [this] (WXdgToplevelSurface *surface) {
+        m_foreignToplevel->removeSurface(surface);
+        m_surfaceContainer->destroyForSurface(surface->surface());
+    });
 
+    connect(xdgShell, &WXdgShell::popupSurfaceAdded, this, [this] (WXdgPopupSurface *surface) {
+        auto wrapper = new SurfaceWrapper(qmlEngine(), surface, SurfaceWrapper::Type::XdgPopup);
+        wrapper->setNoDecoration(m_xdgDecorationManager->modeBySurface(surface->surface())
+                                 != WXdgDecorationManager::Server);
+        auto parent = surface->parentSurface();
+        auto parentWrapper = m_surfaceContainer->getSurface(parent);
+        parentWrapper->addSubSurface(wrapper);
+        m_popupContainer->addSurface(wrapper);
+        wrapper->setOwnsOutput(parentWrapper->ownsOutput());
+
+        Q_ASSERT(wrapper->parentItem());
+    });
+    connect(xdgShell, &WXdgShell::popupSurfaceRemoved, this, [this] (WXdgPopupSurface *surface) {
         m_surfaceContainer->destroyForSurface(surface->surface());
     });
 

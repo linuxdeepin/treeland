@@ -7,7 +7,8 @@
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
-class WXdgSurface;
+class WXdgToplevelSurface;
+class WXdgPopupSurface;
 class WXdgShellPrivate;
 class WAYLIB_SERVER_EXPORT WXdgShell : public QObject, public WObject, public WServerInterface
 {
@@ -16,12 +17,14 @@ class WAYLIB_SERVER_EXPORT WXdgShell : public QObject, public WObject, public WS
 public:
     WXdgShell();
 
-    QVector<WXdgSurface*> surfaceList() const;
+    QVector<WXdgToplevelSurface*> toplevelSurfaceList() const;
     QByteArrayView interfaceName() const override;
 
 Q_SIGNALS:
-    void surfaceAdded(WXdgSurface *surface);
-    void surfaceRemoved(WXdgSurface *surface);
+    void toplevelSurfaceAdded(WXdgToplevelSurface *surface);
+    void toplevelSurfaceRemoved(WXdgToplevelSurface *surface);
+    void popupSurfaceAdded(WXdgPopupSurface *surface);
+    void popupSurfaceRemoved(WXdgPopupSurface *surface);
 
 protected:
     void create(WServer *server) override;
