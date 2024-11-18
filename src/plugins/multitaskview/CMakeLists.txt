@@ -37,3 +37,5 @@ qt_add_resources(multitaskview "multitaskview_assets"
     FILES
         ${PROJECT_RESOURCES_DIR}/icons/multitaskview_close.dci
 )
+
+install(TARGETS multitaskview DESTINATION ${TREELAND_PLUGINS_INSTALL_PATH})
