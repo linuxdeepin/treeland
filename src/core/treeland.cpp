@@ -22,10 +22,10 @@
 #include <wsocket.h>
 #include <wxwayland.h>
 
+#include <QCoreApplication>
 #include <QDebug>
 #include <QLocalSocket>
 #include <QLoggingCategory>
-#include <qobject.h>
 
 #include <pwd.h>
 #include <sys/socket.h>
@@ -55,7 +55,7 @@ Treeland::Treeland()
 
     m_qmlEngine = std::make_unique<QmlEngine>(this);
 
-    QObject::connect(m_qmlEngine.get(), &QQmlEngine::quit, qApp, &QGuiApplication::quit);
+    QObject::connect(m_qmlEngine.get(), &QQmlEngine::quit, qApp, &QCoreApplication::quit);
 
     m_helper = m_qmlEngine->singletonInstance<Helper *>("Treeland", "Helper");
     m_helper->init();
@@ -179,7 +179,6 @@ bool Treeland::isBlockActivateSurface() const
 
 void Treeland::loadPlugin(const QString &path)
 {
-    qDebug() << Q_FUNC_INFO << path;
     QDir pluginsDir(path);
 
     if (!pluginsDir.exists()) {
