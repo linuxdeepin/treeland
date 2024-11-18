@@ -40,4 +40,4 @@ target_link_libraries(${MODULE_NAME}
         Qt6::Quick
 )
 
-install(TARGETS ${MODULE_NAME} DESTINATION ${CMAKE_INSTALL_LIBDIR}/treeland)
+install(TARGETS ${MODULE_NAME} DESTINATION ${CMAKE_INSTALL_LIBDIR})
