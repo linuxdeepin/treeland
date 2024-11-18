@@ -32,7 +32,7 @@ qt_add_resources(treeland_core "treeland_assets"
 
 target_include_directories(treeland_core
     PUBLIC
-        $<INSTALL_INTERFACE:include/treeland>
+        $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/treeland>
     PRIVATE
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
 )
@@ -201,11 +201,11 @@ install(
     TARGETS
         treeland_core
     EXPORT TreelandTargets
-    LIBRARY DESTINATION lib
+    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
 )
 
 # install(EXPORT TreelandTargets
 #     FILE TreelandTargets.cmake
 #     NAMESPACE Treeland::
-#     DESTINATION lib/cmake/treeland
+#     DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/treeland
 # )
