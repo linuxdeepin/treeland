@@ -27,6 +27,9 @@ Item {
 
         anchors.fill: parent
         active: {
+            if (GraphicsInfo.api === GraphicsInfo.Software)
+                return false;
+
             if (!root.wrapper)
                 return false;
             return cornerRadius > 0 && !root.wrapper.noCornerRadius;
