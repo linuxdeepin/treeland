@@ -66,7 +66,7 @@ public Q_SLOTS:
     void setActivate(bool on) override;
     void setFullScreen(bool on) override;
 
-    bool checkNewSize(const QSize &size) override;
+    bool checkNewSize(const QSize &size, QSize *clipedSize = nullptr) override;
     void resize(const QSize &size) override;
     void close() override;
 

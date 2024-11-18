@@ -35,7 +35,7 @@ Q_SIGNALS:
     void cursorRectChanged();
 
 public Q_SLOTS:
-    bool checkNewSize(const QSize &size) override;
+    bool checkNewSize(const QSize &size, QSize *clipedSize = nullptr) override;
 
 protected:
     ~WInputPopupSurface() override = default;

@@ -426,11 +426,14 @@ void WLayerSurface::closed()
     wlr_layer_surface_v1_destroy(nativeHandle());
 }
 
-bool WLayerSurface::checkNewSize(const QSize &size)
+bool WLayerSurface::checkNewSize(const QSize &size,  QSize *clipedSize)
 {
     W_D(WLayerSurface);
 
-    if (size.width() <= 0 || size.height() <= 0) {
+    // If the width or height arguments are zero, it means the client should decide its own window dimension.
+    if (size.width() < 0 || size.height() < 0) {
+        if (clipedSize)
+            *clipedSize = QSize(0, 0);
         return false;
     }
     return true;

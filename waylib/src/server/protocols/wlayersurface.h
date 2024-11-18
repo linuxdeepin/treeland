@@ -114,7 +114,7 @@ Q_SIGNALS:
     void layerPropertiesChanged();
 
 public Q_SLOTS:
-    bool checkNewSize(const QSize &size) override;
+    bool checkNewSize(const QSize &size,  QSize *clipedSize = nullptr) override;
 };
 
 Q_DECLARE_OPERATORS_FOR_FLAGS(WLayerSurface::AnchorTypes)

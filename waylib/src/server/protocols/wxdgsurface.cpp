@@ -448,24 +448,40 @@ void WXdgSurface::setFullScreen(bool on)
     }
 }
 
-bool WXdgSurface::checkNewSize(const QSize &size)
+bool WXdgSurface::checkNewSize(const QSize &size, QSize *clipedSize)
 {
     W_D(WXdgSurface);
+    if (clipedSize)
+        *clipedSize = size;
+
     if (isToplevel()) {
+        bool ok = true;
         auto wtoplevel = d->nativeHandle()->toplevel;
         if (size.width() > wtoplevel->current.max_width
-            && wtoplevel->current.max_width > 0)
-            return false;
+            && wtoplevel->current.max_width > 0) {
+            if (clipedSize)
+                clipedSize->setWidth(wtoplevel->current.max_width);
+            ok = false;
+        }
         if (size.height() > wtoplevel->current.max_height
-            && wtoplevel->current.max_height > 0)
-            return false;
+            && wtoplevel->current.max_height > 0) {
+            if (clipedSize)
+                clipedSize->setHeight(wtoplevel->current.max_height);
+            ok = false;
+        }
         if (size.width() < wtoplevel->current.min_width
-            && wtoplevel->current.min_width> 0)
+            && wtoplevel->current.min_width> 0) {
+            if (clipedSize)
+                clipedSize->setWidth(wtoplevel->current.min_width);
             return false;
+        }
         if (size.height() < wtoplevel->current.min_height
-            && wtoplevel->current.min_height > 0)
+            && wtoplevel->current.min_height > 0) {
+            if (clipedSize)
+                clipedSize->setHeight(wtoplevel->current.min_height);
             return false;
-        return true;
+        }
+        return ok;
     }
 
     return false;

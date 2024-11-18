@@ -114,7 +114,7 @@ public:
     DecorationsType decorationsType() const;
 
 public Q_SLOTS:
-    bool checkNewSize(const QSize &size) override;
+    bool checkNewSize(const QSize &size, QSize *clipedSize = nullptr) override;
     void resize(const QSize &size) override;
     void configure(const QRect &geometry);
     void setMaximize(bool on) override;

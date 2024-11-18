@@ -85,9 +85,9 @@ WSurface *WInputPopupSurface::parentSurface() const
     return d_func()->parent;
 }
 
-bool WInputPopupSurface::checkNewSize(const QSize &size)
+bool WInputPopupSurface::checkNewSize(const QSize &, QSize *)
 {
-    return size == d_func()->size();
+    return false;
 }
 
 QRect WInputPopupSurface::cursorRect() const

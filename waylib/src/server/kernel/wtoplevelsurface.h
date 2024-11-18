@@ -98,7 +98,8 @@ public Q_SLOTS:
         Q_UNUSED(on);
     }
 
-    virtual bool checkNewSize(const QSize &size) = 0;
+    // when `checkNewSize` return false, will set `clipedSize` to fit max/min size
+    virtual bool checkNewSize(const QSize &size, QSize *clipedSize = nullptr) = 0;
     virtual void resize(const QSize &size) {
         Q_UNUSED(size)
     }

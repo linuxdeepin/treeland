@@ -461,26 +461,42 @@ WXWaylandSurface::DecorationsType WXWaylandSurface::decorationsType() const
     return static_cast<DecorationsType>(d->nativeHandle()->decorations);
 }
 
-bool WXWaylandSurface::checkNewSize(const QSize &size)
+bool WXWaylandSurface::checkNewSize(const QSize &size, QSize *clipedSize)
 {
     const QSize minSize = this->minSize();
     const QSize maxSize = this->maxSize();
 
+    bool ok = true;
+    if (clipedSize)
+        *clipedSize = size;
+
     if (minSize.isValid()) {
-        if (size.width() < minSize.width())
-            return false;
-        if (size.height() < minSize.height())
-            return false;
+        if (size.width() < minSize.width()) {
+            if (clipedSize)
+                clipedSize->setWidth(minSize.width());
+            ok = false;
+        }
+        if (size.height() < minSize.height()) {
+            if (clipedSize)
+                clipedSize->setHeight(minSize.height());
+            ok = false;
+        }
     }
 
     if (maxSize.isValid()) {
-        if (size.width() > maxSize.width())
-            return false;
-        if (size.height() > maxSize.height())
-            return false;
+        if (size.width() > maxSize.width()) {
+            if (clipedSize)
+                clipedSize->setWidth(maxSize.width());
+            ok = false;
+        }
+        if (size.height() > maxSize.height()) {
+            if (clipedSize)
+                clipedSize->setHeight(maxSize.height());
+            ok = false;
+        }
     }
 
-    return true;
+    return ok;
 }
 
 void WXWaylandSurface::resize(const QSize &size)
