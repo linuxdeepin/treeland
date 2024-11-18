@@ -4,7 +4,6 @@
 #pragma once
 
 #include "foreigntoplevelmanagerv1.h"
-// #include "multitaskview.h"
 #include "qmlengine.h"
 #include "togglablegesture.h"
 #include "virtualoutputmanager.h"
@@ -75,6 +74,7 @@ class ShellHandler;
 class PrimaryOutputV1;
 class CaptureSourceSelector;
 class treeland_window_picker_v1;
+class IMultitaskView;
 
 class Helper : public WSeatEventFilter
 {
@@ -120,6 +120,7 @@ public:
     WOutputRenderWindow *window() const;
     ShellHandler *shellHandler() const;
     Workspace *workspace() const;
+
     void init();
 
     TogglableGesture *multiTaskViewGesture() const
@@ -168,6 +169,17 @@ public:
     Q_INVOKABLE bool isLaunchpad(WLayerSurface *surface) const;
 
     void handleWindowPicker(treeland_window_picker_v1 *picker);
+
+    RootSurfaceContainer *rootSurfaceContainer() const;
+
+    void setMultitaskViewImpl(IMultitaskView *impl);
+
+    CurrentMode currentMode() const
+    {
+        return m_currentMode;
+    }
+
+    void setCurrentMode(CurrentMode mode);
 
 public Q_SLOTS:
     void activateSurface(SurfaceWrapper *wrapper, Qt::FocusReason reason = Qt::OtherFocusReason);
@@ -233,12 +245,6 @@ private:
                           QInputEvent *event) override;
     bool unacceptedEvent(WSeat *, QWindow *, QInputEvent *event) override;
 
-    // void toggleMultitaskview()
-    // {
-    //     toggleMultitaskview(Multitaskview::ShortcutKey);
-    // }
-    //
-    // void toggleMultitaskview(Multitaskview::ActiveReason reason);
     void handleLeftButtonStateChanged(const QInputEvent *event);
     void handleWhellValueChanged(const QInputEvent *event);
     bool doGesture(QInputEvent *event);
@@ -294,11 +300,12 @@ private:
     OutputMode m_mode = OutputMode::Extension;
     std::optional<QPointF> m_fakelastPressedPosition;
 
-    QPointer<Multitaskview> m_multitaskview;
     QPointer<CaptureSourceSelector> m_captureSelector;
 
     QPropertyAnimation *m_workspaceScaleAnimation{ nullptr };
     QPropertyAnimation *m_workspaceOpacityAnimation{ nullptr };
 
     bool m_singleMetaKeyPendingPressed{ false };
+
+    IMultitaskView *m_multitaskView{ nullptr };
 };

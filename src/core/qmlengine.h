@@ -61,7 +61,6 @@ public:
                                         uint direction);
     QQuickItem *createDockPreview(QQuickItem *parent);
     QQuickItem *createShowDesktopAnimation(SurfaceWrapper *surface, QQuickItem *parent, bool show);
-    QQuickItem *createMultitaskview(QQuickItem *parent);
     QQuickItem *createCaptureSelector(QQuickItem *parent, CaptureManagerV1 *captureManager);
     QQuickItem *createWindowPicker(QQuickItem *parent);
 
@@ -89,7 +88,6 @@ private:
     QQmlComponent dockPreviewComponent;
     QQmlComponent minimizeAnimationComponent;
     QQmlComponent showDesktopAnimatioComponentn;
-    QQmlComponent multitaskViewComponent;
     QQmlComponent captureSelectorComponent;
     QQmlComponent windowPickerComponent;
     QQmlComponent blurComponent;

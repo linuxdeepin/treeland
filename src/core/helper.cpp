@@ -9,6 +9,7 @@
 #include "inputdevice.h"
 #include "layersurfacecontainer.h"
 #include "lockscreen.h"
+#include "multitaskviewinterface.h"
 #include "output.h"
 #include "outputmanagement.h"
 #include "personalizationmanager.h"
@@ -18,6 +19,7 @@
 #include "shortcutmanager.h"
 #include "surfacecontainer.h"
 #include "surfacewrapper.h"
+#include "togglablegesture.h"
 #include "treelandconfig.h"
 #include "wallpapercolor.h"
 #include "windowpicker.h"
@@ -100,7 +102,7 @@ Helper::Helper(QObject *parent)
     m_lockScreen->setVisible(false);
 
     connect(m_lockScreen, &LockScreen::unlock, this, [this] {
-        m_currentMode = CurrentMode::Normal;
+        setCurrentMode(CurrentMode::Normal);
 
         m_workspaceScaleAnimation->stop();
         m_workspaceScaleAnimation->setStartValue(m_shellHandler->workspace()->scale());
@@ -133,15 +135,10 @@ Helper::Helper(QObject *parent)
             &TogglableGesture::statusChanged,
             this,
             [this](TogglableGesture::Status status) {
-                if (status == TogglableGesture::Activating
-                    || status == TogglableGesture::Deactivating
-                    || status == TogglableGesture::Active) {
-                    // toggleMultitaskview(Multitaskview::Gesture);
-                } else {
-                    // if (m_multitaskview)
-                    //     m_multitaskview->exit(nullptr);
-                    m_currentMode = CurrentMode::Normal;
+                if (status == TogglableGesture::Inactive || status == TogglableGesture::Stopped) {
+                    setCurrentMode(CurrentMode::Normal);
                 }
+                m_multitaskView->toggleMultitaskView(IMultitaskView::ActiveReason::Gesture);
             });
 
     connect(m_windowGesture, &TogglableGesture::activated, this, [this]() {
@@ -545,7 +542,7 @@ void Helper::deleteTaskSwitch()
         m_taskSwitch->deleteLater();
         m_taskSwitch = nullptr;
     }
-    m_currentMode = CurrentMode::Normal;
+    setCurrentMode(CurrentMode::Normal);
 }
 
 void Helper::init()
@@ -587,10 +584,11 @@ void Helper::init()
     connect(m_backend, &WBackend::outputRemoved, this, &Helper::onOutputRemoved);
 
     m_ddeShellV1 = m_server->attach<DDEShellManagerV1>();
-    // connect(m_ddeShellV1,
-    //         &DDEShellManagerV1::toggleMultitaskview,
-    //         this,
-    //         qOverload<>(&Helper::toggleMultitaskview));
+    connect(m_ddeShellV1, &DDEShellManagerV1::toggleMultitaskview, this, [this] {
+        if (m_multitaskView) {
+            m_multitaskView->toggleMultitaskView(IMultitaskView::ActiveReason::ShortcutKey);
+        }
+    });
     connect(m_ddeShellV1, &DDEShellManagerV1::requestPickWindow, this, &Helper::handleWindowPicker);
     m_shellHandler->createComponent(engine);
     m_shellHandler->initXdgShell(m_server, m_ddeShellV1);
@@ -798,7 +796,7 @@ void Helper::init()
 
     if (CmdLine::ref().useLockScreen()) {
         m_lockScreen->lock();
-        m_currentMode = CurrentMode::LockScreen;
+        setCurrentMode(CurrentMode::LockScreen);
 
         m_workspaceScaleAnimation->stop();
         m_workspaceScaleAnimation->setStartValue(m_shellHandler->workspace()->scale());
@@ -827,12 +825,12 @@ void Helper::setSocketEnabled(bool newEnabled)
 
 void Helper::activateSurface(SurfaceWrapper *wrapper, Qt::FocusReason reason)
 {
-    // if (m_multitaskview && m_multitaskview->blockActiveSurface() && wrapper) {
-    //     if (wrapper->shellSurface()->hasCapability(WToplevelSurface::Capability::Activate)) {
-    //         workspace()->pushActivedSurface(wrapper);
-    //     }
-    //     return;
-    // }
+    if (TreelandConfig::ref().blockActivateSurface() && wrapper) {
+        if (wrapper->shellSurface()->hasCapability(WToplevelSurface::Capability::Activate)) {
+            workspace()->pushActivedSurface(wrapper);
+        }
+        return;
+    }
     if (!wrapper
         || (wrapper->shellSurface()->hasCapability(WToplevelSurface::Capability::Activate)
             && wrapper->hasActiveCapability()))
@@ -913,7 +911,9 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *, QInputEvent *event)
                 workspace()->switchTo(switchWorkspaceNums.indexOf(kevent->key()));
                 return true;
             } else if (kevent->key() == Qt::Key_S) {
-                // toggleMultitaskview(Multitaskview::ShortcutKey);
+                if (m_multitaskView) {
+                    m_multitaskView->toggleMultitaskView(IMultitaskView::ActiveReason::ShortcutKey);
+                }
                 return true;
             } else if (kevent->key() == Qt::Key_L) {
                 if (m_lockScreen->isLocked()) {
@@ -932,12 +932,12 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *, QInputEvent *event)
                 m_workspaceOpacityAnimation->setEndValue(0.0);
                 m_workspaceOpacityAnimation->start();
 
-                m_currentMode = CurrentMode::LockScreen;
-
+                setCurrentMode(CurrentMode::LockScreen);
                 return true;
             } else if (kevent->key() == Qt::Key_D) { // ShowDesktop : Meta + D
-                // if (m_multitaskview)
-                //     return true;
+                if (m_multitaskView) {
+                    return true;
+                }
                 if (m_showDesktop == WindowManagementV1::DesktopState::Normal)
                     m_windowManagement->setDesktopState(WindowManagementV1::DesktopState::Show);
                 else if (m_showDesktop == WindowManagementV1::DesktopState::Show)
@@ -951,19 +951,24 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *, QInputEvent *event)
                 m_activatedSurface->requestCancelMaximize();
                 return true;
             }
-        } else if ((m_currentMode == CurrentMode::Normal  || m_currentMode == CurrentMode::WindowSwitch) &&
-                   (kevent->key() == Qt::Key_Tab || kevent->key() == Qt::Key_Backtab ||
-                    kevent->key() == Qt::Key_QuoteLeft || kevent->key() == Qt::Key_AsciiTilde)) {
+        } else if ((m_currentMode == CurrentMode::Normal
+                    || m_currentMode == CurrentMode::WindowSwitch)
+                   && (kevent->key() == Qt::Key_Tab || kevent->key() == Qt::Key_Backtab
+                       || kevent->key() == Qt::Key_QuoteLeft
+                       || kevent->key() == Qt::Key_AsciiTilde)) {
             if (event->modifiers().testFlag(Qt::AltModifier)) {
                 if (m_taskSwitch.isNull()) {
                     auto contentItem = window()->contentItem();
                     auto output = rootContainer()->primaryOutput();
                     m_taskSwitch = qmlEngine()->createTaskSwitcher(output, contentItem);
-                    connect(m_taskSwitch, SIGNAL(switchOnChanged()), this, SLOT(deleteTaskSwitch()));
+                    connect(m_taskSwitch,
+                            SIGNAL(switchOnChanged()),
+                            this,
+                            SLOT(deleteTaskSwitch()));
                     m_taskSwitch->setZ(RootSurfaceContainer::OverlayZOrder);
                 }
 
-                m_currentMode = CurrentMode::WindowSwitch;
+                setCurrentMode(CurrentMode::WindowSwitch);
                 QString appid;
                 if (kevent->key() == Qt::Key_QuoteLeft || kevent->key() == Qt::Key_AsciiTilde) {
                     auto surface = Helper::instance()->activatedSurface();
@@ -983,13 +988,6 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *, QInputEvent *event)
                     QMetaObject::invokeMethod(m_taskSwitch, "previous");
                     return true;
                 }
-            }
-        } else if (event->modifiers() == Qt::NoModifier) {
-            if (kevent->key() == Qt::Key_Escape) {
-                // if (m_multitaskview) {
-                //     m_multitaskview->exit(nullptr);
-                //     m_currentMode = CurrentMode::Normal;
-                // }
             }
         } else if (event->modifiers() == Qt::AltModifier) {
             if (kevent->key() == Qt::Key_F4 && m_activatedSurface) { // close window : Alt + F4
@@ -1171,33 +1169,6 @@ Output *Helper::createCopyOutput(WOutput *output, Output *proxy)
 {
     return Output::createCopy(output, proxy, qmlEngine(), this);
 }
-
-// void Helper::toggleMultitaskview(Multitaskview::ActiveReason reason)
-// {
-//     if (!m_multitaskview) {
-//         toggleOutputMenuBar(false);
-//         workspace()->setSwitcherEnabled(false);
-//         m_multitaskview =
-//             qobject_cast<Multitaskview *>(qmlEngine()->createMultitaskview(rootContainer()));
-//         connect(m_multitaskview.data(), &Multitaskview::visibleChanged, this, [this] {
-//             if (!m_multitaskview->isVisible()) {
-//                 m_multitaskview->deleteLater();
-//                 toggleOutputMenuBar(true);
-//                 workspace()->setSwitcherEnabled(true);
-//             }
-//         });
-//         m_currentMode = CurrentMode::Multitaskview;
-//         m_multitaskview->enter(reason);
-//     } else {
-//         if (m_multitaskview->status() == Multitaskview::Exited) {
-//             m_multitaskview->enter(Multitaskview::ShortcutKey);
-//             m_currentMode = CurrentMode::Multitaskview;
-//         } else {
-//             m_multitaskview->exit(nullptr);
-//             m_currentMode = CurrentMode::Normal;
-//         }
-//     }
-// }
 
 SurfaceWrapper *Helper::keyboardFocusSurface() const
 {
@@ -1514,6 +1485,24 @@ void Helper::handleWindowPicker(treeland_window_picker_v1 *picker)
                 windowPicker,
                 &WindowPicker::deleteLater);
     });
+}
+
+RootSurfaceContainer *Helper::rootSurfaceContainer() const
+{
+    return m_rootSurfaceContainer;
+}
+
+void Helper::setMultitaskViewImpl(IMultitaskView *impl)
+{
+    m_multitaskView = impl;
+}
+
+void Helper::setCurrentMode(CurrentMode mode)
+{
+    if (m_currentMode == mode)
+        return;
+
+    m_currentMode = mode;
 }
 
 WSeat *Helper::seat() const

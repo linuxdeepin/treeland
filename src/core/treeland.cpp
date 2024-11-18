@@ -8,6 +8,9 @@
 #include "greeterproxy.h"
 #include "helper.h"
 #include "logoprovider.h"
+#include "multitaskviewinterface.h"
+#include "plugininterface.h"
+#include "qmlengine.h"
 #include "sessionmodel.h"
 #include "treelandconfig.h"
 #include "usermodel.h"
@@ -22,6 +25,7 @@
 #include <QDebug>
 #include <QLocalSocket>
 #include <QLoggingCategory>
+#include <qobject.h>
 
 #include <pwd.h>
 #include <sys/socket.h>
@@ -117,6 +121,21 @@ Treeland::Treeland()
 
     QDBusConnection::sessionBus().registerService("org.deepin.Compositor1");
     QDBusConnection::sessionBus().registerObject("/org/deepin/Compositor1", this);
+
+#ifdef QT_DEBUG
+    loadPlugin(QStringLiteral(TREELAND_PLUGINS_OUTPUT_PATH));
+#else
+    loadPlugin(QStringLiteral(TREELAND_PLUGINS_INSTALL_PATH));
+#endif
+}
+
+Treeland::~Treeland()
+{
+    for (auto plugin : m_plugins) {
+        plugin->shutdown();
+        delete plugin;
+    }
+    m_plugins.clear();
 }
 
 bool Treeland::testMode() const
@@ -131,6 +150,73 @@ bool Treeland::debugMode() const
 #endif
 
     return qEnvironmentVariableIsSet("TREELAND_ENABLE_DEBUG");
+}
+
+QmlEngine *Treeland::qmlEngine() const
+{
+    return m_qmlEngine.get();
+}
+
+Workspace *Treeland::workspace() const
+{
+    return m_helper->workspace();
+}
+
+RootSurfaceContainer *Treeland::rootSurfaceContainer() const
+{
+    return m_helper->rootSurfaceContainer();
+}
+
+void Treeland::blockActivateSurface(bool block)
+{
+    TreelandConfig::ref().setBlockActivateSurface(block);
+}
+
+bool Treeland::isBlockActivateSurface() const
+{
+    return TreelandConfig::ref().blockActivateSurface();
+}
+
+void Treeland::loadPlugin(const QString &path)
+{
+    qDebug() << Q_FUNC_INFO << path;
+    QDir pluginsDir(path);
+
+    if (!pluginsDir.exists()) {
+        return;
+    }
+
+    const QStringList pluginFiles = pluginsDir.entryList(QDir::Files | QDir::NoDotAndDotDot);
+    for (const QString &pluginFile : pluginFiles) {
+        QString filePath = pluginsDir.absoluteFilePath(pluginFile);
+        qCDebug(dbus) << "Attempting to load plugin:" << filePath;
+
+        QPluginLoader loader(filePath);
+        QObject *pluginInstance = loader.instance();
+
+        if (!pluginInstance) {
+            qWarning(dbus) << "Failed to load plugin:" << loader.errorString();
+            continue;
+        }
+
+        PluginInterface *plugin = qobject_cast<PluginInterface *>(pluginInstance);
+        if (!plugin) {
+            qWarning(dbus) << "Plugin does not implement PluginInterface.";
+        }
+
+        qCDebug(dbus) << "Loaded plugin: " << plugin->name() << ", enabled: " << plugin->enabled();
+        // TODO: use scheduler to run
+        plugin->initialize(this);
+        m_plugins.push_back(plugin);
+
+        if (auto *multitaskview = qobject_cast<IMultitaskView *>(pluginInstance)) {
+            qCDebug(dbus) << "Get MultitaskView Instance.";
+            connect(pluginInstance, &QObject::destroyed, this, [this] {
+                m_helper->setMultitaskViewImpl(nullptr);
+            });
+            m_helper->setMultitaskViewImpl(multitaskview);
+        }
+    }
 }
 
 void Treeland::connected()

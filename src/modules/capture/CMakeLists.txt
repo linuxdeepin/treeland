@@ -41,4 +41,4 @@ target_link_libraries(${MODULE_NAME}
         item-selector
 )
 
-install(TARGETS ${MODULE_NAME} DESTINATION ${CMAKE_INSTALL_LIBDIR}/treeland)
+install(TARGETS ${MODULE_NAME} DESTINATION ${CMAKE_INSTALL_LIBDIR})

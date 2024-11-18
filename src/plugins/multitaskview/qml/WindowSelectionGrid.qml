@@ -3,6 +3,7 @@
 
 import QtQuick
 import Treeland
+import MultitaskView
 import Waylib.Server
 import QtQuick.Effects
 import QtQuick.Controls
@@ -500,6 +501,8 @@ Item {
                 windowLoader.item.itemAt(0)?.forceActiveFocus()
             } else if (event.key === Qt.Key_End) {
                 windowLoader.item.itemAt(windowLoader.item.count - 1)?.forceActiveFocus()
+            } else if (event.key === Qt.Key_Escape) {
+                multitaskview.exit()
             }
         } else if (event.modifiers === Qt.AltModifier) {
             if (event.key === Qt.Key_Minus && Helper.workspace.count > 1) {

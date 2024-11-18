@@ -17,13 +17,13 @@ pkg_search_module(WAYLAND REQUIRED IMPORTED_TARGET wayland-server)
 pkg_search_module(LIBINPUT REQUIRED IMPORTED_TARGET libinput)
 # qt_finalize_target will collect all executable's private dependencies that are CMake targets
 
+add_subdirectory(core)
 add_subdirectory(interfaces)
 add_subdirectory(plugins)
 add_subdirectory(modules)
 add_subdirectory(greeter)
 add_subdirectory(treeland-wallpaper)
 add_subdirectory(treeland-shortcut)
-add_subdirectory(core)
 
 set(BIN_NAME treeland)
 
