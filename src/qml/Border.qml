@@ -22,7 +22,7 @@ Item {
             color: outsideColor
             width: 1
         }
-        radius: root.radius + border.width
+        radius: GraphicsInfo.api === GraphicsInfo.Software ? 0 : root.radius + border.width
     }
 
     Rectangle {
@@ -33,6 +33,6 @@ Item {
             color: insideColor
             width: 1
         }
-        radius: root.radius
+        radius: GraphicsInfo.api === GraphicsInfo.Software ? 0 : root.radius
     }
 }

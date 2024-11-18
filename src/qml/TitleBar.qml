@@ -13,7 +13,7 @@ Control {
 
     required property SurfaceWrapper surface
     readonly property SurfaceItem surfaceItem: surface.surfaceItem
-    readonly property bool noRadius: surface.radius === 0 || surface.noCornerRadius
+    readonly property bool noRadius: surface.radius === 0 || surface.noCornerRadius || GraphicsInfo.api === GraphicsInfo.Software
     property D.Palette backgroundColor: DS.Style.highlightPanel.background
     property D.Palette outerShadowColor: DS.Style.highlightPanel.dropShadow
     property D.Palette innerShadowColor: DS.Style.highlightPanel.innerShadow
