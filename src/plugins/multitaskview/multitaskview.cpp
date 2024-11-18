@@ -371,9 +371,7 @@ void MultitaskviewSurfaceModel::doUpdateZOrder(const QList<ModelDataPtr> &rawDat
         Helper::instance()->workspace(),
         [this](QQuickItem *item) -> bool {
             auto surfaceWrapper = qobject_cast<SurfaceWrapper *>(item);
-            if (surfaceWrapper
-                && (surfaceWrapper->showOnWorkspace(workspace()->id())
-                    || surfaceWrapper->showOnAllWorkspace())) {
+            if (surfaceWrapper && surfaceWrapper->showOnWorkspace(workspace()->id())) {
                 return true;
             } else {
                 return false;
