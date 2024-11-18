@@ -48,19 +48,8 @@ void Multitaskview::setActiveReason(ActiveReason activeReason)
     Q_EMIT activeReasonChanged();
 }
 
-bool Multitaskview::blockActiveSurface() const
-{
-    return m_blockActiveSurface;
-}
-
-void Multitaskview::setBlockActiveSurface(bool block)
-{
-    m_blockActiveSurface = block;
-}
-
 void Multitaskview::exit(SurfaceWrapper *surface)
 {
-    setBlockActiveSurface(false);
     if (surface) {
         Helper::instance()->forceActivateSurface(surface);
     } else if (Helper::instance()->workspace()->current()->latestActiveSurface()) {
