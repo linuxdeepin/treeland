@@ -6,6 +6,7 @@ import QtQuick.Controls
 import QtQuick.Effects
 import Waylib.Server
 import Treeland
+import MultitaskView
 import org.deepin.dtk as D
 import org.deepin.dtk.style as DS
 

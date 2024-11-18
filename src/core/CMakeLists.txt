@@ -23,7 +23,6 @@ qt_add_resources(treeland_core "treeland_assets"
     PREFIX "/dsg/icons"
     BASE ${PROJECT_RESOURCES_DIR}/icons
     FILES
-        ${PROJECT_RESOURCES_DIR}/icons/multitaskview_close.dci
         ${PROJECT_RESOURCES_DIR}/icons/close.dci
         ${PROJECT_RESOURCES_DIR}/icons/add.dci
         ${PROJECT_RESOURCES_DIR}/icons/select_output.dci
@@ -32,8 +31,72 @@ qt_add_resources(treeland_core "treeland_assets"
 )
 
 target_include_directories(treeland_core
+    PUBLIC
+        $<INSTALL_INTERFACE:include/treeland>
     PRIVATE
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
+)
+
+set(CORE_HEADERS
+    cmdline.h
+    helper.h
+    surfacewrapper.h
+    workspace.h
+    shellhandler.h
+    output.h
+    qmlengine.h
+    surfacecontainer.h
+    layersurfacecontainer.h
+    lockscreen.h
+    rootsurfacecontainer.h
+    surfaceproxy.h
+    treeland.h
+    treeland.cpp
+    wallpaperprovider.h
+    wallpaperimage.h
+    wallpapercontroller.h
+    wallpapermanager.h
+    workspacemodel.h
+    propertymonitor.h
+    tsgradiusimagenode.h
+    tquickradiuseffect_p.h
+    tquickradiuseffect.h
+    gestures.h
+    togglablegesture.h
+    inputdevice.h
+    workspaceanimationcontroller.h
+    surfacefilterproxymodel.h
+    windowpicker.h
+)
+
+set(CORE_SRCS
+    cmdline.cpp
+    helper.cpp
+    surfacewrapper.cpp
+    workspace.cpp
+    shellhandler.cpp
+    output.cpp
+    qmlengine.cpp
+    surfacecontainer.cpp
+    layersurfacecontainer.cpp
+    lockscreen.cpp
+    rootsurfacecontainer.cpp
+    surfaceproxy.cpp
+    treeland.cpp
+    wallpaperprovider.cpp
+    wallpaperimage.cpp
+    wallpapercontroller.cpp
+    wallpapermanager.cpp
+    workspacemodel.cpp
+    propertymonitor.cpp
+    tsgradiusimagenode.cpp
+    tquickradiuseffect.cpp
+    gestures.cpp
+    togglablegesture.cpp
+    inputdevice.cpp
+    workspaceanimationcontroller.cpp
+    surfacefilterproxymodel.cpp
+    windowpicker.cpp
 )
 
 qt_add_qml_module(treeland_core
@@ -41,62 +104,8 @@ qt_add_qml_module(treeland_core
     VERSION "2.0"
 
     SOURCES
-        cmdline.h
-        cmdline.cpp
-        helper.h
-        helper.cpp
-        surfacewrapper.h
-        surfacewrapper.cpp
-        workspace.h
-        workspace.cpp
-        shellhandler.h
-        shellhandler.cpp
-        output.h
-        output.cpp
-        qmlengine.h
-        qmlengine.cpp
-        surfacecontainer.h
-        surfacecontainer.cpp
-        layersurfacecontainer.h
-        layersurfacecontainer.cpp
-        lockscreen.h
-        lockscreen.cpp
-        rootsurfacecontainer.h
-        rootsurfacecontainer.cpp
-        surfaceproxy.h
-        surfaceproxy.cpp
-        treeland.h
-        treeland.cpp
-        wallpaperprovider.h
-        wallpaperprovider.cpp
-        wallpaperimage.h
-        wallpaperimage.cpp
-        wallpapercontroller.h
-        wallpapercontroller.cpp
-        wallpapermanager.h
-        wallpapermanager.cpp
-        workspacemodel.h
-        workspacemodel.cpp
-        propertymonitor.h
-        propertymonitor.cpp
-        tsgradiusimagenode.h
-        tsgradiusimagenode.cpp
-        tquickradiuseffect_p.h
-        tquickradiuseffect.h
-        tquickradiuseffect.cpp
-        gestures.h
-        gestures.cpp
-        togglablegesture.h
-        togglablegesture.cpp
-        inputdevice.h
-        inputdevice.cpp
-        workspaceanimationcontroller.h
-        workspaceanimationcontroller.cpp
-        surfacefilterproxymodel.h
-        surfacefilterproxymodel.cpp
-        windowpicker.h
-        windowpicker.cpp
-
+        ${CORE_HEADERS}
+        ${CORE_SRCS}
         ${DBUS_ADAPTOR}
     QML_FILES
         qml/PrimaryOutput.qml
@@ -124,9 +133,6 @@ qt_add_qml_module(treeland_core
         qml/SwitchViewDelegate.qml
         qml/SwitchViewHighlightDelegate.qml
         qml/DockPreview.qml
-        qml/MultitaskviewProxy.qml
-        qml/WindowSelectionGrid.qml
-        qml/WorkspaceSelectionList.qml
         qml/FadeBehavior.qml
         qml/CaptureSelectorLayer.qml
         qml/WindowPickerLayer.qml
@@ -152,6 +158,7 @@ target_link_libraries(treeland_core
         capture
         config
         greeter
+        treeland_interface
     PRIVATE
         DDM::Common
         Qt6::Quick
@@ -162,7 +169,6 @@ target_link_libraries(treeland_core
         PkgConfig::PIXMAN
         PkgConfig::WAYLAND
         PkgConfig::LIBINPUT
-        treeland_interface
 )
 
 target_compile_definitions(treeland_core
@@ -183,37 +189,7 @@ qt_add_shaders(treeland_core "treeland_shaders_ng"
 )
 
 install(FILES
-    ${CMAKE_CURRENT_SOURCE_DIR}/helper.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/cmdline.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/gestures.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/helper.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/inputdevice.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/layersurfacecontainer.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/lockscreen.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/output.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/propertymonitor.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/qmlengine.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/rootsurfacecontainer.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/shellhandler.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/shellhandler.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/surfacecontainer.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/surfacefilterproxymodel.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/surfaceproxy.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/surfacewrapper.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/togglablegesture.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/tquickradiuseffect.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/tquickradiuseffect_p.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/treelandconfig.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/treeland.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/tsgradiusimagenode.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/wallpapercontroller.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/wallpaperimage.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/wallpapermanager.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/wallpaperprovider.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/windowpicker.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/workspaceanimationcontroller.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/workspace.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/workspacemodel.h
+    ${CORE_HEADERS}
     DESTINATION include/treeland
 )
 

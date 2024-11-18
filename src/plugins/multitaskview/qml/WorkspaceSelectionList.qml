@@ -6,6 +6,7 @@ import QtQuick.Controls
 import org.deepin.dtk as D
 import org.deepin.dtk.style as DS
 import Treeland
+import MultitaskView
 
 Item {
     id: root

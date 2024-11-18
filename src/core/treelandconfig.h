@@ -40,6 +40,7 @@ class TreelandConfig
     Q_PROPERTY(uint windowOpacity READ windowOpacity WRITE setWindowOpacity NOTIFY windowOpacityChanged FINAL)
     Q_PROPERTY(uint windowThemeType READ windowThemeType WRITE setWindowThemeType NOTIFY windowThemeTypeChanged FINAL)
     Q_PROPERTY(uint windowTitlebarHeight READ windowTitlebarHeight WRITE setWindowTitlebarHeight NOTIFY windowTitlebarHeightChanged FINAL)
+    Q_PROPERTY(bool blockActivateSurface READ blockActivateSurface WRITE setBlockActivateSurface NOTIFY blockActivateSurfaceChanged FINAL)
 
 public:
     TreelandConfig();
@@ -109,6 +110,9 @@ public:
     void setWindowTitlebarHeight(uint titlebarHeight);
     uint32_t windowTitlebarHeight();
 
+    void setBlockActivateSurface(bool block);
+    bool blockActivateSurface() const;
+
 Q_SIGNALS:
     void workspaceThumbMarginChanged();
     void workspaceThumbHeightChanged();
@@ -133,6 +137,7 @@ Q_SIGNALS:
     void windowOpacityChanged();
     void windowThemeTypeChanged();
     void windowTitlebarHeightChanged();
+    void blockActivateSurfaceChanged();
 
 private:
     void onDConfigChanged(const QString &key);
@@ -161,4 +166,5 @@ private:
     uint m_multitaskviewAnimationDuration = 300;
     QEasingCurve::Type m_multitaskviewEasingCurveType =
         QEasingCurve::OutQuad; // TODO: move to dconfig
+    bool m_blockActivateSurface{ false };
 };

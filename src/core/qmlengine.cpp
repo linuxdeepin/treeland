@@ -33,7 +33,6 @@ QmlEngine::QmlEngine(QObject *parent)
     , dockPreviewComponent(this, "Treeland", "DockPreview")
     , minimizeAnimationComponent(this, "Treeland", "MinimizeAnimation")
     , showDesktopAnimatioComponentn(this, "Treeland", "ShowDesktopAnimation")
-    , multitaskViewComponent(this, "Treeland", "MultitaskviewProxy")
     , captureSelectorComponent(this, "Treeland", "CaptureSelectorLayer")
     , windowPickerComponent(this, "Treeland", "WindowPickerLayer")
     , blurComponent(this, "Treeland", "Blur")
@@ -235,11 +234,6 @@ QQuickItem *QmlEngine::createShowDesktopAnimation(SurfaceWrapper *surface,
                                { "target", QVariant::fromValue(surface) },
                                { "showDesktop", QVariant::fromValue(show) },
                            });
-}
-
-QQuickItem *QmlEngine::createMultitaskview(QQuickItem *parent)
-{
-    return createComponent(multitaskViewComponent, parent);
 }
 
 QQuickItem *QmlEngine::createCaptureSelector(QQuickItem *parent, CaptureManagerV1 *captureManager)

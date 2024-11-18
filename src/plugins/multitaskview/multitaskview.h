@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 #pragma once
 
+#include "multitaskviewinterface.h"
+
 #include <QAbstractListModel>
 #include <QQuickItem>
 Q_MOC_INCLUDE("surfacecontainer.h")
@@ -31,8 +33,8 @@ public:
 
     enum ActiveReason
     {
-        ShortcutKey = 1,
-        Gesture
+        ShortcutKey = IMultitaskView::ShortcutKey,
+        Gesture = IMultitaskView::Gesture,
     };
     Q_ENUM(ActiveReason)
 
