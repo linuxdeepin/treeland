@@ -1502,6 +1502,8 @@ void Helper::setCurrentMode(CurrentMode mode)
     if (m_currentMode == mode)
         return;
 
+    TreelandConfig::ref().setBlockActivateSurface(mode != CurrentMode::Normal);
+
     m_currentMode = mode;
 }
 

@@ -52,8 +52,6 @@ public:
     void setStatus(Status status);
     ActiveReason activeReason() const;
     void setActiveReason(ActiveReason activeReason);
-    bool blockActiveSurface() const;
-    void setBlockActiveSurface(bool block);
 
 Q_SIGNALS:
     void statusChanged();
@@ -67,7 +65,6 @@ public Q_SLOTS:
 private:
     Status m_status;
     ActiveReason m_activeReason;
-    bool m_blockActiveSurface{ true };
 };
 
 class MultitaskviewSurfaceModel : public QAbstractListModel
