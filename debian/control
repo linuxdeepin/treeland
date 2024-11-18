@@ -46,6 +46,13 @@ Depends: qml6-module-qtquick-layouts,
          ${shlibs:Depends},
 Description: a Wayland compositor based on wlroots and QML, designed with an attractive and elegant appearance.
 
+Package: treeland-dev
+Section: libdevel
+Architecture: any
+Multi-Arch: same
+Depends: ${misc:Depends}, treeland( =${source:Version}),
+Description: a Wayland compositor based on wlroots and QML, designed with an attractive and elegant appearance.
+
 Package: treeland-examples
 Section: dde
 Architecture: any
