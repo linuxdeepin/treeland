@@ -229,7 +229,7 @@ void SurfaceWrapper::setFocus(bool focus, Qt::FocusReason reason)
 
 WSurface *SurfaceWrapper::surface() const
 {
-    return m_shellSurface->surface();
+    return m_shellSurface ? m_shellSurface->surface() : nullptr;
 }
 
 WToplevelSurface *SurfaceWrapper::shellSurface() const
@@ -581,8 +581,8 @@ void SurfaceWrapper::updateBoundingRect()
 
 void SurfaceWrapper::updateVisible()
 {
-    setVisible(!m_hideByWorkspace && !isMinimized() && surface()->mapped() && m_socketEnabled
-               && m_hideByshowDesk);
+    setVisible(!m_hideByWorkspace && !isMinimized() && (surface() && surface()->mapped())
+               && m_socketEnabled && m_hideByshowDesk);
 }
 
 void SurfaceWrapper::updateSubSurfaceStacking()
