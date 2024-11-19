@@ -3,7 +3,7 @@
 
 #include "shellhandler.h"
 
-#include "ddeshellmanagerv1.h"
+#include "ddeshellmanagerinterfacev1.h"
 #include "helper.h"
 #include "layersurfacecontainer.h"
 #include "qmlengine.h"
@@ -55,10 +55,9 @@ void ShellHandler::createComponent(QmlEngine *engine)
     m_windowMenu = engine->createWindowMenu(Helper::instance());
 }
 
-void ShellHandler::initXdgShell(WServer *server, DDEShellManagerV1 *ddeShellV1)
+void ShellHandler::initXdgShell(WServer *server)
 {
     Q_ASSERT_X(!m_xdgShell, Q_FUNC_INFO, "Only init once!");
-    m_refDDEShellV1 = ddeShellV1;
     m_xdgShell = server->attach<WXdgShell>();
     connect(m_xdgShell, &WXdgShell::surfaceAdded, this, &ShellHandler::onXdgSurfaceAdded);
     connect(m_xdgShell, &WXdgShell::surfaceRemoved, this, &ShellHandler::onXdgSurfaceRemoved);
@@ -151,7 +150,7 @@ void ShellHandler::onXdgSurfaceAdded(WXdgSurface *surface)
         wrapper = new SurfaceWrapper(Helper::instance()->qmlEngine(),
                                      surface,
                                      SurfaceWrapper::Type::XdgToplevel);
-        if (m_refDDEShellV1->isDdeShellSurface(surface->surface())) {
+        if (DDEShellSurfaceInterface::get(surface->surface())) {
             handleDdeShellSurfaceAdded(surface->surface(), wrapper);
         }
     } else {
@@ -200,8 +199,9 @@ void ShellHandler::onXdgSurfaceRemoved(WXdgSurface *surface)
 {
     auto wrapper = m_rootSurfaceContainer->getSurface(surface);
     if (wrapper->type() == SurfaceWrapper::Type::XdgToplevel) {
-        if (m_refDDEShellV1->isDdeShellSurface(surface->surface())) {
-            m_refDDEShellV1->ddeShellSurfaceFromWSurface(surface->surface())->destroy();
+        auto interface = DDEShellSurfaceInterface::get(surface->surface());
+        if (interface) {
+            delete interface;
         }
     }
     Q_EMIT surfaceWrapperAboutToRemove(wrapper);
@@ -324,63 +324,63 @@ void ShellHandler::setupSurfaceWindowMenu(SurfaceWrapper *wrapper)
 void ShellHandler::handleDdeShellSurfaceAdded(WSurface *surface, SurfaceWrapper *wrapper)
 {
     wrapper->setIsDDEShellSurface(true);
-    auto ddeShellSurface = m_refDDEShellV1->ddeShellSurfaceFromWSurface(surface);
+    auto ddeShellSurface = DDEShellSurfaceInterface::get(surface);
     Q_ASSERT(ddeShellSurface);
     auto updateLayer = [ddeShellSurface, wrapper] {
-        if (ddeShellSurface->m_role.value() == treeland_dde_shell_surface::Role::OVERLAY)
+        if (ddeShellSurface->role().value() == DDEShellSurfaceInterface::OVERLAY)
             wrapper->setSurfaceRole(SurfaceWrapper::SurfaceRole::Overlay);
     };
 
-    if (ddeShellSurface->m_role.has_value())
+    if (ddeShellSurface->role().has_value())
         updateLayer();
 
-    connect(ddeShellSurface, &treeland_dde_shell_surface::roleChanged, this, [updateLayer] {
+    connect(ddeShellSurface, &DDEShellSurfaceInterface::roleChanged, this, [updateLayer] {
         updateLayer();
     });
 
-    if (ddeShellSurface->m_yOffset.has_value())
-        wrapper->setAutoPlaceYOffset(ddeShellSurface->m_yOffset.value());
+    if (ddeShellSurface->yOffset().has_value())
+        wrapper->setAutoPlaceYOffset(ddeShellSurface->yOffset().value());
 
     connect(ddeShellSurface,
-            &treeland_dde_shell_surface::yOffsetChanged,
+            &DDEShellSurfaceInterface::yOffsetChanged,
             this,
             [wrapper](uint32_t offset) {
                 wrapper->setAutoPlaceYOffset(offset);
             });
 
-    if (ddeShellSurface->m_surfacePos.has_value())
-        wrapper->setClientRequstPos(ddeShellSurface->m_surfacePos.value());
+    if (ddeShellSurface->surfacePos().has_value())
+        wrapper->setClientRequstPos(ddeShellSurface->surfacePos().value());
 
     connect(ddeShellSurface,
-            &treeland_dde_shell_surface::positionChanged,
+            &DDEShellSurfaceInterface::positionChanged,
             this,
             [wrapper](QPoint pos) {
                 wrapper->setClientRequstPos(pos);
             });
 
-    if (ddeShellSurface->m_skipSwitcher.has_value())
-        wrapper->setSkipSwitcher(ddeShellSurface->m_skipSwitcher.value());
+    if (ddeShellSurface->skipSwitcher().has_value())
+        wrapper->setSkipSwitcher(ddeShellSurface->skipSwitcher().value());
 
-    if (ddeShellSurface->m_skipDockPreView.has_value())
-        wrapper->setSkipDockPreView(ddeShellSurface->m_skipDockPreView.value());
+    if (ddeShellSurface->skipDockPreView().has_value())
+        wrapper->setSkipDockPreView(ddeShellSurface->skipDockPreView().value());
 
-    if (ddeShellSurface->m_skipMutiTaskView.has_value())
-        wrapper->setSkipMutiTaskView(ddeShellSurface->m_skipMutiTaskView.value());
+    if (ddeShellSurface->skipMutiTaskView().has_value())
+        wrapper->setSkipMutiTaskView(ddeShellSurface->skipMutiTaskView().value());
 
     connect(ddeShellSurface,
-            &treeland_dde_shell_surface::skipSwitcherChanged,
+            &DDEShellSurfaceInterface::skipSwitcherChanged,
             this,
             [wrapper](bool skip) {
                 wrapper->setSkipSwitcher(skip);
             });
     connect(ddeShellSurface,
-            &treeland_dde_shell_surface::skipDockPreViewChanged,
+            &DDEShellSurfaceInterface::skipDockPreViewChanged,
             this,
             [wrapper](bool skip) {
                 wrapper->setSkipDockPreView(skip);
             });
     connect(ddeShellSurface,
-            &treeland_dde_shell_surface::skipMutiTaskViewChanged,
+            &DDEShellSurfaceInterface::skipMutiTaskViewChanged,
             this,
             [wrapper](bool skip) {
                 wrapper->setSkipMutiTaskView(skip);

@@ -17,7 +17,6 @@ class LayerSurfaceContainer;
 class Workspace;
 class SurfaceContainer;
 class QmlEngine;
-class DDEShellManagerV1;
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 class WServer;
@@ -50,7 +49,7 @@ public:
     [[nodiscard]] Workspace *workspace() const;
 
     void createComponent(QmlEngine *engine);
-    void initXdgShell(WAYLIB_SERVER_NAMESPACE::WServer *server, DDEShellManagerV1 *ddeShellV1);
+    void initXdgShell(WAYLIB_SERVER_NAMESPACE::WServer *server);
     void initLayerShell(WAYLIB_SERVER_NAMESPACE::WServer *server);
     [[nodiscard]] WAYLIB_SERVER_NAMESPACE::WXWayland *createXWayland(
         WAYLIB_SERVER_NAMESPACE::WServer *server,
@@ -97,6 +96,4 @@ private:
     LayerSurfaceContainer *m_overlayContainer = nullptr;
     SurfaceContainer *m_popupContainer = nullptr;
     QObject *m_windowMenu = nullptr;
-
-    DDEShellManagerV1 *m_refDDEShellV1 = nullptr;
 };

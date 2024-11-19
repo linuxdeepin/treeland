@@ -2,25 +2,28 @@ set(MODULE_NAME dde-shell)
 
 find_package(TreelandProtocols REQUIRED)
 
-ws_generate_local(server ${TREELAND_PROTOCOLS_DATA_DIR}/treeland-dde-shell-v1.xml dde-shell-protocol)
-
 pkg_search_module(WLROOTS REQUIRED IMPORTED_TARGET wlroots)
 
 qt_add_library(${MODULE_NAME} SHARED)
+
+local_qtwayland_server_protocol_treeland(${MODULE_NAME}
+    PROTOCOL ${TREELAND_PROTOCOLS_DATA_DIR}/treeland-dde-shell-v1.xml
+    BASENAME treeland-dde-shell-v1
+)
 
 target_sources(${MODULE_NAME}
 PUBLIC
 FILE_SET HEADERS
 FILES
-    ddeshellmanagerv1.h
-    impl/ddeshellmanagerv1impl.h
+    ddeshellmanagerinterfacev1.h
+    ddeshellattached.h
 PRIVATE
-    ddeshellmanagerv1.cpp
-    impl/ddeshellmanagerv1impl.cpp
-    ${WAYLAND_PROTOCOLS_OUTPUTDIR}/dde-shell-protocol.c
+    ddeshellmanagerinterfacev1.cpp
+    ddeshellattached.cpp
+    ${CMAKE_CURRENT_BINARY_DIR}/wayland-treeland-dde-shell-v1-server-protocol.c
 )
 
-target_include_directories(${MODULE_NAME} PUBLIC
+target_include_directories(${MODULE_NAME} PRIVATE
     $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
 )
