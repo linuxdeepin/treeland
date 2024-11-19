@@ -5,7 +5,8 @@
 
 #include "capture.h"
 #include "cmdline.h"
-#include "ddeshellmanagerv1.h"
+#include "ddeshellmanagerinterfacev1.h"
+#include "ddeshellattached.h"
 #include "inputdevice.h"
 #include "layersurfacecontainer.h"
 #include "lockscreen.h"
@@ -583,15 +584,15 @@ void Helper::init()
     connect(m_backend, &WBackend::outputAdded, this, &Helper::onOutputAdded);
     connect(m_backend, &WBackend::outputRemoved, this, &Helper::onOutputRemoved);
 
-    m_ddeShellV1 = m_server->attach<DDEShellManagerV1>();
-    connect(m_ddeShellV1, &DDEShellManagerV1::toggleMultitaskview, this, [this] {
+    m_ddeShellV1 = m_server->attach<DDEShellManagerInterfaceV1>();
+    connect(m_ddeShellV1, &DDEShellManagerInterfaceV1::toggleMultitaskview, this, [this] {
         if (m_multitaskView) {
             m_multitaskView->toggleMultitaskView(IMultitaskView::ActiveReason::ShortcutKey);
         }
     });
-    connect(m_ddeShellV1, &DDEShellManagerV1::requestPickWindow, this, &Helper::handleWindowPicker);
+    connect(m_ddeShellV1, &DDEShellManagerInterfaceV1::requestPickWindow, this, &Helper::handleWindowPicker);
     m_shellHandler->createComponent(engine);
-    m_shellHandler->initXdgShell(m_server, m_ddeShellV1);
+    m_shellHandler->initXdgShell(m_server);
     m_shellHandler->initLayerShell(m_server);
     m_shellHandler->initInputMethodHelper(m_server, m_seat);
 
@@ -1251,7 +1252,7 @@ void Helper::handleRequestDrag(WSurface *surface)
     Q_ASSERT(drag);
     QObject::connect(qw_drag::from(drag), &qw_drag::notify_drop, this, [this] {
         if (m_ddeShellV1)
-            m_ddeShellV1->sendDrop(m_seat);
+            DDEActiveInterface::sendDrop(m_seat);
     });
 
     QObject::connect(qw_drag::from(drag), &qw_drag::before_destroy, this, [this, surface, drag] {
@@ -1263,7 +1264,7 @@ void Helper::handleRequestDrag(WSurface *surface)
     });
 
     if (m_ddeShellV1)
-        m_ddeShellV1->sendStartDrag(m_seat);
+        DDEActiveInterface::sendStartDrag(m_seat);
 }
 
 void Helper::allowNonDrmOutputAutoChangeMode(WOutput *output)
@@ -1463,9 +1464,9 @@ bool Helper::isLaunchpad(WLayerSurface *surface) const
     return scope == "dde-shell/launchpad";
 }
 
-void Helper::handleWindowPicker(treeland_window_picker_v1 *picker)
+void Helper::handleWindowPicker(WindowPickerInterface *picker)
 {
-    connect(picker, &treeland_window_picker_v1::pick, this, [this, picker](const QString &hint) {
+    connect(picker, &WindowPickerInterface::pick, this, [this, picker](const QString &hint) {
         auto windowPicker =
             qobject_cast<WindowPicker *>(qmlEngine()->createWindowPicker(m_rootSurfaceContainer));
         windowPicker->setHint(hint);
@@ -1476,12 +1477,12 @@ void Helper::handleWindowPicker(treeland_window_picker_v1 *picker)
                     if (surfaceItem) {
                         auto credentials = WClient::getCredentials(
                             surfaceItem->surface()->waylandClient()->handle());
-                        picker->send_window(credentials->pid);
+                        picker->sendWindowPid(credentials->pid);
                         windowPicker->deleteLater();
                     }
                 });
         connect(picker,
-                &treeland_window_picker_v1::before_destroy,
+                &WindowPickerInterface::beforeDestroy,
                 windowPicker,
                 &WindowPicker::deleteLater);
     });
@@ -1518,9 +1519,9 @@ void Helper::handleLeftButtonStateChanged(const QInputEvent *event)
     const QMouseEvent *me = static_cast<const QMouseEvent *>(event);
     if (me->button() == Qt::LeftButton) {
         if (event->type() == QEvent::MouseButtonPress) {
-            m_ddeShellV1->sendActiveIn(TREELAND_DDE_ACTIVE_V1_REASON_MOUSE, m_seat);
+            DDEActiveInterface::sendActiveIn(DDEActiveInterface::Mouse, m_seat);
         } else {
-            m_ddeShellV1->sendActiveOut(TREELAND_DDE_ACTIVE_V1_REASON_MOUSE, m_seat);
+            DDEActiveInterface::sendActiveOut(DDEActiveInterface::Mouse, m_seat);
         }
     }
 }
@@ -1531,9 +1532,9 @@ void Helper::handleWhellValueChanged(const QInputEvent *event)
     const QWheelEvent *we = static_cast<const QWheelEvent *>(event);
     QPoint delta = we->angleDelta();
     if (delta.x() + delta.y() < 0) {
-        m_ddeShellV1->sendActiveOut(TREELAND_DDE_ACTIVE_V1_REASON_WHEEL, m_seat);
+        DDEActiveInterface::sendActiveOut(DDEActiveInterface::Wheel, m_seat);
     }
     if (delta.x() + delta.y() > 0) {
-        m_ddeShellV1->sendActiveIn(TREELAND_DDE_ACTIVE_V1_REASON_WHEEL, m_seat);
+        DDEActiveInterface::sendActiveIn(DDEActiveInterface::Wheel, m_seat);
     }
 }

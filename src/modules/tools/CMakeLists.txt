@@ -1,9 +1,9 @@
-if (${CMAKE_CURRENT_SOURCE_DIR} STREQUAL ${CMAKE_SOURCE_DIR})
+project(qtwaylandscanner_treeland CXX)
+
+if (PROJECT_IS_TOP_LEVEL)
     cmake_minimum_required(VERSION 3.16)
-    project(qtwaylandscanner_treeland CXX)
     set(CMAKE_CXX_STANDARD 20)
     find_package(Qt6 CONFIG REQUIRED Core)
-    set(CMAKE_MODULE_PATH ${ECM_MODULE_PATH})
 endif()
 
 if(CMAKE_CROSSCOMPILING AND QTWAYLANDSCANNER_TREELAND_EXECUTABLE)

@@ -68,7 +68,8 @@ class PersonalizationV1;
 class WallpaperColorV1;
 class WindowManagementV1;
 class Multitaskview;
-class DDEShellManagerV1;
+class DDEShellManagerInterfaceV1;
+class WindowPickerInterface;
 class VirtualOutputV1;
 class ShellHandler;
 class PrimaryOutputV1;
@@ -168,7 +169,7 @@ public:
 
     Q_INVOKABLE bool isLaunchpad(WLayerSurface *surface) const;
 
-    void handleWindowPicker(treeland_window_picker_v1 *picker);
+    void handleWindowPicker(WindowPickerInterface *picker);
 
     RootSurfaceContainer *rootSurfaceContainer() const;
 
@@ -284,7 +285,7 @@ private:
     WOutputManagerV1 *m_outputManager = nullptr;
     WindowManagementV1 *m_windowManagement = nullptr;
     WindowManagementV1::DesktopState m_showDesktop = WindowManagementV1::DesktopState::Normal;
-    DDEShellManagerV1 *m_ddeShellV1 = nullptr;
+    DDEShellManagerInterfaceV1 *m_ddeShellV1 = nullptr;
     VirtualOutputV1 *m_virtualOutput = nullptr;
     PrimaryOutputV1 *m_primaryOutputV1 = nullptr;
 
