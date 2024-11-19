@@ -21,6 +21,10 @@ void MultitaskViewPlugin::initialize(TreelandProxyInterface *proxy)
 void MultitaskViewPlugin::shutdown()
 {
     m_proxy = nullptr;
+
+    if (m_multitaskview) {
+        m_multitaskview->exit();
+    }
 }
 
 QQuickItem *MultitaskViewPlugin::createMultitaskview(QQuickItem *parent)
@@ -42,15 +46,13 @@ void MultitaskViewPlugin::toggleMultitaskView(IMultitaskView::ActiveReason reaso
                 m_proxy->workspace()->setSwitcherEnabled(true);
             }
         });
-        Helper::instance()->setCurrentMode(Helper::CurrentMode::Multitaskview);
+
         m_multitaskview->enter(static_cast<Multitaskview::ActiveReason>(reason));
     } else {
         if (m_multitaskview->status() == Multitaskview::Exited) {
             m_multitaskview->enter(Multitaskview::ShortcutKey);
-            Helper::instance()->setCurrentMode(Helper::CurrentMode::Multitaskview);
         } else {
             m_multitaskview->exit(nullptr);
-            Helper::instance()->setCurrentMode(Helper::CurrentMode::Normal);
         }
     }
 }

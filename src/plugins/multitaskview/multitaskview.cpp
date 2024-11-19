@@ -50,6 +50,8 @@ void Multitaskview::setActiveReason(ActiveReason activeReason)
 
 void Multitaskview::exit(SurfaceWrapper *surface)
 {
+    TreelandConfig::ref().setBlockActivateSurface(false);
+
     if (surface) {
         Helper::instance()->forceActivateSurface(surface);
     } else if (Helper::instance()->workspace()->current()->latestActiveSurface()) {
@@ -57,6 +59,9 @@ void Multitaskview::exit(SurfaceWrapper *surface)
         Helper::instance()->forceActivateSurface(
             Helper::instance()->workspace()->current()->latestActiveSurface());
     }
+
+    Helper::instance()->setCurrentMode(Helper::CurrentMode::Normal);
+
     // TODO: handle taskview gesture
     Q_EMIT aboutToExit();
     setStatus(Exited);
@@ -67,6 +72,7 @@ void Multitaskview::enter(ActiveReason reason)
     Helper::instance()->activateSurface(nullptr);
     setStatus(Active);
     setActiveReason(reason);
+    Helper::instance()->setCurrentMode(Helper::CurrentMode::Multitaskview);
 }
 
 MultitaskviewSurfaceModel::MultitaskviewSurfaceModel(QObject *parent)
