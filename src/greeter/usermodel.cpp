@@ -28,6 +28,7 @@
 #include <QFile>
 #include <QGuiApplication>
 #include <QList>
+#include <QQmlEngine>
 #include <QStandardPaths>
 #include <QStringList>
 #include <QTextStream>
@@ -68,15 +69,16 @@ UserModel::UserModel(QObject *parent)
         auto *newTrans = new QTranslator{ this };
         auto dirs = QStandardPaths::standardLocations(QStandardPaths::GenericDataLocation);
         for (const auto &dir : dirs) {
-            if (newTrans->load(locale, "greeter", ".", dir + "/ddm/translations", ".qm")) {
+            if (newTrans->load(locale, "greeter", ".", dir + "/treeland/translations", ".qm")) {
                 if (d->lastTrans) {
                     QGuiApplication::removeTranslator(d->lastTrans);
+                    d->lastTrans->deleteLater();
                 }
-                d->lastTrans->deleteLater();
                 d->lastTrans = newTrans;
                 QGuiApplication::installTranslator(d->lastTrans);
                 Q_EMIT updateTranslations(locale);
                 Q_EMIT dataChanged(createIndex(0, 0), createIndex(rowCount(), 0));
+                qmlEngine(this)->retranslate();
                 return;
             }
         }
