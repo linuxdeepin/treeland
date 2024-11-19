@@ -57,14 +57,19 @@ GNUInstallDirs_get_absolute_install_dir(
     TREELAND_FULL_DATA_DIR
     TREELAND_DATA_DIR
     DATADIR
+)
+
+GNUInstallDirs_get_absolute_install_dir(
+    TREELAND_FULL_PLUGINS_INSTALL_PATH
     TREELAND_PLUGINS_INSTALL_PATH
+    LIBDIR
 )
 
 add_compile_definitions("TREELAND_DATA_DIR=\"${TREELAND_FULL_DATA_DIR}\"")
 # NOTE:: remove force assert before stable version
 add_compile_definitions("QT_FORCE_ASSERTS")
 
-add_compile_definitions("TREELAND_PLUGINS_INSTALL_PATH=\"${TREELAND_PLUGINS_INSTALL_PATH}\"")
+add_compile_definitions("TREELAND_PLUGINS_INSTALL_PATH=\"${TREELAND_FULL_PLUGINS_INSTALL_PATH}\"")
 add_compile_definitions("TREELAND_PLUGINS_OUTPUT_PATH=\"${TREELAND_PLUGINS_OUTPUT_PATH}\"")
 
 set(PROJECT_RESOURCES_DIR "${CMAKE_SOURCE_DIR}/misc")
