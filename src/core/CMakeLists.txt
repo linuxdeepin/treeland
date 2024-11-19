@@ -200,7 +200,7 @@ set_target_properties(treeland_core PROPERTIES
 install(
     TARGETS
         treeland_core
-    EXPORT TreelandTargets
+    # EXPORT TreelandTargets
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
 )
 
