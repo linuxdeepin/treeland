@@ -174,10 +174,12 @@ void ShellHandler::onXdgSurfaceAdded(WXdgSurface *surface)
 
             if (auto parent = surface->parentSurface()) {
                 auto parentWrapper = m_rootSurfaceContainer->getSurface(parent);
-                auto container = qobject_cast<Workspace *>(parentWrapper->container());
-                Q_ASSERT(container);
+                auto container = qobject_cast<SurfaceContainer *>(parentWrapper->container());
                 parentWrapper->addSubSurface(wrapper);
-                container->addSurface(wrapper, parentWrapper->workspaceId());
+                if (auto workspace = qobject_cast<Workspace *>(container))
+                    workspace->addSurface(wrapper, parentWrapper->workspaceId());
+                else
+                    container->addSurface(wrapper);
             } else {
                 m_workspace->addSurface(wrapper);
             }
