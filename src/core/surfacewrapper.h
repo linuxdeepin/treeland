@@ -159,7 +159,6 @@ public:
     bool isTiling() const;
     bool isAnimationRunning() const;
     bool isWindowAnimationRunning() const;
-    void setRemoveWrapper(bool remove);
 
     qreal radius() const;
     void setRadius(qreal newRadius);
@@ -240,6 +239,8 @@ public:
     void disableWindowAnimation(bool disable = true);
     void setHideByShowDesk(bool show);
 
+    void markWrapperToRemoved();
+
 public Q_SLOTS:
     // for titlebar
     void requestMinimize(bool onAnimation = true);
@@ -294,11 +295,13 @@ Q_SIGNALS:
     void blurChanged();
     void windowAnimationRunningChanged();
     void coverEnabledChanged();
+    void aboutToBeInvalidated();
 
 private:
     using QQuickItem::setParentItem;
     using QQuickItem::stackAfter;
     using QQuickItem::stackBefore;
+    using QQuickItem::setVisible;
     void setParent(QQuickItem *item);
     void setActivate(bool activate);
     void setNormalGeometry(const QRectF &newNormalGeometry);
@@ -383,7 +386,7 @@ private:
     uint m_titleBarState : 2;
     uint m_noCornerRadius : 1;
     uint m_alwaysOnTop : 1;
-    uint m_removeWrapperEndOfAnimation : 1;
+    uint m_wrapperAbortToRemove : 1;
     uint m_skipSwitcher : 1;
     uint m_skipDockPreView : 1;
     uint m_skipMutiTaskView : 1;
