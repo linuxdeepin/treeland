@@ -136,23 +136,76 @@ void PersonalizationV1::onAppearanceContextCreated(personalization_appearance_co
 {
     using Appearance = personalization_appearance_context_v1;
 
-    connect(context, &Appearance::roundCornerRadiusChanged, this, [this, context] {
-        m_dconfig->setValue("windowRadius", context->roundCornerRadius());
+    m_appearanceContexts.push_back(context);
+
+    connect(context, &Appearance::roundCornerRadiusChanged, this, [this, context](int32_t radius) {
+        m_dconfig->setValue("windowRadius", radius);
+        for (auto *context : m_appearanceContexts) {
+            context->sendRoundCornerRadius(radius);
+        }
     });
-    connect(context, &Appearance::iconThemeChanged, this, [this, context] {
-        m_dconfig->setValue("iconThemeName", context->iconTheme());
+    connect(context, &Appearance::iconThemeChanged, this, [this, context](const QString &theme) {
+        m_dconfig->setValue("iconThemeName", theme);
+        for (auto *context : m_appearanceContexts) {
+            context->sendIconTheme(theme.toUtf8());
+        }
     });
-    connect(context, &Appearance::activeColorChanged, this, [this, context] {
-        TreelandConfig::ref().setActiveColor(context->activeColor());
+    connect(context, &Appearance::activeColorChanged, this, [this, context](const QString &color) {
+        TreelandConfig::ref().setActiveColor(color);
+        for (auto *context : m_appearanceContexts) {
+            context->sendActiveColor(color.toUtf8());
+        }
     });
-    connect(context, &Appearance::windowOpacityChanged, this, [this, context] {
-        TreelandConfig::ref().setWindowOpacity(context->windowOpacity());
+    connect(context, &Appearance::windowOpacityChanged, this, [this, context](uint32_t opacity) {
+        TreelandConfig::ref().setWindowOpacity(opacity);
+        for (auto *context : m_appearanceContexts) {
+            context->sendWindowOpacity(opacity);
+        }
     });
-    connect(context, &Appearance::windowThemeTypeChanged, this, [this, context] {
-        TreelandConfig::ref().setWindowThemeType(context->windowThemeType());
+    connect(context, &Appearance::windowThemeTypeChanged, this, [this, context](int32_t type) {
+        TreelandConfig::ref().setWindowThemeType(type);
+        for (auto *context : m_appearanceContexts) {
+            context->sendWindowThemeType(type);
+        }
     });
-    connect(context, &Appearance::titlebarHeightChanged, this, [this, context] {
-        TreelandConfig::ref().setWindowTitlebarHeight(context->titlebarHeight());
+    connect(context, &Appearance::titlebarHeightChanged, this, [this, context](uint32_t height) {
+        TreelandConfig::ref().setWindowTitlebarHeight(height);
+        for (auto *context : m_appearanceContexts) {
+            context->sendWindowTitlebarHeight(height);
+        }
+    });
+
+    connect(context, &Appearance::requestRoundCornerRadius, context, [this, context] {
+        context->setRoundCornerRadius(windowRadius());
+    });
+
+    connect(context, &Appearance::requestIconTheme, context, [this, context] {
+        context->setIconTheme(iconTheme().toUtf8());
+    });
+
+    connect(context, &Appearance::requestActiveColor, context, [this, context] {
+        context->setActiveColor(TreelandConfig::ref().activeColor().toUtf8());
+    });
+
+    connect(context, &Appearance::requestWindowOpacity, context, [this, context] {
+        context->setWindowOpacity(TreelandConfig::ref().windowOpacity());
+    });
+
+    connect(context, &Appearance::requestWindowThemeType, context, [this, context] {
+        context->setWindowThemeType(TreelandConfig::ref().windowThemeType());
+    });
+
+    connect(context, &Appearance::requestWindowTitlebarHeight, context, [this, context] {
+        context->setWindowTitlebarHeight(TreelandConfig::ref().windowTitlebarHeight());
+    });
+
+    connect(context, &Appearance::beforeDestroy, this, [this, context] {
+        for (auto it = m_appearanceContexts.begin(); it != m_appearanceContexts.end(); ++it) {
+            if (*it == context) {
+                m_appearanceContexts.erase(it);
+                break;
+            }
+        }
     });
 
     context->blockSignals(true);
