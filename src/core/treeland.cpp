@@ -43,6 +43,7 @@ Treeland::Treeland()
 {
     qmlRegisterModule("Treeland.Greeter", 1, 0);
     qmlRegisterModule("Treeland.Protocols", 1, 0);
+    qmlRegisterModule("Treeland.Capture", 2, 0);
     qmlRegisterType<SessionModel>("Treeland.Greeter", 1, 0, "SessionModel");
     qmlRegisterType<UserModel>("Treeland.Greeter", 1, 0, "UserModel");
     qmlRegisterType<GreeterProxy>("Treeland.Greeter", 1, 0, "Proxy");
