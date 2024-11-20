@@ -13,6 +13,7 @@ Item {
     visible: false
 
     property bool switchOn: true
+    property int focusReason: Qt.TabFocusReason
     required property QtObject output
     readonly property QtObject model: Helper.workspace.currentFilter
 
@@ -421,6 +422,7 @@ Item {
         if (switchView.contentWidth > root.width && nextIndex !== 0)
             switchView.contentX -= switchView.delegateMinWidth / 2
 
+        focusReason = Qt.BacktabFocusReason
         switchIndex(nextIndex)
     }
 
@@ -436,6 +438,7 @@ Item {
         if (switchView.contentWidth > root.width && nextIndex !== switchView.count - 1)
             switchView.contentX += switchView.delegateMinWidth / 2
 
+        focusReason = Qt.TabFocusReason
         switchIndex(nextIndex)
     }
 
@@ -481,7 +484,7 @@ Item {
         }
 
         if (switchView.currentItem)
-            Helper.forceActivateSurface(switchView.currentItem.surface)
+            Helper.forceActivateSurface(switchView.currentItem.surface, focusReason)
 
         if (root.enableAnimation && switchView.count <= 18) {
             previewWindows.model = root.model
