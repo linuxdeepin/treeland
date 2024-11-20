@@ -4,6 +4,7 @@
 #include "foreign_toplevel_manager_impl.h"
 
 #include "treeland-foreign-toplevel-manager-protocol.h"
+#include <wayland-server-core.h>
 
 #include <qwcompositor.h>
 #include <qwseat.h>
@@ -817,8 +818,10 @@ static void treeland_foreign_toplevel_manager_handle_get_dock_preview_context(
         treeland_dock_preview_context_v1 *context =
             wl_container_of(listener, context, destroy_listener);
 
-        wl_list_remove(&context->destroy_listener.link);
-        context->relative_surface = nullptr;
+        wl_resource_destroy(context->resource);
+
+        // wl_list_remove(&context->destroy_listener.link);
+        // context->relative_surface = nullptr;
     };
 
     wl_signal_add(&context->relative_surface->events.destroy, &context->destroy_listener);

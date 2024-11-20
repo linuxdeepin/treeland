@@ -49,7 +49,7 @@ qt_standard_project_setup(REQUIRES 6.6)
 
 # Set constants
 set(TREELAND_DATA_DIR           "${CMAKE_INSTALL_DATADIR}/treeland/"               CACHE PATH      "treeland data install directory")
-set(COMPONENTS_TRANSLATION_DIR  "${TREELAND_DATA_DIR}/translations"                  CACHE PATH      "Components translations directory")
+set(TREELAND_COMPONENTS_TRANSLATION_DIR  "${TREELAND_DATA_DIR}/translations"                  CACHE PATH      "Components translations directory")
 set(TREELAND_PLUGINS_OUTPUT_PATH   "${CMAKE_BINARY_DIR}/lib/plugins"          CACHE PATH      "treeland plugins output directory")
 set(TREELAND_PLUGINS_INSTALL_PATH  "${CMAKE_INSTALL_LIBDIR}/treeland/plugins" CACHE PATH      "treeland plugins install directory")
 
@@ -65,12 +65,20 @@ GNUInstallDirs_get_absolute_install_dir(
     LIBDIR
 )
 
+GNUInstallDirs_get_absolute_install_dir(
+    TREELAND_FULL_COMPONENTS_TRANSLATION_DIR
+    TREELAND_COMPONENTS_TRANSLATION_DIR
+    DATADIR
+)
+
 add_compile_definitions("TREELAND_DATA_DIR=\"${TREELAND_FULL_DATA_DIR}\"")
 # NOTE:: remove force assert before stable version
 add_compile_definitions("QT_FORCE_ASSERTS")
 
 add_compile_definitions("TREELAND_PLUGINS_INSTALL_PATH=\"${TREELAND_FULL_PLUGINS_INSTALL_PATH}\"")
 add_compile_definitions("TREELAND_PLUGINS_OUTPUT_PATH=\"${TREELAND_PLUGINS_OUTPUT_PATH}\"")
+
+add_compile_definitions("TREELAND_COMPONENTS_TRANSLATION_DIR=\"${TREELAND_FULL_COMPONENTS_TRANSLATION_DIR}\"")
 
 set(PROJECT_RESOURCES_DIR "${CMAKE_SOURCE_DIR}/misc")
 
