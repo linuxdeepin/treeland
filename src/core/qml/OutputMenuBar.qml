@@ -109,7 +109,10 @@ Item {
 
             ToolButton {
                 text: "Delete Workspace"
-                onClicked: Helper.workspace.removeModel(Helper.workspace.currentIndex);
+                onClicked: {
+                    if (Helper.workspace.count > 1)
+                        Helper.workspace.removeModel(Helper.workspace.currentIndex);
+                }
             }
 
             ToolButton {
