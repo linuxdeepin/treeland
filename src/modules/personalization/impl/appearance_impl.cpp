@@ -8,33 +8,50 @@
 #include "util.h"
 
 #include <wayland-server-core.h>
+#include <wayland-server.h>
 
 static const struct treeland_personalization_appearance_context_v1_interface
     personalization_appearance_context_impl = {
         .set_round_corner_radius = dispatch_member_function<
             &personalization_appearance_context_v1::setRoundCornerRadius>(),
-        .get_round_corner_radius = dispatch_member_function<
-            &personalization_appearance_context_v1::sendRoundCornerRadius>(),
+        .get_round_corner_radius =
+            [](struct wl_client *client, struct wl_resource *resource) {
+                Q_EMIT personalization_appearance_context_v1::fromResource(resource)
+                    ->requestRoundCornerRadius();
+            },
         .set_icon_theme =
             dispatch_member_function<&personalization_appearance_context_v1::setIconTheme>(),
         .get_icon_theme =
-            dispatch_member_function<&personalization_appearance_context_v1::sendIconTheme>(),
+            [](struct wl_client *client, struct wl_resource *resource) {
+                Q_EMIT personalization_appearance_context_v1::fromResource(resource)->requestIconTheme();
+            },
         .set_active_color =
             dispatch_member_function<&personalization_appearance_context_v1::setActiveColor>(),
         .get_active_color =
-            dispatch_member_function<&personalization_appearance_context_v1::sendActiveColor>(),
+            [](struct wl_client *client, struct wl_resource *resource) {
+                Q_EMIT personalization_appearance_context_v1::fromResource(resource)->requestActiveColor();
+            },
         .set_window_opacity =
             dispatch_member_function<&personalization_appearance_context_v1::setWindowOpacity>(),
         .get_window_opacity =
-            dispatch_member_function<&personalization_appearance_context_v1::sendWindowOpacity>(),
+            [](struct wl_client *client, struct wl_resource *resource) {
+                Q_EMIT personalization_appearance_context_v1::fromResource(resource)
+                    ->requestWindowOpacity();
+            },
         .set_window_theme_type =
             dispatch_member_function<&personalization_appearance_context_v1::setWindowThemeType>(),
         .get_window_theme_type =
-            dispatch_member_function<&personalization_appearance_context_v1::sendWindowThemeType>(),
+            [](struct wl_client *client, struct wl_resource *resource) {
+                Q_EMIT personalization_appearance_context_v1::fromResource(resource)
+                    ->requestWindowThemeType();
+            },
         .set_window_titlebar_height = dispatch_member_function<
             &personalization_appearance_context_v1::setWindowTitlebarHeight>(),
-        .get_window_titlebar_height = dispatch_member_function<
-            &personalization_appearance_context_v1::sendWindowTitlebarHeight>(),
+        .get_window_titlebar_height =
+            [](struct wl_client *client, struct wl_resource *resource) {
+                Q_EMIT personalization_appearance_context_v1::fromResource(resource)
+                    ->requestWindowTitlebarHeight();
+            },
         .destroy =
             []([[maybe_unused]] struct wl_client *client, struct wl_resource *resource) {
                 wl_resource_destroy(resource);
@@ -81,6 +98,7 @@ personalization_appearance_context_v1::personalization_appearance_context_v1(
         this,
         [](struct wl_resource *resource) {
             auto *p = personalization_appearance_context_v1::fromResource(resource);
+            Q_EMIT p->beforeDestroy();
             delete p;
             wl_list_remove(wl_resource_get_link(resource));
         });
@@ -97,114 +115,60 @@ personalization_appearance_context_v1::~personalization_appearance_context_v1()
 
 void personalization_appearance_context_v1::setRoundCornerRadius(int32_t radius)
 {
-    if (m_radius == radius) {
-        return;
-    }
-
-    m_radius = radius;
-
-    Q_EMIT roundCornerRadiusChanged();
+    Q_EMIT roundCornerRadiusChanged(radius);
 }
 
 void personalization_appearance_context_v1::setIconTheme(const char *theme_name)
 {
-    if (m_iconTheme == theme_name) {
-        return;
-    }
-
-    m_iconTheme = theme_name;
-
-    Q_EMIT iconThemeChanged();
+    Q_EMIT iconThemeChanged(theme_name);
 }
 
-void personalization_appearance_context_v1::sendRoundCornerRadius() const
+void personalization_appearance_context_v1::sendRoundCornerRadius(int32_t radius)
 {
-    treeland_personalization_appearance_context_v1_send_round_corner_radius(m_resource, m_radius);
+    treeland_personalization_appearance_context_v1_send_round_corner_radius(m_resource, radius);
 }
 
-void personalization_appearance_context_v1::sendIconTheme() const
+void personalization_appearance_context_v1::sendIconTheme(const char *icon_theme)
 {
-    treeland_personalization_appearance_context_v1_send_icon_theme(m_resource,
-                                                                   m_iconTheme.toUtf8());
+    treeland_personalization_appearance_context_v1_send_icon_theme(m_resource, icon_theme);
 }
 
 void personalization_appearance_context_v1::setActiveColor(const char *color)
 {
-    if (m_activeColor == color) {
-        return;
-    }
-
-    m_activeColor = color;
-
-    Q_EMIT activeColorChanged();
+    Q_EMIT activeColorChanged(color);
 }
 
-void personalization_appearance_context_v1::sendActiveColor() const
+void personalization_appearance_context_v1::sendActiveColor(const char *color)
 {
-    treeland_personalization_appearance_context_v1_send_active_color(m_resource,
-                                                                     m_activeColor.toUtf8());
+    treeland_personalization_appearance_context_v1_send_active_color(m_resource, color);
 }
 
 void personalization_appearance_context_v1::setWindowOpacity(uint32_t opacity)
 {
-    if (m_windowOpacity == opacity) {
-        return;
-    }
-
-    m_windowOpacity = opacity;
-
-    Q_EMIT windowOpacityChanged();
+    Q_EMIT windowOpacityChanged(opacity);
 }
 
-void personalization_appearance_context_v1::sendWindowOpacity() const
+void personalization_appearance_context_v1::sendWindowOpacity(uint32_t opacity)
 {
-    treeland_personalization_appearance_context_v1_send_window_opacity(m_resource, m_windowOpacity);
+    treeland_personalization_appearance_context_v1_send_window_opacity(m_resource, opacity);
 }
 
 void personalization_appearance_context_v1::setWindowThemeType(uint32_t type)
 {
-    if (m_windowThemeType == type) {
-        return;
-    }
-
-    m_windowThemeType = static_cast<ThemeType>(type);
-
-    Q_EMIT windowThemeTypeChanged();
+    Q_EMIT windowThemeTypeChanged(type);
 }
 
-void personalization_appearance_context_v1::sendWindowThemeType() const
+void personalization_appearance_context_v1::sendWindowThemeType(uint32_t type)
 {
-    treeland_personalization_appearance_context_v1_send_window_theme_type(m_resource,
-                                                                          m_windowThemeType);
+    treeland_personalization_appearance_context_v1_send_window_theme_type(m_resource, type);
 }
 
 void personalization_appearance_context_v1::setWindowTitlebarHeight(uint32_t height)
 {
-    if (m_titlebarHeight == height) {
-        return;
-    }
-
-    m_titlebarHeight = height;
-
-    Q_EMIT titlebarHeightChanged();
+    Q_EMIT titlebarHeightChanged(height);
 }
 
-void personalization_appearance_context_v1::sendWindowTitlebarHeight() const
+void personalization_appearance_context_v1::sendWindowTitlebarHeight(uint32_t height)
 {
-    treeland_personalization_appearance_context_v1_send_window_titlebar_height(m_resource,
-                                                                               m_titlebarHeight);
-}
-
-void personalization_appearance_context_v1::sendState(
-    std::function<void(struct wl_resource *)> func)
-{
-    struct wl_resource *resource;
-    wl_resource_for_each(resource, &m_manager->resources)
-    {
-        if (wl_resource_instance_of(resource,
-                                    &treeland_personalization_appearance_context_v1_interface,
-                                    &personalization_appearance_context_impl)) {
-            func(resource);
-        }
-    }
+    treeland_personalization_appearance_context_v1_send_window_titlebar_height(m_resource, height);
 }

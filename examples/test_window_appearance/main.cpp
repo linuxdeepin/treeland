@@ -80,7 +80,10 @@ public:
                                 &Appearance::windowTitlebarHeightChanged,
                                 this,
                                 [titlebarEdit](uint32_t height) {
+                                    titlebarEdit->blockSignals(true);
                                     titlebarEdit->setText(QString::number(height));
+                                    titlebarEdit->blockSignals(false);
+                                    qDebug() << "titlebar height changed: " << height;
                                 });
 
                         context->get_window_titlebar_height();
