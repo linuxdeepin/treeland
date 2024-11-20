@@ -837,7 +837,7 @@ void Helper::forceActivateSurface(SurfaceWrapper *wrapper, Qt::FocusReason reaso
     }
 
     if (wrapper->isMinimized()) {
-        wrapper->requestCancelMinimize(m_currentMode != CurrentMode::WindowSwitch);
+        wrapper->requestCancelMinimize(!(reason == Qt::TabFocusReason || reason == Qt::BacktabFocusReason));
     }
 
     if (!wrapper->surface()->mapped()) {
