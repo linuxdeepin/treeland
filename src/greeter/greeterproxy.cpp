@@ -28,7 +28,6 @@
 #include <DisplayManagerSession.h>
 #include <Messages.h>
 #include <SocketWriter.h>
-#include <_pam_types.h>
 #include <security/pam_appl.h>
 
 #include <QCommandLineOption>
