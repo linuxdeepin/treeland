@@ -242,6 +242,7 @@ bool SurfaceContainer::doRemoveSurface(SurfaceWrapper *surface, bool setContaine
     if (setContainer) {
         Q_ASSERT(surface->container() == this);
         surface->setContainer(nullptr);
+        // NOTE: Remove surface form Container will not clear it's parent
     }
 
     m_model->removeSurface(surface);

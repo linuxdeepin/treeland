@@ -95,12 +95,8 @@ void RootSurfaceContainer::destroyForSurface(SurfaceWrapper *wrapper)
     if (wrapper == moveResizeState.surface)
         endMoveResize();
 
-    if (!wrapper->isWindowAnimationRunning()) {
-        delete wrapper;
-    } else {
-        wrapper->setRemoveWrapper(true);
-        wrapper->container()->removeSurface(wrapper);
-    }
+    wrapper->container()->removeSurface(wrapper);
+    wrapper->markWrapperToRemoved();
 }
 
 void RootSurfaceContainer::addOutput(Output *output)

@@ -46,7 +46,7 @@ SurfaceWrapper::SurfaceWrapper(QmlEngine *qmlEngine,
     , m_skipMutiTaskView(false)
     , m_isDdeShellSurface(false)
     , m_xwaylandPositionFromSurface(true)
-    , m_removeWrapperEndOfAnimation(false)
+    , m_wrapperAbortToRemove(false)
     , m_isProxy(isProxy)
     , m_hideByWorkspace(false)
     , m_hideByshowDesk(true)
@@ -167,18 +167,30 @@ SurfaceWrapper::SurfaceWrapper(QmlEngine *qmlEngine,
 
 SurfaceWrapper::~SurfaceWrapper()
 {
-    if (m_titleBar)
+    if (m_titleBar) {
         delete m_titleBar;
-    if (m_decoration)
+        m_titleBar = nullptr;
+    }
+    if (m_decoration) {
         delete m_decoration;
-    if (m_geometryAnimation)
+        m_decoration = nullptr;
+    }
+    if (m_geometryAnimation) {
         delete m_geometryAnimation;
-    if (m_blurContent)
+        m_geometryAnimation = nullptr;
+    }
+    if (m_blurContent) {
         delete m_blurContent;
-    if (m_windowAnimation)
+        m_blurContent = nullptr;
+    }
+    if (m_windowAnimation) {
         delete m_windowAnimation;
-    if (m_coverContent)
+        m_windowAnimation = nullptr;
+    }
+    if (m_coverContent) {
         delete m_coverContent;
+        m_coverContent = nullptr;
+    }
 
     if (m_ownsOutput) {
         m_ownsOutput->removeSurface(this);
@@ -499,9 +511,15 @@ bool SurfaceWrapper::isWindowAnimationRunning() const
     return !m_windowAnimation.isNull();
 }
 
-void SurfaceWrapper::setRemoveWrapper(bool remove)
+void SurfaceWrapper::markWrapperToRemoved()
 {
-    m_removeWrapperEndOfAnimation = remove;
+    Q_ASSERT_X(!m_wrapperAbortToRemove, Q_FUNC_INFO, "Can't call `markWrapperToRemoved` twice!");
+    m_wrapperAbortToRemove = true;
+    m_shellSurface = nullptr;
+    Q_EMIT aboutToBeInvalidated();
+    if (!isWindowAnimationRunning()) {
+        delete this;
+    } // else delete this in Animation finish
 }
 
 void SurfaceWrapper::setNoDecoration(bool newNoDecoration)
@@ -808,8 +826,7 @@ void SurfaceWrapper::onHideAnimationFinished()
 
     onWindowAnimationFinished();
 
-    if (m_removeWrapperEndOfAnimation) {
-        m_removeWrapperEndOfAnimation = false;
+    if (m_wrapperAbortToRemove) {
         delete this;
     }
 }
