@@ -361,3 +361,72 @@ bool TreelandConfig::blockActivateSurface() const
 {
     return m_blockActivateSurface;
 }
+
+uint TreelandConfig::multitaskviewTopContentMargin() const
+{
+    return m_multitaskviewTopContentMargin;
+}
+
+void TreelandConfig::setMultitaskviewTopContentMargin(uint newMultitaskviewTopContentMargin)
+{
+    if (m_multitaskviewTopContentMargin == newMultitaskviewTopContentMargin) {
+        return;
+    }
+    m_multitaskviewTopContentMargin = newMultitaskviewTopContentMargin;
+    Q_EMIT multitaskviewTopContentMarginChanged();
+}
+
+uint TreelandConfig::multitaskviewBottomContentMargin() const
+{
+    return m_multitaskviewBottomContentMargin;
+}
+
+void TreelandConfig::setMultitaskviewBottomContentMargin(uint newMultitaskviewBottomContentMargin)
+{
+    if (m_multitaskviewBottomContentMargin == newMultitaskviewBottomContentMargin) {
+        return;
+    }
+    m_multitaskviewBottomContentMargin = newMultitaskviewBottomContentMargin;
+    Q_EMIT multitaskviewBottomContentMarginChanged();
+}
+
+uint TreelandConfig::multitaskviewHorizontalMargin() const
+{
+    return m_multitaskviewHorizontalMargin;
+}
+
+void TreelandConfig::setMultitaskviewHorizontalMargin(uint newMultitaskviewHorizontalMargin)
+{
+    if (m_multitaskviewHorizontalMargin == newMultitaskviewHorizontalMargin) {
+        return;
+    }
+    m_multitaskviewHorizontalMargin = newMultitaskviewHorizontalMargin;
+    Q_EMIT multitaskviewHorizontalMarginChanged();
+}
+
+uint TreelandConfig::multitaskviewCellPadding() const
+{
+    return m_multitaskviewCellPadding;
+}
+
+void TreelandConfig::setMultitaskviewCellPadding(uint newMultitaskviewCellPadding)
+{
+    if (m_multitaskviewCellPadding == newMultitaskviewCellPadding) {
+        return;
+    }
+    m_multitaskviewCellPadding = newMultitaskviewCellPadding;
+    Q_EMIT multitaskviewCellPaddingChanged();
+}
+
+qreal TreelandConfig::multitaskviewLoadFactor() const
+{
+    return m_multitaskviewLoadFactor;
+}
+
+void TreelandConfig::setMultitaskviewLoadFactor(qreal newMultitaskviewLoadFactor)
+{
+    if (qFuzzyCompare(m_multitaskviewLoadFactor, newMultitaskviewLoadFactor))
+        return;
+    m_multitaskviewLoadFactor = newMultitaskviewLoadFactor;
+    Q_EMIT multitaskviewLoadFactorChanged();
+}

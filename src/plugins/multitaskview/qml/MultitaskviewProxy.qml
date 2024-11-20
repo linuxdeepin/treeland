@@ -125,29 +125,61 @@ Multitaskview {
             width: output.outputItem.width
             height: output.outputItem.height
 
-            WorkspaceSelectionList {
-                id: workspaceSelectionList
-                output: outputPlacementItem.output
-                dragManager: multitaskviewDragManager
-                multitaskview: root
+            WallpaperController {
+                id: wallpaperController
+                output: outputPlacementItem.output.outputItem.output
+                lock: false
+                type: WallpaperController.Normal
             }
 
-            Repeater {
-                id: wsDelegates
-                model: Helper.workspace.models
-                WindowSelectionGrid {
-                    id: windowSelectionGrid
-                    exited: root.exited
-                    partialGestureFactor: root.taskviewVal
-                    inProgress: !Number.isInteger(taskviewVal)
-                    width: parent.width
-                    height: parent.height
-                    visible: workspace.visible
-                    multitaskview: root
+            ShaderEffectSource {
+                z: Multitaskview.Background
+                sourceItem: wallpaperController.proxy
+                recursive: true
+                live: true
+                smooth: true
+                anchors.fill: parent
+                hideSource: visible
+            }
+
+            Blur {
+                z: Multitaskview.Background
+                anchors.fill: parent
+                opacity: root.taskviewVal
+                radiusEnabled: false
+            }
+
+            Item {
+                id: validRectItem
+                x: output.validRect.x
+                y: output.validRect.y
+                z: Multitaskview.Overlay
+                width: output.validRect.width
+                height: output.validRect.height
+                WorkspaceSelectionList {
+                    id: workspaceSelectionList
                     output: outputPlacementItem.output
-                    draggedParent: root
-                    workspaceListPadding: TreelandConfig.workspaceDelegateHeight
                     dragManager: multitaskviewDragManager
+                    multitaskview: root
+                }
+
+                Repeater {
+                    id: wsDelegates
+                    model: Helper.workspace.models
+                    WindowSelectionGrid {
+                        id: windowSelectionGrid
+                        exited: root.exited
+                        partialGestureFactor: root.taskviewVal
+                        inProgress: !Number.isInteger(taskviewVal)
+                        width: parent.width
+                        height: parent.height
+                        visible: workspace.visible
+                        multitaskview: root
+                        output: outputPlacementItem.output
+                        draggedParent: root
+                        workspaceListPadding: TreelandConfig.workspaceDelegateHeight
+                        dragManager: multitaskviewDragManager
+                    }
                 }
             }
 
@@ -172,17 +204,52 @@ Multitaskview {
                         if (!visible)
                             workspaceAnimation.active = false
                     }
+                    Rectangle {
+                        anchors.fill: parent
+                        color: "black"
+                    }
+                    z: Multitaskview.Background
                     Row {
                         spacing: Helper.workspace.animationController.refGap * workspaceAnimation.localFactor
                         x: -Helper.workspace.animationController.viewportPos * workspaceAnimation.localFactor
                         Repeater {
                             model: Helper.workspace.models
-                            ShaderEffectSource {
+                            Item {
                                 required property int index
-                                width: outputPlacementItem.width
-                                height: outputPlacementItem.height
-                                hideSource: visible
-                                sourceItem: wsDelegates.itemAt(index) ?? null
+                                width: outputPlacementItem.output.outputItem.width
+                                height: outputPlacementItem.output.outputItem.height
+                                WallpaperController {
+                                    id: wpCtrl
+                                    output: outputPlacementItem.output.outputItem.output
+                                    lock: true
+                                    type: WallpaperController.Normal
+                                }
+
+                                ShaderEffectSource {
+                                    z: Multitaskview.Background
+                                    sourceItem: wpCtrl.proxy
+                                    recursive: true
+                                    live: true
+                                    smooth: true
+                                    anchors.fill: parent
+                                    hideSource: visible
+                                }
+
+                                Blur {
+                                    z: Multitaskview.Background
+                                    anchors.fill: parent
+                                    opacity: root.taskviewVal
+                                    radiusEnabled: false
+                                }
+
+                                ShaderEffectSource {
+                                    x: outputPlacementItem.output.validRect.x
+                                    y: outputPlacementItem.output.validRect.y
+                                    width: outputPlacementItem.output.validRect.width
+                                    height: outputPlacementItem.output.validRect.height
+                                    hideSource: visible
+                                    sourceItem: wsDelegates.itemAt(index) ?? null
+                                }
                             }
                         }
                     }
