@@ -81,64 +81,13 @@ treeland_capture_frame_v1 *capture_frame_from_resource(wl_resource *resource)
 
 void capture_session_resource_destroy(struct wl_resource *resource)
 {
-    struct treeland_capture_session_v1 *session = capture_session_from_resource(resource);
+    auto session = capture_session_from_resource(resource);
     if (!session) {
         return;
     }
     Q_EMIT session->beforeDestroy();
     delete session;
 }
-
-#if 0 // Used in the future
-void handle_treeland_capture_manager_v1_create_session(struct wl_client *client,
-                                                       struct wl_resource *resource,
-                                                       uint32_t source_hint,
-                                                       struct wl_resource *mask,
-                                                       uint32_t with_cursor,
-                                                       uint32_t capture_session)
-{
-    struct treeland_capture_manager_v1 *manager = capture_manager_from_resource(resource);
-    Q_ASSERT(manager);
-
-    struct treeland_capture_session_v1 *session = new treeland_capture_session_v1;
-    if (!session) {
-        wl_client_post_no_memory(client);
-        return;
-    }
-
-    int version = wl_resource_get_version(resource);
-
-    struct wl_resource *capture_session_resource =
-        wl_resource_create(client,
-                           &treeland_capture_session_v1_interface,
-                           version,
-                           capture_session);
-    if (!capture_session_resource) {
-        wl_client_post_no_memory(client);
-        delete session;
-        return;
-    }
-    session->resource = capture_session_resource;
-
-    if (!manager->enterSelectionMode(session)) {
-        wl_client_post_implementation_error(client, "Another session or context in selection,"
-                                                    "could not create session.");
-        wl_client_post_no_memory(client);
-        delete session;
-        manager->leaveSelectionMode();
-        return;
-    }
-
-    wl_resource_set_implementation(capture_session_resource,
-                                   &session_impl,
-                                   session,
-                                   capture_session_resource_destroy);
-    session->source_hint = source_hint;
-    session->mask_surface = mask;
-
-    Q_EMIT manager->captureSession(session);
-}
-#endif
 
 void capture_context_resource_destroy(struct wl_resource *resource)
 {
@@ -162,7 +111,7 @@ void capture_frame_resource_destroy(struct wl_resource *resource)
 
 void treeland_capture_manager_bind(wl_client *client, void *data, uint32_t version, uint32_t id)
 {
-    treeland_capture_manager_v1 *manager = static_cast<treeland_capture_manager_v1 *>(data);
+    auto *manager = static_cast<treeland_capture_manager_v1 *>(data);
     Q_ASSERT(client && manager);
     wl_resource *resource =
         wl_resource_create(client, &treeland_capture_manager_v1_interface, version, id);
@@ -217,12 +166,7 @@ void handle_treeland_capture_manager_v1_get_context(wl_client *client,
 {
     struct treeland_capture_manager_v1 *manager = capture_manager_from_resource(resource);
     Q_ASSERT(manager);
-    struct treeland_capture_context_v1 *capture_context = new treeland_capture_context_v1;
-
-    if (!capture_context) {
-        wl_client_post_no_memory(client);
-        return;
-    }
+    auto *capture_context = new treeland_capture_context_v1;
 
     int version = wl_resource_get_version(resource);
 
@@ -250,11 +194,7 @@ void handle_treeland_capture_context_v1_create_session(wl_client *client,
     struct treeland_capture_context_v1 *context = capture_context_from_resource(resource);
     Q_ASSERT(context);
 
-    struct treeland_capture_session_v1 *capture_session = new treeland_capture_session_v1;
-    if (!capture_session) {
-        wl_client_post_no_memory(client);
-        return;
-    }
+    auto *capture_session = new treeland_capture_session_v1;
 
     int version = wl_resource_get_version(resource);
 
@@ -303,11 +243,7 @@ void handle_treeland_capture_context_v1_capture(wl_client *client,
 {
     treeland_capture_context_v1 *context = capture_context_from_resource(resource);
     Q_ASSERT(context);
-    treeland_capture_frame_v1 *capture_frame = new treeland_capture_frame_v1;
-    if (!capture_frame) {
-        wl_client_post_no_memory(client);
-        return;
-    }
+    auto *capture_frame = new treeland_capture_frame_v1;
 
     int version = wl_resource_get_version(resource);
     struct wl_resource *capture_frame_resource =

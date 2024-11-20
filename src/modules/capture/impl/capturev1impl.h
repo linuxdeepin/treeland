@@ -41,9 +41,8 @@ public:
     bool withCursor{ false };
     bool freeze{ false };
     uint32_t sourceHint{ 0 };
-    WAYLIB_SERVER_NAMESPACE::WSurface *mask{
-        nullptr
-    }; // mask should be created so there must exist a wsurface
+    WAYLIB_SERVER_NAMESPACE::WSurface *mask{ nullptr };
+    // mask should be created so there must exist a wsurface
 
     void sendSourceFailed(uint32_t reason);
     void sendSourceReady(QRect region, uint32_t source_type);
@@ -107,7 +106,7 @@ struct treeland_capture_manager_v1 : public QObject
 public:
     wl_global *global;
     QList<QPair<WAYLIB_SERVER_NAMESPACE::WClient *, wl_resource *>> clientResources;
-    treeland_capture_manager_v1(wl_display *display, QObject *parent = nullptr);
+    explicit treeland_capture_manager_v1(wl_display *display, QObject *parent = nullptr);
     void addClientResource(wl_client *client, wl_resource *resource);
 Q_SIGNALS:
     void newCaptureContext(treeland_capture_context_v1 *context);
