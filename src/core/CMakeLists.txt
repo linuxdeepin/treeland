@@ -1,3 +1,5 @@
+find_package(QT NAMES Qt6 COMPONENTS Core REQUIRED)
+
 qt_add_dbus_adaptor(DBUS_ADAPTOR "${CMAKE_SOURCE_DIR}/misc/dbus/org.deepin.compositor1.xml" "treeland.h" Treeland::Treeland)
 
 qt_add_library(config INTERFACE)
@@ -171,6 +173,38 @@ target_link_libraries(treeland_core
         PkgConfig::LIBINPUT
 )
 
+set(TRANSLATED_FILES)
+if (${QT_VERSION_MINOR} LESS 7)
+    qt_add_lupdate(treeland_core
+        TS_FILES
+            ${CMAKE_SOURCE_DIR}/translations/treeland.zh_CN.ts
+            ${CMAKE_SOURCE_DIR}/translations/treeland.en_US.ts
+        NO_GLOBAL_TARGET
+    )
+
+    qt_add_lrelease(treeland_core
+        TS_FILES
+            ${CMAKE_SOURCE_DIR}/translations/treeland.zh_CN.ts
+            ${CMAKE_SOURCE_DIR}/translations/treeland.en_US.ts
+        QM_FILES_OUTPUT_VARIABLE TRANSLATED_FILES
+    )
+elseif (${QT_VERSION_MINOR} GREATER_EQUAL 7)
+    qt_add_lupdate(
+        SOURCE_TARGETS treeland_core
+        TS_FILES
+            ${CMAKE_SOURCE_DIR}/translations/treeland.zh_CN.ts
+            ${CMAKE_SOURCE_DIR}/translations/treeland.en_US.ts
+        NO_GLOBAL_TARGET
+    )
+
+    qt_add_lrelease(
+        TS_FILES
+            ${CMAKE_SOURCE_DIR}/translations/treeland.zh_CN.ts
+            ${CMAKE_SOURCE_DIR}/translations/treeland.en_US.ts
+        QM_FILES_OUTPUT_VARIABLE TRANSLATED_FILES
+    )
+endif()
+
 target_compile_definitions(treeland_core
     PRIVATE
     WLR_USE_UNSTABLE
@@ -187,6 +221,8 @@ qt_add_shaders(treeland_core "treeland_shaders_ng"
         ${PROJECT_RESOURCES_DIR}/shaders/radiussmoothtexture.vert
         ${PROJECT_RESOURCES_DIR}/shaders/radiussmoothtexture.frag
 )
+
+install(FILES ${TRANSLATED_FILES} DESTINATION ${TREELAND_COMPONENTS_TRANSLATION_DIR})
 
 install(FILES
     ${CORE_HEADERS}

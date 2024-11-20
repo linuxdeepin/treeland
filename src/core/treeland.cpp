@@ -15,6 +15,7 @@
 #include "treelandconfig.h"
 #include "usermodel.h"
 
+#include <Constants.h>
 #include <Messages.h>
 #include <SignalHandler.h>
 #include <SocketWriter.h>
@@ -22,11 +23,16 @@
 #include <wsocket.h>
 #include <wxwayland.h>
 
+#include <DAccountsManager>
+
 #include <QCoreApplication>
 #include <QDebug>
 #include <QLocalSocket>
 #include <QLoggingCategory>
+#include <QMetaMethod>
+#include <QTranslator>
 
+#include <memory>
 #include <pwd.h>
 #include <sys/socket.h>
 #include <unistd.h>
@@ -37,10 +43,196 @@ using namespace DDM;
 DCORE_USE_NAMESPACE;
 
 namespace Treeland {
+
+class TreelandPrivate : public QObject
+{
+    Q_OBJECT
+    Q_DECLARE_PUBLIC(Treeland)
+public:
+    explicit TreelandPrivate(Treeland *parent)
+        : QObject(parent)
+        , q_ptr(parent)
+        , socket(new QLocalSocket(this))
+    {
+    }
+
+    void init()
+    {
+        connect(socket, &QLocalSocket::connected, this, &TreelandPrivate::connected);
+        connect(socket, &QLocalSocket::disconnected, this, &TreelandPrivate::disconnected);
+        connect(socket, &QLocalSocket::readyRead, this, &TreelandPrivate::readyRead);
+        connect(socket, &QLocalSocket::errorOccurred, this, &TreelandPrivate::error);
+
+        qmlEngine = new QmlEngine(this);
+        QObject::connect(qmlEngine, &QQmlEngine::quit, qApp, &QCoreApplication::quit);
+
+        helper = qmlEngine->singletonInstance<Helper *>("Treeland", "Helper");
+        connect(helper, &Helper::currentUserIdChanged, this, [this] {
+            onCurrentChanged(helper->currentUserId());
+        });
+        helper->init();
+
+        onCurrentChanged(helper->currentUserId());
+    }
+
+    ~TreelandPrivate()
+    {
+        for (auto plugin : plugins) {
+            plugin->shutdown();
+            delete plugin;
+        }
+
+        plugins.clear();
+
+        for (auto it = pluginTs.begin(); it != pluginTs.end();) {
+            QCoreApplication::removeTranslator(it->second);
+            it->second->deleteLater();
+            pluginTs.erase(it++);
+        }
+    }
+
+    void onCurrentChanged(uid_t uid)
+    {
+        auto user = manager.findUserById(uid);
+        if (!user) {
+            qCWarning(dbus) << "user " << uid << " has been added but couldn't find it.";
+            return;
+        }
+
+        auto locale = QLocale{ user->get()->locale() };
+        qCInfo(dbus) << "current locale:" << locale.language();
+
+        do {
+            auto *newTrans = new QTranslator{ this };
+            if (newTrans
+                    ->load(locale, "treeland", ".", TREELAND_COMPONENTS_TRANSLATION_DIR, ".qm")) {
+                if (lastTrans) {
+                    QCoreApplication::removeTranslator(lastTrans);
+                    lastTrans->deleteLater();
+                }
+                lastTrans = newTrans;
+                QCoreApplication::installTranslator(lastTrans);
+                qmlEngine->retranslate();
+                break;
+            }
+            newTrans->deleteLater();
+            qCWarning(dbus) << "failed to load new translator";
+        } while (false);
+    }
+
+    void updatePluginTs(PluginInterface *plugin, const QString &scope)
+    {
+        auto user = manager.findUserById(helper->currentUserId());
+        if (!user) {
+            qCWarning(dbus) << "user " << helper->currentUserId()
+                            << " has been added but couldn't find it.";
+            return;
+        }
+
+        auto locale = QLocale{ user->get()->locale() };
+        qCInfo(dbus) << "current locale:" << locale.language();
+        QTranslator *newTrans = new QTranslator;
+
+        if (newTrans->load(locale, scope, ".", TREELAND_COMPONENTS_TRANSLATION_DIR, ".qm")) {
+            for (auto it = pluginTs.begin(); it != pluginTs.end(); ++it) {
+                if (it->first == plugin) {
+                    QCoreApplication::removeTranslator(it->second);
+                    pluginTs.erase(it);
+                    break;
+                }
+            }
+
+            pluginTs[plugin] = newTrans;
+            QCoreApplication::installTranslator(pluginTs[plugin]);
+            qmlEngine->retranslate();
+        } else {
+            qCWarning(dbus) << "failed to load plugin translator: " << scope;
+        }
+    }
+
+    void loadPlugin(const QString &path)
+    {
+        Q_Q(Treeland);
+
+        QDir pluginsDir(path);
+
+        if (!pluginsDir.exists()) {
+            return;
+        }
+
+        const QStringList pluginFiles = pluginsDir.entryList(QDir::Files | QDir::NoDotAndDotDot);
+        for (const QString &pluginFile : pluginFiles) {
+            QString filePath = pluginsDir.absoluteFilePath(pluginFile);
+            qCDebug(dbus) << "Attempting to load plugin:" << filePath;
+
+            QPluginLoader loader(filePath);
+            QObject *pluginInstance = loader.instance();
+
+            if (!pluginInstance) {
+                qWarning(dbus) << "Failed to load plugin:" << loader.errorString();
+                continue;
+            }
+
+            PluginInterface *plugin = qobject_cast<PluginInterface *>(pluginInstance);
+            if (!plugin) {
+                qWarning(dbus) << "Plugin does not implement PluginInterface.";
+            }
+
+            qCDebug(dbus) << "Loaded plugin: " << plugin->name()
+                          << ", enabled: " << plugin->enabled()
+                          << ", metadata: " << loader.metaData();
+            // TODO: use scheduler to run
+            plugin->initialize(q);
+            plugins.push_back(plugin);
+
+            const QString scope{
+                loader.metaData().value("MetaData").toObject().value("translate").toString()
+            };
+            qCDebug(dbus) << "Plugin translate scope:" << scope;
+
+            connect(helper, &Helper::currentUserIdChanged, pluginInstance, [this, plugin, scope] {
+                updatePluginTs(plugin, scope);
+            });
+
+            updatePluginTs(plugin, scope);
+
+            if (auto *multitaskview = qobject_cast<IMultitaskView *>(pluginInstance)) {
+                qCDebug(dbus) << "Get MultitaskView Instance.";
+                connect(pluginInstance, &QObject::destroyed, this, [this] {
+                    helper->setMultitaskViewImpl(nullptr);
+                });
+                helper->setMultitaskViewImpl(multitaskview);
+            }
+        }
+    }
+
+private Q_SLOTS:
+    void connected();
+    void disconnected();
+    void readyRead();
+    void error();
+
+private:
+    Treeland *q_ptr;
+    DAccountsManager manager;
+    QTranslator *lastTrans{ nullptr };
+    QmlEngine *qmlEngine{ nullptr };
+    std::vector<PluginInterface *> plugins;
+    QLocalSocket *socket{ nullptr };
+    QLocalSocket *helperSocket{ nullptr };
+    Helper *helper{ nullptr };
+    QMap<QString, std::shared_ptr<WAYLIB_SERVER_NAMESPACE::WSocket>> userWaylandSocket;
+    QMap<QString, std::shared_ptr<QDBusUnixFileDescriptor>> userDisplayFds;
+    std::vector<QAction *> shortcuts;
+    std::map<PluginInterface *, QTranslator *> pluginTs;
+};
+
 Treeland::Treeland()
     : QObject()
-    , m_socket(new QLocalSocket(this))
+    , d_ptr(std::make_unique<TreelandPrivate>(this))
 {
+    Q_D(Treeland);
+
     qmlRegisterModule("Treeland.Greeter", 1, 0);
     qmlRegisterModule("Treeland.Protocols", 1, 0);
     qmlRegisterModule("Treeland.Capture", 2, 0);
@@ -54,44 +246,34 @@ Treeland::Treeland()
                                  "TreelandConfig",
                                  &TreelandConfig::ref()); // Inject treeland config singleton.
 
-    m_qmlEngine = std::make_unique<QmlEngine>(this);
-
-    QObject::connect(m_qmlEngine.get(), &QQmlEngine::quit, qApp, &QCoreApplication::quit);
-
-    m_helper = m_qmlEngine->singletonInstance<Helper *>("Treeland", "Helper");
-    m_helper->init();
-
-    connect(m_socket, &QLocalSocket::connected, this, &Treeland::connected);
-    connect(m_socket, &QLocalSocket::disconnected, this, &Treeland::disconnected);
-    connect(m_socket, &QLocalSocket::readyRead, this, &Treeland::readyRead);
-    connect(m_socket, &QLocalSocket::errorOccurred, this, &Treeland::error);
+    d->init();
 
     if (CmdLine::ref().socket().has_value()) {
         new DDM::SignalHandler(this);
-        Q_ASSERT(m_helper);
-        auto connectToServer = [this] {
-            m_socket->connectToServer(CmdLine::ref().socket().value());
+        Q_ASSERT(d->helper);
+        auto connectToServer = [this, d] {
+            d->socket->connectToServer(CmdLine::ref().socket().value());
         };
 
-        connect(m_helper, &Helper::socketFileChanged, this, connectToServer);
+        connect(d->helper, &Helper::socketFileChanged, this, connectToServer);
 
-        WSocket *defaultSocket = m_helper->defaultWaylandSocket();
+        WSocket *defaultSocket = d->helper->defaultWaylandSocket();
         if (defaultSocket && defaultSocket->isValid()) {
             connectToServer();
         }
     } else {
-        m_helper->setCurrentUserId(getuid());
+        d->helper->setCurrentUserId(getuid());
     }
 
     if (CmdLine::ref().run().has_value()) {
-        auto exec = [runCmd = CmdLine::ref().run().value(), this] {
+        auto exec = [runCmd = CmdLine::ref().run().value(), this, d] {
             qCInfo(dbus) << "run cmd:" << runCmd;
             if (auto cmdline = CmdLine::ref().unescapeExecArgs(runCmd); cmdline) {
                 auto cmdArgs = cmdline.value();
 
                 auto envs = QProcessEnvironment::systemEnvironment();
-                envs.insert("WAYLAND_DISPLAY", m_helper->defaultWaylandSocket()->fullServerName());
-                envs.insert("DISPLAY", m_helper->defaultXWaylandSocket()->displayName());
+                envs.insert("WAYLAND_DISPLAY", d->helper->defaultWaylandSocket()->fullServerName());
+                envs.insert("DISPLAY", d->helper->defaultXWaylandSocket()->displayName());
                 envs.insert("DDE_CURRENT_COMPOSITOR", "Treeland");
 
                 QProcess process;
@@ -105,9 +287,9 @@ Treeland::Treeland()
             }
         };
         auto con =
-            connect(m_helper, &Helper::socketFileChanged, this, exec, Qt::SingleShotConnection);
+            connect(d->helper, &Helper::socketFileChanged, this, exec, Qt::SingleShotConnection);
 
-        WSocket *defaultSocket = m_helper->defaultWaylandSocket();
+        WSocket *defaultSocket = d->helper->defaultWaylandSocket();
         if (defaultSocket && defaultSocket->isValid()) {
             QObject::disconnect(con);
             exec();
@@ -124,19 +306,15 @@ Treeland::Treeland()
     QDBusConnection::sessionBus().registerObject("/org/deepin/Compositor1", this);
 
 #ifdef QT_DEBUG
-    loadPlugin(QStringLiteral(TREELAND_PLUGINS_OUTPUT_PATH));
+    d->loadPlugin(QStringLiteral(TREELAND_PLUGINS_OUTPUT_PATH));
 #else
-    loadPlugin(QStringLiteral(TREELAND_PLUGINS_INSTALL_PATH));
+    d->loadPlugin(QStringLiteral(TREELAND_PLUGINS_INSTALL_PATH));
 #endif
 }
 
 Treeland::~Treeland()
 {
-    for (auto plugin : m_plugins) {
-        plugin->shutdown();
-        delete plugin;
-    }
-    m_plugins.clear();
+    Q_D(Treeland);
 }
 
 bool Treeland::testMode() const
@@ -155,17 +333,23 @@ bool Treeland::debugMode() const
 
 QmlEngine *Treeland::qmlEngine() const
 {
-    return m_qmlEngine.get();
+    Q_D(const Treeland);
+
+    return d->qmlEngine;
 }
 
 Workspace *Treeland::workspace() const
 {
-    return m_helper->workspace();
+    Q_D(const Treeland);
+
+    return d->helper->workspace();
 }
 
 RootSurfaceContainer *Treeland::rootSurfaceContainer() const
 {
-    return m_helper->rootSurfaceContainer();
+    Q_D(const Treeland);
+
+    return d->helper->rootSurfaceContainer();
 }
 
 void Treeland::blockActivateSurface(bool block)
@@ -178,81 +362,39 @@ bool Treeland::isBlockActivateSurface() const
     return TreelandConfig::ref().blockActivateSurface();
 }
 
-void Treeland::loadPlugin(const QString &path)
-{
-    QDir pluginsDir(path);
-
-    if (!pluginsDir.exists()) {
-        return;
-    }
-
-    const QStringList pluginFiles = pluginsDir.entryList(QDir::Files | QDir::NoDotAndDotDot);
-    for (const QString &pluginFile : pluginFiles) {
-        QString filePath = pluginsDir.absoluteFilePath(pluginFile);
-        qCDebug(dbus) << "Attempting to load plugin:" << filePath;
-
-        QPluginLoader loader(filePath);
-        QObject *pluginInstance = loader.instance();
-
-        if (!pluginInstance) {
-            qWarning(dbus) << "Failed to load plugin:" << loader.errorString();
-            continue;
-        }
-
-        PluginInterface *plugin = qobject_cast<PluginInterface *>(pluginInstance);
-        if (!plugin) {
-            qWarning(dbus) << "Plugin does not implement PluginInterface.";
-        }
-
-        qCDebug(dbus) << "Loaded plugin: " << plugin->name() << ", enabled: " << plugin->enabled();
-        // TODO: use scheduler to run
-        plugin->initialize(this);
-        m_plugins.push_back(plugin);
-
-        if (auto *multitaskview = qobject_cast<IMultitaskView *>(pluginInstance)) {
-            qCDebug(dbus) << "Get MultitaskView Instance.";
-            connect(pluginInstance, &QObject::destroyed, this, [this] {
-                m_helper->setMultitaskViewImpl(nullptr);
-            });
-            m_helper->setMultitaskViewImpl(multitaskview);
-        }
-    }
-}
-
-void Treeland::connected()
+void TreelandPrivate::connected()
 {
     // log connection
     qCDebug(dbus) << "Connected to the daemon.";
 
     // send connected message
-    DDM::SocketWriter(m_socket) << quint32(DDM::GreeterMessages::Connect);
+    DDM::SocketWriter(socket) << quint32(DDM::GreeterMessages::Connect);
 }
 
-void Treeland::retranslate() noexcept
+void TreelandPrivate::disconnected()
 {
-    // m_engine->retranslate();
-}
+    Q_Q(Treeland);
 
-void Treeland::disconnected()
-{
     // log disconnection
     qCDebug(dbus) << "Disconnected from the daemon.";
 
-    Q_EMIT socketDisconnected();
+    Q_EMIT q->socketDisconnected();
 
     qCDebug(dbus) << "Display Manager is closed socket connect, quiting treeland.";
     qApp->exit();
 }
 
-void Treeland::error()
+void TreelandPrivate::error()
 {
-    qCritical() << "Socket error: " << m_socket->errorString();
+    qCritical() << "Socket error: " << socket->errorString();
 }
 
-void Treeland::readyRead()
+void TreelandPrivate::readyRead()
 {
+    Q_Q(Treeland);
+
     // input stream
-    QDataStream input(m_socket);
+    QDataStream input(socket);
 
     while (input.device()->bytesAvailable()) {
         // read message
@@ -269,12 +411,12 @@ void Treeland::readyRead()
             QString user;
             input >> user;
 
-            for (auto key : m_userWaylandSocket.keys()) {
-                m_userWaylandSocket[key]->setEnabled(key == user);
+            for (auto key : userWaylandSocket.keys()) {
+                userWaylandSocket[key]->setEnabled(key == user);
             }
 
             struct passwd *pwd = getpwnam(user.toUtf8());
-            m_helper->setCurrentUserId(pwd->pw_uid);
+            helper->setCurrentUserId(pwd->pw_uid);
         } break;
         case DDM::DaemonMessages::SwitchToGreeter: {
             // Q_EMIT m_helper->greeterVisibleChanged();
@@ -287,6 +429,8 @@ void Treeland::readyRead()
 
 bool Treeland::ActivateWayland(QDBusUnixFileDescriptor _fd)
 {
+    Q_D(Treeland);
+
     if (!_fd.isValid()) {
         return false;
     }
@@ -302,19 +446,19 @@ bool Treeland::ActivateWayland(QDBusUnixFileDescriptor _fd)
     auto socket = std::make_shared<WSocket>(true);
     socket->create(fd->fileDescriptor(), false);
 
-    socket->setEnabled(m_helper->currentUserId() == pw->pw_uid);
+    socket->setEnabled(d->helper->currentUserId() == pw->pw_uid);
 
-    m_helper->addSocket(socket.get());
+    d->helper->addSocket(socket.get());
 
-    m_userWaylandSocket[user] = socket;
-    m_userDisplayFds[user] = fd;
+    d->userWaylandSocket[user] = socket;
+    d->userDisplayFds[user] = fd;
 
     connect(connection().interface(),
             &QDBusConnectionInterface::serviceUnregistered,
             socket.get(),
-            [this, user] {
-                m_userWaylandSocket.remove(user);
-                m_userDisplayFds.remove(user);
+            [this, user, d] {
+                d->userWaylandSocket.remove(user);
+                d->userDisplayFds.remove(user);
             });
 
     return true;
@@ -322,6 +466,8 @@ bool Treeland::ActivateWayland(QDBusUnixFileDescriptor _fd)
 
 QString Treeland::XWaylandName()
 {
+    Q_D(Treeland);
+
     setDelayedReply(true);
 
     auto uid = connection().interface()->serviceUid(message().service());
@@ -329,7 +475,7 @@ QString Treeland::XWaylandName()
     pw = getpwuid(uid);
     QString user{ pw->pw_name };
 
-    auto *xwayland = m_helper->createXWayland();
+    auto *xwayland = d->helper->createXWayland();
     const QString &display = xwayland->displayName();
 
     auto m = message();
@@ -370,3 +516,5 @@ QString Treeland::XWaylandName()
 }
 
 } // namespace Treeland
+
+#include "treeland.moc"
