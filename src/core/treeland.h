@@ -10,6 +10,7 @@
 
 #include <QDBusContext>
 #include <QDBusUnixFileDescriptor>
+#include <qtclasshelpermacros.h>
 
 #include <memory>
 
@@ -20,18 +21,18 @@ class PluginInterface;
 
 namespace Treeland {
 
+class TreelandPrivate;
 class Treeland
     : public QObject
     , protected QDBusContext
     , TreelandProxyInterface
 {
     Q_OBJECT
+    Q_DECLARE_PRIVATE(Treeland)
 
 public:
     explicit Treeland();
     ~Treeland();
-
-    Q_INVOKABLE void retranslate() noexcept;
 
     bool testMode() const;
 
@@ -51,21 +52,7 @@ public Q_SLOTS:
     bool ActivateWayland(QDBusUnixFileDescriptor fd);
     QString XWaylandName();
 
-private Q_SLOTS:
-    void loadPlugin(const QString &path);
-    void connected();
-    void disconnected();
-    void readyRead();
-    void error();
-
 private:
-    QLocalSocket *m_socket{ nullptr };
-    QLocalSocket *m_helperSocket{ nullptr };
-    Helper *m_helper{ nullptr };
-    std::unique_ptr<QmlEngine> m_qmlEngine;
-    QMap<QString, std::shared_ptr<WAYLIB_SERVER_NAMESPACE::WSocket>> m_userWaylandSocket;
-    QMap<QString, std::shared_ptr<QDBusUnixFileDescriptor>> m_userDisplayFds;
-    std::vector<PluginInterface *> m_plugins;
-    std::vector<QAction *> m_shortcuts;
+    std::unique_ptr<TreelandPrivate> d_ptr;
 };
 } // namespace Treeland

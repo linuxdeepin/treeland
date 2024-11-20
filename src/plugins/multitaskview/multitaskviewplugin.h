@@ -16,7 +16,7 @@ class MultitaskViewPlugin
     , public IMultitaskView
 {
     Q_OBJECT
-    Q_PLUGIN_METADATA(IID "org.deepin.treeland.plugin.multitaskview/1.0")
+    Q_PLUGIN_METADATA(IID "org.deepin.treeland.plugin.multitaskview/1.0" FILE "metadata.json")
     Q_INTERFACES(PluginInterface IMultitaskView)
 public:
     QString name() const override
