@@ -41,14 +41,12 @@ void MultitaskViewPlugin::setStatus(IMultitaskView::Status status)
 void MultitaskViewPlugin::toggleMultitaskView(IMultitaskView::ActiveReason reason)
 {
     if (!m_multitaskview) {
-        Helper::instance()->toggleOutputMenuBar(false);
         m_proxy->workspace()->setSwitcherEnabled(false);
         m_multitaskview =
             qobject_cast<Multitaskview *>(createMultitaskview(m_proxy->rootSurfaceContainer()));
         connect(m_multitaskview.data(), &Multitaskview::visibleChanged, this, [this] {
             if (!m_multitaskview->isVisible()) {
                 m_multitaskview->deleteLater();
-                Helper::instance()->toggleOutputMenuBar(true);
                 m_proxy->workspace()->setSwitcherEnabled(true);
             }
         });

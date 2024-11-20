@@ -41,6 +41,11 @@ class TreelandConfig
     Q_PROPERTY(uint windowThemeType READ windowThemeType WRITE setWindowThemeType NOTIFY windowThemeTypeChanged FINAL)
     Q_PROPERTY(uint windowTitlebarHeight READ windowTitlebarHeight WRITE setWindowTitlebarHeight NOTIFY windowTitlebarHeightChanged FINAL)
     Q_PROPERTY(bool blockActivateSurface READ blockActivateSurface WRITE setBlockActivateSurface NOTIFY blockActivateSurfaceChanged FINAL)
+    Q_PROPERTY(uint multitaskviewTopContentMargin READ multitaskviewTopContentMargin WRITE setMultitaskviewTopContentMargin NOTIFY multitaskviewTopContentMarginChanged FINAL)
+    Q_PROPERTY(uint multitaskviewBottomContentMargin READ multitaskviewBottomContentMargin WRITE setMultitaskviewBottomContentMargin NOTIFY multitaskviewBottomContentMarginChanged FINAL)
+    Q_PROPERTY(uint multitaskviewHorizontalMargin READ multitaskviewHorizontalMargin WRITE setMultitaskviewHorizontalMargin NOTIFY multitaskviewHorizontalMarginChanged FINAL)
+    Q_PROPERTY(uint multitaskviewCellPadding READ multitaskviewCellPadding WRITE setMultitaskviewCellPadding NOTIFY multitaskviewCellPaddingChanged FINAL)
+    Q_PROPERTY(qreal multitaskviewLoadFactor READ multitaskviewLoadFactor WRITE setMultitaskviewLoadFactor NOTIFY multitaskviewLoadFactorChanged FINAL)
 
 public:
     TreelandConfig();
@@ -113,6 +118,21 @@ public:
     void setBlockActivateSurface(bool block);
     bool blockActivateSurface() const;
 
+    uint multitaskviewTopContentMargin() const;
+    void setMultitaskviewTopContentMargin(uint newMultitaskviewTopContentMargin);
+
+    uint multitaskviewBottomContentMargin() const;
+    void setMultitaskviewBottomContentMargin(uint newMultitaskviewBottomContentMargin);
+
+    uint multitaskviewHorizontalMargin() const;
+    void setMultitaskviewHorizontalMargin(uint newMultitaskviewHorizontalMargin);
+
+    uint multitaskviewCellPadding() const;
+    void setMultitaskviewCellPadding(uint newMultitaskviewCellPadding);
+
+    qreal multitaskviewLoadFactor() const;
+    void setMultitaskviewLoadFactor(qreal newMultitaskviewLoadFactor);
+
 Q_SIGNALS:
     void workspaceThumbMarginChanged();
     void workspaceThumbHeightChanged();
@@ -138,6 +158,11 @@ Q_SIGNALS:
     void windowThemeTypeChanged();
     void windowTitlebarHeightChanged();
     void blockActivateSurfaceChanged();
+    void multitaskviewTopContentMarginChanged();
+    void multitaskviewBottomContentMarginChanged();
+    void multitaskviewHorizontalMarginChanged();
+    void multitaskviewCellPaddingChanged();
+    void multitaskviewLoadFactorChanged();
 
 private:
     void onDConfigChanged(const QString &key);
@@ -167,4 +192,9 @@ private:
     QEasingCurve::Type m_multitaskviewEasingCurveType =
         QEasingCurve::OutQuad; // TODO: move to dconfig
     bool m_blockActivateSurface{ false };
+    uint m_multitaskviewTopContentMargin = 40;
+    uint m_multitaskviewBottomContentMargin = 60;
+    uint m_multitaskviewHorizontalMargin = 20;
+    uint m_multitaskviewCellPadding = 12;
+    qreal m_multitaskviewLoadFactor = 0.6;
 };

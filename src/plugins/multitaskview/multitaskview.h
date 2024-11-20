@@ -79,10 +79,6 @@ class MultitaskviewSurfaceModel : public QAbstractListModel
     Q_PROPERTY(Output *output READ output WRITE setOutput NOTIFY outputChanged FINAL)
     Q_PROPERTY(uint count READ count NOTIFY countChanged FINAL)
 
-    static inline constexpr qreal LoadFactor = 0.6;
-    static inline constexpr qreal CellPadding = 12;
-    static inline constexpr qreal TopContentMargin = 40;
-
     struct SurfaceModelData
     {
         SurfaceWrapper *wrapper{ nullptr };
