@@ -8,26 +8,18 @@
 #include <private/qwaylandclientextension_p.h>
 #include <private/qwaylandshmbackingstore_p.h>
 
+#include <QQmlEngine>
+#include <qqmlregistration.h>
+
 class TreelandCaptureFrame
     : public QObject
     , public QtWayland::treeland_capture_frame_v1
 {
     Q_OBJECT
+    QML_ELEMENT
 public:
-    TreelandCaptureFrame(struct ::treeland_capture_frame_v1 *object)
-        : QObject()
-        , QtWayland::treeland_capture_frame_v1(object)
-        , m_shmBuffer(nullptr)
-        , m_pendingShmBuffer(nullptr)
-    {
-    }
-
-    ~TreelandCaptureFrame() override
-    {
-        delete m_shmBuffer;
-        delete m_pendingShmBuffer;
-        destroy();
-    }
+    TreelandCaptureFrame(struct ::treeland_capture_frame_v1 *object, QObject *parent = nullptr);
+    ~TreelandCaptureFrame() override;
 
     inline uint flags() const
     {
@@ -48,9 +40,121 @@ protected:
     void treeland_capture_frame_v1_failed() override;
 
 private:
-    QtWaylandClient::QWaylandShmBuffer *m_shmBuffer;
-    QtWaylandClient::QWaylandShmBuffer *m_pendingShmBuffer;
+    QtWaylandClient::QWaylandShmBuffer *m_shmBuffer{ nullptr };
+    QtWaylandClient::QWaylandShmBuffer *m_pendingShmBuffer{ nullptr };
     uint m_flags;
+};
+
+struct FrameObject
+{
+    uint32_t index;
+    int32_t fd;
+    uint32_t size;
+    uint32_t offset;
+    uint32_t stride;
+    uint32_t planeIndex;
+};
+
+union ModifierUnion
+{
+    struct
+    {
+        uint32_t modLow;
+        uint32_t modHigh;
+    };
+
+    uint64_t modifier;
+};
+
+class TreelandCaptureSession
+    : public QObject
+    , public QtWayland::treeland_capture_session_v1
+{
+    Q_OBJECT
+    QML_ELEMENT
+    Q_PROPERTY(bool started READ started NOTIFY startedChanged FINAL)
+
+public:
+    explicit TreelandCaptureSession(::treeland_capture_session_v1 *object,
+                                    QObject *parent = nullptr);
+    ~TreelandCaptureSession() override;
+
+    inline uint bufferWidth() const
+    {
+        return m_bufferWidth;
+    }
+
+    inline uint bufferHeight() const
+    {
+        return m_bufferHeight;
+    }
+
+    inline uint bufferFormat() const
+    {
+        return m_bufferFormat;
+    }
+
+    inline uint bufferFlags() const
+    {
+        return m_bufferFlags;
+    }
+
+    inline const QList<FrameObject> &objects() const
+    {
+        return m_objects;
+    }
+
+    inline ModifierUnion modifierUnion() const
+    {
+        return m_modifierUnion;
+    }
+
+    inline bool started() const
+    {
+        return m_started;
+    }
+
+    void start();
+Q_SIGNALS:
+    void invalid();
+    void ready();
+    void startedChanged();
+
+protected:
+    void treeland_capture_session_v1_frame(int32_t offset_x,
+                                           int32_t offset_y,
+                                           uint32_t width,
+                                           uint32_t height,
+                                           uint32_t buffer_flags,
+                                           uint32_t flags,
+                                           uint32_t format,
+                                           uint32_t mod_high,
+                                           uint32_t mod_low,
+                                           uint32_t num_objects) override;
+    void treeland_capture_session_v1_object(uint32_t index,
+                                            int32_t fd,
+                                            uint32_t size,
+                                            uint32_t offset,
+                                            uint32_t stride,
+                                            uint32_t plane_index) override;
+    void treeland_capture_session_v1_ready(uint32_t tv_sec_hi,
+                                           uint32_t tv_sec_lo,
+                                           uint32_t tv_nsec) override;
+    void treeland_capture_session_v1_cancel(uint32_t reason) override;
+
+private:
+    QPoint m_offset;
+    uint m_bufferWidth;
+    uint m_bufferHeight;
+    uint m_bufferFlags;
+    uint m_bufferFormat;
+    ModifierUnion m_modifierUnion;
+    QList<FrameObject> m_objects;
+    QtWayland::treeland_capture_session_v1::flags m_flags;
+    bool m_started{ false };
+    uint32_t m_tvSecHi;
+    uint32_t m_tvSecLo;
+    uint32_t m_tvUsec;
 };
 
 class TreelandCaptureContext
@@ -58,16 +162,19 @@ class TreelandCaptureContext
     , public QtWayland::treeland_capture_context_v1
 {
     Q_OBJECT
+    QML_ELEMENT
+    Q_PROPERTY(TreelandCaptureFrame* frame READ frame NOTIFY frameChanged FINAL)
+    Q_PROPERTY(TreelandCaptureSession* session READ session NOTIFY sessionChanged FINAL)
+    Q_PROPERTY(QRectF captureRegion READ captureRegion NOTIFY captureRegionChanged FINAL)
+    QML_UNCREATABLE("Managed by C++.")
+
 public:
-    explicit TreelandCaptureContext(struct ::treeland_capture_context_v1 *object);
+    using QtWayland::treeland_capture_context_v1::source_type;
+    explicit TreelandCaptureContext(struct ::treeland_capture_context_v1 *object,
+                                    QObject *parent = nullptr);
+    ~TreelandCaptureContext() override;
 
-    ~TreelandCaptureContext() override
-    {
-        releaseCaptureFrame();
-        destroy();
-    }
-
-    inline QRect captureRegion() const
+    inline QRectF captureRegion() const
     {
         return m_captureRegion;
     }
@@ -77,13 +184,26 @@ public:
         return m_sourceType;
     }
 
-    QPointer<TreelandCaptureFrame> frame();
+    inline TreelandCaptureFrame *frame() const
+    {
+        return m_frame;
+    }
+
+    inline TreelandCaptureSession *session() const
+    {
+        return m_session;
+    }
+
     void selectSource(uint32_t sourceHint, bool freeze, bool withCursor, ::wl_surface *mask);
-    void releaseCaptureFrame();
+    TreelandCaptureFrame *ensureFrame();
+    TreelandCaptureSession *ensureSession();
 
 Q_SIGNALS:
     void sourceReady(QRect region, uint32_t sourceType);
     void sourceFailed(uint32_t reason);
+    void frameChanged();
+    void sessionChanged();
+    void captureRegionChanged();
 
 protected:
     void treeland_capture_context_v1_source_ready(int32_t region_x,
@@ -95,8 +215,9 @@ protected:
 
 private:
     QRect m_captureRegion;
-    TreelandCaptureFrame *m_captureFrame;
     QtWayland::treeland_capture_context_v1::source_type m_sourceType;
+    TreelandCaptureFrame *m_frame{ nullptr };
+    TreelandCaptureSession *m_session{ nullptr };
 };
 
 class TreelandCaptureManager
@@ -104,27 +225,43 @@ class TreelandCaptureManager
     , public QtWayland::treeland_capture_manager_v1
 {
     Q_OBJECT
+    QML_ELEMENT
+    QML_SINGLETON
+    QML_UNCREATABLE("Managed by C++.")
+    Q_PROPERTY(TreelandCaptureContext* context READ context NOTIFY contextChanged FINAL)
+    Q_PROPERTY(bool record READ record WRITE setRecord NOTIFY recordChanged FINAL)
+    Q_PROPERTY(bool recordStarted READ recordStarted NOTIFY recordStartedChanged FINAL)
+
 public:
-    TreelandCaptureManager(QObject *parent = nullptr)
-        : QWaylandClientExtensionTemplate<TreelandCaptureManager>(1)
-        , QtWayland::treeland_capture_manager_v1()
+    static TreelandCaptureManager *instance();
+    static TreelandCaptureManager *create(QQmlEngine *, QJSEngine *);
+
+    ~TreelandCaptureManager() override;
+
+    inline TreelandCaptureContext *context() const
     {
-        connect(this, &TreelandCaptureManager::activeChanged, this, [this] {
-            if (!isActive()) {
-                qDeleteAll(captureContexts);
-                captureContexts.clear();
-            }
-        });
+        return m_context;
     }
 
-    ~TreelandCaptureManager() override
+    TreelandCaptureContext *ensureContext();
+
+    inline bool record() const
     {
-        destroy();
+        return m_record;
     }
 
-    QPointer<TreelandCaptureContext> getContext();
-    void releaseCaptureContext(QPointer<TreelandCaptureContext> context);
+    void setRecord(bool newRecord);
+    bool recordStarted() const;
+
+Q_SIGNALS:
+    void contextChanged();
+    void recordChanged();
+    void finishSelect();
+    void recordStartedChanged();
 
 private:
-    QList<TreelandCaptureContext *> captureContexts;
+    TreelandCaptureManager();
+
+    TreelandCaptureContext *m_context{ nullptr };
+    bool m_record{ false };
 };

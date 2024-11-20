@@ -1,42 +1,37 @@
-set(BIN_NAME test-capture)
-
 find_package(PkgConfig REQUIRED)
 find_package(Qt6 REQUIRED COMPONENTS Core Gui WaylandClient Quick)
 find_package(TreelandProtocols REQUIRED)
-pkg_get_variable(WaylandProtocols_DATA_DIR wayland-protocols pkgdatadir)
-
-list(APPEND QML_IMPORT_PATH ${CMAKE_CURRENT_BINARY_DIR})
-qt_add_executable(${BIN_NAME}
+pkg_check_modules(EGL REQUIRED IMPORTED_TARGET egl gl)
+qt_add_executable(test-capture
     main.cpp
-    capture.h
-    capture.cpp
-    canvaswindow.cpp
-    canvaswindow.h
-    toolwindow.h
-    toolwindow.cpp
 )
-qt_add_qml_module(${BIN_NAME}
+qt_add_qml_module(test-capture
     URI capture
     VERSION 2.0
+    SOURCES
+    capture.h
+    capture.cpp
+    subwindow.h
+    subwindow.cpp
+    player.h
+    player.cpp
     QML_FILES
     Main.qml
 )
 
-qt_add_resources(${BIN_NAME} "test_capture_assets"
+qt_add_resources(test-capture "test_capture_assets"
     PREFIX "/"
     BASE ${CMAKE_CURRENT_LIST_DIR}/images
     FILES
         ${CMAKE_CURRENT_LIST_DIR}/images/watermark.png
 )
 
-qt6_generate_wayland_protocol_client_sources(${BIN_NAME}
+qt6_generate_wayland_protocol_client_sources(test-capture
     FILES
         ${TREELAND_PROTOCOLS_DATA_DIR}/treeland-capture-unstable-v1.xml
-        ${WaylandProtocols_DATA_DIR}/unstable/xdg-decoration/xdg-decoration-unstable-v1.xml
-        ${WaylandProtocols_DATA_DIR}/stable/xdg-shell/xdg-shell.xml
 )
 
-target_link_libraries(${BIN_NAME}
+target_link_libraries(test-capture
     PRIVATE
         Qt6::Core
         Qt6::Gui
@@ -44,6 +39,7 @@ target_link_libraries(${BIN_NAME}
         Qt6::WaylandClientPrivate
         Qt6::Quick
         Qt6::QuickPrivate
+        PkgConfig::EGL
 )
 
-install(TARGETS ${BIN_NAME} RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}")
+install(TARGETS test-capture RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}")
