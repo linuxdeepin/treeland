@@ -6,7 +6,7 @@
 #include <QQmlEngine>
 #include <QQuickWindow>
 
-class ToolWindow : public QQuickWindow
+class SubWindow : public QQuickWindow
 {
     Q_OBJECT
     QML_ELEMENT
@@ -15,7 +15,7 @@ signals:
     void parentChanged();
 
 public:
-    ToolWindow();
+    SubWindow();
     QQuickWindow *parent() const;
     void setParent(QQuickWindow *w);
 };
