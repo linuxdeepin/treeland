@@ -50,22 +50,22 @@ CaptureSourceSelector {
             fillColor: Qt.rgba(0, 0, 0, 0.3)
             startX: 0
             startY: 0
-            PathRectangle {
-                x: 0
-                y: 0
-                width: bgShape.width
-                height: bgShape.height
-            }
+
+            // TODO: Use PathRectangle in Qt 6.8
+            PathLine { x: bgShape.width; y: 0}
+            PathLine { x: bgShape.width; y: bgShape.height}
+            PathLine { x: 0; y: bgShape.height }
+            PathLine { x: 0; y: 0}
+
             PathMove {
                 x: selectionRegion.x
                 y: selectionRegion.y
             }
-            PathRectangle {
-                x: selectionRegion.x
-                y: selectionRegion.y
-                width: selectionRegion.width
-                height: selectionRegion.height
-            }
+
+            PathLine { x: selectionRegion.x; y: selectionRegion.bottom}
+            PathLine { x: selectionRegion.right; y: selectionRegion.bottom}
+            PathLine { x: selectionRegion.right; y: selectionRegion.y }
+            PathLine { x: selectionRegion.x; y: selectionRegion.y}
         }
     }
 
