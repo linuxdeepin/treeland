@@ -13,6 +13,8 @@
 #include <QSGImageNode>
 #include <QSGTexture>
 
+#include <unistd.h>
+
 Player::Player()
 {
     setFlag(QQuickItem::ItemHasContents);
