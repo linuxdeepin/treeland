@@ -209,7 +209,7 @@ class CaptureSourceSurface : public CaptureSource
 {
     Q_OBJECT
 public:
-    CaptureSourceSurface(WSurfaceItemContent *surfaceItemContent);
+    explicit CaptureSourceSurface(WSurfaceItemContent *surfaceItemContent);
     QW_NAMESPACE::qw_buffer *sourceDMABuffer() override;
     QRect captureRegion() override;
     CaptureSourceType sourceType() override;
@@ -222,7 +222,7 @@ class CaptureSourceOutput : public CaptureSource
 {
     Q_OBJECT
 public:
-    CaptureSourceOutput(WOutputViewport *viewport);
+    explicit CaptureSourceOutput(WOutputViewport *viewport);
     QW_NAMESPACE::qw_buffer *sourceDMABuffer() override;
     QRect captureRegion() override;
     CaptureSourceType sourceType() override;
@@ -263,7 +263,7 @@ public:
         SelectRegion
     };
     Q_ENUM(SelectionMode);
-    CaptureSourceSelector(QQuickItem *parent = nullptr);
+    explicit CaptureSourceSelector(QQuickItem *parent = nullptr);
     ~CaptureSourceSelector() override;
     CaptureManagerV1 *captureManager() const;
     void setCaptureManager(CaptureManagerV1 *newCaptureManager);
