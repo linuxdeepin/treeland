@@ -182,4 +182,5 @@ private:
     QScopedPointer<DTK_CORE_NAMESPACE::DConfig> m_dconfig;
     treeland_personalization_manager_v1 *m_manager = nullptr;
     QList<personalization_window_context_v1 *> m_windowContexts;
+    std::vector<personalization_appearance_context_v1 *> m_appearanceContexts;
 };
