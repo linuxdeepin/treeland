@@ -266,8 +266,13 @@ bool MultitaskviewSurfaceModel::tryLayout(const QList<ModelDataPtr> &rawData,
 {
     int nrows = 1;
     qreal acc = 0;
-    auto availWidth = layoutArea().width();
-    auto availHeight = layoutArea().height();
+    auto topContentMargin = TreelandConfig::ref().multitaskviewTopContentMargin();
+    auto bottomContentMargin = TreelandConfig::ref().multitaskviewBottomContentMargin();
+    auto cellPadding = TreelandConfig::ref().multitaskviewCellPadding();
+    auto horizontalMargin = TreelandConfig::ref().multitaskviewHorizontalMargin();
+    auto availWidth = std::max(0.0, layoutArea().width() - 2 * horizontalMargin);
+    auto availHeight =
+        std::max(0.0, layoutArea().height() - topContentMargin - bottomContentMargin);
     if (availWidth <= 0)
         return false;
     QList<QList<ModelDataPtr>> rowstmp;
@@ -275,16 +280,16 @@ bool MultitaskviewSurfaceModel::tryLayout(const QList<ModelDataPtr> &rawData,
     for (auto &modelData : rawData) {
         auto surface = modelData->wrapper;
         auto whRatio = surface->width() / surface->height();
-        modelData->pendingPadding = surface->height() < (rowH - 2 * CellPadding);
+        modelData->pendingPadding = surface->height() < (rowH - 2 * cellPadding);
         auto curW = std::min(availWidth,
-                             whRatio * std::min(rowH - 2 * CellPadding, surface->height())
-                                 + 2 * CellPadding);
-        modelData->pendingGeometry.setWidth(curW - 2 * CellPadding);
+                             whRatio * std::min(rowH - 2 * cellPadding, surface->height())
+                                 + 2 * cellPadding);
+        modelData->pendingGeometry.setWidth(curW - 2 * cellPadding);
         auto newAcc = acc + curW;
         if (newAcc <= availWidth) {
             acc = newAcc;
             currow.append(modelData);
-        } else if (newAcc / availWidth > LoadFactor) {
+        } else if (newAcc / availWidth > TreelandConfig::ref().multitaskviewLoadFactor()) {
             acc = curW;
             nrows++;
             rowstmp.append(currow);
@@ -292,7 +297,7 @@ bool MultitaskviewSurfaceModel::tryLayout(const QList<ModelDataPtr> &rawData,
         } else {
             // Just scale the last element
             curW = availWidth - acc;
-            modelData->pendingGeometry.setWidth(curW - 2 * CellPadding);
+            modelData->pendingGeometry.setWidth(curW - 2 * cellPadding);
             currow.append(modelData);
             acc = newAcc;
         }
@@ -310,27 +315,32 @@ bool MultitaskviewSurfaceModel::tryLayout(const QList<ModelDataPtr> &rawData,
 
 void MultitaskviewSurfaceModel::calcDisplayPos(const QList<ModelDataPtr> &rawData)
 {
-    auto availHeight = layoutArea().height();
-    auto availWidth = layoutArea().width();
+    auto topContentMargin = TreelandConfig::ref().multitaskviewTopContentMargin();
+    auto bottomContentMargin = TreelandConfig::ref().multitaskviewBottomContentMargin();
+    auto cellPadding = TreelandConfig::ref().multitaskviewCellPadding();
+    auto horizontalMargin = TreelandConfig::ref().multitaskviewHorizontalMargin();
+    auto availWidth = std::max(0.0, layoutArea().width() - 2 * horizontalMargin);
+    auto availHeight =
+        std::max(0.0, layoutArea().height() - topContentMargin - bottomContentMargin);
     auto contentHeight = m_rows.length() * m_rowHeight;
-    auto curY = std::max(availHeight - contentHeight, 0.0) / 2 + TopContentMargin;
+    auto curY = std::max(availHeight - contentHeight, 0.0) / 2 + topContentMargin;
     const auto hCenter = availWidth / 2;
     for (auto i = 0; i < m_rows.size(); ++i) {
         auto row = m_rows[i];
         const auto totW = QtConcurrent::blockingMappedReduced(
             row,
-            [](ModelDataPtr data) {
-                return data->pendingGeometry.width() + 2 * CellPadding;
+            [cellPadding](ModelDataPtr data) {
+                return data->pendingGeometry.width() + 2 * cellPadding;
             },
             [](qreal &acc, const qreal &cur) {
                 acc += cur;
             });
-        auto curX = hCenter - totW / 2 + CellPadding;
+        auto curX = hCenter - totW / 2 + cellPadding;
         for (auto j = 0; j < row.size(); ++j) {
             auto window = row[j];
             window->pendingGeometry.moveLeft(curX);
             window->pendingGeometry.moveTop(curY);
-            window->pendingGeometry.setHeight(m_rowHeight - 2 * CellPadding);
+            window->pendingGeometry.setHeight(m_rowHeight - 2 * cellPadding);
             window->pendingLeftIndex = rawData.indexOf(row[(j - 1 + row.size()) % row.size()]);
             window->pendingRightIndex = rawData.indexOf(row[(j + 1) % row.size()]);
             auto lastRow = m_rows[std::max(0, i - 1)];
@@ -339,7 +349,7 @@ void MultitaskviewSurfaceModel::calcDisplayPos(const QList<ModelDataPtr> &rawDat
             auto nextRow = m_rows[std::min(static_cast<int>(m_rows.size()) - 1, i + 1)];
             auto nextRowIndex = std::min(static_cast<int>(nextRow.size()) - 1, j);
             window->pendingDownIndex = rawData.indexOf(nextRow[nextRowIndex]);
-            curX += window->pendingGeometry.width() + 2 * CellPadding;
+            curX += window->pendingGeometry.width() + 2 * cellPadding;
         }
         curY += m_rowHeight;
     }

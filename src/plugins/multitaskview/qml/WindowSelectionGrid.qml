@@ -38,30 +38,6 @@ Item {
         readonly property int rows: surfaceModel.rows
     }
 
-    WallpaperController {
-        id: wallpaperController
-        output: outputPlacementItem.output.outputItem.output
-        lock: true
-        type: WallpaperController.Normal
-    }
-
-    ShaderEffectSource {
-        z: Multitaskview.Background
-        sourceItem: wallpaperController.proxy
-        recursive: true
-        live: true
-        smooth: true
-        anchors.fill: parent
-        hideSource: false
-    }
-
-    Blur {
-        z: Multitaskview.Background
-        anchors.fill: parent
-        opacity: multitaskview.taskviewVal
-        radiusEnabled: false
-    }
-
     MultitaskviewSurfaceModel {
         id: surfaceModel
         workspace: root.workspace
