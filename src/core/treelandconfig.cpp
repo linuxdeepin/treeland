@@ -163,6 +163,11 @@ void TreelandConfig::setNumWorkspace(uint newNumWorkspace)
 {
     if (newNumWorkspace == m_numWorkspace)
         return;
+    if (newNumWorkspace == 0 || newNumWorkspace > maxWorkspace()) {
+        qCritical() << "Set error Workspace count: " << newNumWorkspace << "which should not exceed"
+                    << maxWorkspace();
+        return;
+    }
     m_numWorkspace = newNumWorkspace;
     m_dconfig->setValue("numWorkspace", QVariant::fromValue(m_numWorkspace));
 }

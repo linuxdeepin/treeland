@@ -156,18 +156,18 @@ int Workspace::modelIndexOfSurface(SurfaceWrapper *surface) const
 int Workspace::createModel(const QString &name, bool visible)
 {
     auto id = doCreateModel(name, visible);
-    TreelandConfig::ref().setNumWorkspace(TreelandConfig::ref().numWorkspace() + 1);
+    TreelandConfig::ref().setNumWorkspace(count());
     Q_EMIT countChanged();
     return id;
 }
 
 void Workspace::removeModel(int index)
 {
-    Q_ASSERT(m_models->rowCount() >= 1); // At least one workspace
+    Q_ASSERT(m_models->rowCount() > 1); // At least one workspace
     Q_ASSERT(index >= 0 && index < m_models->rowCount());
     doRemoveModel(index);
+    TreelandConfig::ref().setNumWorkspace(count());
     Q_EMIT countChanged();
-    TreelandConfig::ref().setNumWorkspace(TreelandConfig::ref().numWorkspace() - 1);
 }
 
 WorkspaceModel *Workspace::modelAt(int index) const
