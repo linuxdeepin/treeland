@@ -34,8 +34,6 @@ extern "C" {
 }
 
 Q_LOGGING_CATEGORY(qLcCapture, "treeland.capture")
-#define DECORATION "treeland_decoration"
-#define TITLEBAR "treeland_decoration_titlebar"
 
 CaptureSource *CaptureContextV1::source() const
 {
@@ -85,7 +83,7 @@ bool CaptureContextV1::withCursor() const
 
 CaptureSource::CaptureSourceHint CaptureContextV1::sourceHint() const
 {
-    return CaptureSource::CaptureSourceHint(m_handle->sourceHint);
+    return { m_handle->sourceHint };
 }
 
 CaptureContextV1::CaptureContextV1(treeland_capture_context_v1 *h, QObject *parent)
@@ -98,7 +96,7 @@ CaptureContextV1::CaptureContextV1(treeland_capture_context_v1 *h, QObject *pare
 
 void CaptureContextV1::onSelectSource()
 {
-    treeland_capture_context_v1 *context = qobject_cast<treeland_capture_context_v1 *>(sender());
+    auto context = qobject_cast<treeland_capture_context_v1 *>(sender());
     Q_ASSERT(context); // Sender must be context.
     Q_EMIT selectInfoReady();
 }
@@ -314,12 +312,12 @@ int CaptureContextModel::rowCount(const QModelIndex &parent) const
 QVariant CaptureContextModel::data(const QModelIndex &index, int role) const
 {
     if (index.row() < 0 || index.row() >= m_captureContexts.size())
-        return QVariant();
+        return {};
     switch (role) {
     case ContextRole:
         return QVariant::fromValue(m_captureContexts.at(index.row()));
     }
-    return QVariant();
+    return {};
 }
 
 QHash<int, QByteArray> CaptureContextModel::roleNames() const
@@ -567,7 +565,6 @@ void CaptureSourceSelector::componentComplete()
 {
     // Notify mask size now
     if (captureManager()->maskShellSurface() && captureManager()->maskSurfaceWrapper()) {
-        // TODO: reparent to capture source selector
         m_canvas = captureManager()->maskSurfaceWrapper();
         m_captureManager->maskShellSurface()->resize(size().toSize());
         if (m_captureManager->maskSurfaceWrapper()->container()) {
