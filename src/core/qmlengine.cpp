@@ -29,7 +29,9 @@ QmlEngine::QmlEngine(QObject *parent)
     , menuBarComponent(this, "Treeland", "OutputMenuBar")
     , workspaceSwitcher(this, "Treeland", "WorkspaceSwitcher")
     , newAnimationComponent(this, "Treeland", "NewAnimation")
+#ifndef DISABLE_DDM
     , lockScreenComponent(this, "Treeland.Greeter", "Greeter")
+#endif
     , dockPreviewComponent(this, "Treeland", "DockPreview")
     , minimizeAnimationComponent(this, "Treeland", "MinimizeAnimation")
     , showDesktopAnimatioComponentn(this, "Treeland", "ShowDesktopAnimation")
@@ -204,10 +206,14 @@ QQuickItem *QmlEngine::createDockPreview(QQuickItem *parent)
 
 QQuickItem *QmlEngine::createLockScreen(Output *output, QQuickItem *parent)
 {
+#ifndef DISABLE_DDM
     return createComponent(lockScreenComponent,
                            parent,
                            { { "output", QVariant::fromValue(output->output()) },
                              { "outputItem", QVariant::fromValue(output->outputItem()) } });
+#else
+    Q_UNREACHABLE_RETURN(nullptr);
+#endif
 }
 
 QQuickItem *QmlEngine::createMinimizeAnimation(SurfaceWrapper *surface,
