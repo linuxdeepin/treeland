@@ -9,6 +9,10 @@ find_package(Dtk6Core REQUIRED)
 
 qt_add_library(${MODULE_NAME} SHARED)
 
+set_target_properties(${MODULE_NAME} PROPERTIES
+    OUTPUT_NAME "treeland-protocol-personalization-v1"
+)
+
 qt_add_resources(${MODULE_NAME} "default_background"
     PREFIX "/"
     FILES

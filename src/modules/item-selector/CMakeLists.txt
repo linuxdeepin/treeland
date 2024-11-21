@@ -5,6 +5,10 @@ qt_add_library(${MODULE_NAME} SHARED
     itemselector.cpp
 )
 
+set_target_properties(${MODULE_NAME} PROPERTIES
+    OUTPUT_NAME "treeland-protocol-item-selector-v1"
+)
+
 target_include_directories(${MODULE_NAME} PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
