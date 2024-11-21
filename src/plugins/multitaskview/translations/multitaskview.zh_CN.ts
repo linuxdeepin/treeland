@@ -5,8 +5,8 @@
     <name>WindowSelectionGrid</name>
     <message>
         <location filename="../qml/WindowSelectionGrid.qml" line="455"/>
-        <source>No open windows</source>
-        <translation>没有打开的窗口</translation>
+        <source>No windows</source>
+        <translation>无打开的窗口</translation>
     </message>
 </context>
 <context>
