@@ -244,8 +244,7 @@ void CaptureContextV1::handleRenderEnd()
         treeland_capture_session_v1_send_object(session()->resource,
                                                 i,
                                                 attributes.fd[i],
-                                                attributes.stride[i] * attributes.width
-                                                    * attributes.height,
+                                                attributes.stride[i] * attributes.height,
                                                 attributes.offset[i],
                                                 attributes.stride[i],
                                                 i);
