@@ -58,6 +58,6 @@ private:
     ~InputDevice();
 
     static InputDevice *m_instance;
-    GestureRecognizer *m_touchpadRecognizer;
+    std::unique_ptr<GestureRecognizer> m_touchpadRecognizer;
     uint m_touchpadFingerCount = 0;
 };

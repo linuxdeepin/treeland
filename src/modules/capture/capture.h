@@ -11,7 +11,6 @@
 #include <woutput.h>
 #include <wserver.h>
 #include <wxdgsurface.h>
-#include <wxdgsurfaceitem.h>
 
 #include <QAbstractListModel>
 #include <QPainter>

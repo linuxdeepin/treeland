@@ -2,7 +2,7 @@
   description = "A basic flake to help develop treeland";
 
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/master";
+    nixpkgs.url = "nixpkgs"; #"github:NixOS/nixpkgs/master";
     flake-utils.url = "github:numtide/flake-utils";
     nix-filter.url = "github:numtide/nix-filter";
     qwlroots = {
@@ -213,6 +213,7 @@
               # For submodule build
               libinput
               wayland
+              wlroots
             ];
 
             inputsFrom = [

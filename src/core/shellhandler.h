@@ -20,7 +20,8 @@ class QmlEngine;
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 class WServer;
-class WXdgSurface;
+class WXdgToplevelSurface;
+class WXdgPopupSurface;
 class WXdgShell;
 class WLayerShell;
 class WLayerSurface;
@@ -67,8 +68,12 @@ Q_SIGNALS:
     void surfaceWrapperAboutToRemove(SurfaceWrapper *wrapper);
 
 private Q_SLOTS:
-    void onXdgSurfaceAdded(WAYLIB_SERVER_NAMESPACE::WXdgSurface *surface);
-    void onXdgSurfaceRemoved(WAYLIB_SERVER_NAMESPACE::WXdgSurface *surface);
+    void onXdgToplevelSurfaceAdded(WAYLIB_SERVER_NAMESPACE::WXdgToplevelSurface *surface);
+    void onXdgToplevelSurfaceRemoved(WAYLIB_SERVER_NAMESPACE::WXdgToplevelSurface *surface);
+
+    void onXdgPopupSurfaceAdded(WAYLIB_SERVER_NAMESPACE::WXdgPopupSurface *surface);
+    void onXdgPopupSurfaceRemoved(WAYLIB_SERVER_NAMESPACE::WXdgPopupSurface *surface);
+
 
     void onLayerSurfaceAdded(WAYLIB_SERVER_NAMESPACE::WLayerSurface *surface);
     void onLayerSurfaceRemoved(WAYLIB_SERVER_NAMESPACE::WLayerSurface *surface);

@@ -341,9 +341,6 @@ InputDevice::~InputDevice()
 {
     if (m_instance == this)
         m_instance = nullptr;
-
-    if (!m_touchpadRecognizer)
-        m_touchpadRecognizer->deleteLater();
 }
 
 InputDevice *InputDevice::instance()

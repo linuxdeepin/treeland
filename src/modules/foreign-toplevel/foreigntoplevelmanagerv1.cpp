@@ -9,7 +9,7 @@
 #include <woutput.h>
 #include <wsocket.h>
 #include <wtoplevelsurface.h>
-#include <wxdgsurface.h>
+#include <wxdgtoplevelsurface.h>
 #include <wxwaylandsurface.h>
 
 #include <qwcompositor.h>
@@ -159,7 +159,7 @@ void ForeignToplevelV1::addSurface(SurfaceWrapper *wrapper)
                                                    event->height));
                 }));
 
-    if (auto *xdgSurface = qobject_cast<WXdgSurface *>(surface)) {
+    if (auto *xdgSurface = qobject_cast<WXdgToplevelSurface *>(surface)) {
         auto client = WClient::get(xdgSurface->handle()->handle()->resource->client);
         handle->set_pid(client->credentials().get()->pid);
         connection.push_back(
@@ -169,7 +169,7 @@ void ForeignToplevelV1::addSurface(SurfaceWrapper *wrapper)
             }));
 
         auto updateSurfaceParent = [this, handle, xdgSurface] {
-            WToplevelSurface *p = xdgSurface->parentXdgSurface();
+            WXdgToplevelSurface *p = xdgSurface->parentXdgSurface();
             if (!p) {
                 handle->set_parent(nullptr);
                 return;
@@ -186,7 +186,7 @@ void ForeignToplevelV1::addSurface(SurfaceWrapper *wrapper)
                    "parent surface not "
                    "found!";
         };
-        connection.push_back(xdgSurface->safeConnect(&WXdgSurface::parentXdgSurfaceChanged,
+        connection.push_back(xdgSurface->safeConnect(&WXdgToplevelSurface::parentXdgSurfaceChanged,
                                                      surface,
                                                      updateSurfaceParent));
         updateSurfaceParent();
