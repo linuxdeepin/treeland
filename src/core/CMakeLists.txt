@@ -49,7 +49,6 @@ set(CORE_HEADERS
     qmlengine.h
     surfacecontainer.h
     layersurfacecontainer.h
-    lockscreen.h
     rootsurfacecontainer.h
     surfaceproxy.h
     treeland.h
@@ -81,7 +80,6 @@ set(CORE_SRCS
     qmlengine.cpp
     surfacecontainer.cpp
     layersurfacecontainer.cpp
-    lockscreen.cpp
     rootsurfacecontainer.cpp
     surfaceproxy.cpp
     treeland.cpp
@@ -100,6 +98,11 @@ set(CORE_SRCS
     surfacefilterproxymodel.cpp
     windowpicker.cpp
 )
+
+if (NOT DISABLE_DDM)
+    list(APPEND CORE_HEADERS lockscreen.h)
+    list(APPEND CORE_SRCS lockscreen.cpp)
+endif()
 
 qt_add_qml_module(treeland_core
     URI Treeland
@@ -159,10 +162,8 @@ target_link_libraries(treeland_core
         dde-shell
         capture
         config
-        greeter
         treeland_interface
     PRIVATE
-        DDM::Common
         Qt6::Quick
         Qt6::QuickControls2
         Qt6::QuickPrivate
@@ -172,6 +173,14 @@ target_link_libraries(treeland_core
         PkgConfig::WAYLAND
         PkgConfig::LIBINPUT
 )
+
+if (NOT DISABLE_DDM)
+    target_link_libraries(treeland_core
+        PUBLIC
+            greeter
+        PRIVATE
+            DDM::Common)
+endif()
 
 set(TRANSLATED_FILES)
 if (${QT_VERSION_MINOR} LESS 7)

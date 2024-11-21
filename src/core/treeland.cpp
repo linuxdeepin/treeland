@@ -5,25 +5,29 @@
 
 #include "cmdline.h"
 #include "compositor1adaptor.h"
-#include "greeterproxy.h"
 #include "helper.h"
-#include "logoprovider.h"
 #include "multitaskviewinterface.h"
 #include "plugininterface.h"
 #include "qmlengine.h"
-#include "sessionmodel.h"
 #include "treelandconfig.h"
+
+#ifndef DISABLE_DDM
+#include "greeterproxy.h"
+#include "logoprovider.h"
+#include "sessionmodel.h"
 #include "usermodel.h"
 
 #include <Constants.h>
 #include <Messages.h>
 #include <SignalHandler.h>
 #include <SocketWriter.h>
+using namespace DDM;
+
+#include <DAccountsManager>
+#endif
 
 #include <wsocket.h>
 #include <wxwayland.h>
-
-#include <DAccountsManager>
 
 #include <QCoreApplication>
 #include <QDebug>
@@ -39,7 +43,6 @@
 
 Q_LOGGING_CATEGORY(dbus, "treeland.dbus", QtDebugMsg);
 
-using namespace DDM;
 DCORE_USE_NAMESPACE;
 
 namespace Treeland {
@@ -52,27 +55,31 @@ public:
     explicit TreelandPrivate(Treeland *parent)
         : QObject(parent)
         , q_ptr(parent)
+#ifndef DISABLE_DDM
         , socket(new QLocalSocket(this))
+#endif
     {
     }
 
     void init()
     {
+        qmlEngine = new QmlEngine(this);
+        QObject::connect(qmlEngine, &QQmlEngine::quit, qApp, &QCoreApplication::quit);
+
+        helper = qmlEngine->singletonInstance<Helper *>("Treeland", "Helper");
+        helper->init();
+
+#ifndef DISABLE_DDM
         connect(socket, &QLocalSocket::connected, this, &TreelandPrivate::connected);
         connect(socket, &QLocalSocket::disconnected, this, &TreelandPrivate::disconnected);
         connect(socket, &QLocalSocket::readyRead, this, &TreelandPrivate::readyRead);
         connect(socket, &QLocalSocket::errorOccurred, this, &TreelandPrivate::error);
 
-        qmlEngine = new QmlEngine(this);
-        QObject::connect(qmlEngine, &QQmlEngine::quit, qApp, &QCoreApplication::quit);
-
-        helper = qmlEngine->singletonInstance<Helper *>("Treeland", "Helper");
         connect(helper, &Helper::currentUserIdChanged, this, [this] {
             onCurrentChanged(helper->currentUserId());
         });
-        helper->init();
-
         onCurrentChanged(helper->currentUserId());
+#endif
     }
 
     ~TreelandPrivate()
@@ -91,6 +98,7 @@ public:
         }
     }
 
+#ifndef DISABLE_DDM
     void onCurrentChanged(uid_t uid)
     {
         auto user = manager.findUserById(uid);
@@ -149,6 +157,7 @@ public:
             qCWarning(dbus) << "failed to load plugin translator: " << scope;
         }
     }
+#endif
 
     void loadPlugin(const QString &path)
     {
@@ -190,11 +199,13 @@ public:
             };
             qCDebug(dbus) << "Plugin translate scope:" << scope;
 
+#ifndef DISABLE_DDM
             connect(helper, &Helper::currentUserIdChanged, pluginInstance, [this, plugin, scope] {
                 updatePluginTs(plugin, scope);
             });
 
             updatePluginTs(plugin, scope);
+#endif
 
             if (auto *multitaskview = qobject_cast<IMultitaskView *>(pluginInstance)) {
                 qCDebug(dbus) << "Get MultitaskView Instance.";
@@ -207,18 +218,22 @@ public:
     }
 
 private Q_SLOTS:
+#ifndef DISABLE_DDM
     void connected();
     void disconnected();
     void readyRead();
     void error();
+#endif
 
 private:
     Treeland *q_ptr;
+#ifndef DISABLE_DDM
     DAccountsManager manager;
+    QLocalSocket *socket{ nullptr };
+#endif
     QTranslator *lastTrans{ nullptr };
     QmlEngine *qmlEngine{ nullptr };
     std::vector<PluginInterface *> plugins;
-    QLocalSocket *socket{ nullptr };
     QLocalSocket *helperSocket{ nullptr };
     Helper *helper{ nullptr };
     QMap<QString, std::shared_ptr<WAYLIB_SERVER_NAMESPACE::WSocket>> userWaylandSocket;
@@ -233,13 +248,15 @@ Treeland::Treeland()
 {
     Q_D(Treeland);
 
-    qmlRegisterModule("Treeland.Greeter", 1, 0);
     qmlRegisterModule("Treeland.Protocols", 1, 0);
     qmlRegisterModule("Treeland.Capture", 2, 0);
+#ifndef DISABLE_DDM
+    qmlRegisterModule("Treeland.Greeter", 1, 0);
     qmlRegisterType<SessionModel>("Treeland.Greeter", 1, 0, "SessionModel");
     qmlRegisterType<UserModel>("Treeland.Greeter", 1, 0, "UserModel");
     qmlRegisterType<GreeterProxy>("Treeland.Greeter", 1, 0, "Proxy");
     qmlRegisterType<LogoProvider>("Treeland.Greeter", 1, 0, "LogoProvider");
+#endif
     qmlRegisterSingletonInstance("Treeland",
                                  1,
                                  0,
@@ -249,6 +266,7 @@ Treeland::Treeland()
     d->init();
 
     if (CmdLine::ref().socket().has_value()) {
+#ifndef DISABLE_DDM
         new DDM::SignalHandler(this);
         Q_ASSERT(d->helper);
         auto connectToServer = [this, d] {
@@ -261,6 +279,7 @@ Treeland::Treeland()
         if (defaultSocket && defaultSocket->isValid()) {
             connectToServer();
         }
+#endif
     } else {
         d->helper->setCurrentUserId(getuid());
     }
@@ -362,6 +381,7 @@ bool Treeland::isBlockActivateSurface() const
     return TreelandConfig::ref().blockActivateSurface();
 }
 
+#ifndef DISABLE_DDM
 void TreelandPrivate::connected()
 {
     // log connection
@@ -426,6 +446,7 @@ void TreelandPrivate::readyRead()
         }
     }
 }
+#endif
 
 bool Treeland::ActivateWayland(QDBusUnixFileDescriptor _fd)
 {

@@ -9,7 +9,9 @@
 #include "ddeshellmanagerinterfacev1.h"
 #include "inputdevice.h"
 #include "layersurfacecontainer.h"
+#ifndef DISABLE_DDM
 #include "lockscreen.h"
+#endif
 #include "multitaskviewinterface.h"
 #include "output.h"
 #include "outputmanagement.h"
@@ -85,7 +87,9 @@ Helper::Helper(QObject *parent)
     , m_renderWindow(new WOutputRenderWindow(this))
     , m_server(new WServer(this))
     , m_rootSurfaceContainer(new RootSurfaceContainer(m_renderWindow->contentItem()))
+#ifndef DISABLE_DDM
     , m_lockScreen(new LockScreen(m_rootSurfaceContainer))
+#endif
     , m_windowGesture(new TogglableGesture(this))
     , m_multiTaskViewGesture(new TogglableGesture(this))
 {
@@ -99,6 +103,7 @@ Helper::Helper(QObject *parent)
 #if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0)
     m_rootSurfaceContainer->setFocusPolicy(Qt::StrongFocus);
 #endif
+#ifndef DISABLE_DDM
     m_lockScreen->setZ(RootSurfaceContainer::LockScreenZOrder);
     m_lockScreen->setVisible(false);
 
@@ -115,6 +120,7 @@ Helper::Helper(QObject *parent)
         m_workspaceOpacityAnimation->setEndValue(1.0);
         m_workspaceOpacityAnimation->start();
     });
+#endif
 
     m_shellHandler = new ShellHandler(m_rootSurfaceContainer);
 
@@ -787,6 +793,7 @@ void Helper::init()
 
     qInfo() << "Listing on:" << m_socket->fullServerName();
 
+#ifndef DISABLE_DDM
     if (CmdLine::ref().useLockScreen()) {
         m_lockScreen->lock();
         setCurrentMode(CurrentMode::LockScreen);
@@ -801,6 +808,7 @@ void Helper::init()
         m_workspaceOpacityAnimation->setEndValue(0.0);
         m_workspaceOpacityAnimation->start();
     }
+#endif
 }
 
 bool Helper::socketEnabled() const
@@ -914,6 +922,7 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *, QInputEvent *event)
                     m_multitaskView->toggleMultitaskView(IMultitaskView::ActiveReason::ShortcutKey);
                 }
                 return true;
+#ifndef DISABLE_DDM
             } else if (kevent->key() == Qt::Key_L) {
                 if (m_lockScreen->isLocked()) {
                     return true;
@@ -933,6 +942,7 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *, QInputEvent *event)
 
                 setCurrentMode(CurrentMode::LockScreen);
                 return true;
+#endif
             } else if (kevent->key() == Qt::Key_D) { // ShowDesktop : Meta + D
                 if (m_currentMode == CurrentMode::Multitaskview) {
                     return true;
