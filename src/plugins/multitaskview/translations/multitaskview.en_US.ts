@@ -5,7 +5,7 @@
     <name>WindowSelectionGrid</name>
     <message>
         <location filename="../qml/WindowSelectionGrid.qml" line="455"/>
-        <source>No open windows</source>
+        <source>No windows</source>
         <translation type="unfinished"></translation>
     </message>
 </context>

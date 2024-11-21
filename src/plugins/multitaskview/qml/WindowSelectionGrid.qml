@@ -452,7 +452,7 @@ Item {
                 ]
                 opacity: multitaskview.taskviewVal
                 contentItem: Text {
-                    text: qsTr("No open windows")
+                    text: qsTr("No windows")
                     font.pixelSize: 20
                     elide: Qt.ElideRight
                     anchors.fill: parent
