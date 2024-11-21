@@ -51,6 +51,8 @@ public:
         LockScreenZOrder = 7,
     };
 
+    void init(WServer *server);
+
     SurfaceWrapper *getSurface(WSurface *surface) const;
     SurfaceWrapper *getSurface(WToplevelSurface *surface) const;
     void destroyForSurface(SurfaceWrapper *wrapper);

@@ -15,7 +15,8 @@
 #include <woutputitem.h>
 #include <woutputrenderwindow.h>
 #include <wsocket.h>
-#include <wxdgsurfaceitem.h>
+#include <wxdgtoplevelsurfaceitem.h>
+#include <wxdgpopupsurfaceitem.h>
 #include <wxwaylandsurface.h>
 #include <wxwaylandsurfaceitem.h>
 
@@ -53,14 +54,24 @@ SurfaceWrapper::SurfaceWrapper(QmlEngine *qmlEngine,
 {
     QQmlEngine::setContextForObject(this, qmlEngine->rootContext());
 
-    if (type == Type::XWayland) {
-        m_surfaceItem = new WXWaylandSurfaceItem(this);
-    } else if (type == Type::Layer) {
+    switch (type) {
+    case Type::XdgToplevel:
+        m_surfaceItem = new WXdgToplevelSurfaceItem(this);
+        break;
+    case Type::XdgPopup:
+        m_surfaceItem = new WXdgPopupSurfaceItem(this);
+        break;
+    case Type::Layer:
         m_surfaceItem = new WLayerSurfaceItem(this);
-    } else if (type == Type::InputPopup) {
+        break;
+    case Type::XWayland:
+        m_surfaceItem = new WXWaylandSurfaceItem(this);
+        break;
+    case Type::InputPopup:
         m_surfaceItem = new WInputPopupSurfaceItem(this);
-    } else {
-        m_surfaceItem = new WXdgSurfaceItem(this);
+        break;
+    default:
+        Q_UNREACHABLE();
     }
 
     QQmlEngine::setContextForObject(m_surfaceItem, qmlEngine->rootContext());

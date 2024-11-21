@@ -4,7 +4,6 @@ find_package(TreelandProtocols REQUIRED)
 
 ws_generate_local(server ${TREELAND_PROTOCOLS_DATA_DIR}/treeland-personalization-manager-v1.xml treeland-personalization-manager-protocol)
 
-pkg_search_module(WLROOTS REQUIRED IMPORTED_TARGET wlroots)
 find_package(Dtk6Core REQUIRED)
 
 qt_add_library(${MODULE_NAME} SHARED)

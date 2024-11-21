@@ -4,8 +4,6 @@ find_package(TreelandProtocols REQUIRED)
 
 ws_generate_local(server ${TREELAND_PROTOCOLS_DATA_DIR}/treeland-capture-unstable-v1.xml treeland-capture-unstable-v1-protocol)
 
-pkg_search_module(WLROOTS REQUIRED IMPORTED_TARGET wlroots)
-
 qt_add_library(${MODULE_NAME} SHARED)
 
 set_target_properties(${MODULE_NAME} PROPERTIES
