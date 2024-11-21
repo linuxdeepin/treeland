@@ -500,13 +500,6 @@ PersonalizationAttached::PersonalizationAttached(WToplevelSurface *target,
 
 Personalization::BackgroundType PersonalizationAttached::backgroundType() const
 {
-    if (auto *target = qobject_cast<WLayerSurface *>(m_target)) {
-        auto scope = QString(target->handle()->handle()->scope);
-        QStringList forceList{ "dde-shell/dock" };
-        if (forceList.contains(scope)) {
-            return Personalization::Blur;
-        }
-    }
     return static_cast<Personalization::BackgroundType>(m_backgroundType);
 }
 
