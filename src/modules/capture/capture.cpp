@@ -17,6 +17,7 @@
 #include <wquickcursor.h>
 #include <wquicktextureproxy.h>
 #include <wtools.h>
+#include <wlayersurface.h>
 
 #include <qwcompositor.h>
 #include <qwdisplay.h>

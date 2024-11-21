@@ -17,7 +17,9 @@
 #include <woutputrenderwindow.h>
 #include <wquicktextureproxy.h>
 #include <wsurfaceitem.h>
-#include <wxdgsurface.h>
+#include <wxdgpopupsurface.h>
+
+#include <qwoutputlayout.h>
 
 #include <QQmlEngine>
 
@@ -139,7 +141,7 @@ void Output::updatePositionFromLayout()
 {
     WOutputLayout *layout = output()->layout();
     Q_ASSERT(layout);
-    auto *layoutOutput = layout->get(output()->nativeHandle());
+    auto *layoutOutput = layout->handle()->get(output()->nativeHandle());
     QPointF pos(layoutOutput->x, layoutOutput->y);
     m_item->setPosition(pos);
 }
@@ -496,11 +498,11 @@ void Output::arrangeNonLayerSurface(SurfaceWrapper *surface, const QSizeF &sizeD
             // NOTE: Xwayland's popup don't has parent
             SurfaceWrapper *parentSurfaceWrapper = surface->parentSurface();
             if (parentSurfaceWrapper) {
-                auto xdgSurface = qobject_cast<WXdgSurface *>(surface->shellSurface());
+                auto xdgPopupSurface = qobject_cast<WXdgPopupSurface *>(surface->shellSurface());
                 auto inputPopupSurface =
                     qobject_cast<WInputPopupSurface *>(surface->shellSurface());
-                if ((xdgSurface && xdgSurface->isPopup()) || inputPopupSurface) {
-                    QPointF dPos = xdgSurface ? xdgSurface->getPopupPosition()
+                if (xdgPopupSurface || inputPopupSurface) {
+                    QPointF dPos = xdgPopupSurface ? xdgPopupSurface->getPopupPosition()
                                               : inputPopupSurface->cursorRect().topLeft();
                     QPointF topLeft;
                     // TODO: remove parentSurfaceWrapper->surfaceItem()->x()

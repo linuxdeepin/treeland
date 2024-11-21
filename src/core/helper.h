@@ -22,6 +22,7 @@ Q_MOC_INCLUDE("surfacewrapper.h")
 Q_MOC_INCLUDE("workspace.h")
 Q_MOC_INCLUDE("rootsurfacecontainer.h")
 Q_MOC_INCLUDE("capture.h")
+Q_MOC_INCLUDE(<wlayersurface.h>)
 
 QT_BEGIN_NAMESPACE
 class QQuickItem;
@@ -45,6 +46,7 @@ class WToplevelSurface;
 class WSurfaceItem;
 class WForeignToplevel;
 class WOutputManagerV1;
+class WLayerSurface;
 WAYLIB_SERVER_END_NAMESPACE
 
 QW_BEGIN_NAMESPACE

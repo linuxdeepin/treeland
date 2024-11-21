@@ -5,8 +5,8 @@
 
 #include "capture.h"
 #include "cmdline.h"
-#include "ddeshellmanagerinterfacev1.h"
 #include "ddeshellattached.h"
+#include "ddeshellmanagerinterfacev1.h"
 #include "inputdevice.h"
 #include "layersurfacecontainer.h"
 #include "lockscreen.h"
@@ -33,6 +33,7 @@
 #include <WSurfaceItem>
 #include <WXdgOutput>
 #include <wcursorshapemanagerv1.h>
+#include <wlayersurface.h>
 #include <woutputitem.h>
 #include <woutputlayout.h>
 #include <woutputmanagerv1.h>
@@ -45,7 +46,6 @@
 #include <wsocket.h>
 #include <wtoplevelsurface.h>
 #include <wxdgshell.h>
-#include <wxdgsurface.h>
 #include <wxwayland.h>
 #include <wxwaylandsurface.h>
 
@@ -266,7 +266,6 @@ void Helper::onSurfaceModeChanged(WSurface *surface, WXdgDecorationManager::Deco
 void Helper::setGamma(struct wlr_gamma_control_manager_v1_set_gamma_event *event)
 {
     auto *qwOutput = qw_output::from(event->output);
-    auto *wOutput = WOutput::fromHandle(qwOutput);
     size_t ramp_size = 0;
     uint16_t *r = nullptr, *g = nullptr, *b = nullptr;
     wlr_gamma_control_v1 *gamma_control = event->control;
@@ -276,7 +275,9 @@ void Helper::setGamma(struct wlr_gamma_control_manager_v1_set_gamma_event *event
         g = gamma_control->table + gamma_control->ramp_size;
         b = gamma_control->table + 2 * gamma_control->ramp_size;
     }
-    if (!wOutput->setGammaLut(ramp_size, r, g, b)) {
+    qw_output_state newState;
+    newState.set_gamma_lut(ramp_size, r, g, b);
+    if (!qwOutput->commit_state(newState)) {
         qWarning() << "Failed to set gamma lut!";
         // TODO: use software impl it.
         qw_gamma_control_v1::from(gamma_control)->send_failed_and_destroy();
@@ -289,19 +290,23 @@ void Helper::onOutputTestOrApply(qw_output_configuration_v1 *config, bool onlyTe
     bool ok = true;
     for (auto state : std::as_const(states)) {
         WOutput *output = state.output;
-        output->enable(state.enabled);
+        qw_output_state newState;
+        newState.set_enabled(state.enabled);
         if (state.enabled) {
             if (state.mode)
-                output->setMode(state.mode);
+                newState.set_mode(state.mode);
             else
-                output->setCustomMode(state.customModeSize, state.customModeRefresh);
+                newState.set_custom_mode(state.customModeSize.width(),
+                                         state.customModeSize.height(),
+                                         state.customModeRefresh);
 
-            output->enableAdaptiveSync(state.adaptiveSyncEnabled);
+            newState.set_adaptive_sync_enabled(state.adaptiveSyncEnabled);
             if (!onlyTest) {
+                newState.set_transform(static_cast<wl_output_transform>(state.transform));
+                newState.set_scale(state.scale);
+
                 WOutputViewport *viewport = getOutput(output)->screenViewport();
                 if (viewport) {
-                    viewport->rotateOutput(state.transform);
-                    viewport->setOutputScale(state.scale);
                     viewport->setX(state.x);
                     viewport->setY(state.y);
                 }
@@ -309,9 +314,9 @@ void Helper::onOutputTestOrApply(qw_output_configuration_v1 *config, bool onlyTe
         }
 
         if (onlyTest)
-            ok &= output->test();
+            ok &= output->handle()->test_state(newState);
         else
-            ok &= output->commit();
+            ok &= output->handle()->commit_state(newState);
     }
     m_outputManager->sendResult(config, ok);
 }
@@ -535,6 +540,7 @@ void Helper::init()
     engine->setContextForObject(m_renderWindow, engine->rootContext());
     engine->setContextForObject(m_renderWindow->contentItem(), engine->rootContext());
     m_rootSurfaceContainer->setQmlEngine(engine);
+    m_rootSurfaceContainer->init(m_server);
 
     m_seat = m_server->attach<WSeat>();
     m_seat->setEventFilter(this);
@@ -573,7 +579,10 @@ void Helper::init()
             m_multitaskView->toggleMultitaskView(IMultitaskView::ActiveReason::ShortcutKey);
         }
     });
-    connect(m_ddeShellV1, &DDEShellManagerInterfaceV1::requestPickWindow, this, &Helper::handleWindowPicker);
+    connect(m_ddeShellV1,
+            &DDEShellManagerInterfaceV1::requestPickWindow,
+            this,
+            &Helper::handleWindowPicker);
     m_shellHandler->createComponent(engine);
     m_shellHandler->initXdgShell(m_server);
     m_shellHandler->initLayerShell(m_server);
@@ -837,7 +846,8 @@ void Helper::forceActivateSurface(SurfaceWrapper *wrapper, Qt::FocusReason reaso
     }
 
     if (wrapper->isMinimized()) {
-        wrapper->requestCancelMinimize(!(reason == Qt::TabFocusReason || reason == Qt::BacktabFocusReason));
+        wrapper->requestCancelMinimize(
+            !(reason == Qt::TabFocusReason || reason == Qt::BacktabFocusReason));
     }
 
     if (!wrapper->surface()->mapped()) {
@@ -1300,15 +1310,7 @@ void Helper::allowNonDrmOutputAutoChangeMode(WOutput *output)
                             if (newState->state->committed & WLR_OUTPUT_STATE_MODE) {
                                 auto output = qobject_cast<qw_output *>(sender());
 
-                                if (newState->state->mode_type == WLR_OUTPUT_STATE_MODE_CUSTOM) {
-                                    output->set_custom_mode(newState->state->custom_mode.width,
-                                                            newState->state->custom_mode.height,
-                                                            newState->state->custom_mode.refresh);
-                                } else {
-                                    output->set_mode(newState->state->mode);
-                                }
-
-                                output->commit();
+                                output->commit_state(newState->state);
                             }
                         });
 }
@@ -1317,6 +1319,7 @@ void Helper::enableOutput(WOutput *output)
 {
     // Enable on default
     auto qwoutput = output->handle();
+    qw_output_state newState;
     // Don't care for WOutput::isEnabled, must do WOutput::commit here,
     // In order to ensure trigger QWOutput::frame signal, WOutputRenderWindow
     // needs this signal to render next frame. Because QWOutput::frame signal
@@ -1328,10 +1331,10 @@ void Helper::enableOutput(WOutput *output)
         if (!qwoutput->handle()->current_mode) {
             auto mode = qwoutput->preferred_mode();
             if (mode)
-                output->setMode(mode);
+                newState.set_mode(mode);
         }
-        output->enable(true);
-        bool ok = output->commit();
+        newState.set_enabled(true);
+        bool ok = qwoutput->commit_state(newState);
         Q_ASSERT(ok);
     }
 }
