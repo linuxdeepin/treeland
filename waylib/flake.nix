@@ -37,7 +37,6 @@
             packages = with pkgs; [
               wayland-utils
               qt6.qtwayland
-              wlroots
             ];
 
             inputsFrom = [
