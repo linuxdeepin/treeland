@@ -46,8 +46,8 @@ public:
 
     void instantRelease() override;
 
-    void sendEnterEvent();
-    void sendLeaveEvent();
+    void sendEnterEvent(WInputDevice *device);
+    void sendLeaveEvent(WInputDevice *device);
 
     // begin slot function
     void on_motion(wlr_pointer_motion_event *event);
@@ -80,8 +80,6 @@ public:
 
     WSeat *seat = nullptr;
     QPointer<QWindow> eventWindow;
-    bool enterWindowEventHasSend = false;
-    bool leaveWindowEventHasSend = false;
     QPointer<WOutputLayout> outputLayout;
     QList<WInputDevice*> deviceList;
 
