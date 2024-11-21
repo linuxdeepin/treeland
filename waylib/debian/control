@@ -3,7 +3,7 @@ Section: libdevel
 Priority: optional
 Maintainer: JiDe Zhang <zhangjide@deepin.org>
 Build-Depends: cmake,
-               debhelper (>= 9),
+               debhelper-compat (= 13),
                libpixman-1-dev,
                libwlroots-dev (>= 0.17.0),
                libxcb-ewmh-dev,
