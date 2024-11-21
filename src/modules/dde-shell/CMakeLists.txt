@@ -6,6 +6,10 @@ pkg_search_module(WLROOTS REQUIRED IMPORTED_TARGET wlroots)
 
 qt_add_library(${MODULE_NAME} SHARED)
 
+set_target_properties(${MODULE_NAME} PROPERTIES
+    OUTPUT_NAME "treeland-protocol-dde-shell-v1"
+)
+
 local_qtwayland_server_protocol_treeland(${MODULE_NAME}
     PROTOCOL ${TREELAND_PROTOCOLS_DATA_DIR}/treeland-dde-shell-v1.xml
     BASENAME treeland-dde-shell-v1
