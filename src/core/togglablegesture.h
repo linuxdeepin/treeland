@@ -38,17 +38,17 @@ public:
         return m_partialGestureFactor;
     }
 
-    void setStatus(Status status);
+    void setStatus(Status status, bool on = true);
 
     Status status() const
     {
         return m_status;
     }
 
-    void activate();
-    void deactivate();
+    void activate(bool on = true);
+    void deactivate(bool on = true);
 
-    Q_INVOKABLE void toggle();
+    Q_INVOKABLE void toggle(bool on = true);
     Q_INVOKABLE void stop();
 
     void addTouchpadSwipeGesture(SwipeGesture::Direction direction, uint fingerCount);

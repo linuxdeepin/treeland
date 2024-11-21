@@ -36,28 +36,30 @@ void TogglableGesture::setPartialGestureFactor(qreal factor)
     }
 }
 
-void TogglableGesture::activate()
+void TogglableGesture::activate(bool on)
 {
     setInProgress(false);
     setPartialGestureFactor(1.0);
-    setStatus(Status::Active);
+    setStatus(Status::Active, on);
 }
 
-void TogglableGesture::deactivate()
+void TogglableGesture::deactivate(bool on)
 {
     setInProgress(false);
     setPartialGestureFactor(0.0);
-    setStatus(Status::Inactive);
+    setStatus(Status::Inactive, on);
 }
 
-void TogglableGesture::toggle()
+void TogglableGesture::toggle(bool on)
 {
     if (m_status != Status::Active) {
-        activate();
-        Q_EMIT activated();
+        activate(on);
+        if (on)
+            Q_EMIT activated();
     } else {
-        deactivate();
-        Q_EMIT deactivated();
+        deactivate(on);
+        if (on)
+            Q_EMIT deactivated();
     }
 }
 
@@ -68,11 +70,12 @@ void TogglableGesture::stop()
     setStatus(Status::Stopped);
 }
 
-void TogglableGesture::setStatus(Status status)
+void TogglableGesture::setStatus(Status status, bool on)
 {
     if (m_status != status) {
         m_status = status;
-        Q_EMIT statusChanged(status);
+        if (on)
+            Q_EMIT statusChanged(status);
     }
 }
 

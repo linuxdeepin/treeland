@@ -18,6 +18,15 @@ public:
         Gesture
     };
 
+    enum Status
+    {
+        Uninitialized,
+        Initialized,
+        Active,
+        Exited
+    };
+
+    virtual void setStatus(IMultitaskView::Status status) = 0;
     virtual void toggleMultitaskView(IMultitaskView::ActiveReason reason) = 0;
 };
 

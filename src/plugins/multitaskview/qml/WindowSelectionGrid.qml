@@ -18,6 +18,9 @@ Item {
     required property Item draggedParent
     required property QtObject dragManager
     required property Multitaskview multitaskview
+    required property bool exited
+    required property real partialGestureFactor
+    required property bool inProgress
 
     readonly property real delegateCornerRadius: (ros.rows >= 1 && ros.rows <= 3) ? ros.cornerRadiusList[ros.rows - 1] : ros.cornerRadiusList[2]
 
@@ -115,7 +118,19 @@ Item {
                 }
             }
         ]
-        state: multitaskview.state
+        state: {
+            if (exited)
+                return "initial";
+
+            if (multitaskview.activeReason === Multitaskview.ShortcutKey){
+                return "taskview";
+            } else {
+                if (root.inProgress) return "partial";
+
+                if (root.partialGestureFactor > 0.5) return "taskview";
+            }
+            return "initial";
+        }
         visible: surfaceModel.modelReady
 
         Loader {
@@ -146,7 +161,9 @@ Item {
                     focus: true
                     visible: multitaskview.status == Multitaskview.Exited ? !minimized : true
                     clip: false
-                    state: drg.active ? "dragging" : multitaskview.state
+                    state:  {
+                        drg.active ? "dragging" : surfaceGridView.state
+                    }
                     x: geometry.x
                     y: geometry.y
                     z: zorder
