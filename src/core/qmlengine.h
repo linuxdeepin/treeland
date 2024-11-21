@@ -84,7 +84,9 @@ private:
     QQmlComponent menuBarComponent;
     QQmlComponent workspaceSwitcher;
     QQmlComponent newAnimationComponent;
+#ifndef DISABLE_DDM
     QQmlComponent lockScreenComponent;
+#endif
     QQmlComponent dockPreviewComponent;
     QQmlComponent minimizeAnimationComponent;
     QQmlComponent showDesktopAnimatioComponentn;

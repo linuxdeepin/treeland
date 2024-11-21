@@ -23,6 +23,12 @@ add_feature_info(ASanSupport ADDRESS_SANITIZER "https://github.com/google/saniti
 option(BUILD_TREELAND_EXAMPLES "Build clients demo to test treeland" OFF)
 add_feature_info(DemoClents BUILD_TEST_CLIENTS "clients demo for testing")
 
+option(DISABLE_DDM "Disable DDM and greeter" OFF)
+
+if (DISABLE_DDM)
+    add_compile_definitions("DISABLE_DDM")
+endif()
+
 if (ADDRESS_SANITIZER)
     add_compile_options(-fsanitize=address -fno-optimize-sibling-calls -fno-omit-frame-pointer)
     add_link_options(-fsanitize=address)
