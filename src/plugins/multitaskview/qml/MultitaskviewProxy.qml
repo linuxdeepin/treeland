@@ -24,8 +24,16 @@ Multitaskview {
     property real taskviewVal: 0
 
     onStatusChanged: {
-        if (root.status === Multitaskview.Exited)
+        if (root.activeReason === Multitaskview.ShortcutKey && root.status === Multitaskview.Active) {
+            taskViewGesture.toggle(false)
+        }
+
+        if (root.status === Multitaskview.Exited) {
+            if (taskViewGesture.status === 3)
+                taskViewGesture.toggle()
+
             exited = true
+        }
     }
 
     states: [
@@ -129,6 +137,9 @@ Multitaskview {
                 model: Helper.workspace.models
                 WindowSelectionGrid {
                     id: windowSelectionGrid
+                    exited: root.exited
+                    partialGestureFactor: root.taskviewVal
+                    inProgress: !Number.isInteger(taskviewVal)
                     width: parent.width
                     height: parent.height
                     visible: workspace.visible

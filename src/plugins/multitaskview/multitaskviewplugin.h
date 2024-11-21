@@ -37,6 +37,7 @@ public:
         return true;
     }
 
+    void setStatus(IMultitaskView::Status status) override;
     void toggleMultitaskView(IMultitaskView::ActiveReason reason) override;
 
 private:

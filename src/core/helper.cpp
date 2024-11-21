@@ -143,7 +143,9 @@ Helper::Helper(QObject *parent)
             this,
             [this](TogglableGesture::Status status) {
                 if (status == TogglableGesture::Inactive || status == TogglableGesture::Stopped) {
-                    setCurrentMode(CurrentMode::Normal);
+                    m_multitaskView->setStatus(IMultitaskView::Exited);
+                } else {
+                    m_multitaskView->setStatus(IMultitaskView::Active);
                 }
                 m_multitaskView->toggleMultitaskView(IMultitaskView::ActiveReason::Gesture);
             });
