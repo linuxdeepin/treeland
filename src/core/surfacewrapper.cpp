@@ -665,13 +665,13 @@ void SurfaceWrapper::createNewOrClose(uint direction)
                                  ->handle()
                                  ->handle()
                                  ->scope);
+        auto *surface = qobject_cast<WLayerSurface *>(m_shellSurface);
+        auto anchor = surface->getExclusiveZoneEdge();
         if (scope == "dde-shell/launchpad") {
             m_windowAnimation = m_engine->createLaunchpadAnimation(this, direction, m_container);
-        } else if (scope == "dde-shell/dock") {
-            auto *surface = qobject_cast<WLayerSurface *>(m_shellSurface);
+        } else if (anchor != WLayerSurface::AnchorType::None) {
             m_windowAnimation = m_engine->createLayerShellAnimation(this, container(), direction);
-            m_windowAnimation->setProperty("position",
-                                           QVariant::fromValue(surface->getExclusiveZoneEdge()));
+            m_windowAnimation->setProperty("position", QVariant::fromValue(anchor));
             m_windowAnimation->setProperty("enableBlur", true);
         }
     }; break;
