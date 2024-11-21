@@ -8,6 +8,10 @@ pkg_search_module(WLROOTS REQUIRED IMPORTED_TARGET wlroots)
 
 qt_add_library(${MODULE_NAME} SHARED)
 
+set_target_properties(${MODULE_NAME} PROPERTIES
+    OUTPUT_NAME "treeland-protocol-shortcut-v1"
+)
+
 target_sources(${MODULE_NAME} PUBLIC
 FILE_SET HEADERS
 FILES
