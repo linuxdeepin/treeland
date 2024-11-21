@@ -70,8 +70,8 @@ void Multitaskview::exit(SurfaceWrapper *surface)
 void Multitaskview::enter(ActiveReason reason)
 {
     Helper::instance()->activateSurface(nullptr);
-    setStatus(Active);
     setActiveReason(reason);
+    setStatus(Active);
     Helper::instance()->setCurrentMode(Helper::CurrentMode::Multitaskview);
 }
 

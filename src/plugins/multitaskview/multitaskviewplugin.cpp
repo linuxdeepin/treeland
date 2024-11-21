@@ -32,6 +32,12 @@ QQuickItem *MultitaskViewPlugin::createMultitaskview(QQuickItem *parent)
     return m_proxy->qmlEngine()->createComponent(m_multitaskViewComponent, parent);
 }
 
+void MultitaskViewPlugin::setStatus(IMultitaskView::Status status)
+{
+    if (m_multitaskview)
+        m_multitaskview->setStatus(static_cast<Multitaskview::Status>(status));
+}
+
 void MultitaskViewPlugin::toggleMultitaskView(IMultitaskView::ActiveReason reason)
 {
     if (!m_multitaskview) {
@@ -49,10 +55,18 @@ void MultitaskViewPlugin::toggleMultitaskView(IMultitaskView::ActiveReason reaso
 
         m_multitaskview->enter(static_cast<Multitaskview::ActiveReason>(reason));
     } else {
-        if (m_multitaskview->status() == Multitaskview::Exited) {
-            m_multitaskview->enter(Multitaskview::ShortcutKey);
+        if (reason == IMultitaskView::Gesture) {
+            if (m_multitaskview->status() == Multitaskview::Exited) {
+                m_multitaskview->exit(nullptr);
+            } else {
+                m_multitaskview->enter(static_cast<Multitaskview::ActiveReason>(reason));
+            }
         } else {
-            m_multitaskview->exit(nullptr);
+            if (m_multitaskview->status() == Multitaskview::Exited) {
+                m_multitaskview->enter(static_cast<Multitaskview::ActiveReason>(reason));
+            } else {
+                m_multitaskview->exit(nullptr);
+            }
         }
     }
 }
