@@ -1,3 +1,9 @@
+treeland (0.5.1) unstable; urgency=medium
+
+  * bump version to 0.5.1
+
+ -- Groveer <guoyao@uniontech.com>  Fri, 22 Nov 2024 18:10:04 +0800
+
 treeland (0.5.0) unstable; urgency=medium
 
   * bump version to 0.5.0
