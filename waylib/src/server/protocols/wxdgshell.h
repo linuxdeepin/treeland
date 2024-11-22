@@ -5,6 +5,8 @@
 
 #include <WServer>
 
+class wlr_xdg_popup;
+
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
 class WXdgToplevelSurface;
@@ -25,6 +27,9 @@ Q_SIGNALS:
     void toplevelSurfaceRemoved(WXdgToplevelSurface *surface);
     void popupSurfaceAdded(WXdgPopupSurface *surface);
     void popupSurfaceRemoved(WXdgPopupSurface *surface);
+
+public:
+    void initializeNewXdgPopupSurface(wlr_xdg_popup *popup);
 
 protected:
     void create(WServer *server) override;

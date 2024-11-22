@@ -186,7 +186,7 @@ void Helper::init()
 
     auto *xdgShell = m_server->attach<WXdgShell>();
     m_foreignToplevel = m_server->attach<WForeignToplevel>(xdgShell);
-    auto *layerShell = m_server->attach<WLayerShell>();
+    auto *layerShell = m_server->attach<WLayerShell>(xdgShell);
     auto *xdgOutputManager = m_server->attach<WXdgOutputManager>(m_surfaceContainer->outputLayout());
     m_windowMenu = engine->createWindowMenu(this);
 

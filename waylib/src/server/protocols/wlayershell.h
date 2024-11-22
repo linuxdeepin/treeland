@@ -11,6 +11,7 @@
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
+class WXdgShell;
 class WLayerSurface;
 class WLayerShellPrivate;
 class WAYLIB_SERVER_EXPORT WLayerShell: public WWrapObject, public WServerInterface
@@ -19,7 +20,7 @@ class WAYLIB_SERVER_EXPORT WLayerShell: public WWrapObject, public WServerInterf
     W_DECLARE_PRIVATE(WLayerShell)
 
 public:
-    explicit WLayerShell(QObject *parent = nullptr);
+    explicit WLayerShell(WXdgShell *xdgShell, QObject *parent = nullptr);
     void *create();
 
     QVector<WLayerSurface*> surfaceList() const;

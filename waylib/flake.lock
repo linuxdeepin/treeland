@@ -62,11 +62,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1732177097,
-        "narHash": "sha256-e5HtEtWwEEDEE0YyE/topJ+ny6zkUTw5GPTGFzpoARg=",
+        "lastModified": 1732273316,
+        "narHash": "sha256-eFRAGuOqcXFaL20pQYrPweF683xa+EweHgvoB92j0LM=",
         "owner": "vioken",
         "repo": "qwlroots",
-        "rev": "b9c6d5e59a1da42fe6c475b896eb7c1cb0d99c58",
+        "rev": "43871fedd02b9a5dce33c35e5b8b4f40e5ce469b",
         "type": "github"
       },
       "original": {

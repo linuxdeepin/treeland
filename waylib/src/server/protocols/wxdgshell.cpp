@@ -39,13 +39,16 @@ public:
 
 void WXdgShellPrivate::onNewXdgToplevelSurface(qw_xdg_toplevel *toplevel)
 {
+    W_Q(WXdgShell);
     auto server = q_func()->server();
     auto surface = new WXdgToplevelSurface(toplevel, server);
     surface->setParent(server);
     Q_ASSERT(surface->parent() == server);
-    surface->safeConnect(&qw_xdg_surface::before_destroy, q_func(), [this, toplevel] {
-        onToplevelSurfaceDestroy(toplevel);
+    surface->safeConnect(&qw_xdg_surface::before_destroy, q, [this, toplevel] {
+       onToplevelSurfaceDestroy(toplevel);
     });
+    auto xdgSurface = qw_xdg_surface::from((*toplevel)->base);
+    QObject::connect(xdgSurface, &qw_xdg_surface::notify_new_popup, q, &WXdgShell::initializeNewXdgPopupSurface);
     toplevelSurfaceList.append(surface);
     Q_EMIT q_func()->toplevelSurfaceAdded(surface);
 }
@@ -62,13 +65,16 @@ void WXdgShellPrivate::onToplevelSurfaceDestroy(qw_xdg_toplevel *toplevel)
 
 void WXdgShellPrivate::onNewXdgPopupSurface(qw_xdg_popup *popup)
 {
+    W_Q(WXdgShell);
     auto server = q_func()->server();
     auto surface = new WXdgPopupSurface(popup, server);
     surface->setParent(server);
     Q_ASSERT(surface->parent() == server);
-    surface->safeConnect(&qw_xdg_popup::before_destroy, q_func(), [this, popup] {
+    surface->safeConnect(&qw_xdg_popup::before_destroy, q, [this, popup] {
         onPopupSurfaceDestroy(popup);
     });
+    auto xdgSurface = qw_xdg_surface::from((*popup)->base);
+    QObject::connect(xdgSurface, &qw_xdg_surface::notify_new_popup, q, &WXdgShell::initializeNewXdgPopupSurface);
     popupSurfaceList.append(surface);
     Q_EMIT q_func()->popupSurfaceAdded(surface);
 }
@@ -100,6 +106,12 @@ QByteArrayView WXdgShell::interfaceName() const
     return "xdg_wm_base";
 }
 
+void WXdgShell::initializeNewXdgPopupSurface(wlr_xdg_popup *popup)
+{
+    W_D(WXdgShell);
+    d->onNewXdgPopupSurface(qw_xdg_popup::from(popup));
+}
+
 void WXdgShell::create(WServer *server)
 {
     W_D(WXdgShell);
@@ -109,9 +121,13 @@ void WXdgShell::create(WServer *server)
         d_func()->onNewXdgToplevelSurface(qw_xdg_toplevel::from(toplevel_surface));
     });
 
-    QObject::connect(xdg_shell, &qw_xdg_shell::notify_new_popup, this, [this] (wlr_xdg_popup *xdg_popup) {
-        d_func()->onNewXdgPopupSurface(qw_xdg_popup::from(xdg_popup));
-    });
+    // When layer_surface is an xdg_popup's parent, the popup should created via xdg_surface::get_popup with the parent set to NULL,
+    // and invoke 'zwlr_layer_surface_v1::get_popup' to set parent before committing the popup's initial state.
+
+    // We should use parent's `notify_new_popup` to avoid get a popup with NULL parent
+    // QObject::connect(xdg_shell, &qw_xdg_shell::notify_new_popup, this, [this] (wlr_xdg_popup *xdg_popup) {
+    //     d_func()->onNewXdgPopupSurface(qw_xdg_popup::from(xdg_popup));
+    // });
     m_handle = xdg_shell;
 }
 

@@ -5,6 +5,7 @@
 #include "wlayersurface.h"
 #include "woutput.h"
 #include "private/wglobal_p.h"
+#include "wxdgshell.h"
 
 #include <qwlayershellv1.h>
 #include <qwxdgshell.h>
@@ -34,6 +35,7 @@ public:
     W_DECLARE_PUBLIC(WLayerShell)
 
     QVector<WLayerSurface*> surfaceList;
+    QPointer<WXdgShell> xdgShell;
 };
 
 void WLayerShellPrivate::onNewSurface(qw_layer_surface_v1 *layerSurface)
@@ -47,6 +49,12 @@ void WLayerShellPrivate::onNewSurface(qw_layer_surface_v1 *layerSurface)
 
     surface->safeConnect(&qw_layer_surface_v1::before_destroy, q, [this, layerSurface] {
         onSurfaceDestroy(layerSurface);
+    });
+    QObject::connect(layerSurface, &qw_layer_surface_v1::notify_new_popup, q, [this] (wlr_xdg_popup *popup) {
+        if (xdgShell)
+            xdgShell->initializeNewXdgPopupSurface(popup);
+        else
+            qWarning() << "Xdg shell not set, will ignore the layer surface's popup request!";
     });
 
     surfaceList.append(surface);
@@ -63,10 +71,11 @@ void WLayerShellPrivate::onSurfaceDestroy(qw_layer_surface_v1 *layerSurface)
     surface->safeDeleteLater();
 }
 
-WLayerShell::WLayerShell(QObject *parent):
+WLayerShell::WLayerShell(WXdgShell *xdgshell, QObject *parent):
     WWrapObject(*new WLayerShellPrivate(this), nullptr)
 {
-
+    W_D(WLayerShell);
+    d->xdgShell = xdgshell;
 }
 
 QVector<WLayerSurface*> WLayerShell::surfaceList() const
