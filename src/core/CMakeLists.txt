@@ -2,19 +2,17 @@ find_package(QT NAMES Qt6 COMPONENTS Core REQUIRED)
 
 qt_add_dbus_adaptor(DBUS_ADAPTOR "${CMAKE_SOURCE_DIR}/misc/dbus/org.deepin.compositor1.xml" "treeland.h" Treeland::Treeland)
 
-qt_add_library(config INTERFACE)
-
-target_sources(config INTERFACE
+qt_add_library(treelandconfig SHARED
     treelandconfig.h
     treelandconfig.cpp
 )
 
-target_include_directories(config INTERFACE
+target_include_directories(treelandconfig INTERFACE
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
 )
 
-target_link_libraries(config
-    INTERFACE
+target_link_libraries(treelandconfig
+    PUBLIC
         Dtk6::Core
         Qt6::Quick
 )
@@ -152,6 +150,7 @@ target_link_libraries(treeland_core
         Dtk6::Core
         Dtk6::Declarative
         Waylib::WaylibServer
+        treelandconfig
         foreign-toplevel
         primary-output
         personalization
@@ -161,7 +160,6 @@ target_link_libraries(treeland_core
         virtual-output
         dde-shell
         capture
-        config
         treeland_interface
     PRIVATE
         Qt6::Quick
@@ -245,6 +243,7 @@ set_target_properties(treeland_core PROPERTIES
 install(
     TARGETS
         treeland_core
+        treelandconfig
     # EXPORT TreelandTargets
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
 )

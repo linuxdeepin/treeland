@@ -54,7 +54,7 @@ target_link_libraries(${MODULE_NAME}
         Qt6::Gui
         Qt6::Quick
         Dtk6::Core
-        config
+        treelandconfig
 )
 
 install(TARGETS ${MODULE_NAME} DESTINATION ${CMAKE_INSTALL_LIBDIR})

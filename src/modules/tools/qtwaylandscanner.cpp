@@ -5,14 +5,18 @@
 #include <QFile>
 #include <QXmlStreamReader>
 
-#include <vector>
 #include <utility>
+#include <vector>
 
 class Scanner
 {
 public:
-    explicit Scanner() {}
-    ~Scanner() { delete m_xml; }
+    explicit Scanner() { }
+
+    ~Scanner()
+    {
+        delete m_xml;
+    }
 
     bool parseArguments(int argc, char **argv);
     void printUsage();
@@ -20,19 +24,22 @@ public:
     void printErrors();
 
 private:
-    struct WaylandEnumEntry {
+    struct WaylandEnumEntry
+    {
         QByteArray name;
         QByteArray value;
         QByteArray summary;
     };
 
-    struct WaylandEnum {
+    struct WaylandEnum
+    {
         QByteArray name;
 
         std::vector<WaylandEnumEntry> entries;
     };
 
-    struct WaylandArgument {
+    struct WaylandArgument
+    {
         QByteArray name;
         QByteArray type;
         QByteArray interface;
@@ -40,14 +47,16 @@ private:
         bool allowNull;
     };
 
-    struct WaylandEvent {
+    struct WaylandEvent
+    {
         bool request;
         QByteArray name;
         QByteArray type;
         std::vector<WaylandArgument> arguments;
     };
 
-    struct WaylandInterface {
+    struct WaylandInterface
+    {
         QByteArray name;
         int version;
 
@@ -66,17 +75,22 @@ private:
     Scanner::WaylandEnum readEnum(QXmlStreamReader &xml);
     Scanner::WaylandInterface readInterface(QXmlStreamReader &xml);
     QByteArray waylandToCType(const QByteArray &waylandType, const QByteArray &interface);
-    QByteArray waylandToQtType(const QByteArray &waylandType, const QByteArray &interface, bool cStyleArray);
+    QByteArray waylandToQtType(const QByteArray &waylandType,
+                               const QByteArray &interface,
+                               bool cStyleArray);
     const Scanner::WaylandArgument *newIdArgument(const std::vector<WaylandArgument> &arguments);
 
     void printEvent(const WaylandEvent &e, bool omitNames = false, bool withResource = false);
-    void printEventHandlerSignature(const WaylandEvent &e, const char *interfaceName, bool deepIndent = true);
+    void printEventHandlerSignature(const WaylandEvent &e,
+                                    const char *interfaceName,
+                                    bool deepIndent = true);
     void printEnums(const std::vector<WaylandEnum> &enums);
 
     QByteArray stripInterfaceName(const QByteArray &name);
     bool ignoreInterface(const QByteArray &name);
 
-    enum Option {
+    enum Option
+    {
         ClientHeader,
         ServerHeader,
         ClientCode,
@@ -88,7 +102,7 @@ private:
     QByteArray m_scannerName;
     QByteArray m_headerPath;
     QByteArray m_prefix;
-    QList <QByteArray> m_includes;
+    QList<QByteArray> m_includes;
     QXmlStreamReader *m_xml = nullptr;
 };
 
@@ -108,7 +122,7 @@ bool Scanner::parseArguments(int argc, char **argv)
 
     if (argc > 3 && !args[3].startsWith('-')) {
         // legacy positional arguments
-            m_headerPath = args[3];
+        m_headerPath = args[3];
         if (argc == 5)
             m_prefix = args[4];
     } else {
@@ -136,7 +150,10 @@ bool Scanner::parseArguments(int argc, char **argv)
 
 void Scanner::printUsage()
 {
-    fprintf(stderr, "Usage: %s [client-header|server-header|client-code|server-code] specfile [--header-path=<path>] [--prefix=<prefix>] [--add-include=<include>]\n", m_scannerName.constData());
+    fprintf(stderr,
+            "Usage: %s [client-header|server-header|client-code|server-code] specfile "
+            "[--header-path=<path>] [--prefix=<prefix>] [--add-include=<include>]\n",
+            m_scannerName.constData());
 }
 
 bool Scanner::isServerSide()
@@ -190,10 +207,10 @@ Scanner::WaylandEvent Scanner::readEvent(QXmlStreamReader &xml, bool request)
     while (xml.readNextStartElement()) {
         if (xml.name() == QLatin1String("arg")) {
             WaylandArgument argument = {
-                .name      = byteArrayValue(xml, "name"),
-                .type      = byteArrayValue(xml, "type"),
+                .name = byteArrayValue(xml, "name"),
+                .type = byteArrayValue(xml, "type"),
                 .interface = byteArrayValue(xml, "interface"),
-                .summary   = byteArrayValue(xml, "summary"),
+                .summary = byteArrayValue(xml, "summary"),
                 .allowNull = boolValue(xml, "allowNull"),
             };
             event.arguments.push_back(std::move(argument));
@@ -214,8 +231,8 @@ Scanner::WaylandEnum Scanner::readEnum(QXmlStreamReader &xml)
     while (xml.readNextStartElement()) {
         if (xml.name() == QLatin1String("entry")) {
             WaylandEnumEntry entry = {
-                .name    = byteArrayValue(xml, "name"),
-                .value   = byteArrayValue(xml, "value"),
+                .name = byteArrayValue(xml, "name"),
+                .value = byteArrayValue(xml, "value"),
                 .summary = byteArrayValue(xml, "summary"),
             };
             result.entries.push_back(std::move(entry));
@@ -275,7 +292,9 @@ QByteArray Scanner::waylandToCType(const QByteArray &waylandType, const QByteArr
     return waylandType;
 }
 
-QByteArray Scanner::waylandToQtType(const QByteArray &waylandType, const QByteArray &interface, bool cStyleArray)
+QByteArray Scanner::waylandToQtType(const QByteArray &waylandType,
+                                    const QByteArray &interface,
+                                    bool cStyleArray)
 {
     if (waylandType == "string")
         return "const QString &";
@@ -285,7 +304,8 @@ QByteArray Scanner::waylandToQtType(const QByteArray &waylandType, const QByteAr
         return waylandToCType(waylandType, interface);
 }
 
-const Scanner::WaylandArgument *Scanner::newIdArgument(const std::vector<WaylandArgument> &arguments)
+const Scanner::WaylandArgument *Scanner::newIdArgument(
+    const std::vector<WaylandArgument> &arguments)
 {
     for (const WaylandArgument &a : arguments) {
         if (a.type == "new_id")
@@ -324,19 +344,26 @@ void Scanner::printEvent(const WaylandEvent &e, bool omitNames, bool withResourc
                 }
             } else {
                 if (e.request) {
-                    printf("const struct ::wl_interface *%s, uint32_t%s", omitNames ? "" : "interface", omitNames ? "" : " version");
+                    printf("const struct ::wl_interface *%s, uint32_t%s",
+                           omitNames ? "" : "interface",
+                           omitNames ? "" : " version");
                     continue;
                 }
             }
         }
 
         QByteArray qtType = waylandToQtType(a.type, a.interface, e.request == isServerSide());
-        printf("%s%s%s", qtType.constData(), qtType.endsWith("&") || qtType.endsWith("*") ? "" : " ", omitNames ? "" : a.name.constData());
+        printf("%s%s%s",
+               qtType.constData(),
+               qtType.endsWith("&") || qtType.endsWith("*") ? "" : " ",
+               omitNames ? "" : a.name.constData());
     }
     printf(")");
 }
 
-void Scanner::printEventHandlerSignature(const WaylandEvent &e, const char *interfaceName, bool deepIndent)
+void Scanner::printEventHandlerSignature(const WaylandEvent &e,
+                                         const char *interfaceName,
+                                         bool deepIndent)
 {
     const char *indent = deepIndent ? "    " : "";
     printf("handle_%s(\n", e.name.constData());
@@ -354,7 +381,11 @@ void Scanner::printEventHandlerSignature(const WaylandEvent &e, const char *inte
             printf("        %suint32_t %s", indent, a.name.constData());
         } else {
             QByteArray cType = waylandToCType(a.type, a.interface);
-            printf("        %s%s%s%s", indent, cType.constData(), cType.endsWith("*") ? "" : " ", a.name.constData());
+            printf("        %s%s%s%s",
+                   indent,
+                   cType.constData(),
+                   cType.endsWith("*") ? "" : " ",
+                   a.name.constData());
         }
     }
     printf(")");
@@ -366,7 +397,10 @@ void Scanner::printEnums(const std::vector<WaylandEnum> &enums)
         printf("\n");
         printf("        enum %s {\n", e.name.constData());
         for (const WaylandEnumEntry &entry : e.entries) {
-            printf("            %s_%s = %s,", e.name.constData(), entry.name.constData(), entry.value.constData());
+            printf("            %s_%s = %s,",
+                   e.name.constData(),
+                   entry.name.constData(),
+                   entry.value.constData());
             if (!entry.summary.isNull())
                 printf(" // %s", entry.summary.constData());
             printf("\n");
@@ -387,8 +421,7 @@ QByteArray Scanner::stripInterfaceName(const QByteArray &name)
 
 bool Scanner::ignoreInterface(const QByteArray &name)
 {
-    return name == "wl_display"
-           || (isServerSide() && name == "wl_registry");
+    return name == "wl_display" || (isServerSide() && name == "wl_registry");
 }
 
 bool Scanner::process()
@@ -415,9 +448,9 @@ bool Scanner::process()
         return false;
     }
 
-    //We should convert - to _ so that the preprocessor wont generate code which will lead to unexpected behavior
-    //However, the wayland-scanner doesn't do so we will do the same for now
-    //QByteArray preProcessorProtocolName = QByteArray(m_protocolName).replace('-', '_').toUpper();
+    // We should convert - to _ so that the preprocessor wont generate code which will lead to
+    // unexpected behavior However, the wayland-scanner doesn't do so we will do the same for now
+    // QByteArray preProcessorProtocolName = QByteArray(m_protocolName).replace('-', '_').toUpper();
     QByteArray preProcessorProtocolName = QByteArray(m_protocolName).toUpper();
 
     std::vector<WaylandInterface> interfaces;
@@ -439,15 +472,19 @@ bool Scanner::process()
         printf("#include %s\n", b.constData());
 
     if (m_option == ServerHeader) {
-        QByteArray inclusionGuard = QByteArray("QT_WAYLAND_SERVER_") + preProcessorProtocolName.constData();
+        QByteArray inclusionGuard =
+            QByteArray("QT_WAYLAND_SERVER_") + preProcessorProtocolName.constData();
         printf("#ifndef %s\n", inclusionGuard.constData());
         printf("#define %s\n", inclusionGuard.constData());
         printf("\n");
         printf("#include \"wayland-server-core.h\"\n");
         if (m_headerPath.isEmpty())
-            printf("#include \"wayland-%s-server-protocol.h\"\n", QByteArray(m_protocolName).replace('_', '-').constData());
+            printf("#include \"wayland-%s-server-protocol.h\"\n",
+                   QByteArray(m_protocolName).replace('_', '-').constData());
         else
-            printf("#include <%s/wayland-%s-server-protocol.h>\n", m_headerPath.constData(), QByteArray(m_protocolName).replace('_', '-').constData());
+            printf("#include <%s/wayland-%s-server-protocol.h>\n",
+                   m_headerPath.constData(),
+                   QByteArray(m_protocolName).replace('_', '-').constData());
         printf("#include <QByteArray>\n");
         printf("#include <QMultiMap>\n");
         printf("#include <QString>\n");
@@ -460,7 +497,8 @@ bool Scanner::process()
         printf("#define WAYLAND_VERSION_CHECK(major, minor, micro) \\\n");
         printf("    ((WAYLAND_VERSION_MAJOR > (major)) || \\\n");
         printf("    (WAYLAND_VERSION_MAJOR == (major) && WAYLAND_VERSION_MINOR > (minor)) || \\\n");
-        printf("    (WAYLAND_VERSION_MAJOR == (major) && WAYLAND_VERSION_MINOR == (minor) && WAYLAND_VERSION_MICRO >= (micro)))\n");
+        printf("    (WAYLAND_VERSION_MAJOR == (major) && WAYLAND_VERSION_MINOR == (minor) && "
+               "WAYLAND_VERSION_MICRO >= (micro)))\n");
         printf("#endif\n");
 
         printf("\n");
@@ -510,14 +548,18 @@ bool Scanner::process()
             printf("        class Resource\n");
             printf("        {\n");
             printf("        public:\n");
-            printf("            Resource() : %s_object(nullptr), handle(nullptr) {}\n", interfaceNameStripped);
+            printf("            Resource() : %s_object(nullptr), handle(nullptr) {}\n",
+                   interfaceNameStripped);
             printf("            virtual ~Resource() {}\n");
             printf("\n");
             printf("            %s *%s_object;\n", interfaceName, interfaceNameStripped);
-            printf("            %s *object() { return %s_object; } \n", interfaceName, interfaceNameStripped);
+            printf("            %s *object() { return %s_object; } \n",
+                   interfaceName,
+                   interfaceNameStripped);
             printf("            struct ::wl_resource *handle;\n");
             printf("\n");
-            printf("            struct ::wl_client *client() const { return wl_resource_get_client(handle); }\n");
+            printf("            struct ::wl_client *client() const { return "
+                   "wl_resource_get_client(handle); }\n");
             printf("            int version() const { return wl_resource_get_version(handle); }\n");
             printf("\n");
             printf("            static Resource *fromResource(struct ::wl_resource *resource);\n");
@@ -529,13 +571,16 @@ bool Scanner::process()
             printf("\n");
             printf("        Resource *add(struct ::wl_client *client, int version);\n");
             printf("        Resource *add(struct ::wl_client *client, int id, int version);\n");
-            printf("        Resource *add(struct wl_list *resource_list, struct ::wl_client *client, int id, int version);\n");
+            printf("        Resource *add(struct wl_list *resource_list, struct ::wl_client "
+                   "*client, int id, int version);\n");
             printf("\n");
             printf("        Resource *resource() { return m_resource; }\n");
             printf("        const Resource *resource() const { return m_resource; }\n");
             printf("\n");
-            printf("        QMultiMap<struct ::wl_client*, Resource*> resourceMap() { return m_resource_map; }\n");
-            printf("        const QMultiMap<struct ::wl_client*, Resource*> resourceMap() const { return m_resource_map; }\n");
+            printf("        QMultiMap<struct ::wl_client*, Resource*> resourceMap() { return "
+                   "m_resource_map; }\n");
+            printf("        const QMultiMap<struct ::wl_client*, Resource*> resourceMap() const { "
+                   "return m_resource_map; }\n");
             printf("\n");
             printf("        bool isGlobalRemoved() const { return m_globalRemovedEvent; }\n");
             printf("        void globalRemove();\n");
@@ -573,8 +618,10 @@ bool Scanner::process()
             printf("\n");
             printf("        virtual void %s_destroy_global();\n", interfaceNameStripped);
             printf("\n");
-            printf("        virtual void %s_bind_resource(Resource *resource);\n", interfaceNameStripped);
-            printf("        virtual void %s_destroy_resource(Resource *resource);\n", interfaceNameStripped);
+            printf("        virtual void %s_bind_resource(Resource *resource);\n",
+                   interfaceNameStripped);
+            printf("        virtual void %s_destroy_resource(Resource *resource);\n",
+                   interfaceNameStripped);
 
             bool hasRequests = !interface.requests.empty();
 
@@ -589,17 +636,22 @@ bool Scanner::process()
 
             printf("\n");
             printf("    private:\n");
-            printf("        static void bind_func(struct ::wl_client *client, void *data, uint32_t version, uint32_t id);\n");
+            printf("        static void bind_func(struct ::wl_client *client, void *data, uint32_t "
+                   "version, uint32_t id);\n");
             printf("        static void destroy_func(struct ::wl_resource *client_resource);\n");
-            printf("        static void display_destroy_func(struct ::wl_listener *listener, void *data);\n");
+            printf("        static void display_destroy_func(struct ::wl_listener *listener, void "
+                   "*data);\n");
             printf("        static int deferred_destroy_global_func(void *data);\n");
             printf("\n");
-            printf("        Resource *bind(struct ::wl_client *client, uint32_t id, int version);\n");
+            printf(
+                "        Resource *bind(struct ::wl_client *client, uint32_t id, int version);\n");
             printf("        Resource *bind(struct ::wl_resource *handle);\n");
 
             if (hasRequests) {
                 printf("\n");
-                printf("        static const struct ::%s_interface m_%s_interface;\n", interfaceName, interfaceName);
+                printf("        static const struct ::%s_interface m_%s_interface;\n",
+                       interfaceName,
+                       interfaceName);
 
                 printf("\n");
                 for (const WaylandEvent &e : interface.requests) {
@@ -632,9 +684,12 @@ bool Scanner::process()
 
     if (m_option == ServerCode) {
         if (m_headerPath.isEmpty())
-            printf("#include \"qwayland-server-%s.h\"\n", QByteArray(m_protocolName).replace('_', '-').constData());
+            printf("#include \"qwayland-server-%s.h\"\n",
+                   QByteArray(m_protocolName).replace('_', '-').constData());
         else
-            printf("#include <%s/qwayland-server-%s.h>\n", m_headerPath.constData(), QByteArray(m_protocolName).replace('_', '-').constData());
+            printf("#include <%s/qwayland-server-%s.h>\n",
+                   m_headerPath.constData(),
+                   QByteArray(m_protocolName).replace('_', '-').constData());
         printf("\n");
         printf("QT_BEGIN_NAMESPACE\n");
         printf("QT_WARNING_PUSH\n");
@@ -672,7 +727,9 @@ bool Scanner::process()
             printf("    }\n");
             printf("\n");
 
-            printf("    %s::%s(struct ::wl_client *client, int id, int version)\n", interfaceName, interfaceName);
+            printf("    %s::%s(struct ::wl_client *client, int id, int version)\n",
+                   interfaceName,
+                   interfaceName);
             printf("        : m_resource_map()\n");
             printf("        , m_resource(nullptr)\n");
             printf("        , m_global(nullptr)\n");
@@ -683,7 +740,9 @@ bool Scanner::process()
             printf("    }\n");
             printf("\n");
 
-            printf("    %s::%s(struct ::wl_display *display, int version)\n", interfaceName, interfaceName);
+            printf("    %s::%s(struct ::wl_display *display, int version)\n",
+                   interfaceName,
+                   interfaceName);
             printf("        : m_resource_map()\n");
             printf("        , m_resource(nullptr)\n");
             printf("        , m_global(nullptr)\n");
@@ -732,7 +791,8 @@ bool Scanner::process()
             printf("    }\n");
             printf("\n");
 
-            printf("    void %s::init(struct ::wl_client *client, int id, int version)\n", interfaceName);
+            printf("    void %s::init(struct ::wl_client *client, int id, int version)\n",
+                   interfaceName);
             printf("    {\n");
             printf("        m_resource = bind(client, id, version);\n");
             printf("    }\n");
@@ -744,7 +804,9 @@ bool Scanner::process()
             printf("    }\n");
             printf("\n");
 
-            printf("    %s::Resource *%s::add(struct ::wl_client *client, int version)\n", interfaceName, interfaceName);
+            printf("    %s::Resource *%s::add(struct ::wl_client *client, int version)\n",
+                   interfaceName,
+                   interfaceName);
             printf("    {\n");
             printf("        Resource *resource = bind(client, 0, version);\n");
             printf("        m_resource_map.insert(client, resource);\n");
@@ -752,7 +814,9 @@ bool Scanner::process()
             printf("    }\n");
             printf("\n");
 
-            printf("    %s::Resource *%s::add(struct ::wl_client *client, int id, int version)\n", interfaceName, interfaceName);
+            printf("    %s::Resource *%s::add(struct ::wl_client *client, int id, int version)\n",
+                   interfaceName,
+                   interfaceName);
             printf("    {\n");
             printf("        Resource *resource = bind(client, id, version);\n");
             printf("        m_resource_map.insert(client, resource);\n");
@@ -763,10 +827,14 @@ bool Scanner::process()
             printf("    void %s::init(struct ::wl_display *display, int version)\n", interfaceName);
             printf("    {\n");
             printf("        m_display = display;\n");
-            printf("        m_global = wl_global_create(display, &::%s_interface, version, this, bind_func);\n", interfaceName);
-            printf("        m_displayDestroyedListener.notify = %s::display_destroy_func;\n", interfaceName);
+            printf("        m_global = wl_global_create(display, &::%s_interface, version, this, "
+                   "bind_func);\n",
+                   interfaceName);
+            printf("        m_displayDestroyedListener.notify = %s::display_destroy_func;\n",
+                   interfaceName);
             printf("        m_displayDestroyedListener.parent = this;\n");
-            printf("        wl_display_add_destroy_listener(display, &m_displayDestroyedListener);\n");
+            printf(
+                "        wl_display_add_destroy_listener(display, &m_displayDestroyedListener);\n");
             printf("    }\n");
             printf("\n");
 
@@ -776,7 +844,10 @@ bool Scanner::process()
             printf("    }\n");
             printf("\n");
 
-            printf("    %s::Resource *%s::%s_allocate()\n", interfaceName, interfaceName, interfaceNameStripped);
+            printf("    %s::Resource *%s::%s_allocate()\n",
+                   interfaceName,
+                   interfaceName,
+                   interfaceNameStripped);
             printf("    {\n");
             printf("        return new Resource;\n");
             printf("    }\n");
@@ -787,37 +858,51 @@ bool Scanner::process()
             printf("    }\n");
             printf("\n");
 
-            printf("    void %s::%s_bind_resource(Resource *)\n", interfaceName, interfaceNameStripped);
+            printf("    void %s::%s_bind_resource(Resource *)\n",
+                   interfaceName,
+                   interfaceNameStripped);
             printf("    {\n");
             printf("    }\n");
             printf("\n");
 
-            printf("    void %s::%s_destroy_resource(Resource *)\n", interfaceName, interfaceNameStripped);
+            printf("    void %s::%s_destroy_resource(Resource *)\n",
+                   interfaceName,
+                   interfaceNameStripped);
             printf("    {\n");
             printf("    }\n");
             printf("\n");
 
-            printf("    void %s::bind_func(struct ::wl_client *client, void *data, uint32_t version, uint32_t id)\n", interfaceName);
+            printf("    void %s::bind_func(struct ::wl_client *client, void *data, uint32_t "
+                   "version, uint32_t id)\n",
+                   interfaceName);
             printf("    {\n");
             printf("        %s *that = static_cast<%s *>(data);\n", interfaceName, interfaceName);
             printf("        that->add(client, id, version);\n");
             printf("    }\n");
             printf("\n");
 
-            printf("    void %s::display_destroy_func(struct ::wl_listener *listener, void *data)\n", interfaceName);
+            printf(
+                "    void %s::display_destroy_func(struct ::wl_listener *listener, void *data)\n",
+                interfaceName);
             printf("    {\n");
             printf("        Q_UNUSED(data);\n");
-            printf("        %s *that = static_cast<%s::DisplayDestroyedListener *>(listener)->parent;\n", interfaceName, interfaceName);
+            printf("        %s *that = static_cast<%s::DisplayDestroyedListener "
+                   "*>(listener)->parent;\n",
+                   interfaceName,
+                   interfaceName);
             printf("        that->m_global = nullptr;\n");
             printf("        that->m_globalRemovedEvent = nullptr;\n");
             printf("    }\n");
             printf("\n");
 
-            printf("    void %s::destroy_func(struct ::wl_resource *client_resource)\n", interfaceName);
+            printf("    void %s::destroy_func(struct ::wl_resource *client_resource)\n",
+                   interfaceName);
             printf("    {\n");
             printf("        Resource *resource = Resource::fromResource(client_resource);\n");
             printf("        Q_ASSERT(resource);\n");
-            printf("        %s *that = resource->%s_object;\n", interfaceName, interfaceNameStripped);
+            printf("        %s *that = resource->%s_object;\n",
+                   interfaceName,
+                   interfaceNameStripped);
             printf("        if (Q_LIKELY(that)) {\n");
             printf("            that->m_resource_map.remove(resource->client(), resource);\n");
             printf("            that->%s_destroy_resource(resource);\n", interfaceNameStripped);
@@ -830,8 +915,8 @@ bool Scanner::process()
             printf("    }\n");
             printf("\n");
 
-            // Removing a global is racey. Announce removal, and then only perform internal cleanup after a delay
-            // See https://gitlab.freedesktop.org/wayland/wayland/issues/10
+            // Removing a global is racey. Announce removal, and then only perform internal cleanup
+            // after a delay See https://gitlab.freedesktop.org/wayland/wayland/issues/10
             printf("\n");
             printf("    void %s::globalRemove()\n", interfaceName);
             printf("    {\n");
@@ -840,50 +925,72 @@ bool Scanner::process()
             printf("\n");
             printf("        wl_global_remove(m_global);\n");
             printf("\n");
-            printf("        struct wl_event_loop *event_loop = wl_display_get_event_loop(m_display);\n");
-            printf("        m_globalRemovedEvent = wl_event_loop_add_timer(event_loop, deferred_destroy_global_func, this);\n");
+            printf("        struct wl_event_loop *event_loop = "
+                   "wl_display_get_event_loop(m_display);\n");
+            printf("        m_globalRemovedEvent = wl_event_loop_add_timer(event_loop, "
+                   "deferred_destroy_global_func, this);\n");
             printf("        wl_event_source_timer_update(m_globalRemovedEvent, 5000);\n");
             printf("    }\n");
             printf("\n");
 
             bool hasRequests = !interface.requests.empty();
 
-            QByteArray interfaceMember = hasRequests ? "&m_" + interface.name + "_interface" : QByteArray("nullptr");
+            QByteArray interfaceMember =
+                hasRequests ? "&m_" + interface.name + "_interface" : QByteArray("nullptr");
 
-            //We should consider changing bind so that it doesn't special case id == 0
-            //and use function overloading instead. Jan do you have a lot of code dependent on this behavior?
-            printf("    %s::Resource *%s::bind(struct ::wl_client *client, uint32_t id, int version)\n", interfaceName, interfaceName);
+            // We should consider changing bind so that it doesn't special case id == 0
+            // and use function overloading instead. Jan do you have a lot of code dependent on this
+            // behavior?
+            printf("    %s::Resource *%s::bind(struct ::wl_client *client, uint32_t id, int "
+                   "version)\n",
+                   interfaceName,
+                   interfaceName);
             printf("    {\n");
-            printf("        Q_ASSERT_X(!wl_client_get_object(client, id), \"QWaylandObject bind\", QStringLiteral(\"binding to object %%1 more than once\").arg(id).toLocal8Bit().constData());\n");
-            printf("        struct ::wl_resource *handle = wl_resource_create(client, &::%s_interface, version, id);\n", interfaceName);
+            printf("        Q_ASSERT_X(!wl_client_get_object(client, id), \"QWaylandObject bind\", "
+                   "QStringLiteral(\"binding to object %%1 more than "
+                   "once\").arg(id).toLocal8Bit().constData());\n");
+            printf("        struct ::wl_resource *handle = wl_resource_create(client, "
+                   "&::%s_interface, version, id);\n",
+                   interfaceName);
             printf("        return bind(handle);\n");
             printf("    }\n");
             printf("\n");
 
-            printf("    %s::Resource *%s::bind(struct ::wl_resource *handle)\n", interfaceName, interfaceName);
+            printf("    %s::Resource *%s::bind(struct ::wl_resource *handle)\n",
+                   interfaceName,
+                   interfaceName);
             printf("    {\n");
             printf("        Resource *resource = %s_allocate();\n", interfaceNameStripped);
             printf("        resource->%s_object = this;\n", interfaceNameStripped);
             printf("\n");
-            printf("        wl_resource_set_implementation(handle, %s, resource, destroy_func);", interfaceMember.constData());
+            printf("        wl_resource_set_implementation(handle, %s, resource, destroy_func);",
+                   interfaceMember.constData());
             printf("\n");
             printf("        resource->handle = handle;\n");
             printf("        %s_bind_resource(resource);\n", interfaceNameStripped);
             printf("        return resource;\n");
             printf("    }\n");
 
-            printf("    %s::Resource *%s::Resource::fromResource(struct ::wl_resource *resource)\n", interfaceName, interfaceName);
+            printf("    %s::Resource *%s::Resource::fromResource(struct ::wl_resource *resource)\n",
+                   interfaceName,
+                   interfaceName);
             printf("    {\n");
             printf("        if (Q_UNLIKELY(!resource))\n");
             printf("            return nullptr;\n");
-            printf("        if (wl_resource_instance_of(resource, &::%s_interface, %s))\n",  interfaceName, interfaceMember.constData());
-            printf("            return static_cast<Resource *>(wl_resource_get_user_data(resource));\n");
+            printf("        if (wl_resource_instance_of(resource, &::%s_interface, %s))\n",
+                   interfaceName,
+                   interfaceMember.constData());
+            printf("            return static_cast<Resource "
+                   "*>(wl_resource_get_user_data(resource));\n");
             printf("        return nullptr;\n");
             printf("    }\n");
 
             if (hasRequests) {
                 printf("\n");
-                printf("    const struct ::%s_interface %s::m_%s_interface = {", interfaceName, interfaceName, interfaceName);
+                printf("    const struct ::%s_interface %s::m_%s_interface = {",
+                       interfaceName,
+                       interfaceName,
+                       interfaceName);
                 bool needsComma = false;
                 for (const WaylandEvent &e : interface.requests) {
                     if (needsComma)
@@ -924,7 +1031,11 @@ bool Scanner::process()
                         printf("            wl_resource_destroy(resource);\n");
                     printf("            return;\n");
                     printf("        }\n");
-                    printf("        static_cast<%s *>(r->%s_object)->%s_%s(\n", interfaceName, interfaceNameStripped, interfaceNameStripped, e.name.constData());
+                    printf("        static_cast<%s *>(r->%s_object)->%s_%s(\n",
+                           interfaceName,
+                           interfaceNameStripped,
+                           interfaceNameStripped,
+                           e.name.constData());
                     printf("            r");
                     for (const WaylandArgument &a : e.arguments) {
                         printf(",\n");
@@ -947,9 +1058,13 @@ bool Scanner::process()
                 printEvent(e);
                 printf("\n");
                 printf("    {\n");
-                printf("        Q_ASSERT_X(m_resource, \"%s::%s\", \"Uninitialised resource\");\n", interfaceName, e.name.constData());
+                printf("        Q_ASSERT_X(m_resource, \"%s::%s\", \"Uninitialised resource\");\n",
+                       interfaceName,
+                       e.name.constData());
                 printf("        if (Q_UNLIKELY(!m_resource)) {\n");
-                printf("            qWarning(\"could not call %s::%s as it's not initialised\");\n", interfaceName, e.name.constData());
+                printf("            qWarning(\"could not call %s::%s as it's not initialised\");\n",
+                       interfaceName,
+                       e.name.constData());
                 printf("            return;\n");
                 printf("        }\n");
                 printf("        send_%s(\n", e.name.constData());
@@ -975,7 +1090,10 @@ bool Scanner::process()
                     const char *variableName = a.name.constData();
                     printf("        struct wl_array %s;\n", arrayName);
                     printf("        %s.size = %s.size();\n", arrayName, variableName);
-                    printf("        %s.data = static_cast<void *>(const_cast<char *>(%s.constData()));\n", arrayName, variableName);
+                    printf("        %s.data = static_cast<void *>(const_cast<char "
+                           "*>(%s.constData()));\n",
+                           arrayName,
+                           variableName);
                     printf("        %s.alloc = 0;\n", arrayName);
                     printf("\n");
                 }
@@ -1007,14 +1125,18 @@ bool Scanner::process()
     }
 
     if (m_option == ClientHeader) {
-        QByteArray inclusionGuard = QByteArray("QT_WAYLAND_") + preProcessorProtocolName.constData();
+        QByteArray inclusionGuard =
+            QByteArray("QT_WAYLAND_") + preProcessorProtocolName.constData();
         printf("#ifndef %s\n", inclusionGuard.constData());
         printf("#define %s\n", inclusionGuard.constData());
         printf("\n");
         if (m_headerPath.isEmpty())
-            printf("#include \"wayland-%s-client-protocol.h\"\n", QByteArray(m_protocolName).replace('_', '-').constData());
+            printf("#include \"wayland-%s-client-protocol.h\"\n",
+                   QByteArray(m_protocolName).replace('_', '-').constData());
         else
-            printf("#include <%s/wayland-%s-client-protocol.h>\n", m_headerPath.constData(), QByteArray(m_protocolName).replace('_', '-').constData());
+            printf("#include <%s/wayland-%s-client-protocol.h>\n",
+                   m_headerPath.constData(),
+                   QByteArray(m_protocolName).replace('_', '-').constData());
         printf("#include <QByteArray>\n");
         printf("#include <QString>\n");
         printf("\n");
@@ -1057,7 +1179,8 @@ bool Scanner::process()
 
             printf("    class %s %s\n    {\n", clientExport.constData(), interfaceName);
             printf("    public:\n");
-            printf("        %s(struct ::wl_registry *registry, int id, int version);\n", interfaceName);
+            printf("        %s(struct ::wl_registry *registry, int id, int version);\n",
+                   interfaceName);
             printf("        %s(struct ::%s *object);\n", interfaceName, interfaceName);
             printf("        %s();\n", interfaceName);
             printf("\n");
@@ -1066,9 +1189,15 @@ bool Scanner::process()
             printf("        void init(struct ::wl_registry *registry, int id, int version);\n");
             printf("        void init(struct ::%s *object);\n", interfaceName);
             printf("\n");
-            printf("        struct ::%s *object() { return m_%s; }\n", interfaceName, interfaceName);
-            printf("        const struct ::%s *object() const { return m_%s; }\n", interfaceName, interfaceName);
-            printf("        static %s *fromObject(struct ::%s *object);\n", interfaceName, interfaceName);
+            printf("        struct ::%s *object() { return m_%s; }\n",
+                   interfaceName,
+                   interfaceName);
+            printf("        const struct ::%s *object() const { return m_%s; }\n",
+                   interfaceName,
+                   interfaceName);
+            printf("        static %s *fromObject(struct ::%s *object);\n",
+                   interfaceName,
+                   interfaceName);
             printf("\n");
             printf("        bool isInitialized() const;\n");
             printf("\n");
@@ -1109,7 +1238,9 @@ bool Scanner::process()
             printf("    private:\n");
             if (hasEvents) {
                 printf("        void init_listener();\n");
-                printf("        static const struct %s_listener m_%s_listener;\n", interfaceName, interfaceName);
+                printf("        static const struct %s_listener m_%s_listener;\n",
+                       interfaceName,
+                       interfaceName);
                 for (const WaylandEvent &e : interface.events) {
                     printf("        static void ");
 
@@ -1130,9 +1261,12 @@ bool Scanner::process()
 
     if (m_option == ClientCode) {
         if (m_headerPath.isEmpty())
-            printf("#include \"qwayland-%s.h\"\n", QByteArray(m_protocolName).replace('_', '-').constData());
+            printf("#include \"qwayland-%s.h\"\n",
+                   QByteArray(m_protocolName).replace('_', '-').constData());
         else
-            printf("#include <%s/qwayland-%s.h>\n", m_headerPath.constData(), QByteArray(m_protocolName).replace('_', '-').constData());
+            printf("#include <%s/qwayland-%s.h>\n",
+                   m_headerPath.constData(),
+                   QByteArray(m_protocolName).replace('_', '-').constData());
         printf("\n");
         printf("QT_BEGIN_NAMESPACE\n");
         printf("QT_WARNING_PUSH\n");
@@ -1143,12 +1277,16 @@ bool Scanner::process()
 
         // wl_registry_bind is part of the protocol, so we can't use that... instead we use core
         // libwayland API to do the same thing a wayland-scanner generated wl_registry_bind would.
-        printf("static inline void *wlRegistryBind(struct ::wl_registry *registry, uint32_t name, const struct ::wl_interface *interface, uint32_t version)\n");
+        printf("static inline void *wlRegistryBind(struct ::wl_registry *registry, uint32_t name, "
+               "const struct ::wl_interface *interface, uint32_t version)\n");
         printf("{\n");
         printf("    const uint32_t bindOpCode = 0;\n");
-        printf("#if (WAYLAND_VERSION_MAJOR == 1 && WAYLAND_VERSION_MINOR > 10) || WAYLAND_VERSION_MAJOR > 1\n");
-        printf("    return (void *) wl_proxy_marshal_constructor_versioned((struct wl_proxy *) registry,\n");
-        printf("        bindOpCode, interface, version, name, interface->name, version, nullptr);\n");
+        printf("#if (WAYLAND_VERSION_MAJOR == 1 && WAYLAND_VERSION_MINOR > 10) || "
+               "WAYLAND_VERSION_MAJOR > 1\n");
+        printf("    return (void *) wl_proxy_marshal_constructor_versioned((struct wl_proxy *) "
+               "registry,\n");
+        printf(
+            "        bindOpCode, interface, version, name, interface->name, version, nullptr);\n");
         printf("#else\n");
         printf("    return (void *) wl_proxy_marshal_constructor((struct wl_proxy *) registry,\n");
         printf("        bindOpCode, interface, name, interface->name, version, nullptr);\n");
@@ -1173,7 +1311,9 @@ bool Scanner::process()
 
             bool hasEvents = !interface.events.empty();
 
-            printf("    %s::%s(struct ::wl_registry *registry, int id, int version)\n", interfaceName, interfaceName);
+            printf("    %s::%s(struct ::wl_registry *registry, int id, int version)\n",
+                   interfaceName,
+                   interfaceName);
             printf("    {\n");
             printf("        init(registry, id, version);\n");
             printf("    }\n");
@@ -1198,9 +1338,14 @@ bool Scanner::process()
             printf("    }\n");
             printf("\n");
 
-            printf("    void %s::init(struct ::wl_registry *registry, int id, int version)\n", interfaceName);
+            printf("    void %s::init(struct ::wl_registry *registry, int id, int version)\n",
+                   interfaceName);
             printf("    {\n");
-            printf("        m_%s = static_cast<struct ::%s *>(wlRegistryBind(registry, id, &%s_interface, version));\n", interfaceName, interfaceName, interfaceName);
+            printf("        m_%s = static_cast<struct ::%s *>(wlRegistryBind(registry, id, "
+                   "&%s_interface, version));\n",
+                   interfaceName,
+                   interfaceName,
+                   interfaceName);
             if (hasEvents)
                 printf("        init_listener();\n");
             printf("    }\n");
@@ -1214,13 +1359,20 @@ bool Scanner::process()
             printf("    }\n");
             printf("\n");
 
-            printf("    %s *%s::fromObject(struct ::%s *object)\n", interfaceName, interfaceName, interfaceName);
+            printf("    %s *%s::fromObject(struct ::%s *object)\n",
+                   interfaceName,
+                   interfaceName,
+                   interfaceName);
             printf("    {\n");
             if (hasEvents) {
-                printf("        if (wl_proxy_get_listener((struct ::wl_proxy *)object) != (void *)&m_%s_listener)\n", interfaceName);
+                printf("        if (wl_proxy_get_listener((struct ::wl_proxy *)object) != (void "
+                       "*)&m_%s_listener)\n",
+                       interfaceName);
                 printf("            return nullptr;\n");
             }
-            printf("        return static_cast<%s *>(%s_get_user_data(object));\n", interfaceName, interfaceName);
+            printf("        return static_cast<%s *>(%s_get_user_data(object));\n",
+                   interfaceName,
+                   interfaceName);
             printf("    }\n");
             printf("\n");
 
@@ -1257,12 +1409,19 @@ bool Scanner::process()
                     const char *variableName = a.name.constData();
                     printf("        struct wl_array %s;\n", arrayName);
                     printf("        %s.size = %s.size();\n", arrayName, variableName);
-                    printf("        %s.data = static_cast<void *>(const_cast<char *>(%s.constData()));\n", arrayName, variableName);
+                    printf("        %s.data = static_cast<void *>(const_cast<char "
+                           "*>(%s.constData()));\n",
+                           arrayName,
+                           variableName);
                     printf("        %s.alloc = 0;\n", arrayName);
                     printf("\n");
                 }
-                int actualArgumentCount = new_id ? int(e.arguments.size()) - 1 : int(e.arguments.size());
-                printf("        %s%s_%s(\n", new_id ? "return " : "", interfaceName, e.name.constData());
+                int actualArgumentCount =
+                    new_id ? int(e.arguments.size()) - 1 : int(e.arguments.size());
+                printf("        %s%s_%s(\n",
+                       new_id ? "return " : "",
+                       interfaceName,
+                       e.name.constData());
                 printf("            m_%s%s", interfaceName, actualArgumentCount > 0 ? "," : "");
                 bool needsComma = false;
                 for (const WaylandArgument &a : e.arguments) {
@@ -1307,7 +1466,10 @@ bool Scanner::process()
                     printf("\n");
                     printf("    {\n");
                     printf("        Q_UNUSED(object);\n");
-                    printf("        static_cast<%s *>(data)->%s_%s(", interfaceName, interfaceNameStripped, e.name.constData());
+                    printf("        static_cast<%s *>(data)->%s_%s(",
+                           interfaceName,
+                           interfaceNameStripped,
+                           e.name.constData());
                     bool needsComma = false;
                     for (const WaylandArgument &a : e.arguments) {
                         if (needsComma)
@@ -1325,7 +1487,10 @@ bool Scanner::process()
                     printf("    }\n");
                     printf("\n");
                 }
-                printf("    const struct %s_listener %s::m_%s_listener = {\n", interfaceName, interfaceName, interfaceName);
+                printf("    const struct %s_listener %s::m_%s_listener = {\n",
+                       interfaceName,
+                       interfaceName,
+                       interfaceName);
                 for (const WaylandEvent &e : interface.events) {
                     printf("        %s::handle_%s,\n", interfaceName, e.name.constData());
                 }
@@ -1334,7 +1499,10 @@ bool Scanner::process()
 
                 printf("    void %s::init_listener()\n", interfaceName);
                 printf("    {\n");
-                printf("        %s_add_listener(m_%s, &m_%s_listener, this);\n", interfaceName, interfaceName, interfaceName);
+                printf("        %s_add_listener(m_%s, &m_%s_listener, this);\n",
+                       interfaceName,
+                       interfaceName,
+                       interfaceName);
                 printf("    }\n");
             }
         }
@@ -1350,7 +1518,11 @@ bool Scanner::process()
 void Scanner::printErrors()
 {
     if (m_xml->hasError())
-        fprintf(stderr, "XML error: %s\nLine %lld, column %lld\n", m_xml->errorString().toLocal8Bit().constData(), m_xml->lineNumber(), m_xml->columnNumber());
+        fprintf(stderr,
+                "XML error: %s\nLine %lld, column %lld\n",
+                m_xml->errorString().toLocal8Bit().constData(),
+                m_xml->lineNumber(),
+                m_xml->columnNumber());
 }
 
 int main(int argc, char **argv)
