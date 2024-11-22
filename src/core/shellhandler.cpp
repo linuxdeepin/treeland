@@ -78,7 +78,8 @@ void ShellHandler::initXdgShell(WServer *server)
 void ShellHandler::initLayerShell(WServer *server)
 {
     Q_ASSERT_X(!m_layerShell, Q_FUNC_INFO, "Only init once!");
-    m_layerShell = server->attach<WLayerShell>();
+    Q_ASSERT_X(m_xdgShell, Q_FUNC_INFO, "Init xdg shell before layer shell!");
+    m_layerShell = server->attach<WLayerShell>(m_xdgShell);
     connect(m_layerShell, &WLayerShell::surfaceAdded, this, &ShellHandler::onLayerSurfaceAdded);
     connect(m_layerShell, &WLayerShell::surfaceRemoved, this, &ShellHandler::onLayerSurfaceRemoved);
 }
