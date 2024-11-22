@@ -5,12 +5,12 @@
 
 #include "qwayland-server-treeland-dde-shell-v1.h"
 
-#include <qwdisplay.h>
-#include <qwseat.h>
-#include <qwcompositor.h>
-#include <qwoutput.h>
-
 #include <woutput.h>
+
+#include <qwcompositor.h>
+#include <qwdisplay.h>
+#include <qwoutput.h>
+#include <qwseat.h>
 
 #define TREELAND_DDE_SHELL_MANAGER_V1_VERSION 1
 
@@ -30,11 +30,18 @@ public:
     DDEShellManagerInterfaceV1 *q;
 
 protected:
-    void treeland_dde_shell_manager_v1_get_window_overlap_checker(Resource *resource, uint32_t id) override;
-    void treeland_dde_shell_manager_v1_get_shell_surface(Resource *resource, uint32_t id, struct ::wl_resource *surface) override;
-    void treeland_dde_shell_manager_v1_get_treeland_dde_active(Resource *resource, uint32_t id, struct ::wl_resource *seat) override;
-    void treeland_dde_shell_manager_v1_get_treeland_multitaskview(Resource *resource, uint32_t id) override;
-    void treeland_dde_shell_manager_v1_get_treeland_window_picker(Resource *resource, uint32_t id) override;
+    void treeland_dde_shell_manager_v1_get_window_overlap_checker(Resource *resource,
+                                                                  uint32_t id) override;
+    void treeland_dde_shell_manager_v1_get_shell_surface(Resource *resource,
+                                                         uint32_t id,
+                                                         struct ::wl_resource *surface) override;
+    void treeland_dde_shell_manager_v1_get_treeland_dde_active(Resource *resource,
+                                                               uint32_t id,
+                                                               struct ::wl_resource *seat) override;
+    void treeland_dde_shell_manager_v1_get_treeland_multitaskview(Resource *resource,
+                                                                  uint32_t id) override;
+    void treeland_dde_shell_manager_v1_get_treeland_window_picker(Resource *resource,
+                                                                  uint32_t id) override;
 };
 
 DDEShellManagerInterfaceV1Private::DDEShellManagerInterfaceV1Private(DDEShellManagerInterfaceV1 *_q)
@@ -47,9 +54,14 @@ wl_global *DDEShellManagerInterfaceV1Private::global() const
     return m_global;
 }
 
-void DDEShellManagerInterfaceV1Private::treeland_dde_shell_manager_v1_get_window_overlap_checker(Resource *resource, uint32_t id) {
+void DDEShellManagerInterfaceV1Private::treeland_dde_shell_manager_v1_get_window_overlap_checker(
+    Resource *resource,
+    uint32_t id)
+{
     wl_resource *checker_resource = wl_resource_create(resource->client(),
-                                                     &treeland_window_overlap_checker_interface, resource->version(), id);
+                                                       &treeland_window_overlap_checker_interface,
+                                                       resource->version(),
+                                                       id);
     if (!checker_resource) {
         wl_client_post_no_memory(resource->client());
         return;
@@ -65,7 +77,10 @@ void DDEShellManagerInterfaceV1Private::treeland_dde_shell_manager_v1_get_window
     Q_EMIT q->windowOverlapCheckerCreated(overlapChecker);
 }
 
-void DDEShellManagerInterfaceV1Private::treeland_dde_shell_manager_v1_get_shell_surface(Resource *resource, uint32_t id, wl_resource *surface)
+void DDEShellManagerInterfaceV1Private::treeland_dde_shell_manager_v1_get_shell_surface(
+    Resource *resource,
+    uint32_t id,
+    wl_resource *surface)
 {
     if (!surface) {
         wl_resource_post_error(resource->handle, 0, "surface resource is NULL!");
@@ -78,7 +93,9 @@ void DDEShellManagerInterfaceV1Private::treeland_dde_shell_manager_v1_get_shell_
     }
 
     wl_resource *shell_resource = wl_resource_create(resource->client(),
-                                                     &treeland_dde_shell_surface_v1_interface, resource->version(), id);
+                                                     &treeland_dde_shell_surface_v1_interface,
+                                                     resource->version(),
+                                                     id);
     if (!shell_resource) {
         wl_client_post_no_memory(resource->client());
         return;
@@ -94,7 +111,10 @@ void DDEShellManagerInterfaceV1Private::treeland_dde_shell_manager_v1_get_shell_
     Q_EMIT q->surfaceCreated(shellSurface);
 }
 
-void DDEShellManagerInterfaceV1Private::treeland_dde_shell_manager_v1_get_treeland_dde_active(Resource *resource, uint32_t id, struct ::wl_resource *seat)
+void DDEShellManagerInterfaceV1Private::treeland_dde_shell_manager_v1_get_treeland_dde_active(
+    Resource *resource,
+    uint32_t id,
+    struct ::wl_resource *seat)
 {
     if (!seat) {
         wl_resource_post_error(resource->handle, 0, "seat resource is NULL!");
@@ -102,7 +122,9 @@ void DDEShellManagerInterfaceV1Private::treeland_dde_shell_manager_v1_get_treela
     }
 
     wl_resource *active_resource = wl_resource_create(resource->client(),
-                                                     &treeland_dde_active_v1_interface, resource->version(), id);
+                                                      &treeland_dde_active_v1_interface,
+                                                      resource->version(),
+                                                      id);
 
     if (!active_resource) {
         wl_client_post_no_memory(resource->client());
@@ -119,10 +141,14 @@ void DDEShellManagerInterfaceV1Private::treeland_dde_shell_manager_v1_get_treela
     Q_EMIT q->activeCreated(active);
 }
 
-void DDEShellManagerInterfaceV1Private::treeland_dde_shell_manager_v1_get_treeland_multitaskview(Resource *resource, uint32_t id)
+void DDEShellManagerInterfaceV1Private::treeland_dde_shell_manager_v1_get_treeland_multitaskview(
+    Resource *resource,
+    uint32_t id)
 {
     wl_resource *multiTaskViewResource = wl_resource_create(resource->client(),
-                                                      &treeland_multitaskview_v1_interface, resource->version(), id);
+                                                            &treeland_multitaskview_v1_interface,
+                                                            resource->version(),
+                                                            id);
 
     if (!multiTaskViewResource) {
         wl_client_post_no_memory(resource->client());
@@ -135,15 +161,22 @@ void DDEShellManagerInterfaceV1Private::treeland_dde_shell_manager_v1_get_treela
     QObject::connect(multiTaskView, &QObject::destroyed, [multiTaskView]() {
         s_multiTaskViews.removeOne(multiTaskView);
     });
-    QObject::connect(multiTaskView, &MultiTaskViewInterface::toggle, q, &DDEShellManagerInterfaceV1::toggleMultitaskview);
+    QObject::connect(multiTaskView,
+                     &MultiTaskViewInterface::toggle,
+                     q,
+                     &DDEShellManagerInterfaceV1::toggleMultitaskview);
 
     Q_EMIT q->multiTaskViewsCreated(multiTaskView);
 }
 
-void DDEShellManagerInterfaceV1Private::treeland_dde_shell_manager_v1_get_treeland_window_picker(Resource *resource, uint32_t id)
+void DDEShellManagerInterfaceV1Private::treeland_dde_shell_manager_v1_get_treeland_window_picker(
+    Resource *resource,
+    uint32_t id)
 {
     wl_resource *windowPickerResource = wl_resource_create(resource->client(),
-                                                            &treeland_window_picker_v1_interface, resource->version(), id);
+                                                           &treeland_window_picker_v1_interface,
+                                                           resource->version(),
+                                                           id);
 
     if (!windowPickerResource) {
         wl_client_post_no_memory(resource->client());
@@ -156,7 +189,7 @@ void DDEShellManagerInterfaceV1Private::treeland_dde_shell_manager_v1_get_treela
     QObject::connect(windowPicker, &QObject::destroyed, [windowPicker]() {
         s_windowPickers.removeOne(windowPicker);
     });
-    QObject::connect(windowPicker, &WindowPickerInterface::pick, [windowPicker, this](){
+    QObject::connect(windowPicker, &WindowPickerInterface::pick, [windowPicker, this]() {
         Q_EMIT q->requestPickWindow(windowPicker);
     });
 
@@ -167,15 +200,11 @@ DDEShellManagerInterfaceV1::DDEShellManagerInterfaceV1(QObject *parent)
     : QObject(parent)
     , d(new DDEShellManagerInterfaceV1Private(this))
 {
-
 }
 
 DDEShellManagerInterfaceV1::~DDEShellManagerInterfaceV1() = default;
 
-void DDEShellManagerInterfaceV1::checkRegionalConflict(const QRegion &region)
-{
-
-}
+void DDEShellManagerInterfaceV1::checkRegionalConflict(const QRegion &region) { }
 
 void DDEShellManagerInterfaceV1::create(WServer *server)
 {
@@ -200,7 +229,9 @@ QByteArrayView DDEShellManagerInterfaceV1::interfaceName() const
 class DDEShellSurfaceInterfacePrivate : public QtWaylandServer::treeland_dde_shell_surface_v1
 {
 public:
-    DDEShellSurfaceInterfacePrivate(DDEShellSurfaceInterface *_q, wl_resource *surface, wl_resource *resource);
+    DDEShellSurfaceInterfacePrivate(DDEShellSurfaceInterface *_q,
+                                    wl_resource *surface,
+                                    wl_resource *resource);
 
     DDEShellSurfaceInterface *q;
 
@@ -217,22 +248,31 @@ public:
 protected:
     void treeland_dde_shell_surface_v1_destroy_resource(Resource *resource) override;
     void treeland_dde_shell_surface_v1_destroy(Resource *resource) override;
-    void treeland_dde_shell_surface_v1_set_surface_position(Resource *resource, int32_t x, int32_t y) override;
+    void treeland_dde_shell_surface_v1_set_surface_position(Resource *resource,
+                                                            int32_t x,
+                                                            int32_t y) override;
     void treeland_dde_shell_surface_v1_set_role(Resource *resource, uint32_t role) override;
-    void treeland_dde_shell_surface_v1_set_auto_placement(Resource *resource, uint32_t y_offset) override;
-    void treeland_dde_shell_surface_v1_set_skip_switcher(Resource *resource, uint32_t skip) override;
-    void treeland_dde_shell_surface_v1_set_skip_dock_preview(Resource *resource, uint32_t skip) override;
-    void treeland_dde_shell_surface_v1_set_skip_muti_task_view(Resource *resource, uint32_t skip) override;
+    void treeland_dde_shell_surface_v1_set_auto_placement(Resource *resource,
+                                                          uint32_t y_offset) override;
+    void treeland_dde_shell_surface_v1_set_skip_switcher(Resource *resource,
+                                                         uint32_t skip) override;
+    void treeland_dde_shell_surface_v1_set_skip_dock_preview(Resource *resource,
+                                                             uint32_t skip) override;
+    void treeland_dde_shell_surface_v1_set_skip_muti_task_view(Resource *resource,
+                                                               uint32_t skip) override;
 };
 
-DDEShellSurfaceInterfacePrivate::DDEShellSurfaceInterfacePrivate(DDEShellSurfaceInterface *_q, wl_resource *surface, wl_resource *resource)
+DDEShellSurfaceInterfacePrivate::DDEShellSurfaceInterfacePrivate(DDEShellSurfaceInterface *_q,
+                                                                 wl_resource *surface,
+                                                                 wl_resource *resource)
     : QtWaylandServer::treeland_dde_shell_surface_v1(resource)
     , surfaceResource(surface)
     , q(_q)
 {
 }
 
-void DDEShellSurfaceInterfacePrivate::treeland_dde_shell_surface_v1_destroy_resource(Resource *resource)
+void DDEShellSurfaceInterfacePrivate::treeland_dde_shell_surface_v1_destroy_resource(
+    Resource *resource)
 {
     delete q;
 }
@@ -242,7 +282,10 @@ void DDEShellSurfaceInterfacePrivate::treeland_dde_shell_surface_v1_destroy(Reso
     wl_resource_destroy(resource->handle);
 }
 
-void DDEShellSurfaceInterfacePrivate::treeland_dde_shell_surface_v1_set_surface_position(Resource *resource, int32_t x, int32_t y)
+void DDEShellSurfaceInterfacePrivate::treeland_dde_shell_surface_v1_set_surface_position(
+    Resource *resource,
+    int32_t x,
+    int32_t y)
 {
     QPoint pos(x, y);
 
@@ -254,7 +297,8 @@ void DDEShellSurfaceInterfacePrivate::treeland_dde_shell_surface_v1_set_surface_
     Q_EMIT q->positionChanged(pos);
 }
 
-void DDEShellSurfaceInterfacePrivate::treeland_dde_shell_surface_v1_set_role(Resource *resource, uint32_t value)
+void DDEShellSurfaceInterfacePrivate::treeland_dde_shell_surface_v1_set_role(Resource *resource,
+                                                                             uint32_t value)
 {
     DDEShellSurfaceInterface::Role newRole;
     switch (value) {
@@ -262,7 +306,10 @@ void DDEShellSurfaceInterfacePrivate::treeland_dde_shell_surface_v1_set_role(Res
         newRole = DDEShellSurfaceInterface::OVERLAY;
         break;
     default:
-        wl_resource_post_error(resource->handle, 0, "Invalid treeland_dde_shell_surface_v1::role: %u", value);
+        wl_resource_post_error(resource->handle,
+                               0,
+                               "Invalid treeland_dde_shell_surface_v1::role: %u",
+                               value);
         return;
     }
 
@@ -274,7 +321,9 @@ void DDEShellSurfaceInterfacePrivate::treeland_dde_shell_surface_v1_set_role(Res
     Q_EMIT q->roleChanged(newRole);
 }
 
-void DDEShellSurfaceInterfacePrivate::treeland_dde_shell_surface_v1_set_auto_placement(Resource *resource, uint32_t y_offset)
+void DDEShellSurfaceInterfacePrivate::treeland_dde_shell_surface_v1_set_auto_placement(
+    Resource *resource,
+    uint32_t y_offset)
 {
     if (y_offset == yOffset) {
         return;
@@ -284,7 +333,9 @@ void DDEShellSurfaceInterfacePrivate::treeland_dde_shell_surface_v1_set_auto_pla
     Q_EMIT q->yOffsetChanged(y_offset);
 }
 
-void DDEShellSurfaceInterfacePrivate::treeland_dde_shell_surface_v1_set_skip_switcher(Resource *resource, uint32_t skip)
+void DDEShellSurfaceInterfacePrivate::treeland_dde_shell_surface_v1_set_skip_switcher(
+    Resource *resource,
+    uint32_t skip)
 {
     if (skip == skipSwitcher) {
         return;
@@ -294,7 +345,9 @@ void DDEShellSurfaceInterfacePrivate::treeland_dde_shell_surface_v1_set_skip_swi
     Q_EMIT q->skipSwitcherChanged(skip);
 }
 
-void DDEShellSurfaceInterfacePrivate::treeland_dde_shell_surface_v1_set_skip_dock_preview(Resource *resource, uint32_t skip)
+void DDEShellSurfaceInterfacePrivate::treeland_dde_shell_surface_v1_set_skip_dock_preview(
+    Resource *resource,
+    uint32_t skip)
 {
     if (skip == skipDockPreView) {
         return;
@@ -304,7 +357,9 @@ void DDEShellSurfaceInterfacePrivate::treeland_dde_shell_surface_v1_set_skip_doc
     Q_EMIT q->skipDockPreViewChanged(skip);
 }
 
-void DDEShellSurfaceInterfacePrivate::treeland_dde_shell_surface_v1_set_skip_muti_task_view(Resource *resource, uint32_t skip)
+void DDEShellSurfaceInterfacePrivate::treeland_dde_shell_surface_v1_set_skip_muti_task_view(
+    Resource *resource,
+    uint32_t skip)
 {
     if (skip == skipMutiTaskView) {
         return;
@@ -395,7 +450,9 @@ protected:
     void treeland_dde_active_v1_destroy(Resource *resource) override;
 };
 
-DDEActiveInterfacePrivate::DDEActiveInterfacePrivate(DDEActiveInterface *_q, wl_resource *_seat, wl_resource *resource)
+DDEActiveInterfacePrivate::DDEActiveInterfacePrivate(DDEActiveInterface *_q,
+                                                     wl_resource *_seat,
+                                                     wl_resource *resource)
     : QtWaylandServer::treeland_dde_active_v1(resource)
     , seatResouce(_seat)
     , q(_q)
@@ -421,7 +478,8 @@ DDEActiveInterface::~DDEActiveInterface() = default;
 
 WSeat *DDEActiveInterface::seat() const
 {
-    auto wlrSeat = static_cast<struct wlr_seat_client *>(wl_resource_get_user_data(d->seatResouce))->seat;
+    auto wlrSeat =
+        static_cast<struct wlr_seat_client *>(wl_resource_get_user_data(d->seatResouce))->seat;
     return WSeat::fromHandle(qw_seat::from(wlrSeat));
 }
 
@@ -497,14 +555,17 @@ public:
 protected:
     void treeland_window_overlap_checker_destroy_resource(Resource *resource) override;
 
-    void treeland_window_overlap_checker_update(Resource *resource, int32_t width, int32_t height, uint32_t anchor, struct ::wl_resource *output) override;
+    void treeland_window_overlap_checker_update(Resource *resource,
+                                                int32_t width,
+                                                int32_t height,
+                                                uint32_t anchor,
+                                                struct ::wl_resource *output) override;
     void treeland_window_overlap_checker_destroy(Resource *resource) override;
 };
 
 WindowOverlapCheckerInterface::WindowOverlapCheckerInterface(wl_resource *resource)
     : d(new WindowOverlapCheckerInterfacePrivate(this, resource))
 {
-
 }
 
 WindowOverlapCheckerInterface::~WindowOverlapCheckerInterface() = default;
@@ -538,19 +599,27 @@ void WindowOverlapCheckerInterface::checkRegionalConflict(const QRegion &region)
     }
 }
 
-WindowOverlapCheckerInterfacePrivate::WindowOverlapCheckerInterfacePrivate(WindowOverlapCheckerInterface *_q, wl_resource *resource)
+WindowOverlapCheckerInterfacePrivate::WindowOverlapCheckerInterfacePrivate(
+    WindowOverlapCheckerInterface *_q,
+    wl_resource *resource)
     : QtWaylandServer::treeland_window_overlap_checker(resource)
     , q(_q)
 {
 }
 
-void WindowOverlapCheckerInterfacePrivate::treeland_window_overlap_checker_destroy_resource(Resource *resource)
+void WindowOverlapCheckerInterfacePrivate::treeland_window_overlap_checker_destroy_resource(
+    Resource *resource)
 {
     s_conflictList.remove(q);
     delete q;
 }
 
-void WindowOverlapCheckerInterfacePrivate::treeland_window_overlap_checker_update(Resource *resource, int32_t width, int32_t height, uint32_t anchor, wl_resource *o)
+void WindowOverlapCheckerInterfacePrivate::treeland_window_overlap_checker_update(
+    Resource *resource,
+    int32_t width,
+    int32_t height,
+    uint32_t anchor,
+    wl_resource *o)
 {
     output = wlr_output_from_resource(o);
     size = QSize(width, height);
@@ -577,8 +646,11 @@ void WindowOverlapCheckerInterfacePrivate::treeland_window_overlap_checker_updat
     case WindowOverlapCheckerInterface::Anchor::LEFT:
         checkRect = QRect(0, 0, wOutput->size().width(), size.height());
         break;
-    default :
-        wl_resource_post_error(resource->handle, 0, "Invalid treeland_window_overlap_checker::anchor: %u", anchor);
+    default:
+        wl_resource_post_error(resource->handle,
+                               0,
+                               "Invalid treeland_window_overlap_checker::anchor: %u",
+                               anchor);
         return;
     }
 
@@ -586,7 +658,8 @@ void WindowOverlapCheckerInterfacePrivate::treeland_window_overlap_checker_updat
     Q_EMIT q->refresh();
 }
 
-void WindowOverlapCheckerInterfacePrivate::treeland_window_overlap_checker_destroy(Resource *resource)
+void WindowOverlapCheckerInterfacePrivate::treeland_window_overlap_checker_destroy(
+    Resource *resource)
 {
     wl_resource_destroy(resource->handle);
 }
@@ -604,11 +677,11 @@ protected:
     void treeland_multitaskview_v1_toggle(Resource *resource) override;
 };
 
-MultiTaskViewInterfacePrivate::MultiTaskViewInterfacePrivate(MultiTaskViewInterface *_q, wl_resource *resource)
-    :QtWaylandServer::treeland_multitaskview_v1(resource)
+MultiTaskViewInterfacePrivate::MultiTaskViewInterfacePrivate(MultiTaskViewInterface *_q,
+                                                             wl_resource *resource)
+    : QtWaylandServer::treeland_multitaskview_v1(resource)
     , q(_q)
 {
-
 }
 
 void MultiTaskViewInterfacePrivate::treeland_multitaskview_v1_destroy_resource(Resource *resource)
@@ -626,15 +699,11 @@ void MultiTaskViewInterfacePrivate::treeland_multitaskview_v1_toggle(Resource *r
     Q_EMIT q->toggle();
 }
 
-MultiTaskViewInterface::~MultiTaskViewInterface()
-{
-
-}
+MultiTaskViewInterface::~MultiTaskViewInterface() { }
 
 MultiTaskViewInterface::MultiTaskViewInterface(wl_resource *resource)
     : d(new MultiTaskViewInterfacePrivate(this, resource))
 {
-
 }
 
 class WindowPickerInterfacePrivate : public QtWaylandServer::treeland_window_picker_v1
@@ -650,12 +719,12 @@ protected:
     void treeland_window_picker_v1_pick(Resource *resource, const QString &hint) override;
 };
 
-WindowPickerInterfacePrivate::WindowPickerInterfacePrivate(WindowPickerInterface *_q, wl_resource *resource)
+WindowPickerInterfacePrivate::WindowPickerInterfacePrivate(WindowPickerInterface *_q,
+                                                           wl_resource *resource)
     : QtWaylandServer::treeland_window_picker_v1(resource)
     , q(_q)
 {
 }
-
 
 void WindowPickerInterfacePrivate::treeland_window_picker_v1_destroy_resource(Resource *resource)
 {
@@ -668,15 +737,13 @@ void WindowPickerInterfacePrivate::treeland_window_picker_v1_destroy(Resource *r
     delete q;
 }
 
-void WindowPickerInterfacePrivate::treeland_window_picker_v1_pick(Resource *resource, const QString &hint)
+void WindowPickerInterfacePrivate::treeland_window_picker_v1_pick(Resource *resource,
+                                                                  const QString &hint)
 {
     Q_EMIT q->pick(hint);
 }
 
-WindowPickerInterface::~WindowPickerInterface()
-{
-
-}
+WindowPickerInterface::~WindowPickerInterface() { }
 
 void WindowPickerInterface::sendWindowPid(qint32 pid)
 {
@@ -686,5 +753,4 @@ void WindowPickerInterface::sendWindowPid(qint32 pid)
 WindowPickerInterface::WindowPickerInterface(wl_resource *resource)
     : d(new WindowPickerInterfacePrivate(this, resource))
 {
-
 }

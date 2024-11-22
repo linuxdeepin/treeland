@@ -10,7 +10,7 @@ set_target_properties(${MODULE_NAME} PROPERTIES
     OUTPUT_NAME "treeland-protocol-capture-v1"
 )
 
-target_sources(${MODULE_NAME} PUBLIC
+target_sources(${MODULE_NAME} PRIVATE
     capture.h
     capture.cpp
     impl/capturev1impl.h
