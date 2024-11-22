@@ -223,7 +223,7 @@ wl_global *DDEShellManagerInterfaceV1::global() const
 
 QByteArrayView DDEShellManagerInterfaceV1::interfaceName() const
 {
-    return QByteArrayView(d->interfaceName());
+    return d->interfaceName();
 }
 
 class DDEShellSurfaceInterfacePrivate : public QtWaylandServer::treeland_dde_shell_surface_v1
