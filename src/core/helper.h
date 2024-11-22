@@ -185,6 +185,8 @@ public:
 
     void setCurrentMode(CurrentMode mode);
 
+    void showLockScreen();
+
 public Q_SLOTS:
     void activateSurface(SurfaceWrapper *wrapper, Qt::FocusReason reason = Qt::OtherFocusReason);
     void forceActivateSurface(SurfaceWrapper *wrapper,

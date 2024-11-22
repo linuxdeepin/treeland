@@ -12,18 +12,18 @@
 #include "treelandconfig.h"
 
 #ifndef DISABLE_DDM
-#include "greeterproxy.h"
-#include "logoprovider.h"
-#include "sessionmodel.h"
-#include "usermodel.h"
+#  include "greeterproxy.h"
+#  include "logoprovider.h"
+#  include "sessionmodel.h"
+#  include "usermodel.h"
 
-#include <Constants.h>
-#include <Messages.h>
-#include <SignalHandler.h>
-#include <SocketWriter.h>
+#  include <Constants.h>
+#  include <Messages.h>
+#  include <SignalHandler.h>
+#  include <SocketWriter.h>
 using namespace DDM;
 
-#include <DAccountsManager>
+#  include <DAccountsManager>
 #endif
 
 #include <wsocket.h>
@@ -439,7 +439,7 @@ void TreelandPrivate::readyRead()
             helper->setCurrentUserId(pwd->pw_uid);
         } break;
         case DDM::DaemonMessages::SwitchToGreeter: {
-            // Q_EMIT m_helper->greeterVisibleChanged();
+            helper->showLockScreen();
         } break;
         default:
             break;

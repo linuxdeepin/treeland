@@ -10,7 +10,7 @@
 #include "inputdevice.h"
 #include "layersurfacecontainer.h"
 #ifndef DISABLE_DDM
-#include "lockscreen.h"
+#  include "lockscreen.h"
 #endif
 #include "multitaskviewinterface.h"
 #include "output.h"
@@ -806,18 +806,7 @@ void Helper::init()
 
 #ifndef DISABLE_DDM
     if (CmdLine::ref().useLockScreen()) {
-        m_lockScreen->lock();
-        setCurrentMode(CurrentMode::LockScreen);
-
-        m_workspaceScaleAnimation->stop();
-        m_workspaceScaleAnimation->setStartValue(m_shellHandler->workspace()->scale());
-        m_workspaceScaleAnimation->setEndValue(1.4);
-        m_workspaceScaleAnimation->start();
-
-        m_workspaceOpacityAnimation->stop();
-        m_workspaceOpacityAnimation->setStartValue(m_shellHandler->workspace()->opacity());
-        m_workspaceOpacityAnimation->setEndValue(0.0);
-        m_workspaceOpacityAnimation->start();
+        showLockScreen();
     }
 #endif
 }
@@ -939,19 +928,7 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *, QInputEvent *event)
                     return true;
                 }
 
-                m_lockScreen->lock();
-
-                m_workspaceScaleAnimation->stop();
-                m_workspaceScaleAnimation->setStartValue(m_shellHandler->workspace()->scale());
-                m_workspaceScaleAnimation->setEndValue(1.4);
-                m_workspaceScaleAnimation->start();
-
-                m_workspaceOpacityAnimation->stop();
-                m_workspaceOpacityAnimation->setStartValue(m_shellHandler->workspace()->opacity());
-                m_workspaceOpacityAnimation->setEndValue(0.0);
-                m_workspaceOpacityAnimation->start();
-
-                setCurrentMode(CurrentMode::LockScreen);
+                showLockScreen();
                 return true;
 #endif
             } else if (kevent->key() == Qt::Key_D) { // ShowDesktop : Meta + D
@@ -1607,6 +1584,26 @@ void Helper::setCurrentMode(CurrentMode mode)
     TreelandConfig::ref().setBlockActivateSurface(mode != CurrentMode::Normal);
 
     m_currentMode = mode;
+}
+
+void Helper::showLockScreen()
+{
+    if (m_lockScreen->isLocked()) {
+        return;
+    }
+
+    setCurrentMode(CurrentMode::LockScreen);
+    m_lockScreen->lock();
+
+    m_workspaceScaleAnimation->stop();
+    m_workspaceScaleAnimation->setStartValue(m_shellHandler->workspace()->scale());
+    m_workspaceScaleAnimation->setEndValue(1.4);
+    m_workspaceScaleAnimation->start();
+
+    m_workspaceOpacityAnimation->stop();
+    m_workspaceOpacityAnimation->setStartValue(m_shellHandler->workspace()->opacity());
+    m_workspaceOpacityAnimation->setEndValue(0.0);
+    m_workspaceOpacityAnimation->start();
 }
 
 WSeat *Helper::seat() const
