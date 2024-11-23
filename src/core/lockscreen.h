@@ -17,10 +17,19 @@ class LockScreen : public SurfaceContainer
     QML_ANONYMOUS
 
 public:
+    enum class CurrentMode
+    {
+        Lock = 1,
+        Shutdown = 2,
+        SwitchUser = 3
+    };
+    Q_ENUM(CurrentMode)
     explicit LockScreen(SurfaceContainer *parent);
 
     bool isLocked() const;
     void lock();
+    void shutdown();
+    void switchUser();
 
 Q_SIGNALS:
     void unlock();

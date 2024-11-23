@@ -589,6 +589,7 @@ void Helper::init()
             &DDEShellManagerInterfaceV1::requestPickWindow,
             this,
             &Helper::handleWindowPicker);
+    connect(m_ddeShellV1, &DDEShellManagerInterfaceV1::lockScreenCreated, this, &Helper::handleLockScreen);
     m_shellHandler->createComponent(engine);
     m_shellHandler->initXdgShell(m_server);
     m_shellHandler->initLayerShell(m_server);
@@ -1310,6 +1311,25 @@ void Helper::handleRequestDrag(WSurface *surface)
 
     if (m_ddeShellV1)
         DDEActiveInterface::sendStartDrag(m_seat);
+}
+
+void Helper::handleLockScreen(LockScreenInterface *lockScreen)
+{
+    connect(lockScreen, &LockScreenInterface::shutdown, this, [this] () {
+        if (m_lockScreen && currentMode() == Helper::CurrentMode::Normal) {
+            m_lockScreen->shutdown();
+        }
+    });
+    connect(lockScreen, &LockScreenInterface::lock, this, [this] () {
+        if (m_lockScreen && currentMode() == Helper::CurrentMode::Normal) {
+            m_lockScreen->lock();
+        }
+    });
+    connect(lockScreen, &LockScreenInterface::switchUser, this, [this] () {
+        if (m_lockScreen && currentMode() == Helper::CurrentMode::Normal) {
+            m_lockScreen->switchUser();
+        }
+    });
 }
 
 void Helper::allowNonDrmOutputAutoChangeMode(WOutput *output)

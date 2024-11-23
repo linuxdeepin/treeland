@@ -19,6 +19,7 @@ static QList<DDEActiveInterface *> s_ddeActives;
 static QList<WindowOverlapCheckerInterface *> s_OverlapCheckers;
 static QList<MultiTaskViewInterface *> s_multiTaskViews;
 static QList<WindowPickerInterface *> s_windowPickers;
+static QList<LockScreenInterface *> s_lockScreens;
 static QMap<WindowOverlapCheckerInterface *, QRect> s_conflictList;
 
 class DDEShellManagerInterfaceV1Private : public QtWaylandServer::treeland_dde_shell_manager_v1
@@ -42,7 +43,27 @@ protected:
                                                                   uint32_t id) override;
     void treeland_dde_shell_manager_v1_get_treeland_window_picker(Resource *resource,
                                                                   uint32_t id) override;
+    void treeland_dde_shell_manager_v1_get_treeland_lockscreen(Resource *resource,
+                                                               uint32_t id) override;
 };
+
+void DDEShellManagerInterfaceV1Private::treeland_dde_shell_manager_v1_get_treeland_lockscreen(Resource *resource, uint32_t id)
+{
+    wl_resource *lockscreen_resource = wl_resource_create(resource->client(),
+                                                       &treeland_lockscreen_v1_interface, resource->version(), id);
+    if (!lockscreen_resource) {
+        wl_client_post_no_memory(resource->client());
+        return;
+    }
+
+    auto lockScreen = new LockScreenInterface(lockscreen_resource);
+    s_lockScreens.append(lockScreen);
+
+    QObject::connect(lockScreen, &QObject::destroyed, [lockScreen]() {
+        s_lockScreens.removeOne(lockScreen);
+    });
+    Q_EMIT q->lockScreenCreated(lockScreen);
+}
 
 DDEShellManagerInterfaceV1Private::DDEShellManagerInterfaceV1Private(DDEShellManagerInterfaceV1 *_q)
     : q(_q)
@@ -753,4 +774,61 @@ void WindowPickerInterface::sendWindowPid(qint32 pid)
 WindowPickerInterface::WindowPickerInterface(wl_resource *resource)
     : d(new WindowPickerInterfacePrivate(this, resource))
 {
+}
+
+class LockScreenInterfacePrivate : public QtWaylandServer::treeland_lockscreen_v1
+{
+public:
+    LockScreenInterfacePrivate(LockScreenInterface *_q, wl_resource *resource);
+
+    LockScreenInterface *q;
+
+protected:
+    void treeland_lockscreen_v1_destroy_resource(Resource *resource) override;
+    void treeland_lockscreen_v1_destroy(Resource *resource) override;
+    virtual void treeland_lockscreen_v1_lock(Resource *resource) override;
+    virtual void treeland_lockscreen_v1_shutdown(Resource *resource) override;
+    virtual void treeland_lockscreen_v1_switch_user(Resource *resource) override;
+};
+
+void LockScreenInterfacePrivate::treeland_lockscreen_v1_lock(Resource *resource)
+{
+    Q_EMIT q->lock();
+}
+
+void LockScreenInterfacePrivate::treeland_lockscreen_v1_shutdown(Resource *resource)
+{
+    Q_EMIT q->shutdown();
+}
+
+void LockScreenInterfacePrivate::treeland_lockscreen_v1_switch_user(Resource *resource)
+{
+    Q_EMIT q->switchUser();
+}
+
+LockScreenInterfacePrivate::LockScreenInterfacePrivate(LockScreenInterface *_q, wl_resource *resource)
+    : QtWaylandServer::treeland_lockscreen_v1(resource)
+    , q(_q)
+{
+}
+
+void LockScreenInterfacePrivate::treeland_lockscreen_v1_destroy_resource(Resource *resource)
+{
+    wl_resource_destroy(resource->handle);
+}
+
+void LockScreenInterfacePrivate::treeland_lockscreen_v1_destroy(Resource *resource)
+{
+    delete q;
+}
+
+LockScreenInterface::~LockScreenInterface()
+{
+
+}
+
+LockScreenInterface::LockScreenInterface(wl_resource *resource)
+    : d(new LockScreenInterfacePrivate(this, resource))
+{
+
 }

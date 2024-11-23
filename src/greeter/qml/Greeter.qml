@@ -9,12 +9,31 @@ import Treeland.Greeter
 FocusScope {
     id: root
     clip: true
+    enum CurrentMode {
+        Lock = 1,
+        Shutdown = 2,
+        SwitchUser = 3
+    }
 
     signal animationPlayed
     signal animationPlayFinished
 
     required property QtObject output
     required property QtObject outputItem
+    property int currentMode: Greeter.CurrentMode.Lock
+
+    function start()
+    {
+        wallpaperController.type = WallpaperController.Scale
+        switch (root.currentMode) {
+        case Greeter.CurrentMode.Lock:
+            lockView.start()
+            break;
+        case Greeter.CurrentMode.SwitchUser:
+            lockView.showUserView()
+            break;
+        }
+    }
 
     x: outputItem.x
     y: outputItem.y
@@ -47,170 +66,35 @@ FocusScope {
         }
     }
 
-    property int state: LoginAnimation.Show
-
-    Loader {
-        id: leftAnimation
+    LockView {
+        id: lockView
+        visible: root.currentMode === Greeter.CurrentMode.Lock ||
+                 root.currentMode === Greeter.CurrentMode.SwitchUser
         anchors.fill: parent
-        sourceComponent: LoginAnimation {
-            anchors.fill: parent
-            target: quickAction
-            state: root.state
+        onQuit: function () {
+            wallpaperController.type = WallpaperController.Normal
+            root.animationPlayed()
         }
-    }
-
-    Loader {
-        id: logoAnimation
-        anchors.fill: parent
-        sourceComponent: LoginAnimation {
-            anchors.fill: parent
-            target: logo
-            state: root.state
-        }
-    }
-
-    Loader {
-        id: rightAnimation
-        anchors.fill: parent
-        sourceComponent: LoginAnimation {
-            state: root.state
-            target: userInput
-            anchors.fill: parent
-            onStopped: {
-                if (state === LoginAnimation.Hide) {
-                    animationPlayFinished()
-                }
+        onAnimationPlayFinished: function () {
+            if (lockView.state === LoginAnimation.Hide) {
+                root.animationPlayFinished()
             }
         }
     }
 
-    Loader {
-        id: bottomAnimation
+    ShutdownView {
+        id: shutdownView
+        visible: root.currentMode === Greeter.CurrentMode.Shutdown
         anchors.fill: parent
-        sourceComponent: LoginAnimation {
-            state: root.state
-            target: controlAction
-            anchors.fill: parent
+
+        onClicked: function () {
+            root.animationPlayed()
+            root.animationPlayFinished()
         }
-    }
-
-    Item {
-        id: leftComp
-        z: -1
-        width: parent.width * 0.4
-        anchors {
-            left: parent.left
-            top: parent.top
-            bottom: parent.bottom
-            leftMargin: 30
-            topMargin: 30
-            bottomMargin: 30
+        onSwitchUser: function () {
+            root.currentMode = Greeter.CurrentMode.Lock
+            lockView.showUserView()
         }
-    }
-
-    Item {
-        id: rightComp
-        z: -1
-        anchors {
-            left: leftComp.right
-            right: parent.right
-            top: parent.top
-            bottom: parent.bottom
-            leftMargin: 30
-            rightMargin: 30
-            topMargin: 30
-            bottomMargin: 30
-        }
-    }
-
-    QuickAction {
-        id: quickAction
-        anchors {
-            verticalCenter : parent.verticalCenter
-            right: leftComp.right
-            rightMargin: leftComp.width / 9
-        }
-    }
-
-    Row {
-        id: logo
-        anchors {
-            bottom: leftComp.bottom
-            left: leftComp.left
-        }
-
-        Image {
-            id: logoPic
-            source: GreeterModel.logoProvider.logo
-            width: 120
-            height: 120
-            fillMode: Image.PreserveAspectFit
-        }
-
-        Text {
-            text: GreeterModel.logoProvider.version
-            font.weight: Font.Normal
-            font.pixelSize: logoPic.height / 2
-            color: Qt.rgba(1, 1, 1, 153 / 255)
-        }
-    }
-
-    UserInput {
-        id: userInput
-        anchors {
-            verticalCenter: parent.verticalCenter
-            left: rightComp.left
-            leftMargin: rightComp.width / 5
-        }
-
-        focus: true
-    }
-
-    ControlAction {
-        id: controlAction
-        anchors {
-            bottom: rightComp.bottom
-            right: rightComp.right
-        }
-    }
-
-    Connections {
-        target: GreeterModel
-        function onStateChanged() {
-            switch (GreeterModel.state) {
-                case GreeterModel.AuthSucceeded: {
-                    userInput.userAuthSuccessed()
-                    userInput.updateHintMsg(userInput.normalHint)
-                    GreeterModel.quit()
-                }
-                break
-                case GreeterModel.AuthFailed: {
-                    userInput.userAuthFailed()
-                    userInput.updateHintMsg(qsTr("Password is incorrect."))
-                }
-                break
-                case GreeterModel.Quit: {
-                    wallpaperController.type = WallpaperController.Normal
-                    root.state = LoginAnimation.Hide
-                    leftAnimation.item.start({x: quickAction.x, y: quickAction.y}, {x: root.x - quickAction.width, y: quickAction.y})
-                    logoAnimation.item.start({x: logo.x, y: logo.y}, {x: root.x - logo.width, y: logo.y})
-                    rightAnimation.item.start({x: userInput.x, y: userInput.y}, {x: root.width + userInput.width, y: userInput.y})
-                    bottomAnimation.item.start({x: controlAction.x, y: controlAction.y}, {x: controlAction.x, y: controlAction.y + controlAction.height})
-                    animationPlayed()
-                }
-                break
-            }
-        }
-    }
-
-    function start() {
-        root.state = LoginAnimation.Show
-        wallpaperController.type = WallpaperController.Scale
-        leftAnimation.item.start({x: root.x - quickAction.width, y: quickAction.y}, {x: quickAction.x, y: quickAction.y})
-        logoAnimation.item.start({x: root.x - logo.width, y: logo.y}, {x: logo.x, y: logo.y})
-        rightAnimation.item.start({x: root.width + userInput.width, y: userInput.y}, {x: userInput.x, y: userInput.y})
-        bottomAnimation.item.start({x: controlAction.x, y: controlAction.y + controlAction.height}, {x: controlAction.x, y: controlAction.y})
-        userInput.forceActiveFocus()
     }
 
     Component.onDestruction: {

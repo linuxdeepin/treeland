@@ -10,8 +10,15 @@ import Treeland
 
 RowLayout {
     id: bottomGroup
-    property var buttonSize: 30
+    property int buttonSize: 30
     spacing: 15
+
+    property bool powerVisible: powerList.visible
+    function showUserList()
+    {
+        usersBtn.expand = true
+        userList.open()
+    }
 
     Item {
         implicitWidth: bottomGroup.buttonSize + 6
@@ -42,8 +49,7 @@ RowLayout {
             }
 
             onClicked: {
-                usersBtn.expand = true
-                userList.open()
+                showUserList()
             }
 
             background: RoundBlur {
@@ -68,11 +74,15 @@ RowLayout {
             anchors.centerIn: parent
             D.ToolTip.visible: hovered
             D.ToolTip.text: qsTr("Power")
-            PowerList {
+            Popup {
                 id: powerList
-                y: -powerList.height - 10
-                x: (powerBtn.width - powerList.width) / 2 - 10
-                onClosed: powerBtn.expand = false
+                width: powerBtn.Window.width
+                height: 100
+                parent: powerBtn.Window.contentItem
+                x: 0
+                y: powerBtn.Window.height / 5 * 2
+                contentItem: PowerList { }
+                background: null
             }
             onClicked: {
                 powerBtn.expand = true
