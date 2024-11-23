@@ -3,6 +3,7 @@
 
 import QtQuick
 import QtQuick.Controls
+import QtQuick.Shapes
 import org.deepin.dtk as D
 import org.deepin.dtk.style as DS
 import Treeland
@@ -134,8 +135,8 @@ Item {
                         margins: TreelandConfig.highlightBorderWidth
                     }
                     clip: true
-                    // For TRadiusEffect
                     layer.enabled: true
+                    smooth: true
                     opacity: 0
 
                     WallpaperController {
@@ -247,11 +248,19 @@ Item {
                     }
                 }
 
-                TRadiusEffect {
-                    sourceItem: content
-                    radius: TreelandConfig.workspaceThumbCornerRadius
-                    anchors.fill: content
-                    hideSource: true
+                Shape {
+                    x: content.x
+                    y: content.y
+                    preferredRendererType: Shape.CurveRenderer
+                    ShapePath {
+                        strokeWidth: 0
+                        fillItem: content
+                        PathRectangle {
+                            width: content.width
+                            height: content.height
+                            radius: TreelandConfig.workspaceThumbCornerRadius
+                        }
+                    }
                 }
 
                 D.RoundButton {

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 import QtQuick
+import QtQuick.Shapes
 import Waylib.Server
 import Treeland
 
@@ -17,7 +18,7 @@ Item {
         id: content
         surface: root.surface?.surface ?? null
         anchors.fill: parent
-        opacity: effectLoader.active ? 0 : 1
+        opacity: effectLoader.active ? 0 : parent.opacity
         live: root.surface && !(root.surface.flags & SurfaceItem.NonLive)
         smooth: root.surface?.smooth ?? true
     }
@@ -35,13 +36,20 @@ Item {
             return cornerRadius > 0 && !root.wrapper.noCornerRadius;
         }
 
-        sourceComponent: TRadiusEffect {
-            anchors.fill: parent
-            sourceItem: content
-            topLeftRadius: wrapper.noTitleBar ? cornerRadius : 0
-            topRightRadius: wrapper.noTitleBar ? cornerRadius : 0
-            bottomLeftRadius: cornerRadius
-            bottomRightRadius: cornerRadius
+        sourceComponent: Shape {
+            x: content.x
+            y: content.y
+            preferredRendererType: Shape.CurveRenderer
+            ShapePath {
+                strokeWidth: 0
+                fillItem: content
+                PathRectangle {
+                    width: content.width
+                    height: content.height
+                    bottomLeftRadius: cornerRadius
+                    bottomRightRadius: cornerRadius
+                }
+            }
         }
     }
 }

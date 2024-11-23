@@ -3,6 +3,7 @@
 
 import QtQuick
 import QtQuick.Controls
+import QtQuick.Shapes
 import Waylib.Server
 import Treeland
 import org.deepin.dtk 1.0 as D
@@ -145,13 +146,22 @@ Control {
     }
 
     Loader {
-        anchors.fill: parent
+        x: titlebar.x
+        y: titlebar.y
         active: !root.noRadius
-        sourceComponent: TRadiusEffect {
+        sourceComponent: Shape {
             anchors.fill: parent
-            sourceItem: titlebar
-            topLeftRadius: surface.radius
-            topRightRadius: surface.radius
+            preferredRendererType: Shape.CurveRenderer
+            ShapePath {
+                strokeWidth: 0
+                fillItem: titlebar
+                PathRectangle {
+                    width: titlebar.width
+                    height: titlebar.height
+                    topLeftRadius: surface.radius
+                    topRightRadius: surface.radius
+                }
+            }
         }
     }
 }

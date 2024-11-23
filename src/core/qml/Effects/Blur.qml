@@ -3,6 +3,7 @@
 
 import QtQuick
 import QtQuick.Effects
+import QtQuick.Shapes
 import Waylib.Server
 import Treeland
 
@@ -20,6 +21,7 @@ RenderBufferBlitter {
         id: blur
         anchors.fill: parent
         layer.enabled: blitter.radiusEnabled
+        smooth: blitter.radiusEnabled
         opacity: blitter.radiusEnabled ? 0 : parent.opacity
         source: blitter.content
         autoPaddingEnabled: false
@@ -30,12 +32,21 @@ RenderBufferBlitter {
     }
 
     Loader {
-        anchors.fill: parent
+        x: blur.x
+        y: blur.y
         active: blitter.radiusEnabled
-        sourceComponent: TRadiusEffect {
+        sourceComponent: Shape {
             anchors.fill: parent
-            sourceItem: blur
-            radius: blitter.radius
+            preferredRendererType: Shape.CurveRenderer
+            ShapePath {
+                strokeWidth: 0
+                fillItem: blur
+                PathRectangle {
+                    width: blur.width
+                    height: blur.height
+                    radius: blitter.radius
+                }
+            }
         }
     }
 }
