@@ -170,13 +170,13 @@ D.Popup {
                         id: displayUserName
                         text: model.realName.length === 0 ? model.name : model.realName
                         color: singleUser.ListView.isCurrentItem ? "white" : "black"
-                        font: D.fontManager.t9
+                        font: D.DTK.fontManager.t9
                     }
                     Text {
                         text: model.identity
                         color: singleUser.ListView.isCurrentItem ? Qt.rgba(1, 1, 1,0.7)
                                                                  : Qt.rgba(0, 0, 0, 0.6)
-                        font: D.fontManager.t10
+                        font: D.DTK.fontManager.t10
                     }
                 }
             }

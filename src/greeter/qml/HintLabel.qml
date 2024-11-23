@@ -24,12 +24,12 @@ D.Popup {
         Text {
             text: qsTr("Password Hint")
             color: Qt.rgba(1, 1, 1, 0.7)
-            font: D.fontManager.t10
+            font: D.DTK.fontManager.t10
         }
         Text {
             text: hintText
             color: "white"
-            font: D.fontManager.t10
+            font: D.DTK.fontManager.t10
         }
     }
 }

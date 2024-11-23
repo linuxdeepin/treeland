@@ -43,6 +43,8 @@ set_source_files_properties(qml/GreeterModel.qml PROPERTIES
 
 set(QML_FILES
     qml/Greeter.qml
+    qml/ShutdownView.qml
+    qml/LockView.qml
     qml/UserList.qml
     qml/SessionList.qml
     qml/UserInput.qml
@@ -54,6 +56,7 @@ set(QML_FILES
     qml/HintLabel.qml
     qml/QuickAction.qml
     qml/ControlAction.qml
+    qml/ShutdownButton.qml
 )
 
 set(LIB_NAME greeter)

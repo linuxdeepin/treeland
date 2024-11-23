@@ -28,6 +28,35 @@ void LockScreen::lock()
     setVisible(true);
 
     for (const auto &[k, v] : m_components) {
+        v->setProperty("currentMode", static_cast<int>(LockScreen::CurrentMode::Lock));
+        QMetaObject::invokeMethod(v.get(), "start");
+    }
+}
+
+void LockScreen::shutdown()
+{
+    if (isVisible()) {
+        return;
+    }
+
+    setVisible(true);
+
+    for (const auto &[k, v] : m_components) {
+        v->setProperty("currentMode", static_cast<int>(LockScreen::CurrentMode::Shutdown));
+        QMetaObject::invokeMethod(v.get(), "start");
+    }
+}
+
+void LockScreen::switchUser()
+{
+    if (isVisible()) {
+        return;
+    }
+
+    setVisible(true);
+
+    for (const auto &[k, v] : m_components) {
+        v->setProperty("currentMode", static_cast<int>(LockScreen::CurrentMode::SwitchUser));
         QMetaObject::invokeMethod(v.get(), "start");
     }
 }
