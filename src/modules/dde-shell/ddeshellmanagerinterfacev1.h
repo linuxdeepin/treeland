@@ -18,6 +18,7 @@ class DDEActiveInterface;
 class WindowOverlapCheckerInterface;
 class MultiTaskViewInterface;
 class WindowPickerInterface;
+class LockScreenInterface;
 
 class DDEShellManagerInterfaceV1 : public QObject , public WServerInterface
 {
@@ -34,6 +35,7 @@ Q_SIGNALS:
     void windowOverlapCheckerCreated(WindowOverlapCheckerInterface *interface);
     void multiTaskViewsCreated(MultiTaskViewInterface *interface);
     void PickerCreated(WindowPickerInterface *interface);
+    void lockScreenCreated(LockScreenInterface *interface);
 
     void toggleMultitaskview();
     void requestPickWindow(WindowPickerInterface *picker);
@@ -185,4 +187,23 @@ private:
 private:
     friend class DDEShellManagerInterfaceV1Private;
     std::unique_ptr<WindowPickerInterfacePrivate> d;
+};
+
+class LockScreenInterfacePrivate;
+class LockScreenInterface : public QObject
+{
+    Q_OBJECT
+public:
+    ~LockScreenInterface() override;
+Q_SIGNALS:
+    void lock();
+    void shutdown();
+    void switchUser();
+
+private:
+    explicit LockScreenInterface(wl_resource *resource);
+
+private:
+    friend class DDEShellManagerInterfaceV1Private;
+    std::unique_ptr<LockScreenInterfacePrivate> d;
 };

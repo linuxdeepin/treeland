@@ -78,6 +78,7 @@ class PrimaryOutputV1;
 class CaptureSourceSelector;
 class treeland_window_picker_v1;
 class IMultitaskView;
+class LockScreenInterface;
 
 class Helper : public WSeatEventFilter
 {
@@ -224,6 +225,7 @@ private Q_SLOTS:
     void onSurfaceWrapperAboutToRemove(SurfaceWrapper *wrapper);
     void deleteTaskSwitch();
     void handleRequestDrag(WSurface *surface);
+    void handleLockScreen(LockScreenInterface *lockScreen);
 
 private:
     void allowNonDrmOutputAutoChangeMode(WOutput *output);
@@ -313,3 +315,5 @@ private:
 
     IMultitaskView *m_multitaskView{ nullptr };
 };
+
+Q_DECLARE_OPAQUE_POINTER(LockScreenInterface *)

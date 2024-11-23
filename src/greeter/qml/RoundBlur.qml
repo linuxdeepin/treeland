@@ -9,12 +9,12 @@ import org.deepin.dtk 1.0 as D
 Item {
     id: root
     property int radius
+    property color color: Qt.rgba(1, 1, 1, 0.1)
     anchors.fill: parent
     Rectangle {
         anchors.fill: parent
         radius: root.radius
-        color: "white"
-        opacity: 0.1
+        color: root.color
     }
     RenderBufferBlitter {
         id: blitter

@@ -5,113 +5,52 @@ import QtQuick
 import Treeland.Greeter
 import org.deepin.dtk 1.0 as D
 import QtQuick.Controls
+import QtQuick.Layouts
 
-D.Menu {
-    id: powers
-    modal: true
-    padding: 6
-    width: 122
+FocusScope {
+    id: root
+    property alias modelChildren: objModel.children
 
-    background: RoundBlur {
-        radius: 12
-    }
+    implicitWidth: layout.width
+    implicitHeight: layout.height
 
-    D.Action {
-        enabled: GreeterModel.proxy.canHibernate
-        text: qsTr("Hibernate")
-        icon.name: "login_sleep"
+    RowLayout {
+        id: layout
+        spacing: 100
+        anchors.centerIn: parent
+        Repeater {
+            model: ObjectModel {
+                id: objModel
 
-        onTriggered: GreeterModel.proxy.hibernate()
-    }
-
-    D.Action {
-        enabled: GreeterModel.proxy.canSuspend
-        text: qsTr("Suspend")
-        icon.name: "login_suspend"
-
-        onTriggered: GreeterModel.proxy.suspend()
-    }
-
-    D.Action {
-        enabled: GreeterModel.proxy.canReboot
-        text: qsTr("Reboot")
-        icon.name: "login_reboot"
-
-        onTriggered: GreeterModel.proxy.reboot()
-    }
-
-    D.Action {
-        id: powerOff
-        enabled: GreeterModel.proxy.canPowerOff
-        text: qsTr("Shut Down")
-        icon.name: "login_poweroff"
-
-        onTriggered: GreeterModel.proxy.powerOff()
-    }
-
-    onAboutToShow: {
-        currentIndex = count - 1
-    }
-
-    delegate: D.MenuItem {
-        id: item
-        height: enabled ? 26 : 0
-        display: D.IconLabel.IconBesideText
-        font: D.fontManager.t9
-        visible: enabled
-
-        property D.Palette highlightColor: D.Palette {
-            normal: D.DTK.makeColor(D.Color.Highlight)
-        }
-
-        Keys.onUpPressed: {
-            let nextIndex = powers.currentIndex - 1
-            for (var index = 0; index < count; index++) {
-                if (nextIndex < 0) {
-                    nextIndex += powers.count
+                ShutdownButton {
+                    enabled: GreeterModel.proxy.canHibernate
+                    text: qsTr("Hibernate")
+                    icon.name: "login_sleep"
+                    onClicked: GreeterModel.proxy.hibernate()
                 }
 
-                let tmp = powers.itemAt(nextIndex)
-                if (tmp.visible) {
-                    break
+                ShutdownButton {
+                    enabled: GreeterModel.proxy.canSuspend
+                    text: qsTr("Suspend")
+                    icon.name: "login_suspend"
+                    onClicked: GreeterModel.proxy.suspend()
                 }
-                nextIndex--
+
+                ShutdownButton {
+                    enabled: GreeterModel.proxy.canReboot
+                    text: qsTr("Reboot")
+                    icon.name: "login_reboot"
+                    onClicked: GreeterModel.proxy.reboot()
+                }
+
+                ShutdownButton {
+                    id: powerOff
+                    enabled: GreeterModel.proxy.canPowerOff
+                    text: qsTr("Shut Down")
+                    icon.name: "login_poweroff"
+                    onClicked: GreeterModel.proxy.powerOff()
+                }
             }
-
-            powers.currentIndex = nextIndex
-        }
-
-        Keys.onDownPressed: {
-            let nextIndex = powers.currentIndex + 1
-            for (var index = 0; index < count; index++) {
-                if (nextIndex >= powers.count) {
-                    nextIndex -= powers.count
-                }
-
-                let tmp = powers.itemAt(nextIndex)
-                if (tmp.enabled) {
-                    break
-                }
-                nextIndex++
-            }
-
-            powers.currentIndex = nextIndex
-        }
-
-        background: Rectangle {
-            id: backgroundColor
-            radius: 6
-            anchors.fill: parent
-            D.BoxShadow {
-                anchors.fill: parent
-                shadowBlur: 0
-                shadowOffsetX: 0
-                shadowOffsetY: -1
-                cornerRadius: parent.radius
-                hollow: true
-            }
-            color: powers.itemAt(powers.currentIndex)
-                   === item ? item.D.ColorSelector.highlightColor : "transparent"
         }
     }
 }
