@@ -242,6 +242,7 @@ void Helper::onOutputRemoved(WOutput *output)
     Q_ASSERT(index >= 0);
     const auto o = m_outputList.takeAt(index);
 
+    const auto &surfaces = getWorkspaceSurfaces(o);
     if (m_mode == OutputMode::Extension) {
         m_rootSurfaceContainer->removeOutput(o);
     } else if (m_mode == OutputMode::Copy) {
@@ -257,6 +258,9 @@ void Helper::onOutputRemoved(WOutput *output)
             m_outputList.at(i)->deleteLater();
             m_outputList.replace(i, o1);
         }
+    }
+    if (!surfaces.isEmpty() && m_rootSurfaceContainer->primaryOutput()) {
+        moveSurfacesToOutput(surfaces, m_rootSurfaceContainer->primaryOutput(), o);
     }
 
     m_outputManager->removeOutput(output);
@@ -414,6 +418,10 @@ void Helper::onSetCopyOutput(treeland_virtual_output_v1 *virtual_output)
     }
 
     m_mode = OutputMode::Copy;
+    const auto &surfaces = getWorkspaceSurfaces();
+    if (!surfaces.isEmpty() && mirrorOutput) {
+        moveSurfacesToOutput(surfaces, mirrorOutput, nullptr);
+    }
 }
 
 void Helper::onRestoreCopyOutput(treeland_virtual_output_v1 *virtual_output)
@@ -1197,16 +1205,17 @@ Output *Helper::createCopyOutput(WOutput *output, Output *proxy)
     return Output::createCopy(output, proxy, qmlEngine(), this);
 }
 
-QList<SurfaceWrapper *> Helper::getWorkspaceSurfaces()
+QList<SurfaceWrapper *> Helper::getWorkspaceSurfaces(Output *filterOutput)
 {
     QList<SurfaceWrapper *> surfaces;
     WOutputRenderWindow::paintOrderItemList(
         Helper::instance()->workspace(),
-        [&surfaces](QQuickItem *item) -> bool {
+        [&surfaces, filterOutput](QQuickItem *item) -> bool {
             SurfaceWrapper *surfaceWrapper = qobject_cast<SurfaceWrapper *>(item);
             if (surfaceWrapper
-                && surfaceWrapper->showOnWorkspace(
-                    Helper::instance()->workspace()->current()->id())) {
+                && (surfaceWrapper->showOnWorkspace(
+                        Helper::instance()->workspace()->current()->id())
+                    && (!filterOutput || surfaceWrapper->ownsOutput() == filterOutput))) {
                 surfaces.append(surfaceWrapper);
                 return true;
             } else {
@@ -1215,6 +1224,38 @@ QList<SurfaceWrapper *> Helper::getWorkspaceSurfaces()
         });
 
     return surfaces;
+}
+
+void Helper::moveSurfacesToOutput(const QList<SurfaceWrapper *> &surfaces,
+                                  Output *targetOutput,
+                                  Output *sourceOutput)
+{
+    if (!surfaces.isEmpty() && targetOutput) {
+        const QRectF targetGeometry = targetOutput->geometry();
+
+        for (auto *surface : surfaces) {
+            if (!surface)
+                continue;
+
+            const QSizeF size = surface->size();
+            QPointF newPos;
+
+            if (surface->ownsOutput() == targetOutput) {
+                newPos = surface->position();
+            } else {
+                const QRectF sourceGeometry =
+                    sourceOutput ? sourceOutput->geometry() : surface->ownsOutput()->geometry();
+                const QPointF relativePos = surface->position() - sourceGeometry.center();
+                newPos = targetGeometry.center() + relativePos;
+                surface->setOwnsOutput(targetOutput);
+            }
+            newPos.setX(
+                qBound(targetGeometry.left(), newPos.x(), targetGeometry.right() - size.width()));
+            newPos.setY(
+                qBound(targetGeometry.top(), newPos.y(), targetGeometry.bottom() - size.height()));
+            surface->setPosition(newPos);
+        }
+    }
 }
 
 SurfaceWrapper *Helper::keyboardFocusSurface() const
