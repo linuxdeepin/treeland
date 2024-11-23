@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 import QtQuick
+import QtQuick.Shapes
 import Treeland
 import QtQuick.Layouts
 import org.deepin.dtk 1.0 as D
@@ -22,6 +23,7 @@ Item {
     Item {
         id: contentItem
         layer.enabled: true
+        smooth: true
         opacity: 0
 
         anchors.centerIn: parent
@@ -105,10 +107,18 @@ Item {
         }
     }
 
-    TRadiusEffect {
-        anchors.fill: contentItem
-        sourceItem: contentItem
-        radius: sourceView.enableDelegateRadius ? surface.radius : 0
-        hideSource: true
+    Shape {
+        x: contentItem.x
+        y: contentItem.y
+        preferredRendererType: Shape.CurveRenderer
+        ShapePath {
+            strokeWidth: 0
+            fillItem: contentItem
+            PathRectangle {
+                width: contentItem.width
+                height: contentItem.height
+                radius: sourceView.enableDelegateRadius ? surface.radius : 0
+            }
+        }
     }
 }
