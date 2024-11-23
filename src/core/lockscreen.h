@@ -10,6 +10,7 @@
 
 class Output;
 class QTimer;
+class ILockScreen;
 
 class LockScreen : public SurfaceContainer
 {
@@ -24,7 +25,8 @@ public:
         SwitchUser = 3
     };
     Q_ENUM(CurrentMode)
-    explicit LockScreen(SurfaceContainer *parent);
+
+    explicit LockScreen(ILockScreen *impl, SurfaceContainer *parent);
 
     bool isLocked() const;
     void lock();
@@ -43,6 +45,7 @@ public:
     void removeOutput(Output *output) override;
 
 private:
+    ILockScreen *m_impl;
     std::map<Output *, std::unique_ptr<QQuickItem, void (*)(QQuickItem *)>> m_components;
     std::unique_ptr<QTimer> m_delayTimer;
 };

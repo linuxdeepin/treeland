@@ -5,6 +5,7 @@ import QtQuick.Controls
 import QtQuick.Layouts
 import Treeland
 import Treeland.Greeter
+import LockScreen
 
 FocusScope {
     id: root
@@ -57,7 +58,7 @@ FocusScope {
         id: cover
         anchors.fill: parent
         color: 'black'
-        opacity: wallpaperController.type === WallpaperController.Normal ? 0 : 0.9
+        opacity: wallpaperController.type === WallpaperController.Normal ? 0 : 0.6
         Behavior on opacity {
             PropertyAnimation {
                 duration: 1000

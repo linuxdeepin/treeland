@@ -11,6 +11,7 @@ set(INTERFACE_HEADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/plugininterface.h
     ${CMAKE_CURRENT_SOURCE_DIR}/proxyinterface.h
     ${CMAKE_CURRENT_SOURCE_DIR}/multitaskviewinterface.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/lockscreeninterface.h
 )
 
 target_sources(treeland_interface

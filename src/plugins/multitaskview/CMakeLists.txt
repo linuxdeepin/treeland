@@ -17,7 +17,7 @@ qt_add_qml_module(multitaskview
     RESOURCE_PREFIX
         /qt/qml
     OUTPUT_DIRECTORY
-        ${PROJECT_BINARY_DIR}/qt/qml/Treeland/Plugins/
+        ${PROJECT_BINARY_DIR}/qt/qml/Treeland/Plugins/MultitaskView
 )
 
 target_link_libraries(multitaskview PRIVATE

@@ -13,6 +13,7 @@
 
 #ifndef DISABLE_DDM
 #  include "greeterproxy.h"
+#  include "lockscreeninterface.h"
 #  include "logoprovider.h"
 #  include "sessionmodel.h"
 #  include "usermodel.h"
@@ -214,6 +215,16 @@ public:
                 });
                 helper->setMultitaskViewImpl(multitaskview);
             }
+
+#ifndef DISABLE_DDM
+            if (auto *lockscreen = qobject_cast<ILockScreen *>(pluginInstance)) {
+                qCDebug(dbus) << "Get LockScreen Instance.";
+                connect(pluginInstance, &QObject::destroyed, this, [this] {
+                    helper->setLockScreenImpl(nullptr);
+                });
+                helper->setLockScreenImpl(lockscreen);
+            }
+#endif
         }
     }
 
