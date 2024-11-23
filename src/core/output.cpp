@@ -509,7 +509,8 @@ void Output::arrangeNonLayerSurface(SurfaceWrapper *surface, const QSizeF &sizeD
                     topLeft.setX(parentSurfaceWrapper->x()
                                  + parentSurfaceWrapper->surfaceItem()->x() + dPos.x());
                     topLeft.setY(parentSurfaceWrapper->y()
-                                 + parentSurfaceWrapper->surfaceItem()->y() + dPos.y());
+                                 + parentSurfaceWrapper->surfaceItem()->y() + dPos.y()
+                                 + parentSurfaceWrapper->titlebarGeometry().height());
                     auto output = surface->ownsOutput()->outputItem();
 
                     normalGeo.setWidth(std::min(output->width(), surface->width()));
