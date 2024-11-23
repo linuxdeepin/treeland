@@ -70,8 +70,8 @@ public:
     QQmlComponent *delegate = nullptr;
     bool delegateIsDirty = false;
     QQuickItem *eventItem = nullptr;
-    SubsurfaceContainer *belowSubsurfaceContainer = nullptr;
-    SubsurfaceContainer *aboveSubsurfaceContainer = nullptr;
+    QPointer<SubsurfaceContainer> belowSubsurfaceContainer = nullptr;
+    QPointer<SubsurfaceContainer> aboveSubsurfaceContainer = nullptr;
     WSurfaceItem::ResizeMode resizeMode = WSurfaceItem::SizeFromSurface;
     WSurfaceItem::Flags surfaceFlags;
     QMarginsF paddings;
