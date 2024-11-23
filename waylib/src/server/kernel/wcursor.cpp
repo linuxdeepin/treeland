@@ -597,7 +597,7 @@ void WCursor::detachInputDevice(WInputDevice *device)
     d->handle()->detach_input_device(device->handle()->handle());
     d->handle()->map_input_to_output(device->handle()->handle(), nullptr);
 
-    if (d->eventWindow) {
+    if (d->eventWindow && device->seat()) {
         Q_ASSERT(d->seat);
         d->sendLeaveEvent(device);
     }
