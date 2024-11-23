@@ -6,6 +6,7 @@ import QtQuick.Layouts
 import QtQuick.Controls
 
 import Treeland.Greeter
+import LockScreen
 
 Popup {
     modal: true

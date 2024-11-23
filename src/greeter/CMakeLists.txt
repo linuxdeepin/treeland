@@ -13,7 +13,6 @@ set(GREETER_SOURCES
     logoprovider.cpp
 )
 
-find_package(QT NAMES Qt6 REQUIRED COMPONENTS Core)
 find_package(Dtk6 REQUIRED COMPONENTS SystemSettings Declarative)
 find_package(DDM REQUIRED COMPONENTS Auth)
 find_package(PkgConfig REQUIRED)
@@ -37,28 +36,6 @@ qt_add_dbus_interface(DDM_DBUS_SOURCES "${CMAKE_SOURCE_DIR}/misc/interfaces/org.
 qt_add_dbus_interface(DDM_DBUS_SOURCES "${CMAKE_SOURCE_DIR}/misc/interfaces/org.freedesktop.DisplayManager.Seat.xml"     DisplayManagerSeat)
 qt_add_dbus_interface(DDM_DBUS_SOURCES "${CMAKE_SOURCE_DIR}/misc/interfaces/org.freedesktop.DisplayManager.Session.xml"  DisplayManagerSession)
 
-set_source_files_properties(qml/GreeterModel.qml PROPERTIES
-    QT_QML_SINGLETON_TYPE TRUE
-)
-
-set(QML_FILES
-    qml/Greeter.qml
-    qml/ShutdownView.qml
-    qml/LockView.qml
-    qml/UserList.qml
-    qml/SessionList.qml
-    qml/UserInput.qml
-    qml/GreeterModel.qml
-    qml/LoginAnimation.qml
-    qml/RoundBlur.qml
-    qml/PowerList.qml
-    qml/TimeDateWidget.qml
-    qml/HintLabel.qml
-    qml/QuickAction.qml
-    qml/ControlAction.qml
-    qml/ShutdownButton.qml
-)
-
 set(LIB_NAME greeter)
 
 qt_add_qml_module(${LIB_NAME}
@@ -72,7 +49,6 @@ qt_add_qml_module(${LIB_NAME}
         ${DDM_DBUS_SOURCES}
     RESOURCE_PREFIX
         /qt/qml
-    QML_FILES ${QML_FILES}
     OUTPUT_DIRECTORY
         ${PROJECT_BINARY_DIR}/qt/qml/Treeland/Greeter
 )
@@ -99,38 +75,6 @@ qt_add_resources(${LIB_NAME} "greeter_assets"
         ${PROJECT_RESOURCES_DIR}/icons/logo.svg
 )
 
-set(TRANSLATED_FILES)
-if (${QT_VERSION_MINOR} LESS 7)
-    qt_add_lupdate(greeterplugin
-        TS_FILES
-            translations/greeter.zh_CN.ts
-            translations/greeter.en_US.ts
-        NO_GLOBAL_TARGET
-    )
-
-    qt_add_lrelease(${LIB_NAME}
-        TS_FILES
-            translations/greeter.zh_CN.ts
-            translations/greeter.en_US.ts
-        QM_FILES_OUTPUT_VARIABLE TRANSLATED_FILES
-    )
-elseif (${QT_VERSION_MINOR} GREATER_EQUAL 7)
-    qt_add_lupdate(
-        SOURCE_TARGETS ${LIB_NAME}
-        TS_FILES
-            translations/greeter.zh_CN.ts
-            translations/greeter.en_US.ts
-        NO_GLOBAL_TARGET
-    )
-
-    qt_add_lrelease(
-        TS_FILES
-            translations/greeter.zh_CN.ts
-            translations/greeter.en_US.ts
-        QM_FILES_OUTPUT_VARIABLE TRANSLATED_FILES
-    )
-endif()
-
 target_include_directories(${LIB_NAME}
     PUBLIC
         ${CMAKE_SOURCE_DIR}/src/greeter/
@@ -147,5 +91,4 @@ target_link_libraries(${LIB_NAME}
         Dtk6::SystemSettings
 )
 
-install(FILES ${TRANSLATED_FILES} DESTINATION ${TREELAND_COMPONENTS_TRANSLATION_DIR})
 install(TARGETS ${LIB_NAME} DESTINATION ${CMAKE_INSTALL_LIBDIR})

@@ -82,54 +82,58 @@ OutputItem {
         }
     }
 
-    Wallpaper {
-        id: wallpaper
-        userId: Helper.currentUserId
-        output: rootOutputItem.output
-        workspace: Helper.workspace.current
-        anchors.fill: parent
-        fillMode: Image.PreserveAspectCrop
-        // TODO: qt6.8 use other property
-        asynchronous: false
+    Item {
         clip: true
+        anchors.fill: parent
+        Wallpaper {
+            id: wallpaper
+            userId: Helper.currentUserId
+            output: rootOutputItem.output
+            workspace: Helper.workspace.current
+            anchors.fill: parent
+            fillMode: Image.PreserveAspectCrop
+            // TODO: qt6.8 use other property
+            asynchronous: false
+            clip: true
 
-        states: [
-            State {
-                name: "Normal"
-                PropertyChanges {
-                    target: wallpaper
-                    scale: 1
+            states: [
+                State {
+                    name: "Normal"
+                    PropertyChanges {
+                        target: wallpaper
+                        scale: 1
+                    }
+                },
+                State {
+                    name: "Scale"
+                    PropertyChanges {
+                        target: wallpaper
+                        scale: 1.4
+                    }
                 }
-            },
-            State {
-                name: "Scale"
-                PropertyChanges {
-                    target: wallpaper
-                    scale: 1.4
-                }
-            }
-        ]
+            ]
 
-        transitions: [
-            Transition {
-                from: "*"
-                to: "Normal"
-                PropertyAnimation {
-                    property: "scale"
-                    duration: 1000
-                    easing.type: Easing.OutExpo
+            transitions: [
+                Transition {
+                    from: "*"
+                    to: "Normal"
+                    PropertyAnimation {
+                        property: "scale"
+                        duration: 1000
+                        easing.type: Easing.OutExpo
+                    }
+                },
+                Transition {
+                    from: "*"
+                    to: "Scale"
+                    PropertyAnimation {
+                        property: "scale"
+                        duration: 1000
+                        easing.type: Easing.OutExpo
+                    }
                 }
-            },
-            Transition {
-                from: "*"
-                to: "Scale"
-                PropertyAnimation {
-                    property: "scale"
-                    duration: 1000
-                    easing.type: Easing.OutExpo
-                }
-            }
-        ]
+            ]
+        }
     }
 
     function setTransform(transform) {

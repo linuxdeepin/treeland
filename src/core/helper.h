@@ -79,6 +79,7 @@ class CaptureSourceSelector;
 class treeland_window_picker_v1;
 class IMultitaskView;
 class LockScreenInterface;
+class ILockScreen;
 
 class Helper : public WSeatEventFilter
 {
@@ -177,6 +178,7 @@ public:
     RootSurfaceContainer *rootSurfaceContainer() const;
 
     void setMultitaskViewImpl(IMultitaskView *impl);
+    void setLockScreenImpl(ILockScreen *impl);
 
     CurrentMode currentMode() const
     {

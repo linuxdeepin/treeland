@@ -3,8 +3,8 @@
 pragma Singleton
 
 import QtQuick
-
 import Treeland.Greeter
+import LockScreen
 
 Item {
     enum GreeterState {
