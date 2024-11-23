@@ -123,6 +123,7 @@ void RootSurfaceContainer::removeOutput(Output *output)
         endMoveResize();
     }
 
+    m_outputLayout->remove(output->output());
     if (m_primaryOutput == output) {
         const auto outputs = m_outputLayout->outputs();
         if (!outputs.isEmpty()) {
@@ -142,8 +143,6 @@ void RootSurfaceContainer::removeOutput(Output *output)
         else
             Helper::instance()->setCursorPosition(m_primaryOutput->geometry().center());
     }
-
-    m_outputLayout->remove(output->output());
 }
 
 void RootSurfaceContainer::beginMoveResize(SurfaceWrapper *surface, Qt::Edges edges)
