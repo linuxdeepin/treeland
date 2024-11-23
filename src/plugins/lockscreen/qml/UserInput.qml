@@ -5,6 +5,7 @@ import QtQuick.Controls
 import QtQuick.Layouts
 import org.deepin.dtk 1.0 as D
 import Treeland.Greeter
+import LockScreen
 
 Item {
     id: loginGroup

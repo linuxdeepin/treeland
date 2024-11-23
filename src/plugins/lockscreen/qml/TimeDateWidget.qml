@@ -3,6 +3,7 @@
 import QtQuick
 import QtQuick.Controls
 import Treeland.Greeter
+import LockScreen
 
 Control {
     id: timedataWidget

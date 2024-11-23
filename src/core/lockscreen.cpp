@@ -5,11 +5,12 @@
 
 #include "cmdline.h"
 #include "helper.h"
+#include "lockscreeninterface.h"
 #include "output.h"
 
-
-LockScreen::LockScreen(SurfaceContainer *parent)
+LockScreen::LockScreen(ILockScreen *impl, SurfaceContainer *parent)
     : SurfaceContainer(parent)
+    , m_impl(impl)
     , m_delayTimer(std::make_unique<QTimer>(new QTimer))
 {
     connect(m_delayTimer.get(), &QTimer::timeout, this, &LockScreen::unlock);
@@ -66,7 +67,8 @@ void LockScreen::addOutput(Output *output)
     SurfaceContainer::addOutput(output);
 
     auto engine = Helper::instance()->qmlEngine();
-    auto *item = engine->createLockScreen(output, this);
+    auto *item = m_impl->createLockScreen(output, this);
+
     if (isVisible()) {
         QMetaObject::invokeMethod(item, "start");
     }
@@ -78,7 +80,6 @@ void LockScreen::addOutput(Output *output)
         { output, std::unique_ptr<QQuickItem, void (*)(QQuickItem *)>(item, [](QQuickItem *item) {
               item->deleteLater();
           }) });
-
 }
 
 bool LockScreen::isLocked() const

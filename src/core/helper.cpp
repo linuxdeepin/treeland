@@ -87,9 +87,6 @@ Helper::Helper(QObject *parent)
     , m_renderWindow(new WOutputRenderWindow(this))
     , m_server(new WServer(this))
     , m_rootSurfaceContainer(new RootSurfaceContainer(m_renderWindow->contentItem()))
-#ifndef DISABLE_DDM
-    , m_lockScreen(new LockScreen(m_rootSurfaceContainer))
-#endif
     , m_windowGesture(new TogglableGesture(this))
     , m_multiTaskViewGesture(new TogglableGesture(this))
 {
@@ -102,24 +99,6 @@ Helper::Helper(QObject *parent)
     m_rootSurfaceContainer->setFlag(QQuickItem::ItemIsFocusScope, true);
 #if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0)
     m_rootSurfaceContainer->setFocusPolicy(Qt::StrongFocus);
-#endif
-#ifndef DISABLE_DDM
-    m_lockScreen->setZ(RootSurfaceContainer::LockScreenZOrder);
-    m_lockScreen->setVisible(false);
-
-    connect(m_lockScreen, &LockScreen::unlock, this, [this] {
-        setCurrentMode(CurrentMode::Normal);
-
-        m_workspaceScaleAnimation->stop();
-        m_workspaceScaleAnimation->setStartValue(m_shellHandler->workspace()->scale());
-        m_workspaceScaleAnimation->setEndValue(1.0);
-        m_workspaceScaleAnimation->start();
-
-        m_workspaceOpacityAnimation->stop();
-        m_workspaceOpacityAnimation->setStartValue(m_shellHandler->workspace()->opacity());
-        m_workspaceOpacityAnimation->setEndValue(1.0);
-        m_workspaceOpacityAnimation->start();
-    });
 #endif
 
     m_shellHandler = new ShellHandler(m_rootSurfaceContainer);
@@ -803,12 +782,6 @@ void Helper::init()
     m_backend->handle()->start();
 
     qInfo() << "Listing on:" << m_socket->fullServerName();
-
-#ifndef DISABLE_DDM
-    if (CmdLine::ref().useLockScreen()) {
-        showLockScreen();
-    }
-#endif
 }
 
 bool Helper::socketEnabled() const
@@ -1574,6 +1547,37 @@ RootSurfaceContainer *Helper::rootSurfaceContainer() const
 void Helper::setMultitaskViewImpl(IMultitaskView *impl)
 {
     m_multitaskView = impl;
+}
+
+void Helper::setLockScreenImpl(ILockScreen *impl)
+{
+#ifndef DISABLE_DDM
+    m_lockScreen = new LockScreen(impl, m_rootSurfaceContainer);
+    m_lockScreen->setZ(RootSurfaceContainer::LockScreenZOrder);
+    m_lockScreen->setVisible(false);
+
+    for (auto *output : m_rootSurfaceContainer->outputs()) {
+        m_lockScreen->addOutput(output);
+    }
+
+    connect(m_lockScreen, &LockScreen::unlock, this, [this] {
+        setCurrentMode(CurrentMode::Normal);
+
+        m_workspaceScaleAnimation->stop();
+        m_workspaceScaleAnimation->setStartValue(m_shellHandler->workspace()->scale());
+        m_workspaceScaleAnimation->setEndValue(1.0);
+        m_workspaceScaleAnimation->start();
+
+        m_workspaceOpacityAnimation->stop();
+        m_workspaceOpacityAnimation->setStartValue(m_shellHandler->workspace()->opacity());
+        m_workspaceOpacityAnimation->setEndValue(1.0);
+        m_workspaceOpacityAnimation->start();
+    });
+
+    if (CmdLine::ref().useLockScreen()) {
+        showLockScreen();
+    }
+#endif
 }
 
 void Helper::setCurrentMode(CurrentMode mode)
