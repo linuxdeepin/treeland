@@ -7,6 +7,7 @@
 #include <QDir>
 #include <QGuiApplication>
 #include <QQmlApplicationEngine>
+#include <QQuickStyle>
 #include <QQuickWindow>
 #include <QStandardPaths>
 #include <QTimer>
@@ -14,6 +15,7 @@
 int main(int argc, char *argv[])
 {
     QGuiApplication::setAttribute(Qt::AA_ShareOpenGLContexts);
+    QQuickStyle::setStyle("Material");
     QGuiApplication app(argc, argv);
     QQmlApplicationEngine engine;
     auto manager = TreelandCaptureManager::instance();

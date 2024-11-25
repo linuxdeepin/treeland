@@ -81,6 +81,11 @@ void handle_treeland_capture_session_v1_destroy(struct wl_client *client,
                                                 struct wl_resource *resource);
 void handle_treeland_capture_session_v1_start([[maybe_unused]] struct wl_client *client,
                                               struct wl_resource *resource);
+void handle_treeland_capture_session_v1_frame_done(wl_client *client,
+                                                   wl_resource *resource,
+                                                   uint32_t tv_sec_hi,
+                                                   uint32_t tv_sec_lo,
+                                                   uint32_t tv_usec);
 
 struct treeland_capture_session_v1 : public QObject
 {
@@ -89,9 +94,14 @@ public:
     wl_resource *resource{ nullptr };
 
     void setResource(wl_client *client, wl_resource *resource);
+    void sendProduceMoreCancel();
+    void sendSourceDestroyCancel();
+    void sendSourceResizeCancel();
+
 Q_SIGNALS:
     void beforeDestroy();
     void start();
+    void frameDone(uint32_t tvSecHi, uint32_t tvSecLo, uint32_t tvUsec);
 };
 
 void handle_treeland_capture_manager_v1_destroy([[maybe_unused]] wl_client *client,

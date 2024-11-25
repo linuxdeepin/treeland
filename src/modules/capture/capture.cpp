@@ -11,13 +11,13 @@
 #include <itemselector.h>
 #include <private/qquickitem_p.h>
 
+#include <wlayersurface.h>
 #include <woutputitem.h>
 #include <woutputrenderwindow.h>
 #include <woutputviewport.h>
 #include <wquickcursor.h>
 #include <wquicktextureproxy.h>
 #include <wtools.h>
-#include <wlayersurface.h>
 
 #include <qwcompositor.h>
 #include <qwdisplay.h>
@@ -29,7 +29,6 @@
 #include <QSGTextureProvider>
 
 #include <utility>
-using QW_NAMESPACE::qw_layer_surface_v1;
 
 Q_LOGGING_CATEGORY(qLcCapture, "treeland.capture")
 
@@ -53,14 +52,30 @@ static inline uint32_t captureSourceTypeToProtocol(CaptureSource::CaptureSourceT
     }
 }
 
-void CaptureContextV1::setSource(CaptureSource *source)
+void CaptureContextV1::setSource(CaptureSource *source, const QRect &captureRegion)
 {
-    if (m_captureSource == source)
+    if (m_captureSource == source && m_captureRegion == captureRegion)
         return;
+    if (m_captureSource) {
+        m_captureSource->disconnect(this);
+        if (session()) {
+            m_captureSource->disconnect(session());
+        }
+    }
     m_captureSource = source;
-    m_handle->sendSourceReady(source->captureRegion(),
+    m_captureRegion = captureRegion;
+    connect(m_captureSource,
+            &CaptureSource::targetDestroyed,
+            this,
+            &CaptureContextV1::handleSourceDestroyed);
+    m_handle->sendSourceReady(this->captureRegion(),
                               captureSourceTypeToProtocol(source->sourceType()));
     Q_EMIT sourceChanged();
+}
+
+void CaptureContextV1::cancelSelect()
+{
+    sendSourceFailed(UserCancel);
 }
 
 WSurface *CaptureContextV1::mask() const
@@ -118,9 +133,9 @@ void CaptureContextV1::onCapture(treeland_capture_frame_v1 *frame)
     auto notifyBuffer = [this] {
         m_frame->sendBuffer(
             WTools::drmToShmFormat(WTools::toDrmFormat(m_captureSource->image().format())),
-            m_captureSource->captureRegion().width(),
-            m_captureSource->captureRegion().height(),
-            m_captureSource->captureRegion().width() * 4);
+            captureRegion().width(),
+            captureRegion().height(),
+            captureRegion().width() * 4);
         m_frame->sendBufferDone();
         connect(m_frame,
                 &treeland_capture_frame_v1::copy,
@@ -130,10 +145,10 @@ void CaptureContextV1::onCapture(treeland_capture_frame_v1 *frame)
             m_frame = nullptr;
         });
     };
-    if (m_captureSource->valid()) {
+    if (m_captureSource->imageValid()) {
         notifyBuffer();
     } else {
-        connect(m_captureSource, &CaptureSource::ready, this, notifyBuffer);
+        connect(m_captureSource, &CaptureSource::imageReady, this, notifyBuffer);
     }
     Q_EMIT finishSelect();
 }
@@ -171,11 +186,48 @@ void CaptureContextV1::onCreateSession(treeland_capture_session_v1 *session)
             &treeland_capture_session_v1::start,
             this,
             &CaptureContextV1::handleSessionStart);
+    connect(m_session,
+            &treeland_capture_session_v1::frameDone,
+            this,
+            &CaptureContextV1::handleFrameDone);
+    connect(m_session, &treeland_capture_session_v1::beforeDestroy, this, [this] {
+        disconnect(outputRenderWindow(),
+                   &WOutputRenderWindow::renderEnd,
+                   this,
+                   &CaptureContextV1::handleRenderEnd);
+    });
+    ensureSourceSessionConnection();
     Q_EMIT finishSelect();
+}
+
+void CaptureContextV1::ensureSourceSessionConnection()
+{
+    Q_ASSERT(session() && source());
+    connect(source(),
+            &CaptureSource::bufferDestroyed,
+            session(),
+            &treeland_capture_session_v1::sendProduceMoreCancel,
+            Qt::UniqueConnection);
+    connect(source(),
+            &CaptureSource::targetDestroyed,
+            session(),
+            &treeland_capture_session_v1::sendSourceDestroyCancel,
+            Qt::UniqueConnection);
+    connect(source(),
+            &CaptureSource::targetResized,
+            session(),
+            &treeland_capture_session_v1::sendSourceResizeCancel,
+            Qt::UniqueConnection);
+}
+
+void CaptureContextV1::handleSourceDestroyed()
+{
+    sendSourceFailed(SourceDestroyed);
 }
 
 void CaptureContextV1::handleSessionStart()
 {
+    m_currentFrameData.acked = true;
     moveToThread(QQuickWindowPrivate::get(outputRenderWindow())->context->thread());
     captureSource()->moveToThread(
         QQuickWindowPrivate::get(outputRenderWindow())->context->thread());
@@ -189,6 +241,20 @@ void CaptureContextV1::handleSessionStart()
     }
     if (!outputRenderWindow()->inRendering()) {
         QMetaObject::invokeMethod(this, &CaptureContextV1::handleRenderEnd, Qt::AutoConnection);
+    }
+}
+
+void CaptureContextV1::handleFrameDone(uint32_t tvSecHi, uint32_t tvSecLo, uint32_t tvUsec)
+{
+    if (m_currentFrameData.readyAt.tvSecHi == tvSecHi
+        && m_currentFrameData.readyAt.tvSecLo == tvSecLo
+        && m_currentFrameData.readyAt.tvUsec == tvUsec) {
+        // Note: dmabuf attributes is exported from output backing buffer, fds will be
+        // closed as soon as backing buffer is destroyed. We should not close fd here.
+        m_currentFrameData.acked = true;
+    } else {
+        qCWarning(qLcCapture())
+            << "Receive a frame done event that is not corresponding to current frame timestamp.";
     }
 }
 
@@ -209,14 +275,17 @@ QPointer<WOutputRenderWindow> CaptureContextV1::outputRenderWindow() const
 
 void CaptureContextV1::handleRenderEnd()
 {
-    if (!session())
+    if (!session() || !m_currentFrameData.acked)
         return;
     auto source = captureSource();
     Q_ASSERT(source);
     auto dmabuf = source->sourceDMABuffer();
-    Q_ASSERT(dmabuf);
-    wlr_dmabuf_attributes attributes{};
-    dmabuf->get_dmabuf(&attributes);
+    if (!dmabuf) {
+        qCWarning(qLcCapture()) << "Source has been invalid while connection still exists.";
+        return;
+    }
+    m_currentFrameData = {};
+    dmabuf->get_dmabuf(&m_currentFrameData.attribs);
 
     union
     {
@@ -227,46 +296,36 @@ void CaptureContextV1::handleRenderEnd()
             uint32_t mod_low;
             uint32_t mod_high;
         };
-    } modifier_set(attributes.modifier);
+    } modifierUnion(m_currentFrameData.attribs.modifier);
 
+    qInfo() << "session:" << session();
+    qInfo() << "session resource:" << session()->resource;
     treeland_capture_session_v1_send_frame(session()->resource,
-                                           source->captureRegion().x(),
-                                           source->captureRegion().y(),
-                                           attributes.width,
-                                           attributes.height,
+                                           source->cropRect().x(),
+                                           source->cropRect().y(),
+                                           m_currentFrameData.attribs.width,
+                                           m_currentFrameData.attribs.height,
                                            0,
                                            0,
-                                           attributes.format,
-                                           modifier_set.mod_high,
-                                           modifier_set.mod_low,
-                                           attributes.n_planes);
-    for (auto i = 0; i < attributes.n_planes; ++i) {
+                                           m_currentFrameData.attribs.format,
+                                           modifierUnion.mod_high,
+                                           modifierUnion.mod_low,
+                                           m_currentFrameData.attribs.n_planes);
+    for (auto i = 0; i < m_currentFrameData.attribs.n_planes; ++i) {
         treeland_capture_session_v1_send_object(session()->resource,
                                                 i,
-                                                attributes.fd[i],
-                                                attributes.stride[i] * attributes.height,
-                                                attributes.offset[i],
-                                                attributes.stride[i],
+                                                m_currentFrameData.attribs.fd[i],
+                                                m_currentFrameData.attribs.stride[i]
+                                                    * m_currentFrameData.attribs.height,
+                                                m_currentFrameData.attribs.offset[i],
+                                                m_currentFrameData.attribs.stride[i],
                                                 i);
     }
-
-    union
-    {
-        timeval tv;
-
-        struct
-        {
-            uint32_t tv_sec_lo;
-            uint32_t tv_sec_hi;
-            uint32_t tv_usec;
-        };
-    } tv_set{};
-
-    gettimeofday(&tv_set.tv, nullptr);
+    gettimeofday(&m_currentFrameData.readyAt.tv, nullptr);
     treeland_capture_session_v1_send_ready(session()->resource,
-                                           tv_set.tv_sec_hi,
-                                           tv_set.tv_sec_lo,
-                                           tv_set.tv_usec);
+                                           m_currentFrameData.readyAt.tvSecHi,
+                                           m_currentFrameData.readyAt.tvSecLo,
+                                           m_currentFrameData.readyAt.tvUsec);
 }
 
 CaptureManagerV1::CaptureManagerV1(QObject *parent)
@@ -571,8 +630,6 @@ void CaptureSourceSelector::setItemSelectionMode(bool itemSelection)
     m_itemSelectionMode = itemSelection;
     if (m_itemSelectionMode) {
         // Let item selector do the job
-        m_itemSelector->setSelectionTypeHint(ItemSelector::Output | ItemSelector::Window
-                                             | ItemSelector::Surface);
         connect(m_itemSelector,
                 &ItemSelector::selectionRegionChanged,
                 this,
@@ -583,6 +640,16 @@ void CaptureSourceSelector::setItemSelectionMode(bool itemSelection)
                    &ItemSelector::selectionRegionChanged,
                    this,
                    &CaptureSourceSelector::handleItemSelectorSelectionRegionChanged);
+    }
+    updateItemSelectorItemTypes();
+}
+
+void CaptureSourceSelector::updateItemSelectorItemTypes()
+{
+    if (m_itemSelectionMode) {
+        m_itemSelector->setSelectionTypeHint(selectionModeToItemTypes(m_selectionMode));
+    } else {
+        // Always item select output in non-item selection mode
         m_itemSelector->setSelectionTypeHint(ItemSelector::Output);
     }
 }
@@ -618,17 +685,19 @@ void CaptureSourceSelector::setCaptureManager(CaptureManagerV1 *newCaptureManage
 
 void CaptureSourceSelector::mouseMoveEvent(QMouseEvent *event)
 {
-    auto pos = event->position();
-    auto distance = pos - m_selectionAnchor;
-    if (distance.manhattanLength() > 2) {
-        setItemSelectionMode(false);
-        m_doNotFinish = true;
-        QRectF newRegion;
-        newRegion.setLeft(qMin(m_selectionAnchor.x(), pos.x()));
-        newRegion.setRight(qMax(m_selectionAnchor.x(), pos.x()));
-        newRegion.setTop(qMin(m_selectionAnchor.y(), pos.y()));
-        newRegion.setBottom(qMax(m_selectionAnchor.y(), pos.y()));
-        setSelectionRegion(newRegion);
+    if (m_selectionMode == SelectionMode::SelectRegion) {
+        auto pos = event->position();
+        auto distance = pos - m_selectionAnchor;
+        if (distance.manhattanLength() > 2) {
+            setItemSelectionMode(false);
+            m_doNotFinish = true;
+            QRectF newRegion;
+            newRegion.setLeft(qMin(m_selectionAnchor.x(), pos.x()));
+            newRegion.setRight(qMax(m_selectionAnchor.x(), pos.x()));
+            newRegion.setTop(qMin(m_selectionAnchor.y(), pos.y()));
+            newRegion.setBottom(qMax(m_selectionAnchor.y(), pos.y()));
+            setSelectionRegion(newRegion);
+        }
     }
 }
 
@@ -651,18 +720,20 @@ CaptureSourceSurface::CaptureSourceSurface(WSurfaceItemContent *surfaceItemConte
 {
 }
 
-qw_buffer *CaptureSourceSurface::sourceDMABuffer()
+qw_buffer *CaptureSourceSurface::internalBuffer()
 {
-    if (auto clientBuffer = wlr_client_buffer_get(*m_surfaceItemContent->surface()->buffer())) {
-        return qw_buffer::from(clientBuffer->source);
+    Q_ASSERT(m_sourceList.size() == 1);
+    if (m_sourceList.first().first && m_surfaceItemContent->surface()
+        && m_surfaceItemContent->surface()->buffer()) {
+        if (auto clientBuffer = wlr_client_buffer_get(*m_surfaceItemContent->surface()->buffer())) {
+            return qw_buffer::from(clientBuffer->source);
+        } else {
+            return m_surfaceItemContent->surface()->buffer();
+        }
     } else {
-        return m_surfaceItemContent->surface()->buffer();
+        qWarning() << "The first source has been invalid";
+        return nullptr;
     }
-}
-
-QRect CaptureSourceSurface::captureRegion()
-{
-    return m_surfaceItemContent->boundingRect().toRect();
 }
 
 CaptureSource::CaptureSourceType CaptureSourceSurface::sourceType()
@@ -670,19 +741,29 @@ CaptureSource::CaptureSourceType CaptureSourceSurface::sourceType()
     return CaptureSource::Surface;
 }
 
+QRect CaptureSourceSurface::cropRect() const
+{
+    return m_surfaceItemContent ? m_surfaceItemContent->boundingRect().toRect() : QRect{};
+}
+
+QSize CaptureSourceSurface::sourceSize() const
+{
+    return m_surfaceItemContent ? m_surfaceItemContent->size().toSize() : QSize{};
+}
+
 CaptureSource *CaptureSourceSelector::selectedSource() const
 {
     return m_selectedSource;
 }
 
-void CaptureSourceSelector::setSelectedSource(CaptureSource *newSelectedSource)
+void CaptureSourceSelector::setSelectedSource(CaptureSource *newSelectedSource, const QRect &region)
 {
     if (m_selectedSource == newSelectedSource)
         return;
     qCDebug(qLcCapture()) << "Set selected source to" << newSelectedSource;
     m_selectedSource = newSelectedSource;
     if (m_selectedSource) {
-        m_captureManager->contextInSelection()->setSource(m_selectedSource);
+        m_captureManager->contextInSelection()->setSource(m_selectedSource, region);
     }
     Q_EMIT selectedSourceChanged();
 }
@@ -730,13 +811,15 @@ void CaptureSourceSelector::mouseReleaseEvent(QMouseEvent *event)
         if (viewport) {
             setSelectedSource(
                 new CaptureSourceRegion(viewport,
-                                        mapRectToItem(viewport, selectionRegion()).toRect()));
+                                        mapRectToItem(viewport, selectionRegion()).toRect()),
+                selectionRegion().toRect());
         }
         break;
     }
     case SelectionMode::SelectWindow: {
         if (auto surfaceItemContent = qobject_cast<WSurfaceItemContent *>(hoveredItem())) {
-            setSelectedSource(new CaptureSourceSurface(surfaceItemContent));
+            setSelectedSource(new CaptureSourceSurface(surfaceItemContent),
+                              selectionRegion().toRect());
         }
         break;
     }
@@ -744,7 +827,7 @@ void CaptureSourceSelector::mouseReleaseEvent(QMouseEvent *event)
         if (auto outputItem = qobject_cast<WOutputItem *>(hoveredItem())) {
             auto viewport = outputItem->property("screenViewport").value<WOutputViewport *>();
             if (viewport) {
-                setSelectedSource(new CaptureSourceOutput(viewport));
+                setSelectedSource(new CaptureSourceOutput(viewport), selectionRegion().toRect());
             }
         }
         break;
@@ -770,13 +853,7 @@ void CaptureSourceSelector::handleItemSelectorSelectionRegionChanged()
     setSelectionRegion(m_itemSelector->selectionRegion());
 }
 
-CaptureSource::CaptureSource(WTextureProviderProvider *textureProvider, QObject *parent)
-    : QObject(parent)
-    , m_provider(textureProvider)
-{
-}
-
-bool CaptureSource::valid() const
+bool CaptureSource::imageValid() const
 {
     return !m_image.isNull();
 }
@@ -788,30 +865,42 @@ QImage CaptureSource::image() const
 
 void CaptureSource::createImage()
 {
-    auto grabber = new WTextureCapturer(m_provider, this);
-    grabber->grabToImage()
-        .then([this](QImage image) {
-            m_image = std::move(image);
-            Q_EMIT ready();
-        })
-        .onFailed([](const std::exception &e) {
-            qCCritical(qLcCapture) << e.what();
-        });
+    if (m_sourceList.size() == 1 && m_sourceList.first().first) {
+        auto grabber = new WTextureCapturer(m_sourceList.first().second, this);
+        grabber->grabToImage()
+            .then([this](QImage image) {
+                m_image = std::move(image);
+                Q_EMIT imageReady();
+            })
+            .onFailed([](const std::exception &e) {
+                qCCritical(qLcCapture) << e.what();
+            });
+    } else {
+        // TODO: support multiple sources
+    }
+}
+
+qw_buffer *CaptureSource::sourceDMABuffer()
+{
+    auto buffer = internalBuffer();
+    if (!m_bufferConn)
+        m_bufferConn =
+            connect(buffer, &qw_buffer::destroyed, this, &CaptureSource::bufferDestroyed);
+    return buffer;
 }
 
 void CaptureSource::copyBuffer(qw_buffer *buffer)
 {
-    Q_ASSERT(valid());
-    auto width = captureRegion().width();
-    auto height = captureRegion().height();
+    Q_ASSERT(imageValid());
+    auto width = cropRect().width();
+    auto height = cropRect().height();
     uint32_t format;
     size_t stride;
     void *data;
     buffer->begin_data_ptr_access(WLR_BUFFER_DATA_PTR_ACCESS_WRITE, &data, &format, &stride);
-    Q_ASSERT(stride == width * 4);
-    QImage img = image().copy(captureRegion());
+    Q_ASSERT(stride == width * 4); // For QImage
+    QImage img = image().copy(cropRect());
     auto bufFormat = WTools::toImageFormat(format);
-    qDebug() << WTools::toImageFormat(format) << image().format();
     if (image().format() != bufFormat) {
         img = image().convertToFormat(bufFormat);
     }
@@ -825,14 +914,23 @@ CaptureSourceOutput::CaptureSourceOutput(WOutputViewport *viewport)
 {
 }
 
-qw_buffer *CaptureSourceOutput::sourceDMABuffer()
+qw_buffer *CaptureSourceOutput::internalBuffer()
 {
-    return m_provider->wTextureProvider()->qwBuffer();
+    Q_ASSERT(m_sourceList.size() == 1);
+    if (m_sourceList.first().first && m_outputViewport->wTextureProvider())
+        return m_outputViewport->wTextureProvider()->qwBuffer();
+    else
+        return nullptr;
 }
 
-QRect CaptureSourceOutput::captureRegion()
+QRect CaptureSourceOutput::cropRect() const
 {
-    return m_outputViewport->boundingRect().toRect();
+    return m_outputViewport ? m_outputViewport->boundingRect().toRect() : QRect{};
+}
+
+QSize CaptureSourceOutput::sourceSize() const
+{
+    return m_outputViewport ? m_outputViewport->size().toSize() : QSize{};
 }
 
 CaptureSource::CaptureSourceType CaptureSourceOutput::sourceType()
@@ -842,24 +940,74 @@ CaptureSource::CaptureSourceType CaptureSourceOutput::sourceType()
 
 CaptureSourceRegion::CaptureSourceRegion(WOutputViewport *viewport, const QRect &region)
     : CaptureSource(viewport, nullptr)
-    , m_outputViewport(viewport)
-    , m_region(region)
 {
+    m_viewportRegions.push_back({ viewport, region });
 }
 
-qw_buffer *CaptureSourceRegion::sourceDMABuffer()
+qw_buffer *CaptureSourceRegion::internalBuffer()
 {
-    return m_provider->wTextureProvider()->qwBuffer();
-}
-
-QRect CaptureSourceRegion::captureRegion()
-{
-    return m_region;
+    if (m_sourceList.size() == 1 && m_sourceList.first().first
+        && m_sourceList.first().second->wTextureProvider()) {
+        return m_sourceList.first().second->wTextureProvider()->qwBuffer();
+    } else {
+        return nullptr;
+    }
 }
 
 CaptureSource::CaptureSourceType CaptureSourceRegion::sourceType()
 {
     return CaptureSource::Region;
+}
+
+QRect CaptureSourceRegion::cropRect() const
+{
+    QRect result{};
+    WOutputViewport *ref = nullptr;
+    for (const auto &[viewport, region] : std::as_const(m_viewportRegions)) {
+        if (!viewport)
+            continue;
+        if (!ref) {
+            result = region;
+            ref = viewport;
+        } else {
+            auto mapped = ref->mapRectFromItem(viewport, region).toRect();
+            result = result.united(mapped);
+        }
+    }
+    return result;
+}
+
+QSize CaptureSourceRegion::sourceSize() const
+{
+    QRect result{};
+    WOutputViewport *ref = nullptr;
+    for (const auto &[viewport, region] : std::as_const(m_viewportRegions)) {
+        if (!viewport)
+            continue;
+        if (!ref) {
+            result = viewport->boundingRect().toRect();
+            ref = viewport;
+        } else {
+            auto mapped = ref->mapRectFromItem(viewport, viewport->boundingRect()).toRect();
+            result = result.united(mapped);
+        }
+    }
+    return result.size();
+}
+
+bool CaptureSourceRegion::addViewportRegion(WOutputViewport *viewport, const QRect &region)
+{
+    auto scenePos = viewport->mapToScene({ 0, 0 });
+    int insertIndex;
+    for (insertIndex = 0; insertIndex < m_viewportRegions.size(); ++insertIndex) {
+        auto &[v, _] = m_viewportRegions[insertIndex];
+        auto vScenePos = v->mapToScene({ 0, 0 });
+        if (vScenePos.x() > scenePos.x()) {
+            break;
+        }
+    }
+    m_viewportRegions.insert(insertIndex, { viewport, region });
+    return true;
 }
 
 void CaptureSourceSelector::geometryChange(const QRectF &newGeometry, const QRectF &oldGeometry)
@@ -890,9 +1038,9 @@ void CaptureSourceSelector::doSetSelectionMode(const SelectionMode &newSelection
     if (m_selectionMode == newSelectionMode)
         return;
     m_selectionMode = newSelectionMode;
-    m_itemSelector->setSelectionTypeHint(selectionModeToItemTypes(m_selectionMode));
     updateCursorShape();
     setItemSelectionMode(true);
+    updateItemSelectorItemTypes();
     emit selectionModeChanged();
 }
 
@@ -918,7 +1066,7 @@ ItemSelector::ItemTypes CaptureSourceSelector::selectionModeToItemTypes(
     case SelectionMode::SelectRegion:
         return ItemSelector::Output | ItemSelector::Window | ItemSelector::Surface;
     case SelectionMode::SelectWindow:
-        return ItemSelector::Window | ItemSelector::Surface;
+        return ItemSelector::Surface;
     }
 }
 
