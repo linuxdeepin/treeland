@@ -260,7 +260,6 @@ Treeland::Treeland()
     Q_D(Treeland);
 
     qmlRegisterModule("Treeland.Protocols", 1, 0);
-    qmlRegisterModule("Treeland.Capture", 2, 0);
 #ifndef DISABLE_DDM
     qmlRegisterModule("Treeland.Greeter", 1, 0);
     qmlRegisterType<SessionModel>("Treeland.Greeter", 1, 0, "SessionModel");

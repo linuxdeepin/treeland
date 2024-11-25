@@ -39,6 +39,7 @@ target_link_libraries(test-capture
         Qt6::WaylandClientPrivate
         Qt6::Quick
         Qt6::QuickPrivate
+        Qt6::QuickControls2
         PkgConfig::EGL
 )
 
