@@ -264,6 +264,73 @@ QPointF Output::constrainToValidArea(const QPointF &pos, const QSizeF &windowSiz
     return newPos;
 }
 
+double Output::calcPreferredScale(double widthPx, double heightPx,
+                                  double widthMm, double heightMm) {
+    if (widthMm <= 0 || heightMm <= 0
+        || widthMm <= 0 || heightMm <= 0) {
+        return 1.0;
+    }
+
+    const double lenPx = std::hypot(widthPx, heightPx);
+    const double lenMm = std::hypot(widthMm, heightMm);
+
+    // A standard scale=1.0 display
+    const double lenPxStd = std::hypot(1920.0, 1080.0);
+    const double lenMmStd = std::hypot(477.0, 268.0);
+
+    // This magic number is from startdde, I don't know why.
+    const double a = 0.00158;
+    // The scaling factor should be adjusted according to the size
+    // of the standard screen. Even if the PPI is the same, the larger
+    // the screen, the larger the scaling factor should be. Otherwise,
+    // the scaling factor should be smaller, as this better aligns with
+    // the visual needs of the human eye.
+    const double fix = (lenMm - lenMmStd) * (lenPx / lenPxStd) * a;
+
+    const double scaleFactor = (lenPx / lenMm) / (lenPxStd / lenMmStd) + fix;
+
+    // Ensure step is within 0.25
+    return std::round(scaleFactor * 4) / 4.0;
+}
+
+qreal Output::preferredScaleFactor(const QSize &pixelSize) const
+{
+    auto o = output()->handle()->handle();
+    return calcPreferredScale(pixelSize.width(), pixelSize.height(),
+                              o->phys_width, o->phys_height);
+}
+
+void Output::enable()
+{
+    // Enable on default
+    auto qwoutput = output()->handle();
+    qw_output_state newState;
+    // Don't care for WOutput::isEnabled, must do WOutput::commit here,
+    // In order to ensure trigger QWOutput::frame signal, WOutputRenderWindow
+    // needs this signal to render next frame. Because QWOutput::frame signal
+    // maybe emit before WOutputRenderWindow::attach, if no commit here,
+    // WOutputRenderWindow will ignore this output on render.
+    if (!qwoutput->property("_Enabled").toBool()) {
+        qwoutput->setProperty("_Enabled", true);
+
+        if (!qwoutput->handle()->current_mode) {
+            auto mode = qwoutput->preferred_mode();
+            if (mode) {
+                newState.set_mode(mode);
+
+                //TODO: read user config
+                newState.set_scale(preferredScaleFactor({mode->width, mode->height}));
+            }
+        } else {
+            //TODO: read user config
+            newState.set_scale(preferredScaleFactor(output()->size()));
+        }
+        newState.set_enabled(true);
+        bool ok = qwoutput->commit_state(newState);
+        Q_ASSERT(ok);
+    }
+}
+
 void Output::updateOutputHardwareLayers()
 {
     WOutputViewport *viewportPrimary = screenViewport();

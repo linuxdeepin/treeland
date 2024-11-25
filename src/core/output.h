@@ -80,11 +80,16 @@ public:
     QQuickItem *outputMenuBar() const;
 #endif
 
+    static double calcPreferredScale(double widthPx, double heightPx,
+                                     double widthMm, double heightMm);
+    qreal preferredScaleFactor(const QSize &pixelSize) const;
+
 Q_SIGNALS:
     void exclusiveZoneChanged();
     void moveResizeFinised();
 
 public Q_SLOTS:
+    void enable();
     void updateOutputHardwareLayers();
 
 private:
@@ -108,6 +113,7 @@ private:
                                      const QRectF &validGeo, const QSizeF &offset);
     QPointF constrainToValidArea(const QPointF &pos, const QSizeF &windowSize,
                                  const QRectF &validGeo);
+    qreal preferredScaleFactor() const;
 
     Type m_type;
     WOutputItem *m_item;

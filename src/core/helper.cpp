@@ -208,7 +208,7 @@ void Helper::onOutputAdded(WOutput *output)
         o = createCopyOutput(output, m_rootSurfaceContainer->primaryOutput());
     }
     m_outputList.append(o);
-    enableOutput(output);
+    o->enable();
     m_outputManager->newOutput(output);
 
     m_wallpaperColorV1->updateWallpaperColor(output->name(),
@@ -233,7 +233,7 @@ void Helper::onOutputRemoved(WOutput *output)
             if (m_outputList.at(i) == m_rootSurfaceContainer->primaryOutput())
                 continue;
             Output *o1 = createNormalOutput(m_outputList.at(i)->output());
-            enableOutput(o1->output());
+            o1->enable();
             m_outputList.at(i)->deleteLater();
             m_outputList.replace(i, o1);
         }
@@ -419,7 +419,7 @@ void Helper::onRestoreCopyOutput(treeland_virtual_output_v1 *virtual_output)
             continue;
 
         Output *o = createNormalOutput(m_outputList.at(i)->output());
-        enableOutput(o->output());
+        o->enable();
         m_outputList.at(i)->deleteLater();
         m_outputList.replace(i, o);
     }
@@ -1346,30 +1346,6 @@ void Helper::allowNonDrmOutputAutoChangeMode(WOutput *output)
                         });
 }
 
-void Helper::enableOutput(WOutput *output)
-{
-    // Enable on default
-    auto qwoutput = output->handle();
-    qw_output_state newState;
-    // Don't care for WOutput::isEnabled, must do WOutput::commit here,
-    // In order to ensure trigger QWOutput::frame signal, WOutputRenderWindow
-    // needs this signal to render next frame. Because QWOutput::frame signal
-    // maybe emit before WOutputRenderWindow::attach, if no commit here,
-    // WOutputRenderWindow will ignore this output on render.
-    if (!qwoutput->property("_Enabled").toBool()) {
-        qwoutput->setProperty("_Enabled", true);
-
-        if (!qwoutput->handle()->current_mode) {
-            auto mode = qwoutput->preferred_mode();
-            if (mode)
-                newState.set_mode(mode);
-        }
-        newState.set_enabled(true);
-        bool ok = qwoutput->commit_state(newState);
-        Q_ASSERT(ok);
-    }
-}
-
 int Helper::indexOfOutput(WOutput *output) const
 {
     for (int i = 0; i < m_outputList.size(); i++) {
@@ -1418,7 +1394,7 @@ void Helper::setOutputMode(OutputMode mode)
             m_rootSurfaceContainer->removeOutput(m_outputList.at(i));
         } else if (mode == OutputMode::Extension) {
             o = createNormalOutput(m_outputList.at(i)->output());
-            enableOutput(o->output());
+            o->enable();
         }
         m_outputList.at(i)->deleteLater();
         m_outputList.replace(i, o);
