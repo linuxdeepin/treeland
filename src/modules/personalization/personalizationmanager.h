@@ -123,8 +123,6 @@ public:
     void onGetWallpapers(personalization_wallpaper_context_v1 *context);
 
     void onCursorCommit(personalization_cursor_context_v1 *context);
-    void onGetCursorTheme(personalization_cursor_context_v1 *context);
-    void onGetCursorSize(personalization_cursor_context_v1 *context);
 
     uid_t userId();
     void setUserId(uid_t uid);

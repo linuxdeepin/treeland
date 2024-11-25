@@ -599,7 +599,7 @@ void set_cursor_size(struct wl_client *client, struct wl_resource *resource, uin
     if (!cursor)
         return;
 
-    cursor->size = size;
+    cursor->size = QSize(size, size);
 }
 
 void get_cursor_size(struct wl_client *client, struct wl_resource *resource)
@@ -684,20 +684,30 @@ void personalization_wallpaper_context_v1::set_meta_data(const QString &data)
     treeland_personalization_wallpaper_context_v1_send_metadata(resource, meta_data.toLocal8Bit());
 }
 
-void personalization_cursor_context_v1::set_theme(const QString &theme)
+void personalization_cursor_context_v1::setTheme(const QString &theme)
 {
     if (this->theme == theme)
         return;
+
     this->theme = theme;
-    treeland_personalization_cursor_context_v1_send_theme(resource, theme.toLocal8Bit());
 }
 
-void personalization_cursor_context_v1::set_size(uint32_t size)
+void personalization_cursor_context_v1::setSize(QSize size)
 {
     if (this->size == size)
         return;
+
     this->size = size;
-    treeland_personalization_cursor_context_v1_send_size(resource, size);
+}
+
+void personalization_cursor_context_v1::sendTheme()
+{
+    treeland_personalization_cursor_context_v1_send_theme(resource, theme.toUtf8());
+}
+
+void personalization_cursor_context_v1::sendSize()
+{
+    treeland_personalization_cursor_context_v1_send_size(resource, size.width());
 }
 
 void personalization_cursor_context_v1::verfity(bool verfityed)
