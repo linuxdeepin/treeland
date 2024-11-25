@@ -233,7 +233,6 @@ private Q_SLOTS:
 
 private:
     void allowNonDrmOutputAutoChangeMode(WOutput *output);
-    void enableOutput(WOutput *output);
 
     int indexOfOutput(WOutput *output) const;
 
