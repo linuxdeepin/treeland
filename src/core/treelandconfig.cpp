@@ -242,15 +242,53 @@ void TreelandConfig::setMultitaskviewEasingCurveType(
     emit multitaskviewEasingCurveTypeChanged();
 }
 
-QString TreelandConfig::cursorThemeName() const
+void TreelandConfig::setCursorThemeName(const QString &theme)
 {
-    return m_dconfig->value("cursorThemeName", "default").toString();
+    if (m_cursorThemeName == theme) {
+        return;
+    }
+
+    m_cursorThemeName = theme;
+    m_dconfig->setValue("cursorThemeName", theme);
+
+    emit cursorThemeNameChanged();
 }
 
-QSize TreelandConfig::cursorSize() const
+QString TreelandConfig::cursorThemeName()
 {
-    int size = m_dconfig->value("cursorSize", 24).toInt();
-    return { size, size };
+    auto theme = m_dconfig->value("cursorThemeName", "default").toString();
+    if (theme != m_cursorThemeName) {
+        m_cursorThemeName = theme;
+    }
+
+    qDebug() << "cursorThemeName: " << m_cursorThemeName;
+
+    return m_cursorThemeName;
+}
+
+void TreelandConfig::setCursorSize(QSize size)
+{
+    if (m_cursorSize == size) {
+        return;
+    }
+
+    m_cursorSize = size;
+    m_dconfig->setValue("cursorSize", size);
+
+    emit cursorSizeChanged();
+}
+
+QSize TreelandConfig::cursorSize()
+{
+    auto size = m_dconfig->value("cursorSize", QSize(24, 24)).toSize();
+
+    if (m_cursorSize != size) {
+        m_cursorSize = size;
+    }
+
+    qDebug() << "cursorSize: " << m_cursorSize;
+
+    return m_cursorSize;
 }
 
 qreal TreelandConfig::windowRadius() const

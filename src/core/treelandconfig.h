@@ -33,8 +33,8 @@ class TreelandConfig
     Q_PROPERTY(qreal multitaskviewPaddingOpacity READ multitaskviewPaddingOpacity WRITE setMultitaskviewPaddingOpacity NOTIFY multitaskviewPaddingOpacityChanged FINAL)
     Q_PROPERTY(uint multitaskviewAnimationDuration READ multitaskviewAnimationDuration WRITE setMultitaskviewAnimationDuration NOTIFY multitaskviewAnimationDurationChanged FINAL)
     Q_PROPERTY(QEasingCurve::Type multitaskviewEasingCurveType READ multitaskviewEasingCurveType WRITE setMultitaskviewEasingCurveType NOTIFY multitaskviewEasingCurveTypeChanged FINAL)
-    Q_PROPERTY(QString cursorThemeName READ cursorThemeName NOTIFY cursorThemeNameChanged FINAL)
-    Q_PROPERTY(QSize cursorSize READ cursorSize NOTIFY cursorSizeChanged FINAL)
+    Q_PROPERTY(QString cursorThemeName READ cursorThemeName WRITE setCursorThemeName NOTIFY cursorThemeNameChanged FINAL)
+    Q_PROPERTY(QSize cursorSize READ cursorSize WRITE setCursorSize NOTIFY cursorSizeChanged FINAL)
     Q_PROPERTY(qreal windowRadius READ windowRadius NOTIFY windowRadiusChanged FINAL)
     Q_PROPERTY(QString activeColor READ activeColor WRITE setActiveColor NOTIFY activeColorChanged FINAL)
     Q_PROPERTY(uint windowOpacity READ windowOpacity WRITE setWindowOpacity NOTIFY windowOpacityChanged FINAL)
@@ -97,9 +97,11 @@ public:
     QEasingCurve::Type multitaskviewEasingCurveType() const;
     void setMultitaskviewEasingCurveType(const QEasingCurve::Type &newMultitaskviewEasingCurveType);
 
-    QString cursorThemeName() const;
+    void setCursorThemeName(const QString &theme);
+    QString cursorThemeName();
 
-    QSize cursorSize() const;
+    void setCursorSize(QSize size);
+    QSize cursorSize();
 
     qreal windowRadius() const;
 
@@ -177,6 +179,8 @@ private:
     uint32_t m_windowOpacity;
     uint32_t m_windowThemeType;
     uint32_t m_windowTitlebarHeight;
+    QString m_cursorThemeName;
+    QSize m_cursorSize;
 
     // Local
     uint m_workspaceThumbHeight = 144;
