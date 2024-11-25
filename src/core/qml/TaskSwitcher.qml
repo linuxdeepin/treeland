@@ -102,9 +102,7 @@ Item {
                 visible: previewWindows.count === 0
 
                 anchors.centerIn: previewItem
-                transformOrigin: Item.Center
-                width: previewPostion(sourceSurface, previewItem).width
-                height: previewPostion(sourceSurface, previewItem).height
+                sourceComponent: undefined
             }
 
             TaskWindowPreview {
@@ -113,9 +111,7 @@ Item {
 
                 sourceSurface: switchView.currentItem.surface
                 anchors.centerIn: previewItem
-                transformOrigin: Item.Center
-                width: previewPostion(sourceSurface, previewItem).width
-                height: previewPostion(sourceSurface, previewItem).height
+                sourceComponent: undefined
 
                 onClicked: {
                     root.exit()
@@ -352,16 +348,13 @@ Item {
                 if (!surface)
                     return
 
-                let point = surface.mapFromItem(previewItem, 0, 0)
                 var wh = previewPostion(surface, previewItem)
-
                 previewAnimation.target = surface
                 previewAnimation.xFrom = (previewItem.width - wh.width) / 2.0
                 previewAnimation.yFrom = (previewItem.height - wh.height) / 2.0
                 previewAnimation.xTo = surface.x
                 previewAnimation.yTo = surface.y
-
-                previewAnimation.scaleFrom = surface.width / wh.width
+                previewAnimation.scaleFrom = wh.width / surface.width
 
                 if (surface === Helper.activatedSurface) {
                     surface.transformOrigin = Item.TopLeft
@@ -401,10 +394,18 @@ Item {
     }
 
     function ensurePreview() {
+        if (!previewContext.sourceComponent && root.enableAnimation)
+            previewContext.sourceComponent = previewContext.previewComponent
+
         if (root.enableAnimation) {
             previewContext.loaderStatus = 1
             previewContext.loaderStatus = 0
+        }
 
+        if (!currentContext.sourceComponent)
+            currentContext.sourceComponent = currentContext.previewComponent
+
+        if (root.enableAnimation) {
             currentContext.loaderStatus = 0
             currentContext.loaderStatus = 1
         }
@@ -412,7 +413,12 @@ Item {
 
     function previous() {
         if (switchView.count <= 1) {
-            if (switchView.count === 1) showTask(true);
+            if (switchView.count === 1) {
+                previewContext.sourceSurface = switchView.currentItem.surface
+                if (!previewContext.sourceComponent && root.enableAnimation)
+                    previewContext.sourceComponent = previewContext.previewComponent
+                showTask(true);
+            }
             return;
         }
 
@@ -428,7 +434,12 @@ Item {
 
     function next() {
         if (switchView.count <= 1) {
-            if (switchView.count === 1) showTask(true);
+            if (switchView.count === 1) {
+                previewContext.sourceSurface = switchView.currentItem.surface
+                if (!previewContext.sourceComponent && root.enableAnimation)
+                    previewContext.sourceComponent = previewContext.previewComponent
+                showTask(true);
+            }
             return;
         }
 
