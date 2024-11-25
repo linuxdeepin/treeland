@@ -244,6 +244,11 @@ void TogglableGesture::moveDischarge()
         return;
 
     Workspace *workspace = Helper::instance()->workspace();
+    if (!m_slideBounce && (m_desktopOffset > 0.98 || m_desktopOffset < -0.98)) {
+        workspace->setCurrentIndex(m_toId);
+        return;
+    }
+
     m_fromId = workspace->currentIndex();
     m_toId = 0;
 
@@ -265,7 +270,6 @@ void TogglableGesture::moveDischarge()
         controller->startSlideAnimation();
         workspace->setCurrentIndex(m_toId);
     }
-    controller->setRunning(false);
 }
 
 void TogglableGesture::addTouchpadSwipeGesture(SwipeGesture::Direction direction, uint finger)
