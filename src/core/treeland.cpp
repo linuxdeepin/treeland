@@ -12,11 +12,7 @@
 #include "treelandconfig.h"
 
 #ifndef DISABLE_DDM
-#  include "greeterproxy.h"
 #  include "lockscreeninterface.h"
-#  include "logoprovider.h"
-#  include "sessionmodel.h"
-#  include "usermodel.h"
 
 #  include <Constants.h>
 #  include <Messages.h>
@@ -25,6 +21,7 @@
 using namespace DDM;
 
 #  include <DAccountsManager>
+#  include <DAccountsUser>
 #endif
 
 #include <wsocket.h>
@@ -239,7 +236,7 @@ private Q_SLOTS:
 private:
     Treeland *q_ptr;
 #ifndef DISABLE_DDM
-    DAccountsManager manager;
+    Dtk::Accounts::DAccountsManager manager;
     QLocalSocket *socket{ nullptr };
 #endif
     QTranslator *lastTrans{ nullptr };
@@ -260,13 +257,6 @@ Treeland::Treeland()
     Q_D(Treeland);
 
     qmlRegisterModule("Treeland.Protocols", 1, 0);
-#ifndef DISABLE_DDM
-    qmlRegisterModule("Treeland.Greeter", 1, 0);
-    qmlRegisterType<SessionModel>("Treeland.Greeter", 1, 0, "SessionModel");
-    qmlRegisterType<UserModel>("Treeland.Greeter", 1, 0, "UserModel");
-    qmlRegisterType<GreeterProxy>("Treeland.Greeter", 1, 0, "Proxy");
-    qmlRegisterType<LogoProvider>("Treeland.Greeter", 1, 0, "LogoProvider");
-#endif
     qmlRegisterSingletonInstance("Treeland",
                                  1,
                                  0,

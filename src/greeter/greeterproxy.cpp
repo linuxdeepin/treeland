@@ -36,6 +36,8 @@
 #include <QLocalSocket>
 #include <QVariantMap>
 
+Q_LOGGING_CATEGORY(greeter, "greeter", QtDebugMsg);
+
 using namespace DDM;
 
 class GreeterProxyPrivate
