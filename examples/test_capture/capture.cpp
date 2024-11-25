@@ -73,6 +73,7 @@ void TreelandCaptureContext::treeland_capture_context_v1_source_ready(int32_t re
                                                                       uint32_t source_type)
 {
     m_captureRegion = QRect(region_x, region_y, region_width, region_height);
+    m_sourceType = static_cast<QtWayland::treeland_capture_context_v1::source_type>(source_type);
     Q_EMIT captureRegionChanged();
     Q_EMIT sourceReady(QRect(region_x, region_y, region_width, region_height), source_type);
 }
@@ -205,6 +206,18 @@ void TreelandCaptureSession::start()
     Q_EMIT started();
 }
 
+void TreelandCaptureSession::doneFrame()
+{
+    // Note: Must close all fds here in the client.
+    for (const auto &object : std::as_const(objects())) {
+        close(object.fd);
+    }
+    m_objects.clear();
+    frame_done(m_tvSecHi, m_tvSecLo, m_tvUsec);
+    m_frameValid = false;
+    Q_EMIT invalid();
+}
+
 void TreelandCaptureSession::treeland_capture_session_v1_frame(int32_t offset_x,
                                                                int32_t offset_y,
                                                                uint32_t width,
@@ -216,7 +229,6 @@ void TreelandCaptureSession::treeland_capture_session_v1_frame(int32_t offset_x,
                                                                uint32_t mod_low,
                                                                uint32_t num_objects)
 {
-    Q_EMIT invalid();
     m_objects.clear();
     m_objects.reserve(num_objects);
     m_offset = { offset_x, offset_y };
@@ -251,10 +263,21 @@ void TreelandCaptureSession::treeland_capture_session_v1_ready(uint32_t tv_sec_h
     m_tvSecHi = tv_sec_hi;
     m_tvSecLo = tv_sec_lo;
     m_tvUsec = tv_nsec;
+    m_frameValid = true;
     Q_EMIT ready();
 }
 
-void TreelandCaptureSession::treeland_capture_session_v1_cancel(uint32_t reason) { }
+void TreelandCaptureSession::treeland_capture_session_v1_cancel(uint32_t reason)
+{
+    if (reason == QtWayland::treeland_capture_session_v1::cancel_reason_permanent) {
+        for (const auto &object : std::as_const(objects())) {
+            close(object.fd);
+        }
+        m_objects.clear();
+    } else {
+        doneFrame();
+    }
+}
 
 void TreelandCaptureManager::setRecord(bool newRecord)
 {

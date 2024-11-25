@@ -115,6 +115,13 @@ public:
     }
 
     void start();
+    void doneFrame();
+
+    inline bool frameValid() const
+    {
+        return m_frameValid;
+    }
+
 Q_SIGNALS:
     void invalid();
     void ready();
@@ -155,6 +162,7 @@ private:
     uint32_t m_tvSecHi;
     uint32_t m_tvSecLo;
     uint32_t m_tvUsec;
+    bool m_frameValid{ false };
 };
 
 class TreelandCaptureContext

@@ -68,12 +68,14 @@ QSGNode *Player::updatePaintNode(QSGNode *old, UpdatePaintNodeData *data)
         return nullptr;
     updateTexture();
     auto node = static_cast<QSGImageNode *>(old);
-    if (Q_UNLIKELY(!node)) {
+    if (Q_UNLIKELY(!node) && m_rhiTexture != nullptr) {
         node = window()->createImageNode();
         node->setOwnsTexture(false);
         node->setTexture(&m_texture);
-    } else {
+    } else if (m_rhiTexture != nullptr) {
         node->markDirty(QSGNode::DirtyMaterial);
+    } else {
+        return nullptr;
     }
     QRectF sourceRect;
     if (m_captureContext->sourceType()
@@ -82,6 +84,7 @@ QSGNode *Player::updatePaintNode(QSGNode *old, UpdatePaintNodeData *data)
     } else {
         sourceRect = m_captureContext->captureRegion();
     }
+    qInfo() << "sourceRect" << sourceRect << "textureSize" << m_texture.textureSize();
     node->setSourceRect(sourceRect);
     node->setRect(boundingRect());
     node->setFiltering(QSGTexture::Linear);
@@ -205,6 +208,8 @@ static const char *drmFormatString(int fourcc)
 
 void Player::updateTexture()
 {
+    if (!m_captureContext->session()->frameValid())
+        return;
     auto glContext = QOpenGLContext::currentContext();
     Q_ASSERT(glContext);
     auto eglContext = glContext->nativeInterface<QNativeInterface::QEGLContext>();
@@ -286,10 +291,7 @@ void Player::updateTexture()
         eglCreateImage(eglContext->display(), EGL_NO_CONTEXT, EGL_LINUX_DMA_BUF_EXT, 0, attribs);
     if (eglImage == EGL_NO_IMAGE) {
         qWarning() << eglGetErrorString(eglGetError());
-        for (const auto &object : std::as_const(objects)) {
-            if (object.fd > 0)
-                close(object.fd);
-        }
+        m_captureContext->session()->doneFrame();
         return;
     }
     Q_ASSERT_X(window(), __func__, "Window should be ready for rhi.");
@@ -312,10 +314,8 @@ void Player::updateTexture()
                                     int(m_captureContext->session()->bufferHeight()) });
     m_texture.setOwnsTexture(false);
     glBindTexture(GL_TEXTURE_2D, 0);
-    for (const auto &object : std::as_const(objects)) {
-        if (object.fd > 0)
-            close(object.fd);
-    }
+    eglDestroyImage(eglContext->display(), eglImage);
+    m_captureContext->session()->doneFrame();
 }
 
 void Player::updateGeometry()

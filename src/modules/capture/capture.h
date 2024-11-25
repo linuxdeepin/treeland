@@ -13,7 +13,9 @@
 #include <wxdgsurface.h>
 
 #include <QAbstractListModel>
+#include <QMetaObject>
 #include <QPainter>
+#include <QPair>
 #include <QPointer>
 #include <QQuickPaintedItem>
 #include <QRect>
@@ -32,6 +34,10 @@ WAYLIB_SERVER_USE_NAMESPACE
 class SurfaceWrapper;
 class ItemSelector;
 
+template<typename T>
+concept IsCaptureSourceTarget =
+    std::is_base_of_v<QQuickItem, T> && std::is_base_of_v<WTextureProviderProvider, T>;
+
 class CaptureSource : public QObject
 {
     Q_OBJECT
@@ -46,13 +52,36 @@ public:
     Q_FLAG(CaptureSourceType)
     Q_DECLARE_FLAGS(CaptureSourceHint, CaptureSourceType)
 
-    CaptureSource(WTextureProviderProvider *textureProvider, QObject *parent);
+    template<IsCaptureSourceTarget T>
+    CaptureSource(T *ptr, QObject *parent)
+        : QObject(parent)
+    {
+        m_sourceList.push_back(
+            { { static_cast<QQuickItem *>(ptr) }, static_cast<WTextureProviderProvider *>(ptr) });
+        connect(m_sourceList.first().first.data(),
+                &QQuickItem::destroyed,
+                this,
+                &CaptureSource::targetDestroyed);
+        connect(m_sourceList.first().first.data(),
+                &QQuickItem::widthChanged,
+                this,
+                &CaptureSource::targetResized);
+        connect(m_sourceList.first().first.data(),
+                &QQuickItem::heightChanged,
+                this,
+                &CaptureSource::targetResized);
+    }
 
 Q_SIGNALS:
-    void ready();
+    void imageReady();
+    void bufferDestroyed();
+    void targetDestroyed();
+    void targetResized();
 
 public:
-    bool valid() const;
+    bool imageValid() const;
+
+    // Get an image that is already cropped.
     QImage image() const;
 
     void createImage();
@@ -65,23 +94,48 @@ public:
      *
      * @return QW_NAMESPACE::QWBuffer*
      */
-    virtual QW_NAMESPACE::qw_buffer *sourceDMABuffer() = 0;
+    qw_buffer *sourceDMABuffer();
 
     /**
      * @brief copyBuffer render captured contents to a buffer
      * @param buffer buffer prepared by client
      */
-    void copyBuffer(QW_NAMESPACE::qw_buffer *buffer);
+    void copyBuffer(qw_buffer *buffer);
 
-    // Capture area relative to the whole viewport
-    virtual QRect captureRegion() = 0;
+    // Cropped area of source
+    virtual QRect cropRect() const = 0;
+
+    // Buffer size of the source
+    virtual QSize sourceSize() const = 0;
 
     virtual CaptureSourceType sourceType() = 0;
 
 protected:
+    virtual qw_buffer *internalBuffer() = 0;
+
+    template<IsCaptureSourceTarget T>
+    void addTarget(T *target)
+    {
+        m_sourceList.push_back({ { static_cast<QQuickItem *>(target) },
+                                 static_cast<WTextureProviderProvider *>(target) });
+        connect(m_sourceList.last().first.data(),
+                &QQuickItem::destroyed,
+                this,
+                &CaptureSource::targetDestroyed);
+        connect(m_sourceList.last().first.data(),
+                &QQuickItem::widthChanged,
+                this,
+                &CaptureSource::targetResized);
+        connect(m_sourceList.last().first.data(),
+                &QQuickItem::heightChanged,
+                this,
+                &CaptureSource::targetResized);
+    }
+
     friend QDebug operator<<(QDebug debug, CaptureSource &captureSource);
     QImage m_image;
-    WTextureProviderProvider *const m_provider;
+    QMetaObject::Connection m_bufferConn;
+    QList<QPair<QPointer<QQuickItem>, WTextureProviderProvider *>> m_sourceList;
 };
 
 #define CaptureSource_iid "org.deepin.treeland.CaptureSource"
@@ -113,15 +167,36 @@ private:
 class CaptureContextV1 : public QObject
 {
     Q_OBJECT
-    QML_UNCREATABLE("Only created in c++")
     Q_PROPERTY(WSurface *mask READ mask NOTIFY selectInfoReady FINAL)
     Q_PROPERTY(bool freeze READ freeze NOTIFY selectInfoReady FINAL)
     Q_PROPERTY(bool withCursor READ withCursor NOTIFY selectInfoReady FINAL)
     Q_PROPERTY(CaptureSource::CaptureSourceHint sourceHint READ sourceHint NOTIFY selectInfoReady FINAL)
-    Q_PROPERTY(CaptureSource *source READ source WRITE setSource NOTIFY sourceChanged FINAL)
+
 public:
+    union FrameTime
+    {
+        timeval tv;
+
+        struct
+        {
+            uint32_t tvSecLo;
+            uint32_t tvSecHi;
+            uint32_t tvUsec;
+        };
+    };
+
+    struct FrameData
+    {
+        FrameTime readyAt{};
+        wlr_dmabuf_attributes attribs{};
+        bool acked{ false };
+        bool canceled{ false };
+    };
+
     CaptureSource *source() const;
-    void setSource(CaptureSource *source);
+    void setSource(CaptureSource *source, const QRect &captureRegion);
+
+    void cancelSelect();
 
     WSurface *mask() const;
     bool freeze() const;
@@ -131,10 +206,11 @@ public:
     QPointer<CaptureSource> captureSource() const;
     QPointer<WOutputRenderWindow> outputRenderWindow() const;
 
-public:
     enum SourceFailure
     {
-        SelectorBusy,
+        SelectorBusy = 1,
+        UserCancel,
+        SourceDestroyed,
         Other,
     };
     Q_ENUM(SourceFailure)
@@ -144,9 +220,9 @@ public:
                      QObject *parent = nullptr);
     void sendSourceFailed(SourceFailure failure);
 
-    inline bool hintType(CaptureSource::CaptureSourceType type)
+    inline QRect captureRegion() const
     {
-        return sourceHint().testFlag(type);
+        return m_captureRegion;
     }
 
 Q_SIGNALS:
@@ -160,13 +236,19 @@ private:
     void onCreateSession(treeland_capture_session_v1 *session);
     void handleFrameCopy(QW_NAMESPACE::qw_buffer *buffer);
     void handleSessionStart();
+    void handleFrameDone(uint32_t tvSecHi, uint32_t tvSecLo, uint32_t tvUsec);
     void handleRenderEnd();
+
+    void ensureSourceSessionConnection();
+    void handleSourceDestroyed();
 
     treeland_capture_context_v1 *const m_handle;
     CaptureSource *m_captureSource{ nullptr };
     QPointer<treeland_capture_frame_v1> m_frame{ nullptr };
     QPointer<treeland_capture_session_v1> m_session{ nullptr };
     const QPointer<WOutputRenderWindow> m_outputRenderWindow;
+    FrameData m_currentFrameData{};
+    QRect m_captureRegion;
 };
 class CaptureSourceSelector;
 
@@ -235,12 +317,13 @@ class CaptureSourceSurface : public CaptureSource
     Q_OBJECT
 public:
     explicit CaptureSourceSurface(WSurfaceItemContent *surfaceItemContent);
-    QW_NAMESPACE::qw_buffer *sourceDMABuffer() override;
-    QRect captureRegion() override;
+    qw_buffer *internalBuffer() override;
     CaptureSourceType sourceType() override;
+    QRect cropRect() const override;
+    QSize sourceSize() const override;
 
 private:
-    WSurfaceItemContent *const m_surfaceItemContent;
+    const QPointer<WSurfaceItemContent> m_surfaceItemContent;
 };
 
 class CaptureSourceOutput : public CaptureSource
@@ -248,12 +331,13 @@ class CaptureSourceOutput : public CaptureSource
     Q_OBJECT
 public:
     explicit CaptureSourceOutput(WOutputViewport *viewport);
-    QW_NAMESPACE::qw_buffer *sourceDMABuffer() override;
-    QRect captureRegion() override;
+    qw_buffer *internalBuffer() override;
     CaptureSourceType sourceType() override;
+    QRect cropRect() const override;
+    QSize sourceSize() const override;
 
 private:
-    WOutputViewport *const m_outputViewport;
+    const QPointer<WOutputViewport> m_outputViewport;
 };
 
 class CaptureSourceRegion : public CaptureSource
@@ -261,13 +345,14 @@ class CaptureSourceRegion : public CaptureSource
     Q_OBJECT
 public:
     CaptureSourceRegion(WOutputViewport *viewport, const QRect &region);
-    QW_NAMESPACE::qw_buffer *sourceDMABuffer() override;
-    QRect captureRegion() override;
+    qw_buffer *internalBuffer() override;
     CaptureSourceType sourceType() override;
+    QRect cropRect() const override;
+    QSize sourceSize() const override;
+    bool addViewportRegion(WOutputViewport *viewport, const QRect &region);
 
 private:
-    WOutputViewport *const m_outputViewport;
-    QRect m_region;
+    QList<QPair<QPointer<WOutputViewport>, QRect>> m_viewportRegions;
 };
 class ToolBarModel;
 
@@ -333,10 +418,11 @@ private:
     bool itemSelectionMode() const;
     void setItemSelectionMode(bool itemSelection);
     CaptureSource *selectedSource() const;
-    void setSelectedSource(CaptureSource *newSelectedSource);
+    void setSelectedSource(CaptureSource *newSelectedSource, const QRect &region);
     void handleItemSelectorSelectionRegionChanged();
     WOutputRenderWindow *renderWindow() const;
 
+    void updateItemSelectorItemTypes();
     void updateCursorShape();
 
     QPointer<QQuickItem> m_internalContentItem{};

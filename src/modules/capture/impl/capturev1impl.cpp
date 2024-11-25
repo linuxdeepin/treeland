@@ -19,7 +19,8 @@ WAYLIB_SERVER_USE_NAMESPACE
 QW_USE_NAMESPACE
 static const struct treeland_capture_session_v1_interface session_impl = {
     .destroy = handle_treeland_capture_session_v1_destroy,
-    .start = handle_treeland_capture_session_v1_start
+    .start = handle_treeland_capture_session_v1_start,
+    .frame_done = handle_treeland_capture_session_v1_frame_done
 };
 
 static const struct treeland_capture_manager_v1_interface manager_impl = {
@@ -320,6 +321,24 @@ void treeland_capture_session_v1::setResource(wl_client *client, wl_resource *re
     this->resource = resource;
 }
 
+void treeland_capture_session_v1::sendProduceMoreCancel()
+{
+    treeland_capture_session_v1_send_cancel(resource,
+                                            TREELAND_CAPTURE_SESSION_V1_CANCEL_REASON_TEMPORARY);
+}
+
+void treeland_capture_session_v1::sendSourceDestroyCancel()
+{
+    treeland_capture_session_v1_send_cancel(resource,
+                                            TREELAND_CAPTURE_SESSION_V1_CANCEL_REASON_PERMANENT);
+}
+
+void treeland_capture_session_v1::sendSourceResizeCancel()
+{
+    treeland_capture_session_v1_send_cancel(resource,
+                                            TREELAND_CAPTURE_SESSION_V1_CANCEL_REASON_RESIZING);
+}
+
 void treeland_capture_frame_v1::setResource(wl_client *client, wl_resource *resource)
 {
     WClient *wClient = WClient::get(client);
@@ -350,4 +369,15 @@ void treeland_capture_frame_v1::sendReady()
 void treeland_capture_frame_v1::sendFailed()
 {
     treeland_capture_frame_v1_send_failed(resource);
+}
+
+void handle_treeland_capture_session_v1_frame_done(wl_client *,
+                                                   wl_resource *resource,
+                                                   uint32_t tv_sec_hi,
+                                                   uint32_t tv_sec_lo,
+                                                   uint32_t tv_usec)
+{
+    auto session = capture_session_from_resource(resource);
+    Q_ASSERT(session);
+    Q_EMIT session->frameDone(tv_sec_hi, tv_sec_lo, tv_usec);
 }
