@@ -376,6 +376,14 @@ void Helper::onSetCopyOutput(treeland_virtual_output_v1 *virtual_output)
             return;
         }
 
+        if (!output->isPrimary()) {
+            QString screen =
+                output->output()->name() + " is already a copy screen, invalid setting!";
+            virtual_output->send_error(TREELAND_VIRTUAL_OUTPUT_V1_ERROR_INVALID_OUTPUT,
+                                       screen.toLocal8Bit().data());
+            return;
+        }
+
         if (output->output()->name() == virtual_output->outputList.at(0))
             mirrorOutput = output;
     }
