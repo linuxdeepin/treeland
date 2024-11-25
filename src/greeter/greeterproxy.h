@@ -35,6 +35,8 @@ class GreeterProxy : public QObject
     Q_OBJECT
     Q_DISABLE_COPY(GreeterProxy)
 
+    QML_NAMED_ELEMENT(GreeterProxy)
+
     Q_PROPERTY(QString  hostName        READ hostName       NOTIFY hostNameChanged)
     Q_PROPERTY(bool     canPowerOff     READ canPowerOff    NOTIFY canPowerOffChanged)
     Q_PROPERTY(bool     canReboot       READ canReboot      NOTIFY canRebootChanged)

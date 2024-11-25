@@ -1,6 +1,4 @@
 set(GREETER_SOURCES
-    greeterapp.h
-    greeterapp.cpp
     greeterproxy.h
     greeterproxy.cpp
     sessionmodel.h
@@ -9,8 +7,6 @@ set(GREETER_SOURCES
     usermodel.cpp
     user.h
     user.cpp
-    logoprovider.h
-    logoprovider.cpp
 )
 
 find_package(Dtk6 REQUIRED COMPONENTS SystemSettings Declarative)

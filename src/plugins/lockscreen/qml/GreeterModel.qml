@@ -19,7 +19,7 @@ Item {
     property var state: GreeterModel.NotRady
     readonly property UserModel userModel: userModel
     readonly property SessionModel sessionModel: sessionModel
-    readonly property Proxy proxy: proxy
+    readonly property GreeterProxy proxy: proxy
     readonly property LogoProvider logoProvider: logoProvider
 
     function quit() {
@@ -43,7 +43,7 @@ Item {
         id: sessionModel
     }
 
-    Proxy {
+    GreeterProxy {
         id: proxy
         sessionModel: sessionModel
         userModel: userModel
