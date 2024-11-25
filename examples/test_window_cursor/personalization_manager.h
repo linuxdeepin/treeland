@@ -51,9 +51,9 @@ public:
     explicit PersonalizationCursor(struct ::treeland_personalization_cursor_context_v1 *object);
 
 protected:
-    void personalization_cursor_context_v1_verfity(int32_t success);
-    void personalization_cursor_context_v1_theme(const QString &name);
-    void personalization_cursor_context_v1_size(uint32_t size);
+    void treeland_personalization_cursor_context_v1_verfity(int32_t success) override;
+    void treeland_personalization_cursor_context_v1_theme(const QString &name) override;
+    void treeland_personalization_cursor_context_v1_size(uint32_t size) override;
 };
 
 QT_END_NAMESPACE

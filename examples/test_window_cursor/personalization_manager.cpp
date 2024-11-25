@@ -39,17 +39,17 @@ PersonalizationCursor::PersonalizationCursor(
 {
 }
 
-void PersonalizationCursor::personalization_cursor_context_v1_verfity(int32_t success)
+void PersonalizationCursor::treeland_personalization_cursor_context_v1_verfity(int32_t success)
 {
     qDebug() << "=========================================== verfity" << success;
 }
 
-void PersonalizationCursor::personalization_cursor_context_v1_theme(const QString &name)
+void PersonalizationCursor::treeland_personalization_cursor_context_v1_theme(const QString &name)
 {
     qDebug() << "=========================================== theme" << name;
 }
 
-void PersonalizationCursor::personalization_cursor_context_v1_size(uint32_t size)
+void PersonalizationCursor::treeland_personalization_cursor_context_v1_size(uint32_t size)
 {
     qDebug() << "=========================================== size" << size;
 }

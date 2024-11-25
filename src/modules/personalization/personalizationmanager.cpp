@@ -124,12 +124,17 @@ void PersonalizationV1::onCursorContextCreated(personalization_cursor_context_v1
             &PersonalizationV1::onCursorCommit);
     connect(context,
             &personalization_cursor_context_v1::get_theme,
-            this,
-            &PersonalizationV1::onGetCursorTheme);
+            context,
+            &personalization_cursor_context_v1::sendTheme);
     connect(context,
             &personalization_cursor_context_v1::get_size,
-            this,
-            &PersonalizationV1::onGetCursorSize);
+            context,
+            &personalization_cursor_context_v1::sendSize);
+
+    context->blockSignals(true);
+    context->setTheme(TreelandConfig::ref().cursorThemeName());
+    context->setSize(TreelandConfig::ref().cursorSize());
+    context->blockSignals(false);
 }
 
 void PersonalizationV1::onAppearanceContextCreated(personalization_appearance_context_v1 *context)
@@ -305,34 +310,14 @@ void PersonalizationV1::onWallpaperCommit(personalization_wallpaper_context_v1 *
 
 void PersonalizationV1::onCursorCommit(personalization_cursor_context_v1 *context)
 {
-    if (m_dconfig == nullptr || !m_dconfig->isValid()) {
+    if (!context->size.isValid() || context->theme.isEmpty()) {
         context->verfity(false);
-        return;
     }
 
-    if (context->size > 0)
-        setCursorSize(QSize(context->size, context->size));
-
-    if (!context->theme.isEmpty())
-        setCursorTheme(context->theme);
+    setCursorTheme(context->theme);
+    setCursorSize(context->size);
 
     context->verfity(true);
-}
-
-void PersonalizationV1::onGetCursorTheme(personalization_cursor_context_v1 *context)
-{
-    if (m_dconfig == nullptr || !m_dconfig->isValid())
-        return;
-
-    context->set_theme(cursorTheme());
-}
-
-void PersonalizationV1::onGetCursorSize(personalization_cursor_context_v1 *context)
-{
-    if (m_dconfig == nullptr)
-        return;
-
-    context->set_size(cursorSize().width());
 }
 
 void PersonalizationV1::onGetWallpapers(personalization_wallpaper_context_v1 *context)
@@ -358,25 +343,27 @@ void PersonalizationV1::setUserId(uid_t uid)
 
 QString PersonalizationV1::cursorTheme()
 {
-    QString value = m_dconfig->value("cursorThemeName", "default").toString();
-    return value;
+    return TreelandConfig::ref().cursorThemeName();
 }
 
 void PersonalizationV1::setCursorTheme(const QString &name)
 {
-    m_dconfig->setValue("cursorThemeName", name);
+    TreelandConfig::ref().setCursorThemeName(name);
+
     Q_EMIT cursorThemeChanged(name);
 }
 
 QSize PersonalizationV1::cursorSize()
 {
-    int size = m_dconfig->value("cursorSize", 24).toInt();
+    int size = TreelandConfig::ref().cursorSize().width();
+
     return QSize(size, size);
 }
 
 void PersonalizationV1::setCursorSize(const QSize &size)
 {
-    m_dconfig->setValue("cursorSize", size.width());
+    TreelandConfig::ref().setCursorSize(size);
+
     Q_EMIT cursorSizeChanged(size);
 }
 

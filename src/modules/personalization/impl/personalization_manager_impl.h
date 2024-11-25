@@ -12,8 +12,7 @@
 
 #include <QObject>
 #include <QStringList>
-
-#include <optional>
+#include <QSize>
 
 struct personalization_window_context_v1;
 struct personalization_wallpaper_context_v1;
@@ -118,12 +117,15 @@ public:
     treeland_personalization_manager_v1 *manager;
     wl_resource *resource;
 
-    uint32_t size;
+    QSize size;
     QString theme;
 
-    void set_theme(const QString &theme);
-    void set_size(uint32_t size);
+    void setTheme(const QString &theme);
+    void setSize(QSize size);
     void verfity(bool verfityed);
+
+    void sendTheme();
+    void sendSize();
 
 Q_SIGNALS:
     void before_destroy();
