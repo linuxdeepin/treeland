@@ -7,19 +7,26 @@ import Treeland
 import org.deepin.dtk 1.0 as D
 import org.deepin.dtk.style 1.0 as DS
 
-Item {
+Loader {
     id: root
 
     signal clicked()
     property int loaderStatus: 0
-    property alias sourceSurface : preview.surface
+    property SurfaceWrapper sourceSurface
+    property alias previewComponent: sourceComponent
 
-    onLoaderStatusChanged: {
-        if (loaderStatus === -1) {
-            enterAnimation.stop()
-            exitAnimation.stop()
-        }
-    }
+    transformOrigin: Item.Center
+    property real preferredHeight: sourceSurface.height < (parent.height - 2 * vSpacing) ?
+                                       sourceSurface.height : (parent.height - 2 * vSpacing)
+    property real preferredWidth: sourceSurface.width < (parent.width - 2 * hSpacing) ?
+                                      sourceSurface.width : (parent.width - 2 * hSpacing)
+    property bool refHeight: preferredHeight *  sourceSurface.width / sourceSurface.height < (parent.width - 2 * hSpacing)
+    readonly property real hSpacing: 20
+    readonly property real vSpacing: 20
+
+    height: refHeight ? preferredHeight : preferredWidth * sourceSurface.height / sourceSurface.width
+    width: refHeight ? preferredHeight * sourceSurface.width / sourceSurface.height : preferredWidth
+
     states: [
         State {
             name: 'none'
@@ -36,19 +43,16 @@ Item {
             to: "loaded"
 
             ParallelAnimation {
-                id: enterAnimation
-                NumberAnimation {
+                ScaleAnimator {
                     target: root
-                    property: "scale"
                     from: 0.5
                     to: 1.0
                     duration: 400
                     easing.type: Easing.OutExpo
                 }
 
-                NumberAnimation {
+                OpacityAnimator {
                     target: root
-                    property: "opacity"
                     from: 0.0
                     to: 1.0
                     duration: 100
@@ -62,18 +66,16 @@ Item {
 
             ParallelAnimation {
                 id: exitAnimation
-                NumberAnimation {
+                ScaleAnimator {
                     target: root
-                    property: "scale"
                     from: 1.0
                     to: 0.5
                     duration: 400
                     easing.type: Easing.OutExpo
                 }
 
-                NumberAnimation {
+                OpacityAnimator {
                     target: root
-                    property: "opacity"
                     from: 1.0
                     to: 0.0
                     duration: 400
@@ -83,26 +85,36 @@ Item {
         }
     ]
 
-    SurfaceProxy {
-        id: preview
+    Component {
+        id: sourceComponent
 
-        transformOrigin: root.transformOrigin
-        maxSize: Qt.size(root.width, root.height)
-    }
+        Item {
+            anchors.fill: parent
+            transformOrigin: root.transformOrigin
 
-    MouseArea {
-        anchors.fill: parent
-        acceptedButtons: Qt.LeftButton
-        onClicked: function(mouse) {
-            root.clicked()
-        }
-    }
+            SurfaceProxy {
+                id: preview
 
-    TapHandler {
-        acceptedButtons: Qt.NoButton
-        acceptedDevices: PointerDevice.TouchScreen
-        onDoubleTapped: function(eventPoint, button) {
-            root.clicked()
+                surface: sourceSurface
+                anchors.centerIn: parent
+                maxSize: Qt.size(root.width, root.height)
+            }
+
+            MouseArea {
+                anchors.fill: parent
+                acceptedButtons: Qt.LeftButton
+                onClicked: function(mouse) {
+                    root.clicked()
+                }
+            }
+
+            TapHandler {
+                acceptedButtons: Qt.NoButton
+                acceptedDevices: PointerDevice.TouchScreen
+                onDoubleTapped: function(eventPoint, button) {
+                    root.clicked()
+                }
+            }
         }
     }
 }
