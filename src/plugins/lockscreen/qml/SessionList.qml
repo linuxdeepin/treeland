@@ -28,7 +28,7 @@ Popup {
         x: 10
         y: 10
         clip: true
-        model: GreeterModel.sessionModel
+        model: SessionModel
         delegate: Item {
             required property string name
             width: parent.width

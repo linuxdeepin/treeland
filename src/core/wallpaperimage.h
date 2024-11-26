@@ -21,7 +21,6 @@ class WorkspaceModel;
 class WallpaperImage : public QQuickAnimatedImage
 {
     Q_OBJECT
-    Q_PROPERTY(int userId READ userId WRITE setUserId NOTIFY userIdChanged FINAL)
     Q_PROPERTY(WorkspaceModel* workspace READ workspace WRITE setWorkspace NOTIFY workspaceChanged FINAL)
     Q_PROPERTY(WAYLIB_SERVER_NAMESPACE::WOutput* output READ output WRITE setOutput NOTIFY outputChanged FINAL)
 
@@ -32,9 +31,6 @@ public:
     WallpaperImage(QQuickItem *parent = nullptr);
     ~WallpaperImage();
 
-    int userId();
-    void setUserId(const int id);
-
     WorkspaceModel *workspace();
     void setWorkspace(WorkspaceModel *workspace);
 
@@ -42,7 +38,6 @@ public:
     void setOutput(WOutput *output);
 
 Q_SIGNALS:
-    void userIdChanged();
     void outputChanged();
     void workspaceChanged();
 

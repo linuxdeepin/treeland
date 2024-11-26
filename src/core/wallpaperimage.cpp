@@ -4,6 +4,7 @@
 #include "wallpaperimage.h"
 
 #include "helper.h"
+#include "usermodel.h"
 #include "wallpapermanager.h"
 #include "wallpaperprovider.h"
 #include "workspacemodel.h"
@@ -25,6 +26,11 @@ WallpaperImage::WallpaperImage(QQuickItem *parent)
             &WallpaperImageProvider::wallpaperTextureUpdate,
             this,
             &WallpaperImage::updateWallpaperTexture);
+    connect(Helper::instance()->qmlEngine()->singletonInstance<UserModel *>("Treeland.Greeter",
+                                                                            "UserModel"),
+            &UserModel::currentUserNameChanged,
+            this,
+            &WallpaperImage::updateSource);
 
     setFillMode(Tile);
     setCache(false);
@@ -32,20 +38,6 @@ WallpaperImage::WallpaperImage(QQuickItem *parent)
 }
 
 WallpaperImage::~WallpaperImage() { }
-
-int WallpaperImage::userId()
-{
-    return m_userId;
-}
-
-void WallpaperImage::setUserId(const int id)
-{
-    if (m_userId != id) {
-        m_userId = id;
-        Q_EMIT userIdChanged();
-        updateSource();
-    }
-}
 
 WorkspaceModel *WallpaperImage::workspace()
 {
@@ -91,11 +83,6 @@ void WallpaperImage::setOutput(WOutput *output)
 
 void WallpaperImage::updateSource()
 {
-    if (m_userId == -1 || !m_output || !m_workspace) {
-        qCWarning(wallpaperImage) << "Cannot update source:" << m_userId << m_output << m_workspace;
-        return;
-    }
-
     auto *provider = Helper::instance()->qmlEngine()->wallpaperImageProvider();
     setSource(provider->source(m_output, m_workspace));
 }

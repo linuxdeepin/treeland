@@ -34,7 +34,9 @@ class SessionModel : public QAbstractListModel
     Q_OBJECT
     Q_DISABLE_COPY(SessionModel)
     Q_PROPERTY(int lastIndex READ lastIndex CONSTANT)
-    QML_ELEMENT
+    QML_NAMED_ELEMENT(SessionModel)
+    QML_SINGLETON
+
 public:
     enum SessionRole
     {

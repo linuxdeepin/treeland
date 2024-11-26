@@ -87,7 +87,6 @@ OutputItem {
         anchors.fill: parent
         Wallpaper {
             id: wallpaper
-            userId: Helper.currentUserId
             output: rootOutputItem.output
             workspace: Helper.workspace.current
             anchors.fill: parent

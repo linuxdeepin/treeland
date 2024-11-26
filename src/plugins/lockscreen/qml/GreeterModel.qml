@@ -14,11 +14,10 @@ Item {
         Quit = 3
     }
 
-    property alias currentUser: userModel.currentUserName
+    readonly property var currentUser: UserModel.currentUserName
     property int currentSession
     property var state: GreeterModel.NotRady
-    readonly property UserModel userModel: userModel
-    readonly property SessionModel sessionModel: sessionModel
+    readonly property SessionModel sessionModel: SessionModel
     readonly property GreeterProxy proxy: proxy
     readonly property LogoProvider logoProvider: logoProvider
 
@@ -27,7 +26,7 @@ Item {
     }
 
     Connections {
-        target: userModel
+        target: UserModel
         function onUpdateTranslations(locale) {
             console.log("translation updated")
             logoProvider.updateLocale(locale)
@@ -35,21 +34,13 @@ Item {
         }
     }
 
-    UserModel {
-        id: userModel
-    }
-
-    SessionModel {
-        id: sessionModel
-    }
-
     GreeterProxy {
         id: proxy
-        sessionModel: sessionModel
-        userModel: userModel
+        sessionModel: SessionModel
+        userModel: UserModel
 
         function checkUser(userName) {
-            let user = GreeterModel.userModel.get(GreeterModel.currentUser)
+            let user = UserModel.get(UserModel.currentUserName)
             console.log("last activate user:",user.name,"current user:",userName)
             return user.name === userName
         }
@@ -80,7 +71,7 @@ Item {
     }
 
     Component.onCompleted: {
-        GreeterModel.currentUser = userModel.data(userModel.index(userModel.lastIndex,0), UserModel.NameRole)
-        GreeterModel.currentSession = sessionModel.lastIndex
+        UserModel.currentUserName = UserModel.data(UserModel.index(UserModel.lastIndex,0), UserModel.NameRole)
+        GreeterModel.currentSession = SessionModel.lastIndex
     }
 }
