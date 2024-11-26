@@ -76,10 +76,14 @@ public:
 
         auto userModel =
             helper->qmlEngine()->singletonInstance<UserModel *>("Treeland.Greeter", "UserModel");
-        connect(userModel, &UserModel::currentUserNameChanged, this, [this, userModel] {
-            onCurrentChanged(userModel->currentUser()->UID());
-        });
-        onCurrentChanged(userModel->currentUser()->UID());
+
+        auto updateUser = [this, userModel] {
+            auto user = userModel->currentUser();
+            onCurrentChanged(user ? user->UID() : getuid());
+        };
+
+        connect(userModel, &UserModel::currentUserNameChanged, this, updateUser);
+        updateUser();
 #endif
     }
 
@@ -135,6 +139,11 @@ public:
     {
         auto userModel =
             helper->qmlEngine()->singletonInstance<UserModel *>("Treeland.Greeter", "UserModel");
+        auto user = userModel->currentUser();
+        if (!user) {
+            return;
+        }
+
         auto locale = userModel->currentUser()->locale();
         qCInfo(dbus) << "current locale:" << locale.language();
         QTranslator *newTrans = new QTranslator;

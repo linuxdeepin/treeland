@@ -543,7 +543,9 @@ bool Helper::surfaceBelongsToCurrentUser(SurfaceWrapper *wrapper)
 {
     auto credentials = WClient::getCredentials(wrapper->surface()->waylandClient()->handle());
 
-    return credentials->uid == m_userModel->currentUser()->UID();
+    auto user = m_userModel->currentUser();
+    uid_t uid = user ? user->UID() : getuid();
+    return credentials->uid == uid;
 }
 
 void Helper::deleteTaskSwitch()
@@ -660,7 +662,8 @@ void Helper::init()
     m_personalization = m_server->attach<PersonalizationV1>();
 
     auto updateCurrentUser = [this] {
-        m_personalization->setUserId(m_userModel->currentUser()->UID());
+        auto user = m_userModel->currentUser();
+        m_personalization->setUserId(user ? user->UID() : getuid());
     };
     connect(m_userModel, &UserModel::currentUserNameChanged, this, updateCurrentUser);
 
@@ -1092,7 +1095,8 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *, QInputEvent *event)
             }
             bool isFind = false;
             QKeySequence sequence(kevent->modifiers() | kevent->key());
-            for (auto *action : m_shortcut->actions(m_userModel->currentUser()->UID())) {
+            auto user = m_userModel->currentUser();
+            for (auto *action : m_shortcut->actions(user ? user->UID() : getuid())) {
                 if (action->shortcut() == sequence) {
                     isFind = true;
                     if (event->type() == QEvent::KeyRelease) {
