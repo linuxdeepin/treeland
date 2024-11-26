@@ -266,8 +266,7 @@ QPointF Output::constrainToValidArea(const QPointF &pos, const QSizeF &windowSiz
 
 double Output::calcPreferredScale(double widthPx, double heightPx,
                                   double widthMm, double heightMm) {
-    if (widthMm <= 0 || heightMm <= 0
-        || widthMm <= 0 || heightMm <= 0) {
+    if (widthPx <= 0 || heightPx <= 0 || widthMm <= 0 || heightMm <= 0) {
         return 1.0;
     }
 
