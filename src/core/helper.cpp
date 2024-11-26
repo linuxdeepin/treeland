@@ -9,6 +9,8 @@
 #include "ddeshellmanagerinterfacev1.h"
 #include "inputdevice.h"
 #include "layersurfacecontainer.h"
+
+#include <rhi/qrhi.h>
 #ifndef DISABLE_DDM
 #  include "lockscreen.h"
 #endif
@@ -74,6 +76,7 @@
 #include <QLoggingCategory>
 #include <QMouseEvent>
 #include <QQuickWindow>
+#include <QtConcurrent>
 
 #include <pwd.h>
 #include <utility>
@@ -175,6 +178,19 @@ Helper::~Helper()
 Helper *Helper::instance()
 {
     return m_instance;
+}
+
+bool Helper::isNvidiaCardPresent()
+{
+    auto rhi = m_renderWindow->rhi();
+
+    if (!rhi)
+        return false;
+
+    QString deviceName = rhi->driverInfo().deviceName;
+    qDebug() << "Graphics Device:" << deviceName;
+
+    return deviceName.contains("NVIDIA", Qt::CaseInsensitive);
 }
 
 QmlEngine *Helper::qmlEngine() const
@@ -1153,6 +1169,11 @@ bool Helper::doGesture(QInputEvent *event)
 Output *Helper::createNormalOutput(WOutput *output)
 {
     Output *o = Output::create(output, qmlEngine(), this);
+    auto future = QtConcurrent::run([o, this]() {
+        if (isNvidiaCardPresent()) {
+            o->outputItem()->setProperty("forceSoftwareCursor", true);
+        }
+    });
     o->outputItem()->stackBefore(m_rootSurfaceContainer);
     m_rootSurfaceContainer->addOutput(o);
     return o;
