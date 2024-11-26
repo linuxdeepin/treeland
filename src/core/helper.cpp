@@ -9,9 +9,9 @@
 #include "ddeshellmanagerinterfacev1.h"
 #include "inputdevice.h"
 #include "layersurfacecontainer.h"
+#include "usermodel.h"
 
 #include <rhi/qrhi.h>
-#include "usermodel.h"
 #ifndef DISABLE_DDM
 #  include "lockscreen.h"
 #endif
@@ -1080,7 +1080,8 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *, QInputEvent *event)
     }
 
     // handle shortcut
-    if (m_currentMode == CurrentMode::Normal && event->type() == QEvent::KeyRelease) {
+    if (m_currentMode == CurrentMode::Normal
+        && (event->type() == QEvent::KeyPress || event->type() == QEvent::KeyRelease)) {
         do {
             auto kevent = static_cast<QKeyEvent *>(event);
             // SKIP Meta+Meta
@@ -1093,7 +1094,9 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *, QInputEvent *event)
             for (auto *action : m_shortcut->actions(m_userModel->currentUser()->UID())) {
                 if (action->shortcut() == sequence) {
                     isFind = true;
-                    action->activate(QAction::Trigger);
+                    if (event->type() == QEvent::KeyRelease) {
+                        action->activate(QAction::Trigger);
+                    }
                 }
             }
             if (isFind) {
