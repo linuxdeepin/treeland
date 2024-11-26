@@ -187,7 +187,7 @@ Item {
 
                 readonly property real titleheight: 38
                 readonly property real fullheight: switchView.height
-                readonly property real vMargin: 40
+                readonly property real vMargin: 38
                 readonly property real thumbnailheight: fullheight - titleheight
                 readonly property real titleHMargin: 7
                 readonly property real borderMargin: 4
@@ -197,7 +197,7 @@ Item {
                 readonly property real delegateMinWidth: 128
                 readonly property real delegateMaxWidth: 260
                 readonly property real separatorHeight: 1
-                readonly property real radius: root.enableRadius ? 12 : 0
+                readonly property real radius: root.enableRadius ? 20 : 0
 
                 // control listview delegate and highlight
                 property bool enableDelegateBlur: root.enableBlur
@@ -279,6 +279,7 @@ Item {
     Repeater {
         id: previewWindows
 
+        property bool reverse: false
         property int finishedAnimations: 0
         property int totalAnimations: previewWindows.count
         signal animationsFinished
@@ -301,8 +302,8 @@ Item {
 
                 ScaleAnimator {
                     target: previewAnimation.target
-                    from: previewAnimation.scaleFrom
-                    to: 1.0
+                    from: previewWindows.reverse ? 1.0 : previewAnimation.scaleFrom
+                    to: previewWindows.reverse ? previewAnimation.scaleFrom : 1.0
                     duration: previewAnimation.duration
                     easing.type: Easing.OutExpo
                 }
@@ -310,24 +311,24 @@ Item {
                 OpacityAnimator {
                     loops: Helper.activatedSurface === surface || surface.visible ? 1 : 0
                     target: previewAnimation.target;
-                    from: previewAnimation.opacityFrom
-                    to: 1.0
+                    from: previewWindows.reverse ? 1.0 : previewAnimation.opacityFrom
+                    to: previewWindows.reverse ? previewAnimation.opacityFrom : 1.0
                     duration: previewAnimation.duration
                     easing.type: Easing.OutExpo
                 }
 
                 XAnimator {
                     target: previewAnimation.target
-                    from: previewAnimation.xFrom
-                    to: previewAnimation.xTo
+                    from: previewWindows.reverse ? previewAnimation.xTo : previewAnimation.xFrom
+                    to: previewWindows.reverse ? previewAnimation.xFrom : previewAnimation.xTo
                     duration: previewAnimation.duration
                     easing.type: Easing.OutExpo
                 }
 
                 YAnimator {
                     target: previewAnimation.target
-                    from: previewAnimation.yFrom
-                    to: previewAnimation.yTo
+                    from: previewWindows.reverse ? previewAnimation.yTo : previewAnimation.yFrom
+                    to: previewWindows.reverse ? previewAnimation.yFrom : previewAnimation.yTo
                     duration: previewAnimation.duration
                     easing.type: Easing.OutExpo
                 }
@@ -350,8 +351,8 @@ Item {
 
                 var wh = previewPostion(surface, previewItem)
                 previewAnimation.target = surface
-                previewAnimation.xFrom = (previewItem.width - wh.width) / 2.0
-                previewAnimation.yFrom = (previewItem.height - wh.height) / 2.0
+                previewAnimation.xFrom = (40 + previewItem.width - wh.width) / 2.0
+                previewAnimation.yFrom = (104 + previewItem.height - wh.height) / 2.0
                 previewAnimation.xTo = surface.x
                 previewAnimation.yTo = surface.y
                 previewAnimation.scaleFrom = wh.width / surface.width
@@ -373,8 +374,10 @@ Item {
         }
 
         onAnimationsFinished: {
-            showTask(false)
-            root.switchOn = false
+            if (!previewWindows.reverse) {
+                showTask(false)
+                root.switchOn = false
+            }
         }
     }
 
@@ -498,8 +501,10 @@ Item {
             Helper.forceActivateSurface(switchView.currentItem.surface, focusReason)
 
         if (root.enableAnimation && switchView.count <= 18) {
+            previewWindows.reverse = false
             previewWindows.model = root.model
         } else {
+            previewWindows.reverse = false
             previewWindows.finishedAnimations = 0
             previewWindows.model = []
             showTask(false)
