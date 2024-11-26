@@ -10,7 +10,7 @@ import QtQuick.Controls
 D.Popup {
     id: users
 
-    property var count: GreeterModel.userModel.count
+    property var count: UserModel.count
     property var userItemHeight: 44
     property var maxListHeight: userItemHeight * 5 + padding * 2
     property var useScrollBar: listv.contentHeight > maxListHeight
@@ -27,7 +27,7 @@ D.Popup {
     }
 
     function selectCurrentUser(userName, index) {
-        GreeterModel.currentUser = userName
+        UserModel.currentUserName = userName
         users.lastCheckedIndex = index
         GreeterModel.proxy.activateUser(userName)
         userList.close()
@@ -36,7 +36,7 @@ D.Popup {
     onAboutToShow: {
         //FIXME: we shouldn't use index directly
         if (users.lastCheckedIndex == -1) {
-            users.lastCheckedIndex = GreeterModel.userModel.lastIndex
+            users.lastCheckedIndex = UserModel.lastIndex
         }
         listv.currentIndex = users.lastCheckedIndex
         listv.positionViewAtIndex(listv.currentIndex, ListView.Beginning)
@@ -45,7 +45,7 @@ D.Popup {
     ListView {
         id: listv
         anchors.fill: parent
-        model: GreeterModel.userModel
+        model: UserModel
         width: parent.width
         focus: true
         clip: true
@@ -201,7 +201,7 @@ D.Popup {
 
             onClicked: selectCurrentUser(model.name, index)
 
-            checked: GreeterModel.currentUser === model.name
+            checked: UserModel.currentUserName === model.name
         }
     }
 }

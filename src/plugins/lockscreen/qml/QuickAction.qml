@@ -12,7 +12,7 @@ Column {
     TimeDateWidget {
         id: timedate
         currentLocale :{
-            let user = GreeterModel.userModel.get(GreeterModel.currentUser)
+            let user = UserModel.get(UserModel.currentUserName)
             return user.locale
         }
         width: 400

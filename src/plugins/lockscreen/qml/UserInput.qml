@@ -15,7 +15,7 @@ Item {
     property string normalHint: qsTr("Please enter password")
 
     function updateUser() {
-        let currentUser = GreeterModel.userModel.get(GreeterModel.currentUser)
+        let currentUser = UserModel.get(UserModel.currentUserName)
         username.text = currentUser.realName.length === 0 ? currentUser.name : currentUser.realName
         passwordField.text = ''
         avatar.fallbackSource = currentUser.icon
@@ -24,7 +24,7 @@ Item {
     }
 
     function userLogin() {
-        let user = GreeterModel.userModel.get(GreeterModel.currentUser)
+        let user = UserModel.get(UserModel.currentUserName)
         if (user.logined) {
             GreeterModel.proxy.unlock(user.name, passwordField.text)
             return
@@ -35,7 +35,7 @@ Item {
     }
 
     Connections {
-        target: GreeterModel.userModel
+        target: UserModel
         function onUpdateTranslations() {
             updateUser()
         }
@@ -272,7 +272,7 @@ Item {
                 x: hintBtn.width - hintLabel.width
                 y: hintBtn.height + 11
                 hintText: {
-                    let user = GreeterModel.userModel.get(GreeterModel.currentUser)
+                    let user = UserModel.get(UserModel.currentUserName)
                     return user.passwordHint
                 }
             }
