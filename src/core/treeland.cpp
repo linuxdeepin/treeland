@@ -438,15 +438,19 @@ void TreelandPrivate::readyRead()
             QString user;
             input >> user;
 
+            auto *userModel =
+                helper->qmlEngine()->singletonInstance<UserModel *>("Treeland.Greeter",
+                                                                    "UserModel");
+            // NOTE: maybe DDM will active dde user.
+            if (!userModel->getUser(user)) {
+                break;
+            }
+
             for (auto key : userWaylandSocket.keys()) {
                 userWaylandSocket[key]->setEnabled(key == user);
             }
 
-            struct passwd *pwd = getpwnam(user.toUtf8());
-            auto *userModel =
-                helper->qmlEngine()->singletonInstance<UserModel *>("Treeland.Greeter",
-                                                                    "UserModel");
-            userModel->setCurrentUserName(pwd->pw_name);
+            userModel->setCurrentUserName(user);
         } break;
         case DDM::DaemonMessages::SwitchToGreeter: {
             helper->showLockScreen();
