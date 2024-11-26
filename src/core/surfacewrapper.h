@@ -238,6 +238,7 @@ public:
     void setHasInitializeContainer(bool value);
     void disableWindowAnimation(bool disable = true);
     void setHideByShowDesk(bool show);
+    void setHideByLockScreen(bool hide);
 
     void markWrapperToRemoved();
 
@@ -395,6 +396,8 @@ private:
     uint m_isProxy : 1;
     uint m_hideByWorkspace : 1;
     uint m_hideByshowDesk : 1;
+    uint m_hideByLockScreen : 1;
+    uint m_confirmHideByLockScreen : 1;
     SurfaceRole m_surfaceRole = SurfaceRole::Normal;
     quint32 m_autoPlaceYOffset = 0;
     QPoint m_clientRequstPos;

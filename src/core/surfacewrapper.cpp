@@ -15,8 +15,8 @@
 #include <woutputitem.h>
 #include <woutputrenderwindow.h>
 #include <wsocket.h>
-#include <wxdgtoplevelsurfaceitem.h>
 #include <wxdgpopupsurfaceitem.h>
+#include <wxdgtoplevelsurfaceitem.h>
 #include <wxwaylandsurface.h>
 #include <wxwaylandsurfaceitem.h>
 
@@ -51,6 +51,8 @@ SurfaceWrapper::SurfaceWrapper(QmlEngine *qmlEngine,
     , m_isProxy(isProxy)
     , m_hideByWorkspace(false)
     , m_hideByshowDesk(true)
+    , m_hideByLockScreen(false)
+    , m_confirmHideByLockScreen(false)
 {
     QQmlEngine::setContextForObject(this, qmlEngine->rootContext());
 
@@ -611,7 +613,7 @@ void SurfaceWrapper::updateBoundingRect()
 void SurfaceWrapper::updateVisible()
 {
     setVisible(!m_hideByWorkspace && !isMinimized() && (surface() && surface()->mapped())
-               && m_socketEnabled && m_hideByshowDesk);
+               && m_socketEnabled && m_hideByshowDesk && !m_confirmHideByLockScreen);
 }
 
 void SurfaceWrapper::updateSubSurfaceStacking()
@@ -835,6 +837,11 @@ void SurfaceWrapper::onHideAnimationFinished()
         m_coverContent->setVisible(false);
     }
 
+    if (m_hideByLockScreen) {
+        m_confirmHideByLockScreen = true;
+        updateVisible();
+    }
+
     onWindowAnimationFinished();
 
     if (m_wrapperAbortToRemove) {
@@ -844,8 +851,9 @@ void SurfaceWrapper::onHideAnimationFinished()
 
 void SurfaceWrapper::onMappedChanged()
 {
+    bool mapped = surface()->mapped() && !m_hideByLockScreen;
     if (!m_isProxy) {
-        if (surface()->mapped()) {
+        if (mapped) {
             createNewOrClose(OPEN_ANIMATION);
             if (m_blurContent) {
                 m_blurContent->setVisible(true);
@@ -859,10 +867,10 @@ void SurfaceWrapper::onMappedChanged()
     }
 
     if (m_coverContent) {
-        m_coverContent->setProperty("mapped", surface()->mapped());
+        m_coverContent->setProperty("mapped", mapped);
     }
 
-    updateHasActiveCapability(ActiveControlState::Mapped, surface()->mapped());
+    updateHasActiveCapability(ActiveControlState::Mapped, mapped);
 
     updateVisible();
 }
@@ -905,6 +913,18 @@ void SurfaceWrapper::setHideByShowDesk(bool show)
         return;
 
     m_hideByshowDesk = show;
+}
+
+void SurfaceWrapper::setHideByLockScreen(bool hide)
+{
+    if (m_hideByLockScreen == hide) {
+        return;
+    }
+
+    m_hideByLockScreen = hide;
+    m_confirmHideByLockScreen = false; // reset
+
+    onMappedChanged();
 }
 
 void SurfaceWrapper::onShowDesktopAnimationFinished()
