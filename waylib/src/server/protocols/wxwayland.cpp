@@ -31,8 +31,7 @@ public:
 
     }
     ~WXWaylandPrivate() {
-        if (xcbConnection)
-            xcb_disconnect(xcbConnection);
+
     }
 
     void init();
@@ -51,7 +50,6 @@ public:
     qw_compositor *compositor;
     bool lazy = true;
     QVector<WXWaylandSurface*> surfaceList;
-    xcb_connection_t *xcbConnection = nullptr;
     QVector<xcb_atom_t> atoms;
     QList<WXWaylandSurface*> toplevelSurfaces;
 
@@ -74,21 +72,11 @@ static const QByteArrayView atom_map[WXWayland::AtomCount] = {
 
 void WXWaylandPrivate::init()
 {
-    socket->addClient(waylandClient());
-
     W_Q(WXWayland);
-    xcbConnection = xcb_connect(q->displayName().constData(), nullptr);
-    int err = xcb_connection_has_error(xcbConnection);
-    if (err != 0) {
-        qFatal("Can't connect to XWayland by xcb_connect");
-        return;
-    }
-    if (!xcbConnection)
-        return;
 
     xcb_intern_atom_cookie_t cookies[WXWayland::AtomCount];
     for (int i = WXWayland::AtomNone + 1; i < WXWayland::AtomCount; ++i) {
-        cookies[i] = xcb_intern_atom(xcbConnection, 0,
+        cookies[i] = xcb_intern_atom(q->xcbConnection(), 0,
                                      atom_map[i].length(),
                                      atom_map[i].constData());
     }
@@ -97,7 +85,7 @@ void WXWaylandPrivate::init()
     for (int i = WXWayland::AtomNone + 1; i < WXWayland::AtomCount; ++i) {
         xcb_generic_error_t *error;
         xcb_intern_atom_reply_t *reply =
-            xcb_intern_atom_reply(xcbConnection, cookies[i], &error);
+            xcb_intern_atom_reply(q->xcbConnection(), cookies[i], &error);
         if (reply && !error)
             atoms[i] = reply->atom;
         free(reply);
@@ -192,7 +180,7 @@ WSeat *WXWayland::seat() const
 xcb_connection_t *WXWayland::xcbConnection() const
 {
     W_DC(WXWayland);
-    return d->xcbConnection;
+    return handle()->get_xwm_connection();
 }
 
 QVector<WXWaylandSurface*> WXWayland::surfaceList() const
@@ -279,9 +267,15 @@ void WXWayland::create(WServer *server)
     QObject::connect(handle, &qw_xwayland::notify_new_surface, this, [d] (wlr_xwayland_surface *surface) {
         d->on_new_surface(surface);
     });
+
     QObject::connect(handle, &qw_xwayland::notify_ready, this, [this, d] {
         d->init();
         Q_EMIT ready();
+    });
+
+    auto s = qw_xwayland_server::from(handle->handle()->server);
+    QObject::connect(s, &qw_xwayland_server::notify_start, this, [d] {
+        d->socket->addClient(d->waylandClient());
     });
 }
 
