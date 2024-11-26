@@ -10,6 +10,7 @@
 #include "plugininterface.h"
 #include "qmlengine.h"
 #include "treelandconfig.h"
+#include "usermodel.h"
 
 #ifndef DISABLE_DDM
 #  include "lockscreeninterface.h"
@@ -73,10 +74,12 @@ public:
         connect(socket, &QLocalSocket::readyRead, this, &TreelandPrivate::readyRead);
         connect(socket, &QLocalSocket::errorOccurred, this, &TreelandPrivate::error);
 
-        connect(helper, &Helper::currentUserIdChanged, this, [this] {
-            onCurrentChanged(helper->currentUserId());
+        auto userModel =
+            helper->qmlEngine()->singletonInstance<UserModel *>("Treeland.Greeter", "UserModel");
+        connect(userModel, &UserModel::currentUserNameChanged, this, [this, userModel] {
+            onCurrentChanged(userModel->currentUser()->UID());
         });
-        onCurrentChanged(helper->currentUserId());
+        onCurrentChanged(userModel->currentUser()->UID());
 #endif
     }
 
@@ -99,13 +102,15 @@ public:
 #ifndef DISABLE_DDM
     void onCurrentChanged(uid_t uid)
     {
-        auto user = manager.findUserById(uid);
+        auto userModel =
+            helper->qmlEngine()->singletonInstance<UserModel *>("Treeland.Greeter", "UserModel");
+        auto user = userModel->getUser(uid);
         if (!user) {
             qCWarning(dbus) << "user " << uid << " has been added but couldn't find it.";
             return;
         }
 
-        auto locale = QLocale{ user->get()->locale() };
+        auto locale = user->locale();
         qCInfo(dbus) << "current locale:" << locale.language();
 
         do {
@@ -128,14 +133,9 @@ public:
 
     void updatePluginTs(PluginInterface *plugin, const QString &scope)
     {
-        auto user = manager.findUserById(helper->currentUserId());
-        if (!user) {
-            qCWarning(dbus) << "user " << helper->currentUserId()
-                            << " has been added but couldn't find it.";
-            return;
-        }
-
-        auto locale = QLocale{ user->get()->locale() };
+        auto userModel =
+            helper->qmlEngine()->singletonInstance<UserModel *>("Treeland.Greeter", "UserModel");
+        auto locale = userModel->currentUser()->locale();
         qCInfo(dbus) << "current locale:" << locale.language();
         QTranslator *newTrans = new QTranslator;
 
@@ -198,9 +198,13 @@ public:
             qCDebug(dbus) << "Plugin translate scope:" << scope;
 
 #ifndef DISABLE_DDM
-            connect(helper, &Helper::currentUserIdChanged, pluginInstance, [this, plugin, scope] {
-                updatePluginTs(plugin, scope);
-            });
+            connect(helper->qmlEngine()->singletonInstance<UserModel *>("Treeland.Greeter",
+                                                                        "UserModel"),
+                    &UserModel::currentUserNameChanged,
+                    pluginInstance,
+                    [this, plugin, scope] {
+                        updatePluginTs(plugin, scope);
+                    });
 
             updatePluginTs(plugin, scope);
 #endif
@@ -281,7 +285,10 @@ Treeland::Treeland()
         }
 #endif
     } else {
-        d->helper->setCurrentUserId(getuid());
+        struct passwd *pw = getpwuid(getuid());
+        auto *userModel =
+            d->helper->qmlEngine()->singletonInstance<UserModel *>("Treeland.Greeter", "UserModel");
+        userModel->setCurrentUserName(pw->pw_name);
     }
 
     if (CmdLine::ref().run().has_value()) {
@@ -436,7 +443,10 @@ void TreelandPrivate::readyRead()
             }
 
             struct passwd *pwd = getpwnam(user.toUtf8());
-            helper->setCurrentUserId(pwd->pw_uid);
+            auto *userModel =
+                helper->qmlEngine()->singletonInstance<UserModel *>("Treeland.Greeter",
+                                                                    "UserModel");
+            userModel->setCurrentUserName(pwd->pw_name);
         } break;
         case DDM::DaemonMessages::SwitchToGreeter: {
             helper->showLockScreen();
@@ -467,7 +477,9 @@ bool Treeland::ActivateWayland(QDBusUnixFileDescriptor _fd)
     auto socket = std::make_shared<WSocket>(true);
     socket->create(fd->fileDescriptor(), false);
 
-    socket->setEnabled(d->helper->currentUserId() == pw->pw_uid);
+    auto userModel =
+        d->helper->qmlEngine()->singletonInstance<UserModel *>("Treeland.Greeter", "UserModel");
+    socket->setEnabled(userModel->currentUserName() == user);
 
     d->helper->addSocket(socket.get());
 

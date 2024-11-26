@@ -39,7 +39,9 @@ class UserModel : public QAbstractListModel
     Q_PROPERTY(int count READ rowCount NOTIFY countChanged)
     Q_PROPERTY(int disableAvatarsThreshold READ disableAvatarsThreshold CONSTANT)
     Q_PROPERTY(bool containsAllUsers READ containsAllUsers CONSTANT)
-    QML_ELEMENT
+    QML_NAMED_ELEMENT(UserModel)
+    QML_SINGLETON
+
 public:
     enum UserRoles
     {
@@ -69,7 +71,9 @@ public:
     [[nodiscard]] Q_INVOKABLE QVariant get(const QString &username) const;
     [[nodiscard]] Q_INVOKABLE QVariant get(int index) const;
     [[nodiscard]] UserPtr getUser(const QString &username) const noexcept;
+    [[nodiscard]] UserPtr getUser(uid_t uid) const noexcept;
     [[nodiscard]] QString currentUserName() const noexcept;
+    UserPtr currentUser() const;
     void updateUserLimits(const QString &userName, const QString &time) const noexcept;
     void setCurrentUserName(const QString &userName) noexcept;
     void updateUserLoginState(const QString &username, bool logined);

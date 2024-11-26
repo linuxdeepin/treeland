@@ -115,8 +115,14 @@ UserModel::UserModel(QObject *parent)
     for (const auto &user : d->users) {
         if (user->userName() == lastUserName) {
             d->lastIndex = d->users.indexOf(user);
+            d->currentUserName = user->userName();
             break;
         }
+    }
+
+    if (d->currentUserName.isEmpty()) {
+        qCWarning(greeter) << "couldn't find last user, use current running user as current user";
+        d->currentUserName = d->users.first()->userName();
     }
 }
 
@@ -276,9 +282,24 @@ UserPtr UserModel::getUser(const QString &username) const noexcept
     return nullptr;
 }
 
+UserPtr UserModel::getUser(uid_t uid) const noexcept
+{
+    for (const auto &user : d->users) {
+        if (user->UID() == uid) {
+            return user;
+        }
+    }
+    return nullptr;
+}
+
 QString UserModel::currentUserName() const noexcept
 {
     return d->currentUserName;
+}
+
+UserPtr UserModel::currentUser() const
+{
+    return getUser(d->currentUserName);
 }
 
 void UserModel::updateUserLimits(const QString &userName, const QString &time) const noexcept

@@ -80,6 +80,7 @@ class treeland_window_picker_v1;
 class IMultitaskView;
 class LockScreenInterface;
 class ILockScreen;
+class UserModel;
 
 class Helper : public WSeatEventFilter
 {
@@ -87,7 +88,6 @@ class Helper : public WSeatEventFilter
     Q_OBJECT
     Q_PROPERTY(bool socketEnabled READ socketEnabled WRITE setSocketEnabled NOTIFY socketEnabledChanged FINAL)
     Q_PROPERTY(RootSurfaceContainer* rootContainer READ rootContainer CONSTANT FINAL)
-    Q_PROPERTY(int currentUserId READ currentUserId WRITE setCurrentUserId NOTIFY currentUserIdChanged FINAL)
     Q_PROPERTY(float animationSpeed READ animationSpeed WRITE setAnimationSpeed NOTIFY animationSpeedChanged FINAL)
     Q_PROPERTY(OutputMode outputMode READ outputMode WRITE setOutputMode NOTIFY outputModeChanged FINAL)
     Q_PROPERTY(QString cursorTheme READ cursorTheme NOTIFY cursorThemeChanged FINAL)
@@ -144,9 +144,6 @@ public:
     RootSurfaceContainer *rootContainer() const;
     Output *getOutput(WOutput *output) const;
 
-    int currentUserId() const;
-    void setCurrentUserId(int uid);
-
     float animationSpeed() const;
     void setAnimationSpeed(float newAnimationSpeed);
 
@@ -199,7 +196,6 @@ public Q_SLOTS:
 Q_SIGNALS:
     void socketEnabledChanged();
     void primaryOutputChanged();
-    void currentUserIdChanged();
     void activatedSurfaceChanged();
 
     void animationSpeedChanged();
@@ -308,7 +304,6 @@ private:
     SurfaceWrapper *m_activatedSurface = nullptr;
     RootSurfaceContainer *m_rootSurfaceContainer = nullptr;
     LockScreen *m_lockScreen = nullptr;
-    int m_currentUserId = -1;
     float m_animationSpeed = 1.0;
     OutputMode m_mode = OutputMode::Extension;
     std::optional<QPointF> m_fakelastPressedPosition;
@@ -321,6 +316,7 @@ private:
     bool m_singleMetaKeyPendingPressed{ false };
 
     IMultitaskView *m_multitaskView{ nullptr };
+    UserModel *m_userModel{ nullptr };
 };
 
 Q_DECLARE_OPAQUE_POINTER(LockScreenInterface *)

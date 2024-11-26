@@ -11,6 +11,7 @@
 #include "layersurfacecontainer.h"
 
 #include <rhi/qrhi.h>
+#include "usermodel.h"
 #ifndef DISABLE_DDM
 #  include "lockscreen.h"
 #endif
@@ -75,6 +76,7 @@
 #include <QKeySequence>
 #include <QLoggingCategory>
 #include <QMouseEvent>
+#include <QQmlContext>
 #include <QQuickWindow>
 #include <QtConcurrent>
 
@@ -93,8 +95,6 @@ Helper::Helper(QObject *parent)
     , m_windowGesture(new TogglableGesture(this))
     , m_multiTaskViewGesture(new TogglableGesture(this))
 {
-    setCurrentUserId(getuid());
-
     Q_ASSERT(!m_instance);
     m_instance = this;
 
@@ -542,7 +542,8 @@ void Helper::onSurfaceWrapperAboutToRemove(SurfaceWrapper *wrapper)
 bool Helper::surfaceBelongsToCurrentUser(SurfaceWrapper *wrapper)
 {
     auto credentials = WClient::getCredentials(wrapper->surface()->waylandClient()->handle());
-    return credentials->uid == currentUserId();
+
+    return credentials->uid == m_userModel->currentUser()->UID();
 }
 
 void Helper::deleteTaskSwitch()
@@ -556,6 +557,8 @@ void Helper::deleteTaskSwitch()
 void Helper::init()
 {
     auto engine = qmlEngine();
+    m_userModel = engine->singletonInstance<UserModel *>("Treeland.Greeter", "UserModel");
+
     engine->setContextForObject(m_renderWindow, engine->rootContext());
     engine->setContextForObject(m_renderWindow->contentItem(), engine->rootContext());
     m_rootSurfaceContainer->setQmlEngine(engine);
@@ -655,16 +658,13 @@ void Helper::init()
             }
         });
     m_personalization = m_server->attach<PersonalizationV1>();
-    m_personalization->setUserId(m_currentUserId);
 
-    connect(
-        this,
-        &Helper::currentUserIdChanged,
-        m_personalization,
-        [this]() {
-            m_personalization->setUserId(m_currentUserId);
-        },
-        Qt::QueuedConnection);
+    auto updateCurrentUser = [this] {
+        m_personalization->setUserId(m_userModel->currentUser()->UID());
+    };
+    connect(m_userModel, &UserModel::currentUserNameChanged, this, updateCurrentUser);
+
+    updateCurrentUser();
 
     connect(m_personalization,
             &PersonalizationV1::backgroundChanged,
@@ -1090,7 +1090,7 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *, QInputEvent *event)
             }
             bool isFind = false;
             QKeySequence sequence(kevent->modifiers() | kevent->key());
-            for (auto *action : m_shortcut->actions(m_currentUserId)) {
+            for (auto *action : m_shortcut->actions(m_userModel->currentUser()->UID())) {
                 if (action->shortcut() == sequence) {
                     isFind = true;
                     action->activate(QAction::Trigger);
@@ -1430,19 +1430,6 @@ void Helper::setOutputMode(OutputMode mode)
 }
 
 void Helper::setOutputProxy(Output *output) { }
-
-int Helper::currentUserId() const
-{
-    return m_currentUserId;
-}
-
-void Helper::setCurrentUserId(int uid)
-{
-    if (m_currentUserId == uid)
-        return;
-    m_currentUserId = uid;
-    Q_EMIT currentUserIdChanged();
-}
 
 float Helper::animationSpeed() const
 {
