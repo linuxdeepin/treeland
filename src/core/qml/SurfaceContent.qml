@@ -46,6 +46,8 @@ Item {
                 PathRectangle {
                     width: content.width
                     height: content.height
+                    topLeftRadius: wrapper?.noTitleBar ? cornerRadius : 0
+                    topRightRadius: wrapper?.noTitleBar ? cornerRadius : 0
                     bottomLeftRadius: cornerRadius
                     bottomRightRadius: cornerRadius
                 }
