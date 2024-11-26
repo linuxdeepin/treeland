@@ -844,6 +844,7 @@ void Helper::forceActivateSurface(SurfaceWrapper *wrapper, Qt::FocusReason reaso
 {
     if (m_showDesktop == WindowManagementV1::DesktopState::Show) {
         m_showDesktop = WindowManagementV1::DesktopState::Normal;
+        m_windowManagement->setDesktopState(WindowManagementV1::DesktopState::Normal);
         wrapper->requestCancelMinimize();
         const auto &surfaces = getWorkspaceSurfaces();
         for (auto &surface : surfaces) {
@@ -963,6 +964,8 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *, QInputEvent *event)
                     if (m_showDesktop == WindowManagementV1::DesktopState::Show) {
                         if (m_currentMode != CurrentMode::WindowSwitch) {
                             m_showDesktop = WindowManagementV1::DesktopState::Normal;
+                            m_windowManagement->setDesktopState(
+                                WindowManagementV1::DesktopState::Normal);
                             const auto &surfaces = getWorkspaceSurfaces();
                             for (auto &surface : surfaces) {
                                 if (!surface->isMinimized() && !surface->isVisible()) {
@@ -1299,6 +1302,7 @@ void Helper::setActivatedSurface(SurfaceWrapper *newActivateSurface)
     if (newActivateSurface) {
         if (m_showDesktop == WindowManagementV1::DesktopState::Show) {
             m_showDesktop = WindowManagementV1::DesktopState::Normal;
+            m_windowManagement->setDesktopState(WindowManagementV1::DesktopState::Normal);
             newActivateSurface->setHideByShowDesk(true);
         }
 
