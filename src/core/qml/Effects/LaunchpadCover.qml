@@ -8,6 +8,7 @@ import Waylib.Server
 
 Item {
     id: root
+    clip: true
 
     required property SurfaceWrapper wrapper
     required property WaylandOutput output
