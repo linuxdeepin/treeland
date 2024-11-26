@@ -903,7 +903,8 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *, QInputEvent *event)
 
     if (event->type() == QEvent::KeyPress) {
         auto kevent = static_cast<QKeyEvent *>(event);
-        if (QKeySequence(kevent->keyCombination()) == QKeySequence::Quit) {
+        if (QKeySequence(kevent->modifiers() | kevent->key())
+            == QKeySequence(Qt::META | Qt::Key_F12)) {
             qApp->quit();
             return true;
         } else if (event->modifiers() == Qt::MetaModifier) {
