@@ -262,6 +262,7 @@ private:
     void moveSurfacesToOutput(const QList<SurfaceWrapper *> &surfaces,
                               Output *targetOutput,
                               Output *sourceOutput);
+    bool isNvidiaCardPresent();
 
     static Helper *m_instance;
 
