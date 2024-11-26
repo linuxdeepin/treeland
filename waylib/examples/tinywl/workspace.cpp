@@ -47,7 +47,7 @@ void Workspace::addSurface(SurfaceWrapper *surface, int workspaceIndex)
 
 void Workspace::removeSurface(SurfaceWrapper *surface)
 {
-    if (!doRemoveSurface(surface, false))
+    if (!doRemoveSurface(surface, true))
         return;
 
     for (auto container : std::as_const(m_models)) {
