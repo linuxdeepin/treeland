@@ -17,9 +17,6 @@ Column {
         }
         width: 400
         height: 157
-        background: RoundBlur {
-            radius: 8
-        }
     }
 }
 
