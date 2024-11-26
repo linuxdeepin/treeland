@@ -125,15 +125,14 @@ FocusScope {
         Image {
             id: logoPic
             source: GreeterModel.logoProvider.logo
-            width: 120
-            height: 120
+            height: 32
             fillMode: Image.PreserveAspectFit
         }
 
         Text {
             text: GreeterModel.logoProvider.version
             font.weight: Font.Normal
-            font.pixelSize: logoPic.height / 2
+            font.pixelSize: 14
             color: Qt.rgba(1, 1, 1, 153 / 255)
         }
     }
