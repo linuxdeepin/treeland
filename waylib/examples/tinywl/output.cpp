@@ -17,6 +17,7 @@
 #include <wquicktextureproxy.h>
 
 #include <qwoutputlayout.h>
+#include <qwlayershellv1.h>
 
 #include <QQmlEngine>
 
@@ -231,6 +232,9 @@ void Output::layoutLayerSurface(SurfaceWrapper *surface)
 {
     WLayerSurface* layer = qobject_cast<WLayerSurface*>(surface->shellSurface());
     Q_ASSERT(layer);
+    if (!layer->handle()->handle()->initialized) {
+        return;
+    }
 
     auto validGeo = layer->exclusiveZone() == -1 ? this->rect() : validRect();
     validGeo = validGeo.marginsRemoved(QMargins(layer->leftMargin(),
