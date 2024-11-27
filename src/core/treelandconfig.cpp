@@ -12,6 +12,8 @@ TreelandConfig::TreelandConfig()
     , m_currentWorkspace(m_dconfig->value("currentWorkspace", 0).toUInt())
     , m_forceSoftwareCursor(m_dconfig->value("forceSoftwareCursor", false).toBool())
     , m_activeColor(m_dconfig->value("activeColor").toString())
+    , m_cursorThemeName(m_dconfig->value("cursorThemeName", "bloom").toString())
+    , m_cursorSize(m_dconfig->value("cursorSize", 24).toSize())
     , m_windowOpacity(m_dconfig->value("windowOpacity", 100).toUInt())
     , m_windowThemeType(m_dconfig->value("windowThemeType", 0).toUInt())
     , m_windowTitlebarHeight(m_dconfig->value("windowTitlebarHeight", 30).toUInt())
@@ -256,7 +258,7 @@ void TreelandConfig::setCursorThemeName(const QString &theme)
 
 QString TreelandConfig::cursorThemeName()
 {
-    auto theme = m_dconfig->value("cursorThemeName", "default").toString();
+    auto theme = m_dconfig->value("cursorThemeName", "bloom").toString();
     if (theme != m_cursorThemeName) {
         m_cursorThemeName = theme;
     }
@@ -273,14 +275,15 @@ void TreelandConfig::setCursorSize(QSize size)
     }
 
     m_cursorSize = size;
-    m_dconfig->setValue("cursorSize", size);
+    m_dconfig->setValue("cursorSize", size.width());
 
     emit cursorSizeChanged();
 }
 
 QSize TreelandConfig::cursorSize()
 {
-    auto size = m_dconfig->value("cursorSize", QSize(24, 24)).toSize();
+    int value = m_dconfig->value("cursorSize", 24).toInt();
+    QSize size(value, value);
 
     if (m_cursorSize != size) {
         m_cursorSize = size;
