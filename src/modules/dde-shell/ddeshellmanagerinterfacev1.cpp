@@ -47,10 +47,14 @@ protected:
                                                                uint32_t id) override;
 };
 
-void DDEShellManagerInterfaceV1Private::treeland_dde_shell_manager_v1_get_treeland_lockscreen(Resource *resource, uint32_t id)
+void DDEShellManagerInterfaceV1Private::treeland_dde_shell_manager_v1_get_treeland_lockscreen(
+    Resource *resource,
+    uint32_t id)
 {
     wl_resource *lockscreen_resource = wl_resource_create(resource->client(),
-                                                       &treeland_lockscreen_v1_interface, resource->version(), id);
+                                                          &treeland_lockscreen_v1_interface,
+                                                          resource->version(),
+                                                          id);
     if (!lockscreen_resource) {
         wl_client_post_no_memory(resource->client());
         return;
@@ -646,26 +650,21 @@ void WindowOverlapCheckerInterfacePrivate::treeland_window_overlap_checker_updat
     size = QSize(width, height);
 
     auto *wOutput = WOutput::fromHandle(qw_output::from(output));
+    QSizeF wSize = wOutput->size() / wOutput->scale();
     QRegion region(0, 0, wOutput->size().width(), wOutput->size().height());
     QRect checkRect;
     switch (anchor) {
     case WindowOverlapCheckerInterface::Anchor::TOP:
-        checkRect = QRect(0, 0, wOutput->size().width(), size.height());
+        checkRect = QRect(0, 0, wSize.width(), size.height());
         break;
     case WindowOverlapCheckerInterface::Anchor::RIGHT:
-        checkRect = QRect(wOutput->size().width() - size.width(),
-                          0,
-                          size.width(),
-                          wOutput->size().height());
+        checkRect = QRect(wSize.width() - size.width(), 0, size.width(), wSize.height());
         break;
     case WindowOverlapCheckerInterface::Anchor::BOTTOM:
-        checkRect = QRect(0,
-                          wOutput->size().height() - size.height(),
-                          wOutput->size().width(),
-                          size.height());
+        checkRect = QRect(0, wSize.height() - size.height(), wSize.width(), size.height());
         break;
     case WindowOverlapCheckerInterface::Anchor::LEFT:
-        checkRect = QRect(0, 0, wOutput->size().width(), size.height());
+        checkRect = QRect(0, 0, wSize.width(), size.height());
         break;
     default:
         wl_resource_post_error(resource->handle,
@@ -806,7 +805,8 @@ void LockScreenInterfacePrivate::treeland_lockscreen_v1_switch_user(Resource *re
     Q_EMIT q->switchUser();
 }
 
-LockScreenInterfacePrivate::LockScreenInterfacePrivate(LockScreenInterface *_q, wl_resource *resource)
+LockScreenInterfacePrivate::LockScreenInterfacePrivate(LockScreenInterface *_q,
+                                                       wl_resource *resource)
     : QtWaylandServer::treeland_lockscreen_v1(resource)
     , q(_q)
 {
@@ -822,13 +822,9 @@ void LockScreenInterfacePrivate::treeland_lockscreen_v1_destroy(Resource *resour
     delete q;
 }
 
-LockScreenInterface::~LockScreenInterface()
-{
-
-}
+LockScreenInterface::~LockScreenInterface() { }
 
 LockScreenInterface::LockScreenInterface(wl_resource *resource)
     : d(new LockScreenInterfacePrivate(this, resource))
 {
-
 }
