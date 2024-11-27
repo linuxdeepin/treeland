@@ -25,7 +25,7 @@ static QMap<WindowOverlapCheckerInterface *, QRect> s_conflictList;
 class DDEShellManagerInterfaceV1Private : public QtWaylandServer::treeland_dde_shell_manager_v1
 {
 public:
-    DDEShellManagerInterfaceV1Private(DDEShellManagerInterfaceV1 *_q);
+    explicit DDEShellManagerInterfaceV1Private(DDEShellManagerInterfaceV1 *_q);
     wl_global *global() const;
 
     DDEShellManagerInterfaceV1 *q;
@@ -276,7 +276,7 @@ protected:
     void treeland_dde_shell_surface_v1_set_surface_position(Resource *resource,
                                                             int32_t x,
                                                             int32_t y) override;
-    void treeland_dde_shell_surface_v1_set_role(Resource *resource, uint32_t role) override;
+    void treeland_dde_shell_surface_v1_set_role(Resource *resource, uint32_t value) override;
     void treeland_dde_shell_surface_v1_set_auto_placement(Resource *resource,
                                                           uint32_t y_offset) override;
     void treeland_dde_shell_surface_v1_set_skip_switcher(Resource *resource,
@@ -465,7 +465,7 @@ DDEShellSurfaceInterface *DDEShellSurfaceInterface::get(WSurface *surface)
 class DDEActiveInterfacePrivate : public QtWaylandServer::treeland_dde_active_v1
 {
 public:
-    DDEActiveInterfacePrivate(DDEActiveInterface *_q, wl_resource *seat, wl_resource *resource);
+    DDEActiveInterfacePrivate(DDEActiveInterface *_q, wl_resource *_seat, wl_resource *resource);
 
     DDEActiveInterface *q;
     wl_resource *seatResouce{ nullptr };
@@ -479,8 +479,8 @@ DDEActiveInterfacePrivate::DDEActiveInterfacePrivate(DDEActiveInterface *_q,
                                                      wl_resource *_seat,
                                                      wl_resource *resource)
     : QtWaylandServer::treeland_dde_active_v1(resource)
-    , seatResouce(_seat)
     , q(_q)
+    , seatResouce(_seat)
 {
 }
 
@@ -571,9 +571,8 @@ public:
 
     WindowOverlapCheckerInterface *q;
 
-    struct wlr_output *output;
+    struct wlr_output *output = nullptr;
     QSize size;
-    WindowOverlapCheckerInterface::Anchor anchor;
     bool alreadySend{ false };
     bool overlapped{ false };
 

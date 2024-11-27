@@ -100,7 +100,7 @@ int SessionModel::lastIndex() const
 
 int SessionModel::rowCount(const QModelIndex &parent) const
 {
-    return parent.isValid() ? 0 : d->sessions.length();
+    return parent.isValid() ? 0 : static_cast<int>(d->sessions.length());
 }
 
 QVariant SessionModel::data(const QModelIndex &index, int role) const

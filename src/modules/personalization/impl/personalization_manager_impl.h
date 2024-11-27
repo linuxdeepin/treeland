@@ -30,8 +30,8 @@ public:
 
     static treeland_personalization_manager_v1 *from_resource(wl_resource *resource);
 
-    wl_event_loop *event_loop;
-    wl_global *global;
+    wl_event_loop *event_loop = nullptr;
+    wl_global *global = nullptr;
     wl_list resources; // wl_resource_get_link()
 
     static treeland_personalization_manager_v1 *create(QW_NAMESPACE::qw_display *display);

@@ -280,11 +280,11 @@ void ForeignToplevelV1::onDockPreviewContextCreated(treeland_dock_preview_contex
             this,
             [this](treeland_dock_preview_context_v1_preview_event *event) {
                 std::vector<SurfaceWrapper *> surfaces;
-                for (auto it = event->toplevels.cbegin(); it != event->toplevels.cend(); ++it) {
-                    const uint32_t identifier = *it;
-                    for (auto it = m_surfaces.cbegin(); it != m_surfaces.cend(); ++it) {
-                        if (it->second->identifier == identifier) {
-                            surfaces.push_back(it->first);
+                for (auto toplevelIt = event->toplevels.cbegin(); toplevelIt != event->toplevels.cend(); ++toplevelIt) {
+                    const uint32_t identifier = *toplevelIt;
+                    for (auto surfaceIt = m_surfaces.cbegin(); surfaceIt != m_surfaces.cend(); ++surfaceIt) {
+                        if (surfaceIt->second->identifier == identifier) {
+                            surfaces.push_back(surfaceIt->first);
                             break;
                         }
                     }

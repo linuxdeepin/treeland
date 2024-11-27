@@ -189,9 +189,7 @@ void TreelandConfig::setCurrentWorkspace(uint newCurrentWorkspace)
 
 bool TreelandConfig::forceSoftwareCursor()
 {
-    auto enable = m_dconfig->value("forceSoftwareCursor", false).toBool();
-    if (m_forceSoftwareCursor != enable)
-        m_forceSoftwareCursor = enable;
+    m_forceSoftwareCursor = m_dconfig->value("forceSoftwareCursor", false).toBool();
     return m_forceSoftwareCursor;
 }
 
@@ -283,11 +281,7 @@ void TreelandConfig::setCursorSize(QSize size)
 QSize TreelandConfig::cursorSize()
 {
     int value = m_dconfig->value("cursorSize", 24).toInt();
-    QSize size(value, value);
-
-    if (m_cursorSize != size) {
-        m_cursorSize = size;
-    }
+    m_cursorSize = QSize(value, value);
 
     qDebug() << "cursorSize: " << m_cursorSize;
 
@@ -310,10 +304,7 @@ void TreelandConfig::setActiveColor(const QString &color)
 
 QString TreelandConfig::activeColor()
 {
-    auto color = m_dconfig->value("activeColor").toString();
-    if (m_activeColor != color) {
-        m_activeColor = color;
-    }
+    m_activeColor = m_dconfig->value("activeColor").toString();
 
     return m_activeColor;
 }
@@ -333,10 +324,7 @@ void TreelandConfig::setWindowOpacity(uint32_t opacity)
 
 uint32_t TreelandConfig::windowOpacity()
 {
-    auto opacity = m_dconfig->value("windowOpacity", 100).toUInt();
-    if (m_windowOpacity != opacity) {
-        m_windowOpacity = opacity;
-    }
+    m_windowOpacity = m_dconfig->value("windowOpacity", 100).toUInt();
 
     return m_windowOpacity;
 }
@@ -356,10 +344,7 @@ void TreelandConfig::setWindowThemeType(uint32_t type)
 
 uint32_t TreelandConfig::windowThemeType()
 {
-    auto type = m_dconfig->value("windowThemeType", 0).toUInt();
-    if (m_windowThemeType != type) {
-        m_windowThemeType = type;
-    }
+    m_windowThemeType = m_dconfig->value("windowThemeType", 0).toUInt();
 
     return m_windowThemeType;
 }
@@ -379,10 +364,7 @@ void TreelandConfig::setWindowTitlebarHeight(uint32_t height)
 
 uint32_t TreelandConfig::windowTitlebarHeight()
 {
-    auto height = m_dconfig->value("windowTitlebarHeight", 30).toUInt();
-    if (m_windowTitlebarHeight != height) {
-        m_windowTitlebarHeight = height;
-    }
+    m_windowTitlebarHeight = m_dconfig->value("windowTitlebarHeight", 30).toUInt();
 
     return m_windowTitlebarHeight;
 }

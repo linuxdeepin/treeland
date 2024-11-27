@@ -1054,6 +1054,8 @@ CaptureSource::CaptureSourceHint CaptureSourceSelector::selectionModeHint(
         return CaptureSource::Region;
     case SelectionMode::SelectWindow:
         return { CaptureSource::Window | CaptureSource::Surface };
+    default:
+        Q_UNREACHABLE();
     }
 }
 
@@ -1067,6 +1069,8 @@ ItemSelector::ItemTypes CaptureSourceSelector::selectionModeToItemTypes(
         return ItemSelector::Output | ItemSelector::Window | ItemSelector::Surface;
     case SelectionMode::SelectWindow:
         return ItemSelector::Surface;
+    default:
+        Q_UNREACHABLE();
     }
 }
 
