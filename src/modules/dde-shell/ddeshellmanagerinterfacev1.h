@@ -129,9 +129,9 @@ public:
     enum Anchor
     {
         TOP = 1,
-        RIGHT = 2,
-        BOTTOM = 4,
-        LEFT = 8,
+        BOTTOM = 2,
+        LEFT = 4,
+        RIGHT = 8,
     };
     Q_ENUM(Anchor)
 
