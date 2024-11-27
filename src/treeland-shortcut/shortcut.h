@@ -12,6 +12,7 @@
 #include <QtWaylandClient/QWaylandClientExtension>
 
 class ShortcutContext;
+class Shortcut;
 
 class ShortcutV1
     : public QWaylandClientExtensionTemplate<ShortcutV1>
@@ -22,7 +23,9 @@ public:
     explicit ShortcutV1();
 
 private:
-    std::vector<ShortcutContext *> m_customShortcuts;
+    std::vector<std::unique_ptr<ShortcutContext>> m_customShortcuts;
+    std::vector<std::unique_ptr<ShortcutContext>> m_treelandShortcutContexts;
+    std::vector<std::unique_ptr<Shortcut>> m_treelandShortcuts;
 };
 
 class ShortcutContext
@@ -44,7 +47,7 @@ protected:
 class Shortcut
 {
 public:
-    Shortcut(const QString &path);
+    explicit Shortcut(const QString &path);
 
     virtual ~Shortcut() = default;
 

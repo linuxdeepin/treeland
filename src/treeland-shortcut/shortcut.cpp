@@ -119,10 +119,6 @@ ShortcutV1::ShortcutV1()
             const QString customIni = QString("%1/custom.ini").arg(configDir);
 
             auto updateShortcuts = [this, customIni] {
-                for (auto *context : m_customShortcuts) {
-                    delete context;
-                }
-
                 m_customShortcuts.clear();
 
                 QSettings custom(customIni, QSettings::IniFormat);
@@ -133,10 +129,10 @@ ShortcutV1::ShortcutV1()
                         custom.value(QString("%1/Accels").arg(group)).toString());
                     ShortcutContext *context =
                         new ShortcutContext(register_shortcut_context(accels));
-                    m_customShortcuts.push_back(context);
                     connect(context, &ShortcutContext::shortcutHappended, this, [action] {
                         QProcess::startDetached(action);
                     });
+                    m_customShortcuts.emplace_back(context);
                 }
             };
 
@@ -157,6 +153,8 @@ ShortcutV1::ShortcutV1()
                     qCInfo(treelandShortcut) << "Shortcut happended: " << shortcut->shortcut();
                     shortcut->exec();
                 });
+                m_treelandShortcutContexts.emplace_back(context);
+                m_treelandShortcuts.emplace_back(shortcut);
             }
         }
     });
@@ -188,9 +186,9 @@ void Shortcut::exec()
     const QString &type = m_settings.value("Shortcut/Type").toString();
 
     if (type == "Exec") {
-        const QString &exec = m_settings.value("Type.Exec/Exec").toString();
-        const QString &args = m_settings.value("Type.Exec/Args").toString();
-        QProcess::startDetached(exec, args.split(" "));
+        const QString &typeExec = m_settings.value("Type.Exec/Exec").toString();
+        const QString &typeArgs = m_settings.value("Type.Exec/Args").toString();
+        QProcess::startDetached(typeExec, typeArgs.split(" "));
     }
 
     if (type == "DBus") {

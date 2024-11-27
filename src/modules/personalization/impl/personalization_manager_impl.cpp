@@ -171,7 +171,7 @@ static void set_titlebar(struct wl_client *client, struct wl_resource *resource,
 
 } // namespace Personalization
 
-void get_metadata(struct wl_client *client, struct wl_resource *manager_resource);
+void get_metadata(struct wl_client *client, struct wl_resource *resource);
 
 void set_fd(struct wl_client *client,
             struct wl_resource *resource,
@@ -184,7 +184,7 @@ void set_output(struct wl_client *client, struct wl_resource *resource, const ch
 
 void set_on(struct wl_client *client, struct wl_resource *resource, uint32_t options);
 
-void set_isdark(struct wl_client *client, struct wl_resource *resource, uint32_t dark);
+void set_isdark(struct wl_client *client, struct wl_resource *resource, uint32_t isdark);
 
 void wallpaper_commit(struct wl_client *client, struct wl_resource *resource);
 

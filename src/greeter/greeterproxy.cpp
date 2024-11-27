@@ -61,12 +61,9 @@ GreeterProxy::GreeterProxy(QObject *parent)
 {
     const QStringList args = QCoreApplication::arguments();
     QString server;
-    int pos;
+    auto pos = args.indexOf(QStringLiteral("--socket"));
 
-    if ((pos = args.indexOf(QStringLiteral("--socket"))) >= 0) {
-        if (pos >= args.length() - 1) {
-            return;
-        }
+    if (pos >= 0 && pos + 1 < args.length()) {
         server = args[pos + 1];
     }
 

@@ -182,7 +182,7 @@ QString PersonalizationV1::currentGroup()
     if (m_currentOutput.isEmpty())
         return QString();
 
-    auto meta = m_screens[m_currentOutput];
+    const auto *meta = m_screens[m_currentOutput];
     return meta->group;
 }
 
