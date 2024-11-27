@@ -59,7 +59,8 @@ private:
     void handleFocusedTICommitted();
     void handleIMCommitted();
     WTextInput *focusedTextInput() const;
-    void setFocusedTextInput(WTextInput *ti);
+    WTextInput *enabledTextInput() const;
+    void setEnabledTextInput(WTextInput *ti);
     WInputMethodV2 *inputMethod() const;
     void setInputMethod(WInputMethodV2 *im);
     QW_NAMESPACE::qw_input_method_keyboard_grab_v2 *activeKeyboardGrab() const;
