@@ -581,7 +581,7 @@ void set_cursor_theme(struct wl_client *client, struct wl_resource *resource, co
     if (!cursor)
         return;
 
-    cursor->theme = QString::fromUtf8(name);
+    cursor->setTheme(name);
 }
 
 void get_cursor_theme(struct wl_client *client, struct wl_resource *resource)
@@ -599,7 +599,7 @@ void set_cursor_size(struct wl_client *client, struct wl_resource *resource, uin
     if (!cursor)
         return;
 
-    cursor->size = QSize(size, size);
+    cursor->setSize(QSize(size, size));
 }
 
 void get_cursor_size(struct wl_client *client, struct wl_resource *resource)
