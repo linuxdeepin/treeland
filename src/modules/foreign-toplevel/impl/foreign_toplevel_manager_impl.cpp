@@ -232,7 +232,7 @@ static void treeland_foreign_toplevel_handle_activate([[maybe_unused]] struct wl
     if (!toplevel) {
         return;
     }
-    struct wlr_seat_client *seat_client = wlr_seat_client_from_resource(seat);
+    const wlr_seat_client *seat_client = wlr_seat_client_from_resource(seat);
     if (!seat_client) {
         return;
     }
@@ -371,7 +371,7 @@ void treeland_foreign_toplevel_handle_v1::set_identifier(uint32_t identifier)
 
 static void send_output_to_resource(wl_resource *resource, wlr_output *output, bool enter)
 {
-    struct wl_client *client = wl_resource_get_client(resource);
+    const wl_client *client = wl_resource_get_client(resource);
     struct wl_resource *output_resource;
 
     wl_resource_for_each(output_resource, &output->resources)
@@ -411,7 +411,7 @@ void treeland_foreign_toplevel_handle_v1::output_enter(qw_output *output)
     outputs.append(toplevel_output);
 
     connect(output, &qw_output::notify_bind, this, [toplevel_output](wlr_output_event_bind *event) {
-        struct wl_client *client = wl_resource_get_client(event->resource);
+        const wl_client *client = wl_resource_get_client(event->resource);
 
         struct wl_resource *resource;
         wl_resource_for_each(resource, &toplevel_output.toplevel->resources)
@@ -814,7 +814,7 @@ static void treeland_foreign_toplevel_manager_handle_get_dock_preview_context(
     context->resource = resource;
     context->client = client;
 
-    context->destroy_listener.notify = [](struct wl_listener *listener, void *data) {
+    context->destroy_listener.notify = [](struct wl_listener *listener, [[maybe_unused]] void *data) {
         treeland_dock_preview_context_v1 *context =
             wl_container_of(listener, context, destroy_listener);
 

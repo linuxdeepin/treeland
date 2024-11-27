@@ -10,7 +10,7 @@ int main(int argc, char *argv[])
 
     QQmlApplicationEngine engine;
     engine.addImportPath(":/qt/qml");
-    engine.load(QUrl(u"qrc:/qt/qml/Wallpaper/main.qml"_qs));
+    engine.load(QUrl(QStringLiteral(u"qrc:/qt/qml/Wallpaper/main.qml")));
 
     return app.exec();
 }

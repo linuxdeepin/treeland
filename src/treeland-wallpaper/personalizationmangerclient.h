@@ -64,7 +64,7 @@ public Q_SLOTS:
 
 private:
     QString converToJson(QMap<QString, WallpaperMetaData *> screens);
-    void onMetadataChanged(const QString &meta);
+    void onMetadataChanged(const QString &metadata);
     void changeWallpaper(const QString &path,
                          const QString &output,
                          const QString &group,
