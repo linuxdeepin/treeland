@@ -86,7 +86,57 @@
 #include <pwd.h>
 #include <utility>
 
+#include <xcb/xcb.h>
+#include <xcb/xproto.h>
+
 #define WLR_FRACTIONAL_SCALE_V1_VERSION 1
+#define _DEEPIN_NO_TITLEBAR "_DEEPIN_NO_TITLEBAR"
+
+static xcb_atom_t internAtom(xcb_connection_t *connection, const char *name, bool onlyIfExists)
+{
+    if (!name || *name == 0)
+        return XCB_NONE;
+
+    xcb_intern_atom_cookie_t cookie = xcb_intern_atom(connection, onlyIfExists, strlen(name), name);
+    xcb_intern_atom_reply_t *reply = xcb_intern_atom_reply(connection, cookie, 0);
+
+    if (!reply)
+        return XCB_NONE;
+
+    xcb_atom_t atom = reply->atom;
+    free(reply);
+
+    return atom;
+}
+
+static QByteArray readWindowProperty(xcb_connection_t *connection, xcb_window_t win, xcb_atom_t atom, xcb_atom_t type)
+{
+    QByteArray data;
+    int offset = 0;
+    int remaining = 0;
+
+    do {
+        xcb_get_property_cookie_t cookie = xcb_get_property(connection, false, win,
+                                                            atom, type, offset, 1024);
+        xcb_get_property_reply_t *reply = xcb_get_property_reply(connection, cookie, NULL);
+        if (!reply)
+            break;
+
+        remaining = 0;
+
+        if (reply->type == type) {
+            int len = xcb_get_property_value_length(reply);
+            char *datas = (char *)xcb_get_property_value(reply);
+            data.append(datas, len);
+            remaining = reply->bytes_after;
+            offset += len;
+        }
+
+        free(reply);
+    } while (remaining > 0);
+
+    return data;
+}
 
 Q_LOGGING_CATEGORY(qLcHelper, "treeland.helper");
 
@@ -526,8 +576,13 @@ void Helper::onSurfaceWrapperAdded(SurfaceWrapper *wrapper)
         auto xwayland = qobject_cast<WXWaylandSurface *>(wrapper->shellSurface());
         auto updateDecorationTitleBar = [this, wrapper, xwayland]() {
             if (!xwayland->isBypassManager()) {
-                wrapper->setNoTitleBar(xwayland->decorationsType()
-                                       == WXWaylandSurface::DecorationsNoTitle);
+                if (m_atomDeepinNoTitlebar && !readWindowProperty(m_defaultXWayland->xcbConnection(), xwayland->handle()->handle()->window_id,
+                                                              m_atomDeepinNoTitlebar, XCB_ATOM_CARDINAL).isEmpty()) {
+                    wrapper->setNoTitleBar(true);
+                } else {
+                    wrapper->setNoTitleBar(xwayland->decorationsType()
+                                           == WXWaylandSurface::DecorationsNoTitle);
+                }
                 wrapper->setNoDecoration(xwayland->decorationsType()
                                          == WXWaylandSurface::DecorationsNoBorder);
             } else {
@@ -797,7 +852,12 @@ void Helper::init()
         m_server->attach<WXdgOutputManager>(m_rootSurfaceContainer->outputLayout());
     xwaylandOutputManager->setScaleOverride(1.0);
     m_defaultXWayland = m_shellHandler->createXWayland(m_server, m_seat, m_compositor, false);
-
+    connect(m_defaultXWayland, &WXWayland::ready, this, [this]{
+        m_atomDeepinNoTitlebar = internAtom(m_defaultXWayland->xcbConnection(), _DEEPIN_NO_TITLEBAR, false);
+        if (!m_atomDeepinNoTitlebar) {
+            qWarning() << "failed internAtom:" << _DEEPIN_NO_TITLEBAR;
+        }
+    });
     m_xdgDecorationManager = m_server->attach<WXdgDecorationManager>();
     connect(m_xdgDecorationManager,
             &WXdgDecorationManager::surfaceModeChanged,
