@@ -59,7 +59,7 @@ Q_SIGNALS:
     void aboutToExit(); // Focus has been updated, waiting for exit
 
 public Q_SLOTS:
-    void exit(SurfaceWrapper *surface = nullptr);
+    void exit(SurfaceWrapper *surface = nullptr, bool immediately = false);
     void enter(ActiveReason reason);
 
 private:

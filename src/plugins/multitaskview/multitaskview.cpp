@@ -48,7 +48,7 @@ void Multitaskview::setActiveReason(ActiveReason activeReason)
     Q_EMIT activeReasonChanged();
 }
 
-void Multitaskview::exit(SurfaceWrapper *surface)
+void Multitaskview::exit(SurfaceWrapper *surface, bool immediately)
 {
     TreelandConfig::ref().setBlockActivateSurface(false);
 
@@ -64,7 +64,12 @@ void Multitaskview::exit(SurfaceWrapper *surface)
 
     // TODO: handle taskview gesture
     Q_EMIT aboutToExit();
-    setStatus(Exited);
+
+    if (immediately) {
+        setVisible(false);
+    } else {
+        setStatus(Exited);
+    }
 }
 
 void Multitaskview::enter(ActiveReason reason)

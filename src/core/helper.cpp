@@ -960,7 +960,9 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *, QInputEvent *event)
             } else if (switchWorkspaceNums.contains(kevent->key())) {
                 workspace()->switchTo(switchWorkspaceNums.indexOf(kevent->key()));
                 return true;
-            } else if (kevent->key() == Qt::Key_S) {
+            } else if (kevent->key() == Qt::Key_S
+                       && (m_currentMode == CurrentMode::Normal
+                           || m_currentMode == CurrentMode::Multitaskview)) {
                 if (m_multitaskView) {
                     m_multitaskView->toggleMultitaskView(IMultitaskView::ActiveReason::ShortcutKey);
                 }
@@ -1644,9 +1646,18 @@ void Helper::showLockScreen()
 
     setWorkspaceVisible(false);
 
+    if (m_multitaskView) {
+        m_multitaskView->immediatelyExit();
+    }
+
+    deleteTaskSwitch();
+
     // send DDM switch to greeter mode
     // FIXME: DDM and Treeland should listen to the lock signal of login1
-    QDBusInterface interface("org.freedesktop.DisplayManager", "/org/freedesktop/DisplayManager/Seat0", "org.freedesktop.DisplayManager.Seat", QDBusConnection::systemBus());
+    QDBusInterface interface("org.freedesktop.DisplayManager",
+                             "/org/freedesktop/DisplayManager/Seat0",
+                             "org.freedesktop.DisplayManager.Seat",
+                             QDBusConnection::systemBus());
     interface.asyncCall("SwitchToGreeter");
 }
 

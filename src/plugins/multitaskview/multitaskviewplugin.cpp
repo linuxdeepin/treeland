@@ -68,3 +68,10 @@ void MultitaskViewPlugin::toggleMultitaskView(IMultitaskView::ActiveReason reaso
         }
     }
 }
+
+void MultitaskViewPlugin::immediatelyExit()
+{
+    if (m_multitaskview) {
+        m_multitaskview->exit(nullptr, true);
+    }
+}
