@@ -534,11 +534,13 @@ void Helper::onSurfaceWrapperAdded(SurfaceWrapper *wrapper)
                 wrapper->setNoDecoration(true);
             }
         };
+        // When x11 surface dissociate, SurfaceWrapper will be destroyed immediately
+        // but WXWaylandSurface will not, so must connect to `wrapper`
         xwayland->safeConnect(&WXWaylandSurface::bypassManagerChanged,
-                              this,
+                              wrapper,
                               updateDecorationTitleBar);
         xwayland->safeConnect(&WXWaylandSurface::decorationsTypeChanged,
-                              this,
+                              wrapper,
                               updateDecorationTitleBar);
         updateDecorationTitleBar();
 
