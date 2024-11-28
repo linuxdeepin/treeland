@@ -77,12 +77,17 @@ RowLayout {
             Popup {
                 id: powerList
                 width: powerBtn.Window.width
-                height: 100
+                height: 140
                 parent: powerBtn.Window.contentItem
                 x: 0
                 y: powerBtn.Window.height / 5 * 2
                 contentItem: PowerList { }
-                background: null
+                background: MouseArea {
+                    onClicked: function () {
+                        powerBtn.expand = false
+                        powerList.close()
+                    }
+                }
             }
             onClicked: {
                 powerBtn.expand = true

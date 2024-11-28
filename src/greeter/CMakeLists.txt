@@ -61,12 +61,15 @@ qt_add_resources(${LIB_NAME} "greeter_assets"
         ${PROJECT_RESOURCES_DIR}/icons/login_open.dci
         ${PROJECT_RESOURCES_DIR}/icons/login_power.dci
         ${PROJECT_RESOURCES_DIR}/icons/login_reboot.dci
-        ${PROJECT_RESOURCES_DIR}/icons/login_sleep.dci
+        ${PROJECT_RESOURCES_DIR}/icons/login_hibernate.dci
         ${PROJECT_RESOURCES_DIR}/icons/login_user.dci
         ${PROJECT_RESOURCES_DIR}/icons/login_hint.dci
         ${PROJECT_RESOURCES_DIR}/icons/login_logout.dci
-        ${PROJECT_RESOURCES_DIR}/icons/login_poweroff.dci
+        ${PROJECT_RESOURCES_DIR}/icons/login_shutdown.dci
         ${PROJECT_RESOURCES_DIR}/icons/login_suspend.dci
+        ${PROJECT_RESOURCES_DIR}/icons/login_switchuser.dci
+        ${PROJECT_RESOURCES_DIR}/icons/login_update_reboot.dci
+        ${PROJECT_RESOURCES_DIR}/icons/login_update_shutdown.dci
         ${PROJECT_RESOURCES_DIR}/icons/backToLightdm.dci
         ${PROJECT_RESOURCES_DIR}/icons/logo.svg
 )

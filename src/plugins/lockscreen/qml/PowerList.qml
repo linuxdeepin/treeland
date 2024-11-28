@@ -32,7 +32,7 @@ FocusScope {
                 ShutdownButton {
                     enabled: GreeterModel.proxy.canHibernate
                     text: qsTr("Hibernate")
-                    icon.name: "login_sleep"
+                    icon.name: "login_hibernate"
                     onClicked: GreeterModel.proxy.hibernate()
                 }
 
@@ -54,7 +54,7 @@ FocusScope {
                     id: powerOff
                     enabled: GreeterModel.proxy.canPowerOff
                     text: qsTr("Shut Down")
-                    icon.name: "login_poweroff"
+                    icon.name: "login_shutdown"
                     onClicked: GreeterModel.proxy.powerOff()
                 }
             }
