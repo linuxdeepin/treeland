@@ -111,7 +111,7 @@ public:
                             Type type,
                             QQuickItem *parent = nullptr,
                             bool isProxy = false);
-    ~SurfaceWrapper();
+    ~SurfaceWrapper() override;
 
     void setFocus(bool focus, Qt::FocusReason reason);
 
