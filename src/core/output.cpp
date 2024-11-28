@@ -27,7 +27,7 @@
 #define SAME_APP_OFFSET_FACTOR 1.0
 #define DIFF_APP_OFFSET_FACTOR 2.0
 
-Q_LOGGING_CATEGORY(qLcLayerShell, "Treeland.shell.layer", QtWarningMsg)
+Q_LOGGING_CATEGORY(qLcOutput, "treeland.output")
 
 Output *Output::create(WOutput *output, QQmlEngine *engine, QObject *parent)
 {
@@ -48,7 +48,7 @@ Output *Output::create(WOutput *output, QQmlEngine *engine, QObject *parent)
             obj,
             [obj, output, isSoftwareCursor]() {
                 auto forceSoftwareCursor = isSoftwareCursor(output);
-                qCInfo(qLcLayerShell) << "forceSoftwareCursor changed to" << forceSoftwareCursor;
+                qCInfo(qLcOutput) << "forceSoftwareCursor changed to" << forceSoftwareCursor;
                 obj->setProperty("forceSoftwareCursor", forceSoftwareCursor);
             });
 
@@ -238,7 +238,7 @@ QPointF Output::calculateBottomRightPosition(const QRectF &activeGeo, const QRec
                   qMax(validGeo.top(), activeGeo.bottom() - normalGeo.height() - offset.height()));
 }
 
-QPointF Output::calculateTopLeftPosition(const QRectF &activeGeo, const QRectF &normalGeo, const QRectF &validGeo, const QSizeF &offset) 
+QPointF Output::calculateTopLeftPosition(const QRectF &activeGeo, const QRectF &normalGeo, const QRectF &validGeo, const QSizeF &offset)
 {
     QPointF topLeft(activeGeo.right() - normalGeo.width() - offset.width(),
                    activeGeo.bottom() - normalGeo.height() - offset.height());
@@ -520,7 +520,7 @@ void Output::arrangeLayerSurface(SurfaceWrapper *surface)
             setExclusiveZone(Qt::RightEdge, layer, layer->exclusiveZone());
             break;
         default:
-            qCWarning(qLcLayerShell)
+            qCWarning(qLcOutput)
                 << layer->appId() << " has set exclusive zone, but exclusive edge is invalid!";
             break;
         }

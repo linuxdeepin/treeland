@@ -13,8 +13,6 @@
 
 Q_MOC_INCLUDE(<woutputitem.h>)
 
-Q_DECLARE_LOGGING_CATEGORY(qLcLayerShell)
-
 WAYLIB_SERVER_BEGIN_NAMESPACE
 class WOutput;
 class WOutputItem;

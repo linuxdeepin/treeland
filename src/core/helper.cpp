@@ -88,6 +88,8 @@
 
 #define WLR_FRACTIONAL_SCALE_V1_VERSION 1
 
+Q_LOGGING_CATEGORY(qLcHelper, "treeland.helper");
+
 Helper *Helper::m_instance = nullptr;
 
 Helper::Helper(QObject *parent)
@@ -191,7 +193,7 @@ bool Helper::isNvidiaCardPresent()
         return false;
 
     QString deviceName = rhi->driverInfo().deviceName;
-    qDebug() << "Graphics Device:" << deviceName;
+    qCDebug(qLcHelper) << "Graphics Device:" << deviceName;
 
     return deviceName.contains("NVIDIA", Qt::CaseInsensitive);
 }
@@ -319,7 +321,7 @@ void Helper::setGamma(struct wlr_gamma_control_manager_v1_set_gamma_event *event
     qw_output_state newState;
     newState.set_gamma_lut(ramp_size, r, g, b);
     if (!qwOutput->commit_state(newState)) {
-        qWarning() << "Failed to set gamma lut!";
+        qCWarning(qLcHelper) << "Failed to set gamma lut!";
         // TODO: use software impl it.
         qw_gamma_control_v1::from(gamma_control)->send_failed_and_destroy();
     }
@@ -771,7 +773,7 @@ void Helper::init()
     m_server->start();
     m_renderer = WRenderHelper::createRenderer(m_backend->handle());
     if (!m_renderer) {
-        qFatal("Failed to create renderer");
+        qCFatal(qLcHelper) << "Failed to create renderer";
     }
 
     m_allocator = qw_allocator::autocreate(*m_backend->handle(), *m_renderer);
@@ -806,7 +808,7 @@ void Helper::init()
         Q_EMIT socketFileChanged();
     } else {
         delete m_socket;
-        qCritical("Failed to create socket");
+        qCCritical(qLcHelper) << "Failed to create socket";
         return;
     }
 
@@ -845,7 +847,7 @@ void Helper::init()
 
     m_backend->handle()->start();
 
-    qInfo() << "Listing on:" << m_socket->fullServerName();
+    qCInfo(qLcHelper) << "Listing on:" << m_socket->fullServerName();
 }
 
 bool Helper::socketEnabled() const
@@ -858,7 +860,7 @@ void Helper::setSocketEnabled(bool newEnabled)
     if (m_socket)
         m_socket->setEnabled(newEnabled);
     else
-        qWarning() << "Can't set enabled for empty socket!";
+        qCWarning(qLcHelper) << "Can't set enabled for empty socket!";
 }
 
 void Helper::activateSurface(SurfaceWrapper *wrapper, Qt::FocusReason reason)
@@ -897,7 +899,7 @@ void Helper::forceActivateSurface(SurfaceWrapper *wrapper, Qt::FocusReason reaso
     }
 
     if (!wrapper->surface()->mapped()) {
-        qWarning() << "Can't activate unmapped surface: " << wrapper;
+        qCWarning(qLcHelper) << "Can't activate unmapped surface: " << wrapper;
         return;
     }
 
