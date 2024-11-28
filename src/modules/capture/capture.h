@@ -284,7 +284,7 @@ public:
     QByteArrayView interfaceName() const override;
     QPointer<WToplevelSurface> maskShellSurface() const;
     QPointer<SurfaceWrapper> maskSurfaceWrapper() const;
-
+    void clearContextInSelection(CaptureContextV1 *context);
 Q_SIGNALS:
     void contextInSelectionChanged();
     void newCaptureContext(CaptureContextV1 *context);
@@ -297,7 +297,6 @@ protected:
 
 private Q_SLOTS:
     void onCaptureContextSelectSource();
-    void clearContextInSelection(CaptureContextV1 *context);
     void freezeAllCapturedSurface(bool freeze, WAYLIB_SERVER_NAMESPACE::WSurface *maskItem);
     void handleContextBeforeDestroy(CaptureContextV1 *context);
 
@@ -421,6 +420,7 @@ private:
     void setSelectedSource(CaptureSource *newSelectedSource, const QRect &region);
     void handleItemSelectorSelectionRegionChanged();
     WOutputRenderWindow *renderWindow() const;
+    void createImage();
 
     void updateItemSelectorItemTypes();
     void updateCursorShape();
