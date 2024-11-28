@@ -30,6 +30,7 @@ class WInputMethodHelper;
 class WInputPopupSurface;
 class WSeat;
 class WSurface;
+class WXWaylandSurface;
 WAYLIB_SERVER_END_NAMESPACE
 
 QW_BEGIN_NAMESPACE
@@ -46,7 +47,7 @@ class ShellHandler : public QObject
     Q_OBJECT
 
 public:
-    ShellHandler(RootSurfaceContainer *rootContainer);
+    explicit ShellHandler(RootSurfaceContainer *rootContainer);
     [[nodiscard]] Workspace *workspace() const;
 
     void createComponent(QmlEngine *engine);
@@ -74,6 +75,7 @@ private Q_SLOTS:
     void onXdgPopupSurfaceAdded(WAYLIB_SERVER_NAMESPACE::WXdgPopupSurface *surface);
     void onXdgPopupSurfaceRemoved(WAYLIB_SERVER_NAMESPACE::WXdgPopupSurface *surface);
 
+    void onXWaylandSurfaceAdded(WAYLIB_SERVER_NAMESPACE::WXWaylandSurface *surface);
 
     void onLayerSurfaceAdded(WAYLIB_SERVER_NAMESPACE::WLayerSurface *surface);
     void onLayerSurfaceRemoved(WAYLIB_SERVER_NAMESPACE::WLayerSurface *surface);
