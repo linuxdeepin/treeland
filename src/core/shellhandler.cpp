@@ -94,45 +94,7 @@ WXWayland *ShellHandler::createXWayland(WServer *server,
     auto *xwayland = server->attach<WXWayland>(compositor, false);
     m_xwaylands.append(xwayland);
     xwayland->setSeat(seat);
-    connect(xwayland, &WXWayland::surfaceAdded, this, [this, xwayland](WXWaylandSurface *surface) {
-        surface->safeConnect(&qw_xwayland_surface::notify_associate, this, [this, surface] {
-            auto wrapper = new SurfaceWrapper(Helper::instance()->qmlEngine(),
-                                              surface,
-                                              SurfaceWrapper::Type::XWayland);
-            auto updateSurfaceWithParentContainer = [this, wrapper, surface] {
-                if (wrapper->parentSurface())
-                    wrapper->parentSurface()->removeSubSurface(wrapper);
-                if (wrapper->container())
-                    wrapper->container()->removeSurface(wrapper);
-
-                if (auto parent = surface->parentXWaylandSurface()) {
-                    auto parentWrapper = m_rootSurfaceContainer->getSurface(parent);
-                    auto container = qobject_cast<Workspace *>(parentWrapper->container());
-                    Q_ASSERT(container);
-                    parentWrapper->addSubSurface(wrapper);
-                    container->addSurface(wrapper, parentWrapper->workspaceId());
-                } else {
-                    m_workspace->addSurface(wrapper);
-                }
-            };
-
-            surface->safeConnect(&WXWaylandSurface::parentXWaylandSurfaceChanged,
-                                 this,
-                                 updateSurfaceWithParentContainer);
-            updateSurfaceWithParentContainer();
-
-            Q_ASSERT(wrapper->parentItem());
-            setupSurfaceWindowMenu(wrapper);
-            setupSurfaceActiveWatcher(wrapper);
-            Q_EMIT surfaceWrapperAdded(wrapper);
-        });
-        surface->safeConnect(&qw_xwayland_surface::notify_dissociate, this, [this, surface] {
-            auto wrapper = m_rootSurfaceContainer->getSurface(surface->surface());
-            Q_EMIT surfaceWrapperAboutToRemove(wrapper);
-            m_rootSurfaceContainer->destroyForSurface(wrapper);
-        });
-    });
-
+    connect(xwayland, &WXWayland::surfaceAdded, this, &ShellHandler::onXWaylandSurfaceAdded);
     return xwayland;
 }
 
@@ -230,6 +192,52 @@ void ShellHandler::onXdgPopupSurfaceRemoved(WXdgPopupSurface *surface)
     Q_EMIT surfaceWrapperAboutToRemove(wrapper);
     m_rootSurfaceContainer->destroyForSurface(wrapper);
 }
+
+void ShellHandler::onXWaylandSurfaceAdded(WXWaylandSurface *surface)
+{
+    surface->safeConnect(&qw_xwayland_surface::notify_associate, this, [this, surface] {
+        auto wrapper = new SurfaceWrapper(Helper::instance()->qmlEngine(),
+                                          surface,
+                                          SurfaceWrapper::Type::XWayland);
+
+        auto updateSurfaceWithParentContainer = [this, wrapper, surface] {
+            if (wrapper->parentSurface())
+                wrapper->parentSurface()->removeSubSurface(wrapper);
+            if (wrapper->container())
+                wrapper->container()->removeSurface(wrapper);
+
+            auto parent = surface->parentXWaylandSurface();
+            auto parentWrapper = parent ? m_rootSurfaceContainer->getSurface(parent) : nullptr;
+            // x11 surface's parent may not associate
+            if (parentWrapper) {
+                auto container = qobject_cast<Workspace *>(parentWrapper->container());
+                Q_ASSERT(container);
+                parentWrapper->addSubSurface(wrapper);
+                container->addSurface(wrapper, parentWrapper->workspaceId());
+            } else {
+                m_workspace->addSurface(wrapper);
+            }
+        };
+
+        surface->safeConnect(&WXWaylandSurface::parentXWaylandSurfaceChanged,
+                             this,
+                             updateSurfaceWithParentContainer);
+        updateSurfaceWithParentContainer();
+
+        Q_ASSERT(wrapper->parentItem());
+        setupSurfaceWindowMenu(wrapper);
+        setupSurfaceActiveWatcher(wrapper);
+        Q_EMIT surfaceWrapperAdded(wrapper);
+    });
+    surface->safeConnect(&qw_xwayland_surface::notify_dissociate, this, [this, surface] {
+        auto wrapper = m_rootSurfaceContainer->getSurface(surface->surface());
+        qDebug() << "WXWayland::notify_dissociate" << surface << wrapper;
+
+        Q_EMIT surfaceWrapperAboutToRemove(wrapper);
+        m_rootSurfaceContainer->destroyForSurface(wrapper);
+    });
+}
+
 
 void ShellHandler::setupSurfaceActiveWatcher(SurfaceWrapper *wrapper)
 {
