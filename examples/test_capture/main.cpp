@@ -84,24 +84,24 @@ int main(int argc, char *argv[])
                 }
             });
     };
-    QObject::connect(
-        &engine,
-        &QQmlApplicationEngine::objectCreated,
-        manager,
-        [&app, manager, captureWithMask](QObject *object, const QUrl &url) {
-            if (auto canvasWindow = qobject_cast<QQuickWindow *>(object)) {
-                auto waylandWindow =
-                    static_cast<QtWaylandClient::QWaylandWindow *>(canvasWindow->handle());
-                if (manager->isActive()) {
-                    captureWithMask(waylandWindow->surface());
-                } else {
-                    QObject::connect(manager,
-                                     &TreelandCaptureManager::activeChanged,
-                                     manager,
-                                     std::bind(captureWithMask, waylandWindow->surface()));
-                }
-            }
-        });
+    QObject::connect(&engine,
+                     &QQmlApplicationEngine::objectCreated,
+                     manager,
+                     [&app, manager, captureWithMask](QObject *object, const QUrl &url) {
+                         if (auto canvasWindow = qobject_cast<QQuickWindow *>(object)) {
+                             auto waylandWindow = static_cast<QtWaylandClient::QWaylandWindow *>(
+                                 canvasWindow->handle());
+                             auto mask = waylandWindow ? waylandWindow->surface() : nullptr;
+                             if (manager->isActive()) {
+                                 captureWithMask(mask);
+                             } else {
+                                 QObject::connect(manager,
+                                                  &TreelandCaptureManager::activeChanged,
+                                                  manager,
+                                                  std::bind(captureWithMask, mask));
+                             }
+                         }
+                     });
     engine.loadFromModule("capture", "Main");
     return app.exec();
 }

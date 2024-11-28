@@ -37,7 +37,6 @@ TreelandCaptureManager::TreelandCaptureManager()
     : QWaylandClientExtensionTemplate<TreelandCaptureManager>(1)
     , QtWayland::treeland_capture_manager_v1()
 {
-    qInfo() << "TreelandCaptureManager created.";
     connect(this, &TreelandCaptureManager::activeChanged, this, [this] {
         if (!isActive() && m_context) {
             delete m_context;
@@ -284,7 +283,6 @@ void TreelandCaptureManager::setRecord(bool newRecord)
     if (m_record == newRecord)
         return;
     m_record = newRecord;
-    qInfo() << "Set record to" << m_record;
     emit recordChanged();
 }
 
