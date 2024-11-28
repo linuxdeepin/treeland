@@ -26,6 +26,8 @@
 #include <qwcompositor.h>
 #include <qwxwaylandsurface.h>
 
+Q_LOGGING_CATEGORY(qLcShellHandler, "treeland.shell.handler")
+
 QW_USE_NAMESPACE
 WAYLIB_SERVER_USE_NAMESPACE
 
@@ -249,7 +251,7 @@ void ShellHandler::setupSurfaceActiveWatcher(SurfaceWrapper *wrapper)
 void ShellHandler::onLayerSurfaceAdded(WLayerSurface *surface)
 {
     if (!surface->output() && !m_rootSurfaceContainer->primaryOutput()) {
-        qWarning() << "No output, will close layer surface!";
+        qCWarning(qLcShellHandler) << "No output, will close layer surface!";
         surface->closed();
         return;
     }
@@ -274,7 +276,7 @@ void ShellHandler::onLayerSurfaceRemoved(WLayerSurface *surface)
 {
     auto wrapper = m_rootSurfaceContainer->getSurface(surface->surface());
     if (!wrapper) {
-        qWarning() << "A layerSurface that not in any Container is removing!";
+        qWarning(qLcShellHandler) << "A layerSurface that not in any Container is removing!";
         return;
     }
     Q_EMIT surfaceWrapperAboutToRemove(wrapper);

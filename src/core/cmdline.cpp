@@ -11,7 +11,7 @@
 
 #include <optional>
 
-Q_LOGGING_CATEGORY(cmdline, "treeland.cmdline", QtDebugMsg);
+Q_LOGGING_CATEGORY(qLcCmdline, "treeland.cmdline");
 
 CmdLine::CmdLine()
     : QObject()
@@ -76,7 +76,7 @@ std::optional<QStringList> CmdLine::unescapeExecArgs(const QString &str) noexcep
 {
     auto unescapedStr = unescape(str);
     if (unescapedStr.isEmpty()) {
-        qCWarning(cmdline) << "unescape Exec failed.";
+        qCWarning(qLcCmdline) << "unescape Exec failed.";
         return std::nullopt;
     }
 
@@ -109,7 +109,7 @@ std::optional<QStringList> CmdLine::unescapeExecArgs(const QString &str) noexcep
         default:
             errMessage = "unknown";
         }
-        qCWarning(cmdline) << "wordexp error: " << errMessage;
+        qCWarning(qLcCmdline) << "wordexp error: " << errMessage;
         return std::nullopt;
     }
 

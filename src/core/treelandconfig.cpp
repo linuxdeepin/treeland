@@ -2,7 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 #include "treelandconfig.h"
 
+#include <QLoggingCategory>
 #include <qcoreevent.h>
+
+Q_LOGGING_CATEGORY(qLcConfig, "treeland.config");
 
 DCORE_USE_NAMESPACE
 TreelandConfig::TreelandConfig()
@@ -166,8 +169,8 @@ void TreelandConfig::setNumWorkspace(uint newNumWorkspace)
     if (newNumWorkspace == m_numWorkspace)
         return;
     if (newNumWorkspace == 0 || newNumWorkspace > maxWorkspace()) {
-        qCritical() << "Set error Workspace count: " << newNumWorkspace << "which should not exceed"
-                    << maxWorkspace();
+        qCCritical(qLcConfig) << "Set error Workspace count: " << newNumWorkspace
+                              << "which should not exceed" << maxWorkspace();
         return;
     }
     m_numWorkspace = newNumWorkspace;
@@ -261,7 +264,7 @@ QString TreelandConfig::cursorThemeName()
         m_cursorThemeName = theme;
     }
 
-    qDebug() << "cursorThemeName: " << m_cursorThemeName;
+    qCDebug(qLcConfig) << "cursorThemeName: " << m_cursorThemeName;
 
     return m_cursorThemeName;
 }
@@ -283,7 +286,7 @@ QSize TreelandConfig::cursorSize()
     int value = m_dconfig->value("cursorSize", 24).toInt();
     m_cursorSize = QSize(value, value);
 
-    qDebug() << "cursorSize: " << m_cursorSize;
+    qDebug(qLcConfig) << "cursorSize: " << m_cursorSize;
 
     return m_cursorSize;
 }
