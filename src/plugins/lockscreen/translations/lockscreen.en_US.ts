@@ -4,71 +4,85 @@
 <context>
     <name>Center</name>
     <message>
-        <location filename="../Center.qml" line="160"/>
         <source>Return to default mode</source>
-        <translation>Return to default mode</translation>
+        <translation type="vanished">Return to default mode</translation>
     </message>
     <message>
-        <location filename="../Center.qml" line="161"/>
         <source>Do you want to back to default?</source>
-        <translation>Do you want to back to default?</translation>
+        <translation type="vanished">Do you want to back to default?</translation>
     </message>
     <message>
-        <location filename="../Center.qml" line="162"/>
         <source>This action will reboot machine, please confirm.</source>
-        <translation>This action will reboot machine, please confirm.</translation>
+        <translation type="vanished">This action will reboot machine, please confirm.</translation>
     </message>
     <message>
-        <location filename="../Center.qml" line="188"/>
         <source>Back To Default Mode</source>
-        <translation>Back To Default Mode</translation>
+        <translation type="vanished">Back To Default Mode</translation>
     </message>
     <message>
-        <location filename="../Center.qml" line="215"/>
         <source>Other Users</source>
-        <translation>Other Users</translation>
+        <translation type="vanished">Other Users</translation>
     </message>
     <message>
-        <location filename="../Center.qml" line="249"/>
         <source>Power</source>
-        <translation>Power</translation>
+        <translation type="vanished">Power</translation>
+    </message>
+</context>
+<context>
+    <name>ControlAction</name>
+    <message>
+        <location filename="../qml/ControlAction.qml" line="42"/>
+        <source>Other Users</source>
+        <translation type="unfinished">Other Users</translation>
+    </message>
+    <message>
+        <location filename="../qml/ControlAction.qml" line="76"/>
+        <source>Power</source>
+        <translation type="unfinished">Power</translation>
     </message>
 </context>
 <context>
     <name>Greeter</name>
     <message>
-        <location filename="../Greeter.qml" line="86"/>
         <source>Password is incorrect.</source>
-        <translation>Password is incorrect.</translation>
+        <translation type="vanished">Password is incorrect.</translation>
     </message>
 </context>
 <context>
     <name>HintLabel</name>
     <message>
-        <location filename="../HintLabel.qml" line="22"/>
+        <location filename="../qml/HintLabel.qml" line="26"/>
         <source>Password Hint</source>
         <translation>Password Hint</translation>
     </message>
 </context>
 <context>
+    <name>LockView</name>
+    <message>
+        <location filename="../qml/LockView.qml" line="173"/>
+        <source>Password is incorrect.</source>
+        <translation type="unfinished">Password is incorrect.</translation>
+    </message>
+</context>
+<context>
     <name>PowerList</name>
     <message>
-        <location filename="../PowerList.qml" line="32"/>
+        <location filename="../qml/PowerList.qml" line="34"/>
         <source>Hibernate</source>
         <translation>Hibernate</translation>
     </message>
     <message>
-        <location filename="../PowerList.qml" line="40"/>
+        <location filename="../qml/PowerList.qml" line="41"/>
         <source>Suspend</source>
         <translation>Suspend</translation>
     </message>
     <message>
-        <location filename="../PowerList.qml" line="48"/>
+        <location filename="../qml/PowerList.qml" line="48"/>
         <source>Reboot</source>
         <translation>Reboot</translation>
     </message>
     <message>
-        <location filename="../PowerList.qml" line="57"/>
+        <location filename="../qml/PowerList.qml" line="56"/>
         <source>Shut Down</source>
         <translation>Shut Down</translation>
     </message>
@@ -76,29 +90,39 @@
 <context>
     <name>SessionModel</name>
     <message>
-        <location filename="../SessionModel.cpp" line="117"/>
         <source>%1 (Wayland)</source>
-        <translation>%1 (Wayland)</translation>
+        <translation type="vanished">%1 (Wayland)</translation>
+    </message>
+</context>
+<context>
+    <name>ShutdownView</name>
+    <message>
+        <location filename="../qml/ShutdownView.qml" line="32"/>
+        <source>lock</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../qml/ShutdownView.qml" line="38"/>
+        <source>switch user</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
     <name>User</name>
     <message>
-        <location filename="../User.cpp" line="133"/>
         <source>Administrator</source>
-        <translation>Administrator</translation>
+        <translation type="vanished">Administrator</translation>
     </message>
     <message>
-        <location filename="../User.cpp" line="135"/>
         <source>Standard User</source>
-        <translation>Standard User</translation>
+        <translation type="vanished">Standard User</translation>
     </message>
 </context>
 <context>
     <name>UserInput</name>
     <message>
-        <location filename="../UserInput.qml" line="14"/>
-        <location filename="../UserInput.qml" line="131"/>
+        <location filename="../qml/UserInput.qml" line="15"/>
+        <location filename="../qml/UserInput.qml" line="134"/>
         <source>Please enter password</source>
         <translation>Please enter password</translation>
     </message>

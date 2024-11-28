@@ -10,6 +10,7 @@ FocusScope {
 
     signal clicked()
     signal switchUser()
+    signal lock()
 
     MouseArea {
         anchors.fill: parent
@@ -25,6 +26,12 @@ FocusScope {
             top: parent.top
             topMargin: parent.height / 5 * 2
             horizontalCenter: parent.horizontalCenter
+        }
+
+        leftModelChildren: ShutdownButton {
+            text: qsTr("lock")
+            icon.name: "login_lock"
+            onClicked: root.lock()
         }
 
         modelChildren: ShutdownButton {
