@@ -48,8 +48,7 @@ int main(int argc, char *argv[])
                 if (manager->record()) {
                     auto session = captureContext->ensureSession();
                     session->start();
-                    // Q_EMIT manager->recordStartedChanged();
-                    QTimer::singleShot(1000, [manager] {
+                    QTimer::singleShot(1000, manager, [manager] {
                         Q_EMIT manager->recordStartedChanged();
                     });
                 } else {
@@ -78,6 +77,7 @@ int main(int argc, char *argv[])
                         "portal screenshot - " + QDateTime::currentDateTime().toString() + ".png";
                     if (result.save(saveBaseDir.absoluteFilePath(picName), "PNG")) {
                         qDebug() << saveBaseDir.absoluteFilePath(picName);
+                        app.quit();
                     } else {
                         app.exit(-1);
                     }
