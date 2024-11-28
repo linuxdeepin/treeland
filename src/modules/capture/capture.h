@@ -429,7 +429,6 @@ private:
     QPointer<ItemSelector> m_itemSelector{};
     QPointer<SurfaceContainer> m_canvasContainer{};
     CaptureSource *m_selectedSource{ nullptr };
-    QList<QPointer<QQuickItem>> m_selectableItems{};
     QPointer<CaptureManagerV1> m_captureManager{ nullptr };
     QRectF m_selectionRegion{};
     QPointF m_selectionAnchor{};
