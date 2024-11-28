@@ -12,6 +12,9 @@
 #include "usermodel.h"
 
 #include <rhi/qrhi.h>
+
+#include <QDBusConnection>
+#include <QDBusInterface>
 #ifndef DISABLE_DDM
 #  include "lockscreen.h"
 #endif
@@ -1635,6 +1638,11 @@ void Helper::showLockScreen()
     m_lockScreen->lock();
 
     setWorkspaceVisible(false);
+
+    // send DDM switch to greeter mode
+    // FIXME: DDM and Treeland should listen to the lock signal of login1
+    QDBusInterface interface("org.freedesktop.DisplayManager", "/org/freedesktop/DisplayManager/Seat0", "org.freedesktop.DisplayManager.Seat", QDBusConnection::systemBus());
+    interface.asyncCall("SwitchToGreeter");
 }
 
 WSeat *Helper::seat() const
