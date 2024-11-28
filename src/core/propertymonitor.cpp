@@ -3,6 +3,9 @@
 #include "propertymonitor.h"
 
 #include <QEvent>
+#include <QLoggingCategory>
+
+Q_LOGGING_CATEGORY(qLcMonitor, "treeland.property.monitor")
 
 PropertyMonitor::PropertyMonitor(QObject *parent)
     : QObject(parent)
@@ -45,7 +48,7 @@ void PropertyMonitor::handlePropertyChanged()
     auto index = senderSignalIndex();
     for (const auto &mProp : std::as_const(m_metaProps)) {
         if (mProp.hasNotifySignal() && mProp.notifySignalIndex() == index) {
-            qDebug() << m_target << mProp.name() << mProp.read(m_target);
+            qCDebug(qLcMonitor) << m_target << mProp.name() << mProp.read(m_target);
             break;
         }
     }

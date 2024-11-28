@@ -13,6 +13,8 @@
 
 WAYLIB_SERVER_USE_NAMESPACE
 
+Q_LOGGING_CATEGORY(qLcLayer, "treeland.shell.layerContainer")
+
 OutputLayerSurfaceContainer::OutputLayerSurfaceContainer(Output *output,
                                                          LayerSurfaceContainer *parent)
     : SurfaceContainer(parent)
@@ -119,7 +121,7 @@ void LayerSurfaceContainer::addSurfaceToContainer(SurfaceWrapper *surface)
         : rootContainer()->primaryOutput() ? rootContainer()->primaryOutput()->output()
                                            : nullptr;
     if (!output) {
-        qCWarning(qLcLayerShell) << "No output, will close layer surface!";
+        qCWarning(qLcLayer) << "No output, will close layer surface!";
         shell->closed();
         return;
     }

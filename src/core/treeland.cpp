@@ -40,7 +40,7 @@ using namespace DDM;
 #include <sys/socket.h>
 #include <unistd.h>
 
-Q_LOGGING_CATEGORY(dbus, "treeland.dbus", QtDebugMsg);
+Q_LOGGING_CATEGORY(qLcDBus, "treeland.dbus");
 
 DCORE_USE_NAMESPACE;
 
@@ -110,12 +110,12 @@ public:
             helper->qmlEngine()->singletonInstance<UserModel *>("Treeland.Greeter", "UserModel");
         auto user = userModel->getUser(uid);
         if (!user) {
-            qCWarning(dbus) << "user " << uid << " has been added but couldn't find it.";
+            qCWarning(qLcDBus) << "user " << uid << " has been added but couldn't find it.";
             return;
         }
 
         auto locale = user->locale();
-        qCInfo(dbus) << "current locale:" << locale.language();
+        qCInfo(qLcDBus) << "current locale:" << locale.language();
 
         do {
             auto *newTrans = new QTranslator{ this };
@@ -131,7 +131,7 @@ public:
                 break;
             }
             newTrans->deleteLater();
-            qCWarning(dbus) << "failed to load new translator";
+            qCWarning(qLcDBus) << "failed to load new translator";
         } while (false);
     }
 
@@ -145,7 +145,7 @@ public:
         }
 
         auto locale = userModel->currentUser()->locale();
-        qCInfo(dbus) << "current locale:" << locale.language();
+        qCInfo(qLcDBus) << "current locale:" << locale.language();
         QTranslator *newTrans = new QTranslator;
 
         if (newTrans->load(locale, scope, ".", TREELAND_COMPONENTS_TRANSLATION_DIR, ".qm")) {
@@ -161,7 +161,7 @@ public:
             QCoreApplication::installTranslator(pluginTs[plugin]);
             qmlEngine->retranslate();
         } else {
-            qCWarning(dbus) << "failed to load plugin translator: " << scope;
+            qCWarning(qLcDBus) << "failed to load plugin translator: " << scope;
         }
     }
 #endif
@@ -179,22 +179,22 @@ public:
         const QStringList pluginFiles = pluginsDir.entryList(QDir::Files | QDir::NoDotAndDotDot);
         for (const QString &pluginFile : pluginFiles) {
             QString filePath = pluginsDir.absoluteFilePath(pluginFile);
-            qCDebug(dbus) << "Attempting to load plugin:" << filePath;
+            qCDebug(qLcDBus) << "Attempting to load plugin:" << filePath;
 
             QPluginLoader loader(filePath);
             QObject *pluginInstance = loader.instance();
 
             if (!pluginInstance) {
-                qWarning(dbus) << "Failed to load plugin:" << loader.errorString();
+                qWarning(qLcDBus) << "Failed to load plugin:" << loader.errorString();
                 continue;
             }
 
             PluginInterface *plugin = qobject_cast<PluginInterface *>(pluginInstance);
             if (!plugin) {
-                qWarning(dbus) << "Plugin does not implement PluginInterface.";
+                qWarning(qLcDBus) << "Plugin does not implement PluginInterface.";
             }
 
-            qCDebug(dbus) << "Loaded plugin: " << plugin->name()
+            qCDebug(qLcDBus) << "Loaded plugin: " << plugin->name()
                           << ", enabled: " << plugin->enabled()
                           << ", metadata: " << loader.metaData();
             // TODO: use scheduler to run
@@ -204,7 +204,7 @@ public:
             const QString scope{
                 loader.metaData().value("MetaData").toObject().value("translate").toString()
             };
-            qCDebug(dbus) << "Plugin translate scope:" << scope;
+            qCDebug(qLcDBus) << "Plugin translate scope:" << scope;
 
 #ifndef DISABLE_DDM
             connect(helper->qmlEngine()->singletonInstance<UserModel *>("Treeland.Greeter",
@@ -219,7 +219,7 @@ public:
 #endif
 
             if (auto *multitaskview = qobject_cast<IMultitaskView *>(pluginInstance)) {
-                qCDebug(dbus) << "Get MultitaskView Instance.";
+                qCDebug(qLcDBus) << "Get MultitaskView Instance.";
                 connect(pluginInstance, &QObject::destroyed, this, [this] {
                     helper->setMultitaskViewImpl(nullptr);
                 });
@@ -228,7 +228,7 @@ public:
 
 #ifndef DISABLE_DDM
             if (auto *lockscreen = qobject_cast<ILockScreen *>(pluginInstance)) {
-                qCDebug(dbus) << "Get LockScreen Instance.";
+                qCDebug(qLcDBus) << "Get LockScreen Instance.";
                 connect(pluginInstance, &QObject::destroyed, this, [this] {
                     helper->setLockScreenImpl(nullptr);
                 });
@@ -302,7 +302,7 @@ Treeland::Treeland()
 
     if (CmdLine::ref().run().has_value()) {
         auto exec = [runCmd = CmdLine::ref().run().value(), this, d] {
-            qCInfo(dbus) << "run cmd:" << runCmd;
+            qCInfo(qLcDBus) << "run cmd:" << runCmd;
             if (auto cmdline = CmdLine::ref().unescapeExecArgs(runCmd); cmdline) {
                 auto cmdArgs = cmdline.value();
 
@@ -401,7 +401,7 @@ bool Treeland::isBlockActivateSurface() const
 void TreelandPrivate::connected()
 {
     // log connection
-    qCDebug(dbus) << "Connected to the daemon.";
+    qCDebug(qLcDBus) << "Connected to the daemon.";
 
     // send connected message
     DDM::SocketWriter(socket) << quint32(DDM::GreeterMessages::Connect);
@@ -412,11 +412,11 @@ void TreelandPrivate::disconnected()
     Q_Q(Treeland);
 
     // log disconnection
-    qCDebug(dbus) << "Disconnected from the daemon.";
+    qCDebug(qLcDBus) << "Disconnected from the daemon.";
 
     Q_EMIT q->socketDisconnected();
 
-    qCDebug(dbus) << "Display Manager is closed socket connect, quiting treeland.";
+    qCDebug(qLcDBus) << "Display Manager is closed socket connect, quiting treeland.";
     qApp->exit();
 }
 
@@ -440,7 +440,7 @@ void TreelandPrivate::readyRead()
         switch (DDM::DaemonMessages(message)) {
         case DDM::DaemonMessages::Capabilities: {
             // log message
-            qCDebug(dbus) << "Message received from daemon: Capabilities";
+            qCDebug(qLcDBus) << "Message received from daemon: Capabilities";
         } break;
         case DDM::DaemonMessages::LoginSucceeded:
         case DDM::DaemonMessages::UserActivateMessage: {
@@ -530,15 +530,15 @@ QString Treeland::XWaylandName()
     QProcess *process = new QProcess(this);
     connect(process, &QProcess::finished, [process, m, conn, user, display] {
         if (process->exitCode() != 0) {
-            qCWarning(dbus) << "xhost command failed with exit code" << process->exitCode()
+            qCWarning(qLcDBus) << "xhost command failed with exit code" << process->exitCode()
                             << process->readAllStandardOutput() << process->readAllStandardError();
             auto reply =
                 m.createErrorReply(QDBusError::InternalError, "Failed to set xhost permissions");
             conn.send(reply);
         } else {
-            qCDebug(dbus) << process->exitCode() << " " << process->readAllStandardOutput()
+            qCDebug(qLcDBus) << process->exitCode() << " " << process->readAllStandardOutput()
                           << process->readAllStandardError();
-            qCDebug(dbus) << QString("user %1 got xwayland display %2.").arg(user).arg(display);
+            qCDebug(qLcDBus) << QString("user %1 got xwayland display %2.").arg(user).arg(display);
             auto reply = m.createReply(display);
             conn.send(reply);
         }

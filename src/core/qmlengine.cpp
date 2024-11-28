@@ -14,7 +14,7 @@
 
 #include <QQuickItem>
 
-Q_LOGGING_CATEGORY(qLcTreelandEngine, "treeland.qml.engine", QtWarningMsg)
+Q_LOGGING_CATEGORY(qLcQmlEngine, "treeland.qmlEngine")
 
 QmlEngine::QmlEngine(QObject *parent)
     : QQmlApplicationEngine(parent)
@@ -56,7 +56,7 @@ QQuickItem *QmlEngine::createComponent(QQmlComponent &component,
     auto item = qobject_cast<QQuickItem *>(obj);
     Q_ASSERT_X(item, __func__, component.errorString().toStdString().c_str());
     if (!item) {
-        qCFatal(qLcTreelandEngine) << "Can't create component:" << component.errorString();
+        qCFatal(qLcQmlEngine) << "Can't create component:" << component.errorString();
     }
     item->setParent(parent);
     item->setParentItem(parent);
@@ -84,7 +84,7 @@ QObject *QmlEngine::createWindowMenu(QObject *parent)
     auto context = qmlContext(parent);
     auto obj = windowMenuComponent.beginCreate(context);
     if (!obj) {
-        qCFatal(qLcTreelandEngine)
+        qCFatal(qLcQmlEngine)
             << "Can't create WindowMenu:" << windowMenuComponent.errorString();
     }
     obj->setParent(parent);
