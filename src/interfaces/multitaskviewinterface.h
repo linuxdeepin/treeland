@@ -28,6 +28,7 @@ public:
 
     virtual void setStatus(IMultitaskView::Status status) = 0;
     virtual void toggleMultitaskView(IMultitaskView::ActiveReason reason) = 0;
+    virtual void immediatelyExit() = 0;
 };
 
 Q_DECLARE_INTERFACE(IMultitaskView, "org.deepin.treeland.v1.MultitaskViewInterface")
