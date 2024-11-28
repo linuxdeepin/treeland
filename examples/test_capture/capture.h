@@ -16,7 +16,7 @@ class TreelandCaptureFrame
     , public QtWayland::treeland_capture_frame_v1
 {
     Q_OBJECT
-    QML_ELEMENT
+    QML_ANONYMOUS
 public:
     TreelandCaptureFrame(struct ::treeland_capture_frame_v1 *object, QObject *parent = nullptr);
     ~TreelandCaptureFrame() override;
@@ -71,7 +71,7 @@ class TreelandCaptureSession
     , public QtWayland::treeland_capture_session_v1
 {
     Q_OBJECT
-    QML_ELEMENT
+    QML_ANONYMOUS
     Q_PROPERTY(bool started READ started NOTIFY startedChanged FINAL)
 
 public:
@@ -170,7 +170,7 @@ class TreelandCaptureContext
     , public QtWayland::treeland_capture_context_v1
 {
     Q_OBJECT
-    QML_ELEMENT
+    QML_ANONYMOUS
     Q_PROPERTY(TreelandCaptureFrame* frame READ frame NOTIFY frameChanged FINAL)
     Q_PROPERTY(TreelandCaptureSession* session READ session NOTIFY sessionChanged FINAL)
     Q_PROPERTY(QRectF captureRegion READ captureRegion NOTIFY captureRegionChanged FINAL)
