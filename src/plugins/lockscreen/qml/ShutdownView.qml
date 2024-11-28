@@ -19,9 +19,8 @@ FocusScope {
     }
 
     PowerList {
-
         width: parent.width
-        height: 100
+        height: 140
         anchors {
             top: parent.top
             topMargin: parent.height / 5 * 2
@@ -36,7 +35,7 @@ FocusScope {
 
         modelChildren: ShutdownButton {
             text: qsTr("switch user")
-            icon.name: "login_user"
+            icon.name: "login_switchuser"
             onClicked: root.switchUser()
         }
     }
