@@ -195,11 +195,17 @@ public:
 
         Q_ASSERT(!updateTextureConnection);
         updateTextureConnection = surface->safeConnect(&WSurface::bufferChanged, q, [q, this] {
-            buffer.reset(surface->buffer());
-            // lock buffer to ensure the WSurfaceItem can keep the last frame after WSurface destroyed.
-            if (buffer)
-                buffer->lock();
-            q->update();
+            if (!live) {
+                pendingBuffer.reset(surface->buffer());
+                if (pendingBuffer)
+                    pendingBuffer->lock();
+            } else {
+                buffer.reset(surface->buffer());
+                // lock buffer to ensure the WSurfaceItem can keep the last frame after WSurface destroyed.
+                if (buffer)
+                    buffer->lock();
+                q->update();
+            }
         });
 
         updateFrameDoneConnection();
@@ -244,6 +250,12 @@ public:
         q->setImplicitSize(s.width(), s.height());
     }
 
+    void swapBufferIfNeeded() {
+        if (pendingBuffer) {
+            buffer.reset(pendingBuffer.release());
+        }
+    }
+
     W_DECLARE_PUBLIC(WSurfaceItemContent)
     QPointer<WSurface> surface;
     QRectF bufferSourceBox;
@@ -252,6 +264,7 @@ public:
     QMetaObject::Connection frameDoneConnection;
     mutable WSGTextureProvider *textureProvider = nullptr;
     std::unique_ptr<qw_buffer, qw_buffer::unlocker> buffer;
+    std::unique_ptr<qw_buffer, qw_buffer::unlocker> pendingBuffer;
     mutable QMetaObject::Connection updateTextureConnection;
     bool dontCacheLastBuffer = false;
     bool live = true;
@@ -387,8 +400,10 @@ void WSurfaceItemContent::setLive(bool live)
     if (d->live == live)
         return;
     d->live = live;
-    if (live)
+    if (live) {
+        d->swapBufferIfNeeded();
         update();
+    }
     Q_EMIT liveChanged();
 }
 
