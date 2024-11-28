@@ -193,6 +193,37 @@ bool Helper::isNvidiaCardPresent()
     return deviceName.contains("NVIDIA", Qt::CaseInsensitive);
 }
 
+void Helper::setWorkspaceVisible(bool visible)
+{
+    for (auto *surface : m_rootSurfaceContainer->surfaces()) {
+        if (surface->type() == SurfaceWrapper::Type::Layer) {
+            surface->setHideByLockScreen(!visible);
+        }
+    }
+    if (visible) {
+        m_workspaceScaleAnimation->stop();
+        m_workspaceScaleAnimation->setStartValue(m_shellHandler->workspace()->scale());
+        m_workspaceScaleAnimation->setEndValue(1.0);
+        m_workspaceScaleAnimation->start();
+
+        m_workspaceOpacityAnimation->stop();
+        m_workspaceOpacityAnimation->setStartValue(m_shellHandler->workspace()->opacity());
+        m_workspaceOpacityAnimation->setEndValue(1.0);
+        m_workspaceOpacityAnimation->start();
+    } else {
+        m_workspaceScaleAnimation->stop();
+        m_workspaceScaleAnimation->setStartValue(m_shellHandler->workspace()->scale());
+        m_workspaceScaleAnimation->setEndValue(1.4);
+        m_workspaceScaleAnimation->start();
+
+        m_workspaceOpacityAnimation->stop();
+        m_workspaceOpacityAnimation->setStartValue(m_shellHandler->workspace()->opacity());
+        m_workspaceOpacityAnimation->setEndValue(0.0);
+        m_workspaceOpacityAnimation->start();
+
+    }
+}
+
 QmlEngine *Helper::qmlEngine() const
 {
     return qobject_cast<QmlEngine *>(::qmlEngine(this));
@@ -1354,17 +1385,23 @@ void Helper::handleLockScreen(LockScreenInterface *lockScreen)
 {
     connect(lockScreen, &LockScreenInterface::shutdown, this, [this]() {
         if (m_lockScreen && currentMode() == Helper::CurrentMode::Normal) {
+            setCurrentMode(CurrentMode::LockScreen);
             m_lockScreen->shutdown();
+            setWorkspaceVisible(false);
         }
     });
     connect(lockScreen, &LockScreenInterface::lock, this, [this]() {
         if (m_lockScreen && currentMode() == Helper::CurrentMode::Normal) {
+            setCurrentMode(CurrentMode::LockScreen);
             m_lockScreen->lock();
+            setWorkspaceVisible(false);
         }
     });
     connect(lockScreen, &LockScreenInterface::switchUser, this, [this]() {
         if (m_lockScreen && currentMode() == Helper::CurrentMode::Normal) {
+            setCurrentMode(CurrentMode::LockScreen);
             m_lockScreen->switchUser();
+            setWorkspaceVisible(false);
         }
     });
 }
@@ -1569,22 +1606,7 @@ void Helper::setLockScreenImpl(ILockScreen *impl)
 
     connect(m_lockScreen, &LockScreen::unlock, this, [this] {
         setCurrentMode(CurrentMode::Normal);
-
-        for (auto *surface : m_rootSurfaceContainer->surfaces()) {
-            if (surface->type() == SurfaceWrapper::Type::Layer) {
-                surface->setHideByLockScreen(false);
-            }
-        }
-
-        m_workspaceScaleAnimation->stop();
-        m_workspaceScaleAnimation->setStartValue(m_shellHandler->workspace()->scale());
-        m_workspaceScaleAnimation->setEndValue(1.0);
-        m_workspaceScaleAnimation->start();
-
-        m_workspaceOpacityAnimation->stop();
-        m_workspaceOpacityAnimation->setStartValue(m_shellHandler->workspace()->opacity());
-        m_workspaceOpacityAnimation->setEndValue(1.0);
-        m_workspaceOpacityAnimation->start();
+        setWorkspaceVisible(true);
     });
 
     if (CmdLine::ref().useLockScreen()) {
@@ -1612,21 +1634,7 @@ void Helper::showLockScreen()
     setCurrentMode(CurrentMode::LockScreen);
     m_lockScreen->lock();
 
-    for (auto *surface : m_rootSurfaceContainer->surfaces()) {
-        if (surface->type() == SurfaceWrapper::Type::Layer) {
-            surface->setHideByLockScreen(true);
-        }
-    }
-
-    m_workspaceScaleAnimation->stop();
-    m_workspaceScaleAnimation->setStartValue(m_shellHandler->workspace()->scale());
-    m_workspaceScaleAnimation->setEndValue(1.4);
-    m_workspaceScaleAnimation->start();
-
-    m_workspaceOpacityAnimation->stop();
-    m_workspaceOpacityAnimation->setStartValue(m_shellHandler->workspace()->opacity());
-    m_workspaceOpacityAnimation->setEndValue(0.0);
-    m_workspaceOpacityAnimation->start();
+    setWorkspaceVisible(false);
 }
 
 WSeat *Helper::seat() const

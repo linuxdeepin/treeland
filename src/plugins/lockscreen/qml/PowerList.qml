@@ -11,6 +11,7 @@ import QtQuick.Layouts
 FocusScope {
     id: root
     property alias modelChildren: objModel.children
+    property alias leftModelChildren: leftObjeModel.children
 
     implicitWidth: layout.width
     implicitHeight: layout.height
@@ -19,6 +20,11 @@ FocusScope {
         id: layout
         spacing: 100
         anchors.centerIn: parent
+        Repeater {
+            model: ObjectModel {
+            id: leftObjeModel
+            }
+        }
         Repeater {
             model: ObjectModel {
                 id: objModel
