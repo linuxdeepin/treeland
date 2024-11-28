@@ -104,7 +104,7 @@
     <message>
         <location filename="../qml/ShutdownView.qml" line="38"/>
         <source>switch user</source>
-        <translation type="unfinished">切换用户</translation>
+        <translation type="unfinished">切换帐户</translation>
     </message>
 </context>
 <context>

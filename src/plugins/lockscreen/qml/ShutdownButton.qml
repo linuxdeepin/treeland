@@ -9,16 +9,22 @@ import QtQuick.Layouts
 
 D.Button {
     id: root
+    visible: enabled
 
     property D.Palette backgroundColor: D.Palette {
-        normal: Qt.rgba(1.0, 1.0, 1.0, 0.10)
-        hovered: Qt.rgba(1.0, 1.0, 1.0, 127 / 255.0)
-        pressed: Qt.rgba(0, 15 / 255.0, 39 / 255.0, 178 / 255.0)
+        normal: Qt.rgba(1.0, 1.0, 1.0, 0.3)
+        hovered: Qt.rgba(1.0, 1.0, 1.0, 0.5)
+        pressed: Qt.rgba(1.0, 1.0, 1.0, 0.1)
+    }
+    textColor: D.Palette {
+        normal: Qt.rgba(1.0, 1.0, 1.0, 1.0)
+        hovered: Qt.rgba(0.0, 0.0, 0.0, 1.0)
+        pressed: Qt.rgba(1.0, 1.0, 1.0, 1.0)
     }
 
     icon {
-        width: 50
-        height: 50
+        width: 40
+        height: 40
     }
 
     contentItem: Item {
@@ -26,8 +32,8 @@ D.Button {
         implicitHeight: btn.height + txt.height + txt.anchors.topMargin
         Control {
             id: btn
-            width: 60
-            height: 60
+            width: 84
+            height: 84
             contentItem: D.DciIcon {
                 palette: D.DTK.makeIconPalette(root.palette)
                 mode: root.D.ColorSelector.controlState
@@ -35,9 +41,20 @@ D.Button {
                 name: root.icon.name
                 sourceSize: Qt.size(icon.width, icon.height)
             }
-            background: RoundBlur {
-                radius: btn.width / 2
-                color: root.D.ColorSelector.backgroundColor
+
+            background: Item {
+                RoundBlur {
+                    anchors.fill: parent
+                    radius: btn.width / 2
+                    color: root.D.ColorSelector.backgroundColor
+                }
+                D.OutsideBoxBorder {
+                    anchors.fill: parent
+                    visible: root.pressed
+                    borderWidth: 3
+                    radius: width / 2
+                    color: Qt.rgba(1.0, 1.0, 1.0, 0.3)
+                }
             }
         }
 
@@ -45,15 +62,30 @@ D.Button {
             id: txt
             anchors {
                 top: btn.bottom
-                topMargin: 15
+                topMargin: 20
                 horizontalCenter: btn.horizontalCenter
             }
-            padding: 2
+            leftPadding: 10
+            rightPadding: 10
+            topPadding: 4
+            bottomPadding: 4
             text: root.text
-            background: RoundBlur {
-                radius: 4
-                visible: root.hovered && root.enabled
-                color: root.D.ColorSelector.backgroundColor
+            color: root.D.ColorSelector.textColor
+
+            background: Item {
+                visible: root.pressed || root.hovered
+                RoundBlur {
+                    anchors.fill: parent
+                    radius: 6
+                    color: root.D.ColorSelector.backgroundColor
+                }
+                D.OutsideBoxBorder {
+                    visible: root.pressed
+                    anchors.fill: parent
+                    borderWidth: 2
+                    radius: 6
+                    color: Qt.rgba(1.0, 1.0, 1.0, 0.3)
+                }
             }
         }
     }
