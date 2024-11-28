@@ -299,19 +299,21 @@ void Helper::init()
             auto xwayland = qobject_cast<WXWaylandSurface *>(wrapper->shellSurface());
             auto updateDecorationTitleBar = [this, wrapper, xwayland]() {
                 if (!xwayland->isBypassManager()) {
-                    if (xwayland->decorationsType() != WXWaylandSurface::DecorationsNoTitle)
-                        wrapper->setNoTitleBar(false);
-                    if (xwayland->decorationsType() != WXWaylandSurface::DecorationsNoBorder)
-                        wrapper->setNoDecoration(false);
+                    wrapper->setNoTitleBar(xwayland->decorationsType()
+                                           == WXWaylandSurface::DecorationsNoTitle);
+                    wrapper->setNoDecoration(xwayland->decorationsType()
+                                             == WXWaylandSurface::DecorationsNoBorder);
                 } else {
                     wrapper->setNoTitleBar(true);
                     wrapper->setNoDecoration(true);
                 }
             };
-            connect(xwayland, &WXWaylandSurface::bypassManagerChanged, this, updateDecorationTitleBar);
+            // When x11 surface dissociate, SurfaceWrapper will be destroyed immediately
+            // but WXWaylandSurface will not, so must connect to `wrapper`
+            connect(xwayland, &WXWaylandSurface::bypassManagerChanged, wrapper, updateDecorationTitleBar);
             connect(xwayland,
                     &WXWaylandSurface::decorationsTypeChanged,
-                    this,
+                    wrapper,
                     updateDecorationTitleBar);
             updateDecorationTitleBar();
 
@@ -321,7 +323,10 @@ void Helper::init()
                     wrapper->parentSurface()->removeSubSurface(wrapper);
                 if (wrapper->container())
                     wrapper->container()->removeSurface(wrapper);
-                if (auto parent = surface->parentXWaylandSurface()) {
+                auto parent = surface->parentXWaylandSurface();
+                auto parentWrapper = parent ? m_surfaceContainer->getSurface(parent) : nullptr;
+                // x11 surface's parent may not associate
+                if (parentWrapper) {
                     auto parentWrapper = m_surfaceContainer->getSurface(parent);
                     auto container = qobject_cast<Workspace *>(parentWrapper->container());
                     Q_ASSERT(container);

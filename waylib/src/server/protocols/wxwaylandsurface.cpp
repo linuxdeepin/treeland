@@ -178,7 +178,7 @@ void WXWaylandSurfacePrivate::updateParent()
     if (parent == newParent)
         return;
 
-    const bool hasParentChanged = parent == nullptr || newParent == nullptr;
+    const bool hasParentChanged = (parent == nullptr) != (newParent == nullptr);
     if (parent)
         parent->d_func()->updateChildren();
     parent = newParent;
