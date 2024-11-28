@@ -686,6 +686,12 @@ void SurfaceWrapper::createNewOrClose(uint direction)
             m_windowAnimation = m_engine->createLayerShellAnimation(this, container(), direction);
             m_windowAnimation->setProperty("position", QVariant::fromValue(anchor));
             m_windowAnimation->setProperty("enableBlur", true);
+        } else {
+            // NOTE: missing fullscreen window animation, so hide window now.
+            if (m_hideByLockScreen) {
+                m_confirmHideByLockScreen = true;
+                updateVisible();
+            }
         }
     }; break;
     case Type::XdgPopup:
