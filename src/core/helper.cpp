@@ -1612,6 +1612,7 @@ void Helper::setLockScreenImpl(ILockScreen *impl)
     connect(m_lockScreen, &LockScreen::unlock, this, [this] {
         setCurrentMode(CurrentMode::Normal);
         setWorkspaceVisible(true);
+        m_activatedSurface->setFocus(true, Qt::NoFocusReason);
     });
 
     if (CmdLine::ref().useLockScreen()) {
