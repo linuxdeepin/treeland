@@ -409,11 +409,6 @@ void CaptureManagerV1::onCaptureContextSelectSource()
         context->sendSourceFailed(CaptureContextV1::SelectorBusy);
         return;
     }
-    connect(context, &CaptureContextV1::finishSelect, this, [this, context] {
-        if (selector())
-            selector()->doneSelection();
-        clearContextInSelection(context);
-    });
     m_contextInSelection = context;
     if (context->freeze()) {
         freezeAllCapturedSurface(true, context->mask());
@@ -589,11 +584,12 @@ CaptureSourceSelector::~CaptureSourceSelector()
 void CaptureSourceSelector::doneSelection()
 {
     // Selection is done, begin to construct selection source
+    connect(renderWindow(),
+            &WOutputRenderWindow::renderEnd,
+            this,
+            &CaptureSourceSelector::createImage);
     m_internalContentItem->setVisible(false);
     m_canvas->surfaceItem()->setSubsurfacesVisible(false);
-    renderWindow()->render(); // Flush frame to hide capture selector mask
-    if (m_selectedSource)
-        m_selectedSource->createImage();
 }
 
 void CaptureSourceSelector::updateCursorShape()
@@ -659,6 +655,17 @@ WOutputRenderWindow *CaptureSourceSelector::renderWindow() const
     return qobject_cast<WOutputRenderWindow *>(window());
 }
 
+void CaptureSourceSelector::createImage()
+{
+    disconnect(renderWindow(),
+               &WOutputRenderWindow::renderEnd,
+               this,
+               &CaptureSourceSelector::createImage);
+    if (m_selectedSource)
+        m_selectedSource->createImage();
+    captureManager()->clearContextInSelection(captureManager()->contextInSelection());
+}
+
 CaptureManagerV1 *CaptureSourceSelector::captureManager() const
 {
     return m_captureManager;
@@ -680,6 +687,12 @@ void CaptureSourceSelector::setCaptureManager(CaptureManagerV1 *newCaptureManage
     }
     m_captureManager->setSelector(this);
     m_toolBarModel->updateModel();
+    Q_ASSERT(captureManager()->contextInSelection());
+    connect(captureManager()->contextInSelection(),
+            &CaptureContextV1::finishSelect,
+            this,
+            &CaptureSourceSelector::doneSelection,
+            Qt::UniqueConnection);
     Q_EMIT captureManagerChanged();
 }
 
