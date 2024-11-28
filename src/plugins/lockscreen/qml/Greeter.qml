@@ -96,6 +96,10 @@ FocusScope {
             root.currentMode = Greeter.CurrentMode.Lock
             lockView.showUserView()
         }
+        onLock: function () {
+            root.currentMode = Greeter.CurrentMode.Lock
+            lockView.start()
+        }
     }
 
     Component.onDestruction: {

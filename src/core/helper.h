@@ -259,6 +259,7 @@ private:
                               Output *targetOutput,
                               Output *sourceOutput);
     bool isNvidiaCardPresent();
+    void setWorkspaceVisible(bool visible);
 
     static Helper *m_instance;
 
