@@ -25,6 +25,7 @@ FocusScope {
 
     function start()
     {
+        lockView.forceActiveFocus()
         wallpaperController.type = WallpaperController.Scale
         switch (root.currentMode) {
         case Greeter.CurrentMode.Lock:
