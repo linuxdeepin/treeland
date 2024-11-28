@@ -140,7 +140,8 @@ void CaptureContextV1::onCapture(treeland_capture_frame_v1 *frame)
         connect(m_frame,
                 &treeland_capture_frame_v1::copy,
                 this,
-                &CaptureContextV1::handleFrameCopy);
+                &CaptureContextV1::handleFrameCopy,
+                Qt::UniqueConnection);
         connect(m_frame, &treeland_capture_frame_v1::beforeDestroy, this, [this] {
             m_frame = nullptr;
         });
