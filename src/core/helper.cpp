@@ -290,7 +290,8 @@ void Helper::onOutputRemoved(WOutput *output)
             m_outputList.replace(i, o1);
         }
     }
-    if (!surfaces.isEmpty() && m_rootSurfaceContainer->primaryOutput()) {
+    // When removing the last screen, no need to move the window position
+    if (!surfaces.isEmpty() && m_rootSurfaceContainer->primaryOutput() && m_outputList.size() > 1) {
         moveSurfacesToOutput(surfaces, m_rootSurfaceContainer->primaryOutput(), o);
     }
 
