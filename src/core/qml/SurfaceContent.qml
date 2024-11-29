@@ -37,20 +37,22 @@ Item {
         }
 
         sourceComponent: Shape {
-            x: content.bufferSourceRect.x
-            y: content.bufferSourceRect.y
             fillMode: Shape.PreserveAspectFit
             preferredRendererType: Shape.CurveRenderer
             ShapePath {
                 strokeWidth: 0
                 fillItem: content
                 PathRectangle {
+                    readonly property real scale: width / content.width
+
+                    x: content.bufferSourceRect.x
+                    y: content.bufferSourceRect.y
                     width: content.bufferSourceRect.width
                     height: content.bufferSourceRect.height
-                    topLeftRadius: wrapper?.noTitleBar ? cornerRadius : 0
-                    topRightRadius: wrapper?.noTitleBar ? cornerRadius : 0
-                    bottomLeftRadius: cornerRadius
-                    bottomRightRadius: cornerRadius
+                    topLeftRadius: wrapper?.noTitleBar ? cornerRadius * scale : 0
+                    topRightRadius: wrapper?.noTitleBar ? cornerRadius * scale : 0
+                    bottomLeftRadius: cornerRadius * scale
+                    bottomRightRadius: cornerRadius * scale
                 }
             }
         }
