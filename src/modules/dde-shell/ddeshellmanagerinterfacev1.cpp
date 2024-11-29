@@ -705,12 +705,12 @@ MultiTaskViewInterfacePrivate::MultiTaskViewInterfacePrivate(MultiTaskViewInterf
 
 void MultiTaskViewInterfacePrivate::treeland_multitaskview_v1_destroy_resource(Resource *resource)
 {
-    wl_resource_destroy(resource->handle);
+    delete q;
 }
 
 void MultiTaskViewInterfacePrivate::treeland_multitaskview_v1_destroy(Resource *resource)
 {
-    delete q;
+    wl_resource_destroy(resource->handle);
 }
 
 void MultiTaskViewInterfacePrivate::treeland_multitaskview_v1_toggle(Resource *resource)
@@ -747,13 +747,13 @@ WindowPickerInterfacePrivate::WindowPickerInterfacePrivate(WindowPickerInterface
 
 void WindowPickerInterfacePrivate::treeland_window_picker_v1_destroy_resource(Resource *resource)
 {
-    wl_resource_destroy(resource->handle);
+    Q_EMIT q->beforeDestroy();
+    delete q;
 }
 
 void WindowPickerInterfacePrivate::treeland_window_picker_v1_destroy(Resource *resource)
 {
-    Q_EMIT q->beforeDestroy();
-    delete q;
+    wl_resource_destroy(resource->handle);
 }
 
 void WindowPickerInterfacePrivate::treeland_window_picker_v1_pick(Resource *resource,
@@ -813,12 +813,12 @@ LockScreenInterfacePrivate::LockScreenInterfacePrivate(LockScreenInterface *_q,
 
 void LockScreenInterfacePrivate::treeland_lockscreen_v1_destroy_resource(Resource *resource)
 {
-    wl_resource_destroy(resource->handle);
+    delete q;
 }
 
 void LockScreenInterfacePrivate::treeland_lockscreen_v1_destroy(Resource *resource)
 {
-    delete q;
+    wl_resource_destroy(resource->handle);
 }
 
 LockScreenInterface::~LockScreenInterface() { }
