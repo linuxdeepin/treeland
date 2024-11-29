@@ -101,7 +101,7 @@ class Helper : public WSeatEventFilter
 
 public:
     explicit Helper(QObject *parent = nullptr);
-    ~Helper();
+    ~Helper() override;
 
     enum class OutputMode
     {
