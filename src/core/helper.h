@@ -306,6 +306,8 @@ private:
     RootSurfaceContainer *m_rootSurfaceContainer = nullptr;
     LockScreen *m_lockScreen = nullptr;
     float m_animationSpeed = 1.0;
+    quint64 m_taskAltTimestamp = 0;
+    bool m_fastTaskSwitcher = false;
     OutputMode m_mode = OutputMode::Extension;
     std::optional<QPointF> m_fakelastPressedPosition;
 
