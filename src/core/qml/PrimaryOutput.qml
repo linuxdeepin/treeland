@@ -91,8 +91,7 @@ OutputItem {
             workspace: Helper.workspace.current
             anchors.fill: parent
             fillMode: Image.PreserveAspectCrop
-            // TODO: qt6.8 use other property
-            asynchronous: false
+            retainWhileLoading: true
             clip: true
 
             states: [
