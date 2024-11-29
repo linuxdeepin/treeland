@@ -37,15 +37,16 @@ Item {
         }
 
         sourceComponent: Shape {
-            x: content.x
-            y: content.y
+            x: content.bufferSourceRect.x
+            y: content.bufferSourceRect.y
+            fillMode: Shape.PreserveAspectFit
             preferredRendererType: Shape.CurveRenderer
             ShapePath {
                 strokeWidth: 0
                 fillItem: content
                 PathRectangle {
-                    width: content.width
-                    height: content.height
+                    width: content.bufferSourceRect.width
+                    height: content.bufferSourceRect.height
                     topLeftRadius: wrapper?.noTitleBar ? cornerRadius : 0
                     topRightRadius: wrapper?.noTitleBar ? cornerRadius : 0
                     bottomLeftRadius: cornerRadius
