@@ -43,6 +43,7 @@ public:
 
     Q_INVOKABLE SurfaceWrapper *latestActiveSurface() const;
     Q_INVOKABLE SurfaceWrapper *activePenultimateWindow() const;
+    Q_INVOKABLE SurfaceWrapper *findNextActivedSurface() const;
     void pushActivedSurface(SurfaceWrapper *surface);
     void removeActivedSurface(SurfaceWrapper *surface);
 

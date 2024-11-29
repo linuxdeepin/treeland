@@ -994,12 +994,20 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *, QInputEvent *event)
                 m_activatedSurface->requestCancelMaximize();
                 return true;
             }
+        } else if (kevent->key() == Qt::Key_Alt) {
+            m_taskAltTimestamp = kevent->timestamp();
+            m_fastTaskSwitcher = false;
         } else if ((m_currentMode == CurrentMode::Normal
                     || m_currentMode == CurrentMode::WindowSwitch)
                    && (kevent->key() == Qt::Key_Tab || kevent->key() == Qt::Key_Backtab
                        || kevent->key() == Qt::Key_QuoteLeft
                        || kevent->key() == Qt::Key_AsciiTilde)) {
             if (event->modifiers().testFlag(Qt::AltModifier)) {
+                int detal = kevent->timestamp() - m_taskAltTimestamp;
+                if (detal < 200) {
+                    m_fastTaskSwitcher = true;
+                    return true;
+                }
                 if (m_taskSwitch.isNull()) {
                     auto contentItem = window()->contentItem();
                     auto output = rootContainer()->primaryOutput();
@@ -1069,10 +1077,16 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *, QInputEvent *event)
         }
     }
 
-    if (m_currentMode == CurrentMode::WindowSwitch && event->type() == QEvent::KeyRelease) {
+    if (event->type() == QEvent::KeyRelease) {
+        auto kevent = static_cast<QKeyEvent *>(event);
+        if (m_fastTaskSwitcher && kevent->key() == Qt::Key_Alt) {
+            auto current = Helper::instance()->workspace()->current();
+            Q_ASSERT(current);
+            auto next_surface = current->findNextActivedSurface();
+            if (next_surface)
+                Helper::instance()->forceActivateSurface(next_surface, Qt::TabFocusReason);
+        }
         if (m_taskSwitch && m_taskSwitch->property("switchOn").toBool()) {
-            auto kevent = static_cast<QKeyEvent *>(event);
-
             if (kevent->key() == Qt::Key_Alt || kevent->key() == Qt::Key_Meta) {
                 auto filter = Helper::instance()->workspace()->currentFilter();
                 filter->setFilterAppId("");
