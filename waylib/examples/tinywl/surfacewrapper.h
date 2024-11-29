@@ -73,7 +73,7 @@ public:
     explicit SurfaceWrapper(QmlEngine *qmlEngine,
                             WToplevelSurface *shellSurface, Type type,
                             QQuickItem *parent = nullptr);
-    ~SurfaceWrapper();
+    ~SurfaceWrapper() override;
 
     void setFocus(bool focus, Qt::FocusReason reason);
 

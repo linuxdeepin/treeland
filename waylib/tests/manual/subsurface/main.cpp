@@ -29,7 +29,7 @@ int main(int argc, char *argv[])
     QGuiApplication app(argc, argv);
 
     QQmlApplicationEngine engine;
-    const QUrl url(u"qrc:/qt/qml/subsurface/Main.qml"_qs);
+    const QUrl url(QStringLiteral(u"qrc:/qt/qml/subsurface/Main.qml"));
     QObject::connect(&engine, &QQmlApplicationEngine::objectCreationFailed,
         &app, []() { QCoreApplication::exit(-1); },
         Qt::QueuedConnection);
