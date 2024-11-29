@@ -47,7 +47,7 @@
             "visibility": "private"
         },
         "fontSize": {
-            "value": 14,
+            "value": 105,
             "serial": 0,
             "flags": ["user-public"],
             "name": "Font Size",

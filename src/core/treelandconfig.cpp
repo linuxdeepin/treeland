@@ -22,7 +22,7 @@ TreelandConfig::TreelandConfig()
     , m_windowTitlebarHeight(m_dconfig->value("windowTitlebarHeight", 30).toUInt())
     , m_fontName(m_dconfig->value("font", "Dejavu").toString())
     , m_monoFontName(m_dconfig->value("monoFont", "Dejavu").toString())
-    , m_fontSize(m_dconfig->value("fontSize", 18).toUInt())
+    , m_fontSize(m_dconfig->value("fontSize", 105).toUInt())
 {
     connect(m_dconfig.get(), &DConfig::valueChanged, this, &TreelandConfig::onDConfigChanged);
 }
@@ -515,7 +515,7 @@ void TreelandConfig::setFontSize(uint32_t fontSize)
 
 uint32_t TreelandConfig::fontSize()
 {
-    m_fontSize = m_dconfig->value("fontSize").toUInt();
+    m_fontSize = m_dconfig->value("fontSize", 105).toUInt();
 
     return m_fontSize;
 }
