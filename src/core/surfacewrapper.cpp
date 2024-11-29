@@ -180,6 +180,10 @@ SurfaceWrapper::SurfaceWrapper(QmlEngine *qmlEngine,
 
 SurfaceWrapper::~SurfaceWrapper()
 {
+    Q_ASSERT(!m_ownsOutput);
+    Q_ASSERT(!m_container);
+    Q_ASSERT(!m_parentSurface);
+    Q_ASSERT(m_subSurfaces.isEmpty());
     if (m_titleBar) {
         delete m_titleBar;
         m_titleBar = nullptr;
@@ -204,23 +208,6 @@ SurfaceWrapper::~SurfaceWrapper()
         delete m_coverContent;
         m_coverContent = nullptr;
     }
-
-    if (m_ownsOutput) {
-        m_ownsOutput->removeSurface(this);
-        m_ownsOutput = nullptr;
-    }
-
-    if (m_container) {
-        m_container->removeSurface(this);
-        m_container = nullptr;
-    }
-
-    for (auto subS : std::as_const(m_subSurfaces)) {
-        subS->m_parentSurface = nullptr;
-    }
-
-    if (m_parentSurface)
-        m_parentSurface->removeSubSurface(this);
 }
 
 void SurfaceWrapper::setParent(QQuickItem *item)
@@ -528,8 +515,26 @@ void SurfaceWrapper::markWrapperToRemoved()
 {
     Q_ASSERT_X(!m_wrapperAbortToRemove, Q_FUNC_INFO, "Can't call `markWrapperToRemoved` twice!");
     m_wrapperAbortToRemove = true;
-    m_shellSurface = nullptr;
     Q_EMIT aboutToBeInvalidated();
+
+    if (m_container) {
+        m_container->removeSurface(this);
+        m_container = nullptr;
+    }
+    if (m_ownsOutput) {
+        m_ownsOutput->removeSurface(this);
+        m_ownsOutput = nullptr;
+    }
+    if (m_parentSurface) {
+        m_parentSurface->removeSubSurface(this);
+        m_parentSurface = nullptr;
+    }
+    for (auto subS : std::as_const(m_subSurfaces)) {
+        subS->m_parentSurface = nullptr;
+    }
+    m_subSurfaces.clear();
+    m_shellSurface = nullptr;
+
     if (!isWindowAnimationRunning()) {
         delete this;
     } // else delete this in Animation finish

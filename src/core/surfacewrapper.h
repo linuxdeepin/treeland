@@ -111,7 +111,6 @@ public:
                             Type type,
                             QQuickItem *parent = nullptr,
                             bool isProxy = false);
-    ~SurfaceWrapper() override;
 
     void setFocus(bool focus, Qt::FocusReason reason);
 
@@ -299,6 +298,7 @@ Q_SIGNALS:
     void aboutToBeInvalidated();
 
 private:
+    ~SurfaceWrapper() override;
     using QQuickItem::setParentItem;
     using QQuickItem::stackAfter;
     using QQuickItem::stackBefore;
