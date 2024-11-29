@@ -265,6 +265,7 @@ public:
         if (dpr == devicePixelRatio)
             return;
         devicePixelRatio = dpr;
+        Q_EMIT q_func()->devicePixelRatioChanged();
         Q_EMIT q_func()->bufferSourceRectChanged();
     }
 
@@ -451,6 +452,12 @@ QRectF WSurfaceItemContent::bufferSourceRect() const
     W_DC(WSurfaceItemContent);
     return QRectF(d->bufferSourceBox.topLeft() / d->devicePixelRatio,
                   d->bufferSourceBox.size() / d->devicePixelRatio);
+}
+
+qreal WSurfaceItemContent::devicePixelRatio() const
+{
+    W_DC(WSurfaceItemContent);
+    return d->devicePixelRatio;
 }
 
 void WSurfaceItemContent::componentComplete()
@@ -974,7 +981,7 @@ bool WSurfaceItem::resizeSurface(const QSizeF &newSize)
     QRectF tmp(0, 0, newSize.width(), newSize.height());
     tmp -= d->paddings;
     // See surfaceSizeRatio, the content item maybe has been scaled.
-    const QSize mappedSize = d->contentContainer->mapRectFromItem(this, tmp).size().toSize();
+    const QSize mappedSize = mapRectToItem(d->contentContainer, tmp).size().toSize();
     QSize clipedSize;
     if (!d->shellSurface->checkNewSize(mappedSize, &clipedSize))
         return doResizeSurface(clipedSize);
@@ -1008,8 +1015,10 @@ void WSurfaceItem::surfaceSizeRatioChange()
     if (d->resizeMode != ManualResize)
         resize(d->resizeMode);
 
-    d->contentContainer->setTransformOrigin(QQuickItem::TopLeft);
-    d->contentContainer->setScale(1.0 / d->surfaceSizeRatio);
+    if (d->contentContainer) {
+        d->contentContainer->setTransformOrigin(QQuickItem::TopLeft);
+        d->contentContainer->setScale(1.0 / d->surfaceSizeRatio);
+    }
 
     if (d->surfaceState) {
         d->updateContentPosition();
@@ -1130,8 +1139,12 @@ void WSurfaceItemPrivate::initForDelegate()
 
         contentContainer->disconnect(q);
         contentContainer->deleteLater();
+    } else {
+        newContentContainer->setTransformOrigin(QQuickItem::TransformOrigin::TopLeft);
+        newContentContainer->setScale(1.0 / surfaceSizeRatio);
     }
     contentContainer = newContentContainer.release();
+
     updateEventItem(false);
     updateBoundingRect();
     if (eventItem)
@@ -1363,7 +1376,7 @@ qreal WSurfaceItemPrivate::calculateImplicitWidth() const
     if (!surfaceState)
         return ps.width();
 
-    return surfaceState->contentGeometry.width() + ps.width();
+    return surfaceState->contentGeometry.width() / surfaceSizeRatio + ps.width();
 }
 
 qreal WSurfaceItemPrivate::calculateImplicitHeight() const
@@ -1372,7 +1385,7 @@ qreal WSurfaceItemPrivate::calculateImplicitHeight() const
     if (!surfaceState)
         return ps.height();
 
-    return surfaceState->contentGeometry.height() + ps.height();
+    return surfaceState->contentGeometry.height() / surfaceSizeRatio + ps.height();
 }
 
 QRectF WSurfaceItemPrivate::calculateBoundingRect() const

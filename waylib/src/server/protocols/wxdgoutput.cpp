@@ -422,6 +422,9 @@ WOutputLayout *WXdgOutputManager::layout() const
 void WXdgOutputManager::destroy(WServer *server)
 {
     Q_UNUSED(server);
+    W_D(WXdgOutputManager);
+    d->manager = nullptr;
+    m_handle = nullptr;
 }
 
 wl_global *WXdgOutputManager::global() const
@@ -435,9 +438,10 @@ void WXdgOutputManager::create(WServer *wserver)
     Q_UNUSED(wserver)
     W_D(WXdgOutputManager);
     if (d->layout) {
-        m_handle = way_xdg_output_manager_v1_create(*server()->handle(),
+        d->manager = way_xdg_output_manager_v1_create(*server()->handle(),
                                                     *d->layout->handle(),
                                                     d->scaleOverride);
+        m_handle = d->manager;
     } else {
         qWarning() << "Output layout not set, xdg output manager will never be created!";
     }

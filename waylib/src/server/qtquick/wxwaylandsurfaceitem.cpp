@@ -22,6 +22,8 @@ public:
 
 public:
     QPointF surfacePosition;
+    bool positionConfigured = false;
+
     QPointer<WXWaylandSurfaceItem> parentSurfaceItem;
     QSize minimumSize;
     QSize maximumSize;
@@ -49,7 +51,8 @@ QSize WXWaylandSurfaceItemPrivate::expectSurfaceSize() const
             ? q->xwaylandSurface()->requestConfigureGeometry().size()
             : q->xwaylandSurface()->geometry().size();
     } else if (q->resizeMode() == SizeToSurface) {
-        return q->getContentSize().toSize();
+        const auto s = (q->size() - paddingsSize()) * surfaceSizeRatio;
+        return s.toSize();
     }
 
     return q->xwaylandSurface()->geometry().size();
@@ -59,16 +62,10 @@ QPoint WXWaylandSurfaceItemPrivate::explicitSurfacePosition() const
 {
     const Q_Q(WXWaylandSurfaceItem);
 
-    QPointF pos = surfacePosition;
-    const qreal ssr = parentSurfaceItem ? parentSurfaceItem->surfaceSizeRatio() : 1.0;
-    const auto pt = q->parentItem();
-    if (pt && !qFuzzyCompare(ssr, 1.0)) {
-        const QPointF poffset(parentSurfaceItem->leftPadding(), parentSurfaceItem->topPadding());
-        pos = pt->mapToItem(parentSurfaceItem, pos) - poffset;
-        pos = pt->mapFromItem(parentSurfaceItem, pos * ssr + poffset);
-    }
+    const QPointF pos = surfacePosition;
+    const qreal ssr = surfaceSizeRatio;
 
-    return (pos + QPointF(q->leftPadding(), q->topPadding())).toPoint();
+    return (pos * ssr + QPointF(q->leftPadding(), q->topPadding()) * ssr).toPoint();
 }
 
 WXWaylandSurfaceItem::WXWaylandSurfaceItem(QQuickItem *parent)
@@ -148,8 +145,6 @@ void WXWaylandSurfaceItem::setParentSurfaceItem(WXWaylandSurfaceItem *newParentS
     d->parentSurfaceItem = newParentSurfaceItem;
     Q_EMIT parentSurfaceItemChanged();
 
-    if (d->parentSurfaceItem)
-        connect(d->parentSurfaceItem, &WSurfaceItem::surfaceSizeRatioChanged, this, &WXWaylandSurfaceItem::updatePosition);
     updatePosition();
 }
 
@@ -173,8 +168,11 @@ void WXWaylandSurfaceItem::moveTo(const QPointF &pos, bool configSurface)
     if (d->surfacePosition == pos)
         return;
     d->surfacePosition = pos;
-    if (configSurface)
+
+    if (configSurface) {
         updatePosition();
+        d->positionConfigured = true;
+    }
 }
 
 QPointF WXWaylandSurfaceItem::implicitPosition() const
@@ -184,17 +182,9 @@ QPointF WXWaylandSurfaceItem::implicitPosition() const
     auto xwaylandSurface = qobject_cast<WXWaylandSurface *>(d->shellSurface);
 
     const QPoint epos = xwaylandSurface->requestConfigureGeometry().topLeft();
-    QPointF pos = epos;
+    const qreal ssr = d->surfaceSizeRatio;
 
-    const qreal ssr = d->parentSurfaceItem ? d->parentSurfaceItem->surfaceSizeRatio() : 1.0;
-    const auto pt = parentItem();
-    if (pt && !qFuzzyCompare(ssr, 1.0)) {
-        auto *pd = WXWaylandSurfaceItemPrivate::get(d->parentSurfaceItem);
-        const auto pepos = pd->surfacePosition;
-        pos = pepos + (epos - pepos) / ssr;
-    }
-
-    return pos - QPointF(leftPadding(), topPadding());
+    return QPointF(epos) / ssr - QPointF(leftPadding(), topPadding());
 }
 
 
@@ -234,7 +224,7 @@ void WXWaylandSurfaceItem::initSurface()
 bool WXWaylandSurfaceItem::doResizeSurface(const QSize &newSize)
 {
     Q_D(WXWaylandSurfaceItem);
-    d->configureSurface(QRect(d->surfacePosition.toPoint(), newSize));
+    d->configureSurface(QRect(d->explicitSurfacePosition(), newSize));
     return true;
 }
 
@@ -245,7 +235,20 @@ QRectF WXWaylandSurfaceItem::getContentGeometry() const
 
 QSizeF WXWaylandSurfaceItem::getContentSize() const
 {
-    return (size() - QSizeF(leftPadding() + rightPadding(), topPadding() + bottomPadding())) * surfaceSizeRatio();
+    return getContentGeometry().size();
+}
+
+void WXWaylandSurfaceItem::surfaceSizeRatioChange()
+{
+    WSurfaceItem::surfaceSizeRatioChange();
+
+    W_DC(WXWaylandSurfaceItem);
+
+    if (d->positionConfigured) {
+        updatePosition();
+    } else {
+        Q_EMIT implicitPositionChanged();
+    }
 }
 
 void WXWaylandSurfaceItem::updatePosition()

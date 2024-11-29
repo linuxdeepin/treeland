@@ -50,6 +50,7 @@ private:
     bool doResizeSurface(const QSize &newSize) override;
     QRectF getContentGeometry() const override;
     QSizeF getContentSize() const override;
+    void surfaceSizeRatioChange() override;
     Q_SLOT void updatePosition();
 };
 

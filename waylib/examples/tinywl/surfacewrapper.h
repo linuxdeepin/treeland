@@ -176,6 +176,8 @@ public Q_SLOTS:
     bool stackAfter(QQuickItem *item);
     void stackToLast();
 
+    void updateSurfaceSizeRatio();
+
 Q_SIGNALS:
     void boundingRectChanged();
     void ownsOutputChanged();
@@ -218,6 +220,7 @@ private:
     void updateSubSurfaceStacking();
     void updateClipRect();
     void geometryChange(const QRectF &newGeo, const QRectF &oldGeometry) override;
+    void itemChange(ItemChange change, const ItemChangeData &data) override;
 
     void doSetSurfaceState(State newSurfaceState);
     Q_SLOT void onAnimationReady();
