@@ -236,7 +236,8 @@ public:
 
         qw_fbox tmp;
         surface->handle()->get_buffer_source_box(tmp);
-        bufferSourceBox = tmp.toQRectF();
+        auto newBufferSourceBox = tmp.toQRectF();
+        std::swap(newBufferSourceBox, bufferSourceBox);
 
         W_Q(WSurfaceItemContent);
 
@@ -246,20 +247,32 @@ public:
             Q_EMIT q->bufferOffsetChanged();
         }
 
+        if (bufferSourceBox != newBufferSourceBox) {
+            Q_EMIT q->bufferSourceRectChanged();
+        }
+
         const auto s = surface->size();
         q->setImplicitSize(s.width(), s.height());
     }
 
-    void swapBufferIfNeeded() {
+    inline void swapBufferIfNeeded() {
         if (pendingBuffer) {
             buffer.reset(pendingBuffer.release());
         }
+    }
+
+    inline void setDevicePixelRatio(qreal dpr) {
+        if (dpr == devicePixelRatio)
+            return;
+        devicePixelRatio = dpr;
+        Q_EMIT q_func()->bufferSourceRectChanged();
     }
 
     W_DECLARE_PUBLIC(WSurfaceItemContent)
     QPointer<WSurface> surface;
     QRectF bufferSourceBox;
     QPoint bufferOffset;
+    qreal devicePixelRatio = 1.0;
 
     QMetaObject::Connection frameDoneConnection;
     mutable WSGTextureProvider *textureProvider = nullptr;
@@ -428,6 +441,14 @@ void WSurfaceItemContent::setIgnoreBufferOffset(bool newIgnoreBufferOffset)
     Q_EMIT ignoreBufferOffsetChanged();
 }
 
+
+QRectF WSurfaceItemContent::bufferSourceRect() const
+{
+    W_DC(WSurfaceItemContent);
+    return QRectF(d->bufferSourceBox.topLeft() / d->devicePixelRatio,
+                  d->bufferSourceBox.size() / d->devicePixelRatio);
+}
+
 void WSurfaceItemContent::componentComplete()
 {
     QQuickItem::componentComplete();
@@ -513,6 +534,9 @@ void WSurfaceItemContent::itemChange(ItemChange change, const ItemChangeData &da
     W_D(WSurfaceItemContent);
     if (change == QQuickItem::ItemSceneChange) {
         d->updateFrameDoneConnection();
+        d->setDevicePixelRatio(data.window ? data.window->effectiveDevicePixelRatio() : 1.0);
+    } else if (change == QQuickItem::ItemDevicePixelRatioHasChanged) {
+        d->setDevicePixelRatio(data.realValue);
     }
 }
 

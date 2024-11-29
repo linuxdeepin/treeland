@@ -31,6 +31,7 @@ class WAYLIB_SERVER_EXPORT WSurfaceItemContent : public QQuickItem, public virtu
     Q_PROPERTY(qreal implicitHeight READ implicitHeight NOTIFY implicitHeightChanged)
     Q_PROPERTY(QPoint bufferOffset READ bufferOffset NOTIFY bufferOffsetChanged FINAL)
     Q_PROPERTY(bool ignoreBufferOffset READ ignoreBufferOffset WRITE setIgnoreBufferOffset NOTIFY ignoreBufferOffsetChanged FINAL)
+    Q_PROPERTY(QRectF bufferSourceRect READ bufferSourceRect NOTIFY bufferSourceRectChanged FINAL)
     QML_NAMED_ELEMENT(SurfaceItemContent)
 
 public:
@@ -56,12 +57,15 @@ public:
     bool ignoreBufferOffset() const;
     void setIgnoreBufferOffset(bool newIgnoreBufferOffset);
 
+    QRectF bufferSourceRect() const;
+
 Q_SIGNALS:
     void surfaceChanged();
     void cacheLastBufferChanged();
     void liveChanged();
     void bufferOffsetChanged();
     void ignoreBufferOffsetChanged();
+    void bufferSourceRectChanged();
 
 private:
     friend class WSurfaceItem;
