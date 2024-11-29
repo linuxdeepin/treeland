@@ -20,6 +20,9 @@ TreelandConfig::TreelandConfig()
     , m_windowOpacity(m_dconfig->value("windowOpacity", 100).toUInt())
     , m_windowThemeType(m_dconfig->value("windowThemeType", 0).toUInt())
     , m_windowTitlebarHeight(m_dconfig->value("windowTitlebarHeight", 30).toUInt())
+    , m_fontName(m_dconfig->value("font", "Dejavu").toString())
+    , m_monoFontName(m_dconfig->value("monoFont", "Dejavu").toString())
+    , m_fontSize(m_dconfig->value("fontSize", 18).toUInt())
 {
     connect(m_dconfig.get(), &DConfig::valueChanged, this, &TreelandConfig::onDConfigChanged);
 }
@@ -455,4 +458,64 @@ void TreelandConfig::setMultitaskviewLoadFactor(qreal newMultitaskviewLoadFactor
         return;
     m_multitaskviewLoadFactor = newMultitaskviewLoadFactor;
     Q_EMIT multitaskviewLoadFactorChanged();
+}
+
+void TreelandConfig::setFontName(const QString &fontName)
+{
+    if (m_fontName == fontName) {
+        return;
+    }
+
+    m_fontName = fontName;
+
+    m_dconfig->setValue("font", fontName);
+
+    Q_EMIT fontNameChanged();
+}
+
+QString TreelandConfig::fontName()
+{
+    m_fontName = m_dconfig->value("font").toString();
+
+    return m_fontName;
+}
+
+void TreelandConfig::setMonoFontName(const QString &monoFontName)
+{
+    if (m_monoFontName == monoFontName) {
+        return;
+    }
+
+    m_monoFontName = monoFontName;
+
+    m_dconfig->setValue("monoFont", monoFontName);
+
+    Q_EMIT monoFontNameChanged();
+}
+
+QString TreelandConfig::monoFontName()
+{
+    m_monoFontName = m_dconfig->value("monoFont").toString();
+
+    return m_monoFontName;
+}
+
+void TreelandConfig::setFontSize(uint32_t fontSize)
+{
+    if (m_fontSize == fontSize) {
+        return;
+    }
+
+    m_fontSize = fontSize;
+
+    m_dconfig->setValue("fontSize", fontSize);
+
+    Q_EMIT fontSizeChanged();
+}
+
+uint32_t TreelandConfig::fontSize()
+{
+    m_fontSize = m_dconfig->value("fontSize").toUInt();
+
+    return m_fontSize;
 }
