@@ -21,47 +21,23 @@ public:
     personalization_font_context_v1(struct wl_client *client,
                                     struct wl_resource *manager_resource,
                                     uint32_t id);
-    ~personalization_font_context_v1();
 
     static personalization_font_context_v1 *fromResource(struct wl_resource *resource);
 
-    void setFont(const char *font_name);
-    void setMonospaceFont(const char *font_name);
-    void setFontSize(uint32_t size);
-
-    void sendFont() const;
-    void sendMonospaceFont() const;
-    void sendFontSize() const;
-
-    inline QString font() const
-    {
-        return m_fontName;
-    }
-
-    inline QString monoFont() const
-    {
-        return m_monoFontName;
-    }
-
-    inline uint32_t fontSize() const
-    {
-        return m_fontSize;
-    }
+    void sendFont(const QString &font) const;
+    void sendMonospaceFont(const QString &font) const;
+    void sendFontSize(uint32_t size) const;
 
 Q_SIGNALS:
-    void before_destroy();
-    void fontChanged();
-    void monoFontChanged();
-    void fontSizeChanged();
+    void beforeDestroy();
+    void fontChanged(const QString &font);
+    void monoFontChanged(const QString &font);
+    void fontSizeChanged(uint32_t size);
+    void requestFont();
+    void requestMonoFont();
+    void requestFontSize();
 
 private:
-    void sendState(std::function<void(struct wl_resource *)> func);
-
-private:
-    QString m_fontName;
-    QString m_monoFontName;
-    uint32_t m_fontSize{ 0 };
-
     treeland_personalization_manager_v1 *m_manager;
     wl_resource *m_resource;
 };

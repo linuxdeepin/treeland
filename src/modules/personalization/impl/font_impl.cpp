@@ -4,18 +4,41 @@
 #include "font_impl.h"
 
 #include "personalization_manager_impl.h"
-#include "util.h"
 
 static const struct treeland_personalization_font_context_v1_interface
     personalization_font_context_impl = {
-        .set_font_size = dispatch_member_function<&personalization_font_context_v1::setFontSize>(),
-        .get_font_size = dispatch_member_function<&personalization_font_context_v1::sendFontSize>(),
-        .set_font = dispatch_member_function<&personalization_font_context_v1::setFont>(),
-        .get_font = dispatch_member_function<&personalization_font_context_v1::sendFont>(),
+        .set_font_size =
+            []([[maybe_unused]] struct wl_client *client,
+               struct wl_resource *resource,
+               uint32_t size) {
+                Q_EMIT personalization_font_context_v1::fromResource(resource)->fontSizeChanged(
+                    size);
+            },
+        .get_font_size =
+            []([[maybe_unused]] struct wl_client *client, struct wl_resource *resource) {
+                Q_EMIT personalization_font_context_v1::fromResource(resource)->requestFontSize();
+            },
+        .set_font =
+            []([[maybe_unused]] struct wl_client *client,
+               struct wl_resource *resource,
+               const char *font) {
+                Q_EMIT personalization_font_context_v1::fromResource(resource)->fontChanged(font);
+            },
+        .get_font =
+            []([[maybe_unused]] struct wl_client *client, struct wl_resource *resource) {
+                Q_EMIT personalization_font_context_v1::fromResource(resource)->requestFont();
+            },
         .set_monospace_font =
-            dispatch_member_function<&personalization_font_context_v1::setMonospaceFont>(),
+            []([[maybe_unused]] struct wl_client *client,
+               struct wl_resource *resource,
+               const char *font) {
+                Q_EMIT personalization_font_context_v1::fromResource(resource)->monoFontChanged(
+                    font);
+            },
         .get_monospace_font =
-            dispatch_member_function<&personalization_font_context_v1::sendMonospaceFont>(),
+            []([[maybe_unused]] struct wl_client *client, struct wl_resource *resource) {
+                Q_EMIT personalization_font_context_v1::fromResource(resource)->requestMonoFont();
+            },
         .destroy =
             []([[maybe_unused]] struct wl_client *client, struct wl_resource *resource) {
                 wl_resource_destroy(resource);
@@ -50,17 +73,14 @@ personalization_font_context_v1::personalization_font_context_v1(
                                    [](struct wl_resource *resource) {
                                        auto *p =
                                            personalization_font_context_v1::fromResource(resource);
+                                       Q_EMIT p->beforeDestroy();
                                        delete p;
+                                       wl_list_remove(wl_resource_get_link(resource));
                                    });
 
     wl_list_insert(&manager->resources, wl_resource_get_link(resource));
 
     Q_EMIT manager->fontContextCreated(this);
-}
-
-personalization_font_context_v1::~personalization_font_context_v1()
-{
-    wl_list_remove(wl_resource_get_link(m_resource));
 }
 
 personalization_font_context_v1 *personalization_font_context_v1::fromResource(
@@ -73,42 +93,17 @@ personalization_font_context_v1 *personalization_font_context_v1::fromResource(
         wl_resource_get_user_data(resource));
 }
 
-void personalization_font_context_v1::setFont(const char *font_name)
+void personalization_font_context_v1::sendFont(const QString &font) const
 {
-    if (m_fontName != font_name) {
-        m_fontName = font_name;
-        Q_EMIT fontChanged();
-    }
+    treeland_personalization_font_context_v1_send_font(m_resource, font.toUtf8());
 }
 
-void personalization_font_context_v1::setMonospaceFont(const char *font_name)
+void personalization_font_context_v1::sendMonospaceFont(const QString &font) const
 {
-    if (m_monoFontName != font_name) {
-        m_monoFontName = font_name;
-        Q_EMIT monoFontChanged();
-    }
+    treeland_personalization_font_context_v1_send_monospace_font(m_resource, font.toUtf8());
 }
 
-void personalization_font_context_v1::setFontSize(uint32_t size)
+void personalization_font_context_v1::sendFontSize(uint32_t size) const
 {
-    if (m_fontSize != size) {
-        m_fontSize = size;
-        Q_EMIT fontSizeChanged();
-    }
-}
-
-void personalization_font_context_v1::sendFont() const
-{
-    treeland_personalization_font_context_v1_send_font(m_resource, m_fontName.toUtf8());
-}
-
-void personalization_font_context_v1::sendMonospaceFont() const
-{
-    treeland_personalization_font_context_v1_send_monospace_font(m_resource,
-                                                                 m_monoFontName.toUtf8());
-}
-
-void personalization_font_context_v1::sendFontSize() const
-{
-    treeland_personalization_font_context_v1_send_font_size(m_resource, m_fontSize);
+    treeland_personalization_font_context_v1_send_font_size(m_resource, size);
 }

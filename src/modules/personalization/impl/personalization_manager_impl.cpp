@@ -94,13 +94,13 @@ static void personalization_window_context_resource_destroy(struct wl_resource *
     if (resource)
         return;
 
-    wl_list_remove(wl_resource_get_link(resource));
     auto window_context = personalization_window_context_v1::from_resource(resource);
     if (!window_context) {
         return;
     }
 
     delete window_context;
+    wl_list_remove(wl_resource_get_link(resource));
 }
 
 namespace Personalization {
@@ -226,13 +226,13 @@ static void personalization_wallpaper_context_resource_destroy(struct wl_resourc
     if (resource)
         return;
 
-    wl_list_remove(wl_resource_get_link(resource));
     auto wallpaper_context = personalization_wallpaper_context_v1::from_resource(resource);
     if (!wallpaper_context) {
         return;
     }
 
     delete wallpaper_context;
+    wl_list_remove(wl_resource_get_link(resource));
 }
 
 void set_cursor_theme(struct wl_client *client, struct wl_resource *resource, const char *name);
@@ -281,13 +281,13 @@ static void personalization_cursor_context_resource_destroy(struct wl_resource *
     if (resource)
         return;
 
-    wl_list_remove(wl_resource_get_link(resource));
     auto cursor_context = personalization_cursor_context_v1::from_resource(resource);
     if (!cursor_context) {
         return;
     }
 
     delete cursor_context;
+    wl_list_remove(wl_resource_get_link(resource));
 }
 
 void create_personalization_window_context_listener(struct wl_client *client,
@@ -329,13 +329,13 @@ static void treeland_personalization_manager_resource_destroy(struct wl_resource
     if (resource)
         return;
 
-    wl_list_remove(wl_resource_get_link(resource));
     auto manager = treeland_personalization_manager_v1::from_resource(resource);
     if (!manager) {
         return;
     }
 
     delete manager;
+    wl_list_remove(wl_resource_get_link(resource));
 }
 
 void create_personalization_window_context_listener(struct wl_client *client,
@@ -460,45 +460,6 @@ void create_personalization_cursor_context_listener(struct wl_client *client,
 
     wl_list_insert(&manager->resources, wl_resource_get_link(resource));
     Q_EMIT manager->cursorContextCreated(context);
-}
-
-void create_personalization_appearance_context_listener(struct wl_client *client,
-                                                        struct wl_resource *manager_resource,
-                                                        uint32_t id)
-{
-    struct treeland_personalization_manager_v1 *manager =
-        treeland_personalization_manager_v1::from_resource(manager_resource);
-    if (!manager)
-        return;
-
-    auto *context = new personalization_cursor_context_v1;
-
-    if (!context) {
-        wl_resource_post_no_memory(manager_resource);
-        return;
-    }
-
-    context->manager = manager;
-
-    uint32_t version = wl_resource_get_version(manager_resource);
-    struct wl_resource *resource =
-        wl_resource_create(client,
-                           &treeland_personalization_cursor_context_v1_interface,
-                           version,
-                           id);
-    if (resource == NULL) {
-        delete context;
-        wl_resource_post_no_memory(manager_resource);
-        return;
-    }
-
-    context->resource = resource;
-    wl_resource_set_implementation(resource,
-                                   &personalization_cursor_context_impl,
-                                   context,
-                                   personalization_cursor_context_resource_destroy);
-
-    wl_list_insert(&manager->resources, wl_resource_get_link(resource));
 }
 
 void set_fd(struct wl_client *client [[maybe_unused]],
