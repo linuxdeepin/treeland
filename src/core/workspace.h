@@ -5,6 +5,7 @@
 #include "surfacecontainer.h"
 #include "surfacefilterproxymodel.h"
 #include "workspacemodel.h"
+#include "wrappointer.h"
 
 class SurfaceWrapper;
 class Workspace;
@@ -103,5 +104,5 @@ private:
     SurfaceFilterProxyModel *m_currentFilter;
     WorkspaceAnimationController *m_animationController;
     bool m_switcherEnabled = true;
-    QPointer<SurfaceWrapper> m_previewingItem;
+    WrapPointer<SurfaceWrapper> m_previewingItem;
 };

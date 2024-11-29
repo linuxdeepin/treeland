@@ -6,6 +6,7 @@
 #include "impl/capturev1impl.h"
 #include "itemselector.h"
 #include "surfacecontainer.h"
+#include "wrappointer.h"
 
 #include <wglobal.h>
 #include <woutput.h>
@@ -436,7 +437,7 @@ private:
     SelectionMode m_selectionMode = SelectionMode::SelectRegion;
     bool m_doNotFinish{ false };
     QPointer<SurfaceContainer> m_savedContainer{};
-    QPointer<SurfaceWrapper> m_canvas{};
+    WrapPointer<SurfaceWrapper> m_canvas{};
     ToolBarModel *m_toolBarModel{ nullptr };
 };
 
