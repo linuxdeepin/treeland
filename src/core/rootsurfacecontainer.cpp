@@ -100,7 +100,6 @@ void RootSurfaceContainer::destroyForSurface(SurfaceWrapper *wrapper)
     if (wrapper == moveResizeState.surface)
         endMoveResize();
 
-    wrapper->container()->removeSurface(wrapper);
     wrapper->markWrapperToRemoved();
 }
 

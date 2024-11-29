@@ -57,7 +57,7 @@ public:
                               QObject *parent = nullptr);
 
     explicit Output(WOutputItem *output, QObject *parent = nullptr);
-    ~Output();
+    ~Output() override;
 
     bool isPrimary() const;
 
