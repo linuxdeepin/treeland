@@ -229,24 +229,51 @@ void PersonalizationV1::onFontContextCreated(personalization_font_context_v1 *co
 {
     using Font = personalization_font_context_v1;
 
-    // TODO: move to TreelandConfig
-    connect(context, &Font::fontChanged, this, [this, context] {
-        m_dconfig->setValue("font", context->font());
+    connect(&TreelandConfig::ref(), &TreelandConfig::fontNameChanged, context, [context] {
+        context->sendFont(TreelandConfig::ref().fontName());
     });
-    connect(context, &Font::monoFontChanged, this, [this, context] {
-        m_dconfig->setValue("monoFont", context->monoFont());
+    connect(&TreelandConfig::ref(), &TreelandConfig::monoFontNameChanged, context, [context] {
+        context->sendMonospaceFont(TreelandConfig::ref().monoFontName());
     });
-    connect(context, &Font::fontSizeChanged, this, [this, context] {
-        m_dconfig->setValue("fontSize", context->fontSize());
+    connect(&TreelandConfig::ref(), &TreelandConfig::fontSizeChanged, context, [context] {
+        context->sendFontSize(TreelandConfig::ref().fontSize());
+    });
+
+    connect(context, &Font::requestFont, context, [context] {
+        context->sendFont(TreelandConfig::ref().fontName());
+    });
+    connect(context, &Font::requestMonoFont, context, [context] {
+        context->sendMonospaceFont(TreelandConfig::ref().monoFontName());
+    });
+    connect(context, &Font::requestFontSize, context, [context] {
+        context->sendFontSize(TreelandConfig::ref().fontSize());
+    });
+
+    connect(context, &Font::fontChanged, &TreelandConfig::ref(), &TreelandConfig::setFontName);
+    connect(context,
+            &Font::monoFontChanged,
+            &TreelandConfig::ref(),
+            &TreelandConfig::setMonoFontName);
+    connect(context, &Font::fontSizeChanged, &TreelandConfig::ref(), &TreelandConfig::setFontSize);
+
+    connect(context, &Font::beforeDestroy, this, [this, context] {
+        for (auto it = m_fontContexts.begin(); it != m_fontContexts.end(); ++it) {
+            if (*it == context) {
+                m_fontContexts.erase(it);
+                break;
+            }
+        }
     });
 
     context->blockSignals(true);
 
-    context->setFont(fontName().toUtf8());
-    context->setMonospaceFont(monoFontName().toUtf8());
-    context->setFontSize(fontSize());
+    context->sendFont(TreelandConfig::ref().fontName());
+    context->sendMonospaceFont(TreelandConfig::ref().monoFontName());
+    context->sendFontSize(TreelandConfig::ref().fontSize());
 
     context->blockSignals(false);
+
+    m_fontContexts.push_back(context);
 }
 
 void PersonalizationV1::saveImage(personalization_wallpaper_context_v1 *context,
@@ -372,21 +399,6 @@ int32_t PersonalizationV1::windowRadius() const
     return m_dconfig->value("windowRadius", 18).toInt();
 }
 
-QString PersonalizationV1::fontName() const
-{
-    return m_dconfig->value("font", 18).toString();
-}
-
-QString PersonalizationV1::monoFontName() const
-{
-    return m_dconfig->value("monoFont", 18).toString();
-}
-
-uint32_t PersonalizationV1::fontSize() const
-{
-    return m_dconfig->value("fontSize", 18).value<uint32_t>();
-}
-
 QString PersonalizationV1::iconTheme() const
 {
     return m_dconfig->value("iconThemeName", 18).toString();
@@ -509,6 +521,10 @@ void PersonalizationV1::create(WServer *server)
             &treeland_personalization_manager_v1::appearanceContextCreated,
             this,
             &PersonalizationV1::onAppearanceContextCreated);
+    connect(m_manager,
+            &treeland_personalization_manager_v1::fontContextCreated,
+            this,
+            &PersonalizationV1::onFontContextCreated);
 }
 
 void PersonalizationV1::destroy(WServer *server) { }

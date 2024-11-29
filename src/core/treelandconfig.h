@@ -46,6 +46,9 @@ class TreelandConfig
     Q_PROPERTY(uint multitaskviewHorizontalMargin READ multitaskviewHorizontalMargin WRITE setMultitaskviewHorizontalMargin NOTIFY multitaskviewHorizontalMarginChanged FINAL)
     Q_PROPERTY(uint multitaskviewCellPadding READ multitaskviewCellPadding WRITE setMultitaskviewCellPadding NOTIFY multitaskviewCellPaddingChanged FINAL)
     Q_PROPERTY(qreal multitaskviewLoadFactor READ multitaskviewLoadFactor WRITE setMultitaskviewLoadFactor NOTIFY multitaskviewLoadFactorChanged FINAL)
+    Q_PROPERTY(QString fontName READ fontName WRITE setFontName NOTIFY fontNameChanged FINAL)
+    Q_PROPERTY(QString monoFontName READ monoFontName WRITE setMonoFontName NOTIFY monoFontNameChanged FINAL)
+    Q_PROPERTY(uint32_t fontSize READ fontSize WRITE setFontSize NOTIFY fontSizeChanged FINAL)
 
 public:
     TreelandConfig();
@@ -135,6 +138,15 @@ public:
     qreal multitaskviewLoadFactor() const;
     void setMultitaskviewLoadFactor(qreal newMultitaskviewLoadFactor);
 
+    void setFontName(const QString &fontName);
+    QString fontName();
+
+    void setMonoFontName(const QString &monoFontName);
+    QString monoFontName();
+
+    void setFontSize(uint32_t fontSize);
+    uint32_t fontSize();
+
 Q_SIGNALS:
     void workspaceThumbMarginChanged();
     void workspaceThumbHeightChanged();
@@ -165,6 +177,9 @@ Q_SIGNALS:
     void multitaskviewHorizontalMarginChanged();
     void multitaskviewCellPaddingChanged();
     void multitaskviewLoadFactorChanged();
+    void fontNameChanged();
+    void monoFontNameChanged();
+    void fontSizeChanged();
 
 private:
     void onDConfigChanged(const QString &key);
@@ -181,6 +196,9 @@ private:
     uint32_t m_windowTitlebarHeight;
     QString m_cursorThemeName;
     QSize m_cursorSize;
+    QString m_fontName;
+    QString m_monoFontName;
+    uint32_t m_fontSize;
 
     // Local
     uint m_workspaceThumbHeight = 144;
