@@ -66,6 +66,7 @@ set(CORE_HEADERS
     workspaceanimationcontroller.h
     surfacefilterproxymodel.h
     windowpicker.h
+    wrappointer.h
 )
 
 set(CORE_SRCS

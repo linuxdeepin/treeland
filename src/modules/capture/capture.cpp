@@ -566,7 +566,7 @@ CaptureSourceSelector::CaptureSourceSelector(QQuickItem *parent)
 CaptureSourceSelector::~CaptureSourceSelector()
 {
     if (m_savedContainer) {
-        QQueue<SurfaceWrapper *> q;
+        QQueue<WrapPointer<SurfaceWrapper>> q;
         q.enqueue(m_canvas);
         while (!q.isEmpty()) {
             auto node = q.dequeue();

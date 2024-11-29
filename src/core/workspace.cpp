@@ -327,7 +327,7 @@ void Workspace::doSetCurrentIndex(int newCurrentIndex)
 
 void Workspace::startPreviewing(SurfaceWrapper *previewingItem)
 {
-    if (m_previewingItem && m_previewingItem->shellSurface()) {
+    if (m_previewingItem) {
         // TODO: don't use QPointer, should watch SurfaceWrapper::aboutToBeInvalidated
         auto modle = modelFromId(m_previewingItem->workspaceId());
         m_previewingItem->setOpacity(modle->opaque() ? 1.0 : 0.0);
@@ -342,7 +342,7 @@ void Workspace::startPreviewing(SurfaceWrapper *previewingItem)
 void Workspace::stopPreviewing()
 {
     current()->setOpaque(true);
-    if (m_previewingItem && m_previewingItem->shellSurface()) {
+    if (m_previewingItem) {
         auto modle = modelFromId(m_previewingItem->workspaceId());
         m_previewingItem->setOpacity(modle->opaque() ? 1.0 : 0.0);
         m_previewingItem->setHideByWorkspace(!modle->visible());
