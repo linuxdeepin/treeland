@@ -102,8 +102,17 @@ SurfaceWrapper *WorkspaceModel::activePenultimateWindow() const
     return *second; 
 }
 
+SurfaceWrapper *WorkspaceModel::findNextActivedSurface() const
+{
+    auto it = m_activedSurfaceHistory.begin();
+    if (it == m_activedSurfaceHistory.end() || ++it == m_activedSurfaceHistory.end())
+        return nullptr;
+    return *it;
+}
+
 void WorkspaceModel::pushActivedSurface(SurfaceWrapper *surface)
 {
+    m_activedSurfaceHistory.remove(surface);
     m_activedSurfaceHistory.push_front(surface);
 }
 
