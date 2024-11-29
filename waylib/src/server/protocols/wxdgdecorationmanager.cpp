@@ -57,7 +57,8 @@ void WXdgDecorationManagerPrivate::onNewToplevelDecoration(qw_xdg_toplevel_decor
                     this->updateDecorationMode(decorat);
                 });
     /* For some reason, a lot of clients don't emit the request_mode signal. */
-    updateDecorationMode(decorat);
+    if (decorat->handle()->toplevel->base->initialized)
+        updateDecorationMode(decorat);
 }
 
 void WXdgDecorationManagerPrivate::updateDecorationMode(qw_xdg_toplevel_decoration_v1 *decorat)
