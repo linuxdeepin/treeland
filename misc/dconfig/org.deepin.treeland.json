@@ -25,7 +25,7 @@
             "visibility": "private"
         },
         "font": {
-            "value": "",
+            "value": "Source Han Sans SC",
             "serial": 0,
             "flags": ["user-public"],
             "name": "Font",
@@ -36,7 +36,7 @@
             "visibility": "private"
         },
         "monoFont": {
-            "value": "",
+            "value": "Noto Mono",
             "serial": 0,
             "flags": ["user-public"],
             "name": "Mono Font",
