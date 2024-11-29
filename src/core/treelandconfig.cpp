@@ -20,8 +20,8 @@ TreelandConfig::TreelandConfig()
     , m_windowOpacity(m_dconfig->value("windowOpacity", 100).toUInt())
     , m_windowThemeType(m_dconfig->value("windowThemeType", 0).toUInt())
     , m_windowTitlebarHeight(m_dconfig->value("windowTitlebarHeight", 30).toUInt())
-    , m_fontName(m_dconfig->value("font", "Dejavu").toString())
-    , m_monoFontName(m_dconfig->value("monoFont", "Dejavu").toString())
+    , m_fontName(m_dconfig->value("font", "Source Han Sans SC").toString())
+    , m_monoFontName(m_dconfig->value("monoFont", "Noto Mono").toString())
     , m_fontSize(m_dconfig->value("fontSize", 105).toUInt())
 {
     connect(m_dconfig.get(), &DConfig::valueChanged, this, &TreelandConfig::onDConfigChanged);
@@ -475,7 +475,7 @@ void TreelandConfig::setFontName(const QString &fontName)
 
 QString TreelandConfig::fontName()
 {
-    m_fontName = m_dconfig->value("font").toString();
+    m_fontName = m_dconfig->value("font", "Source Han Sans SC").toString();
 
     return m_fontName;
 }
@@ -495,7 +495,7 @@ void TreelandConfig::setMonoFontName(const QString &monoFontName)
 
 QString TreelandConfig::monoFontName()
 {
-    m_monoFontName = m_dconfig->value("monoFont").toString();
+    m_monoFontName = m_dconfig->value("monoFont", "Noto Mono").toString();
 
     return m_monoFontName;
 }
