@@ -60,7 +60,20 @@ Output *Output::create(WOutput *output, QQmlEngine *engine, QObject *parent)
         return s->isMinimized();
     });
 
-    o->connect(outputItem, &WOutputItem::geometryChanged, o, &Output::arrangeAllSurfaces);
+    // Triggering layout updates using a queue helps reduce window jitter.
+    // When the screen scaling factor changes, the scale of WOutput is updated first,
+    // causing the size of WOutputItem to change. However, at this point, the
+    // effectiveDevicePixelRatio of QWindow has not yet been updated.
+    // This results in the size of maximized windows being updated prematurely.
+    // Xwayland windows use the effectiveDevicePixelRatio to set the surfaceSizeRatio.
+    // By updating within a queue, it ensures that the surfaceSizeRatio used when
+    // resizing maximized Xwayland windows is accurate, avoiding multiple rapid
+    // size changes to Xwayland windows in a short period.
+    o->connect(outputItem,
+               &WOutputItem::geometryChanged,
+               o,
+               &Output::arrangeAllSurfaces,
+               Qt::QueuedConnection);
 
     auto contentItem = Helper::instance()->window()->contentItem();
     outputItem->setParentItem(contentItem);
