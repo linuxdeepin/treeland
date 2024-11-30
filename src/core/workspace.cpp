@@ -11,6 +11,8 @@
 #include "treelandconfig.h"
 #include "workspaceanimationcontroller.h"
 
+Q_LOGGING_CATEGORY(qlcWorkspace, "treeland.core.workspace")
+
 Workspace::Workspace(SurfaceContainer *parent)
     : SurfaceContainer(parent)
     , m_currentIndex(TreelandConfig::ref().currentWorkspace())
@@ -350,6 +352,10 @@ void Workspace::stopPreviewing()
 
 void Workspace::pushActivedSurface(SurfaceWrapper *surface)
 {
+    if (surface->type() == SurfaceWrapper::Type::XdgPopup) {
+        qWarning(qlcWorkspace) << "XdgPopup can't participate in focus fallback!";
+        return;
+    }
     if (surface->showOnAllWorkspace()) [[unlikely]] {
         for (auto wpModle : m_models->objects())
             wpModle->pushActivedSurface(surface);
