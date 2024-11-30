@@ -180,7 +180,11 @@ void ShellHandler::onXdgPopupSurfaceAdded(WXdgPopupSurface *surface)
     auto parentWrapper = m_rootSurfaceContainer->getSurface(parent);
     parentWrapper->addSubSurface(wrapper);
     m_popupContainer->addSurface(wrapper);
+    // m_popupContainer is a Simple `SurfaceContainer`
+    // Need to call `setHasInitializeContainer` manually
+    wrapper->setHasInitializeContainer(true);
     wrapper->setOwnsOutput(parentWrapper->ownsOutput());
+    setupSurfaceActiveWatcher(wrapper);
 
     Q_ASSERT(wrapper->parentItem());
     Q_EMIT surfaceWrapperAdded(wrapper);
@@ -190,6 +194,7 @@ void ShellHandler::onXdgPopupSurfaceRemoved(WXdgPopupSurface *surface)
 {
     auto wrapper = m_rootSurfaceContainer->getSurface(surface);
     Q_EMIT surfaceWrapperAboutToRemove(wrapper);
+    wrapper->setHasInitializeContainer(false);
     m_rootSurfaceContainer->destroyForSurface(wrapper);
 }
 

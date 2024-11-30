@@ -1353,7 +1353,8 @@ void SurfaceWrapper::setAlwaysOnTop(bool alwaysOnTop)
 
 bool SurfaceWrapper::showOnAllWorkspace() const
 {
-    if (m_type == Type::Layer) [[unlikely]]
+    if (m_type == Type::Layer || m_type == Type::XdgPopup || m_type == Type::InputPopup)
+        [[unlikely]]
         return true;
     return m_workspaceId == Workspace::ShowOnAllWorkspaceId;
 }
