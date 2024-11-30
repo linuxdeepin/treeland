@@ -884,17 +884,7 @@ void Helper::activateSurface(SurfaceWrapper *wrapper, Qt::FocusReason reason)
 
 void Helper::forceActivateSurface(SurfaceWrapper *wrapper, Qt::FocusReason reason)
 {
-    if (m_showDesktop == WindowManagementV1::DesktopState::Show) {
-        m_showDesktop = WindowManagementV1::DesktopState::Normal;
-        m_windowManagement->setDesktopState(WindowManagementV1::DesktopState::Normal);
-        wrapper->requestCancelMinimize();
-        const auto &surfaces = getWorkspaceSurfaces();
-        for (auto &surface : surfaces) {
-            if (!surface->isMinimized() && !surface->isVisible()) {
-                surface->setSurfaceState(SurfaceWrapper::State::Minimized);
-            }
-        }
-    }
+    restoreFromShowDesktop(wrapper);
 
     if (wrapper->isMinimized()) {
         wrapper->requestCancelMinimize(
@@ -953,17 +943,21 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *, QInputEvent *event)
             const QList<Qt::Key> switchWorkspaceNums = { Qt::Key_1, Qt::Key_2, Qt::Key_3,
                                                          Qt::Key_4, Qt::Key_5, Qt::Key_6 };
             if (kevent->key() == Qt::Key_Right) {
+                restoreFromShowDesktop();
                 workspace()->switchToNext();
                 return true;
             } else if (kevent->key() == Qt::Key_Left) {
+                restoreFromShowDesktop();
                 workspace()->switchToPrev();
                 return true;
             } else if (switchWorkspaceNums.contains(kevent->key())) {
+                restoreFromShowDesktop();
                 workspace()->switchTo(switchWorkspaceNums.indexOf(kevent->key()));
                 return true;
             } else if (kevent->key() == Qt::Key_S
                        && (m_currentMode == CurrentMode::Normal
                            || m_currentMode == CurrentMode::Multitaskview)) {
+                restoreFromShowDesktop();
                 if (m_multitaskView) {
                     m_multitaskView->toggleMultitaskView(IMultitaskView::ActiveReason::ShortcutKey);
                 }
@@ -1014,20 +1008,7 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *, QInputEvent *event)
                     m_taskSwitch = qmlEngine()->createTaskSwitcher(output, contentItem);
 
                     // Restore the real state of the window when Task Switche
-                    if (m_showDesktop == WindowManagementV1::DesktopState::Show) {
-                        if (m_currentMode != CurrentMode::WindowSwitch) {
-                            m_showDesktop = WindowManagementV1::DesktopState::Normal;
-                            m_windowManagement->setDesktopState(
-                                WindowManagementV1::DesktopState::Normal);
-                            const auto &surfaces = getWorkspaceSurfaces();
-                            for (auto &surface : surfaces) {
-                                if (!surface->isMinimized() && !surface->isVisible()) {
-                                    surface->setHideByShowDesk(true);
-                                    surface->setSurfaceState(SurfaceWrapper::State::Minimized);
-                                }
-                            }
-                        }
-                    }
+                    restoreFromShowDesktop();
                     connect(m_taskSwitch,
                             SIGNAL(switchOnChanged()),
                             this,
@@ -1707,5 +1688,23 @@ void Helper::handleWhellValueChanged(const QInputEvent *event)
     }
     if (delta.x() + delta.y() > 0) {
         DDEActiveInterface::sendActiveIn(DDEActiveInterface::Wheel, m_seat);
+    }
+}
+
+void Helper::restoreFromShowDesktop(SurfaceWrapper *activeSurface)
+{
+    if (m_showDesktop == WindowManagementV1::DesktopState::Show) {
+        m_showDesktop = WindowManagementV1::DesktopState::Normal;
+        m_windowManagement->setDesktopState(WindowManagementV1::DesktopState::Normal);
+        if (activeSurface) {
+            activeSurface->requestCancelMinimize();
+        }
+        const auto &surfaces = getWorkspaceSurfaces();
+        for (auto &surface : surfaces) {
+            if (!surface->isMinimized() && !surface->isVisible()) {
+                surface->setHideByShowDesk(true);
+                surface->setSurfaceState(SurfaceWrapper::State::Minimized);
+            }
+        }
     }
 }

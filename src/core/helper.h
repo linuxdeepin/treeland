@@ -260,6 +260,7 @@ private:
                               Output *sourceOutput);
     bool isNvidiaCardPresent();
     void setWorkspaceVisible(bool visible);
+    void restoreFromShowDesktop(SurfaceWrapper *activeSurface = nullptr);
 
     static Helper *m_instance;
 
