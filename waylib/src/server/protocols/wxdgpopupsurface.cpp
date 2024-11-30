@@ -89,8 +89,8 @@ bool WXdgPopupSurface::hasCapability(Capability cap) const
     switch (cap) {
         using enum Capability;
     case Resize:
-        return true;
     case Focus:
+        return true;
     case Activate:
     case Maximized:
     case FullScreen:
