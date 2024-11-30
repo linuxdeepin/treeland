@@ -19,8 +19,8 @@
 #include <wsurfaceitem.h>
 #include <wxdgpopupsurface.h>
 
-#include <qwoutputlayout.h>
 #include <qwlayershellv1.h>
+#include <qwoutputlayout.h>
 
 #include <QQmlEngine>
 
@@ -183,8 +183,7 @@ void Output::placeUnderCursor(SurfaceWrapper *surface, quint32 yOffset)
     if (!surface->ownsOutput()->outputItem()->cursorItems().isEmpty())
         cursorSize = surface->ownsOutput()->outputItem()->cursorItems()[0]->size();
 
-    normalGeo.moveLeft(wCursor->position().x()
-                       + (cursorSize.width() - surface->width()) / 2);
+    normalGeo.moveLeft(wCursor->position().x() + (cursorSize.width() - surface->width()) / 2);
     normalGeo.moveTop(wCursor->position().y() + cursorSize.height() + yOffset);
     surface->moveNormalGeometryInOutput(normalGeo.topLeft());
 }
@@ -221,40 +220,56 @@ void Output::placeSmartCascaded(SurfaceWrapper *surface)
     QRectF normalGeo = surface->normalGeometry();
     QRectF latestActiveSurfaceGeo = latestActiveSurface->normalGeometry();
 
-    qreal factor = (latestActiveSurface->shellSurface()->appId() != surface->shellSurface()->appId()) ?
-                       DIFF_APP_OFFSET_FACTOR : SAME_APP_OFFSET_FACTOR;
+    qreal factor =
+        (latestActiveSurface->shellSurface()->appId() != surface->shellSurface()->appId())
+        ? DIFF_APP_OFFSET_FACTOR
+        : SAME_APP_OFFSET_FACTOR;
     const QRectF titleBarGeometry = latestActiveSurface->titlebarGeometry();
-    qreal offset = (titleBarGeometry.isNull() ? TreelandConfig::ref().windowTitlebarHeight() : titleBarGeometry.height()) * factor;
+    qreal offset = (titleBarGeometry.isNull() ? TreelandConfig::ref().windowTitlebarHeight()
+                                              : titleBarGeometry.height())
+        * factor;
 
     QPointF newPos;
     if (m_nextPlaceDirection == PlaceDirection::BottomRight) {
-        newPos = calculateBottomRightPosition(latestActiveSurfaceGeo, normalGeo, validGeo, QSizeF(offset, offset));
+        newPos = calculateBottomRightPosition(latestActiveSurfaceGeo,
+                                              normalGeo,
+                                              validGeo,
+                                              QSizeF(offset, offset));
     } else {
-        newPos = calculateTopLeftPosition(latestActiveSurfaceGeo, normalGeo, validGeo, QSizeF(offset, offset));
+        newPos = calculateTopLeftPosition(latestActiveSurfaceGeo,
+                                          normalGeo,
+                                          validGeo,
+                                          QSizeF(offset, offset));
     }
 
     newPos = constrainToValidArea(newPos, normalGeo.size(), validGeo);
     surface->moveNormalGeometryInOutput(newPos);
 }
 
-QPointF Output::calculateBottomRightPosition(const QRectF &activeGeo, const QRectF &normalGeo, const QRectF &validGeo, const QSizeF &offset)
+QPointF Output::calculateBottomRightPosition(const QRectF &activeGeo,
+                                             const QRectF &normalGeo,
+                                             const QRectF &validGeo,
+                                             const QSizeF &offset)
 {
     QPointF bottomRight(activeGeo.left() + offset.width(), activeGeo.top() + offset.height());
 
-    if (bottomRight.x() + normalGeo.width() <= validGeo.right() &&
-        bottomRight.y() + normalGeo.height() <= validGeo.bottom()) {
+    if (bottomRight.x() + normalGeo.width() <= validGeo.right()
+        && bottomRight.y() + normalGeo.height() <= validGeo.bottom()) {
         return bottomRight;
     }
 
     m_nextPlaceDirection = PlaceDirection::TopLeft;
     return QPointF(qMax(validGeo.left(), activeGeo.right() - normalGeo.width() - offset.width()),
-                  qMax(validGeo.top(), activeGeo.bottom() - normalGeo.height() - offset.height()));
+                   qMax(validGeo.top(), activeGeo.bottom() - normalGeo.height() - offset.height()));
 }
 
-QPointF Output::calculateTopLeftPosition(const QRectF &activeGeo, const QRectF &normalGeo, const QRectF &validGeo, const QSizeF &offset)
+QPointF Output::calculateTopLeftPosition(const QRectF &activeGeo,
+                                         const QRectF &normalGeo,
+                                         const QRectF &validGeo,
+                                         const QSizeF &offset)
 {
     QPointF topLeft(activeGeo.right() - normalGeo.width() - offset.width(),
-                   activeGeo.bottom() - normalGeo.height() - offset.height());
+                    activeGeo.bottom() - normalGeo.height() - offset.height());
 
     if (topLeft.x() >= validGeo.left() && topLeft.y() >= validGeo.top()) {
         return topLeft;
@@ -262,10 +277,12 @@ QPointF Output::calculateTopLeftPosition(const QRectF &activeGeo, const QRectF &
 
     m_nextPlaceDirection = PlaceDirection::BottomRight;
     return QPointF(qMin(validGeo.right() - normalGeo.width(), activeGeo.left() + offset.width()),
-                  qMin(validGeo.bottom() - normalGeo.height(), activeGeo.top() + offset.height()));
+                   qMin(validGeo.bottom() - normalGeo.height(), activeGeo.top() + offset.height()));
 }
 
-QPointF Output::constrainToValidArea(const QPointF &pos, const QSizeF &windowSize, const QRectF &validGeo)
+QPointF Output::constrainToValidArea(const QPointF &pos,
+                                     const QSizeF &windowSize,
+                                     const QRectF &validGeo)
 {
     QPointF newPos = pos;
 
@@ -277,8 +294,8 @@ QPointF Output::constrainToValidArea(const QPointF &pos, const QSizeF &windowSiz
     return newPos;
 }
 
-double Output::calcPreferredScale(double widthPx, double heightPx,
-                                  double widthMm, double heightMm) {
+double Output::calcPreferredScale(double widthPx, double heightPx, double widthMm, double heightMm)
+{
     if (widthPx <= 0 || heightPx <= 0 || widthMm <= 0 || heightMm <= 0) {
         return 1.0;
     }
@@ -308,8 +325,7 @@ double Output::calcPreferredScale(double widthPx, double heightPx,
 qreal Output::preferredScaleFactor(const QSize &pixelSize) const
 {
     auto o = output()->handle()->handle();
-    return calcPreferredScale(pixelSize.width(), pixelSize.height(),
-                              o->phys_width, o->phys_height);
+    return calcPreferredScale(pixelSize.width(), pixelSize.height(), o->phys_width, o->phys_height);
 }
 
 void Output::enable()
@@ -330,11 +346,11 @@ void Output::enable()
             if (mode) {
                 newState.set_mode(mode);
 
-                //TODO: read user config
-                newState.set_scale(preferredScaleFactor({mode->width, mode->height}));
+                // TODO: read user config
+                newState.set_scale(preferredScaleFactor({ mode->width, mode->height }));
             }
         } else {
-            //TODO: read user config
+            // TODO: read user config
             newState.set_scale(preferredScaleFactor(output()->size()));
         }
         newState.set_enabled(true);
@@ -382,6 +398,14 @@ void Output::addSurface(SurfaceWrapper *surface)
         connect(surface, &SurfaceWrapper::widthChanged, this, layoutSurface);
         connect(surface, &SurfaceWrapper::heightChanged, this, layoutSurface);
         layoutSurface();
+
+        if (surface->type() == SurfaceWrapper::Type::XdgPopup) {
+            auto xdgPopupSurface = qobject_cast<WXdgPopupSurface *>(surface->shellSurface());
+            xdgPopupSurface->safeConnect(&WXdgPopupSurface::reposition, this, [surface, this] {
+                // Reposition should ignore positionAutomatic
+                arrangePopupSurface(surface);
+            });
+        }
     }
 }
 
@@ -533,8 +557,8 @@ void Output::arrangeLayerSurface(SurfaceWrapper *surface)
             setExclusiveZone(Qt::RightEdge, layer, layer->exclusiveZone());
             break;
         default:
-            qCWarning(qLcOutput)
-                << layer->appId() << " has set exclusive zone, but exclusive edge is invalid!";
+            qCWarning(qLcOutput) << layer->appId()
+                                 << " has set exclusive zone, but exclusive edge is invalid!";
             break;
         }
     }
@@ -567,6 +591,7 @@ void Output::arrangeLayerSurfaces()
 
 void Output::arrangeNonLayerSurface(SurfaceWrapper *surface, const QSizeF &sizeDiff)
 {
+
     Q_ASSERT(surface->type() != SurfaceWrapper::Type::Layer);
     surface->setFullscreenGeometry(geometry());
     const auto validGeo = this->validGeometry();
@@ -581,40 +606,18 @@ void Output::arrangeNonLayerSurface(SurfaceWrapper *surface, const QSizeF &sizeD
             // NOTE: Xwayland's popup don't has parent
             SurfaceWrapper *parentSurfaceWrapper = surface->parentSurface();
             if (parentSurfaceWrapper) {
-                auto xdgPopupSurface = qobject_cast<WXdgPopupSurface *>(surface->shellSurface());
-                auto inputPopupSurface =
-                    qobject_cast<WInputPopupSurface *>(surface->shellSurface());
-                if (xdgPopupSurface || inputPopupSurface) {
-                    QPointF dPos = xdgPopupSurface ? xdgPopupSurface->getPopupPosition()
-                                              : inputPopupSurface->cursorRect().topLeft();
-                    QPointF topLeft;
-                    // TODO: remove parentSurfaceWrapper->surfaceItem()->x()
-                    topLeft.setX(parentSurfaceWrapper->x()
-                                 + parentSurfaceWrapper->surfaceItem()->x() + dPos.x());
-                    topLeft.setY(parentSurfaceWrapper->y()
-                                 + parentSurfaceWrapper->surfaceItem()->y() + dPos.y()
-                                 + parentSurfaceWrapper->titlebarGeometry().height());
-                    auto output = surface->ownsOutput()->outputItem();
-
-                    normalGeo.setWidth(std::min(output->width(), surface->width()));
-                    normalGeo.setHeight(std::min(output->height(), surface->height()));
-                    surface->setSize(normalGeo.size());
-
-                    if (topLeft.x() + normalGeo.width() > output->x() + output->width())
-                        topLeft.setX(output->x() + output->width() - normalGeo.width());
-                    if (topLeft.y() + normalGeo.height() > output->y() + output->height())
-                        topLeft.setY(output->y() + output->height() - normalGeo.height());
-                    normalGeo.moveTopLeft(topLeft);
-                    surface->moveNormalGeometryInOutput(normalGeo.topLeft());
-                } else {
-                    QPointF dPos{ (parentSurfaceWrapper->width() - surface->width()) / 2,
-                                  (parentSurfaceWrapper->height() - surface->height()) / 2 };
-                    QPointF topLeft;
-                    topLeft.setX(parentSurfaceWrapper->x() + dPos.x());
-                    topLeft.setY(parentSurfaceWrapper->y() + dPos.y());
-                    normalGeo.moveTopLeft(topLeft);
-                    surface->moveNormalGeometryInOutput(normalGeo.topLeft());
+                if (surface->type() == SurfaceWrapper::Type::XdgPopup
+                    || surface->type() == SurfaceWrapper::Type::InputPopup) {
+                    arrangePopupSurface(surface);
+                    return;
                 }
+                QPointF dPos{ (parentSurfaceWrapper->width() - surface->width()) / 2,
+                              (parentSurfaceWrapper->height() - surface->height()) / 2 };
+                QPointF topLeft;
+                topLeft.setX(parentSurfaceWrapper->x() + dPos.x());
+                topLeft.setY(parentSurfaceWrapper->y() + dPos.y());
+                normalGeo.moveTopLeft(topLeft);
+                surface->moveNormalGeometryInOutput(normalGeo.topLeft());
             } else {
                 // If the window exceeds the effective screen area when it is first opened, the
                 // window will be maximized.
@@ -648,6 +651,36 @@ void Output::arrangeNonLayerSurface(SurfaceWrapper *surface, const QSizeF &sizeD
             break;
         }
     } while (false);
+}
+
+void Output::arrangePopupSurface(SurfaceWrapper *surface)
+{
+    SurfaceWrapper *parentSurfaceWrapper = surface->parentSurface();
+    Q_ASSERT(parentSurfaceWrapper);
+
+    QRectF normalGeo = surface->normalGeometry();
+    auto xdgPopupSurface = qobject_cast<WXdgPopupSurface *>(surface->shellSurface());
+    auto inputPopupSurface = qobject_cast<WInputPopupSurface *>(surface->shellSurface());
+
+    QPointF dPos = xdgPopupSurface ? xdgPopupSurface->getPopupPosition()
+                                   : inputPopupSurface->cursorRect().topLeft();
+    QPointF topLeft;
+    // TODO: remove parentSurfaceWrapper->surfaceItem()->x()
+    topLeft.setX(parentSurfaceWrapper->x() + parentSurfaceWrapper->surfaceItem()->x() + dPos.x());
+    topLeft.setY(parentSurfaceWrapper->y() + parentSurfaceWrapper->surfaceItem()->y() + dPos.y()
+                 + parentSurfaceWrapper->titlebarGeometry().height());
+    auto output = surface->ownsOutput()->outputItem();
+
+    normalGeo.setWidth(std::min(output->width(), surface->width()));
+    normalGeo.setHeight(std::min(output->height(), surface->height()));
+    surface->setSize(normalGeo.size());
+
+    if (topLeft.x() + normalGeo.width() > output->x() + output->width())
+        topLeft.setX(output->x() + output->width() - normalGeo.width());
+    if (topLeft.y() + normalGeo.height() > output->y() + output->height())
+        topLeft.setY(output->y() + output->height() - normalGeo.height());
+    normalGeo.moveTopLeft(topLeft);
+    surface->moveNormalGeometryInOutput(normalGeo.topLeft());
 }
 
 void Output::arrangeNonLayerSurfaces()
