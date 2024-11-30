@@ -390,6 +390,11 @@ WLayerSurface::KeyboardInteractivity WLayerSurface::keyboardInteractivity() cons
     return d->keyboardInteractivity;
 }
 
+QString WLayerSurface::scope() const
+{
+    return QString::fromLocal8Bit((*handle())->scope);
+}
+
 WOutput *WLayerSurface::output() const
 {
     W_DC(WLayerSurface);

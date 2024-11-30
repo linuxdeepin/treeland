@@ -93,6 +93,7 @@ public:
     int32_t topMargin() const;
     int32_t bottomMargin() const;
     KeyboardInteractivity keyboardInteractivity() const;
+    QString scope() const;
     WOutput *output() const;
     Q_INVOKABLE AnchorType getExclusiveZoneEdge() const;
     Q_INVOKABLE uint32_t configureSize(const QSize &newSize);
