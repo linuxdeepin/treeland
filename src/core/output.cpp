@@ -603,6 +603,12 @@ void Output::arrangeNonLayerSurface(SurfaceWrapper *surface, const QSizeF &sizeD
                     surface->moveNormalGeometryInOutput(normalGeo.topLeft());
                 }
             } else {
+                // If the window exceeds the effective screen area when it is first opened, the
+                // window will be maximized.
+                auto outputValidGeometry = surface->ownsOutput()->validGeometry();
+                if (normalGeo.width() > outputValidGeometry.width()
+                    || normalGeo.height() > outputValidGeometry.height())
+                    surface->resize(outputValidGeometry.size());
                 if (surface->type() == SurfaceWrapper::Type::XdgToplevel) {
                     placeSmartCascaded(surface);
                 } else {
