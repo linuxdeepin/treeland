@@ -374,7 +374,7 @@ Item {
                         visible: highlighted && wrapper.shellSurface.title !== ""
 
                         contentItem: Text {
-                            text: wrapper.shellSurface.appId !== "" ? wrapper.shellSurface.appId + " - " + wrapper.shellSurface.title : wrapper.shellSurface.title
+                            text: wrapper.shellSurface.title
                             elide: Qt.ElideRight
                         }
                         background: Item {
