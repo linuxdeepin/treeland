@@ -31,6 +31,8 @@ Q_LOGGING_CATEGORY(qLcShellHandler, "treeland.shell.handler")
 QW_USE_NAMESPACE
 WAYLIB_SERVER_USE_NAMESPACE
 
+#define TREELAND_XDG_SHELL_VERSION 5
+
 ShellHandler::ShellHandler(RootSurfaceContainer *rootContainer)
     : m_rootSurfaceContainer(rootContainer)
     , m_backgroundContainer(new LayerSurfaceContainer(rootContainer))
@@ -61,7 +63,7 @@ void ShellHandler::createComponent(QmlEngine *engine)
 void ShellHandler::initXdgShell(WServer *server)
 {
     Q_ASSERT_X(!m_xdgShell, Q_FUNC_INFO, "Only init once!");
-    m_xdgShell = server->attach<WXdgShell>();
+    m_xdgShell = server->attach<WXdgShell>(TREELAND_XDG_SHELL_VERSION);
     connect(m_xdgShell,
             &WXdgShell::toplevelSurfaceAdded,
             this,
