@@ -66,9 +66,15 @@ SurfaceWrapper::SurfaceWrapper(QmlEngine *qmlEngine,
     case Type::Layer:
         m_surfaceItem = new WLayerSurfaceItem(this);
         break;
-    case Type::XWayland:
+    case Type::XWayland: {
         m_surfaceItem = new WXWaylandSurfaceItem(this);
+        connect(m_surfaceItem,
+                &WSurfaceItem::bufferScaleChanged,
+                this,
+                &SurfaceWrapper::updateSurfaceSizeRatio);
+        updateSurfaceSizeRatio();
         break;
+    }
     case Type::InputPopup:
         m_surfaceItem = new WInputPopupSurfaceItem(this);
         break;
@@ -302,6 +308,11 @@ void SurfaceWrapper::setMaximizedGeometry(const QRectF &newMaximizedGeometry)
     if (m_maximizedGeometry == newMaximizedGeometry)
         return;
     m_maximizedGeometry = newMaximizedGeometry;
+    // This geometry change might be caused by a change in the output size due to screen scaling.
+    // Ensure that the surfaceSizeRatio is updated before modifying the window size
+    // to avoid incorrect sizing of Xwayland windows.
+    updateSurfaceSizeRatio();
+
     if (m_surfaceState == State::Maximized) {
         setPosition(newMaximizedGeometry.topLeft());
         resize(newMaximizedGeometry.size());
@@ -322,6 +333,11 @@ void SurfaceWrapper::setFullscreenGeometry(const QRectF &newFullscreenGeometry)
     if (m_fullscreenGeometry == newFullscreenGeometry)
         return;
     m_fullscreenGeometry = newFullscreenGeometry;
+    // This geometry change might be caused by a change in the output size due to screen scaling.
+    // Ensure that the surfaceSizeRatio is updated before modifying the window size
+    // to avoid incorrect sizing of Xwayland windows.
+    updateSurfaceSizeRatio();
+
     if (m_surfaceState == State::Fullscreen) {
         setPosition(newFullscreenGeometry.topLeft());
         resize(newFullscreenGeometry.size());
@@ -344,6 +360,11 @@ void SurfaceWrapper::setTilingGeometry(const QRectF &newTilingGeometry)
     if (m_tilingGeometry == newTilingGeometry)
         return;
     m_tilingGeometry = newTilingGeometry;
+    // This geometry change might be caused by a change in the output size due to screen scaling.
+    // Ensure that the surfaceSizeRatio is updated before modifying the window size
+    // to avoid incorrect sizing of Xwayland windows.
+    updateSurfaceSizeRatio();
+
     if (m_surfaceState == State::Tiling) {
         setPosition(newTilingGeometry.topLeft());
         resize(newTilingGeometry.size());
@@ -726,6 +747,15 @@ void SurfaceWrapper::createNewOrClose(uint direction)
 
         Q_EMIT windowAnimationRunningChanged();
     }
+}
+
+void SurfaceWrapper::itemChange(ItemChange change, const ItemChangeData &data)
+{
+    if (change == ItemSceneChange) {
+        updateSurfaceSizeRatio();
+    }
+
+    return QQuickItem::itemChange(change, data);
 }
 
 void SurfaceWrapper::doSetSurfaceState(State newSurfaceState)
@@ -1407,6 +1437,17 @@ void SurfaceWrapper::setCoverEnabled(bool coverEnabled)
 bool SurfaceWrapper::socketEnabled() const
 {
     return m_socketEnabled;
+}
+
+void SurfaceWrapper::updateSurfaceSizeRatio()
+{
+    if (m_type == Type::XWayland && m_surfaceItem && window()) {
+        const qreal targetScale = window()->effectiveDevicePixelRatio();
+        if (m_surfaceItem->bufferScale() < targetScale)
+            m_surfaceItem->setSurfaceSizeRatio(targetScale / m_surfaceItem->bufferScale());
+        else
+            m_surfaceItem->setSurfaceSizeRatio(1.0);
+    }
 }
 
 void SurfaceWrapper::setXwaylandPositionFromSurface(bool value)

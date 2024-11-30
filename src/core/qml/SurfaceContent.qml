@@ -21,6 +21,10 @@ Item {
         opacity: effectLoader.active ? 0 : parent.opacity
         live: root.surface && !(root.surface.flags & SurfaceItem.NonLive)
         smooth: root.surface?.smooth ?? true
+
+        onDevicePixelRatioChanged: {
+            wrapper.updateSurfaceSizeRatio()
+        }
     }
 
     Loader {
