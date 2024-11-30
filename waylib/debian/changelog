@@ -1,3 +1,9 @@
+waylib (0.6.4) unstable; urgency=medium
+
+  * bump version to 0.6.4
+
+ -- Groveer <guoyao@uniontech.com>  Sat, 30 Nov 2024 15:21:56 +0800
+
 waylib (0.6.3) unstable; urgency=medium
 
   * bump version to 0.6.3
