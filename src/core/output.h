@@ -98,6 +98,7 @@ private:
     void arrangeLayerSurface(SurfaceWrapper *surface);
     void arrangeLayerSurfaces();
     void arrangeNonLayerSurface(SurfaceWrapper *surface, const QSizeF &sizeDiff);
+    void arrangePopupSurface(SurfaceWrapper *surface);
     void arrangeNonLayerSurfaces();
     void arrangeAllSurfaces();
     std::pair<WOutputViewport *, QQuickItem *> getOutputItemProperty();
