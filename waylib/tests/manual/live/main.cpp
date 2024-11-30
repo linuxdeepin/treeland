@@ -129,7 +129,7 @@ void Helper::initProtocols(WOutputRenderWindow *window, QQmlEngine *qmlEngine)
     });
     window->init(m_renderer, m_allocator);
 
-    auto *xdgShell = m_server->attach<WXdgShell>();
+    auto *xdgShell = m_server->attach<WXdgShell>(5);
 
     connect(xdgShell, &WXdgShell::toplevelSurfaceAdded, this, [this, qmlEngine](WXdgToplevelSurface *surface) {
         auto initProperties = qmlEngine->newObject();

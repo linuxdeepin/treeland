@@ -80,6 +80,7 @@ private:
     void layoutLayerSurface(SurfaceWrapper *surface);
     void layoutLayerSurfaces();
     void layoutNonLayerSurface(SurfaceWrapper *surface, const QSizeF &sizeDiff);
+    void layoutPopupSurface(SurfaceWrapper *surface);
     void layoutNonLayerSurfaces();
     void layoutAllSurfaces();
     std::pair<WOutputViewport*, QQuickItem*> getOutputItemProperty();

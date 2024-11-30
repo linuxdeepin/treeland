@@ -17,7 +17,7 @@ class WAYLIB_SERVER_EXPORT WXdgShell : public QObject, public WObject, public WS
     Q_OBJECT
     W_DECLARE_PRIVATE(WXdgShell)
 public:
-    WXdgShell();
+    WXdgShell(uint32_t version);
 
     QVector<WXdgToplevelSurface*> toplevelSurfaceList() const;
     QByteArrayView interfaceName() const override;

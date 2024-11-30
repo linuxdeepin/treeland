@@ -35,6 +35,7 @@ public:
 
     QVector<WXdgToplevelSurface*> toplevelSurfaceList;
     QVector<WXdgPopupSurface*> popupSurfaceList;
+    uint32_t version;
 };
 
 void WXdgShellPrivate::onNewXdgToplevelSurface(qw_xdg_toplevel *toplevel)
@@ -89,10 +90,11 @@ void WXdgShellPrivate::onPopupSurfaceDestroy(qw_xdg_popup *popup)
     surface->safeDeleteLater();
 }
 
-WXdgShell::WXdgShell()
+WXdgShell::WXdgShell(uint32_t version)
     : WObject(*new WXdgShellPrivate(this))
 {
-
+    W_D(WXdgShell);
+    d->version = version;
 }
 
 QVector<WXdgToplevelSurface*> WXdgShell::toplevelSurfaceList() const
@@ -116,7 +118,7 @@ void WXdgShell::create(WServer *server)
 {
     W_D(WXdgShell);
     // free follow display
-    auto xdg_shell = qw_xdg_shell::create(*server->handle(), 2);
+    auto xdg_shell = qw_xdg_shell::create(*server->handle(), d->version);
     QObject::connect(xdg_shell, &qw_xdg_shell::notify_new_toplevel, this, [this] (wlr_xdg_toplevel *toplevel_surface) {
         d_func()->onNewXdgToplevelSurface(qw_xdg_toplevel::from(toplevel_surface));
     });

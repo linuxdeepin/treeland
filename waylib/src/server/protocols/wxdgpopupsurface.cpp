@@ -48,8 +48,7 @@ void WXdgPopupSurfacePrivate::instantRelease()
         return;
     W_Q(WXdgPopupSurface);
     handle()->set_data(nullptr, nullptr);
-    // No connection for popup now
-    // handle()->disconnect(q);
+    handle()->disconnect(q);
     surface->safeDeleteLater();
     surface = nullptr;
 }
@@ -69,8 +68,8 @@ void WXdgPopupSurfacePrivate::init()
 
 void WXdgPopupSurfacePrivate::connect()
 {
-    // W_Q(WXdgPopupSurface);
-    // QObject::connect(handle(), &qw_xdg_popup::notify_reposition, q, [] {});
+    W_Q(WXdgPopupSurface);
+    QObject::connect(handle(), &qw_xdg_popup::notify_reposition, q, &WXdgPopupSurface::reposition);
 }
 
 WXdgPopupSurface::WXdgPopupSurface(qw_xdg_popup *handle, QObject *parent)

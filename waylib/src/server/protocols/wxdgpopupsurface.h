@@ -46,6 +46,7 @@ public Q_SLOTS:
 Q_SIGNALS:
     void parentXdgSurfaceChanged();
     void resizeingChanged();
+    void reposition();
 };
 
 WAYLIB_SERVER_END_NAMESPACE

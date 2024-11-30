@@ -184,7 +184,7 @@ void Helper::init()
         delete o;
     });
 
-    auto *xdgShell = m_server->attach<WXdgShell>();
+    auto *xdgShell = m_server->attach<WXdgShell>(5);
     m_foreignToplevel = m_server->attach<WForeignToplevel>(xdgShell);
     auto *layerShell = m_server->attach<WLayerShell>(xdgShell);
     auto *xdgOutputManager = m_server->attach<WXdgOutputManager>(m_surfaceContainer->outputLayout());
