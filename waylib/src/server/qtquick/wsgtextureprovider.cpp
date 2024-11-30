@@ -25,6 +25,10 @@ public:
         , window(window)
     {
         qtTexture.setOwnsTexture(false);
+        qtTexture.setFiltering(smooth ? QSGTexture::Linear
+                                      : QSGTexture::Nearest);
+        qtTexture.setMipmapFiltering(smooth ? QSGTexture::Linear
+                                            : QSGTexture::Nearest);
     }
 
     ~WSGTextureProviderPrivate() {
@@ -81,6 +85,7 @@ public:
     // qt resources
     QSGPlainTexture qtTexture;
     QRhiTexture *rhiTexture = nullptr;
+    bool smooth = true;
 };
 
 WSGTextureProvider::WSGTextureProvider(WOutputRenderWindow *window)
@@ -161,6 +166,26 @@ qw_buffer *WSGTextureProvider::qwBuffer() const
 {
     W_DC(WSGTextureProvider);
     return d->buffer;
+}
+
+bool WSGTextureProvider::smooth() const
+{
+    W_DC(WSGTextureProvider);
+    return d->smooth;
+}
+
+void WSGTextureProvider::setSmooth(bool newSmooth)
+{
+    W_D(WSGTextureProvider);
+    if (d->smooth == newSmooth)
+        return;
+    d->smooth = newSmooth;
+    d->qtTexture.setFiltering(newSmooth ? QSGTexture::Linear
+                                        : QSGTexture::Nearest);
+    d->qtTexture.setMipmapFiltering(newSmooth ? QSGTexture::Linear
+                                              : QSGTexture::Nearest);
+
+    Q_EMIT smoothChanged();
 }
 
 WAYLIB_SERVER_END_NAMESPACE

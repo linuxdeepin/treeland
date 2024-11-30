@@ -370,6 +370,10 @@ WSGTextureProvider *WSurfaceItemContent::wTextureProvider() const
 
     if (!d->textureProvider) {
         d->textureProvider = new WSGTextureProvider(w);
+        d->textureProvider->setSmooth(smooth());
+        connect(this, &WSurfaceItemContent::smoothChanged,
+                d->textureProvider, &WSGTextureProvider::setSmooth);
+
         if (d->surface) {
             if (auto texture = d->surface->handle()->get_texture()) {
                 d->textureProvider->setTexture(qw_texture::from(texture), d->buffer.get());

@@ -20,6 +20,8 @@ class WAYLIB_SERVER_EXPORT WSGTextureProvider : public QSGTextureProvider, publi
     Q_OBJECT
     W_DECLARE_PRIVATE(WSGTextureProvider)
 
+    Q_PROPERTY(bool smooth READ smooth WRITE setSmooth NOTIFY smoothChanged FINAL)
+
 public:
     explicit WSGTextureProvider(WOutputRenderWindow *window);
 
@@ -32,6 +34,12 @@ public:
     QSGTexture *texture() const override;
     virtual QW_NAMESPACE::qw_texture *qwTexture() const;
     virtual QW_NAMESPACE::qw_buffer *qwBuffer() const;
+
+    bool smooth() const;
+    void setSmooth(bool newSmooth);
+
+Q_SIGNALS:
+    void smoothChanged();
 };
 
 WAYLIB_SERVER_END_NAMESPACE
