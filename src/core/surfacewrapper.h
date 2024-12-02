@@ -302,9 +302,9 @@ Q_SIGNALS:
 private:
     ~SurfaceWrapper() override;
     using QQuickItem::setParentItem;
+    using QQuickItem::setVisible;
     using QQuickItem::stackAfter;
     using QQuickItem::stackBefore;
-    using QQuickItem::setVisible;
     void setParent(QQuickItem *item);
     void setActivate(bool activate);
     void setNormalGeometry(const QRectF &newNormalGeometry);
@@ -344,7 +344,6 @@ private:
     WSurfaceItem *m_surfaceItem = nullptr;
     QPointer<QQuickItem> m_titleBar;
     QPointer<QQuickItem> m_decoration;
-    QPointer<QQuickItem> m_blurContent;
     QPointer<QQuickItem> m_geometryAnimation;
     QPointer<QQuickItem> m_coverContent;
     QRectF m_boundedRect;
@@ -401,6 +400,7 @@ private:
     uint m_hideByshowDesk : 1;
     uint m_hideByLockScreen : 1;
     uint m_confirmHideByLockScreen : 1;
+    uint m_blur : 1;
     SurfaceRole m_surfaceRole = SurfaceRole::Normal;
     quint32 m_autoPlaceYOffset = 0;
     QPoint m_clientRequstPos;
