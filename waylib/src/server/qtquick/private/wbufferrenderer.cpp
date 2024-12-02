@@ -429,7 +429,27 @@ void WBufferRenderer::render(int sourceIndex, const QMatrix4x4 &renderMatrix,
     const qreal devicePixelRatio = state.devicePixelRatio;
     state.renderer = renderer;
     state.worldTransform = renderMatrix;
-    renderer->setDevicePixelRatio(devicePixelRatio);
+    // The renderer should always receive the window's DPR (Device Pixel Ratio)
+    // because, regardless of the DPR used for rendering, all resources within
+    // a window are loaded based on the window's own DPR.
+
+    // During rendering, certain specialized nodes (e.g., QSGCurveStrokeMaterialShader)
+    // use QSGRenderer::devicePixelRatio for specific calculations related to
+    // ShapePath::fillItem. When displaying this fillItem using Shape, it might
+    // be desirable for the QSGTexture provided by fillItem to scale completely
+    // to match the size of the Shape, regardless of its original size.
+
+    // If a PathRectangle is used, its width is set to
+    // textureSize.width / QQuickWindow::effectiveDevicePixelRatio. Here, the
+    // devicePixelRatio value is utilized because the width and height passed
+    // to PathRectangle need to be converted from pixel values to pixel-independent sizes.
+
+    // Returning to the issue mentioned earlier, QSGCurveStrokeMaterialShader
+    // uses QSGRenderer::devicePixelRatio for additional calculations that influence
+    // how Shape fills the QSGTexture provided by fillItem. Therefore, we need to ensure
+    // that QSGRenderer::devicePixelRatio and QQuickWindow::effectiveDevicePixelRatio
+    // are always consistent. Otherwise, some Items might render incorrectly.
+    renderer->setDevicePixelRatio(window()->effectiveDevicePixelRatio());
     renderer->setDeviceRect(QRect(QPoint(0, 0), state.pixelSize));
     renderer->setRenderTarget(state.sgRenderTarget);
     const auto viewportRect = scaleToRect(targetRect, devicePixelRatio);
