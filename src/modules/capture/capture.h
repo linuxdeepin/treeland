@@ -54,8 +54,9 @@ public:
     Q_DECLARE_FLAGS(CaptureSourceHint, CaptureSourceType)
 
     template<IsCaptureSourceTarget T>
-    CaptureSource(T *ptr, QObject *parent)
+    CaptureSource(T *ptr, qreal devicePixelRatio, QObject *parent)
         : QObject(parent)
+        , m_devicePixelRatio(devicePixelRatio)
     {
         m_sourceList.push_back(
             { { static_cast<QQuickItem *>(ptr) }, static_cast<WTextureProviderProvider *>(ptr) });
@@ -137,6 +138,7 @@ protected:
     QImage m_image;
     QMetaObject::Connection m_bufferConn;
     QList<QPair<QPointer<QQuickItem>, WTextureProviderProvider *>> m_sourceList;
+    qreal m_devicePixelRatio;
 };
 
 #define CaptureSource_iid "org.deepin.treeland.CaptureSource"
@@ -316,7 +318,7 @@ class CaptureSourceSurface : public CaptureSource
 {
     Q_OBJECT
 public:
-    explicit CaptureSourceSurface(WSurfaceItemContent *surfaceItemContent);
+    explicit CaptureSourceSurface(WSurfaceItemContent *surfaceItemContent, qreal devicePixelRatio);
     qw_buffer *internalBuffer() override;
     CaptureSourceType sourceType() override;
     QRect cropRect() const override;
