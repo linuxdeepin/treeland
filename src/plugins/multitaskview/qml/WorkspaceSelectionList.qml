@@ -135,9 +135,6 @@ Item {
                         margins: TreelandConfig.highlightBorderWidth
                     }
                     clip: true
-                    layer.enabled: true
-                    smooth: true
-                    opacity: 0
 
                     WallpaperController {
                         id: wpCtrl
@@ -147,23 +144,51 @@ Item {
                     }
 
                     ShaderEffectSource {
+                        id: wallpaper
                         sourceItem: wpCtrl.proxy
                         anchors.fill: parent
-                        recursive: true
-                        hideSource: false
+                        recursive: false
+                        hideSource: visible
+                        smooth: true
+                        opacity: 0
+                    }
+
+                    Shape {
+                        anchors.fill: parent
+                        preferredRendererType: Shape.CurveRenderer
+                        ShapePath {
+                            strokeWidth: 0
+                            fillItem: wallpaper
+                            PathRectangle {
+                                width: content.width
+                                height: content.height
+                                radius: TreelandConfig.workspaceThumbCornerRadius
+                            }
+                        }
                     }
 
                     WorkspaceProxy {
                         id: wp
                         workspace: workspaceThumbDelegate.workspace
                         output: root.output
+                        opacity: 0
+                        smooth: true
+                        layer.enabled: true
                     }
 
-                    ShaderEffectSource {
-                        sourceItem: wp
+                    Shape {
                         anchors.fill: parent
-                        recursive: true
-                        hideSource: true
+                        preferredRendererType: Shape.CurveRenderer
+                        ShapePath {
+                            strokeWidth: 0
+                            fillItem: wp
+                            fillTransform: PlanarTransform.fromScale(content.width / wp.width, content.height / wp.height, 0, 0)
+                            PathRectangle {
+                                width: content.width
+                                height: content.height
+                                radius: TreelandConfig.workspaceThumbCornerRadius
+                            }
+                        }
                     }
 
                     HoverHandler {
@@ -244,21 +269,6 @@ Item {
                             if (!active && commitDeletion) {
                                 Helper.workspace.removeModel(workspaceThumbDelegate.index)
                             }
-                        }
-                    }
-                }
-
-                Shape {
-                    x: content.x
-                    y: content.y
-                    preferredRendererType: Shape.CurveRenderer
-                    ShapePath {
-                        strokeWidth: 0
-                        fillItem: content
-                        PathRectangle {
-                            width: content.width
-                            height: content.height
-                            radius: TreelandConfig.workspaceThumbCornerRadius
                         }
                     }
                 }
