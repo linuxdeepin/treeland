@@ -41,7 +41,9 @@
           treeland = pkgs.qt6Packages.callPackage ./nix {
             nix-filter = nix-filter.lib;
             qwlroots = qwlroots.packages.${system}.default;
-            waylib = waylib.packages.${system}.default;
+            waylib = waylib.packages.${system}.default.override {
+                debug = false;
+            };
             ddm = ddm.packages.${system}.default;
             treeland-protocols = treeland-protocols.packages.${system}.default;
           };
