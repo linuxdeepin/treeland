@@ -600,11 +600,12 @@ void Output::arrangeNonLayerSurface(SurfaceWrapper *surface, const QSizeF &sizeD
     QRectF normalGeo = surface->normalGeometry();
     do {
         if (surface->positionAutomatic()) {
-            if (normalGeo.size().isEmpty())
+            if (normalGeo.isEmpty())
                 return;
 
             // NOTE: Xwayland's popup don't has parent
             SurfaceWrapper *parentSurfaceWrapper = surface->parentSurface();
+
             if (parentSurfaceWrapper) {
                 if (surface->type() == SurfaceWrapper::Type::XdgPopup
                     || surface->type() == SurfaceWrapper::Type::InputPopup) {
@@ -659,6 +660,9 @@ void Output::arrangePopupSurface(SurfaceWrapper *surface)
     Q_ASSERT(parentSurfaceWrapper);
 
     QRectF normalGeo = surface->normalGeometry();
+    if (normalGeo.isEmpty())
+        return;
+
     auto xdgPopupSurface = qobject_cast<WXdgPopupSurface *>(surface->shellSurface());
     auto inputPopupSurface = qobject_cast<WInputPopupSurface *>(surface->shellSurface());
 
