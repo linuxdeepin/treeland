@@ -9,6 +9,7 @@
 #include "treelandconfig.h"
 #include "workspace.h"
 
+#include <woutputitem.h>
 #include <woutputrenderwindow.h>
 
 #include <QtConcurrentMap>
@@ -363,10 +364,14 @@ void MultitaskviewSurfaceModel::calcDisplayPos(const QList<ModelDataPtr> &rawDat
 
 void MultitaskviewSurfaceModel::doCalculateLayout(const QList<ModelDataPtr> &rawData)
 {
-    auto maxWindowHeight = std::min(layoutArea().height(),
-                                    static_cast<qreal>(TreelandConfig::ref().normalWindowHeight()));
-    auto minWindowHeight = TreelandConfig::ref().minMultitaskviewSurfaceHeight();
-    auto windowHeightStep = TreelandConfig::ref().windowHeightStep();
+    auto maxWindowHeight =
+        std::min(layoutArea().height(),
+                 static_cast<qreal>(TreelandConfig::ref().normalWindowHeight()
+                                    / output()->outputItem()->devicePixelRatio()));
+    auto minWindowHeight = TreelandConfig::ref().minMultitaskviewSurfaceHeight()
+        / output()->outputItem()->devicePixelRatio();
+    auto windowHeightStep =
+        TreelandConfig::ref().windowHeightStep() / output()->outputItem()->devicePixelRatio();
     auto rowH = maxWindowHeight;
     while (rowH > minWindowHeight) {
         if (tryLayout(rawData, rowH)) {
