@@ -22,6 +22,8 @@ ItemSelector::ItemSelector(QQuickItem *parent)
     setKeepMouseGrab(true);
     QQuickItemPrivate::get(this)->anchors()->setFill(parentItem());
     m_defaultFilter = [this](QQuickItem *item, ItemSelector::ItemTypes selectionHint) {
+        if (!item->isVisible())
+            return false;
         if (qobject_cast<WOutputItem *>(item) && selectionHint.testFlag(ItemType::Output)) {
             return true;
         } else if (qobject_cast<WSurfaceItemContent *>(item)
