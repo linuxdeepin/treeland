@@ -340,7 +340,7 @@ void Helper::onOutputRemoved(WOutput *output)
         }
     }
     // When removing the last screen, no need to move the window position
-    if (!surfaces.isEmpty() && m_rootSurfaceContainer->primaryOutput() && m_outputList.size() > 1) {
+    if (m_rootSurfaceContainer->primaryOutput() != o) {
         moveSurfacesToOutput(surfaces, m_rootSurfaceContainer->primaryOutput(), o);
     }
 
@@ -508,9 +508,7 @@ void Helper::onSetCopyOutput(treeland_virtual_output_v1 *virtual_output)
 
     m_mode = OutputMode::Copy;
     const auto &surfaces = getWorkspaceSurfaces();
-    if (!surfaces.isEmpty() && mirrorOutput) {
-        moveSurfacesToOutput(surfaces, mirrorOutput, nullptr);
-    }
+    moveSurfacesToOutput(surfaces, mirrorOutput, nullptr);
 }
 
 void Helper::onRestoreCopyOutput(treeland_virtual_output_v1 *virtual_output)
