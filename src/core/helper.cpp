@@ -1397,6 +1397,10 @@ void Helper::setActivatedSurface(SurfaceWrapper *newActivateSurface)
     if (newActivateSurface) {
         Q_ASSERT(newActivateSurface->showOnWorkspace(workspace()->current()->id()));
         newActivateSurface->stackToLast();
+        if (newActivateSurface->type() == SurfaceWrapper::Type::XWayland) {
+            auto xwaylandSurface = qobject_cast<WXWaylandSurface *>(newActivateSurface->shellSurface());
+            xwaylandSurface->restack(nullptr, WXWaylandSurface::XCB_STACK_MODE_ABOVE);
+        }
     }
 
     if (m_activatedSurface)
