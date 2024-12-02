@@ -20,6 +20,7 @@ struct WrapData
     WrapData(T *p)
         : ptr(p)
     {
+        Q_ASSERT_X(p, __func__, "WrapData is only for non-null ptr.");
         conn = QObject::connect(p,
                                 &T::aboutToBeInvalidated,
                                 p,
@@ -33,6 +34,12 @@ struct WrapData
         ptr = nullptr;
         Q_ASSERT_X(conn, __func__, "Connection should be valid until invalidated.");
         QObject::disconnect(conn);
+    }
+
+    ~WrapData()
+    {
+        if (ptr)
+            invalidate();
     }
 };
 
@@ -76,7 +83,7 @@ public:
 
     WrapPointer<T> &operator=(T *p)
     {
-        wd.reset(new WrapData<T>(p));
+        wd.reset(p ? new WrapData<T>(p) : nullptr);
         return *this;
     }
 

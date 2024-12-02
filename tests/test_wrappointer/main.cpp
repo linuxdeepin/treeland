@@ -127,6 +127,17 @@ private Q_SLOTS:
         }
     }
 
+    void testNullAssignment()
+    {
+        FakeWrapObject *p = new FakeWrapObject;
+        QScopedPointer<FakeWrapObject> sp(p);
+        QPointer<FakeWrapObject> qp(p);
+        WrapPointer<FakeWrapObject> wp(p);
+        TEST_ACCESS(wp, p);
+        wp = nullptr;
+        QVERIFY(!wp);
+    }
+
     void cleanupTestCase() { }
 };
 
