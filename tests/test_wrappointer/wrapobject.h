@@ -32,6 +32,11 @@ public:
     {
     }
 
+    ~FakeWrapObject() override
+    {
+        invalidate();
+    }
+
     void invalidate()
     {
         delete m_object;
