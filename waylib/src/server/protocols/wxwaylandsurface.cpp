@@ -565,7 +565,12 @@ void WXWaylandSurface::close()
 
 void WXWaylandSurface::restack(WXWaylandSurface *sibling, StackMode mode)
 {
-    handle()->restack(*sibling->handle(), static_cast<xcb_stack_mode_t>(mode));
+    if (sibling) {
+        handle()->restack(*sibling->handle(), static_cast<xcb_stack_mode_t>(mode));
+        return;
+    }
+
+    handle()->restack(nullptr, static_cast<xcb_stack_mode_t>(mode));
 }
 
 WAYLIB_SERVER_END_NAMESPACE
