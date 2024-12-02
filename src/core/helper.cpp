@@ -339,6 +339,11 @@ void Helper::onOutputRemoved(WOutput *output)
             m_outputList.replace(i, o1);
         }
     }
+
+    if (m_multitaskView) {
+        m_multitaskView->immediatelyExit();
+    }
+
     // When removing the last screen, no need to move the window position
     if (m_rootSurfaceContainer->primaryOutput() != o) {
         moveSurfacesToOutput(surfaces, m_rootSurfaceContainer->primaryOutput(), o);
