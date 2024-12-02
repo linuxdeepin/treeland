@@ -275,7 +275,6 @@ void Helper::setWorkspaceVisible(bool visible)
         m_workspaceOpacityAnimation->setStartValue(m_shellHandler->workspace()->opacity());
         m_workspaceOpacityAnimation->setEndValue(0.0);
         m_workspaceOpacityAnimation->start();
-
     }
 }
 
@@ -843,9 +842,6 @@ void Helper::init()
     qw_screencopy_manager_v1::create(*m_server->handle());
     qw_viewporter::create(*m_server->handle());
     m_renderWindow->init(m_renderer, m_allocator);
-
-    // for clipboard
-    qw_data_control_manager_v1::create(*m_server->handle());
 
     // for xwayland
     auto *xwaylandOutputManager =
