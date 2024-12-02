@@ -95,7 +95,7 @@ Item {
             }
         ]
         state: {
-            if (exited)
+            if (exited || status === Multitaskview.Uninitialized)
                 return "initial";
 
             if (multitaskview.activeReason === Multitaskview.ShortcutKey){
