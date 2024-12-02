@@ -37,7 +37,6 @@ QmlEngine::QmlEngine(QObject *parent)
     , showDesktopAnimatioComponentn(this, "Treeland", "ShowDesktopAnimation")
     , captureSelectorComponent(this, "Treeland", "CaptureSelectorLayer")
     , windowPickerComponent(this, "Treeland", "WindowPickerLayer")
-    , blurComponent(this, "Treeland", "Blur")
     , launchpadAnimationComponent(this, "Treeland", "LaunchpadAnimation")
     , launchpadCoverComponent(this, "Treeland", "LaunchpadCover")
     , layershellAnimationComponent(this, "Treeland", "LayerShellAnimation")
@@ -108,18 +107,6 @@ QQuickItem *QmlEngine::createTaskBar(Output *output, QQuickItem *parent)
 QQuickItem *QmlEngine::createXdgShadow(QQuickItem *parent)
 {
     return createComponent(xdgShadowComponent, parent);
-}
-
-QQuickItem *QmlEngine::createBlur(SurfaceWrapper *surface, QQuickItem *parent)
-{
-    return createComponent(
-        blurComponent,
-        parent,
-        {
-            { "radius", QVariant::fromValue(surface->radius()) },
-            { "radiusEnabled",
-              QVariant::fromValue(surface->radius() > 0 || !surface->noCornerRadius()) },
-        });
 }
 
 QQuickItem *QmlEngine::createTaskSwitcher(Output *output, QQuickItem *parent)
