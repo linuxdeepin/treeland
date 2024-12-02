@@ -32,6 +32,14 @@
 
 Q_LOGGING_CATEGORY(qLcCapture, "treeland.capture")
 
+static inline QRectF scaledRect(const QRectF &rect, qreal devicePixelRatio)
+{
+    return { rect.x() * devicePixelRatio,
+             rect.y() * devicePixelRatio,
+             rect.width() * devicePixelRatio,
+             rect.height() * devicePixelRatio };
+}
+
 CaptureSource *CaptureContextV1::source() const
 {
     return m_captureSource;
@@ -133,9 +141,9 @@ void CaptureContextV1::onCapture(treeland_capture_frame_v1 *frame)
     auto notifyBuffer = [this] {
         m_frame->sendBuffer(
             WTools::drmToShmFormat(WTools::toDrmFormat(m_captureSource->image().format())),
-            captureRegion().width(),
-            captureRegion().height(),
-            captureRegion().width() * 4);
+            source()->cropRect().width(),
+            source()->cropRect().height(),
+            source()->cropRect().width() * 4);
         m_frame->sendBufferDone();
         connect(m_frame,
                 &treeland_capture_frame_v1::copy,
@@ -728,8 +736,9 @@ static inline WSurfaceItemContent *findItemContent(QQuickItem *item)
     return nullptr;
 }
 
-CaptureSourceSurface::CaptureSourceSurface(WSurfaceItemContent *surfaceItemContent)
-    : CaptureSource(surfaceItemContent, nullptr)
+CaptureSourceSurface::CaptureSourceSurface(WSurfaceItemContent *surfaceItemContent,
+                                           qreal devicePixelRatio)
+    : CaptureSource(surfaceItemContent, devicePixelRatio, nullptr)
     , m_surfaceItemContent(surfaceItemContent)
 {
 }
@@ -757,12 +766,15 @@ CaptureSource::CaptureSourceType CaptureSourceSurface::sourceType()
 
 QRect CaptureSourceSurface::cropRect() const
 {
-    return m_surfaceItemContent ? m_surfaceItemContent->boundingRect().toRect() : QRect{};
+    return m_surfaceItemContent
+        ? scaledRect(m_surfaceItemContent->boundingRect(), m_devicePixelRatio).toRect()
+        : QRect{};
 }
 
 QSize CaptureSourceSurface::sourceSize() const
 {
-    return m_surfaceItemContent ? m_surfaceItemContent->size().toSize() : QSize{};
+    return m_surfaceItemContent ? (m_surfaceItemContent->size() * m_devicePixelRatio).toSize()
+                                : QSize{};
 }
 
 CaptureSource *CaptureSourceSelector::selectedSource() const
@@ -832,8 +844,10 @@ void CaptureSourceSelector::mouseReleaseEvent(QMouseEvent *event)
     }
     case SelectionMode::SelectWindow: {
         if (auto surfaceItemContent = qobject_cast<WSurfaceItemContent *>(hoveredItem())) {
-            setSelectedSource(new CaptureSourceSurface(surfaceItemContent),
-                              selectionRegion().toRect());
+            setSelectedSource(
+                new CaptureSourceSurface(surfaceItemContent,
+                                         m_itemSelector->outputItem()->devicePixelRatio()),
+                selectionRegion().toRect());
         }
         break;
     }
@@ -923,7 +937,7 @@ void CaptureSource::copyBuffer(qw_buffer *buffer)
 }
 
 CaptureSourceOutput::CaptureSourceOutput(WOutputViewport *viewport)
-    : CaptureSource(viewport, nullptr)
+    : CaptureSource(viewport, viewport->devicePixelRatio(), nullptr)
     , m_outputViewport(viewport)
 {
 }
@@ -939,12 +953,15 @@ qw_buffer *CaptureSourceOutput::internalBuffer()
 
 QRect CaptureSourceOutput::cropRect() const
 {
-    return m_outputViewport ? m_outputViewport->boundingRect().toRect() : QRect{};
+    return m_outputViewport
+        ? scaledRect(m_outputViewport->boundingRect(), m_outputViewport->devicePixelRatio())
+              .toRect()
+        : QRect{};
 }
 
 QSize CaptureSourceOutput::sourceSize() const
 {
-    return m_outputViewport ? m_outputViewport->size().toSize() : QSize{};
+    return m_outputViewport ? (m_outputViewport->size() * m_devicePixelRatio).toSize() : QSize{};
 }
 
 CaptureSource::CaptureSourceType CaptureSourceOutput::sourceType()
@@ -953,7 +970,7 @@ CaptureSource::CaptureSourceType CaptureSourceOutput::sourceType()
 }
 
 CaptureSourceRegion::CaptureSourceRegion(WOutputViewport *viewport, const QRect &region)
-    : CaptureSource(viewport, nullptr)
+    : CaptureSource(viewport, viewport->devicePixelRatio(), nullptr)
 {
     m_viewportRegions.push_back({ viewport, region });
 }
@@ -981,10 +998,12 @@ QRect CaptureSourceRegion::cropRect() const
         if (!viewport)
             continue;
         if (!ref) {
-            result = region;
+            result = scaledRect(region, viewport->devicePixelRatio()).toRect();
             ref = viewport;
         } else {
-            auto mapped = ref->mapRectFromItem(viewport, region).toRect();
+            auto mapped =
+                scaledRect(ref->mapRectFromItem(viewport, region), viewport->devicePixelRatio())
+                    .toRect(); // FIXME: firstly map or firstly scale?
             result = result.united(mapped);
         }
     }
@@ -999,10 +1018,13 @@ QSize CaptureSourceRegion::sourceSize() const
         if (!viewport)
             continue;
         if (!ref) {
-            result = viewport->boundingRect().toRect();
+            result = scaledRect(viewport->boundingRect(), viewport->devicePixelRatio()).toRect();
             ref = viewport;
         } else {
-            auto mapped = ref->mapRectFromItem(viewport, viewport->boundingRect()).toRect();
+            auto mapped = ref->mapRectFromItem(
+                                 viewport,
+                                 scaledRect(viewport->boundingRect(), viewport->devicePixelRatio()))
+                              .toRect(); // FIXME: firstly map or firstly scale?
             result = result.united(mapped);
         }
     }
