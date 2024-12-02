@@ -491,6 +491,10 @@ void SurfaceWrapper::updateTitleBar()
     } else {
         m_titleBar = m_engine->createTitleBar(this, m_surfaceItem);
         m_titleBar->setZ(static_cast<int>(WSurfaceItem::ZOrder::ContentItem));
+        if (type() == Type::XWayland) {
+            auto xwaylandSurfaceItem = qobject_cast<WXWaylandSurfaceItem*>(m_surfaceItem);
+            xwaylandSurfaceItem->moveTo(QPointF(0, m_titleBar->height()), !m_xwaylandPositionFromSurface);
+        }
         m_surfaceItem->setTopPadding(m_titleBar->height());
         connect(m_titleBar, &QQuickItem::heightChanged, this, [this] {
             m_surfaceItem->setTopPadding(m_titleBar->height());
