@@ -14,6 +14,17 @@ Item {
     readonly property real cornerRadius: wrapper?.radius ?? cornerRadius
 
     anchors.fill: parent
+
+    Loader {
+        anchors.fill: parent
+        active: wrapper.blur ?? false
+        sourceComponent: Blur {
+            anchors.fill: parent
+            radiusEnabled: cornerRadius > 0
+            radius: cornerRadius
+        }
+    }
+
     SurfaceItemContent {
         id: content
         surface: root.surface?.surface ?? null

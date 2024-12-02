@@ -53,6 +53,7 @@ SurfaceWrapper::SurfaceWrapper(QmlEngine *qmlEngine,
     , m_hideByshowDesk(true)
     , m_hideByLockScreen(false)
     , m_confirmHideByLockScreen(false)
+    , m_blur(false)
 {
     QQmlEngine::setContextForObject(this, qmlEngine->rootContext());
 
@@ -201,10 +202,6 @@ SurfaceWrapper::~SurfaceWrapper()
     if (m_geometryAnimation) {
         delete m_geometryAnimation;
         m_geometryAnimation = nullptr;
-    }
-    if (m_blurContent) {
-        delete m_blurContent;
-        m_blurContent = nullptr;
     }
     if (m_windowAnimation) {
         delete m_windowAnimation;
@@ -697,6 +694,7 @@ void SurfaceWrapper::createNewOrClose(uint direction)
         [[fallthrough]];
     case Type::XWayland: {
         m_windowAnimation = m_engine->createNewAnimation(this, container(), direction);
+        m_windowAnimation->setProperty("enableBlur", m_blur);
     } break;
     case Type::Layer: {
         auto scope = QString(static_cast<WLayerSurfaceItem *>(m_surfaceItem)
@@ -711,7 +709,7 @@ void SurfaceWrapper::createNewOrClose(uint direction)
         } else if (anchor != WLayerSurface::AnchorType::None) {
             m_windowAnimation = m_engine->createLayerShellAnimation(this, container(), direction);
             m_windowAnimation->setProperty("position", QVariant::fromValue(anchor));
-            m_windowAnimation->setProperty("enableBlur", true);
+            m_windowAnimation->setProperty("enableBlur", m_blur);
         } else {
             // NOTE: missing fullscreen window animation, so hide window now.
             if (m_hideByLockScreen) {
@@ -839,6 +837,7 @@ bool SurfaceWrapper::startStateChangeAnimation(State targetState, const QRectF &
 
     m_geometryAnimation =
         m_engine->createGeometryAnimation(this, geometry(), targetGeometry, container());
+    m_geometryAnimation->setProperty("enableBlur", m_blur);
     m_pendingState = targetState;
     m_pendingGeometry = targetGeometry;
     bool ok = connect(m_geometryAnimation, SIGNAL(ready()), this, SLOT(onAnimationReady()));
@@ -870,10 +869,6 @@ void SurfaceWrapper::onShowAnimationFinished()
 
 void SurfaceWrapper::onHideAnimationFinished()
 {
-    if (m_blurContent) {
-        m_blurContent->setVisible(false);
-    }
-
     if (m_coverContent) {
         m_coverContent->setVisible(false);
     }
@@ -896,9 +891,6 @@ void SurfaceWrapper::onMappedChanged()
     if (!m_isProxy) {
         if (mapped) {
             createNewOrClose(OPEN_ANIMATION);
-            if (m_blurContent) {
-                m_blurContent->setVisible(true);
-            }
             if (m_coverContent) {
                 m_coverContent->setVisible(true);
             }
@@ -1398,19 +1390,16 @@ bool SurfaceWrapper::showOnWorkspace(int workspaceIndex) const
 
 bool SurfaceWrapper::blur() const
 {
-    return m_blurContent.isNull();
+    return m_blur;
 }
 
 void SurfaceWrapper::setBlur(bool blur)
 {
-    if (blur && !m_blurContent) {
-        m_blurContent = m_engine->createBlur(this, this);
-        m_blurContent->setVisible(isVisible());
-    } else if (!blur && m_blurContent) {
-        m_blurContent->setVisible(false);
-        m_blurContent->deleteLater();
-        m_blurContent = nullptr;
+    if (m_blur == blur) {
+        return;
     }
+
+    m_blur = blur;
 
     Q_EMIT blurChanged();
 }
