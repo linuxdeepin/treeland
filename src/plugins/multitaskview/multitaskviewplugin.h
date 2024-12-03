@@ -39,7 +39,7 @@ public:
 
     void setStatus(IMultitaskView::Status status) override;
     void toggleMultitaskView(IMultitaskView::ActiveReason reason) override;
-    void immediatelyExit();
+    void immediatelyExit() override;
 
 private:
     QQuickItem *createMultitaskview(QQuickItem *parent);
