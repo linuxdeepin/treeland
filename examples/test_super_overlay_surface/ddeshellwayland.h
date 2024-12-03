@@ -23,6 +23,7 @@ public:
     void setSkipSwitcher(uint32_t skip);
     void setSkipDockPreview(uint32_t skip);
     void setSkipMutiTaskView(uint32_t skip);
+    void setAcceptKeyboardFocus(uint32_t accept);
     bool eventFilter(QObject *watched, QEvent *event) override;
 
 private:
@@ -39,6 +40,7 @@ private:
     std::optional<bool> m_skipSwitcher;
     std::optional<bool> m_skipDockPreview;
     std::optional<bool> m_skipMutiTaskView;
+    bool m_acceptKeyboardFocus = true;
 
     std::unique_ptr<DDEShellSurface> m_shellSurface;
 };
