@@ -937,8 +937,19 @@ void Helper::activateSurface(SurfaceWrapper *wrapper, Qt::FocusReason reason)
         || (wrapper->shellSurface()->hasCapability(WToplevelSurface::Capability::Activate)
             && wrapper->hasActiveCapability()))
         setActivatedSurface(wrapper);
-    if (!wrapper || wrapper->shellSurface()->hasCapability(WToplevelSurface::Capability::Focus))
-        reuqestKeyboardFocusForSurface(wrapper, reason);
+    if (!wrapper || wrapper->shellSurface()->hasCapability(WToplevelSurface::Capability::Focus)) {
+        if (wrapper && wrapper->type() == SurfaceWrapper::Type::XdgPopup) {
+            auto parent = wrapper->parentSurface();
+            while (parent->type() == SurfaceWrapper::Type::XdgPopup) {
+                parent = parent->parentSurface();
+            }
+
+            if (parent && parent->shellSurface()->hasCapability(WToplevelSurface::Capability::Focus))
+                reuqestKeyboardFocusForSurface(parent, reason);
+        } else {
+            reuqestKeyboardFocusForSurface(wrapper, reason);
+        }
+    }
 }
 
 void Helper::forceActivateSurface(SurfaceWrapper *wrapper, Qt::FocusReason reason)
