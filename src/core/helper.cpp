@@ -578,7 +578,7 @@ void Helper::onSurfaceWrapperAdded(SurfaceWrapper *wrapper)
         auto xwayland = qobject_cast<WXWaylandSurface *>(wrapper->shellSurface());
         auto updateDecorationTitleBar = [this, wrapper, xwayland]() {
             if (!xwayland->isBypassManager()) {
-                if (m_atomDeepinNoTitlebar && !readWindowProperty(m_defaultXWayland->xcbConnection(), xwayland->handle()->handle()->window_id,
+                if (m_atomDeepinNoTitlebar && !readWindowProperty(defaultXWaylandSocket()->xcbConnection(), xwayland->handle()->handle()->window_id,
                                                               m_atomDeepinNoTitlebar, XCB_ATOM_CARDINAL).isEmpty()) {
                     wrapper->setNoTitleBar(true);
                 } else {
