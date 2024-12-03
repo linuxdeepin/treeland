@@ -30,6 +30,10 @@ public:
         return {handle()->handle()->surface->current.width, handle()->handle()->surface->current.height};
     }
 
+    wl_client *waylandClient() const override {
+        return nativeHandle()->resource->client;
+    }
+
     WSurface *const parent;
     QRect cursorRect;
 };
