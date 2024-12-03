@@ -69,6 +69,7 @@ public:
     std::optional<bool> skipSwitcher() const;
     std::optional<bool> skipDockPreView() const;
     std::optional<bool> skipMutiTaskView() const;
+    bool acceptKeyboardFocus() const;
 
     static DDEShellSurfaceInterface *get(wl_resource *native);
     static DDEShellSurfaceInterface *get(WSurface *surface);
@@ -80,6 +81,7 @@ Q_SIGNALS:
     void skipSwitcherChanged(bool skip);
     void skipDockPreViewChanged(bool skip);
     void skipMutiTaskViewChanged(bool skip);
+    void acceptKeyboardFocusChanged(bool accept);
 
 private:
     explicit DDEShellSurfaceInterface(wl_resource *surface, wl_resource *resource);

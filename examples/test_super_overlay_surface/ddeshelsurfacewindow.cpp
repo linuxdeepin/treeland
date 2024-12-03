@@ -5,10 +5,13 @@
 
 #include "ddeshellwayland.h"
 
+#include <QLineEdit>
+
 DDEShelSurfaceWindow::DDEShelSurfaceWindow(TestMode mode, QWidget *parent)
     : QWidget{ parent }
     , m_mode(mode)
 {
+    QLineEdit *l = new QLineEdit(this);
 }
 
 void DDEShelSurfaceWindow::showEvent(QShowEvent *event)
@@ -36,6 +39,7 @@ void DDEShelSurfaceWindow::apply()
         DDEShellWayland::get(windowHandle())->setSkipDockPreview(true);
         DDEShellWayland::get(windowHandle())->setSkipMutiTaskView(true);
         DDEShellWayland::get(windowHandle())->setSkipSwitcher(true);
+        DDEShellWayland::get(windowHandle())->setAcceptKeyboardFocus(false);
         // ---------------------------------------------------------------
     }
 

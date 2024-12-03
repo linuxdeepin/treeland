@@ -578,6 +578,20 @@ void SurfaceWrapper::markWrapperToRemoved()
     } // else delete this in Animation finish
 }
 
+bool SurfaceWrapper::acceptKeyboardFocus() const
+{
+    return m_acceptKeyboardFocus;
+}
+
+void SurfaceWrapper::setAcceptKeyboardFocus(bool accept)
+{
+    if (m_acceptKeyboardFocus == accept)
+        return;
+
+    m_acceptKeyboardFocus = accept;
+    Q_EMIT acceptKeyboardFocusChanged();
+}
+
 void SurfaceWrapper::setNoDecoration(bool newNoDecoration)
 {
     if (m_wrapperAbortToRemove)

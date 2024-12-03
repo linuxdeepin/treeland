@@ -157,7 +157,19 @@ void DDEShellWayland::setSkipMutiTaskView(uint32_t skip)
 
     m_skipMutiTaskView = skip;
     if (m_shellSurface) {
-        m_shellSurface->set_skip_dock_preview(skip);
+        m_shellSurface->set_skip_muti_task_view(skip);
+    }
+}
+
+void DDEShellWayland::setAcceptKeyboardFocus(uint32_t accept)
+{
+    if (accept == m_acceptKeyboardFocus) {
+        return;
+    }
+
+    m_acceptKeyboardFocus = accept;
+    if (m_shellSurface) {
+        m_shellSurface->set_accept_keyboard_focus(accept);
     }
 }
 
@@ -219,6 +231,10 @@ void DDEShellWayland::surfaceCreated()
 
         if (m_skipSwitcher) {
             m_shellSurface->set_skip_switcher(m_skipSwitcher.value());
+        }
+
+        if (!m_acceptKeyboardFocus) {
+            m_shellSurface->set_accept_keyboard_focus(m_acceptKeyboardFocus);
         }
     }
 }

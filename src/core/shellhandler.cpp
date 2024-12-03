@@ -432,6 +432,8 @@ void ShellHandler::handleDdeShellSurfaceAdded(WSurface *surface, SurfaceWrapper 
     if (ddeShellSurface->skipMutiTaskView().has_value())
         wrapper->setSkipMutiTaskView(ddeShellSurface->skipMutiTaskView().value());
 
+    wrapper->setAcceptKeyboardFocus(ddeShellSurface->acceptKeyboardFocus());
+
     connect(ddeShellSurface,
             &DDEShellSurfaceInterface::skipSwitcherChanged,
             this,
@@ -449,5 +451,11 @@ void ShellHandler::handleDdeShellSurfaceAdded(WSurface *surface, SurfaceWrapper 
             this,
             [wrapper](bool skip) {
                 wrapper->setSkipMutiTaskView(skip);
+            });
+    connect(ddeShellSurface,
+            &DDEShellSurfaceInterface::acceptKeyboardFocusChanged,
+            this,
+            [wrapper](bool accept) {
+                wrapper->setAcceptKeyboardFocus(accept);
             });
 }

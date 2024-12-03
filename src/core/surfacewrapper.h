@@ -67,6 +67,7 @@ class SurfaceWrapper : public QQuickItem
     Q_PROPERTY(bool blur READ blur NOTIFY blurChanged FINAL)
     Q_PROPERTY(bool isWindowAnimationRunning READ isWindowAnimationRunning NOTIFY windowAnimationRunningChanged FINAL)
     Q_PROPERTY(bool coverEnabled READ coverEnabled NOTIFY coverEnabledChanged FINAL)
+    Q_PROPERTY(bool acceptKeyboardFocus READ acceptKeyboardFocus NOTIFY acceptKeyboardFocusChanged FINAL)
 
 public:
     enum class Type
@@ -241,6 +242,9 @@ public:
 
     void markWrapperToRemoved();
 
+    bool acceptKeyboardFocus() const;
+    void setAcceptKeyboardFocus(bool accept);
+
 public Q_SLOTS:
     // for titlebar
     void requestMinimize(bool onAnimation = true);
@@ -298,6 +302,7 @@ Q_SIGNALS:
     void windowAnimationRunningChanged();
     void coverEnabledChanged();
     void aboutToBeInvalidated();
+    void acceptKeyboardFocusChanged();
 
 private:
     ~SurfaceWrapper() override;
@@ -409,6 +414,7 @@ private:
 
     bool m_socketEnabled{ false };
     bool m_windowAnimationEnabled{ true };
+    bool m_acceptKeyboardFocus{ true };
 };
 
 Q_DECLARE_OPERATORS_FOR_FLAGS(SurfaceWrapper::ActiveControlStates)
