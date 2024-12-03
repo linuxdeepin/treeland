@@ -154,6 +154,8 @@ void WTextInputV1::sendEnter(WSurface *surface)
 void WTextInputV1::sendLeave()
 {
     if (focusedSurface()) {
+        W_D(WTextInputV1);
+        d->focusedSurface = nullptr;
         zwp_text_input_v1_send_leave(d_func()->resource);
         Q_EMIT disabled();
     }
