@@ -59,13 +59,16 @@ void PersonalizationV1::updateCacheWallpaperPath(uid_t uid)
     m_iniMetaData = settings.value("metadata").toString();
 }
 
-QString PersonalizationV1::readWallpaperSettings(const QString &group, const QString &output)
+QString PersonalizationV1::readWallpaperSettings(const QString &group,
+                                                 const QString &output,
+                                                 int workspaceId)
 {
-    if (m_settingFile.isEmpty() || output.isEmpty())
+    if (m_settingFile.isEmpty() || output.isEmpty() || workspaceId < 1)
         return DEFAULT_WALLPAPER;
 
     QSettings settings(m_settingFile, QSettings::IniFormat);
-    return settings.value(group + "/" + output, DEFAULT_WALLPAPER).toString();
+    settings.beginGroup(QString("%1.%2.%3").arg(group).arg(output).arg(workspaceId));
+    return settings.value("path", DEFAULT_WALLPAPER).toString();
 }
 
 PersonalizationV1::PersonalizationV1(QObject *parent)
@@ -314,9 +317,16 @@ void PersonalizationV1::saveImage(personalization_wallpaper_context_v1 *context,
 
     QSettings settings(m_settingFile, QSettings::IniFormat);
 
-    settings.setValue(QString("%1/%2").arg(prefix).arg(context->output_name), dest);
-    settings.setValue(QString("%1/%2/isdark").arg(prefix).arg(context->output_name),
-                      context->isdark);
+    // TODO: protocol need to support multi-workspace
+    int workspaceId = 1;
+    settings.beginGroup(QString("%1.%2.%3").arg(prefix).arg(output).arg(workspaceId));
+
+    const QString &old_path = settings.value("path").toString();
+    QFile::remove(old_path);
+
+    settings.setValue("path", dest);
+    settings.setValue("isdark", context->isdark);
+    settings.endGroup();
 
     settings.setValue("metadata", context->meta_data);
     m_iniMetaData = context->meta_data;
@@ -404,24 +414,24 @@ QString PersonalizationV1::iconTheme() const
     return m_dconfig->value("iconThemeName", 18).toString();
 }
 
-QString PersonalizationV1::background(const QString &output)
+QString PersonalizationV1::background(const QString &output, int workspaceId)
 {
-    return readWallpaperSettings("background", output);
+    return readWallpaperSettings("background", output, workspaceId);
 }
 
-QString PersonalizationV1::lockscreen(const QString &output)
+QString PersonalizationV1::lockscreen(const QString &output, int workspaceId)
 {
-    return readWallpaperSettings("lockscreen", output);
+    return readWallpaperSettings("lockscreen", output, workspaceId);
 }
 
-bool PersonalizationV1::backgroundIsDark(const QString &output)
+bool PersonalizationV1::backgroundIsDark(const QString &output, int workspaceId)
 {
     if (m_settingFile.isEmpty())
         return DEFAULT_WALLPAPER_ISDARK;
 
     QSettings settings(m_settingFile, QSettings::IniFormat);
-    return settings.value(QString("background/%1/isdark").arg(output), DEFAULT_WALLPAPER_ISDARK)
-        .toBool();
+    settings.beginGroup(QString("background.%2.%3").arg(output).arg(workspaceId));
+    return settings.value("isdark", DEFAULT_WALLPAPER_ISDARK).toBool();
 }
 
 bool PersonalizationV1::isAnimagedImage(const QString &source)
