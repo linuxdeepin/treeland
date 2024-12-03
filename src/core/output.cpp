@@ -591,7 +591,6 @@ void Output::arrangeLayerSurfaces()
 
 void Output::arrangeNonLayerSurface(SurfaceWrapper *surface, const QSizeF &sizeDiff)
 {
-
     Q_ASSERT(surface->type() != SurfaceWrapper::Type::Layer);
     surface->setFullscreenGeometry(geometry());
     const auto validGeo = this->validGeometry();
@@ -667,12 +666,13 @@ void Output::arrangePopupSurface(SurfaceWrapper *surface)
     auto inputPopupSurface = qobject_cast<WInputPopupSurface *>(surface->shellSurface());
 
     QPointF dPos = xdgPopupSurface ? xdgPopupSurface->getPopupPosition()
-                                   : inputPopupSurface->cursorRect().topLeft();
+                                   : inputPopupSurface->cursorRect().bottomLeft();
     QPointF topLeft;
     // TODO: remove parentSurfaceWrapper->surfaceItem()->x()
     topLeft.setX(parentSurfaceWrapper->x() + parentSurfaceWrapper->surfaceItem()->x() + dPos.x());
     topLeft.setY(parentSurfaceWrapper->y() + parentSurfaceWrapper->surfaceItem()->y() + dPos.y()
                  + parentSurfaceWrapper->titlebarGeometry().height());
+
     auto output = surface->ownsOutput()->outputItem();
 
     normalGeo.setWidth(std::min(output->width(), surface->width()));
@@ -681,8 +681,13 @@ void Output::arrangePopupSurface(SurfaceWrapper *surface)
 
     if (topLeft.x() + normalGeo.width() > output->x() + output->width())
         topLeft.setX(output->x() + output->width() - normalGeo.width());
-    if (topLeft.y() + normalGeo.height() > output->y() + output->height())
-        topLeft.setY(output->y() + output->height() - normalGeo.height());
+    if (topLeft.y() + normalGeo.height() > output->y() + output->height()) {
+        if (xdgPopupSurface)
+            topLeft.setY(output->y() + output->height() - normalGeo.height());
+        else // input popup
+            topLeft.setY(topLeft.y() - inputPopupSurface->cursorRect().height()
+                         - normalGeo.height());
+    }
     normalGeo.moveTopLeft(topLeft);
     surface->moveNormalGeometryInOutput(normalGeo.topLeft());
 }
