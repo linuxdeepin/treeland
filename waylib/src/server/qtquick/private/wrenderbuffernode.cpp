@@ -1093,7 +1093,7 @@ qreal WRenderBufferNode::effectiveDevicePixelRatio() const
     if (!sgRenderer || sgRenderer->renderTarget().rt != renderTarget())
         return window->effectiveDevicePixelRatio();
 
-    return sgRenderer->devicePixelRatio();
+    return renderer->currentDevicePixelRatio();
 }
 
 WRenderBufferNode::WRenderBufferNode(QQuickItem *item, QSGTexture *texture)

@@ -68,6 +68,7 @@ public:
     void setClearColor(const QColor &clearColor);
 
     QSGRenderer *currentRenderer() const;
+    qreal currentDevicePixelRatio() const;
     const QMatrix4x4 &currentWorldTransform() const;
     QW_NAMESPACE::qw_buffer *currentBuffer() const;
     QW_NAMESPACE::qw_buffer *lastBuffer() const;

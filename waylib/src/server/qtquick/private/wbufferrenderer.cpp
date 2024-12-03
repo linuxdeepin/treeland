@@ -233,6 +233,11 @@ QSGRenderer *WBufferRenderer::currentRenderer() const
     return state.renderer;
 }
 
+qreal WBufferRenderer::currentDevicePixelRatio() const
+{
+    return state.devicePixelRatio;
+}
+
 const QMatrix4x4 &WBufferRenderer::currentWorldTransform() const
 {
     return state.worldTransform;
