@@ -6,7 +6,6 @@
 #include "capture.h"
 #include "output.h"
 #include "surfacewrapper.h"
-#include "wallpaperprovider.h"
 #include "workspace.h"
 
 #include <woutput.h>
@@ -239,15 +238,4 @@ QQuickItem *QmlEngine::createCaptureSelector(QQuickItem *parent, CaptureManagerV
 QQuickItem *QmlEngine::createWindowPicker(QQuickItem *parent)
 {
     return createComponent(windowPickerComponent, parent);
-}
-
-WallpaperImageProvider *QmlEngine::wallpaperImageProvider()
-{
-    if (!wallpaperProvider) {
-        wallpaperProvider = new WallpaperImageProvider;
-        Q_ASSERT(!this->imageProvider("wallpaper"));
-        addImageProvider("wallpaper", wallpaperProvider);
-    }
-
-    return wallpaperProvider;
 }
