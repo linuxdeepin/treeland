@@ -521,7 +521,7 @@ QString Treeland::XWaylandName()
     pw = getpwuid(uid);
     QString user{ pw->pw_name };
 
-    auto *xwayland = d->helper->createXWayland();
+    auto *xwayland = d->helper->defaultXWaylandSocket();
     const QString &display = xwayland->displayName();
 
     auto m = message();
