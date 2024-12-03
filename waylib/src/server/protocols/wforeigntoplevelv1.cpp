@@ -34,7 +34,7 @@ public:
     }
 
     void initSurface(WToplevelSurface *surface) {
-        auto handle = surfaces[surface].get();
+        auto handle = surfaces.at(surface).get();
         std::vector<QMetaObject::Connection> connection;
 
         connection.push_back(surface->safeConnect(&WToplevelSurface::titleChanged, surface, [handle, surface] {
@@ -71,8 +71,9 @@ public:
                 if (!surfaces.contains(p)) {
                     qCCritical(qLcWlrForeignToplevel) << "Xdg toplevel surface " << xdgSurface
                                                       << "has set parent surface, but foreign_toplevel_handle for parent surface not found!";
+                    return;
                 }
-                handle->set_parent(*surfaces[p]);
+                handle->set_parent(*surfaces.at(p));
             };
             connection.push_back(xdgSurface->safeConnect(&WXdgToplevelSurface::parentXdgSurfaceChanged, surface, updateSurfaceParent));
             updateSurfaceParent();
@@ -86,8 +87,9 @@ public:
                 if (!surfaces.contains(p)) {
                     qCCritical(qLcWlrForeignToplevel) << "X11 surface " << xwaylandSurface
                                                       << "has set parent surface, but foreign_toplevel_handle for parent surface not found!";
+                    return;
                 }
-                handle->set_parent(*surfaces[p]);
+                handle->set_parent(*surfaces.at(p));
             };
             connection.push_back(xwaylandSurface->safeConnect(&WXWaylandSurface::parentXWaylandSurfaceChanged, surface, updateSurfaceParent));
             updateSurfaceParent();
@@ -168,13 +170,13 @@ public:
 
     void surfaceOutputEnter(WToplevelSurface *surface, WOutput *output) {
         Q_ASSERT(surfaces.count(surface));
-        auto handle = surfaces[surface].get();
+        auto handle = surfaces.at(surface).get();
         handle->output_enter(output->nativeHandle());
     }
 
     void surfaceOutputLeave(WToplevelSurface *surface, WOutput *output) {
         Q_ASSERT(surfaces.count(surface));
-        auto handle = surfaces[surface].get();
+        auto handle = surfaces.at(surface).get();
         handle->output_leave(output->nativeHandle());
     }
 
