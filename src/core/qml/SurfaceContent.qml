@@ -17,7 +17,7 @@ Item {
 
     Loader {
         anchors.fill: parent
-        active: wrapper.blur ?? false
+        active: wrapper?.blur ?? false
         sourceComponent: Blur {
             anchors.fill: parent
             radiusEnabled: cornerRadius > 0
