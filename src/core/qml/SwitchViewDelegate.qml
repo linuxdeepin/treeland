@@ -91,6 +91,7 @@ Item {
                     anchors.centerIn: parent
                     surface: windowItem.surface
                     maxSize: Qt.size(parent.width, parent.height)
+                    radius: 0
                 }
             }
         }
