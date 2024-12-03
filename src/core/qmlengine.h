@@ -18,7 +18,6 @@ WAYLIB_SERVER_END_NAMESPACE
 
 WAYLIB_SERVER_USE_NAMESPACE
 
-class WallpaperImageProvider;
 class SurfaceWrapper;
 class Output;
 class Workspace;
@@ -52,7 +51,9 @@ public:
                                          uint direction,
                                          QQuickItem *parent);
     QQuickItem *createLaunchpadCover(SurfaceWrapper *surface, Output *output, QQuickItem *parent);
-    QQuickItem *createLayerShellAnimation(SurfaceWrapper *surface, QQuickItem *parent, uint direction);
+    QQuickItem *createLayerShellAnimation(SurfaceWrapper *surface,
+                                          QQuickItem *parent,
+                                          uint direction);
     QQuickItem *createLockScreen(Output *output, QQuickItem *parent);
     QQuickItem *createMinimizeAnimation(SurfaceWrapper *surface,
                                         QQuickItem *parent,
@@ -67,8 +68,6 @@ public:
     {
         return &surfaceContent;
     }
-
-    WallpaperImageProvider *wallpaperImageProvider();
 
 private:
     QQmlComponent titleBarComponent;
@@ -94,5 +93,4 @@ private:
     QQmlComponent launchpadAnimationComponent;
     QQmlComponent launchpadCoverComponent;
     QQmlComponent layershellAnimationComponent;
-    WallpaperImageProvider *wallpaperProvider = nullptr;
 };

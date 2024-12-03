@@ -152,9 +152,9 @@ Q_SIGNALS:
     void windowContextCreated(personalization_window_context_v1 *context);
 
 public Q_SLOTS:
-    QString background(const QString &output);
-    QString lockscreen(const QString &output);
-    bool backgroundIsDark(const QString &output);
+    QString background(const QString &output, int workspaceId = 1);
+    QString lockscreen(const QString &output, int workspaceId = 1);
+    bool backgroundIsDark(const QString &output, int workspaceId = 1);
     bool isAnimagedImage(const QString &source);
 
 protected:
@@ -165,7 +165,7 @@ protected:
 private:
     void saveImage(personalization_wallpaper_context_v1 *context, const QString &prefix);
     void updateCacheWallpaperPath(uid_t uid);
-    QString readWallpaperSettings(const QString &group, const QString &output);
+    QString readWallpaperSettings(const QString &group, const QString &output, int workspaceId = 1);
 
     uid_t m_userId = 0;
     QString m_cacheDirectory;

@@ -51,7 +51,6 @@ set(CORE_HEADERS
     surfaceproxy.h
     treeland.h
     treeland.cpp
-    wallpaperprovider.h
     wallpaperimage.h
     wallpapercontroller.h
     wallpapermanager.h
@@ -82,7 +81,6 @@ set(CORE_SRCS
     rootsurfacecontainer.cpp
     surfaceproxy.cpp
     treeland.cpp
-    wallpaperprovider.cpp
     wallpaperimage.cpp
     wallpapercontroller.cpp
     wallpapermanager.cpp
