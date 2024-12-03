@@ -959,8 +959,10 @@ void Helper::activateSurface(SurfaceWrapper *wrapper, Qt::FocusReason reason)
         }
     }
 
-    if (!wrapper || wrapper->shellSurface()->hasCapability(WToplevelSurface::Capability::Focus))
-        reuqestKeyboardFocusForSurface(wrapper, reason);
+    if (!wrapper
+        || (wrapper->shellSurface()->hasCapability(WToplevelSurface::Capability::Focus)
+            && wrapper->acceptKeyboardFocus()))
+        requestKeyboardFocusForSurface(wrapper, reason);
 }
 
 void Helper::forceActivateSurface(SurfaceWrapper *wrapper, Qt::FocusReason reason)
@@ -1386,7 +1388,7 @@ SurfaceWrapper *Helper::keyboardFocusSurface() const
     return qobject_cast<SurfaceWrapper *>(surface->parent());
 }
 
-void Helper::reuqestKeyboardFocusForSurface(SurfaceWrapper *newActivate, Qt::FocusReason reason)
+void Helper::requestKeyboardFocusForSurface(SurfaceWrapper *newActivate, Qt::FocusReason reason)
 {
     auto *nowKeyboardFocusSurface = keyboardFocusSurface();
     if (nowKeyboardFocusSurface == newActivate)

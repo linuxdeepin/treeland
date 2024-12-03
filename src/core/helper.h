@@ -235,7 +235,7 @@ private:
     void setOutputProxy(Output *output);
 
     SurfaceWrapper *keyboardFocusSurface() const;
-    void reuqestKeyboardFocusForSurface(SurfaceWrapper *newActivateSurface, Qt::FocusReason reason);
+    void requestKeyboardFocusForSurface(SurfaceWrapper *newActivateSurface, Qt::FocusReason reason);
     SurfaceWrapper *activatedSurface() const;
     void setActivatedSurface(SurfaceWrapper *newActivateSurface);
 

@@ -269,6 +269,7 @@ public:
     std::optional<bool> skipSwitcher;
     std::optional<bool> skipDockPreView;
     std::optional<bool> skipMutiTaskView;
+    bool acceptKeyboardFocus = true;
 
 protected:
     void treeland_dde_shell_surface_v1_destroy_resource(Resource *resource) override;
@@ -285,6 +286,8 @@ protected:
                                                              uint32_t skip) override;
     void treeland_dde_shell_surface_v1_set_skip_muti_task_view(Resource *resource,
                                                                uint32_t skip) override;
+    void treeland_dde_shell_surface_v1_set_accept_keyboard_focus(Resource *resource,
+                                                            uint32_t accept) override;
 };
 
 DDEShellSurfaceInterfacePrivate::DDEShellSurfaceInterfacePrivate(DDEShellSurfaceInterface *_q,
@@ -394,6 +397,18 @@ void DDEShellSurfaceInterfacePrivate::treeland_dde_shell_surface_v1_set_skip_mut
     Q_EMIT q->skipMutiTaskViewChanged(skip);
 }
 
+void DDEShellSurfaceInterfacePrivate::treeland_dde_shell_surface_v1_set_accept_keyboard_focus(
+    Resource *resource,
+    uint32_t accept)
+{
+    if (accept == acceptKeyboardFocus) {
+        return;
+    }
+
+    acceptKeyboardFocus = accept;
+    Q_EMIT q->acceptKeyboardFocusChanged(accept);
+}
+
 DDEShellSurfaceInterface::DDEShellSurfaceInterface(wl_resource *surface, wl_resource *resource)
     : d(new DDEShellSurfaceInterfacePrivate(this, surface, resource))
 {
@@ -439,6 +454,11 @@ std::optional<bool> DDEShellSurfaceInterface::skipDockPreView() const
 std::optional<bool> DDEShellSurfaceInterface::skipMutiTaskView() const
 {
     return d->skipMutiTaskView;
+}
+
+bool DDEShellSurfaceInterface::acceptKeyboardFocus() const
+{
+    return d->acceptKeyboardFocus;
 }
 
 DDEShellSurfaceInterface *DDEShellSurfaceInterface::get(wl_resource *native)
