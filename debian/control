@@ -65,3 +65,10 @@ Section: dde
 Architecture: all
 Depends: ${misc:Depends},
 Description: data files of treeland.
+
+Package: treeland-wayland-session
+Section: dde
+Architecture: all
+Depends: ${misc:Depends},
+         treeland (= ${source:Version}),
+Description: treeland user session files of treeland.
