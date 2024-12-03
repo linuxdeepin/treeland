@@ -159,6 +159,7 @@ Item {
                         ShapePath {
                             strokeWidth: 0
                             fillItem: wallpaper
+                            fillTransform: PlanarTransform.fromScale(content.width / wpCtrl.proxy.width, content.height / wpCtrl.proxy.height, 0, 0)
                             PathRectangle {
                                 width: content.width
                                 height: content.height
