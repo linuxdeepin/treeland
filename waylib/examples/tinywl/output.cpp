@@ -392,7 +392,7 @@ void Output::layoutPopupSurface(SurfaceWrapper *surface)
     auto inputPopupSurface = qobject_cast<WInputPopupSurface *>(surface->shellSurface());
 
     QPointF dPos = xdgPopupSurface ? xdgPopupSurface->getPopupPosition()
-                                   : inputPopupSurface->cursorRect().topLeft();
+                                   : inputPopupSurface->cursorRect().bottomLeft();
     QPointF topLeft;
     // TODO: remove parentSurfaceWrapper->surfaceItem()->x()
     topLeft.setX(parentSurfaceWrapper->x() + parentSurfaceWrapper->surfaceItem()->x() + dPos.x());
