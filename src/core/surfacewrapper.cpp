@@ -137,9 +137,10 @@ SurfaceWrapper::SurfaceWrapper(QmlEngine *qmlEngine,
     connect(m_surfaceItem, &WSurfaceItem::implicitWidthChanged, this, [this] {
         setImplicitWidth(m_surfaceItem->implicitWidth());
     });
-    connect(m_surfaceItem, &WSurfaceItem::heightChanged, this, [this] {
+    connect(m_surfaceItem, &WSurfaceItem::implicitHeightChanged, this, [this] {
         setImplicitHeight(m_surfaceItem->implicitHeight());
     });
+
     setImplicitSize(m_surfaceItem->implicitWidth(), m_surfaceItem->implicitHeight());
 
     if (auto client = shellSurface->waylandClient()) {
@@ -987,12 +988,23 @@ void SurfaceWrapper::startShowDesktopAnimation(bool show)
 
 qreal SurfaceWrapper::radius() const
 {
-    // TODO: XdgToplevel、popup、InputPopup、XWayland(bypass、widnowtype(menu、normal、popup))
-    if (m_radius < 1 && m_type != Type::Layer) {
-        return TreelandConfig::ref().windowRadius();
+    // TODO: move to dconfig
+    if (m_type == Type::InputPopup || m_type == Type::XdgPopup) {
+        return 8;
     }
 
-    return m_radius;
+    qreal radius = m_radius;
+
+    // TODO: XdgToplevel、popup、InputPopup、XWayland(bypass、widnowtype(menu、normal、popup))
+    if (radius < 1 && m_type != Type::Layer) {
+        radius = TreelandConfig::ref().windowRadius();
+    }
+
+    if (m_surfaceItem->height() * 0.5 < radius) {
+        radius = m_surfaceItem->height() * 0.5;
+    }
+
+    return radius;
 }
 
 void SurfaceWrapper::setRadius(qreal newRadius)
