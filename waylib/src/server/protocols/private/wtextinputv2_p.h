@@ -93,33 +93,34 @@ public Q_SLOTS:
 
 private:
     explicit WTextInputV2(QObject *parent = nullptr);
+    void clearEnabledSurface();
     friend class WTextInputManagerV2;
     friend void tiv2::handle_manager_get_text_input(wl_client *client,
-                                              wl_resource *resource,
-                                              uint32_t id,
-                                              wl_resource *seat);
+                                                    wl_resource *resource,
+                                                    uint32_t id,
+                                                    wl_resource *seat);
     friend void tiv2::handle_text_input_enable(wl_client *client,
-                                         wl_resource *resource,
-                                         wl_resource *surface);
+                                               wl_resource *resource,
+                                               wl_resource *surface);
     friend void tiv2::handle_text_input_disable(wl_client *client,
-                                          wl_resource *resource,
-                                          wl_resource *surface);
+                                                wl_resource *resource,
+                                                wl_resource *surface);
     friend void tiv2::handle_text_input_set_surrounding_text(
         wl_client *client, wl_resource *resource, const char *text, int32_t cursor, int32_t anchor);
     friend void tiv2::handle_text_input_set_content_type(wl_client *client,
-                                                   wl_resource *resource,
-                                                   uint32_t hint,
-                                                   uint32_t purpose);
+                                                         wl_resource *resource,
+                                                         uint32_t hint,
+                                                         uint32_t purpose);
     friend void tiv2::handle_text_input_set_cursor_rectangle(wl_client *client,
-                                                       wl_resource *resource,
-                                                       int32_t x,
-                                                       int32_t y,
-                                                       int32_t width,
-                                                       int32_t height);
+                                                             wl_resource *resource,
+                                                             int32_t x,
+                                                             int32_t y,
+                                                             int32_t width,
+                                                             int32_t height);
     friend void tiv2::handle_text_input_update_state(wl_client *client,
-                                               wl_resource *resource,
-                                               uint32_t serial,
-                                               uint32_t reason);
+                                                     wl_resource *resource,
+                                                     uint32_t serial,
+                                                     uint32_t reason);
 };
 
 class WTextInputManagerV2Private;
