@@ -207,6 +207,7 @@ Item {
                 property bool enableDelegateRadius: root.enableRadius
 
 
+                boundsBehavior: Flickable.OvershootBounds
                 orientation: ListView.Horizontal
                 clip: true
                 anchors {
