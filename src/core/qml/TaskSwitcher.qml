@@ -122,6 +122,7 @@ Item {
         Item {
             id: switchItem
 
+            clip: true
             Layout.preferredHeight: 198
             Layout.preferredWidth: switchView.contentWidth + 2 * switchView.vSpacing
             Layout.maximumWidth: parent.width
