@@ -249,9 +249,7 @@ void text_input_handle_activate(wl_client *client,
         if (text_input->focusedSurface())
             text_input->focusedSurface()->safeDisconnect(text_input);
         d->focusedSurface = wSurface;
-        wSurface->safeConnect(&qw_surface::before_destroy, text_input, [d, text_input]{
-            d->focusedSurface = nullptr;
-        });
+        wSurface->safeConnect(&WSurface::aboutToBeInvalidated, text_input, &WTextInputV1::sendLeave);
     }
     d->active = true;
     Q_EMIT text_input->activate();

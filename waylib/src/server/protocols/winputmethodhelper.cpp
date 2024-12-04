@@ -205,7 +205,7 @@ void WInputMethodHelper::handleNewIMV2(qw_input_method_v2 *imv2)
     // Once input method is online, try to resend enter to textInput
     resendKeyboardFocus();
     // For text input v1, when after sendEnter, enabled signal will be emitted
-    wimv2->safeConnect(&qw_input_method_v2::before_destroy, this, [this, wimv2]{
+    wimv2->safeConnect(&WInputMethodV2::aboutToBeInvalidated, this, [this, wimv2]{
         if (inputMethod() == wimv2) {
             setInputMethod(nullptr);
         }
