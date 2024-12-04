@@ -1000,10 +1000,6 @@ qreal SurfaceWrapper::radius() const
         radius = TreelandConfig::ref().windowRadius();
     }
 
-    if (m_surfaceItem->height() * 0.5 < radius) {
-        radius = m_surfaceItem->height() * 0.5;
-    }
-
     return radius;
 }
 
