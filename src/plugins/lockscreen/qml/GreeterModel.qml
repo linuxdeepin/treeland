@@ -71,7 +71,6 @@ Item {
     }
 
     Component.onCompleted: {
-        UserModel.currentUserName = UserModel.data(UserModel.index(UserModel.lastIndex,0), UserModel.NameRole)
         GreeterModel.currentSession = SessionModel.lastIndex
     }
 }
