@@ -309,7 +309,7 @@ Treeland::Treeland()
                 auto envs = QProcessEnvironment::systemEnvironment();
                 envs.insert("WAYLAND_DISPLAY", d->helper->defaultWaylandSocket()->fullServerName());
                 envs.insert("DISPLAY", d->helper->defaultXWaylandSocket()->displayName());
-                envs.insert("DDE_CURRENT_COMPOSITOR", "Treeland");
+                envs.insert("XDG_SESSION_DESKTOP", "Treeland");
 
                 QProcess process;
                 process.setProgram(cmdArgs.constFirst());
