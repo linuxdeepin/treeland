@@ -542,25 +542,37 @@ void Helper::onSurfaceWrapperAdded(SurfaceWrapper *wrapper)
         auto *attached =
             new PersonalizationAttached(wrapper->shellSurface(), m_personalization, wrapper);
 
-        if (isXdgToplevel) {
+        auto updateNoTitlebar = [this, wrapper, attached] {
+            if (attached->noTitlebar()) {
+                wrapper->setNoTitleBar(true);
+                auto layer = qobject_cast<WLayerSurface *>(wrapper->shellSurface());
+                if (!isLaunchpad(layer)) {
+                    wrapper->setNoDecoration(false);
+                }
+                return;
+            }
+
+            wrapper->resetNoTitleBar();
             wrapper->setNoDecoration(m_xdgDecorationManager->modeBySurface(wrapper->surface())
                                      != WXdgDecorationManager::Server);
-            auto updateNoTitlebar = [wrapper, attached] {
-                if (attached->noTitlebar()) {
-                    wrapper->setNoTitleBar(true);
-                } else {
-                    wrapper->resetNoTitleBar();
-                }
-            };
-            connect(attached,
-                    &PersonalizationAttached::windowStateChanged,
-                    wrapper,
-                    updateNoTitlebar);
-            updateNoTitlebar();
-        } else if (isXdgPopup) {
-            wrapper->setNoTitleBar(true);
-            wrapper->setNoDecoration(false);
+        };
+
+        if (isXdgToplevel) {
+            connect(
+                m_xdgDecorationManager,
+                &WXdgDecorationManager::surfaceModeChanged,
+                wrapper,
+                [wrapper, attached, updateNoTitlebar](
+                    WAYLIB_SERVER_NAMESPACE::WSurface *surface,
+                    [[maybe_unused]] Waylib::Server::WXdgDecorationManager::DecorationMode mode) {
+                    if (surface == wrapper->surface()) {
+                        updateNoTitlebar();
+                    }
+                });
         }
+
+        connect(attached, &PersonalizationAttached::windowStateChanged, wrapper, updateNoTitlebar);
+        updateNoTitlebar();
 
         auto updateBlur = [wrapper, attached] {
             wrapper->setBlur(attached->backgroundType() == Personalization::BackgroundType::Blur);
