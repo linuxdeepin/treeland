@@ -222,6 +222,9 @@ void SurfaceWrapper::setParent(QQuickItem *item)
 
 void SurfaceWrapper::setActivate(bool activate)
 {
+    if (m_wrapperAbortToRemove)
+        return;
+
     Q_ASSERT(!activate || hasActiveCapability());
     m_shellSurface->setActivate(activate);
     auto parent = parentSurface();
@@ -303,6 +306,8 @@ QRectF SurfaceWrapper::maximizedGeometry() const
 
 void SurfaceWrapper::setMaximizedGeometry(const QRectF &newMaximizedGeometry)
 {
+    if (m_wrapperAbortToRemove)
+        return;
     if (m_maximizedGeometry == newMaximizedGeometry)
         return;
     m_maximizedGeometry = newMaximizedGeometry;
@@ -328,6 +333,8 @@ QRectF SurfaceWrapper::fullscreenGeometry() const
 
 void SurfaceWrapper::setFullscreenGeometry(const QRectF &newFullscreenGeometry)
 {
+    if (m_wrapperAbortToRemove)
+        return;
     if (m_fullscreenGeometry == newFullscreenGeometry)
         return;
     m_fullscreenGeometry = newFullscreenGeometry;
@@ -355,6 +362,8 @@ QRectF SurfaceWrapper::tilingGeometry() const
 
 void SurfaceWrapper::setTilingGeometry(const QRectF &newTilingGeometry)
 {
+    if (m_wrapperAbortToRemove)
+        return;
     if (m_tilingGeometry == newTilingGeometry)
         return;
     m_tilingGeometry = newTilingGeometry;
@@ -413,6 +422,9 @@ Output *SurfaceWrapper::ownsOutput() const
 
 void SurfaceWrapper::setOwnsOutput(Output *newOwnsOutput)
 {
+    if (m_wrapperAbortToRemove)
+        return;
+
     if (m_ownsOutput == newOwnsOutput)
         return;
 
@@ -431,6 +443,9 @@ void SurfaceWrapper::setOwnsOutput(Output *newOwnsOutput)
 
 void SurfaceWrapper::setOutputs(const QList<WOutput *> &outputs)
 {
+    if (m_wrapperAbortToRemove)
+        return;
+    Q_ASSERT(surface());
     auto oldOutputs = surface()->outputs();
     for (auto output : oldOutputs) {
         if (outputs.contains(output)) {
@@ -463,6 +478,9 @@ SurfaceWrapper::State SurfaceWrapper::surfaceState() const
 
 void SurfaceWrapper::setSurfaceState(State newSurfaceState)
 {
+    if (m_wrapperAbortToRemove)
+        return;
+
     if (m_geometryAnimation)
         return;
 
@@ -561,6 +579,9 @@ void SurfaceWrapper::markWrapperToRemoved()
 
 void SurfaceWrapper::setNoDecoration(bool newNoDecoration)
 {
+    if (m_wrapperAbortToRemove)
+        return;
+
     setNoCornerRadius(newNoDecoration);
     if (m_noDecoration == newNoDecoration)
         return;
@@ -593,6 +614,9 @@ void SurfaceWrapper::setNoDecoration(bool newNoDecoration)
 
 void SurfaceWrapper::updateTitleBar()
 {
+    if (m_wrapperAbortToRemove)
+        return;
+
     if (noTitleBar() == !m_titleBar)
         return;
 
@@ -759,6 +783,8 @@ void SurfaceWrapper::itemChange(ItemChange change, const ItemChangeData &data)
 
 void SurfaceWrapper::doSetSurfaceState(State newSurfaceState)
 {
+    if (m_wrapperAbortToRemove)
+        return;
     setVisibleDecoration(newSurfaceState == State::Minimized || newSurfaceState == State::Normal);
     setNoCornerRadius(newSurfaceState == State::Maximized || newSurfaceState == State::Fullscreen
                       || newSurfaceState == State::Tiling);
@@ -1256,6 +1282,8 @@ bool SurfaceWrapper::visibleDecoration() const
 
 void SurfaceWrapper::setVisibleDecoration(bool newVisibleDecoration)
 {
+    if (m_wrapperAbortToRemove)
+        return;
     if (m_visibleDecoration == newVisibleDecoration)
         return;
     m_visibleDecoration = newVisibleDecoration;
@@ -1270,6 +1298,9 @@ bool SurfaceWrapper::clipInOutput() const
 
 void SurfaceWrapper::setClipInOutput(bool newClipInOutput)
 {
+    if (m_wrapperAbortToRemove)
+        return;
+
     if (m_clipInOutput == newClipInOutput)
         return;
     m_clipInOutput = newClipInOutput;
@@ -1298,6 +1329,9 @@ bool SurfaceWrapper::noTitleBar() const
 
 void SurfaceWrapper::setNoTitleBar(bool newNoTitleBar)
 {
+    if (m_wrapperAbortToRemove)
+        return;
+
     if (newNoTitleBar) {
         m_titleBarState = TitleBarState::Hidden;
     } else {
@@ -1319,6 +1353,9 @@ bool SurfaceWrapper::noCornerRadius() const
 
 void SurfaceWrapper::setNoCornerRadius(bool newNoCornerRadius)
 {
+    if (m_wrapperAbortToRemove)
+        return;
+
     if (m_noCornerRadius == newNoCornerRadius)
         return;
     m_noCornerRadius = newNoCornerRadius;
