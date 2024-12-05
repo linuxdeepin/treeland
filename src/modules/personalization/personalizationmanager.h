@@ -74,10 +74,7 @@ public:
         return m_border;
     }
 
-    bool noTitlebar() const
-    {
-        return m_states.testFlag(personalization_window_context_v1::NoTitleBar);
-    }
+    bool noTitlebar() const;
 
 Q_SIGNALS:
     void backgroundTypeChanged();
