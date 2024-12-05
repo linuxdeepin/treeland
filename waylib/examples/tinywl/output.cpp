@@ -15,6 +15,7 @@
 #include <winputpopupsurface.h>
 #include <woutputlayout.h>
 #include <wquicktextureproxy.h>
+#include <wxdgpopupsurfaceitem.h>
 
 #include <qwoutputlayout.h>
 #include <qwlayershellv1.h>
@@ -145,8 +146,8 @@ void Output::addSurface(SurfaceWrapper *surface)
         connect(surface, &SurfaceWrapper::heightChanged, this, layoutSurface);
         layoutSurface();
         if (surface->type() == SurfaceWrapper::Type::XdgPopup) {
-            auto xdgPopupSurface = qobject_cast<WXdgPopupSurface *>(surface->shellSurface());
-            xdgPopupSurface->safeConnect(&WXdgPopupSurface::reposition, this, [surface, this] {
+            auto xdgPopupSurfaceItem = qobject_cast<WXdgPopupSurfaceItem *>(surface->surfaceItem());
+            connect(xdgPopupSurfaceItem, &WXdgPopupSurfaceItem::implicitPositionChanged, this, [surface, this] {
                 // Reposition should ignore positionAutomatic
                 layoutPopupSurface(surface);
             });
@@ -388,10 +389,10 @@ void Output::layoutPopupSurface(SurfaceWrapper *surface)
     if (normalGeo.isEmpty())
         return;
 
-    auto xdgPopupSurface = qobject_cast<WXdgPopupSurface *>(surface->shellSurface());
+    auto xdgPopupSurfaceItem = qobject_cast<WXdgPopupSurfaceItem *>(surface->surfaceItem());
     auto inputPopupSurface = qobject_cast<WInputPopupSurface *>(surface->shellSurface());
 
-    QPointF dPos = xdgPopupSurface ? xdgPopupSurface->getPopupPosition()
+    QPointF dPos = xdgPopupSurfaceItem ? xdgPopupSurfaceItem->implicitPosition()
                                    : inputPopupSurface->cursorRect().bottomLeft();
     QPointF topLeft;
     // TODO: remove parentSurfaceWrapper->surfaceItem()->x()
@@ -407,7 +408,7 @@ void Output::layoutPopupSurface(SurfaceWrapper *surface)
     if (topLeft.x() + normalGeo.width() > output->x() + output->width())
         topLeft.setX(output->x() + output->width() - normalGeo.width());
     if (topLeft.y() + normalGeo.height() > output->y() + output->height()) {
-        if (xdgPopupSurface)
+        if (xdgPopupSurfaceItem)
             topLeft.setY(output->y() + output->height() - normalGeo.height());
         else // input popup
             topLeft.setY(topLeft.y() - inputPopupSurface->cursorRect().height()
