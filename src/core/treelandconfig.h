@@ -35,7 +35,7 @@ class TreelandConfig
     Q_PROPERTY(QEasingCurve::Type multitaskviewEasingCurveType READ multitaskviewEasingCurveType WRITE setMultitaskviewEasingCurveType NOTIFY multitaskviewEasingCurveTypeChanged FINAL)
     Q_PROPERTY(QString cursorThemeName READ cursorThemeName WRITE setCursorThemeName NOTIFY cursorThemeNameChanged FINAL)
     Q_PROPERTY(QSize cursorSize READ cursorSize WRITE setCursorSize NOTIFY cursorSizeChanged FINAL)
-    Q_PROPERTY(qreal windowRadius READ windowRadius NOTIFY windowRadiusChanged FINAL)
+    Q_PROPERTY(qreal windowRadius READ windowRadius WRITE setWindowRadius NOTIFY windowRadiusChanged FINAL)
     Q_PROPERTY(QString activeColor READ activeColor WRITE setActiveColor NOTIFY activeColorChanged FINAL)
     Q_PROPERTY(uint windowOpacity READ windowOpacity WRITE setWindowOpacity NOTIFY windowOpacityChanged FINAL)
     Q_PROPERTY(uint windowThemeType READ windowThemeType WRITE setWindowThemeType NOTIFY windowThemeTypeChanged FINAL)
@@ -49,7 +49,7 @@ class TreelandConfig
     Q_PROPERTY(QString fontName READ fontName WRITE setFontName NOTIFY fontNameChanged FINAL)
     Q_PROPERTY(QString monoFontName READ monoFontName WRITE setMonoFontName NOTIFY monoFontNameChanged FINAL)
     Q_PROPERTY(uint32_t fontSize READ fontSize WRITE setFontSize NOTIFY fontSizeChanged FINAL)
-
+    Q_PROPERTY(QString iconThemeName READ iconThemeName WRITE setIconThemeName NOTIFY iconThemeNameChanged FINAL)
 public:
     TreelandConfig();
 
@@ -106,7 +106,8 @@ public:
     void setCursorSize(QSize size);
     QSize cursorSize();
 
-    qreal windowRadius() const;
+    qreal windowRadius();
+    void setWindowRadius(qreal radius);
 
     void setActiveColor(const QString &color);
     QString activeColor();
@@ -147,6 +148,9 @@ public:
     void setFontSize(uint32_t fontSize);
     uint32_t fontSize();
 
+    void setIconThemeName(const QString &theme);
+    QString iconThemeName();
+
 Q_SIGNALS:
     void workspaceThumbMarginChanged();
     void workspaceThumbHeightChanged();
@@ -180,6 +184,7 @@ Q_SIGNALS:
     void fontNameChanged();
     void monoFontNameChanged();
     void fontSizeChanged();
+    void iconThemeNameChanged();
 
 private:
     void onDConfigChanged(const QString &key);
@@ -199,6 +204,8 @@ private:
     QString m_fontName;
     QString m_monoFontName;
     uint32_t m_fontSize;
+    qreal m_windowRadius;
+    QString m_iconThemeName;
 
     // Local
     uint m_workspaceThumbHeight = 144;

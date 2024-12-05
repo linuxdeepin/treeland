@@ -15,6 +15,7 @@ TreelandConfig::TreelandConfig()
     , m_currentWorkspace(m_dconfig->value("currentWorkspace", 0).toUInt())
     , m_forceSoftwareCursor(m_dconfig->value("forceSoftwareCursor", false).toBool())
     , m_activeColor(m_dconfig->value("activeColor").toString())
+    , m_windowRadius(m_dconfig->value("windowRadius", 18.0).toFloat())
     , m_cursorThemeName(m_dconfig->value("cursorThemeName", "bloom").toString())
     , m_cursorSize(m_dconfig->value("cursorSize", 24).toSize())
     , m_windowOpacity(m_dconfig->value("windowOpacity", 100).toUInt())
@@ -23,6 +24,7 @@ TreelandConfig::TreelandConfig()
     , m_fontName(m_dconfig->value("font", "Source Han Sans SC").toString())
     , m_monoFontName(m_dconfig->value("monoFont", "Noto Mono").toString())
     , m_fontSize(m_dconfig->value("fontSize", 105).toUInt())
+    , m_iconThemeName(m_dconfig->value("iconThemeName").toString())
 {
     connect(m_dconfig.get(), &DConfig::valueChanged, this, &TreelandConfig::onDConfigChanged);
 }
@@ -294,9 +296,24 @@ QSize TreelandConfig::cursorSize()
     return m_cursorSize;
 }
 
-qreal TreelandConfig::windowRadius() const
+qreal TreelandConfig::windowRadius()
 {
-    return m_dconfig->value("windowRadius", 18.0).toFloat();
+    m_windowRadius = m_dconfig->value("windowRadius", 18.0).toFloat();
+
+    return m_windowRadius;
+}
+
+void TreelandConfig::setWindowRadius(qreal radius)
+{
+    if (qFuzzyCompare(m_windowRadius, radius)) {
+        return;
+    }
+
+    m_windowRadius = radius;
+
+    m_dconfig->setValue("windowRadius", radius);
+
+    Q_EMIT windowRadiusChanged();
 }
 
 void TreelandConfig::setActiveColor(const QString &color)
@@ -518,4 +535,24 @@ uint32_t TreelandConfig::fontSize()
     m_fontSize = m_dconfig->value("fontSize", 105).toUInt();
 
     return m_fontSize;
+}
+
+void TreelandConfig::setIconThemeName(const QString &theme)
+{
+    if (m_iconThemeName == theme) {
+        return;
+    }
+
+    m_iconThemeName = theme;
+
+    m_dconfig->setValue("iconThemeName", theme);
+
+    Q_EMIT iconThemeNameChanged();
+}
+
+QString TreelandConfig::iconThemeName()
+{
+    m_iconThemeName = m_dconfig->value("iconThemeName").toString();
+
+    return m_iconThemeName;
 }
