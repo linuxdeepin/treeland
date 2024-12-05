@@ -250,17 +250,44 @@ void ShellHandler::setupSurfaceActiveWatcher(SurfaceWrapper *wrapper)
 {
     Q_ASSERT_X(wrapper->container(), Q_FUNC_INFO, "Must setContainer at first!");
 
-    connect(wrapper, &SurfaceWrapper::requestActive, this, [this, wrapper]() {
-        if (wrapper->showOnWorkspace(m_workspace->current()->id()))
-            Helper::instance()->activateSurface(wrapper);
-        else
-            m_workspace->pushActivedSurface(wrapper);
-    });
+    if (wrapper->type() == SurfaceWrapper::Type::XdgPopup) {
+        connect(wrapper, &SurfaceWrapper::requestActive, this, [this, wrapper]() {
+            auto parent = wrapper->parentSurface();
+            while (parent->type() == SurfaceWrapper::Type::XdgPopup) {
+                parent = parent->parentSurface();
+            }
+            if (!parent) {
+                qCCritical(qLcShellHandler) << "A new popup without toplevel parent!";
+                return;
+            }
+            if (!parent->showOnWorkspace(m_workspace->current()->id())) {
+                qCWarning(qLcShellHandler) << "A popup active, but it's parent not in current workspace!";
+                return;
+            }
+            Helper::instance()->activateSurface(parent);
+        });
 
-    connect(wrapper, &SurfaceWrapper::requestInactive, this, [this, wrapper]() {
-        m_workspace->removeActivedSurface(wrapper);
-        Helper::instance()->activateSurface(m_workspace->current()->latestActiveSurface());
-    });
+        /*
+        connect(wrapper, &SurfaceWrapper::requestInactive, this, [this, wrapper]() {
+            auto parent = wrapper->parentSurface();
+            if (!parent || parent->type() == SurfaceWrapper::Type::XdgPopup)
+                return;
+            Helper::instance()->activateSurface(m_workspace->current()->latestActiveSurface());
+        });
+        */
+    } else {
+        connect(wrapper, &SurfaceWrapper::requestActive, this, [this, wrapper]() {
+            if (wrapper->showOnWorkspace(m_workspace->current()->id()))
+                Helper::instance()->activateSurface(wrapper);
+            else
+                m_workspace->pushActivedSurface(wrapper);
+        });
+
+        connect(wrapper, &SurfaceWrapper::requestInactive, this, [this, wrapper]() {
+            m_workspace->removeActivedSurface(wrapper);
+            Helper::instance()->activateSurface(m_workspace->current()->latestActiveSurface());
+        });
+    }
 }
 
 void ShellHandler::onLayerSurfaceAdded(WLayerSurface *surface)
