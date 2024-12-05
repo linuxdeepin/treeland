@@ -422,14 +422,17 @@ void Workspace::doRemoveModel(int index)
     }
 
     auto current = this->current();
+    Q_ASSERT(current);
 
     // TODO delete animation here
     const auto tmp = model->surfaces();
     for (auto s : tmp) {
         model->removeSurface(s);
-        if (current)
-            current->addSurface(s);
+        current->addSurface(s);
+        if (s->hasActiveCapability() && !s->showOnAllWorkspace())
+            current->pushActivedSurface(s);
     }
+    Helper::instance()->activateSurface(current->latestActiveSurface());
 
     if (m_switcher) {
         m_switcher->deleteLater();
@@ -444,7 +447,7 @@ void Workspace::doRemoveModel(int index)
     if (oldCurrentIndex != currentIndex())
         Q_EMIT currentIndexChanged();
     if (oldCurrent != current)
-        emit currentChanged();
+        Q_EMIT currentChanged();
 }
 
 WorkspaceListModel::WorkspaceListModel(QObject *parent)
