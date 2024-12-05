@@ -28,6 +28,8 @@ Item {
     readonly property int rightpreferredMargin: 20
     readonly property real radius: enableRadius ? 18 : 0
 
+    x: output.validRect.x
+    y: output.validRect.y
     width: output.validRect.width
     height: output.validRect.height
 

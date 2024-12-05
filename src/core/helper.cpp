@@ -1072,7 +1072,7 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *, QInputEvent *event)
             }
         } else if (kevent->key() == Qt::Key_Alt) {
             m_taskAltTimestamp = kevent->timestamp();
-            m_fastTaskSwitcher = false;
+            m_taskAltCount = 0;
         } else if ((m_currentMode == CurrentMode::Normal
                     || m_currentMode == CurrentMode::WindowSwitch)
                    && (kevent->key() == Qt::Key_Tab || kevent->key() == Qt::Key_Backtab
@@ -1080,10 +1080,15 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *, QInputEvent *event)
                        || kevent->key() == Qt::Key_AsciiTilde)) {
             if (event->modifiers().testFlag(Qt::AltModifier)) {
                 int detal = kevent->timestamp() - m_taskAltTimestamp;
-                if (detal < 200) {
-                    m_fastTaskSwitcher = true;
+                if (detal < 150 && !kevent->isAutoRepeat()) {
+                    auto current = Helper::instance()->workspace()->current();
+                    Q_ASSERT(current);
+                    auto next_surface = current->findNextActivedSurface();
+                    if (next_surface)
+                        Helper::instance()->forceActivateSurface(next_surface, Qt::TabFocusReason);
                     return true;
                 }
+
                 if (m_taskSwitch.isNull()) {
                     auto contentItem = window()->contentItem();
                     auto output = rootContainer()->primaryOutput();
@@ -1098,25 +1103,34 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *, QInputEvent *event)
                     m_taskSwitch->setZ(RootSurfaceContainer::OverlayZOrder);
                 }
 
-                setCurrentMode(CurrentMode::WindowSwitch);
-                QString appid;
-                if (kevent->key() == Qt::Key_QuoteLeft || kevent->key() == Qt::Key_AsciiTilde) {
-                    auto surface = Helper::instance()->activatedSurface();
-                    if (surface) {
-                        appid = surface->shellSurface()->appId();
-                    }
+                if (kevent->isAutoRepeat()) {
+                    m_taskAltCount++;
+                } else {
+                    m_taskAltCount = 3;
                 }
-                auto filter = Helper::instance()->workspace()->currentFilter();
-                filter->setFilterAppId(appid);
 
-                if (event->modifiers() == Qt::AltModifier) {
-                    QMetaObject::invokeMethod(m_taskSwitch, "next");
-                    return true;
-                } else if (event->modifiers() == (Qt::AltModifier | Qt::ShiftModifier)
-                           || event->modifiers()
-                               == (Qt::AltModifier | Qt::MetaModifier | Qt::ShiftModifier)) {
-                    QMetaObject::invokeMethod(m_taskSwitch, "previous");
-                    return true;
+                if (m_taskAltCount >= 3) {
+                    m_taskAltCount = 0;
+                    setCurrentMode(CurrentMode::WindowSwitch);
+                    QString appid;
+                    if (kevent->key() == Qt::Key_QuoteLeft || kevent->key() == Qt::Key_AsciiTilde) {
+                        auto surface = Helper::instance()->activatedSurface();
+                        if (surface) {
+                            appid = surface->shellSurface()->appId();
+                        }
+                    }
+                    auto filter = Helper::instance()->workspace()->currentFilter();
+                    filter->setFilterAppId(appid);
+
+                    if (event->modifiers() == Qt::AltModifier) {
+                        QMetaObject::invokeMethod(m_taskSwitch, "next");
+                        return true;
+                    } else if (event->modifiers() == (Qt::AltModifier | Qt::ShiftModifier)
+                               || event->modifiers()
+                                   == (Qt::AltModifier | Qt::MetaModifier | Qt::ShiftModifier)) {
+                        QMetaObject::invokeMethod(m_taskSwitch, "previous");
+                        return true;
+                    }
                 }
             }
         } else if (event->modifiers() == Qt::AltModifier) {
@@ -1142,13 +1156,6 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *, QInputEvent *event)
 
     if (event->type() == QEvent::KeyRelease) {
         auto kevent = static_cast<QKeyEvent *>(event);
-        if (m_fastTaskSwitcher && kevent->key() == Qt::Key_Alt) {
-            auto current = Helper::instance()->workspace()->current();
-            Q_ASSERT(current);
-            auto next_surface = current->findNextActivedSurface();
-            if (next_surface)
-                Helper::instance()->forceActivateSurface(next_surface, Qt::TabFocusReason);
-        }
         if (m_taskSwitch && m_taskSwitch->property("switchOn").toBool()) {
             if (kevent->key() == Qt::Key_Alt || kevent->key() == Qt::Key_Meta) {
                 auto filter = Helper::instance()->workspace()->currentFilter();

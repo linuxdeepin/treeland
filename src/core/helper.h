@@ -308,7 +308,7 @@ private:
     LockScreen *m_lockScreen = nullptr;
     float m_animationSpeed = 1.0;
     quint64 m_taskAltTimestamp = 0;
-    bool m_fastTaskSwitcher = false;
+    quint32 m_taskAltCount = 0;
     OutputMode m_mode = OutputMode::Extension;
     std::optional<QPointF> m_fakelastPressedPosition;
 
