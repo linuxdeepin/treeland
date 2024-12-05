@@ -148,13 +148,13 @@ void PersonalizationV1::onAppearanceContextCreated(personalization_appearance_co
     m_appearanceContexts.push_back(context);
 
     connect(context, &Appearance::roundCornerRadiusChanged, this, [this, context](int32_t radius) {
-        m_dconfig->setValue("windowRadius", radius);
+        TreelandConfig::ref().setWindowRadius(radius);
         for (auto *context : m_appearanceContexts) {
             context->sendRoundCornerRadius(radius);
         }
     });
     connect(context, &Appearance::iconThemeChanged, this, [this, context](const QString &theme) {
-        m_dconfig->setValue("iconThemeName", theme);
+        TreelandConfig::ref().setIconThemeName(theme);
         for (auto *context : m_appearanceContexts) {
             context->sendIconTheme(theme.toUtf8());
         }
@@ -219,8 +219,8 @@ void PersonalizationV1::onAppearanceContextCreated(personalization_appearance_co
 
     context->blockSignals(true);
 
-    context->setRoundCornerRadius(windowRadius());
-    context->setIconTheme(iconTheme().toUtf8());
+    context->setRoundCornerRadius(TreelandConfig::ref().windowRadius());
+    context->setIconTheme(TreelandConfig::ref().iconThemeName().toUtf8());
     context->setActiveColor(TreelandConfig::ref().activeColor().toUtf8());
     context->setWindowOpacity(TreelandConfig::ref().windowOpacity());
     context->setWindowThemeType(TreelandConfig::ref().windowThemeType());
