@@ -9,6 +9,7 @@
 #include "treelandconfig.h"
 
 #include <wlayersurface.h>
+#include <wxdgpopupsurface.h>
 #include <wxdgshell.h>
 #include <wxdgsurface.h>
 
@@ -510,6 +511,19 @@ PersonalizationAttached::PersonalizationAttached(WToplevelSurface *target,
 Personalization::BackgroundType PersonalizationAttached::backgroundType() const
 {
     return static_cast<Personalization::BackgroundType>(m_backgroundType);
+}
+
+bool PersonalizationAttached::noTitlebar() const
+{
+    if (qobject_cast<WAYLIB_SERVER_NAMESPACE::WXdgPopupSurface *>(m_target)) {
+        return true;
+    }
+
+    if (qobject_cast<WAYLIB_SERVER_NAMESPACE::WLayerSurface *>(m_target)) {
+        return true;
+    }
+
+    return m_states.testFlag(personalization_window_context_v1::NoTitleBar);
 }
 
 void PersonalizationV1::create(WServer *server)
