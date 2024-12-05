@@ -571,6 +571,7 @@ void SurfaceWrapper::markWrapperToRemoved()
     }
     m_subSurfaces.clear();
     m_shellSurface = nullptr;
+    m_surfaceItem->disconnect(this);
 
     if (!isWindowAnimationRunning()) {
         deleteLater();
