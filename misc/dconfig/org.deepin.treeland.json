@@ -11,7 +11,7 @@
             "description": "Allow show context on lock screen",
             "description[zh_CN]": "允许在锁屏界面上显示内容",
             "permissions": "readwrite",
-            "visibility": "private"
+            "visibility": "public"
         },
         "lostScreen": {
             "value": "MoveToPrimary",
@@ -22,7 +22,7 @@
             "description": "Behaivor when lost screen, allow value: MoveToPrimary、Minimize",
             "description[zh_CN]": "丢失屏幕的行为，可选值为：MoveToPrimary、Minimize",
             "permissions": "readwrite",
-            "visibility": "private"
+            "visibility": "public"
         },
         "font": {
             "value": "Source Han Sans SC",
@@ -33,7 +33,7 @@
             "description": "Font Family",
             "description[zh_CN]": "字体",
             "permissions": "readwrite",
-            "visibility": "private"
+            "visibility": "public"
         },
         "monoFont": {
             "value": "Noto Mono",
@@ -44,7 +44,7 @@
             "description": "Mono Font Family",
             "description[zh_CN]": "等宽字体",
             "permissions": "readwrite",
-            "visibility": "private"
+            "visibility": "public"
         },
         "fontSize": {
             "value": 105,
@@ -55,7 +55,7 @@
             "description": "Font Size",
             "description[zh_CN]": "字体大小",
             "permissions": "readwrite",
-            "visibility": "private"
+            "visibility": "public"
         },
         "windowRadius": {
             "value": 18,
@@ -66,7 +66,7 @@
             "description": "Window Corner Round Radius",
             "description[zh_CN]": "设置窗口圆角大小",
             "permissions": "readwrite",
-            "visibility": "private"
+            "visibility": "public"
         },
         "preferDark": {
             "value": false,
@@ -77,7 +77,7 @@
             "description": "Color scheme is prefer dark",
             "description[zh_CN]": "颜色方案是否倾向暗色",
             "permissions": "readwrite",
-            "visibility": "private"
+            "visibility": "public"
         },
         "themeName": {
             "value": "",
@@ -88,7 +88,7 @@
             "description": "Theme Name",
             "description[zh_CN]": "主题名称",
             "permissions": "readwrite",
-            "visibility": "private"
+            "visibility": "public"
         },
         "iconThemeName": {
             "value": "bloom",
@@ -99,7 +99,7 @@
             "description": "Icon Theme Name",
             "description[zh_CN]": "图标主题名称",
             "permissions": "readwrite",
-            "visibility": "private"
+            "visibility": "public"
         },
         "cursorThemeName": {
             "value": "bloom",
@@ -110,7 +110,7 @@
             "description": "Cursor Theme Name",
             "description[zh_CN]": "光标主题名称",
             "permissions": "readwrite",
-            "visibility": "private"
+            "visibility": "public"
         },
         "cursorSize": {
             "value": 24,
@@ -121,7 +121,7 @@
             "description": "Cursor Size",
             "description[zh_CN]": "光标大小",
             "permissions": "readwrite",
-            "visibility": "private"
+            "visibility": "public"
         },
         "cursorBlink": {
             "value": true,
@@ -132,7 +132,7 @@
             "description": "Whether the cursor should blink",
             "description[zh_CN]": "光标是否应闪烁",
             "permissions": "readwrite",
-            "visibility": "private"
+            "visibility": "public"
         },
         "cursorBlinkTime": {
             "value": 1200,
@@ -143,7 +143,7 @@
             "description": "Length of the cursor blink cycle, in milleseconds",
             "description[zh_CN]": "光标闪烁周期的长度，以千秒为单位",
             "permissions": "readwrite",
-            "visibility": "private"
+            "visibility": "public"
         },
         "doubleClickTime": {
             "value": 250,
@@ -154,7 +154,7 @@
             "description": "Maximum time allowed between two clicks for them to be considered a double click (in milliseconds)",
             "description[zh_CN]": "两次单击之间允许被视为双击的最长时间（以毫秒为单位）",
             "permissions": "readwrite",
-            "visibility": "private"
+            "visibility": "public"
         },
         "doubleClickDistance": {
             "value": 5,
@@ -165,7 +165,7 @@
             "description": "Maximum distance allowed between two clicks for them to be considered a double click (in pixels)",
             "description[zh_CN]": "两次单击之间允许被视为双击的最大距离（以像素为单位）",
             "permissions": "readwrite",
-            "visibility": "private"
+            "visibility": "public"
         },
         "dndDragThreshold": {
             "value": 8,
@@ -176,7 +176,7 @@
             "description": "Number of pixels the cursor can move before dragging",
             "description[zh_CN]": "拖动之前光标可以移动的像素数",
             "permissions": "readwrite",
-            "visibility": "private"
+            "visibility": "public"
         },
         "maxWorkspace": {
             "value": 6,
