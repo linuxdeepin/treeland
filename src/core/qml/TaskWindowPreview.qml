@@ -27,6 +27,13 @@ Loader {
     height: refHeight ? preferredHeight : preferredWidth * sourceSurface.height / sourceSurface.width
     width: refHeight ? preferredHeight * sourceSurface.width / sourceSurface.height : preferredWidth
 
+    onLoaderStatusChanged: {
+        if (loaderStatus === -1) {
+            enterAnimation.stop()
+            exitAnimation.stop()
+        }
+    }
+
     states: [
         State {
             name: 'none'
@@ -43,6 +50,7 @@ Loader {
             to: "loaded"
 
             ParallelAnimation {
+                id: enterAnimation
                 ScaleAnimator {
                     target: root
                     from: 0.5
