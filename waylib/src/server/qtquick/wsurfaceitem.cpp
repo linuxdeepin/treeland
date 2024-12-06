@@ -1241,7 +1241,7 @@ WSurfaceItem *WSurfaceItemPrivate::ensureSubsurfaceItem(WSurface *subsurfaceSurf
     // contents.
     // AutoDestroy: Connect to this(parent)'s lambda since the autodestroy is managed by parent,
     // avoids disconnected with all slots on subsurfaceItem in subsurface's releaseResources
-    subsurfaceSurface->safeConnect(&WSurface::destroyed, q, [this,surfaceItem] {
+    QObject::connect(subsurfaceSurface, &WSurface::destroyed, q, [this,surfaceItem] {
         subsurfaces.removeOne(surfaceItem);
         surfaceItem->deleteLater();
     }, Qt::QueuedConnection);

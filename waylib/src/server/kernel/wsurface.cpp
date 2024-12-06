@@ -316,7 +316,7 @@ void WSurface::enterOutput(WOutput *output)
         return;
     wlr_surface_send_enter(d->nativeHandle(), output->handle()->handle());
 
-    output->safeConnect(&WOutput::destroyed, this, [d] {
+    connect(output, &WOutput::destroyed, this, [d] {
         d->updateOutputs();
     });
     output->safeConnect(&WOutput::scaleChanged, this, [d] {

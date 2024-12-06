@@ -136,29 +136,27 @@ Q_SIGNALS:
 
 public:
     template<typename Func1, typename Func2>
-    inline typename std::enable_if<std::is_base_of<WWrapObject, typename QtPrivate::FunctionPointer<Func1>::Object>::value ||
-                                       std::is_same<QObject, typename QtPrivate::FunctionPointer<Func1>::Object>::value, QMetaObject::Connection>::type
-    safeConnect(Func1 signal, const QObject *receiver, Func2 slot, Qt::ConnectionType type = Qt::AutoConnection) {
+    requires std::is_base_of_v<WWrapObject, typename QtPrivate::FunctionPointer<Func1>::Object>
+    QMetaObject::Connection safeConnect(Func1 signal, const QObject *receiver, Func2 slot, Qt::ConnectionType type = Qt::AutoConnection) {
         return QObject::connect(qobject_cast<typename QtPrivate::FunctionPointer<Func1>::Object*>(this), signal, receiver, slot, type);
     }
 
     template<typename Func1, typename Func2>
-    typename std::enable_if<std::is_base_of<QW_NAMESPACE::qw_object_basic, typename QtPrivate::FunctionPointer<Func1>::Object>::value, QMetaObject::Connection>::type
-    safeConnect(Func1 signal, const QObject *receiver, Func2 slot, Qt::ConnectionType type = Qt::AutoConnection) {
+    requires std::is_base_of_v<QW_NAMESPACE::qw_object_basic, typename QtPrivate::FunctionPointer<Func1>::Object>
+    QMetaObject::Connection safeConnect(Func1 signal, const QObject *receiver, Func2 slot, Qt::ConnectionType type = Qt::AutoConnection) {
         // Isn't thread safety
         Q_ASSERT(QThread::currentThread() == thread());
         Q_ASSERT_X(this != receiver, "safeConnect",
                    "Not need to use safeConnect for the signal of self's handle object,"
                    " Please use QObject::connect().");
-
-        if constexpr (std::is_same_v<decltype(signal), decltype(&QObject::destroyed)>) {
-            // Post warning in compilation time
-            int The_Connect_Maybe_Invalid_Bacause_Maybe_Disconnect_After_T_beforeDestroy;
-        }
-
-        beginSafeConnect();
         auto h = qobject_cast<typename QtPrivate::FunctionPointer<Func1>::Object*>(handle());
         Q_ASSERT(h);
+        if constexpr (std::is_same_v<Func1, decltype(&qw_object_basic::before_destroy)>) {
+            if (signal == &qw_object_basic::before_destroy) {
+                return QObject::connect(h, signal, receiver, slot, type);
+            }
+        }
+        beginSafeConnect();
         auto connection = QObject::connect(h, signal, receiver, slot, type);
         endSafeConnect(connection);
 

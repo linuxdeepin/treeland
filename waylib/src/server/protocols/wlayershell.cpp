@@ -50,7 +50,7 @@ void WLayerShellPrivate::onNewSurface(qw_layer_surface_v1 *layerSurface)
     surface->safeConnect(&qw_layer_surface_v1::before_destroy, q, [this, layerSurface] {
         onSurfaceDestroy(layerSurface);
     });
-    QObject::connect(layerSurface, &qw_layer_surface_v1::notify_new_popup, q, [this] (wlr_xdg_popup *popup) {
+    surface->safeConnect(&qw_layer_surface_v1::notify_new_popup, q, [this] (wlr_xdg_popup *popup) {
         if (xdgShell)
             xdgShell->initializeNewXdgPopupSurface(popup);
         else
