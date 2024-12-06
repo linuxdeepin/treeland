@@ -8,6 +8,7 @@
 #include <QCoreApplication>
 #include <QDBusConnection>
 #include <QDBusInterface>
+#include <QDBusMetaType>
 #include <QDBusReply>
 #include <QDBusServiceWatcher>
 #include <QDBusUnixFileDescriptor>
@@ -19,9 +20,14 @@
 #include <sys/un.h>
 #include <unistd.h>
 
+typedef QMap<QString, QString> StringMap;
+Q_DECLARE_METATYPE(StringMap)
+
 int main(int argc, char *argv[])
 {
     QCoreApplication app(argc, argv);
+
+    qDBusRegisterMetaType<StringMap>();
 
     QCommandLineParser parser;
     parser.setApplicationDescription("Treeland socket helper");
@@ -55,18 +61,30 @@ int main(int argc, char *argv[])
             if (updateFd.isValid()) {
                 if (type == "wayland") {
                     updateFd.call("ActivateWayland", QVariant::fromValue(unixFileDescriptor));
+
+                    QDBusInterface dbus("org.freedesktop.DBus",
+                                        "/org/freedesktop/DBus",
+                                        "org.freedesktop.DBus",
+                                        QDBusConnection::sessionBus());
+                    StringMap env;
+                    env["WAYLAND_DISPLAY"] = "treeland.socket";
+                    auto reply = dbus.call("UpdateActivationEnvironment", QVariant::fromValue(env));
+
                     sd_notify(0, "READY=1");
                 } else if (type == "xwayland") {
                     QDBusReply<QString> reply = updateFd.call("XWaylandName");
                     if (reply.isValid()) {
                         const QString &xwaylandName = reply.value();
 
-                        QDBusInterface systemd("org.freedesktop.systemd1",
-                                               "/org/freedesktop/systemd1",
-                                               "org.freedesktop.systemd1.Manager",
-                                               QDBusConnection::sessionBus());
-                        systemd.call("SetEnvironment",
-                                     QStringList() << QString("DISPLAY=%1").arg(xwaylandName));
+                        QDBusInterface dbus("org.freedesktop.DBus",
+                                            "/org/freedesktop/DBus",
+                                            "org.freedesktop.DBus",
+                                            QDBusConnection::sessionBus());
+                        StringMap env;
+                        env["DISPLAY"] = xwaylandName;
+                        auto reply =
+                            dbus.call("UpdateActivationEnvironment", QVariant::fromValue(env));
+
                         sd_notify(0, "READY=1");
                     }
                 }
