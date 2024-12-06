@@ -519,10 +519,6 @@ bool PersonalizationAttached::noTitlebar() const
         return true;
     }
 
-    if (qobject_cast<WAYLIB_SERVER_NAMESPACE::WLayerSurface *>(m_target)) {
-        return true;
-    }
-
     return m_states.testFlag(personalization_window_context_v1::NoTitleBar);
 }
 
