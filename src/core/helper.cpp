@@ -945,9 +945,13 @@ void Helper::activateSurface(SurfaceWrapper *wrapper, Qt::FocusReason reason)
         }
         return;
     }
-    if (!wrapper || !wrapper->shellSurface()->hasCapability(WToplevelSurface::Capability::Activate))
-        setActivatedSurface(nullptr);
-    else {
+    if (!wrapper || !wrapper->shellSurface()->hasCapability(WToplevelSurface::Capability::Activate)) {
+        if (!wrapper)
+            setActivatedSurface(nullptr);
+        // else if wrapper don't have Activate Capability, do nothing
+        // Otherwise, when click the dock, the last activate application will immediately
+        // lose focus, and The dock will reactivate it instead of minimizing it
+    } else {
         if (wrapper->hasActiveCapability()) {
             setActivatedSurface(wrapper);
         } else {
