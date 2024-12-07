@@ -45,7 +45,7 @@ public:
     void removeOutput(Output *output) override;
 
 private:
-    ILockScreen *m_impl;
+    ILockScreen *m_impl{ nullptr };
     std::map<Output *, std::unique_ptr<QQuickItem, void (*)(QQuickItem *)>> m_components;
     std::unique_ptr<QTimer> m_delayTimer;
 };
