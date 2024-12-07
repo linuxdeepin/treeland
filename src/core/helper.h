@@ -204,6 +204,8 @@ Q_SIGNALS:
     void cursorThemeChanged();
     void cursorSizeChanged();
 
+    void currentModeChanged();
+
 private Q_SLOTS:
     void onOutputAdded(WOutput *output);
     void onOutputRemoved(WOutput *output);
