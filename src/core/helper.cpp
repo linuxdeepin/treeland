@@ -34,6 +34,9 @@
 #include "windowpicker.h"
 #include "workspace.h"
 
+#include <xcb/xcb.h>
+#include <xcb/xproto.h>
+
 #include <WBackend>
 #include <WForeignToplevel>
 #include <WOutput>
@@ -86,9 +89,6 @@
 #include <pwd.h>
 #include <utility>
 
-#include <xcb/xcb.h>
-#include <xcb/xproto.h>
-
 #define WLR_FRACTIONAL_SCALE_V1_VERSION 1
 #define _DEEPIN_NO_TITLEBAR "_DEEPIN_NO_TITLEBAR"
 
@@ -109,15 +109,18 @@ static xcb_atom_t internAtom(xcb_connection_t *connection, const char *name, boo
     return atom;
 }
 
-static QByteArray readWindowProperty(xcb_connection_t *connection, xcb_window_t win, xcb_atom_t atom, xcb_atom_t type)
+static QByteArray readWindowProperty(xcb_connection_t *connection,
+                                     xcb_window_t win,
+                                     xcb_atom_t atom,
+                                     xcb_atom_t type)
 {
     QByteArray data;
     int offset = 0;
     int remaining = 0;
 
     do {
-        xcb_get_property_cookie_t cookie = xcb_get_property(connection, false, win,
-                                                            atom, type, offset, 1024);
+        xcb_get_property_cookie_t cookie =
+            xcb_get_property(connection, false, win, atom, type, offset, 1024);
         xcb_get_property_reply_t *reply = xcb_get_property_reply(connection, cookie, NULL);
         if (!reply)
             break;
@@ -252,9 +255,10 @@ void Helper::setWorkspaceVisible(bool visible)
 {
     for (auto *surface : m_rootSurfaceContainer->surfaces()) {
         if (surface->type() == SurfaceWrapper::Type::Layer) {
-            surface->setHideByLockScreen(!visible);
+            surface->setHideByLockScreen(m_currentMode == CurrentMode::LockScreen);
         }
     }
+
     if (visible) {
         m_workspaceScaleAnimation->stop();
         m_workspaceScaleAnimation->setStartValue(m_shellHandler->workspace()->scale());
@@ -590,8 +594,12 @@ void Helper::onSurfaceWrapperAdded(SurfaceWrapper *wrapper)
         auto xwayland = qobject_cast<WXWaylandSurface *>(wrapper->shellSurface());
         auto updateDecorationTitleBar = [this, wrapper, xwayland]() {
             if (!xwayland->isBypassManager()) {
-                if (m_atomDeepinNoTitlebar && !readWindowProperty(defaultXWaylandSocket()->xcbConnection(), xwayland->handle()->handle()->window_id,
-                                                              m_atomDeepinNoTitlebar, XCB_ATOM_CARDINAL).isEmpty()) {
+                if (m_atomDeepinNoTitlebar
+                    && !readWindowProperty(defaultXWaylandSocket()->xcbConnection(),
+                                           xwayland->handle()->handle()->window_id,
+                                           m_atomDeepinNoTitlebar,
+                                           XCB_ATOM_CARDINAL)
+                            .isEmpty()) {
                     wrapper->setNoTitleBar(true);
                 } else {
                     wrapper->setNoTitleBar(xwayland->decorationsType()
@@ -629,6 +637,15 @@ void Helper::onSurfaceWrapperAdded(SurfaceWrapper *wrapper)
     if (!isLayer) {
         auto windowOverlapChecker = new WindowOverlapChecker(wrapper, wrapper);
     }
+
+#ifndef DISABLE_DDM
+    if (isLayer) {
+        connect(this, &Helper::currentModeChanged, wrapper, [this, wrapper] {
+            wrapper->setHideByLockScreen(m_currentMode == CurrentMode::LockScreen);
+        });
+        wrapper->setHideByLockScreen(m_currentMode == CurrentMode::LockScreen);
+    }
+#endif
 }
 
 void Helper::onSurfaceWrapperAboutToRemove(SurfaceWrapper *wrapper)
@@ -863,8 +880,9 @@ void Helper::init()
         m_server->attach<WXdgOutputManager>(m_rootSurfaceContainer->outputLayout());
     xwaylandOutputManager->setScaleOverride(1.0);
     m_defaultXWayland = m_shellHandler->createXWayland(m_server, m_seat, m_compositor, false);
-    connect(m_defaultXWayland, &WXWayland::ready, this, [this]{
-        m_atomDeepinNoTitlebar = internAtom(m_defaultXWayland->xcbConnection(), _DEEPIN_NO_TITLEBAR, false);
+    connect(m_defaultXWayland, &WXWayland::ready, this, [this] {
+        m_atomDeepinNoTitlebar =
+            internAtom(m_defaultXWayland->xcbConnection(), _DEEPIN_NO_TITLEBAR, false);
         if (!m_atomDeepinNoTitlebar) {
             qWarning() << "failed internAtom:" << _DEEPIN_NO_TITLEBAR;
         }
@@ -945,7 +963,8 @@ void Helper::activateSurface(SurfaceWrapper *wrapper, Qt::FocusReason reason)
         }
         return;
     }
-    if (!wrapper || !wrapper->shellSurface()->hasCapability(WToplevelSurface::Capability::Activate)) {
+    if (!wrapper
+        || !wrapper->shellSurface()->hasCapability(WToplevelSurface::Capability::Activate)) {
         if (!wrapper)
             setActivatedSurface(nullptr);
         // else if wrapper don't have Activate Capability, do nothing
@@ -1429,7 +1448,8 @@ void Helper::setActivatedSurface(SurfaceWrapper *newActivateSurface)
         Q_ASSERT(newActivateSurface->showOnWorkspace(workspace()->current()->id()));
         newActivateSurface->stackToLast();
         if (newActivateSurface->type() == SurfaceWrapper::Type::XWayland) {
-            auto xwaylandSurface = qobject_cast<WXWaylandSurface *>(newActivateSurface->shellSurface());
+            auto xwaylandSurface =
+                qobject_cast<WXWaylandSurface *>(newActivateSurface->shellSurface());
             xwaylandSurface->restack(nullptr, WXWaylandSurface::XCB_STACK_MODE_ABOVE);
         }
     }
@@ -1726,6 +1746,8 @@ void Helper::setCurrentMode(CurrentMode mode)
     TreelandConfig::ref().setBlockActivateSurface(mode != CurrentMode::Normal);
 
     m_currentMode = mode;
+
+    Q_EMIT currentModeChanged();
 }
 
 void Helper::showLockScreen()
