@@ -255,6 +255,8 @@ SurfaceFilterProxyModel *Workspace::currentFilter()
 {
     WorkspaceModel *wmodel = current();
     m_currentFilter->setSourceModel(wmodel);
+    m_currentFilter->invalidate();
+    m_currentFilter->sort(0);
     return m_currentFilter;
 }
 
