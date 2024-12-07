@@ -139,7 +139,7 @@ void WXWaylandSurfacePrivate::init()
                          updateWindowTypes();
                      });
     QObject::connect(handle(), &qw_xwayland_surface::notify_set_decorations,
-                     q, &WXWaylandSurface::decorationsTypeChanged);
+                     q, &WXWaylandSurface::decorationsFlagsChanged);
     QObject::connect(handle(), &qw_xwayland_surface::notify_set_title,
                      q, &WXWaylandSurface::titleChanged);
     QObject::connect(handle(), &qw_xwayland_surface::notify_set_class,
@@ -455,10 +455,10 @@ WXWaylandSurface::WindowTypes WXWaylandSurface::windowTypes() const
     return d->windowTypes;
 }
 
-WXWaylandSurface::DecorationsType WXWaylandSurface::decorationsType() const
+WXWaylandSurface::DecorationsFlags WXWaylandSurface::decorationsFlags() const
 {
     W_DC(WXWaylandSurface);
-    return static_cast<DecorationsType>(d->nativeHandle()->decorations);
+    return WXWaylandSurface::DecorationsFlags::fromInt(d->nativeHandle()->decorations);
 }
 
 bool WXWaylandSurface::checkNewSize(const QSize &size, QSize *clipedSize)

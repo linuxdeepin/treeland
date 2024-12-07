@@ -28,7 +28,7 @@ class WAYLIB_SERVER_EXPORT WXWaylandSurface : public WToplevelSurface
     Q_PROPERTY(bool bypassManager READ isBypassManager NOTIFY bypassManagerChanged FINAL)
     Q_PROPERTY(QRect geometry READ geometry NOTIFY geometryChanged FINAL)
     Q_PROPERTY(WindowTypes windowTypes READ windowTypes NOTIFY windowTypesChanged FINAL)
-    Q_PROPERTY(DecorationsType decorationsType READ decorationsType NOTIFY decorationsTypeChanged FINAL)
+    Q_PROPERTY(DecorationsFlags decorationsFlags READ decorationsFlags NOTIFY decorationsFlagsChanged FINAL)
     QML_NAMED_ELEMENT(XWaylandSurface)
     QML_UNCREATABLE("Only create in C++")
 
@@ -68,12 +68,13 @@ public:
     Q_ENUM(WindowType)
     Q_DECLARE_FLAGS(WindowTypes, WindowType)
 
-    enum DecorationsType {
+    enum DecorationsFlag {
         DecorationsAll = 0,
         DecorationsNoBorder = 1,
         DecorationsNoTitle = 2
     };
-    Q_ENUM(DecorationsType)
+    Q_ENUM(DecorationsFlag)
+    Q_DECLARE_FLAGS(DecorationsFlags, DecorationsFlag)
 
     explicit WXWaylandSurface(QW_NAMESPACE::qw_xwayland_surface *handle, WXWayland *xwayland, QObject *parent = nullptr);
     ~WXWaylandSurface();
@@ -111,7 +112,7 @@ public:
 
     bool isBypassManager() const;
     WindowTypes windowTypes() const;
-    DecorationsType decorationsType() const;
+    DecorationsFlags decorationsFlags() const;
 
 public Q_SLOTS:
     bool checkNewSize(const QSize &size, QSize *clipedSize = nullptr) override;
@@ -132,7 +133,7 @@ Q_SIGNALS:
     void bypassManagerChanged();
     void geometryChanged();
     void windowTypesChanged();
-    void decorationsTypeChanged();
+    void decorationsFlagsChanged();
 
     void requestConfigure(QRect geometry, ConfigureFlags flags);
     void requestActivate();

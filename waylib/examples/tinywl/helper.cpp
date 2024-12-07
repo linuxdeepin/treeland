@@ -299,10 +299,10 @@ void Helper::init()
             auto xwayland = qobject_cast<WXWaylandSurface *>(wrapper->shellSurface());
             auto updateDecorationTitleBar = [this, wrapper, xwayland]() {
                 if (!xwayland->isBypassManager()) {
-                    wrapper->setNoTitleBar(xwayland->decorationsType()
-                                           == WXWaylandSurface::DecorationsNoTitle);
-                    wrapper->setNoDecoration(xwayland->decorationsType()
-                                             == WXWaylandSurface::DecorationsNoBorder);
+                    wrapper->setNoTitleBar(xwayland->decorationsFlags()
+                                           & WXWaylandSurface::DecorationsNoTitle);
+                    wrapper->setNoDecoration(xwayland->decorationsFlags()
+                                             & WXWaylandSurface::DecorationsNoBorder);
                 } else {
                     wrapper->setNoTitleBar(true);
                     wrapper->setNoDecoration(true);
@@ -312,7 +312,7 @@ void Helper::init()
             // but WXWaylandSurface will not, so must connect to `wrapper`
             connect(xwayland, &WXWaylandSurface::bypassManagerChanged, wrapper, updateDecorationTitleBar);
             connect(xwayland,
-                    &WXWaylandSurface::decorationsTypeChanged,
+                    &WXWaylandSurface::decorationsFlagsChanged,
                     wrapper,
                     updateDecorationTitleBar);
             updateDecorationTitleBar();
