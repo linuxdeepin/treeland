@@ -51,12 +51,14 @@ Item {
                     }
                     visible: parent.width > 2 * sourceView.iconSize.width ? true : false
 
+                    /*
                     Rectangle {
                         Layout.preferredWidth: parent.width > sourceView.iconSize.width ? sourceView.iconSize.width : 0
                         Layout.preferredHeight: parent.height > sourceView.iconSize.height ? sourceView.iconSize.height : 0
                         Layout.alignment: Qt.AlignVCenter | Qt.AlignHCenter
                         color: "yellow"
                     }
+                    */
                     Text {
                         Layout.fillWidth: true
                         Layout.alignment: Qt.AlignVCenter | Qt.AlignHCenter
