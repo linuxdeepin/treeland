@@ -10,8 +10,9 @@ Item {
     id: root
 
     required property SurfaceItem surface
-    readonly property SurfaceWrapper wrapper: surface?.parent ?? null
-    readonly property real cornerRadius: wrapper?.radius ?? cornerRadius
+    // surface?.parent maybe is a `SubsurfaceContainer`
+    readonly property SurfaceWrapper wrapper: surface?.parent ?? as SurfaceWrapper
+    readonly property real cornerRadius: wrapper?.radius ?? 0
 
     anchors.fill: parent
 
