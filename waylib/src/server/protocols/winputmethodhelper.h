@@ -58,6 +58,7 @@ private:
     void handleTIDisabled();
     void handleFocusedTICommitted();
     void handleIMCommitted();
+    void handleActiveIMDestroyed();
     WTextInput *focusedTextInput() const;
     WTextInput *enabledTextInput() const;
     void setEnabledTextInput(WTextInput *ti);

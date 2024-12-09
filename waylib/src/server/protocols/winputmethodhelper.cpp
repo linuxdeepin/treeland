@@ -173,6 +173,8 @@ void WInputMethodHelper::setInputMethod(WInputMethodV2 *im)
     if (d->activeInputMethod)
         d->activeInputMethod->safeDisconnect(this);
     d->activeInputMethod = im;
+    if (d->activeInputMethod)
+        d->activeInputMethod->safeConnect(&qw_input_method_v2::before_destroy, this, &WInputMethodHelper::handleActiveIMDestroyed);
 }
 
 qw_input_method_keyboard_grab_v2 *WInputMethodHelper::activeKeyboardGrab() const
@@ -205,14 +207,6 @@ void WInputMethodHelper::handleNewIMV2(qw_input_method_v2 *imv2)
     // Once input method is online, try to resend enter to textInput
     resendKeyboardFocus();
     // For text input v1, when after sendEnter, enabled signal will be emitted
-    wimv2->safeConnect(&WInputMethodV2::aboutToBeInvalidated, this, [this, wimv2]{
-        if (inputMethod() == wimv2) {
-            setInputMethod(nullptr);
-        }
-        wimv2->safeDeleteLater();
-        notifyLeave();
-    });
-
 }
 
 void WInputMethodHelper::handleNewKGV2(qw_input_method_keyboard_grab_v2 *kgv2)
@@ -432,6 +426,15 @@ void WInputMethodHelper::handleIMCommitted()
     if (ti) {
         ti->handleIMCommitted(im);
     }
+}
+
+void WInputMethodHelper::handleActiveIMDestroyed()
+{
+    auto im = inputMethod();
+    Q_ASSERT(im);
+    setInputMethod(nullptr);
+    im->safeDeleteLater();
+    notifyLeave();
 }
 
 void WInputMethodHelper::notifyLeave()
