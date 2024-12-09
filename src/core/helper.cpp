@@ -666,11 +666,16 @@ void Helper::onSurfaceWrapperAboutToRemove(SurfaceWrapper *wrapper)
 
 bool Helper::surfaceBelongsToCurrentUser(SurfaceWrapper *wrapper)
 {
+    static const int puid = getuid();
     auto credentials = WClient::getCredentials(wrapper->surface()->waylandClient()->handle());
-
     auto user = m_userModel->currentUser();
-    uid_t uid = user ? user->UID() : getuid();
-    return credentials->uid == uid;
+    if (user) {
+        // FIXME: XWayland's surfaces' uid are all puid now, will change to per user
+        // XWayland instance in the future
+        return credentials->uid == user->UID() || credentials->uid == puid;
+    } else {
+        return credentials->uid == puid;
+    }
 }
 
 void Helper::deleteTaskSwitch()
