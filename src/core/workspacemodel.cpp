@@ -69,7 +69,7 @@ void WorkspaceModel::addSurface(SurfaceWrapper *surface)
     if (!m_opaque) {
         surface->setOpacity(m_opaque ? 1.0 : 0.0);
         surface->setHideByWorkspace(m_visible);
-        connect(this, &WorkspaceModel::opaqueChanged, this, [this, surface](){
+        connect(this, &WorkspaceModel::opaqueChanged, surface, [this, surface](){
             surface->setHideByWorkspace(!m_visible);
         });
     } else {
@@ -81,6 +81,7 @@ void WorkspaceModel::addSurface(SurfaceWrapper *surface)
 
 void WorkspaceModel::removeSurface(SurfaceWrapper *surface)
 {
+    surface->disconnect(this);
     SurfaceListModel::removeSurface(surface);
     surface->setWorkspaceId(-1);
     surface->setHideByWorkspace(false);
