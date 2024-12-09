@@ -712,11 +712,13 @@ Item {
                     anchors.fill: parent
                     spacing: 2
                     transformOrigin: Item.BottomLeft
+                    /*
                     Rectangle { // TODO: We can't get app icon now, use Rectangle as fallback!
                         width: 24
                         height: 24
                         color: "yellow"
                     }
+                    */
                     Text {
                         text: filterSurfaceModel.count ?
                                   filterSurfaceModel.get(Math.max(listview.currentIndex, 0)).wrapper.shellSurface.title : ""
