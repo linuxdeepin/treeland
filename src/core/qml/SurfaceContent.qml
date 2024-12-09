@@ -11,7 +11,7 @@ Item {
 
     required property SurfaceItem surface
     // surface?.parent maybe is a `SubsurfaceContainer`
-    readonly property SurfaceWrapper wrapper: surface?.parent ?? as SurfaceWrapper
+    readonly property SurfaceWrapper wrapper: surface?.parent as SurfaceWrapper
     readonly property real cornerRadius: wrapper?.radius ?? 0
 
     anchors.fill: parent
