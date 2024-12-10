@@ -47,8 +47,10 @@ template<IsWrapObject T>
 class WrapPointer
 {
 public:
-    WrapPointer()
-        : wd()
+    WrapPointer() noexcept = default;
+
+    WrapPointer(std::nullptr_t) noexcept
+        : WrapPointer{}
     {
     }
 
