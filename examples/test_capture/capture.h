@@ -244,8 +244,6 @@ public:
     static TreelandCaptureManager *instance();
     static TreelandCaptureManager *create(QQmlEngine *, QJSEngine *);
 
-    ~TreelandCaptureManager() override;
-
     inline TreelandCaptureContext *context() const
     {
         return m_context;
