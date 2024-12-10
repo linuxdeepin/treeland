@@ -892,6 +892,12 @@ void Helper::init()
             qWarning() << "failed internAtom:" << _DEEPIN_NO_TITLEBAR;
         }
     });
+    xdgOutputManager->setFilter([this] (WClient *client) {
+        return client != m_defaultXWayland->waylandClient();
+    });
+    xwaylandOutputManager->setFilter([this] (WClient *client) {
+        return client == m_defaultXWayland->waylandClient();
+    });
     m_xdgDecorationManager = m_server->attach<WXdgDecorationManager>();
     connect(m_xdgDecorationManager,
             &WXdgDecorationManager::surfaceModeChanged,
