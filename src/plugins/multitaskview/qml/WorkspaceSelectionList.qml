@@ -16,8 +16,14 @@ Item {
     required property QtObject dragManager
     required property Multitaskview multitaskview
     readonly property real whRatio: output.outputItem.width / output.outputItem.height
+    readonly property real workspaceDelegateHeight: TreelandConfig.workspaceDelegateHeight / output.outputItem.devicePixelRatio
+    readonly property real workspaceThumbHeight: TreelandConfig.workspaceThumbHeight / output.outputItem.devicePixelRatio
+    readonly property real workspaceThumbMargin: TreelandConfig.workspaceThumbMargin / output.outputItem.devicePixelRatio
+    readonly property real highlightBorderWidth: TreelandConfig.highlightBorderWidth / output.outputItem.devicePixelRatio
+    readonly property real workspaceThumbCornerRadius: TreelandConfig.workspaceThumbCornerRadius / output.outputItem.devicePixelRatio
 
-    height: TreelandConfig.workspaceDelegateHeight
+
+    height: workspaceDelegateHeight
     width: parent.width
     z: Multitaskview.Overlay
     transform: [
@@ -28,18 +34,18 @@ Item {
 
     Item {
         id: animationMask
-        property real localAnimationFactor: (TreelandConfig.workspaceThumbHeight * root.whRatio+ 2 * TreelandConfig.workspaceThumbMargin)
+        property real localAnimationFactor: (workspaceThumbHeight * root.whRatio+ 2 * workspaceThumbMargin)
                                             / Helper.workspace.animationController.refWrap
         visible: Helper.workspace.animationController.running
         anchors.fill: workspaceList
-        anchors.margins: TreelandConfig.workspaceThumbMargin - TreelandConfig.highlightBorderWidth
+        anchors.margins: workspaceThumbMargin - highlightBorderWidth
         Rectangle {
-            width: TreelandConfig.workspaceThumbHeight * root.whRatio + 2 * TreelandConfig.highlightBorderWidth
-            height: TreelandConfig.workspaceThumbHeight + 2 * TreelandConfig.highlightBorderWidth
-            border.width: TreelandConfig.highlightBorderWidth
+            width: workspaceThumbHeight * root.whRatio + 2 * highlightBorderWidth
+            height: workspaceThumbHeight + 2 * highlightBorderWidth
+            border.width: highlightBorderWidth
             border.color: "blue"
             color: "transparent"
-            radius: TreelandConfig.workspaceThumbCornerRadius + TreelandConfig.highlightBorderWidth
+            radius: workspaceThumbCornerRadius + highlightBorderWidth
             x: Helper.workspace.animationController.viewportPos * animationMask.localAnimationFactor
         }
     }
@@ -76,8 +82,8 @@ Item {
             required property WorkspaceModel workspace
             required property int index
             id: workspaceThumbDelegate
-            height: TreelandConfig.workspaceDelegateHeight
-            width: TreelandConfig.workspaceThumbHeight * root.whRatio + 2 * TreelandConfig.workspaceThumbMargin
+            height: workspaceDelegateHeight
+            width: workspaceThumbHeight * root.whRatio + 2 * workspaceThumbMargin
             Drag.active: hdrg.active
             z: Drag.active ? 1 : 0
             Drag.onActiveChanged: {
@@ -110,12 +116,12 @@ Item {
                 id: container
                 anchors {
                     fill: parent
-                    margins: TreelandConfig.workspaceThumbMargin - TreelandConfig.highlightBorderWidth
+                    margins: workspaceThumbMargin - highlightBorderWidth
                 }
-                border.width: (!Helper.workspace.animationController.running && workspace.visible) ? TreelandConfig.highlightBorderWidth : 0
+                border.width: (!Helper.workspace.animationController.running && workspace.visible) ? highlightBorderWidth : 0
                 border.color: "blue"
                 color: "transparent"
-                radius: TreelandConfig.workspaceThumbCornerRadius + TreelandConfig.highlightBorderWidth
+                radius: workspaceThumbCornerRadius + highlightBorderWidth
                 states: [
                     State {
                         name: "dragging"
@@ -132,7 +138,7 @@ Item {
                     id: content
                     anchors {
                         fill: parent
-                        margins: TreelandConfig.highlightBorderWidth
+                        margins: highlightBorderWidth
                     }
                     clip: true
 
@@ -163,7 +169,7 @@ Item {
                             PathRectangle {
                                 width: content.width
                                 height: content.height
-                                radius: TreelandConfig.workspaceThumbCornerRadius
+                                radius: workspaceThumbCornerRadius
                             }
                         }
                     }
@@ -187,7 +193,7 @@ Item {
                             PathRectangle {
                                 width: content.width
                                 height: content.height
-                                radius: TreelandConfig.workspaceThumbCornerRadius
+                                radius: workspaceThumbCornerRadius
                             }
                         }
                     }
@@ -263,7 +269,7 @@ Item {
                         target: container
                         xAxis.enabled: false
                         yAxis {
-                            maximum: TreelandConfig.workspaceThumbMargin - TreelandConfig.highlightBorderWidth
+                            maximum: workspaceThumbMargin - highlightBorderWidth
                             minimum: -container.height
                         }
                         onActiveChanged: {
@@ -324,9 +330,9 @@ Item {
             }
         }
         width: Math.min(parent.width,
-                        Helper.workspace.count * (TreelandConfig.workspaceThumbHeight * root.whRatio + 2 * TreelandConfig.workspaceThumbMargin))
+                        Helper.workspace.count * (workspaceThumbHeight * root.whRatio + 2 * workspaceThumbMargin))
         orientation: ListView.Horizontal
-        height: TreelandConfig.workspaceDelegateHeight
+        height: workspaceDelegateHeight
         model: visualModel
         WheelHandler {
             acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad

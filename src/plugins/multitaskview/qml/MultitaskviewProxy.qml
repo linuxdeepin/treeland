@@ -177,7 +177,7 @@ Multitaskview {
                         multitaskview: root
                         output: outputPlacementItem.output
                         draggedParent: root
-                        workspaceListPadding: TreelandConfig.workspaceDelegateHeight
+                        workspaceListPadding: TreelandConfig.workspaceDelegateHeight / output.outputItem.devicePixelRatio
                         dragManager: multitaskviewDragManager
                     }
                 }

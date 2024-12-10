@@ -272,10 +272,14 @@ bool MultitaskviewSurfaceModel::tryLayout(const QList<ModelDataPtr> &rawData,
 {
     int nrows = 1;
     qreal acc = 0;
-    auto topContentMargin = TreelandConfig::ref().multitaskviewTopContentMargin();
-    auto bottomContentMargin = TreelandConfig::ref().multitaskviewBottomContentMargin();
-    auto cellPadding = TreelandConfig::ref().multitaskviewCellPadding();
-    auto horizontalMargin = TreelandConfig::ref().multitaskviewHorizontalMargin();
+    auto devicePixelRatio = output()->outputItem()->devicePixelRatio();
+    auto topContentMargin =
+        TreelandConfig::ref().multitaskviewTopContentMargin() / devicePixelRatio;
+    auto bottomContentMargin =
+        TreelandConfig::ref().multitaskviewBottomContentMargin() / devicePixelRatio;
+    auto cellPadding = TreelandConfig::ref().multitaskviewCellPadding() / devicePixelRatio;
+    auto horizontalMargin =
+        TreelandConfig::ref().multitaskviewHorizontalMargin() / devicePixelRatio;
     auto availWidth = std::max(0.0, layoutArea().width() - 2 * horizontalMargin);
     auto availHeight =
         std::max(0.0, layoutArea().height() - topContentMargin - bottomContentMargin);
@@ -321,10 +325,14 @@ bool MultitaskviewSurfaceModel::tryLayout(const QList<ModelDataPtr> &rawData,
 
 void MultitaskviewSurfaceModel::calcDisplayPos(const QList<ModelDataPtr> &rawData)
 {
-    auto topContentMargin = TreelandConfig::ref().multitaskviewTopContentMargin();
-    auto bottomContentMargin = TreelandConfig::ref().multitaskviewBottomContentMargin();
-    auto cellPadding = TreelandConfig::ref().multitaskviewCellPadding();
-    auto horizontalMargin = TreelandConfig::ref().multitaskviewHorizontalMargin();
+    auto devicePixelRatio = output()->outputItem()->devicePixelRatio();
+    auto topContentMargin =
+        TreelandConfig::ref().multitaskviewTopContentMargin() / devicePixelRatio;
+    auto bottomContentMargin =
+        TreelandConfig::ref().multitaskviewBottomContentMargin() / devicePixelRatio;
+    auto cellPadding = TreelandConfig::ref().multitaskviewCellPadding() / devicePixelRatio;
+    auto horizontalMargin =
+        TreelandConfig::ref().multitaskviewHorizontalMargin() / devicePixelRatio;
     auto availWidth = std::max(0.0, layoutArea().width() - 2 * horizontalMargin);
     auto availHeight =
         std::max(0.0, layoutArea().height() - topContentMargin - bottomContentMargin);
@@ -364,14 +372,12 @@ void MultitaskviewSurfaceModel::calcDisplayPos(const QList<ModelDataPtr> &rawDat
 
 void MultitaskviewSurfaceModel::doCalculateLayout(const QList<ModelDataPtr> &rawData)
 {
+    auto devicePixelRatio = output()->outputItem()->devicePixelRatio();
     auto maxWindowHeight =
         std::min(layoutArea().height(),
-                 static_cast<qreal>(TreelandConfig::ref().normalWindowHeight()
-                                    / output()->outputItem()->devicePixelRatio()));
-    auto minWindowHeight = TreelandConfig::ref().minMultitaskviewSurfaceHeight()
-        / output()->outputItem()->devicePixelRatio();
-    auto windowHeightStep =
-        TreelandConfig::ref().windowHeightStep() / output()->outputItem()->devicePixelRatio();
+                 static_cast<qreal>(TreelandConfig::ref().normalWindowHeight() / devicePixelRatio));
+    auto minWindowHeight = TreelandConfig::ref().minMultitaskviewSurfaceHeight() / devicePixelRatio;
+    auto windowHeightStep = TreelandConfig::ref().windowHeightStep() / devicePixelRatio;
     auto rowH = maxWindowHeight;
     while (rowH > minWindowHeight) {
         if (tryLayout(rawData, rowH)) {
