@@ -38,8 +38,11 @@ RowLayout {
             anchors.centerIn: parent
             hoverEnabled: parent.visible
 
-            D.ToolTip.visible: hovered
-            D.ToolTip.text: qsTr("Other Users")
+            D.ToolTip {
+                enabled: false
+                visible: hovered
+                text: qsTr("Other Users")
+            }
 
             UserList {
                 id: userList
@@ -72,8 +75,13 @@ RowLayout {
             width: expand ? bottomGroup.buttonSize + 6 : bottomGroup.buttonSize
             height: expand ? bottomGroup.buttonSize + 6 : bottomGroup.buttonSize
             anchors.centerIn: parent
-            D.ToolTip.visible: hovered
-            D.ToolTip.text: qsTr("Power")
+
+            D.ToolTip {
+                enabled: true
+                visible: powerBtn.hovered
+                text: qsTr("Power")
+            }
+
             Popup {
                 id: powerList
                 width: powerBtn.Window.width
