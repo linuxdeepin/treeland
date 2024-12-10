@@ -275,8 +275,8 @@ void WInputMethodHelper::handleNewIPSV2(qw_input_popup_surface_v2 *ipsv2)
             surface->safeDeleteLater();
         });
     };
-
-    if (auto ti = enabledTextInput()) {
+    auto ti = enabledTextInput();
+    if (ti && ti->focusedSurface()) {
         createPopupSurface(ti->focusedSurface(), ti->cursorRect(), ipsv2);
     }
 }
@@ -401,6 +401,10 @@ void WInputMethodHelper::handleFocusedTICommitted()
 {
     auto ti = enabledTextInput();
     Q_ASSERT(ti);
+    if (!ti->focusedSurface()) {
+        qCWarning(qLcInputMethod) << "Discard commit to unfocused but not disabled text input.";
+        return;
+    }
     qCDebug(qLcInputMethod) << "Focused text input" << ti << "committed."
                             << "Cursor rectangle:" << ti->cursorRect();
     auto im = inputMethod();
@@ -423,7 +427,7 @@ void WInputMethodHelper::handleIMCommitted()
     auto im = inputMethod();
     Q_ASSERT(im);
     auto ti = enabledTextInput();
-    if (ti) {
+    if (ti && ti->focusedSurface()) {
         ti->handleIMCommitted(im);
     }
 }
