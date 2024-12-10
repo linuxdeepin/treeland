@@ -397,6 +397,7 @@ public:
 
     ToolBarModel *toolBarModel() const;
     void doneSelection();
+    void cancelSelection();
 
 Q_SIGNALS:
     void hoveredItemChanged();
