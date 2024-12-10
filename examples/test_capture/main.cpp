@@ -77,8 +77,10 @@ int main(int argc, char *argv[])
                         "portal screenshot - " + QDateTime::currentDateTime().toString() + ".png";
                     if (result.save(saveBaseDir.absoluteFilePath(picName), "PNG")) {
                         qDebug() << saveBaseDir.absoluteFilePath(picName);
+                        delete TreelandCaptureManager::instance()->context();
                         app.quit();
                     } else {
+                        delete TreelandCaptureManager::instance()->context();
                         app.exit(-1);
                     }
                 }

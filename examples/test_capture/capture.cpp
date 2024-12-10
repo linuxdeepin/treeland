@@ -38,17 +38,10 @@ TreelandCaptureManager::TreelandCaptureManager()
     , QtWayland::treeland_capture_manager_v1()
 {
     connect(this, &TreelandCaptureManager::activeChanged, this, [this] {
-        if (!isActive() && m_context) {
+        if (!isActive()) {
             delete m_context;
         }
     });
-}
-
-TreelandCaptureManager::~TreelandCaptureManager()
-{
-    if (m_context)
-        delete m_context;
-    destroy();
 }
 
 TreelandCaptureContext *TreelandCaptureManager::ensureContext()
@@ -105,10 +98,8 @@ TreelandCaptureContext::TreelandCaptureContext(::treeland_capture_context_v1 *ob
 
 TreelandCaptureContext::~TreelandCaptureContext()
 {
-    if (m_frame)
-        delete m_frame;
-    if (m_session)
-        delete m_session;
+    delete m_frame;
+    delete m_session;
     destroy();
 }
 
