@@ -4,8 +4,10 @@
 #pragma once
 
 #include "treeland-capture-unstable-v1-protocol.h"
+#include "wrappointer.h"
 
 #include <wglobal.h>
+#include <wsurface.h>
 
 #include <qwbuffer.h>
 
@@ -41,7 +43,7 @@ public:
     bool withCursor{ false };
     bool freeze{ false };
     uint32_t sourceHint{ 0 };
-    WAYLIB_SERVER_NAMESPACE::WSurface *mask{ nullptr };
+    WrapPointer<WAYLIB_SERVER_NAMESPACE::WSurface> mask{ nullptr };
     // mask should be created so there must exist a wsurface
 
     void sendSourceFailed(uint32_t reason);
