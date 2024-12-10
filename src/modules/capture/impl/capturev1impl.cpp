@@ -47,17 +47,18 @@ void handle_treeland_capture_context_v1_destroy([[maybe_unused]] wl_client *clie
 }
 struct treeland_capture_context_v1 *capture_context_from_resource(struct wl_resource *resource);
 
-void handle_treeland_capture_manager_v1_destroy([[maybe_unused]] struct wl_client *client,
-                                                struct wl_resource *resource)
-{
-    wl_resource_destroy(resource);
-}
-
 treeland_capture_manager_v1 *capture_manager_from_resource(wl_resource *resource)
 {
     Q_ASSERT(
         wl_resource_instance_of(resource, &treeland_capture_manager_v1_interface, &manager_impl));
     return static_cast<treeland_capture_manager_v1 *>(wl_resource_get_user_data(resource));
+}
+
+void handle_treeland_capture_manager_v1_destroy([[maybe_unused]] struct wl_client *client,
+                                                struct wl_resource *resource)
+{
+    auto manager = capture_manager_from_resource(resource);
+    manager->destroyClientResource(WClient::get(client), resource);
 }
 
 treeland_capture_session_v1 *capture_session_from_resource(wl_resource *resource)
@@ -137,15 +138,20 @@ treeland_capture_manager_v1::treeland_capture_manager_v1(wl_display *display, QO
 void treeland_capture_manager_v1::addClientResource(wl_client *client, wl_resource *resource)
 {
     WClient *wClient = WClient::get(client);
-    connect(wClient, &WClient::destroyed, this, [this, wClient]() {
-        for (const auto &pair : clientResources) {
-            if (pair.first == wClient) {
-                wl_resource_destroy(pair.second);
-                clientResources.removeOne(pair);
-            }
-        }
+    connect(wClient, &WClient::destroyed, this, [this, wClient, resource]() {
+        destroyClientResource(wClient, resource);
     });
     clientResources.push_back({ wClient, resource });
+}
+
+void treeland_capture_manager_v1::destroyClientResource(WClient *client, wl_resource *resource)
+{
+    for (const auto &pair : clientResources) {
+        if (pair.first == client && pair.second == resource) {
+            wl_resource_destroy(pair.second);
+            clientResources.removeOne(pair);
+        }
+    }
 }
 
 void handle_treeland_capture_session_v1_destroy(wl_client *client, wl_resource *resource)
