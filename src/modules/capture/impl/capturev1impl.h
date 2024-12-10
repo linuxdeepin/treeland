@@ -120,6 +120,7 @@ public:
     QList<QPair<WAYLIB_SERVER_NAMESPACE::WClient *, wl_resource *>> clientResources;
     explicit treeland_capture_manager_v1(wl_display *display, QObject *parent = nullptr);
     void addClientResource(wl_client *client, wl_resource *resource);
+    void destroyClientResource(WAYLIB_SERVER_NAMESPACE::WClient *client, wl_resource *resource);
 Q_SIGNALS:
     void newCaptureContext(treeland_capture_context_v1 *context);
 };
