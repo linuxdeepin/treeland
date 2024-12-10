@@ -32,6 +32,7 @@ WAYLIB_SERVER_BEGIN_NAMESPACE
 class WServer;
 class WOutputRenderWindow;
 class WOutputLayout;
+class WClientPrivate;
 class WCursor;
 class WBackend;
 class WOutputItem;
