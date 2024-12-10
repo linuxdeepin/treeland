@@ -349,7 +349,7 @@ void MultitaskviewSurfaceModel::calcDisplayPos(const QList<ModelDataPtr> &rawDat
             [](qreal &acc, const qreal &cur) {
                 acc += cur;
             });
-        auto curX = hCenter - totW / 2 + cellPadding;
+        auto curX = hCenter - totW / 2 + cellPadding + horizontalMargin;
         for (auto j = 0; j < row.size(); ++j) {
             auto window = row[j];
             window->pendingGeometry.moveLeft(curX);
