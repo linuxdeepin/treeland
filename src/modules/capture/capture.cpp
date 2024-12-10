@@ -840,6 +840,8 @@ void CaptureSourceSelector::mouseReleaseEvent(QMouseEvent *event)
                                         mapRectToItem(viewport, selectionRegion()).toRect()),
                 selectionRegion().toRect());
         }
+        // Exit item selection mode after first click
+        setItemSelectionMode(false);
         break;
     }
     case SelectionMode::SelectWindow: {
