@@ -601,6 +601,14 @@ void CaptureSourceSelector::doneSelection()
     m_canvas->surfaceItem()->setSubsurfacesVisible(false);
 }
 
+void CaptureSourceSelector::cancelSelection()
+{
+    if (captureManager() && captureManager()->contextInSelection()) {
+        captureManager()->contextInSelection()->sendSourceFailed(CaptureContextV1::UserCancel);
+        captureManager()->clearContextInSelection(captureManager()->contextInSelection());
+    }
+}
+
 void CaptureSourceSelector::updateCursorShape()
 {
     if (m_selectionMode == SelectionMode::SelectOutput

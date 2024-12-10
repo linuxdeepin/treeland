@@ -1046,6 +1046,9 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *, QInputEvent *event)
             == QKeySequence(Qt::META | Qt::Key_F12)) {
             qApp->quit();
             return true;
+        } else if (m_captureSelector) {
+            if (event->modifiers() == Qt::NoModifier && kevent->key() == Qt::Key_Escape)
+                m_captureSelector->cancelSelection();
         } else if (event->modifiers() == Qt::MetaModifier) {
             const QList<Qt::Key> switchWorkspaceNums = { Qt::Key_1, Qt::Key_2, Qt::Key_3,
                                                          Qt::Key_4, Qt::Key_5, Qt::Key_6 };
@@ -1179,7 +1182,7 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *, QInputEvent *event)
         }
     }
 
-    if (event->type() == QEvent::KeyRelease) {
+    if (event->type() == QEvent::KeyRelease && !m_captureSelector) {
         auto kevent = static_cast<QKeyEvent *>(event);
         if (m_taskSwitch && m_taskSwitch->property("switchOn").toBool()) {
             if (kevent->key() == Qt::Key_Alt || kevent->key() == Qt::Key_Meta) {
@@ -1234,7 +1237,7 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *, QInputEvent *event)
     }
 
     // handle shortcut
-    if (m_currentMode == CurrentMode::Normal
+    if (!m_captureSelector && m_currentMode == CurrentMode::Normal
         && (event->type() == QEvent::KeyPress || event->type() == QEvent::KeyRelease)) {
         do {
             auto kevent = static_cast<QKeyEvent *>(event);
