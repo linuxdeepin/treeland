@@ -1,107 +1,58 @@
-## INTRODUCTION
+# Treeland
 
-DDM is a fork of SDDM. And use single compositor and session management functionality.
+treeland is a wayland compositor based on wlroots and QtQuick, designed to provide efficient and flexible graphical interface support.
 
-SDDM is a modern display manager for X11 and Wayland sessions aiming to
-be fast, simple and beautiful.
-It uses modern technologies like QtQuick, which in turn gives the designer the ability to
-create smooth, animated user interfaces.
+## Dependencies
 
-SDDM is extremely themeable. We put no restrictions on the user interface design,
-it is completely up to the designer. We simply provide a few callbacks to the user interface
-which can be used for authentication, suspend etc.
+Check the `debian/control` file to understand specific build and runtime dependencies, or use `cmake` to check for missing necessary components.
 
-To further ease theme creation we provide some premade components like a textbox,
-a combox etc.
+Core build dependencies:
 
-There are a few sample themes distributed with SDDM.
-They can be used as a starting point for new themes.
+- [waylib](https://github.com/vioken/waylib): A Wayland compositor development library based on wlroots and QtQuick
+  - Qt >= 6.8.0
+  - wlroots = 0.18
+- [treeland-protocols](https://github.com/linuxdeepin/treeland-protocols): Private Wayland protocols used by treeland
 
-## SCREENSHOTS
+Recommended runtime dependencies:
 
-![sample screenshot](https://raw.github.com/ddm/ddm/master/src/greeter/theme/maui.jpg)
+- [ddm](https://github.com/linuxdeepin/ddm): A display manager optimized for multiple users
 
-## VIDEOS
+## Building
 
-* [Video background](https://www.youtube.com/watch?v=kKwz2FQcE3c)
-* [Maui theme 1](https://www.youtube.com/watch?v=-0d1wkcU9DU)
-* [Maui theme 2](https://www.youtube.com/watch?v=dJ28mrOeuNA)
+Treeland uses cmake for building. The WITH_SUBMODULE_WAYLIB option can force the use of the waylib code from the submodule. If you want to use the system-provided waylib, set this option to OFF.
 
-## RESOURCES
+Using the system-provided waylib:
 
-* [Issue tracker](https://github.com/ddm/ddm/issues)
-* [Wiki](https://github.com/ddm/ddm/wiki)
-* [Mailing List](https://groups.google.com/group/ddm-devel)
-* IRC channel `#ddm` on [chat.freenode.net](https://webchat.freenode.net?channels=ddm)
-
-## INSTALLATION
-
-Qt >= 5.15.0 is required to use SDDM.
-
-SDDM runs the greeter as a system user named "ddm" whose home directory needs
-to be set to `/var/lib/ddm`.
-
-If pam and systemd are available, the greeter will go through logind
-which will give it access to drm devices.
-
-Distributions without pam and systemd will need to put the "ddm" user
-into the "video" group, otherwise errors regarding GL and drm devices
-might be experienced.
-
-## VIRTUAL TERMINALS
-
-SDDM is assumed to start at the tty specified by the cmake variable
-SDDM_INITIAL_VT which is an integer and defaults to 1.
-
-If SDDM_INITIAL_VT wasn't available, SDDM will use the next available one
-instead.
-
-You can override SDDM_INITIAL_VT if you want to have a different one if,
-for example, you were planning on using tty1 for something else.
-
-## LICENSE
-
-Source code of SDDM is licensed under GNU GPL version 2 or later (at your choosing).
-QML files are MIT licensed and images are CC BY 3.0.
-
-## TROUBLESHOOTING
-
-### NVIDIA Prime
-
-Add this at the bottom of the Xsetup script:
-
-```sh
-if [ -e /sbin/prime-offload ]; then
-    echo running NVIDIA Prime setup /sbin/prime-offload, you will need to manually run /sbin/prime-switch to shut down
-    /sbin/prime-offload
-fi
+```shell
+$ git clone git@github.com:linuxdeepin/treeland.git
+$ cd treeland
+$ cmake -Bbuild -DWITH_SUBMODULE_WAYLIB=OFF
+$ cmake --build build
 ```
 
-### No User Icon
+Using the waylib from the submodule:
 
-SDDM reads user icon from either ~/.face.icon or FacesDir/username.face.icon
-
-You need to make sure that SDDM user have permissions to read those files.
-In case you don't want to allow other users to access your $HOME you can use
-ACLs if your filesystem does support it.
-
-```sh
-setfacl -m u:ddm:x /home/username
-setfacl -m u:ddm:r /home/username/.face.icon
+```shell
+$ git clone git@github.com:linuxdeepin/treeland.git --recursive
+$ cd treeland
+$ cmake -Bbuild -DWITH_SUBMODULE_WAYLIB=ON
+$ cmake --build build
 ```
 
-### Custom DPI
+## Packaging
 
-In order to set custom DPI for high resolution screens you should configure
-Xorg yourself.  An easy way is to pass an additional argument to Xorg.
+A `debian` folder is provided to build the package under the *deepin* linux desktop distribution. To build the package, use the following command:
 
-Edit ``/etc/ddm.conf``, go to the ``X11`` section and change ``ServerArguments`` like this:
-
-```
-ServerArguments=-nolisten tcp -dpi 192
+```shell
+$ sudo apt build-dep . # install build dependencies
+$ dpkg-buildpackage -uc -us -nc -b # build binary package(s)
 ```
 
-to set DPI to 192.
+## Getting Involved
 
-As an alternative you can edit Xorg configuration ``xorg.conf``, please refer to the
-Xorg documentation.
+- [Code contribution via GitHub](https://github.com/linuxdeepin/treeland/)
+- [Submit bug or suggestions to GitHub Issues or GitHub Discussions](https://github.com/linuxdeepin/developer-center/issues/new/choose)
+
+## License
+
+treeland is licensed under Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only.
