@@ -400,6 +400,13 @@ void Output::addSurface(SurfaceWrapper *surface)
         connect(surface, &SurfaceWrapper::heightChanged, this, layoutSurface);
         layoutSurface();
 
+        auto setyOffset = [surface, this] {
+            placeUnderCursor(surface, surface->autoPlaceYOffset());
+        };
+        connect(surface, &SurfaceWrapper::autoPlaceYOffsetChanged, this, setyOffset);
+        if (surface->autoPlaceYOffset() != 0)
+            setyOffset();
+
         if (surface->type() == SurfaceWrapper::Type::XdgPopup) {
             auto xdgPopupSurfaceItem = qobject_cast<WXdgPopupSurfaceItem *>(surface->surfaceItem());
             connect(xdgPopupSurfaceItem, &WXdgPopupSurfaceItem::implicitPositionChanged, this, [surface, this] {
@@ -645,10 +652,6 @@ void Output::arrangeNonLayerSurface(SurfaceWrapper *surface, const QSizeF &sizeD
                 placeClientRequstPos(surface, clientRequstPos);
             }
 
-            quint32 yOffset = surface->autoPlaceYOffset();
-            if (yOffset > 0) {
-                placeUnderCursor(surface, yOffset);
-            }
             break;
         }
     } while (false);
