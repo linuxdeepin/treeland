@@ -364,17 +364,15 @@ bool WXdgToplevelSurface::checkNewSize(const QSize &size, QSize *clipedSize)
             clipedSize->setHeight(wtoplevel->current.max_height);
         ok = false;
     }
-    if (size.width() < wtoplevel->current.min_width
-        && wtoplevel->current.min_width> 0) {
+    if (size.width() < wtoplevel->current.min_width) {
         if (clipedSize)
             clipedSize->setWidth(wtoplevel->current.min_width);
-        return false;
+        ok = false;
     }
-    if (size.height() < wtoplevel->current.min_height
-        && wtoplevel->current.min_height > 0) {
+    if (size.height() < wtoplevel->current.min_height) {
         if (clipedSize)
             clipedSize->setHeight(wtoplevel->current.min_height);
-        return false;
+        ok = false;
     }
     return ok;
 }

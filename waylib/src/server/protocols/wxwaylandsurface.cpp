@@ -470,30 +470,25 @@ bool WXWaylandSurface::checkNewSize(const QSize &size, QSize *clipedSize)
     if (clipedSize)
         *clipedSize = size;
 
-    if (minSize.isValid()) {
-        if (size.width() < minSize.width()) {
-            if (clipedSize)
-                clipedSize->setWidth(minSize.width());
-            ok = false;
-        }
-        if (size.height() < minSize.height()) {
-            if (clipedSize)
-                clipedSize->setHeight(minSize.height());
-            ok = false;
-        }
+    if (size.width() < minSize.width()) {
+        if (clipedSize)
+            clipedSize->setWidth(minSize.width());
+        ok = false;
     }
-
-    if (maxSize.isValid()) {
-        if (size.width() > maxSize.width()) {
-            if (clipedSize)
-                clipedSize->setWidth(maxSize.width());
-            ok = false;
-        }
-        if (size.height() > maxSize.height()) {
-            if (clipedSize)
-                clipedSize->setHeight(maxSize.height());
-            ok = false;
-        }
+    if (size.height() < minSize.height()) {
+        if (clipedSize)
+            clipedSize->setHeight(minSize.height());
+        ok = false;
+    }
+    if (size.width() > maxSize.width() && maxSize.width() > 0) {
+        if (clipedSize)
+            clipedSize->setWidth(maxSize.width());
+        ok = false;
+    }
+    if (size.height() > maxSize.height() && maxSize.height() > 0) {
+        if (clipedSize)
+            clipedSize->setHeight(maxSize.height());
+        ok = false;
     }
 
     return ok;
