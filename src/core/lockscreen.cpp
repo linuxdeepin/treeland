@@ -3,10 +3,10 @@
 
 #include "lockscreen.h"
 
-#include "cmdline.h"
-#include "helper.h"
-#include "lockscreeninterface.h"
-#include "output.h"
+#include "interfaces/lockscreeninterface.h"
+#include "output/output.h"
+#include "seat/helper.h"
+#include "utils/cmdline.h"
 
 LockScreen::LockScreen(ILockScreen *impl, SurfaceContainer *parent)
     : SurfaceContainer(parent)

@@ -3,13 +3,13 @@
 
 #include "shellhandler.h"
 
-#include "ddeshellmanagerinterfacev1.h"
-#include "helper.h"
+#include "core/qmlengine.h"
 #include "layersurfacecontainer.h"
-#include "qmlengine.h"
+#include "modules/dde-shell/ddeshellmanagerinterfacev1.h"
 #include "rootsurfacecontainer.h"
-#include "surfacewrapper.h"
-#include "workspace.h"
+#include "seat/helper.h"
+#include "surface/surfacewrapper.h"
+#include "workspace/workspace.h"
 
 #include <winputmethodhelper.h>
 #include <winputpopupsurface.h>
@@ -245,7 +245,6 @@ void ShellHandler::onXWaylandSurfaceAdded(WXWaylandSurface *surface)
     });
 }
 
-
 void ShellHandler::setupSurfaceActiveWatcher(SurfaceWrapper *wrapper)
 {
     Q_ASSERT_X(wrapper->container(), Q_FUNC_INFO, "Must setContainer at first!");
@@ -261,7 +260,8 @@ void ShellHandler::setupSurfaceActiveWatcher(SurfaceWrapper *wrapper)
                 return;
             }
             if (!parent->showOnWorkspace(m_workspace->current()->id())) {
-                qCWarning(qLcShellHandler) << "A popup active, but it's parent not in current workspace!";
+                qCWarning(qLcShellHandler)
+                    << "A popup active, but it's parent not in current workspace!";
                 return;
             }
             Helper::instance()->activateSurface(parent);

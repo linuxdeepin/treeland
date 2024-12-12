@@ -4,7 +4,6 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import Treeland
-import Treeland.Greeter
 import LockScreen
 
 FocusScope {

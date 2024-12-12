@@ -3,7 +3,7 @@
 
 #include "wallpapercolor.h"
 
-#include "impl/wallpaper_color_impl.h"
+#include "modules/wallpaper-color/impl/wallpaper_color_impl.h"
 
 #include <woutput.h>
 #include <wserver.h>

@@ -20,9 +20,9 @@
 
 #include "greeterproxy.h"
 
-#include "global.h"
-#include "sessionmodel.h"
-#include "usermodel.h"
+#include "greeter/global.h"
+#include "greeter/sessionmodel.h"
+#include "greeter/usermodel.h"
 
 #include <DisplayManager.h>
 #include <DisplayManagerSession.h>

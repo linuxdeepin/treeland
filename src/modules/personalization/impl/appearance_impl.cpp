@@ -3,9 +3,9 @@
 
 #include "appearance_impl.h"
 
-#include "personalization_manager_impl.h"
+#include "modules/personalization/impl/personalization_manager_impl.h"
 #include "treeland-personalization-manager-protocol.h"
-#include "util.h"
+#include "modules/personalization/impl/util.h"
 
 #include <wayland-server-core.h>
 #include <wayland-server.h>

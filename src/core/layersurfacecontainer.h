@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include "surfacecontainer.h"
+#include "surface/surfacecontainer.h"
 
 #include <wglobal.h>
 

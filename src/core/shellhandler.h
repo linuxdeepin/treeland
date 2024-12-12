@@ -8,7 +8,7 @@
 
 #include <QObject>
 
-Q_MOC_INCLUDE("workspace.h")
+Q_MOC_INCLUDE("workspace/workspace.h")
 
 class Helper;
 class SurfaceWrapper;

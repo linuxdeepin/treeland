@@ -3,8 +3,8 @@
 
 #include "workspacemodel.h"
 
-#include "helper.h"
-#include "surfacewrapper.h"
+#include "seat/helper.h"
+#include "surface/surfacewrapper.h"
 
 WorkspaceModel::WorkspaceModel(QObject *parent,
                                int id,
@@ -69,7 +69,7 @@ void WorkspaceModel::addSurface(SurfaceWrapper *surface)
     if (!m_opaque) {
         surface->setOpacity(m_opaque ? 1.0 : 0.0);
         surface->setHideByWorkspace(m_visible);
-        connect(this, &WorkspaceModel::opaqueChanged, surface, [this, surface](){
+        connect(this, &WorkspaceModel::opaqueChanged, surface, [this, surface]() {
             surface->setHideByWorkspace(!m_visible);
         });
     } else {
@@ -106,7 +106,7 @@ SurfaceWrapper *WorkspaceModel::activePenultimateWindow() const
         return nullptr;
     }
 
-    return *second; 
+    return *second;
 }
 
 SurfaceWrapper *WorkspaceModel::findNextActivedSurface() const
@@ -131,7 +131,8 @@ void WorkspaceModel::removeActivedSurface(SurfaceWrapper *surface)
 int WorkspaceModel::findActivedSurfaceHistoryIndex(SurfaceWrapper *surface) const
 {
     int index = 0;
-    for (auto it = m_activedSurfaceHistory.begin(); it != m_activedSurfaceHistory.end(); ++it, ++index) {
+    for (auto it = m_activedSurfaceHistory.begin(); it != m_activedSurfaceHistory.end();
+         ++it, ++index) {
         if (*it == surface) {
             return index;
         }

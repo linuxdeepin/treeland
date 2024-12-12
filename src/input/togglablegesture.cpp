@@ -3,10 +3,10 @@
 
 #include "togglablegesture.h"
 
-#include "helper.h"
-#include "inputdevice.h"
-#include "workspace.h"
-#include "workspaceanimationcontroller.h"
+#include "input/inputdevice.h"
+#include "seat/helper.h"
+#include "workspace/workspace.h"
+#include "workspace/workspaceanimationcontroller.h"
 
 TogglableGesture::TogglableGesture(QObject *parent)
     : QObject(parent)

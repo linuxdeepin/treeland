@@ -2,15 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 #pragma once
 
-#include "surfacecontainer.h"
-#include "surfacefilterproxymodel.h"
-#include "workspacemodel.h"
-#include "wrappointer.h"
+#include "surface/surfacecontainer.h"
+#include "surface/surfacefilterproxymodel.h"
+#include "surface/wrappointer.h"
+#include "workspace/workspacemodel.h"
 
 class SurfaceWrapper;
 class Workspace;
 class WorkspaceAnimationController;
-Q_MOC_INCLUDE("workspaceanimationcontroller.h")
+Q_MOC_INCLUDE("workspace/workspaceanimationcontroller.h")
 
 class WorkspaceListModel : public ObjectListModel<WorkspaceModel>
 {

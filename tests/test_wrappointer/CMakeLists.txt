@@ -4,7 +4,7 @@ add_executable(test_wrappointer wrapobject.h main.cpp)
 
 target_link_libraries(test_wrappointer
     PRIVATE
-        treeland_core
+        libtreeland
         Qt::Test
 )
 

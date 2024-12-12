@@ -28,6 +28,8 @@ CmdLine::CmdLine()
     m_parser->process(*QCoreApplication::instance());
 }
 
+CmdLine::~CmdLine() = default;
+
 QString CmdLine::unescape(const QString &str) noexcept
 {
     QString unescapedStr;

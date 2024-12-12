@@ -287,7 +287,7 @@ protected:
     void treeland_dde_shell_surface_v1_set_skip_muti_task_view(Resource *resource,
                                                                uint32_t skip) override;
     void treeland_dde_shell_surface_v1_set_accept_keyboard_focus(Resource *resource,
-                                                            uint32_t accept) override;
+                                                                 uint32_t accept) override;
 };
 
 DDEShellSurfaceInterfacePrivate::DDEShellSurfaceInterfacePrivate(DDEShellSurfaceInterface *_q,

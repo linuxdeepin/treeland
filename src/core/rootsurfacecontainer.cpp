@@ -3,9 +3,9 @@
 
 #include "rootsurfacecontainer.h"
 
-#include "helper.h"
-#include "output.h"
-#include "surfacewrapper.h"
+#include "output/output.h"
+#include "seat/helper.h"
+#include "surface/surfacewrapper.h"
 
 #include <wcursor.h>
 #include <woutput.h>

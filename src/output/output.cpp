@@ -3,11 +3,11 @@
 
 #include "output.h"
 
-#include "helper.h"
-#include "rootsurfacecontainer.h"
-#include "surfacewrapper.h"
-#include "treelandconfig.h"
-#include "workspace.h"
+#include "seat/helper.h"
+#include "core/rootsurfacecontainer.h"
+#include "surface/surfacewrapper.h"
+#include "config/treelandconfig.h"
+#include "workspace/workspace.h"
 
 #include <wcursor.h>
 #include <winputpopupsurface.h>

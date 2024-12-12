@@ -1,6 +1,6 @@
 #include "wrapobject.h"
 
-#include <wrappointer.h>
+#include <surface/wrappointer.h>
 
 #include <QTest>
 

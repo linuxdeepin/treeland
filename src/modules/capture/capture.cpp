@@ -3,12 +3,12 @@
 
 #include "capture.h"
 
-#include "helper.h"
-#include "impl/capturev1impl.h"
-#include "surfacewrapper.h"
-#include "workspace.h"
+#include "modules/capture/impl/capturev1impl.h"
+#include "modules/item-selector/itemselector.h"
+#include "seat/helper.h"
+#include "surface/surfacewrapper.h"
+#include "workspace/workspace.h"
 
-#include <itemselector.h>
 #include <private/qquickitem_p.h>
 
 #include <wlayersurface.h>

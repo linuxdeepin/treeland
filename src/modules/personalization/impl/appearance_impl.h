@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include "types.h"
+#include "modules/personalization/impl/types.h"
 
 #include <QObject>
 

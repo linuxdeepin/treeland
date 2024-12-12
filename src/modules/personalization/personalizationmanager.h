@@ -3,9 +3,9 @@
 
 #pragma once
 
-#include "impl/appearance_impl.h"
-#include "impl/personalization_manager_impl.h"
-#include "impl/types.h"
+#include "modules/personalization/impl/appearance_impl.h"
+#include "modules/personalization/impl/personalization_manager_impl.h"
+#include "modules/personalization/impl/types.h"
 
 #include <wserver.h>
 #include <wxdgsurface.h>

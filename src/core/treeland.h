@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include "proxyinterface.h"
+#include "interfaces/proxyinterface.h"
 
 #include <WServer>
 #include <wsocket.h>
@@ -22,6 +22,7 @@ class PluginInterface;
 namespace Treeland {
 
 class TreelandPrivate;
+
 class Treeland
     : public QObject
     , protected QDBusContext

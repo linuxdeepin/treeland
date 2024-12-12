@@ -24,7 +24,13 @@ target_link_libraries(multitaskview PRIVATE
     Qt6::Core
     Qt6::Quick
     Qt6::Concurrent
-    treeland_core
+    libtreeland
+)
+
+target_include_directories(multitaskview PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
+    $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/src>
+    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/treeland/plugins/lockscreen>
 )
 
 set_target_properties(multitaskview PROPERTIES

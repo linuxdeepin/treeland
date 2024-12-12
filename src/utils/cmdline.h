@@ -29,6 +29,7 @@ public:
 
 private:
     CmdLine();
+    ~CmdLine();
     QString unescape(const QString &str) noexcept;
 
 private:

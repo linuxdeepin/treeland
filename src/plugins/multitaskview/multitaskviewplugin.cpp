@@ -3,12 +3,12 @@
 
 #include "multitaskviewplugin.h"
 
-#include "helper.h"
+#include "core/qmlengine.h"
+#include "core/rootsurfacecontainer.h"
+#include "interfaces/proxyinterface.h"
 #include "multitaskview.h"
-#include "proxyinterface.h"
-#include "qmlengine.h"
-#include "rootsurfacecontainer.h"
-#include "workspace.h"
+#include "seat/helper.h"
+#include "workspace/workspace.h"
 
 void MultitaskViewPlugin::initialize(TreelandProxyInterface *proxy)
 {
