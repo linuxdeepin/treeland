@@ -388,9 +388,9 @@ void Output::addSurface(SurfaceWrapper *surface)
         auto layer = qobject_cast<WLayerSurface *>(surface->shellSurface());
         layer->safeConnect(&WLayerSurface::layerPropertiesChanged,
                            this,
-                           &Output::arrangeLayerSurfaces);
+                           &Output::arrangeAllSurfaces);
 
-        arrangeLayerSurfaces();
+        arrangeAllSurfaces();
     } else {
         auto layoutSurface = [surface, this] {
             arrangeNonLayerSurface(surface, {});
@@ -428,7 +428,7 @@ void Output::removeSurface(SurfaceWrapper *surface)
             ss->safeDisconnect(this);
             removeExclusiveZone(ss);
         }
-        arrangeLayerSurfaces();
+        arrangeAllSurfaces();
     }
 }
 
