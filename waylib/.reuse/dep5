@@ -61,6 +61,7 @@ Files: examples/tinywl/qml.qrc
        src/server/utils/WSignalConnector
        src/server/utils/WThreadUtils
        src/server/utils/WCursorImage
+       src/server/utils/WWrapPointer
        tests/main.cpp
        tests/test.h
 Copyright: JiDe Zhang
