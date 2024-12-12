@@ -997,6 +997,11 @@ void Helper::activateSurface(SurfaceWrapper *wrapper, Qt::FocusReason reason)
 
 void Helper::forceActivateSurface(SurfaceWrapper *wrapper, Qt::FocusReason reason)
 {
+    if (!wrapper) {
+        qCCritical(qLcHelper) << "Don't force activate to empty surface! do you want `Helper::activeSurface(nullptr)`?";
+        return;
+    }
+
     restoreFromShowDesktop(wrapper);
 
     if (wrapper->isMinimized()) {
