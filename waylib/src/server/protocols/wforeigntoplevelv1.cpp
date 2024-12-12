@@ -99,7 +99,7 @@ public:
             handle->output_enter(output->nativeHandle());
         }));
 
-        connection.push_back(surface->surface()->safeConnect(&WSurface::outputLeft, surface, [this, handle](WOutput *output) {
+        connection.push_back(surface->surface()->safeConnect(&WSurface::outputLeave, surface, [this, handle](WOutput *output) {
             handle->output_leave(output->nativeHandle());
         }));
 

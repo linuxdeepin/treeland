@@ -316,8 +316,8 @@ void WSurface::enterOutput(WOutput *output)
         return;
     wlr_surface_send_enter(d->nativeHandle(), output->handle()->handle());
 
-    connect(output, &WOutput::destroyed, this, [d] {
-        d->updateOutputs();
+    connect(output, &WOutput::aboutToBeInvalidated, this, [this, output] {
+        leaveOutput(output);
     });
     output->safeConnect(&WOutput::scaleChanged, this, [d] {
         d->updatePreferredBufferScale();
@@ -360,7 +360,7 @@ void WSurface::leaveOutput(WOutput *output)
         d->ensureSubsurface(subsurface)->leaveOutput(output);
     }
 
-    Q_EMIT outputLeft(output);
+    Q_EMIT outputLeave(output);
 }
 
 const QVector<WOutput *> &WSurface::outputs() const
