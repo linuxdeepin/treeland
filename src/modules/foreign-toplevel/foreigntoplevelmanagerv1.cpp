@@ -58,115 +58,99 @@ void ForeignToplevelV1::addSurface(SurfaceWrapper *wrapper)
     auto surface = wrapper->shellSurface();
 
     // initSurface
-    std::vector<QMetaObject::Connection> connection;
+    surface->safeConnect(&WToplevelSurface::titleChanged, handle, [handle, surface] {
+        handle->set_title(surface->title());
+    });
 
-    connection.push_back(
-        surface->safeConnect(&WToplevelSurface::titleChanged, this, [handle, surface] {
-            handle->set_title(surface->title());
-        }));
+    surface->safeConnect(&WToplevelSurface::minimizeChanged, handle, [handle, surface] {
+        handle->set_minimized(surface->isMinimized());
+    });
 
-    connection.push_back(
-        surface->safeConnect(&WToplevelSurface::minimizeChanged, this, [handle, surface] {
-            handle->set_minimized(surface->isMinimized());
-        }));
+    surface->safeConnect(&WToplevelSurface::maximizeChanged, handle, [handle, surface] {
+        handle->set_maximized(surface->isMaximized());
+    });
 
-    connection.push_back(
-        surface->safeConnect(&WToplevelSurface::maximizeChanged, this, [handle, surface] {
-            handle->set_maximized(surface->isMaximized());
-        }));
+    surface->safeConnect(&WToplevelSurface::fullscreenChanged, handle, [handle, surface] {
+        handle->set_fullscreen(surface->isFullScreen());
+    });
 
-    connection.push_back(
-        surface->safeConnect(&WToplevelSurface::fullscreenChanged, this, [handle, surface] {
-            handle->set_fullscreen(surface->isFullScreen());
-        }));
+    surface->safeConnect(&WToplevelSurface::activateChanged, handle, [handle, surface] {
+        handle->set_activated(surface->isActivated());
+    });
 
-    connection.push_back(
-        surface->safeConnect(&WToplevelSurface::activateChanged, this, [handle, surface] {
-            handle->set_activated(surface->isActivated());
-        }));
+    surface->safeConnect(&WToplevelSurface::appIdChanged, handle, [handle, surface] {
+        handle->set_app_id(surface->appId());
+    });
 
-    connection.push_back(
-        connect(surface->surface(), &WSurface::outputEntered, this, [handle](WOutput *output) {
-            handle->output_enter(output->handle());
-        }));
+    surface->surface()->safeConnect(&WSurface::outputEntered, handle, [handle](WOutput *output) {
+        handle->output_enter(output->handle());
+    });
 
-    connection.push_back(
-        connect(surface->surface(), &WSurface::outputLeave, this, [handle](WOutput *output) {
-            handle->output_leave(output->handle());
-        }));
+    surface->surface()->safeConnect(&WSurface::outputLeave, handle, [handle](WOutput *output) {
+        handle->output_leave(output->handle());
+    });
 
-    connection.push_back(
-        connect(handle,
-                &treeland_foreign_toplevel_handle_v1::requestActivate,
-                this,
-                [wrapper, this](treeland_foreign_toplevel_handle_v1_activated_event *event) {
+    connect(handle,
+            &treeland_foreign_toplevel_handle_v1::requestActivate,
+            wrapper,
+            [wrapper, this](treeland_foreign_toplevel_handle_v1_activated_event *event) {
+                Helper::instance()->forceActivateSurface(wrapper);
+            });
+
+    connect(handle,
+            &treeland_foreign_toplevel_handle_v1::requestMaximize,
+            wrapper,
+            [wrapper, this](treeland_foreign_toplevel_handle_v1_maximized_event *event) {
+                if (event->maximized)
+                    wrapper->requestMaximize();
+                else
+                    wrapper->requestCancelMaximize();
+            });
+
+    connect(handle,
+            &treeland_foreign_toplevel_handle_v1::requestMinimize,
+            wrapper,
+            [wrapper, this](treeland_foreign_toplevel_handle_v1_minimized_event *event) {
+                if ((Helper::instance()->showDesktopState()
+                     == WindowManagementV1::DesktopState::Show)) {
                     Helper::instance()->forceActivateSurface(wrapper);
-                }));
+                    return;
+                }
 
-    connection.push_back(
-        connect(handle,
-                &treeland_foreign_toplevel_handle_v1::requestMaximize,
-                this,
-                [wrapper, this](treeland_foreign_toplevel_handle_v1_maximized_event *event) {
-                    if (event->maximized)
-                        wrapper->requestMaximize();
-                    else
-                        wrapper->requestCancelMaximize();
-                }));
+                if (event->minimized)
+                    wrapper->requestMinimize();
+                else
+                    wrapper->requestCancelMinimize();
+            });
 
-    connection.push_back(
-        connect(handle,
-                &treeland_foreign_toplevel_handle_v1::requestMinimize,
-                this,
-                [wrapper, this](treeland_foreign_toplevel_handle_v1_minimized_event *event) {
-                    if ((Helper::instance()->showDesktopState()
-                         == WindowManagementV1::DesktopState::Show)) {
-                        Helper::instance()->forceActivateSurface(wrapper);
-                        return;
-                    }
+    connect(handle,
+            &treeland_foreign_toplevel_handle_v1::requestFullscreen,
+            wrapper,
+            [wrapper, this](treeland_foreign_toplevel_handle_v1_fullscreen_event *event) {
+                if (event->fullscreen)
+                    wrapper->requestFullscreen();
+                else
+                    wrapper->requestCancelFullscreen();
+            });
 
-                    if (event->minimized)
-                        wrapper->requestMinimize();
-                    else
-                        wrapper->requestCancelMinimize();
-                }));
-
-    connection.push_back(
-        connect(handle,
-                &treeland_foreign_toplevel_handle_v1::requestFullscreen,
-                this,
-                [wrapper, this](treeland_foreign_toplevel_handle_v1_fullscreen_event *event) {
-                    if (event->fullscreen)
-                        wrapper->requestFullscreen();
-                    else
-                        wrapper->requestCancelFullscreen();
-                }));
-
-    connection.push_back(
-        connect(handle, &treeland_foreign_toplevel_handle_v1::requestClose, this, [surface, this] {
-            surface->close();
-        }));
-    connection.push_back(
-        connect(handle,
-                &treeland_foreign_toplevel_handle_v1::rectangleChanged,
-                this,
-                [wrapper, this](treeland_foreign_toplevel_handle_v1_set_rectangle_event *event) {
-                    auto dockWrapper = Helper::instance()->rootContainer()->getSurface(
-                        WSurface::fromHandle(event->surface));
-                    wrapper->setIconGeometry(QRect(dockWrapper->x() + event->x,
-                                                   dockWrapper->y() + event->y,
-                                                   event->width,
-                                                   event->height));
-                }));
+    connect(handle, &treeland_foreign_toplevel_handle_v1::requestClose, surface, [surface, this] {
+        surface->close();
+    });
+    connect(handle,
+            &treeland_foreign_toplevel_handle_v1::rectangleChanged,
+            wrapper,
+            [wrapper, this](treeland_foreign_toplevel_handle_v1_set_rectangle_event *event) {
+                auto dockWrapper = Helper::instance()->rootContainer()->getSurface(
+                    WSurface::fromHandle(event->surface));
+                wrapper->setIconGeometry(QRect(dockWrapper->x() + event->x,
+                                               dockWrapper->y() + event->y,
+                                               event->width,
+                                               event->height));
+            });
 
     if (auto *xdgSurface = qobject_cast<WXdgToplevelSurface *>(surface)) {
         auto client = WClient::get(xdgSurface->handle()->handle()->resource->client);
         handle->set_pid(client->credentials().get()->pid);
-        connection.push_back(
-            surface->safeConnect(&WToplevelSurface::appIdChanged, this, [handle, xdgSurface] {
-                auto client = WClient::get(xdgSurface->handle()->handle()->resource->client);
-                handle->set_app_id(xdgSurface->handle()->handle()->app_id);
-            }));
 
         auto updateSurfaceParent = [this, handle, xdgSurface] {
             WXdgToplevelSurface *p = xdgSurface->parentXdgSurface();
@@ -186,16 +170,12 @@ void ForeignToplevelV1::addSurface(SurfaceWrapper *wrapper)
                    "parent surface not "
                    "found!";
         };
-        connection.push_back(xdgSurface->safeConnect(&WXdgToplevelSurface::parentXdgSurfaceChanged,
-                                                     surface,
-                                                     updateSurfaceParent));
+        xdgSurface->safeConnect(&WXdgToplevelSurface::parentXdgSurfaceChanged,
+                                handle,
+                                updateSurfaceParent);
         updateSurfaceParent();
     } else if (auto *xwaylandSurface = qobject_cast<WXWaylandSurface *>(surface)) {
         handle->set_pid(xwaylandSurface->pid());
-        connection.push_back(
-            surface->safeConnect(&WToplevelSurface::appIdChanged, this, [handle, surface] {
-                handle->set_app_id(surface->appId());
-            }));
 
         auto updateSurfaceParent = [this, handle, xwaylandSurface] {
             WToplevelSurface *p = xwaylandSurface->parentXWaylandSurface();
@@ -215,10 +195,9 @@ void ForeignToplevelV1::addSurface(SurfaceWrapper *wrapper)
                    "parent surface not "
                    "found!";
         };
-        connection.push_back(
-            xwaylandSurface->safeConnect(&WXWaylandSurface::parentXWaylandSurfaceChanged,
-                                         surface,
-                                         updateSurfaceParent));
+        xwaylandSurface->safeConnect(&WXWaylandSurface::parentXWaylandSurfaceChanged,
+                                     handle,
+                                     updateSurfaceParent);
         updateSurfaceParent();
     } else {
         qCFatal(qLcTreelandForeignToplevel)
@@ -235,8 +214,6 @@ void ForeignToplevelV1::addSurface(SurfaceWrapper *wrapper)
     handle->set_maximized(surface->isMaximized());
     handle->set_fullscreen(surface->isFullScreen());
     handle->set_activated(surface->isActivated());
-
-    m_connections.insert({ wrapper, connection });
 }
 
 void ForeignToplevelV1::removeSurface(SurfaceWrapper *wrapper)
@@ -244,12 +221,6 @@ void ForeignToplevelV1::removeSurface(SurfaceWrapper *wrapper)
     if (!m_surfaces.count(wrapper)) {
         return;
     }
-
-    for (auto co : m_connections[wrapper]) {
-        QObject::disconnect(co);
-    }
-
-    m_connections.erase(wrapper);
     m_surfaces.erase(wrapper);
 }
 
@@ -280,9 +251,12 @@ void ForeignToplevelV1::onDockPreviewContextCreated(treeland_dock_preview_contex
             this,
             [this](treeland_dock_preview_context_v1_preview_event *event) {
                 std::vector<SurfaceWrapper *> surfaces;
-                for (auto toplevelIt = event->toplevels.cbegin(); toplevelIt != event->toplevels.cend(); ++toplevelIt) {
+                for (auto toplevelIt = event->toplevels.cbegin();
+                     toplevelIt != event->toplevels.cend();
+                     ++toplevelIt) {
                     const uint32_t identifier = *toplevelIt;
-                    for (auto surfaceIt = m_surfaces.cbegin(); surfaceIt != m_surfaces.cend(); ++surfaceIt) {
+                    for (auto surfaceIt = m_surfaces.cbegin(); surfaceIt != m_surfaces.cend();
+                         ++surfaceIt) {
                         if (surfaceIt->second->identifier == identifier) {
                             surfaces.push_back(surfaceIt->first);
                             break;
