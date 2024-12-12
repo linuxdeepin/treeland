@@ -25,7 +25,6 @@ add_subdirectory(modules)
 if (NOT DISABLE_DDM)
     add_subdirectory(greeter)
 endif()
-add_subdirectory(treeland-wallpaper)
 add_subdirectory(treeland-shortcut)
 
 set(BIN_NAME treeland)

@@ -80,7 +80,8 @@ Item {
                     Component.onCompleted: {
                         img2x2.grabToImage(function(result) {
                             isDarktype = ImageHelper.isDarkType(result.image);
-                        });
+                            console.log("---isDarktype: ", isDarktype);
+                        }, Qt.size(2, 2));
                     }
                 }
                 Image {
