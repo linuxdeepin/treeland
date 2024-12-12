@@ -91,7 +91,7 @@ void ForeignToplevelV1::addSurface(SurfaceWrapper *wrapper)
         }));
 
     connection.push_back(
-        connect(surface->surface(), &WSurface::outputLeft, this, [handle](WOutput *output) {
+        connect(surface->surface(), &WSurface::outputLeave, this, [handle](WOutput *output) {
             handle->output_leave(output->handle());
         }));
 
