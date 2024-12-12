@@ -63,7 +63,6 @@ private Q_SLOTS:
 private:
     treeland_foreign_toplevel_manager_v1 *m_manager = nullptr;
     std::map<SurfaceWrapper *, std::unique_ptr<treeland_foreign_toplevel_handle_v1>> m_surfaces;
-    std::map<SurfaceWrapper *, std::vector<QMetaObject::Connection>> m_connections;
 };
 
 Q_DECLARE_OPAQUE_POINTER(treeland_foreign_toplevel_handle_v1_maximized_event *);
