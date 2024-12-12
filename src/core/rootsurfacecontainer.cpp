@@ -245,6 +245,11 @@ void RootSurfaceContainer::removeSurface(SurfaceWrapper *)
 void RootSurfaceContainer::addBySubContainer(SurfaceContainer *sub, SurfaceWrapper *surface)
 {
     SurfaceContainer::addBySubContainer(sub, surface);
+    connect(surface, &SurfaceWrapper::geometryChanged, this, [this, surface] {
+        updateSurfaceOutputs(surface);
+    });
+
+    updateSurfaceOutputs(surface);
 
     if (surface->type() == SurfaceWrapper::Type::Layer) {
         // RootSurfaceContainer does not have control over layer surface's position and ownsOutput
@@ -279,12 +284,6 @@ void RootSurfaceContainer::addBySubContainer(SurfaceContainer *sub, SurfaceWrapp
         }
         surface->setOwnsOutput(output);
     }
-
-    connect(surface, &SurfaceWrapper::geometryChanged, this, [this, surface] {
-        updateSurfaceOutputs(surface);
-    });
-
-    updateSurfaceOutputs(surface);
 }
 
 void RootSurfaceContainer::removeBySubContainer(SurfaceContainer *sub, SurfaceWrapper *surface)
