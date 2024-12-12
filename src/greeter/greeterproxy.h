@@ -20,8 +20,8 @@
 #ifndef SDDM_GREETERPROXY_H
 #define SDDM_GREETERPROXY_H
 
-#include "sessionmodel.h"
-#include "usermodel.h"
+#include "greeter/sessionmodel.h"
+#include "greeter/usermodel.h"
 
 #include <QDBusObjectPath>
 #include <QObject>

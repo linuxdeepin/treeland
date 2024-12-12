@@ -3,8 +3,8 @@
 
 #pragma once
 
-#include "lockscreeninterface.h"
-#include "plugininterface.h"
+#include "interfaces/lockscreeninterface.h"
+#include "interfaces/plugininterface.h"
 
 #include <QPointer>
 #include <QQuickItem>

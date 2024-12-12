@@ -3,8 +3,8 @@
 
 #include "surfaceproxy.h"
 
-#include "qmlengine.h"
-#include "surfacewrapper.h"
+#include "core/qmlengine.h"
+#include "surface/surfacewrapper.h"
 
 #include <private/qquickitem_p.h>
 

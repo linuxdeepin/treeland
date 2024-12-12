@@ -3,36 +3,36 @@
 
 #include "helper.h"
 
-#include "capture.h"
-#include "cmdline.h"
-#include "ddeshellattached.h"
-#include "ddeshellmanagerinterfacev1.h"
-#include "inputdevice.h"
-#include "layersurfacecontainer.h"
-#include "usermodel.h"
+#include "modules/capture/capture.h"
+#include "utils/cmdline.h"
+#include "modules/dde-shell/ddeshellattached.h"
+#include "modules/dde-shell/ddeshellmanagerinterfacev1.h"
+#include "input/inputdevice.h"
+#include "core/layersurfacecontainer.h"
+#include "greeter/usermodel.h"
 
 #include <rhi/qrhi.h>
 
 #include <QDBusConnection>
 #include <QDBusInterface>
 #ifndef DISABLE_DDM
-#  include "lockscreen.h"
+#  include "core/lockscreen.h"
 #endif
-#include "multitaskviewinterface.h"
-#include "output.h"
-#include "outputmanagement.h"
-#include "personalizationmanager.h"
-#include "qmlengine.h"
-#include "rootsurfacecontainer.h"
-#include "shellhandler.h"
-#include "shortcutmanager.h"
-#include "surfacecontainer.h"
-#include "surfacewrapper.h"
-#include "togglablegesture.h"
-#include "treelandconfig.h"
-#include "wallpapercolor.h"
-#include "windowpicker.h"
-#include "workspace.h"
+#include "interfaces/multitaskviewinterface.h"
+#include "output/output.h"
+#include "modules/primary-output/outputmanagement.h"
+#include "modules/personalization/personalizationmanager.h"
+#include "core/qmlengine.h"
+#include "core/rootsurfacecontainer.h"
+#include "core/shellhandler.h"
+#include "modules/shortcut/shortcutmanager.h"
+#include "surface/surfacecontainer.h"
+#include "surface/surfacewrapper.h"
+#include "input/togglablegesture.h"
+#include "config/treelandconfig.h"
+#include "modules/wallpaper-color/wallpapercolor.h"
+#include "core/windowpicker.h"
+#include "workspace/workspace.h"
 
 #include <xcb/xcb.h>
 #include <xcb/xproto.h>
@@ -685,7 +685,7 @@ void Helper::deleteTaskSwitch()
 void Helper::init()
 {
     auto engine = qmlEngine();
-    m_userModel = engine->singletonInstance<UserModel *>("Treeland.Greeter", "UserModel");
+    m_userModel = engine->singletonInstance<UserModel *>("Treeland", "UserModel");
 
     engine->setContextForObject(m_renderWindow, engine->rootContext());
     engine->setContextForObject(m_renderWindow->contentItem(), engine->rootContext());

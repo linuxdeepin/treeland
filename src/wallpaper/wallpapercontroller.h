@@ -3,14 +3,12 @@
 
 #pragma once
 
-#include "helper.h"
-
 #include <woutput.h>
 
 #include <QQmlEngine>
 #include <QQuickItem>
 
-Q_MOC_INCLUDE("wallpaperimage.h")
+Q_MOC_INCLUDE("wallpaper/wallpaperimage.h")
 
 class WallpaperImage;
 

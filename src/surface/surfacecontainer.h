@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 #pragma once
 
-#include "surfacewrapper.h"
+#include "surface/surfacewrapper.h"
 
 #include <QAbstractListModel>
 #include <QProperty>
@@ -11,7 +11,7 @@
 
 #include <functional>
 
-Q_MOC_INCLUDE("rootsurfacecontainer.h")
+Q_MOC_INCLUDE("core/rootsurfacecontainer.h")
 
 template<typename T>
 class ObjectListModel : public QAbstractListModel
@@ -254,3 +254,5 @@ protected:
 
     SurfaceListModel *m_model = nullptr;
 };
+
+Q_DECLARE_OPAQUE_POINTER(Output*)

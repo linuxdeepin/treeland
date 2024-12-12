@@ -4,8 +4,7 @@ add_executable(test_protocol_virtual-output main.cpp)
 
 target_link_libraries(test_protocol_virtual-output
     PRIVATE
-        Waylib::WaylibServer
-        virtual-output
+        libtreeland
         Qt::Test
 )
 

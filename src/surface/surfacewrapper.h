@@ -8,6 +8,7 @@
 #include <QQuickItem>
 
 Q_MOC_INCLUDE(<woutput.h>)
+Q_MOC_INCLUDE(<output / output.h>)
 
 WAYLIB_SERVER_USE_NAMESPACE
 

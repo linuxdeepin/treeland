@@ -3,10 +3,10 @@
 
 #include "lockscreenplugin.h"
 
-#include "helper.h"
-#include "output.h"
-#include "proxyinterface.h"
-#include "qmlengine.h"
+#include "core/qmlengine.h"
+#include "interfaces/proxyinterface.h"
+#include "output/output.h"
+#include "seat/helper.h"
 
 void LockScreenPlugin::initialize(TreelandProxyInterface *proxy)
 {

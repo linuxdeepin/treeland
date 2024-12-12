@@ -3,7 +3,6 @@
 
 #pragma once
 
-#include <QAction>
 #include <QObject>
 
 class Workspace;

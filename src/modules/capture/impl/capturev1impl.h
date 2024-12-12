@@ -4,7 +4,7 @@
 #pragma once
 
 #include "treeland-capture-unstable-v1-protocol.h"
-#include "wrappointer.h"
+#include "surface/wrappointer.h"
 
 #include <wglobal.h>
 #include <wsurface.h>

@@ -3,10 +3,10 @@
 
 #include "layersurfacecontainer.h"
 
-#include "helper.h"
-#include "output.h"
-#include "rootsurfacecontainer.h"
-#include "surfacewrapper.h"
+#include "core/rootsurfacecontainer.h"
+#include "output/output.h"
+#include "seat/helper.h"
+#include "surface/surfacewrapper.h"
 
 #include <wlayersurface.h>
 #include <woutputitem.h>

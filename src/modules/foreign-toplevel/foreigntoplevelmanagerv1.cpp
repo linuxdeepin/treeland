@@ -1,10 +1,9 @@
 // Copyright (C) 2023 Dingyuan Zhang <lxz@mkacg.com>.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
-#include "helper.h"
-#include "rootsurfacecontainer.h"
-#include "surfacewrapper.h"
-#include "windowmanagement.h"
+#include "core/rootsurfacecontainer.h"
+#include "seat/helper.h"
+#include "surface/surfacewrapper.h"
 
 #include <woutput.h>
 #include <wsocket.h>

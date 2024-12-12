@@ -4,8 +4,7 @@ add_executable(test_protocol_personalization main.cpp)
 
 target_link_libraries(test_protocol_personalization
     PRIVATE
-        Waylib::WaylibServer
-        personalization
+        libtreeland
         Qt::Test
 )
 

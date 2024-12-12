@@ -3,9 +3,8 @@
 
 #include "personalization_manager_impl.h"
 
-#include "impl/appearance_impl.h"
-#include "impl/font_impl.h"
-#include "treeland-personalization-manager-protocol.h"
+#include "modules/personalization/impl/appearance_impl.h"
+#include "modules/personalization/impl/font_impl.h"
 
 #include <cassert>
 

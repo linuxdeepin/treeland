@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include "impl/foreign_toplevel_manager_impl.h"
+#include "modules/foreign-toplevel/impl/foreign_toplevel_manager_impl.h"
 #include "treeland-foreign-toplevel-manager-protocol.h"
 
 #include <wserver.h>

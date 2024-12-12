@@ -3,11 +3,11 @@
 
 #pragma once
 
-#include "foreigntoplevelmanagerv1.h"
-#include "qmlengine.h"
-#include "togglablegesture.h"
-#include "virtualoutputmanager.h"
-#include "windowmanagement.h"
+#include "modules/foreign-toplevel/foreigntoplevelmanagerv1.h"
+#include "core/qmlengine.h"
+#include "input/togglablegesture.h"
+#include "modules/virtual-output/virtualoutputmanager.h"
+#include "modules/window-management/windowmanagement.h"
 
 #include <wglobal.h>
 #include <wqmlcreator.h>
@@ -18,10 +18,10 @@ Q_MOC_INCLUDE(<wtoplevelsurface.h>)
 Q_MOC_INCLUDE(<wxdgsurface.h>)
 Q_MOC_INCLUDE(<qwgammacontorlv1.h>)
 Q_MOC_INCLUDE(<qwoutputmanagementv1.h>)
-Q_MOC_INCLUDE("surfacewrapper.h")
-Q_MOC_INCLUDE("workspace.h")
-Q_MOC_INCLUDE("rootsurfacecontainer.h")
-Q_MOC_INCLUDE("capture.h")
+Q_MOC_INCLUDE("surface/surfacewrapper.h")
+Q_MOC_INCLUDE("workspace/workspace.h")
+Q_MOC_INCLUDE("core/rootsurfacecontainer.h")
+Q_MOC_INCLUDE("modules/capture/capture.h")
 Q_MOC_INCLUDE(<wlayersurface.h>)
 
 QT_BEGIN_NAMESPACE
@@ -208,6 +208,10 @@ Q_SIGNALS:
     void currentModeChanged();
 
 private Q_SLOTS:
+    void onShowDesktop();
+    void deleteTaskSwitch();
+
+private:
     void onOutputAdded(WOutput *output);
     void onOutputRemoved(WOutput *output);
     void onSurfaceModeChanged(WSurface *surface, WXdgDecorationManager::DecorationMode mode);
@@ -221,12 +225,10 @@ private Q_SLOTS:
                               WSurface *target,
                               QPoint pos,
                               ForeignToplevelV1::PreviewDirection direction);
-    void onShowDesktop();
     void onSetCopyOutput(treeland_virtual_output_v1 *virtual_output);
     void onRestoreCopyOutput(treeland_virtual_output_v1 *virtual_output);
     void onSurfaceWrapperAdded(SurfaceWrapper *wrapper);
     void onSurfaceWrapperAboutToRemove(SurfaceWrapper *wrapper);
-    void deleteTaskSwitch();
     void handleRequestDrag(WSurface *surface);
     void handleLockScreen(LockScreenInterface *lockScreen);
 
@@ -327,5 +329,3 @@ private:
 
     quint32 m_atomDeepinNoTitlebar;
 };
-
-Q_DECLARE_OPAQUE_POINTER(LockScreenInterface *)
