@@ -5,11 +5,13 @@ find_package(TreelandProtocols REQUIRED)
 find_package(PkgConfig REQUIRED)
 pkg_get_variable(WAYLAND_PROTOCOLS wayland-protocols pkgdatadir)
 
-qt_add_executable(treeland-wallpaper
+set(BIN_NAME test-set-treeland-wallpaper)
+
+qt_add_executable(${BIN_NAME}
     main.cpp
 )
 
-qt_generate_wayland_protocol_client_sources(treeland-wallpaper
+qt_generate_wayland_protocol_client_sources(${BIN_NAME}
     FILES
         ${TREELAND_PROTOCOLS_DATA_DIR}/treeland-personalization-manager-v1.xml
 )
@@ -22,7 +24,7 @@ set(QML_FILES
     PropertyItemDelegate.qml
 )
 
-qt_add_qml_module(treeland-wallpaper
+qt_add_qml_module(${BIN_NAME}
     URI Wallpaper
     VERSION "1.0"
     SOURCES
@@ -37,14 +39,14 @@ qt_add_qml_module(treeland-wallpaper
 set(TRANSLATED_FILES)
 
 if (${QT_VERSION_MINOR} LESS 7)
-    qt_add_lupdate(treeland-wallpaper
+    qt_add_lupdate(${BIN_NAME}
         TS_FILES
             translations/wallpaper.zh_CN.ts
             translations/wallpaper.en_US.ts
         NO_GLOBAL_TARGET
     )
 
-    qt_add_lrelease(treeland-wallpaper
+    qt_add_lrelease(${BIN_NAME}
         TS_FILES
             translations/wallpaper.zh_CN.ts
             translations/wallpaper.en_US.ts
@@ -52,7 +54,7 @@ if (${QT_VERSION_MINOR} LESS 7)
     )
 elseif (${QT_VERSION_MINOR} GREATER_EQUAL 7)
     qt_add_lupdate(
-        SOURCE_TARGETS treeland-wallpaper
+        SOURCE_TARGETS ${BIN_NAME}
         TS_FILES
             translations/wallpaper.zh_CN.ts
             translations/wallpaper.en_US.ts
@@ -69,11 +71,11 @@ endif()
 
 install(FILES ${TRANSLATED_FILES} DESTINATION ${TREELAND_COMPONENTS_TRANSLATION_DIR})
 
-target_link_libraries(treeland-wallpaper
+target_link_libraries(${BIN_NAME}
     PRIVATE
         Qt6::Gui
         Qt6::WaylandClient
         Dtk6::Declarative
 )
 
-install(TARGETS treeland-wallpaper RUNTIME DESTINATION "${CMAKE_INSTALL_LIBEXECDIR}")
+install(TARGETS ${BIN_NAME} RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}")
