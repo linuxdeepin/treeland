@@ -4,8 +4,8 @@
 #pragma once
 
 #include "multitaskview.h"
-#include "multitaskviewinterface.h"
-#include "plugininterface.h"
+#include "interfaces/multitaskviewinterface.h"
+#include "interfaces/plugininterface.h"
 
 #include <QPointer>
 #include <QQuickItem>

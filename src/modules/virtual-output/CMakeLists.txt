@@ -1,45 +1,20 @@
-set(MODULE_NAME virtual-output)
-
 find_package(TreelandProtocols REQUIRED)
 
 ws_generate_local(server ${TREELAND_PROTOCOLS_DATA_DIR}/treeland-virtual-output-manager-v1.xml treeland-virtual-output-manager-protocol)
 
-qt_add_library(${MODULE_NAME} SHARED)
-
-set_target_properties(${MODULE_NAME} PROPERTIES
-    OUTPUT_NAME "treeland-protocol-virtual-output-v1"
-)
-
-target_sources(${MODULE_NAME} PUBLIC
-FILE_SET HEADERS
-FILES
-    virtualoutputmanager.h
-    impl/virtual_output_manager_impl.h
-)
-
-target_sources(${MODULE_NAME} PRIVATE
-    virtualoutputmanager.cpp
-    impl/virtual_output_manager_impl.cpp
-    ${WAYLAND_PROTOCOLS_OUTPUTDIR}/treeland-virtual-output-manager-protocol.c
-)
-
-target_include_directories(${MODULE_NAME} PUBLIC
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
-)
-
-target_compile_definitions(${MODULE_NAME}
-    PRIVATE
-    WLR_USE_UNSTABLE
-)
-
-target_link_libraries(${MODULE_NAME}
-    PUBLIC
+impl_treeland(
+    NAME
+        module_virtualoutput
+    SOURCE
+        ${CMAKE_SOURCE_DIR}/src/modules/virtual-output/virtualoutputmanager.h
+        ${CMAKE_SOURCE_DIR}/src/modules/virtual-output/impl/virtual_output_manager_impl.h
+        ${CMAKE_SOURCE_DIR}/src/modules/virtual-output/virtualoutputmanager.cpp
+        ${CMAKE_SOURCE_DIR}/src/modules/virtual-output/impl/virtual_output_manager_impl.cpp
+        ${WAYLAND_PROTOCOLS_OUTPUTDIR}/treeland-virtual-output-manager-protocol.c
+    LINK
         PkgConfig::WLROOTS
         Waylib::WaylibServer
         Qt6::Core
         Qt6::Gui
         Qt6::Quick
 )
-
-install(TARGETS ${MODULE_NAME} DESTINATION ${CMAKE_INSTALL_LIBDIR})

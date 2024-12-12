@@ -20,13 +20,14 @@
 #ifndef SDDM_USERMODEL_H
 #define SDDM_USERMODEL_H
 
-#include "user.h"
+#include "greeter/user.h"
 
 #include <QAbstractListModel>
 #include <QHash>
 #include <QQmlEngine>
 
 struct UserModelPrivate;
+
 using UserPtr = std::shared_ptr<User>;
 
 class UserModel : public QAbstractListModel

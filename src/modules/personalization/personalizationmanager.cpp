@@ -3,10 +3,10 @@
 
 #include "personalizationmanager.h"
 
-#include "impl/appearance_impl.h"
-#include "impl/font_impl.h"
-#include "impl/personalization_manager_impl.h"
-#include "treelandconfig.h"
+#include "config/treelandconfig.h"
+#include "modules/personalization/impl/appearance_impl.h"
+#include "modules/personalization/impl/font_impl.h"
+#include "modules/personalization/impl/personalization_manager_impl.h"
 
 #include <wlayersurface.h>
 #include <wxdgpopupsurface.h>

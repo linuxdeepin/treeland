@@ -4,8 +4,7 @@ add_executable(test_protocol_window-management main.cpp)
 
 target_link_libraries(test_protocol_window-management
     PRIVATE
-        Waylib::WaylibServer
-        window-management
+        libtreeland
         Qt::Test
 )
 

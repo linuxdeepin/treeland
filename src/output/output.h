@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 #pragma once
 
-#include "surfacecontainer.h"
+#include "surface/surfacecontainer.h"
 
 #include <wglobal.h>
 #include <woutputviewport.h>
@@ -78,8 +78,10 @@ public:
     QQuickItem *outputMenuBar() const;
 #endif
 
-    static double calcPreferredScale(double widthPx, double heightPx,
-                                     double widthMm, double heightMm);
+    static double calcPreferredScale(double widthPx,
+                                     double heightPx,
+                                     double widthMm,
+                                     double heightMm);
     qreal preferredScaleFactor(const QSize &pixelSize) const;
 
 Q_SIGNALS:
@@ -106,11 +108,16 @@ private:
     void placeClientRequstPos(SurfaceWrapper *surface, QPoint clientRequstPos);
     void placeCentered(SurfaceWrapper *surface);
     void placeSmartCascaded(SurfaceWrapper *surface);
-    QPointF calculateBottomRightPosition(const QRectF &activeGeo, const QRectF &normalGeo,
-                                       const QRectF &validGeo, const QSizeF &offset);
-    QPointF calculateTopLeftPosition(const QRectF &activeGeo, const QRectF &normalGeo,
-                                     const QRectF &validGeo, const QSizeF &offset);
-    QPointF constrainToValidArea(const QPointF &pos, const QSizeF &windowSize,
+    QPointF calculateBottomRightPosition(const QRectF &activeGeo,
+                                         const QRectF &normalGeo,
+                                         const QRectF &validGeo,
+                                         const QSizeF &offset);
+    QPointF calculateTopLeftPosition(const QRectF &activeGeo,
+                                     const QRectF &normalGeo,
+                                     const QRectF &validGeo,
+                                     const QSizeF &offset);
+    QPointF constrainToValidArea(const QPointF &pos,
+                                 const QSizeF &windowSize,
                                  const QRectF &validGeo);
     qreal preferredScaleFactor() const;
 

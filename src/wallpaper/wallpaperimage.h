@@ -3,12 +3,11 @@
 
 #pragma once
 
-#include "qmlengine.h"
 #include "wglobal.h"
 
 #include <private/qquickanimatedimage_p.h>
 
-Q_MOC_INCLUDE("workspace.h")
+Q_MOC_INCLUDE("workspace/workspace.h")
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 class WOutput;

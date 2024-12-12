@@ -3,7 +3,7 @@
 
 #include "font_impl.h"
 
-#include "personalization_manager_impl.h"
+#include "modules/personalization/impl/personalization_manager_impl.h"
 
 static const struct treeland_personalization_font_context_v1_interface
     personalization_font_context_impl = {

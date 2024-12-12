@@ -3,12 +3,12 @@
 
 #include "workspace.h"
 
-#include "helper.h"
-#include "output.h"
-#include "rootsurfacecontainer.h"
-#include "surfacecontainer.h"
-#include "surfacewrapper.h"
-#include "treelandconfig.h"
+#include "config/treelandconfig.h"
+#include "core/rootsurfacecontainer.h"
+#include "output/output.h"
+#include "seat/helper.h"
+#include "surface/surfacecontainer.h"
+#include "surface/surfacewrapper.h"
 #include "workspaceanimationcontroller.h"
 
 Q_LOGGING_CATEGORY(qlcWorkspace, "treeland.core.workspace")

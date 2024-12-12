@@ -4,8 +4,7 @@ add_executable(test_protocol_primary-output main.cpp)
 
 target_link_libraries(test_protocol_primary-output
     PRIVATE
-        Waylib::WaylibServer
-        primary-output
+        libtreeland
         Qt::Test
 )
 

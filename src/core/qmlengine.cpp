@@ -3,10 +3,10 @@
 
 #include "qmlengine.h"
 
-#include "capture.h"
-#include "output.h"
-#include "surfacewrapper.h"
-#include "workspace.h"
+#include "modules/capture/capture.h"
+#include "output/output.h"
+#include "surface/surfacewrapper.h"
+#include "workspace/workspace.h"
 
 #include <woutput.h>
 #include <woutputitem.h>
@@ -29,7 +29,7 @@ QmlEngine::QmlEngine(QObject *parent)
     , workspaceSwitcher(this, "Treeland", "WorkspaceSwitcher")
     , newAnimationComponent(this, "Treeland", "NewAnimation")
 #ifndef DISABLE_DDM
-    , lockScreenComponent(this, "Treeland.Greeter", "Greeter")
+    , lockScreenComponent(this, "Treeland", "Greeter")
 #endif
     , dockPreviewComponent(this, "Treeland", "DockPreview")
     , minimizeAnimationComponent(this, "Treeland", "MinimizeAnimation")
@@ -82,8 +82,7 @@ QObject *QmlEngine::createWindowMenu(QObject *parent)
     auto context = qmlContext(parent);
     auto obj = windowMenuComponent.beginCreate(context);
     if (!obj) {
-        qCFatal(qLcQmlEngine)
-            << "Can't create WindowMenu:" << windowMenuComponent.errorString();
+        qCFatal(qLcQmlEngine) << "Can't create WindowMenu:" << windowMenuComponent.errorString();
     }
     obj->setParent(parent);
     windowMenuComponent.completeCreate();

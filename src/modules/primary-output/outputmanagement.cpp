@@ -3,7 +3,7 @@
 
 #include "outputmanagement.h"
 
-#include "impl/output_manager_impl.h"
+#include "modules/primary-output/impl/output_manager_impl.h"
 
 PrimaryOutputV1::PrimaryOutputV1(QObject *parent)
     : QObject(parent)

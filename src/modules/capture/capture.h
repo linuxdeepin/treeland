@@ -3,10 +3,10 @@
 
 #pragma once
 
-#include "impl/capturev1impl.h"
-#include "itemselector.h"
-#include "surfacecontainer.h"
-#include "wrappointer.h"
+#include "modules/capture/impl/capturev1impl.h"
+#include "modules/item-selector/itemselector.h"
+#include "surface/surfacecontainer.h"
+#include "surface/wrappointer.h"
 
 #include <wglobal.h>
 #include <woutput.h>

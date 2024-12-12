@@ -4,8 +4,7 @@ add_executable(test_protocol_shortcut main.cpp)
 
 target_link_libraries(test_protocol_shortcut
     PRIVATE
-        Waylib::WaylibServer
-        shortcut
+        libtreeland
         Qt::Test
 )
 

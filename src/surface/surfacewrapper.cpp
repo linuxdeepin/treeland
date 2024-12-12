@@ -1,12 +1,12 @@
 // Copyright (C) 2024 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
-#include "surfacewrapper.h"
+#include "surface/surfacewrapper.h"
 
-#include "output.h"
-#include "qmlengine.h"
-#include "treelandconfig.h"
-#include "workspace.h"
+#include "config/treelandconfig.h"
+#include "core/qmlengine.h"
+#include "output/output.h"
+#include "workspace/workspace.h"
 
 #include <winputpopupsurfaceitem.h>
 #include <wlayersurface.h>

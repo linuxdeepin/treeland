@@ -1,45 +1,18 @@
-set(MODULE_NAME primary-output)
-
 find_package(TreelandProtocols REQUIRED)
 
 ws_generate_local(server ${TREELAND_PROTOCOLS_DATA_DIR}/treeland-output-manager-v1.xml treeland-output-management-protocol)
-
-qt_add_library(${MODULE_NAME} SHARED)
 
 set_target_properties(${MODULE_NAME} PROPERTIES
     OUTPUT_NAME "treeland-protocol-output-management-v1"
 )
 
-target_sources(${MODULE_NAME} PUBLIC
-FILE_SET HEADERS
-FILES
-    outputmanagement.h
-    impl/output_manager_impl.h
+impl_treeland(
+    NAME
+        module_primaryoutput
+    SOURCE
+        ${CMAKE_SOURCE_DIR}/src/modules/primary-output/outputmanagement.h
+        ${CMAKE_SOURCE_DIR}/src/modules/primary-output/impl/output_manager_impl.h
+        ${CMAKE_SOURCE_DIR}/src/modules/primary-output/outputmanagement.cpp
+        ${CMAKE_SOURCE_DIR}/src/modules/primary-output/impl/output_manager_impl.cpp
+        ${WAYLAND_PROTOCOLS_OUTPUTDIR}/treeland-output-management-protocol.c
 )
-
-target_sources(${MODULE_NAME} PRIVATE
-    outputmanagement.cpp
-    impl/output_manager_impl.cpp
-    ${WAYLAND_PROTOCOLS_OUTPUTDIR}/treeland-output-management-protocol.c
-)
-
-target_include_directories(${MODULE_NAME} PUBLIC
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
-)
-
-target_compile_definitions(${MODULE_NAME}
-    PRIVATE
-    WLR_USE_UNSTABLE
-)
-
-target_link_libraries(${MODULE_NAME}
-    PUBLIC
-        PkgConfig::WLROOTS
-        Waylib::WaylibServer
-        Qt6::Core
-        Qt6::Gui
-        Qt6::Quick
-)
-
-install(TARGETS ${MODULE_NAME} DESTINATION ${CMAKE_INSTALL_LIBDIR})

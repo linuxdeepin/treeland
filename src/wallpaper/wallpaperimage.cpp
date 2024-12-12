@@ -3,12 +3,13 @@
 
 #include "wallpaperimage.h"
 
-#include "helper.h"
-#include "personalizationmanager.h"
-#include "usermodel.h"
+#include "core/qmlengine.h"
+#include "seat/helper.h"
+#include "modules/personalization/personalizationmanager.h"
+#include "greeter/usermodel.h"
 #include "wallpapermanager.h"
-#include "workspacemodel.h"
-#include "woutputitem.h"
+#include "workspace/workspacemodel.h"
+#include <woutputitem.h>
 
 #include <woutput.h>
 
@@ -21,7 +22,7 @@ WAYLIB_SERVER_USE_NAMESPACE
 WallpaperImage::WallpaperImage(QQuickItem *parent)
     : QQuickAnimatedImage(parent)
 {
-    connect(Helper::instance()->qmlEngine()->singletonInstance<UserModel *>("Treeland.Greeter",
+    connect(Helper::instance()->qmlEngine()->singletonInstance<UserModel *>("Treeland",
                                                                             "UserModel"),
             &UserModel::currentUserNameChanged,
             this,

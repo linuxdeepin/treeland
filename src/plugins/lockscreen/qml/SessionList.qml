@@ -5,7 +5,7 @@ import QtQuick
 import QtQuick.Layouts
 import QtQuick.Controls
 
-import Treeland.Greeter
+import Treeland
 import LockScreen
 
 Popup {

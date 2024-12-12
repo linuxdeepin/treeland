@@ -1,47 +1,19 @@
-set(MODULE_NAME dde-shell)
-
 find_package(TreelandProtocols REQUIRED)
 
-qt_add_library(${MODULE_NAME} SHARED)
-
-set_target_properties(${MODULE_NAME} PROPERTIES
-    OUTPUT_NAME "treeland-protocol-dde-shell-v1"
-)
-
-local_qtwayland_server_protocol_treeland(${MODULE_NAME}
+local_qtwayland_server_protocol_treeland(libtreeland
     PROTOCOL ${TREELAND_PROTOCOLS_DATA_DIR}/treeland-dde-shell-v1.xml
     BASENAME treeland-dde-shell-v1
 )
 
-target_sources(${MODULE_NAME}
-PUBLIC
-FILE_SET HEADERS
-FILES
-    ddeshellmanagerinterfacev1.h
-    ddeshellattached.h
-PRIVATE
-    ddeshellmanagerinterfacev1.cpp
-    ddeshellattached.cpp
-    ${CMAKE_CURRENT_BINARY_DIR}/wayland-treeland-dde-shell-v1-server-protocol.c
+impl_treeland(
+    NAME
+        module_ddeshell
+    SOURCE
+        ${CMAKE_SOURCE_DIR}/src/modules/dde-shell/ddeshellmanagerinterfacev1.h
+        ${CMAKE_SOURCE_DIR}/src/modules/dde-shell/ddeshellattached.h
+        ${CMAKE_SOURCE_DIR}/src/modules/dde-shell/ddeshellmanagerinterfacev1.cpp
+        ${CMAKE_SOURCE_DIR}/src/modules/dde-shell/ddeshellattached.cpp
+        ${CMAKE_BINARY_DIR}/src/modules/dde-shell/wayland-treeland-dde-shell-v1-server-protocol.c
+    INCLUDE
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>
 )
-
-target_include_directories(${MODULE_NAME} PRIVATE
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
-)
-
-target_compile_definitions(${MODULE_NAME}
-    PRIVATE
-    WLR_USE_UNSTABLE
-)
-
-target_link_libraries(${MODULE_NAME}
-    PUBLIC
-        PkgConfig::WLROOTS
-        Waylib::WaylibServer
-        Qt6::Core
-        Qt6::Gui
-        Qt6::Quick
-)
-
-install(TARGETS ${MODULE_NAME} DESTINATION ${CMAKE_INSTALL_LIBDIR})

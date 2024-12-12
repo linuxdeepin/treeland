@@ -3,7 +3,7 @@
 
 #include "shortcutmanager.h"
 
-#include "impl/shortcut_manager_impl.h"
+#include "modules/shortcut/impl/shortcut_manager_impl.h"
 
 #include <wayland-server-core.h>
 #include <wayland-util.h>

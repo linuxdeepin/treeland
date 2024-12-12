@@ -4,8 +4,7 @@ add_executable(test_protocol_wallpaper-color main.cpp)
 
 target_link_libraries(test_protocol_wallpaper-color
     PRIVATE
-        Waylib::WaylibServer
-        wallpaper-color
+        libtreeland
         Qt::Test
 )
 

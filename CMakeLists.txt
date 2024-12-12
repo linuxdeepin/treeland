@@ -14,6 +14,8 @@ include(GNUInstallDirs)
 # Macros
 include(FeatureSummary)
 
+include(cmake/DefineTarget.cmake)
+
 option(WITH_SUBMODULE_WAYLIB "Use the waylib from git submodule" OFF)
 add_feature_info(submodule_waylib WITH_SUBMODULE_WAYLIB "Use waylib from submodule")
 

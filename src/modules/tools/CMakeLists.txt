@@ -34,7 +34,7 @@ elseif(CMAKE_CROSSCOMPILING)
 else()
     # host build
     remove_definitions(-DQT_NO_CAST_FROM_ASCII)
-    add_executable(qtwaylandscanner_treeland qtwaylandscanner.cpp)
+    add_executable(qtwaylandscanner_treeland ${CMAKE_SOURCE_DIR}/src/modules/tools/qtwaylandscanner.cpp)
     target_link_libraries(qtwaylandscanner_treeland Qt::Core)
 endif()
 
@@ -74,4 +74,10 @@ function(local_qtwayland_server_protocol_treeland target)
     set_property(SOURCE ${_header} ${_code} PROPERTY SKIP_AUTOMOC ON)
 
     target_sources(${target} PRIVATE "${_code}")
+
+    add_custom_target(generate_protocols ALL
+                      DEPENDS ${_header} ${_code}
+    )
+    add_dependencies(${target} generate_protocols)
+
 endfunction()

@@ -4,7 +4,7 @@
 
 #include "user.h"
 
-#include "global.h"
+#include "greeter/global.h"
 
 #include <QObject>
 #include <QUrl>

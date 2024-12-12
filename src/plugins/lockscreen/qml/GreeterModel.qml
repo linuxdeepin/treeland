@@ -3,7 +3,7 @@
 pragma Singleton
 
 import QtQuick
-import Treeland.Greeter
+import Treeland
 import LockScreen
 
 Item {

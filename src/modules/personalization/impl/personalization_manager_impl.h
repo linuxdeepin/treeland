@@ -4,7 +4,7 @@
 #pragma once
 
 #include "treeland-personalization-manager-protocol.h"
-#include "types.h"
+#include "modules/personalization/impl/types.h"
 
 #include <wayland-server-core.h>
 

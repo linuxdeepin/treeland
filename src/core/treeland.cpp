@@ -3,17 +3,19 @@
 
 #include "treeland.h"
 
-#include "cmdline.h"
 #include "compositor1adaptor.h"
-#include "helper.h"
-#include "multitaskviewinterface.h"
-#include "plugininterface.h"
-#include "qmlengine.h"
-#include "treelandconfig.h"
-#include "usermodel.h"
+#include "config/treelandconfig.h"
+#include "core/qmlengine.h"
+#include "greeter/usermodel.h"
+#include "interfaces/multitaskviewinterface.h"
+#include "interfaces/plugininterface.h"
+#include "seat/helper.h"
+#include "utils/cmdline.h"
+
+#include <qqml.h>
 
 #ifndef DISABLE_DDM
-#  include "lockscreeninterface.h"
+#  include "interfaces/lockscreeninterface.h"
 
 #  include <Constants.h>
 #  include <Messages.h>
@@ -63,6 +65,11 @@ public:
     void init()
     {
         qmlEngine = new QmlEngine(this);
+        qmlEngine->addImportPath(QString("%1/qml").arg(QCoreApplication::applicationDirPath()));
+        for (const auto &item :
+             QStandardPaths::standardLocations(QStandardPaths::GenericDataLocation)) {
+            qmlEngine->addImportPath(item + "/treeland/qml");
+        }
         QObject::connect(qmlEngine, &QQmlEngine::quit, qApp, &QCoreApplication::quit);
 
         helper = qmlEngine->singletonInstance<Helper *>("Treeland", "Helper");
@@ -74,8 +81,7 @@ public:
         connect(socket, &QLocalSocket::readyRead, this, &TreelandPrivate::readyRead);
         connect(socket, &QLocalSocket::errorOccurred, this, &TreelandPrivate::error);
 
-        auto userModel =
-            helper->qmlEngine()->singletonInstance<UserModel *>("Treeland.Greeter", "UserModel");
+        auto userModel = qmlEngine->singletonInstance<UserModel *>("Treeland", "UserModel");
 
         auto updateUser = [this, userModel] {
             auto user = userModel->currentUser();
@@ -107,7 +113,7 @@ public:
     void onCurrentChanged(uid_t uid)
     {
         auto userModel =
-            helper->qmlEngine()->singletonInstance<UserModel *>("Treeland.Greeter", "UserModel");
+            helper->qmlEngine()->singletonInstance<UserModel *>("Treeland", "UserModel");
         auto user = userModel->getUser(uid);
         if (!user) {
             qCWarning(qLcDBus) << "user " << uid << " has been added but couldn't find it.";
@@ -138,7 +144,7 @@ public:
     void updatePluginTs(PluginInterface *plugin, const QString &scope)
     {
         auto userModel =
-            helper->qmlEngine()->singletonInstance<UserModel *>("Treeland.Greeter", "UserModel");
+            helper->qmlEngine()->singletonInstance<UserModel *>("Treeland", "UserModel");
         auto user = userModel->currentUser();
         if (!user) {
             return;
@@ -195,8 +201,8 @@ public:
             }
 
             qCDebug(qLcDBus) << "Loaded plugin: " << plugin->name()
-                          << ", enabled: " << plugin->enabled()
-                          << ", metadata: " << loader.metaData();
+                             << ", enabled: " << plugin->enabled()
+                             << ", metadata: " << loader.metaData();
             // TODO: use scheduler to run
             plugin->initialize(q);
             plugins.push_back(plugin);
@@ -207,7 +213,7 @@ public:
             qCDebug(qLcDBus) << "Plugin translate scope:" << scope;
 
 #ifndef DISABLE_DDM
-            connect(helper->qmlEngine()->singletonInstance<UserModel *>("Treeland.Greeter",
+            connect(helper->qmlEngine()->singletonInstance<UserModel *>("Treeland",
                                                                         "UserModel"),
                     &UserModel::currentUserNameChanged,
                     pluginInstance,
@@ -296,7 +302,7 @@ Treeland::Treeland()
     } else {
         struct passwd *pw = getpwuid(getuid());
         auto *userModel =
-            d->helper->qmlEngine()->singletonInstance<UserModel *>("Treeland.Greeter", "UserModel");
+            d->helper->qmlEngine()->singletonInstance<UserModel *>("Treeland", "UserModel");
         userModel->setCurrentUserName(pw->pw_name);
     }
 
@@ -448,7 +454,7 @@ void TreelandPrivate::readyRead()
             input >> user;
 
             auto *userModel =
-                helper->qmlEngine()->singletonInstance<UserModel *>("Treeland.Greeter",
+                helper->qmlEngine()->singletonInstance<UserModel *>("Treeland",
                                                                     "UserModel");
             // NOTE: maybe DDM will active dde user.
             if (!userModel->getUser(user)) {
@@ -491,7 +497,7 @@ bool Treeland::ActivateWayland(QDBusUnixFileDescriptor _fd)
     socket->create(fd->fileDescriptor(), false);
 
     auto userModel =
-        d->helper->qmlEngine()->singletonInstance<UserModel *>("Treeland.Greeter", "UserModel");
+        d->helper->qmlEngine()->singletonInstance<UserModel *>("Treeland", "UserModel");
     socket->setEnabled(userModel->currentUserName() == user);
 
     d->helper->addSocket(socket.get());
@@ -531,13 +537,14 @@ QString Treeland::XWaylandName()
     connect(process, &QProcess::finished, [process, m, conn, user, display] {
         if (process->exitCode() != 0) {
             qCWarning(qLcDBus) << "xhost command failed with exit code" << process->exitCode()
-                            << process->readAllStandardOutput() << process->readAllStandardError();
+                               << process->readAllStandardOutput()
+                               << process->readAllStandardError();
             auto reply =
                 m.createErrorReply(QDBusError::InternalError, "Failed to set xhost permissions");
             conn.send(reply);
         } else {
             qCDebug(qLcDBus) << process->exitCode() << " " << process->readAllStandardOutput()
-                          << process->readAllStandardError();
+                             << process->readAllStandardError();
             qCDebug(qLcDBus) << QString("user %1 got xwayland display %2.").arg(user).arg(display);
             auto reply = m.createReply(display);
             conn.send(reply);

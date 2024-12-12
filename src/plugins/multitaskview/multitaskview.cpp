@@ -3,11 +3,11 @@
 
 #include "multitaskview.h"
 
-#include "helper.h"
-#include "output.h"
-#include "surfacecontainer.h"
-#include "treelandconfig.h"
-#include "workspace.h"
+#include "config/treelandconfig.h"
+#include "output/output.h"
+#include "seat/helper.h"
+#include "surface/surfacecontainer.h"
+#include "workspace/workspace.h"
 
 #include <woutputitem.h>
 #include <woutputrenderwindow.h>

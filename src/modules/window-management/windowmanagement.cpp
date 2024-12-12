@@ -3,7 +3,7 @@
 
 #include "windowmanagement.h"
 
-#include "impl/window_management_impl.h"
+#include "modules/window-management/impl/window_management_impl.h"
 
 #include <wserver.h>
 
