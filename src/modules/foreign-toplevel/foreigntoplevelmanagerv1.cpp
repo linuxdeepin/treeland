@@ -165,7 +165,7 @@ void ForeignToplevelV1::addSurface(SurfaceWrapper *wrapper)
         connection.push_back(
             surface->safeConnect(&WToplevelSurface::appIdChanged, this, [handle, xdgSurface] {
                 auto client = WClient::get(xdgSurface->handle()->handle()->resource->client);
-                handle->set_pid(client->credentials().get()->pid);
+                handle->set_app_id(xdgSurface->handle()->handle()->app_id);
             }));
 
         auto updateSurfaceParent = [this, handle, xdgSurface] {
