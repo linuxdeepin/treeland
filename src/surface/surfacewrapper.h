@@ -207,13 +207,8 @@ public:
     bool hasActiveCapability() const;
 
     bool skipSwitcher() const;
-    void setSkipSwitcher(bool skip);
-
     bool skipDockPreView() const;
-    void setSkipDockPreView(bool skip);
-
     bool skipMutiTaskView() const;
-    void setSkipMutiTaskView(bool skip);
 
     bool isDDEShellSurface() const;
     void setIsDDEShellSurface(bool value);
@@ -340,6 +335,11 @@ private:
     Q_SLOT void onShowDesktopAnimationFinished();
     void updateHasActiveCapability(ActiveControlState state, bool value);
     void setDecorationShadowOpacity(qreal opacity);
+
+    // wayland set by treeland-dde-shell, x11 set by bypassManager/windowTypes
+    void setSkipDockPreView(bool skip);
+    void setSkipSwitcher(bool skip);
+    void setSkipMutiTaskView(bool skip);
 
     QmlEngine *m_engine;
     QPointer<SurfaceContainer> m_container;
