@@ -52,6 +52,12 @@ void ForeignToplevelV1::addSurface(SurfaceWrapper *wrapper)
     Q_ASSERT(wrapper->type() == SurfaceWrapper::Type::XdgToplevel
              || wrapper->type() == SurfaceWrapper::Type::XWayland);
 
+    if (m_surfaces.contains(wrapper)) {
+        qCCritical(qLcTreelandForeignToplevel)
+            << wrapper << " has been add to foreign toplevel twice";
+        return;
+    }
+
     auto handle = treeland_foreign_toplevel_handle_v1::create(m_manager);
     m_surfaces.insert({ wrapper, std::unique_ptr<treeland_foreign_toplevel_handle_v1>(handle) });
     auto surface = wrapper->shellSurface();
