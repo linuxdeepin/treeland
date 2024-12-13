@@ -25,7 +25,7 @@ public:
     explicit WForeignToplevel(QObject *parent = nullptr);
 
     void addSurface(WToplevelSurface *surface);
-    void removeSurface(WToplevelSurface *surface);
+    void removeSurface(WToplevelSurface *surface); // Must `removeSurface` manually before surface destroy
 
     QByteArrayView interfaceName() const override;
 
