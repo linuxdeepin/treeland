@@ -19,7 +19,6 @@ Item {
         username.text = currentUser.realName.length === 0 ? currentUser.name : currentUser.realName
         passwordField.text = ''
         avatar.fallbackSource = currentUser.icon
-        passwordField.visible = !currentUser.noPassword
         updateHintMsg(normalHint)
     }
 
