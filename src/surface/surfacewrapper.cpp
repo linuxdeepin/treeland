@@ -26,6 +26,8 @@
 #define CLOSE_ANIMATION 2
 #define ALWAYSONTOPLAYER 1
 
+Q_LOGGING_CATEGORY(qLcSurfaceWrapper, "treeland.shell.surfaceWrapper")
+
 SurfaceWrapper::SurfaceWrapper(QmlEngine *qmlEngine,
                                WToplevelSurface *shellSurface,
                                Type type,
@@ -43,7 +45,7 @@ SurfaceWrapper::SurfaceWrapper(QmlEngine *qmlEngine,
     , m_noCornerRadius(false)
     , m_alwaysOnTop(false)
     , m_skipSwitcher(false)
-    , m_skipDockPreView(false)
+    , m_skipDockPreView(m_type != Type::XdgToplevel) // x11 will set later
     , m_skipMutiTaskView(false)
     , m_isDdeShellSurface(false)
     , m_xwaylandPositionFromSurface(true)
@@ -183,6 +185,29 @@ SurfaceWrapper::SurfaceWrapper(QmlEngine *qmlEngine,
             m_positionAutomatic = false;
             moveNormalGeometryInOutput(xwaylandSurfaceItem->implicitPosition());
         }
+
+        m_skipDockPreView = xwaylandSurface->isBypassManager()
+            || xwaylandSurface->windowTypes().testFlag(
+                WXWaylandSurface::WindowType::NET_WM_WINDOW_TYPE_NORMAL);
+
+        connect(xwaylandSurface,
+                &WXWaylandSurface::bypassManagerChanged,
+                this,
+                [this, xwaylandSurface] {
+                    setSkipDockPreView(
+                        xwaylandSurface->isBypassManager()
+                        || xwaylandSurface->windowTypes().testFlag(
+                            WXWaylandSurface::WindowType::NET_WM_WINDOW_TYPE_NORMAL));
+                });
+        connect(xwaylandSurface,
+                &WXWaylandSurface::windowTypesChanged,
+                this,
+                [this, xwaylandSurface] {
+                    setSkipDockPreView(
+                        xwaylandSurface->isBypassManager()
+                        || xwaylandSurface->windowTypes().testFlag(
+                            WXWaylandSurface::WindowType::NET_WM_WINDOW_TYPE_NORMAL));
+                });
     }
 }
 
@@ -1574,6 +1599,11 @@ bool SurfaceWrapper::skipDockPreView() const
 
 void SurfaceWrapper::setSkipDockPreView(bool skip)
 {
+    if (m_type != Type::XdgToplevel && m_type != Type::XWayland) {
+        qCWarning(qLcSurfaceWrapper) << "Only xdgtoplevel and x11 surface can `setSkipDockPreView`";
+        return;
+    }
+
     if (m_skipDockPreView == skip)
         return;
 

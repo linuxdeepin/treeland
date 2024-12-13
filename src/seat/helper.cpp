@@ -617,17 +617,6 @@ void Helper::onSurfaceWrapperAdded(SurfaceWrapper *wrapper)
                               wrapper,
                               updateDecorationTitleBar);
         updateDecorationTitleBar();
-
-        if (!xwayland->isBypassManager()
-            && xwayland->windowTypes() == WXWaylandSurface::WindowType::NET_WM_WINDOW_TYPE_NORMAL) {
-            m_foreignToplevel->addSurface(wrapper->shellSurface());
-            m_treelandForeignToplevel->addSurface(wrapper);
-        }
-    }
-
-    if (isXdgToplevel) {
-        m_foreignToplevel->addSurface(wrapper->shellSurface());
-        m_treelandForeignToplevel->addSurface(wrapper);
     }
 
     if (!isLayer) {
@@ -642,19 +631,25 @@ void Helper::onSurfaceWrapperAdded(SurfaceWrapper *wrapper)
         wrapper->setHideByLockScreen(m_currentMode == CurrentMode::LockScreen);
     }
 #endif
+
+    if (!wrapper->skipDockPreView()) {
+        m_foreignToplevel->addSurface(wrapper->shellSurface());
+        m_treelandForeignToplevel->addSurface(wrapper);
+    }
+    connect(wrapper, &SurfaceWrapper::skipDockPreViewChanged, this, [this, wrapper] {
+        if (wrapper->skipDockPreView()) {
+            m_foreignToplevel->removeSurface(wrapper->shellSurface());
+            m_treelandForeignToplevel->removeSurface(wrapper);
+        } else {
+            m_foreignToplevel->addSurface(wrapper->shellSurface());
+            m_treelandForeignToplevel->addSurface(wrapper);
+        }
+    });
 }
 
 void Helper::onSurfaceWrapperAboutToRemove(SurfaceWrapper *wrapper)
 {
-    if (wrapper->type() == SurfaceWrapper::Type::XWayland) {
-        auto xwayland = qobject_cast<WXWaylandSurface *>(wrapper->shellSurface());
-        if (!xwayland->isBypassManager()
-            && xwayland->windowTypes() == WXWaylandSurface::WindowType::NET_WM_WINDOW_TYPE_NORMAL) {
-            m_foreignToplevel->removeSurface(wrapper->shellSurface());
-            m_treelandForeignToplevel->removeSurface(wrapper);
-        }
-    }
-    if (wrapper->type() == SurfaceWrapper::Type::XdgToplevel) {
+    if (!wrapper->skipDockPreView()) {
         m_foreignToplevel->removeSurface(wrapper->shellSurface());
         m_treelandForeignToplevel->removeSurface(wrapper);
     }
