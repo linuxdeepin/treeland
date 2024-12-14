@@ -1494,6 +1494,7 @@ void Helper::setCursorPosition(const QPointF &position)
 
 void Helper::handleRequestDrag(WSurface *surface)
 {
+    Q_UNUSED(surface);
     m_seat->setAlwaysUpdateHoverTarget(true);
 
     struct wlr_drag *drag = m_seat->nativeHandle()->drag;
@@ -1503,10 +1504,7 @@ void Helper::handleRequestDrag(WSurface *surface)
             DDEActiveInterface::sendDrop(m_seat);
     });
 
-    QObject::connect(qw_drag::from(drag), &qw_drag::before_destroy, this, [this, surface, drag] {
-        if (surface)
-            surface->safeDeleteLater();
-
+    QObject::connect(qw_drag::from(drag), &qw_drag::before_destroy, this, [this, drag] {
         drag->data = NULL;
         m_seat->setAlwaysUpdateHoverTarget(false);
     });
