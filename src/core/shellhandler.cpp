@@ -97,6 +97,12 @@ WXWayland *ShellHandler::createXWayland(WServer *server,
     m_xwaylands.append(xwayland);
     xwayland->setSeat(seat);
     connect(xwayland, &WXWayland::surfaceAdded, this, &ShellHandler::onXWaylandSurfaceAdded);
+    connect(xwayland, &WXWayland::ready, xwayland, [xwayland]{
+        auto atomPid = xwayland->atom("_NET_WM_PID");
+        xwayland->setAtomSupported(atomPid, true);
+        auto atomNoTitlebar = xwayland->atom("_DEEPIN_NO_TITLEBAR");
+        xwayland->setAtomSupported(atomNoTitlebar, true);
+    });
     return xwayland;
 }
 
