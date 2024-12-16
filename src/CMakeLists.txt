@@ -186,12 +186,6 @@ qt_add_resources(libtreeland "treeland_assets"
         ${PROJECT_RESOURCES_DIR}/icons/select_output.dci
         ${PROJECT_RESOURCES_DIR}/icons/select_window.dci
         ${PROJECT_RESOURCES_DIR}/icons/select_region.dci
-)
-
-qt_add_resources(libtreeland "greeter_assets"
-    PREFIX "/dsg"
-    BASE ${PROJECT_RESOURCES_DIR}
-    FILES
         ${PROJECT_RESOURCES_DIR}/icons/login_capslock.dci
         ${PROJECT_RESOURCES_DIR}/icons/login_display_password.dci
         ${PROJECT_RESOURCES_DIR}/icons/login_hidden_password.dci
@@ -212,7 +206,6 @@ qt_add_resources(libtreeland "greeter_assets"
         ${PROJECT_RESOURCES_DIR}/icons/backToLightdm.dci
         ${PROJECT_RESOURCES_DIR}/icons/logo.svg
 )
-
 
 set(TRANSLATED_FILES)
 if (${QT_VERSION_MINOR} LESS 7)
@@ -306,7 +299,7 @@ target_link_libraries(${BIN_NAME} PRIVATE
 
 install(TARGETS ${BIN_NAME} RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}")
 install(TARGETS libtreeland LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}")
-install(DIRECTORY ${PROJECT_BINARY_DIR}/qt/qml/Treeland/ DESTINATION "${TREELAND_DATA_DIR}/qml/Treeland")
+install(DIRECTORY ${PROJECT_BINARY_DIR}/qt/qml/Treeland DESTINATION "${TREELAND_DATA_DIR}/qml/Treeland")
 
 ## systemd socket
 

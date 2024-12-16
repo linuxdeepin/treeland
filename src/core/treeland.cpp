@@ -65,7 +65,7 @@ public:
     void init()
     {
         qmlEngine = new QmlEngine(this);
-        qmlEngine->addImportPath(QString("%1/qml").arg(QCoreApplication::applicationDirPath()));
+        qmlEngine->addImportPath(QString("%1/qt/qml").arg(QCoreApplication::applicationDirPath()));
         for (const auto &item :
              QStandardPaths::standardLocations(QStandardPaths::GenericDataLocation)) {
             qmlEngine->addImportPath(item + "/treeland/qml");
