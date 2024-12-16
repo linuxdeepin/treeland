@@ -23,9 +23,11 @@ Q_MOC_INCLUDE("workspace/workspace.h")
 Q_MOC_INCLUDE("core/rootsurfacecontainer.h")
 Q_MOC_INCLUDE("modules/capture/capture.h")
 Q_MOC_INCLUDE(<wlayersurface.h>)
+Q_MOC_INCLUDE(<QDBusObjectPath>)
 
 QT_BEGIN_NAMESPACE
 class QQuickItem;
+class QDBusObjectPath;
 QT_END_NAMESPACE
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
@@ -231,6 +233,9 @@ private:
     void onSurfaceWrapperAboutToRemove(SurfaceWrapper *wrapper);
     void handleRequestDrag([[maybe_unused]] WSurface *surface);
     void handleLockScreen(LockScreenInterface *lockScreen);
+    void onSessionNew(const QString &sessionId, const QDBusObjectPath &sessionPath);
+    void onSessionLock();
+    void onSessionUnlock();
 
 private:
     void allowNonDrmOutputAutoChangeMode(WOutput *output);

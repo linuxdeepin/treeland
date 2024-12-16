@@ -833,6 +833,9 @@ void Helper::init()
         if (m_rootSurfaceContainer->primaryOutput()) {
             m_primaryOutputV1->sendPrimaryOutput(
                 m_rootSurfaceContainer->primaryOutput()->output()->nativeHandle()->name);
+            if (m_lockScreen) {
+                m_lockScreen->setPrimaryOutputName(m_rootSurfaceContainer->primaryOutput()->output()->name());
+            }
         }
     });
 
@@ -1532,6 +1535,27 @@ void Helper::handleLockScreen(LockScreenInterface *lockScreen)
     });
 }
 
+
+void Helper::onSessionNew(const QString &sessionId, const QDBusObjectPath &sessionPath)
+{
+    const auto path = sessionPath.path();
+    qCDebug(qLcHelper) << "Session new, sessionId:" << sessionId << ", sessionPath:" << path;
+    QDBusConnection::systemBus().connect("org.freedesktop.login1", path, "org.freedesktop.login1.Session", "Lock", this, SLOT(onSessionLock()));
+    QDBusConnection::systemBus().connect("org.freedesktop.login1", path, "org.freedesktop.login1.Session", "Unlock", this, SLOT(onSessionUnLock()));
+}
+
+void Helper::onSessionLock()
+{
+    showLockScreen();
+}
+
+void Helper::onSessionUnlock()
+{
+    if (m_lockScreen) {
+        m_lockScreen->unlock();
+    }
+}
+
 void Helper::allowNonDrmOutputAutoChangeMode(WOutput *output)
 {
     output->safeConnect(&qw_output::notify_request_state,
@@ -1730,6 +1754,10 @@ void Helper::setLockScreenImpl(ILockScreen *impl)
         m_lockScreen->addOutput(output);
     }
 
+    if (auto primaryOutput = m_rootSurfaceContainer->primaryOutput()) {
+        m_lockScreen->setPrimaryOutputName(primaryOutput->output()->name());
+    }
+
     connect(m_lockScreen, &LockScreen::unlock, this, [this] {
         setCurrentMode(CurrentMode::Normal);
         setWorkspaceVisible(true);
@@ -1738,6 +1766,8 @@ void Helper::setLockScreenImpl(ILockScreen *impl)
             m_activatedSurface->setFocus(true, Qt::NoFocusReason);
         }
     });
+
+    QDBusConnection::systemBus().connect("org.freedesktop.login1", "/org/freedesktop/login1", "org.freedesktop.login1.Manager", "SessionNew", this, SLOT(onSessionNew(const QString &,const QDBusObjectPath &)));
 
     if (CmdLine::ref().useLockScreen()) {
         showLockScreen();

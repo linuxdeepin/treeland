@@ -31,14 +31,19 @@
 <context>
     <name>ControlAction</name>
     <message>
-        <location filename="../qml/ControlAction.qml" line="42"/>
+        <location filename="../qml/ControlAction.qml" line="44"/>
         <source>Other Users</source>
         <translation type="unfinished">其他用户</translation>
     </message>
     <message>
-        <location filename="../qml/ControlAction.qml" line="76"/>
+        <location filename="../qml/ControlAction.qml" line="82"/>
         <source>Power</source>
         <translation type="unfinished">电源</translation>
+    </message>
+    <message>
+        <location filename="../qml/ControlAction.qml" line="92"/>
+        <source>lock</source>
+        <translation>锁定</translation>
     </message>
 </context>
 <context>
@@ -59,7 +64,7 @@
 <context>
     <name>LockView</name>
     <message>
-        <location filename="../qml/LockView.qml" line="173"/>
+        <location filename="../qml/LockView.qml" line="176"/>
         <source>Password is incorrect.</source>
         <translation type="unfinished">密码错误</translation>
     </message>
@@ -67,22 +72,27 @@
 <context>
     <name>PowerList</name>
     <message>
-        <location filename="../qml/PowerList.qml" line="34"/>
+        <location filename="../qml/PowerList.qml" line="35"/>
         <source>Hibernate</source>
-        <translation>睡眠</translation>
+        <translation>休眠</translation>
     </message>
     <message>
-        <location filename="../qml/PowerList.qml" line="41"/>
+        <location filename="../qml/PowerList.qml" line="45"/>
         <source>Suspend</source>
-        <translation>挂起</translation>
+        <translation>待机</translation>
     </message>
     <message>
-        <location filename="../qml/PowerList.qml" line="48"/>
+        <location filename="../qml/PowerList.qml" line="54"/>
+        <source>Logout</source>
+        <translation>注销</translation>
+    </message>
+    <message>
+        <location filename="../qml/PowerList.qml" line="64"/>
         <source>Reboot</source>
         <translation>重启</translation>
     </message>
     <message>
-        <location filename="../qml/PowerList.qml" line="56"/>
+        <location filename="../qml/PowerList.qml" line="72"/>
         <source>Shut Down</source>
         <translation>关机</translation>
     </message>
@@ -97,12 +107,12 @@
 <context>
     <name>ShutdownView</name>
     <message>
-        <location filename="../qml/ShutdownView.qml" line="32"/>
+        <location filename="../qml/ShutdownView.qml" line="31"/>
         <source>lock</source>
         <translation type="unfinished">锁定</translation>
     </message>
     <message>
-        <location filename="../qml/ShutdownView.qml" line="38"/>
+        <location filename="../qml/ShutdownView.qml" line="37"/>
         <source>switch user</source>
         <translation type="unfinished">切换帐户</translation>
     </message>

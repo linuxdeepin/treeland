@@ -32,6 +32,7 @@ public:
     void lock();
     void shutdown();
     void switchUser();
+    void setPrimaryOutputName(const QString &primaryOutputName);
 
 Q_SIGNALS:
     void unlock();

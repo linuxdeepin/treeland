@@ -29,6 +29,7 @@
 #include <Messages.h>
 #include <SocketWriter.h>
 #include <security/pam_appl.h>
+#include <DDBusSender>
 
 #include <QCommandLineOption>
 #include <QCommandLineParser>
@@ -37,6 +38,31 @@
 #include <QVariantMap>
 
 Q_LOGGING_CATEGORY(greeter, "greeter", QtDebugMsg);
+
+struct SessionInfo 
+{
+    QString sessionId;
+    quint32 uid;
+    QString userName;
+    QString seat;
+    QDBusObjectPath path;
+};
+
+static QDBusArgument &operator<<(QDBusArgument &argument, const SessionInfo &info)
+{
+    argument.beginStructure();
+    argument << info.sessionId << info.uid << info.userName << info.seat << info.path;
+    argument.endStructure();
+    return argument;
+}
+
+static const QDBusArgument &operator>>(const QDBusArgument &argument, SessionInfo &info)
+{
+    argument.beginStructure();
+    argument >> info.sessionId >> info.uid >> info.userName >> info.seat >> info.path;
+    argument.endStructure();
+    return argument;
+}
 
 using namespace DDM;
 
@@ -59,6 +85,9 @@ GreeterProxy::GreeterProxy(QObject *parent)
     : QObject(parent)
     , d(new GreeterProxyPrivate())
 {
+    qDBusRegisterMetaType<SessionInfo>();
+    qDBusRegisterMetaType<QList<SessionInfo>>();
+
     const QStringList args = QCoreApplication::arguments();
     QString server;
     auto pos = args.indexOf(QStringLiteral("--socket"));
@@ -228,6 +257,70 @@ void GreeterProxy::unlock(const QString &user, const QString &password)
     if (userInfo.isValid()) {
         SocketWriter(d->socket) << quint32(GreeterMessages::Unlock) << user << password;
     }
+}
+
+void GreeterProxy::logout()
+{
+    qCDebug(greeter) << "Logout.";
+    const auto path = currentSessionPath();
+    if (path.isEmpty()) {
+        qCWarning(greeter, "No session logged in.");
+        return;
+    }
+    qCDebug(greeter) << "Terminate the session" << path;
+    auto reply = DDBusSender::system()
+        .service("org.freedesktop.login1")
+        .path(path)
+        .interface("org.freedesktop.login1.Session")
+        .method("Terminate")
+        .call();
+    if (reply.isError()) {
+        qCWarning(greeter) << "Failed to logout, error:" << reply.error().message();
+    }
+}
+
+QString GreeterProxy::currentSessionPath() const
+{
+    auto userInfo = userModel()->currentUser();
+    if (!userInfo) {
+        qCWarning(greeter) << "No user logged in.";
+        return {};
+    }
+
+    QDBusPendingReply<QList<SessionInfo>> sessionsRelpy = DDBusSender::system()
+        .service("org.freedesktop.login1")
+        .path("/org/freedesktop/login1")
+        .interface("org.freedesktop.login1.Manager")
+        .method("ListSessions")
+        .call();
+    if (sessionsRelpy.isError()) {
+        qCWarning(greeter) << "Failed to logout, error:" << sessionsRelpy.error().message();
+        return {};
+    }
+    const QString seat(qEnvironmentVariable("XDG_SEAT"));
+    QStringList userSessions;
+    const auto sessions = sessionsRelpy.value();
+    for (auto item : sessions) {
+        if (item.uid != userInfo->UID())
+            continue;
+        if (item.seat != seat)
+            continue;
+        userSessions << item.path.path();
+    }
+    std::sort(userSessions.begin(), userSessions.end(), [] (const QString &s1, const QString &s2) {
+        return s1.localeAwareCompare(s2) > 0;
+    });
+    for (auto item : userSessions) {
+        QDBusPendingReply<QVariant> relpy = DDBusSender::system()
+            .service("org.freedesktop.login1")
+            .path(item)
+            .interface("org.freedesktop.login1.Session")
+            .property("Active")
+            .get();
+        if (relpy.value().toBool())
+            return item;
+    }
+    return {};
 }
 
 void GreeterProxy::activateUser(const QString &user)

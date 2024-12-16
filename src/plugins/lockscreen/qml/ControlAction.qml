@@ -14,6 +14,8 @@ RowLayout {
     spacing: 15
 
     property bool powerVisible: powerList.visible
+    required property Item rootItem
+    signal lock()
     function showUserList()
     {
         usersBtn.expand = true
@@ -69,6 +71,10 @@ RowLayout {
             id: powerBtn
 
             property bool expand: false
+            function closePopup() {
+                powerBtn.expand = false
+                powerList.close()
+            }
             icon.name: "login_power"
             icon.width: 16
             icon.height: 16
@@ -84,17 +90,23 @@ RowLayout {
 
             Popup {
                 id: powerList
-                width: powerBtn.Window.width
+                width: rootItem.width
                 height: 140
-                parent: powerBtn.Window.contentItem
+                parent: rootItem
                 x: 0
-                y: powerBtn.Window.height / 5 * 2
-                contentItem: PowerList { }
-                background: MouseArea {
-                    onClicked: function () {
-                        powerBtn.expand = false
-                        powerList.close()
+                y: rootItem.height / 5 * 2
+                contentItem: PowerList {
+                    leftModelChildren: ShutdownButton {
+                        text: qsTr("lock")
+                        icon.name: "login_lock"
+                        onClicked: {
+                            bottomGroup.lock()
+                            powerBtn.closePopup()
+                        }
                     }
+                }
+                background: MouseArea {
+                    onClicked: powerBtn.closePopup()
                 }
             }
             onClicked: {
