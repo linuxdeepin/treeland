@@ -229,7 +229,7 @@ private:
     void onRestoreCopyOutput(treeland_virtual_output_v1 *virtual_output);
     void onSurfaceWrapperAdded(SurfaceWrapper *wrapper);
     void onSurfaceWrapperAboutToRemove(SurfaceWrapper *wrapper);
-    void handleRequestDrag(WSurface *surface);
+    void handleRequestDrag([[maybe_unused]] WSurface *surface);
     void handleLockScreen(LockScreenInterface *lockScreen);
 
 private:
