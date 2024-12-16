@@ -47,6 +47,8 @@ public:
 
     W_DECLARE_PUBLIC(WXWayland)
 
+    xcb_screen_t *screen = nullptr;
+
     qw_compositor *compositor;
     bool lazy = true;
     QVector<WXWaylandSurface*> surfaceList;
@@ -56,29 +58,20 @@ public:
     WSocket *socket = nullptr;
 };
 
-static const QByteArrayView atom_map[WXWayland::AtomCount] = {
-    "", // None
-    "_NET_WM_WINDOW_TYPE_NORMAL",
-    "_NET_WM_WINDOW_TYPE_UTILITY",
-    "_NET_WM_WINDOW_TYPE_TOOLTIP",
-    "_NET_WM_WINDOW_TYPE_DND",
-    "_NET_WM_WINDOW_TYPE_DROPDOWN_MENU",
-    "_NET_WM_WINDOW_TYPE_POPUP_MENU",
-    "_NET_WM_WINDOW_TYPE_COMBO",
-    "_NET_WM_WINDOW_TYPE_MENU",
-    "_NET_WM_WINDOW_TYPE_NOTIFICATION",
-    "_NET_WM_WINDOW_TYPE_SPLASH",
-};
-
 void WXWaylandPrivate::init()
 {
     W_Q(WXWayland);
 
+    auto screen_iterator = xcb_setup_roots_iterator(xcb_get_setup(q->xcbConnection()));
+    screen = screen_iterator.data;
+
     xcb_intern_atom_cookie_t cookies[WXWayland::AtomCount];
+    const auto atomEnum = QMetaEnum::fromType<WXWayland::XcbAtom>();
     for (int i = WXWayland::AtomNone + 1; i < WXWayland::AtomCount; ++i) {
+        auto name = atomEnum.valueToKey(i);
+        Q_ASSERT(name);
         cookies[i] = xcb_intern_atom(q->xcbConnection(), 0,
-                                     atom_map[i].length(),
-                                     atom_map[i].constData());
+                                     strnlen(name, 50), name);
     }
 
     atoms.resize(WXWayland::AtomCount);
@@ -148,6 +141,23 @@ xcb_atom_t WXWayland::atom(XcbAtom type) const
     return d->atoms.at(type);
 }
 
+xcb_atom_t WXWayland::atom(const QByteArray &name) const
+{
+    auto cookie = xcb_intern_atom(xcbConnection(), 0, name.size(), name.constData());
+    xcb_generic_error_t *error;
+    xcb_intern_atom_reply_t *reply =
+        xcb_intern_atom_reply(xcbConnection(), cookie, &error);
+    xcb_atom_t a = XCB_ATOM_NONE;
+    if (reply && !error)
+        a = reply->atom;
+    free(reply);
+
+    if (error)
+        free(error);
+
+    return a;
+}
+
 WXWayland::XcbAtom WXWayland::atomType(xcb_atom_t atom) const
 {
     W_DC(WXWayland);
@@ -157,6 +167,55 @@ WXWayland::XcbAtom WXWayland::atomType(xcb_atom_t atom) const
     }
 
     return AtomNone;
+}
+
+QVarLengthArray<xcb_atom_t> WXWayland::supportedAtoms() const
+{
+    auto xcb_conn = xcbConnection();
+    auto root = xcbScreen()->root;
+
+    auto cookie = xcb_get_property(xcb_conn, 0, root, atom(_NET_SUPPORTED), XCB_ATOM_ATOM, 0, 4096);
+    auto reply = xcb_get_property_reply(xcb_conn, cookie, nullptr);
+    if (!reply) {
+        return {};
+    }
+
+    xcb_atom_t *atoms = reinterpret_cast<xcb_atom_t*>(xcb_get_property_value(reply));
+    size_t atoms_len = reply->value_len;
+
+    QVarLengthArray<xcb_atom_t> atomList;
+    atomList.append(atoms, atoms_len);
+
+    return atomList;
+}
+
+void WXWayland::setSupportedAtoms(const QVarLengthArray<xcb_atom_t> &atoms)
+{
+    W_D(WXWayland);
+    auto xcb_conn = xcbConnection();
+    auto root = xcbScreen()->root;
+
+    xcb_change_property(xcb_conn, XCB_PROP_MODE_REPLACE, root, atom(_NET_SUPPORTED),
+                        XCB_ATOM_ATOM, 32, atoms.size(), atoms.constData());
+    xcb_flush(xcb_conn);
+}
+
+void WXWayland::setAtomSupported(xcb_atom_t atom, bool supported)
+{
+    W_D(WXWayland);
+    auto xcb_conn = xcbConnection();
+    auto root = xcbScreen()->root;
+
+    if (supported) {
+        xcb_change_property(xcb_conn, XCB_PROP_MODE_APPEND, root,
+                            this->atom(_NET_SUPPORTED),
+                            XCB_ATOM_ATOM, 32, 1, &atom);
+        xcb_flush(xcb_conn);
+    } else {
+        auto atoms = supportedAtoms();
+        atoms.removeOne(atom);
+        setSupportedAtoms(atoms);
+    }
 }
 
 void WXWayland::setSeat(WSeat *seat)
@@ -179,8 +238,13 @@ WSeat *WXWayland::seat() const
 
 xcb_connection_t *WXWayland::xcbConnection() const
 {
-    W_DC(WXWayland);
     return handle()->get_xwm_connection();
+}
+
+xcb_screen_t *WXWayland::xcbScreen() const
+{
+    W_DC(WXWayland);
+    return d->screen;
 }
 
 QVector<WXWaylandSurface*> WXWayland::surfaceList() const
@@ -286,6 +350,7 @@ void WXWayland::destroy(WServer *server)
 
     auto list = d->surfaceList;
     d->surfaceList.clear();
+    d->screen = nullptr;
 
     for (auto surface : std::as_const(list)) {
         removeSurface(surface);

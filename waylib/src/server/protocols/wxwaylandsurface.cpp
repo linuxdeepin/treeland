@@ -199,34 +199,34 @@ void WXWaylandSurfacePrivate::updateWindowTypes()
 
     for (int i = 0; i < nativeHandle()->window_type_len; ++i) {
         switch (xwayland->atomType(nativeHandle()->window_type[i])) {
-        case WXWayland::NET_WM_WINDOW_TYPE_NORMAL:
+        case WXWayland::_NET_WM_WINDOW_TYPE_NORMAL:
             types |= WXWaylandSurface::NET_WM_WINDOW_TYPE_NORMAL;
             break;
-        case WXWayland::NET_WM_WINDOW_TYPE_UTILITY:
+        case WXWayland::_NET_WM_WINDOW_TYPE_UTILITY:
             types |= WXWaylandSurface::NET_WM_WINDOW_TYPE_UTILITY;
             break;
-        case WXWayland::NET_WM_WINDOW_TYPE_TOOLTIP:
+        case WXWayland::_NET_WM_WINDOW_TYPE_TOOLTIP:
             types |= WXWaylandSurface::NET_WM_WINDOW_TYPE_TOOLTIP;
             break;
-        case WXWayland::NET_WM_WINDOW_TYPE_DND:
+        case WXWayland::_NET_WM_WINDOW_TYPE_DND:
             types |= WXWaylandSurface::NET_WM_WINDOW_TYPE_DND;
             break;
-        case WXWayland::NET_WM_WINDOW_TYPE_DROPDOWN_MENU:
+        case WXWayland::_NET_WM_WINDOW_TYPE_DROPDOWN_MENU:
             types |= WXWaylandSurface::NET_WM_WINDOW_TYPE_DROPDOWN_MENU;
             break;
-        case WXWayland::NET_WM_WINDOW_TYPE_POPUP_MENU:
+        case WXWayland::_NET_WM_WINDOW_TYPE_POPUP_MENU:
             types |= WXWaylandSurface::NET_WM_WINDOW_TYPE_POPUP_MENU;
             break;
-        case WXWayland::NET_WM_WINDOW_TYPE_COMBO:
+        case WXWayland::_NET_WM_WINDOW_TYPE_COMBO:
             types |= WXWaylandSurface::NET_WM_WINDOW_TYPE_COMBO;
             break;
-        case WXWayland::NET_WM_WINDOW_TYPE_MENU:
+        case WXWayland::_NET_WM_WINDOW_TYPE_MENU:
             types |= WXWaylandSurface::NET_WM_WINDOW_TYPE_MENU;
             break;
-        case WXWayland::NET_WM_WINDOW_TYPE_NOTIFICATION:
+        case WXWayland::_NET_WM_WINDOW_TYPE_NOTIFICATION:
             types |= WXWaylandSurface::NET_WM_WINDOW_TYPE_NOTIFICATION;
             break;
-        case WXWayland::NET_WM_WINDOW_TYPE_SPLASH:
+        case WXWayland::_NET_WM_WINDOW_TYPE_SPLASH:
             types |= WXWaylandSurface::NET_WM_WINDOW_TYPE_SPLASH;
             break;
         default:
