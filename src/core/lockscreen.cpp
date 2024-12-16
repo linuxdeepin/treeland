@@ -108,3 +108,10 @@ void LockScreen::onAnimationPlayFinished()
 
     setVisible(false);
 }
+
+void LockScreen::setPrimaryOutputName(const QString &primaryOutputName)
+{
+    for (const auto &[k, v] : m_components) {
+        v->setProperty("primaryOutputName", primaryOutputName);
+    }
+}

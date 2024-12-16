@@ -36,7 +36,10 @@ FocusScope {
         modelChildren: ShutdownButton {
             text: qsTr("switch user")
             icon.name: "login_switchuser"
+            enabled: UserModel.count > 1
             onClicked: root.switchUser()
         }
+
+        onLock: root.lock()
     }
 }

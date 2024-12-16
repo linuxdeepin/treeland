@@ -21,6 +21,8 @@ FocusScope {
     required property QtObject output
     required property QtObject outputItem
     property int currentMode: Greeter.CurrentMode.Lock
+    property string primaryOutputName
+    visible: primaryOutputName === "" || primaryOutputName === output.name
 
     function start()
     {
