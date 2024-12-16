@@ -1492,9 +1492,8 @@ void Helper::setCursorPosition(const QPointF &position)
     m_seat->setCursorPosition(position);
 }
 
-void Helper::handleRequestDrag(WSurface *surface)
+void Helper::handleRequestDrag([[maybe_unused]] WSurface *surface)
 {
-    Q_UNUSED(surface);
     m_seat->setAlwaysUpdateHoverTarget(true);
 
     struct wlr_drag *drag = m_seat->nativeHandle()->drag;
