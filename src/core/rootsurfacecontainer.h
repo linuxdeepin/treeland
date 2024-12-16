@@ -6,6 +6,8 @@
 
 #include <wglobal.h>
 
+Q_MOC_INCLUDE(<wcursor.h>)
+
 WAYLIB_SERVER_BEGIN_NAMESPACE
 class WSurface;
 class WSurfaceItem;
@@ -119,4 +121,3 @@ private:
 };
 
 Q_DECLARE_OPAQUE_POINTER(WAYLIB_SERVER_NAMESPACE::WOutputLayout *)
-Q_DECLARE_OPAQUE_POINTER(WAYLIB_SERVER_NAMESPACE::WCursor *)
