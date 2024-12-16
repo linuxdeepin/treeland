@@ -12,6 +12,7 @@ FocusScope {
     id: root
     property alias modelChildren: objModel.children
     property alias leftModelChildren: leftObjeModel.children
+    signal lock()
 
     implicitWidth: layout.width
     implicitHeight: layout.height
@@ -33,14 +34,29 @@ FocusScope {
                     enabled: GreeterModel.proxy.canHibernate
                     text: qsTr("Hibernate")
                     icon.name: "login_hibernate"
-                    onClicked: GreeterModel.proxy.hibernate()
+                    onClicked: {
+                        root.lock()
+                        GreeterModel.proxy.hibernate()
+                    }
                 }
 
                 ShutdownButton {
                     enabled: GreeterModel.proxy.canSuspend
                     text: qsTr("Suspend")
                     icon.name: "login_suspend"
-                    onClicked: GreeterModel.proxy.suspend()
+                    onClicked: {
+                        root.lock()
+                        GreeterModel.proxy.suspend()
+                    }
+                }
+
+                ShutdownButton {
+                    text: qsTr("Logout")
+                    icon.name: "login_logout"
+                    onClicked: {
+                        root.lock()
+                        GreeterModel.proxy.logout()
+                    }
                 }
 
                 ShutdownButton {

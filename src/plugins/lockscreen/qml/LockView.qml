@@ -155,6 +155,10 @@ FocusScope {
             bottom: rightComp.bottom
             right: rightComp.right
         }
+        rootItem: root
+        onLock: {
+            root.start()
+        }
     }
 
     Connections {

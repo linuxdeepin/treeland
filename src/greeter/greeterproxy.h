@@ -77,6 +77,7 @@ public Q_SLOTS:
     void login(const QString &user, const QString &password, int sessionIndex);
     void activateUser(const QString &user);
     void unlock(const QString &user, const QString &password);
+    void logout();
 
 private Q_SLOTS:
     void connected();
@@ -104,6 +105,7 @@ Q_SIGNALS:
 
 private:
     bool localValidation(const QString &user, const QString &password) const;
+    QString currentSessionPath() const;
 
 private:
     GreeterProxyPrivate *d{ nullptr };
