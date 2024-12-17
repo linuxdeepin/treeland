@@ -256,7 +256,7 @@
             "visibility": "public"
         },
         "windowTitlebarHeight": {
-            "value": 30,
+            "value": 40,
             "serial": 0,
             "flags": ["global"],
             "name": "Global Window titlebar height",
