@@ -425,6 +425,7 @@ private:
     void handleItemSelectorSelectionRegionChanged();
     WOutputRenderWindow *renderWindow() const;
     void createImage();
+    void releaseMaskSurface();
 
     void updateItemSelectorItemTypes();
     void updateCursorShape();
