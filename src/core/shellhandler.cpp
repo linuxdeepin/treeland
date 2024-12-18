@@ -11,10 +11,13 @@
 #include "surface/surfacewrapper.h"
 #include "workspace/workspace.h"
 
+#include <xcb/xcb.h>
+
 #include <winputmethodhelper.h>
 #include <winputpopupsurface.h>
 #include <wlayershell.h>
 #include <wlayersurface.h>
+#include <woutputrenderwindow.h>
 #include <wserver.h>
 #include <wxdgpopupsurface.h>
 #include <wxdgshell.h>
@@ -97,11 +100,23 @@ WXWayland *ShellHandler::createXWayland(WServer *server,
     m_xwaylands.append(xwayland);
     xwayland->setSeat(seat);
     connect(xwayland, &WXWayland::surfaceAdded, this, &ShellHandler::onXWaylandSurfaceAdded);
-    connect(xwayland, &WXWayland::ready, xwayland, [xwayland] {
+    connect(xwayland, &WXWayland::ready, xwayland, [xwayland, this] {
         auto atomPid = xwayland->atom("_NET_WM_PID");
         xwayland->setAtomSupported(atomPid, true);
         auto atomNoTitlebar = xwayland->atom("_DEEPIN_NO_TITLEBAR");
         xwayland->setAtomSupported(atomNoTitlebar, true);
+        // TODO: set other xsettings and sync
+        setResourceManagerAtom(
+            xwayland,
+            QString("Xft.dpi: %1")
+                .arg(96 * m_rootSurfaceContainer->window()->effectiveDevicePixelRatio())
+                .toUtf8());
+        connect(Helper::instance()->window(),
+                &WOutputRenderWindow::effectiveDevicePixelRatioChanged,
+                xwayland,
+                [xwayland, this](qreal dpr) {
+                    setResourceManagerAtom(xwayland, QString("Xft.dpi: %1").arg(96 * dpr).toUtf8());
+                });
     });
     return xwayland;
 }
@@ -482,4 +497,20 @@ void ShellHandler::handleDdeShellSurfaceAdded(WSurface *surface, SurfaceWrapper 
             [wrapper](bool accept) {
                 wrapper->setAcceptKeyboardFocus(accept);
             });
+}
+
+void ShellHandler::setResourceManagerAtom(WAYLIB_SERVER_NAMESPACE::WXWayland *xwayland,
+                                          const QByteArray &value)
+{
+    auto xcb_conn = xwayland->xcbConnection();
+    auto root = xwayland->xcbScreen()->root;
+    xcb_change_property(xcb_conn,
+                        XCB_PROP_MODE_REPLACE,
+                        root,
+                        xwayland->atom("RESOURCE_MANAGER"),
+                        XCB_ATOM_STRING,
+                        8,
+                        value.size(),
+                        value.constData());
+    xcb_flush(xcb_conn);
 }

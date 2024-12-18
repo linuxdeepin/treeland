@@ -89,6 +89,8 @@ private:
     void updateLayerSurfaceContainer(SurfaceWrapper *surface);
     void handleDdeShellSurfaceAdded(WAYLIB_SERVER_NAMESPACE::WSurface *surface,
                                     SurfaceWrapper *wrapper);
+    void setResourceManagerAtom(WAYLIB_SERVER_NAMESPACE::WXWayland *xwayland,
+                                const QByteArray &value);
 
     WAYLIB_SERVER_NAMESPACE::WXdgShell *m_xdgShell = nullptr;
     WAYLIB_SERVER_NAMESPACE::WLayerShell *m_layerShell = nullptr;
