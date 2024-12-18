@@ -1203,7 +1203,7 @@ void CaptureSourceSelector::releaseMaskSurface()
                this,
                &CaptureSourceSelector::releaseMaskSurface);
     if (m_savedContainer) {
-        QQueue<WrapPointer<SurfaceWrapper>> q;
+        QQueue<WWrapPointer<SurfaceWrapper>> q;
         q.enqueue(m_canvas);
         while (!q.isEmpty()) {
             auto node = q.dequeue();
