@@ -107,7 +107,6 @@ qt_add_qml_module(libtreeland
         surface/surfaceproxy.h
         surface/surfacewrapper.cpp
         surface/surfacewrapper.h
-        surface/wrappointer.h
         utils/cmdline.cpp
         utils/cmdline.h
         utils/propertymonitor.cpp
