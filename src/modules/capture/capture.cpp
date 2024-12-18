@@ -571,24 +571,7 @@ CaptureSourceSelector::CaptureSourceSelector(QQuickItem *parent)
     });
 }
 
-CaptureSourceSelector::~CaptureSourceSelector()
-{
-    if (m_savedContainer) {
-        QQueue<WrapPointer<SurfaceWrapper>> q;
-        q.enqueue(m_canvas);
-        while (!q.isEmpty()) {
-            auto node = q.dequeue();
-            if (node) {
-                m_canvasContainer->removeSurface(node);
-                node->setWorkspaceId(-1);
-                m_savedContainer->addSurface(node);
-                for (const auto &child : std::as_const(node->subSurfaces())) {
-                    q.enqueue(child);
-                }
-            }
-        }
-    }
-}
+CaptureSourceSelector::~CaptureSourceSelector() { }
 
 void CaptureSourceSelector::doneSelection()
 {
@@ -604,6 +587,7 @@ void CaptureSourceSelector::doneSelection()
 void CaptureSourceSelector::cancelSelection()
 {
     if (captureManager() && captureManager()->contextInSelection()) {
+        releaseMaskSurface();
         captureManager()->contextInSelection()->sendSourceFailed(CaptureContextV1::UserCancel);
         captureManager()->clearContextInSelection(captureManager()->contextInSelection());
     }
@@ -678,8 +662,19 @@ void CaptureSourceSelector::createImage()
                &WOutputRenderWindow::renderEnd,
                this,
                &CaptureSourceSelector::createImage);
-    if (m_selectedSource)
+    if (m_selectedSource) {
         m_selectedSource->createImage();
+        if (m_selectedSource->imageValid()) {
+            releaseMaskSurface();
+        } else {
+            connect(m_selectedSource,
+                    &CaptureSource::imageReady,
+                    this,
+                    &CaptureSourceSelector::releaseMaskSurface);
+        }
+    } else {
+        releaseMaskSurface();
+    }
     captureManager()->clearContextInSelection(captureManager()->contextInSelection());
 }
 
@@ -1197,4 +1192,29 @@ QHash<int, QByteArray> ToolBarModel::roleNames() const
 ToolBarModel *CaptureSourceSelector::toolBarModel() const
 {
     return m_toolBarModel;
+}
+
+void CaptureSourceSelector::releaseMaskSurface()
+{
+    // Mask surface should be reparented before destruction.
+    // If reparent in destructor, it's already marked as deleted in qml
+    disconnect(m_selectedSource,
+               &CaptureSource::imageReady,
+               this,
+               &CaptureSourceSelector::releaseMaskSurface);
+    if (m_savedContainer) {
+        QQueue<WrapPointer<SurfaceWrapper>> q;
+        q.enqueue(m_canvas);
+        while (!q.isEmpty()) {
+            auto node = q.dequeue();
+            if (node) {
+                m_canvasContainer->removeSurface(node);
+                node->setWorkspaceId(-1);
+                m_savedContainer->addSurface(node);
+                for (const auto &child : std::as_const(node->subSurfaces())) {
+                    q.enqueue(child);
+                }
+            }
+        }
+    }
 }
