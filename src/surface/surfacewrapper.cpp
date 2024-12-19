@@ -186,28 +186,43 @@ SurfaceWrapper::SurfaceWrapper(QmlEngine *qmlEngine,
             moveNormalGeometryInOutput(xwaylandSurfaceItem->implicitPosition());
         }
 
-        m_skipDockPreView = xwaylandSurface->isBypassManager()
-            || xwaylandSurface->windowTypes().testFlag(
-                WXWaylandSurface::WindowType::NET_WM_WINDOW_TYPE_NORMAL);
+        auto updateX11shouldSkipDock = [this]() {
+            // TODO: support missing type in waylib
+            // https://github.com/linuxdeepin/dde-shell/blob/b94a3cec4e01cba64f56e040e74419248985d03d/panels/dock/taskmanager/x11window.cpp#L81-L107
+            auto xwaylandSurface = qobject_cast<WXWaylandSurface *>(this->shellSurface());
+            if (!xwaylandSurface)
+                return;
+            auto atoms = xwaylandSurface->windowTypes();
+            bool skipDock = false;
+            skipDock |= xwaylandSurface->isBypassManager();
+            // skipDock |= atoms.testFlag(WXWaylandSurface::WindowType::_NET_WM_WINDOW_TYPE_DIALOG)
+            // && !isActionMinimizeAllowed();
+            skipDock |= atoms.testFlag(WXWaylandSurface::WindowType::NET_WM_WINDOW_TYPE_UTILITY);
+            skipDock |= atoms.testFlag(WXWaylandSurface::WindowType::NET_WM_WINDOW_TYPE_COMBO);
+            // skipDock |= atoms.testFlag(WXWaylandSurface::WindowType::NET_WM_WINDOW_TYPE_DESKTOP);
+            skipDock |= atoms.testFlag(WXWaylandSurface::WindowType::NET_WM_WINDOW_TYPE_DND);
+            // skipDock |= atoms.testFlag(WXWaylandSurface::WindowType::NET_WM_WINDOW_TYPE_DOCK);
+            skipDock |=
+                atoms.testFlag(WXWaylandSurface::WindowType::NET_WM_WINDOW_TYPE_DROPDOWN_MENU);
+            skipDock |= atoms.testFlag(WXWaylandSurface::WindowType::NET_WM_WINDOW_TYPE_MENU);
+            skipDock |=
+                atoms.testFlag(WXWaylandSurface::WindowType::NET_WM_WINDOW_TYPE_NOTIFICATION);
+            skipDock |= atoms.testFlag(WXWaylandSurface::WindowType::NET_WM_WINDOW_TYPE_POPUP_MENU);
+            skipDock |= atoms.testFlag(WXWaylandSurface::WindowType::NET_WM_WINDOW_TYPE_SPLASH);
+            // skipDock |= atoms.testFlag(WXWaylandSurface::WindowType::NET_WM_WINDOW_TYPE_TOOLBAR);
+            skipDock |= atoms.testFlag(WXWaylandSurface::WindowType::NET_WM_WINDOW_TYPE_TOOLTIP);
+            setSkipDockPreView(skipDock);
+        };
 
         connect(xwaylandSurface,
                 &WXWaylandSurface::bypassManagerChanged,
                 this,
-                [this, xwaylandSurface] {
-                    setSkipDockPreView(
-                        xwaylandSurface->isBypassManager()
-                        || xwaylandSurface->windowTypes().testFlag(
-                            WXWaylandSurface::WindowType::NET_WM_WINDOW_TYPE_NORMAL));
-                });
+                updateX11shouldSkipDock);
         connect(xwaylandSurface,
                 &WXWaylandSurface::windowTypesChanged,
                 this,
-                [this, xwaylandSurface] {
-                    setSkipDockPreView(
-                        xwaylandSurface->isBypassManager()
-                        || xwaylandSurface->windowTypes().testFlag(
-                            WXWaylandSurface::WindowType::NET_WM_WINDOW_TYPE_NORMAL));
-                });
+                updateX11shouldSkipDock);
+        updateX11shouldSkipDock();
     }
 }
 
