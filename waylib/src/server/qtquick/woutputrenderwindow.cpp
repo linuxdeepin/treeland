@@ -1371,6 +1371,7 @@ bool WOutputRenderWindowPrivate::initRCWithRhi()
 
 void WOutputRenderWindowPrivate::updateSceneDPR()
 {
+    W_Q(WOutputRenderWindow);
     if (outputs.isEmpty()
         // Maybe the platform window is destroyed
         || !platformWindow) {
@@ -1385,6 +1386,7 @@ void WOutputRenderWindowPrivate::updateSceneDPR()
     }
 
     setSceneDevicePixelRatio(maxDPR);
+    Q_EMIT q->effectiveDevicePixelRatioChanged(maxDPR);
 }
 
 void WOutputRenderWindowPrivate::sortOutputs()

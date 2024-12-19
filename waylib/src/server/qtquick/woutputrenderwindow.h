@@ -77,6 +77,7 @@ Q_SIGNALS:
     void initialized();
     void disableLayersChanged();
     void renderEnd();
+    void effectiveDevicePixelRatioChanged(qreal scale);
 
 private:
     void classBegin() override;
