@@ -3,6 +3,7 @@
 
 #include "qmlengine.h"
 
+#include "core/rootsurfacecontainer.h"
 #include "modules/capture/capture.h"
 #include "output/output.h"
 #include "surface/surfacewrapper.h"
@@ -229,9 +230,11 @@ QQuickItem *QmlEngine::createShowDesktopAnimation(SurfaceWrapper *surface,
 
 QQuickItem *QmlEngine::createCaptureSelector(QQuickItem *parent, CaptureManagerV1 *captureManager)
 {
-    return createComponent(captureSelectorComponent,
-                           parent,
-                           { { "captureManager", QVariant::fromValue(captureManager) } });
+    return createComponent(
+        captureSelectorComponent,
+        parent,
+        { { "captureManager", QVariant::fromValue(captureManager) },
+          { "z", QVariant::fromValue(RootSurfaceContainer::CaptureLayerZOrder) } });
 }
 
 QQuickItem *QmlEngine::createWindowPicker(QQuickItem *parent)
