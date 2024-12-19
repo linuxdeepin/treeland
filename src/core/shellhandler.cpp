@@ -97,7 +97,7 @@ WXWayland *ShellHandler::createXWayland(WServer *server,
     m_xwaylands.append(xwayland);
     xwayland->setSeat(seat);
     connect(xwayland, &WXWayland::surfaceAdded, this, &ShellHandler::onXWaylandSurfaceAdded);
-    connect(xwayland, &WXWayland::ready, xwayland, [xwayland]{
+    connect(xwayland, &WXWayland::ready, xwayland, [xwayland] {
         auto atomPid = xwayland->atom("_NET_WM_PID");
         xwayland->setAtomSupported(atomPid, true);
         auto atomNoTitlebar = xwayland->atom("_DEEPIN_NO_TITLEBAR");
@@ -281,7 +281,26 @@ void ShellHandler::setupSurfaceActiveWatcher(SurfaceWrapper *wrapper)
             Helper::instance()->activateSurface(m_workspace->current()->latestActiveSurface());
         });
         */
-    } else {
+    } else if (wrapper->type() == SurfaceWrapper::Type::Layer) {
+        connect(wrapper, &SurfaceWrapper::requestActive, this, [this, wrapper]() {
+            auto layerSurface = qobject_cast<WLayerSurface *>(wrapper->shellSurface());
+            if (layerSurface->keyboardInteractivity() == WLayerSurface::KeyboardInteractivity::None)
+                return;
+            /*
+             * if LayerSurface's keyboardInteractivity is `OnDemand`, only allow `Overlay` layer
+             * surface get keyboard focus, to avoid dock/dde-desktop grab keyboard focus When they
+             * restart
+             */
+            if (layerSurface->layer() == WLayerSurface::LayerType::Overlay
+                || layerSurface->keyboardInteractivity()
+                    == WLayerSurface::KeyboardInteractivity::Exclusive)
+                Helper::instance()->activateSurface(wrapper);
+        });
+
+        connect(wrapper, &SurfaceWrapper::requestInactive, this, [this, wrapper]() {
+            Helper::instance()->activateSurface(m_workspace->current()->latestActiveSurface());
+        });
+    } else { // Xdgtoplevel or X11
         connect(wrapper, &SurfaceWrapper::requestActive, this, [this, wrapper]() {
             if (wrapper->showOnWorkspace(m_workspace->current()->id()))
                 Helper::instance()->activateSurface(wrapper);
@@ -307,7 +326,6 @@ void ShellHandler::onLayerSurfaceAdded(WLayerSurface *surface)
         new SurfaceWrapper(Helper::instance()->qmlEngine(), surface, SurfaceWrapper::Type::Layer);
 
     wrapper->setSkipSwitcher(true);
-    wrapper->setSkipDockPreView(true);
     wrapper->setSkipMutiTaskView(true);
     updateLayerSurfaceContainer(wrapper);
 

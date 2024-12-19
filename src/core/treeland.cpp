@@ -42,9 +42,9 @@ using namespace DDM;
 #include <sys/socket.h>
 #include <unistd.h>
 
-Q_LOGGING_CATEGORY(qLcDBus, "treeland.dbus");
+Q_LOGGING_CATEGORY(qLcDBus, "treeland.dbus")
 
-DCORE_USE_NAMESPACE;
+DCORE_USE_NAMESPACE
 
 namespace Treeland {
 
