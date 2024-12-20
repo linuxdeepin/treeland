@@ -20,15 +20,18 @@
 
 #include "greeterproxy.h"
 
+#include "DDMDisplayManager.h"
 #include "greeter/global.h"
 #include "greeter/sessionmodel.h"
 #include "greeter/usermodel.h"
+#include "seat/helper.h"
 
 #include <DisplayManager.h>
 #include <DisplayManagerSession.h>
 #include <Messages.h>
 #include <SocketWriter.h>
 #include <security/pam_appl.h>
+
 #include <DDBusSender>
 
 #include <QCommandLineOption>
@@ -39,7 +42,7 @@
 
 Q_LOGGING_CATEGORY(greeter, "greeter", QtDebugMsg);
 
-struct SessionInfo 
+struct SessionInfo
 {
     QString sessionId;
     quint32 uid;
@@ -73,6 +76,8 @@ public:
     UserModel *userModel{ nullptr };
     QLocalSocket *socket{ nullptr };
     DisplayManager *displayManager{ nullptr };
+    org::deepin::DisplayManager *ddmDisplayManager{ nullptr };
+    QDBusUnixFileDescriptor authFd;
     QString hostName;
     bool canPowerOff{ false };
     bool canReboot{ false };
@@ -88,28 +93,27 @@ GreeterProxy::GreeterProxy(QObject *parent)
     qDBusRegisterMetaType<SessionInfo>();
     qDBusRegisterMetaType<QList<SessionInfo>>();
 
-    const QStringList args = QCoreApplication::arguments();
-    QString server;
-    auto pos = args.indexOf(QStringLiteral("--socket"));
-
-    if (pos >= 0 && pos + 1 < args.length()) {
-        server = args[pos + 1];
-    }
-
     d->displayManager = new DisplayManager("org.freedesktop.DisplayManager",
                                            "/org/freedesktop/DisplayManager",
                                            QDBusConnection::systemBus(),
                                            this);
-
     d->socket = new QLocalSocket(this);
+
     // connect signals
     connect(d->socket, &QLocalSocket::connected, this, &GreeterProxy::connected);
     connect(d->socket, &QLocalSocket::disconnected, this, &GreeterProxy::disconnected);
     connect(d->socket, &QLocalSocket::readyRead, this, &GreeterProxy::readyRead);
     connect(d->socket, &QLocalSocket::errorOccurred, this, &GreeterProxy::error);
 
-    // connect to server
-    d->socket->connectToServer(server);
+    d->ddmDisplayManager = new org::deepin::DisplayManager("org.deepin.DisplayManager",
+                                                           "/org/deepin/DisplayManager",
+                                                           QDBusConnection::systemBus());
+    connect(d->ddmDisplayManager,
+            &org::deepin::DisplayManager::AuthInfoChanged,
+            this,
+            &GreeterProxy::updateAuthSocket);
+
+    updateAuthSocket();
 }
 
 GreeterProxy::~GreeterProxy()
@@ -269,11 +273,11 @@ void GreeterProxy::logout()
     }
     qCDebug(greeter) << "Terminate the session" << path;
     auto reply = DDBusSender::system()
-        .service("org.freedesktop.login1")
-        .path(path)
-        .interface("org.freedesktop.login1.Session")
-        .method("Terminate")
-        .call();
+                     .service("org.freedesktop.login1")
+                     .path(path)
+                     .interface("org.freedesktop.login1.Session")
+                     .method("Terminate")
+                     .call();
     if (reply.isError()) {
         qCWarning(greeter) << "Failed to logout, error:" << reply.error().message();
     }
@@ -287,12 +291,13 @@ QString GreeterProxy::currentSessionPath() const
         return {};
     }
 
-    QDBusPendingReply<QList<SessionInfo>> sessionsRelpy = DDBusSender::system()
-        .service("org.freedesktop.login1")
-        .path("/org/freedesktop/login1")
-        .interface("org.freedesktop.login1.Manager")
-        .method("ListSessions")
-        .call();
+    QDBusPendingReply<QList<SessionInfo>> sessionsRelpy =
+        DDBusSender::system()
+            .service("org.freedesktop.login1")
+            .path("/org/freedesktop/login1")
+            .interface("org.freedesktop.login1.Manager")
+            .method("ListSessions")
+            .call();
     if (sessionsRelpy.isError()) {
         qCWarning(greeter) << "Failed to logout, error:" << sessionsRelpy.error().message();
         return {};
@@ -307,16 +312,16 @@ QString GreeterProxy::currentSessionPath() const
             continue;
         userSessions << item.path.path();
     }
-    std::sort(userSessions.begin(), userSessions.end(), [] (const QString &s1, const QString &s2) {
+    std::sort(userSessions.begin(), userSessions.end(), [](const QString &s1, const QString &s2) {
         return s1.localeAwareCompare(s2) > 0;
     });
     for (auto item : userSessions) {
         QDBusPendingReply<QVariant> relpy = DDBusSender::system()
-            .service("org.freedesktop.login1")
-            .path(item)
-            .interface("org.freedesktop.login1.Session")
-            .property("Active")
-            .get();
+                                                .service("org.freedesktop.login1")
+                                                .path(item)
+                                                .interface("org.freedesktop.login1.Session")
+                                                .property("Active")
+                                                .get();
         if (relpy.value().toBool())
             return item;
     }
@@ -433,11 +438,22 @@ void GreeterProxy::readyRead()
         } break;
         case DaemonMessages::SwitchToGreeter: {
             qCInfo(greeter) << "switch to greeter";
+            Helper::instance()->showLockScreen();
             Q_EMIT switchToGreeter();
         } break;
         case DaemonMessages::UserActivateMessage: {
             QString user;
             input >> user;
+
+            // NOTE: maybe DDM will active dde user.
+            if (!d->userModel->getUser(user)) {
+                qCInfo(greeter) << "activate user, but switch to greeter";
+                Helper::instance()->showLockScreen();
+                Q_EMIT switchToGreeter();
+                break;
+            }
+
+            d->userModel->setCurrentUserName(user);
 
             qCInfo(greeter) << "activate successfully: " << user;
         } break;
@@ -475,4 +491,15 @@ bool GreeterProxy::localValidation(const QString &user, const QString &password)
     pam_end(pamh, retval);
 
     return retval == PAM_SUCCESS;
+}
+
+void GreeterProxy::updateAuthSocket()
+{
+    const QString &socket = d->ddmDisplayManager->AuthInfo();
+
+    if (d->socket->state() == QLocalSocket::ConnectedState) {
+        d->socket->disconnectFromServer();
+    }
+
+    d->socket->connectToServer(socket);
 }

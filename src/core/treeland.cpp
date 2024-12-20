@@ -76,11 +76,6 @@ public:
         helper->init();
 
 #ifndef DISABLE_DDM
-        connect(socket, &QLocalSocket::connected, this, &TreelandPrivate::connected);
-        connect(socket, &QLocalSocket::disconnected, this, &TreelandPrivate::disconnected);
-        connect(socket, &QLocalSocket::readyRead, this, &TreelandPrivate::readyRead);
-        connect(socket, &QLocalSocket::errorOccurred, this, &TreelandPrivate::error);
-
         auto userModel = qmlEngine->singletonInstance<UserModel *>("Treeland", "UserModel");
 
         auto updateUser = [this, userModel] {
@@ -213,8 +208,7 @@ public:
             qCDebug(qLcDBus) << "Plugin translate scope:" << scope;
 
 #ifndef DISABLE_DDM
-            connect(helper->qmlEngine()->singletonInstance<UserModel *>("Treeland",
-                                                                        "UserModel"),
+            connect(helper->qmlEngine()->singletonInstance<UserModel *>("Treeland", "UserModel"),
                     &UserModel::currentUserNameChanged,
                     pluginInstance,
                     [this, plugin, scope] {
@@ -244,14 +238,6 @@ public:
         }
     }
 
-private Q_SLOTS:
-#ifndef DISABLE_DDM
-    void connected();
-    void disconnected();
-    void readyRead();
-    void error();
-#endif
-
 private:
     Treeland *q_ptr;
 #ifndef DISABLE_DDM
@@ -263,7 +249,6 @@ private:
     std::vector<PluginInterface *> plugins;
     QLocalSocket *helperSocket{ nullptr };
     Helper *helper{ nullptr };
-    QMap<QString, std::shared_ptr<WAYLIB_SERVER_NAMESPACE::WSocket>> userWaylandSocket;
     QMap<QString, std::shared_ptr<QDBusUnixFileDescriptor>> userDisplayFds;
     std::vector<QAction *> shortcuts;
     std::map<PluginInterface *, QTranslator *> pluginTs;
@@ -283,28 +268,6 @@ Treeland::Treeland()
                                  &TreelandConfig::ref()); // Inject treeland config singleton.
 
     d->init();
-
-    if (CmdLine::ref().socket().has_value()) {
-#ifndef DISABLE_DDM
-        new DDM::SignalHandler(this);
-        Q_ASSERT(d->helper);
-        auto connectToServer = [this, d] {
-            d->socket->connectToServer(CmdLine::ref().socket().value());
-        };
-
-        connect(d->helper, &Helper::socketFileChanged, this, connectToServer);
-
-        WSocket *defaultSocket = d->helper->defaultWaylandSocket();
-        if (defaultSocket && defaultSocket->isValid()) {
-            connectToServer();
-        }
-#endif
-    } else {
-        struct passwd *pw = getpwuid(getuid());
-        auto *userModel =
-            d->helper->qmlEngine()->singletonInstance<UserModel *>("Treeland", "UserModel");
-        userModel->setCurrentUserName(pw->pw_name);
-    }
 
     if (CmdLine::ref().run().has_value()) {
         auto exec = [runCmd = CmdLine::ref().run().value(), this, d] {
@@ -358,11 +321,6 @@ Treeland::~Treeland()
     Q_D(Treeland);
 }
 
-bool Treeland::testMode() const
-{
-    return !CmdLine::ref().socket().has_value();
-}
-
 bool Treeland::debugMode() const
 {
 #ifdef QT_DEBUG
@@ -403,80 +361,6 @@ bool Treeland::isBlockActivateSurface() const
     return TreelandConfig::ref().blockActivateSurface();
 }
 
-#ifndef DISABLE_DDM
-void TreelandPrivate::connected()
-{
-    // log connection
-    qCDebug(qLcDBus) << "Connected to the daemon.";
-
-    // send connected message
-    DDM::SocketWriter(socket) << quint32(DDM::GreeterMessages::Connect);
-}
-
-void TreelandPrivate::disconnected()
-{
-    Q_Q(Treeland);
-
-    // log disconnection
-    qCDebug(qLcDBus) << "Disconnected from the daemon.";
-
-    Q_EMIT q->socketDisconnected();
-
-    qCDebug(qLcDBus) << "Display Manager is closed socket connect, quiting treeland.";
-    qApp->exit();
-}
-
-void TreelandPrivate::error()
-{
-    qCritical() << "Socket error: " << socket->errorString();
-}
-
-void TreelandPrivate::readyRead()
-{
-    Q_Q(Treeland);
-
-    // input stream
-    QDataStream input(socket);
-
-    while (input.device()->bytesAvailable()) {
-        // read message
-        quint32 message;
-        input >> message;
-
-        switch (DDM::DaemonMessages(message)) {
-        case DDM::DaemonMessages::Capabilities: {
-            // log message
-            qCDebug(qLcDBus) << "Message received from daemon: Capabilities";
-        } break;
-        case DDM::DaemonMessages::LoginSucceeded:
-        case DDM::DaemonMessages::UserActivateMessage: {
-            QString user;
-            input >> user;
-
-            auto *userModel =
-                helper->qmlEngine()->singletonInstance<UserModel *>("Treeland",
-                                                                    "UserModel");
-            // NOTE: maybe DDM will active dde user.
-            if (!userModel->getUser(user)) {
-                break;
-            }
-
-            for (auto key : userWaylandSocket.keys()) {
-                userWaylandSocket[key]->setEnabled(key == user);
-            }
-
-            userModel->setCurrentUserName(user);
-        } break;
-        case DDM::DaemonMessages::SwitchToGreeter: {
-            helper->showLockScreen();
-        } break;
-        default:
-            break;
-        }
-    }
-}
-#endif
-
 bool Treeland::ActivateWayland(QDBusUnixFileDescriptor _fd)
 {
     Q_D(Treeland);
@@ -498,18 +382,21 @@ bool Treeland::ActivateWayland(QDBusUnixFileDescriptor _fd)
 
     auto userModel =
         d->helper->qmlEngine()->singletonInstance<UserModel *>("Treeland", "UserModel");
+    if (auto u = userModel->getUser(user)) {
+        u->setWaylandSocket(socket);
+    }
+
     socket->setEnabled(userModel->currentUserName() == user);
 
     d->helper->addSocket(socket.get());
 
-    d->userWaylandSocket[user] = socket;
     d->userDisplayFds[user] = fd;
 
     connect(connection().interface(),
             &QDBusConnectionInterface::serviceUnregistered,
             socket.get(),
-            [this, user, d] {
-                d->userWaylandSocket.remove(user);
+            [user, userModel, d] {
+                userModel->getUser(user)->setWaylandSocket(nullptr);
                 d->userDisplayFds.remove(user);
             });
 

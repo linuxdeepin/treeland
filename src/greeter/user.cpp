@@ -24,6 +24,7 @@ struct UserPrivate
     QString passwordHint;
     QString limitTime;
     AccountsUserPtr inter{ nullptr };
+    std::shared_ptr<WAYLIB_SERVER_NAMESPACE::WSocket> waylandSocket;
 
     void updateUserData();
 };
@@ -128,6 +129,16 @@ void User::updateLimitTime(const QString &time) noexcept
 {
     d->limitTime = time;
     Q_EMIT limitTimeChanged(time);
+}
+
+void User::setWaylandSocket(std::shared_ptr<WAYLIB_SERVER_NAMESPACE::WSocket> socket)
+{
+    d->waylandSocket = socket;
+}
+
+std::shared_ptr<WAYLIB_SERVER_NAMESPACE::WSocket> User::waylandSocket() const
+{
+    return d->waylandSocket;
 }
 
 QString User::toString(AccountTypes type) noexcept

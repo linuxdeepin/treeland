@@ -37,9 +37,29 @@ set_source_files_properties("${CMAKE_SOURCE_DIR}/misc/interfaces/org.freedesktop
     CLASSNAME DisplaySession
 )
 
+set_source_files_properties("${CMAKE_SOURCE_DIR}/misc/interfaces/org.freedesktop.login1.Manager.xml" PROPERTIES
+   INCLUDE "loginddbustypes.h"
+)
+set_source_files_properties("${CMAKE_SOURCE_DIR}/misc/interfaces/org.freedesktop.login1.Seat.xml" PROPERTIES
+   INCLUDE "loginddbustypes.h"
+)
+
+set_source_files_properties("${CMAKE_SOURCE_DIR}/misc/interfaces/org.freedesktop.login1.Session.xml" PROPERTIES
+   INCLUDE "loginddbustypes.h"
+)
+
+set_source_files_properties("${CMAKE_SOURCE_DIR}/misc/interfaces/org.freedesktop.login1.User.xml" PROPERTIES
+   INCLUDE "loginddbustypes.h"
+)
+
 qt_add_dbus_interface(DDM_DBUS_SOURCES "${CMAKE_SOURCE_DIR}/misc/interfaces/org.freedesktop.DisplayManager.xml"          DisplayManager)
 qt_add_dbus_interface(DDM_DBUS_SOURCES "${CMAKE_SOURCE_DIR}/misc/interfaces/org.freedesktop.DisplayManager.Seat.xml"     DisplayManagerSeat)
 qt_add_dbus_interface(DDM_DBUS_SOURCES "${CMAKE_SOURCE_DIR}/misc/interfaces/org.freedesktop.DisplayManager.Session.xml"  DisplayManagerSession)
+qt_add_dbus_interface(DDM_DBUS_SOURCES "${CMAKE_SOURCE_DIR}/misc/interfaces/org.deepin.DisplayManager.xml"               DDMDisplayManager)
+qt_add_dbus_interface(DBUS_INTERFACE   "${CMAKE_SOURCE_DIR}/misc/interfaces/org.freedesktop.login1.Manager.xml"          Login1Manager)
+qt_add_dbus_interface(DBUS_INTERFACE   "${CMAKE_SOURCE_DIR}/misc/interfaces/org.freedesktop.login1.Seat.xml"             Login1Seat)
+qt_add_dbus_interface(DBUS_INTERFACE   "${CMAKE_SOURCE_DIR}/misc/interfaces/org.freedesktop.login1.Session.xml"          Login1Session)
+qt_add_dbus_interface(DBUS_INTERFACE   "${CMAKE_SOURCE_DIR}/misc/interfaces/org.freedesktop.login1.User.xml"             Login1User)
 
 qt_add_library(libtreeland SHARED)
 
@@ -54,6 +74,7 @@ qt_add_qml_module(libtreeland
     SOURCES
         ${DBUS_ADAPTOR}
         ${DDM_DBUS_SOURCES}
+        ${DBUS_INTERFACE}
         config/treelandconfig.cpp
         config/treelandconfig.h
         core/layersurfacecontainer.cpp
@@ -111,6 +132,8 @@ qt_add_qml_module(libtreeland
         utils/cmdline.h
         utils/propertymonitor.cpp
         utils/propertymonitor.h
+        utils/loginddbustypes.h
+        utils/loginddbustypes.cpp
         wallpaper/wallpapercontroller.cpp
         wallpaper/wallpapercontroller.h
         wallpaper/wallpaperimage.cpp

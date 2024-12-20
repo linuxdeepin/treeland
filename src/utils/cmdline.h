@@ -22,7 +22,6 @@ class CmdLine
     friend class DSingleton<CmdLine>;
 
 public:
-    std::optional<QString> socket() const;
     std::optional<QString> run() const;
     bool useLockScreen() const;
     std::optional<QStringList> unescapeExecArgs(const QString &str) noexcept;
@@ -34,7 +33,6 @@ private:
 
 private:
     std::unique_ptr<QCommandLineParser> m_parser;
-    std::unique_ptr<QCommandLineOption> m_socket;
     std::unique_ptr<QCommandLineOption> m_run;
     std::unique_ptr<QCommandLineOption> m_lockScreen;
 };

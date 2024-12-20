@@ -1,5 +1,6 @@
 usr/bin/treeland
 usr/lib/systemd/user/*
+usr/lib/systemd/system/*
 usr/libexec/*
 usr/share/*/translations/*
 usr/share/dbus-1/system.d/*

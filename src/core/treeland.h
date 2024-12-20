@@ -35,8 +35,6 @@ public:
     explicit Treeland();
     ~Treeland();
 
-    bool testMode() const;
-
     bool debugMode() const;
 
     QmlEngine *qmlEngine() const override;
