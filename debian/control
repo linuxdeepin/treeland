@@ -28,6 +28,7 @@ Build-Depends: cmake (>= 3.4~),
                wlr-protocols,
                treeland-protocols,
                libpam0g-dev,
+               libjemalloc-dev,
 Standards-Version: 4.6.0
 Section: dde
 Homepage: https://github.com/linuxdeepin/treeland.git
