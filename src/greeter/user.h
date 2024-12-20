@@ -5,6 +5,8 @@
 #ifndef USER_H
 #define USER_H
 
+#include <wsocket.h>
+
 #include <DAccountsManager>
 #include <DAccountsTypes>
 #include <DAccountsUser>
@@ -34,6 +36,9 @@ public:
     [[nodiscard]] static QString toString(AccountTypes type) noexcept;
     void setLogined(bool newState) const noexcept;
     void updateLimitTime(const QString &time) noexcept;
+
+    void setWaylandSocket(std::shared_ptr<WAYLIB_SERVER_NAMESPACE::WSocket>);
+    std::shared_ptr<WAYLIB_SERVER_NAMESPACE::WSocket> waylandSocket() const;
 
 Q_SIGNALS:
     void userDataChanged();

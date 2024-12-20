@@ -1,0 +1,18 @@
+<!DOCTYPE node PUBLIC "-//freedesktop//DTD D-BUS Object Introspection 1.0//EN" "http://www.freedesktop.org/standards/dbus/1.0/introspect.dtd">
+<node>
+    <interface name="org.deepin.DisplayManager">
+        <method name="AuthInfo">
+            <arg type="s" name="auth socket" direction="out">
+            </arg>
+        </method>
+        <signal name="AuthInfoChanged">
+        </signal>
+        <method name="LastActivatedUser">
+            <arg type="s" name="last activated user" direction="out">
+            </arg>
+        </method>
+        <signal name="LastActivatedUserChanged">
+        </signal>
+    </interface>
+</node>
+
