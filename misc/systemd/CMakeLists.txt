@@ -1,3 +1,9 @@
+if (NOT DEFINED SYSTEMD_SYSTEM_UNIT_DIR)
+    find_package(PkgConfig REQUIRED)
+    pkg_check_modules(Systemd REQUIRED systemd)
+    pkg_get_variable(SYSTEMD_SYSTEM_UNIT_DIR systemd systemdsystemunitdir)
+endif()
+
 if (NOT DEFINED SYSTEMD_USER_UNIT_DIR)
     find_package(PkgConfig REQUIRED)
     pkg_check_modules(Systemd REQUIRED systemd)
@@ -14,8 +20,10 @@ configure_file("dde-session-pre.target.wants/treeland-sd.service.in" "dde-sessio
 configure_file("dde-session-pre.target.wants/treeland-xwayland.service.in" "dde-session-pre.target.wants/treeland-xwayland.service" IMMEDIATE @ONLY)
 configure_file("dde-session-pre.target.wants/treeland-shortcut.service.in" "dde-session-pre.target.wants/treeland-shortcut.service" IMMEDIATE @ONLY)
 configure_file("dde-session-pre.target.wants/treeland.service.in" "dde-session-pre.target.wants/treeland.service" IMMEDIATE @ONLY)
+configure_file("treeland.service.in" "treeland.service" IMMEDIATE @ONLY)
 
 install(FILES ${SERVICES} DESTINATION ${SYSTEMD_USER_UNIT_DIR})
+install(FILES ${CMAKE_CURRENT_BINARY_DIR}/treeland.service DESTINATION ${SYSTEMD_SYSTEM_UNIT_DIR})
 
 install(DIRECTORY DESTINATION ${SYSTEMD_USER_UNIT_DIR}/dde-session-pre.target.wants/)
 install(DIRECTORY DESTINATION ${SYSTEMD_USER_UNIT_DIR}/dde-session-shutdown.target.wants/)

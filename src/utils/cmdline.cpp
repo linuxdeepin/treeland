@@ -16,15 +16,12 @@ Q_LOGGING_CATEGORY(qLcCmdline, "treeland.cmdline");
 CmdLine::CmdLine()
     : QObject()
     , m_parser(std::make_unique<QCommandLineParser>())
-    , m_socket(std::make_unique<QCommandLineOption>(QStringList{ "s", "socket" },
-                                                    "set ddm socket",
-                                                    "socket"))
     , m_run(std::make_unique<QCommandLineOption>(QStringList{ "r", "run" }, "run a process", "run"))
     , m_lockScreen(std::make_unique<QCommandLineOption>("lockscreen",
                                                         "use lockscreen, need DDM auth socket"))
 {
     m_parser->addHelpOption();
-    m_parser->addOptions({ *m_socket.get(), *m_run.get(), *m_lockScreen.get() });
+    m_parser->addOptions({ *m_run.get(), *m_lockScreen.get() });
     m_parser->process(*QCoreApplication::instance());
 }
 
@@ -121,15 +118,6 @@ std::optional<QStringList> CmdLine::unescapeExecArgs(const QString &str) noexcep
     }
 
     return execList;
-}
-
-std::optional<QString> CmdLine::socket() const
-{
-    if (m_parser->isSet(*m_socket.get())) {
-        return m_parser->value(*m_socket.get());
-    }
-
-    return std::nullopt;
 }
 
 std::optional<QString> CmdLine::run() const

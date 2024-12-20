@@ -1,0 +1,16 @@
+[Unit]
+Description=Treeland global wayland compositor service, only running on DDM.
+PartOf=graphical.target
+StartLimitIntervalSec=30
+StartLimitBurst=2
+
+Requires=seatd.service
+After=seatd.service
+
+[Service]
+User=dde
+Environment=LIBSEAT_BACKEND=seatd
+Environment=DSG_APP_ID=org.deepin.dde.treeland
+ExecStart=@CMAKE_INSTALL_FULL_BINDIR@/treeland --lockscreen
+Restart=on-failure
+RestartSec=1s

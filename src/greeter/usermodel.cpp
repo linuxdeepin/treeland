@@ -315,6 +315,13 @@ void UserModel::updateUserLimits(const QString &userName, const QString &time) c
 void UserModel::setCurrentUserName(const QString &userName) noexcept
 {
     d->currentUserName = userName;
+
+    for (const auto &user : d->users) {
+        if (user->waylandSocket()) {
+            user->waylandSocket()->setEnabled(user->userName() == userName);
+        }
+    }
+
     Q_EMIT currentUserNameChanged();
 }
 
