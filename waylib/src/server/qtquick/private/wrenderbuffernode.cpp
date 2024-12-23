@@ -637,7 +637,8 @@ public:
         if (renderData) {
             if (!renderData->rt || sgTexture()->rhiTexture() != texture->data) {
                 QRhiTextureRenderTargetDescription rtDesc(texture->data);
-                const auto flags = QRhiTextureRenderTarget::PreserveColorContents;
+                const auto flags = QRhiTextureRenderTarget::PreserveColorContents
+                    | QRhiTextureRenderTarget::PreserveDepthStencilContents;
                 auto newRT = rhi->rhi()->newTextureRenderTarget(rtDesc, flags);
                 newRT->setRenderPassDescriptor(newRT->newCompatibleRenderPassDescriptor());
                 if (!newRT->create()) {
@@ -706,7 +707,8 @@ public:
             Q_ASSERT(renderTarget()->resourceType() == QRhiResource::TextureRenderTarget);
             auto textureRT = static_cast<QRhiTextureRenderTarget*>(renderTarget());
             auto saveFlags = textureRT->flags();
-            textureRT->setFlags(QRhiTextureRenderTarget::PreserveColorContents);
+            textureRT->setFlags(QRhiTextureRenderTarget::PreserveColorContents
+                                | QRhiTextureRenderTarget::PreserveDepthStencilContents);
             auto currentRenderer = maybeBufferRenderer();
 
             if (clipList() || inheritedOpacity() < 1.0) {
