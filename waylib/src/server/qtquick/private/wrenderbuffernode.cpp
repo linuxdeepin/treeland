@@ -11,6 +11,7 @@
 #include "wrenderbuffernode_p.h"
 #include "wbufferrenderer_p.h"
 #include "wqmlhelper_p.h"
+#include "platformplugin/types.h"
 
 #include <QQuickItem>
 #include <QRunnable>
@@ -389,7 +390,10 @@ private:
     RhiManager(QQuickWindow *owner)
         : DataManager<RhiManager, void>(owner) {
         Q_ASSERT(owner->findChildren<RhiManager*>(Qt::FindDirectChildrenOnly).size() == 1);
-        auto rhi = QSGRhiSupport::instance()->createRhi(owner, owner);
+        std::unique_ptr<QOffscreenSurface> fallbackSurface(new QW::OffscreenSurface(nullptr));
+        fallbackSurface->create();
+
+        auto rhi = QSGRhiSupport::instance()->createRhi(owner, fallbackSurface.get());
         if (!rhi.rhi)
             return;
         Q_ASSERT(rhi.rhi->backend() == owner->rhi()->backend());
@@ -397,6 +401,7 @@ private:
         m_rhi->rhi = rhi.rhi;
         m_rhi->own = rhi.own;
         m_rhi->gc = owner->graphicsConfiguration();
+        m_rhi->offscreenSurface = fallbackSurface.release();
 
         context = QQuickWindowPrivate::get(owner)->context;
         renderer = context->createRenderer(QSGRendererInterface::RenderMode2DNoDepthBuffer);
@@ -422,18 +427,21 @@ private:
 
     struct Rhi {
         QRhi *rhi;
+        QOffscreenSurface *offscreenSurface;
         bool own;
         QQuickGraphicsConfiguration gc;
 
-        static inline void cleanup(Rhi *pointer) {
-            if (!pointer || !pointer->own)
+        ~Rhi() {
+            if (!own)
                 return;
 
             auto rhiSupport = QSGRhiSupport::instance();
             if (rhiSupport)
-                rhiSupport->destroyRhi(pointer->rhi, pointer->gc);
+                rhiSupport->destroyRhi(rhi, gc);
             else
-                delete pointer->rhi;
+                delete rhi;
+
+            delete offscreenSurface;
         }
     };
 
