@@ -652,7 +652,6 @@ void SurfaceWrapper::setNoDecoration(bool newNoDecoration)
     } else {
         Q_ASSERT(!m_decoration);
         m_decoration = m_engine->createDecoration(this, this);
-        m_decorationShadowOpacity = m_decoration->property("shadowOpacity").toReal();
         m_decoration->stackBefore(m_surfaceItem);
         connect(m_decoration, &QQuickItem::xChanged, this, &SurfaceWrapper::updateBoundingRect);
         connect(m_decoration, &QQuickItem::yChanged, this, &SurfaceWrapper::updateBoundingRect);
@@ -819,7 +818,6 @@ void SurfaceWrapper::createNewOrClose(uint direction)
                          SLOT(onHideAnimationFinished()));
         }
         Q_ASSERT(ok);
-        setDecorationShadowOpacity(0);
         ok = QMetaObject::invokeMethod(m_windowAnimation, "start");
         Q_ASSERT(ok);
 
@@ -941,8 +939,6 @@ void SurfaceWrapper::onWindowAnimationFinished()
 
     Q_EMIT windowAnimationRunningChanged();
 
-    setDecorationShadowOpacity(m_decorationShadowOpacity);
-
     if (m_wrapperAbortToRemove) {
         deleteLater();
     }
@@ -1002,8 +998,6 @@ void SurfaceWrapper::onMinimizeAnimationFinished()
 {
     Q_ASSERT(m_minimizeAnimation);
     m_minimizeAnimation->deleteLater();
-
-    setDecorationShadowOpacity(0);
 }
 
 void SurfaceWrapper::startMinimizeAnimation(const QRectF &iconGeometry, uint direction)
@@ -1017,7 +1011,6 @@ void SurfaceWrapper::startMinimizeAnimation(const QRectF &iconGeometry, uint dir
     bool ok =
         connect(m_minimizeAnimation, SIGNAL(finished()), this, SLOT(onMinimizeAnimationFinished()));
     Q_ASSERT(ok);
-    setDecorationShadowOpacity(0);
     ok = QMetaObject::invokeMethod(m_minimizeAnimation, "start");
     Q_ASSERT(ok);
 }
@@ -1580,12 +1573,6 @@ void SurfaceWrapper::updateHasActiveCapability(ActiveControlState state, bool va
         else
             Q_EMIT requestInactive();
     }
-}
-
-void SurfaceWrapper::setDecorationShadowOpacity(qreal opacity)
-{
-    if (m_decoration)
-        m_decoration->setProperty("shadowOpacity", opacity);
 }
 
 bool SurfaceWrapper::hasActiveCapability() const
