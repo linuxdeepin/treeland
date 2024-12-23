@@ -34,8 +34,7 @@ private:
 
     QWindow *m_window = nullptr;
     std::optional<QPoint> m_position;
-    QtWayland::treeland_dde_shell_surface_v1::role m_role =
-        QtWayland::treeland_dde_shell_surface_v1::role_overlay;
+    std::optional<QtWayland::treeland_dde_shell_surface_v1::role> m_role;
     std::optional<int32_t> m_yOffset;
     std::optional<bool> m_skipSwitcher;
     std::optional<bool> m_skipDockPreview;
