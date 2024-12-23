@@ -334,7 +334,6 @@ private:
     void startShowDesktopAnimation(bool show);
     Q_SLOT void onShowDesktopAnimationFinished();
     void updateHasActiveCapability(ActiveControlState state, bool value);
-    void setDecorationShadowOpacity(qreal opacity);
 
     // wayland set by treeland-dde-shell, x11 set by bypassManager/windowTypes
     void setSkipDockPreView(bool skip);
@@ -410,8 +409,6 @@ private:
     SurfaceRole m_surfaceRole = SurfaceRole::Normal;
     quint32 m_autoPlaceYOffset = 0;
     QPoint m_clientRequstPos;
-
-    qreal m_decorationShadowOpacity;
 
     bool m_socketEnabled{ false };
     bool m_windowAnimationEnabled{ true };

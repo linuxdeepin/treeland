@@ -16,9 +16,7 @@ Item {
 
     signal finished
 
-    clip: true
-
-    required property var target
+    required property SurfaceWrapper target
     required property var direction
     property int duration: 400 * Helper.animationSpeed
     property var enableBlur: false
@@ -50,16 +48,22 @@ Item {
         anchors.fill: parent
         sourceComponent: Blur {
             anchors.fill: parent
-            radius: surface.radius
+            radius: root.target.radius
         }
     }
 
     ShaderEffectSource {
         id: effect
-        anchors.fill: parent
+        // 50 > shadow width
+        x: -50
+        y: -50
+        width: root.target.width + 100
+        height: root.target.height + 100
+        anchors.centerIn: parent
         live: direction === NewAnimation.Direction.Show
         hideSource: true
         sourceItem: root.target
+        sourceRect: Qt.rect(effect.x, effect.y, effect.width, effect.height)
     }
 
     ParallelAnimation {
