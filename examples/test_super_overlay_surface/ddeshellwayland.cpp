@@ -211,7 +211,9 @@ void DDEShellWayland::surfaceCreated()
     m_shellSurface = std::make_unique<DDEShellSurface>(
         s_waylandIntegration->shellManager->get_shell_surface(surface));
     if (m_shellSurface) {
-        m_shellSurface->set_role(m_role);
+        if (m_role) {
+            m_shellSurface->set_role(m_role.value());
+        }
 
         if (m_position) {
             m_shellSurface->set_surface_position(m_position->x(), m_position->y());
