@@ -84,6 +84,7 @@ public:
     bool canSuspend{ false };
     bool canHibernate{ false };
     bool canHybridSleep{ false };
+    bool isLocked{ false };
 };
 
 GreeterProxy::GreeterProxy(QObject *parent)
@@ -146,6 +147,11 @@ void GreeterProxy::setUserModel(UserModel *model)
 {
     d->userModel = model;
     Q_EMIT userModelChanged(model);
+}
+
+bool GreeterProxy::isLocked() const
+{
+    return d->isLocked;
 }
 
 bool GreeterProxy::canPowerOff() const
@@ -358,6 +364,7 @@ void GreeterProxy::onSessionAdded(const QDBusObjectPath &session)
     DisplaySession s(d->displayManager->service(), session.path(), QDBusConnection::systemBus());
 
     userModel()->updateUserLoginState(s.userName(), true);
+    updateLocketState();   
 }
 
 void GreeterProxy::onSessionRemoved(const QDBusObjectPath &session)
@@ -502,4 +509,19 @@ void GreeterProxy::updateAuthSocket()
     }
 
     d->socket->connectToServer(socket);
+}
+
+void GreeterProxy::updateLocketState()
+{
+    if (!d->userModel)
+        return;
+    bool locked = false;
+    if (auto user = d->userModel->currentUser()) {
+        locked = user->logined();
+    }
+
+    if (d->isLocked != locked) {
+        d->isLocked = locked;
+        Q_EMIT isLockedChanged();
+    }
 }

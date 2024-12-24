@@ -18,105 +18,104 @@ RowLayout {
     signal lock()
     function showUserList()
     {
-        usersBtn.expand = true
+        userItem.expand = true
         userList.open()
     }
 
-    Item {
-        implicitWidth: bottomGroup.buttonSize + 6
-        implicitHeight: bottomGroup.buttonSize + 6
+    ControlActionItem {
+        id: userItem
         Layout.alignment: Qt.AlignHCenter
         visible: userList.count > 1
+        iconName: "login_user"
 
-        D.RoundButton {
-            id: usersBtn
+        UserList {
+            id: userList
+            x: (userItem.width - userList.width) / 2 - 10
+            y: -userList.height - 10
+            onClosed: userItem.expand = false
+        }
 
-            property bool expand: false
-            icon.name: "login_user"
-            icon.width: 16
-            icon.height: 16
-            width: expand ? bottomGroup.buttonSize + 6 : bottomGroup.buttonSize
-            height: expand ? bottomGroup.buttonSize + 6 : bottomGroup.buttonSize
-            anchors.centerIn: parent
-            hoverEnabled: parent.visible
-
-            D.ToolTip {
-                enabled: false
-                visible: hovered
-                text: qsTr("Other Users")
-            }
-
-            UserList {
-                id: userList
-                x: (usersBtn.width - userList.width) / 2 - 10
-                y: -userList.height - 10
-                onClosed: usersBtn.expand = false
-            }
-
-            onClicked: {
-                showUserList()
-            }
-
-            background: RoundBlur {
-                radius: usersBtn.width / 2
-            }
+        onClicked: {
+            showUserList()
         }
     }
 
-    Item {
-        implicitWidth: bottomGroup.buttonSize + 6
-        implicitHeight: bottomGroup.buttonSize + 6
+    ControlActionItem {
+        id: powerItem
         Layout.alignment: Qt.AlignHCenter
-        D.RoundButton {
-            id: powerBtn
+        iconName: "login_power"
 
-            property bool expand: false
-            function closePopup() {
-                powerBtn.expand = false
-                powerList.close()
-            }
-            icon.name: "login_power"
-            icon.width: 16
-            icon.height: 16
-            width: expand ? bottomGroup.buttonSize + 6 : bottomGroup.buttonSize
-            height: expand ? bottomGroup.buttonSize + 6 : bottomGroup.buttonSize
-            anchors.centerIn: parent
+        function closePopup() {
+            powerList.close()
+        }
 
-            D.ToolTip {
-                enabled: true
-                visible: powerBtn.hovered
-                text: qsTr("Power")
-            }
+        D.ToolTip {
+            enabled: true
+            visible: powerItem.hovered
+            text: qsTr("Power")
+        }
 
-            Popup {
-                id: powerList
-                width: rootItem.width
-                height: 140
-                parent: rootItem
-                x: 0
-                y: rootItem.height / 5 * 2
-                contentItem: PowerList {
-                    leftModelChildren: ShutdownButton {
-                        text: qsTr("lock")
-                        icon.name: "login_lock"
-                        onClicked: {
-                            bottomGroup.lock()
-                            powerBtn.closePopup()
-                        }
+        Popup {
+            id: powerList
+            width: rootItem.width
+            height: 140
+            parent: rootItem
+            x: 0
+            y: rootItem.height / 5 * 2
+            modal: true
+            contentItem: PowerList {
+                leftModelChildren: ShutdownButton {
+                    text: qsTr("lock")
+                    icon.name: "login_lock"
+                    onClicked: {
+                        powerItem.closePopup()
                     }
                 }
-                background: MouseArea {
-                    onClicked: powerBtn.closePopup()
-                }
             }
-            onClicked: {
-                powerBtn.expand = true
-                powerList.open()
+            background: MouseArea {
+                onClicked: powerItem.closePopup()
+            }
+            onClosed: powerItem.expand = false
+        }
+        onClicked: {
+            powerItem.expand = true
+            powerList.open()
+        }
+    }
+
+    component ControlActionItem: Item {
+        id: actionItem
+        property bool expand: false
+        property string iconName
+        signal clicked()
+        implicitWidth: bottomGroup.buttonSize + 6
+        implicitHeight: bottomGroup.buttonSize + 6
+        D.RoundButton {
+            icon {
+                width: 16
+                height: 16
+                name: actionItem.iconName
             }
 
-            background: RoundBlur {
-                radius: powerBtn.width / 2
+            Behavior on width {
+                NumberAnimation {
+                    duration: 150
+                }
             }
+            Behavior on height {
+                NumberAnimation {
+                    duration: 150
+                }
+            }
+            width: actionItem.expand ? bottomGroup.buttonSize + 6 : bottomGroup.buttonSize
+            height: actionItem.expand ? bottomGroup.buttonSize + 6 : bottomGroup.buttonSize
+            anchors.centerIn: parent
+
+            background: RoundBlur {
+                radius: parent.width / 2
+                color: Qt.rgba(1.0, 1.0, 1.0, 0.3)
+            }
+            onClicked: actionItem.clicked()
         }
     }
 }

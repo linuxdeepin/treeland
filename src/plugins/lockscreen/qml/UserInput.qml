@@ -50,6 +50,7 @@ Item {
     Item {
         width: 32
         height: 32
+        visible: GreeterModel.proxy.isLocked
         anchors {
             horizontalCenter: parent.horizontalCenter
             bottom: parent.top
@@ -114,15 +115,23 @@ Item {
             text: "User"
             id: username
             font.bold: true
-            font.pointSize: 15
+            font.pixelSize: D.DTK.fontManager.t2.pixelSize
+            font.family: D.DTK.fontManager.t2.family
             color: "white"
             anchors.horizontalCenter: parent.horizontalCenter
         }
 
         TextField {
             id: passwordField
+            palette.windowText: Qt.rgba(1.0, 1.0, 1.0, 1.0)
 
             property bool capsIndicatorVisible: false
+
+            cursorDelegate: Rectangle {
+                width: 1
+                height: 18
+                color: palette.windowText
+            }
 
             width: loginGroup.width
             height: 30
@@ -131,8 +140,9 @@ Item {
             rightPadding: 24
             maximumLength: 510
             placeholderText: qsTr("Please enter password")
-            placeholderTextColor: "gray"
-
+            placeholderTextColor: Qt.rgba(1.0, 1.0, 1.0, 0.6)
+            color: palette.windowText
+            font: D.DTK.fontManager.t8
             Keys.onPressed: function (event) {
                 if (event.key === Qt.Key_CapsLock) {
                     capsIndicatorVisible = !capsIndicatorVisible
@@ -168,7 +178,7 @@ Item {
                     palette.windowText: undefined
                     property bool hiddenPWD: true
                     icon {
-                        name: hiddenPWD ? "login_hidden_password" : "login_display_password"
+                        name: hiddenPWD ? "login_display_password" : "login_hidden_password"
                         height: 10
                         width: 10
                     }
@@ -181,19 +191,17 @@ Item {
                         anchors.fill: parent
                         radius: 4
                         color: showPasswordBtn.hovered ? Qt.rgba(
-                                                             0, 0, 0,
-                                                             0.1) : "transparent"
+                                                            0, 0, 0,
+                                                            0.1) : "transparent"
                     }
 
                     onClicked: hiddenPWD = !hiddenPWD
                 }
             }
 
-            background: Rectangle {
-                implicitWidth: parent.width
-                implicitHeight: parent.height
-                color: Qt.rgba(1, 1, 1, 0.6)
-                radius: 30
+            background: RoundBlur {
+                color: Qt.rgba(1, 1, 1, 0.4)
+                radius: 6
             }
         }
     }
@@ -213,7 +221,8 @@ Item {
             leftMargin: 20
         }
         enabled: passwordField.length != 0
-        background: Rectangle {
+        font: D.DTK.fontManager.t8
+        background: RoundBlur {
             anchors.fill: parent
             color: Qt.rgba(255, 255, 255, 0.4)
             radius: parent.height / 2
@@ -253,17 +262,18 @@ Item {
             id: hintBtn
             icon {
                 name: "login_hint"
-                width: 16
-                height: 16
+                width: 10
+                height: 10
             }
             visible: hintLabel.hintText.length != 0
-            Layout.fillHeight: true
-            Layout.preferredWidth: passwordField.height
+            Layout.preferredWidth: 16
+            Layout.preferredHeight: 16
             background: Rectangle {
                 id: hintBtnBackground
+                visible: hovered
                 anchors.fill: parent
-                color: Qt.rgba(255, 255, 255, 0.4)
-                radius: parent.height / 2
+                color: Qt.rgba(255, 255, 255, 0.1)
+                radius: 4
             }
 
             HintLabel {
@@ -282,8 +292,8 @@ Item {
 
     Text {
         id: hintText
-        font.pointSize: 10
-        color: "gray"
+        font: D.DTK.fontManager.t8
+        color: Qt.rgba(1.0, 1.0, 1.0, 0.7)
         anchors {
             horizontalCenter: parent.horizontalCenter
             top: userCol.bottom
