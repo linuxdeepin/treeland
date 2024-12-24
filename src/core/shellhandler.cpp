@@ -108,14 +108,14 @@ WXWayland *ShellHandler::createXWayland(WServer *server,
         // TODO: set other xsettings and sync
         setResourceManagerAtom(
             xwayland,
-            QString("Xft.dpi: %1")
+            QString("Xft.dpi:\t%1")
                 .arg(96 * m_rootSurfaceContainer->window()->effectiveDevicePixelRatio())
                 .toUtf8());
         connect(Helper::instance()->window(),
                 &WOutputRenderWindow::effectiveDevicePixelRatioChanged,
                 xwayland,
                 [xwayland, this](qreal dpr) {
-                    setResourceManagerAtom(xwayland, QString("Xft.dpi: %1").arg(96 * dpr).toUtf8());
+                    setResourceManagerAtom(xwayland, QString("Xft.dpi:\t%1").arg(96 * dpr).toUtf8());
                 });
     });
     return xwayland;
