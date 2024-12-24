@@ -524,13 +524,10 @@ public:
     }
 
     RenderingFlags flags() const override {
-        // FIXME: shoule we support DepthAwareRendering?
-        // When enable DepthAwareRendering, render buffer node may have a wrong order.
-        // Disable DepthAwareRendering here.
         if (Q_UNLIKELY(!contentNode))
-            return BoundedRectRendering;
+            return BoundedRectRendering | DepthAwareRendering;
 
-        return {};
+        return DepthAwareRendering;
     }
 
     void releaseResources() override {
