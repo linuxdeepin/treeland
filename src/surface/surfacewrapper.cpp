@@ -533,8 +533,12 @@ void SurfaceWrapper::setSurfaceState(State newSurfaceState)
     QRectF targetGeometry;
 
     if (newSurfaceState == State::Maximized) {
+        if (!shellSurface()->maxSize().isEmpty())
+            return;
         targetGeometry = m_maximizedGeometry;
     } else if (newSurfaceState == State::Fullscreen) {
+        if (!shellSurface()->maxSize().isEmpty())
+            return;
         targetGeometry = m_fullscreenGeometry;
     } else if (newSurfaceState == State::Normal) {
         targetGeometry = m_normalGeometry;
