@@ -121,6 +121,12 @@ private:
                                  const QRectF &validGeo);
     qreal preferredScaleFactor() const;
 
+    QPointF calculateBasePosition(SurfaceWrapper *surface, const QPointF &dPos) const;
+    void adjustToOutputBounds(QPointF &pos, const QRectF &normalGeo, const QRectF &outputRect) const;
+    void handleLayerShellPopup(SurfaceWrapper *surface, const QRectF &normalGeo);
+    void handleRegularPopup(SurfaceWrapper *surface, const QRectF &normalGeo);
+    void clearPopupCache(SurfaceWrapper *surface);
+
     Type m_type;
     WOutputItem *m_item;
     Output *m_proxy = nullptr;
@@ -140,6 +146,8 @@ private:
     QSizeF m_lastSizeOnLayoutNonLayerSurfaces;
     QList<WOutputLayer *> m_hardwareLayersOfPrimaryOutput;
     PlaceDirection m_nextPlaceDirection = PlaceDirection::BottomRight;
+
+    QMap<SurfaceWrapper*, QPair<QPointF, QRectF>> m_positionCache;
 };
 
 Q_DECLARE_OPAQUE_POINTER(WAYLIB_SERVER_NAMESPACE::WOutputItem *)
