@@ -19,6 +19,9 @@ Q_MOC_INCLUDE(<private/qsgplaintexture_p.h>)
 QT_BEGIN_NAMESPACE
 class QSGPlainTexture;
 class QSGRenderContext;
+namespace QSGBatchRenderer {
+class Renderer;
+}
 QT_END_NAMESPACE
 
 QW_BEGIN_NAMESPACE
@@ -68,6 +71,7 @@ public:
     void setClearColor(const QColor &clearColor);
 
     QSGRenderer *currentRenderer() const;
+    QSGBatchRenderer::Renderer *currentBatchRenderer() const;
     qreal currentDevicePixelRatio() const;
     const QMatrix4x4 &currentWorldTransform() const;
     QW_NAMESPACE::qw_buffer *currentBuffer() const;
@@ -133,6 +137,7 @@ private:
         RenderFlags flags;
         QSGRenderContext *context;
         QSGRenderer *renderer;
+        QSGBatchRenderer::Renderer *batchRenderer;
         QMatrix4x4 worldTransform;
         QSize pixelSize;
         qreal devicePixelRatio;
