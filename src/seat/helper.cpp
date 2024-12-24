@@ -1861,3 +1861,16 @@ void Helper::restoreFromShowDesktop(SurfaceWrapper *activeSurface)
         }
     }
 }
+
+Output *Helper::getOutputAtCursor() const
+{
+    QPoint cursorPos = QCursor::pos();
+    for (auto output : m_outputList) {
+        QRectF outputGeometry(output->outputItem()->position(), output->outputItem()->size());
+        if (outputGeometry.contains(cursorPos)) {
+            return output;
+        }
+    }
+
+    return m_rootSurfaceContainer->primaryOutput();
+}
