@@ -19,6 +19,7 @@ pkg_search_module(WAYLAND REQUIRED IMPORTED_TARGET wayland-server)
 pkg_search_module(LIBINPUT REQUIRED IMPORTED_TARGET libinput)
 pkg_search_module(XCB REQUIRED IMPORTED_TARGET xcb)
 pkg_check_modules(PAM REQUIRED IMPORTED_TARGET pam)
+pkg_check_modules(JEMALLOC REQUIRED IMPORTED_TARGET jemalloc)
 # qt_finalize_target will collect all executable's private dependencies that are CMake targets
 
 qt_add_dbus_adaptor(DBUS_ADAPTOR "${CMAKE_SOURCE_DIR}/misc/dbus/org.deepin.compositor1.xml" "core/treeland.h" Treeland::Treeland)
@@ -295,6 +296,7 @@ target_link_libraries(libtreeland
         PkgConfig::PIXMAN
         PkgConfig::WAYLAND
         PkgConfig::LIBINPUT
+        PkgConfig::JEMALLOC
         $<$<NOT:$<BOOL:${DISABLE_DDM}>>:DDM::Auth>
         $<$<NOT:$<BOOL:${DISABLE_DDM}>>:DDM::Common>
         $<$<NOT:$<BOOL:${DISABLE_DDM}>>:PkgConfig::PAM>
