@@ -189,6 +189,7 @@ public:
 
     void showLockScreen();
 
+    Output* getOutputAtCursor() const;
 public Q_SLOTS:
     void activateSurface(SurfaceWrapper *wrapper, Qt::FocusReason reason = Qt::OtherFocusReason);
     void forceActivateSurface(SurfaceWrapper *wrapper,
