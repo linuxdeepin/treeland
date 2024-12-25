@@ -412,8 +412,8 @@ Item {
                 Behavior on opacity {
                     enabled: state !== "partial"
                     OpacityAnimator {
-                        duration: 300
-                        easing.type: Easing.OutQuad
+                        duration: TreelandConfig.multitaskviewAnimationDuration
+                        easing.type: TreelandConfig.multitaskviewEasingCurveType
                     }
                 }
                 state: multitaskview.state

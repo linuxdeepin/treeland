@@ -79,7 +79,7 @@ CaptureSourceSelector {
             from: 0.0
             to: 1.0
             duration: 300
-            easing.type: Easing.OutQuad
+            easing.type: Easing.OutExpo
         }
         contentItem: Row {
             Repeater {
