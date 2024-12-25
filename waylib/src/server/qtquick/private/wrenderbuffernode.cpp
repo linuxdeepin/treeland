@@ -756,7 +756,7 @@ public:
             auto currentRenderer = maybeBufferRenderer();
             // If the source renderer enable depth test, we should enable depth test also,
             // to ensure the contentNode's z order on RenderMode2DNoDepthBuffer render mode.
-            const bool forceDepthTest = currentRenderer->currentBatchRenderer()
+            const bool forceDepthTest = currentRenderer && currentRenderer->currentBatchRenderer()
                                    && currentRenderer->currentBatchRenderer()->useDepthBuffer();
 
             if (clipList() || inheritedOpacity() < 1.0) {
