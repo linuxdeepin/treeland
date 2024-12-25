@@ -1,0 +1,5 @@
+polkit.addRule(function(action, subject) {
+    if (action.id == "org.freedesktop.login1.manage" && subject.user == "dde") {
+        return polkit.Result.YES;
+    }
+});
