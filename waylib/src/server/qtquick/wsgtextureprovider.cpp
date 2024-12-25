@@ -109,12 +109,21 @@ void WSGTextureProvider::setBuffer(qw_buffer *buffer)
 
     W_D(WSGTextureProvider);
     d->cleanTexture();
-    d->ownsTexture = true;
     d->buffer = buffer;
 
     if (buffer) {
         Q_ASSERT(d->window);
-        d->texture = qw_texture::from_buffer(*d->window->renderer(), *buffer);
+        if (auto clientBuffer = qw_client_buffer::get(*buffer)) {
+            // Acquire texture from client buffer. wlroots already generate texture for us if this is a client buffer.
+            // By the way, there is something wrong with getting texture from a client buffer using wlr_texture_from_buffer,
+            // See: https://gitlab.freedesktop.org/wlroots/wlroots/-/issues/3897
+            // Possible patch:  https://gitlab.freedesktop.org/wlroots/wlroots/-/merge_requests/4889
+            d->texture = qw_texture::from(clientBuffer->handle()->texture);
+            d->ownsTexture = false;
+        } else {
+            d->texture = qw_texture::from_buffer(*d->window->renderer(), *buffer);
+            d->ownsTexture = true;
+        }
         if (Q_UNLIKELY(!d->texture)) {
             qCWarning(lcQtQuickTexture) << "Failed to update texture from buffer:" << buffer
                                         << ", width height:" << buffer->handle()->width
