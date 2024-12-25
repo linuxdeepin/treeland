@@ -21,6 +21,7 @@ class WorkspaceModel : public SurfaceListModel
     Q_PROPERTY(bool opaque READ opaque WRITE setOpaque NOTIFY opaqueChanged FINAL)
 
     QML_ELEMENT
+    QML_UNCREATABLE("Created only in C++")
 
 public:
     explicit WorkspaceModel(QObject *parent,
