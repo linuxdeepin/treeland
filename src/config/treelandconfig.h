@@ -219,7 +219,7 @@ private:
     qreal m_multitaskviewPaddingOpacity = 0.1;
     uint m_multitaskviewAnimationDuration = 300;
     QEasingCurve::Type m_multitaskviewEasingCurveType =
-        QEasingCurve::OutQuad; // TODO: move to dconfig
+        QEasingCurve::OutExpo; // TODO: move to dconfig
     bool m_blockActivateSurface{ false };
     uint m_multitaskviewTopContentMargin = 40;
     uint m_multitaskviewBottomContentMargin = 60;
