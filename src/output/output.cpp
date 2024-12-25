@@ -717,22 +717,13 @@ void Output::handleLayerShellPopup(SurfaceWrapper *surface, const QRectF &normal
     surface->moveNormalGeometryInOutput(pos);
 }
 
-void Output::handleRegularPopup(SurfaceWrapper *surface, const QRectF &normalGeo)
+void Output::handleRegularPopup(SurfaceWrapper *surface, const QRectF &normalGeo, bool isSubMenu, WOutputItem *targetOutput)
 {
     if (normalGeo.isEmpty()) {
         return;
     }
 
-    if (m_positionCache.contains(surface)) {
-        const auto &cached = m_positionCache[surface];
-        if (cached.second == normalGeo) {
-            return;
-        }
-    }
-
-    auto parentOutput = surface->parentSurface()->ownsOutput()->outputItem();
-    auto mouseOutput = Helper::instance()->getOutputAtCursor();
-    auto targetOutput = mouseOutput ? mouseOutput->outputItem() : parentOutput;
+    auto parentSurfaceWrapper = surface->parentSurface();
 
     auto xdgPopupSurfaceItem = qobject_cast<WXdgPopupSurfaceItem *>(surface->surfaceItem());
     auto inputPopupSurface = qobject_cast<WInputPopupSurface *>(surface->shellSurface());
@@ -745,25 +736,27 @@ void Output::handleRegularPopup(SurfaceWrapper *surface, const QRectF &normalGeo
     QPointF dPos = xdgPopupSurfaceItem ? xdgPopupSurfaceItem->implicitPosition()
                                        : inputPopupSurface->cursorRect().bottomLeft();
 
-    QPointF pos;
-    if (xdgPopupSurfaceItem) {
-        QPoint cursorPos = QCursor::pos();
-        pos = cursorPos - targetOutput->position() + targetOutput->position();
-    } else {
-        QPointF basePos = calculateBasePosition(surface, dPos);
-        if (basePos.isNull()) {
-            return;
-        }
-
-        if (parentOutput != targetOutput) {
-            QPointF relativePos = basePos - parentOutput->position();
-            pos = targetOutput->position() + relativePos;
-        } else {
-            pos = basePos;
-        }
+    QPointF pos = calculateBasePosition(surface, dPos);
+    if (pos.isNull()) {
+        return;
     }
 
     QRectF outputRect(targetOutput->position(), targetOutput->size());
+
+    if (isSubMenu) {
+        pos.setX(parentSurfaceWrapper->x() + parentSurfaceWrapper->width());
+        if (pos.x() + normalGeo.width() > outputRect.right()) {
+            pos.setX(parentSurfaceWrapper->x() - normalGeo.width());
+        }
+    } else {
+        if (pos.x() < outputRect.left()) {
+            pos.setX(outputRect.left());
+        }
+        if (pos.x() + normalGeo.width() > outputRect.right()) {
+            pos.setX(outputRect.right() - normalGeo.width());
+        }
+    }
+
     adjustToOutputBounds(pos, normalGeo, outputRect);
 
     QRectF newGeo = normalGeo;
@@ -794,10 +787,13 @@ void Output::arrangePopupSurface(SurfaceWrapper *surface)
         return;
     }
 
+    WOutputItem* targetOutput = Helper::instance()->getOutputAtCursor()->outputItem();
+    bool isSubMenu = (parentSurfaceWrapper->type() == SurfaceWrapper::Type::XdgPopup);
+
     if (parentSurfaceWrapper->type() == SurfaceWrapper::Type::Layer) {
         handleLayerShellPopup(surface, normalGeo);
     } else {
-        handleRegularPopup(surface, normalGeo);
+        handleRegularPopup(surface, normalGeo, isSubMenu, targetOutput);
     }
 }
 
