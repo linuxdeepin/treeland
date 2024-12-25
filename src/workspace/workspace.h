@@ -37,6 +37,7 @@ class Workspace : public SurfaceContainer
     Q_PROPERTY(WorkspaceAnimationController *animationController READ animationController CONSTANT FINAL)
     Q_PROPERTY(int count READ count NOTIFY countChanged FINAL)
     QML_ELEMENT
+    QML_UNCREATABLE("Created only in C++")
 
 public:
     explicit Workspace(SurfaceContainer *parent);
