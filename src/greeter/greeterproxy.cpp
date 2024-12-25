@@ -308,13 +308,14 @@ QString GreeterProxy::currentSessionPath() const
         qCWarning(greeter) << "Failed to logout, error:" << sessionsRelpy.error().message();
         return {};
     }
-    const QString seat(qEnvironmentVariable("XDG_SEAT"));
+
     QStringList userSessions;
     const auto sessions = sessionsRelpy.value();
     for (auto item : sessions) {
         if (item.uid != userInfo->UID())
             continue;
-        if (item.seat != seat)
+        // TODO multiple seats.
+        if (item.seat.isEmpty())
             continue;
         userSessions << item.path.path();
     }
@@ -371,6 +372,7 @@ void GreeterProxy::onSessionRemoved(const QDBusObjectPath &session)
 {
     // FIXME: Reset all user state, because we can't know which user was logout.
     userModel()->clearUserLoginState();
+    updateLocketState();
 
     auto sessions = d->displayManager->sessions();
     for (auto session : sessions) {
@@ -515,6 +517,7 @@ void GreeterProxy::updateLocketState()
 {
     if (!d->userModel)
         return;
+    qCInfo(greeter) << "Update lock state";
     bool locked = false;
     if (auto user = d->userModel->currentUser()) {
         locked = user->logined();
