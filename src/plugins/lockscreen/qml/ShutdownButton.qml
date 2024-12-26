@@ -18,8 +18,8 @@ D.Button {
     }
     textColor: D.Palette {
         normal: Qt.rgba(1.0, 1.0, 1.0, 1.0)
-        hovered: Qt.rgba(0.0, 0.0, 0.0, 1.0)
-        pressed: Qt.rgba(1.0, 1.0, 1.0, 1.0)
+        hovered: Qt.rgba(0.0, 0.0, 0.0, 0.7)
+        pressed: Qt.rgba(0.0, 0.0, 0.0, 0.7)
     }
 
     icon {

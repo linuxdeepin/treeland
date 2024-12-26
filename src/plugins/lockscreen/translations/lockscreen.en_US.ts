@@ -31,19 +31,13 @@
 <context>
     <name>ControlAction</name>
     <message>
-        <location filename="../qml/ControlAction.qml" line="44"/>
         <source>Other Users</source>
-        <translation type="unfinished">Other Users</translation>
+        <translation type="obsolete">Other Users</translation>
     </message>
     <message>
-        <location filename="../qml/ControlAction.qml" line="82"/>
+        <location filename="../qml/ControlAction.qml" line="55"/>
         <source>Power</source>
         <translation type="unfinished">Power</translation>
-    </message>
-    <message>
-        <location filename="../qml/ControlAction.qml" line="92"/>
-        <source>lock</source>
-        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
@@ -72,27 +66,22 @@
 <context>
     <name>PowerList</name>
     <message>
-        <location filename="../qml/PowerList.qml" line="35"/>
+        <location filename="../qml/PowerList.qml" line="60"/>
         <source>Hibernate</source>
         <translation>Hibernate</translation>
     </message>
     <message>
-        <location filename="../qml/PowerList.qml" line="45"/>
+        <location filename="../qml/PowerList.qml" line="50"/>
         <source>Suspend</source>
         <translation>Suspend</translation>
     </message>
     <message>
-        <location filename="../qml/PowerList.qml" line="54"/>
-        <source>Logout</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../qml/PowerList.qml" line="64"/>
+        <location filename="../qml/PowerList.qml" line="43"/>
         <source>Reboot</source>
         <translation>Reboot</translation>
     </message>
     <message>
-        <location filename="../qml/PowerList.qml" line="72"/>
+        <location filename="../qml/PowerList.qml" line="36"/>
         <source>Shut Down</source>
         <translation>Shut Down</translation>
     </message>
@@ -107,13 +96,18 @@
 <context>
     <name>ShutdownView</name>
     <message>
-        <location filename="../qml/ShutdownView.qml" line="31"/>
+        <location filename="../qml/ShutdownView.qml" line="32"/>
         <source>lock</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
         <location filename="../qml/ShutdownView.qml" line="37"/>
         <source>switch user</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../qml/ShutdownView.qml" line="43"/>
+        <source>Logout</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
@@ -132,9 +126,13 @@
     <name>UserInput</name>
     <message>
         <location filename="../qml/UserInput.qml" line="15"/>
-        <location filename="../qml/UserInput.qml" line="134"/>
         <source>Please enter password</source>
         <translation>Please enter password</translation>
+    </message>
+    <message>
+        <location filename="../qml/UserInput.qml" line="141"/>
+        <source>Password</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 </TS>

@@ -31,13 +31,18 @@ FocusScope {
                 id: objModel
 
                 ShutdownButton {
-                    enabled: GreeterModel.proxy.canHibernate
-                    text: qsTr("Hibernate")
-                    icon.name: "login_hibernate"
-                    onClicked: {
-                        root.lock()
-                        GreeterModel.proxy.hibernate()
-                    }
+                    id: powerOff
+                    enabled: GreeterModel.proxy.canPowerOff
+                    text: qsTr("Shut Down")
+                    icon.name: "login_shutdown"
+                    onClicked: GreeterModel.proxy.powerOff()
+                }
+
+                ShutdownButton {
+                    enabled: GreeterModel.proxy.canReboot
+                    text: qsTr("Reboot")
+                    icon.name: "login_reboot"
+                    onClicked: GreeterModel.proxy.reboot()
                 }
 
                 ShutdownButton {
@@ -51,27 +56,13 @@ FocusScope {
                 }
 
                 ShutdownButton {
-                    text: qsTr("Logout")
-                    icon.name: "login_logout"
+                    enabled: GreeterModel.proxy.canHibernate
+                    text: qsTr("Hibernate")
+                    icon.name: "login_hibernate"
                     onClicked: {
                         root.lock()
-                        GreeterModel.proxy.logout()
+                        GreeterModel.proxy.hibernate()
                     }
-                }
-
-                ShutdownButton {
-                    enabled: GreeterModel.proxy.canReboot
-                    text: qsTr("Reboot")
-                    icon.name: "login_reboot"
-                    onClicked: GreeterModel.proxy.reboot()
-                }
-
-                ShutdownButton {
-                    id: powerOff
-                    enabled: GreeterModel.proxy.canPowerOff
-                    text: qsTr("Shut Down")
-                    icon.name: "login_shutdown"
-                    onClicked: GreeterModel.proxy.powerOff()
                 }
             }
         }

@@ -63,15 +63,7 @@ RowLayout {
             x: 0
             y: rootItem.height / 5 * 2
             modal: true
-            contentItem: PowerList {
-                leftModelChildren: ShutdownButton {
-                    text: qsTr("lock")
-                    icon.name: "login_lock"
-                    onClicked: {
-                        powerItem.closePopup()
-                    }
-                }
-            }
+            contentItem: PowerList { }
             background: MouseArea {
                 onClicked: powerItem.closePopup()
             }

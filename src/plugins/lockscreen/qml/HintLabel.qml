@@ -29,7 +29,7 @@ D.Popup {
         }
         Text {
             text: hintText
-            color: "white"
+            color: palette.windowText
             font: D.DTK.fontManager.t10
         }
     }
