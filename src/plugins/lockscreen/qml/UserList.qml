@@ -22,7 +22,7 @@ D.Popup {
     width: 232
     height: useScrollBar ? maxListHeight : listv.contentHeight + padding * 2
 
-    background: RoundBlur {
+    background: D.FloatingPanel {
         radius: 12
     }
 
@@ -171,7 +171,7 @@ D.Popup {
                         id: displayUserName
                         text: model.realName.length === 0 ? model.name : model.realName
                         color: singleUser.ListView.isCurrentItem ? "white" : "black"
-                        font: D.DTK.fontManager.t9
+                        font: D.DTK.fontManager.t8
                     }
                     Text {
                         text: model.identity

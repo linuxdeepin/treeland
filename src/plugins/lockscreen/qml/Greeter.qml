@@ -43,6 +43,8 @@ FocusScope {
     width: outputItem.width
     height: outputItem.height
 
+    palette.windowText: Qt.rgba(1.0, 1.0, 1.0, 1.0)
+
     WallpaperController {
         id: wallpaperController
         output: root.output

@@ -27,18 +27,27 @@ FocusScope {
             horizontalCenter: parent.horizontalCenter
         }
 
-        leftModelChildren: ShutdownButton {
-            text: qsTr("lock")
-            icon.name: "login_lock"
-            onClicked: root.lock()
-        }
-
-        modelChildren: ShutdownButton {
-            text: qsTr("switch user")
-            icon.name: "login_switchuser"
-            enabled: UserModel.count > 1
-            onClicked: root.switchUser()
-        }
+        modelChildren: [
+            ShutdownButton {
+                text: qsTr("lock")
+                icon.name: "login_lock"
+                onClicked: root.lock()
+            },
+            ShutdownButton {
+                text: qsTr("switch user")
+                icon.name: "login_switchuser"
+                enabled: UserModel.count > 1
+                onClicked: root.switchUser()
+            },
+            ShutdownButton {
+                text: qsTr("Logout")
+                icon.name: "login_logout"
+                onClicked: {
+                    root.lock()
+                    GreeterModel.proxy.logout()
+                }
+            }
+        ]
 
         onLock: root.lock()
     }
