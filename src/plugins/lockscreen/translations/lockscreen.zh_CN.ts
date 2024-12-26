@@ -31,19 +31,17 @@
 <context>
     <name>ControlAction</name>
     <message>
-        <location filename="../qml/ControlAction.qml" line="44"/>
         <source>Other Users</source>
-        <translation type="unfinished">其他用户</translation>
+        <translation type="obsolete">其他用户</translation>
     </message>
     <message>
-        <location filename="../qml/ControlAction.qml" line="82"/>
+        <location filename="../qml/ControlAction.qml" line="55"/>
         <source>Power</source>
         <translation type="unfinished">电源</translation>
     </message>
     <message>
-        <location filename="../qml/ControlAction.qml" line="92"/>
         <source>lock</source>
-        <translation>锁定</translation>
+        <translation type="vanished">锁定</translation>
     </message>
 </context>
 <context>
@@ -72,27 +70,26 @@
 <context>
     <name>PowerList</name>
     <message>
-        <location filename="../qml/PowerList.qml" line="35"/>
+        <location filename="../qml/PowerList.qml" line="60"/>
         <source>Hibernate</source>
         <translation>休眠</translation>
     </message>
     <message>
-        <location filename="../qml/PowerList.qml" line="45"/>
+        <location filename="../qml/PowerList.qml" line="50"/>
         <source>Suspend</source>
         <translation>待机</translation>
     </message>
     <message>
-        <location filename="../qml/PowerList.qml" line="54"/>
         <source>Logout</source>
-        <translation>注销</translation>
+        <translation type="vanished">注销</translation>
     </message>
     <message>
-        <location filename="../qml/PowerList.qml" line="64"/>
+        <location filename="../qml/PowerList.qml" line="43"/>
         <source>Reboot</source>
         <translation>重启</translation>
     </message>
     <message>
-        <location filename="../qml/PowerList.qml" line="72"/>
+        <location filename="../qml/PowerList.qml" line="36"/>
         <source>Shut Down</source>
         <translation>关机</translation>
     </message>
@@ -107,7 +104,7 @@
 <context>
     <name>ShutdownView</name>
     <message>
-        <location filename="../qml/ShutdownView.qml" line="31"/>
+        <location filename="../qml/ShutdownView.qml" line="32"/>
         <source>lock</source>
         <translation type="unfinished">锁定</translation>
     </message>
@@ -115,6 +112,11 @@
         <location filename="../qml/ShutdownView.qml" line="37"/>
         <source>switch user</source>
         <translation type="unfinished">切换帐户</translation>
+    </message>
+    <message>
+        <location filename="../qml/ShutdownView.qml" line="43"/>
+        <source>Logout</source>
+        <translation type="unfinished">注销</translation>
     </message>
 </context>
 <context>
@@ -132,9 +134,13 @@
     <name>UserInput</name>
     <message>
         <location filename="../qml/UserInput.qml" line="15"/>
-        <location filename="../qml/UserInput.qml" line="134"/>
         <source>Please enter password</source>
         <translation>请输入密码</translation>
+    </message>
+    <message>
+        <location filename="../qml/UserInput.qml" line="141"/>
+        <source>Password</source>
+        <translation type="unfinished">密码</translation>
     </message>
 </context>
 </TS>

@@ -117,13 +117,12 @@ Item {
             font.bold: true
             font.pixelSize: D.DTK.fontManager.t2.pixelSize
             font.family: D.DTK.fontManager.t2.family
-            color: "white"
+            color: palette.windowText
             anchors.horizontalCenter: parent.horizontalCenter
         }
 
         TextField {
             id: passwordField
-            palette.windowText: Qt.rgba(1.0, 1.0, 1.0, 1.0)
 
             property bool capsIndicatorVisible: false
 
@@ -139,7 +138,7 @@ Item {
             echoMode: showPasswordBtn.hiddenPWD ? TextInput.Password : TextInput.Normal
             rightPadding: 24
             maximumLength: 510
-            placeholderText: qsTr("Please enter password")
+            placeholderText: qsTr("Password")
             placeholderTextColor: Qt.rgba(1.0, 1.0, 1.0, 0.6)
             color: palette.windowText
             font: D.DTK.fontManager.t8
@@ -175,7 +174,6 @@ Item {
 
                 D.ActionButton {
                     id: showPasswordBtn
-                    palette.windowText: undefined
                     property bool hiddenPWD: true
                     icon {
                         name: hiddenPWD ? "login_display_password" : "login_hidden_password"
@@ -206,7 +204,7 @@ Item {
         }
     }
 
-    D.RoundButton {
+    D.ActionButton {
         id: loginBtn
         icon {
             name: "login_open"
@@ -224,7 +222,7 @@ Item {
         font: D.DTK.fontManager.t8
         background: RoundBlur {
             anchors.fill: parent
-            color: Qt.rgba(255, 255, 255, 0.4)
+            color: Qt.rgba(1.0, 1.0, 1.0, 0.4)
             radius: parent.height / 2
         }
 
@@ -248,7 +246,7 @@ Item {
             Layout.preferredWidth: passwordField.height
             background: Rectangle {
                 anchors.fill: parent
-                color: Qt.rgba(255, 255, 255, 0.4)
+                color: Qt.rgba(1.0, 1.0, 1.0, 0.4)
                 radius: parent.height / 2
             }
 
@@ -272,7 +270,7 @@ Item {
                 id: hintBtnBackground
                 visible: hovered
                 anchors.fill: parent
-                color: Qt.rgba(255, 255, 255, 0.1)
+                color: Qt.rgba(1.0, 1.0, 1.0, 0.1)
                 radius: 4
             }
 

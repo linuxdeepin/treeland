@@ -27,7 +27,7 @@ Control {
         text: currentDate.toLocaleTimeString(currentLocale, "HH:mm")
         font.weight: Font.Light
         font.pixelSize: 80
-        color: "white"
+        color: palette.windowText
 
         anchors {
             left: parent.left
@@ -41,7 +41,7 @@ Control {
         text: currentDate.toLocaleDateString(currentLocale)
         font.weight: Font.Normal
         font.pixelSize: 20
-        color: "white"
+        color: palette.windowText
 
         anchors {
             left: parent.left
