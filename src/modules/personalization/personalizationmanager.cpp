@@ -47,6 +47,15 @@ PersonalizationAttached *Personalization::qmlAttachedProperties(QObject *target)
     return nullptr;
 }
 
+static QString defaultBackground()
+{
+    static QString defaultBg = [] {
+        const QString configDefaultBg = TreelandConfig::ref().defaultBackground();
+        return QFile::exists(configDefaultBg) ? configDefaultBg : DEFAULT_WALLPAPER;
+    }();
+    return defaultBg;
+}
+
 void PersonalizationV1::updateCacheWallpaperPath(uid_t uid)
 {
     QString cache_location = QStandardPaths::writableLocation(QStandardPaths::CacheLocation);
@@ -65,11 +74,11 @@ QString PersonalizationV1::readWallpaperSettings(const QString &group,
                                                  int workspaceId)
 {
     if (m_settingFile.isEmpty() || output.isEmpty() || workspaceId < 1)
-        return DEFAULT_WALLPAPER;
+        return defaultBackground();
 
     QSettings settings(m_settingFile, QSettings::IniFormat);
     settings.beginGroup(QString("%1.%2.%3").arg(group).arg(output).arg(workspaceId));
-    return settings.value("path", DEFAULT_WALLPAPER).toString();
+    return settings.value("path", defaultBackground()).toString();
 }
 
 PersonalizationV1::PersonalizationV1(QObject *parent)
