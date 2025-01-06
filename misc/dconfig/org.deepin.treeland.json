@@ -91,7 +91,7 @@
             "visibility": "public"
         },
         "iconThemeName": {
-            "value": "bloom",
+            "value": "nirvana",
             "serial": 0,
             "flags": ["user-public"],
             "name": "Icon Theme Name",
@@ -223,7 +223,7 @@
             "visibility": "public"
         },
         "activeColor": {
-            "value": "",
+            "value": "#1F6EE7",
             "serial": 0,
             "flags": ["global"],
             "name": "Global Window Active Color",
@@ -234,7 +234,7 @@
             "visibility": "public"
         },
         "windowOpacity": {
-            "value": 100,
+            "value": 40,
             "serial": 0,
             "flags": ["global"],
             "name": "Global Window Opacity",
@@ -263,6 +263,17 @@
             "name[zh_CN]": "全局标题栏高度",
             "description": "Set all window default titlebar height",
             "description[zh_CN]": "设置所有窗口默认的标题栏高度",
+            "permissions": "readwrite",
+            "visibility": "public"
+        },
+        "defaultBackground": {
+            "value": "/usr/share/backgrounds/default_background.jpg",
+            "serial": 0,
+            "flags": ["global"],
+            "name": "Default background",
+            "name[zh_CN]": "默认壁纸",
+            "description": "Set the default displayed wallpaper, when no wallpaper is set",
+            "description[zh_CN]": "当没有设置壁纸时，设置默认显示的壁纸",
             "permissions": "readwrite",
             "visibility": "public"
         }
