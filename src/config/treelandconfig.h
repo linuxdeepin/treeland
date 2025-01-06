@@ -50,6 +50,7 @@ class TreelandConfig
     Q_PROPERTY(QString monoFontName READ monoFontName WRITE setMonoFontName NOTIFY monoFontNameChanged FINAL)
     Q_PROPERTY(uint32_t fontSize READ fontSize WRITE setFontSize NOTIFY fontSizeChanged FINAL)
     Q_PROPERTY(QString iconThemeName READ iconThemeName WRITE setIconThemeName NOTIFY iconThemeNameChanged FINAL)
+    Q_PROPERTY(QString defaultBackground READ defaultBackground NOTIFY defaultBackgroundChanged FINAL)
 public:
     TreelandConfig();
 
@@ -151,6 +152,8 @@ public:
     void setIconThemeName(const QString &theme);
     QString iconThemeName();
 
+    QString defaultBackground();
+
 Q_SIGNALS:
     void workspaceThumbMarginChanged();
     void workspaceThumbHeightChanged();
@@ -185,6 +188,7 @@ Q_SIGNALS:
     void monoFontNameChanged();
     void fontSizeChanged();
     void iconThemeNameChanged();
+    void defaultBackgroundChanged();
 
 private:
     void onDConfigChanged(const QString &key);
@@ -206,6 +210,7 @@ private:
     uint32_t m_fontSize;
     qreal m_windowRadius;
     QString m_iconThemeName;
+    QString m_defaultBackground;
 
     // Local
     uint m_workspaceThumbHeight = 144;

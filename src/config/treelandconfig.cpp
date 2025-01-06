@@ -25,6 +25,7 @@ TreelandConfig::TreelandConfig()
     , m_monoFontName(m_dconfig->value("monoFont", "Noto Mono").toString())
     , m_fontSize(m_dconfig->value("fontSize", 105).toUInt())
     , m_iconThemeName(m_dconfig->value("iconThemeName").toString())
+    , m_defaultBackground(m_dconfig->value("defaultBackground").toString())
 {
     connect(m_dconfig.get(), &DConfig::valueChanged, this, &TreelandConfig::onDConfigChanged);
 }
@@ -555,4 +556,11 @@ QString TreelandConfig::iconThemeName()
     m_iconThemeName = m_dconfig->value("iconThemeName").toString();
 
     return m_iconThemeName;
+}
+
+QString TreelandConfig::defaultBackground()
+{
+    m_defaultBackground = m_dconfig->value("defaultBackground").toString();
+
+    return m_defaultBackground;
 }
