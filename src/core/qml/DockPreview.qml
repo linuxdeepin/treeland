@@ -581,8 +581,21 @@ Item {
         id: background
         z: root.z
         color: "transparent"
-        implicitWidth: getWidth(true)
-        implicitHeight: getHeight(true) + 2 * listview.spacing
+        implicitWidth: {
+            let newWidth = getWidth(true);
+            // TODO: remove if Qt fix QTBUG-132588(maybe in Qt 6.10 or 6.8)
+            if (!Number.isFinite(newWidth))
+                return implicitWidth;
+            return newWidth;
+        }
+        implicitHeight: {
+            let newHiehgt = getHeight(true) + 2 * listview.spacing;
+            // TODO: remove if Qt fix QTBUG-132588(maybe in Qt 6.10 or 6.8)
+            if (!Number.isFinite(newHiehgt))
+                return implicitHeight;
+            return newHiehgt;
+        }
+
         radius: listview.radius
         clip: false
         parent: root.parent
