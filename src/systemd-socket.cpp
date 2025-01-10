@@ -68,6 +68,18 @@ int main(int argc, char *argv[])
                                         QDBusConnection::sessionBus());
                     StringMap env;
                     env["WAYLAND_DISPLAY"] = "treeland.socket";
+
+                    const auto extraEnvs = qgetenv("TREELAND_SESSION_ENVIRONMENTS");
+                    if (!extraEnvs.isEmpty()) {
+                        const auto envs = extraEnvs.split('\n');
+                        for (const auto &i : envs) {
+                            const auto pair = i.split('=');
+                            if (pair.size() == 2) {
+                                env[QString::fromLocal8Bit(pair[0])] = QString::fromLocal8Bit(pair[1]);
+                            }
+                        }
+                    }
+
                     auto reply = dbus.call("UpdateActivationEnvironment", QVariant::fromValue(env));
 
                     sd_notify(0, "READY=1");
