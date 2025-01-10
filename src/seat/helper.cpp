@@ -1047,6 +1047,14 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *, QInputEvent *event)
 
     if (event->type() == QEvent::KeyPress) {
         auto kevent = static_cast<QKeyEvent *>(event);
+        if (m_currentMode == CurrentMode::Normal
+            && QKeySequence(kevent->modifiers() | kevent->key())
+                == QKeySequence(Qt::ControlModifier | Qt::AltModifier | Qt::Key_Delete)) {
+            setCurrentMode(CurrentMode::LockScreen);
+            m_lockScreen->shutdown();
+            setWorkspaceVisible(false);
+            return true;
+        }
         if (QKeySequence(kevent->modifiers() | kevent->key())
             == QKeySequence(Qt::META | Qt::Key_F12)) {
             qApp->quit();
