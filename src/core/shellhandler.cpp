@@ -202,7 +202,21 @@ void ShellHandler::onXdgPopupSurfaceAdded(WXdgPopupSurface *surface)
     auto parent = surface->parentSurface();
     auto parentWrapper = m_rootSurfaceContainer->getSurface(parent);
     parentWrapper->addSubSurface(wrapper);
-    m_popupContainer->addSurface(wrapper);
+
+    // When the `parent` is in a specific `container`. for example, when the parent's
+    // 'container' has a higher z-index than the `popup`, it is necessary to add the `popup`
+    // to the parent's `container` to ensure that the `popup` displays above it's `parent`.
+    bool shouldEnterContainerOfParent = parentWrapper->container()
+        && (parentWrapper->container()->parent() != m_popupContainer->parent()
+            || parentWrapper->container()->z() > m_popupContainer->z());
+    if (shouldEnterContainerOfParent) {
+        // Set the z-index of the popup itself to ensure it is higher
+        // than other types of windows within the same container
+        wrapper->setZ(5);
+        parentWrapper->container()->addSurface(wrapper);
+    } else {
+        m_popupContainer->addSurface(wrapper);
+    }
     // m_popupContainer is a Simple `SurfaceContainer`
     // Need to call `setHasInitializeContainer` manually
     wrapper->setHasInitializeContainer(true);
