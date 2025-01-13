@@ -394,7 +394,7 @@ private:
     uint m_titleBarState : 2;
     uint m_noCornerRadius : 1;
     uint m_alwaysOnTop : 1;
-    uint m_wrapperAbortToRemove : 1;
+    uint m_wrapperAboutToRemove : 1;
     uint m_skipSwitcher : 1;
     uint m_skipDockPreView : 1;
     uint m_skipMutiTaskView : 1;
