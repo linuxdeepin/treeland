@@ -1,3 +1,10 @@
+treeland (0.5.14) unstable; urgency=medium
+
+  * Fix crash at PersonalizationAttached::noTitlebar
+  * Add a background color for DockPreview
+
+ -- JiDe Zhang <zhangjide@uniontech.com> Mon, 13 Jan 2025 18:13:21 +0800
+
 treeland (0.5.13) unstable; urgency=medium
 
   * feat: add ctrl-alt-del shortcut key
