@@ -580,7 +580,7 @@ Item {
     Rectangle {
         id: background
         z: root.z
-        color: "transparent"
+        color: "#33ffffff"
         implicitWidth: {
             let newWidth = getWidth(true);
             // TODO: remove if Qt fix QTBUG-132588(maybe in Qt 6.10 or 6.8)
