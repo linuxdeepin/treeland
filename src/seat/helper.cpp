@@ -540,9 +540,12 @@ void Helper::onSurfaceWrapperAdded(SurfaceWrapper *wrapper)
 
     if (isXdgToplevel || isXdgPopup || isLayer) {
         auto *attached =
-            new PersonalizationAttached(wrapper->shellSurface(), m_personalization, wrapper);
+            new Personalization(wrapper->shellSurface(), m_personalization, wrapper);
+        connect(wrapper, &SurfaceWrapper::aboutToBeInvalidated,
+                attached, &Personalization::deleteLater);
 
-        auto updateNoTitlebar = [this, wrapper, attached] {
+        auto updateNoTitlebar = [this, attached] {
+            auto wrapper = attached->surfaceWrapper();
             if (attached->noTitlebar()) {
                 wrapper->setNoTitleBar(true);
                 auto layer = qobject_cast<WLayerSurface *>(wrapper->shellSurface());
@@ -561,23 +564,23 @@ void Helper::onSurfaceWrapperAdded(SurfaceWrapper *wrapper)
             connect(
                 m_xdgDecorationManager,
                 &WXdgDecorationManager::surfaceModeChanged,
-                wrapper,
-                [wrapper, attached, updateNoTitlebar](
+                attached,
+                [attached, updateNoTitlebar](
                     WAYLIB_SERVER_NAMESPACE::WSurface *surface,
                     [[maybe_unused]] Waylib::Server::WXdgDecorationManager::DecorationMode mode) {
-                    if (surface == wrapper->surface()) {
+                    if (surface == attached->surfaceWrapper()->surface()) {
                         updateNoTitlebar();
                     }
                 });
         }
 
-        connect(attached, &PersonalizationAttached::windowStateChanged, wrapper, updateNoTitlebar);
+        connect(attached, &Personalization::windowStateChanged, this, updateNoTitlebar);
         updateNoTitlebar();
 
-        auto updateBlur = [wrapper, attached] {
-            wrapper->setBlur(attached->backgroundType() == Personalization::BackgroundType::Blur);
+        auto updateBlur = [attached] {
+            attached->surfaceWrapper()->setBlur(attached->backgroundType() == Personalization::BackgroundType::Blur);
         };
-        connect(attached, &PersonalizationAttached::backgroundTypeChanged, wrapper, updateBlur);
+        connect(attached, &Personalization::backgroundTypeChanged, this, updateBlur);
         updateBlur();
         if (isLayer) {
             auto layer = qobject_cast<WLayerSurface *>(wrapper->shellSurface());

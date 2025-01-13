@@ -9,6 +9,7 @@
 
 #include <wserver.h>
 #include <wxdgsurface.h>
+#include <WWrapPointer>
 
 #include <DConfig>
 
@@ -19,30 +20,10 @@
 QW_USE_NAMESPACE
 WAYLIB_SERVER_USE_NAMESPACE
 
+class SurfaceWrapper;
 class PersonalizationV1;
-class PersonalizationAttached;
 
 class Personalization : public QObject
-{
-    Q_OBJECT
-    QML_NAMED_ELEMENT(Personalization)
-    QML_UNCREATABLE("Only use for the enums.")
-    QML_ATTACHED(PersonalizationAttached)
-public:
-    using QObject::QObject;
-
-    enum BackgroundType
-    {
-        Normal,
-        Wallpaper,
-        Blur
-    };
-    Q_ENUM(BackgroundType)
-
-    static PersonalizationAttached *qmlAttachedProperties(QObject *target);
-};
-
-class PersonalizationAttached : public QObject
 {
     Q_OBJECT
     QML_ANONYMOUS
@@ -53,10 +34,19 @@ class PersonalizationAttached : public QObject
     Q_PROPERTY(bool noTitlebar READ noTitlebar NOTIFY windowStateChanged)
 
 public:
-    PersonalizationAttached(WToplevelSurface *target,
-                            PersonalizationV1 *manager,
-                            QObject *parent = nullptr);
+    enum BackgroundType
+    {
+        Normal,
+        Wallpaper,
+        Blur
+    };
+    Q_ENUM(BackgroundType)
 
+    Personalization(WToplevelSurface *target,
+                    PersonalizationV1 *manager,
+                    SurfaceWrapper *parent);
+
+    SurfaceWrapper *surfaceWrapper() const;
     Personalization::BackgroundType backgroundType() const;
 
     int32_t cornerRadius() const
@@ -84,7 +74,7 @@ Q_SIGNALS:
     void windowStateChanged();
 
 private:
-    WToplevelSurface *m_target;
+    WWrapPointer<WToplevelSurface> m_target;
     PersonalizationV1 *m_manager;
     int32_t m_backgroundType;
     int32_t m_cornerRadius;

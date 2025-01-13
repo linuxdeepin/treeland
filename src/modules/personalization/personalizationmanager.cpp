@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "personalizationmanager.h"
+#include "surfacewrapper.h"
 
 #include "config/treelandconfig.h"
 #include "modules/personalization/impl/appearance_impl.h"
@@ -37,15 +38,6 @@ static PersonalizationV1 *PERSONALIZATION_MANAGER = nullptr;
 
 #define DEFAULT_WALLPAPER "qrc:/desktop.webp"
 #define DEFAULT_WALLPAPER_ISDARK false
-
-PersonalizationAttached *Personalization::qmlAttachedProperties(QObject *target)
-{
-    if (auto *surface = qobject_cast<WToplevelSurface *>(target)) {
-        return new PersonalizationAttached(surface, PERSONALIZATION_MANAGER);
-    }
-
-    return nullptr;
-}
 
 static QString defaultBackground()
 {
@@ -450,9 +442,9 @@ bool PersonalizationV1::isAnimagedImage(const QString &source)
     return reader.imageCount() > 1;
 }
 
-PersonalizationAttached::PersonalizationAttached(WToplevelSurface *target,
-                                                 PersonalizationV1 *manager,
-                                                 QObject *parent)
+Personalization::Personalization(WToplevelSurface *target,
+                                 PersonalizationV1 *manager,
+                                 SurfaceWrapper *parent)
     : QObject(parent)
     , m_target(target)
     , m_manager(manager)
@@ -517,12 +509,17 @@ PersonalizationAttached::PersonalizationAttached(WToplevelSurface *target,
     }
 }
 
-Personalization::BackgroundType PersonalizationAttached::backgroundType() const
+SurfaceWrapper *Personalization::surfaceWrapper() const
+{
+    return qobject_cast<SurfaceWrapper*>(parent());
+}
+
+Personalization::BackgroundType Personalization::backgroundType() const
 {
     return static_cast<Personalization::BackgroundType>(m_backgroundType);
 }
 
-bool PersonalizationAttached::noTitlebar() const
+bool Personalization::noTitlebar() const
 {
     if (qobject_cast<WAYLIB_SERVER_NAMESPACE::WXdgPopupSurface *>(m_target)) {
         return true;
