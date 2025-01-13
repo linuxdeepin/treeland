@@ -49,7 +49,7 @@ Item {
 
             if (!root.wrapper)
                 return false;
-            return cornerRadius > 0 && !root.wrapper.noCornerRadius;
+            return cornerRadius > 0 && !root.wrapper.noCornerRadius && root.wrapper.visibleDecoration;
         }
 
         sourceComponent: Shape {
