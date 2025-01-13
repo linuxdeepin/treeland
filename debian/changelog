@@ -1,3 +1,13 @@
+treeland (0.5.13) unstable; urgency=medium
+
+  * feat: add ctrl-alt-del shortcut key
+  * Add TREELAND_SESSION_ENVIRONMENTS env
+  * fix: popup of screen recorder is below it's parent
+  * Fix typo
+  * Ignore window rounded radius when maximized
+
+ -- JiDe Zhang <zhangjide@uniontech.com> Mon, 13 Jan 2025 11:02:32 +0800
+
 treeland (0.5.12) unstable; urgency=medium
 
   * Fix maybe freeze when display DockPreview
