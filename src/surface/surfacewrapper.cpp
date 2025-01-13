@@ -49,7 +49,7 @@ SurfaceWrapper::SurfaceWrapper(QmlEngine *qmlEngine,
     , m_skipMutiTaskView(false)
     , m_isDdeShellSurface(false)
     , m_xwaylandPositionFromSurface(true)
-    , m_wrapperAbortToRemove(false)
+    , m_wrapperAboutToRemove(false)
     , m_isProxy(isProxy)
     , m_hideByWorkspace(false)
     , m_hideByshowDesk(true)
@@ -262,7 +262,7 @@ void SurfaceWrapper::setParent(QQuickItem *item)
 
 void SurfaceWrapper::setActivate(bool activate)
 {
-    if (m_wrapperAbortToRemove)
+    if (m_wrapperAboutToRemove)
         return;
 
     Q_ASSERT(!activate || hasActiveCapability());
@@ -346,7 +346,7 @@ QRectF SurfaceWrapper::maximizedGeometry() const
 
 void SurfaceWrapper::setMaximizedGeometry(const QRectF &newMaximizedGeometry)
 {
-    if (m_wrapperAbortToRemove)
+    if (m_wrapperAboutToRemove)
         return;
     if (m_maximizedGeometry == newMaximizedGeometry)
         return;
@@ -373,7 +373,7 @@ QRectF SurfaceWrapper::fullscreenGeometry() const
 
 void SurfaceWrapper::setFullscreenGeometry(const QRectF &newFullscreenGeometry)
 {
-    if (m_wrapperAbortToRemove)
+    if (m_wrapperAboutToRemove)
         return;
     if (m_fullscreenGeometry == newFullscreenGeometry)
         return;
@@ -402,7 +402,7 @@ QRectF SurfaceWrapper::tilingGeometry() const
 
 void SurfaceWrapper::setTilingGeometry(const QRectF &newTilingGeometry)
 {
-    if (m_wrapperAbortToRemove)
+    if (m_wrapperAboutToRemove)
         return;
     if (m_tilingGeometry == newTilingGeometry)
         return;
@@ -462,7 +462,7 @@ Output *SurfaceWrapper::ownsOutput() const
 
 void SurfaceWrapper::setOwnsOutput(Output *newOwnsOutput)
 {
-    if (m_wrapperAbortToRemove)
+    if (m_wrapperAboutToRemove)
         return;
 
     if (m_ownsOutput == newOwnsOutput)
@@ -483,7 +483,7 @@ void SurfaceWrapper::setOwnsOutput(Output *newOwnsOutput)
 
 void SurfaceWrapper::setOutputs(const QList<WOutput *> &outputs)
 {
-    if (m_wrapperAbortToRemove)
+    if (m_wrapperAboutToRemove)
         return;
     Q_ASSERT(surface());
     auto oldOutputs = surface()->outputs();
@@ -518,7 +518,7 @@ SurfaceWrapper::State SurfaceWrapper::surfaceState() const
 
 void SurfaceWrapper::setSurfaceState(State newSurfaceState)
 {
-    if (m_wrapperAbortToRemove)
+    if (m_wrapperAboutToRemove)
         return;
 
     if (m_geometryAnimation)
@@ -594,8 +594,8 @@ bool SurfaceWrapper::isWindowAnimationRunning() const
 
 void SurfaceWrapper::markWrapperToRemoved()
 {
-    Q_ASSERT_X(!m_wrapperAbortToRemove, Q_FUNC_INFO, "Can't call `markWrapperToRemoved` twice!");
-    m_wrapperAbortToRemove = true;
+    Q_ASSERT_X(!m_wrapperAboutToRemove, Q_FUNC_INFO, "Can't call `markWrapperToRemoved` twice!");
+    m_wrapperAboutToRemove = true;
     Q_EMIT aboutToBeInvalidated();
 
     if (m_container) {
@@ -638,7 +638,7 @@ void SurfaceWrapper::setAcceptKeyboardFocus(bool accept)
 
 void SurfaceWrapper::setNoDecoration(bool newNoDecoration)
 {
-    if (m_wrapperAbortToRemove)
+    if (m_wrapperAboutToRemove)
         return;
 
     setNoCornerRadius(newNoDecoration);
@@ -672,7 +672,7 @@ void SurfaceWrapper::setNoDecoration(bool newNoDecoration)
 
 void SurfaceWrapper::updateTitleBar()
 {
-    if (m_wrapperAbortToRemove)
+    if (m_wrapperAboutToRemove)
         return;
 
     if (noTitleBar() == !m_titleBar)
@@ -840,7 +840,7 @@ void SurfaceWrapper::itemChange(ItemChange change, const ItemChangeData &data)
 
 void SurfaceWrapper::doSetSurfaceState(State newSurfaceState)
 {
-    if (m_wrapperAbortToRemove)
+    if (m_wrapperAboutToRemove)
         return;
     setVisibleDecoration(newSurfaceState == State::Minimized || newSurfaceState == State::Normal);
     setNoCornerRadius(newSurfaceState == State::Maximized || newSurfaceState == State::Fullscreen
@@ -943,7 +943,7 @@ void SurfaceWrapper::onWindowAnimationFinished()
 
     Q_EMIT windowAnimationRunningChanged();
 
-    if (m_wrapperAbortToRemove) {
+    if (m_wrapperAboutToRemove) {
         deleteLater();
     }
 }
@@ -1334,7 +1334,7 @@ bool SurfaceWrapper::visibleDecoration() const
 
 void SurfaceWrapper::setVisibleDecoration(bool newVisibleDecoration)
 {
-    if (m_wrapperAbortToRemove)
+    if (m_wrapperAboutToRemove)
         return;
     if (m_visibleDecoration == newVisibleDecoration)
         return;
@@ -1350,7 +1350,7 @@ bool SurfaceWrapper::clipInOutput() const
 
 void SurfaceWrapper::setClipInOutput(bool newClipInOutput)
 {
-    if (m_wrapperAbortToRemove)
+    if (m_wrapperAboutToRemove)
         return;
 
     if (m_clipInOutput == newClipInOutput)
@@ -1381,7 +1381,7 @@ bool SurfaceWrapper::noTitleBar() const
 
 void SurfaceWrapper::setNoTitleBar(bool newNoTitleBar)
 {
-    if (m_wrapperAbortToRemove)
+    if (m_wrapperAboutToRemove)
         return;
 
     if (newNoTitleBar) {
@@ -1405,7 +1405,7 @@ bool SurfaceWrapper::noCornerRadius() const
 
 void SurfaceWrapper::setNoCornerRadius(bool newNoCornerRadius)
 {
-    if (m_wrapperAbortToRemove)
+    if (m_wrapperAboutToRemove)
         return;
 
     if (m_noCornerRadius == newNoCornerRadius)
