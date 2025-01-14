@@ -969,6 +969,10 @@ void SurfaceWrapper::onHideAnimationFinished()
 
 void SurfaceWrapper::onMappedChanged()
 {
+    if (m_wrapperAboutToRemove)
+        return;
+    
+    Q_ASSERT(surface());
     bool mapped = surface()->mapped() && !m_hideByLockScreen;
     if (!m_isProxy) {
         if (mapped) {
