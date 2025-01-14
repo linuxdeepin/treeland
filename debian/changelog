@@ -1,3 +1,9 @@
+treeland (0.5.15) unstable; urgency=medium
+
+  * chore: update default window corner size
+
+ -- zhangkun <zhangkun2@uniontech.com>  Tue, 14 Jan 2025 11:45:30 +0800
+
 treeland (0.5.14) unstable; urgency=medium
 
   * Fix crash at PersonalizationAttached::noTitlebar
