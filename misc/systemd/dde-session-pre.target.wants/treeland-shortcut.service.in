@@ -16,4 +16,4 @@ Type=notify
 ExecStart=@CMAKE_INSTALL_FULL_LIBEXECDIR@/treeland-shortcut
 Slice=session.slice
 RestartSec=3s
-
+Restart=on-failure
