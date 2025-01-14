@@ -1,30 +1,32 @@
-{ stdenv
-, lib
-, nix-filter
-, cmake
-, extra-cmake-modules
-, pkg-config
-, wayland-scanner
-, qttools
-, wrapQtAppsHook
-, qtbase
-, qtquick3d
-, qtimageformats
-, qtwayland
-, qtsvg
-, qwlroots
-, ddm
-, deepin
-, waylib
-, wayland
-, wayland-protocols
-, wlr-protocols
-, treeland-protocols
-, pixman
-, pam
-, libxcrypt
-, libinput
-, nixos-artwork
+{
+  stdenv,
+  lib,
+  nix-filter,
+  cmake,
+  extra-cmake-modules,
+  pkg-config,
+  wayland-scanner,
+  qttools,
+  wrapQtAppsHook,
+  qtbase,
+  qtquick3d,
+  qtimageformats,
+  qtwayland,
+  qtsvg,
+  qwlroots,
+  ddm,
+  deepin,
+  waylib,
+  wayland,
+  wayland-protocols,
+  wlr-protocols,
+  treeland-protocols,
+  pixman,
+  pam,
+  libxcrypt,
+  libinput,
+  jemalloc,
+  nixos-artwork,
 }:
 
 stdenv.mkDerivation (finalAttrs: {
@@ -81,9 +83,10 @@ stdenv.mkDerivation (finalAttrs: {
     pam
     libxcrypt
     libinput
+    jemalloc
   ];
 
-   cmakeFlags = [
+  cmakeFlags = [
     "-DQT_IMPORTS_DIR=${placeholder "out"}/${qtbase.qtQmlPrefix}"
     "-DCMAKE_INSTALL_SYSCONFDIR=${placeholder "out"}/etc"
     "-DSYSTEMD_SYSTEM_UNIT_DIR=${placeholder "out"}/lib/systemd/system"
@@ -92,12 +95,20 @@ stdenv.mkDerivation (finalAttrs: {
     "-DDBUS_CONFIG_DIR=${placeholder "out"}/share/dbus-1/system.d"
   ];
 
+  env.PKG_CONFIG_SYSTEMD_SYSTEMDUSERUNITDIR = "${placeholder "out"}/lib/systemd/user";
+
+  # RPATH of binary /nix/store/.../bin/... contains a forbidden reference to /build/
+  noAuditTmpdir = true;
+
   meta = {
     description = "DDM is a fork of SDDM";
     homepage = "https://github.com/vioken/treeland";
-    license = with lib.licenses; [ gpl3Only lgpl3Only asl20 ];
+    license = with lib.licenses; [
+      gpl3Only
+      lgpl3Only
+      asl20
+    ];
     platforms = lib.platforms.linux;
     maintainers = with lib.maintainers; [ rewine ];
   };
 })
-

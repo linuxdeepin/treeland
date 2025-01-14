@@ -13,11 +13,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1733476266,
-        "narHash": "sha256-/9NKxGQAczEXMySkoY8AVG4wZbLgnC7lkgv/1inJECI=",
+        "lastModified": 1736495869,
+        "narHash": "sha256-JRxnC+1K4eX7LJ+9xMMES9kkrw6akrHG0Bt6FPYOOOQ=",
         "owner": "linuxdeepin",
         "repo": "ddm",
-        "rev": "b69889e29ae9f4a105409388d55bee6fefff9640",
+        "rev": "3d6affa276f5ea93e9cadd6f9dd4ed43d3422743",
         "type": "github"
       },
       "original": {
@@ -61,10 +61,10 @@
     },
     "nixpkgs": {
       "locked": {
-        "lastModified": 1733212471,
-        "narHash": "sha256-M1+uCoV5igihRfcUKrr1riygbe73/dzNnzPsmaLCmpo=",
-        "path": "/nix/store/vqhkmj60457j8nrw9vb94ln40rkic1p6-source",
-        "rev": "55d15ad12a74eb7d4646254e13638ad0c4128776",
+        "lastModified": 1736523798,
+        "narHash": "sha256-Xb8mke6UCYjge9kPR9o4P1nVrhk7QBbKv3xQ9cj7h2s=",
+        "path": "/nix/store/cginla74w7h4gln9b3mva6l4nmj6gj30-source",
+        "rev": "130595eba61081acde9001f43de3248d8888ac4a",
         "type": "path"
       },
       "original": {
@@ -166,11 +166,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1733562684,
-        "narHash": "sha256-FG6RCF42QTdZNcqmYHjCf6biy0/dsxMpadqGinGLqak=",
+        "lastModified": 1735176992,
+        "narHash": "sha256-cs4nPYMIOppVuna5qBbgGtPdmVhMrhKkVG7L09NmB/U=",
         "owner": "vioken",
         "repo": "waylib",
-        "rev": "49fe62f84e25a0a5aa305b01f3c382fc676f6456",
+        "rev": "6cd803bd548a79b9472b4232c9210c0268e5d117",
         "type": "github"
       },
       "original": {
