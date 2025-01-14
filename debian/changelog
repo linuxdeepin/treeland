@@ -1,3 +1,10 @@
+treeland (0.5.16) unstable; urgency=medium
+
+  * fix: crashed at accessing surface
+  * Fix crash at QStyleHints
+
+ -- zhangkun <zhangkun2@uniontech.com>  Tue, 14 Jan 2025 16:16:43 +0800
+
 treeland (0.5.15) unstable; urgency=medium
 
   * chore: update default window corner size
