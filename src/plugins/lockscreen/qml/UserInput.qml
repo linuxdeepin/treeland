@@ -140,15 +140,17 @@ Item {
                     function onCursorPositionChanged() {
                         // keep a moving cursor visible
                         cursor.opacity = 1
-                        timer.restart()
+                        cursorTimer.restart()
                     }
                 }
 
                 Timer {
-                    id: timer
+                    id: cursorTimer
                     running: cursor.parent.activeFocus && !cursor.parent.readOnly && interval != 0
                     repeat: true
-                    interval: Application.styleHints.cursorFlashTime / 2
+                    // TODO: Application.styleHints.cursorFlashTime / 2, waylib is not supports
+                    // Application.styleHints now.
+                    interval: 600
                     onTriggered: cursor.opacity = !cursor.opacity ? 1 : 0
                     // force the cursor visible when gaining focus
                     onRunningChanged: cursor.opacity = 1
