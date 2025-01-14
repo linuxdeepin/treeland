@@ -58,7 +58,7 @@
             "visibility": "public"
         },
         "windowRadius": {
-            "value": 18,
+            "value": 12,
             "serial": 0,
             "flags": ["user-public"],
             "name": "Round Corner Radius",
