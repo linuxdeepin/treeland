@@ -1,3 +1,10 @@
+treeland (0.5.17) unstable; urgency=medium
+
+  * fix: nix ci for build
+  * Fix missing treeland's translations
+
+ -- Groveer <guoyao@uniontech.com>  Wed, 15 Jan 2025 11:02:18 +0800
+
 treeland (0.5.16) unstable; urgency=medium
 
   * fix: crashed at accessing surface
