@@ -55,36 +55,20 @@ set_target_properties(lockscreen PROPERTIES
 )
 
 set(TRANSLATED_FILES)
-if (${QT_VERSION_MINOR} LESS 7)
-    qt_add_lupdate(lockscreen
-        TS_FILES
-            translations/lockscreen.zh_CN.ts
-            translations/lockscreen.en_US.ts
-        NO_GLOBAL_TARGET
-    )
+qt_add_lupdate(
+    SOURCE_TARGETS lockscreen
+    TS_FILES
+        translations/lockscreen.zh_CN.ts
+        translations/lockscreen.en_US.ts
+    NO_GLOBAL_TARGET
+)
 
-    qt_add_lrelease(lockscreen
-        TS_FILES
-            translations/lockscreen.zh_CN.ts
-            translations/lockscreen.en_US.ts
-        QM_FILES_OUTPUT_VARIABLE TRANSLATED_FILES
-    )
-elseif (${QT_VERSION_MINOR} GREATER_EQUAL 7)
-    qt_add_lupdate(
-        SOURCE_TARGETS lockscreen
-        TS_FILES
-            translations/lockscreen.zh_CN.ts
-            translations/lockscreen.en_US.ts
-        NO_GLOBAL_TARGET
-    )
-
-    qt_add_lrelease(
-        TS_FILES
-            translations/lockscreen.zh_CN.ts
-            translations/lockscreen.en_US.ts
-        QM_FILES_OUTPUT_VARIABLE TRANSLATED_FILES
-    )
-endif()
+qt_add_lrelease(
+    TS_FILES
+        translations/lockscreen.zh_CN.ts
+        translations/lockscreen.en_US.ts
+    QM_FILES_OUTPUT_VARIABLE TRANSLATED_FILES
+)
 
 install(TARGETS lockscreen DESTINATION ${TREELAND_PLUGINS_INSTALL_PATH})
 install(FILES ${TRANSLATED_FILES} DESTINATION ${TREELAND_COMPONENTS_TRANSLATION_DIR})

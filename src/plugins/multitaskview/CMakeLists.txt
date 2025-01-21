@@ -44,37 +44,20 @@ qt_add_resources(multitaskview "multitaskview_assets"
         ${PROJECT_RESOURCES_DIR}/icons/multitaskview_close.dci
 )
 
-set(TRANSLATED_FILES)
-if (${QT_VERSION_MINOR} LESS 7)
-    qt_add_lupdate(multitaskview
-        TS_FILES
-            translations/multitaskview.zh_CN.ts
-            translations/multitaskview.en_US.ts
-        NO_GLOBAL_TARGET
-    )
+qt_add_lupdate(
+    SOURCE_TARGETS multitaskview
+    TS_FILES
+        translations/multitaskview.zh_CN.ts
+        translations/multitaskview.en_US.ts
+    NO_GLOBAL_TARGET
+)
 
-    qt_add_lrelease(multitaskview
-        TS_FILES
-            translations/multitaskview.zh_CN.ts
-            translations/multitaskview.en_US.ts
-        QM_FILES_OUTPUT_VARIABLE TRANSLATED_FILES
-    )
-elseif (${QT_VERSION_MINOR} GREATER_EQUAL 7)
-    qt_add_lupdate(
-        SOURCE_TARGETS multitaskview
-        TS_FILES
-            translations/multitaskview.zh_CN.ts
-            translations/multitaskview.en_US.ts
-        NO_GLOBAL_TARGET
-    )
-
-    qt_add_lrelease(
-        TS_FILES
-            translations/multitaskview.zh_CN.ts
-            translations/multitaskview.en_US.ts
-        QM_FILES_OUTPUT_VARIABLE TRANSLATED_FILES
-    )
-endif()
+qt_add_lrelease(
+    TS_FILES
+        translations/multitaskview.zh_CN.ts
+        translations/multitaskview.en_US.ts
+    QM_FILES_OUTPUT_VARIABLE TRANSLATED_FILES
+)
 
 install(TARGETS multitaskview DESTINATION ${TREELAND_PLUGINS_INSTALL_PATH})
 install(FILES ${TRANSLATED_FILES} DESTINATION ${TREELAND_COMPONENTS_TRANSLATION_DIR})
