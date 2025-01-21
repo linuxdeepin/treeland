@@ -38,36 +38,20 @@ qt_add_qml_module(${BIN_NAME}
 
 set(TRANSLATED_FILES)
 
-if (${QT_VERSION_MINOR} LESS 7)
-    qt_add_lupdate(${BIN_NAME}
-        TS_FILES
-            translations/wallpaper.zh_CN.ts
-            translations/wallpaper.en_US.ts
-        NO_GLOBAL_TARGET
-    )
+qt_add_lupdate(
+    SOURCE_TARGETS ${BIN_NAME}
+    TS_FILES
+        translations/wallpaper.zh_CN.ts
+        translations/wallpaper.en_US.ts
+    NO_GLOBAL_TARGET
+)
 
-    qt_add_lrelease(${BIN_NAME}
-        TS_FILES
-            translations/wallpaper.zh_CN.ts
-            translations/wallpaper.en_US.ts
-        QM_FILES_OUTPUT_VARIABLE TRANSLATED_FILES
-    )
-elseif (${QT_VERSION_MINOR} GREATER_EQUAL 7)
-    qt_add_lupdate(
-        SOURCE_TARGETS ${BIN_NAME}
-        TS_FILES
-            translations/wallpaper.zh_CN.ts
-            translations/wallpaper.en_US.ts
-        NO_GLOBAL_TARGET
-    )
-
-    qt_add_lrelease(
-        TS_FILES
-            translations/wallpaper.zh_CN.ts
-            translations/wallpaper.en_US.ts
-        QM_FILES_OUTPUT_VARIABLE TRANSLATED_FILES
-    )
-endif()
+qt_add_lrelease(
+    TS_FILES
+        translations/wallpaper.zh_CN.ts
+        translations/wallpaper.en_US.ts
+    QM_FILES_OUTPUT_VARIABLE TRANSLATED_FILES
+)
 
 install(FILES ${TRANSLATED_FILES} DESTINATION ${TREELAND_COMPONENTS_TRANSLATION_DIR})
 

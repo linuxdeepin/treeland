@@ -1,4 +1,4 @@
-if(QT_KNOWN_POLICY_QTP0001) # this policy was introduced in Qt 6.5    if(QT_KNOWN_POLICY_QTP0001) # this policy was introduced in Qt 6.5
+if(QT_KNOWN_POLICY_QTP0001)
     qt_policy(SET QTP0001 NEW)
     # the RESOURCE_PREFIX argument for qt_add_qml_module() defaults to ":/qt/qml/"
 endif()
@@ -231,36 +231,19 @@ qt_add_resources(libtreeland "treeland_assets"
 )
 
 set(TRANSLATED_FILES)
-if (${QT_VERSION_MINOR} LESS 7)
-    qt_add_lupdate(libtreeland
-        TS_FILES
-            ${CMAKE_SOURCE_DIR}/translations/treeland.zh_CN.ts
-            ${CMAKE_SOURCE_DIR}/translations/treeland.en_US.ts
-        NO_GLOBAL_TARGET
-    )
-
-    qt_add_lrelease(libtreeland
-        TS_FILES
-            ${CMAKE_SOURCE_DIR}/translations/treeland.zh_CN.ts
-            ${CMAKE_SOURCE_DIR}/translations/treeland.en_US.ts
-        QM_FILES_OUTPUT_VARIABLE TRANSLATED_FILES
-    )
-elseif (${QT_VERSION_MINOR} GREATER_EQUAL 7)
-    qt_add_lupdate(
-        SOURCE_TARGETS libtreeland
-        TS_FILES
-            ${CMAKE_SOURCE_DIR}/translations/treeland.zh_CN.ts
-            ${CMAKE_SOURCE_DIR}/translations/treeland.en_US.ts
-        NO_GLOBAL_TARGET
-    )
-
-    qt_add_lrelease(
-        TS_FILES
-            ${CMAKE_SOURCE_DIR}/translations/treeland.zh_CN.ts
-            ${CMAKE_SOURCE_DIR}/translations/treeland.en_US.ts
-        QM_FILES_OUTPUT_VARIABLE TRANSLATED_FILES
-    )
-endif()
+qt_add_lupdate(
+    SOURCE_TARGETS libtreeland
+    TS_FILES
+        ${CMAKE_SOURCE_DIR}/translations/treeland.zh_CN.ts
+        ${CMAKE_SOURCE_DIR}/translations/treeland.en_US.ts
+    NO_GLOBAL_TARGET
+)
+qt_add_lrelease(
+    TS_FILES
+        ${CMAKE_SOURCE_DIR}/translations/treeland.zh_CN.ts
+        ${CMAKE_SOURCE_DIR}/translations/treeland.en_US.ts
+    QM_FILES_OUTPUT_VARIABLE TRANSLATED_FILES
+)
 
 target_include_directories(libtreeland
     PUBLIC
@@ -323,6 +306,7 @@ target_link_libraries(${BIN_NAME} PRIVATE
 
 install(TARGETS ${BIN_NAME} RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}")
 install(TARGETS libtreeland LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}")
+# TODO: The qml plugin installation directory still needs to be adjusted
 install(DIRECTORY ${PROJECT_BINARY_DIR}/qt/qml/Treeland DESTINATION "${TREELAND_DATA_DIR}/qml/Treeland")
 
 ## systemd socket
