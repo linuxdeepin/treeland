@@ -651,7 +651,6 @@ Item {
                         PropertyChanges {
                             restoreEntryValues: false // don't restore visible
                             tooltipText {
-                                visible: true
                                 scale: 1
                                 opacity: 1
                             }
@@ -671,7 +670,6 @@ Item {
                                 opacity: 0
                             }
                             titleIconText {
-                                visible: true
                                 scale: 1
                                 opacity: 1
                             }
@@ -683,14 +681,12 @@ Item {
                         PropertyChanges {
                             restoreEntryValues: false
                             tooltipText {
-                                visible: false
                                 scale: 1
-                                opacity: 1
+                                opacity: 0
                             }
                             titleIconText {
-                                visible: false
                                 scale: 1
-                                opacity: 1
+                                opacity: 0
                             }
                         }
                     }
@@ -701,17 +697,13 @@ Item {
                     anchors.fill: parent
                     text: root.tooltip
                     font.pointSize: 12  // FIXME: D.DTK.fontManager.t6 can't work under waylib qpa
-                    elide: Text.ElideRight
-                    horizontalAlignment: Text.AlignLeft
-                    leftPadding: Math.min((width - tooltipMetrics.width) / 2, 5)
-                    // Here need AlignHCenter, but it will cause the position suddenly change on preview to tooltip animation
+                    horizontalAlignment: Text.AlignHCenter
                     verticalAlignment: Text.AlignVCenter
                     transformOrigin: Item.BottomLeft
                     Behavior on opacity {
                         enabled: root.isShowing
                         SequentialAnimation {
                             NumberAnimation { duration: root.aniDuration }
-                            PropertyAction { target: tooltipText; property: "visible"; value: root.isTooltip }
                         }
                     }
                     Behavior on scale {
@@ -746,7 +738,6 @@ Item {
                         enabled: root.isShowing
                         SequentialAnimation {
                             NumberAnimation { duration: root.aniDuration }
-                            PropertyAction { target: titleIconText; property: "visible"; value: !root.isTooltip }
                         }
                     }
                     Behavior on scale {
