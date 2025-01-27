@@ -178,6 +178,16 @@ bool create_fb_damage_clips_blob(struct wlr_drm_backend *drm,
 	return true;
 }
 
+static uint64_t convert_primaries_to_colorspace(uint32_t primaries) {
+	switch (primaries) {
+	case 0:
+		return 0; // Default
+	case WLR_COLOR_NAMED_PRIMARIES_BT2020:
+		return 9; // BT2020_RGB
+	}
+	abort(); // unreachable
+}
+
 static uint64_t max_bpc_for_format(uint32_t format) {
 	switch (format) {
 	case DRM_FORMAT_XRGB2101010:
@@ -302,11 +312,18 @@ bool drm_atomic_connector_prepare(struct wlr_drm_connector_state *state, bool mo
 		vrr_enabled = state->base->adaptive_sync_enabled;
 	}
 
+	uint32_t colorspace = conn->colorspace;
+	if (state->base->committed & WLR_OUTPUT_STATE_IMAGE_DESCRIPTION) {
+		colorspace = convert_primaries_to_colorspace(
+			state->base->image_description ? state->base->image_description->primaries : 0);
+	}
+
 	state->mode_id = mode_id;
 	state->gamma_lut = gamma_lut;
 	state->fb_damage_clips = fb_damage_clips;
 	state->primary_in_fence_fd = in_fence_fd;
 	state->vrr_enabled = vrr_enabled;
+	state->colorspace = colorspace;
 	return true;
 }
 
@@ -335,6 +352,8 @@ void drm_atomic_connector_apply_commit(struct wlr_drm_connector_state *state) {
 			state->base->signal_point, state->out_fence_fd);
 		close(state->out_fence_fd);
 	}
+
+	conn->colorspace = state->colorspace;
 }
 
 void drm_atomic_connector_rollback_commit(struct wlr_drm_connector_state *state) {
@@ -434,6 +453,9 @@ static void atomic_connector_add(struct atomic *atom,
 	}
 	if (modeset && active && conn->props.max_bpc != 0 && conn->max_bpc_bounds[1] != 0) {
 		atomic_add(atom, conn->id, conn->props.max_bpc, pick_max_bpc(conn, state->primary_fb));
+	}
+	if (conn->props.colorspace != 0) {
+		atomic_add(atom, conn->id, conn->props.colorspace, state->colorspace);
 	}
 	atomic_add(atom, crtc->id, crtc->props.mode_id, state->mode_id);
 	atomic_add(atom, crtc->id, crtc->props.active, active);

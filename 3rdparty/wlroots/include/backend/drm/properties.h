@@ -26,6 +26,7 @@ struct wlr_drm_connector_props {
 	// atomic-modesetting only
 
 	uint32_t crtc_id;
+	uint32_t colorspace;
 };
 
 struct wlr_drm_crtc_props {

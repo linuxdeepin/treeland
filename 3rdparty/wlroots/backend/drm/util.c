@@ -83,6 +83,12 @@ void parse_edid(struct wlr_drm_connector *conn, size_t len, const uint8_t *data)
 	output->model = di_info_get_model(info);
 	output->serial = di_info_get_serial(info);
 
+	const struct di_supported_signal_colorimetry *colorimetry = di_info_get_supported_signal_colorimetry(info);
+	bool has_bt2020 = colorimetry->bt2020_cycc || colorimetry->bt2020_ycc || colorimetry->bt2020_rgb;
+	if (conn->props.colorspace != 0 && has_bt2020) {
+		output->supported_primaries |= WLR_COLOR_NAMED_PRIMARIES_BT2020;
+	}
+
 	di_info_destroy(info);
 }
 
