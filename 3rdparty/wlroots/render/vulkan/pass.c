@@ -178,6 +178,7 @@ static bool render_pass_submit(struct wlr_render_pass *wlr_pass) {
 			.uv_off = { 0, 0 },
 			.uv_size = { 1, 1 },
 		};
+		mat3_to_mat4(final_matrix, vert_pcr_data.mat4);
 
 		struct wlr_vk_color_transform *transform = NULL;
 		size_t dim = 1;
@@ -188,10 +189,14 @@ static bool render_pass_submit(struct wlr_render_pass *wlr_pass) {
 		}
 
 		struct wlr_vk_frag_output_pcr_data frag_pcr_data = {
+			.matrix = {
+				{1, 0, 0},
+				{0, 1, 0},
+				{0, 0, 1},
+			},
 			.lut_3d_offset = 0.5f / dim,
 			.lut_3d_scale = (float)(dim - 1) / dim,
 		};
-		mat3_to_mat4(final_matrix, vert_pcr_data.mat4);
 
 		if (pass->color_transform) {
 			bind_pipeline(pass, render_buffer->plain.render_setup->output_pipe_lut3d);
