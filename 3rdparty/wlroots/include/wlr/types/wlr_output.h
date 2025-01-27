@@ -14,6 +14,7 @@
 #include <time.h>
 #include <wayland-server-protocol.h>
 #include <wayland-util.h>
+#include <wlr/render/color.h>
 #include <wlr/render/wlr_renderer.h>
 #include <wlr/types/wlr_buffer.h>
 #include <wlr/util/addon.h>
@@ -74,11 +75,23 @@ enum wlr_output_state_field {
 	WLR_OUTPUT_STATE_WAIT_TIMELINE = 1 << 10,
 	WLR_OUTPUT_STATE_SIGNAL_TIMELINE = 1 << 11,
 	WLR_OUTPUT_STATE_COLOR_TRANSFORM = 1 << 12,
+	WLR_OUTPUT_STATE_IMAGE_DESCRIPTION = 1 << 13,
 };
 
 enum wlr_output_state_mode_type {
 	WLR_OUTPUT_STATE_MODE_FIXED,
 	WLR_OUTPUT_STATE_MODE_CUSTOM,
+};
+
+/**
+ * Colorimetric image description.
+ *
+ * Carries information about the color encoding used for a struct wlr_buffer.
+ *
+ * Supported primaries are advertised in wlr_output.supported_primaries.
+ */
+struct wlr_output_image_description {
+	enum wlr_color_named_primaries primaries;
 };
 
 /**
@@ -131,6 +144,8 @@ struct wlr_output_state {
 	uint64_t signal_point;
 
 	struct wlr_color_transform *color_transform;
+
+	struct wlr_output_image_description *image_description;
 };
 
 struct wlr_output_impl;
@@ -165,6 +180,8 @@ struct wlr_output {
 	struct wlr_output_mode *current_mode;
 	int32_t width, height;
 	int32_t refresh; // mHz, may be zero
+
+	uint32_t supported_primaries; // bitfield of enum wlr_color_named_primaries
 
 	bool enabled;
 	float scale;
@@ -581,6 +598,12 @@ void wlr_output_state_set_signal_timeline(struct wlr_output_state *state,
  */
 void wlr_output_state_set_color_transform(struct wlr_output_state *state,
 	struct wlr_color_transform *tr);
+
+/**
+ * Set the colorimetry image description.
+ */
+bool wlr_output_state_set_image_description(struct wlr_output_state *state,
+	const struct wlr_output_image_description *image_desc);
 
 /**
  * Copies the output state from src to dst. It is safe to then

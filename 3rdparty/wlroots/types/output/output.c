@@ -651,6 +651,10 @@ static bool output_basic_test(struct wlr_output *output,
 		wlr_log(WLR_DEBUG, "Tried to set a color transform on a disabled output");
 		return false;
 	}
+	if (!enabled && state->committed & WLR_OUTPUT_STATE_IMAGE_DESCRIPTION) {
+		wlr_log(WLR_DEBUG, "Tried to set the image description on a disabled output");
+		return false;
+	}
 
 	if (state->committed & WLR_OUTPUT_STATE_LAYERS) {
 		if (state->layers_len != (size_t)wl_list_length(&output->layers)) {
@@ -667,6 +671,14 @@ static bool output_basic_test(struct wlr_output *output,
 			!output->backend->features.timeline) {
 		wlr_log(WLR_DEBUG, "Wait/signal timelines are not supported for this output");
 		return false;
+	}
+
+	if ((state->committed & WLR_OUTPUT_STATE_IMAGE_DESCRIPTION) &&
+			state->image_description != NULL) {
+		if (!(output->supported_primaries & state->image_description->primaries)) {
+			wlr_log(WLR_DEBUG, "Unsupported image description primaries");
+			return false;
+		}
 	}
 
 	return true;
