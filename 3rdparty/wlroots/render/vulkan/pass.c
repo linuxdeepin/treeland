@@ -198,7 +198,7 @@ static bool render_pass_submit(struct wlr_render_pass *wlr_pass) {
 			.lut_3d_scale = (float)(dim - 1) / dim,
 		};
 
-		if (pass->color_transform) {
+		if (pass->color_transform && pass->color_transform->type != COLOR_TRANSFORM_SRGB) {
 			bind_pipeline(pass, render_buffer->plain.render_setup->output_pipe_lut3d);
 		} else {
 			bind_pipeline(pass, render_buffer->plain.render_setup->output_pipe_srgb);
