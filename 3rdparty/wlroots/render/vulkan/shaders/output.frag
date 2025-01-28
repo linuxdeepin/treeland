@@ -18,7 +18,8 @@ layout (constant_id = 0) const int OUTPUT_TRANSFORM = 0;
 
 // Matches enum wlr_vk_output_transform
 #define OUTPUT_TRANSFORM_INVERSE_SRGB 0
-#define OUTPUT_TRANSFORM_LUT_3D 1
+#define OUTPUT_TRANSFORM_INVERSE_ST2084_PQ 1
+#define OUTPUT_TRANSFORM_LUT_3D 2
 
 float linear_channel_to_srgb(float x) {
 	return max(min(x * 12.92, 0.04045), 1.055 * pow(x, 1. / 2.4) - 0.055);
@@ -30,6 +31,17 @@ vec3 linear_color_to_srgb(vec3 color) {
 		linear_channel_to_srgb(color.g),
 		linear_channel_to_srgb(color.b)
 	);
+}
+
+vec3 linear_color_to_pq(vec3 color) {
+	// H.273 TransferCharacteristics code point 16
+	float c1 = 0.8359375;
+	float c2 = 18.8515625;
+	float c3 = 18.6875;
+	float m = 78.84375;
+	float n = 0.1593017578125;
+	vec3 pow_n = pow(clamp(color, vec3(0), vec3(1)), vec3(n));
+	return pow((vec3(c1) + c2 * pow_n) / (vec3(1) + c3 * pow_n), vec3(m));
 }
 
 void main() {
@@ -50,6 +62,8 @@ void main() {
 		// Apply 3D LUT
 		vec3 pos = data.lut_3d_offset + rgb * data.lut_3d_scale;
 		rgb = texture(lut_3d, pos).rgb;
+	} else if (OUTPUT_TRANSFORM == OUTPUT_TRANSFORM_INVERSE_ST2084_PQ) {
+		rgb = linear_color_to_pq(rgb);
 	} else { // OUTPUT_TRANSFORM_INVERSE_SRGB
 		// Produce sRGB encoded values
 		rgb = linear_color_to_srgb(rgb);

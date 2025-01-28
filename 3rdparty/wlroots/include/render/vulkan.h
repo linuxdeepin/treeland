@@ -163,7 +163,8 @@ enum wlr_vk_shader_source {
 // fragment shader. Must match those in shaders/output.frag
 enum wlr_vk_output_transform {
 	WLR_VK_OUTPUT_TRANSFORM_INVERSE_SRGB = 0,
-	WLR_VK_OUTPUT_TRANSFORM_LUT3D = 1,
+	WLR_VK_OUTPUT_TRANSFORM_INVERSE_ST2084_PQ = 1,
+	WLR_VK_OUTPUT_TRANSFORM_LUT3D = 2,
 };
 
 struct wlr_vk_pipeline_key {
@@ -193,6 +194,7 @@ struct wlr_vk_render_format_setup {
 	VkRenderPass render_pass;
 
 	VkPipeline output_pipe_srgb;
+	VkPipeline output_pipe_pq;
 	VkPipeline output_pipe_lut3d;
 
 	struct wlr_vk_renderer *renderer;

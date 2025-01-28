@@ -159,6 +159,7 @@ static void destroy_render_format_setup(struct wlr_vk_renderer *renderer,
 	VkDevice dev = renderer->dev->dev;
 	vkDestroyRenderPass(dev, setup->render_pass, NULL);
 	vkDestroyPipeline(dev, setup->output_pipe_srgb, NULL);
+	vkDestroyPipeline(dev, setup->output_pipe_pq, NULL);
 	vkDestroyPipeline(dev, setup->output_pipe_lut3d, NULL);
 
 	struct wlr_vk_pipeline *pipeline, *tmp_pipeline;
@@ -2299,8 +2300,13 @@ static struct wlr_vk_render_format_setup *find_or_create_render_setup(
 			goto error;
 		}
 		if (!init_blend_to_output_pipeline(
-			renderer, setup->render_pass, renderer->output_pipe_layout,
-			&setup->output_pipe_srgb, WLR_VK_OUTPUT_TRANSFORM_INVERSE_SRGB)) {
+				renderer, setup->render_pass, renderer->output_pipe_layout,
+				&setup->output_pipe_srgb, WLR_VK_OUTPUT_TRANSFORM_INVERSE_SRGB)) {
+			goto error;
+		}
+		if (!init_blend_to_output_pipeline(
+				renderer, setup->render_pass, renderer->output_pipe_layout,
+				&setup->output_pipe_pq, WLR_VK_OUTPUT_TRANSFORM_INVERSE_ST2084_PQ)) {
 			goto error;
 		}
 	} else {
