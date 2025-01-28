@@ -89,9 +89,12 @@ enum wlr_output_state_mode_type {
  * Carries information about the color encoding used for a struct wlr_buffer.
  *
  * Supported primaries are advertised in wlr_output.supported_primaries.
+ * Supported transfer functions are advertised in
+ * wlr_output.supported_transfer_functions.
  */
 struct wlr_output_image_description {
 	enum wlr_color_named_primaries primaries;
+	enum wlr_color_transfer_function transfer_function;
 };
 
 /**
@@ -182,6 +185,7 @@ struct wlr_output {
 	int32_t refresh; // mHz, may be zero
 
 	uint32_t supported_primaries; // bitfield of enum wlr_color_named_primaries
+	uint32_t supported_transfer_functions; // bitfield of enum wlr_color_transfer_function
 
 	bool enabled;
 	float scale;

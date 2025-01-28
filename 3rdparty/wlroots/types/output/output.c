@@ -679,6 +679,10 @@ static bool output_basic_test(struct wlr_output *output,
 			wlr_log(WLR_DEBUG, "Unsupported image description primaries");
 			return false;
 		}
+		if (!(output->supported_transfer_functions & state->image_description->transfer_function)) {
+			wlr_log(WLR_DEBUG, "Unsupported image description transfer function");
+			return false;
+		}
 	}
 
 	return true;
