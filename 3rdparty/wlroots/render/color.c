@@ -29,13 +29,15 @@ void wlr_color_transform_init(struct wlr_color_transform *tr, enum wlr_color_tra
 	wlr_addon_set_init(&tr->addons);
 }
 
-struct wlr_color_transform *wlr_color_transform_init_srgb(void) {
-	struct wlr_color_transform *tx = calloc(1, sizeof(*tx));
+struct wlr_color_transform *wlr_color_transform_init_linear_to_inverse_eotf(
+		enum wlr_color_transfer_function tf) {
+	struct wlr_color_transform_inverse_eotf *tx = calloc(1, sizeof(*tx));
 	if (!tx) {
 		return NULL;
 	}
-	wlr_color_transform_init(tx, COLOR_TRANSFORM_SRGB);
-	return tx;
+	wlr_color_transform_init(&tx->base, COLOR_TRANSFORM_INVERSE_EOTF);
+	tx->tf = tf;
+	return &tx->base;
 }
 
 struct wlr_color_transform *wlr_color_transform_init_lut_3x1d(size_t dim,
@@ -62,7 +64,7 @@ struct wlr_color_transform *wlr_color_transform_init_lut_3x1d(size_t dim,
 
 static void color_transform_destroy(struct wlr_color_transform *tr) {
 	switch (tr->type) {
-	case COLOR_TRANSFORM_SRGB:
+	case COLOR_TRANSFORM_INVERSE_EOTF:
 		break;
 	case COLOR_TRANSFORM_LCMS2:
 		color_transform_lcms2_finish(color_transform_lcms2_from_base(tr));
@@ -90,6 +92,13 @@ void wlr_color_transform_unref(struct wlr_color_transform *tr) {
 	if (tr->ref_count == 0) {
 		color_transform_destroy(tr);
 	}
+}
+
+struct wlr_color_transform_inverse_eotf *wlr_color_transform_inverse_eotf_from_base(
+		struct wlr_color_transform *tr) {
+	assert(tr->type == COLOR_TRANSFORM_INVERSE_EOTF);
+	struct wlr_color_transform_inverse_eotf *inverse_eotf = wl_container_of(tr, inverse_eotf, base);
+	return inverse_eotf;
 }
 
 struct wlr_color_transform_lut_3x1d *color_transform_lut_3x1d_from_base(

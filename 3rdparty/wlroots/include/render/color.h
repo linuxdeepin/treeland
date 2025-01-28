@@ -6,7 +6,7 @@
 #include <wlr/util/addon.h>
 
 enum wlr_color_transform_type {
-	COLOR_TRANSFORM_SRGB,
+	COLOR_TRANSFORM_INVERSE_EOTF,
 	COLOR_TRANSFORM_LCMS2,
 	COLOR_TRANSFORM_LUT_3X1D,
 };
@@ -18,8 +18,11 @@ struct wlr_color_transform {
 	enum wlr_color_transform_type type;
 };
 
-void wlr_color_transform_init(struct wlr_color_transform *tr,
-	enum wlr_color_transform_type type);
+struct wlr_color_transform_inverse_eotf {
+	struct wlr_color_transform base;
+
+	enum wlr_color_transfer_function tf;
+};
 
 /**
  * The formula is approximated via three 1D look-up tables. The flat lut_3x1d
@@ -36,6 +39,9 @@ struct wlr_color_transform_lut_3x1d {
 	size_t dim;
 };
 
+void wlr_color_transform_init(struct wlr_color_transform *tr,
+	enum wlr_color_transform_type type);
+
 /**
  * Get a struct wlr_color_transform_lcms2 from a generic struct wlr_color_transform.
  * Asserts that the base type is COLOR_TRANSFORM_LCMS2.
@@ -50,6 +56,13 @@ void color_transform_lcms2_finish(struct wlr_color_transform_lcms2 *tr);
  */
 void color_transform_lcms2_eval(struct wlr_color_transform_lcms2 *tr,
 	float out[static 3], const float in[static 3]);
+
+/**
+ * Gets a wlr_color_transform_inverse_eotf from a generic wlr_color_transform.
+ * Asserts that the base type is COLOR_TRANSFORM_INVERSE_EOTF
+ */
+struct wlr_color_transform_inverse_eotf *wlr_color_transform_inverse_eotf_from_base(
+	struct wlr_color_transform *tr);
 
 /**
  * Get a struct wlr_color_transform_lut_3x1d from a generic

@@ -190,7 +190,7 @@ static bool render_pass_submit(struct wlr_render_pass *wlr_pass) {
 
 		struct wlr_vk_color_transform *transform = NULL;
 		size_t dim = 1;
-		if (pass->color_transform && pass->color_transform->type != COLOR_TRANSFORM_SRGB) {
+		if (pass->color_transform && pass->color_transform->type != COLOR_TRANSFORM_INVERSE_EOTF) {
 			transform = get_color_transform(pass->color_transform, renderer);
 			assert(transform);
 			dim = transform->lut_3d.dim;
@@ -219,11 +219,27 @@ static bool render_pass_submit(struct wlr_render_pass *wlr_pass) {
 		}
 		encode_color_matrix(matrix, frag_pcr_data.matrix);
 
-		if (pass->color_transform && pass->color_transform->type != COLOR_TRANSFORM_SRGB) {
-			bind_pipeline(pass, render_buffer->plain.render_setup->output_pipe_lut3d);
+		VkPipeline pipeline = VK_NULL_HANDLE;
+		if (pass->color_transform && pass->color_transform->type != COLOR_TRANSFORM_INVERSE_EOTF) {
+			pipeline = render_buffer->plain.render_setup->output_pipe_lut3d;
 		} else {
-			bind_pipeline(pass, render_buffer->plain.render_setup->output_pipe_srgb);
+			enum wlr_color_transfer_function tf = WLR_COLOR_TRANSFER_FUNCTION_SRGB;
+			if (pass->color_transform && pass->color_transform->type == COLOR_TRANSFORM_INVERSE_EOTF) {
+				struct wlr_color_transform_inverse_eotf *inverse_eotf =
+					wlr_color_transform_inverse_eotf_from_base(pass->color_transform);
+				tf = inverse_eotf->tf;
+			}
+
+			switch (tf) {
+			case WLR_COLOR_TRANSFER_FUNCTION_SRGB:
+				pipeline = render_buffer->plain.render_setup->output_pipe_srgb;
+				break;
+			case WLR_COLOR_TRANSFER_FUNCTION_ST2084_PQ:
+				pipeline = render_buffer->plain.render_setup->output_pipe_pq;
+				break;
+			}
 		}
+		bind_pipeline(pass, pipeline);
 		vkCmdPushConstants(render_cb->vk, renderer->output_pipe_layout,
 			VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(vert_pcr_data), &vert_pcr_data);
 		vkCmdPushConstants(render_cb->vk, renderer->output_pipe_layout,
@@ -880,7 +896,7 @@ static bool create_3d_lut_image(struct wlr_vk_renderer *renderer,
 	struct wlr_color_transform_lcms2 *tr_lcms2 = NULL;
 	struct wlr_color_transform_lut_3x1d *tr_lut_3x1d = NULL;
 	switch (tr->type) {
-	case COLOR_TRANSFORM_SRGB:
+	case COLOR_TRANSFORM_INVERSE_EOTF:
 		abort(); // unreachable
 	case COLOR_TRANSFORM_LCMS2:
 		tr_lcms2 = color_transform_lcms2_from_base(tr);
@@ -1061,7 +1077,7 @@ static struct wlr_vk_color_transform *vk_color_transform_create(
 		return NULL;
 	}
 
-	if (transform->type != COLOR_TRANSFORM_SRGB) {
+	if (transform->type != COLOR_TRANSFORM_INVERSE_EOTF) {
 		vk_transform->lut_3d.dim = 33;
 		if (!create_3d_lut_image(renderer, transform,
 				vk_transform->lut_3d.dim,

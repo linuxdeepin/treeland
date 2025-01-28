@@ -74,10 +74,11 @@ struct wlr_color_transform *wlr_color_transform_init_linear_to_icc(
 	const void *data, size_t size);
 
 /**
- * Initialize a color transformation to apply sRGB encoding.
- * Returns NULL on failure.
+ * Initialize a color transformation to apply EOTF⁻¹ encoding. Returns
+ * NULL on failure.
  */
-struct wlr_color_transform *wlr_color_transform_init_srgb(void);
+struct wlr_color_transform *wlr_color_transform_init_linear_to_inverse_eotf(
+	enum wlr_color_transfer_function tf);
 
 /**
  * Initialize a color transformation to apply three 1D look-up tables. dim
