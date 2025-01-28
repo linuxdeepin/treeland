@@ -99,11 +99,9 @@ struct wlr_color_transform *wlr_color_transform_init_linear_to_icc(
 	if (!tx) {
 		goto out_lcms_tr;
 	}
-	tx->base.type = COLOR_TRANSFORM_LUT_3D;
+	wlr_color_transform_init(&tx->base, COLOR_TRANSFORM_LUT_3D);
 	tx->dim_len = dim_len;
 	tx->lut_3d = lut_3d;
-	tx->base.ref_count = 1;
-	wlr_addon_set_init(&tx->base.addons);
 
 out_lcms_tr:
 	cmsDeleteTransform(lcms_tr);
