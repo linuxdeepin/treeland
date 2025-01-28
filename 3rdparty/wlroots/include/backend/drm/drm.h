@@ -159,6 +159,7 @@ struct wlr_drm_connector_state {
 	int primary_in_fence_fd, out_fence_fd;
 	bool vrr_enabled;
 	uint32_t colorspace;
+	uint32_t hdr_output_metadata;
 };
 
 /**
@@ -215,6 +216,7 @@ struct wlr_drm_connector {
 
 	// Atomic modesetting only
 	uint32_t colorspace;
+	uint32_t hdr_output_metadata;
 
 	int32_t refresh;
 };

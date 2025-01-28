@@ -89,6 +89,11 @@ void parse_edid(struct wlr_drm_connector *conn, size_t len, const uint8_t *data)
 		output->supported_primaries |= WLR_COLOR_NAMED_PRIMARIES_BT2020;
 	}
 
+	const struct di_hdr_static_metadata *hdr_static_metadata = di_info_get_hdr_static_metadata(info);
+	if (conn->props.hdr_output_metadata != 0 && hdr_static_metadata->type1 && hdr_static_metadata->pq) {
+		output->supported_transfer_functions |= WLR_COLOR_TRANSFER_FUNCTION_ST2084_PQ;
+	}
+
 	di_info_destroy(info);
 }
 
