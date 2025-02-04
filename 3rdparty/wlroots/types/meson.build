@@ -48,6 +48,7 @@ wlr_files += files(
 	'wlr_drm.c',
 	'wlr_export_dmabuf_v1.c',
 	'wlr_foreign_toplevel_management_v1.c',
+	'wlr_color_representation_v1.c',
 	'wlr_ext_image_copy_capture_v1.c',
 	'wlr_ext_foreign_toplevel_list_v1.c',
 	'wlr_ext_data_control_v1.c',
