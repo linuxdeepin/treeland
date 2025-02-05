@@ -32,6 +32,7 @@
 #include <qwswapchain.h>
 #include <qwoutputlayer.h>
 #include <qwegl.h>
+#include <qwoutputinterface.h>
 
 #include <QOffscreenSurface>
 #include <QQuickRenderControl>

@@ -6,6 +6,10 @@
 #include "wrenderhelper.h"
 #include "private/wglobal_p.h"
 
+#include <qwtexture.h>
+#include <qwbuffer.h>
+#include <qwrenderer.h>
+
 #include <rhi/qrhi.h>
 #include <private/qsgplaintexture_p.h>
 

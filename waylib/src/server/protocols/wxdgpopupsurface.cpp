@@ -5,6 +5,8 @@
 #include "private/wtoplevelsurface_p.h"
 
 #include <qwxdgshell.h>
+#include <qwcompositor.h>
+#include <qwbox.h>
 
 QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE

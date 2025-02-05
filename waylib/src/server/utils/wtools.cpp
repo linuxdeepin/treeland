@@ -209,7 +209,7 @@ QImage::Format WTools::convertToDrmSupportedFormat(QImage::Format format)
     return format;
 }
 
-uint32_t WTools::shmToDrmFormat(wl_shm_format shmFmt)
+uint32_t WTools::shmToDrmFormat(wl_shm_format_t shmFmt)
 {
     switch (shmFmt) {
     case WL_SHM_FORMAT_XRGB8888:
@@ -221,7 +221,7 @@ uint32_t WTools::shmToDrmFormat(wl_shm_format shmFmt)
     }
 }
 
-wl_shm_format WTools::drmToShmFormat(uint32_t drmFmt)
+wl_shm_format_t WTools::drmToShmFormat(uint32_t drmFmt)
 {
     switch (drmFmt) {
     case DRM_FORMAT_XRGB8888:

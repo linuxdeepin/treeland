@@ -8,6 +8,8 @@
 #include <qwoutput.h>
 #include <qwbox.h>
 #include <qwoutputlayout.h>
+#include <qwdisplay.h>
+
 #include <QRect>
 
 QW_USE_NAMESPACE

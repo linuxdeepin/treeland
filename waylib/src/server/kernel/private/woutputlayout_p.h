@@ -4,6 +4,8 @@
 #include "woutputlayout.h"
 #include "wglobal_p.h"
 
+#include <qwoutputlayout.h>
+
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
 class Q_DECL_HIDDEN WOutputLayoutPrivate : public WWrapObjectPrivate
