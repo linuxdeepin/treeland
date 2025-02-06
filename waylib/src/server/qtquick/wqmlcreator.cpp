@@ -7,7 +7,9 @@
 #include <QJSValue>
 #include <QQuickItem>
 #include <QQmlInfo>
+#define private public
 #include <private/qqmlcomponent_p.h>
+#undef private
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
@@ -204,7 +206,11 @@ void WQmlCreatorComponent::create(QSharedPointer<WQmlCreatorDelegateData> data)
 
     auto d = QQmlComponentPrivate::get(m_delegate);
 #if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
+#if QT_VERSION >= QT_VERSION_CHECK(6, 9, 0)
+    if (d->m_state.isCompletePending()) {
+#else
     if (d->state.isCompletePending()) {
+#endif
         QMetaObject::invokeMethod(this, "create", Qt::QueuedConnection, data, parent, data->data.lock()->properties);
 #else
     if (d->state.completePending) {
@@ -222,7 +228,9 @@ void WQmlCreatorComponent::create(QSharedPointer<WQmlCreatorDelegateData> data, 
 {
     auto d = QQmlComponentPrivate::get(m_delegate);
 
-#if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
+#if QT_VERSION >= QT_VERSION_CHECK(6, 9, 0)
+    Q_ASSERT(!d->m_state.isCompletePending());
+#elif QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
     Q_ASSERT(!d->state.isCompletePending());
 #else
     Q_ASSERT(!d->state.completePending);
@@ -273,7 +281,11 @@ void WQmlCreatorComponent::create(QSharedPointer<WQmlCreatorDelegateData> data, 
         notifyCreatorObjectAdded(creator(), data->object, initialProperties);
     } else {
         qWarning() << "WQmlCreatorComponent::create failed" << "parent=" << parent << "initialProperties=" << tmp;
+#if QT_VERSION >= QT_VERSION_CHECK(6, 9, 0)
+        for (auto e: d->m_state.errors)
+#else
         for (auto e: d->state.errors)
+#endif
             qWarning() << e.error;
     }
 }
