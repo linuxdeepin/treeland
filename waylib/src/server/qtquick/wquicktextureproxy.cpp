@@ -238,6 +238,10 @@ QSGNode *WQuickTextureProxy::updatePaintNode(QSGNode *old, QQuickItem::UpdatePai
 
     const auto tp = d->sourceItem->textureProvider();
     if (Q_LIKELY(!tp || !tp->texture())) {
+        if (tp) {
+            connect(tp, &QSGTextureProvider::textureChanged,
+                    this, &WQuickTextureProxy::update, Qt::SingleShotConnection);
+        }
         delete old;
         return nullptr;
     }

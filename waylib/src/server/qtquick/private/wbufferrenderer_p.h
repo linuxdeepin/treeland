@@ -142,10 +142,10 @@ private:
         QSize pixelSize;
         qreal devicePixelRatio;
         int bufferAge;
-        std::pair<QW_NAMESPACE::qw_buffer*, QQuickRenderTarget> lastRT;
         QW_NAMESPACE::qw_buffer *buffer = nullptr;
         QQuickRenderTarget renderTarget;
         QSGRenderTarget sgRenderTarget;
+        QRegion dirty;
     } state;
 
     QPointer<WOutput> m_output;

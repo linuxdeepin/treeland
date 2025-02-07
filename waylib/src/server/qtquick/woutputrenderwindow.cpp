@@ -950,9 +950,7 @@ WBufferRenderer *OutputHelper::compositeLayers(const QList<LayerData*> layers, b
 {
     Q_ASSERT(!layers.isEmpty());
 
-    const bool usingShadowRenderer = forceShadowRenderer
-                                     // TODO: Support preserveColorContents in Qt in QSGSoftwareRenderer
-                                     || dynamic_cast<QSGSoftwareRenderer*>(renderWindowD()->renderer);
+    const bool usingShadowRenderer = forceShadowRenderer;
 
     if (!m_layerPorxyContainer) {
         m_layerPorxyContainer = new QQuickItem(renderWindow()->contentItem());
@@ -981,6 +979,8 @@ WBufferRenderer *OutputHelper::compositeLayers(const QList<LayerData*> layers, b
         auto outputProxy = m_layerProxys.first();
         outputProxy->setRenderer(bufferRenderer());
         outputProxy->setSize(output->size());
+        outputProxy->setPosition({0, 0});
+        outputProxy->setZ(0);
     } else {
         output = m_output;
 
