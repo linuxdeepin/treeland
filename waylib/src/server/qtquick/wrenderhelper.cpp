@@ -642,7 +642,8 @@ void WRenderHelper::setupRendererBackend(qw_backend *testBackend)
 
     if (wlrRenderer == "auto" || wlrRenderer.isEmpty()) {
         if (qEnvironmentVariableIsSet("QSG_RHI_BACKEND")
-            || qgetenv("QT_QUICK_BACKEND") != "rhi") {
+            || (qEnvironmentVariableIsSet("QT_QUICK_BACKEND")
+                && qgetenv("QT_QUICK_BACKEND") != "rhi")) {
             // when environment variable Q*_BACKEND was set, should defer to
             // the env variable for the graphics API.
             return;
