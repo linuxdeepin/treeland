@@ -13,11 +13,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1736495869,
-        "narHash": "sha256-JRxnC+1K4eX7LJ+9xMMES9kkrw6akrHG0Bt6FPYOOOQ=",
+        "lastModified": 1737432823,
+        "narHash": "sha256-pty5k1MQ9Fh68dscINllJ3Df3mzUgcB0HgBGFvw1Xgs=",
         "owner": "linuxdeepin",
         "repo": "ddm",
-        "rev": "3d6affa276f5ea93e9cadd6f9dd4ed43d3422743",
+        "rev": "4cfcaf4184a47780b248ea9a43e38563ae0d55ab",
         "type": "github"
       },
       "original": {
@@ -61,15 +61,18 @@
     },
     "nixpkgs": {
       "locked": {
-        "lastModified": 1736523798,
-        "narHash": "sha256-Xb8mke6UCYjge9kPR9o4P1nVrhk7QBbKv3xQ9cj7h2s=",
-        "path": "/nix/store/cginla74w7h4gln9b3mva6l4nmj6gj30-source",
-        "rev": "130595eba61081acde9001f43de3248d8888ac4a",
-        "type": "path"
+        "lastModified": 1739020877,
+        "narHash": "sha256-mIvECo/NNdJJ/bXjNqIh8yeoSjVLAuDuTUzAo7dzs8Y=",
+        "owner": "NixOS",
+        "repo": "nixpkgs",
+        "rev": "a79cfe0ebd24952b580b1cf08cd906354996d547",
+        "type": "github"
       },
       "original": {
-        "id": "nixpkgs",
-        "type": "indirect"
+        "owner": "NixOS",
+        "ref": "nixos-unstable",
+        "repo": "nixpkgs",
+        "type": "github"
       }
     },
     "qwlroots": {
@@ -85,11 +88,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1732618668,
-        "narHash": "sha256-RVIxyAC346gXy05hyT/AtConzO1ZE8lbiCg2Diin6bA=",
+        "lastModified": 1738724022,
+        "narHash": "sha256-NCuYJKAlmyISieLMy9z7S8o4GoqVxEGZlJMK8xJKlsg=",
         "owner": "vioken",
         "repo": "qwlroots",
-        "rev": "4880f9a7a820fa15d67c805156a100ac6c402490",
+        "rev": "5b678d075d93e9f7d3d4e5d93bb08ad04af9dabc",
         "type": "github"
       },
       "original": {
@@ -137,11 +140,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1733476203,
-        "narHash": "sha256-SS4jnfr/9Ec3qpnHS4EjQViekBRMix5oz7b9qhNZpfY=",
+        "lastModified": 1737101824,
+        "narHash": "sha256-keu/J/mEW7VIQ2Nyo9SaOreUYoDdgxONb66c6XN3Gnc=",
         "owner": "linuxdeepin",
         "repo": "treeland-protocols",
-        "rev": "d8bd68666e1452fb378ff26c4e7088029c2af6fe",
+        "rev": "b087c563ad5b07f61ebbe2417251839ef6876d45",
         "type": "github"
       },
       "original": {
@@ -166,11 +169,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1735176992,
-        "narHash": "sha256-cs4nPYMIOppVuna5qBbgGtPdmVhMrhKkVG7L09NmB/U=",
+        "lastModified": 1739254255,
+        "narHash": "sha256-cBSGwRIFHD0FOat+sQsHEh5cnGzfSM1ONn+HSbSxLdU=",
         "owner": "vioken",
         "repo": "waylib",
-        "rev": "6cd803bd548a79b9472b4232c9210c0268e5d117",
+        "rev": "15461883576388fd04260f0b9a4c1545e5d99032",
         "type": "github"
       },
       "original": {
