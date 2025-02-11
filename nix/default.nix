@@ -9,7 +9,7 @@
   qttools,
   wrapQtAppsHook,
   qtbase,
-  qtquick3d,
+  qtdeclarative,
   qtimageformats,
   qtwayland,
   qtsvg,
@@ -66,7 +66,7 @@ stdenv.mkDerivation (finalAttrs: {
 
   buildInputs = [
     qtbase
-    qtquick3d
+    qtdeclarative
     qtimageformats
     qtwayland
     qtsvg
@@ -101,8 +101,8 @@ stdenv.mkDerivation (finalAttrs: {
   noAuditTmpdir = true;
 
   meta = {
-    description = "DDM is a fork of SDDM";
-    homepage = "https://github.com/vioken/treeland";
+    description = "Wayland compositor based on wlroots and QtQuick";
+    homepage = "https://github.com/linuxdeepin/treeland";
     license = with lib.licenses; [
       gpl3Only
       lgpl3Only
