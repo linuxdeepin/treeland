@@ -2,7 +2,7 @@
   description = "A basic flake to help develop treeland";
 
   inputs = {
-    nixpkgs.url = "nixpkgs"; #"github:NixOS/nixpkgs/master";
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     flake-utils.url = "github:numtide/flake-utils";
     nix-filter.url = "github:numtide/nix-filter";
     qwlroots = {
@@ -195,7 +195,7 @@
                   diskSize = 16384;
                   resolution = { x = 1920; y = 1080; };
                 };
-                system.stateVersion = "24.05";
+                system.stateVersion = "25.05";
               }
             ];
           };
