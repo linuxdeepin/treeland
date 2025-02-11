@@ -39,6 +39,8 @@ int main(int argc, char *argv[])
     CmdLine::ref();
 
     WRenderHelper::setupRendererBackend();
+    if (CmdLine::ref().tryExec())
+        return 0;
     Q_ASSERT(qw_buffer::get_objects().isEmpty());
 
     Treeland::Treeland treeland;
