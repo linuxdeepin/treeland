@@ -11,6 +11,6 @@ After=seatd.service
 User=dde
 Environment=LIBSEAT_BACKEND=seatd
 Environment=DSG_APP_ID=org.deepin.dde.treeland
-ExecStart=@CMAKE_INSTALL_FULL_BINDIR@/treeland --lockscreen
+ExecStart=@CMAKE_INSTALL_FULL_BINDIR@/treeland.sh --lockscreen
 Restart=on-failure
 RestartSec=1s
