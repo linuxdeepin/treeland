@@ -845,7 +845,8 @@ WBufferRenderer *OutputHelper::afterRender()
         return bufferRenderer();
     }
 
-    const bool ok = WOutputHelper::testCommit(bufferRenderer()->currentBuffer(), layers);
+    static bool noHardwareLayers = qEnvironmentVariableIsSet("WAYLIB_NO_HARDWARE_LAYERS");
+    const bool ok = !noHardwareLayers && WOutputHelper::testCommit(bufferRenderer()->currentBuffer(), layers);
     int needsSoftwareCompositeBeginIndex = -1;
     int needsSoftwareCompositeEndIndex = -1;
     bool forceShadowRender = false;
