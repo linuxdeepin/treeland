@@ -305,6 +305,7 @@ target_link_libraries(${BIN_NAME} PRIVATE
 )
 
 install(TARGETS ${BIN_NAME} RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}")
+install(PROGRAMS treeland.sh DESTINATION "${CMAKE_INSTALL_BINDIR}")
 install(TARGETS libtreeland LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}")
 # TODO: The qml plugin installation directory still needs to be adjusted
 install(DIRECTORY ${PROJECT_BINARY_DIR}/qt/qml/Treeland DESTINATION "${TREELAND_DATA_DIR}/qml/Treeland")
