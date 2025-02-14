@@ -56,7 +56,11 @@ QW_BEGIN_NAMESPACE
 class qw_renderer;
 class qw_allocator;
 class qw_compositor;
+class qw_idle_notifier_v1;
+class qw_idle_inhibit_manager_v1;
 class qw_output_configuration_v1;
+class qw_output_power_manager_v1;
+class qw_idle_inhibitor_v1;
 QW_END_NAMESPACE
 
 WAYLIB_SERVER_USE_NAMESPACE
@@ -84,6 +88,8 @@ class IMultitaskView;
 class LockScreenInterface;
 class ILockScreen;
 class UserModel;
+struct wlr_idle_inhibitor_v1;
+struct wlr_output_power_v1_set_mode_event;
 
 class Helper : public WSeatEventFilter
 {
@@ -220,6 +226,8 @@ private:
     void onSurfaceModeChanged(WSurface *surface, WXdgDecorationManager::DecorationMode mode);
     void setGamma(struct wlr_gamma_control_manager_v1_set_gamma_event *event);
     void onOutputTestOrApply(qw_output_configuration_v1 *config, bool onlyTest);
+    void onSetOutputPowerMode(wlr_output_power_v1_set_mode_event *event);
+    void onNewIdleInhibitor(wlr_idle_inhibitor_v1 *inhibitor);
     void onDockPreview(std::vector<SurfaceWrapper *> surfaces,
                        WSurface *target,
                        QPoint pos,
@@ -272,6 +280,7 @@ private:
     bool isNvidiaCardPresent();
     void setWorkspaceVisible(bool visible);
     void restoreFromShowDesktop(SurfaceWrapper *activeSurface = nullptr);
+    void updateIdleInhibitor();
 
     static Helper *m_instance;
 
@@ -295,6 +304,9 @@ private:
 
     // protocols
     qw_compositor *m_compositor = nullptr;
+    qw_idle_notifier_v1 *m_idleNotifier = nullptr;
+    qw_idle_inhibit_manager_v1 *m_idleInhibitManager = nullptr;
+    qw_output_power_manager_v1 *m_outputPowerManager = nullptr;
     ShellHandler *m_shellHandler = nullptr;
     WXWayland *m_defaultXWayland = nullptr;
     WXdgDecorationManager *m_xdgDecorationManager = nullptr;
@@ -313,6 +325,7 @@ private:
     // private data
     QList<Output *> m_outputList;
     QPointer<QQuickItem> m_taskSwitch;
+    QList<qw_idle_inhibitor_v1 *> m_idleInhibitors;
 
     SurfaceWrapper *m_activatedSurface = nullptr;
     RootSurfaceContainer *m_rootSurfaceContainer = nullptr;
