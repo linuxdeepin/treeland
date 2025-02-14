@@ -437,8 +437,11 @@ void Helper::onOutputTestOrApply(qw_output_configuration_v1 *config, bool onlyTe
 
                 WOutputViewport *viewport = getOutput(output)->screenViewport();
                 if (viewport) {
-                    viewport->setX(state.x);
-                    viewport->setY(state.y);
+                    auto outputItem = qobject_cast<WOutputItem*>(viewport->parentItem());
+                    if (outputItem) {
+                        outputItem->setX(state.x);
+                        outputItem->setY(state.y);
+                    }
                 }
             }
         }
