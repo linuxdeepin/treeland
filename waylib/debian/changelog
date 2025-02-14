@@ -1,3 +1,9 @@
+waylib (0.6.11) unstable; urgency=medium
+
+  * bump version to 0.6.11
+
+ -- rewine <luhongxu@deepin.org>  Fri, 14 Feb 2025 10:31:38 +0800
+
 waylib (0.6.10) unstable; urgency=medium
 
   * bump version to 0.6.10
