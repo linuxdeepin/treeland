@@ -1,3 +1,11 @@
+treeland (0.5.18) unstable; urgency=medium
+
+  * fix: the tooltip text may disappear unexpectedly
+  * fix: can't start on VirtualBox
+  * feat: cache outputs settings
+
+ -- rewine <luhongxu@deepin.org>  Fri, 14 Feb 2025 10:31:38 +0800
+
 treeland (0.5.17) unstable; urgency=medium
 
   * fix: nix ci for build
