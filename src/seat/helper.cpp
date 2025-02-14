@@ -59,6 +59,7 @@
 #include <wxdgshell.h>
 #include <wxwayland.h>
 #include <wxwaylandsurface.h>
+#include <wxdgtoplevelsurface.h>
 
 #include <qwallocator.h>
 #include <qwbackend.h>
@@ -77,6 +78,9 @@
 #include <qwsubcompositor.h>
 #include <qwviewporter.h>
 #include <qwxwaylandsurface.h>
+#include <qwoutputpowermanagementv1.h>
+#include <qwidlenotifyv1.h>
+#include <qwidleinhibitv1.h>
 
 #include <QAction>
 #include <QKeySequence>
@@ -466,6 +470,71 @@ void Helper::onOutputTestOrApply(qw_output_configuration_v1 *config, bool onlyTe
         }
     }
     m_outputManager->sendResult(config, ok);
+}
+
+void Helper::onSetOutputPowerMode(wlr_output_power_v1_set_mode_event *event)
+{
+    auto output = qw_output::from(event->output);
+    qw_output_state newState;
+
+    switch (event->mode) {
+    case ZWLR_OUTPUT_POWER_V1_MODE_OFF:
+        if (!output->handle()->enabled) {
+            return;
+        }
+        newState.set_enabled(false);
+        output->commit_state(newState);
+        break;
+    case ZWLR_OUTPUT_POWER_V1_MODE_ON:
+        if (output->handle()->enabled) {
+            return;
+        }
+        newState.set_enabled(true);
+        output->commit_state(newState);
+        break;
+    }
+}
+
+void Helper::onNewIdleInhibitor(wlr_idle_inhibitor_v1 *wlr_inhibitor)
+{
+    auto inhibitor = qw_idle_inhibitor_v1::from(wlr_inhibitor);
+    m_idleInhibitors.append(inhibitor);
+
+    connect(inhibitor, &qw_idle_inhibitor_v1::before_destroy, this, [this, inhibitor]() {
+        m_idleInhibitors.removeOne(inhibitor);
+        updateIdleInhibitor();
+    });
+
+    auto wsurface = WSurface::fromHandle(wlr_inhibitor->surface);
+    connect(wsurface, &WSurface::mappedChanged, inhibitor, [this]() {
+        updateIdleInhibitor();
+    });
+
+    auto toplevel = WXdgToplevelSurface::fromSurface(wsurface);
+    if (toplevel) {
+        connect(toplevel, &WXdgToplevelSurface::minimizeChanged, inhibitor, [this]() {
+            updateIdleInhibitor();
+        });
+    }
+
+    updateIdleInhibitor();
+}
+
+void Helper::updateIdleInhibitor()
+{
+    for (const auto &inhibitor : std::as_const(m_idleInhibitors)) {
+        auto wsurface = WSurface::fromHandle((*inhibitor)->surface);
+        bool visible = wsurface->mapped();
+        auto toplevel = WXdgToplevelSurface::fromSurface(wsurface);
+        if (toplevel)
+            visible &= !toplevel->isMinimized();
+
+        if (visible) {
+            m_idleNotifier->set_inhibited(true);
+            return;
+        }
+    }
+    m_idleNotifier->set_inhibited(false);
 }
 
 void Helper::onDockPreview(std::vector<SurfaceWrapper *> surfaces,
@@ -994,6 +1063,16 @@ void Helper::init()
                 QMetaObject::invokeMethod(m_dockPreview, "close");
             });
 
+
+    m_idleNotifier = qw_idle_notifier_v1::create(*m_server->handle());
+
+    m_idleInhibitManager = qw_idle_inhibit_manager_v1::create(*m_server->handle());
+    connect(m_idleInhibitManager, &qw_idle_inhibit_manager_v1::notify_new_inhibitor, this, &Helper::onNewIdleInhibitor);
+
+    m_outputPowerManager = qw_output_power_manager_v1::create(*m_server->handle());
+
+    connect(m_outputPowerManager, &qw_output_power_manager_v1::notify_set_mode, this, &Helper::onSetOutputPowerMode);
+
     m_backend->handle()->start();
 
     qCInfo(qLcHelper) << "Listing on:" << m_socket->fullServerName();
@@ -1080,6 +1159,9 @@ void Helper::fakePressSurfaceBottomRightToReszie(SurfaceWrapper *surface)
 
 bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *, QInputEvent *event)
 {
+    if (event->isInputEvent()) {
+        m_idleNotifier->notify_activity(seat->nativeHandle());
+    }
     // NOTE: Unable to distinguish meta from other key combinations
     //       For example, Meta+S will still receive Meta release after
     //       fully releasing the key, actively detect whether there are
