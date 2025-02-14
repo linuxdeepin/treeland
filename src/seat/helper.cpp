@@ -318,6 +318,38 @@ void Helper::onOutputAdded(WOutput *output)
 
     m_wallpaperColorV1->updateWallpaperColor(output->name(),
                                              m_personalization->backgroundIsDark(output->name()));
+
+    QString cache_location = QStandardPaths::writableLocation(QStandardPaths::ConfigLocation);
+    QSettings settings(cache_location + "/output.ini", QSettings::IniFormat);
+    settings.beginGroup(QString("output.%1").arg(output->name()));
+    if (settings.contains("scale") && m_mode != OutputMode::Copy) {
+        qw_output_state newState;
+        newState.set_enabled(true);
+
+        int width = settings.value("width").toInt();
+        int height = settings.value("height").toInt();
+        int refresh = settings.value("refresh").toInt();
+
+        wlr_output_mode *mode, *configMode = nullptr;
+        wl_list_for_each(mode, &output->nativeHandle()->modes, link) {
+            if (mode->width == width && mode->height == height && mode->refresh == refresh) {
+                configMode = mode;
+                break;
+            }
+        }
+        if (configMode)
+            newState.set_mode(configMode);
+        else
+            newState.set_custom_mode(width,
+                                     height,
+                                     refresh);
+
+        newState.set_adaptive_sync_enabled(settings.value("adaptiveSyncEnabled").toBool());
+        newState.set_transform(static_cast<wl_output_transform>(settings.value("transform").toInt()));
+        newState.set_scale(settings.value("scale").toFloat());
+        output->handle()->commit_state(newState);
+    }
+    settings.endGroup();
 }
 
 void Helper::onOutputRemoved(WOutput *output)
@@ -415,6 +447,20 @@ void Helper::onOutputTestOrApply(qw_output_configuration_v1 *config, bool onlyTe
             ok &= output->handle()->test_state(newState);
         else
             ok &= output->handle()->commit_state(newState);
+    }
+    if (ok && !onlyTest) {
+        QString cache_location = QStandardPaths::writableLocation(QStandardPaths::ConfigLocation);
+        QSettings settings(cache_location + "/output.ini", QSettings::IniFormat);
+        for (WOutputState state : std::as_const(states)) {
+            settings.beginGroup(QString("output.%1").arg(state.output->name()));
+            settings.setValue("width", state.mode ? state.mode->width : state.customModeSize.width());
+            settings.setValue("height", state.mode ? state.mode->height : state.customModeSize.height());
+            settings.setValue("refresh", state.mode ? state.mode->refresh : state.customModeRefresh);
+            settings.setValue("transform", state.transform);
+            settings.setValue("scale", state.scale);
+            settings.setValue("adaptiveSyncEnabled", state.adaptiveSyncEnabled);
+            settings.endGroup();
+        }
     }
     m_outputManager->sendResult(config, ok);
 }
