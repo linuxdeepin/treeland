@@ -1,3 +1,10 @@
+treeland (0.5.19) unstable; urgency=medium
+
+  * fix: can't set output's postion
+  * fix: layer shell's popup not enter popup container
+
+ -- rewine <luhongxu@deepin.org>  Sat, 15 Feb 2025 15:30:10 +0800
+
 treeland (0.5.18) unstable; urgency=medium
 
   * fix: the tooltip text may disappear unexpectedly
