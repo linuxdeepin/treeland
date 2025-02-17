@@ -206,10 +206,11 @@ void ShellHandler::onXdgPopupSurfaceAdded(WXdgPopupSurface *surface)
     // When the `parent` is in a specific `container`. for example, when the parent's
     // 'container' has a higher z-index than the `popup`, it is necessary to add the `popup`
     // to the parent's `container` to ensure that the `popup` displays above it's `parent`.
-    bool shouldEnterContainerOfParent = parentWrapper->container()
-        && (parentWrapper->container()->parent() != m_popupContainer->parent()
-            || parentWrapper->container()->z() > m_popupContainer->z());
-    if (shouldEnterContainerOfParent) {
+    QQuickItem *ancestorContainer = parentWrapper->container();
+    while (ancestorContainer && ancestorContainer->parentItem() != m_popupContainer->parentItem()) {
+        ancestorContainer = ancestorContainer->parentItem();
+    }
+    if (ancestorContainer && ancestorContainer->z() > m_popupContainer->z()) {
         // Set the z-index of the popup itself to ensure it is higher
         // than other types of windows within the same container
         wrapper->setZ(5);
