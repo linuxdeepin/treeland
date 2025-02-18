@@ -235,6 +235,8 @@ bool wlr_keyboard_set_keymap(struct wlr_keyboard *kb, struct xkb_keymap *keymap)
 		XKB_LED_NAME_NUM,
 		XKB_LED_NAME_CAPS,
 		XKB_LED_NAME_SCROLL,
+		XKB_LED_NAME_COMPOSE,
+		XKB_LED_NAME_KANA,
 	};
 	for (size_t i = 0; i < WLR_LED_COUNT; ++i) {
 		kb->led_indexes[i] = xkb_map_led_get_index(kb->keymap, led_names[i]);

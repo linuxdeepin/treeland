@@ -105,8 +105,8 @@ drm = dependency('libdrm',
 		'tests=false',
 	],
 )
-xkbcommon = dependency(
-	'xkbcommon',
+xkbcommon = dependency('xkbcommon',
+	version: '>=1.8.0',
 	fallback: 'libxkbcommon',
 	default_options: [
 		'enable-tools=false',

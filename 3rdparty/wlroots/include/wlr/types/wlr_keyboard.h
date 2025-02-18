@@ -16,12 +16,14 @@
 #include <wlr/types/wlr_input_device.h>
 #include <xkbcommon/xkbcommon.h>
 
-#define WLR_LED_COUNT 3
+#define WLR_LED_COUNT 5
 
 enum wlr_keyboard_led {
 	WLR_LED_NUM_LOCK = 1 << 0,
 	WLR_LED_CAPS_LOCK = 1 << 1,
 	WLR_LED_SCROLL_LOCK = 1 << 2,
+	WLR_LED_COMPOSE = 1 << 3,
+	WLR_LED_KANA = 1 << 4,
 };
 
 #define WLR_MODIFIER_COUNT 8
