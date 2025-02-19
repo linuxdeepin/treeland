@@ -10,6 +10,7 @@
 #include "woutputviewport.h"
 #include "wsgtextureprovider.h"
 #include "woutputrenderwindow.h"
+#include "wwrappointer.h"
 
 #include <qwcompositor.h>
 #include <qwsubcompositor.h>
@@ -270,7 +271,7 @@ public:
     }
 
     W_DECLARE_PUBLIC(WSurfaceItemContent)
-    QPointer<WSurface> surface;
+    WWrapPointer<WSurface> surface;
     QRectF bufferSourceBox;
     QPoint bufferOffset;
     qreal devicePixelRatio = 1.0;
