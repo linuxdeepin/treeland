@@ -1071,9 +1071,10 @@ void SurfaceWrapper::startShowDesktopAnimation(bool show)
 qreal SurfaceWrapper::radius() const
 {
     // TODO: move to dconfig
-    if (m_type == Type::InputPopup || m_type == Type::XdgPopup) {
+    if (m_type == Type::InputPopup)
+        return 0;
+    if (m_type == Type::XdgPopup)
         return 8;
-    }
 
     qreal radius = m_radius;
 
