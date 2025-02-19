@@ -310,7 +310,14 @@ Treeland::Treeland()
     QDBusConnection::sessionBus().registerObject("/org/deepin/Compositor1", this);
 
 #ifdef QT_DEBUG
-    d->loadPlugin(QStringLiteral(TREELAND_PLUGINS_OUTPUT_PATH));
+    QDir dir(QStringLiteral(TREELAND_PLUGINS_OUTPUT_PATH));
+    if (dir.exists() && dir.isReadable()) {
+        d->loadPlugin(QStringLiteral(TREELAND_PLUGINS_OUTPUT_PATH));
+    } else {
+        qInfo() << "The Treeland plugin build directory is inaccessible, failback to the "
+                   "installation directory";
+        d->loadPlugin(QStringLiteral(TREELAND_PLUGINS_INSTALL_PATH));
+    }
 #else
     d->loadPlugin(QStringLiteral(TREELAND_PLUGINS_INSTALL_PATH));
 #endif
