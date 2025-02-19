@@ -267,8 +267,8 @@ void WInputMethodHelper::handleNewIPSV2(qw_input_popup_surface_v2 *ipsv2)
     auto createPopupSurface = [this, d] (WSurface *focus, QRect cursorRect, qw_input_popup_surface_v2 *popupSurface){
         auto surface = new WInputPopupSurface(popupSurface, focus, this);
         d->popupSurfaces.append(surface);
-        Q_EMIT inputPopupSurfaceV2Added(surface);
         updatePopupSurface(surface, cursorRect);
+        Q_EMIT inputPopupSurfaceV2Added(surface);
         surface->safeConnect(&qw_input_popup_surface_v2::before_destroy, this, [this, d, surface](){
             d->popupSurfaces.removeAll(surface);
             Q_EMIT inputPopupSurfaceV2Removed(surface);
