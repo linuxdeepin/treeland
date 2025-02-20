@@ -72,7 +72,6 @@ QString PersonalizationV1::readWallpaperSettings(const QString &group,
 
 PersonalizationV1::PersonalizationV1(QObject *parent)
     : QObject(parent)
-    , m_dconfig(DConfig::create("org.deepin.treeland", "org.deepin.treeland", QString()))
 {
     if (PERSONALIZATION_MANAGER) {
         qFatal("There are multiple instances of QuickPersonalizationManager");
@@ -144,7 +143,7 @@ void PersonalizationV1::onAppearanceContextCreated(personalization_appearance_co
     using Appearance = personalization_appearance_context_v1;
 
     m_appearanceContexts.push_back(context);
-
+    /*
     connect(context, &Appearance::roundCornerRadiusChanged, this, [this, context](int32_t radius) {
         TreelandConfig::ref().setWindowRadius(radius);
         for (auto *context : m_appearanceContexts) {
@@ -180,14 +179,14 @@ void PersonalizationV1::onAppearanceContextCreated(personalization_appearance_co
         for (auto *context : m_appearanceContexts) {
             context->sendWindowTitlebarHeight(height);
         }
-    });
+    });*/
 
     connect(context, &Appearance::requestRoundCornerRadius, context, [this, context] {
-        context->setRoundCornerRadius(windowRadius());
+        context->setRoundCornerRadius(TreelandConfig::ref().windowRadius());
     });
 
     connect(context, &Appearance::requestIconTheme, context, [this, context] {
-        context->setIconTheme(iconTheme().toUtf8());
+        context->setIconTheme(TreelandConfig::ref().iconThemeName().toUtf8());
     });
 
     connect(context, &Appearance::requestActiveColor, context, [this, context] {
@@ -250,13 +249,6 @@ void PersonalizationV1::onFontContextCreated(personalization_font_context_v1 *co
     connect(context, &Font::requestFontSize, context, [context] {
         context->sendFontSize(TreelandConfig::ref().fontSize());
     });
-
-    connect(context, &Font::fontChanged, &TreelandConfig::ref(), &TreelandConfig::setFontName);
-    connect(context,
-            &Font::monoFontChanged,
-            &TreelandConfig::ref(),
-            &TreelandConfig::setMonoFontName);
-    connect(context, &Font::fontSizeChanged, &TreelandConfig::ref(), &TreelandConfig::setFontSize);
 
     connect(context, &Font::beforeDestroy, this, [this, context] {
         for (auto it = m_fontContexts.begin(); it != m_fontContexts.end(); ++it) {
@@ -346,14 +338,7 @@ void PersonalizationV1::onWallpaperCommit(personalization_wallpaper_context_v1 *
 
 void PersonalizationV1::onCursorCommit(personalization_cursor_context_v1 *context)
 {
-    if (!context->size.isValid() || context->theme.isEmpty()) {
-        context->verfity(false);
-    }
-
-    setCursorTheme(context->theme);
-    setCursorSize(context->size);
-
-    context->verfity(true);
+    qCritical() << "CursorCommit is deprecated!";
 }
 
 void PersonalizationV1::onGetWallpapers(personalization_wallpaper_context_v1 *context)
@@ -375,42 +360,6 @@ void PersonalizationV1::setUserId(uid_t uid)
     m_userId = uid;
     updateCacheWallpaperPath(uid);
     Q_EMIT userIdChanged(uid);
-}
-
-QString PersonalizationV1::cursorTheme()
-{
-    return TreelandConfig::ref().cursorThemeName();
-}
-
-void PersonalizationV1::setCursorTheme(const QString &name)
-{
-    TreelandConfig::ref().setCursorThemeName(name);
-
-    Q_EMIT cursorThemeChanged(name);
-}
-
-QSize PersonalizationV1::cursorSize()
-{
-    int size = TreelandConfig::ref().cursorSize().width();
-
-    return QSize(size, size);
-}
-
-void PersonalizationV1::setCursorSize(const QSize &size)
-{
-    TreelandConfig::ref().setCursorSize(size);
-
-    Q_EMIT cursorSizeChanged(size);
-}
-
-int32_t PersonalizationV1::windowRadius() const
-{
-    return m_dconfig->value("windowRadius", 18).toInt();
-}
-
-QString PersonalizationV1::iconTheme() const
-{
-    return m_dconfig->value("iconThemeName", 18).toString();
 }
 
 QString PersonalizationV1::background(const QString &output, int workspaceId)

@@ -214,15 +214,6 @@ Helper::Helper(QObject *parent)
             surface->requestMove();
         }
     });
-
-    connect(&TreelandConfig::ref(),
-            &TreelandConfig::cursorThemeNameChanged,
-            this,
-            &Helper::cursorThemeChanged);
-    connect(&TreelandConfig::ref(),
-            &TreelandConfig::cursorSizeChanged,
-            this,
-            &Helper::cursorSizeChanged);
 }
 
 Helper::~Helper()
@@ -905,6 +896,7 @@ void Helper::init()
 
     auto updateCurrentUser = [this] {
         auto user = m_userModel->currentUser();
+        TreelandConfig::ref().setUserId(user->UID());
         m_personalization->setUserId(user ? user->UID() : getuid());
     };
     connect(m_userModel, &UserModel::currentUserNameChanged, this, updateCurrentUser);
@@ -1823,16 +1815,6 @@ void Helper::toggleOutputMenuBar(bool show)
         output->outputMenuBar()->setVisible(show);
     }
 #endif
-}
-
-QString Helper::cursorTheme() const
-{
-    return TreelandConfig::ref().cursorThemeName();
-}
-
-QSize Helper::cursorSize() const
-{
-    return TreelandConfig::ref().cursorSize();
 }
 
 WindowManagementV1::DesktopState Helper::showDesktopState() const
