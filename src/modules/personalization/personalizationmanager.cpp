@@ -50,10 +50,7 @@ static QString defaultBackground()
 
 void PersonalizationV1::updateCacheWallpaperPath(uid_t uid)
 {
-    QString cache_location = QStandardPaths::writableLocation(QStandardPaths::CacheLocation);
-    if (!QDir(cache_location).exists()) {
-        cache_location = "/tmp/";
-    }
+    QString cache_location = QStandardPaths::writableLocation(QStandardPaths::AppConfigLocation);
     m_cacheDirectory = cache_location + QString("/wallpaper/%1/").arg(uid);
     m_settingFile = m_cacheDirectory + "wallpaper.ini";
 
