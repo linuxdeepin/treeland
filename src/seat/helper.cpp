@@ -323,7 +323,7 @@ void Helper::onOutputAdded(WOutput *output)
     m_wallpaperColorV1->updateWallpaperColor(output->name(),
                                              m_personalization->backgroundIsDark(output->name()));
 
-    QString cache_location = QStandardPaths::writableLocation(QStandardPaths::ConfigLocation);
+    QString cache_location = QStandardPaths::writableLocation(QStandardPaths::AppConfigLocation);
     QSettings settings(cache_location + "/output.ini", QSettings::IniFormat);
     settings.beginGroup(QString("output.%1").arg(output->name()));
     if (settings.contains("scale") && m_mode != OutputMode::Copy) {
@@ -456,7 +456,7 @@ void Helper::onOutputTestOrApply(qw_output_configuration_v1 *config, bool onlyTe
             ok &= output->handle()->commit_state(newState);
     }
     if (ok && !onlyTest) {
-        QString cache_location = QStandardPaths::writableLocation(QStandardPaths::ConfigLocation);
+        QString cache_location = QStandardPaths::writableLocation(QStandardPaths::AppConfigLocation);
         QSettings settings(cache_location + "/output.ini", QSettings::IniFormat);
         for (WOutputState state : std::as_const(states)) {
             settings.beginGroup(QString("output.%1").arg(state.output->name()));
