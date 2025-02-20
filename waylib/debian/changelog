@@ -1,3 +1,10 @@
+waylib (0.6.12) unstable; urgency=medium
+
+  * Fix text-input-v2 popup not update cursorRect before arrange position
+  * Fix crash by use WWrapPointer
+
+ -- rewine <luhongxu@deepin.org>  Thu, 20 Feb 2025 19:48:50 +0800
+
 waylib (0.6.11) unstable; urgency=medium
 
   * bump version to 0.6.11
