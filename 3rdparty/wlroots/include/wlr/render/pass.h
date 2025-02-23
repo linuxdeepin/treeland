@@ -12,6 +12,7 @@
 #include <pixman.h>
 #include <stdint.h>
 #include <wayland-server-core.h>
+#include <wlr/render/color.h>
 #include <wlr/util/box.h>
 
 struct wlr_renderer;
@@ -101,6 +102,8 @@ struct wlr_render_texture_options {
 	enum wlr_scale_filter_mode filter_mode;
 	/* Blend mode */
 	enum wlr_render_blend_mode blend_mode;
+	/* Transfer function the source texture is encoded with */
+	enum wlr_color_transfer_function transfer_function;
 
 	/* Wait for a timeline synchronization point before texturing.
 	 *

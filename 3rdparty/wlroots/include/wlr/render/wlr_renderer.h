@@ -42,6 +42,10 @@ struct wlr_renderer {
 
 	struct {
 		/**
+		 * Whether color transforms are supported for input textures
+		 */
+		bool input_color_transform;
+		/**
 		 * Does the renderer support color transforms on its output?
 		 */
 		bool output_color_transform;
