@@ -478,7 +478,7 @@ struct wlr_vk_texture {
 	struct wlr_buffer *buffer;
 	struct wlr_addon buffer_addon;
 
-	struct wl_list views; // struct wlr_vk_texture_ds.link
+	struct wl_list views; // struct wlr_vk_texture_view.link
 };
 
 struct wlr_vk_texture *vulkan_get_texture(struct wlr_texture *wlr_texture);
