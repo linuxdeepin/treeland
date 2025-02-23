@@ -2442,6 +2442,7 @@ struct wlr_renderer *vulkan_renderer_create_for_device(struct wlr_vk_device *dev
 
 	renderer->dev = dev;
 	wlr_renderer_init(&renderer->wlr_renderer, &renderer_impl, WLR_BUFFER_CAP_DMABUF);
+	renderer->wlr_renderer.features.input_color_transform = true;
 	renderer->wlr_renderer.features.output_color_transform = true;
 	wl_list_init(&renderer->stage.buffers);
 	wl_list_init(&renderer->foreign_textures);

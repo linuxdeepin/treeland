@@ -269,10 +269,12 @@ static struct wlr_vk_texture *vulkan_texture_create(
 }
 
 struct wlr_vk_texture_view *vulkan_texture_get_or_create_view(struct wlr_vk_texture *texture,
-		const struct wlr_vk_pipeline_layout *pipeline_layout) {
+		const struct wlr_vk_pipeline_layout *pipeline_layout, bool srgb) {
+	assert(texture->using_mutable_srgb || !srgb);
+
 	struct wlr_vk_texture_view *view;
 	wl_list_for_each(view, &texture->views, link) {
-		if (view->layout == pipeline_layout) {
+		if (view->layout == pipeline_layout && view->srgb == srgb) {
 			return view;
 		}
 	}
@@ -283,6 +285,7 @@ struct wlr_vk_texture_view *vulkan_texture_get_or_create_view(struct wlr_vk_text
 	}
 
 	view->layout = pipeline_layout;
+	view->srgb = srgb;
 
 	VkResult res;
 	VkDevice dev = texture->renderer->dev->dev;
@@ -290,8 +293,7 @@ struct wlr_vk_texture_view *vulkan_texture_get_or_create_view(struct wlr_vk_text
 	VkImageViewCreateInfo view_info = {
 		.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
 		.viewType = VK_IMAGE_VIEW_TYPE_2D,
-		.format = texture->using_mutable_srgb ? texture->format->vk_srgb
-			: texture->format->vk,
+		.format = srgb ? texture->format->vk_srgb : texture->format->vk,
 		.components.r = VK_COMPONENT_SWIZZLE_IDENTITY,
 		.components.g = VK_COMPONENT_SWIZZLE_IDENTITY,
 		.components.b = VK_COMPONENT_SWIZZLE_IDENTITY,
@@ -353,10 +355,10 @@ struct wlr_vk_texture_view *vulkan_texture_get_or_create_view(struct wlr_vk_text
 
 static void texture_set_format(struct wlr_vk_texture *texture,
 		const struct wlr_vk_format *format, bool has_mutable_srgb) {
+	assert(!(format->is_ycbcr && has_mutable_srgb));
+
 	texture->format = format;
 	texture->using_mutable_srgb = has_mutable_srgb;
-	texture->transform = !format->is_ycbcr && has_mutable_srgb ?
-		WLR_VK_TEXTURE_TRANSFORM_IDENTITY : WLR_VK_TEXTURE_TRANSFORM_SRGB;
 
 	const struct wlr_pixel_format_info *format_info =
 		drm_get_pixel_format_info(format->drm);

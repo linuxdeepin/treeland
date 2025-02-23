@@ -349,6 +349,7 @@ struct wlr_vk_frag_output_pcr_data {
 struct wlr_vk_texture_view {
 	struct wl_list link; // struct wlr_vk_texture.views
 	const struct wlr_vk_pipeline_layout *layout;
+	bool srgb;
 
 	VkDescriptorSet ds;
 	VkImageView image_view;
@@ -363,7 +364,7 @@ struct wlr_vk_pipeline_layout *get_or_create_pipeline_layout(
 	const struct wlr_vk_pipeline_layout_key *key);
 struct wlr_vk_texture_view *vulkan_texture_get_or_create_view(
 	struct wlr_vk_texture *texture,
-	const struct wlr_vk_pipeline_layout *layout);
+	const struct wlr_vk_pipeline_layout *layout, bool srgb);
 
 // Creates a vulkan renderer for the given device.
 struct wlr_renderer *vulkan_renderer_create_for_device(struct wlr_vk_device *dev);
@@ -463,13 +464,12 @@ struct wlr_vk_texture {
 	VkDeviceMemory memories[WLR_DMABUF_MAX_PLANES];
 	VkImage image;
 	const struct wlr_vk_format *format;
-	enum wlr_vk_texture_transform transform;
 	struct wlr_vk_command_buffer *last_used_cb; // to track when it can be destroyed
 	bool dmabuf_imported;
 	bool owned; // if dmabuf_imported: whether we have ownership of the image
 	bool transitioned; // if dma_imported: whether we transitioned it away from preinit
 	bool has_alpha; // whether the image is has alpha channel
-	bool using_mutable_srgb; // is this accessed through _SRGB format view
+	bool using_mutable_srgb; // can be accessed through _SRGB format view
 	struct wl_list foreign_link; // wlr_vk_renderer.foreign_textures
 	struct wl_list destroy_link; // wlr_vk_command_buffer.destroy_textures
 	struct wl_list link; // wlr_vk_renderer.textures
