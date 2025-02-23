@@ -237,6 +237,9 @@ static bool render_pass_submit(struct wlr_render_pass *wlr_pass) {
 			}
 
 			switch (tf) {
+			case WLR_COLOR_TRANSFER_FUNCTION_EXT_LINEAR:
+				pipeline = render_buffer->plain.render_setup->output_pipe_identity;
+				break;
 			case WLR_COLOR_TRANSFER_FUNCTION_SRGB:
 				pipeline = render_buffer->plain.render_setup->output_pipe_srgb;
 				break;

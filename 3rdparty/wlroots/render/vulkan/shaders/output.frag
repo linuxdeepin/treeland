@@ -18,9 +18,10 @@ layout(push_constant, row_major) uniform UBO {
 layout (constant_id = 0) const int OUTPUT_TRANSFORM = 0;
 
 // Matches enum wlr_vk_output_transform
-#define OUTPUT_TRANSFORM_INVERSE_SRGB 0
-#define OUTPUT_TRANSFORM_INVERSE_ST2084_PQ 1
-#define OUTPUT_TRANSFORM_LUT_3D 2
+#define OUTPUT_TRANSFORM_IDENTITY 0
+#define OUTPUT_TRANSFORM_INVERSE_SRGB 1
+#define OUTPUT_TRANSFORM_INVERSE_ST2084_PQ 2
+#define OUTPUT_TRANSFORM_LUT_3D 3
 
 float linear_channel_to_srgb(float x) {
 	return max(min(x * 12.92, 0.04045), 1.055 * pow(x, 1. / 2.4) - 0.055);
@@ -67,7 +68,7 @@ void main() {
 		rgb = texture(lut_3d, pos).rgb;
 	} else if (OUTPUT_TRANSFORM == OUTPUT_TRANSFORM_INVERSE_ST2084_PQ) {
 		rgb = linear_color_to_pq(rgb);
-	} else { // OUTPUT_TRANSFORM_INVERSE_SRGB
+	} else if (OUTPUT_TRANSFORM == OUTPUT_TRANSFORM_INVERSE_SRGB) {
 		// Produce sRGB encoded values
 		rgb = linear_color_to_srgb(rgb);
 	}

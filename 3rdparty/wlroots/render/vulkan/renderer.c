@@ -158,6 +158,7 @@ static void destroy_render_format_setup(struct wlr_vk_renderer *renderer,
 
 	VkDevice dev = renderer->dev->dev;
 	vkDestroyRenderPass(dev, setup->render_pass, NULL);
+	vkDestroyPipeline(dev, setup->output_pipe_identity, NULL);
 	vkDestroyPipeline(dev, setup->output_pipe_srgb, NULL);
 	vkDestroyPipeline(dev, setup->output_pipe_pq, NULL);
 	vkDestroyPipeline(dev, setup->output_pipe_lut3d, NULL);
@@ -2294,6 +2295,11 @@ static struct wlr_vk_render_format_setup *find_or_create_render_setup(
 		}
 
 		// this is only well defined if render pass has a 2nd subpass
+		if (!init_blend_to_output_pipeline(
+				renderer, setup->render_pass, renderer->output_pipe_layout,
+				&setup->output_pipe_identity, WLR_VK_OUTPUT_TRANSFORM_IDENTITY)) {
+			goto error;
+		}
 		if (!init_blend_to_output_pipeline(
 				renderer, setup->render_pass, renderer->output_pipe_layout,
 				&setup->output_pipe_lut3d, WLR_VK_OUTPUT_TRANSFORM_LUT3D)) {
