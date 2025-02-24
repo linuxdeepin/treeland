@@ -63,9 +63,14 @@ public:
 
 void WXWaylandSurfacePrivate::instantRelease()
 {
+    W_Q(WXWaylandSurface);
     handle()->set_data(nullptr, nullptr);
-    if (surface)
-        surface->removeAttachedData<WXWaylandSurface>();
+    handle()->disconnect(q);
+
+    if (!surface)
+        return;
+    surface->safeDeleteLater();
+    surface = nullptr;
 }
 
 void WXWaylandSurfacePrivate::init()
