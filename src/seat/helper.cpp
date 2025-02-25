@@ -1093,7 +1093,7 @@ void Helper::setSocketEnabled(bool newEnabled)
 
 void Helper::activateSurface(SurfaceWrapper *wrapper, Qt::FocusReason reason)
 {
-    if (TreelandConfig::ref().blockActivateSurface() && wrapper) {
+    if (m_blockActivateSurface && wrapper) {
         if (wrapper->shellSurface()->hasCapability(WToplevelSurface::Capability::Activate)) {
             workspace()->pushActivedSurface(wrapper);
         }
@@ -1922,9 +1922,8 @@ void Helper::setCurrentMode(CurrentMode mode)
     if (m_currentMode == mode)
         return;
 
-    TreelandConfig::ref().setBlockActivateSurface(mode != CurrentMode::Normal);
-
     m_currentMode = mode;
+    m_blockActivateSurface = mode != CurrentMode::Normal;
 
     Q_EMIT currentModeChanged();
 }
