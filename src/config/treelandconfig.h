@@ -40,7 +40,6 @@ class TreelandConfig
     Q_PROPERTY(uint windowOpacity READ windowOpacity WRITE setWindowOpacity NOTIFY windowOpacityChanged FINAL)
     Q_PROPERTY(uint windowThemeType READ windowThemeType WRITE setWindowThemeType NOTIFY windowThemeTypeChanged FINAL)
     Q_PROPERTY(uint windowTitlebarHeight READ windowTitlebarHeight WRITE setWindowTitlebarHeight NOTIFY windowTitlebarHeightChanged FINAL)
-    Q_PROPERTY(bool blockActivateSurface READ blockActivateSurface WRITE setBlockActivateSurface NOTIFY blockActivateSurfaceChanged FINAL)
     Q_PROPERTY(uint multitaskviewTopContentMargin READ multitaskviewTopContentMargin WRITE setMultitaskviewTopContentMargin NOTIFY multitaskviewTopContentMarginChanged FINAL)
     Q_PROPERTY(uint multitaskviewBottomContentMargin READ multitaskviewBottomContentMargin WRITE setMultitaskviewBottomContentMargin NOTIFY multitaskviewBottomContentMarginChanged FINAL)
     Q_PROPERTY(uint multitaskviewHorizontalMargin READ multitaskviewHorizontalMargin WRITE setMultitaskviewHorizontalMargin NOTIFY multitaskviewHorizontalMarginChanged FINAL)
@@ -121,9 +120,6 @@ public:
 
     void setWindowTitlebarHeight(uint titlebarHeight);
     uint32_t windowTitlebarHeight();
-
-    void setBlockActivateSurface(bool block);
-    bool blockActivateSurface() const;
 
     uint multitaskviewTopContentMargin() const;
     void setMultitaskviewTopContentMargin(uint newMultitaskviewTopContentMargin);

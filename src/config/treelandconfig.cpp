@@ -393,22 +393,6 @@ uint32_t TreelandConfig::windowTitlebarHeight()
     return m_windowTitlebarHeight;
 }
 
-void TreelandConfig::setBlockActivateSurface(bool block)
-{
-    if (m_blockActivateSurface == block) {
-        return;
-    }
-
-    m_blockActivateSurface = block;
-
-    Q_EMIT blockActivateSurfaceChanged();
-}
-
-bool TreelandConfig::blockActivateSurface() const
-{
-    return m_blockActivateSurface;
-}
-
 uint TreelandConfig::multitaskviewTopContentMargin() const
 {
     return m_multitaskviewTopContentMargin;
