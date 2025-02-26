@@ -74,9 +74,7 @@ public:
     QRectF validGeometry() const;
     WOutputViewport *screenViewport() const;
     void updatePositionFromLayout();
-#ifdef QT_DEBUG
-    QQuickItem *outputMenuBar() const;
-#endif
+    QQuickItem *debugMenuBar() const;
 
     static double calcPreferredScale(double widthPx,
                                      double heightPx,
@@ -132,9 +130,7 @@ private:
     Output *m_proxy = nullptr;
     SurfaceFilterModel *minimizedSurfaces;
     QPointer<QQuickItem> m_taskBar;
-#ifdef QT_DEBUG
-    QPointer<QQuickItem> m_menuBar;
-#endif
+    QPointer<QQuickItem> m_debugMenuBar;
     WOutputViewport *m_outputViewport = nullptr;
 
     QMargins m_exclusiveZone;

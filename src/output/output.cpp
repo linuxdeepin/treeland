@@ -8,6 +8,7 @@
 #include "seat/helper.h"
 #include "surface/surfacewrapper.h"
 #include "workspace/workspace.h"
+#include "cmdline.h"
 
 #include <wcursor.h>
 #include <winputpopupsurface.h>
@@ -82,11 +83,23 @@ Output *Output::create(WOutput *output, QQmlEngine *engine, QObject *parent)
     // o->m_taskBar = Helper::instance()->qmlEngine()->createTaskBar(o,
     // contentItem); o->m_taskBar->setZ(RootSurfaceContainer::TaskBarZOrder);
 
-#ifdef QT_DEBUG
-    o->m_menuBar = Helper::instance()->qmlEngine()->createMenuBar(outputItem, contentItem);
-    o->m_menuBar->setZ(RootSurfaceContainer::MenuBarZOrder);
-    o->setExclusiveZone(Qt::TopEdge, o->m_menuBar, o->m_menuBar->height());
+    if (!CmdLine::ref().disableDebugView()) {
+        o->m_debugMenuBar = Helper::instance()->qmlEngine()->createMenuBar(outputItem, contentItem);
+        o->m_debugMenuBar->setZ(RootSurfaceContainer::MenuBarZOrder);
+#ifndef QT_DEBUG
+        o->m_debugMenuBar->setVisible(false);
+#else
+        o->setExclusiveZone(Qt::TopEdge, o->m_debugMenuBar, o->m_debugMenuBar->height());
 #endif
+
+        connect(o->m_debugMenuBar, &QQuickItem::visibleChanged, o, [o]() {
+            if (o->m_debugMenuBar->isVisible()) {
+                o->setExclusiveZone(Qt::TopEdge, o->m_debugMenuBar, o->m_debugMenuBar->height());
+            } else {
+                o->removeExclusiveZone(o->m_debugMenuBar);
+            }
+        });
+    }
 
     return o;
 }
@@ -135,12 +148,10 @@ Output::~Output()
         m_taskBar = nullptr;
     }
 
-#ifdef QT_DEBUG
-    if (m_menuBar) {
-        delete m_menuBar;
-        m_menuBar = nullptr;
+    if (m_debugMenuBar) {
+        delete m_debugMenuBar;
+        m_debugMenuBar = nullptr;
     }
-#endif
 
     if (m_item) {
         delete m_item;
@@ -161,12 +172,12 @@ void Output::updatePositionFromLayout()
     QPointF pos(layoutOutput->x, layoutOutput->y);
     m_item->setPosition(pos);
 }
-#ifdef QT_DEBUG
-QQuickItem *Output::outputMenuBar() const
+
+QQuickItem *Output::debugMenuBar() const
 {
-    return m_menuBar;
+    return m_debugMenuBar;
 }
-#endif
+
 std::pair<WOutputViewport *, QQuickItem *> Output::getOutputItemProperty()
 {
     WOutputViewport *viewportCopy =

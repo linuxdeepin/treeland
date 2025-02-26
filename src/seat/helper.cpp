@@ -1181,6 +1181,14 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *, QInputEvent *event)
 
     if (event->type() == QEvent::KeyPress) {
         auto kevent = static_cast<QKeyEvent *>(event);
+
+        // The debug view shortcut should always handled first
+        if (QKeySequence(kevent->keyCombination())
+            == QKeySequence(Qt::ControlModifier | Qt::ShiftModifier | Qt::MetaModifier | Qt::Key_F11)) {
+            if (toggleDebugMenuBar())
+                return true;
+        }
+
         if (m_currentMode == CurrentMode::Normal
             && QKeySequence(kevent->modifiers() | kevent->key())
                 == QKeySequence(Qt::ControlModifier | Qt::AltModifier | Qt::Key_Delete)) {
@@ -1816,13 +1824,27 @@ PersonalizationV1 *Helper::personalization() const
     return m_personalization;
 }
 
-void Helper::toggleOutputMenuBar(bool show)
+bool Helper::toggleDebugMenuBar()
 {
-#ifdef QT_DEBUG
-    for (const auto &output : rootContainer()->outputs()) {
-        output->outputMenuBar()->setVisible(show);
+    bool ok = false;
+
+    const auto outputs = rootContainer()->outputs();
+    if (outputs.isEmpty())
+        return false;
+
+    bool firstOutputDebugMenuBarIsVisible = false;
+    if (auto menuBar = outputs.first()->debugMenuBar()) {
+        firstOutputDebugMenuBarIsVisible = menuBar->isVisible();
     }
-#endif
+
+    for (const auto &output : outputs) {
+        if (output->debugMenuBar()) {
+            output->debugMenuBar()->setVisible(!firstOutputDebugMenuBarIsVisible);
+            ok = true;
+        }
+    }
+
+    return ok;
 }
 
 QString Helper::cursorTheme() const
