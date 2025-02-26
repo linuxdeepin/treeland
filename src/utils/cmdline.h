@@ -26,6 +26,7 @@ public:
     bool useLockScreen() const;
     std::optional<QStringList> unescapeExecArgs(const QString &str) noexcept;
     bool tryExec() const;
+    bool disableDebugView() const;
 
 private:
     CmdLine();
@@ -37,4 +38,5 @@ private:
     std::unique_ptr<QCommandLineOption> m_run;
     std::unique_ptr<QCommandLineOption> m_lockScreen;
     QCommandLineOption m_tryExec;
+    QCommandLineOption m_disableDebugView;
 };
