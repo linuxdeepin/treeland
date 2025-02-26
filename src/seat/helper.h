@@ -171,7 +171,7 @@ public:
 
     WSeat *seat() const;
 
-    void toggleOutputMenuBar(bool show);
+    bool toggleDebugMenuBar();
 
     QString cursorTheme() const;
     QSize cursorSize() const;
