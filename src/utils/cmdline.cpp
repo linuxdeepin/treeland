@@ -20,9 +20,10 @@ CmdLine::CmdLine()
     , m_lockScreen(std::make_unique<QCommandLineOption>("lockscreen",
                                                         "use lockscreen, need DDM auth socket"))
     , m_tryExec("try-exec", "Only try exec, don't show on screen")
+    , m_disableDebugView("disable-debug-view", "Disable debug view")
 {
     m_parser->addHelpOption();
-    m_parser->addOptions({ *m_run.get(), *m_lockScreen.get(), m_tryExec });
+    m_parser->addOptions({ *m_run.get(), *m_lockScreen.get(), m_tryExec, m_disableDebugView});
     m_parser->process(*QCoreApplication::instance());
 }
 
@@ -124,6 +125,11 @@ std::optional<QStringList> CmdLine::unescapeExecArgs(const QString &str) noexcep
 bool CmdLine::tryExec() const
 {
     return m_parser->isSet(m_tryExec);
+}
+
+bool CmdLine::disableDebugView() const
+{
+    return m_parser->isSet(m_disableDebugView);
 }
 
 std::optional<QString> CmdLine::run() const
