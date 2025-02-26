@@ -245,44 +245,43 @@ void RootSurfaceContainer::removeSurface(SurfaceWrapper *)
 void RootSurfaceContainer::addBySubContainer(SurfaceContainer *sub, SurfaceWrapper *surface)
 {
     SurfaceContainer::addBySubContainer(sub, surface);
-    connect(surface, &SurfaceWrapper::geometryChanged, this, [this, surface] {
-        updateSurfaceOutputs(surface);
-    });
 
-    updateSurfaceOutputs(surface);
-
-    if (surface->type() == SurfaceWrapper::Type::Layer) {
+    if (surface->type() != SurfaceWrapper::Type::Layer) {
         // RootSurfaceContainer does not have control over layer surface's position and ownsOutput
         // All things are done in LayerSurfaceContainer
-        return;
-    }
+        connect(surface, &SurfaceWrapper::requestMove, this, [this] {
+            auto surface = qobject_cast<SurfaceWrapper *>(sender());
+            Q_ASSERT(surface);
+            startMove(surface);
+        });
+        connect(surface, &SurfaceWrapper::requestResize, this, [this](Qt::Edges edges) {
+            auto surface = qobject_cast<SurfaceWrapper *>(sender());
+            Q_ASSERT(surface);
+            startResize(surface, edges);
+        });
 
-    connect(surface, &SurfaceWrapper::requestMove, this, [this] {
-        auto surface = qobject_cast<SurfaceWrapper *>(sender());
-        Q_ASSERT(surface);
-        startMove(surface);
-    });
-    connect(surface, &SurfaceWrapper::requestResize, this, [this](Qt::Edges edges) {
-        auto surface = qobject_cast<SurfaceWrapper *>(sender());
-        Q_ASSERT(surface);
-        startResize(surface, edges);
-    });
+        if (!surface->ownsOutput()) {
+            auto parentSurface = surface->parentSurface();
+            auto output = parentSurface ? parentSurface->ownsOutput() : primaryOutput();
 
-    if (!surface->ownsOutput()) {
-        auto parentSurface = surface->parentSurface();
-        auto output = parentSurface ? parentSurface->ownsOutput() : primaryOutput();
-
-        if (auto xdgPopupSurface = qobject_cast<WXdgPopupSurface *>(surface->shellSurface())) {
-            if (parentSurface->type() != SurfaceWrapper::Type::Layer) {
-                // If parentSurface is Layer surface, follow parentSurface->ownsOutput
-                auto pos = parentSurface->position() + parentSurface->surfaceItem()->position()
-                    + xdgPopupSurface->getPopupPosition();
-                if (auto op = m_outputLayout->handle()->output_at(pos.x(), pos.y()))
-                    output =
-                        Helper::instance()->getOutput(WOutput::fromHandle(qw_output::from(op)));
+            if (auto xdgPopupSurface = qobject_cast<WXdgPopupSurface *>(surface->shellSurface())) {
+                if (parentSurface->type() != SurfaceWrapper::Type::Layer) {
+                    // If parentSurface is Layer surface, follow parentSurface->ownsOutput
+                    auto pos = parentSurface->position() + parentSurface->surfaceItem()->position()
+                        + xdgPopupSurface->getPopupPosition();
+                    if (auto op = m_outputLayout->handle()->output_at(pos.x(), pos.y()))
+                        output =
+                            Helper::instance()->getOutput(WOutput::fromHandle(qw_output::from(op)));
+                }
             }
+            surface->setOwnsOutput(output);
         }
-        surface->setOwnsOutput(output);
+
+        connect(surface, &SurfaceWrapper::geometryChanged, this, [this, surface] {
+            updateSurfaceOutputs(surface);
+        });
+
+        updateSurfaceOutputs(surface);
     }
 }
 
