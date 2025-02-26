@@ -30,12 +30,17 @@ Output *OutputLayerSurfaceContainer::output() const
 void OutputLayerSurfaceContainer::addSurface(SurfaceWrapper *surface)
 {
     SurfaceContainer::addSurface(surface);
+    // Only layer-surface is update it's outputs by `OutputLayerSurfaceContainer`
+    // other types of surfaces are updated in `RootSurfaceContainer`.
+    // Currently there is no consideration of layer surface spanning multiple outputs
+    surface->setOutputs({m_output->output()});
     surface->setOwnsOutput(m_output);
 }
 
 void OutputLayerSurfaceContainer::removeSurface(SurfaceWrapper *surface)
 {
     SurfaceContainer::removeSurface(surface);
+    surface->setOutputs({});
     if (surface->ownsOutput() == m_output)
         surface->setOwnsOutput(nullptr);
 }
