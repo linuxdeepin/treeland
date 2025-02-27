@@ -5,6 +5,7 @@ layout(set = 0, binding = 0) uniform sampler2D tex;
 layout(location = 0) in vec2 uv;
 layout(location = 0) out vec4 out_color;
 
+// struct wlr_vk_frag_texture_pcr_data
 layout(push_constant) uniform UBO {
 	layout(offset = 80) float alpha;
 } data;

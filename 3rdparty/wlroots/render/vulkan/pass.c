@@ -816,6 +816,10 @@ static void render_pass_add_texture(struct wlr_render_pass *wlr_pass,
 		return;
 	}
 
+	struct wlr_vk_frag_texture_pcr_data frag_pcr_data = {
+		.alpha = alpha,
+	};
+
 	bind_pipeline(pass, pipe->vk);
 
 	vkCmdBindDescriptorSets(cb, VK_PIPELINE_BIND_POINT_GRAPHICS,
@@ -824,8 +828,8 @@ static void render_pass_add_texture(struct wlr_render_pass *wlr_pass,
 	vkCmdPushConstants(cb, pipe->layout->vk,
 		VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(vert_pcr_data), &vert_pcr_data);
 	vkCmdPushConstants(cb, pipe->layout->vk,
-		VK_SHADER_STAGE_FRAGMENT_BIT, sizeof(vert_pcr_data), sizeof(float),
-		&alpha);
+		VK_SHADER_STAGE_FRAGMENT_BIT, sizeof(vert_pcr_data),
+		sizeof(frag_pcr_data), &frag_pcr_data);
 
 	pixman_region32_t clip;
 	get_clip_region(pass, options->clip, &clip);
