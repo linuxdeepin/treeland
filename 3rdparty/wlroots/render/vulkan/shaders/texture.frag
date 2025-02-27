@@ -16,6 +16,7 @@ layout (constant_id = 0) const int TEXTURE_TRANSFORM = 0;
 // Matches enum wlr_vk_texture_transform
 #define TEXTURE_TRANSFORM_IDENTITY 0
 #define TEXTURE_TRANSFORM_SRGB 1
+#define TEXTURE_TRANSFORM_ST2084_PQ 2
 
 float srgb_channel_to_linear(float x) {
 	return mix(x / 12.92,
@@ -29,6 +30,17 @@ vec3 srgb_color_to_linear(vec3 color) {
 		srgb_channel_to_linear(color.g),
 		srgb_channel_to_linear(color.b)
 	);
+}
+
+vec3 pq_color_to_linear(vec3 color) {
+	float inv_m1 = 1 / 0.1593017578125;
+	float inv_m2 = 1 / 78.84375;
+	float c1 = 0.8359375;
+	float c2 = 18.8515625;
+	float c3 = 18.6875;
+	vec3 num = max(pow(color, vec3(inv_m2)) - c1, 0);
+	vec3 denom = c2 - c3 * pow(color, vec3(inv_m2));
+	return pow(num / denom, vec3(inv_m1));
 }
 
 void main() {
@@ -45,6 +57,8 @@ void main() {
 
 	if (TEXTURE_TRANSFORM == TEXTURE_TRANSFORM_SRGB) {
 		rgb = srgb_color_to_linear(rgb);
+	} else if (TEXTURE_TRANSFORM == TEXTURE_TRANSFORM_ST2084_PQ) {
+		rgb = pq_color_to_linear(rgb);
 	}
 
 	rgb = mat3(data.matrix) * rgb;

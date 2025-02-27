@@ -781,13 +781,29 @@ static void render_pass_add_texture(struct wlr_render_pass *wlr_pass,
 	};
 	encode_proj_matrix(matrix, vert_pcr_data.mat4);
 
-	bool srgb = options->transfer_function == 0 ||
-		options->transfer_function == WLR_COLOR_TRANSFER_FUNCTION_SRGB;
-	bool srgb_image_view = srgb && texture->using_mutable_srgb;
-	enum wlr_vk_texture_transform tex_transform =
-		srgb_image_view || options->transfer_function == WLR_COLOR_TRANSFER_FUNCTION_EXT_LINEAR ?
-		WLR_VK_TEXTURE_TRANSFORM_IDENTITY :
-		WLR_VK_TEXTURE_TRANSFORM_SRGB;
+	enum wlr_color_transfer_function tf = options->transfer_function;
+	if (tf == 0) {
+		tf = WLR_COLOR_TRANSFER_FUNCTION_SRGB;
+	}
+
+	bool srgb_image_view = false;
+	enum wlr_vk_texture_transform tex_transform = 0;
+	switch (tf) {
+	case WLR_COLOR_TRANSFER_FUNCTION_SRGB:
+		if (texture->using_mutable_srgb) {
+			tex_transform = WLR_VK_TEXTURE_TRANSFORM_IDENTITY;
+			srgb_image_view = true;
+		} else {
+			tex_transform = WLR_VK_TEXTURE_TRANSFORM_SRGB;
+		}
+		break;
+	case WLR_COLOR_TRANSFER_FUNCTION_EXT_LINEAR:
+		tex_transform = WLR_VK_TEXTURE_TRANSFORM_IDENTITY;
+		break;
+	case WLR_COLOR_TRANSFER_FUNCTION_ST2084_PQ:
+		tex_transform = WLR_VK_TEXTURE_TRANSFORM_ST2084_PQ;
+		break;
+	}
 
 	struct wlr_vk_render_format_setup *setup = pass->srgb_pathway ?
 		pass->render_buffer->srgb.render_setup :

@@ -152,6 +152,7 @@ struct wlr_vk_pipeline_layout {
 enum wlr_vk_texture_transform {
 	WLR_VK_TEXTURE_TRANSFORM_IDENTITY = 0,
 	WLR_VK_TEXTURE_TRANSFORM_SRGB = 1,
+	WLR_VK_TEXTURE_TRANSFORM_ST2084_PQ = 2,
 };
 
 enum wlr_vk_shader_source {
