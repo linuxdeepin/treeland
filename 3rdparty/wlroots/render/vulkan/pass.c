@@ -149,6 +149,11 @@ static VkSemaphore render_pass_wait_sync_file(struct wlr_vk_render_pass *pass,
 	return *sem_ptr;
 }
 
+static float get_luminance_multiplier(const struct wlr_color_luminances *src_lum,
+		const struct wlr_color_luminances *dst_lum) {
+	return (dst_lum->reference / src_lum->reference) * (src_lum->max / dst_lum->max);
+}
+
 static bool render_pass_submit(struct wlr_render_pass *wlr_pass) {
 	struct wlr_vk_render_pass *pass = get_render_pass(wlr_pass);
 	struct wlr_vk_renderer *renderer = pass->renderer;
@@ -197,6 +202,7 @@ static bool render_pass_submit(struct wlr_render_pass *wlr_pass) {
 		}
 
 		struct wlr_vk_frag_output_pcr_data frag_pcr_data = {
+			.luminance_multiplier = 1,
 			.lut_3d_offset = 0.5f / dim,
 			.lut_3d_scale = (float)(dim - 1) / dim,
 		};
@@ -238,6 +244,12 @@ static bool render_pass_submit(struct wlr_render_pass *wlr_pass) {
 				pipeline = render_buffer->plain.render_setup->output_pipe_pq;
 				break;
 			}
+
+			struct wlr_color_luminances srgb_lum, dst_lum;
+			wlr_color_transfer_function_get_default_luminance(
+				WLR_COLOR_TRANSFER_FUNCTION_SRGB, &srgb_lum);
+			wlr_color_transfer_function_get_default_luminance(tf, &dst_lum);
+			frag_pcr_data.luminance_multiplier = get_luminance_multiplier(&srgb_lum, &dst_lum);
 		}
 		bind_pipeline(pass, pipeline);
 		vkCmdPushConstants(render_cb->vk, renderer->output_pipe_layout,
