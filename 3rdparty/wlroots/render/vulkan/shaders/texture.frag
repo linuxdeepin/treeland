@@ -21,27 +21,37 @@ float srgb_channel_to_linear(float x) {
 		x > 0.04045);
 }
 
-vec4 srgb_color_to_linear(vec4 color) {
-	if (color.a == 0) {
-		return vec4(0);
-	}
-	color.rgb /= color.a;
-	color.rgb = vec3(
+vec3 srgb_color_to_linear(vec3 color) {
+	return vec3(
 		srgb_channel_to_linear(color.r),
 		srgb_channel_to_linear(color.g),
 		srgb_channel_to_linear(color.b)
 	);
-	color.rgb *= color.a;
-	return color;
 }
 
 void main() {
-	vec4 val = textureLod(tex, uv, 0);
-	if (TEXTURE_TRANSFORM == TEXTURE_TRANSFORM_SRGB) {
-		out_color = srgb_color_to_linear(val);
-	} else { // TEXTURE_TRANSFORM_IDENTITY
-		out_color = val;
+	vec4 in_color = textureLod(tex, uv, 0);
+
+	if (TEXTURE_TRANSFORM == TEXTURE_TRANSFORM_IDENTITY) {
+		out_color = in_color * data.alpha;
+		return;
 	}
+
+	// Convert from pre-multiplied alpha to straight alpha
+	float alpha = in_color.a;
+	vec3 rgb;
+	if (alpha == 0) {
+		rgb = vec3(0);
+	} else {
+		rgb = in_color.rgb / alpha;
+	}
+
+	if (TEXTURE_TRANSFORM == TEXTURE_TRANSFORM_SRGB) {
+		rgb = srgb_color_to_linear(rgb);
+	}
+
+	// Back to pre-multiplied alpha
+	out_color = vec4(rgb * alpha, alpha);
 
 	out_color *= data.alpha;
 }
