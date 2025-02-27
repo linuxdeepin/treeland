@@ -81,6 +81,8 @@ static enum wlr_color_transfer_function transfer_function_to_wlr(
 		return WLR_COLOR_TRANSFER_FUNCTION_SRGB;
 	case WP_COLOR_MANAGER_V1_TRANSFER_FUNCTION_ST2084_PQ:
 		return WLR_COLOR_TRANSFER_FUNCTION_ST2084_PQ;
+	case WP_COLOR_MANAGER_V1_TRANSFER_FUNCTION_EXT_LINEAR:
+		return WLR_COLOR_TRANSFER_FUNCTION_EXT_LINEAR;
 	default:
 		abort();
 	}
