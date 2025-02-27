@@ -1,0 +1,29 @@
+{
+    "magic": "dsg.config.meta",
+    "version": "1.0",
+    "contents": {
+        "forceSoftwareCursor": {
+            "value": false,
+            "serial": 0,
+            "flags": ["global"],
+            "name": "Force Software Cursor",
+            "name[zh_CN]": "强制软光标渲染",
+            "description": "Force software cursor rendering",
+            "description[zh_CN]": "强制使用软光标进行渲染",
+            "permissions": "readwrite",
+            "visibility": "public"
+        },
+      
+        "defaultBackground": {
+            "value": "/usr/share/backgrounds/default_background.jpg",
+            "serial": 0,
+            "flags": ["global"],
+            "name": "Default background",
+            "name[zh_CN]": "默认壁纸",
+            "description": "Set the default displayed wallpaper, when no wallpaper is set",
+            "description[zh_CN]": "当没有设置壁纸时，设置默认显示的壁纸",
+            "permissions": "readwrite",
+            "visibility": "public"
+        }
+    }
+}
