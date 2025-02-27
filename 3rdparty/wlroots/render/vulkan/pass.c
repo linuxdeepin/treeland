@@ -833,7 +833,21 @@ static void render_pass_add_texture(struct wlr_render_pass *wlr_pass,
 	}
 
 	float color_matrix[9];
-	wlr_matrix_identity(color_matrix);
+	if (options->primaries != NULL) {
+		struct wlr_color_primaries srgb;
+		wlr_color_primaries_from_named(&srgb, WLR_COLOR_NAMED_PRIMARIES_SRGB);
+
+		float src_primaries_to_xyz[9];
+		wlr_color_primaries_to_xyz(options->primaries, src_primaries_to_xyz);
+		float srgb_to_xyz[9];
+		wlr_color_primaries_to_xyz(&srgb, srgb_to_xyz);
+		float xyz_to_srgb[9];
+		matrix_invert(xyz_to_srgb, srgb_to_xyz);
+
+		wlr_matrix_multiply(color_matrix, xyz_to_srgb, src_primaries_to_xyz);
+	} else {
+		wlr_matrix_identity(color_matrix);
+	}
 
 	struct wlr_vk_frag_texture_pcr_data frag_pcr_data = {
 		.alpha = alpha,
