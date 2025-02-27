@@ -816,9 +816,13 @@ static void render_pass_add_texture(struct wlr_render_pass *wlr_pass,
 		return;
 	}
 
+	float color_matrix[9];
+	wlr_matrix_identity(color_matrix);
+
 	struct wlr_vk_frag_texture_pcr_data frag_pcr_data = {
 		.alpha = alpha,
 	};
+	encode_color_matrix(color_matrix, frag_pcr_data.matrix);
 
 	bind_pipeline(pass, pipe->vk);
 

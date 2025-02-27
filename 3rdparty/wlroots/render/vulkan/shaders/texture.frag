@@ -6,8 +6,9 @@ layout(location = 0) in vec2 uv;
 layout(location = 0) out vec4 out_color;
 
 // struct wlr_vk_frag_texture_pcr_data
-layout(push_constant) uniform UBO {
-	layout(offset = 80) float alpha;
+layout(push_constant, row_major) uniform UBO {
+	layout(offset = 80) mat4 matrix;
+	float alpha;
 } data;
 
 layout (constant_id = 0) const int TEXTURE_TRANSFORM = 0;
@@ -33,11 +34,6 @@ vec3 srgb_color_to_linear(vec3 color) {
 void main() {
 	vec4 in_color = textureLod(tex, uv, 0);
 
-	if (TEXTURE_TRANSFORM == TEXTURE_TRANSFORM_IDENTITY) {
-		out_color = in_color * data.alpha;
-		return;
-	}
-
 	// Convert from pre-multiplied alpha to straight alpha
 	float alpha = in_color.a;
 	vec3 rgb;
@@ -50,6 +46,8 @@ void main() {
 	if (TEXTURE_TRANSFORM == TEXTURE_TRANSFORM_SRGB) {
 		rgb = srgb_color_to_linear(rgb);
 	}
+
+	rgb = mat3(data.matrix) * rgb;
 
 	// Back to pre-multiplied alpha
 	out_color = vec4(rgb * alpha, alpha);

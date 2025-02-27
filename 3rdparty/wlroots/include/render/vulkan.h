@@ -340,6 +340,7 @@ struct wlr_vk_vert_pcr_data {
 };
 
 struct wlr_vk_frag_texture_pcr_data {
+	float matrix[4][4]; // only a 3x3 subset is used
 	float alpha;
 };
 
