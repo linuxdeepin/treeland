@@ -9,13 +9,17 @@ Q_LOGGING_CATEGORY(qLcConfig, "treeland.config");
 DCORE_USE_NAMESPACE
 TreelandConfig::TreelandConfig()
 {
+    m_configThread.start();
+
     m_globleConfig = dconfig_org_deepin_treeland_globle::create(
         "org.deepin.treeland",
         "",
         this,
         &m_configThread
         );
-    m_configThread.start();
+
+    // Default user
+    setUserId(getgid());
 }
 
 dconfig_org_deepin_treeland_globle *TreelandConfig::globleConfig() const
