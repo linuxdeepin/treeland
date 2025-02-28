@@ -358,16 +358,6 @@ RootSurfaceContainer *Treeland::rootSurfaceContainer() const
     return d->helper->rootSurfaceContainer();
 }
 
-void Treeland::blockActivateSurface(bool block)
-{
-    TreelandConfig::ref().setBlockActivateSurface(block);
-}
-
-bool Treeland::isBlockActivateSurface() const
-{
-    return TreelandConfig::ref().blockActivateSurface();
-}
-
 bool Treeland::ActivateWayland(QDBusUnixFileDescriptor _fd)
 {
     Q_D(Treeland);

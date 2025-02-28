@@ -19,7 +19,4 @@ public:
     virtual Workspace *workspace() const = 0;
 
     virtual RootSurfaceContainer *rootSurfaceContainer() const = 0;
-
-    virtual void blockActivateSurface(bool block) = 0;
-    virtual bool isBlockActivateSurface() const = 0;
 };
