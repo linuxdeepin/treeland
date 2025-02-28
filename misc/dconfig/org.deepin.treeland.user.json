@@ -200,28 +200,6 @@
             "permissions": "readwrite",
             "visibility": "private"
         },
-        "currentWorkspace": {
-            "value": 0,
-            "serial": 0,
-            "flags": ["global"],
-            "name": "Current workspace",
-            "name[zh_CN]": "当前工作区",
-            "description": "Current index of workspace",
-            "description[zh_CN]": "当前工作区索引",
-            "permissions": "readwrite",
-            "visibility": "private"
-        },
-        "forceSoftwareCursor": {
-            "value": false,
-            "serial": 0,
-            "flags": ["global"],
-            "name": "Force Software Cursor",
-            "name[zh_CN]": "强制软光标渲染",
-            "description": "Force software cursor rendering",
-            "description[zh_CN]": "强制使用软光标进行渲染",
-            "permissions": "readwrite",
-            "visibility": "public"
-        },
         "activeColor": {
             "value": "#1F6EE7",
             "serial": 0,
@@ -263,17 +241,6 @@
             "name[zh_CN]": "全局标题栏高度",
             "description": "Set all window default titlebar height",
             "description[zh_CN]": "设置所有窗口默认的标题栏高度",
-            "permissions": "readwrite",
-            "visibility": "public"
-        },
-        "defaultBackground": {
-            "value": "/usr/share/backgrounds/default_background.jpg",
-            "serial": 0,
-            "flags": ["global"],
-            "name": "Default background",
-            "name[zh_CN]": "默认壁纸",
-            "description": "Set the default displayed wallpaper, when no wallpaper is set",
-            "description[zh_CN]": "当没有设置壁纸时，设置默认显示的壁纸",
             "permissions": "readwrite",
             "visibility": "public"
         }
