@@ -14,6 +14,8 @@
 #include <wseat.h>
 #include <wxdgdecorationmanager.h>
 
+#include <QMap>
+
 Q_MOC_INCLUDE(<wtoplevelsurface.h>)
 Q_MOC_INCLUDE(<wxdgsurface.h>)
 Q_MOC_INCLUDE(<qwgammacontorlv1.h>)
@@ -88,6 +90,7 @@ class IMultitaskView;
 class LockScreenInterface;
 class ILockScreen;
 class UserModel;
+class dconfig_org_deepin_treeland;
 struct wlr_idle_inhibitor_v1;
 struct wlr_output_power_v1_set_mode_event;
 
@@ -99,8 +102,6 @@ class Helper : public WSeatEventFilter
     Q_PROPERTY(RootSurfaceContainer* rootContainer READ rootContainer CONSTANT FINAL)
     Q_PROPERTY(float animationSpeed READ animationSpeed WRITE setAnimationSpeed NOTIFY animationSpeedChanged FINAL)
     Q_PROPERTY(OutputMode outputMode READ outputMode WRITE setOutputMode NOTIFY outputModeChanged FINAL)
-    Q_PROPERTY(QString cursorTheme READ cursorTheme NOTIFY cursorThemeChanged FINAL)
-    Q_PROPERTY(QSize cursorSize READ cursorSize NOTIFY cursorSizeChanged FINAL)
     Q_PROPERTY(TogglableGesture* multiTaskViewGesture READ multiTaskViewGesture CONSTANT)
     Q_PROPERTY(TogglableGesture* windowGesture READ windowGesture CONSTANT)
     Q_PROPERTY(SurfaceWrapper* activatedSurface READ activatedSurface NOTIFY activatedSurfaceChanged FINAL)
@@ -173,8 +174,6 @@ public:
 
     bool toggleDebugMenuBar();
 
-    QString cursorTheme() const;
-    QSize cursorSize() const;
     WindowManagementV1::DesktopState showDesktopState() const;
 
     Q_INVOKABLE bool isLaunchpad(WLayerSurface *surface) const;
@@ -211,8 +210,6 @@ Q_SIGNALS:
     void animationSpeedChanged();
     void socketFileChanged();
     void outputModeChanged();
-    void cursorThemeChanged();
-    void cursorSizeChanged();
 
     void currentModeChanged();
 
@@ -281,6 +278,8 @@ private:
     void setWorkspaceVisible(bool visible);
     void restoreFromShowDesktop(SurfaceWrapper *activeSurface = nullptr);
     void updateIdleInhibitor();
+    bool blockActivateSurface() const;
+    void setBlockActivateSurface(bool block);
 
     static Helper *m_instance;
 

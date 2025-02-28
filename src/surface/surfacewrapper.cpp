@@ -1080,7 +1080,7 @@ qreal SurfaceWrapper::radius() const
 
     // TODO: XdgToplevel、popup、InputPopup、XWayland(bypass、widnowtype(menu、normal、popup))
     if (radius < 1 && m_type != Type::Layer) {
-        radius = TreelandConfig::ref().windowRadius();
+        radius = TreelandConfig::ref().currentUserConfig()->windowRadius();
     }
 
     return radius;

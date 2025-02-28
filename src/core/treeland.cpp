@@ -2,9 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "treeland.h"
-
+#include "treelandconfig.h"
 #include "compositor1adaptor.h"
-#include "config/treelandconfig.h"
 #include "core/qmlengine.h"
 #include "greeter/usermodel.h"
 #include "interfaces/multitaskviewinterface.h"
@@ -261,6 +260,7 @@ Treeland::Treeland()
     Q_D(Treeland);
 
     qmlRegisterModule("Treeland.Protocols", 1, 0);
+
     qmlRegisterSingletonInstance("Treeland",
                                  1,
                                  0,
@@ -365,6 +365,7 @@ void Treeland::blockActivateSurface(bool block)
 
 bool Treeland::isBlockActivateSurface() const
 {
+    const Q_D(Treeland);
     return TreelandConfig::ref().blockActivateSurface();
 }
 

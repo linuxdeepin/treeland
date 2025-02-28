@@ -31,8 +31,8 @@ OutputItem {
         OutputLayer.flags: OutputLayer.Cursor
         OutputLayer.cursorHotSpot: hotSpot
 
-        themeName: Helper.cursorTheme
-        sourceSize: Helper.cursorSize
+        themeName: TreelandConfig.currentUserConfig.cursorThemeName
+        sourceSize: TreelandConfig.currentUserConfig.cursorSize
     }
 
     OutputViewport {
