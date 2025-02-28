@@ -41,11 +41,14 @@ static PersonalizationV1 *PERSONALIZATION_MANAGER = nullptr;
 
 static QString defaultBackground()
 {
+    /*
     static QString defaultBg = [] {
         const QString configDefaultBg = TreelandConfig::ref().defaultBackground();
         return QFile::exists(configDefaultBg) ? configDefaultBg : DEFAULT_WALLPAPER;
     }();
     return defaultBg;
+    */
+    return DEFAULT_WALLPAPER;
 }
 
 void PersonalizationV1::updateCacheWallpaperPath(uid_t uid)
@@ -119,10 +122,8 @@ void PersonalizationV1::onWallpaperContextCreated(personalization_wallpaper_cont
 
 void PersonalizationV1::onCursorContextCreated(personalization_cursor_context_v1 *context)
 {
-    connect(context,
-            &personalization_cursor_context_v1::commit,
-            this,
-            &PersonalizationV1::onCursorCommit);
+    /*
+    TODO(rewine): Fixme
     connect(context,
             &personalization_cursor_context_v1::get_theme,
             context,
@@ -133,9 +134,10 @@ void PersonalizationV1::onCursorContextCreated(personalization_cursor_context_v1
             &personalization_cursor_context_v1::sendSize);
 
     context->blockSignals(true);
-    context->setTheme(TreelandConfig::ref().cursorThemeName());
+    context->setTheme(TreelandConfig::ref().currentUserConfig().cursorThemeName());
     context->setSize(TreelandConfig::ref().cursorSize());
     context->blockSignals(false);
+    */
 }
 
 void PersonalizationV1::onAppearanceContextCreated(personalization_appearance_context_v1 *context)
@@ -143,46 +145,12 @@ void PersonalizationV1::onAppearanceContextCreated(personalization_appearance_co
     using Appearance = personalization_appearance_context_v1;
 
     m_appearanceContexts.push_back(context);
-    /*
-    connect(context, &Appearance::roundCornerRadiusChanged, this, [this, context](int32_t radius) {
-        TreelandConfig::ref().setWindowRadius(radius);
-        for (auto *context : m_appearanceContexts) {
-            context->sendRoundCornerRadius(radius);
-        }
-    });
-    connect(context, &Appearance::iconThemeChanged, this, [this, context](const QString &theme) {
-        TreelandConfig::ref().setIconThemeName(theme);
-        for (auto *context : m_appearanceContexts) {
-            context->sendIconTheme(theme.toUtf8());
-        }
-    });
-    connect(context, &Appearance::activeColorChanged, this, [this, context](const QString &color) {
-        TreelandConfig::ref().setActiveColor(color);
-        for (auto *context : m_appearanceContexts) {
-            context->sendActiveColor(color.toUtf8());
-        }
-    });
-    connect(context, &Appearance::windowOpacityChanged, this, [this, context](uint32_t opacity) {
-        TreelandConfig::ref().setWindowOpacity(opacity);
-        for (auto *context : m_appearanceContexts) {
-            context->sendWindowOpacity(opacity);
-        }
-    });
-    connect(context, &Appearance::windowThemeTypeChanged, this, [this, context](int32_t type) {
-        TreelandConfig::ref().setWindowThemeType(type);
-        for (auto *context : m_appearanceContexts) {
-            context->sendWindowThemeType(type);
-        }
-    });
-    connect(context, &Appearance::titlebarHeightChanged, this, [this, context](uint32_t height) {
-        TreelandConfig::ref().setWindowTitlebarHeight(height);
-        for (auto *context : m_appearanceContexts) {
-            context->sendWindowTitlebarHeight(height);
-        }
-    });*/
 
+    /*
+
+    TODO(rewine): Fix me
     connect(context, &Appearance::requestRoundCornerRadius, context, [this, context] {
-        context->setRoundCornerRadius(TreelandConfig::ref().windowRadius());
+        context->setRoundCornerRadius(TreelandConfig::ref().currentUserConfig().windowRadius());
     });
 
     connect(context, &Appearance::requestIconTheme, context, [this, context] {
@@ -224,10 +192,15 @@ void PersonalizationV1::onAppearanceContextCreated(personalization_appearance_co
     context->setWindowTitlebarHeight(TreelandConfig::ref().windowTitlebarHeight());
 
     context->blockSignals(false);
+    */
 }
 
 void PersonalizationV1::onFontContextCreated(personalization_font_context_v1 *context)
 {
+    /*
+     *
+
+    TODO(rewine): Fixme
     using Font = personalization_font_context_v1;
 
     connect(&TreelandConfig::ref(), &TreelandConfig::fontNameChanged, context, [context] {
@@ -268,6 +241,7 @@ void PersonalizationV1::onFontContextCreated(personalization_font_context_v1 *co
     context->blockSignals(false);
 
     m_fontContexts.push_back(context);
+    */
 }
 
 void PersonalizationV1::saveImage(personalization_wallpaper_context_v1 *context,

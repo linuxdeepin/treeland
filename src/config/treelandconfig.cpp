@@ -9,6 +9,38 @@ Q_LOGGING_CATEGORY(qLcConfig, "treeland.config");
 DCORE_USE_NAMESPACE
 TreelandConfig::TreelandConfig()
 {
+    m_globleConfig = dconfig_org_deepin_treeland_globle::create(
+        "org.deepin.treeland",
+        "",
+        this,
+        &m_configThread
+        );
+    m_configThread.start();
+}
+
+dconfig_org_deepin_treeland_globle *TreelandConfig::globleConfig() const
+{
+    return m_globleConfig;
+}
+
+dconfig_org_deepin_treeland_user *TreelandConfig::currentUserConfig() const
+{
+    return m_currentUserConfig;
+}
+
+void TreelandConfig::setUserId(uint uid)
+{
+    if (m_userDconfig.contains(uid)) {
+        m_currentUserConfig = m_userDconfig[uid];
+    } else {
+        m_currentUserConfig = dconfig_org_deepin_treeland_user::create(
+            "org.deepin.treeland",
+            QString::number(uid),
+            this,
+            &m_configThread
+        );
+        m_userDconfig[uid] = m_currentUserConfig;
+    }
 }
 
 uint TreelandConfig::workspaceThumbHeight() const

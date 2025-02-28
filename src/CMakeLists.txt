@@ -76,8 +76,10 @@ qt_add_qml_module(libtreeland
         ${DBUS_ADAPTOR}
         ${DDM_DBUS_SOURCES}
         ${DBUS_INTERFACE}
-        config/treelandconfig.cpp
         config/treelandconfig.h
+        config/treelandconfig.cpp
+        config/dconfig_org_deepin_treeland_user.hpp
+        config/dconfig_org_deepin_treeland_globle.hpp
         core/layersurfacecontainer.cpp
         core/layersurfacecontainer.h
         core/qmlengine.cpp

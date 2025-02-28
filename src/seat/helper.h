@@ -14,6 +14,8 @@
 #include <wseat.h>
 #include <wxdgdecorationmanager.h>
 
+#include <QMap>
+
 Q_MOC_INCLUDE(<wtoplevelsurface.h>)
 Q_MOC_INCLUDE(<wxdgsurface.h>)
 Q_MOC_INCLUDE(<qwgammacontorlv1.h>)
@@ -88,6 +90,7 @@ class IMultitaskView;
 class LockScreenInterface;
 class ILockScreen;
 class UserModel;
+class dconfig_org_deepin_treeland;
 struct wlr_idle_inhibitor_v1;
 struct wlr_output_power_v1_set_mode_event;
 
@@ -275,6 +278,8 @@ private:
     void setWorkspaceVisible(bool visible);
     void restoreFromShowDesktop(SurfaceWrapper *activeSurface = nullptr);
     void updateIdleInhibitor();
+    bool blockActivateSurface() const;
+    void setBlockActivateSurface(bool block);
 
     static Helper *m_instance;
 

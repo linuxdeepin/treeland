@@ -23,7 +23,7 @@ int main(int argc, char *argv[])
 #endif
     DLogManager::registerJournalAppender();
 
-    qw_log::init();
+    // qw_log::init();
     WServer::initializeQPA();
     //    QQuickStyle::setStyle("Material");
 

@@ -15,7 +15,7 @@ Q_LOGGING_CATEGORY(qlcWorkspace, "treeland.core.workspace")
 
 Workspace::Workspace(SurfaceContainer *parent)
     : SurfaceContainer(parent)
-    , m_currentIndex(TreelandConfig::ref().currentWorkspace())
+    , m_currentIndex(0)
     , m_models(new WorkspaceListModel(this))
     , m_currentFilter(new SurfaceFilterProxyModel(this))
     , m_animationController(new WorkspaceAnimationController(this))
@@ -23,9 +23,10 @@ Workspace::Workspace(SurfaceContainer *parent)
     m_showOnAllWorkspaceModel = new WorkspaceModel(this, ShowOnAllWorkspaceId, {});
     m_showOnAllWorkspaceModel->setName("show-on-all-workspace");
     m_showOnAllWorkspaceModel->setVisible(true);
-    for (auto index = 0; index < TreelandConfig::ref().numWorkspace(); index++) {
+    // TODO(rewine): Should support muit user
+    for (auto index = 0; index < TreelandConfig::ref().currentUserConfig()->numWorkspace(); index++) {
         doCreateModel(QStringLiteral("workspace-%1").arg(index),
-                      index == TreelandConfig::ref().currentWorkspace());
+                      index == m_currentIndex);
     }
 }
 
@@ -158,7 +159,7 @@ int Workspace::modelIndexOfSurface(SurfaceWrapper *surface) const
 int Workspace::createModel(const QString &name, bool visible)
 {
     auto id = doCreateModel(name, visible);
-    TreelandConfig::ref().setNumWorkspace(count());
+    TreelandConfig::ref().currentUserConfig()->setNumWorkspace(count());
     Q_EMIT countChanged();
     return id;
 }
@@ -168,7 +169,7 @@ void Workspace::removeModel(int index)
     Q_ASSERT(m_models->rowCount() > 1); // At least one workspace
     Q_ASSERT(index >= 0 && index < m_models->rowCount());
     doRemoveModel(index);
-    TreelandConfig::ref().setNumWorkspace(count());
+    TreelandConfig::ref().currentUserConfig()->setNumWorkspace(count());
     Q_EMIT countChanged();
 }
 
@@ -324,16 +325,18 @@ WorkspaceModel *Workspace::showOnAllWorkspaceModel() const
 void Workspace::doSetCurrentIndex(int newCurrentIndex)
 {
     m_currentIndex = newCurrentIndex;
-    TreelandConfig::ref().setCurrentWorkspace(newCurrentIndex);
 }
 
 void Workspace::startPreviewing(SurfaceWrapper *previewingItem)
 {
     if (m_previewingItem) {
-        // TODO: don't use QPointer, should watch SurfaceWrapper::aboutToBeInvalidated
         auto modle = modelFromId(m_previewingItem->workspaceId());
-        m_previewingItem->setOpacity(modle->opaque() ? 1.0 : 0.0);
-        m_previewingItem->setHideByWorkspace(!modle->visible());
+        if (modle) {
+            m_previewingItem->setOpacity(modle->opaque() ? 1.0 : 0.0);
+            m_previewingItem->setHideByWorkspace(!modle->visible());
+        } else {
+            // qCWarning(qlcWorkspace, "");
+        }
     }
     m_previewingItem = previewingItem;
     current()->setOpaque(false);

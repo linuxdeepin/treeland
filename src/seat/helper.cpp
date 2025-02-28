@@ -1905,7 +1905,6 @@ void Helper::setCurrentMode(CurrentMode mode)
         return;
 
     TreelandConfig::ref().setBlockActivateSurface(mode != CurrentMode::Normal);
-
     m_currentMode = mode;
 
     Q_EMIT currentModeChanged();

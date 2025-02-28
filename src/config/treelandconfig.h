@@ -2,6 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #pragma once
+#include "dconfig_org_deepin_treeland_user.hpp"
+#include "dconfig_org_deepin_treeland_globle.hpp"
+
 #include <DConfig>
 #include <DSingleton>
 
@@ -9,6 +12,7 @@
 #include <QObject>
 #include <QQmlEngine>
 #include <QSize>
+#include <QThread>
 
 class TreelandConfig
     : public QObject
@@ -38,6 +42,10 @@ class TreelandConfig
 
 public:
     TreelandConfig();
+
+    dconfig_org_deepin_treeland_globle *globleConfig() const;
+    dconfig_org_deepin_treeland_user *currentUserConfig() const;
+    void setUserId(uint uid);
 
     uint workspaceThumbHeight() const;
     void setWorkspaceThumbHeight(uint newWorkspaceThumbHeight);
@@ -103,7 +111,6 @@ Q_SIGNALS:
     void titleBoxCornerRadiusChanged();
     void normalWindowHeightChanged();
     void windowHeightStepChanged();
-    void forceSoftwareCursorChanged();
     void multitaskviewPaddingOpacityChanged();
     void multitaskviewAnimationDurationChanged();
     void multitaskviewEasingCurveTypeChanged();
@@ -116,6 +123,11 @@ Q_SIGNALS:
     void multitaskviewLoadFactorChanged();
 
 private:
+    QThread m_configThread;
+    QMap<uint, dconfig_org_deepin_treeland_user*> m_userDconfig;
+    dconfig_org_deepin_treeland_user *m_currentUserConfig = nullptr;
+    dconfig_org_deepin_treeland_globle *m_globleConfig = nullptr;
+
     // Local
     uint m_workspaceThumbHeight = 144;
     uint m_workspaceThumbMargin = 20;
