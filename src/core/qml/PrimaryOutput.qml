@@ -35,11 +35,6 @@ OutputItem {
         sourceSize: TreelandConfig.currentUserConfig.cursorSize
     }
 
-    Component.onCompleted: {
-        console.log("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@22")
-        console.log(TreelandConfig.currentUserConfig.cursorThemeName)
-    }
-
     OutputViewport {
         id: outputViewport
 

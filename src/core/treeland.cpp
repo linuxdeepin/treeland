@@ -261,6 +261,12 @@ Treeland::Treeland()
 
     qmlRegisterModule("Treeland.Protocols", 1, 0);
 
+    qmlRegisterSingletonInstance("Treeland",
+                                 1,
+                                 0,
+                                 "TreelandConfig",
+                                 &TreelandConfig::ref()); // Inject treeland config singleton.
+
     d->init();
 
     if (CmdLine::ref().run().has_value()) {

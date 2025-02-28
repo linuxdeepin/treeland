@@ -45,6 +45,7 @@ void TreelandConfig::setUserId(uint uid)
         );
         m_userDconfig[uid] = m_currentUserConfig;
     }
+    Q_EMIT currentUserConfigChanged();
 }
 
 uint TreelandConfig::workspaceThumbHeight() const

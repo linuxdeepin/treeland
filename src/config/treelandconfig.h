@@ -19,8 +19,6 @@ class TreelandConfig
     , public DTK_CORE_NAMESPACE::DSingleton<TreelandConfig>
 {
     Q_OBJECT
-    QML_ELEMENT
-    QML_SINGLETON
     Q_PROPERTY(uint workspaceThumbHeight READ workspaceThumbHeight WRITE setWorkspaceThumbHeight NOTIFY workspaceThumbHeightChanged FINAL)
     Q_PROPERTY(uint workspaceThumbMargin READ workspaceThumbMargin WRITE setWorkspaceThumbMargin NOTIFY workspaceThumbMarginChanged FINAL)
     Q_PROPERTY(uint workspaceDelegateHeight READ workspaceDelegateHeight NOTIFY workspaceDelegateHeightChanged FINAL)
@@ -39,6 +37,8 @@ class TreelandConfig
     Q_PROPERTY(uint multitaskviewHorizontalMargin READ multitaskviewHorizontalMargin WRITE setMultitaskviewHorizontalMargin NOTIFY multitaskviewHorizontalMarginChanged FINAL)
     Q_PROPERTY(uint multitaskviewCellPadding READ multitaskviewCellPadding WRITE setMultitaskviewCellPadding NOTIFY multitaskviewCellPaddingChanged FINAL)
     Q_PROPERTY(qreal multitaskviewLoadFactor READ multitaskviewLoadFactor WRITE setMultitaskviewLoadFactor NOTIFY multitaskviewLoadFactorChanged FINAL)
+    Q_PROPERTY(dconfig_org_deepin_treeland_globle *globleConfig READ globleConfig CONSTANT)
+    Q_PROPERTY(dconfig_org_deepin_treeland_user *currentUserConfig READ currentUserConfig NOTIFY currentUserConfigChanged FINAL)
 
 public:
     TreelandConfig();
@@ -102,6 +102,8 @@ public:
 
 
 Q_SIGNALS:
+    void currentUserConfigChanged();
+
     void workspaceThumbMarginChanged();
     void workspaceThumbHeightChanged();
     void workspaceDelegateHeightChanged();
