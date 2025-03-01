@@ -9,6 +9,7 @@ layout(location = 0) out vec4 out_color;
 layout(push_constant, row_major) uniform UBO {
 	layout(offset = 80) mat4 matrix;
 	float alpha;
+	float luminance_multiplier;
 } data;
 
 layout (constant_id = 0) const int TEXTURE_TRANSFORM = 0;
@@ -60,6 +61,8 @@ void main() {
 	} else if (TEXTURE_TRANSFORM == TEXTURE_TRANSFORM_ST2084_PQ) {
 		rgb = pq_color_to_linear(rgb);
 	}
+
+	rgb *= data.luminance_multiplier;
 
 	rgb = mat3(data.matrix) * rgb;
 
