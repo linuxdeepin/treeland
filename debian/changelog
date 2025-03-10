@@ -1,3 +1,11 @@
+treeland (0.5.20) unstable; urgency=medium
+
+  * fix: activeColor not saved to dconfig
+  * fix: send error output enter for layer shell
+  * chore: input popup should not use radius
+
+ -- rewine <luhongxu@deepin.org>  Mon, 10 Mar 2025 16:20:35 +0800
+
 treeland (0.5.19) unstable; urgency=medium
 
   * fix: can't set output's postion
