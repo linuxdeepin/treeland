@@ -322,6 +322,7 @@ void TreelandConfig::setActiveColor(const QString &color)
     if (m_activeColor == color) {
         return;
     }
+    m_dconfig->setValue("activeColor", color);
     m_activeColor = color;
     emit activeColorChanged();
 }
