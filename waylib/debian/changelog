@@ -1,3 +1,9 @@
+waylib (0.6.13) unstable; urgency=medium
+
+  * Fix not clear WSurfuce when instantRelease XWaylandSurface
+
+ -- rewine <luhongxu@deepin.org>  Mon, 10 Mar 2025 16:15:50 +0800
+
 waylib (0.6.12) unstable; urgency=medium
 
   * Fix text-input-v2 popup not update cursorRect before arrange position

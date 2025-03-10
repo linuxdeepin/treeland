@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.21)
 
 project(Waylib
-    VERSION 0.6.12
+    VERSION 0.6.13
     LANGUAGES CXX C)
 
 set(CMAKE_CXX_STANDARD 20)
