@@ -301,6 +301,13 @@ static QList<QByteArray> alternativesCursorShape(const QByteArray &name)
                 QByteArrayLiteral("right_side"),
             },
         },
+        {
+            QByteArrayLiteral("ibeam"),
+            {
+                QByteArrayLiteral("text"),
+                QByteArrayLiteral("xterm"),
+            },
+        },
     };
     auto it = alternatives.find(name);
     if (it != alternatives.end()) {
