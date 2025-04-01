@@ -161,7 +161,7 @@ Item {
             height: 30
             anchors.horizontalCenter: parent.horizontalCenter
             echoMode: showPasswordBtn.hiddenPWD ? TextInput.Password : TextInput.Normal
-            rightPadding: 24
+            rightPadding: capsIndicator.visible ? 24 + capsIndicator.width : 24
             maximumLength: 510
             placeholderText: qsTr("Password")
             placeholderTextColor: Qt.rgba(1.0, 1.0, 1.0, 0.6)
@@ -185,6 +185,7 @@ Item {
                 }
 
                 D.ActionButton {
+                    id: capsIndicator
                     visible: passwordField.capsIndicatorVisible
                     palette.windowText: undefined
                     icon {
