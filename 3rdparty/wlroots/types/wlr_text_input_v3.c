@@ -64,7 +64,7 @@ void wlr_text_input_v3_send_done(struct wlr_text_input_v3 *text_input) {
 }
 
 static void wlr_text_input_destroy(struct wlr_text_input_v3 *text_input) {
-	wl_signal_emit_mutable(&text_input->events.destroy, text_input);
+	wl_signal_emit_mutable(&text_input->events.destroy, NULL);
 
 	assert(wl_list_empty(&text_input->events.enable.listener_list));
 	assert(wl_list_empty(&text_input->events.commit.listener_list));
@@ -192,12 +192,12 @@ static void text_input_commit(struct wl_client *client,
 
 	if (!old_enabled && text_input->current_enabled) {
 		text_input->active_features	= text_input->current.features;
-		wl_signal_emit_mutable(&text_input->events.enable, text_input);
+		wl_signal_emit_mutable(&text_input->events.enable, NULL);
 	} else if (old_enabled && !text_input->current_enabled) {
 		text_input->active_features	= 0;
-		wl_signal_emit_mutable(&text_input->events.disable, text_input);
+		wl_signal_emit_mutable(&text_input->events.disable, NULL);
 	} else { // including never enabled
-		wl_signal_emit_mutable(&text_input->events.commit, text_input);
+		wl_signal_emit_mutable(&text_input->events.commit, NULL);
 	}
 }
 
@@ -313,7 +313,7 @@ static void text_input_manager_bind(struct wl_client *wl_client, void *data,
 static void handle_display_destroy(struct wl_listener *listener, void *data) {
 	struct wlr_text_input_manager_v3 *manager =
 		wl_container_of(listener, manager, display_destroy);
-	wl_signal_emit_mutable(&manager->events.destroy, manager);
+	wl_signal_emit_mutable(&manager->events.destroy, NULL);
 
 	assert(wl_list_empty(&manager->events.new_text_input.listener_list));
 	assert(wl_list_empty(&manager->events.destroy.listener_list));
