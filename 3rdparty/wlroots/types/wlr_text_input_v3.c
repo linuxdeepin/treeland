@@ -287,7 +287,7 @@ static void text_input_manager_get_text_input(struct wl_client *client,
 		text_input_manager_from_resource(resource);
 	wl_list_insert(&manager->text_inputs, &text_input->link);
 
-	wl_signal_emit_mutable(&manager->events.text_input, text_input);
+	wl_signal_emit_mutable(&manager->events.new_text_input, text_input);
 }
 
 static const struct zwp_text_input_manager_v3_interface
@@ -315,7 +315,7 @@ static void handle_display_destroy(struct wl_listener *listener, void *data) {
 		wl_container_of(listener, manager, display_destroy);
 	wl_signal_emit_mutable(&manager->events.destroy, manager);
 
-	assert(wl_list_empty(&manager->events.text_input.listener_list));
+	assert(wl_list_empty(&manager->events.new_text_input.listener_list));
 	assert(wl_list_empty(&manager->events.destroy.listener_list));
 
 	wl_list_remove(&manager->display_destroy.link);
@@ -332,7 +332,7 @@ struct wlr_text_input_manager_v3 *wlr_text_input_manager_v3_create(
 
 	wl_list_init(&manager->text_inputs);
 
-	wl_signal_init(&manager->events.text_input);
+	wl_signal_init(&manager->events.new_text_input);
 	wl_signal_init(&manager->events.destroy);
 
 	manager->global = wl_global_create(display,
