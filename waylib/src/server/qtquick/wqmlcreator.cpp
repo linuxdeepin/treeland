@@ -206,7 +206,7 @@ void WQmlCreatorComponent::create(QSharedPointer<WQmlCreatorDelegateData> data)
 
     auto d = QQmlComponentPrivate::get(m_delegate);
 #if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
-#if QT_VERSION >= QT_VERSION_CHECK(6, 9, 0)
+#if QT_VERSION >= QT_VERSION_CHECK(6, 10, 0)
     if (d->m_state.isCompletePending()) {
 #else
     if (d->state.isCompletePending()) {
@@ -228,7 +228,7 @@ void WQmlCreatorComponent::create(QSharedPointer<WQmlCreatorDelegateData> data, 
 {
     auto d = QQmlComponentPrivate::get(m_delegate);
 
-#if QT_VERSION >= QT_VERSION_CHECK(6, 9, 0)
+#if QT_VERSION >= QT_VERSION_CHECK(6, 10, 0)
     Q_ASSERT(!d->m_state.isCompletePending());
 #elif QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
     Q_ASSERT(!d->state.isCompletePending());
@@ -281,7 +281,7 @@ void WQmlCreatorComponent::create(QSharedPointer<WQmlCreatorDelegateData> data, 
         notifyCreatorObjectAdded(creator(), data->object, initialProperties);
     } else {
         qWarning() << "WQmlCreatorComponent::create failed" << "parent=" << parent << "initialProperties=" << tmp;
-#if QT_VERSION >= QT_VERSION_CHECK(6, 9, 0)
+#if QT_VERSION >= QT_VERSION_CHECK(6, 10, 0)
         for (auto e: d->m_state.errors)
 #else
         for (auto e: d->state.errors)

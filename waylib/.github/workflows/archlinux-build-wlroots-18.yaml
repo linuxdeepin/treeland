@@ -21,7 +21,7 @@ jobs:
           pacman --noconfirm --noprogressbar -Syu
       - name: Install dep
         run: |
-          pacman -Syu --noconfirm --noprogressbar base-devel qt6-base qt6-declarative cmake pkgconfig pixman wlroots wayland-protocols wlr-protocols git
+          pacman -Syu --noconfirm --noprogressbar base-devel qt6-base qt6-declarative cmake pkgconfig pixman vulkan-headers wlroots wayland-protocols wlr-protocols git
           pacman -Syu --noconfirm --noprogressbar clang ninja make
           pacman -Syu --noconfirm --noprogressbar fakeroot meson sudo
       - uses: actions/checkout@v4
