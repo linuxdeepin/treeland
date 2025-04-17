@@ -51,8 +51,6 @@ void Multitaskview::setActiveReason(ActiveReason activeReason)
 
 void Multitaskview::exit(SurfaceWrapper *surface, bool immediately)
 {
-    TreelandConfig::ref().setBlockActivateSurface(false);
-
     if (surface) {
         Helper::instance()->forceActivateSurface(surface);
     } else if (Helper::instance()->workspace()->current()->latestActiveSurface()) {
