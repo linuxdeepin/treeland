@@ -334,7 +334,7 @@ static void frame_handle_output_commit(struct wl_listener *listener,
 
 	zwlr_screencopy_frame_v1_send_flags(frame->resource, 0);
 	frame_send_damage(frame);
-	frame_send_ready(frame, event->when);
+	frame_send_ready(frame, &event->when);
 	frame_destroy(frame);
 	return;
 

@@ -728,7 +728,7 @@ bool output_prepare_commit(struct wlr_output *output, const struct wlr_output_st
 
 	struct wlr_output_event_precommit pre_event = {
 		.output = output,
-		.when = &now,
+		.when = now,
 		.state = state,
 	};
 	wl_signal_emit_mutable(&output->events.precommit, &pre_event);
@@ -750,7 +750,7 @@ void output_apply_commit(struct wlr_output *output, const struct wlr_output_stat
 	clock_gettime(CLOCK_MONOTONIC, &now);
 	struct wlr_output_event_commit event = {
 		.output = output,
-		.when = &now,
+		.when = now,
 		.state = state,
 	};
 	wl_signal_emit_mutable(&output->events.commit, &event);

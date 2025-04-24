@@ -40,7 +40,7 @@ struct wlr_ext_output_image_capture_source_v1 {
 struct wlr_ext_output_image_capture_source_v1_frame_event {
 	struct wlr_ext_image_capture_source_v1_frame_event base;
 	struct wlr_buffer *buffer;
-	struct timespec *when;
+	struct timespec when;
 };
 
 static void output_source_start(struct wlr_ext_image_capture_source_v1 *base,
@@ -85,7 +85,7 @@ static void output_source_copy_frame(struct wlr_ext_image_capture_source_v1 *bas
 	if (wlr_ext_image_copy_capture_frame_v1_copy_buffer(frame,
 			event->buffer, source->output->renderer)) {
 		wlr_ext_image_copy_capture_frame_v1_ready(frame,
-			source->output->transform, event->when);
+			source->output->transform, &event->when);
 	}
 }
 

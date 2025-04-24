@@ -650,7 +650,7 @@ static void output_cursor_output_handle_output_commit(
 	struct wlr_surface *surface = output_cursor->cursor->state->surface;
 	if (surface && output_cursor->output_cursor->visible &&
 			(event->state->committed & WLR_OUTPUT_STATE_BUFFER)) {
-		wlr_surface_send_frame_done(surface, event->when);
+		wlr_surface_send_frame_done(surface, &event->when);
 	}
 }
 

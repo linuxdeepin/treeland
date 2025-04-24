@@ -245,13 +245,13 @@ struct wlr_output_event_damage {
 
 struct wlr_output_event_precommit {
 	struct wlr_output *output;
-	struct timespec *when;
+	struct timespec when;
 	const struct wlr_output_state *state;
 };
 
 struct wlr_output_event_commit {
 	struct wlr_output *output;
-	struct timespec *when;
+	struct timespec when;
 	const struct wlr_output_state *state;
 };
 
