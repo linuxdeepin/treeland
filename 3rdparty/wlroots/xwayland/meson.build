@@ -1,13 +1,13 @@
 xwayland_libs = []
-xwayland_required = [
-	'xcb',
-	'xcb-composite',
-	'xcb-ewmh',
-	'xcb-icccm',
-	'xcb-render',
-	'xcb-res',
-	'xcb-xfixes',
-]
+xwayland_required = {
+	'xcb': [],
+	'xcb-composite': [],
+	'xcb-ewmh': [],
+	'xcb-icccm': [],
+	'xcb-render': [],
+	'xcb-res': [],
+	'xcb-xfixes': '>=1.15',
+}
 xwayland_optional = {
 	'xcb-errors': 'Required for printing X11 errors.',
 }
@@ -37,8 +37,9 @@ if not xwayland.found()
 	subdir_done()
 endif
 
-foreach lib : xwayland_required
+foreach lib, version : xwayland_required
 	dep = dependency(lib,
+		version: version,
 		required: get_option('xwayland'),
 		not_found_message: '\n'.join(msg).format(lib),
 	)
@@ -93,6 +94,3 @@ wlr_files += files(
 )
 wlr_deps += xwayland_libs
 features += { 'xwayland': true }
-
-have = cc.has_function('xcb_xfixes_set_client_disconnect_mode', dependencies: xwayland_libs)
-internal_config.set10('HAVE_XCB_XFIXES_SET_CLIENT_DISCONNECT_MODE', have)

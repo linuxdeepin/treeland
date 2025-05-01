@@ -1,7 +1,6 @@
 #include <assert.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <wlr/config.h>
 #include <wlr/types/wlr_compositor.h>
 #include <wlr/types/wlr_data_device.h>
 #include <wlr/types/wlr_primary_selection.h>
@@ -2584,13 +2583,11 @@ struct wlr_xwm *xwm_create(struct wlr_xwayland *xwayland, int wm_fd) {
 		sizeof(supported)/sizeof(*supported),
 		supported);
 
-#if HAVE_XCB_XFIXES_SET_CLIENT_DISCONNECT_MODE
 	if (xwm->xwayland->server->options.terminate_delay > 0 &&
 			xwm->xfixes_major_version >= 6) {
 		xcb_xfixes_set_client_disconnect_mode(xwm->xcb_conn,
 			XCB_XFIXES_CLIENT_DISCONNECT_FLAGS_TERMINATE);
 	}
-#endif
 
 	xcb_flush(xwm->xcb_conn);
 
