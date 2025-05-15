@@ -146,7 +146,6 @@ struct wlr_xwayland_surface {
 	char *role;
 	char *startup_id;
 	pid_t pid;
-	bool has_utf8_title;
 
 	struct wl_list children; // wlr_xwayland_surface.parent_link
 	struct wlr_xwayland_surface *parent;

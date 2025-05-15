@@ -774,9 +774,6 @@ static void read_surface_title(struct wlr_xwm *xwm,
 		xsurface->title = NULL;
 	}
 
-	// TODO: drop this field
-	xsurface->has_utf8_title = reply->type == xwm->atoms[UTF8_STRING];
-
 	wl_signal_emit_mutable(&xsurface->events.set_title, NULL);
 }
 
