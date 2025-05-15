@@ -104,7 +104,6 @@ void init_device_tablet_pad(struct wlr_libinput_input_device *dev) {
 	struct udev_device *udev = libinput_device_get_udev_device(handle);
 	char **dst = wl_array_add(&wlr_tablet_pad->paths, sizeof(char *));
 	*dst = strdup(udev_device_get_syspath(udev));
-	udev_device_unref(udev);
 
 	int groups = libinput_device_tablet_pad_get_num_mode_groups(handle);
 	for (int i = 0; i < groups; ++i) {
@@ -148,9 +147,13 @@ void handle_tablet_pad_button(struct libinput_event *event,
 		.group = libinput_tablet_pad_mode_group_get_index(
 			libinput_event_tablet_pad_get_mode_group(pevent)),
 	};
-	if (!button_state_from_libinput(libinput_event_tablet_pad_get_button_state(pevent), &wlr_event.state)) {
-		wlr_log(WLR_DEBUG, "Unhandled libinput button state");
-		return;
+	switch (libinput_event_tablet_pad_get_button_state(pevent)) {
+	case LIBINPUT_BUTTON_STATE_PRESSED:
+		wlr_event.state = WLR_BUTTON_PRESSED;
+		break;
+	case LIBINPUT_BUTTON_STATE_RELEASED:
+		wlr_event.state = WLR_BUTTON_RELEASED;
+		break;
 	}
 	wl_signal_emit_mutable(&tablet_pad->events.button, &wlr_event);
 }
@@ -164,7 +167,6 @@ void handle_tablet_pad_ring(struct libinput_event *event,
 		.ring = libinput_event_tablet_pad_get_ring_number(pevent),
 		.position = libinput_event_tablet_pad_get_ring_position(pevent),
 		.mode = libinput_event_tablet_pad_get_mode(pevent),
-		.source = WLR_TABLET_PAD_RING_SOURCE_UNKNOWN,
 	};
 	switch (libinput_event_tablet_pad_get_ring_source(pevent)) {
 	case LIBINPUT_TABLET_PAD_RING_SOURCE_UNKNOWN:
@@ -186,7 +188,6 @@ void handle_tablet_pad_strip(struct libinput_event *event,
 		.strip = libinput_event_tablet_pad_get_strip_number(pevent),
 		.position = libinput_event_tablet_pad_get_strip_position(pevent),
 		.mode = libinput_event_tablet_pad_get_mode(pevent),
-		.source = WLR_TABLET_PAD_STRIP_SOURCE_UNKNOWN,
 	};
 	switch (libinput_event_tablet_pad_get_strip_source(pevent)) {
 	case LIBINPUT_TABLET_PAD_STRIP_SOURCE_UNKNOWN:

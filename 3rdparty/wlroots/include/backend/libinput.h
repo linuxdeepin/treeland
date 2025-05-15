@@ -132,6 +132,4 @@ void handle_tablet_pad_ring(struct libinput_event *event,
 void handle_tablet_pad_strip(struct libinput_event *event,
 	struct wlr_tablet_pad *tablet_pad);
 
-bool button_state_from_libinput(enum libinput_button_state state, enum wlr_button_state *out);
-
 #endif

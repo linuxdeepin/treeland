@@ -96,11 +96,8 @@ static void scene_buffer_unmark_client_buffer(struct wlr_scene_buffer *scene_buf
 		return;
 	}
 
-	// If the buffer was a single-pixel buffer where we cached its color
-	// then it won't have been marked as damage-allowed.
-	if (buffer->n_ignore_locks > 0) {
-		buffer->n_ignore_locks--;
-	}
+	assert(buffer->n_ignore_locks > 0);
+	buffer->n_ignore_locks--;
 }
 
 static int min(int a, int b) {
@@ -168,21 +165,7 @@ static void surface_reconfigure(struct wlr_scene_surface *scene_surface) {
 	scene_buffer_unmark_client_buffer(scene_buffer);
 
 	if (surface->buffer) {
-		// If we've cached the buffer's single-pixel buffer color
-		// then any in-place updates to the texture wouldn't be
-		// reflected in rendering. So only allow in-place texture
-		// updates if it's not a single pixel buffer.  Note that we
-		// can't use the cached scene_buffer->is_single_pixel_buffer
-		// because that's only set later on.
-		bool is_single_pixel_buffer = false;
-		if (surface->buffer->source != NULL) {
-			struct wlr_single_pixel_buffer_v1 *spb =
-				wlr_single_pixel_buffer_v1_try_from_buffer(surface->buffer->source);
-			is_single_pixel_buffer = spb != NULL;
-		}
-		if (!is_single_pixel_buffer) {
-			client_buffer_mark_next_can_damage(surface->buffer);
-		}
+		client_buffer_mark_next_can_damage(surface->buffer);
 
 		struct wlr_linux_drm_syncobj_surface_v1_state *syncobj_surface_state =
 			wlr_linux_drm_syncobj_v1_get_surface_state(surface);
@@ -203,8 +186,7 @@ static void surface_reconfigure(struct wlr_scene_surface *scene_surface) {
 			&surface->buffer->base, &options);
 
 		if (syncobj_surface_state != NULL &&
-				(surface->current.committed & WLR_SURFACE_STATE_BUFFER) &&
-				surface->buffer->source != NULL) {
+				(surface->current.committed & WLR_SURFACE_STATE_BUFFER)) {
 			wlr_linux_drm_syncobj_v1_state_signal_release_with_buffer(syncobj_surface_state,
 				surface->buffer->source);
 		}

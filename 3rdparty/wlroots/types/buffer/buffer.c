@@ -1,12 +1,9 @@
 #include <assert.h>
 #include <drm_fourcc.h>
 #include <string.h>
-#include <stdatomic.h>
 #include <wlr/interfaces/wlr_buffer.h>
 #include "render/pixel_format.h"
 #include "types/wlr_buffer.h"
-
-static _Atomic size_t buffer_count;
 
 void wlr_buffer_init(struct wlr_buffer *buffer,
 		const struct wlr_buffer_impl *impl, int width, int height) {
@@ -25,7 +22,6 @@ void wlr_buffer_init(struct wlr_buffer *buffer,
 	wl_signal_init(&buffer->events.release);
 
 	wlr_addon_set_init(&buffer->addons);
-	atomic_fetch_add_explicit(&buffer_count, 1, memory_order_relaxed);
 }
 
 void wlr_buffer_finish(struct wlr_buffer *buffer) {
@@ -34,12 +30,6 @@ void wlr_buffer_finish(struct wlr_buffer *buffer) {
 
 	assert(wl_list_empty(&buffer->events.destroy.listener_list));
 	assert(wl_list_empty(&buffer->events.release.listener_list));
-	size_t previous = atomic_fetch_sub_explicit(&buffer_count, 1, memory_order_relaxed);
-	assert(previous > 0);
-}
-
-size_t waylib_buffer_get_count(void) {
-	return atomic_load_explicit(&buffer_count, memory_order_relaxed);
 }
 
 static void buffer_consider_destroy(struct wlr_buffer *buffer) {

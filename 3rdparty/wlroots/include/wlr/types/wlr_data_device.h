@@ -80,7 +80,6 @@ struct wlr_data_source {
 
 	struct {
 		struct wl_signal destroy;
-		struct wl_signal dnd_action; // struct wlr_data_source
 	} events;
 };
 

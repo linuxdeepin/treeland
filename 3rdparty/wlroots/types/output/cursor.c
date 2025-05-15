@@ -288,9 +288,17 @@ static struct wlr_buffer *render_cursor_buffer(struct wlr_output_cursor *cursor)
 static bool output_cursor_attempt_hardware(struct wlr_output_cursor *cursor) {
 	struct wlr_output *output = cursor->output;
 
-	if (!output->impl->set_cursor || output->software_cursor_locks > 0) {
+	if (!output->impl->set_cursor ||
+			output->software_cursor_locks > 0) {
 		return false;
 	}
+
+	struct wlr_output_cursor *hwcur = output->hardware_cursor;
+	if (hwcur != NULL && hwcur != cursor) {
+		return false;
+	}
+
+	output->hardware_cursor = NULL;
 
 	struct wlr_texture *texture = cursor->texture;
 
@@ -416,15 +424,12 @@ bool output_cursor_set_texture(struct wlr_output_cursor *cursor,
 		wl_list_init(&cursor->renderer_destroy.link);
 	}
 
-	if (output->hardware_cursor == NULL || output->hardware_cursor == cursor) {
-		if (output_cursor_attempt_hardware(cursor)) {
-			return true;
-		}
-
-		wlr_log(WLR_DEBUG, "Falling back to software cursor on output '%s'", output->name);
-		output_disable_hardware_cursor(output);
+	if (output_cursor_attempt_hardware(cursor)) {
+		return true;
 	}
 
+	wlr_log(WLR_DEBUG, "Falling back to software cursor on output '%s'", output->name);
+	output_disable_hardware_cursor(output);
 	output_cursor_damage_whole(cursor);
 	return true;
 }

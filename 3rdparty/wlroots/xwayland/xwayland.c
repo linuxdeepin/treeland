@@ -42,9 +42,6 @@ static void handle_server_start(struct wl_listener *listener, void *data) {
 static void xwayland_mark_ready(struct wlr_xwayland *xwayland) {
 	assert(xwayland->server->wm_fd[0] >= 0);
 	xwayland->xwm = xwm_create(xwayland, xwayland->server->wm_fd[0]);
-	// xwm_create takes ownership of wm_fd[0] under all circumstances
-	xwayland->server->wm_fd[0] = -1;
-
 	if (!xwayland->xwm) {
 		return;
 	}
@@ -72,11 +69,6 @@ static void handle_shell_destroy(struct wl_listener *listener, void *data) {
 	struct wlr_xwayland *xwayland =
 		wl_container_of(listener, xwayland, shell_destroy);
 	xwayland->shell_v1 = NULL;
-	wl_list_remove(&xwayland->shell_destroy.link);
-	// Will remove this list in handle_shell_destroy().
-	// This ensures the link is always initialized and
-	// avoids the need to keep check conditions in sync.
-	wl_list_init(&xwayland->shell_destroy.link);
 }
 
 void wlr_xwayland_destroy(struct wlr_xwayland *xwayland) {

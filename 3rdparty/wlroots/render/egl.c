@@ -260,8 +260,7 @@ static struct wlr_egl *egl_create(void) {
 	return egl;
 }
 
-static bool egl_init_display(struct wlr_egl *egl, EGLDisplay display,
-		bool allow_software) {
+static bool egl_init_display(struct wlr_egl *egl, EGLDisplay display) {
 	egl->display = display;
 
 	EGLint major, minor;
@@ -327,8 +326,9 @@ static bool egl_init_display(struct wlr_egl *egl, EGLDisplay display,
 
 		// The only way a non-DRM device is selected is when the user
 		// explicitly picks software rendering
-		if (check_egl_ext(device_exts_str, "EGL_MESA_device_software")) {
-			if (allow_software || env_parse_bool("WLR_RENDERER_ALLOW_SOFTWARE")) {
+		if (check_egl_ext(device_exts_str, "EGL_MESA_device_software") &&
+				egl->exts.EXT_device_drm) {
+			if (env_parse_bool("WLR_RENDERER_ALLOW_SOFTWARE")) {
 				wlr_log(WLR_INFO, "Using software rendering");
 			} else {
 				wlr_log(WLR_ERROR, "Software rendering detected, please use "
@@ -382,7 +382,7 @@ static bool egl_init_display(struct wlr_egl *egl, EGLDisplay display,
 }
 
 static bool egl_init(struct wlr_egl *egl, EGLenum platform,
-		void *remote_display, bool allow_software) {
+		void *remote_display) {
 	EGLint display_attribs[3] = {0};
 	size_t display_attribs_len = 0;
 
@@ -401,7 +401,7 @@ static bool egl_init(struct wlr_egl *egl, EGLenum platform,
 		return false;
 	}
 
-	if (!egl_init_display(egl, display, allow_software)) {
+	if (!egl_init_display(egl, display)) {
 		if (egl->exts.KHR_display_reference) {
 			eglTerminate(display);
 		}
@@ -556,8 +556,6 @@ static int open_render_node(int drm_fd) {
 }
 
 struct wlr_egl *wlr_egl_create_with_drm_fd(int drm_fd) {
-	bool allow_software = drm_fd < 0;
-
 	struct wlr_egl *egl = egl_create();
 	if (egl == NULL) {
 		wlr_log(WLR_ERROR, "Failed to create EGL context");
@@ -571,7 +569,7 @@ struct wlr_egl *wlr_egl_create_with_drm_fd(int drm_fd) {
 		 */
 		EGLDeviceEXT egl_device = get_egl_device_from_drm_fd(egl, drm_fd);
 		if (egl_device != EGL_NO_DEVICE_EXT) {
-			if (egl_init(egl, EGL_PLATFORM_DEVICE_EXT, egl_device, allow_software)) {
+			if (egl_init(egl, EGL_PLATFORM_DEVICE_EXT, egl_device)) {
 				wlr_log(WLR_DEBUG, "Using EGL_PLATFORM_DEVICE_EXT");
 				return egl;
 			}
@@ -596,7 +594,7 @@ struct wlr_egl *wlr_egl_create_with_drm_fd(int drm_fd) {
 			goto error;
 		}
 
-		if (egl_init(egl, EGL_PLATFORM_GBM_KHR, egl->gbm_device, allow_software)) {
+		if (egl_init(egl, EGL_PLATFORM_GBM_KHR, egl->gbm_device)) {
 			wlr_log(WLR_DEBUG, "Using EGL_PLATFORM_GBM_KHR");
 			return egl;
 		}
@@ -635,7 +633,7 @@ struct wlr_egl *wlr_egl_create_with_context(EGLDisplay display,
 		return NULL;
 	}
 
-	if (!egl_init_display(egl, display, true)) {
+	if (!egl_init_display(egl, display)) {
 		free(egl);
 		return NULL;
 	}

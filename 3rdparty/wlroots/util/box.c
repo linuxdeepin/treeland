@@ -19,15 +19,16 @@ void wlr_box_closest_point(const struct wlr_box *box, double x, double y,
 	//
 	// In order to be consistent with e.g. wlr_box_contains_point(),
 	// this function returns a point inside the bottom and right edges
-	// of the box by at least 1/256 of a unit (pixel). 1/256 is
+	// of the box by at least 1/65536 of a unit (pixel). 1/65536 is
 	// small enough to avoid a "dead zone" with high-resolution mice
-	// but large enough to avoid rounding to zero in wl_fixed_from_double().
+	// but large enough to avoid rounding to zero (due to loss of
+	// significant digits) in simple floating-point calculations.
 
 	// find the closest x point
 	if (x < box->x) {
 		*dest_x = box->x;
-	} else if (x > box->x + box->width - 1/256.0) {
-		*dest_x = box->x + box->width - 1/256.0;
+	} else if (x > box->x + box->width - 1/65536.0) {
+		*dest_x = box->x + box->width - 1/65536.0;
 	} else {
 		*dest_x = x;
 	}
@@ -35,8 +36,8 @@ void wlr_box_closest_point(const struct wlr_box *box, double x, double y,
 	// find closest y point
 	if (y < box->y) {
 		*dest_y = box->y;
-	} else if (y > box->y + box->height - 1/256.0) {
-		*dest_y = box->y + box->height - 1/256.0;
+	} else if (y > box->y + box->height - 1/65536.0) {
+		*dest_y = box->y + box->height - 1/65536.0;
 	} else {
 		*dest_y = y;
 	}
@@ -66,12 +67,7 @@ bool wlr_box_intersection(struct wlr_box *dest, const struct wlr_box *box_a,
 	dest->width = x2 - x1;
 	dest->height = y2 - y1;
 
-	if (wlr_box_empty(dest)) {
-		*dest = (struct wlr_box){0};
-		return false;
-	}
-
-	return true;
+	return !wlr_box_empty(dest);
 }
 
 bool wlr_box_contains_point(const struct wlr_box *box, double x, double y) {

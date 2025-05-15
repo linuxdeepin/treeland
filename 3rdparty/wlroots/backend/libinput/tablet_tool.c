@@ -37,7 +37,6 @@ void init_device_tablet(struct wlr_libinput_input_device *dev) {
 	struct udev_device *udev = libinput_device_get_udev_device(dev->handle);
 	char **dst = wl_array_add(&wlr_tablet->paths, sizeof(char *));
 	*dst = strdup(udev_device_get_syspath(udev));
-	udev_device_unref(udev);
 
 	wl_list_init(&dev->tablet_tools);
 }
@@ -68,61 +67,27 @@ struct wlr_libinput_input_device *device_from_tablet(
 	return dev;
 }
 
-static bool type_from_libinput(enum libinput_tablet_tool_type type,
-		enum wlr_tablet_tool_type *out) {
-	switch (type) {
+static enum wlr_tablet_tool_type wlr_type_from_libinput_type(
+		enum libinput_tablet_tool_type value) {
+	switch (value) {
 	case LIBINPUT_TABLET_TOOL_TYPE_PEN:
-		*out = WLR_TABLET_TOOL_TYPE_PEN;
-		return true;
+		return WLR_TABLET_TOOL_TYPE_PEN;
 	case LIBINPUT_TABLET_TOOL_TYPE_ERASER:
-		*out = WLR_TABLET_TOOL_TYPE_ERASER;
-		return true;
+		return WLR_TABLET_TOOL_TYPE_ERASER;
 	case LIBINPUT_TABLET_TOOL_TYPE_BRUSH:
-		*out = WLR_TABLET_TOOL_TYPE_BRUSH;
-		return true;
+		return WLR_TABLET_TOOL_TYPE_BRUSH;
 	case LIBINPUT_TABLET_TOOL_TYPE_PENCIL:
-		*out = WLR_TABLET_TOOL_TYPE_PENCIL;
-		return true;
+		return WLR_TABLET_TOOL_TYPE_PENCIL;
 	case LIBINPUT_TABLET_TOOL_TYPE_AIRBRUSH:
-		*out = WLR_TABLET_TOOL_TYPE_AIRBRUSH;
-		return true;
+		return WLR_TABLET_TOOL_TYPE_AIRBRUSH;
 	case LIBINPUT_TABLET_TOOL_TYPE_MOUSE:
-		*out = WLR_TABLET_TOOL_TYPE_MOUSE;
-		return true;
+		return WLR_TABLET_TOOL_TYPE_MOUSE;
 	case LIBINPUT_TABLET_TOOL_TYPE_LENS:
-		*out = WLR_TABLET_TOOL_TYPE_LENS;
-		return true;
+		return WLR_TABLET_TOOL_TYPE_LENS;
 	case LIBINPUT_TABLET_TOOL_TYPE_TOTEM:
-		*out = WLR_TABLET_TOOL_TYPE_TOTEM;
-		return true;
+		return WLR_TABLET_TOOL_TYPE_TOTEM;
 	}
-	return false;
-}
-
-static bool proximity_state_from_libinput(enum libinput_tablet_tool_proximity_state state,
-		enum wlr_tablet_tool_proximity_state *out) {
-	switch (state) {
-	case LIBINPUT_TABLET_TOOL_PROXIMITY_STATE_OUT:
-		*out = WLR_TABLET_TOOL_PROXIMITY_OUT;
-		return true;
-	case LIBINPUT_TABLET_TOOL_PROXIMITY_STATE_IN:
-		*out = WLR_TABLET_TOOL_PROXIMITY_IN;
-		return true;
-	}
-	return false;
-}
-
-static bool tip_state_from_libinput(enum libinput_tablet_tool_tip_state state,
-		enum wlr_tablet_tool_tip_state *out) {
-	switch (state) {
-	case LIBINPUT_TABLET_TOOL_TIP_UP:
-		*out = WLR_TABLET_TOOL_TIP_UP;
-		return true;
-	case LIBINPUT_TABLET_TOOL_TIP_DOWN:
-		*out = WLR_TABLET_TOOL_TIP_DOWN;
-		return true;
-	}
-	return false;
+	abort(); // unreachable
 }
 
 static struct tablet_tool *get_tablet_tool(
@@ -134,19 +99,14 @@ static struct tablet_tool *get_tablet_tool(
 		return tool;
 	}
 
-	enum wlr_tablet_tool_type type;
-	if (!type_from_libinput(libinput_tablet_tool_get_type(libinput_tool), &type)) {
-		wlr_log(WLR_DEBUG, "Unhandled libinput tablet tool type");
-		return NULL;
-	}
-
 	tool = calloc(1, sizeof(*tool));
 	if (tool == NULL) {
 		wlr_log_errno(WLR_ERROR, "failed to allocate wlr_libinput_tablet_tool");
 		return NULL;
 	}
 
-	tool->wlr_tool.type = type;
+	tool->wlr_tool.type = wlr_type_from_libinput_type(
+		libinput_tablet_tool_get_type(libinput_tool));
 	tool->wlr_tool.hardware_serial =
 		libinput_tablet_tool_get_serial(libinput_tool);
 	tool->wlr_tool.hardware_wacom =
@@ -238,12 +198,14 @@ void handle_tablet_tool_proximity(struct libinput_event *event,
 		.y = libinput_event_tablet_tool_get_y_transformed(tevent, 1),
 	};
 
-	if (!proximity_state_from_libinput(libinput_event_tablet_tool_get_proximity_state(tevent),
-			&wlr_event.state)) {
-		wlr_log(WLR_DEBUG, "Unhandled libinput tablet tool proximity state");
-		return;
+	switch (libinput_event_tablet_tool_get_proximity_state(tevent)) {
+	case LIBINPUT_TABLET_TOOL_PROXIMITY_STATE_OUT:
+		wlr_event.state = WLR_TABLET_TOOL_PROXIMITY_OUT;
+		break;
+	case LIBINPUT_TABLET_TOOL_PROXIMITY_STATE_IN:
+		wlr_event.state = WLR_TABLET_TOOL_PROXIMITY_IN;
+		break;
 	}
-
 	wl_signal_emit_mutable(&wlr_tablet->events.proximity, &wlr_event);
 
 	if (libinput_event_tablet_tool_get_proximity_state(tevent) ==
@@ -278,11 +240,14 @@ void handle_tablet_tool_tip(struct libinput_event *event,
 		.y = libinput_event_tablet_tool_get_y_transformed(tevent, 1),
 	};
 
-	if (!tip_state_from_libinput(libinput_event_tablet_tool_get_tip_state(tevent), &wlr_event.state)) {
-		wlr_log(WLR_DEBUG, "Unhandled libinput tablet tool tip state");
-		return;
+	switch (libinput_event_tablet_tool_get_tip_state(tevent)) {
+	case LIBINPUT_TABLET_TOOL_TIP_UP:
+		wlr_event.state = WLR_TABLET_TOOL_TIP_UP;
+		break;
+	case LIBINPUT_TABLET_TOOL_TIP_DOWN:
+		wlr_event.state = WLR_TABLET_TOOL_TIP_DOWN;
+		break;
 	}
-
 	wl_signal_emit_mutable(&wlr_tablet->events.tip, &wlr_event);
 }
 
@@ -301,11 +266,13 @@ void handle_tablet_tool_button(struct libinput_event *event,
 		.time_msec = usec_to_msec(libinput_event_tablet_tool_get_time_usec(tevent)),
 		.button = libinput_event_tablet_tool_get_button(tevent),
 	};
-
-	if (!button_state_from_libinput(libinput_event_tablet_tool_get_button_state(tevent), &wlr_event.state)) {
-		wlr_log(WLR_DEBUG, "Unhandled libinput button state");
-		return;
+	switch (libinput_event_tablet_tool_get_button_state(tevent)) {
+	case LIBINPUT_BUTTON_STATE_RELEASED:
+		wlr_event.state = WLR_BUTTON_RELEASED;
+		break;
+	case LIBINPUT_BUTTON_STATE_PRESSED:
+		wlr_event.state = WLR_BUTTON_PRESSED;
+		break;
 	}
-
 	wl_signal_emit_mutable(&wlr_tablet->events.button, &wlr_event);
 }
