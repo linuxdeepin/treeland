@@ -37,6 +37,7 @@ void init_device_tablet(struct wlr_libinput_input_device *dev) {
 	struct udev_device *udev = libinput_device_get_udev_device(dev->handle);
 	char **dst = wl_array_add(&wlr_tablet->paths, sizeof(char *));
 	*dst = strdup(udev_device_get_syspath(udev));
+	udev_device_unref(udev);
 
 	wl_list_init(&dev->tablet_tools);
 }
