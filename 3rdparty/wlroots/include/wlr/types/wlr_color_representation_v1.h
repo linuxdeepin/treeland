@@ -10,9 +10,8 @@
 #define WLR_TYPES_WLR_COLOR_REPRESENTATION_V1_H
 
 #include <wayland-server-core.h>
+#include <wayland-protocols/color-representation-v1-enum.h>
 #include <wlr/render/color.h>
-
-#include "color-representation-v1-protocol.h"
 
 struct wlr_surface;
 

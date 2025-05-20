@@ -10,10 +10,10 @@
 #define WLR_TYPES_WLR_XDG_SHELL_H
 
 #include <wayland-server-core.h>
+#include <wayland-protocols/xdg-shell-enum.h>
 #include <wlr/types/wlr_compositor.h>
 #include <wlr/types/wlr_seat.h>
 #include <wlr/util/box.h>
-#include "xdg-shell-protocol.h"
 
 struct wlr_xdg_shell {
 	struct wl_global *global;

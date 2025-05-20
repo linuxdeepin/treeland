@@ -7,6 +7,7 @@
 #include <wlr/types/wlr_output.h>
 #include <wlr/util/addon.h>
 
+#include "color-management-v1-protocol.h"
 #include "render/color.h"
 #include "util/mem.h"
 

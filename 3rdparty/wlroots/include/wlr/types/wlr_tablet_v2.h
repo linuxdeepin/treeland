@@ -10,9 +10,8 @@
 #define WLR_TYPES_WLR_TABLET_V2_H
 
 #include <wayland-server-core.h>
+#include <wayland-protocols/tablet-v2-enum.h>
 #include <wlr/types/wlr_seat.h>
-
-#include "tablet-v2-protocol.h"
 
 /* This can probably be even lower,the tools don't have a lot of buttons */
 #define WLR_TABLET_V2_TOOL_BUTTONS_CAP 16

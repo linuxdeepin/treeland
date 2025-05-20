@@ -11,10 +11,8 @@
 
 #include <stdint.h>
 #include <wayland-server-core.h>
-#include <wayland-server-protocol.h>
+#include <wayland-protocols/tearing-control-v1-enum.h>
 #include <wlr/types/wlr_compositor.h>
-
-#include "tearing-control-v1-protocol.h"
 
 struct wlr_tearing_control_v1 {
 	struct wl_client *client;

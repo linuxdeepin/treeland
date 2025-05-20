@@ -9,10 +9,10 @@
 #ifndef WLR_TYPES_WLR_COLOR_MANAGEMENT_V1_H
 #define WLR_TYPES_WLR_COLOR_MANAGEMENT_V1_H
 
-#include <wayland-server.h>
-#include <wlr/render/color.h>
+#include <wayland-server-core.h>
+#include <wayland-protocols/color-management-v1-enum.h>
 
-#include "color-management-v1-protocol.h"
+#include <wlr/render/color.h>
 
 struct wlr_surface;
 

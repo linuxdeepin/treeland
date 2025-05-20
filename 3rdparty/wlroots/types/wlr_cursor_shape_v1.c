@@ -5,6 +5,8 @@
 #include <wlr/types/wlr_cursor_shape_v1.h>
 #include <wlr/types/wlr_seat.h>
 #include <wlr/types/wlr_tablet_tool.h>
+
+#include "cursor-shape-v1-protocol.h"
 #include "types/wlr_tablet_v2.h"
 
 #define CURSOR_SHAPE_MANAGER_V1_VERSION 2

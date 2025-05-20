@@ -10,9 +10,9 @@
 #define WLR_TYPES_WLR_EXT_IMAGE_COPY_CAPTURE_V1_H
 
 #include <pixman.h>
-#include <wayland-server.h>
+#include <wayland-server-protocol.h>
+#include <wayland-protocols/ext-image-copy-capture-v1-enum.h>
 #include <time.h>
-#include "ext-image-copy-capture-v1-protocol.h"
 
 struct wlr_renderer;
 

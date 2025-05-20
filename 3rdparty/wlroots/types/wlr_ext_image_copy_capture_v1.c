@@ -6,6 +6,7 @@
 #include <wlr/types/wlr_ext_image_copy_capture_v1.h>
 #include <wlr/types/wlr_seat.h>
 #include <wlr/render/wlr_renderer.h>
+#include "ext-image-copy-capture-v1-protocol.h"
 #include "render/pixel_format.h"
 
 #define IMAGE_COPY_CAPTURE_MANAGER_V1_VERSION 1

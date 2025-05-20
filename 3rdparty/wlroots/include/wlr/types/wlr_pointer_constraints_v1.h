@@ -11,10 +11,10 @@
 
 #include <stdint.h>
 #include <wayland-server-core.h>
+#include <wayland-protocols/pointer-constraints-unstable-v1-enum.h>
 #include <pixman.h>
 #include <wlr/types/wlr_compositor.h>
 #include <wlr/types/wlr_seat.h>
-#include "pointer-constraints-unstable-v1-protocol.h"
 
 struct wlr_seat;
 
