@@ -441,7 +441,7 @@ static void xwm_set_focused_window(struct wlr_xwm *xwm,
 		xsurface_set_net_wm_state(xsurface);
 		xwm_set_net_active_window(xwm, xsurface->window_id);
 	} else {
-		xwm_set_net_active_window(xwm, XCB_WINDOW_NONE);
+		xwm_set_net_active_window(xwm, xwm->no_focus_window);
 	}
 }
 
