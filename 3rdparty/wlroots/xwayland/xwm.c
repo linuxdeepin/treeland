@@ -2204,6 +2204,9 @@ void xwm_destroy(struct wlr_xwm *xwm) {
 	if (xwm->colormap) {
 		xcb_free_colormap(xwm->xcb_conn, xwm->colormap);
 	}
+	if (xwm->no_focus_window) {
+		xcb_destroy_window(xwm->xcb_conn, xwm->no_focus_window);
+	}
 	if (xwm->window) {
 		xcb_destroy_window(xwm->xcb_conn, xwm->window);
 	}
@@ -2359,6 +2362,31 @@ static void xwm_create_wm_window(struct wlr_xwm *xwm) {
 		xwm->window,
 		xwm->atoms[NET_WM_CM_S0],
 		XCB_CURRENT_TIME);
+}
+
+static void xwm_create_no_focus_window(struct wlr_xwm *xwm) {
+	xwm->no_focus_window = xcb_generate_id(xwm->xcb_conn);
+
+	uint32_t values[2] = {
+		1,
+		XCB_EVENT_MASK_KEY_PRESS |
+			XCB_EVENT_MASK_KEY_RELEASE |
+			XCB_EVENT_MASK_FOCUS_CHANGE
+	};
+	xcb_create_window(xwm->xcb_conn,
+		XCB_COPY_FROM_PARENT,
+		xwm->no_focus_window,
+		xwm->screen->root,
+		-100, -100,
+		1, 1,
+		0,
+		XCB_WINDOW_CLASS_COPY_FROM_PARENT,
+		XCB_COPY_FROM_PARENT,
+		XCB_CW_OVERRIDE_REDIRECT |
+			XCB_CW_EVENT_MASK,
+		values);
+
+	xcb_map_window(xwm->xcb_conn, xwm->no_focus_window);
 }
 
 // TODO use me to support 32 bit color somehow
@@ -2587,6 +2615,7 @@ struct wlr_xwm *xwm_create(struct wlr_xwayland *xwayland, int wm_fd) {
 		&xwm->shell_v1_destroy);
 
 	xwm_create_wm_window(xwm);
+	xwm_create_no_focus_window(xwm);
 
 	xcb_flush(xwm->xcb_conn);
 
