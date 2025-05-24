@@ -4,6 +4,7 @@
 #include <unistd.h>
 #include <wayland-server-core.h>
 #include <wlr/interfaces/wlr_output.h>
+#include <wlr/render/color.h>
 #include <wlr/types/wlr_gamma_control_v1.h>
 #include <wlr/types/wlr_output.h>
 #include <wlr/util/log.h>
@@ -263,15 +264,20 @@ struct wlr_gamma_control_v1 *wlr_gamma_control_manager_v1_get_control(
 
 bool wlr_gamma_control_v1_apply(struct wlr_gamma_control_v1 *gamma_control,
 		struct wlr_output_state *output_state) {
-	if (gamma_control == NULL || gamma_control->table == NULL) {
-		return wlr_output_state_set_gamma_lut(output_state, 0, NULL, NULL, NULL);
+	struct wlr_color_transform *tr = NULL;
+	if (gamma_control != NULL && gamma_control->table != NULL) {
+		const uint16_t *r = gamma_control->table;
+		const uint16_t *g = gamma_control->table + gamma_control->ramp_size;
+		const uint16_t *b = gamma_control->table + 2 * gamma_control->ramp_size;
+
+		tr = wlr_color_transform_init_lut_3x1d(gamma_control->ramp_size, r, g, b);
+		if (tr == NULL) {
+			return false;
+		}
 	}
 
-	const uint16_t *r = gamma_control->table;
-	const uint16_t *g = gamma_control->table + gamma_control->ramp_size;
-	const uint16_t *b = gamma_control->table + 2 * gamma_control->ramp_size;
-	return wlr_output_state_set_gamma_lut(output_state,
-		gamma_control->ramp_size, r, g, b);
+	wlr_output_state_set_color_transform(output_state, tr);
+	return true;
 }
 
 void wlr_gamma_control_v1_send_failed_and_destroy(struct wlr_gamma_control_v1 *gamma_control) {
