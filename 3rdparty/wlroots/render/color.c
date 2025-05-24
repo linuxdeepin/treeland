@@ -30,7 +30,7 @@ void wlr_color_transform_init(struct wlr_color_transform *tr, enum wlr_color_tra
 }
 
 struct wlr_color_transform *wlr_color_transform_init_srgb(void) {
-	struct wlr_color_transform *tx = calloc(1, sizeof(struct wlr_color_transform));
+	struct wlr_color_transform *tx = calloc(1, sizeof(*tx));
 	if (!tx) {
 		return NULL;
 	}

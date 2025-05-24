@@ -95,7 +95,7 @@ struct wlr_color_transform *wlr_color_transform_init_linear_to_icc(
 		}
 	}
 
-	tx = calloc(1, sizeof(struct wlr_color_transform_lut3d));
+	tx = calloc(1, sizeof(*tx));
 	if (!tx) {
 		goto out_lcms_tr;
 	}
