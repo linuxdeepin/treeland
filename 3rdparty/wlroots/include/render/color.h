@@ -7,7 +7,7 @@
 
 enum wlr_color_transform_type {
 	COLOR_TRANSFORM_SRGB,
-	COLOR_TRANSFORM_LUT_3D,
+	COLOR_TRANSFORM_LCMS2,
 };
 
 struct wlr_color_transform {
@@ -17,36 +17,23 @@ struct wlr_color_transform {
 	enum wlr_color_transform_type type;
 };
 
-/**
- * The formula is approximated via a 3D look-up table. A 3D LUT is a
- * three-dimensional array where each element is an RGB triplet. The flat lut_3d
- * array has a length of dim_len³.
- *
- * Color channel values in the range [0.0, 1.0] are mapped linearly to
- * 3D LUT indices such that 0.0 maps exactly to the first element and 1.0 maps
- * exactly to the last element in each dimension.
- *
- * The offset of the RGB triplet given red, green and blue indices r_index,
- * g_index and b_index is:
- *
- *     offset = 3 * (r_index + dim_len * g_index + dim_len * dim_len * b_index)
- */
-struct wlr_color_transform_lut3d {
-	struct wlr_color_transform base;
-
-	float *lut_3d;
-	size_t dim_len;
-};
-
 void wlr_color_transform_init(struct wlr_color_transform *tr,
 	enum wlr_color_transform_type type);
 
 /**
- * Gets a wlr_color_transform_lut3d from a generic wlr_color_transform.
- * Asserts that the base type is COLOR_TRANSFORM_LUT_3D
+ * Get a struct wlr_color_transform_lcms2 from a generic struct wlr_color_transform.
+ * Asserts that the base type is COLOR_TRANSFORM_LCMS2.
  */
-struct wlr_color_transform_lut3d *wlr_color_transform_lut3d_from_base(
+struct wlr_color_transform_lcms2 *color_transform_lcms2_from_base(
 	struct wlr_color_transform *tr);
+
+void color_transform_lcms2_finish(struct wlr_color_transform_lcms2 *tr);
+
+/**
+ * Evaluate a LCMS2 color transform for a given RGB triplet.
+ */
+void color_transform_lcms2_eval(struct wlr_color_transform_lcms2 *tr,
+	float out[static 3], const float in[static 3]);
 
 /**
  * Obtain primaries values from a well-known primaries name.

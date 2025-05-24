@@ -179,11 +179,12 @@ static bool render_pass_submit(struct wlr_render_pass *wlr_pass) {
 			.uv_size = { 1, 1 },
 		};
 
+		struct wlr_vk_color_transform *transform = NULL;
 		size_t dim = 1;
-		if (pass->color_transform && pass->color_transform->type == COLOR_TRANSFORM_LUT_3D) {
-			struct wlr_color_transform_lut3d *lut3d =
-				wlr_color_transform_lut3d_from_base(pass->color_transform);
-			dim = lut3d->dim_len;
+		if (pass->color_transform && pass->color_transform->type != COLOR_TRANSFORM_SRGB) {
+			transform = get_color_transform(pass->color_transform, renderer);
+			assert(transform);
+			dim = transform->lut_3d.dim;
 		}
 
 		struct wlr_vk_frag_output_pcr_data frag_pcr_data = {
@@ -204,10 +205,7 @@ static bool render_pass_submit(struct wlr_render_pass *wlr_pass) {
 			sizeof(frag_pcr_data), &frag_pcr_data);
 
 		VkDescriptorSet lut_ds;
-		if (pass->color_transform && pass->color_transform->type == COLOR_TRANSFORM_LUT_3D) {
-			struct wlr_vk_color_transform *transform =
-				get_color_transform(pass->color_transform, renderer);
-			assert(transform);
+		if (transform != NULL) {
 			lut_ds = transform->lut_3d.ds;
 		} else {
 			lut_ds = renderer->output_ds_lut3d_dummy;
@@ -840,9 +838,9 @@ void vk_color_transform_destroy(struct wlr_addon *addon) {
 }
 
 static bool create_3d_lut_image(struct wlr_vk_renderer *renderer,
-		const struct wlr_color_transform_lut3d *lut_3d,
+		struct wlr_color_transform_lcms2 *tr, size_t dim_len,
 		VkImage *image, VkImageView *image_view,
-		VkDeviceMemory *memory,	VkDescriptorSet *ds,
+		VkDeviceMemory *memory, VkDescriptorSet *ds,
 		struct wlr_vk_descriptor_pool **ds_pool) {
 	VkDevice dev = renderer->dev->dev;
 	VkResult res;
@@ -866,7 +864,7 @@ static bool create_3d_lut_image(struct wlr_vk_renderer *renderer,
 		.samples = VK_SAMPLE_COUNT_1_BIT,
 		.sharingMode = VK_SHARING_MODE_EXCLUSIVE,
 		.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
-		.extent = (VkExtent3D) { lut_3d->dim_len, lut_3d->dim_len, lut_3d->dim_len },
+		.extent = (VkExtent3D) { dim_len, dim_len, dim_len },
 		.tiling = VK_IMAGE_TILING_OPTIMAL,
 		.usage = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT,
 	};
@@ -927,7 +925,7 @@ static bool create_3d_lut_image(struct wlr_vk_renderer *renderer,
 	}
 
 	size_t bytes_per_block = 4 * sizeof(float);
-	size_t size = lut_3d->dim_len * lut_3d->dim_len * lut_3d->dim_len * bytes_per_block;
+	size_t size = dim_len * dim_len * dim_len * bytes_per_block;
 	struct wlr_vk_buffer_span span = vulkan_get_stage_span(renderer,
 		size, bytes_per_block);
 	if (!span.buffer || span.alloc.size != size) {
@@ -935,18 +933,26 @@ static bool create_3d_lut_image(struct wlr_vk_renderer *renderer,
 		goto fail_imageview;
 	}
 
-	char *map = (char*)span.buffer->cpu_mapping + span.alloc.start;
-	float *dst = (float*)map;
-	size_t dim_len = lut_3d->dim_len;
+	float sample_range = 1.0f / (dim_len - 1);
+	char *map = (char *)span.buffer->cpu_mapping + span.alloc.start;
+	float *dst = (float *)map;
 	for (size_t b_index = 0; b_index < dim_len; b_index++) {
 		for (size_t g_index = 0; g_index < dim_len; g_index++) {
 			for (size_t r_index = 0; r_index < dim_len; r_index++) {
 				size_t sample_index = r_index + dim_len * g_index + dim_len * dim_len * b_index;
-				size_t src_offset = 3 * sample_index;
 				size_t dst_offset = 4 * sample_index;
-				dst[dst_offset] = lut_3d->lut_3d[src_offset];
-				dst[dst_offset + 1] = lut_3d->lut_3d[src_offset + 1];
-				dst[dst_offset + 2] = lut_3d->lut_3d[src_offset + 2];
+
+				float rgb_in[3] = {
+					r_index * sample_range,
+					g_index * sample_range,
+					b_index * sample_range,
+				};
+				float rgb_out[3];
+				color_transform_lcms2_eval(tr, rgb_out, rgb_in);
+
+				dst[dst_offset] = rgb_out[0];
+				dst[dst_offset + 1] = rgb_out[1];
+				dst[dst_offset + 2] = rgb_out[2];
 				dst[dst_offset + 3] = 1.0;
 			}
 		}
@@ -959,9 +965,9 @@ static bool create_3d_lut_image(struct wlr_vk_renderer *renderer,
 		VK_ACCESS_TRANSFER_WRITE_BIT);
 	VkBufferImageCopy copy = {
 		.bufferOffset = span.alloc.start,
-		.imageExtent.width = lut_3d->dim_len,
-		.imageExtent.height = lut_3d->dim_len,
-		.imageExtent.depth = lut_3d->dim_len,
+		.imageExtent.width = dim_len,
+		.imageExtent.height = dim_len,
+		.imageExtent.depth = dim_len,
 		.imageSubresource.layerCount = 1,
 		.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
 	};
@@ -1012,9 +1018,11 @@ static struct wlr_vk_color_transform *vk_color_transform_create(
 		return NULL;
 	}
 
-	if (transform->type == COLOR_TRANSFORM_LUT_3D) {
+	if (transform->type == COLOR_TRANSFORM_LCMS2) {
+		vk_transform->lut_3d.dim = 33;
 		if (!create_3d_lut_image(renderer,
-				wlr_color_transform_lut3d_from_base(transform),
+				color_transform_lcms2_from_base(transform),
+				vk_transform->lut_3d.dim,
 				&vk_transform->lut_3d.image,
 				&vk_transform->lut_3d.image_view,
 				&vk_transform->lut_3d.memory,

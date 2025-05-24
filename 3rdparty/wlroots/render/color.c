@@ -42,10 +42,8 @@ static void color_transform_destroy(struct wlr_color_transform *tr) {
 	switch (tr->type) {
 	case COLOR_TRANSFORM_SRGB:
 		break;
-	case COLOR_TRANSFORM_LUT_3D:;
-		struct wlr_color_transform_lut3d *lut3d =
-			wlr_color_transform_lut3d_from_base(tr);
-		free(lut3d->lut_3d);
+	case COLOR_TRANSFORM_LCMS2:
+		color_transform_lcms2_finish(color_transform_lcms2_from_base(tr));
 		break;
 	}
 	wlr_addon_set_finish(&tr->addons);
@@ -66,13 +64,6 @@ void wlr_color_transform_unref(struct wlr_color_transform *tr) {
 	if (tr->ref_count == 0) {
 		color_transform_destroy(tr);
 	}
-}
-
-struct wlr_color_transform_lut3d *wlr_color_transform_lut3d_from_base(
-		struct wlr_color_transform *tr) {
-	assert(tr->type == COLOR_TRANSFORM_LUT_3D);
-	struct wlr_color_transform_lut3d *lut3d = wl_container_of(tr, lut3d, base);
-	return lut3d;
 }
 
 void wlr_color_primaries_from_named(struct wlr_color_primaries *out,

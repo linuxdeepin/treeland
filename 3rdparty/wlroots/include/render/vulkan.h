@@ -516,6 +516,7 @@ struct wlr_vk_color_transform {
 	struct wl_list link; // wlr_vk_renderer, list of all color transforms
 
 	struct {
+		size_t dim;
 		VkImage image;
 		VkImageView image_view;
 		VkDeviceMemory memory;
