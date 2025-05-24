@@ -7,6 +7,7 @@
 #include "backend/drm/fb.h"
 #include "backend/drm/iface.h"
 #include "backend/drm/util.h"
+#include "render/color.h"
 #include "types/wlr_output.h"
 
 static bool legacy_fb_props_match(struct wlr_drm_fb *fb1,
@@ -124,9 +125,17 @@ static bool legacy_crtc_commit(const struct wlr_drm_connector_state *state,
 		}
 	}
 
-	if (state->base->committed & WLR_OUTPUT_STATE_GAMMA_LUT) {
-		if (!drm_legacy_crtc_set_gamma(drm, crtc,
-				state->base->gamma_lut_size, state->base->gamma_lut)) {
+	if (state->base->committed & WLR_OUTPUT_STATE_COLOR_TRANSFORM) {
+		size_t dim = 0;
+		uint16_t *lut = NULL;
+		if (state->base->color_transform != NULL) {
+			struct wlr_color_transform_lut_3x1d *tr =
+				color_transform_lut_3x1d_from_base(state->base->color_transform);
+			dim = tr->dim;
+			lut = tr->lut_3x1d;
+		}
+
+		if (!drm_legacy_crtc_set_gamma(drm, crtc, dim, lut)) {
 			return false;
 		}
 	}

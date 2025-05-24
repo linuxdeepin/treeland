@@ -10,6 +10,7 @@
 #include "backend/drm/fb.h"
 #include "backend/drm/iface.h"
 #include "backend/drm/util.h"
+#include "render/color.h"
 
 static char *atomic_commit_flags_str(uint32_t flags) {
 	const char *const l[] = {
@@ -251,19 +252,25 @@ bool drm_atomic_connector_prepare(struct wlr_drm_connector_state *state, bool mo
 	}
 
 	uint32_t gamma_lut = crtc->gamma_lut;
-	if (state->base->committed & WLR_OUTPUT_STATE_GAMMA_LUT) {
+	if (state->base->committed & WLR_OUTPUT_STATE_COLOR_TRANSFORM) {
+		size_t dim = 0;
+		uint16_t *lut = NULL;
+		if (state->base->color_transform != NULL) {
+			struct wlr_color_transform_lut_3x1d *tr =
+				color_transform_lut_3x1d_from_base(state->base->color_transform);
+			dim = tr->dim;
+			lut = tr->lut_3x1d;
+		}
+
 		// Fallback to legacy gamma interface when gamma properties are not
 		// available (can happen on older Intel GPUs that support gamma but not
 		// degamma).
 		if (crtc->props.gamma_lut == 0) {
-			if (!drm_legacy_crtc_set_gamma(drm, crtc,
-					state->base->gamma_lut_size,
-					state->base->gamma_lut)) {
+			if (!drm_legacy_crtc_set_gamma(drm, crtc, dim, lut)) {
 				return false;
 			}
 		} else {
-			if (!create_gamma_lut_blob(drm, state->base->gamma_lut_size,
-					state->base->gamma_lut, &gamma_lut)) {
+			if (!create_gamma_lut_blob(drm, dim, lut, &gamma_lut)) {
 				return false;
 			}
 		}

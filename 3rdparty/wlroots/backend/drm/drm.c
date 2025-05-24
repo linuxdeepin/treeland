@@ -24,6 +24,7 @@
 #include "backend/drm/fb.h"
 #include "backend/drm/iface.h"
 #include "backend/drm/util.h"
+#include "render/color.h"
 #include "types/wlr_output.h"
 #include "util/env.h"
 #include "config.h"
@@ -37,11 +38,11 @@ static const uint32_t COMMIT_OUTPUT_STATE =
 	WLR_OUTPUT_STATE_BUFFER |
 	WLR_OUTPUT_STATE_MODE |
 	WLR_OUTPUT_STATE_ENABLED |
-	WLR_OUTPUT_STATE_GAMMA_LUT |
 	WLR_OUTPUT_STATE_ADAPTIVE_SYNC_ENABLED |
 	WLR_OUTPUT_STATE_LAYERS |
 	WLR_OUTPUT_STATE_WAIT_TIMELINE |
-	WLR_OUTPUT_STATE_SIGNAL_TIMELINE;
+	WLR_OUTPUT_STATE_SIGNAL_TIMELINE |
+	WLR_OUTPUT_STATE_COLOR_TRANSFORM;
 
 static const uint32_t SUPPORTED_OUTPUT_STATE =
 	WLR_OUTPUT_STATE_BACKEND_OPTIONAL | COMMIT_OUTPUT_STATE;
@@ -854,6 +855,13 @@ static bool drm_connector_prepare(struct wlr_drm_connector_state *conn_state, bo
 				dmabuf.format, dmabuf.modifier);
 			return false;
 		}
+	}
+
+	if ((state->committed & WLR_OUTPUT_STATE_COLOR_TRANSFORM) && state->color_transform != NULL &&
+			state->color_transform->type != COLOR_TRANSFORM_LUT_3X1D) {
+		wlr_drm_conn_log(conn, WLR_DEBUG,
+			"Only 3x1D LUT color transforms are supported");
+		return false;
 	}
 
 	if (test_only && conn->backend->mgpu_renderer.wlr_rend) {
