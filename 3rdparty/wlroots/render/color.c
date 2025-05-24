@@ -38,12 +38,38 @@ struct wlr_color_transform *wlr_color_transform_init_srgb(void) {
 	return tx;
 }
 
+struct wlr_color_transform *wlr_color_transform_init_lut_3x1d(size_t dim,
+		const uint16_t *r, const uint16_t *g, const uint16_t *b) {
+	uint16_t *lut_3x1d = malloc(3 * dim * sizeof(lut_3x1d[0]));
+	if (lut_3x1d == NULL) {
+		return NULL;
+	}
+
+	memcpy(&lut_3x1d[0 * dim], r, dim * sizeof(lut_3x1d[0]));
+	memcpy(&lut_3x1d[1 * dim], g, dim * sizeof(lut_3x1d[0]));
+	memcpy(&lut_3x1d[2 * dim], b, dim * sizeof(lut_3x1d[0]));
+
+	struct wlr_color_transform_lut_3x1d *tx = calloc(1, sizeof(*tx));
+	if (!tx) {
+		free(lut_3x1d);
+		return NULL;
+	}
+	wlr_color_transform_init(&tx->base, COLOR_TRANSFORM_LUT_3X1D);
+	tx->lut_3x1d = lut_3x1d;
+	tx->dim = dim;
+	return &tx->base;
+}
+
 static void color_transform_destroy(struct wlr_color_transform *tr) {
 	switch (tr->type) {
 	case COLOR_TRANSFORM_SRGB:
 		break;
 	case COLOR_TRANSFORM_LCMS2:
 		color_transform_lcms2_finish(color_transform_lcms2_from_base(tr));
+		break;
+	case COLOR_TRANSFORM_LUT_3X1D:;
+		struct wlr_color_transform_lut_3x1d *lut_3x1d = color_transform_lut_3x1d_from_base(tr);
+		free(lut_3x1d->lut_3x1d);
 		break;
 	}
 	wlr_addon_set_finish(&tr->addons);
@@ -63,6 +89,37 @@ void wlr_color_transform_unref(struct wlr_color_transform *tr) {
 	tr->ref_count -= 1;
 	if (tr->ref_count == 0) {
 		color_transform_destroy(tr);
+	}
+}
+
+struct wlr_color_transform_lut_3x1d *color_transform_lut_3x1d_from_base(
+		struct wlr_color_transform *tr) {
+	assert(tr->type == COLOR_TRANSFORM_LUT_3X1D);
+	struct wlr_color_transform_lut_3x1d *lut_3x1d = wl_container_of(tr, lut_3x1d, base);
+	return lut_3x1d;
+}
+
+static float lut_1d_get(const uint16_t *lut, size_t len, size_t i) {
+	if (i > len) {
+		i = len - 1;
+	}
+	return (float) lut[i] / UINT16_MAX;
+}
+
+static float lut_1d_eval(const uint16_t *lut, size_t len, float x) {
+	double pos = x * (len - 1);
+	double int_part;
+	double frac_part = modf(pos, &int_part);
+	size_t i = (size_t) int_part;
+	double a = lut_1d_get(lut, len, i);
+	double b = lut_1d_get(lut, len, i + 1);
+	return a * (1 - frac_part) + b * frac_part;
+}
+
+void color_transform_lut_3x1d_eval(struct wlr_color_transform_lut_3x1d *tr,
+		float out[static 3], const float in[static 3]) {
+	for (size_t i = 0; i < 3; i++) {
+		out[i] = lut_1d_eval(&tr->lut_3x1d[tr->dim * i], tr->dim, in[i]);
 	}
 }
 

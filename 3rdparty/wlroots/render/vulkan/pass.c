@@ -838,7 +838,7 @@ void vk_color_transform_destroy(struct wlr_addon *addon) {
 }
 
 static bool create_3d_lut_image(struct wlr_vk_renderer *renderer,
-		struct wlr_color_transform_lcms2 *tr, size_t dim_len,
+		struct wlr_color_transform *tr, size_t dim_len,
 		VkImage *image, VkImageView *image_view,
 		VkDeviceMemory *memory, VkDescriptorSet *ds,
 		struct wlr_vk_descriptor_pool **ds_pool) {
@@ -850,6 +850,19 @@ static bool create_3d_lut_image(struct wlr_vk_renderer *renderer,
 	*image_view = VK_NULL_HANDLE;
 	*ds = VK_NULL_HANDLE;
 	*ds_pool = NULL;
+
+	struct wlr_color_transform_lcms2 *tr_lcms2 = NULL;
+	struct wlr_color_transform_lut_3x1d *tr_lut_3x1d = NULL;
+	switch (tr->type) {
+	case COLOR_TRANSFORM_SRGB:
+		abort(); // unreachable
+	case COLOR_TRANSFORM_LCMS2:
+		tr_lcms2 = color_transform_lcms2_from_base(tr);
+		break;
+	case COLOR_TRANSFORM_LUT_3X1D:
+		tr_lut_3x1d = color_transform_lut_3x1d_from_base(tr);
+		break;
+	}
 
 	// R32G32B32 is not a required Vulkan format
 	// TODO: use it when available
@@ -948,7 +961,11 @@ static bool create_3d_lut_image(struct wlr_vk_renderer *renderer,
 					b_index * sample_range,
 				};
 				float rgb_out[3];
-				color_transform_lcms2_eval(tr, rgb_out, rgb_in);
+				if (tr_lcms2 != NULL) {
+					color_transform_lcms2_eval(tr_lcms2, rgb_out, rgb_in);
+				} else {
+					color_transform_lut_3x1d_eval(tr_lut_3x1d, rgb_out, rgb_in);
+				}
 
 				dst[dst_offset] = rgb_out[0];
 				dst[dst_offset + 1] = rgb_out[1];
@@ -1018,10 +1035,9 @@ static struct wlr_vk_color_transform *vk_color_transform_create(
 		return NULL;
 	}
 
-	if (transform->type == COLOR_TRANSFORM_LCMS2) {
+	if (transform->type != COLOR_TRANSFORM_SRGB) {
 		vk_transform->lut_3d.dim = 33;
-		if (!create_3d_lut_image(renderer,
-				color_transform_lcms2_from_base(transform),
+		if (!create_3d_lut_image(renderer, transform,
 				vk_transform->lut_3d.dim,
 				&vk_transform->lut_3d.image,
 				&vk_transform->lut_3d.image_view,

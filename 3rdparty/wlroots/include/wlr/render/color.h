@@ -10,6 +10,7 @@
 #define WLR_RENDER_COLOR_H
 
 #include <stdbool.h>
+#include <stdint.h>
 #include <sys/types.h>
 
 /**
@@ -77,6 +78,13 @@ struct wlr_color_transform *wlr_color_transform_init_linear_to_icc(
  * Returns NULL on failure.
  */
 struct wlr_color_transform *wlr_color_transform_init_srgb(void);
+
+/**
+ * Initialize a color transformation to apply three 1D look-up tables. dim
+ * is the number of elements in each individual LUT. Returns NULL on failure.
+ */
+struct wlr_color_transform *wlr_color_transform_init_lut_3x1d(size_t dim,
+	const uint16_t *r, const uint16_t *g, const uint16_t *b);
 
 /**
  * Increase the reference count of the color transform by 1.
