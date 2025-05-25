@@ -210,8 +210,6 @@ struct wlr_scene_tree *wlr_scene_tree_create(struct wlr_scene_tree *parent) {
 	return tree;
 }
 
-static void scene_node_get_size(struct wlr_scene_node *node, int *lx, int *ly);
-
 typedef bool (*scene_node_box_iterator_func_t)(struct wlr_scene_node *node,
 	int sx, int sy, void *data);
 
@@ -1120,8 +1118,7 @@ static struct wlr_texture *scene_buffer_get_texture(
 	return texture;
 }
 
-static void scene_node_get_size(struct wlr_scene_node *node,
-		int *width, int *height) {
+void scene_node_get_size(struct wlr_scene_node *node, int *width, int *height) {
 	*width = 0;
 	*height = 0;
 

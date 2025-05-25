@@ -13,6 +13,10 @@
 #include <wayland-server-core.h>
 #include <wlr/render/drm_format_set.h>
 
+struct wlr_scene_node;
+struct wlr_allocator;
+struct wlr_renderer;
+
 /**
  * A screen capture source.
  *
@@ -122,5 +126,9 @@ wlr_ext_foreign_toplevel_image_capture_source_manager_v1_create(struct wl_displa
 bool wlr_ext_foreign_toplevel_image_capture_source_manager_v1_request_accept(
 	struct wlr_ext_foreign_toplevel_image_capture_source_manager_v1_request *request,
 	struct wlr_ext_image_capture_source_v1 *source);
+
+struct wlr_ext_image_capture_source_v1 *wlr_ext_image_capture_source_v1_create_with_scene_node(
+	struct wlr_scene_node *node, struct wl_event_loop *event_loop,
+	struct wlr_allocator *allocator, struct wlr_renderer *renderer);
 
 #endif
