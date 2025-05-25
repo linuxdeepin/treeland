@@ -80,6 +80,31 @@ struct wlr_ext_output_image_capture_source_manager_v1 {
 };
 
 /**
+ * Interface exposing one screen capture source per foreign toplevel.
+ */
+struct wlr_ext_foreign_toplevel_image_capture_source_manager_v1 {
+	struct wl_global *global;
+
+	struct {
+		struct wl_signal destroy;
+		struct wl_signal new_request; // struct wlr_ext_foreign_toplevel_image_capture_source_manager_v1_request
+	} events;
+
+	struct {
+		struct wl_listener display_destroy;
+	} WLR_PRIVATE;
+};
+
+struct wlr_ext_foreign_toplevel_image_capture_source_manager_v1_request {
+	struct wlr_ext_foreign_toplevel_handle_v1 *toplevel_handle;
+	struct wl_client *client;
+
+	struct {
+		uint32_t new_id;
+	} WLR_PRIVATE;
+};
+
+/**
  * Obtain a struct wlr_ext_image_capture_source_v1 from an ext_image_capture_source_v1
  * resource.
  *
@@ -90,5 +115,12 @@ struct wlr_ext_image_capture_source_v1 *wlr_ext_image_capture_source_v1_from_res
 
 struct wlr_ext_output_image_capture_source_manager_v1 *wlr_ext_output_image_capture_source_manager_v1_create(
 	struct wl_display *display, uint32_t version);
+
+struct wlr_ext_foreign_toplevel_image_capture_source_manager_v1 *
+wlr_ext_foreign_toplevel_image_capture_source_manager_v1_create(struct wl_display *display, uint32_t version);
+
+bool wlr_ext_foreign_toplevel_image_capture_source_manager_v1_request_accept(
+	struct wlr_ext_foreign_toplevel_image_capture_source_manager_v1_request *request,
+	struct wlr_ext_image_capture_source_v1 *source);
 
 #endif

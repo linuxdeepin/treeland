@@ -5,6 +5,7 @@ wlr_files += files(
 	'data_device/wlr_drag.c',
 	'ext_image_capture_source_v1/base.c',
 	'ext_image_capture_source_v1/output.c',
+	'ext_image_capture_source_v1/foreign_toplevel.c',
 	'output/cursor.c',
 	'output/output.c',
 	'output/render.c',
