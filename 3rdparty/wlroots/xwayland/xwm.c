@@ -34,6 +34,7 @@ static const char *const atom_map[ATOM_LAST] = {
 	[NET_WM_STATE] = "_NET_WM_STATE",
 	[NET_WM_STRUT_PARTIAL] = "_NET_WM_STRUT_PARTIAL",
 	[NET_WM_WINDOW_TYPE] = "_NET_WM_WINDOW_TYPE",
+	[NET_WM_ICON] = "_NET_WM_ICON",
 	[WM_TAKE_FOCUS] = "WM_TAKE_FOCUS",
 	[WINDOW] = "WINDOW",
 	[NET_ACTIVE_WINDOW] = "_NET_ACTIVE_WINDOW",
@@ -241,6 +242,7 @@ static struct wlr_xwayland_surface *xwayland_surface_create(
 	wl_signal_init(&surface->events.set_override_redirect);
 	wl_signal_init(&surface->events.set_geometry);
 	wl_signal_init(&surface->events.set_opacity);
+	wl_signal_init(&surface->events.set_icon);
 	wl_signal_init(&surface->events.focus_in);
 	wl_signal_init(&surface->events.grab_focus);
 	wl_signal_init(&surface->events.map_request);
@@ -602,6 +604,7 @@ static void xwayland_surface_destroy(struct wlr_xwayland_surface *xsurface) {
 	assert(wl_list_empty(&xsurface->events.set_override_redirect.listener_list));
 	assert(wl_list_empty(&xsurface->events.set_geometry.listener_list));
 	assert(wl_list_empty(&xsurface->events.set_opacity.listener_list));
+	assert(wl_list_empty(&xsurface->events.set_icon.listener_list));
 	assert(wl_list_empty(&xsurface->events.focus_in.listener_list));
 	assert(wl_list_empty(&xsurface->events.grab_focus.listener_list));
 	assert(wl_list_empty(&xsurface->events.map_request.listener_list));
@@ -1078,6 +1081,8 @@ static void read_surface_property(struct wlr_xwm *xwm,
 		// intentionally ignored
 	} else if (property == xwm->atoms[NET_WM_WINDOW_TYPE]) {
 		read_surface_window_type(xwm, xsurface, reply);
+	} else if (property == xwm->atoms[NET_WM_ICON]) {
+		wl_signal_emit_mutable(&xsurface->events.set_icon, NULL);
 	} else if (property == xwm->atoms[WM_PROTOCOLS]) {
 		read_surface_protocols(xwm, xsurface, reply);
 	} else if (property == xwm->atoms[NET_WM_STATE]) {
@@ -1131,6 +1136,38 @@ static const struct wlr_addon_interface surface_addon_impl = {
 	.destroy = xwayland_surface_handle_addon_destroy,
 };
 
+bool wlr_xwayland_surface_fetch_icon(
+		const struct wlr_xwayland_surface *xsurface,
+		xcb_ewmh_get_wm_icon_reply_t *icon_reply) {
+	struct wlr_xwm *xwm = xsurface->xwm;
+
+	xcb_get_property_cookie_t cookie = xcb_get_property(xwm->xcb_conn, 0,
+		xsurface->window_id, xwm->atoms[NET_WM_ICON], XCB_ATOM_CARDINAL,
+		0, UINT32_MAX);
+	xcb_get_property_reply_t *reply =
+		xcb_get_property_reply(xwm->xcb_conn, cookie, NULL);
+	if (!reply) {
+		return false;
+	}
+
+	if (!xcb_ewmh_get_wm_icon_from_reply(icon_reply, reply)) {
+		free(reply);
+		return false;
+	}
+
+	return true;
+}
+
+static xcb_get_property_cookie_t get_property(struct wlr_xwm *xwm,
+		xcb_window_t window_id, xcb_atom_t atom) {
+	uint32_t len = 2048;
+	if (atom == xwm->atoms[NET_WM_ICON]) {
+		/* Compositors need to fetch icon data wlr_xwayland_surface_fetch_icon() */
+		len = 0;
+	}
+	return xcb_get_property(xwm->xcb_conn, 0, window_id, atom, XCB_ATOM_ANY, 0, len);
+}
+
 static void xwayland_surface_associate(struct wlr_xwm *xwm,
 		struct wlr_xwayland_surface *xsurface, struct wlr_surface *surface) {
 	assert(xsurface->surface == NULL);
@@ -1165,12 +1202,12 @@ static void xwayland_surface_associate(struct wlr_xwm *xwm,
 		xwm->atoms[NET_WM_STRUT_PARTIAL],
 		xwm->atoms[NET_WM_WINDOW_TYPE],
 		xwm->atoms[NET_WM_NAME],
+		xwm->atoms[NET_WM_ICON],
 	};
 
 	xcb_get_property_cookie_t cookies[sizeof(props) / sizeof(props[0])] = {0};
 	for (size_t i = 0; i < sizeof(props) / sizeof(props[0]); i++) {
-		cookies[i] = xcb_get_property(xwm->xcb_conn, 0, xsurface->window_id,
-			props[i], XCB_ATOM_ANY, 0, 2048);
+		cookies[i] = get_property(xwm, xsurface->window_id, props[i]);
 	}
 
 	for (size_t i = 0; i < sizeof(props) / sizeof(props[0]); i++) {
@@ -1398,8 +1435,7 @@ static void xwm_handle_property_notify(struct wlr_xwm *xwm,
 		return;
 	}
 
-	xcb_get_property_cookie_t cookie =
-		xcb_get_property(xwm->xcb_conn, 0, xsurface->window_id, ev->atom, XCB_ATOM_ANY, 0, 2048);
+	xcb_get_property_cookie_t cookie = get_property(xwm, xsurface->window_id, ev->atom);
 	xcb_get_property_reply_t *reply =
 		xcb_get_property_reply(xwm->xcb_conn, cookie, NULL);
 	if (reply == NULL) {

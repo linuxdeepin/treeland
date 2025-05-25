@@ -221,6 +221,7 @@ struct wlr_xwayland_surface {
 		struct wl_signal set_override_redirect;
 		struct wl_signal set_geometry;
 		struct wl_signal set_opacity;
+		struct wl_signal set_icon;
 		struct wl_signal focus_in;
 		struct wl_signal grab_focus;
 		/* can be used to set initial maximized/fullscreen geometry */
@@ -401,6 +402,15 @@ enum wlr_xwayland_icccm_input_model wlr_xwayland_surface_icccm_input_model(
 void wlr_xwayland_set_workareas(struct wlr_xwayland *wlr_xwayland,
 	const struct wlr_box *workareas, size_t num_workareas);
 
+/**
+ * Fetches the icon set via the _NET_WM_ICON property.
+ *
+ * Returns true on success. The caller is responsible for freeing the reply
+ * using xcb_ewmh_get_wm_icon_reply_wipe().
+ */
+bool wlr_xwayland_surface_fetch_icon(
+	const struct wlr_xwayland_surface *xsurface,
+	xcb_ewmh_get_wm_icon_reply_t *icon_reply);
 
 /**
  * Get the XCB connection of the XWM.
