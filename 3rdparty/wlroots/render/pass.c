@@ -21,8 +21,8 @@ void wlr_render_pass_add_texture(struct wlr_render_pass *render_pass,
 	if (!wlr_fbox_empty(&options->src_box)) {
 		const struct wlr_fbox *box = &options->src_box;
 		assert(box->x >= 0 && box->y >= 0 &&
-			box->x + box->width <= options->texture->width &&
-			box->y + box->height <= options->texture->height);
+		(uint32_t)(box->x + box->width) <= options->texture->width &&
+		(uint32_t)(box->y + box->height) <= options->texture->height);
 	}
 
 	render_pass->impl->add_texture(render_pass, options);
