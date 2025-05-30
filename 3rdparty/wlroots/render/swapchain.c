@@ -18,6 +18,8 @@ static void swapchain_handle_allocator_destroy(struct wl_listener *listener,
 struct wlr_swapchain *wlr_swapchain_create(
 		struct wlr_allocator *alloc, int width, int height,
 		const struct wlr_drm_format *format) {
+	assert(width > 0 && height > 0);
+
 	struct wlr_swapchain *swapchain = calloc(1, sizeof(*swapchain));
 	if (swapchain == NULL) {
 		return NULL;
