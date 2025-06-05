@@ -76,9 +76,19 @@ static void handle_scene_buffer_frame_done(
 		struct wl_listener *listener, void *data) {
 	struct wlr_scene_surface *surface =
 		wl_container_of(listener, surface, frame_done);
-	struct timespec *now = data;
+	struct wlr_scene_frame_done_event *event = data;
+	if (surface->buffer->primary_output != event->output) {
+		return;
+	}
 
-	wlr_surface_send_frame_done(surface->surface, now);
+	wlr_surface_send_frame_done(surface->surface, &event->when);
+}
+
+void wlr_scene_surface_send_frame_done(struct wlr_scene_surface *scene_surface,
+		const struct timespec *when) {
+	if (!pixman_region32_empty(&scene_surface->buffer->node.visible)) {
+		wlr_surface_send_frame_done(scene_surface->surface, when);
+	}
 }
 
 static void scene_surface_handle_surface_destroy(
