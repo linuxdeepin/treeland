@@ -11,19 +11,30 @@
 #include <wlr/util/transform.h>
 #include "types/wlr_scene.h"
 
+static double get_surface_preferred_buffer_scale(struct wlr_surface *surface) {
+	double scale = 1;
+	struct wlr_surface_output *surface_output;
+	wl_list_for_each(surface_output, &surface->current_outputs, link) {
+		if (surface_output->output->scale > scale) {
+			scale = surface_output->output->scale;
+		}
+	}
+	return scale;
+}
+
 static void handle_scene_buffer_outputs_update(
 		struct wl_listener *listener, void *data) {
 	struct wlr_scene_surface *surface =
 		wl_container_of(listener, surface, outputs_update);
 
-	if (surface->buffer->primary_output == NULL) {
-		return;
-	}
-	double scale = surface->buffer->primary_output->output->scale;
+	double scale = get_surface_preferred_buffer_scale(surface->surface);
 	wlr_fractional_scale_v1_notify_scale(surface->surface, scale);
 	wlr_surface_set_preferred_buffer_scale(surface->surface, ceil(scale));
-	wlr_surface_set_preferred_buffer_transform(surface->surface,
-		surface->buffer->primary_output->output->transform);
+
+	if (surface->buffer->primary_output != NULL) {
+		wlr_surface_set_preferred_buffer_transform(surface->surface,
+			surface->buffer->primary_output->output->transform);
+	}
 }
 
 static void handle_scene_buffer_output_enter(
