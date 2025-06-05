@@ -424,6 +424,8 @@ static void update_node_update_outputs(struct wlr_scene_node *node,
 	size_t count = 0;
 	uint64_t active_outputs = 0;
 
+	uint32_t visible_area = region_area(&node->visible);
+
 	// let's update the outputs in two steps:
 	//  - the primary outputs
 	//  - the enter/leave signals
@@ -451,9 +453,12 @@ static void update_node_update_outputs(struct wlr_scene_node *node,
 		pixman_region32_init(&intersection);
 		pixman_region32_intersect_rect(&intersection, &node->visible,
 			output_box.x, output_box.y, output_box.width, output_box.height);
+		uint32_t overlap = region_area(&intersection);
+		pixman_region32_fini(&intersection);
 
-		if (!pixman_region32_empty(&intersection)) {
-			uint32_t overlap = region_area(&intersection);
+		// If the overlap accounts for less than 10% of the visible node area,
+		// ignore this output
+		if (overlap >= 0.1 * visible_area) {
 			if (overlap >= largest_overlap) {
 				largest_overlap = overlap;
 				scene_buffer->primary_output = scene_output;
@@ -462,8 +467,6 @@ static void update_node_update_outputs(struct wlr_scene_node *node,
 			active_outputs |= 1ull << scene_output->index;
 			count++;
 		}
-
-		pixman_region32_fini(&intersection);
 	}
 
 	if (old_primary_output != scene_buffer->primary_output) {
