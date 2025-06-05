@@ -1867,6 +1867,14 @@ static void scene_buffer_send_dmabuf_feedback(const struct wlr_scene *scene,
 		return;
 	}
 
+	enum wl_output_transform preferred_buffer_transform = WL_OUTPUT_TRANSFORM_NORMAL;
+	if (options->scanout_primary_output != NULL) {
+		preferred_buffer_transform = options->scanout_primary_output->transform;
+	}
+
+	// TODO: also send wl_surface.preferred_buffer_transform when running with
+	// pure software rendering
+	wlr_surface_set_preferred_buffer_transform(surface->surface, preferred_buffer_transform);
 	wlr_linux_dmabuf_v1_set_surface_feedback(scene->linux_dmabuf_v1,
 		surface->surface, &feedback);
 

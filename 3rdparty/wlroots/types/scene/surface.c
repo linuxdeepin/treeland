@@ -44,11 +44,6 @@ static void handle_scene_buffer_outputs_update(
 	double scale = get_surface_preferred_buffer_scale(surface->surface);
 	wlr_fractional_scale_v1_notify_scale(surface->surface, scale);
 	wlr_surface_set_preferred_buffer_scale(surface->surface, ceil(scale));
-
-	if (surface->buffer->primary_output != NULL) {
-		wlr_surface_set_preferred_buffer_transform(surface->surface,
-			surface->buffer->primary_output->output->transform);
-	}
 }
 
 static void handle_scene_buffer_output_enter(
