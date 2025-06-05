@@ -123,6 +123,10 @@ struct wlr_scene_surface {
 	struct {
 		struct wlr_box clip;
 
+		// Output used for frame pacing (surface frame callbacks, presentation
+		// time feedback, etc), may be NULL
+		struct wlr_output *frame_pacing_output;
+
 		struct wlr_addon addon;
 
 		struct wl_listener outputs_update;
@@ -178,8 +182,7 @@ struct wlr_scene_buffer {
 	/**
 	 * The output that the largest area of this buffer is displayed on.
 	 * This may be NULL if the buffer is not currently displayed on any
-	 * outputs. This is the output that should be used for frame callbacks,
-	 * presentation feedback, etc.
+	 * outputs.
 	 */
 	struct wlr_scene_output *primary_output;
 
