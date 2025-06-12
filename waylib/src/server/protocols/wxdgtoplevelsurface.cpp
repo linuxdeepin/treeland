@@ -263,9 +263,8 @@ bool WXdgToplevelSurface::isFullScreen() const
 QRect WXdgToplevelSurface::getContentGeometry() const
 {
     W_DC(WXdgToplevelSurface);
-    qw_box tmp;
     auto xdgSurface = qw_xdg_surface::from(handle()->handle()->base);
-    xdgSurface->get_geometry(tmp);
+    qw_box tmp = qw_box(xdgSurface->handle()->geometry);
     return tmp.toQRect();
 }
 

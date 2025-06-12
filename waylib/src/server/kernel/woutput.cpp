@@ -316,7 +316,7 @@ static struct wlr_swapchain *create_swapchain(struct wlr_output *output,
 
 static bool test_swapchain(struct wlr_output *output,
                            struct wlr_swapchain *swapchain, const struct wlr_output_state *state) {
-    struct wlr_buffer *buffer = wlr_swapchain_acquire(swapchain, NULL);
+    struct wlr_buffer *buffer = wlr_swapchain_acquire(swapchain);
     if (buffer == NULL) {
         return false;
     }

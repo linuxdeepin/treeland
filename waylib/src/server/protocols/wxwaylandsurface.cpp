@@ -344,8 +344,8 @@ bool WXWaylandSurface::hasCapability(Capability cap) const
     switch (cap) {
         using enum Capability;
     case Focus:
-        return wlr_xwayland_or_surface_wants_focus(d->nativeHandle())
-            && wlr_xwayland_icccm_input_model(d->nativeHandle()) != WLR_ICCCM_INPUT_MODEL_NONE;
+        return wlr_xwayland_surface_override_redirect_wants_focus(d->nativeHandle())
+            && wlr_xwayland_surface_icccm_input_model(d->nativeHandle()) != WLR_ICCCM_INPUT_MODEL_NONE;
     case Activate:
     case Maximized:
     case FullScreen:
@@ -518,7 +518,7 @@ void WXWaylandSurface::setMaximize(bool on)
         return;
 
     d->maximized = on;
-    handle()->set_maximized(on);
+    handle()->set_maximized(on, on);
     Q_EMIT maximizeChanged();
 }
 

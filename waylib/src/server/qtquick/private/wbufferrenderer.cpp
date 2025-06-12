@@ -341,8 +341,6 @@ qw_buffer *WBufferRenderer::beginRender(const QSize &pixelSize, qreal devicePixe
 
     Q_EMIT beforeRendering();
 
-    m_damageRing.set_bounds(pixelSize.width(), pixelSize.height());
-
     // configure swapchain
     if (flags.testFlag(RenderFlag::DontConfigureSwapchain)) {
         auto renderFormat = pickFormat(m_output->renderer(), format);
@@ -369,8 +367,7 @@ qw_buffer *WBufferRenderer::beginRender(const QSize &pixelSize, qreal devicePixe
     }
 
     // TODO: Support scanout buffer of wlr_surface(from WSurfaceItem)
-    int bufferAge;
-    auto wbuffer = m_swapchain->acquire(&bufferAge);
+    auto wbuffer = m_swapchain->acquire();
     if (!wbuffer)
         return nullptr;
     auto buffer = qw_buffer::from(wbuffer);
@@ -388,16 +385,16 @@ qw_buffer *WBufferRenderer::beginRender(const QSize &pixelSize, qreal devicePixe
         return nullptr;
     }
 
+    // For software renderer, update the dirty parts relative to the last paint device.
+    PixmanRegion damage;
+    m_damageRing.rotate_buffer(wbuffer, damage);
+    state.dirty = WTools::fromPixmanRegion(damage);
+
     auto rtd = QQuickRenderTargetPrivate::get(&rt);
     QSGRenderTarget sgRT;
 
     if (rtd->type == QQuickRenderTargetPrivate::Type::PaintDevice) {
         sgRT.paintDevice = rtd->u.paintDevice;
-
-        // // For software renderer, update the dirty parts relative to the last paint device.
-        PixmanRegion damage;
-        m_damageRing.get_buffer_damage(bufferAge, damage);
-        state.dirty = WTools::fromPixmanRegion(damage);
 
         if (devicePixelRatio != 1.0) {
             state.dirty = QTransform::fromScale(1.0 / devicePixelRatio,
@@ -427,7 +424,6 @@ qw_buffer *WBufferRenderer::beginRender(const QSize &pixelSize, qreal devicePixe
     state.context = wd->context;
     state.pixelSize = pixelSize;
     state.devicePixelRatio = devicePixelRatio;
-    state.bufferAge = bufferAge;
     state.buffer = buffer;
     state.renderTarget = rt;
     state.sgRenderTarget = sgRT;
@@ -606,9 +602,6 @@ void WBufferRenderer::render(int sourceIndex, const QMatrix4x4 &renderMatrix,
             Q_ASSERT(ok);
 
             {
-                PixmanRegion damage;
-                m_damageRing.get_buffer_damage(state.bufferAge, damage);
-
                 if (viewportRect.isValid()) {
                     QRect imageRect = (currentImage->operator const QImage &()).rect();
                     QRegion invalidRegion(imageRect);
@@ -646,11 +639,8 @@ void WBufferRenderer::endRender()
     state.buffer = nullptr;
     state.renderer = nullptr;
     state.batchRenderer = nullptr;
-    state.dirty = QRegion();
 
     m_lastBuffer = buffer;
-    m_damageRing.rotate();
-    m_swapchain->set_buffer_submitted(*buffer);
     buffer->unlock();
 
 #ifndef QT_NO_OPENGL

@@ -57,8 +57,7 @@ void WXdgDecorationManagerPrivate::onNewToplevelDecoration(qw_xdg_toplevel_decor
                     this->updateDecorationMode(decorat);
                 });
     /* For some reason, a lot of clients don't emit the request_mode signal. */
-    if (decorat->handle()->toplevel->base->initialized)
-        updateDecorationMode(decorat);
+    updateDecorationMode(decorat);
 }
 
 void WXdgDecorationManagerPrivate::updateDecorationMode(qw_xdg_toplevel_decoration_v1 *decorat)
@@ -85,10 +84,12 @@ void WXdgDecorationManagerPrivate::updateDecorationMode(qw_xdg_toplevel_decorati
         mode = preferredMode;
         switch (preferredMode) {
             case WXdgDecorationManager::Client:
-                decorat->set_mode(WLR_XDG_TOPLEVEL_DECORATION_V1_MODE_CLIENT_SIDE);
+                if (decorat->handle()->toplevel->base->initialized)
+                    decorat->set_mode(WLR_XDG_TOPLEVEL_DECORATION_V1_MODE_CLIENT_SIDE);
                 break;
             case WXdgDecorationManager::Server:
-                decorat->set_mode(WLR_XDG_TOPLEVEL_DECORATION_V1_MODE_SERVER_SIDE);
+                if (decorat->handle()->toplevel->base->initialized)
+                    decorat->set_mode(WLR_XDG_TOPLEVEL_DECORATION_V1_MODE_SERVER_SIDE);
                 break;
             default:
                 Q_UNREACHABLE();
@@ -178,10 +179,12 @@ void WXdgDecorationManager::setModeBySurface(WSurface *surface, DecorationMode m
                 auto * decorat = qw_xdg_toplevel_decoration_v1::from(wlr_decorations);
                 switch (mode) {
                     case WXdgDecorationManager::Client:
-                        decorat->set_mode(WLR_XDG_TOPLEVEL_DECORATION_V1_MODE_CLIENT_SIDE);
+                        if (decorat->handle()->toplevel->base->initialized)
+                            decorat->set_mode(WLR_XDG_TOPLEVEL_DECORATION_V1_MODE_CLIENT_SIDE);
                         break;
                     case WXdgDecorationManager::Server:
-                        decorat->set_mode(WLR_XDG_TOPLEVEL_DECORATION_V1_MODE_SERVER_SIDE);
+                        if (decorat->handle()->toplevel->base->initialized)
+                            decorat->set_mode(WLR_XDG_TOPLEVEL_DECORATION_V1_MODE_SERVER_SIDE);
                         break;
                     default:
                         Q_UNREACHABLE();

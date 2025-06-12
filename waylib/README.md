@@ -28,7 +28,7 @@ Based on the above features, compositor developers need only focus on the busine
 
 Step 1: Compiling and Installing wlroots and qwlroots
 
-waylib requires the development version (0.17) of wlroots, which needs to be [compiled and installed manually](https://gitlab.freedesktop.org/wlroots/wlroots#building). Arch Linux users can install [wlroots-git](https://aur.archlinux.org/packages/wlroots-git) from AUR.
+waylib requires the development version (0.19) of wlroots, which needs to be [compiled and installed manually](https://gitlab.freedesktop.org/wlroots/wlroots#building). Arch Linux users can install [wlroots-0.19](https://archlinux.org/packages/extra/x86_64/wlroots0.19/).
 
 For qwlroots, it is currently recommended to use the version provided as a submodule. However, you can also [compile and install](https://github.com/vioken/qwlroots) it by yourself. 
 

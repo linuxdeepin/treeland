@@ -5,7 +5,7 @@ Maintainer: JiDe Zhang <zhangjide@deepin.org>
 Build-Depends: cmake,
                debhelper-compat (= 13),
                libpixman-1-dev,
-               libwlroots-0.18-dev,
+               libwlroots-0.19-dev,
                libxcb-ewmh-dev,
                pkg-config,
                qml6-module-qtquick-templates,
@@ -28,7 +28,7 @@ Description:  A wrapper for wlroots based on Qt
 Package: libwaylib-dev
 Architecture: any
 Depends: libwaylib (=${binary:Version}),
-         libwlroots-0.18-dev,
+         libwlroots-0.19-dev,
          qt6-base-dev-tools (>= 6.6.0),
          qt6-base-private-dev (>= 6.6.0),
          qt6-declarative-private-dev (>= 6.6.0),

@@ -141,7 +141,6 @@ private:
         QMatrix4x4 worldTransform;
         QSize pixelSize;
         qreal devicePixelRatio;
-        int bufferAge;
         QW_NAMESPACE::qw_buffer *buffer = nullptr;
         QQuickRenderTarget renderTarget;
         QSGRenderTarget sgRenderTarget;

@@ -61,7 +61,7 @@ makeTest
       machine.wait_until_succeeds("pgrep tinywl-qtquick")
       machine.wait_for_file("/run/user/1000/wayland-0")
 
-      print(machine.succeed("wayland-info"))
+      print(machine.succeed("su - ${user.name} -c 'wayland-info'"))
 
       # Test run client in wayland
       machine.succeed("su - ${user.name} -c 'foot >&2 &'")

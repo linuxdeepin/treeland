@@ -21,7 +21,7 @@ endif()
 
 find_package(PkgConfig REQUIRED)
 pkg_search_module(LIBDRM REQUIRED IMPORTED_TARGET libdrm)
-pkg_search_module(WLROOTS REQUIRED IMPORTED_TARGET wlroots)
+pkg_search_module(WLROOTS REQUIRED IMPORTED_TARGET wlroots-0.19)
 pkg_search_module(WAYLAND REQUIRED IMPORTED_TARGET wayland-server)
 pkg_search_module(WAYLAND_PROTOCOLS REQUIRED IMPORTED_TARGET wayland-protocols)
 pkg_search_module(WLR_PROTOCOLS REQUIRED wlr-protocols)
@@ -29,6 +29,8 @@ pkg_search_module(PIXMAN REQUIRED IMPORTED_TARGET pixman-1)
 pkg_search_module(XKBCOMMON REQUIRED IMPORTED_TARGET xkbcommon)
 pkg_search_module(XCB REQUIRED IMPORTED_TARGET xcb)
 pkg_search_module(EGL REQUIRED IMPORTED_TARGET egl)
+
+add_compile_definitions(WLR_PRIVATE=)
 
 ws_generate(
     server
@@ -49,6 +51,13 @@ ws_generate(
     wayland-protocols
     unstable/xdg-output/xdg-output-unstable-v1.xml
     xdg-output-unstable-v1-protocol
+)
+
+ws_generate(
+    server
+    wayland-protocols
+    staging/color-management/color-management-v1.xml
+    color-management-v1-protocol
 )
 
 set(SOURCES

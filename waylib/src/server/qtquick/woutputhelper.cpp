@@ -83,7 +83,7 @@ public:
     void on_frame();
     void on_damage();
 
-    qw_buffer *acquireBuffer(wlr_swapchain **sc, int *bufferAge);
+    qw_buffer *acquireBuffer(wlr_swapchain **sc);
 
     inline void update() {
         setContentIsDirty(true);
@@ -138,12 +138,12 @@ void WOutputHelperPrivate::on_damage()
     Q_EMIT q_func()->damaged();
 }
 
-qw_buffer *WOutputHelperPrivate::acquireBuffer(wlr_swapchain **sc, int *bufferAge)
+qw_buffer *WOutputHelperPrivate::acquireBuffer(wlr_swapchain **sc)
 {
     bool ok = qwoutput()->configure_primary_swapchain(&state, sc);
     if (!ok)
         return nullptr;
-    auto newBuffer = qw_swapchain::from(*sc)->acquire(bufferAge);
+    auto newBuffer = qw_swapchain::from(*sc)->acquire();
     return newBuffer ? qw_buffer::from(newBuffer) : nullptr;
 }
 
@@ -171,12 +171,12 @@ QWindow *WOutputHelper::outputWindow() const
     return d->outputWindow;
 }
 
-std::pair<qw_buffer *, QQuickRenderTarget> WOutputHelper::acquireRenderTarget(QQuickRenderControl *rc, int *bufferAge,
+std::pair<qw_buffer *, QQuickRenderTarget> WOutputHelper::acquireRenderTarget(QQuickRenderControl *rc,
                                                                              wlr_swapchain **swapchain)
 {
     W_D(WOutputHelper);
 
-    qw_buffer *buffer = d->acquireBuffer(swapchain ? swapchain : &d->qwoutput()->handle()->swapchain, bufferAge);
+    qw_buffer *buffer = d->acquireBuffer(swapchain ? swapchain : &d->qwoutput()->handle()->swapchain);
     if (!buffer)
         return {};
 

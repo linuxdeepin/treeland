@@ -46,7 +46,6 @@ public:
     QWindow *outputWindow() const;
 
     std::pair<QW_NAMESPACE::qw_buffer*, QQuickRenderTarget> acquireRenderTarget(QQuickRenderControl *rc,
-                                                                               int *bufferAge = nullptr,
                                                                                wlr_swapchain **swapchain = nullptr);
     std::pair<QW_NAMESPACE::qw_buffer*, QQuickRenderTarget> lastRenderTarget();
 

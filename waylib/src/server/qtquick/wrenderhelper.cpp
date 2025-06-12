@@ -691,8 +691,7 @@ QSGRendererInterface::GraphicsApi WRenderHelper::probe(qw_backend *testBackend, 
             continue;
         }
 
-        auto fun_get_formats = renderer->handle()->impl->get_texture_formats;
-        const wlr_drm_format_set *formats = fun_get_formats ? fun_get_formats(*renderer, WLR_BUFFER_CAP_DMABUF) : nullptr;
+        const wlr_drm_format_set *formats = wlr_renderer_get_texture_formats(*renderer, WLR_BUFFER_CAP_DMABUF);
 
         if (formats && formats->len == 0) {
             qInfo() << GraphicsApiName(api) << " api don't support any format";
@@ -708,7 +707,7 @@ QSGRendererInterface::GraphicsApi WRenderHelper::probe(qw_backend *testBackend, 
                 auto *format = &formats->formats[formatId];
 
                 std::unique_ptr<qw_swapchain> swapchain(qw_swapchain::create(*alloc.get(), 1000, 800, format));
-                auto wbuffer = swapchain->acquire(nullptr);
+                auto wbuffer = swapchain->acquire();
                 if (!wbuffer) {
                     continue;
                 } else {
