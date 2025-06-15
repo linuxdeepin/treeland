@@ -73,12 +73,6 @@ struct wlr_color_transform_lut_3x1d *color_transform_lut_3x1d_from_base(
 	struct wlr_color_transform *tr);
 
 /**
- * Evaluate a 3x1D LUT color transform for a given RGB triplet.
- */
-void color_transform_lut_3x1d_eval(struct wlr_color_transform_lut_3x1d *tr,
-	float out[static 3], const float in[static 3]);
-
-/**
  * Obtain primaries values from a well-known primaries name.
  */
 void wlr_color_primaries_from_named(struct wlr_color_primaries *out,

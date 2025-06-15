@@ -964,19 +964,6 @@ static bool create_3d_lut_image(struct wlr_vk_renderer *renderer,
 	*ds = VK_NULL_HANDLE;
 	*ds_pool = NULL;
 
-	struct wlr_color_transform_lcms2 *tr_lcms2 = NULL;
-	struct wlr_color_transform_lut_3x1d *tr_lut_3x1d = NULL;
-	switch (tr->type) {
-	case COLOR_TRANSFORM_INVERSE_EOTF:
-		abort(); // unreachable
-	case COLOR_TRANSFORM_LCMS2:
-		tr_lcms2 = color_transform_lcms2_from_base(tr);
-		break;
-	case COLOR_TRANSFORM_LUT_3X1D:
-		tr_lut_3x1d = color_transform_lut_3x1d_from_base(tr);
-		break;
-	}
-
 	// R32G32B32 is not a required Vulkan format
 	// TODO: use it when available
 	VkFormat format = VK_FORMAT_R32G32B32A32_SFLOAT;
@@ -1074,11 +1061,7 @@ static bool create_3d_lut_image(struct wlr_vk_renderer *renderer,
 					b_index * sample_range,
 				};
 				float rgb_out[3];
-				if (tr_lcms2 != NULL) {
-					color_transform_lcms2_eval(tr_lcms2, rgb_out, rgb_in);
-				} else {
-					color_transform_lut_3x1d_eval(tr_lut_3x1d, rgb_out, rgb_in);
-				}
+				wlr_color_transform_eval(tr, rgb_out, rgb_in);
 
 				dst[dst_offset] = rgb_out[0];
 				dst[dst_offset + 1] = rgb_out[1];

@@ -108,6 +108,65 @@ struct wlr_color_transform_lut_3x1d *color_transform_lut_3x1d_from_base(
 	return lut_3x1d;
 }
 
+static float srgb_eval_inverse_eotf(float x) {
+	// See https://www.w3.org/Graphics/Color/srgb
+	if (x <= 0.0031308) {
+		return 12.92 * x;
+	} else {
+		return 1.055 * powf(x, 1.0 / 2.4) - 0.055;
+	}
+}
+
+static float st2084_pq_eval_inverse_eotf(float x) {
+	// H.273 TransferCharacteristics code point 16
+	float c1 = 0.8359375;
+	float c2 = 18.8515625;
+	float c3 = 18.6875;
+	float m = 78.84375;
+	float n = 0.1593017578125;
+	if (x < 0) {
+		x = 0;
+	}
+	if (x > 1) {
+		x = 1;
+	}
+	float pow_n = powf(x, n);
+	return powf((c1 + c2 * pow_n) / (1 + c3 * pow_n), m);
+}
+
+static float bt1886_eval_inverse_eotf(float x) {
+	float lb = powf(0.0001, 1.0 / 2.4);
+	float lw = powf(1.0, 1.0 / 2.4);
+	float a  = powf(lw - lb, 2.4);
+	float b  = lb / (lw - lb);
+	return powf(x / a, 1.0 / 2.4) - b;
+}
+
+static float transfer_function_eval_inverse_eotf(
+		enum wlr_color_transfer_function tf, float x) {
+	switch (tf) {
+	case WLR_COLOR_TRANSFER_FUNCTION_SRGB:
+		return srgb_eval_inverse_eotf(x);
+	case WLR_COLOR_TRANSFER_FUNCTION_ST2084_PQ:
+		return st2084_pq_eval_inverse_eotf(x);
+	case WLR_COLOR_TRANSFER_FUNCTION_EXT_LINEAR:
+		return x;
+	case WLR_COLOR_TRANSFER_FUNCTION_GAMMA22:
+		return powf(x, 1.0 / 2.2);
+	case WLR_COLOR_TRANSFER_FUNCTION_BT1886:
+		return bt1886_eval_inverse_eotf(x);
+	}
+	abort(); // unreachable
+}
+
+static void color_transform_inverse_eotf_eval(
+		struct wlr_color_transform_inverse_eotf *tr,
+		float out[static 3], const float in[static 3]) {
+	for (size_t i = 0; i < 3; i++) {
+		out[i] = transfer_function_eval_inverse_eotf(tr->tf, in[i]);
+	}
+}
+
 static float lut_1d_get(const uint16_t *lut, size_t len, size_t i) {
 	if (i >= len) {
 		i = len - 1;
@@ -125,10 +184,25 @@ static float lut_1d_eval(const uint16_t *lut, size_t len, float x) {
 	return a * (1 - frac_part) + b * frac_part;
 }
 
-void color_transform_lut_3x1d_eval(struct wlr_color_transform_lut_3x1d *tr,
+static void color_transform_lut_3x1d_eval(struct wlr_color_transform_lut_3x1d *tr,
 		float out[static 3], const float in[static 3]) {
 	for (size_t i = 0; i < 3; i++) {
 		out[i] = lut_1d_eval(&tr->lut_3x1d[tr->dim * i], tr->dim, in[i]);
+	}
+}
+
+void wlr_color_transform_eval(struct wlr_color_transform *tr,
+		float out[static 3], const float in[static 3]) {
+	switch (tr->type) {
+	case COLOR_TRANSFORM_INVERSE_EOTF:
+		color_transform_inverse_eotf_eval(wlr_color_transform_inverse_eotf_from_base(tr), out, in);
+		break;
+	case COLOR_TRANSFORM_LCMS2:
+		color_transform_lcms2_eval(color_transform_lcms2_from_base(tr), out, in);
+		break;
+	case COLOR_TRANSFORM_LUT_3X1D:
+		color_transform_lut_3x1d_eval(color_transform_lut_3x1d_from_base(tr), out, in);
+		break;
 	}
 }
 

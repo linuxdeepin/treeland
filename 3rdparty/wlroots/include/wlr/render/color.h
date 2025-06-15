@@ -152,4 +152,10 @@ struct wlr_color_transform *wlr_color_transform_ref(struct wlr_color_transform *
  */
 void wlr_color_transform_unref(struct wlr_color_transform *tr);
 
+/**
+ * Evaluate a color transform for a given RGB triplet.
+ */
+void wlr_color_transform_eval(struct wlr_color_transform *tr,
+	float out[static 3], const float in[static 3]);
+
 #endif
