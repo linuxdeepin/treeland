@@ -62,6 +62,33 @@ struct wlr_color_transform *wlr_color_transform_init_lut_3x1d(size_t dim,
 	return &tx->base;
 }
 
+struct wlr_color_transform *wlr_color_transform_init_pipeline(
+		struct wlr_color_transform **transforms, size_t len) {
+	assert(len > 0);
+
+	struct wlr_color_transform **copy = calloc(len, sizeof(copy[0]));
+	if (copy == NULL) {
+		return NULL;
+	}
+
+	struct wlr_color_transform_pipeline *tx = calloc(1, sizeof(*tx));
+	if (!tx) {
+		free(copy);
+		return NULL;
+	}
+	wlr_color_transform_init(&tx->base, COLOR_TRANSFORM_PIPELINE);
+
+	// TODO: flatten nested pipeline transforms
+	for (size_t i = 0; i < len; i++) {
+		copy[i] = wlr_color_transform_ref(transforms[i]);
+	}
+
+	tx->transforms = copy;
+	tx->len = len;
+
+	return &tx->base;
+}
+
 static void color_transform_destroy(struct wlr_color_transform *tr) {
 	switch (tr->type) {
 	case COLOR_TRANSFORM_INVERSE_EOTF:
@@ -72,6 +99,14 @@ static void color_transform_destroy(struct wlr_color_transform *tr) {
 	case COLOR_TRANSFORM_LUT_3X1D:;
 		struct wlr_color_transform_lut_3x1d *lut_3x1d = color_transform_lut_3x1d_from_base(tr);
 		free(lut_3x1d->lut_3x1d);
+		break;
+	case COLOR_TRANSFORM_PIPELINE:;
+		struct wlr_color_transform_pipeline *pipeline =
+			wl_container_of(tr, pipeline, base);
+		for (size_t i = 0; i < pipeline->len; i++) {
+			wlr_color_transform_unref(pipeline->transforms[i]);
+		}
+		free(pipeline->transforms);
 		break;
 	}
 	wlr_addon_set_finish(&tr->addons);
@@ -202,6 +237,16 @@ void wlr_color_transform_eval(struct wlr_color_transform *tr,
 		break;
 	case COLOR_TRANSFORM_LUT_3X1D:
 		color_transform_lut_3x1d_eval(color_transform_lut_3x1d_from_base(tr), out, in);
+		break;
+	case COLOR_TRANSFORM_PIPELINE:;
+		struct wlr_color_transform_pipeline *pipeline =
+			wl_container_of(tr, pipeline, base);
+		float color[3];
+		memcpy(color, in, sizeof(color));
+		for (size_t i = 0; i < pipeline->len; i++) {
+			wlr_color_transform_eval(pipeline->transforms[i], color, color);
+		}
+		memcpy(out, color, sizeof(color));
 		break;
 	}
 }

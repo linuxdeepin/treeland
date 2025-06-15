@@ -142,6 +142,13 @@ struct wlr_color_transform *wlr_color_transform_init_lut_3x1d(size_t dim,
 	const uint16_t *r, const uint16_t *g, const uint16_t *b);
 
 /**
+ * Initialize a color transformation to apply a sequence of color transforms
+ * one after another.
+ */
+struct wlr_color_transform *wlr_color_transform_init_pipeline(
+	struct wlr_color_transform **transforms, size_t len);
+
+/**
  * Increase the reference count of the color transform by 1.
  */
 struct wlr_color_transform *wlr_color_transform_ref(struct wlr_color_transform *tr);

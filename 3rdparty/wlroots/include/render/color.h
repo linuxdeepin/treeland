@@ -9,6 +9,7 @@ enum wlr_color_transform_type {
 	COLOR_TRANSFORM_INVERSE_EOTF,
 	COLOR_TRANSFORM_LCMS2,
 	COLOR_TRANSFORM_LUT_3X1D,
+	COLOR_TRANSFORM_PIPELINE,
 };
 
 struct wlr_color_transform {
@@ -37,6 +38,13 @@ struct wlr_color_transform_lut_3x1d {
 
 	uint16_t *lut_3x1d;
 	size_t dim;
+};
+
+struct wlr_color_transform_pipeline {
+	struct wlr_color_transform base;
+
+	struct wlr_color_transform **transforms;
+	size_t len;
 };
 
 void wlr_color_transform_init(struct wlr_color_transform *tr,
