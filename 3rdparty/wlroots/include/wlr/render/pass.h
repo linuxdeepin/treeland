@@ -33,6 +33,8 @@ struct wlr_buffer_pass_options {
 	/* Color transform to apply to the output of the render pass,
 	 * leave NULL to indicate sRGB/no custom transform */
 	struct wlr_color_transform *color_transform;
+	/** Primaries describing the color volume of the destination buffer */
+	const struct wlr_color_primaries *primaries;
 
 	/* Signal a timeline synchronization point when the render pass completes.
 	 *

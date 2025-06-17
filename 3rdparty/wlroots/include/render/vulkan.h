@@ -7,6 +7,7 @@
 #include <vulkan/vulkan.h>
 #include <wlr/render/wlr_renderer.h>
 #include <wlr/render/wlr_texture.h>
+#include <wlr/render/color.h>
 #include <wlr/render/drm_format_set.h>
 #include <wlr/render/interface.h>
 #include <wlr/util/addon.h>
@@ -389,6 +390,9 @@ struct wlr_vk_render_pass {
 	bool failed;
 	bool srgb_pathway; // if false, rendering via intermediate blending buffer
 	struct wlr_color_transform *color_transform;
+
+	bool has_primaries;
+	struct wlr_color_primaries primaries;
 
 	struct wlr_drm_syncobj_timeline *signal_timeline;
 	uint64_t signal_point;

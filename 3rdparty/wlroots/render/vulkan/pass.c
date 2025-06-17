@@ -78,6 +78,17 @@ static void encode_proj_matrix(const float mat3[9], float mat4[4][4]) {
 	memcpy(mat4, result, sizeof(result));
 }
 
+static void encode_color_matrix(const float mat3[9], float mat4[4][4]) {
+	float result[4][4] = {
+		{ mat3[0], mat3[1], mat3[2], 0 },
+		{ mat3[3], mat3[4], mat3[5], 0 },
+		{ mat3[6], mat3[7], mat3[8], 0 },
+		{ 0, 0, 0, 0 },
+	};
+
+	memcpy(mat4, result, sizeof(result));
+}
+
 static void render_pass_destroy(struct wlr_vk_render_pass *pass) {
 	struct wlr_vk_render_pass_texture *pass_texture;
 	wl_array_for_each(pass_texture, &pass->textures) {
@@ -186,14 +197,27 @@ static bool render_pass_submit(struct wlr_render_pass *wlr_pass) {
 		}
 
 		struct wlr_vk_frag_output_pcr_data frag_pcr_data = {
-			.matrix = {
-				{1, 0, 0},
-				{0, 1, 0},
-				{0, 0, 1},
-			},
 			.lut_3d_offset = 0.5f / dim,
 			.lut_3d_scale = (float)(dim - 1) / dim,
 		};
+
+		float matrix[9];
+		if (pass->has_primaries) {
+			struct wlr_color_primaries srgb;
+			wlr_color_primaries_from_named(&srgb, WLR_COLOR_NAMED_PRIMARIES_SRGB);
+
+			float srgb_to_xyz[9];
+			wlr_color_primaries_to_xyz(&srgb, srgb_to_xyz);
+			float dst_primaries_to_xyz[9];
+			wlr_color_primaries_to_xyz(&pass->primaries, dst_primaries_to_xyz);
+			float xyz_to_dst_primaries[9];
+			matrix_invert(xyz_to_dst_primaries, dst_primaries_to_xyz);
+
+			wlr_matrix_multiply(matrix, srgb_to_xyz, xyz_to_dst_primaries);
+		} else {
+			wlr_matrix_identity(matrix);
+		}
+		encode_color_matrix(matrix, frag_pcr_data.matrix);
 
 		if (pass->color_transform && pass->color_transform->type != COLOR_TRANSFORM_SRGB) {
 			bind_pipeline(pass, render_buffer->plain.render_setup->output_pipe_lut3d);
@@ -1105,6 +1129,10 @@ struct wlr_vk_render_pass *vulkan_begin_render_pass(struct wlr_vk_renderer *rend
 	if (options != NULL && options->signal_timeline != NULL) {
 		pass->signal_timeline = wlr_drm_syncobj_timeline_ref(options->signal_timeline);
 		pass->signal_point = options->signal_point;
+	}
+	if (options != NULL && options->primaries != NULL) {
+		pass->has_primaries = true;
+		pass->primaries = *options->primaries;
 	}
 
 	rect_union_init(&pass->updated_region);
