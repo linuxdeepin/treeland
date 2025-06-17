@@ -67,7 +67,7 @@ static float color_to_linear_premult(float non_linear, float alpha) {
 	return (alpha == 0) ? 0 : color_to_linear(non_linear / alpha) * alpha;
 }
 
-static void mat3_to_mat4(const float mat3[9], float mat4[4][4]) {
+static void encode_proj_matrix(const float mat3[9], float mat4[4][4]) {
 	memset(mat4, 0, sizeof(float) * 16);
 	mat4[0][0] = mat3[0];
 	mat4[0][1] = mat3[1];
@@ -178,7 +178,7 @@ static bool render_pass_submit(struct wlr_render_pass *wlr_pass) {
 			.uv_off = { 0, 0 },
 			.uv_size = { 1, 1 },
 		};
-		mat3_to_mat4(final_matrix, vert_pcr_data.mat4);
+		encode_proj_matrix(final_matrix, vert_pcr_data.mat4);
 
 		struct wlr_vk_color_transform *transform = NULL;
 		size_t dim = 1;
@@ -644,7 +644,7 @@ static void render_pass_add_rect(struct wlr_render_pass *wlr_pass,
 			.uv_off = { 0, 0 },
 			.uv_size = { 1, 1 },
 		};
-		mat3_to_mat4(matrix, vert_pcr_data.mat4);
+		encode_proj_matrix(matrix, vert_pcr_data.mat4);
 
 		bind_pipeline(pass, pipe->vk);
 		vkCmdPushConstants(cb, pipe->layout->vk,
@@ -727,7 +727,7 @@ static void render_pass_add_texture(struct wlr_render_pass *wlr_pass,
 			src_box.height / options->texture->height,
 		},
 	};
-	mat3_to_mat4(matrix, vert_pcr_data.mat4);
+	encode_proj_matrix(matrix, vert_pcr_data.mat4);
 
 	struct wlr_vk_render_format_setup *setup = pass->srgb_pathway ?
 		pass->render_buffer->srgb.render_setup :
