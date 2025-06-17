@@ -68,17 +68,14 @@ static float color_to_linear_premult(float non_linear, float alpha) {
 }
 
 static void encode_proj_matrix(const float mat3[9], float mat4[4][4]) {
-	memset(mat4, 0, sizeof(float) * 16);
-	mat4[0][0] = mat3[0];
-	mat4[0][1] = mat3[1];
-	mat4[0][3] = mat3[2];
+	float result[4][4] = {
+		{ mat3[0], mat3[1], 0, mat3[2] },
+		{ mat3[3], mat3[4], 0, mat3[5] },
+		{ 0, 0, 1, 0 },
+		{ 0, 0, 0, 1 },
+	};
 
-	mat4[1][0] = mat3[3];
-	mat4[1][1] = mat3[4];
-	mat4[1][3] = mat3[5];
-
-	mat4[2][2] = 1.f;
-	mat4[3][3] = 1.f;
+	memcpy(mat4, result, sizeof(result));
 }
 
 static void render_pass_destroy(struct wlr_vk_render_pass *pass) {
