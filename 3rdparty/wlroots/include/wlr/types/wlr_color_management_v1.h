@@ -89,4 +89,18 @@ void wlr_color_manager_v1_set_surface_preferred_image_description(
 	struct wlr_color_manager_v1 *manager, struct wlr_surface *surface,
 	const struct wlr_image_description_v1_data *data);
 
+/**
+ * Convert a protocol transfer function to enum wlr_color_transfer_function.
+ * Aborts if there is no matching wlroots entry.
+ */
+enum wlr_color_transfer_function
+wlr_color_manager_v1_transfer_function_to_wlr(enum wp_color_manager_v1_transfer_function tf);
+
+/**
+ * Convert a protocol named primaries to enum wlr_color_named_primaries.
+ * Aborts if there is no matching wlroots entry.
+ */
+enum wlr_color_named_primaries
+wlr_color_manager_v1_primaries_to_wlr(enum wp_color_manager_v1_primaries primaries);
+
 #endif
