@@ -53,9 +53,7 @@ set(QML_IMPORT_PATH "${LOCAL_QML_IMPORT_PATH}" CACHE STRING "For LSP" FORCE)
 find_package(PkgConfig REQUIRED)
 find_package(Qt6 CONFIG REQUIRED Core DBus Gui Qml Quick QuickControls2 LinguistTools Test QuickTest)
 
-set(wlr wlroots-0.18)
-set(WLROOTS_MINIMUM_REQUIRED 0.18.0)
-pkg_check_modules(WLROOTS REQUIRED IMPORTED_TARGET ${wlr}>=${WLROOTS_MINIMUM_REQUIRED})
+pkg_check_modules(WLROOTS REQUIRED IMPORTED_TARGET wlroots-0.19)
 
 qt_standard_project_setup(REQUIRES 6.8)
 
