@@ -4,6 +4,13 @@ find_package(TreelandProtocols REQUIRED)
 
 ws_generate_local(server ${TREELAND_PROTOCOLS_DATA_DIR}/treeland-capture-unstable-v1.xml treeland-capture-unstable-v1-protocol)
 
+ws_generate(
+    server
+    wayland-protocols
+    staging/color-management/color-management-v1.xml
+    color-management-v1-protocol
+)
+
 qt_add_library(${MODULE_NAME} SHARED)
 
 set_target_properties(${MODULE_NAME} PROPERTIES
