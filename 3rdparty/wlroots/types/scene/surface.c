@@ -195,30 +195,8 @@ static void surface_reconfigure(struct wlr_scene_surface *scene_surface) {
 	const struct wlr_image_description_v1_data *img_desc =
 		wlr_surface_get_image_description_v1_data(surface);
 	if (img_desc != NULL) {
-		switch (img_desc->tf_named) {
-		case WP_COLOR_MANAGER_V1_TRANSFER_FUNCTION_SRGB:
-			tf = WLR_COLOR_TRANSFER_FUNCTION_SRGB;
-			break;
-		case WP_COLOR_MANAGER_V1_TRANSFER_FUNCTION_ST2084_PQ:
-			tf = WLR_COLOR_TRANSFER_FUNCTION_ST2084_PQ;
-			break;
-		case WP_COLOR_MANAGER_V1_TRANSFER_FUNCTION_EXT_LINEAR:
-			tf = WLR_COLOR_TRANSFER_FUNCTION_EXT_LINEAR;
-			break;
-		default:
-			abort();
-		}
-
-		switch (img_desc->primaries_named) {
-		case WP_COLOR_MANAGER_V1_PRIMARIES_SRGB:
-			primaries = WLR_COLOR_NAMED_PRIMARIES_SRGB;
-			break;
-		case WP_COLOR_MANAGER_V1_PRIMARIES_BT2020:
-			primaries = WLR_COLOR_NAMED_PRIMARIES_BT2020;
-			break;
-		default:
-			abort();
-		}
+		tf = wlr_color_manager_v1_transfer_function_to_wlr(img_desc->tf_named);
+		primaries = wlr_color_manager_v1_primaries_to_wlr(img_desc->primaries_named);
 	}
 
 	wlr_scene_buffer_set_opaque_region(scene_buffer, &opaque);
