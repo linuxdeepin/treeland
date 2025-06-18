@@ -7,6 +7,7 @@
 
 #include <qwdisplay.h>
 #include <qwoutput.h>
+#include <qwcompositor.h>
 
 #include <QList>
 #include <QObject>
