@@ -67,7 +67,12 @@ bool wlr_box_intersection(struct wlr_box *dest, const struct wlr_box *box_a,
 	dest->width = x2 - x1;
 	dest->height = y2 - y1;
 
-	return !wlr_box_empty(dest);
+	if (wlr_box_empty(dest)) {
+		*dest = (struct wlr_box){0};
+		return false;
+	}
+
+	return true;
 }
 
 bool wlr_box_contains_point(const struct wlr_box *box, double x, double y) {
