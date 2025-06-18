@@ -25,7 +25,6 @@
   pam,
   libxcrypt,
   libinput,
-  jemalloc,
   nixos-artwork,
 }:
 
@@ -83,7 +82,6 @@ stdenv.mkDerivation (finalAttrs: {
     pam
     libxcrypt
     libinput
-    jemalloc
   ];
 
   cmakeFlags = [
