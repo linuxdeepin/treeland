@@ -219,7 +219,7 @@ static bool render_pass_submit(struct wlr_render_pass *wlr_pass) {
 			float xyz_to_dst_primaries[9];
 			matrix_invert(xyz_to_dst_primaries, dst_primaries_to_xyz);
 
-			wlr_matrix_multiply(matrix, srgb_to_xyz, xyz_to_dst_primaries);
+			wlr_matrix_multiply(matrix, xyz_to_dst_primaries, srgb_to_xyz);
 		} else {
 			wlr_matrix_identity(matrix);
 		}
