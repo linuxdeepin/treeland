@@ -13,7 +13,6 @@ using QW_NAMESPACE::qw_display;
 
 static void treeland_shortcut_context_v1_destroy(struct wl_resource *resource);
 static treeland_shortcut_manager_v1 *shortcut_manager_from_resource(struct wl_resource *resource);
-static treeland_shortcut_context_v1 *shortcut_context_from_resource(struct wl_resource *resource);
 
 static void treeland_shortcut_context_destroy([[maybe_unused]] struct wl_client *client,
                                               struct wl_resource *resource)
@@ -120,17 +119,6 @@ static treeland_shortcut_manager_v1 *shortcut_manager_from_resource(struct wl_re
         static_cast<treeland_shortcut_manager_v1 *>(wl_resource_get_user_data(resource));
     assert(manager != nullptr);
     return manager;
-}
-
-static treeland_shortcut_context_v1 *shortcut_context_from_resource(struct wl_resource *resource)
-{
-    assert(wl_resource_instance_of(resource,
-                                   &treeland_shortcut_context_v1_interface,
-                                   &shortcut_context_impl));
-    auto *context =
-        static_cast<treeland_shortcut_context_v1 *>(wl_resource_get_user_data(resource));
-    assert(context != nullptr);
-    return context;
 }
 
 treeland_shortcut_manager_v1::~treeland_shortcut_manager_v1()

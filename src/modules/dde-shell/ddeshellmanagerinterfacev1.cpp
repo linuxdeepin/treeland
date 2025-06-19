@@ -259,7 +259,6 @@ public:
                                     wl_resource *resource);
 
     DDEShellSurfaceInterface *q;
-
     wl_resource *surfaceResource{ nullptr };
     std::optional<QPoint> surfacePos;
     std::optional<DDEShellSurfaceInterface::Role> role;
@@ -293,9 +292,9 @@ protected:
 DDEShellSurfaceInterfacePrivate::DDEShellSurfaceInterfacePrivate(DDEShellSurfaceInterface *_q,
                                                                  wl_resource *surface,
                                                                  wl_resource *resource)
-    : QtWaylandServer::treeland_dde_shell_surface_v1(resource)
+    : q(_q)
     , surfaceResource(surface)
-    , q(_q)
+    , QtWaylandServer::treeland_dde_shell_surface_v1(resource)
 {
 }
 

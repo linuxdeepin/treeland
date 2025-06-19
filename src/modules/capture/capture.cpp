@@ -931,7 +931,7 @@ void CaptureSource::copyBuffer(qw_buffer *buffer)
     size_t stride;
     void *data;
     buffer->begin_data_ptr_access(WLR_BUFFER_DATA_PTR_ACCESS_WRITE, &data, &format, &stride);
-    Q_ASSERT(stride == width * 4); // For QImage
+    Q_ASSERT(stride == static_cast<size_t>(width) * 4); // For QImage
     QImage img = image().copy(cropRect());
     auto bufFormat = WTools::toImageFormat(format);
     if (image().format() != bufFormat) {
