@@ -205,10 +205,10 @@ private:
     uint32_t m_windowTitlebarHeight;
     QString m_cursorThemeName;
     QSize m_cursorSize;
+    qreal m_windowRadius;
     QString m_fontName;
     QString m_monoFontName;
     uint32_t m_fontSize;
-    qreal m_windowRadius;
     QString m_iconThemeName;
     QString m_defaultBackground;
 
