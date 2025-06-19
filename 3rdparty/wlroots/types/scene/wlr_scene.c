@@ -1964,6 +1964,17 @@ static enum scene_direct_scanout_result scene_entry_try_direct_scanout(
 	if (buffer->transform != data->transform) {
 		return SCANOUT_INELIGIBLE;
 	}
+
+	const struct wlr_output_image_description *img_desc = output_pending_image_description(scene_output->output, state);
+	if (buffer->transfer_function != 0 || buffer->primaries != 0) {
+		if (img_desc == NULL || img_desc->transfer_function != buffer->transfer_function ||
+				img_desc->primaries != buffer->primaries) {
+			return false;
+		}
+	} else if (img_desc != NULL) {
+		return false;
+	}
+
 	if (buffer->transfer_function != 0 && buffer->transfer_function != WLR_COLOR_TRANSFER_FUNCTION_SRGB) {
 		return false;
 	}
@@ -2269,14 +2280,30 @@ bool wlr_scene_output_build_state(struct wlr_scene_output *scene_output,
 		timer->pre_render_duration = timespec_to_nsec(&duration);
 	}
 
+	struct wlr_color_transform *color_transform = NULL;
+	const struct wlr_color_primaries *primaries = NULL;
+	struct wlr_color_primaries primaries_value;
+	const struct wlr_output_image_description *img_desc = output_pending_image_description(output, state);
+	if (img_desc != NULL) {
+		color_transform = wlr_color_transform_init_linear_to_inverse_eotf(img_desc->transfer_function);
+		wlr_color_primaries_from_named(&primaries_value, img_desc->primaries);
+		primaries = &primaries_value;
+	}
+	if (options->color_transform != NULL) {
+		assert(color_transform == NULL);
+		color_transform = wlr_color_transform_ref(options->color_transform);
+	}
+
 	scene_output->in_point++;
 	struct wlr_render_pass *render_pass = wlr_renderer_begin_buffer_pass(output->renderer, buffer,
 			&(struct wlr_buffer_pass_options){
 		.timer = timer ? timer->render_timer : NULL,
 		.color_transform = options->color_transform,
+		.primaries = primaries,
 		.signal_timeline = scene_output->in_timeline,
 		.signal_point = scene_output->in_point,
 	});
+	wlr_color_transform_unref(color_transform);
 	if (render_pass == NULL) {
 		wlr_buffer_unlock(buffer);
 		return false;

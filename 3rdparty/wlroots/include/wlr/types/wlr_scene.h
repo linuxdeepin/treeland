@@ -574,6 +574,11 @@ void wlr_scene_output_set_position(struct wlr_scene_output *scene_output,
 
 struct wlr_scene_output_state_options {
 	struct wlr_scene_timer *timer;
+
+	/**
+	 * Color transform to apply before the output's color transform. Cannot be
+	 * used when the output has a non-NULL image description set.
+	 */
 	struct wlr_color_transform *color_transform;
 
 	/**
