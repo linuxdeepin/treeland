@@ -500,6 +500,14 @@ bool output_pending_enabled(struct wlr_output *output,
 	return output->enabled;
 }
 
+const struct wlr_output_image_description *output_pending_image_description(
+		struct wlr_output *output, const struct wlr_output_state *state) {
+	if (state->committed & WLR_OUTPUT_STATE_IMAGE_DESCRIPTION) {
+		return state->image_description;
+	}
+	return output->image_description;
+}
+
 /**
  * Compare a struct wlr_output_state with the current state of a struct
  * wlr_output.

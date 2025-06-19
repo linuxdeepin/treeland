@@ -8,6 +8,8 @@ void output_pending_resolution(struct wlr_output *output,
 	const struct wlr_output_state *state, int *width, int *height);
 bool output_pending_enabled(struct wlr_output *output,
 	const struct wlr_output_state *state);
+const struct wlr_output_image_description *output_pending_image_description(
+	struct wlr_output *output, const struct wlr_output_state *state);
 
 bool output_pick_format(struct wlr_output *output,
 	const struct wlr_drm_format_set *display_formats,
