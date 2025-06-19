@@ -67,7 +67,6 @@ Q_SIGNALS:
     void requestClose();
 };
 
-static void toplevel_handle_output_bind(struct wl_listener *listener, void *data);
 struct treeland_foreign_toplevel_handle_v1_maximized_event;
 struct treeland_foreign_toplevel_handle_v1_minimized_event;
 struct treeland_foreign_toplevel_handle_v1_activated_event;
@@ -132,8 +131,6 @@ private:
     void update_idle_source();
     void send_state();
     void send_output(QW_NAMESPACE::qw_output *output, bool enter);
-
-    friend void toplevel_handle_output_bind(struct wl_listener *listener, void *data);
 };
 
 struct wlr_seat;
