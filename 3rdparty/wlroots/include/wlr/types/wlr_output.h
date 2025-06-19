@@ -193,6 +193,7 @@ struct wlr_output {
 	enum wl_output_transform transform;
 	enum wlr_output_adaptive_sync_status adaptive_sync_status;
 	uint32_t render_format;
+	const struct wlr_output_image_description *image_description;
 
 	// Indicates whether making changes to adaptive sync status is supported.
 	// If false, changes to adaptive sync status is guaranteed to fail. If
@@ -255,6 +256,7 @@ struct wlr_output {
 
 	struct {
 		struct wl_listener display_destroy;
+		struct wlr_output_image_description image_description_value;
 	} WLR_PRIVATE;
 };
 

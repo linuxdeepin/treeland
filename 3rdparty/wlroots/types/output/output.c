@@ -233,6 +233,15 @@ static void output_apply_state(struct wlr_output *output,
 		output->transform = state->transform;
 	}
 
+	if (state->committed & WLR_OUTPUT_STATE_IMAGE_DESCRIPTION) {
+		if (state->image_description != NULL) {
+			output->image_description_value = *state->image_description;
+			output->image_description = &output->image_description_value;
+		} else {
+			output->image_description = NULL;
+		}
+	}
+
 	bool geometry_updated = state->committed &
 		(WLR_OUTPUT_STATE_MODE | WLR_OUTPUT_STATE_TRANSFORM |
 		WLR_OUTPUT_STATE_SUBPIXEL);
