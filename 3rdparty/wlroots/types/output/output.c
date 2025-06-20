@@ -627,33 +627,25 @@ static bool output_basic_test(struct wlr_output *output,
 		}
 	}
 
-	if (!enabled && state->committed & WLR_OUTPUT_STATE_BUFFER) {
-		wlr_log(WLR_DEBUG, "Tried to commit a buffer on a disabled output");
-		return false;
-	}
-	if (!enabled && state->committed & WLR_OUTPUT_STATE_MODE) {
-		wlr_log(WLR_DEBUG, "Tried to modeset a disabled output");
-		return false;
-	}
-	if (!enabled && state->committed & WLR_OUTPUT_STATE_ADAPTIVE_SYNC_ENABLED) {
-		wlr_log(WLR_DEBUG, "Tried to enable adaptive sync on a disabled output");
-		return false;
-	}
-	if (!enabled && state->committed & WLR_OUTPUT_STATE_RENDER_FORMAT) {
-		wlr_log(WLR_DEBUG, "Tried to set format for a disabled output");
-		return false;
-	}
-	if (!enabled && state->committed & WLR_OUTPUT_STATE_SUBPIXEL) {
-		wlr_log(WLR_DEBUG, "Tried to set the subpixel layout on a disabled output");
-		return false;
-	}
-	if (!enabled && state->committed & WLR_OUTPUT_STATE_COLOR_TRANSFORM) {
-		wlr_log(WLR_DEBUG, "Tried to set a color transform on a disabled output");
-		return false;
-	}
-	if (!enabled && state->committed & WLR_OUTPUT_STATE_IMAGE_DESCRIPTION) {
-		wlr_log(WLR_DEBUG, "Tried to set the image description on a disabled output");
-		return false;
+	const struct {
+		enum wlr_output_state_field field;
+		const char *name;
+	} needs_enabled[] = {
+		{ WLR_OUTPUT_STATE_BUFFER, "buffer" },
+		{ WLR_OUTPUT_STATE_MODE, "mode" },
+		{ WLR_OUTPUT_STATE_ADAPTIVE_SYNC_ENABLED, "adaptive sync" },
+		{ WLR_OUTPUT_STATE_RENDER_FORMAT, "render format" },
+		{ WLR_OUTPUT_STATE_SUBPIXEL, "subpixel" },
+		{ WLR_OUTPUT_STATE_COLOR_TRANSFORM, "color transform" },
+		{ WLR_OUTPUT_STATE_IMAGE_DESCRIPTION, "image description" },
+	};
+	if (!enabled) {
+		for (size_t i = 0; i < sizeof(needs_enabled) / sizeof(needs_enabled[0]); i++) {
+			if (state->committed & needs_enabled[i].field) {
+				wlr_log(WLR_DEBUG, "Tried to set %s on a disabled output", needs_enabled[i].name);
+				return false;
+			}
+		}
 	}
 
 	if (state->committed & WLR_OUTPUT_STATE_LAYERS) {
