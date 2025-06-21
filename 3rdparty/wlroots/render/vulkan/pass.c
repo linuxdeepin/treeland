@@ -175,7 +175,7 @@ static bool render_pass_submit(struct wlr_render_pass *wlr_pass) {
 	assert(stage_cb != NULL);
 	renderer->stage.cb = NULL;
 
-	if (!pass->srgb_pathway) {
+	if (pass->two_pass) {
 		// Apply output shader to map blend image to actual output image
 		vkCmdNextSubpass(render_cb->vk, VK_SUBPASS_CONTENTS_INLINE);
 
@@ -403,7 +403,7 @@ static bool render_pass_submit(struct wlr_render_pass *wlr_pass) {
 		pass->render_buffer_out->transitioned = true;
 	}
 
-	if (!pass->srgb_pathway) {
+	if (pass->two_pass) {
 		// The render pass changes the blend image layout from
 		// color attachment to read only, so on each frame, before
 		// the render pass starts, we change it back
@@ -614,7 +614,7 @@ error:
 
 static void render_pass_mark_box_updated(struct wlr_vk_render_pass *pass,
 		const struct wlr_box *box) {
-	if (pass->srgb_pathway) {
+	if (!pass->two_pass) {
 		return;
 	}
 
@@ -1217,7 +1217,7 @@ struct wlr_vk_render_pass *vulkan_begin_render_pass(struct wlr_vk_renderer *rend
 
 	wlr_render_pass_init(&pass->base, &render_pass_impl);
 	pass->renderer = renderer;
-	pass->srgb_pathway = using_srgb_pathway;
+	pass->two_pass = !using_srgb_pathway;
 	if (options != NULL && options->color_transform != NULL) {
 		pass->color_transform = wlr_color_transform_ref(options->color_transform);
 	}

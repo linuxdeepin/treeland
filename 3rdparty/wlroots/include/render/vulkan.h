@@ -405,7 +405,7 @@ struct wlr_vk_render_pass {
 	VkPipeline bound_pipeline;
 	float projection[9];
 	bool failed;
-	bool srgb_pathway; // if false, rendering via intermediate blending buffer
+	bool two_pass; // rendering via intermediate blending buffer
 	struct wlr_color_transform *color_transform;
 
 	bool has_primaries;
