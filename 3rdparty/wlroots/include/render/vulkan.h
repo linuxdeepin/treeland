@@ -222,6 +222,13 @@ struct wlr_vk_render_buffer {
 	uint32_t mem_count;
 	VkImage image;
 
+	// Framebuffer and image view for rendering directly onto the buffer image,
+	// without any color transform.
+	struct {
+		struct wlr_vk_render_buffer_out out;
+		struct wlr_vk_render_format_setup *render_setup;
+	} linear;
+
 	// Framebuffer and image view for rendering directly onto the buffer image.
 	// This requires that the image support an _SRGB VkFormat, and does
 	// not work with color transforms.
@@ -246,6 +253,8 @@ struct wlr_vk_render_buffer {
 	} two_pass;
 };
 
+bool vulkan_setup_one_pass_framebuffer(struct wlr_vk_render_buffer *buffer,
+	const struct wlr_dmabuf_attributes *dmabuf, bool srgb);
 bool vulkan_setup_two_pass_framebuffer(struct wlr_vk_render_buffer *buffer,
 	const struct wlr_dmabuf_attributes *dmabuf);
 

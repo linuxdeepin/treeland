@@ -623,6 +623,7 @@ static void destroy_render_buffer(struct wlr_vk_render_buffer *buffer) {
 		wlr_vk_error("vkQueueWaitIdle", res);
 	}
 
+	finish_render_buffer_out(&buffer->linear.out, dev);
 	finish_render_buffer_out(&buffer->srgb.out, dev);
 
 	finish_render_buffer_out(&buffer->two_pass.out, dev);
@@ -817,8 +818,8 @@ error:
 	return false;
 }
 
-static bool vulkan_setup_one_pass_framebuffer(struct wlr_vk_render_buffer *buffer,
-		const struct wlr_dmabuf_attributes *dmabuf) {
+bool vulkan_setup_one_pass_framebuffer(struct wlr_vk_render_buffer *buffer,
+		const struct wlr_dmabuf_attributes *dmabuf, bool srgb) {
 	struct wlr_vk_renderer *renderer = buffer->renderer;
 	VkResult res;
 	VkDevice dev = renderer->dev->dev;
@@ -827,14 +828,18 @@ static bool vulkan_setup_one_pass_framebuffer(struct wlr_vk_render_buffer *buffe
 		renderer->dev, dmabuf->format);
 	assert(fmt);
 
-	assert(fmt->format.vk_srgb);
+	VkFormat vk_fmt = srgb ? fmt->format.vk_srgb : fmt->format.vk;
+	assert(vk_fmt != VK_FORMAT_UNDEFINED);
+
+	struct wlr_vk_render_buffer_out *out = srgb ? &buffer->srgb.out : &buffer->linear.out;
+
 	// Set up the srgb framebuffer by default; two-pass framebuffer and
 	// blending image will be set up later if necessary
 	VkImageViewCreateInfo view_info = {
 		.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
 		.image = buffer->image,
 		.viewType = VK_IMAGE_VIEW_TYPE_2D,
-		.format = fmt->format.vk_srgb,
+		.format = vk_fmt,
 		.components.r = VK_COMPONENT_SWIZZLE_IDENTITY,
 		.components.g = VK_COMPONENT_SWIZZLE_IDENTITY,
 		.components.b = VK_COMPONENT_SWIZZLE_IDENTITY,
@@ -848,35 +853,43 @@ static bool vulkan_setup_one_pass_framebuffer(struct wlr_vk_render_buffer *buffe
 		},
 	};
 
-	res = vkCreateImageView(dev, &view_info, NULL, &buffer->srgb.out.image_view);
+	res = vkCreateImageView(dev, &view_info, NULL, &out->image_view);
 	if (res != VK_SUCCESS) {
 		wlr_vk_error("vkCreateImageView failed", res);
 		goto error;
 	}
 
-	buffer->srgb.render_setup = find_or_create_render_setup(
-		renderer, &fmt->format, false);
-	if (!buffer->srgb.render_setup) {
+	struct wlr_vk_render_format_setup *render_setup =
+		find_or_create_render_setup(renderer, &fmt->format, false);
+	if (!render_setup) {
 		goto error;
 	}
 
 	VkFramebufferCreateInfo fb_info = {
 		.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
 		.attachmentCount = 1,
-		.pAttachments = &buffer->srgb.out.image_view,
+		.pAttachments = &out->image_view,
 		.flags = 0u,
 		.width = dmabuf->width,
 		.height = dmabuf->height,
 		.layers = 1u,
-		.renderPass = buffer->srgb.render_setup->render_pass,
+		.renderPass = render_setup->render_pass,
 	};
 
-	res = vkCreateFramebuffer(dev, &fb_info, NULL, &buffer->srgb.out.framebuffer);
+	res = vkCreateFramebuffer(dev, &fb_info, NULL, &out->framebuffer);
 	if (res != VK_SUCCESS) {
 		wlr_vk_error("vkCreateFramebuffer", res);
 		goto error;
 	}
+
+	if (srgb) {
+		buffer->srgb.render_setup = render_setup;
+	} else {
+		buffer->linear.render_setup = render_setup;
+	}
+
 	return true;
+
 error:
 	// cleaning up everything is the caller's responsibility,
 	// since it will need to do this anyway if framebuffer setup fails
@@ -920,7 +933,7 @@ static struct wlr_vk_render_buffer *create_render_buffer(
 	}
 
 	if (using_mutable_srgb) {
-		if (!vulkan_setup_one_pass_framebuffer(buffer, &dmabuf)) {
+		if (!vulkan_setup_one_pass_framebuffer(buffer, &dmabuf, true)) {
 			goto error;
 		}
 	} else {

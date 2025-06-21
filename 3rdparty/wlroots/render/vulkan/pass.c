@@ -1182,10 +1182,21 @@ struct wlr_vk_render_pass *vulkan_begin_render_pass(struct wlr_vk_renderer *rend
 		inv_eotf = WLR_COLOR_TRANSFER_FUNCTION_SRGB;
 	}
 
+	bool using_linear_pathway = inv_eotf == WLR_COLOR_TRANSFER_FUNCTION_EXT_LINEAR;
 	bool using_srgb_pathway = inv_eotf == WLR_COLOR_TRANSFER_FUNCTION_SRGB &&
 		buffer->srgb.out.framebuffer != VK_NULL_HANDLE;
+	bool using_two_pass_pathway = !using_linear_pathway && !using_srgb_pathway;
 
-	if (!using_srgb_pathway) {
+	if (using_linear_pathway && !buffer->linear.out.image_view) {
+		struct wlr_dmabuf_attributes attribs;
+		wlr_buffer_get_dmabuf(buffer->wlr_buffer, &attribs);
+		if (!vulkan_setup_one_pass_framebuffer(buffer, &attribs, false)) {
+			wlr_log(WLR_ERROR, "Failed to set up blend image");
+			return NULL;
+		}
+	}
+
+	if (using_two_pass_pathway) {
 		if (options != NULL && options->color_transform != NULL &&
 				!get_color_transform(options->color_transform, renderer)) {
 			/* Try to create a new color transform */
@@ -1205,10 +1216,20 @@ struct wlr_vk_render_pass *vulkan_begin_render_pass(struct wlr_vk_renderer *rend
 		}
 	}
 
-	struct wlr_vk_render_format_setup *render_setup =
-		using_srgb_pathway ? buffer->srgb.render_setup : buffer->two_pass.render_setup;
-	struct wlr_vk_render_buffer_out *buffer_out =
-		using_srgb_pathway ? &buffer->srgb.out : &buffer->two_pass.out;
+	struct wlr_vk_render_format_setup *render_setup;
+	struct wlr_vk_render_buffer_out *buffer_out;
+	if (using_two_pass_pathway) {
+		render_setup = buffer->two_pass.render_setup;
+		buffer_out = &buffer->two_pass.out;
+	} else if (using_srgb_pathway) {
+		render_setup = buffer->srgb.render_setup;
+		buffer_out = &buffer->srgb.out;
+	} else if (using_linear_pathway) {
+		render_setup = buffer->linear.render_setup;
+		buffer_out = &buffer->linear.out;
+	} else {
+		abort(); // unreachable
+	}
 
 	struct wlr_vk_render_pass *pass = calloc(1, sizeof(*pass));
 	if (pass == NULL) {
@@ -1217,7 +1238,7 @@ struct wlr_vk_render_pass *vulkan_begin_render_pass(struct wlr_vk_renderer *rend
 
 	wlr_render_pass_init(&pass->base, &render_pass_impl);
 	pass->renderer = renderer;
-	pass->two_pass = !using_srgb_pathway;
+	pass->two_pass = using_two_pass_pathway;
 	if (options != NULL && options->color_transform != NULL) {
 		pass->color_transform = wlr_color_transform_ref(options->color_transform);
 	}
