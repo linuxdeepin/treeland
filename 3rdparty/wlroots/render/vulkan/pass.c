@@ -398,16 +398,12 @@ static bool render_pass_submit(struct wlr_render_pass *wlr_pass) {
 
 	// also add acquire/release barriers for the current render buffer
 	VkImageLayout src_layout = VK_IMAGE_LAYOUT_GENERAL;
-	if (pass->srgb_pathway) {
-		if (!render_buffer->srgb.out.transitioned) {
-			src_layout = VK_IMAGE_LAYOUT_PREINITIALIZED;
-			render_buffer->srgb.out.transitioned = true;
-		}
-	} else {
-		if (!render_buffer->two_pass.out.transitioned) {
-			src_layout = VK_IMAGE_LAYOUT_PREINITIALIZED;
-			render_buffer->two_pass.out.transitioned = true;
-		}
+	if (!pass->render_buffer_out->transitioned) {
+		src_layout = VK_IMAGE_LAYOUT_PREINITIALIZED;
+		pass->render_buffer_out->transitioned = true;
+	}
+
+	if (!pass->srgb_pathway) {
 		// The render pass changes the blend image layout from
 		// color attachment to read only, so on each frame, before
 		// the render pass starts, we change it back
@@ -1211,6 +1207,8 @@ struct wlr_vk_render_pass *vulkan_begin_render_pass(struct wlr_vk_renderer *rend
 
 	struct wlr_vk_render_format_setup *render_setup =
 		using_srgb_pathway ? buffer->srgb.render_setup : buffer->two_pass.render_setup;
+	struct wlr_vk_render_buffer_out *buffer_out =
+		using_srgb_pathway ? &buffer->srgb.out : &buffer->two_pass.out;
 
 	struct wlr_vk_render_pass *pass = calloc(1, sizeof(*pass));
 	if (pass == NULL) {
@@ -1268,12 +1266,8 @@ struct wlr_vk_render_pass *vulkan_begin_render_pass(struct wlr_vk_renderer *rend
 		.renderArea = rect,
 		.clearValueCount = 0,
 		.renderPass = render_setup->render_pass,
+		.framebuffer = buffer_out->framebuffer,
 	};
-	if (pass->srgb_pathway) {
-		rp_info.framebuffer = buffer->srgb.out.framebuffer;
-	} else {
-		rp_info.framebuffer = buffer->two_pass.out.framebuffer;
-	}
 	vkCmdBeginRenderPass(cb->vk, &rp_info, VK_SUBPASS_CONTENTS_INLINE);
 
 	vkCmdSetViewport(cb->vk, 0, 1, &(VkViewport){
@@ -1288,6 +1282,7 @@ struct wlr_vk_render_pass *vulkan_begin_render_pass(struct wlr_vk_renderer *rend
 
 	wlr_buffer_lock(buffer->wlr_buffer);
 	pass->render_buffer = buffer;
+	pass->render_buffer_out = buffer_out;
 	pass->render_setup = render_setup;
 	pass->command_buffer = cb;
 	return pass;
