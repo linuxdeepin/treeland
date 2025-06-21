@@ -1177,28 +1177,41 @@ static const struct wlr_addon_interface vk_color_transform_impl = {
 
 struct wlr_vk_render_pass *vulkan_begin_render_pass(struct wlr_vk_renderer *renderer,
 		struct wlr_vk_render_buffer *buffer, const struct wlr_buffer_pass_options *options) {
-	bool using_srgb_pathway;
+	uint32_t inv_eotf;
 	if (options != NULL && options->color_transform != NULL) {
-		using_srgb_pathway = false;
+		if (options->color_transform->type == COLOR_TRANSFORM_INVERSE_EOTF) {
+			struct wlr_color_transform_inverse_eotf *tr =
+				wlr_color_transform_inverse_eotf_from_base(options->color_transform);
+			inv_eotf = tr->tf;
+		} else {
+			// Color transform is not an inverse EOTF
+			inv_eotf = 0;
+		}
+	} else {
+		// This is the default when unspecified
+		inv_eotf = WLR_COLOR_TRANSFER_FUNCTION_SRGB;
+	}
 
-		if (!get_color_transform(options->color_transform, renderer)) {
+	bool using_srgb_pathway = inv_eotf == WLR_COLOR_TRANSFER_FUNCTION_SRGB &&
+		buffer->srgb.framebuffer != VK_NULL_HANDLE;
+
+	if (!using_srgb_pathway) {
+		if (options != NULL && options->color_transform != NULL &&
+				!get_color_transform(options->color_transform, renderer)) {
 			/* Try to create a new color transform */
 			if (!vk_color_transform_create(renderer, options->color_transform)) {
 				wlr_log(WLR_ERROR, "Failed to create color transform");
 				return NULL;
 			}
 		}
-	} else {
-		// Use srgb pathway if it is the default/has already been set up
-		using_srgb_pathway = buffer->srgb.framebuffer != VK_NULL_HANDLE;
-	}
 
-	if (!using_srgb_pathway && !buffer->two_pass.image_view) {
-		struct wlr_dmabuf_attributes attribs;
-		wlr_buffer_get_dmabuf(buffer->wlr_buffer, &attribs);
-		if (!vulkan_setup_two_pass_framebuffer(buffer, &attribs)) {
-			wlr_log(WLR_ERROR, "Failed to set up blend image");
-			return NULL;
+		if (!buffer->two_pass.image_view) {
+			struct wlr_dmabuf_attributes attribs;
+			wlr_buffer_get_dmabuf(buffer->wlr_buffer, &attribs);
+			if (!vulkan_setup_two_pass_framebuffer(buffer, &attribs)) {
+				wlr_log(WLR_ERROR, "Failed to set up blend image");
+				return NULL;
+			}
 		}
 	}
 
