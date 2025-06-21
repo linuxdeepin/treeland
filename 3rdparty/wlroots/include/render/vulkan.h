@@ -204,6 +204,13 @@ struct wlr_vk_render_format_setup {
 	struct wl_list pipelines; // struct wlr_vk_pipeline.link
 };
 
+// Final output framebuffer and image view
+struct wlr_vk_render_buffer_out {
+	VkImageView image_view;
+	VkFramebuffer framebuffer;
+	bool transitioned;
+};
+
 // Renderer-internal represenation of an wlr_buffer imported for rendering.
 struct wlr_vk_render_buffer {
 	struct wlr_buffer *wlr_buffer;
@@ -219,21 +226,16 @@ struct wlr_vk_render_buffer {
 	// This requires that the image support an _SRGB VkFormat, and does
 	// not work with color transforms.
 	struct {
+		struct wlr_vk_render_buffer_out out;
 		struct wlr_vk_render_format_setup *render_setup;
-		VkImageView image_view;
-		VkFramebuffer framebuffer;
-		bool transitioned;
 	} srgb;
 
 	// Framebuffer, image view, and blending image to render indirectly
 	// onto the buffer image. This works for general image types and permits
 	// color transforms.
 	struct {
+		struct wlr_vk_render_buffer_out out;
 		struct wlr_vk_render_format_setup *render_setup;
-
-		VkImageView image_view;
-		VkFramebuffer framebuffer;
-		bool transitioned;
 
 		VkImage blend_image;
 		VkImageView blend_image_view;

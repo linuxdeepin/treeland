@@ -399,14 +399,14 @@ static bool render_pass_submit(struct wlr_render_pass *wlr_pass) {
 	// also add acquire/release barriers for the current render buffer
 	VkImageLayout src_layout = VK_IMAGE_LAYOUT_GENERAL;
 	if (pass->srgb_pathway) {
-		if (!render_buffer->srgb.transitioned) {
+		if (!render_buffer->srgb.out.transitioned) {
 			src_layout = VK_IMAGE_LAYOUT_PREINITIALIZED;
-			render_buffer->srgb.transitioned = true;
+			render_buffer->srgb.out.transitioned = true;
 		}
 	} else {
-		if (!render_buffer->two_pass.transitioned) {
+		if (!render_buffer->two_pass.out.transitioned) {
 			src_layout = VK_IMAGE_LAYOUT_PREINITIALIZED;
-			render_buffer->two_pass.transitioned = true;
+			render_buffer->two_pass.out.transitioned = true;
 		}
 		// The render pass changes the blend image layout from
 		// color attachment to read only, so on each frame, before
@@ -1193,7 +1193,7 @@ struct wlr_vk_render_pass *vulkan_begin_render_pass(struct wlr_vk_renderer *rend
 	}
 
 	bool using_srgb_pathway = inv_eotf == WLR_COLOR_TRANSFER_FUNCTION_SRGB &&
-		buffer->srgb.framebuffer != VK_NULL_HANDLE;
+		buffer->srgb.out.framebuffer != VK_NULL_HANDLE;
 
 	if (!using_srgb_pathway) {
 		if (options != NULL && options->color_transform != NULL &&
@@ -1205,7 +1205,7 @@ struct wlr_vk_render_pass *vulkan_begin_render_pass(struct wlr_vk_renderer *rend
 			}
 		}
 
-		if (!buffer->two_pass.image_view) {
+		if (!buffer->two_pass.out.image_view) {
 			struct wlr_dmabuf_attributes attribs;
 			wlr_buffer_get_dmabuf(buffer->wlr_buffer, &attribs);
 			if (!vulkan_setup_two_pass_framebuffer(buffer, &attribs)) {
@@ -1273,10 +1273,10 @@ struct wlr_vk_render_pass *vulkan_begin_render_pass(struct wlr_vk_renderer *rend
 	};
 	if (pass->srgb_pathway) {
 		rp_info.renderPass = buffer->srgb.render_setup->render_pass;
-		rp_info.framebuffer = buffer->srgb.framebuffer;
+		rp_info.framebuffer = buffer->srgb.out.framebuffer;
 	} else {
 		rp_info.renderPass = buffer->two_pass.render_setup->render_pass;
-		rp_info.framebuffer = buffer->two_pass.framebuffer;
+		rp_info.framebuffer = buffer->two_pass.out.framebuffer;
 	}
 	vkCmdBeginRenderPass(cb->vk, &rp_info, VK_SUBPASS_CONTENTS_INLINE);
 
