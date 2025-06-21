@@ -398,6 +398,7 @@ struct wlr_vk_render_pass {
 	struct wlr_render_pass base;
 	struct wlr_vk_renderer *renderer;
 	struct wlr_vk_render_buffer *render_buffer;
+	struct wlr_vk_render_format_setup *render_setup;
 	struct wlr_vk_command_buffer *command_buffer;
 	struct rect_union updated_region;
 	VkPipeline bound_pipeline;

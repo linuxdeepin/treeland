@@ -678,11 +678,8 @@ static void render_pass_add_rect(struct wlr_render_pass *wlr_pass,
 		wlr_matrix_project_box(matrix, &box, WL_OUTPUT_TRANSFORM_NORMAL, proj);
 		wlr_matrix_multiply(matrix, pass->projection, matrix);
 
-		struct wlr_vk_render_format_setup *setup = pass->srgb_pathway ?
-			pass->render_buffer->srgb.render_setup :
-			pass->render_buffer->two_pass.render_setup;
 		struct wlr_vk_pipeline *pipe = setup_get_or_create_pipeline(
-			setup,
+			pass->render_setup,
 			&(struct wlr_vk_pipeline_key) {
 				.source = WLR_VK_SHADER_SOURCE_SINGLE_COLOR,
 				.layout = { .ycbcr_format = NULL },
@@ -805,11 +802,8 @@ static void render_pass_add_texture(struct wlr_render_pass *wlr_pass,
 		break;
 	}
 
-	struct wlr_vk_render_format_setup *setup = pass->srgb_pathway ?
-		pass->render_buffer->srgb.render_setup :
-		pass->render_buffer->two_pass.render_setup;
 	struct wlr_vk_pipeline *pipe = setup_get_or_create_pipeline(
-		setup,
+		pass->render_setup,
 		&(struct wlr_vk_pipeline_key) {
 			.source = WLR_VK_SHADER_SOURCE_TEXTURE,
 			.layout = {
@@ -1215,6 +1209,9 @@ struct wlr_vk_render_pass *vulkan_begin_render_pass(struct wlr_vk_renderer *rend
 		}
 	}
 
+	struct wlr_vk_render_format_setup *render_setup =
+		using_srgb_pathway ? buffer->srgb.render_setup : buffer->two_pass.render_setup;
+
 	struct wlr_vk_render_pass *pass = calloc(1, sizeof(*pass));
 	if (pass == NULL) {
 		return NULL;
@@ -1270,12 +1267,11 @@ struct wlr_vk_render_pass *vulkan_begin_render_pass(struct wlr_vk_renderer *rend
 		.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
 		.renderArea = rect,
 		.clearValueCount = 0,
+		.renderPass = render_setup->render_pass,
 	};
 	if (pass->srgb_pathway) {
-		rp_info.renderPass = buffer->srgb.render_setup->render_pass;
 		rp_info.framebuffer = buffer->srgb.out.framebuffer;
 	} else {
-		rp_info.renderPass = buffer->two_pass.render_setup->render_pass;
 		rp_info.framebuffer = buffer->two_pass.out.framebuffer;
 	}
 	vkCmdBeginRenderPass(cb->vk, &rp_info, VK_SUBPASS_CONTENTS_INLINE);
@@ -1292,6 +1288,7 @@ struct wlr_vk_render_pass *vulkan_begin_render_pass(struct wlr_vk_renderer *rend
 
 	wlr_buffer_lock(buffer->wlr_buffer);
 	pass->render_buffer = buffer;
+	pass->render_setup = render_setup;
 	pass->command_buffer = cb;
 	return pass;
 }
