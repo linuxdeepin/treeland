@@ -813,7 +813,7 @@ error:
 	return false;
 }
 
-static bool vulkan_setup_srgb_framebuffer(struct wlr_vk_render_buffer *buffer,
+static bool vulkan_setup_one_pass_framebuffer(struct wlr_vk_render_buffer *buffer,
 		const struct wlr_dmabuf_attributes *dmabuf) {
 	struct wlr_vk_renderer *renderer = buffer->renderer;
 	VkResult res;
@@ -916,7 +916,7 @@ static struct wlr_vk_render_buffer *create_render_buffer(
 	}
 
 	if (using_mutable_srgb) {
-		if (!vulkan_setup_srgb_framebuffer(buffer, &dmabuf)) {
+		if (!vulkan_setup_one_pass_framebuffer(buffer, &dmabuf)) {
 			goto error;
 		}
 	} else {
