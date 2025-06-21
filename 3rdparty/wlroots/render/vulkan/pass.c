@@ -227,7 +227,7 @@ static bool render_pass_submit(struct wlr_render_pass *wlr_pass) {
 
 		VkPipeline pipeline = VK_NULL_HANDLE;
 		if (pass->color_transform && pass->color_transform->type != COLOR_TRANSFORM_INVERSE_EOTF) {
-			pipeline = render_buffer->plain.render_setup->output_pipe_lut3d;
+			pipeline = render_buffer->two_pass.render_setup->output_pipe_lut3d;
 		} else {
 			enum wlr_color_transfer_function tf = WLR_COLOR_TRANSFER_FUNCTION_SRGB;
 			if (pass->color_transform && pass->color_transform->type == COLOR_TRANSFORM_INVERSE_EOTF) {
@@ -238,13 +238,13 @@ static bool render_pass_submit(struct wlr_render_pass *wlr_pass) {
 
 			switch (tf) {
 			case WLR_COLOR_TRANSFER_FUNCTION_EXT_LINEAR:
-				pipeline = render_buffer->plain.render_setup->output_pipe_identity;
+				pipeline = render_buffer->two_pass.render_setup->output_pipe_identity;
 				break;
 			case WLR_COLOR_TRANSFER_FUNCTION_SRGB:
-				pipeline = render_buffer->plain.render_setup->output_pipe_srgb;
+				pipeline = render_buffer->two_pass.render_setup->output_pipe_srgb;
 				break;
 			case WLR_COLOR_TRANSFER_FUNCTION_ST2084_PQ:
-				pipeline = render_buffer->plain.render_setup->output_pipe_pq;
+				pipeline = render_buffer->two_pass.render_setup->output_pipe_pq;
 				break;
 			}
 
@@ -268,7 +268,7 @@ static bool render_pass_submit(struct wlr_render_pass *wlr_pass) {
 			lut_ds = renderer->output_ds_lut3d_dummy;
 		}
 		VkDescriptorSet ds[] = {
-			render_buffer->plain.blend_descriptor_set, // set 0
+			render_buffer->two_pass.blend_descriptor_set, // set 0
 			lut_ds, // set 1
 		};
 		size_t ds_len = sizeof(ds) / sizeof(ds[0]);
@@ -404,24 +404,24 @@ static bool render_pass_submit(struct wlr_render_pass *wlr_pass) {
 			render_buffer->srgb.transitioned = true;
 		}
 	} else {
-		if (!render_buffer->plain.transitioned) {
+		if (!render_buffer->two_pass.transitioned) {
 			src_layout = VK_IMAGE_LAYOUT_PREINITIALIZED;
-			render_buffer->plain.transitioned = true;
+			render_buffer->two_pass.transitioned = true;
 		}
 		// The render pass changes the blend image layout from
 		// color attachment to read only, so on each frame, before
 		// the render pass starts, we change it back
 		VkImageLayout blend_src_layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-		if (!render_buffer->plain.blend_transitioned) {
+		if (!render_buffer->two_pass.blend_transitioned) {
 			blend_src_layout = VK_IMAGE_LAYOUT_UNDEFINED;
-			render_buffer->plain.blend_transitioned = true;
+			render_buffer->two_pass.blend_transitioned = true;
 		}
 
 		VkImageMemoryBarrier blend_acq_barrier = {
 			.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
 			.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
 			.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-			.image = render_buffer->plain.blend_image,
+			.image = render_buffer->two_pass.blend_image,
 			.oldLayout = blend_src_layout,
 			.newLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
 			.srcAccessMask = VK_ACCESS_SHADER_READ_BIT,
@@ -680,7 +680,7 @@ static void render_pass_add_rect(struct wlr_render_pass *wlr_pass,
 
 		struct wlr_vk_render_format_setup *setup = pass->srgb_pathway ?
 			pass->render_buffer->srgb.render_setup :
-			pass->render_buffer->plain.render_setup;
+			pass->render_buffer->two_pass.render_setup;
 		struct wlr_vk_pipeline *pipe = setup_get_or_create_pipeline(
 			setup,
 			&(struct wlr_vk_pipeline_key) {
@@ -807,7 +807,7 @@ static void render_pass_add_texture(struct wlr_render_pass *wlr_pass,
 
 	struct wlr_vk_render_format_setup *setup = pass->srgb_pathway ?
 		pass->render_buffer->srgb.render_setup :
-		pass->render_buffer->plain.render_setup;
+		pass->render_buffer->two_pass.render_setup;
 	struct wlr_vk_pipeline *pipe = setup_get_or_create_pipeline(
 		setup,
 		&(struct wlr_vk_pipeline_key) {
@@ -1193,10 +1193,10 @@ struct wlr_vk_render_pass *vulkan_begin_render_pass(struct wlr_vk_renderer *rend
 		using_srgb_pathway = buffer->srgb.framebuffer != VK_NULL_HANDLE;
 	}
 
-	if (!using_srgb_pathway && !buffer->plain.image_view) {
+	if (!using_srgb_pathway && !buffer->two_pass.image_view) {
 		struct wlr_dmabuf_attributes attribs;
 		wlr_buffer_get_dmabuf(buffer->wlr_buffer, &attribs);
-		if (!vulkan_setup_plain_framebuffer(buffer, &attribs)) {
+		if (!vulkan_setup_two_pass_framebuffer(buffer, &attribs)) {
 			wlr_log(WLR_ERROR, "Failed to set up blend image");
 			return NULL;
 		}
@@ -1262,8 +1262,8 @@ struct wlr_vk_render_pass *vulkan_begin_render_pass(struct wlr_vk_renderer *rend
 		rp_info.renderPass = buffer->srgb.render_setup->render_pass;
 		rp_info.framebuffer = buffer->srgb.framebuffer;
 	} else {
-		rp_info.renderPass = buffer->plain.render_setup->render_pass;
-		rp_info.framebuffer = buffer->plain.framebuffer;
+		rp_info.renderPass = buffer->two_pass.render_setup->render_pass;
+		rp_info.framebuffer = buffer->two_pass.framebuffer;
 	}
 	vkCmdBeginRenderPass(cb->vk, &rp_info, VK_SUBPASS_CONTENTS_INLINE);
 

@@ -241,10 +241,10 @@ struct wlr_vk_render_buffer {
 		VkDescriptorSet blend_descriptor_set;
 		struct wlr_vk_descriptor_pool *blend_attachment_pool;
 		bool blend_transitioned;
-	} plain;
+	} two_pass;
 };
 
-bool vulkan_setup_plain_framebuffer(struct wlr_vk_render_buffer *buffer,
+bool vulkan_setup_two_pass_framebuffer(struct wlr_vk_render_buffer *buffer,
 	const struct wlr_dmabuf_attributes *dmabuf);
 
 struct wlr_vk_command_buffer {
