@@ -267,6 +267,7 @@ struct wlr_output {
 	struct {
 		struct wl_listener display_destroy;
 		struct wlr_output_image_description image_description_value;
+		struct wlr_color_transform *color_transform;
 	} WLR_PRIVATE;
 };
 

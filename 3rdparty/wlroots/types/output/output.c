@@ -242,6 +242,15 @@ static void output_apply_state(struct wlr_output *output,
 		}
 	}
 
+	if (state->committed & WLR_OUTPUT_STATE_COLOR_TRANSFORM) {
+		wlr_color_transform_unref(output->color_transform);
+		if (state->color_transform != NULL) {
+			output->color_transform = wlr_color_transform_ref(state->color_transform);
+		} else {
+			output->color_transform = NULL;
+		}
+	}
+
 	bool geometry_updated = state->committed &
 		(WLR_OUTPUT_STATE_MODE | WLR_OUTPUT_STATE_TRANSFORM |
 		WLR_OUTPUT_STATE_SUBPIXEL);
@@ -407,6 +416,7 @@ void wlr_output_finish(struct wlr_output *output) {
 
 	wlr_swapchain_destroy(output->cursor_swapchain);
 	wlr_buffer_unlock(output->cursor_front_buffer);
+	wlr_color_transform_unref(output->color_transform);
 
 	wlr_swapchain_destroy(output->swapchain);
 
@@ -515,8 +525,7 @@ const struct wlr_output_image_description *output_pending_image_description(
  * Returns a bitfield of the unchanged fields.
  *
  * Some fields are not checked: damage always changes in-between frames, the
- * gamma LUT is too expensive to check, the contents of the buffer might have
- * changed, etc.
+ * contents of the buffer might have changed, etc.
  */
 static uint32_t output_compare_state(struct wlr_output *output,
 		const struct wlr_output_state *state) {
@@ -561,6 +570,10 @@ static uint32_t output_compare_state(struct wlr_output *output,
 	if ((state->committed & WLR_OUTPUT_STATE_SUBPIXEL) &&
 			output->subpixel == state->subpixel) {
 		fields |= WLR_OUTPUT_STATE_SUBPIXEL;
+	}
+	if ((state->committed & WLR_OUTPUT_STATE_COLOR_TRANSFORM) &&
+			output->color_transform == state->color_transform) {
+		fields |= WLR_OUTPUT_STATE_COLOR_TRANSFORM;
 	}
 	return fields;
 }
