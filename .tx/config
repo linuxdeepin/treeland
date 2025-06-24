@@ -1,0 +1,26 @@
+[main]
+host = https://www.transifex.com
+
+[o:linuxdeepin:p:treeland:r:f56f82288bfe7a231b1be25f7b0cb008]
+file_filter = translations/treeland.<lang>.ts
+source_file = translations/treeland.en_US.ts
+source_lang = en_US
+type = QT
+
+[o:linuxdeepin:p:treeland:r:b675317802ed042606e0660179b6b04f]
+file_filter = src/plugins/lockscreen/translations/lockscreen.<lang>.ts
+source_file = src/plugins/lockscreen/translations/lockscreen.en_US.ts
+source_lang = en_US
+type = QT
+
+[o:linuxdeepin:p:treeland:r:7309e9da01b4b7fbf5c2ac9c2a2d23a6]
+file_filter = src/plugins/multitaskview/translations/multitaskview.<lang>.ts
+source_file = src/plugins/multitaskview/translations/multitaskview.en_US.ts
+source_lang = en_US
+type = QT
+
+[o:linuxdeepin:p:treeland:r:1eff66bc82bf8f288b9c56e8c724ea20]
+file_filter = examples/test_set_treeland_wallpaper/translations/wallpaper.<lang>.ts
+source_file = examples/test_set_treeland_wallpaper/translations/wallpaper.en_US.ts
+source_lang = en_US
+type = QT
