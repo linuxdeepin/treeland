@@ -4,7 +4,7 @@
     <message>
         <location filename="../qml/WindowSelectionGrid.qml" line="455"/>
         <source>No windows</source>
-        <translation>無窗口</translation>
+        <translation>無打開的窗口</translation>
     </message>
 </context>
 <context>
@@ -12,7 +12,7 @@
     <message>
         <location filename="../qml/WorkspaceSelectionList.qml" line="99"/>
         <source>Release to delete</source>
-        <translation type="unfinished"/>
+        <translation>釋放以刪除</translation>
     </message>
 </context>
 </TS>
