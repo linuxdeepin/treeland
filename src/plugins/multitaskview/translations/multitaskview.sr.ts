@@ -1,10 +1,10 @@
-<?xml version="1.0" ?><!DOCTYPE TS><TS version="2.1" language="zh_CN">
+<?xml version="1.0" ?><!DOCTYPE TS><TS version="2.1" language="sr">
 <context>
     <name>WindowSelectionGrid</name>
     <message>
         <location filename="../qml/WindowSelectionGrid.qml" line="455"/>
         <source>No windows</source>
-        <translation>无打开的窗口</translation>
+        <translation>Нема прозора</translation>
     </message>
 </context>
 <context>
@@ -12,7 +12,7 @@
     <message>
         <location filename="../qml/WorkspaceSelectionList.qml" line="99"/>
         <source>Release to delete</source>
-        <translation>释放以删除</translation>
+        <translation type="unfinished"/>
     </message>
 </context>
 </TS>
