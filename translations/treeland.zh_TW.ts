@@ -9,7 +9,7 @@
     <message>
         <location filename="../src/core/qml/WindowMenu.qml" line="34"/>
         <source>Unmaximize</source>
-        <translation>取消最小化</translation>
+        <translation>還原</translation>
     </message>
     <message>
         <location filename="../src/core/qml/WindowMenu.qml" line="34"/>
@@ -24,27 +24,27 @@
     <message>
         <location filename="../src/core/qml/WindowMenu.qml" line="44"/>
         <source>Resize</source>
-        <translation>變更大小</translation>
+        <translation>更改大小</translation>
     </message>
     <message>
         <location filename="../src/core/qml/WindowMenu.qml" line="50"/>
         <source>Always on Top</source>
-        <translation>永遠置於上方</translation>
+        <translation>總在最前</translation>
     </message>
     <message>
         <location filename="../src/core/qml/WindowMenu.qml" line="56"/>
         <source>Always on Visible Workspace</source>
-        <translation>永遠在可見工作區</translation>
+        <translation>總在可見工作區</translation>
     </message>
     <message>
         <location filename="../src/core/qml/WindowMenu.qml" line="70"/>
         <source>Move to Left Work Space</source>
-        <translation type="unfinished"/>
+        <translation>移至左邊的工作區</translation>
     </message>
     <message>
         <location filename="../src/core/qml/WindowMenu.qml" line="77"/>
         <source>Move to Right Work Space</source>
-        <translation type="unfinished"/>
+        <translation>移至右邊的工作區</translation>
     </message>
     <message>
         <location filename="../src/core/qml/WindowMenu.qml" line="83"/>
