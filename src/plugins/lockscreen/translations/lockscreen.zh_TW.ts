@@ -23,7 +23,7 @@
     </message>
     <message>
         <source>Power</source>
-        <translation type="unfinished"/>
+        <translation type="vanished">電源</translation>
     </message>
 </context>
 <context>
@@ -35,14 +35,14 @@
     <message>
         <location filename="../qml/ControlAction.qml" line="55"/>
         <source>Power</source>
-        <translation type="unfinished"/>
+        <translation>電源</translation>
     </message>
 </context>
 <context>
     <name>Greeter</name>
     <message>
         <source>Password is incorrect.</source>
-        <translation type="unfinished"/>
+        <translation type="vanished">密碼錯誤</translation>
     </message>
 </context>
 <context>
@@ -58,7 +58,7 @@
     <message>
         <location filename="../qml/LockView.qml" line="176"/>
         <source>Password is incorrect.</source>
-        <translation type="unfinished"/>
+        <translation>密碼錯誤</translation>
     </message>
 </context>
 <context>
@@ -96,17 +96,17 @@
     <message>
         <location filename="../qml/ShutdownView.qml" line="32"/>
         <source>lock</source>
-        <translation type="unfinished"/>
+        <translation>鎖定</translation>
     </message>
     <message>
         <location filename="../qml/ShutdownView.qml" line="37"/>
         <source>switch user</source>
-        <translation type="unfinished"/>
+        <translation>切換帳戶</translation>
     </message>
     <message>
         <location filename="../qml/ShutdownView.qml" line="43"/>
         <source>Logout</source>
-        <translation type="unfinished"/>
+        <translation>登出</translation>
     </message>
 </context>
 <context>
@@ -130,7 +130,7 @@
     <message>
         <location filename="../qml/UserInput.qml" line="141"/>
         <source>Password</source>
-        <translation type="unfinished"/>
+        <translation>密碼</translation>
     </message>
 </context>
 </TS>
