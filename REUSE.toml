@@ -3,7 +3,7 @@ SPDX-PackageName = "treeland"
 SPDX-PackageDownloadLocation = "https://github.com/linuxdeepin/treeland"
 
 [[annotations]]
-path = [".github/**", ".obs/**.yml", "garnix.yaml"]
+path = [".github/**", ".obs/**.yml", "garnix.yaml", ".tx/*"]
 precedence = "aggregate"
 SPDX-FileCopyrightText = "None"
 SPDX-License-Identifier = "CC0-1.0"
