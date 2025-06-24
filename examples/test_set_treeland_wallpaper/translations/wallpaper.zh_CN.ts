@@ -48,7 +48,7 @@
     <message>
         <location filename="../WallpaperSetting.qml" line="111"/>
         <source>Please choose a file</source>
-        <translation type="unfinished"/>
+        <translation>请选择文件</translation>
     </message>
     <message>
         <location filename="../WallpaperSetting.qml" line="126"/>
@@ -58,7 +58,7 @@
     <message>
         <location filename="../WallpaperSetting.qml" line="135"/>
         <source>Add Directory</source>
-        <translation type="unfinished"/>
+        <translation>添加目录</translation>
     </message>
 </context>
 <context>
