@@ -1,6 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
-<!DOCTYPE TS>
-<TS version="2.1" language="en_US">
+<?xml version="1.0" ?><!DOCTYPE TS><TS version="2.1" language="zh_CN">
 <context>
     <name>Wallpaper</name>
     <message>
@@ -18,10 +16,6 @@
         <location filename="../Wallpaper.qml" line="61"/>
         <source>System Picture</source>
         <translation>系统壁纸</translation>
-    </message>
-    <message>
-        <source>Show All </source>
-        <translation type="vanished">全部显示</translation>
     </message>
 </context>
 <context>
