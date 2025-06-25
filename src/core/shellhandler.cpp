@@ -4,6 +4,7 @@
 #include "shellhandler.h"
 
 #include "core/qmlengine.h"
+#include "popupsurfacecontainer.h"
 #include "layersurfacecontainer.h"
 #include "modules/dde-shell/ddeshellmanagerinterfacev1.h"
 #include "rootsurfacecontainer.h"
@@ -43,7 +44,7 @@ ShellHandler::ShellHandler(RootSurfaceContainer *rootContainer)
     , m_workspace(new Workspace(rootContainer))
     , m_topContainer(new LayerSurfaceContainer(rootContainer))
     , m_overlayContainer(new LayerSurfaceContainer(rootContainer))
-    , m_popupContainer(new SurfaceContainer(rootContainer))
+    , m_popupContainer(new PopupSurfaceContainer(rootContainer))
 {
     m_backgroundContainer->setZ(RootSurfaceContainer::BackgroundZOrder);
     m_bottomContainer->setZ(RootSurfaceContainer::BottomZOrder);
