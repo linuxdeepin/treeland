@@ -16,6 +16,7 @@ class RootSurfaceContainer;
 class LayerSurfaceContainer;
 class Workspace;
 class SurfaceContainer;
+class PopupSurfaceContainer;
 class QmlEngine;
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
@@ -103,6 +104,6 @@ private:
     Workspace *m_workspace = nullptr;
     LayerSurfaceContainer *m_topContainer = nullptr;
     LayerSurfaceContainer *m_overlayContainer = nullptr;
-    SurfaceContainer *m_popupContainer = nullptr;
+    PopupSurfaceContainer *m_popupContainer = nullptr;
     QObject *m_windowMenu = nullptr;
 };

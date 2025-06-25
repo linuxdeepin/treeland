@@ -3,6 +3,7 @@
   lib,
   nix-filter,
   cmake,
+  ninja,
   extra-cmake-modules,
   pkg-config,
   wayland-scanner,
@@ -56,6 +57,7 @@ stdenv.mkDerivation (finalAttrs: {
 
   nativeBuildInputs = [
     cmake
+    ninja
     extra-cmake-modules
     pkg-config
     wayland-scanner
