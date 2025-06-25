@@ -91,10 +91,20 @@ enum wlr_output_state_mode_type {
  * Supported primaries are advertised in wlr_output.supported_primaries.
  * Supported transfer functions are advertised in
  * wlr_output.supported_transfer_functions.
+ *
+ * mastering_display_primaries, mastering_luminance, max_cll and max_fall are
+ * optional. Luminances are given in cd/m².
  */
 struct wlr_output_image_description {
 	enum wlr_color_named_primaries primaries;
 	enum wlr_color_transfer_function transfer_function;
+
+	struct wlr_color_primaries mastering_display_primaries;
+	struct {
+		double min, max;
+	} mastering_luminance;
+	double max_cll; // max content light level
+	double max_fall; // max frame-average light level
 };
 
 /**
