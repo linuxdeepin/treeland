@@ -190,6 +190,16 @@ static uint8_t convert_cta861_eotf(enum wlr_color_transfer_function tf) {
 	abort(); // unreachable
 }
 
+static uint16_t convert_cta861_color_coord(double v) {
+	if (v < 0) {
+		v = 0;
+	}
+	if (v > 1) {
+		v = 1;
+	}
+	return (uint16_t)round(v * 50000);
+}
+
 static bool create_hdr_output_metadata_blob(struct wlr_drm_backend *drm,
 		const struct wlr_output_image_description *img_desc, uint32_t *blob_id) {
 	if (img_desc == NULL) {
@@ -202,6 +212,28 @@ static bool create_hdr_output_metadata_blob(struct wlr_drm_backend *drm,
 		.hdmi_metadata_type1 = {
 			.eotf = convert_cta861_eotf(img_desc->transfer_function),
 			.metadata_type = 0,
+			.display_primaries = {
+				{
+					.x = convert_cta861_color_coord(img_desc->mastering_display_primaries.red.x),
+					.y = convert_cta861_color_coord(img_desc->mastering_display_primaries.red.y),
+				},
+				{
+					.x = convert_cta861_color_coord(img_desc->mastering_display_primaries.green.x),
+					.y = convert_cta861_color_coord(img_desc->mastering_display_primaries.green.y),
+				},
+				{
+					.x = convert_cta861_color_coord(img_desc->mastering_display_primaries.blue.x),
+					.y = convert_cta861_color_coord(img_desc->mastering_display_primaries.blue.y),
+				},
+			},
+			.white_point = {
+				.x = convert_cta861_color_coord(img_desc->mastering_display_primaries.white.x),
+				.y = convert_cta861_color_coord(img_desc->mastering_display_primaries.white.y),
+			},
+			.max_display_mastering_luminance = img_desc->mastering_luminance.max,
+			.min_display_mastering_luminance = img_desc->mastering_luminance.min * 0.0001,
+			.max_cll = img_desc->max_cll,
+			.max_fall = img_desc->max_fall,
 		},
 	};
 	if (drmModeCreatePropertyBlob(drm->fd, &metadata, sizeof(metadata), blob_id) != 0) {
