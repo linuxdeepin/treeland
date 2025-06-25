@@ -7,6 +7,7 @@ import org.deepin.dtk 1.0 as D
 
 D.Menu {
     id: menu
+    modal: true
 
     property SurfaceWrapper surface: null
 
