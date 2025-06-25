@@ -79,6 +79,8 @@ qt_add_qml_module(libtreeland
         config/treelandconfig.h
         core/layersurfacecontainer.cpp
         core/layersurfacecontainer.h
+        core/popupsurfacecontainer.cpp
+        core/popupsurfacecontainer.h
         core/qmlengine.cpp
         core/qmlengine.h
         core/rootsurfacecontainer.cpp
