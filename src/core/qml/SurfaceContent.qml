@@ -15,6 +15,7 @@ Item {
     readonly property real cornerRadius: wrapper?.radius ?? 0
 
     anchors.fill: parent
+    opacity: content.alphaModifier
 
     Loader {
         anchors.fill: parent
