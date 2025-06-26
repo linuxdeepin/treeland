@@ -35,7 +35,7 @@ static void virtual_output_manager_handle_get_virtual_output(
     [[maybe_unused]] struct wl_client *client,
     struct wl_resource *resource,
     const char *name,
-    uint32_t id);
+    [[maybe_unused]] uint32_t id);
 
 static void virtual_output_handle_destroy([[maybe_unused]] struct wl_client *client,
                                           struct wl_resource *resource);
@@ -185,7 +185,7 @@ static void virtual_output_manager_handle_get_virtual_output(
     [[maybe_unused]] struct wl_client *client,
     struct wl_resource *resource,
     const char *name,
-    uint32_t id)
+    [[maybe_unused]] uint32_t id)
 {
     auto *manager = virtual_output_manager_from_resource(resource);
     for (int i = 0; i < manager->virtual_output.size(); ++i) {

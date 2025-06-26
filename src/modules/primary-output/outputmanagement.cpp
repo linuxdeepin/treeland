@@ -25,7 +25,7 @@ void PrimaryOutputV1::create(WServer *server)
             &PrimaryOutputV1::requestSetPrimaryOutput);
 }
 
-void PrimaryOutputV1::destroy(WServer *server) { }
+void PrimaryOutputV1::destroy([[maybe_unused]] WServer *server) { }
 
 wl_global *PrimaryOutputV1::global() const
 {
