@@ -4,7 +4,7 @@
     <message>
         <location filename="../qml/WindowSelectionGrid.qml" line="455"/>
         <source>No windows</source>
-        <translation>Nenhuma janela</translation>
+        <translation>Sem janelas</translation>
     </message>
 </context>
 <context>
@@ -12,7 +12,7 @@
     <message>
         <location filename="../qml/WorkspaceSelectionList.qml" line="99"/>
         <source>Release to delete</source>
-        <translation type="unfinished"/>
+        <translation>Liberar para excluir</translation>
     </message>
 </context>
 </TS>

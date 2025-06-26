@@ -12,7 +12,7 @@
     <message>
         <location filename="../qml/WorkspaceSelectionList.qml" line="99"/>
         <source>Release to delete</source>
-        <translation type="unfinished"/>
+        <translation>離して削除</translation>
     </message>
 </context>
 </TS>
