@@ -17,6 +17,7 @@
 #include <qwbuffer.h>
 #include <qwrenderer.h>
 #include <qwbox.h>
+#include <qwalphamodifierv1.h>
 
 #include <QQuickWindow>
 #include <QSGImageNode>
@@ -241,6 +242,11 @@ public:
 
         W_Q(WSurfaceItemContent);
 
+        const wlr_alpha_modifier_surface_v1_state *alphaModifierState =
+            qw_alpha_modifier_v1::get_surface_state(surface->handle()->handle());
+        if (alphaModifierState)
+            setAlphaModifier(alphaModifierState->multiplier);
+
         const auto bOffset = surface->bufferOffset();
         if (bOffset != bufferOffset) {
             bufferOffset = surface->bufferOffset();
@@ -269,11 +275,23 @@ public:
         Q_EMIT q_func()->bufferSourceRectChanged();
     }
 
+    inline void setAlphaModifier(qreal alpha) {
+        if (qFuzzyCompare(alphaModifier, alpha))
+            return;
+
+        alphaModifier = alpha;
+
+        W_Q(WSurfaceItemContent);
+
+        Q_EMIT q->alphaModifierChanged();
+    }
+
     W_DECLARE_PUBLIC(WSurfaceItemContent)
     QPointer<WSurface> surface;
     QRectF bufferSourceBox;
     QPoint bufferOffset;
     qreal devicePixelRatio = 1.0;
+    qreal alphaModifier = 1.0;
 
     QMetaObject::Connection frameDoneConnection;
     mutable WSGTextureProvider *textureProvider = nullptr;
@@ -467,6 +485,12 @@ void WSurfaceItemContent::componentComplete()
     W_D(WSurfaceItemContent);
     if (d->surface)
         d->init();
+}
+
+qreal WSurfaceItemContent::alphaModifier() const
+{
+    W_DC(WSurfaceItemContent);
+    return d->alphaModifier;
 }
 
 class Q_DECL_HIDDEN WSGRenderFootprintNode: public QSGRenderNode

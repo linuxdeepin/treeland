@@ -33,6 +33,7 @@ class WAYLIB_SERVER_EXPORT WSurfaceItemContent : public QQuickItem, public virtu
     Q_PROPERTY(bool ignoreBufferOffset READ ignoreBufferOffset WRITE setIgnoreBufferOffset NOTIFY ignoreBufferOffsetChanged FINAL)
     Q_PROPERTY(QRectF bufferSourceRect READ bufferSourceRect NOTIFY bufferSourceRectChanged FINAL)
     Q_PROPERTY(qreal devicePixelRatio READ devicePixelRatio NOTIFY devicePixelRatioChanged FINAL)
+    Q_PROPERTY(qreal alphaModifier READ alphaModifier NOTIFY alphaModifierChanged FINAL)
     QML_NAMED_ELEMENT(SurfaceItemContent)
 
 public:
@@ -60,6 +61,7 @@ public:
 
     QRectF bufferSourceRect() const;
     qreal devicePixelRatio() const;
+    qreal alphaModifier() const;
 
 Q_SIGNALS:
     void surfaceChanged();
@@ -69,6 +71,7 @@ Q_SIGNALS:
     void ignoreBufferOffsetChanged();
     void bufferSourceRectChanged();
     void devicePixelRatioChanged();
+    void alphaModifierChanged();
 
 private:
     friend class WSurfaceItem;

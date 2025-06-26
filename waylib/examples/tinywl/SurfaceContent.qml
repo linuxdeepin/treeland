@@ -18,7 +18,7 @@ Item {
         id: content
         surface: root.surface?.surface ?? null
         anchors.fill: parent
-        opacity: effectLoader.active ? 0 : 1
+        opacity: effectLoader.active ? 0 : alphaModifier
         live: root.surface && !(root.surface.flags & SurfaceItem.NonLive)
         smooth: root.surface?.smooth ?? true
 
@@ -40,6 +40,7 @@ Item {
         sourceComponent: RoundedClipEffect {
             sourceItem: content
             radius: cornerRadius
+            opacity: content.alphaModifier
             targetRect: Qt.rect(-surface?.leftPadding ?? 0, -surface?.topPadding ?? 0,
                                 root.surface?.width * root.surface?.surfaceSizeRatio ?? 0,
                                 root.surface?.height * root.surface?.surfaceSizeRatio ?? 0)
