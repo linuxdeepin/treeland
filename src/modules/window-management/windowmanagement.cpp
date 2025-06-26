@@ -63,7 +63,7 @@ void WindowManagementV1::create(WServer *server)
     });
 }
 
-void WindowManagementV1::destroy(WServer *server) { }
+void WindowManagementV1::destroy([[maybe_unused]] WServer *server) { }
 
 wl_global *WindowManagementV1::global() const
 {

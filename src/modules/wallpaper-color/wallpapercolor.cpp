@@ -23,7 +23,7 @@ void WallpaperColorV1::create(WServer *server)
     m_handle = wallpaper_color_manager_v1::create(server->handle());
 }
 
-void WallpaperColorV1::destroy(WServer *server) { }
+void WallpaperColorV1::destroy([[maybe_unused]] WServer *server) { }
 
 wl_global *WallpaperColorV1::global() const
 {

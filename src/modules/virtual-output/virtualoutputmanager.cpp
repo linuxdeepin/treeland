@@ -71,7 +71,7 @@ void VirtualOutputV1::create(WServer *server)
             &VirtualOutputV1::onVirtualOutputDestroy);
 }
 
-void VirtualOutputV1::destroy(WServer *server) { }
+void VirtualOutputV1::destroy([[maybe_unused]] WServer *server) { }
 
 wl_global *VirtualOutputV1::global() const
 {

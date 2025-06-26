@@ -31,11 +31,11 @@ static void set_background_type([[maybe_unused]] struct wl_client *client,
                                 struct wl_resource *resource,
                                 int32_t type);
 
-static void set_round_corner_radius(struct wl_client *client,
+static void set_round_corner_radius([[maybe_unused]] struct wl_client *client,
                                     struct wl_resource *resource,
                                     int32_t radius);
 
-static void set_shadow(struct wl_client *client,
+static void set_shadow([[maybe_unused]] struct wl_client *client,
                        struct wl_resource *resource,
                        int32_t radius,
                        int32_t offset_x,
@@ -45,7 +45,7 @@ static void set_shadow(struct wl_client *client,
                        int32_t b,
                        int32_t a);
 
-static void set_border(struct wl_client *client,
+static void set_border([[maybe_unused]] struct wl_client *client,
                        struct wl_resource *resource,
                        int32_t width,
                        int32_t r,
@@ -53,7 +53,7 @@ static void set_border(struct wl_client *client,
                        int32_t b,
                        int32_t a);
 
-static void set_titlebar(struct wl_client *client, struct wl_resource *resource, int32_t mode);
+static void set_titlebar([[maybe_unused]] struct wl_client *client, struct wl_resource *resource, int32_t mode);
 
 static void on_destroy([[maybe_unused]] struct wl_client *client, struct wl_resource *resource)
 {
@@ -116,7 +116,7 @@ static void set_background_type([[maybe_unused]] struct wl_client *client,
     }
 }
 
-static void set_round_corner_radius(struct wl_client *client,
+static void set_round_corner_radius([[maybe_unused]] struct wl_client *client,
                                     struct wl_resource *resource,
                                     int32_t radius)
 {
@@ -126,7 +126,7 @@ static void set_round_corner_radius(struct wl_client *client,
     }
 }
 
-static void set_shadow(struct wl_client *client,
+static void set_shadow([[maybe_unused]] struct wl_client *client,
                        struct wl_resource *resource,
                        int32_t radius,
                        int32_t offset_x,
@@ -142,7 +142,7 @@ static void set_shadow(struct wl_client *client,
     }
 }
 
-static void set_border(struct wl_client *client,
+static void set_border([[maybe_unused]] struct wl_client *client,
                        struct wl_resource *resource,
                        int32_t width,
                        int32_t r,
@@ -156,7 +156,7 @@ static void set_border(struct wl_client *client,
     }
 }
 
-static void set_titlebar(struct wl_client *client, struct wl_resource *resource, int32_t mode)
+static void set_titlebar([[maybe_unused]] struct wl_client *client, struct wl_resource *resource, int32_t mode)
 {
     if (auto *window = personalization_window_context_v1::from_resource(resource)) {
         window->states.setFlag(
@@ -179,7 +179,7 @@ void set_fd(struct wl_client *client,
 
 void set_identifier(struct wl_client *client, struct wl_resource *resource, const char *identifier);
 
-void set_output(struct wl_client *client, struct wl_resource *resource, const char *output);
+void set_output([[maybe_unused]] struct wl_client *client, struct wl_resource *resource, const char *output);
 
 void set_on(struct wl_client *client, struct wl_resource *resource, uint32_t options);
 
@@ -234,15 +234,50 @@ static void personalization_wallpaper_context_resource_destroy(struct wl_resourc
     wl_list_remove(wl_resource_get_link(resource));
 }
 
-void set_cursor_theme(struct wl_client *client, struct wl_resource *resource, const char *name);
+void set_cursor_theme([[maybe_unused]] struct wl_client *client, struct wl_resource *resource, const char *name)
+{
+    auto *cursor = personalization_cursor_context_v1::from_resource(resource);
+    if (!cursor)
+        return;
 
-void get_cursor_theme(struct wl_client *client, struct wl_resource *resource);
+    cursor->setTheme(name);
+}
 
-void set_cursor_size(struct wl_client *client, struct wl_resource *resource, uint32_t size);
+void get_cursor_theme([[maybe_unused]] struct wl_client *client, struct wl_resource *resource)
+{
+    auto *cursor = personalization_cursor_context_v1::from_resource(resource);
+    if (!cursor)
+        return;
 
-void get_cursor_size(struct wl_client *client, struct wl_resource *resource);
+    Q_EMIT cursor->get_theme(cursor);
+}
 
-void cursor_commit(struct wl_client *client, struct wl_resource *resource);
+void set_cursor_size([[maybe_unused]] struct wl_client *client, struct wl_resource *resource, uint32_t size)
+{
+    auto *cursor = personalization_cursor_context_v1::from_resource(resource);
+    if (!cursor)
+        return;
+
+    cursor->setSize(QSize(size, size));
+}
+
+void get_cursor_size([[maybe_unused]] struct wl_client *client, struct wl_resource *resource)
+{
+    auto *cursor = personalization_cursor_context_v1::from_resource(resource);
+    if (!cursor)
+        return;
+
+    Q_EMIT cursor->get_size(cursor);
+}
+
+void cursor_commit([[maybe_unused]] struct wl_client *client, struct wl_resource *resource)
+{
+    auto *cursor = personalization_cursor_context_v1::from_resource(resource);
+    if (!cursor)
+        return;
+
+    Q_EMIT cursor->commit(cursor);
+}
 
 static void personalization_cursor_context_destroy([[maybe_unused]] struct wl_client *client,
                                                    struct wl_resource *resource)
@@ -486,7 +521,7 @@ void set_identifier(struct wl_client *client [[maybe_unused]],
     wallpaper->identifier = identifier;
 }
 
-void set_output(struct wl_client *client, struct wl_resource *resource, const char *output)
+void set_output([[maybe_unused]] struct wl_client *client, struct wl_resource *resource, const char *output)
 {
     auto *wallpaper = personalization_wallpaper_context_v1::from_resource(resource);
     if (!wallpaper)
@@ -533,51 +568,6 @@ void set_isdark(struct wl_client *client [[maybe_unused]],
         return;
 
     wallpaper->isdark = isdark;
-}
-
-void set_cursor_theme(struct wl_client *client, struct wl_resource *resource, const char *name)
-{
-    auto *cursor = personalization_cursor_context_v1::from_resource(resource);
-    if (!cursor)
-        return;
-
-    cursor->setTheme(name);
-}
-
-void get_cursor_theme(struct wl_client *client, struct wl_resource *resource)
-{
-    auto *cursor = personalization_cursor_context_v1::from_resource(resource);
-    if (!cursor)
-        return;
-
-    Q_EMIT cursor->get_theme(cursor);
-}
-
-void set_cursor_size(struct wl_client *client, struct wl_resource *resource, uint32_t size)
-{
-    auto *cursor = personalization_cursor_context_v1::from_resource(resource);
-    if (!cursor)
-        return;
-
-    cursor->setSize(QSize(size, size));
-}
-
-void get_cursor_size(struct wl_client *client, struct wl_resource *resource)
-{
-    auto *cursor = personalization_cursor_context_v1::from_resource(resource);
-    if (!cursor)
-        return;
-
-    Q_EMIT cursor->get_size(cursor);
-}
-
-void cursor_commit(struct wl_client *client, struct wl_resource *resource)
-{
-    auto *cursor = personalization_cursor_context_v1::from_resource(resource);
-    if (!cursor)
-        return;
-
-    Q_EMIT cursor->commit(cursor);
 }
 
 static void treeland_personalization_manager_bind(struct wl_client *client,

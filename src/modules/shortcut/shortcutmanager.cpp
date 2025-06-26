@@ -59,7 +59,7 @@ void ShortcutV1::create(WServer *server)
     connect(m_manager, &treeland_shortcut_manager_v1::newContext, this, &ShortcutV1::onNewContext);
 }
 
-void ShortcutV1::destroy(WServer *server) { }
+void ShortcutV1::destroy([[maybe_unused]] WServer *server) { }
 
 wl_global *ShortcutV1::global() const
 {

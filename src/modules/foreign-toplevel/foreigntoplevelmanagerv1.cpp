@@ -98,7 +98,7 @@ void ForeignToplevelV1::addSurface(SurfaceWrapper *wrapper)
     connect(handle,
             &treeland_foreign_toplevel_handle_v1::requestActivate,
             wrapper,
-            [wrapper, this](treeland_foreign_toplevel_handle_v1_activated_event *event) {
+            [wrapper, this]([[maybe_unused]] treeland_foreign_toplevel_handle_v1_activated_event *event) {
                 Helper::instance()->forceActivateSurface(wrapper);
             });
 
