@@ -41,9 +41,6 @@ public:
     Workspace *workspace() const override;
     RootSurfaceContainer *rootSurfaceContainer() const override;
 
-    void blockActivateSurface(bool block) override;
-    bool isBlockActivateSurface() const override;
-
 Q_SIGNALS:
     void socketDisconnected();
 
