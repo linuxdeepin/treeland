@@ -1,0 +1,5 @@
+#!/bin/bash
+
+export TREELAND_RUN_MODE=user
+
+exec ${CMAKE_INSTALL_FULL_BINDIR}/dde-session

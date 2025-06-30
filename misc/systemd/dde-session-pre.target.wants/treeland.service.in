@@ -20,7 +20,7 @@ PartOf=dde-session-pre.target
 Before=dde-session-pre.target
 
 [Service]
-ExecCondition=/bin/sh -c 'test "$XDG_SESSION_DESKTOP" = "treeland-user" || exit 2'
+ExecCondition=/bin/sh -c 'test "$TREELAND_RUN_MODE" = "user" || exit 2'
 Type=dbus
 BusName=org.deepin.Compositor1
 UnsetEnvironment=DISPLAY
@@ -28,6 +28,7 @@ UnsetEnvironment=WAYLAND_DISPLAY
 ExecStart=@CMAKE_INSTALL_FULL_BINDIR@/treeland
 ExecStartPost=-/usr/bin/systemctl --user set-environment XDG_SESSION_DESKTOP=Treeland
 ExecStop=-/usr/bin/systemctl --user unset-environment XDG_SESSION_DESKTOP
+ExecStop=-/usr/bin/systemctl --user unset-environment TREELAND_RUN_MODE
 Slice=session.slice
 Restart=on-failure
 RestartSec=1s
