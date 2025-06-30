@@ -1,6 +1,9 @@
 find_package(QT NAMES Qt6 COMPONENTS Core Quick Concurrent REQUIRED)
 find_package(Dtk6 REQUIRED COMPONENTS SystemSettings Declarative)
 
+# Include translation utilities
+include(${CMAKE_SOURCE_DIR}/cmake/TranslationUtils.cmake)
+
 set_source_files_properties(qml/GreeterModel.qml PROPERTIES
     QT_QML_SINGLETON_TYPE TRUE
 )
@@ -54,21 +57,7 @@ set_target_properties(lockscreen PROPERTIES
     LIBRARY_OUTPUT_DIRECTORY "${TREELAND_PLUGINS_OUTPUT_PATH}"
 )
 
-set(TRANSLATED_FILES)
-qt_add_lupdate(
-    SOURCE_TARGETS lockscreen
-    TS_FILES
-        translations/lockscreen.zh_CN.ts
-        translations/lockscreen.en_US.ts
-    NO_GLOBAL_TARGET
-)
-
-qt_add_lrelease(
-    TS_FILES
-        translations/lockscreen.zh_CN.ts
-        translations/lockscreen.en_US.ts
-    QM_FILES_OUTPUT_VARIABLE TRANSLATED_FILES
-)
+# Use translation utilities to setup translations
+setup_translations(lockscreen lockscreen)
 
 install(TARGETS lockscreen DESTINATION ${TREELAND_PLUGINS_INSTALL_PATH})
-install(FILES ${TRANSLATED_FILES} DESTINATION ${TREELAND_COMPONENTS_TRANSLATION_DIR})
