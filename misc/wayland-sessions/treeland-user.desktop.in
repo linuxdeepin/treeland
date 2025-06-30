@@ -1,7 +1,7 @@
 [Desktop Entry]
 Name=Treeland
 Comment=This session is DDE single wayland
-Exec=${CMAKE_INSTALL_FULL_BINDIR}/dde-session
+Exec=${CMAKE_INSTALL_FULL_BINDIR}/treeland-user-wrapper
 TryExec=${CMAKE_INSTALL_FULL_BINDIR}/treeland
 Type=Application
 DesktopNames=Treeland

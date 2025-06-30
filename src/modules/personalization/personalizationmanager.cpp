@@ -83,7 +83,7 @@ PersonalizationV1::PersonalizationV1(QObject *parent)
     PERSONALIZATION_MANAGER = this;
 
     // When not use ddm, set uid by self
-    if (qgetenv("XDG_SESSION_DESKTOP") == "treeland-user") {
+    if (qgetenv("TREELAND_RUN_MODE") == "user") {
         setUserId(getgid());
     }
 }
