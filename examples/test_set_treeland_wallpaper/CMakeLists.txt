@@ -5,6 +5,9 @@ find_package(TreelandProtocols REQUIRED)
 find_package(PkgConfig REQUIRED)
 pkg_get_variable(WAYLAND_PROTOCOLS wayland-protocols pkgdatadir)
 
+# Include translation utilities
+include(${CMAKE_SOURCE_DIR}/cmake/TranslationUtils.cmake)
+
 set(BIN_NAME test-set-treeland-wallpaper)
 
 qt_add_executable(${BIN_NAME}
@@ -36,24 +39,8 @@ qt_add_qml_module(${BIN_NAME}
     SOURCES imagehelper.h imagehelper.cpp
 )
 
-set(TRANSLATED_FILES)
-
-qt_add_lupdate(
-    SOURCE_TARGETS ${BIN_NAME}
-    TS_FILES
-        translations/wallpaper.zh_CN.ts
-        translations/wallpaper.en_US.ts
-    NO_GLOBAL_TARGET
-)
-
-qt_add_lrelease(
-    TS_FILES
-        translations/wallpaper.zh_CN.ts
-        translations/wallpaper.en_US.ts
-    QM_FILES_OUTPUT_VARIABLE TRANSLATED_FILES
-)
-
-install(FILES ${TRANSLATED_FILES} DESTINATION ${TREELAND_COMPONENTS_TRANSLATION_DIR})
+# Use translation utilities to setup translations
+setup_translations(${BIN_NAME} wallpaper)
 
 target_link_libraries(${BIN_NAME}
     PRIVATE

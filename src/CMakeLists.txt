@@ -7,6 +7,9 @@ if(POLICY CMP0071)
     cmake_policy(SET CMP0071 NEW)
 endif()
 
+# Include translation utilities
+include(${CMAKE_SOURCE_DIR}/cmake/TranslationUtils.cmake)
+
 find_package(Dtk6 REQUIRED COMPONENTS Core Declarative SystemSettings)
 if (NOT DISABLE_DDM)
     find_package(DDM REQUIRED COMPONENTS Auth Common)
@@ -231,20 +234,8 @@ qt_add_resources(libtreeland "treeland_assets"
         ${PROJECT_RESOURCES_DIR}/icons/logo.svg
 )
 
-set(TRANSLATED_FILES)
-qt_add_lupdate(
-    SOURCE_TARGETS libtreeland
-    TS_FILES
-        ${CMAKE_SOURCE_DIR}/translations/treeland.zh_CN.ts
-        ${CMAKE_SOURCE_DIR}/translations/treeland.en_US.ts
-    NO_GLOBAL_TARGET
-)
-qt_add_lrelease(
-    TS_FILES
-        ${CMAKE_SOURCE_DIR}/translations/treeland.zh_CN.ts
-        ${CMAKE_SOURCE_DIR}/translations/treeland.en_US.ts
-    QM_FILES_OUTPUT_VARIABLE TRANSLATED_FILES
-)
+# Use translation utilities to setup main translations
+setup_main_translations(libtreeland)
 
 target_include_directories(libtreeland
     PUBLIC
@@ -325,4 +316,3 @@ target_link_libraries(treeland-sd
 )
 
 install(TARGETS treeland-sd RUNTIME DESTINATION "${CMAKE_INSTALL_LIBEXECDIR}")
-install(FILES ${TRANSLATED_FILES} DESTINATION ${TREELAND_COMPONENTS_TRANSLATION_DIR})
