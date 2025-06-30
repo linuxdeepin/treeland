@@ -130,7 +130,7 @@
     <message>
         <location filename="../qml/UserInput.qml" line="141"/>
         <source>Password</source>
-        <translation type="unfinished"/>
+        <translation>Senha</translation>
     </message>
 </context>
 </TS>
