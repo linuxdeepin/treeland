@@ -1,29 +1,29 @@
-<?xml version="1.0" ?><!DOCTYPE TS><TS version="2.1" language="pt_BR">
+<?xml version="1.0" ?><!DOCTYPE TS><TS version="2.1" language="fr">
 <context>
     <name>Center</name>
     <message>
         <source>Return to default mode</source>
-        <translation type="vanished">Retornar ao modo padrão</translation>
+        <translation type="vanished">Revenir au mode par défaut</translation>
     </message>
     <message>
         <source>Do you want to back to default?</source>
-        <translation type="vanished">Você quer voltar ao padrão?</translation>
+        <translation type="vanished">Souhaitez-vous revenir aux paramètres par défaut ?</translation>
     </message>
     <message>
         <source>This action will reboot machine, please confirm.</source>
-        <translation type="vanished">Esta ação reinicializará o computador, por favor confirme.</translation>
+        <translation type="vanished">Cette action redémarrera la machine, veuillez confirmer.</translation>
     </message>
     <message>
         <source>Back To Default Mode</source>
-        <translation type="vanished">Voltar ao modo padrão</translation>
+        <translation type="vanished">Retour au mode par défaut</translation>
     </message>
     <message>
         <source>Other Users</source>
-        <translation type="vanished">Outros usuários</translation>
+        <translation type="vanished">Autres utilisateurs</translation>
     </message>
     <message>
         <source>Power</source>
-        <translation type="vanished">Energia</translation>
+        <translation type="vanished">Énergie</translation>
     </message>
 </context>
 <context>
@@ -35,14 +35,14 @@
     <message>
         <location filename="../qml/ControlAction.qml" line="55"/>
         <source>Power</source>
-        <translation>Energia</translation>
+        <translation>Énergie</translation>
     </message>
 </context>
 <context>
     <name>Greeter</name>
     <message>
         <source>Password is incorrect.</source>
-        <translation type="vanished">A senha está incorreta.</translation>
+        <translation type="vanished">Mot de passe incorrect.</translation>
     </message>
 </context>
 <context>
@@ -50,7 +50,7 @@
     <message>
         <location filename="../qml/HintLabel.qml" line="26"/>
         <source>Password Hint</source>
-        <translation>Dica de senha</translation>
+        <translation>Indice de mot de passe</translation>
     </message>
 </context>
 <context>
@@ -58,7 +58,7 @@
     <message>
         <location filename="../qml/LockView.qml" line="176"/>
         <source>Password is incorrect.</source>
-        <translation>A senha está incorreta.</translation>
+        <translation>Mot de passe incorrect.</translation>
     </message>
 </context>
 <context>
@@ -66,22 +66,22 @@
     <message>
         <location filename="../qml/PowerList.qml" line="60"/>
         <source>Hibernate</source>
-        <translation>Hibernar</translation>
+        <translation>Hibernation</translation>
     </message>
     <message>
         <location filename="../qml/PowerList.qml" line="50"/>
         <source>Suspend</source>
-        <translation>Suspender</translation>
+        <translation>Suspendre</translation>
     </message>
     <message>
         <location filename="../qml/PowerList.qml" line="43"/>
         <source>Reboot</source>
-        <translation>Reiniciar</translation>
+        <translation>Redémarrer</translation>
     </message>
     <message>
         <location filename="../qml/PowerList.qml" line="36"/>
         <source>Shut Down</source>
-        <translation>Desligar</translation>
+        <translation>Éteindre</translation>
     </message>
 </context>
 <context>
@@ -96,28 +96,28 @@
     <message>
         <location filename="../qml/ShutdownView.qml" line="32"/>
         <source>lock</source>
-        <translation>Bloquear</translation>
+        <translation>verrouiller</translation>
     </message>
     <message>
         <location filename="../qml/ShutdownView.qml" line="37"/>
         <source>switch user</source>
-        <translation>Trocar de usuário</translation>
+        <translation>changer d&apos;utilisateur</translation>
     </message>
     <message>
         <location filename="../qml/ShutdownView.qml" line="43"/>
         <source>Logout</source>
-        <translation>Sair</translation>
+        <translation>Déconnexion</translation>
     </message>
 </context>
 <context>
     <name>User</name>
     <message>
         <source>Administrator</source>
-        <translation type="vanished">Administrador</translation>
+        <translation type="vanished">Administrateur</translation>
     </message>
     <message>
         <source>Standard User</source>
-        <translation type="vanished">Usuário padrão</translation>
+        <translation type="vanished">Utilisateur standard</translation>
     </message>
 </context>
 <context>
@@ -125,12 +125,12 @@
     <message>
         <location filename="../qml/UserInput.qml" line="15"/>
         <source>Please enter password</source>
-        <translation>Por favor, digite a senha</translation>
+        <translation>Veuillez saisir votre mot de passe</translation>
     </message>
     <message>
         <location filename="../qml/UserInput.qml" line="141"/>
         <source>Password</source>
-        <translation>Senha</translation>
+        <translation>Mot de passe</translation>
     </message>
 </context>
 </TS>
