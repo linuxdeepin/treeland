@@ -262,15 +262,24 @@ struct wlr_gamma_control_v1 *wlr_gamma_control_manager_v1_get_control(
 	return NULL;
 }
 
+struct wlr_color_transform *wlr_gamma_control_v1_get_color_transform(
+		struct wlr_gamma_control_v1 *gamma_control) {
+	if (gamma_control == NULL || gamma_control->table == NULL) {
+		return NULL;
+	}
+
+	const uint16_t *r = gamma_control->table;
+	const uint16_t *g = gamma_control->table + gamma_control->ramp_size;
+	const uint16_t *b = gamma_control->table + 2 * gamma_control->ramp_size;
+
+	return wlr_color_transform_init_lut_3x1d(gamma_control->ramp_size, r, g, b);
+}
+
 bool wlr_gamma_control_v1_apply(struct wlr_gamma_control_v1 *gamma_control,
 		struct wlr_output_state *output_state) {
 	struct wlr_color_transform *tr = NULL;
 	if (gamma_control != NULL && gamma_control->table != NULL) {
-		const uint16_t *r = gamma_control->table;
-		const uint16_t *g = gamma_control->table + gamma_control->ramp_size;
-		const uint16_t *b = gamma_control->table + 2 * gamma_control->ramp_size;
-
-		tr = wlr_color_transform_init_lut_3x1d(gamma_control->ramp_size, r, g, b);
+		tr = wlr_gamma_control_v1_get_color_transform(gamma_control);
 		if (tr == NULL) {
 			return false;
 		}
