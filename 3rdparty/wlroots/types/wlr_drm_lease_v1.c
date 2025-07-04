@@ -68,10 +68,6 @@ static void drm_lease_connector_v1_destroy(
 
 	wlr_log(WLR_DEBUG, "Destroying connector %s", connector->output->name);
 
-	if (connector->active_lease) {
-		wlr_drm_lease_terminate(connector->active_lease->drm_lease);
-	}
-
 	struct wl_resource *resource, *tmp;
 	wl_resource_for_each_safe(resource, tmp, &connector->resources) {
 		wp_drm_lease_connector_v1_send_withdrawn(resource);
@@ -140,14 +136,9 @@ static void lease_handle_destroy(struct wl_listener *listener, void *data) {
 
 	wl_list_remove(&lease->destroy.link);
 
-	for (size_t i = 0; i < lease->n_connectors; ++i) {
-		lease->connectors[i]->active_lease = NULL;
-	}
-
 	wl_list_remove(&lease->link);
 	wl_resource_set_user_data(lease->resource, NULL);
 
-	free(lease->connectors);
 	free(lease);
 }
 
@@ -178,20 +169,6 @@ struct wlr_drm_lease_v1 *wlr_drm_lease_request_v1_grant(
 		wp_drm_lease_v1_send_finished(lease->resource);
 		free(lease);
 		return NULL;
-	}
-
-	lease->connectors = calloc(request->n_connectors, sizeof(*lease->connectors));
-	if (!lease->connectors) {
-		wlr_log(WLR_ERROR, "Failed to allocate lease connectors list");
-		close(fd);
-		wp_drm_lease_v1_send_finished(lease->resource);
-		free(lease);
-		return NULL;
-	}
-	lease->n_connectors = request->n_connectors;
-	for (size_t i = 0; i < request->n_connectors; ++i) {
-		lease->connectors[i] = request->connectors[i];
-		lease->connectors[i]->active_lease = lease;
 	}
 
 	lease->destroy.notify = lease_handle_destroy;
@@ -338,16 +315,6 @@ static void drm_lease_request_v1_handle_submit(
 		return;
 	}
 
-	for (size_t i = 0; i < request->n_connectors; ++i) {
-		struct wlr_drm_lease_connector_v1 *conn = request->connectors[i];
-		if (conn->active_lease) {
-			wlr_log(WLR_ERROR, "Failed to create lease, connector %s has "
-					"already been leased", conn->output->name);
-			wp_drm_lease_v1_send_finished(lease_resource);
-			return;
-		}
-	}
-
 	request->lease_resource = lease_resource;
 
 	wl_signal_emit_mutable(&request->device->manager->events.request,
@@ -440,10 +407,6 @@ static struct wp_drm_lease_connector_v1_interface lease_connector_impl = {
 static void drm_lease_connector_v1_send_to_client(
 		struct wlr_drm_lease_connector_v1 *connector,
 		struct wl_resource *resource) {
-	if (connector->active_lease) {
-		return;
-	}
-
 	struct wl_client *client = wl_resource_get_client(resource);
 
 	uint32_t version = wl_resource_get_version(resource);

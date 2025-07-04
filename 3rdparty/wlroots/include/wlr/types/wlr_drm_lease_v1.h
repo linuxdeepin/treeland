@@ -62,8 +62,6 @@ struct wlr_drm_lease_connector_v1 {
 
 	struct wlr_output *output;
 	struct wlr_drm_lease_device_v1 *device;
-	/** NULL if no client is currently leasing this connector */
-	struct wlr_drm_lease_v1 *active_lease;
 
 	struct wl_list link; // wlr_drm_lease_device_v1.connectors
 
@@ -92,9 +90,6 @@ struct wlr_drm_lease_v1 {
 	struct wlr_drm_lease *drm_lease;
 
 	struct wlr_drm_lease_device_v1 *device;
-
-	struct wlr_drm_lease_connector_v1 **connectors;
-	size_t n_connectors;
 
 	struct wl_list link; // wlr_drm_lease_device_v1.leases
 
