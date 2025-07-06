@@ -575,7 +575,7 @@ static void manager_get_input_method(struct wl_client *client,
 	wl_resource_set_user_data(im_resource, input_method);
 	wl_list_insert(&im_manager->input_methods,
 		wl_resource_get_link(input_method->resource));
-	wl_signal_emit_mutable(&im_manager->events.input_method, input_method);
+	wl_signal_emit_mutable(&im_manager->events.new_input_method, input_method);
 }
 
 static void manager_destroy(struct wl_client *client,
@@ -608,7 +608,7 @@ static void handle_display_destroy(struct wl_listener *listener, void *data) {
 		wl_container_of(listener, manager, display_destroy);
 	wl_signal_emit_mutable(&manager->events.destroy, manager);
 
-	assert(wl_list_empty(&manager->events.input_method.listener_list));
+	assert(wl_list_empty(&manager->events.new_input_method.listener_list));
 	assert(wl_list_empty(&manager->events.destroy.listener_list));
 
 	wl_list_remove(&manager->display_destroy.link);
@@ -623,7 +623,7 @@ struct wlr_input_method_manager_v2 *wlr_input_method_manager_v2_create(
 		return NULL;
 	}
 
-	wl_signal_init(&im_manager->events.input_method);
+	wl_signal_init(&im_manager->events.new_input_method);
 	wl_signal_init(&im_manager->events.destroy);
 
 	wl_list_init(&im_manager->input_methods);

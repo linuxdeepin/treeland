@@ -94,7 +94,7 @@ struct wlr_input_method_manager_v2 {
 	struct wl_list input_methods; // struct wlr_input_method_v2.link
 
 	struct {
-		struct wl_signal input_method; // struct wlr_input_method_v2
+		struct wl_signal new_input_method; // struct wlr_input_method_v2
 		struct wl_signal destroy; // struct wlr_input_method_manager_v2
 	} events;
 
