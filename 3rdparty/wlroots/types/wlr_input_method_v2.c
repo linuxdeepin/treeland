@@ -56,7 +56,7 @@ static void input_method_destroy(struct wlr_input_method_v2 *input_method) {
 			popup_surface, tmp, &input_method->popup_surfaces, link) {
 		popup_surface_destroy(popup_surface);
 	}
-	wl_signal_emit_mutable(&input_method->events.destroy, input_method);
+	wl_signal_emit_mutable(&input_method->events.destroy, NULL);
 
 	assert(wl_list_empty(&input_method->events.commit.listener_list));
 	assert(wl_list_empty(&input_method->events.new_popup_surface.listener_list));
@@ -102,7 +102,7 @@ static void im_commit(struct wl_client *client, struct wl_resource *resource,
 	input_method->current = input_method->pending;
 	input_method->pending = (struct wlr_input_method_v2_state){0};
 
-	wl_signal_emit_mutable(&input_method->events.commit, input_method);
+	wl_signal_emit_mutable(&input_method->events.commit, NULL);
 }
 
 static void im_commit_string(struct wl_client *client,
@@ -606,7 +606,7 @@ static void input_method_manager_bind(struct wl_client *wl_client, void *data,
 static void handle_display_destroy(struct wl_listener *listener, void *data) {
 	struct wlr_input_method_manager_v2 *manager =
 		wl_container_of(listener, manager, display_destroy);
-	wl_signal_emit_mutable(&manager->events.destroy, manager);
+	wl_signal_emit_mutable(&manager->events.destroy, NULL);
 
 	assert(wl_list_empty(&manager->events.new_input_method.listener_list));
 	assert(wl_list_empty(&manager->events.destroy.listener_list));
