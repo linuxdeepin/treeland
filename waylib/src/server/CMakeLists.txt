@@ -144,6 +144,7 @@ set(SOURCES
     protocols/private/wvirtualkeyboardv1.cpp
     protocols/wcursorshapemanagerv1.cpp
     protocols/woutputmanagerv1.cpp
+    protocols/wextforeigntoplevellistv1.cpp
 
     ${WAYLAND_PROTOCOLS_OUTPUTDIR}/text-input-unstable-v1-protocol.c
 )
@@ -236,6 +237,7 @@ set(HEADERS
     protocols/WXWayland
     protocols/wxwaylandsurface.h
     protocols/WXWaylandSurface
+    protocols/wextforeigntoplevellistv1.h
 )
 
 set(PRIVATE_HEADERS

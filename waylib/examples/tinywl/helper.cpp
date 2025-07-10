@@ -40,6 +40,7 @@
 #include <wtoplevelsurface.h>
 #include <wlayersurface.h>
 #include <wxdgdecorationmanager.h>
+#include <wextforeigntoplevellistv1.h>
 
 #include <qwbackend.h>
 #include <qwdisplay.h>
@@ -187,6 +188,7 @@ void Helper::init()
 
     auto *xdgShell = m_server->attach<WXdgShell>(5);
     m_foreignToplevel = m_server->attach<WForeignToplevel>(xdgShell);
+    m_extForeignToplevelListV1 = m_server->attach<WExtForeignToplevelListV1>();
     auto *layerShell = m_server->attach<WLayerShell>(xdgShell);
     auto *xdgOutputManager = m_server->attach<WXdgOutputManager>(m_surfaceContainer->outputLayout());
     m_windowMenu = engine->createWindowMenu(this);
@@ -194,6 +196,7 @@ void Helper::init()
     connect(xdgShell, &WXdgShell::toplevelSurfaceAdded, this, [this] (WXdgToplevelSurface *surface) {
         auto wrapper = new SurfaceWrapper(qmlEngine(), surface, SurfaceWrapper::Type::XdgToplevel);
         m_foreignToplevel->addSurface(surface);
+        m_extForeignToplevelListV1->addSurface(surface);
 
         wrapper->setNoDecoration(m_xdgDecorationManager->modeBySurface(surface->surface())
                                  != WXdgDecorationManager::Server);
@@ -226,6 +229,7 @@ void Helper::init()
     });
     connect(xdgShell, &WXdgShell::toplevelSurfaceRemoved, this, [this] (WXdgToplevelSurface *surface) {
         m_foreignToplevel->removeSurface(surface);
+        m_extForeignToplevelListV1->removeSurface(surface);
         m_surfaceContainer->destroyForSurface(surface->surface());
     });
 
@@ -348,9 +352,11 @@ void Helper::init()
             });
 
             m_foreignToplevel->addSurface(surface);
+            m_extForeignToplevelListV1->addSurface(surface);
         });
         surface->safeConnect(&qw_xwayland_surface::notify_dissociate, this, [this, surface] {
             m_foreignToplevel->removeSurface(surface);
+            m_extForeignToplevelListV1->removeSurface(surface);
             m_surfaceContainer->destroyForSurface(surface->surface());
         });
     });

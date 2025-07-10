@@ -9,6 +9,7 @@
 #include <wglobal.h>
 #include <wqmlcreator.h>
 #include <wseat.h>
+#include <wextforeigntoplevellistv1.h>
 
 #include <QObject>
 #include <QQmlApplicationEngine>
@@ -162,6 +163,7 @@ private:
     WInputMethodHelper *m_inputMethodHelper = nullptr;
     WXdgDecorationManager *m_xdgDecorationManager = nullptr;
     WForeignToplevel *m_foreignToplevel = nullptr;
+    WExtForeignToplevelListV1 *m_extForeignToplevelListV1 = nullptr;
 
     // privaet data
     QList<Output*> m_outputList;
