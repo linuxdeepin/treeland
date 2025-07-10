@@ -756,14 +756,17 @@ void Helper::onSurfaceWrapperAdded(SurfaceWrapper *wrapper)
 
     if (!wrapper->skipDockPreView()) {
         m_foreignToplevel->addSurface(wrapper->shellSurface());
+        m_extForeignToplevelListV1->addSurface(wrapper->shellSurface());
         m_treelandForeignToplevel->addSurface(wrapper);
     }
     connect(wrapper, &SurfaceWrapper::skipDockPreViewChanged, this, [this, wrapper] {
         if (wrapper->skipDockPreView()) {
             m_foreignToplevel->removeSurface(wrapper->shellSurface());
+            m_extForeignToplevelListV1->removeSurface(wrapper->shellSurface());
             m_treelandForeignToplevel->removeSurface(wrapper);
         } else {
             m_foreignToplevel->addSurface(wrapper->shellSurface());
+            m_extForeignToplevelListV1->addSurface(wrapper->shellSurface());
             m_treelandForeignToplevel->addSurface(wrapper);
         }
     });
@@ -773,6 +776,7 @@ void Helper::onSurfaceWrapperAboutToRemove(SurfaceWrapper *wrapper)
 {
     if (!wrapper->skipDockPreView()) {
         m_foreignToplevel->removeSurface(wrapper->shellSurface());
+        m_extForeignToplevelListV1->removeSurface(wrapper->shellSurface());
         m_treelandForeignToplevel->removeSurface(wrapper);
     }
 }
@@ -860,6 +864,7 @@ void Helper::init()
     m_shellHandler->initInputMethodHelper(m_server, m_seat);
 
     m_foreignToplevel = m_server->attach<WForeignToplevel>();
+    m_extForeignToplevelListV1 = m_server->attach<WExtForeignToplevelListV1>();
     m_treelandForeignToplevel = m_server->attach<ForeignToplevelV1>();
     Q_ASSERT(m_treelandForeignToplevel);
     qmlRegisterSingletonInstance<ForeignToplevelV1>("Treeland.Protocols",
