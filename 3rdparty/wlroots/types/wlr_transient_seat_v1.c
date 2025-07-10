@@ -64,6 +64,7 @@ static void manager_create_transient_seat(struct wl_client *client,
 	wl_resource_set_implementation(seat->resource, &transient_seat_impl,
 			seat, transient_seat_handle_resource_destroy);
 
+	wl_list_init(&seat->seat_destroy.link);
 	wl_signal_emit_mutable(&manager->events.create_seat, seat);
 
 	return;
