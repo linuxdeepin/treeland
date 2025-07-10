@@ -39,12 +39,12 @@
     <message>
         <location filename="../src/core/qml/WindowMenu.qml" line="70"/>
         <source>Move to Left Work Space</source>
-        <translation type="unfinished"/>
+        <translation>Mover para o espaço de trabalho à esquerda</translation>
     </message>
     <message>
         <location filename="../src/core/qml/WindowMenu.qml" line="77"/>
         <source>Move to Right Work Space</source>
-        <translation type="unfinished"/>
+        <translation>Mover para o espaço de trabalho à direita</translation>
     </message>
     <message>
         <location filename="../src/core/qml/WindowMenu.qml" line="83"/>
