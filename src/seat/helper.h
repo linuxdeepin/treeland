@@ -13,6 +13,7 @@
 #include <wqmlcreator.h>
 #include <wseat.h>
 #include <wxdgdecorationmanager.h>
+#include <wextforeigntoplevellistv1.h>
 
 Q_MOC_INCLUDE(<wtoplevelsurface.h>)
 Q_MOC_INCLUDE(<wxdgsurface.h>)
@@ -48,6 +49,7 @@ class WSurface;
 class WToplevelSurface;
 class WSurfaceItem;
 class WForeignToplevel;
+class WExtForeignToplevelListV1;
 class WOutputManagerV1;
 class WLayerSurface;
 WAYLIB_SERVER_END_NAMESPACE
@@ -311,6 +313,7 @@ private:
     WXWayland *m_defaultXWayland = nullptr;
     WXdgDecorationManager *m_xdgDecorationManager = nullptr;
     WForeignToplevel *m_foreignToplevel = nullptr;
+    WExtForeignToplevelListV1 *m_extForeignToplevelListV1 = nullptr;
     ForeignToplevelV1 *m_treelandForeignToplevel = nullptr;
     ShortcutV1 *m_shortcut = nullptr;
     PersonalizationV1 *m_personalization = nullptr;
