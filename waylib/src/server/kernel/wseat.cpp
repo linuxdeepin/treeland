@@ -1439,7 +1439,8 @@ void WSeat::create(WServer *server)
 {
     W_D(WSeat);
     // destroy follow display
-    m_handle = qw_seat::create(*server->handle(), d->name.toUtf8().constData());
+    const auto name = d->name.toUtf8();
+    m_handle = qw_seat::create(*server->handle(), name.constData());
     initHandle(d->handle());
     d->handle()->set_data(this, this);
     d->connect();

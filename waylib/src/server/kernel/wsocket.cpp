@@ -33,8 +33,9 @@ static int wl_socket_lock(const QString &socketFile)
 
     QString lockFile = socketFile + LOCK_SUFFIX;
     QByteArray addr_sun_path = socketFile.toUtf8();
+    const auto lockFilePath = lockFile.toUtf8();
 
-    fd_lock = open(lockFile.toUtf8(), O_CREAT | O_CLOEXEC | O_RDWR,
+    fd_lock = open(lockFilePath.constData(), O_CREAT | O_CLOEXEC | O_RDWR,
                    (S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP));
 
     if (fd_lock < 0) {

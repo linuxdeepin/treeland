@@ -37,7 +37,7 @@ public:
         }
 
         const auto title = surface->title().toUtf8();
-        const auto appId = surface->appId().toLocal8Bit();
+        const auto appId = surface->appId().toLatin1();
         wlr_ext_foreign_toplevel_handle_v1_state state = {
             .title = title.constData(),
             .app_id = appId.constData(),
@@ -65,7 +65,7 @@ private:
     void updateState(WToplevelSurface *surface, qw_ext_foreign_toplevel_handle_v1 *handle)
     {
         const auto title = surface->title().toUtf8();
-        const auto appId = surface->appId().toLocal8Bit();
+        const auto appId = surface->appId().toLatin1();
         wlr_ext_foreign_toplevel_handle_v1_state state = {
             .title = title.constData(),
             .app_id = appId.constData(),

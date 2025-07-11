@@ -33,11 +33,13 @@ public:
         W_Q(WForeignToplevel);
         auto handle = surfaces.at(surface).get();
         surface->safeConnect(&WToplevelSurface::titleChanged, handle, [handle, surface] {
-            handle->set_title(surface->title().toUtf8());
+            const auto title = surface->title().toUtf8();
+            handle->set_title(title);
         });
 
         surface->safeConnect(&WToplevelSurface::appIdChanged, handle, [handle, surface] {
-            handle->set_app_id(surface->appId().toLocal8Bit());
+            const auto appId = surface->appId().toLatin1();
+            handle->set_app_id(appId);
         });
 
         surface->safeConnect(&WToplevelSurface::minimizeChanged, handle, [handle, surface] {
@@ -154,8 +156,10 @@ public:
                                  QRect{ event->x, event->y, event->width, event->height });
                          });
 
-        handle->set_title(surface->title().toUtf8());
-        handle->set_app_id(surface->appId().toLocal8Bit());
+        const auto title = surface->title().toUtf8();
+        const auto appId = surface->appId().toLatin1();
+        handle->set_title(title);
+        handle->set_app_id(appId);
         handle->set_minimized(surface->isMinimized());
         handle->set_maximized(surface->isMaximized());
         handle->set_fullscreen(surface->isFullScreen());
