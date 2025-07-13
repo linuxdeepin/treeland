@@ -2514,14 +2514,13 @@ struct wlr_renderer *wlr_vk_renderer_create_with_drm_fd(int drm_fd) {
 	if (!phdev) {
 		// We rather fail here than doing some guesswork
 		wlr_log(WLR_ERROR, "Could not match drm and vulkan device");
-		return NULL;
+		goto error;
 	}
 
 	struct wlr_vk_device *dev = vulkan_device_create(ini, phdev);
 	if (!dev) {
 		wlr_log(WLR_ERROR, "Failed to create vulkan device");
-		vulkan_instance_destroy(ini);
-		return NULL;
+		goto error;
 	}
 
 	// Do not use the drm_fd that was passed in: we should prefer the render
@@ -2529,6 +2528,10 @@ struct wlr_renderer *wlr_vk_renderer_create_with_drm_fd(int drm_fd) {
 	dev->drm_fd = vulkan_open_phdev_drm_fd(phdev);
 
 	return vulkan_renderer_create_for_device(dev);
+
+error:
+	vulkan_instance_destroy(ini);
+	return NULL;
 }
 
 VkInstance wlr_vk_renderer_get_instance(struct wlr_renderer *renderer) {
