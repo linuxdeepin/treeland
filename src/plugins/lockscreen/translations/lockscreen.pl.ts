@@ -3,11 +3,11 @@
     <name>Center</name>
     <message>
         <source>Return to default mode</source>
-        <translation type="unfinished"/>
+        <translation type="vanished">Przywróć do trybu domyślnego</translation>
     </message>
     <message>
         <source>Do you want to back to default?</source>
-        <translation type="unfinished"/>
+        <translation type="vanished">Czy przywrócić do trybu domyślnego?</translation>
     </message>
     <message>
         <source>This action will reboot machine, please confirm.</source>
@@ -15,11 +15,11 @@
     </message>
     <message>
         <source>Back To Default Mode</source>
-        <translation type="unfinished"/>
+        <translation type="vanished">Przywróć do trybu domyślnego</translation>
     </message>
     <message>
         <source>Other Users</source>
-        <translation type="unfinished"/>
+        <translation type="vanished">Pozostali użytkownicy</translation>
     </message>
     <message>
         <source>Power</source>
@@ -42,7 +42,7 @@
     <name>Greeter</name>
     <message>
         <source>Password is incorrect.</source>
-        <translation type="unfinished"/>
+        <translation type="vanished">Błędne hasło.</translation>
     </message>
 </context>
 <context>
@@ -50,7 +50,7 @@
     <message>
         <location filename="../qml/HintLabel.qml" line="26"/>
         <source>Password Hint</source>
-        <translation type="unfinished"/>
+        <translation>Wskazówka hasła</translation>
     </message>
 </context>
 <context>
@@ -58,7 +58,7 @@
     <message>
         <location filename="../qml/LockView.qml" line="176"/>
         <source>Password is incorrect.</source>
-        <translation type="unfinished"/>
+        <translation>Błędne hasło.</translation>
     </message>
 </context>
 <context>
@@ -66,12 +66,12 @@
     <message>
         <location filename="../qml/PowerList.qml" line="60"/>
         <source>Hibernate</source>
-        <translation type="unfinished"/>
+        <translation>Hibernacja</translation>
     </message>
     <message>
         <location filename="../qml/PowerList.qml" line="50"/>
         <source>Suspend</source>
-        <translation type="unfinished"/>
+        <translation>Wstrzymaj</translation>
     </message>
     <message>
         <location filename="../qml/PowerList.qml" line="43"/>
@@ -81,14 +81,14 @@
     <message>
         <location filename="../qml/PowerList.qml" line="36"/>
         <source>Shut Down</source>
-        <translation type="unfinished"/>
+        <translation>Zamknij</translation>
     </message>
 </context>
 <context>
     <name>SessionModel</name>
     <message>
         <source>%1 (Wayland)</source>
-        <translation type="unfinished"/>
+        <translation type="vanished">%1 (Wayland)</translation>
     </message>
 </context>
 <context>
@@ -96,28 +96,28 @@
     <message>
         <location filename="../qml/ShutdownView.qml" line="32"/>
         <source>lock</source>
-        <translation type="unfinished"/>
+        <translation>Zablokuj</translation>
     </message>
     <message>
         <location filename="../qml/ShutdownView.qml" line="37"/>
         <source>switch user</source>
-        <translation type="unfinished"/>
+        <translation>Zmień użytkownika</translation>
     </message>
     <message>
         <location filename="../qml/ShutdownView.qml" line="43"/>
         <source>Logout</source>
-        <translation type="unfinished"/>
+        <translation>Wyloguj</translation>
     </message>
 </context>
 <context>
     <name>User</name>
     <message>
         <source>Administrator</source>
-        <translation type="unfinished"/>
+        <translation type="vanished">Administrator</translation>
     </message>
     <message>
         <source>Standard User</source>
-        <translation type="unfinished"/>
+        <translation type="vanished">Użytkownik standardowy</translation>
     </message>
 </context>
 <context>
@@ -125,7 +125,7 @@
     <message>
         <location filename="../qml/UserInput.qml" line="15"/>
         <source>Please enter password</source>
-        <translation>Prosimy o wprowadzenie hasła</translation>
+        <translation>Wprowadź hasło</translation>
     </message>
     <message>
         <location filename="../qml/UserInput.qml" line="141"/>
