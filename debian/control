@@ -44,6 +44,7 @@ Depends: qml6-module-qtquick-layouts,
          treeland-data (= ${source:Version}),
          xwayland,
          ${shlibs:Depends},
+Recommends: ddm,
 Description: a Wayland compositor based on wlroots and QML, designed with an attractive and elegant appearance.
 
 Package: treeland-dev
