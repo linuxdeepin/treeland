@@ -11,6 +11,72 @@
 
 #define WP_COLOR_REPRESENTATION_VERSION 1
 
+enum wlr_alpha_mode wlr_color_representation_v1_alpha_mode_to_wlr(
+		enum wp_color_representation_surface_v1_alpha_mode wp_val) {
+	switch (wp_val) {
+	case WP_COLOR_REPRESENTATION_SURFACE_V1_ALPHA_MODE_PREMULTIPLIED_ELECTRICAL:
+		return WLR_COLOR_ALPHA_MODE_PREMULTIPLIED_ELECTRICAL;
+	case WP_COLOR_REPRESENTATION_SURFACE_V1_ALPHA_MODE_PREMULTIPLIED_OPTICAL:
+		return WLR_COLOR_ALPHA_MODE_PREMULTIPLIED_OPTICAL;
+	case WP_COLOR_REPRESENTATION_SURFACE_V1_ALPHA_MODE_STRAIGHT:
+		return WLR_COLOR_ALPHA_MODE_STRAIGHT;
+	}
+	abort(); // unreachable
+}
+
+enum wlr_color_encoding wlr_color_representation_v1_color_encoding_to_wlr(
+		enum wp_color_representation_surface_v1_coefficients wp_val) {
+	switch (wp_val) {
+	case WP_COLOR_REPRESENTATION_SURFACE_V1_COEFFICIENTS_IDENTITY:
+		return WLR_COLOR_ENCODING_IDENTITY;
+	case WP_COLOR_REPRESENTATION_SURFACE_V1_COEFFICIENTS_BT709:
+		return WLR_COLOR_ENCODING_BT709;
+	case WP_COLOR_REPRESENTATION_SURFACE_V1_COEFFICIENTS_FCC:
+		return WLR_COLOR_ENCODING_FCC;
+	case WP_COLOR_REPRESENTATION_SURFACE_V1_COEFFICIENTS_BT601:
+		return WLR_COLOR_ENCODING_BT601;
+	case WP_COLOR_REPRESENTATION_SURFACE_V1_COEFFICIENTS_SMPTE240:
+		return WLR_COLOR_ENCODING_SMPTE240;
+	case WP_COLOR_REPRESENTATION_SURFACE_V1_COEFFICIENTS_BT2020:
+		return WLR_COLOR_ENCODING_BT2020;
+	case WP_COLOR_REPRESENTATION_SURFACE_V1_COEFFICIENTS_BT2020_CL:
+		return WLR_COLOR_ENCODING_BT2020_CL;
+	case WP_COLOR_REPRESENTATION_SURFACE_V1_COEFFICIENTS_ICTCP:
+		return WLR_COLOR_ENCODING_ICTCP;
+	}
+	abort(); // unreachable
+}
+
+enum wlr_color_range wlr_color_representation_v1_color_range_to_wlr(
+		enum wp_color_representation_surface_v1_range wp_val) {
+	switch (wp_val) {
+	case WP_COLOR_REPRESENTATION_SURFACE_V1_RANGE_LIMITED:
+		return  WLR_COLOR_RANGE_LIMITED;
+	case WP_COLOR_REPRESENTATION_SURFACE_V1_RANGE_FULL:
+		return WLR_COLOR_RANGE_FULL;
+	}
+	abort(); // unreachable
+}
+
+enum wlr_color_chroma_location wlr_color_representation_v1_chroma_location_to_wlr(
+		enum wp_color_representation_surface_v1_chroma_location wp_val) {
+	switch (wp_val) {
+	case WP_COLOR_REPRESENTATION_SURFACE_V1_CHROMA_LOCATION_TYPE_0:
+		return WLR_COLOR_CHROMA_LOCATION_TYPE0;
+	case WP_COLOR_REPRESENTATION_SURFACE_V1_CHROMA_LOCATION_TYPE_1:
+		return WLR_COLOR_CHROMA_LOCATION_TYPE1;
+	case WP_COLOR_REPRESENTATION_SURFACE_V1_CHROMA_LOCATION_TYPE_2:
+		return WLR_COLOR_CHROMA_LOCATION_TYPE2;
+	case WP_COLOR_REPRESENTATION_SURFACE_V1_CHROMA_LOCATION_TYPE_3:
+		return WLR_COLOR_CHROMA_LOCATION_TYPE3;
+	case WP_COLOR_REPRESENTATION_SURFACE_V1_CHROMA_LOCATION_TYPE_4:
+		return WLR_COLOR_CHROMA_LOCATION_TYPE4;
+	case WP_COLOR_REPRESENTATION_SURFACE_V1_CHROMA_LOCATION_TYPE_5:
+		return WLR_COLOR_CHROMA_LOCATION_TYPE5;
+	}
+	abort(); // unreachable
+}
+
 struct wlr_color_representation_v1 {
 	struct wl_resource *resource;
 	struct wlr_surface *surface;

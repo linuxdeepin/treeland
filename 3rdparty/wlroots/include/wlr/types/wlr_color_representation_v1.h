@@ -82,4 +82,13 @@ struct wlr_color_representation_v1_surface_state {
 const struct wlr_color_representation_v1_surface_state *wlr_color_representation_v1_get_surface_state(
 	struct wlr_surface *surface);
 
+enum wlr_alpha_mode wlr_color_representation_v1_alpha_mode_to_wlr(
+	enum wp_color_representation_surface_v1_alpha_mode wp_val);
+enum wlr_color_encoding wlr_color_representation_v1_color_encoding_to_wlr(
+	enum wp_color_representation_surface_v1_coefficients wp_val);
+enum wlr_color_range wlr_color_representation_v1_color_range_to_wlr(
+	enum wp_color_representation_surface_v1_range wp_val);
+enum wlr_color_chroma_location wlr_color_representation_v1_chroma_location_to_wlr(
+	enum wp_color_representation_surface_v1_chroma_location wp_val);
+
 #endif // WLR_TYPES_WLR_COLOR_REPRESENTATION_V1_H

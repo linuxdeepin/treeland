@@ -31,6 +31,57 @@ enum wlr_color_transfer_function {
 };
 
 /**
+ * Specifies alpha blending modes.  Note that premultiplied_electrical
+ * is the default, so there is no "none" or "unset" value.
+ */
+enum wlr_alpha_mode {
+	WLR_COLOR_ALPHA_MODE_PREMULTIPLIED_ELECTRICAL,
+	WLR_COLOR_ALPHA_MODE_PREMULTIPLIED_OPTICAL,
+	WLR_COLOR_ALPHA_MODE_STRAIGHT,
+};
+
+/**
+ * Well-known color encodings, each representing a set of matrix coefficients
+ * used to convert that particular YCbCr encoding to RGB.  NONE means the
+ * value is unset or unknown.
+ */
+enum wlr_color_encoding {
+	WLR_COLOR_ENCODING_NONE,
+	WLR_COLOR_ENCODING_IDENTITY,
+	WLR_COLOR_ENCODING_BT709,
+	WLR_COLOR_ENCODING_FCC,
+	WLR_COLOR_ENCODING_BT601,
+	WLR_COLOR_ENCODING_SMPTE240,
+	WLR_COLOR_ENCODING_BT2020,
+	WLR_COLOR_ENCODING_BT2020_CL,
+	WLR_COLOR_ENCODING_ICTCP,
+};
+
+/**
+ * Specifies whether a particular color-encoding uses full- or limited-range
+ * values.  NONE means the value is unset or unknown.
+ */
+enum wlr_color_range {
+	WLR_COLOR_RANGE_NONE,
+	WLR_COLOR_RANGE_LIMITED,
+	WLR_COLOR_RANGE_FULL,
+};
+
+/**
+ * Chroma sample locations, corresponding to Chroma420SampleLocType code
+ * points in H.273.  NONE means the value is unset or unknown.
+ */
+enum wlr_color_chroma_location {
+	WLR_COLOR_CHROMA_LOCATION_NONE,
+	WLR_COLOR_CHROMA_LOCATION_TYPE0,
+	WLR_COLOR_CHROMA_LOCATION_TYPE1,
+	WLR_COLOR_CHROMA_LOCATION_TYPE2,
+	WLR_COLOR_CHROMA_LOCATION_TYPE3,
+	WLR_COLOR_CHROMA_LOCATION_TYPE4,
+	WLR_COLOR_CHROMA_LOCATION_TYPE5,
+};
+
+/**
  * CIE 1931 xy chromaticity coordinates.
  */
 struct wlr_color_cie1931_xy {
