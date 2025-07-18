@@ -366,14 +366,6 @@ struct wlr_color_representation_manager_v1 *wlr_color_representation_manager_v1_
 		return NULL;
 	}
 
-	manager->global = wl_global_create(display,
-		&wp_color_representation_manager_v1_interface,
-		version, manager, manager_bind);
-	if (manager->global == NULL) {
-		free(manager);
-		return NULL;
-	}
-
 	bool ok = true;
 	ok &= memdup(&manager->supported_alpha_modes,
 		options->supported_alpha_modes,
@@ -385,6 +377,13 @@ struct wlr_color_representation_manager_v1 *wlr_color_representation_manager_v1_
 		goto err_options;
 	}
 
+	manager->global = wl_global_create(display,
+		&wp_color_representation_manager_v1_interface,
+		version, manager, manager_bind);
+	if (manager->global == NULL) {
+		goto err_options;
+	}
+
 	manager->display_destroy.notify = handle_display_destroy;
 	wl_display_add_destroy_listener(display, &manager->display_destroy);
 
@@ -393,6 +392,7 @@ struct wlr_color_representation_manager_v1 *wlr_color_representation_manager_v1_
 err_options:
 	free(manager->supported_alpha_modes);
 	free(manager->supported_coeffs_and_ranges);
+	free(manager);
 	return NULL;
 }
 
