@@ -23,7 +23,7 @@
     </message>
     <message>
         <source>Power</source>
-        <translation type="unfinished"/>
+        <translation type="vanished">Живлення</translation>
     </message>
 </context>
 <context>
@@ -35,7 +35,7 @@
     <message>
         <location filename="../qml/ControlAction.qml" line="55"/>
         <source>Power</source>
-        <translation type="unfinished"/>
+        <translation>Живлення</translation>
     </message>
 </context>
 <context>
@@ -50,7 +50,7 @@
     <message>
         <location filename="../qml/HintLabel.qml" line="26"/>
         <source>Password Hint</source>
-        <translation type="unfinished"/>
+        <translation>Підказка щодо пароля</translation>
     </message>
 </context>
 <context>
@@ -66,22 +66,22 @@
     <message>
         <location filename="../qml/PowerList.qml" line="60"/>
         <source>Hibernate</source>
-        <translation type="unfinished"/>
+        <translation>Приспати</translation>
     </message>
     <message>
         <location filename="../qml/PowerList.qml" line="50"/>
         <source>Suspend</source>
-        <translation type="unfinished"/>
+        <translation>Призупинити</translation>
     </message>
     <message>
         <location filename="../qml/PowerList.qml" line="43"/>
         <source>Reboot</source>
-        <translation type="unfinished"/>
+        <translation>Перезавантажити</translation>
     </message>
     <message>
         <location filename="../qml/PowerList.qml" line="36"/>
         <source>Shut Down</source>
-        <translation type="unfinished"/>
+        <translation>Вимкнути</translation>
     </message>
 </context>
 <context>
@@ -96,12 +96,12 @@
     <message>
         <location filename="../qml/ShutdownView.qml" line="32"/>
         <source>lock</source>
-        <translation type="unfinished"/>
+        <translation>Заблокувати</translation>
     </message>
     <message>
         <location filename="../qml/ShutdownView.qml" line="37"/>
         <source>switch user</source>
-        <translation type="unfinished"/>
+        <translation>Перемкнути користувача</translation>
     </message>
     <message>
         <location filename="../qml/ShutdownView.qml" line="43"/>
