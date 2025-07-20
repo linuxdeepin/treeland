@@ -310,6 +310,13 @@ static void cm_surface_handle_set_image_description(struct wl_client *client,
 
 	struct wlr_image_description_v1 *image_desc = image_desc_from_resource(image_desc_resource);
 
+	if (image_desc == NULL) {
+		wl_resource_post_error(cm_surface_resource,
+			WP_COLOR_MANAGEMENT_SURFACE_V1_ERROR_IMAGE_DESCRIPTION,
+			"Image description to be set is invalid");
+		return;
+	}
+
 	bool found = false;
 	for (size_t i = 0; i < cm_surface->manager->render_intents_len; i++) {
 		if (cm_surface->manager->render_intents[i] == render_intent) {
