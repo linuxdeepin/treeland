@@ -6,10 +6,6 @@
 
 #define FOREIGN_TOPLEVEL_IMAGE_SOURCE_MANAGER_V1_VERSION 1
 
-struct wlr_ext_foreign_toplevel_image_capture_source_v1 {
-	struct wlr_ext_image_capture_source_v1 base;
-};
-
 static const struct ext_foreign_toplevel_image_capture_source_manager_v1_interface foreign_toplevel_manager_impl;
 
 static struct wlr_ext_foreign_toplevel_image_capture_source_manager_v1 *
