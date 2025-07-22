@@ -56,6 +56,7 @@ struct tinywl_server {
 	struct wlr_seat *seat;
 	struct wl_listener new_input;
 	struct wl_listener request_cursor;
+	struct wl_listener pointer_focus_change;
 	struct wl_listener request_set_selection;
 	struct wl_list keyboards;
 	enum tinywl_cursor_mode cursor_mode;
@@ -330,6 +331,18 @@ static void seat_request_cursor(struct wl_listener *listener, void *data) {
 		 * cursor moves between outputs. */
 		wlr_cursor_set_surface(server->cursor, event->surface,
 				event->hotspot_x, event->hotspot_y);
+	}
+}
+
+static void seat_pointer_focus_change(struct wl_listener *listener, void *data) {
+	struct tinywl_server *server = wl_container_of(
+			listener, server, pointer_focus_change);
+	/* This event is raised when the pointer focus is changed, including when the
+	 * client is closed. We set the cursor image to its default if target surface
+	 * is NULL */
+	struct wlr_seat_pointer_focus_change_event *event = data;
+	if (event->new_surface == NULL) {
+		wlr_cursor_set_xcursor(server->cursor, server->cursor_mgr, "default");
 	}
 }
 
@@ -1018,6 +1031,9 @@ int main(int argc, char *argv[]) {
 	server.request_cursor.notify = seat_request_cursor;
 	wl_signal_add(&server.seat->events.request_set_cursor,
 			&server.request_cursor);
+	server.pointer_focus_change.notify = seat_pointer_focus_change;
+	wl_signal_add(&server.seat->pointer_state.events.focus_change,
+			&server.pointer_focus_change);
 	server.request_set_selection.notify = seat_request_set_selection;
 	wl_signal_add(&server.seat->events.request_set_selection,
 			&server.request_set_selection);
@@ -1069,6 +1085,7 @@ int main(int argc, char *argv[]) {
 
 	wl_list_remove(&server.new_input.link);
 	wl_list_remove(&server.request_cursor.link);
+	wl_list_remove(&server.pointer_focus_change.link);
 	wl_list_remove(&server.request_set_selection.link);
 
 	wl_list_remove(&server.new_output.link);
