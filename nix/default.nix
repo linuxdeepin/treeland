@@ -19,7 +19,7 @@
   wayland,
   wayland-protocols,
   wlr-protocols,
-  wlroots,
+  wlroots_0_19,
   treeland-protocols,
   pixman,
   pam,
@@ -34,7 +34,7 @@
 
 stdenv.mkDerivation (finalAttrs: {
   pname = "treeland";
-  version = "0.2.2";
+  version = "0.5-unstable";
 
   src = nix-filter.filter {
     root = ./..;
@@ -58,6 +58,8 @@ stdenv.mkDerivation (finalAttrs: {
     done
   '';
 
+  depsBuildBuild = [ pkg-config ];
+
   nativeBuildInputs = [
     cmake
     ninja
@@ -80,8 +82,8 @@ stdenv.mkDerivation (finalAttrs: {
     wayland
     wayland-protocols
     wlr-protocols
-    wlroots
     treeland-protocols
+    wlroots_0_19
     pixman
     pam
     libxcrypt
