@@ -13,3 +13,7 @@ add_test(NAME test_protocol_shortcut COMMAND test_protocol_shortcut)
 set_property(TEST test_protocol_shortcut PROPERTY
     ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
 )
+
+set_property(TEST test_protocol_shortcut PROPERTY
+    TIMEOUT 3
+)

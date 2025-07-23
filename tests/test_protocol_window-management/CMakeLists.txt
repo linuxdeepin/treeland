@@ -13,3 +13,7 @@ add_test(NAME test_protocol_window-management COMMAND test_protocol_window-manag
 set_property(TEST test_protocol_window-management PROPERTY
     ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
 )
+
+set_property(TEST test_protocol_window-management PROPERTY
+    TIMEOUT 3
+)

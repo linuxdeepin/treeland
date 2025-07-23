@@ -13,3 +13,7 @@ add_test(NAME test_protocol_personalization COMMAND test_protocol_personalizatio
 set_property(TEST test_protocol_personalization PROPERTY
     ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
 )
+
+set_property(TEST test_protocol_personalization PROPERTY
+    TIMEOUT 3
+)
