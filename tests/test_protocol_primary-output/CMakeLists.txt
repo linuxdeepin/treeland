@@ -13,3 +13,7 @@ add_test(NAME test_protocol_primary-output COMMAND test_protocol_primary-output)
 set_property(TEST test_protocol_primary-output PROPERTY
     ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
 )
+
+set_property(TEST test_protocol_primary-output PROPERTY
+    TIMEOUT 3
+)
