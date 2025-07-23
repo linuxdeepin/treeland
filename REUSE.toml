@@ -67,3 +67,183 @@ path = ["qwlroots/**"]
 precedence = "aggregate"
 SPDX-FileCopyrightText = "None"
 SPDX-License-Identifier = "Apache-2.0"
+
+# ===== WAYLIB REUSE Configuration =====
+# CI and build files for waylib
+[[annotations]]
+path = ["waylib/.github/**", "waylib/.obs/**.yml", "waylib/renovate.json"]
+precedence = "aggregate"
+SPDX-FileCopyrightText = "None"
+SPDX-License-Identifier = "CC0-1.0"
+
+# Gitignore and git modules for waylib
+[[annotations]]
+path = ["waylib/.gitignore", "waylib/.gitmodules"]
+precedence = "aggregate"
+SPDX-FileCopyrightText = "None"
+SPDX-License-Identifier = "CC0-1.0"
+
+# Project files for waylib
+[[annotations]]
+path = ["waylib/**.cmake", "waylib/*CMakeLists.txt", "waylib/**.pc.in", "waylib/**cmake.in"]
+precedence = "aggregate"
+SPDX-FileCopyrightText = "None"
+SPDX-License-Identifier = "CC0-1.0"
+
+# README for waylib
+[[annotations]]
+path = ["waylib/README.md", "waylib/README.zh_CN.md"]
+precedence = "aggregate"
+SPDX-FileCopyrightText = "JiDe Zhang"
+SPDX-License-Identifier = "CC-BY-4.0"
+
+# Nix Develop files for waylib
+[[annotations]]
+path = ["waylib/**.nix", "waylib/.envrc", "waylib/flake.lock"]
+precedence = "aggregate"
+SPDX-FileCopyrightText = "None"
+SPDX-License-Identifier = "CC0-1.0"
+
+# Debian package for waylib
+[[annotations]]
+path = ["waylib/debian/**"]
+precedence = "aggregate"
+SPDX-FileCopyrightText = "None"
+SPDX-License-Identifier = "CC0-1.0"
+
+# C++ pch files for waylib
+[[annotations]]
+path = ["waylib/src/server/pch/pch.hxx"]
+precedence = "aggregate"
+SPDX-FileCopyrightText = "None"
+SPDX-License-Identifier = "CC0-1.0"
+
+# Core waylib files
+[[annotations]]
+path = [
+    "waylib/examples/tinywl/qml.qrc",
+    "waylib/tests/manual/cursor/cursor.qrc",
+    "waylib/src/server/kernel/WBackend",
+    "waylib/src/server/kernel/WCursor",
+    "waylib/src/server/kernel/WInputDevice",
+    "waylib/src/server/kernel/WInputEvent",
+    "waylib/src/server/kernel/WOutput",
+    "waylib/src/server/kernel/WSeat",
+    "waylib/src/server/kernel/WEvent",
+    "waylib/src/server/kernel/WServer",
+    "waylib/src/server/kernel/WServerInterface",
+    "waylib/src/server/kernel/WSurface",
+    "waylib/src/server/kernel/WSurfaceLayout",
+    "waylib/src/server/kernel/WTexture",
+    "waylib/src/server/kernel/WXdgShell",
+    "waylib/src/server/kernel/WXdgSurface",
+    "waylib/src/server/kernel/WLayerSurface",
+    "waylib/src/server/qtquick/WQuickRenderControl",
+    "waylib/src/server/qtquick/WSurfaceItem",
+    "waylib/src/server/utils/WSignalConnector",
+    "waylib/src/server/utils/WThreadUtils",
+    "waylib/src/server/utils/WCursorImage",
+    "waylib/src/server/utils/WWrapPointer",
+    "waylib/tests/main.cpp",
+    "waylib/tests/test.h"
+]
+precedence = "aggregate"
+SPDX-FileCopyrightText = "JiDe Zhang"
+SPDX-License-Identifier = "Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only"
+
+# Waylib protocol files
+[[annotations]]
+path = [
+    "waylib/src/server/protocols/WCursorShapeManagerV1",
+    "waylib/src/server/protocols/WForeignToplevel",
+    "waylib/src/server/protocols/WInputMethodHelper",
+    "waylib/src/server/protocols/WLayerSurface",
+    "waylib/src/server/protocols/WOutputManagerV1",
+    "waylib/src/server/protocols/WXdgOutput",
+    "waylib/src/server/protocols/WXdgShell",
+    "waylib/src/server/protocols/WXdgSurface",
+    "waylib/src/server/protocols/WLayerShell",
+    "waylib/src/server/protocols/WInputPopupSurface",
+    "waylib/src/server/protocols/WXWayland",
+    "waylib/src/server/protocols/WXWaylandSurface",
+    "waylib/src/server/protocols/WXdgDecorationManager"
+]
+precedence = "aggregate"
+SPDX-FileCopyrightText = "UnionTech Software Technology Co., Ltd."
+SPDX-License-Identifier = "Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only"
+
+# Misc files for waylib
+[[annotations]]
+path = [
+    "waylib/tests/manual/cursor/res/HandCursor.png",
+    "waylib/examples/tinywl/res/xx.jpg"
+]
+precedence = "aggregate"
+SPDX-FileCopyrightText = "None"
+SPDX-License-Identifier = "CC0-1.0"
+
+# Protocol files with HPND license for waylib
+[[annotations]]
+path = ["waylib/src/server/protocols/private/text-input-unstable-v2.xml"]
+precedence = "aggregate"
+SPDX-FileCopyrightText = "None"
+SPDX-License-Identifier = "HPND"
+
+# ===== QWLROOTS REUSE Configuration =====
+# CI for qwlroots
+[[annotations]]
+path = ["qwlroots/.github/**", "qwlroots/.obs/**.yml", "qwlroots/garnix.yaml"]
+precedence = "aggregate"
+SPDX-FileCopyrightText = "None"
+SPDX-License-Identifier = "CC0-1.0"
+
+# Project files for qwlroots
+[[annotations]]
+path = [
+    "qwlroots/**.cmake",
+    "qwlroots/*CMakeLists.txt",
+    "qwlroots/**.pc.in",
+    "qwlroots/**cmake.in",
+    "qwlroots/.gitignore",
+    "qwlroots/.cursorindexingignore",
+    "qwlroots/.cursor/rules/**.mdc",
+    "qwlroots/.gitmodules"
+]
+precedence = "aggregate"
+SPDX-FileCopyrightText = "None"
+SPDX-License-Identifier = "CC0-1.0"
+
+# Simple header files for qwlroots
+[[annotations]]
+path = [
+    "qwlroots/**/qwkeyboard.h",
+    "qwlroots/**/qwpointer.h",
+    "qwlroots/**/qwswitch.h",
+    "qwlroots/**/qwtablet.h",
+    "qwlroots/**/qwtabletpad.h",
+    "qwlroots/**/qwtouch.h"
+]
+precedence = "aggregate"
+SPDX-FileCopyrightText = "None"
+SPDX-License-Identifier = "CC0-1.0"
+
+# README and documentation for qwlroots
+[[annotations]]
+path = ["qwlroots/README.md", "qwlroots/README.zh_CN.md", "qwlroots/doc/ai/**.md"]
+precedence = "aggregate"
+SPDX-FileCopyrightText = "JiDe Zhang"
+SPDX-License-Identifier = "CC-BY-4.0"
+
+# Nix Develop files for qwlroots
+[[annotations]]
+path = ["qwlroots/**.nix", "qwlroots/.envrc", "qwlroots/flake.lock"]
+precedence = "aggregate"
+SPDX-FileCopyrightText = "None"
+SPDX-License-Identifier = "CC0-1.0"
+
+# Debian package for qwlroots
+[[annotations]]
+path = ["qwlroots/debian/**"]
+precedence = "aggregate"
+SPDX-FileCopyrightText = "2023 rewine <luhongxu@outlook.com>"
+SPDX-License-Identifier = "Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only"
