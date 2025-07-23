@@ -41,3 +41,54 @@ jobs:
       - name: Build qwlroots
         working-directory: qwlroots
         run: cmake --build build
+
+      - name: Install qwlroots to staging directory
+        working-directory: qwlroots
+        run: |
+          echo "Installing qwlroots to staging directory..."
+          mkdir -p /tmp/qwlroots-install
+          DESTDIR=/tmp/qwlroots-install cmake --install build
+          echo "✅ qwlroots installed to staging directory"
+
+          echo "Installed files:"
+          find /tmp/qwlroots-install -type f | head -20
+          echo "Total files installed: $(find /tmp/qwlroots-install -type f | wc -l)"
+
+      - name: Create qwlroots installation package
+        run: |
+          cd /tmp/qwlroots-install
+
+          # Install zip if not available
+          pacman -Syu --noconfirm zip
+
+          # Create package info
+          echo "Creating package info..."
+          cat > PACKAGE_INFO.txt << EOF
+          Package: qwlroots-archlinux-build
+          Version: $(date +%Y%m%d-%H%M%S)
+          Architecture: x86_64
+          Built-on: Arch Linux
+          CMake-Config: Default configuration
+
+          Installation Instructions:
+          1. Extract this package to /
+          2. Run: sudo ldconfig (if libraries are included)
+          3. Ensure dependencies are installed on target system
+
+          Files included in this package:
+          EOF
+          find . -type f | sort >> PACKAGE_INFO.txt
+
+          # Create the zip package
+          zip -r /tmp/qwlroots-archlinux-$(date +%Y%m%d-%H%M%S).zip .
+          echo "✅ qwlroots installation package created"
+
+          ls -la /tmp/qwlroots-archlinux-*.zip
+
+      - name: Upload qwlroots ArchLinux build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: qwlroots-archlinux-build
+          path: "/tmp/qwlroots-archlinux-*.zip"
+          if-no-files-found: error
+          retention-days: 30
