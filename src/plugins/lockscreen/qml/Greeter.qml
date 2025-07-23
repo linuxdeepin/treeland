@@ -93,6 +93,7 @@ FocusScope {
         anchors.fill: parent
 
         onClicked: function () {
+            wallpaperController.type = WallpaperController.Normal
             root.animationPlayed()
             root.animationPlayFinished()
         }
