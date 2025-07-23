@@ -4,6 +4,7 @@ Maintainer: rewine <lhongxu@outlook.com>
 Build-Depends: debhelper-compat (= 13),
                pkg-config,
                cmake,
+               ninja-build,
                qt6-base-private-dev,
                qt6-base-dev-tools,
                wayland-protocols,
@@ -33,4 +34,3 @@ Description: Qt and QML bindings for wlroots
  calling wlroots within Qt projects.
  .
  This package contains the development headers and static library.
-
