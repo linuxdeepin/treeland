@@ -38,26 +38,6 @@
               {
                 imports = [ "${nixpkgs}/nixos/modules/virtualisation/qemu-vm.nix" ];
 
-                # TODO:  allow set Environment in services.seatd
-                users.groups.seat = { };
-                systemd.services.seatd = {
-                  description = "Seat management daemon";
-                  documentation = [ "man:seatd(1)" ];
-
-                  wantedBy = [ "multi-user.target" ];
-                  restartIfChanged = false;
-
-                  serviceConfig = {
-                    Type = "notify";
-                    NotifyAccess = "all";
-                    SyslogIdentifier = "seatd";
-                    ExecStart = "${pkgs.sdnotify-wrapper}/bin/sdnotify-wrapper ${pkgs.seatd.bin}/bin/seatd -n 1 -u dde -g dde -l debug";
-                    RestartSec = 1;
-                    Restart = "always";
-                    Environment = "SEATD_VTBOUND=0";
-                  };
-                };
-
                 environment.systemPackages = with pkgs; [
                   foot
                   gdb
@@ -194,22 +174,6 @@
           };
 
           devShells.default = pkgs.mkShell {
-            packages = with pkgs; [
-              # For submodule build
-              wayland
-              wayland-protocols
-              wlr-protocols
-              pixman
-              mesa
-              libdrm
-              vulkan-loader
-              libinput
-              xorg.libXdmcp
-              xorg.xcbutilerrors
-              seatd
-              wlroots
-            ];
-
             inputsFrom = [
               self.packages.${system}.default
             ];
@@ -222,8 +186,8 @@
               ''
                 #export QT_LOGGING_RULES="*.debug=true;qt.*.debug=false"
                 #export WAYLAND_DEBUG=1
-                export QT_PLUGIN_PATH=${makeQtpluginPath (with pkgs.qt6; [ qtbase qtdeclarative qtquick3d qtimageformats qtwayland qt5compat qtsvg ])}
-                export QML2_IMPORT_PATH=${makeQmlpluginPath (with pkgs; with qt6; [ qtdeclarative qtquick3d qt5compat deepin.dtk6declarative ] )}
+                export QT_PLUGIN_PATH=${makeQtpluginPath (with pkgs.qt6; [ qtbase qtdeclarative qtimageformats qtwayland qtsvg ])}
+                export QML2_IMPORT_PATH=${makeQmlpluginPath (with pkgs; with qt6; [ qtdeclarative deepin.dtk6declarative ] )}
                 export QML_IMPORT_PATH=$QML2_IMPORT_PATH
               '';
           };
