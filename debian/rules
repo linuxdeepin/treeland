@@ -18,4 +18,4 @@ TREELAND_CMAKE_ARGS = -DBUILD_TREELAND_EXAMPLES=ON
 	dh $@
 
 override_dh_auto_configure:
-	dh_auto_configure -- ${TREELAND_CMAKE_ARGS}
+	dh_auto_configure -- -GNinja ${TREELAND_CMAKE_ARGS}

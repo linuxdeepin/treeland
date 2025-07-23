@@ -4,6 +4,7 @@ Priority: optional
 Maintainer: JiDe Zhang <zhangjide@deepin.org>
 Build-Depends: cmake,
                debhelper-compat (= 13),
+               ninja-build,
                libpixman-1-dev,
                libwlroots-0.19-dev,
                libxcb-ewmh-dev,
