@@ -51,3 +51,55 @@ jobs:
       - name: Build waylib
         working-directory: waylib
         run: cmake --build build
+
+      - name: Install waylib to staging directory
+        working-directory: waylib
+        run: |
+          echo "Installing waylib to staging directory..."
+          mkdir -p /tmp/waylib-install
+          DESTDIR=/tmp/waylib-install cmake --install build
+          echo "✅ waylib installed to staging directory"
+
+          echo "Installed files:"
+          find /tmp/waylib-install -type f | head -20
+          echo "Total files installed: $(find /tmp/waylib-install -type f | wc -l)"
+
+      - name: Create waylib installation package
+        run: |
+          cd /tmp/waylib-install
+
+          # Install zip if not available
+          pacman -Syu --noconfirm zip
+
+          # Create package info
+          echo "Creating package info..."
+          cat > PACKAGE_INFO.txt << EOF
+          Package: waylib-archlinux-build
+          Version: $(date +%Y%m%d-%H%M%S)
+          Architecture: x86_64
+          Built-on: Arch Linux
+          Built-with: qwlroots submodule enabled
+          CMake-Config: -DWITH_SUBMODULE_QWLROOTS=ON
+
+          Installation Instructions:
+          1. Extract this package to /
+          2. Run: sudo ldconfig (if libraries are included)
+          3. Ensure dependencies are installed on target system
+
+          Files included in this package:
+          EOF
+          find . -type f | sort >> PACKAGE_INFO.txt
+
+          # Create the zip package
+          zip -r /tmp/waylib-archlinux-$(date +%Y%m%d-%H%M%S).zip .
+          echo "✅ waylib installation package created"
+
+          ls -la /tmp/waylib-archlinux-*.zip
+
+      - name: Upload waylib ArchLinux build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: waylib-archlinux-build
+          path: "/tmp/waylib-archlinux-*.zip"
+          if-no-files-found: error
+          retention-days: 30
