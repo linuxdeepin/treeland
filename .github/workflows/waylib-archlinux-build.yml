@@ -1,0 +1,53 @@
+name: Build waylib on Arch Linux (independent)
+
+on:
+  push:
+    paths:
+      - 'waylib/**'
+      - '.github/workflows/waylib-archlinux-build.yml'
+    branches:
+      - master
+
+  pull_request:
+    paths:
+      - 'waylib/**'
+      - '.github/workflows/waylib-archlinux-build.yml'
+    branches:
+      - master
+
+jobs:
+  container:
+    runs-on: ubuntu-latest
+    container: archlinux:latest
+    steps:
+      - name: Run in container
+        run: |
+          cat /etc/pacman.d/mirrorlist
+          pacman-key --init
+          pacman --noconfirm --noprogressbar -Syu
+      - name: Install dependencies
+        run: |
+          pacman -Syu --noconfirm --noprogressbar base-devel qt6-base qt6-declarative cmake pkgconfig pixman vulkan-headers wlroots0.19 wayland-protocols wlr-protocols git
+          pacman -Syu --noconfirm --noprogressbar clang ninja make
+          pacman -Syu --noconfirm --noprogressbar fakeroot meson sudo
+
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - name: Create qwlroots symlink for waylib
+        run: |
+          cd waylib
+          ln -sf ../qwlroots qwlroots
+          echo "✅ Created symlink: waylib/qwlroots -> ../qwlroots"
+          ls -la qwlroots
+
+      - name: Configure CMake for waylib
+        working-directory: waylib
+        run: |
+          echo "Working directory:" $PWD
+          cmake -B build -G Ninja -DWITH_SUBMODULE_QWLROOTS=ON
+
+      - name: Build waylib
+        working-directory: waylib
+        run: cmake --build build

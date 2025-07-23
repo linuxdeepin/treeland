@@ -283,11 +283,7 @@ if(NOT DISABLE_XWAYLAND)
     )
 endif()
 
-add_library(${TARGET}
-    SHARED
-    ${SOURCES}
-)
-
+add_library(${TARGET} SHARED ${SOURCES})
 add_library(Waylib::WaylibServer ALIAS ${TARGET})
 
 qt_add_qml_module(${TARGET}
@@ -314,6 +310,7 @@ set_target_properties(${TARGET}
         PUBLIC_HEADER "${HEADERS}"
 	# PRIVATE_HEADER "${PRIVATE_HEADERS}"
 	# CMake Warning has PRIVATE_HEADER files but no PRIVATE_HEADER DESTINATION
+        POSITION_INDEPENDENT_CODE ON
 )
 
 set(QT_LIBRARIES "")
@@ -379,6 +376,19 @@ install(TARGETS ${TARGET}
         COMPONENT Development
         DESTINATION ${WAYLIB_INCLUDE_INSTALL_DIR}
 )
+
+# Install QML module generated targets separately to avoid dependency issues
+# This works around the Qt CMake QML module export issue
+get_directory_property(all_targets BUILDSYSTEM_TARGETS)
+foreach(target_name ${all_targets})
+    if(target_name MATCHES "^${TARGET}_resources_")
+        install(TARGETS ${target_name}
+            EXPORT WaylibServerTargets
+            ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+            RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+        )
+    endif()
+endforeach()
 
 configure_package_config_file(
     "${CMAKE_CURRENT_SOURCE_DIR}/../cmake/WaylibServerConfig.cmake.in"
