@@ -283,7 +283,8 @@ static void output_cursor_source_copy_frame(struct wlr_ext_image_capture_source_
 	struct timespec now;
 	clock_gettime(CLOCK_MONOTONIC, &now);
 
-	wlr_ext_image_copy_capture_frame_v1_ready(frame, WL_OUTPUT_TRANSFORM_NORMAL, &now);
+	wlr_ext_image_copy_capture_frame_v1_ready(frame,
+			cursor_source->output->transform, &now);
 }
 
 static const struct wlr_ext_image_capture_source_v1_interface output_cursor_source_impl = {
