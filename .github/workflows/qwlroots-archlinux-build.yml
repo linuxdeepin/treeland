@@ -1,0 +1,43 @@
+name: Build qwlroots on Arch Linux (independent)
+
+on:
+  push:
+    paths:
+      - 'qwlroots/**'
+      - '.github/workflows/qwlroots-archlinux-build.yml'
+    branches:
+      - master
+
+  pull_request:
+    paths:
+      - 'qwlroots/**'
+      - '.github/workflows/qwlroots-archlinux-build.yml'
+    branches:
+      - master
+
+jobs:
+  container:
+    runs-on: ubuntu-latest
+    container: archlinux:latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run in container
+        run: |
+          pacman-key --init
+          pacman -Syu --noconfirm
+
+      - name: Install dependencies
+        run: |
+          pacman -Syu --noconfirm qt6-base cmake pkgconfig wlroots0.19 pixman wayland-protocols wlr-protocols
+          pacman -Syu --noconfirm clang ninja base-devel git
+
+      - name: Configure CMake for qwlroots
+        working-directory: qwlroots
+        run: |
+          echo "Working directory:" $PWD
+          cmake -B build -G Ninja
+
+      - name: Build qwlroots
+        working-directory: qwlroots
+        run: cmake --build build

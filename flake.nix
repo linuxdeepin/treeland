@@ -5,19 +5,6 @@
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     flake-utils.url = "github:numtide/flake-utils";
     nix-filter.url = "github:numtide/nix-filter";
-    qwlroots = {
-      url = "github:vioken/qwlroots";
-      inputs.nixpkgs.follows = "nixpkgs";
-      inputs.flake-utils.follows = "flake-utils";
-      inputs.nix-filter.follows = "nix-filter";
-    };
-    waylib = {
-      url = "github:vioken/waylib";
-      inputs.qwlroots.follows = "qwlroots";
-      inputs.nixpkgs.follows = "nixpkgs";
-      inputs.flake-utils.follows = "flake-utils";
-      inputs.nix-filter.follows = "nix-filter";
-    };
     ddm = {
       url = "github:linuxdeepin/ddm";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -32,7 +19,7 @@
     };
   };
 
-  outputs = { self, nixpkgs, flake-utils, nix-filter, waylib, ddm, qwlroots, treeland-protocols }@input:
+  outputs = { self, nixpkgs, flake-utils, nix-filter, ddm, treeland-protocols }@input:
     flake-utils.lib.eachSystem [ "x86_64-linux" "aarch64-linux" "riscv64-linux" ]
       (system:
         let
@@ -40,10 +27,6 @@
 
           treeland = pkgs.qt6Packages.callPackage ./nix {
             nix-filter = nix-filter.lib;
-            qwlroots = qwlroots.packages.${system}.default;
-            waylib = waylib.packages.${system}.default.override {
-                debug = false;
-            };
             ddm = ddm.packages.${system}.default;
             treeland-protocols = treeland-protocols.packages.${system}.default;
           };
@@ -213,8 +196,17 @@
           devShells.default = pkgs.mkShell {
             packages = with pkgs; [
               # For submodule build
-              libinput
               wayland
+              wayland-protocols
+              wlr-protocols
+              pixman
+              mesa
+              libdrm
+              vulkan-loader
+              libinput
+              xorg.libXdmcp
+              xorg.xcbutilerrors
+              seatd
               wlroots
             ];
 

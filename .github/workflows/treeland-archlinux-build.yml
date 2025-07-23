@@ -1,0 +1,97 @@
+name: Build treeland on Arch Linux
+
+# This workflow builds treeland with merged waylib and qwlroots code
+# Dependencies are based on the official ArchLinux PKGBUILD plus
+# additional dependencies from the integrated waylib and qwlroots code
+# treeland-protocols-git is installed from AUR
+
+on:
+  push:
+    branches:
+      - master
+
+  pull_request:
+    branches:
+      - master
+
+jobs:
+  container:
+    runs-on: ubuntu-latest
+    container: archlinux:latest
+    steps:
+      - name: Run in container
+        run: |
+          cat /etc/pacman.d/mirrorlist
+          pacman-key --init
+          pacman --noconfirm --noprogressbar -Syu
+
+      - name: Install base dependencies
+        run: |
+          pacman -Syu --noconfirm --noprogressbar base-devel git cmake ninja pkgconfig clang make
+          pacman -Syu --noconfirm --noprogressbar fakeroot meson sudo
+
+      - name: Install Qt6 dependencies
+        run: |
+          # Qt6 dependencies matching qwlroots and waylib builds
+          pacman -Syu --noconfirm --noprogressbar qt6-base qt6-declarative qt6-wayland qt6-tools
+
+      - name: Install graphics and wayland dependencies
+        run: |
+          # Core graphics and wayland dependencies (matching qwlroots and waylib builds)
+          pacman -Syu --noconfirm --noprogressbar pixman vulkan-headers wayland wayland-protocols wlr-protocols
+          pacman -Syu --noconfirm --noprogressbar wlroots0.19 libinput pam systemd-libs jemalloc gcc-libs glibc
+
+      - name: Install additional waylib/qwlroots dependencies
+        run: |
+          # Additional dependencies from waylib and qwlroots build configs
+          pacman -Syu --noconfirm --noprogressbar libdrm xcb-util-errors libxdmcp
+
+      - name: Install DTK dependencies
+        run: |
+          # Try to install DTK from available packages
+          # If not available, the build will proceed without them (may fail)
+          pacman -Syu --noconfirm --noprogressbar dtk6core dtk6declarative dtk6systemsettings
+
+      - name: Install DDM dependencies
+        run: |
+          # Try to install DDM from available packages
+          pacman -Syu --noconfirm --noprogressbar ddm
+
+      - name: Install treeland-protocols from AUR
+        run: |
+          # Install treeland-protocols-git from AUR using makepkg
+          echo "Installing treeland-protocols-git from AUR..."
+
+          # Create a temporary user for makepkg (can't run as root)
+          useradd -m -s /bin/bash aur_builder
+          echo "aur_builder ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
+
+          # Switch to aur_builder and install treeland-protocols-git
+          sudo -u aur_builder bash -c "
+            cd /home/aur_builder
+            git clone https://aur.archlinux.org/treeland-protocols-git.git
+            cd treeland-protocols-git
+            makepkg -si --noconfirm
+          "
+
+          echo "✅ treeland-protocols-git installed from AUR"
+
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configure CMake for treeland
+        run: |
+          echo "Working directory:" $PWD
+          echo "Configuring treeland with merged waylib and qwlroots code..."
+          # Configuration matches ArchLinux PKGBUILD
+          cmake -B build -G Ninja \
+            -DCMAKE_INSTALL_LIBDIR=lib \
+            -DCMAKE_INSTALL_LIBEXECDIR=lib \
+            -DCMAKE_INSTALL_SYSCONFDIR=/etc \
+            -DCMAKE_INSTALL_PREFIX=/usr
+
+      - name: Build treeland
+        run: |
+          cmake --build build
+          echo "✅ treeland built successfully with merged waylib and qwlroots code!"
