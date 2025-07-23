@@ -13,3 +13,7 @@ add_test(NAME test_protocol_wallpaper-color COMMAND test_protocol_wallpaper-colo
 set_property(TEST test_protocol_wallpaper-color PROPERTY
     ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
 )
+
+set_property(TEST test_protocol_wallpaper-color PROPERTY
+    TIMEOUT 3
+)
