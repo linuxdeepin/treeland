@@ -3,6 +3,7 @@ Priority: optional
 Maintainer: rewine <luhongxu@deepin.org>
 Build-Depends: cmake (>= 3.4~),
                debhelper-compat (= 13),
+               ninja-build,
                extra-cmake-modules (>= 1.4.0~),
                libddm-dev,
                libdtk6core-dev,

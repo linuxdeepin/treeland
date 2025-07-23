@@ -11,7 +11,7 @@ export QT_SELECT = qt6
 	dh $@ --parallel
 
 override_dh_auto_configure:
-	dh_auto_configure -- -DCMAKE_INSTALL_PREFIX=/usr
+	dh_auto_configure -- -GNinja -DCMAKE_INSTALL_PREFIX=/usr
 
 #override_dh_auto_test:
 #	echo "skip auto test"
