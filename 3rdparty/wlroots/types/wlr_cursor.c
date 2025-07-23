@@ -530,10 +530,6 @@ static void cursor_output_cursor_update(struct wlr_cursor_output_cursor *output_
 	struct wlr_cursor *cur = output_cursor->cursor;
 	struct wlr_output *output = output_cursor->output_cursor->output;
 
-	if (!output->enabled) {
-		return;
-	}
-
 	cursor_output_cursor_reset_image(output_cursor);
 
 	if (cur->state->buffer != NULL) {
