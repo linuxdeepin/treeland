@@ -20,11 +20,10 @@
           pkgs = nixpkgs.legacyPackages.${system};
 
           waylib = pkgs.qt6Packages.callPackage ./nix {
-            nix-filter = nix-filter.lib;
             qwlroots = qwlroots.packages.${system}.qwlroots-qt6;
 
             # for test
-            inherit pkgs waylib;
+            inherit pkgs waylib nix-filter;
             makeTest = import (pkgs.path + "/nixos/tests/make-test-python.nix");
           };
         in
