@@ -354,6 +354,16 @@ InputDevice *InputDevice::instance()
 
 bool InputDevice::initTouchPad(WInputDevice *device)
 {
+    if (!device) {
+        qWarning() << "Cannot initialize touchpad for null device";
+        return false;
+    }
+
+    if (!device->qtDevice()) {
+        qWarning() << "Cannot initialize touchpad: device has no qtDevice";
+        return false;
+    }
+
     if (device->handle()->is_libinput()
         && device->qtDevice()->type() == QInputDevice::DeviceType::TouchPad) {
         configTapEnabled(libinput_device_handle(device->handle()), LIBINPUT_CONFIG_TAP_ENABLED);
