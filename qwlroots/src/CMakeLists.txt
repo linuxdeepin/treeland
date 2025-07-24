@@ -164,10 +164,12 @@ set(HEADERS
 )
 
 if (USE_WLROOTS_19)  # 0.19
-    list(APPEND HEADERS 
+    list(APPEND HEADERS
         types/qwcolormanagerv1.h
         types/qwextimagecopycapturev1.h
+        types/qwextimagecapturesourcev1.h
         types/qwextforeigntoplevellistv1.h
+        interfaces/qwextimagecapturesourcev1interface.h
     )
 else()
     list(APPEND HEADERS
