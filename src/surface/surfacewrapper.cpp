@@ -890,6 +890,10 @@ void SurfaceWrapper::doSetSurfaceState(State newSurfaceState)
     m_surfaceState.notify();
     updateTitleBar();
     updateVisible();
+
+    if (surfaceItem() && surfaceItem()->eventItem()) {
+        surfaceItem()->eventItem()->forceActiveFocus();
+    }
 }
 
 void SurfaceWrapper::onAnimationReady()
