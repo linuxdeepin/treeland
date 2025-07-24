@@ -344,7 +344,7 @@ Item {
                                 let index = workspaceNumKeys.includes(event.key) ?
                                         workspaceNumKeys.indexOf(event.key) : workspaceNumComposedKeys.indexOf(event.key)
                                 const ws = Helper.workspace.modelAt(index)
-                                if (ws)
+                                if (ws && wrapper)
                                     Helper.workspace.moveSurfaceTo(wrapper, ws.id)
                             }
                         } else if (event.modifiers === Qt.AltModifier
