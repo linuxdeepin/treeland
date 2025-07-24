@@ -60,7 +60,9 @@ Item {
                 // Substitute switch workspace
                 dragManager.accept = () => {
                     switchTimer.stop()
-                    Helper.workspace.moveSurfaceTo(dragManager.item.wrapper, switchTimer.switchToModel.id)
+                    if (dragManager.item?.wrapper && switchTimer.switchToModel) {
+                        Helper.workspace.moveSurfaceTo(dragManager.item.wrapper, switchTimer.switchToModel.id)
+                    }
                 }
             } else {
                 dragManager.doNotRestoreAccept = true
@@ -217,7 +219,9 @@ Item {
                                         if (workspace.id !== dragManager.item.wrapper.workspaceId && !dragManager.doNotRestoreAccept) {
                                             dragManager.accept = () => {
                                                 switchTimer.stop()
-                                                Helper.workspace.moveSurfaceTo(dragManager.item.wrapper, workspace.id)
+                                                if (dragManager.item?.wrapper) {
+                                                    Helper.workspace.moveSurfaceTo(dragManager.item.wrapper, workspace.id)
+                                                }
                                             }
                                         }
                                     }
