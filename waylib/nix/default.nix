@@ -27,7 +27,7 @@ stdenv.mkDerivation (finalAttrs: {
   pname = "waylib";
   version = "0.1.1";
 
-  src = nix-filter.filter {
+  src = nix-filter.lib.filter {
     root = ./..;
 
     exclude = [
@@ -36,7 +36,7 @@ stdenv.mkDerivation (finalAttrs: {
       "LICENSES"
       "README.md"
       "README.zh_CN.md"
-      (nix-filter.matchExt "nix")
+      (nix-filter.lib.matchExt "nix")
     ];
   };
 
@@ -64,8 +64,9 @@ stdenv.mkDerivation (finalAttrs: {
   cmakeBuildType = if debug then "Debug" else "Release";
 
   cmakeFlags = [
-    (lib.cmakeBool "INSTALL_TINYWL" true)
+    (lib.cmakeBool "BUILD_EXAMPLES" false)
     (lib.cmakeBool "ADDRESS_SANITIZER" debug)
+    (lib.cmakeBool "WITH_SUBMODULE_QWLROOTS" false)
   ];
 
   strictDeps = true;

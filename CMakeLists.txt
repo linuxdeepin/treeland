@@ -16,9 +16,10 @@ include(FeatureSummary)
 
 include(cmake/DefineTarget.cmake)
 
-set(WITH_SUBMODULE_WAYLIB ON)
+option(WITH_SUBMODULE_WAYLIB "Use the waylib from git submodule" ON)
+add_feature_info(submodule_waylib WITH_SUBMODULE_WAYLIB "Use waylib from submodule")
 
-option(ADDRESS_SANITIZER "Enable address sanitize" OFF)
+option(ADDRESS_SANITIZER "Enable address sanitizer" OFF)
 add_feature_info(ASanSupport ADDRESS_SANITIZER "https://github.com/google/sanitizers/wiki/AddressSanitizer")
 
 option(BUILD_TREELAND_EXAMPLES "Build clients demo to test treeland" OFF)

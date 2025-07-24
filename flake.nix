@@ -24,14 +24,8 @@
       (system:
         let
           pkgs = nixpkgs.legacyPackages.${system};
-
-          treeland = pkgs.qt6Packages.callPackage ./nix {
-            nix-filter = nix-filter.lib;
-            ddm = ddm.packages.${system}.default;
-            treeland-protocols = treeland-protocols.packages.${system}.default;
-          };
         in
-        {
+        rec {
           nixosConfigurations.vm = nixpkgs.lib.nixosSystem {
             inherit system;
             modules = [
@@ -163,10 +157,16 @@
             ];
           };
 
-          packages = {
-            default = treeland;
-            qemu = self.nixosConfigurations.${system}.vm.config.system.build.vm;
-          };
+
+          packages = (import ./default.nix {
+              inherit pkgs nix-filter;
+              ddm = ddm.packages.${system}.default;
+              treeland-protocols = treeland-protocols.packages.${system}.default;
+            }) // {
+              qemu = self.nixosConfigurations.${system}.vm.config.system.build.vm;
+            };
+
+          treeland = packages.default;
 
           apps.qemu = {
             type = "app";
@@ -174,8 +174,28 @@
           };
 
           devShells.default = pkgs.mkShell {
+            packages = with pkgs; [
+              # For submodule waylib and qwlroots
+              wayland
+              wayland-protocols
+              wlr-protocols
+              vulkan-loader
+              xorg.libXdmcp
+              xorg.xcbutilerrors
+              seatd
+              wlroots_0_19
+              mesa
+              libdrm
+              vulkan-loader
+              seatd
+            ];
+
             inputsFrom = [
-              self.packages.${system}.default
+              self.packages.${system}.treeland.override {
+                  #It's submodule, prevent infinite loop calls
+                  waylib = null;
+                  qwlroot = null;
+              }
             ];
 
             shellHook =
