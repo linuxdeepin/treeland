@@ -12,13 +12,7 @@
             "displayName": "Default Config",
             "description": "Default build using Ninja generator",
             "generator": "Ninja",
-            "binaryDir": "${sourceDir}/build",
-            "cacheVariables": {
-                "WITH_SUBMODULE_WAYLIB": {
-                    "type": "BOOL",
-                    "value": "OFF"
-                }
-            }
+            "binaryDir": "${sourceDir}/build"
         },
         {
             "name": "clang",
@@ -27,38 +21,6 @@
             "generator": "Ninja",
             "binaryDir": "${sourceDir}/build",
             "cacheVariables": {
-                "WITH_SUBMODULE_WAYLIB": {
-                    "type": "BOOL",
-                    "value": "OFF"
-                },
-                "CMAKE_C_COMPILER": "clang",
-                "CMAKE_CXX_COMPILER": "clang++"
-            }
-        },
-        {
-            "name": "submodule",
-            "displayName": "use submodule",
-            "description": "Default build using Ninja generator with git submodule",
-            "generator": "Ninja",
-            "binaryDir": "${sourceDir}/build",
-            "cacheVariables": {
-                "WITH_SUBMODULE_WAYLIB": {
-                    "type": "BOOL",
-                    "value": "ON"
-                }
-            }
-        },
-        {
-            "name": "submodule-with-clang",
-            "displayName": "use submodule with clang",
-            "description": "Default build using Ninja generator with git submodule",
-            "generator": "Ninja",
-            "binaryDir": "${sourceDir}/build",
-            "cacheVariables": {
-                "WITH_SUBMODULE_WAYLIB":{
-                    "type": "BOOL",
-                    "value": "ON"
-                },
                 "CMAKE_C_COMPILER": "clang",
                 "CMAKE_CXX_COMPILER": "clang++"
             }

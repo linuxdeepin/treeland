@@ -16,8 +16,7 @@ include(FeatureSummary)
 
 include(cmake/DefineTarget.cmake)
 
-option(WITH_SUBMODULE_WAYLIB "Use the waylib from git submodule" ON)
-add_feature_info(submodule_waylib WITH_SUBMODULE_WAYLIB "Use waylib from submodule")
+set(WITH_SUBMODULE_WAYLIB ON)
 
 option(ADDRESS_SANITIZER "Enable address sanitize" OFF)
 add_feature_info(ASanSupport ADDRESS_SANITIZER "https://github.com/google/sanitizers/wiki/AddressSanitizer")
