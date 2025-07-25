@@ -1196,6 +1196,17 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *, QInputEvent *event)
                 return true;
         }
 
+        // Switch TTY with Ctrl + Alt + F1-F6
+        if (kevent->modifiers() == Qt::ControlModifier | Qt::AltModifier) {
+            auto key = kevent->key();
+            if (key >= Qt::Key_F1 && key <= Qt::Key_F12) {
+                setCurrentMode(CurrentMode::LockScreen);
+                m_lockScreen->lock();
+                m_backend->session()->change_vt(key - Qt::Key_F1 + 1);
+                return true;
+            }
+        }
+
         if (m_currentMode == CurrentMode::Normal
             && QKeySequence(kevent->modifiers() | kevent->key())
                 == QKeySequence(Qt::ControlModifier | Qt::AltModifier | Qt::Key_Delete)) {
