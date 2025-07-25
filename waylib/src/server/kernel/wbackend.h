@@ -6,6 +6,7 @@
 #include <WServer>
 
 #include <qwbackend.h>
+#include <qwsession.h>
 
 #include <QObject>
 
@@ -24,6 +25,7 @@ public:
     explicit WBackend();
 
     QW_NAMESPACE::qw_backend *handle() const;
+    QW_NAMESPACE::qw_session *session() const;
 
     QVector<WOutput*> outputList() const;
     QVector<WInputDevice*> inputDeviceList() const;
