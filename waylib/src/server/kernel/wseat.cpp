@@ -524,6 +524,15 @@ void WSeatPrivate::on_keyboard_key(wlr_keyboard_key_event *event, WInputDevice *
     auto code = event->keycode + 8; // map to wl_keyboard::keymap_format::keymap_format_xkb_v1
     auto et = event->state == WL_KEYBOARD_KEY_STATE_PRESSED ? QEvent::KeyPress : QEvent::KeyRelease;
     xkb_keysym_t sym = xkb_state_key_get_one_sym(keyboard->handle()->xkb_state, code);
+
+    // Qt doesn't support XF86Switch_VT_1 to XF86Switch_VT_12, so convert them to
+    // Ctrl+Alt+F1 to Ctrl+Alt+F12
+    if (sym >= XKB_KEY_XF86Switch_VT_1 && sym <= XKB_KEY_XF86Switch_VT_12) {
+        if (keyModifiers == (Qt::ControlModifier | Qt::AltModifier)) {
+            sym = XKB_KEY_F1 + (sym - XKB_KEY_XF86Switch_VT_1);
+        }
+    }
+
     int qtkey = QXkbCommon::keysymToQtKey(sym, keyModifiers, keyboard->handle()->xkb_state, code);
     const QString &text = QXkbCommon::lookupString(keyboard->handle()->xkb_state, code);
 
