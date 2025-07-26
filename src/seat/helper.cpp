@@ -15,6 +15,9 @@
 
 #include <QDBusConnection>
 #include <QDBusInterface>
+#include <qlogging.h>
+#include <qloggingcategory.h>
+#include <qnamespace.h>
 #ifndef DISABLE_DDM
 #  include "core/lockscreen.h"
 #endif
@@ -1197,11 +1200,12 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *, QInputEvent *event)
         }
 
         // Switch TTY with Ctrl + Alt + F1-F6
-        if (kevent->modifiers() == Qt::ControlModifier | Qt::AltModifier) {
+        if (kevent->modifiers() == (Qt::ControlModifier | Qt::AltModifier)) {
             auto key = kevent->key();
             if (key >= Qt::Key_F1 && key <= Qt::Key_F12) {
                 setCurrentMode(CurrentMode::LockScreen);
                 m_lockScreen->lock();
+                setWorkspaceVisible(false);
                 m_backend->session()->change_vt(key - Qt::Key_F1 + 1);
                 return true;
             }
