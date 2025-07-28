@@ -83,6 +83,7 @@
 #include <qwidlenotifyv1.h>
 #include <qwidleinhibitv1.h>
 #include <qwalphamodifierv1.h>
+#include <qwdrm.h>
 
 #include <QAction>
 #include <QKeySequence>
@@ -995,6 +996,7 @@ void Helper::init()
 
     m_allocator = qw_allocator::autocreate(*m_backend->handle(), *m_renderer);
     m_renderer->init_wl_display(*m_server->handle());
+    qw_drm::create(*m_server->handle(), *m_renderer);
 
     // free follow display
     m_compositor = qw_compositor::create(*m_server->handle(), 6, *m_renderer);
