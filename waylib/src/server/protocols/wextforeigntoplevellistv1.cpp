@@ -61,6 +61,16 @@ public:
         surfaces.erase(surface);
     }
 
+    WToplevelSurface *findSurfaceByHandle(qw_ext_foreign_toplevel_handle_v1 *handle) const
+    {
+        for (const auto &pair : surfaces) {
+            if (pair.second.get() == handle) {
+                return pair.first;
+            }
+        }
+        return nullptr;
+    }
+
 private:
     void updateState(WToplevelSurface *surface, qw_ext_foreign_toplevel_handle_v1 *handle)
     {
@@ -95,6 +105,13 @@ void WExtForeignToplevelListV1::removeSurface(WToplevelSurface *surface)
     W_D(WExtForeignToplevelListV1);
 
     d->remove(surface);
+}
+
+WToplevelSurface *WExtForeignToplevelListV1::findSurfaceByHandle(qw_ext_foreign_toplevel_handle_v1 *handle) const
+{
+    W_D(const WExtForeignToplevelListV1);
+
+    return d->findSurfaceByHandle(handle);
 }
 
 QByteArrayView WExtForeignToplevelListV1::interfaceName() const

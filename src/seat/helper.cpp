@@ -60,6 +60,7 @@
 #include <wxwayland.h>
 #include <wxwaylandsurface.h>
 #include <wxdgtoplevelsurface.h>
+#include <wextimagecapturesourcev1impl.h>
 
 #include <qwallocator.h>
 #include <qwbackend.h>
@@ -69,6 +70,10 @@
 #include <qwdatadevice.h>
 #include <qwdisplay.h>
 #include <qwextdatacontrolv1.h>
+#include <qwextimagecopycapturev1.h>
+#include <qwextimagecapturesourcev1.h>
+#include <qwextforeigntoplevelimagecapturesourcemanagerv1.h>
+#include <qwextforeigntoplevellistv1.h>
 #include <qwfractionalscalemanagerv1.h>
 #include <qwgammacontorlv1.h>
 #include <qwlayershellv1.h>
@@ -1002,6 +1007,13 @@ void Helper::init()
     m_compositor = qw_compositor::create(*m_server->handle(), 6, *m_renderer);
     qw_subcompositor::create(*m_server->handle());
     qw_screencopy_manager_v1::create(*m_server->handle());
+    qw_ext_image_copy_capture_manager_v1::create(*m_server->handle(), 1);
+    qw_ext_output_image_capture_source_manager_v1::create(*m_server->handle(), 1);
+    m_foreignToplevelImageCaptureManager = qw_ext_foreign_toplevel_image_capture_source_manager_v1::create(*m_server->handle(), 1);
+    connect(m_foreignToplevelImageCaptureManager,
+            &qw_ext_foreign_toplevel_image_capture_source_manager_v1::notify_new_request,
+            this, &Helper::handleNewForeignToplevelCaptureRequest);
+
     qw_viewporter::create(*m_server->handle());
     m_renderWindow->init(m_renderer, m_allocator);
 
@@ -2049,4 +2061,40 @@ Output *Helper::getOutputAtCursor() const
     }
 
     return m_rootSurfaceContainer->primaryOutput();
+}
+
+void Helper::handleNewForeignToplevelCaptureRequest(wlr_ext_foreign_toplevel_image_capture_source_manager_v1_request *request)
+{
+    if (!request || !request->toplevel_handle) {
+        qCDebug(qLcImageCapture) << "Invalid capture request or toplevel handle";
+        return;
+    }
+
+    auto *qw_handle = qw_ext_foreign_toplevel_handle_v1::from(request->toplevel_handle);
+    WToplevelSurface *toplevelSurface = m_extForeignToplevelListV1->findSurfaceByHandle(qw_handle);
+    SurfaceWrapper *surfaceWrapper = m_rootSurfaceContainer->getSurface(toplevelSurface);
+    WSurfaceItem *surfaceItem = surfaceWrapper->surfaceItem();
+    WSurfaceItemContent *surfaceContent = surfaceItem->findItemContent();
+    Q_ASSERT(surfaceContent);
+
+    qCDebug(qLcImageCapture) << "Found WSurfaceItemContent for capture:"
+             << "size=" << surfaceContent->size()
+             << "implicitSize=" << QSizeF(surfaceContent->implicitWidth(), surfaceContent->implicitHeight())
+             << "isTextureProvider=" << surfaceContent->isTextureProvider();
+
+    auto *output = surfaceWrapper->ownsOutput()->output();
+    if (!output) {
+        qCDebug(qLcImageCapture) << "Could not get WOutput from SurfaceWrapper";
+        return;
+    }
+
+    auto *imageCaptureSource = new WExtImageCaptureSourceV1Impl(surfaceContent, output);
+
+    bool success = qw_ext_foreign_toplevel_image_capture_source_manager_v1::request_accept(
+        request, *imageCaptureSource);
+
+    if (!success) {
+        qCDebug(qLcImageCapture) << "Failed to accept foreign toplevel image capture request";
+        delete imageCaptureSource;
+    }
 }
