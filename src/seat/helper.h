@@ -92,6 +92,11 @@ class ILockScreen;
 class UserModel;
 struct wlr_idle_inhibitor_v1;
 struct wlr_output_power_v1_set_mode_event;
+struct wlr_ext_foreign_toplevel_image_capture_source_manager_v1_request;
+
+QW_BEGIN_NAMESPACE
+class qw_ext_foreign_toplevel_image_capture_source_manager_v1;
+QW_END_NAMESPACE
 
 class Helper : public WSeatEventFilter
 {
@@ -247,6 +252,7 @@ private:
     void onSessionNew(const QString &sessionId, const QDBusObjectPath &sessionPath);
     void onSessionLock();
     void onSessionUnlock();
+    void handleNewForeignToplevelCaptureRequest(wlr_ext_foreign_toplevel_image_capture_source_manager_v1_request *request);
 
 private:
     void allowNonDrmOutputAutoChangeMode(WOutput *output);
@@ -309,6 +315,7 @@ private:
     qw_idle_notifier_v1 *m_idleNotifier = nullptr;
     qw_idle_inhibit_manager_v1 *m_idleInhibitManager = nullptr;
     qw_output_power_manager_v1 *m_outputPowerManager = nullptr;
+    qw_ext_foreign_toplevel_image_capture_source_manager_v1 *m_foreignToplevelImageCaptureManager = nullptr;
     ShellHandler *m_shellHandler = nullptr;
     WXWayland *m_defaultXWayland = nullptr;
     WXdgDecorationManager *m_xdgDecorationManager = nullptr;

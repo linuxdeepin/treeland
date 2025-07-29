@@ -18,6 +18,7 @@ ws_generate(server wayland-protocols unstable/pointer-constraints/pointer-constr
 ws_generate(server wayland-protocols staging/content-type/content-type-v1.xml content-type-v1-protocol)
 ws_generate(server wayland-protocols staging/cursor-shape/cursor-shape-v1.xml cursor-shape-v1-protocol)
 ws_generate(server wayland-protocols staging/tearing-control/tearing-control-v1.xml tearing-control-v1-protocol)
+ws_generate(server wayland-protocols staging/ext-image-copy-capture/ext-image-copy-capture-v1.xml ext-image-copy-capture-v1-protocol)
 
 @WLR_PROTOCOLS_CMAKE_CONFIG_INIT@
 
