@@ -60,6 +60,22 @@ ws_generate(
     color-management-v1-protocol
 )
 
+# Remove after wlroots 0.20
+ws_generate(
+    server
+    wayland-protocols
+    staging/ext-image-capture-source/ext-image-capture-source-v1.xml
+    ext-image-capture-source-v1-protocol
+)
+
+# Remove after wlroots 0.20
+ws_generate(
+    server
+    wayland-protocols
+    staging/ext-foreign-toplevel-list/ext-foreign-toplevel-list-v1.xml
+    ext-foreign-toplevel-list-v1-protocol
+)
+
 set(SOURCES
     kernel/wbackend.cpp
     kernel/wcursor.cpp
@@ -111,11 +127,14 @@ set(SOURCES
     ${WAYLAND_PROTOCOLS_OUTPUTDIR}/text-input-unstable-v1-protocol.c
     ${WAYLAND_PROTOCOLS_OUTPUTDIR}/text-input-unstable-v2-protocol.c
     ${WAYLAND_PROTOCOLS_OUTPUTDIR}/xdg-output-unstable-v1-protocol.c
+    ${WAYLAND_PROTOCOLS_OUTPUTDIR}/ext-image-capture-source-v1-protocol.c # Remove after wlroots 0.20
+    ${WAYLAND_PROTOCOLS_OUTPUTDIR}/ext-foreign-toplevel-list-v1-protocol.c # Remove after wlroots 0.20
 
     utils/wtools.cpp
     utils/wthreadutils.cpp
     utils/wimagebuffer.cpp
     utils/wcursorimage.cpp
+    utils/wextimagecapturesourcev1impl.cpp
 
     platformplugin/qwlrootsintegration.cpp
     platformplugin/qwlrootscreen.cpp
@@ -142,11 +161,10 @@ set(SOURCES
     protocols/private/wtextinputv2.cpp
     protocols/private/wtextinputv3.cpp
     protocols/private/wvirtualkeyboardv1.cpp
+    protocols/ext_foreign_toplevel_image_capture_source.c # Remove after wlroots 0.20
     protocols/wcursorshapemanagerv1.cpp
     protocols/woutputmanagerv1.cpp
     protocols/wextforeigntoplevellistv1.cpp
-
-    ${WAYLAND_PROTOCOLS_OUTPUTDIR}/text-input-unstable-v1-protocol.c
 )
 
 set(HEADERS
@@ -208,6 +226,7 @@ set(HEADERS
     utils/WCursorImage
     utils/wwrappointer.h
     utils/WWrapPointer
+    utils/wextimagecapturesourcev1impl.h
 
     protocols/wxdgshell.h
     protocols/WXdgShell
@@ -238,6 +257,8 @@ set(HEADERS
     protocols/wxwaylandsurface.h
     protocols/WXWaylandSurface
     protocols/wextforeigntoplevellistv1.h
+    protocols/ext_foreign_toplevel_image_capture_source_manager_v1.h # Remove after wlroots 0.20
+    protocols/qwextforeigntoplevelimagecapturesourcemanagerv1.h # Move to qwlroots after wlroots 0.20
 )
 
 set(PRIVATE_HEADERS
@@ -262,6 +283,8 @@ set(PRIVATE_HEADERS
     ${WAYLAND_PROTOCOLS_OUTPUTDIR}/text-input-unstable-v1-protocol.h
     ${WAYLAND_PROTOCOLS_OUTPUTDIR}/text-input-unstable-v2-protocol.h
     ${WAYLAND_PROTOCOLS_OUTPUTDIR}/xdg-output-unstable-v1-protocol.h
+    ${WAYLAND_PROTOCOLS_OUTPUTDIR}/ext-image-capture-source-v1-protocol.h # Remove after wlroots 0.20
+    ${WAYLAND_PROTOCOLS_OUTPUTDIR}/ext-foreign-toplevel-list-v1-protocol.h # Remove after wlroots 0.20
 
     protocols/private/winputmethodv2_p.h
     protocols/private/wtextinput_p.h
@@ -308,8 +331,8 @@ set_target_properties(${TARGET}
         SOVERSION ${PROJECT_VERSION_MAJOR}
         EXPORT_NAME WaylibServer
         PUBLIC_HEADER "${HEADERS}"
-	# PRIVATE_HEADER "${PRIVATE_HEADERS}"
-	# CMake Warning has PRIVATE_HEADER files but no PRIVATE_HEADER DESTINATION
+        # PRIVATE_HEADER "${PRIVATE_HEADERS}"
+        # CMake Warning has PRIVATE_HEADER files but no PRIVATE_HEADER DESTINATION
         POSITION_INDEPENDENT_CODE ON
 )
 
