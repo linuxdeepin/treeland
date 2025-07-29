@@ -59,6 +59,10 @@ struct wlr_color_manager_v1 {
 	struct wl_global *global;
 
 	struct {
+		struct wl_signal destroy;
+	} events;
+
+	struct {
 		struct wlr_color_manager_v1_features features;
 
 		enum wp_color_manager_v1_render_intent *render_intents;
