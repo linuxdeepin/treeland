@@ -5,6 +5,7 @@
 #include <wlr/render/swapchain.h>
 #include <wlr/render/drm_syncobj.h>
 #include <wlr/render/wlr_renderer.h>
+#include <wlr/types/wlr_color_management_v1.h>
 #include <wlr/types/wlr_compositor.h>
 #include <wlr/types/wlr_damage_ring.h>
 #include <wlr/types/wlr_gamma_control_v1.h>
@@ -1560,6 +1561,21 @@ void wlr_scene_set_gamma_control_manager_v1(struct wlr_scene *scene,
 	scene->gamma_control_manager_v1_set_gamma.notify =
 		scene_handle_gamma_control_manager_v1_set_gamma;
 	wl_signal_add(&gamma_control->events.set_gamma, &scene->gamma_control_manager_v1_set_gamma);
+}
+
+static void scene_handle_color_manager_v1_destroy(struct wl_listener *listener, void *data) {
+	struct wlr_scene *scene = wl_container_of(listener, scene, color_manager_v1_destroy);
+	wl_list_remove(&scene->color_manager_v1_destroy.link);
+	wl_list_init(&scene->color_manager_v1_destroy.link);
+	scene->color_manager_v1 = NULL;
+}
+
+void wlr_scene_set_color_manager_v1(struct wlr_scene *scene, struct wlr_color_manager_v1 *manager) {
+	assert(scene->color_manager_v1 == NULL);
+	scene->color_manager_v1 = manager;
+
+	scene->color_manager_v1_destroy.notify = scene_handle_color_manager_v1_destroy;
+	wl_signal_add(&manager->events.destroy, &scene->color_manager_v1_destroy);
 }
 
 static void scene_output_handle_destroy(struct wlr_addon *addon) {

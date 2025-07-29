@@ -35,16 +35,74 @@ static struct wlr_output *get_surface_frame_pacing_output(struct wlr_surface *su
 	return frame_pacing_output;
 }
 
+static bool get_tf_preference(enum wlr_color_transfer_function tf) {
+	switch (tf) {
+	case WLR_COLOR_TRANSFER_FUNCTION_SRGB:
+		return 0;
+	case WLR_COLOR_TRANSFER_FUNCTION_ST2084_PQ:
+		return 1;
+	case WLR_COLOR_TRANSFER_FUNCTION_EXT_LINEAR:
+		return -1;
+	}
+	abort(); // unreachable
+}
+
+static bool get_primaries_preference(enum wlr_color_named_primaries primaries) {
+	switch (primaries) {
+	case WLR_COLOR_NAMED_PRIMARIES_SRGB:
+		return 0;
+	case WLR_COLOR_NAMED_PRIMARIES_BT2020:
+		return 1;
+	}
+	abort(); // unreachable
+}
+
+static void get_surface_preferred_image_description(struct wlr_surface *surface,
+		struct wlr_image_description_v1_data *out) {
+	struct wlr_output_image_description preferred = {
+		.transfer_function = WLR_COLOR_TRANSFER_FUNCTION_SRGB,
+		.primaries = WLR_COLOR_NAMED_PRIMARIES_SRGB,
+	};
+
+	struct wlr_surface_output *surface_output;
+	wl_list_for_each(surface_output, &surface->current_outputs, link) {
+		const struct wlr_output_image_description *img_desc =
+			surface_output->output->image_description;
+		if (img_desc == NULL) {
+			continue;
+		}
+		if (get_tf_preference(preferred.transfer_function) < get_tf_preference(img_desc->transfer_function)) {
+			preferred.transfer_function = img_desc->transfer_function;
+		}
+		if (get_primaries_preference(preferred.primaries) < get_primaries_preference(img_desc->primaries)) {
+			preferred.primaries = img_desc->primaries;
+		}
+	}
+
+	*out = (struct wlr_image_description_v1_data){
+		.tf_named = wlr_color_manager_v1_transfer_function_from_wlr(preferred.transfer_function),
+		.primaries_named = wlr_color_manager_v1_primaries_from_wlr(preferred.primaries),
+	};
+}
+
 static void handle_scene_buffer_outputs_update(
 		struct wl_listener *listener, void *data) {
 	struct wlr_scene_surface *surface =
 		wl_container_of(listener, surface, outputs_update);
+	struct wlr_scene *scene = scene_node_get_root(&surface->buffer->node);
 
 	surface->frame_pacing_output = get_surface_frame_pacing_output(surface->surface);
 
 	double scale = get_surface_preferred_buffer_scale(surface->surface);
 	wlr_fractional_scale_v1_notify_scale(surface->surface, scale);
 	wlr_surface_set_preferred_buffer_scale(surface->surface, ceil(scale));
+
+	if (scene->color_manager_v1 != NULL) {
+		struct wlr_image_description_v1_data img_desc = {0};
+		get_surface_preferred_image_description(surface->surface, &img_desc);
+		wlr_color_manager_v1_set_surface_preferred_image_description(scene->color_manager_v1,
+			surface->surface, &img_desc);
+	}
 }
 
 static void handle_scene_buffer_output_enter(
