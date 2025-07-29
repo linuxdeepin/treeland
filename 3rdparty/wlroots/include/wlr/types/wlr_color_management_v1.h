@@ -97,10 +97,22 @@ enum wlr_color_transfer_function
 wlr_color_manager_v1_transfer_function_to_wlr(enum wp_color_manager_v1_transfer_function tf);
 
 /**
+ * Convert an enum wlr_color_transfer_function value into a protocol transfer function.
+ */
+enum wp_color_manager_v1_transfer_function
+wlr_color_manager_v1_transfer_function_from_wlr(enum wlr_color_transfer_function tf);
+
+/**
  * Convert a protocol named primaries to enum wlr_color_named_primaries.
  * Aborts if there is no matching wlroots entry.
  */
 enum wlr_color_named_primaries
 wlr_color_manager_v1_primaries_to_wlr(enum wp_color_manager_v1_primaries primaries);
+
+/**
+ * Convert an enum wlr_color_named_primaries value into protocol primaries.
+ */
+enum wp_color_manager_v1_primaries
+wlr_color_manager_v1_primaries_from_wlr(enum wlr_color_named_primaries primaries);
 
 #endif
