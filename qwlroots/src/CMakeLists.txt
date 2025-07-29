@@ -91,6 +91,7 @@ set(HEADERS
     types/qwsubcompositor.h
     types/qwdatadevice.h
     types/qwdatacontrolv1.h
+    types/qwextdatacontrolv1.h
     types/qwdamagering.h
     types/qwdrm.h
     types/qwdrmleasev1.h
