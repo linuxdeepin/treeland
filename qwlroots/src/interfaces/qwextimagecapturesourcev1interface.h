@@ -16,3 +16,4 @@ using wlr_ext_image_capture_source_v1_impl = wlr_ext_image_capture_source_v1_int
 QW_CLASS_INTERFACE(ext_image_capture_source_v1)
 
 QW_END_NAMESPACE
+

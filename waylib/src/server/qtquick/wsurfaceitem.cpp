@@ -22,6 +22,7 @@
 #include <QQuickWindow>
 #include <QSGImageNode>
 #include <QSGRenderNode>
+#include <QQueue>
 #include <private/qquickitem_p.h>
 
 QW_USE_NAMESPACE
@@ -1502,6 +1503,21 @@ void WSurfaceItem::setSubsurfacesVisible(bool newSubsurfacesVisible)
     if (d->aboveSubsurfaceContainer)
         d->aboveSubsurfaceContainer->setVisible(d->subsurfacesVisible);
     Q_EMIT subsurfacesVisibleChanged();
+}
+
+WSurfaceItemContent *WSurfaceItem::findItemContent() const
+{
+    QQueue<QQuickItem *> q;
+    q.enqueue(const_cast<WSurfaceItem*>(this));
+    while (!q.empty()) {
+        auto node = q.dequeue();
+        if (auto content = qobject_cast<WSurfaceItemContent *>(node))
+            return content;
+        for (auto child : node->childItems()) {
+            q.enqueue(child);
+        }
+    }
+    return nullptr;
 }
 
 WAYLIB_SERVER_END_NAMESPACE

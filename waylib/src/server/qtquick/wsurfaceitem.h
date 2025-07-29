@@ -193,6 +193,9 @@ public:
     bool subsurfacesVisible() const;
     void setSubsurfacesVisible(bool newSubsurfacesVisible);
 
+    // Find WSurfaceItemContent in child items
+    WSurfaceItemContent *findItemContent() const;
+
 Q_SIGNALS:
     void surfaceChanged();
     void subsurfaceAdded(WAYLIB_SERVER_NAMESPACE::WSurfaceItem *item);
