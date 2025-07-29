@@ -18,6 +18,7 @@
 #include<qwdrmleasev1.h>
 #include<qwegl.h>
 #include<qwexportdmabufv1.h>
+#include<qwextdatacontrolv1.h>
 #include<qwforeigntoplevelhandlev1.h>
 #include<qwfractionalscalemanagerv1.h>
 #include<qwfullscreenshellv1.h>
