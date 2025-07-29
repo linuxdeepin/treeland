@@ -57,6 +57,7 @@
 #include <qwgammacontorlv1.h>
 #include <qwbuffer.h>
 #include <qwdatacontrolv1.h>
+#include <qwextdatacontrolv1.h>
 #include <qwviewporter.h>
 #include <qwalphamodifierv1.h>
 
@@ -74,6 +75,7 @@
 #include <QVariant>
 
 #define WLR_FRACTIONAL_SCALE_V1_VERSION 1
+#define EXT_DATA_CONTROL_MANAGER_V1_VERSION 1
 
 Helper *Helper::m_instance = nullptr;
 Helper::Helper(QObject *parent)
@@ -458,6 +460,7 @@ void Helper::init()
     m_server->attach<WCursorShapeManagerV1>();
     qw_fractional_scale_manager_v1::create(*m_server->handle(), WLR_FRACTIONAL_SCALE_V1_VERSION);
     qw_data_control_manager_v1::create(*m_server->handle());
+    qw_ext_data_control_manager_v1::create(*m_server->handle(), EXT_DATA_CONTROL_MANAGER_V1_VERSION);
     qw_alpha_modifier_v1::create(*m_server->handle());
 
     m_backend->handle()->start();

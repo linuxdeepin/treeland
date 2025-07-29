@@ -68,6 +68,7 @@
 #include <qwdatacontrolv1.h>
 #include <qwdatadevice.h>
 #include <qwdisplay.h>
+#include <qwextdatacontrolv1.h>
 #include <qwfractionalscalemanagerv1.h>
 #include <qwgammacontorlv1.h>
 #include <qwlayershellv1.h>
@@ -95,6 +96,7 @@
 #include <utility>
 
 #define WLR_FRACTIONAL_SCALE_V1_VERSION 1
+#define EXT_DATA_CONTROL_MANAGER_V1_VERSION 1
 #define _DEEPIN_NO_TITLEBAR "_DEEPIN_NO_TITLEBAR"
 
 static xcb_atom_t internAtom(xcb_connection_t *connection, const char *name, bool onlyIfExists)
@@ -1050,6 +1052,7 @@ void Helper::init()
     m_server->attach<WCursorShapeManagerV1>();
     qw_fractional_scale_manager_v1::create(*m_server->handle(), WLR_FRACTIONAL_SCALE_V1_VERSION);
     qw_data_control_manager_v1::create(*m_server->handle());
+    qw_ext_data_control_manager_v1::create(*m_server->handle(), EXT_DATA_CONTROL_MANAGER_V1_VERSION);
     qw_alpha_modifier_v1::create(*m_server->handle());
 
     m_dockPreview = engine->createDockPreview(m_renderWindow->contentItem());
