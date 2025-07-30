@@ -511,6 +511,11 @@ public:
             m_owner->d_func()->rendered = true;
     }
 
+    RenderingFlags flags() const override
+    {
+        return QSGRenderNode::NoExternalRendering | QSGRenderNode::BoundedRectRendering;
+    }
+
     QPointer<WSurfaceItemContent> m_owner;
 };
 
