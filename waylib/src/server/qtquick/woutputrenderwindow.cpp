@@ -1971,10 +1971,9 @@ bool WOutputRenderWindow::eventFilter(QObject *watched, QEvent *event)
 {
     if (event->isInputEvent() && watched->isQuickItemType()) {
         auto ie = static_cast<QInputEvent*>(event);
-        auto device = WInputDevice::from(ie->device());
-        Q_ASSERT(device);
-        Q_ASSERT(device->seat());
-        if (device->seat()->filterEventBeforeDisposeStage(qobject_cast<QQuickItem*>(watched), ie))
+        auto seat = WSeat::fromInputEvent(ie);
+        if (!seat) return true;
+        if (seat->filterEventBeforeDisposeStage(qobject_cast<QQuickItem*>(watched), ie))
             return true;
     }
 

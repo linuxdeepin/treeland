@@ -680,6 +680,25 @@ WSeat *WSeat::fromHandle(const qw_seat *handle)
     return handle->get_data<WSeat>();
 }
 
+// Some event filter related functions needs to get WSeat from QInputEvent,
+// but the input event may come with a virtual device (e.g. created after a TTY
+// switch by an intenal mechanism, like QHoverEvent). Thus we needs a special
+// guarded getter.
+
+// @return A pointer to WSeat if the event is valid, nullptr if not.
+WSeat *WSeat::fromInputEvent(QInputEvent *event) {
+    auto qtDevice = event->device();
+    if (qtDevice->seatName().isEmpty()) {
+        return nullptr;
+    } else {
+        auto device = WInputDevice::from(qtDevice);
+        Q_ASSERT(device);
+        auto seat = device->seat();
+        Q_ASSERT(seat);
+        return seat;
+    }
+}
+
 qw_seat *WSeat::handle() const
 {
     return d_func()->handle();

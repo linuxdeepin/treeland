@@ -65,6 +65,7 @@ public:
     WSeat(const QString &name = QStringLiteral("seat0"));
 
     static WSeat *fromHandle(const QW_NAMESPACE::qw_seat *handle);
+    static WSeat *fromInputEvent(QInputEvent *event);
     QW_NAMESPACE::qw_seat *handle() const;
     wlr_seat *nativeHandle() const;
 
