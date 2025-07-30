@@ -75,6 +75,7 @@ set(HEADERS
     qwobject.h
     qwbackend.h
     qwdisplay.h
+    qwsession.h
     render/qwrenderer.h
     render/qwtexture.h
     render/qwallocator.h

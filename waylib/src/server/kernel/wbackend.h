@@ -9,6 +9,10 @@
 
 #include <QObject>
 
+QW_BEGIN_NAMESPACE
+class qw_session;
+QW_END_NAMESPACE
+
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
 class WOutput;
@@ -24,6 +28,7 @@ public:
     explicit WBackend();
 
     QW_NAMESPACE::qw_backend *handle() const;
+    QW_NAMESPACE::qw_session *session() const;
 
     QVector<WOutput*> outputList() const;
     QVector<WInputDevice*> inputDeviceList() const;
