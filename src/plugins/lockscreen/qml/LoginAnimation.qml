@@ -32,6 +32,12 @@ Item {
         animation.start()
     }
 
+    function skip(to) {
+        target.x = to.x
+        target.y = to.y
+        stop()
+    }
+
     function stop() {
         visible = false
         effect.sourceItem = null
