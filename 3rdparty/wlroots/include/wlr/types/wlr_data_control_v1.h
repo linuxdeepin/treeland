@@ -12,6 +12,12 @@
 #include <wayland-server-core.h>
 #include <wlr/types/wlr_seat.h>
 
+/**
+ * Deprecated: this protocol is legacy and superseded by ext-data-control-v1.
+ * The implementation will be dropped in a future wlroots version.
+ *
+ * Consider using `wlr_ext_data_control_manager_v1` as a replacement.
+ */
 struct wlr_data_control_manager_v1 {
 	struct wl_global *global;
 	struct wl_list devices; // wlr_data_control_device_v1.link
