@@ -132,11 +132,10 @@ bool QWlrootsRenderWindow::beforeDisposeEventFilter(QEvent *event)
 {
     if (event->isInputEvent()) {
         auto ie = static_cast<QInputEvent*>(event);
-        auto device = WInputDevice::from(ie->device());
-        Q_ASSERT(device);
-        Q_ASSERT(device->seat());
-        lastActiveCursor = device->seat()->cursor();
-        return device->seat()->filterEventBeforeDisposeStage(window(), ie);
+        auto seat = WSeat::fromInputEvent(ie);
+        if (!seat) return true;
+        lastActiveCursor = seat->cursor();
+        return seat->filterEventBeforeDisposeStage(window(), ie);
     }
 
     return false;
@@ -146,10 +145,10 @@ bool QWlrootsRenderWindow::afterDisposeEventFilter(QEvent *event)
 {
     if (event->isInputEvent()) {
         auto ie = static_cast<QInputEvent*>(event);
-        auto device = WInputDevice::from(ie->device());
-        Q_ASSERT(device);
-        lastActiveCursor = device->seat()->cursor();
-        return device->seat()->filterEventAfterDisposeStage(window(), ie);
+        auto seat = WSeat::fromInputEvent(ie);
+        if (!seat) return true;
+        lastActiveCursor = seat->cursor();
+        return seat->filterEventAfterDisposeStage(window(), ie);
     }
 
     return false;
