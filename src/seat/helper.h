@@ -195,7 +195,7 @@ public:
 
     void setCurrentMode(CurrentMode mode);
 
-    void showLockScreen();
+    void showLockScreen(bool async = true);
 
     Output* getOutputAtCursor() const;
 public Q_SLOTS:
