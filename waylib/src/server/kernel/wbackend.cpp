@@ -13,6 +13,7 @@
 #include <qwdisplay.h>
 #include <qwoutput.h>
 #include <qwinputdevice.h>
+#include <qwsession.h>
 
 #include <QDebug>
 
@@ -61,6 +62,9 @@ public:
         wl_listener modifiers;
         wl_listener key;
     };
+
+private:
+    qw_session *session = nullptr;
 };
 
 void WBackendPrivate::on_new_output(wlr_output *output)
@@ -142,6 +146,12 @@ qw_backend *WBackend::handle() const
     return nativeInterface<qw_backend>();
 }
 
+qw_session *WBackend::session() const
+{
+    W_DC(WBackend);
+    return d->session;
+}
+
 QVector<WOutput*> WBackend::outputList() const
 {
     W_DC(WBackend);
@@ -193,8 +203,10 @@ void WBackend::create(WServer *server)
     W_D(WBackend);
 
     if (!m_handle) {
-        m_handle = qw_backend::autocreate(server->handle()->get_event_loop(), nullptr);
+        wlr_session *session = nullptr;
+        m_handle = qw_backend::autocreate(server->handle()->get_event_loop(), &session);
         Q_ASSERT(m_handle);
+        d->session = qw_session::from(session);
     }
 
     d->connect();
