@@ -22,6 +22,7 @@ FocusScope {
     required property QtObject outputItem
     property int currentMode: Greeter.CurrentMode.Lock
     property string primaryOutputName
+    property bool showAnimation: true
     visible: primaryOutputName === "" || primaryOutputName === output.name
 
     function start()
@@ -73,6 +74,7 @@ FocusScope {
 
     LockView {
         id: lockView
+        showAnimation: root.showAnimation
         visible: root.currentMode === Greeter.CurrentMode.Lock ||
                  root.currentMode === Greeter.CurrentMode.SwitchUser
         anchors.fill: parent

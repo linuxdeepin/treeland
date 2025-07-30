@@ -8,6 +8,7 @@ import Treeland
 
 FocusScope {
     id: root
+    property bool showAnimation: true
     property int state: LoginAnimation.Show
     readonly property bool powerVisible: controlAction.powerVisible
     signal quit()
@@ -15,10 +16,17 @@ FocusScope {
 
     function start() {
         root.state = LoginAnimation.Show
-        leftAnimation.item.start({x: root.x - quickAction.width, y: quickAction.y}, {x: quickAction.x, y: quickAction.y})
-        logoAnimation.item.start({x: root.x - logo.width, y: logo.y}, {x: logo.x, y: logo.y})
-        rightAnimation.item.start({x: root.width + userInput.width, y: userInput.y}, {x: userInput.x, y: userInput.y})
-        bottomAnimation.item.start({x: controlAction.x, y: controlAction.y + controlAction.height}, {x: controlAction.x, y: controlAction.y})
+        if (showAnimation) {
+            leftAnimation.item.start({x: root.x - quickAction.width, y: quickAction.y}, {x: quickAction.x, y: quickAction.y})
+            logoAnimation.item.start({x: root.x - logo.width, y: logo.y}, {x: logo.x, y: logo.y})
+            rightAnimation.item.start({x: root.width + userInput.width, y: userInput.y}, {x: userInput.x, y: userInput.y})
+            bottomAnimation.item.start({x: controlAction.x, y: controlAction.y + controlAction.height}, {x: controlAction.x, y: controlAction.y})
+        } else {
+            leftAnimation.item.skip({x: quickAction.x, y: quickAction.y})
+            logoAnimation.item.skip({x: logo.x, y: logo.y})
+            rightAnimation.item.skip({x: userInput.x, y: userInput.y})
+            bottomAnimation.item.skip({x: controlAction.x, y: controlAction.y})
+        }
     }
 
     function showUserView()
@@ -178,10 +186,17 @@ FocusScope {
                 break
                 case GreeterModel.Quit: {
                     root.state = LoginAnimation.Hide
-                    leftAnimation.item.start({x: quickAction.x, y: quickAction.y}, {x: root.x - quickAction.width, y: quickAction.y})
-                    logoAnimation.item.start({x: logo.x, y: logo.y}, {x: root.x - logo.width, y: logo.y})
-                    rightAnimation.item.start({x: userInput.x, y: userInput.y}, {x: root.width + userInput.width, y: userInput.y})
-                    bottomAnimation.item.start({x: controlAction.x, y: controlAction.y}, {x: controlAction.x, y: controlAction.y + controlAction.height})
+                    if (showAnimation) {
+                        leftAnimation.item.start({x: quickAction.x, y: quickAction.y}, {x: root.x - quickAction.width, y: quickAction.y})
+                        logoAnimation.item.start({x: logo.x, y: logo.y}, {x: root.x - logo.width, y: logo.y})
+                        rightAnimation.item.start({x: userInput.x, y: userInput.y}, {x: root.width + userInput.width, y: userInput.y})
+                        bottomAnimation.item.start({x: controlAction.x, y: controlAction.y}, {x: controlAction.x, y: controlAction.y + controlAction.height})
+                    } else {
+                        leftAnimation.item.skip({x: root.x - quickAction.width, y: quickAction.y})
+                        logoAnimation.item.skip({x: root.x - logo.width, y: logo.y})
+                        rightAnimation.item.skip({x: root.width + userInput.width, y: userInput.y})
+                        bottomAnimation.item.skip({x: controlAction.x, y: controlAction.y + controlAction.height})
+                    }
 
                     root.quit()
                 }
