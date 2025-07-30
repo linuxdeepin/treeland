@@ -4,6 +4,7 @@ on:
   push:
     paths:
       - 'waylib/**'
+      - 'qwlroots/**'
       - '.github/workflows/waylib-debian-build.yml'
     branches:
       - master
@@ -11,6 +12,7 @@ on:
   pull_request:
     paths:
       - 'waylib/**'
+      - 'qwlroots/**'
       - '.github/workflows/waylib-debian-build.yml'
     branches:
       - master

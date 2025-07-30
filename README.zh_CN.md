@@ -47,6 +47,16 @@ $ sudo apt build-dep . # 安装构建依赖
 $ dpkg-buildpackage -uc -us -nc -b # 构建二进制软件包
 ```
 
+## GitHub Actions / 持续集成
+
+本项目使用 GitHub Actions 进行持续集成。配置了以下工作流：
+
+- **qwlroots 构建**：当 `qwlroots/**` 文件被修改时触发
+- **waylib 构建**：当 `waylib/**` 或 `qwlroots/**` 文件被修改时触发（因为 waylib 依赖于 qwlroots）
+- **treeland 构建**：主项目构建
+
+waylib 工作流配置为在 qwlroots 代码变化时也会触发，确保 waylib 构建与 qwlroots 修改保持兼容。
+
 ## 参与贡献
 
 - [通过 GitHub 发起代码贡献](https://github.com/linuxdeepin/treeland/)

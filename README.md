@@ -48,6 +48,16 @@ $ sudo apt build-dep . # install build dependencies
 $ dpkg-buildpackage -uc -us -nc -b # build binary package(s)
 ```
 
+## GitHub Actions / CI
+
+This project uses GitHub Actions for continuous integration. The following workflows are configured:
+
+- **qwlroots builds**: Triggered when `qwlroots/**` files are modified
+- **waylib builds**: Triggered when `waylib/**` or `qwlroots/**` files are modified (since waylib depends on qwlroots)
+- **treeland builds**: Main project builds
+
+The waylib workflows are configured to also trigger when qwlroots code changes, ensuring that waylib builds remain compatible with qwlroots modifications.
+
 ## Getting Involved
 
 - [Code contribution via GitHub](https://github.com/linuxdeepin/treeland/)
