@@ -98,20 +98,6 @@ Control {
             }
 
             Loader {
-                objectName: "quitFullBtn"
-                visible: false
-                sourceComponent: D.WindowButton {
-                    icon.name: "window_quit_full"
-                    textColor: control.textColor
-                    height: root.height
-                    focusPolicy: Qt.NoFocus
-
-                    onClicked: {
-                    }
-                }
-            }
-
-            Loader {
                 id: maxOrWindedBtn
 
                 objectName: "maxOrWindedBtn"
@@ -122,6 +108,7 @@ Control {
                     focusPolicy: Qt.NoFocus
 
                     onClicked: {
+                        Helper.activateSurface(surface)
                         surface.requestToggleMaximize()
                     }
                 }
