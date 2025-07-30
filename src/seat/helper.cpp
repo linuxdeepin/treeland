@@ -76,6 +76,7 @@
 #include <qwoutput.h>
 #include <qwrenderer.h>
 #include <qwscreencopyv1.h>
+#include <qwsession.h>
 #include <qwsubcompositor.h>
 #include <qwviewporter.h>
 #include <qwxwaylandsurface.h>
@@ -1201,6 +1202,17 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *, QInputEvent *event)
                 return true;
         }
 
+        // Switch TTY with Ctrl + Alt + F1-F12
+        if (kevent->modifiers() == (Qt::ControlModifier | Qt::AltModifier)) {
+            auto key = kevent->key();
+            if (key >= Qt::Key_F1 && key <= Qt::Key_F12) {
+                // Use syncronized call here to ensure DM to be shown on correct VT.
+                showLockScreen(false);
+                m_backend->session()->change_vt(key - Qt::Key_F1 + 1);
+                return true;
+            }
+        }
+
         if (m_currentMode == CurrentMode::Normal
             && QKeySequence(kevent->modifiers() | kevent->key())
                 == QKeySequence(Qt::ControlModifier | Qt::AltModifier | Qt::Key_Delete)) {
@@ -1963,7 +1975,7 @@ void Helper::setCurrentMode(CurrentMode mode)
     Q_EMIT currentModeChanged();
 }
 
-void Helper::showLockScreen()
+void Helper::showLockScreen(bool async)
 {
     if (m_lockScreen->isLocked()) {
         return;
@@ -1986,7 +1998,10 @@ void Helper::showLockScreen()
                              "/org/freedesktop/DisplayManager/Seat0",
                              "org.freedesktop.DisplayManager.Seat",
                              QDBusConnection::systemBus());
-    interface.asyncCall("SwitchToGreeter");
+    if (async)
+        interface.asyncCall("SwitchToGreeter");
+    else
+        interface.call("SwitchToGreeter");
 }
 
 WSeat *Helper::seat() const
