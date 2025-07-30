@@ -70,6 +70,7 @@ void LockScreen::addOutput(Output *output)
     auto *item = m_impl->createLockScreen(output, this);
 
     if (isVisible()) {
+        item->setProperty("showAnimation", false);
         QMetaObject::invokeMethod(item, "start");
     }
 
