@@ -22,6 +22,9 @@ Control {
     height: TreelandConfig.windowTitlebarHeight
     width: surfaceItem.width
 
+    // Ensure title bar does not accept keyboard focus
+    focusPolicy: Qt.NoFocus
+
     HoverHandler {
         // block hover events to resizing mouse area, avoid cursor change
         cursorShape: Qt.ArrowCursor
@@ -86,6 +89,7 @@ Control {
                     icon.name: "window_minimize"
                     textColor: control.textColor
                     height: root.height
+                    focusPolicy: Qt.NoFocus
 
                     onClicked: {
                         surface.requestMinimize()
@@ -100,6 +104,7 @@ Control {
                     icon.name: "window_quit_full"
                     textColor: control.textColor
                     height: root.height
+                    focusPolicy: Qt.NoFocus
 
                     onClicked: {
                     }
@@ -114,6 +119,7 @@ Control {
                     icon.name: surface.isMaximized ? "window_restore" : "window_maximize"
                     textColor: control.textColor
                     height: root.height
+                    focusPolicy: Qt.NoFocus
 
                     onClicked: {
                         surface.requestToggleMaximize()
@@ -135,6 +141,7 @@ Control {
                         icon.name: "window_close"
                         textColor: control.textColor
                         height: parent.height
+                        focusPolicy: Qt.NoFocus
 
                         onClicked: {
                             surface.requestClose()
