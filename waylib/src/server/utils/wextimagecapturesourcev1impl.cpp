@@ -6,6 +6,7 @@
 #include "wsgtextureprovider.h"
 #include "woutputrenderwindow.h"
 #include "woutput.h"
+#include "wtools.h"
 
 #include <qwextimagecopycapturev1.h>
 #include <qwrenderer.h>
@@ -16,6 +17,7 @@
 
 #include <QLoggingCategory>
 #include <private/qquickwindow_p.h>
+#include <memory>
 
 Q_LOGGING_CATEGORY(qLcImageCapture, "waylib.server.imagecapture")
 
@@ -32,13 +34,92 @@ QW_USE_NAMESPACE
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
+// Helper for constraint building
+struct ConstraintBuilder {
+    wlr_ext_image_capture_source_v1 *source;
+    WOutput *output;
+    
+    ConstraintBuilder(wlr_ext_image_capture_source_v1 *src, WOutput *out) 
+        : source(src), output(out) {}
+    
+    void setSize(int width, int height) {
+        source->width = width;
+        source->height = height;
+    }
+    
+    void buildShmFormats() {
+        auto renderer = output->renderer();
+        auto swapchain = output->swapchain();
+        uint32_t format = DRM_FORMAT_ARGB8888; // fallback
+        
+        if (renderer && swapchain) {
+            struct wlr_buffer *buffer = wlr_swapchain_acquire(swapchain->handle());
+            if (buffer) {
+                struct wlr_texture *texture = wlr_texture_from_buffer(renderer->handle(), buffer);
+                wlr_buffer_unlock(buffer);
+                
+                if (texture) {
+                    uint32_t shm_format = wlr_texture_preferred_read_format(texture);
+                    wlr_texture_destroy(texture);
+                    if (shm_format != DRM_FORMAT_INVALID) {
+                        format = shm_format;
+                    }
+                }
+            }
+        }
+        
+        // Use unique_ptr for safer memory management
+        auto formats = std::unique_ptr<uint32_t[]>(new uint32_t[1]);
+        formats[0] = format;
+        
+        free(source->shm_formats);
+        source->shm_formats = formats.release();
+        source->shm_formats_len = 1;
+        
+        qCDebug(qLcImageCapture) << "Set SHM format:" << format;
+    }
+    
+    void buildDmabufFormats() {
+        auto renderer = output->renderer();
+        auto swapchain = output->swapchain();
+        
+        if (!renderer || !swapchain) return;
+        
+        int drm_fd = wlr_renderer_get_drm_fd(renderer->handle());
+        if (swapchain->handle()->allocator && 
+            (swapchain->handle()->allocator->buffer_caps & WLR_BUFFER_CAP_DMABUF) && 
+            drm_fd >= 0) {
+            
+            struct stat dev_stat;
+            if (fstat(drm_fd, &dev_stat) == 0) {
+                source->dmabuf_device = dev_stat.st_rdev;
+                
+                // Clean up old DMA-BUF formats
+                wlr_drm_format_set_finish(&source->dmabuf_formats);
+                source->dmabuf_formats = (struct wlr_drm_format_set){0};
+                
+                // Copy DMA-BUF formats from swapchain
+                for (size_t i = 0; i < swapchain->handle()->format.len; i++) {
+                    wlr_drm_format_set_add(&source->dmabuf_formats,
+                        swapchain->handle()->format.format, swapchain->handle()->format.modifiers[i]);
+                }
+                qCDebug(qLcImageCapture) << "Set DMA-BUF constraints";
+            }
+        }
+    }
+    
+    void apply() {
+        wl_signal_emit_mutable(&source->events.constraints_update, nullptr);
+    }
+};
+
 WExtImageCaptureSourceV1Impl::WExtImageCaptureSourceV1Impl(WSurfaceItemContent *surfaceContent, WOutput *output)
-    : QObject(nullptr)
+    : QObject(surfaceContent) // TODO: Check if Qt object tree destruction timing is appropriate
     , m_surfaceContent(surfaceContent)
     , m_output(output)
     , m_capturing(false)
     , m_renderEndConnection()
-{    
+{
     Q_ASSERT(m_surfaceContent);
     
     // Get texture provider and render window for thread setup
@@ -54,13 +135,30 @@ WExtImageCaptureSourceV1Impl::WExtImageCaptureSourceV1Impl(WSurfaceItemContent *
     // Initialize wlr_ext_image_capture_source_v1
     wlr_ext_image_capture_source_v1_init(handle(), impl());
     
-    // Get actual surface size and set constraints
+    // Get actual surface size and set constraints directly
     auto surface = m_surfaceContent->surface();
     if (surface && surface->handle()) {
         auto wlr_surface = surface->handle()->handle();
         int width = wlr_surface->current.width;
         int height = wlr_surface->current.height;
-        setConstraintsManually(width, height);
+        
+        // Validate dimensions before setting constraints
+        if (width > 0 && height > 0) {
+            // Use constraint builder helper directly
+            ConstraintBuilder builder(handle(), m_output);
+            builder.setSize(width, height);
+            builder.buildShmFormats();
+            builder.buildDmabufFormats();
+            builder.apply();
+            
+            qCDebug(qLcImageCapture) << "Initial constraints set successfully:";
+            qCDebug(qLcImageCapture) << "  - Width:" << width;
+            qCDebug(qLcImageCapture) << "  - Height:" << height;
+        } else {
+            qCWarning(qLcImageCapture) << "Invalid surface dimensions for constraints:" << width << "x" << height;
+        }
+    } else {
+        qCWarning(qLcImageCapture) << "No valid surface available for setting initial constraints";
     }
 }
 
@@ -76,7 +174,12 @@ void WExtImageCaptureSourceV1Impl::start(bool with_cursors)
     Q_UNUSED(with_cursors) // TODO: Implement cursor capture if needed
     m_capturing = true;
     qCDebug(qLcImageCapture) << "WExtImageCaptureSourceV1Impl::start() with_cursors:" << with_cursors;
-    
+
+    // TODO: Optimize multiple clients capturing the same window
+    // Currently each client creates its own WExtImageCaptureSourceV1Impl instance,
+    // which means multiple render listeners for the same surface. Consider implementing
+    // a manager to share render events among multiple capture sources.
+
     if (!m_surfaceContent) {
         qCWarning(qLcImageCapture) << "No surface content available for capture";
         return;
@@ -162,20 +265,22 @@ void WExtImageCaptureSourceV1Impl::handleRenderEnd()
         return;
     }
     
-    // Create damage region (entire surface)
-    pixman_region32_t full_damage;
+    // Get surface size and validate it
+    QSize surfaceSize = m_surfaceContent->size().toSize();
+    if (surfaceSize.width() <= 0 || surfaceSize.height() <= 0) {
+        qCWarning(qLcImageCapture) << "Invalid surface size for damage region:" << surfaceSize;
+        return;
+    }
     
-    // Get surface size to set correct damage region
-    QSize surfaceSize= m_surfaceContent->size().toSize();
-    pixman_region32_init_rect(&full_damage, 0, 0, surfaceSize.width(), surfaceSize.height());
+    // Create damage region with RAII
+    WPixmanRegion fullDamage(0, 0, surfaceSize.width(), surfaceSize.height());
+    
     // Create frame event and emit
     wlr_ext_image_capture_source_v1_frame_event event {
-        .damage = &full_damage,
+        .damage = fullDamage.get(),
     };
     wl_signal_emit_mutable(&handle()->events.frame, &event);
     
-    // Cleanup damage region
-    pixman_region32_fini(&full_damage);
     qCDebug(qLcImageCapture) << "Frame event emitted with damage region:" << surfaceSize;
 }
 
@@ -269,93 +374,6 @@ wlr_ext_image_capture_source_v1_cursor *WExtImageCaptureSourceV1Impl::get_pointe
     // This needs to get cursor information from seat and create corresponding cursor structure
     // Currently return nullptr to indicate no cursor information
     return nullptr;
-}
-
-void WExtImageCaptureSourceV1Impl::setConstraintsManually(int width, int height)
-{    
-    // Directly access wlr_ext_image_capture_source_v1 structure and set constraints
-    auto source = handle();
-    if (!source) {
-        qCWarning(qLcImageCapture) << "No source handle available for setting constraints";
-        return;
-    }
-    
-    // Set size constraints (directly set fields)
-    source->width = width;
-    source->height = height;
-    
-    // Set format constraints based on wlroots implementation
-    auto renderer = m_output->renderer();
-    auto swapchain = m_output->swapchain();
-    
-    if (renderer && swapchain) {
-        // Set SHM format (based on get_swapchain_shm_format logic)
-        struct wlr_buffer *buffer = wlr_swapchain_acquire(swapchain->handle());
-        if (buffer) {
-            struct wlr_texture *texture = wlr_texture_from_buffer(renderer->handle(), buffer);
-            wlr_buffer_unlock(buffer);
-            
-            if (texture) {
-                uint32_t shm_format = wlr_texture_preferred_read_format(texture);
-                wlr_texture_destroy(texture);
-                
-                if (shm_format != DRM_FORMAT_INVALID) {
-                    uint32_t *shm_formats = (uint32_t*)calloc(1, sizeof(uint32_t));
-                    if (shm_formats) {
-                        shm_formats[0] = shm_format;
-                        
-                        free(source->shm_formats);
-                        source->shm_formats = shm_formats;
-                        source->shm_formats_len = 1;
-                        
-                        qCDebug(qLcImageCapture) << "Set SHM format:" << shm_format;
-                    }
-                }
-            }
-        }
-        
-        // Set DMA-BUF constraints
-        int drm_fd = wlr_renderer_get_drm_fd(renderer->handle());
-        if (swapchain->handle()->allocator && 
-            (swapchain->handle()->allocator->buffer_caps & WLR_BUFFER_CAP_DMABUF) && 
-            drm_fd >= 0) {
-            
-            struct stat dev_stat;
-            if (fstat(drm_fd, &dev_stat) == 0) {
-                source->dmabuf_device = dev_stat.st_rdev;
-                
-                // Clean up old DMA-BUF formats
-                wlr_drm_format_set_finish(&source->dmabuf_formats);
-                source->dmabuf_formats = (struct wlr_drm_format_set){0};
-                
-                // Copy DMA-BUF formats from swapchain
-                for (size_t i = 0; i < swapchain->handle()->format.len; i++) {
-                    wlr_drm_format_set_add(&source->dmabuf_formats,
-                        swapchain->handle()->format.format, swapchain->handle()->format.modifiers[i]);
-                }
-                qCDebug(qLcImageCapture) << "Set DMA-BUF constraints";
-            }
-        }
-    }
-    
-    // If no format was set, use default format
-    if (source->shm_formats_len == 0) {
-        uint32_t *default_formats = (uint32_t*)calloc(1, sizeof(uint32_t));
-        if (default_formats) {
-            default_formats[0] = DRM_FORMAT_ARGB8888;
-            source->shm_formats = default_formats;
-            source->shm_formats_len = 1;
-            qCDebug(qLcImageCapture) << "Set default SHM format: ARGB8888";
-        }
-    }
-    
-    // Trigger constraints update event
-    wl_signal_emit_mutable(&source->events.constraints_update, nullptr);
-    
-    qCDebug(qLcImageCapture) << "Manual constraints set successfully:";
-    qCDebug(qLcImageCapture) << "  - Width:" << source->width;
-    qCDebug(qLcImageCapture) << "  - Height:" << source->height;
-    qCDebug(qLcImageCapture) << "  - SHM formats count:" << source->shm_formats_len;
 }
 
 WAYLIB_SERVER_END_NAMESPACE
