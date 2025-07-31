@@ -384,6 +384,8 @@ struct wlr_color_representation_manager_v1 *wlr_color_representation_manager_v1_
 		goto err_options;
 	}
 
+	wl_signal_init(&manager->events.destroy);
+
 	manager->display_destroy.notify = handle_display_destroy;
 	wl_display_add_destroy_listener(display, &manager->display_destroy);
 
