@@ -309,4 +309,17 @@ Qt::Edges WTools::toQtEdge(uint32_t edges)
     return qedges;
 }
 
+// WPixmanRegion implementation
+WPixmanRegion::WPixmanRegion() {
+    pixman_region32_init(&r);
+}
+
+WPixmanRegion::WPixmanRegion(int x, int y, int w, int h) {
+    pixman_region32_init_rect(&r, x, y, w, h);
+}
+
+WPixmanRegion::~WPixmanRegion() {
+    pixman_region32_fini(&r);
+}
+
 WAYLIB_SERVER_END_NAMESPACE

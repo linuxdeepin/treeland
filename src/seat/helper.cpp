@@ -2081,16 +2081,34 @@ Output *Helper::getOutputAtCursor() const
 void Helper::handleNewForeignToplevelCaptureRequest(wlr_ext_foreign_toplevel_image_capture_source_manager_v1_request *request)
 {
     if (!request || !request->toplevel_handle) {
-        qCDebug(qLcImageCapture) << "Invalid capture request or toplevel handle";
+        qCWarning(qLcImageCapture) << "Invalid capture request or toplevel handle";
         return;
     }
 
     auto *qw_handle = qw_ext_foreign_toplevel_handle_v1::from(request->toplevel_handle);
     WToplevelSurface *toplevelSurface = m_extForeignToplevelListV1->findSurfaceByHandle(qw_handle);
+    if (!toplevelSurface) {
+        qCWarning(qLcImageCapture) << "Could not find toplevel surface for handle";
+        return;
+    }
+    
     SurfaceWrapper *surfaceWrapper = m_rootSurfaceContainer->getSurface(toplevelSurface);
+    if (!surfaceWrapper) {
+        qCWarning(qLcImageCapture) << "Could not find SurfaceWrapper for toplevel surface";
+        return;
+    }
+    
     WSurfaceItem *surfaceItem = surfaceWrapper->surfaceItem();
+    if (!surfaceItem) {
+        qCWarning(qLcImageCapture) << "Could not get WSurfaceItem from SurfaceWrapper";
+        return;
+    }
+    
     WSurfaceItemContent *surfaceContent = surfaceItem->findItemContent();
-    Q_ASSERT(surfaceContent);
+    if (!surfaceContent) {
+        qCWarning(qLcImageCapture) << "Could not find WSurfaceItemContent";
+        return;
+    }
 
     qCDebug(qLcImageCapture) << "Found WSurfaceItemContent for capture:"
              << "size=" << surfaceContent->size()
@@ -2099,7 +2117,7 @@ void Helper::handleNewForeignToplevelCaptureRequest(wlr_ext_foreign_toplevel_ima
 
     auto *output = surfaceWrapper->ownsOutput()->output();
     if (!output) {
-        qCDebug(qLcImageCapture) << "Could not get WOutput from SurfaceWrapper";
+        qCWarning(qLcImageCapture) << "Could not get WOutput from SurfaceWrapper";
         return;
     }
 
@@ -2109,7 +2127,7 @@ void Helper::handleNewForeignToplevelCaptureRequest(wlr_ext_foreign_toplevel_ima
         request, *imageCaptureSource);
 
     if (!success) {
-        qCDebug(qLcImageCapture) << "Failed to accept foreign toplevel image capture request";
+        qCWarning(qLcImageCapture) << "Failed to accept foreign toplevel image capture request";
         delete imageCaptureSource;
     }
 }
