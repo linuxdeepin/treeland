@@ -1,3 +1,43 @@
+treeland (0.6.0) unstable; urgency=medium
+
+  * fix: improve image capture error handling and code structure
+  * feat: add foreign toplevel image capture support
+  * feat: add image capture source support
+  * fix: remove unused quit full button and add helper activation
+  * fix: prevent title bar and window buttons from stealing focus
+  * feat: add wl_drm support
+  * feat: create ext-data-control manager
+  * fix: Handle VT switching keys (#469)
+  * feat: add Nix flake support for project configuration
+  * fix: prevent workspace moveSurfaceTo crash on null wrapper
+  * fix: remove redundant submodule options and configs
+  * chore: update nix dependencies and clean up configurations
+  * fix: Scaling animation not shown while return from shutdown page
+  * chore: Force Ninja build during deb packaging
+  * fix: add timeout to protocol tests
+  * feat: Upload build artifacts as zip archives
+  * chore: fix CI and enable independent builds
+  * refactor: merge qwlroots and waylib source code into treeland
+  * chore: Use treeland-specific seatd service
+  * feat: implement ext-foreign-toplevel-list
+  * i18n: Updates for project TreeLand (#440)
+  * chore: remove polkit rules for login1
+  * feat: add support for alpha modifier protocol
+  * fix: cannot export dbus services
+  * Revert "fix: should not maximize when client set maxsize"
+  * Updates for project TreeLand (#431)
+  * fix: Treeland does not exit when logging out of session
+  * fix: cannot use treeland user session mode
+  * fix: add [[maybe_unused]] attribute to unused parameters
+  * chore: improvement fixes the translation configuration
+  * feat: add popup surface container for handling popup windows
+  * chore: configure translation files and update Chinese translations
+  * chore: configure transifex translation files
+  * feat: adapt to wlroots-0.19
+  * refactor: remove jemalloc dependency
+
+ -- rewine <luhongxu@uniontech.com>  Thu, 31 Jul 2025 20:40:50 +0800
+
 treeland (0.5.21) unstable; urgency=medium
 
   * fix: inputted password and capsIndicator button are covered
