@@ -37,8 +37,6 @@ private Q_SLOTS:
     void handleRenderEnd();
 
 private:
-    void setConstraintsManually(int width, int height);
-
     WSurfaceItemContent *m_surfaceContent;
     WOutput *m_output;
     bool m_capturing;

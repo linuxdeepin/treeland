@@ -43,26 +43,6 @@
 QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
-struct Q_DECL_HIDDEN PixmanRegion
-{
-    PixmanRegion() {
-        pixman_region32_init(&data);
-    }
-    ~PixmanRegion() {
-        pixman_region32_fini(&data);
-    }
-
-    inline operator pixman_region32_t*() {
-        return &data;
-    }
-
-    inline bool isEmpty() const {
-        return !pixman_region32_not_empty(&data);
-    }
-
-    pixman_region32_t data;
-};
-
 inline static WImageRenderTarget *getImageFrom(const QQuickRenderTarget &rt)
 {
     auto d = QQuickRenderTargetPrivate::get(&rt);
@@ -386,7 +366,7 @@ qw_buffer *WBufferRenderer::beginRender(const QSize &pixelSize, qreal devicePixe
     }
 
     // For software renderer, update the dirty parts relative to the last paint device.
-    PixmanRegion damage;
+    WPixmanRegion damage;
     m_damageRing.rotate_buffer(wbuffer, damage);
     state.dirty = WTools::fromPixmanRegion(damage);
 
@@ -597,7 +577,7 @@ void WBufferRenderer::render(int sourceIndex, const QMatrix4x4 &renderMatrix,
             currentImage->setDevicePixelRatio(1.0);
             const auto scaleTF = QTransform::fromScale(devicePixelRatio, devicePixelRatio);
             const auto scaledFlushRegion = scaleTF.map(softwareRenderer->flushRegion());
-            PixmanRegion scaledFlushDamage;
+            WPixmanRegion scaledFlushDamage;
             bool ok = WTools::toPixmanRegion(scaledFlushRegion, scaledFlushDamage);
             Q_ASSERT(ok);
 
