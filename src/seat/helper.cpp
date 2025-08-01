@@ -1967,7 +1967,10 @@ void Helper::setLockScreenImpl(ILockScreen *impl)
         }
     });
 
-    QDBusConnection::systemBus().connect("org.freedesktop.login1", "/org/freedesktop/login1", "org.freedesktop.login1.Manager", "SessionNew", this, SLOT(onSessionNew(const QString &,const QDBusObjectPath &)));
+    bool dbusConnected = QDBusConnection::systemBus().connect("org.freedesktop.login1", "/org/freedesktop/login1", "org.freedesktop.login1.Manager", "SessionNew", this, SLOT(onSessionNew(const QString &,const QDBusObjectPath &)));
+    if (!dbusConnected) {
+        qCWarning(qLcHelper) << "Could not connect to org.freedesktop.login1.Manager SessionNew signal";
+    }
 
     if (CmdLine::ref().useLockScreen()) {
         showLockScreen();
