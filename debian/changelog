@@ -1,3 +1,13 @@
+treeland (0.6.1) unstable; urgency=medium
+
+  * fix: improve D-Bus connection handling and QML hover visibility
+  * feat: CLI option: switch from --disable-debug-view to --enable-debug-
+    view
+  * fix(waylib): Specify required rendering flags in
+    WSGRenderFootprintNode
+
+ -- rewine <luhongxu@uniontech.com>  Fri, 01 Aug 2025 13:33:07 +0800
+
 treeland (0.6.0) unstable; urgency=medium
 
   * fix: improve image capture error handling and code structure
