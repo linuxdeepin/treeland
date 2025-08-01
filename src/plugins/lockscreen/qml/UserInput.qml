@@ -294,7 +294,7 @@ Item {
             Layout.preferredHeight: 16
             background: Rectangle {
                 id: hintBtnBackground
-                visible: hovered
+                visible: hintBtn.hovered
                 anchors.fill: parent
                 color: Qt.rgba(1.0, 1.0, 1.0, 0.1)
                 radius: 4
