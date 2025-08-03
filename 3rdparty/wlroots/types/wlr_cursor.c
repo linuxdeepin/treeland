@@ -585,10 +585,11 @@ static void cursor_output_cursor_update(struct wlr_cursor_output_cursor *output_
 			&src_box, dst_width, dst_height, surface->current.transform,
 			hotspot_x, hotspot_y, wait_timeline, wait_point);
 
-		if (syncobj_surface_state != NULL && surface->buffer != NULL &&
+		if (syncobj_surface_state != NULL &&
+				surface->buffer != NULL && surface->buffer->source != NULL &&
 				(surface->current.committed & WLR_SURFACE_STATE_BUFFER)) {
 			wlr_linux_drm_syncobj_v1_state_signal_release_with_buffer(syncobj_surface_state,
-				&surface->buffer->base);
+				surface->buffer->source);
 		}
 
 		if (output_cursor->output_cursor->visible) {
