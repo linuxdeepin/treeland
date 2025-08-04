@@ -68,6 +68,8 @@ qt_add_library(libtreeland SHARED)
 
 set_target_properties(libtreeland PROPERTIES
     OUTPUT_NAME "treeland"
+    VERSION ${CMAKE_PROJECT_VERSION}
+    SOVERSION ${PROJECT_VERSION_MAJOR}
 )
 
 qt_add_qml_module(libtreeland
@@ -271,6 +273,7 @@ target_link_libraries(libtreeland
         PkgConfig::PIXMAN
         PkgConfig::WAYLAND
         PkgConfig::LIBINPUT
+        PkgConfig::XCB
         $<$<NOT:$<BOOL:${DISABLE_DDM}>>:DDM::Auth>
         $<$<NOT:$<BOOL:${DISABLE_DDM}>>:DDM::Common>
         $<$<NOT:$<BOOL:${DISABLE_DDM}>>:PkgConfig::PAM>
@@ -298,8 +301,6 @@ target_link_libraries(${BIN_NAME} PRIVATE
 install(TARGETS ${BIN_NAME} RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}")
 install(PROGRAMS treeland.sh DESTINATION "${CMAKE_INSTALL_BINDIR}")
 install(TARGETS libtreeland LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}")
-# TODO: The qml plugin installation directory still needs to be adjusted
-install(DIRECTORY ${PROJECT_BINARY_DIR}/qt/qml/Treeland DESTINATION "${TREELAND_DATA_DIR}/qml/Treeland")
 
 ## systemd socket
 
