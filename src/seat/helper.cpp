@@ -90,6 +90,7 @@
 #include <qwidleinhibitv1.h>
 #include <qwalphamodifierv1.h>
 #include <qwdrm.h>
+#include <qwtransientseatv1.h>
 
 #include <QAction>
 #include <QKeySequence>
@@ -1098,6 +1099,20 @@ void Helper::init()
     qw_data_control_manager_v1::create(*m_server->handle());
     qw_ext_data_control_manager_v1::create(*m_server->handle(), EXT_DATA_CONTROL_MANAGER_V1_VERSION);
     qw_alpha_modifier_v1::create(*m_server->handle());
+    connect(m_transientSeatManager, &qw_transient_seat_manager_v1::notify_create_seat, this, [this](wlr_transient_seat_v1 *transientSeat) {
+        qw_transient_seat_v1 *qwTransientSeat = qw_transient_seat_v1::from(transientSeat);
+        static uint64_t i = 0;
+        QString name = QStringLiteral("transient-%1").arg(m_transientSeatCounter++, 0, 10);
+        WSeat *seat = new WSeat(name);
+        if (seat && seat->nativeHandle()) {
+            connect(seat->handle(), &qw_seat::before_destroy, this, [this, seat]{
+                seat->safeDeleteLater();
+            });
+            qwTransientSeat->ready(seat->nativeHandle());
+        } else {
+            qwTransientSeat->deny();
+        }
+    });
 
     m_dockPreview = engine->createDockPreview(m_renderWindow->contentItem());
 
