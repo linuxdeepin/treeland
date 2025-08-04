@@ -156,7 +156,7 @@ private:
 class Q_DECL_HIDDEN WSurfaceItemContentPrivate: public QQuickItemPrivate
 {
 public:
-    WSurfaceItemContentPrivate(WSurfaceItemContent *qq){}
+    WSurfaceItemContentPrivate([[maybe_unused]] WSurfaceItemContent *qq){}
 
     ~WSurfaceItemContentPrivate() {
     }

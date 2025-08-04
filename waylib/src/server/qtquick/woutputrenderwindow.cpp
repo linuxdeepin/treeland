@@ -813,13 +813,15 @@ WBufferRenderer *OutputHelper::afterRender()
         layers.append({
             .layer = i->wlrLayer->handle(),
             .buffer = buffer->handle(),
+            .src_box = {},
             .dst_box = {
                 .x = i->mapToOutput.x(),
                 .y = i->mapToOutput.y(),
                 .width = i->mapToOutput.width(),
                 .height = i->mapToOutput.height(),
             },
-            .damage = &i->renderer->damageRing()->handle()->current
+            .damage = &i->renderer->damageRing()->handle()->current,
+            .accepted = false
         });
 
         if (needsEndBuffer) {
@@ -1185,7 +1187,7 @@ bool OutputHelper::tryToHardwareCursor(const LayerData *layer)
         }
 
         const auto pos = layer->mapToOutput.topLeft() + hotSpot;
-        wlr_box cleanTransform {.x = pos.x(), .y = pos.y()};
+        wlr_box cleanTransform {.x = pos.x(), .y = pos.y(), .width = 0, .height = 0};
         const auto outputSize = output()->output()->size();
         // the layer->mapRect has been transform in renderLayer, but
         // wlroot's move_cursor also will transform the cursor's position.

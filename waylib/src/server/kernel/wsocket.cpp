@@ -493,7 +493,7 @@ bool WSocket::create(const QString &filePath)
 
 static QString getSocketFile(int fd, bool doCheck) {
     if (doCheck) {   // check socket file
-        struct ::stat stat_buf = {0};
+        struct ::stat stat_buf{};
         if (fstat(fd, &stat_buf) != 0) {
             qDebug("fstat failed on create by FD");
             return {};

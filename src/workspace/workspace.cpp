@@ -23,7 +23,7 @@ Workspace::Workspace(SurfaceContainer *parent)
     m_showOnAllWorkspaceModel = new WorkspaceModel(this, ShowOnAllWorkspaceId, {});
     m_showOnAllWorkspaceModel->setName("show-on-all-workspace");
     m_showOnAllWorkspaceModel->setVisible(true);
-    for (auto index = 0; index < TreelandConfig::ref().numWorkspace(); index++) {
+    for (uint index = 0; index < TreelandConfig::ref().numWorkspace(); index++) {
         doCreateModel(QStringLiteral("workspace-%1").arg(index),
                       index == TreelandConfig::ref().currentWorkspace());
     }

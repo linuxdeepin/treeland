@@ -13,6 +13,9 @@
 #include <woutputrenderwindow.h>
 
 #include <QtConcurrentMap>
+#include <QLoggingCategory>
+
+Q_LOGGING_CATEGORY(qLcMultitaskview, "treeland.plugins.multitaskview")
 
 WAYLIB_SERVER_USE_NAMESPACE
 
@@ -184,6 +187,7 @@ QHash<int, QByteArray> MultitaskviewSurfaceModel::roleNames() const
 
 QModelIndex MultitaskviewSurfaceModel::index(int row, int column, const QModelIndex &parent) const
 {
+    Q_UNUSED(parent)
     if (row < 0 || row >= m_data.size())
         return QModelIndex();
     return QAbstractItemModel::createIndex(row, column, &m_data[row]);
@@ -218,11 +222,13 @@ void MultitaskviewSurfaceModel::updateZOrder()
     Q_EMIT dataChanged(index(0), index(rowCount() - 1), { ZOrderRole });
 }
 
-int MultitaskviewSurfaceModel::prevSameAppIndex(int index)
+uint MultitaskviewSurfaceModel::prevSameAppIndex(uint index)
 {
-    if (index < 0 || index >= count())
-        return -1;
-    auto circularPrev = [this](int i) {
+    if (index >= count()) {
+        qCWarning(qLcMultitaskview) << "prevSameAppIndex: invalid index" << index << "count:" << count();
+        return index;
+    }
+    auto circularPrev = [this](uint i) {
         return (i + count() - 1) % count();
     };
     auto i = circularPrev(index);
@@ -235,11 +241,13 @@ int MultitaskviewSurfaceModel::prevSameAppIndex(int index)
     return i;
 }
 
-int MultitaskviewSurfaceModel::nextSameAppIndex(int index)
+uint MultitaskviewSurfaceModel::nextSameAppIndex(uint index)
 {
-    if (index < 0 || index >= count())
-        return -1;
-    auto circularNext = [this](int i) {
+    if (index >= count()) {
+        qCWarning(qLcMultitaskview) << "nextSameAppIndex: invalid index" << index << "count:" << count();
+        return index;
+    }
+    auto circularNext = [this](uint i) {
         return (i + 1) % count();
     };
     auto i = circularNext(index);
@@ -411,6 +419,7 @@ void MultitaskviewSurfaceModel::doUpdateZOrder(const QList<ModelDataPtr> &rawDat
 std::pair<int, int> MultitaskviewSurfaceModel::commitAndGetUpdateRange(
     const QList<ModelDataPtr> &rawData)
 {
+    Q_UNUSED(rawData)
     // TODO: better algorithm
     int beginIndex = 0, endIndex = -1;
     bool unchanged = true;

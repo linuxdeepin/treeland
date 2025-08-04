@@ -21,10 +21,10 @@ public:
 private:
     QImage im;
     QSize size;
+    WallpaperImageProvider *m_wallpaperProvider = nullptr;
     QString m_wallpaperId;
     bool m_textureExist = false;
     mutable QSGTexture *m_texture = nullptr;
-    WallpaperImageProvider *m_wallpaperProvider = nullptr;
 };
 
 class WallpaperImageProvider : public QQuickImageProvider

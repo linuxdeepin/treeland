@@ -1660,11 +1660,11 @@ void SurfaceWrapper::setSurfaceRole(SurfaceRole role)
     if (role != SurfaceRole::Normal) {
         setZ(ALWAYSONTOPLAYER + static_cast<int>(role));
         for (const auto &sub : std::as_const(m_subSurfaces))
-            setZ(ALWAYSONTOPLAYER + static_cast<int>(role));
+            sub->setZ(ALWAYSONTOPLAYER + static_cast<int>(role));
     } else {
         setZ(0);
         for (const auto &sub : std::as_const(m_subSurfaces))
-            setZ(0);
+            sub->setZ(0);
     }
 
     Q_EMIT surfaceRoleChanged();
