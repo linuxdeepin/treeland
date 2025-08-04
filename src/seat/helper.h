@@ -63,6 +63,7 @@ class qw_idle_inhibit_manager_v1;
 class qw_output_configuration_v1;
 class qw_output_power_manager_v1;
 class qw_idle_inhibitor_v1;
+class qw_transient_seat_manager_v1;
 QW_END_NAMESPACE
 
 WAYLIB_SERVER_USE_NAMESPACE
@@ -309,6 +310,7 @@ private:
     WBackend *m_backend = nullptr;
     qw_renderer *m_renderer = nullptr;
     qw_allocator *m_allocator = nullptr;
+    qw_transient_seat_manager_v1 *m_transientSeatManager = nullptr;
 
     // protocols
     qw_compositor *m_compositor = nullptr;
