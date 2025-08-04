@@ -198,6 +198,32 @@ bool WBackend::hasWayland() const
     return hasBackend<qw_wayland_backend>(handle());
 }
 
+bool WBackend::isSessionActive() const
+{
+    W_D(const WBackend);
+    return d->session && d->session->handle()->active;
+}
+
+void WBackend::activateSession()
+{
+    W_D(WBackend);
+    if (d->session) {
+        struct wlr_session *session = d->session->handle();
+        session->active = true;
+        wl_signal_emit_mutable(&session->events.active, nullptr);
+    }
+}
+
+void WBackend::deactivateSession()
+{
+    W_D(WBackend);
+    if (d->session) {
+        struct wlr_session *session = d->session->handle();
+        session->active = false;
+        wl_signal_emit_mutable(&session->events.active, nullptr);
+    }
+}
+
 void WBackend::create(WServer *server)
 {
     W_D(WBackend);
@@ -207,6 +233,7 @@ void WBackend::create(WServer *server)
         m_handle = qw_backend::autocreate(server->handle()->get_event_loop(), &session);
         Q_ASSERT(m_handle);
         d->session = qw_session::from(session);
+        Q_EMIT created();
     }
 
     d->connect();

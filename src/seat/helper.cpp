@@ -34,6 +34,7 @@
 #include "core/windowpicker.h"
 #include "workspace/workspace.h"
 #include "common/treelandlogging.h"
+#include "modules/ddm/ddminterfacev1.h"
 
 #include <xcb/xcb.h>
 #include <xcb/xproto.h>
@@ -829,6 +830,7 @@ void Helper::init()
     connect(m_seat, &WSeat::requestDrag, this, &Helper::handleRequestDrag);
 
     m_backend = m_server->attach<WBackend>();
+
     connect(m_backend, &WBackend::inputAdded, this, [this](WInputDevice *device) {
         m_seat->attachInputDevice(device);
         if (InputDevice::instance()->initTouchPad(device)) {
@@ -847,6 +849,8 @@ void Helper::init()
     connect(m_backend, &WBackend::inputRemoved, this, [this](WInputDevice *device) {
         m_seat->detachInputDevice(device);
     });
+
+    m_ddmInterfaceV1 = m_server->attach<DDMInterfaceV1>();
 
     m_outputManager = m_server->attach<WOutputManagerV1>();
     connect(m_backend, &WBackend::outputAdded, this, &Helper::onOutputAdded);
@@ -1216,10 +1220,19 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *, QInputEvent *event)
         // Switch TTY with Ctrl + Alt + F1-F12
         if (kevent->modifiers() == (Qt::ControlModifier | Qt::AltModifier)) {
             auto key = kevent->key();
-            if (key >= Qt::Key_F1 && key <= Qt::Key_F12) {
-                // Use syncronized call here to ensure DM to be shown on correct VT.
-                showLockScreen(false);
-                m_backend->session()->change_vt(key - Qt::Key_F1 + 1);
+            // We don't call libseat_disable_seat after switching TTY by
+            // calling DDM, which will cause the keyboard stuck in current
+            // state (Ctrl + Alt + Fx), and send switchToVt repeatly.
+            // Check if the backend is active to avoid this.
+            if (key >= Qt::Key_F1 && key <= Qt::Key_F12 && m_backend->isSessionActive()) {
+                const int vtnr = key - Qt::Key_F1 + 1;
+                if (m_ddmInterfaceV1 && m_ddmInterfaceV1->isConnected()) {
+                    m_ddmInterfaceV1->switchToVt(vtnr);
+                } else {
+                    qCDebug(treelandCore) << "DDM is not connected";
+                    showLockScreen(false);
+                    m_backend->session()->change_vt(vtnr);
+                }
                 return true;
             }
         }
@@ -1970,7 +1983,7 @@ void Helper::setLockScreenImpl(ILockScreen *impl)
     }
 
     if (CmdLine::ref().useLockScreen()) {
-        showLockScreen();
+        showLockScreen(true, false);
     }
 #endif
 }
@@ -1987,7 +2000,7 @@ void Helper::setCurrentMode(CurrentMode mode)
     Q_EMIT currentModeChanged();
 }
 
-void Helper::showLockScreen(bool async)
+void Helper::showLockScreen(bool async, bool switchToGreeter)
 {
     if (m_lockScreen->isLocked()) {
         return;
@@ -2006,14 +2019,16 @@ void Helper::showLockScreen(bool async)
 
     // send DDM switch to greeter mode
     // FIXME: DDM and Treeland should listen to the lock signal of login1
-    QDBusInterface interface("org.freedesktop.DisplayManager",
-                             "/org/freedesktop/DisplayManager/Seat0",
-                             "org.freedesktop.DisplayManager.Seat",
-                             QDBusConnection::systemBus());
-    if (async)
-        interface.asyncCall("SwitchToGreeter");
-    else
-        interface.call("SwitchToGreeter");
+    if (switchToGreeter) {
+        QDBusInterface interface("org.freedesktop.DisplayManager",
+                                 "/org/freedesktop/DisplayManager/Seat0",
+                                 "org.freedesktop.DisplayManager.Seat",
+                                 QDBusConnection::systemBus());
+        if (async)
+            interface.asyncCall("SwitchToGreeter");
+        else
+            interface.call("SwitchToGreeter");
+    }
 }
 
 WSeat *Helper::seat() const
@@ -2091,19 +2106,19 @@ void Helper::handleNewForeignToplevelCaptureRequest(wlr_ext_foreign_toplevel_ima
         qCWarning(treelandCapture) << "Could not find toplevel surface for handle";
         return;
     }
-    
+
     SurfaceWrapper *surfaceWrapper = m_rootSurfaceContainer->getSurface(toplevelSurface);
     if (!surfaceWrapper) {
         qCWarning(treelandCapture) << "Could not find SurfaceWrapper for toplevel surface";
         return;
     }
-    
+
     WSurfaceItem *surfaceItem = surfaceWrapper->surfaceItem();
     if (!surfaceItem) {
         qCWarning(treelandCapture) << "Could not get WSurfaceItem from SurfaceWrapper";
         return;
     }
-    
+
     WSurfaceItemContent *surfaceContent = surfaceItem->findItemContent();
     if (!surfaceContent) {
         qCWarning(treelandCapture) << "Could not find WSurfaceItemContent";
@@ -2130,4 +2145,22 @@ void Helper::handleNewForeignToplevelCaptureRequest(wlr_ext_foreign_toplevel_ima
         qCWarning(treelandCapture) << "Failed to accept foreign toplevel image capture request";
         delete imageCaptureSource;
     }
+}
+
+UserModel *Helper::userModel() const {
+    return m_userModel;
+}
+
+DDMInterfaceV1 *Helper::ddmInterfaceV1() const {
+    return m_ddmInterfaceV1;
+}
+
+void Helper::activateSession() {
+    if (!m_backend->isSessionActive())
+        m_backend->activateSession();
+}
+
+void Helper::deactivateSession() {
+    if (m_backend->isSessionActive())
+        m_backend->deactivateSession();
 }
