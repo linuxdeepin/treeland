@@ -4,8 +4,8 @@ PartOf=graphical.target
 StartLimitIntervalSec=30
 StartLimitBurst=2
 
-Requires=seatd-dde.service
-After=seatd-dde.service
+Requires=seatd.service
+After=seatd.service
 
 [Service]
 User=dde
