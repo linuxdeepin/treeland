@@ -39,7 +39,11 @@
 #include <QGuiApplication>
 #include <QLocalSocket>
 #include <QVariantMap>
+#include <QDBusInterface>
+#include <QDBusPendingCall>
+#include <QDBusReply>
 
+#include <woutputrenderwindow.h>
 
 struct SessionInfo
 {
@@ -216,10 +220,23 @@ void GreeterProxy::init()
             this,
             &GreeterProxy::onSessionRemoved);
 
-    auto sessions = d->displayManager->sessions();
-    for (auto session : sessions) {
-        onSessionAdded(session);
-    }
+    // Use async call to avoid blocking
+    QDBusInterface dbus("org.freedesktop.DBus",
+                        "/org/freedesktop/DBus",
+                        "org.freedesktop.DBus.Properties",
+                        QDBusConnection::systemBus());
+    QDBusPendingCall call = dbus.asyncCall("Get", DisplayManager::staticInterfaceName(), "Sessions");
+    auto *watcher = new QDBusPendingCallWatcher(call);
+    connect(watcher, &QDBusPendingCallWatcher::finished, this, [this](QDBusPendingCallWatcher *watcher) {
+        QDBusReply<QList<QDBusObjectPath>> reply = watcher->reply();
+        if (reply.isValid()) {
+            auto sessions = reply.value();
+            for (auto session : sessions) {
+                onSessionAdded(session);
+            }
+        }
+        watcher->deleteLater();
+    });
 }
 
 void GreeterProxy::login(const QString &user, const QString &password, const int sessionIndex)
@@ -344,7 +361,8 @@ void GreeterProxy::connected()
 {
     qCDebug(treelandGreeter) << "Connected to the daemon.";
 
-    SocketWriter(d->socket) << quint32(GreeterMessages::Connect);
+    SocketWriter(d->socket) << quint32(GreeterMessages::Connect)
+                            << Helper::instance()->defaultWaylandSocket()->fullServerName();
 }
 
 void GreeterProxy::disconnected()

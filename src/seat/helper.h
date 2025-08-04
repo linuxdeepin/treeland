@@ -90,6 +90,7 @@ class IMultitaskView;
 class LockScreenInterface;
 class ILockScreen;
 class UserModel;
+class DDMInterfaceV1;
 struct wlr_idle_inhibitor_v1;
 struct wlr_output_power_v1_set_mode_event;
 struct wlr_ext_foreign_toplevel_image_capture_source_manager_v1_request;
@@ -200,9 +201,15 @@ public:
 
     void setCurrentMode(CurrentMode mode);
 
-    void showLockScreen(bool async = true);
+    void showLockScreen(bool switchToGreeter = true);
 
     Output* getOutputAtCursor() const;
+
+    UserModel *userModel() const;
+    DDMInterfaceV1 *ddmInterfaceV1() const;
+
+    void activateSession();
+    void deactivateSession();
 public Q_SLOTS:
     void activateSurface(SurfaceWrapper *wrapper, Qt::FocusReason reason = Qt::OtherFocusReason);
     void forceActivateSurface(SurfaceWrapper *wrapper,
@@ -330,6 +337,7 @@ private:
     DDEShellManagerInterfaceV1 *m_ddeShellV1 = nullptr;
     VirtualOutputV1 *m_virtualOutput = nullptr;
     PrimaryOutputV1 *m_primaryOutputV1 = nullptr;
+    DDMInterfaceV1 *m_ddmInterfaceV1 = nullptr;
 
     // private data
     QList<Output *> m_outputList;
