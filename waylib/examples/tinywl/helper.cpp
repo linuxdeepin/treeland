@@ -765,7 +765,7 @@ void Helper::setOutputMode(OutputMode mode)
     }
 }
 
-void Helper::setOutputProxy(Output *output)
+void Helper::setOutputProxy([[maybe_unused]] Output *output)
 {
 
 }

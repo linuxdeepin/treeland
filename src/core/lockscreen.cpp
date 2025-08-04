@@ -66,7 +66,6 @@ void LockScreen::addOutput(Output *output)
 {
     SurfaceContainer::addOutput(output);
 
-    auto engine = Helper::instance()->qmlEngine();
     auto *item = m_impl->createLockScreen(output, this);
 
     if (isVisible()) {

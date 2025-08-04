@@ -29,6 +29,7 @@ constexpr auto make_lambda()
 {
     if constexpr (N == 0) {
         auto tmp = [](struct wl_client *client, struct wl_resource *resource, Args... args) {
+            Q_UNUSED(client)
             auto obj = reinterpret_cast<class_type *>(class_type::fromResource(resource));
             (obj->*mFunc)(args...);
         };
