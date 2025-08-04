@@ -550,7 +550,9 @@ void PersonalizationV1::create(WServer *server)
             &PersonalizationV1::onFontContextCreated);
 }
 
-void PersonalizationV1::destroy(WServer *server) { }
+void PersonalizationV1::destroy(WServer *server) { 
+    Q_UNUSED(server)
+}
 
 wl_global *PersonalizationV1::global() const
 {

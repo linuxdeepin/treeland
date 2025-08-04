@@ -405,7 +405,7 @@ void CaptureManagerV1::create(WServer *server)
             });
 }
 
-void CaptureManagerV1::destroy(WServer *server)
+void CaptureManagerV1::destroy([[maybe_unused]] WServer *server)
 {
     this->disconnect();
 }
@@ -493,7 +493,7 @@ CaptureContextModel::CaptureContextModel(QObject *parent)
 {
 }
 
-int CaptureContextModel::rowCount(const QModelIndex &parent) const
+int CaptureContextModel::rowCount([[maybe_unused]] const QModelIndex &parent) const
 {
     return m_captureContexts.size();
 }
@@ -554,7 +554,7 @@ CaptureSourceSelector::CaptureSourceSelector(QQuickItem *parent)
             &CaptureSourceSelector::handleItemSelectorSelectionRegionChanged,
             Qt::UniqueConnection);
     m_itemSelector->addCustomFilter([this](QQuickItem *item,
-                                           ItemSelector::ItemTypes selectionHint) -> bool {
+                                           [[maybe_unused]] ItemSelector::ItemTypes selectionHint) -> bool {
         if (auto surfaceItemContent = qobject_cast<WSurfaceItemContent *>(item)) {
             return surfaceItemContent->surface() != captureManager()->contextInSelection()->mask();
         } else if (auto surfaceItem = qobject_cast<WSurfaceItem *>(item)) {
@@ -831,7 +831,7 @@ void CaptureSourceSelector::mousePressEvent(QMouseEvent *event)
     }
 }
 
-void CaptureSourceSelector::mouseReleaseEvent(QMouseEvent *event)
+void CaptureSourceSelector::mouseReleaseEvent([[maybe_unused]] QMouseEvent *event)
 {
     switch (selectionMode()) {
     case SelectionMode::SelectRegion: {

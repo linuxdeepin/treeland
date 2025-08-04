@@ -392,7 +392,6 @@ qw_buffer *WBufferRenderer::beginRender(const QSize &pixelSize, qreal devicePixe
 #ifndef QT_NO_OPENGL
         if (wd->rhi->backend() == QRhi::OpenGLES2) {
             auto glRT = QRHI_RES(QGles2TextureRenderTarget, rtd->u.rhiRt);
-            Q_ASSERT(glRT->framebuffer >= 0);
             auto glContext = QOpenGLContext::currentContext();
             Q_ASSERT(glContext);
             QOpenGLContextPrivate::get(glContext)->defaultFboRedirect = glRT->framebuffer;

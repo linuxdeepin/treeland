@@ -97,6 +97,7 @@ WXWayland *ShellHandler::createXWayland(WServer *server,
                                         qw_compositor *compositor,
                                         bool lazy)
 {
+    Q_UNUSED(lazy)
     auto *xwayland = server->attach<WXWayland>(compositor, false);
     m_xwaylands.append(xwayland);
     xwayland->setSeat(seat);

@@ -227,7 +227,7 @@ WTextInputV1::WTextInputV1(QObject *parent)
 }
 
 static WTextInputV1 *text_input_from_resource(wl_resource *resource);
-void text_input_handle_activate(wl_client *client,
+void text_input_handle_activate([[maybe_unused]] wl_client *client,
                                 wl_resource *resource,
                                 wl_resource *seat,
                                 wl_resource *surface)
@@ -255,7 +255,7 @@ void text_input_handle_activate(wl_client *client,
     Q_EMIT text_input->activate();
 }
 
-void text_input_handle_deactivate(wl_client *client,
+void text_input_handle_deactivate([[maybe_unused]] wl_client *client,
                                   wl_resource *resource,
                                   wl_resource *seat)
 {
@@ -271,21 +271,21 @@ void text_input_handle_deactivate(wl_client *client,
     Q_EMIT text_input->deactivate();
 }
 
-void text_input_handle_show_input_panel(wl_client *client,
+void text_input_handle_show_input_panel([[maybe_unused]] wl_client *client,
                                         wl_resource *resource)
 {
     Q_UNUSED(client);
     Q_UNUSED(resource);
 }
 
-void text_input_handle_hide_input_panel(wl_client *client,
+void text_input_handle_hide_input_panel([[maybe_unused]] wl_client *client,
                                         wl_resource *resource)
 {
     Q_UNUSED(client);
     Q_UNUSED(resource);
 }
 
-void text_input_handle_reset(wl_client *client,
+void text_input_handle_reset([[maybe_unused]] wl_client *client,
                              wl_resource *resource)
 {
     WTextInputV1 *text_input = text_input_from_resource(resource);
@@ -298,7 +298,7 @@ void text_input_handle_reset(wl_client *client,
     d->contentPurpose = 0;
 }
 
-void text_input_handle_set_surrounding_text(wl_client *client,
+void text_input_handle_set_surrounding_text([[maybe_unused]] wl_client *client,
                                             wl_resource *resource,
                                             const char *text,
                                             uint32_t cursor,
@@ -311,7 +311,7 @@ void text_input_handle_set_surrounding_text(wl_client *client,
     d->surroundingAnchor = anchor;
 }
 
-void text_input_handle_set_content_type(wl_client *client,
+void text_input_handle_set_content_type([[maybe_unused]] wl_client *client,
                                         wl_resource *resource,
                                         uint32_t hint,
                                         uint32_t purpose)
@@ -322,7 +322,7 @@ void text_input_handle_set_content_type(wl_client *client,
     d->contentPurpose = purpose;
 }
 
-void text_input_handle_set_cursor_rectangle(wl_client *client,
+void text_input_handle_set_cursor_rectangle([[maybe_unused]] wl_client *client,
                                             wl_resource *resource,
                                             int32_t x,
                                             int32_t y,
@@ -343,7 +343,7 @@ void text_input_handle_set_preferred_language(wl_client *client,
     Q_UNUSED(language);
 }
 
-void text_input_handle_commit_state(wl_client *client,
+void text_input_handle_commit_state([[maybe_unused]] wl_client *client,
                                     wl_resource *resource,
                                     uint32_t serial)
 {
@@ -353,7 +353,7 @@ void text_input_handle_commit_state(wl_client *client,
     Q_EMIT text_input->committed();
 }
 
-void text_input_handle_invoke_action(wl_client *client,
+void text_input_handle_invoke_action([[maybe_unused]] wl_client *client,
                                      wl_resource *resource,
                                      uint32_t button,
                                      uint32_t index)

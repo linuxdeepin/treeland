@@ -133,7 +133,7 @@ WXdgPopupSurface *WXdgPopupSurface::fromSurface(WSurface *surface)
     return surface->getAttachedData<WXdgPopupSurface>();
 }
 
-void WXdgPopupSurface::resize(const QSize &size)
+void WXdgPopupSurface::resize([[maybe_unused]] const QSize &size)
 {
 
 }

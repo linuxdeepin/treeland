@@ -44,7 +44,7 @@ QPoint QWlrootsCursor::pos() const
     return cursors.isEmpty() ? QPoint() : cursors.first()->position().toPoint();
 }
 
-void QWlrootsCursor::setPos(const QPoint &pos)
+void QWlrootsCursor::setPos([[maybe_unused]] const QPoint &pos)
 {
 
 }

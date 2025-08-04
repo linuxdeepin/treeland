@@ -96,7 +96,7 @@ struct ConstraintBuilder {
                 
                 // Clean up old DMA-BUF formats
                 wlr_drm_format_set_finish(&source->dmabuf_formats);
-                source->dmabuf_formats = (struct wlr_drm_format_set){0};
+                source->dmabuf_formats = (struct wlr_drm_format_set){};
                 
                 // Copy DMA-BUF formats from swapchain
                 for (size_t i = 0; i < swapchain->handle()->format.len; i++) {
@@ -285,7 +285,7 @@ void WExtImageCaptureSourceV1Impl::handleRenderEnd()
 }
 
 void WExtImageCaptureSourceV1Impl::copy_frame(wlr_ext_image_copy_capture_frame_v1 *dst_frame, 
-                                              wlr_ext_image_capture_source_v1_frame_event *frame_event)
+                                              [[maybe_unused]] wlr_ext_image_capture_source_v1_frame_event *frame_event)
 {
     qCDebug(qLcImageCapture) << "WExtImageCaptureSourceV1Impl::copy_frame()";
     

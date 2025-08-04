@@ -114,7 +114,7 @@ WTextInputV2 *text_input_from_resource(wl_resource *resource)
 
 void text_input_manager_bind(wl_client *client,
                              void *data,
-                             uint32_t version,
+                             [[maybe_unused]] uint32_t version,
                              uint32_t id)
 {
     WTextInputManagerV2 *manager = static_cast<WTextInputManagerV2 *>(data);
@@ -309,7 +309,7 @@ void handle_text_input_set_preferred_language(wl_client *client,
 
 void handle_text_input_update_state(wl_client *client,
                                     wl_resource *resource,
-                                    uint32_t serial,
+                                    [[maybe_unused]] uint32_t serial,
                                     uint32_t reason)
 {
     Q_UNUSED(client)

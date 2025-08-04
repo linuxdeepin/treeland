@@ -282,7 +282,7 @@ static struct wlr_swapchain *create_swapchain(struct wlr_output *output,
 
     const struct wlr_drm_format_set *display_formats =
         wlr_output_get_primary_formats(output, allocator->buffer_caps);
-    struct wlr_drm_format format = {0};
+    struct wlr_drm_format format{};
     if (!output_pick_format(output, display_formats, &format, render_format)) {
         qDebug("Failed to pick primary buffer format for output '%s'",
                output->name);
@@ -414,7 +414,7 @@ bool WOutput::configureCursorSwapchain(const QSize &size, uint32_t drmFormat, qw
     Q_ASSERT(!size.isEmpty());
     auto sc = *swapchain;
     if (!sc || sc->handle()->width != size.width() || sc->handle()->height != size.height()) {
-        wlr_drm_format format = {0};
+        wlr_drm_format format = {};
         if (!output_pick_cursor_format(nativeHandle(), &format, drmFormat)) {
             qCDebug(qLcOutput, "Failed to pick cursor format");
             return false;

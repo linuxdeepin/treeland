@@ -78,7 +78,7 @@ bool WXCursorImage::jumpToImage(int imageNumber)
     if (!d->cursor)
         return false;
 
-    if (imageNumber >= d->cursor->image_count)
+    if (imageNumber >= static_cast<int>(d->cursor->image_count))
         return false;
     d->currentImageNumber = imageNumber;
 

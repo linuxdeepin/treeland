@@ -471,6 +471,10 @@ static inline const char *qcursorShapeToType(std::underlying_type_t<WGlobal::Cur
         return "zoom-in";
     case static_cast<int>(WGlobal::CursorShape::ZoomOut):
         return "zoom-out";
+    case static_cast<int>(WGlobal::CursorShape::DndAsk):
+        return "dnd-ask";
+    case static_cast<int>(WGlobal::CursorShape::AllResize):
+        return "all-resize";
     default:
         break;
     }
@@ -575,7 +579,7 @@ void WCursorImagePrivate::updateCursorImage()
 void WCursorImagePrivate::playXCursor()
 {
     Q_ASSERT(xcursor);
-    Q_ASSERT(currentXCursorImageIndex < xcursor->image_count);
+    Q_ASSERT(static_cast<unsigned int>(currentXCursorImageIndex) < xcursor->image_count);
     Q_ASSERT(xcursorPlayTimer);
     Q_ASSERT(!xcursorPlayTimer->isActive());
 

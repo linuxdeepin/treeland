@@ -299,11 +299,12 @@ private:
     QQuickItem *m_dockPreview = nullptr;
 
     // gesture
+    WServer *m_server = nullptr;
+    RootSurfaceContainer *m_rootSurfaceContainer = nullptr;
     TogglableGesture *m_multiTaskViewGesture = nullptr;
     TogglableGesture *m_windowGesture = nullptr;
 
     // wayland helper
-    WServer *m_server = nullptr;
     WSocket *m_socket = nullptr;
     WSeat *m_seat = nullptr;
     WBackend *m_backend = nullptr;
@@ -338,7 +339,6 @@ private:
     QList<qw_idle_inhibitor_v1 *> m_idleInhibitors;
 
     SurfaceWrapper *m_activatedSurface = nullptr;
-    RootSurfaceContainer *m_rootSurfaceContainer = nullptr;
     LockScreen *m_lockScreen = nullptr;
     float m_animationSpeed = 1.0;
     quint64 m_taskAltTimestamp = 0;
