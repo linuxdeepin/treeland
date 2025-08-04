@@ -79,6 +79,9 @@ Q_LOGGING_CATEGORY(wlcRenderer, "waylib.server.renderer", QtDebugMsg)
 #else
 Q_LOGGING_CATEGORY(wlcRenderer, "waylib.server.renderer", QtWarningMsg)
 #endif
+
+// Call it before any wlroots render to clean up the GL state in Qt.
+// If you don't do this, there will be tearing, flickering and other graphics problems
 inline static void resetGlState()
 {
 #ifndef QT_NO_OPENGL
@@ -1499,6 +1502,12 @@ void WOutputRenderWindowPrivate::doRender(const QList<OutputHelper *> &outputs,
 
     if (QSGRendererInterface::isApiRhiBased(WRenderHelper::getGraphicsApi()))
         rc()->endFrame();
+
+    // prevent gles2-render exception in wlroots.
+    // wlroots may have render operations after commit, so do
+    // not move the location during the reset operation.
+    // eg: screencopy ext-image-capture
+    resetGlState();
 
     if (doCommit) {
         for (auto i : std::as_const(needsCommit)) {
