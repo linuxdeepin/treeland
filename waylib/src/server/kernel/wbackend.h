@@ -44,6 +44,8 @@ Q_SIGNALS:
     void inputAdded(WInputDevice *input);
     void inputRemoved(WInputDevice *input);
 
+    void onCreated();
+
 protected:
     void create(WServer *server) override;
     void destroy(WServer *server) override;

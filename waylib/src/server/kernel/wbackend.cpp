@@ -207,6 +207,7 @@ void WBackend::create(WServer *server)
         m_handle = qw_backend::autocreate(server->handle()->get_event_loop(), &session);
         Q_ASSERT(m_handle);
         d->session = qw_session::from(session);
+        emit onCreated();
     }
 
     d->connect();

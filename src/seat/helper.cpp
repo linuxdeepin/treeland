@@ -15,6 +15,7 @@
 
 #include <QDBusConnection>
 #include <QDBusInterface>
+#include <QDBusReply>
 #ifndef DISABLE_DDM
 #  include "core/lockscreen.h"
 #endif
@@ -101,6 +102,7 @@
 
 #include <pwd.h>
 #include <utility>
+#include <wayland-server-core.h>
 
 #define WLR_FRACTIONAL_SCALE_V1_VERSION 1
 #define EXT_DATA_CONTROL_MANAGER_V1_VERSION 1
@@ -830,6 +832,17 @@ void Helper::init()
     connect(m_seat, &WSeat::requestDrag, this, &Helper::handleRequestDrag);
 
     m_backend = m_server->attach<WBackend>();
+
+    connect(m_backend, &WBackend::onCreated, this, []() {
+        QDBusInterface ddm("org.deepin.DisplayManager",
+                           "/org/deepin/DisplayManager",
+                           "org.deepin.DisplayManager",
+                           QDBusConnection::systemBus());
+        if (ddm.isValid()) {
+            ddm.call("AcquireVT", static_cast<uint>(0));
+        }
+    });
+
     connect(m_backend, &WBackend::inputAdded, this, [this](WInputDevice *device) {
         m_seat->attachInputDevice(device);
         if (InputDevice::instance()->initTouchPad(device)) {
@@ -1220,7 +1233,26 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *, QInputEvent *event)
             if (key >= Qt::Key_F1 && key <= Qt::Key_F12) {
                 // Use syncronized call here to ensure DM to be shown on correct VT.
                 showLockScreen(false);
-                m_backend->session()->change_vt(key - Qt::Key_F1 + 1);
+                uint vtnr = key - Qt::Key_F1 + 1;
+                QDBusInterface ddm("org.deepin.DisplayManager",
+                                   "/org/deepin/DisplayManager",
+                                   "org.deepin.DisplayManager",
+                                   QDBusConnection::systemBus());
+                if (!ddm.isValid()) {
+                    qWarning(qLcHelper) << "DDM D-Bus service not found!";
+                    m_backend->session()->change_vt(vtnr);
+                    return true;
+                }
+                QDBusReply<QString> reply = ddm.call("VTUser", vtnr);
+                QString user = reply.value();
+                if (user.isEmpty()) {
+                    ddm.call("SwitchToVT", vtnr);
+                    deactivateSession();
+                } else {
+                    if (user != "ddm")
+                        m_userModel->setCurrentUserName(user);
+                    ddm.call("SwitchToVT", vtnr);
+                }
                 return true;
             }
         }
@@ -2133,4 +2165,16 @@ void Helper::handleNewForeignToplevelCaptureRequest(wlr_ext_foreign_toplevel_ima
         qCWarning(qLcImageCapture) << "Failed to accept foreign toplevel image capture request";
         delete imageCaptureSource;
     }
+}
+
+void Helper::activateSession() {
+    struct wlr_session *session = m_backend->session()->handle();
+    session->active = true;
+    wl_signal_emit_mutable(&session->events.active, NULL);
+}
+
+void Helper::deactivateSession() {
+    struct wlr_session *session = m_backend->session()->handle();
+    session->active = false;
+    wl_signal_emit_mutable(&session->events.active, NULL);
 }

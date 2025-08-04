@@ -462,6 +462,11 @@ QString Treeland::XWaylandName()
     return {};
 }
 
+void Treeland::ActivateSession() {
+    Q_D(Treeland);
+    d->helper->activateSession();
+}
+
 } // namespace Treeland
 
 #include "treeland.moc"
