@@ -37,12 +37,18 @@ public:
     bool hasX11() const;
     bool hasWayland() const;
 
+    bool isSessionActive() const;
+    void activateSession();
+    void deactivateSession();
+
 Q_SIGNALS:
     void outputAdded(WOutput *output);
     void outputRemoved(WOutput *output);
 
     void inputAdded(WInputDevice *input);
     void inputRemoved(WInputDevice *input);
+
+    void created();
 
 protected:
     void create(WServer *server) override;
