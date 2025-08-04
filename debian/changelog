@@ -1,3 +1,9 @@
+treeland (0.6.2) unstable; urgency=medium
+
+  * fix: resolve library versioning and installation path issues
+
+ -- rewine <luhongxu@uniontech.com>  Mon, 04 Aug 2025 17:42:40 +0800
+
 treeland (0.6.1) unstable; urgency=medium
 
   * fix: improve D-Bus connection handling and QML hover visibility
