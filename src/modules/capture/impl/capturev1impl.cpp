@@ -154,7 +154,7 @@ void treeland_capture_manager_v1::destroyClientResource(WClient *client, wl_reso
     }
 }
 
-void handle_treeland_capture_session_v1_destroy(wl_client *client, wl_resource *resource)
+void handle_treeland_capture_session_v1_destroy([[maybe_unused]] wl_client *client, wl_resource *resource)
 {
     wl_resource_destroy(resource);
 }
@@ -221,7 +221,7 @@ void handle_treeland_capture_context_v1_create_session(wl_client *client,
     Q_EMIT context->newSession(capture_session);
 }
 
-void handle_treeland_capture_context_v1_select_source(wl_client *client,
+void handle_treeland_capture_context_v1_select_source([[maybe_unused]] wl_client *client,
                                                       wl_resource *resource,
                                                       uint32_t source_hint,
                                                       uint32_t freeze,

@@ -77,8 +77,8 @@ protected:
     }
 
     qw_interface()
-        : m_handleImpl(new Impl { nullptr })
-        , m_handle(reinterpret_cast<_handle*>(calloc(1, sizeof(_handle))))
+        : m_handle(reinterpret_cast<_handle*>(calloc(1, sizeof(_handle))))
+        , m_handleImpl(new Impl {})
     {
         static_cast<_handle*>(m_handle)->interface = this;
         constexpr bool has_destroy = requires(const Impl &i) {

@@ -115,7 +115,7 @@ public:
         QObject::connect(handle,
                          &qw_foreign_toplevel_handle_v1::notify_request_activate,
                          surface,
-                         [surface, q](wlr_foreign_toplevel_handle_v1_activated_event *event) {
+                         [surface, q]([[maybe_unused]] wlr_foreign_toplevel_handle_v1_activated_event *event) {
                              Q_EMIT q->requestActivate(surface);
                          });
 
@@ -192,7 +192,7 @@ public:
     std::map<WToplevelSurface *, std::unique_ptr<qw_foreign_toplevel_handle_v1>> surfaces;
 };
 
-WForeignToplevel::WForeignToplevel(QObject *parent)
+WForeignToplevel::WForeignToplevel([[maybe_unused]] QObject *parent)
     : WObject(*new WForeignToplevelPrivate(this), nullptr)
 {
 }
@@ -223,7 +223,7 @@ void WForeignToplevel::create(WServer *server)
     m_handle = qw_foreign_toplevel_manager_v1::create(*server->handle());
 }
 
-void WForeignToplevel::destroy(WServer *server)
+void WForeignToplevel::destroy([[maybe_unused]] WServer *server)
 {
 }
 

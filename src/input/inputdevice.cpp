@@ -29,7 +29,7 @@ static bool ensureStatus(libinput_config_status status)
     return true;
 }
 
-static bool configSendEventsMode(libinput_device *device, uint32_t mode)
+[[maybe_unused]] static bool configSendEventsMode(libinput_device *device, uint32_t mode)
 {
     if (libinput_device_config_send_events_get_mode(device) == mode) {
         qCCritical(qLcInputdevice) << "libinput_device_config_send_events_set_mode repeat set mode"
@@ -58,7 +58,7 @@ static bool configTapEnabled(libinput_device *device, libinput_config_tap_state 
     return ensureStatus(status);
 }
 
-static bool configTapButtonMap(libinput_device *device, libinput_config_tap_button_map map)
+[[maybe_unused]] static bool configTapButtonMap(libinput_device *device, libinput_config_tap_button_map map)
 {
     if (libinput_device_config_tap_get_finger_count(device) <= 0
         || libinput_device_config_tap_get_button_map(device) == map) {
@@ -73,7 +73,7 @@ static bool configTapButtonMap(libinput_device *device, libinput_config_tap_butt
     return ensureStatus(status);
 }
 
-static bool configTapDragEnabled(libinput_device *device, libinput_config_drag_state drag)
+[[maybe_unused]] static bool configTapDragEnabled(libinput_device *device, libinput_config_drag_state drag)
 {
     if (libinput_device_config_tap_get_finger_count(device) <= 0
         || libinput_device_config_tap_get_drag_enabled(device) == drag) {
@@ -88,7 +88,7 @@ static bool configTapDragEnabled(libinput_device *device, libinput_config_drag_s
     return ensureStatus(status);
 }
 
-static bool configTapDragLockEnabled(libinput_device *device, libinput_config_drag_lock_state lock)
+[[maybe_unused]] static bool configTapDragLockEnabled(libinput_device *device, libinput_config_drag_lock_state lock)
 {
     if (libinput_device_config_tap_get_finger_count(device) <= 0
         || libinput_device_config_tap_get_drag_lock_enabled(device) == lock) {
@@ -104,7 +104,7 @@ static bool configTapDragLockEnabled(libinput_device *device, libinput_config_dr
     return ensureStatus(status);
 }
 
-static bool configAccelSpeed(libinput_device *device, double speed)
+[[maybe_unused]] static bool configAccelSpeed(libinput_device *device, double speed)
 {
     if (!libinput_device_config_accel_is_available(device)
         || libinput_device_config_accel_get_speed(device) == speed) {
@@ -119,7 +119,7 @@ static bool configAccelSpeed(libinput_device *device, double speed)
     return ensureStatus(status);
 }
 
-static bool configRotationAngle(libinput_device *device, double angle)
+[[maybe_unused]] static bool configRotationAngle(libinput_device *device, double angle)
 {
     if (!libinput_device_config_rotation_is_available(device)
         || libinput_device_config_rotation_get_angle(device) == angle) {
@@ -134,7 +134,7 @@ static bool configRotationAngle(libinput_device *device, double angle)
     return ensureStatus(status);
 }
 
-static bool configAccelProfile(libinput_device *device, libinput_config_accel_profile profile)
+[[maybe_unused]] static bool configAccelProfile(libinput_device *device, libinput_config_accel_profile profile)
 {
     if (!libinput_device_config_accel_is_available(device)
         || libinput_device_config_accel_get_profile(device) == profile) {
@@ -149,7 +149,7 @@ static bool configAccelProfile(libinput_device *device, libinput_config_accel_pr
     return ensureStatus(status);
 }
 
-static bool configNaturalScroll(libinput_device *device, bool natural)
+[[maybe_unused]] static bool configNaturalScroll(libinput_device *device, bool natural)
 {
     if (!libinput_device_config_scroll_has_natural_scroll(device)
         || libinput_device_config_scroll_get_natural_scroll_enabled(device) == natural) {
@@ -165,7 +165,7 @@ static bool configNaturalScroll(libinput_device *device, bool natural)
     return ensureStatus(status);
 }
 
-static bool configLeftHanded(libinput_device *device, bool left)
+[[maybe_unused]] static bool configLeftHanded(libinput_device *device, bool left)
 {
     if (!libinput_device_config_left_handed_is_available(device)
         || libinput_device_config_left_handed_get(device) == left) {
@@ -180,7 +180,7 @@ static bool configLeftHanded(libinput_device *device, bool left)
     return ensureStatus(status);
 }
 
-static bool configClickMethod(libinput_device *device, libinput_config_click_method method)
+[[maybe_unused]] static bool configClickMethod(libinput_device *device, libinput_config_click_method method)
 {
     uint32_t click = libinput_device_config_click_get_methods(device);
     if ((click & ~LIBINPUT_CONFIG_CLICK_METHOD_NONE) == 0
@@ -196,7 +196,7 @@ static bool configClickMethod(libinput_device *device, libinput_config_click_met
     return ensureStatus(status);
 }
 
-static bool configMiddleEmulation(libinput_device *device,
+[[maybe_unused]] static bool configMiddleEmulation(libinput_device *device,
                                   libinput_config_middle_emulation_state mid)
 {
     if (!libinput_device_config_middle_emulation_is_available(device)
@@ -213,7 +213,7 @@ static bool configMiddleEmulation(libinput_device *device,
     return ensureStatus(status);
 }
 
-static bool configScrollMethod(libinput_device *device, libinput_config_scroll_method method)
+[[maybe_unused]] static bool configScrollMethod(libinput_device *device, libinput_config_scroll_method method)
 {
     uint32_t scroll = libinput_device_config_scroll_get_methods(device);
     if ((scroll & ~LIBINPUT_CONFIG_SCROLL_NO_SCROLL) == 0
@@ -229,7 +229,7 @@ static bool configScrollMethod(libinput_device *device, libinput_config_scroll_m
     return ensureStatus(status);
 }
 
-static bool configScrollButton(libinput_device *device, uint32_t button)
+[[maybe_unused]] static bool configScrollButton(libinput_device *device, uint32_t button)
 {
     uint32_t scroll = libinput_device_config_scroll_get_methods(device);
     if ((scroll & ~LIBINPUT_CONFIG_SCROLL_NO_SCROLL) == 0
@@ -245,7 +245,7 @@ static bool configScrollButton(libinput_device *device, uint32_t button)
     return ensureStatus(status);
 }
 
-static bool configScrollButtonLock(libinput_device *device,
+[[maybe_unused]] static bool configScrollButtonLock(libinput_device *device,
                                    libinput_config_scroll_button_lock_state lock)
 {
     uint32_t scroll = libinput_device_config_scroll_get_methods(device);
@@ -263,7 +263,7 @@ static bool configScrollButtonLock(libinput_device *device,
     return ensureStatus(status);
 }
 
-static bool configDwtEnabled(libinput_device *device, enum libinput_config_dwt_state enable)
+[[maybe_unused]] static bool configDwtEnabled(libinput_device *device, enum libinput_config_dwt_state enable)
 {
     if (!libinput_device_config_dwt_is_available(device)
         || libinput_device_config_dwt_get_enabled(device) == enable) {
@@ -278,7 +278,7 @@ static bool configDwtEnabled(libinput_device *device, enum libinput_config_dwt_s
     return ensureStatus(status);
 }
 
-static bool configDwtpEnabled(libinput_device *device, enum libinput_config_dwtp_state enable)
+[[maybe_unused]] static bool configDwtpEnabled(libinput_device *device, enum libinput_config_dwtp_state enable)
 {
     if (!libinput_device_config_dwtp_is_available(device)
         || libinput_device_config_dwtp_get_enabled(device) == enable) {
@@ -293,7 +293,7 @@ static bool configDwtpEnabled(libinput_device *device, enum libinput_config_dwtp
     return ensureStatus(status);
 }
 
-static bool configCalibrationMatrix(libinput_device *device, float mat[])
+[[maybe_unused]] static bool configCalibrationMatrix(libinput_device *device, float mat[])
 {
     if (!libinput_device_config_calibration_has_matrix(device)) {
         qCCritical(qLcInputdevice) << "setCalibrationMatrix mat is invalid";

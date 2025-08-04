@@ -88,7 +88,7 @@ private:
     std::map<WToplevelSurface *, std::unique_ptr<qw_ext_foreign_toplevel_handle_v1>> surfaces;
 };
 
-WExtForeignToplevelListV1::WExtForeignToplevelListV1(QObject *parent)
+WExtForeignToplevelListV1::WExtForeignToplevelListV1([[maybe_unused]] QObject *parent)
     : WObject(*new WExtForeignToplevelListV1Private(this), nullptr)
 {
 }

@@ -164,8 +164,8 @@ Helper::Helper(QObject *parent)
     , m_renderWindow(new WOutputRenderWindow(this))
     , m_server(new WServer(this))
     , m_rootSurfaceContainer(new RootSurfaceContainer(m_renderWindow->contentItem()))
-    , m_windowGesture(new TogglableGesture(this))
     , m_multiTaskViewGesture(new TogglableGesture(this))
+    , m_windowGesture(new TogglableGesture(this))
 {
     Q_ASSERT(!m_instance);
     m_instance = this;
@@ -752,6 +752,7 @@ void Helper::onSurfaceWrapperAdded(SurfaceWrapper *wrapper)
 
     if (!isLayer) {
         auto windowOverlapChecker = new WindowOverlapChecker(wrapper, wrapper);
+        Q_UNUSED(windowOverlapChecker)
     }
 
 #ifndef DISABLE_DDM
@@ -792,7 +793,7 @@ void Helper::onSurfaceWrapperAboutToRemove(SurfaceWrapper *wrapper)
 
 bool Helper::surfaceBelongsToCurrentUser(SurfaceWrapper *wrapper)
 {
-    static const int puid = getuid();
+    static const uid_t puid = getuid();
     auto credentials = WClient::getCredentials(wrapper->surface()->waylandClient()->handle());
     auto user = m_userModel->currentUser();
     if (user) {
@@ -1810,7 +1811,9 @@ void Helper::setOutputMode(OutputMode mode)
     }
 }
 
-void Helper::setOutputProxy(Output *output) { }
+void Helper::setOutputProxy(Output *output) { 
+    Q_UNUSED(output)
+}
 
 float Helper::animationSpeed() const
 {

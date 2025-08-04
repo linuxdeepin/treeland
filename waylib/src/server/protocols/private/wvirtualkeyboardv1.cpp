@@ -22,7 +22,7 @@ public:
     { }
 };
 
-WVirtualKeyboardManagerV1::WVirtualKeyboardManagerV1(QObject *parent)
+WVirtualKeyboardManagerV1::WVirtualKeyboardManagerV1([[maybe_unused]] QObject *parent)
     : WObject(*new WVirtualKeyboardManagerV1Private(this))
 {}
 

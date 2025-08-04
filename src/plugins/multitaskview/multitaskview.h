@@ -139,8 +139,8 @@ public:
 
     Q_INVOKABLE void calcLayout();
     Q_INVOKABLE void updateZOrder();
-    Q_INVOKABLE int prevSameAppIndex(int index);
-    Q_INVOKABLE int nextSameAppIndex(int index);
+    Q_INVOKABLE uint prevSameAppIndex(uint index);
+    Q_INVOKABLE uint nextSameAppIndex(uint index);
 
     QRectF layoutArea() const;
     void setLayoutArea(const QRectF &newLayoutArea);

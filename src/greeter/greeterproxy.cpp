@@ -370,6 +370,7 @@ void GreeterProxy::onSessionAdded(const QDBusObjectPath &session)
 
 void GreeterProxy::onSessionRemoved(const QDBusObjectPath &session)
 {
+    Q_UNUSED(session)
     // FIXME: Reset all user state, because we can't know which user was logout.
     userModel()->clearUserLoginState();
     updateLocketState();
@@ -480,6 +481,8 @@ bool GreeterProxy::localValidation(const QString &user, const QString &password)
            const struct pam_message **msg,
            struct pam_response **resp,
            void *appdata_ptr) {
+            Q_UNUSED(num_msg)
+            Q_UNUSED(msg)
             auto *reply = new pam_response;
             reply->resp = strdup(static_cast<const char *>(appdata_ptr)); // 将密码传递给PAM
             reply->resp_retcode = 0;

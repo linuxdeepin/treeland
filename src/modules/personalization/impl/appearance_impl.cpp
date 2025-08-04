@@ -16,6 +16,7 @@ static const struct treeland_personalization_appearance_context_v1_interface
             &personalization_appearance_context_v1::setRoundCornerRadius>(),
         .get_round_corner_radius =
             [](struct wl_client *client, struct wl_resource *resource) {
+                Q_UNUSED(client)
                 Q_EMIT personalization_appearance_context_v1::fromResource(resource)
                     ->requestRoundCornerRadius();
             },
@@ -23,18 +24,21 @@ static const struct treeland_personalization_appearance_context_v1_interface
             dispatch_member_function<&personalization_appearance_context_v1::setIconTheme>(),
         .get_icon_theme =
             [](struct wl_client *client, struct wl_resource *resource) {
+                Q_UNUSED(client)
                 Q_EMIT personalization_appearance_context_v1::fromResource(resource)->requestIconTheme();
             },
         .set_active_color =
             dispatch_member_function<&personalization_appearance_context_v1::setActiveColor>(),
         .get_active_color =
             [](struct wl_client *client, struct wl_resource *resource) {
+                Q_UNUSED(client)
                 Q_EMIT personalization_appearance_context_v1::fromResource(resource)->requestActiveColor();
             },
         .set_window_opacity =
             dispatch_member_function<&personalization_appearance_context_v1::setWindowOpacity>(),
         .get_window_opacity =
             [](struct wl_client *client, struct wl_resource *resource) {
+                Q_UNUSED(client)
                 Q_EMIT personalization_appearance_context_v1::fromResource(resource)
                     ->requestWindowOpacity();
             },
@@ -42,6 +46,7 @@ static const struct treeland_personalization_appearance_context_v1_interface
             dispatch_member_function<&personalization_appearance_context_v1::setWindowThemeType>(),
         .get_window_theme_type =
             [](struct wl_client *client, struct wl_resource *resource) {
+                Q_UNUSED(client)
                 Q_EMIT personalization_appearance_context_v1::fromResource(resource)
                     ->requestWindowThemeType();
             },
@@ -49,6 +54,7 @@ static const struct treeland_personalization_appearance_context_v1_interface
             &personalization_appearance_context_v1::setWindowTitlebarHeight>(),
         .get_window_titlebar_height =
             [](struct wl_client *client, struct wl_resource *resource) {
+                Q_UNUSED(client)
                 Q_EMIT personalization_appearance_context_v1::fromResource(resource)
                     ->requestWindowTitlebarHeight();
             },

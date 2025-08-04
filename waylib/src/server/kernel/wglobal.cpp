@@ -80,8 +80,8 @@ WWrapObject::WWrapObject(QObject *parent)
 }
 
 WWrapObject::WWrapObject(WWrapObjectPrivate &d, QObject *parent)
-    : WObject(d, nullptr)
-    , QObject(parent)
+    : QObject(parent)
+    , WObject(d, nullptr)
 {
 
 }

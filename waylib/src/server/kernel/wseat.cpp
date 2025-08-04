@@ -1204,6 +1204,7 @@ void WSeat::notifyFrame(WCursor *cursor)
 
 void WSeat::notifyGestureBegin(WCursor *cursor, WInputDevice *device, uint32_t time_msec, uint32_t fingers, WGestureEvent::WLibInputGestureType libInputGestureType)
 {
+    Q_UNUSED(time_msec)
     W_D(WSeat);
     if (d->gestureActive) {
         qCWarning(qLcWlrGestureEvents) << "Unexpected GestureBegin while already active";
@@ -1223,6 +1224,7 @@ void WSeat::notifyGestureBegin(WCursor *cursor, WInputDevice *device, uint32_t t
 
 void WSeat::notifyGestureUpdate(WCursor *cursor, WInputDevice *device, uint32_t time_msec, const QPointF &delta, double scale, double rotation, WGestureEvent::WLibInputGestureType libInputGestureType)
 {
+    Q_UNUSED(time_msec)
     W_D(WSeat);
     if (!d->gestureActive) {
         qCWarning(qLcWlrGestureEvents) << "Unexpected GestureUpdate while not begin";
@@ -1255,6 +1257,8 @@ void WSeat::notifyGestureUpdate(WCursor *cursor, WInputDevice *device, uint32_t 
 
 void WSeat::notifyGestureEnd(WCursor *cursor, WInputDevice *device, uint32_t time_msec, bool cancelled, WGestureEvent::WLibInputGestureType libInputGestureType)
 {
+    Q_UNUSED(time_msec)
+    Q_UNUSED(cancelled)
     W_D(WSeat);
     if (!d->gestureActive) {
         qCWarning(qLcWlrGestureEvents) << "Unexpected GestureEnd while not begin";
@@ -1316,6 +1320,7 @@ void WSeat::notifyHoldEnd(WCursor *cursor, WInputDevice *device, uint32_t time_m
 
 void WSeat::notifyTouchDown(WCursor *cursor, WInputDevice *device, int32_t touch_id, uint32_t time_msec)
 {
+    Q_UNUSED(time_msec)
     W_D(WSeat);
     auto qwDevice = qobject_cast<QPointingDevice*>(device->qtDevice());
     Q_ASSERT(qwDevice);
@@ -1352,7 +1357,7 @@ void WSeat::notifyTouchDown(WCursor *cursor, WInputDevice *device, int32_t touch
                                << ", at position" << globalPos;
 }
 
-void WSeat::notifyTouchMotion(WCursor *cursor, WInputDevice *device, int32_t touch_id, uint32_t time_msec)
+void WSeat::notifyTouchMotion(WCursor *cursor, WInputDevice *device, int32_t touch_id, [[maybe_unused]] uint32_t time_msec)
 {
 
     W_DC(WSeat);
@@ -1382,7 +1387,7 @@ void WSeat::notifyTouchMotion(WCursor *cursor, WInputDevice *device, int32_t tou
     }
 }
 
-void WSeat::notifyTouchUp(WCursor *cursor, WInputDevice *device, int32_t touch_id, uint32_t time_msec)
+void WSeat::notifyTouchUp(WCursor *cursor, WInputDevice *device, int32_t touch_id, [[maybe_unused]] uint32_t time_msec)
 {
     W_DC(WSeat);
     auto qwDevice = qobject_cast<QPointingDevice*>(device->qtDevice());

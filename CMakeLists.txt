@@ -35,6 +35,7 @@ if (ADDRESS_SANITIZER)
     add_compile_options(-fsanitize=address -fno-optimize-sibling-calls -fno-omit-frame-pointer)
     add_link_options(-fsanitize=address)
 endif()
+add_compile_options(-Wall -Wextra)
 
 set(LOCAL_QML_IMPORT_PATH "${PROJECT_BINARY_DIR}/qt/qml")
 

@@ -58,7 +58,7 @@ struct SmoothImageVertex
     float dx, dy, du, dv;
 };
 
-const QSGGeometry::AttributeSet &smoothImageAttributeSet()
+[[maybe_unused]] const QSGGeometry::AttributeSet &smoothImageAttributeSet()
 {
     static QSGGeometry::Attribute data[] = {
         QSGGeometry::Attribute::createWithAttributeType(0,
@@ -413,6 +413,7 @@ void TSGRadiusImageNode::updateGeometry()
 
 void TSGRadiusImageNode::updateTexturedRadiusGeometry(const QRectF &rect, const QRectF &textureRect)
 {
+    Q_UNUSED(textureRect)
     float width = float(rect.width());
     float height = float(rect.height());
 
