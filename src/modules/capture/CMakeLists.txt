@@ -15,6 +15,8 @@ qt_add_library(${MODULE_NAME} SHARED)
 
 set_target_properties(${MODULE_NAME} PROPERTIES
     OUTPUT_NAME "treeland-protocol-capture-v1"
+    VERSION ${CMAKE_PROJECT_VERSION}
+    SOVERSION ${PROJECT_VERSION_MAJOR}
 )
 
 qt_add_qml_module(${MODULE_NAME}
@@ -41,7 +43,6 @@ target_compile_definitions(${MODULE_NAME}
 target_include_directories(${MODULE_NAME}
 PRIVATE
     $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/src>
-    $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/src>
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
 )
 
@@ -63,4 +64,3 @@ impl_treeland(
 )
 
 install(TARGETS ${MODULE_NAME} DESTINATION ${CMAKE_INSTALL_LIBDIR})
-install(DIRECTORY ${PROJECT_BINARY_DIR}/qt/qml/Treeland/Capture/ DESTINATION ${TREELAND_DATA_DIR}/qml/Treeland/Capture)
