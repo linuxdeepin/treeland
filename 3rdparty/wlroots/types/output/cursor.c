@@ -298,8 +298,6 @@ static bool output_cursor_attempt_hardware(struct wlr_output_cursor *cursor) {
 		return false;
 	}
 
-	output->hardware_cursor = NULL;
-
 	struct wlr_texture *texture = cursor->texture;
 
 	// If the cursor was hidden or was a software cursor, the hardware
