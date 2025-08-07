@@ -62,7 +62,7 @@ public:
     void cleanTextureProvider();
 
     W_DECLARE_PUBLIC(WRenderBufferBlitter)
-    Content *content;
+    Content *content = nullptr;
     QQuickItem *container = nullptr;
     mutable BlitTextureProvider *tp = nullptr;
 };
@@ -104,7 +104,8 @@ public:
             if (newOffscreen)
                 disconnect(d()->tp, &BlitTextureProvider::textureChanged, this, &Content::update);
             else
-                connect(d()->tp, &BlitTextureProvider::textureChanged, this, &Content::update);
+                connect(d()->tp, &BlitTextureProvider::textureChanged,
+                        this, &Content::update, Qt::UniqueConnection);
         }
 
         setFlag(ItemHasContents, !newOffscreen);
@@ -160,7 +161,8 @@ BlitTextureProvider *WRenderBufferBlitterPrivate::ensureTextureProvider() const
     tp = new BlitTextureProvider();
 
     if (!content->offscreen())
-        tp->connect(tp, &BlitTextureProvider::textureChanged, content, &Content::update);
+        tp->connect(tp, &BlitTextureProvider::textureChanged,
+                    content, &Content::update, Qt::UniqueConnection);
 
     return tp;
 }
