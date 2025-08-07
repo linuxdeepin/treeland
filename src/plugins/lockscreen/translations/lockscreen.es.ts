@@ -11,7 +11,7 @@
     </message>
     <message>
         <source>This action will reboot machine, please confirm.</source>
-        <translation type="vanished">Esta acción reiniciara la maquina, por favor confirme</translation>
+        <translation type="vanished">Esta acción reiniciara la maquina, confirme</translation>
     </message>
     <message>
         <source>Back To Default Mode</source>
@@ -125,7 +125,7 @@
     <message>
         <location filename="../qml/UserInput.qml" line="15"/>
         <source>Please enter password</source>
-        <translation>Por favor, ingrese contraseña</translation>
+        <translation>Ingrese la contraseña</translation>
     </message>
     <message>
         <location filename="../qml/UserInput.qml" line="141"/>
