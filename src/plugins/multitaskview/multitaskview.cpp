@@ -185,9 +185,8 @@ QHash<int, QByteArray> MultitaskviewSurfaceModel::roleNames() const
     };
 }
 
-QModelIndex MultitaskviewSurfaceModel::index(int row, int column, const QModelIndex &parent) const
+QModelIndex MultitaskviewSurfaceModel::index(int row, int column, [[maybe_unused]] const QModelIndex &parent) const
 {
-    Q_UNUSED(parent)
     if (row < 0 || row >= m_data.size())
         return QModelIndex();
     return QAbstractItemModel::createIndex(row, column, &m_data[row]);
@@ -271,7 +270,7 @@ void MultitaskviewSurfaceModel::setLayoutArea(const QRectF &newLayoutArea)
         return;
     m_layoutArea = newLayoutArea;
     initializeModel();
-    emit layoutAreaChanged();
+    Q_EMIT layoutAreaChanged();
 }
 
 bool MultitaskviewSurfaceModel::tryLayout(const QList<ModelDataPtr> &rawData,
@@ -417,9 +416,8 @@ void MultitaskviewSurfaceModel::doUpdateZOrder(const QList<ModelDataPtr> &rawDat
 }
 
 std::pair<int, int> MultitaskviewSurfaceModel::commitAndGetUpdateRange(
-    const QList<ModelDataPtr> &rawData)
+    [[maybe_unused]] const QList<ModelDataPtr> &rawData)
 {
-    Q_UNUSED(rawData)
     // TODO: better algorithm
     int beginIndex = 0, endIndex = -1;
     bool unchanged = true;
@@ -701,7 +699,7 @@ void MultitaskviewSurfaceModel::setWorkspace(WorkspaceModel *newWorkspace)
     if (m_workspace)
         connectWorkspace(m_workspace);
     initializeModel();
-    emit workspaceChanged();
+    Q_EMIT workspaceChanged();
 }
 
 qreal MultitaskviewSurfaceModel::contentHeight() const
@@ -720,7 +718,7 @@ void MultitaskviewSurfaceModel::setOutput(Output *newOutput)
         return;
     m_output = newOutput;
     initializeModel();
-    emit outputChanged();
+    Q_EMIT outputChanged();
 }
 
 uint MultitaskviewSurfaceModel::count() const

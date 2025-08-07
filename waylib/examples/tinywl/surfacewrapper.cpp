@@ -219,7 +219,7 @@ void SurfaceWrapper::setNormalGeometry(const QRectF &newNormalGeometry)
     if (m_normalGeometry == newNormalGeometry)
         return;
     m_normalGeometry = newNormalGeometry;
-    emit normalGeometryChanged();
+    Q_EMIT normalGeometryChanged();
 }
 
 QRectF SurfaceWrapper::maximizedGeometry() const
@@ -244,7 +244,7 @@ void SurfaceWrapper::setMaximizedGeometry(const QRectF &newMaximizedGeometry)
         m_geometryAnimation->setProperty("targetGeometry", newMaximizedGeometry);
     }
 
-    emit maximizedGeometryChanged();
+    Q_EMIT maximizedGeometryChanged();
 }
 
 QRectF SurfaceWrapper::fullscreenGeometry() const
@@ -269,7 +269,7 @@ void SurfaceWrapper::setFullscreenGeometry(const QRectF &newFullscreenGeometry)
         m_geometryAnimation->setProperty("targetGeometry", newFullscreenGeometry);
     }
 
-    emit fullscreenGeometryChanged();
+    Q_EMIT fullscreenGeometryChanged();
 
     updateClipRect();
 }
@@ -294,7 +294,7 @@ void SurfaceWrapper::setTilingGeometry(const QRectF &newTilingGeometry)
         resize(newTilingGeometry.size());
     }
 
-    emit tilingGeometryChanged();
+    Q_EMIT tilingGeometryChanged();
 }
 
 bool SurfaceWrapper::positionAutomatic() const
@@ -307,7 +307,7 @@ void SurfaceWrapper::setPositionAutomatic(bool newPositionAutomatic)
     if (m_positionAutomatic == newPositionAutomatic)
         return;
     m_positionAutomatic = newPositionAutomatic;
-    emit positionAutomaticChanged();
+    Q_EMIT positionAutomaticChanged();
 }
 
 void SurfaceWrapper::resetWidth()
@@ -352,7 +352,7 @@ void SurfaceWrapper::setOwnsOutput(Output *newOwnsOutput)
         m_ownsOutput->addSurface(this);
     }
 
-    emit ownsOutputChanged();
+    Q_EMIT ownsOutputChanged();
 }
 
 void SurfaceWrapper::setOutputs(const QList<WOutput*> &outputs)
@@ -476,7 +476,7 @@ void SurfaceWrapper::setNoDecoration(bool newNoDecoration)
     }
 
     updateBoundingRect();
-    emit noDecorationChanged();
+    Q_EMIT noDecorationChanged();
 }
 
 void SurfaceWrapper::updateTitleBar()
@@ -501,7 +501,7 @@ void SurfaceWrapper::updateTitleBar()
         });
     }
 
-    emit noTitleBarChanged();
+    Q_EMIT noTitleBarChanged();
 }
 
 void SurfaceWrapper::setBoundedRect(const QRectF &newBoundedRect)
@@ -509,7 +509,7 @@ void SurfaceWrapper::setBoundedRect(const QRectF &newBoundedRect)
     if (m_boundedRect == newBoundedRect)
         return;
     m_boundedRect = newBoundedRect;
-    emit boundingRectChanged();
+    Q_EMIT boundingRectChanged();
 }
 
 void SurfaceWrapper::updateBoundingRect()
@@ -681,7 +681,7 @@ void SurfaceWrapper::setRadius(qreal newRadius)
     if (qFuzzyCompare(m_radius, newRadius))
         return;
     m_radius = newRadius;
-    emit radiusChanged();
+    Q_EMIT radiusChanged();
 }
 
 void SurfaceWrapper::requestMinimize()
@@ -895,7 +895,7 @@ void SurfaceWrapper::setContainer(SurfaceContainer *newContainer)
     if (m_container == newContainer)
         return;
     m_container = newContainer;
-    emit containerChanged();
+    Q_EMIT containerChanged();
 }
 
 QQuickItem *SurfaceWrapper::titleBar() const
@@ -924,7 +924,7 @@ void SurfaceWrapper::setVisibleDecoration(bool newVisibleDecoration)
         return;
     m_visibleDecoration = newVisibleDecoration;
     updateBoundingRect();
-    emit visibleDecorationChanged();
+    Q_EMIT visibleDecorationChanged();
 }
 
 bool SurfaceWrapper::clipInOutput() const
@@ -938,7 +938,7 @@ void SurfaceWrapper::setClipInOutput(bool newClipInOutput)
         return;
     m_clipInOutput = newClipInOutput;
     updateClipRect();
-    emit clipInOutputChanged();
+    Q_EMIT clipInOutputChanged();
 }
 
 QRectF SurfaceWrapper::clipRect() const
@@ -986,7 +986,7 @@ void SurfaceWrapper::setNoCornerRadius(bool newNoCornerRadius)
     if (m_noCornerRadius == newNoCornerRadius)
         return;
     m_noCornerRadius = newNoCornerRadius;
-    emit noCornerRadiusChanged();
+    Q_EMIT noCornerRadiusChanged();
 }
 
 int SurfaceWrapper::workspaceId() const

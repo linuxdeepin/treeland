@@ -218,7 +218,7 @@ bool SurfaceContainer::doAddSurface(SurfaceWrapper *surface, bool setContainer)
     }
 
     m_model->addSurface(surface);
-    emit surfaceAdded(surface);
+    Q_EMIT surfaceAdded(surface);
 
     if (auto p = parentContainer())
         p->addBySubContainer(this, surface);
@@ -237,7 +237,7 @@ bool SurfaceContainer::doRemoveSurface(SurfaceWrapper *surface, bool setContaine
     }
 
     m_model->removeSurface(surface);
-    emit surfaceRemoved(surface);
+    Q_EMIT surfaceRemoved(surface);
 
     if (auto p = parentContainer())
         p->removeBySubContainer(this, surface);
@@ -245,15 +245,13 @@ bool SurfaceContainer::doRemoveSurface(SurfaceWrapper *surface, bool setContaine
     return true;
 }
 
-void SurfaceContainer::addBySubContainer(SurfaceContainer *sub, SurfaceWrapper *surface)
+void SurfaceContainer::addBySubContainer([[maybe_unused]] SurfaceContainer *sub, SurfaceWrapper *surface)
 {
-    Q_UNUSED(sub);
     doAddSurface(surface, false);
 }
 
-void SurfaceContainer::removeBySubContainer(SurfaceContainer *sub, SurfaceWrapper *surface)
+void SurfaceContainer::removeBySubContainer([[maybe_unused]] SurfaceContainer *sub, SurfaceWrapper *surface)
 {
-    Q_UNUSED(sub);
     doRemoveSurface(surface, false);
 }
 

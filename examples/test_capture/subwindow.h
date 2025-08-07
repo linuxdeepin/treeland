@@ -11,7 +11,7 @@ class SubWindow : public QQuickWindow
     Q_OBJECT
     QML_ELEMENT
     Q_PROPERTY(QQuickWindow *parent READ parent WRITE setParent NOTIFY parentChanged FINAL)
-signals:
+Q_SIGNALS:
     void parentChanged();
 
 public:

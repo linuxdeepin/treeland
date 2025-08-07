@@ -153,9 +153,8 @@ QRect WXdgPopupSurface::getContentGeometry() const
     return tmp.toQRect();
 }
 
-bool WXdgPopupSurface::checkNewSize(const QSize &size, QSize *clipedSize)
+bool WXdgPopupSurface::checkNewSize(const QSize &size, [[maybe_unused]] QSize *clipedSize)
 {
-    Q_UNUSED(clipedSize);
     return size.isValid();
 }
 

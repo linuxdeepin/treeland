@@ -39,7 +39,7 @@ public:
     WorkspaceModel *current() const;
     void setCurrent(WorkspaceModel *container);
 
-signals:
+Q_SIGNALS:
     void currentChanged();
     void countChanged();
 

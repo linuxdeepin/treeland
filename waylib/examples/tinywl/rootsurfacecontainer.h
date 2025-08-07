@@ -71,12 +71,12 @@ public:
 
     OutputListModel *outputModel() const;
 
-public slots:
+public Q_SLOTS:
     void startMove(SurfaceWrapper *surface);
     void startResize(SurfaceWrapper *surface, Qt::Edges edges);
     void cancelMoveResize(SurfaceWrapper *surface);
 
-signals:
+Q_SIGNALS:
     void primaryOutputChanged();
     void moveResizeFinised();
 

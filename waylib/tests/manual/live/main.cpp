@@ -110,7 +110,7 @@ void Helper::initProtocols(WOutputRenderWindow *window, QQmlEngine *qmlEngine)
             // Don't care for WOutput::isEnabled, must do WOutput::commit here,
             // In order to ensure trigger QWOutput::frame signal, WOutputRenderWindow
             // needs this signal to render next frmae. Because QWOutput::frame signal
-            // maybe emit before WOutputRenderWindow::attach, if no commit here,
+            // maybe Q_EMIT before WOutputRenderWindow::attach, if no commit here,
             // WOutputRenderWindow will ignore this ouptut on render.
             if (!qwoutput->property("_Enabled").toBool()) {
                 qwoutput->setProperty("_Enabled", true);

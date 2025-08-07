@@ -48,8 +48,7 @@ public:
         data.insert(Qt::DisplayRole, QVariant::fromValue(m_objects.at(index.row())));
         return data;
     }
-    Qt::ItemFlags flags(const QModelIndex &index) const override {
-        Q_UNUSED(index);
+    Qt::ItemFlags flags([[maybe_unused]] const QModelIndex &index) const override {
         return Qt::ItemIsSelectable|Qt::ItemIsEnabled;
     }
     QHash<int, QByteArray> roleNames() const override {
@@ -96,11 +95,11 @@ public:
 
     virtual void addSurface(SurfaceWrapper *surface) {
         if (addObject(surface))
-            emit surfaceAdded(surface);
+            Q_EMIT surfaceAdded(surface);
     }
     virtual void removeSurface(SurfaceWrapper *surface) {
         if (removeObject(surface))
-            emit surfaceRemoved(surface);
+            Q_EMIT surfaceRemoved(surface);
     }
 
     QHash<int, QByteArray> roleNames() const override;
@@ -115,7 +114,7 @@ public:
         return hasObject(surface);
     }
 
-signals:
+Q_SIGNALS:
     void surfaceAdded(SurfaceWrapper *surface);
     void surfaceRemoved(SurfaceWrapper *surface);
 
@@ -204,7 +203,7 @@ public:
         return m_model;
     }
 
-signals:
+Q_SIGNALS:
     void surfaceAdded(SurfaceWrapper *surface);
     void surfaceRemoved(SurfaceWrapper *surface);
 

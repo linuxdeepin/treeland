@@ -328,10 +328,8 @@ bool RootSurfaceContainer::filterSurfaceGeometryChanged(SurfaceWrapper *surface,
     return false;
 }
 
-bool RootSurfaceContainer::filterSurfaceStateChange(SurfaceWrapper *surface, SurfaceWrapper::State newState, SurfaceWrapper::State oldState)
+bool RootSurfaceContainer::filterSurfaceStateChange(SurfaceWrapper *surface, [[maybe_unused]] SurfaceWrapper::State newState, [[maybe_unused]] SurfaceWrapper::State oldState)
 {
-    Q_UNUSED(oldState);
-    Q_UNUSED(newState);
     return surface == moveResizeState.surface;
 }
 
@@ -366,7 +364,7 @@ void RootSurfaceContainer::setPrimaryOutput(Output *newPrimaryOutput)
     if (m_primaryOutput == newPrimaryOutput)
         return;
     m_primaryOutput = newPrimaryOutput;
-    emit primaryOutputChanged();
+    Q_EMIT primaryOutputChanged();
 }
 
 const QList<Output*> &RootSurfaceContainer::outputs() const

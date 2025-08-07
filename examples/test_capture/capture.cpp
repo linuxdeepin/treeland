@@ -274,7 +274,7 @@ void TreelandCaptureManager::setRecord(bool newRecord)
     if (m_record == newRecord)
         return;
     m_record = newRecord;
-    emit recordChanged();
+    Q_EMIT recordChanged();
 }
 
 bool TreelandCaptureManager::recordStarted() const

@@ -134,9 +134,8 @@ void text_input_manager_bind(wl_client *client,
     wl_resource_set_implementation(resource, &manager_impl, manager, nullptr);
 }
 
-void handle_manager_destroy(wl_client *client, wl_resource *resource)
+void handle_manager_destroy([[maybe_unused]] wl_client *client, wl_resource *resource)
 {
-    Q_UNUSED(client);
     wl_resource_destroy(resource);
 }
 
@@ -194,27 +193,25 @@ void handle_manager_get_text_input(wl_client *client,
     Q_EMIT manager->newTextInput(text_input);
 }
 
-void handle_text_input_destroy(wl_client *client, wl_resource *resource)
+void handle_text_input_destroy([[maybe_unused]] wl_client *client, wl_resource *resource)
 {
-    Q_UNUSED(client)
     wl_resource_destroy(resource);
 }
 
-void handle_text_input_enable(wl_client *client, wl_resource *resource, wl_resource *surface)
+void handle_text_input_enable([[maybe_unused]] wl_client *client, wl_resource *resource, wl_resource *surface)
 {
-    Q_UNUSED(client)
     auto text_input = text_input_from_resource(resource);
     Q_ASSERT(text_input);
     auto wSurface = WSurface::fromHandle(wlr_surface_from_resource(surface));
     // Surface must be existent already, this means wSurface should always be non-null.
     if (!wSurface) {
-        wl_client_post_implementation_error(client, "Enabled surface not found.");
+        wl_client_post_implementation_error(wl_resource_get_client(resource), "Enabled surface not found.");
         return;
     }
     auto d = text_input->d_func();
     if (d->enabledSurface) {
         // FIXME: Is this necessary? As protocol does not guarantee disable is ought to happen after enable, we may still need this.
-        qCWarning(qLcTextInputV2) << "Client" << client << "does emit disable on surface"
+        qCWarning(qLcTextInputV2) << "Client" << client << "does Q_EMIT disable on surface"
                                  << d->enabledSurface << "before enable on surface" << wSurface;
         text_input->clearEnabledSurface();
     }
@@ -223,19 +220,18 @@ void handle_text_input_enable(wl_client *client, wl_resource *resource, wl_resou
     Q_EMIT text_input->enableOnSurface(wSurface);
 }
 
-void handle_text_input_disable(wl_client *client, wl_resource *resource, wl_resource *surface)
+void handle_text_input_disable([[maybe_unused]] wl_client *client, wl_resource *resource, wl_resource *surface)
 {
-    Q_UNUSED(client)
     auto text_input = text_input_from_resource(resource);
     Q_ASSERT(text_input);
     auto wSurface = WSurface::fromHandle(wlr_surface_from_resource(surface));
     if (!wSurface) {
-        wl_client_post_implementation_error(client, "Disabled surface not found, may be already destroyed.");
+        wl_client_post_implementation_error(wl_resource_get_client(resource), "Disabled surface not found, may be already destroyed.");
         return;
     }
     auto d = text_input->d_func();
     if (!d->enabledSurface) {
-        qCWarning(qLcTextInputV2) << "Client" << client
+        qCWarning(qLcTextInputV2) << "Client" << wl_resource_get_client(resource)
                                     << "try to disable surface" << wSurface
                                     << "on a text input" << text_input
                                     << "that is not enabled on this surface. Do nothing!";
@@ -251,22 +247,17 @@ void handle_text_input_disable(wl_client *client, wl_resource *resource, wl_reso
     text_input->clearEnabledSurface();
 }
 
-void handle_text_input_show_input_panel(wl_client *client, wl_resource *resource)
+void handle_text_input_show_input_panel([[maybe_unused]] wl_client *client, [[maybe_unused]] wl_resource *resource)
 {
-    Q_UNUSED(client)
-    Q_UNUSED(resource)
 }
 
-void handle_text_input_hide_input_panel(wl_client *client, wl_resource *resource)
+void handle_text_input_hide_input_panel([[maybe_unused]] wl_client *client, [[maybe_unused]] wl_resource *resource)
 {
-    Q_UNUSED(client)
-    Q_UNUSED(resource)
 }
 
 void handle_text_input_set_surrounding_text(
-    wl_client *client, wl_resource *resource, const char *text, int32_t cursor, int32_t anchor)
+    [[maybe_unused]] wl_client *client, wl_resource *resource, const char *text, int32_t cursor, int32_t anchor)
 {
-    Q_UNUSED(client)
     auto text_input = text_input_from_resource(resource);
     Q_ASSERT(text_input);
     auto d = text_input->d_func();
@@ -275,12 +266,11 @@ void handle_text_input_set_surrounding_text(
     d->surroundingAnchor = anchor;
 }
 
-void handle_text_input_set_content_type(wl_client *client,
+void handle_text_input_set_content_type([[maybe_unused]] wl_client *client,
                                         wl_resource *resource,
                                         uint32_t hint,
                                         uint32_t purpose)
 {
-    Q_UNUSED(client)
     auto text_input = text_input_from_resource(resource);
     Q_ASSERT(text_input);
     auto d = text_input->d_func();
@@ -289,30 +279,25 @@ void handle_text_input_set_content_type(wl_client *client,
 }
 
 void handle_text_input_set_cursor_rectangle(
-    wl_client *client, wl_resource *resource, int32_t x, int32_t y, int32_t width, int32_t height)
+    [[maybe_unused]] wl_client *client, wl_resource *resource, int32_t x, int32_t y, int32_t width, int32_t height)
 {
-    Q_UNUSED(client)
     auto text_input = text_input_from_resource(resource);
     Q_ASSERT(text_input);
     auto d = text_input->d_func();
     d->cursorRectangle = QRect(x, y, width, height);
 }
 
-void handle_text_input_set_preferred_language(wl_client *client,
-                                              wl_resource *resource,
-                                              const char *language)
+void handle_text_input_set_preferred_language([[maybe_unused]] wl_client *client,
+                                              [[maybe_unused]] wl_resource *resource,
+                                              [[maybe_unused]] const char *language)
 {
-    Q_UNUSED(client)
-    Q_UNUSED(resource)
-    Q_UNUSED(language)
 }
 
-void handle_text_input_update_state(wl_client *client,
-                                    wl_resource *resource,
+void handle_text_input_update_state([[maybe_unused]] wl_client *client,
+                                    [[maybe_unused]] wl_resource *resource,
                                     [[maybe_unused]] uint32_t serial,
                                     uint32_t reason)
 {
-    Q_UNUSED(client)
     auto text_input = text_input_from_resource(resource);
     Q_ASSERT(text_input);
     Q_EMIT text_input->stateUpdated(WTextInputV2::UpdateReason(reason));
@@ -339,7 +324,7 @@ void WTextInputManagerV2::create(WServer *server)
 
 void WTextInputManagerV2::destroy(WServer *server)
 {
-    Q_UNUSED(server);
+    [[maybe_unused]] auto server_unused = server;
     W_D(WTextInputManagerV2);
     wl_global_destroy(m_global);
     for (auto textInput : std::as_const(d->textInputs)) {

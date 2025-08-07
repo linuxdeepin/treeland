@@ -33,10 +33,9 @@ public:
     QList<WInputMethodV2 *> inputMethods;
 };
 
-WInputMethodManagerV2::WInputMethodManagerV2(QObject *parent)
+WInputMethodManagerV2::WInputMethodManagerV2([[maybe_unused]] QObject *parent)
     : WObject(*new WInputMethodManagerV2Private(this), nullptr)
 { 
-    Q_UNUSED(parent)
 }
 
 QByteArrayView WInputMethodManagerV2::interfaceName() const

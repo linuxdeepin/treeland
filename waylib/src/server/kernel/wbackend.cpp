@@ -212,9 +212,8 @@ void WBackend::create(WServer *server)
     d->connect();
 }
 
-void WBackend::destroy(WServer *server)
+void WBackend::destroy([[maybe_unused]] WServer *server)
 {
-    Q_UNUSED(server)
     W_D(WBackend);
 
     qDeleteAll(d->inputList);

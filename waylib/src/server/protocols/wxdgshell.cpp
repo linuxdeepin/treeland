@@ -133,9 +133,8 @@ void WXdgShell::create(WServer *server)
     m_handle = xdg_shell;
 }
 
-void WXdgShell::destroy(WServer *server)
+void WXdgShell::destroy([[maybe_unused]] WServer *server)
 {
-    Q_UNUSED(server);
     W_D(WXdgShell);
 
     QVector<WXdgToplevelSurface*> toplevelList;

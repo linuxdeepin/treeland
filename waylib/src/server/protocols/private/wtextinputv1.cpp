@@ -272,17 +272,13 @@ void text_input_handle_deactivate([[maybe_unused]] wl_client *client,
 }
 
 void text_input_handle_show_input_panel([[maybe_unused]] wl_client *client,
-                                        wl_resource *resource)
+                                        [[maybe_unused]] wl_resource *resource)
 {
-    Q_UNUSED(client);
-    Q_UNUSED(resource);
 }
 
 void text_input_handle_hide_input_panel([[maybe_unused]] wl_client *client,
-                                        wl_resource *resource)
+                                        [[maybe_unused]] wl_resource *resource)
 {
-    Q_UNUSED(client);
-    Q_UNUSED(resource);
 }
 
 void text_input_handle_reset([[maybe_unused]] wl_client *client,
@@ -334,13 +330,10 @@ void text_input_handle_set_cursor_rectangle([[maybe_unused]] wl_client *client,
     d->cursorRectangle = QRect(x, y, width, height);
 }
 
-void text_input_handle_set_preferred_language(wl_client *client,
-                                              wl_resource *resource,
-                                              const char *language)
+void text_input_handle_set_preferred_language([[maybe_unused]] wl_client *client,
+                                              [[maybe_unused]] wl_resource *resource,
+                                              [[maybe_unused]] const char *language)
 {
-    Q_UNUSED(client);
-    Q_UNUSED(resource);
-    Q_UNUSED(language);
 }
 
 void text_input_handle_commit_state([[maybe_unused]] wl_client *client,
@@ -354,14 +347,10 @@ void text_input_handle_commit_state([[maybe_unused]] wl_client *client,
 }
 
 void text_input_handle_invoke_action([[maybe_unused]] wl_client *client,
-                                     wl_resource *resource,
-                                     uint32_t button,
-                                     uint32_t index)
+                                     [[maybe_unused]] wl_resource *resource,
+                                     [[maybe_unused]] uint32_t button,
+                                     [[maybe_unused]] uint32_t index)
 {
-    Q_UNUSED(client);
-    Q_UNUSED(resource);
-    Q_UNUSED(button);
-    Q_UNUSED(index);
 }
 
 static const struct zwp_text_input_v1_interface text_input_v1_impl = {
@@ -460,9 +449,8 @@ void WTextInputManagerV1::create(WServer *server)
     m_handle = this;
 }
 
-void WTextInputManagerV1::destroy(WServer *server)
+void WTextInputManagerV1::destroy([[maybe_unused]] WServer *server)
 {
-    Q_UNUSED(server);
     W_D(WTextInputManagerV1);
     wl_global_destroy(m_global);
     for (auto textInput : std::as_const(d->textInputs)) {

@@ -36,6 +36,8 @@ if (ADDRESS_SANITIZER)
     add_link_options(-fsanitize=address)
 endif()
 add_compile_options(-Wall -Wextra)
+# NOTE: Qt keywords conflict with wlroots. but dtksystemsettings still uses it.
+# add_definitions("-DQT_NO_KEYWORDS")
 
 set(LOCAL_QML_IMPORT_PATH "${PROJECT_BINARY_DIR}/qt/qml")
 

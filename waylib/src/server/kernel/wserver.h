@@ -64,11 +64,9 @@ protected:
     WServer *m_server = nullptr;
     std::function<bool(WClient*)> m_filter;
 
-    virtual void create(WServer *server) {
-        Q_UNUSED(server);
+    virtual void create([[maybe_unused]] WServer *server) {
     }
-    virtual void destroy(WServer *server) {
-        Q_UNUSED(server);
+    virtual void destroy([[maybe_unused]] WServer *server) {
     }
     virtual wl_global *global() const = 0;
 
