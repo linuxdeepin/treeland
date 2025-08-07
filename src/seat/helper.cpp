@@ -751,8 +751,7 @@ void Helper::onSurfaceWrapperAdded(SurfaceWrapper *wrapper)
     }
 
     if (!isLayer) {
-        auto windowOverlapChecker = new WindowOverlapChecker(wrapper, wrapper);
-        Q_UNUSED(windowOverlapChecker)
+        [[maybe_unused]] auto windowOverlapChecker = new WindowOverlapChecker(wrapper, wrapper);
     }
 
 #ifndef DISABLE_DDM
@@ -1811,8 +1810,7 @@ void Helper::setOutputMode(OutputMode mode)
     }
 }
 
-void Helper::setOutputProxy(Output *output) { 
-    Q_UNUSED(output)
+void Helper::setOutputProxy([[maybe_unused]] Output *output) { 
 }
 
 float Helper::animationSpeed() const

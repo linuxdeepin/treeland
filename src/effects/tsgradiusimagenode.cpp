@@ -141,9 +141,8 @@ QSGMaterialType *TSGRadiusSmoothTextureMaterial::type() const
 }
 
 QSGMaterialShader *TSGRadiusSmoothTextureMaterial::createShader(
-    QSGRendererInterface::RenderMode renderMode) const
+    [[maybe_unused]] QSGRendererInterface::RenderMode renderMode) const
 {
-    Q_UNUSED(renderMode);
 #if QT_VERSION >= QT_VERSION_CHECK(6, 8, 0)
     Q_ASSERT_X(viewCount() == 1, __func__, "Multiview not supported now.");
 #endif
@@ -411,9 +410,8 @@ void TSGRadiusImageNode::updateGeometry()
     m_node.markDirty(QSGNode::DirtyGeometry);
 }
 
-void TSGRadiusImageNode::updateTexturedRadiusGeometry(const QRectF &rect, const QRectF &textureRect)
+void TSGRadiusImageNode::updateTexturedRadiusGeometry(const QRectF &rect, [[maybe_unused]] const QRectF &textureRect)
 {
-    Q_UNUSED(textureRect)
     float width = float(rect.width());
     float height = float(rect.height());
 

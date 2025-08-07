@@ -73,7 +73,7 @@ void TreelandConfig::setWorkspaceThumbCornerRadius(uint newWorkspaceThumbCornerR
     if (m_workspaceThumbCornerRadius == newWorkspaceThumbCornerRadius)
         return;
     m_workspaceThumbCornerRadius = newWorkspaceThumbCornerRadius;
-    emit workspaceThumbCornerRadiusChanged();
+    Q_EMIT workspaceThumbCornerRadiusChanged();
 }
 
 uint TreelandConfig::highlightBorderWidth() const
@@ -86,7 +86,7 @@ void TreelandConfig::setHighlightBorderWidth(uint newHighlightBorderWidth)
     if (m_highlightBorderWidth == newHighlightBorderWidth)
         return;
     m_highlightBorderWidth = newHighlightBorderWidth;
-    emit highlightBorderWidthChanged();
+    Q_EMIT highlightBorderWidthChanged();
 }
 
 uint TreelandConfig::maxWorkspace() const
@@ -112,7 +112,7 @@ void TreelandConfig::setMinMultitaskviewSurfaceHeight(uint newMinMultitaskviewSu
     if (m_minMultitaskviewSurfaceHeight == newMinMultitaskviewSurfaceHeight)
         return;
     m_minMultitaskviewSurfaceHeight = newMinMultitaskviewSurfaceHeight;
-    emit minMultitaskviewSurfaceHeightChanged();
+    Q_EMIT minMultitaskviewSurfaceHeightChanged();
 }
 
 uint TreelandConfig::titleBoxCornerRadius() const
@@ -125,7 +125,7 @@ void TreelandConfig::setTitleBoxCornerRadius(uint newTitleBoxCornerRadius)
     if (m_titleBoxCornerRadius == newTitleBoxCornerRadius)
         return;
     m_titleBoxCornerRadius = newTitleBoxCornerRadius;
-    emit titleBoxCornerRadiusChanged();
+    Q_EMIT titleBoxCornerRadiusChanged();
 }
 
 void TreelandConfig::onDConfigChanged(const QString &key)
@@ -149,7 +149,7 @@ void TreelandConfig::setNormalWindowHeight(uint newNormalWindowHeight)
     if (m_normalWindowHeight == newNormalWindowHeight)
         return;
     m_normalWindowHeight = newNormalWindowHeight;
-    emit normalWindowHeightChanged();
+    Q_EMIT normalWindowHeightChanged();
 }
 
 uint TreelandConfig::windowHeightStep() const
@@ -162,7 +162,7 @@ void TreelandConfig::setWindowHeightStep(uint newWindowHeightStep)
     if (m_windowHeightStep == newWindowHeightStep)
         return;
     m_windowHeightStep = newWindowHeightStep;
-    emit windowHeightStepChanged();
+    Q_EMIT windowHeightStepChanged();
 }
 
 uint TreelandConfig::numWorkspace() const
@@ -208,7 +208,7 @@ void TreelandConfig::setForceSoftwareCursor(bool enable)
         return;
     m_forceSoftwareCursor = enable;
     m_dconfig->setValue("forceSoftwareCursor", QVariant::fromValue(m_forceSoftwareCursor));
-    emit forceSoftwareCursorChanged();
+    Q_EMIT forceSoftwareCursorChanged();
 }
 
 qreal TreelandConfig::multitaskviewPaddingOpacity() const
@@ -221,7 +221,7 @@ void TreelandConfig::setMultitaskviewPaddingOpacity(qreal newMultitaskviewPaddin
     if (qFuzzyCompare(m_multitaskviewPaddingOpacity, newMultitaskviewPaddingOpacity))
         return;
     m_multitaskviewPaddingOpacity = newMultitaskviewPaddingOpacity;
-    emit multitaskviewPaddingOpacityChanged();
+    Q_EMIT multitaskviewPaddingOpacityChanged();
 }
 
 uint TreelandConfig::multitaskviewAnimationDuration() const
@@ -234,7 +234,7 @@ void TreelandConfig::setMultitaskviewAnimationDuration(uint newMultitaskviewAnim
     if (m_multitaskviewAnimationDuration == newMultitaskviewAnimationDuration)
         return;
     m_multitaskviewAnimationDuration = newMultitaskviewAnimationDuration;
-    emit multitaskviewAnimationDurationChanged();
+    Q_EMIT multitaskviewAnimationDurationChanged();
 }
 
 QEasingCurve::Type TreelandConfig::multitaskviewEasingCurveType() const
@@ -248,7 +248,7 @@ void TreelandConfig::setMultitaskviewEasingCurveType(
     if (m_multitaskviewEasingCurveType == newMultitaskviewEasingCurveType)
         return;
     m_multitaskviewEasingCurveType = newMultitaskviewEasingCurveType;
-    emit multitaskviewEasingCurveTypeChanged();
+    Q_EMIT multitaskviewEasingCurveTypeChanged();
 }
 
 void TreelandConfig::setCursorThemeName(const QString &theme)
@@ -260,7 +260,7 @@ void TreelandConfig::setCursorThemeName(const QString &theme)
     m_cursorThemeName = theme;
     m_dconfig->setValue("cursorThemeName", theme);
 
-    emit cursorThemeNameChanged();
+    Q_EMIT cursorThemeNameChanged();
 }
 
 QString TreelandConfig::cursorThemeName()
@@ -284,7 +284,7 @@ void TreelandConfig::setCursorSize(QSize size)
     m_cursorSize = size;
     m_dconfig->setValue("cursorSize", size.width());
 
-    emit cursorSizeChanged();
+    Q_EMIT cursorSizeChanged();
 }
 
 QSize TreelandConfig::cursorSize()
@@ -324,7 +324,7 @@ void TreelandConfig::setActiveColor(const QString &color)
     }
     m_dconfig->setValue("activeColor", color);
     m_activeColor = color;
-    emit activeColorChanged();
+    Q_EMIT activeColorChanged();
 }
 
 QString TreelandConfig::activeColor()
@@ -344,7 +344,7 @@ void TreelandConfig::setWindowOpacity(uint32_t opacity)
 
     m_windowOpacity = opacity;
 
-    emit windowOpacityChanged();
+    Q_EMIT windowOpacityChanged();
 }
 
 uint32_t TreelandConfig::windowOpacity()
@@ -364,7 +364,7 @@ void TreelandConfig::setWindowThemeType(uint32_t type)
 
     m_windowThemeType = type;
 
-    emit windowThemeTypeChanged();
+    Q_EMIT windowThemeTypeChanged();
 }
 
 uint32_t TreelandConfig::windowThemeType()
@@ -384,7 +384,7 @@ void TreelandConfig::setWindowTitlebarHeight(uint32_t height)
 
     m_windowTitlebarHeight = height;
 
-    emit windowTitlebarHeightChanged();
+    Q_EMIT windowTitlebarHeightChanged();
 }
 
 uint32_t TreelandConfig::windowTitlebarHeight()

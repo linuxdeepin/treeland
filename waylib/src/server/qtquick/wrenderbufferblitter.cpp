@@ -222,9 +222,8 @@ static void onTextureChanged(WRenderBufferNode *node, void *data) {
     Q_EMIT d->tp->textureChanged();
 }
 
-QSGNode *WRenderBufferBlitter::updatePaintNode(QSGNode *oldNode, QQuickItem::UpdatePaintNodeData *oldData)
+QSGNode *WRenderBufferBlitter::updatePaintNode(QSGNode *oldNode, [[maybe_unused]] QQuickItem::UpdatePaintNodeData *oldData)
 {
-    Q_UNUSED(oldData)
 
     auto node = static_cast<WRenderBufferNode*>(oldNode);
     if (Q_LIKELY(node)) {

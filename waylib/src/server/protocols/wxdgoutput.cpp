@@ -419,9 +419,8 @@ WOutputLayout *WXdgOutputManager::layout() const
     return d->layout;
 }
 
-void WXdgOutputManager::destroy(WServer *server)
+void WXdgOutputManager::destroy([[maybe_unused]] WServer *server)
 {
-    Q_UNUSED(server);
     W_D(WXdgOutputManager);
     d->manager = nullptr;
     m_handle = nullptr;
@@ -433,9 +432,8 @@ wl_global *WXdgOutputManager::global() const
     return handle->global;
 }
 
-void WXdgOutputManager::create(WServer *wserver)
+void WXdgOutputManager::create([[maybe_unused]] WServer *wserver)
 {
-    Q_UNUSED(wserver)
     W_D(WXdgOutputManager);
     if (d->layout) {
         d->manager = way_xdg_output_manager_v1_create(*server()->handle(),

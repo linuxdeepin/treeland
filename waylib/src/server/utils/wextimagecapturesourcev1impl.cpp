@@ -169,9 +169,9 @@ WExtImageCaptureSourceV1Impl::~WExtImageCaptureSourceV1Impl()
     }
 }
 
-void WExtImageCaptureSourceV1Impl::start(bool with_cursors)
+void WExtImageCaptureSourceV1Impl::start([[maybe_unused]] bool with_cursors)
 {
-    Q_UNUSED(with_cursors) // TODO: Implement cursor capture if needed
+    // TODO: Implement cursor capture if needed
     m_capturing = true;
     qCDebug(qLcImageCapture) << "WExtImageCaptureSourceV1Impl::start() with_cursors:" << with_cursors;
 
@@ -275,7 +275,7 @@ void WExtImageCaptureSourceV1Impl::handleRenderEnd()
     // Create damage region with RAII
     WPixmanRegion fullDamage(0, 0, surfaceSize.width(), surfaceSize.height());
     
-    // Create frame event and emit
+    // Create frame event and Q_EMIT
     wlr_ext_image_capture_source_v1_frame_event event {
         .damage = fullDamage.get(),
     };
@@ -366,9 +366,8 @@ void WExtImageCaptureSourceV1Impl::copy_frame(wlr_ext_image_copy_capture_frame_v
     }
 }
 
-wlr_ext_image_capture_source_v1_cursor *WExtImageCaptureSourceV1Impl::get_pointer_cursor(wlr_seat *seat)
+wlr_ext_image_capture_source_v1_cursor *WExtImageCaptureSourceV1Impl::get_pointer_cursor([[maybe_unused]] wlr_seat *seat)
 {
-    Q_UNUSED(seat)
     qCDebug(qLcImageCapture) << "WExtImageCaptureSourceV1Impl::get_pointer_cursor()";
     // TODO: Implement cursor retrieval logic
     // This needs to get cursor information from seat and create corresponding cursor structure
