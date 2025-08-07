@@ -25,6 +25,7 @@
 #include <private/qsgdefaultrendercontext_p.h>
 #include <private/qsgrhisupport_p.h>
 #include <private/qquickrendercontrol_p.h>
+#include <qobjectdefs.h>
 
 #include <algorithm>
 
@@ -136,7 +137,7 @@ public:
     }
 
     static DataManagerPointer<Derive> resolve(const DataManagerPointer<Derive> &other, QQuickWindow *owner) {
-        static_assert(requires { &Derive::metaObject; });
+        static_assert(QtPrivate::HasQ_OBJECT_Macro<Derive>::Value, "Derive must have Q_OBJECT macro");
         Q_ASSERT(owner);
         if (other && other->owner() == owner)
             return other;
