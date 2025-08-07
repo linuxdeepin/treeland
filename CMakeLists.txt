@@ -39,6 +39,9 @@ add_compile_options(-Wall -Wextra)
 # NOTE: Qt keywords conflict with wlroots. but dtksystemsettings still uses it.
 # add_definitions("-DQT_NO_KEYWORDS")
 
+# NOTE: Enable Qt logging with context.
+add_definitions("-DQT_MESSAGELOGCONTEXT")
+
 set(LOCAL_QML_IMPORT_PATH "${PROJECT_BINARY_DIR}/qt/qml")
 
 if(WITH_SUBMODULE_WAYLIB)

@@ -10,7 +10,8 @@
 #include <qwseat.h>
 #include <qwdisplay.h>
 
-#define CURSOR_SHAPE_MANAGER_V1_VERSION 2
+// TODO: set to 2 after wlroots 0.20
+#define CURSOR_SHAPE_MANAGER_V1_VERSION 1
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
