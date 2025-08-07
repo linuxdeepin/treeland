@@ -7,7 +7,7 @@
     </message>
     <message>
         <source>Do you want to back to default?</source>
-        <translation type="unfinished"/>
+        <translation type="vanished">¿Quieres volver a la configuración predeterminada?</translation>
     </message>
     <message>
         <source>This action will reboot machine, please confirm.</source>
@@ -88,7 +88,7 @@
     <name>SessionModel</name>
     <message>
         <source>%1 (Wayland)</source>
-        <translation type="unfinished"/>
+        <translation type="vanished">%1 (Wayland)</translation>
     </message>
 </context>
 <context>
