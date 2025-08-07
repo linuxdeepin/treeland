@@ -45,7 +45,7 @@ public:
     void setAntialiasing(bool antialiasing);
     void setTextureProvider(QSGTextureProvider *p);
 
-public slots:
+public Q_SLOTS:
     void handleTextureChange();
 
 protected:

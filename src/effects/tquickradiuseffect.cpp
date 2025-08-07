@@ -56,22 +56,22 @@ void TQuickRadiusEffect::setRadius(qreal radius)
     d->maybeSetImplicitAntialiasing();
 
     update();
-    emit radiusChanged();
+    Q_EMIT radiusChanged();
 
     if (d->extraRadius.isAllocated()) {
         if (d->extraRadius->topLeftRadius < 0.)
-            emit topLeftRadiusChanged();
+            Q_EMIT topLeftRadiusChanged();
         if (d->extraRadius->topRightRadius < 0.)
-            emit topRightRadiusChanged();
+            Q_EMIT topRightRadiusChanged();
         if (d->extraRadius->bottomLeftRadius < 0.)
-            emit bottomLeftRadiusChanged();
+            Q_EMIT bottomLeftRadiusChanged();
         if (d->extraRadius->bottomRightRadius < 0.)
-            emit bottomRightRadiusChanged();
+            Q_EMIT bottomRightRadiusChanged();
     } else {
-        emit topLeftRadiusChanged();
-        emit topRightRadiusChanged();
-        emit bottomLeftRadiusChanged();
-        emit bottomRightRadiusChanged();
+        Q_EMIT topLeftRadiusChanged();
+        Q_EMIT topRightRadiusChanged();
+        Q_EMIT bottomLeftRadiusChanged();
+        Q_EMIT bottomRightRadiusChanged();
     }
 }
 
@@ -100,7 +100,7 @@ void TQuickRadiusEffect::setTopLeftRadius(qreal radius)
     d->maybeSetImplicitAntialiasing();
 
     update();
-    emit topLeftRadiusChanged();
+    Q_EMIT topLeftRadiusChanged();
 }
 
 void TQuickRadiusEffect::resetTopLeftRadius()
@@ -116,7 +116,7 @@ void TQuickRadiusEffect::resetTopLeftRadius()
     d->maybeSetImplicitAntialiasing();
 
     update();
-    emit topLeftRadiusChanged();
+    Q_EMIT topLeftRadiusChanged();
 }
 
 qreal TQuickRadiusEffect::topRightRadius() const
@@ -144,7 +144,7 @@ void TQuickRadiusEffect::setTopRightRadius(qreal radius)
     d->maybeSetImplicitAntialiasing();
 
     update();
-    emit topRightRadiusChanged();
+    Q_EMIT topRightRadiusChanged();
 }
 
 void TQuickRadiusEffect::resetTopRightRadius()
@@ -160,7 +160,7 @@ void TQuickRadiusEffect::resetTopRightRadius()
     d->maybeSetImplicitAntialiasing();
 
     update();
-    emit topRightRadiusChanged();
+    Q_EMIT topRightRadiusChanged();
 }
 
 qreal TQuickRadiusEffect::bottomLeftRadius() const
@@ -188,7 +188,7 @@ void TQuickRadiusEffect::setBottomLeftRadius(qreal radius)
     d->maybeSetImplicitAntialiasing();
 
     update();
-    emit bottomLeftRadiusChanged();
+    Q_EMIT bottomLeftRadiusChanged();
 }
 
 void TQuickRadiusEffect::resetBottomLeftRadius()
@@ -204,7 +204,7 @@ void TQuickRadiusEffect::resetBottomLeftRadius()
     d->maybeSetImplicitAntialiasing();
 
     update();
-    emit bottomLeftRadiusChanged();
+    Q_EMIT bottomLeftRadiusChanged();
 }
 
 qreal TQuickRadiusEffect::bottomRightRadius() const
@@ -232,7 +232,7 @@ void TQuickRadiusEffect::setBottomRightRadius(qreal radius)
     d->maybeSetImplicitAntialiasing();
 
     update();
-    emit bottomRightRadiusChanged();
+    Q_EMIT bottomRightRadiusChanged();
 }
 
 void TQuickRadiusEffect::resetBottomRightRadius()
@@ -248,7 +248,7 @@ void TQuickRadiusEffect::resetBottomRightRadius()
     d->maybeSetImplicitAntialiasing();
 
     update();
-    emit bottomRightRadiusChanged();
+    Q_EMIT bottomRightRadiusChanged();
 }
 
 QQuickItem *TQuickRadiusEffect::sourceItem() const
@@ -300,18 +300,17 @@ void TQuickRadiusEffect::setSourceItem(QQuickItem *item)
         }
     }
     update();
-    emit sourceItemChanged();
+    Q_EMIT sourceItemChanged();
 }
 
-void TQuickRadiusEffect::sourceItemDestroyed(QObject *item)
+void TQuickRadiusEffect::sourceItemDestroyed([[maybe_unused]] QObject *item)
 {
     Q_D(TQuickRadiusEffect);
 
     Q_ASSERT(item == d->sourceItem);
-    Q_UNUSED(item);
     d->sourceItem = nullptr;
     update();
-    emit sourceItemChanged();
+    Q_EMIT sourceItemChanged();
 }
 
 bool TQuickRadiusEffect::hideSource() const
@@ -333,7 +332,7 @@ void TQuickRadiusEffect::setHideSource(bool hide)
         QQuickItemPrivate::get(d->sourceItem)->derefFromEffectItem(d->hideSource);
     }
     d->hideSource = hide;
-    emit hideSourceChanged();
+    Q_EMIT hideSourceChanged();
 }
 
 QSGNode *TQuickRadiusEffect::updatePaintNode(QSGNode *oldNode, UpdatePaintNodeData *)

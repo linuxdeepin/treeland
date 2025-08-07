@@ -1195,16 +1195,14 @@ void WSeat::notifyAxis(WCursor *cursor, WInputDevice *device, wl_pointer_axis_so
     }
 }
 
-void WSeat::notifyFrame(WCursor *cursor)
+void WSeat::notifyFrame([[maybe_unused]] WCursor *cursor)
 {
-    Q_UNUSED(cursor);
     W_D(WSeat);
     d->doNotifyFrame();
 }
 
-void WSeat::notifyGestureBegin(WCursor *cursor, WInputDevice *device, uint32_t time_msec, uint32_t fingers, WGestureEvent::WLibInputGestureType libInputGestureType)
+void WSeat::notifyGestureBegin(WCursor *cursor, WInputDevice *device, [[maybe_unused]] uint32_t time_msec, uint32_t fingers, WGestureEvent::WLibInputGestureType libInputGestureType)
 {
-    Q_UNUSED(time_msec)
     W_D(WSeat);
     if (d->gestureActive) {
         qCWarning(qLcWlrGestureEvents) << "Unexpected GestureBegin while already active";
@@ -1222,9 +1220,8 @@ void WSeat::notifyGestureBegin(WCursor *cursor, WInputDevice *device, uint32_t t
         QCoreApplication::sendEvent(w, &e);
 }
 
-void WSeat::notifyGestureUpdate(WCursor *cursor, WInputDevice *device, uint32_t time_msec, const QPointF &delta, double scale, double rotation, WGestureEvent::WLibInputGestureType libInputGestureType)
+void WSeat::notifyGestureUpdate(WCursor *cursor, WInputDevice *device, [[maybe_unused]] uint32_t time_msec, const QPointF &delta, double scale, double rotation, WGestureEvent::WLibInputGestureType libInputGestureType)
 {
-    Q_UNUSED(time_msec)
     W_D(WSeat);
     if (!d->gestureActive) {
         qCWarning(qLcWlrGestureEvents) << "Unexpected GestureUpdate while not begin";
@@ -1255,10 +1252,8 @@ void WSeat::notifyGestureUpdate(WCursor *cursor, WInputDevice *device, uint32_t 
     }
 }
 
-void WSeat::notifyGestureEnd(WCursor *cursor, WInputDevice *device, uint32_t time_msec, bool cancelled, WGestureEvent::WLibInputGestureType libInputGestureType)
+void WSeat::notifyGestureEnd(WCursor *cursor, WInputDevice *device, [[maybe_unused]] uint32_t time_msec, [[maybe_unused]] bool cancelled, WGestureEvent::WLibInputGestureType libInputGestureType)
 {
-    Q_UNUSED(time_msec)
-    Q_UNUSED(cancelled)
     W_D(WSeat);
     if (!d->gestureActive) {
         qCWarning(qLcWlrGestureEvents) << "Unexpected GestureEnd while not begin";
@@ -1318,9 +1313,8 @@ void WSeat::notifyHoldEnd(WCursor *cursor, WInputDevice *device, uint32_t time_m
 
 // deal with touch event form wlr_cursor
 
-void WSeat::notifyTouchDown(WCursor *cursor, WInputDevice *device, int32_t touch_id, uint32_t time_msec)
+void WSeat::notifyTouchDown(WCursor *cursor, WInputDevice *device, int32_t touch_id, [[maybe_unused]] uint32_t time_msec)
 {
-    Q_UNUSED(time_msec)
     W_D(WSeat);
     auto qwDevice = qobject_cast<QPointingDevice*>(device->qtDevice());
     Q_ASSERT(qwDevice);
@@ -1440,10 +1434,9 @@ void WSeat::notifyTouchCancel(WCursor *cursor, WInputDevice *device, int32_t tou
     }
 }
 
-void WSeat::notifyTouchFrame(WCursor *cursor)
+void WSeat::notifyTouchFrame([[maybe_unused]] WCursor *cursor)
 {
     W_D(WSeat);
-    Q_UNUSED(cursor);
     for (auto *device: std::as_const(d->touchDeviceList)) {
         d->doNotifyTouchFrame(device);
     }

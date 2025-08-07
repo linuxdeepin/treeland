@@ -47,9 +47,8 @@ QRectF WindowPicker::selectionRegion() const
     return m_itemSelector->selectionRegion();
 }
 
-void WindowPicker::mousePressEvent(QMouseEvent *event)
+void WindowPicker::mousePressEvent([[maybe_unused]] QMouseEvent *event)
 {
-    Q_UNUSED(event)
     auto window = qobject_cast<WSurfaceItem *>(m_itemSelector->hoveredItem());
     Q_EMIT windowPicked(window);
 }

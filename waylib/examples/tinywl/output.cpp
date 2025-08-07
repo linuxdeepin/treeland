@@ -328,7 +328,7 @@ void Output::layoutLayerSurfaces()
 
     if (oldExclusiveZone != m_exclusiveZone) {
         layoutNonLayerSurfaces();
-        emit exclusiveZoneChanged();
+        Q_EMIT exclusiveZoneChanged();
     }
 }
 

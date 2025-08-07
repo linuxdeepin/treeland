@@ -52,7 +52,7 @@ void WorkspaceAnimationController::setRefWidth(qreal newRefWidth)
     if (qFuzzyCompare(m_refWidth, newRefWidth))
         return;
     m_refWidth = newRefWidth;
-    emit refWidthChanged();
+    Q_EMIT refWidthChanged();
     Q_EMIT refWrapChanged();
 }
 
@@ -66,7 +66,7 @@ void WorkspaceAnimationController::setRefGap(qreal newRefGap)
     if (qFuzzyCompare(m_refGap, newRefGap))
         return;
     m_refGap = newRefGap;
-    emit refGapChanged();
+    Q_EMIT refGapChanged();
     Q_EMIT refWrapChanged();
 }
 
@@ -80,7 +80,7 @@ void WorkspaceAnimationController::setRefBounce(qreal newRefBounce)
     if (qFuzzyCompare(m_refBounce, newRefBounce))
         return;
     m_refBounce = newRefBounce;
-    emit refBounceChanged();
+    Q_EMIT refBounceChanged();
 }
 
 qreal WorkspaceAnimationController::bounceFactor() const
@@ -93,7 +93,7 @@ void WorkspaceAnimationController::setBounceFactor(qreal newBounceFactor)
     if (qFuzzyCompare(m_bounceFactor, newBounceFactor))
         return;
     m_bounceFactor = newBounceFactor;
-    emit bounceFactorChanged();
+    Q_EMIT bounceFactorChanged();
 }
 
 qreal WorkspaceAnimationController::refWrap() const
@@ -216,5 +216,5 @@ void WorkspaceAnimationController::setViewportPos(qreal newViewportPos)
     if (qFuzzyCompare(m_viewportPos, newViewportPos))
         return;
     m_viewportPos = newViewportPos;
-    emit viewportPosChanged();
+    Q_EMIT viewportPosChanged();
 }

@@ -90,8 +90,8 @@ void WServerPrivate::init()
     Q_ASSERT(display);
 
     // free follow display
-    Q_UNUSED(qw_data_device_manager::create(*display));
-    Q_UNUSED(qw_primary_selection_v1_device_manager::create(*display));
+    [[maybe_unused]] auto ddm = qw_data_device_manager::create(*display);
+    [[maybe_unused]] auto psm = qw_primary_selection_v1_device_manager::create(*display);
 
     W_Q(WServer);
 

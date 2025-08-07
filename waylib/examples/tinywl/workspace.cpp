@@ -106,7 +106,7 @@ void Workspace::removeContainer(int index)
     container->deleteLater();
 
     if (oldCurrent != current)
-        emit currentChanged();
+        Q_EMIT currentChanged();
 }
 
 WorkspaceModel *Workspace::container(int index) const
@@ -148,7 +148,7 @@ void Workspace::setCurrentIndex(int newCurrentIndex)
         m_models.at(i)->setVisible(i == m_currentIndex);
     }
 
-    emit currentChanged();
+    Q_EMIT currentChanged();
 }
 
 void Workspace::switchToNext()

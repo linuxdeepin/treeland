@@ -26,7 +26,7 @@ void PropertyMonitor::setTarget(QObject *newTarget)
         disconnect(m_target, nullptr, this, SLOT(handlePropertyChanged()));
     m_target = newTarget;
     connectToTarget();
-    emit targetChanged();
+    Q_EMIT targetChanged();
 }
 
 QString PropertyMonitor::properties() const
@@ -40,7 +40,7 @@ void PropertyMonitor::setProperties(const QString &newProperties)
         return;
     m_properties = newProperties;
     connectToTarget();
-    emit propertiesChanged();
+    Q_EMIT propertiesChanged();
 }
 
 void PropertyMonitor::handlePropertyChanged()

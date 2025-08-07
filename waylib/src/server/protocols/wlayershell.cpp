@@ -100,9 +100,8 @@ void WLayerShell::create(WServer *server)
     m_handle = layer_shell;
 }
 
-void WLayerShell::destroy(WServer *server)
+void WLayerShell::destroy([[maybe_unused]] WServer *server)
 {
-    Q_UNUSED(server);
     W_D(WLayerShell);
 
     auto list = d->surfaceList;

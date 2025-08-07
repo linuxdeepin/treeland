@@ -95,9 +95,8 @@ void ShellHandler::initLayerShell(WServer *server)
 WXWayland *ShellHandler::createXWayland(WServer *server,
                                         WSeat *seat,
                                         qw_compositor *compositor,
-                                        bool lazy)
+                                        [[maybe_unused]] bool lazy)
 {
-    Q_UNUSED(lazy)
     auto *xwayland = server->attach<WXWayland>(compositor, false);
     m_xwaylands.append(xwayland);
     xwayland->setSeat(seat);
