@@ -763,11 +763,6 @@ void Helper::setOutputMode(OutputMode mode)
     }
 }
 
-void Helper::setOutputProxy([[maybe_unused]] Output *output)
-{
-
-}
-
 void Helper::updateLayerSurfaceContainer(SurfaceWrapper *surface)
 {
     auto layer = qobject_cast<WLayerSurface*>(surface->shellSurface());

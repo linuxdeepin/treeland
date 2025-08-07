@@ -259,8 +259,6 @@ private:
 
     int indexOfOutput(WOutput *output) const;
 
-    void setOutputProxy(Output *output);
-
     SurfaceWrapper *keyboardFocusSurface() const;
     void requestKeyboardFocusForSurface(SurfaceWrapper *newActivateSurface, Qt::FocusReason reason);
     SurfaceWrapper *activatedSurface() const;
