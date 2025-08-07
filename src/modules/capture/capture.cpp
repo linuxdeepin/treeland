@@ -1082,7 +1082,7 @@ void CaptureSourceSelector::doSetSelectionMode(const SelectionMode &newSelection
     updateCursorShape();
     setItemSelectionMode(true);
     updateItemSelectorItemTypes();
-    emit selectionModeChanged();
+    Q_EMIT selectionModeChanged();
 }
 
 CaptureSource::CaptureSourceHint CaptureSourceSelector::selectionModeHint(

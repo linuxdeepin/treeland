@@ -392,9 +392,8 @@ VkTextureBuffer::VkTextureBuffer(VkInstance instance, VkDevice device, QSGTextur
 
 }
 
-bool VkTextureBuffer::get_dmabuf(wlr_dmabuf_attributes *attribs)
+bool VkTextureBuffer::get_dmabuf([[maybe_unused]] wlr_dmabuf_attributes *attribs)
 {
-    Q_UNUSED(attribs);
 //    static auto vkGetInstanceProcAddr =
 //        reinterpret_cast<PFN_vkGetInstanceProcAddr>(::dlsym(RTLD_DEFAULT, "vkGetInstanceProcAddr"));
 //    static auto vkGetMemoryFdKHR =
@@ -440,9 +439,8 @@ bool QImageBuffer::get_shm(wlr_shm_attributes *attribs)
     return true;
 }
 
-bool QImageBuffer::begin_data_ptr_access(uint32_t flags, void **data, uint32_t *format, size_t *stride)
+bool QImageBuffer::begin_data_ptr_access([[maybe_unused]] uint32_t flags, void **data, uint32_t *format, size_t *stride)
 {
-    Q_UNUSED(flags);
     *data = m_image.bits();
     *format = WTools::toDrmFormat(m_image.format());
     *stride = m_image.bytesPerLine();

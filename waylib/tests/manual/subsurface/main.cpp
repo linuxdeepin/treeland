@@ -19,7 +19,7 @@ void CustomWindow::setParent(QWindow *newParent)
     QQuickWindow::setParent(newParent);
     show();
 
-    emit parentChanged();
+    Q_EMIT parentChanged();
 }
 
 int main(int argc, char *argv[])
