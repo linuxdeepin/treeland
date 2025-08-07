@@ -126,8 +126,6 @@ private:
 
     int indexOfOutput(WOutput *output) const;
 
-    void setOutputProxy(Output *output);
-
     void updateLayerSurfaceContainer(SurfaceWrapper *surface);
 
     SurfaceWrapper *keyboardFocusSurface() const;
