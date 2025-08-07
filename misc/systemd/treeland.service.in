@@ -14,3 +14,7 @@ Environment=DSG_APP_ID=org.deepin.dde.treeland
 ExecStart=@CMAKE_INSTALL_FULL_BINDIR@/treeland.sh --lockscreen
 Restart=on-failure
 RestartSec=1s
+# Disable logs from treeland.sh to avoid duplicate entries in journalctl
+# since exec replaces the process, logs would appear from both treeland.sh and treeland
+StandardOutput=null
+StandardError=null
