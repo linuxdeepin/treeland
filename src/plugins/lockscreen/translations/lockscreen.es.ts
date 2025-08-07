@@ -19,7 +19,7 @@
     </message>
     <message>
         <source>Other Users</source>
-        <translation type="vanished">Otros Usuarios</translation>
+        <translation type="vanished">Otros usuarios</translation>
     </message>
     <message>
         <source>Power</source>
