@@ -308,6 +308,14 @@ static void drag_handle_touch_motion(struct wlr_seat_touch_grab *grab,
 				wl_fixed_from_double(point->sx),
 				wl_fixed_from_double(point->sy));
 		}
+
+		struct wlr_drag_motion_event event = {
+			.drag = drag,
+			.time = time,
+			.sx = point->sx,
+			.sy = point->sy,
+		};
+		wl_signal_emit_mutable(&drag->events.motion, &event);
 	}
 }
 
