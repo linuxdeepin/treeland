@@ -1810,9 +1810,6 @@ void Helper::setOutputMode(OutputMode mode)
     }
 }
 
-void Helper::setOutputProxy([[maybe_unused]] Output *output) { 
-}
-
 float Helper::animationSpeed() const
 {
     return m_animationSpeed;

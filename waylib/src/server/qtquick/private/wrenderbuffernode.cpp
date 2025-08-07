@@ -136,6 +136,7 @@ public:
     }
 
     static DataManagerPointer<Derive> resolve(const DataManagerPointer<Derive> &other, QQuickWindow *owner) {
+        static_assert(requires { &Derive::metaObject; });
         Q_ASSERT(owner);
         if (other && other->owner() == owner)
             return other;
