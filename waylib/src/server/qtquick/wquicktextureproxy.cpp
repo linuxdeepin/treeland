@@ -12,7 +12,6 @@ WAYLIB_SERVER_BEGIN_NAMESPACE
 
 WQuickTextureProxyPrivate::~WQuickTextureProxyPrivate()
 {
-    initSourceItem(sourceItem, nullptr);
 }
 
 #define LAYER "__layer_enabled_by_WQuickTextureProxy"
@@ -20,6 +19,9 @@ WQuickTextureProxyPrivate::~WQuickTextureProxyPrivate()
 void WQuickTextureProxyPrivate::initSourceItem(QQuickItem *old, QQuickItem *item)
 {
     W_Q(WQuickTextureProxy);
+
+    if (textureChangedConnection)
+        QObject::disconnect(textureChangedConnection);
 
     if (old) {
         old->disconnect(q);
@@ -64,7 +66,8 @@ WQuickTextureProxy::WQuickTextureProxy(QQuickItem *parent)
 
 WQuickTextureProxy::~WQuickTextureProxy()
 {
-
+    W_D(WQuickTextureProxy);
+    d->initSourceItem(d->sourceItem, nullptr);
 }
 
 QQuickItem *WQuickTextureProxy::sourceItem() const
@@ -239,8 +242,23 @@ QSGNode *WQuickTextureProxy::updatePaintNode(QSGNode *old, QQuickItem::UpdatePai
     const auto tp = d->sourceItem->textureProvider();
     if (Q_LIKELY(!tp || !tp->texture())) {
         if (tp) {
-            connect(tp, &QSGTextureProvider::textureChanged,
-                    this, &WQuickTextureProxy::update, Qt::SingleShotConnection);
+            d->connectionMutex.lock();
+            // QObject's automatic signal disconnection occurs in QObject::~QObject,
+            // where the slot function is a QQuickItem function.
+            // If the textureChanged signal is triggered during WQuickTextureProxy::~WQuickTextureProxy(),
+            // the program will crash because the signal connection has not been disconnected yet,
+            // but WQuickTextureProxy may have been partially destroyed.
+            // This can happen if someone is listening to the WQuickTextureProxy::destroyed signal and,
+            // within it, performs some operation that triggers textureChanged on the textureProvider.
+            // Therefore, the approach here is to use QMetaObject::Connection for storage and
+            // disconnect the signal when destroying WQuickTextureProxy to avoid disconnecting
+            // the signal too late.
+            if (d->textureChangedConnection)
+                QObject::disconnect(d->textureChangedConnection);
+
+            d->textureChangedConnection = connect(tp, &QSGTextureProvider::textureChanged,
+                                                  this, &WQuickTextureProxy::update, Qt::SingleShotConnection);
+            d->connectionMutex.unlock();
         }
         delete old;
         return nullptr;

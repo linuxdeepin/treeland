@@ -6,6 +6,9 @@
 #include "wquicktextureproxy.h"
 #include "private/wglobal_p.h"
 
+#include <QMetaObject>
+#include <QMutex>
+
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
 class Q_DECL_HIDDEN WQuickTextureProxyPrivate : public WObjectPrivate
@@ -28,6 +31,8 @@ public:
     QRectF sourceRect;
     bool hideSource = false;
     bool mipmap = false;
+    QMetaObject::Connection textureChangedConnection;
+    QMutex connectionMutex;
 };
 
 WAYLIB_SERVER_END_NAMESPACE
