@@ -25,7 +25,7 @@ class QW_CLASS_OBJECT(data_control_manager_v1)
     QW_SIGNAL(new_device, wlr_data_control_device_v1*)
 
 public:
-    QW_FUNC_STATIC(data_control_manager_v1, create, qw_data_control_manager_v1 *, wl_display *display);
+    QW_FUNC_STATIC(data_control_manager_v1, create, qw_data_control_manager_v1 *, wl_display *display)
 };
 
 QW_END_NAMESPACE

@@ -99,7 +99,7 @@ public:
         Full = Mapped | UnMinimized | HasInitializeContainer,
     };
     Q_ENUM(ActiveControlState);
-    Q_DECLARE_FLAGS(ActiveControlStates, ActiveControlState);
+    Q_DECLARE_FLAGS(ActiveControlStates, ActiveControlState)
 
     enum class SurfaceRole
     {
