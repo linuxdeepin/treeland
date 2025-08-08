@@ -102,7 +102,7 @@ Control {
 
                 objectName: "maxOrWindedBtn"
                 sourceComponent: D.WindowButton {
-                    icon.name: surface.isMaximized ? "window_restore" : "window_maximize"
+                    icon.name: surface.shellSurface.isMaximized ? "window_restore" : "window_maximize"
                     textColor: control.textColor
                     height: root.height
                     focusPolicy: Qt.NoFocus
