@@ -34,7 +34,7 @@ public:
 
     WWRAP_HANDLE_FUNCTIONS(qw_input_device, wlr_input_device)
 
-    W_DECLARE_PUBLIC(WInputDevice);
+    W_DECLARE_PUBLIC(WInputDevice)
 
     QPointer<QInputDevice> qtDevice;
     QPointer<QObject> hoverTarget;
