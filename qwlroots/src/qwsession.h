@@ -33,7 +33,7 @@ public:
 
     QW_FUNC_MEMBER(session, open_file, wlr_device *, const char *path)
     QW_FUNC_MEMBER(session, close_file, void, wlr_device *device)
-    QW_FUNC_MEMBER(session, change_vt, bool, unsigned vt);
+    QW_FUNC_MEMBER(session, change_vt, bool, unsigned vt)
     QW_FUNC_MEMBER(session, find_gpus, ssize_t, size_t ret_len, wlr_device **ret)
 
 protected:

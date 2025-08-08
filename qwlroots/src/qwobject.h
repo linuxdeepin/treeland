@@ -161,10 +161,10 @@ public:
 
     template <typename S, typename SS>
     void bind_signal(S s, SS qt_signal) {
-        typedef typename QtPrivate::FunctionPointer<SS>::Object DeriveType;
-        static_assert(std::is_base_of<qw_object, DeriveType>::value,
+        typedef typename QtPrivate::FunctionPointer<SS>::Object SignalObjectType;
+        static_assert(std::is_base_of<qw_object, SignalObjectType>::value,
                       "The signal is not defined in the derive class of qw_object");
-        auto obj = static_cast<DeriveType*>(this);
+        auto obj = static_cast<SignalObjectType*>(this);
         sc.connect(&(obj->handle()->events.*s), obj, qt_signal);
     }
 
