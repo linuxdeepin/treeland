@@ -50,6 +50,7 @@ Q_SIGNALS:
 public Q_SLOTS:
     bool ActivateWayland(QDBusUnixFileDescriptor fd);
     QString XWaylandName();
+    void ActivateSession();
 
 private:
     std::unique_ptr<TreelandPrivate> d_ptr;

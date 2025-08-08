@@ -203,6 +203,9 @@ public:
     void showLockScreen(bool async = true);
 
     Output* getOutputAtCursor() const;
+
+    void activateSession();
+    void deactivateSession();
 public Q_SLOTS:
     void activateSurface(SurfaceWrapper *wrapper, Qt::FocusReason reason = Qt::OtherFocusReason);
     void forceActivateSurface(SurfaceWrapper *wrapper,
