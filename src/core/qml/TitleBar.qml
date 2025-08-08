@@ -69,6 +69,18 @@ Control {
         layer.enabled: !root.noRadius
         layer.smooth: !root.noRadius
         opacity: !root.noRadius ? 0 : parent.opacity
+        Text {
+            readonly property int spacenum: 4
+            anchors {
+                fill: parent
+                leftMargin: spacenum * root.height
+                rightMargin: spacenum * root.height
+            }
+            horizontalAlignment: Text.AlignHCenter
+            verticalAlignment: Text.AlignVCenter
+            text: surface.shellSurface.title
+            elide: Text.ElideRight
+        }
 
         Row {
             anchors {
@@ -102,7 +114,7 @@ Control {
 
                 objectName: "maxOrWindedBtn"
                 sourceComponent: D.WindowButton {
-                    icon.name: surface.isMaximized ? "window_restore" : "window_maximize"
+                    icon.name: surface.shellSurface.isMaximized ? "window_restore" : "window_maximize"
                     textColor: control.textColor
                     height: root.height
                     focusPolicy: Qt.NoFocus
