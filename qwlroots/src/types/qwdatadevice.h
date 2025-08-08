@@ -49,9 +49,9 @@ class QW_CLASS_OBJECT(drag)
     QW_SIGNAL(drop, wlr_drag_drop_event*)
 
 public:
-    QW_FUNC_STATIC(drag, create, qw_drag *, wlr_seat_client *seat_client, wlr_data_source *source, wlr_surface *icon_surface);
+    QW_FUNC_STATIC(drag, create, qw_drag *, wlr_seat_client *seat_client, wlr_data_source *source, wlr_surface *icon_surface)
     QW_FUNC_STATIC(seat, request_start_drag, void, wlr_seat *seat, wlr_drag *drag, wlr_surface *origin, uint32_t serial)
-    QW_FUNC_STATIC(seat, start_drag, void, wlr_seat *seat, wlr_drag *drag, uint32_t serial);
+    QW_FUNC_STATIC(seat, start_drag, void, wlr_seat *seat, wlr_drag *drag, uint32_t serial)
 };
 
 QW_END_NAMESPACE

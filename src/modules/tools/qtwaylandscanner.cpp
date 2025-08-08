@@ -506,6 +506,8 @@ bool Scanner::process()
         printf("QT_WARNING_PUSH\n");
         printf("QT_WARNING_DISABLE_GCC(\"-Wmissing-field-initializers\")\n");
         printf("QT_WARNING_DISABLE_CLANG(\"-Wmissing-field-initializers\")\n");
+        printf("QT_WARNING_DISABLE_GCC(\"-Wreorder\")\n");
+        printf("QT_WARNING_DISABLE_CLANG(\"-Wreorder\")\n");
         QByteArray serverExport;
         if (m_headerPath.size()) {
             serverExport = QByteArray("Q_WAYLAND_SERVER_") + preProcessorProtocolName + "_EXPORT";
@@ -694,6 +696,8 @@ bool Scanner::process()
         printf("QT_BEGIN_NAMESPACE\n");
         printf("QT_WARNING_PUSH\n");
         printf("QT_WARNING_DISABLE_GCC(\"-Wmissing-field-initializers\")\n");
+        printf("QT_WARNING_DISABLE_GCC(\"-Wreorder\")\n");
+        printf("QT_WARNING_DISABLE_CLANG(\"-Wreorder\")\n");
         printf("\n");
         printf("namespace QtWaylandServer {\n");
 
@@ -1145,6 +1149,8 @@ bool Scanner::process()
         printf("QT_BEGIN_NAMESPACE\n");
         printf("QT_WARNING_PUSH\n");
         printf("QT_WARNING_DISABLE_GCC(\"-Wmissing-field-initializers\")\n");
+        printf("QT_WARNING_DISABLE_GCC(\"-Wreorder\")\n");
+        printf("QT_WARNING_DISABLE_CLANG(\"-Wreorder\")\n");
 
         QByteArray clientExport;
 
@@ -1271,6 +1277,8 @@ bool Scanner::process()
         printf("QT_BEGIN_NAMESPACE\n");
         printf("QT_WARNING_PUSH\n");
         printf("QT_WARNING_DISABLE_GCC(\"-Wmissing-field-initializers\")\n");
+        printf("QT_WARNING_DISABLE_GCC(\"-Wreorder\")\n");
+        printf("QT_WARNING_DISABLE_CLANG(\"-Wreorder\")\n");
         printf("\n");
         printf("namespace QtWayland {\n");
         printf("\n");
