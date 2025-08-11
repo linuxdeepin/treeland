@@ -15,10 +15,7 @@
 #include <qwdisplay.h>
 #include <qwoutput.h>
 #include <qwxdgshell.h>
-
-#include <QLoggingCategory>
-
-Q_LOGGING_CATEGORY(qLcTreelandForeignToplevel, "treeland.protocols.foreigntoplevel", QtWarningMsg)
+#include "common/treelandlogging.h"
 
 static ForeignToplevelV1 *FOREIGN_TOPLEVEL_MANAGER = nullptr;
 
@@ -26,7 +23,7 @@ ForeignToplevelV1::ForeignToplevelV1(QObject *parent)
     : QObject(parent)
 {
     if (FOREIGN_TOPLEVEL_MANAGER) {
-        qFatal("There are multiple instances of QuickForeignToplevelManagerV1");
+        qCFatal(treelandProtocol) << "There are multiple instances of QuickForeignToplevelManagerV1";
     }
 
     FOREIGN_TOPLEVEL_MANAGER = this;
@@ -53,7 +50,7 @@ void ForeignToplevelV1::addSurface(SurfaceWrapper *wrapper)
              || wrapper->type() == SurfaceWrapper::Type::XWayland);
 
     if (m_surfaces.contains(wrapper)) {
-        qCCritical(qLcTreelandForeignToplevel)
+        qCCritical(treelandProtocol)
             << wrapper << " has been add to foreign toplevel twice";
         return;
     }
@@ -169,7 +166,7 @@ void ForeignToplevelV1::addSurface(SurfaceWrapper *wrapper)
                     return;
                 }
             }
-            qCCritical(qLcTreelandForeignToplevel)
+            qCCritical(treelandProtocol)
                 << "Xdg toplevel surface " << xdgSurface
                 << "has set parent surface, but foreign_toplevel_handle for "
                    "parent surface not "
@@ -194,7 +191,7 @@ void ForeignToplevelV1::addSurface(SurfaceWrapper *wrapper)
                     return;
                 }
             }
-            qCCritical(qLcTreelandForeignToplevel)
+            qCCritical(treelandProtocol)
                 << "X11 surface " << xwaylandSurface
                 << "has set parent surface, but foreign_toplevel_handle for "
                    "parent surface not "
@@ -205,7 +202,7 @@ void ForeignToplevelV1::addSurface(SurfaceWrapper *wrapper)
                                      updateSurfaceParent);
         updateSurfaceParent();
     } else {
-        qCFatal(qLcTreelandForeignToplevel)
+        qCFatal(treelandProtocol)
             << "TreelandForeignToplevelManager only support WXdgSurface or "
                "WXWaylandSurface";
     }

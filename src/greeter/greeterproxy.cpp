@@ -21,10 +21,10 @@
 #include "greeterproxy.h"
 
 #include "DDMDisplayManager.h"
-#include "greeter/global.h"
 #include "greeter/sessionmodel.h"
 #include "greeter/usermodel.h"
 #include "seat/helper.h"
+#include "common/treelandlogging.h"
 
 #include <DisplayManager.h>
 #include <DisplayManagerSession.h>
@@ -40,7 +40,6 @@
 #include <QLocalSocket>
 #include <QVariantMap>
 
-Q_LOGGING_CATEGORY(greeter, "greeter", QtDebugMsg);
 
 struct SessionInfo
 {
@@ -226,7 +225,7 @@ void GreeterProxy::init()
 void GreeterProxy::login(const QString &user, const QString &password, const int sessionIndex)
 {
     if (!d->socket->isValid()) {
-        qCDebug(greeter) << "Socket is not valid. Local password check.";
+        qCDebug(treelandGreeter) << "Socket is not valid. Local password check.";
         if (localValidation(user, password)) {
             Q_EMIT loginSucceeded(user);
         } else {
@@ -236,7 +235,7 @@ void GreeterProxy::login(const QString &user, const QString &password, const int
     }
 
     if (!d->sessionModel) {
-        qCCritical(greeter) << "Session model is not set.";
+        qCCritical(treelandGreeter) << "Session model is not set.";
         return;
     }
 
@@ -254,7 +253,7 @@ void GreeterProxy::login(const QString &user, const QString &password, const int
 void GreeterProxy::unlock(const QString &user, const QString &password)
 {
     if (!d->socket->isValid()) {
-        qCDebug(greeter) << "Socket is not valid. Local password check.";
+        qCDebug(treelandGreeter) << "Socket is not valid. Local password check.";
         if (localValidation(user, password)) {
             Q_EMIT loginSucceeded(user);
         } else {
@@ -271,13 +270,13 @@ void GreeterProxy::unlock(const QString &user, const QString &password)
 
 void GreeterProxy::logout()
 {
-    qCDebug(greeter) << "Logout.";
+    qCDebug(treelandGreeter) << "Logout.";
     const auto path = currentSessionPath();
     if (path.isEmpty()) {
-        qCWarning(greeter, "No session logged in.");
+        qCWarning(treelandGreeter, "No session logged in.");
         return;
     }
-    qCDebug(greeter) << "Terminate the session" << path;
+    qCDebug(treelandGreeter) << "Terminate the session" << path;
     auto reply = DDBusSender::system()
                      .service("org.freedesktop.login1")
                      .path(path)
@@ -285,7 +284,7 @@ void GreeterProxy::logout()
                      .method("Terminate")
                      .call();
     if (reply.isError()) {
-        qCWarning(greeter) << "Failed to logout, error:" << reply.error().message();
+        qCWarning(treelandGreeter) << "Failed to logout, error:" << reply.error().message();
     }
 }
 
@@ -293,7 +292,7 @@ QString GreeterProxy::currentSessionPath() const
 {
     auto userInfo = userModel()->currentUser();
     if (!userInfo) {
-        qCWarning(greeter) << "No user logged in.";
+        qCWarning(treelandGreeter) << "No user logged in.";
         return {};
     }
 
@@ -305,7 +304,7 @@ QString GreeterProxy::currentSessionPath() const
             .method("ListSessions")
             .call();
     if (sessionsRelpy.isError()) {
-        qCWarning(greeter) << "Failed to logout, error:" << sessionsRelpy.error().message();
+        qCWarning(treelandGreeter) << "Failed to logout, error:" << sessionsRelpy.error().message();
         return {};
     }
 
@@ -343,21 +342,21 @@ void GreeterProxy::activateUser(const QString &user)
 
 void GreeterProxy::connected()
 {
-    qCDebug(greeter) << "Connected to the daemon.";
+    qCDebug(treelandGreeter) << "Connected to the daemon.";
 
     SocketWriter(d->socket) << quint32(GreeterMessages::Connect);
 }
 
 void GreeterProxy::disconnected()
 {
-    qCDebug(greeter) << "Disconnected from the daemon.";
+    qCDebug(treelandGreeter) << "Disconnected from the daemon.";
 
     Q_EMIT socketDisconnected();
 }
 
 void GreeterProxy::error()
 {
-    qCCritical(greeter) << "Socket error: " << d->socket->errorString();
+    qCCritical(treelandGreeter) << "Socket error: " << d->socket->errorString();
 }
 
 void GreeterProxy::onSessionAdded(const QDBusObjectPath &session)
@@ -393,7 +392,7 @@ void GreeterProxy::readyRead()
         switch (DaemonMessages(message)) {
         case DaemonMessages::Capabilities: {
             // log message
-            qCDebug(greeter) << "Message received from daemon: Capabilities";
+            qCDebug(treelandGreeter) << "Message received from daemon: Capabilities";
 
             // read capabilities
             quint32 capabilities;
@@ -414,7 +413,7 @@ void GreeterProxy::readyRead()
             Q_EMIT canHybridSleepChanged(d->canHybridSleep);
         } break;
         case DaemonMessages::HostName: {
-            qCDebug(greeter) << "Message received from daemon: HostName";
+            qCDebug(treelandGreeter) << "Message received from daemon: HostName";
 
             // read host name
             input >> d->hostName;
@@ -426,7 +425,7 @@ void GreeterProxy::readyRead()
             QString user;
             input >> user;
 
-            qCDebug(greeter) << "Message received from daemon: LoginSucceeded:" << user;
+            qCDebug(treelandGreeter) << "Message received from daemon: LoginSucceeded:" << user;
 
             Q_EMIT loginSucceeded(user);
         } break;
@@ -434,7 +433,7 @@ void GreeterProxy::readyRead()
             QString user;
             input >> user;
 
-            qCDebug(greeter) << "Message received from daemon: LoginFailed" << user;
+            qCDebug(treelandGreeter) << "Message received from daemon: LoginFailed" << user;
 
             Q_EMIT loginFailed(user);
         } break;
@@ -442,11 +441,11 @@ void GreeterProxy::readyRead()
             QString message;
             input >> message;
 
-            qCDebug(greeter) << "Information Message received from daemon: " << message;
+            qCDebug(treelandGreeter) << "Information Message received from daemon: " << message;
             Q_EMIT informationMessage(message);
         } break;
         case DaemonMessages::SwitchToGreeter: {
-            qCInfo(greeter) << "switch to greeter";
+            qCInfo(treelandGreeter) << "switch to greeter";
             Helper::instance()->showLockScreen();
             Q_EMIT switchToGreeter();
         } break;
@@ -456,7 +455,7 @@ void GreeterProxy::readyRead()
 
             // NOTE: maybe DDM will active dde user.
             if (!d->userModel->getUser(user)) {
-                qCInfo(greeter) << "activate user, but switch to greeter";
+                qCInfo(treelandGreeter) << "activate user, but switch to greeter";
                 Helper::instance()->showLockScreen();
                 Q_EMIT switchToGreeter();
                 break;
@@ -464,10 +463,10 @@ void GreeterProxy::readyRead()
 
             d->userModel->setCurrentUserName(user);
 
-            qCInfo(greeter) << "activate successfully: " << user;
+            qCInfo(treelandGreeter) << "activate successfully: " << user;
         } break;
         default: {
-            qCWarning(greeter) << "Unknown message received from daemon." << message;
+            qCWarning(treelandGreeter) << "Unknown message received from daemon." << message;
         }
         }
     }
@@ -517,7 +516,7 @@ void GreeterProxy::updateLocketState()
 {
     if (!d->userModel)
         return;
-    qCInfo(greeter) << "Update lock state";
+    qCInfo(treelandGreeter) << "Update lock state";
     bool locked = false;
     if (auto user = d->userModel->currentUser()) {
         locked = user->logined();

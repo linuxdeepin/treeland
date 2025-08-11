@@ -8,6 +8,7 @@
 #include "output/output.h"
 #include "surface/surfacewrapper.h"
 #include "workspace/workspace.h"
+#include "common/treelandlogging.h"
 
 #include <woutput.h>
 #include <woutputitem.h>

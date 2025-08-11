@@ -8,14 +8,12 @@
 #include "seat/helper.h"
 #include "surface/surfacecontainer.h"
 #include "workspace/workspace.h"
+#include "common/treelandlogging.h"
 
 #include <woutputitem.h>
 #include <woutputrenderwindow.h>
 
 #include <QtConcurrentMap>
-#include <QLoggingCategory>
-
-Q_LOGGING_CATEGORY(qLcMultitaskview, "treeland.plugins.multitaskview")
 
 WAYLIB_SERVER_USE_NAMESPACE
 
@@ -224,7 +222,7 @@ void MultitaskviewSurfaceModel::updateZOrder()
 uint MultitaskviewSurfaceModel::prevSameAppIndex(uint index)
 {
     if (index >= count()) {
-        qCWarning(qLcMultitaskview) << "prevSameAppIndex: invalid index" << index << "count:" << count();
+        qCWarning(treelandPlugin) << "prevSameAppIndex: invalid index" << index << "count:" << count();
         return index;
     }
     auto circularPrev = [this](uint i) {
@@ -243,7 +241,7 @@ uint MultitaskviewSurfaceModel::prevSameAppIndex(uint index)
 uint MultitaskviewSurfaceModel::nextSameAppIndex(uint index)
 {
     if (index >= count()) {
-        qCWarning(qLcMultitaskview) << "nextSameAppIndex: invalid index" << index << "count:" << count();
+        qCWarning(treelandPlugin) << "nextSameAppIndex: invalid index" << index << "count:" << count();
         return index;
     }
     auto circularNext = [this](uint i) {

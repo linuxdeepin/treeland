@@ -9,6 +9,7 @@
 #include "surface/surfacewrapper.h"
 #include "workspace/workspace.h"
 #include "cmdline.h"
+#include "common/treelandlogging.h"
 
 #include <wcursor.h>
 #include <winputpopupsurface.h>
@@ -30,8 +31,6 @@
 #define DIFF_APP_OFFSET_FACTOR 2.0
 #define POPUP_EDGE_MARGIN 10
 
-Q_LOGGING_CATEGORY(qLcOutput, "treeland.output")
-
 Output *Output::create(WOutput *output, QQmlEngine *engine, QObject *parent)
 {
     auto isSoftwareCursor = [](WOutput *output) -> bool {
@@ -51,7 +50,7 @@ Output *Output::create(WOutput *output, QQmlEngine *engine, QObject *parent)
             obj,
             [obj, output, isSoftwareCursor]() {
                 auto forceSoftwareCursor = isSoftwareCursor(output);
-                qCInfo(qLcOutput) << "forceSoftwareCursor changed to" << forceSoftwareCursor;
+                qCInfo(treelandOutput) << "forceSoftwareCursor changed to" << forceSoftwareCursor;
                 obj->setProperty("forceSoftwareCursor", forceSoftwareCursor);
             });
 
@@ -578,7 +577,7 @@ void Output::arrangeLayerSurface(SurfaceWrapper *surface)
             setExclusiveZone(Qt::RightEdge, layer, layer->exclusiveZone());
             break;
         default:
-            qCWarning(qLcOutput) << layer->appId()
+            qCWarning(treelandOutput) << layer->appId()
                                  << " has set exclusive zone, but exclusive edge is invalid!";
             break;
         }
@@ -674,7 +673,7 @@ QPointF Output::calculateBasePosition(SurfaceWrapper *surface, const QPointF &dP
 {
     auto parent = surface->parentSurface();
     if (!parent || !parent->surfaceItem()) {
-        qCWarning(qLcOutput) << " Invalid parent surface or surface item!";
+        qCWarning(treelandOutput) << " Invalid parent surface or surface item!";
         return QPointF();
     }
 
@@ -702,7 +701,7 @@ void Output::adjustToOutputBounds(QPointF &pos, const QRectF &normalGeo, const Q
 void Output::handleLayerShellPopup(SurfaceWrapper *surface, const QRectF &normalGeo)
 {
     if (!surface->parentSurface() || !surface->parentSurface()->ownsOutput()) {
-        qCWarning(qLcOutput) << " Invalid LayerShell parent surface!";
+        qCWarning(treelandOutput) << " Invalid LayerShell parent surface!";
         return;
     }
 
@@ -711,7 +710,7 @@ void Output::handleLayerShellPopup(SurfaceWrapper *surface, const QRectF &normal
     auto inputPopupSurface = qobject_cast<WInputPopupSurface *>(surface->shellSurface());
 
     if (!xdgPopupSurfaceItem && !inputPopupSurface) {
-        qCWarning(qLcOutput) << " Invalid popup surface type!";
+        qCWarning(treelandOutput) << " Invalid popup surface type!";
         return;
     }
 
@@ -740,7 +739,7 @@ void Output::handleRegularPopup(SurfaceWrapper *surface, const QRectF &normalGeo
     auto inputPopupSurface = qobject_cast<WInputPopupSurface *>(surface->shellSurface());
 
     if (!xdgPopupSurfaceItem && !inputPopupSurface) {
-        qCWarning(qLcOutput) << " Invalid popup surface type!";
+        qCWarning(treelandOutput) << " Invalid popup surface type!";
         return;
     }
 
