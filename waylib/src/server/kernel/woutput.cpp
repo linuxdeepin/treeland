@@ -28,7 +28,12 @@
 QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
-Q_LOGGING_CATEGORY(qLcOutput, "waylib.server.output", QtWarningMsg)
+// Output management and configuration
+Q_LOGGING_CATEGORY(waylibOutput, "waylib.server.output", QtInfoMsg)
+// Hardware-specific output operations
+Q_LOGGING_CATEGORY(waylibOutputHW, "waylib.server.output.hardware", QtInfoMsg)
+// Buffer and swapchain management
+Q_LOGGING_CATEGORY(waylibOutputBuffer, "waylib.server.output.buffer", QtDebugMsg)
 
 class Q_DECL_HIDDEN WOutputPrivate : public WWrapObjectPrivate
 {
@@ -179,7 +184,7 @@ static bool wlr_drm_format_add(struct wlr_drm_format *fmt, uint64_t modifier) {
 
         uint64_t *new_modifiers = reinterpret_cast<uint64_t*>(realloc(fmt->modifiers, sizeof(*fmt->modifiers) * capacity));
         if (!new_modifiers) {
-            qCritical("Allocation failed");
+            qCCritical(waylibOutputBuffer) << "Failed to allocate memory for DRM format modifiers";
             return false;
         }
 
@@ -233,14 +238,14 @@ static bool output_pick_format(struct wlr_output *output,
     const struct wlr_drm_format_set *render_formats =
         wlr_renderer_get_render_formats(renderer);
     if (render_formats == NULL) {
-        qCritical("Failed to get render formats");
+        qCCritical(waylibOutputHW) << "Failed to get renderer format support information";
         return false;
     }
 
     const struct wlr_drm_format *render_format =
         wlr_drm_format_set_get(render_formats, fmt);
     if (render_format == NULL) {
-        qDebug("Renderer doesn't support format 0x%" PRIX32, fmt);
+        qCDebug(waylibOutputHW) << "Renderer does not support format:" << QString("0x%1").arg(fmt, 0, 16);
         return false;
     }
 
@@ -248,13 +253,13 @@ static bool output_pick_format(struct wlr_output *output,
         const struct wlr_drm_format *display_format =
             wlr_drm_format_set_get(display_formats, fmt);
         if (display_format == NULL) {
-            qDebug("Output doesn't support format 0x%" PRIX32, fmt);
+            qCDebug(waylibOutputHW) << "Output does not support format:" << QString("0x%1").arg(fmt, 0, 16);
             return false;
         }
         if (!wlr_drm_format_intersect(format, display_format, render_format)) {
-            qDebug("Failed to intersect display and render "
-                   "modifiers for format 0x%" PRIX32 " on output %s",
-                   fmt, output->name);
+            qCWarning(waylibOutputHW) << "Failed to find compatible format modifiers for format" 
+                                     << QString("0x%1").arg(fmt, 0, 16) 
+                                     << "on output:" << QString::fromUtf8(output->name);
             return false;
         }
     } else {
@@ -266,7 +271,7 @@ static bool output_pick_format(struct wlr_output *output,
 
     if (format->len == 0) {
         wlr_drm_format_finish(format);
-        qDebug("Failed to pick output format");
+        qCWarning(waylibOutputHW) << "No compatible output format found";
         return false;
     }
 
@@ -284,26 +289,27 @@ static struct wlr_swapchain *create_swapchain(struct wlr_output *output,
         wlr_output_get_primary_formats(output, allocator->buffer_caps);
     struct wlr_drm_format format{};
     if (!output_pick_format(output, display_formats, &format, render_format)) {
-        qDebug("Failed to pick primary buffer format for output '%s'",
-               output->name);
+        qCWarning(waylibOutputBuffer) << "Failed to pick primary buffer format for output:" << QString::fromUtf8(output->name);
         return NULL;
     }
 
     char *format_name = drmGetFormatName(format.format);
-    qDebug("Choosing primary buffer format %s (0x%08" PRIX32 ") for output '%s'",
-           format_name ? format_name : "<unknown>", format.format, output->name);
+    qCInfo(waylibOutputBuffer) << "Selected primary buffer format:" 
+                              << (format_name ? QString::fromUtf8(format_name) : QString("<unknown>"))
+                              << QString("(0x%1)").arg(format.format, 8, 16, QLatin1Char('0'))
+                              << "for output:" << QString::fromUtf8(output->name);
     free(format_name);
 
     if (!allow_modifiers && (format.len != 1 || format.modifiers[0] != DRM_FORMAT_MOD_LINEAR)) {
         if (!wlr_drm_format_has(&format, DRM_FORMAT_MOD_INVALID)) {
-            qDebug("Implicit modifiers not supported");
+            qCWarning(waylibOutputHW) << "No support for implicit modifiers";
             wlr_drm_format_finish(&format);
             return NULL;
         }
 
         format.len = 0;
         if (!wlr_drm_format_add(&format, DRM_FORMAT_MOD_INVALID)) {
-            qDebug("Failed to add implicit modifier to format");
+            qCWarning(waylibOutputHW) << "Failed to add implicit modifier to DRM format";
             wlr_drm_format_finish(&format);
             return NULL;
         }
@@ -346,25 +352,27 @@ static bool wlr_output_configure_primary_swapchain(struct wlr_output *output, in
 
     struct wlr_swapchain *swapchain = create_swapchain(output, width, height, format, true);
     if (swapchain == NULL) {
-        qCritical("Failed to create swapchain for output '%s'", output->name);
+        qCCritical(waylibOutputBuffer) << "Failed to create swapchain for output:" << QString::fromUtf8(output->name);
         return false;
     }
 
     if (test) {
-        qDebug("Testing swapchain for output '%s'", output->name);
+        qCDebug(waylibOutputBuffer) << "Testing swapchain for output:" << QString::fromUtf8(output->name);
         if (!test_swapchain(output, swapchain, state)) {
-            qDebug("Output test failed on '%s', retrying without modifiers",
-                   output->name);
+            qCDebug(waylibOutputBuffer) << "Output test failed for" << QString::fromUtf8(output->name) 
+                                      << "- retrying without modifiers";
             wlr_swapchain_destroy(swapchain);
             swapchain = create_swapchain(output, width, height, format, false);
             if (swapchain == NULL) {
-                qCritical("Failed to create modifier-less swapchain for output '%s'",
-                          output->name);
+                qCCritical(waylibOutputBuffer) << "Failed to create modifier-less swapchain for output:" 
+                                             << QString::fromUtf8(output->name);
                 return false;
             }
-            qDebug("Testing modifier-less swapchain for output '%s'", output->name);
+            qCDebug(waylibOutputBuffer) << "Testing modifier-less swapchain for output:" 
+                                      << QString::fromUtf8(output->name);
             if (!test_swapchain(output, swapchain, state)) {
-                qCritical("Swapchain for output '%s' failed test", output->name);
+                qCCritical(waylibOutputBuffer) << "Swapchain test failed for output:" 
+                                             << QString::fromUtf8(output->name);
                 wlr_swapchain_destroy(swapchain);
                 return false;
             }
@@ -387,7 +395,7 @@ static bool output_pick_cursor_format(struct wlr_output *output,
         display_formats =
             output->impl->get_cursor_formats(output, allocator->buffer_caps);
         if (display_formats == NULL) {
-            qCDebug(qLcOutput, "Failed to get cursor display formats");
+            qCDebug(waylibOutputHW) << "Failed to get cursor display formats from output";
             return false;
         }
     }
@@ -416,7 +424,7 @@ bool WOutput::configureCursorSwapchain(const QSize &size, uint32_t drmFormat, qw
     if (!sc || sc->handle()->width != size.width() || sc->handle()->height != size.height()) {
         wlr_drm_format format = {};
         if (!output_pick_cursor_format(nativeHandle(), &format, drmFormat)) {
-            qCDebug(qLcOutput, "Failed to pick cursor format");
+            qCDebug(waylibOutputHW) << "Failed to select compatible cursor format";
             return false;
         }
 
@@ -424,7 +432,7 @@ bool WOutput::configureCursorSwapchain(const QSize &size, uint32_t drmFormat, qw
         sc = qw_swapchain::create(*allocator(), size.width(), size.height(), &format);
         wlr_drm_format_finish(&format);
         if (!sc) {
-            qCDebug(qLcOutput, "Failed to create cursor swapchain");
+            qCDebug(waylibOutputBuffer) << "Failed to create cursor swapchain with selected format";
             return false;
         }
     }
