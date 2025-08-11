@@ -702,6 +702,12 @@ void Helper::onSurfaceWrapperAdded(SurfaceWrapper *wrapper)
         connect(wrapper, &SurfaceWrapper::aboutToBeInvalidated,
                 attached, &Personalization::deleteLater);
 
+        // Ensure this wrapper is removed from active history when it begins invalidation
+        connect(wrapper, &SurfaceWrapper::aboutToBeInvalidated, this, [this, wrapper] {
+            if (auto ws = workspace())
+                ws->removeActivedSurface(wrapper);
+        });
+
         auto updateNoTitlebar = [this, attached] {
             auto wrapper = attached->surfaceWrapper();
             if (attached->noTitlebar()) {
@@ -897,6 +903,12 @@ void Helper::onSurfaceWrapperAboutToRemove(SurfaceWrapper *wrapper)
     if (!wrapper->skipDockPreView()) {
         m_foreignToplevel->removeSurface(wrapper->shellSurface());
         m_treelandForeignToplevel->removeSurface(wrapper);
+    }
+    // Ensure the wrapper is removed from active history early to avoid cascading on half-invalid entries
+    if (wrapper) {
+        auto ws = workspace();
+        if (ws)
+            ws->removeActivedSurface(wrapper);
     }
 }
 
@@ -1352,24 +1364,26 @@ void Helper::activateSurface(SurfaceWrapper *wrapper, Qt::FocusReason reason)
     WSeat *interactingSeat = m_currentEventSeat ? m_currentEventSeat : getLastInteractingSeat(wrapper);
 
     if (TreelandConfig::ref().blockActivateSurface() && wrapper) {
-        if (wrapper->shellSurface()->hasCapability(WToplevelSurface::Capability::Activate)) {
+        auto sh = wrapper->shellSurface();
+        if (sh && wrapper->surface() && wrapper->surface()->mapped()
+            && sh->hasCapability(WToplevelSurface::Capability::Activate)) {
             workspace()->pushActivedSurface(wrapper);
         }
         return;
     }
 
-    if (!wrapper
-        || !wrapper->shellSurface()->hasCapability(WToplevelSurface::Capability::Activate)) {
-        if (!wrapper)
-            setActivatedSurface(nullptr);
-        // else if wrapper don't have Activate Capability, do nothing
-        // Otherwise, when click the dock, the last activate application will immediately
-        // lose focus, and The dock will reactivate it instead of minimizing it
+    if (!wrapper) {
+        setActivatedSurface(nullptr);
     } else {
-        if (wrapper->hasActiveCapability()) {
-            setActivatedSurface(wrapper);
+        auto sh = wrapper->shellSurface();
+        if (!sh || !sh->hasCapability(WToplevelSurface::Capability::Activate)) {
+            // do nothing; see comment below about dock behavior
         } else {
-            qCritical() << "Try activate a surface which don't have ActiveCapability!";
+            if (wrapper->hasActiveCapability()) {
+                setActivatedSurface(wrapper);
+            } else {
+                qCritical() << "Try activate a surface which don't have ActiveCapability!";
+            }
         }
     }
 
@@ -1843,7 +1857,10 @@ bool Helper::afterHandleEvent(WSeat *seat,
                     }
                 }
 
-                if (surface->shellSurface()->hasCapability(WToplevelSurface::Capability::Focus)) {
+                if (auto sh = surface->shellSurface();
+                    sh && surface->surface() && surface->surface()->mapped()
+                    && sh->hasCapability(WToplevelSurface::Capability::Focus)
+                    && surface->hasActiveCapability()) {
                     surface->setActivate(true);
                     surface->stackToLast();
                     workspace()->pushActivedSurface(surface);
@@ -2092,7 +2109,7 @@ void Helper::setActivatedSurface(SurfaceWrapper *newActivateSurface)
         }
     }
 
-    if (m_activatedSurface)
+    if (m_activatedSurface && m_activatedSurface->shellSurface())
         m_activatedSurface->setActivate(false);
 
     if (newActivateSurface) {
@@ -2103,7 +2120,10 @@ void Helper::setActivatedSurface(SurfaceWrapper *newActivateSurface)
         }
 
         newActivateSurface->setActivate(true);
-        workspace()->pushActivedSurface(newActivateSurface);
+        if (auto sh = newActivateSurface->shellSurface();
+            sh && newActivateSurface->surface() && newActivateSurface->surface()->mapped()) {
+            workspace()->pushActivedSurface(newActivateSurface);
+        }
     }
     m_activatedSurface = newActivateSurface;
     Q_EMIT activatedSurfaceChanged();
@@ -2806,10 +2826,12 @@ void Helper::setActivatedSurfaceForSeat(WSeat *seat, SurfaceWrapper *surface)
         currentSurface->setActivate(false);
     }
 
-    if (surface) {
+    if (surface && surface->shellSurface()) {
         surface->setActivate(true);
         surface->stackToLast();
-        workspace()->pushActivedSurface(surface);
+        if (auto sh = surface->shellSurface(); sh && surface->surface() && surface->surface()->mapped()) {
+            workspace()->pushActivedSurface(surface);
+        }
     }
 
     m_seatActivatedSurfaces[seat] = surface;
