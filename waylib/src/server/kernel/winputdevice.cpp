@@ -16,6 +16,9 @@
 QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
+// Input device management and events
+Q_LOGGING_CATEGORY(waylibInput, "waylib.server.input", QtInfoMsg)
+
 class Q_DECL_HIDDEN WInputDevicePrivate : public WWrapObjectPrivate
 {
 public:
@@ -27,9 +30,13 @@ public:
     }
 
     void instantRelease() override {
-        handle()->set_data(nullptr, nullptr);
-        if (seat)
-            seat->detachInputDevice(q_func());
+        if (handle()) {
+            qCDebug(waylibInput) << "Releasing input device:" 
+                                << QString::fromUtf8(nativeHandle()->name);
+            handle()->set_data(nullptr, nullptr);
+            if (seat)
+                seat->detachInputDevice(q_func());
+        }
     }
 
     WWRAP_HANDLE_FUNCTIONS(qw_input_device, wlr_input_device)
@@ -78,15 +85,19 @@ WInputDevice::Type WInputDevice::type() const
     case WLR_INPUT_DEVICE_SWITCH: return Type::Switch;
     }
 
-    // TODO: use qCWarning
-    qWarning("Unknow input device type %i\n", d->nativeHandle()->type);
+    qCWarning(waylibInput) << "Unknown input device type:" << d->nativeHandle()->type 
+                          << "from device:" << QString::fromUtf8(d->nativeHandle()->name);
     return Type::Unknow;
 }
 
 void WInputDevice::setSeat(WSeat *seat)
 {
     W_D(WInputDevice);
-    d->seat = seat;
+    if (d->seat != seat) {
+        qCDebug(waylibInput) << "Input device" << QString::fromUtf8(d->nativeHandle()->name) 
+                            << "assigned to seat:" << (seat ? seat->name() : QString("(null)"));
+        d->seat = seat;
+    }
 }
 
 WSeat *WInputDevice::seat() const
@@ -98,7 +109,12 @@ WSeat *WInputDevice::seat() const
 void WInputDevice::setQtDevice(QInputDevice *device)
 {
     W_D(WInputDevice);
-    d->qtDevice = device;
+    if (d->qtDevice != device) {
+        qCDebug(waylibInput) << "Qt device" << (device ? device->name() : QString("(null)"))
+                            << "associated with input device:" 
+                            << QString::fromUtf8(d->nativeHandle()->name);
+        d->qtDevice = device;
+    }
 }
 
 QInputDevice *WInputDevice::qtDevice() const
@@ -111,12 +127,18 @@ void WInputDevice::setExclusiveGrabber(QObject *grabber)
 {
     W_D(WInputDevice);
     auto pointerDevice = qobject_cast<QPointingDevice*>(d->qtDevice);
-    if (!pointerDevice)
+    if (!pointerDevice) {
+        qCDebug(waylibInput) << "Cannot set exclusive grabber: device is not a pointing device";
         return;
+    }
     auto dd = QPointingDevicePrivate::get(pointerDevice);
-    if (dd->activePoints.isEmpty())
+    if (dd->activePoints.isEmpty()) {
+        qCDebug(waylibInput) << "Cannot set exclusive grabber: no active points";
         return;
+    }
     auto firstPoint = dd->activePoints.values().first();
+    qCDebug(waylibInput) << "Setting exclusive grabber" << grabber 
+                         << "for device:" << QString::fromUtf8(d->nativeHandle()->name);
     dd->setExclusiveGrabber(nullptr, firstPoint.eventPoint, grabber);
 }
 

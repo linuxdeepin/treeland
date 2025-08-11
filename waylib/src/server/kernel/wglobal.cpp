@@ -9,12 +9,6 @@
 #include <QCursor>
 #include <QLoggingCategory>
 
-#ifdef QT_DEBUG
-Q_LOGGING_CATEGORY(lcGeneral, "waylib.general", QtDebugMsg);
-#else
-Q_LOGGING_CATEGORY(lcGeneral, "waylib.general", QtInfoMsg);
-#endif
-
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
 WClient *WObject::waylandClient() const
