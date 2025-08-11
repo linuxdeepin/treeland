@@ -33,6 +33,7 @@
 #include "modules/wallpaper-color/wallpapercolor.h"
 #include "core/windowpicker.h"
 #include "workspace/workspace.h"
+#include "common/treelandlogging.h"
 
 #include <xcb/xcb.h>
 #include <xcb/xproto.h>
@@ -155,8 +156,6 @@ static QByteArray readWindowProperty(xcb_connection_t *connection,
     return data;
 }
 
-Q_LOGGING_CATEGORY(qLcHelper, "treeland.helper");
-
 Helper *Helper::m_instance = nullptr;
 
 Helper::Helper(QObject *parent)
@@ -260,7 +259,7 @@ bool Helper::isNvidiaCardPresent()
         return false;
 
     QString deviceName = rhi->driverInfo().deviceName;
-    qCDebug(qLcHelper) << "Graphics Device:" << deviceName;
+    qCDebug(treelandCore) << "Graphics Device:" << deviceName;
 
     return deviceName.contains("NVIDIA", Qt::CaseInsensitive);
 }
@@ -422,7 +421,7 @@ void Helper::setGamma(struct wlr_gamma_control_manager_v1_set_gamma_event *event
     qw_output_state newState;
     newState.set_gamma_lut(ramp_size, r, g, b);
     if (!qwOutput->commit_state(newState)) {
-        qCWarning(qLcHelper) << "Failed to set gamma lut!";
+        qCWarning(treelandCore) << "Failed to set gamma lut!";
         // TODO: use software impl it.
         qw_gamma_control_v1::from(gamma_control)->send_failed_and_destroy();
     }
@@ -997,7 +996,7 @@ void Helper::init()
     m_server->start();
     m_renderer = WRenderHelper::createRenderer(m_backend->handle());
     if (!m_renderer) {
-        qCFatal(qLcHelper) << "Failed to create renderer";
+        qCFatal(treelandCore) << "Failed to create renderer";
     }
 
     m_allocator = qw_allocator::autocreate(*m_backend->handle(), *m_renderer);
@@ -1027,7 +1026,7 @@ void Helper::init()
         m_atomDeepinNoTitlebar =
             internAtom(m_defaultXWayland->xcbConnection(), _DEEPIN_NO_TITLEBAR, false);
         if (!m_atomDeepinNoTitlebar) {
-            qWarning() << "failed internAtom:" << _DEEPIN_NO_TITLEBAR;
+            qCWarning(treelandInput) << "Failed to intern atom:" << _DEEPIN_NO_TITLEBAR;
         }
     });
     xdgOutputManager->setFilter([this] (WClient *client) {
@@ -1049,7 +1048,7 @@ void Helper::init()
         Q_EMIT socketFileChanged();
     } else {
         delete m_socket;
-        qCCritical(qLcHelper) << "Failed to create socket";
+        qCCritical(treelandCore) << "Failed to create socket";
         return;
     }
 
@@ -1100,7 +1099,7 @@ void Helper::init()
 
     m_backend->handle()->start();
 
-    qCInfo(qLcHelper) << "Listing on:" << m_socket->fullServerName();
+    qCInfo(treelandCore) << "Listing on:" << m_socket->fullServerName();
 }
 
 bool Helper::socketEnabled() const
@@ -1113,7 +1112,7 @@ void Helper::setSocketEnabled(bool newEnabled)
     if (m_socket)
         m_socket->setEnabled(newEnabled);
     else
-        qCWarning(qLcHelper) << "Can't set enabled for empty socket!";
+        qCWarning(treelandCore) << "Can't set enabled for empty socket!";
 }
 
 void Helper::activateSurface(SurfaceWrapper *wrapper, Qt::FocusReason reason)
@@ -1135,7 +1134,7 @@ void Helper::activateSurface(SurfaceWrapper *wrapper, Qt::FocusReason reason)
         if (wrapper->hasActiveCapability()) {
             setActivatedSurface(wrapper);
         } else {
-            qCritical() << "Try activate a surface which don't have ActiveCapability!";
+            qCCritical(treelandShell) << "Trying to activate a surface which doesn't have ActiveCapability!";
         }
     }
 
@@ -1148,7 +1147,7 @@ void Helper::activateSurface(SurfaceWrapper *wrapper, Qt::FocusReason reason)
 void Helper::forceActivateSurface(SurfaceWrapper *wrapper, Qt::FocusReason reason)
 {
     if (!wrapper) {
-        qCCritical(qLcHelper) << "Don't force activate to empty surface! do you want `Helper::activeSurface(nullptr)`?";
+        qCCritical(treelandCore) << "Don't force activate to empty surface! do you want `Helper::activeSurface(nullptr)`?";
         return;
     }
 
@@ -1160,7 +1159,7 @@ void Helper::forceActivateSurface(SurfaceWrapper *wrapper, Qt::FocusReason reaso
     }
 
     if (!wrapper->surface()->mapped()) {
-        qCWarning(qLcHelper) << "Can't activate unmapped surface: " << wrapper;
+        qCWarning(treelandCore) << "Can't activate unmapped surface: " << wrapper;
         return;
     }
 
@@ -1725,7 +1724,7 @@ void Helper::handleLockScreen(LockScreenInterface *lockScreen)
 void Helper::onSessionNew(const QString &sessionId, const QDBusObjectPath &sessionPath)
 {
     const auto path = sessionPath.path();
-    qCDebug(qLcHelper) << "Session new, sessionId:" << sessionId << ", sessionPath:" << path;
+    qCDebug(treelandCore) << "Session new, sessionId:" << sessionId << ", sessionPath:" << path;
     QDBusConnection::systemBus().connect("org.freedesktop.login1", path, "org.freedesktop.login1.Session", "Lock", this, SLOT(onSessionLock()));
     QDBusConnection::systemBus().connect("org.freedesktop.login1", path, "org.freedesktop.login1.Session", "Unlock", this, SLOT(onSessionUnLock()));
 }
@@ -1967,7 +1966,7 @@ void Helper::setLockScreenImpl(ILockScreen *impl)
 
     bool dbusConnected = QDBusConnection::systemBus().connect("org.freedesktop.login1", "/org/freedesktop/login1", "org.freedesktop.login1.Manager", "SessionNew", this, SLOT(onSessionNew(const QString &,const QDBusObjectPath &)));
     if (!dbusConnected) {
-        qCWarning(qLcHelper) << "Could not connect to org.freedesktop.login1.Manager SessionNew signal";
+        qCWarning(treelandCore) << "Could not connect to org.freedesktop.login1.Manager SessionNew signal";
     }
 
     if (CmdLine::ref().useLockScreen()) {
@@ -2082,43 +2081,43 @@ Output *Helper::getOutputAtCursor() const
 void Helper::handleNewForeignToplevelCaptureRequest(wlr_ext_foreign_toplevel_image_capture_source_manager_v1_request *request)
 {
     if (!request || !request->toplevel_handle) {
-        qCWarning(qLcImageCapture) << "Invalid capture request or toplevel handle";
+        qCWarning(treelandCapture) << "Invalid capture request or toplevel handle";
         return;
     }
 
     auto *qw_handle = qw_ext_foreign_toplevel_handle_v1::from(request->toplevel_handle);
     WToplevelSurface *toplevelSurface = m_extForeignToplevelListV1->findSurfaceByHandle(qw_handle);
     if (!toplevelSurface) {
-        qCWarning(qLcImageCapture) << "Could not find toplevel surface for handle";
+        qCWarning(treelandCapture) << "Could not find toplevel surface for handle";
         return;
     }
     
     SurfaceWrapper *surfaceWrapper = m_rootSurfaceContainer->getSurface(toplevelSurface);
     if (!surfaceWrapper) {
-        qCWarning(qLcImageCapture) << "Could not find SurfaceWrapper for toplevel surface";
+        qCWarning(treelandCapture) << "Could not find SurfaceWrapper for toplevel surface";
         return;
     }
     
     WSurfaceItem *surfaceItem = surfaceWrapper->surfaceItem();
     if (!surfaceItem) {
-        qCWarning(qLcImageCapture) << "Could not get WSurfaceItem from SurfaceWrapper";
+        qCWarning(treelandCapture) << "Could not get WSurfaceItem from SurfaceWrapper";
         return;
     }
     
     WSurfaceItemContent *surfaceContent = surfaceItem->findItemContent();
     if (!surfaceContent) {
-        qCWarning(qLcImageCapture) << "Could not find WSurfaceItemContent";
+        qCWarning(treelandCapture) << "Could not find WSurfaceItemContent";
         return;
     }
 
-    qCDebug(qLcImageCapture) << "Found WSurfaceItemContent for capture:"
+    qCDebug(treelandCapture) << "Found WSurfaceItemContent for capture:"
              << "size=" << surfaceContent->size()
              << "implicitSize=" << QSizeF(surfaceContent->implicitWidth(), surfaceContent->implicitHeight())
              << "isTextureProvider=" << surfaceContent->isTextureProvider();
 
     auto *output = surfaceWrapper->ownsOutput()->output();
     if (!output) {
-        qCWarning(qLcImageCapture) << "Could not get WOutput from SurfaceWrapper";
+        qCWarning(treelandCapture) << "Could not get WOutput from SurfaceWrapper";
         return;
     }
 
@@ -2128,7 +2127,7 @@ void Helper::handleNewForeignToplevelCaptureRequest(wlr_ext_foreign_toplevel_ima
         request, *imageCaptureSource);
 
     if (!success) {
-        qCWarning(qLcImageCapture) << "Failed to accept foreign toplevel image capture request";
+        qCWarning(treelandCapture) << "Failed to accept foreign toplevel image capture request";
         delete imageCaptureSource;
     }
 }

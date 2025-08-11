@@ -7,13 +7,13 @@
 #include "output/output.h"
 #include "seat/helper.h"
 #include "surface/surfacewrapper.h"
+#include "common/treelandlogging.h"
 
 #include <wlayersurface.h>
 #include <woutputitem.h>
 
 WAYLIB_SERVER_USE_NAMESPACE
 
-Q_LOGGING_CATEGORY(qLcLayer, "treeland.shell.layerContainer")
 
 OutputLayerSurfaceContainer::OutputLayerSurfaceContainer(Output *output,
                                                          LayerSurfaceContainer *parent)
@@ -126,7 +126,7 @@ void LayerSurfaceContainer::addSurfaceToContainer(SurfaceWrapper *surface)
         : rootContainer()->primaryOutput() ? rootContainer()->primaryOutput()->output()
                                            : nullptr;
     if (!output) {
-        qCWarning(qLcLayer) << "No output, will close layer surface!";
+        qCWarning(treelandShell) << "No output, will close layer surface!";
         shell->closed();
         return;
     }

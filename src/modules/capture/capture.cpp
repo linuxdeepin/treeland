@@ -8,6 +8,7 @@
 #include "seat/helper.h"
 #include "surface/surfacewrapper.h"
 #include "workspace/workspace.h"
+#include "common/treelandlogging.h"
 
 #include <private/qquickitem_p.h>
 
@@ -29,8 +30,6 @@
 #include <QSGTextureProvider>
 
 #include <utility>
-
-Q_LOGGING_CATEGORY(qLcCapture, "treeland.capture")
 
 static inline QRectF scaledRect(const QRectF &rect, qreal devicePixelRatio)
 {
@@ -246,7 +245,7 @@ void CaptureContextV1::handleSessionStart()
                         &CaptureContextV1::handleRenderEnd,
                         Qt::AutoConnection);
     if (!conn) {
-        qCWarning(qLcCapture()) << "Cannot connect to render end of output render window.";
+        qCWarning(treelandCapture) << "Cannot connect to render end of output render window.";
     }
     if (!outputRenderWindow()->inRendering()) {
         QMetaObject::invokeMethod(this, &CaptureContextV1::handleRenderEnd, Qt::AutoConnection);
@@ -262,7 +261,7 @@ void CaptureContextV1::handleFrameDone(uint32_t tvSecHi, uint32_t tvSecLo, uint3
         // closed as soon as backing buffer is destroyed. We should not close fd here.
         m_currentFrameData.acked = true;
     } else {
-        qCWarning(qLcCapture())
+        qCWarning(treelandCapture)
             << "Receive a frame done event that is not corresponding to current frame timestamp.";
     }
 }
@@ -290,7 +289,7 @@ void CaptureContextV1::handleRenderEnd()
     Q_ASSERT(source);
     auto dmabuf = source->sourceDMABuffer();
     if (!dmabuf) {
-        qCWarning(qLcCapture()) << "Source has been invalid while connection still exists.";
+        qCWarning(treelandCapture) << "Source has been invalid while connection still exists.";
         return;
     }
     m_currentFrameData = {};
@@ -307,8 +306,8 @@ void CaptureContextV1::handleRenderEnd()
         };
     } modifierUnion(m_currentFrameData.attribs.modifier);
 
-    qInfo() << "session:" << session();
-    qInfo() << "session resource:" << session()->resource;
+    qCInfo(treelandCapture) << "Session:" << session();
+    qCInfo(treelandCapture) << "Session resource:" << session()->resource;
     treeland_capture_session_v1_send_frame(session()->resource,
                                            source->cropRect().x(),
                                            source->cropRect().y(),
@@ -757,7 +756,7 @@ qw_buffer *CaptureSourceSurface::internalBuffer()
             return m_surfaceItemContent->surface()->buffer();
         }
     } else {
-        qWarning() << "The first source has been invalid";
+        qCWarning(treelandCapture) << "The first source has been invalidated";
         return nullptr;
     }
 }
@@ -789,7 +788,7 @@ void CaptureSourceSelector::setSelectedSource(CaptureSource *newSelectedSource, 
 {
     if (m_selectedSource == newSelectedSource)
         return;
-    qCDebug(qLcCapture()) << "Set selected source to" << newSelectedSource;
+    qCDebug(treelandCapture) << "Set selected source to" << newSelectedSource;
     m_selectedSource = newSelectedSource;
     if (m_selectedSource) {
         m_captureManager->contextInSelection()->setSource(m_selectedSource, region);
@@ -906,7 +905,7 @@ void CaptureSource::createImage()
                 Q_EMIT imageReady();
             })
             .onFailed([](const std::exception &e) {
-                qCCritical(qLcCapture) << e.what();
+                qCCritical(treelandCapture) << e.what();
             });
     } else {
         // TODO: support multiple sources
@@ -1070,7 +1069,7 @@ void CaptureSourceSelector::setSelectionMode(const SelectionMode &newSelectionMo
         || captureSourceHint().testAnyFlags(selectionModeHint(newSelectionMode))) {
         doSetSelectionMode(newSelectionMode);
     } else {
-        qCWarning(qLcCapture()) << "Trying to set selection mode not support, discarded.";
+        qCWarning(treelandCapture) << "Trying to set selection mode not support, discarded.";
     }
 }
 

@@ -4,7 +4,7 @@
 
 #include "user.h"
 
-#include "greeter/global.h"
+#include "common/treelandlogging.h"
 
 #include <QObject>
 #include <QUrl>
@@ -49,7 +49,7 @@ User::User(AccountsUserPtr ptr)
     d->inter = std::move(ptr);
 
     if (!d->inter) {
-        qCFatal(greeter) << "connect to AccountService Failed";
+        qCFatal(treelandGreeter) << "connect to AccountService Failed";
     }
 
     connect(d->inter.data(), &DAccountsUser::userDataChanged, [this] {
@@ -150,7 +150,7 @@ QString User::toString(AccountTypes type) noexcept
     case AccountTypes::Default:
         return tr("Standard User");
     default:
-        qCWarning(greeter) << "ignore other types.";
+        qCWarning(treelandGreeter) << "ignore other types.";
     }
 
     return {};
