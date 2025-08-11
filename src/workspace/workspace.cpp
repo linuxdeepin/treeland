@@ -376,7 +376,10 @@ void Workspace::removeActivedSurface(SurfaceWrapper *surface)
             wpModle->removeActivedSurface(surface);
         m_showOnAllWorkspaceModel->removeActivedSurface(surface);
     } else {
-        auto wpModle = modelFromId(surface->workspaceId());
+        int workspaceId = surface->workspaceId();
+        if (workspaceId == -1)
+            return;
+        auto wpModle = modelFromId(workspaceId);
         Q_ASSERT(wpModle);
         wpModle->removeActivedSurface(surface);
     }
