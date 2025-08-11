@@ -15,7 +15,6 @@
 
 #include <QLoggingCategory>
 
-Q_LOGGING_CATEGORY(wallpaperImage, "treeland.wallpaperimage")
 
 WAYLIB_SERVER_USE_NAMESPACE
 

@@ -19,7 +19,7 @@
 
 #include "usermodel.h"
 
-#include "global.h"
+#include "common/treelandlogging.h"
 
 #include <Configuration.h>
 
@@ -60,12 +60,12 @@ UserModel::UserModel(QObject *parent)
     connect(this, &UserModel::currentUserNameChanged, [this] {
         auto user = getUser(d->currentUserName);
         if (!user) {
-            qCWarning(greeter) << "couldn't find user:" << d->currentUserName;
+            qCWarning(treelandGreeter) << "Couldn't find user:" << d->currentUserName;
             return;
         }
 
         auto locale = user->locale();
-        qCInfo(greeter) << "current locale:" << locale.language();
+        qCInfo(treelandGreeter) << "Current locale:" << locale.language();
         auto *newTrans = new QTranslator{ this };
         auto dirs = QStandardPaths::standardLocations(QStandardPaths::GenericDataLocation);
         for (const auto &dir : dirs) {
@@ -84,7 +84,7 @@ UserModel::UserModel(QObject *parent)
         }
 
         newTrans->deleteLater();
-        qCWarning(greeter) << "failed to load new translator under" << dirs.last();
+        qCWarning(treelandGreeter) << "Failed to load new translator under" << dirs.last();
     });
 
     auto userList = d->manager.userList();
@@ -95,7 +95,7 @@ UserModel::UserModel(QObject *parent)
     for (auto uid : userList.value()) {
         auto user = d->manager.findUserById(uid);
         if (!user) {
-            qWarning() << user.error();
+            qCWarning(treelandGreeter) << "Failed to find user by ID:" << user.error();
             continue;
         }
 
@@ -121,7 +121,7 @@ UserModel::UserModel(QObject *parent)
     }
 
     if (d->currentUserName.isEmpty()) {
-        qCWarning(greeter) << "couldn't find last user, use current running user as current user";
+        qCWarning(treelandGreeter) << "Couldn't find last user, using current running user as current user";
         d->currentUserName = d->users.first()->userName();
     }
 }
@@ -329,7 +329,7 @@ void UserModel::onUserAdded(quint64 uid)
 {
     auto newUser = d->manager.findUserById(uid);
     if (!newUser) {
-        qCWarning(greeter) << "user " << uid << " has been added but couldn't find it.";
+        qCWarning(treelandGreeter) << "User" << uid << "has been added but couldn't find it.";
         return;
     }
 

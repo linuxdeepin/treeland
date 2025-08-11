@@ -10,6 +10,7 @@
 #include <qwseat.h>
 
 #include <cassert>
+#include "common/treelandlogging.h"
 
 using QW_NAMESPACE::qw_display, QW_NAMESPACE::qw_output;
 
@@ -649,7 +650,7 @@ static void treeland_dock_preview_context_handle_show([[maybe_unused]] struct wl
     }
 
     if (!surfaces->size)
-        qCritical() << "get empty surface to dock preview!";
+        qCCritical(treelandProtocol) << "Got empty surface list for dock preview!";
 
     treeland_dock_preview_context_v1_preview_event event = {
         .toplevel = dock_preview,

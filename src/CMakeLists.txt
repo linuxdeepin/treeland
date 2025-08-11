@@ -80,6 +80,8 @@ qt_add_qml_module(libtreeland
         ${DBUS_ADAPTOR}
         ${DDM_DBUS_SOURCES}
         ${DBUS_INTERFACE}
+        common/treelandlogging.cpp
+        common/treelandlogging.h
         config/treelandconfig.cpp
         config/treelandconfig.h
         core/layersurfacecontainer.cpp
@@ -103,7 +105,6 @@ qt_add_qml_module(libtreeland
         effects/tsgradiusimagenode.h
         $<$<NOT:$<BOOL:${DISABLE_DDM}>>:core/lockscreen.h>
         $<$<NOT:$<BOOL:${DISABLE_DDM}>>:core/lockscreen.cpp>
-        $<$<NOT:$<BOOL:${DISABLE_DDM}>>:greeter/global.h>
         $<$<NOT:$<BOOL:${DISABLE_DDM}>>:greeter/greeterproxy.cpp>
         $<$<NOT:$<BOOL:${DISABLE_DDM}>>:greeter/greeterproxy.h>
         $<$<NOT:$<BOOL:${DISABLE_DDM}>>:greeter/sessionmodel.cpp>
