@@ -5,8 +5,7 @@
 
 #include "tquickradiuseffect_p.h"
 #include "tsgradiusimagenode.h"
-
-Q_LOGGING_CATEGORY(qLcEffect, "treeland.shader.radiusEffect")
+#include "common/treelandlogging.h"
 
 void TQuickRadiusEffectPrivate::maybeSetImplicitAntialiasing()
 {
@@ -293,7 +292,7 @@ void TQuickRadiusEffect::setSourceItem(QQuickItem *item)
                     this,
                     SLOT(sourceItemDestroyed(QObject *)));
         } else {
-            qCWarning(qLcEffect) << "TRadiusEffect: sourceItem and TRadiusEffect must both be "
+            qCWarning(treelandEffect) << "TRadiusEffect: sourceItem and TRadiusEffect must both be "
                                     "children of the "
                                     "same window.";
             d->sourceItem = nullptr;

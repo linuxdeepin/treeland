@@ -7,6 +7,7 @@
 #include "core/qmlengine.h"
 #include "output/output.h"
 #include "workspace/workspace.h"
+#include "common/treelandlogging.h"
 
 #include <winputpopupsurfaceitem.h>
 #include <wlayersurface.h>
@@ -25,8 +26,6 @@
 #define OPEN_ANIMATION 1
 #define CLOSE_ANIMATION 2
 #define ALWAYSONTOPLAYER 1
-
-Q_LOGGING_CATEGORY(qLcSurfaceWrapper, "treeland.shell.surfaceWrapper")
 
 SurfaceWrapper::SurfaceWrapper(QmlEngine *qmlEngine,
                                WToplevelSurface *shellSurface,
@@ -1607,7 +1606,7 @@ bool SurfaceWrapper::skipDockPreView() const
 void SurfaceWrapper::setSkipDockPreView(bool skip)
 {
     if (m_type != Type::XdgToplevel && m_type != Type::XWayland) {
-        qCWarning(qLcSurfaceWrapper) << "Only xdgtoplevel and x11 surface can `setSkipDockPreView`";
+        qCWarning(treelandSurface) << "Only xdgtoplevel and x11 surface can `setSkipDockPreView`";
         return;
     }
 
