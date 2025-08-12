@@ -545,12 +545,7 @@ void OutputHelper::cleanLayerCompositor()
         if (!proxy)
             continue;
 
-        WBufferRenderer *source = qobject_cast<WBufferRenderer*>(proxy->sourceItem());
         proxy->setRenderer(nullptr);
-
-        if (source) {
-            source->resetTextureProvider();
-        }
     }
 
     if (m_output2) {
