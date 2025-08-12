@@ -112,7 +112,6 @@ private:
         return m_cacheBuffer || !m_cacheBufferLocker.isEmpty();
     }
 
-    void resetTextureProvider();
     void updateTextureProvider();
     QSGNode *updatePaintNode(QSGNode *oldNode, UpdatePaintNodeData *data) override;
 
