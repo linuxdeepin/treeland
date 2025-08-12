@@ -640,19 +640,17 @@ void WBufferRenderer::componentComplete()
     QQuickItem::componentComplete();
 }
 
-void WBufferRenderer::resetTextureProvider()
-{
-    if (m_textureProvider)
-        m_textureProvider->setBuffer(nullptr);
-}
-
 void WBufferRenderer::updateTextureProvider()
 {
     if (!m_textureProvider)
         return;
 
-    if (shouldCacheBuffer() && m_textureProvider->qwBuffer() != m_lastBuffer) {
-        m_textureProvider->setBuffer(m_lastBuffer);
+    if (shouldCacheBuffer()) {
+        const bool hasCachedBuffer = m_textureProvider->qwBuffer();
+        // Ensuse only update the buffer when the "shouldCacheBuffer" state is changed.
+        // If the state is not changed, the buffer is update in the WBufferRenderer::render.
+        if (!hasCachedBuffer && m_lastBuffer)
+            m_textureProvider->setBuffer(m_lastBuffer);
     } else {
         m_textureProvider->setBuffer(nullptr);
     }
