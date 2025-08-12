@@ -485,5 +485,10 @@ bool wlr_backend_commit(struct wlr_backend *backend,
 		output_apply_commit(state->output, &state->base);
 	}
 
+	for (size_t i = 0; i < states_len; i++) {
+		const struct wlr_backend_output_state *state = &states[i];
+		output_send_commit_event(state->output, &state->base);
+	}
+
 	return true;
 }

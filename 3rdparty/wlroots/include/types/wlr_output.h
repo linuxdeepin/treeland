@@ -27,6 +27,7 @@ void output_defer_present(struct wlr_output *output, struct wlr_output_event_pre
 
 bool output_prepare_commit(struct wlr_output *output, const struct wlr_output_state *state);
 void output_apply_commit(struct wlr_output *output, const struct wlr_output_state *state);
+void output_send_commit_event(struct wlr_output *output, const struct wlr_output_state *state);
 
 void output_state_get_buffer_src_box(const struct wlr_output_state *state,
 	struct wlr_fbox *out);

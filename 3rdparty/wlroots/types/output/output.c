@@ -759,7 +759,9 @@ void output_apply_commit(struct wlr_output *output, const struct wlr_output_stat
 	}
 
 	output_apply_state(output, state);
+}
 
+void output_send_commit_event(struct wlr_output *output, const struct wlr_output_state *state) {
 	struct timespec now;
 	clock_gettime(CLOCK_MONOTONIC, &now);
 	struct wlr_output_event_commit event = {
@@ -801,6 +803,7 @@ bool wlr_output_commit_state(struct wlr_output *output,
 	}
 
 	output_apply_commit(output, &pending);
+	output_send_commit_event(output, &pending);
 
 	if (new_back_buffer) {
 		wlr_buffer_unlock(pending.buffer);
