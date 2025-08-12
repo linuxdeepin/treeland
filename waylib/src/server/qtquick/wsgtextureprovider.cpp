@@ -106,8 +106,11 @@ WOutputRenderWindow *WSGTextureProvider::window() const
 
 void WSGTextureProvider::setBuffer(qw_buffer *buffer)
 {
-    if (buffer && buffer == qwBuffer()) {
-        Q_EMIT textureChanged();
+    if (buffer == qwBuffer()) {
+        // The buffer object is not changed, but maybe the buffer's content is changed.
+        // So should emit textureChanged() signal too.
+        if (buffer)
+            Q_EMIT textureChanged();
         return;
     }
 
