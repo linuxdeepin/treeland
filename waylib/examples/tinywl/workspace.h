@@ -20,7 +20,8 @@ class Workspace : public SurfaceContainer
 public:
     explicit Workspace(SurfaceContainer *parent);
 
-    Q_INVOKABLE void addSurface(SurfaceWrapper *surface, int workspaceIndex = -1);
+    void addSurface(SurfaceWrapper *surface) override;
+    Q_INVOKABLE void addSurface(SurfaceWrapper *surface, int workspaceIndex);
     void removeSurface(SurfaceWrapper *surface) override;
     int containerIndexOfSurface(SurfaceWrapper *surface) const;
 
