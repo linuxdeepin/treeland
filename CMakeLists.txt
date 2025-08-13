@@ -36,6 +36,9 @@ if (ADDRESS_SANITIZER)
     add_link_options(-fsanitize=address)
 endif()
 add_compile_options(-Wall -Wextra)
+add_compile_options(-Werror)
+# Temporarily disable array-bounds warning due to false positive with Qt DBus and GCC 14.3
+add_compile_options(-Wno-error=array-bounds)
 # NOTE: Qt keywords conflict with wlroots. but dtksystemsettings still uses it.
 # add_definitions("-DQT_NO_KEYWORDS")
 

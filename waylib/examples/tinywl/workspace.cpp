@@ -19,6 +19,11 @@ Workspace::Workspace(SurfaceContainer *parent)
     createContainer(QStringLiteral("workspace-%1").arg(++workspaceGlobalIndex));
 }
 
+void Workspace::addSurface(SurfaceWrapper *surface)
+{
+    addSurface(surface, m_currentIndex);
+}
+
 void Workspace::addSurface(SurfaceWrapper *surface, int workspaceIndex)
 {
     doAddSurface(surface, true);
