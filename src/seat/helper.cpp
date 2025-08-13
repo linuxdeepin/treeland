@@ -319,7 +319,7 @@ void Helper::onOutputAdded(WOutput *output)
 {
     // TODO: 应该让helper发出Output的信号，每个需要output的单元单独connect。
     allowNonDrmOutputAutoChangeMode(output);
-    Output *o;
+    Output *o = nullptr;
     if (m_mode == OutputMode::Extension || !m_rootSurfaceContainer->primaryOutput()) {
         o = createNormalOutput(output);
     } else if (m_mode == OutputMode::Copy) {
@@ -1795,7 +1795,7 @@ void Helper::setOutputMode(OutputMode mode)
     for (int i = 0; i < m_outputList.size(); i++) {
         if (m_outputList.at(i) == m_rootSurfaceContainer->primaryOutput())
             continue;
-        Output *o;
+        Output *o = nullptr;
         if (mode == OutputMode::Copy) {
             o = createCopyOutput(m_outputList.at(i)->output(),
                                  m_rootSurfaceContainer->primaryOutput());
