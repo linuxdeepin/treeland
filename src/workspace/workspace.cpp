@@ -329,8 +329,8 @@ void Workspace::doSetCurrentIndex(int newCurrentIndex)
 
 void Workspace::startPreviewing(SurfaceWrapper *previewingItem)
 {
-    if (m_previewingItem) {
-        // TODO: don't use QPointer, should watch SurfaceWrapper::aboutToBeInvalidated
+    if (m_previewingItem && m_previewingItem->shellSurface() ) {
+        // Check shellSurface() since SurfaceWrapper::aboutToBeInvalidated can't make QPointer null in time
         auto modle = modelFromId(m_previewingItem->workspaceId());
         m_previewingItem->setOpacity(modle->opaque() ? 1.0 : 0.0);
         m_previewingItem->setHideByWorkspace(!modle->visible());
