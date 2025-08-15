@@ -89,7 +89,7 @@ int main(int argc, char *argv[])
     QObject::connect(&engine,
                      &QQmlApplicationEngine::objectCreated,
                      manager,
-                     [&app, manager, captureWithMask](QObject *object, const QUrl &url) {
+                     [&app, manager, captureWithMask](QObject *object, const QUrl &) {
                          if (auto canvasWindow = qobject_cast<QQuickWindow *>(object)) {
                              auto waylandWindow = static_cast<QtWaylandClient::QWaylandWindow *>(
                                  canvasWindow->handle());

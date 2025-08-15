@@ -95,7 +95,7 @@ int main(int argc, char *argv[])
             if (!seat)
                 qFatal("Failed to get wl_seat from QtWayland QPA!");
 
-            TreelandDDEActiveV1 *active =
+            [[maybe_unused]] TreelandDDEActiveV1 *active =
                 new TreelandDDEActiveV1(manager->get_treeland_dde_active(seat));
         }
     });

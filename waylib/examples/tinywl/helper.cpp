@@ -165,7 +165,7 @@ void Helper::init()
     auto wOutputManager = m_server->attach<WOutputManagerV1>();
     connect(m_backend, &WBackend::outputAdded, this, [this, wOutputManager] (WOutput *output) {
         allowNonDrmOutputAutoChangeMode(output);
-        Output *o;
+        Output *o = nullptr;
         if (m_mode == OutputMode::Extension || !m_surfaceContainer->primaryOutput()) {
             o = Output::createPrimary(output, qmlEngine(), this);
             o->outputItem()->stackBefore(m_surfaceContainer);
@@ -173,6 +173,7 @@ void Helper::init()
         } else if (m_mode == OutputMode::Copy) {
             o = Output::createCopy(output, m_surfaceContainer->primaryOutput(), qmlEngine(), this);
         }
+        Q_ASSERT(o);
 
         m_outputList.append(o);
         enableOutput(output);
@@ -747,7 +748,7 @@ void Helper::setOutputMode(OutputMode mode)
         if (m_outputList.at(i) == m_surfaceContainer->primaryOutput())
             continue;
 
-        Output *o;
+        Output *o = nullptr;
         if (mode == OutputMode::Copy) {
             o = Output::createCopy(m_outputList.at(i)->output(), m_surfaceContainer->primaryOutput(), qmlEngine(), this);
             m_surfaceContainer->removeOutput(m_outputList.at(i));
@@ -757,6 +758,7 @@ void Helper::setOutputMode(OutputMode mode)
             m_surfaceContainer->addOutput(o);
             enableOutput(o->output());
         }
+        Q_ASSERT(o);
 
         m_outputList.at(i)->deleteLater();
         m_outputList.replace(i,o);
