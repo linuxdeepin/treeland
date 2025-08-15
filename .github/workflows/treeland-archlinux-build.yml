@@ -57,43 +57,28 @@ jobs:
           # Try to install DDM from available packages
           pacman -Syu --noconfirm --noprogressbar ddm
 
-      - name: Install treeland-protocols from AUR
+      - name: Build and Install treeland-protocols
         run: |
-          # Install treeland-protocols-git from AUR using makepkg
-          echo "Installing treeland-protocols-git from AUR..."
-
-          # Create a temporary user for makepkg (can't run as root)
-          useradd -m -s /bin/bash aur_builder
-          echo "aur_builder ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
-
-          # Switch to aur_builder and install treeland-protocols-git
-          sudo -u aur_builder bash -c "
-            cd /home/aur_builder
-            git clone https://aur.archlinux.org/treeland-protocols-git.git
-            cd treeland-protocols-git
-            makepkg -si --noconfirm
-          "
-
-          echo "✅ treeland-protocols-git installed from AUR"
+          echo "Building treeland-protocols from source..."
+          git clone https://github.com/linuxdeepin/treeland-protocols.git --depth 1
+          cd treeland-protocols
+          cmake -B build \
+            -DCMAKE_INSTALL_PREFIX=/usr \
+            -DCMAKE_BUILD_TYPE=Release
+          cmake --build build
+          cmake --install build
+          echo "✅ treeland-protocols built and installed from source"
 
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Configure CMake for treeland
+      - name: Configure and Build treeland with ci preset
         run: |
           echo "Working directory:" $PWD
           echo "Configuring treeland with merged waylib and qwlroots code..."
-          # Configuration matches ArchLinux PKGBUILD
-          cmake -B build -G Ninja \
-            -DCMAKE_INSTALL_LIBDIR=lib \
-            -DCMAKE_INSTALL_LIBEXECDIR=lib \
-            -DCMAKE_INSTALL_SYSCONFDIR=/etc \
-            -DCMAKE_INSTALL_PREFIX=/usr
-
-      - name: Build treeland
-        run: |
-          cmake --build build
+          cmake --preset ci
+          cmake --build --preset ci
           echo "✅ treeland built successfully with merged waylib and qwlroots code!"
 
       - name: Install treeland to staging directory
