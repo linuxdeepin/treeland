@@ -11,10 +11,10 @@ DDEShelSurfaceWindow::DDEShelSurfaceWindow(TestMode mode, QWidget *parent)
     : QWidget{ parent }
     , m_mode(mode)
 {
-    QLineEdit *l = new QLineEdit(this);
+    [[maybe_unused]] QLineEdit *l = new QLineEdit(this);
 }
 
-void DDEShelSurfaceWindow::showEvent(QShowEvent *event)
+void DDEShelSurfaceWindow::showEvent([[maybe_unused]] QShowEvent *event)
 {
     if (isVisible()) {
         apply();

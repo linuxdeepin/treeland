@@ -12,7 +12,8 @@ int main(int argc, char *argv[])
 
     QQmlApplicationEngine engine;
 #if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
-    const QUrl url(u"qrc:/qt/qml/pinchhandler/Main.qml"_qs);
+    using namespace Qt::StringLiterals;
+    const QUrl url(u"qrc:/qt/qml/pinchhandler/Main.qml"_s);
 #else
     const QUrl url(u"qrc:/pinchhandler/Main.qml"_qs);
 #endif

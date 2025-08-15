@@ -243,8 +243,13 @@ qw_buffer *WBufferRenderer::lastBuffer() const
 
 QRhiTexture *WBufferRenderer::currentRenderTarget() const
 {
+    if (!state.sgRenderTarget.rt)
+        return nullptr;
     auto textureRT = static_cast<QRhiTextureRenderTarget*>(state.sgRenderTarget.rt);
-    return textureRT->description().colorAttachmentAt(0)->texture();
+    auto colorAttachment = textureRT->description().colorAttachmentAt(0);
+    if (!colorAttachment)
+        return nullptr;
+    return colorAttachment->texture();
 }
 
 const qw_damage_ring *WBufferRenderer::damageRing() const

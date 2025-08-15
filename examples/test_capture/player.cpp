@@ -60,7 +60,7 @@ void Player::setCaptureContext(TreelandCaptureContext *context)
     Q_EMIT captureContextChanged();
 }
 
-QSGNode *Player::updatePaintNode(QSGNode *old, UpdatePaintNodeData *data)
+QSGNode *Player::updatePaintNode(QSGNode *old, [[maybe_unused]] UpdatePaintNodeData *data)
 {
     ensureDebugLogger();
     if (!m_captureContext || !m_captureContext->session()
@@ -119,7 +119,7 @@ static const char *eglGetErrorString(EGLint error)
     }
 }
 
-static const char *drmFormatString(int fourcc)
+[[maybe_unused]] static const char *drmFormatString(int fourcc)
 {
     switch (fourcc) {
         CASE_STR(DRM_FORMAT_R8)
