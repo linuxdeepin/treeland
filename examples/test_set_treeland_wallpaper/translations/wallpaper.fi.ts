@@ -48,17 +48,17 @@
     <message>
         <location filename="../WallpaperSetting.qml" line="111"/>
         <source>Please choose a file</source>
-        <translation type="unfinished"/>
+        <translation>Valitse tiedosto</translation>
     </message>
     <message>
         <location filename="../WallpaperSetting.qml" line="126"/>
         <source>Add Wallpaper</source>
-        <translation type="unfinished"/>
+        <translation>Lisää taustakuva</translation>
     </message>
     <message>
         <location filename="../WallpaperSetting.qml" line="135"/>
         <source>Add Directory</source>
-        <translation type="unfinished"/>
+        <translation>Lisää kansio</translation>
     </message>
 </context>
 <context>
@@ -66,7 +66,7 @@
     <message>
         <location filename="../main.qml" line="14"/>
         <source>Wallpaper Settings</source>
-        <translation type="unfinished"/>
+        <translation>Taustakuvan asetukset</translation>
     </message>
 </context>
 </TS>
