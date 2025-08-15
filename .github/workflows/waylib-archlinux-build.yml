@@ -44,15 +44,12 @@ jobs:
           echo "✅ Created symlink: waylib/qwlroots -> ../qwlroots"
           ls -la qwlroots
 
-      - name: Configure CMake for waylib
+      - name: Configure and Build waylib with ci preset
         working-directory: waylib
         run: |
           echo "Working directory:" $PWD
-          cmake -B build -G Ninja -DWITH_SUBMODULE_QWLROOTS=ON
-
-      - name: Build waylib
-        working-directory: waylib
-        run: cmake --build build
+          cmake --preset ci -DWITH_SUBMODULE_QWLROOTS=ON
+          cmake --build --preset ci
 
       - name: Install waylib to staging directory
         working-directory: waylib
