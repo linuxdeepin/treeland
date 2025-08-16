@@ -771,13 +771,13 @@ bool vulkan_setup_plain_framebuffer(struct wlr_vk_render_buffer *buffer,
 	};
 	vkUpdateDescriptorSets(dev, 1, &ds_write, 0, NULL);
 
-	VkImageView attachments[2] = {
+	VkImageView attachments[] = {
 		buffer->plain.blend_image_view,
 		buffer->plain.image_view
 	};
 	VkFramebufferCreateInfo fb_info = {
 		.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
-		.attachmentCount = 2,
+		.attachmentCount = sizeof(attachments) / sizeof(attachments[0]),
 		.pAttachments = attachments,
 		.flags = 0u,
 		.width = dmabuf->width,
@@ -1466,7 +1466,7 @@ static bool init_tex_layouts(struct wlr_vk_renderer *renderer,
 		return false;
 	}
 
-	VkPushConstantRange pc_ranges[2] = {
+	VkPushConstantRange pc_ranges[] = {
 		{
 			.size = sizeof(struct wlr_vk_vert_pcr_data),
 			.stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
@@ -1482,7 +1482,7 @@ static bool init_tex_layouts(struct wlr_vk_renderer *renderer,
 		.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
 		.setLayoutCount = 1,
 		.pSetLayouts = out_ds_layout,
-		.pushConstantRangeCount = 2,
+		.pushConstantRangeCount = sizeof(pc_ranges) / sizeof(pc_ranges[0]),
 		.pPushConstantRanges = pc_ranges,
 	};
 
@@ -1560,7 +1560,7 @@ static bool init_blend_to_output_layouts(struct wlr_vk_renderer *renderer) {
 	}
 
 	// pipeline layout -- standard vertex uniforms, no shader uniforms
-	VkPushConstantRange pc_ranges[2] = {
+	VkPushConstantRange pc_ranges[] = {
 		{
 			.offset = 0,
 			.size = sizeof(struct wlr_vk_vert_pcr_data),
@@ -1573,16 +1573,16 @@ static bool init_blend_to_output_layouts(struct wlr_vk_renderer *renderer) {
 		},
 	};
 
-	VkDescriptorSetLayout out_ds_layouts[2] = {
+	VkDescriptorSetLayout out_ds_layouts[] = {
 		renderer->output_ds_srgb_layout,
 		renderer->output_ds_lut3d_layout,
 	};
 
 	VkPipelineLayoutCreateInfo pl_info = {
 		.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
-		.setLayoutCount = 2,
+		.setLayoutCount = sizeof(out_ds_layouts) / sizeof(out_ds_layouts[0]),
 		.pSetLayouts = out_ds_layouts,
-		.pushConstantRangeCount = 2,
+		.pushConstantRangeCount = sizeof(pc_ranges) / sizeof(pc_ranges[0]),
 		.pPushConstantRanges = pc_ranges,
 	};
 
@@ -1755,14 +1755,14 @@ struct wlr_vk_pipeline *setup_get_or_create_pipeline(
 		.scissorCount = 1,
 	};
 
-	VkDynamicState dynStates[2] = {
+	VkDynamicState dyn_states[] = {
 		VK_DYNAMIC_STATE_VIEWPORT,
 		VK_DYNAMIC_STATE_SCISSOR,
 	};
 	VkPipelineDynamicStateCreateInfo dynamic = {
 		.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO,
-		.pDynamicStates = dynStates,
-		.dynamicStateCount = 2,
+		.pDynamicStates = dyn_states,
+		.dynamicStateCount = sizeof(dyn_states) / sizeof(dyn_states[0]),
 	};
 
 	VkPipelineVertexInputStateCreateInfo vertex = {
@@ -1774,7 +1774,7 @@ struct wlr_vk_pipeline *setup_get_or_create_pipeline(
 		.layout = pipeline_layout->vk,
 		.renderPass = setup->render_pass,
 		.subpass = 0,
-		.stageCount = 2,
+		.stageCount = sizeof(stages) / sizeof(stages[0]),
 		.pStages = stages,
 
 		.pInputAssemblyState = &assembly,
@@ -1817,7 +1817,7 @@ static bool init_blend_to_output_pipeline(struct wlr_vk_renderer *renderer,
 		.pData = &output_transform_type,
 	};
 
-	VkPipelineShaderStageCreateInfo tex_stages[2] = {
+	VkPipelineShaderStageCreateInfo tex_stages[] = {
 		{
 			.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
 			.stage = VK_SHADER_STAGE_VERTEX_BIT,
@@ -1872,14 +1872,14 @@ static bool init_blend_to_output_pipeline(struct wlr_vk_renderer *renderer,
 		.scissorCount = 1,
 	};
 
-	VkDynamicState dynStates[2] = {
+	VkDynamicState dyn_states[] = {
 		VK_DYNAMIC_STATE_VIEWPORT,
 		VK_DYNAMIC_STATE_SCISSOR,
 	};
 	VkPipelineDynamicStateCreateInfo dynamic = {
 		.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO,
-		.pDynamicStates = dynStates,
-		.dynamicStateCount = 2,
+		.pDynamicStates = dyn_states,
+		.dynamicStateCount = sizeof(dyn_states) / sizeof(dyn_states[0]),
 	};
 
 	VkPipelineVertexInputStateCreateInfo vertex = {
@@ -1892,7 +1892,7 @@ static bool init_blend_to_output_pipeline(struct wlr_vk_renderer *renderer,
 		.layout = pipe_layout,
 		.renderPass = rp,
 		.subpass = 1, // second subpass!
-		.stageCount = 2,
+		.stageCount = sizeof(tex_stages) / sizeof(tex_stages[0]),
 		.pStages = tex_stages,
 		.pInputAssemblyState = &assembly,
 		.pRasterizationState = &rasterization,
@@ -2185,7 +2185,7 @@ static struct wlr_vk_render_format_setup *find_or_create_render_setup(
 	VkResult res;
 
 	if (use_blending_buffer) {
-		VkAttachmentDescription attachments[2] = {
+		VkAttachmentDescription attachments[] = {
 			{
 				.format = VK_FORMAT_R16G16B16A16_SFLOAT,
 				.samples = VK_SAMPLE_COUNT_1_BIT,
@@ -2223,7 +2223,7 @@ static struct wlr_vk_render_format_setup *find_or_create_render_setup(
 			.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
 		};
 
-		VkSubpassDescription subpasses[2] = {
+		VkSubpassDescription subpasses[] = {
 			{
 				.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS,
 				.colorAttachmentCount = 1,
@@ -2238,7 +2238,7 @@ static struct wlr_vk_render_format_setup *find_or_create_render_setup(
 			}
 		};
 
-		VkSubpassDependency deps[3] = {
+		VkSubpassDependency deps[] = {
 			{
 				.srcSubpass = VK_SUBPASS_EXTERNAL,
 				.srcStageMask = VK_PIPELINE_STAGE_HOST_BIT |
@@ -2280,11 +2280,11 @@ static struct wlr_vk_render_format_setup *find_or_create_render_setup(
 			.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO,
 			.pNext = NULL,
 			.flags = 0,
-			.attachmentCount = 2u,
+			.attachmentCount = sizeof(attachments) / sizeof(attachments[0]),
 			.pAttachments = attachments,
-			.subpassCount = 2u,
+			.subpassCount = sizeof(subpasses) / sizeof(subpasses[0]),
 			.pSubpasses = subpasses,
-			.dependencyCount = 3u,
+			.dependencyCount = sizeof(deps) / sizeof(deps[0]),
 			.pDependencies = deps,
 		};
 
@@ -2339,7 +2339,7 @@ static struct wlr_vk_render_format_setup *find_or_create_render_setup(
 			.pColorAttachments = &color_ref,
 		};
 
-		VkSubpassDependency deps[2] = {
+		VkSubpassDependency deps[] = {
 			{
 				.srcSubpass = VK_SUBPASS_EXTERNAL,
 				.srcStageMask = VK_PIPELINE_STAGE_HOST_BIT |
@@ -2374,7 +2374,7 @@ static struct wlr_vk_render_format_setup *find_or_create_render_setup(
 			.pAttachments = &attachment,
 			.subpassCount = 1,
 			.pSubpasses = &subpass,
-			.dependencyCount = 2u,
+			.dependencyCount = sizeof(deps) / sizeof(deps[0]),
 			.pDependencies = deps,
 		};
 

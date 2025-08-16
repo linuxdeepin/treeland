@@ -399,14 +399,14 @@ static struct wlr_texture *vulkan_texture_from_pixels(
 
 	texture_set_format(texture, &fmt->format, fmt->shm.has_mutable_srgb);
 
-	VkFormat view_formats[2] = {
+	VkFormat view_formats[] = {
 		fmt->format.vk,
 		fmt->format.vk_srgb,
 	};
 	VkImageFormatListCreateInfoKHR list_info = {
 		.sType = VK_STRUCTURE_TYPE_IMAGE_FORMAT_LIST_CREATE_INFO_KHR,
 		.pViewFormats = view_formats,
-		.viewFormatCount = 2,
+		.viewFormatCount = sizeof(view_formats) / sizeof(view_formats[0]),
 	};
 	VkImageCreateInfo img_info = {
 		.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
@@ -600,14 +600,14 @@ VkImage vulkan_import_dmabuf(struct wlr_vk_renderer *renderer,
 	};
 	eimg.pNext = &mod_info;
 
-	VkFormat view_formats[2] = {
+	VkFormat view_formats[] = {
 		fmt->format.vk,
 		fmt->format.vk_srgb,
 	};
 	VkImageFormatListCreateInfoKHR list_info = {
 		.sType = VK_STRUCTURE_TYPE_IMAGE_FORMAT_LIST_CREATE_INFO_KHR,
 		.pViewFormats = view_formats,
-		.viewFormatCount = 2,
+		.viewFormatCount = sizeof(view_formats) / sizeof(view_formats[0]),
 	};
 	if (mod->has_mutable_srgb) {
 		mod_info.pNext = &list_info;
