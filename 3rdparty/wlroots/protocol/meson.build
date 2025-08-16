@@ -4,6 +4,7 @@ wayland_protos = dependency('wayland-protocols',
 	default_options: ['tests=false'],
 )
 wl_protocol_dir = wayland_protos.get_variable('pkgdatadir')
+wlr_deps += wayland_protos
 
 wayland_scanner_dep = dependency('wayland-scanner',
 	kwargs: wayland_kwargs,
