@@ -1473,7 +1473,7 @@ static bool init_tex_layouts(struct wlr_vk_renderer *renderer,
 		},
 		{
 			.offset = pc_ranges[0].size,
-			.size = sizeof(float) * 4, // alpha or color
+			.size = sizeof(struct wlr_vk_frag_texture_pcr_data),
 			.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
 		},
 	};
