@@ -212,7 +212,7 @@ static void cm_output_handle_get_image_description(struct wl_client *client,
 	}
 
 	struct wlr_image_description_v1_data data = {
-		.tf_named = WP_COLOR_MANAGER_V1_TRANSFER_FUNCTION_SRGB,
+		.tf_named = WP_COLOR_MANAGER_V1_TRANSFER_FUNCTION_GAMMA22,
 		.primaries_named = WP_COLOR_MANAGER_V1_PRIMARIES_SRGB,
 	};
 	const struct wlr_output_image_description *image_desc = cm_output->output->image_description;
@@ -777,7 +777,7 @@ static void manager_handle_get_surface_feedback(struct wl_client *client,
 
 	surface_feedback->surface = surface;
 	surface_feedback->data = (struct wlr_image_description_v1_data){
-		.tf_named = WP_COLOR_MANAGER_V1_TRANSFER_FUNCTION_SRGB,
+		.tf_named = WP_COLOR_MANAGER_V1_TRANSFER_FUNCTION_GAMMA22,
 		.primaries_named = WP_COLOR_MANAGER_V1_PRIMARIES_SRGB,
 	};
 

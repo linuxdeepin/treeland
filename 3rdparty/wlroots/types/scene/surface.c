@@ -37,12 +37,12 @@ static struct wlr_output *get_surface_frame_pacing_output(struct wlr_surface *su
 
 static bool get_tf_preference(enum wlr_color_transfer_function tf) {
 	switch (tf) {
-	case WLR_COLOR_TRANSFER_FUNCTION_SRGB:
+	case WLR_COLOR_TRANSFER_FUNCTION_GAMMA22:
 		return 0;
 	case WLR_COLOR_TRANSFER_FUNCTION_ST2084_PQ:
 		return 1;
+	case WLR_COLOR_TRANSFER_FUNCTION_SRGB:
 	case WLR_COLOR_TRANSFER_FUNCTION_EXT_LINEAR:
-	case WLR_COLOR_TRANSFER_FUNCTION_GAMMA22:
 		return -1;
 	}
 	abort(); // unreachable
@@ -61,7 +61,7 @@ static bool get_primaries_preference(enum wlr_color_named_primaries primaries) {
 static void get_surface_preferred_image_description(struct wlr_surface *surface,
 		struct wlr_image_description_v1_data *out) {
 	struct wlr_output_image_description preferred = {
-		.transfer_function = WLR_COLOR_TRANSFER_FUNCTION_SRGB,
+		.transfer_function = WLR_COLOR_TRANSFER_FUNCTION_GAMMA22,
 		.primaries = WLR_COLOR_NAMED_PRIMARIES_SRGB,
 	};
 
@@ -249,7 +249,7 @@ static void surface_reconfigure(struct wlr_scene_surface *scene_surface) {
 		opacity = (float)alpha_modifier_state->multiplier;
 	}
 
-	enum wlr_color_transfer_function tf = WLR_COLOR_TRANSFER_FUNCTION_SRGB;
+	enum wlr_color_transfer_function tf = WLR_COLOR_TRANSFER_FUNCTION_GAMMA22;
 	enum wlr_color_named_primaries primaries = WLR_COLOR_NAMED_PRIMARIES_SRGB;
 	const struct wlr_image_description_v1_data *img_desc =
 		wlr_surface_get_image_description_v1_data(surface);
