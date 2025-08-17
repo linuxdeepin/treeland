@@ -153,6 +153,7 @@ enum wlr_vk_texture_transform {
 	WLR_VK_TEXTURE_TRANSFORM_IDENTITY = 0,
 	WLR_VK_TEXTURE_TRANSFORM_SRGB = 1,
 	WLR_VK_TEXTURE_TRANSFORM_ST2084_PQ = 2,
+	WLR_VK_TEXTURE_TRANSFORM_GAMMA22 = 3,
 };
 
 enum wlr_vk_shader_source {
@@ -167,6 +168,7 @@ enum wlr_vk_output_transform {
 	WLR_VK_OUTPUT_TRANSFORM_INVERSE_SRGB = 1,
 	WLR_VK_OUTPUT_TRANSFORM_INVERSE_ST2084_PQ = 2,
 	WLR_VK_OUTPUT_TRANSFORM_LUT3D = 3,
+	WLR_VK_OUTPUT_TRANSFORM_INVERSE_GAMMA22 = 4,
 };
 
 struct wlr_vk_pipeline_key {
@@ -199,6 +201,7 @@ struct wlr_vk_render_format_setup {
 	VkPipeline output_pipe_srgb;
 	VkPipeline output_pipe_pq;
 	VkPipeline output_pipe_lut3d;
+	VkPipeline output_pipe_gamma22;
 
 	struct wlr_vk_renderer *renderer;
 	struct wl_list pipelines; // struct wlr_vk_pipeline.link

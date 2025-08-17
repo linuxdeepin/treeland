@@ -186,6 +186,8 @@ static uint8_t convert_cta861_eotf(enum wlr_color_transfer_function tf) {
 		return 2;
 	case WLR_COLOR_TRANSFER_FUNCTION_EXT_LINEAR:
 		abort(); // unsupported
+	case WLR_COLOR_TRANSFER_FUNCTION_GAMMA22:
+		abort(); // unsupported
 	}
 	abort(); // unreachable
 }

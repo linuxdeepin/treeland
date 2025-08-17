@@ -246,6 +246,9 @@ static bool render_pass_submit(struct wlr_render_pass *wlr_pass) {
 			case WLR_COLOR_TRANSFER_FUNCTION_ST2084_PQ:
 				pipeline = render_buffer->two_pass.render_setup->output_pipe_pq;
 				break;
+			case WLR_COLOR_TRANSFER_FUNCTION_GAMMA22:
+				pipeline = render_buffer->two_pass.render_setup->output_pipe_gamma22;
+				break;
 			}
 
 			struct wlr_color_luminances srgb_lum, dst_lum;
@@ -796,6 +799,9 @@ static void render_pass_add_texture(struct wlr_render_pass *wlr_pass,
 	case WLR_COLOR_TRANSFER_FUNCTION_ST2084_PQ:
 		tex_transform = WLR_VK_TEXTURE_TRANSFORM_ST2084_PQ;
 		break;
+	case WLR_COLOR_TRANSFER_FUNCTION_GAMMA22:
+		tex_transform = WLR_VK_TEXTURE_TRANSFORM_GAMMA22;
+		break;
 	}
 
 	struct wlr_vk_pipeline *pipe = setup_get_or_create_pipeline(
@@ -840,7 +846,8 @@ static void render_pass_add_texture(struct wlr_render_pass *wlr_pass,
 	}
 
 	float luminance_multiplier = 1;
-	if (tf != WLR_COLOR_TRANSFER_FUNCTION_SRGB) {
+	if (tf != WLR_COLOR_TRANSFER_FUNCTION_SRGB
+			&& tf != WLR_COLOR_TRANSFER_FUNCTION_GAMMA22) {
 		struct wlr_color_luminances src_lum, srgb_lum;
 		wlr_color_transfer_function_get_default_luminance(tf, &src_lum);
 		wlr_color_transfer_function_get_default_luminance(

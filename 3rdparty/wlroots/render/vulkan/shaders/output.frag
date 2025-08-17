@@ -22,6 +22,7 @@ layout (constant_id = 0) const int OUTPUT_TRANSFORM = 0;
 #define OUTPUT_TRANSFORM_INVERSE_SRGB 1
 #define OUTPUT_TRANSFORM_INVERSE_ST2084_PQ 2
 #define OUTPUT_TRANSFORM_LUT_3D 3
+#define OUTPUT_TRANSFORM_INVERSE_GAMMA22 4
 
 float linear_channel_to_srgb(float x) {
 	return max(min(x * 12.92, 0.04045), 1.055 * pow(x, 1. / 2.4) - 0.055);
@@ -71,6 +72,8 @@ void main() {
 	} else if (OUTPUT_TRANSFORM == OUTPUT_TRANSFORM_INVERSE_SRGB) {
 		// Produce sRGB encoded values
 		rgb = linear_color_to_srgb(rgb);
+	} else if (OUTPUT_TRANSFORM == OUTPUT_TRANSFORM_INVERSE_GAMMA22) {
+		rgb = pow(rgb, vec3(1. / 2.2));
 	}
 
 	// Back to pre-multiplied alpha

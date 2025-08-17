@@ -18,6 +18,7 @@ layout (constant_id = 0) const int TEXTURE_TRANSFORM = 0;
 #define TEXTURE_TRANSFORM_IDENTITY 0
 #define TEXTURE_TRANSFORM_SRGB 1
 #define TEXTURE_TRANSFORM_ST2084_PQ 2
+#define TEXTURE_TRANSFORM_GAMMA22 3
 
 float srgb_channel_to_linear(float x) {
 	return mix(x / 12.92,
@@ -60,6 +61,8 @@ void main() {
 		rgb = srgb_color_to_linear(rgb);
 	} else if (TEXTURE_TRANSFORM == TEXTURE_TRANSFORM_ST2084_PQ) {
 		rgb = pq_color_to_linear(rgb);
+	} else if (TEXTURE_TRANSFORM == TEXTURE_TRANSFORM_GAMMA22) {
+		rgb = pow(rgb, vec3(2.2));
 	}
 
 	rgb *= data.luminance_multiplier;
