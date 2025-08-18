@@ -56,7 +56,18 @@ void WallpaperController::updateState()
 
     Q_ASSERT(proxy);
 
-    proxy->setState(m_type == Normal ? "Normal" : "Scale");
+    QString state = "Normal";
+    switch (m_type) {
+    case Normal:
+        break;
+    case Scale:
+        state = "Scale";
+        break;
+    case ScaleWithoutAnimation:
+        state = "ScaleWithoutAnimation";
+        break;
+    }
+    proxy->setState(state);
 
     Q_EMIT proxyChanged();
     Q_EMIT typeChanged();
