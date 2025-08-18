@@ -714,30 +714,35 @@ static void manager_handle_get_output(struct wl_client *client,
 	struct wlr_color_manager_v1 *manager = manager_from_resource(manager_resource);
 	struct wlr_output *output = wlr_output_from_resource(output_resource);
 
+	uint32_t version = wl_resource_get_version(manager_resource);
+	struct wl_resource *cm_output_resource = wl_resource_create(client,
+		&wp_color_management_output_v1_interface, version, id);
+	if (!cm_output_resource) {
+		wl_client_post_no_memory(client);
+		return;
+	}
+	wl_resource_set_implementation(cm_output_resource, &cm_output_impl,
+		NULL, cm_output_handle_resource_destroy);
+
+	if (output == NULL) {
+		return; // leave the wp_color_management_output_v1 resource inert
+	}
+
 	struct wlr_color_management_output_v1 *cm_output = calloc(1, sizeof(*cm_output));
 	if (cm_output == NULL) {
 		wl_client_post_no_memory(client);
 		return;
 	}
 
+	cm_output->resource = cm_output_resource;
 	cm_output->manager = manager;
 	cm_output->output = output;
-
-	uint32_t version = wl_resource_get_version(manager_resource);
-	cm_output->resource = wl_resource_create(client,
-		&wp_color_management_output_v1_interface, version, id);
-	if (!cm_output->resource) {
-		wl_client_post_no_memory(client);
-		free(cm_output);
-		return;
-	}
-	wl_resource_set_implementation(cm_output->resource, &cm_output_impl,
-		cm_output, cm_output_handle_resource_destroy);
 
 	cm_output->output_destroy.notify = cm_output_handle_output_destroy;
 	wl_signal_add(&output->events.destroy, &cm_output->output_destroy);
 
 	wl_list_insert(&manager->outputs, &cm_output->link);
+	wl_resource_set_user_data(cm_output->resource, cm_output);
 }
 
 static struct wlr_color_management_surface_v1 *cm_surface_from_surface(struct wlr_surface *surface) {
