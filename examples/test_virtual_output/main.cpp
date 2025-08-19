@@ -20,7 +20,7 @@ class VirtualOutputManager
 public:
     explicit VirtualOutputManager();
 
-    void virtual_output_manager_v1_virtual_output_list(wl_array *names) { }
+    void virtual_output_manager_v1_virtual_output_list([[maybe_unused]] wl_array *names) { }
 };
 
 VirtualOutputManager::VirtualOutputManager()
@@ -36,7 +36,7 @@ class VirtualOutput
 public:
     explicit VirtualOutput(struct ::treeland_virtual_output_v1 *object);
 
-    void virtual_output_v1_outputs(const QString &name, wl_array *outputs)
+    void virtual_output_v1_outputs(const QString &name, [[maybe_unused]] wl_array *outputs)
     {
         qInfo() << "Screen group name: " << name;
     }

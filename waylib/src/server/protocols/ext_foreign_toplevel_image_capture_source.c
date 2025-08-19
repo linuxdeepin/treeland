@@ -58,7 +58,7 @@ static void foreign_toplevel_manager_handle_create_source(struct wl_client *clie
 	wl_signal_emit_mutable(&manager->events.new_request, request);
 }
 
-static void foreign_toplevel_manager_handle_destroy([[maybe_unused]] struct wl_client *client,
+static void foreign_toplevel_manager_handle_destroy(struct wl_client *,
 		struct wl_resource *manager_resource) {
 	wl_resource_destroy(manager_resource);
 }
@@ -81,7 +81,7 @@ static void foreign_toplevel_manager_bind(struct wl_client *client, void *data,
 	wl_resource_set_implementation(resource, &foreign_toplevel_manager_impl, manager, NULL);
 }
 
-static void foreign_toplevel_manager_handle_display_destroy(struct wl_listener *listener, [[maybe_unused]] void *data) {
+static void foreign_toplevel_manager_handle_display_destroy(struct wl_listener *listener, void *) {
 	struct wlr_ext_foreign_toplevel_image_capture_source_manager_v1 *manager =
 		wl_container_of(listener, manager, display_destroy);
 	wl_signal_emit_mutable(&manager->events.destroy, NULL);
