@@ -36,11 +36,21 @@ static void deactivateSession([[maybe_unused]] struct wl_client *client, [[maybe
     Helper::instance()->deactivateSession();
 }
 
+static void enableRender([[maybe_unused]] struct wl_client *client, [[maybe_unused]] struct wl_resource *resource) {
+    Helper::instance()->enableRender();
+}
+
+static void disableRender([[maybe_unused]] struct wl_client *client, [[maybe_unused]] struct wl_resource *resource) {
+    Helper::instance()->disableRender();
+}
+
 static const struct treeland_ddm_interface treeland_ddm_impl {
     .switch_to_greeter = switchToGreeter,
     .switch_to_user = switchToUser,
     .activate_session = activateSession,
     .deactivate_session = deactivateSession,
+    .enable_render = enableRender,
+    .disable_render = disableRender,
 };
 
 // wayland object binding

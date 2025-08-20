@@ -210,6 +210,8 @@ public:
 
     void activateSession();
     void deactivateSession();
+    void enableRender();
+    void disableRender();
 public Q_SLOTS:
     void activateSurface(SurfaceWrapper *wrapper, Qt::FocusReason reason = Qt::OtherFocusReason);
     void forceActivateSurface(SurfaceWrapper *wrapper,
