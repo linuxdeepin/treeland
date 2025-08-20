@@ -1150,7 +1150,11 @@ void Helper::activateSurface(SurfaceWrapper *wrapper, Qt::FocusReason reason)
 void Helper::forceActivateSurface(SurfaceWrapper *wrapper, Qt::FocusReason reason)
 {
     if (!wrapper) {
-        qCCritical(treelandCore) << "Don't force activate to empty surface! do you want `Helper::activeSurface(nullptr)`?";
+        qCCritical(treelandShell) << "Don't force activate to empty surface! do you want `Helper::activeSurface(nullptr)`?";
+        return;
+    }
+    if (!wrapper->shellSurface()) {
+        qCWarning(treelandShell) << "Try to force activate a destroyed surface!";
         return;
     }
 
@@ -1162,7 +1166,7 @@ void Helper::forceActivateSurface(SurfaceWrapper *wrapper, Qt::FocusReason reaso
     }
 
     if (!wrapper->surface()->mapped()) {
-        qCWarning(treelandCore) << "Can't activate unmapped surface: " << wrapper;
+        qCWarning(treelandShell) << "Can't activate unmapped surface: " << wrapper;
         return;
     }
 
