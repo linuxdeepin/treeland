@@ -2160,3 +2160,11 @@ void Helper::deactivateSession() {
     if (m_backend->isSessionActive())
         m_backend->deactivateSession();
 }
+
+void Helper::enableRender() {
+    m_renderWindow->setRenderEnabled(true);
+}
+
+void Helper::disableRender() {
+    m_renderWindow->setRenderEnabled(false);
+}
