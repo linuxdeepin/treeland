@@ -23,6 +23,7 @@ Q_LOGGING_CATEGORY(qLcImageCapture, "waylib.server.imagecapture")
 
 extern "C" {
 #include <wlr/interfaces/wlr_output.h>
+#include <wlr/types/wlr_buffer.h>
 #include <pixman.h>
 #include <drm_fourcc.h>
 #include <sys/stat.h>
@@ -316,6 +317,10 @@ void WExtImageCaptureSourceV1Impl::copy_frame(wlr_ext_image_copy_capture_frame_v
         qw_ext_image_copy_capture_frame_v1::from(dst_frame)->fail(EXT_IMAGE_COPY_CAPTURE_FRAME_V1_FAILURE_REASON_UNKNOWN);
         return;
     }
+
+    // Lock the buffer for the duration of the copy to prevent races during resize
+    buffer->lock();
+    std::unique_ptr<qw_buffer, qw_buffer::unlocker> bufferGuard(buffer);
     
     // Get renderer
     auto renderWindow = textureProvider->window();
@@ -332,8 +337,55 @@ void WExtImageCaptureSourceV1Impl::copy_frame(wlr_ext_image_copy_capture_frame_v
         return;
     }
     
-    // Use wlroots image copy function
-    bool success = qw_ext_image_copy_capture_frame_v1::copy_buffer(dst_frame, buffer->handle(), renderer->handle());
+    // Prefer the client buffer source if present
+    wlr_buffer *src = buffer->handle();
+    if (auto clientBuf = wlr_client_buffer_get(*buffer)) {
+        src = clientBuf->source;
+    }
+
+    // Critical safety checks: validate all required pointers and buffers before copying
+    if (!src) {
+        qCWarning(qLcImageCapture) << "Source buffer is null, cannot copy frame";
+        if (dst_frame) {
+            qw_ext_image_copy_capture_frame_v1::from(dst_frame)->fail(EXT_IMAGE_COPY_CAPTURE_FRAME_V1_FAILURE_REASON_BUFFER_CONSTRAINTS);
+        }
+        return;
+    }
+
+    if (!dst_frame || !dst_frame->buffer) {
+        qCWarning(qLcImageCapture) << "Destination frame or buffer is null, cannot copy";
+        if (dst_frame) {
+            qw_ext_image_copy_capture_frame_v1::from(dst_frame)->fail(EXT_IMAGE_COPY_CAPTURE_FRAME_V1_FAILURE_REASON_BUFFER_CONSTRAINTS);
+        }
+        return;
+    }
+
+    // Validate buffer dimensions to prevent crashes during resize
+    if (dst_frame->buffer->width != src->width || dst_frame->buffer->height != src->height) {
+        qCWarning(qLcImageCapture) << "Buffer size mismatch during resize (dst:" << dst_frame->buffer->width << "x" << dst_frame->buffer->height
+                                   << ", src:" << src->width << "x" << src->height << "), updating constraints";
+        
+        // Update constraints when we detect a size mismatch
+        ConstraintBuilder builder(handle(), m_output);
+        builder.setSize(src->width, src->height);
+        builder.buildShmFormats();
+        builder.buildDmabufFormats();
+        builder.apply();
+        
+        qCDebug(qLcImageCapture) << "Constraints updated to new size:" << src->width << "x" << src->height;
+        
+        // Check again after constraints update - the client might have already provided a correctly sized buffer
+        if (dst_frame->buffer->width != src->width || dst_frame->buffer->height != src->height) {
+            qCDebug(qLcImageCapture) << "Buffer size still mismatched after constraint update, skipping frame";
+            qw_ext_image_copy_capture_frame_v1::from(dst_frame)->fail(EXT_IMAGE_COPY_CAPTURE_FRAME_V1_FAILURE_REASON_BUFFER_CONSTRAINTS);
+            return;
+        }
+        
+        qCDebug(qLcImageCapture) << "Buffer size now matches after constraint update, proceeding with copy";
+    }
+
+    // Use wlroots image copy function with validated buffers
+    bool success = qw_ext_image_copy_capture_frame_v1::copy_buffer(dst_frame, src, renderer->handle());
     qCDebug(qLcImageCapture) << "Copy result:" << success;
     
     if (success) {
