@@ -451,6 +451,7 @@ public:
 
     bool componentCompleted = true;
     bool inRendering = false;
+    bool renderEnabled = true;
 
     QPointer<qw_renderer> m_renderer;
     QPointer<qw_allocator> m_allocator;
@@ -1475,6 +1476,9 @@ void WOutputRenderWindowPrivate::doRender(const QList<OutputHelper *> &outputs,
 {
     Q_ASSERT(rendererList.isEmpty());
     Q_ASSERT(!inRendering);
+    if (!renderEnabled)
+        return;
+
     inRendering = true;
 
     W_Q(WOutputRenderWindow);
@@ -1814,6 +1818,11 @@ bool WOutputRenderWindow::inRendering() const
 {
     Q_D(const WOutputRenderWindow);
     return d->inRendering;
+}
+
+void WOutputRenderWindow::setRenderEnabled(bool enabled) {
+    Q_D(WOutputRenderWindow);
+    d->renderEnabled = enabled;
 }
 
 QList<QPointer<QQuickItem>> WOutputRenderWindow::paintOrderItemList(QQuickItem *root, std::function<bool(QQuickItem*)> filter)
