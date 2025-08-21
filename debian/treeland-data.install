@@ -1,4 +1,3 @@
 usr/share/dsg/configs/*
 usr/share/treeland/shortcuts/*
 usr/share/wayland-sessions/treeland.desktop
-etc/xdg-desktop-portal/dde-portals.conf
