@@ -27,9 +27,8 @@ void QWlrootsCursor::changeCursor(QCursor *windowCursor, QWindow *window)
     cursor->setCursor(windowCursor ? *windowCursor : WCursor::defaultCursor());
 }
 
-void QWlrootsCursor::setOverrideCursor(const QCursor &cursor)
+void QWlrootsCursor::setOverrideCursor([[maybe_unused]] const QCursor &cursor)
 {
-    Q_UNUSED(cursor);
     return;
 }
 
@@ -44,7 +43,7 @@ QPoint QWlrootsCursor::pos() const
     return cursors.isEmpty() ? QPoint() : cursors.first()->position().toPoint();
 }
 
-void QWlrootsCursor::setPos(const QPoint &pos)
+void QWlrootsCursor::setPos([[maybe_unused]] const QPoint &pos)
 {
 
 }

@@ -165,7 +165,7 @@ void Helper::init()
     auto wOutputManager = m_server->attach<WOutputManagerV1>();
     connect(m_backend, &WBackend::outputAdded, this, [this, wOutputManager] (WOutput *output) {
         allowNonDrmOutputAutoChangeMode(output);
-        Output *o;
+        Output *o = nullptr;
         if (m_mode == OutputMode::Extension || !m_surfaceContainer->primaryOutput()) {
             o = Output::createPrimary(output, qmlEngine(), this);
             o->outputItem()->stackBefore(m_surfaceContainer);
@@ -173,6 +173,7 @@ void Helper::init()
         } else if (m_mode == OutputMode::Copy) {
             o = Output::createCopy(output, m_surfaceContainer->primaryOutput(), qmlEngine(), this);
         }
+        Q_ASSERT(o);
 
         m_outputList.append(o);
         enableOutput(output);
@@ -576,10 +577,8 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *, QInputEvent *event)
     return false;
 }
 
-bool Helper::afterHandleEvent(WSeat *seat, WSurface *watched, QObject *surfaceItem, QObject *, QInputEvent *event)
+bool Helper::afterHandleEvent([[maybe_unused]] WSeat *seat, WSurface *watched, QObject *surfaceItem, QObject *, QInputEvent *event)
 {
-    Q_UNUSED(seat)
-
     if (event->isSinglePointEvent() && static_cast<QSinglePointEvent*>(event)->isBeginEvent()) {
         // surfaceItem is qml type: XdgSurfaceItem or LayerSurfaceItem
         auto toplevelSurface = qobject_cast<WSurfaceItem*>(surfaceItem)->shellSurface();
@@ -692,7 +691,7 @@ void Helper::enableOutput(WOutput *output)
     // Don't care for WOutput::isEnabled, must do WOutput::commit here,
     // In order to ensure trigger QWOutput::frame signal, WOutputRenderWindow
     // needs this signal to render next frmae. Because QWOutput::frame signal
-    // maybe emit before WOutputRenderWindow::attach, if no commit here,
+    // maybe Q_EMIT before WOutputRenderWindow::attach, if no commit here,
     // WOutputRenderWindow will ignore this ouptut on render.
     if (!qwoutput->property("_Enabled").toBool()) {
         qwoutput->setProperty("_Enabled", true);
@@ -749,7 +748,7 @@ void Helper::setOutputMode(OutputMode mode)
         if (m_outputList.at(i) == m_surfaceContainer->primaryOutput())
             continue;
 
-        Output *o;
+        Output *o = nullptr;
         if (mode == OutputMode::Copy) {
             o = Output::createCopy(m_outputList.at(i)->output(), m_surfaceContainer->primaryOutput(), qmlEngine(), this);
             m_surfaceContainer->removeOutput(m_outputList.at(i));
@@ -759,15 +758,11 @@ void Helper::setOutputMode(OutputMode mode)
             m_surfaceContainer->addOutput(o);
             enableOutput(o->output());
         }
+        Q_ASSERT(o);
 
         m_outputList.at(i)->deleteLater();
         m_outputList.replace(i,o);
     }
-}
-
-void Helper::setOutputProxy(Output *output)
-{
-
 }
 
 void Helper::updateLayerSurfaceContainer(SurfaceWrapper *surface)
@@ -819,7 +814,7 @@ void Helper::setAnimationSpeed(float newAnimationSpeed)
     if (qFuzzyCompare(m_animationSpeed, newAnimationSpeed))
         return;
     m_animationSpeed = newAnimationSpeed;
-    emit animationSpeedChanged();
+    Q_EMIT animationSpeedChanged();
 }
 
 Helper::OutputMode Helper::outputMode() const

@@ -33,6 +33,8 @@
 #include "modules/wallpaper-color/wallpapercolor.h"
 #include "core/windowpicker.h"
 #include "workspace/workspace.h"
+#include "common/treelandlogging.h"
+#include "modules/ddm/ddminterfacev1.h"
 
 #include <xcb/xcb.h>
 #include <xcb/xproto.h>
@@ -156,8 +158,6 @@ static QByteArray readWindowProperty(xcb_connection_t *connection,
     return data;
 }
 
-Q_LOGGING_CATEGORY(qLcHelper, "treeland.helper");
-
 Helper *Helper::m_instance = nullptr;
 
 Helper::Helper(QObject *parent)
@@ -165,8 +165,8 @@ Helper::Helper(QObject *parent)
     , m_renderWindow(new WOutputRenderWindow(this))
     , m_server(new WServer(this))
     , m_rootSurfaceContainer(new RootSurfaceContainer(m_renderWindow->contentItem()))
-    , m_windowGesture(new TogglableGesture(this))
     , m_multiTaskViewGesture(new TogglableGesture(this))
+    , m_windowGesture(new TogglableGesture(this))
 {
     Q_ASSERT(!m_instance);
     m_instance = this;
@@ -261,7 +261,7 @@ bool Helper::isNvidiaCardPresent()
         return false;
 
     QString deviceName = rhi->driverInfo().deviceName;
-    qCDebug(qLcHelper) << "Graphics Device:" << deviceName;
+    qCDebug(treelandCore) << "Graphics Device:" << deviceName;
 
     return deviceName.contains("NVIDIA", Qt::CaseInsensitive);
 }
@@ -321,7 +321,7 @@ void Helper::onOutputAdded(WOutput *output)
 {
     // TODO: 应该让helper发出Output的信号，每个需要output的单元单独connect。
     allowNonDrmOutputAutoChangeMode(output);
-    Output *o;
+    Output *o = nullptr;
     if (m_mode == OutputMode::Extension || !m_rootSurfaceContainer->primaryOutput()) {
         o = createNormalOutput(output);
     } else if (m_mode == OutputMode::Copy) {
@@ -423,7 +423,7 @@ void Helper::setGamma(struct wlr_gamma_control_manager_v1_set_gamma_event *event
     qw_output_state newState;
     newState.set_gamma_lut(ramp_size, r, g, b);
     if (!qwOutput->commit_state(newState)) {
-        qCWarning(qLcHelper) << "Failed to set gamma lut!";
+        qCWarning(treelandCore) << "Failed to set gamma lut!";
         // TODO: use software impl it.
         qw_gamma_control_v1::from(gamma_control)->send_failed_and_destroy();
     }
@@ -752,7 +752,7 @@ void Helper::onSurfaceWrapperAdded(SurfaceWrapper *wrapper)
     }
 
     if (!isLayer) {
-        auto windowOverlapChecker = new WindowOverlapChecker(wrapper, wrapper);
+        [[maybe_unused]] auto windowOverlapChecker = new WindowOverlapChecker(wrapper, wrapper);
     }
 
 #ifndef DISABLE_DDM
@@ -793,7 +793,7 @@ void Helper::onSurfaceWrapperAboutToRemove(SurfaceWrapper *wrapper)
 
 bool Helper::surfaceBelongsToCurrentUser(SurfaceWrapper *wrapper)
 {
-    static const int puid = getuid();
+    static const uid_t puid = getuid();
     auto credentials = WClient::getCredentials(wrapper->surface()->waylandClient()->handle());
     auto user = m_userModel->currentUser();
     if (user) {
@@ -849,6 +849,8 @@ void Helper::init()
     connect(m_backend, &WBackend::inputRemoved, this, [this](WInputDevice *device) {
         m_seat->detachInputDevice(device);
     });
+
+    m_ddmInterfaceV1 = m_server->attach<DDMInterfaceV1>();
 
     m_outputManager = m_server->attach<WOutputManagerV1>();
     connect(m_backend, &WBackend::outputAdded, this, &Helper::onOutputAdded);
@@ -998,7 +1000,7 @@ void Helper::init()
     m_server->start();
     m_renderer = WRenderHelper::createRenderer(m_backend->handle());
     if (!m_renderer) {
-        qCFatal(qLcHelper) << "Failed to create renderer";
+        qCFatal(treelandCore) << "Failed to create renderer";
     }
 
     m_allocator = qw_allocator::autocreate(*m_backend->handle(), *m_renderer);
@@ -1028,7 +1030,7 @@ void Helper::init()
         m_atomDeepinNoTitlebar =
             internAtom(m_defaultXWayland->xcbConnection(), _DEEPIN_NO_TITLEBAR, false);
         if (!m_atomDeepinNoTitlebar) {
-            qWarning() << "failed internAtom:" << _DEEPIN_NO_TITLEBAR;
+            qCWarning(treelandInput) << "Failed to intern atom:" << _DEEPIN_NO_TITLEBAR;
         }
     });
     xdgOutputManager->setFilter([this] (WClient *client) {
@@ -1050,7 +1052,7 @@ void Helper::init()
         Q_EMIT socketFileChanged();
     } else {
         delete m_socket;
-        qCCritical(qLcHelper) << "Failed to create socket";
+        qCCritical(treelandCore) << "Failed to create socket";
         return;
     }
 
@@ -1115,7 +1117,7 @@ void Helper::init()
 
     m_backend->handle()->start();
 
-    qCInfo(qLcHelper) << "Listing on:" << m_socket->fullServerName();
+    qCInfo(treelandCore) << "Listing on:" << m_socket->fullServerName();
 }
 
 bool Helper::socketEnabled() const
@@ -1128,7 +1130,7 @@ void Helper::setSocketEnabled(bool newEnabled)
     if (m_socket)
         m_socket->setEnabled(newEnabled);
     else
-        qCWarning(qLcHelper) << "Can't set enabled for empty socket!";
+        qCWarning(treelandCore) << "Can't set enabled for empty socket!";
 }
 
 void Helper::activateSurface(SurfaceWrapper *wrapper, Qt::FocusReason reason)
@@ -1150,7 +1152,7 @@ void Helper::activateSurface(SurfaceWrapper *wrapper, Qt::FocusReason reason)
         if (wrapper->hasActiveCapability()) {
             setActivatedSurface(wrapper);
         } else {
-            qCritical() << "Try activate a surface which don't have ActiveCapability!";
+            qCCritical(treelandShell) << "Trying to activate a surface which doesn't have ActiveCapability!";
         }
     }
 
@@ -1163,7 +1165,11 @@ void Helper::activateSurface(SurfaceWrapper *wrapper, Qt::FocusReason reason)
 void Helper::forceActivateSurface(SurfaceWrapper *wrapper, Qt::FocusReason reason)
 {
     if (!wrapper) {
-        qCCritical(qLcHelper) << "Don't force activate to empty surface! do you want `Helper::activeSurface(nullptr)`?";
+        qCCritical(treelandShell) << "Don't force activate to empty surface! do you want `Helper::activeSurface(nullptr)`?";
+        return;
+    }
+    if (!wrapper->shellSurface()) {
+        qCWarning(treelandShell) << "Try to force activate a destroyed surface!";
         return;
     }
 
@@ -1175,7 +1181,7 @@ void Helper::forceActivateSurface(SurfaceWrapper *wrapper, Qt::FocusReason reaso
     }
 
     if (!wrapper->surface()->mapped()) {
-        qCWarning(qLcHelper) << "Can't activate unmapped surface: " << wrapper;
+        qCWarning(treelandShell) << "Can't activate unmapped surface: " << wrapper;
         return;
     }
 
@@ -1232,10 +1238,19 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *, QInputEvent *event)
         // Switch TTY with Ctrl + Alt + F1-F12
         if (kevent->modifiers() == (Qt::ControlModifier | Qt::AltModifier)) {
             auto key = kevent->key();
-            if (key >= Qt::Key_F1 && key <= Qt::Key_F12) {
-                // Use syncronized call here to ensure DM to be shown on correct VT.
-                showLockScreen(false);
-                m_backend->session()->change_vt(key - Qt::Key_F1 + 1);
+            // We don't call libseat_disable_seat after switching TTY by
+            // calling DDM, which will cause the keyboard stuck in current
+            // state (Ctrl + Alt + Fx), and send switchToVt repeatly.
+            // Check if the backend is active to avoid this.
+            if (key >= Qt::Key_F1 && key <= Qt::Key_F12 && m_backend->isSessionActive()) {
+                const int vtnr = key - Qt::Key_F1 + 1;
+                if (m_ddmInterfaceV1 && m_ddmInterfaceV1->isConnected()) {
+                    m_ddmInterfaceV1->switchToVt(vtnr);
+                } else {
+                    qCDebug(treelandCore) << "DDM is not connected";
+                    showLockScreen(false);
+                    m_backend->session()->change_vt(vtnr);
+                }
                 return true;
             }
         }
@@ -1740,7 +1755,7 @@ void Helper::handleLockScreen(LockScreenInterface *lockScreen)
 void Helper::onSessionNew(const QString &sessionId, const QDBusObjectPath &sessionPath)
 {
     const auto path = sessionPath.path();
-    qCDebug(qLcHelper) << "Session new, sessionId:" << sessionId << ", sessionPath:" << path;
+    qCDebug(treelandCore) << "Session new, sessionId:" << sessionId << ", sessionPath:" << path;
     QDBusConnection::systemBus().connect("org.freedesktop.login1", path, "org.freedesktop.login1.Session", "Lock", this, SLOT(onSessionLock()));
     QDBusConnection::systemBus().connect("org.freedesktop.login1", path, "org.freedesktop.login1.Session", "Unlock", this, SLOT(onSessionUnLock()));
 }
@@ -1811,7 +1826,7 @@ void Helper::setOutputMode(OutputMode mode)
     for (int i = 0; i < m_outputList.size(); i++) {
         if (m_outputList.at(i) == m_rootSurfaceContainer->primaryOutput())
             continue;
-        Output *o;
+        Output *o = nullptr;
         if (mode == OutputMode::Copy) {
             o = createCopyOutput(m_outputList.at(i)->output(),
                                  m_rootSurfaceContainer->primaryOutput());
@@ -1824,8 +1839,6 @@ void Helper::setOutputMode(OutputMode mode)
         m_outputList.replace(i, o);
     }
 }
-
-void Helper::setOutputProxy(Output *output) { }
 
 float Helper::animationSpeed() const
 {
@@ -1984,11 +1997,11 @@ void Helper::setLockScreenImpl(ILockScreen *impl)
 
     bool dbusConnected = QDBusConnection::systemBus().connect("org.freedesktop.login1", "/org/freedesktop/login1", "org.freedesktop.login1.Manager", "SessionNew", this, SLOT(onSessionNew(const QString &,const QDBusObjectPath &)));
     if (!dbusConnected) {
-        qCWarning(qLcHelper) << "Could not connect to org.freedesktop.login1.Manager SessionNew signal";
+        qCWarning(treelandCore) << "Could not connect to org.freedesktop.login1.Manager SessionNew signal";
     }
 
     if (CmdLine::ref().useLockScreen()) {
-        showLockScreen();
+        showLockScreen(false);
     }
 #endif
 }
@@ -2005,7 +2018,7 @@ void Helper::setCurrentMode(CurrentMode mode)
     Q_EMIT currentModeChanged();
 }
 
-void Helper::showLockScreen(bool async)
+void Helper::showLockScreen(bool switchToGreeter)
 {
     if (m_lockScreen->isLocked()) {
         return;
@@ -2024,14 +2037,13 @@ void Helper::showLockScreen(bool async)
 
     // send DDM switch to greeter mode
     // FIXME: DDM and Treeland should listen to the lock signal of login1
-    QDBusInterface interface("org.freedesktop.DisplayManager",
-                             "/org/freedesktop/DisplayManager/Seat0",
-                             "org.freedesktop.DisplayManager.Seat",
-                             QDBusConnection::systemBus());
-    if (async)
+    if (switchToGreeter) {
+        QDBusInterface interface("org.freedesktop.DisplayManager",
+                                 "/org/freedesktop/DisplayManager/Seat0",
+                                 "org.freedesktop.DisplayManager.Seat",
+                                 QDBusConnection::systemBus());
         interface.asyncCall("SwitchToGreeter");
-    else
-        interface.call("SwitchToGreeter");
+    }
 }
 
 WSeat *Helper::seat() const
@@ -2099,43 +2111,43 @@ Output *Helper::getOutputAtCursor() const
 void Helper::handleNewForeignToplevelCaptureRequest(wlr_ext_foreign_toplevel_image_capture_source_manager_v1_request *request)
 {
     if (!request || !request->toplevel_handle) {
-        qCWarning(qLcImageCapture) << "Invalid capture request or toplevel handle";
+        qCWarning(treelandCapture) << "Invalid capture request or toplevel handle";
         return;
     }
 
     auto *qw_handle = qw_ext_foreign_toplevel_handle_v1::from(request->toplevel_handle);
     WToplevelSurface *toplevelSurface = m_extForeignToplevelListV1->findSurfaceByHandle(qw_handle);
     if (!toplevelSurface) {
-        qCWarning(qLcImageCapture) << "Could not find toplevel surface for handle";
-        return;
-    }
-    
-    SurfaceWrapper *surfaceWrapper = m_rootSurfaceContainer->getSurface(toplevelSurface);
-    if (!surfaceWrapper) {
-        qCWarning(qLcImageCapture) << "Could not find SurfaceWrapper for toplevel surface";
-        return;
-    }
-    
-    WSurfaceItem *surfaceItem = surfaceWrapper->surfaceItem();
-    if (!surfaceItem) {
-        qCWarning(qLcImageCapture) << "Could not get WSurfaceItem from SurfaceWrapper";
-        return;
-    }
-    
-    WSurfaceItemContent *surfaceContent = surfaceItem->findItemContent();
-    if (!surfaceContent) {
-        qCWarning(qLcImageCapture) << "Could not find WSurfaceItemContent";
+        qCWarning(treelandCapture) << "Could not find toplevel surface for handle";
         return;
     }
 
-    qCDebug(qLcImageCapture) << "Found WSurfaceItemContent for capture:"
+    SurfaceWrapper *surfaceWrapper = m_rootSurfaceContainer->getSurface(toplevelSurface);
+    if (!surfaceWrapper) {
+        qCWarning(treelandCapture) << "Could not find SurfaceWrapper for toplevel surface";
+        return;
+    }
+
+    WSurfaceItem *surfaceItem = surfaceWrapper->surfaceItem();
+    if (!surfaceItem) {
+        qCWarning(treelandCapture) << "Could not get WSurfaceItem from SurfaceWrapper";
+        return;
+    }
+
+    WSurfaceItemContent *surfaceContent = surfaceItem->findItemContent();
+    if (!surfaceContent) {
+        qCWarning(treelandCapture) << "Could not find WSurfaceItemContent";
+        return;
+    }
+
+    qCDebug(treelandCapture) << "Found WSurfaceItemContent for capture:"
              << "size=" << surfaceContent->size()
              << "implicitSize=" << QSizeF(surfaceContent->implicitWidth(), surfaceContent->implicitHeight())
              << "isTextureProvider=" << surfaceContent->isTextureProvider();
 
     auto *output = surfaceWrapper->ownsOutput()->output();
     if (!output) {
-        qCWarning(qLcImageCapture) << "Could not get WOutput from SurfaceWrapper";
+        qCWarning(treelandCapture) << "Could not get WOutput from SurfaceWrapper";
         return;
     }
 
@@ -2145,7 +2157,33 @@ void Helper::handleNewForeignToplevelCaptureRequest(wlr_ext_foreign_toplevel_ima
         request, *imageCaptureSource);
 
     if (!success) {
-        qCWarning(qLcImageCapture) << "Failed to accept foreign toplevel image capture request";
+        qCWarning(treelandCapture) << "Failed to accept foreign toplevel image capture request";
         delete imageCaptureSource;
     }
+}
+
+UserModel *Helper::userModel() const {
+    return m_userModel;
+}
+
+DDMInterfaceV1 *Helper::ddmInterfaceV1() const {
+    return m_ddmInterfaceV1;
+}
+
+void Helper::activateSession() {
+    if (!m_backend->isSessionActive())
+        m_backend->activateSession();
+}
+
+void Helper::deactivateSession() {
+    if (m_backend->isSessionActive())
+        m_backend->deactivateSession();
+}
+
+void Helper::enableRender() {
+    m_renderWindow->setRenderEnabled(true);
+}
+
+void Helper::disableRender() {
+    m_renderWindow->setRenderEnabled(false);
 }

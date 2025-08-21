@@ -5,8 +5,7 @@
 
 #include "output/output.h"
 #include "core/rootsurfacecontainer.h"
-
-Q_LOGGING_CATEGORY(qLcSurfaceCantainer, "treeland.shell.surfaceContainer")
+#include "common/treelandlogging.h"
 
 SurfaceListModel::SurfaceListModel(QObject *parent)
     : ObjectListModel("surface", parent)
@@ -134,7 +133,7 @@ SurfaceContainer::SurfaceContainer(SurfaceContainer *parent)
 SurfaceContainer::~SurfaceContainer()
 {
     if (!m_model->surfaces().isEmpty()) {
-        qCWarning(qLcSurfaceCantainer)
+        qCWarning(treelandSurface)
             << "SurfaceContainer destroyed with surfaces still attached:" << m_model->surfaces();
     }
 }

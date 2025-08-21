@@ -73,9 +73,9 @@ public:
         , enabledTextInput(nullptr)
         , activeInputMethod(nullptr)
         , activeKeyboardGrab(nullptr)
-        , keyboardGrab()
-        , grabInterface()
-        , handlerArg({.helper = qq})
+        , keyboardGrab{}
+        , grabInterface{}
+        , handlerArg({.helper = qq, .grab = nullptr})
     {
         Q_ASSERT(server);
         Q_ASSERT(seat);

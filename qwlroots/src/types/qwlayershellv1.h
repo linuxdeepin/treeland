@@ -31,7 +31,7 @@ public:
     QW_FUNC_MEMBER(layer_surface_v1, for_each_popup_surface, void, wlr_surface_iterator_func_t iterator, void *user_data)
     QW_FUNC_MEMBER(layer_surface_v1, surface_at, wlr_surface *, double sx, double sy, double *sub_x, double *sub_y)
     QW_FUNC_MEMBER(layer_surface_v1, popup_surface_at, wlr_surface *, double sx, double sy, double *sub_x, double *sub_y)
-    QW_FUNC_MEMBER(layer_surface_v1, configure, uint32_t, uint32_t width, uint32_t height);
+    QW_FUNC_MEMBER(layer_surface_v1, configure, uint32_t, uint32_t width, uint32_t height)
     QW_FUNC_MEMBER(layer_surface_v1, destroy, void)
 };
 

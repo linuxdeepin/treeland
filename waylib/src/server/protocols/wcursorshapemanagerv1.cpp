@@ -10,6 +10,7 @@
 #include <qwseat.h>
 #include <qwdisplay.h>
 
+// TODO: set to 2 after wlroots 0.20
 #define CURSOR_SHAPE_MANAGER_V1_VERSION 1
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
@@ -107,6 +108,10 @@ static inline auto wpToWCursorShape(wp_cursor_shape_device_v1_shape shape) {
         return WGlobal::CursorShape::ZoomIn;
     case WP_CURSOR_SHAPE_DEVICE_V1_SHAPE_ZOOM_OUT:
         return WGlobal::CursorShape::ZoomOut;
+    case WP_CURSOR_SHAPE_DEVICE_V1_SHAPE_DND_ASK:
+        return WGlobal::CursorShape::DndAsk;
+    case WP_CURSOR_SHAPE_DEVICE_V1_SHAPE_ALL_RESIZE:
+        return WGlobal::CursorShape::AllResize;
     }
     return WGlobal::CursorShape::Invalid;
 }

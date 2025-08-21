@@ -7,11 +7,11 @@
     </message>
     <message>
         <source>Do you want to back to default?</source>
-        <translation type="unfinished"/>
+        <translation type="vanished">¿Quieres volver a la configuración predeterminada?</translation>
     </message>
     <message>
         <source>This action will reboot machine, please confirm.</source>
-        <translation type="vanished">Esta acción reiniciara la maquina, por favor confirme</translation>
+        <translation type="vanished">Esta acción reiniciara la maquina, confirme</translation>
     </message>
     <message>
         <source>Back To Default Mode</source>
@@ -19,7 +19,7 @@
     </message>
     <message>
         <source>Other Users</source>
-        <translation type="vanished">Otros Usuarios</translation>
+        <translation type="vanished">Otros usuarios</translation>
     </message>
     <message>
         <source>Power</source>
@@ -88,7 +88,7 @@
     <name>SessionModel</name>
     <message>
         <source>%1 (Wayland)</source>
-        <translation type="unfinished"/>
+        <translation type="vanished">%1 (Wayland)</translation>
     </message>
 </context>
 <context>
@@ -125,7 +125,7 @@
     <message>
         <location filename="../qml/UserInput.qml" line="15"/>
         <source>Please enter password</source>
-        <translation>Por favor, ingrese contraseña</translation>
+        <translation>Ingrese la contraseña</translation>
     </message>
     <message>
         <location filename="../qml/UserInput.qml" line="141"/>

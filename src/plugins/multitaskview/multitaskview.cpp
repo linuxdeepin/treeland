@@ -8,6 +8,7 @@
 #include "seat/helper.h"
 #include "surface/surfacecontainer.h"
 #include "workspace/workspace.h"
+#include "common/treelandlogging.h"
 
 #include <woutputitem.h>
 #include <woutputrenderwindow.h>
@@ -182,7 +183,7 @@ QHash<int, QByteArray> MultitaskviewSurfaceModel::roleNames() const
     };
 }
 
-QModelIndex MultitaskviewSurfaceModel::index(int row, int column, const QModelIndex &parent) const
+QModelIndex MultitaskviewSurfaceModel::index(int row, int column, [[maybe_unused]] const QModelIndex &parent) const
 {
     if (row < 0 || row >= m_data.size())
         return QModelIndex();
@@ -218,11 +219,13 @@ void MultitaskviewSurfaceModel::updateZOrder()
     Q_EMIT dataChanged(index(0), index(rowCount() - 1), { ZOrderRole });
 }
 
-int MultitaskviewSurfaceModel::prevSameAppIndex(int index)
+uint MultitaskviewSurfaceModel::prevSameAppIndex(uint index)
 {
-    if (index < 0 || index >= count())
-        return -1;
-    auto circularPrev = [this](int i) {
+    if (index >= count()) {
+        qCWarning(treelandPlugin) << "prevSameAppIndex: invalid index" << index << "count:" << count();
+        return index;
+    }
+    auto circularPrev = [this](uint i) {
         return (i + count() - 1) % count();
     };
     auto i = circularPrev(index);
@@ -235,11 +238,13 @@ int MultitaskviewSurfaceModel::prevSameAppIndex(int index)
     return i;
 }
 
-int MultitaskviewSurfaceModel::nextSameAppIndex(int index)
+uint MultitaskviewSurfaceModel::nextSameAppIndex(uint index)
 {
-    if (index < 0 || index >= count())
-        return -1;
-    auto circularNext = [this](int i) {
+    if (index >= count()) {
+        qCWarning(treelandPlugin) << "nextSameAppIndex: invalid index" << index << "count:" << count();
+        return index;
+    }
+    auto circularNext = [this](uint i) {
         return (i + 1) % count();
     };
     auto i = circularNext(index);
@@ -263,7 +268,7 @@ void MultitaskviewSurfaceModel::setLayoutArea(const QRectF &newLayoutArea)
         return;
     m_layoutArea = newLayoutArea;
     initializeModel();
-    emit layoutAreaChanged();
+    Q_EMIT layoutAreaChanged();
 }
 
 bool MultitaskviewSurfaceModel::tryLayout(const QList<ModelDataPtr> &rawData,
@@ -409,7 +414,7 @@ void MultitaskviewSurfaceModel::doUpdateZOrder(const QList<ModelDataPtr> &rawDat
 }
 
 std::pair<int, int> MultitaskviewSurfaceModel::commitAndGetUpdateRange(
-    const QList<ModelDataPtr> &rawData)
+    [[maybe_unused]] const QList<ModelDataPtr> &rawData)
 {
     // TODO: better algorithm
     int beginIndex = 0, endIndex = -1;
@@ -692,7 +697,7 @@ void MultitaskviewSurfaceModel::setWorkspace(WorkspaceModel *newWorkspace)
     if (m_workspace)
         connectWorkspace(m_workspace);
     initializeModel();
-    emit workspaceChanged();
+    Q_EMIT workspaceChanged();
 }
 
 qreal MultitaskviewSurfaceModel::contentHeight() const
@@ -711,7 +716,7 @@ void MultitaskviewSurfaceModel::setOutput(Output *newOutput)
         return;
     m_output = newOutput;
     initializeModel();
-    emit outputChanged();
+    Q_EMIT outputChanged();
 }
 
 uint MultitaskviewSurfaceModel::count() const

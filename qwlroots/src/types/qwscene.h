@@ -71,7 +71,7 @@ protected:
 class QW_CLASS_REINTERPRET_CAST(scene_output_layout)
 {
 public:
-    QW_FUNC_MEMBER(scene_output_layout, add_output, void, wlr_output_layout_output *lo, wlr_scene_output *so);
+    QW_FUNC_MEMBER(scene_output_layout, add_output, void, wlr_output_layout_output *lo, wlr_scene_output *so)
 };
 
 #define QW_SCENE_NODE(name) \

@@ -79,6 +79,9 @@ Q_LOGGING_CATEGORY(wlcRenderer, "waylib.server.renderer", QtDebugMsg)
 #else
 Q_LOGGING_CATEGORY(wlcRenderer, "waylib.server.renderer", QtWarningMsg)
 #endif
+
+// Call it before any wlroots render to clean up the GL state in Qt.
+// If you don't do this, there will be tearing, flickering and other graphics problems
 inline static void resetGlState()
 {
 #ifndef QT_NO_OPENGL
@@ -448,6 +451,7 @@ public:
 
     bool componentCompleted = true;
     bool inRendering = false;
+    bool renderEnabled = true;
 
     QPointer<qw_renderer> m_renderer;
     QPointer<qw_allocator> m_allocator;
@@ -542,12 +546,7 @@ void OutputHelper::cleanLayerCompositor()
         if (!proxy)
             continue;
 
-        WBufferRenderer *source = qobject_cast<WBufferRenderer*>(proxy->sourceItem());
         proxy->setRenderer(nullptr);
-
-        if (source) {
-            source->resetTextureProvider();
-        }
     }
 
     if (m_output2) {
@@ -810,13 +809,15 @@ WBufferRenderer *OutputHelper::afterRender()
         layers.append({
             .layer = i->wlrLayer->handle(),
             .buffer = buffer->handle(),
+            .src_box = {},
             .dst_box = {
                 .x = i->mapToOutput.x(),
                 .y = i->mapToOutput.y(),
                 .width = i->mapToOutput.width(),
                 .height = i->mapToOutput.height(),
             },
-            .damage = &i->renderer->damageRing()->handle()->current
+            .damage = &i->renderer->damageRing()->handle()->current,
+            .accepted = false
         });
 
         if (needsEndBuffer) {
@@ -1182,7 +1183,7 @@ bool OutputHelper::tryToHardwareCursor(const LayerData *layer)
         }
 
         const auto pos = layer->mapToOutput.topLeft() + hotSpot;
-        wlr_box cleanTransform {.x = pos.x(), .y = pos.y()};
+        wlr_box cleanTransform {.x = pos.x(), .y = pos.y(), .width = 0, .height = 0};
         const auto outputSize = output()->output()->size();
         // the layer->mapRect has been transform in renderLayer, but
         // wlroot's move_cursor also will transform the cursor's position.
@@ -1475,6 +1476,9 @@ void WOutputRenderWindowPrivate::doRender(const QList<OutputHelper *> &outputs,
 {
     Q_ASSERT(rendererList.isEmpty());
     Q_ASSERT(!inRendering);
+    if (!renderEnabled)
+        return;
+
     inRendering = true;
 
     W_Q(WOutputRenderWindow);
@@ -1499,6 +1503,12 @@ void WOutputRenderWindowPrivate::doRender(const QList<OutputHelper *> &outputs,
 
     if (QSGRendererInterface::isApiRhiBased(WRenderHelper::getGraphicsApi()))
         rc()->endFrame();
+
+    // prevent gles2-render exception in wlroots.
+    // wlroots may have render operations after commit, so do
+    // not move the location during the reset operation.
+    // eg: screencopy ext-image-capture
+    resetGlState();
 
     if (doCommit) {
         for (auto i : std::as_const(needsCommit)) {
@@ -1808,6 +1818,11 @@ bool WOutputRenderWindow::inRendering() const
 {
     Q_D(const WOutputRenderWindow);
     return d->inRendering;
+}
+
+void WOutputRenderWindow::setRenderEnabled(bool enabled) {
+    Q_D(WOutputRenderWindow);
+    d->renderEnabled = enabled;
 }
 
 QList<QPointer<QQuickItem>> WOutputRenderWindow::paintOrderItemList(QQuickItem *root, std::function<bool(QQuickItem*)> filter)

@@ -110,7 +110,7 @@ public Q_SLOTS:
     void activeSurface(SurfaceWrapper *wrapper);
     void fakePressSurfaceBottomRightToReszie(SurfaceWrapper *surface);
 
-signals:
+Q_SIGNALS:
     void socketEnabledChanged();
     void keyboardFocusSurfaceChanged();
     void activatedSurfaceChanged();
@@ -125,8 +125,6 @@ private:
     void enableOutput(WOutput *output);
 
     int indexOfOutput(WOutput *output) const;
-
-    void setOutputProxy(Output *output);
 
     void updateLayerSurfaceContainer(SurfaceWrapper *surface);
 

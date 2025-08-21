@@ -30,6 +30,7 @@ public:
     {
         Normal,
         Scale,
+        ScaleWithoutAnimation,
     };
     Q_ENUM(WallpaperType)
 

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "cmdline.h"
+#include "common/treelandlogging.h"
 
 #include <wordexp.h>
 
@@ -10,8 +11,6 @@
 #include <QLoggingCategory>
 
 #include <optional>
-
-Q_LOGGING_CATEGORY(qLcCmdline, "treeland.cmdline");
 
 CmdLine::CmdLine()
     : QObject()
@@ -77,7 +76,7 @@ std::optional<QStringList> CmdLine::unescapeExecArgs(const QString &str) noexcep
 {
     auto unescapedStr = unescape(str);
     if (unescapedStr.isEmpty()) {
-        qCWarning(qLcCmdline) << "unescape Exec failed.";
+        qCWarning(treelandUtils) << "unescape Exec failed.";
         return std::nullopt;
     }
 
@@ -110,7 +109,7 @@ std::optional<QStringList> CmdLine::unescapeExecArgs(const QString &str) noexcep
         default:
             errMessage = "unknown";
         }
-        qCWarning(qLcCmdline) << "wordexp error: " << errMessage;
+        qCWarning(treelandUtils) << "wordexp error: " << errMessage;
         return std::nullopt;
     }
 

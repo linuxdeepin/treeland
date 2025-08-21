@@ -25,6 +25,7 @@
 #include <private/qsgdefaultrendercontext_p.h>
 #include <private/qsgrhisupport_p.h>
 #include <private/qquickrendercontrol_p.h>
+#include <qobjectdefs.h>
 
 #include <algorithm>
 
@@ -136,7 +137,7 @@ public:
     }
 
     static DataManagerPointer<Derive> resolve(const DataManagerPointer<Derive> &other, QQuickWindow *owner) {
-        static_assert(&Derive::metaObject);
+        static_assert(QtPrivate::HasQ_OBJECT_Macro<Derive>::Value, "Derive must have Q_OBJECT macro");
         Q_ASSERT(owner);
         if (other && other->owner() == owner)
             return other;
@@ -162,8 +163,7 @@ public:
             DataManager *manager;
         };
 
-        TryClean cleanJob(this);
-        Q_UNUSED(cleanJob)
+        [[maybe_unused]] TryClean cleanJob(this);
 
         {
             auto d = data.lock();
@@ -702,8 +702,7 @@ public:
         }
     }
 
-    void render(const RenderState *state) override {
-        Q_UNUSED(state)
+    void render([[maybe_unused]] const RenderState *state) override {
 
         auto texture = this->texture.lock();
         if (Q_UNLIKELY(!texture))
@@ -984,8 +983,7 @@ public:
         return image.expired() ? QImage() : *image.lock()->data;
     }
 
-    void render(const RenderState *state) override {
-        Q_UNUSED(state)
+    void render([[maybe_unused]] const RenderState *state) override {
         auto window = renderWindow();
         if (!window)
             return;

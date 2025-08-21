@@ -10,8 +10,8 @@
 #include "surface/surfacecontainer.h"
 #include "surface/surfacewrapper.h"
 #include "workspaceanimationcontroller.h"
+#include "common/treelandlogging.h"
 
-Q_LOGGING_CATEGORY(qlcWorkspace, "treeland.core.workspace")
 
 Workspace::Workspace(SurfaceContainer *parent)
     : SurfaceContainer(parent)
@@ -23,7 +23,7 @@ Workspace::Workspace(SurfaceContainer *parent)
     m_showOnAllWorkspaceModel = new WorkspaceModel(this, ShowOnAllWorkspaceId, {});
     m_showOnAllWorkspaceModel->setName("show-on-all-workspace");
     m_showOnAllWorkspaceModel->setVisible(true);
-    for (auto index = 0; index < TreelandConfig::ref().numWorkspace(); index++) {
+    for (uint index = 0; index < TreelandConfig::ref().numWorkspace(); index++) {
         doCreateModel(QStringLiteral("workspace-%1").arg(index),
                       index == TreelandConfig::ref().currentWorkspace());
     }
@@ -329,8 +329,8 @@ void Workspace::doSetCurrentIndex(int newCurrentIndex)
 
 void Workspace::startPreviewing(SurfaceWrapper *previewingItem)
 {
-    if (m_previewingItem) {
-        // TODO: don't use QPointer, should watch SurfaceWrapper::aboutToBeInvalidated
+    if (m_previewingItem && m_previewingItem->shellSurface() ) {
+        // Check shellSurface() since SurfaceWrapper::aboutToBeInvalidated can't make QPointer null in time
         auto modle = modelFromId(m_previewingItem->workspaceId());
         m_previewingItem->setOpacity(modle->opaque() ? 1.0 : 0.0);
         m_previewingItem->setHideByWorkspace(!modle->visible());
@@ -355,7 +355,7 @@ void Workspace::stopPreviewing()
 void Workspace::pushActivedSurface(SurfaceWrapper *surface)
 {
     if (surface->type() == SurfaceWrapper::Type::XdgPopup) {
-        qWarning(qlcWorkspace) << "XdgPopup can't participate in focus fallback!";
+        qWarning(treelandWorkspace) << "XdgPopup can't participate in focus fallback!";
         return;
     }
     if (surface->showOnAllWorkspace()) [[unlikely]] {

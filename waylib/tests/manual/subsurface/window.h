@@ -24,7 +24,7 @@ public:
         return true;
     }
 
-signals:
+Q_SIGNALS:
     void parentChanged();
 
 private:

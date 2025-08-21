@@ -13,6 +13,8 @@
 
 #include <private/qquickitem_p.h>
 
+#include <QPointer>
+
 QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
@@ -139,9 +141,13 @@ void WOutputItemPrivate::updateCursors()
             Q_ASSERT(oc->item->parentItem() == q->window()->contentItem());
             oc->item->setZ(qreal(WOutputLayout::Layer::Cursor));
             cursorsChanged = true;
+            QPointer<WOutputCursor> safeOc = oc;
+            QObject::connect(cursor, &WCursor::positionChanged, q, [this, safeOc] {
+                if (!safeOc) {
+                    return;
+                }
 
-            QObject::connect(cursor, &WCursor::positionChanged, oc, [this, oc] {
-                updateCursorVisible(oc);
+                updateCursorVisible(safeOc.data());
             });
         }
 

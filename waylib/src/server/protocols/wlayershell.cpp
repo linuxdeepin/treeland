@@ -71,7 +71,7 @@ void WLayerShellPrivate::onSurfaceDestroy(qw_layer_surface_v1 *layerSurface)
     surface->safeDeleteLater();
 }
 
-WLayerShell::WLayerShell(WXdgShell *xdgshell, QObject *parent):
+WLayerShell::WLayerShell(WXdgShell *xdgshell, [[maybe_unused]] QObject *parent):
     WWrapObject(*new WLayerShellPrivate(this), nullptr)
 {
     W_D(WLayerShell);
@@ -100,9 +100,8 @@ void WLayerShell::create(WServer *server)
     m_handle = layer_shell;
 }
 
-void WLayerShell::destroy(WServer *server)
+void WLayerShell::destroy([[maybe_unused]] WServer *server)
 {
-    Q_UNUSED(server);
     W_D(WLayerShell);
 
     auto list = d->surfaceList;

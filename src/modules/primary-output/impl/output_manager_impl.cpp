@@ -4,6 +4,7 @@
 #include "output_manager_impl.h"
 
 #include <wayland-server-core.h>
+#include <wayland-util.h>
 
 #include <cassert>
 
@@ -65,6 +66,11 @@ treeland_output_manager_v1 *treeland_output_manager_v1::create(qw_display *displ
 void treeland_output_manager_v1::set_primary_output(const char *name)
 {
     this->primary_output_name = name;
+
+    // Sometimes the whole resources list will be removed and leaved in an invalid state
+    // (e.g. after a VT switching), so we need to ensure resources is valid before operations.
+    wl_list_init(&this->resources);
+
     wl_resource *resource;
     wl_list_for_each(resource, &this->resources, link)
     {
@@ -85,7 +91,10 @@ static treeland_output_manager_v1 *output_manager_from_resource(wl_resource *res
 
 static void output_manager_resource_destroy(struct wl_resource *resource)
 {
-    wl_list_remove(wl_resource_get_link(resource));
+    // Safely remove resource from list
+    auto link = wl_resource_get_link(resource);
+    wl_list_init(link);
+    wl_list_remove(link);
 }
 
 static void output_manager_bind(wl_client *client, void *data, uint32_t version, uint32_t id)

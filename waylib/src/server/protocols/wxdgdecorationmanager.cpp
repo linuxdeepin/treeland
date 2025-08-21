@@ -56,7 +56,7 @@ void WXdgDecorationManagerPrivate::onNewToplevelDecoration(qw_xdg_toplevel_decor
                 [decorat, this]() {
                     this->updateDecorationMode(decorat);
                 });
-    /* For some reason, a lot of clients don't emit the request_mode signal. */
+    /* For some reason, a lot of clients don't Q_EMIT the request_mode signal. */
     updateDecorationMode(decorat);
 }
 
@@ -123,9 +123,8 @@ void WXdgDecorationManager::create(WServer *server)
     });
 }
 
-void WXdgDecorationManager::destroy(WServer *server)
+void WXdgDecorationManager::destroy([[maybe_unused]] WServer *server)
 {
-    Q_UNUSED(server);
 }
 
 wl_global *WXdgDecorationManager::global() const

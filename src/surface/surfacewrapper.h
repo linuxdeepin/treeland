@@ -99,7 +99,7 @@ public:
         Full = Mapped | UnMinimized | HasInitializeContainer,
     };
     Q_ENUM(ActiveControlState);
-    Q_DECLARE_FLAGS(ActiveControlStates, ActiveControlState);
+    Q_DECLARE_FLAGS(ActiveControlStates, ActiveControlState)
 
     enum class SurfaceRole
     {
@@ -394,12 +394,12 @@ private:
     uint m_titleBarState : 2;
     uint m_noCornerRadius : 1;
     uint m_alwaysOnTop : 1;
-    uint m_wrapperAboutToRemove : 1;
     uint m_skipSwitcher : 1;
     uint m_skipDockPreView : 1;
     uint m_skipMutiTaskView : 1;
     uint m_isDdeShellSurface : 1;
     uint m_xwaylandPositionFromSurface : 1;
+    uint m_wrapperAboutToRemove : 1;
     uint m_isProxy : 1;
     uint m_hideByWorkspace : 1;
     uint m_hideByshowDesk : 1;

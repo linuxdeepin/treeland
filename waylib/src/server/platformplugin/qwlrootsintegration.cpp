@@ -76,11 +76,10 @@ public:
 };
 
 QWlrootsIntegration *QWlrootsIntegration::m_instance = nullptr;
-QWlrootsIntegration::QWlrootsIntegration(bool master, const QStringList &parameters, std::function<void ()> onInitialized)
+QWlrootsIntegration::QWlrootsIntegration(bool master, [[maybe_unused]] const QStringList &parameters, std::function<void ()> onInitialized)
     : m_master(master)
     , m_onInitialized(onInitialized)
 {
-    Q_UNUSED(parameters);
     Q_ASSERT(!m_instance);
     m_instance = this;
 }
@@ -118,7 +117,7 @@ QWlrootsScreen *QWlrootsIntegration::addScreen(WOutput *output)
             QWindowSystemInterface::handleScreenRemoved(m_placeholderScreen.release());
         }
     } else {
-        Q_UNUSED(new QScreen(m_screens.last()))
+        [[maybe_unused]] auto screen = new QScreen(m_screens.last());
     }
 
     m_screens.last()->initialize();
@@ -360,17 +359,14 @@ public:
         return m_format;
     }
 
-    void swapBuffers(QPlatformSurface *surface) override {
-        Q_UNUSED(surface);
+    void swapBuffers([[maybe_unused]] QPlatformSurface *surface) override {
         Q_UNREACHABLE();
     }
-    GLuint defaultFramebufferObject(QPlatformSurface *surface) const override {
-        Q_UNUSED(surface);
+    GLuint defaultFramebufferObject([[maybe_unused]] QPlatformSurface *surface) const override {
         return 0;
     }
 
-    bool makeCurrent(QPlatformSurface *surface) override {
-        Q_UNUSED(surface);
+    bool makeCurrent([[maybe_unused]] QPlatformSurface *surface) override {
         if (auto c = qobject_cast<QW::OpenGLContext*>(m_context)) {
             return eglMakeCurrent(c->eglDisplay(), EGL_NO_SURFACE, EGL_NO_SURFACE, c->eglContext());
         }

@@ -237,7 +237,9 @@ public:
         ColResize,
         RowResize,
         ZoomIn,
-        ZoomOut
+        ZoomOut,
+        DndAsk,
+        AllResize
     };
     Q_ENUM(CursorShape)
     static_assert(CursorShape::BottomLeftCorner > CursorShape::Default, "");

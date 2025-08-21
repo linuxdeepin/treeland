@@ -343,9 +343,8 @@ void WXWayland::create(WServer *server)
     });
 }
 
-void WXWayland::destroy(WServer *server)
+void WXWayland::destroy([[maybe_unused]] WServer *server)
 {
-    Q_UNUSED(server);
     W_D(WXWayland);
 
     auto list = d->surfaceList;

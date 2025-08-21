@@ -522,7 +522,7 @@ class TestQwExample : public QObject
 {
     Q_OBJECT
 
-private slots:
+private Q_SLOTS:
     void testCreate();
     void testSignals();
     void testMethods();

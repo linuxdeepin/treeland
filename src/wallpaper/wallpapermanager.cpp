@@ -5,6 +5,7 @@
 
 #include "wallpapercontroller.h"
 #include "wallpaperimage.h"
+#include "common/treelandlogging.h"
 
 #include <woutput.h>
 #include <woutputitem.h>
@@ -83,7 +84,7 @@ WallpaperImage *WallpaperManager::get(WAYLIB_SERVER_NAMESPACE::WOutput *output) 
         }
     }
 
-    qWarning() << "no wallpaper proxy for" << output;
+    qCWarning(treelandWallpaper) << "No wallpaper proxy found for output" << output;
     return nullptr;
 }
 

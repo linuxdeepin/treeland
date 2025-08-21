@@ -32,15 +32,12 @@ jobs:
           pacman -Syu --noconfirm qt6-base cmake pkgconfig wlroots0.19 pixman wayland-protocols wlr-protocols
           pacman -Syu --noconfirm clang ninja base-devel git
 
-      - name: Configure CMake for qwlroots
+      - name: Configure and build qwlroots
         working-directory: qwlroots
         run: |
           echo "Working directory:" $PWD
-          cmake -B build -G Ninja
-
-      - name: Build qwlroots
-        working-directory: qwlroots
-        run: cmake --build build
+          cmake --preset ci
+          cmake --build --preset ci
 
       - name: Install qwlroots to staging directory
         working-directory: qwlroots

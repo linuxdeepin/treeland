@@ -23,6 +23,7 @@ Q_LOGGING_CATEGORY(qLcImageCapture, "waylib.server.imagecapture")
 
 extern "C" {
 #include <wlr/interfaces/wlr_output.h>
+#include <wlr/types/wlr_buffer.h>
 #include <pixman.h>
 #include <drm_fourcc.h>
 #include <sys/stat.h>
@@ -96,7 +97,7 @@ struct ConstraintBuilder {
                 
                 // Clean up old DMA-BUF formats
                 wlr_drm_format_set_finish(&source->dmabuf_formats);
-                source->dmabuf_formats = (struct wlr_drm_format_set){0};
+                source->dmabuf_formats = (struct wlr_drm_format_set){};
                 
                 // Copy DMA-BUF formats from swapchain
                 for (size_t i = 0; i < swapchain->handle()->format.len; i++) {
@@ -169,9 +170,9 @@ WExtImageCaptureSourceV1Impl::~WExtImageCaptureSourceV1Impl()
     }
 }
 
-void WExtImageCaptureSourceV1Impl::start(bool with_cursors)
+void WExtImageCaptureSourceV1Impl::start([[maybe_unused]] bool with_cursors)
 {
-    Q_UNUSED(with_cursors) // TODO: Implement cursor capture if needed
+    // TODO: Implement cursor capture if needed
     m_capturing = true;
     qCDebug(qLcImageCapture) << "WExtImageCaptureSourceV1Impl::start() with_cursors:" << with_cursors;
 
@@ -275,7 +276,7 @@ void WExtImageCaptureSourceV1Impl::handleRenderEnd()
     // Create damage region with RAII
     WPixmanRegion fullDamage(0, 0, surfaceSize.width(), surfaceSize.height());
     
-    // Create frame event and emit
+    // Create frame event and Q_EMIT
     wlr_ext_image_capture_source_v1_frame_event event {
         .damage = fullDamage.get(),
     };
@@ -285,7 +286,7 @@ void WExtImageCaptureSourceV1Impl::handleRenderEnd()
 }
 
 void WExtImageCaptureSourceV1Impl::copy_frame(wlr_ext_image_copy_capture_frame_v1 *dst_frame, 
-                                              wlr_ext_image_capture_source_v1_frame_event *frame_event)
+                                              [[maybe_unused]] wlr_ext_image_capture_source_v1_frame_event *frame_event)
 {
     qCDebug(qLcImageCapture) << "WExtImageCaptureSourceV1Impl::copy_frame()";
     
@@ -316,6 +317,10 @@ void WExtImageCaptureSourceV1Impl::copy_frame(wlr_ext_image_copy_capture_frame_v
         qw_ext_image_copy_capture_frame_v1::from(dst_frame)->fail(EXT_IMAGE_COPY_CAPTURE_FRAME_V1_FAILURE_REASON_UNKNOWN);
         return;
     }
+
+    // Lock the buffer for the duration of the copy to prevent races during resize
+    buffer->lock();
+    std::unique_ptr<qw_buffer, qw_buffer::unlocker> bufferGuard(buffer);
     
     // Get renderer
     auto renderWindow = textureProvider->window();
@@ -332,8 +337,55 @@ void WExtImageCaptureSourceV1Impl::copy_frame(wlr_ext_image_copy_capture_frame_v
         return;
     }
     
-    // Use wlroots image copy function
-    bool success = qw_ext_image_copy_capture_frame_v1::copy_buffer(dst_frame, buffer->handle(), renderer->handle());
+    // Prefer the client buffer source if present
+    wlr_buffer *src = buffer->handle();
+    if (auto clientBuf = wlr_client_buffer_get(*buffer)) {
+        src = clientBuf->source;
+    }
+
+    // Critical safety checks: validate all required pointers and buffers before copying
+    if (!src) {
+        qCWarning(qLcImageCapture) << "Source buffer is null, cannot copy frame";
+        if (dst_frame) {
+            qw_ext_image_copy_capture_frame_v1::from(dst_frame)->fail(EXT_IMAGE_COPY_CAPTURE_FRAME_V1_FAILURE_REASON_BUFFER_CONSTRAINTS);
+        }
+        return;
+    }
+
+    if (!dst_frame || !dst_frame->buffer) {
+        qCWarning(qLcImageCapture) << "Destination frame or buffer is null, cannot copy";
+        if (dst_frame) {
+            qw_ext_image_copy_capture_frame_v1::from(dst_frame)->fail(EXT_IMAGE_COPY_CAPTURE_FRAME_V1_FAILURE_REASON_BUFFER_CONSTRAINTS);
+        }
+        return;
+    }
+
+    // Validate buffer dimensions to prevent crashes during resize
+    if (dst_frame->buffer->width != src->width || dst_frame->buffer->height != src->height) {
+        qCWarning(qLcImageCapture) << "Buffer size mismatch during resize (dst:" << dst_frame->buffer->width << "x" << dst_frame->buffer->height
+                                   << ", src:" << src->width << "x" << src->height << "), updating constraints";
+        
+        // Update constraints when we detect a size mismatch
+        ConstraintBuilder builder(handle(), m_output);
+        builder.setSize(src->width, src->height);
+        builder.buildShmFormats();
+        builder.buildDmabufFormats();
+        builder.apply();
+        
+        qCDebug(qLcImageCapture) << "Constraints updated to new size:" << src->width << "x" << src->height;
+        
+        // Check again after constraints update - the client might have already provided a correctly sized buffer
+        if (dst_frame->buffer->width != src->width || dst_frame->buffer->height != src->height) {
+            qCDebug(qLcImageCapture) << "Buffer size still mismatched after constraint update, skipping frame";
+            qw_ext_image_copy_capture_frame_v1::from(dst_frame)->fail(EXT_IMAGE_COPY_CAPTURE_FRAME_V1_FAILURE_REASON_BUFFER_CONSTRAINTS);
+            return;
+        }
+        
+        qCDebug(qLcImageCapture) << "Buffer size now matches after constraint update, proceeding with copy";
+    }
+
+    // Use wlroots image copy function with validated buffers
+    bool success = qw_ext_image_copy_capture_frame_v1::copy_buffer(dst_frame, src, renderer->handle());
     qCDebug(qLcImageCapture) << "Copy result:" << success;
     
     if (success) {
@@ -366,9 +418,8 @@ void WExtImageCaptureSourceV1Impl::copy_frame(wlr_ext_image_copy_capture_frame_v
     }
 }
 
-wlr_ext_image_capture_source_v1_cursor *WExtImageCaptureSourceV1Impl::get_pointer_cursor(wlr_seat *seat)
+wlr_ext_image_capture_source_v1_cursor *WExtImageCaptureSourceV1Impl::get_pointer_cursor([[maybe_unused]] wlr_seat *seat)
 {
-    Q_UNUSED(seat)
     qCDebug(qLcImageCapture) << "WExtImageCaptureSourceV1Impl::get_pointer_cursor()";
     // TODO: Implement cursor retrieval logic
     // This needs to get cursor information from seat and create corresponding cursor structure

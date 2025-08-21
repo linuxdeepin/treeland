@@ -4,10 +4,10 @@
 #include "popupsurfacecontainer.h"
 
 #include "surface/surfacewrapper.h"
+#include "common/treelandlogging.h"
 
 #include <QLoggingCategory>
 
-Q_LOGGING_CATEGORY(qLcPopupContainer, "treeland.shell.popupContainer")
 
 PopupSurfaceContainer::PopupSurfaceContainer(SurfaceContainer *parent)
     : SurfaceContainer(parent)
@@ -26,7 +26,7 @@ void PopupSurfaceContainer::mousePressEvent(QMouseEvent *event)
     }
 
     if (!xdgPopupSurfaces.isEmpty()) {
-        qCDebug(qLcPopupContainer) << "Intercepting mouse press event due to active popup surfaces";
+        qCDebug(treelandShell) << "Intercepting mouse press event due to active popup surfaces";
         // If surfaces are not empty, intercept the mouse press event to prevent it from reaching
         // lower z-index components
         event->accept();
@@ -37,7 +37,7 @@ void PopupSurfaceContainer::mousePressEvent(QMouseEvent *event)
                 continue;
             }
             if (!surface->shellSurface()) {
-                qCCritical(qLcPopupContainer) << "Ignore invalid popup surface:" << surface;
+                qCCritical(treelandShell) << "Ignore invalid popup surface:" << surface;
                 continue;
             }
             surface->requestClose();

@@ -25,7 +25,7 @@ class QW_CLASS_REINTERPRET_CAST(linux_drm_syncobj_surface_v1_state)
 {
 public:
 #if WLR_VERSION_MINOR >= 19
-    QW_FUNC_MEMBER(linux_drm_syncobj_surface_v1_state, signal_release_with_buffer, bool, wlr_buffer *buffer);
+    QW_FUNC_MEMBER(linux_drm_syncobj_surface_v1_state, signal_release_with_buffer, bool, wlr_buffer *buffer)
 #endif
 };
 

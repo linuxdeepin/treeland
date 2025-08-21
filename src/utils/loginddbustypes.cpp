@@ -2,12 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "loginddbustypes.h"
+#include "common/treelandlogging.h"
 
 #include <QDBusArgument>
 #include <QDBusConnection>
 #include <QDBusConnectionInterface>
 #include <QDBusMetaType>
-#include <QDebug>
+#include <QLoggingCategory>
 
 class LogindPathInternal
 {
@@ -50,7 +51,7 @@ LogindPathInternal::LogindPathInternal()
 
     if (QDBusConnection::systemBus().interface()->isServiceRegistered(
             QStringLiteral("org.freedesktop.login1"))) {
-        qDebug() << "Logind interface found";
+        qCDebug(treelandDBus) << "Logind interface found";
         available = true;
         serviceName = QStringLiteral("org.freedesktop.login1");
         managerPath = QStringLiteral("/org/freedesktop/login1");
@@ -63,7 +64,7 @@ LogindPathInternal::LogindPathInternal()
 
     if (QDBusConnection::systemBus().interface()->isServiceRegistered(
             QStringLiteral("org.freedesktop.ConsoleKit"))) {
-        qDebug() << "Console kit interface found";
+        qCDebug(treelandDBus) << "Console kit interface found";
         available = true;
         serviceName = QStringLiteral("org.freedesktop.ConsoleKit");
         managerPath = QStringLiteral("/org/freedesktop/ConsoleKit/Manager");
@@ -74,7 +75,7 @@ LogindPathInternal::LogindPathInternal()
         userIfaceName = QStringLiteral("org.freedesktop.ConsoleKit.User");
         return;
     }
-    qDebug() << "No session manager found";
+    qCDebug(treelandDBus) << "No session manager found";
 }
 
 Q_GLOBAL_STATIC(LogindPathInternal, s_instance);
