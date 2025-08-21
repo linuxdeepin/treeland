@@ -2822,11 +2822,14 @@ void Helper::setActivatedSurfaceForSeat(WSeat *seat, SurfaceWrapper *surface)
     if (currentSurface == surface)
         return;
 
-    if (currentSurface) {
-        currentSurface->setActivate(false);
+    if (currentSurface && currentSurface->shellSurface()) {
+        if (!(surface && surface->type() == SurfaceWrapper::Type::XWayland &&
+              surface->shellSurface() && !surface->shellSurface()->hasCapability(WToplevelSurface::Capability::Focus))) {
+            currentSurface->setActivate(false);
+        }
     }
 
-    if (surface && surface->shellSurface()) {
+    if (surface) {
         surface->setActivate(true);
         surface->stackToLast();
         if (auto sh = surface->shellSurface(); sh && surface->surface() && surface->surface()->mapped()) {
