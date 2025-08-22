@@ -148,6 +148,7 @@ static QByteArray readWindowProperty(xcb_connection_t *connection,
 Q_LOGGING_CATEGORY(qLcHelper, "treeland.helper");
 
 Helper *Helper::m_instance = nullptr;
+static bool s_settingSeatPosition = false;
 
 Helper::Helper(QObject *parent)
     : WSeatEventFilter(parent)
@@ -263,8 +264,7 @@ Helper::~Helper()
     }
 
     m_seatActivatedSurfaces.clear();
-    m_seatMoveResizeSurfaces.clear();
-    m_seatMoveResizeEdges.clear();
+    m_seatMoveResizeStates.clear();
     m_seatLastPressedPositions.clear();
     m_seatMetaKeyStates.clear();
     m_seatKeyboardFocusSurfaces.clear();
@@ -278,6 +278,32 @@ Helper::~Helper()
 Helper *Helper::instance()
 {
     return m_instance;
+}
+
+bool Helper::getSeatMoveResizeInfo(SurfaceWrapper *surface, Qt::Edges &edges, QRectF &startGeometry)
+{
+    if (!m_instance)
+        return false;
+
+    for (auto it = m_instance->m_seatMoveResizeStates.begin();
+         it != m_instance->m_seatMoveResizeStates.end(); ++it) {
+        if (it.value().surface == surface) {
+            edges = it.value().edges;
+            startGeometry = it.value().startGeometry;
+            return true;
+        }
+    }
+    return false;
+}
+
+bool Helper::isSettingSeatPosition()
+{
+    return s_settingSeatPosition;
+}
+
+void Helper::setSeatPositionFlag(bool setting)
+{
+    s_settingSeatPosition = setting;
 }
 
 bool Helper::isNvidiaCardPresent()
@@ -823,7 +849,7 @@ void Helper::onSurfaceWrapperAdded(SurfaceWrapper *wrapper)
                     if (m_seatActivatedSurfaces.value(seat) == wrapper) {
                         m_seatActivatedSurfaces.remove(seat);
                     }
-                    if (m_seatMoveResizeSurfaces.value(seat) == wrapper) {
+                    if (m_seatMoveResizeStates.value(seat).surface == wrapper) {
                         endMoveResizeForSeat(seat);
                     }
                 }
@@ -1701,21 +1727,20 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *targetWindow, QInputEvent 
 
     doGesture(event);
 
-    if (auto surface = getMoveResizeSurfaceForSeat(seat)) {
+    auto &seatState = m_seatMoveResizeStates[seat];
+    if (seatState.surface) {
         if (Q_LIKELY(event->type() == QEvent::MouseMove || event->type() == QEvent::TouchUpdate)) {
             auto cursor = seat->cursor();
             Q_ASSERT(cursor);
             QMouseEvent *ev = static_cast<QMouseEvent *>(event);
 
-            auto ownsOutput = surface->ownsOutput();
+            auto ownsOutput = seatState.surface->ownsOutput();
             if (!ownsOutput) {
                 endMoveResizeForSeat(seat);
                 return false;
             }
 
-            auto lastPosition = m_seatLastPressedPositions.value(seat, cursor->position());
-            auto increment_pos = ev->globalPosition() - lastPosition;
-            m_seatLastPressedPositions[seat] = ev->globalPosition();
+            auto increment_pos = ev->globalPosition() - seatState.initialPosition;
             doMoveResizeForSeat(seat, increment_pos);
 
             return true;
@@ -2880,8 +2905,7 @@ void Helper::beginMoveResizeForSeat(WSeat *seat, SurfaceWrapper *surface, Qt::Ed
     if (!seat || !surface)
         return;
 
-    auto currentSurface = m_seatMoveResizeSurfaces.value(seat);
-    if (currentSurface && currentSurface != surface) {
+    if (m_seatMoveResizeStates[seat].surface && m_seatMoveResizeStates[seat].surface != surface) {
         endMoveResizeForSeat(seat);
     }
 
@@ -2889,12 +2913,12 @@ void Helper::beginMoveResizeForSeat(WSeat *seat, SurfaceWrapper *surface, Qt::Ed
         m_rootSurfaceContainer->endMoveResize();
     }
 
-    m_seatMoveResizeSurfaces[seat] = surface;
-    m_seatMoveResizeEdges[seat] = edges;
 
-    if (seat->cursor()) {
-        m_seatLastPressedPositions[seat] = seat->cursor()->position();
-    }
+    auto &seatState = m_seatMoveResizeStates[seat];
+    seatState.surface = surface;
+    seatState.edges = edges;
+    seatState.startGeometry = surface->geometry();
+    seatState.initialPosition = seat->cursor() ? seat->cursor()->position() : QPointF();
 }
 
 void Helper::endMoveResizeForSeat(WSeat *seat)
@@ -2902,10 +2926,8 @@ void Helper::endMoveResizeForSeat(WSeat *seat)
     if (!seat)
         return;
 
-    if (m_seatMoveResizeSurfaces.contains(seat)) {
-        m_seatMoveResizeSurfaces.remove(seat);
-        m_seatMoveResizeEdges.remove(seat);
-        m_seatLastPressedPositions.remove(seat);
+    if (m_seatMoveResizeStates.contains(seat)) {
+        m_seatMoveResizeStates.remove(seat);
     }
 }
 
@@ -2913,49 +2935,37 @@ SurfaceWrapper *Helper::getMoveResizeSurfaceForSeat(WSeat *seat) const
 {
     if (!seat)
         return nullptr;
-    return m_seatMoveResizeSurfaces.value(seat);
+    return m_seatMoveResizeStates.value(seat).surface;
 }
 
-void Helper::doMoveResizeForSeat(WSeat *seat, const QPointF &delta)
+void Helper::doMoveResizeForSeat(WSeat *seat, const QPointF &incrementPos)
 {
     if (!seat)
         return;
 
-    auto surface = m_seatMoveResizeSurfaces.value(seat);
-    if (!surface)
+    auto &seatState = m_seatMoveResizeStates[seat];
+    if (!seatState.surface)
         return;
-    auto edges = m_seatMoveResizeEdges.value(seat);
 
-    if (edges == Qt::Edges{}) {
-        auto newPos = surface->position() + delta;
-        surface->setPosition(newPos);
+    if (seatState.edges == Qt::Edges{}) {
+        // Move operation
+        auto newPos = seatState.startGeometry.topLeft() + incrementPos;
+        seatState.surface->setPosition(newPos);
     } else {
-        auto currentGeometry = surface->geometry();
-        auto newGeometry = currentGeometry;
 
-        if (edges & Qt::LeftEdge) {
-            newGeometry.setLeft(currentGeometry.left() + delta.x());
-        }
-        if (edges & Qt::RightEdge) {
-            newGeometry.setRight(currentGeometry.right() + delta.x());
-        }
-        if (edges & Qt::TopEdge) {
-            newGeometry.setTop(currentGeometry.top() + delta.y());
-        }
-        if (edges & Qt::BottomEdge) {
-            newGeometry.setBottom(currentGeometry.bottom() + delta.y());
-        }
+        QRectF geo = seatState.startGeometry;
 
-        if (newGeometry.width() < 50) {
-            newGeometry.setWidth(50);
-        }
+        if (seatState.edges & Qt::LeftEdge)
+            geo.setLeft(geo.left() + incrementPos.x());
+        if (seatState.edges & Qt::TopEdge)
+            geo.setTop(geo.top() + incrementPos.y());
+        if (seatState.edges & Qt::RightEdge)
+            geo.setRight(geo.right() + incrementPos.x());
+        if (seatState.edges & Qt::BottomEdge)
+            geo.setBottom(geo.bottom() + incrementPos.y());
 
-        if (newGeometry.height() < 50) {
-            newGeometry.setHeight(50);
-        }
 
-        surface->setPosition(newGeometry.topLeft());
-        surface->setSize(newGeometry.size());
+        seatState.surface->resize(geo.size());
     }
 }
 

@@ -132,6 +132,10 @@ public:
 
     static Helper *instance();
 
+    static bool getSeatMoveResizeInfo(SurfaceWrapper *surface, Qt::Edges &edges, QRectF &startGeometry);
+    static bool isSettingSeatPosition();
+    static void setSeatPositionFlag(bool setting);
+
     QmlEngine *qmlEngine() const;
     WOutputRenderWindow *window() const;
     ShellHandler *shellHandler() const;
@@ -387,8 +391,13 @@ private:
     QString m_seatConfigPath;
 
     QMap<WSeat*, SurfaceWrapper*> m_seatActivatedSurfaces;
-    QMap<WSeat*, SurfaceWrapper*> m_seatMoveResizeSurfaces;
-    QMap<WSeat*, Qt::Edges> m_seatMoveResizeEdges;
+    struct SeatMoveResizeState {
+        SurfaceWrapper *surface = nullptr;
+        Qt::Edges edges;
+        QRectF startGeometry;
+        QPointF initialPosition;
+    };
+    QMap<WSeat*, SeatMoveResizeState> m_seatMoveResizeStates;
     QMap<WSeat*, QPointF> m_seatLastPressedPositions;
     QMap<WSeat*, bool> m_seatMetaKeyStates;
     QMap<WSeat*, SurfaceWrapper*> m_seatKeyboardFocusSurfaces;
