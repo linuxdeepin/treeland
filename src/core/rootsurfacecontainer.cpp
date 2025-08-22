@@ -297,29 +297,56 @@ bool RootSurfaceContainer::filterSurfaceGeometryChanged(SurfaceWrapper *surface,
                                                         QRectF &newGeometry,
                                                         const QRectF &oldGeometry)
 {
-    if (surface != moveResizeState.surface)
+    if (surface == moveResizeState.surface) {
+        if (moveResizeState.setSurfacePositionForAnchorEdgets) {
+            Q_ASSERT(newGeometry.size() == oldGeometry.size());
+            return true;
+        }
+
+        if (moveResizeState.resizeEdges != 0) {
+            QRectF geometry = newGeometry;
+            if (moveResizeState.resizeEdges & Qt::RightEdge)
+                geometry.moveLeft(oldGeometry.left());
+            if (moveResizeState.resizeEdges & Qt::BottomEdge)
+                geometry.moveTop(oldGeometry.top());
+            if (moveResizeState.resizeEdges & Qt::LeftEdge)
+                geometry.moveRight(oldGeometry.right());
+            if (moveResizeState.resizeEdges & Qt::TopEdge)
+                geometry.moveBottom(oldGeometry.bottom());
+
+            if (geometry.topLeft() != newGeometry.topLeft()) {
+                newGeometry = geometry;
+                moveResizeState.setSurfacePositionForAnchorEdgets = true;
+                surface->setPosition(geometry.topLeft());
+                moveResizeState.setSurfacePositionForAnchorEdgets = false;
+            }
+        }
         return false;
-    if (moveResizeState.setSurfacePositionForAnchorEdgets) {
-        Q_ASSERT(newGeometry.size() == oldGeometry.size());
-        return true;
     }
 
-    if (moveResizeState.resizeEdges != 0) {
-        QRectF geometry = newGeometry;
-        if (moveResizeState.resizeEdges & Qt::RightEdge)
-            geometry.moveLeft(oldGeometry.left());
-        if (moveResizeState.resizeEdges & Qt::BottomEdge)
-            geometry.moveTop(oldGeometry.top());
-        if (moveResizeState.resizeEdges & Qt::LeftEdge)
-            geometry.moveRight(oldGeometry.right());
-        if (moveResizeState.resizeEdges & Qt::TopEdge)
-            geometry.moveBottom(oldGeometry.bottom());
+    Qt::Edges seatEdges;
+    QRectF seatStartGeometry;
+    if (Helper::getSeatMoveResizeInfo(surface, seatEdges, seatStartGeometry)) {
+        if (Helper::isSettingSeatPosition()) {
+            return false;
+        }
+        if (seatEdges != 0) {
+            QRectF geometry = newGeometry;
+            if (seatEdges & Qt::RightEdge)
+                geometry.moveLeft(oldGeometry.left());
+            if (seatEdges & Qt::BottomEdge)
+                geometry.moveTop(oldGeometry.top());
+            if (seatEdges & Qt::LeftEdge)
+                geometry.moveRight(oldGeometry.right());
+            if (seatEdges & Qt::TopEdge)
+                geometry.moveBottom(oldGeometry.bottom());
 
-        if (geometry.topLeft() != newGeometry.topLeft()) {
-            newGeometry = geometry;
-            moveResizeState.setSurfacePositionForAnchorEdgets = true;
-            surface->setPosition(geometry.topLeft());
-            moveResizeState.setSurfacePositionForAnchorEdgets = false;
+            if (geometry.topLeft() != newGeometry.topLeft()) {
+                newGeometry = geometry;
+                Helper::setSeatPositionFlag(true);
+                surface->setPosition(geometry.topLeft());
+                Helper::setSeatPositionFlag(false);
+            }
         }
     }
 
