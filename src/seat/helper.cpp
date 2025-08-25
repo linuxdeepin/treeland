@@ -13,8 +13,6 @@
 
 #include <rhi/qrhi.h>
 
-#include <QDBusConnection>
-#include <QDBusInterface>
 #ifndef DISABLE_DDM
 #  include "core/lockscreen.h"
 #endif
@@ -100,6 +98,9 @@
 #include <QQmlContext>
 #include <QQuickWindow>
 #include <QtConcurrent>
+#include <QDBusConnection>
+#include <QDBusInterface>
+#include <QDBusObjectPath>
 
 #include <pwd.h>
 #include <utility>
@@ -233,6 +234,32 @@ Helper::Helper(QObject *parent)
             &TreelandConfig::cursorSizeChanged,
             this,
             &Helper::cursorSizeChanged);
+
+    // Connect to systemd-logind's PrepareForSleep signal for hibernate blackout
+    bool connected = QDBusConnection::systemBus().connect(
+        "org.freedesktop.login1",           // service
+        "/org/freedesktop/login1",          // path
+        "org.freedesktop.login1.Manager",   // interface
+        "PrepareForSleep",                  // signal name
+        this,                               // receiver
+        SLOT(onPrepareForSleep(bool))       // slot
+    );
+
+    if (!connected) {
+        qCWarning(treelandCore) << "Failed to connect to systemd-logind PrepareForSleep signal";
+    } else {
+        qCInfo(treelandCore) << "Successfully connected to systemd-logind PrepareForSleep signal";
+    }
+
+    // Also connect to SessionNew signal for logging purposes
+    QDBusConnection::systemBus().connect(
+        "org.freedesktop.login1",
+        "/org/freedesktop/login1",
+        "org.freedesktop.login1.Manager",
+        "SessionNew",
+        this,
+        SLOT(onSessionNew(QString,QDBusObjectPath))
+    );
 }
 
 Helper::~Helper()
@@ -1980,11 +2007,6 @@ void Helper::setLockScreenImpl(ILockScreen *impl)
         }
     });
 
-    bool dbusConnected = QDBusConnection::systemBus().connect("org.freedesktop.login1", "/org/freedesktop/login1", "org.freedesktop.login1.Manager", "SessionNew", this, SLOT(onSessionNew(const QString &,const QDBusObjectPath &)));
-    if (!dbusConnected) {
-        qCWarning(treelandCore) << "Could not connect to org.freedesktop.login1.Manager SessionNew signal";
-    }
-
     if (CmdLine::ref().useLockScreen()) {
         showLockScreen(false);
     }
@@ -2144,6 +2166,18 @@ void Helper::handleNewForeignToplevelCaptureRequest(wlr_ext_foreign_toplevel_ima
     if (!success) {
         qCWarning(treelandCapture) << "Failed to accept foreign toplevel image capture request";
         delete imageCaptureSource;
+    }
+}
+
+void Helper::onPrepareForSleep(bool sleep)
+{
+    if (sleep) {
+        qCInfo(treelandCore) << "Rendering black frames to all outputs before hibernate";
+        disableRender();
+        // TODO：should we disable output？
+    } else {
+        qCInfo(treelandCore) << "Re-enabled rendering after hibernate";
+        enableRender();
     }
 }
 
