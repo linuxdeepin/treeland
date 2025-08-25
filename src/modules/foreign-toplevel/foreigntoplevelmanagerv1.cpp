@@ -121,7 +121,10 @@ void ForeignToplevelV1::addSurface(SurfaceWrapper *wrapper)
                     Helper::instance()->forceActivateSurface(wrapper);
                     return;
                 }
-
+                if (event->minimized && wrapper->isMinimized()) {
+                    Helper::instance()->forceActivateSurface(wrapper);
+                    return;
+                }
                 if (event->minimized)
                     wrapper->requestMinimize();
                 else
