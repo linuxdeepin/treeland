@@ -97,7 +97,6 @@ static struct wlr_gbm_buffer *create_buffer(struct wlr_gbm_allocator *alloc,
 	}
 	wlr_buffer_init(&buffer->base, &buffer_impl, width, height);
 	buffer->gbm_bo = bo;
-	wl_list_insert(&alloc->buffers, &buffer->link);
 
 	if (!export_gbm_bo(bo, &buffer->dmabuf)) {
 		free(buffer);
@@ -111,6 +110,8 @@ static struct wlr_gbm_buffer *create_buffer(struct wlr_gbm_allocator *alloc,
 	if (!has_modifier) {
 		buffer->dmabuf.modifier = fallback_modifier;
 	}
+
+	wl_list_insert(&alloc->buffers, &buffer->link);
 
 	char *format_name = drmGetFormatName(buffer->dmabuf.format);
 	char *modifier_name = drmGetFormatModifierName(buffer->dmabuf.modifier);
