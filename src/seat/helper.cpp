@@ -10,6 +10,7 @@
 #include "input/inputdevice.h"
 #include "core/layersurfacecontainer.h"
 #include "greeter/usermodel.h"
+#include "utils/fpsdisplaymanager.h"
 
 #include <rhi/qrhi.h>
 
@@ -965,6 +966,9 @@ void Helper::init()
     auto engine = qmlEngine();
     m_userModel = engine->singletonInstance<UserModel *>("Treeland", "UserModel");
 
+    m_fpsDisplayManager = new FpsDisplayManager(this);
+    m_fpsDisplayManager->setTargetWindow(m_renderWindow);
+
     engine->setContextForObject(m_renderWindow, engine->rootContext());
     engine->setContextForObject(m_renderWindow->contentItem(), engine->rootContext());
     m_rootSurfaceContainer->setQmlEngine(engine);
@@ -1547,6 +1551,11 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *targetWindow, QInputEvent 
             if (QKeySequence(kevent->modifiers() | kevent->key())
                 == QKeySequence(Qt::META | Qt::Key_F12)) {
                 qApp->quit();
+                return true;
+            }
+            else if (QKeySequence(kevent->modifiers() | kevent->key())
+                == QKeySequence(Qt::META | Qt::Key_F11)) {
+                toggleFpsDisplay();
                 return true;
             }
             else if (m_captureSelector) {
@@ -2999,4 +3008,14 @@ void Helper::switchWorkspaceForSeat(WSeat *seat, int index)
     if (!seat)
         return;
     workspace()->switchTo(index);
+}
+
+void Helper::toggleFpsDisplay()
+{
+    if (m_fpsDisplayManager) {
+        m_fpsDisplayManager->toggle();
+        qCInfo(qLcHelper) << "FPS display toggled, now" << (m_fpsDisplayManager->isVisible() ? "visible" : "hidden");
+    } else {
+        qCWarning(qLcHelper) << "FPS display manager not initialized";
+    }
 }
