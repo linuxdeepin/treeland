@@ -231,6 +231,7 @@ SurfaceWrapper::~SurfaceWrapper()
     Q_ASSERT(!m_container);
     Q_ASSERT(!m_parentSurface);
     Q_ASSERT(m_subSurfaces.isEmpty());
+    disconnect(nullptr, nullptr, this, nullptr);
     if (m_titleBar) {
         delete m_titleBar;
         m_titleBar = nullptr;
@@ -545,6 +546,7 @@ void SurfaceWrapper::setSurfaceState(State newSurfaceState)
         startStateChangeAnimation(newSurfaceState, targetGeometry);
     } else {
         if (m_geometryAnimation) {
+            m_geometryAnimation->disconnect(this);
             m_geometryAnimation->deleteLater();
         }
 
@@ -646,6 +648,7 @@ void SurfaceWrapper::setNoDecoration(bool newNoDecoration)
 
     if (m_noDecoration) {
         Q_ASSERT(m_decoration);
+        m_decoration->disconnect(this);
         m_decoration->deleteLater();
         m_decoration = nullptr;
     } else {
@@ -674,6 +677,7 @@ void SurfaceWrapper::updateTitleBar()
         return;
 
     if (m_titleBar) {
+        m_titleBar->disconnect(this);
         m_titleBar->deleteLater();
         m_titleBar = nullptr;
         m_surfaceItem->setTopPadding(0);
@@ -894,6 +898,7 @@ void SurfaceWrapper::onAnimationReady()
 
     if (!resize(m_pendingGeometry.size())) {
         // abort change state if resize failed
+        m_geometryAnimation->disconnect(this);
         m_geometryAnimation->deleteLater();
         return;
     }
@@ -906,6 +911,7 @@ void SurfaceWrapper::onAnimationFinished()
 {
     setXwaylandPositionFromSurface(true);
     Q_ASSERT(m_geometryAnimation);
+    m_geometryAnimation->disconnect(this);
     m_geometryAnimation->deleteLater();
 }
 
@@ -933,6 +939,7 @@ bool SurfaceWrapper::startStateChangeAnimation(State targetState, const QRectF &
 void SurfaceWrapper::onWindowAnimationFinished()
 {
     Q_ASSERT(m_windowAnimation);
+    m_windowAnimation->disconnect(this);
     m_windowAnimation->deleteLater();
     m_windowAnimation = nullptr;
 
@@ -1000,6 +1007,7 @@ void SurfaceWrapper::onSocketEnabledChanged()
 void SurfaceWrapper::onMinimizeAnimationFinished()
 {
     Q_ASSERT(m_minimizeAnimation);
+    m_minimizeAnimation->disconnect(this);
     m_minimizeAnimation->deleteLater();
 }
 
@@ -1041,6 +1049,7 @@ void SurfaceWrapper::setHideByLockScreen(bool hide)
 void SurfaceWrapper::onShowDesktopAnimationFinished()
 {
     Q_ASSERT(m_showDesktopAnimation);
+    m_showDesktopAnimation->disconnect(this);
     m_showDesktopAnimation->deleteLater();
     updateVisible();
 }
@@ -1049,6 +1058,7 @@ void SurfaceWrapper::startShowDesktopAnimation(bool show)
 {
 
     if (m_showDesktopAnimation) {
+        m_showDesktopAnimation->disconnect(this);
         m_showDesktopAnimation->deleteLater();
     }
 
