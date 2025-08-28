@@ -219,6 +219,8 @@ public:
     void setActivatedSurfaceForSeat(WSeat *seat, SurfaceWrapper *surface);
     SurfaceWrapper *getActivatedSurfaceForSeat(WSeat *seat) const;
     void toggleFpsDisplay();
+    void enableRender();
+    void disableRender();
 
 public Q_SLOTS:
     void activateSurface(SurfaceWrapper *wrapper, Qt::FocusReason reason = Qt::OtherFocusReason);
