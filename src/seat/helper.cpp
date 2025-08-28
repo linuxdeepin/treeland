@@ -14,8 +14,6 @@
 
 #include <rhi/qrhi.h>
 
-#include <QDBusConnection>
-#include <QDBusInterface>
 #ifndef DISABLE_DDM
 #  include "core/lockscreen.h"
 #endif
@@ -90,6 +88,9 @@
 #include <QQmlContext>
 #include <QQuickWindow>
 #include <QtConcurrent>
+#include <QDBusConnection>
+#include <QDBusInterface>
+#include <QDBusObjectPath>
 
 #include <pwd.h>
 #include <utility>
@@ -243,6 +244,32 @@ Helper::Helper(QObject *parent)
             &TreelandConfig::cursorSizeChanged,
             this,
             &Helper::cursorSizeChanged);
+
+    // Connect to systemd-logind's PrepareForSleep signal for hibernate blackout
+    bool connected = QDBusConnection::systemBus().connect(
+        "org.freedesktop.login1",           // service
+        "/org/freedesktop/login1",          // path
+        "org.freedesktop.login1.Manager",   // interface
+        "PrepareForSleep",                  // signal name
+        this,                               // receiver
+        SLOT(onPrepareForSleep(bool))       // slot
+    );
+
+    if (!connected) {
+        qCWarning(treelandCore) << "Failed to connect to systemd-logind PrepareForSleep signal";
+    } else {
+        qCInfo(treelandCore) << "Successfully connected to systemd-logind PrepareForSleep signal";
+    }
+
+    // Also connect to SessionNew signal for logging purposes
+    QDBusConnection::systemBus().connect(
+        "org.freedesktop.login1",
+        "/org/freedesktop/login1",
+        "org.freedesktop.login1.Manager",
+        "SessionNew",
+        this,
+        SLOT(onSessionNew(QString,QDBusObjectPath))
+    );
 }
 
 Helper::~Helper()
@@ -2460,8 +2487,6 @@ void Helper::setLockScreenImpl(ILockScreen *impl)
         }
     });
 
-    QDBusConnection::systemBus().connect("org.freedesktop.login1", "/org/freedesktop/login1", "org.freedesktop.login1.Manager", "SessionNew", this, SLOT(onSessionNew(const QString &,const QDBusObjectPath &)));
-
     if (CmdLine::ref().useLockScreen()) {
         showLockScreen();
     }
@@ -3017,5 +3042,17 @@ void Helper::toggleFpsDisplay()
         qCInfo(qLcHelper) << "FPS display toggled, now" << (m_fpsDisplayManager->isVisible() ? "visible" : "hidden");
     } else {
         qCWarning(qLcHelper) << "FPS display manager not initialized";
+    }
+}
+
+void Helper::onPrepareForSleep(bool sleep)
+{
+    if (sleep) {
+        qCInfo(treelandCore) << "Rendering black frames to all outputs before hibernate";
+        disableRender();
+        // TODO：should we disable output？
+    } else {
+        qCInfo(treelandCore) << "Re-enabled rendering after hibernate";
+        enableRender();
     }
 }

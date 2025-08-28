@@ -243,6 +243,8 @@ Q_SIGNALS:
 private Q_SLOTS:
     void onShowDesktop();
     void deleteTaskSwitch();
+    void onPrepareForSleep(bool sleep);
+    void onSessionNew(const QString &sessionId, const QDBusObjectPath &objectPath);
 
 private:
     void onOutputAdded(WOutput *output);
@@ -266,7 +268,6 @@ private:
     void onSurfaceWrapperAboutToRemove(SurfaceWrapper *wrapper);
     void handleRequestDrag([[maybe_unused]] WSurface *surface);
     void handleLockScreen(LockScreenInterface *lockScreen);
-    void onSessionNew(const QString &sessionId, const QDBusObjectPath &sessionPath);
     void onSessionLock();
     void onSessionUnlock();
 
