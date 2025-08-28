@@ -12,8 +12,8 @@ public:
     ~DDMInterfaceV1() override;
     QByteArrayView interfaceName() const override;
     bool isConnected() const;
-    void switchToVt(int vtnr);
-    void acquireVt(int vtnr);
+    void switchToVt(const int vtnr);
+    void acquireVt(const int vtnr);
 protected:
     void create(Waylib::Server::WServer *server) override;
     void destroy(Waylib::Server::WServer *server) override;
