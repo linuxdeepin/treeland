@@ -256,9 +256,9 @@ Helper::Helper(QObject *parent)
     );
 
     if (!connected) {
-        qCWarning(treelandCore) << "Failed to connect to systemd-logind PrepareForSleep signal";
+        qCWarning(qLcHelper) << "Failed to connect to systemd-logind PrepareForSleep signal";
     } else {
-        qCInfo(treelandCore) << "Successfully connected to systemd-logind PrepareForSleep signal";
+        qCInfo(qLcHelper) << "Successfully connected to systemd-logind PrepareForSleep signal";
     }
 
     // Also connect to SessionNew signal for logging purposes
@@ -3048,11 +3048,19 @@ void Helper::toggleFpsDisplay()
 void Helper::onPrepareForSleep(bool sleep)
 {
     if (sleep) {
-        qCInfo(treelandCore) << "Rendering black frames to all outputs before hibernate";
+        qCInfo(qLcHelper) << "Rendering black frames to all outputs before hibernate";
         disableRender();
         // TODO：should we disable output？
     } else {
-        qCInfo(treelandCore) << "Re-enabled rendering after hibernate";
+        qCInfo(qLcHelper) << "Re-enabled rendering after hibernate";
         enableRender();
     }
+}
+
+void Helper::enableRender() {
+    m_renderWindow->setRenderEnabled(true);
+}
+
+void Helper::disableRender() {
+    m_renderWindow->setRenderEnabled(false);
 }
