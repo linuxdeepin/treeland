@@ -104,6 +104,9 @@
 
 #include <pwd.h>
 #include <utility>
+#include <linux/input.h>
+#include <sys/ioctl.h>
+#include <wayland-util.h>
 
 #define WLR_FRACTIONAL_SCALE_V1_VERSION 1
 #define EXT_DATA_CONTROL_MANAGER_V1_VERSION 1
@@ -2205,4 +2208,17 @@ void Helper::enableRender() {
 
 void Helper::disableRender() {
     m_renderWindow->setRenderEnabled(false);
+
+    // Revoke all evdev devices to prevent accidental events during switch
+    static const char prefix[] = "/dev/input/";
+    static const int prefixLen = strlen(prefix);
+    struct wlr_session *session = m_backend->session()->handle();
+    struct wlr_device *device = nullptr;
+    wl_list_for_each(device, &session->devices, link) {
+        char path[32];
+        if (readlink(qPrintable(QStringLiteral("/proc/self/fd/%1").arg(device->fd)), path, 32) < 0)
+            qCWarning(treelandCore) << "Failed to read path of file descriptor " << device->fd;
+        else if (strncmp(prefix, path, prefixLen))
+            ioctl(device->fd, EVIOCREVOKE, nullptr);
+    }
 }
