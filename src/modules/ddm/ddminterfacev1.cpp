@@ -23,8 +23,13 @@ static void switchToGreeter([[maybe_unused]] struct wl_client *client, [[maybe_u
 }
 
 static void switchToUser([[maybe_unused]] struct wl_client *client, [[maybe_unused]] struct wl_resource *resource, const char *username) {
-    if (strcmp(username, "ddm") != 0) {
-        Helper::instance()->userModel()->setCurrentUserName(QString(username));
+    auto user = QString::fromLocal8Bit(username);
+    auto helper = Helper::instance();
+    if (user == "ddm") {
+        helper->showLockScreen(false);
+    } else if (user != helper->userModel()->currentUserName()) {
+        helper->userModel()->setCurrentUserName(QString(username));
+        helper->showLockScreen(false);
     }
 }
 
@@ -40,8 +45,12 @@ static void enableRender([[maybe_unused]] struct wl_client *client, [[maybe_unus
     Helper::instance()->enableRender();
 }
 
-static void disableRender([[maybe_unused]] struct wl_client *client, [[maybe_unused]] struct wl_resource *resource) {
+static void disableRender(struct wl_client *client, [[maybe_unused]] struct wl_resource *resource, uint32_t id) {
     Helper::instance()->disableRender();
+    auto callback = wl_resource_create(client, &wl_callback_interface, 1, id);
+    auto serial = wl_display_get_serial(wl_client_get_display(client));
+    wl_callback_send_done(callback, serial);
+    wl_resource_destroy(callback);
 }
 
 static const struct treeland_ddm_interface treeland_ddm_impl {
@@ -110,7 +119,7 @@ wl_global *DDMInterfaceV1::global() const {
 
 // Event wrapper
 
-void DDMInterfaceV1::switchToVt(int vtnr) {
+void DDMInterfaceV1::switchToVt(const int vtnr) {
     auto ddm = static_cast<struct treeland_ddm *>(m_handle);
     if (isConnected())
         treeland_ddm_send_switch_to_vt(ddm->resource, vtnr);
@@ -118,7 +127,7 @@ void DDMInterfaceV1::switchToVt(int vtnr) {
         qCWarning(treelandCore) << "DDM is not conected when trying to call switchToVt";
 }
 
-void DDMInterfaceV1::acquireVt(int vtnr) {
+void DDMInterfaceV1::acquireVt(const int vtnr) {
     auto ddm = static_cast<struct treeland_ddm *>(m_handle);
     if (isConnected())
         treeland_ddm_send_acquire_vt(ddm->resource, vtnr);
