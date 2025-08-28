@@ -248,6 +248,14 @@ SurfaceWrapper::~SurfaceWrapper()
         delete m_windowAnimation;
         m_windowAnimation = nullptr;
     }
+    if (m_minimizeAnimation) {
+        delete m_minimizeAnimation;
+        m_minimizeAnimation = nullptr;
+    }
+    if (m_showDesktopAnimation) {
+        delete m_showDesktopAnimation;
+        m_showDesktopAnimation = nullptr;
+    }
     if (m_coverContent) {
         delete m_coverContent;
         m_coverContent = nullptr;
@@ -616,7 +624,7 @@ void SurfaceWrapper::markWrapperToRemoved()
 
     if (!isWindowAnimationRunning()) {
         deleteLater();
-    } // else delete this in Animation finish
+    } // else delete this in Animation(for window close animation) finish
 }
 
 bool SurfaceWrapper::acceptKeyboardFocus() const
@@ -973,7 +981,7 @@ void SurfaceWrapper::onMappedChanged()
 {
     if (m_wrapperAboutToRemove)
         return;
-    
+
     Q_ASSERT(surface());
     bool mapped = surface()->mapped() && !m_hideByLockScreen;
     if (!m_isProxy) {
