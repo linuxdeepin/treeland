@@ -483,6 +483,19 @@ void GreeterProxy::readyRead()
 
             qCInfo(treelandGreeter) << "activate successfully: " << user;
         } break;
+        case DaemonMessages::UserLoggedIn: {
+            QString user;
+            input >> user;
+
+            // This will happen after a crash recovery of treeland
+            qCInfo(treelandGreeter) << "User " << user << " is already logged in";
+            auto userPtr = d->userModel->getUser(user);
+            if (userPtr) {
+                userPtr.get()->setLogined(true);
+            } else {
+                qCWarning(treelandGreeter) << "User " << user << " logged in but not found";
+            }
+        } break;
         default: {
             qCWarning(treelandGreeter) << "Unknown message received from daemon." << message;
         }
