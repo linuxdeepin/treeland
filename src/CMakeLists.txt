@@ -12,7 +12,7 @@ include(${CMAKE_SOURCE_DIR}/cmake/TranslationUtils.cmake)
 
 find_package(Dtk6 REQUIRED COMPONENTS Core Declarative SystemSettings)
 if (NOT DISABLE_DDM)
-    find_package(DDM REQUIRED COMPONENTS Auth Common)
+    find_package(DDM 0.2.0  REQUIRED COMPONENTS Auth Common)
 endif()
 find_package(QT NAMES Qt6 COMPONENTS Core REQUIRED)
 find_package(Qt6 CONFIG REQUIRED ShaderTools Concurrent)
