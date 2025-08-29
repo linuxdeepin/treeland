@@ -30,11 +30,10 @@ WAYLIB_SERVER_BEGIN_NAMESPACE
 class Q_DECL_HIDDEN WOutputHelperPrivate : public WObjectPrivate
 {
 public:
-    WOutputHelperPrivate(WOutput *output, WOutputHelper *qq, bool r/* renderable */, bool c /*contentIsDirty*/, bool n/*needsFrame*/)
+    WOutputHelperPrivate(WOutput *output, WOutputHelper *qq, bool c /*contentIsDirty*/, bool n/*needsFrame*/)
         : WObjectPrivate(qq)
         , output(output)
         , outputWindow(new QW::Window)
-        , renderable(r)
         , contentIsDirty(c)
         , needsFrame(n)
     {
@@ -76,7 +75,6 @@ public:
         return static_cast<QWlrootsOutputWindow*>(outputWindow->handle());
     }
 
-    void setRenderable(bool newValue);
     void setContentIsDirty(bool newValue);
     void setNeedsFrame(bool newNeedsFrame);
 
@@ -97,18 +95,9 @@ public:
     QWindow *outputWindow;
     WRenderHelper *renderHelper = nullptr;
 
-    uint renderable:1;
     uint contentIsDirty:1;
     uint needsFrame:1;
 };
-
-void WOutputHelperPrivate::setRenderable(bool newValue)
-{
-    if (renderable == newValue)
-        return;
-    renderable = newValue;
-    Q_EMIT q_func()->renderableChanged();
-}
 
 void WOutputHelperPrivate::setContentIsDirty(bool newValue)
 {
@@ -128,7 +117,6 @@ void WOutputHelperPrivate::setNeedsFrame(bool newNeedsFrame)
 
 void WOutputHelperPrivate::on_frame()
 {
-    setRenderable(true);
     Q_EMIT q_func()->requestRender();
 }
 
@@ -147,14 +135,14 @@ qw_buffer *WOutputHelperPrivate::acquireBuffer(wlr_swapchain **sc)
     return newBuffer ? qw_buffer::from(newBuffer) : nullptr;
 }
 
-WOutputHelper::WOutputHelper(WOutput *output, bool renderable, bool contentIsDirty, bool needsFrame, QObject *parent)
+WOutputHelper::WOutputHelper(WOutput *output, bool contentIsDirty, bool needsFrame, QObject *parent)
     : QObject(parent)
-    , WObject(*new WOutputHelperPrivate(output, this, renderable, contentIsDirty, needsFrame))
+    , WObject(*new WOutputHelperPrivate(output, this, contentIsDirty, needsFrame))
 {
 }
 
 WOutputHelper::WOutputHelper(WOutput *output, QObject *parent)
-    : WOutputHelper(output, false, false, false, parent)
+    : WOutputHelper(output, false, false, parent)
 {
 
 }
@@ -288,12 +276,6 @@ bool WOutputHelper::testCommit(qw_buffer *buffer, const wlr_output_layer_state_a
     return ok;
 }
 
-bool WOutputHelper::renderable() const
-{
-    W_DC(WOutputHelper);
-    return d->renderable;
-}
-
 bool WOutputHelper::contentIsDirty() const
 {
     W_DC(WOutputHelper);
@@ -306,13 +288,12 @@ bool WOutputHelper::needsFrame() const
     return d->needsFrame;
 }
 
-void WOutputHelper::resetState(bool resetRenderable)
+void WOutputHelper::resetState(bool resetNeedsFrame)
 {
     W_D(WOutputHelper);
     d->setContentIsDirty(false);
-    if (resetRenderable)
-        d->setRenderable(false);
-    d->setNeedsFrame(false);
+    if (resetNeedsFrame)
+        d->setNeedsFrame(false);
 
     // reset output state
     if (d->state.committed & WLR_OUTPUT_STATE_BUFFER) {
