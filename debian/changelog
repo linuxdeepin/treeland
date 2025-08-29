@@ -1,3 +1,39 @@
+treeland (0.7.0) unstable; urgency=medium
+
+  * fix: fix treeland get stuck in lockscreen after crash recovery
+  * fix: occasional crash during stop preview item handling
+  * refactor: improve code robustness
+  * fix: occasional crash when closing x window
+  * fix: resolve brief black screen during standby
+  * chore: remove dde portal screen cast configuration
+  * fix: correct log category and add null check for surface activation
+  * fix: resolve window resize crash during image capture
+  * fix: fix wrong display render issue when switching VT too quickly
+  * Totally disable lockscreen animation when switching TTY to prevent
+    stuck for switching too quickly
+  * feat: Support TTY switching with DDM
+  * Updates for project TreeLand (#515)
+  * feat(waylib): add WBufferDumper utility for dumping buffer contents
+    to image files
+  * refactor: use unified CI build preset with Werror
+  * build: enable -Werror compiler flag
+  * fix: prevent crash during preview item handling (#512)
+  * fix: prevent cursor flicker during screen recording
+  * docs: add comprehensive logging guidelines and update module logging
+  * feat: add centralized logging system and standardize log usage
+  * feat: ssd title bar displays the window title information
+  * fix: maximize/restore icon in the SSD title bar displays incorrectly
+  * fix: resolve multiple compiler warnings
+  * fix(waylib): prevent duplicate signal connections using
+    Qt::UniqueConnection
+  * fix(waylib): prevent crash by safely managing textureChanged
+    connection
+  * fix: use exec to replace process and avoid duplicate logs in
+    treeland.sh
+  * fix(waylib): Occasional crash when moving the cursor
+
+ -- rewine <luhongxu@uniontech.com>  Fri, 29 Aug 2025 10:23:45 +0800
+
 treeland (0.6.2) unstable; urgency=medium
 
   * fix: resolve library versioning and installation path issues
