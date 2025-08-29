@@ -30,6 +30,7 @@ class WAYLIB_SERVER_EXPORT WSurface : public WWrapObject
     Q_PROPERTY(bool mapped READ mapped NOTIFY mappedChanged)
     Q_PROPERTY(bool isSubsurface READ isSubsurface NOTIFY isSubsurfaceChanged)
     Q_PROPERTY(bool hasSubsurface READ hasSubsurface NOTIFY hasSubsurfaceChanged)
+    Q_PROPERTY(bool needsFrame READ needsFrame)
     Q_PROPERTY(QList<WSurface*> subsurfaces READ subsurfaces NOTIFY newSubsurface)
     Q_PROPERTY(uint32_t preferredBufferScale READ preferredBufferScale WRITE setPreferredBufferScale RESET resetPreferredBufferScale NOTIFY preferredBufferScaleChanged FINAL)
     QML_NAMED_ELEMENT(WaylandSurface)
@@ -62,10 +63,14 @@ public:
     void setPreferredBufferScale(uint32_t newPreferredBufferScale);
     void resetPreferredBufferScale();
 
+    bool needsFrame() const;
+    bool scheduleFrameIfNeeded();
+
 public Q_SLOTS:
     void enterOutput(WOutput *output);
     void leaveOutput(WOutput *output);
     const QVector<WOutput *> &outputs() const;
+    WOutput *framePacingOutput() const;
     bool inputRegionContains(const QPointF &localPos) const;
 
     void map();
@@ -73,7 +78,6 @@ public Q_SLOTS:
 
 Q_SIGNALS:
     void mappedChanged();
-    void bufferChanged();
     void bufferOffsetChanged();
     void isSubsurfaceChanged();
     void hasSubsurfaceChanged();
@@ -81,6 +85,7 @@ Q_SIGNALS:
     void preferredBufferScaleChanged();
     void outputEntered(WOutput *output);
     void outputLeave(WOutput *output);
+    void commit(quint32 committedState /*wlr_surface_state_field*/);
 
 protected:
     WSurface(WSurfacePrivate &dd, QObject *parent);

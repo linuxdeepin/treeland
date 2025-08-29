@@ -606,4 +606,9 @@ void WOutput::setForceSoftwareCursor(bool on)
     Q_EMIT forceSoftwareCursorChanged();
 }
 
+void WOutput::scheduleFrame()
+{
+    return handle()->schedule_frame();
+}
+
 WAYLIB_SERVER_END_NAMESPACE

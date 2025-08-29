@@ -105,6 +105,8 @@ public:
     bool forceSoftwareCursor() const;
     void setForceSoftwareCursor(bool on);
 
+    void scheduleFrame();
+
 Q_SIGNALS:
     void enabledChanged();
     void positionChanged(const QPoint &pos);
