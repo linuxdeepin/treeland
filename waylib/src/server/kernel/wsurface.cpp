@@ -44,6 +44,8 @@ void WSurfacePrivate::on_commit()
 {
     W_Q(WSurface);
 
+    needsFrame = !wl_list_empty(&nativeHandle()->current.frame_callback_list);
+
     if (nativeHandle()->current.committed & WLR_SURFACE_STATE_BUFFER)
         updateBuffer();
 
@@ -52,6 +54,8 @@ void WSurfacePrivate::on_commit()
 
     if (hasSubsurface) // Will make to true when qw_surface::newSubsurface
         updateHasSubsurface();
+
+    Q_EMIT q->commit(nativeHandle()->current.committed);
 }
 
 void WSurfacePrivate::init()
@@ -100,6 +104,7 @@ void WSurfacePrivate::connect()
 void WSurfacePrivate::updateOutputs()
 {
     outputs.clear();
+    framePacingOutput = nullptr;
     wlr_surface_output *output;
     wl_list_for_each(output, &nativeHandle()->current_outputs, link) {
         auto qo = qw_output::from(output->output);
@@ -109,6 +114,12 @@ void WSurfacePrivate::updateOutputs()
         if (!o)
             continue;
         outputs << o;
+
+        if (!framePacingOutput
+            || framePacingOutput->nativeHandle()->refresh
+                < qo->handle()->refresh) {
+            framePacingOutput = o;
+        }
     }
 
     updatePreferredBufferScale();
@@ -133,8 +144,6 @@ void WSurfacePrivate::setBuffer(qw_buffer *newBuffer)
     } else {
         buffer.reset(nullptr);
     }
-
-    Q_EMIT q_func()->bufferChanged();
 }
 
 void WSurfacePrivate::updateBuffer()
@@ -369,6 +378,12 @@ const QVector<WOutput *> &WSurface::outputs() const
     return d->outputs;
 }
 
+WOutput *WSurface::framePacingOutput() const
+{
+    W_DC(WSurface);
+    return d->framePacingOutput;
+}
+
 bool WSurface::isSubsurface() const
 {
     W_DC(WSurface);
@@ -448,6 +463,23 @@ void WSurfacePrivate::instantRelease()
         for (auto o : std::as_const(outputs))
             o->safeDisconnect(q);
     }
+}
+
+bool WSurface::needsFrame() const
+{
+    W_DC(WSurface);
+    return d->needsFrame;
+}
+
+bool WSurface::scheduleFrameIfNeeded()
+{
+    W_D(WSurface);
+    if (needsFrame() && d->framePacingOutput) {
+        d->needsFrame = false;
+        d->framePacingOutput->handle()->schedule_frame();
+        return true;
+    }
+    return false;
 }
 
 WAYLIB_SERVER_END_NAMESPACE
