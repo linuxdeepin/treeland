@@ -58,8 +58,10 @@ public:
     uint32_t preferredBufferScale = 1;
     uint32_t explicitPreferredBufferScale = 0;
 
+    bool needsFrame = false;
     std::unique_ptr<QW_NAMESPACE::qw_buffer, QW_NAMESPACE::qw_buffer::unlocker> buffer;
     QVector<WOutput*> outputs;
+    WOutput *framePacingOutput = nullptr;
     QMetaObject::Connection frameDoneConnection;
     QPoint bufferOffset;
 };
