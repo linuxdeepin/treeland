@@ -65,7 +65,6 @@ public:
 public Q_SLOTS:
     void render();
     void render(WOutputViewport *output, bool doCommit);
-    void scheduleRender();
     void update();
     void update(WOutputViewport *output);
     void setWidth(qreal arg);

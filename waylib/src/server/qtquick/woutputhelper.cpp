@@ -30,13 +30,11 @@ WAYLIB_SERVER_BEGIN_NAMESPACE
 class Q_DECL_HIDDEN WOutputHelperPrivate : public WObjectPrivate
 {
 public:
-    WOutputHelperPrivate(WOutput *output, WOutputHelper *qq, bool r/* renderable */, bool c /*contentIsDirty*/, bool n/*needsFrame*/)
+    WOutputHelperPrivate(WOutput *output, WOutputHelper *qq, bool c /*contentIsDirty*/)
         : WObjectPrivate(qq)
         , output(output)
         , outputWindow(new QW::Window)
-        , renderable(r)
         , contentIsDirty(c)
-        , needsFrame(n)
     {
         wlr_output_state_init(&state);
 
@@ -44,16 +42,10 @@ public:
         outputWindow->setScreen(QWlrootsIntegration::instance()->getScreenFrom(output)->screen());
         outputWindow->create();
 
-        output->safeConnect(&qw_output::notify_frame, qq, [this] {
-            on_frame();
-        });
-        output->safeConnect(&qw_output::notify_needs_frame, qq, [this] {
-            setNeedsFrame(true);
-            qwoutput()->qw_output::schedule_frame();
-        });
-        output->safeConnect(&qw_output::notify_damage, qq, [this] {
-            on_damage();
-        });
+        // In wlroots, damage is triggered after a cursor move.
+        // However, Waylib uses a custom cursor instead of having wlroots render it.
+        // So, we don't need to listen to the damage signal."
+        // output->safeConnect(&qw_output::notify_damage, qq, [] {});
         output->safeConnect(&WOutput::modeChanged, qq, [this] {
             if (renderHelper)
                 renderHelper->setSize(this->output->size());
@@ -76,12 +68,7 @@ public:
         return static_cast<QWlrootsOutputWindow*>(outputWindow->handle());
     }
 
-    void setRenderable(bool newValue);
     void setContentIsDirty(bool newValue);
-    void setNeedsFrame(bool newNeedsFrame);
-
-    void on_frame();
-    void on_damage();
 
     qw_buffer *acquireBuffer(wlr_swapchain **sc);
 
@@ -97,18 +84,8 @@ public:
     QWindow *outputWindow;
     WRenderHelper *renderHelper = nullptr;
 
-    uint renderable:1;
     uint contentIsDirty:1;
-    uint needsFrame:1;
 };
-
-void WOutputHelperPrivate::setRenderable(bool newValue)
-{
-    if (renderable == newValue)
-        return;
-    renderable = newValue;
-    Q_EMIT q_func()->renderableChanged();
-}
 
 void WOutputHelperPrivate::setContentIsDirty(bool newValue)
 {
@@ -116,26 +93,6 @@ void WOutputHelperPrivate::setContentIsDirty(bool newValue)
         return;
     contentIsDirty = newValue;
     Q_EMIT q_func()->contentIsDirtyChanged();
-}
-
-void WOutputHelperPrivate::setNeedsFrame(bool newNeedsFrame)
-{
-    if (needsFrame == newNeedsFrame)
-        return;
-    needsFrame = newNeedsFrame;
-    Q_EMIT q_func()->needsFrameChanged();
-}
-
-void WOutputHelperPrivate::on_frame()
-{
-    setRenderable(true);
-    Q_EMIT q_func()->requestRender();
-}
-
-void WOutputHelperPrivate::on_damage()
-{
-    setContentIsDirty(true);
-    Q_EMIT q_func()->damaged();
 }
 
 qw_buffer *WOutputHelperPrivate::acquireBuffer(wlr_swapchain **sc)
@@ -147,14 +104,14 @@ qw_buffer *WOutputHelperPrivate::acquireBuffer(wlr_swapchain **sc)
     return newBuffer ? qw_buffer::from(newBuffer) : nullptr;
 }
 
-WOutputHelper::WOutputHelper(WOutput *output, bool renderable, bool contentIsDirty, bool needsFrame, QObject *parent)
+WOutputHelper::WOutputHelper(WOutput *output, bool contentIsDirty, QObject *parent)
     : QObject(parent)
-    , WObject(*new WOutputHelperPrivate(output, this, renderable, contentIsDirty, needsFrame))
+    , WObject(*new WOutputHelperPrivate(output, this, contentIsDirty))
 {
 }
 
 WOutputHelper::WOutputHelper(WOutput *output, QObject *parent)
-    : WOutputHelper(output, false, false, false, parent)
+    : WOutputHelper(output, true, parent)
 {
 
 }
@@ -288,12 +245,6 @@ bool WOutputHelper::testCommit(qw_buffer *buffer, const wlr_output_layer_state_a
     return ok;
 }
 
-bool WOutputHelper::renderable() const
-{
-    W_DC(WOutputHelper);
-    return d->renderable;
-}
-
 bool WOutputHelper::contentIsDirty() const
 {
     W_DC(WOutputHelper);
@@ -303,16 +254,19 @@ bool WOutputHelper::contentIsDirty() const
 bool WOutputHelper::needsFrame() const
 {
     W_DC(WOutputHelper);
-    return d->needsFrame;
+    return d->output->nativeHandle()->needs_frame;
 }
 
-void WOutputHelper::resetState(bool resetRenderable)
+bool WOutputHelper::framePending() const
+{
+    W_DC(WOutputHelper);
+    return d->output->nativeHandle()->frame_pending;
+}
+
+void WOutputHelper::resetState()
 {
     W_D(WOutputHelper);
     d->setContentIsDirty(false);
-    if (resetRenderable)
-        d->setRenderable(false);
-    d->setNeedsFrame(false);
 
     // reset output state
     if (d->state.committed & WLR_OUTPUT_STATE_BUFFER) {
@@ -333,6 +287,12 @@ void WOutputHelper::update()
 {
     W_D(WOutputHelper);
     d->update();
+}
+
+void WOutputHelper::scheduleFrame()
+{
+    W_D(WOutputHelper);
+    d->qwoutput()->schedule_frame();
 }
 
 WAYLIB_SERVER_END_NAMESPACE
