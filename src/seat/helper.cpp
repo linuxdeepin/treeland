@@ -1150,12 +1150,6 @@ void Helper::setSocketEnabled(bool newEnabled)
 
 void Helper::activateSurface(SurfaceWrapper *wrapper, Qt::FocusReason reason)
 {
-    if (TreelandConfig::ref().blockActivateSurface() && wrapper) {
-        if (wrapper->shellSurface()->hasCapability(WToplevelSurface::Capability::Activate)) {
-            workspace()->pushActivedSurface(wrapper);
-        }
-        return;
-    }
     if (!wrapper
         || !wrapper->shellSurface()->hasCapability(WToplevelSurface::Capability::Activate)) {
         if (!wrapper)
@@ -1171,10 +1165,15 @@ void Helper::activateSurface(SurfaceWrapper *wrapper, Qt::FocusReason reason)
         }
     }
 
-    if (!wrapper
-        || (wrapper->shellSurface()->hasCapability(WToplevelSurface::Capability::Focus)
-            && wrapper->acceptKeyboardFocus()))
+
+    if (!wrapper) {
+        requestKeyboardFocusForSurface(nullptr, reason);
+    } else if (!m_blockRequestKeyboardFocus
+               && wrapper->shellSurface()->hasCapability(WToplevelSurface::Capability::Focus)
+               && wrapper->acceptKeyboardFocus()) {
+        // TODO: maybe allow get focus for lockscreen overlay surface
         requestKeyboardFocusForSurface(wrapper, reason);
+    }
 }
 
 void Helper::forceActivateSurface(SurfaceWrapper *wrapper, Qt::FocusReason reason)
@@ -2021,9 +2020,8 @@ void Helper::setCurrentMode(CurrentMode mode)
     if (m_currentMode == mode)
         return;
 
-    TreelandConfig::ref().setBlockActivateSurface(mode != CurrentMode::Normal);
-
     m_currentMode = mode;
+    m_blockRequestKeyboardFocus = mode != CurrentMode::Normal;
 
     Q_EMIT currentModeChanged();
 }

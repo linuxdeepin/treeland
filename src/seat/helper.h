@@ -300,8 +300,6 @@ private:
 
     static Helper *m_instance;
 
-    CurrentMode m_currentMode{ CurrentMode::Normal };
-
     // qtquick helper
     WOutputRenderWindow *m_renderWindow = nullptr;
     QQuickItem *m_dockPreview = nullptr;
@@ -366,4 +364,7 @@ private:
     UserModel *m_userModel{ nullptr };
 
     quint32 m_atomDeepinNoTitlebar;
+
+    CurrentMode m_currentMode{ CurrentMode::Normal };
+    bool m_blockRequestKeyboardFocus { false };
 };
