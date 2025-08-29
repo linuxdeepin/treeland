@@ -165,8 +165,8 @@ public:
         QPointer<QQuickItem> mapTo;
     };
 
-    OutputHelper(WOutputViewport *output, WOutputRenderWindow *parent, bool renderable, bool contentIsDirty, bool needsFrame)
-        : WOutputHelper(output->output(), renderable, contentIsDirty, needsFrame, parent)
+    OutputHelper(WOutputViewport *output, WOutputRenderWindow *parent, bool contentIsDirty, bool needsFrame)
+        : WOutputHelper(output->output(), contentIsDirty, needsFrame, parent)
         , m_output(output)
     {
 
@@ -1407,14 +1407,15 @@ WOutputRenderWindowPrivate::doRenderOutputs(const QList<OutputHelper*> &outputs,
     renderResults.reserve(outputs.size());
     for (OutputHelper *helper : std::as_const(outputs)) {
         if (Q_LIKELY(!forceRender)) {
-            if (!helper->renderable()
-                || Q_UNLIKELY(!WOutputViewportPrivate::get(helper->output())->renderable())
+            if (!(helper->needsFrame() || helper->contentIsDirty()))
+                continue;
+
+            if (Q_UNLIKELY(!WOutputViewportPrivate::get(helper->output())->renderable())
                 || !helper->output()->output()->isEnabled())
                 continue;
 
             if (!helper->contentIsDirty()) {
-                if (helper->needsFrame())
-                    renderResults.append(helper);
+                renderResults.append(helper);
                 continue;
             }
         }
@@ -1580,21 +1581,18 @@ void WOutputRenderWindow::attach(WOutputViewport *output)
         return;
 
     Q_ASSERT(output->output());
-    bool initialRenderable = false;
     bool initialContentIsDirty = false;
     bool initialNeedsFrame = false;
     for (const auto &helper : std::as_const(d->outputs)) {
         Q_ASSERT(helper->output() != output);
         if (helper->qwoutput() == output->output()->handle()) {
             // For a new viewport, it should initialize state from viewports with the same output.
-            initialRenderable |= helper->renderable();
             initialContentIsDirty |= helper->contentIsDirty();
             initialNeedsFrame |= helper->needsFrame();
         }
     }
     auto newOutput = new OutputHelper(output,
                                       this,
-                                      initialRenderable,
                                       initialContentIsDirty,
                                       initialNeedsFrame);
     d->outputs << newOutput;

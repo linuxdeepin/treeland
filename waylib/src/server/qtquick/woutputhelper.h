@@ -35,7 +35,6 @@ class WAYLIB_SERVER_EXPORT WOutputHelper : public QObject, public WObject
 {
     Q_OBJECT
     W_DECLARE_PRIVATE(WOutputHelper)
-    Q_PROPERTY(bool renderable READ renderable NOTIFY renderableChanged)
     Q_PROPERTY(bool contentIsDirty READ contentIsDirty NOTIFY contentIsDirtyChanged)
     Q_PROPERTY(bool needsFrame READ needsFrame NOTIFY needsFrameChanged FINAL)
 
@@ -61,15 +60,14 @@ public:
     bool testCommit();
     bool testCommit(QW_NAMESPACE::qw_buffer *buffer, const wlr_output_layer_state_array &layers);
 
-    bool renderable() const;
     bool contentIsDirty() const;
     bool needsFrame() const;
 
-    void resetState(bool resetRenderable);
+    void resetState(bool resetNeedsFrame);
     void update();
 
 protected:
-    WOutputHelper(WOutput *output, bool renderable, bool contentIsDirty, bool needsFrame, QObject *parent = nullptr);
+    WOutputHelper(WOutput *output, bool contentIsDirty, bool needsFrame, QObject *parent = nullptr);
 
 Q_SIGNALS:
     void requestRender();
