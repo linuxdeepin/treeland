@@ -453,10 +453,12 @@ static void lease_device_bind(struct wl_client *wl_client, void *data,
 	if (!device) {
 		wlr_log(WLR_DEBUG, "Failed to bind lease device, "
 				"the wlr_drm_lease_device_v1 has been destroyed");
+		wl_list_init(wl_resource_get_link(device_resource));
 		return;
 	}
 
 	wl_resource_set_user_data(device_resource, device);
+	wl_list_insert(&device->resources, wl_resource_get_link(device_resource));
 
 	int fd = wlr_drm_backend_get_non_master_fd(device->backend);
 	if (fd < 0) {
@@ -467,8 +469,6 @@ static void lease_device_bind(struct wl_client *wl_client, void *data,
 
 	wp_drm_lease_device_v1_send_drm_fd(device_resource, fd);
 	close(fd);
-
-	wl_list_insert(&device->resources, wl_resource_get_link(device_resource));
 
 	struct wlr_drm_lease_connector_v1 *connector;
 	wl_list_for_each(connector, &device->connectors, link) {
