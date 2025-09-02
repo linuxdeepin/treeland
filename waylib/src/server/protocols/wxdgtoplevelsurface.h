@@ -53,6 +53,8 @@ public:
     QString title() const override;
     QString appId() const override;
 
+    bool isInitialized() const override;
+
 public Q_SLOTS:
     void setResizeing(bool resizeing) override;
     void setMaximize(bool on) override;
