@@ -15,6 +15,9 @@ class WAYLIB_SERVER_EXPORT WXdgSurface : public WToplevelSurface
 protected:
     explicit WXdgSurface(WToplevelSurfacePrivate &d, QObject *parent = nullptr);
     ~WXdgSurface();
+
+public:
+    virtual bool isInitialized() const = 0;
 };
 
 WAYLIB_SERVER_END_NAMESPACE

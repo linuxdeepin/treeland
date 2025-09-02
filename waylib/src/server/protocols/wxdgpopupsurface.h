@@ -39,6 +39,8 @@ public:
     QRect getContentGeometry() const override;
     bool checkNewSize(const QSize &size, QSize *clipedSize = nullptr) override;
 
+    bool isInitialized() const override;
+
 public Q_SLOTS:
     void resize(const QSize &size) override;
     void close() override;

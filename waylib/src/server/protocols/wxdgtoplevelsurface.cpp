@@ -298,6 +298,12 @@ QString WXdgToplevelSurface::appId() const
     return QString::fromLocal8Bit(d->nativeHandle()->app_id);
 }
 
+bool WXdgToplevelSurface::isInitialized() const
+{
+    W_DC(WXdgToplevelSurface);
+    return d->nativeHandle()->base->initialized;
+}
+
 WXdgToplevelSurface *WXdgToplevelSurface::parentXdgSurface() const
 {
     W_DC(WXdgToplevelSurface);
