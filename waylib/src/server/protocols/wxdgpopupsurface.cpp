@@ -158,6 +158,12 @@ bool WXdgPopupSurface::checkNewSize(const QSize &size, [[maybe_unused]] QSize *c
     return size.isValid();
 }
 
+bool WXdgPopupSurface::isInitialized() const
+{
+    W_DC(WXdgPopupSurface);
+    return d->nativeHandle()->base->initialized;
+}
+
 WSurface *WXdgPopupSurface::parentSurface() const
 {
     W_DC(WXdgPopupSurface);

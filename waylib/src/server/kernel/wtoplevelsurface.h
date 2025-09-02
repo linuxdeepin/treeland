@@ -80,6 +80,9 @@ public:
         // Should always be 0 except layer surface
         return 0;
     }
+    virtual bool isInitialized() const {
+        return true;
+    };
 
 public Q_SLOTS:
     virtual void setMaximize([[maybe_unused]] bool on) {
