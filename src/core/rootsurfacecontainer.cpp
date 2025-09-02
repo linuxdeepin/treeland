@@ -12,6 +12,7 @@
 #include <woutputitem.h>
 #include <woutputlayout.h>
 #include <wxdgpopupsurface.h>
+#include <wxdgtoplevelsurface.h>
 
 #include <qwoutputlayout.h>
 
@@ -193,18 +194,21 @@ void RootSurfaceContainer::endMoveResize()
     if (!moveResizeState.surface)
         return;
 
-    auto o = moveResizeState.surface->ownsOutput();
-    moveResizeState.surface->shellSurface()->setResizeing(false);
+    if (moveResizeState.surface->shellSurface()->isInitialized()) {
+        auto o = moveResizeState.surface->ownsOutput();
+        moveResizeState.surface->shellSurface()->setResizeing(false);
 
-    if (!o || !moveResizeState.surface->surface()->outputs().contains(o->output())) {
-        o = cursorOutput();
-        Q_ASSERT(o);
-        moveResizeState.surface->setOwnsOutput(o);
+        if (!o || !moveResizeState.surface->surface()->outputs().contains(o->output())) {
+            o = cursorOutput();
+            Q_ASSERT(o);
+            moveResizeState.surface->setOwnsOutput(o);
+        }
+
+        ensureSurfaceNormalPositionValid(moveResizeState.surface);
+
+        moveResizeState.surface->setXwaylandPositionFromSurface(true);
     }
 
-    ensureSurfaceNormalPositionValid(moveResizeState.surface);
-
-    moveResizeState.surface->setXwaylandPositionFromSurface(true);
     moveResizeState.surface = nullptr;
     Q_EMIT moveResizeFinised();
 }
