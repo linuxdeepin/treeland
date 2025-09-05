@@ -77,7 +77,7 @@ Q_SIGNALS:
     void outputViewportInitialized(WAYLIB_SERVER_NAMESPACE::WOutputViewport *output);
     void initialized();
     void disableLayersChanged();
-    void renderEnd();
+    void renderEnd(QList<QPointer<WOutput>> committedOutputs);
     void effectiveDevicePixelRatioChanged(qreal scale);
 
 private:

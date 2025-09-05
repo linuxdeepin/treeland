@@ -1528,10 +1528,23 @@ void WOutputRenderWindowPrivate::doRender(qw_output *needsFrameOutput,
     // eg: screencopy ext-image-capture
     resetGlState();
 
+    QList<QPointer<WOutput>> committedOutputs;
     if (doCommit) {
+        committedOutputs.reserve(needsCommit.size());
         for (auto i : std::as_const(needsCommit)) {
-            if (Q_UNLIKELY(!i.first->framePending()))
-                i.first->commit(i.second);
+            if (Q_UNLIKELY(!i.first->framePending())) {
+                if (Q_LIKELY(i.first->commit(i.second))) {
+                    // Make sure the output is still valid after commit
+                    auto output = i.first->output()->output();
+                    if (Q_LIKELY(needsFrameOutput)) {
+                        Q_ASSERT(output->handle() == needsFrameOutput);
+                        if (committedOutputs.isEmpty())
+                            committedOutputs.append(output);
+                    } else if (!committedOutputs.contains(output)) {
+                        committedOutputs.append(output);
+                    }
+                }
+            }
 
             if (i.second->currentBuffer()) {
                 i.second->endRender();
@@ -1552,7 +1565,7 @@ void WOutputRenderWindowPrivate::doRender(qw_output *needsFrameOutput,
         glContext->doneCurrent();
 
     inRendering = false;
-    Q_EMIT q->renderEnd();
+    Q_EMIT q->renderEnd(committedOutputs);
 }
 
 // TODO: Support QWindow::setCursor
