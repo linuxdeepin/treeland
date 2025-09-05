@@ -28,6 +28,8 @@
 QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
+Q_LOGGING_CATEGORY(waylibSurface, "waylib.server.surface", QtInfoMsg)
+
 class Q_DECL_HIDDEN SubsurfaceContainer : public QQuickItem
 {
     Q_OBJECT
@@ -233,14 +235,22 @@ public:
         if (!q->window()) // maybe null due to item not fully initialized
             return;
 
-        // wayland protocol job should not run in rendering thread, so set context qobject to contentItem
-        frameDoneConnection = QObject::connect(q->window(), &QQuickWindow::afterRendering, q, [this, q]() {
-            lastRendered = rendered;
-            if (Q_LIKELY((rendered || q->isVisible()) && live)) {
-                surface->notifyFrameDone();
-                rendered = false;
-            }
-        }); // if signal is emitted from seperated rendering thread, default QueuedConnection is used
+        auto rw = q->outputRenderWindow();
+        if (Q_LIKELY(rw)) {
+            // wayland protocol job should not run in rendering thread, so set context qobject to contentItem
+            frameDoneConnection = QObject::connect(rw, &WOutputRenderWindow::renderEnd,
+                                                   q, [this, q] (const QList<QPointer<WOutput>> committedOutputs) {
+                                                       lastRendered = rendered;
+                                                       if (Q_LIKELY((rendered || q->isVisible()) && live)
+                                                           && committedOutputs.contains(surface->framePacingOutput())) {
+                                                           surface->notifyFrameDone();
+                                                           rendered = false;
+                                                       }
+                                                   }); // if signal is emitted from seperated rendering thread, default QueuedConnection is used
+        } else {
+            qCFatal(waylibSurface) << "Needs a WOutputRenderWindow to render the WSurfaceItemContent, "
+                                      "but the current window is:" << q->window();
+        }
     }
 
     void updateSurfaceState() {
