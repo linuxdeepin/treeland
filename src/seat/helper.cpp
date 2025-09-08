@@ -27,12 +27,12 @@
 #include "surface/surfacecontainer.h"
 #include "surface/surfacewrapper.h"
 #include "input/togglablegesture.h"
-#include "config/treelandconfig.h"
 #include "modules/wallpaper-color/wallpapercolor.h"
 #include "core/windowpicker.h"
 #include "workspace/workspace.h"
 #include "common/treelandlogging.h"
 #include "modules/ddm/ddminterfacev1.h"
+#include "treelandconfig.hpp"
 
 #include <xcb/xcb.h>
 #include <xcb/xproto.h>
@@ -174,6 +174,11 @@ Helper::Helper(QObject *parent)
     Q_ASSERT(!m_instance);
     m_instance = this;
 
+    Q_ASSERT(!m_config);
+    m_config = TreelandConfig::createByName("org.deepin.treeland",
+                                            "org.deepin.treeland",
+                                            QString());
+
     m_renderWindow->setColor(Qt::black);
     m_rootSurfaceContainer->setFlag(QQuickItem::ItemIsFocusScope, true);
 #if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0)
@@ -229,15 +234,6 @@ Helper::Helper(QObject *parent)
         }
     });
 
-    connect(&TreelandConfig::ref(),
-            &TreelandConfig::cursorThemeNameChanged,
-            this,
-            &Helper::cursorThemeChanged);
-    connect(&TreelandConfig::ref(),
-            &TreelandConfig::cursorSizeChanged,
-            this,
-            &Helper::cursorSizeChanged);
-
     // Connect to systemd-logind's PrepareForSleep signal for hibernate blackout
     bool connected = QDBusConnection::systemBus().connect(
         "org.freedesktop.login1",           // service
@@ -280,6 +276,11 @@ Helper::~Helper()
 Helper *Helper::instance()
 {
     return m_instance;
+}
+
+TreelandConfig *Helper::config()
+{
+    return m_config;
 }
 
 bool Helper::isNvidiaCardPresent()
@@ -847,6 +848,8 @@ void Helper::init()
     auto engine = qmlEngine();
     m_userModel = engine->singletonInstance<UserModel *>("Treeland", "UserModel");
 
+    engine->rootContext()->setContextProperty("TreelandConfig", m_config);
+
     engine->setContextForObject(m_renderWindow, engine->rootContext());
     engine->setContextForObject(m_renderWindow->contentItem(), engine->rootContext());
     m_rootSurfaceContainer->setQmlEngine(engine);
@@ -1150,7 +1153,7 @@ void Helper::setSocketEnabled(bool newEnabled)
 
 void Helper::activateSurface(SurfaceWrapper *wrapper, Qt::FocusReason reason)
 {
-    if (TreelandConfig::ref().blockActivateSurface() && wrapper) {
+    if (m_blockActivateSurface && wrapper) {
         if (wrapper->shellSurface()->hasCapability(WToplevelSurface::Capability::Activate)) {
             workspace()->pushActivedSurface(wrapper);
         }
@@ -1927,16 +1930,6 @@ bool Helper::toggleDebugMenuBar()
     return ok;
 }
 
-QString Helper::cursorTheme() const
-{
-    return TreelandConfig::ref().cursorThemeName();
-}
-
-QSize Helper::cursorSize() const
-{
-    return TreelandConfig::ref().cursorSize();
-}
-
 WindowManagementV1::DesktopState Helper::showDesktopState() const
 {
     return m_showDesktop;
@@ -2022,7 +2015,7 @@ void Helper::setCurrentMode(CurrentMode mode)
     if (m_currentMode == mode)
         return;
 
-    TreelandConfig::ref().setBlockActivateSurface(mode != CurrentMode::Normal);
+    setBlockActivateSurface(mode != CurrentMode::Normal);
 
     m_currentMode = mode;
 
@@ -2222,4 +2215,17 @@ void Helper::disableRender() {
         else if (strncmp(prefix, path, prefixLen))
             ioctl(device->fd, EVIOCREVOKE, nullptr);
     }
+}
+
+void Helper::setBlockActivateSurface(bool block)
+{
+    if (block == m_blockActivateSurface)
+        return;
+    m_blockActivateSurface = block;
+    Q_EMIT blockActivateSurfaceChanged();
+}
+
+bool Helper::blockActivateSurface() const
+{
+    return m_blockActivateSurface;
 }

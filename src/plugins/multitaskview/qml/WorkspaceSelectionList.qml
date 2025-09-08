@@ -16,11 +16,11 @@ Item {
     required property QtObject dragManager
     required property Multitaskview multitaskview
     readonly property real whRatio: output.outputItem.width / output.outputItem.height
-    readonly property real workspaceDelegateHeight: TreelandConfig.workspaceDelegateHeight / output.outputItem.devicePixelRatio
-    readonly property real workspaceThumbHeight: TreelandConfig.workspaceThumbHeight / output.outputItem.devicePixelRatio
-    readonly property real workspaceThumbMargin: TreelandConfig.workspaceThumbMargin / output.outputItem.devicePixelRatio
-    readonly property real highlightBorderWidth: TreelandConfig.highlightBorderWidth / output.outputItem.devicePixelRatio
-    readonly property real workspaceThumbCornerRadius: TreelandConfig.workspaceThumbCornerRadius / output.outputItem.devicePixelRatio
+    readonly property real workspaceDelegateHeight: Helper.config.workspaceDelegateHeight / output.outputItem.devicePixelRatio
+    readonly property real workspaceThumbHeight: Helper.config.workspaceThumbHeight / output.outputItem.devicePixelRatio
+    readonly property real workspaceThumbMargin: Helper.config.workspaceThumbMargin / output.outputItem.devicePixelRatio
+    readonly property real highlightBorderWidth: Helper.config.highlightBorderWidth / output.outputItem.devicePixelRatio
+    readonly property real workspaceThumbCornerRadius: Helper.config.workspaceThumbCornerRadius / output.outputItem.devicePixelRatio
 
 
     height: workspaceDelegateHeight
@@ -329,8 +329,8 @@ Item {
         displaced: Transition {
             NumberAnimation {
                 property: "x"
-                duration: TreelandConfig.multitaskviewAnimationDuration
-                easing.type: TreelandConfig.multitaskviewEasingCurveType
+                duration: Helper.config.multitaskviewAnimationDuration
+                easing.type: Helper.config.multitaskviewEasingCurveType
             }
         }
         width: Math.min(parent.width,

@@ -10,7 +10,7 @@ endif()
 # Include translation utilities
 include(${CMAKE_SOURCE_DIR}/cmake/TranslationUtils.cmake)
 
-find_package(Dtk6 REQUIRED COMPONENTS Core Declarative SystemSettings)
+find_package(Dtk6 REQUIRED COMPONENTS Core Declarative SystemSettings Tools)
 if (NOT DISABLE_DDM)
     find_package(DDM 0.2.0  REQUIRED COMPONENTS Auth Common)
 endif()
@@ -64,6 +64,13 @@ qt_add_dbus_interface(DBUS_INTERFACE   "${CMAKE_SOURCE_DIR}/misc/interfaces/org.
 qt_add_dbus_interface(DBUS_INTERFACE   "${CMAKE_SOURCE_DIR}/misc/interfaces/org.freedesktop.login1.Session.xml"          Login1Session)
 qt_add_dbus_interface(DBUS_INTERFACE   "${CMAKE_SOURCE_DIR}/misc/interfaces/org.freedesktop.login1.User.xml"             Login1User)
 
+dtk_add_config_to_cpp(
+    TREELAND_CONFIG
+    "${PROJECT_SOURCE_DIR}/misc/dconfig/org.deepin.treeland.json"
+    OUTPUT_FILE_NAME "treelandconfig.hpp"
+    CLASS_NAME "TreelandConfig"
+)
+
 qt_add_library(libtreeland SHARED)
 
 set_target_properties(libtreeland PROPERTIES
@@ -80,10 +87,9 @@ qt_add_qml_module(libtreeland
         ${DBUS_ADAPTOR}
         ${DDM_DBUS_SOURCES}
         ${DBUS_INTERFACE}
+        ${TREELAND_CONFIG}
         common/treelandlogging.cpp
         common/treelandlogging.h
-        config/treelandconfig.cpp
-        config/treelandconfig.h
         core/layersurfacecontainer.cpp
         core/layersurfacecontainer.h
         core/popupsurfacecontainer.cpp

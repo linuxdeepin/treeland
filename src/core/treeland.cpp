@@ -4,7 +4,7 @@
 #include "treeland.h"
 
 #include "compositor1adaptor.h"
-#include "config/treelandconfig.h"
+#include "treelandconfig.hpp"
 #include "core/qmlengine.h"
 #include "greeter/usermodel.h"
 #include "interfaces/multitaskviewinterface.h"
@@ -260,11 +260,6 @@ Treeland::Treeland()
     Q_D(Treeland);
 
     qmlRegisterModule("Treeland.Protocols", 1, 0);
-    qmlRegisterSingletonInstance("Treeland",
-                                 1,
-                                 0,
-                                 "TreelandConfig",
-                                 &TreelandConfig::ref()); // Inject treeland config singleton.
 
     d->init();
 
@@ -355,16 +350,6 @@ RootSurfaceContainer *Treeland::rootSurfaceContainer() const
     Q_D(const Treeland);
 
     return d->helper->rootSurfaceContainer();
-}
-
-void Treeland::blockActivateSurface(bool block)
-{
-    TreelandConfig::ref().setBlockActivateSurface(block);
-}
-
-bool Treeland::isBlockActivateSurface() const
-{
-    return TreelandConfig::ref().blockActivateSurface();
 }
 
 bool Treeland::ActivateWayland(QDBusUnixFileDescriptor _fd)

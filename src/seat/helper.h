@@ -91,6 +91,7 @@ class LockScreenInterface;
 class ILockScreen;
 class UserModel;
 class DDMInterfaceV1;
+class TreelandConfig;
 struct wlr_idle_inhibitor_v1;
 struct wlr_output_power_v1_set_mode_event;
 struct wlr_ext_foreign_toplevel_image_capture_source_manager_v1_request;
@@ -107,12 +108,12 @@ class Helper : public WSeatEventFilter
     Q_PROPERTY(RootSurfaceContainer* rootContainer READ rootContainer CONSTANT FINAL)
     Q_PROPERTY(float animationSpeed READ animationSpeed WRITE setAnimationSpeed NOTIFY animationSpeedChanged FINAL)
     Q_PROPERTY(OutputMode outputMode READ outputMode WRITE setOutputMode NOTIFY outputModeChanged FINAL)
-    Q_PROPERTY(QString cursorTheme READ cursorTheme NOTIFY cursorThemeChanged FINAL)
-    Q_PROPERTY(QSize cursorSize READ cursorSize NOTIFY cursorSizeChanged FINAL)
     Q_PROPERTY(TogglableGesture* multiTaskViewGesture READ multiTaskViewGesture CONSTANT)
     Q_PROPERTY(TogglableGesture* windowGesture READ windowGesture CONSTANT)
     Q_PROPERTY(SurfaceWrapper* activatedSurface READ activatedSurface NOTIFY activatedSurfaceChanged FINAL)
     Q_PROPERTY(Workspace* workspace READ workspace CONSTANT FINAL)
+    Q_PROPERTY(TreelandConfig* config READ config CONSTANT FINAL)
+    Q_PROPERTY(bool blockActivateSurface READ blockActivateSurface WRITE setBlockActivateSurface NOTIFY blockActivateSurfaceChanged FINAL)
     QML_ELEMENT
     QML_SINGLETON
 
@@ -137,6 +138,7 @@ public:
     Q_ENUM(CurrentMode)
 
     static Helper *instance();
+    TreelandConfig *config();
 
     QmlEngine *qmlEngine() const;
     WOutputRenderWindow *window() const;
@@ -181,8 +183,6 @@ public:
 
     bool toggleDebugMenuBar();
 
-    QString cursorTheme() const;
-    QSize cursorSize() const;
     WindowManagementV1::DesktopState showDesktopState() const;
 
     Q_INVOKABLE bool isLaunchpad(WLayerSurface *surface) const;
@@ -212,6 +212,9 @@ public:
     void deactivateSession();
     void enableRender();
     void disableRender();
+
+    void setBlockActivateSurface(bool block);
+    bool blockActivateSurface() const;
 public Q_SLOTS:
     void activateSurface(SurfaceWrapper *wrapper, Qt::FocusReason reason = Qt::OtherFocusReason);
     void forceActivateSurface(SurfaceWrapper *wrapper,
@@ -227,10 +230,10 @@ Q_SIGNALS:
     void animationSpeedChanged();
     void socketFileChanged();
     void outputModeChanged();
-    void cursorThemeChanged();
-    void cursorSizeChanged();
 
     void currentModeChanged();
+
+    void blockActivateSurfaceChanged();
 
 private Q_SLOTS:
     void onShowDesktop();
@@ -299,6 +302,7 @@ private:
     void updateIdleInhibitor();
 
     static Helper *m_instance;
+    TreelandConfig *m_config;
 
     CurrentMode m_currentMode{ CurrentMode::Normal };
 
@@ -366,4 +370,6 @@ private:
     UserModel *m_userModel{ nullptr };
 
     quint32 m_atomDeepinNoTitlebar;
+
+    bool m_blockActivateSurface{ false };
 };
