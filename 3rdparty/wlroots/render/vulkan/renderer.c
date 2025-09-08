@@ -66,59 +66,72 @@ static struct wlr_vk_descriptor_pool *alloc_ds(
 		struct wl_list *pool_list, size_t *last_pool_size) {
 	VkResult res;
 
-	bool found = false;
-	struct wlr_vk_descriptor_pool *pool;
-	wl_list_for_each(pool, pool_list, link) {
-		if (pool->free > 0) {
-			found = true;
-			break;
-		}
-	}
-
-	if (!found) { // create new pool
-		pool = calloc(1, sizeof(*pool));
-		if (!pool) {
-			wlr_log_errno(WLR_ERROR, "allocation failed");
-			return NULL;
-		}
-
-		size_t count = 2 * (*last_pool_size);
-		if (!count) {
-			count = start_descriptor_pool_size;
-		}
-
-		pool->free = count;
-		VkDescriptorPoolSize pool_size = {
-			.descriptorCount = count,
-			.type = type,
-		};
-
-		VkDescriptorPoolCreateInfo dpool_info = {
-			.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
-			.maxSets = count,
-			.poolSizeCount = 1,
-			.pPoolSizes = &pool_size,
-			.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT,
-		};
-
-		res = vkCreateDescriptorPool(renderer->dev->dev, &dpool_info, NULL,
-			&pool->pool);
-		if (res != VK_SUCCESS) {
-			wlr_vk_error("vkCreateDescriptorPool", res);
-			free(pool);
-			return NULL;
-		}
-
-		*last_pool_size = count;
-		wl_list_insert(pool_list, &pool->link);
-	}
-
 	VkDescriptorSetAllocateInfo ds_info = {
 		.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
 		.descriptorSetCount = 1,
 		.pSetLayouts = layout,
-		.descriptorPool = pool->pool,
 	};
+
+	struct wlr_vk_descriptor_pool *pool;
+	wl_list_for_each(pool, pool_list, link) {
+		if (pool->free > 0) {
+			ds_info.descriptorPool = pool->pool;
+			res = vkAllocateDescriptorSets(renderer->dev->dev, &ds_info, ds);
+			switch (res) {
+			case VK_ERROR_FRAGMENTED_POOL:
+			case VK_ERROR_OUT_OF_POOL_MEMORY:
+				// Descriptor sets with more than one descriptor can cause us
+				// to run out of pool memory early or lead to fragmentation
+				// that makes the pool unable to service our allocation
+				// request. Try the next pool or allocate a new one.
+				continue;
+			case VK_SUCCESS:
+				--pool->free;
+				return pool;
+			default:
+				wlr_vk_error("vkAllocateDescriptorSets", res);
+				return NULL;
+			}
+		}
+	}
+
+	pool = calloc(1, sizeof(*pool));
+	if (!pool) {
+		wlr_log_errno(WLR_ERROR, "allocation failed");
+		return NULL;
+	}
+
+	size_t count = 2 * (*last_pool_size);
+	if (!count) {
+		count = start_descriptor_pool_size;
+	}
+
+	pool->free = count;
+	VkDescriptorPoolSize pool_size = {
+		.descriptorCount = count,
+		.type = type,
+	};
+
+	VkDescriptorPoolCreateInfo dpool_info = {
+		.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
+		.maxSets = count,
+		.poolSizeCount = 1,
+		.pPoolSizes = &pool_size,
+		.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT,
+	};
+
+	res = vkCreateDescriptorPool(renderer->dev->dev, &dpool_info, NULL,
+		&pool->pool);
+	if (res != VK_SUCCESS) {
+		wlr_vk_error("vkCreateDescriptorPool", res);
+		free(pool);
+		return NULL;
+	}
+
+	*last_pool_size = count;
+	wl_list_insert(pool_list, &pool->link);
+
+	ds_info.descriptorPool = pool->pool;
 	res = vkAllocateDescriptorSets(renderer->dev->dev, &ds_info, ds);
 	if (res != VK_SUCCESS) {
 		wlr_vk_error("vkAllocateDescriptorSets", res);
