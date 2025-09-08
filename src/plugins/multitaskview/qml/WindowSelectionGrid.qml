@@ -89,7 +89,7 @@ Item {
             Transition {
                 to: "taskview"
                 SequentialAnimation {
-                    PauseAnimation { duration: TreelandConfig.multitaskviewAnimationDuration }
+                    PauseAnimation { duration: Helper.config.multitaskviewAnimationDuration }
                     PropertyAction { target: surfaceGridView; property: "clip" }
                 }
             }
@@ -169,7 +169,7 @@ Item {
                                     width: (geometry.width - initialGeometry.width) * multitaskview.taskviewVal + initialGeometry.width
                                     height: (geometry.height - initialGeometry.height) * multitaskview.taskviewVal + initialGeometry.height
                                     scale: 1.0
-                                    paddingOpacity: TreelandConfig.multitaskviewPaddingOpacity * multitaskview.taskviewVal
+                                    paddingOpacity: Helper.config.multitaskviewPaddingOpacity * multitaskview.taskviewVal
                                     needPadding: true
                                 }
                             }
@@ -184,7 +184,7 @@ Item {
                                     height: geometry.height
                                     needPadding: padding
                                     scale: 1.0
-                                    paddingOpacity: TreelandConfig.multitaskviewPaddingOpacity
+                                    paddingOpacity: Helper.config.multitaskviewPaddingOpacity
                                 }
                             }
                         },
@@ -198,7 +198,7 @@ Item {
                                     y: mapToItem(draggedParent, 0, 0).y
                                     z: Multitaskview.FloatingItem
                                     scale: (Math.max(0, Math.min(drg.activeTranslation.y / fullY, 1)) * (100 - width) + width) / width
-                                    paddingOpacity: TreelandConfig.multitaskviewPaddingOpacity
+                                    paddingOpacity: Helper.config.multitaskviewPaddingOpacity
                                     transformOrigin: Item.Center
                                     needPadding: false
                                 }
@@ -206,12 +206,12 @@ Item {
                         }
                     ]
 
-                    Behavior on x {enabled:state !== "dragging" && state !== "partial"; XAnimator {duration: TreelandConfig.multitaskviewAnimationDuration; easing.type: TreelandConfig.multitaskviewEasingCurveType} }
-                    Behavior on y {enabled:state !== "dragging" && state !== "partial"; YAnimator {duration: TreelandConfig.multitaskviewAnimationDuration; easing.type: TreelandConfig.multitaskviewEasingCurveType} }
-                    Behavior on width {enabled:state !== "dragging" && state !== "partial"; NumberAnimation {duration: TreelandConfig.multitaskviewAnimationDuration; easing.type: TreelandConfig.multitaskviewEasingCurveType} }
-                    Behavior on height {enabled:state !== "dragging" && state !== "partial"; NumberAnimation {duration: TreelandConfig.multitaskviewAnimationDuration; easing.type: TreelandConfig.multitaskviewEasingCurveType} }
-                    Behavior on paddingOpacity {enabled:state !== "dragging" && state !== "partial"; NumberAnimation {duration: TreelandConfig.multitaskviewAnimationDuration; easing.type: TreelandConfig.multitaskviewEasingCurveType} }
-                    Behavior on scale {enabled:state !== "dragging" && state !== "partial"; ScaleAnimator {duration: TreelandConfig.multitaskviewAnimationDuration; easing.type: TreelandConfig.multitaskviewEasingCurveType} }
+                    Behavior on x {enabled:state !== "dragging" && state !== "partial"; XAnimator {duration: Helper.config.multitaskviewAnimationDuration; easing.type: Helper.config.multitaskviewEasingCurveType} }
+                    Behavior on y {enabled:state !== "dragging" && state !== "partial"; YAnimator {duration: Helper.config.multitaskviewAnimationDuration; easing.type: Helper.config.multitaskviewEasingCurveType} }
+                    Behavior on width {enabled:state !== "dragging" && state !== "partial"; NumberAnimation {duration: Helper.config.multitaskviewAnimationDuration; easing.type: Helper.config.multitaskviewEasingCurveType} }
+                    Behavior on height {enabled:state !== "dragging" && state !== "partial"; NumberAnimation {duration: Helper.config.multitaskviewAnimationDuration; easing.type: Helper.config.multitaskviewEasingCurveType} }
+                    Behavior on paddingOpacity {enabled:state !== "dragging" && state !== "partial"; NumberAnimation {duration: Helper.config.multitaskviewAnimationDuration; easing.type: Helper.config.multitaskviewEasingCurveType} }
+                    Behavior on scale {enabled:state !== "dragging" && state !== "partial"; ScaleAnimator {duration: Helper.config.multitaskviewAnimationDuration; easing.type: Helper.config.multitaskviewEasingCurveType} }
 
                     D.BoxShadow {
                         id: paddingRectShadow
@@ -235,12 +235,12 @@ Item {
 
                     Rectangle {
                         border.color: "blue"
-                        border.width: TreelandConfig.highlightBorderWidth
+                        border.width: Helper.config.highlightBorderWidth
                         visible: highlighted
-                        anchors.margins: -TreelandConfig.highlightBorderWidth
+                        anchors.margins: -Helper.config.highlightBorderWidth
                         anchors.fill: parent
                         color: "transparent"
-                        radius: delegateCornerRadius + TreelandConfig.highlightBorderWidth
+                        radius: delegateCornerRadius + Helper.config.highlightBorderWidth
                     }
 
                     function conv(y, item = parent) { // convert to draggedParent's coord
@@ -382,15 +382,15 @@ Item {
                                 id: bgRect
                                 anchors.fill: parent
                                 color: Qt.rgba(16, 16, 16, .1)
-                                radius: TreelandConfig.titleBoxCornerRadius
+                                radius: Helper.config.titleBoxCornerRadius
                             }
                             Blur {
                                 anchors.fill: bgRect
-                                radius: TreelandConfig.titleBoxCornerRadius
+                                radius: Helper.config.titleBoxCornerRadius
                             }
                             Border {
                                 anchors.fill: parent
-                                radius: TreelandConfig.titleBoxCornerRadius
+                                radius: Helper.config.titleBoxCornerRadius
                                 insideColor: Qt.rgba(255, 255, 255, 0.05)
                             }
                         }
@@ -412,8 +412,8 @@ Item {
                 Behavior on opacity {
                     enabled: state !== "partial"
                     OpacityAnimator {
-                        duration: TreelandConfig.multitaskviewAnimationDuration
-                        easing.type: TreelandConfig.multitaskviewEasingCurveType
+                        duration: Helper.config.multitaskviewAnimationDuration
+                        easing.type: Helper.config.multitaskviewEasingCurveType
                     }
                 }
                 state: multitaskview.state
@@ -457,16 +457,16 @@ Item {
                         id: hintBgRect
                         anchors.fill: parent
                         color: Qt.rgba(16, 16, 16, .1)
-                        radius: TreelandConfig.titleBoxCornerRadius
+                        radius: Helper.config.titleBoxCornerRadius
                     }
                     Blur {
                         anchors.fill: hintBgRect
-                        radius: TreelandConfig.titleBoxCornerRadius
+                        radius: Helper.config.titleBoxCornerRadius
                     }
                     D.BoxShadow {
                         anchors.fill: parent
                         visible: true
-                        cornerRadius: TreelandConfig.titleBoxCornerRadius
+                        cornerRadius: Helper.config.titleBoxCornerRadius
                         shadowColor: Qt.rgba(0, 0, 0, 0.15)
                         shadowOffsetY: 8
                         shadowBlur: 20
@@ -474,7 +474,7 @@ Item {
                     }
                     Border {
                         anchors.fill: parent
-                        radius: TreelandConfig.titleBoxCornerRadius
+                        radius: Helper.config.titleBoxCornerRadius
                         insideColor: Qt.rgba(255, 255, 255, 0.05)
                     }
                 }

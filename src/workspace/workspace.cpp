@@ -3,7 +3,7 @@
 
 #include "workspace.h"
 
-#include "config/treelandconfig.h"
+#include "treelandconfig.hpp"
 #include "core/rootsurfacecontainer.h"
 #include "output/output.h"
 #include "seat/helper.h"
@@ -15,7 +15,7 @@
 
 Workspace::Workspace(SurfaceContainer *parent)
     : SurfaceContainer(parent)
-    , m_currentIndex(TreelandConfig::ref().currentWorkspace())
+    , m_currentIndex(Helper::instance()->config()->currentWorkspace())
     , m_models(new WorkspaceListModel(this))
     , m_currentFilter(new SurfaceFilterProxyModel(this))
     , m_animationController(new WorkspaceAnimationController(this))
@@ -23,9 +23,9 @@ Workspace::Workspace(SurfaceContainer *parent)
     m_showOnAllWorkspaceModel = new WorkspaceModel(this, ShowOnAllWorkspaceId, {});
     m_showOnAllWorkspaceModel->setName("show-on-all-workspace");
     m_showOnAllWorkspaceModel->setVisible(true);
-    for (uint index = 0; index < TreelandConfig::ref().numWorkspace(); index++) {
+    for (uint index = 0; index < Helper::instance()->config()->numWorkspace(); index++) {
         doCreateModel(QStringLiteral("workspace-%1").arg(index),
-                      index == TreelandConfig::ref().currentWorkspace());
+                      index == Helper::instance()->config()->currentWorkspace());
     }
 }
 
@@ -158,7 +158,7 @@ int Workspace::modelIndexOfSurface(SurfaceWrapper *surface) const
 int Workspace::createModel(const QString &name, bool visible)
 {
     auto id = doCreateModel(name, visible);
-    TreelandConfig::ref().setNumWorkspace(count());
+    Helper::instance()->config()->setNumWorkspace(count());
     Q_EMIT countChanged();
     return id;
 }
@@ -168,7 +168,7 @@ void Workspace::removeModel(int index)
     Q_ASSERT(m_models->rowCount() > 1); // At least one workspace
     Q_ASSERT(index >= 0 && index < m_models->rowCount());
     doRemoveModel(index);
-    TreelandConfig::ref().setNumWorkspace(count());
+    Helper::instance()->config()->setNumWorkspace(count());
     Q_EMIT countChanged();
 }
 
@@ -324,7 +324,7 @@ WorkspaceModel *Workspace::showOnAllWorkspaceModel() const
 void Workspace::doSetCurrentIndex(int newCurrentIndex)
 {
     m_currentIndex = newCurrentIndex;
-    TreelandConfig::ref().setCurrentWorkspace(newCurrentIndex);
+    Helper::instance()->config()->setCurrentWorkspace(newCurrentIndex);
 }
 
 void Workspace::startPreviewing(SurfaceWrapper *previewingItem)

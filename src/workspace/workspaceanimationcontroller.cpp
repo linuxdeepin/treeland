@@ -2,9 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 #include "workspaceanimationcontroller.h"
 
-#include "config/treelandconfig.h"
+#include "plugins/multitaskview/multitaskview.h"
 
 #include <cmath>
+#include "seat/helper.h"
+#include "treelandconfig.hpp"
 
 WorkspaceAnimationController::WorkspaceAnimationController(QObject *parent)
     : QObject{ parent }
@@ -15,8 +17,8 @@ WorkspaceAnimationController::WorkspaceAnimationController(QObject *parent)
     , m_bounceInAnimation(new QPropertyAnimation(this))
 {
     m_posAnimation->setPropertyName("viewportPos");
-    m_posAnimation->setEasingCurve(TreelandConfig::ref().multitaskviewEasingCurveType());
-    m_posAnimation->setDuration(TreelandConfig::ref().multitaskviewAnimationDuration());
+    m_posAnimation->setEasingCurve(static_cast<QEasingCurve::Type>(Helper::instance()->config()->multitaskviewEasingCurveType()));
+    m_posAnimation->setDuration(Helper::instance()->config()->multitaskviewAnimationDuration());
     m_posAnimation->setTargetObject(this);
     connect(m_slideAnimation, &QSequentialAnimationGroup::finished, this, [this] {
         if (m_needBounce) {
@@ -28,11 +30,11 @@ WorkspaceAnimationController::WorkspaceAnimationController(QObject *parent)
     m_slideAnimation->addAnimation(m_posAnimation);
     m_bounceInAnimation->setTargetObject(this);
     m_bounceInAnimation->setEasingCurve(QEasingCurve::InOutExpo);
-    m_bounceInAnimation->setDuration(TreelandConfig::ref().multitaskviewAnimationDuration() / 2);
+    m_bounceInAnimation->setDuration(Helper::instance()->config()->multitaskviewAnimationDuration() / 2);
     m_bounceInAnimation->setPropertyName("viewportPos");
     m_bounceOutAnimation->setTargetObject(this);
     m_bounceOutAnimation->setEasingCurve(QEasingCurve::InOutExpo);
-    m_bounceOutAnimation->setDuration(TreelandConfig::ref().multitaskviewAnimationDuration() / 2);
+    m_bounceOutAnimation->setDuration(Helper::instance()->config()->multitaskviewAnimationDuration() / 2);
     m_bounceOutAnimation->setPropertyName("viewportPos");
     m_bounceAnimation->addAnimation(m_bounceInAnimation);
     m_bounceAnimation->addAnimation(m_bounceOutAnimation);

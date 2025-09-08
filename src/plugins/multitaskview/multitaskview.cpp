@@ -3,11 +3,11 @@
 
 #include "multitaskview.h"
 
-#include "config/treelandconfig.h"
 #include "output/output.h"
 #include "seat/helper.h"
 #include "surface/surfacecontainer.h"
 #include "workspace/workspace.h"
+#include "treelandconfig.hpp"
 #include "common/treelandlogging.h"
 
 #include <woutputitem.h>
@@ -52,7 +52,7 @@ void Multitaskview::setActiveReason(ActiveReason activeReason)
 
 void Multitaskview::exit(SurfaceWrapper *surface, bool immediately)
 {
-    TreelandConfig::ref().setBlockActivateSurface(false);
+    Helper::instance()->setBlockActivateSurface(false);
 
     if (surface) {
         Helper::instance()->forceActivateSurface(surface);
@@ -279,12 +279,12 @@ bool MultitaskviewSurfaceModel::tryLayout(const QList<ModelDataPtr> &rawData,
     qreal acc = 0;
     auto devicePixelRatio = output()->outputItem()->devicePixelRatio();
     auto topContentMargin =
-        TreelandConfig::ref().multitaskviewTopContentMargin() / devicePixelRatio;
+        Helper::instance()->config()->multitaskviewTopContentMargin() / devicePixelRatio;
     auto bottomContentMargin =
-        TreelandConfig::ref().multitaskviewBottomContentMargin() / devicePixelRatio;
-    auto cellPadding = TreelandConfig::ref().multitaskviewCellPadding() / devicePixelRatio;
+        Helper::instance()->config()->multitaskviewBottomContentMargin() / devicePixelRatio;
+    auto cellPadding = Helper::instance()->config()->multitaskviewCellPadding() / devicePixelRatio;
     auto horizontalMargin =
-        TreelandConfig::ref().multitaskviewHorizontalMargin() / devicePixelRatio;
+        Helper::instance()->config()->multitaskviewHorizontalMargin() / devicePixelRatio;
     auto availWidth = std::max(0.0, layoutArea().width() - 2 * horizontalMargin);
     auto availHeight =
         std::max(0.0, layoutArea().height() - topContentMargin - bottomContentMargin);
@@ -304,7 +304,7 @@ bool MultitaskviewSurfaceModel::tryLayout(const QList<ModelDataPtr> &rawData,
         if (newAcc <= availWidth) {
             acc = newAcc;
             currow.append(modelData);
-        } else if (newAcc / availWidth > TreelandConfig::ref().multitaskviewLoadFactor()) {
+        } else if (newAcc / availWidth > Helper::instance()->config()->multitaskviewLoadFactor()) {
             acc = curW;
             nrows++;
             rowstmp.append(currow);
@@ -332,12 +332,12 @@ void MultitaskviewSurfaceModel::calcDisplayPos(const QList<ModelDataPtr> &rawDat
 {
     auto devicePixelRatio = output()->outputItem()->devicePixelRatio();
     auto topContentMargin =
-        TreelandConfig::ref().multitaskviewTopContentMargin() / devicePixelRatio;
+        Helper::instance()->config()->multitaskviewTopContentMargin() / devicePixelRatio;
     auto bottomContentMargin =
-        TreelandConfig::ref().multitaskviewBottomContentMargin() / devicePixelRatio;
-    auto cellPadding = TreelandConfig::ref().multitaskviewCellPadding() / devicePixelRatio;
+        Helper::instance()->config()->multitaskviewBottomContentMargin() / devicePixelRatio;
+    auto cellPadding = Helper::instance()->config()->multitaskviewCellPadding() / devicePixelRatio;
     auto horizontalMargin =
-        TreelandConfig::ref().multitaskviewHorizontalMargin() / devicePixelRatio;
+        Helper::instance()->config()->multitaskviewHorizontalMargin() / devicePixelRatio;
     auto availWidth = std::max(0.0, layoutArea().width() - 2 * horizontalMargin);
     auto availHeight =
         std::max(0.0, layoutArea().height() - topContentMargin - bottomContentMargin);
@@ -380,9 +380,9 @@ void MultitaskviewSurfaceModel::doCalculateLayout(const QList<ModelDataPtr> &raw
     auto devicePixelRatio = output()->outputItem()->devicePixelRatio();
     auto maxWindowHeight =
         std::min(layoutArea().height(),
-                 static_cast<qreal>(TreelandConfig::ref().normalWindowHeight() / devicePixelRatio));
-    auto minWindowHeight = TreelandConfig::ref().minMultitaskviewSurfaceHeight() / devicePixelRatio;
-    auto windowHeightStep = TreelandConfig::ref().windowHeightStep() / devicePixelRatio;
+                 static_cast<qreal>(Helper::instance()->config()->normalWindowHeight() / devicePixelRatio));
+    auto minWindowHeight = Helper::instance()->config()->minMultitaskviewSurfaceHeight() / devicePixelRatio;
+    auto windowHeightStep = Helper::instance()->config()->windowHeightStep() / devicePixelRatio;
     auto rowH = maxWindowHeight;
     while (rowH > minWindowHeight) {
         if (tryLayout(rawData, rowH)) {
