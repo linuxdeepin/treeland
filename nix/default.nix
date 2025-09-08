@@ -75,6 +75,7 @@ stdenv.mkDerivation (finalAttrs: {
     qtwayland
     qtsvg
     ddm
+    deepin.dtk6core
     deepin.dtk6declarative
     deepin.dtk6systemsettings
     wayland

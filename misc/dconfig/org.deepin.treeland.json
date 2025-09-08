@@ -276,6 +276,183 @@
             "description[zh_CN]": "当没有设置壁纸时，设置默认显示的壁纸",
             "permissions": "readwrite",
             "visibility": "public"
+        },
+
+        "workspaceThumbHeight": {
+            "value": 144,
+            "serial": 0,
+            "flags": ["global"],
+            "name": "Workspace thumbnail height",
+            "name[zh_CN]": "工作区缩略图高度",
+            "description": "Workspace thumbnail height",
+            "description[zh_CN]": "工作区缩略图高度",
+            "permissions": "readonly",
+            "visibility": "private"
+        },
+        "workspaceThumbMargin": {
+            "value": 20,
+            "serial": 0,
+            "flags": ["global"],
+            "name": "Workspace thumbnail margin",
+            "name[zh_CN]": "工作区缩略图边距",
+            "description": "Workspace thumbnail margin",
+            "description[zh_CN]": "工作区缩略图边距",
+            "permissions": "readonly",
+            "visibility": "private"
+        },
+        "workspaceThumbCornerRadius": {
+            "value": 8,
+            "serial": 0,
+            "flags": ["global"],
+            "name": "Workspace thumbnail corner radius",
+            "name[zh_CN]": "工作区缩略图圆角弧度",
+            "description": "Workspace thumbnail corner radius",
+            "description[zh_CN]": "工作区缩略图圆角弧度",
+            "permissions": "readonly",
+            "visibility": "private"
+        },
+        "highlightBorderWidth": {
+            "value": 4,
+            "serial": 0,
+            "flags": ["global"],
+            "name": "Highlight border width",
+            "name[zh_CN]": "高亮边框宽度",
+            "description": "Highlight border width",
+            "description[zh_CN]": "高亮边框宽度",
+            "permissions": "readonly",
+            "visibility": "private"
+        },
+        "minMultitaskviewSurfaceHeight": {
+            "value": 232,
+            "serial": 0,
+            "flags": ["global"],
+            "name": "Multitask view surface minimal height",
+            "name[zh_CN]": "多任务视图表面最小高度",
+            "description": "Multitask view surface minimal height",
+            "description[zh_CN]": "多任务视图表面最小高度",
+            "permissions": "readonly",
+            "visibility": "private"
+        },
+        "titleBoxCornerRadius": {
+            "value": 8,
+            "serial": 0,
+            "flags": ["global"],
+            "name": "Title box corner radius",
+            "name[zh_CN]": "标题框圆角弧度",
+            "description": "Title box corner radius",
+            "description[zh_CN]": "标题框圆角弧度",
+            "permissions": "readonly",
+            "visibility": "private"
+        },
+        "normalWindowHeight": {
+            "value": 720,
+            "serial": 0,
+            "flags": ["global"],
+            "name": "Normal window height",
+            "name[zh_CN]": "正常窗口高度",
+            "description": "Normal window height",
+            "description[zh_CN]": "正常窗口高度",
+            "permissions": "readonly",
+            "visibility": "private"
+        },
+        "windowHeightStep": {
+            "value": 15,
+            "serial": 0,
+            "flags": ["global"],
+            "name": "Window height step",
+            "name[zh_CN]": "窗口高度梯度",
+            "description": "Window height step",
+            "description[zh_CN]": "窗口高度梯度",
+            "permissions": "readonly",
+            "visibility": "private"
+        },
+        "multitaskviewPaddingOpacity": {
+            "value": 0.1,
+            "serial": 0,
+            "flags": ["global"],
+            "name": "Multitaskview padding opacity",
+            "name[zh_CN]": "多任务视图内边距不透明度",
+            "description": "Multitask view padding opacity",
+            "description[zh_CN]": "多任务视图内边距不透明度",
+            "permissions": "readonly",
+            "visibility": "private"
+        },
+        "multitaskviewAnimationDuration": {
+            "value": 300,
+            "serial": 0,
+            "flags": ["global"],
+            "name": "Multitaskview animation duration",
+            "name[zh_CN]": "多任务视图动画时长",
+            "description": "Multitaskview animation duration",
+            "description[zh_CN]": "多任务视图动画时长",
+            "permissions": "readonly",
+            "visibility": "private"
+        },
+        "multitaskviewEasingCurveType": {
+            "value": 22,
+            "serial": 0,
+            "flags": ["global"],
+            "name": "Multitaskview easing curve type",
+            "name[zh_CN]": "多任务视图缓动曲线类型",
+            "description": "Multitaskview easing curve type, enumerate value of QEasingCurve::Type",
+            "description[zh_CN]": "多任务视图缓动曲线类型，其值为QEasingCurve::Type类型的枚举值",
+            "permissions": "readonly",
+            "visibility": "private"
+        },
+        "multitaskviewTopContentMargin": {
+            "value": 40,
+            "serial": 0,
+            "flags": ["global"],
+            "name": "Multitaskview top content margin",
+            "name[zh_CN]": "多任务视图内容顶边距",
+            "description": "Multitaskview top content margin",
+            "description[zh_CN]": "多任务视图内容顶边距",
+            "permissions": "readonly",
+            "visibility": "private"
+        },
+        "multitaskviewBottomContentMargin": {
+            "value": 60,
+            "serial": 0,
+            "flags": ["global"],
+            "name": "Multitaskview bottom content margin",
+            "name[zh_CN]": "多任务视图内容底边距",
+            "description": "Multitaskview bottom content margin",
+            "description[zh_CN]": "多任务视图内容底边距",
+            "permissions": "readonly",
+            "visibility": "private"
+        },
+        "multitaskviewHorizontalMargin": {
+            "value": 20,
+            "serial": 0,
+            "flags": ["global"],
+            "name": "Multitaskview horizontal margin",
+            "name[zh_CN]": "多任务视图横向边距",
+            "description": "Multitaskview horizontal margin",
+            "description[zh_CN]": "多任务视图横向边距",
+            "permissions": "readonly",
+            "visibility": "private"
+        },
+        "multitaskviewCellPadding": {
+            "value": 12,
+            "serial": 0,
+            "flags": ["global"],
+            "name": "Multitaskview cell padding",
+            "name[zh_CN]": "多任务视图单元格间距",
+            "description": "Multitaskview cell padding",
+            "description[zh_CN]": "多任务视图单元格间距",
+            "permissions": "readonly",
+            "visibility": "private"
+        },
+        "multitaskviewLoadFactor": {
+            "value": 0.6,
+            "serial": 0,
+            "flags": ["global"],
+            "name": "Multitaskview load factor",
+            "name[zh_CN]": "多任务视图加载因子",
+            "description": "Multitaskview load factor",
+            "description[zh_CN]": "多任务视图加载因子",
+            "permissions": "readonly",
+            "visibility": "private"
         }
     }
 }
