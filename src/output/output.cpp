@@ -3,7 +3,7 @@
 
 #include "output.h"
 
-#include "config/treelandconfig.h"
+#include "treelandconfig.hpp"
 #include "core/rootsurfacecontainer.h"
 #include "seat/helper.h"
 #include "surface/surfacewrapper.h"
@@ -34,7 +34,7 @@
 Output *Output::create(WOutput *output, QQmlEngine *engine, QObject *parent)
 {
     auto isSoftwareCursor = [](WOutput *output) -> bool {
-        return output->handle()->is_x11() || TreelandConfig::ref().forceSoftwareCursor();
+        return output->handle()->is_x11() || Helper::instance()->config()->forceSoftwareCursor();
     };
     QQmlComponent delegate(engine, "Treeland", "PrimaryOutput");
     QObject *obj = delegate.beginCreate(engine->rootContext());
@@ -45,7 +45,7 @@ Output *Output::create(WOutput *output, QQmlEngine *engine, QObject *parent)
     QQmlEngine::setObjectOwnership(outputItem, QQmlEngine::CppOwnership);
     outputItem->setOutput(output);
 
-    connect(&TreelandConfig::ref(),
+    connect(Helper::instance()->config(),
             &TreelandConfig::forceSoftwareCursorChanged,
             obj,
             [obj, output, isSoftwareCursor]() {
@@ -237,7 +237,7 @@ void Output::placeSmartCascaded(SurfaceWrapper *surface)
         ? DIFF_APP_OFFSET_FACTOR
         : SAME_APP_OFFSET_FACTOR;
     const QRectF titleBarGeometry = latestActiveSurface->titlebarGeometry();
-    qreal offset = (titleBarGeometry.isNull() ? TreelandConfig::ref().windowTitlebarHeight()
+    qreal offset = (titleBarGeometry.isNull() ? Helper::instance()->config()->windowTitlebarHeight()
                                               : titleBarGeometry.height())
         * factor;
 

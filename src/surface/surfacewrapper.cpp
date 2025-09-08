@@ -3,7 +3,8 @@
 
 #include "surface/surfacewrapper.h"
 
-#include "config/treelandconfig.h"
+#include "seat/helper.h"
+#include "treelandconfig.hpp"
 #include "core/qmlengine.h"
 #include "output/output.h"
 #include "workspace/workspace.h"
@@ -1093,7 +1094,7 @@ qreal SurfaceWrapper::radius() const
 
     // TODO: XdgToplevel、popup、InputPopup、XWayland(bypass、widnowtype(menu、normal、popup))
     if (radius < 1 && m_type != Type::Layer) {
-        radius = TreelandConfig::ref().windowRadius();
+        radius = Helper::instance()->config()->windowRadius();
     }
 
     return radius;

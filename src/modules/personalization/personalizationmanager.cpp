@@ -4,7 +4,8 @@
 #include "personalizationmanager.h"
 #include "surfacewrapper.h"
 
-#include "config/treelandconfig.h"
+#include "seat/helper.h"
+#include "treelandconfig.hpp"
 #include "modules/personalization/impl/appearance_impl.h"
 #include "modules/personalization/impl/font_impl.h"
 #include "modules/personalization/impl/personalization_manager_impl.h"
@@ -42,7 +43,7 @@ static PersonalizationV1 *PERSONALIZATION_MANAGER = nullptr;
 static QString defaultBackground()
 {
     static QString defaultBg = [] {
-        const QString configDefaultBg = TreelandConfig::ref().defaultBackground();
+        const QString configDefaultBg = Helper::instance()->config()->defaultBackground();
         return QFile::exists(configDefaultBg) ? configDefaultBg : DEFAULT_WALLPAPER;
     }();
     return defaultBg;
@@ -134,8 +135,22 @@ void PersonalizationV1::onCursorContextCreated(personalization_cursor_context_v1
             &personalization_cursor_context_v1::sendSize);
 
     context->blockSignals(true);
-    context->setTheme(TreelandConfig::ref().cursorThemeName());
-    context->setSize(TreelandConfig::ref().cursorSize());
+    context->setTheme(Helper::instance()->config()->cursorThemeName());
+    auto size = Helper::instance()->config()->cursorSize();
+    context->setSize(QSize(size, size));
+    connect(Helper::instance()->config(),
+            &TreelandConfig::cursorThemeNameChanged,
+            context,
+            [context]() {
+                context->setTheme(Helper::instance()->config()->cursorThemeName());
+            });
+    connect(Helper::instance()->config(),
+            &TreelandConfig::cursorSizeChanged,
+            context,
+            [context]() {
+                auto size = Helper::instance()->config()->cursorSize();
+                context->setSize(QSize(size, size));
+            });
     context->blockSignals(false);
 }
 
@@ -146,37 +161,37 @@ void PersonalizationV1::onAppearanceContextCreated(personalization_appearance_co
     m_appearanceContexts.push_back(context);
 
     connect(context, &Appearance::roundCornerRadiusChanged, this, [this, context](int32_t radius) {
-        TreelandConfig::ref().setWindowRadius(radius);
+        Helper::instance()->config()->setWindowRadius(radius);
         for (auto *context : m_appearanceContexts) {
             context->sendRoundCornerRadius(radius);
         }
     });
     connect(context, &Appearance::iconThemeChanged, this, [this, context](const QString &theme) {
-        TreelandConfig::ref().setIconThemeName(theme);
+        Helper::instance()->config()->setIconThemeName(theme);
         for (auto *context : m_appearanceContexts) {
             context->sendIconTheme(theme.toUtf8());
         }
     });
     connect(context, &Appearance::activeColorChanged, this, [this, context](const QString &color) {
-        TreelandConfig::ref().setActiveColor(color);
+        Helper::instance()->config()->setActiveColor(color);
         for (auto *context : m_appearanceContexts) {
             context->sendActiveColor(color.toUtf8());
         }
     });
     connect(context, &Appearance::windowOpacityChanged, this, [this, context](uint32_t opacity) {
-        TreelandConfig::ref().setWindowOpacity(opacity);
+        Helper::instance()->config()->setWindowOpacity(opacity);
         for (auto *context : m_appearanceContexts) {
             context->sendWindowOpacity(opacity);
         }
     });
     connect(context, &Appearance::windowThemeTypeChanged, this, [this, context](int32_t type) {
-        TreelandConfig::ref().setWindowThemeType(type);
+        Helper::instance()->config()->setWindowThemeType(type);
         for (auto *context : m_appearanceContexts) {
             context->sendWindowThemeType(type);
         }
     });
     connect(context, &Appearance::titlebarHeightChanged, this, [this, context](uint32_t height) {
-        TreelandConfig::ref().setWindowTitlebarHeight(height);
+        Helper::instance()->config()->setWindowTitlebarHeight(height);
         for (auto *context : m_appearanceContexts) {
             context->sendWindowTitlebarHeight(height);
         }
@@ -191,19 +206,19 @@ void PersonalizationV1::onAppearanceContextCreated(personalization_appearance_co
     });
 
     connect(context, &Appearance::requestActiveColor, context, [this, context] {
-        context->setActiveColor(TreelandConfig::ref().activeColor().toUtf8());
+        context->setActiveColor(Helper::instance()->config()->activeColor().toUtf8());
     });
 
     connect(context, &Appearance::requestWindowOpacity, context, [this, context] {
-        context->setWindowOpacity(TreelandConfig::ref().windowOpacity());
+        context->setWindowOpacity(Helper::instance()->config()->windowOpacity());
     });
 
     connect(context, &Appearance::requestWindowThemeType, context, [this, context] {
-        context->setWindowThemeType(TreelandConfig::ref().windowThemeType());
+        context->setWindowThemeType(Helper::instance()->config()->windowThemeType());
     });
 
     connect(context, &Appearance::requestWindowTitlebarHeight, context, [this, context] {
-        context->setWindowTitlebarHeight(TreelandConfig::ref().windowTitlebarHeight());
+        context->setWindowTitlebarHeight(Helper::instance()->config()->windowTitlebarHeight());
     });
 
     connect(context, &Appearance::beforeDestroy, this, [this, context] {
@@ -217,12 +232,12 @@ void PersonalizationV1::onAppearanceContextCreated(personalization_appearance_co
 
     context->blockSignals(true);
 
-    context->setRoundCornerRadius(TreelandConfig::ref().windowRadius());
-    context->setIconTheme(TreelandConfig::ref().iconThemeName().toUtf8());
-    context->setActiveColor(TreelandConfig::ref().activeColor().toUtf8());
-    context->setWindowOpacity(TreelandConfig::ref().windowOpacity());
-    context->setWindowThemeType(TreelandConfig::ref().windowThemeType());
-    context->setWindowTitlebarHeight(TreelandConfig::ref().windowTitlebarHeight());
+    context->setRoundCornerRadius(Helper::instance()->config()->windowRadius());
+    context->setIconTheme(Helper::instance()->config()->iconThemeName().toUtf8());
+    context->setActiveColor(Helper::instance()->config()->activeColor().toUtf8());
+    context->setWindowOpacity(Helper::instance()->config()->windowOpacity());
+    context->setWindowThemeType(Helper::instance()->config()->windowThemeType());
+    context->setWindowTitlebarHeight(Helper::instance()->config()->windowTitlebarHeight());
 
     context->blockSignals(false);
 }
@@ -231,32 +246,32 @@ void PersonalizationV1::onFontContextCreated(personalization_font_context_v1 *co
 {
     using Font = personalization_font_context_v1;
 
-    connect(&TreelandConfig::ref(), &TreelandConfig::fontNameChanged, context, [context] {
-        context->sendFont(TreelandConfig::ref().fontName());
+    connect(Helper::instance()->config(), &TreelandConfig::fontChanged, context, [context] {
+        context->sendFont(Helper::instance()->config()->font());
     });
-    connect(&TreelandConfig::ref(), &TreelandConfig::monoFontNameChanged, context, [context] {
-        context->sendMonospaceFont(TreelandConfig::ref().monoFontName());
+    connect(Helper::instance()->config(), &TreelandConfig::monoFontChanged, context, [context] {
+        context->sendMonospaceFont(Helper::instance()->config()->monoFont());
     });
-    connect(&TreelandConfig::ref(), &TreelandConfig::fontSizeChanged, context, [context] {
-        context->sendFontSize(TreelandConfig::ref().fontSize());
+    connect(Helper::instance()->config(), &TreelandConfig::fontSizeChanged, context, [context] {
+        context->sendFontSize(Helper::instance()->config()->fontSize());
     });
 
     connect(context, &Font::requestFont, context, [context] {
-        context->sendFont(TreelandConfig::ref().fontName());
+        context->sendFont(Helper::instance()->config()->font());
     });
     connect(context, &Font::requestMonoFont, context, [context] {
-        context->sendMonospaceFont(TreelandConfig::ref().monoFontName());
+        context->sendMonospaceFont(Helper::instance()->config()->monoFont());
     });
     connect(context, &Font::requestFontSize, context, [context] {
-        context->sendFontSize(TreelandConfig::ref().fontSize());
+        context->sendFontSize(Helper::instance()->config()->fontSize());
     });
 
-    connect(context, &Font::fontChanged, &TreelandConfig::ref(), &TreelandConfig::setFontName);
+    connect(context, &Font::fontChanged, Helper::instance()->config(), &TreelandConfig::setFont);
     connect(context,
             &Font::monoFontChanged,
-            &TreelandConfig::ref(),
-            &TreelandConfig::setMonoFontName);
-    connect(context, &Font::fontSizeChanged, &TreelandConfig::ref(), &TreelandConfig::setFontSize);
+            Helper::instance()->config(),
+            &TreelandConfig::setMonoFont);
+    connect(context, &Font::fontSizeChanged, Helper::instance()->config(), &TreelandConfig::setFontSize);
 
     connect(context, &Font::beforeDestroy, this, [this, context] {
         for (auto it = m_fontContexts.begin(); it != m_fontContexts.end(); ++it) {
@@ -269,9 +284,9 @@ void PersonalizationV1::onFontContextCreated(personalization_font_context_v1 *co
 
     context->blockSignals(true);
 
-    context->sendFont(TreelandConfig::ref().fontName());
-    context->sendMonospaceFont(TreelandConfig::ref().monoFontName());
-    context->sendFontSize(TreelandConfig::ref().fontSize());
+    context->sendFont(Helper::instance()->config()->font());
+    context->sendMonospaceFont(Helper::instance()->config()->monoFont());
+    context->sendFontSize(Helper::instance()->config()->fontSize());
 
     context->blockSignals(false);
 
@@ -379,26 +394,26 @@ void PersonalizationV1::setUserId(uid_t uid)
 
 QString PersonalizationV1::cursorTheme()
 {
-    return TreelandConfig::ref().cursorThemeName();
+    return Helper::instance()->config()->cursorThemeName();
 }
 
 void PersonalizationV1::setCursorTheme(const QString &name)
 {
-    TreelandConfig::ref().setCursorThemeName(name);
+    Helper::instance()->config()->setCursorThemeName(name);
 
     Q_EMIT cursorThemeChanged(name);
 }
 
 QSize PersonalizationV1::cursorSize()
 {
-    int size = TreelandConfig::ref().cursorSize().width();
+    int size = Helper::instance()->config()->cursorSize();
 
     return QSize(size, size);
 }
 
 void PersonalizationV1::setCursorSize(const QSize &size)
 {
-    TreelandConfig::ref().setCursorSize(size);
+    Helper::instance()->config()->setCursorSize(size.width());
 
     Q_EMIT cursorSizeChanged(size);
 }
@@ -550,7 +565,7 @@ void PersonalizationV1::create(WServer *server)
             &PersonalizationV1::onFontContextCreated);
 }
 
-void PersonalizationV1::destroy([[maybe_unused]] WServer *server) { 
+void PersonalizationV1::destroy([[maybe_unused]] WServer *server) {
 }
 
 wl_global *PersonalizationV1::global() const

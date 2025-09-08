@@ -31,8 +31,8 @@ OutputItem {
         OutputLayer.flags: OutputLayer.Cursor
         OutputLayer.cursorHotSpot: hotSpot
 
-        themeName: Helper.cursorTheme
-        sourceSize: Helper.cursorSize
+        themeName: Helper.config.cursorThemeName
+        sourceSize: Qt.size(Helper.config.cursorSize, Helper.config.cursorSize)
     }
 
     OutputViewport {
