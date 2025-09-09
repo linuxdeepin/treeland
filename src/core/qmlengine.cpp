@@ -42,6 +42,7 @@ QmlEngine::QmlEngine(QObject *parent)
     , launchpadCoverComponent(this, "Treeland", "LaunchpadCover")
     , layershellAnimationComponent(this, "Treeland", "LayerShellAnimation")
     , lockScreenFallbackComponent(this, "Treeland", "LockScreenFallback")
+    , fpsDisplayComponent(this, "Treeland", "FpsDisplay")
 {
 }
 
@@ -247,4 +248,8 @@ QQuickItem *QmlEngine::createWindowPicker(QQuickItem *parent)
 QQuickItem *QmlEngine::createLockScreenFallback(QQuickItem *parent, const QVariantMap &properties)
 {
     return createComponent(lockScreenFallbackComponent, parent, properties);
+}
+QQuickItem *QmlEngine::createFpsDisplay(QQuickItem *parent)
+{
+    return createComponent(fpsDisplayComponent, parent);
 }
