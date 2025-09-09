@@ -91,6 +91,7 @@ class LockScreenInterface;
 class ILockScreen;
 class UserModel;
 class DDMInterfaceV1;
+class FpsDisplayManager;
 struct wlr_idle_inhibitor_v1;
 struct wlr_output_power_v1_set_mode_event;
 struct wlr_ext_foreign_toplevel_image_capture_source_manager_v1_request;
@@ -212,6 +213,7 @@ public:
     void deactivateSession();
     void enableRender();
     void disableRender();
+    void toggleFpsDisplay();
 public Q_SLOTS:
     void activateSurface(SurfaceWrapper *wrapper, Qt::FocusReason reason = Qt::OtherFocusReason);
     void forceActivateSurface(SurfaceWrapper *wrapper,
@@ -364,6 +366,7 @@ private:
 
     IMultitaskView *m_multitaskView{ nullptr };
     UserModel *m_userModel{ nullptr };
+    FpsDisplayManager *m_fpsDisplayManager{ nullptr };
 
     quint32 m_atomDeepinNoTitlebar;
 };
