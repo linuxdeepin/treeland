@@ -8,6 +8,7 @@
 #include "input/togglablegesture.h"
 #include "modules/virtual-output/virtualoutputmanager.h"
 #include "modules/window-management/windowmanagement.h"
+#include "utils/fpsdisplaymanager.h"
 
 #include <wglobal.h>
 #include <wqmlcreator.h>
@@ -94,6 +95,7 @@ class ILockScreen;
 class UserModel;
 class DDMInterfaceV1;
 class TreelandConfig;
+class FpsDisplayManager;
 struct wlr_idle_inhibitor_v1;
 struct wlr_output_power_v1_set_mode_event;
 struct wlr_ext_foreign_toplevel_image_capture_source_manager_v1_request;
@@ -219,6 +221,7 @@ public:
     void setBlockActivateSurface(bool block);
     bool blockActivateSurface() const;
     bool noAnimation() const;
+    void toggleFpsDisplay();
 
 public Q_SLOTS:
     void activateSurface(SurfaceWrapper *wrapper, Qt::FocusReason reason = Qt::OtherFocusReason);
@@ -312,12 +315,14 @@ private:
 
     static Helper *m_instance;
     TreelandConfig *m_config = nullptr;
+    FpsDisplayManager *m_fpsManager = nullptr;
 
     CurrentMode m_currentMode{ CurrentMode::Normal };
 
     // qtquick helper
     WOutputRenderWindow *m_renderWindow = nullptr;
     QQuickItem *m_dockPreview = nullptr;
+    QQuickItem *m_fpsDisplay = nullptr;
 
     // gesture
     WServer *m_server = nullptr;

@@ -57,3 +57,6 @@ Q_LOGGING_CATEGORY(treelandQml, "treeland.qml")
 
 // Greeter module
 Q_LOGGING_CATEGORY(treelandGreeter, "treeland.greeter")
+
+// FPS display
+Q_LOGGING_CATEGORY(treelandFpsDisplay, "treeland.fpsdisplay")
