@@ -41,6 +41,7 @@ QmlEngine::QmlEngine(QObject *parent)
     , launchpadAnimationComponent(this, "Treeland", "LaunchpadAnimation")
     , launchpadCoverComponent(this, "Treeland", "LaunchpadCover")
     , layershellAnimationComponent(this, "Treeland", "LayerShellAnimation")
+    , fpsDisplayComponent(this, "Treeland", "FpsDisplay")
 {
 }
 
@@ -241,4 +242,9 @@ QQuickItem *QmlEngine::createCaptureSelector(QQuickItem *parent, CaptureManagerV
 QQuickItem *QmlEngine::createWindowPicker(QQuickItem *parent)
 {
     return createComponent(windowPickerComponent, parent);
+}
+
+QQuickItem *QmlEngine::createFpsDisplay(QQuickItem *parent)
+{
+    return createComponent(fpsDisplayComponent, parent);
 }
