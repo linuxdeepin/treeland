@@ -370,9 +370,11 @@ struct wlr_color_representation_manager_v1 *wlr_color_representation_manager_v1_
 	ok &= memdup(&manager->supported_alpha_modes,
 		options->supported_alpha_modes,
 		sizeof(options->supported_alpha_modes[0]) * options->supported_alpha_modes_len);
+	manager->supported_alpha_modes_len = options->supported_alpha_modes_len;
 	ok &= memdup(&manager->supported_coeffs_and_ranges,
 		options->supported_coeffs_and_ranges,
 		sizeof(options->supported_coeffs_and_ranges[0]) * options->supported_coeffs_and_ranges_len);
+	manager->supported_coeffs_and_ranges_len = options->supported_coeffs_and_ranges_len;
 	if (!ok) {
 		goto err_options;
 	}
