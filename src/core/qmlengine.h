@@ -64,6 +64,7 @@ public:
     QQuickItem *createCaptureSelector(QQuickItem *parent, CaptureManagerV1 *captureManager);
     QQuickItem *createWindowPicker(QQuickItem *parent);
     QQuickItem *createLockScreenFallback(QQuickItem *parent, const QVariantMap &properties = QVariantMap());
+    QQuickItem *createFpsDisplay(QQuickItem *parent);
 
     QQmlComponent *surfaceContentComponent()
     {
@@ -95,4 +96,5 @@ private:
     QQmlComponent launchpadCoverComponent;
     QQmlComponent layershellAnimationComponent;
     QQmlComponent lockScreenFallbackComponent;
+    QQmlComponent fpsDisplayComponent;
 };
