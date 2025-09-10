@@ -221,21 +221,18 @@ void GreeterProxy::init()
             &GreeterProxy::onSessionRemoved);
 
     // Use async call to avoid blocking
-    QDBusInterface dbus("org.freedesktop.DBus",
-                        "/org/freedesktop/DBus",
-                        "org.freedesktop.DBus.Properties",
-                        QDBusConnection::systemBus());
-    QDBusPendingCall call = dbus.asyncCall("Get", DisplayManager::staticInterfaceName(), "Sessions");
-    auto *watcher = new QDBusPendingCallWatcher(call);
-    connect(watcher, &QDBusPendingCallWatcher::finished, this, [this](QDBusPendingCallWatcher *watcher) {
-        QDBusReply<QList<QDBusObjectPath>> reply = watcher->reply();
+    QThreadPool::globalInstance()->start([this]() {
+        QDBusInterface dbus("org.freedesktop.DBus",
+                            "/org/freedesktop/DBus",
+                            "org.freedesktop.DBus.Properties",
+                            QDBusConnection::systemBus());
+        QDBusReply<QList<QDBusObjectPath>> reply = dbus.call("Get", DisplayManager::staticInterfaceName(), "Sessions");
         if (reply.isValid()) {
             auto sessions = reply.value();
             for (auto session : sessions) {
-                onSessionAdded(session);
+                QMetaObject::invokeMethod(this, &GreeterProxy::onSessionAdded, Qt::QueuedConnection, session);
             }
         }
-        watcher->deleteLater();
     });
 }
 
@@ -285,29 +282,33 @@ void GreeterProxy::unlock(const QString &user, const QString &password)
     }
 }
 
+static QString getSessionPathByUser(UserPtr userInfo);
+
 void GreeterProxy::logout()
 {
     qCDebug(treelandGreeter) << "Logout.";
-    const auto path = currentSessionPath();
-    if (path.isEmpty()) {
-        qCWarning(treelandGreeter, "No session logged in.");
-        return;
-    }
-    qCDebug(treelandGreeter) << "Terminate the session" << path;
-    auto reply = DDBusSender::system()
-                     .service("org.freedesktop.login1")
-                     .path(path)
-                     .interface("org.freedesktop.login1.Session")
-                     .method("Terminate")
-                     .call();
-    if (reply.isError()) {
-        qCWarning(treelandGreeter) << "Failed to logout, error:" << reply.error().message();
-    }
+    auto user = userModel()->currentUser();
+    QThreadPool::globalInstance()->start([user]() {
+        const auto path = getSessionPathByUser(user);
+        if (path.isEmpty()) {
+            qCWarning(treelandGreeter, "No session logged in.");
+            return;
+        }
+        qCDebug(treelandGreeter) << "Terminate the session" << path;
+        auto reply = DDBusSender::system()
+            .service("org.freedesktop.login1")
+            .path(path)
+            .interface("org.freedesktop.login1.Session")
+            .method("Terminate")
+            .call();
+        if (reply.isError()) {
+            qCWarning(treelandGreeter) << "Failed to logout, error:" << reply.error().message();
+        }
+    });
 }
 
-QString GreeterProxy::currentSessionPath() const
+QString getSessionPathByUser(UserPtr userInfo)
 {
-    auto userInfo = userModel()->currentUser();
     if (!userInfo) {
         qCWarning(treelandGreeter) << "No user logged in.";
         return {};
@@ -382,7 +383,7 @@ void GreeterProxy::onSessionAdded(const QDBusObjectPath &session)
     DisplaySession s(d->displayManager->service(), session.path(), QDBusConnection::systemBus());
 
     userModel()->updateUserLoginState(s.userName(), true);
-    updateLocketState();   
+    updateLocketState();
 }
 
 void GreeterProxy::onSessionRemoved([[maybe_unused]] const QDBusObjectPath &session)
