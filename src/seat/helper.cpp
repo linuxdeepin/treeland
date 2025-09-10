@@ -1270,7 +1270,8 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *, QInputEvent *event)
             }
         }
 
-        if (m_currentMode == CurrentMode::Normal
+        if (m_lockScreen
+            && m_currentMode == CurrentMode::Normal
             && QKeySequence(kevent->modifiers() | kevent->key())
                 == QKeySequence(Qt::ControlModifier | Qt::AltModifier | Qt::Key_Delete)) {
             setCurrentMode(CurrentMode::LockScreen);
@@ -1309,7 +1310,7 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *, QInputEvent *event)
                 }
                 return true;
 #ifndef DISABLE_DDM
-            } else if (kevent->key() == Qt::Key_L) {
+            } else if (m_lockScreen && kevent->key() == Qt::Key_L) {
                 if (m_lockScreen->isLocked()) {
                     return true;
                 }

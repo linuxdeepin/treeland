@@ -90,7 +90,7 @@ DDMInterfaceV1::~DDMInterfaceV1() {
 }
 
 QByteArrayView DDMInterfaceV1::interfaceName() const {
-    QByteArray arr(treeland_ddm_interface.name);
+    static const QByteArray arr(treeland_ddm_interface.name);
     return QByteArrayView(arr);
 }
 

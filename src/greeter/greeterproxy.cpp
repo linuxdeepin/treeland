@@ -505,18 +505,20 @@ void GreeterProxy::readyRead()
 
 bool GreeterProxy::localValidation(const QString &user, const QString &password) const
 {
+    auto utf8Password = password.toUtf8();
     struct pam_conv conv = {
         []([[maybe_unused]] int num_msg,
            [[maybe_unused]] const struct pam_message **msg,
            struct pam_response **resp,
            void *appdata_ptr) {
-            auto *reply = new pam_response;
+            // pam uses free, we must malloc
+            auto *reply = static_cast<pam_response *>(malloc(sizeof(pam_response)));
             reply->resp = strdup(static_cast<const char *>(appdata_ptr)); // 将密码传递给PAM
             reply->resp_retcode = 0;
             *resp = reply;
             return PAM_SUCCESS;
         },
-        static_cast<void *>(password.toUtf8().data()),
+        static_cast<void *>(utf8Password.data()),
     };
 
     pam_handle_t *pamh = nullptr;
