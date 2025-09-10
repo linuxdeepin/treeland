@@ -109,7 +109,6 @@ Q_SIGNALS:
 
 private:
     bool localValidation(const QString &user, const QString &password) const;
-    QString currentSessionPath() const;
     void updateAuthSocket();
     void updateLocketState();
 
