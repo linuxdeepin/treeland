@@ -90,6 +90,7 @@
 #include <qwidleinhibitv1.h>
 #include <qwalphamodifierv1.h>
 #include <qwdrm.h>
+#include <qwsecuritycontextmanagerv1.h>
 
 #include <QAction>
 #include <QKeySequence>
@@ -1129,6 +1130,8 @@ void Helper::init()
     m_outputPowerManager = qw_output_power_manager_v1::create(*m_server->handle());
 
     connect(m_outputPowerManager, &qw_output_power_manager_v1::notify_set_mode, this, &Helper::onSetOutputPowerMode);
+
+    qw_security_context_manager_v1::create(*m_server->handle());
 
     m_backend->handle()->start();
 
