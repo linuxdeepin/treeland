@@ -5,6 +5,7 @@
 
 #include "modules/capture/capture.h"
 #include "utils/cmdline.h"
+#include "utils/fpsdisplaymanager.h"
 #include "modules/dde-shell/ddeshellattached.h"
 #include "modules/dde-shell/ddeshellmanagerinterfacev1.h"
 #include "input/inputdevice.h"
@@ -263,6 +264,10 @@ Helper::Helper(QObject *parent)
         this,
         SLOT(onSessionNew(QString,QDBusObjectPath))
     );
+
+    // Initialize FPS display manager
+    m_fpsDisplayManager = new FpsDisplayManager(this);
+    m_fpsDisplayManager->setTargetWindow(m_renderWindow);
 }
 
 Helper::~Helper()
@@ -1283,6 +1288,10 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *, QInputEvent *event)
             == QKeySequence(Qt::META | Qt::Key_F12)) {
             qApp->quit();
             return true;
+        } else if (QKeySequence(kevent->modifiers() | kevent->key())
+            == QKeySequence(Qt::META | Qt::Key_F11)) {
+            toggleFpsDisplay();
+            return true;
         } else if (m_captureSelector) {
             if (event->modifiers() == Qt::NoModifier && kevent->key() == Qt::Key_Escape)
                 m_captureSelector->cancelSelection();
@@ -2223,5 +2232,15 @@ void Helper::disableRender() {
             qCWarning(treelandCore) << "Failed to read path of file descriptor " << device->fd;
         else if (strncmp(prefix, path, prefixLen))
             ioctl(device->fd, EVIOCREVOKE, nullptr);
+    }
+}
+
+void Helper::toggleFpsDisplay()
+{
+    if (m_fpsDisplayManager) {
+        m_fpsDisplayManager->toggle();
+        qCInfo(treelandCore) << "FPS display toggled, now" << (m_fpsDisplayManager->isVisible() ? "visible" : "hidden");
+    } else {
+        qCWarning(treelandCore) << "FPS display manager not initialized";
     }
 }
