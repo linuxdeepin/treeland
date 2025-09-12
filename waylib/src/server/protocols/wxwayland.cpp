@@ -126,7 +126,7 @@ WXWayland::WXWayland(qw_compositor *compositor, bool lazy)
 {
     W_D(WXWayland);
     // TODO: Add setFreezeClientWhenDisable in WSocket
-    d->socket = new WSocket(false, nullptr, this);
+    d->socket = new WSocket(false, this);
 }
 
 QByteArray WXWayland::displayName() const

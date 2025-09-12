@@ -115,9 +115,15 @@ static int wl_os_accept_cloexec(int sockfd, sockaddr *addr, socklen_t *addrlen)
 class Q_DECL_HIDDEN WSocketPrivate : public WObjectPrivate
 {
 public:
-    WSocketPrivate(WSocket *qq, bool freeze, WSocket *parent)
+    WSocketPrivate(WSocket *qq, bool freeze)
         : WObjectPrivate(qq)
         , freezeClientWhenDisable(freeze)
+        , parentSocket(nullptr)
+    {}
+
+    WSocketPrivate(WSocket *qq, WSocket *parent)
+        : WObjectPrivate(qq)
+        , freezeClientWhenDisable(WSocketPrivate::get(parent)->freezeClientWhenDisable)
         , parentSocket(parent)
     {}
 
@@ -139,6 +145,13 @@ public:
     bool ownsFd = true;
     QString socket_file;
     QPointer<WSocket> parentSocket;
+
+    // for wp_security_context_v1
+    // This WSocket object living is managed by WSecurityContextManager
+    // So using the QByteArrayView ref the source data to avoid the deep copy
+    QByteArrayView sandboxEngine;
+    QByteArrayView appId;
+    QByteArrayView instanceId;
 
     wl_display *display = nullptr;
     wl_event_source *eventSource = nullptr;
@@ -329,6 +342,24 @@ WClient *WClient::get(const wl_client *client)
     return nullptr;
 }
 
+QByteArray WClient::sandboxEngine() const
+{
+    W_DC(WClient);
+    return WSocketPrivate::get(d->socket)->sandboxEngine.toByteArray();
+}
+
+QByteArray WClient::appId() const
+{
+    W_DC(WClient);
+    return WSocketPrivate::get(d->socket)->appId.toByteArray();
+}
+
+QByteArray WClient::instanceId() const
+{
+    W_DC(WClient);
+    return WSocketPrivate::get(d->socket)->instanceId.toByteArray();
+}
+
 void WClient::freeze()
 {
     W_D(WClient);
@@ -341,11 +372,30 @@ void WClient::activate()
     pauseClient(d->handle, false);
 }
 
-WSocket::WSocket(bool freezeClientWhenDisable, WSocket *parentSocket, QObject *parent)
+WSocket::WSocket(bool freezeClientWhenDisable, QObject *parent)
     : QObject(parent)
-    , WObject(*new WSocketPrivate(this, freezeClientWhenDisable, parentSocket))
+    , WObject(*new WSocketPrivate(this, freezeClientWhenDisable))
 {
 
+}
+
+WSocket::WSocket(WSocket *parentSocket, QObject *parent)
+    : QObject(parent)
+    , WObject(*new WSocketPrivate(this, parentSocket))
+{
+
+}
+
+WSocket::WSocket(const char *sandboxEngine,
+                 const char *appId,
+                 const char *instanceId,
+                 WSocket *parentSocket, QObject *parent)
+    : WSocket(parentSocket, parent)
+{
+    W_D(WSocket);
+    d->sandboxEngine = sandboxEngine;
+    d->appId = appId;
+    d->instanceId = instanceId;
 }
 
 WSocket::~WSocket()
