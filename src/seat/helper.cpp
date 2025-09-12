@@ -10,10 +10,14 @@
 #include "input/inputdevice.h"
 #include "core/layersurfacecontainer.h"
 #include "greeter/usermodel.h"
+#ifdef EXT_SESSION_LOCK_V1
+#include "wsessionlock.h"
+#include "wsessionlockmanager.h"
+#endif
 
 #include <rhi/qrhi.h>
 
-#ifndef DISABLE_DDM
+#if !defined(DISABLE_DDM) || defined(EXT_SESSION_LOCK_V1)
 #  include "core/lockscreen.h"
 #endif
 #include "interfaces/multitaskviewinterface.h"
@@ -188,6 +192,12 @@ Helper::Helper(QObject *parent)
 
     m_shellHandler = new ShellHandler(m_rootSurfaceContainer);
 
+#ifdef EXT_SESSION_LOCK_V1
+    m_lockScreenGraceTimer = new QTimer(this);
+    m_lockScreenGraceTimer->setInterval(300);
+    m_lockScreenGraceTimer->setSingleShot(true);
+#endif
+
     m_workspaceScaleAnimation = new QPropertyAnimation(m_shellHandler->workspace(), "scale", this);
     m_workspaceOpacityAnimation =
         new QPropertyAnimation(m_shellHandler->workspace(), "opacity", this);
@@ -303,6 +313,12 @@ void Helper::setWorkspaceVisible(bool visible)
         if (surface->type() == SurfaceWrapper::Type::Layer) {
             surface->setHideByLockScreen(m_currentMode == CurrentMode::LockScreen);
         }
+    }
+
+    if (m_noAnimation) {
+        m_shellHandler->workspace()->setOpacity(visible ? 1.0 : 0.0);
+        m_shellHandler->workspace()->setScale(visible ? 1.0 : 1.4);
+        return;
     }
 
     if (visible) {
@@ -1135,7 +1151,16 @@ void Helper::init()
     connect(m_outputPowerManager, &qw_output_power_manager_v1::notify_set_mode, this, &Helper::onSetOutputPowerMode);
 
     qw_security_context_manager_v1::create(*m_server->handle());
-
+#ifdef EXT_SESSION_LOCK_V1
+    m_sessionLockManager = m_server->attach<WSessionLockManager>();
+    if (!m_lockScreen) {
+        setLockScreenImpl(nullptr);
+    }
+    connect(m_sessionLockManager,
+            &WSessionLockManager::lockCreated,
+            this,
+            &Helper::onExtSessionLock);
+#endif
     m_backend->handle()->start();
 
     qCInfo(treelandCore) << "Listing on:" << m_socket->fullServerName();
@@ -1156,7 +1181,7 @@ void Helper::setSocketEnabled(bool newEnabled)
 
 void Helper::activateSurface(SurfaceWrapper *wrapper, Qt::FocusReason reason)
 {
-    if (m_blockActivateSurface && wrapper) {
+    if (m_blockActivateSurface && wrapper && wrapper->type() != SurfaceWrapper::Type::LockScreen) {
         if (wrapper->shellSurface()->hasCapability(WToplevelSurface::Capability::Activate)) {
             workspace()->pushActivedSurface(wrapper);
         }
@@ -1276,7 +1301,7 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *, QInputEvent *event)
             }
         }
 
-        if (m_lockScreen
+        if (m_lockScreen && m_lockScreen->available()
             && m_currentMode == CurrentMode::Normal
             && QKeySequence(kevent->modifiers() | kevent->key())
                 == QKeySequence(Qt::ControlModifier | Qt::AltModifier | Qt::Key_Delete)) {
@@ -1316,7 +1341,7 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *, QInputEvent *event)
                 }
                 return true;
 #ifndef DISABLE_DDM
-            } else if (m_lockScreen && kevent->key() == Qt::Key_L) {
+            } else if (m_lockScreen && m_lockScreen->available() && kevent->key() == Qt::Key_L) {
                 if (m_lockScreen->isLocked()) {
                     return true;
                 }
@@ -1751,21 +1776,21 @@ void Helper::handleRequestDrag([[maybe_unused]] WSurface *surface)
 void Helper::handleLockScreen(LockScreenInterface *lockScreen)
 {
     connect(lockScreen, &LockScreenInterface::shutdown, this, [this]() {
-        if (m_lockScreen && currentMode() == Helper::CurrentMode::Normal) {
+        if (m_lockScreen && m_lockScreen->available() && currentMode() == Helper::CurrentMode::Normal) {
             setCurrentMode(CurrentMode::LockScreen);
             m_lockScreen->shutdown();
             setWorkspaceVisible(false);
         }
     });
     connect(lockScreen, &LockScreenInterface::lock, this, [this]() {
-        if (m_lockScreen && currentMode() == Helper::CurrentMode::Normal) {
+        if (m_lockScreen && m_lockScreen->available() && currentMode() == Helper::CurrentMode::Normal) {
             setCurrentMode(CurrentMode::LockScreen);
             m_lockScreen->lock();
             setWorkspaceVisible(false);
         }
     });
     connect(lockScreen, &LockScreenInterface::switchUser, this, [this]() {
-        if (m_lockScreen && currentMode() == Helper::CurrentMode::Normal) {
+        if (m_lockScreen && m_lockScreen->available() && currentMode() == Helper::CurrentMode::Normal) {
             setCurrentMode(CurrentMode::LockScreen);
             m_lockScreen->switchUser();
             setWorkspaceVisible(false);
@@ -1792,6 +1817,45 @@ void Helper::onSessionUnlock()
     if (m_lockScreen) {
         m_lockScreen->unlock();
     }
+}
+
+void Helper::onExtSessionLock(WSessionLock *lock)
+{
+#ifdef EXT_SESSION_LOCK_V1
+    if (m_lockScreen->isLocked()) {
+        lock->finish();
+        return;
+    }
+
+    m_lockScreen->onExternalLock(lock);
+
+    setCurrentMode(CurrentMode::LockScreen);
+
+    if (m_multitaskView) {
+        m_multitaskView->immediatelyExit();
+    }
+
+    deleteTaskSwitch();
+        
+    setWorkspaceVisible(false);
+
+    lock->safeConnect(&WSessionLock::abandoned, this, [this]() {
+        m_lockScreenGraceTimer->stop();
+        setNoAnimation(false);
+    });
+
+    lock->safeConnect(&WSessionLock::canceled, this, [this]() {
+        m_lockScreenGraceTimer->stop();
+    });
+
+    m_lockScreenGraceTimer->disconnect();
+    // grace 300ms for possible client to
+    connect(m_lockScreenGraceTimer, &QTimer::timeout, this, [this, lock]() {
+        setNoAnimation(true);
+        lock->lock();
+    });
+    m_lockScreenGraceTimer->start();
+#endif
 }
 
 void Helper::allowNonDrmOutputAutoChangeMode(WOutput *output)
@@ -1985,7 +2049,7 @@ void Helper::setMultitaskViewImpl(IMultitaskView *impl)
 
 void Helper::setLockScreenImpl(ILockScreen *impl)
 {
-#ifndef DISABLE_DDM
+#if !defined(DISABLE_DDM) || defined(EXT_SESSION_LOCK_V1)
     m_lockScreen = new LockScreen(impl, m_rootSurfaceContainer);
     m_lockScreen->setZ(RootSurfaceContainer::LockScreenZOrder);
     m_lockScreen->setVisible(false);
@@ -2001,15 +2065,21 @@ void Helper::setLockScreenImpl(ILockScreen *impl)
     connect(m_lockScreen, &LockScreen::unlock, this, [this] {
         setCurrentMode(CurrentMode::Normal);
         setWorkspaceVisible(true);
-
+#ifdef EXT_SESSION_LOCK_V1
+        setNoAnimation(false);
+#endif
         if (m_activatedSurface) {
             m_activatedSurface->setFocus(true, Qt::NoFocusReason);
         }
     });
-
+    if (!impl) {
+        return;
+    }
     if (CmdLine::ref().useLockScreen()) {
         showLockScreen(false);
     }
+#else
+    Q_UNUSED(impl)
 #endif
 }
 
@@ -2233,4 +2303,15 @@ void Helper::setBlockActivateSurface(bool block)
 bool Helper::blockActivateSurface() const
 {
     return m_blockActivateSurface;
+}
+
+bool Helper::noAnimation() const {
+    return m_noAnimation;
+}
+
+void Helper::setNoAnimation(bool noAnimation) {
+    if (m_noAnimation == noAnimation)
+        return;
+    m_noAnimation = noAnimation;
+    emit noAnimationChanged();
 }

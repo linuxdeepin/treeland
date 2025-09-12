@@ -4,6 +4,7 @@
 #include "surfacewrapper.h"
 #include "qmlengine.h"
 #include "output.h"
+#include "wsessionlocksurfaceitem.h"
 
 #include <woutput.h>
 #include <wxdgtoplevelsurfaceitem.h>
@@ -50,6 +51,9 @@ SurfaceWrapper::SurfaceWrapper(QmlEngine *qmlEngine, WToplevelSurface *shellSurf
     }
     case Type::InputPopup:
         m_surfaceItem = new WInputPopupSurfaceItem(this);
+        break;
+    case Type::SessionLock:
+        m_surfaceItem = new WSessionLockSurfaceItem(this);
         break;
     default:
         Q_UNREACHABLE();
