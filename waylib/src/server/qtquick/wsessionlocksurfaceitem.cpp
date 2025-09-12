@@ -1,4 +1,4 @@
-// Copyright (C) 2025 JiDe Zhang <zhangjide@deepin.org>.
+// Copyright (C) 2025 misaka18931 <miruku2937@gmail.com>.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "wsessionlocksurfaceitem.h"
