@@ -335,6 +335,8 @@ void Output::layoutLayerSurfaces()
 void Output::layoutNonLayerSurface(SurfaceWrapper *surface, const QSizeF &sizeDiff)
 {
     Q_ASSERT(surface->type() != SurfaceWrapper::Type::Layer);
+    if (surface->type() == SurfaceWrapper::Type::SessionLock)
+        return;
     surface->setFullscreenGeometry(geometry());
     const auto validGeo = this->validGeometry();
     surface->setMaximizedGeometry(validGeo);
