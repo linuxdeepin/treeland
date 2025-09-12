@@ -68,7 +68,10 @@ void WSessionLockPrivate::onSurfaceDestroy(qw_session_lock_surface_v1 *surface)
     WSessionLockSurface *lockSurface = WSessionLockSurface::fromHandle(surface);
     
     bool ok = surfaceList.removeOne(lockSurface);
-    // Q_ASSERT(ok);
+    if (!ok) {
+        // surface may be removed by session lock
+        return;
+    }
     emit q->surfaceRemoved(lockSurface);
     lockSurface->safeDeleteLater();
 }
