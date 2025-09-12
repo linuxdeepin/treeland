@@ -60,6 +60,13 @@ ws_generate(
     color-management-v1-protocol
 )
 
+ws_generate(
+    server
+    wayland-protocols
+    staging/security-context/security-context-v1.xml
+    security-context-v1-protocol
+)
+
 #TODO: Remove after wlroots 0.20
 ws_generate(
     server
@@ -127,6 +134,7 @@ set(SOURCES
     ${WAYLAND_PROTOCOLS_OUTPUTDIR}/text-input-unstable-v1-protocol.c
     ${WAYLAND_PROTOCOLS_OUTPUTDIR}/text-input-unstable-v2-protocol.c
     ${WAYLAND_PROTOCOLS_OUTPUTDIR}/xdg-output-unstable-v1-protocol.c
+    ${WAYLAND_PROTOCOLS_OUTPUTDIR}/security-context-v1-protocol.c
     ${WAYLAND_PROTOCOLS_OUTPUTDIR}/ext-image-capture-source-v1-protocol.c #TODO: Remove after wlroots 0.20
     ${WAYLAND_PROTOCOLS_OUTPUTDIR}/ext-foreign-toplevel-list-v1-protocol.c #TODO Remove after wlroots 0.20
 
@@ -166,6 +174,7 @@ set(SOURCES
     protocols/wcursorshapemanagerv1.cpp
     protocols/woutputmanagerv1.cpp
     protocols/wextforeigntoplevellistv1.cpp
+    protocols/wsecuritycontextmanager.cpp
 )
 
 set(HEADERS
@@ -262,6 +271,7 @@ set(HEADERS
     protocols/wextforeigntoplevellistv1.h
     protocols/ext_foreign_toplevel_image_capture_source_manager_v1.h #TODO: Remove after wlroots 0.20
     protocols/qwextforeigntoplevelimagecapturesourcemanagerv1.h #TODO: Move to qwlroots after wlroots 0.20
+    protocols/wsecuritycontextmanager.h
 )
 
 set(PRIVATE_HEADERS
