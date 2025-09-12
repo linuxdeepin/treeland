@@ -15,6 +15,8 @@ class QW_CLASS_OBJECT(security_context_manager_v1)
     QW_OBJECT
     Q_OBJECT
 
+    QW_SIGNAL(commit, wlr_security_context_v1_commit_event *event)
+
 public:
     QW_FUNC_STATIC(security_context_manager_v1, create, qw_security_context_manager_v1 *, wl_display *display)
 
