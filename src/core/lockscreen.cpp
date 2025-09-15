@@ -50,7 +50,8 @@ void LockScreen::shutdown()
 {
     // ext_session_lock_v1 does not support shutdown
     if (!m_impl) {
-        qCCritical(treelandShell) << "Attempt to shutdown with no compatible lockscreen implementation!";
+        qCWarning(treelandShell) << "Attempt to shutdown with no compatible lockscreen implementation!";
+        emit unlock();
         return;
     }
 
@@ -70,7 +71,8 @@ void LockScreen::switchUser()
 {
     // ext_session_lock_v1 does not support user switching
     if (!m_impl) {
-        qCCritical(treelandShell) << "Attempt to switch user with no compatible lockscreen implementation!";
+        qCWarning(treelandShell) << "Attempt to switch user with no compatible lockscreen implementation!";
+        emit unlock();
         return;
     }
 
