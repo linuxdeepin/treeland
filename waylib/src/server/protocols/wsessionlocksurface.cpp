@@ -78,7 +78,8 @@ WSessionLockSurface::WSessionLockSurface(qw_session_lock_surface_v1 *handle, QOb
     d_func()->init();
 }
 
-WSessionLockSurface::~WSessionLockSurface() {
+WSessionLockSurface::~WSessionLockSurface()
+ {
     
 }
 
