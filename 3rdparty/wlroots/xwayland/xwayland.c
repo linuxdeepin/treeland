@@ -69,6 +69,11 @@ static void handle_shell_destroy(struct wl_listener *listener, void *data) {
 	struct wlr_xwayland *xwayland =
 		wl_container_of(listener, xwayland, shell_destroy);
 	xwayland->shell_v1 = NULL;
+	wl_list_remove(&xwayland->shell_destroy.link);
+	// Will remove this list in handle_shell_destroy().
+	// This ensures the link is always initialized and
+	// avoids the need to keep check conditions in sync.
+	wl_list_init(&xwayland->shell_destroy.link);
 }
 
 void wlr_xwayland_destroy(struct wlr_xwayland *xwayland) {
