@@ -6,7 +6,6 @@
 #include <wglobal.h>
 #include <wsurfaceitem.h>
 
-#include <QQmlEngine>
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
