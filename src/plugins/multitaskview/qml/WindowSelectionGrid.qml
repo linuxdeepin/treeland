@@ -371,7 +371,7 @@ Item {
                         }
                         width: Math.min(implicitContentWidth + 2 * padding, parent.width)
                         padding: 10
-                        visible: highlighted && wrapper.shellSurface.title !== ""
+                        visible: surfaceItemDelegate.state === "taskview" && wrapper.shellSurface.title !== ""
 
                         contentItem: Text {
                             text: wrapper.shellSurface.title
