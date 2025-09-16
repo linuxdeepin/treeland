@@ -18,6 +18,7 @@
 #include <sys/types.h>
 #include <sys/un.h>
 #include <signal.h>
+#include <errno.h>
 
 struct wl_event_source;
 
@@ -107,7 +108,17 @@ static int wl_os_socket_cloexec(int domain, int type, int protocol)
 
 static int wl_os_accept_cloexec(int sockfd, sockaddr *addr, socklen_t *addrlen)
 {
-    int fd = accept(sockfd, addr, addrlen);
+    int fd;
+
+    // First try accept4, preferred on modern Linux systems
+    fd = accept4(sockfd, addr, addrlen, SOCK_CLOEXEC);
+    if (fd >= 0)
+        return fd;
+    if (errno != ENOSYS)
+        return -1;
+
+    // Fallback to traditional approach if accept4 is not supported
+    fd = accept(sockfd, addr, addrlen);
     return set_cloexec_or_close(fd);
 }
 // Copy end
@@ -506,7 +517,7 @@ bool WSocket::create(const QString &filePath)
     if (isValid())
         return false;
 
-    d->fd = wl_os_socket_cloexec(PF_LOCAL, SOCK_STREAM, 0);
+    d->fd = wl_os_socket_cloexec(PF_LOCAL, SOCK_STREAM | SOCK_NONBLOCK, 0);
     if (d->fd < 0)
         return false;
 
