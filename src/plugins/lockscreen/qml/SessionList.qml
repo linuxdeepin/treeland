@@ -9,9 +9,10 @@ import Treeland
 import LockScreen
 
 Popup {
+    id: popup
     modal: true
     width: 220
-    height: 140
+    height: 280
     background: RoundBlur {
         radius: 12
     }
@@ -29,8 +30,18 @@ Popup {
         y: 10
         clip: true
         model: SessionModel
+
+        ScrollBar.vertical: ScrollBar {
+            id: verticalScrollBar
+            anchors.right: parent.right
+            anchors.top: parent.top
+            anchors.bottom: parent.bottom
+            policy: ScrollBar.AlwaysOn
+        }
+
         delegate: Item {
             required property string name
+            required property int index
             width: parent.width
             height: 60
             MouseArea {
@@ -45,7 +56,8 @@ Popup {
                 }
                 onClicked: (mouse) => {
                     mouse.accepted = false
-                    updateCurrentSession(list.currentIndex)
+                    updateCurrentSession(index)
+                    popup.close()
                 }
             }
 

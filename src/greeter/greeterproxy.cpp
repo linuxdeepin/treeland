@@ -88,6 +88,7 @@ public:
     bool canHibernate{ false };
     bool canHybridSleep{ false };
     bool isLocked{ false };
+    bool isLoggedIn{ false };
 };
 
 GreeterProxy::GreeterProxy(QObject *parent)
@@ -108,6 +109,11 @@ GreeterProxy::GreeterProxy(QObject *parent)
     connect(d->socket, &QLocalSocket::disconnected, this, &GreeterProxy::disconnected);
     connect(d->socket, &QLocalSocket::readyRead, this, &GreeterProxy::readyRead);
     connect(d->socket, &QLocalSocket::errorOccurred, this, &GreeterProxy::error);
+
+    connect(this, &GreeterProxy::loginSucceeded, this, [this]([[maybe_unused]] QString user) {
+        d->isLoggedIn = true;
+        Q_EMIT isLoggedInChanged();
+    });
 
     d->ddmDisplayManager = new org::deepin::DisplayManager("org.deepin.DisplayManager",
                                                            "/org/deepin/DisplayManager",
@@ -155,6 +161,11 @@ void GreeterProxy::setUserModel(UserModel *model)
 bool GreeterProxy::isLocked() const
 {
     return d->isLocked;
+}
+
+bool GreeterProxy::isLoggedIn() const
+{
+    return d->isLoggedIn;
 }
 
 bool GreeterProxy::canPowerOff() const
@@ -287,6 +298,8 @@ static QString getSessionPathByUser(UserPtr userInfo);
 void GreeterProxy::logout()
 {
     qCDebug(treelandGreeter) << "Logout.";
+    d->isLoggedIn = false;
+    Q_EMIT isLoggedInChanged();
     auto user = userModel()->currentUser();
     QThreadPool::globalInstance()->start([user]() {
         const auto path = getSessionPathByUser(user);

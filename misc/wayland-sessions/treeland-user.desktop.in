@@ -1,5 +1,5 @@
 [Desktop Entry]
-Name=Treeland
+Name=Treeland User
 Comment=This session is DDE single wayland
 Exec=${CMAKE_INSTALL_FULL_BINDIR}/treeland-user-wrapper
 TryExec=${CMAKE_INSTALL_FULL_BINDIR}/treeland
