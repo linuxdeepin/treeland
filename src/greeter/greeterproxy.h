@@ -46,6 +46,7 @@ class GreeterProxy : public QObject
     Q_PROPERTY(SessionModel* sessionModel READ sessionModel WRITE setSessionModel NOTIFY sessionModelChanged)
     Q_PROPERTY(UserModel* userModel READ userModel WRITE setUserModel NOTIFY userModelChanged)
     Q_PROPERTY(bool     isLocked        READ isLocked       NOTIFY isLockedChanged)
+    Q_PROPERTY(bool     isLoggedIn      READ isLoggedIn     NOTIFY isLoggedInChanged)
 
 public:
     explicit GreeterProxy(QObject *parent = nullptr);
@@ -60,6 +61,7 @@ public:
     bool canHybridSleep() const;
 
     bool isConnected() const;
+    bool isLoggedIn() const;
 
     SessionModel *sessionModel() const;
     void setSessionModel(SessionModel *model);
@@ -106,6 +108,7 @@ Q_SIGNALS:
     void loginSucceeded(const QString &user);
     void switchToGreeter();
     void isLockedChanged();
+    void isLoggedInChanged();
 
 private:
     bool localValidation(const QString &user, const QString &password) const;
