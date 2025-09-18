@@ -1,3 +1,20 @@
+treeland (0.7.1) unstable; urgency=medium
+
+  * fix: Fix socket blocking issue in Wayland server connection handling
+  * fix: correct window title visibility condition
+  * fix: Fix client crash when created via security context
+  * feat: add security-context support
+  * fix: Separate DConfig object creation to another thread to avoid
+    blocking
+  * fix: move DBus call to separate thread to avoid blocking
+  * fix: fixing some trivial memory management bugs.
+  * feat(core): Add support for XDG toplevel surface and XDG shell in
+    RootSurfaceContainer
+  * fix: correct refresh rate on multi-monitor
+  * fix: redraw when frame callback list updates
+
+ -- rewine <luhongxu@uniontech.com>  Thu, 18 Sep 2025 11:46:00 +0800
+
 treeland (0.7.0) unstable; urgency=medium
 
   * fix: fix treeland get stuck in lockscreen after crash recovery
