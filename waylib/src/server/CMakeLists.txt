@@ -124,6 +124,7 @@ set(SOURCES
     qtquick/winputpopupsurfaceitem.cpp
     qtquick/wsgtextureprovider.cpp
     qtquick/wtextureproviderprovider.cpp
+    qtquick/wsessionlocksurfaceitem.cpp
 
     qtquick/private/wquickcoordmapper.cpp
     qtquick/private/wquicksocketattached.cpp
@@ -174,6 +175,9 @@ set(SOURCES
     protocols/wcursorshapemanagerv1.cpp
     protocols/woutputmanagerv1.cpp
     protocols/wextforeigntoplevellistv1.cpp
+    protocols/wsessionlockmanager.cpp
+    protocols/wsessionlock.cpp
+    protocols/wsessionlocksurface.cpp
     protocols/wsecuritycontextmanager.cpp
 )
 
@@ -227,6 +231,7 @@ set(HEADERS
     qtquick/wqmlcreator.h
     qtquick/wsgtextureprovider.h
     qtquick/wtextureproviderprovider.h
+    qtquick/wsessionlocksurfaceitem.h
 
     utils/wtools.h
     utils/wthreadutils.h
@@ -271,6 +276,12 @@ set(HEADERS
     protocols/wextforeigntoplevellistv1.h
     protocols/ext_foreign_toplevel_image_capture_source_manager_v1.h #TODO: Remove after wlroots 0.20
     protocols/qwextforeigntoplevelimagecapturesourcemanagerv1.h #TODO: Move to qwlroots after wlroots 0.20
+    protocols/wsessionlockmanager.h
+    protocols/WSessionLockManager
+    protocols/wsessionlock.h
+    protocols/WSessionLock
+    protocols/wsessionlocksurface.h
+    protocols/WSessionLockSurface
     protocols/wsecuritycontextmanager.h
 )
 
