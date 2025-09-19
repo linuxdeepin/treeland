@@ -16,6 +16,34 @@ RowLayout {
     property bool powerVisible: powerList.visible
     required property Item rootItem
     signal lock()
+
+    // TODO: Design the interface of session selection
+    D.Button {
+        id: sessionItem
+        Layout.alignment: Qt.AlignHCenter
+        visible: !GreeterModel.proxy.isLoggedIn
+
+        contentItem: D.IconLabel {
+            text: SessionModel.data(SessionModel.index(GreeterModel.currentSession, 0), SessionModel.NameRole)
+            color: "white"
+        }
+
+        SessionList {
+            id: sessionList
+            x: (sessionItem.width - sessionList.width) / 2 - 10
+            y: -sessionList.height - 10
+        }
+
+        background: RoundBlur {
+            radius: parent.width / 2
+            color: Qt.rgba(1.0, 1.0, 1.0, 0.3)
+        }
+
+        onClicked: {
+            sessionList.open()
+        }
+    }
+
     function showUserList()
     {
         userItem.expand = true
