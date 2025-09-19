@@ -302,7 +302,7 @@ private:
     void updateIdleInhibitor();
 
     static Helper *m_instance;
-    TreelandConfig *m_config;
+    TreelandConfig *m_config = nullptr;
 
     CurrentMode m_currentMode{ CurrentMode::Normal };
 
