@@ -5,6 +5,7 @@
 
 #include "modules/capture/capture.h"
 #include "utils/cmdline.h"
+#include "utils/fpsdisplaymanager.h"
 #include "modules/dde-shell/ddeshellattached.h"
 #include "modules/dde-shell/ddeshellmanagerinterfacev1.h"
 #include "input/inputdevice.h"
@@ -849,6 +850,12 @@ void Helper::init()
     auto engine = qmlEngine();
     m_userModel = engine->singletonInstance<UserModel *>("Treeland", "UserModel");
 
+    m_fpsManager = new FpsDisplayManager(this);
+    qmlRegisterSingletonType<FpsDisplayManager>("Treeland.Protocols", 1, 0, "FpsDisplayManager",
+        [this](QQmlEngine *engine, QJSEngine *) -> QObject * {
+            engine->setObjectOwnership(m_fpsManager, QQmlEngine::CppOwnership);
+            return m_fpsManager;
+        });
     engine->rootContext()->setContextProperty("TreelandConfig", m_config);
 
     engine->setContextForObject(m_renderWindow, engine->rootContext());
@@ -1029,6 +1036,7 @@ void Helper::init()
                                               "An abstract class");
     qmlRegisterType<CaptureContextV1>("Treeland.Protocols", 1, 0, "CaptureContextV1");
     qmlRegisterType<CaptureSourceSelector>("Treeland.Protocols", 1, 0, "CaptureSourceSelector");
+    qmlRegisterType<FpsDisplayManager>("Treeland.Protocols", 1, 0, "FpsDisplayManager");
 
     m_server->attach<WSecurityContextManager>();
     m_server->start();
@@ -1287,6 +1295,10 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *, QInputEvent *event)
         if (QKeySequence(kevent->modifiers() | kevent->key())
             == QKeySequence(Qt::META | Qt::Key_F12)) {
             qApp->quit();
+            return true;
+        } else if (QKeySequence(kevent->modifiers() | kevent->key())
+            == QKeySequence(Qt::META | Qt::Key_F11)) {
+            toggleFpsDisplay();
             return true;
         } else if (m_captureSelector) {
             if (event->modifiers() == Qt::NoModifier && kevent->key() == Qt::Key_Escape)
@@ -2232,4 +2244,15 @@ void Helper::setBlockActivateSurface(bool block)
 bool Helper::blockActivateSurface() const
 {
     return m_blockActivateSurface;
+}
+
+void Helper::toggleFpsDisplay()
+{
+    if (m_fpsDisplay) {
+        m_fpsDisplay->deleteLater();
+        m_fpsDisplay = nullptr;
+        return;
+    }
+
+    m_fpsDisplay = qmlEngine()->createFpsDisplay(m_renderWindow->contentItem());
 }
