@@ -1,3 +1,9 @@
+treeland (0.7.2) unstable; urgency=medium
+
+  * fix: crash on startup due to uninitialized m_config pointer
+
+ -- rewine <luhongxu@uniontech.com>  Fri, 19 Sep 2025 10:06:51 +0800
+
 treeland (0.7.1) unstable; urgency=medium
 
   * fix: Fix socket blocking issue in Wayland server connection handling
