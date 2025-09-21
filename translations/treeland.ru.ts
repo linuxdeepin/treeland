@@ -9,7 +9,7 @@
     <message>
         <location filename="../src/core/qml/WindowMenu.qml" line="34"/>
         <source>Unmaximize</source>
-        <translation>Отменить Максимизацию</translation>
+        <translation>Отменить максимизацию</translation>
     </message>
     <message>
         <location filename="../src/core/qml/WindowMenu.qml" line="34"/>
@@ -29,22 +29,22 @@
     <message>
         <location filename="../src/core/qml/WindowMenu.qml" line="50"/>
         <source>Always on Top</source>
-        <translation>Всегда Наверху</translation>
+        <translation>Всегда сверху</translation>
     </message>
     <message>
         <location filename="../src/core/qml/WindowMenu.qml" line="56"/>
         <source>Always on Visible Workspace</source>
-        <translation>Всегда на Видимом Рабочем Пространстве</translation>
+        <translation>Всегда на видимом рабочем пространстве</translation>
     </message>
     <message>
         <location filename="../src/core/qml/WindowMenu.qml" line="70"/>
         <source>Move to Left Work Space</source>
-        <translation type="unfinished"/>
+        <translation>Переместить на левое рабочее пространство</translation>
     </message>
     <message>
         <location filename="../src/core/qml/WindowMenu.qml" line="77"/>
         <source>Move to Right Work Space</source>
-        <translation type="unfinished"/>
+        <translation>Переместить на правое рабочее пространство</translation>
     </message>
     <message>
         <location filename="../src/core/qml/WindowMenu.qml" line="83"/>
