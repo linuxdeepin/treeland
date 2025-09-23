@@ -233,7 +233,7 @@ const QMatrix4x4 &WBufferRenderer::currentWorldTransform() const
 
 qw_buffer *WBufferRenderer::currentBuffer() const
 {
-    return state.buffer;
+    return state.buffer.get();
 }
 
 qw_buffer *WBufferRenderer::lastBuffer() const
@@ -408,7 +408,7 @@ qw_buffer *WBufferRenderer::beginRender(const QSize &pixelSize, qreal devicePixe
     state.context = wd->context;
     state.pixelSize = pixelSize;
     state.devicePixelRatio = devicePixelRatio;
-    state.buffer = buffer;
+    state.buffer.reset(buffer);
     state.renderTarget = rt;
     state.sgRenderTarget = sgRT;
 
@@ -613,19 +613,20 @@ void WBufferRenderer::render(int sourceIndex, const QMatrix4x4 &renderMatrix,
     }
 
     if (shouldCacheBuffer())
-        wTextureProvider()->setBuffer(state.buffer);
+        wTextureProvider()->setBuffer(state.buffer.get());
 }
 
 void WBufferRenderer::endRender()
 {
-    Q_ASSERT(state.buffer);
-    auto buffer = state.buffer;
-    state.buffer = nullptr;
-    state.renderer = nullptr;
-    state.batchRenderer = nullptr;
+    Q_ASSERT(state.buffer.get());
+    {
+        std::unique_ptr<qw_buffer, qw_buffer::unlocker> buffer;
+        std::swap(buffer, state.buffer);
+        state.renderer = nullptr;
+        state.batchRenderer = nullptr;
 
-    m_lastBuffer = buffer;
-    buffer->unlock();
+        m_lastBuffer = buffer.get();
+    }
 
 #ifndef QT_NO_OPENGL
     auto wd = QQuickWindowPrivate::get(window());
