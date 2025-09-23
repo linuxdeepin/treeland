@@ -177,7 +177,7 @@ Multitaskview {
                         multitaskview: root
                         output: outputPlacementItem.output
                         draggedParent: root
-                        workspaceListPadding: Helper.config.workspaceDelegateHeight / output.outputItem.devicePixelRatio
+                        workspaceListPadding: (Helper.config.workspaceThumbHeight + 2 * Helper.config.workspaceThumbMargin) / output.outputItem.devicePixelRatio
                         dragManager: multitaskviewDragManager
                     }
                 }
