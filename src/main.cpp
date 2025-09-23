@@ -43,9 +43,12 @@ int main(int argc, char *argv[])
         return 0;
     Q_ASSERT(qw_buffer::get_objects().isEmpty());
 
-    Treeland::Treeland treeland;
+    int quitCode = 0;
+    {
+        Treeland::Treeland treeland;
 
-    int quitCode = app.exec();
+        quitCode = app.exec();
+    }
 
     Q_ASSERT(qw_buffer::get_objects().isEmpty());
 

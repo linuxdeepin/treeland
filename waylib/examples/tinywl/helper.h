@@ -119,6 +119,7 @@ Q_SIGNALS:
 
     void animationSpeedChanged();
     void outputModeChanged();
+    void requestQuit();
 
 private:
     void allowNonDrmOutputAutoChangeMode(WOutput *output);

@@ -531,7 +531,7 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *, QInputEvent *event)
     if (event->type() == QEvent::KeyPress) {
         auto kevent = static_cast<QKeyEvent*>(event);
         if (QKeySequence(kevent->keyCombination()) == QKeySequence::Quit) {
-            qApp->quit();
+            Q_EMIT requestQuit();
             return true;
         } else if (event->modifiers() == Qt::MetaModifier) {
             if (kevent->key() == Qt::Key_Right) {

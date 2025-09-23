@@ -127,8 +127,8 @@ public:
         }
     }
     void invalidate() {
-        auto tmpList = listenerList;
-        listenerList.clear();
+        QVector<qw_signal_listener*> tmpList;
+        std::swap(tmpList, listenerList);
         auto begin = tmpList.begin();
         while (begin != tmpList.end()) {
             qw_signal_listener *l = *begin;
