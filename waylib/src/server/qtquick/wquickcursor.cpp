@@ -151,7 +151,7 @@ public:
 
     mutable CursorTextureProvider *textureProvider = nullptr;
 
-    WCursor *cursor = nullptr;
+    QPointer<WCursor> cursor;
     QPointer<WOutput> output;
     WCursorImage *cursorImage = nullptr;
 
