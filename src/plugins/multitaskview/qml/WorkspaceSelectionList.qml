@@ -16,7 +16,7 @@ Item {
     required property QtObject dragManager
     required property Multitaskview multitaskview
     readonly property real whRatio: output.outputItem.width / output.outputItem.height
-    readonly property real workspaceDelegateHeight: Helper.config.workspaceDelegateHeight / output.outputItem.devicePixelRatio
+    readonly property real workspaceDelegateHeight: (Helper.config.workspaceThumbHeight + 2 * workspaceThumbMargin) / output.outputItem.devicePixelRatio
     readonly property real workspaceThumbHeight: Helper.config.workspaceThumbHeight / output.outputItem.devicePixelRatio
     readonly property real workspaceThumbMargin: Helper.config.workspaceThumbMargin / output.outputItem.devicePixelRatio
     readonly property real highlightBorderWidth: Helper.config.highlightBorderWidth / output.outputItem.devicePixelRatio
@@ -353,7 +353,7 @@ Item {
 
     D.RoundButton {
         id: wsCreateBtn
-        visible: Helper.workspace.count < TreelandConfig.maxWorkspace
+        visible: Helper.workspace.count < Helper.config.maxWorkspace
         anchors {
             right: parent.right
             verticalCenter: parent.verticalCenter
@@ -395,7 +395,7 @@ Item {
             top: root.top
             bottom: root.bottom
         }
-        visible: Helper.workspace.count < TreelandConfig.maxWorkspace
+        visible: Helper.workspace.count < Helper.config.maxWorkspace
         HoverHandler {
             onHoveredChanged: {
                 if (hovered) {
