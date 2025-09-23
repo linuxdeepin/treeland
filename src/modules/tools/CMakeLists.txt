@@ -75,9 +75,14 @@ function(local_qtwayland_server_protocol_treeland target)
 
     target_sources(${target} PRIVATE "${_code}")
 
-    add_custom_target(generate_protocols ALL
-                      DEPENDS ${_header} ${_code}
-    )
-    add_dependencies(${target} generate_protocols)
+    # Use a unique target name per protocol to avoid redefinition conflicts
+    set(gen_target generate_protocols_${ARGS_BASENAME})
+    if(NOT TARGET ${gen_target})
+        add_custom_target(${gen_target} DEPENDS ${_header} ${_code})
+    else()
+        # Append dependencies if target already exists (shouldn't normally happen with unique BASENAME)
+        add_custom_command(TARGET ${gen_target} DEPENDS ${_header} ${_code})
+    endif()
+    add_dependencies(${target} ${gen_target})
 
 endfunction()
