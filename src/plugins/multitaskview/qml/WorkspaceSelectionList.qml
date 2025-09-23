@@ -16,7 +16,7 @@ Item {
     required property QtObject dragManager
     required property Multitaskview multitaskview
     readonly property real whRatio: output.outputItem.width / output.outputItem.height
-    readonly property real workspaceDelegateHeight: (Helper.config.workspaceThumbHeight + 2 * workspaceThumbMargin) / output.outputItem.devicePixelRatio
+    readonly property real workspaceDelegateHeight: (Helper.config.workspaceThumbHeight + 2 * Helper.config.workspaceThumbMargin) / output.outputItem.devicePixelRatio
     readonly property real workspaceThumbHeight: Helper.config.workspaceThumbHeight / output.outputItem.devicePixelRatio
     readonly property real workspaceThumbMargin: Helper.config.workspaceThumbMargin / output.outputItem.devicePixelRatio
     readonly property real highlightBorderWidth: Helper.config.highlightBorderWidth / output.outputItem.devicePixelRatio
