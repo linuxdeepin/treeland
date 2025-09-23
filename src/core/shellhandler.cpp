@@ -15,6 +15,8 @@
 
 #include <xcb/xcb.h>
 
+#include <QTimer>
+
 #include <winputmethodhelper.h>
 #include <winputpopupsurface.h>
 #include <wlayershell.h>
@@ -144,42 +146,72 @@ void ShellHandler::initInputMethodHelper(WServer *server, WSeat *seat)
 
 void ShellHandler::onXdgToplevelSurfaceAdded(WXdgToplevelSurface *surface)
 {
-    auto wrapper = new SurfaceWrapper(Helper::instance()->qmlEngine(),
-                                      surface,
-                                      SurfaceWrapper::Type::XdgToplevel);
+    // 创建快速启动的SurfaceWrapper（预启动模式）
+    auto wrapper = new SurfaceWrapper(Helper::instance()->qmlEngine());
+    m_workspace->addSurface(wrapper);
 
-    if (DDEShellSurfaceInterface::get(surface->surface())) {
-        handleDdeShellSurfaceAdded(surface->surface(), wrapper);
-    }
+    // 创建定时器，3秒后进行setup
+    QTimer *setupTimer = new QTimer(wrapper);
+    setupTimer->setSingleShot(true);
+    connect(setupTimer, &QTimer::timeout, wrapper, [this, wrapper, surface]() {
+        // 先设置类型并进行正常的setup，这样就能知道真正的窗口大小
+        wrapper->convertToNormalSurface(surface, SurfaceWrapper::Type::XdgToplevel);
 
-    auto updateSurfaceWithParentContainer = [this, wrapper, surface] {
-        if (wrapper->parentSurface())
-            wrapper->parentSurface()->removeSubSurface(wrapper);
-        if (wrapper->container())
-            wrapper->container()->removeSurface(wrapper);
-
-        if (auto parent = surface->parentSurface()) {
-            auto parentWrapper = m_rootSurfaceContainer->getSurface(parent);
-            auto container = qobject_cast<SurfaceContainer *>(parentWrapper->container());
-            parentWrapper->addSubSurface(wrapper);
-            if (auto workspace = qobject_cast<Workspace *>(container))
-                workspace->addSurface(wrapper, parentWrapper->workspaceId());
-            else
-                container->addSurface(wrapper);
-        } else {
-            m_workspace->addSurface(wrapper);
+        // 获取真正的窗口大小后，让预启动闪屏做过渡动画到真实大小，然后隐藏
+        for (auto child : wrapper->childItems()) {
+            if (auto splashItem = qobject_cast<QQuickItem*>(child)) {
+                // 设置目标大小为真实窗口大小
+                QMetaObject::invokeMethod(splashItem, "animateToSize",
+                                        Q_ARG(QVariant, wrapper->width()),
+                                        Q_ARG(QVariant, wrapper->height()));
+            }
         }
-    };
 
-    surface->safeConnect(&WXdgToplevelSurface::parentXdgSurfaceChanged,
-                         this,
-                         updateSurfaceWithParentContainer);
-    updateSurfaceWithParentContainer();
-    setupSurfaceWindowMenu(wrapper);
-    setupSurfaceActiveWatcher(wrapper);
+        // 现在窗口真正创建了，执行原来的逻辑
+        if (DDEShellSurfaceInterface::get(surface->surface())) {
+            handleDdeShellSurfaceAdded(surface->surface(), wrapper);
+        }
 
-    Q_ASSERT(wrapper->parentItem());
-    Q_EMIT surfaceWrapperAdded(wrapper);
+        auto updateSurfaceWithParentContainer = [this, wrapper, surface] {
+            if (wrapper->parentSurface())
+                wrapper->parentSurface()->removeSubSurface(wrapper);
+            auto oldContainer = wrapper->container();
+
+            if (auto parent = surface->parentSurface()) {
+                auto parentWrapper = m_rootSurfaceContainer->getSurface(parent);
+                auto parentContainer = qobject_cast<SurfaceContainer *>(parentWrapper->container());
+                parentWrapper->addSubSurface(wrapper);
+                if (oldContainer != parentContainer) {
+                    if (oldContainer)
+                        oldContainer->removeSurface(wrapper);
+                    if (auto workspace = qobject_cast<Workspace *>(parentContainer))
+                        workspace->addSurface(wrapper, parentWrapper->workspaceId());
+                    else
+                        parentContainer->addSurface(wrapper);
+                }
+            } else {
+                if (oldContainer) {
+                    if (qobject_cast<Workspace *>(oldContainer) == nullptr) {
+                        oldContainer->removeSurface(wrapper);
+                        m_workspace->addSurface(wrapper);
+                    }
+                } else {
+                    m_workspace->addSurface(wrapper);
+                }
+            }
+        };
+
+        surface->safeConnect(&WXdgToplevelSurface::parentXdgSurfaceChanged,
+                             this,
+                             updateSurfaceWithParentContainer);
+        //updateSurfaceWithParentContainer();
+        setupSurfaceWindowMenu(wrapper);
+        setupSurfaceActiveWatcher(wrapper);
+
+        Q_ASSERT(wrapper->parentItem());
+        Q_EMIT surfaceWrapperAdded(wrapper);
+    });
+    setupTimer->start(1000); // 1秒后执行 
 }
 
 void ShellHandler::onXdgToplevelSurfaceRemoved(WXdgToplevelSurface *surface)

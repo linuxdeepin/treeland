@@ -41,6 +41,7 @@ QmlEngine::QmlEngine(QObject *parent)
     , launchpadAnimationComponent(this, "Treeland", "LaunchpadAnimation")
     , launchpadCoverComponent(this, "Treeland", "LaunchpadCover")
     , layershellAnimationComponent(this, "Treeland", "LayerShellAnimation")
+    , prelaunchSplashComponent(this, "Treeland", "PrelaunchSplash")
 {
 }
 
@@ -241,4 +242,13 @@ QQuickItem *QmlEngine::createCaptureSelector(QQuickItem *parent, CaptureManagerV
 QQuickItem *QmlEngine::createWindowPicker(QQuickItem *parent)
 {
     return createComponent(windowPickerComponent, parent);
+}
+
+QQuickItem *QmlEngine::createPrelaunchSplash(QQuickItem *parent, const QString &logoPath)
+{
+    QVariantMap properties;
+    if (!logoPath.isEmpty()) {
+        properties["logoPath"] = logoPath;
+    }
+    return createComponent(prelaunchSplashComponent, parent, properties);
 }

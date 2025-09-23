@@ -190,6 +190,7 @@ qt_add_qml_module(libtreeland
         core/qml/FadeBehavior.qml
         core/qml/CaptureSelectorLayer.qml
         core/qml/WindowPickerLayer.qml
+        core/qml/PrelaunchSplash.qml
     RESOURCE_PREFIX
         /qt/qml
     OUTPUT_DIRECTORY

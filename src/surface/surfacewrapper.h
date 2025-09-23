@@ -78,6 +78,7 @@ public:
         XWayland,
         Layer,
         InputPopup,
+        Undetermined,  // 用于预启动闪屏
     };
     Q_ENUM(Type)
 
@@ -113,6 +114,10 @@ public:
                             Type type,
                             QQuickItem *parent = nullptr,
                             bool isProxy = false);
+    
+    // 新的构造函数，用于预启动闪屏
+    explicit SurfaceWrapper(QmlEngine *qmlEngine,
+                            QQuickItem *parent = nullptr);
 
     void setFocus(bool focus, Qt::FocusReason reason);
 
@@ -313,6 +318,10 @@ private:
     void setBoundedRect(const QRectF &newBoundedRect);
     void setContainer(SurfaceContainer *newContainer);
     void setVisibleDecoration(bool newVisibleDecoration);
+    
+    void setup(WToplevelSurface *shellSurface = nullptr); // 初始化 m_surfaceItem 相关功能
+    void createPrelaunchSplash(); // 创建预启动闪屏
+    void convertToNormalSurface(WToplevelSurface *shellSurface, Type type); // 从预启动模式转换为正常模式
     void updateBoundingRect();
     void updateVisible();
     void updateSubSurfaceStacking();

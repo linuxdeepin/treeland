@@ -58,8 +58,80 @@ SurfaceWrapper::SurfaceWrapper(QmlEngine *qmlEngine,
     , m_blur(false)
 {
     QQmlEngine::setContextForObject(this, qmlEngine->rootContext());
+    setup();
+}
 
-    switch (type) {
+// 新的构造函数，用于预启动闪屏
+SurfaceWrapper::SurfaceWrapper(QmlEngine *qmlEngine, QQuickItem *parent)
+    : QQuickItem(parent)
+    , m_engine(qmlEngine)
+    , m_shellSurface(nullptr)
+    , m_type(Type::Undetermined)
+    , m_positionAutomatic(true)
+    , m_visibleDecoration(true)
+    , m_clipInOutput(false)
+    , m_noDecoration(true)
+    , m_titleBarState(TitleBarState::Default)
+    , m_noCornerRadius(false)
+    , m_alwaysOnTop(false)
+    , m_skipSwitcher(false)
+    , m_skipDockPreView(true)
+    , m_skipMutiTaskView(false)
+    , m_isDdeShellSurface(false)
+    , m_xwaylandPositionFromSurface(true)
+    , m_wrapperAboutToRemove(false)
+    , m_isProxy(false)
+    , m_hideByWorkspace(false)
+    , m_hideByshowDesk(true)
+    , m_hideByLockScreen(false)
+    , m_confirmHideByLockScreen(false)
+    , m_blur(false)
+{
+    QQmlEngine::setContextForObject(this, qmlEngine->rootContext());
+    setImplicitSize(800, 600);
+    createPrelaunchSplash();
+}
+
+SurfaceWrapper::~SurfaceWrapper()
+{
+    Q_ASSERT(!m_ownsOutput);
+    Q_ASSERT(!m_container);
+    Q_ASSERT(!m_parentSurface);
+    Q_ASSERT(m_subSurfaces.isEmpty());
+    if (m_titleBar) {
+        delete m_titleBar;
+        m_titleBar = nullptr;
+    }
+    if (m_decoration) {
+        delete m_decoration;
+        m_decoration = nullptr;
+    }
+    if (m_geometryAnimation) {
+        delete m_geometryAnimation;
+        m_geometryAnimation = nullptr;
+    }
+    if (m_windowAnimation) {
+        delete m_windowAnimation;
+        m_windowAnimation = nullptr;
+    }
+    if (m_coverContent) {
+        delete m_coverContent;
+        m_coverContent = nullptr;
+    }
+}
+
+void SurfaceWrapper::setup(WToplevelSurface *shellSurface)
+{
+    // 如果传入了shellSurface参数，则使用它
+    if (shellSurface) {
+        m_shellSurface = shellSurface;
+    }
+
+    if (!m_shellSurface) {
+        return; // 预启动模式不需要设置surfaceItem
+    }
+
+    switch (m_type) {
     case Type::XdgToplevel:
         m_surfaceItem = new WXdgToplevelSurfaceItem(this);
         break;
@@ -81,45 +153,47 @@ SurfaceWrapper::SurfaceWrapper(QmlEngine *qmlEngine,
     case Type::InputPopup:
         m_surfaceItem = new WInputPopupSurfaceItem(this);
         break;
+    case Type::Undetermined:
+        return; // 预启动模式不创建surfaceItem
     default:
         Q_UNREACHABLE();
     }
 
-    QQmlEngine::setContextForObject(m_surfaceItem, qmlEngine->rootContext());
-    m_surfaceItem->setDelegate(qmlEngine->surfaceContentComponent());
+    QQmlEngine::setContextForObject(m_surfaceItem, m_engine->rootContext());
+    m_surfaceItem->setDelegate(m_engine->surfaceContentComponent());
     m_surfaceItem->setResizeMode(WSurfaceItem::ManualResize);
-    m_surfaceItem->setShellSurface(shellSurface);
+    m_surfaceItem->setShellSurface(m_shellSurface);
 
-    if (!isProxy) {
-        shellSurface->safeConnect(&WToplevelSurface::requestMinimize, this, [this]() {
+    if (!m_isProxy) {
+        m_shellSurface->safeConnect(&WToplevelSurface::requestMinimize, this, [this]() {
             requestMinimize();
         });
-        shellSurface->safeConnect(&WToplevelSurface::requestCancelMinimize, this, [this]() {
+        m_shellSurface->safeConnect(&WToplevelSurface::requestCancelMinimize, this, [this]() {
             requestCancelMinimize();
         });
-        shellSurface->safeConnect(&WToplevelSurface::requestMaximize,
+        m_shellSurface->safeConnect(&WToplevelSurface::requestMaximize,
                                   this,
                                   &SurfaceWrapper::requestMaximize);
-        shellSurface->safeConnect(&WToplevelSurface::requestCancelMaximize,
+        m_shellSurface->safeConnect(&WToplevelSurface::requestCancelMaximize,
                                   this,
                                   &SurfaceWrapper::requestCancelMaximize);
-        shellSurface->safeConnect(&WToplevelSurface::requestMove,
+        m_shellSurface->safeConnect(&WToplevelSurface::requestMove,
                                   this,
                                   &SurfaceWrapper::requestMove);
-        shellSurface->safeConnect(&WToplevelSurface::requestResize,
+        m_shellSurface->safeConnect(&WToplevelSurface::requestResize,
                                   this,
                                   [this](WSeat *, Qt::Edges edge, quint32) {
                                       Q_EMIT requestResize(edge);
                                   });
-        shellSurface->safeConnect(&WToplevelSurface::requestFullscreen,
+        m_shellSurface->safeConnect(&WToplevelSurface::requestFullscreen,
                                   this,
                                   &SurfaceWrapper::requestFullscreen);
-        shellSurface->safeConnect(&WToplevelSurface::requestCancelFullscreen,
+        m_shellSurface->safeConnect(&WToplevelSurface::requestCancelFullscreen,
                                   this,
                                   &SurfaceWrapper::requestCancelFullscreen);
 
-        if (type == Type::XdgToplevel) {
-            shellSurface->safeConnect(&WToplevelSurface::requestShowWindowMenu,
+        if (m_type == Type::XdgToplevel) {
+            m_shellSurface->safeConnect(&WToplevelSurface::requestShowWindowMenu,
                                       this,
                                       [this](WSeat *, QPoint pos, quint32) {
                                           Q_EMIT requestShowWindowMenu(
@@ -128,7 +202,7 @@ SurfaceWrapper::SurfaceWrapper(QmlEngine *qmlEngine,
                                       });
         }
     }
-    shellSurface->surface()->safeConnect(&WSurface::mappedChanged,
+    m_shellSurface->surface()->safeConnect(&WSurface::mappedChanged,
                                          this,
                                          &SurfaceWrapper::onMappedChanged);
 
@@ -145,7 +219,7 @@ SurfaceWrapper::SurfaceWrapper(QmlEngine *qmlEngine,
 
     setImplicitSize(m_surfaceItem->implicitWidth(), m_surfaceItem->implicitHeight());
 
-    if (auto client = shellSurface->waylandClient()) {
+    if (auto client = m_shellSurface->waylandClient()) {
         connect(client->socket(),
                 &WSocket::enabledChanged,
                 this,
@@ -153,14 +227,14 @@ SurfaceWrapper::SurfaceWrapper(QmlEngine *qmlEngine,
         onSocketEnabledChanged();
     }
 
-    if (!shellSurface->hasCapability(WToplevelSurface::Capability::Focus)) {
+    if (!m_shellSurface->hasCapability(WToplevelSurface::Capability::Focus)) {
 #if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0)
         m_surfaceItem->setFocusPolicy(Qt::NoFocus);
 #endif
     }
 
-    if (type == Type::XWayland && !isProxy) {
-        auto xwaylandSurface = qobject_cast<WXWaylandSurface *>(shellSurface);
+    if (m_type == Type::XWayland && !m_isProxy) {
+        auto xwaylandSurface = qobject_cast<WXWaylandSurface *>(m_shellSurface);
         auto xwaylandSurfaceItem = qobject_cast<WXWaylandSurfaceItem *>(m_surfaceItem);
 
         connect(xwaylandSurfaceItem,
@@ -226,41 +300,29 @@ SurfaceWrapper::SurfaceWrapper(QmlEngine *qmlEngine,
     }
 }
 
-SurfaceWrapper::~SurfaceWrapper()
+void SurfaceWrapper::createPrelaunchSplash()
 {
-    Q_ASSERT(!m_ownsOutput);
-    Q_ASSERT(!m_container);
-    Q_ASSERT(!m_parentSurface);
-    Q_ASSERT(m_subSurfaces.isEmpty());
-    disconnect(nullptr, nullptr, this, nullptr);
-    if (m_titleBar) {
-        delete m_titleBar;
-        m_titleBar = nullptr;
+    // 创建预启动闪屏
+    auto splashItem = m_engine->createPrelaunchSplash(this);
+    if (splashItem) {
+        splashItem->setZ(999999); // 确保在最上层
     }
-    if (m_decoration) {
-        delete m_decoration;
-        m_decoration = nullptr;
+}
+
+void SurfaceWrapper::convertToNormalSurface(WToplevelSurface *shellSurface, Type type)
+{
+    // 只能从预启动模式转换
+    if (m_type != Type::Undetermined || m_shellSurface != nullptr) {
+        qWarning() << "convertToNormalSurface can only be called on prelaunch surfaces";
+        return;
     }
-    if (m_geometryAnimation) {
-        delete m_geometryAnimation;
-        m_geometryAnimation = nullptr;
-    }
-    if (m_windowAnimation) {
-        delete m_windowAnimation;
-        m_windowAnimation = nullptr;
-    }
-    if (m_minimizeAnimation) {
-        delete m_minimizeAnimation;
-        m_minimizeAnimation = nullptr;
-    }
-    if (m_showDesktopAnimation) {
-        delete m_showDesktopAnimation;
-        m_showDesktopAnimation = nullptr;
-    }
-    if (m_coverContent) {
-        delete m_coverContent;
-        m_coverContent = nullptr;
-    }
+
+    // 设置新的参数
+    m_shellSurface = shellSurface;
+    m_type = type;
+
+    // 调用setup来初始化surfaceItem相关功能
+    setup();
 }
 
 void SurfaceWrapper::setParent(QQuickItem *item)
@@ -272,6 +334,10 @@ void SurfaceWrapper::setParent(QQuickItem *item)
 void SurfaceWrapper::setActivate(bool activate)
 {
     if (m_wrapperAboutToRemove)
+        return;
+
+    // 预启动模式下没有shellSurface，直接返回
+    if (!m_shellSurface)
         return;
 
     Q_ASSERT(!activate || hasActiveCapability());
@@ -289,6 +355,10 @@ void SurfaceWrapper::setActivate(bool activate)
 
 void SurfaceWrapper::setFocus(bool focus, Qt::FocusReason reason)
 {
+    // 预启动模式下没有surfaceItem，直接返回
+    if (!m_surfaceItem)
+        return;
+
     if (focus)
         m_surfaceItem->forceActiveFocus(reason);
     else
@@ -312,6 +382,10 @@ WSurfaceItem *SurfaceWrapper::surfaceItem() const
 
 bool SurfaceWrapper::resize(const QSizeF &size)
 {
+    // 预启动模式下没有surfaceItem，直接返回false
+    if (!m_surfaceItem)
+        return false;
+
     return m_surfaceItem->resizeSurface(size);
 }
 
@@ -444,13 +518,15 @@ void SurfaceWrapper::setPositionAutomatic(bool newPositionAutomatic)
 
 void SurfaceWrapper::resetWidth()
 {
-    m_surfaceItem->resetWidth();
+    if (m_surfaceItem)
+        m_surfaceItem->resetWidth();
     QQuickItem::resetWidth();
 }
 
 void SurfaceWrapper::resetHeight()
 {
-    m_surfaceItem->resetHeight();
+    if (m_surfaceItem)
+        m_surfaceItem->resetHeight();
     QQuickItem::resetHeight();
 }
 
@@ -494,6 +570,10 @@ void SurfaceWrapper::setOutputs(const QList<WOutput *> &outputs)
 {
     if (m_wrapperAboutToRemove)
         return;
+    if (m_type == Type::Undetermined) {
+        // TODO: set output when setup
+        return;
+    }
     Q_ASSERT(surface());
     auto oldOutputs = surface()->outputs();
     for (auto output : oldOutputs) {
@@ -621,7 +701,8 @@ void SurfaceWrapper::markWrapperToRemoved()
     }
     m_subSurfaces.clear();
     m_shellSurface = nullptr;
-    m_surfaceItem->disconnect(this);
+    if (m_surfaceItem)
+        m_surfaceItem->disconnect(this);
 
     if (!isWindowAnimationRunning()) {
         deleteLater();
@@ -682,6 +763,10 @@ void SurfaceWrapper::updateTitleBar()
     if (m_wrapperAboutToRemove)
         return;
 
+    // 预启动模式下没有surfaceItem，直接返回
+    if (!m_surfaceItem)
+        return;
+
     if (noTitleBar() == !m_titleBar)
         return;
 
@@ -713,7 +798,8 @@ void SurfaceWrapper::setBoundedRect(const QRectF &newBoundedRect)
 void SurfaceWrapper::updateBoundingRect()
 {
     QRectF rect(QRectF(QPointF(0, 0), size()));
-    rect |= m_surfaceItem->boundingRect();
+    if (m_surfaceItem)
+        rect |= m_surfaceItem->boundingRect();
 
     if (!m_decoration || !m_visibleDecoration) {
         setBoundedRect(rect);
@@ -771,6 +857,7 @@ void SurfaceWrapper::geometryChange(const QRectF &newGeo, const QRectF &oldGeome
 
 void SurfaceWrapper::createNewOrClose(uint direction)
 {
+    return;
     if (!m_windowAnimationEnabled)
         return;
 
@@ -850,6 +937,16 @@ void SurfaceWrapper::doSetSurfaceState(State newSurfaceState)
 {
     if (m_wrapperAboutToRemove)
         return;
+
+    // 预启动模式下没有shellSurface，只更新状态但不调用shellSurface的方法
+    if (!m_shellSurface) {
+        m_previousSurfaceState.setValueBypassingBindings(m_surfaceState);
+        m_surfaceState.setValueBypassingBindings(newSurfaceState);
+        m_previousSurfaceState.notify();
+        m_surfaceState.notify();
+        return;
+    }
+
     setVisibleDecoration(newSurfaceState == State::Minimized || newSurfaceState == State::Normal);
     setNoCornerRadius(newSurfaceState == State::Maximized || newSurfaceState == State::Fullscreen
                       || newSurfaceState == State::Tiling);
@@ -1169,6 +1266,10 @@ void SurfaceWrapper::requestCancelFullscreen()
 
 void SurfaceWrapper::requestClose()
 {
+    // 预启动模式下没有shellSurface，直接返回
+    if (!m_shellSurface)
+        return;
+
     m_shellSurface->close();
 }
 
