@@ -43,6 +43,7 @@ QmlEngine::QmlEngine(QObject *parent)
     , layershellAnimationComponent(this, "Treeland", "LayerShellAnimation")
     , lockScreenFallbackComponent(this, "Treeland", "LockScreenFallback")
     , fpsDisplayComponent(this, "Treeland", "FpsDisplay")
+    , prelaunchSplashComponent(this, "Treeland", "PrelaunchSplash")
 {
 }
 
@@ -249,7 +250,17 @@ QQuickItem *QmlEngine::createLockScreenFallback(QQuickItem *parent, const QVaria
 {
     return createComponent(lockScreenFallbackComponent, parent, properties);
 }
+
 QQuickItem *QmlEngine::createFpsDisplay(QQuickItem *parent)
 {
     return createComponent(fpsDisplayComponent, parent);
+}
+
+QQuickItem *QmlEngine::createPrelaunchSplash(QQuickItem *parent, const QString &logoPath)
+{
+    QVariantMap properties;
+    if (!logoPath.isEmpty()) {
+        properties["logoPath"] = logoPath;
+    }
+    return createComponent(prelaunchSplashComponent, parent, properties);
 }
