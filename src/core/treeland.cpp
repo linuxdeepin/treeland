@@ -69,9 +69,14 @@ public:
              QStandardPaths::standardLocations(QStandardPaths::GenericDataLocation)) {
             qmlEngine->addImportPath(item + "/treeland/qml");
         }
-        QObject::connect(qmlEngine, &QQmlEngine::quit, qApp, &QCoreApplication::quit);
 
+        W_Q(Treeland);
+        // Use QueuedConnection to avoid
+        // assert(wlroots: assert(wl_list_empty(&cur->events.button.listener_list)))
+        // failed during quit(If the quit call is from the cursor's button press/release event)
+        connect(qmlEngine, &QQmlEngine::quit, q, &Treeland::quit, Qt::QueuedConnection);
         helper = qmlEngine->singletonInstance<Helper *>("Treeland", "Helper");
+        connect(helper, &Helper::requestQuit, q, &Treeland::quit, Qt::QueuedConnection);
         helper->init();
 
 #ifndef DISABLE_DDM
@@ -319,7 +324,7 @@ Treeland::Treeland()
 
 Treeland::~Treeland()
 {
-    Q_D(Treeland);
+
 }
 
 bool Treeland::debugMode() const
@@ -444,6 +449,13 @@ QString Treeland::XWaylandName()
     process->start();
 
     return {};
+}
+
+void Treeland::quit()
+{
+    // make sure all deleted before app exit
+    d_ptr.reset();
+    qApp->quit();
 }
 
 } // namespace Treeland
