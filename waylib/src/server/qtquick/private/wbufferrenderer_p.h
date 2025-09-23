@@ -3,10 +3,12 @@
 
 #pragma once
 
-#include <qwglobal.h>
-#include <qwdamagering.h>
 #include <wglobal.h>
 #include <woutputrenderwindow.h>
+
+#include <qwglobal.h>
+#include <qwdamagering.h>
+#include <qwbuffer.h>
 
 #include <QQuickItem>
 #include <QQuickRenderTarget>
@@ -25,7 +27,6 @@ class Renderer;
 QT_END_NAMESPACE
 
 QW_BEGIN_NAMESPACE
-class qw_buffer;
 class qw_swapchain;
 QW_END_NAMESPACE
 
@@ -140,7 +141,7 @@ private:
         QMatrix4x4 worldTransform;
         QSize pixelSize;
         qreal devicePixelRatio;
-        QW_NAMESPACE::qw_buffer *buffer = nullptr;
+        std::unique_ptr<QW_NAMESPACE::qw_buffer, QW_NAMESPACE::qw_buffer::unlocker> buffer;
         QQuickRenderTarget renderTarget;
         QSGRenderTarget sgRenderTarget;
         QRegion dirty;
