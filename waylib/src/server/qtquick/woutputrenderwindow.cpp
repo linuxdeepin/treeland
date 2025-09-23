@@ -1595,7 +1595,7 @@ WOutputRenderWindow::~WOutputRenderWindow()
 
     renderControl()->disconnect(this);
     renderControl()->invalidate();
-    renderControl()->deleteLater();
+    delete renderControl();
 }
 
 QQuickRenderControl *WOutputRenderWindow::renderControl() const
