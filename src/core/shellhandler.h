@@ -7,6 +7,10 @@
 #include <qwglobal.h>
 
 #include <QObject>
+#include <QVector>
+#include <QList>
+#include <QPointer>
+#include <QHash>
 
 Q_MOC_INCLUDE("workspace/workspace.h")
 
@@ -27,6 +31,7 @@ class WXdgShell;
 class WLayerShell;
 class WLayerSurface;
 class WXWayland;
+class WToplevelSurface; // forward declare base toplevel
 class WInputMethodHelper;
 class WInputPopupSurface;
 class WSeat;
@@ -41,6 +46,9 @@ QW_END_NAMESPACE
 QT_BEGIN_NAMESPACE
 class QQuickWindow;
 QT_END_NAMESPACE
+
+class AppIdResolverManager; // forward declare new protocol manager
+class WindowSizeStore; // forward declare size store
 
 class ShellHandler : public QObject
 {
@@ -92,6 +100,18 @@ private:
                                     SurfaceWrapper *wrapper);
     void setResourceManagerAtom(WAYLIB_SERVER_NAMESPACE::WXWayland *xwayland,
                                 const QByteArray &value);
+    // 预启动闪屏相关：在 PrelaunchSplash::splashRequested 时创建的预启动 SurfaceWrapper
+    void handlePrelaunchSplashRequested(const QString &appId);
+
+    // --- helpers (internal) ---
+    SurfaceWrapper *matchOrCreateXdgWrapper(WAYLIB_SERVER_NAMESPACE::WXdgToplevelSurface *surface,
+                                            const QString &appId);
+    void initXdgWrapperCommon(WAYLIB_SERVER_NAMESPACE::WXdgToplevelSurface *surface,
+                              SurfaceWrapper *wrapper);
+    SurfaceWrapper *matchOrCreateXwaylandWrapper(WAYLIB_SERVER_NAMESPACE::WXWaylandSurface *surface,
+                                                 const QString &appId);
+    void initXwaylandWrapperCommon(WAYLIB_SERVER_NAMESPACE::WXWaylandSurface *surface,
+                                   SurfaceWrapper *wrapper);
 
     WAYLIB_SERVER_NAMESPACE::WXdgShell *m_xdgShell = nullptr;
     WAYLIB_SERVER_NAMESPACE::WLayerShell *m_layerShell = nullptr;
@@ -108,4 +128,11 @@ private:
     // Need to find a better way to handle popup click events
     SurfaceContainer *m_popupContainer = nullptr;
     QObject *m_windowMenu = nullptr;
+    // 保存预启动(尚未绑定真实 shellSurface) 的 wrapper 列表
+    QVector<SurfaceWrapper *> m_prelaunchWrappers;
+    // New protocol based app id resolver (optional, may be null if module not loaded)
+    AppIdResolverManager *m_appIdResolverManager = nullptr;
+    WindowSizeStore *m_windowSizeStore = nullptr; // 持久化窗口尺寸
+    // 回调式解析，不再需要 pendingAppId 结构
 };
+

@@ -1,0 +1,15 @@
+[Unit]
+Description=Treeland Session Helper
+# This service starts after the main treeland compositor service is active.
+After=treeland.service
+# If treeland.service is stopped, this service will be stopped too.
+BindsTo=treeland.service
+
+[Service]
+Type=simple
+ExecStart=@CMAKE_INSTALL_FULL_BINDIR@/treeland-session-helper
+Restart=on-failure
+RestartSec=1s
+
+[Install]
+WantedBy=treeland.service
