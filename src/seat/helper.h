@@ -19,6 +19,9 @@
 
 #include <xcb/xproto.h>
 
+#include <QList>
+#include <optional>
+
 Q_MOC_INCLUDE(<wtoplevelsurface.h>)
 Q_MOC_INCLUDE(<wxdgsurface.h>)
 Q_MOC_INCLUDE(<qwgammacontorlv1.h>)
@@ -88,6 +91,7 @@ class WallpaperColorV1;
 class WindowManagementV1;
 class Multitaskview;
 class DDEShellManagerInterfaceV1;
+class PrelaunchSplash;
 class WindowPickerInterface;
 class VirtualOutputV1;
 class ShellHandler;
@@ -387,6 +391,7 @@ private:
     WindowManagementV1 *m_windowManagement = nullptr;
     WindowManagementV1::DesktopState m_showDesktop = WindowManagementV1::DesktopState::Normal;
     DDEShellManagerInterfaceV1 *m_ddeShellV1 = nullptr;
+    PrelaunchSplash *m_prelaunchSplash = nullptr; // treeland prelaunch splash protocol
     VirtualOutputV1 *m_virtualOutput = nullptr;
     OutputManagerV1 *m_outputManagerV1 = nullptr;
     DDMInterfaceV1 *m_ddmInterfaceV1 = nullptr;
