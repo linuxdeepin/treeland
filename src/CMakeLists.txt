@@ -112,6 +112,7 @@ qt_add_qml_module(libtreeland
         core/treeland.h
         core/windowpicker.cpp
         core/windowpicker.h
+        core/windowsizestore.h
         effects/tquickradiuseffect.cpp
         effects/tquickradiuseffect.h
         effects/tquickradiuseffect_p.h
@@ -212,6 +213,7 @@ qt_add_qml_module(libtreeland
         core/qml/CaptureSelectorLayer.qml
         core/qml/WindowPickerLayer.qml
         core/qml/LockScreenFallback.qml
+        core/qml/PrelaunchSplash.qml
     RESOURCE_PREFIX
         /qt/qml
     OUTPUT_DIRECTORY

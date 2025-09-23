@@ -3,15 +3,14 @@
 
 #include "workspace.h"
 
-#include "treelandconfig.hpp"
+#include "common/treelandlogging.h"
 #include "core/rootsurfacecontainer.h"
 #include "output/output.h"
 #include "seat/helper.h"
 #include "surface/surfacecontainer.h"
 #include "surface/surfacewrapper.h"
 #include "workspaceanimationcontroller.h"
-#include "common/treelandlogging.h"
-
+#include "treelandconfig.hpp"
 
 Workspace::Workspace(SurfaceContainer *parent)
     : SurfaceContainer(parent)
@@ -102,7 +101,11 @@ void Workspace::addSurface(SurfaceWrapper *surface, int workspaceId)
     if (!surface->ownsOutput())
         surface->setOwnsOutput(rootContainer()->primaryOutput());
 
+    // if (surface->type() != SurfaceWrapper::Type::Undetermined) {
     model->addSurface(surface);
+    //} else {
+    //    surface->setWorkspaceId(-10);
+    // }
     surface->setHasInitializeContainer(true);
 }
 
@@ -130,6 +133,12 @@ void Workspace::moveModelTo(int workspaceId, int destinationIndex)
 void Workspace::removeSurface(SurfaceWrapper *surface)
 {
     surface->setHasInitializeContainer(false);
+
+    // if (surface->workspaceId() == -10) {
+    //     surface->setWorkspaceId(-1);
+    //     SurfaceContainer::removeSurface(surface);
+    //    return;
+    // }
 
     WorkspaceModel *from = nullptr;
     if (surface->showOnAllWorkspace())
@@ -329,8 +338,9 @@ void Workspace::doSetCurrentIndex(int newCurrentIndex)
 
 void Workspace::startPreviewing(SurfaceWrapper *previewingItem)
 {
-    if (m_previewingItem && m_previewingItem->shellSurface() ) {
-        // Check shellSurface() since SurfaceWrapper::aboutToBeInvalidated can't make QPointer null in time
+    if (m_previewingItem && m_previewingItem->shellSurface()) {
+        // Check shellSurface() since SurfaceWrapper::aboutToBeInvalidated can't make QPointer null
+        // in time
         auto modle = modelFromId(m_previewingItem->workspaceId());
         m_previewingItem->setOpacity(modle->opaque() ? 1.0 : 0.0);
         m_previewingItem->setHideByWorkspace(!modle->visible());
