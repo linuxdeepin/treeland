@@ -19,7 +19,7 @@ Control {
     property D.Palette outerShadowColor: DS.Style.highlightPanel.dropShadow
     property D.Palette innerShadowColor: DS.Style.highlightPanel.innerShadow
 
-    height: TreelandConfig.windowTitlebarHeight
+    height: Helper.config.windowTitlebarHeight
     width: surfaceItem.width
 
     // Ensure title bar does not accept keyboard focus
