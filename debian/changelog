@@ -1,3 +1,14 @@
+treeland (0.7.3) unstable; urgency=medium
+
+  * fix: fix WorkspaceSelectionList animation's highlight border size
+  * fix: fix MultitaskView display problem
+  * refactor: reduce cursor-related log verbosity
+  * fix: fix MultitaskView display problem caused by refactoring
+    TreelandConfig
+  * Updates for project TreeLand (#563)
+
+ -- rewine <luhongxu@uniontech.com>  Tue, 23 Sep 2025 17:24:35 +0800
+
 treeland (0.7.2) unstable; urgency=medium
 
   * fix: crash on startup due to uninitialized m_config pointer
