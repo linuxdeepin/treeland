@@ -36,11 +36,11 @@ WAYLIB_SERVER_BEGIN_NAMESPACE
 // Cursor management and movement
 Q_LOGGING_CATEGORY(waylibCursor, "waylib.server.cursor", QtInfoMsg)
 // Cursor input events (motion, buttons, etc.)
-Q_LOGGING_CATEGORY(waylibCursorInput, "waylib.server.cursor.input", QtDebugMsg)
+Q_LOGGING_CATEGORY(waylibCursorInput, "waylib.server.cursor.input", QtInfoMsg)
 // Cursor gesture events (pinch, swipe, etc.)
 Q_LOGGING_CATEGORY(waylibCursorGesture, "waylib.server.cursor.gesture", QtDebugMsg)
 // Cursor touch events
-Q_LOGGING_CATEGORY(waylibCursorTouch, "waylib.server.cursor.touch", QtDebugMsg)
+Q_LOGGING_CATEGORY(waylibCursorTouch, "waylib.server.cursor.touch", QtInfoMsg)
 
 WCursorPrivate::WCursorPrivate(WCursor *qq)
     : WWrapObjectPrivate(qq)
