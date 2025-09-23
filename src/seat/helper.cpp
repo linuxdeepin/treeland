@@ -265,10 +265,11 @@ Helper::Helper(QObject *parent)
 Helper::~Helper()
 {
     for (auto s : m_rootSurfaceContainer->surfaces()) {
-        if (auto c = s->container())
-            c->removeSurface(s);
+        m_rootSurfaceContainer->destroyForSurface(s);
     }
 
+    // destroy before m_rootSurfaceContainer
+    delete m_shellHandler;
     delete m_rootSurfaceContainer;
     Q_ASSERT(m_instance == this);
     m_instance = nullptr;
@@ -1286,7 +1287,7 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *, QInputEvent *event)
         }
         if (QKeySequence(kevent->modifiers() | kevent->key())
             == QKeySequence(Qt::META | Qt::Key_F12)) {
-            qApp->quit();
+            Q_EMIT requestQuit();
             return true;
         } else if (m_captureSelector) {
             if (event->modifiers() == Qt::NoModifier && kevent->key() == Qt::Key_Escape)
@@ -1985,6 +1986,14 @@ void Helper::setMultitaskViewImpl(IMultitaskView *impl)
 void Helper::setLockScreenImpl(ILockScreen *impl)
 {
 #ifndef DISABLE_DDM
+    if (!impl) {
+        if (m_lockScreen) {
+            m_lockScreen = nullptr;
+            delete m_lockScreen;
+        }
+        return;
+    }
+
     m_lockScreen = new LockScreen(impl, m_rootSurfaceContainer);
     m_lockScreen->setZ(RootSurfaceContainer::LockScreenZOrder);
     m_lockScreen->setVisible(false);
