@@ -49,6 +49,8 @@ public Q_SLOTS:
     QString XWaylandName();
 
 private:
+    void quit();
+
     std::unique_ptr<TreelandPrivate> d_ptr;
 };
 } // namespace Treeland

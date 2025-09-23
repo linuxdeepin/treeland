@@ -28,14 +28,20 @@ int main(int argc, char *argv[]) {
         QGuiApplication::setQuitOnLastWindowClosed(false);
         QGuiApplication app(argc, argv);
 
-        QmlEngine qmlEngine;
+        QmlEngine *qmlEngine = new QmlEngine;
 
-        QObject::connect(&qmlEngine, &QQmlEngine::quit, &app, &QGuiApplication::quit);
-        QObject::connect(&qmlEngine, &QQmlEngine::exit, &app, [] (int code) {
-            qApp->exit(code);
+        QObject::connect(qmlEngine, &QQmlEngine::quit, qmlEngine, &QmlEngine::deleteLater);
+        QObject::connect(qmlEngine, &QQmlEngine::exit, &app, [qmlEngine, &quitCode] (int code) {
+            quitCode = code;
+            qmlEngine->deleteLater();
+        });
+        QObject::connect(qmlEngine, &QmlEngine::destroyed, &app, [&] {
+            // make sure all deleted before app exit
+            app.exit(quitCode);
         });
 
-        Helper *helper = qmlEngine.singletonInstance<Helper*>("Tinywl", "Helper");
+        Helper *helper = qmlEngine->singletonInstance<Helper*>("Tinywl", "Helper");
+        QObject::connect(helper, &Helper::requestQuit, qmlEngine, &QmlEngine::deleteLater);
         helper->init();
 
         quitCode = app.exec();

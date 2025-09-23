@@ -98,7 +98,7 @@ private:
     WAYLIB_SERVER_NAMESPACE::WInputMethodHelper *m_inputMethodHelper = nullptr;
     QList<WAYLIB_SERVER_NAMESPACE::WXWayland *> m_xwaylands;
 
-    RootSurfaceContainer *m_rootSurfaceContainer = nullptr;
+    QPointer<RootSurfaceContainer> m_rootSurfaceContainer;
     LayerSurfaceContainer *m_backgroundContainer = nullptr;
     LayerSurfaceContainer *m_bottomContainer = nullptr;
     Workspace *m_workspace = nullptr;
