@@ -41,7 +41,7 @@ Item {
         anchors.margins: workspaceThumbMargin - highlightBorderWidth
         Rectangle {
             width: workspaceThumbHeight * root.whRatio + 2 * highlightBorderWidth
-            height: workspaceThumbHeight + 2 * highlightBorderWidth
+            height: workspaceDelegateHeight + 2 * highlightBorderWidth - 2 * workspaceThumbMargin
             border.width: highlightBorderWidth
             border.color: "blue"
             color: "transparent"
