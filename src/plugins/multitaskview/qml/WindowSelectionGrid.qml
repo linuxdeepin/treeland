@@ -500,7 +500,7 @@ Item {
         } else if (event.modifiers === Qt.AltModifier) {
             if (event.key === Qt.Key_Minus && Helper.workspace.count > 1) {
                 Helper.workspace.removeModel(Helper.workspace.currentIndex)
-            } else if (event.key === Qt.Key_Equal && Helper.workspace.count < TreelandConfig.maxWorkspace) {
+            } else if (event.key === Qt.Key_Equal && Helper.workspace.count < Helper.config.maxWorkspace) {
                 Helper.workspace.createModel()
                 Helper.workspace.switchTo(Helper.workspace.count - 1)
             }

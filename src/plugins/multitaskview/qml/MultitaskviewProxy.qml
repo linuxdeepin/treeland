@@ -83,9 +83,9 @@ Multitaskview {
     transitions: Transition {
         to: "initial, taskview"
         NumberAnimation {
-            duration: TreelandConfig.multitaskviewAnimationDuration
+            duration: Helper.config.multitaskviewAnimationDuration
             property: "taskviewVal"
-            easing.type: TreelandConfig.multitaskviewEasingCurveType
+            easing.type: Helper.config.multitaskviewEasingCurveType
         }
     }
 
@@ -177,7 +177,7 @@ Multitaskview {
                         multitaskview: root
                         output: outputPlacementItem.output
                         draggedParent: root
-                        workspaceListPadding: TreelandConfig.workspaceDelegateHeight / output.outputItem.devicePixelRatio
+                        workspaceListPadding: Helper.config.workspaceDelegateHeight / output.outputItem.devicePixelRatio
                         dragManager: multitaskviewDragManager
                     }
                 }
