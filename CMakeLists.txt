@@ -31,6 +31,18 @@ if (DISABLE_DDM)
     add_compile_definitions("DISABLE_DDM")
 endif()
 
+# Alternative lock mechanism: Wayland ext-session-lock
+option(EXT_SESSION_LOCK_V1 "Enable Wayland ext-session-lock support (alternative to DDM)" ON)
+add_feature_info(ext_session_lock_v1 EXT_SESSION_LOCK_V1 "Enable ext-session-lock-v1 protocol support in Treeland")
+
+if (EXT_SESSION_LOCK_V1)
+    add_compile_definitions("EXT_SESSION_LOCK_V1")
+endif()
+# Heads-up if both are enabled: ext-session-lock is intended as an alternative to DDM
+if (NOT EXT_SESSION_LOCK_V1 AND DISABLE_DDM)
+    message(WARNING "no ext-session-lock support and no DDM, treeland will not have session locking ability.")
+endif()
+
 if (ADDRESS_SANITIZER)
     add_compile_options(-fsanitize=address -fno-optimize-sibling-calls -fno-omit-frame-pointer)
     add_link_options(-fsanitize=address)

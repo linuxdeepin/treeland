@@ -109,8 +109,8 @@ qt_add_qml_module(libtreeland
         effects/tquickradiuseffect_p.h
         effects/tsgradiusimagenode.cpp
         effects/tsgradiusimagenode.h
-        $<$<NOT:$<BOOL:${DISABLE_DDM}>>:core/lockscreen.h>
-        $<$<NOT:$<BOOL:${DISABLE_DDM}>>:core/lockscreen.cpp>
+        $<$<OR:$<NOT:$<BOOL:${DISABLE_DDM}>>,$<BOOL:${EXT_SESSION_LOCK_V1}>>:core/lockscreen.h>
+        $<$<OR:$<NOT:$<BOOL:${DISABLE_DDM}>>,$<BOOL:${EXT_SESSION_LOCK_V1}>>:core/lockscreen.cpp>
         $<$<NOT:$<BOOL:${DISABLE_DDM}>>:greeter/greeterproxy.cpp>
         $<$<NOT:$<BOOL:${DISABLE_DDM}>>:greeter/greeterproxy.h>
         $<$<NOT:$<BOOL:${DISABLE_DDM}>>:greeter/sessionmodel.cpp>
@@ -190,6 +190,7 @@ qt_add_qml_module(libtreeland
         core/qml/FadeBehavior.qml
         core/qml/CaptureSelectorLayer.qml
         core/qml/WindowPickerLayer.qml
+        core/qml/LockScreenFallback.qml
     RESOURCE_PREFIX
         /qt/qml
     OUTPUT_DIRECTORY
