@@ -175,6 +175,9 @@ set(SOURCES
     protocols/woutputmanagerv1.cpp
     protocols/wextforeigntoplevellistv1.cpp
     protocols/wsecuritycontextmanager.cpp
+    protocols/wsessionlockmanager.cpp
+    protocols/wsessionlock.cpp
+    protocols/wsessionlocksurface.cpp
 )
 
 set(HEADERS
@@ -272,6 +275,12 @@ set(HEADERS
     protocols/ext_foreign_toplevel_image_capture_source_manager_v1.h #TODO: Remove after wlroots 0.20
     protocols/qwextforeigntoplevelimagecapturesourcemanagerv1.h #TODO: Move to qwlroots after wlroots 0.20
     protocols/wsecuritycontextmanager.h
+    protocols/wsessionlockmanager.h
+    protocols/WSessionLockManager
+    protocols/wsessionlock.h
+    protocols/WSessionLock
+    protocols/wsessionlocksurface.h
+    protocols/WSessionLockSurface
 )
 
 set(PRIVATE_HEADERS

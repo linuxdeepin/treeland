@@ -9,6 +9,7 @@
 #include "surfacecontainer.h"
 #include "rootsurfacecontainer.h"
 #include "layersurfacecontainer.h"
+#include "wsessionlocksurface.h"
 
 #include <WServer>
 #include <WOutput>
@@ -41,6 +42,7 @@
 #include <wlayersurface.h>
 #include <wxdgdecorationmanager.h>
 #include <wextforeigntoplevellistv1.h>
+#include <wsessionlockmanager.h>
 
 #include <qwbackend.h>
 #include <qwdisplay.h>
@@ -89,6 +91,7 @@ Helper::Helper(QObject *parent)
     , m_topContainer(new LayerSurfaceContainer(m_surfaceContainer))
     , m_overlayContainer(new LayerSurfaceContainer(m_surfaceContainer))
     , m_popupContainer(new SurfaceContainer(m_surfaceContainer))
+    , m_lockContainer(new SurfaceContainer(m_surfaceContainer))
 {
     setCurrentUserId(getuid());
 
@@ -106,6 +109,7 @@ Helper::Helper(QObject *parent)
     m_topContainer->setZ(RootSurfaceContainer::TopZOrder);
     m_overlayContainer->setZ(RootSurfaceContainer::OverlayZOrder);
     m_popupContainer->setZ(RootSurfaceContainer::PopupZOrder);
+    m_lockContainer->setZ(RootSurfaceContainer::LockZOrder);
 }
 
 Helper::~Helper()
@@ -267,6 +271,52 @@ void Helper::init()
         m_surfaceContainer->destroyForSurface(surface->surface());
     });
 
+    auto *sessionLockManager = m_server->attach<WSessionLockManager>();
+    m_lockContainer->setVisible(false);
+    sessionLockManager->safeConnect(&WSessionLockManager::lockCreated, this, [this, sessionLockManager](WSessionLock *lock) {
+        if (m_lockContainer->isVisible()) {
+            qWarning() << "Only one session lock is allowed!";
+            lock->finish();
+            return;
+        }
+        m_sessionLock = lock;
+        m_sessionLock->safeConnect(&WSessionLock::surfaceAdded, this, [this](WSessionLockSurface *surface) {
+            auto output = getOutput(surface->output());
+            auto wrapper = new SurfaceWrapper(qmlEngine(), surface, SurfaceWrapper::Type::SessionLock);
+            auto geometry = output->geometry();
+            wrapper->resize(geometry.size());
+            wrapper->setPosition(geometry.topLeft());
+            connect(output->outputItem(), &WOutputItem::geometryChanged, this, [this, output, wrapper] {
+                auto geometry = output->geometry();
+                wrapper->resize(geometry.size());
+                wrapper->setPosition(geometry.topLeft());
+            });
+            wrapper->setNoDecoration(true);
+            wrapper->setOwnsOutput(output);
+            m_lockContainer->addSurface(wrapper);
+        });
+        m_lockContainer->setVisible(true);
+        lock->lock();
+        m_sessionLock->safeConnect(&WSessionLock::surfaceRemoved, this, [this](WSessionLockSurface *surface) {
+            m_surfaceContainer->destroyForSurface(surface->surface());
+        });
+        m_sessionLock->safeConnect(&WSessionLock::unlocked, this, [this] {
+            qDebug() << "Session unlocked normally";
+            m_lockContainer->setVisible(false);
+            m_sessionLock = nullptr;
+        });
+        m_sessionLock->safeConnect(&WSessionLock::canceled, this, [this] {
+            qDebug() << "Session lock was canceled (destroyed by client before locking)";
+            m_lockContainer->setVisible(false);
+            m_sessionLock = nullptr;
+        });
+        m_sessionLock->safeConnect(&WSessionLock::abandoned, this, [this] {
+            qDebug() << "Session lock was abandoned (locking client likely died)";
+            qDebug() << "To meet protocol requirement, the session must remain locked. Here session is unlocked for simplicity.";
+            m_lockContainer->setVisible(false);
+            m_sessionLock = nullptr;
+        });
+    });
     m_server->start();
 
     m_renderer = WRenderHelper::createRenderer(m_backend->handle());
