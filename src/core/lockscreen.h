@@ -4,13 +4,22 @@
 #pragma once
 
 #include "surface/surfacecontainer.h"
-
+#include "wglobal.h"
 #include <map>
 #include <memory>
 
-class Output;
 class QTimer;
 class ILockScreen;
+
+#ifdef EXT_SESSION_LOCK_V1
+WAYLIB_SERVER_BEGIN_NAMESPACE
+class WSessionLock;
+class WSessionLockSurface;
+class WOutputItem;
+WAYLIB_SERVER_END_NAMESPACE
+Q_MOC_INCLUDE(<wsessionlock.h>)
+Q_MOC_INCLUDE(<wsessionlocksurface.h>)
+#endif
 
 class LockScreen : public SurfaceContainer
 {
@@ -28,6 +37,7 @@ public:
 
     explicit LockScreen(ILockScreen *impl, SurfaceContainer *parent);
 
+    bool available() const;
     bool isLocked() const;
     void lock();
     void shutdown();
@@ -40,6 +50,20 @@ Q_SIGNALS:
 public Q_SLOTS:
     void onAnimationPlayed();
     void onAnimationPlayFinished();
+#ifdef EXT_SESSION_LOCK_V1
+    void onExternalLock(WSessionLock *lock);
+
+private:
+    void onOutputGeometryChanged();
+    void doRemoveLockSurface(WSessionLockSurface *surface);
+    void createFallbackItem(WOutputItem *outputItem);
+
+private Q_SLOTS:
+    void onLockSurfaceAdded(WSessionLockSurface *surface);
+    void onLockSurfaceRemoved(WSessionLockSurface *surface);
+    void onExternalLockAbandoned();
+    void onExternalUnlock();
+#endif
 
 public:
     void addOutput(Output *output) override;
@@ -49,4 +73,9 @@ private:
     ILockScreen *m_impl{ nullptr };
     std::map<Output *, std::unique_ptr<QQuickItem, void (*)(QQuickItem *)>> m_components;
     std::unique_ptr<QTimer> m_delayTimer;
+#ifdef EXT_SESSION_LOCK_V1
+    std::map<WOutputItem *, std::unique_ptr<WSessionLockSurface, std::function<void(WSessionLockSurface*)>>> m_lockSurfaces;
+    std::map<WOutputItem *, std::unique_ptr<QQuickItem, std::function<void(QQuickItem*)>>> m_fallbackItems;
+    WSessionLock* m_sessionLock{ nullptr };
+#endif
 };
