@@ -15,9 +15,11 @@
 
 #include <qqml.h>
 
-#ifndef DISABLE_DDM
-#  include "interfaces/lockscreeninterface.h"
+#if !defined(DISABLE_DDM) || defined(EXT_SESSION_LOCK_V1)
+#include "interfaces/lockscreeninterface.h"
+#endif
 
+#ifndef DISABLE_DDM
 #  include <Constants.h>
 #  include <Messages.h>
 #  include <SignalHandler.h>
@@ -230,7 +232,7 @@ public:
                 helper->setMultitaskViewImpl(multitaskview);
             }
 
-#ifndef DISABLE_DDM
+#if !defined(DISABLE_DDM) || defined(EXT_SESSION_LOCK_V1)
             if (auto *lockscreen = qobject_cast<ILockScreen *>(pluginInstance)) {
                 qCDebug(treelandPlugin) << "Get LockScreen Instance.";
                 connect(pluginInstance, &QObject::destroyed, this, [this] {

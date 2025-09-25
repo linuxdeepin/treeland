@@ -9,6 +9,7 @@
 #include "output/output.h"
 #include "workspace/workspace.h"
 #include "common/treelandlogging.h"
+#include "seat/helper.h"
 
 #include <winputpopupsurfaceitem.h>
 #include <wlayersurface.h>
@@ -81,6 +82,11 @@ SurfaceWrapper::SurfaceWrapper(QmlEngine *qmlEngine,
     case Type::InputPopup:
         m_surfaceItem = new WInputPopupSurfaceItem(this);
         break;
+#ifdef EXT_SESSION_LOCK_V1
+    case Type::LockScreen:
+        m_surfaceItem = new WSurfaceItem(this);
+        break;
+#endif
     default:
         Q_UNREACHABLE();
     }
@@ -817,6 +823,14 @@ void SurfaceWrapper::createNewOrClose(uint direction)
     }
 
     if (m_windowAnimation) {
+        if (Helper::instance()->noAnimation()) {
+            if (direction == OPEN_ANIMATION) {
+                onShowAnimationFinished();
+            } else {
+                onHideAnimationFinished();
+            }
+            return;
+        }
         bool ok = false;
         if (direction == OPEN_ANIMATION) {
             ok = connect(m_windowAnimation,
