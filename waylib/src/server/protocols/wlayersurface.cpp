@@ -24,7 +24,7 @@ public:
 
     WWRAP_HANDLE_FUNCTIONS(qw_layer_surface_v1, wlr_layer_surface_v1)
 
-    wl_client *waylandClient() const {
+    wl_client *waylandClient() const override {
         return nativeHandle()->resource->client;
     }
 
@@ -34,7 +34,7 @@ public:
 
     void init();
     void connect();
-    void instantRelease();
+    void instantRelease() override;
 
     bool setDesiredSize(QSize newSize);
     bool setLayer(WLayerSurface::LayerType layer);
