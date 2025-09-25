@@ -611,6 +611,9 @@ void Output::arrangeLayerSurfaces()
 
 void Output::arrangeNonLayerSurface(SurfaceWrapper *surface, const QSizeF &sizeDiff)
 {
+    if (surface->type() == SurfaceWrapper::Type::LockScreen) {
+        return;
+    }
     Q_ASSERT(surface->type() != SurfaceWrapper::Type::Layer);
     surface->setFullscreenGeometry(geometry());
     const auto validGeo = this->validGeometry();

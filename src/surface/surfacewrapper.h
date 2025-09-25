@@ -22,6 +22,7 @@ class SurfaceWrapper : public QQuickItem
     friend class SurfaceContainer;
     friend class SurfaceProxy;
     friend class ShellHandler;
+    friend class LockScreen;
     Q_OBJECT
     QML_ELEMENT
     QML_UNCREATABLE("SurfaceWrapper objects are created by c++")
@@ -78,6 +79,7 @@ public:
         XWayland,
         Layer,
         InputPopup,
+        LockScreen,
     };
     Q_ENUM(Type)
 

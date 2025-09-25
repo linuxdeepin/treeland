@@ -41,6 +41,7 @@ QmlEngine::QmlEngine(QObject *parent)
     , launchpadAnimationComponent(this, "Treeland", "LaunchpadAnimation")
     , launchpadCoverComponent(this, "Treeland", "LaunchpadCover")
     , layershellAnimationComponent(this, "Treeland", "LayerShellAnimation")
+    , lockScreenFallbackComponent(this, "Treeland", "LockScreenFallback")
 {
 }
 
@@ -241,4 +242,9 @@ QQuickItem *QmlEngine::createCaptureSelector(QQuickItem *parent, CaptureManagerV
 QQuickItem *QmlEngine::createWindowPicker(QQuickItem *parent)
 {
     return createComponent(windowPickerComponent, parent);
+}
+
+QQuickItem *QmlEngine::createLockScreenFallback(QQuickItem *parent, const QVariantMap &properties)
+{
+    return createComponent(lockScreenFallbackComponent, parent, properties);
 }
