@@ -51,6 +51,9 @@ SurfaceWrapper::SurfaceWrapper(QmlEngine *qmlEngine, WToplevelSurface *shellSurf
     case Type::InputPopup:
         m_surfaceItem = new WInputPopupSurfaceItem(this);
         break;
+    case Type::SessionLock:
+        m_surfaceItem = new WSurfaceItem(this);
+        break;
     default:
         Q_UNREACHABLE();
     }
