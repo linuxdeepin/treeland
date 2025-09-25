@@ -58,6 +58,7 @@ public:
         XWayland,
         Layer,
         InputPopup,
+        SessionLock
     };
     Q_ENUM(Type)
 

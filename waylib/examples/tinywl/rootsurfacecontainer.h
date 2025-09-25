@@ -45,6 +45,7 @@ public:
         TaskBarZOrder = 3,
         MenuBarZOrder = 3,
         PopupZOrder = 4,
+        LockZOrder = 5
     };
 
     void init(WServer *server);
