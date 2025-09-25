@@ -32,6 +32,7 @@ class QW_CLASS_OBJECT(session_lock_v1)
 
 public:
     QW_FUNC_MEMBER(session_lock_v1, send_locked, void)
+    QW_FUNC_MEMBER(session_lock_v1, destroy, void)
 };
 
 class QW_CLASS_OBJECT(session_lock_manager_v1)
