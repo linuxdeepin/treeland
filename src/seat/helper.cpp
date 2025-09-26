@@ -695,9 +695,19 @@ void Helper::onSetCopyOutput(treeland_virtual_output_v1 *virtual_output)
 
 void Helper::onRestoreCopyOutput(treeland_virtual_output_v1 *virtual_output)
 {
+    const QString targetName = virtual_output->outputList.at(0);
+    if (!std::any_of(m_outputList.constBegin(), m_outputList.constEnd(),
+                     [&targetName](const Output *output) { return output->output()->name() == targetName; })) {
+        virtual_output->send_error(
+            TREELAND_VIRTUAL_OUTPUT_V1_ERROR_INVALID_OUTPUT,
+            qPrintable(QString("Target output %1 does not exist!").arg(targetName))
+        );
+        return;
+    }
+
     for (int i = 0; i < m_outputList.size(); i++) {
         Output *currentOutput = m_outputList.at(i);
-        if (currentOutput->output()->name() == virtual_output->outputList.at(0))
+        if (currentOutput->output()->name() == targetName)
             continue;
 
         Output *o = createNormalOutput(m_outputList.at(i)->output());
