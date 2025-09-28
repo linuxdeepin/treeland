@@ -39,7 +39,11 @@
 #include <qpa/qplatformsurface.h>
 #include <qpa/qwindowsysteminterface.h>
 #include <qpa/qplatformoffscreensurface.h>
+#if QT_VERSION >= QT_VERSION_CHECK(6, 10, 0)
+#include <private/qgenericunixtheme_p.h>
+#else
 #include <private/qgenericunixthemes_p.h>
+#endif
 
 #ifndef QT_NO_OPENGL
 #include <qpa/qplatformopenglcontext.h>
