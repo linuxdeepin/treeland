@@ -100,7 +100,7 @@ void MultitaskviewSurfaceModel::initializeModel()
     QList<SurfaceWrapper *> surfaces(workspace()->surfaces());
     surfaces << Helper::instance()->workspace()->showOnAllWorkspaceModel()->surfaces();
     for (const auto &surface : std::as_const(surfaces)) {
-        if (!Helper::instance()->surfaceBelongsToCurrentUser(surface))
+        if (!Helper::instance()->surfaceBelongsToCurrentSession(surface))
             continue;
         if (surface->ownsOutput() == output()) {
             if (surfaceReady(surface)) {
@@ -495,7 +495,7 @@ void MultitaskviewSurfaceModel::handleSurfaceMappedChanged()
 
 void MultitaskviewSurfaceModel::handleSurfaceAdded(SurfaceWrapper *surface)
 {
-    if (!Helper::instance()->surfaceBelongsToCurrentUser(surface))
+    if (!Helper::instance()->surfaceBelongsToCurrentSession(surface))
         return;
     connect(surface,
             &SurfaceWrapper::ownsOutputChanged,

@@ -1038,7 +1038,7 @@ void SurfaceWrapper::startMinimizeAnimation(const QRectF &iconGeometry, uint dir
 {
     if (m_minimizeAnimation)
         return;
-    if (!Helper::instance()->surfaceBelongsToCurrentUser(this))
+    if (!Helper::instance()->surfaceBelongsToCurrentSession(this))
         return;
 
     m_minimizeAnimation =

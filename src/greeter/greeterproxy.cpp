@@ -268,10 +268,10 @@ void GreeterProxy::login(const QString &user, const QString &password, const int
     QModelIndex index = d->sessionModel->index(sessionIndex, 0);
 
     // send command to the daemon
-    Session::Type type =
-        static_cast<Session::Type>(d->sessionModel->data(index, SessionModel::TypeRole).toInt());
+    DDM::Session::Type type =
+        static_cast<DDM::Session::Type>(d->sessionModel->data(index, SessionModel::TypeRole).toInt());
     QString name = d->sessionModel->data(index, SessionModel::FileRole).toString();
-    Session session(type, name);
+    DDM::Session session(type, name);
     SocketWriter(d->socket) << quint32(GreeterMessages::Login) << user << password << session;
 }
 
