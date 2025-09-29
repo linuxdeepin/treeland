@@ -137,7 +137,7 @@ QVariant SessionModel::data(const QModelIndex &index, int role) const
     return QVariant();
 }
 
-void SessionModel::populate(Session::Type type, const QStringList &dirPaths)
+void SessionModel::populate(DDM::Session::Type type, const QStringList &dirPaths)
 {
     // read session files
     QStringList sessions;
