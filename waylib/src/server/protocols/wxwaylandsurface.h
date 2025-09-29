@@ -86,6 +86,7 @@ public:
     WSurface *surface() const override;
     QW_NAMESPACE::qw_xwayland_surface *handle() const;
     WXWaylandSurface *parentXWaylandSurface() const;
+    WXWayland *xwayland() const;
 
     const QList<WXWaylandSurface *> &children() const;
     bool isToplevel() const;
