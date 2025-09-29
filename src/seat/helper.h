@@ -179,6 +179,7 @@ public:
     void addSocket(WSocket *socket);
     WXWayland *createXWayland();
     void removeXWayland(WXWayland *xwayland);
+    WXWayland *xwaylandForUid(uid_t uid, bool createIfMissing = true);
 
     WSocket *defaultWaylandSocket() const;
     WXWayland *defaultXWaylandSocket() const;
@@ -314,6 +315,14 @@ private:
     void updateIdleInhibitor();
     void setNoAnimation(bool noAnimation);
 
+    // for xwayland
+    WXWayland *ensureXWaylandForUid(uid_t uid);
+    void updateActiveUserSession(uid_t uid);
+    quint32 deepinNoTitlebarAtom(WXWayland *xwayland) const;
+    uid_t findXWaylandUser(WXWayland *xwayland) const;
+    void applyXWaylandVisibility();
+    void updateXWaylandWrapperVisibility(SurfaceWrapper *wrapper);
+
     static Helper *m_instance;
     TreelandConfig *m_config = nullptr;
     FpsDisplayManager *m_fpsManager = nullptr;
@@ -387,9 +396,12 @@ private:
     IMultitaskView *m_multitaskView{ nullptr };
     UserModel *m_userModel{ nullptr };
 
-    quint32 m_atomDeepinNoTitlebar;
-
     bool m_blockActivateSurface{ false };
 
     bool m_noAnimation{ false };
+
+    // for xwayland
+    QHash<uid_t, WXWayland *> m_userXWaylands;
+    QHash<WXWayland *, quint32> m_xwaylandNoTitlebarAtoms;
+    uid_t m_activeUserUid = 0;
 };
