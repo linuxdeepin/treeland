@@ -48,6 +48,7 @@ class QQuickWindow;
 QT_END_NAMESPACE
 
 class AppIdResolverManager; // forward declare new protocol manager
+class WindowSizeStore; // forward declare size store
 
 class ShellHandler : public QObject
 {
@@ -129,5 +130,7 @@ private:
     QVector<SurfaceWrapper *> m_prelaunchWrappers;
     // New protocol based app id resolver (optional, may be null if module not loaded)
     AppIdResolverManager *m_appIdResolverManager = nullptr;
+    WindowSizeStore *m_windowSizeStore = nullptr; // 持久化窗口尺寸
     // 回调式解析，不再需要 pendingAppId 结构
 };
+

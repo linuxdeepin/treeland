@@ -15,6 +15,8 @@
 // 通过 pid 查询可靠 appId 的工具
 #include "modules/app-id-resolver/appidresolver.h"
 #include "utils/appidentifier.h"
+// 窗口尺寸持久化存储
+#include "core/windowsizestore.h"
 
 #include <xcb/xcb.h>
 
@@ -54,6 +56,7 @@ ShellHandler::ShellHandler(RootSurfaceContainer *rootContainer)
     , m_topContainer(new LayerSurfaceContainer(rootContainer))
     , m_overlayContainer(new LayerSurfaceContainer(rootContainer))
     , m_popupContainer(new PopupSurfaceContainer(rootContainer))
+    , m_windowSizeStore(new WindowSizeStore(this))
 {
     m_backgroundContainer->setZ(RootSurfaceContainer::BackgroundZOrder);
     m_bottomContainer->setZ(RootSurfaceContainer::BottomZOrder);
@@ -77,6 +80,13 @@ void ShellHandler::handlePrelaunchSplashRequested(const QString &appId)
     }
     auto *wrapper = new SurfaceWrapper(Helper::instance()->qmlEngine());
     wrapper->setProperty("prelaunchAppId", appId);
+    // 读取上次记录的窗口尺寸，提前设置闪屏大小，提升视觉稳定性
+    if (m_windowSizeStore) {
+        const QSize last = m_windowSizeStore->lastSizeFor(appId);
+        if (last.isValid() && last.width() > 0 && last.height() > 0) {
+            wrapper->resize(last);
+        }
+    }
     m_workspace->addSurface(wrapper);
     m_prelaunchWrappers.append(wrapper);
 
@@ -289,6 +299,20 @@ void ShellHandler::onXdgToplevelSurfaceRemoved(WXdgToplevelSurface *surface)
     if (interface) {
         delete interface;
     }
+    // 保存正常窗口的最后尺寸（优先 normalGeometry），仅在有 appId 时
+    if (m_windowSizeStore && wrapper && wrapper->type() == SurfaceWrapper::Type::XdgToplevel) {
+        const QString appId = surface->appId();
+        if (!appId.isEmpty()) {
+            QSizeF sz = wrapper->normalGeometry().size();
+            if (!sz.isValid() || sz.isEmpty()) {
+                sz = wrapper->geometry().size();
+            }
+            const QSize s = sz.toSize();
+            if (s.isValid() && s.width() > 0 && s.height() > 0) {
+                m_windowSizeStore->saveSize(appId, s);
+            }
+        }
+    }
     Q_EMIT surfaceWrapperAboutToRemove(wrapper);
     m_rootSurfaceContainer->destroyForSurface(wrapper);
 }
@@ -368,6 +392,21 @@ void ShellHandler::onXWaylandSurfaceAdded(WXWaylandSurface *surface)
     surface->safeConnect(&qw_xwayland_surface::notify_dissociate, this, [this, surface] {
         auto wrapper = m_rootSurfaceContainer->getSurface(surface->surface());
         qCDebug(treelandShell) << "WXWayland::notify_dissociate" << surface << wrapper;
+
+        // 保存 XWayland 窗口尺寸
+        if (m_windowSizeStore && wrapper && wrapper->type() == SurfaceWrapper::Type::XWayland) {
+            const QString appId = surface->appId();
+            if (!appId.isEmpty()) {
+                QSizeF sz = wrapper->normalGeometry().size();
+                if (!sz.isValid() || sz.isEmpty()) {
+                    sz = wrapper->geometry().size();
+                }
+                const QSize s = sz.toSize();
+                if (s.isValid() && s.width() > 0 && s.height() > 0) {
+                    m_windowSizeStore->saveSize(appId, s);
+                }
+            }
+        }
 
         Q_EMIT surfaceWrapperAboutToRemove(wrapper);
         m_rootSurfaceContainer->destroyForSurface(wrapper);
