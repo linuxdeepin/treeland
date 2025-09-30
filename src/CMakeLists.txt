@@ -146,6 +146,8 @@ qt_add_qml_module(libtreeland
         utils/cmdline.h
         utils/propertymonitor.cpp
         utils/propertymonitor.h
+    utils/appidentifier.cpp
+    utils/appidentifier.h
         utils/loginddbustypes.h
         utils/loginddbustypes.cpp
         wallpaper/wallpapercontroller.cpp

@@ -1,98 +1,76 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
-// Pure C-style Wayland client for treeland_prelaunch_splash_manager_v1
-// Usage: test-prelaunch-splash-client <app-id> [app-to-launch]
+// QtWayland C++ 封装版本的预启动闪屏 demo
+// 使用方式: test-prelaunch-splash-client <app-id> [command-to-launch]
+// 若未提供 command-to-launch 则默认使用 dde-am <app-id>
 
-#include <QCoreApplication>
+#include <QApplication>
 #include <QDebug>
 #include <QTimer>
-
-#include <QString>
+#include <QtWaylandClient/QWaylandClientExtension>
 
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/wait.h>
-#include <cstdio>
-#include <cstdlib>
 
-#include <cstring>
+#include "qwayland-treeland-prelaunch-splash-v1.h"
 
-#include <wayland-client.h>
-#include <wayland-client-core.h>
-
-#include "wayland-treeland-prelaunch-splash-v1-client-protocol.h"
-
-struct ClientData {
-    treeland_prelaunch_splash_manager_v1 *manager = nullptr;
-};
-
-static void handle_global(void *data, wl_registry *registry, uint32_t id, const char *interface, uint32_t version)
+class PrelaunchSplashManager
+    : public QWaylandClientExtensionTemplate<PrelaunchSplashManager>
+    , public QtWayland::treeland_prelaunch_splash_manager_v1
 {
-    auto *c = static_cast<ClientData *>(data);
-    if (strcmp(interface, "treeland_prelaunch_splash_manager_v1") == 0) {
-        c->manager = static_cast<treeland_prelaunch_splash_manager_v1 *>(
-            wl_registry_bind(registry, id, &treeland_prelaunch_splash_manager_v1_interface, 1));
-        qInfo() << "Bound treeland_prelaunch_splash_manager_v1 version" << version;
+    Q_OBJECT
+public:
+    explicit PrelaunchSplashManager()
+        : QWaylandClientExtensionTemplate<PrelaunchSplashManager>(1) // protocol version 1
+    {
     }
-}
 
-static void handle_global_remove(void *data, wl_registry *registry, uint32_t id)
-{
-    Q_UNUSED(data);
-    Q_UNUSED(registry);
-    Q_UNUSED(id);
-}
+    // activeChanged 信号来自 QWaylandClientExtensionTemplate
+};
 
 int main(int argc, char *argv[])
 {
-    QCoreApplication app(argc, argv);
+    qputenv("QT_QPA_PLATFORM", "wayland");
+    QApplication app(argc, argv);
+
     if (argc < 2) {
         qCritical() << "Usage:" << argv[0] << "<app-id> [command-to-launch]";
-        qCritical() << "If only <app-id> is given, it'll also be used as the launch command (via dde-am).";
         return 1;
     }
-    const char *appId = argv[1];
-    // If only one argument is given, we also treat it as the launch target
-    const char *launchApp = argc > 2 ? argv[2] : argv[1];
-
-    wl_display *display = wl_display_connect(nullptr);
-    if (!display) {
-        qCritical() << "Cannot connect to Wayland display";
-        return 1;
-    }
-
-    wl_registry *registry = wl_display_get_registry(display);
-    ClientData data;
-    static const wl_registry_listener regListener = { handle_global, handle_global_remove };
-    wl_registry_add_listener(registry, &regListener, &data);
-    wl_display_roundtrip(display); // receive globals
-
-    if (!data.manager) {
-        qWarning() << "treeland_prelaunch_splash_manager_v1 global not found";
+    QString appId = QString::fromUtf8(argv[1]);
+    QString launchCmd;
+    if (argc >= 3) {
+        launchCmd = QString::fromUtf8(argv[2]);
     } else {
-        treeland_prelaunch_splash_manager_v1_create_splash(data.manager, appId);
-        qInfo() << "Sent create_splash for appId" << appId;
-    if (launchApp && *launchApp) {
+        launchCmd = appId; // 默认同名
+    }
+
+    PrelaunchSplashManager manager;
+    QObject::connect(&manager, &PrelaunchSplashManager::activeChanged, &manager, [&] {
+        if (!manager.isActive())
+            return;
+        // 绑定成功后发送 create_splash
+        manager.create_splash(appId);
+        qInfo() << "Sent create_splash for" << appId;
+
+        // 启动应用（可选）
+        if (!launchCmd.isEmpty()) {
             pid_t pid = fork();
             if (pid == 0) {
-                execlp("dde-am", "dde-am", launchApp, (char*)nullptr);
+                execlp("dde-am", "dde-am", launchCmd.toUtf8().constData(), (char*)nullptr);
                 _exit(127);
             } else if (pid > 0) {
-                qInfo() << "Requested launch via dde-am" << launchApp;
+                qInfo() << "Launched via dde-am" << launchCmd;
             } else {
-                qWarning() << "fork() failed launching dde-am";
+                qWarning() << "fork failed";
             }
         }
-        wl_display_roundtrip(display); // flush request
-    }
-
-    QTimer::singleShot(200, [&]() {
-        if (data.manager) {
-            treeland_prelaunch_splash_manager_v1_destroy(data.manager);
-        }
-        wl_display_disconnect(display);
-        app.quit();
+        // 稍后退出（仅示例用途）
+        QTimer::singleShot(300, &app, &QCoreApplication::quit);
     });
 
     return app.exec();
 }
+
+#include "main.moc"

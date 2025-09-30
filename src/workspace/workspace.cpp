@@ -4,13 +4,13 @@
 #include "workspace.h"
 
 #include "common/treelandlogging.h"
-#include "config/treelandconfig.h"
 #include "core/rootsurfacecontainer.h"
 #include "output/output.h"
 #include "seat/helper.h"
 #include "surface/surfacecontainer.h"
 #include "surface/surfacewrapper.h"
 #include "workspaceanimationcontroller.h"
+#include "treelandconfig.hpp"
 
 Workspace::Workspace(SurfaceContainer *parent)
     : SurfaceContainer(parent)

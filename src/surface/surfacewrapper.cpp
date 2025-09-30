@@ -59,6 +59,15 @@ SurfaceWrapper::SurfaceWrapper(QmlEngine *qmlEngine,
 {
     QQmlEngine::setContextForObject(this, qmlEngine->rootContext());
     setup();
+    // 若构造时已有 shellSurface（非预启动路径），补上 destroyed 监听，保持与 convertToNormalSurface 一致的安全语义
+    if (m_shellSurface) {
+        connect(m_shellSurface, &QObject::destroyed, this, [this] {
+            auto old = m_shellSurface;
+            m_shellSurface = nullptr;
+            Q_EMIT aboutToBeInvalidated();
+            Q_UNUSED(old);
+        });
+    }
 }
 
 // 新的构造函数，用于预启动闪屏
@@ -303,9 +312,12 @@ void SurfaceWrapper::setup(WToplevelSurface *shellSurface)
 void SurfaceWrapper::createPrelaunchSplash()
 {
     // 创建预启动闪屏
-    auto splashItem = m_engine->createPrelaunchSplash(this);
-    if (splashItem) {
-        splashItem->setZ(999999); // 确保在最上层
+    if (m_prelaunchSplash) {
+        return; // 已创建
+    }
+    m_prelaunchSplash = m_engine->createPrelaunchSplash(this);
+    if (m_prelaunchSplash) {
+        m_prelaunchSplash->setZ(999999); // 确保在最上层
     }
 }
 
@@ -317,12 +329,34 @@ void SurfaceWrapper::convertToNormalSurface(WToplevelSurface *shellSurface, Type
         return;
     }
 
-    // 设置新的参数
+    // 移除预启动闪屏
+    if (m_prelaunchSplash) {
+        // 可以考虑做一个淡出动画，现阶段直接删除
+        m_prelaunchSplash->setVisible(false);
+        m_prelaunchSplash->deleteLater();
+        m_prelaunchSplash = nullptr;
+    }
+
+    // 设置新的参数（QPointer 自动感知销毁）
     m_shellSurface = shellSurface;
+    if (m_shellSurface) {
+        // 当顶层 surface 对象销毁时，清空指针，避免后续访问悬空
+        connect(m_shellSurface, &QObject::destroyed, this, [this] {
+            // 标记并触发无效化
+            auto old = m_shellSurface;
+            m_shellSurface = nullptr;
+            Q_EMIT aboutToBeInvalidated();
+            Q_UNUSED(old);
+        });
+    }
     m_type = type;
 
     // 调用setup来初始化surfaceItem相关功能
     setup();
+
+    // 转正后重新更新可见性与边界
+    updateBoundingRect();
+    updateVisible();
 }
 
 void SurfaceWrapper::setParent(QQuickItem *item)
@@ -367,7 +401,10 @@ void SurfaceWrapper::setFocus(bool focus, Qt::FocusReason reason)
 
 WSurface *SurfaceWrapper::surface() const
 {
-    return m_shellSurface ? m_shellSurface->surface() : nullptr;
+    if (!m_shellSurface)
+        return nullptr;
+    auto *surf = m_shellSurface->surface();
+    return surf;
 }
 
 WToplevelSurface *SurfaceWrapper::shellSurface() const

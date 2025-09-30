@@ -354,12 +354,13 @@ private:
     QList<SurfaceWrapper *> m_subSurfaces;
     SurfaceWrapper *m_parentSurface = nullptr;
 
-    WToplevelSurface *m_shellSurface = nullptr;
+    QPointer<WToplevelSurface> m_shellSurface;
     WSurfaceItem *m_surfaceItem = nullptr;
     QPointer<QQuickItem> m_titleBar;
     QPointer<QQuickItem> m_decoration;
     QPointer<QQuickItem> m_geometryAnimation;
     QPointer<QQuickItem> m_coverContent;
+    QPointer<QQuickItem> m_prelaunchSplash; // 预启动闪屏项
     QRectF m_boundedRect;
     QRectF m_normalGeometry;
     QRectF m_maximizedGeometry;
