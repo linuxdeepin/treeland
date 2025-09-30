@@ -17,7 +17,11 @@ option(INSTALL_TINYWL "A minimum viable product Wayland compositor based on wayl
 option(ADDRESS_SANITIZER "Enable address sanitize" OFF)
 option(WAYLIB_USE_PERCOMPILE_HEADERS "Use precompile headers to build waylib" OFF)
 
-set(QT_COMPONENTS Core Gui Quick GuiPrivate QuickPrivate)
+if(QT_VERSION VERSION_GREATER "6.8.0")
+    set(QT_COMPONENTS Core Gui Quick GuiPrivate QuickPrivate)
+else()
+    set(QT_COMPONENTS Core Gui Quick)
+endif()
 find_package(Qt6 COMPONENTS ${QT_COMPONENTS} REQUIRED)
 if(WITH_SUBMODULE_QWLROOTS)
     # Use qwlroots from project root directory
