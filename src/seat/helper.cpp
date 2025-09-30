@@ -110,6 +110,7 @@
 
 #include <pwd.h>
 #include <utility>
+#include <functional>
 #include <linux/input.h>
 #include <sys/ioctl.h>
 #include <wayland-util.h>
@@ -275,6 +276,21 @@ Helper::Helper(QObject *parent)
 
 Helper::~Helper()
 {
+    for (auto session : std::as_const(m_sessions)) {
+        if (!session)
+            continue;
+        if (session->xwayland) {
+            m_shellHandler->removeXWayland(session->xwayland);
+            session->xwayland = nullptr;
+        }
+        if (session->socket) {
+            delete session->socket;
+            session->socket = nullptr;
+        }
+        delete session;
+    }
+    m_sessions.clear();
+
     for (auto s : m_rootSurfaceContainer->surfaces()) {
         m_rootSurfaceContainer->destroyForSurface(s);
     }
@@ -778,21 +794,32 @@ void Helper::onSurfaceWrapperAdded(SurfaceWrapper *wrapper)
     }
 
     if (isXwayland) {
-        auto xwayland = qobject_cast<WXWaylandSurface *>(wrapper->shellSurface());
-        auto updateDecorationTitleBar = [this, wrapper, xwayland]() {
-            if (!xwayland->isBypassManager()) {
-                if (m_atomDeepinNoTitlebar
-                    && !readWindowProperty(defaultXWaylandSocket()->xcbConnection(),
-                                           xwayland->handle()->handle()->window_id,
-                                           m_atomDeepinNoTitlebar,
+        auto xwaylandSurface = qobject_cast<WXWaylandSurface *>(wrapper->shellSurface());
+        auto updateDecorationTitleBar = [this, wrapper, xwaylandSurface]() {
+            auto *xwayland = xwaylandSurface->xwayland();
+            xcb_connection_t *connection = xwayland ? xwayland->xcbConnection() : nullptr;
+            xcb_atom_t atom;
+            if (xwayland) {
+                if (auto session = sessionForXWayland(xwayland))
+                    atom = session->noTitlebarAtom;
+                else
+                    atom = XCB_ATOM_NONE;
+            } else {
+                atom = XCB_ATOM_NONE;
+            }
+            if (!xwaylandSurface->isBypassManager()) {
+                if (atom && connection
+                    && !readWindowProperty(connection,
+                                           xwaylandSurface->handle()->handle()->window_id,
+                                           atom,
                                            XCB_ATOM_CARDINAL)
                             .isEmpty()) {
                     wrapper->setNoTitleBar(true);
                 } else {
-                    wrapper->setNoTitleBar(xwayland->decorationsFlags()
+                    wrapper->setNoTitleBar(xwaylandSurface->decorationsFlags()
                                            & WXWaylandSurface::DecorationsNoTitle);
                 }
-                wrapper->setNoDecoration(xwayland->decorationsFlags()
+                wrapper->setNoDecoration(xwaylandSurface->decorationsFlags()
                                          & WXWaylandSurface::DecorationsNoBorder);
             } else {
                 wrapper->setNoTitleBar(true);
@@ -801,13 +828,15 @@ void Helper::onSurfaceWrapperAdded(SurfaceWrapper *wrapper)
         };
         // When x11 surface dissociate, SurfaceWrapper will be destroyed immediately
         // but WXWaylandSurface will not, so must connect to `wrapper`
-        xwayland->safeConnect(&WXWaylandSurface::bypassManagerChanged,
-                              wrapper,
-                              updateDecorationTitleBar);
-        xwayland->safeConnect(&WXWaylandSurface::decorationsFlagsChanged,
-                              wrapper,
-                              updateDecorationTitleBar);
+        xwaylandSurface->safeConnect(&WXWaylandSurface::bypassManagerChanged,
+                                     wrapper,
+                                     updateDecorationTitleBar);
+        xwaylandSurface->safeConnect(&WXWaylandSurface::decorationsFlagsChanged,
+                                     wrapper,
+                                     updateDecorationTitleBar);
         updateDecorationTitleBar();
+
+        updateXWaylandWrapperVisibility(wrapper);
     }
 
     if (!isLayer) {
@@ -850,18 +879,11 @@ void Helper::onSurfaceWrapperAboutToRemove(SurfaceWrapper *wrapper)
     }
 }
 
-bool Helper::surfaceBelongsToCurrentUser(SurfaceWrapper *wrapper)
+bool Helper::surfaceBelongsToCurrentSession(SurfaceWrapper *wrapper)
 {
-    static const uid_t puid = getuid();
-    auto credentials = WClient::getCredentials(wrapper->surface()->waylandClient()->handle());
-    auto user = m_userModel->currentUser();
-    if (user) {
-        // FIXME: XWayland's surfaces' uid are all puid now, will change to per user
-        // XWayland instance in the future
-        return credentials->uid == user->UID() || credentials->uid == puid;
-    } else {
-        return credentials->uid == puid;
-    }
+    WClient *client = wrapper->surface()->waylandClient();
+    WSocket *socket = client->socket()->rootSocket();
+    return sessionForSocket(socket) == currentSession();
 }
 
 void Helper::deleteTaskSwitch()
@@ -1086,40 +1108,23 @@ void Helper::init()
     qw_viewporter::create(*m_server->handle());
     m_renderWindow->init(m_renderer, m_allocator);
 
-    // for xwayland
     auto *xwaylandOutputManager =
         m_server->attach<WXdgOutputManager>(m_rootSurfaceContainer->outputLayout());
     xwaylandOutputManager->setScaleOverride(1.0);
-    m_defaultXWayland = m_shellHandler->createXWayland(m_server, m_seat, m_compositor, false);
-    connect(m_defaultXWayland, &WXWayland::ready, this, [this] {
-        m_atomDeepinNoTitlebar =
-            internAtom(m_defaultXWayland->xcbConnection(), _DEEPIN_NO_TITLEBAR, false);
-        if (!m_atomDeepinNoTitlebar) {
-            qCWarning(treelandInput) << "Failed to intern atom:" << _DEEPIN_NO_TITLEBAR;
-        }
-    });
-    xdgOutputManager->setFilter([this] (WClient *client) {
-        return client != m_defaultXWayland->waylandClient();
-    });
-    xwaylandOutputManager->setFilter([this] (WClient *client) {
-        return client == m_defaultXWayland->waylandClient();
-    });
+    xdgOutputManager->setFilter([this](WClient *client) { return !isXWaylandClient(client); });
+    xwaylandOutputManager->setFilter([this](WClient *client) { return isXWaylandClient(client); });
+    auto updateSession = [this] {
+        auto user = m_userModel->currentUser();
+        const uid_t uid = user ? user->UID() : getuid();
+        updateActiveUserSession(uid);
+    };
+    updateSession();
+    connect(m_userModel, &UserModel::currentUserNameChanged, this, updateSession);
     m_xdgDecorationManager = m_server->attach<WXdgDecorationManager>();
     connect(m_xdgDecorationManager,
             &WXdgDecorationManager::surfaceModeChanged,
             this,
             &Helper::onSurfaceModeChanged);
-
-    bool freezeClientWhenDisable = false;
-    m_socket = new WSocket(freezeClientWhenDisable);
-    if (m_socket->autoCreate()) {
-        m_server->addSocket(m_socket);
-        Q_EMIT socketFileChanged();
-    } else {
-        delete m_socket;
-        qCCritical(treelandCore) << "Failed to create socket";
-        return;
-    }
 
     auto gammaControlManager = qw_gamma_control_manager_v1::create(*m_server->handle());
     connect(gammaControlManager,
@@ -1176,19 +1181,19 @@ void Helper::init()
             &Helper::onExtSessionLock);
 #endif
     m_backend->handle()->start();
-
-    qCInfo(treelandCore) << "Listing on:" << m_socket->fullServerName();
 }
 
 bool Helper::socketEnabled() const
 {
-    return m_socket->isEnabled();
+    if (auto session = currentSession(); session && session->socket)
+        return session->socket->isEnabled();
+    return false;
 }
 
 void Helper::setSocketEnabled(bool newEnabled)
 {
-    if (m_socket)
-        m_socket->setEnabled(newEnabled);
+    if (auto session = currentSession(); session && session->socket)
+        session->socket->setEnabled(newEnabled);
     else
         qCWarning(treelandCore) << "Can't set enabled for empty socket!";
 }
@@ -1967,6 +1972,131 @@ void Helper::addSocket(WSocket *socket)
     m_server->addSocket(socket);
 }
 
+Session *Helper::sessionForUid(uid_t uid) const
+{
+    for (auto session : m_sessions) {
+        if (session && session->uid == uid)
+            return session;
+    }
+    return nullptr;
+}
+
+Session *Helper::sessionForXWayland(WXWayland *xwayland) const
+{
+    for (auto session : m_sessions) {
+        if (session && session->xwayland == xwayland)
+            return session;
+    }
+    return nullptr;
+}
+
+Session *Helper::sessionForSocket(WSocket *socket) const
+{
+    for (auto session : m_sessions) {
+        if (session && session->socket == socket)
+            return session;
+    }
+    return nullptr;
+}
+
+Session *Helper::ensureSession(uid_t uid)
+{
+    if (auto session = sessionForUid(uid)) {
+        if (!session->xwayland) {
+            auto *xwayland = m_shellHandler->createXWayland(m_server, m_seat, m_compositor, false);
+            if (!xwayland) {
+                qCCritical(treelandCore) << "Failed to recreate XWayland instance for uid" << uid;
+                return session;
+            }
+
+            session->xwayland = xwayland;
+            session->xwayland->setOwnsSocket(session->socket);
+
+            connect(session->xwayland, &WXWayland::ready, this, [this, session] {
+                session->noTitlebarAtom =
+                    internAtom(session->xwayland->xcbConnection(), _DEEPIN_NO_TITLEBAR, false);
+                if (!session->noTitlebarAtom) {
+                    qCWarning(treelandInput) << "Failed to intern atom:" << _DEEPIN_NO_TITLEBAR;
+                }
+            });
+
+            connect(session->xwayland, &QObject::destroyed, this, [this, session] {
+                if (m_defaultXWayland == session->xwayland)
+                    m_defaultXWayland = nullptr;
+                session->xwayland = nullptr;
+                session->noTitlebarAtom = XCB_ATOM_NONE;
+                if (session->active)
+                    applyXWaylandVisibility();
+            });
+
+            if (session->active)
+                applyXWaylandVisibility();
+        }
+
+        return session;
+    }
+
+    auto session = new Session;
+    session->uid = uid;
+
+    session->socket = new WSocket(false, this);
+    if (!session->socket->autoCreate()) {
+        qCCritical(treelandCore) << "Failed to create Wayland socket for uid" << uid;
+        session->socket->deleteLater();
+        delete session;
+        return nullptr;
+    }
+
+    connect(session->socket,
+            &WSocket::fullServerNameChanged,
+            this,
+            [this, session] {
+                if (session->active)
+                    Q_EMIT socketFileChanged();
+            });
+
+    auto *xwayland = m_shellHandler->createXWayland(m_server, m_seat, m_compositor, false);
+    if (!xwayland) {
+        qCCritical(treelandCore) << "Failed to create XWayland instance for uid" << uid;
+        session->socket->deleteLater();
+        delete session;
+        return nullptr;
+    }
+
+    session->xwayland = xwayland;
+    session->xwayland->setOwnsSocket(session->socket);
+
+    connect(session->xwayland, &WXWayland::ready, this, [this, session] {
+        session->noTitlebarAtom =
+            internAtom(session->xwayland->xcbConnection(), _DEEPIN_NO_TITLEBAR, false);
+        if (!session->noTitlebarAtom) {
+            qCWarning(treelandInput) << "Failed to intern atom:" << _DEEPIN_NO_TITLEBAR;
+        }
+    });
+
+    connect(session->xwayland, &QObject::destroyed, this, [this, session] {
+        if (m_defaultXWayland == session->xwayland)
+            m_defaultXWayland = nullptr;
+        session->xwayland = nullptr;
+        session->noTitlebarAtom = XCB_ATOM_NONE;
+        if (session->active)
+            applyXWaylandVisibility();
+    });
+
+    m_server->addSocket(session->socket);
+    m_sessions.append(session);
+    return session;
+}
+
+Session *Helper::currentSession() const
+{
+    for (auto session : m_sessions) {
+        if (session && session->active)
+            return session;
+    }
+    return m_sessions.isEmpty() ? nullptr : m_sessions.first();
+}
+
 WXWayland *Helper::createXWayland()
 {
     return m_shellHandler->createXWayland(m_server, m_seat, m_compositor, false);
@@ -1974,17 +2104,123 @@ WXWayland *Helper::createXWayland()
 
 void Helper::removeXWayland(WXWayland *xwayland)
 {
+    if (!xwayland)
+        return;
+
+    if (auto session = sessionForXWayland(xwayland)) {
+        if (m_defaultXWayland == xwayland)
+            m_defaultXWayland = nullptr;
+        const bool wasActive = session->active;
+        if (session->active) {
+            session->active = false;
+        }
+        session->xwayland = nullptr;
+        session->noTitlebarAtom = XCB_ATOM_NONE;
+        if (wasActive)
+            applyXWaylandVisibility();
+    }
+
     m_shellHandler->removeXWayland(xwayland);
+}
+
+WXWayland *Helper::xwaylandForUid(uid_t uid, bool createIfMissing)
+{
+    Session *session = createIfMissing ? ensureSession(uid) : sessionForUid(uid);
+    return session ? session->xwayland : nullptr;
+}
+
+WSocket *Helper::waylandSocketForUid(uid_t uid, bool createIfMissing)
+{
+    Session *session = createIfMissing ? ensureSession(uid) : sessionForUid(uid);
+    return session ? session->socket : nullptr;
 }
 
 WSocket *Helper::defaultWaylandSocket() const
 {
-    return m_socket;
+    if (auto session = currentSession())
+        return session->socket;
+    return nullptr;
 }
 
 WXWayland *Helper::defaultXWaylandSocket() const
 {
+    if (auto session = currentSession(); session && session->xwayland)
+        return session->xwayland;
     return m_defaultXWayland;
+}
+
+WXWayland *Helper::ensureXWaylandForUid(uid_t uid)
+{
+    auto session = ensureSession(uid);
+    return session ? session->xwayland : nullptr;
+}
+
+void Helper::updateActiveUserSession(uid_t uid)
+{
+    Session *previous = currentSession();
+    auto session = ensureSession(uid);
+    if (!session) {
+        qCWarning(treelandInput) << "Failed to ensure session for uid" << uid;
+        return;
+    }
+
+    for (auto other : m_sessions)
+        other->active = (other == session);
+
+    const bool sessionChanged = previous != session;
+
+    m_defaultXWayland = session->xwayland;
+
+    if (sessionChanged)
+        Q_EMIT socketFileChanged();
+
+    applyXWaylandVisibility();
+
+    if (session->socket)
+        qCInfo(treelandCore) << "Listing on:" << session->socket->fullServerName();
+}
+
+void Helper::applyXWaylandVisibility()
+{
+    if (!m_rootSurfaceContainer)
+        return;
+
+    std::function<void(SurfaceContainer *)> walk = [&](SurfaceContainer *container) {
+        if (!container)
+            return;
+
+        for (auto *surface : container->surfaces())
+            updateXWaylandWrapperVisibility(surface);
+
+        for (auto *sub : container->subContainers())
+            walk(sub);
+    };
+
+    walk(m_rootSurfaceContainer);
+}
+
+void Helper::updateXWaylandWrapperVisibility(SurfaceWrapper *wrapper)
+{
+    if (!wrapper || wrapper->type() != SurfaceWrapper::Type::XWayland)
+        return;
+
+    auto *xwaylandSurface = qobject_cast<WXWaylandSurface *>(wrapper->shellSurface());
+    if (!xwaylandSurface)
+        return;
+
+    auto *xwayland = xwaylandSurface->xwayland();
+    const bool hide = sessionForXWayland(xwayland) != currentSession();
+    wrapper->setHideByWorkspace(hide);
+}
+
+bool Helper::isXWaylandClient(WClient *client)
+{
+    for (auto session : m_sessions) {
+        if (session && session->xwayland && session->xwayland->waylandClient() == client) {
+            return true;
+        }
+    }
+    return false;
 }
 
 PersonalizationV1 *Helper::personalization() const
