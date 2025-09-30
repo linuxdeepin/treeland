@@ -115,9 +115,10 @@ public:
                             QQuickItem *parent = nullptr,
                             bool isProxy = false);
     
-    // 新的构造函数，用于预启动闪屏
+    // 新的构造函数，用于预启动闪屏，允许传入初始窗口尺寸以尽可能早地稳定 UI
     explicit SurfaceWrapper(QmlEngine *qmlEngine,
-                            QQuickItem *parent = nullptr);
+                            QQuickItem *parent = nullptr,
+                            const QSize &initialSize = QSize());
 
     void setFocus(bool focus, Qt::FocusReason reason);
 

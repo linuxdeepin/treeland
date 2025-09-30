@@ -78,15 +78,15 @@ void ShellHandler::handlePrelaunchSplashRequested(const QString &appId)
             return;
         }
     }
-    auto *wrapper = new SurfaceWrapper(Helper::instance()->qmlEngine());
-    wrapper->setProperty("prelaunchAppId", appId);
-    // 读取上次记录的窗口尺寸，提前设置闪屏大小，提升视觉稳定性
+    QSize initialSize;
     if (m_windowSizeStore) {
         const QSize last = m_windowSizeStore->lastSizeFor(appId);
         if (last.isValid() && last.width() > 0 && last.height() > 0) {
-            wrapper->resize(last);
+            initialSize = last;
         }
     }
+    auto *wrapper = new SurfaceWrapper(Helper::instance()->qmlEngine(), nullptr, initialSize);
+    wrapper->setProperty("prelaunchAppId", appId);
     m_workspace->addSurface(wrapper);
     m_prelaunchWrappers.append(wrapper);
 
@@ -201,20 +201,24 @@ void ShellHandler::onXdgToplevelSurfaceAdded(WXdgToplevelSurface *surface)
         if (auto client = surface->waylandClient()) {
             int pidfd = client->pidFD();
             if (pidfd >= 0) {
-                if (m_appIdResolverManager->resolvePidfd(pidfd, [this, surface](const QString &appId) {
-                        if (appId.isEmpty()) {
-                            // 回调拿不到有效 appId，走普通流程
-                            SurfaceWrapper *w = matchOrCreateXdgWrapper(surface, QString());
+                if (m_appIdResolverManager->resolvePidfd(
+                        pidfd,
+                        [this, surface](const QString &appId) {
+                            if (appId.isEmpty()) {
+                                // 回调拿不到有效 appId，走普通流程
+                                SurfaceWrapper *w = matchOrCreateXdgWrapper(surface, QString());
+                                initXdgWrapperCommon(surface, w);
+                                return;
+                            }
+                            SurfaceWrapper *w = matchOrCreateXdgWrapper(surface, appId);
                             initXdgWrapperCommon(surface, w);
-                            return;
-                        }
-                        SurfaceWrapper *w = matchOrCreateXdgWrapper(surface, appId);
-                        initXdgWrapperCommon(surface, w);
-                    })) {
-                    qCDebug(treelandShell) << "AppIdResolver request sent (callback) pidfd=" << pidfd;
+                        })) {
+                    qCDebug(treelandShell)
+                        << "AppIdResolver request sent (callback) pidfd=" << pidfd;
                     return; // 等待回调
                 } else {
-                    qCDebug(treelandShell) << "AppIdResolverManager present but requestResolve failed pidfd=" << pidfd;
+                    qCDebug(treelandShell)
+                        << "AppIdResolverManager present but requestResolve failed pidfd=" << pidfd;
                 }
             }
         }
@@ -224,7 +228,8 @@ void ShellHandler::onXdgToplevelSurfaceAdded(WXdgToplevelSurface *surface)
     initXdgWrapperCommon(surface, wrapper);
 }
 
-SurfaceWrapper *ShellHandler::matchOrCreateXdgWrapper(WXdgToplevelSurface *surface, const QString &appId)
+SurfaceWrapper *ShellHandler::matchOrCreateXdgWrapper(WXdgToplevelSurface *surface,
+                                                      const QString &appId)
 {
     SurfaceWrapper *wrapper = nullptr;
     QString targetAppId = appId;
@@ -236,16 +241,20 @@ SurfaceWrapper *ShellHandler::matchOrCreateXdgWrapper(WXdgToplevelSurface *surfa
         for (int i = 0; i < m_prelaunchWrappers.size(); ++i) {
             auto *candidate = m_prelaunchWrappers[i];
             if (candidate && candidate->property("prelaunchAppId").toString() == targetAppId) {
-                qCDebug(treelandShell) << "match prelaunch xdg" << targetAppId << (appId.isEmpty() ? "(fallback)" : "(resolved)");
+                qCDebug(treelandShell) << "match prelaunch xdg" << targetAppId
+                                       << (appId.isEmpty() ? "(fallback)" : "(resolved)");
                 m_prelaunchWrappers.remove(i);
                 wrapper = candidate;
                 wrapper->convertToNormalSurface(surface, SurfaceWrapper::Type::XdgToplevel);
+                wrapper->setProperty("prelaunchAppId", appId); // 保留解析结果
                 break;
             }
         }
     }
     if (!wrapper) {
-        wrapper = new SurfaceWrapper(Helper::instance()->qmlEngine(), surface, SurfaceWrapper::Type::XdgToplevel);
+        wrapper = new SurfaceWrapper(Helper::instance()->qmlEngine(),
+                                     surface,
+                                     SurfaceWrapper::Type::XdgToplevel);
         m_workspace->addSurface(wrapper);
     }
     return wrapper;
@@ -300,17 +309,14 @@ void ShellHandler::onXdgToplevelSurfaceRemoved(WXdgToplevelSurface *surface)
         delete interface;
     }
     // 保存正常窗口的最后尺寸（优先 normalGeometry），仅在有 appId 时
-    if (m_windowSizeStore && wrapper && wrapper->type() == SurfaceWrapper::Type::XdgToplevel) {
-        const QString appId = surface->appId();
-        if (!appId.isEmpty()) {
-            QSizeF sz = wrapper->normalGeometry().size();
-            if (!sz.isValid() || sz.isEmpty()) {
-                sz = wrapper->geometry().size();
-            }
-            const QSize s = sz.toSize();
-            if (s.isValid() && s.width() > 0 && s.height() > 0) {
-                m_windowSizeStore->saveSize(appId, s);
-            }
+    if (m_windowSizeStore && wrapper && !wrapper->property("prelaunchAppId").toString().isEmpty()) {
+        QSizeF sz = wrapper->normalGeometry().size();
+        if (!sz.isValid() || sz.isEmpty()) {
+            sz = wrapper->geometry().size();
+        }
+        const QSize s = sz.toSize();
+        if (s.isValid() && s.width() > 0 && s.height() > 0) {
+            m_windowSizeStore->saveSize(wrapper->property("prelaunchAppId").toString(), s);
         }
     }
     Q_EMIT surfaceWrapperAboutToRemove(wrapper);
@@ -368,19 +374,24 @@ void ShellHandler::onXWaylandSurfaceAdded(WXWaylandSurface *surface)
             if (auto client = surface->waylandClient()) {
                 int pidfd = client->pidFD();
                 if (pidfd >= 0) {
-                    if (m_appIdResolverManager->resolvePidfd(pidfd, [this, surface](const QString &appId) {
-                            if (appId.isEmpty()) {
-                                SurfaceWrapper *w = matchOrCreateXwaylandWrapper(surface, QString());
+                    if (m_appIdResolverManager->resolvePidfd(
+                            pidfd,
+                            [this, surface](const QString &appId) {
+                                if (appId.isEmpty()) {
+                                    SurfaceWrapper *w =
+                                        matchOrCreateXwaylandWrapper(surface, QString());
+                                    initXwaylandWrapperCommon(surface, w);
+                                    return;
+                                }
+                                SurfaceWrapper *w = matchOrCreateXwaylandWrapper(surface, appId);
                                 initXwaylandWrapperCommon(surface, w);
-                                return;
-                            }
-                            SurfaceWrapper *w = matchOrCreateXwaylandWrapper(surface, appId);
-                            initXwaylandWrapperCommon(surface, w);
-                        })) {
-                        qCDebug(treelandShell) << "(XWayland) AppIdResolver request sent (callback)";
+                            })) {
+                        qCDebug(treelandShell)
+                            << "(XWayland) AppIdResolver request sent (callback)";
                         return; // 等异步回调
                     } else {
-                        qCDebug(treelandShell) << "(XWayland) requestResolve failed pidfd=" << pidfd;
+                        qCDebug(treelandShell)
+                            << "(XWayland) requestResolve failed pidfd=" << pidfd;
                     }
                 }
             }
@@ -394,17 +405,15 @@ void ShellHandler::onXWaylandSurfaceAdded(WXWaylandSurface *surface)
         qCDebug(treelandShell) << "WXWayland::notify_dissociate" << surface << wrapper;
 
         // 保存 XWayland 窗口尺寸
-        if (m_windowSizeStore && wrapper && wrapper->type() == SurfaceWrapper::Type::XWayland) {
-            const QString appId = surface->appId();
-            if (!appId.isEmpty()) {
-                QSizeF sz = wrapper->normalGeometry().size();
-                if (!sz.isValid() || sz.isEmpty()) {
-                    sz = wrapper->geometry().size();
-                }
-                const QSize s = sz.toSize();
-                if (s.isValid() && s.width() > 0 && s.height() > 0) {
-                    m_windowSizeStore->saveSize(appId, s);
-                }
+        if (m_windowSizeStore && wrapper
+            && !wrapper->property("prelaunchAppId").toString().isEmpty()) {
+            QSizeF sz = wrapper->normalGeometry().size();
+            if (!sz.isValid() || sz.isEmpty()) {
+                sz = wrapper->geometry().size();
+            }
+            const QSize s = sz.toSize();
+            if (s.isValid() && s.width() > 0 && s.height() > 0) {
+                m_windowSizeStore->saveSize(wrapper->property("prelaunchAppId").toString(), s);
             }
         }
 
@@ -413,7 +422,8 @@ void ShellHandler::onXWaylandSurfaceAdded(WXWaylandSurface *surface)
     });
 }
 
-SurfaceWrapper *ShellHandler::matchOrCreateXwaylandWrapper(WXWaylandSurface *surface, const QString &appId)
+SurfaceWrapper *ShellHandler::matchOrCreateXwaylandWrapper(WXWaylandSurface *surface,
+                                                           const QString &appId)
 {
     SurfaceWrapper *wrapper = nullptr;
     QString targetAppId = appId.isEmpty() ? surface->appId() : appId;
@@ -421,16 +431,20 @@ SurfaceWrapper *ShellHandler::matchOrCreateXwaylandWrapper(WXWaylandSurface *sur
         for (int i = 0; i < m_prelaunchWrappers.size(); ++i) {
             auto *candidate = m_prelaunchWrappers[i];
             if (candidate && candidate->property("prelaunchAppId").toString() == targetAppId) {
-                qCDebug(treelandShell) << "match prelaunch xwayland" << targetAppId << (appId.isEmpty()?"(fallback)":"(resolved)");
+                qCDebug(treelandShell) << "match prelaunch xwayland" << targetAppId
+                                       << (appId.isEmpty() ? "(fallback)" : "(resolved)");
                 m_prelaunchWrappers.remove(i);
                 wrapper = candidate;
                 wrapper->convertToNormalSurface(surface, SurfaceWrapper::Type::XWayland);
+                wrapper->setProperty("prelaunchAppId", appId);
                 break;
             }
         }
     }
     if (!wrapper) {
-        wrapper = new SurfaceWrapper(Helper::instance()->qmlEngine(), surface, SurfaceWrapper::Type::XWayland);
+        wrapper = new SurfaceWrapper(Helper::instance()->qmlEngine(),
+                                     surface,
+                                     SurfaceWrapper::Type::XWayland);
         m_workspace->addSurface(wrapper);
     }
     return wrapper;
@@ -455,10 +469,10 @@ void ShellHandler::initXwaylandWrapperCommon(WXWaylandSurface *surface, SurfaceW
             m_workspace->addSurface(wrapper);
         }
     };
-    surface->safeConnect(&WXWaylandSurface::parentXWaylandSurfaceChanged,
-                         this,
-                         updateSurfaceWithParentContainer);
-    updateSurfaceWithParentContainer();
+    //surface->safeConnect(&WXWaylandSurface::parentXWaylandSurfaceChanged,
+    //                     this,
+    //                     updateSurfaceWithParentContainer);
+    //updateSurfaceWithParentContainer();
     setupSurfaceWindowMenu(wrapper);
     setupSurfaceActiveWatcher(wrapper);
     Q_ASSERT(wrapper->parentItem());

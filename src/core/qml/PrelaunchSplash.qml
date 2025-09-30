@@ -7,25 +7,31 @@ import QtQuick.Controls
 Item {
     id: splash
 
-    property string logoPath: "/usr/share/icons/bloom/128x128/apps/browser360-cn.png"
+    property string logoPath: ""
     property string appName: "正在启动应用..."
 
-    signal animationFinished()
+    signal animationFinished() // 仍保留信号以兼容调用方，但不再有尺寸过渡
 
     // 固定大小，不受父项影响
-    anchors.centerIn: parent
-    width: 320  // 固定宽度，比content稍大一些
-    height: 320 // 固定高度，比content稍大一些
+    anchors.fill: parent
     z: 999999
     
     Rectangle {
         id: content
-        width: 280
-        height: 280
+        // 动态尺寸：根据内部列内容的 implicit 尺寸 + padding 计算，并保持最小尺寸
+        property int paddingH: 40
+        property int paddingV: 32
+        property int minContentSize: 260
+        // 计算隐式尺寸（列内容 + padding）
+        // implicitWidth: Math.max(minContentSize, columnContent.implicitWidth + paddingH)
+        // implicitHeight: Math.max(minContentSize, columnContent.implicitHeight + paddingV)
+        // width: implicitWidth
+        // height: implicitHeight
+        anchors.fill: parent
         color: "#ffffff"
         radius: 24
         // 始终居中
-        anchors.centerIn: parent
+        //anchors.centerIn: parent
         border.color: "#e0e0e0"
         border.width: 1
         
@@ -41,6 +47,7 @@ Item {
         }
         
         Column {
+            id: columnContent
             anchors.centerIn: parent
             spacing: 20
             
@@ -73,39 +80,17 @@ Item {
                 text: splash.appName
                 color: "#666666"
                 font.pixelSize: 16
+                wrapMode: Text.WrapAnywhere
+                horizontalAlignment: Text.AlignHCenter
                 anchors.horizontalCenter: parent.horizontalCenter
+                // 限制单行无限拉伸，宽度不超过某个阈值（与最小/最大策略一致）
+                // 如果需要可改成基于父 width 的比例
+                maximumLineCount: 3
             }
         }
     }
     
-    // Size transition animation
-    ParallelAnimation {
-        id: sizeAnimation
-
-        PropertyAnimation {
-            id: widthAnimation
-            target: content
-            property: "width"
-            from: content.width
-            duration: 800
-            easing.type: Easing.InOutQuart
-        }
-
-        PropertyAnimation {
-            id: heightAnimation
-            target: content
-            property: "height"
-            from: content.height
-            duration: 800
-            easing.type: Easing.InOutQuart
-        }
-
-        onFinished: {
-            // 大小动画完成后，发出信号并开始淡出动画
-            splash.animationFinished()
-            fadeOut.start()
-        }
-    }
+    // 去掉尺寸变化动画，仅保留淡出
 
     // Fade-out animation
     OpacityAnimator {
@@ -124,22 +109,10 @@ Item {
         fadeOut.start()
     }
 
+    // 兼容旧调用：现在不再执行大小过渡，直接触发完成并淡出
     function animateToSize(targetWidth, targetHeight) {
-        console.log("animateToSize called with:", targetWidth, targetHeight)
-        console.log("current content size:", content.width, content.height)
-
-        // 确保动画从当前大小开始
-        widthAnimation.from = content.width
-        heightAnimation.from = content.height
-
-        // 设置目标大小
-        var finalWidth = Math.max(targetWidth, 280)
-        var finalHeight = Math.max(targetHeight, 280)
-        widthAnimation.to = finalWidth
-        heightAnimation.to = finalHeight
-
-        console.log("animating from", content.width, content.height, "to", finalWidth, finalHeight)
-        sizeAnimation.start()
-        console.log("animation started")
+        // 若调用方仍传入比默认大/小的尺寸，这里忽略尺寸调整，仅保持稳定视觉
+        splash.animationFinished()
+        fadeOut.start()
     }
 }

@@ -10,6 +10,8 @@
 #include "workspace/workspace.h"
 #include "common/treelandlogging.h"
 
+#include <QTimer>
+
 #include <winputpopupsurfaceitem.h>
 #include <wlayersurface.h>
 #include <wlayersurfaceitem.h>
@@ -71,7 +73,7 @@ SurfaceWrapper::SurfaceWrapper(QmlEngine *qmlEngine,
 }
 
 // 新的构造函数，用于预启动闪屏
-SurfaceWrapper::SurfaceWrapper(QmlEngine *qmlEngine, QQuickItem *parent)
+SurfaceWrapper::SurfaceWrapper(QmlEngine *qmlEngine, QQuickItem *parent, const QSize &initialSize)
     : QQuickItem(parent)
     , m_engine(qmlEngine)
     , m_shellSurface(nullptr)
@@ -97,7 +99,13 @@ SurfaceWrapper::SurfaceWrapper(QmlEngine *qmlEngine, QQuickItem *parent)
     , m_blur(false)
 {
     QQmlEngine::setContextForObject(this, qmlEngine->rootContext());
-    setImplicitSize(800, 600);
+    if (initialSize.isValid() && initialSize.width() > 0 && initialSize.height() > 0) {
+        // 也设置 implicit，保持 QML 布局一致性
+        setImplicitSize(initialSize.width(), initialSize.height());
+        qInfo() << "Prelaunch Splash: set initial size to" << initialSize;
+    } else {
+        setImplicitSize(800, 600);
+    }
     createPrelaunchSplash();
 }
 
@@ -329,11 +337,29 @@ void SurfaceWrapper::convertToNormalSurface(WToplevelSurface *shellSurface, Type
         return;
     }
 
-    // 移除预启动闪屏
+    // 移除预启动闪屏（触发淡出动画并在动画结束后安全删除）
     if (m_prelaunchSplash) {
-        // 可以考虑做一个淡出动画，现阶段直接删除
-        m_prelaunchSplash->setVisible(false);
-        m_prelaunchSplash->deleteLater();
+        auto splashItem = m_prelaunchSplash; // 保存指针
+        // 兼容旧逻辑：提前发出 animationFinished 信号（如果存在），避免等待 size 动画（现已移除）
+        QMetaObject::invokeMethod(splashItem, "animationFinished", Qt::DirectConnection);
+        // 调用 hide() 启动淡出；如无该方法则立即隐藏
+        bool hideInvoked = QMetaObject::invokeMethod(splashItem, "hide", Qt::DirectConnection);
+        if (!hideInvoked) {
+            splashItem->setVisible(false);
+        }
+        // 当可见性变为 false（淡出完成或立即隐藏）后删除
+        QObject::connect(splashItem, &QQuickItem::visibleChanged, splashItem, [splashItem] {
+            if (!splashItem->isVisible()) {
+                splashItem->deleteLater();
+            }
+        });
+        // 兜底：若 1s 内仍未触发 visibleChanged 删除，则强制回收（防止信号缺失）
+        QTimer::singleShot(1000, splashItem, [splashItem] {
+            if (splashItem && !splashItem->parent())
+                return; // 已被删除
+            if (splashItem)
+                splashItem->deleteLater();
+        });
         m_prelaunchSplash = nullptr;
     }
 
