@@ -108,11 +108,4 @@ Item {
     function hide() {
         fadeOut.start()
     }
-
-    // 兼容旧调用：现在不再执行大小过渡，直接触发完成并淡出
-    function animateToSize(targetWidth, targetHeight) {
-        // 若调用方仍传入比默认大/小的尺寸，这里忽略尺寸调整，仅保持稳定视觉
-        splash.animationFinished()
-        fadeOut.start()
-    }
 }

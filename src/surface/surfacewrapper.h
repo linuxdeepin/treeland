@@ -6,6 +6,8 @@
 #include <wtoplevelsurface.h>
 
 #include <QQuickItem>
+// 交叉淡出需要动画类
+#include <QPointer>
 
 Q_MOC_INCLUDE(<woutput.h>)
 Q_MOC_INCLUDE(<output / output.h>)
@@ -323,6 +325,7 @@ private:
     void setup(WToplevelSurface *shellSurface = nullptr); // 初始化 m_surfaceItem 相关功能
     void createPrelaunchSplash(); // 创建预启动闪屏
     void convertToNormalSurface(WToplevelSurface *shellSurface, Type type); // 从预启动模式转换为正常模式
+    void startCrossFadeIfNeeded(); // 若存在预启动闪屏则执行交叉淡出
     void updateBoundingRect();
     void updateVisible();
     void updateSubSurfaceStacking();
@@ -375,6 +378,10 @@ private:
     QPointer<QQuickItem> m_windowAnimation;
     QPointer<QQuickItem> m_minimizeAnimation;
     QPointer<QQuickItem> m_showDesktopAnimation;
+    // 交叉淡出相关
+    bool m_crossFadeRequested = false;               // 标记需要交叉淡出
+    bool m_crossFadeStarted = false;                 // 标记交叉淡出是否已开始
+    QPointer<QQuickItem> m_crossFadeSplash;          // 保存待淡出的闪屏项
     Q_OBJECT_BINDABLE_PROPERTY_WITH_ARGS(SurfaceWrapper,
                                          SurfaceWrapper::State,
                                          m_previousSurfaceState,
