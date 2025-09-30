@@ -109,7 +109,7 @@ struct wlr_color_transform_lut_3x1d *color_transform_lut_3x1d_from_base(
 }
 
 static float lut_1d_get(const uint16_t *lut, size_t len, size_t i) {
-	if (i > len) {
+	if (i >= len) {
 		i = len - 1;
 	}
 	return (float) lut[i] / UINT16_MAX;
