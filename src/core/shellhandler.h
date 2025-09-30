@@ -102,6 +102,16 @@ private:
     // 预启动闪屏相关：在 PrelaunchSplash::splashRequested 时创建的预启动 SurfaceWrapper
     void handlePrelaunchSplashRequested(const QString &appId);
 
+    // --- helpers (internal) ---
+    SurfaceWrapper *matchOrCreateXdgWrapper(WAYLIB_SERVER_NAMESPACE::WXdgToplevelSurface *surface,
+                                            const QString &appId);
+    void initXdgWrapperCommon(WAYLIB_SERVER_NAMESPACE::WXdgToplevelSurface *surface,
+                              SurfaceWrapper *wrapper);
+    SurfaceWrapper *matchOrCreateXwaylandWrapper(WAYLIB_SERVER_NAMESPACE::WXWaylandSurface *surface,
+                                                 const QString &appId);
+    void initXwaylandWrapperCommon(WAYLIB_SERVER_NAMESPACE::WXWaylandSurface *surface,
+                                   SurfaceWrapper *wrapper);
+
     WAYLIB_SERVER_NAMESPACE::WXdgShell *m_xdgShell = nullptr;
     WAYLIB_SERVER_NAMESPACE::WLayerShell *m_layerShell = nullptr;
     WAYLIB_SERVER_NAMESPACE::WInputMethodHelper *m_inputMethodHelper = nullptr;
