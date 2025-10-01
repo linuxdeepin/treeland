@@ -367,7 +367,10 @@ void wlr_session_close_file(struct wlr_session *session,
 	}
 
 	assert(wl_list_empty(&dev->events.change.listener_list));
-	assert(wl_list_empty(&dev->events.remove.listener_list));
+	// TODO: assert that the "remove" listener list is empty as well. Listeners
+	// will typically call wlr_session_close_file() in response, and
+	// wl_signal_emit_mutable() installs two phantom listeners, so we'd count
+	// these two.
 
 	close(dev->fd);
 	wl_list_remove(&dev->link);
