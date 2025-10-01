@@ -1717,7 +1717,11 @@ static bool connect_drm_connector(struct wlr_drm_connector *wlr_conn,
 	size_t edid_len = 0;
 	uint8_t *edid = get_drm_prop_blob(drm->fd,
 		wlr_conn->id, wlr_conn->props.edid, &edid_len);
-	parse_edid(wlr_conn, edid_len, edid);
+	if (edid_len > 0) {
+		parse_edid(wlr_conn, edid_len, edid);
+	} else {
+		wlr_log(WLR_DEBUG, "Connector has no EDID");
+	}
 	free(edid);
 
 	char *subconnector = NULL;
