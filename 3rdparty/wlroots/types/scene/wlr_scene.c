@@ -1986,17 +1986,17 @@ static enum scene_direct_scanout_result scene_entry_try_direct_scanout(
 		buffer->primaries != WLR_COLOR_NAMED_PRIMARIES_SRGB) {
 		if (img_desc == NULL || img_desc->transfer_function != buffer->transfer_function ||
 				img_desc->primaries != buffer->primaries) {
-			return false;
+			return SCANOUT_INELIGIBLE;
 		}
 	} else if (img_desc != NULL) {
-		return false;
+		return SCANOUT_INELIGIBLE;
 	}
 
 	if (buffer->transfer_function != 0 && buffer->transfer_function != WLR_COLOR_TRANSFER_FUNCTION_SRGB) {
-		return false;
+		return SCANOUT_INELIGIBLE;
 	}
 	if (buffer->primaries != 0 && buffer->primaries != WLR_COLOR_NAMED_PRIMARIES_SRGB) {
-		return false;
+		return SCANOUT_INELIGIBLE;
 	}
 
 	// We want to ensure optimal buffer selection, but as direct-scanout can be enabled and disabled
