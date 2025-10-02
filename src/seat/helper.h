@@ -26,6 +26,7 @@ Q_MOC_INCLUDE("core/rootsurfacecontainer.h")
 Q_MOC_INCLUDE("modules/capture/capture.h")
 Q_MOC_INCLUDE(<wlayersurface.h>)
 Q_MOC_INCLUDE(<QDBusObjectPath>)
+Q_MOC_INCLUDE("treelandconfig.hpp")
 
 QT_BEGIN_NAMESPACE
 class QQuickItem;
