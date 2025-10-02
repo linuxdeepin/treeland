@@ -1982,7 +1982,8 @@ static enum scene_direct_scanout_result scene_entry_try_direct_scanout(
 	}
 
 	const struct wlr_output_image_description *img_desc = output_pending_image_description(scene_output->output, state);
-	if (buffer->transfer_function != 0 || buffer->primaries != 0) {
+	if (buffer->transfer_function != WLR_COLOR_TRANSFER_FUNCTION_SRGB ||
+		buffer->primaries != WLR_COLOR_NAMED_PRIMARIES_SRGB) {
 		if (img_desc == NULL || img_desc->transfer_function != buffer->transfer_function ||
 				img_desc->primaries != buffer->primaries) {
 			return false;
