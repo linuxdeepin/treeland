@@ -202,6 +202,13 @@ void wlr_color_transfer_function_get_default_luminance(enum wlr_color_transfer_f
 			.reference = 203,
 		};
 		break;
+	case WLR_COLOR_TRANSFER_FUNCTION_BT1886:
+		*lum = (struct wlr_color_luminances){
+			.min = 0.01,
+			.max = 100,
+			.reference = 100,
+		};
+		break;
 	default:
 		*lum = (struct wlr_color_luminances){
 			.min = 0.2,

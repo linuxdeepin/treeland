@@ -19,6 +19,7 @@ layout (constant_id = 0) const int TEXTURE_TRANSFORM = 0;
 #define TEXTURE_TRANSFORM_SRGB 1
 #define TEXTURE_TRANSFORM_ST2084_PQ 2
 #define TEXTURE_TRANSFORM_GAMMA22 3
+#define TEXTURE_TRANSFORM_BT1886 4
 
 float srgb_channel_to_linear(float x) {
 	return mix(x / 12.92,
@@ -45,6 +46,14 @@ vec3 pq_color_to_linear(vec3 color) {
 	return pow(num / denom, vec3(inv_m1));
 }
 
+vec3 bt1886_color_to_linear(vec3 color) {
+	float lb = pow(0.0001, 1.0 / 2.4);
+	float lw = pow(1.0, 1.0 / 2.4);
+	float a  = pow(lw - lb, 2.4);
+	float b  = lb / (lw - lb);
+	return a * pow(color + vec3(b), vec3(2.4));
+}
+
 void main() {
 	vec4 in_color = textureLod(tex, uv, 0);
 
@@ -63,6 +72,8 @@ void main() {
 		rgb = pq_color_to_linear(rgb);
 	} else if (TEXTURE_TRANSFORM == TEXTURE_TRANSFORM_GAMMA22) {
 		rgb = pow(rgb, vec3(2.2));
+	} else if (TEXTURE_TRANSFORM == TEXTURE_TRANSFORM_BT1886) {
+		rgb = bt1886_color_to_linear(rgb);
 	}
 
 	rgb *= data.luminance_multiplier;

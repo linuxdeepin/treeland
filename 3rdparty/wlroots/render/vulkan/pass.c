@@ -246,6 +246,9 @@ static bool render_pass_submit(struct wlr_render_pass *wlr_pass) {
 			case WLR_COLOR_TRANSFER_FUNCTION_GAMMA22:
 				pipeline = render_buffer->two_pass.render_setup->output_pipe_gamma22;
 				break;
+			case WLR_COLOR_TRANSFER_FUNCTION_BT1886:
+				pipeline = render_buffer->two_pass.render_setup->output_pipe_bt1886;
+				break;
 			}
 
 			struct wlr_color_luminances srgb_lum, dst_lum;
@@ -798,6 +801,9 @@ static void render_pass_add_texture(struct wlr_render_pass *wlr_pass,
 		break;
 	case WLR_COLOR_TRANSFER_FUNCTION_GAMMA22:
 		tex_transform = WLR_VK_TEXTURE_TRANSFORM_GAMMA22;
+		break;
+	case WLR_COLOR_TRANSFER_FUNCTION_BT1886:
+		tex_transform = WLR_VK_TEXTURE_TRANSFORM_BT1886;
 		break;
 	}
 

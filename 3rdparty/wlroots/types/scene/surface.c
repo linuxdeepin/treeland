@@ -41,6 +41,7 @@ static bool get_tf_preference(enum wlr_color_transfer_function tf) {
 		return 0;
 	case WLR_COLOR_TRANSFER_FUNCTION_ST2084_PQ:
 		return 1;
+	case WLR_COLOR_TRANSFER_FUNCTION_BT1886:
 	case WLR_COLOR_TRANSFER_FUNCTION_SRGB:
 	case WLR_COLOR_TRANSFER_FUNCTION_EXT_LINEAR:
 		return -1;

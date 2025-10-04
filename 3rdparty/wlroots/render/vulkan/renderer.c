@@ -176,6 +176,7 @@ static void destroy_render_format_setup(struct wlr_vk_renderer *renderer,
 	vkDestroyPipeline(dev, setup->output_pipe_pq, NULL);
 	vkDestroyPipeline(dev, setup->output_pipe_lut3d, NULL);
 	vkDestroyPipeline(dev, setup->output_pipe_gamma22, NULL);
+	vkDestroyPipeline(dev, setup->output_pipe_bt1886, NULL);
 
 	struct wlr_vk_pipeline *pipeline, *tmp_pipeline;
 	wl_list_for_each_safe(pipeline, tmp_pipeline, &setup->pipelines, link) {
@@ -2349,6 +2350,11 @@ static struct wlr_vk_render_format_setup *find_or_create_render_setup(
 		if (!init_blend_to_output_pipeline(
 				renderer, setup->render_pass, renderer->output_pipe_layout,
 				&setup->output_pipe_gamma22, WLR_VK_OUTPUT_TRANSFORM_INVERSE_GAMMA22)) {
+			goto error;
+		}
+		if (!init_blend_to_output_pipeline(
+			renderer, setup->render_pass, renderer->output_pipe_layout,
+			&setup->output_pipe_bt1886, WLR_VK_OUTPUT_TRANSFORM_INVERSE_BT1886)) {
 			goto error;
 		}
 	} else {
