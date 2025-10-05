@@ -1530,6 +1530,8 @@ static void scene_handle_gamma_control_manager_v1_set_gamma(struct wl_listener *
 
 	output->gamma_lut_changed = true;
 	output->gamma_lut = event->control;
+	wlr_color_transform_unref(output->gamma_lut_color_transform);
+	output->gamma_lut_color_transform = wlr_gamma_control_v1_get_color_transform(event->control);
 	wlr_output_schedule_frame(output->output);
 }
 
@@ -1547,6 +1549,8 @@ static void scene_handle_gamma_control_manager_v1_destroy(struct wl_listener *li
 	wl_list_for_each(output, &scene->outputs, link) {
 		output->gamma_lut_changed = false;
 		output->gamma_lut = NULL;
+		wlr_color_transform_unref(output->gamma_lut_color_transform);
+		output->gamma_lut_color_transform = NULL;
 	}
 }
 
@@ -1766,6 +1770,10 @@ void wlr_scene_output_destroy(struct wlr_scene_output *scene_output) {
 	wl_list_remove(&scene_output->output_damage.link);
 	wl_list_remove(&scene_output->output_needs_frame.link);
 	wlr_drm_syncobj_timeline_unref(scene_output->in_timeline);
+	wlr_color_transform_unref(scene_output->gamma_lut_color_transform);
+	wlr_color_transform_unref(scene_output->prev_gamma_lut_color_transform);
+	wlr_color_transform_unref(scene_output->prev_supplied_color_transform);
+	wlr_color_transform_unref(scene_output->prev_combined_color_transform);
 	wl_array_release(&scene_output->render_list);
 	free(scene_output);
 }
@@ -2104,22 +2112,56 @@ static void scene_output_state_attempt_gamma(struct wlr_scene_output *scene_outp
 		return;
 	}
 
-	if (!wlr_gamma_control_v1_apply(scene_output->gamma_lut, &gamma_pending)) {
-		wlr_output_state_finish(&gamma_pending);
-		return;
-	}
-
+	wlr_output_state_set_color_transform(&gamma_pending, scene_output->gamma_lut_color_transform);
 	scene_output->gamma_lut_changed = false;
+
 	if (!wlr_output_test_state(scene_output->output, &gamma_pending)) {
 		wlr_gamma_control_v1_send_failed_and_destroy(scene_output->gamma_lut);
 
 		scene_output->gamma_lut = NULL;
+		wlr_color_transform_unref(scene_output->gamma_lut_color_transform);
+		scene_output->gamma_lut_color_transform = NULL;
 		wlr_output_state_finish(&gamma_pending);
 		return;
 	}
 
 	wlr_output_state_copy(state, &gamma_pending);
 	wlr_output_state_finish(&gamma_pending);
+}
+
+static struct wlr_color_transform *scene_output_combine_color_transforms(
+		struct wlr_scene_output *scene_output, struct wlr_color_transform *supplied) {
+	struct wlr_color_transform *gamma_lut = scene_output->gamma_lut_color_transform;
+	assert(gamma_lut != NULL);
+
+	if (gamma_lut == scene_output->prev_gamma_lut_color_transform &&
+			supplied == scene_output->prev_supplied_color_transform) {
+		return wlr_color_transform_ref(scene_output->prev_combined_color_transform);
+	}
+
+	struct wlr_color_transform *combined;
+	if (supplied == NULL) {
+		combined = wlr_color_transform_ref(gamma_lut);
+	} else {
+		struct wlr_color_transform *transforms[] = {
+			gamma_lut,
+			supplied,
+		};
+		size_t transforms_len = sizeof(transforms) / sizeof(transforms[0]);
+		combined = wlr_color_transform_init_pipeline(transforms, transforms_len);
+		if (combined == NULL) {
+			return NULL;
+		}
+	}
+
+	wlr_color_transform_unref(scene_output->prev_gamma_lut_color_transform);
+	scene_output->prev_gamma_lut_color_transform = wlr_color_transform_ref(gamma_lut);
+	wlr_color_transform_unref(scene_output->prev_supplied_color_transform);
+	scene_output->prev_supplied_color_transform = supplied ? wlr_color_transform_ref(supplied) : NULL;
+	wlr_color_transform_unref(scene_output->prev_combined_color_transform);
+	scene_output->prev_combined_color_transform = wlr_color_transform_ref(combined);
+
+	return combined;
 }
 
 bool wlr_scene_output_build_state(struct wlr_scene_output *scene_output,
@@ -2144,6 +2186,16 @@ bool wlr_scene_output_build_state(struct wlr_scene_output *scene_output,
 	struct wlr_output *output = scene_output->output;
 	enum wlr_scene_debug_damage_option debug_damage =
 		scene_output->scene->debug_damage_option;
+
+	bool render_gamma_lut = false;
+	if (wlr_output_get_gamma_size(output) == 0 && output->renderer->features.output_color_transform) {
+		if (scene_output->gamma_lut_color_transform != scene_output->prev_gamma_lut_color_transform) {
+			scene_output_damage_whole(scene_output);
+		}
+		if (scene_output->gamma_lut_color_transform != NULL) {
+			render_gamma_lut = true;
+		}
+	}
 
 	struct render_data render_data = {
 		.transform = output->transform,
@@ -2245,7 +2297,7 @@ bool wlr_scene_output_build_state(struct wlr_scene_output *scene_output,
 	// - There are no color transforms that need to be applied
 	// - Damage highlight debugging is not enabled
 	enum scene_direct_scanout_result scanout_result = SCANOUT_INELIGIBLE;
-	if (options->color_transform == NULL && list_len == 1
+	if (options->color_transform == NULL && !render_gamma_lut && list_len == 1
 			&& debug_damage != WLR_SCENE_DEBUG_DAMAGE_HIGHLIGHT) {
 		scanout_result = scene_entry_try_direct_scanout(&list_data[0], state, &render_data);
 	}
@@ -2317,6 +2369,17 @@ bool wlr_scene_output_build_state(struct wlr_scene_output *scene_output,
 	if (options->color_transform != NULL) {
 		assert(color_transform == NULL);
 		color_transform = wlr_color_transform_ref(options->color_transform);
+	}
+
+	if (render_gamma_lut) {
+		struct wlr_color_transform *combined =
+			scene_output_combine_color_transforms(scene_output, color_transform);
+		wlr_color_transform_unref(color_transform);
+		if (combined == NULL) {
+			wlr_buffer_unlock(buffer);
+			return false;
+		}
+		color_transform = combined;
 	}
 
 	scene_output->in_point++;
@@ -2441,7 +2504,9 @@ bool wlr_scene_output_build_state(struct wlr_scene_output *scene_output,
 			scene_output->in_point);
 	}
 
-	scene_output_state_attempt_gamma(scene_output, state);
+	if (!render_gamma_lut) {
+		scene_output_state_attempt_gamma(scene_output, state);
+	}
 
 	return true;
 }
