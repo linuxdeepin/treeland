@@ -1925,6 +1925,27 @@ static void scene_buffer_send_dmabuf_feedback(const struct wlr_scene *scene,
 	wlr_linux_dmabuf_feedback_v1_finish(&feedback);
 }
 
+static bool color_management_is_scanout_allowed(const struct wlr_output_image_description *img_desc,
+		const struct wlr_scene_buffer *buffer) {
+	// Disallow scanout if the output has colorimetry information but buffer
+	// doesn't; allow it only if the output also lacks it.
+	if (buffer->transfer_function == 0 && buffer->primaries == 0) {
+		return img_desc == NULL;
+	}
+
+	// If the output has colorimetry information, the buffer must match it for
+	// direct scanout to be allowed.
+	if (img_desc != NULL) {
+		return img_desc->transfer_function == buffer->transfer_function &&
+				img_desc->primaries == buffer->primaries;
+	}
+	// If the output doesn't have colorimetry image description set, we can only
+	// scan out buffers with default colorimetry (gamma2.2 transfer and sRGB
+	// primaries) used in wlroots.
+	return buffer->transfer_function == WLR_COLOR_TRANSFER_FUNCTION_GAMMA22 &&
+			buffer->primaries == WLR_COLOR_NAMED_PRIMARIES_SRGB;
+}
+
 enum scene_direct_scanout_result {
 	// This scene node is not a candidate for scanout
 	SCANOUT_INELIGIBLE,
@@ -1982,19 +2003,7 @@ static enum scene_direct_scanout_result scene_entry_try_direct_scanout(
 	}
 
 	const struct wlr_output_image_description *img_desc = output_pending_image_description(scene_output->output, state);
-	if (buffer->transfer_function != 0 || buffer->primaries != 0) {
-		if (img_desc == NULL || img_desc->transfer_function != buffer->transfer_function ||
-				img_desc->primaries != buffer->primaries) {
-			return SCANOUT_INELIGIBLE;
-		}
-	} else if (img_desc != NULL) {
-		return SCANOUT_INELIGIBLE;
-	}
-
-	if (buffer->transfer_function != 0 && buffer->transfer_function != WLR_COLOR_TRANSFER_FUNCTION_GAMMA22) {
-		return SCANOUT_INELIGIBLE;
-	}
-	if (buffer->primaries != 0 && buffer->primaries != WLR_COLOR_NAMED_PRIMARIES_SRGB) {
+	if (!color_management_is_scanout_allowed(img_desc, buffer)) {
 		return SCANOUT_INELIGIBLE;
 	}
 
