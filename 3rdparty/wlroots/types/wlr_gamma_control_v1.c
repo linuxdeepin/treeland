@@ -158,6 +158,9 @@ static void gamma_control_manager_get_gamma_control(struct wl_client *client,
 
 	size_t gamma_size = wlr_output_get_gamma_size(output);
 	if (gamma_size == 0) {
+		gamma_size = manager->fallback_gamma_size;
+	}
+	if (gamma_size == 0) {
 		zwlr_gamma_control_v1_send_failed(resource);
 		return;
 	}

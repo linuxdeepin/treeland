@@ -10,6 +10,11 @@ struct wlr_gamma_control_manager_v1 {
 	struct wl_global *global;
 	struct wl_list controls; // wlr_gamma_control_v1.link
 
+	// Fallback to use when an struct wlr_output doesn't support gamma LUTs.
+	// Can be used to apply gamma LUTs via a struct wlr_renderer. Leave zero to
+	// indicate that the fallback is unsupported.
+	size_t fallback_gamma_size;
+
 	struct {
 		struct wl_signal destroy;
 		struct wl_signal set_gamma; // struct wlr_gamma_control_manager_v1_set_gamma_event
