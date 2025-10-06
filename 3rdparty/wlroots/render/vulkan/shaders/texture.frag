@@ -66,6 +66,9 @@ void main() {
 		rgb = in_color.rgb / alpha;
 	}
 
+	if (TEXTURE_TRANSFORM != TEXTURE_TRANSFORM_IDENTITY) {
+		rgb = max(rgb, vec3(0));
+	}
 	if (TEXTURE_TRANSFORM == TEXTURE_TRANSFORM_SRGB) {
 		rgb = srgb_color_to_linear(rgb);
 	} else if (TEXTURE_TRANSFORM == TEXTURE_TRANSFORM_ST2084_PQ) {

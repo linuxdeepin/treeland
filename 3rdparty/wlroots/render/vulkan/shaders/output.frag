@@ -72,6 +72,9 @@ void main() {
 
 	rgb = mat3(data.matrix) * rgb;
 
+	if (OUTPUT_TRANSFORM != OUTPUT_TRANSFORM_IDENTITY) {
+		rgb = max(rgb, vec3(0));
+	}
 	if (OUTPUT_TRANSFORM == OUTPUT_TRANSFORM_LUT_3D) {
 		// Apply 3D LUT
 		vec3 pos = data.lut_3d_offset + rgb * data.lut_3d_scale;
