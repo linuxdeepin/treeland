@@ -85,6 +85,15 @@ public:
     WRenderHelper *renderHelper = nullptr;
 
     uint contentIsDirty:1;
+
+    struct CommitJobEntry {
+        std::function<void(bool, WOutputHelper::ExtraState)> jobWithState;
+    };
+    QList<CommitJobEntry> beforeCommitJobs;
+    QList<CommitJobEntry> afterCommitJobs;
+
+    // External state (mode/scale/transform/enabled) separate from internal (buffer/damage)
+    WOutputHelper::ExtraState extraState;
 };
 
 void WOutputHelperPrivate::setContentIsDirty(bool newValue)
@@ -212,12 +221,88 @@ void WOutputHelper::setLayers(const wlr_output_layer_state_array &layers)
 bool WOutputHelper::commit()
 {
     W_D(WOutputHelper);
+
+    // Execute before-commit jobs
+    QList<WOutputHelperPrivate::CommitJobEntry> beforeJobs;
+    beforeJobs.swap(d->beforeCommitJobs);
+    for (const auto &entry : beforeJobs) {
+        entry.jobWithState(true, d->extraState);
+    }
+
     wlr_output_state state = d->state;
     wlr_output_state_init(&d->state);
+
+    if (Q_UNLIKELY(d->extraState)) {
+        // State-only commit: Use only extraState (no buffer/damage from internal state)
+        // Finish the internal state as we're not using it
+        wlr_output_state_finish(&state);
+        wlr_output_state_copy(&state, d->extraState.get());
+    }
+
     bool ok = d->qwoutput()->commit_state(&state);
     wlr_output_state_finish(&state);
+    ExtraState committedExtraState = d->extraState;
 
+    if (Q_UNLIKELY(d->extraState)) {
+        d->extraState.reset();
+    }
+
+    QList<WOutputHelperPrivate::CommitJobEntry> afterJobs;
+    afterJobs.swap(d->afterCommitJobs);
+    for (const auto &entry : afterJobs) {
+        entry.jobWithState(ok, committedExtraState);
+    }
     return ok;
+}
+
+void WOutputHelper::scheduleCommitJob(CommitJobWithState job, CommitStage stage)
+{
+    W_D(WOutputHelper);
+    WOutputHelperPrivate::CommitJobEntry entry;
+    entry.jobWithState = job;
+
+    if (stage == BeforeCommitStage) {
+        d->beforeCommitJobs.append(entry);
+    } else {
+        d->afterCommitJobs.append(entry);
+    }
+}
+
+bool WOutputHelper::setExtraState(ExtraState state)
+{
+    W_D(WOutputHelper);
+
+    if (!state) {
+        d->extraState.reset();
+        return true;
+    }
+
+    // Only allow specific state flags for external configuration
+    const uint32_t allowedFlags = WLR_OUTPUT_STATE_MODE |
+                                  WLR_OUTPUT_STATE_SCALE |
+                                  WLR_OUTPUT_STATE_TRANSFORM |
+                                  WLR_OUTPUT_STATE_ENABLED |
+                                  WLR_OUTPUT_STATE_ADAPTIVE_SYNC_ENABLED;
+
+    if (state->committed & ~allowedFlags) {
+        qWarning() << "WOutputHelper::setExtraState: contains unsupported flags:"
+                   << Qt::hex << (state->committed & ~allowedFlags);
+        return false;
+    }
+
+    if ((state->committed & allowedFlags) == 0) {
+        qWarning() << "WOutputHelper::setExtraState: no valid state changes";
+        return false;
+    }
+
+    d->extraState = state;
+    return true;
+}
+
+WOutputHelper::ExtraState WOutputHelper::extraState() const
+{
+    W_DC(WOutputHelper);
+    return d->extraState;
 }
 
 bool WOutputHelper::testCommit()
@@ -293,6 +378,22 @@ void WOutputHelper::scheduleFrame()
 {
     W_D(WOutputHelper);
     d->qwoutput()->schedule_frame();
+}
+
+bool WOutputHelper::willBeEnabled() const
+{
+    W_DC(WOutputHelper);
+    // Check pending enabled state in priority order:
+    // 1. extraState (external configuration from setExtraState)
+    // 2. internal state (from setScale/setTransform)
+    // 3. current state (from output->isEnabled())
+    if (d->extraState && (d->extraState->committed & WLR_OUTPUT_STATE_ENABLED)) {
+        return d->extraState->enabled;
+    }
+    if (d->state.committed & WLR_OUTPUT_STATE_ENABLED) {
+        return d->state.enabled;
+    }
+    return d->output->isEnabled();
 }
 
 WAYLIB_SERVER_END_NAMESPACE

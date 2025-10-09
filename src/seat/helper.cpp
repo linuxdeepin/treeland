@@ -50,6 +50,7 @@
 #include <WXdgOutput>
 #include <wcursorshapemanagerv1.h>
 #include <wlayersurface.h>
+#include <woutputhelper.h>
 #include <woutputitem.h>
 #include <woutputlayout.h>
 #include <woutputmanagerv1.h>
@@ -495,55 +496,206 @@ void Helper::setGamma(struct wlr_gamma_control_manager_v1_set_gamma_event *event
 void Helper::onOutputTestOrApply(qw_output_configuration_v1 *config, bool onlyTest)
 {
     QList<WOutputState> states = m_outputManager->stateListPending();
-    bool ok = true;
-    for (auto state : std::as_const(states)) {
-        WOutput *output = state.output;
-        qw_output_state newState;
-        newState.set_enabled(state.enabled);
-        if (state.enabled) {
-            if (state.mode)
-                newState.set_mode(state.mode);
-            else
-                newState.set_custom_mode(state.customModeSize.width(),
-                                         state.customModeSize.height(),
-                                         state.customModeRefresh);
 
-            newState.set_adaptive_sync_enabled(state.adaptiveSyncEnabled);
-            if (!onlyTest) {
+    if (onlyTest) {
+        bool ok = true;
+        for (const auto &state : std::as_const(states)) {
+            WOutputViewport *viewport = getOutput(state.output)->screenViewport();
+            if (!viewport) {
+                ok = false;
+                continue;
+            }
+
+            WOutputRenderWindow *renderWindow = viewport->outputRenderWindow();
+            if (!renderWindow) {
+                ok = false;
+                continue;
+            }
+            qw_output_state newState;
+            newState.set_enabled(state.enabled);
+            if (state.enabled) {
+                if (state.mode)
+                    newState.set_mode(state.mode);
+                else
+                    newState.set_custom_mode(state.customModeSize.width(),
+                                             state.customModeSize.height(),
+                                             state.customModeRefresh);
+                newState.set_adaptive_sync_enabled(state.adaptiveSyncEnabled);
                 newState.set_transform(static_cast<wl_output_transform>(state.transform));
                 newState.set_scale(state.scale);
+            }
+            ok &= state.output->handle()->test_state(newState);
+        }
 
-                WOutputViewport *viewport = getOutput(output)->screenViewport();
-                if (viewport) {
-                    auto outputItem = qobject_cast<WOutputItem*>(viewport->parentItem());
-                    if (outputItem) {
-                        outputItem->setX(state.x);
-                        outputItem->setY(state.y);
-                    }
+        m_outputManager->sendResult(config, ok);
+        return;
+    }
+
+    if (m_pendingOutputConfig.config) {
+        m_outputManager->sendResult(m_pendingOutputConfig.config, false);
+    }
+
+    m_pendingOutputConfig.config = config;
+    m_pendingOutputConfig.states = states;
+    m_pendingOutputConfig.pendingCommits = 0;
+    m_pendingOutputConfig.allSuccess = true;
+
+    for (const auto &state : std::as_const(states)) {
+        WOutputViewport *viewport = getOutput(state.output)->screenViewport();
+        if (!viewport) {
+            qCWarning(treelandCore) << "No viewport for output" << state.output->name();
+            m_outputManager->sendResult(config, false);
+            m_pendingOutputConfig = {};
+            return;
+        }
+
+        WOutputRenderWindow *renderWindow = viewport->outputRenderWindow();
+        if (!renderWindow) {
+            qCWarning(treelandCore) << "No renderWindow for output" << state.output->name();
+            m_outputManager->sendResult(config, false);
+            m_pendingOutputConfig = {};
+            return;
+        }
+
+        if (state.enabled) {
+            auto outputItem = qobject_cast<WOutputItem*>(viewport->parentItem());
+            if (outputItem) {
+                qreal currentX = outputItem->x();
+                qreal currentY = outputItem->y();
+                bool shouldPreservePosition = (state.x == 0 && state.y == 0) &&
+                                             (currentX != 0 || currentY != 0);
+
+                if (!shouldPreservePosition) {
+                    outputItem->setX(state.x);
+                    outputItem->setY(state.y);
                 }
             }
         }
 
-        if (onlyTest)
-            ok &= output->handle()->test_state(newState);
-        else
-            ok &= output->handle()->commit_state(newState);
-    }
-    if (ok && !onlyTest) {
-        QString cache_location = QStandardPaths::writableLocation(QStandardPaths::AppConfigLocation);
-        QSettings settings(cache_location + "/output.ini", QSettings::IniFormat);
-        for (WOutputState state : std::as_const(states)) {
-            settings.beginGroup(QString("output.%1").arg(state.output->name()));
-            settings.setValue("width", state.mode ? state.mode->width : state.customModeSize.width());
-            settings.setValue("height", state.mode ? state.mode->height : state.customModeSize.height());
-            settings.setValue("refresh", state.mode ? state.mode->refresh : state.customModeRefresh);
-            settings.setValue("transform", state.transform);
-            settings.setValue("scale", state.scale);
-            settings.setValue("adaptiveSyncEnabled", state.adaptiveSyncEnabled);
-            settings.endGroup();
+        auto outputHelper = renderWindow->getOutputHelper(viewport);
+        if (!outputHelper) {
+            qCWarning(treelandCore) << "No output helper for viewport" << viewport;
+            m_outputManager->sendResult(config, false);
+            m_pendingOutputConfig = {};
+            return;
+        }
+
+        WOutputHelper::ExtraState extraState;
+        wlr_output_state_set_enabled(extraState.get(), state.enabled);
+
+        // Only set mode/scale/transform properties when enabling output
+        // Reason: wlroots doesn't allow setting these properties on disabled outputs
+        // When user disables output and changes properties:
+        //   1. Properties are saved in QSettings (see onOutputCommitFinished)
+        //   2. When re-enabling, properties are loaded from QSettings and applied here
+        if (state.enabled) {
+            if (state.mode) {
+                wlr_output_state_set_mode(extraState.get(), state.mode);
+            } else {
+                wlr_output_state_set_custom_mode(extraState.get(),
+                                                 state.customModeSize.width(),
+                                                 state.customModeSize.height(),
+                                                 state.customModeRefresh);
+            }
+
+            wlr_output_state_set_scale(extraState.get(), state.scale);
+            wlr_output_state_set_transform(extraState.get(),
+                                          static_cast<wl_output_transform>(state.transform));
+            wlr_output_state_set_adaptive_sync_enabled(extraState.get(), state.adaptiveSyncEnabled);
+        }
+
+        if (!outputHelper->setExtraState(extraState)) {
+            qCWarning(treelandCore) << "Failed to set extra state for output" << state.output->name();
+            m_outputManager->sendResult(config, false);
+            m_pendingOutputConfig = {};
+            return;
+        }
+        auto config = m_pendingOutputConfig.config;
+        QPointer<Helper> self(this);
+        outputHelper->scheduleCommitJob(
+            [self, config, extraState, renderWindow, viewport](bool success, WOutputHelper::ExtraState committedState) {
+                if (!self) {
+                    return;
+                }
+
+                if (committedState == extraState) {
+                    self->onOutputCommitFinished(config, success);
+                    if (success && committedState) {
+                        bool wasStateOnlyCommit = (committedState->committed & (WLR_OUTPUT_STATE_MODE |
+                                                                                WLR_OUTPUT_STATE_SCALE |
+                                                                                WLR_OUTPUT_STATE_TRANSFORM |
+                                                                                WLR_OUTPUT_STATE_ENABLED)) &&
+                                                  !(committedState->committed & WLR_OUTPUT_STATE_BUFFER);
+                        bool isDisable = (committedState->committed & WLR_OUTPUT_STATE_ENABLED) && !committedState->enabled;
+                        if (wasStateOnlyCommit && !isDisable) {
+                            renderWindow->update(viewport);
+                        }
+                    }
+                } else {
+                    qCWarning(treelandCore) << "Commit callback received unexpected state pointer!"
+                                            << "Expected:" << extraState.get()
+                                            << "Got:" << committedState.get();
+                    self->onOutputCommitFinished(config, false);
+                }
+            },
+            WOutputHelper::AfterCommitStage
+        );
+        m_pendingOutputConfig.pendingCommits++;
+        renderWindow->update(viewport);
+
+        // Special handling for disabled → enabled transition
+        // wlroots doesn't send frame events for disabled outputs,
+        // so we need to force render to trigger the commit
+        if (state.enabled && !state.output->isEnabled()) {
+            renderWindow->render(viewport, true);
         }
     }
-    m_outputManager->sendResult(config, ok);
+}
+
+void Helper::onOutputCommitFinished(qw_output_configuration_v1 *config, bool success)
+{
+    if (!config) {
+        return;
+    }
+
+    if (config != m_pendingOutputConfig.config) {
+        return;
+    }
+
+    if (!success) {
+        m_pendingOutputConfig.allSuccess = false;
+    }
+
+    m_pendingOutputConfig.pendingCommits--;
+    if (m_pendingOutputConfig.pendingCommits == 0) {
+        bool ok = m_pendingOutputConfig.allSuccess;
+        if (ok) {
+            // TODO: Replace QSettings with DConfig to support customization
+            // and avoid IO operations in main thread
+            QString cache_location = QStandardPaths::writableLocation(QStandardPaths::AppConfigLocation);
+            QSettings settings(cache_location + "/output.ini", QSettings::IniFormat);
+            for (const WOutputState &state : std::as_const(m_pendingOutputConfig.states)) {
+                // Only save configuration for enabled outputs
+                // Reason: When disabled, mode/scale/transform are not committed to wlroots,
+                // so we should not save uncommitted values
+                if (!state.enabled) {
+                    qCDebug(treelandCore) << "Skipping config save for disabled output:" << state.output->name();
+                    continue;
+                }
+
+                settings.beginGroup(QString("output.%1").arg(state.output->name()));
+                settings.setValue("width", state.mode ? state.mode->width : state.customModeSize.width());
+                settings.setValue("height", state.mode ? state.mode->height : state.customModeSize.height());
+                settings.setValue("refresh", state.mode ? state.mode->refresh : state.customModeRefresh);
+                settings.setValue("transform", state.transform);
+                settings.setValue("scale", state.scale);
+                settings.setValue("adaptiveSyncEnabled", state.adaptiveSyncEnabled);
+                settings.endGroup();
+            }
+        }
+        m_outputManager->sendResult(config, ok);
+        m_pendingOutputConfig = {};
+    }
 }
 
 void Helper::onSetOutputPowerMode(wlr_output_power_v1_set_mode_event *event)

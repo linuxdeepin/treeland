@@ -89,13 +89,27 @@ void WOutputManagerV1::updateConfig()
     W_D(WOutputManagerV1);
 
     auto *config = qw_output_configuration_v1::create();
-
     for (const WOutputState &state : std::as_const(d->stateList)) {
-        auto *configHead = qw_output_configuration_head_v1::create(*config, state.output->nativeHandle());
-        configHead->handle()->state.scale = state.scale;
-        configHead->handle()->state.transform = static_cast<wl_output_transform>(state.transform);
-        configHead->handle()->state.x = state.x;
-        configHead->handle()->state.y = state.y;
+        auto *wlr_output = state.output->nativeHandle();
+        auto *configHead = qw_output_configuration_head_v1::create(*config, wlr_output);
+        auto *handle = configHead->handle();
+
+        handle->state.enabled = state.enabled;
+        handle->state.x = state.x;
+        handle->state.y = state.y;
+
+        if (state.enabled) {
+            handle->state.mode = state.mode;
+            handle->state.scale = state.scale;
+            handle->state.transform = static_cast<wl_output_transform>(state.transform);
+            handle->state.adaptive_sync_enabled = state.adaptiveSyncEnabled;
+
+            if (state.customModeSize.width() > 0 && state.customModeSize.height() > 0) {
+                handle->state.custom_mode.width = state.customModeSize.width();
+                handle->state.custom_mode.height = state.customModeSize.height();
+                handle->state.custom_mode.refresh = state.customModeRefresh;
+            }
+        }
     }
 
     d->manager->set_configuration(*config);
@@ -104,16 +118,19 @@ void WOutputManagerV1::updateConfig()
 void WOutputManagerV1::sendResult(qw_output_configuration_v1 *config, bool ok)
 {
     W_D(WOutputManagerV1);
-    if (ok)
-        config->send_succeeded();
-    else
-        config->send_failed();
-    delete config;
 
-    if (ok)
-        d->stateList.swap(d->stateListPending);
+    if (ok) {
+        config->send_succeeded();
+        d->stateList = d->stateListPending;
+    } else {
+        config->send_failed();
+    }
+
+    delete config;
     d->stateListPending.clear();
-    updateConfig();
+
+    // Schedule updateConfig through the event loop to avoid recursion
+    QMetaObject::invokeMethod(this, &WOutputManagerV1::updateConfig, Qt::QueuedConnection);
 }
 
 void WOutputManagerV1::newOutput(WOutput *output)
