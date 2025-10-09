@@ -1423,8 +1423,12 @@ WOutputRenderWindowPrivate::doRenderOutputs(qw_output *needsFrameOutput, const Q
             if (helper->framePending())
                 continue;
 
+            // Render if output will be enabled OR has extraState to commit
+            // Note: Even when disabling, we need to render once to commit the disabled state
+            // (extraState will contain the ENABLED=false change)
+            bool shouldRender = helper->willBeEnabled() || helper->extraState();
             if (Q_UNLIKELY(!WOutputViewportPrivate::get(helper->output())->renderable())
-                || !helper->output()->output()->isEnabled())
+                || !shouldRender)
                 continue;
 
             if (!(helper->needsFrame() || helper->contentIsDirty()))
@@ -1789,6 +1793,12 @@ QList<WOutputLayer *> WOutputRenderWindow::hardwareLayers(const WOutputViewport 
             list << l->layer->layer;
 
     return list;
+}
+
+WOutputHelper *WOutputRenderWindow::getOutputHelper(WOutputViewport *output) const
+{
+    Q_D(const WOutputRenderWindow);
+    return d->getOutputHelper(output);
 }
 
 void WOutputRenderWindow::setOutputScale(WOutputViewport *output, float scale)
