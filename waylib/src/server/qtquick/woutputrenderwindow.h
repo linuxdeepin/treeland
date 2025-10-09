@@ -44,6 +44,9 @@ public:
 
     void setOutputScale(WOutputViewport *output, float scale);
     void rotateOutput(WOutputViewport *output, WOutput::Transform t);
+    void setOutputMode(WOutputViewport *output, const wlr_output_mode *mode);
+    void setOutputCustomMode(WOutputViewport *output, int32_t width, int32_t height, int32_t refresh);
+    void setOutputAdaptiveSync(WOutputViewport *output, bool enabled);
     void setOutputEnabled(WOutputViewport *output, bool enabled);
 
     void init(QW_NAMESPACE::qw_renderer *renderer, QW_NAMESPACE::qw_allocator *allocator);

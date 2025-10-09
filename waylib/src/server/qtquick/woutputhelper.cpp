@@ -183,6 +183,30 @@ void WOutputHelper::setTransform(WOutput::Transform t)
     wlr_output_state_set_transform(&d->state, static_cast<wl_output_transform>(t));
 }
 
+void WOutputHelper::setMode(const wlr_output_mode *mode)
+{
+    W_D(WOutputHelper);
+    wlr_output_state_set_mode(&d->state, const_cast<wlr_output_mode*>(mode));
+}
+
+void WOutputHelper::setCustomMode(int32_t width, int32_t height, int32_t refresh)
+{
+    W_D(WOutputHelper);
+    wlr_output_state_set_custom_mode(&d->state, width, height, refresh);
+}
+
+void WOutputHelper::setAdaptiveSyncEnabled(bool enabled)
+{
+    W_D(WOutputHelper);
+    wlr_output_state_set_adaptive_sync_enabled(&d->state, enabled);
+}
+
+void WOutputHelper::setEnabled(bool enabled)
+{
+    W_D(WOutputHelper);
+    wlr_output_state_set_enabled(&d->state, enabled);
+}
+
 void WOutputHelper::setDamage(const pixman_region32 *damage)
 {
     W_D(WOutputHelper);
@@ -216,6 +240,24 @@ bool WOutputHelper::commit()
     wlr_output_state_init(&d->state);
     bool ok = d->qwoutput()->commit_state(&state);
     wlr_output_state_finish(&state);
+
+    bool hardwareChanged = ok || (state.committed & (WLR_OUTPUT_STATE_MODE | WLR_OUTPUT_STATE_SCALE | WLR_OUTPUT_STATE_TRANSFORM));
+    if (hardwareChanged) {
+        if (state.committed & WLR_OUTPUT_STATE_MODE) {
+            Q_EMIT d->output->modeChanged();
+            Q_EMIT d->output->transformedSizeChanged();
+            Q_EMIT d->output->effectiveSizeChanged();
+        }
+        if (state.committed & WLR_OUTPUT_STATE_SCALE) {
+            Q_EMIT d->output->scaleChanged();
+            Q_EMIT d->output->effectiveSizeChanged();
+        }
+        if (state.committed & WLR_OUTPUT_STATE_TRANSFORM) {
+            Q_EMIT d->output->orientationChanged();
+            Q_EMIT d->output->transformedSizeChanged();
+            Q_EMIT d->output->effectiveSizeChanged();
+        }
+    }
 
     return ok;
 }
@@ -293,6 +335,20 @@ void WOutputHelper::scheduleFrame()
 {
     W_D(WOutputHelper);
     d->qwoutput()->schedule_frame();
+}
+
+bool WOutputHelper::hasPendingModeChange() const
+{
+    W_DC(WOutputHelper);
+    // These state changes should be committed separately without buffer:
+    // - MODE: resolution change may need new buffer size
+    // - SCALE: scaling change may need new buffer size
+    // - TRANSFORM: rotation may need new buffer dimensions
+    // - ENABLED: disabling output should not commit buffer
+    return d->state.committed & (WLR_OUTPUT_STATE_MODE |
+                                  WLR_OUTPUT_STATE_SCALE |
+                                  WLR_OUTPUT_STATE_TRANSFORM |
+                                  WLR_OUTPUT_STATE_ENABLED);
 }
 
 WAYLIB_SERVER_END_NAMESPACE
