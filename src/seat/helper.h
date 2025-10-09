@@ -15,6 +15,7 @@
 #include <wseat.h>
 #include <wxdgdecorationmanager.h>
 #include <wextforeigntoplevellistv1.h>
+#include <woutputmanagerv1.h>
 
 Q_MOC_INCLUDE(<wtoplevelsurface.h>)
 Q_MOC_INCLUDE(<wxdgsurface.h>)
@@ -281,6 +282,7 @@ private:
 
 private:
     void allowNonDrmOutputAutoChangeMode(WOutput *output);
+    void applyOutputConfiguration();
 
     int indexOfOutput(WOutput *output) const;
 
@@ -392,4 +394,12 @@ private:
     bool m_blockActivateSurface{ false };
 
     bool m_noAnimation{ false };
+
+    // Output configuration state
+    struct PendingOutputConfig {
+        qw_output_configuration_v1 *config = nullptr;
+        QList<WOutputState> states;
+    };
+    PendingOutputConfig m_pendingOutputConfig;
+    QTimer *m_outputConfigTimer = nullptr;
 };

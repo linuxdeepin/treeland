@@ -481,11 +481,61 @@ void Helper::setGamma(struct wlr_gamma_control_manager_v1_set_gamma_event *event
 void Helper::onOutputTestOrApply(qw_output_configuration_v1 *config, bool onlyTest)
 {
     QList<WOutputState> states = m_outputManager->stateListPending();
-    bool ok = true;
-    for (auto state : std::as_const(states)) {
-        WOutput *output = state.output;
+
+    if (onlyTest) {
+        bool ok = true;
+        for (const auto &state : std::as_const(states)) {
+            qw_output_state newState;
+            newState.set_enabled(state.enabled);
+
+            if (state.enabled) {
+                if (state.mode)
+                    newState.set_mode(state.mode);
+                else
+                    newState.set_custom_mode(state.customModeSize.width(),
+                                             state.customModeSize.height(),
+                                             state.customModeRefresh);
+                newState.set_adaptive_sync_enabled(state.adaptiveSyncEnabled);
+                newState.set_transform(static_cast<wl_output_transform>(state.transform));
+                newState.set_scale(state.scale);
+            }
+
+            ok &= state.output->handle()->test_state(newState);
+        }
+
+        m_outputManager->sendResult(config, ok);
+        return;
+    }
+
+    if (m_pendingOutputConfig.config) {
+        m_outputManager->sendResult(m_pendingOutputConfig.config, false);
+    }
+
+    m_pendingOutputConfig.config = config;
+    m_pendingOutputConfig.states = states;
+
+    if (!m_outputConfigTimer) {
+        m_outputConfigTimer = new QTimer(this);
+        m_outputConfigTimer->setSingleShot(true);
+        connect(m_outputConfigTimer, &QTimer::timeout, this, &Helper::applyOutputConfiguration);
+    }
+
+    m_outputConfigTimer->start(10);
+}
+
+void Helper::applyOutputConfiguration()
+{
+    if (!m_pendingOutputConfig.config) {
+        return;
+    }
+
+    const auto &states = m_pendingOutputConfig.states;
+    bool allTestsPassed = true;
+
+    for (const auto &state : std::as_const(states)) {
         qw_output_state newState;
         newState.set_enabled(state.enabled);
+
         if (state.enabled) {
             if (state.mode)
                 newState.set_mode(state.mode);
@@ -493,13 +543,52 @@ void Helper::onOutputTestOrApply(qw_output_configuration_v1 *config, bool onlyTe
                 newState.set_custom_mode(state.customModeSize.width(),
                                          state.customModeSize.height(),
                                          state.customModeRefresh);
-
             newState.set_adaptive_sync_enabled(state.adaptiveSyncEnabled);
-            if (!onlyTest) {
-                newState.set_transform(static_cast<wl_output_transform>(state.transform));
-                newState.set_scale(state.scale);
+            newState.set_transform(static_cast<wl_output_transform>(state.transform));
+            newState.set_scale(state.scale);
+        }
 
-                WOutputViewport *viewport = getOutput(output)->screenViewport();
+        if (!state.output->handle()->test_state(newState)) {
+            qCWarning(treelandCore) << "Output test failed for" << state.output->name();
+            allTestsPassed = false;
+            break;
+        }
+    }
+
+    if (allTestsPassed) {
+        for (const auto &state : std::as_const(states)) {
+            WOutputViewport *viewport = getOutput(state.output)->screenViewport();
+            if (!viewport) {
+                qCWarning(treelandCore) << "No viewport found for output" << state.output->name();
+                allTestsPassed = false;
+                break;
+            }
+            WOutputRenderWindow *renderWindow = viewport->outputRenderWindow();
+            if (!renderWindow) {
+                qCWarning(treelandCore) << "No render window found for output" << state.output->name();
+                allTestsPassed = false;
+                break;
+            }
+            renderWindow->setOutputScale(viewport, state.scale);
+            renderWindow->rotateOutput(viewport, static_cast<WOutput::Transform>(state.transform));
+        }
+    }
+
+    bool ok = false;
+    if (allTestsPassed) {
+        for (const auto &state : std::as_const(states)) {
+            WOutputViewport *viewport = getOutput(state.output)->screenViewport();
+            if (viewport) {
+                WOutputRenderWindow *renderWindow = viewport->outputRenderWindow();
+                if (renderWindow) {
+                    renderWindow->update(viewport);
+                }
+            }
+        }
+
+        for (const auto &state : std::as_const(states)) {
+            if (state.enabled) {
+                WOutputViewport *viewport = getOutput(state.output)->screenViewport();
                 if (viewport) {
                     auto outputItem = qobject_cast<WOutputItem*>(viewport->parentItem());
                     if (outputItem) {
@@ -510,15 +599,9 @@ void Helper::onOutputTestOrApply(qw_output_configuration_v1 *config, bool onlyTe
             }
         }
 
-        if (onlyTest)
-            ok &= output->handle()->test_state(newState);
-        else
-            ok &= output->handle()->commit_state(newState);
-    }
-    if (ok && !onlyTest) {
         QString cache_location = QStandardPaths::writableLocation(QStandardPaths::AppConfigLocation);
         QSettings settings(cache_location + "/output.ini", QSettings::IniFormat);
-        for (WOutputState state : std::as_const(states)) {
+        for (const WOutputState &state : std::as_const(states)) {
             settings.beginGroup(QString("output.%1").arg(state.output->name()));
             settings.setValue("width", state.mode ? state.mode->width : state.customModeSize.width());
             settings.setValue("height", state.mode ? state.mode->height : state.customModeSize.height());
@@ -528,8 +611,14 @@ void Helper::onOutputTestOrApply(qw_output_configuration_v1 *config, bool onlyTe
             settings.setValue("adaptiveSyncEnabled", state.adaptiveSyncEnabled);
             settings.endGroup();
         }
+
+        ok = true;
     }
-    m_outputManager->sendResult(config, ok);
+
+    m_outputManager->sendResult(m_pendingOutputConfig.config, ok);
+
+    m_pendingOutputConfig.config = nullptr;
+    m_pendingOutputConfig.states.clear();
 }
 
 void Helper::onSetOutputPowerMode(wlr_output_power_v1_set_mode_event *event)
