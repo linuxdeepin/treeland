@@ -56,6 +56,7 @@ static void input_method_destroy(struct wlr_input_method_v2 *input_method) {
 			popup_surface, tmp, &input_method->popup_surfaces, link) {
 		popup_surface_destroy(popup_surface);
 	}
+	wlr_input_method_keyboard_grab_v2_destroy(input_method->keyboard_grab);
 	wl_signal_emit_mutable(&input_method->events.destroy, NULL);
 
 	assert(wl_list_empty(&input_method->events.commit.listener_list));
@@ -65,7 +66,6 @@ static void input_method_destroy(struct wlr_input_method_v2 *input_method) {
 
 	wl_list_remove(wl_resource_get_link(input_method->resource));
 	wl_list_remove(&input_method->seat_client_destroy.link);
-	wlr_input_method_keyboard_grab_v2_destroy(input_method->keyboard_grab);
 	input_state_reset(&input_method->pending);
 	input_state_reset(&input_method->current);
 	free(input_method);
@@ -271,8 +271,7 @@ void wlr_input_method_keyboard_grab_v2_destroy(
 	if (!keyboard_grab) {
 		return;
 	}
-	wl_signal_emit_mutable(&keyboard_grab->events.destroy, keyboard_grab);
-
+	wl_signal_emit_mutable(&keyboard_grab->events.destroy, NULL);
 	assert(wl_list_empty(&keyboard_grab->events.destroy.listener_list));
 
 	keyboard_grab->input_method->keyboard_grab = NULL;
