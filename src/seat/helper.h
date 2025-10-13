@@ -108,7 +108,6 @@ class qw_ext_foreign_toplevel_image_capture_source_manager_v1;
 QW_END_NAMESPACE
 
 struct Session {
-    bool active = false;
     uid_t uid = 0;
     WSocket *socket = nullptr;
     WXWayland *xwayland = nullptr;
@@ -187,7 +186,6 @@ public:
     Q_INVOKABLE void addOutput();
 
     void addSocket(WSocket *socket);
-    WXWayland *createXWayland();
     void removeXWayland(WXWayland *xwayland);
     WXWayland *xwaylandForUid(uid_t uid, bool createIfMissing = true);
     WSocket *waylandSocketForUid(uid_t uid, bool createIfMissing = true);
@@ -330,11 +328,8 @@ private:
     Session *sessionForXWayland(WXWayland *xwayland) const;
     Session *sessionForSocket(WSocket *socket) const;
     Session *ensureSession(uid_t uid);
-    Session *currentSession() const;
-    WXWayland *ensureXWaylandForUid(uid_t uid);
     void updateActiveUserSession(uid_t uid);
-    void applyXWaylandVisibility();
-    void updateXWaylandWrapperVisibility(SurfaceWrapper *wrapper);
+    void applySurfaceVisibility();
     bool isXWaylandClient(WClient *client);
 
     static Helper *m_instance;
@@ -344,6 +339,7 @@ private:
     CurrentMode m_currentMode{ CurrentMode::Normal };
 
     // Sessions
+    Session *m_activeSession = nullptr;
     QList<Session *> m_sessions;
 
     // qtquick helper
@@ -370,7 +366,6 @@ private:
     qw_output_power_manager_v1 *m_outputPowerManager = nullptr;
     qw_ext_foreign_toplevel_image_capture_source_manager_v1 *m_foreignToplevelImageCaptureManager = nullptr;
     ShellHandler *m_shellHandler = nullptr;
-    WXWayland *m_defaultXWayland = nullptr;
     WXdgDecorationManager *m_xdgDecorationManager = nullptr;
     WForeignToplevel *m_foreignToplevel = nullptr;
     WExtForeignToplevelListV1 *m_extForeignToplevelListV1 = nullptr;

@@ -279,7 +279,7 @@ Helper::~Helper()
     for (auto session : std::as_const(m_sessions)) {
         Q_ASSERT(session);
         if (session->xwayland) {
-            m_shellHandler->removeXWayland(session->xwayland);
+            delete session->xwayland;
             session->xwayland = nullptr;
         }
         if (session->socket) {
@@ -835,7 +835,7 @@ void Helper::onSurfaceWrapperAdded(SurfaceWrapper *wrapper)
                                      updateDecorationTitleBar);
         updateDecorationTitleBar();
 
-        updateXWaylandWrapperVisibility(wrapper);
+        wrapper->setHideByWorkspace(!surfaceBelongsToCurrentSession(wrapper));
     }
 
     if (!isLayer) {
@@ -882,7 +882,7 @@ bool Helper::surfaceBelongsToCurrentSession(SurfaceWrapper *wrapper)
 {
     WClient *client = wrapper->surface()->waylandClient();
     WSocket *socket = client->socket()->rootSocket();
-    return sessionForSocket(socket) == currentSession();
+    return sessionForSocket(socket) == m_activeSession;
 }
 
 void Helper::deleteTaskSwitch()
@@ -1184,14 +1184,14 @@ void Helper::init()
 
 bool Helper::socketEnabled() const
 {
-    if (auto session = currentSession(); session && session->socket)
+    if (auto session = m_activeSession; session && session->socket)
         return session->socket->isEnabled();
     return false;
 }
 
 void Helper::setSocketEnabled(bool newEnabled)
 {
-    if (auto session = currentSession(); session && session->socket)
+    if (auto session = m_activeSession; session && session->socket)
         session->socket->setEnabled(newEnabled);
     else
         qCWarning(treelandCore) << "Can't set enabled for empty socket!";
@@ -1966,11 +1966,23 @@ Helper::OutputMode Helper::outputMode() const
     return m_mode;
 }
 
+/**
+ * Add a WSocket to the Wayland server. 
+ * This function is used by Treeland::ActivateWayland.
+ * 
+ * @param socket WSocket to add
+ */
 void Helper::addSocket(WSocket *socket)
 {
     m_server->addSocket(socket);
 }
 
+/**
+ * Find the session for the given uid
+ * 
+ * @param uid User ID to find session for
+ * @returns Session for the given uid, or nullptr if not found
+ */
 Session *Helper::sessionForUid(uid_t uid) const
 {
     for (auto session : m_sessions) {
@@ -1980,6 +1992,12 @@ Session *Helper::sessionForUid(uid_t uid) const
     return nullptr;
 }
 
+/**
+ * Find the session for the given WXWayland
+ * 
+ * @param xwayland WXWayland to find session for
+ * @returns Session for the given xwayland, or nullptr if not found
+ */
 Session *Helper::sessionForXWayland(WXWayland *xwayland) const
 {
     for (auto session : m_sessions) {
@@ -1989,6 +2007,12 @@ Session *Helper::sessionForXWayland(WXWayland *xwayland) const
     return nullptr;
 }
 
+/**
+ * Find the session for the given WSocket
+ * 
+ * @param socket WSocket to find session for
+ * @returns Session for the given socket, or nullptr if not found
+ */
 Session *Helper::sessionForSocket(WSocket *socket) const
 {
     for (auto session : m_sessions) {
@@ -1998,34 +2022,45 @@ Session *Helper::sessionForSocket(WSocket *socket) const
     return nullptr;
 }
 
+/**
+ * Ensure a session exists for the given uid, creating it if necessary
+ * 
+ * @param uid User ID to ensure session for
+ * @returns Session for the given uid, or nullptr on failure
+ */
 Session *Helper::ensureSession(uid_t uid)
 {
+    // Helper lambda to create WSocket and WXWayland
     auto createWSocket = [this]() {
+        // Create WSocket
         auto socket = new WSocket(false, this);
         if (!socket->autoCreate()) {
             qCCritical(treelandCore) << "Failed to create Wayland socket";
             delete socket;
             return static_cast<WSocket *>(nullptr);
         }
+        // Connect signals
         connect(socket,
                 &WSocket::fullServerNameChanged,
                 this,
                 [this] {
-                    if (currentSession() && currentSession()->active)
+                    if (m_activeSession)
                         Q_EMIT socketFileChanged();
                 });
+        // Add socket to server
         m_server->addSocket(socket);
         return socket;
     };
     auto createXWayland = [this](WSocket *socket) {
+        // Create xwayland
         auto *xwayland = m_shellHandler->createXWayland(m_server, m_seat, m_compositor, false);
         if (!xwayland) {
             qCCritical(treelandCore) << "Failed to create XWayland instance";
             return static_cast<WXWayland *>(nullptr);
         }
-
+        // Bind xwayland to socket
         xwayland->setOwnsSocket(socket);
-
+        // Connect signals
         connect(xwayland, &WXWayland::ready, this, [this, xwayland] {
             if (auto session = sessionForXWayland(xwayland)) {
                 session->noTitlebarAtom =
@@ -2035,14 +2070,15 @@ Session *Helper::ensureSession(uid_t uid)
                 }
             }
         });
-
         connect(xwayland, &QObject::destroyed, this, [this, xwayland]() {
             removeXWayland(xwayland);
         });
 
         return xwayland;
     };
+    // Check if session already exists for uid
     if (auto session = sessionForUid(uid)) {
+        // Ensure it has a socket and xwayland
         if (!session->socket) {
             auto *socket = createWSocket();
             if (!socket) {
@@ -2062,14 +2098,14 @@ Session *Helper::ensureSession(uid_t uid)
             }
 
             session->xwayland = xwayland;
-
-            if (session->active)
-                applyXWaylandVisibility();
+            // Refresh xwayland visibility if this is the active session
+            if (m_activeSession == session)
+                applySurfaceVisibility();
         }
 
         return session;
     }
-
+    // Session does not exist, create new session
     auto session = new Session;
     session->uid = uid;
 
@@ -2085,110 +2121,127 @@ Session *Helper::ensureSession(uid_t uid)
         delete session;
         return nullptr;
     }
-
+    // Add session to list
     m_sessions.append(session);
     return session;
 }
 
-Session *Helper::currentSession() const
-{
-    for (auto session : m_sessions) {
-        if (session && session->active)
-            return session;
-    }
-    return nullptr;
-}
-
-WXWayland *Helper::createXWayland()
-{
-    return m_shellHandler->createXWayland(m_server, m_seat, m_compositor, false);
-}
-
+/**
+ * Remove the given WXWayland and clean up its session.
+ * This is called when an XWayland instance is destroyed.
+ * 
+ * @param xwayland WXWayland to remove
+ */
 void Helper::removeXWayland(WXWayland *xwayland)
 {
     if (!xwayland)
         return;
 
     if (auto session = sessionForXWayland(xwayland)) {
-        if (m_defaultXWayland == xwayland)
-            m_defaultXWayland = nullptr;
         session->xwayland = nullptr;
         session->noTitlebarAtom = XCB_ATOM_NONE;
-        if (session->active)
-            applyXWaylandVisibility();
     }
 
     m_shellHandler->removeXWayland(xwayland);
 }
 
+/**
+ * Get the WXWayland for the given uid, optionally creating it if missing
+ * 
+ * @param uid User ID to get WXWayland for
+ * @param createIfMissing Whether to create the session if it does not exist
+ * @returns WXWayland for the given uid, or nullptr if not found/created
+ */
 WXWayland *Helper::xwaylandForUid(uid_t uid, bool createIfMissing)
 {
     Session *session = createIfMissing ? ensureSession(uid) : sessionForUid(uid);
     return session ? session->xwayland : nullptr;
 }
 
+/**
+ * Get the WSocket for the given uid, optionally creating it if missing
+ * 
+ * @param uid User ID to get WSocket for
+ * @param createIfMissing Whether to create the session if it does not exist
+ * @returns WSocket for the given uid, or nullptr if not found/created
+ */
 WSocket *Helper::waylandSocketForUid(uid_t uid, bool createIfMissing)
 {
     Session *session = createIfMissing ? ensureSession(uid) : sessionForUid(uid);
     return session ? session->socket : nullptr;
 }
 
+/** 
+ * Get the WSocket for the active session
+ * 
+ * @returns WSocket for the active session, or nullptr if none active
+ */
 WSocket *Helper::defaultWaylandSocket() const
 {
-    if (auto session = currentSession())
-        return session->socket;
+    if (m_activeSession && m_activeSession->socket)
+        return m_activeSession->socket;
     return nullptr;
 }
 
+/**
+ * Get the WXWayland for the active session
+ * 
+ * @returns WXWayland for the active session, or nullptr if none active
+ */
 WXWayland *Helper::defaultXWaylandSocket() const
 {
-    if (auto session = currentSession(); session && session->xwayland)
-        return session->xwayland;
-    return m_defaultXWayland;
+    if (m_activeSession && m_activeSession->xwayland)
+        return m_activeSession->xwayland;
+    return nullptr;
 }
 
-WXWayland *Helper::ensureXWaylandForUid(uid_t uid)
-{
-    auto session = ensureSession(uid);
-    return session ? session->xwayland : nullptr;
-}
-
+/**
+ * Update the active session to the given uid, creating it if necessary.
+ * This will update XWayland visibility and emit socketFileChanged if the
+ * active session changed.
+ * 
+ * @param uid User ID to set as active session
+ */
 void Helper::updateActiveUserSession(uid_t uid)
 {
-    Session *previous = currentSession();
+    // Get previous active session
+    Session *previous = m_activeSession;
+    // Get new session for uid, creating if necessary
     auto session = ensureSession(uid);
     if (!session) {
         qCWarning(treelandInput) << "Failed to ensure session for uid" << uid;
         return;
     }
-
-    for (auto other : m_sessions)
-        other->active = (other == session);
-
+    // Update active session
+    m_activeSession = session;
+    
+    // Emit signal and update XWayland visibility if session changed
     const bool sessionChanged = previous != session;
-
-    m_defaultXWayland = session->xwayland;
 
     if (sessionChanged)
         Q_EMIT socketFileChanged();
 
-    applyXWaylandVisibility();
+    applySurfaceVisibility();
 
     if (session->socket)
         qCInfo(treelandCore) << "Listing on:" << session->socket->fullServerName();
 }
 
-void Helper::applyXWaylandVisibility()
+/**
+ * Apply visibility rules to all surfaces based on the active session.
+ * Surfaces belonging to the active session are shown, others are hidden.
+ */
+void Helper::applySurfaceVisibility()
 {
     if (!m_rootSurfaceContainer)
         return;
-
+    // Walk through all surfaces recursively and set visibility
     std::function<void(SurfaceContainer *)> walk = [&](SurfaceContainer *container) {
         if (!container)
             return;
 
         for (auto *surface : container->surfaces())
-            updateXWaylandWrapperVisibility(surface);
+            surface->setHideByWorkspace(!surfaceBelongsToCurrentSession(surface));
 
         for (auto *sub : container->subContainers())
             walk(sub);
@@ -2197,20 +2250,13 @@ void Helper::applyXWaylandVisibility()
     walk(m_rootSurfaceContainer);
 }
 
-void Helper::updateXWaylandWrapperVisibility(SurfaceWrapper *wrapper)
-{
-    if (!wrapper || wrapper->type() != SurfaceWrapper::Type::XWayland)
-        return;
-
-    auto *xwaylandSurface = qobject_cast<WXWaylandSurface *>(wrapper->shellSurface());
-    if (!xwaylandSurface)
-        return;
-
-    auto *xwayland = xwaylandSurface->xwayland();
-    const bool hide = sessionForXWayland(xwayland) != currentSession();
-    wrapper->setHideByWorkspace(hide);
-}
-
+/**
+ * Check if the given WClient belongs to any XWayland session.
+ * This is used in setFilter function for output managers.
+ * 
+ * @param client WClient to check
+ * @returns true if the client is an XWayland client, false otherwise
+ */
 bool Helper::isXWaylandClient(WClient *client)
 {
     for (auto session : m_sessions) {
