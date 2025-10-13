@@ -1,5 +1,6 @@
 find_package(Qt6 COMPONENTS Quick QuickControls2 REQUIRED)
-qt_standard_project_setup(REQUIRES 6.4)
+find_package(Qt6 COMPONENTS QuickPrivate QUIET)
+qt_standard_project_setup(REQUIRES 6.8)
 
 if(QT_KNOWN_POLICY_QTP0001) # this policy was introduced in Qt 6.5
     qt_policy(SET QTP0001 NEW)
