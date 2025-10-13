@@ -18,7 +18,13 @@ target_link_libraries(${BIN_NAME}
         Qt6::Widgets
         Qt6::WaylandClient
         Qt6::GuiPrivate
-        Qt6::WaylandClientPrivate
 )
+
+if(QT6_WAYLANDCLIENTPRIVATE_FOUND)
+    target_link_libraries(${BIN_NAME}
+        PRIVATE
+            Qt6::WaylandClientPrivate
+    )
+endif()
 
 install(TARGETS ${BIN_NAME} RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}")

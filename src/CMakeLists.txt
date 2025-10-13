@@ -269,6 +269,25 @@ target_include_directories(libtreeland
         $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/treeland>
 )
 
+set(PRIVATE_LIBS
+    Qt6::Quick
+    Qt6::QuickControls2
+    Qt6::DBus
+    Qt6::Concurrent
+    PkgConfig::PIXMAN
+    PkgConfig::WAYLAND
+    PkgConfig::LIBINPUT
+    PkgConfig::XCB
+    $<$<NOT:$<BOOL:${DISABLE_DDM}>>:DDM::Auth>
+    $<$<NOT:$<BOOL:${DISABLE_DDM}>>:DDM::Common>
+    $<$<NOT:$<BOOL:${DISABLE_DDM}>>:PkgConfig::PAM>
+)
+
+# Conditionally link Qt6::QuickPrivate if available
+if(QT6_QUICKPRIVATE_FOUND)
+    list(APPEND PRIVATE_LIBS Qt6::QuickPrivate)
+endif()
+
 target_link_libraries(libtreeland
     PUBLIC
         Dtk6::Core
@@ -276,18 +295,7 @@ target_link_libraries(libtreeland
         Dtk6::SystemSettings
         Waylib::WaylibServer
     PRIVATE
-        Qt6::Quick
-        Qt6::QuickControls2
-        Qt6::QuickPrivate
-        Qt6::DBus
-        Qt6::Concurrent
-        PkgConfig::PIXMAN
-        PkgConfig::WAYLAND
-        PkgConfig::LIBINPUT
-        PkgConfig::XCB
-        $<$<NOT:$<BOOL:${DISABLE_DDM}>>:DDM::Auth>
-        $<$<NOT:$<BOOL:${DISABLE_DDM}>>:DDM::Common>
-        $<$<NOT:$<BOOL:${DISABLE_DDM}>>:PkgConfig::PAM>
+        ${PRIVATE_LIBS}
 )
 
 add_subdirectory(plugins)

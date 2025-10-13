@@ -21,10 +21,16 @@ target_link_libraries(treeland-shortcut
         Qt6::Widgets
         Qt6::DBus
         Qt6::WaylandClient
-        Qt6::WaylandClientPrivate
         PkgConfig::WAYLAND_CLIENT
         PkgConfig::Systemd
 )
+
+if(QT6_WAYLANDCLIENTPRIVATE_FOUND)
+    target_link_libraries(treeland-shortcut
+        PRIVATE
+            Qt6::WaylandClientPrivate
+    )
+endif()
 
 install(TARGETS treeland-shortcut RUNTIME DESTINATION "${CMAKE_INSTALL_LIBEXECDIR}")
 install(DIRECTORY "shortcuts" DESTINATION "${TREELAND_DATA_DIR}")

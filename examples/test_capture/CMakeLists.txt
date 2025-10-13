@@ -31,16 +31,24 @@ qt6_generate_wayland_protocol_client_sources(test-capture
         ${TREELAND_PROTOCOLS_DATA_DIR}/treeland-capture-unstable-v1.xml
 )
 
-target_link_libraries(test-capture
-    PRIVATE
-        Qt6::Core
-        Qt6::Gui
-        Qt6::WaylandClient
-        Qt6::WaylandClientPrivate
-        Qt6::Quick
-        Qt6::QuickPrivate
-        Qt6::QuickControls2
-        PkgConfig::EGL
+set(PRIVATE_LIBS
+    Qt6::Core
+    Qt6::Gui
+    Qt6::WaylandClient
+    Qt6::Quick
+    Qt6::QuickControls2
+    PkgConfig::EGL
 )
+
+# Conditionally link Qt6::QuickPrivate if available
+if(QT6_QUICKPRIVATE_FOUND)
+    list(APPEND PRIVATE_LIBS Qt6::QuickPrivate)
+endif()
+
+if(QT6_WAYLANDCLIENTPRIVATE_FOUND)
+    list(APPEND PRIVATE_LIBS Qt6::WaylandClientPrivate)
+endif()
+
+target_link_libraries(test-capture PRIVATE ${PRIVATE_LIBS})
 
 install(TARGETS test-capture RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}")

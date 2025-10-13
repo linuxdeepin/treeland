@@ -32,24 +32,31 @@ function(impl_treeland)
             $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>
     )
 
+    set(PRIVATE_LIBS
+        # TODO: remove this
+        Dtk6::Core
+        Dtk6::Declarative
+        Dtk6::SystemSettings
+        Waylib::WaylibServer
+        Qt6::Quick
+        Qt6::QuickControls2
+        Qt6::DBus
+        Qt6::Concurrent
+        PkgConfig::PIXMAN
+        PkgConfig::WAYLAND
+        PkgConfig::LIBINPUT
+        # TODO: end remove
+        )
+
+    # Conditionally link Qt6::QuickPrivate if available
+    if(QT6_QUICKPRIVATE_FOUND)
+        list(APPEND PRIVATE_LIBS Qt6::QuickPrivate)
+    endif()
+
     target_link_libraries(${PARSE_ARG_PREFIX_NAME}
         INTERFACE
             ${PARSE_ARG_PREFIX_LINK}
-
-            # TODO: remove this
-            Dtk6::Core
-            Dtk6::Declarative
-            Dtk6::SystemSettings
-            Waylib::WaylibServer
-            Qt6::Quick
-            Qt6::QuickControls2
-            Qt6::QuickPrivate
-            Qt6::DBus
-            Qt6::Concurrent
-            PkgConfig::PIXMAN
-            PkgConfig::WAYLAND
-            PkgConfig::LIBINPUT
-            # TODO: end remove
+            ${PRIVATE_LIBS}
     )
 
     target_link_libraries(libtreeland

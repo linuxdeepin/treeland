@@ -12,8 +12,14 @@ SurfaceFilterProxyModel::SurfaceFilterProxyModel(QObject *parent)
 
 void SurfaceFilterProxyModel::setFilterAppId(const QString &appid)
 {
+#if QT_VERSION >= QT_VERSION_CHECK(6, 9, 0)
+    beginFilterChange();
+    m_filterAppId = appid;
+    endFilterChange(QSortFilterProxyModel::Direction::Rows);
+#else
     m_filterAppId = appid;
     invalidateFilter();
+#endif
 }
 
 int SurfaceFilterProxyModel::activeIndex()

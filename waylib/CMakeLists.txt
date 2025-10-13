@@ -17,12 +17,21 @@ option(INSTALL_TINYWL "A minimum viable product Wayland compositor based on wayl
 option(ADDRESS_SANITIZER "Enable address sanitize" OFF)
 option(WAYLIB_USE_PERCOMPILE_HEADERS "Use precompile headers to build waylib" OFF)
 
-if(QT_VERSION VERSION_GREATER "6.8.0")
-    set(QT_COMPONENTS Core Gui Quick GuiPrivate QuickPrivate)
-else()
-    set(QT_COMPONENTS Core Gui Quick)
-endif()
+set(QT_COMPONENTS Core Gui Quick)
+
+# Find required Qt components first
 find_package(Qt6 COMPONENTS ${QT_COMPONENTS} REQUIRED)
+
+# Try to find optional Private modules
+find_package(Qt6 CONFIG QUIET COMPONENTS GuiPrivate)
+if(TARGET Qt6::GuiPrivate)
+    list(APPEND QT_COMPONENTS GuiPrivate)
+endif()
+
+find_package(Qt6 CONFIG QUIET COMPONENTS QuickPrivate)
+if(TARGET Qt6::QuickPrivate)
+    list(APPEND QT_COMPONENTS QuickPrivate)
+endif()
 if(WITH_SUBMODULE_QWLROOTS)
     # Use qwlroots from project root directory
     include(${CMAKE_SOURCE_DIR}/qwlroots/cmake/WaylandScannerHelpers.cmake)

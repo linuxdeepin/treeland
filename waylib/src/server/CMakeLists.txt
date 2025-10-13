@@ -9,12 +9,21 @@ set(WAYLIB_INCLUDE_INSTALL_DIR
     CACHE STRING "Install directory for waylib headers"
 )
 
-if(QT_VERSION VERSION_GREATER "6.8.0")
-    set(QT_COMPONENTS Core Gui Quick GuiPrivate QuickPrivate)
-else()
-    set(QT_COMPONENTS Core Gui Quick)
-endif()
+set(QT_COMPONENTS Core Gui Quick)
+
+# Find required Qt components first
 find_package(Qt6 COMPONENTS ${QT_COMPONENTS} REQUIRED)
+
+# Try to find optional Private modules
+find_package(Qt6 CONFIG QUIET COMPONENTS GuiPrivate)
+if(TARGET Qt6::GuiPrivate)
+    list(APPEND QT_COMPONENTS GuiPrivate)
+endif()
+
+find_package(Qt6 CONFIG QUIET COMPONENTS QuickPrivate)
+if(TARGET Qt6::QuickPrivate)
+    list(APPEND QT_COMPONENTS QuickPrivate)
+endif()
 
 qt_standard_project_setup(REQUIRES 6.6)
 

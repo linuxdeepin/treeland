@@ -1,4 +1,8 @@
 find_package(Qt6 COMPONENTS Quick QuickControls2 REQUIRED)
+
+# Try to find optional QuickPrivate module
+find_package(Qt6 CONFIG QUIET COMPONENTS QuickPrivate)
+
 qt_standard_project_setup(REQUIRES 6.4)
 
 if(QT_KNOWN_POLICY_QTP0001) # this policy was introduced in Qt 6.5
@@ -70,11 +74,16 @@ target_link_libraries(${TARGET}
     PRIVATE
     Qt6::Quick
     Qt6::QuickControls2
-    Qt6::QuickPrivate
     Waylib::WaylibServer
     PkgConfig::PIXMAN
     PkgConfig::WAYLAND
 )
+
+# Add QuickPrivate include directories and link library if available
+if(TARGET Qt6::QuickPrivate)
+    target_link_libraries(${TARGET} PRIVATE Qt6::QuickPrivate)
+    target_include_directories(${TARGET} PRIVATE ${Qt6Quick_PRIVATE_INCLUDE_DIRS})
+endif()
 
 if (INSTALL_TINYWL)
     install(TARGETS ${TARGET} DESTINATION ${CMAKE_INSTALL_BINDIR})

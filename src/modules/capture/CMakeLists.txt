@@ -46,15 +46,20 @@ PRIVATE
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
 )
 
-target_link_libraries(${MODULE_NAME}
-    PRIVATE
-        PkgConfig::WLROOTS
-        Waylib::WaylibServer
-        Qt6::Core
-        Qt6::Gui
-        Qt6::Quick
-        Qt6::QuickPrivate
+set(PRIVATE_LIBS
+    PkgConfig::WLROOTS
+    Waylib::WaylibServer
+    Qt6::Core
+    Qt6::Gui
+    Qt6::Quick
 )
+
+# Conditionally link Qt6::QuickPrivate if available
+if(QT6_QUICKPRIVATE_FOUND)
+    list(APPEND PRIVATE_LIBS Qt6::QuickPrivate)
+endif()
+
+target_link_libraries(${MODULE_NAME} PRIVATE ${PRIVATE_LIBS})
 
 impl_treeland(
     NAME

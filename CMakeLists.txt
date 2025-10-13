@@ -70,6 +70,20 @@ set(QML_IMPORT_PATH "${LOCAL_QML_IMPORT_PATH}" CACHE STRING "For LSP" FORCE)
 find_package(PkgConfig REQUIRED)
 find_package(Qt6 CONFIG REQUIRED Core DBus Gui Qml Quick QuickControls2 LinguistTools Test QuickTest)
 
+# Check for optional Qt6::QuickPrivate
+find_package(Qt6 CONFIG QUIET COMPONENTS QuickPrivate)
+if(TARGET Qt6::QuickPrivate)
+    set(QT6_QUICKPRIVATE_FOUND TRUE)
+else()
+    set(QT6_QUICKPRIVATE_FOUND FALSE)
+endif()
+
+if(TARGET Qt6::WaylandClientPrivate)
+    set(QT6_WAYLANDCLIENTPRIVATE_FOUND TRUE)
+else()
+    set(QT6_WAYLANDCLIENTPRIVATE_FOUND FALSE)
+endif()
+
 pkg_check_modules(WLROOTS REQUIRED IMPORTED_TARGET wlroots-0.19)
 
 qt_standard_project_setup(REQUIRES 6.8)
