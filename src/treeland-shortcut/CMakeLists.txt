@@ -1,4 +1,5 @@
 find_package(Qt6 REQUIRED COMPONENTS WaylandClient Widgets DBus)
+find_package(Qt6 COMPONENTS WaylandClientPrivate QUIET)
 find_package(TreelandProtocols REQUIRED)
 find_package(PkgConfig REQUIRED)
 pkg_search_module(WAYLAND_CLIENT REQUIRED IMPORTED_TARGET wayland-client)
