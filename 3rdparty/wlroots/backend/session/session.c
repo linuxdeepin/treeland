@@ -519,8 +519,6 @@ ssize_t wlr_session_find_gpus(struct wlr_session *session,
 			break;
 		}
 
-		bool is_boot_vga = false;
-
 		const char *path = udev_list_entry_get_name(entry);
 		struct udev_device *dev = udev_device_new_from_syspath(session->udev, path);
 		if (!dev) {
@@ -536,14 +534,20 @@ ssize_t wlr_session_find_gpus(struct wlr_session *session,
 			continue;
 		}
 
-		// This is owned by 'dev', so we don't need to free it
-		struct udev_device *pci =
-			udev_device_get_parent_with_subsystem_devtype(dev, "pci", NULL);
+		bool is_primary = false;
+		const char *boot_display = udev_device_get_sysattr_value(dev, "boot_display");
+		if (boot_display && strcmp(boot_display, "1") == 0) {
+		    is_primary = true;
+		} else {
+			// This is owned by 'dev', so we don't need to free it
+			struct udev_device *pci =
+				udev_device_get_parent_with_subsystem_devtype(dev, "pci", NULL);
 
-		if (pci) {
-			const char *id = udev_device_get_sysattr_value(pci, "boot_vga");
-			if (id && strcmp(id, "1") == 0) {
-				is_boot_vga = true;
+			if (pci) {
+				const char *id = udev_device_get_sysattr_value(pci, "boot_vga");
+				if (id && strcmp(id, "1") == 0) {
+					is_primary = true;
+				}
 			}
 		}
 
@@ -557,7 +561,7 @@ ssize_t wlr_session_find_gpus(struct wlr_session *session,
 		udev_device_unref(dev);
 
 		ret[i] = wlr_dev;
-		if (is_boot_vga) {
+		if (is_primary) {
 			struct wlr_device *tmp = ret[0];
 			ret[0] = ret[i];
 			ret[i] = tmp;
