@@ -1,4 +1,5 @@
 find_package(Qt6 REQUIRED COMPONENTS WaylandClient Quick)
+find_package(Qt6 COMPONENTS WaylandClientPrivate QUIET)
 find_package(TreelandProtocols REQUIRED)
 
 set(BIN_NAME test-multitaskview)
