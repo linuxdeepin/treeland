@@ -7,7 +7,7 @@ BindsTo=treeland.service
 
 [Service]
 Type=simple
-ExecStart=@CMAKE_INSTALL_FULL_BINDIR@/treeland-session-helper
+ExecStart=@CMAKE_INSTALL_FULL_LIBEXECDIR@/treeland-session-helper
 Restart=on-failure
 RestartSec=1s
 
