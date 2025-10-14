@@ -100,6 +100,7 @@ set(PROJECT_RESOURCES_DIR "${CMAKE_SOURCE_DIR}/misc")
 enable_testing(true)
 
 add_subdirectory(src)
+add_subdirectory(tools)
 add_subdirectory(misc)
 add_subdirectory(tests)
 
