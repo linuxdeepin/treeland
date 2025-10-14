@@ -14,10 +14,10 @@ qt_generate_wayland_protocol_client_sources(${BIN_NAME}
 
 target_link_libraries(${BIN_NAME}
     PRIVATE
-    Qt6::Core
-    Qt6::Gui
+        Qt6::Core
+        Qt6::Gui
         Qt6::DBus
         Qt6::WaylandClient
 )
 
-install(TARGETS ${BIN_NAME} RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}")
+install(TARGETS ${BIN_NAME} RUNTIME DESTINATION "${CMAKE_INSTALL_LIBEXECDIR}")

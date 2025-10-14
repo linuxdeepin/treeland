@@ -1,11 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
-// QtWayland C++ 扩展版 app-id resolver helper（作为特权解析端）
-// 逻辑：
-// 1. 通过 QWaylandClientExtensionTemplate 绑定 treeland_app_id_resolver_manager_v1
-// 2. active 后获取 resolver 对象
-// 3. 在 treeland_app_id_resolver_v1_identify_request 回调中通过 DBus(pidfd) 解析 appId 并 respond
-
 #include <QGuiApplication>
 #include <QDebug>
 #include <QDBusConnection>
@@ -109,7 +103,7 @@ int main(int argc, char **argv)
         }
     });
 
-    qInfo() << "AppId resolver helper running (QtWayland extension mode)";
+    qInfo() << "treeland-session-helper running";
     return app.exec();
 }
 
