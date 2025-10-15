@@ -23,6 +23,25 @@ WClient *WObject::waylandClient() const
     return wclient;
 }
 
+pid_t WObject::pid() const
+{
+    auto client = waylandClient();
+    if (!client)
+        return 0;
+    auto credentials = client->credentials();
+    if (!credentials)
+        return 0;
+    return credentials->pid;
+}
+
+int WObject::pidFD() const
+{
+    auto client = waylandClient();
+    if (!client)
+        return -1;
+    return client->pidFD();
+}
+
 WObject::WObject(WObjectPrivate &dd, WObject *)
     : w_d_ptr(&dd)
 {
