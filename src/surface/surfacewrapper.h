@@ -119,7 +119,7 @@ public:
                             QQuickItem *parent = nullptr,
                             bool isProxy = false);
     
-    // 新的构造函数，用于预启动闪屏，允许传入初始窗口尺寸以尽可能早地稳定 UI
+    // Constructor for pre-launch splash; allows passing an initial window size to stabilize UI early
     explicit SurfaceWrapper(QmlEngine *qmlEngine,
                             QQuickItem *parent = nullptr,
                             const QSize &initialSize = QSize());
@@ -327,9 +327,8 @@ private:
     void setContainer(SurfaceContainer *newContainer);
     void setVisibleDecoration(bool newVisibleDecoration);
     
-    void setup(WToplevelSurface *shellSurface = nullptr); // 初始化 m_surfaceItem 相关功能
-    void createPrelaunchSplash(); // 创建预启动闪屏
-    void convertToNormalSurface(WToplevelSurface *shellSurface, Type type); // 从预启动模式转换为正常模式
+    void setup(WToplevelSurface *shellSurface = nullptr); // Initialize m_surfaceItem related features
+    void convertToNormalSurface(WToplevelSurface *shellSurface, Type type); // Transition from pre-launch mode to normal mode
     void updateBoundingRect();
     void updateVisible();
     void updateSubSurfaceStacking();
@@ -368,7 +367,7 @@ private:
     QPointer<QQuickItem> m_decoration;
     QPointer<QQuickItem> m_geometryAnimation;
     QPointer<QQuickItem> m_coverContent;
-    QPointer<QQuickItem> m_prelaunchSplash; // 预启动闪屏项
+    QPointer<QQuickItem> m_prelaunchSplash; // Pre-launch splash item
     QRectF m_boundedRect;
     QRectF m_normalGeometry;
     QRectF m_maximizedGeometry;
