@@ -6,16 +6,12 @@ on:
       - 'waylib/**'
       - 'qwlroots/**'
       - '.github/workflows/waylib-debian-build.yml'
-    branches:
-      - master
 
   pull_request:
     paths:
       - 'waylib/**'
       - 'qwlroots/**'
       - '.github/workflows/waylib-debian-build.yml'
-    branches:
-      - master
 
 jobs:
   container:

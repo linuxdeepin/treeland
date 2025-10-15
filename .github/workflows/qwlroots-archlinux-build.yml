@@ -5,15 +5,11 @@ on:
     paths:
       - 'qwlroots/**'
       - '.github/workflows/qwlroots-archlinux-build.yml'
-    branches:
-      - master
 
   pull_request:
     paths:
       - 'qwlroots/**'
       - '.github/workflows/qwlroots-archlinux-build.yml'
-    branches:
-      - master
 
 jobs:
   container:
