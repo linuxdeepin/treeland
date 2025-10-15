@@ -101,6 +101,7 @@ SurfaceWrapper::SurfaceWrapper(QmlEngine *qmlEngine, QQuickItem *parent, const Q
     setNoDecoration(false);
 
     m_prelaunchSplash = m_engine->createPrelaunchSplash(this);
+    m_prelaunchSplash->setZ(9999999999);
 }
 
 SurfaceWrapper::~SurfaceWrapper()
@@ -131,16 +132,9 @@ SurfaceWrapper::~SurfaceWrapper()
     }
 }
 
-void SurfaceWrapper::setup(WToplevelSurface *shellSurface)
+void SurfaceWrapper::setup()
 {
-    // If a shellSurface argument is provided, use it
-    if (shellSurface) {
-        m_shellSurface = shellSurface;
-    }
-
-    if (!m_shellSurface) {
-    return; // Prelaunch mode does not create surfaceItem
-    }
+    Q_ASSERT(m_shellSurface);
 
     switch (m_type) {
     case Type::XdgToplevel:
