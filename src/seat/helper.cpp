@@ -893,6 +893,7 @@ void Helper::init()
 
     m_ddeShellV1 = m_server->attach<DDEShellManagerInterfaceV1>();
     m_prelaunchSplash = m_server->attach<PrelaunchSplash>();
+    m_shellHandler->m_appIdResolverManager = m_server->attach<AppIdResolverManager>();
     connect(m_prelaunchSplash,
             &PrelaunchSplash::splashRequested,
             m_shellHandler,
@@ -1041,10 +1042,6 @@ void Helper::init()
     qmlRegisterType<CaptureSourceSelector>("Treeland.Protocols", 1, 0, "CaptureSourceSelector");
 
     m_server->attach<WSecurityContextManager>();
-
-    // 通过 attach 方式创建 treeland_app_id_resolver_manager_v1（统一风格）
-    m_shellHandler->m_appIdResolverManager = m_server->attach<AppIdResolverManager>();
-    // 回调式接口，不再统一监听信号
 
     m_server->start();
     m_renderer = WRenderHelper::createRenderer(m_backend->handle());
