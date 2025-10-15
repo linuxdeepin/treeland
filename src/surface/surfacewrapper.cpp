@@ -61,15 +61,6 @@ SurfaceWrapper::SurfaceWrapper(QmlEngine *qmlEngine,
 {
     QQmlEngine::setContextForObject(this, qmlEngine->rootContext());
     setup();
-    // 若构造时已有 shellSurface（非预启动路径），补上 destroyed 监听，保持与 convertToNormalSurface 一致的安全语义
-    if (m_shellSurface) {
-        connect(m_shellSurface, &QObject::destroyed, this, [this] {
-            auto old = m_shellSurface;
-            m_shellSurface = nullptr;
-            Q_EMIT aboutToBeInvalidated();
-            Q_UNUSED(old);
-        });
-    }
 }
 
 // 新的构造函数，用于预启动闪屏
@@ -106,6 +97,8 @@ SurfaceWrapper::SurfaceWrapper(QmlEngine *qmlEngine, QQuickItem *parent, const Q
     } else {
         setImplicitSize(800, 600);
     }
+    setNoDecoration(false);
+    
     createPrelaunchSplash();
 }
 
@@ -324,9 +317,6 @@ void SurfaceWrapper::createPrelaunchSplash()
         return; // 已创建
     }
     m_prelaunchSplash = m_engine->createPrelaunchSplash(this);
-    if (m_prelaunchSplash) {
-        m_prelaunchSplash->setZ(999999); // 确保在最上层
-    }
 }
 
 void SurfaceWrapper::convertToNormalSurface(WToplevelSurface *shellSurface, Type type)
@@ -337,36 +327,18 @@ void SurfaceWrapper::convertToNormalSurface(WToplevelSurface *shellSurface, Type
         return;
     }
 
-    // 若存在预启动闪屏，不立即删除，交给交叉淡出逻辑处理
-    if (m_prelaunchSplash) {
-        m_crossFadeRequested = true;
-        m_crossFadeSplash = m_prelaunchSplash;
-        // 先暂时隐藏真实 surfaceItem（setup 后再显示），避免抢先显示导致闪烁
-    }
-
     // 设置新的参数（QPointer 自动感知销毁）
     m_shellSurface = shellSurface;
-    if (m_shellSurface) {
-        // 当顶层 surface 对象销毁时，清空指针，避免后续访问悬空
-        connect(m_shellSurface, &QObject::destroyed, this, [this] {
-            // 标记并触发无效化
-            auto old = m_shellSurface;
-            m_shellSurface = nullptr;
-            Q_EMIT aboutToBeInvalidated();
-            Q_UNUSED(old);
-        });
-    }
+
     m_type = type;
 
     // 调用setup来初始化surfaceItem相关功能
     setup();
 
-    // 真实 surfaceItem 创建后尝试启动交叉淡出
-    startCrossFadeIfNeeded();
-
     // 转正后重新更新可见性与边界
-    //updateBoundingRect();
-    //updateVisible();
+    updateBoundingRect();
+    updateVisible();
+    QMetaObject::invokeMethod(m_prelaunchSplash, "hideAndDestroy", Qt::QueuedConnection);
 }
 
 void SurfaceWrapper::setParent(QQuickItem *item)
@@ -1129,10 +1101,6 @@ void SurfaceWrapper::onMappedChanged()
     Q_ASSERT(surface());
     bool mapped = surface()->mapped() && !m_hideByLockScreen;
     if (!m_isProxy) {
-        // 如果映射时还未开始交叉淡出，且条件满足，则尝试启动
-        if (mapped && m_crossFadeRequested && !m_crossFadeStarted) {
-            startCrossFadeIfNeeded();
-        }
         if (mapped) {
             //createNewOrClose(OPEN_ANIMATION);
             if (m_coverContent) {
@@ -1709,53 +1677,6 @@ void SurfaceWrapper::updateSurfaceSizeRatio()
 void SurfaceWrapper::setXwaylandPositionFromSurface(bool value)
 {
     m_xwaylandPositionFromSurface = value;
-}
-
-void SurfaceWrapper::startCrossFadeIfNeeded()
-{
-    if (!m_crossFadeRequested || m_crossFadeStarted)
-        return;
-    if (!m_crossFadeSplash)
-        return;
-    if (!m_surfaceItem) {
-        // 真实 surface 还没准备好，稍后再试
-        QTimer::singleShot(16, this, [this] { startCrossFadeIfNeeded(); });
-        return;
-    }
-
-    m_crossFadeStarted = true;
-    auto splashItem = m_crossFadeSplash;
-
-    // 真实 surfaceItem 先设置透明度 0，加入同一层次后再淡入
-    m_surfaceItem->setOpacity(0.0);
-    // 确保 splash 在最上层
-    splashItem->setZ(qMax(splashItem->z(), m_surfaceItem->z() + 1));
-
-    // 使用 QML 动画组件：调用 helper 创建一个简单的淡入/淡出动画（如果已有引擎侧通用动画，也可替换）
-    // 这里直接用 QMetaObject 调用 QML 侧可能存在的 util；否则使用属性插值的简易方式
-    // DEBUG: 临时将交叉淡出时间从 300ms 延长到 5000ms 以便观察首帧/闪烁现象 (TODO: 恢复为 300ms)
-    const int fadeDuration = 300;
-
-    // 使用逐帧插值（简易）。长时长下如果还是 10 步会出现明显阶梯，这里提升为 100 步（≈50ms/步）。
-    int steps = 10;
-    int interval = fadeDuration / steps;
-    for (int i = 0; i <= steps; ++i) {
-        QTimer::singleShot(i * interval, this, [this, splashItem, i, steps] {
-            if (m_surfaceItem)
-                m_surfaceItem->setOpacity(qreal(i) / steps);
-            if (splashItem)
-                splashItem->setOpacity(1.0 - qreal(i) / steps);
-        });
-    }
-    // 动画结束后删除闪屏
-    QTimer::singleShot(fadeDuration + 30, this, [this, splashItem] {
-        if (splashItem)
-            splashItem->deleteLater();
-    });
-    // 标记不再需要
-    m_prelaunchSplash = nullptr;
-    m_crossFadeSplash = nullptr;
-    m_crossFadeRequested = false;
 }
 
 void SurfaceWrapper::setHasInitializeContainer(bool value)
