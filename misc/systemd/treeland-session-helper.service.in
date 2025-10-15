@@ -1,9 +1,11 @@
 [Unit]
 Description=Treeland Session Helper
-# This service starts after the main treeland compositor service is active.
+# Start only when the main treeland compositor is running.
+# Requires: helper will be stopped when treeland stops (including crash) and started when treeland (re)starts.
+Requires=treeland.service
 After=treeland.service
-# If treeland.service is stopped, this service will be stopped too.
-BindsTo=treeland.service
+# PartOf propagates manual restart/stop of treeland.service to this helper.
+PartOf=treeland.service
 
 [Service]
 Type=simple
@@ -12,4 +14,5 @@ Restart=on-failure
 RestartSec=1s
 
 [Install]
+# Install as a wanted dependency of treeland.service so that starting treeland pulls this in.
 WantedBy=treeland.service
