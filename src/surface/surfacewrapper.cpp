@@ -63,7 +63,7 @@ SurfaceWrapper::SurfaceWrapper(QmlEngine *qmlEngine,
     setup();
 }
 
-// 新的构造函数，用于预启动闪屏
+// Constructor used for the prelaunch splash
 SurfaceWrapper::SurfaceWrapper(QmlEngine *qmlEngine, QQuickItem *parent, const QSize &initialSize)
     : QQuickItem(parent)
     , m_engine(qmlEngine)
@@ -91,15 +91,15 @@ SurfaceWrapper::SurfaceWrapper(QmlEngine *qmlEngine, QQuickItem *parent, const Q
 {
     QQmlEngine::setContextForObject(this, qmlEngine->rootContext());
     if (initialSize.isValid() && initialSize.width() > 0 && initialSize.height() > 0) {
-        // 也设置 implicit，保持 QML 布局一致性
+    // Also set implicit size to keep QML layout consistent
         setImplicitSize(initialSize.width(), initialSize.height());
         qInfo() << "Prelaunch Splash: set initial size to" << initialSize;
     } else {
         setImplicitSize(800, 600);
     }
     setNoDecoration(false);
-    
-    createPrelaunchSplash();
+
+    m_prelaunchSplash = m_engine->createPrelaunchSplash(this);
 }
 
 SurfaceWrapper::~SurfaceWrapper()
@@ -132,13 +132,13 @@ SurfaceWrapper::~SurfaceWrapper()
 
 void SurfaceWrapper::setup(WToplevelSurface *shellSurface)
 {
-    // 如果传入了shellSurface参数，则使用它
+    // If a shellSurface argument is provided, use it
     if (shellSurface) {
         m_shellSurface = shellSurface;
     }
 
     if (!m_shellSurface) {
-        return; // 预启动模式不需要设置surfaceItem
+    return; // Prelaunch mode does not create surfaceItem
     }
 
     switch (m_type) {
@@ -164,7 +164,7 @@ void SurfaceWrapper::setup(WToplevelSurface *shellSurface)
         m_surfaceItem = new WInputPopupSurfaceItem(this);
         break;
     case Type::Undetermined:
-        return; // 预启动模式不创建surfaceItem
+        return; // Prelaunch mode does not create a surfaceItem
     default:
         Q_UNREACHABLE();
     }
@@ -310,32 +310,23 @@ void SurfaceWrapper::setup(WToplevelSurface *shellSurface)
     }
 }
 
-void SurfaceWrapper::createPrelaunchSplash()
-{
-    // 创建预启动闪屏
-    if (m_prelaunchSplash) {
-        return; // 已创建
-    }
-    m_prelaunchSplash = m_engine->createPrelaunchSplash(this);
-}
-
 void SurfaceWrapper::convertToNormalSurface(WToplevelSurface *shellSurface, Type type)
 {
-    // 只能从预启动模式转换
+    // Conversion only allowed from prelaunch (Undetermined) state
     if (m_type != Type::Undetermined || m_shellSurface != nullptr) {
         qWarning() << "convertToNormalSurface can only be called on prelaunch surfaces";
         return;
     }
 
-    // 设置新的参数（QPointer 自动感知销毁）
+    // Assign new shell surface (QPointer auto-detects destruction)
     m_shellSurface = shellSurface;
 
     m_type = type;
 
-    // 调用setup来初始化surfaceItem相关功能
+    // Call setup() to initialize surfaceItem related features
     setup();
 
-    // 转正后重新更新可见性与边界
+    // After conversion refresh visibility and bounding rect
     updateBoundingRect();
     updateVisible();
     QMetaObject::invokeMethod(m_prelaunchSplash, "hideAndDestroy", Qt::QueuedConnection);
@@ -352,7 +343,7 @@ void SurfaceWrapper::setActivate(bool activate)
     if (m_wrapperAboutToRemove)
         return;
 
-    // 预启动模式下没有shellSurface，直接返回
+    // No shellSurface in prelaunch mode -> early return
     if (!m_shellSurface)
         return;
 
@@ -371,7 +362,7 @@ void SurfaceWrapper::setActivate(bool activate)
 
 void SurfaceWrapper::setFocus(bool focus, Qt::FocusReason reason)
 {
-    // 预启动模式下没有surfaceItem，直接返回
+    // No surfaceItem in prelaunch mode -> early return
     if (!m_surfaceItem)
         return;
 
@@ -401,7 +392,7 @@ WSurfaceItem *SurfaceWrapper::surfaceItem() const
 
 bool SurfaceWrapper::resize(const QSizeF &size)
 {
-    // 预启动模式下没有surfaceItem，直接返回false
+    // No surfaceItem in prelaunch mode -> return false
     if (!m_surfaceItem)
         return false;
 
@@ -782,7 +773,7 @@ void SurfaceWrapper::updateTitleBar()
     if (m_wrapperAboutToRemove)
         return;
 
-    // 预启动模式下没有surfaceItem，直接返回
+    // No surfaceItem in prelaunch mode -> early return
     if (!m_surfaceItem)
         return;
 
@@ -956,7 +947,7 @@ void SurfaceWrapper::doSetSurfaceState(State newSurfaceState)
     if (m_wrapperAboutToRemove)
         return;
 
-    // 预启动模式下没有shellSurface，只更新状态但不调用shellSurface的方法
+    // In prelaunch mode there is no shellSurface; update state only without calling shellSurface methods
     if (!m_shellSurface) {
         m_previousSurfaceState.setValueBypassingBindings(m_surfaceState);
         m_surfaceState.setValueBypassingBindings(newSurfaceState);
@@ -1207,7 +1198,7 @@ qreal SurfaceWrapper::radius() const
 
     qreal radius = m_radius;
 
-    // TODO: XdgToplevel、popup、InputPopup、XWayland(bypass、widnowtype(menu、normal、popup))
+    // TODO: Handle: XdgToplevel, popup, InputPopup, XWayland (bypass, window type: menu/normal/popup)
     if (radius < 1 && m_type != Type::Layer) {
         radius = Helper::instance()->config()->windowRadius();
     }
@@ -1284,7 +1275,7 @@ void SurfaceWrapper::requestCancelFullscreen()
 
 void SurfaceWrapper::requestClose()
 {
-    // 预启动模式下没有shellSurface，直接返回
+    // No shellSurface in prelaunch mode -> early return
     if (!m_shellSurface)
         return;
 
