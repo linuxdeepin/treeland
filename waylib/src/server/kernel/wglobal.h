@@ -99,7 +99,9 @@ public:
         removeAttachedData<T>(owner);
     }
 
-    WClient *waylandClient() const;
+    [[nodiscard]] WClient *waylandClient() const;
+    [[nodiscard]] virtual pid_t pid() const;
+    [[nodiscard]] virtual int pidFD() const;
 
 protected:
     WObject(WObjectPrivate &dd, WObject *parent = nullptr);

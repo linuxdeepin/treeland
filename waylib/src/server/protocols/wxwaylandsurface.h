@@ -105,7 +105,8 @@ public:
 
     QString title() const override;
     QString appId() const override;
-    pid_t pid() const;
+    [[nodiscard]] pid_t pid() const override;
+    [[nodiscard]] int pidFD() const override;
 
     QRect requestConfigureGeometry() const;
     ConfigureFlags requestConfigureFlags() const;
