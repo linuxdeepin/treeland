@@ -322,7 +322,7 @@ private:
     void setContainer(SurfaceContainer *newContainer);
     void setVisibleDecoration(bool newVisibleDecoration);
     
-    void setup(WToplevelSurface *shellSurface = nullptr); // Initialize m_surfaceItem related features
+    void setup(); // Initialize m_surfaceItem related features
     void convertToNormalSurface(WToplevelSurface *shellSurface, Type type); // Transition from pre-launch mode to normal mode
     void updateBoundingRect();
     void updateVisible();
