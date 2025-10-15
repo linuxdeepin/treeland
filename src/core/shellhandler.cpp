@@ -221,8 +221,15 @@ void ShellHandler::onXdgToplevelSurfaceAdded(WXdgToplevelSurface *surface)
 }
 
 SurfaceWrapper *ShellHandler::matchOrCreateXdgWrapper(WXdgToplevelSurface *surface,
-                                                      const QString &targetAppId)
+                                                      const QString &appId)
 {
+    QString targetAppId = appId;
+    if (targetAppId.isEmpty()) {
+        targetAppId = surface->appId();
+        qCWarning(treelandShell)
+            << "Appid for Xdg surface identify failed, fallback to surface appId:" << targetAppId;
+    }
+
     SurfaceWrapper *wrapper = nullptr;
 
     if (!targetAppId.isEmpty()) {
@@ -361,6 +368,7 @@ void ShellHandler::onXWaylandSurfaceAdded(WXWaylandSurface *surface)
         if (!m_prelaunchWrappers.isEmpty() && m_appIdResolverManager) {
             if (auto client = surface->waylandClient()) {
                 int pidfd = client->pidFD();
+                // FIXME(rewine):  resolvePidfd failed for xwayland, maybe get error pidfd
                 if (pidfd >= 0) {
                     if (m_appIdResolverManager->resolvePidfd(
                             pidfd,
@@ -405,9 +413,17 @@ void ShellHandler::onXWaylandSurfaceAdded(WXWaylandSurface *surface)
 }
 
 SurfaceWrapper *ShellHandler::matchOrCreateXwaylandWrapper(WXWaylandSurface *surface,
-                                                           const QString &targetAppId)
+                                                           const QString &appId)
 {
     SurfaceWrapper *wrapper = nullptr;
+
+    QString targetAppId = appId;
+    if (targetAppId.isEmpty()) {
+        targetAppId = surface->appId();
+        qCWarning(treelandShell)
+            << "Appid for XWayland surface identify failed, fallback to xprop _NET_WM_APP_ID:" << targetAppId;
+    }
+
     if (!targetAppId.isEmpty()) {
         for (int i = 0; i < m_prelaunchWrappers.size(); ++i) {
             auto *candidate = m_prelaunchWrappers[i];
