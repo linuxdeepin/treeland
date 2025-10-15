@@ -133,6 +133,5 @@ private:
     // New protocol based app id resolver (optional, may be null if module not loaded)
     AppIdResolverManager *m_appIdResolverManager = nullptr;
     WindowSizeStore *m_windowSizeStore = nullptr; // 持久化窗口尺寸
-    // 回调式解析，不再需要 pendingAppId 结构
 };
 
