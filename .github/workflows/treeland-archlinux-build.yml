@@ -7,12 +7,8 @@ name: Build treeland on Arch Linux
 
 on:
   push:
-    branches:
-      - master
 
   pull_request:
-    branches:
-      - master
 
 jobs:
   container:
