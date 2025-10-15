@@ -4,25 +4,25 @@
 import QtQuick
 import QtQuick.Controls
 
-// PrelaunchSplash: 一个包含白色背景和居中Logo的极简自包含组件.
-// 由 SurfaceWrapper 创建和管理，不包含窗口装饰（如边框、阴影）.
+// PrelaunchSplash: minimalist standalone component with a white background and a centered logo.
+// Created and managed by SurfaceWrapper; no window decorations (no border, no shadow).
 Item {
     id: splash
 
     property string logoPath: ""
+    property bool destroyAfterFade: false
 
-    signal animationFinished() // 仍保留信号以兼容调用方
-
-    // 填充父级 (SurfaceWrapper)
+    // Fill the entire parent (SurfaceWrapper)
     anchors.fill: parent
 
     Rectangle {
+        radius: 10 // TODO: use Decoration's radius
         id: background
         color: "#ffffff"
-        // 填充父级，尺寸由父级决定
+        // Fill parent; size is dictated by parent
         anchors.fill: parent
 
-        // Logo 保持在背景中居中
+        // Centered logo
         Image {
             id: logoImage
             source: splash.logoPath
@@ -59,10 +59,20 @@ Item {
 
         onFinished: {
             splash.visible = false
+            if (splash.destroyAfterFade) {
+                splash.destroy();
+            }
         }
     }
 
     function hide() {
         fadeOut.start()
+    }
+
+    function hideAndDestroy() {
+        if (destroyAfterFade)
+            return;
+        destroyAfterFade = true;
+        hide();
     }
 }
