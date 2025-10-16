@@ -61,6 +61,38 @@ ShellHandler::ShellHandler(RootSurfaceContainer *rootContainer)
     m_popupContainer->setZ(RootSurfaceContainer::PopupZOrder);
 }
 
+void ShellHandler::updateWrapperContainer(SurfaceWrapper *wrapper,
+                                          WSurface *parentSurface)
+{
+    if (wrapper->parentSurface())
+        wrapper->parentSurface()->removeSubSurface(wrapper);
+
+    auto oldContainer = wrapper->container();
+    if (parentSurface) {
+        auto parentWrapper = m_rootSurfaceContainer->getSurface(parentSurface);
+        auto parentContainer = qobject_cast<SurfaceContainer *>(parentWrapper->container());
+        parentWrapper->addSubSurface(wrapper);
+        if (oldContainer != parentContainer) {
+            if (oldContainer)
+                oldContainer->removeSurface(wrapper);
+            if (auto ws = qobject_cast<Workspace *>(parentContainer))
+                ws->addSurface(wrapper, parentWrapper->workspaceId());
+            else
+                parentContainer->addSurface(wrapper);
+        }
+    } else {
+        if (oldContainer) {
+            if (qobject_cast<Workspace *>(oldContainer) == nullptr) {
+                oldContainer->removeSurface(wrapper);
+                m_workspace->addSurface(wrapper);
+            } 
+            // else do nothing, already in workspace
+        } else {
+            m_workspace->addSurface(wrapper);
+        }
+    }
+}
+
 // Prelaunch splash request: create a SurfaceWrapper that is not yet bound to a shellSurface
 void ShellHandler::handlePrelaunchSplashRequested(const QString &appId)
 {
@@ -256,31 +288,7 @@ void ShellHandler::initXdgWrapperCommon(WXdgToplevelSurface *surface, SurfaceWra
         handleDdeShellSurfaceAdded(surface->surface(), wrapper);
     }
     auto updateSurfaceWithParentContainer = [this, wrapper, surface] {
-        if (wrapper->parentSurface())
-            wrapper->parentSurface()->removeSubSurface(wrapper);
-        auto oldContainer = wrapper->container();
-        if (auto parent = surface->parentSurface()) {
-            auto parentWrapper = m_rootSurfaceContainer->getSurface(parent);
-            auto parentContainer = qobject_cast<SurfaceContainer *>(parentWrapper->container());
-            parentWrapper->addSubSurface(wrapper);
-            if (oldContainer != parentContainer) {
-                if (oldContainer)
-                    oldContainer->removeSurface(wrapper);
-                if (auto workspace = qobject_cast<Workspace *>(parentContainer))
-                    workspace->addSurface(wrapper, parentWrapper->workspaceId());
-                else
-                    parentContainer->addSurface(wrapper);
-            }
-        } else {
-            if (oldContainer) {
-                if (qobject_cast<Workspace *>(oldContainer) == nullptr) {
-                    oldContainer->removeSurface(wrapper);
-                    m_workspace->addSurface(wrapper);
-                }
-            } else {
-                m_workspace->addSurface(wrapper);
-            }
-        }
+        updateWrapperContainer(wrapper, surface->parentSurface());
     };
     
     surface->safeConnect(&WXdgToplevelSurface::parentXdgSurfaceChanged,
@@ -454,36 +462,9 @@ SurfaceWrapper *ShellHandler::matchOrCreateXwaylandWrapper(WXWaylandSurface *sur
 void ShellHandler::initXwaylandWrapperCommon(WXWaylandSurface *surface, SurfaceWrapper *wrapper)
 {
     auto updateSurfaceWithParentContainer = [this, wrapper, surface] {
-        if (wrapper->parentSurface())
-            wrapper->parentSurface()->removeSubSurface(wrapper);
-        if (wrapper->container())
-            wrapper->container()->removeSurface(wrapper);
-
-        auto oldContainer = wrapper->container();
-        if (auto parent = surface->parentXWaylandSurface()) {
-            auto parentWrapper = m_rootSurfaceContainer->getSurface(parent);
-            auto parentContainer = qobject_cast<SurfaceContainer *>(parentWrapper->container());
-            parentWrapper->addSubSurface(wrapper);
-            if (oldContainer != parentContainer) {
-                if (oldContainer)
-                    oldContainer->removeSurface(wrapper);
-                if (auto workspace = qobject_cast<Workspace *>(parentContainer))
-                    workspace->addSurface(wrapper, parentWrapper->workspaceId());
-                else
-                    parentContainer->addSurface(wrapper);
-            }
-        } else {
-            if (oldContainer) {
-                if (qobject_cast<Workspace *>(oldContainer) == nullptr) {
-                    oldContainer->removeSurface(wrapper);
-                    m_workspace->addSurface(wrapper);
-                }
-            } else {
-                m_workspace->addSurface(wrapper);
-            }
-        }
+        updateWrapperContainer(wrapper, surface->parentSurface());
     };
-    surface->safeConnect(&WXWaylandSurface::parentXWaylandSurfaceChanged,
+    surface->safeConnect(&WXWaylandSurface::parentSurfaceChanged,
                          this,
                          updateSurfaceWithParentContainer);
     updateSurfaceWithParentContainer();
