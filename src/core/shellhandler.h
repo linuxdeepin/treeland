@@ -112,6 +112,9 @@ private:
                                                  const QString &appId);
     void initXwaylandWrapperCommon(WAYLIB_SERVER_NAMESPACE::WXWaylandSurface *surface,
                                    SurfaceWrapper *wrapper);
+    // Unified parent/container update for Xdg & XWayland toplevel wrappers.
+    void updateWrapperContainer(SurfaceWrapper *wrapper,
+                                WAYLIB_SERVER_NAMESPACE::WSurface *parentSurface);
 
     WAYLIB_SERVER_NAMESPACE::WXdgShell *m_xdgShell = nullptr;
     WAYLIB_SERVER_NAMESPACE::WLayerShell *m_layerShell = nullptr;
