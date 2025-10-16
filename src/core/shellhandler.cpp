@@ -34,8 +34,6 @@
 #include <qloggingcategory.h>
 
 #include <optional>
-// for WClient definition (surface->waylandClient())
-#include <wsocket.h>
 
 #include <qwcompositor.h>
 #include <qwxwaylandsurface.h>
@@ -63,14 +61,14 @@ ShellHandler::ShellHandler(RootSurfaceContainer *rootContainer)
     m_popupContainer->setZ(RootSurfaceContainer::PopupZOrder);
 }
 
-// 预启动闪屏请求：创建一个未绑定 shellSurface 的 SurfaceWrapper
+// Prelaunch splash request: create a SurfaceWrapper that is not yet bound to a shellSurface
 void ShellHandler::handlePrelaunchSplashRequested(const QString &appId)
 {
     if (!m_appIdResolverManager)
         return;
     if (appId.isEmpty())
         return;
-    // 如果已经存在同 appId 的预启动 wrapper，则不重复创建
+    // If a prelaunch wrapper with the same appId already exists, skip creating a duplicate
     for (int i = 0; i < m_prelaunchWrappers.size(); ++i) {
         auto *w = m_prelaunchWrappers.at(i);
         if (w && w->property("prelaunchAppId").toString() == appId) {
@@ -89,11 +87,11 @@ void ShellHandler::handlePrelaunchSplashRequested(const QString &appId)
     m_workspace->addSurface(wrapper);
     m_prelaunchWrappers.append(wrapper);
 
-    // 5 秒后如果仍未匹配（未被 convertToNormalSurface 且仍在列表中），销毁闪屏 wrapper
+    // After 5 seconds, if still unmatched (not converted and still in the list), destroy the splash wrapper
     QTimer::singleShot(5000, wrapper, [this, wrapper] {
         int idx = m_prelaunchWrappers.indexOf(wrapper);
         if (idx < 0) {
-            return; // 已匹配或提前移除
+            return; // Already matched or removed earlier
         }
         qCDebug(treelandShell) << "Prelaunch splash timeout, destroy wrapper appId="
                                << wrapper->property("prelaunchAppId").toString();
@@ -196,28 +194,26 @@ void ShellHandler::initInputMethodHelper(WServer *server, WSeat *seat)
 
 void ShellHandler::onXdgToplevelSurfaceAdded(WXdgToplevelSurface *surface)
 {
-    // 当存在预启动窗口且解析器可用 -> 尝试异步解析；若成功发起则在回调中完成余下逻辑
+    // If there are prelaunch wrappers and the resolver is available -> attempt async resolve; remaining logic continues in the callback on success
     if (!m_prelaunchWrappers.isEmpty() && m_appIdResolverManager) {
-        if (auto client = surface->waylandClient()) {
-            int pidfd = client->pidFD();
-            if (pidfd >= 0) {
-                if (m_appIdResolverManager->resolvePidfd(
-                        pidfd,
-                        [this, surface](const QString &appId) {
-                            SurfaceWrapper *w = matchOrCreateXdgWrapper(surface, appId);
-                            initXdgWrapperCommon(surface, w);
-                        })) {
-                    qCDebug(treelandShell)
-                        << "AppIdResolver request sent (callback) pidfd=" << pidfd;
-                    return;
-                } else {
-                    qCDebug(treelandShell)
-                        << "AppIdResolverManager present but requestResolve failed pidfd=" << pidfd;
-                }
+        int pidfd = surface->pidFD();
+        if (pidfd >= 0) {
+            if (m_appIdResolverManager->resolvePidfd(
+                    pidfd,
+                    [this, surface](const QString &appId) {
+                        SurfaceWrapper *w = matchOrCreateXdgWrapper(surface, appId);
+                        initXdgWrapperCommon(surface, w);
+                    })) {
+                qCDebug(treelandShell)
+                    << "AppIdResolver request sent (callback) pidfd=" << pidfd;
+                return;
+            } else {
+                qCDebug(treelandShell)
+                    << "AppIdResolverManager present but requestResolve failed pidfd=" << pidfd;
             }
         }
     }
-    // 未进入或未成功发起异步解析 -> 直接匹配/创建
+    // Async resolve not started or failed -> directly match or create
     SurfaceWrapper *wrapper = matchOrCreateXdgWrapper(surface, QString());
     initXdgWrapperCommon(surface, wrapper);
 }
@@ -298,6 +294,17 @@ void ShellHandler::onXdgToplevelSurfaceRemoved(WXdgToplevelSurface *surface)
     if (interface) {
         delete interface;
     }
+    // Persist the last size of a normal window (prefer normalGeometry) when an appId is present
+    if (m_windowSizeStore && wrapper && !wrapper->property("prelaunchAppId").toString().isEmpty()) {
+        QSizeF sz = wrapper->normalGeometry().size();
+        if (!sz.isValid() || sz.isEmpty()) {
+            sz = wrapper->geometry().size();
+        }
+        const QSize s = sz.toSize();
+        if (s.isValid() && s.width() > 0 && s.height() > 0) {
+            m_windowSizeStore->saveSize(wrapper->property("prelaunchAppId").toString(), s);
+        }
+    }
     Q_EMIT surfaceWrapperAboutToRemove(wrapper);
     m_rootSurfaceContainer->destroyForSurface(wrapper);
 }
@@ -348,28 +355,26 @@ void ShellHandler::onXdgPopupSurfaceRemoved(WXdgPopupSurface *surface)
 void ShellHandler::onXWaylandSurfaceAdded(WXWaylandSurface *surface)
 {
     surface->safeConnect(&qw_xwayland_surface::notify_associate, this, [this, surface] {
-        // 若有预启动并且解析器可用，尝试异步解析；成功发起则在回调中完成，直接 return
+        // If prelaunch wrappers exist and resolver is available, attempt async resolve; if started, remaining logic handled in callback, then return
         if (!m_prelaunchWrappers.isEmpty() && m_appIdResolverManager) {
-            if (auto client = surface->waylandClient()) {
-                int pidfd = client->pidFD();
-                if (pidfd >= 0) {
-                    if (m_appIdResolverManager->resolvePidfd(
-                            pidfd,
-                            [this, surface](const QString &appId) {
-                                SurfaceWrapper *w = matchOrCreateXwaylandWrapper(surface, appId);
-                                initXwaylandWrapperCommon(surface, w);
-                            })) {
-                        qCDebug(treelandShell)
-                            << "(XWayland) AppIdResolver request sent (callback)";
-                        return; // 等异步回调
-                    } else {
-                        qCDebug(treelandShell)
-                            << "(XWayland) requestResolve failed pidfd=" << pidfd;
-                    }
+            int pidfd = surface->pidFD();
+            if (pidfd >= 0) {
+                if (m_appIdResolverManager->resolvePidfd(
+                        pidfd,
+                        [this, surface](const QString &appId) {
+                            SurfaceWrapper *w = matchOrCreateXwaylandWrapper(surface, appId);
+                            initXwaylandWrapperCommon(surface, w);
+                        })) {
+                    qCDebug(treelandShell)
+                        << "(XWayland) AppIdResolver request sent (callback)";
+                    return; // Waiting for async callback
+                } else {
+                    qCDebug(treelandShell)
+                        << "(XWayland) requestResolve failed pidfd=" << pidfd;
                 }
             }
         }
-        // 未进入异步路径：直接匹配/创建（传空 appId 触发 fallback appId 获取）
+        // Async path not taken: directly match or create (empty appId triggers fallback retrieval)
         SurfaceWrapper *wrapper = matchOrCreateXwaylandWrapper(surface, QString());
         initXwaylandWrapperCommon(surface, wrapper);
     });
@@ -377,7 +382,7 @@ void ShellHandler::onXWaylandSurfaceAdded(WXWaylandSurface *surface)
         auto wrapper = m_rootSurfaceContainer->getSurface(surface->surface());
         qCDebug(treelandShell) << "WXWayland::notify_dissociate" << surface << wrapper;
 
-        // 保存 XWayland 窗口尺寸
+        // Persist XWayland window size
         if (m_windowSizeStore && wrapper
             && !wrapper->property("prelaunchAppId").toString().isEmpty()) {
             QSizeF sz = wrapper->normalGeometry().size();
