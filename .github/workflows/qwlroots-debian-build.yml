@@ -1,4 +1,4 @@
-name: Build qwlroots on Debian experimental (independent)
+name: Build qwlroots on Debian unstable (independent)
 
 on:
   push:
@@ -14,15 +14,15 @@ on:
 jobs:
   container:
     runs-on: ubuntu-latest
-    container: debian:experimental
+    container: debian:unstable
     steps:
       - uses: actions/checkout@v4
 
       - name: Install build dependencies
         working-directory: qwlroots
         run: |
-          # Configure apt sources for experimental
-          echo "deb http://deb.debian.org/debian experimental main" > /etc/apt/sources.list
+          # Configure apt sources for unstable
+          echo "deb http://deb.debian.org/debian unstable main" > /etc/apt/sources.list
           echo "deb http://deb.debian.org/debian sid main" >> /etc/apt/sources.list
 
           apt-get update
