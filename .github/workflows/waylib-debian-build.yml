@@ -31,7 +31,7 @@ jobs:
           apt-get install -y devscripts equivs
 
           # Add deepin community repository to install wlr-protocols
-          echo "deb [trusted=yes] https://community-packages.deepin.com/beige/ crimson main commercial community" > /etc/apt/sources.list.d/deepin-community.list
+          echo "deb [trusted=yes] http://mirrors.kernel.org/deepin/beige/ crimson main commercial community" > /etc/apt/sources.list.d/deepin-community.list
 
           # Update package lists (ignore signature errors for this temporary repo)
           apt-get update --allow-unauthenticated

@@ -1,0 +1,54 @@
+name: Build qwlroots on Deepin crimson (independent)
+
+on:
+  push:
+    paths:
+      - 'qwlroots/**'
+      - '.github/workflows/qwlroots-deepin-build.yml'
+
+  pull_request:
+    paths:
+      - 'qwlroots/**'
+      - '.github/workflows/qwlroots-deepin-build.yml'
+
+jobs:
+  container:
+    runs-on: ubuntu-latest
+    container: linuxdeepin/deepin:crimson
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        working-directory: qwlroots
+        run: |
+          # Add deepin community repository to install wlr-protocols
+          echo "deb [trusted=yes] http://mirrors.kernel.org/deepin/beige/ crimson main commercial community" > /etc/apt/sources.list
+          echo "deb-src [trusted=yes] http://mirrors.kernel.org/deepin/beige/ crimson main commercial community" >> /etc/apt/sources.list
+          rm -rf /etc/apt/sources.list.d
+
+          # Update package lists (ignore signature errors for this temporary repo)
+          apt-get update --allow-unauthenticated
+
+          apt-get install -y devscripts equivs
+          # Install wlr-protocols package directly
+          apt-get install -y --allow-unauthenticated wlr-protocols
+          # Remove deepin repository to avoid system pollution
+          rm -f /etc/apt/sources.list.d/deepin-community.list
+          apt-get update
+
+          mk-build-deps --install --remove --tool='apt-get -o Debug::pkgProblemResolver=yes --no-install-recommends --yes' debian/control
+
+      - name: Build qwlroots deb package
+        working-directory: qwlroots
+        run: |
+          dpkg-buildpackage -uc -us -b
+          echo "✅ qwlroots deb package built successfully!"
+          ls -la ../*.deb
+
+      - name: Upload qwlroots deb packages as artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: qwlroots-deepin-deb-packages
+          path: "*.deb"
+          if-no-files-found: error
+          retention-days: 30
