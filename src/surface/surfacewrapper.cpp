@@ -101,6 +101,13 @@ SurfaceWrapper::SurfaceWrapper(QmlEngine *qmlEngine, QQuickItem *parent, const Q
 
     m_prelaunchSplash = m_engine->createPrelaunchSplash(this);
     m_prelaunchSplash->setZ(9999999999);
+
+    connect(m_prelaunchSplash, &QQuickItem::visibleChanged,
+            this, [this] {
+        if (m_surfaceItem)
+            setImplicitSize(m_surfaceItem->implicitWidth(), m_surfaceItem->implicitHeight());
+        updateVisible();
+    });
 }
 
 SurfaceWrapper::~SurfaceWrapper()
@@ -221,7 +228,8 @@ void SurfaceWrapper::setup()
         setImplicitHeight(m_surfaceItem->implicitHeight());
     });
 
-    setImplicitSize(m_surfaceItem->implicitWidth(), m_surfaceItem->implicitHeight());
+    if (!m_prelaunchSplash || !m_prelaunchSplash->isVisible())
+        setImplicitSize(m_surfaceItem->implicitWidth(), m_surfaceItem->implicitHeight());
 
     if (auto client = m_shellSurface->waylandClient()) {
         connect(client->socket(),
@@ -322,7 +330,6 @@ void SurfaceWrapper::convertToNormalSurface(WToplevelSurface *shellSurface, Type
 
     // After conversion refresh visibility and bounding rect
     updateBoundingRect();
-    updateVisible();
     QMetaObject::invokeMethod(m_prelaunchSplash, "hideAndDestroy", Qt::QueuedConnection);
 }
 
@@ -816,6 +823,9 @@ void SurfaceWrapper::updateBoundingRect()
 
 void SurfaceWrapper::updateVisible()
 {
+    if (m_prelaunchSplash && m_prelaunchSplash->isVisible())
+        return;
+
     setVisible(!m_hideByWorkspace && !isMinimized() && (surface() && surface()->mapped())
                && m_socketEnabled && m_hideByshowDesk && !m_confirmHideByLockScreen);
 }
