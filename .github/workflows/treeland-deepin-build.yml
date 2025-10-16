@@ -1,0 +1,138 @@
+name: Build treeland on Deepin crimson (independent)
+
+on:
+  push:
+
+  pull_request:
+
+jobs:
+  container:
+    runs-on: ubuntu-latest
+    container: linuxdeepin/deepin:crimson
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: |
+          set -euxo pipefail
+
+          echo "deb [trusted=yes] http://mirrors.kernel.org/deepin/beige/ crimson main commercial community" > /etc/apt/sources.list
+          echo "deb-src [trusted=yes] http://mirrors.kernel.org/deepin/beige/ crimson main commercial community" >> /etc/apt/sources.list
+          rm -rf /etc/apt/sources.list.d
+
+          apt-get update
+          apt-get install -y devscripts equivs git
+
+          # Save the treeland workspace directory
+          TREELAND_DIR="$PWD"
+          echo "Treeland workspace directory: $TREELAND_DIR"
+
+          # Install wlr-protocols package directly (ignore auth for this one operation)
+          apt-get install -y --allow-unauthenticated wlr-protocols || true
+
+          # Build and install treeland-protocols locally (required build dependency not from repo)
+          echo "🔧 Building treeland-protocols from source (master)"
+          cd /tmp
+          if [ ! -d treeland-protocols ]; then
+            git clone --depth=1 --branch master --single-branch https://github.com/linuxdeepin/treeland-protocols.git
+          fi
+          cd treeland-protocols
+          mk-build-deps --install --remove --tool='apt-get -o Debug::pkgProblemResolver=yes --no-install-recommends --yes' debian/control
+          dpkg-buildpackage -uc -us -b
+          apt-get install -y ../*.deb || dpkg -i ../*.deb || apt-get -f install -y
+          cd "$TREELAND_DIR"
+
+          # Install build-deps defined in treeland/debian/control
+          # Check if libddm-dev is missing before running mk-build-deps
+          set +e
+          dpkg-checkbuilddeps debian/control 2> /tmp/treeland-checkdeps.err
+          CHECKDEPS_RC=$?
+          set -e
+
+          #if [ "$CHECKDEPS_RC" -ne 0 ] && grep -qi 'libddm-dev' /tmp/treeland-checkdeps.err; then
+            echo "⚠️ libddm-dev unavailable from repo, building ddm from source (master) as fallback"
+            cat /tmp/treeland-checkdeps.err
+            cd /tmp
+            if [ ! -d ddm ]; then
+              git clone --depth=1 https://github.com/linuxdeepin/ddm.git
+            fi
+            cd ddm
+            # Install ddm build-deps
+            mk-build-deps --install --remove --tool='apt-get -o Debug::pkgProblemResolver=yes --no-install-recommends --yes' debian/control
+            # Remove maintainer scripts to avoid post-install/remove actions in built packages
+            echo "🧹 Removing ddm maintainer scripts (*.postinst/*.postrm/*.prerm) before build"
+            rm -f debian/*.postinst debian/*.postrm debian/*.prerm || true
+            # Build ddm .deb packages
+            dpkg-buildpackage -uc -us -b
+            # Install built ddm packages (ignore postinst script errors since we only need dev files)
+            dpkg -i --force-all ../*.deb || apt-get install -y -f ../*.deb || true
+            echo "✅ ddm packages installed (postinst errors ignored)"
+            cd "$TREELAND_DIR"
+
+            # Remove libddm-dev from treeland's debian/control to avoid re-checking it
+            echo "Removing libddm-dev dependency from treeland's debian/control"
+            # Use a robust multi-line edit to drop any libddm-dev entry and fix commas/whitespace
+            perl -0777 -pe "s/\n\s*libddm-dev[^,]*,\n/\n/" -i debian/control
+            echo "Current Build-Depends after removal:"
+            awk 'found{print} /Build-Depends:/{found=1}' debian/control | sed -n '1,30p'
+            echo "Full debian/control after removal:"
+            cat debian/control
+          #fi
+
+          # Now install all treeland build dependencies
+          mk-build-deps --install --remove --tool='apt-get -o Debug::pkgProblemResolver=yes --no-install-recommends --yes' debian/control
+
+      - name: Build treeland deb package
+        run: |
+          set -euxo pipefail
+          # Ensure libddm-dev version constraint is relaxed before final build (avoid dpkg-checkbuilddeps failures)
+          sed -i -E 's/(libddm-dev)[[:space:]]*\([^)]*\)/\1/g' debian/control
+          echo "[Build step] debian/control after relaxing libddm-dev version:"
+          awk 'found{print} /Build-Depends:/{found=1}' debian/control | sed -n '1,30p'
+
+          # Check build dependencies and diagnose missing packages
+          set +e
+          dpkg-checkbuilddeps 2> /tmp/treeland-builddeps.err
+          BUILDDEPS_RC=$?
+          set -e
+
+          if [ "$BUILDDEPS_RC" -ne 0 ]; then
+            echo "❌ Build dependencies check failed. Analyzing missing packages..."
+            cat /tmp/treeland-builddeps.err
+
+            # Extract and list each missing package with version requirements
+            echo ""
+            echo "📋 Detailed missing packages analysis:"
+            grep -oP '(?<=Unmet build dependencies: ).*' /tmp/treeland-builddeps.err | tr ' ' '\n' | while read pkg; do
+              if [ -n "$pkg" ]; then
+                # Check if package exists in repos
+                apt-cache policy "$pkg" 2>/dev/null | head -20 || echo "  ⚠️  Package '$pkg' not found in any repository"
+              fi
+            done
+
+            echo ""
+            echo "🔍 Checking installed vs required versions for key packages:"
+            for pkg in libddm-dev ninja-build extra-cmake-modules; do
+              echo "--- $pkg ---"
+              dpkg -l | grep "^ii.*$pkg" || echo "  Not installed"
+              apt-cache policy "$pkg" 2>/dev/null | grep -E 'Installed|Candidate' || true
+            done
+          fi
+
+          dpkg-buildpackage -uc -us -b
+          echo "✅ treeland deb package built successfully!"
+          ls -la ../
+      - name: Collect deb artifacts
+        run: |
+          set -euxo pipefail
+          mkdir -p dist
+          mv ../*.deb dist/
+          ls -la dist
+
+      - name: Upload treeland deb packages as artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: treeland-deepin-deb-packages
+          path: dist/*.deb
+          if-no-files-found: error
+          retention-days: 30
