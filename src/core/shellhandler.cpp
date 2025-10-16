@@ -198,16 +198,24 @@ void ShellHandler::onXdgToplevelSurfaceAdded(WXdgToplevelSurface *surface)
     if (!m_prelaunchWrappers.isEmpty() && m_appIdResolverManager) {
         int pidfd = surface->pidFD();
         if (pidfd >= 0) {
-            if (m_appIdResolverManager->resolvePidfd(
-                    pidfd,
-                    [this, surface](const QString &appId) {
-                        SurfaceWrapper *w = matchOrCreateXdgWrapper(surface, appId);
-                        initXdgWrapperCommon(surface, w);
-                    })) {
-                qCDebug(treelandShell)
-                    << "AppIdResolver request sent (callback) pidfd=" << pidfd;
-                return;
+            // Register pending before starting async resolve (unified list)
+            m_pendingAppIdResolveToplevels.append(surface);
+
+            bool started = m_appIdResolverManager->resolvePidfd(
+                pidfd,
+                [this, surface](const QString &appId) {
+                    int idx = m_pendingAppIdResolveToplevels.indexOf(surface);
+                    if (idx < 0)
+                        return; // removed before callback
+                    SurfaceWrapper *w = matchOrCreateXdgWrapper(surface, appId);
+                    initXdgWrapperCommon(surface, w);
+                    m_pendingAppIdResolveToplevels.removeAt(idx);
+                });
+            if (started) {
+                qCDebug(treelandShell) << "AppIdResolver request sent (callback) pidfd=" << pidfd;
+                return; // async path handles creation
             } else {
+                m_pendingAppIdResolveToplevels.removeOne(surface);
                 qCDebug(treelandShell)
                     << "AppIdResolverManager present but requestResolve failed pidfd=" << pidfd;
             }
@@ -290,6 +298,14 @@ void ShellHandler::initXdgWrapperCommon(WXdgToplevelSurface *surface, SurfaceWra
 void ShellHandler::onXdgToplevelSurfaceRemoved(WXdgToplevelSurface *surface)
 {
     auto wrapper = m_rootSurfaceContainer->getSurface(surface);
+    // If async resolve still pending, cancel it. If wrapper never created, just return: compositor
+    // never exposed this surface (from treeland's perspective).
+    if (m_pendingAppIdResolveToplevels.removeOne(surface)) {
+        qCInfo(treelandShell) << "Cancelled pending AppId resolve for surface:" << surface;
+        if (!wrapper) {
+            return; // wrapper was never created; nothing to persist or destroy
+        }
+    }
     auto interface = DDEShellSurfaceInterface::get(surface->surface());
     if (interface) {
         delete interface;
@@ -359,16 +375,23 @@ void ShellHandler::onXWaylandSurfaceAdded(WXWaylandSurface *surface)
         if (!m_prelaunchWrappers.isEmpty() && m_appIdResolverManager) {
             int pidfd = surface->pidFD();
             if (pidfd >= 0) {
-                if (m_appIdResolverManager->resolvePidfd(
-                        pidfd,
-                        [this, surface](const QString &appId) {
-                            SurfaceWrapper *w = matchOrCreateXwaylandWrapper(surface, appId);
-                            initXwaylandWrapperCommon(surface, w);
-                        })) {
+                m_pendingAppIdResolveToplevels.append(surface);
+                bool started = m_appIdResolverManager->resolvePidfd(
+                    pidfd,
+                    [this, surface](const QString &appId) {
+                        int idx = m_pendingAppIdResolveToplevels.indexOf(surface);
+                        if (idx < 0)
+                            return; // removed before callback
+                        SurfaceWrapper *w = matchOrCreateXwaylandWrapper(surface, appId);
+                        initXwaylandWrapperCommon(surface, w);
+                        m_pendingAppIdResolveToplevels.removeAt(idx);
+                    });
+                if (started) {
                     qCDebug(treelandShell)
                         << "(XWayland) AppIdResolver request sent (callback)";
-                    return; // Waiting for async callback
+                    return; // async path
                 } else {
+                    m_pendingAppIdResolveToplevels.removeOne(surface);
                     qCDebug(treelandShell)
                         << "(XWayland) requestResolve failed pidfd=" << pidfd;
                 }
@@ -381,8 +404,14 @@ void ShellHandler::onXWaylandSurfaceAdded(WXWaylandSurface *surface)
     surface->safeConnect(&qw_xwayland_surface::notify_dissociate, this, [this, surface] {
         auto wrapper = m_rootSurfaceContainer->getSurface(surface->surface());
         qCDebug(treelandShell) << "WXWayland::notify_dissociate" << surface << wrapper;
-
-        // Persist XWayland window size
+        // Cancel pending async resolve if still present. If wrapper never created, return.
+        if (m_pendingAppIdResolveToplevels.removeOne(surface)) {
+            qCInfo(treelandShell) << "Cancelled pending AppId resolve (XWayland) for surface:" << surface;
+            if (!wrapper) {
+                return; // never created
+            }
+        }
+        // Persist XWayland window size (only if wrapper exists)
         if (m_windowSizeStore && wrapper
             && !wrapper->property("prelaunchAppId").toString().isEmpty()) {
             QSizeF sz = wrapper->normalGeometry().size();
@@ -394,7 +423,6 @@ void ShellHandler::onXWaylandSurfaceAdded(WXWaylandSurface *surface)
                 m_windowSizeStore->saveSize(wrapper->property("prelaunchAppId").toString(), s);
             }
         }
-
         Q_EMIT surfaceWrapperAboutToRemove(wrapper);
         m_rootSurfaceContainer->destroyForSurface(wrapper);
     });

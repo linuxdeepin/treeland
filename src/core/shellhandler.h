@@ -130,6 +130,9 @@ private:
     QObject *m_windowMenu = nullptr;
     // 保存预启动(尚未绑定真实 shellSurface) 的 wrapper 列表
     QVector<SurfaceWrapper *> m_prelaunchWrappers;
+    // Pending toplevel surfaces (XDG or XWayland) awaiting asynchronous AppId resolve.
+    // A callback only proceeds if the surface pointer is still present in this list.
+    QVector<WAYLIB_SERVER_NAMESPACE::WToplevelSurface *> m_pendingAppIdResolveToplevels;
     // New protocol based app id resolver (optional, may be null if module not loaded)
     AppIdResolverManager *m_appIdResolverManager = nullptr;
     WindowSizeStore *m_windowSizeStore = nullptr; // 持久化窗口尺寸
