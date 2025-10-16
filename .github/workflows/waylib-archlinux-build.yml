@@ -30,8 +30,6 @@ jobs:
           pacman -Syu --noconfirm --noprogressbar fakeroot meson sudo
 
       - uses: actions/checkout@v4
-        with:
-          submodules: true
 
       - name: Create qwlroots symlink for waylib
         run: |
