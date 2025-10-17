@@ -169,39 +169,6 @@ public:
     QList<WClient*> clients;
 };
 
-struct Q_DECL_HIDDEN WlClientDestroyListener {
-    WlClientDestroyListener(WClient *client)
-        : client(client)
-    {
-        destroy.notify = handle_destroy;
-    }
-
-    ~WlClientDestroyListener();
-
-    static WlClientDestroyListener *get(const wl_client *client);
-    static void handle_destroy(struct wl_listener *listener, void *);
-
-    wl_listener destroy;
-    QPointer<WClient> client;
-};
-
-WlClientDestroyListener::~WlClientDestroyListener()
-{
-    wl_list_remove(&destroy.link);
-}
-
-WlClientDestroyListener *WlClientDestroyListener::get(const wl_client *client)
-{
-    wl_listener *listener = wl_client_get_destroy_listener(const_cast<wl_client*>(client),
-                                                           WlClientDestroyListener::handle_destroy);
-    if (!listener) {
-        return nullptr;
-    }
-
-    WlClientDestroyListener *tmp = wl_container_of(listener, tmp, destroy);
-    return tmp;
-}
-
 static bool pauseClient(wl_client *client, bool pause)
 {
     pid_t pid = 0;
@@ -256,49 +223,40 @@ public:
         , handle(handle)
         , socket(socket)
     {
-        auto listener = new WlClientDestroyListener(qq);
-        wl_client_add_destroy_listener(handle, &listener->destroy);
+        destroyListener.notify = destroyListenerCallback;
+        wl_client_add_destroy_listener(handle, &destroyListener);
     }
 
     ~WClientPrivate() {
         if (pidFD >= 0)
             close(pidFD);
 
-        if (handle) {
-            auto listener = WlClientDestroyListener::get(handle);
-            Q_ASSERT(listener);
-            delete listener;
-        }
+        if (destroyListener.link.next && destroyListener.link.prev)
+            wl_list_remove(&destroyListener.link);
+    }
+
+    static void destroyListenerCallback(struct wl_listener *listener, void *data) {
+        wl_client *handle = static_cast<wl_client *>(data);
+        WClient *client = WClient::get(handle);
+        Q_ASSERT(client);
+        wl_list_remove(&client->d_func()->destroyListener.link);
+        client->socket()->removeClient(handle);
     }
 
     W_DECLARE_PUBLIC(WClient)
 
+    wl_listener destroyListener;
     wl_client *handle = nullptr;
     WSocket *socket = nullptr;
     mutable QSharedPointer<WClient::Credentials> credentials;
     mutable int pidFD = -1;
 };
 
-void WlClientDestroyListener::handle_destroy(wl_listener *listener, void *data)
-{
-    WlClientDestroyListener *self = wl_container_of(listener, self, destroy);
-    if (self->client) {
-        Q_ASSERT(reinterpret_cast<wl_client*>(data) == self->client->handle());
-        self->client->d_func()->handle = nullptr;
-        auto socket = self->client->socket();
-        Q_ASSERT(socket);
-        bool ok = socket->removeClient(self->client);
-        Q_ASSERT(ok);
-    }
-
-    delete self;
-}
-
 WClient::WClient(wl_client *client, WSocket *socket)
     : QObject(nullptr)
     , WObject(*new WClientPrivate(client, socket, this))
 {
-
+    wl_client_set_user_data(client, this, nullptr);
 }
 
 WSocket *WClient::socket() const
@@ -348,9 +306,8 @@ QSharedPointer<WClient::Credentials> WClient::getCredentials(const wl_client *cl
 
 WClient *WClient::get(const wl_client *client)
 {
-    if (auto tmp = WlClientDestroyListener::get(client))
-        return tmp->client;
-    return nullptr;
+    return static_cast<WClient *>(
+        wl_client_get_user_data(const_cast<wl_client *>(client)));
 }
 
 QByteArray WClient::sandboxEngine() const
