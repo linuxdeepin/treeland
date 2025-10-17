@@ -16,6 +16,8 @@
 #include <wxdgdecorationmanager.h>
 #include <wextforeigntoplevellistv1.h>
 
+#include <xcb/xproto.h>
+
 Q_MOC_INCLUDE(<wtoplevelsurface.h>)
 Q_MOC_INCLUDE(<wxdgsurface.h>)
 Q_MOC_INCLUDE(<qwgammacontorlv1.h>)
@@ -105,6 +107,13 @@ QW_BEGIN_NAMESPACE
 class qw_ext_foreign_toplevel_image_capture_source_manager_v1;
 QW_END_NAMESPACE
 
+struct Session {
+    uid_t uid = 0;
+    WSocket *socket = nullptr;
+    WXWayland *xwayland = nullptr;
+    quint32 noTitlebarAtom = XCB_ATOM_NONE;
+};
+
 class Helper : public WSeatEventFilter
 {
     friend class RootSurfaceContainer;
@@ -177,8 +186,9 @@ public:
     Q_INVOKABLE void addOutput();
 
     void addSocket(WSocket *socket);
-    WXWayland *createXWayland();
     void removeXWayland(WXWayland *xwayland);
+    WXWayland *xwaylandForUid(uid_t uid, bool createIfMissing = true);
+    WSocket *waylandSocketForUid(uid_t uid, bool createIfMissing = true);
 
     WSocket *defaultWaylandSocket() const;
     WXWayland *defaultXWaylandSocket() const;
@@ -229,7 +239,7 @@ public Q_SLOTS:
     void forceActivateSurface(SurfaceWrapper *wrapper,
                               Qt::FocusReason reason = Qt::OtherFocusReason);
     void fakePressSurfaceBottomRightToReszie(SurfaceWrapper *surface);
-    bool surfaceBelongsToCurrentUser(SurfaceWrapper *wrapper);
+    bool surfaceBelongsToCurrentSession(SurfaceWrapper *wrapper);
 
 Q_SIGNALS:
     void socketEnabledChanged();
@@ -314,11 +324,23 @@ private:
     void updateIdleInhibitor();
     void setNoAnimation(bool noAnimation);
 
+    Session *sessionForUid(uid_t uid) const;
+    Session *sessionForXWayland(WXWayland *xwayland) const;
+    Session *sessionForSocket(WSocket *socket) const;
+    Session *ensureSession(uid_t uid);
+    void updateActiveUserSession(uid_t uid);
+    void applySurfaceVisibility();
+    bool isXWaylandClient(WClient *client);
+
     static Helper *m_instance;
     TreelandConfig *m_config = nullptr;
     FpsDisplayManager *m_fpsManager = nullptr;
 
     CurrentMode m_currentMode{ CurrentMode::Normal };
+
+    // Sessions
+    Session *m_activeSession = nullptr;
+    QList<Session *> m_sessions;
 
     // qtquick helper
     WOutputRenderWindow *m_renderWindow = nullptr;
@@ -332,7 +354,6 @@ private:
     TogglableGesture *m_windowGesture = nullptr;
 
     // wayland helper
-    WSocket *m_socket = nullptr;
     WSeat *m_seat = nullptr;
     WBackend *m_backend = nullptr;
     qw_renderer *m_renderer = nullptr;
@@ -345,7 +366,6 @@ private:
     qw_output_power_manager_v1 *m_outputPowerManager = nullptr;
     qw_ext_foreign_toplevel_image_capture_source_manager_v1 *m_foreignToplevelImageCaptureManager = nullptr;
     ShellHandler *m_shellHandler = nullptr;
-    WXWayland *m_defaultXWayland = nullptr;
     WXdgDecorationManager *m_xdgDecorationManager = nullptr;
     WForeignToplevel *m_foreignToplevel = nullptr;
     WExtForeignToplevelListV1 *m_extForeignToplevelListV1 = nullptr;
@@ -386,8 +406,6 @@ private:
 
     IMultitaskView *m_multitaskView{ nullptr };
     UserModel *m_userModel{ nullptr };
-
-    quint32 m_atomDeepinNoTitlebar;
 
     bool m_blockActivateSurface{ false };
 

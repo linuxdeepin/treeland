@@ -152,7 +152,7 @@ SurfaceWrapper::SurfaceWrapper(QmlEngine *qmlEngine,
     setImplicitSize(m_surfaceItem->implicitWidth(), m_surfaceItem->implicitHeight());
 
     if (auto client = shellSurface->waylandClient()) {
-        connect(client->socket(),
+        connect(client->socket()->rootSocket(),
                 &WSocket::enabledChanged,
                 this,
                 &SurfaceWrapper::onSocketEnabledChanged);
@@ -1038,7 +1038,7 @@ void SurfaceWrapper::startMinimizeAnimation(const QRectF &iconGeometry, uint dir
 {
     if (m_minimizeAnimation)
         return;
-    if (!Helper::instance()->surfaceBelongsToCurrentUser(this))
+    if (!Helper::instance()->surfaceBelongsToCurrentSession(this))
         return;
 
     m_minimizeAnimation =
