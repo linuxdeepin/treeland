@@ -130,7 +130,7 @@
     <message>
         <location filename="../qml/UserInput.qml" line="141"/>
         <source>Password</source>
-        <translation type="unfinished"/>
+        <translation>Fjalëkalim</translation>
     </message>
 </context>
 </TS>
