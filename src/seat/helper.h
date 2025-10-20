@@ -112,6 +112,7 @@ struct Session {
     WSocket *socket = nullptr;
     WXWayland *xwayland = nullptr;
     quint32 noTitlebarAtom = XCB_ATOM_NONE;
+    SurfaceWrapper *lastActivatedSurface = nullptr;
 };
 
 class Helper : public WSeatEventFilter
@@ -324,12 +325,11 @@ private:
     void updateIdleInhibitor();
     void setNoAnimation(bool noAnimation);
 
-    Session *sessionForUid(uid_t uid) const;
-    Session *sessionForXWayland(WXWayland *xwayland) const;
-    Session *sessionForSocket(WSocket *socket) const;
-    Session *ensureSession(uid_t uid);
+    std::shared_ptr<Session> sessionForUid(uid_t uid) const;
+    std::shared_ptr<Session> sessionForXWayland(WXWayland *xwayland) const;
+    std::shared_ptr<Session> sessionForSocket(WSocket *socket) const;
+    std::shared_ptr<Session> ensureSession(uid_t uid);
     void updateActiveUserSession(uid_t uid);
-    void applySurfaceVisibility();
     bool isXWaylandClient(WClient *client);
 
     static Helper *m_instance;
@@ -339,8 +339,8 @@ private:
     CurrentMode m_currentMode{ CurrentMode::Normal };
 
     // Sessions
-    Session *m_activeSession = nullptr;
-    QList<Session *> m_sessions;
+    std::weak_ptr<Session> m_activeSession;
+    QList<std::shared_ptr<Session>> m_sessions;
 
     // qtquick helper
     WOutputRenderWindow *m_renderWindow = nullptr;

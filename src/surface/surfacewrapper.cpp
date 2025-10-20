@@ -733,7 +733,8 @@ void SurfaceWrapper::updateBoundingRect()
 void SurfaceWrapper::updateVisible()
 {
     setVisible(!m_hideByWorkspace && !isMinimized() && (surface() && surface()->mapped())
-               && m_socketEnabled && m_hideByshowDesk && !m_confirmHideByLockScreen);
+               && m_socketEnabled && m_hideByshowDesk && !m_confirmHideByLockScreen
+               && Helper::instance()->surfaceBelongsToCurrentSession(this));
 }
 
 void SurfaceWrapper::updateSubSurfaceStacking()
