@@ -286,7 +286,6 @@ Helper::~Helper()
             delete session->socket;
             session->socket = nullptr;
         }
-        delete session;
     }
     m_sessions.clear();
 
@@ -881,8 +880,8 @@ void Helper::onSurfaceWrapperAboutToRemove(SurfaceWrapper *wrapper)
 bool Helper::surfaceBelongsToCurrentSession(SurfaceWrapper *wrapper)
 {
     WClient *client = wrapper->surface()->waylandClient();
-    WSocket *socket = client->socket()->rootSocket();
-    return sessionForSocket(socket) == m_activeSession;
+    WSocket *socket = client ? client->socket()->rootSocket() : nullptr;
+    return socket && socket->isEnabled();
 }
 
 void Helper::deleteTaskSwitch()
@@ -1184,15 +1183,17 @@ void Helper::init()
 
 bool Helper::socketEnabled() const
 {
-    if (auto session = m_activeSession; session && session->socket)
-        return session->socket->isEnabled();
+    auto ptr = m_activeSession.lock();
+    if (ptr && ptr->socket)
+        return ptr->socket->isEnabled();
     return false;
 }
 
 void Helper::setSocketEnabled(bool newEnabled)
 {
-    if (auto session = m_activeSession; session && session->socket)
-        session->socket->setEnabled(newEnabled);
+    auto ptr = m_activeSession.lock();
+    if (ptr && ptr->socket)
+        ptr->socket->setEnabled(newEnabled);
     else
         qCWarning(treelandCore) << "Can't set enabled for empty socket!";
 }
@@ -1983,7 +1984,7 @@ void Helper::addSocket(WSocket *socket)
  * @param uid User ID to find session for
  * @returns Session for the given uid, or nullptr if not found
  */
-Session *Helper::sessionForUid(uid_t uid) const
+std::shared_ptr<Session> Helper::sessionForUid(uid_t uid) const
 {
     for (auto session : m_sessions) {
         if (session && session->uid == uid)
@@ -1998,7 +1999,7 @@ Session *Helper::sessionForUid(uid_t uid) const
  * @param xwayland WXWayland to find session for
  * @returns Session for the given xwayland, or nullptr if not found
  */
-Session *Helper::sessionForXWayland(WXWayland *xwayland) const
+std::shared_ptr<Session> Helper::sessionForXWayland(WXWayland *xwayland) const
 {
     for (auto session : m_sessions) {
         if (session && session->xwayland == xwayland)
@@ -2013,7 +2014,7 @@ Session *Helper::sessionForXWayland(WXWayland *xwayland) const
  * @param socket WSocket to find session for
  * @returns Session for the given socket, or nullptr if not found
  */
-Session *Helper::sessionForSocket(WSocket *socket) const
+std::shared_ptr<Session> Helper::sessionForSocket(WSocket *socket) const
 {
     for (auto session : m_sessions) {
         if (session && session->socket == socket)
@@ -2028,7 +2029,7 @@ Session *Helper::sessionForSocket(WSocket *socket) const
  * @param uid User ID to ensure session for
  * @returns Session for the given uid, or nullptr on failure
  */
-Session *Helper::ensureSession(uid_t uid)
+std::shared_ptr<Session> Helper::ensureSession(uid_t uid)
 {
     // Helper lambda to create WSocket and WXWayland
     auto createWSocket = [this]() {
@@ -2044,7 +2045,7 @@ Session *Helper::ensureSession(uid_t uid)
                 &WSocket::fullServerNameChanged,
                 this,
                 [this] {
-                    if (m_activeSession)
+                    if (m_activeSession.lock())
                         Q_EMIT socketFileChanged();
                 });
         // Add socket to server
@@ -2083,7 +2084,6 @@ Session *Helper::ensureSession(uid_t uid)
             auto *socket = createWSocket();
             if (!socket) {
                 m_sessions.removeOne(session);
-                delete session;
                 return nullptr;
             }
             session->socket = socket;
@@ -2093,32 +2093,26 @@ Session *Helper::ensureSession(uid_t uid)
             if (!xwayland) {
                 delete session->socket;
                 m_sessions.removeOne(session);
-                delete session;
                 return nullptr;
             }
 
             session->xwayland = xwayland;
-            // Refresh xwayland visibility if this is the active session
-            if (m_activeSession == session)
-                applySurfaceVisibility();
         }
 
         return session;
     }
     // Session does not exist, create new session
-    auto session = new Session;
+    auto session = std::make_shared<Session>();
     session->uid = uid;
 
     session->socket = createWSocket();
     if (!session->socket) {
-        delete session;
         return nullptr;
     }
 
     session->xwayland = createXWayland(session->socket);
     if (!session->xwayland) {
         delete session->socket;
-        delete session;
         return nullptr;
     }
     // Add session to list
@@ -2154,7 +2148,7 @@ void Helper::removeXWayland(WXWayland *xwayland)
  */
 WXWayland *Helper::xwaylandForUid(uid_t uid, bool createIfMissing)
 {
-    Session *session = createIfMissing ? ensureSession(uid) : sessionForUid(uid);
+    auto session = createIfMissing ? ensureSession(uid) : sessionForUid(uid);
     return session ? session->xwayland : nullptr;
 }
 
@@ -2167,7 +2161,7 @@ WXWayland *Helper::xwaylandForUid(uid_t uid, bool createIfMissing)
  */
 WSocket *Helper::waylandSocketForUid(uid_t uid, bool createIfMissing)
 {
-    Session *session = createIfMissing ? ensureSession(uid) : sessionForUid(uid);
+    auto session = createIfMissing ? ensureSession(uid) : sessionForUid(uid);
     return session ? session->socket : nullptr;
 }
 
@@ -2178,8 +2172,9 @@ WSocket *Helper::waylandSocketForUid(uid_t uid, bool createIfMissing)
  */
 WSocket *Helper::defaultWaylandSocket() const
 {
-    if (m_activeSession && m_activeSession->socket)
-        return m_activeSession->socket;
+    auto ptr = m_activeSession.lock();
+    if (ptr && ptr->socket)
+        return ptr->socket;
     return nullptr;
 }
 
@@ -2190,8 +2185,9 @@ WSocket *Helper::defaultWaylandSocket() const
  */
 WXWayland *Helper::defaultXWaylandSocket() const
 {
-    if (m_activeSession && m_activeSession->xwayland)
-        return m_activeSession->xwayland;
+    auto ptr = m_activeSession.lock();
+    if (ptr && ptr->xwayland)
+        return ptr->xwayland;
     return nullptr;
 }
 
@@ -2205,49 +2201,36 @@ WXWayland *Helper::defaultXWaylandSocket() const
 void Helper::updateActiveUserSession(uid_t uid)
 {
     // Get previous active session
-    Session *previous = m_activeSession;
+    auto previous = m_activeSession.lock();
     // Get new session for uid, creating if necessary
     auto session = ensureSession(uid);
     if (!session) {
         qCWarning(treelandInput) << "Failed to ensure session for uid" << uid;
         return;
     }
-    // Update active session
-    m_activeSession = session;
-    
-    // Emit signal and update XWayland visibility if session changed
-    const bool sessionChanged = previous != session;
-
-    if (sessionChanged)
+    do {
+        if (previous == session)
+            break;
+        // Update active session
+        m_activeSession = session;
+        // Emit signal and update socket enabled state
+        if (previous && previous->socket)
+            previous->socket->setEnabled(false);
+        session->socket->setEnabled(true);
         Q_EMIT socketFileChanged();
-
-    applySurfaceVisibility();
+        // Store last active surface of previous session
+        if (previous)
+            previous->lastActivatedSurface = m_activatedSurface;
+        // Restore last activated surface for new session
+        if (session->lastActivatedSurface)
+            m_activatedSurface = session->lastActivatedSurface;
+        else
+            m_activatedSurface = nullptr;
+        Q_EMIT activatedSurfaceChanged();
+    } while (false);
 
     if (session->socket)
         qCInfo(treelandCore) << "Listing on:" << session->socket->fullServerName();
-}
-
-/**
- * Apply visibility rules to all surfaces based on the active session.
- * Surfaces belonging to the active session are shown, others are hidden.
- */
-void Helper::applySurfaceVisibility()
-{
-    if (!m_rootSurfaceContainer)
-        return;
-    // Walk through all surfaces recursively and set visibility
-    std::function<void(SurfaceContainer *)> walk = [&](SurfaceContainer *container) {
-        if (!container)
-            return;
-
-        for (auto *surface : container->surfaces())
-            surface->setHideByWorkspace(!surfaceBelongsToCurrentSession(surface));
-
-        for (auto *sub : container->subContainers())
-            walk(sub);
-    };
-
-    walk(m_rootSurfaceContainer);
 }
 
 /**
