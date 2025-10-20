@@ -2530,6 +2530,7 @@ void xwm_set_cursor(struct wlr_xwm *xwm, const uint8_t *pixels, uint32_t stride,
 struct wlr_xwm *xwm_create(struct wlr_xwayland *xwayland, int wm_fd) {
 	struct wlr_xwm *xwm = calloc(1, sizeof(*xwm));
 	if (xwm == NULL) {
+		close(wm_fd);
 		return NULL;
 	}
 
@@ -2544,11 +2545,13 @@ struct wlr_xwm *xwm_create(struct wlr_xwayland *xwayland, int wm_fd) {
 
 	xwm->ping_timeout = 10000;
 
+	// xcb_connect_to_fd takes ownership of the FD regardless of success/failure
 	xwm->xcb_conn = xcb_connect_to_fd(wm_fd, NULL);
 
 	int rc = xcb_connection_has_error(xwm->xcb_conn);
 	if (rc) {
 		wlr_log(WLR_ERROR, "xcb connect failed: %d", rc);
+		xcb_disconnect(xwm->xcb_conn);
 		free(xwm);
 		return NULL;
 	}

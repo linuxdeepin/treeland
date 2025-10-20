@@ -164,6 +164,7 @@ struct wlr_xwm {
 	struct wl_listener drop_focus_destroy;
 };
 
+// xwm_create takes ownership of wm_fd and will close it under all circumstances.
 struct wlr_xwm *xwm_create(struct wlr_xwayland *wlr_xwayland, int wm_fd);
 
 void xwm_destroy(struct wlr_xwm *xwm);

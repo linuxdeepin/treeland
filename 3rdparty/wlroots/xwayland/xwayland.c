@@ -42,6 +42,9 @@ static void handle_server_start(struct wl_listener *listener, void *data) {
 static void xwayland_mark_ready(struct wlr_xwayland *xwayland) {
 	assert(xwayland->server->wm_fd[0] >= 0);
 	xwayland->xwm = xwm_create(xwayland, xwayland->server->wm_fd[0]);
+	// xwm_create takes ownership of wm_fd[0] under all circumstances
+	xwayland->server->wm_fd[0] = -1;
+
 	if (!xwayland->xwm) {
 		return;
 	}
