@@ -218,6 +218,20 @@ void WOutputHelper::setLayers(const wlr_output_layer_state_array &layers)
     }
 }
 
+void WOutputHelper::setGammaLUT(const QVector<uint16_t> &r, const QVector<uint16_t> &g, const QVector<uint16_t> &b)
+{
+    W_D(WOutputHelper);
+
+    Q_ASSERT(g.size() == r.size() && b.size() == r.size());
+    const qsizetype ramp_size = r.size();
+
+    wlr_output_state_set_gamma_lut(&d->state,
+                                   ramp_size,
+                                   r.constData(),
+                                   g.constData(),
+                                   b.constData());
+}
+
 bool WOutputHelper::commit()
 {
     W_D(WOutputHelper);

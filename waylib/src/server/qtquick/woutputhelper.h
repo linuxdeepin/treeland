@@ -59,6 +59,7 @@ public:
     void setDamage(const pixman_region32 *damage);
     const pixman_region32 *damage() const;
     void setLayers(const wlr_output_layer_state_array &layers);
+    void setGammaLUT(const QVector<uint16_t> &r, const QVector<uint16_t> &g, const QVector<uint16_t> &b);
     bool commit();
     bool testCommit();
     bool testCommit(QW_NAMESPACE::qw_buffer *buffer, const wlr_output_layer_state_array &layers);

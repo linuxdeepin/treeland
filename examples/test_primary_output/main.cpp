@@ -7,13 +7,13 @@
 #include <QObject>
 #include <QWaylandClientExtension>
 
-class PrimaryOutputV1
-    : public QWaylandClientExtensionTemplate<PrimaryOutputV1>
+class OutputManagerV1
+    : public QWaylandClientExtensionTemplate<OutputManagerV1>
     , public QtWayland::treeland_output_manager_v1
 {
     Q_OBJECT
 public:
-    explicit PrimaryOutputV1();
+    explicit OutputManagerV1();
 
     void treeland_output_manager_v1_primary_output(const QString &output_name)
     {
@@ -21,8 +21,8 @@ public:
     }
 };
 
-PrimaryOutputV1::PrimaryOutputV1()
-    : QWaylandClientExtensionTemplate<PrimaryOutputV1>(1)
+OutputManagerV1::OutputManagerV1()
+    : QWaylandClientExtensionTemplate<OutputManagerV1>(1)
 {
 }
 
@@ -31,9 +31,9 @@ int main(int argc, char *argv[])
 {
     qputenv("QT_QPA_PLATFORM", "wayland");
     QApplication app(argc, argv);
-    PrimaryOutputV1 manager;
+    OutputManagerV1 manager;
 
-    QObject::connect(&manager, &PrimaryOutputV1::activeChanged, &manager, [&manager, argc, argv] {
+    QObject::connect(&manager, &OutputManagerV1::activeChanged, &manager, [&manager, argc, argv] {
         if (manager.isActive()) {
             if (argc == 2) {
                 const QString str(argv[1]);

@@ -23,7 +23,7 @@
 #endif
 #include "interfaces/multitaskviewinterface.h"
 #include "output/output.h"
-#include "modules/primary-output/outputmanagement.h"
+#include "modules/output-manager/outputmanagement.h"
 #include "modules/personalization/personalizationmanager.h"
 #include "core/qmlengine.h"
 #include "core/rootsurfacecontainer.h"
@@ -474,23 +474,17 @@ void Helper::onSurfaceModeChanged(WSurface *surface, WXdgDecorationManager::Deco
 
 void Helper::setGamma(struct wlr_gamma_control_manager_v1_set_gamma_event *event)
 {
-    auto *qwOutput = qw_output::from(event->output);
+    auto *outputViewport = Helper::getOutput(WOutput::fromHandle(qw_output::from(event->output)))->screenViewport();
     size_t ramp_size = 0;
-    uint16_t *r = nullptr, *g = nullptr, *b = nullptr;
+    QVector<uint16_t> r, g, b;
     wlr_gamma_control_v1 *gamma_control = event->control;
     if (gamma_control) {
         ramp_size = gamma_control->ramp_size;
-        r = gamma_control->table;
-        g = gamma_control->table + gamma_control->ramp_size;
-        b = gamma_control->table + 2 * gamma_control->ramp_size;
+        r = QVector<uint16_t>(gamma_control->table, gamma_control->table + ramp_size);
+        g = QVector<uint16_t>(gamma_control->table + gamma_control->ramp_size, gamma_control->table + 2 * gamma_control->ramp_size);
+        b = QVector<uint16_t>(gamma_control->table + 2 * gamma_control->ramp_size, gamma_control->table + 3 * gamma_control->ramp_size);
     }
-    qw_output_state newState;
-    newState.set_gamma_lut(ramp_size, r, g, b);
-    if (!qwOutput->commit_state(newState)) {
-        qCWarning(treelandCore) << "Failed to set gamma lut!";
-        // TODO: use software impl it.
-        qw_gamma_control_v1::from(gamma_control)->send_failed_and_destroy();
-    }
+    outputViewport->outputRenderWindow()->setOutputGammaLUT(outputViewport, r, g, b);
 }
 
 void Helper::onOutputTestOrApply(qw_output_configuration_v1 *config, bool onlyTest)
@@ -1132,7 +1126,7 @@ void Helper::init()
     auto *xdgOutputManager =
         m_server->attach<WXdgOutputManager>(m_rootSurfaceContainer->outputLayout());
 
-    m_primaryOutputV1 = m_server->attach<PrimaryOutputV1>();
+    m_outputManagerV1 = m_server->attach<OutputManagerV1>();
     m_wallpaperColorV1 = m_server->attach<WallpaperColorV1>();
     m_windowManagement = m_server->attach<WindowManagementV1>();
     m_virtualOutput = m_server->attach<VirtualOutputV1>();
@@ -1193,8 +1187,8 @@ void Helper::init()
             this,
             &Helper::onRestoreCopyOutput);
 
-    connect(m_primaryOutputV1,
-            &PrimaryOutputV1::requestSetPrimaryOutput,
+    connect(m_outputManagerV1,
+            &OutputManagerV1::requestSetPrimaryOutput,
             this,
             [this](const char *name) {
                 for (auto &&output : m_rootSurfaceContainer->outputs()) {
@@ -1206,7 +1200,7 @@ void Helper::init()
 
     connect(m_rootSurfaceContainer, &RootSurfaceContainer::primaryOutputChanged, this, [this]() {
         if (m_rootSurfaceContainer->primaryOutput()) {
-            m_primaryOutputV1->sendPrimaryOutput(
+            m_outputManagerV1->sendPrimaryOutput(
                 m_rootSurfaceContainer->primaryOutput()->output()->nativeHandle()->name);
             if (m_lockScreen) {
                 m_lockScreen->setPrimaryOutputName(m_rootSurfaceContainer->primaryOutput()->output()->name());
