@@ -133,6 +133,8 @@ qt_add_qml_module(libtreeland
         interfaces/proxyinterface.h
         output/output.cpp
         output/output.h
+        output/backlight/backlight.h
+        output/backlight/backlight.cpp
         seat/helper.cpp
         seat/helper.h
         surface/surfacecontainer.cpp

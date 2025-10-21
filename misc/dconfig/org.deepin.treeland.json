@@ -453,6 +453,28 @@
             "description[zh_CN]": "多任务视图加载因子",
             "permissions": "readonly",
             "visibility": "private"
+        },
+        "perOutputBrightness": {
+            "value": {},
+            "serial": 0,
+            "flags": ["user-public"],
+            "name": "Per Output Brightness",
+            "name[zh_CN]": "每个输出的亮度",
+            "description": "Brightness settings for each output",
+            "description[zh_CN]": "每个输出的亮度设置",
+            "permissions": "readwrite",
+            "visibility": "public"
+        },
+        "perOutputColorTemperature": {
+            "value": {},
+            "serial": 0,
+            "flags": ["user-public"],
+            "name": "Per Output Color Temperature",
+            "name[zh_CN]": "每个输出的色温",
+            "description": "Color temperature settings for each output",
+            "description[zh_CN]": "每个输出的色温设置",
+            "permissions": "readwrite",
+            "visibility": "public"
         }
     }
 }

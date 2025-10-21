@@ -136,8 +136,26 @@ Output::Output(WOutputItem *output, QObject *parent)
     : SurfaceListModel(parent)
     , m_item(output)
     , minimizedSurfaces(new SurfaceFilterModel(this))
+    , m_brightness(1.0)
+    , m_colorTemperature(6500)
+    , m_backlight(Backlight::createForOutput(output->output()))
 {
     m_outputViewport = output->property("screenViewport").value<WOutputViewport *>();
+    auto brightnessMap = Helper::instance()->config()->perOutputBrightness();
+    auto colorTempMap = Helper::instance()->config()->perOutputColorTemperature();
+    QString outputName = output->output()->name();
+    if (brightnessMap.contains(outputName)) {
+        auto confBrightness = brightnessMap.value(outputName);
+        if (confBrightness.canConvert<qreal>()) {
+            m_brightness = confBrightness.toDouble();
+        }
+    }
+    if (colorTempMap.contains(outputName)) {
+        auto confColorTemp = colorTempMap.value(outputName);
+        if (confColorTemp.canConvert<int>()) {
+            m_colorTemperature = confColorTemp.toInt();
+        }
+    }
 }
 
 Output::~Output()
@@ -859,4 +877,159 @@ WOutputViewport *Output::screenViewport() const
 QRectF Output::validGeometry() const
 {
     return geometry().marginsRemoved(m_exclusiveZone);
+}
+
+qreal Output::brightness() const
+{
+    return m_brightness;
+}
+
+uint32_t Output::colorTemperature() const
+{
+    return m_colorTemperature;
+}
+
+namespace {
+static inline void kelvinToRGB(double kelvin, double &r, double &g, double &b)
+{
+    kelvin = std::clamp(kelvin, 1000.0, 40000.0) / 100.0;
+
+    if (kelvin <= 66.0) r = 1.0;
+    else r = std::clamp(329.698727446 * std::pow(kelvin - 60.0, -0.1332047592) / 255.0, 0.0, 1.0);
+
+    if (kelvin <= 66.0)
+        g = std::clamp((99.4708025861 * std::log(kelvin) - 161.1195681661) / 255.0, 0.0, 1.0);
+    else
+        g = std::clamp(288.1221695283 * std::pow(kelvin - 60.0, -0.0755148492) / 255.0, 0.0, 1.0);
+
+    if (kelvin >= 66.0) b = 1.0;
+    else if (kelvin <= 19.0) b = 0.0;
+    else b = std::clamp((138.5177312231 * std::log(kelvin - 10.0) - 305.0447927307) / 255.0, 0.0, 1.0);
+}
+
+static inline double sRGBToLinear(double v) {
+    if (v <= 0.04045) return v / 12.92;
+    return std::pow((v + 0.055) / 1.055, 2.4);
+}
+
+static inline double linearToSRGB(double v) {
+    if (v <= 0.0031308) return 12.92 * v;
+    return 1.055 * std::pow(v, 1.0 / 2.4) - 0.055;
+}
+
+
+static inline void generateGammaLUT([[maybe_unused]]uint32_t colorTemperature,
+                          qreal brightness,
+                          size_t gammaSize,
+                          QVector<uint16_t> &r,
+                          QVector<uint16_t> &g,
+                          QVector<uint16_t> &b)
+{
+    if (gammaSize == 0) {
+        return;
+    }
+
+    double cr, cg, cb;
+    kelvinToRGB(static_cast<double>(colorTemperature), cr, cg, cb);
+    cr = sRGBToLinear(cr);
+    cg = sRGBToLinear(cg);
+    cb = sRGBToLinear(cb);
+    
+    for (size_t i = 0; i < gammaSize; ++i) {
+        double normalized = static_cast<double>(i) / static_cast<double>(gammaSize - 1);
+        double linearValue = std::pow(normalized, 2.2); // Assume a standard gamma of 2.2
+
+        double rValue = linearToSRGB(std::clamp(linearValue * cr * brightness, 0.0, 1.0));
+        double gValue = linearToSRGB(std::clamp(linearValue * cg * brightness, 0.0, 1.0));
+        double bValue = linearToSRGB(std::clamp(linearValue * cb * brightness, 0.0, 1.0));
+
+        r[i] = static_cast<uint16_t>(std::round(rValue * 65535.0));
+        g[i] = static_cast<uint16_t>(std::round(gValue * 65535.0));
+        b[i] = static_cast<uint16_t>(std::round(bValue * 65535.0));
+    }
+}
+
+}
+
+void Output::setBrightness(qreal brightness)
+{
+    if (qFuzzyCompare(m_brightness, brightness))
+        return;
+    m_brightness = brightness;
+
+    qreal brightnessCorrection = 1.0;
+
+    if (m_backlight) {
+        brightnessCorrection = brightness / m_backlight->setBrightness(brightness);
+    } else {
+        brightnessCorrection = brightness;
+    }
+
+    const size_t gammaSize = wlr_output_get_gamma_size(output()->nativeHandle());
+
+    if (gammaSize == 0) {
+        qCWarning(treelandOutput) << " Output " << output()->name()
+                             << " does not support gamma LUT! Brightness adjustment through gamma will have no effect.";
+        return;
+    }
+
+    QVector<uint16_t> r(gammaSize);
+    QVector<uint16_t> g(gammaSize);
+    QVector<uint16_t> b(gammaSize);
+
+    generateGammaLUT(m_colorTemperature,
+                     brightnessCorrection,
+                     gammaSize,
+                     r,
+                     g,
+                     b);
+
+    screenViewport()->setOutputGammaLUT(r, g, b);
+
+    Q_EMIT brightnessChanged();
+
+    auto brightnessMap = Helper::instance()->config()->perOutputBrightness();
+    brightnessMap[output()->name()] = brightness;
+    Helper::instance()->config()->setPerOutputBrightness(brightnessMap);
+}
+
+void Output::setColorTemperature(uint32_t colorTemperature)
+{
+    if (m_colorTemperature == colorTemperature)
+        return;
+    
+    m_colorTemperature = colorTemperature;
+
+    const size_t gammaSize = wlr_output_get_gamma_size(output()->nativeHandle());
+
+    if (gammaSize == 0) {
+        qCWarning(treelandOutput) << " Output " << output()->name()
+                             << " does not support gamma LUT! Color temperature settings will have no effect.";
+        return;
+    }
+
+    QVector<uint16_t> r(gammaSize);
+    QVector<uint16_t> g(gammaSize);
+    QVector<uint16_t> b(gammaSize);
+
+    qreal brightnessCorrection = brightness();
+
+    if (m_backlight) {
+        brightnessCorrection /= m_backlight->brightness();
+    }
+
+    generateGammaLUT(colorTemperature,
+                     brightnessCorrection,
+                     gammaSize,
+                     r,
+                     g,
+                     b);
+
+    screenViewport()->setOutputGammaLUT(r, g, b);
+
+    Q_EMIT colorTemperatureChanged();
+
+    auto colorTempMap = Helper::instance()->config()->perOutputColorTemperature();
+    colorTempMap[output()->name()] = colorTemperature;
+    Helper::instance()->config()->setPerOutputColorTemperature(colorTempMap);
 }

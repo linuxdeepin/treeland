@@ -1811,6 +1811,18 @@ void WOutputRenderWindow::rotateOutput(WOutputViewport *output, WOutput::Transfo
     }
 }
 
+void WOutputRenderWindow::setOutputGammaLUT(WOutputViewport *output,
+                                     const QVector<uint16_t> &r,
+                                     const QVector<uint16_t> &g,
+                                     const QVector<uint16_t> &b)
+{
+    Q_D(WOutputRenderWindow);
+
+    if (auto helper = d->getOutputHelper(output)) {
+        helper->setGammaLUT(r, g, b);
+    }
+}
+
 void WOutputRenderWindow::init(qw_renderer *renderer, qw_allocator *allocator)
 {
     Q_D(WOutputRenderWindow);

@@ -3,6 +3,7 @@
 #pragma once
 
 #include "surface/surfacecontainer.h"
+#include "backlight/backlight.h"
 
 #include <wglobal.h>
 #include <woutputviewport.h>
@@ -36,6 +37,8 @@ class Output : public SurfaceListModel
     Q_PROPERTY(WOutputItem* outputItem MEMBER m_item CONSTANT)
     Q_PROPERTY(SurfaceListModel* minimizedSurfaces MEMBER minimizedSurfaces CONSTANT)
     Q_PROPERTY(WOutputViewport* screenViewport MEMBER m_outputViewport CONSTANT)
+    Q_PROPERTY(qreal brightness READ brightness WRITE setBrightness NOTIFY brightnessChanged FINAL)
+    Q_PROPERTY(uint32_t colorTemperature READ colorTemperature WRITE setColorTemperature NOTIFY colorTemperatureChanged FINAL)
 
 public:
     enum class Type
@@ -82,9 +85,16 @@ public:
                                      double heightMm);
     qreal preferredScaleFactor(const QSize &pixelSize) const;
 
+    qreal brightness() const;
+    uint32_t colorTemperature() const;
+    void setBrightness(qreal brightness);
+    void setColorTemperature(uint32_t colorTemperature);
+
 Q_SIGNALS:
     void exclusiveZoneChanged();
     void moveResizeFinised();
+    void brightnessChanged();
+    void colorTemperatureChanged();
 
 public Q_SLOTS:
     void enable();
@@ -144,6 +154,10 @@ private:
     PlaceDirection m_nextPlaceDirection = PlaceDirection::BottomRight;
 
     QMap<SurfaceWrapper*, QPair<QPointF, QRectF>> m_positionCache;
+
+    qreal m_brightness;
+    uint32_t m_colorTemperature;
+    std::unique_ptr<Backlight> m_backlight = nullptr;
 };
 
 Q_DECLARE_OPAQUE_POINTER(WAYLIB_SERVER_NAMESPACE::WOutputItem *)
