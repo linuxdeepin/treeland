@@ -22,7 +22,7 @@ link_libraries(
 
 add_subdirectory(tools)
 add_subdirectory(foreign-toplevel)
-add_subdirectory(primary-output)
+add_subdirectory(output-manager)
 add_subdirectory(personalization)
 add_subdirectory(shortcut)
 add_subdirectory(wallpaper-color)
