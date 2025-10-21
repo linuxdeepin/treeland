@@ -1,8 +1,9 @@
-// Copyright (C) 2024 UnionTech Software Technology Co., Ltd.
+// Copyright (C) 2024-2025 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 #pragma once
 
 #include "surface/surfacecontainer.h"
+#include "backlight.h"
 
 #include <wglobal.h>
 #include <woutputviewport.h>
@@ -26,6 +27,7 @@ WAYLIB_SERVER_END_NAMESPACE
 WAYLIB_SERVER_USE_NAMESPACE
 
 class SurfaceWrapper;
+class OutputConfig;
 
 class Output : public SurfaceListModel
 {
@@ -36,6 +38,7 @@ class Output : public SurfaceListModel
     Q_PROPERTY(WOutputItem* outputItem MEMBER m_item CONSTANT)
     Q_PROPERTY(SurfaceListModel* minimizedSurfaces MEMBER minimizedSurfaces CONSTANT)
     Q_PROPERTY(WOutputViewport* screenViewport MEMBER m_outputViewport CONSTANT)
+    Q_PROPERTY(OutputConfig* config READ config CONSTANT FINAL)
 
 public:
     enum class Type
@@ -82,13 +85,18 @@ public:
                                      double heightMm);
     qreal preferredScaleFactor(const QSize &pixelSize) const;
 
+    OutputConfig* config() const;
+
 Q_SIGNALS:
     void exclusiveZoneChanged();
     void moveResizeFinised();
+    void brightnessChanged();
+    void colorTemperatureChanged();
 
 public Q_SLOTS:
     void enable();
     void updateOutputHardwareLayers();
+    void setOutputColor(qreal brightness, uint colorTemperature);
 
 private:
     friend class SurfaceWrapper;
@@ -145,6 +153,9 @@ private:
 
     QMap<SurfaceWrapper*, QPair<QPointF, QRectF>> m_positionCache;
     QHash<SurfaceWrapper*, QPointF> m_initialWindowPositionRatio;
+
+    std::unique_ptr<Backlight> m_backlight = nullptr;
+    OutputConfig *m_config;
 };
 
 Q_DECLARE_OPAQUE_POINTER(WAYLIB_SERVER_NAMESPACE::WOutputItem *)

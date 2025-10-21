@@ -1,0 +1,28 @@
+{
+    "magic": "dsg.config.meta",
+    "version": "1.0",
+    "contents": {
+        "brightness": {
+            "value": 1.0e0,
+            "serial": 0,
+            "flags": ["global"],
+            "name": "Brightness",
+            "name[zh_CN]": "亮度",
+            "description": "Brightness of this Output (in range 0.0 - 1.0)",
+            "description[zh_CN]": "当前输出的亮度",
+            "permissions": "readwrite",
+            "visibility": "public"
+        },
+        "colorTemperature": {
+            "value": 6600,
+            "serial": 0,
+            "flags": ["global"],
+            "name": "Color Temperature",
+            "name[zh_CN]": "色温",
+            "description": "Color temperature of this Output (in Kelvin)",
+            "description[zh_CN]": "当前输出的色温",
+            "permissions": "readwrite",
+            "visibility": "public"
+        }
+    }
+}
