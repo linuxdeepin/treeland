@@ -72,6 +72,13 @@ dtk_add_config_to_cpp(
     CLASS_NAME "TreelandConfig"
 )
 
+dtk_add_config_to_cpp(
+    OUTPUT_CONFIG
+    "${PROJECT_SOURCE_DIR}/misc/dconfig/org.deepin.treeland.output.json"
+    OUTPUT_FILE_NAME "outputconfig.hpp"
+    CLASS_NAME "OutputConfig"
+)
+
 qt_add_library(libtreeland SHARED)
 
 set_target_properties(libtreeland PROPERTIES
@@ -89,6 +96,7 @@ qt_add_qml_module(libtreeland
         ${DDM_DBUS_SOURCES}
         ${DBUS_INTERFACE}
         ${TREELAND_CONFIG}
+        ${OUTPUT_CONFIG}
         common/treelandlogging.cpp
         common/treelandlogging.h
         core/layersurfacecontainer.cpp
@@ -133,6 +141,8 @@ qt_add_qml_module(libtreeland
         interfaces/proxyinterface.h
         output/output.cpp
         output/output.h
+        output/backlight.h
+        output/backlight.cpp
         seat/helper.cpp
         seat/helper.h
         surface/surfacecontainer.cpp

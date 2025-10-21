@@ -10,9 +10,9 @@ impl_treeland(
     NAME
         module_primaryoutput
     SOURCE
-        ${CMAKE_SOURCE_DIR}/src/modules/primary-output/outputmanagement.h
-        ${CMAKE_SOURCE_DIR}/src/modules/primary-output/impl/output_manager_impl.h
-        ${CMAKE_SOURCE_DIR}/src/modules/primary-output/outputmanagement.cpp
-        ${CMAKE_SOURCE_DIR}/src/modules/primary-output/impl/output_manager_impl.cpp
+        ${CMAKE_SOURCE_DIR}/src/modules/output-manager/outputmanagement.h
+        ${CMAKE_SOURCE_DIR}/src/modules/output-manager/impl/output_manager_impl.h
+        ${CMAKE_SOURCE_DIR}/src/modules/output-manager/outputmanagement.cpp
+        ${CMAKE_SOURCE_DIR}/src/modules/output-manager/impl/output_manager_impl.cpp
         ${WAYLAND_PROTOCOLS_OUTPUTDIR}/treeland-output-management-protocol.c
 )

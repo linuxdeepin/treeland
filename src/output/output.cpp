@@ -1,8 +1,10 @@
-// Copyright (C) 2024 JiDe Zhang <zhangjide@deepin.org>.
+// Copyright (C) 2024-2025 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "output.h"
 
+#include "modules/output-manager/impl/output_manager_impl.h"
+#include "outputconfig.hpp"
 #include "treelandconfig.hpp"
 #include "core/rootsurfacecontainer.h"
 #include "seat/helper.h"
@@ -15,6 +17,7 @@
 #include <winputpopupsurface.h>
 #include <wlayersurface.h>
 #include <woutputitem.h>
+#include <woutputhelper.h>
 #include <woutputlayout.h>
 #include <woutputrenderwindow.h>
 #include <wquicktextureproxy.h>
@@ -82,6 +85,9 @@ Output *Output::create(WOutput *output, QQmlEngine *engine, QObject *parent)
     // o->m_taskBar = Helper::instance()->qmlEngine()->createTaskBar(o,
     // contentItem); o->m_taskBar->setZ(RootSurfaceContainer::TaskBarZOrder);
 
+    // reset output color to config value
+    o->setOutputColor(-1, 0);
+
     if (CmdLine::ref().enableDebugView()) {
         o->m_debugMenuBar = Helper::instance()->qmlEngine()->createMenuBar(outputItem, contentItem);
         o->m_debugMenuBar->setZ(RootSurfaceContainer::MenuBarZOrder);
@@ -136,8 +142,14 @@ Output::Output(WOutputItem *output, QObject *parent)
     : SurfaceListModel(parent)
     , m_item(output)
     , minimizedSurfaces(new SurfaceFilterModel(this))
+    , m_backlight(Backlight::createForOutput(output->output()))
 {
     m_outputViewport = output->property("screenViewport").value<WOutputViewport *>();
+
+    // TODO: Investigate better ways to track the panel specific persistent settings.
+    // The connector name of the panel may change.
+    QString outputName = output->output()->name();
+    m_config = OutputConfig::createByName("org.deepin.treeland.outputs", "org.deepin.treeland", "/" + outputName, this);
 }
 
 Output::~Output()
@@ -885,4 +897,131 @@ WOutputViewport *Output::screenViewport() const
 QRectF Output::validGeometry() const
 {
     return geometry().marginsRemoved(m_exclusiveZone);
+}
+
+// do not use config()->setBrightness or config()->setColorTemperature to set color temperature or brightness
+// as doing so will have no effect.
+// use Output::setOutputColor instead
+OutputConfig *Output::config() const
+{
+    return m_config;
+}
+
+namespace {
+static inline void kelvinToRGB(double kelvin, double &r, double &g, double &b)
+{
+    kelvin = std::clamp(kelvin, 1000.0, 20000.0) / 100.0;
+
+    if (kelvin <= 66.0) r = 1.0;
+    else r = std::clamp(329.698727446 * std::pow(kelvin - 60.0, -0.1332047592) / 255.0, 0.0, 1.0);
+
+    if (kelvin <= 66.0)
+        g = std::clamp((99.4708025861 * std::log(kelvin) - 161.1195681661) / 255.0, 0.0, 1.0);
+    else
+        g = std::clamp(288.1221695283 * std::pow(kelvin - 60.0, -0.0755148492) / 255.0, 0.0, 1.0);
+
+    if (kelvin >= 66.0) b = 1.0;
+    else if (kelvin <= 19.0) b = 0.0;
+    else b = std::clamp((138.5177312231 * std::log(kelvin - 10.0) - 305.0447927307) / 255.0, 0.0, 1.0);
+}
+
+static inline void generateGammaLUT(uint32_t colorTemperature,
+                                    qreal brightness,
+                                    size_t gammaSize,
+                                    QVector<uint16_t> &r,
+                                    QVector<uint16_t> &g,
+                                    QVector<uint16_t> &b)
+{
+    if (gammaSize == 0) {
+        return;
+    }
+
+    double cr, cg, cb;
+    kelvinToRGB(static_cast<double>(colorTemperature), cr, cg, cb);
+    for (size_t i = 0; i < gammaSize; ++i) {
+        double normalized = static_cast<double>(i) / static_cast<double>(gammaSize - 1);
+
+        double rValue = std::clamp(normalized * cr * brightness, 0.0, 1.0);
+        double gValue = std::clamp(normalized * cg * brightness, 0.0, 1.0);
+        double bValue = std::clamp(normalized * cb * brightness, 0.0, 1.0);
+        r[i] = static_cast<uint16_t>(std::round(rValue * 65535.0));
+        g[i] = static_cast<uint16_t>(std::round(gValue * 65535.0));
+        b[i] = static_cast<uint16_t>(std::round(bValue * 65535.0));
+    }
+}
+
+}
+
+// TODO: better Chromatic Adaptation algorithms can be implemented when the wlr_color_transform
+// api is available. For now RGB scaling is used due to limitation of gamma LUT table.
+// see: http://www.brucelindbloom.com/index.html?ChromAdaptEval.html
+void Output::setOutputColor(qreal brightness, uint32_t colorTemperature)
+{
+    if (brightness < 0)
+        brightness = config()->brightness();
+    if (colorTemperature == 0)
+        colorTemperature = config()->colorTemperature();
+
+    qreal brightnessCorrection = 1.0;
+
+    if (m_backlight) {
+        qreal backlightBrightness = m_backlight->setBrightness(brightness);
+        if (backlightBrightness != 0)
+            brightnessCorrection = qBound(0.0, brightness / backlightBrightness, 1.0);
+    } else {
+        brightnessCorrection = brightness;
+    }
+
+    const size_t gammaSize = output()->handle()->get_gamma_size();
+
+    auto *sender = qobject_cast<treeland_output_color_control_v1 *>(QObject::sender());
+
+    if (gammaSize == 0) {
+        if (sender)
+            sender->sendCommitResult(false);
+        qCWarning(treelandOutput) << " Output " << output()->name()
+                             << " does not support gamma LUT! Brightness and color temperature adjustments through gamma will have no effect.";
+        return;
+    }
+
+    QVector<uint16_t> r(gammaSize);
+    QVector<uint16_t> g(gammaSize);
+    QVector<uint16_t> b(gammaSize);
+
+    generateGammaLUT(colorTemperature,
+                     brightnessCorrection,
+                     gammaSize,
+                     r,
+                     g,
+                     b);
+    
+    WOutputHelper::ExtraState newState;
+    auto *viewport = screenViewport();
+    auto *renderWindow = screenViewport()->outputRenderWindow();
+    wlr_output_state_set_gamma_lut(newState.get(), gammaSize,
+                                   r.constData(),
+                                   g.constData(),
+                                   b.constData());
+    
+    auto *outputHelper = renderWindow->getOutputHelper(viewport);
+    outputHelper->setExtraState(newState);
+
+    outputHelper->scheduleCommitJob([this, brightness, colorTemperature, newState, sender](bool success, WOutputHelper::ExtraState state) {
+        if (state == newState) {
+            if (sender)
+                sender->sendCommitResult(success);
+            if (!success) {
+                qCWarning(treelandOutput) << "Failed to apply brightness and color temperature settings to output"
+                                          << output()->name();
+            } else {
+                config()->setBrightness(brightness);
+                config()->setColorTemperature(colorTemperature);
+            }
+        } else {
+            qCWarning(treelandOutput) << "Commit callback received unexpected state pointer!"
+                                      << "Expected:" << newState.get()
+                                      << "Got:" << state.get();
+        }
+    }, WOutputHelper::AfterCommitStage);
+    renderWindow->update(viewport);
 }

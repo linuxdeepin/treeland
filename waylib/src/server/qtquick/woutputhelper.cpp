@@ -282,7 +282,8 @@ bool WOutputHelper::setExtraState(ExtraState state)
                                   WLR_OUTPUT_STATE_SCALE |
                                   WLR_OUTPUT_STATE_TRANSFORM |
                                   WLR_OUTPUT_STATE_ENABLED |
-                                  WLR_OUTPUT_STATE_ADAPTIVE_SYNC_ENABLED;
+                                  WLR_OUTPUT_STATE_ADAPTIVE_SYNC_ENABLED |
+                                  WLR_OUTPUT_STATE_GAMMA_LUT;
 
     if (state->committed & ~allowedFlags) {
         qWarning() << "WOutputHelper::setExtraState: contains unsupported flags:"
