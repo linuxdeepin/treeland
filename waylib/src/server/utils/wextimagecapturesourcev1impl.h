@@ -37,7 +37,7 @@ private Q_SLOTS:
     void handleRenderEnd();
 
 private:
-    WSurfaceItemContent *m_surfaceContent;
+    QPointer<WSurfaceItemContent> m_surfaceContent;
     WOutput *m_output;
     bool m_capturing;
     QMetaObject::Connection m_renderEndConnection;
