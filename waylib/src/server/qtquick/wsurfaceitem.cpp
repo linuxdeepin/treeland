@@ -1128,8 +1128,8 @@ void WSurfaceItemPrivate::initForSurface()
     if (!surfaceState)
         surfaceState.reset(new SurfaceState());
 
-    QObject::connect(surface, &WWrapObject::aboutToBeInvalidated, q,
-                     &WSurfaceItem::releaseResources, Qt::DirectConnection);
+    surface->safeConnect(&WSurface::aboutToBeInvalidated, q,
+                         &WSurfaceItem::releaseResources, Qt::DirectConnection);
     surface->safeConnect(&WSurface::hasSubsurfaceChanged, q, [this]{ onHasSubsurfaceChanged(); });
     surface->safeConnect(&qw_surface::notify_commit, q, &WSurfaceItem::onSurfaceCommit);
 
