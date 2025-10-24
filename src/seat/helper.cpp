@@ -495,55 +495,139 @@ void Helper::setGamma(struct wlr_gamma_control_manager_v1_set_gamma_event *event
 void Helper::onOutputTestOrApply(qw_output_configuration_v1 *config, bool onlyTest)
 {
     QList<WOutputState> states = m_outputManager->stateListPending();
-    bool ok = true;
-    for (auto state : std::as_const(states)) {
-        WOutput *output = state.output;
-        qw_output_state newState;
-        newState.set_enabled(state.enabled);
-        if (state.enabled) {
-            if (state.mode)
-                newState.set_mode(state.mode);
-            else
-                newState.set_custom_mode(state.customModeSize.width(),
-                                         state.customModeSize.height(),
-                                         state.customModeRefresh);
 
-            newState.set_adaptive_sync_enabled(state.adaptiveSyncEnabled);
-            if (!onlyTest) {
+    if (onlyTest) {
+        bool ok = true;
+        for (const auto &state : std::as_const(states)) {
+            WOutputViewport *viewport = getOutput(state.output)->screenViewport();
+            if (!viewport) {
+                ok = false;
+                continue;
+            }
+
+            WOutputRenderWindow *renderWindow = viewport->outputRenderWindow();
+            if (!renderWindow) {
+                ok = false;
+                continue;
+            }
+            qw_output_state newState;
+            newState.set_enabled(state.enabled);
+            if (state.enabled) {
+                if (state.mode)
+                    newState.set_mode(state.mode);
+                else
+                    newState.set_custom_mode(state.customModeSize.width(),
+                                             state.customModeSize.height(),
+                                             state.customModeRefresh);
+                newState.set_adaptive_sync_enabled(state.adaptiveSyncEnabled);
                 newState.set_transform(static_cast<wl_output_transform>(state.transform));
                 newState.set_scale(state.scale);
+            }
+            ok &= state.output->handle()->test_state(newState);
+        }
 
-                WOutputViewport *viewport = getOutput(output)->screenViewport();
-                if (viewport) {
-                    auto outputItem = qobject_cast<WOutputItem*>(viewport->parentItem());
-                    if (outputItem) {
-                        outputItem->setX(state.x);
-                        outputItem->setY(state.y);
-                    }
+        m_outputManager->sendResult(config, ok);
+        return;
+    }
+
+    if (m_pendingOutputConfig.config) {
+        m_outputManager->sendResult(m_pendingOutputConfig.config, false);
+    }
+
+    m_pendingOutputConfig.config = config;
+    m_pendingOutputConfig.states = states;
+    m_pendingOutputConfig.pendingCommits = 0;
+    m_pendingOutputConfig.allSuccess = true;
+
+    for (const auto &state : std::as_const(states)) {
+        WOutputViewport *viewport = getOutput(state.output)->screenViewport();
+        if (!viewport) {
+            qWarning() << "No viewport for output" << state.output->name();
+            m_outputManager->sendResult(config, false);
+            m_pendingOutputConfig = {};
+            return;
+        }
+
+        WOutputRenderWindow *renderWindow = viewport->outputRenderWindow();
+        if (!renderWindow) {
+            qWarning() << "No renderWindow for output" << state.output->name();
+            m_outputManager->sendResult(config, false);
+            m_pendingOutputConfig = {};
+            return;
+        }
+
+        if (state.enabled) {
+            auto outputItem = qobject_cast<WOutputItem*>(viewport->parentItem());
+            if (outputItem) {
+                qreal currentX = outputItem->x();
+                qreal currentY = outputItem->y();
+                bool shouldPreservePosition = (state.x == 0 && state.y == 0) &&
+                                             (currentX != 0 || currentY != 0);
+
+                if (!shouldPreservePosition) {
+                    outputItem->setX(state.x);
+                    outputItem->setY(state.y);
                 }
             }
         }
 
-        if (onlyTest)
-            ok &= output->handle()->test_state(newState);
-        else
-            ok &= output->handle()->commit_state(newState);
-    }
-    if (ok && !onlyTest) {
-        QString cache_location = QStandardPaths::writableLocation(QStandardPaths::AppConfigLocation);
-        QSettings settings(cache_location + "/output.ini", QSettings::IniFormat);
-        for (WOutputState state : std::as_const(states)) {
-            settings.beginGroup(QString("output.%1").arg(state.output->name()));
-            settings.setValue("width", state.mode ? state.mode->width : state.customModeSize.width());
-            settings.setValue("height", state.mode ? state.mode->height : state.customModeSize.height());
-            settings.setValue("refresh", state.mode ? state.mode->refresh : state.customModeRefresh);
-            settings.setValue("transform", state.transform);
-            settings.setValue("scale", state.scale);
-            settings.setValue("adaptiveSyncEnabled", state.adaptiveSyncEnabled);
-            settings.endGroup();
+        renderWindow->setOutputEnabled(viewport, state.enabled);
+        if (state.enabled) {
+            if (state.mode) {
+                renderWindow->setOutputMode(viewport, state.mode);
+            } else {
+                renderWindow->setOutputCustomMode(viewport,
+                                                 state.customModeSize.width(),
+                                                 state.customModeSize.height(),
+                                                 state.customModeRefresh);
+            }
+
+            renderWindow->setOutputScale(viewport, state.scale);
+            renderWindow->rotateOutput(viewport, static_cast<WOutput::Transform>(state.transform));
+            renderWindow->setOutputAdaptiveSync(viewport, state.adaptiveSyncEnabled);
         }
+
+        renderWindow->update();
+        if (state.enabled && !state.output->isEnabled()) {
+            renderWindow->render(viewport, true);
+        }
+        m_pendingOutputConfig.pendingCommits++;
     }
-    m_outputManager->sendResult(config, ok);
+    for (int i = 0; i < states.size(); ++i) {
+        onOutputCommitFinished(m_pendingOutputConfig.config, true);
+    }
+}
+
+void Helper::onOutputCommitFinished(qw_output_configuration_v1 *config, bool success)
+{
+    if (config != m_pendingOutputConfig.config) {
+        return;  // Not our config
+    }
+
+    if (!success) {
+        m_pendingOutputConfig.allSuccess = false;
+    }
+
+    m_pendingOutputConfig.pendingCommits--;
+    if (m_pendingOutputConfig.pendingCommits == 0) {
+        bool ok = m_pendingOutputConfig.allSuccess;
+        if (ok) {
+            QString cache_location = QStandardPaths::writableLocation(QStandardPaths::AppConfigLocation);
+            QSettings settings(cache_location + "/output.ini", QSettings::IniFormat);
+            for (const WOutputState &state : std::as_const(m_pendingOutputConfig.states)) {
+                settings.beginGroup(QString("output.%1").arg(state.output->name()));
+                settings.setValue("width", state.mode ? state.mode->width : state.customModeSize.width());
+                settings.setValue("height", state.mode ? state.mode->height : state.customModeSize.height());
+                settings.setValue("refresh", state.mode ? state.mode->refresh : state.customModeRefresh);
+                settings.setValue("transform", state.transform);
+                settings.setValue("scale", state.scale);
+                settings.setValue("adaptiveSyncEnabled", state.adaptiveSyncEnabled);
+                settings.endGroup();
+            }
+        }
+        m_outputManager->sendResult(config, ok);
+        m_pendingOutputConfig = {};
+    }
 }
 
 void Helper::onSetOutputPowerMode(wlr_output_power_v1_set_mode_event *event)

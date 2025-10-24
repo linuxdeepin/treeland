@@ -1060,6 +1060,11 @@ bool OutputHelper::commit(WBufferRenderer *buffer)
     if (output()->offscreen())
         return true;
 
+    if (hasPendingModeChange()) {
+        WOutputHelper::commit();
+        return true;
+    }
+
     if (!buffer || !buffer->currentBuffer()) {
         Q_ASSERT(!this->buffer());
         return WOutputHelper::commit();
@@ -1423,8 +1428,9 @@ WOutputRenderWindowPrivate::doRenderOutputs(qw_output *needsFrameOutput, const Q
             if (helper->framePending())
                 continue;
 
+            bool willBeEnabled = helper->output()->output()->isEnabled() || helper->hasPendingModeChange();
             if (Q_UNLIKELY(!WOutputViewportPrivate::get(helper->output())->renderable())
-                || !helper->output()->output()->isEnabled())
+                || !willBeEnabled)
                 continue;
 
             if (!(helper->needsFrame() || helper->contentIsDirty()))
@@ -1794,7 +1800,6 @@ QList<WOutputLayer *> WOutputRenderWindow::hardwareLayers(const WOutputViewport 
 void WOutputRenderWindow::setOutputScale(WOutputViewport *output, float scale)
 {
     Q_D(WOutputRenderWindow);
-
     if (auto helper = d->getOutputHelper(output)) {
         helper->setScale(scale);
         update();
@@ -1807,6 +1812,42 @@ void WOutputRenderWindow::rotateOutput(WOutputViewport *output, WOutput::Transfo
 
     if (auto helper = d->getOutputHelper(output)) {
         helper->setTransform(t);
+        update();
+    }
+}
+
+void WOutputRenderWindow::setOutputMode(WOutputViewport *output, const wlr_output_mode *mode)
+{
+    Q_D(WOutputRenderWindow);
+    if (auto helper = d->getOutputHelper(output)) {
+        helper->setMode(mode);
+        update();
+    }
+}
+
+void WOutputRenderWindow::setOutputCustomMode(WOutputViewport *output, int32_t width, int32_t height, int32_t refresh)
+{
+    Q_D(WOutputRenderWindow);
+    if (auto helper = d->getOutputHelper(output)) {
+        helper->setCustomMode(width, height, refresh);
+        update();
+    }
+}
+
+void WOutputRenderWindow::setOutputAdaptiveSync(WOutputViewport *output, bool enabled)
+{
+    Q_D(WOutputRenderWindow);
+    if (auto helper = d->getOutputHelper(output)) {
+        helper->setAdaptiveSyncEnabled(enabled);
+        update();
+    }
+}
+
+void WOutputRenderWindow::setOutputEnabled(WOutputViewport *output, bool enabled)
+{
+    Q_D(WOutputRenderWindow);
+    if (auto helper = d->getOutputHelper(output)) {
+        helper->setEnabled(enabled);
         update();
     }
 }

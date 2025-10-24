@@ -15,6 +15,7 @@
 #include <wseat.h>
 #include <wxdgdecorationmanager.h>
 #include <wextforeigntoplevellistv1.h>
+#include <woutputmanagerv1.h>
 
 #include <xcb/xproto.h>
 
@@ -292,7 +293,6 @@ private:
 
 private:
     void allowNonDrmOutputAutoChangeMode(WOutput *output);
-
     int indexOfOutput(WOutput *output) const;
 
     SurfaceWrapper *keyboardFocusSurface() const;
@@ -410,4 +410,14 @@ private:
     bool m_blockActivateSurface{ false };
 
     bool m_noAnimation{ false };
+
+    struct PendingOutputConfig {
+        qw_output_configuration_v1 *config = nullptr;
+        QList<WOutputState> states;
+        int pendingCommits = 0;
+        bool allSuccess = true;
+    };
+    PendingOutputConfig m_pendingOutputConfig;
+
+    void onOutputCommitFinished(qw_output_configuration_v1 *config, bool success);
 };

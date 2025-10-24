@@ -53,6 +53,10 @@ public:
 
     void setScale(float scale);
     void setTransform(WOutput::Transform t);
+    void setMode(const wlr_output_mode *mode);
+    void setCustomMode(int32_t width, int32_t height, int32_t refresh);
+    void setAdaptiveSyncEnabled(bool enabled);
+    void setEnabled(bool enabled);
     void setDamage(const pixman_region32 *damage);
     const pixman_region32 *damage() const;
     void setLayers(const wlr_output_layer_state_array &layers);
@@ -63,6 +67,7 @@ public:
     bool contentIsDirty() const;
     bool needsFrame() const;
     bool framePending() const;
+    bool hasPendingModeChange() const;
 
     void resetState();
     void update();
