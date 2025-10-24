@@ -6,6 +6,7 @@
 #include "treeland-output-management-protocol.h"
 
 #include <qwdisplay.h>
+#include <qwoutput.h>
 #include <qwsignalconnector.h>
 
 #include <QObject>
@@ -26,5 +27,27 @@ public:
 
 Q_SIGNALS:
     void requestSetPrimaryOutput(const char *name);
+    void colorControlCreated(struct treeland_output_color_control_v1 *control);
+    void before_destroy();
+};
+
+struct treeland_output_color_control_v1 : public QObject
+{
+    Q_OBJECT
+public:
+    ~treeland_output_color_control_v1();
+
+    static treeland_output_color_control_v1 *from_resource(struct wl_resource *resource);
+
+    treeland_output_manager_v1 *manager;
+    wl_resource *resource;
+    qw_output *output;
+
+    void sendColorTemperature(uint32_t temperature);
+    void sendBrightness(uint32_t brightness);
+
+Q_SIGNALS:
+    void requestSetColorTemperature(uint32_t temperature);
+    void requestSetBrightness(uint32_t brightness);
     void before_destroy();
 };

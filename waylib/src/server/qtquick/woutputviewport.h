@@ -106,6 +106,9 @@ public:
 public Q_SLOTS:
     void setOutputScale(float scale);
     void rotateOutput(WOutput::Transform t);
+    void setOutputGammaLUT(const QVector<uint16_t> &r,
+                           const QVector<uint16_t> &g,
+                           const QVector<uint16_t> &b);
     void render(bool doCommit);
 
 Q_SIGNALS:

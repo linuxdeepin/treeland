@@ -507,6 +507,15 @@ void WOutputViewport::rotateOutput(WOutput::Transform t)
         window->rotateOutput(this, t);
 }
 
+void WOutputViewport::setOutputGammaLUT(const QVector<uint16_t> &r,
+                                        const QVector<uint16_t> &g,
+                                        const QVector<uint16_t> &b)
+{
+    W_D(WOutputViewport);
+    if (auto window = d->outputWindow())
+        window->setOutputGammaLUT(this, r, g, b);
+}
+
 void WOutputViewport::render(bool doCommit)
 {
     W_D(WOutputViewport);
