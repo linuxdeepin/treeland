@@ -38,6 +38,8 @@
 #include "common/treelandlogging.h"
 #include "modules/ddm/ddminterfacev1.h"
 #include "treelandconfig.hpp"
+#include "core/treeland.h"
+#include "greeter/greeterproxy.h"
 
 #include <xcb/xcb.h>
 #include <xcb/xproto.h>
@@ -167,6 +169,16 @@ static QByteArray readWindowProperty(xcb_connection_t *connection,
     } while (remaining > 0);
 
     return data;
+}
+
+Session::~Session()
+{
+    qCDebug(treelandCore) << "Deleting session for uid:" << uid << socket;
+    Q_EMIT aboutToBeDestroyed();
+    if (xwayland)
+        Helper::instance()->shellHandler()->removeXWayland(xwayland);
+    if (socket)
+        delete socket;
 }
 
 Helper *Helper::m_instance = nullptr;
@@ -892,6 +904,11 @@ void Helper::onSurfaceWrapperAdded(SurfaceWrapper *wrapper)
     bool isXwayland = wrapper->type() == SurfaceWrapper::Type::XWayland;
     bool isLayer = wrapper->type() == SurfaceWrapper::Type::Layer;
 
+    connect(m_activeSession.lock().get(), &Session::aboutToBeDestroyed, wrapper, [this, wrapper]() {
+        onSurfaceWrapperAboutToRemove(wrapper);
+        m_rootSurfaceContainer->destroyForSurface(wrapper);
+    });
+
     if (isXdgToplevel || isXdgPopup || isLayer) {
         auto *attached =
             new Personalization(wrapper->shellSurface(), m_personalization, wrapper);
@@ -1044,8 +1061,9 @@ void Helper::deleteTaskSwitch()
     }
 }
 
-void Helper::init()
+void Helper::init(Treeland::Treeland *treeland)
 {
+    m_treeland = treeland;
     auto engine = qmlEngine();
     m_userModel = engine->singletonInstance<UserModel *>("Treeland", "UserModel");
 
@@ -1263,13 +1281,8 @@ void Helper::init()
     xwaylandOutputManager->setScaleOverride(1.0);
     xdgOutputManager->setFilter([this](WClient *client) { return !isXWaylandClient(client); });
     xwaylandOutputManager->setFilter([this](WClient *client) { return isXWaylandClient(client); });
-    auto updateSession = [this] {
-        auto user = m_userModel->currentUser();
-        const uid_t uid = user ? user->UID() : getuid();
-        updateActiveUserSession(uid);
-    };
-    updateSession();
-    connect(m_userModel, &UserModel::currentUserNameChanged, this, updateSession);
+    updateActiveUserSession(QStringLiteral("dde"));
+    connect(m_userModel, &UserModel::userLoggedIn, this, &Helper::updateActiveUserSession);
     m_xdgDecorationManager = m_server->attach<WXdgDecorationManager>();
     connect(m_xdgDecorationManager,
             &WXdgDecorationManager::surfaceModeChanged,
@@ -2176,6 +2189,42 @@ std::shared_ptr<Session> Helper::sessionForSocket(WSocket *socket) const
 }
 
 /**
+ * Get the currently active session
+ *
+ * @returns weak_ptr to the active session
+ */
+std::weak_ptr<Session> Helper::activeSession() const
+{
+    return m_activeSession;
+}
+
+/**
+ * Remove a session from the session list
+ *
+ * @param session The session to remove
+ */
+void Helper::removeSession(std::shared_ptr<Session> session)
+{
+    if (!session)
+        return;
+
+    if (m_activeSession.lock() == session) {
+        m_activeSession.reset();
+        m_activatedSurface = nullptr;
+        Q_EMIT activatedSurfaceChanged();
+    }
+
+    for (auto s : m_sessions) {
+        if (s.get() == session.get()) {
+            m_sessions.removeOne(s);
+            break;
+        }
+    }
+
+    session.reset();
+}
+
+/**
  * Ensure a session exists for the given uid, creating it if necessary
  * 
  * @param uid User ID to ensure session for
@@ -2223,10 +2272,6 @@ std::shared_ptr<Session> Helper::ensureSession(uid_t uid)
                 }
             }
         });
-        connect(xwayland, &QObject::destroyed, this, [this, xwayland]() {
-            removeXWayland(xwayland);
-        });
-
         return xwayland;
     };
     // Check if session already exists for uid
@@ -2253,42 +2298,25 @@ std::shared_ptr<Session> Helper::ensureSession(uid_t uid)
 
         return session;
     }
-    // Session does not exist, create new session
+    // Session does not exist, create new session with deleter
     auto session = std::make_shared<Session>();
     session->uid = uid;
 
     session->socket = createWSocket();
     if (!session->socket) {
+        session.reset();
         return nullptr;
     }
 
     session->xwayland = createXWayland(session->socket);
     if (!session->xwayland) {
-        delete session->socket;
+        session.reset();
         return nullptr;
     }
+
     // Add session to list
     m_sessions.append(session);
     return session;
-}
-
-/**
- * Remove the given WXWayland and clean up its session.
- * This is called when an XWayland instance is destroyed.
- * 
- * @param xwayland WXWayland to remove
- */
-void Helper::removeXWayland(WXWayland *xwayland)
-{
-    if (!xwayland)
-        return;
-
-    if (auto session = sessionForXWayland(xwayland)) {
-        session->xwayland = nullptr;
-        session->noTitlebarAtom = XCB_ATOM_NONE;
-    }
-
-    m_shellHandler->removeXWayland(xwayland);
 }
 
 /**
@@ -2348,16 +2376,16 @@ WXWayland *Helper::defaultXWaylandSocket() const
  * This will update XWayland visibility and emit socketFileChanged if the
  * active session changed.
  * 
- * @param uid User ID to set as active session
+ * @param username Username to set as active session
  */
-void Helper::updateActiveUserSession(uid_t uid)
+void Helper::updateActiveUserSession(const QString &username)
 {
     // Get previous active session
     auto previous = m_activeSession.lock();
     // Get new session for uid, creating if necessary
-    auto session = ensureSession(uid);
+    auto session = ensureSession(getpwnam(username.toLocal8Bit().data())->pw_uid);
     if (!session) {
-        qCWarning(treelandInput) << "Failed to ensure session for uid" << uid;
+        qCWarning(treelandInput) << "Failed to ensure session for user" << username;
         return;
     }
     do {
@@ -2370,14 +2398,16 @@ void Helper::updateActiveUserSession(uid_t uid)
             previous->socket->setEnabled(false);
         session->socket->setEnabled(true);
         Q_EMIT socketFileChanged();
+        // Notify session changed through DBus, treeland-sd will listen it to update envs
+        Q_EMIT m_treeland->SessionChanged();
         // Store last active surface of previous session
         if (previous)
             previous->lastActivatedSurface = m_activatedSurface;
         // Restore last activated surface for new session
         if (session->lastActivatedSurface)
-            m_activatedSurface = session->lastActivatedSurface;
+            setActivatedSurface(session->lastActivatedSurface);
         else
-            m_activatedSurface = nullptr;
+            setActivatedSurface(nullptr);
         Q_EMIT activatedSurfaceChanged();
     } while (false);
 
