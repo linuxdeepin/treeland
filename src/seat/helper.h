@@ -113,6 +113,8 @@ struct Session {
     WXWayland *xwayland = nullptr;
     quint32 noTitlebarAtom = XCB_ATOM_NONE;
     SurfaceWrapper *lastActivatedSurface = nullptr;
+
+    ~Session();
 };
 
 class Helper : public WSeatEventFilter
@@ -188,8 +190,13 @@ public:
 
     void addSocket(WSocket *socket);
     void removeXWayland(WXWayland *xwayland);
+    void removeSession(std::shared_ptr<Session> session);
     WXWayland *xwaylandForUid(uid_t uid, bool createIfMissing = true);
     WSocket *waylandSocketForUid(uid_t uid, bool createIfMissing = true);
+    std::shared_ptr<Session> sessionForUid(uid_t uid) const;
+    std::shared_ptr<Session> sessionForXWayland(WXWayland *xwayland) const;
+    std::shared_ptr<Session> sessionForSocket(WSocket *socket) const;
+    std::weak_ptr<Session> activeSession() const;
 
     WSocket *defaultWaylandSocket() const;
     WXWayland *defaultXWaylandSocket() const;
@@ -325,9 +332,6 @@ private:
     void updateIdleInhibitor();
     void setNoAnimation(bool noAnimation);
 
-    std::shared_ptr<Session> sessionForUid(uid_t uid) const;
-    std::shared_ptr<Session> sessionForXWayland(WXWayland *xwayland) const;
-    std::shared_ptr<Session> sessionForSocket(WSocket *socket) const;
     std::shared_ptr<Session> ensureSession(uid_t uid);
     void updateActiveUserSession(uid_t uid);
     bool isXWaylandClient(WClient *client);
