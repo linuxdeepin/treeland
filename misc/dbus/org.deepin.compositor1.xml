@@ -8,5 +8,7 @@
     <method name="XWaylandName">
       <arg type="s" direction="out" name="result"/>
     </method>
+    <signal name="SessionChanged">
+    </signal>
   </interface>
 </node>

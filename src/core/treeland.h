@@ -43,6 +43,7 @@ public:
 
 Q_SIGNALS:
     void socketDisconnected();
+    void SessionChanged();
 
 public Q_SLOTS:
     bool ActivateWayland(QDBusUnixFileDescriptor fd);
