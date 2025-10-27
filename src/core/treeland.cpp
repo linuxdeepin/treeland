@@ -79,7 +79,7 @@ public:
         connect(qmlEngine, &QQmlEngine::quit, q, &Treeland::quit, Qt::QueuedConnection);
         helper = qmlEngine->singletonInstance<Helper *>("Treeland", "Helper");
         connect(helper, &Helper::requestQuit, q, &Treeland::quit, Qt::QueuedConnection);
-        helper->init();
+        helper->init(q);
 
 #ifndef DISABLE_DDM
         auto userModel = qmlEngine->singletonInstance<UserModel *>("Treeland", "UserModel");

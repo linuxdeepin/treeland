@@ -23,6 +23,21 @@
 typedef QMap<QString, QString> StringMap;
 Q_DECLARE_METATYPE(StringMap)
 
+class SignalReceiver : public QObject
+{
+    Q_OBJECT
+public:
+    SignalReceiver(std::function<void()> activateFdFunc, QObject *parent = nullptr)
+        : QObject(parent), activateFd(activateFdFunc) {
+    }
+public Q_SLOTS:
+    void onSessionChanged() {
+        activateFd();
+    }
+private:
+    std::function<void()> activateFd;
+};
+
 int main(int argc, char *argv[])
 {
     QCoreApplication app(argc, argv);
@@ -51,8 +66,8 @@ int main(int argc, char *argv[])
 
     QDBusUnixFileDescriptor unixFileDescriptor(SD_LISTEN_FDS_START);
 
-    auto active = [unixFileDescriptor, type](const QDBusConnection &connection) {
-        auto activateFd = [unixFileDescriptor, type, connection] {
+    auto active = [unixFileDescriptor, type](QDBusConnection connection) {
+        auto activateFd = [unixFileDescriptor, type, &connection] {
             QDBusInterface updateFd("org.deepin.Compositor1",
                                     "/org/deepin/Compositor1",
                                     "org.deepin.Compositor1",
@@ -113,6 +128,14 @@ int main(int argc, char *argv[])
                          compositorWatcher,
                          activateFd);
 
+        // Listen to SessionChanged signal and activate fd when session changed
+        connection.connect("org.deepin.Compositor1",
+                           "/org/deepin/Compositor1",
+                           "org.deepin.Compositor1",
+                           "SessionChanged",
+                           new SignalReceiver(activateFd),
+                           SLOT(onSessionChanged()));
+
         activateFd();
     };
 
@@ -121,3 +144,5 @@ int main(int argc, char *argv[])
 
     return app.exec();
 }
+
+#include "systemd-socket.moc"

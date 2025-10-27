@@ -104,16 +104,27 @@ struct wlr_idle_inhibitor_v1;
 struct wlr_output_power_v1_set_mode_event;
 struct wlr_ext_foreign_toplevel_image_capture_source_manager_v1_request;
 
+namespace Treeland {
+class Treeland;
+}
+
 QW_BEGIN_NAMESPACE
 class qw_ext_foreign_toplevel_image_capture_source_manager_v1;
 QW_END_NAMESPACE
 
-struct Session {
+struct Session : QObject {
+    Q_OBJECT
+public:
     uid_t uid = 0;
     WSocket *socket = nullptr;
     WXWayland *xwayland = nullptr;
     quint32 noTitlebarAtom = XCB_ATOM_NONE;
     SurfaceWrapper *lastActivatedSurface = nullptr;
+
+    ~Session();
+
+Q_SIGNALS:
+    void aboutToBeDestroyed();
 };
 
 class Helper : public WSeatEventFilter
@@ -162,7 +173,7 @@ public:
     ShellHandler *shellHandler() const;
     Workspace *workspace() const;
 
-    void init();
+    void init(Treeland::Treeland *treeland);
 
     TogglableGesture *multiTaskViewGesture() const
     {
@@ -189,8 +200,13 @@ public:
 
     void addSocket(WSocket *socket);
     void removeXWayland(WXWayland *xwayland);
+    void removeSession(std::shared_ptr<Session> session);
     WXWayland *xwaylandForUid(uid_t uid, bool createIfMissing = true);
     WSocket *waylandSocketForUid(uid_t uid, bool createIfMissing = true);
+    std::shared_ptr<Session> sessionForUid(uid_t uid) const;
+    std::shared_ptr<Session> sessionForXWayland(WXWayland *xwayland) const;
+    std::shared_ptr<Session> sessionForSocket(WSocket *socket) const;
+    std::weak_ptr<Session> activeSession() const;
 
     WSocket *defaultWaylandSocket() const;
     WXWayland *defaultXWaylandSocket() const;
@@ -325,15 +341,13 @@ private:
     void updateIdleInhibitor();
     void setNoAnimation(bool noAnimation);
 
-    std::shared_ptr<Session> sessionForUid(uid_t uid) const;
-    std::shared_ptr<Session> sessionForXWayland(WXWayland *xwayland) const;
-    std::shared_ptr<Session> sessionForSocket(WSocket *socket) const;
     std::shared_ptr<Session> ensureSession(uid_t uid);
-    void updateActiveUserSession(uid_t uid);
+    void updateActiveUserSession(const QString &username);
     bool isXWaylandClient(WClient *client);
 
     static Helper *m_instance;
     TreelandConfig *m_config = nullptr;
+    Treeland::Treeland *m_treeland = nullptr;
     FpsDisplayManager *m_fpsManager = nullptr;
 
     CurrentMode m_currentMode{ CurrentMode::Normal };

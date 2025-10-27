@@ -110,9 +110,10 @@ GreeterProxy::GreeterProxy(QObject *parent)
     connect(d->socket, &QLocalSocket::readyRead, this, &GreeterProxy::readyRead);
     connect(d->socket, &QLocalSocket::errorOccurred, this, &GreeterProxy::error);
 
-    connect(this, &GreeterProxy::loginSucceeded, this, [this]([[maybe_unused]] QString user) {
+    connect(this, &GreeterProxy::loginSucceeded, this, [this](QString user) {
         d->isLoggedIn = true;
         Q_EMIT isLoggedInChanged();
+        Q_EMIT d->userModel->userLoggedIn(user);
     });
 
     d->ddmDisplayManager = new org::deepin::DisplayManager("org.deepin.DisplayManager",
@@ -293,76 +294,14 @@ void GreeterProxy::unlock(const QString &user, const QString &password)
     }
 }
 
-static QString getSessionPathByUser(UserPtr userInfo);
-
 void GreeterProxy::logout()
 {
     qCDebug(treelandGreeter) << "Logout.";
     d->isLoggedIn = false;
     Q_EMIT isLoggedInChanged();
     auto user = userModel()->currentUser();
-    QThreadPool::globalInstance()->start([user]() {
-        const auto path = getSessionPathByUser(user);
-        if (path.isEmpty()) {
-            qCWarning(treelandGreeter, "No session logged in.");
-            return;
-        }
-        qCDebug(treelandGreeter) << "Terminate the session" << path;
-        auto reply = DDBusSender::system()
-            .service("org.freedesktop.login1")
-            .path(path)
-            .interface("org.freedesktop.login1.Session")
-            .method("Terminate")
-            .call();
-        if (reply.isError()) {
-            qCWarning(treelandGreeter) << "Failed to logout, error:" << reply.error().message();
-        }
-    });
-}
-
-QString getSessionPathByUser(UserPtr userInfo)
-{
-    if (!userInfo) {
-        qCWarning(treelandGreeter) << "No user logged in.";
-        return {};
-    }
-
-    QDBusPendingReply<QList<SessionInfo>> sessionsRelpy =
-        DDBusSender::system()
-            .service("org.freedesktop.login1")
-            .path("/org/freedesktop/login1")
-            .interface("org.freedesktop.login1.Manager")
-            .method("ListSessions")
-            .call();
-    if (sessionsRelpy.isError()) {
-        qCWarning(treelandGreeter) << "Failed to logout, error:" << sessionsRelpy.error().message();
-        return {};
-    }
-
-    QStringList userSessions;
-    const auto sessions = sessionsRelpy.value();
-    for (auto item : sessions) {
-        if (item.uid != userInfo->UID())
-            continue;
-        // TODO multiple seats.
-        if (item.seat.isEmpty())
-            continue;
-        userSessions << item.path.path();
-    }
-    std::sort(userSessions.begin(), userSessions.end(), [](const QString &s1, const QString &s2) {
-        return s1.localeAwareCompare(s2) > 0;
-    });
-    for (auto item : userSessions) {
-        QDBusPendingReply<QVariant> relpy = DDBusSender::system()
-                                                .service("org.freedesktop.login1")
-                                                .path(item)
-                                                .interface("org.freedesktop.login1.Session")
-                                                .property("Active")
-                                                .get();
-        if (relpy.value().toBool())
-            return item;
-    }
-    return {};
+    Helper::instance()->removeSession(Helper::instance()->activeSession().lock());
+    SocketWriter(d->socket) << quint32(GreeterMessages::Logout) << user->userName();
 }
 
 void GreeterProxy::activateUser(const QString &user)
