@@ -9,18 +9,19 @@ import QtQuick.Controls
 Item {
     id: splash
 
-    property string logoPath: ""
+    required property string logoPath
+    required property real initialRadius
     property bool destroyAfterFade: false
+    signal destroyRequested
 
     // Fill the entire parent (SurfaceWrapper)
     anchors.fill: parent
 
     Rectangle {
-        radius: 10 // TODO: use Decoration's radius
         id: background
         color: "#ffffff"
-        // Fill parent; size is dictated by parent
         anchors.fill: parent
+        radius: initialRadius
 
         // Centered logo
         Image {
@@ -55,12 +56,14 @@ Item {
         target: splash
         from: 1.0
         to: 0.0
-        duration: 500
+        duration: 400
 
         onFinished: {
             splash.visible = false
             if (splash.destroyAfterFade) {
-                splash.destroy();
+                // Request C++ side to destroy this item to avoid calling destroy()
+                // on an object owned by C++.
+                splash.destroyRequested();
             }
         }
     }
