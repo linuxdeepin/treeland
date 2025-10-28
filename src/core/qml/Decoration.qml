@@ -10,7 +10,6 @@ Item {
     id: root
 
     required property SurfaceWrapper surface
-    readonly property SurfaceItem surfaceItem: surface.surfaceItem
 
     visible: surface && surface.visibleDecoration && surface.visible
     x: shadow.boundingRect.x
@@ -19,7 +18,9 @@ Item {
     height: shadow.boundingRect.height
 
     MouseArea {
-        enabled: surface.type !== SurfaceWrapper.Type.XdgPopup && surface.type !== SurfaceWrapper.Type.Layer
+        enabled: surface.type !== SurfaceWrapper.Type.XdgPopup
+                    && surface.type !== SurfaceWrapper.Type.Layer
+                    && surface.type !== SurfaceWrapper.Type.Undetermined
         property int edges: 0
 
         anchors {
@@ -73,7 +74,7 @@ Item {
 
     Border {
         visible: surface.visibleDecoration
-        parent: surfaceItem
+        parent: surface.surfaceItem ? surface.surfaceItem : surface.prelaunchSplash
         z: SurfaceItem.ZOrder.ContentItem + 1
         anchors.fill: parent
         radius: surface.radius
