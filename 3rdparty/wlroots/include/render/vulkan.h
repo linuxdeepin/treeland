@@ -127,8 +127,14 @@ const struct wlr_vk_format_modifier_props *vulkan_format_props_find_modifier(
 void vulkan_format_props_finish(struct wlr_vk_format_props *props);
 
 struct wlr_vk_pipeline_layout_key {
-	const struct wlr_vk_format *ycbcr_format;
 	enum wlr_scale_filter_mode filter_mode;
+
+	// for YCbCr pipelines only
+	struct {
+		const struct wlr_vk_format *format;
+		enum wlr_color_encoding encoding;
+		enum wlr_color_range range;
+	} ycbcr;
 };
 
 struct wlr_vk_pipeline_layout {

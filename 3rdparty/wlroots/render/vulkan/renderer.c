@@ -1630,14 +1630,16 @@ static bool init_blend_to_output_layouts(struct wlr_vk_renderer *renderer) {
 static bool pipeline_layout_key_equals(
 		const struct wlr_vk_pipeline_layout_key *a,
 		const struct wlr_vk_pipeline_layout_key *b) {
-	assert(!a->ycbcr_format || a->ycbcr_format->is_ycbcr);
-	assert(!b->ycbcr_format || b->ycbcr_format->is_ycbcr);
+	assert(!a->ycbcr.format || a->ycbcr.format->is_ycbcr);
+	assert(!b->ycbcr.format || b->ycbcr.format->is_ycbcr);
 
 	if (a->filter_mode != b->filter_mode) {
 		return false;
 	}
 
-	if (a->ycbcr_format != b->ycbcr_format) {
+	if (a->ycbcr.format != b->ycbcr.format ||
+			a->ycbcr.encoding != b->ycbcr.encoding ||
+			a->ycbcr.range != b->ycbcr.range) {
 		return false;
 	}
 
@@ -1945,6 +1947,33 @@ static bool init_blend_to_output_pipeline(struct wlr_vk_renderer *renderer,
 	return true;
 }
 
+static VkSamplerYcbcrModelConversion ycbcr_model_from_wlr(enum wlr_color_encoding encoding) {
+	switch (encoding) {
+	case WLR_COLOR_ENCODING_NONE:
+		abort(); // must be explicit
+	case WLR_COLOR_ENCODING_BT601:
+		return VK_SAMPLER_YCBCR_MODEL_CONVERSION_YCBCR_601;
+	case WLR_COLOR_ENCODING_BT709:
+		return VK_SAMPLER_YCBCR_MODEL_CONVERSION_YCBCR_709;
+	case WLR_COLOR_ENCODING_BT2020:
+		return VK_SAMPLER_YCBCR_MODEL_CONVERSION_YCBCR_2020;
+	default:
+		abort(); // unsupported
+	}
+}
+
+static VkSamplerYcbcrRange ycbcr_range_from_wlr(enum wlr_color_range range) {
+	switch (range) {
+	case WLR_COLOR_RANGE_NONE:
+		abort(); // must be explicit
+	case WLR_COLOR_RANGE_LIMITED:
+		return VK_SAMPLER_YCBCR_RANGE_ITU_NARROW;
+	case WLR_COLOR_RANGE_FULL:
+		return VK_SAMPLER_YCBCR_RANGE_ITU_FULL;
+	}
+	abort(); // unreachable
+}
+
 struct wlr_vk_pipeline_layout *get_or_create_pipeline_layout(
 		struct wlr_vk_renderer *renderer,
 		const struct wlr_vk_pipeline_layout_key *key) {
@@ -1986,12 +2015,12 @@ struct wlr_vk_pipeline_layout *get_or_create_pipeline_layout(
 		.maxLod = 0.25f,
 	};
 
-	if (key->ycbcr_format) {
+	if (key->ycbcr.format) {
 		VkSamplerYcbcrConversionCreateInfo conversion_create_info = {
 			.sType = VK_STRUCTURE_TYPE_SAMPLER_YCBCR_CONVERSION_CREATE_INFO,
-			.format = key->ycbcr_format->vk,
-			.ycbcrModel = VK_SAMPLER_YCBCR_MODEL_CONVERSION_YCBCR_601,
-			.ycbcrRange = VK_SAMPLER_YCBCR_RANGE_ITU_NARROW,
+			.format = key->ycbcr.format->vk,
+			.ycbcrModel = ycbcr_model_from_wlr(key->ycbcr.encoding),
+			.ycbcrRange = ycbcr_range_from_wlr(key->ycbcr.range),
 			.xChromaOffset = VK_CHROMA_LOCATION_MIDPOINT,
 			.yChromaOffset = VK_CHROMA_LOCATION_MIDPOINT,
 			.chromaFilter = VK_FILTER_LINEAR,
@@ -2009,6 +2038,9 @@ struct wlr_vk_pipeline_layout *get_or_create_pipeline_layout(
 			.conversion = pipeline_layout->ycbcr.conversion,
 		};
 		sampler_create_info.pNext = &conversion_info;
+	} else {
+		assert(key->ycbcr.encoding == WLR_COLOR_ENCODING_NONE);
+		assert(key->ycbcr.range == WLR_COLOR_RANGE_NONE);
 	}
 
 	res = vkCreateSampler(renderer->dev->dev, &sampler_create_info, NULL, &pipeline_layout->sampler);
@@ -2429,7 +2461,7 @@ static struct wlr_vk_render_format_setup *find_or_create_render_setup(
 
 	if (!setup_get_or_create_pipeline(setup, &(struct wlr_vk_pipeline_key){
 		.source = WLR_VK_SHADER_SOURCE_SINGLE_COLOR,
-		.layout = { .ycbcr_format = NULL },
+		.layout = {0},
 	})) {
 		goto error;
 	}
@@ -2437,7 +2469,7 @@ static struct wlr_vk_render_format_setup *find_or_create_render_setup(
 	if (!setup_get_or_create_pipeline(setup, &(struct wlr_vk_pipeline_key){
 		.source = WLR_VK_SHADER_SOURCE_TEXTURE,
 		.texture_transform = WLR_VK_TEXTURE_TRANSFORM_IDENTITY,
-		.layout = {.ycbcr_format = NULL },
+		.layout = {0},
 	})) {
 		goto error;
 	}
@@ -2445,25 +2477,9 @@ static struct wlr_vk_render_format_setup *find_or_create_render_setup(
 	if (!setup_get_or_create_pipeline(setup, &(struct wlr_vk_pipeline_key){
 		.source = WLR_VK_SHADER_SOURCE_TEXTURE,
 		.texture_transform = WLR_VK_TEXTURE_TRANSFORM_SRGB,
-		.layout = {.ycbcr_format = NULL },
+		.layout = {0},
 	})) {
 		goto error;
-	}
-
-	for (size_t i = 0; i < renderer->dev->format_prop_count; i++) {
-		const struct wlr_vk_format *format = &renderer->dev->format_props[i].format;
-		const struct wlr_vk_pipeline_layout_key layout = {
-			.ycbcr_format = format,
-		};
-
-		if (format->is_ycbcr) {
-			if (!setup_get_or_create_pipeline(setup, &(struct wlr_vk_pipeline_key){
-				.texture_transform = WLR_VK_TEXTURE_TRANSFORM_SRGB,
-				.layout = layout
-			})) {
-				goto error;
-			}
-		}
 	}
 
 	wl_list_insert(&renderer->render_format_setups, &setup->link);
@@ -2495,6 +2511,11 @@ struct wlr_renderer *vulkan_renderer_create_for_device(struct wlr_vk_device *dev
 	wl_list_init(&renderer->render_buffers);
 	wl_list_init(&renderer->color_transforms);
 	wl_list_init(&renderer->pipeline_layouts);
+
+	renderer->wlr_renderer.color_encodings =
+		WLR_COLOR_ENCODING_BT601 |
+		WLR_COLOR_ENCODING_BT709 |
+		WLR_COLOR_ENCODING_BT2020;
 
 	uint64_t cap_syncobj_timeline;
 	if (dev->drm_fd >= 0 && drmGetCap(dev->drm_fd, DRM_CAP_SYNCOBJ_TIMELINE, &cap_syncobj_timeline) == 0) {
