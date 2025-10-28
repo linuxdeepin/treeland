@@ -85,7 +85,7 @@ void ShellHandler::updateWrapperContainer(SurfaceWrapper *wrapper,
             if (qobject_cast<Workspace *>(oldContainer) == nullptr) {
                 oldContainer->removeSurface(wrapper);
                 m_workspace->addSurface(wrapper);
-            } 
+            }
             // else do nothing, already in workspace
         } else {
             m_workspace->addSurface(wrapper);
