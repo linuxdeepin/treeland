@@ -65,7 +65,9 @@ public:
     QQuickItem *createWindowPicker(QQuickItem *parent);
     QQuickItem *createLockScreenFallback(QQuickItem *parent, const QVariantMap &properties = QVariantMap());
     QQuickItem *createFpsDisplay(QQuickItem *parent);
-    QQuickItem *createPrelaunchSplash(QQuickItem *parent, const QString &logoPath = QString());
+    QQuickItem *createPrelaunchSplash(QQuickItem *parent,
+                                      const QString &logoPath,
+                                      qreal initialRadius);
 
     QQmlComponent *surfaceContentComponent()
     {

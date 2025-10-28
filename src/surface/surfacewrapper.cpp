@@ -3,10 +3,11 @@
 
 #include "surface/surfacewrapper.h"
 
-#include "seat/helper.h"
-#include "treelandconfig.hpp"
+#include "common/treelandlogging.h"
 #include "core/qmlengine.h"
 #include "output/output.h"
+#include "seat/helper.h"
+#include "treelandconfig.hpp"
 #include "workspace/workspace.h"
 #include "common/treelandlogging.h"
 #include "seat/helper.h"
@@ -92,23 +93,21 @@ SurfaceWrapper::SurfaceWrapper(QmlEngine *qmlEngine, QQuickItem *parent, const Q
 {
     QQmlEngine::setContextForObject(this, qmlEngine->rootContext());
     if (initialSize.isValid() && initialSize.width() > 0 && initialSize.height() > 0) {
-    // Also set implicit size to keep QML layout consistent
+        // Also set implicit size to keep QML layout consistent
         setImplicitSize(initialSize.width(), initialSize.height());
         qInfo() << "Prelaunch Splash: set initial size to" << initialSize;
     } else {
         setImplicitSize(800, 600);
     }
+    m_prelaunchSplash = m_engine->createPrelaunchSplash(this, QString(), radius());
+    m_prelaunchSplash->setZ(99999);
+    // Connect to QML signal so C++ can destroy the QML item when requested
+    connect(m_prelaunchSplash,
+            SIGNAL(destroyRequested()),
+            this,
+            SLOT(onPrelaunchSplashDestroyRequested()));
+
     setNoDecoration(false);
-
-    m_prelaunchSplash = m_engine->createPrelaunchSplash(this);
-    m_prelaunchSplash->setZ(9999999999);
-
-    connect(m_prelaunchSplash, &QQuickItem::visibleChanged,
-            this, [this] {
-        if (m_surfaceItem)
-            setImplicitSize(m_surfaceItem->implicitWidth(), m_surfaceItem->implicitHeight());
-        updateVisible();
-    });
 }
 
 SurfaceWrapper::~SurfaceWrapper()
@@ -189,53 +188,55 @@ void SurfaceWrapper::setup()
             requestCancelMinimize();
         });
         m_shellSurface->safeConnect(&WToplevelSurface::requestMaximize,
-                                  this,
-                                  &SurfaceWrapper::requestMaximize);
+                                    this,
+                                    &SurfaceWrapper::requestMaximize);
         m_shellSurface->safeConnect(&WToplevelSurface::requestCancelMaximize,
-                                  this,
-                                  &SurfaceWrapper::requestCancelMaximize);
+                                    this,
+                                    &SurfaceWrapper::requestCancelMaximize);
         m_shellSurface->safeConnect(&WToplevelSurface::requestMove,
-                                  this,
-                                  &SurfaceWrapper::requestMove);
+                                    this,
+                                    &SurfaceWrapper::requestMove);
         m_shellSurface->safeConnect(&WToplevelSurface::requestResize,
-                                  this,
-                                  [this](WSeat *, Qt::Edges edge, quint32) {
-                                      Q_EMIT requestResize(edge);
-                                  });
+                                    this,
+                                    [this](WSeat *, Qt::Edges edge, quint32) {
+                                        Q_EMIT requestResize(edge);
+                                    });
         m_shellSurface->safeConnect(&WToplevelSurface::requestFullscreen,
-                                  this,
-                                  &SurfaceWrapper::requestFullscreen);
+                                    this,
+                                    &SurfaceWrapper::requestFullscreen);
         m_shellSurface->safeConnect(&WToplevelSurface::requestCancelFullscreen,
-                                  this,
-                                  &SurfaceWrapper::requestCancelFullscreen);
+                                    this,
+                                    &SurfaceWrapper::requestCancelFullscreen);
 
         if (m_type == Type::XdgToplevel) {
             m_shellSurface->safeConnect(&WToplevelSurface::requestShowWindowMenu,
-                                      this,
-                                      [this](WSeat *, QPoint pos, quint32) {
-                                          Q_EMIT requestShowWindowMenu(
-                                              { pos.x() + m_surfaceItem->leftPadding(),
-                                                pos.y() + m_surfaceItem->topPadding() });
-                                      });
+                                        this,
+                                        [this](WSeat *, QPoint pos, quint32) {
+                                            Q_EMIT requestShowWindowMenu(
+                                                { pos.x() + m_surfaceItem->leftPadding(),
+                                                  pos.y() + m_surfaceItem->topPadding() });
+                                        });
         }
     }
     m_shellSurface->surface()->safeConnect(&WSurface::mappedChanged,
-                                         this,
-                                         &SurfaceWrapper::onMappedChanged);
+                                           this,
+                                           &SurfaceWrapper::onMappedChanged);
 
-    connect(m_surfaceItem,
-            &WSurfaceItem::boundingRectChanged,
-            this,
-            &SurfaceWrapper::updateBoundingRect);
-    connect(m_surfaceItem, &WSurfaceItem::implicitWidthChanged, this, [this] {
-        setImplicitWidth(m_surfaceItem->implicitWidth());
-    });
-    connect(m_surfaceItem, &WSurfaceItem::implicitHeightChanged, this, [this] {
-        setImplicitHeight(m_surfaceItem->implicitHeight());
-    });
+    Q_EMIT surfaceItemChanged();
 
-    if (!m_prelaunchSplash || !m_prelaunchSplash->isVisible())
+    if (!m_prelaunchSplash || !m_prelaunchSplash->isVisible()) {
         setImplicitSize(m_surfaceItem->implicitWidth(), m_surfaceItem->implicitHeight());
+        connect(m_surfaceItem, &WSurfaceItem::implicitWidthChanged, this, [this] {
+            setImplicitWidth(m_surfaceItem->implicitWidth());
+        });
+        connect(m_surfaceItem, &WSurfaceItem::implicitHeightChanged, this, [this] {
+            setImplicitHeight(m_surfaceItem->implicitHeight());
+        });
+        connect(m_surfaceItem,
+                &WSurfaceItem::boundingRectChanged,
+                this,
+                &SurfaceWrapper::updateBoundingRect);
+    }
 
     if (auto client = m_shellSurface->waylandClient()) {
         connect(client->socket(),
@@ -328,14 +329,13 @@ void SurfaceWrapper::convertToNormalSurface(WToplevelSurface *shellSurface, Type
 
     // Assign new shell surface (QPointer auto-detects destruction)
     m_shellSurface = shellSurface;
-
     m_type = type;
 
     // Call setup() to initialize surfaceItem related features
     setup();
+    // setNoDecoration not called updateTitleBar when type is Undetermined
+    updateTitleBar();
 
-    // After conversion refresh visibility and bounding rect
-    updateBoundingRect();
     QMetaObject::invokeMethod(m_prelaunchSplash, "hideAndDestroy", Qt::QueuedConnection);
 }
 
@@ -379,6 +379,32 @@ void SurfaceWrapper::setFocus(bool focus, Qt::FocusReason reason)
         m_surfaceItem->setFocus(false, reason);
 }
 
+void SurfaceWrapper::onPrelaunchSplashDestroyRequested()
+{
+    if (m_surfaceItem) {
+        setImplicitSize(m_surfaceItem->implicitWidth(), m_surfaceItem->implicitHeight());
+        connect(m_surfaceItem, &WSurfaceItem::implicitWidthChanged, this, [this] {
+            setImplicitWidth(m_surfaceItem->implicitWidth());
+        });
+        connect(m_surfaceItem, &WSurfaceItem::implicitHeightChanged, this, [this] {
+            setImplicitHeight(m_surfaceItem->implicitHeight());
+        });
+        connect(m_surfaceItem,
+                &WSurfaceItem::boundingRectChanged,
+                this,
+                &SurfaceWrapper::updateBoundingRect);
+    }
+    if (m_decoration)
+        m_decoration->stackBefore(m_surfaceItem);
+    updateVisible();
+
+    if (!m_prelaunchSplash)
+        return;
+    m_prelaunchSplash->deleteLater();
+    m_prelaunchSplash = nullptr;
+    Q_EMIT prelaunchSplashChanged();
+}
+
 WSurface *SurfaceWrapper::surface() const
 {
     if (!m_shellSurface)
@@ -395,6 +421,11 @@ WToplevelSurface *SurfaceWrapper::shellSurface() const
 WSurfaceItem *SurfaceWrapper::surfaceItem() const
 {
     return m_surfaceItem;
+}
+
+QQuickItem *SurfaceWrapper::prelaunchSplash() const
+{
+    return m_prelaunchSplash;
 }
 
 bool SurfaceWrapper::resize(const QSizeF &size)
@@ -751,7 +782,7 @@ void SurfaceWrapper::setNoDecoration(bool newNoDecoration)
         return;
 
     m_noDecoration = newNoDecoration;
-    if (m_titleBarState == TitleBarState::Default)
+    if (m_titleBarState == TitleBarState::Default && m_type != Type::Undetermined)
         updateTitleBar();
 
     if (m_noDecoration) {
@@ -762,7 +793,7 @@ void SurfaceWrapper::setNoDecoration(bool newNoDecoration)
     } else {
         Q_ASSERT(!m_decoration);
         m_decoration = m_engine->createDecoration(this, this);
-        m_decoration->stackBefore(m_surfaceItem);
+        m_decoration->stackBefore(m_surfaceItem ? m_surfaceItem : m_prelaunchSplash);
         connect(m_decoration, &QQuickItem::xChanged, this, &SurfaceWrapper::updateBoundingRect);
         connect(m_decoration, &QQuickItem::yChanged, this, &SurfaceWrapper::updateBoundingRect);
         connect(m_decoration, &QQuickItem::widthChanged, this, &SurfaceWrapper::updateBoundingRect);
@@ -782,8 +813,7 @@ void SurfaceWrapper::updateTitleBar()
         return;
 
     // No surfaceItem in prelaunch mode -> early return
-    if (!m_surfaceItem)
-        return;
+    Q_ASSERT(m_surfaceItem);
 
     if (noTitleBar() == !m_titleBar)
         return;
@@ -967,7 +997,8 @@ void SurfaceWrapper::doSetSurfaceState(State newSurfaceState)
     if (m_wrapperAboutToRemove)
         return;
 
-    // In prelaunch mode there is no shellSurface; update state only without calling shellSurface methods
+    // In prelaunch mode there is no shellSurface; update state only without calling shellSurface
+    // methods
     if (!m_shellSurface) {
         m_previousSurfaceState.setValueBypassingBindings(m_surfaceState);
         m_surfaceState.setValueBypassingBindings(newSurfaceState);
@@ -1114,7 +1145,7 @@ void SurfaceWrapper::onMappedChanged()
     bool mapped = surface()->mapped() && !m_hideByLockScreen;
     if (!m_isProxy) {
         if (mapped) {
-            //createNewOrClose(OPEN_ANIMATION);
+            // createNewOrClose(OPEN_ANIMATION);
             if (m_coverContent) {
                 m_coverContent->setVisible(true);
             }
@@ -1221,7 +1252,8 @@ qreal SurfaceWrapper::radius() const
 
     qreal radius = m_radius;
 
-    // TODO: Handle: XdgToplevel, popup, InputPopup, XWayland (bypass, window type: menu/normal/popup)
+    // TODO: Handle: XdgToplevel, popup, InputPopup, XWayland (bypass, window type:
+    // menu/normal/popup)
     if (radius < 1 && m_type != Type::Layer) {
         radius = Helper::instance()->config()->windowRadius();
     }
