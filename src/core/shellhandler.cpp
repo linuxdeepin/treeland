@@ -103,7 +103,7 @@ void ShellHandler::handlePrelaunchSplashRequested(const QString &appId)
     // If a prelaunch wrapper with the same appId already exists, skip creating a duplicate
     for (int i = 0; i < m_prelaunchWrappers.size(); ++i) {
         auto *w = m_prelaunchWrappers.at(i);
-        if (w && w->property("prelaunchAppId").toString() == appId) {
+        if (w && w->appId() == appId) {
             return;
         }
     }
@@ -114,8 +114,7 @@ void ShellHandler::handlePrelaunchSplashRequested(const QString &appId)
             initialSize = last;
         }
     }
-    auto *wrapper = new SurfaceWrapper(Helper::instance()->qmlEngine(), nullptr, initialSize);
-    wrapper->setProperty("prelaunchAppId", appId);
+    auto *wrapper = new SurfaceWrapper(Helper::instance()->qmlEngine(), nullptr, initialSize, appId);
     m_workspace->addSurface(wrapper);
     m_prelaunchWrappers.append(wrapper);
 
@@ -126,7 +125,7 @@ void ShellHandler::handlePrelaunchSplashRequested(const QString &appId)
             return; // Already matched or removed earlier
         }
         qCDebug(treelandShell) << "Prelaunch splash timeout, destroy wrapper appId="
-                               << wrapper->property("prelaunchAppId").toString();
+                               << wrapper->appId();
         m_prelaunchWrappers.removeAt(idx);
         m_rootSurfaceContainer->destroyForSurface(wrapper);
     });
@@ -266,7 +265,7 @@ SurfaceWrapper *ShellHandler::matchOrCreateXdgWrapper(WXdgToplevelSurface *surfa
     if (!targetAppId.isEmpty()) {
         for (int i = 0; i < m_prelaunchWrappers.size(); ++i) {
             auto *candidate = m_prelaunchWrappers[i];
-            if (candidate->property("prelaunchAppId").toString() == targetAppId) {
+            if (candidate->appId() == targetAppId) {
                 qCDebug(treelandShell) << "match prelaunch xdg" << targetAppId;
                 m_prelaunchWrappers.remove(i);
                 wrapper = candidate;
@@ -319,14 +318,14 @@ void ShellHandler::onXdgToplevelSurfaceRemoved(WXdgToplevelSurface *surface)
         delete interface;
     }
     // Persist the last size of a normal window (prefer normalGeometry) when an appId is present
-    if (m_windowSizeStore && wrapper && !wrapper->property("prelaunchAppId").toString().isEmpty()) {
+    if (m_windowSizeStore && wrapper && !wrapper->appId().isEmpty()) {
         QSizeF sz = wrapper->normalGeometry().size();
         if (!sz.isValid() || sz.isEmpty()) {
             sz = wrapper->geometry().size();
         }
         const QSize s = sz.toSize();
         if (s.isValid() && s.width() > 0 && s.height() > 0) {
-            m_windowSizeStore->saveSize(wrapper->property("prelaunchAppId").toString(), s);
+            m_windowSizeStore->saveSize(wrapper->appId(), s);
         }
     }
     Q_EMIT surfaceWrapperAboutToRemove(wrapper);
@@ -421,14 +420,14 @@ void ShellHandler::onXWaylandSurfaceAdded(WXWaylandSurface *surface)
         }
         // Persist XWayland window size (only if wrapper exists)
         if (m_windowSizeStore && wrapper
-            && !wrapper->property("prelaunchAppId").toString().isEmpty()) {
+            && !wrapper->appId().isEmpty()) {
             QSizeF sz = wrapper->normalGeometry().size();
             if (!sz.isValid() || sz.isEmpty()) {
                 sz = wrapper->geometry().size();
             }
             const QSize s = sz.toSize();
             if (s.isValid() && s.width() > 0 && s.height() > 0) {
-                m_windowSizeStore->saveSize(wrapper->property("prelaunchAppId").toString(), s);
+                m_windowSizeStore->saveSize(wrapper->appId(), s);
             }
         }
         Q_EMIT surfaceWrapperAboutToRemove(wrapper);
@@ -443,7 +442,7 @@ SurfaceWrapper *ShellHandler::matchOrCreateXwaylandWrapper(WXWaylandSurface *sur
     if (!targetAppId.isEmpty()) {
         for (int i = 0; i < m_prelaunchWrappers.size(); ++i) {
             auto *candidate = m_prelaunchWrappers[i];
-            if (candidate->property("prelaunchAppId").toString() == targetAppId) {
+            if (candidate->appId() == targetAppId) {
                 qCDebug(treelandShell) << "match prelaunch xwayland" << targetAppId;
                 m_prelaunchWrappers.remove(i);
                 wrapper = candidate;
