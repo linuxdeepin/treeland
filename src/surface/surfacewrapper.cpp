@@ -60,13 +60,14 @@ SurfaceWrapper::SurfaceWrapper(QmlEngine *qmlEngine,
     , m_hideByLockScreen(false)
     , m_confirmHideByLockScreen(false)
     , m_blur(false)
+    , m_appId(shellSurface->appId())
 {
     QQmlEngine::setContextForObject(this, qmlEngine->rootContext());
     setup();
 }
 
 // Constructor used for the prelaunch splash
-SurfaceWrapper::SurfaceWrapper(QmlEngine *qmlEngine, QQuickItem *parent, const QSize &initialSize)
+SurfaceWrapper::SurfaceWrapper(QmlEngine *qmlEngine, QQuickItem *parent, const QSize &initialSize, const QString &appId)
     : QQuickItem(parent)
     , m_engine(qmlEngine)
     , m_shellSurface(nullptr)
@@ -90,6 +91,7 @@ SurfaceWrapper::SurfaceWrapper(QmlEngine *qmlEngine, QQuickItem *parent, const Q
     , m_hideByLockScreen(false)
     , m_confirmHideByLockScreen(false)
     , m_blur(false)
+    , m_appId(appId)
 {
     QQmlEngine::setContextForObject(this, qmlEngine->rootContext());
     if (initialSize.isValid() && initialSize.width() > 0 && initialSize.height() > 0) {
@@ -116,6 +118,7 @@ SurfaceWrapper::~SurfaceWrapper()
     Q_ASSERT(!m_container);
     Q_ASSERT(!m_parentSurface);
     Q_ASSERT(m_subSurfaces.isEmpty());
+
     if (m_titleBar) {
         delete m_titleBar;
         m_titleBar = nullptr;
@@ -433,6 +436,11 @@ WSurfaceItem *SurfaceWrapper::surfaceItem() const
 QQuickItem *SurfaceWrapper::prelaunchSplash() const
 {
     return m_prelaunchSplash;
+}
+
+QString SurfaceWrapper::appId() const
+{
+    return m_appId;
 }
 
 bool SurfaceWrapper::resize(const QSizeF &size)
