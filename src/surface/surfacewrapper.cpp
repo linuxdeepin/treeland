@@ -324,6 +324,13 @@ void SurfaceWrapper::convertToNormalSurface(WToplevelSurface *shellSurface, Type
 
     // Call setup() to initialize surfaceItem related features
     setup();
+
+    // If outputs were set during prelaunch, apply them now
+    if (m_prelaunchOutputs.size() > 0) {
+        setOutputs(m_prelaunchOutputs);
+        m_prelaunchOutputs.clear();
+    }
+
     // setNoDecoration not called updateTitleBar when type is Undetermined
     updateTitleBar();
 
@@ -610,10 +617,13 @@ void SurfaceWrapper::setOutputs(const QList<WOutput *> &outputs)
     if (m_wrapperAboutToRemove)
         return;
     if (m_type == Type::Undetermined) {
-        // TODO: set output when setup
+        m_prelaunchOutputs = outputs;
         return;
     }
-    Q_ASSERT(surface());
+    if (!surface()) {
+        qCDebug(treelandSurface) << "SurfaceWrapper::setOutputs called but surface() is null!";
+        return;
+    }
     auto oldOutputs = surface()->outputs();
     for (auto output : oldOutputs) {
         if (outputs.contains(output)) {
