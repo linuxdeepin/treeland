@@ -372,6 +372,7 @@ private:
     QPointer<QQuickItem> m_geometryAnimation;
     QPointer<QQuickItem> m_coverContent;
     QPointer<QQuickItem> m_prelaunchSplash; // Pre-launch splash item
+    QList<WOutput *> m_prelaunchOutputs; // Outputs for pre-launch splash
     QRectF m_boundedRect;
     QRectF m_normalGeometry;
     QRectF m_maximizedGeometry;
