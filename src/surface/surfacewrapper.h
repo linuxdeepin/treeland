@@ -7,6 +7,7 @@
 
 #include <QQuickItem>
 #include <QPointer>
+#include <QString>
 
 Q_MOC_INCLUDE(<woutput.h>)
 Q_MOC_INCLUDE(<output / output.h>)
@@ -27,6 +28,7 @@ class SurfaceWrapper : public QQuickItem
     QML_ELEMENT
     QML_UNCREATABLE("SurfaceWrapper objects are created by c++")
     Q_PROPERTY(Type type READ type NOTIFY surfaceItemChanged)
+    Q_PROPERTY(QString appId READ appId CONSTANT)
     // make to read only
     Q_PROPERTY(qreal implicitWidth READ implicitWidth NOTIFY implicitWidthChanged FINAL)
     Q_PROPERTY(qreal implicitHeight READ implicitHeight NOTIFY implicitHeightChanged FINAL)
@@ -119,8 +121,9 @@ public:
     
     // Constructor for pre-launch splash; allows passing an initial window size to stabilize UI early
     explicit SurfaceWrapper(QmlEngine *qmlEngine,
-                            QQuickItem *parent = nullptr,
-                            const QSize &initialSize = QSize());
+                            QQuickItem *parent,
+                            const QSize &initialSize,
+                            const QString &appId);
 
     void setFocus(bool focus, Qt::FocusReason reason);
 
@@ -128,6 +131,7 @@ public:
     WToplevelSurface *shellSurface() const;
     WSurfaceItem *surfaceItem() const;
     QQuickItem *prelaunchSplash() const;
+    QString appId() const;
     bool resize(const QSizeF &size);
 
     QRectF titlebarGeometry() const;
@@ -430,6 +434,7 @@ private:
     bool m_socketEnabled{ false };
     bool m_windowAnimationEnabled{ true };
     bool m_acceptKeyboardFocus{ true };
+    const QString m_appId;
 };
 
 Q_DECLARE_OPERATORS_FOR_FLAGS(SurfaceWrapper::ActiveControlStates)
