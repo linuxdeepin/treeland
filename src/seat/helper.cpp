@@ -1560,6 +1560,136 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *, QInputEvent *event)
         if (m_captureSelector) {
             if (event->modifiers() == Qt::NoModifier && kevent->key() == Qt::Key_Escape)
                 m_captureSelector->cancelSelection();
+        } else if (event->modifiers() == Qt::MetaModifier) {
+            const QList<Qt::Key> switchWorkspaceNums = { Qt::Key_1, Qt::Key_2, Qt::Key_3,
+                                                         Qt::Key_4, Qt::Key_5, Qt::Key_6 };
+            if (kevent->key() == Qt::Key_Right) {
+                restoreFromShowDesktop();
+                workspace()->switchToNext();
+                return true;
+            } else if (kevent->key() == Qt::Key_Left) {
+                restoreFromShowDesktop();
+                workspace()->switchToPrev();
+                return true;
+            } else if (switchWorkspaceNums.contains(kevent->key())) {
+                restoreFromShowDesktop();
+                workspace()->switchTo(switchWorkspaceNums.indexOf(kevent->key()));
+                return true;
+            } else if (kevent->key() == Qt::Key_S
+                       && (m_currentMode == CurrentMode::Normal
+                           || m_currentMode == CurrentMode::Multitaskview)) {
+                restoreFromShowDesktop();
+                if (m_multitaskView) {
+                    m_multitaskView->toggleMultitaskView(IMultitaskView::ActiveReason::ShortcutKey);
+                }
+                return true;
+#ifndef DISABLE_DDM
+            } else if (m_lockScreen && m_lockScreen->available() && kevent->key() == Qt::Key_L) {
+                if (m_lockScreen->isLocked()) {
+                    return true;
+                }
+
+                showLockScreen();
+                return true;
+#endif
+            } else if (kevent->key() == Qt::Key_D) { // ShowDesktop : Meta + D
+                if (m_currentMode == CurrentMode::Multitaskview) {
+                    return true;
+                }
+                if (m_showDesktop == WindowManagementV1::DesktopState::Normal)
+                    m_windowManagement->setDesktopState(WindowManagementV1::DesktopState::Show);
+                else if (m_showDesktop == WindowManagementV1::DesktopState::Show)
+                    m_windowManagement->setDesktopState(WindowManagementV1::DesktopState::Normal);
+                return true;
+            } else if (kevent->key() == Qt::Key_Up && m_activatedSurface) { // maximize: Meta + up
+                m_activatedSurface->requestMaximize();
+                return true;
+            } else if (kevent->key() == Qt::Key_Down
+                       && m_activatedSurface) { // cancelMaximize : Meta + down
+                m_activatedSurface->requestCancelMaximize();
+                return true;
+            }
+        } else if (kevent->key() == Qt::Key_Alt) {
+            m_taskAltTimestamp = kevent->timestamp();
+            m_taskAltCount = 0;
+        } else if ((m_currentMode == CurrentMode::Normal
+                    || m_currentMode == CurrentMode::WindowSwitch)
+                   && (kevent->key() == Qt::Key_Tab || kevent->key() == Qt::Key_Backtab
+                       || kevent->key() == Qt::Key_QuoteLeft
+                       || kevent->key() == Qt::Key_AsciiTilde)) {
+            if (event->modifiers().testFlag(Qt::AltModifier)) {
+                int detal = kevent->timestamp() - m_taskAltTimestamp;
+                if (detal < 150 && !kevent->isAutoRepeat()) {
+                    auto current = Helper::instance()->workspace()->current();
+                    Q_ASSERT(current);
+                    auto next_surface = current->findNextActivedSurface();
+                    if (next_surface)
+                        Helper::instance()->forceActivateSurface(next_surface, Qt::TabFocusReason);
+                    return true;
+                }
+
+                if (m_taskSwitch.isNull()) {
+                    auto contentItem = window()->contentItem();
+                    auto output = rootContainer()->primaryOutput();
+                    m_taskSwitch = qmlEngine()->createTaskSwitcher(output, contentItem);
+
+                    // Restore the real state of the window when Task Switche
+                    restoreFromShowDesktop();
+                    connect(m_taskSwitch,
+                            SIGNAL(switchOnChanged()),
+                            this,
+                            SLOT(deleteTaskSwitch()));
+                    m_taskSwitch->setZ(RootSurfaceContainer::OverlayZOrder);
+                }
+
+                if (kevent->isAutoRepeat()) {
+                    m_taskAltCount++;
+                } else {
+                    m_taskAltCount = 3;
+                }
+
+                if (m_taskAltCount >= 3) {
+                    m_taskAltCount = 0;
+                    setCurrentMode(CurrentMode::WindowSwitch);
+                    QString appid;
+                    if (kevent->key() == Qt::Key_QuoteLeft || kevent->key() == Qt::Key_AsciiTilde) {
+                        auto surface = Helper::instance()->activatedSurface();
+                        if (surface) {
+                            appid = surface->appId();
+                        }
+                    }
+                    auto filter = Helper::instance()->workspace()->currentFilter();
+                    filter->setFilterAppId(appid);
+
+                    if (event->modifiers() == Qt::AltModifier) {
+                        QMetaObject::invokeMethod(m_taskSwitch, "next");
+                        return true;
+                    } else if (event->modifiers() == (Qt::AltModifier | Qt::ShiftModifier)
+                               || event->modifiers()
+                                   == (Qt::AltModifier | Qt::MetaModifier | Qt::ShiftModifier)) {
+                        QMetaObject::invokeMethod(m_taskSwitch, "previous");
+                        return true;
+                    }
+                }
+            }
+        } else if (event->modifiers() == Qt::AltModifier) {
+            if (kevent->key() == Qt::Key_F4 && m_activatedSurface) { // close window : Alt + F4
+                m_activatedSurface->requestClose();
+                return true;
+            }
+            if (kevent->key() == Qt::Key_Space && m_activatedSurface) {
+                Q_EMIT m_activatedSurface->requestShowWindowMenu({ 0, 0 });
+                return true;
+            }
+            if (m_taskSwitch) {
+                if (kevent->key() == Qt::Key_Left) {
+                    QMetaObject::invokeMethod(m_taskSwitch, "previous");
+                    return true;
+                } else if (kevent->key() == Qt::Key_Right) {
+                    QMetaObject::invokeMethod(m_taskSwitch, "next");
+                    return true;
+                }
+            }
         }
     }
 

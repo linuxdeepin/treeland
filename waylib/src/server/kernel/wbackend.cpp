@@ -49,8 +49,8 @@ public:
 
     W_DECLARE_PUBLIC(WBackend)
 
-    QVector<WOutput*> outputList;
-    QVector<WInputDevice*> inputList;
+    QList<WOutput*> outputList;
+    QList<WInputDevice*> inputList;
 
     struct Keyboard {
         Keyboard(WBackendPrivate *self, wlr_input_device *d)
@@ -152,13 +152,13 @@ qw_session *WBackend::session() const
     return d->session;
 }
 
-QVector<WOutput*> WBackend::outputList() const
+QList<WOutput*> WBackend::outputList() const
 {
     W_DC(WBackend);
     return d->outputList;
 }
 
-QVector<WInputDevice *> WBackend::inputDeviceList() const
+QList<WInputDevice *> WBackend::inputDeviceList() const
 {
     W_DC(WBackend);
     return d->inputList;
