@@ -5,8 +5,9 @@
 #include <wsurfaceitem.h>
 #include <wtoplevelsurface.h>
 
-#include <QQuickItem>
+#include <QList>
 #include <QPointer>
+#include <QQuickItem>
 #include <QString>
 
 Q_MOC_INCLUDE(<woutput.h>)
@@ -84,7 +85,7 @@ public:
         Layer,
         InputPopup,
         LockScreen,
-        Undetermined,  // Used for pre-launch splash screen
+        Undetermined, // Used for pre-launch splash screen
     };
     Q_ENUM(Type)
 
@@ -118,10 +119,15 @@ public:
     explicit SurfaceWrapper(QmlEngine *qmlEngine,
                             WToplevelSurface *shellSurface,
                             Type type,
-                            QQuickItem *parent = nullptr,
-                            bool isProxy = false);
-    
-    // Constructor for pre-launch splash; allows passing an initial window size to stabilize UI early
+                            const QString &appId = QString(),
+                            QQuickItem *parent = nullptr);
+
+    // For proxy surface
+    explicit SurfaceWrapper(SurfaceWrapper *original,
+                            QQuickItem *parent = nullptr);
+
+    // Constructor for pre-launch splash; allows passing an initial window size to stabilize UI
+    // early
     explicit SurfaceWrapper(QmlEngine *qmlEngine,
                             QQuickItem *parent,
                             const QSize &initialSize,
@@ -145,6 +151,7 @@ public:
     Output *ownsOutput() const;
     void setOwnsOutput(Output *newOwnsOutput);
     void setOutputs(const QList<WOutput *> &outputs);
+    const QList<WOutput *> &outputs() const;
 
     QRectF geometry() const;
     QRectF normalGeometry() const;
@@ -333,9 +340,10 @@ private:
     void setBoundedRect(const QRectF &newBoundedRect);
     void setContainer(SurfaceContainer *newContainer);
     void setVisibleDecoration(bool newVisibleDecoration);
-    
+
     void setup(); // Initialize m_surfaceItem related features
-    void convertToNormalSurface(WToplevelSurface *shellSurface, Type type); // Transition from pre-launch mode to normal mode
+    void convertToNormalSurface(WToplevelSurface *shellSurface,
+                                Type type); // Transition from pre-launch mode to normal mode
     void updateBoundingRect();
     void updateVisible();
     void updateSubSurfaceStacking();
@@ -376,7 +384,7 @@ private:
     QPointer<QQuickItem> m_geometryAnimation;
     QPointer<QQuickItem> m_coverContent;
     QPointer<QQuickItem> m_prelaunchSplash; // Pre-launch splash item
-    QList<WOutput *> m_prelaunchOutputs; // Outputs for pre-launch splash
+    QList<WOutput *> m_prelaunchOutputs;    // Outputs for pre-launch splash
     QRectF m_boundedRect;
     QRectF m_normalGeometry;
     QRectF m_maximizedGeometry;
