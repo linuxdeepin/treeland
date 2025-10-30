@@ -244,8 +244,8 @@ uint MultitaskviewSurfaceModel::prevSameAppIndex(uint index)
     };
     auto i = circularPrev(index);
     for (; i != index; i = circularPrev(i)) {
-        if (m_data[i]->wrapper->shellSurface()->appId()
-            == m_data[index]->wrapper->shellSurface()->appId()) {
+        if (m_data[i]->wrapper->appId()
+            == m_data[index]->wrapper->appId()) {
             break;
         }
     }
@@ -263,8 +263,8 @@ uint MultitaskviewSurfaceModel::nextSameAppIndex(uint index)
     };
     auto i = circularNext(index);
     for (; i != index; i = circularNext(i)) {
-        if (m_data[i]->wrapper->shellSurface()->appId()
-            == m_data[index]->wrapper->shellSurface()->appId()) {
+        if (m_data[i]->wrapper->appId()
+            == m_data[index]->wrapper->appId()) {
             break;
         }
     }

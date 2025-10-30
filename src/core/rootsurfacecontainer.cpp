@@ -206,7 +206,7 @@ void RootSurfaceContainer::endMoveResize()
         auto o = moveResizeState.surface->ownsOutput();
         moveResizeState.surface->shellSurface()->setResizeing(false);
 
-        if (!o || !moveResizeState.surface->surface()->outputs().contains(o->output())) {
+        if (!o || !moveResizeState.surface->outputs().contains(o->output())) {
             o = cursorOutput();
             Q_ASSERT(o);
             moveResizeState.surface->setOwnsOutput(o);

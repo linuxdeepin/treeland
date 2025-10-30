@@ -35,11 +35,8 @@ void SurfaceProxy::setSurface(SurfaceWrapper *newSurface)
     }
 
     if (m_sourceSurface) {
-        m_proxySurface = new SurfaceWrapper(m_sourceSurface->m_engine,
-                                            m_sourceSurface->m_shellSurface,
-                                            m_sourceSurface->type(),
-                                            this,
-                                            true);
+        m_proxySurface = new SurfaceWrapper(m_sourceSurface,
+                                            this);
         m_proxySurface->setTransformOrigin(QQuickItem::TransformOrigin::TopLeft);
         m_proxySurface->setFlag(ItemIsFocusScope);
         m_proxySurface->QQuickItem::setFocus(false);
@@ -53,13 +50,16 @@ void SurfaceProxy::setSurface(SurfaceWrapper *newSurface)
         }
 
         auto item = m_proxySurface->surfaceItem();
-        if (m_live) {
-            item->setFlags(WSurfaceItem::RejectEvent);
+        if (item) {
+            if (m_live) {
+                item->setFlags(WSurfaceItem::RejectEvent);
+            } else {
+                item->setFlags(WSurfaceItem::RejectEvent | WSurfaceItem::NonLive);
+            }
+            item->setDelegate(m_sourceSurface->surfaceItem()->delegate());
         } else {
-            item->setFlags(WSurfaceItem::RejectEvent | WSurfaceItem::NonLive);
+            // TODO(rewine): log error?
         }
-        item->setDelegate(m_sourceSurface->surfaceItem()->delegate());
-
         m_sourceConnections << connect(m_sourceSurface, &SurfaceWrapper::destroyed, this, [this] {
             Q_ASSERT(m_proxySurface);
             setSurface(nullptr);

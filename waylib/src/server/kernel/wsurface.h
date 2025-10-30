@@ -69,7 +69,7 @@ public:
 public Q_SLOTS:
     void enterOutput(WOutput *output);
     void leaveOutput(WOutput *output);
-    const QVector<WOutput *> &outputs() const;
+    const QList<WOutput *> &outputs() const;
     WOutput *framePacingOutput() const;
     bool inputRegionContains(const QPointF &localPos) const;
 

@@ -60,7 +60,7 @@ public:
 
     bool needsFrame = false;
     std::unique_ptr<QW_NAMESPACE::qw_buffer, QW_NAMESPACE::qw_buffer::unlocker> buffer;
-    QVector<WOutput*> outputs;
+    QList<WOutput*> outputs;
     WOutput *framePacingOutput = nullptr;
     QMetaObject::Connection frameDoneConnection;
     QPoint bufferOffset;
