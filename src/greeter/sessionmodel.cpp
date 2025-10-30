@@ -174,7 +174,10 @@ void SessionModel::populate(DDM::Session::Type type, const QStringList &dirPaths
         // TODO: only show support sessions(X-DDE-SINGLE-WAYLAND)
         if (execAllowed) {
             d->displayNames.append(si->displayName());
-            d->sessions.push_back(si);
+            if (si->displayName() == QStringLiteral("Treeland"))
+                d->sessions.prepend(si);
+            else
+                d->sessions.push_back(si);
         } else {
             delete si;
         }
