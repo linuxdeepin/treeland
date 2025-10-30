@@ -80,8 +80,8 @@ void ForeignToplevelV1::addSurface(SurfaceWrapper *wrapper)
         handle->set_activated(surface->isActivated());
     });
 
-    surface->safeConnect(&WToplevelSurface::appIdChanged, handle, [handle, surface] {
-        handle->set_app_id(surface->appId());
+    surface->safeConnect(&WToplevelSurface::appIdChanged, handle, [handle, wrapper] {
+        handle->set_app_id(wrapper->appId());
     });
 
     surface->surface()->safeConnect(&WSurface::outputEntered, handle, [handle](WOutput *output) {
@@ -211,7 +211,7 @@ void ForeignToplevelV1::addSurface(SurfaceWrapper *wrapper)
         *reinterpret_cast<const uint32_t *>(surface->surface()->handle()->handle()));
 
     handle->set_title(surface->title());
-    handle->set_app_id(surface->appId());
+    handle->set_app_id(wrapper->appId());
     handle->set_minimized(surface->isMinimized());
     handle->set_maximized(surface->isMaximized());
     handle->set_fullscreen(surface->isFullScreen());
