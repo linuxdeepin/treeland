@@ -1,3 +1,40 @@
+treeland (0.7.6) unstable; urgency=medium
+
+  * refactor: implement atomic multi-output configuration
+  * fix: occasional crash during recording toplevel
+  * fix: use safeConnect for aboutToBeInvalidated
+  * i18n: Updates for project TreeLand (#601)
+  * refactor: Convert Session to shared_ptr and simplify session
+    lifecycle
+  * chore: Remove unused code & Add document
+  * feat: Manage per-user Wayland/XWayland sessions via Helper::Session
+  * feat: Add per-user XWayland session management
+  * chore: add ASAN environment variables
+  * feat: Expose XWayland surface process ID
+  * chore: change Debian build environment to unstable
+  * refactor: remove branch filter for workflow triggers
+  * fix: fix build when treeland examples are enabled
+  * fix: fix build failure on Arch Linux
+  * fix: Disable minimize / maximize animation for window that doesn't
+    belongs to current user
+  * fix: fix private module inclusion on lower version of Qt
+  * fix: compile errors on Arch for forward declared class
+  * fix: include Qt private modules for Qt 6.11
+  * feat: add real-time FPS display
+  * feat: support start sessions other than treeland
+  * feat: implement ext-session-lock-v1 support
+  * feat(waylib): implement ext-session-lock-v1 protocol support
+  * fix(waylib): Add missing override specifier in wlayersurface
+  * fix(qwlroots): allow server side destruction of qw_session_lock_v1
+  * fix: Delete useless display text in copy mode
+  * fix: enhance output validation in restore copy mode
+  * fix: use separate TreelandConfig for each user
+  * fix: Ensure proper object destruction before app exit
+  * fix: improve resource management for RenderControl
+  * fix: fix heap-use-after-free on exit
+
+ -- rewine <luhongxu@uniontech.com>  Thu, 30 Oct 2025 14:04:56 +0800
+
 treeland (0.7.3) unstable; urgency=medium
 
   * fix: fix WorkspaceSelectionList animation's highlight border size
