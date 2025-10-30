@@ -647,6 +647,18 @@ void SurfaceWrapper::setOutputs(const QList<WOutput *> &outputs)
     }
 }
 
+const QList<WOutput *> &SurfaceWrapper::outputs() const
+{
+    if (m_type == Type::Undetermined) {
+        return m_prelaunchOutputs;
+    }
+    if (!surface()) {
+        static const QList<WOutput *> empty;
+        return empty;
+    }
+    return surface()->outputs();
+}
+
 QRectF SurfaceWrapper::geometry() const
 {
     return QRectF(position(), size());
