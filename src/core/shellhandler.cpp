@@ -278,7 +278,8 @@ SurfaceWrapper *ShellHandler::matchOrCreateXdgWrapper(WXdgToplevelSurface *surfa
     if (!wrapper) {
         wrapper = new SurfaceWrapper(Helper::instance()->qmlEngine(),
                                      surface,
-                                     SurfaceWrapper::Type::XdgToplevel);
+                                     SurfaceWrapper::Type::XdgToplevel,
+                                     targetAppId);
         m_workspace->addSurface(wrapper);
     }
     return wrapper;
@@ -455,7 +456,8 @@ SurfaceWrapper *ShellHandler::matchOrCreateXwaylandWrapper(WXWaylandSurface *sur
     if (!wrapper) {
         wrapper = new SurfaceWrapper(Helper::instance()->qmlEngine(),
                                      surface,
-                                     SurfaceWrapper::Type::XWayland);
+                                     SurfaceWrapper::Type::XWayland,
+                                     targetAppId);
         m_workspace->addSurface(wrapper);
     }
     return wrapper;

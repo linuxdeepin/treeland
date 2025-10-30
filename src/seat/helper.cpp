@@ -1612,7 +1612,7 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *, QInputEvent *event)
                     if (kevent->key() == Qt::Key_QuoteLeft || kevent->key() == Qt::Key_AsciiTilde) {
                         auto surface = Helper::instance()->activatedSurface();
                         if (surface) {
-                            appid = surface->shellSurface()->appId();
+                            appid = surface->appId();
                         }
                     }
                     auto filter = Helper::instance()->workspace()->currentFilter();

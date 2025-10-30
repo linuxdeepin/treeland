@@ -35,8 +35,8 @@
 SurfaceWrapper::SurfaceWrapper(QmlEngine *qmlEngine,
                                WToplevelSurface *shellSurface,
                                Type type,
-                               QQuickItem *parent,
-                               bool isProxy)
+                               const QString &appId,
+                               QQuickItem *parent)
     : QQuickItem(parent)
     , m_engine(qmlEngine)
     , m_shellSurface(shellSurface)
@@ -54,16 +54,49 @@ SurfaceWrapper::SurfaceWrapper(QmlEngine *qmlEngine,
     , m_isDdeShellSurface(false)
     , m_xwaylandPositionFromSurface(true)
     , m_wrapperAboutToRemove(false)
-    , m_isProxy(isProxy)
+    , m_isProxy(false)
     , m_hideByWorkspace(false)
     , m_hideByshowDesk(true)
     , m_hideByLockScreen(false)
     , m_confirmHideByLockScreen(false)
     , m_blur(false)
-    , m_appId(shellSurface->appId())
+    , m_appId(appId)
 {
     QQmlEngine::setContextForObject(this, qmlEngine->rootContext());
+
     setup();
+}
+
+SurfaceWrapper::SurfaceWrapper(SurfaceWrapper *original,
+                              QQuickItem *parent)
+                                  : QQuickItem(parent)
+    , m_engine(original->m_engine)
+    , m_shellSurface(original->m_shellSurface)
+    , m_type(original->m_type)
+    , m_positionAutomatic(true)
+    , m_visibleDecoration(true)
+    , m_clipInOutput(false)
+    , m_noDecoration(true)
+    , m_titleBarState(TitleBarState::Default)
+    , m_noCornerRadius(false)
+    , m_alwaysOnTop(false)
+    , m_skipSwitcher(false)
+    , m_skipDockPreView(m_type != Type::XdgToplevel) // x11 will set later
+    , m_skipMutiTaskView(false)
+    , m_isDdeShellSurface(false)
+    , m_xwaylandPositionFromSurface(true)
+    , m_wrapperAboutToRemove(false)
+    , m_isProxy(true)
+    , m_hideByWorkspace(false)
+    , m_hideByshowDesk(true)
+    , m_hideByLockScreen(false)
+    , m_confirmHideByLockScreen(false)
+    , m_blur(false)
+    , m_appId(original->m_appId)
+{
+    if (original->m_shellSurface) {
+        setup();
+    }
 }
 
 // Constructor used for the prelaunch splash
@@ -657,6 +690,18 @@ void SurfaceWrapper::setOutputs(const QList<WOutput *> &outputs)
     }
 }
 
+const QList<WOutput *> &SurfaceWrapper::outputs() const
+{
+    if (m_type == Type::Undetermined) {
+        return m_prelaunchOutputs;
+    }
+    if (!surface()) {
+        static const QList<WOutput *> empty;
+        return empty;
+    }
+    return surface()->outputs();
+}
+
 QRectF SurfaceWrapper::geometry() const
 {
     return QRectF(position(), size());
@@ -831,7 +876,8 @@ void SurfaceWrapper::updateTitleBar()
         return;
 
     // No surfaceItem in prelaunch mode -> early return
-    Q_ASSERT(m_surfaceItem);
+    if (!m_surfaceItem)
+        return;
 
     if (noTitleBar() == !m_titleBar)
         return;
