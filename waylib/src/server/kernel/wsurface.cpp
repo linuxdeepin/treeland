@@ -372,7 +372,7 @@ void WSurface::leaveOutput(WOutput *output)
     Q_EMIT outputLeave(output);
 }
 
-const QVector<WOutput *> &WSurface::outputs() const
+const QList<WOutput *> &WSurface::outputs() const
 {
     W_DC(WSurface);
     return d->outputs;
