@@ -104,6 +104,8 @@ private:
     Workspace *m_workspace = nullptr;
     LayerSurfaceContainer *m_topContainer = nullptr;
     LayerSurfaceContainer *m_overlayContainer = nullptr;
-    PopupSurfaceContainer *m_popupContainer = nullptr;
+    // FIXME: https://github.com/linuxdeepin/treeland/pull/428 Caused damage to the tooltip
+    // Need to find a better way to handle popup click events
+    SurfaceContainer *m_popupContainer = nullptr;
     QObject *m_windowMenu = nullptr;
 };
