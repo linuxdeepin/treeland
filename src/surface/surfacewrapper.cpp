@@ -1569,6 +1569,17 @@ void SurfaceWrapper::updateSurfaceSizeRatio()
             m_surfaceItem->setSurfaceSizeRatio(targetScale / m_surfaceItem->bufferScale());
         else
             m_surfaceItem->setSurfaceSizeRatio(1.0);
+
+        // Update geometry information after scale ratio changes to ensure consistency
+        // This prevents position accumulation errors when scale changes
+        if (m_surfaceState == State::Maximized) {
+            setMaximizedGeometry(m_maximizedGeometry);
+        } else if (m_surfaceState == State::Fullscreen) {
+            setFullscreenGeometry(m_fullscreenGeometry);
+        } else if (m_surfaceState == State::Normal) {
+            // Ensure normal geometry is consistent with the current position
+            setNormalGeometry(QRectF(position(), m_normalGeometry.size()));
+        }
     }
 }
 

@@ -1834,8 +1834,9 @@ void Helper::moveSurfacesToOutput(const QList<SurfaceWrapper *> &surfaces,
             } else {
                 const QRectF sourceGeometry =
                     sourceOutput ? sourceOutput->geometry() : surface->ownsOutput()->geometry();
-                const QPointF relativePos = surface->position() - sourceGeometry.center();
-                newPos = targetGeometry.center() + relativePos;
+                // Use relative position from source geometry top-left to avoid scale-related accumulation
+                const QPointF relativePos = surface->position() - sourceGeometry.topLeft();
+                newPos = targetGeometry.topLeft() + relativePos;
                 surface->setOwnsOutput(targetOutput);
             }
             newPos.setX(
