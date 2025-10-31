@@ -144,6 +144,7 @@ private:
     PlaceDirection m_nextPlaceDirection = PlaceDirection::BottomRight;
 
     QMap<SurfaceWrapper*, QPair<QPointF, QRectF>> m_positionCache;
+    QHash<SurfaceWrapper*, QPointF> m_initialWindowPositionRatio;
 };
 
 Q_DECLARE_OPAQUE_POINTER(WAYLIB_SERVER_NAMESPACE::WOutputItem *)
