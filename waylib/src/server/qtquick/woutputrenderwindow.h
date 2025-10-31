@@ -49,6 +49,10 @@ public:
     // for atomic multi-property operations. These are kept for simple QML use cases.
     void setOutputScale(WOutputViewport *output, float scale);
     void rotateOutput(WOutputViewport *output, WOutput::Transform t);
+    void setOutputGammaLUT(WOutputViewport *output,
+                           const QVector<uint16_t> &r,
+                           const QVector<uint16_t> &g,
+                           const QVector<uint16_t> &b);
 
     void init(QW_NAMESPACE::qw_renderer *renderer, QW_NAMESPACE::qw_allocator *allocator);
     QW_NAMESPACE::qw_renderer *renderer() const;
