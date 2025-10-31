@@ -431,6 +431,7 @@ void Output::addSurface(SurfaceWrapper *surface)
 void Output::removeSurface(SurfaceWrapper *surface)
 {
     clearPopupCache(surface);
+    m_initialWindowPositionRatio.remove(surface);
     Q_ASSERT(hasSurface(surface));
     SurfaceListModel::removeSurface(surface);
     surface->disconnect(this);
@@ -655,12 +656,37 @@ void Output::arrangeNonLayerSurface(SurfaceWrapper *surface, const QSizeF &sizeD
                 }
             }
         } else if (!sizeDiff.isNull() && sizeDiff.isValid()) {
-            const QSizeF outputSize = m_item->size();
-            const auto xScale = outputSize.width() / (outputSize.width() - sizeDiff.width());
-            const auto yScale = outputSize.height() / (outputSize.height() - sizeDiff.height());
-            normalGeo.moveLeft(normalGeo.x() * xScale);
-            normalGeo.moveTop(normalGeo.y() * yScale);
-            surface->moveNormalGeometryInOutput(normalGeo.topLeft());
+            QRectF validGeo = this->validGeometry();
+            // Save the window's proportional position relative to the available area during the initial scale.
+            if (!m_initialWindowPositionRatio.contains(surface)) {
+                qreal xRatio = 0.5, yRatio = 0.5; // Default center position
+                if (validGeo.width() > normalGeo.width()) {
+                    xRatio = (normalGeo.x() - validGeo.x()) / (validGeo.width() - normalGeo.width());
+                    xRatio = qBound(0.0, xRatio, 1.0);
+                }
+                if (validGeo.height() > normalGeo.height()) {
+                    yRatio = (normalGeo.y() - validGeo.y()) / (validGeo.height() - normalGeo.height());
+                    yRatio = qBound(0.0, yRatio, 1.0);
+                }
+                m_initialWindowPositionRatio[surface] = QPointF(xRatio, yRatio);
+            }
+
+            QPointF ratio = m_initialWindowPositionRatio[surface];
+            QPointF newPos;
+            newPos.setX(validGeo.x() + ratio.x() * (validGeo.width() - normalGeo.width()));
+            newPos.setY(validGeo.y() + ratio.y() * (validGeo.height() - normalGeo.height()));
+
+            // Boundary protection ensures that at least 30% of the window remains within the screen.
+            const qreal minVisibleRatio = 0.3;
+            const int minVisibleX = qMin(100, int(normalGeo.width() * minVisibleRatio));
+            const int minVisibleY = qMin(100, int(normalGeo.height() * minVisibleRatio));
+            newPos.setX(qBound(validGeo.left() - normalGeo.width() + minVisibleX,
+                            newPos.x(),
+                            validGeo.right() - minVisibleX));
+            newPos.setY(qBound(validGeo.top() - normalGeo.height() + minVisibleY,
+                            newPos.y(),
+                            validGeo.bottom() - minVisibleY));
+            surface->moveNormalGeometryInOutput(newPos);
         } else {
             QPoint clientRequstPos = surface->clientRequstPos();
             if (!clientRequstPos.isNull()) {
