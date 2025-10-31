@@ -656,11 +656,19 @@ void Output::arrangeNonLayerSurface(SurfaceWrapper *surface, const QSizeF &sizeD
             }
         } else if (!sizeDiff.isNull() && sizeDiff.isValid()) {
             const QSizeF outputSize = m_item->size();
-            const auto xScale = outputSize.width() / (outputSize.width() - sizeDiff.width());
-            const auto yScale = outputSize.height() / (outputSize.height() - sizeDiff.height());
-            normalGeo.moveLeft(normalGeo.x() * xScale);
-            normalGeo.moveTop(normalGeo.y() * yScale);
-            surface->moveNormalGeometryInOutput(normalGeo.topLeft());
+            const qreal scaleX = outputSize.width() / (outputSize.width() - sizeDiff.width());
+            const qreal scaleY = outputSize.height() / (outputSize.height() - sizeDiff.height());
+
+            // Only apply scaling if it's not a scale change (avoid cumulative errors)
+            // Scale changes typically result in proportional size changes in both dimensions
+            const bool isScaleChange = qFuzzyCompare(scaleX, scaleY) &&
+                                     qAbs(scaleX - 1.0) > 0.01; // threshold to detect scale changes
+
+            if (!isScaleChange) {
+                normalGeo.moveLeft(normalGeo.x() * scaleX);
+                normalGeo.moveTop(normalGeo.y() * scaleY);
+                surface->moveNormalGeometryInOutput(normalGeo.topLeft());
+            }
         } else {
             QPoint clientRequstPos = surface->clientRequstPos();
             if (!clientRequstPos.isNull()) {
