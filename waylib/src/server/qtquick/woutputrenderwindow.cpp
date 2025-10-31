@@ -545,7 +545,7 @@ void OutputHelper::sortLayers()
 void OutputHelper::cleanLayerCompositor()
 {
     QList<QPointer<BufferRendererProxy>> tmpList;
-    std::swap(m_layerProxys, tmpList);
+    tmpList.swap(m_layerProxys);
 
     for (auto proxy : std::as_const(tmpList)) {
         if (!proxy)

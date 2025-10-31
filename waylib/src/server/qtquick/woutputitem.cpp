@@ -154,7 +154,7 @@ void WOutputItemPrivate::updateCursors()
         tmpCursors.append(std::make_pair(cursor, oc));
     }
 
-    std::swap(tmpCursors, cursors);
+    tmpCursors.swap(cursors);
     // clean needless cursors
     for (auto i : std::as_const(tmpCursors)) {
         if (cursors.contains(i))
