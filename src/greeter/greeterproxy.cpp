@@ -301,6 +301,7 @@ void GreeterProxy::logout()
     d->isLoggedIn = false;
     Q_EMIT isLoggedInChanged();
     auto user = userModel()->currentUser();
+    Helper::instance()->removeSession(Helper::instance()->activeSession().lock());
     QThreadPool::globalInstance()->start([user]() {
         const auto path = getSessionPathByUser(user);
         if (path.isEmpty()) {
