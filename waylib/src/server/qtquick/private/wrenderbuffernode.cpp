@@ -211,7 +211,7 @@ protected:
             manager->cleanJob = nullptr;
 
             QList<std::shared_ptr<Data>> tmp;
-            std::swap(manager->dataList, tmp);
+            tmp.swap(manager->dataList);
             manager->dataList.reserve(tmp.size());
 
             for (const auto &data : std::as_const(tmp)) {

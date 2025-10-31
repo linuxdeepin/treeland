@@ -621,7 +621,7 @@ void WBufferRenderer::endRender()
     Q_ASSERT(state.buffer.get());
     {
         std::unique_ptr<qw_buffer, qw_buffer::unlocker> buffer;
-        std::swap(buffer, state.buffer);
+        buffer.swap(state.buffer);
         state.renderer = nullptr;
         state.batchRenderer = nullptr;
 
