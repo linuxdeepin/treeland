@@ -309,8 +309,9 @@ void WExtImageCaptureSourceV1Impl::copy_frame(wlr_ext_image_copy_capture_frame_v
         qw_ext_image_copy_capture_frame_v1::from(dst_frame)->fail(EXT_IMAGE_COPY_CAPTURE_FRAME_V1_FAILURE_REASON_UNKNOWN);
         return;
     }
-
-    auto buffer = textureProvider->qwBuffer();
+    
+    // Get internal buffer
+    auto buffer = m_surfaceContent->surface()->buffer();
     if (!buffer) {
         qCWarning(qLcImageCapture) << "No internal buffer available";
         qw_ext_image_copy_capture_frame_v1::from(dst_frame)->fail(EXT_IMAGE_COPY_CAPTURE_FRAME_V1_FAILURE_REASON_UNKNOWN);
