@@ -105,18 +105,6 @@ WXWayland *ShellHandler::createXWayland(WServer *server,
         xwayland->setAtomSupported(atomPid, true);
         auto atomNoTitlebar = xwayland->atom("_DEEPIN_NO_TITLEBAR");
         xwayland->setAtomSupported(atomNoTitlebar, true);
-        // TODO: set other xsettings and sync
-        setResourceManagerAtom(
-            xwayland,
-            QString("Xft.dpi:\t%1")
-                .arg(96 * m_rootSurfaceContainer->window()->effectiveDevicePixelRatio())
-                .toUtf8());
-        connect(Helper::instance()->window(),
-                &WOutputRenderWindow::effectiveDevicePixelRatioChanged,
-                xwayland,
-                [xwayland, this](qreal dpr) {
-                    setResourceManagerAtom(xwayland, QString("Xft.dpi:\t%1").arg(96 * dpr).toUtf8());
-                });
     });
     return xwayland;
 }
