@@ -60,3 +60,6 @@ Q_LOGGING_CATEGORY(treelandGreeter, "treeland.greeter")
 
 // FPS display
 Q_LOGGING_CATEGORY(treelandFpsDisplay, "treeland.fpsdisplay")
+
+// xsettings
+Q_LOGGING_CATEGORY(treelandXsettings, "treeland.xsettings")
