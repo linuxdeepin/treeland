@@ -245,7 +245,11 @@ void TogglableGesture::moveDischarge()
 
     Workspace *workspace = Helper::instance()->workspace();
     if (!m_slideBounce && (m_desktopOffset > 0.98 || m_desktopOffset < -0.98)) {
+        // m_desktopOffset is very close to 1 or -1, just set to the toId directly
+        // Not need to play the slide animation
         workspace->setCurrentIndex(m_toId);
+        auto *controller = workspace->animationController();
+        controller->setRunning(false);
         return;
     }
 
