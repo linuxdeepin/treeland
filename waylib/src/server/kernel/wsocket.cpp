@@ -251,10 +251,11 @@ void WSocketPrivate::addClient(WClient *client)
 class Q_DECL_HIDDEN WClientPrivate : public WObjectPrivate
 {
 public:
-    WClientPrivate(wl_client *handle, WSocket *socket, WClient *qq)
+    WClientPrivate(wl_client *handle, WSocket *socket, WClient *qq, bool isWlClientOwned)
         : WObjectPrivate(qq)
         , handle(handle)
         , socket(socket)
+        , isWlClientOwned(isWlClientOwned)
     {
         auto listener = new WlClientDestroyListener(qq);
         wl_client_add_destroy_listener(handle, &listener->destroy);
@@ -277,12 +278,13 @@ public:
     WSocket *socket = nullptr;
     mutable QSharedPointer<WClient::Credentials> credentials;
     mutable int pidFD = -1;
+    bool isWlClientOwned = true;
 };
 
 void WlClientDestroyListener::handle_destroy(wl_listener *listener, void *data)
 {
     WlClientDestroyListener *self = wl_container_of(listener, self, destroy);
-    if (self->client) {
+    if (self->client && self->client->handle()) {
         Q_ASSERT(reinterpret_cast<wl_client*>(data) == self->client->handle());
         self->client->d_func()->handle = nullptr;
         auto socket = self->client->socket();
@@ -294,9 +296,9 @@ void WlClientDestroyListener::handle_destroy(wl_listener *listener, void *data)
     delete self;
 }
 
-WClient::WClient(wl_client *client, WSocket *socket)
+WClient::WClient(wl_client *client, WSocket *socket, bool isWlClientOwned)
     : QObject(nullptr)
-    , WObject(*new WClientPrivate(client, socket, this))
+    , WObject(*new WClientPrivate(client, socket, this, isWlClientOwned))
 {
 
 }
@@ -467,7 +469,7 @@ void WSocket::close()
 
     if (!d->clients.isEmpty()) {
         for (auto client : std::as_const(d->clients))
-            delete client;
+            removeClient(client);
 
         d->clients.clear();
         Q_EMIT clientsChanged();
@@ -720,7 +722,7 @@ WClient *WSocket::addClient(int fd)
     return wclient;
 }
 
-WClient *WSocket::addClient(wl_client *client)
+WClient *WSocket::addClient(wl_client *client, bool isWlClientOwned)
 {
     W_D(WSocket);
 
@@ -731,7 +733,7 @@ WClient *WSocket::addClient(wl_client *client)
         if (d->clients.contains(wclient))
             return wclient;
     } else {
-        wclient = new WClient(client, this);
+        wclient = new WClient(client, this, isWlClientOwned);
     }
 
     d->addClient(wclient);
@@ -756,6 +758,14 @@ bool WSocket::removeClient(WClient *client)
         return false;
 
     Q_EMIT aboutToBeDestroyedClient(client);
+
+    auto handle = client->handle();
+    if (handle && client->d_func()->isWlClientOwned) {
+        // Set handle to nullptr to prevent handle_destroy from calling removeClient again
+        client->d_func()->handle = nullptr;
+        wl_client_destroy(handle);
+    }
+
     delete client;
     Q_EMIT clientsChanged();
 
