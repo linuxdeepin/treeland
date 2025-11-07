@@ -52,7 +52,7 @@ public Q_SLOTS:
 private:
     friend class WSocket;
     friend class WlClientDestroyListener;
-    explicit WClient(wl_client *client, WSocket *socket);
+    explicit WClient(wl_client *client, WSocket *socket, bool isWlClientOwned = true);
     ~WClient() = default;
     using QObject::deleteLater;
 };
@@ -94,7 +94,7 @@ public:
     bool listen(struct wl_display *display);
 
     WClient *addClient(int fd);
-    WClient *addClient(wl_client *client);
+    WClient *addClient(wl_client *client, bool isWlClientOwned = true);
     bool removeClient(wl_client *client);
     bool removeClient(WClient *client);
     const QList<WClient *> &clients() const;

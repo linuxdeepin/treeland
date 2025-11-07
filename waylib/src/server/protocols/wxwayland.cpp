@@ -339,7 +339,7 @@ void WXWayland::create(WServer *server)
 
     auto s = qw_xwayland_server::from(handle->handle()->server);
     QObject::connect(s, &qw_xwayland_server::notify_start, this, [d] {
-        d->socket->addClient(d->waylandClient());
+        d->socket->addClient(d->waylandClient(), false);
     });
 }
 
