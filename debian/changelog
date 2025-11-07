@@ -1,3 +1,12 @@
+treeland (0.7.7) unstable; urgency=medium
+
+  * fix: mark animation as finished when skipping slide animation
+  * fix: temporarily disable DockPreview animations
+  * fix: resolve surface position drift during scale changes
+  * refactor: Use swap member function instead of std::swap
+
+ -- rewine <luhongxu@uniontech.com>  Fri, 07 Nov 2025 16:07:54 +0800
+
 treeland (0.7.6) unstable; urgency=medium
 
   * refactor: implement atomic multi-output configuration
