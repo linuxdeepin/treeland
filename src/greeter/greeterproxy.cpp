@@ -110,10 +110,9 @@ GreeterProxy::GreeterProxy(QObject *parent)
     connect(d->socket, &QLocalSocket::readyRead, this, &GreeterProxy::readyRead);
     connect(d->socket, &QLocalSocket::errorOccurred, this, &GreeterProxy::error);
 
-    connect(this, &GreeterProxy::loginSucceeded, this, [this](QString user) {
+    connect(this, &GreeterProxy::loginSucceeded, this, [this]([[maybe_unused]] QString user) {
         d->isLoggedIn = true;
         Q_EMIT isLoggedInChanged();
-        Q_EMIT d->userModel->userLoggedIn(user);
     });
 
     d->ddmDisplayManager = new org::deepin::DisplayManager("org.deepin.DisplayManager",
@@ -299,15 +298,9 @@ void GreeterProxy::logout()
     qCDebug(treelandGreeter) << "Logout.";
     d->isLoggedIn = false;
     Q_EMIT isLoggedInChanged();
-    auto user = userModel()->currentUser();
-    Helper::instance()->removeSession(Helper::instance()->activeSession().lock());
-    SocketWriter(d->socket) << quint32(GreeterMessages::Logout) << user->userName();
-}
-
-void GreeterProxy::activateUser(const QString &user)
-{
-    auto userInfo = userModel()->get(user);
-    SocketWriter(d->socket) << quint32(GreeterMessages::ActivateUser) << user;
+    auto session = Helper::instance()->activeSession().lock();
+    SocketWriter(d->socket) << quint32(GreeterMessages::Logout) << session->id;
+    Helper::instance()->removeSession(session);
 }
 
 void GreeterProxy::connected()
@@ -422,7 +415,8 @@ void GreeterProxy::readyRead()
         } break;
         case DaemonMessages::UserActivateMessage: {
             QString user;
-            input >> user;
+            int sessionId;
+            input >> user >> sessionId;
 
             // NOTE: maybe DDM will active dde user.
             if (!d->userModel->getUser(user)) {
@@ -433,8 +427,10 @@ void GreeterProxy::readyRead()
             }
 
             d->userModel->setCurrentUserName(user);
+            // userLoggedIn signal is connected with Helper::updateActiveUserSession
+            Q_EMIT d->userModel->userLoggedIn(user, sessionId);
 
-            qCInfo(treelandGreeter) << "activate successfully: " << user;
+            qCInfo(treelandGreeter) << "activate successfully: " << user << ", XDG_SESSION_ID: " << sessionId;
         } break;
         case DaemonMessages::UserLoggedIn: {
             QString user;
