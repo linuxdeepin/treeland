@@ -115,6 +115,7 @@ QW_END_NAMESPACE
 struct Session : QObject {
     Q_OBJECT
 public:
+    int id = 0;
     uid_t uid = 0;
     WSocket *socket = nullptr;
     WXWayland *xwayland = nullptr;
@@ -201,8 +202,8 @@ public:
     void addSocket(WSocket *socket);
     void removeXWayland(WXWayland *xwayland);
     void removeSession(std::shared_ptr<Session> session);
-    WXWayland *xwaylandForUid(uid_t uid, bool createIfMissing = true);
-    WSocket *waylandSocketForUid(uid_t uid, bool createIfMissing = true);
+    WXWayland *xwaylandForUid(uid_t uid);
+    WSocket *waylandSocketForUid(uid_t uid);
     std::shared_ptr<Session> sessionForUid(uid_t uid) const;
     std::shared_ptr<Session> sessionForXWayland(WXWayland *xwayland) const;
     std::shared_ptr<Session> sessionForSocket(WSocket *socket) const;
@@ -341,8 +342,8 @@ private:
     void updateIdleInhibitor();
     void setNoAnimation(bool noAnimation);
 
-    std::shared_ptr<Session> ensureSession(uid_t uid);
-    void updateActiveUserSession(const QString &username);
+    std::shared_ptr<Session> ensureSession(int id, uid_t uid);
+    void updateActiveUserSession(const QString &username, int id);
     bool isXWaylandClient(WClient *client);
 
     static Helper *m_instance;
