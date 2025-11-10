@@ -1,6 +1,7 @@
 set(MODULE_NAME capture)
 
 find_package(TreelandProtocols REQUIRED)
+find_package(Qt6 COMPONENTS QuickPrivate QUIET)
 
 ws_generate_local(server ${TREELAND_PROTOCOLS_DATA_DIR}/treeland-capture-unstable-v1.xml treeland-capture-unstable-v1-protocol)
 
