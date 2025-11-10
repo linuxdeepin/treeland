@@ -244,6 +244,13 @@ void ShortcutManagerV2Private::treeland_shortcut_manager_v2_acquire(Resource *re
         return;
     }
 
+    // remove stale shortcuts
+    m_shortcuts.remove(socket);
+    m_pendingShortcuts.remove(socket);
+    m_pendingCommittedShortcuts.remove(socket);
+    m_pendingDeletes.remove(socket);
+    if (m_activeSessionSocket == socket)
+        m_controller->clear();
     ownerClients.insert(socket, resource);
 }
 

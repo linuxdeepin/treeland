@@ -173,39 +173,53 @@ ShortcutV2::ShortcutV2()
 
         if (isActive()) {
             acquire();
-
-            // NOTE: support of dynamic update shortcuts from ini file is temporarily dropped
-            // auto updateShortcuts = [this, customIni] {
-                // QSettings custom(customIni, QSettings::IniFormat);
-                // for (auto group : custom.childGroups()) {
-                //     const QString &action =
-                //         custom.value(QString("%1/Action").arg(group)).toString();
-                //     const QString &accels = transFromDaemonAccelStr(
-                //         custom.value(QString("%1/Accels").arg(group)).toString());
-                //     ShortcutContext *context =
-                //         new ShortcutContext(register_shortcut_context(accels));
-                //     connect(context, &ShortcutContext::shortcutHappened, this, [action] {
-                //         QProcess::startDetached(action);
-                //     });
-                //     m_customShortcuts.emplace_back(context);
-                // }
-            // };
-
-            // QFileSystemWatcher *watcher = new QFileSystemWatcher({ customIni }, this);
-            // connect(watcher, &QFileSystemWatcher::fileChanged, this, [updateShortcuts] {
-            //     updateShortcuts();
-            // });
-
-            // updateShortcuts();
-
-            QDir dir(TREELAND_DATA_DIR "/shortcuts");
-            for (auto d : dir.entryInfoList(QDir::Filter::Files)) {
-                qCInfo(treelandShortcut) << "Load shortcut:" << d.filePath();
-                auto shortcut = new Shortcut(d.filePath(), d.fileName());
-                shortcut->registerForManager(this);
+            // Defer protocol interactions to the next event loop to avoid a race within QtWayland
+            // In QtWayland, WaylandEventThread creation can race with wayland global binding, which may cause
+            // QWaylandClientExtension::isActive to be sent before WaylandEventThread comes to exist!
+            // This seems to only happen on a session recovery (i.e. wayland socket reconnect)
+            QMetaObject::invokeMethod(this, &ShortcutV2::registerAllShortcuts, Qt::QueuedConnection);
+        } else {
+            for (auto shortcut : std::as_const(m_shortcuts)) {
+                shortcut->deleteLater();
             }
+            m_shortcuts.clear();
         }
     });
+}
+
+void ShortcutV2::registerAllShortcuts()
+{
+    // NOTE: support of dynamic update shortcuts from ini file is temporarily dropped
+    // auto updateShortcuts = [this, customIni] {
+    //     QSettings custom(customIni, QSettings::IniFormat);
+    //     for (auto group : custom.childGroups()) {
+    //         const QString &action =
+    //             custom.value(QString("%1/Action").arg(group)).toString();
+    //         const QString &accels = transFromDaemonAccelStr(
+    //             custom.value(QString("%1/Accels").arg(group)).toString());
+    //         ShortcutContext *context =
+    //             new ShortcutContext(register_shortcut_context(accels));
+    //         connect(context, &ShortcutContext::shortcutHappened, this, [action] {
+    //             QProcess::startDetached(action);
+    //         });
+    //         m_customShortcuts.emplace_back(context);
+    //     }
+    // };
+
+    // QFileSystemWatcher *watcher = new QFileSystemWatcher({ customIni }, this);
+    // connect(watcher, &QFileSystemWatcher::fileChanged, this, [updateShortcuts] {
+    //     updateShortcuts();
+    // });
+
+    // updateShortcuts();
+
+    QDir dir(TREELAND_DATA_DIR "/shortcuts");
+    for (auto d : dir.entryInfoList(QDir::Filter::Files)) {
+        qCInfo(treelandShortcut) << "Load shortcut:" << d.filePath();
+        auto shortcut = new Shortcut(d.filePath(), d.fileName());
+        shortcut->registerForManager(this);
+        m_shortcuts.append(shortcut);
+    }
 }
 
 Shortcut::Shortcut(const QString &path, const QString &name)
@@ -327,9 +341,11 @@ void Shortcut::registerForManager(ShortcutV2 *manager)
             m_registeredBindings.clear();
         } else {
             // unbind on destroy
-            connect(this, &Shortcut::before_destroy, [this, manager]() {
+            auto *wlObject = manager->object();
+            connect(this, &Shortcut::before_destroy, [this, manager, wlObject]() {
                 for (const auto &name : std::as_const(m_registeredBindings)) {
-                    manager->unbind(name);
+                    if (manager->isActive() && manager->object() == wlObject)
+                        manager->unbind(name);
                 }
             });
             if (type == "Action") {
@@ -337,11 +353,8 @@ void Shortcut::registerForManager(ShortcutV2 *manager)
                 return;
             }
             connect(manager, &ShortcutV2::activated, this, [this](const QString &name) {
-                for (const auto &registeredName : std::as_const(m_registeredBindings)) {
-                    if (name == registeredName) {
-                        this->exec();
-                        break;
-                    }
+                if (m_registeredBindings.contains(name)) {
+                    this->exec();
                 }
             });
         }

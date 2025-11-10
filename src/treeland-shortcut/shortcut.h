@@ -27,6 +27,9 @@ protected:
     void treeland_shortcut_manager_v2_commit_success() override;
     void treeland_shortcut_manager_v2_commit_failure(const QString &name, uint32_t error) override;
     void treeland_shortcut_manager_v2_activated(const QString &name, uint32_t repeat) override;
+private:
+    void registerAllShortcuts();
+    QList<Shortcut*> m_shortcuts;
 };
 
 class Shortcut
