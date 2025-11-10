@@ -1,4 +1,5 @@
 find_package(Qt6 REQUIRED COMPONENTS WaylandClient Widgets)
+find_package(Qt6 COMPONENTS GuiPrivate WaylandClientPrivate QUIET)
 find_package(TreelandProtocols REQUIRED)
 
 set(BIN_NAME test-window-bg)
