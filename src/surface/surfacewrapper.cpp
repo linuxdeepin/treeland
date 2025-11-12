@@ -338,9 +338,10 @@ QRectF SurfaceWrapper::normalGeometry() const
 
 void SurfaceWrapper::moveNormalGeometryInOutput(const QPointF &position)
 {
-    setNormalGeometry(QRectF(position, m_normalGeometry.size()));
+    QPointF alignedPosition = alignToPixelGrid(position);
+    setNormalGeometry(QRectF(alignedPosition, m_normalGeometry.size()));
     if (isNormal()) {
-        setPosition(position);
+        setPosition(alignedPosition);
     } else if (m_pendingState == State::Normal && m_geometryAnimation) {
         m_geometryAnimation->setProperty("toGeometry", m_normalGeometry);
     }
@@ -927,7 +928,8 @@ void SurfaceWrapper::onAnimationReady()
         return;
     }
 
-    setPosition(m_pendingGeometry.topLeft());
+    QPointF alignedPos = alignToPixelGrid(m_pendingGeometry.topLeft());
+    setPosition(alignedPos);
     doSetSurfaceState(m_pendingState);
 }
 
@@ -1733,4 +1735,46 @@ void SurfaceWrapper::setClientRequstPos(QPoint pos)
     m_clientRequstPos = pos;
     setPositionAutomatic(pos.isNull());
     Q_EMIT clientRequstPosChanged();
+}
+
+QPointF SurfaceWrapper::alignToPixelGrid(const QPointF &pos) const
+{
+    qreal devicePixelRatio = getOutputDevicePixelRatio(pos);
+    qreal alignedX = std::round(pos.x() * devicePixelRatio) / devicePixelRatio;
+    qreal alignedY = std::round(pos.y() * devicePixelRatio) / devicePixelRatio;
+    return QPointF(alignedX, alignedY);
+}
+
+QRectF SurfaceWrapper::alignGeometryToPixelGrid(const QRectF &geometry) const
+{
+    qreal devicePixelRatio = getOutputDevicePixelRatio(geometry.center());
+    qreal alignedX = std::round(geometry.x() * devicePixelRatio) / devicePixelRatio;
+    qreal alignedY = std::round(geometry.y() * devicePixelRatio) / devicePixelRatio;
+    qreal alignedWidth = std::round(geometry.width() * devicePixelRatio) / devicePixelRatio;
+    qreal alignedHeight = std::round(geometry.height() * devicePixelRatio) / devicePixelRatio;
+
+    QRectF result(alignedX, alignedY, alignedWidth, alignedHeight);
+    return result;
+}
+
+qreal SurfaceWrapper::getOutputDevicePixelRatio(const QPointF &pos) const
+{
+    if (surface() && !surface()->outputs().isEmpty()) {
+        const auto &outputs = surface()->outputs();
+
+        if (outputs.size() == 1) {
+            return outputs.first()->scale();
+        }
+
+        for (auto woutput : outputs) {
+            if (woutput && woutput->isEnabled()) {
+                QRectF outputGeometry(woutput->position(), woutput->size());
+                if (outputGeometry.contains(pos)) {
+                    return woutput->scale();
+                }
+            }
+        }
+    }
+
+    return window() ? window()->effectiveDevicePixelRatio() : 1.0;
 }
