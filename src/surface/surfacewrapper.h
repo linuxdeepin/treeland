@@ -136,6 +136,9 @@ public:
     QRectF geometry() const;
     QRectF normalGeometry() const;
     void moveNormalGeometryInOutput(const QPointF &position);
+    QPointF alignToPixelGrid(const QPointF &pos) const;
+    QRectF alignGeometryToPixelGrid(const QRectF &geometry) const;
+    qreal getOutputDevicePixelRatio(const QPointF &pos) const;
 
     QRectF maximizedGeometry() const;
     void setMaximizedGeometry(const QRectF &newMaximizedGeometry);
