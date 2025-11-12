@@ -175,10 +175,18 @@ void RootSurfaceContainer::doMoveResize(const QPointF &incrementPos)
         if (moveResizeState.resizeEdges & Qt::BottomEdge)
             geo.setBottom(geo.bottom() + incrementPos.y());
 
-        moveResizeState.surface->resize(geo.size());
+        QRectF alignedGeometry = moveResizeState.surface->alignGeometryToPixelGrid(geo);
+        moveResizeState.surface->resize(alignedGeometry.size());
+
+        // TODO: Pixel alignment for window position and size during move/resize operations
+        // Current approach: Align position and size in the manager layer
+        // Better approach:
+        //   1. Keep logical geometry (position + size) intact at manager layer (no alignment)
+        //   2. Only apply pixel alignment at render time in the renderer
     } else {
         auto new_pos = moveResizeState.startGeometry.topLeft() + incrementPos;
-        moveResizeState.surface->setPosition(new_pos);
+        QPointF alignedPos = moveResizeState.surface->alignToPixelGrid(new_pos);
+        moveResizeState.surface->setPosition(alignedPos);
     }
 }
 
@@ -322,7 +330,8 @@ bool RootSurfaceContainer::filterSurfaceGeometryChanged(SurfaceWrapper *surface,
         if (geometry.topLeft() != newGeometry.topLeft()) {
             newGeometry = geometry;
             moveResizeState.setSurfacePositionForAnchorEdgets = true;
-            surface->setPosition(geometry.topLeft());
+            QPointF alignedPos = moveResizeState.surface->alignToPixelGrid(geometry.topLeft());
+            surface->setPosition(alignedPos);
             moveResizeState.setSurfacePositionForAnchorEdgets = false;
         }
     }
@@ -392,6 +401,7 @@ void RootSurfaceContainer::updateSurfaceOutputs(SurfaceWrapper *surface)
     const QRectF geometry = surface->geometry();
     auto outputs = m_outputLayout->getIntersectedOutputs(geometry.toRect());
     surface->setOutputs(outputs);
+    // TODO: Update ownsOutput during move/resize on multi-output systems
 }
 
 static qreal pointToRectMinDistance(const QPointF &pos, const QRectF &rect)
