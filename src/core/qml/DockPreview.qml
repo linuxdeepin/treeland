@@ -13,7 +13,7 @@ import org.deepin.dtk 1.0 as D
 
 Item {
     id: root
-    property int aniDuration: 0
+    property int aniDuration: 200
     // whether animations are enabled; default to true when aniDuration > 0
     property bool enableAnimation: aniDuration > 0
     property alias spacing: listview.spacing
@@ -408,7 +408,7 @@ Item {
         highlightFollowsCurrentItem: true
         implicitHeight: root.implicitHeight - headLayout.implicitHeight
         implicitWidth: root.implicitWidth - listview.spacing * 2
-        highlightMoveDuration: root.enableAnimation ? 200 : 0
+        highlightMoveDuration: root.enableAnimation ? root.aniDuration/2 : 0
         spacing: 5
         highlight: Control {
             objectName: "highlight"
@@ -458,6 +458,8 @@ Item {
         delegate: Rectangle {
             id: delegate
             objectName: "delegate"
+            // ensure removing items are below non-removing ones
+            z: (isRemoving ? -index : (10000 - index))
             visible: true
             radius: listview.radius
             color: Qt.rgba(0, 0, 0, 0.05) // TODO: dark mode
@@ -487,6 +489,7 @@ Item {
                         return item?.x + item?.implicitWidth - delegate.implicitWidth
                     }
                     duration: root.enableAnimation ? root.aniDuration : 0
+                    easing.type: Easing.OutExpo
                 }
                 PropertyAction { target: delegate; property: "ListView.delayRemove"; value: false }
             }
@@ -540,8 +543,8 @@ Item {
                         return item?.x + item?.implicitWidth - addTransition.ViewTransition.item?.implicitWidth
                     }
                     duration: root.enableAnimation ? root.aniDuration : 0
+                    easing.type: Easing.OutExpo
                 }
-
             }
         }
 
@@ -777,18 +780,25 @@ Item {
 
         Behavior on implicitHeight {
             enabled: background.visible && root.enableAnimation
-            NumberAnimation { duration: root.enableAnimation ? root.aniDuration : 0 }
+            NumberAnimation {
+                duration: root.enableAnimation ? root.aniDuration : 0
+                easing.type: Easing.OutExpo
+            }
         }
 
         Behavior on implicitWidth {
             enabled: background.visible && root.enableAnimation
-            NumberAnimation { duration: root.enableAnimation ? root.aniDuration : 0 }
+            NumberAnimation {
+                duration: root.enableAnimation ? root.aniDuration : 0
+                easing.type: Easing.OutExpo
+            }
         }
 
         Behavior on anchors.horizontalCenterOffset {
             enabled: root.visible && root.enableAnimation
             NumberAnimation {
                 duration: root.enableAnimation ? root.aniDuration : 0
+                easing.type: Easing.OutExpo
             }
         }
 
@@ -796,6 +806,7 @@ Item {
             enabled: root.visible && root.enableAnimation
             NumberAnimation {
                 duration: root.enableAnimation ? root.aniDuration : 0
+                easing.type: Easing.OutExpo
             }
         }
 
