@@ -1,3 +1,18 @@
+treeland (0.7.8) unstable; urgency=medium
+
+  * [skip CI] Translate multitaskview.en_US.ts in tr
+  * feat: optimize taskbar preview animation effects
+  * fix: resolve window remove/resize blur on fractional DPR displays
+  * fix: connect Helper::Session with Logind session
+  * fix: synchronize wl_client destruction with WClient destruction
+  * feat: Add logout cleanup
+  * feat: support setting brightness & color temperature through
+    treeland-output-manager-v1
+  * chore: update find_package calls for Qt private modules for building
+    with Qt 6.10
+
+ -- rewine <luhongxu@uniontech.com>  Fri, 14 Nov 2025 11:35:06 +0800
+
 treeland (0.7.7) unstable; urgency=medium
 
   * fix: mark animation as finished when skipping slide animation
