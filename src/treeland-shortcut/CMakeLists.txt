@@ -13,7 +13,7 @@ qt_add_executable(treeland-shortcut
 
 qt_generate_wayland_protocol_client_sources(treeland-shortcut
     FILES
-        ${TREELAND_PROTOCOLS_DATA_DIR}/treeland-shortcut-manager-v1.xml
+        ${TREELAND_PROTOCOLS_DATA_DIR}/treeland-shortcut-manager-v2.xml
 )
 
 target_link_libraries(treeland-shortcut

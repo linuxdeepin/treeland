@@ -1,4 +1,4 @@
-// Copyright (C) 2024 WenHao Peng <pengwenhao@uniontech.com>.
+// Copyright (C) 2024-2025 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "inputdevice.h"
@@ -361,7 +361,7 @@ bool InputDevice::initTouchPad(WInputDevice *device)
     return false;
 }
 
-void InputDevice::registerTouchpadSwipe(const SwipeFeedBack &feed_back)
+[[maybe_unused]] SwipeGesture* InputDevice::registerTouchpadSwipe(const SwipeFeedBack &feed_back)
 {
     auto swipe_gesture = new SwipeGesture();
     swipe_gesture->setDirection(feed_back.direction);
@@ -370,8 +370,12 @@ void InputDevice::registerTouchpadSwipe(const SwipeFeedBack &feed_back)
     swipe_gesture->setMinimumFingerCount(feed_back.fingerCount);
 
     if (feed_back.actionCallback) {
-        QObject::connect(swipe_gesture, &SwipeGesture::triggered, feed_back.actionCallback);
-        QObject::connect(swipe_gesture, &SwipeGesture::cancelled, feed_back.actionCallback);
+        QObject::connect(swipe_gesture, &SwipeGesture::triggered, [fb = feed_back.actionCallback]() {
+            fb(true);
+        });
+        QObject::connect(swipe_gesture, &SwipeGesture::cancelled, [fb = feed_back.actionCallback]() {
+            fb(false);
+        });
     }
 
     if (feed_back.progressCallback) {
@@ -379,9 +383,10 @@ void InputDevice::registerTouchpadSwipe(const SwipeFeedBack &feed_back)
     }
 
     m_touchpadRecognizer->registerSwipeGesture(swipe_gesture);
+    return swipe_gesture;
 }
 
-void InputDevice::registerTouchpadHold(const HoldFeedBack &feed)
+[[maybe_unused]] HoldGesture* InputDevice::registerTouchpadHold(const HoldFeedBack &feed)
 {
     auto hold_gesture = new HoldGesture();
 
@@ -394,6 +399,17 @@ void InputDevice::registerTouchpadHold(const HoldFeedBack &feed)
     }
 
     m_touchpadRecognizer->registerHoldGesture(hold_gesture);
+    return hold_gesture;
+}
+
+void InputDevice::unregisterTouchpadSwipe(SwipeGesture *gesture)
+{
+    m_touchpadRecognizer->unregisterSwipeGesture(gesture);
+}
+
+void InputDevice::unregisterTouchpadHold(HoldGesture *gesture)
+{
+    m_touchpadRecognizer->unregisterHoldGesture(gesture);
 }
 
 void InputDevice::processSwipeStart(uint finger)

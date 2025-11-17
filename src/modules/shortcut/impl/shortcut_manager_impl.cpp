@@ -1,131 +1,169 @@
-// Copyright (C) 2023 Dingyuan Zhang <lxz@mkacg.com>.
+// Copyright (C) 2023-2025 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "shortcut_manager_impl.h"
 
 #include "treeland-shortcut-manager-protocol.h"
 
-#include <QMetaObject>
+#include "qwdisplay.h"
+#include "wsocket.h"
 
-#define SHORTCUT_MANAGEMENT_V1_VERSION 1
+#include <QKeySequence>
 
-using QW_NAMESPACE::qw_display;
+WAYLIB_SERVER_USE_NAMESPACE
 
-static void treeland_shortcut_context_v1_destroy(struct wl_resource *resource);
-static treeland_shortcut_manager_v1 *shortcut_manager_from_resource(struct wl_resource *resource);
+#define SHORTCUT_MANAGEMENT_V2_VERSION 1
 
-static void treeland_shortcut_context_destroy([[maybe_unused]] struct wl_client *client,
-                                              struct wl_resource *resource)
+static treeland_shortcut_manager_v2 *shortcut_manager_from_resource(struct wl_resource *resource);
+
+static void shortcut_manager_destroy(struct wl_client *client,
+                                     struct wl_resource *resource)
 {
+    Q_UNUSED(client);
+
     wl_resource_destroy(resource);
 }
 
-static const struct treeland_shortcut_context_v1_interface shortcut_context_impl
+static void shortcut_manager_handle_acquire(struct wl_client *client,
+                                           struct wl_resource *resource)
 {
-    .destroy = treeland_shortcut_context_destroy,
-};
+    auto *manager = shortcut_manager_from_resource(resource);
 
-void create_shortcut_context_listener(struct wl_client *client,
-                                      struct wl_resource *manager_resource,
-                                      const char *key,
-                                      uint32_t id)
-{
-    auto *manager = shortcut_manager_from_resource(manager_resource);
-
-    struct wl_resource *resource =
-        wl_resource_create(client,
-                           &treeland_shortcut_context_v1_interface,
-                           TREELAND_SHORTCUT_CONTEXT_V1_SHORTCUT_SINCE_VERSION,
-                           id);
-    if (resource == nullptr) {
-        wl_resource_post_no_memory(manager_resource);
+    auto *socket = WSocket::get(client)->rootSocket();
+    if (manager->ownerClients.contains(socket)) {
+        wl_resource_post_error(resource,
+                               TREELAND_SHORTCUT_MANAGER_V2_ERROR_OCCUPIED,
+                               "Another client has already acquired the shortcut manager.");
         return;
     }
 
-    auto *context = new treeland_shortcut_context_v1;
-    if (context == nullptr) {
-        wl_resource_post_no_memory(manager_resource);
-        return;
-    }
-
-    wl_resource_set_implementation(resource,
-                                   &shortcut_context_impl,
-                                   context,
-                                   treeland_shortcut_context_v1_destroy);
-
-    wl_resource_set_user_data(resource, context);
-
-    context->manager = manager;
-    context->key = strdup(key);
-    context->resource = resource;
-
-    manager->contexts.append(context);
-    QObject::connect(context,
-                     &treeland_shortcut_context_v1::before_destroy,
-                     manager,
-                     [context, manager]() {
-                         manager->contexts.removeOne(context);
-                     });
-
-    uid_t uid;
-    wl_client_get_credentials(client, nullptr, &uid, nullptr);
-    Q_EMIT manager->newContext(uid, context);
+    manager->ownerClients.insert(socket, resource);
 }
 
-static const struct treeland_shortcut_manager_v1_interface shortcut_manager_impl
+static void shortcut_manager_handle_bind_key(struct wl_client *client,
+                                             struct wl_resource *resource,
+                                             const char *name,
+                                             const char *key_sequence,
+                                             uint mode,
+                                             const uint action)
 {
-    .register_shortcut_context = create_shortcut_context_listener,
+    auto *manager = shortcut_manager_from_resource(resource);
+
+    WSocket *socket = WSocket::get(client)->rootSocket();
+    if (manager->ownerClients.value(socket, nullptr) != resource) {
+        wl_resource_post_error(resource,
+                               TREELAND_SHORTCUT_MANAGER_V2_ERROR_NOT_ACQUIRED,
+                               "Client has not acquired the shortcut manager.");
+        return;
+    }
+
+    Q_EMIT manager->requestBindKeySequence(socket,
+                                           QString::fromUtf8(name),
+                                           QKeySequence(QString::fromUtf8(key_sequence), QKeySequence::PortableText),
+                                           mode,
+                                           action);
+}
+
+static void shortcut_manager_handle_bind_swipe_gesture(struct wl_client *client,
+                                                       struct wl_resource *resource,
+                                                       const char *name,
+                                                       const uint finger,
+                                                       const uint direction,
+                                                       const uint action)
+{
+    auto *manager = shortcut_manager_from_resource(resource);
+
+    WSocket *socket = WSocket::get(client)->rootSocket();
+    if (manager->ownerClients.value(socket, nullptr) != resource) {
+        wl_resource_post_error(resource,
+                               TREELAND_SHORTCUT_MANAGER_V2_ERROR_NOT_ACQUIRED,
+                               "Client has not acquired the shortcut manager.");
+        return;
+    }
+
+    Q_EMIT manager->requestBindSwipeGesture(socket,
+                                            QString::fromUtf8(name),
+                                            finger,
+                                            direction,
+                                            action);
+}
+
+static void shortcut_manager_handle_bind_hold_gesture(struct wl_client *client,
+                                                      struct wl_resource *resource,
+                                                      const char *name,
+                                                      const uint finger,
+                                                      const uint action)
+{
+    auto *manager = shortcut_manager_from_resource(resource);
+
+    WSocket *socket = WSocket::get(client)->rootSocket();
+    if (manager->ownerClients.value(socket, nullptr) != resource) {
+        wl_resource_post_error(resource,
+                               TREELAND_SHORTCUT_MANAGER_V2_ERROR_NOT_ACQUIRED,
+                               "Client has not acquired the shortcut manager.");
+        return;
+    }
+
+    Q_EMIT manager->requestBindHoldGesture(socket,
+                                           QString::fromUtf8(name),
+                                           finger,
+                                           action);
+}
+
+static void shortcut_manager_handle_commit(struct wl_client *client,
+                                           struct wl_resource *resource)
+{
+    auto *manager = shortcut_manager_from_resource(resource);
+
+    WSocket *socket = WSocket::get(client)->rootSocket();
+    if (manager->ownerClients.value(socket, nullptr) != resource) {
+        wl_resource_post_error(resource,
+                               TREELAND_SHORTCUT_MANAGER_V2_ERROR_NOT_ACQUIRED,
+                               "Client has not acquired the shortcut manager.");
+        return;
+    }
+
+    Q_EMIT manager->requestCommit(socket);
+}
+
+static void shortcut_manager_handle_unbind(struct wl_client *client,
+                                           struct wl_resource *resource,
+                                           const char *name)
+{
+    auto *manager = shortcut_manager_from_resource(resource);
+
+    WSocket *socket = WSocket::get(client)->rootSocket();
+    if (manager->ownerClients.value(socket, nullptr) != resource) {
+        wl_resource_post_error(resource,
+                               TREELAND_SHORTCUT_MANAGER_V2_ERROR_NOT_ACQUIRED,
+                               "Client has not acquired the shortcut manager.");
+        return;
+    }
+
+    Q_EMIT manager->requestUnregisterShortcut(socket, QString::fromUtf8(name));
+}
+
+struct treeland_shortcut_manager_v2_interface shortcut_manager_impl {
+    .destroy = shortcut_manager_destroy,
+    .acquire = shortcut_manager_handle_acquire,
+    .bind_key = shortcut_manager_handle_bind_key,
+    .bind_swipe_gesture = shortcut_manager_handle_bind_swipe_gesture,
+    .bind_hold_gesture = shortcut_manager_handle_bind_hold_gesture,
+    .commit = shortcut_manager_handle_commit,
+    .unbind = shortcut_manager_handle_unbind,
 };
 
 static void shortcut_manager_resource_destroy(struct wl_resource *resource)
 {
     auto *manager = shortcut_manager_from_resource(resource);
-    manager->clients.removeOne(resource);
-}
 
-static void treeland_shortcut_context_v1_destroy(struct wl_resource *resource)
-{
-    auto *context =
-        static_cast<treeland_shortcut_context_v1 *>(wl_resource_get_user_data(resource));
-    if (!context) {
-        return;
+    for (auto it = manager->ownerClients.begin(); it != manager->ownerClients.end(); ) {
+        if (it.value() == resource) {
+            it = manager->ownerClients.erase(it);
+        } else {
+            ++it;
+        }
     }
-    delete context;
-}
-
-treeland_shortcut_context_v1::~treeland_shortcut_context_v1()
-{
-    Q_EMIT before_destroy();
-}
-
-void treeland_shortcut_context_v1::send_shortcut()
-{
-    treeland_shortcut_context_v1_send_shortcut(resource);
-}
-
-void treeland_shortcut_context_v1::send_register_failed()
-{
-    wl_resource_post_error(resource,
-                           TREELAND_SHORTCUT_CONTEXT_V1_ERROR_REGISTER_FAILED,
-                           "register shortcut failed.");
-}
-
-static treeland_shortcut_manager_v1 *shortcut_manager_from_resource(struct wl_resource *resource)
-{
-    assert(wl_resource_instance_of(resource,
-                                   &treeland_shortcut_manager_v1_interface,
-                                   &shortcut_manager_impl));
-    auto *manager =
-        static_cast<treeland_shortcut_manager_v1 *>(wl_resource_get_user_data(resource));
-    assert(manager != nullptr);
-    return manager;
-}
-
-treeland_shortcut_manager_v1::~treeland_shortcut_manager_v1()
-{
-    Q_EMIT before_destroy();
-    if (global)
-        wl_global_destroy(global);
 }
 
 static void treeland_shortcut_manager_bind(struct wl_client *client,
@@ -133,9 +171,9 @@ static void treeland_shortcut_manager_bind(struct wl_client *client,
                                            uint32_t version,
                                            uint32_t id)
 {
-    auto *manager = static_cast<treeland_shortcut_manager_v1 *>(data);
+    auto *manager = static_cast<treeland_shortcut_manager_v2 *>(data);
     struct wl_resource *resource =
-        wl_resource_create(client, &treeland_shortcut_manager_v1_interface, version, id);
+        wl_resource_create(client, &treeland_shortcut_manager_v2_interface, version, id);
     if (!resource) {
         wl_client_post_no_memory(client);
         return;
@@ -144,21 +182,27 @@ static void treeland_shortcut_manager_bind(struct wl_client *client,
                                    &shortcut_manager_impl,
                                    manager,
                                    shortcut_manager_resource_destroy);
-
-    manager->clients.append(resource);
 }
 
-treeland_shortcut_manager_v1 *treeland_shortcut_manager_v1::create(qw_display *display)
+treeland_shortcut_manager_v2::~treeland_shortcut_manager_v2()
 {
-    auto *manager = new treeland_shortcut_manager_v1;
+    Q_EMIT before_destroy();
+    if (global) {
+        wl_global_destroy(global);
+        global = nullptr;
+    }
+}
+
+treeland_shortcut_manager_v2 *treeland_shortcut_manager_v2::create(qw_display *display)
+{
+    auto *manager = new treeland_shortcut_manager_v2;
     if (!manager) {
         return nullptr;
     }
 
-    manager->event_loop = wl_display_get_event_loop(display->handle());
     manager->global = wl_global_create(display->handle(),
-                                       &treeland_shortcut_manager_v1_interface,
-                                       SHORTCUT_MANAGEMENT_V1_VERSION,
+                                       &treeland_shortcut_manager_v2_interface,
+                                       SHORTCUT_MANAGEMENT_V2_VERSION,
                                        manager,
                                        treeland_shortcut_manager_bind);
     if (!manager->global) {
@@ -170,5 +214,58 @@ treeland_shortcut_manager_v1 *treeland_shortcut_manager_v1::create(qw_display *d
         delete manager;
     });
 
+    return manager;
+}
+
+void treeland_shortcut_manager_v2::sendActivated(WSocket *socket, const QString& name, bool repeat)
+{
+    wl_resource *resource = ownerClients.value(socket, nullptr);
+    if (!resource) {
+        return;
+    }
+
+    treeland_shortcut_manager_v2_send_activated(resource, name.toUtf8().constData(), repeat);
+}
+
+void treeland_shortcut_manager_v2::sendCommitSuccess(WSocket *socket)
+{
+    wl_resource *resource = ownerClients.value(socket, nullptr);
+    if (!resource) {
+        return;
+    }
+
+    treeland_shortcut_manager_v2_send_commit_success(resource);
+}
+
+void treeland_shortcut_manager_v2::sendCommitFailure(WSocket *socket, const QString &name, uint error)
+{
+    wl_resource *resource = ownerClients.value(socket, nullptr);
+    if (!resource) {
+        return;
+    }
+
+    treeland_shortcut_manager_v2_send_commit_failure(resource, name.toUtf8().constData(), error);
+}
+
+void treeland_shortcut_manager_v2::sendInvalidCommit(WSocket *socket)
+{
+    wl_resource *resource = ownerClients.value(socket, nullptr);
+    if (!resource) {
+        return;
+    }
+
+    wl_resource_post_error(resource,
+                           TREELAND_SHORTCUT_MANAGER_V2_ERROR_INVALID_COMMIT,
+                           "Commit sent before last commit is processed.");
+}
+
+static treeland_shortcut_manager_v2 *shortcut_manager_from_resource(struct wl_resource *resource)
+{
+    assert(wl_resource_instance_of(resource,
+                                   &treeland_shortcut_manager_v2_interface,
+                                   &shortcut_manager_impl));
+    auto *manager =
+        static_cast<treeland_shortcut_manager_v2 *>(wl_resource_get_user_data(resource));
+    assert(manager != nullptr);
     return manager;
 }

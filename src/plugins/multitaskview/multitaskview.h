@@ -20,6 +20,7 @@ class Multitaskview : public QQuickItem
     QML_ELEMENT
     Q_PROPERTY(Status status READ status NOTIFY statusChanged FINAL)
     Q_PROPERTY(ActiveReason activeReason READ activeReason NOTIFY activeReasonChanged FINAL)
+    Q_PROPERTY(qreal partialFactor READ partialFactor NOTIFY partialFactorChanged FINAL)
 
 public:
     enum Status
@@ -50,12 +51,15 @@ public:
 
     Status status() const;
     void setStatus(Status status);
+    void updatePartialFactor(qreal progress);
     ActiveReason activeReason() const;
+    qreal partialFactor() const;
     void setActiveReason(ActiveReason activeReason);
 
 Q_SIGNALS:
     void statusChanged();
     void activeReasonChanged();
+    void partialFactorChanged();
     void aboutToExit(); // Focus has been updated, waiting for exit
 
 public Q_SLOTS:
@@ -65,6 +69,7 @@ public Q_SLOTS:
 private:
     Status m_status;
     ActiveReason m_activeReason;
+    qreal m_partialFactor{ 0.0 };
 };
 
 class MultitaskviewSurfaceModel : public QAbstractListModel

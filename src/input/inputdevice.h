@@ -1,4 +1,4 @@
-// Copyright (C) 2024 WenHao Peng <pengwenhao@uniontech.com>.
+// Copyright (C) 2024-2025 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #pragma once
@@ -21,7 +21,7 @@ struct SwipeFeedBack
 {
     SwipeGesture::Direction direction;
     uint fingerCount;
-    std::function<void()> actionCallback;
+    std::function<void(bool)> actionCallback;
     std::function<void(qreal)> progressCallback;
 };
 
@@ -42,8 +42,11 @@ public:
 
     bool initTouchPad(WInputDevice *device);
 
-    void registerTouchpadSwipe(const SwipeFeedBack &feed_back);
-    void registerTouchpadHold(const HoldFeedBack &feed);
+    SwipeGesture* registerTouchpadSwipe(const SwipeFeedBack &feed_back);
+    HoldGesture* registerTouchpadHold(const HoldFeedBack &feed);
+
+    void unregisterTouchpadSwipe(SwipeGesture *gesture);
+    void unregisterTouchpadHold(HoldGesture *gesture);
 
     void processSwipeStart(uint finger);
     void processSwipeUpdate(const QPointF &delta);

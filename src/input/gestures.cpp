@@ -1,4 +1,4 @@
-// Copyright (C) 2024 WenHao Peng <pengwenhao@uniontech.com>.
+// Copyright (C) 2024-2025 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "gestures.h"
@@ -443,4 +443,21 @@ void GestureRecognizer::endHoldGesture()
     }
     m_activeHoldGestures.clear();
     m_currentFingerCount = 0;
+}
+
+SwipeGesture::Direction SwipeGesture::opposite(SwipeGesture::Direction direction)
+{
+    switch (direction) {
+    case SwipeGesture::Invalid:
+        return SwipeGesture::Invalid;
+    case SwipeGesture::Down:
+        return SwipeGesture::Up;
+    case SwipeGesture::Up:
+        return SwipeGesture::Down;
+    case SwipeGesture::Left:
+        return SwipeGesture::Right;
+    case SwipeGesture::Right:
+        return SwipeGesture::Left;
+    }
+    return SwipeGesture::Invalid;
 }

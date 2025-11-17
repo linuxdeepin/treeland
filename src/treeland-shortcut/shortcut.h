@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include "qwayland-treeland-shortcut-manager-v1.h"
+#include "qwayland-treeland-shortcut-manager-v2.h"
 
 #include <QApplication>
 #include <QObject>
@@ -11,50 +11,41 @@
 #include <QSettings>
 #include <QtWaylandClient/QWaylandClientExtension>
 
-class ShortcutContext;
 class Shortcut;
 
-class ShortcutV1
-    : public QWaylandClientExtensionTemplate<ShortcutV1>
-    , public QtWayland::treeland_shortcut_manager_v1
+class ShortcutV2
+    : public QWaylandClientExtensionTemplate<ShortcutV2>
+    , public QtWayland::treeland_shortcut_manager_v2
 {
     Q_OBJECT
 public:
-    explicit ShortcutV1();
-
-private:
-    std::vector<std::unique_ptr<ShortcutContext>> m_customShortcuts;
-    std::vector<std::unique_ptr<ShortcutContext>> m_treelandShortcutContexts;
-    std::vector<std::unique_ptr<Shortcut>> m_treelandShortcuts;
-};
-
-class ShortcutContext
-    : public QWaylandClientExtensionTemplate<ShortcutContext>
-    , public QtWayland::treeland_shortcut_context_v1
-{
-    Q_OBJECT
-public:
-    explicit ShortcutContext(struct ::treeland_shortcut_context_v1 *object);
-    ~ShortcutContext() override;
-
+    explicit ShortcutV2();
 Q_SIGNALS:
-    void shortcutHappended();
-
+    void commitStatus(bool success);
+    void activated(const QString &name, uint32_t repeat);
 protected:
-    void treeland_shortcut_context_v1_shortcut() override;
+    void treeland_shortcut_manager_v2_commit_success() override;
+    void treeland_shortcut_manager_v2_commit_failure(const QString &name, uint32_t error) override;
+    void treeland_shortcut_manager_v2_activated(const QString &name, uint32_t repeat) override;
 };
 
 class Shortcut
+    : public QObject
 {
+    Q_OBJECT
 public:
-    explicit Shortcut(const QString &path);
+    explicit Shortcut(const QString &path, const QString &name);
 
-    virtual ~Shortcut() = default;
+    ~Shortcut() override;
 
     void exec();
+    void registerForManager(ShortcutV2 *manager);
 
-    QString shortcut();
+Q_SIGNALS:
+    void before_destroy();
 
 private:
     QSettings m_settings;
+    QString m_shortcutName;
+    QList<QString> m_registeredBindings;
 };
