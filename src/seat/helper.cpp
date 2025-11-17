@@ -40,6 +40,7 @@
 #include "treelandconfig.hpp"
 #include "core/treeland.h"
 #include "greeter/greeterproxy.h"
+#include "modules/screensaver/screensaverinterfacev1.h"
 
 #include <xcb/xcb.h>
 #include <xcb/xproto.h>
@@ -759,6 +760,10 @@ void Helper::onNewIdleInhibitor(wlr_idle_inhibitor_v1 *wlr_inhibitor)
 
 void Helper::updateIdleInhibitor()
 {
+    if (m_screensaverInterfaceV1->isInhibited()) {
+        m_idleNotifier->set_inhibited(true);
+        return;
+    }
     for (const auto &inhibitor : std::as_const(m_idleInhibitors)) {
         auto wsurface = WSurface::fromHandle((*inhibitor)->surface);
         bool visible = wsurface->mapped();
@@ -1329,6 +1334,8 @@ void Helper::init(Treeland::Treeland *treeland)
 
     m_idleInhibitManager = qw_idle_inhibit_manager_v1::create(*m_server->handle());
     connect(m_idleInhibitManager, &qw_idle_inhibit_manager_v1::notify_new_inhibitor, this, &Helper::onNewIdleInhibitor);
+
+    m_screensaverInterfaceV1 = m_server->attach<ScreensaverInterfaceV1>();
 
     m_outputPowerManager = qw_output_power_manager_v1::create(*m_server->handle());
 

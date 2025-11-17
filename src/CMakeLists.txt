@@ -304,6 +304,7 @@ target_link_libraries(libtreeland
 add_subdirectory(plugins)
 add_subdirectory(modules)
 add_subdirectory(treeland-shortcut)
+add_subdirectory(treeland-screensaver)
 
 set(BIN_NAME treeland)
 
