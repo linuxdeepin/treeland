@@ -100,6 +100,7 @@ class UserModel;
 class DDMInterfaceV1;
 class TreelandConfig;
 class FpsDisplayManager;
+class ScreensaverInterfaceV1;
 struct wlr_idle_inhibitor_v1;
 struct wlr_output_power_v1_set_mode_event;
 struct wlr_ext_foreign_toplevel_image_capture_source_manager_v1_request;
@@ -252,6 +253,8 @@ public:
     bool noAnimation() const;
     void toggleFpsDisplay();
 
+    void updateIdleInhibitor();
+
 public Q_SLOTS:
     void activateSurface(SurfaceWrapper *wrapper, Qt::FocusReason reason = Qt::OtherFocusReason);
     void forceActivateSurface(SurfaceWrapper *wrapper,
@@ -339,7 +342,6 @@ private:
     bool isNvidiaCardPresent();
     void setWorkspaceVisible(bool visible);
     void restoreFromShowDesktop(SurfaceWrapper *activeSurface = nullptr);
-    void updateIdleInhibitor();
     void setNoAnimation(bool noAnimation);
 
     std::shared_ptr<Session> ensureSession(int id, uid_t uid);
@@ -395,6 +397,7 @@ private:
     VirtualOutputV1 *m_virtualOutput = nullptr;
     OutputManagerV1 *m_outputManagerV1 = nullptr;
     DDMInterfaceV1 *m_ddmInterfaceV1 = nullptr;
+    ScreensaverInterfaceV1 *m_screensaverInterfaceV1 = nullptr;
 #ifdef EXT_SESSION_LOCK_V1
     WSessionLockManager *m_sessionLockManager = nullptr;
     QTimer *m_lockScreenGraceTimer = nullptr;
