@@ -5,7 +5,7 @@
 
 #include "modules/foreign-toplevel/foreigntoplevelmanagerv1.h"
 #include "core/qmlengine.h"
-#include "input/togglablegesture.h"
+#include "modules/shortcut/shortcutmanager.h"
 #include "modules/virtual-output/virtualoutputmanager.h"
 #include "modules/window-management/windowmanagement.h"
 #include "utils/fpsdisplaymanager.h"
@@ -81,7 +81,7 @@ class SurfaceContainer;
 class RootSurfaceContainer;
 class ForeignToplevelV1;
 class LockScreen;
-class ShortcutV1;
+class ShortcutManagerV1;
 class PersonalizationV1;
 class WallpaperColorV1;
 class WindowManagementV1;
@@ -136,8 +136,6 @@ class Helper : public WSeatEventFilter
     Q_PROPERTY(RootSurfaceContainer* rootContainer READ rootContainer CONSTANT FINAL)
     Q_PROPERTY(float animationSpeed READ animationSpeed WRITE setAnimationSpeed NOTIFY animationSpeedChanged FINAL)
     Q_PROPERTY(OutputMode outputMode READ outputMode WRITE setOutputMode NOTIFY outputModeChanged FINAL)
-    Q_PROPERTY(TogglableGesture* multiTaskViewGesture READ multiTaskViewGesture CONSTANT)
-    Q_PROPERTY(TogglableGesture* windowGesture READ windowGesture CONSTANT)
     Q_PROPERTY(SurfaceWrapper* activatedSurface READ activatedSurface NOTIFY activatedSurfaceChanged FINAL)
     Q_PROPERTY(Workspace* workspace READ workspace CONSTANT FINAL)
     Q_PROPERTY(TreelandConfig* config READ config CONSTANT FINAL)
@@ -175,16 +173,6 @@ public:
     Workspace *workspace() const;
 
     void init(Treeland::Treeland *treeland);
-
-    TogglableGesture *multiTaskViewGesture() const
-    {
-        return m_multiTaskViewGesture;
-    }
-
-    TogglableGesture *windowGesture() const
-    {
-        return m_windowGesture;
-    }
 
     bool socketEnabled() const;
     void setSocketEnabled(bool newSocketEnabled);
@@ -259,6 +247,7 @@ public Q_SLOTS:
                               Qt::FocusReason reason = Qt::OtherFocusReason);
     void fakePressSurfaceBottomRightToReszie(SurfaceWrapper *surface);
     bool surfaceBelongsToCurrentSession(SurfaceWrapper *wrapper);
+    void handleCompositorAction(treeland_shortcut_v1_action action);
 
 Q_SIGNALS:
     void socketEnabledChanged();
@@ -365,8 +354,6 @@ private:
     // gesture
     WServer *m_server = nullptr;
     RootSurfaceContainer *m_rootSurfaceContainer = nullptr;
-    TogglableGesture *m_multiTaskViewGesture = nullptr;
-    TogglableGesture *m_windowGesture = nullptr;
 
     // wayland helper
     WSeat *m_seat = nullptr;
@@ -385,7 +372,7 @@ private:
     WForeignToplevel *m_foreignToplevel = nullptr;
     WExtForeignToplevelListV1 *m_extForeignToplevelListV1 = nullptr;
     ForeignToplevelV1 *m_treelandForeignToplevel = nullptr;
-    ShortcutV1 *m_shortcut = nullptr;
+    ShortcutManagerV1 *m_shortcutManager = nullptr;
     PersonalizationV1 *m_personalization = nullptr;
     WallpaperColorV1 *m_wallpaperColorV1 = nullptr;
     WOutputManagerV1 *m_outputManager = nullptr;
