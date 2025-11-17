@@ -20,19 +20,24 @@ Multitaskview {
 
     property bool initialized: false
     property bool exited: false
-    readonly property QtObject taskViewGesture: Helper.multiTaskViewGesture
     property real taskviewVal: 0
+    property bool inProgress: true
 
     onStatusChanged: {
-        if (root.activeReason === Multitaskview.ShortcutKey && root.status === Multitaskview.Active) {
-            taskViewGesture.toggle(false)
+        if (root.status === Multitaskview.Exited) {
+            exited = true
+        } else {
+            exited = false
         }
 
-        if (root.status === Multitaskview.Exited) {
-            if (taskViewGesture.status === 3)
-                taskViewGesture.toggle()
+        if (root.activeReason === Multitaskview.Gesture) {
+            inProgress = false
+        }
+    }
 
-            exited = true
+    onPartialFactorChanged: {
+        if (root.activeReason === Multitaskview.Gesture) {
+            inProgress = true
         }
     }
 
@@ -48,7 +53,7 @@ Multitaskview {
             name: "partial"
             PropertyChanges {
                 target: root
-                taskviewVal: taskViewGesture.partialGestureFactor
+                taskviewVal: root.partialFactor
             }
         },
         State {
@@ -63,8 +68,8 @@ Multitaskview {
         if (!initialized) return "initial";
 
         if (exited) {
-            if (taskviewVal === 0)
-                root.visible = false;
+            root.visible = false;
+            partialFactor = 0;
 
             return "initial";
         }
@@ -72,7 +77,7 @@ Multitaskview {
         if (activeReason === Multitaskview.ShortcutKey) {
             return "taskview";
         } else {
-            if (taskViewGesture.inProgress) return "partial";
+            if (root.inProgress) return "partial";
 
             if (taskviewVal >=0.5) return "taskview";
 

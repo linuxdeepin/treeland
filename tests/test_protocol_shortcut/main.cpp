@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Dingyuan Zhang <lxz@mkacg.com>.
+// Copyright (C) 2024-2025 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "modules/shortcut/shortcutmanager.h"
@@ -29,12 +29,12 @@ private Q_SLOTS:
 
     void testCreate()
     {
-        QVERIFY(m_server->attach<ShortcutV1>(m_server) != nullptr);
+        QVERIFY(m_server->attach<ShortcutManagerV2>(m_server) != nullptr);
     }
 
     void verifyShortcut()
     {
-        auto protocol = m_server->findChild<ShortcutV1*>();
+        auto protocol = m_server->findChild<ShortcutManagerV2*>();
         QVERIFY(protocol != nullptr);
     }
 

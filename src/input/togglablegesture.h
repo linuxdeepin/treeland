@@ -1,4 +1,4 @@
-// Copyright (C) 2024 WenHao Peng <pengwenhao@uniontech.com>.
+// Copyright (C) 2024-2025 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #pragma once
@@ -68,11 +68,9 @@ protected:
     std::function<void(qreal progress)> regressCallback();
     void setProgress(qreal progress);
     void setRegress(qreal regress);
-    void moveSlide(qreal cb);
-    void moveDischarge();
 
-    std::function<void()> activeTriggeredCallback();
-    std::function<void()> deactivateTriggeredCallback();
+    std::function<void(bool)> activeTriggeredCallback();
+    std::function<void(bool)> deactivateTriggeredCallback();
     void activeTriggered();
     void deactivateTriggered();
 
@@ -80,11 +78,6 @@ private:
     Status m_status = Status::Inactive;
     bool m_inProgress = false;
     qreal m_partialGestureFactor;
-    qreal m_desktopOffset;
-    int m_fromId = 0;
-    int m_toId = 0;
-    bool m_slideEnable = false;
-    bool m_slideBounce = false;
 };
 
 Q_DECLARE_METATYPE(TogglableGesture *)

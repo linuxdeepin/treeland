@@ -50,6 +50,20 @@ void Multitaskview::setActiveReason(ActiveReason activeReason)
     Q_EMIT activeReasonChanged();
 }
 
+qreal Multitaskview::partialFactor() const
+{
+    return m_partialFactor;
+}
+
+void Multitaskview::updatePartialFactor(qreal delta)
+{
+    qreal newPartialFactor = qBound(0.0, m_partialFactor + delta, 1.0);
+    if (qFuzzyCompare(newPartialFactor, m_partialFactor))
+        return;
+    m_partialFactor = newPartialFactor;
+    Q_EMIT partialFactorChanged();
+}
+
 void Multitaskview::exit(SurfaceWrapper *surface, bool immediately)
 {
     Helper::instance()->setBlockActivateSurface(false);
@@ -408,7 +422,7 @@ void MultitaskviewSurfaceModel::doUpdateZOrder(const QList<ModelDataPtr> &rawDat
                 return false;
             }
         });
-    std::for_each(rawData.begin(), rawData.end(), [surfaces, this](ModelDataPtr modelData) {
+    std::for_each(rawData.begin(), rawData.end(), [surfaces](ModelDataPtr modelData) {
         modelData->zorder = surfaces.indexOf(modelData->wrapper);
     });
 }
@@ -465,7 +479,7 @@ void MultitaskviewSurfaceModel::handleSurfaceStateChanged()
     auto surface = qobject_cast<SurfaceWrapper *>(sender());
     Q_ASSERT(surface);
     auto dataPtr =
-        std::find_if(m_data.begin(), m_data.end(), [this, surface](const ModelDataPtr &modelData) {
+        std::find_if(m_data.begin(), m_data.end(), [surface](const ModelDataPtr &modelData) {
             return modelData->wrapper == surface;
         });
     if (dataPtr == m_data.end())
