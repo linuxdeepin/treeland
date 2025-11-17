@@ -69,6 +69,13 @@ void MultitaskViewPlugin::toggleMultitaskView(IMultitaskView::ActiveReason reaso
     }
 }
 
+void MultitaskViewPlugin::updatePartialFactor(qreal delta)
+{
+    if (m_multitaskview) {
+        m_multitaskview->updatePartialFactor(delta);
+    }
+}
+
 void MultitaskViewPlugin::immediatelyExit()
 {
     if (m_multitaskview) {

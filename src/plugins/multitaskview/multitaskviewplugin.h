@@ -38,6 +38,7 @@ public:
     }
 
     void setStatus(IMultitaskView::Status status) override;
+    void updatePartialFactor(qreal delta) override;
     void toggleMultitaskView(IMultitaskView::ActiveReason reason) override;
     void immediatelyExit() override;
 
