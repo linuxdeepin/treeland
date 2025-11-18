@@ -1,35 +1,32 @@
-name: Build qwlroots on Debian unstable (independent)
+name: Build waylib on Deepin crimson (independent)
 
 on:
   push:
     paths:
-      - 'qwlroots/**'
-      - '.github/workflows/qwlroots-debian-build.yml'
+      - 'waylib/**'
+      - '.github/workflows/waylib-deepin-build.yml'
 
   pull_request:
     paths:
-      - 'qwlroots/**'
-      - '.github/workflows/qwlroots-debian-build.yml'
+      - 'waylib/**'
+      - '.github/workflows/waylib-deepin-build.yml'
 
 jobs:
   container:
     runs-on: ubuntu-latest
-    container: debian:unstable
+    container: linuxdeepin/deepin:crimson
     steps:
       - uses: actions/checkout@v4
 
       - name: Install build dependencies
-        working-directory: qwlroots
+        working-directory: waylib
         run: |
-          # Configure apt sources for unstable
-          echo "deb http://deb.debian.org/debian unstable main" > /etc/apt/sources.list
-          echo "deb http://deb.debian.org/debian sid main" >> /etc/apt/sources.list
-
           apt-get update
           apt-get install -y devscripts equivs
 
           # Add deepin community repository to install wlr-protocols
-          echo "deb [trusted=yes] http://mirrors.kernel.org/deepin/beige/ crimson main commercial community" > /etc/apt/sources.list.d/deepin-community.list
+          echo "deb [trusted=yes] http://mirrors.kernel.org/deepin/beige/ crimson main commercial community" > /etc/apt/sources.list
+          rm -rf /etc/apt/sources.list.d
 
           # Update package lists (ignore signature errors for this temporary repo)
           apt-get update --allow-unauthenticated
@@ -40,20 +37,19 @@ jobs:
           rm -f /etc/apt/sources.list.d/deepin-community.list
           apt-get update
 
-          # Install other build dependencies from control file
           mk-build-deps --install --remove --tool='apt-get -o Debug::pkgProblemResolver=yes --no-install-recommends --yes' debian/control
 
-      - name: Build qwlroots deb package
-        working-directory: qwlroots
+      - name: Build waylib deb package
+        working-directory: waylib
         run: |
           dpkg-buildpackage -uc -us -b
-          echo "✅ qwlroots deb package built successfully!"
+          echo "✅ waylib deb package built successfully!"
           ls -la ../*.deb
 
-      - name: Upload qwlroots deb packages as artifacts
+      - name: Upload waylib deb packages as artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: qwlroots-deb-packages
+          name: waylib-deepin-deb-packages
           path: "*.deb"
           if-no-files-found: error
           retention-days: 30
