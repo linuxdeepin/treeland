@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Dingyuan Zhang <zhangdingyuan@uniontech.com>.
+// Copyright (C) 2023-2025 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "shortcut.h"
@@ -105,10 +105,10 @@ QString transFromDaemonAccelStr(const QString &accelStr)
     return str;
 }
 
-ShortcutV1::ShortcutV1()
-    : QWaylandClientExtensionTemplate<ShortcutV1>(1)
+ShortcutManagerV1::ShortcutManagerV1()
+    : QWaylandClientExtensionTemplate<ShortcutManagerV1>(2)
 {
-    connect(this, &ShortcutV1::activeChanged, this, [this] {
+    connect(this, &ShortcutManagerV1::activeChanged, this, [this] {
         qCDebug(treelandShortcut) << "isActive:" << isActive();
 
         if (isActive()) {
@@ -127,9 +127,10 @@ ShortcutV1::ShortcutV1()
                         custom.value(QString("%1/Action").arg(group)).toString();
                     const QString &accels = transFromDaemonAccelStr(
                         custom.value(QString("%1/Accels").arg(group)).toString());
-                    ShortcutContext *context =
-                        new ShortcutContext(register_shortcut_context(accels));
-                    connect(context, &ShortcutContext::shortcutHappended, this, [action] {
+                    ShortcutV1 *context =
+                        new ShortcutV1(register_shortcut());
+                        // context->bind_keys(accels);
+                    connect(context, &ShortcutV1::shortcutHappended, this, [action] {
                         QProcess::startDetached(action);
                     });
                     m_customShortcuts.emplace_back(context);
@@ -143,13 +144,14 @@ ShortcutV1::ShortcutV1()
 
             updateShortcuts();
 
-            QDir dir(TREELAND_DATA_DIR "/shortcuts");
+            QDir dir("/home/akari/UnionTech/treeland/src/treeland-shortcut/shortcuts");
             for (auto d : dir.entryInfoList(QDir::Filter::Files)) {
                 qCInfo(treelandShortcut) << "Load shortcut:" << d.filePath();
                 auto shortcut = new Shortcut(d.filePath());
-                ShortcutContext *context =
-                    new ShortcutContext(register_shortcut_context(shortcut->shortcut()));
-                connect(context, &ShortcutContext::shortcutHappended, this, [shortcut] {
+                ShortcutV1 *context =
+                    new ShortcutV1(register_shortcut());
+                context->bind_keys(shortcut->shortcut());
+                connect(context, &ShortcutV1::shortcutHappended, this, [shortcut] {
                     qCInfo(treelandShortcut) << "Shortcut happended: " << shortcut->shortcut();
                     shortcut->exec();
                 });
@@ -160,20 +162,31 @@ ShortcutV1::ShortcutV1()
     });
 }
 
-ShortcutContext::ShortcutContext(struct ::treeland_shortcut_context_v1 *object)
-    : QWaylandClientExtensionTemplate<ShortcutContext>(1)
-    , QtWayland::treeland_shortcut_context_v1(object)
+ShortcutV1::ShortcutV1(struct ::treeland_shortcut_v1 *object)
+    : QWaylandClientExtensionTemplate<ShortcutV1>(1)
+    , QtWayland::treeland_shortcut_v1(object)
 {
 }
 
-ShortcutContext::~ShortcutContext()
+ShortcutV1::~ShortcutV1()
 {
     destroy();
 }
 
-void ShortcutContext::treeland_shortcut_context_v1_shortcut()
+void ShortcutV1::treeland_shortcut_v1_activated()
 {
     Q_EMIT shortcutHappended();
+}
+
+void ShortcutV1::treeland_shortcut_v1_bind_success(uint32_t binding_id)
+{
+    Q_UNUSED(binding_id)
+    qCDebug(treelandShortcut) << "Shortcut bind success, binding id:" << binding_id;
+}
+
+void ShortcutV1::treeland_shortcut_v1_bind_failure(uint32_t reason)
+{
+    qCDebug(treelandShortcut) << "Shortcut bind failure, reason:" << reason;
 }
 
 Shortcut::Shortcut(const QString &path)
@@ -225,7 +238,7 @@ int main(int argc, char *argv[])
 {
     QApplication app(argc, argv);
 
-    new ShortcutV1;
+    new ShortcutManagerV1;
 
     sd_notify(0, "READY=1");
 

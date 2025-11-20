@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Dingyuan Zhang <zhangdingyuan@uniontech.com>.
+// Copyright (C) 2023-2025 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #pragma once
@@ -11,37 +11,39 @@
 #include <QSettings>
 #include <QtWaylandClient/QWaylandClientExtension>
 
-class ShortcutContext;
+class ShortcutV1;
 class Shortcut;
 
-class ShortcutV1
-    : public QWaylandClientExtensionTemplate<ShortcutV1>
+class ShortcutManagerV1
+    : public QWaylandClientExtensionTemplate<ShortcutManagerV1>
     , public QtWayland::treeland_shortcut_manager_v1
 {
     Q_OBJECT
 public:
-    explicit ShortcutV1();
+    explicit ShortcutManagerV1();
 
 private:
-    std::vector<std::unique_ptr<ShortcutContext>> m_customShortcuts;
-    std::vector<std::unique_ptr<ShortcutContext>> m_treelandShortcutContexts;
+    std::vector<std::unique_ptr<ShortcutV1>> m_customShortcuts;
+    std::vector<std::unique_ptr<ShortcutV1>> m_treelandShortcutContexts;
     std::vector<std::unique_ptr<Shortcut>> m_treelandShortcuts;
 };
 
-class ShortcutContext
-    : public QWaylandClientExtensionTemplate<ShortcutContext>
-    , public QtWayland::treeland_shortcut_context_v1
+class ShortcutV1
+    : public QWaylandClientExtensionTemplate<ShortcutV1>
+    , public QtWayland::treeland_shortcut_v1
 {
     Q_OBJECT
 public:
-    explicit ShortcutContext(struct ::treeland_shortcut_context_v1 *object);
-    ~ShortcutContext() override;
+    explicit ShortcutV1(struct ::treeland_shortcut_v1 *object);
+    ~ShortcutV1() override;
 
 Q_SIGNALS:
     void shortcutHappended();
 
 protected:
-    void treeland_shortcut_context_v1_shortcut() override;
+    void treeland_shortcut_v1_activated() override;
+    void treeland_shortcut_v1_bind_success(uint32_t binding_id) override;
+    void treeland_shortcut_v1_bind_failure(uint32_t reason) override;
 };
 
 class Shortcut
