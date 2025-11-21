@@ -512,7 +512,7 @@ void Helper::onOutputTestOrApply(qw_output_configuration_v1 *config, bool onlyTe
     if (onlyTest) {
         bool ok = true;
         for (const auto &state : std::as_const(states)) {
-            WOutputViewport *viewport = getOutput(state.output)->screenViewport();
+            WOutputViewport *viewport = getOwnOutputViewport(state.output);
             if (!viewport) {
                 ok = false;
                 continue;
@@ -553,9 +553,8 @@ void Helper::onOutputTestOrApply(qw_output_configuration_v1 *config, bool onlyTe
     m_pendingOutputConfig.allSuccess = true;
 
     for (const auto &state : std::as_const(states)) {
-        WOutputViewport *viewport = getOutput(state.output)->screenViewport();
+        WOutputViewport *viewport = getOwnOutputViewport(state.output);
         if (!viewport) {
-            qCWarning(treelandCore) << "No viewport for output" << state.output->name();
             m_outputManager->sendResult(config, false);
             m_pendingOutputConfig = {};
             return;
@@ -1806,6 +1805,25 @@ Output *Helper::createNormalOutput(WOutput *output)
 Output *Helper::createCopyOutput(WOutput *output, Output *proxy)
 {
     return Output::createCopy(output, proxy, qmlEngine(), this);
+}
+
+WOutputViewport *Helper::getOwnOutputViewport(WOutput *output)
+{
+    // Get the output's own viewport, not screenViewport()
+    // In copy mode, screenViewport() returns the primary output's viewport,
+    // but we need the OutputViewport that is a direct child of the OutputItem
+    Output *outputObj = getOutput(output);
+    if (!outputObj || !outputObj->outputItem()) {
+        qCWarning(treelandCore) << "Invalid output object for" << output->name();
+        return nullptr;
+    }
+
+    WOutputViewport *viewport = outputObj->outputItem()->findChild<WOutputViewport *>({}, Qt::FindDirectChildrenOnly);
+    if (!viewport) {
+        qCWarning(treelandCore) << "No viewport found for output" << output->name()
+                                << "- OutputItem may not have been fully initialized";
+    }
+    return viewport;
 }
 
 QList<SurfaceWrapper *> Helper::getWorkspaceSurfaces(Output *filterOutput)
