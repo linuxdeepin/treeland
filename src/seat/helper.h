@@ -332,6 +332,7 @@ private:
     bool doGesture(QInputEvent *event);
     Output *createNormalOutput(WOutput *output);
     Output *createCopyOutput(WOutput *output, Output *proxy);
+    WOutputViewport *getOwnOutputViewport(WOutput *output);
     QList<SurfaceWrapper *> getWorkspaceSurfaces(Output *filterOutput = nullptr);
     void moveSurfacesToOutput(const QList<SurfaceWrapper *> &surfaces,
                               Output *targetOutput,

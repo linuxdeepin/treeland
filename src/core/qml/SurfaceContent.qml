@@ -36,7 +36,9 @@ Item {
         smooth: root.surface?.smooth ?? true
 
         onDevicePixelRatioChanged: {
-            wrapper.updateSurfaceSizeRatio()
+            if (wrapper) {
+                wrapper.updateSurfaceSizeRatio()
+            }
         }
     }
 
