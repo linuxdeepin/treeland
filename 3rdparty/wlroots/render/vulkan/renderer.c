@@ -58,7 +58,7 @@ struct wlr_vk_renderer *vulkan_get_renderer(struct wlr_renderer *wlr_renderer) {
 
 static struct wlr_vk_render_format_setup *find_or_create_render_setup(
 		struct wlr_vk_renderer *renderer, const struct wlr_vk_format *format,
-		bool has_blending_buffer);
+		bool has_blending_buffer, bool srgb);
 
 static struct wlr_vk_descriptor_pool *alloc_ds(
 		struct wlr_vk_renderer *renderer, VkDescriptorSet *ds,
@@ -690,7 +690,7 @@ bool vulkan_setup_two_pass_framebuffer(struct wlr_vk_render_buffer *buffer,
 	}
 
 	buffer->two_pass.render_setup = find_or_create_render_setup(
-		renderer, &fmt->format, true);
+		renderer, &fmt->format, true, false);
 	if (!buffer->two_pass.render_setup) {
 		goto error;
 	}
@@ -862,7 +862,7 @@ bool vulkan_setup_one_pass_framebuffer(struct wlr_vk_render_buffer *buffer,
 	}
 
 	struct wlr_vk_render_format_setup *render_setup =
-		find_or_create_render_setup(renderer, &fmt->format, false);
+		find_or_create_render_setup(renderer, &fmt->format, false, srgb);
 	if (!render_setup) {
 		goto error;
 	}
@@ -2225,11 +2225,12 @@ static bool init_static_render_data(struct wlr_vk_renderer *renderer) {
 
 static struct wlr_vk_render_format_setup *find_or_create_render_setup(
 		struct wlr_vk_renderer *renderer, const struct wlr_vk_format *format,
-		bool use_blending_buffer) {
+		bool use_blending_buffer, bool srgb) {
 	struct wlr_vk_render_format_setup *setup;
 	wl_list_for_each(setup, &renderer->render_format_setups, link) {
 		if (setup->render_format == format &&
-				setup->use_blending_buffer == use_blending_buffer) {
+				setup->use_blending_buffer == use_blending_buffer &&
+				setup->use_srgb == srgb) {
 			return setup;
 		}
 	}
@@ -2242,6 +2243,7 @@ static struct wlr_vk_render_format_setup *find_or_create_render_setup(
 
 	setup->render_format = format;
 	setup->use_blending_buffer = use_blending_buffer;
+	setup->use_srgb = srgb;
 	setup->renderer = renderer;
 	wl_list_init(&setup->pipelines);
 
@@ -2390,9 +2392,8 @@ static struct wlr_vk_render_format_setup *find_or_create_render_setup(
 			goto error;
 		}
 	} else {
-		assert(format->vk_srgb);
 		VkAttachmentDescription attachment = {
-			.format = format->vk_srgb,
+			.format = format->vk,
 			.samples = VK_SAMPLE_COUNT_1_BIT,
 			.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD,
 			.storeOp = VK_ATTACHMENT_STORE_OP_STORE,
@@ -2401,6 +2402,10 @@ static struct wlr_vk_render_format_setup *find_or_create_render_setup(
 			.initialLayout = VK_IMAGE_LAYOUT_GENERAL,
 			.finalLayout = VK_IMAGE_LAYOUT_GENERAL,
 		};
+		if (srgb) {
+			assert(format->vk_srgb);
+			attachment.format = format->vk_srgb;
+		}
 
 		VkAttachmentReference color_ref = {
 			.attachment = 0u,
