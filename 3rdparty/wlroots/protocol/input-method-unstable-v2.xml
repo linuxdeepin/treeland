@@ -82,7 +82,7 @@
         This event serves the purpose of providing the compositor with an
         active input method.
 
-        This event resets all state associated with previous enable, disable,
+        This event resets all state associated with previous
         surrounding_text, text_change_cause, and content_type events, as well
         as the state associated with set_preedit_string, commit_string, and
         delete_surrounding_text requests. In addition, it marks the
