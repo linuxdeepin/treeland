@@ -68,6 +68,7 @@ int main(int argc, char *argv[])
                                         QDBusConnection::sessionBus());
                     StringMap env;
                     env["WAYLAND_DISPLAY"] = "treeland.socket";
+                    env["QT_QUICK_BACKEND"] = "software";
 
                     const auto extraEnvs = qgetenv("TREELAND_SESSION_ENVIRONMENTS");
                     if (!extraEnvs.isEmpty()) {
@@ -94,6 +95,7 @@ int main(int argc, char *argv[])
                                             QDBusConnection::sessionBus());
                         StringMap env;
                         env["DISPLAY"] = xwaylandName;
+                        env["QT_QUICK_BACKEND"] = "software";
                         auto reply =
                             dbus.call("UpdateActivationEnvironment", QVariant::fromValue(env));
 
