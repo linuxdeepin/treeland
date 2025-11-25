@@ -378,6 +378,7 @@ void SurfaceWrapper::convertToNormalSurface(WToplevelSurface *shellSurface, Type
 
     // setNoDecoration not called updateTitleBar when type is Undetermined
     updateTitleBar();
+    updateDecoration();
 
     QMetaObject::invokeMethod(m_prelaunchSplash, "hideAndDestroy", Qt::QueuedConnection);
 }
@@ -845,6 +846,14 @@ void SurfaceWrapper::setNoDecoration(bool newNoDecoration)
         return;
 
     m_noDecoration = newNoDecoration;
+    if (m_type != Type::Undetermined) {
+        updateDecoration(); // Prelaunch mode does not call
+    }
+    Q_EMIT noDecorationChanged();
+}
+
+void SurfaceWrapper::updateDecoration()
+{
     if (m_titleBarState == TitleBarState::Default && m_type != Type::Undetermined)
         updateTitleBar();
 
@@ -867,7 +876,6 @@ void SurfaceWrapper::setNoDecoration(bool newNoDecoration)
     }
 
     updateBoundingRect();
-    Q_EMIT noDecorationChanged();
 }
 
 void SurfaceWrapper::updateTitleBar()
@@ -1637,6 +1645,10 @@ void SurfaceWrapper::setNoTitleBar(bool newNoTitleBar)
     } else {
         m_titleBarState = TitleBarState::Visible;
     }
+
+    if (!m_shellSurface) // has prelaunchSplash
+        return;
+
     updateTitleBar();
 }
 
