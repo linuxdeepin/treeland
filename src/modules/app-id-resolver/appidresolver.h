@@ -36,7 +36,8 @@ protected:
     void treeland_app_id_resolver_v1_destroy(Resource *resource) override;
     void treeland_app_id_resolver_v1_respond(Resource *resource,
                                              uint32_t request_id,
-                                             const QString &app_id) override;
+                                             const QString &app_id,
+                                             const QString &sandboxEngineName) override;
 
 private:
     AppIdResolverManager *m_manager;
