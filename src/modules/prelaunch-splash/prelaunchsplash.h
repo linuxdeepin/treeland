@@ -1,3 +1,4 @@
+// Copyright (C) 2025 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #pragma once
@@ -6,14 +7,18 @@
 
 class qw_display;
 
-#include <wserver.h>
 #include <wayland-server-core.h>
+#include <wserver.h>
+
 #include <memory>
 
 WAYLIB_SERVER_USE_NAMESPACE
 QW_USE_NAMESPACE
 
-namespace WAYLIB_SERVER_NAMESPACE { class WServer; }
+namespace WAYLIB_SERVER_NAMESPACE {
+class WServer;
+}
+
 QW_BEGIN_NAMESPACE
 class qw_display;
 QW_END_NAMESPACE
@@ -21,7 +26,9 @@ QW_END_NAMESPACE
 class PrelaunchSplashPrivate;
 struct wl_global;
 
-class PrelaunchSplash : public QObject , public WAYLIB_SERVER_NAMESPACE::WServerInterface
+class PrelaunchSplash
+    : public QObject
+    , public WAYLIB_SERVER_NAMESPACE::WServerInterface
 {
     Q_OBJECT
 public:
@@ -40,4 +47,3 @@ protected: // WServerInterface
 private:
     std::unique_ptr<PrelaunchSplashPrivate> d;
 };
-
