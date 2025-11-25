@@ -55,7 +55,7 @@ protected:
     {
         qInfo() << "identify_request" << request_id << pidfd;
         const QString appId = identifyViaDBus(pidfd);
-        respond(request_id, appId);
+        respond(request_id, appId, QStringLiteral("dde-application-manager"));
         qInfo() << "respond sent" << request_id << appId;
     }
 };
