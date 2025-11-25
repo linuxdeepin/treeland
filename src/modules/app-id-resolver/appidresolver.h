@@ -1,25 +1,27 @@
-// SPDX-License-Identifier: MIT
+// Copyright (C) 2025 UnionTech Software Technology Co., Ltd.
+// SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
+
 #pragma once
 
-#include <QObject>
-#include <QHash>
-#include <QPointer>
-#include <functional>
+#include "qwayland-server-treeland-app-id-resolver-v1.h"
 
+#include <wayland-server-core.h>
+#include <wglobal.h>
 #include <wserver.h>
 
-// Waylib server namespace macros & basic types
-#include <wglobal.h>
-// wl_client forward declaration and core protocol types
-#include <wayland-server-core.h>
+#include <QHash>
+#include <QObject>
+#include <QPointer>
 
-#include "qwayland-server-treeland-app-id-resolver-v1.h"
+#include <functional>
 
 WAYLIB_SERVER_USE_NAMESPACE
 
 class AppIdResolverManager;
 
-class AppIdResolver : public QObject, public QtWaylandServer::treeland_app_id_resolver_v1
+class AppIdResolver
+    : public QObject
+    , public QtWaylandServer::treeland_app_id_resolver_v1
 {
     Q_OBJECT
 public:
@@ -45,9 +47,10 @@ private:
     uint32_t m_nextRequestId = 1;
 };
 
-class AppIdResolverManager : public QObject,
-                             public QtWaylandServer::treeland_app_id_resolver_manager_v1,
-                             public WAYLIB_SERVER_NAMESPACE::WServerInterface
+class AppIdResolverManager
+    : public QObject
+    , public QtWaylandServer::treeland_app_id_resolver_manager_v1
+    , public WAYLIB_SERVER_NAMESPACE::WServerInterface
 {
     Q_OBJECT
 public:
@@ -71,8 +74,7 @@ Q_SIGNALS:
 
 protected: // protocol generated virtuals
     void treeland_app_id_resolver_manager_v1_destroy(Resource *resource) override;
-    void treeland_app_id_resolver_manager_v1_get_resolver(Resource *resource,
-                                                          uint32_t id) override;
+    void treeland_app_id_resolver_manager_v1_get_resolver(Resource *resource, uint32_t id) override;
 
 protected: // WServerInterface overrides
     void create(WAYLIB_SERVER_NAMESPACE::WServer *server) override;
