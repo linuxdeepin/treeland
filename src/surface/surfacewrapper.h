@@ -337,6 +337,7 @@ private:
     void setActivate(bool activate);
     void setNormalGeometry(const QRectF &newNormalGeometry);
     void updateTitleBar();
+    void updateDecoration();
     void setBoundedRect(const QRectF &newBoundedRect);
     void setContainer(SurfaceContainer *newContainer);
     void setVisibleDecoration(bool newVisibleDecoration);
