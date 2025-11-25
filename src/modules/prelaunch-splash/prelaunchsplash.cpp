@@ -1,17 +1,18 @@
+// Copyright (C) 2025 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "prelaunchsplash.h"
+
 #include "qwayland-server-treeland-prelaunch-splash-v1.h"
 
-// Copyright (C) 2024 UnionTech Software Technology Co., Ltd.
-// SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
-
 #include <wserver.h>
+
 #include <qwdisplay.h>
 
-#include <QLoggingCategory>
 #include <QByteArray>
+#include <QLoggingCategory>
 #include <qloggingcategory.h>
+
 #include <memory>
 
 WAYLIB_SERVER_USE_NAMESPACE
@@ -25,9 +26,14 @@ class PrelaunchSplashPrivate : public QtWaylandServer::treeland_prelaunch_splash
 {
 public:
     explicit PrelaunchSplashPrivate(PrelaunchSplash *q)
-        : q(q) {}
+        : q(q)
+    {
+    }
 
-    wl_global *globalHandle() const { return this->m_global; }
+    wl_global *globalHandle() const
+    {
+        return this->m_global;
+    }
 
 protected:
     void treeland_prelaunch_splash_manager_v1_destroy(Resource *resource) override
@@ -35,10 +41,14 @@ protected:
         wl_resource_destroy(resource->handle);
     }
 
-    void treeland_prelaunch_splash_manager_v1_create_splash(Resource *resource, const QString &app_id, const QString &sandboxEngineName) override
+    void treeland_prelaunch_splash_manager_v1_create_splash(
+        Resource *resource,
+        const QString &app_id,
+        const QString &sandboxEngineName) override
     {
         Q_UNUSED(resource);
-        qCWarning(prelaunchSplash) << "create_splash request from sandbox=" << sandboxEngineName << " app_id=" << app_id;
+        qCWarning(prelaunchSplash)
+            << "create_splash request from sandbox=" << sandboxEngineName << " app_id=" << app_id;
         Q_EMIT q->splashRequested(app_id);
     }
 
@@ -83,4 +93,3 @@ QByteArrayView PrelaunchSplash::interfaceName() const
 }
 
 // End of file
-

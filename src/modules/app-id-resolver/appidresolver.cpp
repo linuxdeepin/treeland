@@ -1,12 +1,16 @@
-// SPDX-License-Identifier: MIT
+// Copyright (C) 2025 UnionTech Software Technology Co., Ltd.
+// SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
+
 #include "appidresolver.h"
 
+#include <wserver.h>
+
+#include <qwdisplay.h>
+
 #include <QLoggingCategory>
+
 #include <fcntl.h>
 #include <unistd.h>
-
-#include <wserver.h>
-#include <qwdisplay.h>
 
 Q_LOGGING_CATEGORY(treelandAppIdResolver, "treeland.appid.resolver", QtInfoMsg)
 
@@ -182,7 +186,8 @@ wl_global *AppIdResolverManager::global() const
 
 QByteArrayView AppIdResolverManager::interfaceName() const
 {
-    // Generated interface name macro not easily accessible; hardcode string literal consistent with XML
-    static const QByteArray name{"treeland_app_id_resolver_manager_v1"};
+    // Generated interface name macro not easily accessible; hardcode string literal consistent with
+    // XML
+    static const QByteArray name{ "treeland_app_id_resolver_manager_v1" };
     return name;
 }
