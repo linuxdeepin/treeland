@@ -35,10 +35,10 @@ protected:
         wl_resource_destroy(resource->handle);
     }
 
-    void treeland_prelaunch_splash_manager_v1_create_splash(Resource *resource, const QString &app_id) override
+    void treeland_prelaunch_splash_manager_v1_create_splash(Resource *resource, const QString &app_id, const QString &sandboxEngineName) override
     {
         Q_UNUSED(resource);
-        qCWarning(prelaunchSplash) << "create_splash request app_id=" << app_id;
+        qCWarning(prelaunchSplash) << "create_splash request from sandbox=" << sandboxEngineName << " app_id=" << app_id;
         Q_EMIT q->splashRequested(app_id);
     }
 
