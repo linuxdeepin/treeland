@@ -1049,6 +1049,10 @@ void Helper::onSurfaceWrapperAboutToRemove(SurfaceWrapper *wrapper)
 
 bool Helper::surfaceBelongsToCurrentSession(SurfaceWrapper *wrapper)
 {
+    if (wrapper->type() == SurfaceWrapper::Type::Undetermined) {
+        // TODO(rewine)
+        return false;
+    }
     WClient *client = wrapper->surface()->waylandClient();
     WSocket *socket = client ? client->socket()->rootSocket() : nullptr;
     return socket && socket->isEnabled();
