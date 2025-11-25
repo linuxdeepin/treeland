@@ -29,9 +29,11 @@ void AppIdResolver::treeland_app_id_resolver_v1_destroy(Resource *resource)
 
 void AppIdResolver::treeland_app_id_resolver_v1_respond(Resource *resource,
                                                         uint32_t request_id,
-                                                        const QString &app_id)
+                                                        const QString &app_id,
+                                                        const QString &sandboxEngineName)
 {
     Q_UNUSED(resource);
+    Q_UNUSED(sandboxEngineName);
     Q_EMIT resolved(request_id, app_id);
 }
 
@@ -81,6 +83,7 @@ void AppIdResolverManager::treeland_app_id_resolver_manager_v1_destroy(Resource 
 void AppIdResolverManager::treeland_app_id_resolver_manager_v1_get_resolver(Resource *resource,
                                                                             uint32_t id)
 {
+    qCDebug(treelandAppIdResolver) << "get_resolver called (client id):" << id;
     if (m_resolver) {
         wl_resource_post_error(resource->handle,
                                WL_DISPLAY_ERROR_INVALID_OBJECT,
