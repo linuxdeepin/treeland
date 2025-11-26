@@ -1,18 +1,18 @@
 [Unit]
 Description=Treeland Session Helper
-# Start only when the main treeland compositor is running.
-# Requires: helper will be stopped when treeland stops (including crash) and started when treeland (re)starts.
-Requires=treeland.service
-After=treeland.service
-# PartOf propagates manual restart/stop of treeland.service to this helper.
-PartOf=treeland.service
+CollectMode=inactive-or-failed
+
+PartOf=dde-session-pre.target
+Before=dde-session-pre.target
+
+Requisite=treeland-sd.service
+After=treeland-sd.service
 
 [Service]
+ExecCondition=/bin/sh -c 'test "$XDG_SESSION_DESKTOP" = "Treeland" || exit 2'
 Type=simple
 ExecStart=@CMAKE_INSTALL_FULL_LIBEXECDIR@/treeland-session-helper
+Slice=session.slice
 Restart=on-failure
 RestartSec=1s
 
-[Install]
-# Install as a wanted dependency of treeland.service so that starting treeland pulls this in.
-WantedBy=treeland.service
