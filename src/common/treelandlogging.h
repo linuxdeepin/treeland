@@ -65,4 +65,7 @@ Q_DECLARE_LOGGING_CATEGORY(treelandGreeter)
 // FPS display
 Q_DECLARE_LOGGING_CATEGORY(treelandFpsDisplay)
 
+// xsettings
+Q_DECLARE_LOGGING_CATEGORY(treelandXsettings)
+
 #endif // TREELAND_LOGGING_H
