@@ -93,6 +93,8 @@ SurfaceWrapper::SurfaceWrapper(SurfaceWrapper *original,
     , m_blur(false)
     , m_appId(original->m_appId)
 {
+    QQmlEngine::setContextForObject(this, m_engine->rootContext());
+
     if (original->m_shellSurface) {
         setup();
     }
