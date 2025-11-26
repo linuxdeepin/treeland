@@ -9,7 +9,6 @@
 #include "seat/helper.h"
 #include "treelandconfig.hpp"
 #include "workspace/workspace.h"
-#include "common/treelandlogging.h"
 #include "seat/helper.h"
 
 #include <QTimer>
