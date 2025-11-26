@@ -14,6 +14,7 @@
 #include "seat/helper.h"
 #include "surface/surfacewrapper.h"
 #include "workspace/workspace.h"
+#include "treelandconfig.hpp"
 
 #include <xcb/xcb.h>
 
@@ -96,6 +97,8 @@ void ShellHandler::updateWrapperContainer(SurfaceWrapper *wrapper,
 // Prelaunch splash request: create a SurfaceWrapper that is not yet bound to a shellSurface
 void ShellHandler::handlePrelaunchSplashRequested(const QString &appId)
 {
+    if (!Helper::instance()->config()->enablePrelaunchSplash())
+        return;
     if (!m_appIdResolverManager)
         return;
     if (appId.isEmpty())

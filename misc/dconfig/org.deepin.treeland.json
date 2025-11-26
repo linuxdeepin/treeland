@@ -13,6 +13,17 @@
             "permissions": "readwrite",
             "visibility": "public"
         },
+        "enablePrelaunchSplash": {
+            "value": false,
+            "serial": 0,
+            "flags": ["user-public"],
+            "name": "Enable Prelaunch Splash",
+            "name[zh_CN]": "启用预启动闪屏",
+            "description": "Enable showing prelaunch splash screens during application startup",
+            "description[zh_CN]": "启用应用程序启动期间显示预启动闪屏服务",
+            "permissions": "readwrite",
+            "visibility": "public"
+        },
         "lostScreen": {
             "value": "MoveToPrimary",
             "serial": 0,
