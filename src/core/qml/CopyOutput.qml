@@ -30,8 +30,15 @@ OutputItem {
         }
         const effectiveSize = primaryScreenViewport.output.size;
         const scale = primaryScreenViewport.output.scale;
-        // Calculate pixel size: effectiveSize * scale
-        return Qt.size(effectiveSize.width * scale, effectiveSize.height * scale);
+        const rotatedSize = Qt.size(effectiveSize.width * scale, effectiveSize.height * scale);
+
+        const primaryRotation = primaryScreenViewport.rotation;
+        const isPrimaryRotated90or270 = (Math.abs(primaryRotation % 180) === 90);
+
+        if (isPrimaryRotated90or270) {
+            return Qt.size(rotatedSize.height, rotatedSize.width);
+        }
+        return rotatedSize;
     }
 
     devicePixelRatio: output?.scale ?? devicePixelRatio
@@ -68,9 +75,17 @@ OutputItem {
                     return 1.0;
                 }
 
-                // Calculate scale: content size / primary screen pixel size
-                const scaleX = content.width / primaryPixelSize.width;
-                const scaleY = content.height / primaryPixelSize.height;
+                const proxyRotation = rotation;
+                const isRotated90or270 = (Math.abs(proxyRotation % 180) === 90);
+                const visualWidth = isRotated90or270 ? height : width;
+                const visualHeight = isRotated90or270 ? width : height;
+
+                if (visualWidth <= 0 || visualHeight <= 0) {
+                    return 1.0;
+                }
+
+                const scaleX = content.width / visualWidth;
+                const scaleY = content.height / visualHeight;
                 const finalScale = Math.min(scaleX, scaleY);
 
                 // Fix floating-point precision issues
@@ -87,6 +102,54 @@ OutputItem {
         devicePixelRatio: outputItem.devicePixelRatio
         input: content
         output: outputItem.output
-        ignoreViewport: true
+
+        RotationAnimation {
+            id: rotationAnimator
+            target: viewport
+            duration: 200
+            alwaysRunToEnd: true
+        }
+
+        Timer {
+            id: transformTimer
+            property var scheduleTransform
+            onTriggered: viewport.rotateOutput(scheduleTransform)
+            interval: rotationAnimator.duration / 2
+        }
+
+        function rotationOutput(orientation) {
+            transformTimer.scheduleTransform = orientation
+            transformTimer.start()
+
+            switch(orientation) {
+            case WaylandOutput.R90:
+                rotationAnimator.to = 90
+                break
+            case WaylandOutput.R180:
+                rotationAnimator.to = 180
+                break
+            case WaylandOutput.R270:
+                rotationAnimator.to = -90
+                break
+            default:
+                rotationAnimator.to = 0
+                break
+            }
+
+            rotationAnimator.from = rotation
+            rotationAnimator.start()
+        }
+    }
+
+    function setTransform(transform) {
+        viewport.rotationOutput(transform)
+    }
+
+    function setScale(scale) {
+        viewport.setOutputScale(scale)
+    }
+
+    function invalidate() {
+        viewport.invalidate()
     }
 }

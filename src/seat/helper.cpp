@@ -613,6 +613,11 @@ void Helper::onOutputTestOrApply(qw_output_configuration_v1 *config, bool onlyTe
             wlr_output_state_set_transform(extraState.get(),
                                           static_cast<wl_output_transform>(state.transform));
             wlr_output_state_set_adaptive_sync_enabled(extraState.get(), state.adaptiveSyncEnabled);
+
+            if (auto outputItem = qobject_cast<WOutputItem*>(viewport->parentItem())) {
+                QMetaObject::invokeMethod(outputItem, "setTransform",
+                    Q_ARG(QVariant, QVariant::fromValue(static_cast<WOutput::Transform>(state.transform))));
+            }
         }
 
         if (!outputHelper->setExtraState(extraState)) {
