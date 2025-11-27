@@ -2255,20 +2255,17 @@ std::shared_ptr<Session> Helper::ensureSession(int id, uid_t uid)
     // Helper lambda to create WSocket and WXWayland
     auto createWSocket = [this]() {
         // Create WSocket
-        auto socket = new WSocket(false, this);
+        auto socket = new WSocket(true, this);
         if (!socket->autoCreate()) {
             qCCritical(treelandCore) << "Failed to create Wayland socket";
             delete socket;
             return static_cast<WSocket *>(nullptr);
         }
         // Connect signals
-        connect(socket,
-                &WSocket::fullServerNameChanged,
-                this,
-                [this] {
-                    if (m_activeSession.lock())
-                        Q_EMIT socketFileChanged();
-                });
+        connect(socket, &WSocket::fullServerNameChanged, this, [this] {
+            if (m_activeSession.lock())
+                Q_EMIT socketFileChanged();
+        });
         // Add socket to server
         m_server->addSocket(socket);
         return socket;
@@ -2407,11 +2404,12 @@ void Helper::updateActiveUserSession(const QString &username, int id)
         qCWarning(treelandInput) << "Failed to ensure session for user" << username;
         return;
     }
-    do {
-        if (previous == session)
-            break;
+    if (previous != session) {
         // Update active session
         m_activeSession = session;
+        // Clear activated surface
+        setActivatedSurface(nullptr);
+        Q_EMIT activatedSurfaceChanged();
         // Emit signal and update socket enabled state
         if (previous && previous->socket)
             previous->socket->setEnabled(false);
@@ -2419,19 +2417,8 @@ void Helper::updateActiveUserSession(const QString &username, int id)
         Q_EMIT socketFileChanged();
         // Notify session changed through DBus, treeland-sd will listen it to update envs
         Q_EMIT m_treeland->SessionChanged();
-        // Store last active surface of previous session
-        if (previous)
-            previous->lastActivatedSurface = m_activatedSurface;
-        // Restore last activated surface for new session
-        if (session->lastActivatedSurface)
-            setActivatedSurface(session->lastActivatedSurface);
-        else
-            setActivatedSurface(nullptr);
-        Q_EMIT activatedSurfaceChanged();
-    } while (false);
-
-    if (session->socket)
-        qCInfo(treelandCore) << "Listing on:" << session->socket->fullServerName();
+    }
+    qCInfo(treelandCore) << "Listing on:" << session->socket->fullServerName();
 }
 
 /**
