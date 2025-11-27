@@ -36,6 +36,7 @@
 #include "common/treelandlogging.h"
 #include "modules/ddm/ddminterfacev1.h"
 #include "treelandconfig.hpp"
+#include "treelandglobalconfig.hpp"
 #include "core/treeland.h"
 #include "greeter/greeterproxy.h"
 #include "modules/screensaver/screensaverinterfacev1.h"
@@ -209,9 +210,11 @@ Helper::Helper(QObject *parent)
     m_instance = this;
 
     Q_ASSERT(!m_config);
-    m_config = TreelandConfig::createByName("org.deepin.treeland",
-                                            "org.deepin.treeland",
-                                            QString());
+    m_config.reset(TreelandConfig::createByName("org.deepin.treeland",
+                                              "org.deepin.treeland",
+                                              "/dde")); // will update user path in Helper::init
+    m_globalConfig.reset(TreelandGlobalConfig::create("org.deepin.treeland.global",
+                                                      QString()));
 
     m_renderWindow->setColor(Qt::black);
     m_rootSurfaceContainer->setFlag(QQuickItem::ItemIsFocusScope, true);
@@ -301,7 +304,12 @@ Helper *Helper::instance()
 
 TreelandConfig *Helper::config()
 {
-    return m_config;
+    return m_config.get();
+}
+
+TreelandGlobalConfig *Helper::globalConfig()
+{
+    return m_globalConfig.get();
 }
 
 bool Helper::isNvidiaCardPresent()
@@ -1119,8 +1127,6 @@ void Helper::init(Treeland::Treeland *treeland)
     auto engine = qmlEngine();
     m_userModel = engine->singletonInstance<UserModel *>("Treeland", "UserModel");
 
-    engine->rootContext()->setContextProperty("TreelandConfig", m_config);
-
     engine->setContextForObject(m_renderWindow, engine->rootContext());
     engine->setContextForObject(m_renderWindow->contentItem(), engine->rootContext());
     m_rootSurfaceContainer->setQmlEngine(engine);
@@ -1224,9 +1230,9 @@ void Helper::init(Treeland::Treeland *treeland)
     m_personalization = m_server->attach<PersonalizationV1>();
 
     auto updateCurrentUser = [this] {
-        m_config = TreelandConfig::createByName("org.deepin.treeland",
-                                                "org.deepin.treeland",
-                                                "/" + m_userModel->currentUserName());
+        m_config.reset(TreelandConfig::createByName("org.deepin.treeland",
+                                                  "org.deepin.treeland",
+                                                  "/" + m_userModel->currentUserName()));
         auto user = m_userModel->currentUser();
         m_personalization->setUserId(user ? user->UID() : getuid());
     };
