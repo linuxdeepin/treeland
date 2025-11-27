@@ -1218,7 +1218,7 @@ void SurfaceWrapper::onMappedChanged()
     bool mapped = surface()->mapped() && !m_hideByLockScreen;
     if (!m_isProxy) {
         if (mapped) {
-            // createNewOrClose(OPEN_ANIMATION);
+            createNewOrClose(OPEN_ANIMATION);
             if (m_coverContent) {
                 m_coverContent->setVisible(true);
             }
