@@ -120,7 +120,6 @@ public:
     WSocket *socket = nullptr;
     WXWayland *xwayland = nullptr;
     quint32 noTitlebarAtom = XCB_ATOM_NONE;
-    SurfaceWrapper *lastActivatedSurface = nullptr;
 
     ~Session();
 
