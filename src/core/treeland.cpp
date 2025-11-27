@@ -379,7 +379,11 @@ bool Treeland::ActivateWayland(QDBusUnixFileDescriptor _fd)
     pw = getpwuid(uid);
     QString user{ pw->pw_name };
 
-    auto socket = std::make_shared<WSocket>(true);
+    WSocket *sessionSocket = d->helper->waylandSocketForUid(uid);
+    if (!sessionSocket)
+        return false;
+    std::shared_ptr<WSocket> socket = std::make_shared<WSocket>(sessionSocket);
+
     socket->create(fd->fileDescriptor(), false);
 
     auto userModel =
