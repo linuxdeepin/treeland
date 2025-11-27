@@ -19,6 +19,9 @@
 
 #include <xcb/xproto.h>
 
+#include <QList>
+#include <optional>
+
 Q_MOC_INCLUDE(<wtoplevelsurface.h>)
 Q_MOC_INCLUDE(<wxdgsurface.h>)
 Q_MOC_INCLUDE(<qwgammacontorlv1.h>)
@@ -30,6 +33,7 @@ Q_MOC_INCLUDE("modules/capture/capture.h")
 Q_MOC_INCLUDE(<wlayersurface.h>)
 Q_MOC_INCLUDE(<QDBusObjectPath>)
 Q_MOC_INCLUDE("treelandconfig.hpp")
+Q_MOC_INCLUDE("treelandglobalconfig.hpp")
 
 QT_BEGIN_NAMESPACE
 class QQuickItem;
@@ -87,6 +91,7 @@ class WallpaperColorV1;
 class WindowManagementV1;
 class Multitaskview;
 class DDEShellManagerInterfaceV1;
+class PrelaunchSplash;
 class WindowPickerInterface;
 class VirtualOutputV1;
 class ShellHandler;
@@ -99,6 +104,7 @@ class ILockScreen;
 class UserModel;
 class DDMInterfaceV1;
 class TreelandConfig;
+class TreelandGlobalConfig;
 class FpsDisplayManager;
 struct wlr_idle_inhibitor_v1;
 struct wlr_output_power_v1_set_mode_event;
@@ -141,6 +147,7 @@ class Helper : public WSeatEventFilter
     Q_PROPERTY(SurfaceWrapper* activatedSurface READ activatedSurface NOTIFY activatedSurfaceChanged FINAL)
     Q_PROPERTY(Workspace* workspace READ workspace CONSTANT FINAL)
     Q_PROPERTY(TreelandConfig* config READ config CONSTANT FINAL)
+    Q_PROPERTY(TreelandGlobalConfig* globalConfig READ globalConfig CONSTANT FINAL)
     Q_PROPERTY(bool blockActivateSurface READ blockActivateSurface WRITE setBlockActivateSurface NOTIFY blockActivateSurfaceChanged FINAL)
     Q_PROPERTY(bool noAnimation READ noAnimation WRITE setNoAnimation NOTIFY noAnimationChanged FINAL)
     QML_ELEMENT
@@ -168,6 +175,7 @@ public:
 
     static Helper *instance();
     TreelandConfig *config();
+    TreelandGlobalConfig *globalConfig();
 
     QmlEngine *qmlEngine() const;
     WOutputRenderWindow *window() const;
@@ -348,7 +356,8 @@ private:
     bool isXWaylandClient(WClient *client);
 
     static Helper *m_instance;
-    TreelandConfig *m_config = nullptr;
+    std::unique_ptr<TreelandConfig> m_config;
+    std::unique_ptr<TreelandGlobalConfig> m_globalConfig;
     Treeland::Treeland *m_treeland = nullptr;
     FpsDisplayManager *m_fpsManager = nullptr;
 
@@ -393,6 +402,7 @@ private:
     WindowManagementV1 *m_windowManagement = nullptr;
     WindowManagementV1::DesktopState m_showDesktop = WindowManagementV1::DesktopState::Normal;
     DDEShellManagerInterfaceV1 *m_ddeShellV1 = nullptr;
+    PrelaunchSplash *m_prelaunchSplash = nullptr; // treeland prelaunch splash protocol
     VirtualOutputV1 *m_virtualOutput = nullptr;
     OutputManagerV1 *m_outputManagerV1 = nullptr;
     DDMInterfaceV1 *m_ddmInterfaceV1 = nullptr;

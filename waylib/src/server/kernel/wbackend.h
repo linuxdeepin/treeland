@@ -30,8 +30,8 @@ public:
     QW_NAMESPACE::qw_backend *handle() const;
     QW_NAMESPACE::qw_session *session() const;
 
-    QVector<WOutput*> outputList() const;
-    QVector<WInputDevice*> inputDeviceList() const;
+    QList<WOutput*> outputList() const;
+    QList<WInputDevice*> inputDeviceList() const;
 
     bool hasDrm() const;
     bool hasX11() const;

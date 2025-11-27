@@ -74,6 +74,13 @@ dtk_add_config_to_cpp(
 
 dtk_add_config_to_cpp(
     OUTPUT_CONFIG
+    "${PROJECT_SOURCE_DIR}/misc/dconfig/org.deepin.treeland.global.json"
+    OUTPUT_FILE_NAME "treelandglobalconfig.hpp"
+    CLASS_NAME "TreelandGlobalConfig"
+)
+
+dtk_add_config_to_cpp(
+    OUTPUT_CONFIG
     "${PROJECT_SOURCE_DIR}/misc/dconfig/org.deepin.treeland.output.json"
     OUTPUT_FILE_NAME "outputconfig.hpp"
     CLASS_NAME "OutputConfig"
@@ -113,6 +120,7 @@ qt_add_qml_module(libtreeland
         core/treeland.h
         core/windowpicker.cpp
         core/windowpicker.h
+        core/windowsizestore.h
         effects/tquickradiuseffect.cpp
         effects/tquickradiuseffect.h
         effects/tquickradiuseffect_p.h
@@ -205,6 +213,7 @@ qt_add_qml_module(libtreeland
         core/qml/CaptureSelectorLayer.qml
         core/qml/WindowPickerLayer.qml
         core/qml/LockScreenFallback.qml
+        core/qml/PrelaunchSplash.qml
     RESOURCE_PREFIX
         /qt/qml
     OUTPUT_DIRECTORY
