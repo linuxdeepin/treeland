@@ -74,6 +74,13 @@ dtk_add_config_to_cpp(
 
 dtk_add_config_to_cpp(
     OUTPUT_CONFIG
+    "${PROJECT_SOURCE_DIR}/misc/dconfig/org.deepin.treeland.global.json"
+    OUTPUT_FILE_NAME "treelandglobalconfig.hpp"
+    CLASS_NAME "TreelandGlobalConfig"
+)
+
+dtk_add_config_to_cpp(
+    OUTPUT_CONFIG
     "${PROJECT_SOURCE_DIR}/misc/dconfig/org.deepin.treeland.output.json"
     OUTPUT_FILE_NAME "outputconfig.hpp"
     CLASS_NAME "OutputConfig"
