@@ -1,0 +1,79 @@
+name: Build waylib on Deepin crimson (independent)
+
+on:
+  push:
+    paths:
+      - 'waylib/**'
+      - '.github/workflows/waylib-deepin-build.yml'
+
+  pull_request:
+    paths:
+      - 'waylib/**'
+      - '.github/workflows/waylib-deepin-build.yml'
+
+jobs:
+  container:
+    runs-on: ubuntu-latest
+    container: linuxdeepin/deepin:crimson
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build qwlroots first
+        working-directory: qwlroots
+        run: |
+          set -euxo pipefail
+
+          echo "deb [trusted=yes] http://mirrors.kernel.org/deepin/beige/ crimson main commercial community" > /etc/apt/sources.list
+          echo "deb-src [trusted=yes] http://mirrors.kernel.org/deepin/beige/ crimson main commercial community" >> /etc/apt/sources.list
+          rm -rf /etc/apt/sources.list.d
+
+          apt-get update
+          apt-get install -y devscripts equivs git
+          apt-get install -y --allow-unauthenticated wlr-protocols || true
+
+          # Install qwlroots build dependencies
+          mk-build-deps --install --remove --tool='apt-get -o Debug::pkgProblemResolver=yes --no-install-recommends --yes' debian/control
+
+          # Build qwlroots deb package
+          dpkg-buildpackage -uc -us -b
+          echo "✅ qwlroots deb package built successfully!"
+          ls -la ../*.deb
+
+      - name: Install qwlroots deb package
+        run: |
+          set -euxo pipefail
+          dpkg -i qwlroots*.deb || apt-get install -f -y
+          echo "✅ qwlroots package installed!"
+
+      - name: Install build dependencies
+        working-directory: waylib
+        run: |
+          set -euxo pipefail
+          apt-get update
+          apt-get install -y devscripts equivs
+
+          # Install wlr-protocols package directly (ignore auth for this one operation)
+          apt-get install -y --allow-unauthenticated wlr-protocols || true
+
+          mk-build-deps --install --remove --tool='apt-get -o Debug::pkgProblemResolver=yes --no-install-recommends --yes' debian/control
+
+      - name: Build waylib deb package
+        working-directory: waylib
+        run: |
+          set -euxo pipefail
+          # Disable qwlroots submodule, use system-installed qwlroots package
+          sed -i 's/-DCMAKE_INSTALL_PREFIX=\/usr/-DCMAKE_INSTALL_PREFIX=\/usr -DWITH_SUBMODULE_QWLROOTS=OFF/' debian/rules
+          echo "Modified debian/rules to disable qwlroots submodule:"
+          cat debian/rules
+
+          dpkg-buildpackage -uc -us -b
+          echo "✅ waylib deb package built successfully!"
+          ls -la ../*.deb
+
+      - name: Upload waylib deb packages as artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: waylib-deepin-deb-packages
+          path: "*.deb"
+          if-no-files-found: error
+          retention-days: 30
