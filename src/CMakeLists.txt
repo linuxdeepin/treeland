@@ -134,6 +134,8 @@ qt_add_qml_module(libtreeland
         input/inputdevice.h
         input/togglablegesture.cpp
         input/togglablegesture.h
+        input/workspaceswipe.cpp
+        input/workspaceswipe.h
         interfaces/baseplugininterface.h
         interfaces/lockscreeninterface.h
         interfaces/multitaskviewinterface.h
