@@ -118,8 +118,8 @@ static void onServiceUnregistered(const QString &service) {
 }
 
 static void onServiceOwnerChanged(const QString &service,
-                                  const QString &oldOwner,
-                                  const QString &newOwner) {
+                                  [[maybe_unused]] const QString &oldOwner,
+                                  [[maybe_unused]] const QString &newOwner) {
     DISCONNECTED(service);
 }
 
