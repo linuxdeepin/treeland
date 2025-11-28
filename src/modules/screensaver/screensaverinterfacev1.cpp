@@ -11,12 +11,12 @@
 
 // request implementation
 
-static void inhibit(struct wl_client *client, struct wl_resource *resource, const char *appName, const char *reason) {
+static void inhibit([[maybe_unused]] struct wl_client *client, struct wl_resource *resource, const char *appName, const char *reason) {
     auto screensaver = static_cast<ScreensaverInterfaceV1 *>(wl_resource_get_user_data(resource));
     screensaver->inhibit(resource, appName, reason);
 }
 
-static void uninhibit(struct wl_client *client, struct wl_resource *resource) {
+static void uninhibit([[maybe_unused]] struct wl_client *client, struct wl_resource *resource) {
     auto screensaver = static_cast<ScreensaverInterfaceV1 *>(wl_resource_get_user_data(resource));
     screensaver->uninhibit(resource);
 }
