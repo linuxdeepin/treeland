@@ -18,7 +18,18 @@ OutputItem {
         id: cursorItem
 
         required property QtObject outputCursor
-        readonly property point position: parent.mapFromGlobal(cursor.position.x, cursor.position.y)
+        readonly property point rawPosition: parent.mapFromGlobal(cursor.position.x, cursor.position.y)
+        readonly property real effectiveScale: rootOutputItem.devicePixelRatio || 1.0
+
+        // Align cursor position to pixel grid to prevent blur on fractional DPR displays
+        function alignToPixelGrid(value) {
+            return Math.round(value * effectiveScale) / effectiveScale
+        }
+
+        readonly property point position: Qt.point(
+            alignToPixelGrid(rawPosition.x),
+            alignToPixelGrid(rawPosition.y)
+        )
 
         cursor: outputCursor.cursor
         output: outputCursor.output.output
@@ -32,7 +43,8 @@ OutputItem {
         OutputLayer.cursorHotSpot: hotSpot
 
         themeName: Helper.config.cursorThemeName
-        sourceSize: Qt.size(Helper.config.cursorSize, Helper.config.cursorSize)
+        // Scale-aware cursor size: automatically updates when output scale changes
+        sourceSize: Qt.size(Helper.config.cursorSize * effectiveScale, Helper.config.cursorSize * effectiveScale)
     }
 
     OutputViewport {

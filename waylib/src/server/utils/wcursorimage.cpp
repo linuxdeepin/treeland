@@ -643,6 +643,7 @@ void WCursorImage::setScale(float newScale)
     if (d->manager)
         d->manager->load(d->scale);
 
+    d->updateCursorImage();
     Q_EMIT scaleChanged();
 }
 
