@@ -7,6 +7,7 @@
     </method>
     <method name="XWaylandName">
       <arg type="s" direction="out" name="result"/>
+      <arg type="ay" direction="out" name="auth"/>
     </method>
     <signal name="SessionChanged">
     </signal>

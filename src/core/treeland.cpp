@@ -3,7 +3,6 @@
 
 #include "treeland.h"
 
-#include "compositor1adaptor.h"
 #include "treelandconfig.hpp"
 #include "core/qmlengine.h"
 #include "greeter/usermodel.h"
@@ -12,6 +11,7 @@
 #include "seat/helper.h"
 #include "utils/cmdline.h"
 #include "common/treelandlogging.h"
+#include "common/constants.h"
 
 #include <qqml.h>
 
@@ -34,6 +34,9 @@ using namespace DDM;
 #include <wxwayland.h>
 
 #include <QCoreApplication>
+#include <QDBusConnection>
+#include <QDBusConnectionInterface>
+#include <QDBusMessage>
 #include <QDebug>
 #include <QLocalSocket>
 #include <QLoggingCategory>
@@ -79,6 +82,8 @@ public:
         connect(qmlEngine, &QQmlEngine::quit, q, &Treeland::quit, Qt::QueuedConnection);
         helper = qmlEngine->singletonInstance<Helper *>("Treeland", "Helper");
         connect(helper, &Helper::requestQuit, q, &Treeland::quit, Qt::QueuedConnection);
+
+        qputenv("WLR_XWAYLAND", QByteArray(LIBEXEC_DIR) + "/treeland-xwayland");
         helper->init(q);
 
 #ifndef DISABLE_DDM
@@ -305,14 +310,16 @@ Treeland::Treeland()
         }
     }
 
-    new Compositor1Adaptor(this);
-
     // init dbus after QML engine loaded.
     QDBusConnection::systemBus().registerService("org.deepin.Compositor1");
-    QDBusConnection::systemBus().registerObject("/org/deepin/Compositor1", this);
+    QDBusConnection::systemBus().registerObject("/org/deepin/Compositor1",
+                                                this,
+                                                QDBusConnection::ExportAllSlots);
 
     QDBusConnection::sessionBus().registerService("org.deepin.Compositor1");
-    QDBusConnection::sessionBus().registerObject("/org/deepin/Compositor1", this);
+    QDBusConnection::sessionBus().registerObject("/org/deepin/Compositor1",
+                                                 this,
+                                                 QDBusConnection::ExportAllSlots);
 
 #ifdef QT_DEBUG
     QDir dir(QStringLiteral(TREELAND_PLUGINS_OUTPUT_PATH));
@@ -409,7 +416,7 @@ bool Treeland::ActivateWayland(QDBusUnixFileDescriptor _fd)
     return true;
 }
 
-QString Treeland::XWaylandName()
+void Treeland::XWaylandName()
 {
     Q_D(Treeland);
 
@@ -428,43 +435,20 @@ QString Treeland::XWaylandName()
         auto reply = m.createErrorReply(QDBusError::InternalError,
                                         "Failed to prepare XWayland session");
         conn.send(reply);
-        return {};
+        return;
     }
     const QString &display = xwayland->displayName();
 
-    QProcess *process = new QProcess(this);
-    connect(process, &QProcess::finished, [process, m, conn, user, display] {
-        if (process->exitCode() != 0) {
-            qCWarning(treelandDBus) << "xhost command failed with exit code" << process->exitCode()
-                               << process->readAllStandardOutput()
-                               << process->readAllStandardError();
-            auto reply =
-                m.createErrorReply(QDBusError::InternalError, "Failed to set xhost permissions");
-            conn.send(reply);
-        } else {
-            qCDebug(treelandDBus) << process->exitCode() << " " << process->readAllStandardOutput()
-                             << process->readAllStandardError();
-            qCDebug(treelandDBus) << QString("user %1 got xwayland display %2.").arg(user).arg(display);
-            auto reply = m.createReply(display);
-            conn.send(reply);
-        }
-        process->deleteLater();
-    });
+    QFile authFile(QStringLiteral("/tmp/.xauth_%1").arg(display));
+    if (!authFile.open(QIODevice::ReadOnly)) {
+        conn.send(m.createErrorReply(QDBusError::InternalError, "Failed to open xauth file"));
+        return;
+    }
 
-    connect(process, &QProcess::errorOccurred, [this, m, conn] {
-        auto reply =
-            m.createErrorReply(QDBusError::InternalError, "Failed to set xhost permissions");
-        conn.send(reply);
-    });
-
-    auto env = QProcessEnvironment::systemEnvironment();
-    env.insert("DISPLAY", display);
-    process->setProcessEnvironment(env);
-    process->setProgram("xhost");
-    process->setArguments({ QString("+si:localuser:%1").arg(user) });
-    process->start();
-
-    return {};
+    QVariantList result;
+    result << QVariant(display) << QVariant(authFile.readAll());
+    conn.send(m.createReply(result));
+    return;
 }
 
 void Treeland::quit()
