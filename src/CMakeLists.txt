@@ -25,7 +25,7 @@ pkg_search_module(XCB REQUIRED IMPORTED_TARGET xcb)
 pkg_check_modules(PAM REQUIRED IMPORTED_TARGET pam)
 # qt_finalize_target will collect all executable's private dependencies that are CMake targets
 
-qt_add_dbus_adaptor(DBUS_ADAPTOR "${CMAKE_SOURCE_DIR}/misc/dbus/org.deepin.compositor1.xml" "core/treeland.h" Treeland::Treeland)
+configure_file("common/constants.h.in" "common/constants.h" IMMEDIATE @ONLY)
 
 set_source_files_properties("${CMAKE_SOURCE_DIR}/misc/interfaces/org.freedesktop.DisplayManager.xml" PROPERTIES
     NO_NAMESPACE ON
@@ -92,7 +92,6 @@ qt_add_qml_module(libtreeland
     VERSION "2.0"
 
     SOURCES
-        ${DBUS_ADAPTOR}
         ${DDM_DBUS_SOURCES}
         ${DBUS_INTERFACE}
         ${TREELAND_CONFIG}
@@ -348,3 +347,19 @@ target_link_libraries(treeland-sd
 )
 
 install(TARGETS treeland-sd RUNTIME DESTINATION "${CMAKE_INSTALL_LIBEXECDIR}")
+
+## XWayland wrapper
+
+pkg_check_modules(LIBXAU REQUIRED IMPORTED_TARGET "xau")
+
+qt_add_executable(treeland-xwayland
+    xwayland.cpp
+)
+
+target_link_libraries(treeland-xwayland
+    PRIVATE
+        Qt6::Core
+        PkgConfig::LIBXAU
+)
+
+install(TARGETS treeland-xwayland RUNTIME DESTINATION "${CMAKE_INSTALL_LIBEXECDIR}")

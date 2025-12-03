@@ -30,6 +30,20 @@ class Treeland
 {
     Q_OBJECT
     Q_DECLARE_PRIVATE(Treeland)
+    Q_CLASSINFO("D-Bus Interface", "org.deepin.Compositor1")
+    Q_CLASSINFO("D-Bus Introspection",
+                "  <interface name=\"org.deepin.Compositor1\">\n"
+                "    <method name=\"ActivateWayland\">\n"
+                "      <arg direction=\"in\" type=\"h\" name=\"fd\"/>\n"
+                "      <arg direction=\"out\" type=\"b\" name=\"result\"/>\n"
+                "    </method>\n"
+                "    <method name=\"XWaylandName\">\n"
+                "      <arg direction=\"out\" type=\"s\" name=\"result\"/>\n"
+                "      <arg direction=\"out\" type=\"ay\" name=\"auth\"/>\n"
+                "    </method>\n"
+                "    <signal name=\"SessionChanged\"/>\n"
+                "  </interface>\n"
+                "")
 
 public:
     explicit Treeland();
@@ -47,7 +61,7 @@ Q_SIGNALS:
 
 public Q_SLOTS:
     bool ActivateWayland(QDBusUnixFileDescriptor fd);
-    QString XWaylandName();
+    void XWaylandName();
 
 private:
     void quit();
