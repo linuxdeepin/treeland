@@ -256,10 +256,10 @@ QQuickItem *QmlEngine::createFpsDisplay(QQuickItem *parent)
     return createComponent(fpsDisplayComponent, parent);
 }
 
-QQuickItem *QmlEngine::createPrelaunchSplash(QQuickItem *parent, const QString &logoPath, qreal initialRadius)
+QQuickItem *QmlEngine::createPrelaunchSplash(QQuickItem *parent, qreal initialRadius, QW_NAMESPACE::qw_buffer *iconBuffer)
 {
     return createComponent(prelaunchSplashComponent, parent, {
-         { "logoPath", QVariant::fromValue(logoPath) },
          { "initialRadius", QVariant::fromValue(initialRadius) },
+         { "iconBuffer", QVariant::fromValue(iconBuffer) },
     });
 }
