@@ -8,10 +8,12 @@
 #include <wserver.h>
 
 #include <qwdisplay.h>
+#include <qwbuffer.h>
 
 #include <QByteArray>
 #include <QLoggingCategory>
 #include <qloggingcategory.h>
+#include <QMetaType>
 
 #include <memory>
 
@@ -44,12 +46,14 @@ protected:
     void treeland_prelaunch_splash_manager_v1_create_splash(
         Resource *resource,
         const QString &app_id,
-        const QString &sandboxEngineName) override
+        const QString &sandboxEngineName,
+        struct ::wl_resource *icon_buffer) override
     {
         Q_UNUSED(resource);
-        qCWarning(prelaunchSplash)
-            << "create_splash request from sandbox=" << sandboxEngineName << " app_id=" << app_id;
-        Q_EMIT q->splashRequested(app_id);
+        qCInfo(prelaunchSplash)
+            << "create_splash request sandbox=" << sandboxEngineName << " app_id=" << app_id;
+        auto qb = icon_buffer ? QW_NAMESPACE::qw_buffer::try_from_resource(icon_buffer) : nullptr;
+        Q_EMIT q->splashRequested(app_id, qb);
     }
 
 private:
@@ -60,6 +64,7 @@ PrelaunchSplash::PrelaunchSplash(QObject *parent)
     : QObject(parent)
     , d(new PrelaunchSplashPrivate(this))
 {
+    qRegisterMetaType<QW_NAMESPACE::qw_buffer*>("QW_NAMESPACE::qw_buffer*");
 }
 
 PrelaunchSplash::~PrelaunchSplash() = default;

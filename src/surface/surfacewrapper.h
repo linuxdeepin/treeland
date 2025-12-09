@@ -4,6 +4,7 @@
 
 #include <wsurfaceitem.h>
 #include <wtoplevelsurface.h>
+#include <qwglobal.h>
 
 #include <QList>
 #include <QPointer>
@@ -18,6 +19,9 @@ WAYLIB_SERVER_USE_NAMESPACE
 class QmlEngine;
 class Output;
 class SurfaceContainer;
+QW_BEGIN_NAMESPACE
+class qw_buffer;
+QW_END_NAMESPACE
 
 class SurfaceWrapper : public QQuickItem
 {
@@ -131,7 +135,8 @@ public:
     explicit SurfaceWrapper(QmlEngine *qmlEngine,
                             QQuickItem *parent,
                             const QSize &initialSize,
-                            const QString &appId);
+                            const QString &appId,
+                            QW_NAMESPACE::qw_buffer *iconBuffer = nullptr);
 
     void setFocus(bool focus, Qt::FocusReason reason);
 

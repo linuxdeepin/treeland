@@ -101,7 +101,7 @@ SurfaceWrapper::SurfaceWrapper(SurfaceWrapper *original,
 }
 
 // Constructor used for the prelaunch splash
-SurfaceWrapper::SurfaceWrapper(QmlEngine *qmlEngine, QQuickItem *parent, const QSize &initialSize, const QString &appId)
+SurfaceWrapper::SurfaceWrapper(QmlEngine *qmlEngine, QQuickItem *parent, const QSize &initialSize, const QString &appId, QW_NAMESPACE::qw_buffer *iconBuffer)
     : QQuickItem(parent)
     , m_engine(qmlEngine)
     , m_shellSurface(nullptr)
@@ -135,7 +135,7 @@ SurfaceWrapper::SurfaceWrapper(QmlEngine *qmlEngine, QQuickItem *parent, const Q
     } else {
         setImplicitSize(800, 600);
     }
-    m_prelaunchSplash = m_engine->createPrelaunchSplash(this, QString(), radius());
+    m_prelaunchSplash = m_engine->createPrelaunchSplash(this, radius(), iconBuffer);
     m_prelaunchSplash->setZ(99999);
     // Connect to QML signal so C++ can destroy the QML item when requested
     connect(m_prelaunchSplash,
