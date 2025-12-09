@@ -5,10 +5,9 @@
 
 #include <QObject>
 
-class qw_display;
-
 #include <wayland-server-core.h>
 #include <wserver.h>
+#include <qwbuffer.h>
 
 #include <memory>
 
@@ -21,7 +20,9 @@ class WServer;
 
 QW_BEGIN_NAMESPACE
 class qw_display;
+class qw_buffer;
 QW_END_NAMESPACE
+Q_DECLARE_OPAQUE_POINTER(QW_NAMESPACE::qw_buffer*)
 
 class PrelaunchSplashPrivate;
 struct wl_global;
@@ -36,7 +37,7 @@ public:
     ~PrelaunchSplash() override;
 
 Q_SIGNALS:
-    void splashRequested(const QString &appId);
+    void splashRequested(const QString &appId, QW_NAMESPACE::qw_buffer *iconBuffer);
 
 protected: // WServerInterface
     void create(WAYLIB_SERVER_NAMESPACE::WServer *server) override;

@@ -14,6 +14,10 @@
 
 Q_MOC_INCLUDE("workspace/workspace.h")
 
+QW_BEGIN_NAMESPACE
+class qw_buffer;
+QW_END_NAMESPACE
+
 class Helper;
 class SurfaceWrapper;
 class RootSurfaceContainer;
@@ -101,7 +105,7 @@ private:
     void setResourceManagerAtom(WAYLIB_SERVER_NAMESPACE::WXWayland *xwayland,
                                 const QByteArray &value);
     // 预启动闪屏相关：在 PrelaunchSplash::splashRequested 时创建的预启动 SurfaceWrapper
-    void handlePrelaunchSplashRequested(const QString &appId);
+    void handlePrelaunchSplashRequested(const QString &appId, QW_NAMESPACE::qw_buffer *iconBuffer);
 
     // --- helpers (internal) ---
     SurfaceWrapper *matchOrCreateXdgWrapper(WAYLIB_SERVER_NAMESPACE::WXdgToplevelSurface *surface,
