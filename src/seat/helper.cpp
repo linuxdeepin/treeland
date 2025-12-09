@@ -1161,9 +1161,9 @@ void Helper::init(Treeland::Treeland *treeland)
     connect(m_prelaunchSplash,
             &PrelaunchSplash::splashRequested,
             m_shellHandler,
-            [this](const QString &appId) {
+            [this](const QString &appId, QW_NAMESPACE::qw_buffer *iconBuffer) {
                 if (m_shellHandler)
-                    m_shellHandler->handlePrelaunchSplashRequested(appId);
+                m_shellHandler->handlePrelaunchSplashRequested(appId, iconBuffer);
             });
     connect(m_ddeShellV1, &DDEShellManagerInterfaceV1::toggleMultitaskview, this, [this] {
         if (m_multitaskView) {
