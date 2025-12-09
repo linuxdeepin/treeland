@@ -3,14 +3,15 @@
 
 import QtQuick
 import QtQuick.Controls
+import Waylib.Server 1.0
 
 // PrelaunchSplash: minimalist standalone component with a white background and a centered logo.
 // Created and managed by SurfaceWrapper; no window decorations (no border, no shadow).
 Item {
     id: splash
 
-    required property string logoPath
     required property real initialRadius
+    property var iconBuffer
     property bool destroyAfterFade: false
     signal destroyRequested
 
@@ -23,22 +24,27 @@ Item {
         anchors.fill: parent
         radius: initialRadius
 
-        // Centered logo
-        Image {
-            id: logoImage
-            source: splash.logoPath
+        // Centered logo: prefer provided icon buffer; fallback to image / placeholder
+        Item {
+            id: logoContainer
             width: 128
             height: 128
             anchors.centerIn: parent
-            fillMode: Image.PreserveAspectFit
-            
-            // Fallback if image doesn't exist
+
+            BufferItem {
+                anchors.fill: parent
+                visible: !!splash.iconBuffer
+                buffer: splash.iconBuffer
+                smooth: true
+            }
+
+            // Fallback placeholder when no icon buffer is provided
             Rectangle {
                 anchors.fill: parent
+                visible: !splash.iconBuffer
                 color: "#4CAF50"
-                radius: 64
-                visible: logoImage.status !== Image.Ready
-                
+                radius: width / 2
+
                 Text {
                     anchors.centerIn: parent
                     text: "App"

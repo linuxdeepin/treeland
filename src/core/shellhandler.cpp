@@ -95,7 +95,7 @@ void ShellHandler::updateWrapperContainer(SurfaceWrapper *wrapper,
 }
 
 // Prelaunch splash request: create a SurfaceWrapper that is not yet bound to a shellSurface
-void ShellHandler::handlePrelaunchSplashRequested(const QString &appId)
+void ShellHandler::handlePrelaunchSplashRequested(const QString &appId, QW_NAMESPACE::qw_buffer *iconBuffer)
 {
     if (!Helper::instance()->globalConfig()->enablePrelaunchSplash())
         return;
@@ -117,7 +117,7 @@ void ShellHandler::handlePrelaunchSplashRequested(const QString &appId)
             initialSize = last;
         }
     }
-    auto *wrapper = new SurfaceWrapper(Helper::instance()->qmlEngine(), nullptr, initialSize, appId);
+    auto *wrapper = new SurfaceWrapper(Helper::instance()->qmlEngine(), nullptr, initialSize, appId, iconBuffer);
     m_workspace->addSurface(wrapper);
     m_prelaunchWrappers.append(wrapper);
 
