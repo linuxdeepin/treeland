@@ -518,6 +518,46 @@ void Helper::setGamma(struct wlr_gamma_control_manager_v1_set_gamma_event *event
     }
 }
 
+void Helper::handleCopyModeOutputDisable(Output *affectedOutput)
+{
+    int affectedIndex = m_outputList.indexOf(affectedOutput);
+    if (affectedIndex < 0) {
+        qCWarning(treelandCore) << "Disabled output not found in m_outputList";
+        return;
+    }
+
+    m_mode = OutputMode::Extension;
+    Q_EMIT outputModeChanged();
+
+    // Convert CopyOutputs to Normal outputs (independent displays)
+    // Keep the disabled output in the list - it will receive disable state through normal wlroots flow
+    Output *primaryCandidate = nullptr;
+    const auto &surfaces = getWorkspaceSurfaces(affectedOutput);
+    for (int i = 0; i < m_outputList.size(); i++) {
+        if (i == affectedIndex) {
+            continue;
+        }
+
+        Output *copyOutput = m_outputList.at(i);
+        Output *normalOutput = createNormalOutput(copyOutput->output());
+        normalOutput->enable();
+        copyOutput->deleteLater();
+        m_outputList.replace(i, normalOutput);
+
+        if (!primaryCandidate) {
+            primaryCandidate = normalOutput;
+        }
+    }
+
+    if (primaryCandidate) {
+        if (!surfaces.isEmpty()) {
+            moveSurfacesToOutput(surfaces, primaryCandidate, affectedOutput);
+        }
+        m_rootSurfaceContainer->setPrimaryOutput(primaryCandidate);
+    }
+}
+
+
 void Helper::onOutputTestOrApply(qw_output_configuration_v1 *config, bool onlyTest)
 {
     QList<WOutputState> states = m_outputManager->stateListPending();
@@ -560,12 +600,31 @@ void Helper::onOutputTestOrApply(qw_output_configuration_v1 *config, bool onlyTe
         m_outputManager->sendResult(m_pendingOutputConfig.config, false);
     }
 
+    // Handle Copy Mode transition when primary output is disabled
+    if (m_mode == OutputMode::Copy) {
+        for (const auto &state : std::as_const(states)) {
+            if (!state.enabled) {
+                Output *affectedOutput = getOutput(state.output);
+                if (affectedOutput && affectedOutput == m_rootSurfaceContainer->primaryOutput()) {
+                    handleCopyModeOutputDisable(affectedOutput);
+                    break;
+                }
+            }
+        }
+    }
+
     m_pendingOutputConfig.config = config;
     m_pendingOutputConfig.states = states;
     m_pendingOutputConfig.pendingCommits = 0;
     m_pendingOutputConfig.allSuccess = true;
 
     for (const auto &state : std::as_const(states)) {
+        // Skip outputs that have been removed (e.g., disabled in Copy mode)
+        Output *output = getOutput(state.output);
+        if (!output) {
+            continue;
+        }
+
         WOutputViewport *viewport = getOwnOutputViewport(state.output);
         if (!viewport) {
             m_outputManager->sendResult(config, false);
