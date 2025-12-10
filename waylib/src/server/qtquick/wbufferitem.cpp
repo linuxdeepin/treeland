@@ -11,9 +11,12 @@
 #include <QQuickWindow>
 #include <QSGImageNode>
 #include <QThread>
+#include <QLoggingCategory>
 #include <private/qquickitem_p.h>
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
+
+Q_LOGGING_CATEGORY(waylibBufferItem, "waylib.server.qtquick.bufferitem", QtInfoMsg)
 
 class Q_DECL_HIDDEN WBufferItemPrivate : public QQuickItemPrivate
 {
@@ -91,9 +94,25 @@ QW_NAMESPACE::qw_buffer *WBufferItem::buffer() const
     return d->buffer.get();
 }
 
+QVariant WBufferItem::bufferVariant() const
+{
+    W_DC(WBufferItem);
+    return QVariant::fromValue(d->buffer.get());
+}
+
+void WBufferItem::setBufferVariant(const QVariant &buffer)
+{
+    setBuffer(buffer.value<QW_NAMESPACE::qw_buffer*>());
+}
+
 void WBufferItem::setBuffer(QW_NAMESPACE::qw_buffer *buffer)
 {
     W_D(WBufferItem);
+
+    qCDebug(waylibBufferItem) << "setBuffer" << buffer
+                              << "w" << (buffer ? buffer->handle()->width : -1)
+                              << "h" << (buffer ? buffer->handle()->height : -1)
+                              << "locks" << (buffer ? buffer->handle()->n_locks : -1);
 
     if (d->buffer.get() == buffer)
         return;
@@ -120,13 +139,20 @@ QSGNode *WBufferItem::updatePaintNode(QSGNode *oldNode, UpdatePaintNodeData *)
     W_D(WBufferItem);
 
     auto tp = wTextureProvider();
-    if (!tp)
+    if (!tp) {
+        qCWarning(waylibBufferItem) << "wTextureProvider() is nullptr";
         return nullptr;
+    }
 
     // Refresh provider with the latest buffer.
     tp->setBuffer(d->buffer.get());
 
     if (!tp->texture() || width() <= 0 || height() <= 0) {
+        qCWarning(waylibBufferItem) << "texture missing or item size invalid"
+                                    << "buffer" << d->buffer.get()
+                                    << "bufW" << (d->buffer.get() ? d->buffer.get()->handle()->width : -1)
+                                    << "bufH" << (d->buffer.get() ? d->buffer.get()->handle()->height : -1)
+                                    << "itemW" << width() << "itemH" << height();
         delete oldNode;
         return nullptr;
     }
@@ -138,6 +164,8 @@ QSGNode *WBufferItem::updatePaintNode(QSGNode *oldNode, UpdatePaintNodeData *)
     }
 
     auto texture = tp->texture();
+    qCDebug(waylibBufferItem) << "updatePaintNode" << "texSize" << texture->textureSize()
+                              << "itemSize" << size();
     node->setTexture(texture);
     node->setSourceRect(QRectF(QPointF(), texture->textureSize()));
     node->setRect(QRectF(QPointF(), size()));
