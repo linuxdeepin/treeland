@@ -58,7 +58,7 @@ void SurfaceProxy::setSurface(SurfaceWrapper *newSurface)
             }
             item->setDelegate(m_sourceSurface->surfaceItem()->delegate());
         } else {
-            // TODO(rewine): log error?
+            // TODO(rewine): setup item after WSurfaceItem is created
         }
         m_sourceConnections << connect(m_sourceSurface, &SurfaceWrapper::destroyed, this, [this] {
             Q_ASSERT(m_proxySurface);

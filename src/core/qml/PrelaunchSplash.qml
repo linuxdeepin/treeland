@@ -5,8 +5,7 @@ import QtQuick
 import QtQuick.Controls
 import Waylib.Server 1.0
 
-// PrelaunchSplash: minimalist standalone component with a white background and a centered logo.
-// Created and managed by SurfaceWrapper; no window decorations (no border, no shadow).
+// Pre-launch splash QML item that can be shown before an application's main window appears.
 Item {
     id: splash
 

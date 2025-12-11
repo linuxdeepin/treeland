@@ -1,5 +1,5 @@
-// Copyright (C) 2025
-// SPDX-License-Identifier: Apache-2.0
+// Copyright (C) 2025 UnionTech Software Technology Co., Ltd.
+// SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "wbufferitem.h"
 
@@ -69,7 +69,8 @@ WSGTextureProvider *WBufferItem::wTextureProvider() const
 
     auto w = qobject_cast<WOutputRenderWindow*>(d->window);
     if (!w || !d->sceneGraphRenderContext() || QThread::currentThread() != d->sceneGraphRenderContext()->thread()) {
-        qWarning("WQuickCursor::textureProvider: can only be queried on the rendering thread of an WOutputRenderWindow");
+        qCWarning(waylibBufferItem)
+            << "WBufferItem::wTextureProvider can only be queried on the rendering thread of a WOutputRenderWindow";
         return nullptr;
     }
 
@@ -109,13 +110,19 @@ void WBufferItem::setBuffer(QW_NAMESPACE::qw_buffer *buffer)
 {
     W_D(WBufferItem);
 
-    qCDebug(waylibBufferItem) << "setBuffer" << buffer
-                              << "w" << (buffer ? buffer->handle()->width : -1)
-                              << "h" << (buffer ? buffer->handle()->height : -1)
-                              << "locks" << (buffer ? buffer->handle()->n_locks : -1);
-
     if (d->buffer.get() == buffer)
         return;
+
+    // Validate buffer basic attributes before locking to avoid holding unusable buffers.
+    if (buffer) {
+        auto *h = buffer->handle();
+        if (!h || h->width <= 0 || h->height <= 0) {
+            qCWarning(waylibBufferItem) << "Reject buffer with invalid size or handle"
+                                        << buffer << "w" << (h ? h->width : -1)
+                                        << "h" << (h ? h->height : -1);
+            return;
+        }
+    }
 
     if (buffer)
         buffer->lock();
@@ -193,8 +200,7 @@ void WBufferItem::itemChange(ItemChange change, const ItemChangeData &data)
 void WBufferItem::invalidateSceneGraph()
 {
     W_D(WBufferItem);
-    if (d->textureProvider)
-        delete d->textureProvider;
+    delete d->textureProvider; // safe on nullptr
     d->textureProvider = nullptr;
 }
 

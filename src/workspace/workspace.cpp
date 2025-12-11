@@ -101,11 +101,7 @@ void Workspace::addSurface(SurfaceWrapper *surface, int workspaceId)
     if (!surface->ownsOutput())
         surface->setOwnsOutput(rootContainer()->primaryOutput());
 
-    // if (surface->type() != SurfaceWrapper::Type::Undetermined) {
     model->addSurface(surface);
-    //} else {
-    //    surface->setWorkspaceId(-10);
-    // }
     surface->setHasInitializeContainer(true);
 }
 
@@ -133,12 +129,6 @@ void Workspace::moveModelTo(int workspaceId, int destinationIndex)
 void Workspace::removeSurface(SurfaceWrapper *surface)
 {
     surface->setHasInitializeContainer(false);
-
-    // if (surface->workspaceId() == -10) {
-    //     surface->setWorkspaceId(-1);
-    //     SurfaceContainer::removeSurface(surface);
-    //    return;
-    // }
 
     WorkspaceModel *from = nullptr;
     if (surface->showOnAllWorkspace())

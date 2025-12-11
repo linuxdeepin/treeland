@@ -135,13 +135,12 @@ private:
     // Need to find a better way to handle popup click events
     SurfaceContainer *m_popupContainer = nullptr;
     QObject *m_windowMenu = nullptr;
-    // 保存预启动(尚未绑定真实 shellSurface) 的 wrapper 列表
+    // Prelaunch wrappers created before binding to a real shell surface
     QVector<SurfaceWrapper *> m_prelaunchWrappers;
-    // Pending toplevel surfaces (XDG or XWayland) awaiting asynchronous AppId resolve.
-    // A callback only proceeds if the surface pointer is still present in this list.
+    // Pending toplevel surfaces (XDG or XWayland) awaiting async AppId resolve; callbacks continue only if the pointer remains in this list
     QVector<WAYLIB_SERVER_NAMESPACE::WToplevelSurface *> m_pendingAppIdResolveToplevels;
     // New protocol based app id resolver (optional, may be null if module not loaded)
     AppIdResolverManager *m_appIdResolverManager = nullptr;
-    WindowSizeStore *m_windowSizeStore = nullptr; // 持久化窗口尺寸
+    WindowSizeStore *m_windowSizeStore = nullptr;
 };
 
