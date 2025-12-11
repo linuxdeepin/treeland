@@ -1,10 +1,12 @@
+// Copyright (C) 2025 UnionTech Software Technology Co., Ltd.
+// SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 #pragma once
+
 #include <QObject>
 #include <QSize>
-#include <QSettings>
 #include <QHash>
 
-// 简单窗口尺寸持久化：根据 appId 记录最后一次正常关闭(销毁)时的 normalGeometry 尺寸
+// Simple window size persistence: records normalGeometry size at last normal close (destruction) based on appId  
 class WindowSizeStore : public QObject {
 public:
     explicit WindowSizeStore(QObject *parent = nullptr)
@@ -25,5 +27,6 @@ public:
         m_settings.sync();
     }
 private:
-    mutable QSettings m_settings; // org/app 形式，写入 XDG_CONFIG_HOME
+    // TODO(rewine): use dconfig
+    mutable QSettings m_settings;
 };

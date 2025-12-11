@@ -67,8 +67,8 @@ SurfaceWrapper::SurfaceWrapper(QmlEngine *qmlEngine,
 }
 
 SurfaceWrapper::SurfaceWrapper(SurfaceWrapper *original,
-                              QQuickItem *parent)
-                                  : QQuickItem(parent)
+                               QQuickItem *parent)
+    : QQuickItem(parent)
     , m_engine(original->m_engine)
     , m_shellSurface(original->m_shellSurface)
     , m_type(original->m_type)
@@ -381,6 +381,7 @@ void SurfaceWrapper::convertToNormalSurface(WToplevelSurface *shellSurface, Type
     updateTitleBar();
     updateDecoration();
 
+    Q_ASSERT(m_prelaunchSplash);
     QMetaObject::invokeMethod(m_prelaunchSplash, "hideAndDestroy", Qt::QueuedConnection);
 }
 
@@ -847,9 +848,13 @@ void SurfaceWrapper::setNoDecoration(bool newNoDecoration)
         return;
 
     m_noDecoration = newNoDecoration;
-    if (m_type != Type::Undetermined) {
-        updateDecoration(); // Prelaunch mode does not call
+
+    if (m_type == Type::Undetermined) {
+        Q_EMIT noDecorationChanged();
+        return;
     }
+
+    updateDecoration();
     Q_EMIT noDecorationChanged();
 }
 
@@ -865,6 +870,7 @@ void SurfaceWrapper::updateDecoration()
         m_decoration = nullptr;
     } else {
         Q_ASSERT(!m_decoration);
+        Q_ASSERT(m_surfaceItem || m_prelaunchSplash);
         m_decoration = m_engine->createDecoration(this, this);
         m_decoration->stackBefore(m_surfaceItem ? m_surfaceItem : m_prelaunchSplash);
         connect(m_decoration, &QQuickItem::xChanged, this, &SurfaceWrapper::updateBoundingRect);
