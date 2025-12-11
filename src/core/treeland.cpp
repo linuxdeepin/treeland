@@ -34,6 +34,7 @@ using namespace DDM;
 #include <wxwayland.h>
 
 #include <QCoreApplication>
+#include <QDBusAbstractAdaptor>
 #include <QDBusConnection>
 #include <QDBusConnectionInterface>
 #include <QDBusMessage>
@@ -265,6 +266,50 @@ private:
     std::map<PluginInterface *, QTranslator *> pluginTs;
 };
 
+
+class Compositor1Adaptor: public QDBusAbstractAdaptor
+{
+    Q_OBJECT
+    Q_CLASSINFO("D-Bus Interface", "org.deepin.Compositor1")
+    Q_CLASSINFO("D-Bus Introspection",
+                "  <interface name=\"org.deepin.Compositor1\">\n"
+                "    <method name=\"ActivateWayland\">\n"
+                "      <arg direction=\"in\" type=\"h\" name=\"fd\"/>\n"
+                "      <arg direction=\"out\" type=\"b\" name=\"result\"/>\n"
+                "    </method>\n"
+                "    <method name=\"XWaylandName\">\n"
+                "      <arg direction=\"out\" type=\"s\" name=\"result\"/>\n"
+                "      <arg direction=\"out\" type=\"ay\" name=\"auth\"/>\n"
+                "    </method>\n"
+                "    <signal name=\"SessionChanged\"/>\n"
+                "  </interface>\n"
+                "")
+public:
+    Compositor1Adaptor(Treeland *parent)
+    : QDBusAbstractAdaptor(parent)
+    {
+        setAutoRelaySignals(true);
+    }
+
+    inline Treeland *parent() const
+    { return static_cast<Treeland *>(QObject::parent()); }
+
+public Q_SLOTS: // METHODS
+
+    bool ActivateWayland(const QDBusUnixFileDescriptor &fd)
+    {
+        return parent()->ActivateWayland(fd);
+    }
+
+    void XWaylandName()
+    {
+        parent()->XWaylandName();
+    }
+    
+Q_SIGNALS: // SIGNALS
+    void SessionChanged();
+};
+
 Treeland::Treeland()
     : QObject()
     , d_ptr(std::make_unique<TreelandPrivate>(this))
@@ -310,16 +355,14 @@ Treeland::Treeland()
         }
     }
 
+    new Compositor1Adaptor(this);
+
     // init dbus after QML engine loaded.
     QDBusConnection::systemBus().registerService("org.deepin.Compositor1");
-    QDBusConnection::systemBus().registerObject("/org/deepin/Compositor1",
-                                                this,
-                                                QDBusConnection::ExportAllSlots);
+    QDBusConnection::systemBus().registerObject("/org/deepin/Compositor1", this);
 
     QDBusConnection::sessionBus().registerService("org.deepin.Compositor1");
-    QDBusConnection::sessionBus().registerObject("/org/deepin/Compositor1",
-                                                 this,
-                                                 QDBusConnection::ExportAllSlots);
+    QDBusConnection::sessionBus().registerObject("/org/deepin/Compositor1", this);
 
 #ifdef QT_DEBUG
     QDir dir(QStringLiteral(TREELAND_PLUGINS_OUTPUT_PATH));
