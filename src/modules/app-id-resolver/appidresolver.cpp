@@ -11,6 +11,7 @@
 
 #include <fcntl.h>
 #include <unistd.h>
+#include <utility>
 
 Q_LOGGING_CATEGORY(treelandAppIdResolver, "treeland.appid.resolver", QtInfoMsg)
 
@@ -105,7 +106,7 @@ void AppIdResolverManager::resolverGone()
 {
     if (!m_resolver)
         return;
-    // 所有挂起请求(含 signalOnly 和 callback) 返回空 appId
+    // All pending requests (signalOnly and callback) return empty appId on resolver loss
     for (auto it = m_callbacks.begin(); it != m_callbacks.end(); ++it) {
         auto cb = it.value();
         if (cb)
@@ -130,7 +131,6 @@ void AppIdResolverManager::handleResolved(uint32_t id, const QString &appId)
         m_callbacks.erase(it);
         if (cb)
             cb(appId);
-        // 也向信号方式广播
         Q_EMIT appIdResolved(id, appId);
         return;
     }
@@ -149,17 +149,6 @@ bool AppIdResolverManager::resolvePidfd(int pidfd, std::function<void(const QStr
         return false;
     m_callbacks.insert(id, std::move(callback));
     return true;
-}
-
-uint32_t AppIdResolverManager::resolvePidfd(int pidfd)
-{
-    if (!m_resolver)
-        return 0;
-    uint32_t id = m_resolver->requestResolve(pidfd);
-    if (id == 0)
-        return 0;
-    m_signalOnlyPending.insert(id);
-    return id;
 }
 
 // ---------------- WServerInterface -----------------

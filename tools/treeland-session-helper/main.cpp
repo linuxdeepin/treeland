@@ -23,8 +23,7 @@ static QString identifyViaDBus(int pidfd)
         qWarning() << "dup pidfd failed" << strerror(errno);
         return {};
     }
-    QDBusUnixFileDescriptor wrapper(dupfd);
-    close(dupfd);
+    QDBusUnixFileDescriptor wrapper(dupfd); // wrapper owns and will close dupfd
     auto msg = QDBusMessage::createMethodCall(
         "org.desktopspec.ApplicationManager1",
         "/org/desktopspec/ApplicationManager1",
@@ -55,7 +54,9 @@ protected:
     {
         qInfo() << "identify_request" << request_id << pidfd;
         const QString appId = identifyViaDBus(pidfd);
-        respond(request_id, appId, QStringLiteral("dde-application-manager"));
+        // Only dde-application-manager is supported as sandbox engine at present.
+        static const auto kSandboxEngine = QStringLiteral("dde-application-manager");
+        respond(request_id, appId, kSandboxEngine);
         qInfo() << "respond sent" << request_id << appId;
     }
 };

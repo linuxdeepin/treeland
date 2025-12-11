@@ -9,7 +9,6 @@
 #include "layersurfacecontainer.h"
 #include "modules/app-id-resolver/appidresolver.h"
 #include "modules/dde-shell/ddeshellmanagerinterfacev1.h"
-#include "popupsurfacecontainer.h"
 #include "rootsurfacecontainer.h"
 #include "seat/helper.h"
 #include "surface/surfacewrapper.h"
@@ -31,6 +30,7 @@
 #include <wxwaylandsurface.h>
 #include <wxwaylandsurfaceitem.h>
 
+#include <QPointer>
 #include <QTimer>
 #include <qloggingcategory.h>
 
@@ -122,7 +122,10 @@ void ShellHandler::handlePrelaunchSplashRequested(const QString &appId, QW_NAMES
     m_prelaunchWrappers.append(wrapper);
 
     // After 5 seconds, if still unmatched (not converted and still in the list), destroy the splash wrapper
-    QTimer::singleShot(5000, wrapper, [this, wrapper] {
+    QTimer::singleShot(5000, wrapper, [this, wrapper = QPointer<SurfaceWrapper>(wrapper)] {
+        if (!wrapper) {
+            return; // Wrapper already destroyed elsewhere
+        }
         int idx = m_prelaunchWrappers.indexOf(wrapper);
         if (idx < 0) {
             return; // Already matched or removed earlier
@@ -237,12 +240,15 @@ void ShellHandler::onXdgToplevelSurfaceAdded(WXdgToplevelSurface *surface)
 
             bool started = m_appIdResolverManager->resolvePidfd(
                 pidfd,
-                [this, surface](const QString &appId) {
-                    int idx = m_pendingAppIdResolveToplevels.indexOf(surface);
+                [this, surface = QPointer<WXdgToplevelSurface>(surface)](const QString &appId) {
+                    auto raw = surface.data();
+                    if (!raw)
+                        return; // surface was deleted before callback
+                    int idx = m_pendingAppIdResolveToplevels.indexOf(raw);
                     if (idx < 0)
                         return; // removed before callback
-                    SurfaceWrapper *w = matchOrCreateXdgWrapper(surface, appId);
-                    initXdgWrapperCommon(surface, w);
+                    SurfaceWrapper *w = matchOrCreateXdgWrapper(raw, appId);
+                    initXdgWrapperCommon(raw, w);
                     m_pendingAppIdResolveToplevels.removeAt(idx);
                 });
             if (started) {
@@ -295,7 +301,7 @@ void ShellHandler::initXdgWrapperCommon(WXdgToplevelSurface *surface, SurfaceWra
     auto updateSurfaceWithParentContainer = [this, wrapper, surface] {
         updateWrapperContainer(wrapper, surface->parentSurface());
     };
-    
+
     surface->safeConnect(&WXdgToplevelSurface::parentXdgSurfaceChanged,
                          this,
                          updateSurfaceWithParentContainer);
@@ -381,20 +387,26 @@ void ShellHandler::onXdgPopupSurfaceRemoved(WXdgPopupSurface *surface)
 
 void ShellHandler::onXWaylandSurfaceAdded(WXWaylandSurface *surface)
 {
-    surface->safeConnect(&qw_xwayland_surface::notify_associate, this, [this, surface] {
+    surface->safeConnect(&qw_xwayland_surface::notify_associate, this, [this, surface = QPointer<WXWaylandSurface>(surface)] {
+        auto raw = surface.data();
+        if (!raw)
+            return; // surface destroyed before callback
         // If prelaunch wrappers exist and resolver is available, attempt async resolve; if started, remaining logic handled in callback, then return
         if (!m_prelaunchWrappers.isEmpty() && m_appIdResolverManager) {
-            int pidfd = surface->pidFD();
+            int pidfd = raw->pidFD();
             if (pidfd >= 0) {
-                m_pendingAppIdResolveToplevels.append(surface);
+                m_pendingAppIdResolveToplevels.append(raw);
                 bool started = m_appIdResolverManager->resolvePidfd(
                     pidfd,
                     [this, surface](const QString &appId) {
-                        int idx = m_pendingAppIdResolveToplevels.indexOf(surface);
+                        auto raw = surface.data();
+                        if (!raw)
+                            return; // surface destroyed before callback
+                        int idx = m_pendingAppIdResolveToplevels.indexOf(raw);
                         if (idx < 0)
                             return; // removed before callback
-                        SurfaceWrapper *w = matchOrCreateXwaylandWrapper(surface, appId);
-                        initXwaylandWrapperCommon(surface, w);
+                        SurfaceWrapper *w = matchOrCreateXwaylandWrapper(raw, appId);
+                        initXwaylandWrapperCommon(raw, w);
                         m_pendingAppIdResolveToplevels.removeAt(idx);
                     });
                 if (started) {
@@ -402,15 +414,15 @@ void ShellHandler::onXWaylandSurfaceAdded(WXWaylandSurface *surface)
                         << "(XWayland) AppIdResolver request sent (callback)";
                     return; // async path
                 } else {
-                    m_pendingAppIdResolveToplevels.removeOne(surface);
+                    m_pendingAppIdResolveToplevels.removeOne(raw);
                     qCDebug(treelandShell)
                         << "(XWayland) requestResolve failed pidfd=" << pidfd;
                 }
             }
         }
         // Async path not taken: directly match or create (empty appId triggers fallback retrieval)
-        SurfaceWrapper *wrapper = matchOrCreateXwaylandWrapper(surface, QString());
-        initXwaylandWrapperCommon(surface, wrapper);
+        SurfaceWrapper *wrapper = matchOrCreateXwaylandWrapper(raw, QString());
+        initXwaylandWrapperCommon(raw, wrapper);
     });
     surface->safeConnect(&qw_xwayland_surface::notify_dissociate, this, [this, surface] {
         auto wrapper = m_rootSurfaceContainer->getSurface(surface->surface());
@@ -728,5 +740,3 @@ void ShellHandler::setResourceManagerAtom(WAYLIB_SERVER_NAMESPACE::WXWayland *xw
                         value.constData());
     xcb_flush(xcb_conn);
 }
-
-// onAppIdResolved removed: using per-request callbacks now
