@@ -175,8 +175,5 @@ wl_global *AppIdResolverManager::global() const
 
 QByteArrayView AppIdResolverManager::interfaceName() const
 {
-    // Generated interface name macro not easily accessible; hardcode string literal consistent with
-    // XML
-    static const QByteArray name{ "treeland_app_id_resolver_manager_v1" };
-    return name;
+    return "treeland_app_id_resolver_manager_v1";
 }

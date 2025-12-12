@@ -10,3 +10,4 @@ Before=dde-session-pre.target
 ListenStream=%t/treeland-xwayland
 RemoveOnStop=true
 FileDescriptorName=Treeland-Xwayland
+ExecStop=-/usr/bin/systemctl --user unset-environment DISPLAY
