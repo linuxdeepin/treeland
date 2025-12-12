@@ -1616,14 +1616,13 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *, QInputEvent *event)
                 break;
             }
 
-            QKeySequence sequence(kevent->modifiers() | kevent->key());
-            qCInfo(treelandShortcut) << "Dispatch shortcut:" << sequence;
+            QKeyCombination combination = kevent->keyCombination();
             if (event->type() == QEvent::KeyPress
-                && m_shortcutManager->controller()->dispatchKeyPress(sequence, kevent->isAutoRepeat())) {
+                && m_shortcutManager->controller()->dispatchKeyPress(combination, kevent->isAutoRepeat())) {
                 return true;
             }
             if (event->type() == QEvent::KeyRelease
-                && m_shortcutManager->controller()->dispatchKeyRelease(sequence)) {
+                && m_shortcutManager->controller()->dispatchKeyRelease(combination)) {
                 return true;
             }
         } while (false);

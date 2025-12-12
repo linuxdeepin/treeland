@@ -17,7 +17,7 @@
 struct KeyShortcut {
     uint mode;
     QString name;
-    QKeySequence keySequence;
+    QString key;
     ShortcutAction action;
 };
 
@@ -90,8 +90,8 @@ uint ShortcutManagerV2Private::updateShortcuts(const UserShortcuts& shortcuts, Q
     QList<QString> names;
 
     const auto tryRegisterAll = [&]() {
-        for (const auto& [mode, name, keySequence, action] : std::as_const(shortcuts.keys)) {
-            status = m_controller->registerKeySequence(name, keySequence, mode, action);
+        for (const auto& [mode, name, key, action] : std::as_const(shortcuts.keys)) {
+            status = m_controller->registerKey(name, key, mode, action);
             if (status) {
                 failName = name;
                 return;
@@ -143,8 +143,8 @@ void ShortcutManagerV2::create(WServer *server)
 
     connect(d->m_manager, &treeland_shortcut_manager_v2::requestUnregisterShortcut,
             this, &ShortcutManagerV2::handleUnregisterShortcut);
-    connect(d->m_manager, &treeland_shortcut_manager_v2::requestBindKeySequence,
-            this, &ShortcutManagerV2::handleBindKeySequence);
+    connect(d->m_manager, &treeland_shortcut_manager_v2::requestBindKey,
+            this, &ShortcutManagerV2::handleBindKey);
     connect(d->m_manager, &treeland_shortcut_manager_v2::requestBindSwipeGesture,
             this, &ShortcutManagerV2::handleBindSwipeGesture);
     connect(d->m_manager, &treeland_shortcut_manager_v2::requestBindHoldGesture,
@@ -278,17 +278,17 @@ void ShortcutManagerV2::handleBindSwipeGesture(WSocket* sessionSocket, const QSt
     });
 }
 
-void ShortcutManagerV2::handleBindKeySequence(WSocket* sessionSocket,
-                                              const QString& name,
-                                              const QKeySequence& keySequence,
-                                              uint mode,
-                                              uint action)
+void ShortcutManagerV2::handleBindKey(WSocket* sessionSocket,
+                                      const QString& name,
+                                      const QString& key,
+                                      uint mode,
+                                      uint action)
 {
     Q_D(ShortcutManagerV2);
     d->m_pendingShortcuts[sessionSocket].keys.append(KeyShortcut{
         .mode = mode,
         .name = name,
-        .keySequence = keySequence,
+        .key = key,
         .action = static_cast<ShortcutAction>(action),
     });
 }

@@ -17,14 +17,14 @@ public:
     explicit ShortcutController(QObject *parent = nullptr);
     ~ShortcutController() override;
 
-    uint registerKeySequence(const QString &name, const QKeySequence &sequence, uint mode, ShortcutAction action);
+    uint registerKey(const QString &name, const QString& key, uint mode, ShortcutAction action);
     uint registerSwipeGesture(const QString &name, uint finger, SwipeGesture::Direction direction, ShortcutAction action);
     uint registerHoldGesture(const QString &name, uint finger, ShortcutAction action);
     void unregisterShortcut(const QString &name);
 
     void clear();
-    bool dispatchKeyPress(const QKeySequence &sequence, bool repeat);
-    bool dispatchKeyRelease(const QKeySequence &sequence);
+    bool dispatchKeyPress(QKeyCombination sequence, bool repeat);
+    bool dispatchKeyRelease(QKeyCombination sequence);
 
 Q_SIGNALS:
     void actionTriggered(ShortcutAction action, const QString &name, bool isGesture, bool isRepeat = false);
@@ -32,8 +32,10 @@ Q_SIGNALS:
     void actionFinished(ShortcutAction action, const QString &name, bool isTriggered);
 
 private:
-    QMap<QKeySequence, QMap<ShortcutAction, std::pair<QString, bool>>> m_keyPressMap;
-    QMap<QKeySequence, QMap<ShortcutAction, QString>> m_keyReleaseMap;
+    static constexpr QKeyCombination normalizeKeyCombination(QKeyCombination combination);
+
+    QMap<int, QMap<ShortcutAction, std::pair<QString, bool>>> m_keyPressMap;
+    QMap<int, QMap<ShortcutAction, QString>> m_keyReleaseMap;
     QMap<std::pair<uint, SwipeGesture::Direction>, QMap<ShortcutAction, QString>> m_gesturemap;
     QMap<std::pair<uint, SwipeGesture::Direction>, QObject*> m_gestures;
     QMap<QString, std::function<void()>> m_deleters;

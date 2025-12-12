@@ -57,11 +57,11 @@ static void shortcut_manager_handle_bind_key(struct wl_client *client,
         return;
     }
 
-    Q_EMIT manager->requestBindKeySequence(socket,
-                                           QString::fromUtf8(name),
-                                           QKeySequence(QString::fromUtf8(key_sequence), QKeySequence::PortableText),
-                                           mode,
-                                           action);
+    Q_EMIT manager->requestBindKey(socket,
+                                   QString::fromUtf8(name),
+                                   QString::fromUtf8(key_sequence),
+                                   mode,
+                                   action);
 }
 
 static void shortcut_manager_handle_bind_swipe_gesture(struct wl_client *client,
