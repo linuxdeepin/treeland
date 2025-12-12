@@ -434,13 +434,15 @@ void GreeterProxy::readyRead()
         } break;
         case DaemonMessages::UserLoggedIn: {
             QString user;
-            input >> user;
+            int sessionId;
+            input >> user >> sessionId;
 
             // This will happen after a crash recovery of treeland
             qCInfo(treelandGreeter) << "User " << user << " is already logged in";
             auto userPtr = d->userModel->getUser(user);
             if (userPtr) {
                 userPtr.get()->setLogined(true);
+                Q_EMIT d->userModel->userLoggedIn(user, sessionId);
             } else {
                 qCWarning(treelandGreeter) << "User " << user << " logged in but not found";
             }

@@ -144,24 +144,12 @@ int main(int argc, char *argv[])
             }
         };
 
-        QDBusServiceWatcher *compositorWatcher =
-            new QDBusServiceWatcher("org.deepin.Compositor1",
-                                    connection,
-                                    QDBusServiceWatcher::WatchForRegistration);
-
-        QObject::connect(compositorWatcher,
-                         &QDBusServiceWatcher::serviceRegistered,
-                         compositorWatcher,
-                         activateFd);
-
-        // Listen to SessionChanged signal and activate fd when session changed
         connection.connect("org.deepin.Compositor1",
                            "/org/deepin/Compositor1",
                            "org.deepin.Compositor1",
                            "SessionChanged",
                            new SignalReceiver(activateFd),
                            SLOT(onSessionChanged()));
-
         activateFd();
     };
 
