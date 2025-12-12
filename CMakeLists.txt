@@ -22,7 +22,7 @@ add_feature_info(submodule_waylib WITH_SUBMODULE_WAYLIB "Use waylib from submodu
 option(ADDRESS_SANITIZER "Enable address sanitizer" OFF)
 add_feature_info(ASanSupport ADDRESS_SANITIZER "https://github.com/google/sanitizers/wiki/AddressSanitizer")
 
-option(BUILD_TREELAND_EXAMPLES "Build clients demo to test treeland" ON)
+option(BUILD_TREELAND_EXAMPLES "Build clients demo to test treeland" OFF)
 add_feature_info(DemoClents BUILD_TEST_CLIENTS "clients demo for testing")
 
 option(DISABLE_DDM "Disable DDM and greeter" OFF)
