@@ -78,9 +78,9 @@ Q_SIGNALS:
 
 private Q_SLOTS:
     void handleUnregisterShortcut(WSocket* sessionSocket, const QString& name);
-    void handleBindKeySequence(WSocket* sessionSocket,
+    void handleBindKey(WSocket* sessionSocket,
                                const QString& name,
-                               const QKeySequence& keySequence,
+                               const QString& key,
                                uint mode,
                                uint action);
     void handleBindSwipeGesture(WSocket* sessionSocket, const QString& name, uint finger, uint direction, uint action);

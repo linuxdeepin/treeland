@@ -44,11 +44,11 @@ public:
 
 Q_SIGNALS:
     void requestUnregisterShortcut(WSocket* sessionSocket, const QString& name);
-    void requestBindKeySequence(WSocket* sessionSocket,
-                                const QString& name,
-                                const QKeySequence& keySequence,
-                                uint mode,
-                                uint action);
+    void requestBindKey(WSocket* sessionSocket,
+                        const QString& name,
+                        const QString& key,
+                        uint mode,
+                        uint action);
     void requestBindSwipeGesture(WSocket* sessionSocket, const QString& name, uint finger, uint direction, uint action);
     void requestBindHoldGesture(WSocket* sessionSocket, const QString& name, uint finger, uint action);
     void requestCommit(WSocket* sessionSocket);

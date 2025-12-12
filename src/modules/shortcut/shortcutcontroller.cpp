@@ -16,37 +16,46 @@ ShortcutController::~ShortcutController()
     clear();
 }
 
-uint ShortcutController::registerKeySequence(const QString &name, const QKeySequence &sequence, uint mode, ShortcutAction action)
+uint ShortcutController::registerKey(const QString &name, const QString& key, uint mode, ShortcutAction action)
 {
     if (m_deleters.contains(name)) {
         return TREELAND_SHORTCUT_MANAGER_V2_BIND_ERROR_NAME_CONFLICT;
     }
 
-    if (sequence.count() != 1) {
+    // For all-modifier bindings: Ctrl is a valid modifier but not a valid key.
+    auto keySeq = QKeySequence::fromString(key.endsWith("+Ctrl") ? key + "+Control"
+                                                                                      : key,
+                                                         QKeySequence::PortableText);
+    if (keySeq.count() != 1) {
         return TREELAND_SHORTCUT_MANAGER_V2_BIND_ERROR_INVALID_ARGUMENT;
     }
+    auto keyComb = normalizeKeyCombination(keySeq[0]);
+    if (keyComb == QKeyCombination(Qt::NoModifier, Qt::Key_unknown)) {
+        return TREELAND_SHORTCUT_MANAGER_V2_BIND_ERROR_INVALID_ARGUMENT;
+    }
+    int combined = keyComb.toCombined();
 
     switch (mode) {
     case TREELAND_SHORTCUT_MANAGER_V2_KEYBIND_MODE_KEY_PRESS:
     case TREELAND_SHORTCUT_MANAGER_V2_KEYBIND_MODE_KEY_PRESS_REPEAT: {
-        auto &entry = m_keyPressMap[sequence];
+        auto &entry = m_keyPressMap[combined];
         if (entry.contains(action)) {
             return TREELAND_SHORTCUT_MANAGER_V2_BIND_ERROR_DUPLICATE_BINDING;
         }
         entry.insert(action, std::make_pair(name, mode == TREELAND_SHORTCUT_MANAGER_V2_KEYBIND_MODE_KEY_PRESS_REPEAT));
-        m_deleters[name] = [this, sequence, action]() {
-            m_keyPressMap[sequence].remove(action);
+        m_deleters[name] = [this, combined, action]() {
+            m_keyPressMap[combined].remove(action);
         };
         return 0;
     }
     case TREELAND_SHORTCUT_MANAGER_V2_KEYBIND_MODE_KEY_RELEASE: {
-        auto &entry = m_keyReleaseMap[sequence];
+        auto &entry = m_keyReleaseMap[combined];
         if (entry.contains(action)) {
             return TREELAND_SHORTCUT_MANAGER_V2_BIND_ERROR_DUPLICATE_BINDING;
         }
         entry.insert(action, name);
-        m_deleters[name] = [this, sequence, action]() {
-            m_keyReleaseMap[sequence].remove(action);
+        m_deleters[name] = [this, combined, action]() {
+            m_keyReleaseMap[combined].remove(action);
         };
         return 0;
     }
@@ -169,10 +178,11 @@ void ShortcutController::unregisterShortcut(const QString &name)
     }
 }
 
-bool ShortcutController::dispatchKeyPress(const QKeySequence &sequence, bool repeat)
+bool ShortcutController::dispatchKeyPress(QKeyCombination combination, bool repeat)
 {
-    if (m_keyPressMap.contains(sequence)) {
-        for (const auto &[action, keybind] : std::as_const(m_keyPressMap[sequence]).asKeyValueRange()) {
+    auto combined = normalizeKeyCombination(combination).toCombined();
+    if (m_keyPressMap.contains(combined)) {
+        for (const auto &[action, keybind] : std::as_const(m_keyPressMap[combined]).asKeyValueRange()) {
             const auto& [name, canRepeat] = keybind;
             if (repeat && !canRepeat) {
                 continue;
@@ -184,10 +194,11 @@ bool ShortcutController::dispatchKeyPress(const QKeySequence &sequence, bool rep
     return false;
 }
 
-bool ShortcutController::dispatchKeyRelease(const QKeySequence &sequence)
+bool ShortcutController::dispatchKeyRelease(QKeyCombination combination)
 {
-    if (m_keyReleaseMap.contains(sequence)) {
-        for (const auto &[action, name] : std::as_const(m_keyReleaseMap[sequence]).asKeyValueRange()) {
+    auto combined = normalizeKeyCombination(combination).toCombined();
+    if (m_keyReleaseMap.contains(combined)) {
+        for (const auto &[action, name] : std::as_const(m_keyReleaseMap[combined]).asKeyValueRange()) {
             emit actionTriggered(action, name, false);
         }
         return true;
@@ -201,4 +212,31 @@ void ShortcutController::clear()
         deleter();
     }
     m_deleters.clear();
+}
+
+constexpr QKeyCombination ShortcutController::normalizeKeyCombination(QKeyCombination combination) {
+    Qt::KeyboardModifiers mods = combination.keyboardModifiers();
+    Qt::Key key = combination.key(), nornalizedKey = Qt::Key_unknown;
+
+    switch (key) {
+        case Qt::Key_Control:
+            mods |= Qt::ControlModifier;
+            break;
+        case Qt::Key_Shift:
+            mods |= Qt::ShiftModifier;
+            break;
+        case Qt::Key_Alt:
+            mods |= Qt::AltModifier;
+            break;
+        case Qt::Key_Meta:
+        case Qt::Key_Super_L:
+        case Qt::Key_Super_R:
+            mods |= Qt::MetaModifier;
+            break;
+        default:
+            nornalizedKey = key;
+            break;
+    }
+
+    return QKeyCombination(mods, nornalizedKey);
 }
