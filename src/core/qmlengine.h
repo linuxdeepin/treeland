@@ -4,6 +4,7 @@
 #pragma once
 
 #include <wglobal.h>
+#include <qwglobal.h>
 
 #include <QQmlApplicationEngine>
 #include <QQmlComponent>
@@ -23,6 +24,9 @@ class Output;
 class Workspace;
 class WorkspaceModel;
 class CaptureManagerV1;
+QW_BEGIN_NAMESPACE
+class qw_buffer;
+QW_END_NAMESPACE
 
 class QmlEngine : public QQmlApplicationEngine
 {
@@ -65,6 +69,9 @@ public:
     QQuickItem *createWindowPicker(QQuickItem *parent);
     QQuickItem *createLockScreenFallback(QQuickItem *parent, const QVariantMap &properties = QVariantMap());
     QQuickItem *createFpsDisplay(QQuickItem *parent);
+    QQuickItem *createPrelaunchSplash(QQuickItem *parent,
+                                      qreal initialRadius,
+                                      QW_NAMESPACE::qw_buffer *iconBuffer = nullptr);
 
     QQmlComponent *surfaceContentComponent()
     {
@@ -97,4 +104,5 @@ private:
     QQmlComponent layershellAnimationComponent;
     QQmlComponent lockScreenFallbackComponent;
     QQmlComponent fpsDisplayComponent;
+    QQmlComponent prelaunchSplashComponent;
 };

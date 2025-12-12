@@ -36,6 +36,7 @@
 #include "common/treelandlogging.h"
 #include "modules/ddm/ddminterfacev1.h"
 #include "treelandconfig.hpp"
+#include "treelandglobalconfig.hpp"
 #include "core/treeland.h"
 #include "greeter/greeterproxy.h"
 #include "modules/screensaver/screensaverinterfacev1.h"
@@ -43,6 +44,8 @@
 #include "modules/shortcut/shortcutmanager.h"
 #include "modules/shortcut/shortcutcontroller.h"
 #include "modules/shortcut/shortcutrunner.h"
+#include "modules/prelaunch-splash/prelaunchsplash.h"
+#include "modules/app-id-resolver/appidresolver.h"
 
 #include <xcb/xcb.h>
 #include <xcb/xproto.h>
@@ -207,9 +210,11 @@ Helper::Helper(QObject *parent)
     m_instance = this;
 
     Q_ASSERT(!m_config);
-    m_config = TreelandConfig::createByName("org.deepin.treeland",
-                                            "org.deepin.treeland",
-                                            QString());
+    m_config.reset(TreelandConfig::createByName("org.deepin.treeland",
+                                              "org.deepin.treeland",
+                                              "/dde")); // will update user path in Helper::init
+    m_globalConfig.reset(TreelandGlobalConfig::create("org.deepin.treeland.global",
+                                                      QString()));
 
     m_renderWindow->setColor(Qt::black);
     m_rootSurfaceContainer->setFlag(QQuickItem::ItemIsFocusScope, true);
@@ -299,7 +304,12 @@ Helper *Helper::instance()
 
 TreelandConfig *Helper::config()
 {
-    return m_config;
+    return m_config.get();
+}
+
+TreelandGlobalConfig *Helper::globalConfig()
+{
+    return m_globalConfig.get();
 }
 
 bool Helper::isNvidiaCardPresent()
@@ -1094,6 +1104,10 @@ void Helper::onSurfaceWrapperAboutToRemove(SurfaceWrapper *wrapper)
 
 bool Helper::surfaceBelongsToCurrentSession(SurfaceWrapper *wrapper)
 {
+    if (wrapper->type() == SurfaceWrapper::Type::Undetermined) {
+        // TODO(rewine)： Support splash in muittaskview
+        return false;
+    }
     WClient *client = wrapper->surface()->waylandClient();
     WSocket *socket = client ? client->socket()->rootSocket() : nullptr;
     return socket && socket->isEnabled();
@@ -1112,8 +1126,6 @@ void Helper::init(Treeland::Treeland *treeland)
     m_treeland = treeland;
     auto engine = qmlEngine();
     m_userModel = engine->singletonInstance<UserModel *>("Treeland", "UserModel");
-
-    engine->rootContext()->setContextProperty("TreelandConfig", m_config);
 
     engine->setContextForObject(m_renderWindow, engine->rootContext());
     engine->setContextForObject(m_renderWindow->contentItem(), engine->rootContext());
@@ -1144,6 +1156,15 @@ void Helper::init(Treeland::Treeland *treeland)
     connect(m_backend, &WBackend::outputRemoved, this, &Helper::onOutputRemoved);
 
     m_ddeShellV1 = m_server->attach<DDEShellManagerInterfaceV1>();
+    m_prelaunchSplash = m_server->attach<PrelaunchSplash>();
+    m_shellHandler->m_appIdResolverManager = m_server->attach<AppIdResolverManager>();
+    connect(m_prelaunchSplash,
+            &PrelaunchSplash::splashRequested,
+            m_shellHandler,
+            [this](const QString &appId, QW_NAMESPACE::qw_buffer *iconBuffer) {
+                if (m_shellHandler)
+                m_shellHandler->handlePrelaunchSplashRequested(appId, iconBuffer);
+            });
     connect(m_ddeShellV1, &DDEShellManagerInterfaceV1::toggleMultitaskview, this, [this] {
         if (m_multitaskView) {
             m_multitaskView->toggleMultitaskView(IMultitaskView::ActiveReason::ShortcutKey);
@@ -1209,9 +1230,9 @@ void Helper::init(Treeland::Treeland *treeland)
     m_personalization = m_server->attach<PersonalizationV1>();
 
     auto updateCurrentUser = [this] {
-        m_config = TreelandConfig::createByName("org.deepin.treeland",
-                                                "org.deepin.treeland",
-                                                "/" + m_userModel->currentUserName());
+        m_config.reset(TreelandConfig::createByName("org.deepin.treeland",
+                                                  "org.deepin.treeland",
+                                                  "/" + m_userModel->currentUserName()));
         auto user = m_userModel->currentUser();
         m_personalization->setUserId(user ? user->UID() : getuid());
     };
@@ -1288,6 +1309,7 @@ void Helper::init(Treeland::Treeland *treeland)
     qmlRegisterType<CaptureSourceSelector>("Treeland.Protocols", 1, 0, "CaptureSourceSelector");
 
     m_server->attach<WSecurityContextManager>();
+
     m_server->start();
     m_renderer = WRenderHelper::createRenderer(m_backend->handle());
     if (!m_renderer) {

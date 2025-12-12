@@ -4,8 +4,12 @@
 
 #include <wsurfaceitem.h>
 #include <wtoplevelsurface.h>
+#include <qwglobal.h>
 
+#include <QList>
+#include <QPointer>
 #include <QQuickItem>
+#include <QString>
 
 Q_MOC_INCLUDE(<woutput.h>)
 Q_MOC_INCLUDE(<output / output.h>)
@@ -15,6 +19,9 @@ WAYLIB_SERVER_USE_NAMESPACE
 class QmlEngine;
 class Output;
 class SurfaceContainer;
+QW_BEGIN_NAMESPACE
+class qw_buffer;
+QW_END_NAMESPACE
 
 class SurfaceWrapper : public QQuickItem
 {
@@ -26,13 +33,15 @@ class SurfaceWrapper : public QQuickItem
     Q_OBJECT
     QML_ELEMENT
     QML_UNCREATABLE("SurfaceWrapper objects are created by c++")
-    Q_PROPERTY(Type type READ type CONSTANT)
+    Q_PROPERTY(Type type READ type NOTIFY surfaceItemChanged)
+    Q_PROPERTY(QString appId READ appId CONSTANT)
     // make to read only
     Q_PROPERTY(qreal implicitWidth READ implicitWidth NOTIFY implicitWidthChanged FINAL)
     Q_PROPERTY(qreal implicitHeight READ implicitHeight NOTIFY implicitHeightChanged FINAL)
     Q_PROPERTY(WAYLIB_SERVER_NAMESPACE::WSurface* surface READ surface CONSTANT)
     Q_PROPERTY(WAYLIB_SERVER_NAMESPACE::WToplevelSurface* shellSurface READ shellSurface CONSTANT)
-    Q_PROPERTY(WAYLIB_SERVER_NAMESPACE::WSurfaceItem* surfaceItem READ surfaceItem CONSTANT)
+    Q_PROPERTY(WAYLIB_SERVER_NAMESPACE::WSurfaceItem* surfaceItem READ surfaceItem NOTIFY surfaceItemChanged)
+    Q_PROPERTY(QQuickItem* prelaunchSplash READ prelaunchSplash NOTIFY prelaunchSplashChanged)
     Q_PROPERTY(QRectF boundingRect READ boundingRect NOTIFY boundingRectChanged)
     Q_PROPERTY(QRectF geometry READ geometry NOTIFY geometryChanged FINAL)
     Q_PROPERTY(QRectF normalGeometry READ normalGeometry NOTIFY normalGeometryChanged FINAL)
@@ -80,6 +89,7 @@ public:
         Layer,
         InputPopup,
         LockScreen,
+        Undetermined, // Used for pre-launch splash screen
     };
     Q_ENUM(Type)
 
@@ -113,14 +123,28 @@ public:
     explicit SurfaceWrapper(QmlEngine *qmlEngine,
                             WToplevelSurface *shellSurface,
                             Type type,
-                            QQuickItem *parent = nullptr,
-                            bool isProxy = false);
+                            const QString &appId = QString(),
+                            QQuickItem *parent = nullptr);
+
+    // For proxy surface
+    explicit SurfaceWrapper(SurfaceWrapper *original,
+                            QQuickItem *parent = nullptr);
+
+    // Constructor for pre-launch splash; allows passing an initial window size to stabilize UI
+    // early
+    explicit SurfaceWrapper(QmlEngine *qmlEngine,
+                            QQuickItem *parent,
+                            const QSize &initialSize,
+                            const QString &appId,
+                            QW_NAMESPACE::qw_buffer *iconBuffer = nullptr);
 
     void setFocus(bool focus, Qt::FocusReason reason);
 
     WSurface *surface() const;
     WToplevelSurface *shellSurface() const;
     WSurfaceItem *surfaceItem() const;
+    QQuickItem *prelaunchSplash() const;
+    QString appId() const;
     bool resize(const QSizeF &size);
 
     QRectF titlebarGeometry() const;
@@ -132,6 +156,7 @@ public:
     Output *ownsOutput() const;
     void setOwnsOutput(Output *newOwnsOutput);
     void setOutputs(const QList<WOutput *> &outputs);
+    const QList<WOutput *> &outputs() const;
 
     QRectF geometry() const;
     QRectF normalGeometry() const;
@@ -304,6 +329,8 @@ Q_SIGNALS:
     void coverEnabledChanged();
     void aboutToBeInvalidated();
     void acceptKeyboardFocusChanged();
+    void surfaceItemChanged();
+    void prelaunchSplashChanged();
 
 private:
     ~SurfaceWrapper() override;
@@ -315,9 +342,14 @@ private:
     void setActivate(bool activate);
     void setNormalGeometry(const QRectF &newNormalGeometry);
     void updateTitleBar();
+    void updateDecoration();
     void setBoundedRect(const QRectF &newBoundedRect);
     void setContainer(SurfaceContainer *newContainer);
     void setVisibleDecoration(bool newVisibleDecoration);
+
+    void setup(); // Initialize m_surfaceItem related features
+    void convertToNormalSurface(WToplevelSurface *shellSurface,
+                                Type type); // Transition from pre-launch mode to normal mode
     void updateBoundingRect();
     void updateVisible();
     void updateSubSurfaceStacking();
@@ -329,6 +361,7 @@ private:
     void doSetSurfaceState(State newSurfaceState);
     Q_SLOT void onAnimationReady();
     Q_SLOT void onAnimationFinished();
+    Q_SLOT void onPrelaunchSplashDestroyRequested();
     bool startStateChangeAnimation(SurfaceWrapper::State targetState, const QRectF &targetGeometry);
     void onWindowAnimationFinished();
     Q_SLOT void onShowAnimationFinished();
@@ -350,12 +383,14 @@ private:
     QList<SurfaceWrapper *> m_subSurfaces;
     SurfaceWrapper *m_parentSurface = nullptr;
 
-    WToplevelSurface *m_shellSurface = nullptr;
+    QPointer<WToplevelSurface> m_shellSurface;
     WSurfaceItem *m_surfaceItem = nullptr;
     QPointer<QQuickItem> m_titleBar;
     QPointer<QQuickItem> m_decoration;
     QPointer<QQuickItem> m_geometryAnimation;
     QPointer<QQuickItem> m_coverContent;
+    QPointer<QQuickItem> m_prelaunchSplash; // Pre-launch splash item
+    QList<WOutput *> m_prelaunchOutputs;    // Outputs for pre-launch splash
     QRectF m_boundedRect;
     QRectF m_normalGeometry;
     QRectF m_maximizedGeometry;
@@ -418,6 +453,7 @@ private:
     bool m_socketEnabled{ false };
     bool m_windowAnimationEnabled{ true };
     bool m_acceptKeyboardFocus{ true };
+    const QString m_appId;
 };
 
 Q_DECLARE_OPERATORS_FOR_FLAGS(SurfaceWrapper::ActiveControlStates)
