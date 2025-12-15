@@ -12,8 +12,8 @@
 #include "rootsurfacecontainer.h"
 #include "seat/helper.h"
 #include "surface/surfacewrapper.h"
-#include "workspace/workspace.h"
 #include "treelandglobalconfig.hpp"
+#include "workspace/workspace.h"
 
 #include <xcb/xcb.h>
 
@@ -30,14 +30,14 @@
 #include <wxwaylandsurface.h>
 #include <wxwaylandsurfaceitem.h>
 
+#include <qwcompositor.h>
+#include <qwxwaylandsurface.h>
+
 #include <QPointer>
 #include <QTimer>
 #include <qloggingcategory.h>
 
 #include <optional>
-
-#include <qwcompositor.h>
-#include <qwxwaylandsurface.h>
 
 QW_USE_NAMESPACE
 WAYLIB_SERVER_USE_NAMESPACE
@@ -62,8 +62,7 @@ ShellHandler::ShellHandler(RootSurfaceContainer *rootContainer)
     m_popupContainer->setZ(RootSurfaceContainer::PopupZOrder);
 }
 
-void ShellHandler::updateWrapperContainer(SurfaceWrapper *wrapper,
-                                          WSurface *parentSurface)
+void ShellHandler::updateWrapperContainer(SurfaceWrapper *wrapper, WSurface *parentSurface)
 {
     if (wrapper->parentSurface())
         wrapper->parentSurface()->removeSubSurface(wrapper);
@@ -95,7 +94,8 @@ void ShellHandler::updateWrapperContainer(SurfaceWrapper *wrapper,
 }
 
 // Prelaunch splash request: create a SurfaceWrapper that is not yet bound to a shellSurface
-void ShellHandler::handlePrelaunchSplashRequested(const QString &appId, QW_NAMESPACE::qw_buffer *iconBuffer)
+void ShellHandler::handlePrelaunchSplashRequested(const QString &appId,
+                                                  QW_NAMESPACE::qw_buffer *iconBuffer)
 {
     if (!Helper::instance()->globalConfig()->enablePrelaunchSplash())
         return;
@@ -117,24 +117,39 @@ void ShellHandler::handlePrelaunchSplashRequested(const QString &appId, QW_NAMES
             initialSize = last;
         }
     }
-    auto *wrapper = new SurfaceWrapper(Helper::instance()->qmlEngine(), nullptr, initialSize, appId, iconBuffer);
+    auto *wrapper = new SurfaceWrapper(Helper::instance()->qmlEngine(),
+                                       nullptr,
+                                       initialSize,
+                                       appId,
+                                       iconBuffer);
     m_workspace->addSurface(wrapper);
     m_prelaunchWrappers.append(wrapper);
 
-    // After 5 seconds, if still unmatched (not converted and still in the list), destroy the splash wrapper
-    QTimer::singleShot(5000, wrapper, [this, wrapper = QPointer<SurfaceWrapper>(wrapper)] {
-        if (!wrapper) {
-            return; // Wrapper already destroyed elsewhere
-        }
-        int idx = m_prelaunchWrappers.indexOf(wrapper);
-        if (idx < 0) {
-            return; // Already matched or removed earlier
-        }
-        qCDebug(treelandShell) << "Prelaunch splash timeout, destroy wrapper appId="
-                               << wrapper->appId();
-        m_prelaunchWrappers.removeAt(idx);
-        m_rootSurfaceContainer->destroyForSurface(wrapper);
-    });
+    // After configurable timeout, if still unmatched (not converted and still in the list), destroy
+    // the splash wrapper
+    qlonglong timeoutMs = Helper::instance()->globalConfig()->prelaunchSplashTimeoutMs();
+    // Bounds: <=0 disables auto-destroy, >60000 clamps to 60000
+    if (timeoutMs > 60000) {
+        timeoutMs = 60000;
+    }
+    if (timeoutMs > 0) {
+        QTimer::singleShot(static_cast<int>(timeoutMs),
+                           wrapper,
+                           [this, wrapper = QPointer<SurfaceWrapper>(wrapper)] {
+                               if (!wrapper) {
+                                   return; // Wrapper already destroyed elsewhere
+                               }
+                               int idx = m_prelaunchWrappers.indexOf(wrapper);
+                               if (idx < 0) {
+                                   return; // Already matched or removed earlier
+                               }
+                               qCDebug(treelandShell)
+                                   << "Prelaunch splash timeout, destroy wrapper appId="
+                                   << wrapper->appId();
+                               m_prelaunchWrappers.removeAt(idx);
+                               m_rootSurfaceContainer->destroyForSurface(wrapper);
+                           });
+    }
 }
 
 Workspace *ShellHandler::workspace() const
@@ -219,7 +234,8 @@ void ShellHandler::initInputMethodHelper(WServer *server, WSeat *seat)
 
 void ShellHandler::onXdgToplevelSurfaceAdded(WXdgToplevelSurface *surface)
 {
-    // If there are prelaunch wrappers and the resolver is available -> attempt async resolve; remaining logic continues in the callback on success
+    // If there are prelaunch wrappers and the resolver is available -> attempt async resolve;
+    // remaining logic continues in the callback on success
     if (!m_prelaunchWrappers.isEmpty() && m_appIdResolverManager) {
         int pidfd = surface->pidFD();
         if (pidfd >= 0) {
