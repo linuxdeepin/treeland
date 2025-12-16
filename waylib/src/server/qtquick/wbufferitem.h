@@ -56,7 +56,6 @@ private:
     void componentComplete() override;
     QSGNode *updatePaintNode(QSGNode *oldNode, UpdatePaintNodeData *data) override;
     void releaseResources() override;
-    void itemChange(ItemChange change, const ItemChangeData &data) override;
     Q_SLOT void invalidateSceneGraph();
 };
 
