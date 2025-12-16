@@ -95,17 +95,6 @@ QW_NAMESPACE::qw_buffer *WBufferItem::buffer() const
     return d->buffer.get();
 }
 
-QVariant WBufferItem::bufferVariant() const
-{
-    W_DC(WBufferItem);
-    return QVariant::fromValue(d->buffer.get());
-}
-
-void WBufferItem::setBufferVariant(const QVariant &buffer)
-{
-    setBuffer(buffer.value<QW_NAMESPACE::qw_buffer*>());
-}
-
 void WBufferItem::setBuffer(QW_NAMESPACE::qw_buffer *buffer)
 {
     W_D(WBufferItem);
