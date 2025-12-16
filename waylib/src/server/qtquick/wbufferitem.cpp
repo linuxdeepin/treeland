@@ -190,13 +190,6 @@ void WBufferItem::releaseResources()
     QQuickItemPrivate::get(this)->dirty(QQuickItemPrivate::Content);
 }
 
-void WBufferItem::itemChange(ItemChange change, const ItemChangeData &data)
-{
-    QQuickItem::itemChange(change, data);
-    Q_UNUSED(change);
-    Q_UNUSED(data);
-}
-
 void WBufferItem::invalidateSceneGraph()
 {
     W_D(WBufferItem);

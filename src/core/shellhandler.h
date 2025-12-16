@@ -7,7 +7,6 @@
 #include <qwglobal.h>
 
 #include <QObject>
-#include <QVector>
 #include <QList>
 #include <QPointer>
 #include <QHash>
@@ -104,7 +103,7 @@ private:
                                     SurfaceWrapper *wrapper);
     void setResourceManagerAtom(WAYLIB_SERVER_NAMESPACE::WXWayland *xwayland,
                                 const QByteArray &value);
-    // 预启动闪屏相关：在 PrelaunchSplash::splashRequested 时创建的预启动 SurfaceWrapper
+    // Prelaunch splash related: creates a prelaunch SurfaceWrapper when PrelaunchSplash::splashRequested
     void handlePrelaunchSplashRequested(const QString &appId, QW_NAMESPACE::qw_buffer *iconBuffer);
 
     // --- helpers (internal) ---
@@ -136,9 +135,9 @@ private:
     SurfaceContainer *m_popupContainer = nullptr;
     QObject *m_windowMenu = nullptr;
     // Prelaunch wrappers created before binding to a real shell surface
-    QVector<SurfaceWrapper *> m_prelaunchWrappers;
+    QList<SurfaceWrapper *> m_prelaunchWrappers;
     // Pending toplevel surfaces (XDG or XWayland) awaiting async AppId resolve; callbacks continue only if the pointer remains in this list
-    QVector<WAYLIB_SERVER_NAMESPACE::WToplevelSurface *> m_pendingAppIdResolveToplevels;
+    QList<WAYLIB_SERVER_NAMESPACE::WToplevelSurface *> m_pendingAppIdResolveToplevels;
     // New protocol based app id resolver (optional, may be null if module not loaded)
     AppIdResolverManager *m_appIdResolverManager = nullptr;
     WindowSizeStore *m_windowSizeStore = nullptr;
