@@ -22,7 +22,15 @@ static QString identifyViaDBus(int pidfd)
     int dupfd = fcntl(pidfd, F_DUPFD_CLOEXEC, 0);
     if (dupfd < 0) {
         qWarning() << "dup pidfd failed" << strerror(errno);
+        // Close the original pidfd to avoid FD leak
+        if (close(pidfd) != 0) {
+            qWarning() << "close pidfd failed" << strerror(errno);
+        }
         return {};
+    }
+    // Close the original pidfd after duplicating
+    if (close(pidfd) != 0) {
+        qWarning() << "close pidfd failed" << strerror(errno);
     }
     QDBusUnixFileDescriptor wrapper(dupfd); // wrapper owns and will close dupfd
     auto msg = QDBusMessage::createMethodCall(
@@ -33,7 +41,12 @@ static QString identifyViaDBus(int pidfd)
     msg << QVariant::fromValue(wrapper);
     auto reply = QDBusConnection::sessionBus().call(msg, QDBus::BlockWithGui);
     if (reply.type() != QDBusMessage::ReplyMessage || reply.arguments().isEmpty()) {
-        qWarning() << "DBus Identify failed" << reply.errorMessage();
+        qWarning() << "DBus Identify failed"
+                   << "service=" << msg.service()
+                   << "path=" << msg.path()
+                   << "interface=" << msg.interface()
+                   << "method=" << msg.member()
+                   << "error=" << reply.errorMessage();
         return {};
     }
     const QString appId = reply.arguments().first().toString();

@@ -74,6 +74,8 @@ Item {
     }
 
     function hide() {
+        if (fadeOut.running)
+            return;
         fadeOut.start()
     }
 
@@ -81,6 +83,8 @@ Item {
         if (destroyAfterFade)
             return;
         destroyAfterFade = true;
+        if (fadeOut.running)
+            return;
         hide();
     }
 }

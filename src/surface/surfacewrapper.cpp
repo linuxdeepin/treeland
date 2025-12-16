@@ -440,6 +440,7 @@ void SurfaceWrapper::onPrelaunchSplashDestroyRequested()
                 this,
                 &SurfaceWrapper::updateBoundingRect);
     }
+    Q_ASSERT(m_surfaceItem);
     if (m_decoration)
         m_decoration->stackBefore(m_surfaceItem);
     updateVisible();

@@ -11,6 +11,8 @@
 
 #include <fcntl.h>
 #include <unistd.h>
+#include <errno.h>
+#include <string.h>
 #include <utility>
 
 Q_LOGGING_CATEGORY(treelandAppIdResolver, "treeland.appid.resolver", QtInfoMsg)
@@ -51,6 +53,9 @@ uint32_t AppIdResolver::requestResolve(int pidfd)
         return 0;
     uint32_t id = m_nextRequestId++;
     send_identify_request(id, dupfd);
+    if (close(dupfd) != 0) {
+        qCWarning(treelandAppIdResolver) << "close dupfd failed" << strerror(errno);
+    }
     return id;
 }
 
@@ -118,6 +123,8 @@ void AppIdResolverManager::resolverGone()
         Q_EMIT appIdResolved(id, QString());
     }
     m_signalOnlyPending.clear();
+    // Prevent any late signal emissions during queued deletion
+    QObject::disconnect(m_resolver, nullptr, this, nullptr);
     m_resolver->deleteLater();
     m_resolver = nullptr;
     Q_EMIT availableChanged();
