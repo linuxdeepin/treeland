@@ -795,9 +795,9 @@ public:
 protected:
     void treeland_lockscreen_v1_destroy_resource([[maybe_unused]] Resource *resource) override;
     void treeland_lockscreen_v1_destroy([[maybe_unused]] Resource *resource) override;
-    virtual void treeland_lockscreen_v1_lock([[maybe_unused]] Resource *resource) override;
-    virtual void treeland_lockscreen_v1_shutdown([[maybe_unused]] Resource *resource) override;
-    virtual void treeland_lockscreen_v1_switch_user([[maybe_unused]] Resource *resource) override;
+    void treeland_lockscreen_v1_lock([[maybe_unused]] Resource *resource) override;
+    void treeland_lockscreen_v1_shutdown([[maybe_unused]] Resource *resource) override;
+    void treeland_lockscreen_v1_switch_user([[maybe_unused]] Resource *resource) override;
 };
 
 void LockScreenInterfacePrivate::treeland_lockscreen_v1_lock([[maybe_unused]] Resource *resource)
