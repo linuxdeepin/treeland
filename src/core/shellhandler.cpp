@@ -282,7 +282,7 @@ SurfaceWrapper *ShellHandler::matchOrCreateXdgWrapper(WXdgToplevelSurface *surfa
             auto *candidate = m_prelaunchWrappers[i];
             if (candidate->appId() == targetAppId) {
                 qCDebug(treelandShell) << "match prelaunch xdg" << targetAppId;
-                m_prelaunchWrappers.remove(i);
+                m_prelaunchWrappers.removeAt(i);
                 wrapper = candidate;
                 wrapper->convertToNormalSurface(surface, SurfaceWrapper::Type::XdgToplevel);
                 break;
@@ -468,7 +468,7 @@ SurfaceWrapper *ShellHandler::matchOrCreateXwaylandWrapper(WXWaylandSurface *sur
             auto *candidate = m_prelaunchWrappers[i];
             if (candidate->appId() == targetAppId) {
                 qCDebug(treelandShell) << "match prelaunch xwayland" << targetAppId;
-                m_prelaunchWrappers.remove(i);
+                m_prelaunchWrappers.removeAt(i);
                 wrapper = candidate;
                 wrapper->convertToNormalSurface(surface, SurfaceWrapper::Type::XWayland);
                 break;

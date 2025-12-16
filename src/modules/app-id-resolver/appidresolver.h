@@ -36,6 +36,7 @@ Q_SIGNALS:
 
 protected:
     void treeland_app_id_resolver_v1_destroy(Resource *resource) override;
+    void treeland_app_id_resolver_v1_destroy_resource(Resource *resource) override;
     void treeland_app_id_resolver_v1_respond(Resource *resource,
                                              uint32_t request_id,
                                              const QString &app_id,
@@ -67,7 +68,6 @@ public:
 
 Q_SIGNALS:
     void availableChanged();
-    void appIdResolved(uint32_t requestId, const QString &appId); // 解析完成
 
 protected: // protocol generated virtuals
     void treeland_app_id_resolver_manager_v1_destroy(Resource *resource) override;
@@ -84,8 +84,6 @@ private:
     AppIdResolver *m_resolver = nullptr;
     // request id -> callback
     QHash<uint32_t, std::function<void(const QString &)>> m_callbacks;
-    // For legacy signal interface only (ids from resolvePidfd(int) stored here)
-    QSet<uint32_t> m_signalOnlyPending;
     wl_global *m_global = nullptr; // best-effort cache (not exposed by QtWayland API directly)
 
     void resolverGone();
