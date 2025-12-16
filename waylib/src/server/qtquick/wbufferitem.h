@@ -30,7 +30,7 @@ class WAYLIB_SERVER_EXPORT WBufferItem : public QQuickItem, public virtual WText
 {
     Q_OBJECT
     Q_DECLARE_PRIVATE(WBufferItem)
-    Q_PROPERTY(QVariant buffer READ bufferVariant WRITE setBufferVariant NOTIFY bufferChanged FINAL)
+    Q_PROPERTY(QW_NAMESPACE::qw_buffer* buffer READ buffer WRITE setBuffer NOTIFY bufferChanged FINAL)
     QML_NAMED_ELEMENT(BufferItem)
 
 public:
@@ -39,8 +39,6 @@ public:
 
     QW_NAMESPACE::qw_buffer *buffer() const;
     void setBuffer(QW_NAMESPACE::qw_buffer *buffer);
-    QVariant bufferVariant() const;
-    void setBufferVariant(const QVariant &buffer);
 
     bool isTextureProvider() const override;
     QSGTextureProvider *textureProvider() const override;

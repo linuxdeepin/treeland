@@ -1,8 +1,6 @@
 // Copyright (C) 2025 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
-
 #include "prelaunchsplash.h"
-
 #include "qwayland-server-treeland-prelaunch-splash-v1.h"
 
 #include <wserver.h>
@@ -64,7 +62,6 @@ PrelaunchSplash::PrelaunchSplash(QObject *parent)
     : QObject(parent)
     , d(new PrelaunchSplashPrivate(this))
 {
-    qRegisterMetaType<QW_NAMESPACE::qw_buffer*>("QW_NAMESPACE::qw_buffer*");
 }
 
 PrelaunchSplash::~PrelaunchSplash() = default;

@@ -12,6 +12,7 @@
 #include <DLog>
 
 #include <QGuiApplication>
+#include <QMetaType>
 
 WAYLIB_SERVER_USE_NAMESPACE
 DCORE_USE_NAMESPACE;
@@ -28,6 +29,8 @@ int main(int argc, char *argv[])
     QGuiApplication::setQuitOnLastWindowClosed(false);
 
     QGuiApplication app(argc, argv);
+    qRegisterMetaType<QW_NAMESPACE::qw_buffer*>("qw_buffer*");
+
     app.setOrganizationName("deepin");
     app.setApplicationName("treeland");
 
