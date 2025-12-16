@@ -34,6 +34,13 @@ void AppIdResolver::treeland_app_id_resolver_v1_destroy(Resource *resource)
     wl_resource_destroy(resource->handle);
 }
 
+void AppIdResolver::treeland_app_id_resolver_v1_destroy_resource(Resource *resource)
+{
+    Q_UNUSED(resource);
+    m_alive = false;
+    Q_EMIT disconnected();
+}
+
 void AppIdResolver::treeland_app_id_resolver_v1_respond(Resource *resource,
                                                         uint32_t request_id,
                                                         const QString &app_id,
@@ -112,17 +119,15 @@ void AppIdResolverManager::resolverGone()
     if (!m_resolver)
         return;
     // All pending requests (signalOnly and callback) return empty appId on resolver loss
-    for (auto it = m_callbacks.begin(); it != m_callbacks.end(); ++it) {
-        auto cb = it.value();
+    // Copy out pending callbacks and ids to avoid iterator invalidation or reentrancy issues
+    auto callbacks = m_callbacks.values();
+    // Clear internal state before emitting callbacks to avoid reentrancy issues
+    m_callbacks.clear();
+    // Emit results for previously pending callbacks
+    for (auto &cb : callbacks) {
         if (cb)
             cb(QString());
-        Q_EMIT appIdResolved(it.key(), QString());
     }
-    m_callbacks.clear();
-    for (auto id : std::as_const(m_signalOnlyPending)) {
-        Q_EMIT appIdResolved(id, QString());
-    }
-    m_signalOnlyPending.clear();
     // Prevent any late signal emissions during queued deletion
     QObject::disconnect(m_resolver, nullptr, this, nullptr);
     m_resolver->deleteLater();
@@ -138,12 +143,7 @@ void AppIdResolverManager::handleResolved(uint32_t id, const QString &appId)
         m_callbacks.erase(it);
         if (cb)
             cb(appId);
-        Q_EMIT appIdResolved(id, appId);
         return;
-    }
-    if (m_signalOnlyPending.contains(id)) {
-        m_signalOnlyPending.remove(id);
-        Q_EMIT appIdResolved(id, appId);
     }
 }
 
