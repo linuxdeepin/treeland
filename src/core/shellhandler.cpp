@@ -259,7 +259,9 @@ void ShellHandler::onXdgToplevelSurfaceAdded(WXdgToplevelSurface *surface)
                 qCDebug(treelandShell) << "AppIdResolver request sent (callback) pidfd=" << pidfd;
                 return; // async path handles creation
             } else {
-                m_pendingAppIdResolveToplevels.removeOne(surface);
+                int idx = m_pendingAppIdResolveToplevels.indexOf(surface);
+                if (idx >= 0)
+                    m_pendingAppIdResolveToplevels.removeAt(idx);
                 qCDebug(treelandShell)
                     << "AppIdResolverManager present but requestResolve failed pidfd=" << pidfd;
             }
@@ -418,7 +420,9 @@ void ShellHandler::onXWaylandSurfaceAdded(WXWaylandSurface *surface)
                         << "(XWayland) AppIdResolver request sent (callback)";
                     return; // async path
                 } else {
-                    m_pendingAppIdResolveToplevels.removeOne(raw);
+                    int idx = m_pendingAppIdResolveToplevels.indexOf(raw);
+                    if (idx >= 0)
+                        m_pendingAppIdResolveToplevels.removeAt(idx);
                     qCDebug(treelandShell)
                         << "(XWayland) requestResolve failed pidfd=" << pidfd;
                 }
@@ -432,15 +436,15 @@ void ShellHandler::onXWaylandSurfaceAdded(WXWaylandSurface *surface)
         auto wrapper = m_rootSurfaceContainer->getSurface(surface->surface());
         qCDebug(treelandShell) << "WXWayland::notify_dissociate" << surface << wrapper;
         // Cancel pending async resolve if still present. If wrapper never created, return.
-        if (m_pendingAppIdResolveToplevels.removeOne(surface)) {
-            qCInfo(treelandShell) << "Cancelled pending AppId resolve (XWayland) for surface:" << surface;
-            if (!wrapper) {
-                return; // never created
+        if (!wrapper) {
+            if (!m_pendingAppIdResolveToplevels.removeOne(surface)) {
+                qCWarning(treelandShell)
+                    << "WXWayland::notify_dissociate for unknown surface" << surface;
             }
+            return; // never created
         }
-        // Persist XWayland window size (only if wrapper exists)
-        if (m_windowSizeStore && wrapper
-            && !wrapper->appId().isEmpty()) {
+        // Persist XWayland window size
+        if (m_windowSizeStore && !wrapper->appId().isEmpty()) {
             QSizeF sz = wrapper->normalGeometry().size();
             if (!sz.isValid() || sz.isEmpty()) {
                 sz = wrapper->geometry().size();
