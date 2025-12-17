@@ -15,6 +15,10 @@
 
 #include "qwayland-treeland-app-id-resolver-v1.h"
 
+// Ownership: pidfd comes from the Wayland request (SCM_RIGHTS). The protocol layer delivers
+// it opened; the handler owns it. We dup it for DBus and close the original here. The DBus
+// wrapper then owns and closes the dup. Wayland protocol layer must NOT close pidfd after
+// dispatch; otherwise double-close would occur.
 static QString identifyViaDBus(int pidfd)
 {
     if (pidfd < 0)

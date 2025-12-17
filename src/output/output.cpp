@@ -150,7 +150,9 @@ Output::Output(WOutputItem *output, QObject *parent)
     // TODO: Investigate better ways to track the panel specific persistent settings.
     // The connector name of the panel may change.
     QString outputName = output->output()->name();
-    m_config = OutputConfig::create("org.deepin.dde.treeland.outputs", "/" + outputName, this);
+    m_config = OutputConfig::createByName("org.deepin.dde.treeland.outputs",
+                                    "org.deepin.dde.treeland",
+                                    "/" + outputName, this);
 }
 
 Output::~Output()
@@ -233,7 +235,6 @@ void Output::placeCentered(SurfaceWrapper *surface)
 
 void Output::placeSmartCascaded(SurfaceWrapper *surface)
 {
-    return;
     auto wpModel = Helper::instance()->workspace()->modelFromId(surface->workspaceId());
     Q_ASSERT(wpModel);
     auto latestActiveSurface = wpModel->activePenultimateWindow();
