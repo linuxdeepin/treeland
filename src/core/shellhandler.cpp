@@ -12,7 +12,7 @@
 #include "rootsurfacecontainer.h"
 #include "seat/helper.h"
 #include "surface/surfacewrapper.h"
-#include "treelandglobalconfig.hpp"
+#include "treelandconfig.hpp"
 #include "workspace/workspace.h"
 
 #include <xcb/xcb.h>

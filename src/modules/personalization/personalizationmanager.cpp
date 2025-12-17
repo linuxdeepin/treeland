@@ -5,7 +5,7 @@
 #include "surfacewrapper.h"
 
 #include "seat/helper.h"
-#include "treelandconfig.hpp"
+#include "treelanduserconfig.hpp"
 #include "modules/personalization/impl/appearance_impl.h"
 #include "modules/personalization/impl/font_impl.h"
 #include "modules/personalization/impl/personalization_manager_impl.h"
@@ -139,13 +139,13 @@ void PersonalizationV1::onCursorContextCreated(personalization_cursor_context_v1
     auto size = Helper::instance()->config()->cursorSize();
     context->setSize(QSize(size, size));
     connect(Helper::instance()->config(),
-            &TreelandConfig::cursorThemeNameChanged,
+            &TreelandUserConfig::cursorThemeNameChanged,
             context,
             [context]() {
                 context->setTheme(Helper::instance()->config()->cursorThemeName());
             });
     connect(Helper::instance()->config(),
-            &TreelandConfig::cursorSizeChanged,
+            &TreelandUserConfig::cursorSizeChanged,
             context,
             [context]() {
                 auto size = Helper::instance()->config()->cursorSize();
@@ -246,13 +246,13 @@ void PersonalizationV1::onFontContextCreated(personalization_font_context_v1 *co
 {
     using Font = personalization_font_context_v1;
 
-    connect(Helper::instance()->config(), &TreelandConfig::fontChanged, context, [context] {
+    connect(Helper::instance()->config(), &TreelandUserConfig::fontChanged, context, [context] {
         context->sendFont(Helper::instance()->config()->font());
     });
-    connect(Helper::instance()->config(), &TreelandConfig::monoFontChanged, context, [context] {
+    connect(Helper::instance()->config(), &TreelandUserConfig::monoFontChanged, context, [context] {
         context->sendMonospaceFont(Helper::instance()->config()->monoFont());
     });
-    connect(Helper::instance()->config(), &TreelandConfig::fontSizeChanged, context, [context] {
+    connect(Helper::instance()->config(), &TreelandUserConfig::fontSizeChanged, context, [context] {
         context->sendFontSize(Helper::instance()->config()->fontSize());
     });
 
@@ -266,12 +266,12 @@ void PersonalizationV1::onFontContextCreated(personalization_font_context_v1 *co
         context->sendFontSize(Helper::instance()->config()->fontSize());
     });
 
-    connect(context, &Font::fontChanged, Helper::instance()->config(), &TreelandConfig::setFont);
+    connect(context, &Font::fontChanged, Helper::instance()->config(), &TreelandUserConfig::setFont);
     connect(context,
             &Font::monoFontChanged,
             Helper::instance()->config(),
-            &TreelandConfig::setMonoFont);
-    connect(context, &Font::fontSizeChanged, Helper::instance()->config(), &TreelandConfig::setFontSize);
+            &TreelandUserConfig::setMonoFont);
+    connect(context, &Font::fontSizeChanged, Helper::instance()->config(), &TreelandUserConfig::setFontSize);
 
     connect(context, &Font::beforeDestroy, this, [this, context] {
         for (auto it = m_fontContexts.begin(); it != m_fontContexts.end(); ++it) {

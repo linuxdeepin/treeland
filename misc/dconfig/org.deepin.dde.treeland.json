@@ -2,6 +2,17 @@
     "magic": "dsg.config.meta",
     "version": "1.0",
     "contents": {
+        "forceSoftwareCursor": {
+            "value": false,
+            "serial": 0,
+            "flags": ["global"],
+            "name": "Force Software Cursor",
+            "name[zh_CN]": "强制软光标渲染",
+            "description": "Force software cursor rendering",
+            "description[zh_CN]": "强制使用软光标进行渲染",
+            "permissions": "readwrite",
+            "visibility": "public"
+        },
         "enablePrelaunchSplash": {
             "value": false,
             "serial": 0,

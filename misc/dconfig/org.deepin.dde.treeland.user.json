@@ -5,7 +5,7 @@
         "showOnLock": {
             "value": false,
             "serial": 0,
-            "flags": ["user-public"],
+            "flags": ["global"],
             "name": "Show on lock screen",
             "name[zh_CN]": "显示在锁屏之上",
             "description": "Allow show context on lock screen",
@@ -16,7 +16,7 @@
         "lostScreen": {
             "value": "MoveToPrimary",
             "serial": 0,
-            "flags": ["user-public"],
+            "flags": ["global"],
             "name": "Behaivor when lost screen",
             "name[zh_CN]": "丢失屏幕的行为",
             "description": "Behaivor when lost screen, allow value: MoveToPrimary、Minimize",
@@ -27,7 +27,7 @@
         "font": {
             "value": "Source Han Sans SC",
             "serial": 0,
-            "flags": ["user-public"],
+            "flags": ["global"],
             "name": "Font",
             "name[zh_CN]": "字体",
             "description": "Font Family",
@@ -38,7 +38,7 @@
         "monoFont": {
             "value": "Noto Mono",
             "serial": 0,
-            "flags": ["user-public"],
+            "flags": ["global"],
             "name": "Mono Font",
             "name[zh_CN]": "等宽字体",
             "description": "Mono Font Family",
@@ -49,7 +49,7 @@
         "fontSize": {
             "value": 105,
             "serial": 0,
-            "flags": ["user-public"],
+            "flags": ["global"],
             "name": "Font Size",
             "name[zh_CN]": "字体大小",
             "description": "Font Size",
@@ -60,7 +60,7 @@
         "windowRadius": {
             "value": 12,
             "serial": 0,
-            "flags": ["user-public"],
+            "flags": ["global"],
             "name": "Round Corner Radius",
             "name[zh_CN]": "窗口圆角大小",
             "description": "Window Corner Round Radius",
@@ -71,7 +71,7 @@
         "preferDark": {
             "value": false,
             "serial": 0,
-            "flags": ["user-public"],
+            "flags": ["global"],
             "name": "Prefer Dark",
             "name[zh_CN]": "倾向暗色",
             "description": "Color scheme is prefer dark",
@@ -82,7 +82,7 @@
         "themeName": {
             "value": "",
             "serial": 0,
-            "flags": ["user-public"],
+            "flags": ["global"],
             "name": "Theme Name",
             "name[zh_CN]": "主题名称",
             "description": "Theme Name",
@@ -93,7 +93,7 @@
         "iconThemeName": {
             "value": "nirvana",
             "serial": 0,
-            "flags": ["user-public"],
+            "flags": ["global"],
             "name": "Icon Theme Name",
             "name[zh_CN]": "图标主题名称",
             "description": "Icon Theme Name",
@@ -104,7 +104,7 @@
         "cursorThemeName": {
             "value": "bloom",
             "serial": 0,
-            "flags": ["user-public"],
+            "flags": ["global"],
             "name": "Cursor Theme Name",
             "name[zh_CN]": "光标主题名称",
             "description": "Cursor Theme Name",
@@ -115,7 +115,7 @@
         "cursorSize": {
             "value": 24,
             "serial": 0,
-            "flags": ["user-public"],
+            "flags": ["global"],
             "name": "Cursor Size",
             "name[zh_CN]": "光标大小",
             "description": "Cursor Size",
@@ -126,7 +126,7 @@
         "cursorBlink": {
             "value": true,
             "serial": 0,
-            "flags": ["user-public"],
+            "flags": ["global"],
             "name": "Cursor Blink",
             "name[zh_CN]": "光标闪烁",
             "description": "Whether the cursor should blink",
@@ -137,7 +137,7 @@
         "cursorBlinkTime": {
             "value": 1200,
             "serial": 0,
-            "flags": ["user-public"],
+            "flags": ["global"],
             "name": "Cursor Blink Time",
             "name[zh_CN]": "光标闪烁时间",
             "description": "Length of the cursor blink cycle, in milleseconds",
@@ -148,7 +148,7 @@
         "doubleClickTime": {
             "value": 250,
             "serial": 0,
-            "flags": ["user-public"],
+            "flags": ["global"],
             "name": "Double Click Time",
             "name[zh_CN]": "双击时间",
             "description": "Maximum time allowed between two clicks for them to be considered a double click (in milliseconds)",
@@ -159,7 +159,7 @@
         "doubleClickDistance": {
             "value": 5,
             "serial": 0,
-            "flags": ["user-public"],
+            "flags": ["global"],
             "name": "Double Click Distance",
             "name[zh_CN]": "双击距离",
             "description": "Maximum distance allowed between two clicks for them to be considered a double click (in pixels)",
@@ -170,7 +170,7 @@
         "dndDragThreshold": {
             "value": 8,
             "serial": 0,
-            "flags": ["user-public"],
+            "flags": ["global"],
             "name": "Dnd Drag Threshold",
             "name[zh_CN]": "拖动阈值",
             "description": "Number of pixels the cursor can move before dragging",
@@ -181,7 +181,7 @@
         "maxWorkspace": {
             "value": 6,
             "serial": 0,
-            "flags": ["user-public"],
+            "flags": ["global"],
             "name": "Max Workspace Count",
             "name[zh_CN]": "工作区最大数量",
             "description": "Maximum number of workspaces",
@@ -192,7 +192,7 @@
         "numWorkspace": {
             "value": 2,
             "serial": 0,
-            "flags": ["user-public"],
+            "flags": ["global"],
             "name": "Number of workspaces",
             "name[zh_CN]": "工作区数量",
             "description": "Current number of workspaces",
@@ -203,24 +203,13 @@
         "currentWorkspace": {
             "value": 0,
             "serial": 0,
-            "flags": ["user-public"],
+            "flags": ["global"],
             "name": "Current workspace",
             "name[zh_CN]": "当前工作区",
             "description": "Current index of workspace",
             "description[zh_CN]": "当前工作区索引",
             "permissions": "readwrite",
             "visibility": "private"
-        },
-        "forceSoftwareCursor": {
-            "value": false,
-            "serial": 0,
-            "flags": ["global"],
-            "name": "Force Software Cursor",
-            "name[zh_CN]": "强制软光标渲染",
-            "description": "Force software cursor rendering",
-            "description[zh_CN]": "强制使用软光标进行渲染",
-            "permissions": "readwrite",
-            "visibility": "public"
         },
         "activeColor": {
             "value": "#1F6EE7",

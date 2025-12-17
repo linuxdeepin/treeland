@@ -10,7 +10,7 @@
 #include "surface/surfacecontainer.h"
 #include "surface/surfacewrapper.h"
 #include "workspaceanimationcontroller.h"
-#include "treelandconfig.hpp"
+#include "treelanduserconfig.hpp"
 
 Workspace::Workspace(SurfaceContainer *parent)
     : SurfaceContainer(parent)
