@@ -19,7 +19,7 @@ Item {
 
     Rectangle {
         id: background
-        color: "#ffffff"
+        color: "#ffffff" // TODO(rewine): Use theme color if available
         anchors.fill: parent
         radius: initialRadius
 

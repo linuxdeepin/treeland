@@ -60,9 +60,6 @@ uint32_t AppIdResolver::requestResolve(int pidfd)
         return 0;
     uint32_t id = m_nextRequestId++;
     send_identify_request(id, dupfd);
-    if (close(dupfd) != 0) {
-        qCWarning(treelandAppIdResolver) << "close dupfd failed" << strerror(errno);
-    }
     return id;
 }
 

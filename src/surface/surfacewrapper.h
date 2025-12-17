@@ -33,7 +33,7 @@ class SurfaceWrapper : public QQuickItem
     Q_OBJECT
     QML_ELEMENT
     QML_UNCREATABLE("SurfaceWrapper objects are created by c++")
-    Q_PROPERTY(Type type READ type NOTIFY surfaceItemChanged)
+    Q_PROPERTY(Type type READ type NOTIFY typeChanged)
     Q_PROPERTY(QString appId READ appId CONSTANT)
     // make to read only
     Q_PROPERTY(qreal implicitWidth READ implicitWidth NOTIFY implicitWidthChanged FINAL)
@@ -331,6 +331,7 @@ Q_SIGNALS:
     void acceptKeyboardFocusChanged();
     void surfaceItemChanged();
     void prelaunchSplashChanged();
+    void typeChanged();
 
 private:
     ~SurfaceWrapper() override;
