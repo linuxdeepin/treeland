@@ -787,7 +787,7 @@ WGlobal::CursorShape WSeat::requestedCursorShape() const
     W_DC(WSeat);
 
     if (d->cursorClient != d->nativeHandle()->pointer_state.focused_client) {
-        qWarning("Focused client never set cursor shape nor surface, will fallback to `Default`");
+        qCWarning(waylibSeat, "Focused client never set cursor shape nor surface, will fallback to `Default`");
         return WGlobal::CursorShape::Default;
     }
 
