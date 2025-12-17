@@ -322,18 +322,19 @@ void ShellHandler::onXdgToplevelSurfaceRemoved(WXdgToplevelSurface *surface)
     auto wrapper = m_rootSurfaceContainer->getSurface(surface);
     // If async resolve still pending, cancel it. If wrapper never created, just return: compositor
     // never exposed this surface (from treeland's perspective).
-    if (m_pendingAppIdResolveToplevels.removeOne(surface)) {
-        qCInfo(treelandShell) << "Cancelled pending AppId resolve for surface:" << surface;
-        if (!wrapper) {
-            return; // wrapper was never created; nothing to persist or destroy
+    if (!wrapper) {
+        if (!m_pendingAppIdResolveToplevels.removeOne(surface)) {
+            qCWarning(treelandShell)
+                << "onXdgToplevelSurfaceRemoved for unknown surface" << surface;
         }
+        return;
     }
     auto interface = DDEShellSurfaceInterface::get(surface->surface());
     if (interface) {
         delete interface;
     }
     // Persist the last size of a normal window (prefer normalGeometry) when an appId is present
-    if (m_windowSizeStore && wrapper && !wrapper->appId().isEmpty()) {
+    if (m_windowSizeStore && !wrapper->appId().isEmpty()) {
         QSizeF sz = wrapper->normalGeometry().size();
         if (!sz.isValid() || sz.isEmpty()) {
             sz = wrapper->geometry().size();
