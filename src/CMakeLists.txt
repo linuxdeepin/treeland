@@ -151,6 +151,10 @@ qt_add_qml_module(libtreeland
         output/output.h
         output/backlight.h
         output/backlight.cpp
+        output/outputconfigstate.cpp
+        output/outputconfigstate.h
+        output/outputlifecyclemanager.cpp
+        output/outputlifecyclemanager.h
         seat/helper.cpp
         seat/helper.h
         surface/surfacecontainer.cpp

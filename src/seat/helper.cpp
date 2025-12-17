@@ -23,6 +23,8 @@
 #endif
 #include "interfaces/multitaskviewinterface.h"
 #include "output/output.h"
+#include "output/outputconfigstate.h"
+#include "output/outputlifecyclemanager.h"
 #include "modules/output-manager/outputmanagement.h"
 #include "modules/personalization/personalizationmanager.h"
 #include "core/qmlengine.h"
@@ -224,6 +226,10 @@ Helper::Helper(QObject *parent)
 
     m_shellHandler = new ShellHandler(m_rootSurfaceContainer);
 
+    m_outputConfigState = new OutputConfigState(this);
+    m_outputLifecycleManager =
+        new OutputLifecycleManager(m_rootSurfaceContainer, m_outputConfigState, this);
+
 #ifdef EXT_SESSION_LOCK_V1
     m_lockScreenGraceTimer = new QTimer(this);
     m_lockScreenGraceTimer->setInterval(300);
@@ -387,12 +393,35 @@ void Helper::onOutputAdded(WOutput *output)
     // TODO: 应该让helper发出Output的信号，每个需要output的单元单独connect。
     allowNonDrmOutputAutoChangeMode(output);
     Output *o = nullptr;
-    if (m_mode == OutputMode::Extension || !m_rootSurfaceContainer->primaryOutput()) {
+
+    bool shouldRestoreCopyMode = (m_mode == OutputMode::Extension && m_outputConfigState
+                                  && m_outputConfigState->shouldRestoreCopyMode()
+                                  && m_outputList.size() >= 1); // This output + existing outputs
+
+    if (shouldRestoreCopyMode) {
+        Output *primaryOutput = m_rootSurfaceContainer->primaryOutput();
+        if (!primaryOutput) {
+            qCWarning(treelandCore) << "Cannot restore Copy Mode: no primary output available";
+            o = createNormalOutput(output);
+        } else {
+            const auto &allSurfaces = getWorkspaceSurfaces();
+            applyCopyModeToOutputs(primaryOutput, allSurfaces);
+            o = createCopyOutput(output, primaryOutput);
+        }
+    } else if (m_mode == OutputMode::Extension || !m_rootSurfaceContainer->primaryOutput()) {
         o = createNormalOutput(output);
     } else if (m_mode == OutputMode::Copy) {
         o = createCopyOutput(output, m_rootSurfaceContainer->primaryOutput());
     }
     m_outputList.append(o);
+    // Handle primary output restoration via lifecycle manager
+    if (m_outputLifecycleManager) {
+        m_outputLifecycleManager->setMode(m_mode == OutputMode::Extension
+                                              ? OutputLifecycleManager::Mode::Extension
+                                              : OutputLifecycleManager::Mode::Copy);
+        m_outputLifecycleManager->onScreenAdded(o);
+    }
+
     o->enable();
     m_outputManager->newOutput(output);
 
@@ -439,26 +468,62 @@ void Helper::onOutputRemoved(WOutput *output)
     const auto o = m_outputList.takeAt(index);
 
     const auto &surfaces = getWorkspaceSurfaces(o);
-    if (m_mode == OutputMode::Extension) {
-        m_rootSurfaceContainer->removeOutput(o);
-    } else if (m_mode == OutputMode::Copy) {
+    if (m_mode == OutputMode::Copy) {
+        if (m_outputConfigState) {
+            m_outputConfigState->recordCopyModeExit();
+        }
+
         m_mode = OutputMode::Extension;
-        if (output == m_rootSurfaceContainer->primaryOutput()->output())
-            m_rootSurfaceContainer->removeOutput(o);
+        Q_EMIT outputModeChanged();
+
+        QList<Output *> outputsToConvert;
+        QList<Output *> oldOutputsToDelete;
+
+        bool removedWasPrimary = (output == m_rootSurfaceContainer->primaryOutput()->output());
+        Output *primaryCandidate = nullptr;
 
         for (int i = 0; i < m_outputList.size(); i++) {
-            if (m_outputList.at(i) == m_rootSurfaceContainer->primaryOutput())
-                continue;
-            Output *o1 = createNormalOutput(m_outputList.at(i)->output());
-            o1->enable();
-            m_outputList.at(i)->deleteLater();
-            m_outputList.replace(i, o1);
-        }
-    }
+            Output *copyOutput = m_outputList.at(i);
+            Output *normalOutput = createNormalOutput(copyOutput->output());
+            normalOutput->enable();
 
-    // When removing the last screen, no need to move the window position
-    if (m_rootSurfaceContainer->primaryOutput() != o) {
-        moveSurfacesToOutput(surfaces, m_rootSurfaceContainer->primaryOutput(), o);
+            outputsToConvert.append(normalOutput);
+            oldOutputsToDelete.append(copyOutput);
+
+            m_outputList.replace(i, normalOutput);
+
+            if (!primaryCandidate) {
+                primaryCandidate = normalOutput;
+            }
+        }
+
+        if (removedWasPrimary && primaryCandidate) {
+            m_rootSurfaceContainer->setPrimaryOutput(primaryCandidate);
+            if (!surfaces.isEmpty()) {
+                moveSurfacesToOutput(surfaces, primaryCandidate, o);
+            }
+        }
+
+        if (removedWasPrimary) {
+            m_rootSurfaceContainer->removeOutput(o);
+        }
+
+        for (auto oldOutput : oldOutputsToDelete) {
+            delete oldOutput;
+        }
+
+    } else {
+        bool wasPrimary = (o == m_rootSurfaceContainer->primaryOutput());
+
+        if (wasPrimary && m_outputConfigState) {
+            m_outputConfigState->markScreenAsPrimary(o->output()->name());
+        }
+
+        m_rootSurfaceContainer->removeOutput(o);
+        if (m_outputLifecycleManager) {
+            m_outputLifecycleManager->setMode(OutputLifecycleManager::Mode::Extension);
+            m_outputLifecycleManager->onScreenRemoved(o, surfaces);
+        }
     }
 
     m_outputManager->removeOutput(output);
@@ -502,6 +567,10 @@ void Helper::handleCopyModeOutputDisable(Output *affectedOutput)
         return;
     }
 
+    if (m_outputConfigState) {
+        m_outputConfigState->recordCopyModeExit();
+    }
+
     m_mode = OutputMode::Extension;
     Q_EMIT outputModeChanged();
 
@@ -532,7 +601,6 @@ void Helper::handleCopyModeOutputDisable(Output *affectedOutput)
         m_rootSurfaceContainer->setPrimaryOutput(primaryCandidate);
     }
 }
-
 
 void Helper::onOutputTestOrApply(qw_output_configuration_v1 *config, bool onlyTest)
 {
@@ -593,6 +661,29 @@ void Helper::onOutputTestOrApply(qw_output_configuration_v1 *config, bool onlyTe
     m_pendingOutputConfig.states = states;
     m_pendingOutputConfig.pendingCommits = 0;
     m_pendingOutputConfig.allSuccess = true;
+
+    if (m_outputLifecycleManager) {
+        m_outputLifecycleManager->setMode(m_mode == OutputMode::Extension
+                                              ? OutputLifecycleManager::Mode::Extension
+                                              : OutputLifecycleManager::Mode::Copy);
+
+        for (const auto &state : std::as_const(states)) {
+            Output *outputObj = getOutput(state.output);
+            if (!outputObj) {
+                continue;
+            }
+
+            if (!state.enabled && state.output->isEnabled()) {
+                const auto &surfaces = getWorkspaceSurfaces(outputObj);
+                m_outputLifecycleManager->onScreenDisabled(outputObj, surfaces);
+            } else if (state.enabled && !state.output->isEnabled()) {
+                m_outputLifecycleManager->onScreenEnabled(outputObj);
+                if (m_outputLifecycleManager->takeCopyModeRestoreIntent()) {
+                    restoreCopyMode();
+                }
+            }
+        }
+    }
 
     for (const auto &state : std::as_const(states)) {
         // Skip outputs that have been removed (e.g., disabled in Copy mode)
@@ -1782,32 +1873,7 @@ void Helper::moveSurfacesToOutput(const QList<SurfaceWrapper *> &surfaces,
                                   Output *targetOutput,
                                   Output *sourceOutput)
 {
-    if (!surfaces.isEmpty() && targetOutput) {
-        const QRectF targetGeometry = targetOutput->geometry();
-
-        for (auto *surface : surfaces) {
-            if (!surface)
-                continue;
-
-            const QSizeF size = surface->size();
-            QPointF newPos;
-
-            if (surface->ownsOutput() == targetOutput) {
-                newPos = surface->position();
-            } else {
-                const QRectF sourceGeometry =
-                    sourceOutput ? sourceOutput->geometry() : surface->ownsOutput()->geometry();
-                const QPointF relativePos = surface->position() - sourceGeometry.center();
-                newPos = targetGeometry.center() + relativePos;
-                surface->setOwnsOutput(targetOutput);
-            }
-            newPos.setX(
-                qBound(targetGeometry.left(), newPos.x(), targetGeometry.right() - size.width()));
-            newPos.setY(
-                qBound(targetGeometry.top(), newPos.y(), targetGeometry.bottom() - size.height()));
-            surface->setPosition(newPos);
-        }
-    }
+    m_rootSurfaceContainer->moveSurfacesToOutput(surfaces, targetOutput, sourceOutput);
 }
 
 SurfaceWrapper *Helper::keyboardFocusSurface() const
@@ -2746,6 +2812,7 @@ void Helper::setNoAnimation(bool noAnimation) {
     m_noAnimation = noAnimation;
     emit noAnimationChanged();
 }
+
 void Helper::toggleFpsDisplay()
 {
     if (m_fpsDisplay) {
@@ -2755,4 +2822,48 @@ void Helper::toggleFpsDisplay()
     }
 
     m_fpsDisplay = qmlEngine()->createFpsDisplay(m_renderWindow->contentItem());
+}
+
+void Helper::applyCopyModeToOutputs(Output *primaryOutput, const QList<SurfaceWrapper *> &surfaces)
+{
+    Q_ASSERT(primaryOutput);
+
+    // Convert existing outputs to copy outputs
+    for (int i = 0; i < m_outputList.size(); i++) {
+        Output *existingOutput = m_outputList.at(i);
+
+        if (existingOutput == primaryOutput) {
+            continue;
+        }
+
+        Output *copyOutput = createCopyOutput(existingOutput->output(), primaryOutput);
+        m_rootSurfaceContainer->removeOutput(existingOutput);
+        existingOutput->deleteLater();
+        m_outputList.replace(i, copyOutput);
+        m_rootSurfaceContainer->addOutput(copyOutput);
+        copyOutput->enable();
+    }
+
+    m_mode = OutputMode::Copy;
+    Q_EMIT outputModeChanged();
+
+    if (!surfaces.isEmpty()) {
+        moveSurfacesToOutput(surfaces, primaryOutput, nullptr);
+    }
+
+    if (m_outputConfigState) {
+        m_outputConfigState->clearCopyModeIntent();
+    }
+}
+
+void Helper::restoreCopyMode()
+{
+    Output *primaryOutput = m_rootSurfaceContainer->primaryOutput();
+    if (!primaryOutput) {
+        qCWarning(treelandCore) << "Cannot restore Copy Mode: no primary output available";
+        return;
+    }
+
+    const auto &allSurfaces = getWorkspaceSurfaces();
+    applyCopyModeToOutputs(primaryOutput, allSurfaces);
 }
