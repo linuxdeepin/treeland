@@ -331,9 +331,9 @@ void Workspace::startPreviewing(SurfaceWrapper *previewingItem)
     if (m_previewingItem && m_previewingItem->shellSurface()) {
         // Check shellSurface() since SurfaceWrapper::aboutToBeInvalidated can't make QPointer null
         // in time
-        auto modle = modelFromId(m_previewingItem->workspaceId());
-        m_previewingItem->setOpacity(modle->opaque() ? 1.0 : 0.0);
-        m_previewingItem->setHideByWorkspace(!modle->visible());
+        auto model = modelFromId(m_previewingItem->workspaceId());
+        m_previewingItem->setOpacity(model->opaque() ? 1.0 : 0.0);
+        m_previewingItem->setHideByWorkspace(!model->visible());
     }
     m_previewingItem = previewingItem;
     current()->setOpaque(false);
@@ -345,9 +345,9 @@ void Workspace::stopPreviewing()
 {
     current()->setOpaque(true);
     if (m_previewingItem && m_previewingItem->shellSurface()) {
-        auto modle = modelFromId(m_previewingItem->workspaceId());
-        m_previewingItem->setOpacity(modle->opaque() ? 1.0 : 0.0);
-        m_previewingItem->setHideByWorkspace(!modle->visible());
+        auto model = modelFromId(m_previewingItem->workspaceId());
+        m_previewingItem->setOpacity(model->opaque() ? 1.0 : 0.0);
+        m_previewingItem->setHideByWorkspace(!model->visible());
         m_previewingItem = nullptr;
     }
 }
@@ -359,26 +359,26 @@ void Workspace::pushActivedSurface(SurfaceWrapper *surface)
         return;
     }
     if (surface->showOnAllWorkspace()) [[unlikely]] {
-        for (auto wpModle : m_models->objects())
-            wpModle->pushActivedSurface(surface);
+        for (auto wpModel : m_models->objects())
+            wpModel->pushActivedSurface(surface);
         m_showOnAllWorkspaceModel->pushActivedSurface(surface);
     } else {
-        auto wpModle = modelFromId(surface->workspaceId());
-        Q_ASSERT(wpModle);
-        wpModle->pushActivedSurface(surface);
+        auto wpModel = modelFromId(surface->workspaceId());
+        Q_ASSERT(wpModel);
+        wpModel->pushActivedSurface(surface);
     }
 }
 
 void Workspace::removeActivedSurface(SurfaceWrapper *surface)
 {
     if (surface->showOnAllWorkspace()) [[unlikely]] {
-        for (auto wpModle : m_models->objects())
-            wpModle->removeActivedSurface(surface);
+        for (auto wpModel : m_models->objects())
+            wpModel->removeActivedSurface(surface);
         m_showOnAllWorkspaceModel->removeActivedSurface(surface);
     } else {
-        auto wpModle = modelFromId(surface->workspaceId());
-        Q_ASSERT(wpModle);
-        wpModle->removeActivedSurface(surface);
+        auto wpModel = modelFromId(surface->workspaceId());
+        Q_ASSERT(wpModel);
+        wpModel->removeActivedSurface(surface);
     }
 }
 

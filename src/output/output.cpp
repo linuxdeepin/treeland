@@ -233,9 +233,10 @@ void Output::placeCentered(SurfaceWrapper *surface)
 
 void Output::placeSmartCascaded(SurfaceWrapper *surface)
 {
-    auto wpModle = Helper::instance()->workspace()->modelFromId(surface->workspaceId());
-    Q_ASSERT(wpModle);
-    auto latestActiveSurface = wpModle->activePenultimateWindow();
+    return;
+    auto wpModel = Helper::instance()->workspace()->modelFromId(surface->workspaceId());
+    Q_ASSERT(wpModel);
+    auto latestActiveSurface = wpModel->activePenultimateWindow();
     if (!latestActiveSurface || latestActiveSurface == surface) {
         placeCentered(surface);
         return;
