@@ -35,9 +35,9 @@
 
 #include <QPointer>
 #include <QTimer>
-#include <qloggingcategory.h>
 
 #include <optional>
+#include <algorithm>
 
 QW_USE_NAMESPACE
 WAYLIB_SERVER_USE_NAMESPACE
@@ -103,12 +103,11 @@ void ShellHandler::handlePrelaunchSplashRequested(const QString &appId,
         return;
     if (appId.isEmpty())
         return;
-    // If a prelaunch wrapper with the same appId already exists, skip creating a duplicate
-    for (int i = 0; i < m_prelaunchWrappers.size(); ++i) {
-        auto *w = m_prelaunchWrappers.at(i);
-        if (w && w->appId() == appId) {
-            return;
-        }
+    // If a prelaunch wrapper with the same appId already exists, skip creating a duplicate.
+    if (std::any_of(m_prelaunchWrappers.cbegin(),
+                    m_prelaunchWrappers.cend(),
+                    [&appId](SurfaceWrapper *w) { return w && w->appId() == appId; })) {
+        return;
     }
     QSize initialSize;
     if (m_windowSizeStore) {
