@@ -131,12 +131,11 @@ SurfaceWrapper::SurfaceWrapper(QmlEngine *qmlEngine, QQuickItem *parent, const Q
     if (initialSize.isValid() && initialSize.width() > 0 && initialSize.height() > 0) {
         // Also set implicit size to keep QML layout consistent
         setImplicitSize(initialSize.width(), initialSize.height());
-        qInfo() << "Prelaunch Splash: set initial size to" << initialSize;
+        qCDebug(treelandSurface) << "Prelaunch Splash: set initial size to" << initialSize;
     } else {
         setImplicitSize(800, 600);
     }
     m_prelaunchSplash = m_engine->createPrelaunchSplash(this, radius(), iconBuffer);
-    m_prelaunchSplash->setZ(99999);
     // Connect to QML signal so C++ can destroy the QML item when requested
     connect(m_prelaunchSplash,
             SIGNAL(destroyRequested()),
@@ -439,10 +438,10 @@ void SurfaceWrapper::onPrelaunchSplashDestroyRequested()
                 &WSurfaceItem::boundingRectChanged,
                 this,
                 &SurfaceWrapper::updateBoundingRect);
+        if (m_decoration)
+            m_decoration->stackBefore(m_surfaceItem);
     }
-    Q_ASSERT(m_surfaceItem);
-    if (m_decoration)
-        m_decoration->stackBefore(m_surfaceItem);
+
     updateVisible();
 
     if (!m_prelaunchSplash)
