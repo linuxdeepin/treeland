@@ -48,7 +48,7 @@ SurfaceWrapper::SurfaceWrapper(QmlEngine *qmlEngine,
     , m_noCornerRadius(false)
     , m_alwaysOnTop(false)
     , m_skipSwitcher(false)
-    , m_skipDockPreView(m_type != Type::XdgToplevel) // x11 will set later
+    , m_skipDockPreView(true)
     , m_skipMutiTaskView(false)
     , m_isDdeShellSurface(false)
     , m_xwaylandPositionFromSurface(true)
@@ -80,7 +80,7 @@ SurfaceWrapper::SurfaceWrapper(SurfaceWrapper *original,
     , m_noCornerRadius(false)
     , m_alwaysOnTop(false)
     , m_skipSwitcher(false)
-    , m_skipDockPreView(m_type != Type::XdgToplevel) // x11 will set later
+    , m_skipDockPreView(true)
     , m_skipMutiTaskView(false)
     , m_isDdeShellSurface(false)
     , m_xwaylandPositionFromSurface(true)
@@ -114,7 +114,7 @@ SurfaceWrapper::SurfaceWrapper(QmlEngine *qmlEngine, QQuickItem *parent, const Q
     , m_noCornerRadius(false)
     , m_alwaysOnTop(false)
     , m_skipSwitcher(false)
-    , m_skipDockPreView(true)
+    , m_skipDockPreView(false)
     , m_skipMutiTaskView(false)
     , m_isDdeShellSurface(false)
     , m_xwaylandPositionFromSurface(true)
@@ -177,6 +177,7 @@ SurfaceWrapper::~SurfaceWrapper()
 void SurfaceWrapper::setup()
 {
     Q_ASSERT(m_shellSurface);
+    Q_ASSERT(m_type != Type::Undetermined);
 
     switch (m_type) {
     case Type::XdgToplevel:
@@ -205,8 +206,6 @@ void SurfaceWrapper::setup()
         m_surfaceItem = new WSurfaceItem(this);
         break;
 #endif
-    case Type::Undetermined:
-        return; // Prelaunch mode does not create a surfaceItem
     default:
         Q_UNREACHABLE();
     }
@@ -288,6 +287,9 @@ void SurfaceWrapper::setup()
 #endif
     }
 
+    if (m_type == Type::XdgToplevel && !m_isProxy) // x11 will set later
+        setSkipDockPreView(false);
+
     if (m_type == Type::XWayland && !m_isProxy) {
         auto xwaylandSurface = qobject_cast<WXWaylandSurface *>(m_shellSurface);
         auto xwaylandSurfaceItem = qobject_cast<WXWaylandSurfaceItem *>(m_surfaceItem);
@@ -359,13 +361,14 @@ void SurfaceWrapper::convertToNormalSurface(WToplevelSurface *shellSurface, Type
 {
     // Conversion only allowed from prelaunch (Undetermined) state
     if (m_type != Type::Undetermined || m_shellSurface != nullptr) {
-        qWarning() << "convertToNormalSurface can only be called on prelaunch surfaces";
+        qCCritical(treelandSurface) << "convertToNormalSurface can only be called on prelaunch surfaces";
         return;
     }
 
     // Assign new shell surface (QPointer auto-detects destruction)
     m_shellSurface = shellSurface;
     m_type = type;
+    Q_EMIT typeChanged();
 
     // Call setup() to initialize surfaceItem related features
     setup();
