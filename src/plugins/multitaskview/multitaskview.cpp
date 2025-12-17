@@ -7,7 +7,7 @@
 #include "seat/helper.h"
 #include "surface/surfacecontainer.h"
 #include "workspace/workspace.h"
-#include "treelandconfig.hpp"
+#include "treelanduserconfig.hpp"
 #include "common/treelandlogging.h"
 
 #include <woutputitem.h>

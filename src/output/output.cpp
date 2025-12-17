@@ -6,6 +6,7 @@
 #include "modules/output-manager/impl/output_manager_impl.h"
 #include "outputconfig.hpp"
 #include "treelandconfig.hpp"
+#include "treelanduserconfig.hpp"
 #include "core/rootsurfacecontainer.h"
 #include "seat/helper.h"
 #include "surface/surfacewrapper.h"
@@ -37,7 +38,7 @@
 Output *Output::create(WOutput *output, QQmlEngine *engine, QObject *parent)
 {
     auto isSoftwareCursor = [](WOutput *output) -> bool {
-        return output->handle()->is_x11() || Helper::instance()->config()->forceSoftwareCursor();
+        return output->handle()->is_x11() || Helper::instance()->globalConfig()->forceSoftwareCursor();
     };
     QQmlComponent delegate(engine, "Treeland", "PrimaryOutput");
     QObject *obj = delegate.beginCreate(engine->rootContext());
@@ -48,7 +49,7 @@ Output *Output::create(WOutput *output, QQmlEngine *engine, QObject *parent)
     QQmlEngine::setObjectOwnership(outputItem, QQmlEngine::CppOwnership);
     outputItem->setOutput(output);
 
-    connect(Helper::instance()->config(),
+    connect(Helper::instance()->globalConfig(),
             &TreelandConfig::forceSoftwareCursorChanged,
             obj,
             [obj, output, isSoftwareCursor]() {
@@ -149,7 +150,7 @@ Output::Output(WOutputItem *output, QObject *parent)
     // TODO: Investigate better ways to track the panel specific persistent settings.
     // The connector name of the panel may change.
     QString outputName = output->output()->name();
-    m_config = OutputConfig::create("org.deepin.treeland.outputs", "/" + outputName, this);
+    m_config = OutputConfig::create("org.deepin.dde.treeland.outputs", "/" + outputName, this);
 }
 
 Output::~Output()

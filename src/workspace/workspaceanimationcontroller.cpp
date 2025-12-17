@@ -6,7 +6,7 @@
 
 #include <cmath>
 #include "seat/helper.h"
-#include "treelandconfig.hpp"
+#include "treelanduserconfig.hpp"
 
 WorkspaceAnimationController::WorkspaceAnimationController(QObject *parent)
     : QObject{ parent }
