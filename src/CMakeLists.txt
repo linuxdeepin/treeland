@@ -67,21 +67,21 @@ qt_add_dbus_interface(DBUS_INTERFACE   "${CMAKE_SOURCE_DIR}/misc/interfaces/org.
 
 dtk_add_config_to_cpp(
     TREELAND_CONFIG
-    "${PROJECT_SOURCE_DIR}/misc/dconfig/org.deepin.treeland.json"
+    "${PROJECT_SOURCE_DIR}/misc/dconfig/org.deepin.dde.treeland.json"
     OUTPUT_FILE_NAME "treelandconfig.hpp"
     CLASS_NAME "TreelandConfig"
 )
 
 dtk_add_config_to_cpp(
-    OUTPUT_CONFIG
-    "${PROJECT_SOURCE_DIR}/misc/dconfig/org.deepin.treeland.global.json"
-    OUTPUT_FILE_NAME "treelandglobalconfig.hpp"
-    CLASS_NAME "TreelandGlobalConfig"
+    TREELAND_USER_CONFIG
+    "${PROJECT_SOURCE_DIR}/misc/dconfig/org.deepin.dde.treeland.user.json"
+    OUTPUT_FILE_NAME "treelanduserconfig.hpp"
+    CLASS_NAME "TreelandUserConfig"
 )
 
 dtk_add_config_to_cpp(
     OUTPUT_CONFIG
-    "${PROJECT_SOURCE_DIR}/misc/dconfig/org.deepin.treeland.output.json"
+    "${PROJECT_SOURCE_DIR}/misc/dconfig/org.deepin.dde.treeland.output.json"
     OUTPUT_FILE_NAME "outputconfig.hpp"
     CLASS_NAME "OutputConfig"
 )
@@ -102,6 +102,7 @@ qt_add_qml_module(libtreeland
         ${DDM_DBUS_SOURCES}
         ${DBUS_INTERFACE}
         ${TREELAND_CONFIG}
+        ${TREELAND_USER_CONFIG}
         ${OUTPUT_CONFIG}
         common/treelandlogging.cpp
         common/treelandlogging.h

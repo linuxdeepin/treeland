@@ -7,7 +7,7 @@
 #include "core/qmlengine.h"
 #include "output/output.h"
 #include "seat/helper.h"
-#include "treelandconfig.hpp"
+#include "treelanduserconfig.hpp"
 #include "workspace/workspace.h"
 #include "seat/helper.h"
 

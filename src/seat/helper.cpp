@@ -36,7 +36,7 @@
 #include "common/treelandlogging.h"
 #include "modules/ddm/ddminterfacev1.h"
 #include "treelandconfig.hpp"
-#include "treelandglobalconfig.hpp"
+#include "treelanduserconfig.hpp"
 #include "core/treeland.h"
 #include "greeter/greeterproxy.h"
 #include "modules/screensaver/screensaverinterfacev1.h"
@@ -210,10 +210,10 @@ Helper::Helper(QObject *parent)
     m_instance = this;
 
     Q_ASSERT(!m_config);
-    m_config.reset(TreelandConfig::createByName("org.deepin.treeland",
-                                              "org.deepin.treeland",
+    m_config.reset(TreelandUserConfig::createByName("org.deepin.dde.treeland",
+                                              "org.deepin.dde.treeland",
                                               "/dde")); // will update user path in Helper::init
-    m_globalConfig.reset(TreelandGlobalConfig::create("org.deepin.treeland.global",
+    m_globalConfig.reset(TreelandConfig::create("org.deepin.dde.treeland",
                                                       QString()));
 
     m_renderWindow->setColor(Qt::black);
@@ -302,12 +302,12 @@ Helper *Helper::instance()
     return m_instance;
 }
 
-TreelandConfig *Helper::config()
+TreelandUserConfig *Helper::config()
 {
     return m_config.get();
 }
 
-TreelandGlobalConfig *Helper::globalConfig()
+TreelandConfig *Helper::globalConfig()
 {
     return m_globalConfig.get();
 }
@@ -1230,8 +1230,8 @@ void Helper::init(Treeland::Treeland *treeland)
     m_personalization = m_server->attach<PersonalizationV1>();
 
     auto updateCurrentUser = [this] {
-        m_config.reset(TreelandConfig::createByName("org.deepin.treeland",
-                                                  "org.deepin.treeland",
+        m_config.reset(TreelandUserConfig::createByName("org.deepin.dde.treeland",
+                                                  "org.deepin.dde.treeland",
                                                   "/" + m_userModel->currentUserName()));
         auto user = m_userModel->currentUser();
         m_personalization->setUserId(user ? user->UID() : getuid());
