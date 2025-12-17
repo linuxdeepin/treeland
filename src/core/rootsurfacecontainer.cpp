@@ -111,13 +111,17 @@ void RootSurfaceContainer::addOutput(Output *output)
     if (!m_primaryOutput)
         setPrimaryOutput(output);
 
-    SurfaceContainer::addOutput(output);
+    if (output->isPrimary()) {
+        SurfaceContainer::addOutput(output);
+    }
 }
 
 void RootSurfaceContainer::removeOutput(Output *output)
 {
     m_outputModel->removeObject(output);
-    SurfaceContainer::removeOutput(output);
+    if (output->isPrimary()) {
+        SurfaceContainer::removeOutput(output);
+    }
 
     if (moveResizeState.surface && moveResizeState.surface->ownsOutput() == output) {
         endMoveResize();
@@ -496,4 +500,36 @@ void RootSurfaceContainer::ensureSurfaceNormalPositionValid(SurfaceWrapper *surf
 OutputListModel *RootSurfaceContainer::outputModel() const
 {
     return m_outputModel;
+}
+
+void RootSurfaceContainer::moveSurfacesToOutput(const QList<SurfaceWrapper *> &surfaces,
+                                                Output *targetOutput,
+                                                Output *sourceOutput)
+{
+    if (!surfaces.isEmpty() && targetOutput) {
+        const QRectF targetGeometry = targetOutput->geometry();
+
+        for (auto *surface : surfaces) {
+            if (!surface)
+                continue;
+
+            const QSizeF size = surface->size();
+            QPointF newPos;
+
+            if (surface->ownsOutput() == targetOutput) {
+                newPos = surface->position();
+            } else {
+                const QRectF sourceGeometry =
+                    sourceOutput ? sourceOutput->geometry() : surface->ownsOutput()->geometry();
+                const QPointF relativePos = surface->position() - sourceGeometry.center();
+                newPos = targetGeometry.center() + relativePos;
+                surface->setOwnsOutput(targetOutput);
+            }
+            newPos.setX(
+                qBound(targetGeometry.left(), newPos.x(), targetGeometry.right() - size.width()));
+            newPos.setY(
+                qBound(targetGeometry.top(), newPos.y(), targetGeometry.bottom() - size.height()));
+            surface->setPosition(newPos);
+        }
+    }
 }
