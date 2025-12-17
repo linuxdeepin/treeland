@@ -121,7 +121,7 @@ void AppIdResolverManager::resolverGone()
     // Clear internal state before emitting callbacks to avoid reentrancy issues
     m_callbacks.clear();
     // Emit results for previously pending callbacks
-    for (auto &cb : callbacks) {
+    for (auto &cb : std::as_const(callbacks)) {
         if (cb)
             cb(QString());
     }
