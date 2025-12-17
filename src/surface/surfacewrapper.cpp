@@ -172,6 +172,11 @@ SurfaceWrapper::~SurfaceWrapper()
         delete m_coverContent;
         m_coverContent = nullptr;
     }
+    // Ensure we do not hold stale connections to shellSurface; QPointer may already be null.
+    if (m_shellSurface) {
+        QObject::disconnect(m_shellSurface, nullptr, this, nullptr);
+        m_shellSurface.clear();
+    }
 }
 
 void SurfaceWrapper::setup()
