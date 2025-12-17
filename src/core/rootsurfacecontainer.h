@@ -76,6 +76,9 @@ public:
     SurfaceWrapper *moveResizeSurface() const;
 
     OutputListModel *outputModel() const;
+    void moveSurfacesToOutput(const QList<SurfaceWrapper *> &surfaces,
+                              Output *targetOutput,
+                              Output *sourceOutput = nullptr);
 
 public Q_SLOTS:
     void startMove(SurfaceWrapper *surface);

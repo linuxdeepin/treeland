@@ -131,7 +131,7 @@ Output *Output::createCopy(WOutput *output, Output *proxy, QQmlEngine *engine, Q
     auto contentItem = Helper::instance()->window()->contentItem();
     outputItem->setParentItem(contentItem);
     o->updateOutputHardwareLayers();
-    connect(o->m_outputViewport,
+    connect(proxy->screenViewport(),
             &WOutputViewport::hardwareLayersChanged,
             o,
             &Output::updateOutputHardwareLayers);
@@ -388,7 +388,7 @@ void Output::enable()
 
 void Output::updateOutputHardwareLayers()
 {
-    WOutputViewport *viewportPrimary = screenViewport();
+    WOutputViewport *viewportPrimary = m_proxy->screenViewport();
     std::pair<WOutputViewport *, QQuickItem *> copyOutput = getOutputItemProperty();
     const auto layers = viewportPrimary->hardwareLayers();
     for (auto layer : layers) {
