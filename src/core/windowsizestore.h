@@ -9,7 +9,7 @@
 #include <QHash>
 #include <QSettings>
 
-// Simple window size persistence: records normalGeometry size at last normal close (destruction) based on appId  
+// Simple window size persistence: records normalGeometry size at last normal close (destruction) based on appId
 class WindowSizeStore : public QObject {
 public:
     explicit WindowSizeStore(QObject *parent = nullptr)

@@ -54,7 +54,6 @@ Item {
             }
         }
     }
-    
     // Fade-out animation
     OpacityAnimator {
         id: fadeOut

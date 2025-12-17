@@ -144,10 +144,18 @@ QSGNode *WBufferItem::updatePaintNode(QSGNode *oldNode, UpdatePaintNodeData *)
     tp->setBuffer(d->buffer.get());
 
     if (!tp->texture() || width() <= 0 || height() <= 0) {
+        int bufW = -1;
+        int bufH = -1;
+        if (auto *buf = d->buffer.get()) {
+            if (auto *h = buf->handle()) {
+                bufW = h->width;
+                bufH = h->height;
+            }
+        }
         qCWarning(waylibBufferItem) << "texture missing or item size invalid"
                                     << "buffer" << d->buffer.get()
-                                    << "bufW" << (d->buffer.get() ? d->buffer.get()->handle()->width : -1)
-                                    << "bufH" << (d->buffer.get() ? d->buffer.get()->handle()->height : -1)
+                                    << "bufW" << bufW
+                                    << "bufH" << bufH
                                     << "itemW" << width() << "itemH" << height();
         delete oldNode;
         return nullptr;
