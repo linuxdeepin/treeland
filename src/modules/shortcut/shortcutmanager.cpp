@@ -1,18 +1,27 @@
 // Copyright (C) 2023-2025 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
+#include "qwayland-server-treeland-shortcut-manager-v2.h"
+
 #include "shortcutmanager.h"
 #include "common/treelandlogging.h"
 #include "shortcutcontroller.h"
 #include "seat/helper.h"
 #include "input/gestures.h"
 
-#include "modules/shortcut/impl/shortcut_manager_impl.h"
-
-#include "treeland-shortcut-manager-protocol.h"
-
 #include <qwdisplay.h>
+#include <wsocket.h>
+
 #include <optional>
+
+#define TREELAND_SHORTCUT_MANAGER_V2_VERSION 1
+
+using ProtocolAction = QtWaylandServer::treeland_shortcut_manager_v2::action;
+static_assert(static_cast<int>(ProtocolAction::action_notify) == static_cast<int>(ShortcutAction::Notify),
+              "treeland-shortcut-manager protocol action enum mismatch");
+static_assert(static_cast<int>(ProtocolAction::action_taskswitch_sameapp_prev)
+              == static_cast<int>(ShortcutAction::TaskSwitchSameAppPrev),
+              "treeland-shortcut-manager protocol action enum mismatch");
 
 struct KeyShortcut {
     uint mode;
@@ -50,29 +59,39 @@ public:
 
 static SwipeGesture::Direction toSwipeDirection(uint32_t direction)
 {
+    using Direction = QtWaylandServer::treeland_shortcut_manager_v2::direction;
     switch (direction) {
-    case TREELAND_SHORTCUT_MANAGER_V2_DIRECTION_DOWN:
+    case Direction::direction_down:
         return SwipeGesture::Direction::Down;
-    case TREELAND_SHORTCUT_MANAGER_V2_DIRECTION_LEFT:
+    case Direction::direction_left:
         return SwipeGesture::Direction::Left;
-    case TREELAND_SHORTCUT_MANAGER_V2_DIRECTION_UP:
+    case Direction::direction_up:
         return SwipeGesture::Direction::Up;
-    case TREELAND_SHORTCUT_MANAGER_V2_DIRECTION_RIGHT:
+    case Direction::direction_right:
         return SwipeGesture::Direction::Right;
     default:
         return SwipeGesture::Direction::Invalid;
     }
 }
 
-class ShortcutManagerV2Private {
+class ShortcutManagerV2Private : public QtWaylandServer::treeland_shortcut_manager_v2
+{
 public:
-    ShortcutManagerV2Private(ShortcutManagerV2 *q) : q_ptr(q) {}
+    explicit ShortcutManagerV2Private(ShortcutManagerV2 *_q);
+
+    wl_global *global() const;
 
     uint updateShortcuts(const UserShortcuts& shortcuts, QString &failName);
 
-    treeland_shortcut_manager_v2 *m_manager = nullptr;
+    void sendActivated(WSocket *socket, const QString &name, bool repeat);
+    void sendCommitSuccess(WSocket *socket);
+    void sendCommitFailure(WSocket *socket, const QString &name, uint error);
+    void sendInvalidCommit(WSocket *socket);
+
+    ShortcutManagerV2 *q;
     ShortcutController *m_controller = nullptr;
 
+    QMap<WSocket*, Resource*> ownerClients;
     QMap<WSocket*, UserShortcuts> m_shortcuts;
     QMap<WSocket*, UserShortcuts> m_pendingShortcuts;
     QMap<WSocket*, UserShortcuts> m_pendingCommittedShortcuts;
@@ -80,13 +99,49 @@ public:
 
     WSocket* m_activeSessionSocket = nullptr;
 
-    ShortcutManagerV2 *q_ptr;
-    Q_DECLARE_PUBLIC(ShortcutManagerV2)
+protected:
+    void treeland_shortcut_manager_v2_destroy_resource(Resource *resource) override;
+    void treeland_shortcut_manager_v2_destroy(Resource *resource) override;
+    void treeland_shortcut_manager_v2_acquire(Resource *resource) override;
+    void treeland_shortcut_manager_v2_bind_key(Resource *resource,
+                                               const QString &name,
+                                               const QString &key_sequence,
+                                               uint32_t mode,
+                                               uint32_t action) override;
+    void treeland_shortcut_manager_v2_bind_swipe_gesture(Resource *resource,
+                                                         const QString &name,
+                                                         uint32_t finger,
+                                                         uint32_t direction,
+                                                         uint32_t action) override;
+    void treeland_shortcut_manager_v2_bind_hold_gesture(Resource *resource,
+                                                        const QString &name,
+                                                        uint32_t finger,
+                                                        uint32_t action) override;
+    void treeland_shortcut_manager_v2_commit(Resource *resource) override;
+    void treeland_shortcut_manager_v2_unbind(Resource *resource, const QString &name) override;
+
+private:
+    WSocket *socketFromResource(Resource *resource);
 };
+
+ShortcutManagerV2Private::ShortcutManagerV2Private(ShortcutManagerV2 *_q)
+    : q(_q)
+{
+}
+
+wl_global *ShortcutManagerV2Private::global() const
+{
+    return m_global;
+}
+
+WSocket *ShortcutManagerV2Private::socketFromResource(Resource *resource)
+{
+    return WSocket::get(wl_resource_get_client(resource->handle))->rootSocket();
+}
 
 uint ShortcutManagerV2Private::updateShortcuts(const UserShortcuts& shortcuts, QString &failName)
 {
-    uint status;
+    uint status = 0;
     QList<QString> names;
 
     const auto tryRegisterAll = [&]() {
@@ -125,11 +180,196 @@ uint ShortcutManagerV2Private::updateShortcuts(const UserShortcuts& shortcuts, Q
     return status;
 }
 
+void ShortcutManagerV2Private::sendActivated(WSocket *socket, const QString &name, bool repeat)
+{
+    Resource *resource = ownerClients.value(socket, nullptr);
+    if (!resource)
+        return;
+
+    send_activated(resource->handle, name, repeat ? 1 : 0);
+}
+
+void ShortcutManagerV2Private::sendCommitSuccess(WSocket *socket)
+{
+    Resource *resource = ownerClients.value(socket, nullptr);
+    if (!resource)
+        return;
+
+    send_commit_success(resource->handle);
+}
+
+void ShortcutManagerV2Private::sendCommitFailure(WSocket *socket, const QString &name, uint error)
+{
+    Resource *resource = ownerClients.value(socket, nullptr);
+    if (!resource)
+        return;
+
+    send_commit_failure(resource->handle, name, error);
+}
+
+void ShortcutManagerV2Private::sendInvalidCommit(WSocket *socket)
+{
+    Resource *resource = ownerClients.value(socket, nullptr);
+    if (!resource)
+        return;
+
+    wl_resource_post_error(resource->handle,
+                           error_invalid_commit,
+                           "Commit sent before last commit is processed.");
+}
+
+void ShortcutManagerV2Private::treeland_shortcut_manager_v2_destroy_resource(Resource *resource)
+{
+    for (auto it = ownerClients.begin(); it != ownerClients.end(); ) {
+        if (it.value() == resource) {
+            it = ownerClients.erase(it);
+        } else {
+            ++it;
+        }
+    }
+}
+
+void ShortcutManagerV2Private::treeland_shortcut_manager_v2_destroy(Resource *resource)
+{
+    wl_resource_destroy(resource->handle);
+}
+
+void ShortcutManagerV2Private::treeland_shortcut_manager_v2_acquire(Resource *resource)
+{
+    WSocket *socket = socketFromResource(resource);
+    if (ownerClients.contains(socket)) {
+        wl_resource_post_error(resource->handle,
+                               error_occupied,
+                               "Another client has already acquired the shortcut manager.");
+        return;
+    }
+
+    ownerClients.insert(socket, resource);
+}
+
+void ShortcutManagerV2Private::treeland_shortcut_manager_v2_bind_key(Resource *resource,
+                                                                     const QString &name,
+                                                                     const QString &key_sequence,
+                                                                     uint32_t mode,
+                                                                     uint32_t action)
+{
+    WSocket *socket = socketFromResource(resource);
+    if (ownerClients.value(socket, nullptr) != resource) {
+        wl_resource_post_error(resource->handle,
+                               error_not_acquired,
+                               "Client has not acquired the shortcut manager.");
+        return;
+    }
+
+    m_pendingShortcuts[socket].keys.append(KeyShortcut{
+        .mode = mode,
+        .name = name,
+        .key = key_sequence,
+        .action = static_cast<ShortcutAction>(action),
+    });
+}
+
+void ShortcutManagerV2Private::treeland_shortcut_manager_v2_bind_swipe_gesture(Resource *resource,
+                                                                               const QString &name,
+                                                                               uint32_t finger,
+                                                                               uint32_t direction,
+                                                                               uint32_t action)
+{
+    WSocket *socket = socketFromResource(resource);
+    if (ownerClients.value(socket, nullptr) != resource) {
+        wl_resource_post_error(resource->handle,
+                               error_not_acquired,
+                               "Client has not acquired the shortcut manager.");
+        return;
+    }
+
+    m_pendingShortcuts[socket].swipes.append(SwipeShortcut{
+        .name = name,
+        .finger = finger,
+        .direction = toSwipeDirection(direction),
+        .action = static_cast<ShortcutAction>(action),
+    });
+}
+
+void ShortcutManagerV2Private::treeland_shortcut_manager_v2_bind_hold_gesture(Resource *resource,
+                                                                              const QString &name,
+                                                                              uint32_t finger,
+                                                                              uint32_t action)
+{
+    WSocket *socket = socketFromResource(resource);
+    if (ownerClients.value(socket, nullptr) != resource) {
+        wl_resource_post_error(resource->handle,
+                               error_not_acquired,
+                               "Client has not acquired the shortcut manager.");
+        return;
+    }
+
+    m_pendingShortcuts[socket].holds.append(HoldShortcut{
+        .name = name,
+        .finger = finger,
+        .action = static_cast<ShortcutAction>(action),
+    });
+}
+
+void ShortcutManagerV2Private::treeland_shortcut_manager_v2_commit(Resource *resource)
+{
+    WSocket *socket = socketFromResource(resource);
+    if (ownerClients.value(socket, nullptr) != resource) {
+        wl_resource_post_error(resource->handle,
+                               error_not_acquired,
+                               "Client has not acquired the shortcut manager.");
+        return;
+    }
+
+    if (!m_pendingShortcuts.contains(socket)) {
+        sendCommitSuccess(socket);
+        return;
+    }
+
+    if (socket != m_activeSessionSocket) {
+        if (m_pendingCommittedShortcuts.contains(socket)) {
+            sendInvalidCommit(socket);
+            return;
+        }
+        m_pendingCommittedShortcuts[socket] = m_pendingShortcuts.take(socket);
+        return;
+    }
+
+    const auto pendingShortcuts = m_pendingShortcuts.take(socket);
+    QString commitFailName;
+    uint status = updateShortcuts(pendingShortcuts, commitFailName);
+    if (!status) {
+        m_shortcuts[socket].append(pendingShortcuts);
+        sendCommitSuccess(socket);
+    } else {
+        sendCommitFailure(socket, commitFailName, status);
+    }
+}
+
+void ShortcutManagerV2Private::treeland_shortcut_manager_v2_unbind(Resource *resource, const QString &name)
+{
+    WSocket *socket = socketFromResource(resource);
+    if (ownerClients.value(socket, nullptr) != resource) {
+        wl_resource_post_error(resource->handle,
+                               error_not_acquired,
+                               "Client has not acquired the shortcut manager.");
+        return;
+    }
+
+    if (socket != m_activeSessionSocket) {
+        m_pendingDeletes[socket].append(name);
+        return;
+    }
+
+    m_controller->unregisterShortcut(name);
+}
+
+// ShortcutManagerV2 implementation
+
 ShortcutManagerV2::ShortcutManagerV2(QObject *parent)
     : QObject(parent)
-    , d_ptr(new ShortcutManagerV2Private(this))
+    , d(std::make_unique<ShortcutManagerV2Private>(this))
 {
-    Q_D(ShortcutManagerV2);
     d->m_controller = new ShortcutController(this);
 }
 
@@ -137,20 +377,7 @@ ShortcutManagerV2::~ShortcutManagerV2() = default;
 
 void ShortcutManagerV2::create(WServer *server)
 {
-    Q_D(ShortcutManagerV2);
-    d->m_manager = treeland_shortcut_manager_v2::create(server->handle());
-    Q_ASSERT(d->m_manager);
-
-    connect(d->m_manager, &treeland_shortcut_manager_v2::requestUnregisterShortcut,
-            this, &ShortcutManagerV2::handleUnregisterShortcut);
-    connect(d->m_manager, &treeland_shortcut_manager_v2::requestBindKey,
-            this, &ShortcutManagerV2::handleBindKey);
-    connect(d->m_manager, &treeland_shortcut_manager_v2::requestBindSwipeGesture,
-            this, &ShortcutManagerV2::handleBindSwipeGesture);
-    connect(d->m_manager, &treeland_shortcut_manager_v2::requestBindHoldGesture,
-            this, &ShortcutManagerV2::handleBindHoldGesture);
-    connect(d->m_manager, &treeland_shortcut_manager_v2::requestCommit,
-            this, &ShortcutManagerV2::handleCommit);
+    d->init(server->handle()->handle(), TREELAND_SHORTCUT_MANAGER_V2_VERSION);
 }
 
 void ShortcutManagerV2::destroy(WServer *server)
@@ -161,8 +388,7 @@ void ShortcutManagerV2::destroy(WServer *server)
 
 wl_global *ShortcutManagerV2::global() const
 {
-    Q_D(const ShortcutManagerV2);
-    return d->m_manager->global;
+    return d->global();
 }
 
 QByteArrayView ShortcutManagerV2::interfaceName() const
@@ -172,20 +398,17 @@ QByteArrayView ShortcutManagerV2::interfaceName() const
 
 ShortcutController* ShortcutManagerV2::controller()
 {
-    Q_D(ShortcutManagerV2);
     return d->m_controller;
 }
 
 void ShortcutManagerV2::sendActivated(const QString& name, bool repeat)
 {
-    Q_D(ShortcutManagerV2);
-    d->m_manager->sendActivated(d->m_activeSessionSocket, name, repeat);
+    d->sendActivated(d->m_activeSessionSocket, name, repeat);
 }
 
 void ShortcutManagerV2::onSessionChanged()
 {
     QString commitFailName;
-    Q_D(ShortcutManagerV2);
     auto session = Helper::instance()->activeSession().lock();
     if (!session) {
         return;
@@ -222,84 +445,9 @@ void ShortcutManagerV2::onSessionChanged()
         uint status = d->updateShortcuts(pendingShortcuts, commitFailName);
         if (!status) {
             d->m_shortcuts[socket].append(pendingShortcuts);
-            d->m_manager->sendCommitSuccess(socket);
+            d->sendCommitSuccess(socket);
         } else {
-            d->m_manager->sendCommitFailure(socket, commitFailName, status);
+            d->sendCommitFailure(socket, commitFailName, status);
         }
     }
-}
-
-void ShortcutManagerV2::handleCommit(WSocket* sessionSocket)
-{
-    Q_D(ShortcutManagerV2);
-    if (!d->m_pendingShortcuts.contains(sessionSocket)) {
-        d->m_manager->sendCommitSuccess(sessionSocket);
-        return;
-    }
-
-    if (sessionSocket != d->m_activeSessionSocket) {
-        if (d->m_pendingCommittedShortcuts.contains(sessionSocket)) {
-            d->m_manager->sendInvalidCommit(sessionSocket);
-            return;
-        }
-        d->m_pendingCommittedShortcuts[sessionSocket] = d->m_pendingShortcuts.take(sessionSocket);
-        return;
-    }
-
-    const auto pendingShortcuts = d->m_pendingShortcuts.take(sessionSocket);
-    QString commitFailName;
-    uint status = d->updateShortcuts(pendingShortcuts, commitFailName);
-    if (!status) {
-        d->m_shortcuts[sessionSocket].append(pendingShortcuts);
-        d->m_manager->sendCommitSuccess(sessionSocket);
-    } else {
-        d->m_manager->sendCommitFailure(sessionSocket, commitFailName, status);
-    }
-}
-
-void ShortcutManagerV2::handleBindHoldGesture(WSocket* sessionSocket, const QString& name, uint finger, uint action)
-{
-    Q_D(ShortcutManagerV2);
-    d->m_pendingShortcuts[sessionSocket].holds.append(HoldShortcut{
-        .name = name,
-        .finger = finger,
-        .action = static_cast<ShortcutAction>(action),
-    });
-}
-
-void ShortcutManagerV2::handleBindSwipeGesture(WSocket* sessionSocket, const QString& name, uint finger, uint direction, uint action)
-{
-    Q_D(ShortcutManagerV2);
-    d->m_pendingShortcuts[sessionSocket].swipes.append(SwipeShortcut{
-        .name = name,
-        .finger = finger,
-        .direction = toSwipeDirection(direction),
-        .action = static_cast<ShortcutAction>(action),
-    });
-}
-
-void ShortcutManagerV2::handleBindKey(WSocket* sessionSocket,
-                                      const QString& name,
-                                      const QString& key,
-                                      uint mode,
-                                      uint action)
-{
-    Q_D(ShortcutManagerV2);
-    d->m_pendingShortcuts[sessionSocket].keys.append(KeyShortcut{
-        .mode = mode,
-        .name = name,
-        .key = key,
-        .action = static_cast<ShortcutAction>(action),
-    });
-}
-
-void ShortcutManagerV2::handleUnregisterShortcut(WSocket* sessionSocket, const QString& name)
-{
-    Q_D(ShortcutManagerV2);
-    if (sessionSocket != d->m_activeSessionSocket) {
-        d->m_pendingDeletes[sessionSocket].append(name);
-        return;
-    }
-
-    d->m_controller->unregisterShortcut(name);
 }
