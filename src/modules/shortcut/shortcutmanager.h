@@ -5,9 +5,6 @@
 
 #include <wserver.h>
 
-#include "modules/shortcut/impl/shortcut_manager_impl.h"
-#include "treeland-shortcut-manager-protocol.h"
-
 #include <QObject>
 #include <QQmlEngine>
 
@@ -16,38 +13,40 @@ class ShortcutManagerV2Private;
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 class WServer;
+class WSocket;
 WAYLIB_SERVER_END_NAMESPACE
 
 WAYLIB_SERVER_USE_NAMESPACE
 
-enum class ShortcutAction {
-    Notify = TREELAND_SHORTCUT_MANAGER_V2_ACTION_NOTIFY,
-    Workspace1 = TREELAND_SHORTCUT_MANAGER_V2_ACTION_WORKSPACE_1,
-    Workspace2 = TREELAND_SHORTCUT_MANAGER_V2_ACTION_WORKSPACE_2,
-    Workspace3 = TREELAND_SHORTCUT_MANAGER_V2_ACTION_WORKSPACE_3,
-    Workspace4 = TREELAND_SHORTCUT_MANAGER_V2_ACTION_WORKSPACE_4,
-    Workspace5 = TREELAND_SHORTCUT_MANAGER_V2_ACTION_WORKSPACE_5,
-    Workspace6 = TREELAND_SHORTCUT_MANAGER_V2_ACTION_WORKSPACE_6,
-    PrevWorkspace = TREELAND_SHORTCUT_MANAGER_V2_ACTION_PREV_WORKSPACE,
-    NextWorkspace = TREELAND_SHORTCUT_MANAGER_V2_ACTION_NEXT_WORKSPACE,
-    ShowDesktop = TREELAND_SHORTCUT_MANAGER_V2_ACTION_SHOW_DESKTOP,
-    Maximize = TREELAND_SHORTCUT_MANAGER_V2_ACTION_MAXIMIZE,
-    CancelMaximize = TREELAND_SHORTCUT_MANAGER_V2_ACTION_CANCEL_MAXIMIZE,
-    MoveWindow = TREELAND_SHORTCUT_MANAGER_V2_ACTION_MOVE_WINDOW,
-    CloseWindow = TREELAND_SHORTCUT_MANAGER_V2_ACTION_CLOSE_WINDOW,
-    ShowWindowMenu = TREELAND_SHORTCUT_MANAGER_V2_ACTION_SHOW_WINDOW_MENU,
-    OpenMultiTaskView = TREELAND_SHORTCUT_MANAGER_V2_ACTION_OPEN_MULTITASK_VIEW,
-    CloseMultiTaskView = TREELAND_SHORTCUT_MANAGER_V2_ACTION_CLOSE_MULTITASK_VIEW,
-    ToggleMultitaskView = TREELAND_SHORTCUT_MANAGER_V2_ACTION_TOGGLE_MULTITASK_VIEW,
-    ToggleFpsDisplay = TREELAND_SHORTCUT_MANAGER_V2_ACTION_TOGGLE_FPS_DISPLAY,
-    Lockscreen = TREELAND_SHORTCUT_MANAGER_V2_ACTION_LOCKSCREEN,
-    ShutdownMenu = TREELAND_SHORTCUT_MANAGER_V2_ACTION_SHUTDOWN_MENU,
-    Quit = TREELAND_SHORTCUT_MANAGER_V2_ACTION_QUIT,
-    TaskSwitchEnter = TREELAND_SHORTCUT_MANAGER_V2_ACTION_TASKSWITCH_ENTER,
-    TaskSwitchNext = TREELAND_SHORTCUT_MANAGER_V2_ACTION_TASKSWITCH_NEXT,
-    TaskSwitchPrev = TREELAND_SHORTCUT_MANAGER_V2_ACTION_TASKSWITCH_PREV,
-    TaskSwitchSameAppNext = TREELAND_SHORTCUT_MANAGER_V2_ACTION_TASKSWITCH_SAMEAPP_NEXT,
-    TaskSwitchSameAppPrev = TREELAND_SHORTCUT_MANAGER_V2_ACTION_TASKSWITCH_SAMEAPP_PREV,
+// Forward declaration - values defined in treeland-shortcut-manager-v2 protocol
+enum class ShortcutAction : uint32_t {
+    Notify                = 1,
+    Workspace1            = 2,
+    Workspace2            = 3,
+    Workspace3            = 4,
+    Workspace4            = 5,
+    Workspace5            = 6,
+    Workspace6            = 7,
+    PrevWorkspace         = 8,
+    NextWorkspace         = 9,
+    ShowDesktop           = 10,
+    Maximize              = 11,
+    CancelMaximize        = 12,
+    MoveWindow            = 13,
+    CloseWindow           = 14,
+    ShowWindowMenu        = 15,
+    OpenMultiTaskView     = 16,
+    CloseMultiTaskView    = 17,
+    ToggleMultitaskView   = 18,
+    ToggleFpsDisplay      = 19,
+    Lockscreen            = 20,
+    ShutdownMenu          = 21,
+    Quit                  = 22,
+    TaskSwitchEnter       = 23,
+    TaskSwitchNext        = 24,
+    TaskSwitchPrev        = 25,
+    TaskSwitchSameAppNext = 26,
+    TaskSwitchSameAppPrev = 27,
 };
 
 class ShortcutManagerV2
@@ -55,7 +54,6 @@ class ShortcutManagerV2
     , public WAYLIB_SERVER_NAMESPACE::WServerInterface
 {
     Q_OBJECT
-    Q_DECLARE_PRIVATE(ShortcutManagerV2)
 
 public:
     explicit ShortcutManagerV2(QObject *parent = nullptr);
@@ -76,17 +74,6 @@ protected:
 Q_SIGNALS:
     void before_destroy();
 
-private Q_SLOTS:
-    void handleUnregisterShortcut(WSocket* sessionSocket, const QString& name);
-    void handleBindKey(WSocket* sessionSocket,
-                               const QString& name,
-                               const QString& key,
-                               uint mode,
-                               uint action);
-    void handleBindSwipeGesture(WSocket* sessionSocket, const QString& name, uint finger, uint direction, uint action);
-    void handleBindHoldGesture(WSocket* sessionSocket, const QString& name, uint finger, uint action);
-    void handleCommit(WSocket* sessionSocket);
-
 private:
-    QScopedPointer<ShortcutManagerV2Private> d_ptr;
+    std::unique_ptr<ShortcutManagerV2Private> d;
 };
