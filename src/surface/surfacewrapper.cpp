@@ -1006,6 +1006,8 @@ void SurfaceWrapper::createNewOrClose(uint direction)
         return;
 
     switch (m_type) {
+    case Type::Undetermined:
+        [[fallthrough]];
     case Type::XdgToplevel:
         [[fallthrough]];
     case Type::XWayland: {
@@ -1232,7 +1234,8 @@ void SurfaceWrapper::onMappedChanged()
     bool mapped = surface()->mapped() && !m_hideByLockScreen;
     if (!m_isProxy) {
         if (mapped) {
-            createNewOrClose(OPEN_ANIMATION);
+            if (!m_prelaunchSplash)
+                createNewOrClose(OPEN_ANIMATION);
             if (m_coverContent) {
                 m_coverContent->setVisible(true);
             }
@@ -1820,6 +1823,11 @@ void SurfaceWrapper::setHasInitializeContainer(bool value)
 {
     Q_ASSERT(!value || m_container != nullptr);
     updateHasActiveCapability(ActiveControlState::HasInitializeContainer, value);
+    if (m_prelaunchSplash && value) {
+        // Start open animation when container initialized
+        // m_prelaunchSplash can't get mapped signal
+        createNewOrClose(OPEN_ANIMATION);
+    }
 }
 
 void SurfaceWrapper::disableWindowAnimation(bool disable)
