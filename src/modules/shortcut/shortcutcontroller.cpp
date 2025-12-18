@@ -4,7 +4,11 @@
 #include "shortcutcontroller.h"
 #include "input/inputdevice.h"
 #include "input/gestures.h"
-#include "treeland-shortcut-manager-protocol.h"
+
+#include "qwayland-server-treeland-shortcut-manager-v2.h"
+
+using BindError = QtWaylandServer::treeland_shortcut_manager_v2::bind_error;
+using KeybindMode = QtWaylandServer::treeland_shortcut_manager_v2::keybind_mode;
 
 ShortcutController::ShortcutController(QObject *parent)
     : QObject(parent)
@@ -19,7 +23,7 @@ ShortcutController::~ShortcutController()
 uint ShortcutController::registerKey(const QString &name, const QString& key, uint mode, ShortcutAction action)
 {
     if (m_deleters.contains(name)) {
-        return TREELAND_SHORTCUT_MANAGER_V2_BIND_ERROR_NAME_CONFLICT;
+        return BindError::bind_error_name_conflict;
     }
 
     // For all-modifier bindings: Ctrl is a valid modifier but not a valid key.
@@ -27,31 +31,31 @@ uint ShortcutController::registerKey(const QString &name, const QString& key, ui
                                                                                       : key,
                                                          QKeySequence::PortableText);
     if (keySeq.count() != 1) {
-        return TREELAND_SHORTCUT_MANAGER_V2_BIND_ERROR_INVALID_ARGUMENT;
+        return BindError::bind_error_invalid_argument;
     }
     auto keyComb = normalizeKeyCombination(keySeq[0]);
     if (keyComb == QKeyCombination(Qt::NoModifier, Qt::Key_unknown)) {
-        return TREELAND_SHORTCUT_MANAGER_V2_BIND_ERROR_INVALID_ARGUMENT;
+        return BindError::bind_error_invalid_argument;
     }
     int combined = keyComb.toCombined();
 
     switch (mode) {
-    case TREELAND_SHORTCUT_MANAGER_V2_KEYBIND_MODE_KEY_PRESS:
-    case TREELAND_SHORTCUT_MANAGER_V2_KEYBIND_MODE_KEY_PRESS_REPEAT: {
+    case KeybindMode::keybind_mode_key_press:
+    case KeybindMode::keybind_mode_key_press_repeat: {
         auto &entry = m_keyPressMap[combined];
         if (entry.contains(action)) {
-            return TREELAND_SHORTCUT_MANAGER_V2_BIND_ERROR_DUPLICATE_BINDING;
+            return BindError::bind_error_duplicate_binding;
         }
-        entry.insert(action, std::make_pair(name, mode == TREELAND_SHORTCUT_MANAGER_V2_KEYBIND_MODE_KEY_PRESS_REPEAT));
+        entry.insert(action, std::make_pair(name, mode == KeybindMode::keybind_mode_key_press_repeat));
         m_deleters[name] = [this, combined, action]() {
             m_keyPressMap[combined].remove(action);
         };
         return 0;
     }
-    case TREELAND_SHORTCUT_MANAGER_V2_KEYBIND_MODE_KEY_RELEASE: {
+    case KeybindMode::keybind_mode_key_release: {
         auto &entry = m_keyReleaseMap[combined];
         if (entry.contains(action)) {
-            return TREELAND_SHORTCUT_MANAGER_V2_BIND_ERROR_DUPLICATE_BINDING;
+            return BindError::bind_error_duplicate_binding;
         }
         entry.insert(action, name);
         m_deleters[name] = [this, combined, action]() {
@@ -60,7 +64,7 @@ uint ShortcutController::registerKey(const QString &name, const QString& key, ui
         return 0;
     }
     default:
-        return TREELAND_SHORTCUT_MANAGER_V2_BIND_ERROR_INVALID_ARGUMENT;
+        return BindError::bind_error_invalid_argument;
     };
 
     Q_UNREACHABLE();
@@ -69,11 +73,11 @@ uint ShortcutController::registerKey(const QString &name, const QString& key, ui
 uint ShortcutController::registerSwipeGesture(const QString &name, uint finger, SwipeGesture::Direction direction, ShortcutAction action)
 {
     if (m_deleters.contains(name)) {
-        return TREELAND_SHORTCUT_MANAGER_V2_BIND_ERROR_NAME_CONFLICT;
+        return BindError::bind_error_name_conflict;
     }
 
     if (direction == SwipeGesture::Direction::Invalid) {
-        return TREELAND_SHORTCUT_MANAGER_V2_BIND_ERROR_INVALID_ARGUMENT;
+        return BindError::bind_error_invalid_argument;
     }
 
     auto gestureKey = std::make_pair(finger, direction);
@@ -96,7 +100,7 @@ uint ShortcutController::registerSwipeGesture(const QString &name, uint finger, 
         });
 
         if (!gesture) {
-            return TREELAND_SHORTCUT_MANAGER_V2_BIND_ERROR_INTERNAL_ERROR;
+            return BindError::bind_error_internal_error;
         }
 
         m_gestures[gestureKey] = gesture;
@@ -105,7 +109,7 @@ uint ShortcutController::registerSwipeGesture(const QString &name, uint finger, 
     auto &entry = m_gesturemap[gestureKey];
 
     if (entry.contains(action)) {
-        return TREELAND_SHORTCUT_MANAGER_V2_BIND_ERROR_DUPLICATE_BINDING;
+        return BindError::bind_error_duplicate_binding;
     }
 
     entry.insert(action, name);
@@ -126,7 +130,7 @@ uint ShortcutController::registerSwipeGesture(const QString &name, uint finger, 
 uint ShortcutController::registerHoldGesture(const QString &name, uint finger, ShortcutAction action)
 {
     if (m_deleters.contains(name)) {
-        return TREELAND_SHORTCUT_MANAGER_V2_BIND_ERROR_NAME_CONFLICT;
+        return BindError::bind_error_name_conflict;
     }
 
     auto gestureKey = std::make_pair(finger, SwipeGesture::Direction::Invalid);
@@ -144,7 +148,7 @@ uint ShortcutController::registerHoldGesture(const QString &name, uint finger, S
         });
 
         if (!gesture) {
-            return TREELAND_SHORTCUT_MANAGER_V2_BIND_ERROR_INTERNAL_ERROR;
+            return BindError::bind_error_internal_error;
         }
 
         m_gestures[gestureKey] = gesture;
@@ -153,7 +157,7 @@ uint ShortcutController::registerHoldGesture(const QString &name, uint finger, S
     auto &entry = m_gesturemap[gestureKey];
 
     if (entry.contains(action)) {
-        return TREELAND_SHORTCUT_MANAGER_V2_BIND_ERROR_DUPLICATE_BINDING;
+        return BindError::bind_error_duplicate_binding;
     }
 
     entry.insert(action, name);
