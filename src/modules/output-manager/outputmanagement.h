@@ -10,28 +10,41 @@ struct treeland_output_color_control_v1;
 QW_USE_NAMESPACE
 WAYLIB_SERVER_USE_NAMESPACE
 
+class Output;
+class ColorControlV1Private;
+class OutputManagerV1Private;
+
+class ColorControlV1 : public QObject
+{
+    Q_OBJECT
+public:
+    ~ColorControlV1() override;
+
+private:
+    explicit ColorControlV1(wl_resource *resource, Output *output);
+    friend OutputManagerV1Private;
+    std::unique_ptr<ColorControlV1Private> d;
+};
+
 class OutputManagerV1
     : public QObject
     , public WServerInterface
 {
     Q_OBJECT
-
 public:
     explicit OutputManagerV1(QObject *parent = nullptr);
+    ~OutputManagerV1() override;
 
-    void sendPrimaryOutput(const char *name);
     QByteArrayView interfaceName() const override;
 
-    void onColorControlCreated(treeland_output_color_control_v1 *control);
+public Q_SLOTS:
+    void onPrimaryOutputChanged();
 
 protected:
     void create(WServer *server) override;
     void destroy(WServer *server) override;
     wl_global *global() const override;
 
-Q_SIGNALS:
-    void requestSetPrimaryOutput(const char *name);
-
 private:
-    treeland_output_manager_v1 *m_handle{ nullptr };
+    std::unique_ptr<OutputManagerV1Private> d;
 };
