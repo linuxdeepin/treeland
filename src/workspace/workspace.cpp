@@ -93,15 +93,15 @@ int Workspace::getRightWorkspaceId(int workspaceId)
 void Workspace::addSurface(SurfaceWrapper *surface, int workspaceId)
 {
     Q_ASSERT(surface && !surface->container() && surface->workspaceId() == -1);
-    SurfaceContainer::addSurface(surface);
 
     auto model = modelFromId(workspaceId);
     Q_ASSERT(model);
 
-    if (!surface->ownsOutput())
-        surface->setOwnsOutput(rootContainer()->primaryOutput());
-
     model->addSurface(surface);
+
+    SurfaceContainer::addSurface(surface);
+    Q_ASSERT(surface->ownsOutput() || rootContainer()->primaryOutput() == nullptr);
+
     surface->setHasInitializeContainer(true);
 }
 
@@ -182,12 +182,12 @@ WorkspaceModel *Workspace::modelFromId(int id) const
 {
     if (id == ShowOnAllWorkspaceId)
         return m_showOnAllWorkspaceModel;
-    auto foundModel = std::find_if(m_models->objects().begin(),
-                                   m_models->objects().end(),
+    auto foundModel = std::find_if(m_models->objects().constBegin(),
+                                   m_models->objects().constEnd(),
                                    [id](WorkspaceModel *model) {
                                        return model->id() == id;
                                    });
-    return foundModel == m_models->objects().end() ? nullptr : *foundModel;
+    return foundModel == m_models->objects().constEnd() ? nullptr : *foundModel;
 }
 
 int Workspace::currentIndex() const
