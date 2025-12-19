@@ -20,7 +20,7 @@ Item {
     MouseArea {
         enabled: surface.type !== SurfaceWrapper.Type.XdgPopup
                     && surface.type !== SurfaceWrapper.Type.Layer
-                    && surface.type !== SurfaceWrapper.Type.Undetermined
+                    && surface.type !== SurfaceWrapper.Type.SplashScreen
         property int edges: 0
 
         anchors {
