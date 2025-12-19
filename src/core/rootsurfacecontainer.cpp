@@ -111,17 +111,15 @@ void RootSurfaceContainer::addOutput(Output *output)
     if (!m_primaryOutput)
         setPrimaryOutput(output);
 
-    if (output->isPrimary()) {
-        SurfaceContainer::addOutput(output);
-    }
+    // Register all outputs (including primary and proxy/copy) to ensure
+    // LayerSurfaceContainer is initialized for every active display.
+    SurfaceContainer::addOutput(output);
 }
 
 void RootSurfaceContainer::removeOutput(Output *output)
 {
     m_outputModel->removeObject(output);
-    if (output->isPrimary()) {
-        SurfaceContainer::removeOutput(output);
-    }
+    SurfaceContainer::removeOutput(output);
 
     if (moveResizeState.surface && moveResizeState.surface->ownsOutput() == output) {
         endMoveResize();
