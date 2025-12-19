@@ -105,7 +105,7 @@ SurfaceWrapper::SurfaceWrapper(QmlEngine *qmlEngine, QQuickItem *parent, const Q
     : QQuickItem(parent)
     , m_engine(qmlEngine)
     , m_shellSurface(nullptr)
-    , m_type(Type::Undetermined)
+    , m_type(Type::SplashScreen)
     , m_positionAutomatic(true)
     , m_visibleDecoration(true)
     , m_clipInOutput(false)
@@ -182,7 +182,7 @@ SurfaceWrapper::~SurfaceWrapper()
 void SurfaceWrapper::setup()
 {
     Q_ASSERT(m_shellSurface);
-    Q_ASSERT(m_type != Type::Undetermined);
+    Q_ASSERT(m_type != Type::SplashScreen);
 
     switch (m_type) {
     case Type::XdgToplevel:
@@ -364,8 +364,8 @@ void SurfaceWrapper::setup()
 
 void SurfaceWrapper::convertToNormalSurface(WToplevelSurface *shellSurface, Type type)
 {
-    // Conversion only allowed from prelaunch (Undetermined) state
-    if (m_type != Type::Undetermined || m_shellSurface != nullptr) {
+    // Conversion only allowed from prelaunch (SplashScreen) state
+    if (m_type != Type::SplashScreen || m_shellSurface != nullptr) {
         qCCritical(treelandSurface) << "convertToNormalSurface can only be called on prelaunch surfaces";
         return;
     }
@@ -384,7 +384,7 @@ void SurfaceWrapper::convertToNormalSurface(WToplevelSurface *shellSurface, Type
         m_prelaunchOutputs.clear();
     }
 
-    // setNoDecoration not called updateTitleBar when type is Undetermined
+    // setNoDecoration not called updateTitleBar when type is SplashScreen
     updateTitleBar();
     updateDecoration();
 
@@ -678,7 +678,7 @@ void SurfaceWrapper::setOutputs(const QList<WOutput *> &outputs)
 {
     if (m_wrapperAboutToRemove)
         return;
-    if (m_type == Type::Undetermined) {
+    if (m_type == Type::SplashScreen) {
         m_prelaunchOutputs = outputs;
         return;
     }
@@ -703,7 +703,7 @@ void SurfaceWrapper::setOutputs(const QList<WOutput *> &outputs)
 
 const QList<WOutput *> &SurfaceWrapper::outputs() const
 {
-    if (m_type == Type::Undetermined) {
+    if (m_type == Type::SplashScreen) {
         return m_prelaunchOutputs;
     }
     if (!surface()) {
@@ -857,7 +857,7 @@ void SurfaceWrapper::setNoDecoration(bool newNoDecoration)
 
     m_noDecoration = newNoDecoration;
 
-    if (m_type == Type::Undetermined) {
+    if (m_type == Type::SplashScreen) {
         Q_EMIT noDecorationChanged();
         return;
     }
@@ -868,7 +868,7 @@ void SurfaceWrapper::setNoDecoration(bool newNoDecoration)
 
 void SurfaceWrapper::updateDecoration()
 {
-    if (m_titleBarState == TitleBarState::Default && m_type != Type::Undetermined)
+    if (m_titleBarState == TitleBarState::Default && m_type != Type::SplashScreen)
         updateTitleBar();
 
     if (m_noDecoration) {
@@ -1006,7 +1006,7 @@ void SurfaceWrapper::createNewOrClose(uint direction)
         return;
 
     switch (m_type) {
-    case Type::Undetermined:
+    case Type::SplashScreen:
         [[fallthrough]];
     case Type::XdgToplevel:
         [[fallthrough]];
