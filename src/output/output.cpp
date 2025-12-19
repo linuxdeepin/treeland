@@ -248,7 +248,7 @@ void Output::placeSmartCascaded(SurfaceWrapper *surface)
     QRectF latestActiveSurfaceGeo = latestActiveSurface->normalGeometry();
 
     qreal factor =
-        (latestActiveSurface->shellSurface()->appId() != surface->shellSurface()->appId())
+        (latestActiveSurface->appId() != surface->appId())
         ? DIFF_APP_OFFSET_FACTOR
         : SAME_APP_OFFSET_FACTOR;
     const QRectF titleBarGeometry = latestActiveSurface->titlebarGeometry();
@@ -664,7 +664,8 @@ void Output::arrangeNonLayerSurface(SurfaceWrapper *surface, const QSizeF &sizeD
                 if (normalGeo.width() > outputValidGeometry.width()
                     || normalGeo.height() > outputValidGeometry.height())
                     surface->resize(outputValidGeometry.size());
-                if (surface->type() == SurfaceWrapper::Type::XdgToplevel) {
+                if (surface->type() == SurfaceWrapper::Type::XdgToplevel
+                    || surface->type() == SurfaceWrapper::Type::SplashScreen) {
                     placeSmartCascaded(surface);
                 } else {
                     placeCentered(surface);
