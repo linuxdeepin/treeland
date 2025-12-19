@@ -182,7 +182,8 @@ void SurfaceContainer::removeSurface(SurfaceWrapper *surface)
 
 void SurfaceContainer::addOutput(Output *output)
 {
-    Q_ASSERT(output->isPrimary());
+    // Allow all outputs to manage surface containers, ensuring support
+    // for both Primary and Proxy (Copy Mode) displays.
     const auto subContainers = this->subContainers();
     for (auto sub : subContainers) {
         sub->addOutput(output);
