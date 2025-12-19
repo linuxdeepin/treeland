@@ -22,7 +22,7 @@ public:
 };
 
 OutputManagerV1::OutputManagerV1()
-    : QWaylandClientExtensionTemplate<OutputManagerV1>(1)
+    : QWaylandClientExtensionTemplate<OutputManagerV1>(2)
 {
 }
 

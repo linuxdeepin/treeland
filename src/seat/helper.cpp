@@ -1299,6 +1299,10 @@ void Helper::init(Treeland::Treeland *treeland)
         m_server->attach<WXdgOutputManager>(m_rootSurfaceContainer->outputLayout());
 
     m_outputManagerV1 = m_server->attach<OutputManagerV1>();
+    connect(m_rootSurfaceContainer,
+            &RootSurfaceContainer::primaryOutputChanged,
+            m_outputManagerV1,
+            &OutputManagerV1::onPrimaryOutputChanged);
     m_wallpaperColorV1 = m_server->attach<WallpaperColorV1>();
     m_windowManagement = m_server->attach<WindowManagementV1>();
     m_virtualOutput = m_server->attach<VirtualOutputV1>();
@@ -1359,21 +1363,8 @@ void Helper::init(Treeland::Treeland *treeland)
             this,
             &Helper::onRestoreCopyOutput);
 
-    connect(m_outputManagerV1,
-            &OutputManagerV1::requestSetPrimaryOutput,
-            this,
-            [this](const char *name) {
-                for (auto &&output : m_rootSurfaceContainer->outputs()) {
-                    if (strcmp(output->output()->nativeHandle()->name, name) == 0) {
-                        m_rootSurfaceContainer->setPrimaryOutput(output);
-                    }
-                }
-            });
-
     connect(m_rootSurfaceContainer, &RootSurfaceContainer::primaryOutputChanged, this, [this]() {
         if (m_rootSurfaceContainer->primaryOutput()) {
-            m_outputManagerV1->sendPrimaryOutput(
-                m_rootSurfaceContainer->primaryOutput()->output()->nativeHandle()->name);
             if (m_lockScreen) {
                 m_lockScreen->setPrimaryOutputName(m_rootSurfaceContainer->primaryOutput()->output()->name());
             }

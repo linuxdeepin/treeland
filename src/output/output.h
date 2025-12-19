@@ -96,7 +96,9 @@ Q_SIGNALS:
 public Q_SLOTS:
     void enable();
     void updateOutputHardwareLayers();
-    void setOutputColor(qreal brightness, uint colorTemperature);
+    void setOutputColor(qreal brightness,
+                        uint32_t colorTemperature,
+                        std::function<void(bool)> resultCallback = nullptr);
 
 private:
     friend class SurfaceWrapper;
