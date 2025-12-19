@@ -89,7 +89,7 @@ public:
         Layer,
         InputPopup,
         LockScreen,
-        Undetermined, // Used for pre-launch splash screen
+        SplashScreen, // Used for pre-launch splash screen
     };
     Q_ENUM(Type)
 
