@@ -3,7 +3,6 @@
 
 #include "output.h"
 
-#include "modules/output-manager/impl/output_manager_impl.h"
 #include "outputconfig.hpp"
 #include "treelandconfig.hpp"
 #include "treelanduserconfig.hpp"
@@ -959,7 +958,9 @@ static inline void generateGammaLUT(uint32_t colorTemperature,
 // TODO: better Chromatic Adaptation algorithms can be implemented when the wlr_color_transform
 // api is available. For now RGB scaling is used due to limitation of gamma LUT table.
 // see: http://www.brucelindbloom.com/index.html?ChromAdaptEval.html
-void Output::setOutputColor(qreal brightness, uint32_t colorTemperature)
+void Output::setOutputColor(qreal brightness,
+                            uint32_t colorTemperature,
+                            std::function<void(bool)> resultCallback)
 {
     if (brightness < 0)
         brightness = config()->brightness();
@@ -977,12 +978,9 @@ void Output::setOutputColor(qreal brightness, uint32_t colorTemperature)
     }
 
     const size_t gammaSize = output()->handle()->get_gamma_size();
-
-    auto *sender = qobject_cast<treeland_output_color_control_v1 *>(QObject::sender());
-
     if (gammaSize == 0) {
-        if (sender)
-            sender->sendCommitResult(false);
+        if (resultCallback)
+            resultCallback(false);
         qCWarning(treelandOutput) << " Output " << output()->name()
                              << " does not support gamma LUT! Brightness and color temperature adjustments through gamma will have no effect.";
         return;
@@ -998,7 +996,7 @@ void Output::setOutputColor(qreal brightness, uint32_t colorTemperature)
                      r,
                      g,
                      b);
-    
+
     WOutputHelper::ExtraState newState;
     auto *viewport = screenViewport();
     auto *renderWindow = screenViewport()->outputRenderWindow();
@@ -1006,14 +1004,14 @@ void Output::setOutputColor(qreal brightness, uint32_t colorTemperature)
                                    r.constData(),
                                    g.constData(),
                                    b.constData());
-    
+
     auto *outputHelper = renderWindow->getOutputHelper(viewport);
     outputHelper->setExtraState(newState);
 
-    outputHelper->scheduleCommitJob([this, brightness, colorTemperature, newState, sender](bool success, WOutputHelper::ExtraState state) {
+    outputHelper->scheduleCommitJob([this, brightness, colorTemperature, newState, resultCallback](bool success, WOutputHelper::ExtraState state) {
         if (state == newState) {
-            if (sender)
-                sender->sendCommitResult(success);
+            if (resultCallback)
+                resultCallback(success);
             if (!success) {
                 qCWarning(treelandOutput) << "Failed to apply brightness and color temperature settings to output"
                                           << output()->name();
