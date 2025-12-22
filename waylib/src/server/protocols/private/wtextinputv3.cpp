@@ -52,7 +52,7 @@ void WTextInputManagerV3::create(WServer *server)
         auto ti = new WTextInputV3(text_input_v3, this);
         d->textInputs.append(ti);
         Q_EMIT this->newTextInput(ti);
-        connect(text_input_v3, &qw_text_input_v3::before_destroy, ti, [this, ti, d]{
+        connect(text_input_v3, &qw_text_input_v3::before_destroy, ti, [ti, d]{
             Q_EMIT ti->entityAboutToDestroy();
             d->textInputs.removeOne(ti);
             ti->deleteLater();
@@ -101,13 +101,11 @@ WTextInputV3::WTextInputV3(qw_text_input_v3 *h, QObject *parent)
 
 WSeat *WTextInputV3::seat() const
 {
-    W_DC(WTextInputV3);
     return WSeat::fromHandle(qw_seat::from(handle()->handle()->seat));
 }
 
 WSurface *WTextInputV3::focusedSurface() const
 {
-    W_DC(WTextInputV3);
     return WSurface::fromHandle(handle()->handle()->focused_surface);
 }
 

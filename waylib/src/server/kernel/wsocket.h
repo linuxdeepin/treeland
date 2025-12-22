@@ -51,7 +51,7 @@ public Q_SLOTS:
 
 private:
     friend class WSocket;
-    friend class WlClientDestroyListener;
+    friend struct WlClientDestroyListener;
     explicit WClient(wl_client *client, WSocket *socket, bool isWlClientOwned = true);
     ~WClient() = default;
     using QObject::deleteLater;

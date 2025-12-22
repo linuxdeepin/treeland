@@ -127,7 +127,7 @@ void WXWaylandSurfacePrivate::init()
         }
     });
     QObject::connect(handle(), &qw_xwayland_surface::notify_request_minimize,
-                     q, [this, q] (wlr_xwayland_minimize_event *event) {
+                     q, [q] (wlr_xwayland_minimize_event *event) {
         if (event->minimize) {
             Q_EMIT q->requestMinimize();
         } else {

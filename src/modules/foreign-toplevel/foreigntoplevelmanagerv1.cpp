@@ -95,14 +95,14 @@ void ForeignToplevelV1::addSurface(SurfaceWrapper *wrapper)
     connect(handle,
             &treeland_foreign_toplevel_handle_v1::requestActivate,
             wrapper,
-            [wrapper, this]([[maybe_unused]] treeland_foreign_toplevel_handle_v1_activated_event *event) {
+            [wrapper]([[maybe_unused]] treeland_foreign_toplevel_handle_v1_activated_event *event) {
                 Helper::instance()->forceActivateSurface(wrapper);
             });
 
     connect(handle,
             &treeland_foreign_toplevel_handle_v1::requestMaximize,
             wrapper,
-            [wrapper, this](treeland_foreign_toplevel_handle_v1_maximized_event *event) {
+            [wrapper](treeland_foreign_toplevel_handle_v1_maximized_event *event) {
                 if (event->maximized)
                     wrapper->requestMaximize();
                 else
@@ -112,7 +112,7 @@ void ForeignToplevelV1::addSurface(SurfaceWrapper *wrapper)
     connect(handle,
             &treeland_foreign_toplevel_handle_v1::requestMinimize,
             wrapper,
-            [wrapper, this](treeland_foreign_toplevel_handle_v1_minimized_event *event) {
+            [wrapper](treeland_foreign_toplevel_handle_v1_minimized_event *event) {
                 if ((Helper::instance()->showDesktopState()
                      == WindowManagementV1::DesktopState::Show)) {
                     Helper::instance()->forceActivateSurface(wrapper);
@@ -128,20 +128,20 @@ void ForeignToplevelV1::addSurface(SurfaceWrapper *wrapper)
     connect(handle,
             &treeland_foreign_toplevel_handle_v1::requestFullscreen,
             wrapper,
-            [wrapper, this](treeland_foreign_toplevel_handle_v1_fullscreen_event *event) {
+            [wrapper](treeland_foreign_toplevel_handle_v1_fullscreen_event *event) {
                 if (event->fullscreen)
                     wrapper->requestFullscreen();
                 else
                     wrapper->requestCancelFullscreen();
             });
 
-    connect(handle, &treeland_foreign_toplevel_handle_v1::requestClose, surface, [surface, this] {
+    connect(handle, &treeland_foreign_toplevel_handle_v1::requestClose, surface, [surface] {
         surface->close();
     });
     connect(handle,
             &treeland_foreign_toplevel_handle_v1::rectangleChanged,
             wrapper,
-            [wrapper, this](treeland_foreign_toplevel_handle_v1_set_rectangle_event *event) {
+            [wrapper](treeland_foreign_toplevel_handle_v1_set_rectangle_event *event) {
                 auto dockWrapper = Helper::instance()->rootContainer()->getSurface(
                     WSurface::fromHandle(event->surface));
                 wrapper->setIconGeometry(QRect(dockWrapper->x() + event->x,

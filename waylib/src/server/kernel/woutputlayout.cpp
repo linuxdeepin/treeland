@@ -69,8 +69,6 @@ WOutputLayout::WOutputLayout(WOutputLayoutPrivate &dd, WServer *server)
     auto h = new qw_output_layout(*server->handle());
     initHandle(h);
 
-    W_D(WOutputLayout);
-
     handle()->set_data(this, this);
 }
 

@@ -742,8 +742,6 @@ WClient *WSocket::addClient(wl_client *client, bool isWlClientOwned)
 
 bool WSocket::removeClient(wl_client *client)
 {
-    W_D(WSocket);
-
     if (auto c = WClient::get(client))
         return removeClient(c);
     return false;

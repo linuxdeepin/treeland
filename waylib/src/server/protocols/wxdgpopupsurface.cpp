@@ -147,7 +147,6 @@ void WXdgPopupSurface::close()
 
 QRect WXdgPopupSurface::getContentGeometry() const
 {
-    W_DC(WXdgPopupSurface);
     auto xdgSurface = qw_xdg_surface::from(handle()->handle()->base);
     qw_box tmp = qw_box(xdgSurface->handle()->geometry);
     return tmp.toQRect();

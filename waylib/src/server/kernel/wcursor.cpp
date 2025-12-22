@@ -653,11 +653,11 @@ void WCursor::setLayout(WOutputLayout *layout)
             o->addCursor(this);
     }
 
-    connect(d->outputLayout, &WOutputLayout::outputAdded, this, [this, d] (WOutput *o) {
+    connect(d->outputLayout, &WOutputLayout::outputAdded, this, [this] (WOutput *o) {
         o->addCursor(this);
     });
 
-    connect(d->outputLayout, &WOutputLayout::outputRemoved, this, [this, d] (WOutput *o) {
+    connect(d->outputLayout, &WOutputLayout::outputRemoved, this, [this] (WOutput *o) {
         o->removeCursor(this);
     });
 

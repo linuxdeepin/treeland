@@ -7,6 +7,7 @@ project(Treeland
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_C_STANDARD 23) # Unnamed parameters in function definition is a C23 extension feature.
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # Standard installation paths

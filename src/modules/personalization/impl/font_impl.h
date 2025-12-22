@@ -12,7 +12,7 @@
 #include <QObject>
 #include <QStringList>
 
-class treeland_personalization_manager_v1;
+struct treeland_personalization_manager_v1;
 
 struct personalization_font_context_v1 : public QObject
 {

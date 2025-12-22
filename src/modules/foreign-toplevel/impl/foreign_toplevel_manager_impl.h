@@ -55,7 +55,10 @@ public:
     treeland_foreign_toplevel_manager_v1 *manager{ nullptr };
     wl_resource *resource{ nullptr };
     wlr_surface *relative_surface{ nullptr };
-    struct wl_listener destroy_listener;
+    struct TDPCPODWrapper {
+        treeland_dock_preview_context_v1 *context;
+        struct wl_listener wrapped_listener;
+    } destroy_listener_wrapper;
     struct wl_client *client{ nullptr };
 
     void enter();

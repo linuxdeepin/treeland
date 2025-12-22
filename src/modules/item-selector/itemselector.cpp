@@ -21,7 +21,7 @@ ItemSelector::ItemSelector(QQuickItem *parent)
 #endif
     setKeepMouseGrab(true);
     QQuickItemPrivate::get(this)->anchors()->setFill(parentItem());
-    m_defaultFilter = [this](QQuickItem *item, ItemSelector::ItemTypes selectionHint) {
+    m_defaultFilter = [](QQuickItem *item, ItemSelector::ItemTypes selectionHint) {
         if (!item->isVisible())
             return false;
         if (qobject_cast<WOutputItem *>(item) && selectionHint.testFlag(ItemType::Output)) {

@@ -86,8 +86,6 @@ WXWaylandSurface *WXWaylandSurfaceItem::xwaylandSurface() const
 
 bool WXWaylandSurfaceItem::setShellSurface(WToplevelSurface *surface)
 {
-    Q_D(WXWaylandSurfaceItem);
-
     if (!WSurfaceItem::setShellSurface(surface))
         return false;
 
@@ -97,7 +95,7 @@ bool WXWaylandSurfaceItem::setShellSurface(WToplevelSurface *surface)
             WSurfaceItem::setSurface(xwaylandSurface()->surface());
         });
 
-        auto updateGeometry = [this, d] {
+        auto updateGeometry = [this] {
             const auto rm = resizeMode();
             if (rm != SizeFromSurface)
                 return;
@@ -214,7 +212,6 @@ void WXWaylandSurfaceItem::onSurfaceCommit()
 
 void WXWaylandSurfaceItem::initSurface()
 {
-    Q_D(WXWaylandSurfaceItem);
     WSurfaceItem::initSurface();
     Q_ASSERT(xwaylandSurface());
     connect(xwaylandSurface(), &WWrapObject::aboutToBeInvalidated,

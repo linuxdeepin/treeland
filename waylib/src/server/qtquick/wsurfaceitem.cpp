@@ -1215,7 +1215,6 @@ void WSurfaceItemPrivate::onHasSubsurfaceChanged()
 
 void WSurfaceItemPrivate::updateSubsurfaceItem()
 {
-    Q_Q(WSurfaceItem);
     auto surface = this->surface->handle()->handle();
     Q_ASSERT(surface);
     Q_ASSERT(contentContainer);
@@ -1246,8 +1245,6 @@ void WSurfaceItemPrivate::updateSubsurfaceItem()
 
 void WSurfaceItemPrivate::onPaddingsChanged()
 {
-    W_Q(WSurfaceItem);
-
     if (!surface || !surfaceState)
         return;
 
