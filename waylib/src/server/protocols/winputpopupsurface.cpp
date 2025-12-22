@@ -46,7 +46,6 @@ WInputPopupSurface::WInputPopupSurface(qw_input_popup_surface_v2 *surface, WSurf
 
 bool WInputPopupSurface::hasCapability(Capability cap) const
 {
-    W_DC(WInputPopupSurface);
     switch (cap) {
         using enum Capability;
     case Focus:

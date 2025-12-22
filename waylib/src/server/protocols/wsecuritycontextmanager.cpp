@@ -564,7 +564,6 @@ WSecurityContextManager::WSecurityContextManager()
 
 void WSecurityContextManager::create(WServer *server)
 {
-    W_D(WSecurityContextManager);
     m_handle = wlr_security_context_manager_v1_create(*server->handle());
 }
 

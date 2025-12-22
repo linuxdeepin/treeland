@@ -262,7 +262,6 @@ bool WXdgToplevelSurface::isFullScreen() const
 
 QRect WXdgToplevelSurface::getContentGeometry() const
 {
-    W_DC(WXdgToplevelSurface);
     auto xdgSurface = qw_xdg_surface::from(handle()->handle()->base);
     qw_box tmp = qw_box(xdgSurface->handle()->geometry);
     return tmp.toQRect();
@@ -306,8 +305,6 @@ bool WXdgToplevelSurface::isInitialized() const
 
 WXdgToplevelSurface *WXdgToplevelSurface::parentXdgSurface() const
 {
-    W_DC(WXdgToplevelSurface);
-
     auto parent = handle()->handle()->parent;
     if (!parent)
         return nullptr;

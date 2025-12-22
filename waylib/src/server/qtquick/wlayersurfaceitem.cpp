@@ -22,7 +22,7 @@ WLayerSurface *WLayerSurfaceItem::layerSurface() const {
     return qobject_cast<WLayerSurface*>(shellSurface());
 }
 
-inline static int32_t getValidSize(int32_t size, int32_t fallback) {
+[[maybe_unused]] inline static int32_t getValidSize(int32_t size, int32_t fallback) {
     return size > 0 ? size : fallback;
 }
 

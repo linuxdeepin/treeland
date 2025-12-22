@@ -259,7 +259,7 @@ void RootSurfaceContainer::addBySubContainer(SurfaceContainer *sub, SurfaceWrapp
         Q_ASSERT(surface);
         startResize(surface, edges);
     });
-    connect(surface, &SurfaceWrapper::surfaceStateChanged, this, [surface, this] {
+    connect(surface, &SurfaceWrapper::surfaceStateChanged, this, [surface] {
         if (surface->surfaceState() == SurfaceWrapper::State::Minimized
             || surface->surfaceState() == SurfaceWrapper::State::Tiling)
             return;
