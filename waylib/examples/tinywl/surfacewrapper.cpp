@@ -1002,7 +1002,7 @@ void SurfaceWrapper::setWorkspaceId(int newWorkspaceId)
     if (m_workspaceId == newWorkspaceId)
         return;
 
-    bool onAllWorkspaceHasChanged = m_workspaceId == 0 || newWorkspaceId == 0;
+    bool onAllWorkspaceHasChanged = (m_workspaceId == 0) != (newWorkspaceId == 0);
     m_workspaceId = newWorkspaceId;
 
     if (onAllWorkspaceHasChanged)
