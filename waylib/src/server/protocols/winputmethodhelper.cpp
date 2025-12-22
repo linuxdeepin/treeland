@@ -385,6 +385,13 @@ void WInputMethodHelper::handleTIEnabled()
     // Try to activate input method.
     if (im) {
         im->sendActivate();
+        if (ti->features().testFlag(IME::F_SurroundingText)) {
+            im->sendSurroundingText(ti->surroundingText(), ti->surroundingCursor(), ti->surroundingAnchor());
+        }
+        im->sendTextChangeCause(ti->textChangeCause());
+        if (ti->features().testFlag(IME::F_ContentType)) {
+            im->sendContentType(ti->contentHints().toInt(), ti->contentPurpose());
+        }
         im->sendDone();
     }
 }
