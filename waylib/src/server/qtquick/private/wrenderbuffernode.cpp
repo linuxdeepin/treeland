@@ -26,8 +26,10 @@
 #include <private/qsgrhisupport_p.h>
 #include <private/qquickrendercontrol_p.h>
 #include <qobjectdefs.h>
+#include <QMutexLocker>
 
 #include <algorithm>
+#include <QRecursiveMutex>
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
@@ -163,6 +165,7 @@ public:
             DataManager *manager;
         };
 
+        QMutexLocker locker(&mutex);
         [[maybe_unused]] TryClean cleanJob(this);
 
         {
@@ -193,6 +196,7 @@ public:
     }
 
     inline void release(std::weak_ptr<Data> data) {
+        QMutexLocker locker(&mutex);
         auto d = data.lock();
         if (!d)
             return;
@@ -201,37 +205,54 @@ public:
 
 protected:
     struct CleanJob : public QRunnable {
-        CleanJob(DataManager *manager)
+        CleanJob(Derive *manager)
             : manager(manager) {}
 
         void run() override {
             if (!manager)
                 return;
 
-            manager->cleanJob = nullptr;
+            QList<std::shared_ptr<Data>> toDestroy;
+            {
+                QMutexLocker locker(&manager->mutex);
+                manager->cleanJob = nullptr;
 
-            QList<std::shared_ptr<Data>> tmp;
-            tmp.swap(manager->dataList);
-            manager->dataList.reserve(tmp.size());
+                if (manager->dataList.isEmpty())
+                    return;
 
-            for (const auto &data : std::as_const(tmp)) {
-                if (data->released > 2) {
-                    manager->get()->destroy(data->data);
-                } else {
-                    manager->dataList << data;
+                QList<std::shared_ptr<Data>> tmp;
+                tmp.swap(manager->dataList);
+                manager->dataList.reserve(tmp.size());
 
-                    if (data->released > 0)
-                        ++data->released;
+                for (const auto &data : std::as_const(tmp)) {
+                    if (data->released > 2) {
+                        toDestroy << data;
+                    } else {
+                        manager->dataList << data;
+
+                        if (data->released > 0)
+                            ++data->released;
+                    }
                 }
+            }
+
+            auto derive = manager->get();
+            if (!derive) {
+                return;
+            }
+
+            for (const auto &data : std::as_const(toDestroy)) {
+                derive->destroy(data->data);
             }
         }
 
-        QPointer<DataManager> manager;
+        DataManagerPointer<Derive> manager;
     };
 
     inline void tryClean() {
+        QMutexLocker locker(&mutex);
         if (Q_LIKELY(!cleanJob)) {
-            cleanJob = new CleanJob(this);
+            cleanJob = new CleanJob(static_cast<Derive*>(this));
             owner()->scheduleRenderJob(cleanJob, QQuickWindow::AfterRenderingStage);
         }
     }
@@ -251,11 +272,19 @@ protected:
 
     using QObject::deleteLater;
     ~DataManager() {
-        for (auto data : std::as_const(dataList)) {
+        QList<std::shared_ptr<Data>> toDestroy;
+        {
+            QMutexLocker locker(&mutex);
+            toDestroy.swap(dataList);
+        }
+        // Destroy outside the lock to match CleanJob::run() pattern
+        // and avoid potential re-entrancy issues
+        for (auto data : std::as_const(toDestroy)) {
             Derive::destroy(data->data);
         }
     }
 
+    mutable QRecursiveMutex mutex;
     QList<std::shared_ptr<Data>> dataList;
     QRunnable *cleanJob = nullptr;
 };
