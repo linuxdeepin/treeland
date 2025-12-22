@@ -9,9 +9,9 @@
 
 #include <functional>
 
-class treeland_personalization_manager_v1;
+struct treeland_personalization_manager_v1;
 
-class personalization_appearance_context_v1 : public QObject
+struct personalization_appearance_context_v1 : public QObject
 {
 
     Q_OBJECT

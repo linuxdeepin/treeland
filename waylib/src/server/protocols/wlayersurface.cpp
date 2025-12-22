@@ -108,7 +108,7 @@ void WLayerSurfacePrivate::connect()
     });
 }
 
-static inline void debugOutput(wlr_layer_surface_v1_state s)
+[[maybe_unused]] static inline void debugOutput(wlr_layer_surface_v1_state s)
 {
     qDebug() << "committed: " << s.committed << " "
              << "configure_serial: " << s.configure_serial << "\n"
@@ -437,8 +437,6 @@ void WLayerSurface::closed()
 
 bool WLayerSurface::checkNewSize(const QSize &size,  QSize *clipedSize)
 {
-    W_D(WLayerSurface);
-
     // If the width or height arguments are zero, it means the client should decide its own window dimension.
     if (size.width() < 0 || size.height() < 0) {
         if (clipedSize)

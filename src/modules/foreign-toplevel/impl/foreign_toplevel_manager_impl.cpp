@@ -776,7 +776,7 @@ static void treeland_dock_preview_context_resource_destroy(struct wl_resource *r
         return;
     }
 
-    wl_list_remove(&context->destroy_listener.link);
+    wl_list_remove(&context->destroy_listener_wrapper.wrapped_listener.link);
 
     delete context;
 }
@@ -814,18 +814,16 @@ static void treeland_foreign_toplevel_manager_handle_get_dock_preview_context(
     context->relative_surface = wlr_surface_from_resource(relative_surface);
     context->resource = resource;
     context->client = client;
-
-    context->destroy_listener.notify = [](struct wl_listener *listener, [[maybe_unused]] void *data) {
-        treeland_dock_preview_context_v1 *context =
-            wl_container_of(listener, context, destroy_listener);
-
-        wl_resource_destroy(context->resource);
+    context->destroy_listener_wrapper.context = context;
+    context->destroy_listener_wrapper.wrapped_listener.notify = [](struct wl_listener *listener, [[maybe_unused]] void *data) {
+        treeland_dock_preview_context_v1::TDPCPODWrapper *wrapper = wl_container_of(listener, wrapper, wrapped_listener);
+        wl_resource_destroy(wrapper->context->resource);
 
         // wl_list_remove(&context->destroy_listener.link);
         // context->relative_surface = nullptr;
     };
 
-    wl_signal_add(&context->relative_surface->events.destroy, &context->destroy_listener);
+    wl_signal_add(&context->relative_surface->events.destroy, &context->destroy_listener_wrapper.wrapped_listener);
 
     manager->dock_preview.append(context);
     QObject::connect(context,

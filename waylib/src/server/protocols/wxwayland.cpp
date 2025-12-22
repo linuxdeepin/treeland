@@ -131,7 +131,6 @@ WXWayland::WXWayland(qw_compositor *compositor, bool lazy)
 
 QByteArray WXWayland::displayName() const
 {
-    W_DC(WXWayland);
     return isValid() ? QByteArray(std::as_const(handle()->handle()->display_name)) : QByteArray();
 }
 
@@ -191,7 +190,6 @@ QVarLengthArray<xcb_atom_t> WXWayland::supportedAtoms() const
 
 void WXWayland::setSupportedAtoms(const QVarLengthArray<xcb_atom_t> &atoms)
 {
-    W_D(WXWayland);
     auto xcb_conn = xcbConnection();
     auto root = xcbScreen()->root;
 
@@ -202,7 +200,6 @@ void WXWayland::setSupportedAtoms(const QVarLengthArray<xcb_atom_t> &atoms)
 
 void WXWayland::setAtomSupported(xcb_atom_t atom, bool supported)
 {
-    W_D(WXWayland);
     auto xcb_conn = xcbConnection();
     auto root = xcbScreen()->root;
 
@@ -220,14 +217,12 @@ void WXWayland::setAtomSupported(xcb_atom_t atom, bool supported)
 
 void WXWayland::setSeat(WSeat *seat)
 {
-    W_D(WXWayland);
     if (auto handle = this->handle())
         handle->set_seat(*seat->handle());
 }
 
 WSeat *WXWayland::seat() const
 {
-    W_DC(WXWayland);
     if (!handle())
         return nullptr;
     if (!handle()->handle()->seat)

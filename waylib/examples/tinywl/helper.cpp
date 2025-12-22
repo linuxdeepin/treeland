@@ -273,7 +273,7 @@ void Helper::init()
 
     auto *sessionLockManager = m_server->attach<WSessionLockManager>();
     m_lockContainer->setVisible(false);
-    sessionLockManager->safeConnect(&WSessionLockManager::lockCreated, this, [this, sessionLockManager](WSessionLock *lock) {
+    sessionLockManager->safeConnect(&WSessionLockManager::lockCreated, this, [this](WSessionLock *lock) {
         if (m_lockContainer->isVisible()) {
             qWarning() << "Only one session lock is allowed!";
             lock->finish();
@@ -286,7 +286,7 @@ void Helper::init()
             auto geometry = output->geometry();
             wrapper->resize(geometry.size());
             wrapper->setPosition(geometry.topLeft());
-            connect(output->outputItem(), &WOutputItem::geometryChanged, this, [this, output, wrapper] {
+            connect(output->outputItem(), &WOutputItem::geometryChanged, this, [output, wrapper] {
                 auto geometry = output->geometry();
                 wrapper->resize(geometry.size());
                 wrapper->setPosition(geometry.topLeft());
@@ -355,7 +355,7 @@ void Helper::init()
 
             // Setup title and decoration
             auto xwayland = qobject_cast<WXWaylandSurface *>(wrapper->shellSurface());
-            auto updateDecorationTitleBar = [this, wrapper, xwayland]() {
+            auto updateDecorationTitleBar = [wrapper, xwayland]() {
                 if (!xwayland->isBypassManager()) {
                     wrapper->setNoTitleBar(xwayland->decorationsFlags()
                                            & WXWaylandSurface::DecorationsNoTitle);
@@ -450,7 +450,7 @@ void Helper::init()
     }
 
     auto gammaControlManager = qw_gamma_control_manager_v1::create(*m_server->handle());
-    connect(gammaControlManager, &qw_gamma_control_manager_v1::notify_set_gamma, this, [this]
+    connect(gammaControlManager, &qw_gamma_control_manager_v1::notify_set_gamma, this, []
             (wlr_gamma_control_manager_v1_set_gamma_event *event) {
         auto *qwOutput = qw_output::from(event->output);
         size_t ramp_size = 0;

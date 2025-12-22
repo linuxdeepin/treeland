@@ -194,7 +194,7 @@ QQuickItem *QmlEngine::createDockPreview(QQuickItem *parent)
     return createComponent(dockPreviewComponent, parent);
 }
 
-QQuickItem *QmlEngine::createLockScreen(Output *output, QQuickItem *parent)
+QQuickItem *QmlEngine::createLockScreen([[maybe_unused]] Output *output, [[maybe_unused]] QQuickItem *parent)
 {
 #ifndef DISABLE_DDM
     return createComponent(lockScreenComponent,

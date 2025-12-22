@@ -33,7 +33,6 @@ QByteArrayView WVirtualKeyboardManagerV1::interfaceName() const
 
 void WVirtualKeyboardManagerV1::create(WServer *server)
 {
-    W_D(WVirtualKeyboardManagerV1);
     auto manager = qw_virtual_keyboard_manager_v1::create(*server->handle());
     Q_ASSERT(manager);
     m_handle = manager;

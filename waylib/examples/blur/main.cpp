@@ -56,7 +56,7 @@ void Helper::initProtocols(WOutputRenderWindow *window, QQmlEngine *qmlEngine)
         qFatal("Failed to create renderer");
     }
 
-    connect(m_backend, &WBackend::outputAdded, this, [this, window, qmlEngine] (WOutput *output) {
+    connect(m_backend, &WBackend::outputAdded, this, [this, qmlEngine] (WOutput *output) {
         auto initProperties = qmlEngine->newObject();
         initProperties.setProperty("waylandOutput", qmlEngine->toScriptValue(output));
         initProperties.setProperty("layout", qmlEngine->toScriptValue(m_outputLayout));

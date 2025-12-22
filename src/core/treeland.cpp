@@ -321,7 +321,7 @@ Treeland::Treeland()
     d->init();
 
     if (CmdLine::ref().run().has_value()) {
-        auto exec = [runCmd = CmdLine::ref().run().value(), this, d] {
+        auto exec = [runCmd = CmdLine::ref().run().value(), d] {
             qCInfo(treelandDBus) << "run cmd:" << runCmd;
             if (auto cmdline = CmdLine::ref().unescapeExecArgs(runCmd); cmdline) {
                 auto cmdArgs = cmdline.value();

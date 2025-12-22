@@ -75,7 +75,6 @@ public:
 WInputMethodV2::WInputMethodV2(qw_input_method_v2 *h, QObject *parent) :
     WWrapObject(*new WInputMethodV2Private(h, this), parent)
 {
-    W_D(WInputMethodV2);
     connect(handle(), &qw_input_method_v2::notify_commit, this, &WInputMethodV2::committed);
     connect(handle(), &qw_input_method_v2::notify_grab_keyboard, this, [this](wlr_input_method_keyboard_grab_v2 *grab) {
         Q_EMIT newKeyboardGrab(qw_input_method_keyboard_grab_v2::from(grab));

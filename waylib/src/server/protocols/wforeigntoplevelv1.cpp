@@ -102,13 +102,13 @@ public:
 
         surface->surface()->safeConnect(&WSurface::outputEntered,
                                         handle,
-                                        [this, handle](WOutput *output) {
+                                        [handle](WOutput *output) {
                                             handle->output_enter(output->nativeHandle());
                                         });
 
         surface->surface()->safeConnect(&WSurface::outputLeave,
                                         handle,
-                                        [this, handle](WOutput *output) {
+                                        [handle](WOutput *output) {
                                             handle->output_leave(output->nativeHandle());
                                         });
 
@@ -218,8 +218,6 @@ QByteArrayView WForeignToplevel::interfaceName() const
 
 void WForeignToplevel::create(WServer *server)
 {
-    W_D(WForeignToplevel);
-
     m_handle = qw_foreign_toplevel_manager_v1::create(*server->handle());
 }
 

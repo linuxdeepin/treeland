@@ -379,9 +379,9 @@ public:
     QW_INTERFACE(get_dmabuf, bool ,wlr_dmabuf_attributes *attribs);
 
 private:
-    VkInstance m_instance;
-    VkDevice m_device;
-    QSGTexture *m_texture;
+    [[maybe_unused]] VkInstance m_instance;
+    [[maybe_unused]] VkDevice m_device;
+    [[maybe_unused]] QSGTexture *m_texture;
 };
 
 VkTextureBuffer::VkTextureBuffer(VkInstance instance, VkDevice device, QSGTexture *texture)
@@ -750,7 +750,7 @@ static inline quint64 vkimage_cast(void *image) {
     return reinterpret_cast<quintptr>(image);
 }
 
-static inline quint64 vkimage_cast(quint64 image) {
+[[maybe_unused]] static inline quint64 vkimage_cast(quint64 image) {
     return image;
 }
 

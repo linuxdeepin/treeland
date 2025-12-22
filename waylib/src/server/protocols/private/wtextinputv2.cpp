@@ -316,7 +316,6 @@ QByteArrayView WTextInputManagerV2::interfaceName() const
 
 void WTextInputManagerV2::create(WServer *server)
 {
-    W_D(WTextInputManagerV2);
     m_global = wl_global_create(server->handle()->handle(), &zwp_text_input_manager_v2_interface, 1, this, text_input_manager_bind);
     Q_ASSERT(m_global);
     m_handle = this;
@@ -364,13 +363,11 @@ int WTextInputV2::surroundingAnchor() const
 
 IME::ContentHints WTextInputV2::contentHints() const
 {
-    W_DC(WTextInputV2);
     return IME::ContentHints();
 }
 
 IME::ContentPurpose WTextInputV2::contentPurpose() const
 {
-    W_DC(WTextInputV2);
     return IME::ContentPurpose();
 }
 

@@ -1287,7 +1287,6 @@ void WOutputRenderWindowPrivate::init()
 
 void WOutputRenderWindowPrivate::init(OutputHelper *helper)
 {
-    W_Q(WOutputRenderWindow);
     QMetaObject::invokeMethod(helper, &WOutputHelper::scheduleFrame, Qt::QueuedConnection);
     helper->init();
     QObject::connect(helper->output(), &WOutputViewport::dependsChanged, helper, [this] {
@@ -1301,7 +1300,7 @@ void WOutputRenderWindowPrivate::init(OutputHelper *helper)
     }
 }
 
-inline static QByteArrayList fromCStyleList(size_t count, const char **list) {
+[[maybe_unused]] inline static QByteArrayList fromCStyleList(size_t count, const char **list) {
     QByteArrayList al;
     al.reserve(count);
     for (size_t i = 0; i < count; ++i) {
@@ -2002,8 +2001,6 @@ void WOutputRenderWindow::componentComplete()
 
 bool WOutputRenderWindow::event(QEvent *event)
 {
-    Q_D(WOutputRenderWindow);
-
     if (QW::RenderWindow::beforeDisposeEventFilter(this, event)) {
         event->accept();
         QW::RenderWindow::afterDisposeEventFilter(this, event);

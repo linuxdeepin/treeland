@@ -339,7 +339,6 @@ void WServer::initializeProxyQPA(int &argc, char **argv, const QStringList &prox
 {
     Q_ASSERT(!proxyPlatformPlugins.isEmpty());
 
-    W_DC(WServer);
     QPlatformIntegration *proxy = nullptr;
     for (const QString &name : std::as_const(proxyPlatformPlugins)) {
         if (name.isEmpty())

@@ -141,7 +141,6 @@ int WSessionLockSurface::keyboardFocusPriority() const
 
 uint32_t WSessionLockSurface::configureSize(const QSize &newSize)
 {
-    W_D(WSessionLockSurface);
     return handle()->configure(newSize.width(), newSize.height());
 }
 

@@ -725,7 +725,7 @@ void CaptureSourceSelector::mouseMoveEvent(QMouseEvent *event)
     }
 }
 
-static inline WSurfaceItemContent *findItemContent(QQuickItem *item)
+[[maybe_unused]] static inline WSurfaceItemContent *findItemContent(QQuickItem *item)
 {
     QQueue<QQuickItem *> q;
     q.enqueue(item);
