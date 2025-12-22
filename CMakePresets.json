@@ -37,6 +37,19 @@
             }
         },
         {
+            "name": "ci-clang",
+            "displayName": "CI Build Config for clang",
+            "description": "Build configuration with warnings as errors",
+            "generator": "Ninja",
+            "binaryDir": "${sourceDir}/build",
+            "cacheVariables": {
+                "CMAKE_C_COMPILER": "clang",
+                "CMAKE_CXX_COMPILER": "clang++",
+                "CMAKE_CXX_FLAGS": "-Wall -Wextra -Werror -Wno-shift-overflow -Wno-overloaded-virtual",
+                "CMAKE_C_FLAGS": "-Wall -Wextra -Werror -Wno-shift-overflow -Wno-overloaded-virtual"
+            }
+        },
+        {
             "name": "deb",
             "displayName": "Debian Package Build Config",
             "description": "Build configuration for Debian packaging with examples enabled",
@@ -62,6 +75,10 @@
         {
             "name": "ci",
             "configurePreset": "ci"
+        },
+        {
+            "name": "ci-clang",
+            "configurePreset": "ci-clang"
         },
         {
             "name": "deb",

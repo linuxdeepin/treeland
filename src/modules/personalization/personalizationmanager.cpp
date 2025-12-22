@@ -160,37 +160,37 @@ void PersonalizationV1::onAppearanceContextCreated(personalization_appearance_co
 
     m_appearanceContexts.push_back(context);
 
-    connect(context, &Appearance::roundCornerRadiusChanged, this, [this, context](int32_t radius) {
+    connect(context, &Appearance::roundCornerRadiusChanged, this, [this](int32_t radius) {
         Helper::instance()->config()->setWindowRadius(radius);
         for (auto *context : m_appearanceContexts) {
             context->sendRoundCornerRadius(radius);
         }
     });
-    connect(context, &Appearance::iconThemeChanged, this, [this, context](const QString &theme) {
+    connect(context, &Appearance::iconThemeChanged, this, [this](const QString &theme) {
         Helper::instance()->config()->setIconThemeName(theme);
         for (auto *context : m_appearanceContexts) {
             context->sendIconTheme(theme.toUtf8());
         }
     });
-    connect(context, &Appearance::activeColorChanged, this, [this, context](const QString &color) {
+    connect(context, &Appearance::activeColorChanged, this, [this](const QString &color) {
         Helper::instance()->config()->setActiveColor(color);
         for (auto *context : m_appearanceContexts) {
             context->sendActiveColor(color.toUtf8());
         }
     });
-    connect(context, &Appearance::windowOpacityChanged, this, [this, context](uint32_t opacity) {
+    connect(context, &Appearance::windowOpacityChanged, this, [this](uint32_t opacity) {
         Helper::instance()->config()->setWindowOpacity(opacity);
         for (auto *context : m_appearanceContexts) {
             context->sendWindowOpacity(opacity);
         }
     });
-    connect(context, &Appearance::windowThemeTypeChanged, this, [this, context](int32_t type) {
+    connect(context, &Appearance::windowThemeTypeChanged, this, [this](int32_t type) {
         Helper::instance()->config()->setWindowThemeType(type);
         for (auto *context : m_appearanceContexts) {
             context->sendWindowThemeType(type);
         }
     });
-    connect(context, &Appearance::titlebarHeightChanged, this, [this, context](uint32_t height) {
+    connect(context, &Appearance::titlebarHeightChanged, this, [this](uint32_t height) {
         Helper::instance()->config()->setWindowTitlebarHeight(height);
         for (auto *context : m_appearanceContexts) {
             context->sendWindowTitlebarHeight(height);
@@ -205,19 +205,19 @@ void PersonalizationV1::onAppearanceContextCreated(personalization_appearance_co
         context->setIconTheme(iconTheme().toUtf8());
     });
 
-    connect(context, &Appearance::requestActiveColor, context, [this, context] {
+    connect(context, &Appearance::requestActiveColor, context, [context] {
         context->setActiveColor(Helper::instance()->config()->activeColor().toUtf8());
     });
 
-    connect(context, &Appearance::requestWindowOpacity, context, [this, context] {
+    connect(context, &Appearance::requestWindowOpacity, context, [context] {
         context->setWindowOpacity(Helper::instance()->config()->windowOpacity());
     });
 
-    connect(context, &Appearance::requestWindowThemeType, context, [this, context] {
+    connect(context, &Appearance::requestWindowThemeType, context, [context] {
         context->setWindowThemeType(Helper::instance()->config()->windowThemeType());
     });
 
-    connect(context, &Appearance::requestWindowTitlebarHeight, context, [this, context] {
+    connect(context, &Appearance::requestWindowTitlebarHeight, context, [context] {
         context->setWindowTitlebarHeight(Helper::instance()->config()->windowTitlebarHeight());
     });
 

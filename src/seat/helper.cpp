@@ -2511,7 +2511,7 @@ void Helper::handleWindowPicker(WindowPickerInterface *picker)
         connect(windowPicker,
                 &WindowPicker::windowPicked,
                 this,
-                [this, picker, windowPicker](WSurfaceItem *surfaceItem) {
+                [picker, windowPicker](WSurfaceItem *surfaceItem) {
                     if (surfaceItem) {
                         auto credentials = WClient::getCredentials(
                             surfaceItem->surface()->waylandClient()->handle());

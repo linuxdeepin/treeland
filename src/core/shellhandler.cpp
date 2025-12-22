@@ -198,7 +198,7 @@ WXWayland *ShellHandler::createXWayland(WServer *server,
     m_xwaylands.append(xwayland);
     xwayland->setSeat(seat);
     connect(xwayland, &WXWayland::surfaceAdded, this, &ShellHandler::onXWaylandSurfaceAdded);
-    connect(xwayland, &WXWayland::ready, xwayland, [xwayland, this] {
+    connect(xwayland, &WXWayland::ready, xwayland, [xwayland] {
         auto atomPid = xwayland->atom("_NET_WM_PID");
         xwayland->setAtomSupported(atomPid, true);
         auto atomNoTitlebar = xwayland->atom("_DEEPIN_NO_TITLEBAR");
@@ -531,7 +531,7 @@ void ShellHandler::setupSurfaceActiveWatcher(SurfaceWrapper *wrapper)
         });
         */
     } else if (wrapper->type() == SurfaceWrapper::Type::Layer) {
-        connect(wrapper, &SurfaceWrapper::requestActive, this, [this, wrapper]() {
+        connect(wrapper, &SurfaceWrapper::requestActive, this, [wrapper]() {
             auto layerSurface = qobject_cast<WLayerSurface *>(wrapper->shellSurface());
             if (layerSurface->keyboardInteractivity() == WLayerSurface::KeyboardInteractivity::None)
                 return;
@@ -546,7 +546,7 @@ void ShellHandler::setupSurfaceActiveWatcher(SurfaceWrapper *wrapper)
                 Helper::instance()->activateSurface(wrapper);
         });
 
-        connect(wrapper, &SurfaceWrapper::requestInactive, this, [this, wrapper]() {
+        connect(wrapper, &SurfaceWrapper::requestInactive, this, [this]() {
             Helper::instance()->activateSurface(m_workspace->current()->latestActiveSurface());
         });
     } else { // Xdgtoplevel or X11

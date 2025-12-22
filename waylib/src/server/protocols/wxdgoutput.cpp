@@ -403,7 +403,6 @@ qreal WXdgOutputManager::scaleOverride() const
 
 void WXdgOutputManager::resetScaleOverride()
 {
-    Q_D(WXdgOutputManager);
     setScaleOverride(0.0);
 }
 

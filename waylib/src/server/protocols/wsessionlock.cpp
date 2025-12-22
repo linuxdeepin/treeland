@@ -166,7 +166,6 @@ WSessionLock::LockState WSessionLock::lockState() const
 
 bool WSessionLock::isLocked() const
 {
-    W_DC(WSessionLock);
     return lockState() == LockState::Locked;
 }
 

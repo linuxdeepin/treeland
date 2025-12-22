@@ -213,7 +213,6 @@ void WTextInputV1::sendDeleteSurroundingText(int index, uint length)
 WTextInputV1::WTextInputV1(QObject *parent)
     : WTextInput(*new WTextInputV1Private(this), parent)
 {
-    W_D(WTextInputV1);
     connect(this, &WTextInputV1::activate, this, &WTextInputV1::requestFocus);
     connect(this, &WTextInputV1::deactivate, this, [this] {
         // Disconnect all signals excluding requestFocus, as text input may be activated again in
@@ -439,7 +438,6 @@ static void text_input_manager_bind(wl_client *wl_client, void *data, uint32_t v
 
 void WTextInputManagerV1::create(WServer *server)
 {
-    W_D(WTextInputManagerV1);
     m_global = wl_global_create(server->handle()->handle(),
                                 &zwp_text_input_manager_v1_interface,
                                 1,

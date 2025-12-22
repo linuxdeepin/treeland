@@ -213,7 +213,7 @@ void WInputMethodHelper::handleNewKGV2(qw_input_method_keyboard_grab_v2 *kgv2)
 {
     W_D(WInputMethodHelper);
     Q_ASSERT(d->seat);
-    auto endGrab = [this, d](qw_input_method_keyboard_grab_v2 *kgv2) {
+    auto endGrab = [d](qw_input_method_keyboard_grab_v2 *kgv2) {
         if (!d->seat)
             return;
         if (kgv2->handle()->keyboard) {
@@ -221,7 +221,7 @@ void WInputMethodHelper::handleNewKGV2(qw_input_method_keyboard_grab_v2 *kgv2)
         }
         d->seat->handle()->keyboard_end_grab();
     };
-    auto setKeyboard = [this, d](qw_input_method_keyboard_grab_v2 *kgv2, WInputDevice *keyboard) {
+    auto setKeyboard = [](qw_input_method_keyboard_grab_v2 *kgv2, WInputDevice *keyboard) {
         if (keyboard) {
             auto *virtualKeyboard = wlr_input_device_get_virtual_keyboard(*keyboard->handle());
             // refer to:
@@ -287,7 +287,7 @@ void WInputMethodHelper::handleNewVKV1(wlr_virtual_keyboard_v1 *vkv1)
     WInputDevice *keyboard = new WInputDevice(qw_input_device::from(&vkv1->keyboard.base));
     d->virtualKeyboards.append(keyboard);
     d->seat->attachInputDevice(keyboard);
-    keyboard->safeConnect(&qw_input_device::before_destroy, this, [d, this, keyboard] () {
+    keyboard->safeConnect(&qw_input_device::before_destroy, this, [d, keyboard] () {
         if (d->seat) d->seat->detachInputDevice(keyboard);
         d->virtualKeyboards.removeOne(keyboard);
         keyboard->safeDeleteLater();
@@ -324,7 +324,6 @@ void WInputMethodHelper::connectToTI(WTextInput *ti)
 void WInputMethodHelper::disableTI(WTextInput *ti)
 {
     Q_ASSERT(ti);
-    W_D(WInputMethodHelper);
     if (enabledTextInput() == ti) {
         // Should we consider the case when the same text input is disabled and then enabled at the same time.
         auto im = inputMethod();
@@ -369,7 +368,6 @@ void WInputMethodHelper::handleTIEnabled()
 {
     WTextInput *ti = qobject_cast<WTextInput*>(sender());
     Q_ASSERT(ti);
-    W_D(WInputMethodHelper);
     auto im = inputMethod();
     auto activeTI = enabledTextInput();
     if (activeTI == ti)

@@ -77,8 +77,6 @@ void WOutputViewportPrivate::updateImplicitSize()
 
 void WOutputViewportPrivate::updateRenderBufferSource()
 {
-    W_Q(WOutputViewport);
-
     QList<QQuickItem*> sources;
 
     if (input) {

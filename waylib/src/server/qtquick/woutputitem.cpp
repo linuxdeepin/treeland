@@ -338,8 +338,6 @@ QList<QQuickItem *> WOutputItem::cursorItems() const
 
 void WOutputItem::classBegin()
 {
-    W_D(WOutputItem);
-
     QQuickItem::classBegin();
 }
 
@@ -356,8 +354,6 @@ void WOutputItem::componentComplete()
 
 void WOutputItem::releaseResources()
 {
-    W_D(WOutputItem);
-
     WQuickObserver::releaseResources();
 }
 

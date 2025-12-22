@@ -315,7 +315,7 @@ void XSettings::setSettings(const QByteArray &data)
 {
     xcb_grab_server(m_connection);
 
-    foreach (xcb_window_t win, m_windows) {
+    for (const xcb_window_t &win : std::as_const(m_windows)) {
         xcb_change_property(m_connection,
                             XCB_PROP_MODE_REPLACE,
                             win,
