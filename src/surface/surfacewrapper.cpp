@@ -264,6 +264,13 @@ void SurfaceWrapper::setup()
 
     Q_EMIT surfaceItemChanged();
 
+    // Forward WToplevelSurface appId changes when using fallback mode
+    if (m_appId.isEmpty()) {
+        m_shellSurface->safeConnect(&WToplevelSurface::appIdChanged, this, [this]() {
+            Q_EMIT appIdChanged();
+        });
+    }
+
     if (!m_prelaunchSplash || !m_prelaunchSplash->isVisible()) {
         setImplicitSize(m_surfaceItem->implicitWidth(), m_surfaceItem->implicitHeight());
         connect(m_surfaceItem, &WSurfaceItem::implicitWidthChanged, this, [this] {
@@ -484,7 +491,13 @@ QQuickItem *SurfaceWrapper::prelaunchSplash() const
 
 QString SurfaceWrapper::appId() const
 {
-    return m_appId;
+    // TODO: Need to consider `engineName` to ensure the uniqueness of appid.
+    if (!m_appId.isEmpty())
+        return m_appId;
+    // TODO: consider to use "xdg-shell/" + m_shellSurface->appId(), need dde-shell adaptation
+    if (m_shellSurface)
+        return m_shellSurface->appId();
+    return QString();
 }
 
 bool SurfaceWrapper::resize(const QSizeF &size)

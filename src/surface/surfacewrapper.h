@@ -34,7 +34,7 @@ class SurfaceWrapper : public QQuickItem
     QML_ELEMENT
     QML_UNCREATABLE("SurfaceWrapper objects are created by c++")
     Q_PROPERTY(Type type READ type NOTIFY typeChanged)
-    Q_PROPERTY(QString appId READ appId CONSTANT)
+    Q_PROPERTY(QString appId READ appId NOTIFY appIdChanged)
     // make to read only
     Q_PROPERTY(qreal implicitWidth READ implicitWidth NOTIFY implicitWidthChanged FINAL)
     Q_PROPERTY(qreal implicitHeight READ implicitHeight NOTIFY implicitHeightChanged FINAL)
@@ -293,6 +293,7 @@ public Q_SLOTS:
 Q_SIGNALS:
     void boundingRectChanged();
     void ownsOutputChanged();
+    void appIdChanged();
     void normalGeometryChanged();
     void maximizedGeometryChanged();
     void fullscreenGeometryChanged();
