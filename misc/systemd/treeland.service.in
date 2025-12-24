@@ -21,3 +21,16 @@ RestartSec=1s
 # since exec replaces the process, logs would appear from both treeland.sh and treeland
 StandardOutput=null
 StandardError=null
+
+NoNewPrivileges=true
+OOMScoreAdjust=-300
+Nice=-15
+MemoryDenyWriteExecute=true
+PrivateIPC=true
+ProtectSystem=full
+ProtectHome=true
+ProtectClock=true
+ProtectProc=invisible
+ProtectKernelTunables=true
+ProtectKernelModules=true
+RestrictSUIDSGID=true
