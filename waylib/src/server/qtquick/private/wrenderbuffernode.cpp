@@ -210,19 +210,29 @@ protected:
 
             manager->cleanJob = nullptr;
 
+            // Collect items to destroy outside the manager's dataList
+            // to avoid accessing manager during shared_ptr destruction
+            QList<DataType*> itemsToDestroy;
             QList<std::shared_ptr<Data>> tmp;
             tmp.swap(manager->dataList);
             manager->dataList.reserve(tmp.size());
 
             for (const auto &data : std::as_const(tmp)) {
                 if (data->released > 2) {
-                    manager->get()->destroy(data->data);
+                    // Collect items to destroy instead of destroying immediately
+                    itemsToDestroy.append(data->data);
                 } else {
                     manager->dataList << data;
 
                     if (data->released > 0)
                         ++data->released;
                 }
+            }
+
+            // Destroy items after we're done accessing manager
+            // This prevents crashes from shared_ptr destruction during dataList iteration
+            for (auto item : std::as_const(itemsToDestroy)) {
+                manager->get()->destroy(item);
             }
         }
 

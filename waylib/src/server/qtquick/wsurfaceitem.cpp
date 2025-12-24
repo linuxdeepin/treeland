@@ -203,15 +203,33 @@ public:
             const bool bufferChanged = committedState & WLR_SURFACE_STATE_BUFFER;
 
             if (bufferChanged) {
+                // Get the new buffer pointer from surface
+                auto newBuffer = surface->buffer();
+
                 if (!live) {
-                    pendingBuffer.reset(surface->buffer());
-                    if (Q_LIKELY(pendingBuffer))
-                        pendingBuffer->lock();
+                    // Non-live mode: update pendingBuffer
+                    // CRITICAL FIX: Only reset if the buffer pointer actually changed.
+                    // If pendingBuffer.get() == newBuffer (same pointer), calling reset() would:
+                    // 1. Call deleter (unlocker) on the old pointer → unlock()
+                    // 2. Set the new pointer (which is the same object)
+                    // 3. Then we call lock() again
+                    // This unlock-then-lock of the same buffer can cause n_locks to temporarily
+                    // hit 0, triggering wlroots' assert(buffer->n_locks > 0) in wlr_buffer_unlock().
+                    if (pendingBuffer.get() != newBuffer) {
+                        pendingBuffer.reset(newBuffer);
+                        if (Q_LIKELY(pendingBuffer))
+                            pendingBuffer->lock();
+                    }
                 } else {
-                    buffer.reset(surface->buffer());
-                    // lock buffer to ensure the WSurfaceItem can keep the last frame after WSurface destroyed.
-                    if (Q_LIKELY(buffer))
-                        buffer->lock();
+                    // Live mode: update buffer immediately
+                    // Same fix as above: only reset if the buffer pointer actually changed
+                    // to avoid double-unlock of the same buffer when surface commits without buffer change.
+                    if (buffer.get() != newBuffer) {
+                        buffer.reset(newBuffer);
+                        // lock buffer to ensure the WSurfaceItem can keep the last frame after WSurface destroyed.
+                        if (Q_LIKELY(buffer))
+                            buffer->lock();
+                    }
 
                     q->update();
                 }
@@ -588,7 +606,10 @@ void WSurfaceItemContent::releaseResources()
     d->invalidate();
 
     // Force to update the contents, avoid to render the invalid textures
-    QQuickItemPrivate::get(this)->dirty(QQuickItemPrivate::Content);
+    // Only mark dirty if we have a valid window to avoid crashes during window destruction
+    if (window()) {
+        QQuickItemPrivate::get(this)->dirty(QQuickItemPrivate::Content);
+    }
 }
 
 void WSurfaceItemContent::itemChange(ItemChange change, const ItemChangeData &data)
