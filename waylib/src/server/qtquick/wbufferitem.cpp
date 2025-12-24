@@ -184,7 +184,10 @@ void WBufferItem::releaseResources()
 
     d->cleanTextureProvider();
     // Keep last buffer cached; just force content dirty to avoid stale nodes.
-    QQuickItemPrivate::get(this)->dirty(QQuickItemPrivate::Content);
+    // Only mark dirty if we have a valid window to avoid crashes during window destruction
+    if (window()) {
+        QQuickItemPrivate::get(this)->dirty(QQuickItemPrivate::Content);
+    }
 }
 
 void WBufferItem::invalidateSceneGraph()
