@@ -110,7 +110,6 @@ UserModel::UserModel(QObject *parent)
 
     // find out index of the last user
     auto lastUserName = stateConfig.Last.User.get();
-    const auto &facesDir = mainConfig.Theme.FacesDir.get();
 
     for (const auto &user : d->users) {
         if (user->userName() == lastUserName) {
@@ -218,11 +217,6 @@ QVariant UserModel::data(const QModelIndex &index, int role) const
     default:
         return {};
     }
-}
-
-int UserModel::disableAvatarsThreshold()
-{
-    return mainConfig.Theme.DisableAvatarsThreshold.get();
 }
 
 bool UserModel::containsAllUsers() const
