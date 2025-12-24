@@ -38,7 +38,6 @@ class UserModel : public QAbstractListModel
     Q_PROPERTY(int lastIndex READ lastIndex CONSTANT)
     Q_PROPERTY(QString lastUser READ lastUser CONSTANT)
     Q_PROPERTY(int count READ rowCount NOTIFY countChanged)
-    Q_PROPERTY(int disableAvatarsThreshold READ disableAvatarsThreshold CONSTANT)
     Q_PROPERTY(bool containsAllUsers READ containsAllUsers CONSTANT)
     QML_NAMED_ELEMENT(UserModel)
     QML_SINGLETON
@@ -79,7 +78,6 @@ public:
     void setCurrentUserName(const QString &userName) noexcept;
     void updateUserLoginState(const QString &username, bool logined);
     void clearUserLoginState();
-    [[nodiscard]] static int disableAvatarsThreshold();
     [[nodiscard]] bool containsAllUsers() const;
 
 Q_SIGNALS:
