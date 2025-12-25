@@ -709,8 +709,14 @@ void WBufferRenderer::cleanTextureProvider()
 
         m_textureProvider->invalidate();
         // Delay clean the textures on the next render after.
-        window()->scheduleRenderJob(new TextureProviderCleanupJob(m_textureProvider.release()),
-                                    QQuickWindow::AfterRenderingStage);
+        // Only schedule render job if window is still valid
+        if (window()) {
+            window()->scheduleRenderJob(new TextureProviderCleanupJob(m_textureProvider.release()),
+                                        QQuickWindow::AfterRenderingStage);
+        } else {
+            // Window is being destroyed, clean up immediately
+            m_textureProvider.reset();
+        }
     }
 }
 
