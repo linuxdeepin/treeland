@@ -88,8 +88,8 @@ private Q_SLOTS:
     void disconnected();
     void readyRead();
     void error();
-    void onSessionAdded(const QDBusObjectPath &session);
-    void onSessionRemoved(const QDBusObjectPath &session);
+    void onSessionNew(const QString &id, const QDBusObjectPath &session);
+    void onSessionRemoved(const QString &id, const QDBusObjectPath &session);
 
 Q_SIGNALS:
     void informationMessage(const QString &message);
@@ -113,6 +113,7 @@ private:
     bool localValidation(const QString &user, const QString &password) const;
     void updateAuthSocket();
     void updateLocketState();
+    void updateUserLoginState(const QDBusObjectPath &path, bool loggedIn);
 
 private:
     GreeterProxyPrivate *d{ nullptr };
