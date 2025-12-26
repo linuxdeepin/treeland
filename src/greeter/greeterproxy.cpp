@@ -28,11 +28,15 @@
 
 #include <DisplayManager.h>
 #include <DisplayManagerSession.h>
+#include <Login1Manager.h>
+#include <Login1Session.h>
 #include <Messages.h>
 #include <SocketWriter.h>
 #include <security/pam_appl.h>
+#include <pwd.h>
 
 #include <DDBusSender>
+#include <DThreadUtils>
 
 #include <QCommandLineOption>
 #include <QCommandLineParser>
@@ -45,31 +49,6 @@
 
 #include <woutputrenderwindow.h>
 
-struct SessionInfo
-{
-    QString sessionId;
-    quint32 uid;
-    QString userName;
-    QString seat;
-    QDBusObjectPath path;
-};
-
-static QDBusArgument &operator<<(QDBusArgument &argument, const SessionInfo &info)
-{
-    argument.beginStructure();
-    argument << info.sessionId << info.uid << info.userName << info.seat << info.path;
-    argument.endStructure();
-    return argument;
-}
-
-static const QDBusArgument &operator>>(const QDBusArgument &argument, SessionInfo &info)
-{
-    argument.beginStructure();
-    argument >> info.sessionId >> info.uid >> info.userName >> info.seat >> info.path;
-    argument.endStructure();
-    return argument;
-}
-
 using namespace DDM;
 
 class GreeterProxyPrivate
@@ -78,7 +57,6 @@ public:
     SessionModel *sessionModel{ nullptr };
     UserModel *userModel{ nullptr };
     QLocalSocket *socket{ nullptr };
-    DisplayManager *displayManager{ nullptr };
     org::deepin::DisplayManager *ddmDisplayManager{ nullptr };
     QDBusUnixFileDescriptor authFd;
     QString hostName;
@@ -98,10 +76,6 @@ GreeterProxy::GreeterProxy(QObject *parent)
     qDBusRegisterMetaType<SessionInfo>();
     qDBusRegisterMetaType<QList<SessionInfo>>();
 
-    d->displayManager = new DisplayManager("org.freedesktop.DisplayManager",
-                                           "/org/freedesktop/DisplayManager",
-                                           QDBusConnection::systemBus(),
-                                           this);
     d->socket = new QLocalSocket(this);
 
     // connect signals
@@ -225,24 +199,31 @@ void GreeterProxy::hybridSleep()
 
 void GreeterProxy::init()
 {
-    connect(d->displayManager, &DisplayManager::SessionAdded, this, &GreeterProxy::onSessionAdded);
-    connect(d->displayManager,
-            &DisplayManager::SessionRemoved,
-            this,
-            &GreeterProxy::onSessionRemoved);
+    auto conn = QDBusConnection::systemBus();
+    conn.connect(Logind::serviceName(),
+                 Logind::managerPath(),
+                 Logind::managerIfaceName(),
+                 "SessionNew",
+                 this,
+                 SLOT(onSessionNew(QString, QDBusObjectPath)));
+    conn.connect(Logind::serviceName(),
+                 Logind::managerPath(),
+                 Logind::managerIfaceName(),
+                 "SessionRemoved",
+                 this,
+                 SLOT(onSessionRemoved(QString, QDBusObjectPath)));
 
     // Use async call to avoid blocking
-    QThreadPool::globalInstance()->start([this]() {
-        QDBusInterface dbus("org.freedesktop.DBus",
-                            "/org/freedesktop/DBus",
-                            "org.freedesktop.DBus.Properties",
-                            QDBusConnection::systemBus());
-        QDBusReply<QList<QDBusObjectPath>> reply = dbus.call("Get", DisplayManager::staticInterfaceName(), "Sessions");
+    QThreadPool::globalInstance()->start([this, conn]() {
+        OrgFreedesktopLogin1ManagerInterface manager(Logind::serviceName(),
+                                                     Logind::managerPath(),
+                                                     conn);
+        auto reply = manager.ListSessions();
+        reply.waitForFinished();
         if (reply.isValid()) {
             auto sessions = reply.value();
-            for (auto session : sessions) {
-                QMetaObject::invokeMethod(this, &GreeterProxy::onSessionAdded, Qt::QueuedConnection, session);
-            }
+            for (const auto &session : sessions)
+                onSessionNew(session.sessionId, session.sessionPath);
         }
     });
 }
@@ -323,24 +304,28 @@ void GreeterProxy::error()
     qCCritical(treelandGreeter) << "Socket error: " << d->socket->errorString();
 }
 
-void GreeterProxy::onSessionAdded(const QDBusObjectPath &session)
+void GreeterProxy::updateUserLoginState(const QDBusObjectPath &path, bool loggedIn)
 {
-    DisplaySession s(d->displayManager->service(), session.path(), QDBusConnection::systemBus());
-
-    userModel()->updateUserLoginState(s.userName(), true);
-    updateLocketState();
+    QThreadPool ::globalInstance()->start([this, path, loggedIn] {
+        OrgFreedesktopLogin1SessionInterface session(Logind::serviceName(),
+                                                     path.path(),
+                                                     QDBusConnection ::systemBus());
+        QString username = QString::fromLocal8Bit(getpwuid(session.user().userId)->pw_name);
+        DThreadUtils::gui().run(this, [this, username, loggedIn]() {
+            userModel()->updateUserLoginState(username, loggedIn);
+            updateLocketState();
+        });
+    });
 }
 
-void GreeterProxy::onSessionRemoved([[maybe_unused]] const QDBusObjectPath &session)
+void GreeterProxy::onSessionNew([[maybe_unused]] const QString &id, const QDBusObjectPath &path)
 {
-    // FIXME: Reset all user state, because we can't know which user was logout.
-    userModel()->clearUserLoginState();
-    updateLocketState();
+    updateUserLoginState(path, true);
+}
 
-    auto sessions = d->displayManager->sessions();
-    for (auto session : sessions) {
-        onSessionAdded(session);
-    }
+void GreeterProxy::onSessionRemoved([[maybe_unused]] const QString &id, const QDBusObjectPath &path)
+{
+    updateUserLoginState(path, false);
 }
 
 void GreeterProxy::readyRead()
