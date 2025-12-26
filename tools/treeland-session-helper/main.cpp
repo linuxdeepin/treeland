@@ -90,10 +90,17 @@ public:
     {
     }
 
+    ~AppIdResolverManager()
+    {
+        cleanupResolver();
+    }
+
     void ensureResolver()
     {
-        if (m_resolver)
+        if (m_resolver) {
+            qInfo() << "Resolver already exists!";
             return;
+        }
         auto *raw = get_resolver();
         if (!raw) {
             qWarning() << "get_resolver returned null";
@@ -101,6 +108,19 @@ public:
         }
         m_resolver = new AppIdResolver(raw, this);
         qInfo() << "Resolver object created";
+    }
+
+    void cleanupResolver()
+    {
+        if (!m_resolver)
+            return;
+        auto *resolver = m_resolver;
+        m_resolver = nullptr;
+        if (isActive() && resolver->isInitialized()) {
+            resolver->destroy();
+        }
+        delete resolver;
+        qInfo() << "Resolver object destroyed";
     }
 
 private:
@@ -119,6 +139,7 @@ int main(int argc, char **argv)
             manager.ensureResolver();
         } else {
             qWarning() << "Resolver manager inactive";
+            manager.cleanupResolver();
         }
     });
 
