@@ -43,6 +43,9 @@ QVariant SurfaceListModel::data(const QModelIndex &index, int role) const
     if (role == Qt::InitialSortOrderRole) {
         auto surface = surfaces().at(index.row());
         auto container = surface->container();
+        if (!container) {
+            return QVariant();
+        }
         const auto orderIndex = container->childItems().indexOf(surface);
         Q_ASSERT(orderIndex >= 0);
         return orderIndex;
