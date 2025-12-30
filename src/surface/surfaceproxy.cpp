@@ -23,7 +23,7 @@ void SurfaceProxy::setSurface(SurfaceWrapper *newSurface)
     if (m_sourceSurface == newSurface)
         return;
 
-    foreach (const QMetaObject::Connection &connection, m_sourceConnections) {
+    for (const QMetaObject::Connection &connection : std::as_const(m_sourceConnections)) {
         QObject::disconnect(connection);
     }
     m_sourceConnections.clear();
@@ -49,30 +49,51 @@ void SurfaceProxy::setSurface(SurfaceWrapper *newSurface)
             QQuickItemPrivate::get(m_shadow)->culled = true;
         }
 
-        auto item = m_proxySurface->surfaceItem();
-        if (item) {
-            if (m_live) {
-                item->setFlags(WSurfaceItem::RejectEvent);
-            } else {
-                item->setFlags(WSurfaceItem::RejectEvent | WSurfaceItem::NonLive);
-            }
-            item->setDelegate(m_sourceSurface->surfaceItem()->delegate());
+        auto updateProxyFlagsAndDelegate = [this]() {
+            auto proxyItem = m_proxySurface ? m_proxySurface->surfaceItem() : nullptr;
+            auto sourceItem = m_sourceSurface ? m_sourceSurface->surfaceItem() : nullptr;
+            if (!proxyItem)
+                return;
+
+            const auto flags = m_live ? WSurfaceItem::RejectEvent
+                                      : (WSurfaceItem::RejectEvent | WSurfaceItem::NonLive);
+            proxyItem->setFlags(flags);
+
+            if (!sourceItem)
+                return;
+            proxyItem->setDelegate(sourceItem->delegate());
+        };
+
+        updateProxyFlagsAndDelegate();
+
+        m_sourceConnections << connect(m_proxySurface,
+                                       &SurfaceWrapper::surfaceItemCreated,
+                                       this,
+                                       updateProxyFlagsAndDelegate);
+
+        if (auto sourceItem = m_sourceSurface->surfaceItem()) {
+            m_sourceConnections << connect(sourceItem,
+                                           &WSurfaceItem::delegateChanged,
+                                           this,
+                                           updateProxyFlagsAndDelegate);
         } else {
-            // TODO(rewine): setup item after WSurfaceItem is created
+            m_sourceConnections << connect(m_sourceSurface,
+                                           &SurfaceWrapper::surfaceItemCreated,
+                                           this,
+                                           [this, updateProxyFlagsAndDelegate]() {
+                                               if (auto srcItem = m_sourceSurface->surfaceItem()) {
+                                                   updateProxyFlagsAndDelegate();
+                                                   m_sourceConnections << connect(srcItem,
+                                                                                  &WSurfaceItem::delegateChanged,
+                                                                                  this,
+                                                                                  updateProxyFlagsAndDelegate);
+                                               }
+                                           });
         }
         m_sourceConnections << connect(m_sourceSurface, &SurfaceWrapper::destroyed, this, [this] {
             Q_ASSERT(m_proxySurface);
             setSurface(nullptr);
         });
-        m_sourceConnections << connect(m_sourceSurface->surfaceItem(),
-                                       &WSurfaceItem::delegateChanged,
-                                       this,
-                                       [this] {
-                                           Q_ASSERT(m_proxySurface);
-                                           auto sender = m_sourceSurface->surfaceItem();
-                                           m_proxySurface->surfaceItem()->setDelegate(
-                                               sender->delegate());
-                                       });
         m_sourceConnections << connect(m_sourceSurface,
                                        &SurfaceWrapper::noTitleBarChanged,
                                        this,
