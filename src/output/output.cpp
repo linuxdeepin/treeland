@@ -413,9 +413,9 @@ void Output::addSurface(SurfaceWrapper *surface)
         auto layer = qobject_cast<WLayerSurface *>(surface->shellSurface());
         layer->safeConnect(&WLayerSurface::layerPropertiesChanged,
                            this,
-                           &Output::arrangeAllSurfaces);
+                           &Output::arrangeLayerSurfaces);
 
-        arrangeAllSurfaces();
+        arrangeLayerSurfaces();
     } else {
         auto layoutSurface = [surface, this] {
             if (!surface->hasInitializeContainer())
