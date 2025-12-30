@@ -341,6 +341,11 @@ void WLayerSurface::resize(const QSize &size)
     configureSize(size);
 }
 
+void WLayerSurface::close()
+{
+    closed();
+}
+
 QSize WLayerSurface::desiredSize() const
 {
     W_DC(WLayerSurface);
