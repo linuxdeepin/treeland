@@ -418,11 +418,14 @@ void Output::addSurface(SurfaceWrapper *surface)
         arrangeAllSurfaces();
     } else {
         auto layoutSurface = [surface, this] {
+            if (!surface->hasInitializeContainer())
+                return;
             arrangeNonLayerSurface(surface, {});
         };
 
         connect(surface, &SurfaceWrapper::widthChanged, this, layoutSurface);
         connect(surface, &SurfaceWrapper::heightChanged, this, layoutSurface);
+        connect(surface, &SurfaceWrapper::hasInitializeContainerChanged, this, layoutSurface);
         layoutSurface();
 
         auto setyOffset = [surface, this] {
@@ -626,9 +629,6 @@ void Output::arrangeLayerSurfaces()
 
 void Output::arrangeNonLayerSurface(SurfaceWrapper *surface, const QSizeF &sizeDiff)
 {
-    if (surface->type() == SurfaceWrapper::Type::LockScreen) {
-        return;
-    }
     Q_ASSERT(surface->type() != SurfaceWrapper::Type::Layer);
     surface->setFullscreenGeometry(geometry());
     const auto validGeo = this->validGeometry();
@@ -860,7 +860,9 @@ void Output::arrangeNonLayerSurfaces()
     m_lastSizeOnLayoutNonLayerSurfaces = currentSize;
 
     for (SurfaceWrapper *surface : surfaces()) {
-        if (surface->type() == SurfaceWrapper::Type::Layer)
+        if (surface->type() == SurfaceWrapper::Type::Layer
+            || surface->type() == SurfaceWrapper::Type::LockScreen
+            || !surface->hasInitializeContainer())
             continue;
         arrangeNonLayerSurface(surface, sizeDiff);
     }
