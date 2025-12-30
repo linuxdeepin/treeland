@@ -11,6 +11,7 @@
 #include "workspace/workspace.h"
 #include "seat/helper.h"
 
+#include <QVariant>
 #include <QTimer>
 
 #include <winputpopupsurfaceitem.h>
@@ -26,6 +27,7 @@
 #include <wxwaylandsurfaceitem.h>
 
 #include <qwlayershellv1.h>
+#include <qwbuffer.h>
 
 #define OPEN_ANIMATION 1
 #define CLOSE_ANIMATION 2
@@ -97,6 +99,28 @@ SurfaceWrapper::SurfaceWrapper(SurfaceWrapper *original,
 
     if (original->m_shellSurface) {
         setup();
+    } else {
+        setImplicitSize(original->implicitWidth(), original->implicitHeight());
+        auto iconVar = original->prelaunchSplash()
+                           ? original->prelaunchSplash()->property("iconBuffer")
+                           : QVariant();
+        m_prelaunchSplash = m_engine->createPrelaunchSplash(this,
+             original->radius(),
+             iconVar.value<QW_NAMESPACE::qw_buffer *>());
+        setNoDecoration(false);
+
+        connect(original,
+            &SurfaceWrapper::surfaceItemCreated,
+                this,
+                [this, original]() {
+            m_shellSurface = original->m_shellSurface;
+            m_type = original->m_type;
+            if (m_prelaunchSplash) {
+                m_prelaunchSplash->deleteLater();
+                m_prelaunchSplash = nullptr;
+            }
+            setup();
+         });
     }
 }
 
@@ -262,7 +286,7 @@ void SurfaceWrapper::setup()
                                            this,
                                            &SurfaceWrapper::onMappedChanged);
 
-    Q_EMIT surfaceItemChanged();
+    Q_EMIT surfaceItemCreated();
 
     // Forward WToplevelSurface appId changes when using fallback mode
     if (m_appId.isEmpty()) {

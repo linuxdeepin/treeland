@@ -40,7 +40,7 @@ class SurfaceWrapper : public QQuickItem
     Q_PROPERTY(qreal implicitHeight READ implicitHeight NOTIFY implicitHeightChanged FINAL)
     Q_PROPERTY(WAYLIB_SERVER_NAMESPACE::WSurface* surface READ surface CONSTANT)
     Q_PROPERTY(WAYLIB_SERVER_NAMESPACE::WToplevelSurface* shellSurface READ shellSurface CONSTANT)
-    Q_PROPERTY(WAYLIB_SERVER_NAMESPACE::WSurfaceItem* surfaceItem READ surfaceItem NOTIFY surfaceItemChanged)
+    Q_PROPERTY(WAYLIB_SERVER_NAMESPACE::WSurfaceItem* surfaceItem READ surfaceItem NOTIFY surfaceItemCreated)
     Q_PROPERTY(QQuickItem* prelaunchSplash READ prelaunchSplash NOTIFY prelaunchSplashChanged)
     Q_PROPERTY(QRectF boundingRect READ boundingRect NOTIFY boundingRectChanged)
     Q_PROPERTY(QRectF geometry READ geometry NOTIFY geometryChanged FINAL)
@@ -332,7 +332,7 @@ Q_SIGNALS:
     void coverEnabledChanged();
     void aboutToBeInvalidated();
     void acceptKeyboardFocusChanged();
-    void surfaceItemChanged();
+    void surfaceItemCreated(); // Emitted once after surfaceItem is constructed
     void prelaunchSplashChanged();
     void typeChanged();
 

@@ -63,9 +63,10 @@ Item {
                         Layout.fillWidth: true
                         Layout.alignment: Qt.AlignVCenter | Qt.AlignHCenter
                         text: {
-                            const xdg = windowItem.surface.shellSurface
-                            const wholeTitle = xdg.title
-                            wholeTitle
+                            const wrapper = windowItem.surface
+                            const xdg = wrapper.shellSurface
+                            const title = xdg ? xdg.title : ""
+                            return title && title.length > 0 ? title : wrapper.appId
                         }
                         elide: Qt.ElideRight
                     }
