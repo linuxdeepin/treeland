@@ -261,6 +261,7 @@ public:
     bool socketEnabled() const;
     void setXwaylandPositionFromSurface(bool value);
 
+    bool hasInitializeContainer() const;
     void setHasInitializeContainer(bool value);
     void disableWindowAnimation(bool disable = true);
     void setHideByShowDesk(bool show);
@@ -291,6 +292,7 @@ public Q_SLOTS:
     void updateSurfaceSizeRatio();
 
 Q_SIGNALS:
+    void hasInitializeContainerChanged();
     void boundingRectChanged();
     void ownsOutputChanged();
     void appIdChanged();

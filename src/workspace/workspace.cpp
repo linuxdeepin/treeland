@@ -97,10 +97,10 @@ void Workspace::addSurface(SurfaceWrapper *surface, int workspaceId)
     auto model = modelFromId(workspaceId);
     Q_ASSERT(model);
 
-    model->addSurface(surface);
-
     SurfaceContainer::addSurface(surface);
     Q_ASSERT(surface->ownsOutput() || rootContainer()->primaryOutput() == nullptr);
+
+    model->addSurface(surface);
 
     surface->setHasInitializeContainer(true);
 }
