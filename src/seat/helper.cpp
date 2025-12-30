@@ -1196,8 +1196,10 @@ void Helper::onSurfaceWrapperAboutToRemove(SurfaceWrapper *wrapper)
 bool Helper::surfaceBelongsToCurrentSession(SurfaceWrapper *wrapper)
 {
     if (wrapper->type() == SurfaceWrapper::Type::SplashScreen) {
-        // TODO(rewine): Support splash in multitaskview.
-        return false;
+        // TODO(rewine): Determine which user the splash screen belongs to by invoking the client of the prelaunch-splash protocol.
+        // Currently, treeland does not support logging in with multiple users at the same time
+        // so it is temporarily assumed that the splash screen must belong to the current user.
+        return true;
     }
     WClient *client = wrapper->surface()->waylandClient();
     WSocket *socket = client ? client->socket()->rootSocket() : nullptr;
