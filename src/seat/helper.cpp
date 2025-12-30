@@ -1051,10 +1051,7 @@ void Helper::onSurfaceWrapperAdded(SurfaceWrapper *wrapper)
     bool isXwayland = wrapper->type() == SurfaceWrapper::Type::XWayland;
     bool isLayer = wrapper->type() == SurfaceWrapper::Type::Layer;
 
-    connect(m_activeSession.lock().get(), &Session::aboutToBeDestroyed, wrapper, [this, wrapper]() {
-        onSurfaceWrapperAboutToRemove(wrapper);
-        m_rootSurfaceContainer->destroyForSurface(wrapper);
-    });
+    connect(m_activeSession.lock().get(), &Session::aboutToBeDestroyed, wrapper, &SurfaceWrapper::requestClose);
 
     if (isXdgToplevel || isXdgPopup || isLayer) {
         auto *attached =
