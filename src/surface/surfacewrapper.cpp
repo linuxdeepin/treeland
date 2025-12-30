@@ -1832,10 +1832,17 @@ void SurfaceWrapper::setXwaylandPositionFromSurface(bool value)
     m_xwaylandPositionFromSurface = value;
 }
 
+bool SurfaceWrapper::hasInitializeContainer() const
+{
+    return m_hasActiveCapability.testFlag(ActiveControlState::HasInitializeContainer);
+}
+
 void SurfaceWrapper::setHasInitializeContainer(bool value)
 {
     Q_ASSERT(!value || m_container != nullptr);
     updateHasActiveCapability(ActiveControlState::HasInitializeContainer, value);
+    Q_EMIT hasInitializeContainerChanged();
+
     if (m_prelaunchSplash && value) {
         // Start open animation when container initialized
         // m_prelaunchSplash can't get mapped signal
