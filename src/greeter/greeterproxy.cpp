@@ -36,7 +36,6 @@
 #include <pwd.h>
 
 #include <DDBusSender>
-#include <DThreadUtils>
 
 #include <QCommandLineOption>
 #include <QCommandLineParser>
@@ -212,20 +211,6 @@ void GreeterProxy::init()
                  "SessionRemoved",
                  this,
                  SLOT(onSessionRemoved(QString, QDBusObjectPath)));
-
-    // Use async call to avoid blocking
-    QThreadPool::globalInstance()->start([this, conn]() {
-        OrgFreedesktopLogin1ManagerInterface manager(Logind::serviceName(),
-                                                     Logind::managerPath(),
-                                                     conn);
-        auto reply = manager.ListSessions();
-        reply.waitForFinished();
-        if (reply.isValid()) {
-            auto sessions = reply.value();
-            for (const auto &session : sessions)
-                onSessionNew(session.sessionId, session.sessionPath);
-        }
-    });
 }
 
 void GreeterProxy::login(const QString &user, const QString &password, const int sessionIndex)
@@ -306,12 +291,12 @@ void GreeterProxy::error()
 
 void GreeterProxy::updateUserLoginState(const QDBusObjectPath &path, bool loggedIn)
 {
-    QThreadPool ::globalInstance()->start([this, path, loggedIn] {
+    QThreadPool::globalInstance()->start([this, path, loggedIn] {
         OrgFreedesktopLogin1SessionInterface session(Logind::serviceName(),
                                                      path.path(),
-                                                     QDBusConnection ::systemBus());
-        QString username = QString::fromLocal8Bit(getpwuid(session.user().userId)->pw_name);
-        DThreadUtils::gui().run(this, [this, username, loggedIn]() {
+                                                     QDBusConnection::systemBus());
+        QString username = session.name();
+        QMetaObject::invokeMethod(this, [this, username, loggedIn]() {
             userModel()->updateUserLoginState(username, loggedIn);
             updateLocketState();
         });
