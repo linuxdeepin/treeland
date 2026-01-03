@@ -327,10 +327,10 @@ Treeland::Treeland()
                 auto cmdArgs = cmdline.value();
 
                 auto envs = QProcessEnvironment::systemEnvironment();
-                envs.insert("WAYLAND_DISPLAY", d->helper->defaultWaylandSocket()->fullServerName());
+                envs.insert("WAYLAND_DISPLAY", d->helper->globalWaylandSocket()->fullServerName());
                 if (auto *xwayland = d->helper->xwaylandForUid(getuid())) {
                     envs.insert("DISPLAY", xwayland->displayName());
-                } else if (auto *current = d->helper->defaultXWaylandSocket()) {
+                } else if (auto *current = d->helper->globalXWayland()) {
                     envs.insert("DISPLAY", current->displayName());
                 }
                 envs.insert("XDG_SESSION_DESKTOP", "Treeland");
@@ -348,7 +348,7 @@ Treeland::Treeland()
         auto con =
             connect(d->helper, &Helper::socketFileChanged, this, exec, Qt::SingleShotConnection);
 
-        WSocket *defaultSocket = d->helper->defaultWaylandSocket();
+        WSocket *defaultSocket = d->helper->globalWaylandSocket();
         if (defaultSocket && defaultSocket->isValid()) {
             QObject::disconnect(con);
             exec();

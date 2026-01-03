@@ -274,7 +274,7 @@ void GreeterProxy::connected()
     qCDebug(treelandGreeter) << "Connected to the daemon.";
 
     SocketWriter(d->socket) << quint32(GreeterMessages::Connect)
-                            << Helper::instance()->defaultWaylandSocket()->fullServerName();
+                            << Helper::instance()->globalWaylandSocket()->fullServerName();
 }
 
 void GreeterProxy::disconnected()
