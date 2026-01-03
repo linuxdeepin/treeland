@@ -2353,7 +2353,7 @@ std::shared_ptr<Session> Helper::ensureSession(int id, uid_t uid)
  * @param uid User ID to get WXWayland for
  * @returns WXWayland for the given uid, or nullptr if not found/created
  */
-WXWayland *Helper::xwaylandForUid(uid_t uid)
+WXWayland *Helper::xwaylandForUid(uid_t uid) const
 {
     auto session = sessionForUid(uid);
     return session ? session->xwayland : nullptr;
@@ -2365,36 +2365,32 @@ WXWayland *Helper::xwaylandForUid(uid_t uid)
  * @param uid User ID to get WSocket for
  * @returns WSocket for the given uid, or nullptr if not found/created
  */
-WSocket *Helper::waylandSocketForUid(uid_t uid)
+WSocket *Helper::waylandSocketForUid(uid_t uid) const
 {
     auto session = sessionForUid(uid);
     return session ? session->socket : nullptr;
 }
 
 /** 
- * Get the WSocket for the active session
+ * Get the global WSocket, which is not relative with any session and
+ * always available.
  * 
- * @returns WSocket for the active session, or nullptr if none active
+ * @returns The global WSocket, or nullptr if it's not created yet.
  */
-WSocket *Helper::defaultWaylandSocket() const
+WSocket *Helper::globalWaylandSocket() const
 {
-    auto ptr = m_activeSession.lock();
-    if (ptr && ptr->socket)
-        return ptr->socket;
-    return nullptr;
+    return waylandSocketForUid(getpwnam("dde")->pw_uid);
 }
 
 /**
- * Get the WXWayland for the active session
+ * Get the global WXWayland, which is not relative with any session and
+ * always available.
  * 
- * @returns WXWayland for the active session, or nullptr if none active
+ * @returns The global WXWayland, or nullptr if none active
  */
-WXWayland *Helper::defaultXWaylandSocket() const
+WXWayland *Helper::globalXWayland() const
 {
-    auto ptr = m_activeSession.lock();
-    if (ptr && ptr->xwayland)
-        return ptr->xwayland;
-    return nullptr;
+    return xwaylandForUid(getpwnam("dde")->pw_uid);
 }
 
 /**
