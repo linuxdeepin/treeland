@@ -25,7 +25,16 @@ StandardError=null
 NoNewPrivileges=true
 OOMScoreAdjust=-300
 Nice=-15
-MemoryDenyWriteExecute=true
+
+# Enable MemoryDenyWriteExecute will cause Treeland crash in certain
+# condition (observed on arm64 virtual machine). The coredump indicate
+# that it happened in libgallium.so, which is involved by
+# qwoutput->commit_state() call inside Output::enable().
+#
+# TODO: check if it is an internal mistake that used W^X memory there.
+#
+# MemoryDenyWriteExecute=true
+
 PrivateIPC=true
 ProtectSystem=full
 ProtectHome=true
