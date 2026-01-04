@@ -1,4 +1,4 @@
-// Copyright (C) 2023 JiDe Zhang <zhangjide@deepin.org>.
+// Copyright (C) 2023-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "wseat.h"
@@ -299,20 +299,22 @@ public:
 
     // for keyboard event
     inline bool doNotifyKey(WInputDevice *device, uint32_t keycode, uint32_t state, uint32_t timestamp) {
+        q_func()->setKeyboard(device);
+
         if (!keyboardFocusSurface())
             return false;
 
-        q_func()->setKeyboard(device);
-        /* Send modifiers to the client. */
+        /* Send keys to the client. */
         this->handle()->keyboard_notify_key(timestamp, keycode, state);
         return true;
     }
     inline bool doNotifyModifiers(WInputDevice *device) {
+        auto keyboard = qobject_cast<qw_keyboard*>(device->handle());
+        q_func()->setKeyboard(device);
+
         if (!keyboardFocusSurface())
             return false;
 
-        auto keyboard = qobject_cast<qw_keyboard*>(device->handle());
-        q_func()->setKeyboard(device);
         /* Send modifiers to the client. */
         this->handle()->keyboard_notify_modifiers(&keyboard->handle()->modifiers);
         return true;
