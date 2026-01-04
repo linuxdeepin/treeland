@@ -1,3 +1,92 @@
+treeland (0.8.0) unstable; urgency=medium
+
+  * chore: temporary disable TreelandUserConfig smart pointer
+  * fix: improve surface proxy handling for splash screens
+  * fix: avoid double removal on session destroy by requesting surface
+    close
+  * fix: send events after activate if available
+  * fix: optimize surface arrangement calls
+  * fix: fix timing issue in Workspace::addSurface
+  * fix: Fix possible stuck on DBus when user logging in
+  * fix: fix Wayland compositor crash resolver cleanup
+  * fix: add window validity checks in releaseResources methods
+  * fix: resolve multiple critical crashes in Qt Quick rendering
+  * fix: shortcuts not recovered after session crash recovery
+  * feat: Apply systemd.exec sandbox options
+  * fix: forward appId changes in fallback mode
+  * refactor: use qtwayland scanner for treeland-output-manager-v1
+    protocol
+  * fix: Remove unused config references
+  * fix: clang compiler warnings
+  * docs: add GitHub Copilot repository instructions
+  * Remove unused module
+  * fix: correct workspace change detection logic
+  * fix: support placeSmartCascaded for SplashScreen
+  * refactor: rename Undetermined surface type to SplashScreen
+  * fix: Support layer surfaces on proxy outputs in Copy Mode
+  * refactor: use qtwayland scanner for treeland-shortcut-manager-v2
+    protocol implementation
+  * feat: Add display mode recording and automatic restoration system
+  * fix: fix splash screen launch animation
+  * fix: resolve code review issues
+  * fix: Correct typo in variable name from wpModle to wpModel
+  * fix: correct dock preview skip logic for surface types
+  * feat: optimize prelaunch splash handling and logging
+  * refactor: reorganize dconfig file structure
+  * fix: fix QList remove usage and clean up app ID resolver
+  * refactor: simplify buffer property handling in WBufferItem
+  * fix: fix various memory and resource management issues
+  * feat: add configurable timeout for prelaunch splash screens
+  * chore: cleanup build configuration and xwayland code
+  * fix: fix multiple code review issues
+  * feat: add debug logging and QVariant buffer property
+  * feat: simplify prelaunch splash icon path
+  * feat: add global configuration for prelaunch splash feature
+  * feat: enable window open animation
+  * fix: prevent crash when passing non-QML context objects as parent
+  * feat: add prelaunch splash configuration option
+  * chore: remove ExecStop commands and adjust treeland-session-helper
+    service
+  * chore: apply clang format to app-id-resolver and prelaunch-splash
+    modules
+  * refactor: adapt to new protocol with sandbox engine parameter
+  * fix: handle undetermined surface type in session checks
+  * fix: fix potential crash in moveResizeState surface handling
+  * refactor: replace dynamic property with member variable for appId
+  * fix: handle surface null case in setOutputs
+  * fix: fix corner radius and memory leak issues
+  * refactor: extract common surface container update logic
+  * fix: avoid flash when prelauncher disappears
+  * fix: prevent crash when surface destroyed before async AppId resolve
+  * refactor: simplify pidfd retrieval from surface
+  * chore: update systemd service dependencies and surface wrapper setup
+  * refactor: reorganize initialization order and cleanup comments
+  * fix: improve surface wrapper matching and container management
+  * fix: simplify prelaunch splash transition and cleanup
+  * feat: move test_app_id_resolver_helper to tools
+  * chore: Implement splash screen
+  * feat: make protocol generation targets unique per consumer
+  * refactor: remove redundant virtual qualifiers from lockscreen
+    interface
+  * fix: fix dde-session not started after ddm restart or crash recover
+  * fix: normaize registration and handling of all-modifier keybindings
+  * feat: introduce ShortcutManagerV2 and refactor shortcut handling
+  * fix: correct primary output disable handling in copy mode
+  * feat: Support Xauthority access control for Xwayland
+  * fix: Pass keyboard modifiers directly to keyboard_enter
+  * feat: sync Xresouces and xsettings scale with treeland scale changes
+  * fix: reload cursor image when scale changes
+  * feat: add Deepin CI build workflows
+  * fix: fix unused parameter
+  * fix: support screen rotation in copy mode
+  * feat: Support org.freedesktop.ScreenSaver specification
+  * fix: fix crash on logout & hiding of wayland surface on user switch
+  * fix: Display issues with scaling and resolution switching in copy
+    mode
+  * fix: load vulkan library with version number
+
+ -- rewine <luhongxu@uniontech.com>  Sun, 04 Jan 2026 14:20:38 +0800
+
 treeland (0.7.8) unstable; urgency=medium
 
   * [skip CI] Translate multitaskview.en_US.ts in tr
