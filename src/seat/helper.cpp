@@ -214,9 +214,9 @@ Helper::Helper(QObject *parent)
     m_instance = this;
 
     Q_ASSERT(!m_config);
-    m_config = TreelandUserConfig::createByName("org.deepin.dde.treeland.user",
+    m_config.reset(TreelandUserConfig::createByName("org.deepin.dde.treeland.user",
                                               "org.deepin.dde.treeland",
-                                              "/dde"); // will update user path in Helper::init
+                                              "/dde")); // will update user path in Helper::init
     m_globalConfig.reset(TreelandConfig::create("org.deepin.dde.treeland",
                                                       QString()));
 
@@ -312,7 +312,7 @@ Helper *Helper::instance()
 
 TreelandUserConfig *Helper::config()
 {
-    return m_config;
+    return m_config.get();
 }
 
 TreelandConfig *Helper::globalConfig()
@@ -1333,9 +1333,9 @@ void Helper::init(Treeland::Treeland *treeland)
     m_personalization = m_server->attach<PersonalizationV1>();
 
     auto updateCurrentUser = [this] {
-        m_config = TreelandUserConfig::createByName("org.deepin.dde.treeland.user",
+        m_config.reset(TreelandUserConfig::createByName("org.deepin.dde.treeland.user",
                                                   "org.deepin.dde.treeland",
-                                                  "/" + m_userModel->currentUserName());
+                                                  "/" + m_userModel->currentUserName()));
         auto user = m_userModel->currentUser();
         m_personalization->setUserId(user ? user->UID() : getuid());
     };
