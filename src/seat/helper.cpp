@@ -2924,3 +2924,41 @@ void Helper::configureNumlock() {
     }
 }
 
+/**
+ * Move a XWayland window's surface corresponding to wid, to a
+ * position relative to a WSurface. Top-left point is always used.
+ *
+ * @param wid X Window ID for the XWayland surface
+ * @param anchor The anchor WSurface to be relative to
+ * @param dx Horizontal distance between the top-left point of anchor and the destination
+ * @param dy Vertical distance between the top-left point of anchor and the destination
+ */
+bool Helper::setXWindowPositionRelative(uint wid, WSurface *anchor, wl_fixed_t dx, wl_fixed_t dy) const
+{
+    SurfaceWrapper *ach = m_rootSurfaceContainer->getSurface(anchor);
+    if (!ach) {
+        qCWarning(treelandCore) << "setXWindowPositionRelative: Failed to get SurfaceWrapper from WSurface";
+        return false;
+    }
+
+    SurfaceWrapper *target = nullptr;
+    for (SurfaceWrapper *wrapper : std::as_const(rootSurfaceContainer()->surfaces())) {
+        if (wrapper->type() == SurfaceWrapper::Type::XWayland) {
+            wlr_xwayland_surface *surface =
+                wlr_xwayland_surface_try_from_wlr_surface(wrapper->surface()->handle()->handle());
+            if (surface && surface->window_id == static_cast<xcb_window_t>(wid)) {
+                target = wrapper;
+                break;
+            }
+        }
+    }
+    if (!target) {
+        qCWarning(treelandCore) << "setXWindowPositionRelative: XWayland surface corresponding to WID" << wid << "not found!";
+        return false;
+    }
+
+    QRectF rect(ach->position(), target->size());
+    rect.translate(wl_fixed_to_double(dx), wl_fixed_to_double(dy));
+    target->setPosition(rect.topLeft());
+    return true;
+}
