@@ -262,6 +262,8 @@ public:
 
     void updateIdleInhibitor();
 
+    bool moveXWaylandSurface(uint wid, WSurface *anchor, int dx, int dy);
+
 public Q_SLOTS:
     void activateSurface(SurfaceWrapper *wrapper, Qt::FocusReason reason = Qt::OtherFocusReason);
     void forceActivateSurface(SurfaceWrapper *wrapper,

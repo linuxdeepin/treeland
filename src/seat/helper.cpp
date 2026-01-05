@@ -2887,3 +2887,37 @@ void Helper::restoreCopyMode()
     const auto &allSurfaces = getWorkspaceSurfaces();
     applyCopyModeToOutputs(primaryOutput, allSurfaces);
 }
+
+/**
+ * Move a XWayland window's surface corresponding to wid, to a
+ * position relative to a WSurface. Top-left point is always used.
+ *
+ * @param wid X Window ID for the XWayland surface
+ * @param anchor The anchor WSurface to be relative to
+ * @param dx Horizontal distance between the top-left point of anchor and the destination
+ * @param dy Vertical distance between the top-left point of anchor and the destination
+ */
+bool Helper::moveXWaylandSurface(uint wid, WSurface *anchor, int dx, int dy)
+{
+    QPoint pos = m_rootSurfaceContainer->getSurface(anchor)->position().toPoint();
+    qw_xwayland_surface *surface = nullptr;
+    for (SurfaceWrapper *wrapper : std::as_const(rootSurfaceContainer()->surfaces())) {
+        if (wrapper->type() == SurfaceWrapper::Type::XWayland) {
+            wlr_surface *wlrSurface = wrapper->surface()->handle()->handle();
+            qw_xwayland_surface *xwaylandSurface = qw_xwayland_surface::try_from_wlr_surface(wlrSurface);
+            if (xwaylandSurface->handle()->window_id == static_cast<xcb_window_t>(wid)) {
+                surface = xwaylandSurface;
+                break;
+            }
+        }
+    }
+    if (!surface) {
+        qCWarning(treelandCore) << "XWayland surface corresponding to WID" << wid << "not found!";
+        return false;
+    }
+    surface->configure(qBound(INT16_MIN, pos.x() + dx, INT16_MAX),
+                       qBound(INT16_MIN, pos.y() + dy, INT16_MAX),
+                       surface->handle()->width,
+                       surface->handle()->height);
+    return true;
+}
