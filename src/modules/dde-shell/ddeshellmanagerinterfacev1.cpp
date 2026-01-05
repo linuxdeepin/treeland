@@ -5,12 +5,16 @@
 
 #include "qwayland-server-treeland-dde-shell-v1.h"
 
+#include "helper.h"
+
 #include <woutput.h>
 
 #include <qwcompositor.h>
 #include <qwdisplay.h>
 #include <qwoutput.h>
 #include <qwseat.h>
+
+#include <wayland-server.h>
 
 #define TREELAND_DDE_SHELL_MANAGER_V1_VERSION 1
 
@@ -45,6 +49,12 @@ protected:
                                                                   uint32_t id) override;
     void treeland_dde_shell_manager_v1_get_treeland_lockscreen(Resource *resource,
                                                                uint32_t id) override;
+    void treeland_dde_shell_manager_v1_set_xwindow_position_relative(Resource *resource,
+                                                                     uint32_t callback,
+                                                                     uint32_t wid,
+                                                                     struct ::wl_resource *anchor,
+                                                                     wl_fixed_t dx,
+                                                                     wl_fixed_t dy) override;
 };
 
 void DDEShellManagerInterfaceV1Private::treeland_dde_shell_manager_v1_get_treeland_lockscreen(
@@ -67,6 +77,20 @@ void DDEShellManagerInterfaceV1Private::treeland_dde_shell_manager_v1_get_treela
         s_lockScreens.removeOne(lockScreen);
     });
     Q_EMIT q->lockScreenCreated(lockScreen);
+}
+
+void DDEShellManagerInterfaceV1Private::treeland_dde_shell_manager_v1_set_xwindow_position_relative(Resource *resource,
+                                                                                                    uint32_t callback,
+                                                                                                    uint32_t wid,
+                                                                                                    struct ::wl_resource *anchor,
+                                                                                                    wl_fixed_t dx,
+                                                                                                    wl_fixed_t dy)
+{
+    WSurface *wsurface = WSurface::fromHandle(qw_surface::from_resource(anchor));
+    uint32_t ok = (wsurface && Helper::instance()->setXWindowPositionRelative(wid, wsurface, dx, dy)) ? 0 : 1;
+    wl_resource *cb = wl_resource_create(resource->client(), &wl_callback_interface, 1, callback);
+    wl_callback_send_done(cb, ok);
+    wl_resource_destroy(cb);
 }
 
 DDEShellManagerInterfaceV1Private::DDEShellManagerInterfaceV1Private(DDEShellManagerInterfaceV1 *_q)
