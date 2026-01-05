@@ -356,7 +356,7 @@ private:
     bool isXWaylandClient(WClient *client);
 
     static Helper *m_instance;
-    TreelandUserConfig *m_config = nullptr;
+    std::unique_ptr<TreelandUserConfig> m_config;
     std::unique_ptr<TreelandConfig> m_globalConfig;
     Treeland::Treeland *m_treeland = nullptr;
     FpsDisplayManager *m_fpsManager = nullptr;
