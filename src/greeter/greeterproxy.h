@@ -113,7 +113,6 @@ private:
     bool localValidation(const QString &user, const QString &password) const;
     void updateAuthSocket();
     void updateLocketState();
-    void updateUserLoginState(const QDBusObjectPath &path, bool loggedIn);
 
 private:
     GreeterProxyPrivate *d{ nullptr };
