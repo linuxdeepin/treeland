@@ -266,7 +266,6 @@ void GreeterProxy::logout()
     Q_EMIT isLoggedInChanged();
     auto session = Helper::instance()->activeSession().lock();
     SocketWriter(d->socket) << quint32(GreeterMessages::Logout) << session->id;
-    Helper::instance()->removeSession(session);
 }
 
 void GreeterProxy::connected()
@@ -289,28 +288,30 @@ void GreeterProxy::error()
     qCCritical(treelandGreeter) << "Socket error: " << d->socket->errorString();
 }
 
-void GreeterProxy::updateUserLoginState(const QDBusObjectPath &path, bool loggedIn)
+void GreeterProxy::onSessionNew(const QString &id, const QDBusObjectPath &path)
 {
-    QThreadPool::globalInstance()->start([this, path, loggedIn] {
+    QThreadPool::globalInstance()->start([this, id, path] {
         OrgFreedesktopLogin1SessionInterface session(Logind::serviceName(),
                                                      path.path(),
                                                      QDBusConnection::systemBus());
         QString username = session.name();
-        QMetaObject::invokeMethod(this, [this, username, loggedIn]() {
-            userModel()->updateUserLoginState(username, loggedIn);
+        QMetaObject::invokeMethod(this, [this, username, id]() {
+            userModel()->updateUserLoginState(username, true);
+            // userLoggedIn signal is connected with Helper::updateActiveUserSession
+            Q_EMIT d->userModel->userLoggedIn(username, id.toInt());
             updateLocketState();
         });
     });
 }
 
-void GreeterProxy::onSessionNew([[maybe_unused]] const QString &id, const QDBusObjectPath &path)
+void GreeterProxy::onSessionRemoved(const QString &id, [[maybe_unused]] const QDBusObjectPath &path)
 {
-    updateUserLoginState(path, true);
-}
-
-void GreeterProxy::onSessionRemoved([[maybe_unused]] const QString &id, const QDBusObjectPath &path)
-{
-    updateUserLoginState(path, false);
+    auto session = Helper::instance()->sessionForId(id.toInt());
+    if (session) {
+        userModel()->updateUserLoginState(session->username, false);
+        updateLocketState();
+        Helper::instance()->removeSession(session);
+    }
 }
 
 void GreeterProxy::readyRead()
@@ -397,8 +398,6 @@ void GreeterProxy::readyRead()
             }
 
             d->userModel->setCurrentUserName(user);
-            // userLoggedIn signal is connected with Helper::updateActiveUserSession
-            Q_EMIT d->userModel->userLoggedIn(user, sessionId);
 
             qCInfo(treelandGreeter) << "activate successfully: " << user << ", XDG_SESSION_ID: " << sessionId;
         } break;

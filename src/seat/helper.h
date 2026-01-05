@@ -129,6 +129,7 @@ struct Session : QObject {
 public:
     int id = 0;
     uid_t uid = 0;
+    QString username = {};
     WSocket *socket = nullptr;
     WXWayland *xwayland = nullptr;
     quint32 noTitlebarAtom = XCB_ATOM_NONE;
@@ -208,7 +209,9 @@ public:
     void removeSession(std::shared_ptr<Session> session);
     WXWayland *xwaylandForUid(uid_t uid) const;
     WSocket *waylandSocketForUid(uid_t uid) const;
+    std::shared_ptr<Session> sessionForId(int id) const;
     std::shared_ptr<Session> sessionForUid(uid_t uid) const;
+    std::shared_ptr<Session> sessionForUser(const QString &username) const;
     std::shared_ptr<Session> sessionForXWayland(WXWayland *xwayland) const;
     std::shared_ptr<Session> sessionForSocket(WSocket *socket) const;
     std::weak_ptr<Session> activeSession() const;
@@ -351,7 +354,7 @@ private:
     void restoreFromShowDesktop(SurfaceWrapper *activeSurface = nullptr);
     void setNoAnimation(bool noAnimation);
 
-    std::shared_ptr<Session> ensureSession(int id, uid_t uid);
+    std::shared_ptr<Session> ensureSession(int id, QString username);
     void updateActiveUserSession(const QString &username, int id);
     bool isXWaylandClient(WClient *client);
 

@@ -2153,6 +2153,21 @@ void Helper::addSocket(WSocket *socket)
 }
 
 /**
+ * Find the session for the given logind session id
+ *
+ * @param uid Session ID to find session for
+ * @returns Session for the given id, or nullptr if not found
+ */
+std::shared_ptr<Session> Helper::sessionForId(int id) const
+{
+    for (auto session : m_sessions) {
+        if (session && session->id == id)
+            return session;
+    }
+    return nullptr;
+}
+
+/**
  * Find the session for the given uid
  * 
  * @param uid User ID to find session for
@@ -2162,6 +2177,21 @@ std::shared_ptr<Session> Helper::sessionForUid(uid_t uid) const
 {
     for (auto session : m_sessions) {
         if (session && session->uid == uid)
+            return session;
+    }
+    return nullptr;
+}
+
+/**
+ * Find the session for the given username
+ * 
+ * @param uid Username to find session for
+ * @returns Session for the given username, or nullptr if not found
+ */
+std::shared_ptr<Session> Helper::sessionForUser(const QString &username) const
+{
+    for (auto session : m_sessions) {
+        if (session && session->username == username)
             return session;
     }
     return nullptr;
@@ -2234,13 +2264,13 @@ void Helper::removeSession(std::shared_ptr<Session> session)
 }
 
 /**
- * Ensure a session exists for the given uid, creating it if necessary
+ * Ensure a session exists for the given username, creating it if necessary
  * 
  * @param id An existing logind session ID
- * @param uid User ID to ensure session for
- * @returns Session for the given uid, or nullptr on failure
+ * @param uid Username to ensure session for
+ * @returns Session for the given username, or nullptr on failure
  */
-std::shared_ptr<Session> Helper::ensureSession(int id, uid_t uid)
+std::shared_ptr<Session> Helper::ensureSession(int id, QString username)
 {
     // Helper lambda to create WSocket and WXWayland
     auto createWSocket = [this]() {
@@ -2304,8 +2334,8 @@ std::shared_ptr<Session> Helper::ensureSession(int id, uid_t uid)
         });
         return xwayland;
     };
-    // Check if session already exists for uid
-    if (auto session = sessionForUid(uid)) {
+    // Check if session already exists for user
+    if (auto session = sessionForUser(username)) {
         // Ensure it has a socket and xwayland
         if (!session->socket) {
             auto *socket = createWSocket();
@@ -2331,7 +2361,8 @@ std::shared_ptr<Session> Helper::ensureSession(int id, uid_t uid)
     // Session does not exist, create new session with deleter
     auto session = std::make_shared<Session>();
     session->id = id;
-    session->uid = uid;
+    session->username = username;
+    session->uid = getpwnam(username.toLocal8Bit().data())->pw_uid;
 
     session->socket = createWSocket();
     if (!session->socket) {
@@ -2408,7 +2439,7 @@ void Helper::updateActiveUserSession(const QString &username, int id)
     // Get previous active session
     auto previous = m_activeSession.lock();
     // Get new session for uid, creating if necessary
-    auto session = ensureSession(id, getpwnam(username.toLocal8Bit().data())->pw_uid);
+    auto session = ensureSession(id, username);
     if (!session) {
         qCWarning(treelandInput) << "Failed to ensure session for user" << username;
         return;
