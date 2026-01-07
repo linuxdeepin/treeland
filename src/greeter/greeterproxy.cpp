@@ -24,6 +24,7 @@
 #include "greeter/sessionmodel.h"
 #include "greeter/usermodel.h"
 #include "seat/helper.h"
+#include "session/session.h"
 #include "common/treelandlogging.h"
 
 #include <DisplayManager.h>
@@ -264,8 +265,8 @@ void GreeterProxy::logout()
     qCDebug(treelandGreeter) << "Logout.";
     d->isLoggedIn = false;
     Q_EMIT isLoggedInChanged();
-    auto session = Helper::instance()->activeSession().lock();
-    SocketWriter(d->socket) << quint32(GreeterMessages::Logout) << session->id;
+    auto session = SessionManager::instance()->activeSession().lock();
+    SocketWriter(d->socket) << quint32(GreeterMessages::Logout) << session->id();
 }
 
 void GreeterProxy::connected()
@@ -273,7 +274,7 @@ void GreeterProxy::connected()
     qCDebug(treelandGreeter) << "Connected to the daemon.";
 
     SocketWriter(d->socket) << quint32(GreeterMessages::Connect)
-                            << Helper::instance()->globalWaylandSocket()->fullServerName();
+                            << SessionManager::instance()->defaultSession()->socket()->fullServerName();
 }
 
 void GreeterProxy::disconnected()
@@ -299,7 +300,7 @@ void GreeterProxy::onSessionNew(const QString &id, const QDBusObjectPath &path)
         if (service == QStringLiteral("ddm")) {
             QMetaObject::invokeMethod(this, [this, username, id]() {
                 userModel()->updateUserLoginState(username, true);
-                // userLoggedIn signal is connected with Helper::updateActiveUserSession
+                // userLoggedIn signal is connected with SessionManager::updateActiveUserSession
                 Q_EMIT d->userModel->userLoggedIn(username, id.toInt());
                 updateLocketState();
             });
@@ -309,11 +310,11 @@ void GreeterProxy::onSessionNew(const QString &id, const QDBusObjectPath &path)
 
 void GreeterProxy::onSessionRemoved(const QString &id, [[maybe_unused]] const QDBusObjectPath &path)
 {
-    auto session = Helper::instance()->sessionForId(id.toInt());
+    auto session = SessionManager::instance()->sessionForId(id.toInt());
     if (session) {
-        userModel()->updateUserLoginState(session->username, false);
+        userModel()->updateUserLoginState(session->username(), false);
         updateLocketState();
-        Helper::instance()->removeSession(session);
+        SessionManager::instance()->removeSession(session);
     }
 }
 
