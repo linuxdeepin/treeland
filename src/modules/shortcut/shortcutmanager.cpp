@@ -7,12 +7,11 @@
 #include "common/treelandlogging.h"
 #include "shortcutcontroller.h"
 #include "seat/helper.h"
+#include "session/session.h"
 #include "input/gestures.h"
 
 #include <qwdisplay.h>
 #include <wsocket.h>
-
-#include <optional>
 
 #define TREELAND_SHORTCUT_MANAGER_V2_VERSION 1
 
@@ -416,12 +415,12 @@ void ShortcutManagerV2::sendActivated(const QString& name, uint keyFlags)
 void ShortcutManagerV2::onSessionChanged()
 {
     QString commitFailName;
-    auto session = Helper::instance()->activeSession().lock();
+    auto session = Helper::instance()->sessionManager()->activeSession().lock();
     if (!session) {
         return;
     }
 
-    auto *socket = session->socket;
+    auto *socket = session->socket();
 
     if (d->m_activeSessionSocket == socket)
         return;
@@ -434,8 +433,8 @@ void ShortcutManagerV2::onSessionChanged()
         if (status) {
             qCWarning(treelandShortcut) << "Failed to restore shortcuts" << commitFailName
                                         << "by reason" << status
-                                        << "for session" << session->id
-                                        << "for user" << session->uid;
+                                        << "for session" << session->id()
+                                        << "for user" << session->username();
         }
         return;
     }
