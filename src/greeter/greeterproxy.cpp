@@ -24,6 +24,7 @@
 #include "greeter/sessionmodel.h"
 #include "greeter/usermodel.h"
 #include "seat/helper.h"
+#include "session/session.h"
 #include "common/treelandlogging.h"
 
 #include <DisplayManager.h>
@@ -265,8 +266,8 @@ void GreeterProxy::logout()
     qCDebug(treelandGreeter) << "Logout.";
     d->isLoggedIn = false;
     Q_EMIT isLoggedInChanged();
-    auto session = Helper::instance()->activeSession().lock();
-    SocketWriter(d->socket) << quint32(GreeterMessages::Logout) << session->id;
+    auto session = Helper::instance()->sessionManager()->activeSession().lock();
+    SocketWriter(d->socket) << quint32(GreeterMessages::Logout) << session->id();
 }
 
 void GreeterProxy::connected()
@@ -274,7 +275,7 @@ void GreeterProxy::connected()
     qCDebug(treelandGreeter) << "Connected to the daemon.";
 
     SocketWriter(d->socket) << quint32(GreeterMessages::Connect)
-                            << Helper::instance()->globalWaylandSocket()->fullServerName();
+                            << Helper::instance()->sessionManager()->globalSession()->socket()->fullServerName();
 }
 
 void GreeterProxy::disconnected()
@@ -324,11 +325,11 @@ void GreeterProxy::onSessionNew(const QString &id, [[maybe_unused]] const QDBusO
 
 void GreeterProxy::onSessionRemoved(const QString &id, [[maybe_unused]] const QDBusObjectPath &path)
 {
-    auto session = Helper::instance()->sessionForId(id.toInt());
+    auto session = Helper::instance()->sessionManager()->sessionForId(id.toInt());
     if (session) {
-        userModel()->updateUserLoginState(session->username, false);
+        userModel()->updateUserLoginState(session->username(), false);
         updateLocketState();
-        Helper::instance()->removeSession(session);
+        Helper::instance()->sessionManager()->removeSession(session);
     }
 }
 

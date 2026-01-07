@@ -120,7 +120,7 @@ Multitaskview {
     }
 
     Repeater {
-        model: Helper.rootContainer.outputModel
+        model: Helper.rootSurfaceContainer.outputModel
         Item {
             id: outputPlacementItem
             required property int index

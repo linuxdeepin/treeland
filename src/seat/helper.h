@@ -22,133 +22,112 @@
 #include <QList>
 #include <optional>
 
-Q_MOC_INCLUDE(<wtoplevelsurface.h>)
-Q_MOC_INCLUDE(<wxdgsurface.h>)
+Q_MOC_INCLUDE(<QDBusObjectPath>)
 Q_MOC_INCLUDE(<qwgammacontorlv1.h>)
 Q_MOC_INCLUDE(<qwoutputmanagementv1.h>)
-Q_MOC_INCLUDE("surface/surfacewrapper.h")
-Q_MOC_INCLUDE("workspace/workspace.h")
+Q_MOC_INCLUDE(<wlayersurface.h>)
+Q_MOC_INCLUDE(<wtoplevelsurface.h>)
+Q_MOC_INCLUDE(<wxdgsurface.h>)
 Q_MOC_INCLUDE("core/rootsurfacecontainer.h")
 Q_MOC_INCLUDE("modules/capture/capture.h")
-Q_MOC_INCLUDE(<wlayersurface.h>)
-Q_MOC_INCLUDE(<QDBusObjectPath>)
+Q_MOC_INCLUDE("surface/surfacewrapper.h")
+Q_MOC_INCLUDE("workspace/workspace.h")
 Q_MOC_INCLUDE("treelandconfig.hpp")
 Q_MOC_INCLUDE("treelanduserconfig.hpp")
 
 QT_BEGIN_NAMESPACE
-class QQuickItem;
 class QDBusObjectPath;
+class QQuickItem;
 QT_END_NAMESPACE
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
-class WServer;
-class WOutputRenderWindow;
-class WOutputLayout;
+class WBackend;
 class WClientPrivate;
 class WCursor;
-class WBackend;
-class WOutputItem;
-class WOutputViewport;
-class WOutputLayer;
+class WExtForeignToplevelListV1;
+class WForeignToplevel;
+class WLayerSurface;
 class WOutput;
-class WXWayland;
-class WXdgDecorationManager;
+class WOutputItem;
+class WOutputLayer;
+class WOutputLayout;
+class WOutputManagerV1;
+class WOutputRenderWindow;
+class WOutputViewport;
+class WServer;
+class WSessionLock;
+class WSessionLockManager;
 class WSocket;
 class WSurface;
-class WToplevelSurface;
 class WSurfaceItem;
-class WForeignToplevel;
-class WExtForeignToplevelListV1;
-class WOutputManagerV1;
-class WLayerSurface;
-class WSessionLockManager;
-class WSessionLock;
+class WToplevelSurface;
+class WXdgDecorationManager;
+class WXWayland;
 WAYLIB_SERVER_END_NAMESPACE
 
 QW_BEGIN_NAMESPACE
-class qw_renderer;
 class qw_allocator;
 class qw_compositor;
-class qw_idle_notifier_v1;
+class qw_ext_foreign_toplevel_image_capture_source_manager_v1;
 class qw_idle_inhibit_manager_v1;
+class qw_idle_inhibitor_v1;
+class qw_idle_notifier_v1;
 class qw_output_configuration_v1;
 class qw_output_power_manager_v1;
-class qw_idle_inhibitor_v1;
+class qw_renderer;
 QW_END_NAMESPACE
 
 WAYLIB_SERVER_USE_NAMESPACE
 QW_USE_NAMESPACE
 
-class Output;
-class SurfaceWrapper;
-class SurfaceContainer;
-class RootSurfaceContainer;
-class ForeignToplevelV1;
-class LockScreen;
-class ShortcutManagerV2;
-class ShortcutRunner;
-class PersonalizationV1;
-class WallpaperColorV1;
-class WindowManagementV1;
-class Multitaskview;
-class DDEShellManagerInterfaceV1;
-class PrelaunchSplash;
-class WindowPickerInterface;
-class VirtualOutputV1;
-class ShellHandler;
-class OutputManagerV1;
 class CaptureSourceSelector;
-class treeland_window_picker_v1;
-class IMultitaskView;
-class LockScreenInterface;
+class DDEShellManagerInterfaceV1;
+class DDMInterfaceV1;
+class ForeignToplevelV1;
+class FpsDisplayManager;
 class ILockScreen;
-class UserModel;
+class IMultitaskView;
+class LockScreen;
+class LockScreenInterface;
+class Multitaskview;
+class Output;
 class OutputConfigState;
 class OutputLifecycleManager;
-class DDMInterfaceV1;
+class OutputManagerV1;
+class PersonalizationV1;
+class PrelaunchSplash;
+class RootSurfaceContainer;
+class ScreensaverInterfaceV1;
+class SessionManager;
+class SettingManager;
+class ShellHandler;
+class ShortcutManagerV2;
+class ShortcutRunner;
+class SurfaceContainer;
+class SurfaceWrapper;
 class TreelandConfig;
 class TreelandUserConfig;
-class FpsDisplayManager;
-class ScreensaverInterfaceV1;
-class SettingManager;
+class treeland_window_picker_v1;
+class UserModel;
+class VirtualOutputV1;
+class WallpaperColorV1;
+class WindowManagementV1;
+class WindowPickerInterface;
 
+struct wlr_ext_foreign_toplevel_image_capture_source_manager_v1_request;
 struct wlr_idle_inhibitor_v1;
 struct wlr_output_power_v1_set_mode_event;
-struct wlr_ext_foreign_toplevel_image_capture_source_manager_v1_request;
 
 namespace Treeland {
 class Treeland;
 }
-
-QW_BEGIN_NAMESPACE
-class qw_ext_foreign_toplevel_image_capture_source_manager_v1;
-QW_END_NAMESPACE
-
-struct Session : QObject {
-    Q_OBJECT
-public:
-    int id = 0;
-    uid_t uid = 0;
-    QString username = {};
-    WSocket *socket = nullptr;
-    WXWayland *xwayland = nullptr;
-    quint32 noTitlebarAtom = XCB_ATOM_NONE;
-    SettingManager *settingManager = nullptr;
-    QThread *settingManagerThread = nullptr;
-
-    ~Session();
-
-Q_SIGNALS:
-    void aboutToBeDestroyed();
-};
 
 class Helper : public WSeatEventFilter
 {
     friend class RootSurfaceContainer;
     friend class ShortcutRunner;
     Q_OBJECT
-    Q_PROPERTY(bool socketEnabled READ socketEnabled WRITE setSocketEnabled NOTIFY socketEnabledChanged FINAL)
-    Q_PROPERTY(RootSurfaceContainer* rootContainer READ rootContainer CONSTANT FINAL)
+    Q_PROPERTY(RootSurfaceContainer* rootSurfaceContainer READ rootSurfaceContainer CONSTANT FINAL)
     Q_PROPERTY(float animationSpeed READ animationSpeed WRITE setAnimationSpeed NOTIFY animationSpeedChanged FINAL)
     Q_PROPERTY(OutputMode outputMode READ outputMode WRITE setOutputMode NOTIFY outputModeChanged FINAL)
     Q_PROPERTY(SurfaceWrapper* activatedSurface READ activatedSurface NOTIFY activatedSurfaceChanged FINAL)
@@ -184,6 +163,7 @@ public:
     TreelandUserConfig *config();
     TreelandConfig *globalConfig();
 
+    SessionManager *sessionManager() const;
     QmlEngine *qmlEngine() const;
     WOutputRenderWindow *window() const;
     ShellHandler *shellHandler() const;
@@ -191,10 +171,7 @@ public:
 
     void init(Treeland::Treeland *treeland);
 
-    bool socketEnabled() const;
-    void setSocketEnabled(bool newSocketEnabled);
-
-    RootSurfaceContainer *rootContainer() const;
+    RootSurfaceContainer *rootSurfaceContainer() const;
     Output *getOutput(WOutput *output) const;
 
     float animationSpeed() const;
@@ -205,19 +182,8 @@ public:
     Q_INVOKABLE void addOutput();
 
     void addSocket(WSocket *socket);
+    [[nodiscard]] WXWayland *createXWayland();
     void removeXWayland(WXWayland *xwayland);
-    void removeSession(std::shared_ptr<Session> session);
-    WXWayland *xwaylandForUid(uid_t uid) const;
-    WSocket *waylandSocketForUid(uid_t uid) const;
-    std::shared_ptr<Session> sessionForId(int id) const;
-    std::shared_ptr<Session> sessionForUid(uid_t uid) const;
-    std::shared_ptr<Session> sessionForUser(const QString &username) const;
-    std::shared_ptr<Session> sessionForXWayland(WXWayland *xwayland) const;
-    std::shared_ptr<Session> sessionForSocket(WSocket *socket) const;
-    std::weak_ptr<Session> activeSession() const;
-
-    WSocket *globalWaylandSocket() const;
-    WXWayland *globalXWayland() const;
 
     PersonalizationV1 *personalization() const;
 
@@ -230,8 +196,6 @@ public:
     Q_INVOKABLE bool isLaunchpad(WLayerSurface *surface) const;
 
     void handleWindowPicker(WindowPickerInterface *picker);
-
-    RootSurfaceContainer *rootSurfaceContainer() const;
 
     void setMultitaskViewImpl(IMultitaskView *impl);
     void setLockScreenImpl(ILockScreen *impl);
@@ -272,12 +236,10 @@ public Q_SLOTS:
     bool surfaceBelongsToCurrentSession(SurfaceWrapper *wrapper);
 
 Q_SIGNALS:
-    void socketEnabledChanged();
     void primaryOutputChanged();
     void activatedSurfaceChanged();
 
     void animationSpeedChanged();
-    void socketFileChanged();
     void outputModeChanged();
 
     void currentModeChanged();
@@ -355,10 +317,6 @@ private:
     void setWorkspaceVisible(bool visible);
     void restoreFromShowDesktop(SurfaceWrapper *activeSurface = nullptr);
     void setNoAnimation(bool noAnimation);
-
-    std::shared_ptr<Session> ensureSession(int id, QString username);
-    void updateActiveUserSession(const QString &username, int id);
-    bool isXWaylandClient(WClient *client);
     void configureNumlock();
 
     static Helper *m_instance;
@@ -366,12 +324,9 @@ private:
     std::unique_ptr<TreelandConfig> m_globalConfig;
     Treeland::Treeland *m_treeland = nullptr;
     FpsDisplayManager *m_fpsManager = nullptr;
+    SessionManager *m_sessionManager = nullptr;
 
     CurrentMode m_currentMode{ CurrentMode::Normal };
-
-    // Sessions
-    std::weak_ptr<Session> m_activeSession;
-    QList<std::shared_ptr<Session>> m_sessions;
 
     // qtquick helper
     WOutputRenderWindow *m_renderWindow = nullptr;

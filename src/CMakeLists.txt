@@ -166,6 +166,8 @@ qt_add_qml_module(libtreeland
         output/outputlifecyclemanager.h
         seat/helper.cpp
         seat/helper.h
+        session/session.cpp
+        session/session.h
         surface/surfacecontainer.cpp
         surface/surfacecontainer.h
         surface/surfacefilterproxymodel.cpp
@@ -303,6 +305,7 @@ target_include_directories(libtreeland
         $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/src/interfaces>
         $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/src/output>
         $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/src/seat>
+        $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/src/session>
         $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/src/surface>
         $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/src/workspace>
         $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/src/utils>
