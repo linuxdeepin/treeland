@@ -295,12 +295,15 @@ void GreeterProxy::onSessionNew(const QString &id, const QDBusObjectPath &path)
                                                      path.path(),
                                                      QDBusConnection::systemBus());
         QString username = session.name();
-        QMetaObject::invokeMethod(this, [this, username, id]() {
-            userModel()->updateUserLoginState(username, true);
-            // userLoggedIn signal is connected with Helper::updateActiveUserSession
-            Q_EMIT d->userModel->userLoggedIn(username, id.toInt());
-            updateLocketState();
-        });
+        QString service = session.service();
+        if (service == QStringLiteral("ddm")) {
+            QMetaObject::invokeMethod(this, [this, username, id]() {
+                userModel()->updateUserLoginState(username, true);
+                // userLoggedIn signal is connected with Helper::updateActiveUserSession
+                Q_EMIT d->userModel->userLoggedIn(username, id.toInt());
+                updateLocketState();
+            });
+        }
     });
 }
 
