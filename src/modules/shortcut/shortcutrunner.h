@@ -13,7 +13,7 @@ public:
     explicit ShortcutRunner(QObject *parent = nullptr);
 
 public Q_SLOTS:
-    void onActionTrigger(ShortcutAction action, const QString &name, bool isGesture, bool isRepeat);
+    void onActionTrigger(ShortcutAction action, const QString &name, bool isGesture, uint keyFlags = 0u);
     void onActionProgress(ShortcutAction action, qreal progress, const QString &name);
     void onActionFinish(ShortcutAction action, const QString &name, bool isTriggered);
 
