@@ -262,8 +262,6 @@ void GreeterProxy::unlock(const QString &user, const QString &password)
 void GreeterProxy::logout()
 {
     qCDebug(treelandGreeter) << "Logout.";
-    d->isLoggedIn = false;
-    Q_EMIT isLoggedInChanged();
     auto session = Helper::instance()->activeSession().lock();
     SocketWriter(d->socket) << quint32(GreeterMessages::Logout) << session->id;
 }
