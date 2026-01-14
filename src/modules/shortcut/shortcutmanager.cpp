@@ -24,7 +24,7 @@ static_assert(static_cast<int>(ProtocolAction::action_taskswitch_sameapp_prev)
               "treeland-shortcut-manager protocol action enum mismatch");
 
 struct KeyShortcut {
-    uint mode;
+    uint keybindFlags;
     QString name;
     QString key;
     ShortcutAction action;
@@ -83,7 +83,7 @@ public:
 
     uint updateShortcuts(const UserShortcuts& shortcuts, QString &failName);
 
-    void sendActivated(WSocket *socket, const QString &name, bool repeat);
+    void sendActivated(WSocket *socket, const QString &name, uint keyFlags);
     void sendCommitSuccess(WSocket *socket);
     void sendCommitFailure(WSocket *socket, const QString &name, uint error);
     void sendInvalidCommit(WSocket *socket);
@@ -106,7 +106,7 @@ protected:
     void treeland_shortcut_manager_v2_bind_key(Resource *resource,
                                                const QString &name,
                                                const QString &key_sequence,
-                                               uint32_t mode,
+                                               uint32_t flags,
                                                uint32_t action) override;
     void treeland_shortcut_manager_v2_bind_swipe_gesture(Resource *resource,
                                                          const QString &name,
@@ -145,8 +145,8 @@ uint ShortcutManagerV2Private::updateShortcuts(const UserShortcuts& shortcuts, Q
     QList<QString> names;
 
     const auto tryRegisterAll = [&]() {
-        for (const auto& [mode, name, key, action] : std::as_const(shortcuts.keys)) {
-            status = m_controller->registerKey(name, key, mode, action);
+        for (const auto& [keybindFlags, name, key, action] : std::as_const(shortcuts.keys)) {
+            status = m_controller->registerKey(name, key, keybindFlags, action);
             if (status) {
                 failName = name;
                 return;
@@ -180,13 +180,13 @@ uint ShortcutManagerV2Private::updateShortcuts(const UserShortcuts& shortcuts, Q
     return status;
 }
 
-void ShortcutManagerV2Private::sendActivated(WSocket *socket, const QString &name, bool repeat)
+void ShortcutManagerV2Private::sendActivated(WSocket *socket, const QString &name, uint keyFlags)
 {
     Resource *resource = ownerClients.value(socket, nullptr);
     if (!resource)
         return;
 
-    send_activated(resource->handle, name, repeat ? 1 : 0);
+    send_activated(resource->handle, name, keyFlags);
 }
 
 void ShortcutManagerV2Private::sendCommitSuccess(WSocket *socket)
@@ -257,7 +257,7 @@ void ShortcutManagerV2Private::treeland_shortcut_manager_v2_acquire(Resource *re
 void ShortcutManagerV2Private::treeland_shortcut_manager_v2_bind_key(Resource *resource,
                                                                      const QString &name,
                                                                      const QString &key_sequence,
-                                                                     uint32_t mode,
+                                                                     uint32_t flags,
                                                                      uint32_t action)
 {
     WSocket *socket = socketFromResource(resource);
@@ -269,7 +269,7 @@ void ShortcutManagerV2Private::treeland_shortcut_manager_v2_bind_key(Resource *r
     }
 
     m_pendingShortcuts[socket].keys.append(KeyShortcut{
-        .mode = mode,
+        .keybindFlags = flags,
         .name = name,
         .key = key_sequence,
         .action = static_cast<ShortcutAction>(action),
@@ -408,9 +408,9 @@ ShortcutController* ShortcutManagerV2::controller()
     return d->m_controller;
 }
 
-void ShortcutManagerV2::sendActivated(const QString& name, bool repeat)
+void ShortcutManagerV2::sendActivated(const QString& name, uint keyFlags)
 {
-    d->sendActivated(d->m_activeSessionSocket, name, repeat);
+    d->sendActivated(d->m_activeSessionSocket, name, keyFlags);
 }
 
 void ShortcutManagerV2::onSessionChanged()
