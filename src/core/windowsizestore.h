@@ -2,34 +2,24 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 #pragma once
 
-#include "common/treelandlogging.h"
-
 #include <QObject>
 #include <QSize>
 #include <QHash>
-#include <QSettings>
+#include <QString>
 
-// Simple window size persistence: records normalGeometry size at last normal close (destruction) based on appId
+class AppConfig;
+
+// Simple window size persistence backed by dconfig
 class WindowSizeStore : public QObject {
+    Q_OBJECT
 public:
-    explicit WindowSizeStore(QObject *parent = nullptr)
-        : QObject(parent)
-        , m_settings("deepin", "treeland-window-size") {}
+    explicit WindowSizeStore(QObject *parent = nullptr);
 
-    QSize lastSizeFor(const QString &appId) const {
-        if (appId.isEmpty()) return {};
-        qCDebug(treelandCore) << "WindowSizeStore: last size for" << appId << "is"
-                << m_settings.value(appId + "/normalSize").toSize();
-        return m_settings.value(appId + "/normalSize").toSize();
-    }
+    QSize lastSizeFor(const QString &appId) const;
+    void saveSize(const QString &appId, const QSize &size);
 
-    void saveSize(const QString &appId, const QSize &size) {
-        qCInfo(treelandCore) << "WindowSizeStore: save size for" << appId << "as" << size;
-        if (appId.isEmpty() || !size.isValid()) return;
-        m_settings.setValue(appId + "/normalSize", size);
-        m_settings.sync();
-    }
 private:
-    // TODO(rewine): use dconfig
-    mutable QSettings m_settings;
+    AppConfig *configForApp(const QString &appId) const;
+
+    mutable QHash<QString, AppConfig *> m_appConfigs;
 };
