@@ -86,6 +86,13 @@ dtk_add_config_to_cpp(
     CLASS_NAME "OutputConfig"
 )
 
+dtk_add_config_to_cpp(
+    APP_CONFIG
+    "${PROJECT_SOURCE_DIR}/misc/dconfig/org.deepin.dde.treeland.app.json"
+    OUTPUT_FILE_NAME "appconfig.hpp"
+    CLASS_NAME "AppConfig"
+)
+
 qt_add_library(libtreeland SHARED)
 
 set_target_properties(libtreeland PROPERTIES
@@ -104,6 +111,7 @@ qt_add_qml_module(libtreeland
         ${TREELAND_CONFIG}
         ${TREELAND_USER_CONFIG}
         ${OUTPUT_CONFIG}
+        ${APP_CONFIG}
         common/treelandlogging.cpp
         common/treelandlogging.h
         core/layersurfacecontainer.cpp
@@ -120,6 +128,7 @@ qt_add_qml_module(libtreeland
         core/treeland.h
         core/windowpicker.cpp
         core/windowpicker.h
+        core/windowsizestore.cpp
         core/windowsizestore.h
         effects/tquickradiuseffect.cpp
         effects/tquickradiuseffect.h

@@ -1,0 +1,50 @@
+{
+    "magic": "dsg.config.meta",
+    "version": "1.0",
+    "contents": {
+        "lastWindowWidth": {
+            "value": 1280,
+            "serial": 0,
+            "flags": ["global"],
+            "name": "Last Window Width",
+            "name[zh_CN]": "上次关闭时的窗口宽度",
+            "description": "Window width saved when the window was last closed",
+            "description[zh_CN]": "记录窗口上次关闭时的宽度",
+            "permissions": "readwrite",
+            "visibility": "public"
+        },
+        "lastWindowHeight": {
+            "value": 720,
+            "serial": 0,
+            "flags": ["global"],
+            "name": "Last Window Height",
+            "name[zh_CN]": "上次关闭时的窗口高度",
+            "description": "Window height saved when the window was last closed",
+            "description[zh_CN]": "记录窗口上次关闭时的高度",
+            "permissions": "readwrite",
+            "visibility": "public"
+        },
+        "themeType": {
+            "value": 0,
+            "serial": 0,
+            "flags": ["global"],
+            "name": "Theme Type",
+            "name[zh_CN]": "主题类型",
+            "description": "Theme preference: 0 follow system, 1 dark, 2 light",
+            "description[zh_CN]": "主题偏好：0 跟随系统，1 暗色，2 亮色",
+            "permissions": "readwrite",
+            "visibility": "public"
+        },
+        "isSingletonApp": {
+            "value": false,
+            "serial": 0,
+            "flags": ["global"],
+            "name": "Singleton Application",
+            "name[zh_CN]": "是否为单例应用",
+            "description": "Mark app as singleton; if true, skip splash on subsequent launches when a window exists",
+            "description[zh_CN]": "标记应用是否为单例；为真且已有窗口时，后续启动不应显示闪屏",
+            "permissions": "readwrite",
+            "visibility": "public"
+        }
+    }
+}
