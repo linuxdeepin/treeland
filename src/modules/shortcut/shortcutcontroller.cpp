@@ -2,13 +2,21 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "shortcutcontroller.h"
-#include "input/inputdevice.h"
-#include "input/gestures.h"
 
 #include "qwayland-server-treeland-shortcut-manager-v2.h"
 
+#include "common/treelandlogging.h"
+#include "input/inputdevice.h"
+#include "input/gestures.h"
+
+#include <QKeyEvent>
+#include <QKeySequence>
+
 using BindError = QtWaylandServer::treeland_shortcut_manager_v2::bind_error;
-using KeybindMode = QtWaylandServer::treeland_shortcut_manager_v2::keybind_mode;
+using KeybindFlag = QtWaylandServer::treeland_shortcut_manager_v2::keybind_flag;
+const uint KeybindFlagMask = static_cast<uint>(KeybindFlag::keybind_flag_repeat)
+                             | static_cast<uint>(KeybindFlag::keybind_flag_key_press)
+                             | static_cast<uint>(KeybindFlag::keybind_flag_key_release);
 
 ShortcutController::ShortcutController(QObject *parent)
     : QObject(parent)
@@ -20,7 +28,7 @@ ShortcutController::~ShortcutController()
     clear();
 }
 
-uint ShortcutController::registerKey(const QString &name, const QString& key, uint mode, ShortcutAction action)
+uint ShortcutController::registerKey(const QString &name, const QString& key, uint keybindFlags, ShortcutAction action)
 {
     if (m_deleters.contains(name)) {
         return BindError::bind_error_name_conflict;
@@ -39,35 +47,23 @@ uint ShortcutController::registerKey(const QString &name, const QString& key, ui
     }
     int combined = keyComb.toCombined();
 
-    switch (mode) {
-    case KeybindMode::keybind_mode_key_press:
-    case KeybindMode::keybind_mode_key_press_repeat: {
-        auto &entry = m_keyPressMap[combined];
-        if (entry.contains(action)) {
-            return BindError::bind_error_duplicate_binding;
-        }
-        entry.insert(action, std::make_pair(name, mode == KeybindMode::keybind_mode_key_press_repeat));
-        m_deleters[name] = [this, combined, action]() {
-            m_keyPressMap[combined].remove(action);
-        };
-        return 0;
-    }
-    case KeybindMode::keybind_mode_key_release: {
-        auto &entry = m_keyReleaseMap[combined];
-        if (entry.contains(action)) {
-            return BindError::bind_error_duplicate_binding;
-        }
-        entry.insert(action, name);
-        m_deleters[name] = [this, combined, action]() {
-            m_keyReleaseMap[combined].remove(action);
-        };
-        return 0;
-    }
-    default:
+    if (keybindFlags & ~KeybindFlagMask) {
         return BindError::bind_error_invalid_argument;
-    };
+    }
 
-    Q_UNREACHABLE();
+    auto &entry = m_keyMap[combined];
+    if (entry.contains(action)) {
+        const auto &[prevName, flags] = entry[action];
+        m_deleters.remove(prevName);
+        qCInfo(treelandShortcut) << "Overriding existing key binding of"
+                                 << keySeq[0] << "for action" << static_cast<int>(action)
+                                 << "by name" << prevName << "with new name" << name << "and flags" << keybindFlags;
+    }
+    m_keyMap[combined][action] = std::make_pair(name, keybindFlags);
+    m_deleters[name] = [this, combined, action]() {
+        m_keyMap[combined].remove(action);
+    };
+    return 0;
 }
 
 uint ShortcutController::registerSwipeGesture(const QString &name, uint finger, SwipeGesture::Direction direction, ShortcutAction action)
@@ -182,28 +178,19 @@ void ShortcutController::unregisterShortcut(const QString &name)
     }
 }
 
-bool ShortcutController::dispatchKeyPress(QKeyCombination combination, bool repeat)
+bool ShortcutController::dispatchKeyEvent(const QKeyEvent *kevent)
 {
-    auto combined = normalizeKeyCombination(combination).toCombined();
-    if (m_keyPressMap.contains(combined)) {
-        for (const auto &[action, keybind] : std::as_const(m_keyPressMap[combined]).asKeyValueRange()) {
-            const auto& [name, canRepeat] = keybind;
-            if (repeat && !canRepeat) {
+    auto combined = normalizeKeyCombination(kevent->keyCombination()).toCombined();
+    uint keyFlags = (kevent->isAutoRepeat() ? static_cast<uint>(KeybindFlag::keybind_flag_repeat) : 0u)
+                    | (kevent->type() == QEvent::KeyPress ? static_cast<uint>(KeybindFlag::keybind_flag_key_press) : 0u)
+                    | (kevent->type() == QEvent::KeyRelease ? static_cast<uint>(KeybindFlag::keybind_flag_key_release) : 0u);
+    if (m_keyMap.contains(combined)) {
+        for (const auto &[action, keybind] : std::as_const(m_keyMap[combined]).asKeyValueRange()) {
+            const auto& [name, bindFlags] = keybind;
+            if ((bindFlags & keyFlags) != keyFlags) {
                 continue;
             }
-            emit actionTriggered(action, name, false, repeat);
-        }
-        return true;
-    }
-    return false;
-}
-
-bool ShortcutController::dispatchKeyRelease(QKeyCombination combination)
-{
-    auto combined = normalizeKeyCombination(combination).toCombined();
-    if (m_keyReleaseMap.contains(combined)) {
-        for (const auto &[action, name] : std::as_const(m_keyReleaseMap[combined]).asKeyValueRange()) {
-            emit actionTriggered(action, name, false);
+            emit actionTriggered(action, name, false, keyFlags);
         }
         return true;
     }

@@ -61,7 +61,7 @@ public:
     QByteArrayView interfaceName() const override;
 
     ShortcutController* controller();
-    void sendActivated(const QString& name, bool repeat = false);
+    void sendActivated(const QString& name, uint keyFlags = 0);
 
 public Q_SLOTS:
     void onSessionChanged();
