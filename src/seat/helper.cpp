@@ -1722,15 +1722,8 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *, QInputEvent *event)
                 break;
             }
 
-            QKeyCombination combination = kevent->keyCombination();
-            if (event->type() == QEvent::KeyPress
-                && m_shortcutManager->controller()->dispatchKeyPress(combination, kevent->isAutoRepeat())) {
+            if (m_shortcutManager->controller()->dispatchKeyEvent(kevent))
                 return true;
-            }
-            if (event->type() == QEvent::KeyRelease
-                && m_shortcutManager->controller()->dispatchKeyRelease(combination)) {
-                return true;
-            }
         } while (false);
     }
 

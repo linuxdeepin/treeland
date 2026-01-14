@@ -15,12 +15,14 @@
 #include "woutputrenderwindow.h"
 #include "output/output.h"
 
+#include "qwayland-server-treeland-shortcut-manager-v2.h"
+
 ShortcutRunner::ShortcutRunner(QObject *parent)
     : QObject(parent)
 {
 }
 
-void ShortcutRunner::onActionTrigger(ShortcutAction action, const QString &name, bool isGesture, bool isRepeat)
+void ShortcutRunner::onActionTrigger(ShortcutAction action, const QString &name, bool isGesture, uint keyFlags)
 {
     Q_UNUSED(isGesture)
     auto *helper = Helper::instance();
@@ -31,7 +33,7 @@ void ShortcutRunner::onActionTrigger(ShortcutAction action, const QString &name,
 
     switch (action) {
     case ShortcutAction::Notify:
-        helper->m_shortcutManager->sendActivated(name, isRepeat);
+        helper->m_shortcutManager->sendActivated(name, keyFlags);
         break;
     case ShortcutAction::Workspace1:
         helper->restoreFromShowDesktop();
@@ -164,7 +166,7 @@ void ShortcutRunner::onActionTrigger(ShortcutAction action, const QString &name,
     case ShortcutAction::TaskSwitchSameAppPrev: {
         const bool isSameApp = (action == ShortcutAction::TaskSwitchSameAppNext || action == ShortcutAction::TaskSwitchSameAppPrev);
         const bool isPrev = (action == ShortcutAction::TaskSwitchPrev || action == ShortcutAction::TaskSwitchSameAppPrev);
-        taskswitchAction(isRepeat, isSameApp, isPrev);
+        taskswitchAction(keyFlags & QtWaylandServer::treeland_shortcut_manager_v2::keybind_flag_repeat, isSameApp, isPrev);
         break;
     }
     default:
