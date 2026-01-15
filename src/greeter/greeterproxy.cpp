@@ -299,6 +299,7 @@ void GreeterProxy::onSessionNew(const QString &id, const QDBusObjectPath &path)
                 userModel()->updateUserLoginState(username, true);
                 // userLoggedIn signal is connected with Helper::updateActiveUserSession
                 Q_EMIT d->userModel->userLoggedIn(username, id.toInt());
+                Q_EMIT loginSucceeded(username);
                 updateLocketState();
             });
         }
@@ -471,9 +472,9 @@ void GreeterProxy::updateLocketState()
     if (!d->userModel)
         return;
     qCInfo(treelandGreeter) << "Update lock state";
-    bool locked = false;
+    bool locked = d->isLocked;
     if (auto user = d->userModel->currentUser()) {
-        locked = user->logined();
+        locked = !user->logined();
     }
 
     if (d->isLocked != locked) {
