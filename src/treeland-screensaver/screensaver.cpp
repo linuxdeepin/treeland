@@ -24,7 +24,7 @@ static uint32_t interfaceId;
 static uint32_t interfaceVersion;
 
 static uint cookieCounter = 0;
-static QHash<QString, QHash<uint, treeland_screensaver *>> inhibits;
+static QHash<QString, QHash<uint, treeland_screensaver_v1 *>> inhibits;
 
 static QStringList callers;
 QDBusServiceWatcher *watcher;
@@ -56,18 +56,18 @@ static const wl_registry_listener registryListener = {
 
 // Inhibit / Uninhibit implementation
 
-static treeland_screensaver *inhibit(const QString &appName, const QString &reason) {
-    treeland_screensaver *screensaver = static_cast<treeland_screensaver *>(
-        wl_registry_bind(registry, interfaceId, &treeland_screensaver_interface, interfaceVersion));
-    treeland_screensaver_inhibit(screensaver,
+static treeland_screensaver_v1 *inhibit(const QString &appName, const QString &reason) {
+    treeland_screensaver_v1 *screensaver = static_cast<treeland_screensaver_v1 *>(
+        wl_registry_bind(registry, interfaceId, &treeland_screensaver_v1_interface, interfaceVersion));
+    treeland_screensaver_v1_inhibit(screensaver,
                                  appName.toUtf8().constData(),
                                  reason.toUtf8().constData());
     return screensaver;
 }
 
-static void uninhibit(treeland_screensaver *screensaver) {
-    treeland_screensaver_uninhibit(screensaver);
-    treeland_screensaver_destroy(screensaver);
+static void uninhibit(treeland_screensaver_v1 *screensaver) {
+    treeland_screensaver_v1_uninhibit(screensaver);
+    treeland_screensaver_v1_destroy(screensaver);
 }
 
 // D-Bus adaptor
