@@ -1,3 +1,16 @@
+treeland (0.8.1) unstable; urgency=medium
+
+  * fix: update treeland-protocol structure names (#690)
+  * fix: systemd warnings caused by invalid directives in socket units.
+  * fix: fix user mistakenly marked as logged in when login happened
+    outside ddm
+  * fix: fix user cannot login after logout once
+  * fix: missing license LGPL-2.1-or-later for kde keystate protocol
+  * feat: adopt kde-keystate-v5 to expose states of stateful keys
+  * fix: fix treeland crash on virtual machine
+
+ -- rewine <luhongxu@uniontech.com>  Thu, 15 Jan 2026 11:07:00 +0800
+
 treeland (0.8.0) unstable; urgency=medium
 
   * chore: temporary disable TreelandUserConfig smart pointer
