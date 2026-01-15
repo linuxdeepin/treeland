@@ -124,7 +124,7 @@ void DDMInterfaceV1::switchToVt(const int vtnr) {
     if (isConnected())
         treeland_ddm_v1_send_switch_to_vt(ddm->resource, vtnr);
     else
-        qCWarning(treelandCore) << "DDM is not conected when trying to call switchToVt";
+        qCWarning(treelandCore) << "DDM is not connected when trying to call switchToVt";
 }
 
 void DDMInterfaceV1::acquireVt(const int vtnr) {
