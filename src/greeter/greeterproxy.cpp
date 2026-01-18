@@ -33,6 +33,7 @@
 #include <Messages.h>
 #include <SocketWriter.h>
 #include <security/pam_appl.h>
+#include <systemd/sd-login.h>
 #include <pwd.h>
 
 #include <DDBusSender>
@@ -288,23 +289,37 @@ void GreeterProxy::error()
     qCCritical(treelandGreeter) << "Socket error: " << d->socket->errorString();
 }
 
-void GreeterProxy::onSessionNew(const QString &id, const QDBusObjectPath &path)
+void GreeterProxy::onSessionNew(const QString &id, [[maybe_unused]] const QDBusObjectPath &path)
 {
-    QThreadPool::globalInstance()->start([this, id, path] {
-        OrgFreedesktopLogin1SessionInterface session(Logind::serviceName(),
-                                                     path.path(),
-                                                     QDBusConnection::systemBus());
-        QString username = session.name();
-        QString service = session.service();
-        if (service == QStringLiteral("ddm")) {
-            QMetaObject::invokeMethod(this, [this, username, id]() {
-                userModel()->updateUserLoginState(username, true);
-                // userLoggedIn signal is connected with Helper::updateActiveUserSession
-                Q_EMIT d->userModel->userLoggedIn(username, id.toInt());
-                updateLocketState();
-            });
-        }
-    });
+    QByteArray sessionBa = id.toLocal8Bit();
+    const char *session = sessionBa.constData();
+    char *username = nullptr;
+    char *service = nullptr;
+    auto guard = std::unique_ptr<void, std::function<void(void *)>>(
+        nullptr,
+        [username, service]([[maybe_unused]] void *) {
+            if (username)
+                free(username);
+            if (service)
+                free(service);
+        });
+    if (sd_session_get_username(session, &username) < 0) {
+        qCWarning(treelandGreeter) << "sd_session_get_username() failed for session id:" << id;
+        return;
+    }
+    if (sd_session_get_service(session, &service) < 0) {
+        qCWarning(treelandGreeter) << "sd_session_get_service() failed for session id:" << id;
+        return;
+    }
+
+    if (strcmp(service, "ddm") == 0) {
+        QString user = QString::fromLocal8Bit(username);
+        qCInfo(treelandGreeter) << "New session added: id=" << id << ", user=" << user;
+        userModel()->updateUserLoginState(user, true);
+        // userLoggedIn signal is connected with Helper::updateActiveUserSession
+        Q_EMIT d->userModel->userLoggedIn(user, id.toInt());
+        updateLocketState();
+    }
 }
 
 void GreeterProxy::onSessionRemoved(const QString &id, [[maybe_unused]] const QDBusObjectPath &path)
