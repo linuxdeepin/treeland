@@ -11,6 +11,7 @@ Item {
 
     required property real initialRadius
     property var iconBuffer
+    required property color backgroundColor
     property bool destroyAfterFade: false
     signal destroyRequested
 
@@ -19,7 +20,7 @@ Item {
 
     Rectangle {
         id: background
-        color: "#ffffff" // TODO(rewine): Use theme color if available
+        color: splash.backgroundColor
         anchors.fill: parent
         radius: initialRadius
 

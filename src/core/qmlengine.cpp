@@ -256,10 +256,14 @@ QQuickItem *QmlEngine::createFpsDisplay(QQuickItem *parent)
     return createComponent(fpsDisplayComponent, parent);
 }
 
-QQuickItem *QmlEngine::createPrelaunchSplash(QQuickItem *parent, qreal initialRadius, QW_NAMESPACE::qw_buffer *iconBuffer)
+QQuickItem *QmlEngine::createPrelaunchSplash(QQuickItem *parent,
+                                             qreal initialRadius,
+                                             QW_NAMESPACE::qw_buffer *iconBuffer,
+                                             const QColor &backgroundColor)
 {
     return createComponent(prelaunchSplashComponent, parent, {
          { "initialRadius", QVariant::fromValue(initialRadius) },
          { "iconBuffer", QVariant::fromValue(iconBuffer) },
+         { "backgroundColor", QVariant::fromValue(backgroundColor) },
     });
 }

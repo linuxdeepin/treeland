@@ -18,6 +18,10 @@ public:
     QSize lastSizeFor(const QString &appId) const;
     void saveSize(const QString &appId, const QSize &size);
 
+    // Per-app theme preference: 0 follow system, 1 dark, 2 light
+    qlonglong themeTypeFor(const QString &appId) const;
+    void setThemeType(const QString &appId, qlonglong themeType);
+
 private:
     AppConfig *configForApp(const QString &appId) const;
 
