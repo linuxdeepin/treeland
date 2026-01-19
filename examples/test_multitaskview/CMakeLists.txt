@@ -21,6 +21,7 @@ qt_add_qml_module(${BIN_NAME}
 )
 
 qt_generate_wayland_protocol_client_sources(${BIN_NAME}
+    NO_INCLUDE_CORE_ONLY
     FILES
         ${TREELAND_PROTOCOLS_DATA_DIR}/treeland-dde-shell-v1.xml
 )
