@@ -4,6 +4,7 @@
 #include "helper.h"
 
 #include "modules/capture/capture.h"
+#include "qwinputdevice.h"
 #include "utils/cmdline.h"
 #include "utils/fpsdisplaymanager.h"
 #include "modules/dde-shell/ddeshellattached.h"
@@ -1509,6 +1510,20 @@ void Helper::init(Treeland::Treeland *treeland)
 
     m_server->attach<KeyStateV5>(m_seat);
 
+#if TREELANDCONFIG_DCONFIG_FILE_VERSION_MINOR > 0
+    if (m_globalConfig->isInitializeSucceeded()) {
+#else
+    if (m_globalConfig->isInitializeSucceed()) {
+#endif
+        configureNumlock();
+    } else {
+        connect(m_globalConfig.get(),
+                &TreelandConfig::configInitializeSucceed,
+                this,
+                &Helper::configureNumlock,
+                Qt::SingleShotConnection);
+    }
+
     m_backend->handle()->start();
 }
 
@@ -2881,3 +2896,31 @@ void Helper::restoreCopyMode()
     const auto &allSurfaces = getWorkspaceSurfaces();
     applyCopyModeToOutputs(primaryOutput, allSurfaces);
 }
+
+static void setNumlockForDevice(WInputDevice *device) {
+    if (!device || device->type() != WInputDevice::Type::Keyboard)
+        return;
+
+    auto keyboard = qobject_cast<qw_keyboard *>(device->handle());
+    if (!keyboard)
+        return;
+    auto wlrKeyboard = keyboard->handle();
+    if (!wlrKeyboard || !wlrKeyboard->keymap || !wlrKeyboard->xkb_state)
+        return;
+    xkb_mod_index_t numlock = xkb_keymap_mod_get_index(wlrKeyboard->keymap, XKB_MOD_NAME_NUM);
+    if (numlock == XKB_MOD_INVALID)
+        return;
+    xkb_state_update_mask(wlrKeyboard->xkb_state, 0, 0, (1u << numlock), 0, 0, 0);
+    wlr_keyboard_led_update(wlrKeyboard, wlrKeyboard->leds | WLR_LED_NUM_LOCK);
+}
+
+void Helper::configureNumlock() {
+    if (!m_globalConfig->numlock())
+        return;
+    connect(m_backend, &WBackend::inputAdded, this, setNumlockForDevice);
+    const auto inputDevices = m_backend->inputDeviceList();
+    for (WInputDevice *device : inputDevices) {
+        setNumlockForDevice(device);
+    }
+}
+

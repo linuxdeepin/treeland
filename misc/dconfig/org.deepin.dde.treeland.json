@@ -34,6 +34,17 @@
             "description[zh_CN]": "在未匹配到窗口时销毁预启动闪屏的超时时长",
             "permissions": "readwrite",
             "visibility": "public"
+        },
+        "numlock": {
+            "value": false,
+            "serial": 0,
+            "flags": ["global"],
+            "name": "Numlock",
+            "name[zh_CN]": "数字键盘",
+            "description": "Enable Numlock on Treeland startup & new keyboard connection",
+            "description[zh_CN]": "在 Treeland 启动以及新键盘连接时启用数字键盘",
+            "permissions": "readwrite",
+            "visibility": "public"
         }
     }
 }
