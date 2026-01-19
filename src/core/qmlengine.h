@@ -8,6 +8,7 @@
 
 #include <QQmlApplicationEngine>
 #include <QQmlComponent>
+#include <QColor>
 
 QT_BEGIN_NAMESPACE
 class QQuickItem;
@@ -71,7 +72,8 @@ public:
     QQuickItem *createFpsDisplay(QQuickItem *parent);
     QQuickItem *createPrelaunchSplash(QQuickItem *parent,
                                       qreal initialRadius,
-                                      QW_NAMESPACE::qw_buffer *iconBuffer = nullptr);
+                                      QW_NAMESPACE::qw_buffer *iconBuffer = nullptr,
+                                      const QColor &backgroundColor = QColor("#ffffff"));
 
     QQmlComponent *surfaceContentComponent()
     {
