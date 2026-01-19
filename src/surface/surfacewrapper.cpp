@@ -8,6 +8,7 @@
 #include "output/output.h"
 #include "seat/helper.h"
 #include "treelanduserconfig.hpp"
+#include "appconfig.hpp"
 #include "workspace/workspace.h"
 #include "seat/helper.h"
 
@@ -159,7 +160,15 @@ SurfaceWrapper::SurfaceWrapper(QmlEngine *qmlEngine, QQuickItem *parent, const Q
     } else {
         setImplicitSize(800, 600);
     }
-    m_prelaunchSplash = m_engine->createPrelaunchSplash(this, radius(), iconBuffer);
+    // Temporary: force dark splash for initial testing
+    QColor bgColor("#181818");
+    {
+        const QString darkHex = Helper::instance()->config()->isInitializeSucceed()
+                                    ? Helper::instance()->config()->splashDarkPalette()
+                                    : QStringLiteral("#181818");
+        bgColor = QColor(darkHex);
+    }
+    m_prelaunchSplash = m_engine->createPrelaunchSplash(this, radius(), iconBuffer, bgColor);
     // Connect to QML signal so C++ can destroy the QML item when requested
     connect(m_prelaunchSplash,
             SIGNAL(destroyRequested()),

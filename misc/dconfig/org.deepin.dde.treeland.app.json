@@ -3,7 +3,7 @@
     "version": "1.0",
     "contents": {
         "lastWindowWidth": {
-            "value": 1280,
+            "value": 800,
             "serial": 0,
             "flags": ["global"],
             "name": "Last Window Width",
@@ -14,7 +14,7 @@
             "visibility": "public"
         },
         "lastWindowHeight": {
-            "value": 720,
+            "value": 600,
             "serial": 0,
             "flags": ["global"],
             "name": "Last Window Height",

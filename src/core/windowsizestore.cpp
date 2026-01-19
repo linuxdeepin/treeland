@@ -64,3 +64,25 @@ void WindowSizeStore::saveSize(const QString &appId, const QSize &size)
     config->setLastWindowWidth(size.width());
     config->setLastWindowHeight(size.height());
 }
+
+qlonglong WindowSizeStore::themeTypeFor(const QString &appId) const
+{
+    auto *config = configForApp(appId);
+    if (!config) {
+        return 0; // follow system by default
+    }
+    return config->themeType();
+}
+
+void WindowSizeStore::setThemeType(const QString &appId, qlonglong themeType)
+{
+    if (appId.isEmpty()) {
+        return;
+    }
+    auto *config = configForApp(appId);
+    if (!config) {
+        return;
+    }
+    qCInfo(treelandCore) << "WindowSizeStore: set themeType for" << appId << "as" << themeType;
+    config->setThemeType(themeType);
+}
