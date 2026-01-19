@@ -46,7 +46,10 @@ Q_SIGNALS:
 private:
     void geometryChange(const QRectF &newGeo, const QRectF &oldGeo) override;
     void updateProxySurfaceScale();
-    void updateProxySurfaceTitleBarAndDecoration();
+    void updateShape();
+    void updateNoTitleBar();
+    void updateNoDecoration();
+    void updateNoCornerRadius();
     void updateImplicitSize();
     void onSourceRadiusChanged();
 

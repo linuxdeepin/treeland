@@ -888,19 +888,18 @@ void SurfaceWrapper::setNoDecoration(bool newNoDecoration)
     if (m_wrapperAboutToRemove)
         return;
 
-    setNoCornerRadius(newNoDecoration);
     if (m_noDecoration == newNoDecoration)
         return;
 
     m_noDecoration = newNoDecoration;
+    setNoCornerRadius(newNoDecoration);
 
-    if (m_type == Type::SplashScreen) {
+    if (m_type == Type::SplashScreen && !m_isProxy) {
         Q_EMIT noDecorationChanged();
         return;
     }
 
     updateDecoration();
-    Q_EMIT noDecorationChanged();
 }
 
 void SurfaceWrapper::updateDecoration()
@@ -928,6 +927,7 @@ void SurfaceWrapper::updateDecoration()
     }
 
     updateBoundingRect();
+    Q_EMIT noDecorationChanged();
 }
 
 void SurfaceWrapper::updateTitleBar()
