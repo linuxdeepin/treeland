@@ -357,6 +357,7 @@ private:
     std::shared_ptr<Session> ensureSession(int id, QString username);
     void updateActiveUserSession(const QString &username, int id);
     bool isXWaylandClient(WClient *client);
+    void configureNumlock();
 
     static Helper *m_instance;
     TreelandUserConfig *m_config = nullptr;
