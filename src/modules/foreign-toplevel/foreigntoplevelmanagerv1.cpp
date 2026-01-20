@@ -142,7 +142,7 @@ void ForeignToplevelV1::addSurface(SurfaceWrapper *wrapper)
             &treeland_foreign_toplevel_handle_v1::rectangleChanged,
             wrapper,
             [wrapper](treeland_foreign_toplevel_handle_v1_set_rectangle_event *event) {
-                auto dockWrapper = Helper::instance()->rootContainer()->getSurface(
+                auto dockWrapper = Helper::instance()->rootSurfaceContainer()->getSurface(
                     WSurface::fromHandle(event->surface));
                 wrapper->setIconGeometry(QRect(dockWrapper->x() + event->x,
                                                dockWrapper->y() + event->y,
