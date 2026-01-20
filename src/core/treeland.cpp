@@ -3,7 +3,6 @@
 
 #include "treeland.h"
 
-#include "treelandconfig.hpp"
 #include "core/qmlengine.h"
 #include "greeter/usermodel.h"
 #include "interfaces/multitaskviewinterface.h"
@@ -17,17 +16,6 @@
 
 #if !defined(DISABLE_DDM) || defined(EXT_SESSION_LOCK_V1)
 #include "interfaces/lockscreeninterface.h"
-#endif
-
-#ifndef DISABLE_DDM
-#  include <Constants.h>
-#  include <Messages.h>
-#  include <SignalHandler.h>
-#  include <SocketWriter.h>
-using namespace DDM;
-
-#  include <DAccountsManager>
-#  include <DAccountsUser>
 #endif
 
 #include <wsocket.h>
