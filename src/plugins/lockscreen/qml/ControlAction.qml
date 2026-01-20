@@ -107,10 +107,12 @@ RowLayout {
         id: actionItem
         property bool expand: false
         property string iconName
+        property alias hovered: button.hovered
         signal clicked()
         implicitWidth: bottomGroup.buttonSize + 6
         implicitHeight: bottomGroup.buttonSize + 6
         D.RoundButton {
+            id: button
             icon {
                 width: 16
                 height: 16

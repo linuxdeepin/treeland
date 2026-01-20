@@ -149,7 +149,7 @@ Output::Output(WOutputItem *output, QObject *parent)
     // TODO: Investigate better ways to track the panel specific persistent settings.
     // The connector name of the panel may change.
     QString outputName = output->output()->name();
-    m_config = OutputConfig::createByName("org.deepin.dde.treeland.outputs",
+    m_config = OutputConfig::createByName("org.deepin.dde.treeland.output",
                                     "org.deepin.dde.treeland",
                                     "/" + outputName, this);
 }

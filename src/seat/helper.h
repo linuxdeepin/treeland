@@ -289,6 +289,8 @@ private Q_SLOTS:
     void deleteTaskSwitch();
     void onPrepareForSleep(bool sleep);
     void onSessionNew(const QString &sessionId, const QDBusObjectPath &objectPath);
+    void onSessionLock();
+    void onSessionUnlock();
 
 private:
     void onOutputAdded(WOutput *output);
@@ -312,8 +314,6 @@ private:
     void onSurfaceWrapperAboutToRemove(SurfaceWrapper *wrapper);
     void handleRequestDrag([[maybe_unused]] WSurface *surface);
     void handleLockScreen(LockScreenInterface *lockScreen);
-    void onSessionLock();
-    void onSessionUnlock();
     void handleNewForeignToplevelCaptureRequest(wlr_ext_foreign_toplevel_image_capture_source_manager_v1_request *request);
     void onExtSessionLock(WSessionLock *lock);
 
