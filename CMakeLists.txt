@@ -116,6 +116,7 @@ add_subdirectory(src)
 add_subdirectory(tools)
 add_subdirectory(misc)
 add_subdirectory(tests)
+add_subdirectory(wallpaper-factory)
 
 if (BUILD_TREELAND_EXAMPLES)
     add_subdirectory(examples)
