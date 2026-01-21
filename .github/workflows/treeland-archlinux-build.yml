@@ -53,6 +53,11 @@ jobs:
           # Try to install DDM from available packages
           pacman -Syu --noconfirm --noprogressbar ddm
 
+      - name: Install MPV dependencies
+        run: |
+          # Try to install MPV from available packages
+          pacman -Syu --noconfirm --noprogressbar mpv
+
       - name: Build and Install treeland-protocols
         run: |
           echo "Building treeland-protocols from source..."
