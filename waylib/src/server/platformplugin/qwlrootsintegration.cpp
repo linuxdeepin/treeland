@@ -350,7 +350,7 @@ public:
         m_format.setMajorVersion(3);
 
         if (auto c = qobject_cast<QW::OpenGLContext*>(m_context)) {
-            auto eglConfig = q_configFromGLFormat(c->eglDisplay(), m_format, false, EGL_WINDOW_BIT);
+            auto eglConfig = q_configFromGLFormat(c->eglDisplay(), m_format, false, EGL_PBUFFER_BIT);
             if (eglConfig)
                 m_format = q_glFormatFromConfig(c->eglDisplay(), eglConfig, m_format);
             Q_ASSERT(m_format.renderableType() == QSurfaceFormat::OpenGLES);

@@ -77,7 +77,8 @@ Popup {
                     Layout.leftMargin: 5
                     Image {
                         anchors.fill: parent
-                        source: name
+                        // TODO: Provide icon for session
+                        // source: name
                         fillMode: Image.PreserveAspectFit
                     }
                 }
