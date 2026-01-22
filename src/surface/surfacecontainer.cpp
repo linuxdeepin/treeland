@@ -162,7 +162,12 @@ QList<SurfaceContainer *> SurfaceContainer::subContainers() const
 
 void SurfaceContainer::setQmlEngine(QQmlEngine *engine)
 {
-    engine->setContextForObject(this, engine->rootContext());
+    const auto *context = engine->contextForObject(this);
+    if (context) {
+        Q_ASSERT(context == engine->rootContext());
+    } else {
+        engine->setContextForObject(this, engine->rootContext());
+    }
 
     const auto subContainers = this->subContainers();
     for (auto sub : subContainers) {
