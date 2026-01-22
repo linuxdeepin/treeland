@@ -986,6 +986,7 @@ void WSurfaceItem::releaseResources()
     } else {
         for (auto item : std::as_const(d->subsurfaces))
             item->deleteLater();
+        d->subsurfaces.clear();
     }
 
     if (auto content = d->getItemContent())
