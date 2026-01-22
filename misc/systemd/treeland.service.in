@@ -9,6 +9,9 @@ After=seatd.service
 
 [Service]
 User=dde
+RuntimeDirectory=treeland
+RuntimeDirectoryMode=0700
+Environment="XDG_RUNTIME_DIR=%t/treeland"
 Environment=LIBSEAT_BACKEND=seatd
 Environment=DSG_APP_ID=org.deepin.dde.treeland
 Environment=ASAN_SYMBOLIZER_PATH=/usr/bin/llvm-symbolizer
