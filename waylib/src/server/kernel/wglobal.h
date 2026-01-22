@@ -188,7 +188,7 @@ protected:
 
 class WAYLIB_SERVER_EXPORT WGlobal {
     Q_GADGET
-    QML_NAMED_ELEMENT(Waylib)
+    QML_NAMED_ELEMENT(waylib)
     QML_UNCREATABLE("Use for enums")
 
 public:
