@@ -10,6 +10,7 @@
 #include <QList>
 #include <QPointer>
 #include <QHash>
+#include <QSet>
 
 Q_MOC_INCLUDE("workspace/workspace.h")
 
@@ -136,6 +137,8 @@ private:
     QObject *m_windowMenu = nullptr;
     // Prelaunch wrappers created before binding to a real shell surface
     QList<SurfaceWrapper *> m_prelaunchWrappers;
+    // Prelaunch requests waiting for dconfig initialization
+    QSet<QString> m_pendingPrelaunchAppIds;
     // Pending toplevel surfaces (XDG or XWayland) awaiting async AppId resolve; callbacks continue only if the pointer remains in this list
     QList<WAYLIB_SERVER_NAMESPACE::WToplevelSurface *> m_pendingAppIdResolveToplevels;
     // New protocol based app id resolver (optional, may be null if module not loaded)

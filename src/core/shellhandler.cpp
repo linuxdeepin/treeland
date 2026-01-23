@@ -109,45 +109,67 @@ void ShellHandler::handlePrelaunchSplashRequested(const QString &appId,
                     [&appId](SurfaceWrapper *w) { return w && w->appId() == appId; })) {
         return;
     }
-    QSize initialSize;
-    if (m_windowSizeStore) {
-        const QSize last = m_windowSizeStore->lastSizeFor(appId);
+    // Flow: add appId to pending list -> wait for dconfig init ->
+    // if pending still exists, create splash; otherwise a real window appeared and cleared it.
+    if (m_pendingPrelaunchAppIds.contains(appId))
+        return;
+    m_pendingPrelaunchAppIds.insert(appId);
+
+    auto createSplash = [this, appId, iconBuffer](const QSize &last) {
+        if (!m_pendingPrelaunchAppIds.contains(appId))
+            return; // app window already created while waiting for dconfig
+        m_pendingPrelaunchAppIds.remove(appId);
+
+        if (std::any_of(m_prelaunchWrappers.cbegin(),
+                        m_prelaunchWrappers.cend(),
+                        [&appId](SurfaceWrapper *w) { return w && w->appId() == appId; })) {
+            return;
+        }
+
+        QSize initialSize;
         if (last.isValid() && last.width() > 0 && last.height() > 0) {
             initialSize = last;
         }
-    }
-    auto *wrapper = new SurfaceWrapper(Helper::instance()->qmlEngine(),
-                                       nullptr,
-                                       initialSize,
-                                       appId,
-                                       iconBuffer);
-    m_workspace->addSurface(wrapper);
-    m_prelaunchWrappers.append(wrapper);
 
-    // After configurable timeout, if still unmatched (not converted and still in the list), destroy
-    // the splash wrapper
-    qlonglong timeoutMs = Helper::instance()->globalConfig()->prelaunchSplashTimeoutMs();
-    // Bounds: <=0 disables auto-destroy, >60000 clamps to 60000
-    if (timeoutMs > 60000) {
-        timeoutMs = 60000;
-    }
-    if (timeoutMs > 0) {
-        QTimer::singleShot(static_cast<int>(timeoutMs),
-                           wrapper,
-                           [this, wrapper = QPointer<SurfaceWrapper>(wrapper)] {
-                               if (!wrapper) {
-                                   return; // Wrapper already destroyed elsewhere
-                               }
-                               int idx = m_prelaunchWrappers.indexOf(wrapper);
-                               if (idx < 0) {
-                                   return; // Already matched or removed earlier
-                               }
-                               qCDebug(treelandShell)
-                                   << "Prelaunch splash timeout, destroy wrapper appId="
-                                   << wrapper->appId();
-                               m_prelaunchWrappers.removeAt(idx);
-                               m_rootSurfaceContainer->destroyForSurface(wrapper);
-                           });
+        auto *wrapper = new SurfaceWrapper(Helper::instance()->qmlEngine(),
+                                           nullptr,
+                                           initialSize,
+                                           appId,
+                                           iconBuffer);
+        m_workspace->addSurface(wrapper);
+        m_prelaunchWrappers.append(wrapper);
+
+        // After configurable timeout, if still unmatched (not converted and still in the list), destroy
+        // the splash wrapper
+        qlonglong timeoutMs = Helper::instance()->globalConfig()->prelaunchSplashTimeoutMs();
+        // Bounds: <=0 disables auto-destroy, >60000 clamps to 60000
+        if (timeoutMs > 60000) {
+            timeoutMs = 60000;
+        }
+        if (timeoutMs > 0) {
+            QTimer::singleShot(static_cast<int>(timeoutMs),
+                               wrapper,
+                               [this, wrapper = QPointer<SurfaceWrapper>(wrapper)] {
+                                   if (!wrapper) {
+                                       return; // Wrapper already destroyed elsewhere
+                                   }
+                                   int idx = m_prelaunchWrappers.indexOf(wrapper);
+                                   if (idx < 0) {
+                                       return; // Already matched or removed earlier
+                                   }
+                                   qCDebug(treelandShell)
+                                       << "Prelaunch splash timeout, destroy wrapper appId="
+                                       << wrapper->appId();
+                                   m_prelaunchWrappers.removeAt(idx);
+                                   m_rootSurfaceContainer->destroyForSurface(wrapper);
+                               });
+        }
+    };
+
+    if (m_windowSizeStore) {
+        m_windowSizeStore->withLastSizeFor(appId, this, createSplash);
+    } else {
+        createSplash({});
     }
 }
 
@@ -277,6 +299,7 @@ SurfaceWrapper *ShellHandler::matchOrCreateXdgWrapper(WXdgToplevelSurface *surfa
     SurfaceWrapper *wrapper = nullptr;
 
     if (!targetAppId.isEmpty()) {
+        m_pendingPrelaunchAppIds.remove(targetAppId);
         for (int i = 0; i < m_prelaunchWrappers.size(); ++i) {
             auto *candidate = m_prelaunchWrappers[i];
             if (candidate->appId() == targetAppId) {
@@ -464,6 +487,7 @@ SurfaceWrapper *ShellHandler::matchOrCreateXwaylandWrapper(WXWaylandSurface *sur
 {
     SurfaceWrapper *wrapper = nullptr;
     if (!targetAppId.isEmpty()) {
+        m_pendingPrelaunchAppIds.remove(targetAppId);
         for (int i = 0; i < m_prelaunchWrappers.size(); ++i) {
             auto *candidate = m_prelaunchWrappers[i];
             if (candidate->appId() == targetAppId) {

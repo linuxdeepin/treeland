@@ -163,7 +163,7 @@ SurfaceWrapper::SurfaceWrapper(QmlEngine *qmlEngine, QQuickItem *parent, const Q
     // Temporary: force dark splash for initial testing
     QColor bgColor("#181818");
     {
-        const QString darkHex = Helper::instance()->config()->isInitializeSucceed()
+        const QString darkHex = Helper::instance()->config()->isInitializeSucceeded()
                                     ? Helper::instance()->config()->splashDarkPalette()
                                     : QStringLiteral("#181818");
         bgColor = QColor(darkHex);
