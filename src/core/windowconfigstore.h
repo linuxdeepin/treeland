@@ -11,12 +11,12 @@
 
 class AppConfig;
 
-// Simple window size persistence backed by dconfig
-class WindowSizeStore : public QObject
+// Window configuration persistence backed by dconfig
+class WindowConfigStore : public QObject
 {
     Q_OBJECT
 public:
-    explicit WindowSizeStore(QObject *parent = nullptr);
+    explicit WindowConfigStore(QObject *parent = nullptr);
 
     QSize lastSizeFor(const QString &appId) const;
     void withLastSizeFor(const QString &appId,
