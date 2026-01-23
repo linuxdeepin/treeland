@@ -5,7 +5,7 @@
 
 #include "common/treelandlogging.h"
 #include "core/qmlengine.h"
-#include "core/windowsizestore.h"
+#include "core/windowconfigstore.h"
 #include "layersurfacecontainer.h"
 #include "modules/app-id-resolver/appidresolver.h"
 #include "modules/dde-shell/ddeshellmanagerinterfacev1.h"
@@ -52,7 +52,7 @@ ShellHandler::ShellHandler(RootSurfaceContainer *rootContainer)
     , m_topContainer(new LayerSurfaceContainer(rootContainer))
     , m_overlayContainer(new LayerSurfaceContainer(rootContainer))
     , m_popupContainer(new SurfaceContainer(rootContainer))
-    , m_windowSizeStore(new WindowSizeStore(this))
+    , m_windowConfigStore(new WindowConfigStore(this))
 {
     m_backgroundContainer->setZ(RootSurfaceContainer::BackgroundZOrder);
     m_bottomContainer->setZ(RootSurfaceContainer::BottomZOrder);
@@ -166,8 +166,8 @@ void ShellHandler::handlePrelaunchSplashRequested(const QString &appId,
         }
     };
 
-    if (m_windowSizeStore) {
-        m_windowSizeStore->withLastSizeFor(appId, this, createSplash);
+    if (m_windowConfigStore) {
+        m_windowConfigStore->withLastSizeFor(appId, this, createSplash);
     } else {
         createSplash({});
     }
@@ -357,14 +357,14 @@ void ShellHandler::onXdgToplevelSurfaceRemoved(WXdgToplevelSurface *surface)
         delete interface;
     }
     // Persist the last size of a normal window (prefer normalGeometry) when an appId is present
-    if (m_windowSizeStore && !wrapper->appId().isEmpty()) {
+    if (m_windowConfigStore && !wrapper->appId().isEmpty()) {
         QSizeF sz = wrapper->normalGeometry().size();
         if (!sz.isValid() || sz.isEmpty()) {
             sz = wrapper->geometry().size();
         }
         const QSize s = sz.toSize();
         if (s.isValid() && s.width() > 0 && s.height() > 0) {
-            m_windowSizeStore->saveSize(wrapper->appId(), s);
+            m_windowConfigStore->saveSize(wrapper->appId(), s);
         }
     }
     Q_EMIT surfaceWrapperAboutToRemove(wrapper);
@@ -467,14 +467,14 @@ void ShellHandler::onXWaylandSurfaceAdded(WXWaylandSurface *surface)
             return; // never created
         }
         // Persist XWayland window size
-        if (m_windowSizeStore && !wrapper->appId().isEmpty()) {
+        if (m_windowConfigStore && !wrapper->appId().isEmpty()) {
             QSizeF sz = wrapper->normalGeometry().size();
             if (!sz.isValid() || sz.isEmpty()) {
                 sz = wrapper->geometry().size();
             }
             const QSize s = sz.toSize();
             if (s.isValid() && s.width() > 0 && s.height() > 0) {
-                m_windowSizeStore->saveSize(wrapper->appId(), s);
+                m_windowConfigStore->saveSize(wrapper->appId(), s);
             }
         }
         Q_EMIT surfaceWrapperAboutToRemove(wrapper);

@@ -52,7 +52,7 @@ class QQuickWindow;
 QT_END_NAMESPACE
 
 class AppIdResolverManager; // forward declare new protocol manager
-class WindowSizeStore; // forward declare size store
+class WindowConfigStore; // forward declare config store
 
 class ShellHandler : public QObject
 {
@@ -143,6 +143,6 @@ private:
     QList<WAYLIB_SERVER_NAMESPACE::WToplevelSurface *> m_pendingAppIdResolveToplevels;
     // New protocol based app id resolver (optional, may be null if module not loaded)
     AppIdResolverManager *m_appIdResolverManager = nullptr;
-    WindowSizeStore *m_windowSizeStore = nullptr;
+    WindowConfigStore *m_windowConfigStore = nullptr;
 };
 
