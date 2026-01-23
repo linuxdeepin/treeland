@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Yixue Wang <wangyixue@deepin.org>.
+// Copyright (C) 2023-2026 Yixue Wang <wangyixue@deepin.org>.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "winputmethodhelper.h"
@@ -307,7 +307,9 @@ void WInputMethodHelper::resendKeyboardFocus()
         qCDebug(qLcInputMethod()) << "trying to send focus to" << textInput << "from client" << textInput->waylandClient();
         if (focus->waylandClient() == textInput->waylandClient()) {
             qCDebug(qLcInputMethod) << "focus sent to" << textInput;
-            textInput->sendEnter(focus);
+            if (!textInput->seat() || textInput->seat() == d->seat) {
+                textInput->sendEnter(focus);
+            }
         }
     }
 }

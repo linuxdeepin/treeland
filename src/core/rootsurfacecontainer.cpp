@@ -1,10 +1,12 @@
-// Copyright (C) 2024 UnionTech Software Technology Co., Ltd.
+// Copyright (C) 2024-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "rootsurfacecontainer.h"
 
+#include "common/treelandlogging.h"
 #include "output/output.h"
 #include "seat/helper.h"
+#include "seat/seatsmanager.h"
 #include "surface/surfacewrapper.h"
 
 #include <wcursor.h>
@@ -13,6 +15,8 @@
 #include <woutputlayout.h>
 #include <wxdgpopupsurface.h>
 #include <wxdgtoplevelsurface.h>
+#include <wseat.h>
+#include <winputdevice.h>
 
 #include <qwoutputlayout.h>
 
@@ -31,6 +35,13 @@ RootSurfaceContainer::RootSurfaceContainer(QQuickItem *parent)
     , m_cursor(new WCursor(this))
 {
     m_cursor->setEventWindow(window());
+}
+
+RootSurfaceContainer::~RootSurfaceContainer()
+{
+    // Clean up per-seat containers
+    qDeleteAll(m_seatContainers);
+    m_seatContainers.clear();
 }
 
 void RootSurfaceContainer::init(WServer *server)
@@ -74,6 +85,8 @@ void RootSurfaceContainer::init(WServer *server)
     m_cursor->safeConnect(&WCursor::requestedDragSurfaceChanged, this, [this] {
         m_dragSurfaceItem->setSurface(m_cursor->requestedDragSurface());
     });
+
+    setupSeatManagement();
 }
 
 SurfaceWrapper *RootSurfaceContainer::getSurface(WSurface *surface) const
@@ -98,8 +111,15 @@ SurfaceWrapper *RootSurfaceContainer::getSurface(WToplevelSurface *surface) cons
 
 void RootSurfaceContainer::destroyForSurface(SurfaceWrapper *wrapper)
 {
-    if (wrapper == moveResizeState.surface)
-        endMoveResize();
+    // Clean up per-seat state for this surface
+    for (auto *container : std::as_const(m_seatContainers)) {
+        container->surfaceDestroyed(wrapper);
+    }
+
+    auto *helper = Helper::instance();
+    if (helper && helper->activatedSurface() == wrapper) {
+        helper->setActivatedSurface(nullptr);
+    }
 
     wrapper->markWrapperToRemoved();
 }
@@ -121,8 +141,11 @@ void RootSurfaceContainer::removeOutput(Output *output)
     m_outputModel->removeObject(output);
     SurfaceContainer::removeOutput(output);
 
-    if (moveResizeState.surface && moveResizeState.surface->ownsOutput() == output) {
-        endMoveResize();
+    for (auto *container : std::as_const(m_seatContainers)) {
+        if (container->moveResizeSurface() &&
+            container->moveResizeSurface()->ownsOutput() == output) {
+            container->endMoveResize();
+        }
     }
 
     m_outputLayout->remove(output->output());
@@ -149,99 +172,48 @@ void RootSurfaceContainer::removeOutput(Output *output)
 
 void RootSurfaceContainer::beginMoveResize(SurfaceWrapper *surface, Qt::Edges edges)
 {
-    if (surface->surfaceState() != SurfaceWrapper::State::Normal || surface->isAnimationRunning())
-        return;
-
-    Q_ASSERT(!moveResizeState.surface);
-    moveResizeState.surface = surface;
-    moveResizeState.startGeometry = surface->geometry();
-    moveResizeState.resizeEdges = edges;
-    surface->setXwaylandPositionFromSurface(false);
-    surface->setPositionAutomatic(false);
+    // Delegate to default seat (seats.first())
+    beginMoveResizeForSeat(nullptr, surface, edges);
 }
 
 void RootSurfaceContainer::doMoveResize(const QPointF &incrementPos)
 {
-    Q_ASSERT(moveResizeState.surface);
-
-    if (moveResizeState.resizeEdges) {
-        QRectF geo = moveResizeState.startGeometry;
-
-        if (moveResizeState.resizeEdges & Qt::LeftEdge)
-            geo.setLeft(geo.left() + incrementPos.x());
-        if (moveResizeState.resizeEdges & Qt::TopEdge)
-            geo.setTop(geo.top() + incrementPos.y());
-
-        if (moveResizeState.resizeEdges & Qt::RightEdge)
-            geo.setRight(geo.right() + incrementPos.x());
-        if (moveResizeState.resizeEdges & Qt::BottomEdge)
-            geo.setBottom(geo.bottom() + incrementPos.y());
-
-        QRectF alignedGeometry = moveResizeState.surface->alignGeometryToPixelGrid(geo);
-        moveResizeState.surface->resize(alignedGeometry.size());
-
-        // TODO: Pixel alignment for window position and size during move/resize operations
-        // Current approach: Align position and size in the manager layer
-        // Better approach:
-        //   1. Keep logical geometry (position + size) intact at manager layer (no alignment)
-        //   2. Only apply pixel alignment at render time in the renderer
-    } else {
-        auto new_pos = moveResizeState.startGeometry.topLeft() + incrementPos;
-        QPointF alignedPos = moveResizeState.surface->alignToPixelGrid(new_pos);
-        moveResizeState.surface->setPosition(alignedPos);
-    }
+    // Delegate to default seat (seats.first())
+    doMoveResizeForSeat(nullptr, incrementPos);
 }
 
 void RootSurfaceContainer::cancelMoveResize(SurfaceWrapper *surface)
 {
-    if (moveResizeState.surface != surface)
-        return;
-    endMoveResize();
+    // Check all seat containers
+    for (auto *container : std::as_const(m_seatContainers)) {
+        if (container->moveResizeSurface() == surface) {
+            container->endMoveResize();
+            return;
+        }
+    }
 }
 
 void RootSurfaceContainer::endMoveResize()
 {
-    if (!moveResizeState.surface)
-        return;
-
-    if (moveResizeState.surface->shellSurface()->isInitialized()) {
-        auto o = moveResizeState.surface->ownsOutput();
-        moveResizeState.surface->shellSurface()->setResizeing(false);
-
-        if (!o || !moveResizeState.surface->outputs().contains(o->output())) {
-            o = cursorOutput();
-            Q_ASSERT(o);
-            moveResizeState.surface->setOwnsOutput(o);
-        }
-
-        ensureSurfaceNormalPositionValid(moveResizeState.surface);
-
-        moveResizeState.surface->setXwaylandPositionFromSurface(true);
-    }
-
-    moveResizeState.surface = nullptr;
-    Q_EMIT moveResizeFinised();
+    endMoveResizeForSeat(nullptr);
 }
 
 SurfaceWrapper *RootSurfaceContainer::moveResizeSurface() const
 {
-    return moveResizeState.surface;
+    return getMoveResizeSurfaceForSeat(nullptr);
 }
 
 void RootSurfaceContainer::startMove(SurfaceWrapper *surface)
 {
-    endMoveResize();
-    beginMoveResize(surface, Qt::Edges{ 0 });
-
+    beginMoveResizeForSeat(nullptr, surface, Qt::Edges{});
     Helper::instance()->activateSurface(surface);
 }
 
 void RootSurfaceContainer::startResize(SurfaceWrapper *surface, Qt::Edges edges)
 {
-    endMoveResize();
     Q_ASSERT(edges != 0);
+    beginMoveResizeForSeat(nullptr, surface, edges);
 
-    beginMoveResize(surface, edges);
     surface->shellSurface()->setResizeing(true);
     Helper::instance()->activateSurface(surface);
 }
@@ -263,16 +235,8 @@ void RootSurfaceContainer::addBySubContainer(SurfaceContainer *sub, SurfaceWrapp
     if (surface->type() != SurfaceWrapper::Type::Layer) {
         // RootSurfaceContainer does not have control over layer surface's position and ownsOutput
         // All things are done in LayerSurfaceContainer
-        connect(surface, &SurfaceWrapper::requestMove, this, [this] {
-            auto surface = qobject_cast<SurfaceWrapper *>(sender());
-            Q_ASSERT(surface);
-            startMove(surface);
-        });
-        connect(surface, &SurfaceWrapper::requestResize, this, [this](Qt::Edges edges) {
-            auto surface = qobject_cast<SurfaceWrapper *>(sender());
-            Q_ASSERT(surface);
-            startResize(surface, edges);
-        });
+
+        setupSurfaceRequestHandlers(surface);
 
         if (!surface->ownsOutput()) {
             auto parentSurface = surface->parentSurface();
@@ -301,8 +265,12 @@ void RootSurfaceContainer::addBySubContainer(SurfaceContainer *sub, SurfaceWrapp
 
 void RootSurfaceContainer::removeBySubContainer(SurfaceContainer *sub, SurfaceWrapper *surface)
 {
-    if (moveResizeState.surface == surface)
-        endMoveResize();
+    // End move/resize for this surface in all containers
+    for (auto *container : std::as_const(m_seatContainers)) {
+        if (container->moveResizeSurface() == surface) {
+            container->endMoveResize();
+        }
+    }
 
     SurfaceContainer::removeBySubContainer(sub, surface);
 }
@@ -311,30 +279,47 @@ bool RootSurfaceContainer::filterSurfaceGeometryChanged(SurfaceWrapper *surface,
                                                         QRectF &newGeometry,
                                                         const QRectF &oldGeometry)
 {
-    if (surface != moveResizeState.surface)
-        return false;
-    if (moveResizeState.setSurfacePositionForAnchorEdgets) {
-        Q_ASSERT(newGeometry.size() == oldGeometry.size());
-        return true;
-    }
-
-    if (moveResizeState.resizeEdges != 0) {
-        QRectF geometry = newGeometry;
-        if (moveResizeState.resizeEdges & Qt::RightEdge)
+    // Helper function to adjust anchor-based position during resize
+    // When resizing from an edge (e.g., right edge), the opposite position remains fixed
+    auto adjustForResize = [](QRectF &geometry,
+                              const QRectF &oldGeometry,
+                              Qt::Edges edges) {
+        if (edges & Qt::RightEdge)
             geometry.moveLeft(oldGeometry.left());
-        if (moveResizeState.resizeEdges & Qt::BottomEdge)
+        if (edges & Qt::BottomEdge)
             geometry.moveTop(oldGeometry.top());
-        if (moveResizeState.resizeEdges & Qt::LeftEdge)
+        if (edges & Qt::LeftEdge)
             geometry.moveRight(oldGeometry.right());
-        if (moveResizeState.resizeEdges & Qt::TopEdge)
+        if (edges & Qt::TopEdge)
             geometry.moveBottom(oldGeometry.bottom());
+    };
 
-        if (geometry.topLeft() != newGeometry.topLeft()) {
-            newGeometry = geometry;
-            moveResizeState.setSurfacePositionForAnchorEdgets = true;
-            QPointF alignedPos = moveResizeState.surface->alignToPixelGrid(geometry.topLeft());
-            surface->setPosition(alignedPos);
-            moveResizeState.setSurfacePositionForAnchorEdgets = false;
+    // Check all per-seat containers for move/resize state
+    for (auto *container : std::as_const(m_seatContainers)) {
+        auto &mrState = container->moveResizeState();
+        if (mrState.surface == surface) {
+            const auto &edges = mrState.edges;
+            if (edges != 0 && mrState.settingPositionFlag) {
+                // CRITICAL: Return true ONLY during recursive updates to prevent infinite loops
+                Q_ASSERT(newGeometry.size() == oldGeometry.size());
+                return true;
+            }
+
+            if (edges != 0) {
+                // Adjust anchor-based position during resize
+                QRectF adjustedGeo = newGeometry;
+                adjustForResize(adjustedGeo, oldGeometry, edges);
+
+                if (adjustedGeo.topLeft() != newGeometry.topLeft()) {
+                    newGeometry = adjustedGeo;
+                    mrState.settingPositionFlag = true;
+                    QPointF alignedPos = surface->alignToPixelGrid(newGeometry.topLeft());
+                    newGeometry.moveTopLeft(alignedPos);
+                    surface->setPosition(alignedPos);
+                    mrState.settingPositionFlag = false;
+                }
+                return false;
+            }
         }
     }
 
@@ -345,7 +330,14 @@ bool RootSurfaceContainer::filterSurfaceStateChange(SurfaceWrapper *surface,
                                                     [[maybe_unused]] SurfaceWrapper::State newState,
                                                     [[maybe_unused]] SurfaceWrapper::State oldState)
 {
-    return surface == moveResizeState.surface;
+    // Check all per-seat containers for move/resize state
+    for (auto *container : std::as_const(m_seatContainers)) {
+        const auto &mrState = container->moveResizeState();
+        if (mrState.surface == surface && mrState.edges != 0)
+            return true;
+    }
+
+    return false;
 }
 
 WOutputLayout *RootSurfaceContainer::outputLayout() const
@@ -530,4 +522,241 @@ void RootSurfaceContainer::moveSurfacesToOutput(const QList<SurfaceWrapper *> &s
             surface->setPosition(newPos);
         }
     }
+}
+
+void RootSurfaceContainer::setupSeatManagement()
+{
+    auto *helper = Helper::instance();
+    if (!helper || !helper->seatManager()) {
+        qCWarning(treelandCore) << "Helper or seatManager not available for seat management setup";
+        return;
+    }
+
+    auto *seatManager = helper->seatManager();
+    const auto &seats = seatManager->seats();
+
+    if (seats.isEmpty()) {
+        qCWarning(treelandCore) << "No seats available for seat management setup";
+        return;
+    }
+
+    for (auto *seat : std::as_const(seats)) {
+        onSeatAdded(seat);
+    }
+
+    // Connect to seat lifecycle signals
+    connect(seatManager, &SeatsManager::seatAdded, this, &RootSurfaceContainer::onSeatAdded);
+    connect(seatManager, &SeatsManager::seatRemoved, this, &RootSurfaceContainer::onSeatRemoved);
+}
+
+void RootSurfaceContainer::setupSurfaceRequestHandlers(SurfaceWrapper *surface)
+{
+    connect(surface, &SurfaceWrapper::requestMove, this, [this, surface]() {
+        WSeat *requestingSeat = determineSeatForRequest(surface);
+        if (!requestingSeat) {
+            qCWarning(treelandCore) << "No seat available for move request";
+            return;
+        }
+
+        beginMoveResizeForSeat(requestingSeat, surface, Qt::Edges{});
+        auto *helper = Helper::instance();
+        if (helper) {
+            helper->activateSurface(surface);
+        }
+    }, Qt::DirectConnection);
+
+    connect(surface, &SurfaceWrapper::requestResize, this, [this, surface](Qt::Edges edges) {
+        WSeat *requestingSeat = determineSeatForRequest(surface);
+        if (!requestingSeat) {
+            qCWarning(treelandCore) << "No seat available for resize request";
+            return;
+        }
+
+        beginMoveResizeForSeat(requestingSeat, surface, edges);
+        if (auto *sh = surface->shellSurface()) {
+            sh->setResizeing(true);
+        }
+        auto *helper = Helper::instance();
+        if (helper) {
+            helper->activateSurface(surface);
+        }
+    }, Qt::DirectConnection);
+
+    bool isXdgToplevel = surface->type() == SurfaceWrapper::Type::XdgToplevel;
+    bool isXwayland = surface->type() == SurfaceWrapper::Type::XWayland;
+
+    if (isXdgToplevel || isXwayland) {
+        connect(surface, &SurfaceWrapper::requestMinimize, this, [this, surface]() {
+            auto *helper = Helper::instance();
+            if (!helper)
+                return;
+
+            if (helper->blockActivateSurface())
+                return;
+
+            if (helper->currentMode() == Helper::CurrentMode::Normal) {
+                if (surface->surfaceState() == SurfaceWrapper::State::Minimized)
+                    return;
+
+                auto container = surface->container();
+                if (container) {
+                    container->removeSurface(surface);
+                }
+            }
+        });
+    }
+}
+
+WSeat *RootSurfaceContainer::determineSeatForRequest(SurfaceWrapper *surface)
+{
+    auto *helper = Helper::instance();
+    if (!helper || !helper->seatManager()) {
+        return nullptr;
+    }
+
+    if (auto *currentEventSeat = helper->currentEventSeat()) {
+        return currentEventSeat;
+    }
+
+    WSeat *lastInteractingSeat = helper->getLastInteractingSeat(surface);
+    if (lastInteractingSeat) {
+        return lastInteractingSeat;
+    }
+
+    const auto &seats = helper->seatManager()->seats();
+    if (!seats.isEmpty()) {
+        return seats.first();
+    }
+
+    return nullptr;
+}
+
+void RootSurfaceContainer::onSeatAdded(WSeat *seat)
+{
+    if (m_seatContainers.contains(seat))
+        return;
+
+    auto *container = new SeatSurfaceManager(seat, this);
+    m_seatContainers[seat] = container;
+
+    connect(container, &SeatSurfaceManager::moveResizeChanged, this, &RootSurfaceContainer::moveResizeFinised);
+}
+
+void RootSurfaceContainer::onSeatRemoved(WSeat *seat)
+{
+    auto *container = m_seatContainers.take(seat);
+    if (container) {
+        qCDebug(treelandCore) << "Removing SeatContainer for seat:" << seat;
+        container->deleteLater();
+    }
+}
+
+SeatSurfaceManager *RootSurfaceContainer::getSeatContainer(WSeat *seat) const
+{
+    return m_seatContainers.value(seat, nullptr);
+}
+
+WSeat *RootSurfaceContainer::getDefaultSeat() const
+{
+    auto *helper = Helper::instance();
+    if (!helper || !helper->seatManager()) {
+        qCWarning(treelandCore) << "Helper or seatManager not available";
+        return nullptr;
+    }
+
+    auto *seatManager = helper->seatManager();
+
+    // Prefer the explicitly designated fallback/primary seat
+    if (WSeat *fallback = seatManager->fallbackSeat()) {
+        return fallback;
+    }
+
+    // Fallback: use first from list (QMap order, not predictable — warn)
+    const auto &seats = seatManager->seats();
+    if (seats.isEmpty()) {
+        qCCritical(treelandCore) << "No seats available - this should not happen in Wayland!";
+        return nullptr;
+    }
+    qCWarning(treelandCore) << "fallbackSeat() is null, using first seat from seats() as default";
+    return seats.first();
+}
+
+SeatSurfaceManager *RootSurfaceContainer::getSeatContainerOrDefault(WSeat *seat) const
+{
+    if (!seat) {
+        seat = getDefaultSeat();
+        if (!seat) {
+            qCCritical(treelandCore) << "Cannot get default seat";
+            return nullptr;
+        }
+    }
+
+    auto *container = m_seatContainers.value(seat, nullptr);
+    if (!container) {
+        qCWarning(treelandCore) << "No container for seat:" << seat;
+    }
+
+    return container;
+}
+
+void RootSurfaceContainer::beginMoveResizeForSeat(WSeat *seat, SurfaceWrapper *surface, Qt::Edges edges)
+{
+    if (!surface)
+        return;
+
+    auto *container = getSeatContainerOrDefault(seat);
+    if (!container)
+        return;
+
+    if (container->moveResizeState().surface &&
+        container->moveResizeState().surface != surface) {
+        container->endMoveResize();
+    }
+
+    container->beginMoveResize(surface, edges);
+
+    WSeat *actualSeat = seat ? seat : getDefaultSeat();
+    if (actualSeat && actualSeat->cursor()) {
+        container->moveResizeState().initialPosition = actualSeat->cursor()->position();
+    }
+}
+
+void RootSurfaceContainer::doMoveResizeForSeat(WSeat *seat, const QPointF &delta)
+{
+    auto *container = getSeatContainerOrDefault(seat);
+    if (container) {
+        container->doMoveResize(delta);
+    }
+}
+
+void RootSurfaceContainer::endMoveResizeForSeat(WSeat *seat)
+{
+    auto *container = getSeatContainerOrDefault(seat);
+    if (container) {
+        container->endMoveResize();
+    }
+}
+
+SurfaceWrapper *RootSurfaceContainer::getMoveResizeSurfaceForSeat(WSeat *seat) const
+{
+    auto *container = getSeatContainerOrDefault(seat);
+    return container ? container->moveResizeSurface() : nullptr;
+}
+
+void RootSurfaceContainer::setActivatedSurfaceForSeat(WSeat *seat, SurfaceWrapper *surface,
+                                                      Qt::FocusReason reason)
+{
+    auto *container = getSeatContainer(seat);
+    if (container) {
+        container->setActivatedSurface(surface, reason);
+    }
+}
+
+SurfaceWrapper *RootSurfaceContainer::getActivatedSurfaceForSeat(WSeat *seat) const
+{
+    auto *container = getSeatContainer(seat);
+    if (container) {
+        return container->activatedSurface();
+    }
+    return nullptr;
 }

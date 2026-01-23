@@ -1,4 +1,4 @@
-// Copyright (C) 2025 UnionTech Software Technology Co., Ltd.
+// Copyright (C) 2025-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "common/treelandlogging.h"
@@ -15,6 +15,9 @@ Q_LOGGING_CATEGORY(treelandShell, "treeland.shell")
 // Input modules
 Q_LOGGING_CATEGORY(treelandInput, "treeland.input")
 Q_LOGGING_CATEGORY(treelandGestures, "treeland.gestures")
+
+// Seat management
+Q_LOGGING_CATEGORY(treelandSeat, "treeland.seat")
 
 // Output module
 Q_LOGGING_CATEGORY(treelandOutput, "treeland.output")
