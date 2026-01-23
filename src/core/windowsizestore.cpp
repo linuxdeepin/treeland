@@ -3,8 +3,10 @@
 
 #include "core/windowsizestore.h"
 
-#include "common/treelandlogging.h"
 #include "appconfig.hpp"
+#include "common/treelandlogging.h"
+
+#include <qdebug.h>
 
 WindowSizeStore::WindowSizeStore(QObject *parent)
     : QObject(parent)
@@ -21,12 +23,21 @@ AppConfig *WindowSizeStore::configForApp(const QString &appId) const
         return config;
     }
 
-    auto *config = AppConfig::create(QStringLiteral("org.deepin.dde.treeland"), appId, const_cast<WindowSizeStore *>(this));
+    auto *config = AppConfig::create(QStringLiteral("org.deepin.dde.treeland"),
+                                     "/" + appId,
+                                     const_cast<WindowSizeStore *>(this));
     m_appConfigs.insert(appId, config);
 
-    connect(config, &AppConfig::configInitializeFailed, this, [appId](DTK_CORE_NAMESPACE::DConfig *backend) {
-        qCWarning(treelandCore) << "WindowSizeStore: dconfig init failed for app" << appId << backend;
+    connect(config, &AppConfig::configInitializeFailed, this, [appId]() {
+        qCWarning(treelandCore) << "WindowSizeStore: dconfig init failed for app" << appId;
     });
+    connect(config,
+            &AppConfig::valueChanged,
+            this,
+            [appId](const QString &key, const QVariant &value) {
+                qCInfo(treelandCore) << "WindowSizeStore: valueChanged app" << appId << "key" << key
+                                     << "value" << value;
+            });
 
     return config;
 }
@@ -47,6 +58,61 @@ QSize WindowSizeStore::lastSizeFor(const QString &appId) const
 
     qCDebug(treelandCore) << "WindowSizeStore: last size for" << appId << "is" << size;
     return size;
+}
+
+void WindowSizeStore::withLastSizeFor(const QString &appId,
+                                      QObject *context,
+                                      std::function<void(const QSize &size)> callback) const
+{
+    if (!callback) {
+        return;
+    }
+
+    if (appId.isEmpty()) {
+        callback({});
+        return;
+    }
+
+    auto *config = configForApp(appId);
+    if (!config) {
+        callback({});
+        return;
+    }
+
+    if (config->isInitializeSucceeded()) {
+        qInfo() << "WindowSizeStore: configInitializeSucceeded for" << appId
+                << config->lastWindowWidth() << config->lastWindowHeight();
+        callback(lastSizeFor(appId));
+        return;
+    }
+
+    if (config->isInitializeFailed()) {
+        qInfo() << "WindowSizeStore: configInitializeFailed for" << appId;
+        callback({});
+        return;
+    }
+
+    auto *ctx = context ? context : const_cast<WindowSizeStore *>(this);
+    connect(
+        config,
+        &AppConfig::configInitializeSucceed,
+        ctx,
+        [this, appId, callback, config](DTK_CORE_NAMESPACE::DConfig *) {
+            qInfo() << "WindowSizeStore: configInitializeSucceed for" << appId
+                    << config->lastWindowWidth() << config->lastWindowHeight();
+
+            callback(lastSizeFor(appId));
+        },
+        Qt::SingleShotConnection);
+    connect(
+        config,
+        &AppConfig::configInitializeFailed,
+        ctx,
+        [callback]() {
+            qInfo() << "WindowSizeStore: configInitializeFailed callback";
+            callback({});
+        },
+        Qt::SingleShotConnection);
 }
 
 void WindowSizeStore::saveSize(const QString &appId, const QSize &size)
