@@ -1694,4 +1694,10 @@ bool WSeatEventFilter::unacceptedEvent(WSeat *, QWindow *, QInputEvent *)
     return false;
 }
 
+QList<WInputDevice*> WSeat::deviceList() const
+{
+    W_DC(WSeat);
+    return d->deviceList;
+}
+
 WAYLIB_SERVER_END_NAMESPACE
