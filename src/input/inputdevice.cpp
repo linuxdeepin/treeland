@@ -1,4 +1,4 @@
-// Copyright (C) 2024-2025 UnionTech Software Technology Co., Ltd.
+// Copyright (C) 2024-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "inputdevice.h"
@@ -353,6 +353,16 @@ InputDevice *InputDevice::instance()
 
 bool InputDevice::initTouchPad(WInputDevice *device)
 {
+    if (!device) {
+        qCCritical(treelandInput) << "Cannot initialize touchpad for null device";
+        return false;
+    }
+
+    if (!device->qtDevice()) {
+        qCCritical(treelandInput) << "Cannot initialize touchpad: device has no qtDevice";
+        return false;
+    }
+
     if (device->handle()->is_libinput()
         && device->qtDevice()->type() == QInputDevice::DeviceType::TouchPad) {
         configTapEnabled(libinput_device_handle(device->handle()), LIBINPUT_CONFIG_TAP_ENABLED);
