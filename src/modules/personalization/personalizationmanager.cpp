@@ -73,7 +73,6 @@ QString PersonalizationV1::readWallpaperSettings(const QString &group,
 
 PersonalizationV1::PersonalizationV1(QObject *parent)
     : QObject(parent)
-    , m_dconfig(DConfig::create("org.deepin.treeland", "org.deepin.treeland", QString()))
 {
     if (PERSONALIZATION_MANAGER) {
         qFatal("There are multiple instances of QuickPersonalizationManager");
@@ -420,12 +419,12 @@ void PersonalizationV1::setCursorSize(const QSize &size)
 
 int32_t PersonalizationV1::windowRadius() const
 {
-    return m_dconfig->value("windowRadius", 18).toInt();
+    return Helper::instance()->config()->windowRadius();
 }
 
 QString PersonalizationV1::iconTheme() const
 {
-    return m_dconfig->value("iconThemeName", 18).toString();
+    return Helper::instance()->config()->iconThemeName();
 }
 
 QString PersonalizationV1::background(const QString &output, int workspaceId)
