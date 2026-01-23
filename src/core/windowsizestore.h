@@ -2,20 +2,26 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 #pragma once
 
+#include <QHash>
 #include <QObject>
 #include <QSize>
-#include <QHash>
 #include <QString>
+
+#include <functional>
 
 class AppConfig;
 
 // Simple window size persistence backed by dconfig
-class WindowSizeStore : public QObject {
+class WindowSizeStore : public QObject
+{
     Q_OBJECT
 public:
     explicit WindowSizeStore(QObject *parent = nullptr);
 
     QSize lastSizeFor(const QString &appId) const;
+    void withLastSizeFor(const QString &appId,
+                         QObject *context,
+                         std::function<void(const QSize &size)> callback) const;
     void saveSize(const QString &appId, const QSize &size);
 
     // Per-app theme preference: 0 follow system, 1 dark, 2 light
