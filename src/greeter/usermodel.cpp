@@ -21,7 +21,7 @@
 
 #include "common/treelandlogging.h"
 
-#include <Configuration.h>
+#include <Config.h>
 
 #include <DDBusInterface>
 
@@ -109,7 +109,7 @@ UserModel::UserModel(QObject *parent)
     });
 
     // find out index of the last user
-    auto lastUserName = stateConfig.Last.User.get();
+    auto lastUserName = lastUser();
 
     for (const auto &user : d->users) {
         if (user->userName() == lastUserName) {
@@ -153,7 +153,7 @@ int UserModel::lastIndex() const
 
 QString UserModel::lastUser()
 {
-    return stateConfig.Last.User.get();
+    return stateConfig.get<QString>("Last", "User");
 }
 
 int UserModel::rowCount(const QModelIndex &parent) const
