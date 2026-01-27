@@ -458,7 +458,9 @@ void Helper::onOutputAdded(WOutput *output)
         newState.set_adaptive_sync_enabled(settings.value("adaptiveSyncEnabled").toBool());
         newState.set_transform(static_cast<wl_output_transform>(settings.value("transform").toInt()));
         newState.set_scale(settings.value("scale").toFloat());
-        output->handle()->commit_state(newState);
+        if (!output->handle()->commit_state(newState)) {
+            qCCritical(treelandCore) << "commit failed on output" << output->name();
+        }
     }
     settings.endGroup();
 }
@@ -555,6 +557,7 @@ void Helper::setGamma(struct wlr_gamma_control_manager_v1_set_gamma_event *event
     qw_output_state newState;
     newState.set_gamma_lut(ramp_size, r, g, b);
     if (!qwOutput->commit_state(newState)) {
+        qCCritical(treelandCore, "commit failed on output  %s", qwOutput->handle()->name);
         qCWarning(treelandCore) << "Failed to set gamma lut!";
         // TODO: use software impl it.
         qw_gamma_control_v1::from(gamma_control)->send_failed_and_destroy();
@@ -866,14 +869,18 @@ void Helper::onSetOutputPowerMode(wlr_output_power_v1_set_mode_event *event)
             return;
         }
         newState.set_enabled(false);
-        output->commit_state(newState);
+        if (!output->commit_state(newState)) {
+            qCCritical(treelandCore, "commit failed on output %s", output->handle()->name);
+        }
         break;
     case ZWLR_OUTPUT_POWER_V1_MODE_ON:
         if (output->handle()->enabled) {
             return;
         }
         newState.set_enabled(true);
-        output->commit_state(newState);
+        if (!output->commit_state(newState)) {
+            qCCritical(treelandCore, "commit failed on output %s", output->handle()->name);
+        }
         break;
     }
 }
@@ -2070,8 +2077,10 @@ void Helper::allowNonDrmOutputAutoChangeMode(WOutput *output)
                         [this](wlr_output_event_request_state *newState) {
                             if (newState->state->committed & WLR_OUTPUT_STATE_MODE) {
                                 auto output = qobject_cast<qw_output *>(sender());
-
-                                output->commit_state(newState->state);
+                                if (!output->commit_state(newState->state)) {
+                                    qCCritical(treelandCore, "commit failed on output %s",
+                                               output->handle()->name);
+                                }
                             }
                         });
 }

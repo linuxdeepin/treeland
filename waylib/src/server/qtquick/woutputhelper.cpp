@@ -240,6 +240,9 @@ bool WOutputHelper::commit()
     }
 
     bool ok = d->qwoutput()->commit_state(&state);
+    if (!ok) {
+        qCritical("commit failed on output %s", d->qwoutput()->handle()->name);
+    }
     wlr_output_state_finish(&state);
     ExtraState committedExtraState = d->extraState;
 
