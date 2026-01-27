@@ -171,8 +171,9 @@ void Helper::initProtocols(QQmlEngine *qmlEngine)
                         newState.set_mode(mode);
                 }
                 newState.set_enabled(true);
-                bool ok = qwoutput->commit_state(newState);
-                Q_ASSERT(ok);
+                if (!qwoutput->commit_state(newState)) {
+                    qCritical("commit failed on output %s", qwoutput->handle()->name);
+                }
             }
         }
     });
