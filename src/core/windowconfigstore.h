@@ -21,7 +21,7 @@ public:
     QSize lastSizeFor(const QString &appId) const;
     void withLastSizeFor(const QString &appId,
                          QObject *context,
-                         std::function<void(const QSize &size)> callback) const;
+                         std::function<void(const QSize &size, qlonglong themeType)> callback) const;
     void saveSize(const QString &appId, const QSize &size);
 
     // Per-app theme preference: 0 follow system, 1 dark, 2 light
