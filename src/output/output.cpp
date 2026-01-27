@@ -380,8 +380,9 @@ void Output::enable()
             newState.set_scale(preferredScaleFactor(output()->size()));
         }
         newState.set_enabled(true);
-        bool ok = qwoutput->commit_state(newState);
-        Q_ASSERT(ok);
+        if (!qwoutput->commit_state(newState)) {
+            qCCritical(treelandCore, "commit failed on output %s", qwoutput->handle()->name);
+        }
     }
 }
 
