@@ -13,6 +13,7 @@
 #include "seat/helper.h"
 #include "surface/surfacewrapper.h"
 #include "treelandconfig.hpp"
+#include "treelanduserconfig.hpp"
 #include "workspace/workspace.h"
 
 #include <xcb/xcb.h>
@@ -34,6 +35,7 @@
 #include <qwxwaylandsurface.h>
 
 #include <QPointer>
+#include <QColor>
 #include <QTimer>
 
 #include <optional>
@@ -115,7 +117,25 @@ void ShellHandler::handlePrelaunchSplashRequested(const QString &appId,
         return;
     m_pendingPrelaunchAppIds.insert(appId);
 
-    auto createSplash = [this, appId, iconBuffer](const QSize &last) {
+    auto resolveSplashColor = [](qlonglong themeType) {
+        auto *userConfig = Helper::instance()->config();
+        const QColor darkPalette(userConfig->splashDarkPalette());
+        const QColor lightPalette(userConfig->splashLightPalette());
+
+        qlonglong effectiveType = themeType;
+        if (effectiveType == 0) {
+            effectiveType = userConfig->windowThemeType();
+        }
+
+        if (effectiveType == 2) {
+            return lightPalette.isValid() ? lightPalette : QColor("#f5f5f5");
+        }
+
+        return darkPalette.isValid() ? darkPalette : QColor("#181818");
+    };
+
+    auto createSplash = [this, appId, iconBuffer, resolveSplashColor](const QSize &last,
+                                                                     qlonglong themeType) {
         if (!m_pendingPrelaunchAppIds.contains(appId))
             return; // app window already created while waiting for dconfig
         m_pendingPrelaunchAppIds.remove(appId);
@@ -131,11 +151,14 @@ void ShellHandler::handlePrelaunchSplashRequested(const QString &appId,
             initialSize = last;
         }
 
+        const QColor splashColor = resolveSplashColor(themeType);
+
         auto *wrapper = new SurfaceWrapper(Helper::instance()->qmlEngine(),
-                                           nullptr,
-                                           initialSize,
-                                           appId,
-                                           iconBuffer);
+                           nullptr,
+                           initialSize,
+                           appId,
+                           iconBuffer,
+                           splashColor);
         m_workspace->addSurface(wrapper);
         m_prelaunchWrappers.append(wrapper);
 
@@ -169,7 +192,7 @@ void ShellHandler::handlePrelaunchSplashRequested(const QString &appId,
     if (m_windowConfigStore) {
         m_windowConfigStore->withLastSizeFor(appId, this, createSplash);
     } else {
-        createSplash({});
+        createSplash({}, 0);
     }
 }
 

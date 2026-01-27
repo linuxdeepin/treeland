@@ -13,6 +13,7 @@
 #include "seat/helper.h"
 
 #include <QVariant>
+#include <QColor>
 #include <QTimer>
 
 #include <winputpopupsurfaceitem.h>
@@ -105,9 +106,14 @@ SurfaceWrapper::SurfaceWrapper(SurfaceWrapper *original,
         auto iconVar = original->prelaunchSplash()
                            ? original->prelaunchSplash()->property("iconBuffer")
                            : QVariant();
+        QColor bgColor = original->prelaunchSplash()
+            ? original->prelaunchSplash()->property("backgroundColor").value<QColor>()
+            : QColor("#ffffff");
+
         m_prelaunchSplash = m_engine->createPrelaunchSplash(this,
              original->radius(),
-             iconVar.value<QW_NAMESPACE::qw_buffer *>());
+             iconVar.value<QW_NAMESPACE::qw_buffer *>(),
+             bgColor);
         setNoDecoration(false);
 
         connect(original,
@@ -126,7 +132,12 @@ SurfaceWrapper::SurfaceWrapper(SurfaceWrapper *original,
 }
 
 // Constructor used for the prelaunch splash
-SurfaceWrapper::SurfaceWrapper(QmlEngine *qmlEngine, QQuickItem *parent, const QSize &initialSize, const QString &appId, QW_NAMESPACE::qw_buffer *iconBuffer)
+SurfaceWrapper::SurfaceWrapper(QmlEngine *qmlEngine,
+                               QQuickItem *parent,
+                               const QSize &initialSize,
+                               const QString &appId,
+                               QW_NAMESPACE::qw_buffer *iconBuffer,
+                               const QColor &backgroundColor)
     : QQuickItem(parent)
     , m_engine(qmlEngine)
     , m_shellSurface(nullptr)
@@ -160,15 +171,7 @@ SurfaceWrapper::SurfaceWrapper(QmlEngine *qmlEngine, QQuickItem *parent, const Q
     } else {
         setImplicitSize(800, 600);
     }
-    // Temporary: force dark splash for initial testing
-    QColor bgColor("#181818");
-    {
-        const QString darkHex = Helper::instance()->config()->isInitializeSucceeded()
-                                    ? Helper::instance()->config()->splashDarkPalette()
-                                    : QStringLiteral("#181818");
-        bgColor = QColor(darkHex);
-    }
-    m_prelaunchSplash = m_engine->createPrelaunchSplash(this, radius(), iconBuffer, bgColor);
+    m_prelaunchSplash = m_engine->createPrelaunchSplash(this, radius(), iconBuffer, backgroundColor);
     // Connect to QML signal so C++ can destroy the QML item when requested
     connect(m_prelaunchSplash,
             SIGNAL(destroyRequested()),
