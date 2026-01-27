@@ -2,6 +2,17 @@
     "magic": "dsg.config.meta",
     "version": "1.0",
     "contents": {
+        "enablePrelaunchSplash": {
+            "value": true,
+            "serial": 0,
+            "flags": ["global"],
+            "name": "Enable Prelaunch Splash",
+            "name[zh_CN]": "启用预启动闪屏",
+            "description": "Whether to show prelaunch splash for this app",
+            "description[zh_CN]": "是否为此应用显示预启动闪屏",
+            "permissions": "readwrite",
+            "visibility": "public"
+        },
         "lastWindowWidth": {
             "value": 800,
             "serial": 0,

@@ -72,8 +72,8 @@ public:
     QQuickItem *createFpsDisplay(QQuickItem *parent);
     QQuickItem *createPrelaunchSplash(QQuickItem *parent,
                                       qreal initialRadius,
-                                      QW_NAMESPACE::qw_buffer *iconBuffer = nullptr,
-                                      const QColor &backgroundColor = QColor("#ffffff"));
+                                      QW_NAMESPACE::qw_buffer *iconBuffer,
+                                      const QColor &backgroundColor);
 
     QQmlComponent *surfaceContentComponent()
     {
