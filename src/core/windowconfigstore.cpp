@@ -62,34 +62,34 @@ QSize WindowConfigStore::lastSizeFor(const QString &appId) const
 
 void WindowConfigStore::withLastSizeFor(const QString &appId,
                                         QObject *context,
-                                        std::function<void(const QSize &size)> callback) const
+                                        std::function<void(const QSize &size, qlonglong themeType)> callback) const
 {
     if (!callback) {
         return;
     }
 
     if (appId.isEmpty()) {
-        callback({});
+        callback({}, 0);
         return;
     }
     qInfo() << "WindowConfigStore: withLastSizeFor requested for" << appId;
 
     auto *config = configForApp(appId);
     if (!config) {
-        callback({});
+        callback({}, 0);
         return;
     }
 
     if (config->isInitializeSucceeded()) {
         qInfo() << "WindowConfigStore: configInitializeSucceeded for" << appId
                 << config->lastWindowWidth() << config->lastWindowHeight();
-        callback(lastSizeFor(appId));
+        callback(lastSizeFor(appId), themeTypeFor(appId));
         return;
     }
 
     if (config->isInitializeFailed()) {
         qInfo() << "WindowConfigStore: configInitializeFailed for" << appId;
-        callback({});
+        callback({}, 0);
         return;
     }
 
@@ -101,7 +101,7 @@ void WindowConfigStore::withLastSizeFor(const QString &appId,
                 qInfo() << "WindowConfigStore: configInitializeSucceed for" << appId
                         << config->lastWindowWidth() << config->lastWindowHeight();
 
-                callback(lastSizeFor(appId));
+                callback(lastSizeFor(appId), themeTypeFor(appId));
             },
             Qt::SingleShotConnection);
     connect(config,
@@ -109,7 +109,7 @@ void WindowConfigStore::withLastSizeFor(const QString &appId,
             ctx,
             [callback]() {
                 qInfo() << "WindowConfigStore: configInitializeFailed callback";
-                callback({});
+                callback({}, 0);
             },
             Qt::SingleShotConnection);
 }
