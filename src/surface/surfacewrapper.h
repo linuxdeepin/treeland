@@ -10,6 +10,7 @@
 #include <QPointer>
 #include <QQuickItem>
 #include <QString>
+#include <QColor>
 
 Q_MOC_INCLUDE(<woutput.h>)
 Q_MOC_INCLUDE(<output / output.h>)
@@ -136,7 +137,8 @@ public:
                             QQuickItem *parent,
                             const QSize &initialSize,
                             const QString &appId,
-                            QW_NAMESPACE::qw_buffer *iconBuffer = nullptr);
+                            QW_NAMESPACE::qw_buffer *iconBuffer = nullptr,
+                            const QColor &backgroundColor = QColor("#ffffff"));
 
     void setFocus(bool focus, Qt::FocusReason reason);
 
