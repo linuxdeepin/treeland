@@ -1,4 +1,4 @@
-// Copyright (C) 2025 UnionTech Software Technology Co., Ltd.
+// Copyright (C) 2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 #pragma once
 
@@ -21,12 +21,15 @@ public:
     QSize lastSizeFor(const QString &appId) const;
     void withLastSizeFor(const QString &appId,
                          QObject *context,
-                         std::function<void(const QSize &size, qlonglong themeType)> callback) const;
+                         std::function<void(const QSize &size,
+                                            qlonglong themeType,
+                                            bool prelaunchSplashEnabled)> callback) const;
     void saveSize(const QString &appId, const QSize &size);
 
     // Per-app theme preference: 0 follow system, 1 dark, 2 light
     qlonglong themeTypeFor(const QString &appId) const;
     void setThemeType(const QString &appId, qlonglong themeType);
+    bool prelaunchSplashEnabledFor(const QString &appId) const;
 
 private:
     AppConfig *configForApp(const QString &appId) const;

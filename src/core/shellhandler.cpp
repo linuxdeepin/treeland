@@ -135,10 +135,16 @@ void ShellHandler::handlePrelaunchSplashRequested(const QString &appId,
     };
 
     auto createSplash = [this, appId, iconBuffer, resolveSplashColor](const QSize &last,
-                                                                     qlonglong themeType) {
+                                                                     qlonglong themeType,
+                                                                     bool prelaunchEnabled) {
         if (!m_pendingPrelaunchAppIds.contains(appId))
             return; // app window already created while waiting for dconfig
         m_pendingPrelaunchAppIds.remove(appId);
+
+        if (!prelaunchEnabled) {
+            qCDebug(treelandShell) << "Prelaunch splash disabled for appId=" << appId;
+            return;
+        }
 
         if (std::any_of(m_prelaunchWrappers.cbegin(),
                         m_prelaunchWrappers.cend(),
@@ -192,7 +198,7 @@ void ShellHandler::handlePrelaunchSplashRequested(const QString &appId,
     if (m_windowConfigStore) {
         m_windowConfigStore->withLastSizeFor(appId, this, createSplash);
     } else {
-        createSplash({}, 0);
+        createSplash({}, 0, false);
     }
 }
 

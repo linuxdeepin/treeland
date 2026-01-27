@@ -1,11 +1,10 @@
-// Copyright (C) 2025 UnionTech Software Technology Co., Ltd.
+// Copyright (C) 2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "core/windowconfigstore.h"
 
 #include "common/treelandlogging.h"
 #include "appconfig.hpp"
-#include <qdebug.h>
 
 WindowConfigStore::WindowConfigStore(QObject *parent)
     : QObject(parent)
@@ -62,34 +61,36 @@ QSize WindowConfigStore::lastSizeFor(const QString &appId) const
 
 void WindowConfigStore::withLastSizeFor(const QString &appId,
                                         QObject *context,
-                                        std::function<void(const QSize &size, qlonglong themeType)> callback) const
+                                        std::function<void(const QSize &size,
+                                                           qlonglong themeType,
+                                                           bool prelaunchSplashEnabled)> callback) const
 {
     if (!callback) {
         return;
     }
 
     if (appId.isEmpty()) {
-        callback({}, 0);
+        callback({}, 0, false);
         return;
     }
-    qInfo() << "WindowConfigStore: withLastSizeFor requested for" << appId;
+    qCDebug(treelandCore) << "WindowConfigStore: withLastSizeFor requested for" << appId;
 
     auto *config = configForApp(appId);
     if (!config) {
-        callback({}, 0);
+        callback({}, 0, false);
         return;
     }
 
     if (config->isInitializeSucceeded()) {
-        qInfo() << "WindowConfigStore: configInitializeSucceeded for" << appId
-                << config->lastWindowWidth() << config->lastWindowHeight();
-        callback(lastSizeFor(appId), themeTypeFor(appId));
+        qCDebug(treelandCore) << "WindowConfigStore: configInitializeSucceeded for" << appId
+                     << config->lastWindowWidth() << config->lastWindowHeight();
+        callback(lastSizeFor(appId), themeTypeFor(appId), prelaunchSplashEnabledFor(appId));
         return;
     }
 
     if (config->isInitializeFailed()) {
-        qInfo() << "WindowConfigStore: configInitializeFailed for" << appId;
-        callback({}, 0);
+        qCWarning(treelandCore) << "WindowConfigStore: configInitializeFailed for" << appId;
+        callback({}, 0, false);
         return;
     }
 
@@ -98,18 +99,20 @@ void WindowConfigStore::withLastSizeFor(const QString &appId,
             &AppConfig::configInitializeSucceed,
             ctx,
             [this, appId, callback, config](DTK_CORE_NAMESPACE::DConfig *) {
-                qInfo() << "WindowConfigStore: configInitializeSucceed for" << appId
-                        << config->lastWindowWidth() << config->lastWindowHeight();
+                qCDebug(treelandCore) << "WindowConfigStore: configInitializeSucceed for" << appId
+                             << config->lastWindowWidth() << config->lastWindowHeight();
 
-                callback(lastSizeFor(appId), themeTypeFor(appId));
+                callback(lastSizeFor(appId),
+                         themeTypeFor(appId),
+                         prelaunchSplashEnabledFor(appId));
             },
             Qt::SingleShotConnection);
     connect(config,
             &AppConfig::configInitializeFailed,
             ctx,
             [callback]() {
-                qInfo() << "WindowConfigStore: configInitializeFailed callback";
-                callback({}, 0);
+                qCWarning(treelandCore) << "WindowConfigStore: configInitializeFailed callback";
+                callback({}, 0, false);
             },
             Qt::SingleShotConnection);
 }
@@ -125,7 +128,7 @@ void WindowConfigStore::saveSize(const QString &appId, const QSize &size)
         return;
     }
 
-    qCInfo(treelandCore) << "WindowConfigStore: save size for" << appId << "as" << size;
+    qCDebug(treelandCore) << "WindowConfigStore: save size for" << appId << "as" << size;
     config->setLastWindowWidth(size.width());
     config->setLastWindowHeight(size.height());
 }
@@ -148,6 +151,15 @@ void WindowConfigStore::setThemeType(const QString &appId, qlonglong themeType)
     if (!config) {
         return;
     }
-    qCInfo(treelandCore) << "WindowConfigStore: set themeType for" << appId << "as" << themeType;
+    qCDebug(treelandCore) << "WindowConfigStore: set themeType for" << appId << "as" << themeType;
     config->setThemeType(themeType);
+}
+
+bool WindowConfigStore::prelaunchSplashEnabledFor(const QString &appId) const
+{
+    auto *config = configForApp(appId);
+    if (!config) {
+        return false;
+    }
+    return config->enablePrelaunchSplash();
 }
