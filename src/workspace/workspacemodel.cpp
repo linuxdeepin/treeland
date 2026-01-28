@@ -128,6 +128,11 @@ void WorkspaceModel::removeActivedSurface(SurfaceWrapper *surface)
     m_activedSurfaceHistory.remove(surface);
 }
 
+void WorkspaceModel::clearActivedSurface()
+{
+    m_activedSurfaceHistory.clear();
+}
+
 int WorkspaceModel::findActivedSurfaceHistoryIndex(SurfaceWrapper *surface) const
 {
     int index = 0;
