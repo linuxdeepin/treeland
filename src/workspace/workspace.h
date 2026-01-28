@@ -80,6 +80,7 @@ public:
 
     void pushActivedSurface(SurfaceWrapper *surface);
     void removeActivedSurface(SurfaceWrapper *surface);
+    void clearActivedSurface();
     void setSwitcherEnabled(bool enabled);
 
     WorkspaceAnimationController *animationController() const;
