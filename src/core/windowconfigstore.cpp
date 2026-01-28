@@ -55,10 +55,12 @@ void WindowConfigStore::withSplashConfigFor(const QString &appId,
                                         QObject *context,
                                         std::function<void(const QSize &size,
                                                            qlonglong splashThemeType)> callback,
-                                        std::function<void()> skipCallback) const
+                                        std::function<void()> skipCallback,
+                                        std::function<void()> waitCallback) const
 {
     Q_ASSERT_X(callback, Q_FUNC_INFO, "callback must be provided");
     Q_ASSERT_X(skipCallback, Q_FUNC_INFO, "skipCallback must be provided");
+    Q_ASSERT_X(waitCallback, Q_FUNC_INFO, "waitCallback must be provided");
     qCDebug(treelandCore) << "WindowConfigStore: withSplashConfigFor requested for" << appId;
     auto *config = configForApp(appId);
     if (!config) {
@@ -86,6 +88,7 @@ void WindowConfigStore::withSplashConfigFor(const QString &appId,
         return;
     }
 
+    waitCallback();
     auto *ctx = context ? context : const_cast<WindowConfigStore *>(this);
     const QPointer<AppConfig> configGuard(config);
     connect(config,

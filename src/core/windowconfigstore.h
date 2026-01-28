@@ -24,7 +24,8 @@ public:
         const QString &appId,
         QObject *context,
         std::function<void(const QSize &size, qlonglong splashThemeType)> callback,
-        std::function<void()> skipCallback) const;
+        std::function<void()> skipCallback,
+        std::function<void()> waitCallback) const;
 
 private:
     AppConfig *configForApp(const QString &appId) const;
