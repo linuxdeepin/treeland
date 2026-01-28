@@ -107,6 +107,10 @@ private:
     // Prelaunch splash related: creates a prelaunch SurfaceWrapper when
     // PrelaunchSplash::splashRequested
     void handlePrelaunchSplashRequested(const QString &appId, QW_NAMESPACE::qw_buffer *iconBuffer);
+    void createPrelaunchSplash(const QString &appId,
+                               QW_NAMESPACE::qw_buffer *iconBuffer,
+                               const QSize &lastSize,
+                               qlonglong splashThemeType);
 
     // --- helpers (internal) ---
     SurfaceWrapper *matchOrCreateXdgWrapper(WAYLIB_SERVER_NAMESPACE::WXdgToplevelSurface *surface,
