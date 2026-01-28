@@ -2266,8 +2266,7 @@ void Helper::removeSession(std::shared_ptr<Session> session)
 
     if (m_activeSession.lock() == session) {
         m_activeSession.reset();
-        m_activatedSurface = nullptr;
-        Q_EMIT activatedSurfaceChanged();
+        setActivatedSurface(nullptr);
     }
 
     for (auto s : std::as_const(m_sessions)) {
@@ -2467,7 +2466,6 @@ void Helper::updateActiveUserSession(const QString &username, int id)
         m_activeSession = session;
         // Clear activated surface
         setActivatedSurface(nullptr);
-        Q_EMIT activatedSurfaceChanged();
         // Emit signal and update socket enabled state
         if (previous && previous->socket)
             previous->socket->setEnabled(false);

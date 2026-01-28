@@ -422,7 +422,7 @@ private:
     QPointer<QQuickItem> m_taskSwitch;
     QList<qw_idle_inhibitor_v1 *> m_idleInhibitors;
 
-    SurfaceWrapper *m_activatedSurface = nullptr;
+    QPointer<SurfaceWrapper> m_activatedSurface = nullptr;
     LockScreen *m_lockScreen = nullptr;
     float m_animationSpeed = 1.0;
     OutputMode m_mode = OutputMode::Extension;
