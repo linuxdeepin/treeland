@@ -40,6 +40,7 @@
 #include <QTimer>
 
 #include <algorithm>
+#include <functional>
 #include <optional>
 
 QW_USE_NAMESPACE
@@ -120,64 +121,6 @@ void ShellHandler::handlePrelaunchSplashRequested(const QString &appId,
         return;
     m_pendingPrelaunchAppIds.insert(appId);
 
-    auto createSplash = [this, appId, iconBuffer](const QSize &lastSize,
-                                                  qlonglong splashThemeType) {
-        if (!m_pendingPrelaunchAppIds.contains(appId)) {
-            if (iconBuffer) {
-                iconBuffer->unlock();
-            }
-            return; // app window already created while waiting for dconfig
-        }
-        m_pendingPrelaunchAppIds.remove(appId);
-
-        auto *userConfig = Helper::instance()->config();
-        const qlonglong effectiveType =
-            splashThemeType == 0 ? userConfig->splashThemeType() : splashThemeType;
-        const QColor splashColor = effectiveType == 2 ? QColor(userConfig->splashLightPalette())
-                                                      : QColor(userConfig->splashDarkPalette());
-
-        auto *wrapper = new SurfaceWrapper(Helper::instance()->qmlEngine(),
-                                           nullptr,
-                                           lastSize,
-                                           appId,
-                                           iconBuffer,
-                                           splashColor);
-        m_prelaunchWrappers.append(wrapper);
-        m_workspace->addSurface(wrapper);
-        if (iconBuffer) {
-            iconBuffer->unlock();
-        }
-
-        // After configurable timeout, if still unmatched (not converted and still in the list),
-        // destroy the splash wrapper
-        qlonglong timeoutMs = Helper::instance()->globalConfig()->prelaunchSplashTimeoutMs();
-        // Bounds: <=0 disables auto-destroy, >60000 clamps to 60000
-        if (timeoutMs > 60000) {
-            qCWarning(treelandShell)
-                << "Prelaunch splash timeout too long, clamping to 60000ms, requested:"
-                << timeoutMs;
-            timeoutMs = 60000;
-        }
-        if (timeoutMs > 0) {
-            QTimer::singleShot(static_cast<int>(timeoutMs),
-                               wrapper,
-                               [this, wrapper = QPointer<SurfaceWrapper>(wrapper)] {
-                                   if (!wrapper) {
-                                       return; // Wrapper already destroyed elsewhere
-                                   }
-                                   int idx = m_prelaunchWrappers.indexOf(wrapper);
-                                   if (idx < 0) {
-                                       return; // Already matched or removed earlier
-                                   }
-                                   qCDebug(treelandShell)
-                                       << "Prelaunch splash timeout, destroy wrapper appId="
-                                       << wrapper->appId();
-                                   m_prelaunchWrappers.removeAt(idx);
-                                   m_rootSurfaceContainer->destroyForSurface(wrapper);
-                               });
-        }
-    };
-
     auto skipSplash = [this, appId, iconBuffer] {
         if (iconBuffer) {
             iconBuffer->unlock();
@@ -191,7 +134,78 @@ void ShellHandler::handlePrelaunchSplashRequested(const QString &appId,
         }
     };
 
-    m_windowConfigStore->withSplashConfigFor(appId, this, createSplash, skipSplash, waitSplash);
+    m_windowConfigStore->withSplashConfigFor(
+        appId,
+        this,
+        std::bind(&ShellHandler::createPrelaunchSplash,
+                  this,
+                  appId,
+                  iconBuffer,
+                  std::placeholders::_1,
+                  std::placeholders::_2),
+        skipSplash,
+        waitSplash);
+}
+
+void ShellHandler::createPrelaunchSplash(const QString &appId,
+                                         QW_NAMESPACE::qw_buffer *iconBuffer,
+                                         const QSize &lastSize,
+                                         qlonglong splashThemeType)
+{
+    if (!m_pendingPrelaunchAppIds.contains(appId)) {
+        if (iconBuffer) {
+            iconBuffer->unlock();
+        }
+        return; // app window already created while waiting for dconfig
+    }
+    m_pendingPrelaunchAppIds.remove(appId);
+
+    auto *userConfig = Helper::instance()->config();
+    const qlonglong effectiveType =
+        splashThemeType == 0 ? userConfig->splashThemeType() : splashThemeType;
+    const QColor splashColor = effectiveType == 2 ? QColor(userConfig->splashLightPalette())
+                                                  : QColor(userConfig->splashDarkPalette());
+
+    auto *wrapper = new SurfaceWrapper(Helper::instance()->qmlEngine(),
+                                       nullptr,
+                                       lastSize,
+                                       appId,
+                                       iconBuffer,
+                                       splashColor);
+    m_prelaunchWrappers.append(wrapper);
+    m_workspace->addSurface(wrapper);
+    if (iconBuffer) {
+        iconBuffer->unlock();
+    }
+
+    // After configurable timeout, if still unmatched (not converted and still in the list),
+    // destroy the splash wrapper
+    qlonglong timeoutMs = Helper::instance()->globalConfig()->prelaunchSplashTimeoutMs();
+    // Bounds: <=0 disables auto-destroy, >60000 clamps to 60000
+    if (timeoutMs > 60000) {
+        qCWarning(treelandShell)
+            << "Prelaunch splash timeout too long, clamping to 60000ms, requested:"
+            << timeoutMs;
+        timeoutMs = 60000;
+    }
+    if (timeoutMs > 0) {
+        QTimer::singleShot(static_cast<int>(timeoutMs),
+                           wrapper,
+                           [this, wrapper = QPointer<SurfaceWrapper>(wrapper)] {
+                               if (!wrapper) {
+                                   return; // Wrapper already destroyed elsewhere
+                               }
+                               int idx = m_prelaunchWrappers.indexOf(wrapper);
+                               if (idx < 0) {
+                                   return; // Already matched or removed earlier
+                               }
+                               qCDebug(treelandShell)
+                                   << "Prelaunch splash timeout, destroy wrapper appId="
+                                   << wrapper->appId();
+                               m_prelaunchWrappers.removeAt(idx);
+                               m_rootSurfaceContainer->destroyForSurface(wrapper);
+                           });
+    }
 }
 
 Workspace *ShellHandler::workspace() const
