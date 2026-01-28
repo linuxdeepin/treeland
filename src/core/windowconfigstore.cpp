@@ -106,14 +106,13 @@ void WindowConfigStore::withSplashConfigFor(
                 return;
             }
 
-            const QSize size(static_cast<int>(configGuard->lastWindowWidth()),
-                             static_cast<int>(configGuard->lastWindowHeight()));
-
             qCDebug(treelandCore) << "WindowConfigStore: configInitializeSucceed for" << appId
                                   << configGuard->lastWindowWidth()
                                   << configGuard->lastWindowHeight();
-
-            callback(size, configGuard->splashThemeType());
+            const QSize size(static_cast<int>(configGuard->lastWindowWidth()),
+                             static_cast<int>(configGuard->lastWindowHeight()));
+            const QSize validatedSize = size.isValid() ? size : QSize();
+            callback(validatedSize, configGuard->splashThemeType());
         },
         Qt::SingleShotConnection);
     connect(
