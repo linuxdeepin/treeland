@@ -1,0 +1,50 @@
+{
+    "magic": "dsg.config.meta",
+    "version": "1.0",
+    "contents": {
+        "enablePrelaunchSplash": {
+            "value": true,
+            "serial": 0,
+            "flags": ["global"],
+            "name": "Enable Prelaunch Splash",
+            "name[zh_CN]": "启用预启动闪屏",
+            "description": "Whether to show prelaunch splash for this app",
+            "description[zh_CN]": "是否为此应用显示预启动闪屏",
+            "permissions": "readwrite",
+            "visibility": "public"
+        },
+        "lastWindowWidth": {
+            "value": 800,
+            "serial": 0,
+            "flags": ["global"],
+            "name": "Last Window Width",
+            "name[zh_CN]": "上次关闭时的窗口宽度",
+            "description": "Window width saved when the window was last closed",
+            "description[zh_CN]": "记录窗口上次关闭时的宽度",
+            "permissions": "readwrite",
+            "visibility": "public"
+        },
+        "lastWindowHeight": {
+            "value": 600,
+            "serial": 0,
+            "flags": ["global"],
+            "name": "Last Window Height",
+            "name[zh_CN]": "上次关闭时的窗口高度",
+            "description": "Window height saved when the window was last closed",
+            "description[zh_CN]": "记录窗口上次关闭时的高度",
+            "permissions": "readwrite",
+            "visibility": "public"
+        },
+        "splashThemeType": {
+            "value": 0,
+            "serial": 0,
+            "flags": ["global"],
+            "name": "Splash Theme Type",
+            "name[zh_CN]": "闪屏主题类型",
+            "description": "Splash theme preference: 0 follow system, 1 dark, 2 light",
+            "description[zh_CN]": "闪屏主题偏好：0 跟随系统，1 暗色，2 亮色",
+            "permissions": "readwrite",
+            "visibility": "public"
+        }
+    }
+}

@@ -9,10 +9,9 @@
 #include "seat/helper.h"
 #include "treelanduserconfig.hpp"
 #include "workspace/workspace.h"
-#include "seat/helper.h"
 
 #include <QVariant>
-#include <QTimer>
+#include <QColor>
 
 #include <winputpopupsurfaceitem.h>
 #include <wlayersurface.h>
@@ -104,9 +103,14 @@ SurfaceWrapper::SurfaceWrapper(SurfaceWrapper *original,
         auto iconVar = original->prelaunchSplash()
                            ? original->prelaunchSplash()->property("iconBuffer")
                            : QVariant();
+        QColor bgColor = original->prelaunchSplash()
+            ? original->prelaunchSplash()->property("backgroundColor").value<QColor>()
+            : QColor("#ffffff");
+
         m_prelaunchSplash = m_engine->createPrelaunchSplash(this,
              original->radius(),
-             iconVar.value<QW_NAMESPACE::qw_buffer *>());
+             iconVar.value<QW_NAMESPACE::qw_buffer *>(),
+             bgColor);
         setNoDecoration(false);
 
         connect(original,
@@ -125,7 +129,12 @@ SurfaceWrapper::SurfaceWrapper(SurfaceWrapper *original,
 }
 
 // Constructor used for the prelaunch splash
-SurfaceWrapper::SurfaceWrapper(QmlEngine *qmlEngine, QQuickItem *parent, const QSize &initialSize, const QString &appId, QW_NAMESPACE::qw_buffer *iconBuffer)
+SurfaceWrapper::SurfaceWrapper(QmlEngine *qmlEngine,
+                               QQuickItem *parent,
+                               const QSize &initialSize,
+                               const QString &appId,
+                               QW_NAMESPACE::qw_buffer *iconBuffer,
+                               const QColor &backgroundColor)
     : QQuickItem(parent)
     , m_engine(qmlEngine)
     , m_shellSurface(nullptr)
@@ -159,7 +168,7 @@ SurfaceWrapper::SurfaceWrapper(QmlEngine *qmlEngine, QQuickItem *parent, const Q
     } else {
         setImplicitSize(800, 600);
     }
-    m_prelaunchSplash = m_engine->createPrelaunchSplash(this, radius(), iconBuffer);
+    m_prelaunchSplash = m_engine->createPrelaunchSplash(this, radius(), iconBuffer, backgroundColor);
     // Connect to QML signal so C++ can destroy the QML item when requested
     connect(m_prelaunchSplash,
             SIGNAL(destroyRequested()),
