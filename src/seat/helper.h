@@ -134,7 +134,6 @@ public:
     WXWayland *xwayland = nullptr;
     quint32 noTitlebarAtom = XCB_ATOM_NONE;
     SettingManager *settingManager = nullptr;
-    QThread *settingManagerThread = nullptr;
 
     ~Session();
 

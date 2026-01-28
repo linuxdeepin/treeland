@@ -187,11 +187,6 @@ Session::~Session()
     qCDebug(treelandCore) << "Deleting session for uid:" << uid << socket;
     Q_EMIT aboutToBeDestroyed();
 
-    if (settingManagerThread) {
-        settingManagerThread->quit();
-        settingManagerThread->wait(QDeadlineTimer(25000));
-    }
-
     if (settingManager) {
         delete settingManager;
         settingManager = nullptr;
@@ -2325,29 +2320,17 @@ std::shared_ptr<Session> Helper::ensureSession(int id, QString username)
                     qCWarning(treelandInput) << "Failed to intern atom:" << _DEEPIN_NO_TITLEBAR;
                 }
                 session->settingManager = new SettingManager(session->xwayland->xcbConnection());
-                // TODO: proper destruction of QThread. relying on the QObject tree is crashy.
-                // We are moving session management out of Helper anyways, will fix later.
-                session->settingManagerThread = new QThread(session->xwayland);
+                const qreal scale = m_rootSurfaceContainer->window()->effectiveDevicePixelRatio();
+                session->settingManager->setGlobalScale(scale);
+                session->settingManager->apply();
 
-                session->settingManager->moveToThread(session->settingManagerThread);
-                connect(session->settingManagerThread, &QThread::started, this, [this, session]{
-                    const qreal scale = m_rootSurfaceContainer->window()->effectiveDevicePixelRatio();
-                    QMetaObject::invokeMethod(session->settingManager, [session, scale]() {
-                            session->settingManager->setGlobalScale(scale);
-                            session->settingManager->apply();
-                        }, Qt::QueuedConnection);
-
-                    QObject::connect(Helper::instance()->window(),
-                        &WOutputRenderWindow::effectiveDevicePixelRatioChanged,
-                        session->settingManager,
-                        [session](qreal dpr) {
-                            session->settingManager->setGlobalScale(dpr);
-                            session->settingManager->apply();
-                        }, Qt::QueuedConnection);
-                });
-
-                connect(session->settingManagerThread, &QThread::finished, session->settingManagerThread, &QThread::deleteLater);
-                session->settingManagerThread->start();
+                QObject::connect(Helper::instance()->window(),
+                                 &WOutputRenderWindow::effectiveDevicePixelRatioChanged,
+                                 session->settingManager,
+                                 [session](qreal dpr) {
+                                     session->settingManager->setGlobalScale(dpr);
+                                     session->settingManager->apply();
+                                 }, Qt::QueuedConnection);
             }
         });
         return xwayland;
