@@ -122,8 +122,12 @@ void ShellHandler::handlePrelaunchSplashRequested(const QString &appId,
 
     auto createSplash = [this, appId, iconBuffer](const QSize &lastSize,
                                                   qlonglong splashThemeType) {
-        if (!m_pendingPrelaunchAppIds.contains(appId))
+        if (!m_pendingPrelaunchAppIds.contains(appId)) {
+            if (iconBuffer) {
+                iconBuffer->unlock();
+            }
             return; // app window already created while waiting for dconfig
+        }
         m_pendingPrelaunchAppIds.remove(appId);
 
         auto *userConfig = Helper::instance()->config();
