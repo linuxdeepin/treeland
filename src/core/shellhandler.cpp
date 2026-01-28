@@ -33,6 +33,7 @@
 
 #include <qwcompositor.h>
 #include <qwxwaylandsurface.h>
+#include <qwbuffer.h>
 
 #include <QPointer>
 #include <QColor>
@@ -130,7 +131,7 @@ void ShellHandler::handlePrelaunchSplashRequested(const QString &appId,
         const QColor splashColor = effectiveType == 2
             ? QColor(userConfig->splashLightPalette())
             : QColor(userConfig->splashDarkPalette());
-        
+
         auto *wrapper = new SurfaceWrapper(Helper::instance()->qmlEngine(),
                            nullptr,
                            lastSize,
@@ -139,6 +140,9 @@ void ShellHandler::handlePrelaunchSplashRequested(const QString &appId,
                            splashColor);
         m_prelaunchWrappers.append(wrapper);
         m_workspace->addSurface(wrapper);
+        if (iconBuffer) {
+            iconBuffer->unlock();
+        }
 
         // After configurable timeout, if still unmatched (not converted and still in the list), destroy
         // the splash wrapper
@@ -170,13 +174,25 @@ void ShellHandler::handlePrelaunchSplashRequested(const QString &appId,
         }
     };
 
+    auto skipSplash = [this, appId, iconBuffer] {
+        if (iconBuffer) {
+            iconBuffer->unlock();
+        }
+        m_pendingPrelaunchAppIds.remove(appId);
+    };
+
+    auto waitSplash = [iconBuffer] {
+        if (iconBuffer) {
+            iconBuffer->lock();
+        }
+    };
+
     m_windowConfigStore->withSplashConfigFor(
         appId,
         this,
         createSplash,
-        [this, appId] {
-            m_pendingPrelaunchAppIds.remove(appId);
-        });
+        skipSplash,
+        waitSplash);
 }
 
 Workspace *ShellHandler::workspace() const
