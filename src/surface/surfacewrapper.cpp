@@ -8,13 +8,10 @@
 #include "output/output.h"
 #include "seat/helper.h"
 #include "treelanduserconfig.hpp"
-#include "appconfig.hpp"
 #include "workspace/workspace.h"
-#include "seat/helper.h"
 
 #include <QVariant>
 #include <QColor>
-#include <QTimer>
 
 #include <winputpopupsurfaceitem.h>
 #include <wlayersurface.h>
