@@ -35,14 +35,14 @@
             "permissions": "readwrite",
             "visibility": "public"
         },
-        "themeType": {
+        "splashThemeType": {
             "value": 0,
             "serial": 0,
             "flags": ["global"],
-            "name": "Theme Type",
-            "name[zh_CN]": "主题类型",
-            "description": "Theme preference: 0 follow system, 1 dark, 2 light",
-            "description[zh_CN]": "主题偏好：0 跟随系统，1 暗色，2 亮色",
+            "name": "Splash Theme Type",
+            "name[zh_CN]": "闪屏主题类型",
+            "description": "Splash theme preference: 0 follow system, 1 dark, 2 light",
+            "description[zh_CN]": "闪屏主题偏好：0 跟随系统，1 暗色，2 亮色",
             "permissions": "readwrite",
             "visibility": "public"
         },

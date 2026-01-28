@@ -10,7 +10,6 @@
 
 #include <QByteArray>
 #include <QLoggingCategory>
-#include <qloggingcategory.h>
 #include <QMetaType>
 
 #include <memory>
