@@ -117,62 +117,37 @@ void ShellHandler::handlePrelaunchSplashRequested(const QString &appId,
         return;
     m_pendingPrelaunchAppIds.insert(appId);
 
-    auto resolveSplashColor = [](qlonglong themeType) {
-        auto *userConfig = Helper::instance()->config();
-        const QColor darkPalette(userConfig->splashDarkPalette());
-        const QColor lightPalette(userConfig->splashLightPalette());
-
-        qlonglong effectiveType = themeType;
-        if (effectiveType == 0) {
-            effectiveType = userConfig->windowThemeType();
-        }
-
-        if (effectiveType == 2) {
-            return lightPalette.isValid() ? lightPalette : QColor("#f5f5f5");
-        }
-
-        return darkPalette.isValid() ? darkPalette : QColor("#181818");
-    };
-
-    auto createSplash = [this, appId, iconBuffer, resolveSplashColor](const QSize &last,
-                                                                     qlonglong themeType,
-                                                                     bool prelaunchEnabled) {
+    auto createSplash = [this, appId, iconBuffer](const QSize &lastSize,
+                                                 qlonglong splashThemeType) {
         if (!m_pendingPrelaunchAppIds.contains(appId))
             return; // app window already created while waiting for dconfig
         m_pendingPrelaunchAppIds.remove(appId);
 
-        if (!prelaunchEnabled) {
-            qCDebug(treelandShell) << "Prelaunch splash disabled for appId=" << appId;
-            return;
-        }
-
-        if (std::any_of(m_prelaunchWrappers.cbegin(),
-                        m_prelaunchWrappers.cend(),
-                        [&appId](SurfaceWrapper *w) { return w && w->appId() == appId; })) {
-            return;
-        }
-
-        QSize initialSize;
-        if (last.isValid() && last.width() > 0 && last.height() > 0) {
-            initialSize = last;
-        }
-
-        const QColor splashColor = resolveSplashColor(themeType);
-
+        auto *userConfig = Helper::instance()->config();
+        const qlonglong effectiveType = splashThemeType == 0
+            ? userConfig->splashThemeType()
+            : splashThemeType;
+        const QColor splashColor = effectiveType == 2
+            ? QColor(userConfig->splashLightPalette())
+            : QColor(userConfig->splashDarkPalette());
+        
         auto *wrapper = new SurfaceWrapper(Helper::instance()->qmlEngine(),
                            nullptr,
-                           initialSize,
+                           lastSize,
                            appId,
                            iconBuffer,
                            splashColor);
-        m_workspace->addSurface(wrapper);
         m_prelaunchWrappers.append(wrapper);
+        m_workspace->addSurface(wrapper);
 
         // After configurable timeout, if still unmatched (not converted and still in the list), destroy
         // the splash wrapper
         qlonglong timeoutMs = Helper::instance()->globalConfig()->prelaunchSplashTimeoutMs();
         // Bounds: <=0 disables auto-destroy, >60000 clamps to 60000
         if (timeoutMs > 60000) {
+            qCWarning(treelandShell)
+                << "Prelaunch splash timeout too long, clamping to 60000ms, requested:"
+                << timeoutMs;
             timeoutMs = 60000;
         }
         if (timeoutMs > 0) {
@@ -195,11 +170,13 @@ void ShellHandler::handlePrelaunchSplashRequested(const QString &appId,
         }
     };
 
-    if (m_windowConfigStore) {
-        m_windowConfigStore->withLastSizeFor(appId, this, createSplash);
-    } else {
-        createSplash({}, 0, false);
-    }
+    m_windowConfigStore->withSplashConfigFor(
+        appId,
+        this,
+        createSplash,
+        [this, appId] {
+            m_pendingPrelaunchAppIds.remove(appId);
+        });
 }
 
 Workspace *ShellHandler::workspace() const
@@ -393,7 +370,7 @@ void ShellHandler::onXdgToplevelSurfaceRemoved(WXdgToplevelSurface *surface)
         }
         const QSize s = sz.toSize();
         if (s.isValid() && s.width() > 0 && s.height() > 0) {
-            m_windowConfigStore->saveSize(wrapper->appId(), s);
+            m_windowConfigStore->saveLastSize(wrapper->appId(), s);
         }
     }
     Q_EMIT surfaceWrapperAboutToRemove(wrapper);
@@ -503,7 +480,7 @@ void ShellHandler::onXWaylandSurfaceAdded(WXWaylandSurface *surface)
             }
             const QSize s = sz.toSize();
             if (s.isValid() && s.width() > 0 && s.height() > 0) {
-                m_windowConfigStore->saveSize(wrapper->appId(), s);
+                m_windowConfigStore->saveLastSize(wrapper->appId(), s);
             }
         }
         Q_EMIT surfaceWrapperAboutToRemove(wrapper);

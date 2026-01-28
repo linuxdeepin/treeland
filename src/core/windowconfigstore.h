@@ -18,18 +18,13 @@ class WindowConfigStore : public QObject
 public:
     explicit WindowConfigStore(QObject *parent = nullptr);
 
-    QSize lastSizeFor(const QString &appId) const;
-    void withLastSizeFor(const QString &appId,
-                         QObject *context,
-                         std::function<void(const QSize &size,
-                                            qlonglong themeType,
-                                            bool prelaunchSplashEnabled)> callback) const;
-    void saveSize(const QString &appId, const QSize &size);
+    void saveLastSize(const QString &appId, const QSize &size);
 
-    // Per-app theme preference: 0 follow system, 1 dark, 2 light
-    qlonglong themeTypeFor(const QString &appId) const;
-    void setThemeType(const QString &appId, qlonglong themeType);
-    bool prelaunchSplashEnabledFor(const QString &appId) const;
+    void withSplashConfigFor(
+        const QString &appId,
+        QObject *context,
+        std::function<void(const QSize &size, qlonglong splashThemeType)> callback,
+        std::function<void()> skipCallback) const;
 
 private:
     AppConfig *configForApp(const QString &appId) const;
