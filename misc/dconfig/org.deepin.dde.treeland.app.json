@@ -45,17 +45,6 @@
             "description[zh_CN]": "闪屏主题偏好：0 跟随系统，1 暗色，2 亮色",
             "permissions": "readwrite",
             "visibility": "public"
-        },
-        "isSingletonApp": {
-            "value": false,
-            "serial": 0,
-            "flags": ["global"],
-            "name": "Singleton Application",
-            "name[zh_CN]": "是否为单例应用",
-            "description": "Mark app as singleton; if true, skip splash on subsequent launches when a window exists",
-            "description[zh_CN]": "标记应用是否为单例；为真且已有窗口时，后续启动不应显示闪屏",
-            "permissions": "readwrite",
-            "visibility": "public"
         }
     }
 }

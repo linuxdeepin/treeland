@@ -6,10 +6,10 @@
 
 #include <qwglobal.h>
 
-#include <QObject>
-#include <QList>
-#include <QPointer>
 #include <QHash>
+#include <QList>
+#include <QObject>
+#include <QPointer>
 #include <QSet>
 
 Q_MOC_INCLUDE("workspace/workspace.h")
@@ -52,7 +52,7 @@ class QQuickWindow;
 QT_END_NAMESPACE
 
 class AppIdResolverManager; // forward declare new protocol manager
-class WindowConfigStore; // forward declare config store
+class WindowConfigStore;    // forward declare config store
 
 class ShellHandler : public QObject
 {
@@ -104,7 +104,8 @@ private:
                                     SurfaceWrapper *wrapper);
     void setResourceManagerAtom(WAYLIB_SERVER_NAMESPACE::WXWayland *xwayland,
                                 const QByteArray &value);
-    // Prelaunch splash related: creates a prelaunch SurfaceWrapper when PrelaunchSplash::splashRequested
+    // Prelaunch splash related: creates a prelaunch SurfaceWrapper when
+    // PrelaunchSplash::splashRequested
     void handlePrelaunchSplashRequested(const QString &appId, QW_NAMESPACE::qw_buffer *iconBuffer);
 
     // --- helpers (internal) ---
@@ -139,10 +140,10 @@ private:
     QList<SurfaceWrapper *> m_prelaunchWrappers;
     // Prelaunch requests waiting for dconfig initialization
     QSet<QString> m_pendingPrelaunchAppIds;
-    // Pending toplevel surfaces (XDG or XWayland) awaiting async AppId resolve; callbacks continue only if the pointer remains in this list
+    // Pending toplevel surfaces (XDG or XWayland) awaiting async AppId resolve; callbacks continue
+    // only if the pointer remains in this list
     QList<WAYLIB_SERVER_NAMESPACE::WToplevelSurface *> m_pendingAppIdResolveToplevels;
     // New protocol based app id resolver (optional, may be null if module not loaded)
     AppIdResolverManager *m_appIdResolverManager = nullptr;
     WindowConfigStore *m_windowConfigStore = nullptr;
 };
-
