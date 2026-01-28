@@ -20,7 +20,7 @@
 
 #include "sessionmodel.h"
 
-#include <Configuration.h>
+#include <Config.h>
 
 #include <QFileInfo>
 #include <QFileSystemWatcher>
@@ -47,31 +47,36 @@ SessionModel::SessionModel(QObject *parent)
     : QAbstractListModel(parent)
     , d(new SessionModelPrivate())
 {
+    QStringList x11SessionDir = mainConfig.get<QStringList>("X11", "SessionDir");
+    QStringList waylandSessionDir = mainConfig.get<QStringList>("Wayland", "SessionDir");
+
     // Check for flag to show Wayland sessions
     bool dri_active = QFileInfo::exists(QStringLiteral("/dev/dri"));
 
     // initial population
     beginResetModel();
     if (dri_active)
-        populate(Session::WaylandSession, mainConfig.Wayland.SessionDir.get());
-    populate(Session::X11Session, mainConfig.X11.SessionDir.get());
+        populate(Session::WaylandSession, waylandSessionDir);
+    populate(Session::X11Session, x11SessionDir);
     endResetModel();
 
     // refresh everytime a file is changed, added or removed
     QFileSystemWatcher *watcher = new QFileSystemWatcher(this);
-    connect(watcher, &QFileSystemWatcher::directoryChanged, [this]() {
-        // Recheck for flag to show Wayland sessions
-        bool dri_active = QFileInfo::exists(QStringLiteral("/dev/dri"));
-        beginResetModel();
-        d->sessions.clear();
-        d->displayNames.clear();
-        if (dri_active)
-            populate(Session::WaylandSession, mainConfig.Wayland.SessionDir.get());
-        populate(Session::X11Session, mainConfig.X11.SessionDir.get());
-        endResetModel();
-    });
-    watcher->addPaths(mainConfig.Wayland.SessionDir.get());
-    watcher->addPaths(mainConfig.X11.SessionDir.get());
+    connect(watcher,
+            &QFileSystemWatcher::directoryChanged,
+            [this, x11SessionDir, waylandSessionDir]() {
+                // Recheck for flag to show Wayland sessions
+                bool dri_active = QFileInfo::exists(QStringLiteral("/dev/dri"));
+                beginResetModel();
+                d->sessions.clear();
+                d->displayNames.clear();
+                if (dri_active)
+                    populate(Session::WaylandSession, waylandSessionDir);
+                populate(Session::X11Session, x11SessionDir);
+                endResetModel();
+            });
+    watcher->addPaths(waylandSessionDir);
+    watcher->addPaths(x11SessionDir);
 }
 
 SessionModel::~SessionModel()
@@ -184,7 +189,7 @@ void SessionModel::populate(DDM::Session::Type type, const QStringList &dirPaths
     }
     // find out index of the last session
     for (int i = 0; i < d->sessions.size(); ++i) {
-        if (d->sessions.at(i)->fileName() == stateConfig.Last.Session.get()) {
+        if (d->sessions.at(i)->fileName() == stateConfig.get<QString>("Last", "Session")) {
             d->lastIndex = i;
             break;
         }
