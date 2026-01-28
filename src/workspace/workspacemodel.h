@@ -47,6 +47,7 @@ public:
     Q_INVOKABLE SurfaceWrapper *findNextActivedSurface() const;
     void pushActivedSurface(SurfaceWrapper *surface);
     void removeActivedSurface(SurfaceWrapper *surface);
+    void clearActivedSurface();
     int findActivedSurfaceHistoryIndex(SurfaceWrapper *surface) const;
 
 Q_SIGNALS:
