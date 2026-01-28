@@ -3,8 +3,8 @@
 
 #include "core/windowconfigstore.h"
 
-#include "common/treelandlogging.h"
 #include "appconfig.hpp"
+#include "common/treelandlogging.h"
 
 #include <QPointer>
 
@@ -33,10 +33,8 @@ AppConfig *WindowConfigStore::configForApp(const QString &appId) const
 void WindowConfigStore::saveLastSize(const QString &appId, const QSize &size)
 {
     if (appId.isEmpty() || !size.isValid()) {
-        qCWarning(treelandCore)
-            << "WindowConfigStore: saveLastSize invalid parameters for"
-            << appId
-            << size;
+        qCWarning(treelandCore) << "WindowConfigStore: saveLastSize invalid parameters for" << appId
+                                << size;
         return;
     }
 
@@ -51,12 +49,12 @@ void WindowConfigStore::saveLastSize(const QString &appId, const QSize &size)
     config->setLastWindowHeight(size.height());
 }
 
-void WindowConfigStore::withSplashConfigFor(const QString &appId,
-                                        QObject *context,
-                                        std::function<void(const QSize &size,
-                                                           qlonglong splashThemeType)> callback,
-                                        std::function<void()> skipCallback,
-                                        std::function<void()> waitCallback) const
+void WindowConfigStore::withSplashConfigFor(
+    const QString &appId,
+    QObject *context,
+    std::function<void(const QSize &size, qlonglong splashThemeType)> callback,
+    std::function<void()> skipCallback,
+    std::function<void()> waitCallback) const
 {
     Q_ASSERT_X(callback, Q_FUNC_INFO, "callback must be provided");
     Q_ASSERT_X(skipCallback, Q_FUNC_INFO, "skipCallback must be provided");
@@ -91,40 +89,40 @@ void WindowConfigStore::withSplashConfigFor(const QString &appId,
     waitCallback();
     auto *ctx = context ? context : const_cast<WindowConfigStore *>(this);
     const QPointer<AppConfig> configGuard(config);
-    connect(config,
-            &AppConfig::configInitializeSucceed,
-            ctx,
-            [this, appId, callback, skipCallback, configGuard](DTK_CORE_NAMESPACE::DConfig *) {
-                if (!configGuard) {
-                    qCWarning(treelandCore)
-                        << "WindowConfigStore: configInitializeSucceed but config deleted for"
-                        << appId;
-                    skipCallback();
-                    return;
-                }
-
-                if (!configGuard->enablePrelaunchSplash()) {
-                    skipCallback();
-                    return;
-                }
-
-                const QSize size(static_cast<int>(configGuard->lastWindowWidth()),
-                                 static_cast<int>(configGuard->lastWindowHeight()));
-
-                qCDebug(treelandCore) << "WindowConfigStore: configInitializeSucceed for" << appId
-                                      << configGuard->lastWindowWidth()
-                                      << configGuard->lastWindowHeight();
-
-                callback(size,
-                         configGuard->splashThemeType());
-            },
-            Qt::SingleShotConnection);
-    connect(config,
-            &AppConfig::configInitializeFailed,
-            ctx,
-            [skipCallback]() {
-                qCCritical(treelandCore) << "WindowConfigStore: configInitializeFailed callback";
+    connect(
+        config,
+        &AppConfig::configInitializeSucceed,
+        ctx,
+        [this, appId, callback, skipCallback, configGuard](DTK_CORE_NAMESPACE::DConfig *) {
+            if (!configGuard) {
+                qCWarning(treelandCore)
+                    << "WindowConfigStore: configInitializeSucceed but config deleted for" << appId;
                 skipCallback();
-            },
-            Qt::SingleShotConnection);
+                return;
+            }
+
+            if (!configGuard->enablePrelaunchSplash()) {
+                skipCallback();
+                return;
+            }
+
+            const QSize size(static_cast<int>(configGuard->lastWindowWidth()),
+                             static_cast<int>(configGuard->lastWindowHeight()));
+
+            qCDebug(treelandCore) << "WindowConfigStore: configInitializeSucceed for" << appId
+                                  << configGuard->lastWindowWidth()
+                                  << configGuard->lastWindowHeight();
+
+            callback(size, configGuard->splashThemeType());
+        },
+        Qt::SingleShotConnection);
+    connect(
+        config,
+        &AppConfig::configInitializeFailed,
+        ctx,
+        [skipCallback]() {
+            qCCritical(treelandCore) << "WindowConfigStore: configInitializeFailed callback";
+            skipCallback();
+        },
+        Qt::SingleShotConnection);
 }

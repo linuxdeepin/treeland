@@ -1,14 +1,14 @@
-// Copyright (C) 2024 UnionTech Software Technology Co., Ltd.
+// Copyright (C) 2024-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "qmlengine.h"
 
+#include "common/treelandlogging.h"
 #include "core/rootsurfacecontainer.h"
 #include "modules/capture/capture.h"
 #include "output/output.h"
 #include "surface/surfacewrapper.h"
 #include "workspace/workspace.h"
-#include "common/treelandlogging.h"
 
 #include <woutput.h>
 #include <woutputitem.h>
@@ -194,7 +194,8 @@ QQuickItem *QmlEngine::createDockPreview(QQuickItem *parent)
     return createComponent(dockPreviewComponent, parent);
 }
 
-QQuickItem *QmlEngine::createLockScreen([[maybe_unused]] Output *output, [[maybe_unused]] QQuickItem *parent)
+QQuickItem *QmlEngine::createLockScreen([[maybe_unused]] Output *output,
+                                        [[maybe_unused]] QQuickItem *parent)
 {
 #ifndef DISABLE_DDM
     return createComponent(lockScreenComponent,
@@ -261,9 +262,11 @@ QQuickItem *QmlEngine::createPrelaunchSplash(QQuickItem *parent,
                                              QW_NAMESPACE::qw_buffer *iconBuffer,
                                              const QColor &backgroundColor)
 {
-    return createComponent(prelaunchSplashComponent, parent, {
-         { "initialRadius", QVariant::fromValue(initialRadius) },
-         { "iconBuffer", QVariant::fromValue(iconBuffer) },
-         { "backgroundColor", QVariant::fromValue(backgroundColor) },
-    });
+    return createComponent(prelaunchSplashComponent,
+                           parent,
+                           {
+                               { "initialRadius", QVariant::fromValue(initialRadius) },
+                               { "iconBuffer", QVariant::fromValue(iconBuffer) },
+                               { "backgroundColor", QVariant::fromValue(backgroundColor) },
+                           });
 }
