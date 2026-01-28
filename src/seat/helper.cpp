@@ -2266,8 +2266,8 @@ void Helper::removeSession(std::shared_ptr<Session> session)
 
     if (m_activeSession.lock() == session) {
         m_activeSession.reset();
-        m_activatedSurface = nullptr;
-        Q_EMIT activatedSurfaceChanged();
+        workspace()->clearActivedSurface();
+        setActivatedSurface(nullptr);
     }
 
     for (auto s : std::as_const(m_sessions)) {
@@ -2466,8 +2466,8 @@ void Helper::updateActiveUserSession(const QString &username, int id)
         // Update active session
         m_activeSession = session;
         // Clear activated surface
+        // TODO: Each Wayland socket's active surface needs to be cleaned up individually.
         setActivatedSurface(nullptr);
-        Q_EMIT activatedSurfaceChanged();
         // Emit signal and update socket enabled state
         if (previous && previous->socket)
             previous->socket->setEnabled(false);

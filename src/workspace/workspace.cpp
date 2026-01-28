@@ -382,6 +382,13 @@ void Workspace::removeActivedSurface(SurfaceWrapper *surface)
     }
 }
 
+void Workspace::clearActivedSurface()
+{
+    for (auto wpModel : m_models->objects())
+        wpModel->clearActivedSurface();
+    m_showOnAllWorkspaceModel->clearActivedSurface();
+}
+
 void Workspace::setSwitcherEnabled(bool enabled)
 {
     m_switcherEnabled = enabled;
