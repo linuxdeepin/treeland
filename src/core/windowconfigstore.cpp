@@ -52,7 +52,10 @@ void WindowConfigStore::saveLastSize(const QString &appId, const QSize &size)
 void WindowConfigStore::withSplashConfigFor(
     const QString &appId,
     QObject *context,
-    std::function<void(const QSize &size, qlonglong splashThemeType)> callback,
+    std::function<void(const QSize &size,
+                       const QString &darkPalette,
+                       const QString &lightPalette,
+                       qlonglong splashThemeType)> callback,
     std::function<void()> skipCallback,
     std::function<void()> waitCallback) const
 {
@@ -76,7 +79,10 @@ void WindowConfigStore::withSplashConfigFor(
         const QSize size(static_cast<int>(config->lastWindowWidth()),
                          static_cast<int>(config->lastWindowHeight()));
         const QSize validatedSize = size.isValid() ? size : QSize();
-        callback(validatedSize, config->splashThemeType());
+        callback(validatedSize,
+             config->splashDarkPalette(),
+             config->splashLightPalette(),
+             config->splashThemeType());
         return;
     }
 
@@ -112,7 +118,10 @@ void WindowConfigStore::withSplashConfigFor(
             const QSize size(static_cast<int>(configGuard->lastWindowWidth()),
                              static_cast<int>(configGuard->lastWindowHeight()));
             const QSize validatedSize = size.isValid() ? size : QSize();
-            callback(validatedSize, configGuard->splashThemeType());
+            callback(validatedSize,
+                     configGuard->splashDarkPalette(),
+                     configGuard->splashLightPalette(),
+                     configGuard->splashThemeType());
         },
         Qt::SingleShotConnection);
     connect(

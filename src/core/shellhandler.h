@@ -110,6 +110,8 @@ private:
     void createPrelaunchSplash(const QString &appId,
                                QW_NAMESPACE::qw_buffer *iconBuffer,
                                const QSize &lastSize,
+                               const QString &darkPalette,
+                               const QString &lightPalette,
                                qlonglong splashThemeType);
 
     // --- helpers (internal) ---

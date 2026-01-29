@@ -23,7 +23,10 @@ public:
     void withSplashConfigFor(
         const QString &appId,
         QObject *context,
-        std::function<void(const QSize &size, qlonglong splashThemeType)> callback,
+        std::function<void(const QSize &size,
+                           const QString &darkPalette,
+                           const QString &lightPalette,
+                           qlonglong splashThemeType)> callback,
         std::function<void()> skipCallback,
         std::function<void()> waitCallback) const;
 
