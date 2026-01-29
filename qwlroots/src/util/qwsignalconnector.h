@@ -117,8 +117,8 @@ public:
     }
     void disconnect(wl_signal *signal) {
         auto tmpList = listenerList;
-        auto begin = tmpList.begin();
-        while (begin != tmpList.end()) {
+        auto begin = tmpList.constBegin();
+        while (begin != tmpList.constEnd()) {
             qw_signal_listener *l = *begin;
             ++begin;
 
@@ -129,8 +129,8 @@ public:
     void invalidate() {
         QVector<qw_signal_listener*> tmpList;
         tmpList.swap(listenerList);
-        auto begin = tmpList.begin();
-        while (begin != tmpList.end()) {
+        auto begin = tmpList.constBegin();
+        while (begin != tmpList.constEnd()) {
             qw_signal_listener *l = *begin;
             wl_list_remove(&l->l.link);
             ++begin;
