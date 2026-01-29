@@ -79,28 +79,6 @@
             "permissions": "readwrite",
             "visibility": "public"
         },
-        "splashDarkPalette": {
-            "value": "#181818",
-            "serial": 0,
-            "flags": ["global"],
-            "name": "Splash Dark Palette",
-            "name[zh_CN]": "闪屏暗色配色",
-            "description": "Background color used when splash theme is dark",
-            "description[zh_CN]": "闪屏使用暗色主题时的背景色",
-            "permissions": "readwrite",
-            "visibility": "public"
-        },
-        "splashLightPalette": {
-            "value": "#FFFFFF",
-            "serial": 0,
-            "flags": ["global"],
-            "name": "Splash Light Palette",
-            "name[zh_CN]": "闪屏亮色配色",
-            "description": "Background color used when splash theme is light",
-            "description[zh_CN]": "闪屏使用亮色主题时的背景色",
-            "permissions": "readwrite",
-            "visibility": "public"
-        },
         "themeName": {
             "value": "",
             "serial": 0,
@@ -256,13 +234,13 @@
             "visibility": "public"
         },
         "windowThemeType": {
-            "value": 2,
+            "value": 1,
             "serial": 0,
             "flags": ["global"],
             "name": "Global Window Theme Type",
             "name[zh_CN]": "全局窗口主题类型",
-            "description": "System light/dark theme type",
-            "description[zh_CN]": "系统暗亮色主题类型",
+            "description": "System theme type: 1 light, 2 dark",
+            "description[zh_CN]": "系统主题类型：1 亮色，2 暗色",
             "permissions": "readwrite",
             "visibility": "public"
         },

@@ -134,22 +134,25 @@ void ShellHandler::handlePrelaunchSplashRequested(const QString &appId,
         }
     };
 
-    m_windowConfigStore->withSplashConfigFor(
-        appId,
-        this,
-        std::bind(&ShellHandler::createPrelaunchSplash,
-                  this,
-                  appId,
-                  iconBuffer,
-                  std::placeholders::_1,
-                  std::placeholders::_2),
-        skipSplash,
-        waitSplash);
+    m_windowConfigStore->withSplashConfigFor(appId,
+                                             this,
+                                             std::bind(&ShellHandler::createPrelaunchSplash,
+                                                       this,
+                                                       appId,
+                                                       iconBuffer,
+                                                       std::placeholders::_1,
+                                                       std::placeholders::_2,
+                                                       std::placeholders::_3,
+                                                       std::placeholders::_4),
+                                             skipSplash,
+                                             waitSplash);
 }
 
 void ShellHandler::createPrelaunchSplash(const QString &appId,
                                          QW_NAMESPACE::qw_buffer *iconBuffer,
                                          const QSize &lastSize,
+                                         const QString &darkPalette,
+                                         const QString &lightPalette,
                                          qlonglong splashThemeType)
 {
     if (!m_pendingPrelaunchAppIds.contains(appId)) {
@@ -160,11 +163,9 @@ void ShellHandler::createPrelaunchSplash(const QString &appId,
     }
     m_pendingPrelaunchAppIds.remove(appId);
 
-    auto *userConfig = Helper::instance()->config();
     const qlonglong effectiveType =
-        splashThemeType == 0 ? userConfig->windowThemeType() : splashThemeType;
-    const QColor splashColor = effectiveType == 2 ? QColor(userConfig->splashLightPalette())
-                                                  : QColor(userConfig->splashDarkPalette());
+        splashThemeType == 0 ? Helper::instance()->config()->windowThemeType() : splashThemeType;
+    const QColor splashColor = effectiveType == 1 ? QColor(lightPalette) : QColor(darkPalette);
 
     auto *wrapper = new SurfaceWrapper(Helper::instance()->qmlEngine(),
                                        nullptr,
@@ -184,8 +185,7 @@ void ShellHandler::createPrelaunchSplash(const QString &appId,
     // Bounds: <=0 disables auto-destroy, >60000 clamps to 60000
     if (timeoutMs > 60000) {
         qCWarning(treelandShell)
-            << "Prelaunch splash timeout too long, clamping to 60000ms, requested:"
-            << timeoutMs;
+            << "Prelaunch splash timeout too long, clamping to 60000ms, requested:" << timeoutMs;
         timeoutMs = 60000;
     }
     if (timeoutMs > 0) {
