@@ -162,7 +162,7 @@ void ShellHandler::createPrelaunchSplash(const QString &appId,
 
     auto *userConfig = Helper::instance()->config();
     const qlonglong effectiveType =
-        splashThemeType == 0 ? userConfig->splashThemeType() : splashThemeType;
+        splashThemeType == 0 ? userConfig->windowThemeType() : splashThemeType;
     const QColor splashColor = effectiveType == 2 ? QColor(userConfig->splashLightPalette())
                                                   : QColor(userConfig->splashDarkPalette());
 
