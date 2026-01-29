@@ -68,8 +68,11 @@ void WindowConfigStore::withSplashConfigFor(
         skipCallback();
         return;
     }
-
+#if APPCONFIG_DCONFIG_FILE_VERSION_MINOR > 0
     if (config->isInitializeSucceeded()) {
+#else
+    if (config->isInitializeSucceed()) {
+#endif
         if (!config->enablePrelaunchSplash()) {
             skipCallback();
             return;
