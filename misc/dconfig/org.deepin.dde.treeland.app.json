@@ -41,8 +41,30 @@
             "flags": ["global"],
             "name": "Splash Theme Type",
             "name[zh_CN]": "闪屏主题类型",
-            "description": "Splash theme preference: 0 follow system, 1 dark, 2 light",
-            "description[zh_CN]": "闪屏主题偏好：0 跟随系统，1 暗色，2 亮色",
+            "description": "Splash theme preference: 0 follow system, 1 light, 2 dark",
+            "description[zh_CN]": "闪屏主题偏好：0 跟随系统，1 亮色，2 暗色",
+            "permissions": "readwrite",
+            "visibility": "public"
+        },
+        "splashDarkPalette": {
+            "value": "#181818",
+            "serial": 0,
+            "flags": ["global"],
+            "name": "Splash Dark Palette",
+            "name[zh_CN]": "闪屏暗色配色",
+            "description": "Background color used when splash theme is dark",
+            "description[zh_CN]": "闪屏使用暗色主题时的背景色",
+            "permissions": "readwrite",
+            "visibility": "public"
+        },
+        "splashLightPalette": {
+            "value": "#FFFFFF",
+            "serial": 0,
+            "flags": ["global"],
+            "name": "Splash Light Palette",
+            "name[zh_CN]": "闪屏亮色配色",
+            "description": "Background color used when splash theme is light",
+            "description[zh_CN]": "闪屏使用亮色主题时的背景色",
             "permissions": "readwrite",
             "visibility": "public"
         }
