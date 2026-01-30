@@ -554,7 +554,7 @@ public:
 
     RenderingFlags flags() const override
     {
-        return QSGRenderNode::NoExternalRendering | QSGRenderNode::BoundedRectRendering;
+        return NoExternalRendering | BoundedRectRendering | DepthAwareRendering | OpaqueRendering;
     }
 
     QPointer<WSurfaceItemContent> m_owner;
