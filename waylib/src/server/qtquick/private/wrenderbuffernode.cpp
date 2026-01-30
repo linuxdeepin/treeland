@@ -1118,7 +1118,7 @@ QRectF WRenderBufferNode::rect() const
 
 WRenderBufferNode::RenderingFlags WRenderBufferNode::flags() const
 {
-    return BoundedRectRendering;
+    return BoundedRectRendering | DepthAwareRendering;
 }
 
 void WRenderBufferNode::resize(const QSizeF &size)
