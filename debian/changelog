@@ -1,3 +1,41 @@
+treeland (0.8.2) unstable; urgency=medium
+
+  * refactor: use const iterators for QVector in signal connector
+  * Revert "chore: temporary disable TreelandUserConfig smart pointer"
+  * fix: crash on session removal (logout) window active
+  * fix: fix compatibility with older dconfig versions
+  * fix: align dconfig theme type values with wayland protocol
+  * chore: remove splash theme type configuration
+  * refactor: extract prelaunch splash creation logic
+  * fix: fix splash screen icon buffer leak and size validation
+  * chore: apply clang-format code style cleanup
+  * fix: prevent icon buffer destruction during dconfig initialization
+  * refactor: clean up splash dconfig logic
+  * feat: add per-app prelaunch splash configuration
+  * feat: add splash screen theme color customization
+  * refactor: rename WindowSizeStore to WindowConfigStore
+  * fix: fix splash size incorrect due to dconfig async initialization
+  * feat: add splash screen theme support and adjust default window size
+  * feat: migrate window size storage to dconfig
+  * feat: Add wallpaper producer client for Treeland Wayland compositor
+  * feat: replace assert with runtime error handling for output commit
+  * fix: clean up all treeland originated warnings on treeland startup
+  * feat: expose a method to move XWayland window position relative to
+    wl_surface
+  * fix(WSurfaceItem): add subsurfaces.clear() after deleteLater
+  * chore: remove obsolete dconfig usage in personalization
+  * feat: add dconfig option to allow setting Numlock state on startup
+  * feat: add minimal wallpaper setting test client
+  * fix: use systemd sd-login API for session info query instead of D-
+    Bus
+  * fix: clean up warnings on treeland startup
+  * fix: decoration assert crash when proxy decoration is not created
+  * fix: remove unused DDM headers in treeland.cpp
+  * fix: compilation issues due to update in treeland-dde-shell-v1
+    protocol
+
+ -- rewine <luhongxu@uniontech.com>  Fri, 30 Jan 2026 09:51:46 +0800
+
 treeland (0.8.1) unstable; urgency=medium
 
   * fix: update treeland-protocol structure names (#690)
