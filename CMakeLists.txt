@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.25.0)
 
 project(Treeland
-    VERSION 0.8.1
+    VERSION 0.8.2
     LANGUAGES CXX C)
 
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
