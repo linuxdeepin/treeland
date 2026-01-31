@@ -9,7 +9,9 @@ set(WAYLIB_INCLUDE_INSTALL_DIR
     CACHE STRING "Install directory for waylib headers"
 )
 
-find_package(Qt6 COMPONENTS GuiPrivate QuickPrivate QUIET)
+if(Qt6_VERSION VERSION_GREATER_EQUAL 6.10)
+    find_package(Qt6 REQUIRED COMPONENTS GuiPrivate QuickPrivate)
+endif()
 find_package(Qt6 COMPONENTS Core Gui Quick REQUIRED)
 
 qt_standard_project_setup(REQUIRES 6.8)

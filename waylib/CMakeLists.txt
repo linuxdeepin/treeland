@@ -18,7 +18,9 @@ option(ADDRESS_SANITIZER "Enable address sanitize" OFF)
 option(WAYLIB_USE_PERCOMPILE_HEADERS "Use precompile headers to build waylib" OFF)
 
 find_package(Qt6 COMPONENTS Core Gui Quick REQUIRED)
-find_package(Qt6 COMPONENTS GuiPrivate QuickPrivate QUIET)
+if(Qt6_VERSION VERSION_GREATER_EQUAL 6.10)
+    find_package(Qt6 REQUIRED COMPONENTS GuiPrivate QuickPrivate)
+endif()
 if(WITH_SUBMODULE_QWLROOTS)
     # Use qwlroots from project root directory
     include(${CMAKE_SOURCE_DIR}/qwlroots/cmake/WaylandScannerHelpers.cmake)
