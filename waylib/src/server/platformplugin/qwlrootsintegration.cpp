@@ -1,4 +1,4 @@
-// Copyright (C) 2023 JiDe Zhang <zccrs@live.com>.
+// Copyright (C) 2023 - 2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include <QObject>
@@ -64,10 +64,10 @@ WAYLIB_SERVER_BEGIN_NAMESPACE
 #define CALL_PROXY2(FunName, fallbackValue, ...) m_proxyIntegration ? m_proxyIntegration->FunName(__VA_ARGS__) : fallbackValue
 #define CALL_PROXY(FunName, ...) CALL_PROXY2(FunName, QPlatformIntegration::FunName(__VA_ARGS__), __VA_ARGS__)
 
-class Q_DECL_HIDDEN OffscreenSurface : public QPlatformOffscreenSurface
+class Q_DECL_HIDDEN PlatformOffscreenSurface : public QPlatformOffscreenSurface
 {
 public:
-    OffscreenSurface(QOffscreenSurface *surface)
+    PlatformOffscreenSurface(QOffscreenSurface *surface)
         : QPlatformOffscreenSurface(surface) {}
 
     bool isValid() const override {
@@ -504,7 +504,7 @@ QPlatformTheme *QWlrootsIntegration::createPlatformTheme(const QString &name) co
 QPlatformOffscreenSurface *QWlrootsIntegration::createPlatformOffscreenSurface(QOffscreenSurface *surface) const
 {
     if (QW::OffscreenSurface::check(surface))
-        return new OffscreenSurface(surface);
+        return new PlatformOffscreenSurface(surface);
 
     return CALL_PROXY(createPlatformOffscreenSurface, surface);
 }
