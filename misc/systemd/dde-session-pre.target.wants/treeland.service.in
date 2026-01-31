@@ -35,8 +35,15 @@ RestartSec=1s
 NoNewPrivileges=true
 OOMScoreAdjust=-300
 Nice=-15
-MemoryDenyWriteExecute=true
-PrivateIPC=true
-ProtectSystem=full
+# Enable MemoryDenyWriteExecute will cause Treeland crash in certain
+# condition (observed on arm64 virtual machine). The coredump indicate
+# that it happened in libgallium.so, which is involved by
+# qwoutput->commit_state() call inside Output::enable().
+#
+# MemoryDenyWriteExecute=true
+# Failed to set up mount namespacing: /dev/mqueue: Operation not permitted
+# PrivateIPC=true
+# [xwayland/sockets.c:100] /tmp/.X11-unix not owned by root or us
+# ProtectSystem=full
 ProtectProc=invisible
 RestrictSUIDSGID=true
