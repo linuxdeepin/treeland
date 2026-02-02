@@ -188,7 +188,7 @@ protected:
 
 class WAYLIB_SERVER_EXPORT WGlobal {
     Q_GADGET
-    QML_NAMED_ELEMENT(waylib)
+    QML_VALUE_TYPE(wglobal)
     QML_UNCREATABLE("Use for enums")
 
 public:
@@ -248,6 +248,13 @@ public:
 
     static bool isInvalidCursor(const QCursor &c);
     static bool isClientResourceCursor(const QCursor &c);
+};
+
+struct Q_DECL_HIDDEN WCursorShapeQMLProxy {
+    Q_GADGET
+    QML_NAMED_ELEMENT(CursorShape)
+    QML_FOREIGN_NAMESPACE(WAYLIB_SERVER_NAMESPACE::WGlobal)
+    QML_UNCREATABLE("Use for enums")
 };
 
 WAYLIB_SERVER_END_NAMESPACE
