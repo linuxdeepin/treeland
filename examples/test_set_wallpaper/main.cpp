@@ -9,6 +9,9 @@
 #include <QGuiApplication>
 #include <QScreen>
 #include <QDebug>
+#include <QSet>
+#include <QMimeDatabase>
+#include <QMimeType>
 #include <qpa/qplatformnativeinterface.h>
 
 static QScreen *findScreenByName(const QString &name)
@@ -23,6 +26,35 @@ static QScreen *findScreenByName(const QString &name)
     }
 
     return nullptr;
+}
+
+static bool isImageFile(const QString &path)
+{
+    static QMimeDatabase db;
+    const QMimeType mime = db.mimeTypeForFile(path, QMimeDatabase::MatchContent);
+    return mime.isValid() && mime.name().startsWith("image/");
+}
+
+static bool isVideoFile(const QString &path)
+{
+    static QMimeDatabase db;
+    const QMimeType mime = db.mimeTypeForFile(path, QMimeDatabase::MatchContent);
+    return mime.isValid() && mime.name().startsWith("video/");
+}
+
+static uint32_t
+parseRole(const QString &role)
+{
+    using Role = QtWayland::treeland_wallpaper_v1::wallpaper_role;
+
+    if (role == "desktop")
+        return Role::wallpaper_role_desktop;
+    if (role == "lockscreen")
+        return Role::wallpaper_role_lockscreen;
+    if (role == "both")
+        return Role::wallpaper_role_desktop | Role::wallpaper_role_lockscreen;
+
+    return Role::wallpaper_role_desktop; // default
 }
 
 int main(int argc, char *argv[])
@@ -42,6 +74,20 @@ int main(int argc, char *argv[])
         QStringLiteral("output-name")
         );
     parser.addOption(outputNameOption);
+    QCommandLineOption pathOption(
+        QStringLiteral("path"),
+        QStringLiteral("Wallpaper path (image or video)."),
+        QStringLiteral("file-path")
+        );
+    parser.addOption(pathOption);
+
+    QCommandLineOption roleOption(
+        QStringLiteral("role"),
+        QStringLiteral("Wallpaper role: desktop | lockscreen | both."),
+        QStringLiteral("role"),
+        QStringLiteral("desktop")
+        );
+    parser.addOption(roleOption);
     parser.process(app);
 
     const QString outputName = parser.value(outputNameOption);
@@ -56,18 +102,28 @@ int main(int argc, char *argv[])
         return EXIT_FAILURE;
     }
 
+    const QString wallpaperPath = parser.value(pathOption);
+    const QString roleString = parser.value(roleOption);
+
+    if (wallpaperPath.isEmpty()) {
+        qCritical() << "--path is required";
+        return EXIT_FAILURE;
+    }
+
     TreelandWallpaperManagerV1 *wallpaperManager = new TreelandWallpaperManagerV1;
-    QObject::connect(wallpaperManager, &TreelandWallpaperManagerV1::activeChanged, [wallpaperManager, targetScreen] {
+    QObject::connect(wallpaperManager, &TreelandWallpaperManagerV1::activeChanged, [&] {
         if (wallpaperManager->isActive()) {
             if (!targetScreen) {
                 qWarning() << "createWallpaper called with null QScreen";
                 qApp->exit(EXIT_FAILURE);
+                return;
             }
 
             auto *nativeInterface = qGuiApp->platformNativeInterface();
             if (!nativeInterface) {
                 qCritical() << "No QPlatformNativeInterface available";
                 qApp->exit(EXIT_FAILURE);
+                return;
             }
 
             wl_output *wlOutput = static_cast<wl_output *>(
@@ -77,18 +133,28 @@ int main(int argc, char *argv[])
             if (!wlOutput) {
                 qCritical() << "Failed to get wl_output for screen:" << targetScreen->name();
                 qApp->exit(EXIT_FAILURE);
+                return;
             }
 
             auto *object = wallpaperManager->get_treeland_wallpaper(wlOutput, nullptr);
             if (!object) {
                 qCritical() << "treeland_wallpaper_manager_v1 returned null object";
                 qApp->exit(EXIT_FAILURE);
+                return;
             }
             TreelandWallpaperV1 *wallpaper = new TreelandWallpaperV1(object);
-            wallpaper->set_image_source(
-                QStringLiteral("/usr/share/wallpapers/deepin/deepin-default.jpg"),
-                QtWayland::treeland_wallpaper_v1::wallpaper_role_desktop
-                );
+            const uint32_t role = parseRole(roleString);
+            if (isImageFile(wallpaperPath)) {
+                wallpaper->set_image_source(wallpaperPath, role);
+            } else if (isVideoFile(wallpaperPath)) {
+                wallpaper->set_video_source(wallpaperPath, role);
+            } else {
+                qCritical() << "Unsupported wallpaper file type:" << wallpaperPath;
+                delete wallpaper;
+                delete wallpaperManager;
+                qApp->exit(EXIT_FAILURE);
+                return;
+            }
             delete wallpaper;
             delete wallpaperManager;
             qApp->exit(EXIT_SUCCESS);
