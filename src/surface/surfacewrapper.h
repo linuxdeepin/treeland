@@ -106,10 +106,10 @@ public:
 
     enum class ActiveControlState : quint16
     {
-        Mapped = 1 << 0,
+        MappedOrSplash = 1 << 0,
         UnMinimized = 1 << 1,
         HasInitializeContainer = 1 << 2, // when not in Container, we can't stackToLast
-        Full = Mapped | UnMinimized | HasInitializeContainer,
+        Full = MappedOrSplash | UnMinimized | HasInitializeContainer,
     };
     Q_ENUM(ActiveControlState);
     Q_DECLARE_FLAGS(ActiveControlStates, ActiveControlState)
@@ -346,6 +346,7 @@ private:
     using QQuickItem::stackBefore;
     void setParent(QQuickItem *item);
     void setActivate(bool activate);
+    void updateActiveState();
     void setNormalGeometry(const QRectF &newNormalGeometry);
     void updateTitleBar();
     void updateDecoration();
@@ -452,6 +453,7 @@ private:
     uint m_hideByLockScreen : 1;
     uint m_confirmHideByLockScreen : 1;
     uint m_blur : 1;
+    uint m_isActive : 1;
     SurfaceRole m_surfaceRole = SurfaceRole::Normal;
     quint32 m_autoPlaceYOffset = 0;
     QPoint m_clientRequstPos;

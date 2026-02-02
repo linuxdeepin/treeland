@@ -176,6 +176,7 @@ SurfaceWrapper::SurfaceWrapper(QmlEngine *qmlEngine,
             SLOT(onPrelaunchSplashDestroyRequested()));
 
     setNoDecoration(false);
+    updateHasActiveCapability(ActiveControlState::MappedOrSplash, true);// Splash is true
 }
 
 SurfaceWrapper::~SurfaceWrapper()
@@ -428,8 +429,11 @@ void SurfaceWrapper::convertToNormalSurface(WToplevelSurface *shellSurface, Type
     updateTitleBar();
     updateDecoration();
 
-    Q_ASSERT(m_prelaunchSplash);
-    QMetaObject::invokeMethod(m_prelaunchSplash, "hideAndDestroy", Qt::QueuedConnection);
+    if (surface()->mapped()) {
+        Q_ASSERT(m_prelaunchSplash);
+        QMetaObject::invokeMethod(m_prelaunchSplash, "hideAndDestroy", Qt::QueuedConnection);
+    }
+    // else hideAndDestroy will be called in onMappedChanged
 }
 
 void SurfaceWrapper::setParent(QQuickItem *item)
@@ -442,20 +446,28 @@ void SurfaceWrapper::setActivate(bool activate)
 {
     if (m_wrapperAboutToRemove)
         return;
+    if (m_isActive == activate)
+        return;
 
+    Q_ASSERT(!activate || hasActiveCapability());
+    m_isActive = activate;
     // No shellSurface in prelaunch mode -> early return
     if (!m_shellSurface)
         return;
 
-    Q_ASSERT(!activate || hasActiveCapability());
-    m_shellSurface->setActivate(activate);
+    updateActiveState();
+}
+
+void SurfaceWrapper::updateActiveState()
+{
+   m_shellSurface->setActivate(m_isActive);
     auto parent = parentSurface();
     while (parent) {
         if (!parent->hasActiveCapability()) {
             // Maybe it's parent is Minimized or Unmapped
             break;
         }
-        parent->setActivate(activate);
+        parent->setActivate(m_isActive);
         parent = parent->parentSurface();
     }
 }
@@ -496,6 +508,9 @@ void SurfaceWrapper::onPrelaunchSplashDestroyRequested()
         return;
     m_prelaunchSplash->deleteLater();
     m_prelaunchSplash = nullptr;
+    updateHasActiveCapability(ActiveControlState::MappedOrSplash,
+                                surface() && surface()->mapped());
+    updateActiveState();
     Q_EMIT prelaunchSplashChanged();
 }
 
@@ -1278,6 +1293,12 @@ void SurfaceWrapper::onMappedChanged()
 
     Q_ASSERT(surface());
     bool mapped = surface()->mapped() && !m_hideByLockScreen;
+
+    if (m_prelaunchSplash) {
+        // The QML part will check for duplicate calls.
+        QMetaObject::invokeMethod(m_prelaunchSplash, "hideAndDestroy", Qt::QueuedConnection);
+    }
+
     if (!m_isProxy) {
         if (mapped) {
             if (!m_prelaunchSplash)
@@ -1294,7 +1315,8 @@ void SurfaceWrapper::onMappedChanged()
         m_coverContent->setProperty("mapped", mapped);
     }
 
-    updateHasActiveCapability(ActiveControlState::Mapped, mapped);
+    // Splash can't call onMappedChanged, just use mapped state to update
+    updateHasActiveCapability(ActiveControlState::MappedOrSplash, mapped);
 
     updateVisible();
 }
