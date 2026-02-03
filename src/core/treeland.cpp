@@ -494,6 +494,7 @@ void Treeland::quit()
     // make sure all deleted before app exit
     d_ptr.reset();
     qApp->quit();
+    // TODO: release drm master and return tty to text mode
 }
 
 } // namespace Treeland
