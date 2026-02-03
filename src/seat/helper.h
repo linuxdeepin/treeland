@@ -183,7 +183,6 @@ public:
 
     void addSocket(WSocket *socket);
     [[nodiscard]] WXWayland *createXWayland();
-    void removeXWayland(WXWayland *xwayland);
 
     PersonalizationV1 *personalization() const;
 

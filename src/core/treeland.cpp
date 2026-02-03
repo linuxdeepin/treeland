@@ -103,6 +103,10 @@ public:
             it->second->deleteLater();
             pluginTs.erase(it++);
         }
+        // UserModel must be deleted before Helper, to remove client surfaces before rendering ends.
+        delete qmlEngine->singletonInstance<UserModel *>("Treeland", "UserModel");
+        // Helper must be deleted before QmlEngine, for surfaces to be cleanly removed.
+        qmlEngine->clearSingletons();
     }
 
 #ifndef DISABLE_DDM
