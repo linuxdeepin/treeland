@@ -1,4 +1,4 @@
-// Copyright (C) 2023 JiDe Zhang <zhangjide@deepin.org>.
+// Copyright (C) 2023-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "helper.h"
@@ -1142,6 +1142,19 @@ void Helper::onSurfaceWrapperAdded(SurfaceWrapper *wrapper)
             m_treelandForeignToplevel->addSurface(wrapper);
         }
     });
+
+
+    /*
+        A splash screen can be active but cannot receive keyboard focus.
+        If it is converted into a normal window and remains active,
+        it should actively acquire focus.
+    */
+    if (wrapper->isActivated()
+        && wrapper != keyboardFocusSurface()
+        && wrapper->hasCapability(WToplevelSurface::Capability::Focus)
+        && wrapper->acceptKeyboardFocus()) {
+            requestKeyboardFocusForSurface(wrapper, Qt::FocusReason::ActiveWindowFocusReason);
+    }
 }
 
 void Helper::onSurfaceWrapperAboutToRemove(SurfaceWrapper *wrapper)
@@ -1504,13 +1517,13 @@ void Helper::init(Treeland::Treeland *treeland)
 void Helper::activateSurface(SurfaceWrapper *wrapper, Qt::FocusReason reason)
 {
     if (m_blockActivateSurface && wrapper && wrapper->type() != SurfaceWrapper::Type::LockScreen) {
-        if (wrapper->shellSurface()->hasCapability(WToplevelSurface::Capability::Activate)) {
+        if (wrapper->hasCapability(WToplevelSurface::Capability::Activate)) {
             workspace()->pushActivedSurface(wrapper);
         }
         return;
     }
     if (!wrapper
-        || !wrapper->shellSurface()->hasCapability(WToplevelSurface::Capability::Activate)) {
+        || !wrapper->hasCapability(WToplevelSurface::Capability::Activate)) {
         if (!wrapper)
             setActivatedSurface(nullptr);
         // else if wrapper don't have Activate Capability, do nothing
@@ -1525,7 +1538,7 @@ void Helper::activateSurface(SurfaceWrapper *wrapper, Qt::FocusReason reason)
     }
 
     if (!wrapper
-        || (wrapper->shellSurface()->hasCapability(WToplevelSurface::Capability::Focus)
+        || (wrapper->hasCapability(WToplevelSurface::Capability::Focus)
             && wrapper->acceptKeyboardFocus()))
         requestKeyboardFocusForSurface(wrapper, reason);
 }
@@ -1852,7 +1865,7 @@ void Helper::requestKeyboardFocusForSurface(SurfaceWrapper *newActivate, Qt::Foc
         return;
 
     Q_ASSERT(!newActivate
-             || newActivate->shellSurface()->hasCapability(WToplevelSurface::Capability::Focus));
+             || newActivate->hasCapability(WToplevelSurface::Capability::Focus));
 
     if (nowKeyboardFocusSurface && nowKeyboardFocusSurface->hasActiveCapability()) {
         if (newActivate) {

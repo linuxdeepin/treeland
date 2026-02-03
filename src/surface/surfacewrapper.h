@@ -1,4 +1,4 @@
-// Copyright (C) 2024 UnionTech Software Technology Co., Ltd.
+// Copyright (C) 2024-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 #pragma once
 
@@ -80,6 +80,7 @@ class SurfaceWrapper : public QQuickItem
     Q_PROPERTY(bool isWindowAnimationRunning READ isWindowAnimationRunning NOTIFY windowAnimationRunningChanged FINAL)
     Q_PROPERTY(bool coverEnabled READ coverEnabled NOTIFY coverEnabledChanged FINAL)
     Q_PROPERTY(bool acceptKeyboardFocus READ acceptKeyboardFocus NOTIFY acceptKeyboardFocusChanged FINAL)
+    Q_PROPERTY(bool isActivated READ isActivated NOTIFY isActivatedChanged FINAL)
 
 public:
     enum class Type
@@ -237,6 +238,7 @@ public:
     bool showOnWorkspace(int workspaceIndex) const;
 
     bool hasActiveCapability() const;
+    bool hasCapability(WToplevelSurface::Capability cap) const;
 
     bool skipSwitcher() const;
     bool skipDockPreView() const;
@@ -271,8 +273,10 @@ public:
 
     void markWrapperToRemoved();
 
-    bool acceptKeyboardFocus() const;
+    bool acceptKeyboardFocus() const; // set by treeland-dde-shell
     void setAcceptKeyboardFocus(bool accept);
+
+    bool isActivated() const;
 
 public Q_SLOTS:
     // for titlebar
@@ -334,6 +338,7 @@ Q_SIGNALS:
     void coverEnabledChanged();
     void aboutToBeInvalidated();
     void acceptKeyboardFocusChanged();
+    void isActivatedChanged();
     void surfaceItemCreated(); // Emitted once after surfaceItem is constructed
     void prelaunchSplashChanged();
     void typeChanged();
@@ -453,7 +458,7 @@ private:
     uint m_hideByLockScreen : 1;
     uint m_confirmHideByLockScreen : 1;
     uint m_blur : 1;
-    uint m_isActive : 1;
+    uint m_isActivated : 1;
     SurfaceRole m_surfaceRole = SurfaceRole::Normal;
     quint32 m_autoPlaceYOffset = 0;
     QPoint m_clientRequstPos;

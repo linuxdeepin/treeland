@@ -1,4 +1,4 @@
-// Copyright (C) 2024 UnionTech Software Technology Co., Ltd.
+// Copyright (C) 2024-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "surface/surfacewrapper.h"
@@ -9,6 +9,7 @@
 #include "seat/helper.h"
 #include "treelanduserconfig.hpp"
 #include "workspace/workspace.h"
+#include "wtoplevelsurface.h"
 
 #include <QVariant>
 #include <QColor>
@@ -60,6 +61,7 @@ SurfaceWrapper::SurfaceWrapper(QmlEngine *qmlEngine,
     , m_hideByLockScreen(false)
     , m_confirmHideByLockScreen(false)
     , m_blur(false)
+    , m_isActivated(false)
     , m_appId(appId)
 {
     QQmlEngine::setContextForObject(this, qmlEngine->rootContext());
@@ -92,6 +94,7 @@ SurfaceWrapper::SurfaceWrapper(SurfaceWrapper *original,
     , m_hideByLockScreen(false)
     , m_confirmHideByLockScreen(false)
     , m_blur(false)
+    , m_isActivated(false)
     , m_appId(original->m_appId)
 {
     QQmlEngine::setContextForObject(this, m_engine->rootContext());
@@ -158,6 +161,7 @@ SurfaceWrapper::SurfaceWrapper(QmlEngine *qmlEngine,
     , m_hideByLockScreen(false)
     , m_confirmHideByLockScreen(false)
     , m_blur(false)
+    , m_isActivated(false)
     , m_appId(appId)
 {
     QQmlEngine::setContextForObject(this, qmlEngine->rootContext());
@@ -428,12 +432,11 @@ void SurfaceWrapper::convertToNormalSurface(WToplevelSurface *shellSurface, Type
     // setNoDecoration not called updateTitleBar when type is SplashScreen
     updateTitleBar();
     updateDecoration();
-
+    updateActiveState();
     if (surface()->mapped()) {
         Q_ASSERT(m_prelaunchSplash);
         QMetaObject::invokeMethod(m_prelaunchSplash, "hideAndDestroy", Qt::QueuedConnection);
-    }
-    // else hideAndDestroy will be called in onMappedChanged
+    } // else hideAndDestroy will be called in onMappedChanged
 }
 
 void SurfaceWrapper::setParent(QQuickItem *item)
@@ -446,28 +449,32 @@ void SurfaceWrapper::setActivate(bool activate)
 {
     if (m_wrapperAboutToRemove)
         return;
-    if (m_isActive == activate)
+    if (m_isActivated == activate)
         return;
 
     Q_ASSERT(!activate || hasActiveCapability());
-    m_isActive = activate;
+    m_isActivated = activate;
     // No shellSurface in prelaunch mode -> early return
-    if (!m_shellSurface)
-        return;
+    if (m_shellSurface)
+        updateActiveState();
 
-    updateActiveState();
+    Q_EMIT isActivatedChanged();
 }
 
 void SurfaceWrapper::updateActiveState()
 {
-   m_shellSurface->setActivate(m_isActive);
+    if (!m_shellSurface) {
+        qCCritical(treelandSurface) << "updateActiveState called without a valid shellSurface";
+        return;
+    }
+    m_shellSurface->setActivate(m_isActivated);
     auto parent = parentSurface();
     while (parent) {
         if (!parent->hasActiveCapability()) {
             // Maybe it's parent is Minimized or Unmapped
             break;
         }
-        parent->setActivate(m_isActive);
+        parent->setActivate(m_isActivated);
         parent = parent->parentSurface();
     }
 }
@@ -504,13 +511,13 @@ void SurfaceWrapper::onPrelaunchSplashDestroyRequested()
 
     updateVisible();
 
-    if (!m_prelaunchSplash)
-        return;
+    Q_ASSERT(m_prelaunchSplash);
     m_prelaunchSplash->deleteLater();
     m_prelaunchSplash = nullptr;
     updateHasActiveCapability(ActiveControlState::MappedOrSplash,
                                 surface() && surface()->mapped());
-    updateActiveState();
+    if (m_shellSurface) 
+        updateActiveState();
     Q_EMIT prelaunchSplashChanged();
 }
 
@@ -905,6 +912,11 @@ void SurfaceWrapper::setAcceptKeyboardFocus(bool accept)
 
     m_acceptKeyboardFocus = accept;
     Q_EMIT acceptKeyboardFocusChanged();
+}
+
+bool SurfaceWrapper::isActivated() const
+{
+    return m_isActivated;
 }
 
 void SurfaceWrapper::setNoDecoration(bool newNoDecoration)
@@ -1940,6 +1952,18 @@ void SurfaceWrapper::updateHasActiveCapability(ActiveControlState state, bool va
 bool SurfaceWrapper::hasActiveCapability() const
 {
     return m_hasActiveCapability == ActiveControlState::Full;
+}
+
+bool SurfaceWrapper::hasCapability(WToplevelSurface::Capability cap) const
+{
+    // SplashScreen doesn't have a real shellSurface
+    if (m_type == Type::SplashScreen) {
+        if (cap == WToplevelSurface::Capability::Activate)
+            return true;
+        // Focus, Maximized, FullScreen, Resize
+        return false;
+    }
+    return m_shellSurface && m_shellSurface->hasCapability(cap);
 }
 
 bool SurfaceWrapper::skipSwitcher() const

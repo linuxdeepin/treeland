@@ -1,23 +1,23 @@
-// Copyright (C) 2024-2025 UnionTech Software Technology Co., Ltd.
+// Copyright (C) 2024-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "output.h"
 
-#include "outputconfig.hpp"
-#include "treelandconfig.hpp"
-#include "treelanduserconfig.hpp"
-#include "core/rootsurfacecontainer.h"
-#include "seat/helper.h"
-#include "surface/surfacewrapper.h"
-#include "workspace/workspace.h"
 #include "cmdline.h"
 #include "common/treelandlogging.h"
+#include "core/rootsurfacecontainer.h"
+#include "outputconfig.hpp"
+#include "seat/helper.h"
+#include "surface/surfacewrapper.h"
+#include "treelandconfig.hpp"
+#include "treelanduserconfig.hpp"
+#include "workspace/workspace.h"
 
 #include <wcursor.h>
 #include <winputpopupsurface.h>
 #include <wlayersurface.h>
-#include <woutputitem.h>
 #include <woutputhelper.h>
+#include <woutputitem.h>
 #include <woutputlayout.h>
 #include <woutputrenderwindow.h>
 #include <wquicktextureproxy.h>
@@ -236,8 +236,16 @@ void Output::placeSmartCascaded(SurfaceWrapper *surface)
 {
     auto wpModel = Helper::instance()->workspace()->modelFromId(surface->workspaceId());
     Q_ASSERT(wpModel);
-    auto latestActiveSurface = wpModel->activePenultimateWindow();
-    if (!latestActiveSurface || latestActiveSurface == surface) {
+    /*
+     The execution of Output::placeSmartCascaded and the surface obtaining focus occur almost
+     simultaneously after the window is mapped for the first time; the order is not currently
+     guaranteed.
+    */
+    auto latestActiveSurface = wpModel->latestActiveSurface();
+    if (latestActiveSurface == surface)
+        latestActiveSurface = wpModel->activePenultimateWindow();
+
+    if (!latestActiveSurface) {
         placeCentered(surface);
         return;
     }
