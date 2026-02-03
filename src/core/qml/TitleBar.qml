@@ -65,7 +65,7 @@ Control {
     Rectangle {
         id: titlebar
         anchors.fill: parent
-        color: surface.shellSurface.isActivated ? "white" : "gray"
+        color: surface.isActivated ? "white" : "gray"
         layer.enabled: !root.noRadius
         layer.smooth: !root.noRadius
         opacity: !root.noRadius ? 0 : parent.opacity
