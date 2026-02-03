@@ -242,6 +242,8 @@ Helper::Helper(QObject *parent)
 
 Helper::~Helper()
 {
+    Q_ASSERT(m_instance == this);
+    m_instance = nullptr;
     for (auto s : m_rootSurfaceContainer->surfaces()) {
         m_rootSurfaceContainer->destroyForSurface(s);
     }
@@ -249,8 +251,6 @@ Helper::~Helper()
     // destroy before m_rootSurfaceContainer
     delete m_shellHandler;
     delete m_rootSurfaceContainer;
-    Q_ASSERT(m_instance == this);
-    m_instance = nullptr;
 }
 
 Helper *Helper::instance()
