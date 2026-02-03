@@ -1609,12 +1609,18 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *, QInputEvent *event)
     if (event->type() == QEvent::KeyPress) {
         auto kevent = static_cast<QKeyEvent *>(event);
 
+#ifndef QT_NO_DEBUG
+        if (QKeySequence(kevent->keyCombination()) ==
+            QKeySequence(Qt::MetaModifier | Qt::Key_F12)) {
+            std::terminate();
+        }
         // The debug view shortcut should always handled first
         if (QKeySequence(kevent->keyCombination())
             == QKeySequence(Qt::ControlModifier | Qt::ShiftModifier | Qt::MetaModifier | Qt::Key_F11)) {
             if (toggleDebugMenuBar())
                 return true;
         }
+#endif
 
         // Switch TTY with Ctrl + Alt + F1-F12
         if (kevent->modifiers() == (Qt::ControlModifier | Qt::AltModifier)) {
