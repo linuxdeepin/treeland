@@ -37,7 +37,17 @@ public:
     mutable QAtomicInt ref;
 
     explicit DataManagerBase(QQuickWindow *owner)
-        : QObject(owner) {}
+        : QObject(owner)
+    {
+        Q_ASSERT(owner->isSceneGraphInitialized());
+        connect(owner, &QQuickWindow::sceneGraphInvalidated, this, [this]() {
+            setParent(nullptr);
+            // per request from zccrs.
+            // Be Warned: objects may not be expected to be deleted in the rendering thread.
+            delete this;
+        }, static_cast<Qt::ConnectionType>(Qt::DirectConnection | Qt::SingleShotConnection));
+    }
+    virtual ~DataManagerBase() {};
 };
 
 template <class T>
@@ -260,7 +270,7 @@ protected:
     }
 
     using QObject::deleteLater;
-    ~DataManager() {
+    ~DataManager() override {
         for (auto data : std::as_const(dataList)) {
             Derive::destroy(data->data);
         }
@@ -452,7 +462,7 @@ private:
         isBatchRenderer = dynamic_cast<QSGBatchRenderer::Renderer*>(renderer);
     }
 
-    ~RhiManager() {
+    ~RhiManager() override {
         delete renderer;
     }
 

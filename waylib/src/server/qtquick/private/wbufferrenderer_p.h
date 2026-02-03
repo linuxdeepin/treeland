@@ -106,7 +106,7 @@ protected:
 
 private:
     inline WOutputRenderWindow *renderWindow() const {
-        return qobject_cast<WOutputRenderWindow*>(parent());
+        return qobject_cast<WOutputRenderWindow*>(window());
     }
 
     inline bool shouldCacheBuffer() const {
@@ -125,7 +125,7 @@ private:
     }
 
     void resetSources();
-    void removeSource(int index);
+    void destroySource(int index);
     int indexOfSource(QQuickItem *item);
     QSGRenderer *ensureRenderer(int sourceIndex, QSGRenderContext *rc);
 
