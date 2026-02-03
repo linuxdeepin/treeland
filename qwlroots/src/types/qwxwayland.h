@@ -30,6 +30,9 @@ public:
     QW_FUNC_MEMBER(xwayland, set_seat, void, wlr_seat *seat)
 
     QW_FUNC_MEMBER(xwayland, get_xwm_connection, xcb_connection_t*)
+
+protected:
+    QW_FUNC_MEMBER(xwayland, destroy, void)
 };
 
 QW_END_NAMESPACE
