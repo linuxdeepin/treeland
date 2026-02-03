@@ -1,4 +1,4 @@
-// Copyright (C) 2024 UnionTech Software Technology Co., Ltd.
+// Copyright (C) 2024-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #pragma once
@@ -11,6 +11,8 @@
 #include <QObject>
 #include <QPointer>
 #include <QSet>
+
+#include <utility>
 
 Q_MOC_INCLUDE("workspace/workspace.h")
 
@@ -115,14 +117,12 @@ private:
                                qlonglong splashThemeType);
 
     // --- helpers (internal) ---
-    SurfaceWrapper *matchOrCreateXdgWrapper(WAYLIB_SERVER_NAMESPACE::WXdgToplevelSurface *surface,
-                                            const QString &appId);
-    void initXdgWrapperCommon(WAYLIB_SERVER_NAMESPACE::WXdgToplevelSurface *surface,
-                              SurfaceWrapper *wrapper);
-    SurfaceWrapper *matchOrCreateXwaylandWrapper(WAYLIB_SERVER_NAMESPACE::WXWaylandSurface *surface,
-                                                 const QString &appId);
-    void initXwaylandWrapperCommon(WAYLIB_SERVER_NAMESPACE::WXWaylandSurface *surface,
-                                   SurfaceWrapper *wrapper);
+    // Creates or matches a wrapper from prelaunch splash, then initializes it
+    void ensureXdgWrapper(WAYLIB_SERVER_NAMESPACE::WXdgToplevelSurface *surface,
+                          const QString &appId);
+    // Creates or matches a wrapper from prelaunch splash, then initializes it
+    void ensureXwaylandWrapper(WAYLIB_SERVER_NAMESPACE::WXWaylandSurface *surface,
+                               const QString &appId);
     // Unified parent/container update for Xdg & XWayland toplevel wrappers.
     void updateWrapperContainer(SurfaceWrapper *wrapper,
                                 WAYLIB_SERVER_NAMESPACE::WSurface *parentSurface);
