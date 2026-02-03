@@ -85,7 +85,17 @@ WBufferRenderer::WBufferRenderer(QQuickItem *parent)
     , m_cacheBuffer(true)
     , m_hideSource(false)
 {
-
+    // ensure graphical resources are released before scene graph is invalidated
+    // since WBufferRenderer's ItemHasContent bit is unset
+    // the invalidateSceneGraph slot will not be called through QQuickWindowPrivate::cleanupNodesOnShutdown
+    QMetaObject::Connection windowConn;
+    if (window())
+        windowConn = connect(window(), &QQuickWindow::sceneGraphInvalidated, this, &WBufferRenderer::invalidateSceneGraph);
+    connect(this, &QQuickItem::windowChanged, this, [this, windowConn](auto *window) mutable {
+        disconnect(windowConn);
+        if (window)
+            windowConn = connect(window, &QQuickWindow::sceneGraphInvalidated, this, &WBufferRenderer::invalidateSceneGraph);
+    });
 }
 
 WBufferRenderer::~WBufferRenderer()
@@ -142,7 +152,6 @@ void WBufferRenderer::setSourceList(QList<QQuickItem*> sources, bool hideSource)
         return;
 
     resetSources();
-    m_sourceList.clear();
     m_hideSource = hideSource;
 
     for (auto s : std::as_const(sources)) {
@@ -154,7 +163,7 @@ void WBufferRenderer::setSourceList(QList<QQuickItem*> sources, bool hideSource)
         connect(s, &QQuickItem::destroyed, this, [this] {
             const int index = indexOfSource(static_cast<QQuickItem*>(sender()));
             Q_ASSERT(index >= 0);
-            removeSource(index);
+            destroySource(index);
             m_sourceList.removeAt(index);
         });
 
@@ -687,11 +696,13 @@ void WBufferRenderer::invalidateSceneGraph()
 {
     if (m_textureProvider)
         m_textureProvider.reset();
+    resetSources();
 }
 
 void WBufferRenderer::releaseResources()
 {
     cleanTextureProvider();
+    resetSources();
 }
 
 void WBufferRenderer::cleanTextureProvider()
@@ -723,19 +734,23 @@ void WBufferRenderer::cleanTextureProvider()
 void WBufferRenderer::resetSources()
 {
     for (int i = 0; i < m_sourceList.size(); ++i) {
-        removeSource(i);
+        destroySource(i);
     }
+    m_sourceList.clear();
 }
 
-void WBufferRenderer::removeSource(int index)
+void WBufferRenderer::destroySource(int index)
 {
-    auto s = m_sourceList.at(index);
+    auto &s = m_sourceList[index];
     if (isRootItem(s.source))
         return;
 
     // Renderer of source is delay initialized in ensureRenderer. It might be null here.
-    if (s.renderer)
-        s.renderer->deleteLater();
+    if (s.renderer) {
+        delete s.renderer;
+        s.renderer = nullptr;
+    }
+
     auto d = QQuickItemPrivate::get(s.source);
     if (d->inDestructor)
         return;
