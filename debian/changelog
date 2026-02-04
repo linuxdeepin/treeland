@@ -1,3 +1,20 @@
+treeland (0.8.3) unstable; urgency=medium
+
+  * chore: refactor treeland screensaver to persistent daemon
+  * fix(xwayland): prevent use-after-free in xauth file path
+    construction
+  * fix: lower classed QML element waylib being non-addressable in QML
+  * feat: Add wallpaper producer support for Treeland Wayland compositor
+  * fix: resolve Qt 6.12 compilation errors
+  * chore: disable restrictive systemd security options
+  * fix: improve Qt6 private module compatibility
+  * fix: fix corner radius clipping when no compositor decoration
+  * refactor: move session related functionality out of Helper
+  * chore: enable prelaunch splash by default
+  * fix: add missing rendering flags to WSGRenderFootprintNode
+
+ -- rewine <luhongxu@uniontech.com>  Wed, 04 Feb 2026 16:06:58 +0800
+
 treeland (0.8.2) unstable; urgency=medium
 
   * refactor: use const iterators for QVector in signal connector
