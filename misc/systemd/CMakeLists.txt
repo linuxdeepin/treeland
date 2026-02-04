@@ -21,11 +21,13 @@ configure_file("dde-session-pre.target.wants/treeland-xwayland.service.in" "dde-
 configure_file("dde-session-pre.target.wants/treeland-shortcut.service.in" "dde-session-pre.target.wants/treeland-shortcut.service" IMMEDIATE @ONLY)
 configure_file("dde-session-pre.target.wants/treeland.service.in" "dde-session-pre.target.wants/treeland.service" IMMEDIATE @ONLY)
 configure_file("treeland-session-helper.service.in" "treeland-session-helper.service" IMMEDIATE @ONLY)
+configure_file("treeland-screensaver.service.in" "treeland-screensaver.service" IMMEDIATE @ONLY)
 configure_file("treeland.service.in" "treeland.service" IMMEDIATE @ONLY)
 
 install(FILES ${SERVICES} DESTINATION ${SYSTEMD_USER_UNIT_DIR})
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/treeland.service DESTINATION ${SYSTEMD_SYSTEM_UNIT_DIR})
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/treeland-session-helper.service DESTINATION ${SYSTEMD_USER_UNIT_DIR})
+install(FILES ${CMAKE_CURRENT_BINARY_DIR}/treeland-screensaver.service DESTINATION ${SYSTEMD_USER_UNIT_DIR})
 
 install(DIRECTORY DESTINATION ${SYSTEMD_USER_UNIT_DIR}/dde-session-pre.target.wants/)
 install(DIRECTORY DESTINATION ${SYSTEMD_USER_UNIT_DIR}/dde-session-shutdown.target.wants/)
@@ -48,3 +50,4 @@ install_symlink(treeland-shortcut.service dde-session-pre.target.wants)
 install_symlink(treeland.service dde-session-pre.target.wants)
 install_symlink(treeland-session-shutdown.service dde-session-shutdown.target.wants)
 install_symlink(treeland-session-helper.service treeland.service.wants)
+install_symlink(treeland-screensaver.service treeland.service.wants)

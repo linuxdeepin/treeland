@@ -1,3 +1,0 @@
-[D-BUS Service]
-Name=org.freedesktop.ScreenSaver
-Exec=@CMAKE_INSTALL_FULL_LIBEXECDIR@/treeland-screensaver
