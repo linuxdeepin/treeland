@@ -5,7 +5,6 @@ usr/lib/systemd/system/*
 usr/libexec/*
 usr/share/*/translations/*
 usr/share/dbus-1/system.d/*
-usr/share/dbus-1/services/org.freedesktop.ScreenSaver.service
 usr/lib/*/lib*.so.*
 usr/lib/*/treeland/plugins/lib*.so
 

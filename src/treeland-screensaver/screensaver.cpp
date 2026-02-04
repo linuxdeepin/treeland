@@ -4,8 +4,9 @@
 /**
  * org.freedesktop.ScreenSaver implementation using treeland_screensaver protocol
  * 
+ * This service runs as a persistent daemon under Treeland session.
  * For each Inhibit request a wayland connection is created, which will be terminated
- * upon UnInhibit. The app will exit when there are no more active inhibits.
+ * upon UnInhibit.
  */
 
 #include <QCoreApplication>
@@ -95,8 +96,6 @@ public Q_SLOTS:
             if (inhibits[caller].isEmpty())
                 inhibits.remove(caller);
         }
-        if (inhibits.isEmpty())
-            QCoreApplication::quit();
     }
 };
 
@@ -109,8 +108,6 @@ public Q_SLOTS:
         for (auto it = inhibits[caller].cbegin(); it != inhibits[caller].cend(); ++it) \
             uninhibit(it.value());                                                     \
         inhibits.remove(caller);                                                       \
-        if (inhibits.isEmpty())                                                        \
-            QCoreApplication::quit();                                                  \
     }
 
 static void onServiceUnregistered(const QString &service) {
