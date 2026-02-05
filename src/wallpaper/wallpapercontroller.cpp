@@ -63,9 +63,6 @@ void WallpaperController::updateState()
     case Scale:
         state = "Scale";
         break;
-    case ScaleWithoutAnimation:
-        state = "ScaleWithoutAnimation";
-        break;
     }
     proxy->setState(state);
 

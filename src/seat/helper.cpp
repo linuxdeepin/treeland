@@ -18,7 +18,9 @@
 #include "core/shellhandler.h"
 #include "core/treeland.h"
 #include "core/windowpicker.h"
+#include "greeter/greeterproxy.h"
 #include "greeter/usermodel.h"
+#include "greeter/sessionmodel.h"
 #include "input/inputdevice.h"
 #include "interfaces/multitaskviewinterface.h"
 #include "modules/app-id-resolver/appidresolver.h"
@@ -1193,7 +1195,9 @@ void Helper::init(Treeland::Treeland *treeland)
     connect(m_sessionManager, &SessionManager::sessionChanged, treeland, &Treeland::Treeland::SessionChanged);
 
     auto engine = qmlEngine();
+    m_greeterProxy = engine->singletonInstance<GreeterProxy *>("Treeland", "GreeterProxy");
     m_userModel = engine->singletonInstance<UserModel *>("Treeland", "UserModel");
+    m_sessionModel = engine->singletonInstance<SessionModel *>("Treeland", "SessionModel");
 
     engine->setContextForObject(m_renderWindow, engine->rootContext());
     engine->setContextForObject(m_renderWindow->contentItem(), engine->rootContext());
@@ -2222,9 +2226,11 @@ void Helper::setLockScreenImpl(ILockScreen *impl)
         return;
     }
 
-    m_lockScreen = new LockScreen(impl, m_rootSurfaceContainer);
+    m_lockScreen = new LockScreen(impl, m_rootSurfaceContainer, m_greeterProxy);
     m_lockScreen->setZ(RootSurfaceContainer::LockScreenZOrder);
     m_lockScreen->setVisible(false);
+
+    m_greeterProxy->setLockScreen(m_lockScreen);
 
     for (auto *output : m_rootSurfaceContainer->outputs()) {
         m_lockScreen->addOutput(output);
@@ -2423,10 +2429,6 @@ void Helper::onPrepareForSleep(bool sleep)
         qCInfo(treelandCore) << "Re-enabled rendering after hibernate";
         enableRender();
     }
-}
-
-UserModel *Helper::userModel() const {
-    return m_userModel;
 }
 
 DDMInterfaceV1 *Helper::ddmInterfaceV1() const {

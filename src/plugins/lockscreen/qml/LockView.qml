@@ -4,42 +4,16 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import Treeland
-import Treeland
 
 FocusScope {
     id: root
-    property bool showAnimation: true
     property int state: LoginAnimation.Show
     readonly property bool powerVisible: controlAction.powerVisible
-    signal quit()
     signal animationPlayFinished()
 
-    function start() {
-        root.state = LoginAnimation.Show
-        if (showAnimation) {
-            leftAnimation.item.start({x: root.x - quickAction.width, y: quickAction.y}, {x: quickAction.x, y: quickAction.y})
-            logoAnimation.item.start({x: root.x - logo.width, y: logo.y}, {x: logo.x, y: logo.y})
-            rightAnimation.item.start({x: root.width + userInput.width, y: userInput.y}, {x: userInput.x, y: userInput.y})
-            bottomAnimation.item.start({x: controlAction.x, y: controlAction.y + controlAction.height}, {x: controlAction.x, y: controlAction.y})
-        } else {
-            leftAnimation.item.skip({x: quickAction.x, y: quickAction.y})
-            logoAnimation.item.skip({x: logo.x, y: logo.y})
-            rightAnimation.item.skip({x: userInput.x, y: userInput.y})
-            bottomAnimation.item.skip({x: controlAction.x, y: controlAction.y})
-        }
-    }
-
-    function showUserView()
-    {
-        root.animationPlayFinished.connect(root.__showUserList)
-        start()
-    }
-
-    function __showUserList()
-    {
-        controlAction.showUserList()
-        root.animationPlayFinished.disconnect(root.__showUserList)
-    }
+    /**************/
+    /* Components */
+    /**************/
 
     Loader {
         id: leftAnimation
@@ -130,15 +104,19 @@ FocusScope {
             left: leftComp.left
         }
 
+        LogoProvider {
+            id: logoProvider
+        }
+
         Image {
             id: logoPic
-            source: GreeterModel.logoProvider.logo
+            source: logoProvider.logo
             height: 32
             fillMode: Image.PreserveAspectFit
         }
 
         Text {
-            text: GreeterModel.logoProvider.version
+            text: logoProvider.version
             font.weight: Font.Normal
             font.pixelSize: 14
             color: Qt.rgba(1, 1, 1, 153 / 255)
@@ -164,44 +142,45 @@ FocusScope {
             right: rightComp.right
         }
         rootItem: root
-        onLock: {
-            root.start()
+    }
+
+    /*****************************/
+    /* Functions and Connections */
+    /*****************************/
+
+    Connections {
+        target: GreeterProxy
+        function onLockChanged(isLocked) {
+            if (isLocked) {
+                root.forceActiveFocus()
+                root.visible = true
+                root.state = LoginAnimation.Show
+                leftAnimation.item.start({x: root.x - quickAction.width, y: quickAction.y}, {x: quickAction.x, y: quickAction.y})
+                logoAnimation.item.start({x: root.x - logo.width, y: logo.y}, {x: logo.x, y: logo.y})
+                rightAnimation.item.start({x: root.width + userInput.width, y: userInput.y}, {x: userInput.x, y: userInput.y})
+                bottomAnimation.item.start({x: controlAction.x, y: controlAction.y + controlAction.height}, {x: controlAction.x, y: controlAction.y})
+            } else {
+                root.state = LoginAnimation.Hide
+                leftAnimation.item.start({x: quickAction.x, y: quickAction.y}, {x: root.x - quickAction.width, y: quickAction.y})
+                logoAnimation.item.start({x: logo.x, y: logo.y}, {x: root.x - logo.width, y: logo.y})
+                rightAnimation.item.start({x: userInput.x, y: userInput.y}, {x: root.width + userInput.width, y: userInput.y})
+                bottomAnimation.item.start({x: controlAction.x, y: controlAction.y}, {x: controlAction.x, y: controlAction.y + controlAction.height})
+            }
         }
     }
 
-    Connections {
-        target: GreeterModel
-        function onStateChanged() {
-            switch (GreeterModel.state) {
-                case GreeterModel.AuthSucceeded: {
-                    userInput.userAuthSuccessed()
-                    userInput.updateHintMsg(userInput.normalHint)
-                    GreeterModel.quit()
-                }
-                break
-                case GreeterModel.AuthFailed: {
-                    userInput.userAuthFailed()
-                    userInput.updateHintMsg(qsTr("Password is incorrect."))
-                }
-                break
-                case GreeterModel.Quit: {
-                    root.state = LoginAnimation.Hide
-                    if (showAnimation) {
-                        leftAnimation.item.start({x: quickAction.x, y: quickAction.y}, {x: root.x - quickAction.width, y: quickAction.y})
-                        logoAnimation.item.start({x: logo.x, y: logo.y}, {x: root.x - logo.width, y: logo.y})
-                        rightAnimation.item.start({x: userInput.x, y: userInput.y}, {x: root.width + userInput.width, y: userInput.y})
-                        bottomAnimation.item.start({x: controlAction.x, y: controlAction.y}, {x: controlAction.x, y: controlAction.y + controlAction.height})
-                    } else {
-                        leftAnimation.item.skip({x: root.x - quickAction.width, y: quickAction.y})
-                        logoAnimation.item.skip({x: root.x - logo.width, y: logo.y})
-                        rightAnimation.item.skip({x: root.width + userInput.width, y: userInput.y})
-                        bottomAnimation.item.skip({x: controlAction.x, y: controlAction.y + controlAction.height})
-                    }
-
-                    root.quit()
-                }
-                break
-            }
+    onAnimationPlayFinished: {
+        if (!GreeterProxy.isLocked) {
+            root.visible = false
         }
+    }
+
+    function showUserView() {
+        root.animationPlayFinished.connect(root.__showUserList)
+    }
+
+    function __showUserList() {
+        controlAction.showUserList()
+        root.animationPlayFinished.disconnect(root.__showUserList)
     }
 }
