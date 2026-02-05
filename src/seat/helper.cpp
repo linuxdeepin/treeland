@@ -2285,7 +2285,6 @@ void Helper::showLockScreen(bool switchToGreeter)
     m_lockScreen->lock();
 
     // send DDM switch to greeter mode
-    // FIXME: DDM and Treeland should listen to the lock signal of login1
     if (switchToGreeter) {
         QThreadPool::globalInstance()->start([]() {
             QDBusInterface interface("org.freedesktop.DisplayManager",
