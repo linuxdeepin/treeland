@@ -237,6 +237,12 @@ private Q_SLOTS:
     /** @brief Listener for org.freederktop.login1.Manager.SessionRemoved */
     void onSessionRemoved(const QString &id, const QDBusObjectPath &session);
 
+    /** @brief Listener for org.freederktop.login1.Session.Lock */
+    void onSessionLock();
+
+    /** @brief Listener for org.freederktop.login1.Session.Unlock */
+    void onSessionUnlock();
+
 Q_SIGNALS:
     void informationMessage(const QString &message);
 
