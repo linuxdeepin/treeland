@@ -10,21 +10,24 @@ import Treeland
 
 RowLayout {
     id: bottomGroup
-    property int buttonSize: 30
     spacing: 15
 
-    property bool powerVisible: powerList.visible
     required property Item rootItem
-    signal lock()
+    property int buttonSize: 30
+    property bool powerVisible: powerList.visible
+
+    /**************/
+    /* Components */
+    /**************/
 
     // TODO: Design the interface of session selection
     D.Button {
         id: sessionItem
         Layout.alignment: Qt.AlignHCenter
-        visible: !GreeterModel.proxy.isLoggedIn
+        visible: !GreeterProxy.hasActiveSession
 
         contentItem: D.IconLabel {
-            text: SessionModel.data(SessionModel.index(GreeterModel.currentSession, 0), SessionModel.NameRole)
+            text: SessionModel.data(SessionModel.index(SessionModel.currentIndex, 0), SessionModel.NameRole)
             color: "white"
         }
 
@@ -42,12 +45,6 @@ RowLayout {
         onClicked: {
             sessionList.open()
         }
-    }
-
-    function showUserList()
-    {
-        userItem.expand = true
-        userList.open()
     }
 
     ControlActionItem {
@@ -139,5 +136,14 @@ RowLayout {
             }
             onClicked: actionItem.clicked()
         }
+    }
+
+    /*****************************/
+    /* Functions and Connections */
+    /*****************************/
+
+    function showUserList() {
+        userItem.expand = true
+        userList.open()
     }
 }

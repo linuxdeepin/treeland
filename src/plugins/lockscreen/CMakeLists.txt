@@ -4,10 +4,6 @@ find_package(Dtk6 REQUIRED COMPONENTS SystemSettings Declarative)
 # Include translation utilities
 include(${CMAKE_SOURCE_DIR}/cmake/TranslationUtils.cmake)
 
-set_source_files_properties(qml/GreeterModel.qml PROPERTIES
-    QT_QML_SINGLETON_TYPE TRUE
-)
-
 qt_add_library(lockscreen SHARED
     lockscreenplugin.h
     lockscreenplugin.cpp
@@ -19,7 +15,6 @@ qt_add_qml_module(lockscreen
         logoprovider.h
         logoprovider.cpp
     QML_FILES
-        qml/GreeterModel.qml
         qml/HintLabel.qml
         qml/LoginAnimation.qml
         qml/QuickAction.qml
