@@ -276,6 +276,21 @@ void GreeterProxy::onSessionNew(const QString &id, [[maybe_unused]] const QDBusO
         // userLoggedIn signal is connected with Helper::updateActiveUserSession
         Q_EMIT userModel()->userLoggedIn(user, id.toInt());
 
+        // Connect to Lock/Unlock signals
+        auto conn = QDBusConnection::systemBus();
+        conn.connect(Logind::serviceName(),
+                     path.path(),
+                     Logind::sessionIfaceName(),
+                     "Lock",
+                     this,
+                     SLOT(onSessionLock()));
+        conn.connect(Logind::serviceName(),
+                     path.path(),
+                     Logind::sessionIfaceName(),
+                     "Unlock",
+                     this,
+                     SLOT(onSessionUnlock()));
+
         if (userModel()->currentUserName() == user)
             setLock(false);
         if (!m_hasActiveSession) {
@@ -287,6 +302,21 @@ void GreeterProxy::onSessionNew(const QString &id, [[maybe_unused]] const QDBusO
 
 void GreeterProxy::onSessionRemoved(const QString &id, [[maybe_unused]] const QDBusObjectPath &path)
 {
+    // Disconnect from Lock/Unlock signals, if any
+    auto conn = QDBusConnection::systemBus();
+    conn.disconnect(Logind::serviceName(),
+                    path.path(),
+                    Logind::sessionIfaceName(),
+                    "Lock",
+                    this,
+                    SLOT(onSessionLock()));
+    conn.disconnect(Logind::serviceName(),
+                    path.path(),
+                    Logind::sessionIfaceName(),
+                    "Unlock",
+                    this,
+                    SLOT(onSessionUnlock()));
+
     auto session = Helper::instance()->sessionManager()->sessionForId(id.toInt());
     if (session) {
         QString username = session->username();
@@ -301,6 +331,57 @@ void GreeterProxy::onSessionRemoved(const QString &id, [[maybe_unused]] const QD
         m_hasActiveSession = false;
         Q_EMIT hasActiveSessionChanged(false);
     }
+}
+
+void GreeterProxy::onSessionLock()
+{
+    const QString path = message().path();
+    QThreadPool::globalInstance()->start([this, path] {
+        OrgFreedesktopLogin1SessionInterface session("org.freedesktop.login1",
+                                                     path,
+                                                     QDBusConnection::systemBus());
+        int id = session.id().toInt();
+        qCInfo(treelandGreeter) << "Lock signal received for session id:" << id;
+        auto activeSession = Helper::instance()->sessionManager()->activeSession().lock();
+        if (!activeSession)
+            qCWarning(treelandGreeter)
+                << "Lock signal received for non-exist session id:" << id << ", ignore.";
+        else if (activeSession->id() != id)
+            qCWarning(treelandGreeter)
+                << "Lock signal received for non-active session id:" << id << ", ignore.";
+        else
+            QMetaObject::invokeMethod(this, [this] {
+                setLock(true);
+            });
+    });
+}
+
+void GreeterProxy::onSessionUnlock()
+{
+    const QString path = message().path();
+    QThreadPool::globalInstance()->start([this, path] {
+        OrgFreedesktopLogin1SessionInterface session("org.freedesktop.login1",
+                                                     path,
+                                                     QDBusConnection::systemBus());
+        int id = session.id().toInt();
+        const QString username = session.name();
+        qCInfo(treelandGreeter) << "Unlock signal received for session id:" << id;
+        auto activeSession = Helper::instance()->sessionManager()->activeSession().lock();
+        if (!activeSession) {
+            qCWarning(treelandGreeter)
+                << "Unlock signal received for non-exist session id:" << id << ", ignore.";
+        } else if (activeSession->id() != id) {
+            qCWarning(treelandGreeter)
+                << "Unlock signal received for non-active session id:" << id << ", lock it back.";
+            QMetaObject::invokeMethod(this, [this, id] {
+                SocketWriter(m_socket) << quint32(GreeterMessages::Lock) << QString::number(id);
+            });
+        } else {
+            QMetaObject::invokeMethod(this, [this] {
+                setLock(false);
+            });
+        }
+    });
 }
 
 ///////////////////////
