@@ -17,10 +17,6 @@ Popup {
         radius: 12
     }
 
-    function updateCurrentSession(index) {
-        GreeterModel.currentSession = index
-    }
-
     ListView {
         id: list
         spacing: 1
@@ -56,7 +52,7 @@ Popup {
                 }
                 onClicked: (mouse) => {
                     mouse.accepted = false
-                    updateCurrentSession(index)
+                    SessionModel.currentIndex = index
                     popup.close()
                 }
             }
@@ -93,7 +89,7 @@ Popup {
         }
     }
     Component.onCompleted: {
-        list.currentIndex = GreeterModel.currentSession
+        list.currentIndex = SessionModel.currentIndex
     }
 }
 

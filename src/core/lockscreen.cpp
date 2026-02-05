@@ -8,6 +8,7 @@
 #include "seat/helper.h"
 #include "utils/cmdline.h"
 #include "common/treelandlogging.h"
+#include "greeter/greeterproxy.h"
 
 #ifdef EXT_SESSION_LOCK_V1
 #include <wsessionlock.h>
@@ -20,9 +21,10 @@
 
 WAYLIB_SERVER_USE_NAMESPACE
 
-LockScreen::LockScreen(ILockScreen *impl, SurfaceContainer *parent)
+LockScreen::LockScreen(ILockScreen *impl, SurfaceContainer *parent, GreeterProxy *greeterProxy)
     : SurfaceContainer(parent)
     , m_impl(impl)
+    , m_greeterProxy(greeterProxy)
     , m_delayTimer(std::make_unique<QTimer>(new QTimer))
 {
     connect(m_delayTimer.get(), &QTimer::timeout, this, &LockScreen::unlock);
@@ -40,10 +42,8 @@ void LockScreen::lock()
 
     setVisible(true);
 
-    for (const auto &[k, v] : m_components) {
-        v->setProperty("currentMode", static_cast<int>(LockScreen::CurrentMode::Lock));
-        QMetaObject::invokeMethod(v.get(), "start", QVariant::fromValue(true));
-    }
+    if (!m_greeterProxy->isLocked())
+        m_greeterProxy->lock();
 }
 
 void LockScreen::shutdown()
@@ -61,10 +61,8 @@ void LockScreen::shutdown()
 
     setVisible(true);
 
-    for (const auto &[k, v] : m_components) {
-        v->setProperty("currentMode", static_cast<int>(LockScreen::CurrentMode::Shutdown));
-        QMetaObject::invokeMethod(v.get(), "start", QVariant::fromValue(true));
-    }
+    if (!m_greeterProxy->showShutdownView())
+        m_greeterProxy->setShowShutdownView(true);
 }
 
 void LockScreen::switchUser()
@@ -82,10 +80,7 @@ void LockScreen::switchUser()
 
     setVisible(true);
 
-    for (const auto &[k, v] : m_components) {
-        v->setProperty("currentMode", static_cast<int>(LockScreen::CurrentMode::SwitchUser));
-        QMetaObject::invokeMethod(v.get(), "start", QVariant::fromValue(true));
-    }
+    Q_EMIT m_greeterProxy->switchUser();
 }
 
 void LockScreen::addOutput(Output *output)
@@ -104,10 +99,6 @@ void LockScreen::addOutput(Output *output)
     }
 
     auto *item = m_impl->createLockScreen(output, this);
-
-    if (isVisible()) {
-        QMetaObject::invokeMethod(item, "start", QVariant::fromValue(false));
-    }
 
     connect(item, SIGNAL(animationPlayed()), this, SLOT(onAnimationPlayed()));
     connect(item, SIGNAL(animationPlayFinished()), this, SLOT(onAnimationPlayFinished()));
@@ -314,10 +305,7 @@ void LockScreen::onExternalLockAbandoned() {
     }
     m_fallbackItems.clear();
 
-    for (const auto &[k, v] : m_components) {
-        v->setProperty("currentMode", static_cast<int>(LockScreen::CurrentMode::Lock));
-        QMetaObject::invokeMethod(v.get(), "start", QVariant::fromValue(true));
-    }
+    m_greeterProxy->lock();
 }
 
 void LockScreen::createFallbackItem(WOutputItem *outputItem)

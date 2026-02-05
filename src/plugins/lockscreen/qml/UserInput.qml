@@ -14,43 +14,14 @@ Item {
 
     property string normalHint: qsTr("Please enter password")
 
-    function updateUser() {
-        let currentUser = UserModel.get(UserModel.currentUserName)
-        username.text = currentUser.realName.length === 0 ? currentUser.name : currentUser.realName
-        passwordField.text = ''
-        avatar.fallbackSource = currentUser.icon
-        updateHintMsg(normalHint)
-    }
-
-    function userLogin() {
-        let user = UserModel.get(UserModel.currentUserName)
-        if (user.logined) {
-            GreeterModel.proxy.unlock(user.name, passwordField.text)
-            return
-        }
-
-        GreeterModel.proxy.login(user.name, passwordField.text,
-                                 GreeterModel.currentSession)
-    }
-
-    Connections {
-        target: UserModel
-        function onUpdateTranslations() {
-            updateUser()
-        }
-    }
-
-    Connections {
-        target: GreeterModel
-        function onCurrentUserChanged() {
-            updateUser()
-        }
-    }
+    /**************/
+    /* Components */
+    /**************/
 
     Item {
         width: 32
         height: 32
-        visible: GreeterModel.proxy.isLocked
+        visible: GreeterProxy.isLocked
         anchors {
             horizontalCenter: parent.horizontalCenter
             bottom: parent.top
@@ -325,26 +296,59 @@ Item {
         }
     }
 
+    /*****************************/
+    /* Functions and Connections */
+    /*****************************/
+
+    function updateUser() {
+        let currentUser = UserModel.get(UserModel.currentUserName)
+        username.text = currentUser.realName.length === 0 ? currentUser.name : currentUser.realName
+        passwordField.text = ''
+        avatar.fallbackSource = currentUser.icon
+        hintText.text = normalHint
+    }
+
+    function userLogin() {
+        let user = UserModel.get(UserModel.currentUserName)
+        if (user.loggedIn)
+            GreeterProxy.unlock(user.name, passwordField.text)
+        else
+            GreeterProxy.login(user.name, passwordField.text, SessionModel.currentIndex)
+    }
+
+    Connections {
+        target: GreeterProxy
+        function onFailedAttemptsChanged (attempts) {
+            if (attempts > 0) {
+                passwordField.selectAll()
+                if (loginGroup.activeFocus) {
+                    passwordField.forceActiveFocus()
+                }
+                hintText.text = qsTr("Password is incorrect.")
+            } else {
+                passwordField.text = ""
+                hintText.text = normalHint
+            }
+        }
+    }
+
+    Connections {
+        target: UserModel
+
+        function onUpdateTranslations(locale) {
+            updateUser()
+        }
+
+        function onCurrentUserNameChanged(name) {
+            updateUser()
+        }
+    }
+
     Component.onCompleted: {
         updateUser()
     }
 
     onActiveFocusChanged: {
         if (activeFocus) passwordField.forceActiveFocus()
-    }
-
-    function updateHintMsg(msg) {
-        hintText.text = msg
-    }
-
-    function userAuthSuccessed() {
-        passwordField.text = ""
-    }
-
-    function userAuthFailed() {
-        passwordField.selectAll()
-        if (loginGroup.activeFocus) {
-            passwordField.forceActiveFocus()
-        }
     }
 }

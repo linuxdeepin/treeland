@@ -112,7 +112,7 @@ D.Popup {
                             right: parent.right
                             bottom: parent.bottom
                         }
-                        visible: model.logined
+                        visible: model.loggedIn
 
                         Rectangle {
                             anchors.centerIn: parent

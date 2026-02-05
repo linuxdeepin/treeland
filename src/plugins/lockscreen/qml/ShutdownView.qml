@@ -8,14 +8,12 @@ import QtQuick.Controls
 FocusScope {
     id: root
 
-    signal clicked()
     signal switchUser()
-    signal lock()
 
     MouseArea {
         anchors.fill: parent
         enabled: true
-        onClicked: root.clicked()
+        onClicked: GreeterProxy.showShutdownView = false
     }
 
     PowerList {
@@ -29,26 +27,24 @@ FocusScope {
 
         modelChildren: [
             ShutdownButton {
+                visible: !GreeterProxy.isLocked
                 text: qsTr("lock")
                 icon.name: "login_lock"
-                onClicked: root.lock()
+                onClicked: GreeterProxy.lock()
             },
             ShutdownButton {
+                visible: !GreeterProxy.isLocked
                 text: qsTr("switch user")
                 icon.name: "login_switchuser"
                 enabled: UserModel.count > 1
                 onClicked: root.switchUser()
             },
             ShutdownButton {
+                visible: !GreeterProxy.isLocked
                 text: qsTr("Logout")
                 icon.name: "login_logout"
-                onClicked: {
-                    root.lock()
-                    GreeterModel.proxy.logout()
-                }
+                onClicked: GreeterProxy.logout()
             }
         ]
-
-        onLock: root.lock()
     }
 }

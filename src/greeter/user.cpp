@@ -11,7 +11,7 @@
 
 struct UserPrivate
 {
-    bool logined{ false };
+    bool loggedIn{ false };
     bool noPasswdLogin{ false };
     quint64 uid{ 0 };
     quint64 gid{ 0 };
@@ -115,14 +115,14 @@ const QLocale &User::locale() const noexcept
     return d->locale;
 }
 
-bool User::logined() const noexcept
+bool User::loggedIn() const noexcept
 {
-    return d->logined;
+    return d->loggedIn;
 }
 
-void User::setLogined(bool newState) const noexcept
+void User::setLoggedIn(bool newState) const noexcept
 {
-    d->logined = newState;
+    d->loggedIn = newState;
 }
 
 void User::updateLimitTime(const QString &time) noexcept

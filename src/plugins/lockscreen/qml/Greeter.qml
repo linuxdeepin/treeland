@@ -9,42 +9,14 @@ import LockScreen
 FocusScope {
     id: root
     clip: true
-    enum CurrentMode {
-        Lock = 1,
-        Shutdown = 2,
-        SwitchUser = 3
-    }
 
     signal animationPlayed
     signal animationPlayFinished
 
     required property QtObject output
     required property QtObject outputItem
-    property int currentMode: Greeter.CurrentMode.Lock
     property string primaryOutputName
     visible: primaryOutputName === "" || primaryOutputName === output.name
-
-    function start(showAnimation)
-    {
-        if (showAnimation === undefined) {
-            showAnimation = true
-        }
-        lockView.showAnimation = showAnimation
-        lockView.forceActiveFocus()
-        if (showAnimation) {
-            wallpaperController.type = WallpaperController.Scale
-        } else {
-            wallpaperController.type = WallpaperController.ScaleWithoutAnimation
-        }
-        switch (root.currentMode) {
-        case Greeter.CurrentMode.Lock:
-            lockView.start()
-            break;
-        case Greeter.CurrentMode.SwitchUser:
-            lockView.showUserView()
-            break;
-        }
-    }
 
     x: outputItem.x
     y: outputItem.y
@@ -53,11 +25,15 @@ FocusScope {
 
     palette.windowText: Qt.rgba(1.0, 1.0, 1.0, 1.0)
 
+    /**************/
+    /* Components */
+    /**************/
+
     WallpaperController {
         id: wallpaperController
         output: root.output
         lock: true
-        type: WallpaperController.Normal
+        type: (GreeterProxy.isLocked || GreeterProxy.showShutdownView) ? WallpaperController.Scale : WallpaperController.Normal
     }
 
     // prevent event passing through greeter
@@ -72,8 +48,9 @@ FocusScope {
         color: 'black'
         opacity: wallpaperController.type === WallpaperController.Normal ? 0 : 0.6
         Behavior on opacity {
+            enabled: GreeterProxy.showAnimation
             PropertyAnimation {
-                duration: wallpaperController.type === WallpaperController.ScaleWithoutAnimation ? 0 : 1000
+                duration: 1000
                 easing.type: Easing.OutExpo
             }
         }
@@ -81,13 +58,7 @@ FocusScope {
 
     LockView {
         id: lockView
-        visible: root.currentMode === Greeter.CurrentMode.Lock ||
-                 root.currentMode === Greeter.CurrentMode.SwitchUser
         anchors.fill: parent
-        onQuit: function () {
-            wallpaperController.type = WallpaperController.Normal
-            root.animationPlayed()
-        }
         onAnimationPlayFinished: function () {
             if (lockView.state === LoginAnimation.Hide) {
                 root.animationPlayFinished()
@@ -97,21 +68,40 @@ FocusScope {
 
     ShutdownView {
         id: shutdownView
-        visible: root.currentMode === Greeter.CurrentMode.Shutdown
+        visible: GreeterProxy.showShutdownView
         anchors.fill: parent
 
-        onClicked: function () {
-            wallpaperController.type = WallpaperController.Normal
-            root.animationPlayed()
-            root.animationPlayFinished()
+        onSwitchUser: {
+            root.switchUser()
         }
-        onSwitchUser: function () {
-            root.currentMode = Greeter.CurrentMode.Lock
-            lockView.showUserView()
+    }
+
+    /*****************************/
+    /* Functions and Connections */
+    /*****************************/
+
+    function switchUser() {
+        GreeterProxy.lock()
+        lockView.showUserView()
+    }
+
+    Connections {
+        target: GreeterProxy
+
+        function onLockChanged(isLocked) {
+            if (!isLocked)
+                root.animationPlayed()
         }
-        onLock: function () {
-            root.currentMode = Greeter.CurrentMode.Lock
-            lockView.start()
+
+        function onShowShutdownViewChanged(show) {
+            if (!show && !GreeterProxy.isLocked) {
+                root.animationPlayed()
+                root.animationPlayFinished()
+            }
+        }
+
+        function onSwitchUser() {
+            root.switchUser()
         }
     }
 

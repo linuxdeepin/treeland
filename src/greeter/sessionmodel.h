@@ -18,8 +18,7 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  ***************************************************************************/
 
-#ifndef SDDM_SESSIONMODEL_H
-#define SDDM_SESSIONMODEL_H
+#pragma once
 
 #include <Session.h>
 
@@ -27,13 +26,11 @@
 #include <QHash>
 #include <QQmlEngine>
 
-class SessionModelPrivate;
-
 class SessionModel : public QAbstractListModel
 {
     Q_OBJECT
     Q_DISABLE_COPY(SessionModel)
-    Q_PROPERTY(int lastIndex READ lastIndex CONSTANT)
+    Q_PROPERTY(int currentIndex READ currentIndex WRITE setCurrentIndex NOTIFY currentIndexChanged)
     QML_NAMED_ELEMENT(SessionModel)
     QML_SINGLETON
 
@@ -54,17 +51,21 @@ public:
 
     QHash<int, QByteArray> roleNames() const override;
 
-    int lastIndex() const;
+    inline int currentIndex() const { return m_currentIndex; };
+    void setCurrentIndex(int index);
 
     int rowCount(const QModelIndex &parent = QModelIndex()) const override;
     QVariant data(const QModelIndex &index, int role = Qt::DisplayRole) const override;
 
-private:
-    SessionModelPrivate *d{ nullptr };
+Q_SIGNALS:
+    void currentIndexChanged(int index);
 
+private:
     void populate(DDM::Session::Type type, const QStringList &dirPaths);
+
+    int m_currentIndex{ 0 };
+    QStringList m_displayNames{};
+    QList<DDM::Session *> m_sessions{};
 };
 
 QML_DECLARE_TYPE(SessionModel)
-
-#endif // SDDM_SESSIONMODEL_H

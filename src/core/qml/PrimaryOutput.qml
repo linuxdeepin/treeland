@@ -120,44 +120,16 @@ OutputItem {
                         target: wallpaper
                         scale: 1.4
                     }
-                },
-                State {
-                    name: "ScaleWithoutAnimation"
-                    PropertyChanges {
-                        target: wallpaper
-                        scale: 1.4
-                    }
                 }
             ]
 
-            transitions: [
-                Transition {
-                    from: "*"
-                    to: "Normal"
-                    PropertyAnimation {
-                        property: "scale"
-                        duration: 1000
-                        easing.type: Easing.OutExpo
-                    }
-                },
-                Transition {
-                    from: "*"
-                    to: "Scale"
-                    PropertyAnimation {
-                        property: "scale"
-                        duration: 1000
-                        easing.type: Easing.OutExpo
-                    }
-                },
-                Transition {
-                    from: "*"
-                    to: "ScaleWithoutAnimation"
-                    PropertyAnimation {
-                        property: "scale"
-                        duration: 0
-                    }
+            Behavior on scale {
+                enabled: GreeterProxy.showAnimation
+                NumberAnimation {
+                    duration: 1000
+                    easing.type: Easing.OutExpo
                 }
-            ]
+            }
         }
     }
 
