@@ -50,7 +50,7 @@ public:
         HomeDirRole,
         IconRole,
         NoPasswordRole,
-        LoginedRole,
+        LoggedInRole,
         IdentityRole,
         PasswordHintRole,
         LocaleRole
@@ -76,7 +76,7 @@ public:
     UserPtr currentUser() const;
     void updateUserLimits(const QString &userName, const QString &time) const noexcept;
     void setCurrentUserName(const QString &userName) noexcept;
-    void updateUserLoginState(const QString &username, bool logined);
+    void updateUserLoginState(const QString &username, bool loggedIn);
     void clearUserLoginState();
     [[nodiscard]] bool containsAllUsers() const;
 

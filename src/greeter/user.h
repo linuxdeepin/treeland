@@ -31,10 +31,10 @@ public:
     [[nodiscard]] const QString &homeDir() const noexcept;
     [[nodiscard]] const QUrl &iconFile() const noexcept;
     [[nodiscard]] const QString &passwordHint() const noexcept;
-    [[nodiscard]] bool logined() const noexcept;
+    [[nodiscard]] bool loggedIn() const noexcept;
     [[nodiscard]] const QLocale &locale() const noexcept;
     [[nodiscard]] static QString toString(AccountTypes type) noexcept;
-    void setLogined(bool newState) const noexcept;
+    void setLoggedIn(bool newState) const noexcept;
     void updateLimitTime(const QString &time) noexcept;
 
     void setWaylandSocket(std::shared_ptr<WAYLIB_SERVER_NAMESPACE::WSocket>);
