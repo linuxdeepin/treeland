@@ -139,10 +139,10 @@ QHash<int, QByteArray> UserModel::roleNames() const
     names[HomeDirRole] = QByteArrayLiteral("homeDir");
     names[IconRole] = QByteArrayLiteral("icon");
     names[NoPasswordRole] = QByteArrayLiteral("noPassword");
-    names[LoginedRole] = QByteArrayLiteral("logined");
+    names[LoggedInRole] = QByteArrayLiteral("loggedIn");
     names[IdentityRole] = QByteArrayLiteral("identity");
     names[PasswordHintRole] = QByteArrayLiteral("passwordHint");
-    names[LocaleRole] = QByteArrayLiteral("LocaleRole");
+    names[LocaleRole] = QByteArrayLiteral("locale");
     return names;
 }
 
@@ -161,14 +161,14 @@ int UserModel::rowCount(const QModelIndex &parent) const
     return parent.isValid() ? 0 : static_cast<int>(d->users.length());
 }
 
-void UserModel::updateUserLoginState(const QString &username, bool logined)
+void UserModel::updateUserLoginState(const QString &username, bool loggedIn)
 {
     auto user = std::find_if(d->users.begin(), d->users.end(), [&username](const UserPtr &user) {
         return user->userName() == username;
     });
 
     if (user != d->users.end()) {
-        (*user)->setLogined(logined);
+        (*user)->setLoggedIn(loggedIn);
         auto pos = std::distance(d->users.end(), user);
         Q_EMIT dataChanged(index(0, pos - 1), index(0, pos));
     }
@@ -179,7 +179,7 @@ void UserModel::updateUserLoginState(const QString &username, bool logined)
 void UserModel::clearUserLoginState()
 {
     for (auto &user : d->users) {
-        user->setLogined(false);
+        user->setLoggedIn(false);
     }
 
     Q_EMIT layoutChanged();
@@ -206,8 +206,8 @@ QVariant UserModel::data(const QModelIndex &index, int role) const
         return user->iconFile();
     case NoPasswordRole:
         return user->noPasswdLogin();
-    case LoginedRole:
-        return user->logined();
+    case LoggedInRole:
+        return user->loggedIn();
     case IdentityRole:
         return user->identity();
     case PasswordHintRole:
@@ -234,7 +234,7 @@ QVariant UserModel::get(const QString &username) const
             map["realName"] = user->fullName();
             map["homeDir"] = user->homeDir();
             map["noPassword"] = user->noPasswdLogin();
-            map["logined"] = user->logined();
+            map["loggedIn"] = user->loggedIn();
             map["identity"] = user->identity();
             map["passwordHint"] = user->passwordHint();
             map["locale"] = user->locale();
@@ -258,7 +258,7 @@ QVariant UserModel::get(int index) const
     map["realName"] = user->fullName();
     map["homeDir"] = user->homeDir();
     map["noPassword"] = user->noPasswdLogin();
-    map["logined"] = user->logined();
+    map["loggedIn"] = user->loggedIn();
     map["identity"] = user->identity();
     map["passwordHint"] = user->passwordHint();
     map["locale"] = user->locale();
