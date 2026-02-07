@@ -85,6 +85,7 @@ class DDEShellManagerInterfaceV1;
 class DDMInterfaceV1;
 class ForeignToplevelV1;
 class FpsDisplayManager;
+class GreeterProxy;
 class ILockScreen;
 class IMultitaskView;
 class LockScreen;
@@ -100,6 +101,7 @@ class RootSurfaceContainer;
 class ScreensaverInterfaceV1;
 class SessionManager;
 class SettingManager;
+class SessionModel;
 class ShellHandler;
 class ShortcutManagerV2;
 class ShortcutRunner;
@@ -210,7 +212,8 @@ public:
 
     Output* getOutputAtCursor() const;
 
-    UserModel *userModel() const;
+    inline UserModel *userModel() const { return m_userModel; };
+    inline SessionModel *sessionModel() const { return m_sessionModel; };
     DDMInterfaceV1 *ddmInterfaceV1() const;
 
     void activateSession();
@@ -391,6 +394,8 @@ private:
 
     IMultitaskView *m_multitaskView{ nullptr };
     UserModel *m_userModel{ nullptr };
+    SessionModel *m_sessionModel{ nullptr };
+    GreeterProxy *m_greeterProxy{ nullptr };
 
     bool m_blockActivateSurface{ false };
 
