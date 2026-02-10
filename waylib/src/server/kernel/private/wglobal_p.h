@@ -8,7 +8,7 @@
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
-class Q_DECL_HIDDEN WObjectPrivate
+class Q_DECL_EXPORT WObjectPrivate
 {
 public:
     static WObjectPrivate *get(WObject *qq);
@@ -34,7 +34,7 @@ protected:
     W_DECLARE_PUBLIC(WObject)
 };
 
-class Q_DECL_HIDDEN WWrapObjectPrivate : public WObjectPrivate
+class Q_DECL_EXPORT WWrapObjectPrivate : public WObjectPrivate
 {
 public:
     WWrapObjectPrivate(WWrapObject *q);

@@ -91,6 +91,7 @@ Q_SIGNALS:
     void currentFilterChanged();
     void currentIndexChanged();
     void countChanged();
+    void workspaceAdded();
 
 private:
     int nextWorkspaceId() const;

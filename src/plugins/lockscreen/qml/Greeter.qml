@@ -29,31 +29,92 @@ FocusScope {
     /* Components */
     /**************/
 
-    WallpaperController {
-        id: wallpaperController
-        output: root.output
-        lock: true
-        type: (GreeterProxy.isLocked || GreeterProxy.showShutdownView) ? WallpaperController.Scale : WallpaperController.Normal
+    Rectangle {
+        id: background
+
+        readonly property int duration: 1000
+        anchors.fill: parent
+        color: 'black'
+        opacity: 0.0
+        transformOrigin: Item.Center
+        state: (GreeterProxy.isLocked || GreeterProxy.showShutdownView) ? "Show" : "Hide"
+        states: [
+            State {
+                name: "Show"
+                PropertyChanges {
+                    target: background
+                    scale: 1.2
+                }
+                PropertyChanges {
+                    target: background
+                    opacity: 1
+                }
+            },
+            State {
+                name: "Hide"
+                PropertyChanges {
+                    target: background
+                    scale: 1
+                }
+                PropertyChanges {
+                    target: background
+                    opacity: 0
+                }
+            }
+        ]
+
+        transitions: [
+            Transition {
+                from: "*"
+                to: "Show"
+                PropertyAnimation {
+                    property: "scale"
+                    duration: background.duration
+                    easing.type: Easing.OutExpo
+                }
+                PropertyAnimation {
+                    property: "opacity"
+                    duration: background.duration
+                    easing.type: Easing.OutExpo
+                }
+            },
+            Transition {
+                from: "*"
+                to: "Hide"
+                PropertyAnimation {
+                    property: "scale"
+                    duration: background.duration
+                    easing.type: Easing.OutExpo
+                }
+                PropertyAnimation {
+                    property: "opacity"
+                    duration: background.duration
+                    easing.type: Easing.OutExpo
+                }
+            }
+        ]
+        onStateChanged: {
+            if (state === "Show") {
+                Helper.startLockscreen(root.output, true);
+                wallpaper.play = true;
+            } else {
+                wallpaper.play = false;
+                Helper.showDesktop(root.output)
+            }
+        }
+
+        Wallpaper {
+            id: wallpaper
+
+            anchors.fill: parent
+            wallpaperRole: Wallpaper.Lockscreen
+            output: root.output
+        }
     }
 
-    // prevent event passing through greeter
     MouseArea {
         anchors.fill: parent
         enabled: true
-    }
-
-    Rectangle {
-        id: cover
-        anchors.fill: parent
-        color: 'black'
-        opacity: wallpaperController.type === WallpaperController.Normal ? 0 : 0.6
-        Behavior on opacity {
-            enabled: GreeterProxy.showAnimation
-            PropertyAnimation {
-                duration: 1000
-                easing.type: Easing.OutExpo
-            }
-        }
     }
 
     LockView {
@@ -103,9 +164,5 @@ FocusScope {
         function onSwitchUser() {
             root.switchUser()
         }
-    }
-
-    Component.onDestruction: {
-        wallpaperController.lock = false
     }
 }

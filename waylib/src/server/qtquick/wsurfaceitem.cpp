@@ -260,7 +260,8 @@ public:
                                                    q, [this, q] (const QList<QPointer<WOutput>> committedOutputs) {
                                                        lastRendered = rendered;
                                                        if (Q_LIKELY((rendered || q->isVisible()) && live)
-                                                           && committedOutputs.contains(surface->framePacingOutput())) {
+                                                           && surface &&
+                                                           committedOutputs.contains(surface->framePacingOutput())) {
                                                            surface->notifyFrameDone();
                                                            rendered = false;
                                                        }
