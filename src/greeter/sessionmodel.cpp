@@ -29,23 +29,8 @@
 
 using namespace DDM;
 
-class SessionModelPrivate
-{
-public:
-    ~SessionModelPrivate()
-    {
-        qDeleteAll(sessions);
-        sessions.clear();
-    }
-
-    int lastIndex{ 0 };
-    QStringList displayNames;
-    QVector<Session *> sessions;
-};
-
 SessionModel::SessionModel(QObject *parent)
     : QAbstractListModel(parent)
-    , d(new SessionModelPrivate())
 {
     // Check for flag to show Wayland sessions
     bool dri_active = QFileInfo::exists(QStringLiteral("/dev/dri"));
@@ -56,6 +41,7 @@ SessionModel::SessionModel(QObject *parent)
         populate(Session::WaylandSession, mainConfig.Wayland.SessionDir.get());
     populate(Session::X11Session, mainConfig.X11.SessionDir.get());
     endResetModel();
+    Q_EMIT currentIndexChanged(m_currentIndex);
 
     // refresh everytime a file is changed, added or removed
     QFileSystemWatcher *watcher = new QFileSystemWatcher(this);
@@ -63,12 +49,15 @@ SessionModel::SessionModel(QObject *parent)
         // Recheck for flag to show Wayland sessions
         bool dri_active = QFileInfo::exists(QStringLiteral("/dev/dri"));
         beginResetModel();
-        d->sessions.clear();
-        d->displayNames.clear();
+        qDeleteAll(m_sessions);
+        m_sessions.clear();
+        m_displayNames.clear();
         if (dri_active)
             populate(Session::WaylandSession, mainConfig.Wayland.SessionDir.get());
         populate(Session::X11Session, mainConfig.X11.SessionDir.get());
+        m_currentIndex = 0;
         endResetModel();
+        Q_EMIT currentIndexChanged(m_currentIndex);
     });
     watcher->addPaths(mainConfig.Wayland.SessionDir.get());
     watcher->addPaths(mainConfig.X11.SessionDir.get());
@@ -76,7 +65,8 @@ SessionModel::SessionModel(QObject *parent)
 
 SessionModel::~SessionModel()
 {
-    delete d;
+    qDeleteAll(m_sessions);
+    m_sessions.clear();
 }
 
 QHash<int, QByteArray> SessionModel::roleNames() const
@@ -93,23 +83,26 @@ QHash<int, QByteArray> SessionModel::roleNames() const
     return roleNames;
 }
 
-int SessionModel::lastIndex() const
+void SessionModel::setCurrentIndex(int index)
 {
-    return d->lastIndex;
+    if (m_currentIndex != index) {
+        m_currentIndex = index;
+        Q_EMIT currentIndexChanged(index);
+    }
 }
 
 int SessionModel::rowCount(const QModelIndex &parent) const
 {
-    return parent.isValid() ? 0 : static_cast<int>(d->sessions.length());
+    return parent.isValid() ? 0 : static_cast<int>(m_sessions.length());
 }
 
 QVariant SessionModel::data(const QModelIndex &index, int role) const
 {
-    if (index.row() < 0 || index.row() >= d->sessions.count())
+    if (index.row() < 0 || index.row() >= m_sessions.count())
         return QVariant();
 
     // get session
-    Session *session = d->sessions[index.row()];
+    Session *session = m_sessions[index.row()];
     Q_ASSERT(session);
 
     // return correct value
@@ -121,7 +114,7 @@ QVariant SessionModel::data(const QModelIndex &index, int role) const
     case TypeRole:
         return session->type();
     case NameRole:
-        if (d->displayNames.count(session->displayName()) > 1
+        if (m_displayNames.count(session->displayName()) > 1
             && session->type() == Session::WaylandSession)
             return tr("%1 (Wayland)").arg(session->displayName());
         return session->displayName();
@@ -171,22 +164,22 @@ void SessionModel::populate(DDM::Session::Type type, const QStringList &dirPaths
             }
         }
         // add to sessions list
-        // TODO: only show support sessions(X-DDE-SINGLE-WAYLAND)
         if (execAllowed) {
-            d->displayNames.append(si->displayName());
+            m_displayNames.append(si->displayName());
             if (si->displayName() == QStringLiteral("Treeland"))
-                d->sessions.prepend(si);
+                m_sessions.prepend(si);
             else
-                d->sessions.push_back(si);
+                m_sessions.push_back(si);
         } else {
             delete si;
         }
     }
     // find out index of the last session
-    for (int i = 0; i < d->sessions.size(); ++i) {
-        if (d->sessions.at(i)->fileName() == stateConfig.Last.Session.get()) {
-            d->lastIndex = i;
-            break;
+    if (mainConfig.Users.RememberLastSession.get())
+        for (int i = 0; i < m_sessions.size(); ++i) {
+            if (m_sessions.at(i)->fileName() == stateConfig.Last.Session.get()) {
+                m_currentIndex = i;
+                break;
+            }
         }
-    }
 }
