@@ -128,8 +128,12 @@ private:
                                 const QByteArray &value);
     // Prelaunch splash related: creates a prelaunch SurfaceWrapper when
     // PrelaunchSplash::splashRequested
-    void handlePrelaunchSplashRequested(const QString &appId, QW_NAMESPACE::qw_buffer *iconBuffer);
+    void handlePrelaunchSplashRequested(const QString &appId,
+                                       const QString &instanceId,
+                                       QW_NAMESPACE::qw_buffer *iconBuffer);
+    void handlePrelaunchSplashClosed(const QString &appId, const QString &instanceId);
     void createPrelaunchSplash(const QString &appId,
+                               const QString &instanceId,
                                QW_NAMESPACE::qw_buffer *iconBuffer,
                                const QSize &lastSize,
                                const QString &darkPalette,

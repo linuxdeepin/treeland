@@ -1,7 +1,7 @@
 // Copyright (C) 2025 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 #include "prelaunchsplash.h"
-#include "qwayland-server-treeland-prelaunch-splash-v1.h"
+#include "qwayland-server-treeland-prelaunch-splash-v2.h"
 
 #include <wserver.h>
 
@@ -19,9 +19,47 @@ QW_USE_NAMESPACE
 
 Q_LOGGING_CATEGORY(prelaunchSplash, "treeland.prelaunchsplash", QtInfoMsg)
 
-#define TREELAND_PRELAUNCH_SPLASH_MANAGER_V1_VERSION 1
+#define TREELAND_PRELAUNCH_SPLASH_MANAGER_V2_VERSION 1
 
-class PrelaunchSplashPrivate : public QtWaylandServer::treeland_prelaunch_splash_manager_v1
+class SplashResource : public QtWaylandServer::treeland_prelaunch_splash_v2
+{
+public:
+    SplashResource(PrelaunchSplash *owner,
+                   struct ::wl_resource *resource,
+                   const QString &appId,
+                   const QString &instanceId)
+        : QtWaylandServer::treeland_prelaunch_splash_v2(resource)
+        , m_owner(owner)
+        , m_appId(appId)
+        , m_instanceId(instanceId)
+    {
+    }
+
+    QString appId() const { return m_appId; }
+    QString instanceId() const { return m_instanceId; }
+
+protected:
+    void treeland_prelaunch_splash_v2_destroy(Resource *resource) override
+    {
+        qCInfo(prelaunchSplash)
+            << "Client destroy splash appId=" << m_appId << " instanceId=" << m_instanceId;
+        wl_resource_destroy(resource->handle);
+    }
+
+    void treeland_prelaunch_splash_v2_destroy_resource(Resource *) override
+    {
+        // Covers both explicit destroy() and client crash/disconnect
+        Q_EMIT m_owner->splashCloseRequested(m_appId, m_instanceId);
+        delete this;
+    }
+
+private:
+    PrelaunchSplash *m_owner;
+    QString m_appId;
+    QString m_instanceId;
+};
+
+class PrelaunchSplashPrivate : public QtWaylandServer::treeland_prelaunch_splash_manager_v2
 {
 public:
     explicit PrelaunchSplashPrivate(PrelaunchSplash *q)
@@ -35,22 +73,38 @@ public:
     }
 
 protected:
-    void treeland_prelaunch_splash_manager_v1_destroy(Resource *resource) override
+    void treeland_prelaunch_splash_manager_v2_destroy(Resource *resource) override
     {
         wl_resource_destroy(resource->handle);
     }
 
-    void treeland_prelaunch_splash_manager_v1_create_splash(
+    void treeland_prelaunch_splash_manager_v2_create_splash(
         Resource *resource,
+        uint32_t id,
         const QString &app_id,
+        const QString &instance_id,
         const QString &sandboxEngineName,
         struct ::wl_resource *icon_buffer) override
     {
-        Q_UNUSED(resource);
         qCInfo(prelaunchSplash)
-            << "create_splash request sandbox=" << sandboxEngineName << " app_id=" << app_id;
+            << "create_splash request sandbox=" << sandboxEngineName
+            << " app_id=" << app_id << " instance_id=" << instance_id;
+
+        auto *splashResource =
+            wl_resource_create(resource->client(),
+                               &treeland_prelaunch_splash_v2_interface,
+                               wl_resource_get_version(resource->handle),
+                               id);
+        if (!splashResource) {
+            wl_resource_post_no_memory(resource->handle);
+            return;
+        }
+
+        // SplashResource self-destructs via destroy_resource callback
+        new SplashResource(q, splashResource, app_id, instance_id);
+
         auto qb = icon_buffer ? QW_NAMESPACE::qw_buffer::try_from_resource(icon_buffer) : nullptr;
-        Q_EMIT q->splashRequested(app_id, qb);
+        Q_EMIT q->splashRequested(app_id, instance_id, qb);
     }
 
 private:
@@ -69,9 +123,8 @@ void PrelaunchSplash::create(WAYLIB_SERVER_NAMESPACE::WServer *server)
 {
     if (d->isGlobal())
         return;
-    // server->handle() returns qw_display* which can be implicitly converted to wl_display*
-    d->init(*server->handle(), TREELAND_PRELAUNCH_SPLASH_MANAGER_V1_VERSION);
-    qCDebug(prelaunchSplash) << "PrelaunchSplash global created";
+    d->init(*server->handle(), TREELAND_PRELAUNCH_SPLASH_MANAGER_V2_VERSION);
+    qCDebug(prelaunchSplash) << "PrelaunchSplash v2 global created";
 }
 
 void PrelaunchSplash::destroy(WAYLIB_SERVER_NAMESPACE::WServer *server)
@@ -80,7 +133,7 @@ void PrelaunchSplash::destroy(WAYLIB_SERVER_NAMESPACE::WServer *server)
     if (!d->isGlobal())
         return;
     d->globalRemove();
-    qCDebug(prelaunchSplash) << "PrelaunchSplash global removed";
+    qCDebug(prelaunchSplash) << "PrelaunchSplash v2 global removed";
 }
 
 wl_global *PrelaunchSplash::global() const
@@ -90,7 +143,7 @@ wl_global *PrelaunchSplash::global() const
 
 QByteArrayView PrelaunchSplash::interfaceName() const
 {
-    return QtWaylandServer::treeland_prelaunch_splash_manager_v1::interfaceName();
+    return QtWaylandServer::treeland_prelaunch_splash_manager_v2::interfaceName();
 }
 
 // End of file
