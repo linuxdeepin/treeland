@@ -442,6 +442,17 @@
             "description[zh_CN]": "多任务视图加载因子",
             "permissions": "readonly",
             "visibility": "private"
+        },
+        "wallpaperConfig": {
+            "value": "",
+            "serial": 0,
+            "flags": ["global"],
+            "name": "Wallpaper Config",
+            "name[zh_CN]": "壁纸配置",
+            "description": "A configuration to manage wallpapers used by the system, including desktop and lockscreen wallpapers for each screen and workspace.",
+            "description[zh_CN]": "用于管理系统当前使用的壁纸配置，包括每个屏幕和工作区的桌面壁纸和锁屏壁纸。",
+            "permissions": "readwrite",
+            "visibility": "public"
         }
     }
 }

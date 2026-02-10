@@ -159,6 +159,7 @@ int Workspace::createModel(const QString &name, bool visible)
     auto id = doCreateModel(name, visible);
     Helper::instance()->config()->setNumWorkspace(count());
     Q_EMIT countChanged();
+    Q_EMIT workspaceAdded();
     return id;
 }
 

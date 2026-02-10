@@ -440,7 +440,8 @@ bool Treeland::ActivateWayland(QDBusUnixFileDescriptor _fd)
         u->setWaylandSocket(socket);
     }
 
-    socket->setEnabled(userModel->currentUserName() == user);
+    socket->setEnabled(userModel->currentUserName() == user,
+                       Helper::instance()->sessionManager()->globalSession()->socket());
 
     d->helper->addSocket(socket.get());
 

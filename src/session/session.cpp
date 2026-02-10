@@ -9,6 +9,7 @@
 #include "seat/helper.h"
 #include "workspace/workspace.h"
 #include "xsettings/settingmanager.h"
+#include "wallpaper/wallpaperlauncher.h"
 
 #include <woutputrenderwindow.h>
 #include <wsocket.h>
@@ -99,6 +100,10 @@ SessionManager::SessionManager(QObject *parent)
 SessionManager::~SessionManager()
 {
     m_sessions.clear();
+    if (m_wallpaperLauncher) {
+        delete m_wallpaperLauncher;
+        m_wallpaperLauncher = nullptr;
+    }
 }
 
 const QList<std::shared_ptr<Session>> &SessionManager::sessions() const
@@ -151,7 +156,7 @@ void SessionManager::setActiveSocketEnabled(bool newEnabled)
 {
     auto ptr = m_activeSession.lock();
     if (ptr && ptr->m_socket)
-        ptr->m_socket->setEnabled(newEnabled);
+        ptr->m_socket->setEnabled(newEnabled, globalSession()->socket());
     else
         qCWarning(treelandCore) << "Can't set enabled for empty socket!";
 }
@@ -298,6 +303,11 @@ std::shared_ptr<Session> SessionManager::ensureSession(int id, QString username)
     if (!session->m_socket)
         return nullptr;
 
+    if (!m_wallpaperLauncher) {
+        m_wallpaperLauncher = new WallpaperLauncher(session->socket()->rootSocket());
+        m_wallpaperLauncher->start();
+    }
+
     session->m_xwayland = createXWayland(session->m_socket);
     if (!session->m_xwayland)
         return nullptr;
@@ -383,6 +393,11 @@ std::shared_ptr<Session> SessionManager::sessionForSocket(WSocket *socket) const
     return nullptr;
 }
 
+bool SessionManager::isDDEUserClient(WClient *client)
+{
+    return client->socket() == globalSession()->socket();
+}
+
 /**
  * Update the active session to the given uid, creating it if necessary.
  * This will update XWayland visibility and emit socketFileChanged if the
@@ -408,7 +423,7 @@ void SessionManager::updateActiveUserSession(const QString &username, int id)
         Helper::instance()->activateSurface(nullptr);
         // Emit signal and update socket enabled state
         if (previous && previous->m_socket)
-            previous->m_socket->setEnabled(false);
+            previous->m_socket->setEnabled(false, globalSession()->socket());
         session->m_socket->setEnabled(true);
         Q_EMIT socketFileChanged();
         // Notify session changed through DBus, treeland-sd will listen it to update envs
