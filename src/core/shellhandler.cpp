@@ -100,8 +100,11 @@ void ShellHandler::updateWrapperContainer(SurfaceWrapper *wrapper, WSurface *par
 
 // Prelaunch splash request: create a SurfaceWrapper that is not yet bound to a shellSurface
 void ShellHandler::handlePrelaunchSplashRequested(const QString &appId,
+                                                  const QString &instanceId,
                                                   QW_NAMESPACE::qw_buffer *iconBuffer)
 {
+    Q_UNUSED(instanceId); // TODO: will be provided by AM DBus in future
+
     if (!Helper::instance()->globalConfig()->enablePrelaunchSplash())
         return;
     if (!m_appIdResolverManager)
@@ -140,6 +143,7 @@ void ShellHandler::handlePrelaunchSplashRequested(const QString &appId,
                                              std::bind(&ShellHandler::createPrelaunchSplash,
                                                        this,
                                                        appId,
+                                                       instanceId,
                                                        iconBuffer,
                                                        std::placeholders::_1,
                                                        std::placeholders::_2,
@@ -150,12 +154,15 @@ void ShellHandler::handlePrelaunchSplashRequested(const QString &appId,
 }
 
 void ShellHandler::createPrelaunchSplash(const QString &appId,
+                                         const QString &instanceId,
                                          QW_NAMESPACE::qw_buffer *iconBuffer,
                                          const QSize &lastSize,
                                          const QString &darkPalette,
                                          const QString &lightPalette,
                                          qlonglong splashThemeType)
 {
+    Q_UNUSED(instanceId); // TODO: will be provided by AM DBus in future
+
     if (!m_pendingPrelaunchAppIds.contains(appId)) {
         if (iconBuffer) {
             iconBuffer->unlock();
@@ -207,6 +214,26 @@ void ShellHandler::createPrelaunchSplash(const QString &appId,
                                m_prelaunchWrappers.removeAt(idx);
                                m_rootSurfaceContainer->destroyForSurface(wrapper);
                            });
+    }
+}
+
+void ShellHandler::handlePrelaunchSplashClosed(const QString &appId, const QString &instanceId)
+{
+    Q_UNUSED(instanceId); // TODO: will be provided by AM DBus in future
+
+    // Remove pending prelaunch request if it hasn't created a wrapper yet
+    m_pendingPrelaunchAppIds.remove(appId);
+
+    // Find and destroy any existing prelaunch wrapper with the matching appId
+    for (int i = 0; i < m_prelaunchWrappers.size(); ++i) {
+        auto *wrapper = m_prelaunchWrappers[i];
+        if (wrapper->appId() == appId) {
+            qCDebug(treelandShell)
+                << "Client requested close_splash, destroy wrapper appId=" << appId;
+            m_prelaunchWrappers.removeAt(i);
+            m_rootSurfaceContainer->destroyForSurface(wrapper);
+            return;
+        }
     }
 }
 
