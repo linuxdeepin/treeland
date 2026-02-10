@@ -15,6 +15,7 @@ WAYLIB_SERVER_END_NAMESPACE
 WAYLIB_SERVER_USE_NAMESPACE
 
 class SettingManager;
+class WallpaperLauncher;
 
 class Session : public QObject {
     Q_OBJECT
@@ -68,6 +69,7 @@ public:
     std::shared_ptr<Session> sessionForUser(const QString &username) const;
     std::shared_ptr<Session> sessionForXWayland(WXWayland *xwayland) const;
     std::shared_ptr<Session> sessionForSocket(WSocket *socket) const;
+    bool isDDEUserClient(WClient *client);
 
 Q_SIGNALS:
     void socketFileChanged();
@@ -78,4 +80,5 @@ private:
 
     std::weak_ptr<Session> m_activeSession;
     QList<std::shared_ptr<Session>> m_sessions;
+    WallpaperLauncher *m_wallpaperLauncher { nullptr };
 };
