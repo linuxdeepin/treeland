@@ -186,12 +186,16 @@ qt_add_qml_module(libtreeland
         utils/loginddbustypes.cpp
         utils/fpsdisplaymanager.cpp
         utils/fpsdisplaymanager.h
-        wallpaper/wallpapercontroller.cpp
-        wallpaper/wallpapercontroller.h
-        wallpaper/wallpaperimage.cpp
-        wallpaper/wallpaperimage.h
+        wallpaper/wallpapersurface.h
+        wallpaper/wallpapersurface.cpp
+        wallpaper/wallpaperitem.cpp
+        wallpaper/wallpaperitem.h
         wallpaper/wallpapermanager.cpp
         wallpaper/wallpapermanager.h
+        wallpaper/wallpaperconfig.h
+        wallpaper/wallpaperconfig.cpp
+        wallpaper/wallpaperlauncher.h
+        wallpaper/wallpaperlauncher.cpp
         workspace/workspace.cpp
         workspace/workspace.h
         workspace/workspaceanimationcontroller.cpp

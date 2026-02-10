@@ -376,7 +376,9 @@ void MpvVideoItem::setPanScan(double value)
 void MpvVideoItem::slowDown(uint32_t duration)
 {
     if (m_speedTimer) {
-        return;
+        m_speedTimer->stop();
+        delete m_speedTimer;
+        m_speedTimer = nullptr;
     }
 
     m_speedTimer = new QTimer(this);

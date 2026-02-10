@@ -782,8 +782,12 @@ bool WSocket::isEnabled() const
     return d->enabled;
 }
 
-void WSocket::setEnabled(bool on)
+void WSocket::setEnabled(bool on, const WSocket *excludedSocket)
 {
+    if (this == excludedSocket && !on) {
+        return;
+    }
+
     W_D(WSocket);
     if (d->enabled == on)
         return;

@@ -18,16 +18,15 @@ Item {
     z: (wrapper.z ?? 0) - 1
     anchors.fill: wrapper
 
-    WallpaperController {
-        id: wallpaperController
+    Wallpaper {
+        id: wallpaper
         output: root.output
-        lock: true
-        type: mapped ? WallpaperController.Scale : WallpaperController.Normal
+        workspace: Helper.workspace.current
     }
 
     ShaderEffectSource {
-        id: wallpaper
-        sourceItem: wallpaperController.proxy
+        id: wallpaperSource
+        sourceItem: wallpaper
         recursive: true
         live: true
         smooth: true
@@ -38,14 +37,14 @@ Item {
             State {
                 name: "Normal"
                 PropertyChanges {
-                    target: wallpaper
+                    target: wallpaperSource
                     scale: 1
                 }
             },
             State {
                 name: "Scale"
                 PropertyChanges {
-                    target: wallpaper
+                    target: wallpaperSource
                     scale: 1.4
                 }
             }
@@ -75,7 +74,7 @@ Item {
 
     Blur {
         anchors.fill: parent
-        z: wallpaper.z + 1
+        z: wallpaperSource.z + 1
     }
 
     Rectangle {
@@ -91,5 +90,9 @@ Item {
             duration: 400
             easing.type: Easing.OutExpo
         }
+    }
+
+    onMappedChanged: {
+        Helper.setLaunchpadMapped(root.output, root.mapped)
     }
 }

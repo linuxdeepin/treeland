@@ -9,7 +9,6 @@ import Treeland
 OutputItem {
     id: rootOutputItem
     readonly property OutputViewport screenViewport: outputViewport
-    property alias wallpaperVisible: wallpaper.visible
     property bool forceSoftwareCursor: false
 
     devicePixelRatio: output?.scale ?? devicePixelRatio
@@ -99,11 +98,11 @@ OutputItem {
         anchors.fill: parent
         Wallpaper {
             id: wallpaper
+
+            readonly property int duration: 1000
             output: rootOutputItem.output
             workspace: Helper.workspace.current
             anchors.fill: parent
-            fillMode: Image.PreserveAspectCrop
-            retainWhileLoading: true
             clip: true
 
             states: [
@@ -120,14 +119,88 @@ OutputItem {
                         target: wallpaper
                         scale: 1.4
                     }
+                },
+                State {
+                    name: "ScaleTo1.2"
+                    PropertyChanges {
+                        target: wallpaper
+                        scale: 1.2
+                    }
+                },
+                State {
+                    name: "ScaleWithoutAnimation"
+                    PropertyChanges {
+                        target: wallpaper
+                        scale: 1.4
+                    }
                 }
             ]
 
-            Behavior on scale {
-                enabled: GreeterProxy.showAnimation
-                NumberAnimation {
-                    duration: 1000
-                    easing.type: Easing.OutExpo
+            transitions: [
+                Transition {
+                    from: "*"
+                    to: "Normal"
+                    PropertyAnimation {
+                        property: "scale"
+                        duration: wallpaper.duration
+                        easing.type: Easing.OutExpo
+                    }
+                },
+                Transition {
+                    from: "*"
+                    to: "Scale"
+                    PropertyAnimation {
+                        property: "scale"
+                        duration: wallpaper.duration
+                        easing.type: Easing.OutExpo
+                    }
+                },
+                Transition {
+                    from: "*"
+                    to: "ScaleTo1.2"
+                    PropertyAnimation {
+                        property: "scale"
+                        duration: wallpaper.duration
+                        easing.type: Easing.OutExpo
+                    }
+                },
+                Transition {
+                    from: "*"
+                    to: "ScaleWithoutAnimation"
+                    PropertyAnimation {
+                        property: "scale"
+                        duration: 0
+                    }
+                }
+            ]
+
+            Connections {
+                target: Helper
+                function onLaunchpadMappedChanged(output, mapped) {
+                    if (output !== rootOutputItem.output) {
+                        return;
+                    }
+
+                    wallpaper.state = mapped ? "Scale" : "Normal"
+                }
+
+                function onShowDesktopRequested(output) {
+                    if (output !== rootOutputItem.output) {
+                        return;
+                    }
+
+                    wallpaper.state = "Normal"
+                    wallpaper.play = true
+                    wallpaper.slowDown()
+                }
+
+                function onStartLockscreened(output, showAnimation) {
+                    if (output !== rootOutputItem.output) {
+                        return;
+                    }
+
+                    wallpaper.play = false
+                    wallpaper.state = showAnimation ? "ScaleTo1.2" : "ScaleWithoutAnimation"
                 }
             }
         }

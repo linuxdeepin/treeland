@@ -21,6 +21,8 @@
 #include "usermodel.h"
 
 #include "common/treelandlogging.h"
+#include "helper.h"
+#include "session/session.h"
 
 #include <Configuration.h>
 
@@ -313,7 +315,8 @@ void UserModel::setCurrentUserName(const QString &userName) noexcept
 
     for (const auto &user : d->users) {
         if (user->waylandSocket()) {
-            user->waylandSocket()->setEnabled(user->userName() == userName);
+            user->waylandSocket()->setEnabled(user->userName() == userName,
+                                              Helper::instance()->sessionManager()->globalSession()->socket());
         }
     }
 

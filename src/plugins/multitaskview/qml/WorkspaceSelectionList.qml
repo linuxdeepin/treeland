@@ -144,16 +144,15 @@ Item {
                     }
                     clip: true
 
-                    WallpaperController {
-                        id: wpCtrl
+                    Wallpaper {
+                        id: wallpaper
                         output: root.output.outputItem.output
-                        lock: true
-                        type: WallpaperController.Normal
+                        workspace: workspaceThumbDelegate.workspace
                     }
 
                     ShaderEffectSource {
-                        id: wallpaper
-                        sourceItem: wpCtrl.proxy
+                        id: wallpaperSource
+                        sourceItem: wallpaper
                         anchors.fill: parent
                         recursive: false
                         hideSource: visible
@@ -166,8 +165,8 @@ Item {
                         preferredRendererType: Shape.CurveRenderer
                         ShapePath {
                             strokeWidth: 0
-                            fillItem: wallpaper
-                            fillTransform: PlanarTransform.fromScale(content.width / wpCtrl.proxy.width, content.height / wpCtrl.proxy.height, 0, 0)
+                            fillItem: wallpaperSource
+                            fillTransform: PlanarTransform.fromScale(content.width / wallpaper.width, content.height / wallpaper.height, 0, 0)
                             PathRectangle {
                                 width: content.width
                                 height: content.height
